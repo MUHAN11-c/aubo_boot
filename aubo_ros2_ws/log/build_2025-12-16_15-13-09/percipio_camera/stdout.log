@@ -1,0 +1,64 @@
+-- The C compiler identification is GNU 9.4.0
+-- The CXX compiler identification is GNU 9.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found ament_cmake: 0.9.12 (/opt/ros/foxy/share/ament_cmake/cmake)
+-- Using PYTHON_EXECUTABLE: /usr/bin/python3
+-- Found ament_index_cpp: 1.1.0 (/opt/ros/foxy/share/ament_index_cpp/cmake)
+-- Found builtin_interfaces: 1.0.0 (/opt/ros/foxy/share/builtin_interfaces/cmake)
+-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+-- Found rosidl_adapter: 1.3.1 (/opt/ros/foxy/share/rosidl_adapter/cmake)
+-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "1.1.1f")
+-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+-- Found cv_bridge: 3.0.7 (/opt/ros/foxy/share/cv_bridge/cmake)
+-- Found camera_info_manager: 2.4.0 (/opt/ros/foxy/share/camera_info_manager/cmake)
+-- Found rmw_implementation_cmake: 1.0.4 (/opt/ros/foxy/share/rmw_implementation_cmake/cmake)
+-- Using RMW implementation 'rmw_fastrtps_cpp' as default
+-- Setting yaml-cpp_DIR to: '/opt/ros/foxy/share/yaml_cpp_vendor/cmake/../../../opt/yaml_cpp_vendor/lib/cmake/yaml-cpp'
+-- Found image_transport: 2.4.0 (/opt/ros/foxy/share/image_transport/cmake)
+-- Found image_publisher: 2.3.0 (/opt/ros/foxy/share/image_publisher/cmake)
+-- Found std_srvs: 2.0.5 (/opt/ros/foxy/share/std_srvs/cmake)
+-- Found tf2: 0.13.14 (/opt/ros/foxy/share/tf2/cmake)
+-- Found tf2_eigen: 0.13.14 (/opt/ros/foxy/share/tf2_eigen/cmake)
+-- Found tf2_sensor_msgs: 0.13.14 (/opt/ros/foxy/share/tf2_sensor_msgs/cmake)
+-- Found diagnostic_updater: 3.1.2 (/opt/ros/foxy/share/diagnostic_updater/cmake)
+-- Found pcl_conversions: 2.2.1 (/opt/ros/foxy/share/pcl_conversions/cmake)
+-- Found rclcpp_lifecycle: 2.4.3 (/opt/ros/foxy/share/rclcpp_lifecycle/cmake)
+-- Found nav_msgs: 2.0.5 (/opt/ros/foxy/share/nav_msgs/cmake)
+-- Found tf2_geometry_msgs: 0.13.14 (/opt/ros/foxy/share/tf2_geometry_msgs/cmake)
+-- OpenCV version: 4.2.0
+-- PLC version: 
+-- Configuring done (2.3s)
+-- Generating done (0.1s)
+-- Build files have been written to: /home/mu/IVG/aubo_ros2_ws/build/percipio_camera
+[  5%] [32mBuilding CXX object CMakeFiles/percipio_camera.dir/src/DepthStreamProc.cpp.o[0m
+[ 25%] [32mBuilding CXX object CMakeFiles/percipio_camera.dir/src/percipio_video_mode.cpp.o[0m
+[ 25%] [32mBuilding CXX object CMakeFiles/percipio_camera.dir/src/percipio_camera_node.cpp.o[0m
+[ 25%] [32mBuilding CXX object CMakeFiles/percipio_camera_node.dir/rclcpp_components/node_main_percipio_camera_node.cpp.o[0m
+[ 25%] [32mBuilding CXX object CMakeFiles/percipio_camera.dir/src/percipio_camera_node_driver.cpp.o[0m
+[ 35%] [32mBuilding CXX object CMakeFiles/percipio_camera.dir/src/percipio_device.cpp.o[0m
+[ 40%] [32mBuilding CXX object CMakeFiles/percipio_camera.dir/src/TYThread.cpp.o[0m
+[ 55%] [32mBuilding CXX object CMakeFiles/percipio_camera.dir/src/percipio_depth_algorithm.cpp.o[0m
+[ 55%] [32mBuilding CXX object CMakeFiles/percipio_camera.dir/src/ImageSpeckleFilter.cpp.o[0m
+[ 55%] [32mBuilding CXX object CMakeFiles/percipio_camera.dir/src/MatViewer.cpp.o[0m
+[ 55%] [32mBuilding CXX object CMakeFiles/percipio_camera.dir/src/DepthInpainter.cpp.o[0m
+[ 60%] [32mBuilding CXX object CMakeFiles/percipio_camera.dir/src/huffman.cpp.o[0m
+[ 65%] [1m[32mLinking CXX executable percipio_camera_node[0m
+[ 65%] Built target percipio_camera_node
+[ 70%] [1m[32mLinking CXX shared library libpercipio_camera.so[0m
+[ 70%] Built target percipio_camera
+[ 75%] [32mBuilding CXX object CMakeFiles/list_devices.dir/src/list_devices.cpp.o[0m
+[ 80%] [32mBuilding CXX object CMakeFiles/list_devices.dir/src/DepthInpainter.cpp.o[0m
+[ 85%] [32mBuilding CXX object CMakeFiles/list_devices.dir/src/ImageSpeckleFilter.cpp.o[0m
+[ 90%] [32mBuilding CXX object CMakeFiles/list_devices.dir/src/MatViewer.cpp.o[0m
+[ 95%] [32mBuilding CXX object CMakeFiles/list_devices.dir/src/TYThread.cpp.o[0m
+[100%] [1m[32mLinking CXX executable list_devices[0m
+[100%] Built target list_devices

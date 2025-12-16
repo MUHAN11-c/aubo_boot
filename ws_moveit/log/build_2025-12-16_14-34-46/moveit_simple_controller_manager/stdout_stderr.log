@@ -1,0 +1,79 @@
+-- The C compiler identification is GNU 9.4.0
+-- The CXX compiler identification is GNU 9.4.0
+-- Check for working C compiler: /usr/bin/cc
+-- Check for working C compiler: /usr/bin/cc -- works
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Check for working CXX compiler: /usr/bin/c++
+-- Check for working CXX compiler: /usr/bin/c++ -- works
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found moveit_common: 2.2.3 (/home/mu/IVG/ws_moveit/install/moveit_common/share/moveit_common/cmake)
+-- Found ament_cmake: 0.9.12 (/opt/ros/foxy/share/ament_cmake/cmake)
+-- Found PythonInterp: /usr/bin/python3 (found suitable version "3.8.10", minimum required is "3") 
+-- Using PYTHON_EXECUTABLE: /usr/bin/python3
+moveit_simple_controller_manager: You did not request a specific build type: Choosing 'Release' for maximum performance
+-- Found moveit_core: 2.2.3 (/home/mu/IVG/ws_moveit/install/moveit_core/share/moveit_core/cmake)
+-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found version "1.71.0") found components: chrono date_time filesystem iostreams program_options regex serialization system thread 
+-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found version "1.71.0") found components: filesystem 
+-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+-- Found rosidl_adapter: 1.3.1 (/opt/ros/foxy/share/rosidl_adapter/cmake)
+-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "1.1.1f")  
+-- Found FastRTPS: /opt/ros/foxy/include  
+-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+-- Found rmw_implementation_cmake: 1.0.4 (/opt/ros/foxy/share/rmw_implementation_cmake/cmake)
+-- Using RMW implementation 'rmw_fastrtps_cpp' as default
+-- Found Threads: TRUE  
+-- library: /usr/lib/x86_64-linux-gnu/libcurl.so
+-- Found Eigen3: TRUE (found version "3.3.7") 
+-- Found pluginlib: 2.5.4 (/opt/ros/foxy/share/pluginlib/cmake)
+-- Found control_msgs: 2.5.1 (/opt/ros/foxy/share/control_msgs/cmake)
+-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found version "1.71.0") found components: thread 
+-- Found ament_lint_auto: 0.9.8 (/opt/ros/foxy/share/ament_lint_auto/cmake)
+-- Added test 'lint_cmake' to check CMake code style
+-- Added test 'xmllint' to check XML markup files
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/mu/IVG/ws_moveit/build/moveit_simple_controller_manager
+[35m[1mScanning dependencies of target moveit_simple_controller_manager[0m
+[ 33%] [32mBuilding CXX object CMakeFiles/moveit_simple_controller_manager.dir/src/follow_joint_trajectory_controller_handle.cpp.o[0m
+[ 66%] [32mBuilding CXX object CMakeFiles/moveit_simple_controller_manager.dir/src/moveit_simple_controller_manager.cpp.o[0m
+[100%] [32m[1mLinking CXX shared library libmoveit_simple_controller_manager.so[0m
+[100%] Built target moveit_simple_controller_manager
+-- Install configuration: "Release"
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/lib/libmoveit_simple_controller_manager.so.2.2.3
+-- Set runtime path of "/home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/lib/libmoveit_simple_controller_manager.so.2.2.3" to ""
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/lib/libmoveit_simple_controller_manager.so
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/include
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/include/moveit_simple_controller_manager
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/include/moveit_simple_controller_manager/gripper_controller_handle.h
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/include/moveit_simple_controller_manager/action_based_controller_handle.h
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/include/moveit_simple_controller_manager/follow_joint_trajectory_controller_handle.h
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/environment/library_path.sh
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/environment/library_path.dsv
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/moveit_simple_controller_manager_plugin_description.xml
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/ament_index/resource_index/package_run_dependencies/moveit_simple_controller_manager
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/ament_index/resource_index/parent_prefix_path/moveit_simple_controller_manager
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/environment/ament_prefix_path.sh
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/environment/ament_prefix_path.dsv
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/environment/path.sh
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/environment/path.dsv
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/local_setup.bash
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/local_setup.sh
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/local_setup.zsh
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/local_setup.dsv
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/package.dsv
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/ament_index/resource_index/packages/moveit_simple_controller_manager
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/ament_index/resource_index/moveit_core__pluginlib__plugin/moveit_simple_controller_manager
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/cmake/export_moveit_simple_controller_managerExport.cmake
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/cmake/export_moveit_simple_controller_managerExport-release.cmake
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/cmake/ConfigExtras.cmake
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/cmake/ament_cmake_export_targets-extras.cmake
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/cmake/ament_cmake_export_dependencies-extras.cmake
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/cmake/moveit_simple_controller_managerConfig.cmake
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/cmake/moveit_simple_controller_managerConfig-version.cmake
+-- Installing: /home/mu/IVG/ws_moveit/install/moveit_simple_controller_manager/share/moveit_simple_controller_manager/package.xml

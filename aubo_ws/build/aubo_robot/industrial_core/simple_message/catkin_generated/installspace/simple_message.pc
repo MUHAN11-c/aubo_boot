@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/aubo_ws/install
+
+Name: simple_message
+Description: Description of simple_message
+Version: 0.7.3
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib -lsimple_message_dummy
+Requires: industrial_msgs roscpp

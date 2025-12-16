@@ -1,0 +1,335 @@
+[0.088s] DEBUG:colcon:Command line arguments: ['/usr/bin/colcon', 'build', '--event-handlers', 'console_direct+', '--cmake-args', '-DCMAKE_BUILD_TYPE=Release']
+[0.088s] DEBUG:colcon:Parsed command line arguments: Namespace(allow_overriding=[], ament_cmake_args=None, base_paths=['.'], build_base='build', catkin_cmake_args=None, catkin_skip_building_tests=False, cmake_args=['-DCMAKE_BUILD_TYPE=Release'], cmake_clean_cache=False, cmake_clean_first=False, cmake_force_configure=False, cmake_target=None, cmake_target_skip_unavailable=False, continue_on_error=False, event_handlers=['console_direct+'], executor='parallel', ignore_user_meta=False, install_base='install', log_base=None, log_level=None, main=<bound method BuildVerb.main of <colcon_core.verb.build.BuildVerb object at 0x7f59cab72d90>>, merge_install=False, metas=['./colcon.meta'], mixin=None, mixin_files=None, mixin_verb=('build',), packages_above=None, packages_above_and_dependencies=None, packages_above_depth=None, packages_end=None, packages_ignore=None, packages_ignore_regex=None, packages_select=None, packages_select_build_failed=False, packages_select_by_dep=None, packages_select_regex=None, packages_select_test_failures=False, packages_skip=None, packages_skip_build_finished=False, packages_skip_by_dep=None, packages_skip_regex=None, packages_skip_test_passed=False, packages_skip_up_to=None, packages_start=None, packages_up_to=None, packages_up_to_regex=None, parallel_workers=32, paths=None, symlink_install=False, test_result_base=None, verb_extension=<colcon_core.verb.build.BuildVerb object at 0x7f59cab72d90>, verb_name='build', verb_parser=<colcon_mixin.mixin.mixin_argument.MixinArgumentDecorator object at 0x7f59cab813a0>)
+[0.153s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) check parameters
+[0.153s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) check parameters
+[0.153s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) check parameters
+[0.153s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) check parameters
+[0.153s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) discover
+[0.153s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) discover
+[0.153s] INFO:colcon.colcon_core.package_discovery:Crawling recursively for packages in '/home/mu/IVG/aubo_ros2_ws'
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ignore', 'ignore_ament_install']
+[0.154s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore'
+[0.154s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore_ament_install'
+[0.154s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['colcon_pkg']
+[0.154s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'colcon_pkg'
+[0.154s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['colcon_meta']
+[0.154s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'colcon_meta'
+[0.154s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ros']
+[0.154s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ros'
+[0.158s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['cmake', 'python']
+[0.158s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'cmake'
+[0.158s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'python'
+[0.158s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['python_setup_py']
+[0.158s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'python_setup_py'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(build) by extensions ['ignore', 'ignore_ament_install']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(build) by extension 'ignore'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(build) ignored
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(install) by extensions ['ignore', 'ignore_ament_install']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(install) by extension 'ignore'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(install) ignored
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(log) by extensions ['ignore', 'ignore_ament_install']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(log) by extension 'ignore'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(log) ignored
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['ignore', 'ignore_ament_install']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'ignore'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'ignore_ament_install'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['colcon_pkg']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'colcon_pkg'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['colcon_meta']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'colcon_meta'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['ros']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'ros'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['cmake', 'python']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'cmake'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'python'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['python_setup_py']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'python_setup_py'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver) by extensions ['ignore', 'ignore_ament_install']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver) by extension 'ignore'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver) by extension 'ignore_ament_install'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver) by extensions ['colcon_pkg']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver) by extension 'colcon_pkg'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver) by extensions ['colcon_meta']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver) by extension 'colcon_meta'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver) by extensions ['ros']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver) by extension 'ros'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver) by extensions ['cmake', 'python']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver) by extension 'cmake'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver) by extension 'python'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver) by extensions ['python_setup_py']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver) by extension 'python_setup_py'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_dashboard_msgs) by extensions ['ignore', 'ignore_ament_install']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_dashboard_msgs) by extension 'ignore'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_dashboard_msgs) by extension 'ignore_ament_install'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_dashboard_msgs) by extensions ['colcon_pkg']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_dashboard_msgs) by extension 'colcon_pkg'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_dashboard_msgs) by extensions ['colcon_meta']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_dashboard_msgs) by extension 'colcon_meta'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_dashboard_msgs) by extensions ['ros']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_dashboard_msgs) by extension 'ros'
+[0.161s] DEBUG:colcon.colcon_core.package_identification:Package 'src/aubo_ros2_driver/aubo_dashboard_msgs' with type 'ros.ament_cmake' and name 'aubo_dashboard_msgs'
+[0.161s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_description) by extensions ['ignore', 'ignore_ament_install']
+[0.161s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_description) by extension 'ignore'
+[0.161s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_description) by extension 'ignore_ament_install'
+[0.161s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_description) by extensions ['colcon_pkg']
+[0.161s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_description) by extension 'colcon_pkg'
+[0.161s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_description) by extensions ['colcon_meta']
+[0.161s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_description) by extension 'colcon_meta'
+[0.161s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_description) by extensions ['ros']
+[0.161s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_description) by extension 'ros'
+[0.163s] DEBUG:colcon.colcon_core.package_identification:Package 'src/aubo_ros2_driver/aubo_description' with type 'ros.ament_cmake' and name 'aubo_description'
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_moveit_config) by extensions ['ignore', 'ignore_ament_install']
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_moveit_config) by extension 'ignore'
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_moveit_config) by extension 'ignore_ament_install'
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_moveit_config) by extensions ['colcon_pkg']
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_moveit_config) by extension 'colcon_pkg'
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_moveit_config) by extensions ['colcon_meta']
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_moveit_config) by extension 'colcon_meta'
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_moveit_config) by extensions ['ros']
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_moveit_config) by extension 'ros'
+[0.167s] DEBUG:colcon.colcon_core.package_identification:Package 'src/aubo_ros2_driver/aubo_moveit_config' with type 'ros.ament_cmake' and name 'aubo_moveit_config'
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_msgs) by extensions ['ignore', 'ignore_ament_install']
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_msgs) by extension 'ignore'
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_msgs) by extension 'ignore_ament_install'
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_msgs) by extensions ['colcon_pkg']
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_msgs) by extension 'colcon_pkg'
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_msgs) by extensions ['colcon_meta']
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_msgs) by extension 'colcon_meta'
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_msgs) by extensions ['ros']
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(src/aubo_ros2_driver/aubo_msgs) by extension 'ros'
+[0.168s] DEBUG:colcon.colcon_core.package_identification:Package 'src/aubo_ros2_driver/aubo_msgs' with type 'ros.ament_cmake' and name 'aubo_msgs'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2) by extensions ['ignore', 'ignore_ament_install']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2) by extension 'ignore'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2) by extension 'ignore_ament_install'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2) by extensions ['colcon_pkg']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2) by extension 'colcon_pkg'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2) by extensions ['colcon_meta']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2) by extension 'colcon_meta'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2) by extensions ['ros']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2) by extension 'ros'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2) by extensions ['cmake', 'python']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2) by extension 'cmake'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2) by extension 'python'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2) by extensions ['python_setup_py']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2) by extension 'python_setup_py'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src) by extensions ['ignore', 'ignore_ament_install']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src) by extension 'ignore'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src) by extension 'ignore_ament_install'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src) by extensions ['colcon_pkg']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src) by extension 'colcon_pkg'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src) by extensions ['colcon_meta']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src) by extension 'colcon_meta'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src) by extensions ['ros']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src) by extension 'ros'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src) by extensions ['cmake', 'python']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src) by extension 'cmake'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src) by extension 'python'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src) by extensions ['python_setup_py']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src) by extension 'python_setup_py'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src/percipio_camera) by extensions ['ignore', 'ignore_ament_install']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src/percipio_camera) by extension 'ignore'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src/percipio_camera) by extension 'ignore_ament_install'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src/percipio_camera) by extensions ['colcon_pkg']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src/percipio_camera) by extension 'colcon_pkg'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src/percipio_camera) by extensions ['colcon_meta']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src/percipio_camera) by extension 'colcon_meta'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src/percipio_camera) by extensions ['ros']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(src/camport_ros2/src/percipio_camera) by extension 'ros'
+[0.168s] DEBUG:colcon.colcon_core.package_identification:Package 'src/camport_ros2/src/percipio_camera' with type 'ros.ament_cmake' and name 'percipio_camera'
+[0.168s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) using defaults
+[0.168s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) discover
+[0.169s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) using defaults
+[0.169s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) discover
+[0.169s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) using defaults
+[0.175s] Level 1:colcon.colcon_core.package_discovery:discover_packages(prefix_path) check parameters
+[0.175s] Level 1:colcon.colcon_core.package_discovery:discover_packages(prefix_path) discover
+[0.176s] DEBUG:colcon.colcon_installed_package_information.package_discovery:Found 307 installed packages in /opt/ros/foxy
+[0.177s] Level 1:colcon.colcon_core.package_discovery:discover_packages(prefix_path) using defaults
+[0.202s] Level 5:colcon.colcon_core.verb:set package 'aubo_dashboard_msgs' build argument 'cmake_args' from command line to '['-DCMAKE_BUILD_TYPE=Release']'
+[0.202s] Level 5:colcon.colcon_core.verb:set package 'aubo_dashboard_msgs' build argument 'cmake_target' from command line to 'None'
+[0.202s] Level 5:colcon.colcon_core.verb:set package 'aubo_dashboard_msgs' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[0.202s] Level 5:colcon.colcon_core.verb:set package 'aubo_dashboard_msgs' build argument 'cmake_clean_cache' from command line to 'False'
+[0.202s] Level 5:colcon.colcon_core.verb:set package 'aubo_dashboard_msgs' build argument 'cmake_clean_first' from command line to 'False'
+[0.202s] Level 5:colcon.colcon_core.verb:set package 'aubo_dashboard_msgs' build argument 'cmake_force_configure' from command line to 'False'
+[0.202s] Level 5:colcon.colcon_core.verb:set package 'aubo_dashboard_msgs' build argument 'ament_cmake_args' from command line to 'None'
+[0.202s] Level 5:colcon.colcon_core.verb:set package 'aubo_dashboard_msgs' build argument 'catkin_cmake_args' from command line to 'None'
+[0.202s] Level 5:colcon.colcon_core.verb:set package 'aubo_dashboard_msgs' build argument 'catkin_skip_building_tests' from command line to 'False'
+[0.202s] DEBUG:colcon.colcon_core.verb:Building package 'aubo_dashboard_msgs' with the following arguments: {'ament_cmake_args': None, 'build_base': '/home/mu/IVG/aubo_ros2_ws/build/aubo_dashboard_msgs', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': ['-DCMAKE_BUILD_TYPE=Release'], 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs', 'merge_install': False, 'path': '/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_dashboard_msgs', 'symlink_install': False, 'test_result_base': None}
+[0.202s] Level 5:colcon.colcon_core.verb:set package 'aubo_description' build argument 'cmake_args' from command line to '['-DCMAKE_BUILD_TYPE=Release']'
+[0.202s] Level 5:colcon.colcon_core.verb:set package 'aubo_description' build argument 'cmake_target' from command line to 'None'
+[0.202s] Level 5:colcon.colcon_core.verb:set package 'aubo_description' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[0.202s] Level 5:colcon.colcon_core.verb:set package 'aubo_description' build argument 'cmake_clean_cache' from command line to 'False'
+[0.202s] Level 5:colcon.colcon_core.verb:set package 'aubo_description' build argument 'cmake_clean_first' from command line to 'False'
+[0.202s] Level 5:colcon.colcon_core.verb:set package 'aubo_description' build argument 'cmake_force_configure' from command line to 'False'
+[0.202s] Level 5:colcon.colcon_core.verb:set package 'aubo_description' build argument 'ament_cmake_args' from command line to 'None'
+[0.202s] Level 5:colcon.colcon_core.verb:set package 'aubo_description' build argument 'catkin_cmake_args' from command line to 'None'
+[0.202s] Level 5:colcon.colcon_core.verb:set package 'aubo_description' build argument 'catkin_skip_building_tests' from command line to 'False'
+[0.202s] DEBUG:colcon.colcon_core.verb:Building package 'aubo_description' with the following arguments: {'ament_cmake_args': None, 'build_base': '/home/mu/IVG/aubo_ros2_ws/build/aubo_description', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': ['-DCMAKE_BUILD_TYPE=Release'], 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/home/mu/IVG/aubo_ros2_ws/install/aubo_description', 'merge_install': False, 'path': '/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_description', 'symlink_install': False, 'test_result_base': None}
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'aubo_msgs' build argument 'cmake_args' from command line to '['-DCMAKE_BUILD_TYPE=Release']'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'aubo_msgs' build argument 'cmake_target' from command line to 'None'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'aubo_msgs' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'aubo_msgs' build argument 'cmake_clean_cache' from command line to 'False'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'aubo_msgs' build argument 'cmake_clean_first' from command line to 'False'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'aubo_msgs' build argument 'cmake_force_configure' from command line to 'False'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'aubo_msgs' build argument 'ament_cmake_args' from command line to 'None'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'aubo_msgs' build argument 'catkin_cmake_args' from command line to 'None'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'aubo_msgs' build argument 'catkin_skip_building_tests' from command line to 'False'
+[0.203s] DEBUG:colcon.colcon_core.verb:Building package 'aubo_msgs' with the following arguments: {'ament_cmake_args': None, 'build_base': '/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': ['-DCMAKE_BUILD_TYPE=Release'], 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/home/mu/IVG/aubo_ros2_ws/install/aubo_msgs', 'merge_install': False, 'path': '/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_msgs', 'symlink_install': False, 'test_result_base': None}
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'percipio_camera' build argument 'cmake_args' from command line to '['-DCMAKE_BUILD_TYPE=Release']'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'percipio_camera' build argument 'cmake_target' from command line to 'None'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'percipio_camera' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'percipio_camera' build argument 'cmake_clean_cache' from command line to 'False'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'percipio_camera' build argument 'cmake_clean_first' from command line to 'False'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'percipio_camera' build argument 'cmake_force_configure' from command line to 'False'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'percipio_camera' build argument 'ament_cmake_args' from command line to 'None'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'percipio_camera' build argument 'catkin_cmake_args' from command line to 'None'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'percipio_camera' build argument 'catkin_skip_building_tests' from command line to 'False'
+[0.203s] DEBUG:colcon.colcon_core.verb:Building package 'percipio_camera' with the following arguments: {'ament_cmake_args': None, 'build_base': '/home/mu/IVG/aubo_ros2_ws/build/percipio_camera', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': ['-DCMAKE_BUILD_TYPE=Release'], 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/home/mu/IVG/aubo_ros2_ws/install/percipio_camera', 'merge_install': False, 'path': '/home/mu/IVG/aubo_ros2_ws/src/camport_ros2/src/percipio_camera', 'symlink_install': False, 'test_result_base': None}
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'aubo_moveit_config' build argument 'cmake_args' from command line to '['-DCMAKE_BUILD_TYPE=Release']'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'aubo_moveit_config' build argument 'cmake_target' from command line to 'None'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'aubo_moveit_config' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'aubo_moveit_config' build argument 'cmake_clean_cache' from command line to 'False'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'aubo_moveit_config' build argument 'cmake_clean_first' from command line to 'False'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'aubo_moveit_config' build argument 'cmake_force_configure' from command line to 'False'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'aubo_moveit_config' build argument 'ament_cmake_args' from command line to 'None'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'aubo_moveit_config' build argument 'catkin_cmake_args' from command line to 'None'
+[0.203s] Level 5:colcon.colcon_core.verb:set package 'aubo_moveit_config' build argument 'catkin_skip_building_tests' from command line to 'False'
+[0.203s] DEBUG:colcon.colcon_core.verb:Building package 'aubo_moveit_config' with the following arguments: {'ament_cmake_args': None, 'build_base': '/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': ['-DCMAKE_BUILD_TYPE=Release'], 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config', 'merge_install': False, 'path': '/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_moveit_config', 'symlink_install': False, 'test_result_base': None}
+[0.203s] INFO:colcon.colcon_core.executor:Executing jobs using 'parallel' executor
+[0.204s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete
+[0.204s] INFO:colcon.colcon_ros.task.ament_cmake.build:Building ROS package in '/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_description' with build type 'ament_cmake'
+[0.204s] INFO:colcon.colcon_cmake.task.cmake.build:Building CMake package in '/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_description'
+[0.205s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_core.shell.bat': Not used on non-Windows systems
+[0.205s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.205s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[0.207s] INFO:colcon.colcon_ros.task.ament_cmake.build:Building ROS package in '/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_dashboard_msgs' with build type 'ament_cmake'
+[0.207s] INFO:colcon.colcon_cmake.task.cmake.build:Building CMake package in '/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_dashboard_msgs'
+[0.207s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.207s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[0.209s] INFO:colcon.colcon_ros.task.ament_cmake.build:Building ROS package in '/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_msgs' with build type 'ament_cmake'
+[0.210s] INFO:colcon.colcon_cmake.task.cmake.build:Building CMake package in '/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_msgs'
+[0.210s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.210s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[0.212s] INFO:colcon.colcon_ros.task.ament_cmake.build:Building ROS package in '/home/mu/IVG/aubo_ros2_ws/src/camport_ros2/src/percipio_camera' with build type 'ament_cmake'
+[0.212s] INFO:colcon.colcon_cmake.task.cmake.build:Building CMake package in '/home/mu/IVG/aubo_ros2_ws/src/camport_ros2/src/percipio_camera'
+[0.212s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.212s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[0.216s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/home/mu/IVG/aubo_ros2_ws/build/aubo_description': CMAKE_PREFIX_PATH=/opt/ros/foxy /usr/bin/cmake /home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_description -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/home/mu/IVG/aubo_ros2_ws/install/aubo_description
+[0.219s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/home/mu/IVG/aubo_ros2_ws/build/aubo_dashboard_msgs': CMAKE_PREFIX_PATH=/opt/ros/foxy /usr/bin/cmake --build /home/mu/IVG/aubo_ros2_ws/build/aubo_dashboard_msgs -- -j32 -l32
+[0.220s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs': CMAKE_PREFIX_PATH=/opt/ros/foxy /usr/bin/cmake --build /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs -- -j32 -l32
+[0.223s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/home/mu/IVG/aubo_ros2_ws/build/percipio_camera': CMAKE_PREFIX_PATH=/opt/ros/foxy /usr/bin/cmake /home/mu/IVG/aubo_ros2_ws/src/camport_ros2/src/percipio_camera -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/home/mu/IVG/aubo_ros2_ws/install/percipio_camera
+[0.520s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/home/mu/IVG/aubo_ros2_ws/build/aubo_description' returned '0': CMAKE_PREFIX_PATH=/opt/ros/foxy /usr/bin/cmake /home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_description -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/home/mu/IVG/aubo_ros2_ws/install/aubo_description
+[0.521s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/home/mu/IVG/aubo_ros2_ws/build/aubo_description': CMAKE_PREFIX_PATH=/opt/ros/foxy /usr/bin/cmake --build /home/mu/IVG/aubo_ros2_ws/build/aubo_description -- -j32 -l32
+[0.541s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/home/mu/IVG/aubo_ros2_ws/build/aubo_description' returned '0': CMAKE_PREFIX_PATH=/opt/ros/foxy /usr/bin/cmake --build /home/mu/IVG/aubo_ros2_ws/build/aubo_description -- -j32 -l32
+[0.546s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/home/mu/IVG/aubo_ros2_ws/build/aubo_description': CMAKE_PREFIX_PATH=/opt/ros/foxy /usr/bin/cmake --install /home/mu/IVG/aubo_ros2_ws/build/aubo_description
+[0.635s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(aubo_description)
+[0.640s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_description' for CMake module files
+[0.640s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_description' for CMake config files
+[0.663s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/home/mu/IVG/aubo_ros2_ws/build/aubo_description' returned '0': CMAKE_PREFIX_PATH=/opt/ros/foxy /usr/bin/cmake --install /home/mu/IVG/aubo_ros2_ws/build/aubo_description
+[0.664s] Level 1:colcon.colcon_core.shell:create_environment_hook('aubo_description', 'cmake_prefix_path')
+[0.664s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/share/aubo_description/hook/cmake_prefix_path.ps1'
+[0.664s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/share/aubo_description/hook/cmake_prefix_path.dsv'
+[0.665s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/share/aubo_description/hook/cmake_prefix_path.sh'
+[0.665s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/bin'
+[0.665s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/lib/pkgconfig/aubo_description.pc'
+[0.665s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/lib/python3.8/site-packages'
+[0.665s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/bin'
+[0.666s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/share/aubo_description/package.ps1'
+[0.666s] INFO:colcon.colcon_core.shell:Creating package descriptor '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/share/aubo_description/package.dsv'
+[0.666s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/share/aubo_description/package.sh'
+[0.667s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/share/aubo_description/package.bash'
+[0.667s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/share/aubo_description/package.zsh'
+[0.667s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/home/mu/IVG/aubo_ros2_ws/install/aubo_description/share/colcon-core/packages/aubo_description)
+[0.667s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(aubo_description)
+[0.668s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_description' for CMake module files
+[0.668s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_description' for CMake config files
+[0.669s] Level 1:colcon.colcon_core.shell:create_environment_hook('aubo_description', 'cmake_prefix_path')
+[0.670s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/share/aubo_description/hook/cmake_prefix_path.ps1'
+[0.670s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/share/aubo_description/hook/cmake_prefix_path.dsv'
+[0.670s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/share/aubo_description/hook/cmake_prefix_path.sh'
+[0.670s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/bin'
+[0.670s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/lib/pkgconfig/aubo_description.pc'
+[0.670s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/lib/python3.8/site-packages'
+[0.670s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/bin'
+[0.671s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/share/aubo_description/package.ps1'
+[0.671s] INFO:colcon.colcon_core.shell:Creating package descriptor '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/share/aubo_description/package.dsv'
+[0.671s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/share/aubo_description/package.sh'
+[0.671s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/share/aubo_description/package.bash'
+[0.671s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/aubo_description/share/aubo_description/package.zsh'
+[0.672s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/home/mu/IVG/aubo_ros2_ws/install/aubo_description/share/colcon-core/packages/aubo_description)
+[0.672s] INFO:colcon.colcon_ros.task.ament_cmake.build:Building ROS package in '/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_moveit_config' with build type 'ament_cmake'
+[0.672s] INFO:colcon.colcon_cmake.task.cmake.build:Building CMake package in '/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_moveit_config'
+[0.672s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.672s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[0.678s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config': AMENT_PREFIX_PATH=/home/mu/IVG/aubo_ros2_ws/install/aubo_description:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/opt/ros/foxy:/home/mu/IVG/aubo_ros2_ws/install/aubo_description /usr/bin/cmake /home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_moveit_config -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config
+[0.931s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config' returned '0': AMENT_PREFIX_PATH=/home/mu/IVG/aubo_ros2_ws/install/aubo_description:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/opt/ros/foxy:/home/mu/IVG/aubo_ros2_ws/install/aubo_description /usr/bin/cmake /home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_moveit_config -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config
+[0.934s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config': AMENT_PREFIX_PATH=/home/mu/IVG/aubo_ros2_ws/install/aubo_description:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/opt/ros/foxy:/home/mu/IVG/aubo_ros2_ws/install/aubo_description /usr/bin/cmake --build /home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config -- -j32 -l32
+[1.042s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config' returned '0': AMENT_PREFIX_PATH=/home/mu/IVG/aubo_ros2_ws/install/aubo_description:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/opt/ros/foxy:/home/mu/IVG/aubo_ros2_ws/install/aubo_description /usr/bin/cmake --build /home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config -- -j32 -l32
+[1.043s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config': AMENT_PREFIX_PATH=/home/mu/IVG/aubo_ros2_ws/install/aubo_description:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/opt/ros/foxy:/home/mu/IVG/aubo_ros2_ws/install/aubo_description /usr/bin/cmake --install /home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config
+[1.068s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(aubo_moveit_config)
+[1.068s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config' for CMake module files
+[1.069s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config' for CMake config files
+[1.069s] Level 1:colcon.colcon_core.shell:create_environment_hook('aubo_moveit_config', 'cmake_prefix_path')
+[1.069s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/share/aubo_moveit_config/hook/cmake_prefix_path.ps1'
+[1.070s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/share/aubo_moveit_config/hook/cmake_prefix_path.dsv'
+[1.070s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/share/aubo_moveit_config/hook/cmake_prefix_path.sh'
+[1.070s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/bin'
+[1.071s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/lib/pkgconfig/aubo_moveit_config.pc'
+[1.071s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/lib/python3.8/site-packages'
+[1.071s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/bin'
+[1.071s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/share/aubo_moveit_config/package.ps1'
+[1.072s] INFO:colcon.colcon_core.shell:Creating package descriptor '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/share/aubo_moveit_config/package.dsv'
+[1.072s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/share/aubo_moveit_config/package.sh'
+[1.073s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/share/aubo_moveit_config/package.bash'
+[1.073s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/share/aubo_moveit_config/package.zsh'
+[1.073s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/share/colcon-core/packages/aubo_moveit_config)
+[1.074s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(aubo_moveit_config)
+[1.076s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config' returned '0': AMENT_PREFIX_PATH=/home/mu/IVG/aubo_ros2_ws/install/aubo_description:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/opt/ros/foxy:/home/mu/IVG/aubo_ros2_ws/install/aubo_description /usr/bin/cmake --install /home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config
+[1.076s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config' for CMake module files
+[1.077s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config' for CMake config files
+[1.077s] Level 1:colcon.colcon_core.shell:create_environment_hook('aubo_moveit_config', 'cmake_prefix_path')
+[1.077s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/share/aubo_moveit_config/hook/cmake_prefix_path.ps1'
+[1.078s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/share/aubo_moveit_config/hook/cmake_prefix_path.dsv'
+[1.078s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/share/aubo_moveit_config/hook/cmake_prefix_path.sh'
+[1.079s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/bin'
+[1.079s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/lib/pkgconfig/aubo_moveit_config.pc'
+[1.079s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/lib/python3.8/site-packages'
+[1.079s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/bin'
+[1.080s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/share/aubo_moveit_config/package.ps1'
+[1.081s] INFO:colcon.colcon_core.shell:Creating package descriptor '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/share/aubo_moveit_config/package.dsv'
+[1.082s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/share/aubo_moveit_config/package.sh'
+[1.082s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/share/aubo_moveit_config/package.bash'
+[1.082s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/share/aubo_moveit_config/package.zsh'
+[1.083s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config/share/colcon-core/packages/aubo_moveit_config)
+[1.738s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/home/mu/IVG/aubo_ros2_ws/build/percipio_camera' returned '1': CMAKE_PREFIX_PATH=/opt/ros/foxy /usr/bin/cmake /home/mu/IVG/aubo_ros2_ws/src/camport_ros2/src/percipio_camera -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/home/mu/IVG/aubo_ros2_ws/install/percipio_camera
+[1.753s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(percipio_camera)
+[1.753s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/percipio_camera' for CMake module files
+[1.753s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/percipio_camera' for CMake config files
+[1.754s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/percipio_camera/bin'
+[1.754s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/percipio_camera/lib/pkgconfig/percipio_camera.pc'
+[1.754s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/percipio_camera/lib/python3.8/site-packages'
+[1.754s] Level 1:colcon.colcon_core.environment:checking '/home/mu/IVG/aubo_ros2_ws/install/percipio_camera/bin'
+[1.755s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/percipio_camera/share/percipio_camera/package.ps1'
+[1.755s] INFO:colcon.colcon_core.shell:Creating package descriptor '/home/mu/IVG/aubo_ros2_ws/install/percipio_camera/share/percipio_camera/package.dsv'
+[1.756s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/percipio_camera/share/percipio_camera/package.sh'
+[1.756s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/percipio_camera/share/percipio_camera/package.bash'
+[1.756s] INFO:colcon.colcon_core.shell:Creating package script '/home/mu/IVG/aubo_ros2_ws/install/percipio_camera/share/percipio_camera/package.zsh'
+[1.757s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/home/mu/IVG/aubo_ros2_ws/install/percipio_camera/share/colcon-core/packages/percipio_camera)
+[3.029s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:closing loop
+[3.029s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:loop closed
+[3.029s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete finished with '1'
+[3.029s] DEBUG:colcon.colcon_core.event_reactor:joining thread
+[3.034s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.terminal_notifier': Not used on non-Darwin systems
+[3.034s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.win32': Not used on non-Windows systems
+[3.034s] INFO:colcon.colcon_notification.desktop_notification:Sending desktop notification using 'notify2'
+[3.046s] DEBUG:colcon.colcon_core.event_reactor:joined thread
+[3.047s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/mu/IVG/aubo_ros2_ws/install/local_setup.ps1'
+[3.047s] INFO:colcon.colcon_core.shell:Creating prefix util module '/home/mu/IVG/aubo_ros2_ws/install/_local_setup_util_ps1.py'
+[3.048s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/mu/IVG/aubo_ros2_ws/install/setup.ps1'
+[3.049s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/mu/IVG/aubo_ros2_ws/install/local_setup.sh'
+[3.049s] INFO:colcon.colcon_core.shell:Creating prefix util module '/home/mu/IVG/aubo_ros2_ws/install/_local_setup_util_sh.py'
+[3.050s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/mu/IVG/aubo_ros2_ws/install/setup.sh'
+[3.052s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/mu/IVG/aubo_ros2_ws/install/local_setup.bash'
+[3.053s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/mu/IVG/aubo_ros2_ws/install/setup.bash'
+[3.055s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/mu/IVG/aubo_ros2_ws/install/local_setup.zsh'
+[3.056s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/mu/IVG/aubo_ros2_ws/install/setup.zsh'

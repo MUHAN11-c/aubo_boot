@@ -1,0 +1,14 @@
+[0.014s] Invoking command in '/home/mu/IVG/aubo_ros2_ws/build/aubo_description': CMAKE_PREFIX_PATH=/home/mu/IVG/aubo_ros2_ws/install/percipio_camera:/home/mu/IVG/aubo_ros2_ws/install/aubo_msgs:/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config:/opt/ros/foxy:/home/mu/IVG/aubo_ros2_ws/install/aubo_description:/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs /usr/bin/cmake --build /home/mu/IVG/aubo_ros2_ws/build/aubo_description -- -j32 -l32
+[0.047s] [31mCMake Error at CMakeLists.txt:1 (cmake_minimum_required):
+[0.047s]   Compatibility with CMake < 3.5 has been removed from CMake.
+[0.047s] 
+[0.047s]   Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+[0.047s]   to tell CMake that the project requires at least <min> but has been updated
+[0.047s]   to work with policies introduced by <max> or earlier.
+[0.047s] 
+[0.047s]   Or, add -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
+[0.047s] 
+[0.047s] [0m
+[0.047s] -- Configuring incomplete, errors occurred!
+[0.047s] make: *** [Makefile:236：cmake_check_build_system] 错误 1
+[0.048s] Invoked command in '/home/mu/IVG/aubo_ros2_ws/build/aubo_description' returned '2': CMAKE_PREFIX_PATH=/home/mu/IVG/aubo_ros2_ws/install/percipio_camera:/home/mu/IVG/aubo_ros2_ws/install/aubo_msgs:/home/mu/IVG/aubo_ros2_ws/install/aubo_moveit_config:/opt/ros/foxy:/home/mu/IVG/aubo_ros2_ws/install/aubo_description:/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs /usr/bin/cmake --build /home/mu/IVG/aubo_ros2_ws/build/aubo_description -- -j32 -l32

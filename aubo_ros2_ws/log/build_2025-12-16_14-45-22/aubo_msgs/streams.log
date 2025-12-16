@@ -1,0 +1,22 @@
+[0.009s] Invoking command in '/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs': /usr/bin/cmake /home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_msgs -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/home/mu/IVG/aubo_ros2_ws/install/aubo_msgs
+[0.014s] -- Found ament_cmake: 0.9.12 (/opt/ros/foxy/share/ament_cmake/cmake)
+[0.025s] -- Found PythonInterp: /usr/bin/python3 (found suitable version "3.8.10", minimum required is "3") 
+[0.025s] -- Using PYTHON_EXECUTABLE: /usr/bin/python3
+[0.091s] Traceback (most recent call last):
+[0.091s]   File "/opt/ros/foxy/share/ament_cmake_core/cmake/package_templates/templates_2_cmake.py", line 21, in <module>
+[0.091s]     from ament_package.templates import get_environment_hook_template_path
+[0.091s] ModuleNotFoundError: No module named 'ament_package'
+[0.101s] CMake Error at /opt/ros/foxy/share/ament_cmake_core/cmake/ament_cmake_package_templates-extras.cmake:41 (message):
+[0.101s]   execute_process(/usr/bin/python3
+[0.101s]   /opt/ros/foxy/share/ament_cmake_core/cmake/package_templates/templates_2_cmake.py
+[0.101s]   /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/ament_cmake_package_templates/templates.cmake)
+[0.101s]   returned error code 1
+[0.101s] Call Stack (most recent call first):
+[0.101s]   /opt/ros/foxy/share/ament_cmake_core/cmake/ament_cmake_coreConfig.cmake:41 (include)
+[0.101s]   /opt/ros/foxy/share/ament_cmake/cmake/ament_cmake_export_dependencies-extras.cmake:15 (find_package)
+[0.101s]   /opt/ros/foxy/share/ament_cmake/cmake/ament_cmakeConfig.cmake:41 (include)
+[0.101s]   CMakeLists.txt:4 (find_package)
+[0.101s] 
+[0.101s] 
+[0.103s] -- Configuring incomplete, errors occurred!
+[0.103s] See also "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/CMakeOutput.log".

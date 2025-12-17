@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Set Robot IO Service Server Node -->
+  <node name="set_robot_io_server_node" 
+        pkg="demo_driver" 
+        type="set_robot_io_server_node" 
+        output="screen">
+    
+    <!-- Parameters -->
+    <param name="aubo_set_io_service" value="/aubo_driver/set_io" />
+  </node>
+</launch>
+

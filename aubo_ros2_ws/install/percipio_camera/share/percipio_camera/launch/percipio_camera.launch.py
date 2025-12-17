@@ -10,8 +10,8 @@ def generate_launch_description():
     # Declare arguments
     args = [
         DeclareLaunchArgument('camera_name', default_value='camera'),
-        DeclareLaunchArgument('serial_number', default_value='""'),
-        DeclareLaunchArgument('device_ip', default_value=''),
+        DeclareLaunchArgument('serial_number', default_value='"207000152740"'),
+        DeclareLaunchArgument('device_ip', default_value='169.25410.91'),
 
         # Setup device work mode
         # If using trigger_stoft mode, you can refer to the example file "send_trigger.py" to send soft trigger signal

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.8)
 project(aubo_description)
 
 option(INSTALL_AUBO_DESCRIPTION "INSTALL_AUBO_DESCRIPTION" ON) 

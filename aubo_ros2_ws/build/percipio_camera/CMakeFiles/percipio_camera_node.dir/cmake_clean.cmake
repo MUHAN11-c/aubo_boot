@@ -1,6 +1,5 @@
 file(REMOVE_RECURSE
   "CMakeFiles/percipio_camera_node.dir/rclcpp_components/node_main_percipio_camera_node.cpp.o"
-  "CMakeFiles/percipio_camera_node.dir/rclcpp_components/node_main_percipio_camera_node.cpp.o.d"
   "percipio_camera_node"
   "percipio_camera_node.pdb"
 )

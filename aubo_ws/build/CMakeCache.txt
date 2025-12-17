@@ -51,7 +51,7 @@ CATKIN_SKIP_TESTING:BOOL=OFF
 CATKIN_SYMLINK_INSTALL:BOOL=OFF
 
 //List of ';' separated packages to build
-CATKIN_WHITELIST_PACKAGES:STRING=
+CATKIN_WHITELIST_PACKAGES:STRING=aubo_msgs;demo_driver;demo_interface;industrial_msgs
 
 //Path to a program.
 CMAKE_ADDR2LINE:FILEPATH=/usr/bin/addr2line
@@ -137,7 +137,10 @@ CMAKE_EXE_LINKER_FLAGS_RELEASE:STRING=
 CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO:STRING=
 
 //Enable/Disable output of compile commands during generation.
-CMAKE_EXPORT_COMPILE_COMMANDS:BOOL=OFF
+CMAKE_EXPORT_COMPILE_COMMANDS:BOOL=
+
+//Value Computed by CMake.
+CMAKE_FIND_PACKAGE_REDIRECTS_DIR:STATIC=/home/mu/IVG/aubo_ws/build/CMakeFiles/pkgRedirects
 
 //User executables (bin)
 CMAKE_INSTALL_BINDIR:PATH=bin
@@ -226,6 +229,9 @@ CMAKE_OBJCOPY:FILEPATH=/usr/bin/objcopy
 CMAKE_OBJDUMP:FILEPATH=/usr/bin/objdump
 
 //Value Computed by CMake
+CMAKE_PROJECT_COMPAT_VERSION:STATIC=
+
+//Value Computed by CMake
 CMAKE_PROJECT_DESCRIPTION:STATIC=
 
 //Value Computed by CMake
@@ -233,6 +239,9 @@ CMAKE_PROJECT_HOMEPAGE_URL:STATIC=
 
 //Value Computed by CMake
 CMAKE_PROJECT_NAME:STATIC=Project
+
+//Value Computed by CMake
+CMAKE_PROJECT_SPDX_LICENSE:STATIC=
 
 //Value Computed by CMake
 CMAKE_PROJECT_VERSION:STATIC=1.10.0
@@ -282,28 +291,31 @@ CMAKE_SKIP_INSTALL_RPATH:BOOL=NO
 //If set, runtime paths are not added when using shared libraries.
 CMAKE_SKIP_RPATH:BOOL=NO
 
-//Flags used by the linker during the creation of static libraries
+//Flags used by the archiver during the creation of static libraries
 // during all build types.
 CMAKE_STATIC_LINKER_FLAGS:STRING=
 
-//Flags used by the linker during the creation of static libraries
+//Flags used by the archiver during the creation of static libraries
 // during DEBUG builds.
 CMAKE_STATIC_LINKER_FLAGS_DEBUG:STRING=
 
-//Flags used by the linker during the creation of static libraries
+//Flags used by the archiver during the creation of static libraries
 // during MINSIZEREL builds.
 CMAKE_STATIC_LINKER_FLAGS_MINSIZEREL:STRING=
 
-//Flags used by the linker during the creation of static libraries
+//Flags used by the archiver during the creation of static libraries
 // during RELEASE builds.
 CMAKE_STATIC_LINKER_FLAGS_RELEASE:STRING=
 
-//Flags used by the linker during the creation of static libraries
+//Flags used by the archiver during the creation of static libraries
 // during RELWITHDEBINFO builds.
 CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO:STRING=
 
 //Path to a program.
 CMAKE_STRIP:FILEPATH=/usr/bin/strip
+
+//Path to a program.
+CMAKE_TAPI:FILEPATH=CMAKE_TAPI-NOTFOUND
 
 //If this value is on, makefiles will be generated without the
 // .SILENT directive, and all commands will be echoed to the console
@@ -312,7 +324,10 @@ CMAKE_STRIP:FILEPATH=/usr/bin/strip
 CMAKE_VERBOSE_MAKEFILE:BOOL=FALSE
 
 //Path to a program.
-DOXYGEN_EXECUTABLE:FILEPATH=DOXYGEN_EXECUTABLE-NOTFOUND
+DOXYGEN_EXECUTABLE:FILEPATH=/usr/bin/doxygen
+
+//Doxygen found
+DOXYGEN_FOUND:BOOL=TRUE
 
 //Path to a program.
 EMPY_EXECUTABLE:FILEPATH=EMPY_EXECUTABLE-NOTFOUND
@@ -379,6 +394,9 @@ PY_EM:STRING=/usr/lib/python3/dist-packages/em.py
 Project_BINARY_DIR:STATIC=/home/mu/IVG/aubo_ws/build
 
 //Value Computed by CMake
+Project_IS_TOP_LEVEL:STATIC=ON
+
+//Value Computed by CMake
 Project_SOURCE_DIR:STATIC=/home/mu/IVG/aubo_ws/src
 
 //Path to a library.
@@ -439,12 +457,6 @@ aubo_driver_BINARY_DIR:STATIC=/home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/a
 aubo_driver_SOURCE_DIR:STATIC=/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_driver
 
 //Value Computed by CMake
-aubo_e3_moveit_config_BINARY_DIR:STATIC=/home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/aubo_e3_moveit_config
-
-//Value Computed by CMake
-aubo_e3_moveit_config_SOURCE_DIR:STATIC=/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_e3_moveit_config
-
-//Value Computed by CMake
 aubo_e5_moveit_config_BINARY_DIR:STATIC=/home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/aubo_e5_moveit_config
 
 //Value Computed by CMake
@@ -456,68 +468,14 @@ aubo_gazebo_BINARY_DIR:STATIC=/home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/a
 //Value Computed by CMake
 aubo_gazebo_SOURCE_DIR:STATIC=/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_gazebo
 
-//Value Computed by CMake
-aubo_i10_moveit_config_BINARY_DIR:STATIC=/home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/aubo_i10_moveit_config
-
-//Value Computed by CMake
-aubo_i10_moveit_config_SOURCE_DIR:STATIC=/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_i10_moveit_config
-
 //Dependencies for the target
 aubo_i10_moveit_kinematic_plugin_LIB_DEPENDS:STATIC=general;/opt/ros/noetic/lib/libmoveit_common_planning_interface_objects.so;general;/opt/ros/noetic/lib/libmoveit_planning_scene_interface.so;general;/opt/ros/noetic/lib/libmoveit_move_group_interface.so;general;/opt/ros/noetic/lib/libmoveit_py_bindings_tools.so;general;/opt/ros/noetic/lib/libmoveit_warehouse.so;general;/opt/ros/noetic/lib/libwarehouse_ros.so;general;/opt/ros/noetic/lib/libmoveit_pick_place_planner.so;general;/opt/ros/noetic/lib/libmoveit_move_group_capabilities_base.so;general;/opt/ros/noetic/lib/libmoveit_rdf_loader.so;general;/opt/ros/noetic/lib/libmoveit_kinematics_plugin_loader.so;general;/opt/ros/noetic/lib/libmoveit_robot_model_loader.so;general;/opt/ros/noetic/lib/libmoveit_constraint_sampler_manager_loader.so;general;/opt/ros/noetic/lib/libmoveit_planning_pipeline.so;general;/opt/ros/noetic/lib/libmoveit_trajectory_execution_manager.so;general;/opt/ros/noetic/lib/libmoveit_plan_execution.so;general;/opt/ros/noetic/lib/libmoveit_planning_scene_monitor.so;general;/opt/ros/noetic/lib/libmoveit_collision_plugin_loader.so;general;/opt/ros/noetic/lib/libmoveit_cpp.so;general;/opt/ros/noetic/lib/libdynamic_reconfigure_config_init_mutex.so;general;/opt/ros/noetic/lib/libmoveit_ros_occupancy_map_monitor.so;general;/opt/ros/noetic/lib/libmoveit_exceptions.so;general;/opt/ros/noetic/lib/libmoveit_background_processing.so;general;/opt/ros/noetic/lib/libmoveit_kinematics_base.so;general;/opt/ros/noetic/lib/libmoveit_robot_model.so;general;/opt/ros/noetic/lib/libmoveit_transforms.so;general;/opt/ros/noetic/lib/libmoveit_robot_state.so;general;/opt/ros/noetic/lib/libmoveit_robot_trajectory.so;general;/opt/ros/noetic/lib/libmoveit_planning_interface.so;general;/opt/ros/noetic/lib/libmoveit_collision_detection.so;general;/opt/ros/noetic/lib/libmoveit_collision_detection_fcl.so;general;/opt/ros/noetic/lib/libmoveit_collision_detection_bullet.so;general;/opt/ros/noetic/lib/libmoveit_kinematic_constraints.so;general;/opt/ros/noetic/lib/libmoveit_planning_scene.so;general;/opt/ros/noetic/lib/libmoveit_constraint_samplers.so;general;/opt/ros/noetic/lib/libmoveit_planning_request_adapter.so;general;/opt/ros/noetic/lib/libmoveit_profiler.so;general;/opt/ros/noetic/lib/libmoveit_python_tools.so;general;/opt/ros/noetic/lib/libmoveit_trajectory_processing.so;general;/opt/ros/noetic/lib/libmoveit_distance_field.so;general;/opt/ros/noetic/lib/libmoveit_collision_distance_field.so;general;/opt/ros/noetic/lib/libmoveit_kinematics_metrics.so;general;/opt/ros/noetic/lib/libmoveit_dynamics_solver.so;general;/opt/ros/noetic/lib/libmoveit_utils.so;general;/opt/ros/noetic/lib/libmoveit_test_utils.so;general;/usr/lib/x86_64-linux-gnu/libboost_iostreams.so.1.71.0;general;/opt/ros/noetic/lib/x86_64-linux-gnu/libfcl.so.0.6.1;general;/usr/lib/x86_64-linux-gnu/libccd.so;general;/usr/lib/x86_64-linux-gnu/libm.so;general;/opt/ros/noetic/lib/liboctomap.so.1.9.8;general;/opt/ros/noetic/lib/x86_64-linux-gnu/libruckig.so;general;/usr/lib/x86_64-linux-gnu/libBulletSoftBody.so;general;/usr/lib/x86_64-linux-gnu/libBulletDynamics.so;general;/usr/lib/x86_64-linux-gnu/libBulletCollision.so;general;/usr/lib/x86_64-linux-gnu/libLinearMath.so;general;/opt/ros/noetic/lib/libkdl_parser.so;general;/opt/ros/noetic/lib/liburdf.so;general;/usr/lib/x86_64-linux-gnu/liburdfdom_sensor.so;general;/usr/lib/x86_64-linux-gnu/liburdfdom_model_state.so;general;/usr/lib/x86_64-linux-gnu/liburdfdom_model.so;general;/usr/lib/x86_64-linux-gnu/liburdfdom_world.so;general;/usr/lib/x86_64-linux-gnu/libtinyxml.so;general;/opt/ros/noetic/lib/librosconsole_bridge.so;general;/opt/ros/noetic/lib/libsrdfdom.so;general;/opt/ros/noetic/lib/libgeometric_shapes.so;general;/opt/ros/noetic/lib/liboctomap.so;general;/opt/ros/noetic/lib/liboctomath.so;general;/opt/ros/noetic/lib/librandom_numbers.so;general;/opt/ros/noetic/lib/libclass_loader.so;general;/usr/lib/x86_64-linux-gnu/libPocoFoundation.so;general;/usr/lib/x86_64-linux-gnu/libdl.so;general;/opt/ros/noetic/lib/libroslib.so;general;/opt/ros/noetic/lib/librospack.so;general;/usr/lib/x86_64-linux-gnu/libpython3.8.so;general;/usr/lib/x86_64-linux-gnu/libboost_program_options.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libtinyxml2.so;general;/opt/ros/noetic/lib/libtf_conversions.so;general;/opt/ros/noetic/lib/libkdl_conversions.so;general;/usr/lib/liborocos-kdl.so;general;/opt/ros/noetic/lib/libtf.so;general;/opt/ros/noetic/lib/libtf2_ros.so;general;/opt/ros/noetic/lib/libactionlib.so;general;/opt/ros/noetic/lib/libmessage_filters.so;general;/opt/ros/noetic/lib/libroscpp.so;general;/usr/lib/x86_64-linux-gnu/libpthread.so;general;/usr/lib/x86_64-linux-gnu/libboost_chrono.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libboost_filesystem.so.1.71.0;general;/opt/ros/noetic/lib/libxmlrpcpp.so;general;/opt/ros/noetic/lib/libtf2.so;general;/opt/ros/noetic/lib/libroscpp_serialization.so;general;/opt/ros/noetic/lib/librosconsole.so;general;/opt/ros/noetic/lib/librosconsole_log4cxx.so;general;/opt/ros/noetic/lib/librosconsole_backend_interface.so;general;/usr/lib/x86_64-linux-gnu/liblog4cxx.so;general;/usr/lib/x86_64-linux-gnu/libboost_regex.so.1.71.0;general;/opt/ros/noetic/lib/librostime.so;general;/usr/lib/x86_64-linux-gnu/libboost_date_time.so.1.71.0;general;/opt/ros/noetic/lib/libcpp_common.so;general;/usr/lib/x86_64-linux-gnu/libboost_system.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libboost_thread.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libconsole_bridge.so.0.4;general;Boost::system;general;aubo_i10_kinematic;
-
-//Value Computed by CMake
-aubo_i16_moveit_config_BINARY_DIR:STATIC=/home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/aubo_i16_moveit_config
-
-//Value Computed by CMake
-aubo_i16_moveit_config_SOURCE_DIR:STATIC=/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_i16_moveit_config
-
-//Value Computed by CMake
-aubo_i20_moveit_config_BINARY_DIR:STATIC=/home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/aubo_i20_moveit_config
-
-//Value Computed by CMake
-aubo_i20_moveit_config_SOURCE_DIR:STATIC=/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_i20_moveit_config
-
-//Value Computed by CMake
-aubo_i3_moveit_config_BINARY_DIR:STATIC=/home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/aubo_i3_moveit_config
-
-//Value Computed by CMake
-aubo_i3_moveit_config_SOURCE_DIR:STATIC=/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_i3_moveit_config
 
 //Dependencies for the target
 aubo_i3_moveit_kinematic_plugin_LIB_DEPENDS:STATIC=general;/opt/ros/noetic/lib/libmoveit_common_planning_interface_objects.so;general;/opt/ros/noetic/lib/libmoveit_planning_scene_interface.so;general;/opt/ros/noetic/lib/libmoveit_move_group_interface.so;general;/opt/ros/noetic/lib/libmoveit_py_bindings_tools.so;general;/opt/ros/noetic/lib/libmoveit_warehouse.so;general;/opt/ros/noetic/lib/libwarehouse_ros.so;general;/opt/ros/noetic/lib/libmoveit_pick_place_planner.so;general;/opt/ros/noetic/lib/libmoveit_move_group_capabilities_base.so;general;/opt/ros/noetic/lib/libmoveit_rdf_loader.so;general;/opt/ros/noetic/lib/libmoveit_kinematics_plugin_loader.so;general;/opt/ros/noetic/lib/libmoveit_robot_model_loader.so;general;/opt/ros/noetic/lib/libmoveit_constraint_sampler_manager_loader.so;general;/opt/ros/noetic/lib/libmoveit_planning_pipeline.so;general;/opt/ros/noetic/lib/libmoveit_trajectory_execution_manager.so;general;/opt/ros/noetic/lib/libmoveit_plan_execution.so;general;/opt/ros/noetic/lib/libmoveit_planning_scene_monitor.so;general;/opt/ros/noetic/lib/libmoveit_collision_plugin_loader.so;general;/opt/ros/noetic/lib/libmoveit_cpp.so;general;/opt/ros/noetic/lib/libdynamic_reconfigure_config_init_mutex.so;general;/opt/ros/noetic/lib/libmoveit_ros_occupancy_map_monitor.so;general;/opt/ros/noetic/lib/libmoveit_exceptions.so;general;/opt/ros/noetic/lib/libmoveit_background_processing.so;general;/opt/ros/noetic/lib/libmoveit_kinematics_base.so;general;/opt/ros/noetic/lib/libmoveit_robot_model.so;general;/opt/ros/noetic/lib/libmoveit_transforms.so;general;/opt/ros/noetic/lib/libmoveit_robot_state.so;general;/opt/ros/noetic/lib/libmoveit_robot_trajectory.so;general;/opt/ros/noetic/lib/libmoveit_planning_interface.so;general;/opt/ros/noetic/lib/libmoveit_collision_detection.so;general;/opt/ros/noetic/lib/libmoveit_collision_detection_fcl.so;general;/opt/ros/noetic/lib/libmoveit_collision_detection_bullet.so;general;/opt/ros/noetic/lib/libmoveit_kinematic_constraints.so;general;/opt/ros/noetic/lib/libmoveit_planning_scene.so;general;/opt/ros/noetic/lib/libmoveit_constraint_samplers.so;general;/opt/ros/noetic/lib/libmoveit_planning_request_adapter.so;general;/opt/ros/noetic/lib/libmoveit_profiler.so;general;/opt/ros/noetic/lib/libmoveit_python_tools.so;general;/opt/ros/noetic/lib/libmoveit_trajectory_processing.so;general;/opt/ros/noetic/lib/libmoveit_distance_field.so;general;/opt/ros/noetic/lib/libmoveit_collision_distance_field.so;general;/opt/ros/noetic/lib/libmoveit_kinematics_metrics.so;general;/opt/ros/noetic/lib/libmoveit_dynamics_solver.so;general;/opt/ros/noetic/lib/libmoveit_utils.so;general;/opt/ros/noetic/lib/libmoveit_test_utils.so;general;/usr/lib/x86_64-linux-gnu/libboost_iostreams.so.1.71.0;general;/opt/ros/noetic/lib/x86_64-linux-gnu/libfcl.so.0.6.1;general;/usr/lib/x86_64-linux-gnu/libccd.so;general;/usr/lib/x86_64-linux-gnu/libm.so;general;/opt/ros/noetic/lib/liboctomap.so.1.9.8;general;/opt/ros/noetic/lib/x86_64-linux-gnu/libruckig.so;general;/usr/lib/x86_64-linux-gnu/libBulletSoftBody.so;general;/usr/lib/x86_64-linux-gnu/libBulletDynamics.so;general;/usr/lib/x86_64-linux-gnu/libBulletCollision.so;general;/usr/lib/x86_64-linux-gnu/libLinearMath.so;general;/opt/ros/noetic/lib/libkdl_parser.so;general;/opt/ros/noetic/lib/liburdf.so;general;/usr/lib/x86_64-linux-gnu/liburdfdom_sensor.so;general;/usr/lib/x86_64-linux-gnu/liburdfdom_model_state.so;general;/usr/lib/x86_64-linux-gnu/liburdfdom_model.so;general;/usr/lib/x86_64-linux-gnu/liburdfdom_world.so;general;/usr/lib/x86_64-linux-gnu/libtinyxml.so;general;/opt/ros/noetic/lib/librosconsole_bridge.so;general;/opt/ros/noetic/lib/libsrdfdom.so;general;/opt/ros/noetic/lib/libgeometric_shapes.so;general;/opt/ros/noetic/lib/liboctomap.so;general;/opt/ros/noetic/lib/liboctomath.so;general;/opt/ros/noetic/lib/librandom_numbers.so;general;/opt/ros/noetic/lib/libclass_loader.so;general;/usr/lib/x86_64-linux-gnu/libPocoFoundation.so;general;/usr/lib/x86_64-linux-gnu/libdl.so;general;/opt/ros/noetic/lib/libroslib.so;general;/opt/ros/noetic/lib/librospack.so;general;/usr/lib/x86_64-linux-gnu/libpython3.8.so;general;/usr/lib/x86_64-linux-gnu/libboost_program_options.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libtinyxml2.so;general;/opt/ros/noetic/lib/libtf_conversions.so;general;/opt/ros/noetic/lib/libkdl_conversions.so;general;/usr/lib/liborocos-kdl.so;general;/opt/ros/noetic/lib/libtf.so;general;/opt/ros/noetic/lib/libtf2_ros.so;general;/opt/ros/noetic/lib/libactionlib.so;general;/opt/ros/noetic/lib/libmessage_filters.so;general;/opt/ros/noetic/lib/libroscpp.so;general;/usr/lib/x86_64-linux-gnu/libpthread.so;general;/usr/lib/x86_64-linux-gnu/libboost_chrono.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libboost_filesystem.so.1.71.0;general;/opt/ros/noetic/lib/libxmlrpcpp.so;general;/opt/ros/noetic/lib/libtf2.so;general;/opt/ros/noetic/lib/libroscpp_serialization.so;general;/opt/ros/noetic/lib/librosconsole.so;general;/opt/ros/noetic/lib/librosconsole_log4cxx.so;general;/opt/ros/noetic/lib/librosconsole_backend_interface.so;general;/usr/lib/x86_64-linux-gnu/liblog4cxx.so;general;/usr/lib/x86_64-linux-gnu/libboost_regex.so.1.71.0;general;/opt/ros/noetic/lib/librostime.so;general;/usr/lib/x86_64-linux-gnu/libboost_date_time.so.1.71.0;general;/opt/ros/noetic/lib/libcpp_common.so;general;/usr/lib/x86_64-linux-gnu/libboost_system.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libboost_thread.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libconsole_bridge.so.0.4;general;Boost::system;general;aubo_i3_kinematic;
 
-//Value Computed by CMake
-aubo_i5_moveit_config_BINARY_DIR:STATIC=/home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/aubo_i5_moveit_config
-
-//Value Computed by CMake
-aubo_i5_moveit_config_SOURCE_DIR:STATIC=/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_i5_moveit_config
-
 //Dependencies for the target
 aubo_i5_moveit_kinematic_plugin_LIB_DEPENDS:STATIC=general;/opt/ros/noetic/lib/libmoveit_common_planning_interface_objects.so;general;/opt/ros/noetic/lib/libmoveit_planning_scene_interface.so;general;/opt/ros/noetic/lib/libmoveit_move_group_interface.so;general;/opt/ros/noetic/lib/libmoveit_py_bindings_tools.so;general;/opt/ros/noetic/lib/libmoveit_warehouse.so;general;/opt/ros/noetic/lib/libwarehouse_ros.so;general;/opt/ros/noetic/lib/libmoveit_pick_place_planner.so;general;/opt/ros/noetic/lib/libmoveit_move_group_capabilities_base.so;general;/opt/ros/noetic/lib/libmoveit_rdf_loader.so;general;/opt/ros/noetic/lib/libmoveit_kinematics_plugin_loader.so;general;/opt/ros/noetic/lib/libmoveit_robot_model_loader.so;general;/opt/ros/noetic/lib/libmoveit_constraint_sampler_manager_loader.so;general;/opt/ros/noetic/lib/libmoveit_planning_pipeline.so;general;/opt/ros/noetic/lib/libmoveit_trajectory_execution_manager.so;general;/opt/ros/noetic/lib/libmoveit_plan_execution.so;general;/opt/ros/noetic/lib/libmoveit_planning_scene_monitor.so;general;/opt/ros/noetic/lib/libmoveit_collision_plugin_loader.so;general;/opt/ros/noetic/lib/libmoveit_cpp.so;general;/opt/ros/noetic/lib/libdynamic_reconfigure_config_init_mutex.so;general;/opt/ros/noetic/lib/libmoveit_ros_occupancy_map_monitor.so;general;/opt/ros/noetic/lib/libmoveit_exceptions.so;general;/opt/ros/noetic/lib/libmoveit_background_processing.so;general;/opt/ros/noetic/lib/libmoveit_kinematics_base.so;general;/opt/ros/noetic/lib/libmoveit_robot_model.so;general;/opt/ros/noetic/lib/libmoveit_transforms.so;general;/opt/ros/noetic/lib/libmoveit_robot_state.so;general;/opt/ros/noetic/lib/libmoveit_robot_trajectory.so;general;/opt/ros/noetic/lib/libmoveit_planning_interface.so;general;/opt/ros/noetic/lib/libmoveit_collision_detection.so;general;/opt/ros/noetic/lib/libmoveit_collision_detection_fcl.so;general;/opt/ros/noetic/lib/libmoveit_collision_detection_bullet.so;general;/opt/ros/noetic/lib/libmoveit_kinematic_constraints.so;general;/opt/ros/noetic/lib/libmoveit_planning_scene.so;general;/opt/ros/noetic/lib/libmoveit_constraint_samplers.so;general;/opt/ros/noetic/lib/libmoveit_planning_request_adapter.so;general;/opt/ros/noetic/lib/libmoveit_profiler.so;general;/opt/ros/noetic/lib/libmoveit_python_tools.so;general;/opt/ros/noetic/lib/libmoveit_trajectory_processing.so;general;/opt/ros/noetic/lib/libmoveit_distance_field.so;general;/opt/ros/noetic/lib/libmoveit_collision_distance_field.so;general;/opt/ros/noetic/lib/libmoveit_kinematics_metrics.so;general;/opt/ros/noetic/lib/libmoveit_dynamics_solver.so;general;/opt/ros/noetic/lib/libmoveit_utils.so;general;/opt/ros/noetic/lib/libmoveit_test_utils.so;general;/usr/lib/x86_64-linux-gnu/libboost_iostreams.so.1.71.0;general;/opt/ros/noetic/lib/x86_64-linux-gnu/libfcl.so.0.6.1;general;/usr/lib/x86_64-linux-gnu/libccd.so;general;/usr/lib/x86_64-linux-gnu/libm.so;general;/opt/ros/noetic/lib/liboctomap.so.1.9.8;general;/opt/ros/noetic/lib/x86_64-linux-gnu/libruckig.so;general;/usr/lib/x86_64-linux-gnu/libBulletSoftBody.so;general;/usr/lib/x86_64-linux-gnu/libBulletDynamics.so;general;/usr/lib/x86_64-linux-gnu/libBulletCollision.so;general;/usr/lib/x86_64-linux-gnu/libLinearMath.so;general;/opt/ros/noetic/lib/libkdl_parser.so;general;/opt/ros/noetic/lib/liburdf.so;general;/usr/lib/x86_64-linux-gnu/liburdfdom_sensor.so;general;/usr/lib/x86_64-linux-gnu/liburdfdom_model_state.so;general;/usr/lib/x86_64-linux-gnu/liburdfdom_model.so;general;/usr/lib/x86_64-linux-gnu/liburdfdom_world.so;general;/usr/lib/x86_64-linux-gnu/libtinyxml.so;general;/opt/ros/noetic/lib/librosconsole_bridge.so;general;/opt/ros/noetic/lib/libsrdfdom.so;general;/opt/ros/noetic/lib/libgeometric_shapes.so;general;/opt/ros/noetic/lib/liboctomap.so;general;/opt/ros/noetic/lib/liboctomath.so;general;/opt/ros/noetic/lib/librandom_numbers.so;general;/opt/ros/noetic/lib/libclass_loader.so;general;/usr/lib/x86_64-linux-gnu/libPocoFoundation.so;general;/usr/lib/x86_64-linux-gnu/libdl.so;general;/opt/ros/noetic/lib/libroslib.so;general;/opt/ros/noetic/lib/librospack.so;general;/usr/lib/x86_64-linux-gnu/libpython3.8.so;general;/usr/lib/x86_64-linux-gnu/libboost_program_options.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libtinyxml2.so;general;/opt/ros/noetic/lib/libtf_conversions.so;general;/opt/ros/noetic/lib/libkdl_conversions.so;general;/usr/lib/liborocos-kdl.so;general;/opt/ros/noetic/lib/libtf.so;general;/opt/ros/noetic/lib/libtf2_ros.so;general;/opt/ros/noetic/lib/libactionlib.so;general;/opt/ros/noetic/lib/libmessage_filters.so;general;/opt/ros/noetic/lib/libroscpp.so;general;/usr/lib/x86_64-linux-gnu/libpthread.so;general;/usr/lib/x86_64-linux-gnu/libboost_chrono.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libboost_filesystem.so.1.71.0;general;/opt/ros/noetic/lib/libxmlrpcpp.so;general;/opt/ros/noetic/lib/libtf2.so;general;/opt/ros/noetic/lib/libroscpp_serialization.so;general;/opt/ros/noetic/lib/librosconsole.so;general;/opt/ros/noetic/lib/librosconsole_log4cxx.so;general;/opt/ros/noetic/lib/librosconsole_backend_interface.so;general;/usr/lib/x86_64-linux-gnu/liblog4cxx.so;general;/usr/lib/x86_64-linux-gnu/libboost_regex.so.1.71.0;general;/opt/ros/noetic/lib/librostime.so;general;/usr/lib/x86_64-linux-gnu/libboost_date_time.so.1.71.0;general;/opt/ros/noetic/lib/libcpp_common.so;general;/usr/lib/x86_64-linux-gnu/libboost_system.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libboost_thread.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libconsole_bridge.so.0.4;general;Boost::system;general;aubo_i5_kinematic;
-
-//Value Computed by CMake
-aubo_i5l_moveit_config_BINARY_DIR:STATIC=/home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/aubo_i5l_moveit_config
-
-//Value Computed by CMake
-aubo_i5l_moveit_config_SOURCE_DIR:STATIC=/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_i5l_moveit_config
-
-//Value Computed by CMake
-aubo_i7_moveit_config_BINARY_DIR:STATIC=/home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/aubo_i7_moveit_config
-
-//Value Computed by CMake
-aubo_i7_moveit_config_SOURCE_DIR:STATIC=/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_i7_moveit_config
-
-//Value Computed by CMake
-aubo_is20_moveit_config_BINARY_DIR:STATIC=/home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/aubo_is20_moveit_config
-
-//Value Computed by CMake
-aubo_is20_moveit_config_SOURCE_DIR:STATIC=/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_is20_moveit_config
-
-//Value Computed by CMake
-aubo_is7_moveit_config_BINARY_DIR:STATIC=/home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/aubo_is7_moveit_config
-
-//Value Computed by CMake
-aubo_is7_moveit_config_SOURCE_DIR:STATIC=/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_is7_moveit_config
 
 //Value Computed by CMake
 aubo_kinematics_BINARY_DIR:STATIC=/home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/aubo_kinematics
@@ -584,6 +542,24 @@ control_msgs_DIR:PATH=/opt/ros/noetic/share/control_msgs/cmake
 
 //The directory containing a CMake configuration file for cpp_common.
 cpp_common_DIR:PATH=/opt/ros/noetic/share/cpp_common/cmake
+
+//Value Computed by CMake
+demo_driver_BINARY_DIR:STATIC=/home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/demo_driver
+
+//Dependencies for the target
+demo_driver_LIB_DEPENDS:STATIC=general;/opt/ros/noetic/lib/libmoveit_common_planning_interface_objects.so;general;/opt/ros/noetic/lib/libmoveit_planning_scene_interface.so;general;/opt/ros/noetic/lib/libmoveit_move_group_interface.so;general;/opt/ros/noetic/lib/libmoveit_py_bindings_tools.so;general;/opt/ros/noetic/lib/libmoveit_warehouse.so;general;/opt/ros/noetic/lib/libwarehouse_ros.so;general;/opt/ros/noetic/lib/libtf.so;general;/opt/ros/noetic/lib/libmoveit_pick_place_planner.so;general;/opt/ros/noetic/lib/libmoveit_move_group_capabilities_base.so;general;/opt/ros/noetic/lib/libmoveit_rdf_loader.so;general;/opt/ros/noetic/lib/libmoveit_kinematics_plugin_loader.so;general;/opt/ros/noetic/lib/libmoveit_robot_model_loader.so;general;/opt/ros/noetic/lib/libmoveit_constraint_sampler_manager_loader.so;general;/opt/ros/noetic/lib/libmoveit_planning_pipeline.so;general;/opt/ros/noetic/lib/libmoveit_trajectory_execution_manager.so;general;/opt/ros/noetic/lib/libmoveit_plan_execution.so;general;/opt/ros/noetic/lib/libmoveit_planning_scene_monitor.so;general;/opt/ros/noetic/lib/libmoveit_collision_plugin_loader.so;general;/opt/ros/noetic/lib/libmoveit_cpp.so;general;/opt/ros/noetic/lib/libdynamic_reconfigure_config_init_mutex.so;general;/opt/ros/noetic/lib/libmoveit_ros_occupancy_map_monitor.so;general;/opt/ros/noetic/lib/libmoveit_exceptions.so;general;/opt/ros/noetic/lib/libmoveit_background_processing.so;general;/opt/ros/noetic/lib/libmoveit_kinematics_base.so;general;/opt/ros/noetic/lib/libmoveit_robot_model.so;general;/opt/ros/noetic/lib/libmoveit_transforms.so;general;/opt/ros/noetic/lib/libmoveit_robot_state.so;general;/opt/ros/noetic/lib/libmoveit_robot_trajectory.so;general;/opt/ros/noetic/lib/libmoveit_planning_interface.so;general;/opt/ros/noetic/lib/libmoveit_collision_detection.so;general;/opt/ros/noetic/lib/libmoveit_collision_detection_fcl.so;general;/opt/ros/noetic/lib/libmoveit_collision_detection_bullet.so;general;/opt/ros/noetic/lib/libmoveit_kinematic_constraints.so;general;/opt/ros/noetic/lib/libmoveit_planning_scene.so;general;/opt/ros/noetic/lib/libmoveit_constraint_samplers.so;general;/opt/ros/noetic/lib/libmoveit_planning_request_adapter.so;general;/opt/ros/noetic/lib/libmoveit_profiler.so;general;/opt/ros/noetic/lib/libmoveit_python_tools.so;general;/opt/ros/noetic/lib/libmoveit_trajectory_processing.so;general;/opt/ros/noetic/lib/libmoveit_distance_field.so;general;/opt/ros/noetic/lib/libmoveit_collision_distance_field.so;general;/opt/ros/noetic/lib/libmoveit_kinematics_metrics.so;general;/opt/ros/noetic/lib/libmoveit_dynamics_solver.so;general;/opt/ros/noetic/lib/libmoveit_utils.so;general;/opt/ros/noetic/lib/libmoveit_test_utils.so;general;/usr/lib/x86_64-linux-gnu/libboost_iostreams.so.1.71.0;general;/opt/ros/noetic/lib/x86_64-linux-gnu/libfcl.so.0.6.1;general;/usr/lib/x86_64-linux-gnu/libccd.so;general;/usr/lib/x86_64-linux-gnu/libm.so;general;/opt/ros/noetic/lib/liboctomap.so.1.9.8;general;/opt/ros/noetic/lib/x86_64-linux-gnu/libruckig.so;general;/usr/lib/x86_64-linux-gnu/libBulletSoftBody.so;general;/usr/lib/x86_64-linux-gnu/libBulletDynamics.so;general;/usr/lib/x86_64-linux-gnu/libBulletCollision.so;general;/usr/lib/x86_64-linux-gnu/libLinearMath.so;general;/opt/ros/noetic/lib/libkdl_parser.so;general;/opt/ros/noetic/lib/liburdf.so;general;/usr/lib/x86_64-linux-gnu/liburdfdom_sensor.so;general;/usr/lib/x86_64-linux-gnu/liburdfdom_model_state.so;general;/usr/lib/x86_64-linux-gnu/liburdfdom_model.so;general;/usr/lib/x86_64-linux-gnu/liburdfdom_world.so;general;/usr/lib/x86_64-linux-gnu/libtinyxml.so;general;/opt/ros/noetic/lib/librosconsole_bridge.so;general;/opt/ros/noetic/lib/libsrdfdom.so;general;/opt/ros/noetic/lib/libgeometric_shapes.so;general;/opt/ros/noetic/lib/liboctomap.so;general;/opt/ros/noetic/lib/liboctomath.so;general;/opt/ros/noetic/lib/librandom_numbers.so;general;/opt/ros/noetic/lib/libclass_loader.so;general;/usr/lib/x86_64-linux-gnu/libPocoFoundation.so;general;/usr/lib/x86_64-linux-gnu/libdl.so;general;/opt/ros/noetic/lib/libroslib.so;general;/opt/ros/noetic/lib/librospack.so;general;/usr/lib/x86_64-linux-gnu/libpython3.8.so;general;/usr/lib/x86_64-linux-gnu/libboost_program_options.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libtinyxml2.so;general;/usr/lib/liborocos-kdl.so;general;/usr/lib/liborocos-kdl.so;general;/opt/ros/noetic/lib/libtf2_ros.so;general;/opt/ros/noetic/lib/libactionlib.so;general;/opt/ros/noetic/lib/libmessage_filters.so;general;/opt/ros/noetic/lib/libroscpp.so;general;/usr/lib/x86_64-linux-gnu/libpthread.so;general;/usr/lib/x86_64-linux-gnu/libboost_chrono.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libboost_filesystem.so.1.71.0;general;/opt/ros/noetic/lib/librosconsole.so;general;/opt/ros/noetic/lib/librosconsole_log4cxx.so;general;/opt/ros/noetic/lib/librosconsole_backend_interface.so;general;/usr/lib/x86_64-linux-gnu/liblog4cxx.so;general;/usr/lib/x86_64-linux-gnu/libboost_regex.so.1.71.0;general;/opt/ros/noetic/lib/libxmlrpcpp.so;general;/opt/ros/noetic/lib/libtf2.so;general;/opt/ros/noetic/lib/libroscpp_serialization.so;general;/opt/ros/noetic/lib/librostime.so;general;/usr/lib/x86_64-linux-gnu/libboost_date_time.so.1.71.0;general;/opt/ros/noetic/lib/libcpp_common.so;general;/usr/lib/x86_64-linux-gnu/libboost_system.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libboost_thread.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libconsole_bridge.so.0.4;
+
+//Value Computed by CMake
+demo_driver_SOURCE_DIR:STATIC=/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_driver
+
+//Value Computed by CMake
+demo_interface_BINARY_DIR:STATIC=/home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/demo_interface
+
+//The directory containing a CMake configuration file for demo_interface.
+demo_interface_DIR:PATH=/home/mu/IVG/aubo_ws/devel/share/demo_interface/cmake
+
+//Value Computed by CMake
+demo_interface_SOURCE_DIR:STATIC=/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface
 
 //The directory containing a CMake configuration file for dynamic_reconfigure.
 dynamic_reconfigure_DIR:PATH=/opt/ros/noetic/share/dynamic_reconfigure/cmake
@@ -1066,6 +1042,8 @@ CMAKE_INSTALL_SO_NO_EXE:INTERNAL=1
 CMAKE_INSTALL_SYSCONFDIR-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_LINKER
 CMAKE_LINKER-ADVANCED:INTERNAL=1
+//Name of CMakeLists files to read
+CMAKE_LIST_FILE_NAME:INTERNAL=CMakeLists.txt
 //ADVANCED property for variable: CMAKE_MAKE_PROGRAM
 CMAKE_MAKE_PROGRAM-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_MODULE_LINKER_FLAGS
@@ -1081,7 +1059,7 @@ CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_NM
 CMAKE_NM-ADVANCED:INTERNAL=1
 //number of local generators
-CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=32
+CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=8
 //ADVANCED property for variable: CMAKE_OBJCOPY
 CMAKE_OBJCOPY-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_OBJDUMP
@@ -1120,6 +1098,8 @@ CMAKE_STATIC_LINKER_FLAGS_RELEASE-ADVANCED:INTERNAL=1
 CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_STRIP
 CMAKE_STRIP-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: CMAKE_TAPI
+CMAKE_TAPI-ADVANCED:INTERNAL=1
 //uname command
 CMAKE_UNAME:INTERNAL=/usr/bin/uname
 //ADVANCED property for variable: CMAKE_VERBOSE_MAKEFILE

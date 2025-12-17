@@ -1,23 +1,33 @@
-
-# Consider dependencies only in project.
-set(CMAKE_DEPENDS_IN_PROJECT_ONLY OFF)
-
 # The set of languages for which implicit dependencies are needed:
 set(CMAKE_DEPENDS_LANGUAGES
+  "C"
+  )
+# The set of files for implicit dependencies of each language:
+set(CMAKE_DEPENDS_CHECK_C
+  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/detail/analog__functions.c" "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/analog__functions.c.o"
+  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/detail/digital__functions.c" "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/digital__functions.c.o"
+  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/detail/io_states__functions.c" "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/io_states__functions.c.o"
+  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/detail/masterboard_data_msg__functions.c" "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/masterboard_data_msg__functions.c.o"
+  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/detail/robot_mode_data_msg__functions.c" "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/robot_mode_data_msg__functions.c.o"
+  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/detail/robot_state_rt_msg__functions.c" "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/robot_state_rt_msg__functions.c.o"
+  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__functions.c" "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__functions.c.o"
+  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c" "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c.o"
+  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/srv/detail/set_payload__functions.c" "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_payload__functions.c.o"
+  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/srv/detail/set_speed_slider_fraction__functions.c" "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_speed_slider_fraction__functions.c.o"
+  )
+set(CMAKE_C_COMPILER_ID "GNU")
+
+# Preprocessor definitions for this target.
+set(CMAKE_TARGET_DEFINITIONS_C
+  "RCUTILS_ENABLE_FAULT_INJECTION"
+  "ROS_PACKAGE_NAME=\"aubo_msgs\""
+  "aubo_msgs__rosidl_generator_c_EXPORTS"
   )
 
-# The set of dependency files which are needed:
-set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/detail/analog__functions.c" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/analog__functions.c.o" "gcc" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/analog__functions.c.o.d"
-  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/detail/digital__functions.c" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/digital__functions.c.o" "gcc" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/digital__functions.c.o.d"
-  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/detail/io_states__functions.c" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/io_states__functions.c.o" "gcc" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/io_states__functions.c.o.d"
-  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/detail/masterboard_data_msg__functions.c" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/masterboard_data_msg__functions.c.o" "gcc" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/masterboard_data_msg__functions.c.o.d"
-  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/detail/robot_mode_data_msg__functions.c" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/robot_mode_data_msg__functions.c.o" "gcc" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/robot_mode_data_msg__functions.c.o.d"
-  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/detail/robot_state_rt_msg__functions.c" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/robot_state_rt_msg__functions.c.o" "gcc" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/robot_state_rt_msg__functions.c.o.d"
-  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__functions.c" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__functions.c.o" "gcc" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__functions.c.o.d"
-  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c.o" "gcc" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c.o.d"
-  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/srv/detail/set_payload__functions.c" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_payload__functions.c.o" "gcc" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_payload__functions.c.o.d"
-  "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/srv/detail/set_speed_slider_fraction__functions.c" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_speed_slider_fraction__functions.c.o" "gcc" "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_speed_slider_fraction__functions.c.o.d"
+# The include file search paths:
+set(CMAKE_C_TARGET_INCLUDE_PATH
+  "rosidl_generator_c"
+  "/opt/ros/foxy/include"
   )
 
 # Pairs of files generated by the same build rule.
@@ -74,12 +84,8 @@ set(CMAKE_MULTIPLE_OUTPUT_PAIRS
   )
 
 
-# Targets to which this target links which contain Fortran sources.
-set(CMAKE_Fortran_TARGET_LINKED_INFO_FILES
-  )
-
-# Targets to which this target links which contain Fortran sources.
-set(CMAKE_Fortran_TARGET_FORWARD_LINKED_INFO_FILES
+# Targets to which this target links.
+set(CMAKE_TARGET_LINKED_INFO_FILES
   )
 
 # Fortran module output directory.

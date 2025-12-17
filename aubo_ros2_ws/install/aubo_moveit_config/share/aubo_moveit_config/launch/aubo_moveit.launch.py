@@ -223,6 +223,14 @@ def generate_launch_description():
             choices=["aubo_i5.srdf"],
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "aubo_type",
+            description="Name of the aubo_type ",
+            default_value="aubo_e5",
+            choices=["aubo_e5"],
+        )
+    )
 
     return LaunchDescription(
         declared_arguments + [OpaqueFunction(function=launch_setup)]

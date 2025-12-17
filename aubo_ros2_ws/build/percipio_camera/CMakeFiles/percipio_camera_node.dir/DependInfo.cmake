@@ -1,22 +1,29 @@
-
-# Consider dependencies only in project.
-set(CMAKE_DEPENDS_IN_PROJECT_ONLY OFF)
-
 # The set of languages for which implicit dependencies are needed:
 set(CMAKE_DEPENDS_LANGUAGES
+  "CXX"
+  )
+# The set of files for implicit dependencies of each language:
+set(CMAKE_DEPENDS_CHECK_CXX
+  "/home/mu/IVG/aubo_ros2_ws/build/percipio_camera/rclcpp_components/node_main_percipio_camera_node.cpp" "/home/mu/IVG/aubo_ros2_ws/build/percipio_camera/CMakeFiles/percipio_camera_node.dir/rclcpp_components/node_main_percipio_camera_node.cpp.o"
+  )
+set(CMAKE_CXX_COMPILER_ID "GNU")
+
+# Preprocessor definitions for this target.
+set(CMAKE_TARGET_DEFINITIONS_CXX
+  "DEFAULT_RMW_IMPLEMENTATION=rmw_fastrtps_cpp"
+  "RCUTILS_ENABLE_FAULT_INJECTION"
+  "SPDLOG_COMPILED_LIB"
   )
 
-# The set of dependency files which are needed:
-set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/mu/IVG/aubo_ros2_ws/build/percipio_camera/rclcpp_components/node_main_percipio_camera_node.cpp" "CMakeFiles/percipio_camera_node.dir/rclcpp_components/node_main_percipio_camera_node.cpp.o" "gcc" "CMakeFiles/percipio_camera_node.dir/rclcpp_components/node_main_percipio_camera_node.cpp.o.d"
+# The include file search paths:
+set(CMAKE_CXX_TARGET_INCLUDE_PATH
+  "/usr/include/opencv4"
+  "/home/mu/IVG/aubo_ros2_ws/src/camport_ros2/src/percipio_camera/include"
+  "/opt/ros/foxy/include"
   )
 
-# Targets to which this target links which contain Fortran sources.
-set(CMAKE_Fortran_TARGET_LINKED_INFO_FILES
-  )
-
-# Targets to which this target links which contain Fortran sources.
-set(CMAKE_Fortran_TARGET_FORWARD_LINKED_INFO_FILES
+# Targets to which this target links.
+set(CMAKE_TARGET_LINKED_INFO_FILES
   )
 
 # Fortran module output directory.

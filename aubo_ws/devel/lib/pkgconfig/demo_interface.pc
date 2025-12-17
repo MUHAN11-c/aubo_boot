@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/aubo_ws/devel
+
+Name: demo_interface
+Description: Description of demo_interface
+Version: 1.0.0
+Cflags: -I/home/mu/IVG/aubo_ws/devel/include
+Libs: -L${prefix}/lib 
+Requires: message_runtime std_msgs geometry_msgs trajectory_msgs

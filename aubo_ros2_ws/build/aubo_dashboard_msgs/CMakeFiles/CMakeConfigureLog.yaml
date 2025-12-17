@@ -2618,3 +2618,1709 @@ events:
       CMAKE_SYSTEM_LIBRARY_PATH:
         - "/usr/lib/X11"
 ...
+
+---
+events:
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/rcutils/cmake/ament_cmake_export_libraries-extras.cmake:40 (find_library)"
+      - "/opt/ros/foxy/share/rcutils/cmake/rcutilsConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_runtime_c/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_runtime_c/cmake/rosidl_runtime_cConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_generator_c/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_generator_c/cmake/rosidl_generator_cConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_c/cmake/rosidl_typesupport_c-extras.cmake:11 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_c/cmake/rosidl_typesupport_cConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generators-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generatorsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:5 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "rcutils"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/librcutils.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/rcutils/cmake/ament_cmake_export_libraries-extras.cmake:110 (find_library)"
+      - "/opt/ros/foxy/share/rcutils/cmake/rcutilsConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_runtime_c/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_runtime_c/cmake/rosidl_runtime_cConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_generator_c/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_generator_c/cmake/rosidl_generator_cConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_c/cmake/rosidl_typesupport_c-extras.cmake:11 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_c/cmake/rosidl_typesupport_cConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generators-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generatorsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:5 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "dl"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/x86_64-linux-gnu/"
+      - "/opt/ros/foxy/lib/"
+      - "/opt/ros/foxy/"
+      - "/opt/ros/foxy/bin/"
+      - "/home/mu/.local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/sbin/"
+      - "/usr/bin/"
+      - "/sbin/"
+      - "/bin/"
+      - "/usr/games/"
+      - "/usr/local/games/"
+      - "/snap/bin/"
+      - "/usr/local/lib/x86_64-linux-gnu/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/x86_64-linux-gnu/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/lib/x86_64-linux-gnu/"
+      - "/lib/"
+      - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs/lib/x86_64-linux-gnu/"
+      - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs/lib/"
+      - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs/"
+      - "/usr/X11R6/lib/x86_64-linux-gnu/"
+      - "/usr/X11R6/lib/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/lib/x86_64-linux-gnu/"
+      - "/usr/pkg/lib/"
+      - "/usr/pkg/"
+      - "/opt/lib/x86_64-linux-gnu/"
+      - "/opt/lib/"
+      - "/opt/"
+      - "/usr/lib/X11/"
+    searched_directories:
+      - "/opt/ros/foxy/lib/x86_64-linux-gnu/"
+      - "/opt/ros/foxy/lib/"
+      - "/opt/ros/foxy/"
+      - "/opt/ros/foxy/bin/"
+      - "/home/mu/.local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/sbin/"
+      - "/usr/bin/"
+      - "/sbin/"
+      - "/bin/"
+      - "/usr/games/"
+      - "/usr/local/games/"
+      - "/snap/bin/"
+      - "/usr/local/lib/x86_64-linux-gnu/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+    found: "/usr/lib/x86_64-linux-gnu/libdl.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/rosidl_runtime_c/cmake/ament_cmake_export_libraries-extras.cmake:40 (find_library)"
+      - "/opt/ros/foxy/share/rosidl_runtime_c/cmake/rosidl_runtime_cConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_generator_c/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_generator_c/cmake/rosidl_generator_cConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_c/cmake/rosidl_typesupport_c-extras.cmake:11 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_c/cmake/rosidl_typesupport_cConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generators-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generatorsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:5 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "rosidl_runtime_c"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/librosidl_runtime_c.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/rmw/cmake/ament_cmake_export_libraries-extras.cmake:40 (find_library)"
+      - "/opt/ros/foxy/share/rmw/cmake/rmwConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_fastrtps_c/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_fastrtps_c/cmake/rosidl_typesupport_fastrtps_cConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_c/cmake/rosidl_typesupport_c-extras.cmake:13 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_c/cmake/rosidl_typesupport_cConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generators-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generatorsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:5 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "rmw"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/librmw.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/rosidl_typesupport_fastrtps_cpp/cmake/ament_cmake_export_libraries-extras.cmake:40 (find_library)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_fastrtps_cpp/cmake/rosidl_typesupport_fastrtps_cppConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_fastrtps_c/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_fastrtps_c/cmake/rosidl_typesupport_fastrtps_cConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_c/cmake/rosidl_typesupport_c-extras.cmake:13 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_c/cmake/rosidl_typesupport_cConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generators-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generatorsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:5 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "rosidl_typesupport_fastrtps_cpp"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/librosidl_typesupport_fastrtps_cpp.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/rosidl_typesupport_fastrtps_c/cmake/ament_cmake_export_libraries-extras.cmake:40 (find_library)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_fastrtps_c/cmake/rosidl_typesupport_fastrtps_cConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_c/cmake/rosidl_typesupport_c-extras.cmake:13 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_c/cmake/rosidl_typesupport_cConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generators-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generatorsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:5 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "rosidl_typesupport_fastrtps_c"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/librosidl_typesupport_fastrtps_c.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/rosidl_typesupport_introspection_c/cmake/ament_cmake_export_libraries-extras.cmake:40 (find_library)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_introspection_c/cmake/rosidl_typesupport_introspection_cConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_c/cmake/rosidl_typesupport_c-extras.cmake:13 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_c/cmake/rosidl_typesupport_cConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generators-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generatorsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:5 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "rosidl_typesupport_introspection_c"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/librosidl_typesupport_introspection_c.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/rcpputils/cmake/ament_cmake_export_libraries-extras.cmake:40 (find_library)"
+      - "/opt/ros/foxy/share/rcpputils/cmake/rcpputilsConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_c/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_c/cmake/rosidl_typesupport_cConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generators-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generatorsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:5 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "rcpputils"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/librcpputils.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/rosidl_typesupport_c/cmake/ament_cmake_export_libraries-extras.cmake:40 (find_library)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_c/cmake/rosidl_typesupport_cConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generators-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generatorsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:5 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "rosidl_typesupport_c"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/librosidl_typesupport_c.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/rosidl_typesupport_introspection_cpp/cmake/ament_cmake_export_libraries-extras.cmake:40 (find_library)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_introspection_cpp/cmake/rosidl_typesupport_introspection_cppConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_cpp/cmake/rosidl_typesupport_cpp-extras.cmake:13 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_cpp/cmake/rosidl_typesupport_cppConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generators-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generatorsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:5 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "rosidl_typesupport_introspection_cpp"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/librosidl_typesupport_introspection_cpp.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/rosidl_typesupport_cpp/cmake/ament_cmake_export_libraries-extras.cmake:40 (find_library)"
+      - "/opt/ros/foxy/share/rosidl_typesupport_cpp/cmake/rosidl_typesupport_cppConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generators-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/rosidl_default_generators/cmake/rosidl_default_generatorsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:5 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "rosidl_typesupport_cpp"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/librosidl_typesupport_cpp.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/builtin_interfaces/cmake/ament_cmake_export_libraries-extras.cmake:40 (find_library)"
+      - "/opt/ros/foxy/share/builtin_interfaces/cmake/builtin_interfacesConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "builtin_interfaces__rosidl_generator_c"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libbuiltin_interfaces__rosidl_generator_c.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/builtin_interfaces/cmake/ament_cmake_export_libraries-extras.cmake:40 (find_library)"
+      - "/opt/ros/foxy/share/builtin_interfaces/cmake/builtin_interfacesConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "builtin_interfaces__rosidl_typesupport_c"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libbuiltin_interfaces__rosidl_typesupport_c.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/builtin_interfaces/cmake/ament_cmake_export_libraries-extras.cmake:40 (find_library)"
+      - "/opt/ros/foxy/share/builtin_interfaces/cmake/builtin_interfacesConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "builtin_interfaces__rosidl_typesupport_cpp"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libbuiltin_interfaces__rosidl_typesupport_cpp.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/builtin_interfaces/cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake:18 (find_library)"
+      - "/opt/ros/foxy/share/builtin_interfaces/cmake/builtin_interfacesConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "builtin_interfaces__rosidl_typesupport_connext_c"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libbuiltin_interfaces__rosidl_typesupport_connext_c.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/builtin_interfaces/cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake:18 (find_library)"
+      - "/opt/ros/foxy/share/builtin_interfaces/cmake/builtin_interfacesConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "builtin_interfaces__rosidl_typesupport_connext_cpp"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libbuiltin_interfaces__rosidl_typesupport_connext_cpp.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/builtin_interfaces/cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake:18 (find_library)"
+      - "/opt/ros/foxy/share/builtin_interfaces/cmake/builtin_interfacesConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "builtin_interfaces__rosidl_typesupport_fastrtps_c"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libbuiltin_interfaces__rosidl_typesupport_fastrtps_c.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/builtin_interfaces/cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake:18 (find_library)"
+      - "/opt/ros/foxy/share/builtin_interfaces/cmake/builtin_interfacesConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "builtin_interfaces__rosidl_typesupport_fastrtps_cpp"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libbuiltin_interfaces__rosidl_typesupport_fastrtps_cpp.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/unique_identifier_msgs/cmake/ament_cmake_export_libraries-extras.cmake:40 (find_library)"
+      - "/opt/ros/foxy/share/unique_identifier_msgs/cmake/unique_identifier_msgsConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "unique_identifier_msgs__rosidl_generator_c"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libunique_identifier_msgs__rosidl_generator_c.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/unique_identifier_msgs/cmake/ament_cmake_export_libraries-extras.cmake:40 (find_library)"
+      - "/opt/ros/foxy/share/unique_identifier_msgs/cmake/unique_identifier_msgsConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "unique_identifier_msgs__rosidl_typesupport_c"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libunique_identifier_msgs__rosidl_typesupport_c.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/unique_identifier_msgs/cmake/ament_cmake_export_libraries-extras.cmake:40 (find_library)"
+      - "/opt/ros/foxy/share/unique_identifier_msgs/cmake/unique_identifier_msgsConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "unique_identifier_msgs__rosidl_typesupport_cpp"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libunique_identifier_msgs__rosidl_typesupport_cpp.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/unique_identifier_msgs/cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake:18 (find_library)"
+      - "/opt/ros/foxy/share/unique_identifier_msgs/cmake/unique_identifier_msgsConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "unique_identifier_msgs__rosidl_typesupport_connext_c"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libunique_identifier_msgs__rosidl_typesupport_connext_c.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/unique_identifier_msgs/cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake:18 (find_library)"
+      - "/opt/ros/foxy/share/unique_identifier_msgs/cmake/unique_identifier_msgsConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "unique_identifier_msgs__rosidl_typesupport_connext_cpp"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libunique_identifier_msgs__rosidl_typesupport_connext_cpp.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/unique_identifier_msgs/cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake:18 (find_library)"
+      - "/opt/ros/foxy/share/unique_identifier_msgs/cmake/unique_identifier_msgsConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "unique_identifier_msgs__rosidl_typesupport_fastrtps_c"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libunique_identifier_msgs__rosidl_typesupport_fastrtps_c.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/unique_identifier_msgs/cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake:18 (find_library)"
+      - "/opt/ros/foxy/share/unique_identifier_msgs/cmake/unique_identifier_msgsConfig.cmake:41 (include)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/ament_cmake_export_dependencies-extras.cmake:21 (find_package)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "unique_identifier_msgs__rosidl_typesupport_fastrtps_cpp"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libunique_identifier_msgs__rosidl_typesupport_fastrtps_cpp.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/action_msgs/cmake/ament_cmake_export_libraries-extras.cmake:40 (find_library)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "action_msgs__rosidl_generator_c"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libaction_msgs__rosidl_generator_c.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/action_msgs/cmake/ament_cmake_export_libraries-extras.cmake:40 (find_library)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "action_msgs__rosidl_typesupport_c"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libaction_msgs__rosidl_typesupport_c.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/action_msgs/cmake/ament_cmake_export_libraries-extras.cmake:40 (find_library)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "action_msgs__rosidl_typesupport_cpp"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libaction_msgs__rosidl_typesupport_cpp.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/action_msgs/cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake:18 (find_library)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "action_msgs__rosidl_typesupport_connext_c"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libaction_msgs__rosidl_typesupport_connext_c.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/action_msgs/cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake:18 (find_library)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "action_msgs__rosidl_typesupport_connext_cpp"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libaction_msgs__rosidl_typesupport_connext_cpp.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/action_msgs/cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake:18 (find_library)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "action_msgs__rosidl_typesupport_fastrtps_c"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libaction_msgs__rosidl_typesupport_fastrtps_c.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/ros/foxy/share/action_msgs/cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake:18 (find_library)"
+      - "/opt/ros/foxy/share/action_msgs/cmake/action_msgsConfig.cmake:41 (include)"
+      - "CMakeLists.txt:6 (find_package)"
+    mode: "library"
+    variable: "_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "action_msgs__rosidl_typesupport_fastrtps_cpp"
+    candidate_directories:
+      - "/opt/ros/foxy/lib/"
+    found: "/opt/ros/foxy/lib/libaction_msgs__rosidl_typesupport_fastrtps_cpp.so"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/ros/foxy"
+      ENV{PATH}:
+        - "/opt/ros/foxy/bin"
+        - "/home/mu/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+...

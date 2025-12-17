@@ -87,8 +87,8 @@ aubo_robot/industrial_core/industrial_msgs/CMakeFiles/industrial_msgs_generate_m
 /home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/industrial_msgs/msg/_RobotStatus.py: /opt/ros/noetic/lib/genpy/genmsg_py.py
 /home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/industrial_msgs/msg/_RobotStatus.py: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/RobotStatus.msg
 /home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/industrial_msgs/msg/_RobotStatus.py: /opt/ros/noetic/share/std_msgs/msg/Header.msg
-/home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/industrial_msgs/msg/_RobotStatus.py: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/RobotMode.msg
 /home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/industrial_msgs/msg/_RobotStatus.py: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/TriState.msg
+/home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/industrial_msgs/msg/_RobotStatus.py: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/RobotMode.msg
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ws/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Generating Python from MSG industrial_msgs/RobotStatus"
 	cd /home/mu/IVG/aubo_ws/build/aubo_robot/industrial_core/industrial_msgs && ../../../catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/genpy/cmake/../../../lib/genpy/genmsg_py.py /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/RobotStatus.msg -Iindustrial_msgs:/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg -Istd_msgs:/opt/ros/noetic/share/std_msgs/cmake/../msg -Itrajectory_msgs:/opt/ros/noetic/share/trajectory_msgs/cmake/../msg -Igeometry_msgs:/opt/ros/noetic/share/geometry_msgs/cmake/../msg -p industrial_msgs -o /home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/industrial_msgs/msg
 
@@ -104,10 +104,10 @@ aubo_robot/industrial_core/industrial_msgs/CMakeFiles/industrial_msgs_generate_m
 
 /home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/industrial_msgs/srv/_CmdJointTrajectory.py: /opt/ros/noetic/lib/genpy/gensrv_py.py
 /home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/industrial_msgs/srv/_CmdJointTrajectory.py: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/CmdJointTrajectory.srv
+/home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/industrial_msgs/srv/_CmdJointTrajectory.py: /opt/ros/noetic/share/trajectory_msgs/msg/JointTrajectory.msg
 /home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/industrial_msgs/srv/_CmdJointTrajectory.py: /opt/ros/noetic/share/std_msgs/msg/Header.msg
 /home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/industrial_msgs/srv/_CmdJointTrajectory.py: /opt/ros/noetic/share/trajectory_msgs/msg/JointTrajectoryPoint.msg
 /home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/industrial_msgs/srv/_CmdJointTrajectory.py: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg
-/home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/industrial_msgs/srv/_CmdJointTrajectory.py: /opt/ros/noetic/share/trajectory_msgs/msg/JointTrajectory.msg
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ws/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Generating Python code from SRV industrial_msgs/CmdJointTrajectory"
 	cd /home/mu/IVG/aubo_ws/build/aubo_robot/industrial_core/industrial_msgs && ../../../catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/genpy/cmake/../../../lib/genpy/gensrv_py.py /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/CmdJointTrajectory.srv -Iindustrial_msgs:/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg -Istd_msgs:/opt/ros/noetic/share/std_msgs/cmake/../msg -Itrajectory_msgs:/opt/ros/noetic/share/trajectory_msgs/cmake/../msg -Igeometry_msgs:/opt/ros/noetic/share/geometry_msgs/cmake/../msg -p industrial_msgs -o /home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/industrial_msgs/srv
 

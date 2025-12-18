@@ -12,7 +12,7 @@ if(NOT DEFINED CMAKE_INSTALL_CONFIG_NAME)
     string(REGEX REPLACE "^[^A-Za-z0-9_]+" ""
            CMAKE_INSTALL_CONFIG_NAME "${BUILD_TYPE}")
   else()
-    set(CMAKE_INSTALL_CONFIG_NAME "Release")
+    set(CMAKE_INSTALL_CONFIG_NAME "")
   endif()
   message(STATUS "Install configuration: \"${CMAKE_INSTALL_CONFIG_NAME}\"")
 endif()
@@ -38,24 +38,12 @@ if(NOT DEFINED CMAKE_CROSSCOMPILING)
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/aubo_description/" TYPE DIRECTORY FILES "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_description/config")
-endif()
-
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/aubo_description/" TYPE DIRECTORY FILES "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_description/urdf")
-endif()
-
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/aubo_description/" TYPE DIRECTORY FILES "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_description/meshes")
-endif()
-
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_description/" TYPE DIRECTORY FILES
-    "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_description/launch"
-    "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_description/meshes"
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_description" TYPE DIRECTORY FILES
     "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_description/urdf"
-    "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_description/rviz"
-    )
+    "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_description/meshes"
+    "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_description/config"
+    "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_description/launch"
+    REGEX "/\\.svn$" EXCLUDE)
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)

@@ -2,6 +2,8 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.actions import OpaqueFunction
+from launch.actions import ExecuteProcess
+from launch.actions import TimerAction
 from launch.substitutions import (
     Command,
     FindExecutable,
@@ -32,14 +34,23 @@ def launch_setup(context, *args, **kwargs):
     moveit_config_package = LaunchConfiguration("moveit_config_package")
     moveit_config_file = LaunchConfiguration("moveit_config_file")
     aubo_type = LaunchConfiguration("aubo_type")
+    use_fake_hardware = LaunchConfiguration("use_fake_hardware")
+    use_ros2_control = LaunchConfiguration("use_ros2_control")
 
     # Planning context
+    # 根据use_ros2_control参数选择使用ros2_control版本的xacro
+    use_ros2_control_val = use_ros2_control.perform(context)
+    if use_ros2_control_val == "true":
+        robot_xacro_file_to_use = "aubo_ros2.xacro"
+    else:
+        robot_xacro_file_to_use = robot_xacro_file.perform(context)
+    
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
             PathJoinSubstitution(
-                [FindPackageShare(support_package), "urdf/xacro/inc/", robot_xacro_file]
+                [FindPackageShare(support_package), "urdf/xacro/inc/", robot_xacro_file_to_use]
             ),
             " ",
             "aubo_type:=",
@@ -78,7 +89,7 @@ def launch_setup(context, *args, **kwargs):
     ompl_planning_pipeline_config = {
         "move_group": {
             "planning_plugin": "ompl_interface/OMPLPlanner",
-            "request_adapters": """industrial_trajectory_filters/UniformSampleFilter default_planner_request_adapters/AddTimeOptimalParameterization default_planner_request_adapters/ResolveConstraintFrames default_planner_request_adapters/FixWorkspaceBounds default_planner_request_adapters/FixStartStateBounds default_planner_request_adapters/FixStartStateCollision default_planner_request_adapters/FixStartStatePathConstraints""",
+            "request_adapters": """default_planner_request_adapters/AddTimeOptimalParameterization default_planner_request_adapters/ResolveConstraintFrames default_planner_request_adapters/FixWorkspaceBounds default_planner_request_adapters/FixStartStateBounds default_planner_request_adapters/FixStartStateCollision default_planner_request_adapters/FixStartStatePathConstraints""",
             "start_state_max_bounds_error": 0.1,
             "sample_duration": 0.005,
         }
@@ -89,9 +100,16 @@ def launch_setup(context, *args, **kwargs):
     ompl_planning_pipeline_config["move_group"].update(ompl_planning_yaml)
 
     # Trajectory Execution Functionality
+    # MoveIt 总是使用 moveit_controllers.yaml 配置文件
+    # ros2_controllers.yaml 是给 controller_manager 节点用的，不是给 MoveIt 用的
     moveit_simple_controllers_yaml = load_yaml(
         "aubo_moveit_config", "config/moveit_controllers.yaml"
     )
+    if moveit_simple_controllers_yaml is None:
+        raise RuntimeError(
+            "moveit_controllers.yaml could not be loaded. "
+            "Please ensure the file exists."
+        )
     moveit_controllers = {
         "moveit_simple_controller_manager": moveit_simple_controllers_yaml,
         "moveit_controller_manager": "moveit_simple_controller_manager/MoveItSimpleControllerManager",
@@ -175,14 +193,71 @@ def launch_setup(context, *args, **kwargs):
         output="both",
         parameters=[robot_description],
     )
-    joint_state_publisher_node = Node(
-        package='joint_state_publisher_gui',
-        executable='joint_state_publisher_gui',
-        name='joint_state_publisher_gui',
-        parameters=[robot_description]
+    nodes_to_start = []
+    
+    # 根据use_ros2_control参数决定使用哪种控制方式
+    if use_ros2_control_val == "true":
+        # ROS2 Control 控制器管理器节点（参考 moveit2_tutorials demo.launch.py）
+        ros2_controllers_path = os.path.join(
+            get_package_share_directory("aubo_moveit_config"),
+            "config",
+            "ros2_controllers.yaml",
+        )
+        controller_manager_node = Node(
+            package="controller_manager",
+            executable="ros2_control_node",
+            parameters=[robot_description, ros2_controllers_path],
+            output="screen",
+        )
+        
+        # 启动控制器（参考 moveit2_tutorials demo.launch.py 的方式）
+        # 使用 TimerAction 延迟启动控制器，增加超时时间以确保controller_manager已启动
+        joint_state_broadcaster_spawner = TimerAction(
+            period=3.0,
+            actions=[
+                ExecuteProcess(
+                    cmd=["ros2 run controller_manager spawner.py joint_state_broadcaster --controller-manager-timeout 20"],
+                    shell=True,
+                    output="screen",
+                )
+            ]
         )
 
-    nodes_to_start = [move_group_node, rviz_node, static_tf_node, robot_state_pub_node]
+        trajectory_controller_spawner = TimerAction(
+            period=4.0,
+            actions=[
+                ExecuteProcess(
+                    cmd=["ros2 run controller_manager spawner.py joint_trajectory_controller --controller-manager-timeout 20"],
+                    shell=True,
+                    output="screen",
+                )
+            ]
+        )
+        
+        nodes_to_start = [
+            controller_manager_node,
+            joint_state_broadcaster_spawner,
+            trajectory_controller_spawner,
+        ]
+    else:
+        # 使用传统的joint_state_publisher（用于测试和演示）
+        joint_state_publisher_node = Node(
+            package='joint_state_publisher_gui',
+            executable='joint_state_publisher_gui',
+            name='joint_state_publisher_gui',
+            parameters=[robot_description],
+            output="screen",
+        )
+        nodes_to_start = [joint_state_publisher_node]
+    
+    # 添加其他必需的节点
+    nodes_to_start.extend([
+        robot_state_pub_node,
+        static_tf_node,
+        move_group_node,
+        rviz_node,
+    ])
+    
     return nodes_to_start
 
 
@@ -226,9 +301,22 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "aubo_type",
-            description="Name of the aubo_type ",
-            default_value="aubo_e5",
-            choices=["aubo_e5"],
+            description="Name of the aubo_type",
+            default_value="aubo_e5_10",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_fake_hardware",
+            default_value="true",
+            description="Whether to use fake hardware (simulation) or real hardware",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_ros2_control",
+            default_value="true",
+            description="Whether to use ros2_control (requires ros-foxy-controller-manager package)",
         )
     )
 

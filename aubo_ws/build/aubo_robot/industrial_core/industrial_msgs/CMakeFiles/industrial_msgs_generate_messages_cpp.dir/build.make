@@ -87,9 +87,9 @@ aubo_robot/industrial_core/industrial_msgs/CMakeFiles/industrial_msgs_generate_m
 
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/RobotStatus.h: /opt/ros/noetic/lib/gencpp/gen_cpp.py
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/RobotStatus.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/RobotStatus.msg
-/home/mu/IVG/aubo_ws/devel/include/industrial_msgs/RobotStatus.h: /opt/ros/noetic/share/std_msgs/msg/Header.msg
-/home/mu/IVG/aubo_ws/devel/include/industrial_msgs/RobotStatus.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/TriState.msg
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/RobotStatus.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/RobotMode.msg
+/home/mu/IVG/aubo_ws/devel/include/industrial_msgs/RobotStatus.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/TriState.msg
+/home/mu/IVG/aubo_ws/devel/include/industrial_msgs/RobotStatus.h: /opt/ros/noetic/share/std_msgs/msg/Header.msg
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/RobotStatus.h: /opt/ros/noetic/share/gencpp/msg.h.template
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ws/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Generating C++ code from industrial_msgs/RobotStatus.msg"
 	cd /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs && /home/mu/IVG/aubo_ws/build/catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/gencpp/cmake/../../../lib/gencpp/gen_cpp.py /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/RobotStatus.msg -Iindustrial_msgs:/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg -Istd_msgs:/opt/ros/noetic/share/std_msgs/cmake/../msg -Itrajectory_msgs:/opt/ros/noetic/share/trajectory_msgs/cmake/../msg -Igeometry_msgs:/opt/ros/noetic/share/geometry_msgs/cmake/../msg -p industrial_msgs -o /home/mu/IVG/aubo_ws/devel/include/industrial_msgs -e /opt/ros/noetic/share/gencpp/cmake/..
@@ -108,8 +108,8 @@ aubo_robot/industrial_core/industrial_msgs/CMakeFiles/industrial_msgs_generate_m
 
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/CmdJointTrajectory.h: /opt/ros/noetic/lib/gencpp/gen_cpp.py
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/CmdJointTrajectory.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/CmdJointTrajectory.srv
-/home/mu/IVG/aubo_ws/devel/include/industrial_msgs/CmdJointTrajectory.h: /opt/ros/noetic/share/trajectory_msgs/msg/JointTrajectory.msg
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/CmdJointTrajectory.h: /opt/ros/noetic/share/std_msgs/msg/Header.msg
+/home/mu/IVG/aubo_ws/devel/include/industrial_msgs/CmdJointTrajectory.h: /opt/ros/noetic/share/trajectory_msgs/msg/JointTrajectory.msg
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/CmdJointTrajectory.h: /opt/ros/noetic/share/trajectory_msgs/msg/JointTrajectoryPoint.msg
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/CmdJointTrajectory.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/CmdJointTrajectory.h: /opt/ros/noetic/share/gencpp/msg.h.template
@@ -119,8 +119,8 @@ aubo_robot/industrial_core/industrial_msgs/CMakeFiles/industrial_msgs_generate_m
 
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/GetRobotInfo.h: /opt/ros/noetic/lib/gencpp/gen_cpp.py
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/GetRobotInfo.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/GetRobotInfo.srv
-/home/mu/IVG/aubo_ws/devel/include/industrial_msgs/GetRobotInfo.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/DeviceInfo.msg
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/GetRobotInfo.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg
+/home/mu/IVG/aubo_ws/devel/include/industrial_msgs/GetRobotInfo.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/DeviceInfo.msg
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/GetRobotInfo.h: /opt/ros/noetic/share/gencpp/msg.h.template
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/GetRobotInfo.h: /opt/ros/noetic/share/gencpp/srv.h.template
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ws/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Generating C++ code from industrial_msgs/GetRobotInfo.srv"

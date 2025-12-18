@@ -65,6 +65,7 @@
 #include "geometry_msgs/WrenchStamped.h"
 #include "geometry_msgs/PoseStamped.h"
 #include "control_msgs/FollowJointTrajectoryAction.h"
+#include "aubo_msgs/JointTrajectoryFeedback.h"
 #include "actionlib/server/action_server.h"
 #include "actionlib/server/server_goal_handle.h"
 #include "trajectory_msgs/JointTrajectoryPoint.h"
@@ -512,8 +513,8 @@ public:
         // 发布关节状态（供 robot_state_publisher 和 move_group 使用）
         joint_state_pub_ = nh_.advertise<sensor_msgs::JointState>("joint_states", 100);
         
-        // 发布轨迹执行反馈（供 aubo_joint_trajectory_action 使用）
-        joint_feedback_pub_ = nh_.advertise<control_msgs::FollowJointTrajectoryFeedback>("feedback_states", 100);
+        // 发布轨迹执行反馈（供 aubo_joint_trajectory_action 使用，使用自定义消息类型便于 ROS 1 到 ROS 2 桥接）
+        joint_feedback_pub_ = nh_.advertise<aubo_msgs::JointTrajectoryFeedback>("feedback_states", 100);
         
         // 订阅轨迹命令（从 aubo_joint_trajectory_action 接收）
         joint_path_sub_ = nh_.subscribe("joint_path_command", 100, &AuboRobotSimulatorNode::trajectoryCallback, this);
@@ -557,7 +558,7 @@ public:
         {
             try
             {
-                control_msgs::FollowJointTrajectoryFeedback joint_fb_msg;
+                aubo_msgs::JointTrajectoryFeedback joint_fb_msg;
                 
                 // 线程安全地获取当前关节位置
                 motion_ctrl_->mutex_.lock();

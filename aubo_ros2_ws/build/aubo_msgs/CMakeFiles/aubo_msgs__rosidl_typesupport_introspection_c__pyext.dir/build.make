@@ -88,7 +88,13 @@ rosidl_generator_py/aubo_msgs/aubo_msgs_s__rosidl_typesupport_introspection_c.cp
 rosidl_generator_py/aubo_msgs/aubo_msgs_s__rosidl_typesupport_introspection_c.cpython-38-x86_64-linux-gnu.so: /opt/ros/foxy/share/builtin_interfaces/cmake/../../../lib/libbuiltin_interfaces__python.so
 rosidl_generator_py/aubo_msgs/aubo_msgs_s__rosidl_typesupport_introspection_c.cpython-38-x86_64-linux-gnu.so: /opt/ros/foxy/share/geometry_msgs/cmake/../../../lib/libgeometry_msgs__python.so
 rosidl_generator_py/aubo_msgs/aubo_msgs_s__rosidl_typesupport_introspection_c.cpython-38-x86_64-linux-gnu.so: /opt/ros/foxy/share/std_msgs/cmake/../../../lib/libstd_msgs__python.so
+rosidl_generator_py/aubo_msgs/aubo_msgs_s__rosidl_typesupport_introspection_c.cpython-38-x86_64-linux-gnu.so: /opt/ros/foxy/share/trajectory_msgs/cmake/../../../lib/libtrajectory_msgs__python.so
 rosidl_generator_py/aubo_msgs/aubo_msgs_s__rosidl_typesupport_introspection_c.cpython-38-x86_64-linux-gnu.so: libaubo_msgs__rosidl_generator_c.so
+rosidl_generator_py/aubo_msgs/aubo_msgs_s__rosidl_typesupport_introspection_c.cpython-38-x86_64-linux-gnu.so: /opt/ros/foxy/lib/libtrajectory_msgs__rosidl_typesupport_introspection_c.so
+rosidl_generator_py/aubo_msgs/aubo_msgs_s__rosidl_typesupport_introspection_c.cpython-38-x86_64-linux-gnu.so: /opt/ros/foxy/lib/libtrajectory_msgs__rosidl_generator_c.so
+rosidl_generator_py/aubo_msgs/aubo_msgs_s__rosidl_typesupport_introspection_c.cpython-38-x86_64-linux-gnu.so: /opt/ros/foxy/lib/libtrajectory_msgs__rosidl_typesupport_c.so
+rosidl_generator_py/aubo_msgs/aubo_msgs_s__rosidl_typesupport_introspection_c.cpython-38-x86_64-linux-gnu.so: /opt/ros/foxy/lib/libtrajectory_msgs__rosidl_typesupport_introspection_cpp.so
+rosidl_generator_py/aubo_msgs/aubo_msgs_s__rosidl_typesupport_introspection_c.cpython-38-x86_64-linux-gnu.so: /opt/ros/foxy/lib/libtrajectory_msgs__rosidl_typesupport_cpp.so
 rosidl_generator_py/aubo_msgs/aubo_msgs_s__rosidl_typesupport_introspection_c.cpython-38-x86_64-linux-gnu.so: /opt/ros/foxy/lib/libgeometry_msgs__rosidl_typesupport_introspection_c.so
 rosidl_generator_py/aubo_msgs/aubo_msgs_s__rosidl_typesupport_introspection_c.cpython-38-x86_64-linux-gnu.so: /opt/ros/foxy/lib/libgeometry_msgs__rosidl_generator_c.so
 rosidl_generator_py/aubo_msgs/aubo_msgs_s__rosidl_typesupport_introspection_c.cpython-38-x86_64-linux-gnu.so: /opt/ros/foxy/lib/libgeometry_msgs__rosidl_typesupport_c.so

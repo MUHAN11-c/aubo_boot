@@ -4,6 +4,8 @@ msg/Digital.idl
 msg/Digital.msg
 msg/IOStates.idl
 msg/IOStates.msg
+msg/JointTrajectoryFeedback.idl
+msg/JointTrajectoryFeedback.msg
 msg/MasterboardDataMsg.idl
 msg/MasterboardDataMsg.msg
 msg/RobotModeDataMsg.idl
@@ -12,6 +14,14 @@ msg/RobotStateRTMsg.idl
 msg/RobotStateRTMsg.msg
 msg/ToolDataMsg.idl
 msg/ToolDataMsg.msg
+srv/GetFK.idl
+srv/GetFK.srv
+srv/GetFK_Request.msg
+srv/GetFK_Response.msg
+srv/GetIK.idl
+srv/GetIK.srv
+srv/GetIK_Request.msg
+srv/GetIK_Response.msg
 srv/SetIO.idl
 srv/SetIO.srv
 srv/SetIO_Request.msg

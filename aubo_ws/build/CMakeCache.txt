@@ -51,7 +51,7 @@ CATKIN_SKIP_TESTING:BOOL=OFF
 CATKIN_SYMLINK_INSTALL:BOOL=OFF
 
 //List of ';' separated packages to build
-CATKIN_WHITELIST_PACKAGES:STRING=aubo_msgs;demo_driver;demo_interface;industrial_msgs
+CATKIN_WHITELIST_PACKAGES:STRING=
 
 //Path to a program.
 CMAKE_ADDR2LINE:FILEPATH=/usr/bin/addr2line
@@ -137,10 +137,7 @@ CMAKE_EXE_LINKER_FLAGS_RELEASE:STRING=
 CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO:STRING=
 
 //Enable/Disable output of compile commands during generation.
-CMAKE_EXPORT_COMPILE_COMMANDS:BOOL=
-
-//Value Computed by CMake.
-CMAKE_FIND_PACKAGE_REDIRECTS_DIR:STATIC=/home/mu/IVG/aubo_ws/build/CMakeFiles/pkgRedirects
+CMAKE_EXPORT_COMPILE_COMMANDS:BOOL=OFF
 
 //User executables (bin)
 CMAKE_INSTALL_BINDIR:PATH=bin
@@ -229,9 +226,6 @@ CMAKE_OBJCOPY:FILEPATH=/usr/bin/objcopy
 CMAKE_OBJDUMP:FILEPATH=/usr/bin/objdump
 
 //Value Computed by CMake
-CMAKE_PROJECT_COMPAT_VERSION:STATIC=
-
-//Value Computed by CMake
 CMAKE_PROJECT_DESCRIPTION:STATIC=
 
 //Value Computed by CMake
@@ -239,9 +233,6 @@ CMAKE_PROJECT_HOMEPAGE_URL:STATIC=
 
 //Value Computed by CMake
 CMAKE_PROJECT_NAME:STATIC=Project
-
-//Value Computed by CMake
-CMAKE_PROJECT_SPDX_LICENSE:STATIC=
 
 //Value Computed by CMake
 CMAKE_PROJECT_VERSION:STATIC=1.10.0
@@ -291,31 +282,28 @@ CMAKE_SKIP_INSTALL_RPATH:BOOL=NO
 //If set, runtime paths are not added when using shared libraries.
 CMAKE_SKIP_RPATH:BOOL=NO
 
-//Flags used by the archiver during the creation of static libraries
+//Flags used by the linker during the creation of static libraries
 // during all build types.
 CMAKE_STATIC_LINKER_FLAGS:STRING=
 
-//Flags used by the archiver during the creation of static libraries
+//Flags used by the linker during the creation of static libraries
 // during DEBUG builds.
 CMAKE_STATIC_LINKER_FLAGS_DEBUG:STRING=
 
-//Flags used by the archiver during the creation of static libraries
+//Flags used by the linker during the creation of static libraries
 // during MINSIZEREL builds.
 CMAKE_STATIC_LINKER_FLAGS_MINSIZEREL:STRING=
 
-//Flags used by the archiver during the creation of static libraries
+//Flags used by the linker during the creation of static libraries
 // during RELEASE builds.
 CMAKE_STATIC_LINKER_FLAGS_RELEASE:STRING=
 
-//Flags used by the archiver during the creation of static libraries
+//Flags used by the linker during the creation of static libraries
 // during RELWITHDEBINFO builds.
 CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO:STRING=
 
 //Path to a program.
 CMAKE_STRIP:FILEPATH=/usr/bin/strip
-
-//Path to a program.
-CMAKE_TAPI:FILEPATH=CMAKE_TAPI-NOTFOUND
 
 //If this value is on, makefiles will be generated without the
 // .SILENT directive, and all commands will be echoed to the console
@@ -392,9 +380,6 @@ PY_EM:STRING=/usr/lib/python3/dist-packages/em.py
 
 //Value Computed by CMake
 Project_BINARY_DIR:STATIC=/home/mu/IVG/aubo_ws/build
-
-//Value Computed by CMake
-Project_IS_TOP_LEVEL:STATIC=ON
 
 //Value Computed by CMake
 Project_SOURCE_DIR:STATIC=/home/mu/IVG/aubo_ws/src
@@ -1042,8 +1027,6 @@ CMAKE_INSTALL_SO_NO_EXE:INTERNAL=1
 CMAKE_INSTALL_SYSCONFDIR-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_LINKER
 CMAKE_LINKER-ADVANCED:INTERNAL=1
-//Name of CMakeLists files to read
-CMAKE_LIST_FILE_NAME:INTERNAL=CMakeLists.txt
 //ADVANCED property for variable: CMAKE_MAKE_PROGRAM
 CMAKE_MAKE_PROGRAM-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_MODULE_LINKER_FLAGS
@@ -1059,7 +1042,7 @@ CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_NM
 CMAKE_NM-ADVANCED:INTERNAL=1
 //number of local generators
-CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=8
+CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=24
 //ADVANCED property for variable: CMAKE_OBJCOPY
 CMAKE_OBJCOPY-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_OBJDUMP
@@ -1098,8 +1081,6 @@ CMAKE_STATIC_LINKER_FLAGS_RELEASE-ADVANCED:INTERNAL=1
 CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_STRIP
 CMAKE_STRIP-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: CMAKE_TAPI
-CMAKE_TAPI-ADVANCED:INTERNAL=1
 //uname command
 CMAKE_UNAME:INTERNAL=/usr/bin/uname
 //ADVANCED property for variable: CMAKE_VERBOSE_MAKEFILE

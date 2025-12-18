@@ -45,6 +45,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointPos.msg"
     "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/TraPoint.msg"
     "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/GoalPoint.msg"
+    "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg"
     )
 endif()
 

@@ -6,6 +6,7 @@ file(REMOVE_RECURSE
   "/home/mu/IVG/aubo_ws/devel/include/aubo_msgs/GoalPoint.h"
   "/home/mu/IVG/aubo_ws/devel/include/aubo_msgs/IOState.h"
   "/home/mu/IVG/aubo_ws/devel/include/aubo_msgs/JointPos.h"
+  "/home/mu/IVG/aubo_ws/devel/include/aubo_msgs/JointTrajectoryFeedback.h"
   "/home/mu/IVG/aubo_ws/devel/include/aubo_msgs/SetIO.h"
   "/home/mu/IVG/aubo_ws/devel/include/aubo_msgs/SetPayload.h"
   "/home/mu/IVG/aubo_ws/devel/include/aubo_msgs/TraPoint.h"

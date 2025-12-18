@@ -12,7 +12,7 @@ if(NOT DEFINED CMAKE_INSTALL_CONFIG_NAME)
     string(REGEX REPLACE "^[^A-Za-z0-9_]+" ""
            CMAKE_INSTALL_CONFIG_NAME "${BUILD_TYPE}")
   else()
-    set(CMAKE_INSTALL_CONFIG_NAME "Release")
+    set(CMAKE_INSTALL_CONFIG_NAME "")
   endif()
   message(STATUS "Install configuration: \"${CMAKE_INSTALL_CONFIG_NAME}\"")
 endif()
@@ -274,7 +274,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
      NOT IS_SYMLINK "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/python3.8/site-packages/aubo_msgs/aubo_msgs_s__rosidl_typesupport_fastrtps_c.cpython-38-x86_64-linux-gnu.so")
     file(RPATH_CHANGE
          FILE "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/python3.8/site-packages/aubo_msgs/aubo_msgs_s__rosidl_typesupport_fastrtps_c.cpython-38-x86_64-linux-gnu.so"
-         OLD_RPATH "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_py/aubo_msgs:/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs:/opt/ros/foxy/lib:/opt/ros/foxy/share/builtin_interfaces/cmake/../../../lib:/opt/ros/foxy/share/geometry_msgs/cmake/../../../lib:/opt/ros/foxy/share/std_msgs/cmake/../../../lib:"
+         OLD_RPATH "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_py/aubo_msgs:/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs:/opt/ros/foxy/lib:/opt/ros/foxy/share/builtin_interfaces/cmake/../../../lib:/opt/ros/foxy/share/geometry_msgs/cmake/../../../lib:/opt/ros/foxy/share/std_msgs/cmake/../../../lib:/opt/ros/foxy/share/trajectory_msgs/cmake/../../../lib:"
          NEW_RPATH "")
     if(CMAKE_INSTALL_DO_STRIP)
       execute_process(COMMAND "/usr/bin/strip" "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/python3.8/site-packages/aubo_msgs/aubo_msgs_s__rosidl_typesupport_fastrtps_c.cpython-38-x86_64-linux-gnu.so")
@@ -297,7 +297,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
      NOT IS_SYMLINK "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/python3.8/site-packages/aubo_msgs/aubo_msgs_s__rosidl_typesupport_introspection_c.cpython-38-x86_64-linux-gnu.so")
     file(RPATH_CHANGE
          FILE "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/python3.8/site-packages/aubo_msgs/aubo_msgs_s__rosidl_typesupport_introspection_c.cpython-38-x86_64-linux-gnu.so"
-         OLD_RPATH "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_py/aubo_msgs:/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs:/opt/ros/foxy/lib:/opt/ros/foxy/share/builtin_interfaces/cmake/../../../lib:/opt/ros/foxy/share/geometry_msgs/cmake/../../../lib:/opt/ros/foxy/share/std_msgs/cmake/../../../lib:"
+         OLD_RPATH "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_py/aubo_msgs:/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs:/opt/ros/foxy/lib:/opt/ros/foxy/share/builtin_interfaces/cmake/../../../lib:/opt/ros/foxy/share/geometry_msgs/cmake/../../../lib:/opt/ros/foxy/share/std_msgs/cmake/../../../lib:/opt/ros/foxy/share/trajectory_msgs/cmake/../../../lib:"
          NEW_RPATH "")
     if(CMAKE_INSTALL_DO_STRIP)
       execute_process(COMMAND "/usr/bin/strip" "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/python3.8/site-packages/aubo_msgs/aubo_msgs_s__rosidl_typesupport_introspection_c.cpython-38-x86_64-linux-gnu.so")
@@ -320,7 +320,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
      NOT IS_SYMLINK "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/python3.8/site-packages/aubo_msgs/aubo_msgs_s__rosidl_typesupport_c.cpython-38-x86_64-linux-gnu.so")
     file(RPATH_CHANGE
          FILE "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/python3.8/site-packages/aubo_msgs/aubo_msgs_s__rosidl_typesupport_c.cpython-38-x86_64-linux-gnu.so"
-         OLD_RPATH "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_py/aubo_msgs:/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs:/opt/ros/foxy/lib:/opt/ros/foxy/share/builtin_interfaces/cmake/../../../lib:/opt/ros/foxy/share/geometry_msgs/cmake/../../../lib:/opt/ros/foxy/share/std_msgs/cmake/../../../lib:"
+         OLD_RPATH "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_py/aubo_msgs:/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs:/opt/ros/foxy/lib:/opt/ros/foxy/share/builtin_interfaces/cmake/../../../lib:/opt/ros/foxy/share/geometry_msgs/cmake/../../../lib:/opt/ros/foxy/share/std_msgs/cmake/../../../lib:/opt/ros/foxy/share/trajectory_msgs/cmake/../../../lib:"
          NEW_RPATH "")
     if(CMAKE_INSTALL_DO_STRIP)
       execute_process(COMMAND "/usr/bin/strip" "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/python3.8/site-packages/aubo_msgs/aubo_msgs_s__rosidl_typesupport_c.cpython-38-x86_64-linux-gnu.so")
@@ -343,7 +343,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
      NOT IS_SYMLINK "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libaubo_msgs__python.so")
     file(RPATH_CHANGE
          FILE "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libaubo_msgs__python.so"
-         OLD_RPATH "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs:/opt/ros/foxy/share/builtin_interfaces/cmake/../../../lib:/opt/ros/foxy/share/geometry_msgs/cmake/../../../lib:/opt/ros/foxy/share/std_msgs/cmake/../../../lib:/opt/ros/foxy/lib:"
+         OLD_RPATH "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs:/opt/ros/foxy/share/builtin_interfaces/cmake/../../../lib:/opt/ros/foxy/share/geometry_msgs/cmake/../../../lib:/opt/ros/foxy/share/std_msgs/cmake/../../../lib:/opt/ros/foxy/share/trajectory_msgs/cmake/../../../lib:/opt/ros/foxy/lib:"
          NEW_RPATH "")
     if(CMAKE_INSTALL_DO_STRIP)
       execute_process(COMMAND "/usr/bin/strip" "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libaubo_msgs__python.so")
@@ -383,6 +383,10 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/msg" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs/msg/JointTrajectoryFeedback.idl")
+endif()
+
+if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/srv" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs/srv/SetPayload.idl")
 endif()
 
@@ -392,6 +396,14 @@ endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/srv" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs/srv/SetIO.idl")
+endif()
+
+if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/srv" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs/srv/GetFK.idl")
+endif()
+
+if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/srv" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs/srv/GetIK.idl")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
@@ -420,6 +432,10 @@ endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/msg" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_msgs/msg/ToolDataMsg.msg")
+endif()
+
+if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/msg" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_msgs/msg/JointTrajectoryFeedback.msg")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
@@ -456,6 +472,34 @@ endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/srv" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_cmake/srv/SetIO_Response.msg")
+endif()
+
+if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/srv" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_msgs/srv/GetFK.srv")
+endif()
+
+if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/srv" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_cmake/srv/GetFK_Request.msg")
+endif()
+
+if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/srv" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_cmake/srv/GetFK_Response.msg")
+endif()
+
+if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/srv" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_msgs/srv/GetIK.srv")
+endif()
+
+if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/srv" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_cmake/srv/GetIK_Request.msg")
+endif()
+
+if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/srv" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_cmake/srv/GetIK_Response.msg")
+endif()
+
+if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_msgs/mapping_rules.yaml")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
@@ -520,8 +564,8 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     endif()
   endif()
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/cmake" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/Export/share/aubo_msgs/cmake/aubo_msgs__rosidl_generator_cExport.cmake")
-  if("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^([Rr][Ee][Ll][Ee][Aa][Ss][Ee])$")
-    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/cmake" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/Export/share/aubo_msgs/cmake/aubo_msgs__rosidl_generator_cExport-release.cmake")
+  if("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^()$")
+    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/cmake" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/Export/share/aubo_msgs/cmake/aubo_msgs__rosidl_generator_cExport-noconfig.cmake")
   endif()
 endif()
 
@@ -539,8 +583,8 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     endif()
   endif()
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/cmake" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/Export/share/aubo_msgs/cmake/aubo_msgs__rosidl_typesupport_introspection_cExport.cmake")
-  if("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^([Rr][Ee][Ll][Ee][Aa][Ss][Ee])$")
-    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/cmake" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/Export/share/aubo_msgs/cmake/aubo_msgs__rosidl_typesupport_introspection_cExport-release.cmake")
+  if("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^()$")
+    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/cmake" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/Export/share/aubo_msgs/cmake/aubo_msgs__rosidl_typesupport_introspection_cExport-noconfig.cmake")
   endif()
 endif()
 
@@ -558,8 +602,8 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     endif()
   endif()
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/cmake" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/Export/share/aubo_msgs/cmake/aubo_msgs__rosidl_typesupport_cExport.cmake")
-  if("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^([Rr][Ee][Ll][Ee][Aa][Ss][Ee])$")
-    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/cmake" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/Export/share/aubo_msgs/cmake/aubo_msgs__rosidl_typesupport_cExport-release.cmake")
+  if("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^()$")
+    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/cmake" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/Export/share/aubo_msgs/cmake/aubo_msgs__rosidl_typesupport_cExport-noconfig.cmake")
   endif()
 endif()
 
@@ -593,8 +637,8 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     endif()
   endif()
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/cmake" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/Export/share/aubo_msgs/cmake/aubo_msgs__rosidl_typesupport_introspection_cppExport.cmake")
-  if("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^([Rr][Ee][Ll][Ee][Aa][Ss][Ee])$")
-    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/cmake" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/Export/share/aubo_msgs/cmake/aubo_msgs__rosidl_typesupport_introspection_cppExport-release.cmake")
+  if("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^()$")
+    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/cmake" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/Export/share/aubo_msgs/cmake/aubo_msgs__rosidl_typesupport_introspection_cppExport-noconfig.cmake")
   endif()
 endif()
 
@@ -612,8 +656,8 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     endif()
   endif()
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/cmake" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/Export/share/aubo_msgs/cmake/aubo_msgs__rosidl_typesupport_cppExport.cmake")
-  if("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^([Rr][Ee][Ll][Ee][Aa][Ss][Ee])$")
-    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/cmake" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/Export/share/aubo_msgs/cmake/aubo_msgs__rosidl_typesupport_cppExport-release.cmake")
+  if("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^()$")
+    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_msgs/cmake" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/Export/share/aubo_msgs/cmake/aubo_msgs__rosidl_typesupport_cppExport-noconfig.cmake")
   endif()
 endif()
 

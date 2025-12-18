@@ -1,21 +1,21 @@
 Performing C SOURCE FILE Test CMAKE_HAVE_LIBC_PTHREAD failed with the following output:
 Change Dir: /home/mu/IVG/aubo_ros2_ws/build/percipio_camera/CMakeFiles/CMakeTmp
 
-Run Build Command(s):/usr/bin/make cmTC_ff81b/fast && /usr/bin/make -f CMakeFiles/cmTC_ff81b.dir/build.make CMakeFiles/cmTC_ff81b.dir/build
+Run Build Command(s):/usr/bin/make cmTC_34763/fast && /usr/bin/make -f CMakeFiles/cmTC_34763.dir/build.make CMakeFiles/cmTC_34763.dir/build
 make[1]: 进入目录“/home/mu/IVG/aubo_ros2_ws/build/percipio_camera/CMakeFiles/CMakeTmp”
-Building C object CMakeFiles/cmTC_ff81b.dir/src.c.o
-/usr/bin/cc   -fPIC -O3 -DCMAKE_HAVE_LIBC_PTHREAD   -o CMakeFiles/cmTC_ff81b.dir/src.c.o   -c /home/mu/IVG/aubo_ros2_ws/build/percipio_camera/CMakeFiles/CMakeTmp/src.c
-Linking C executable cmTC_ff81b
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_ff81b.dir/link.txt --verbose=1
-/usr/bin/cc  -fPIC -O3 -DCMAKE_HAVE_LIBC_PTHREAD    CMakeFiles/cmTC_ff81b.dir/src.c.o  -o cmTC_ff81b 
-/usr/bin/ld: CMakeFiles/cmTC_ff81b.dir/src.c.o: in function `main':
+Building C object CMakeFiles/cmTC_34763.dir/src.c.o
+/usr/bin/cc   -fPIC -O3 -DCMAKE_HAVE_LIBC_PTHREAD   -o CMakeFiles/cmTC_34763.dir/src.c.o   -c /home/mu/IVG/aubo_ros2_ws/build/percipio_camera/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_34763
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_34763.dir/link.txt --verbose=1
+/usr/bin/cc  -fPIC -O3 -DCMAKE_HAVE_LIBC_PTHREAD    CMakeFiles/cmTC_34763.dir/src.c.o  -o cmTC_34763 
+/usr/bin/ld: CMakeFiles/cmTC_34763.dir/src.c.o: in function `main':
 src.c:(.text.startup+0x27): undefined reference to `pthread_create'
 /usr/bin/ld: src.c:(.text.startup+0x30): undefined reference to `pthread_detach'
 /usr/bin/ld: src.c:(.text.startup+0x3b): undefined reference to `pthread_join'
 collect2: error: ld returned 1 exit status
-make[1]: *** [CMakeFiles/cmTC_ff81b.dir/build.make:87：cmTC_ff81b] 错误 1
+make[1]: *** [CMakeFiles/cmTC_34763.dir/build.make:87：cmTC_34763] 错误 1
 make[1]: 离开目录“/home/mu/IVG/aubo_ros2_ws/build/percipio_camera/CMakeFiles/CMakeTmp”
-make: *** [Makefile:121：cmTC_ff81b/fast] 错误 2
+make: *** [Makefile:121：cmTC_34763/fast] 错误 2
 
 
 Source file was:
@@ -41,18 +41,18 @@ int main(void)
 Determining if the function pthread_create exists in the pthreads failed with the following output:
 Change Dir: /home/mu/IVG/aubo_ros2_ws/build/percipio_camera/CMakeFiles/CMakeTmp
 
-Run Build Command(s):/usr/bin/make cmTC_c3df1/fast && /usr/bin/make -f CMakeFiles/cmTC_c3df1.dir/build.make CMakeFiles/cmTC_c3df1.dir/build
+Run Build Command(s):/usr/bin/make cmTC_8d1c3/fast && /usr/bin/make -f CMakeFiles/cmTC_8d1c3.dir/build.make CMakeFiles/cmTC_8d1c3.dir/build
 make[1]: 进入目录“/home/mu/IVG/aubo_ros2_ws/build/percipio_camera/CMakeFiles/CMakeTmp”
-Building C object CMakeFiles/cmTC_c3df1.dir/CheckFunctionExists.c.o
-/usr/bin/cc   -fPIC -O3 -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_c3df1.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.16/Modules/CheckFunctionExists.c
-Linking C executable cmTC_c3df1
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_c3df1.dir/link.txt --verbose=1
-/usr/bin/cc  -fPIC -O3 -DCHECK_FUNCTION_EXISTS=pthread_create    CMakeFiles/cmTC_c3df1.dir/CheckFunctionExists.c.o  -o cmTC_c3df1  -lpthreads 
+Building C object CMakeFiles/cmTC_8d1c3.dir/CheckFunctionExists.c.o
+/usr/bin/cc   -fPIC -O3 -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_8d1c3.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.16/Modules/CheckFunctionExists.c
+Linking C executable cmTC_8d1c3
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_8d1c3.dir/link.txt --verbose=1
+/usr/bin/cc  -fPIC -O3 -DCHECK_FUNCTION_EXISTS=pthread_create    CMakeFiles/cmTC_8d1c3.dir/CheckFunctionExists.c.o  -o cmTC_8d1c3  -lpthreads 
 /usr/bin/ld: 找不到 -lpthreads
 collect2: error: ld returned 1 exit status
-make[1]: *** [CMakeFiles/cmTC_c3df1.dir/build.make:87：cmTC_c3df1] 错误 1
+make[1]: *** [CMakeFiles/cmTC_8d1c3.dir/build.make:87：cmTC_8d1c3] 错误 1
 make[1]: 离开目录“/home/mu/IVG/aubo_ros2_ws/build/percipio_camera/CMakeFiles/CMakeTmp”
-make: *** [Makefile:121：cmTC_c3df1/fast] 错误 2
+make: *** [Makefile:121：cmTC_8d1c3/fast] 错误 2
 
 
 

@@ -1,8 +1,8 @@
 # generated from genmsg/cmake/pkg-genmsg.cmake.em
 
-message(STATUS "aubo_msgs: 6 messages, 4 services")
+message(STATUS "aubo_msgs: 7 messages, 4 services")
 
-set(MSG_I_FLAGS "-Iaubo_msgs:/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg;-Istd_msgs:/opt/ros/noetic/share/std_msgs/cmake/../msg")
+set(MSG_I_FLAGS "-Iaubo_msgs:/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg;-Istd_msgs:/opt/ros/noetic/share/std_msgs/cmake/../msg;-Itrajectory_msgs:/opt/ros/noetic/share/trajectory_msgs/cmake/../msg;-Igeometry_msgs:/opt/ros/noetic/share/geometry_msgs/cmake/../msg")
 
 # Find all generators
 find_package(gencpp REQUIRED)
@@ -45,6 +45,11 @@ add_custom_target(_aubo_msgs_generate_messages_check_deps_${_filename}
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/GoalPoint.msg" NAME_WE)
 add_custom_target(_aubo_msgs_generate_messages_check_deps_${_filename}
   COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "aubo_msgs" "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/GoalPoint.msg" ""
+)
+
+get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg" NAME_WE)
+add_custom_target(_aubo_msgs_generate_messages_check_deps_${_filename}
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "aubo_msgs" "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg" "trajectory_msgs/JointTrajectoryPoint:std_msgs/Header"
 )
 
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/srv/SetPayload.srv" NAME_WE)
@@ -109,6 +114,12 @@ _generate_msg_cpp(aubo_msgs
   ""
   ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/aubo_msgs
 )
+_generate_msg_cpp(aubo_msgs
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
+  ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/aubo_msgs
+)
 
 ### Generating Services
 _generate_srv_cpp(aubo_msgs
@@ -159,6 +170,8 @@ add_dependencies(aubo_msgs_generate_messages_cpp _aubo_msgs_generate_messages_ch
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/TraPoint.msg" NAME_WE)
 add_dependencies(aubo_msgs_generate_messages_cpp _aubo_msgs_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/GoalPoint.msg" NAME_WE)
+add_dependencies(aubo_msgs_generate_messages_cpp _aubo_msgs_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg" NAME_WE)
 add_dependencies(aubo_msgs_generate_messages_cpp _aubo_msgs_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/srv/SetPayload.srv" NAME_WE)
 add_dependencies(aubo_msgs_generate_messages_cpp _aubo_msgs_generate_messages_check_deps_${_filename})
@@ -214,6 +227,12 @@ _generate_msg_eus(aubo_msgs
   ""
   ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/aubo_msgs
 )
+_generate_msg_eus(aubo_msgs
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
+  ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/aubo_msgs
+)
 
 ### Generating Services
 _generate_srv_eus(aubo_msgs
@@ -264,6 +283,8 @@ add_dependencies(aubo_msgs_generate_messages_eus _aubo_msgs_generate_messages_ch
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/TraPoint.msg" NAME_WE)
 add_dependencies(aubo_msgs_generate_messages_eus _aubo_msgs_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/GoalPoint.msg" NAME_WE)
+add_dependencies(aubo_msgs_generate_messages_eus _aubo_msgs_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg" NAME_WE)
 add_dependencies(aubo_msgs_generate_messages_eus _aubo_msgs_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/srv/SetPayload.srv" NAME_WE)
 add_dependencies(aubo_msgs_generate_messages_eus _aubo_msgs_generate_messages_check_deps_${_filename})
@@ -319,6 +340,12 @@ _generate_msg_lisp(aubo_msgs
   ""
   ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/aubo_msgs
 )
+_generate_msg_lisp(aubo_msgs
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
+  ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/aubo_msgs
+)
 
 ### Generating Services
 _generate_srv_lisp(aubo_msgs
@@ -369,6 +396,8 @@ add_dependencies(aubo_msgs_generate_messages_lisp _aubo_msgs_generate_messages_c
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/TraPoint.msg" NAME_WE)
 add_dependencies(aubo_msgs_generate_messages_lisp _aubo_msgs_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/GoalPoint.msg" NAME_WE)
+add_dependencies(aubo_msgs_generate_messages_lisp _aubo_msgs_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg" NAME_WE)
 add_dependencies(aubo_msgs_generate_messages_lisp _aubo_msgs_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/srv/SetPayload.srv" NAME_WE)
 add_dependencies(aubo_msgs_generate_messages_lisp _aubo_msgs_generate_messages_check_deps_${_filename})
@@ -424,6 +453,12 @@ _generate_msg_nodejs(aubo_msgs
   ""
   ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/aubo_msgs
 )
+_generate_msg_nodejs(aubo_msgs
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
+  ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/aubo_msgs
+)
 
 ### Generating Services
 _generate_srv_nodejs(aubo_msgs
@@ -474,6 +509,8 @@ add_dependencies(aubo_msgs_generate_messages_nodejs _aubo_msgs_generate_messages
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/TraPoint.msg" NAME_WE)
 add_dependencies(aubo_msgs_generate_messages_nodejs _aubo_msgs_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/GoalPoint.msg" NAME_WE)
+add_dependencies(aubo_msgs_generate_messages_nodejs _aubo_msgs_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg" NAME_WE)
 add_dependencies(aubo_msgs_generate_messages_nodejs _aubo_msgs_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/srv/SetPayload.srv" NAME_WE)
 add_dependencies(aubo_msgs_generate_messages_nodejs _aubo_msgs_generate_messages_check_deps_${_filename})
@@ -529,6 +566,12 @@ _generate_msg_py(aubo_msgs
   ""
   ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/aubo_msgs
 )
+_generate_msg_py(aubo_msgs
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
+  ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/aubo_msgs
+)
 
 ### Generating Services
 _generate_srv_py(aubo_msgs
@@ -580,6 +623,8 @@ get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot
 add_dependencies(aubo_msgs_generate_messages_py _aubo_msgs_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/GoalPoint.msg" NAME_WE)
 add_dependencies(aubo_msgs_generate_messages_py _aubo_msgs_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg" NAME_WE)
+add_dependencies(aubo_msgs_generate_messages_py _aubo_msgs_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/srv/SetPayload.srv" NAME_WE)
 add_dependencies(aubo_msgs_generate_messages_py _aubo_msgs_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/srv/SetIO.srv" NAME_WE)
@@ -608,6 +653,9 @@ endif()
 if(TARGET std_msgs_generate_messages_cpp)
   add_dependencies(aubo_msgs_generate_messages_cpp std_msgs_generate_messages_cpp)
 endif()
+if(TARGET trajectory_msgs_generate_messages_cpp)
+  add_dependencies(aubo_msgs_generate_messages_cpp trajectory_msgs_generate_messages_cpp)
+endif()
 
 if(geneus_INSTALL_DIR AND EXISTS ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/aubo_msgs)
   # install generated code
@@ -618,6 +666,9 @@ if(geneus_INSTALL_DIR AND EXISTS ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/au
 endif()
 if(TARGET std_msgs_generate_messages_eus)
   add_dependencies(aubo_msgs_generate_messages_eus std_msgs_generate_messages_eus)
+endif()
+if(TARGET trajectory_msgs_generate_messages_eus)
+  add_dependencies(aubo_msgs_generate_messages_eus trajectory_msgs_generate_messages_eus)
 endif()
 
 if(genlisp_INSTALL_DIR AND EXISTS ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/aubo_msgs)
@@ -630,6 +681,9 @@ endif()
 if(TARGET std_msgs_generate_messages_lisp)
   add_dependencies(aubo_msgs_generate_messages_lisp std_msgs_generate_messages_lisp)
 endif()
+if(TARGET trajectory_msgs_generate_messages_lisp)
+  add_dependencies(aubo_msgs_generate_messages_lisp trajectory_msgs_generate_messages_lisp)
+endif()
 
 if(gennodejs_INSTALL_DIR AND EXISTS ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/aubo_msgs)
   # install generated code
@@ -640,6 +694,9 @@ if(gennodejs_INSTALL_DIR AND EXISTS ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_D
 endif()
 if(TARGET std_msgs_generate_messages_nodejs)
   add_dependencies(aubo_msgs_generate_messages_nodejs std_msgs_generate_messages_nodejs)
+endif()
+if(TARGET trajectory_msgs_generate_messages_nodejs)
+  add_dependencies(aubo_msgs_generate_messages_nodejs trajectory_msgs_generate_messages_nodejs)
 endif()
 
 if(genpy_INSTALL_DIR AND EXISTS ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/aubo_msgs)
@@ -652,4 +709,7 @@ if(genpy_INSTALL_DIR AND EXISTS ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/aubo
 endif()
 if(TARGET std_msgs_generate_messages_py)
   add_dependencies(aubo_msgs_generate_messages_py std_msgs_generate_messages_py)
+endif()
+if(TARGET trajectory_msgs_generate_messages_py)
+  add_dependencies(aubo_msgs_generate_messages_py trajectory_msgs_generate_messages_py)
 endif()

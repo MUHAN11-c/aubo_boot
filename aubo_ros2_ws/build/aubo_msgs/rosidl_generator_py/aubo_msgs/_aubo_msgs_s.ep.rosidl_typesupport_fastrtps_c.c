@@ -997,6 +997,145 @@ _register_msg_type__msg__tool_data_msg(PyObject * pymodule)
 // #include "rosidl_runtime_c/service_type_support_struct.h"
 // already included above
 // #include "rosidl_runtime_c/action_type_support_struct.h"
+#include "aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.h"
+#include "aubo_msgs/msg/detail/joint_trajectory_feedback__struct.h"
+#include "aubo_msgs/msg/detail/joint_trajectory_feedback__functions.h"
+
+static void * aubo_msgs__msg__joint_trajectory_feedback__create_ros_message(void)
+{
+  return aubo_msgs__msg__JointTrajectoryFeedback__create();
+}
+
+static void aubo_msgs__msg__joint_trajectory_feedback__destroy_ros_message(void * raw_ros_message)
+{
+  aubo_msgs__msg__JointTrajectoryFeedback * ros_message = (aubo_msgs__msg__JointTrajectoryFeedback *)raw_ros_message;
+  aubo_msgs__msg__JointTrajectoryFeedback__destroy(ros_message);
+}
+
+ROSIDL_GENERATOR_C_IMPORT
+bool aubo_msgs__msg__joint_trajectory_feedback__convert_from_py(PyObject * _pymsg, void * ros_message);
+ROSIDL_GENERATOR_C_IMPORT
+PyObject * aubo_msgs__msg__joint_trajectory_feedback__convert_to_py(void * raw_ros_message);
+
+
+ROSIDL_GENERATOR_C_IMPORT
+const rosidl_message_type_support_t *
+ROSIDL_GET_MSG_TYPE_SUPPORT(aubo_msgs, msg, JointTrajectoryFeedback);
+
+int8_t
+_register_msg_type__msg__joint_trajectory_feedback(PyObject * pymodule)
+{
+  int8_t err;
+
+  PyObject * pyobject_create_ros_message = NULL;
+  pyobject_create_ros_message = PyCapsule_New(
+    (void *)&aubo_msgs__msg__joint_trajectory_feedback__create_ros_message,
+    NULL, NULL);
+  if (!pyobject_create_ros_message) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "create_ros_message_msg__msg__joint_trajectory_feedback",
+    pyobject_create_ros_message);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_create_ros_message);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_destroy_ros_message = NULL;
+  pyobject_destroy_ros_message = PyCapsule_New(
+    (void *)&aubo_msgs__msg__joint_trajectory_feedback__destroy_ros_message,
+    NULL, NULL);
+  if (!pyobject_destroy_ros_message) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "destroy_ros_message_msg__msg__joint_trajectory_feedback",
+    pyobject_destroy_ros_message);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_destroy_ros_message);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_convert_from_py = NULL;
+  pyobject_convert_from_py = PyCapsule_New(
+    (void *)&aubo_msgs__msg__joint_trajectory_feedback__convert_from_py,
+    NULL, NULL);
+  if (!pyobject_convert_from_py) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "convert_from_py_msg__msg__joint_trajectory_feedback",
+    pyobject_convert_from_py);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_convert_from_py);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_convert_to_py = NULL;
+  pyobject_convert_to_py = PyCapsule_New(
+    (void *)&aubo_msgs__msg__joint_trajectory_feedback__convert_to_py,
+    NULL, NULL);
+  if (!pyobject_convert_to_py) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "convert_to_py_msg__msg__joint_trajectory_feedback",
+    pyobject_convert_to_py);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_convert_to_py);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_type_support = NULL;
+  pyobject_type_support = PyCapsule_New(
+    (void *)ROSIDL_GET_MSG_TYPE_SUPPORT(aubo_msgs, msg, JointTrajectoryFeedback),
+    NULL, NULL);
+  if (!pyobject_type_support) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "type_support_msg__msg__joint_trajectory_feedback",
+    pyobject_type_support);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_type_support);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+  return 0;
+}
+
+// already included above
+// #include <stdbool.h>
+// already included above
+// #include <stdint.h>
+// already included above
+// #include "rosidl_runtime_c/visibility_control.h"
+// already included above
+// #include "rosidl_runtime_c/message_type_support_struct.h"
+// already included above
+// #include "rosidl_runtime_c/service_type_support_struct.h"
+// already included above
+// #include "rosidl_runtime_c/action_type_support_struct.h"
 #include "aubo_msgs/srv/detail/set_payload__type_support.h"
 #include "aubo_msgs/srv/detail/set_payload__struct.h"
 #include "aubo_msgs/srv/detail/set_payload__functions.h"
@@ -1915,6 +2054,626 @@ _register_srv_type__srv__set_io(PyObject * pymodule)
   return 0;
 }
 
+// already included above
+// #include <stdbool.h>
+// already included above
+// #include <stdint.h>
+// already included above
+// #include "rosidl_runtime_c/visibility_control.h"
+// already included above
+// #include "rosidl_runtime_c/message_type_support_struct.h"
+// already included above
+// #include "rosidl_runtime_c/service_type_support_struct.h"
+// already included above
+// #include "rosidl_runtime_c/action_type_support_struct.h"
+#include "aubo_msgs/srv/detail/get_fk__type_support.h"
+#include "aubo_msgs/srv/detail/get_fk__struct.h"
+#include "aubo_msgs/srv/detail/get_fk__functions.h"
+
+static void * aubo_msgs__srv__get_fk__request__create_ros_message(void)
+{
+  return aubo_msgs__srv__GetFK_Request__create();
+}
+
+static void aubo_msgs__srv__get_fk__request__destroy_ros_message(void * raw_ros_message)
+{
+  aubo_msgs__srv__GetFK_Request * ros_message = (aubo_msgs__srv__GetFK_Request *)raw_ros_message;
+  aubo_msgs__srv__GetFK_Request__destroy(ros_message);
+}
+
+ROSIDL_GENERATOR_C_IMPORT
+bool aubo_msgs__srv__get_fk__request__convert_from_py(PyObject * _pymsg, void * ros_message);
+ROSIDL_GENERATOR_C_IMPORT
+PyObject * aubo_msgs__srv__get_fk__request__convert_to_py(void * raw_ros_message);
+
+
+ROSIDL_GENERATOR_C_IMPORT
+const rosidl_message_type_support_t *
+ROSIDL_GET_MSG_TYPE_SUPPORT(aubo_msgs, srv, GetFK_Request);
+
+int8_t
+_register_msg_type__srv__get_fk__request(PyObject * pymodule)
+{
+  int8_t err;
+
+  PyObject * pyobject_create_ros_message = NULL;
+  pyobject_create_ros_message = PyCapsule_New(
+    (void *)&aubo_msgs__srv__get_fk__request__create_ros_message,
+    NULL, NULL);
+  if (!pyobject_create_ros_message) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "create_ros_message_msg__srv__get_fk__request",
+    pyobject_create_ros_message);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_create_ros_message);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_destroy_ros_message = NULL;
+  pyobject_destroy_ros_message = PyCapsule_New(
+    (void *)&aubo_msgs__srv__get_fk__request__destroy_ros_message,
+    NULL, NULL);
+  if (!pyobject_destroy_ros_message) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "destroy_ros_message_msg__srv__get_fk__request",
+    pyobject_destroy_ros_message);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_destroy_ros_message);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_convert_from_py = NULL;
+  pyobject_convert_from_py = PyCapsule_New(
+    (void *)&aubo_msgs__srv__get_fk__request__convert_from_py,
+    NULL, NULL);
+  if (!pyobject_convert_from_py) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "convert_from_py_msg__srv__get_fk__request",
+    pyobject_convert_from_py);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_convert_from_py);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_convert_to_py = NULL;
+  pyobject_convert_to_py = PyCapsule_New(
+    (void *)&aubo_msgs__srv__get_fk__request__convert_to_py,
+    NULL, NULL);
+  if (!pyobject_convert_to_py) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "convert_to_py_msg__srv__get_fk__request",
+    pyobject_convert_to_py);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_convert_to_py);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_type_support = NULL;
+  pyobject_type_support = PyCapsule_New(
+    (void *)ROSIDL_GET_MSG_TYPE_SUPPORT(aubo_msgs, srv, GetFK_Request),
+    NULL, NULL);
+  if (!pyobject_type_support) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "type_support_msg__srv__get_fk__request",
+    pyobject_type_support);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_type_support);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+  return 0;
+}
+
+// already included above
+// #include <stdbool.h>
+// already included above
+// #include <stdint.h>
+// already included above
+// #include "rosidl_runtime_c/visibility_control.h"
+// already included above
+// #include "rosidl_runtime_c/message_type_support_struct.h"
+// already included above
+// #include "rosidl_runtime_c/service_type_support_struct.h"
+// already included above
+// #include "rosidl_runtime_c/action_type_support_struct.h"
+// already included above
+// #include "aubo_msgs/srv/detail/get_fk__type_support.h"
+// already included above
+// #include "aubo_msgs/srv/detail/get_fk__struct.h"
+// already included above
+// #include "aubo_msgs/srv/detail/get_fk__functions.h"
+
+static void * aubo_msgs__srv__get_fk__response__create_ros_message(void)
+{
+  return aubo_msgs__srv__GetFK_Response__create();
+}
+
+static void aubo_msgs__srv__get_fk__response__destroy_ros_message(void * raw_ros_message)
+{
+  aubo_msgs__srv__GetFK_Response * ros_message = (aubo_msgs__srv__GetFK_Response *)raw_ros_message;
+  aubo_msgs__srv__GetFK_Response__destroy(ros_message);
+}
+
+ROSIDL_GENERATOR_C_IMPORT
+bool aubo_msgs__srv__get_fk__response__convert_from_py(PyObject * _pymsg, void * ros_message);
+ROSIDL_GENERATOR_C_IMPORT
+PyObject * aubo_msgs__srv__get_fk__response__convert_to_py(void * raw_ros_message);
+
+
+ROSIDL_GENERATOR_C_IMPORT
+const rosidl_message_type_support_t *
+ROSIDL_GET_MSG_TYPE_SUPPORT(aubo_msgs, srv, GetFK_Response);
+
+int8_t
+_register_msg_type__srv__get_fk__response(PyObject * pymodule)
+{
+  int8_t err;
+
+  PyObject * pyobject_create_ros_message = NULL;
+  pyobject_create_ros_message = PyCapsule_New(
+    (void *)&aubo_msgs__srv__get_fk__response__create_ros_message,
+    NULL, NULL);
+  if (!pyobject_create_ros_message) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "create_ros_message_msg__srv__get_fk__response",
+    pyobject_create_ros_message);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_create_ros_message);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_destroy_ros_message = NULL;
+  pyobject_destroy_ros_message = PyCapsule_New(
+    (void *)&aubo_msgs__srv__get_fk__response__destroy_ros_message,
+    NULL, NULL);
+  if (!pyobject_destroy_ros_message) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "destroy_ros_message_msg__srv__get_fk__response",
+    pyobject_destroy_ros_message);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_destroy_ros_message);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_convert_from_py = NULL;
+  pyobject_convert_from_py = PyCapsule_New(
+    (void *)&aubo_msgs__srv__get_fk__response__convert_from_py,
+    NULL, NULL);
+  if (!pyobject_convert_from_py) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "convert_from_py_msg__srv__get_fk__response",
+    pyobject_convert_from_py);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_convert_from_py);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_convert_to_py = NULL;
+  pyobject_convert_to_py = PyCapsule_New(
+    (void *)&aubo_msgs__srv__get_fk__response__convert_to_py,
+    NULL, NULL);
+  if (!pyobject_convert_to_py) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "convert_to_py_msg__srv__get_fk__response",
+    pyobject_convert_to_py);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_convert_to_py);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_type_support = NULL;
+  pyobject_type_support = PyCapsule_New(
+    (void *)ROSIDL_GET_MSG_TYPE_SUPPORT(aubo_msgs, srv, GetFK_Response),
+    NULL, NULL);
+  if (!pyobject_type_support) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "type_support_msg__srv__get_fk__response",
+    pyobject_type_support);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_type_support);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+  return 0;
+}
+
+ROSIDL_GENERATOR_C_IMPORT
+const rosidl_service_type_support_t *
+ROSIDL_TYPESUPPORT_INTERFACE__SERVICE_SYMBOL_NAME(rosidl_typesupport_c, aubo_msgs, srv, GetFK)();
+
+int8_t
+_register_srv_type__srv__get_fk(PyObject * pymodule)
+{
+  int8_t err;
+  PyObject * pyobject_type_support = NULL;
+  pyobject_type_support = PyCapsule_New(
+    (void *)ROSIDL_TYPESUPPORT_INTERFACE__SERVICE_SYMBOL_NAME(rosidl_typesupport_c, aubo_msgs, srv, GetFK)(),
+    NULL, NULL);
+  if (!pyobject_type_support) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "type_support_srv__srv__get_fk",
+    pyobject_type_support);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_type_support);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+  return 0;
+}
+
+// already included above
+// #include <stdbool.h>
+// already included above
+// #include <stdint.h>
+// already included above
+// #include "rosidl_runtime_c/visibility_control.h"
+// already included above
+// #include "rosidl_runtime_c/message_type_support_struct.h"
+// already included above
+// #include "rosidl_runtime_c/service_type_support_struct.h"
+// already included above
+// #include "rosidl_runtime_c/action_type_support_struct.h"
+#include "aubo_msgs/srv/detail/get_ik__type_support.h"
+#include "aubo_msgs/srv/detail/get_ik__struct.h"
+#include "aubo_msgs/srv/detail/get_ik__functions.h"
+
+static void * aubo_msgs__srv__get_ik__request__create_ros_message(void)
+{
+  return aubo_msgs__srv__GetIK_Request__create();
+}
+
+static void aubo_msgs__srv__get_ik__request__destroy_ros_message(void * raw_ros_message)
+{
+  aubo_msgs__srv__GetIK_Request * ros_message = (aubo_msgs__srv__GetIK_Request *)raw_ros_message;
+  aubo_msgs__srv__GetIK_Request__destroy(ros_message);
+}
+
+ROSIDL_GENERATOR_C_IMPORT
+bool aubo_msgs__srv__get_ik__request__convert_from_py(PyObject * _pymsg, void * ros_message);
+ROSIDL_GENERATOR_C_IMPORT
+PyObject * aubo_msgs__srv__get_ik__request__convert_to_py(void * raw_ros_message);
+
+
+ROSIDL_GENERATOR_C_IMPORT
+const rosidl_message_type_support_t *
+ROSIDL_GET_MSG_TYPE_SUPPORT(aubo_msgs, srv, GetIK_Request);
+
+int8_t
+_register_msg_type__srv__get_ik__request(PyObject * pymodule)
+{
+  int8_t err;
+
+  PyObject * pyobject_create_ros_message = NULL;
+  pyobject_create_ros_message = PyCapsule_New(
+    (void *)&aubo_msgs__srv__get_ik__request__create_ros_message,
+    NULL, NULL);
+  if (!pyobject_create_ros_message) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "create_ros_message_msg__srv__get_ik__request",
+    pyobject_create_ros_message);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_create_ros_message);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_destroy_ros_message = NULL;
+  pyobject_destroy_ros_message = PyCapsule_New(
+    (void *)&aubo_msgs__srv__get_ik__request__destroy_ros_message,
+    NULL, NULL);
+  if (!pyobject_destroy_ros_message) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "destroy_ros_message_msg__srv__get_ik__request",
+    pyobject_destroy_ros_message);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_destroy_ros_message);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_convert_from_py = NULL;
+  pyobject_convert_from_py = PyCapsule_New(
+    (void *)&aubo_msgs__srv__get_ik__request__convert_from_py,
+    NULL, NULL);
+  if (!pyobject_convert_from_py) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "convert_from_py_msg__srv__get_ik__request",
+    pyobject_convert_from_py);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_convert_from_py);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_convert_to_py = NULL;
+  pyobject_convert_to_py = PyCapsule_New(
+    (void *)&aubo_msgs__srv__get_ik__request__convert_to_py,
+    NULL, NULL);
+  if (!pyobject_convert_to_py) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "convert_to_py_msg__srv__get_ik__request",
+    pyobject_convert_to_py);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_convert_to_py);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_type_support = NULL;
+  pyobject_type_support = PyCapsule_New(
+    (void *)ROSIDL_GET_MSG_TYPE_SUPPORT(aubo_msgs, srv, GetIK_Request),
+    NULL, NULL);
+  if (!pyobject_type_support) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "type_support_msg__srv__get_ik__request",
+    pyobject_type_support);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_type_support);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+  return 0;
+}
+
+// already included above
+// #include <stdbool.h>
+// already included above
+// #include <stdint.h>
+// already included above
+// #include "rosidl_runtime_c/visibility_control.h"
+// already included above
+// #include "rosidl_runtime_c/message_type_support_struct.h"
+// already included above
+// #include "rosidl_runtime_c/service_type_support_struct.h"
+// already included above
+// #include "rosidl_runtime_c/action_type_support_struct.h"
+// already included above
+// #include "aubo_msgs/srv/detail/get_ik__type_support.h"
+// already included above
+// #include "aubo_msgs/srv/detail/get_ik__struct.h"
+// already included above
+// #include "aubo_msgs/srv/detail/get_ik__functions.h"
+
+static void * aubo_msgs__srv__get_ik__response__create_ros_message(void)
+{
+  return aubo_msgs__srv__GetIK_Response__create();
+}
+
+static void aubo_msgs__srv__get_ik__response__destroy_ros_message(void * raw_ros_message)
+{
+  aubo_msgs__srv__GetIK_Response * ros_message = (aubo_msgs__srv__GetIK_Response *)raw_ros_message;
+  aubo_msgs__srv__GetIK_Response__destroy(ros_message);
+}
+
+ROSIDL_GENERATOR_C_IMPORT
+bool aubo_msgs__srv__get_ik__response__convert_from_py(PyObject * _pymsg, void * ros_message);
+ROSIDL_GENERATOR_C_IMPORT
+PyObject * aubo_msgs__srv__get_ik__response__convert_to_py(void * raw_ros_message);
+
+
+ROSIDL_GENERATOR_C_IMPORT
+const rosidl_message_type_support_t *
+ROSIDL_GET_MSG_TYPE_SUPPORT(aubo_msgs, srv, GetIK_Response);
+
+int8_t
+_register_msg_type__srv__get_ik__response(PyObject * pymodule)
+{
+  int8_t err;
+
+  PyObject * pyobject_create_ros_message = NULL;
+  pyobject_create_ros_message = PyCapsule_New(
+    (void *)&aubo_msgs__srv__get_ik__response__create_ros_message,
+    NULL, NULL);
+  if (!pyobject_create_ros_message) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "create_ros_message_msg__srv__get_ik__response",
+    pyobject_create_ros_message);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_create_ros_message);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_destroy_ros_message = NULL;
+  pyobject_destroy_ros_message = PyCapsule_New(
+    (void *)&aubo_msgs__srv__get_ik__response__destroy_ros_message,
+    NULL, NULL);
+  if (!pyobject_destroy_ros_message) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "destroy_ros_message_msg__srv__get_ik__response",
+    pyobject_destroy_ros_message);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_destroy_ros_message);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_convert_from_py = NULL;
+  pyobject_convert_from_py = PyCapsule_New(
+    (void *)&aubo_msgs__srv__get_ik__response__convert_from_py,
+    NULL, NULL);
+  if (!pyobject_convert_from_py) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "convert_from_py_msg__srv__get_ik__response",
+    pyobject_convert_from_py);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_convert_from_py);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_convert_to_py = NULL;
+  pyobject_convert_to_py = PyCapsule_New(
+    (void *)&aubo_msgs__srv__get_ik__response__convert_to_py,
+    NULL, NULL);
+  if (!pyobject_convert_to_py) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "convert_to_py_msg__srv__get_ik__response",
+    pyobject_convert_to_py);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_convert_to_py);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+
+  PyObject * pyobject_type_support = NULL;
+  pyobject_type_support = PyCapsule_New(
+    (void *)ROSIDL_GET_MSG_TYPE_SUPPORT(aubo_msgs, srv, GetIK_Response),
+    NULL, NULL);
+  if (!pyobject_type_support) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "type_support_msg__srv__get_ik__response",
+    pyobject_type_support);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_type_support);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+  return 0;
+}
+
+ROSIDL_GENERATOR_C_IMPORT
+const rosidl_service_type_support_t *
+ROSIDL_TYPESUPPORT_INTERFACE__SERVICE_SYMBOL_NAME(rosidl_typesupport_c, aubo_msgs, srv, GetIK)();
+
+int8_t
+_register_srv_type__srv__get_ik(PyObject * pymodule)
+{
+  int8_t err;
+  PyObject * pyobject_type_support = NULL;
+  pyobject_type_support = PyCapsule_New(
+    (void *)ROSIDL_TYPESUPPORT_INTERFACE__SERVICE_SYMBOL_NAME(rosidl_typesupport_c, aubo_msgs, srv, GetIK)(),
+    NULL, NULL);
+  if (!pyobject_type_support) {
+    // previously added objects will be removed when the module is destroyed
+    return -1;
+  }
+  err = PyModule_AddObject(
+    pymodule,
+    "type_support_srv__srv__get_ik",
+    pyobject_type_support);
+  if (err) {
+    // the created capsule needs to be decremented
+    Py_XDECREF(pyobject_type_support);
+    // previously added objects will be removed when the module is destroyed
+    return err;
+  }
+  return 0;
+}
+
 PyMODINIT_FUNC
 PyInit_aubo_msgs_s__rosidl_typesupport_fastrtps_c(void)
 {
@@ -1962,6 +2721,12 @@ PyInit_aubo_msgs_s__rosidl_typesupport_fastrtps_c(void)
   }
 
   err = _register_msg_type__msg__tool_data_msg(pymodule);
+  if (err) {
+    Py_XDECREF(pymodule);
+    return NULL;
+  }
+
+  err = _register_msg_type__msg__joint_trajectory_feedback(pymodule);
   if (err) {
     Py_XDECREF(pymodule);
     return NULL;
@@ -2016,6 +2781,42 @@ PyInit_aubo_msgs_s__rosidl_typesupport_fastrtps_c(void)
   }
 
   err = _register_srv_type__srv__set_io(pymodule);
+  if (err) {
+    Py_XDECREF(pymodule);
+    return NULL;
+  }
+
+  err = _register_msg_type__srv__get_fk__request(pymodule);
+  if (err) {
+    Py_XDECREF(pymodule);
+    return NULL;
+  }
+
+  err = _register_msg_type__srv__get_fk__response(pymodule);
+  if (err) {
+    Py_XDECREF(pymodule);
+    return NULL;
+  }
+
+  err = _register_srv_type__srv__get_fk(pymodule);
+  if (err) {
+    Py_XDECREF(pymodule);
+    return NULL;
+  }
+
+  err = _register_msg_type__srv__get_ik__request(pymodule);
+  if (err) {
+    Py_XDECREF(pymodule);
+    return NULL;
+  }
+
+  err = _register_msg_type__srv__get_ik__response(pymodule);
+  if (err) {
+    Py_XDECREF(pymodule);
+    return NULL;
+  }
+
+  err = _register_srv_type__srv__get_ik(pymodule);
   if (err) {
     Py_XDECREF(pymodule);
     return NULL;

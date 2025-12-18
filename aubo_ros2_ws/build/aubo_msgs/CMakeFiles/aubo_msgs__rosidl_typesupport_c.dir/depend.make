@@ -36,6 +36,23 @@ CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/ms
 CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/io_states__type_support.cpp.o: rosidl_generator_c/aubo_msgs/msg/detail/io_states__struct.h
 CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/io_states__type_support.cpp.o: rosidl_typesupport_c/aubo_msgs/msg/rosidl_typesupport_c__visibility_control.h
 
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/joint_trajectory_feedback__type_support.cpp.o: rosidl_typesupport_c/aubo_msgs/msg/joint_trajectory_feedback__type_support.cpp
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/joint_trajectory_feedback__type_support.cpp.o: /opt/ros/foxy/include/builtin_interfaces/msg/detail/duration__struct.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/joint_trajectory_feedback__type_support.cpp.o: /opt/ros/foxy/include/builtin_interfaces/msg/detail/time__struct.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/joint_trajectory_feedback__type_support.cpp.o: /opt/ros/foxy/include/rosidl_runtime_c/message_type_support_struct.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/joint_trajectory_feedback__type_support.cpp.o: /opt/ros/foxy/include/rosidl_runtime_c/primitives_sequence.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/joint_trajectory_feedback__type_support.cpp.o: /opt/ros/foxy/include/rosidl_runtime_c/string.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/joint_trajectory_feedback__type_support.cpp.o: /opt/ros/foxy/include/rosidl_runtime_c/visibility_control.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/joint_trajectory_feedback__type_support.cpp.o: /opt/ros/foxy/include/rosidl_typesupport_c/identifier.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/joint_trajectory_feedback__type_support.cpp.o: /opt/ros/foxy/include/rosidl_typesupport_c/message_type_support_dispatch.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/joint_trajectory_feedback__type_support.cpp.o: /opt/ros/foxy/include/rosidl_typesupport_c/type_support_map.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/joint_trajectory_feedback__type_support.cpp.o: /opt/ros/foxy/include/rosidl_typesupport_c/visibility_control.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/joint_trajectory_feedback__type_support.cpp.o: /opt/ros/foxy/include/rosidl_typesupport_interface/macros.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/joint_trajectory_feedback__type_support.cpp.o: /opt/ros/foxy/include/std_msgs/msg/detail/header__struct.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/joint_trajectory_feedback__type_support.cpp.o: /opt/ros/foxy/include/trajectory_msgs/msg/detail/joint_trajectory_point__struct.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/joint_trajectory_feedback__type_support.cpp.o: rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__struct.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/joint_trajectory_feedback__type_support.cpp.o: rosidl_typesupport_c/aubo_msgs/msg/rosidl_typesupport_c__visibility_control.h
+
 CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/masterboard_data_msg__type_support.cpp.o: rosidl_typesupport_c/aubo_msgs/msg/masterboard_data_msg__type_support.cpp
 CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/masterboard_data_msg__type_support.cpp.o: /opt/ros/foxy/include/rosidl_runtime_c/message_type_support_struct.h
 CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/masterboard_data_msg__type_support.cpp.o: /opt/ros/foxy/include/rosidl_runtime_c/visibility_control.h
@@ -80,6 +97,32 @@ CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/ms
 CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/tool_data_msg__type_support.cpp.o: /opt/ros/foxy/include/rosidl_typesupport_interface/macros.h
 CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/tool_data_msg__type_support.cpp.o: rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__struct.h
 CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/msg/tool_data_msg__type_support.cpp.o: rosidl_typesupport_c/aubo_msgs/msg/rosidl_typesupport_c__visibility_control.h
+
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_fk__type_support.cpp.o: rosidl_typesupport_c/aubo_msgs/srv/get_fk__type_support.cpp
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_fk__type_support.cpp.o: /opt/ros/foxy/include/rosidl_runtime_c/message_type_support_struct.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_fk__type_support.cpp.o: /opt/ros/foxy/include/rosidl_runtime_c/service_type_support_struct.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_fk__type_support.cpp.o: /opt/ros/foxy/include/rosidl_runtime_c/visibility_control.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_fk__type_support.cpp.o: /opt/ros/foxy/include/rosidl_typesupport_c/identifier.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_fk__type_support.cpp.o: /opt/ros/foxy/include/rosidl_typesupport_c/message_type_support_dispatch.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_fk__type_support.cpp.o: /opt/ros/foxy/include/rosidl_typesupport_c/service_type_support_dispatch.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_fk__type_support.cpp.o: /opt/ros/foxy/include/rosidl_typesupport_c/type_support_map.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_fk__type_support.cpp.o: /opt/ros/foxy/include/rosidl_typesupport_c/visibility_control.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_fk__type_support.cpp.o: /opt/ros/foxy/include/rosidl_typesupport_interface/macros.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_fk__type_support.cpp.o: rosidl_generator_c/aubo_msgs/srv/detail/get_fk__struct.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_fk__type_support.cpp.o: rosidl_typesupport_c/aubo_msgs/msg/rosidl_typesupport_c__visibility_control.h
+
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_ik__type_support.cpp.o: rosidl_typesupport_c/aubo_msgs/srv/get_ik__type_support.cpp
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_ik__type_support.cpp.o: /opt/ros/foxy/include/rosidl_runtime_c/message_type_support_struct.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_ik__type_support.cpp.o: /opt/ros/foxy/include/rosidl_runtime_c/service_type_support_struct.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_ik__type_support.cpp.o: /opt/ros/foxy/include/rosidl_runtime_c/visibility_control.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_ik__type_support.cpp.o: /opt/ros/foxy/include/rosidl_typesupport_c/identifier.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_ik__type_support.cpp.o: /opt/ros/foxy/include/rosidl_typesupport_c/message_type_support_dispatch.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_ik__type_support.cpp.o: /opt/ros/foxy/include/rosidl_typesupport_c/service_type_support_dispatch.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_ik__type_support.cpp.o: /opt/ros/foxy/include/rosidl_typesupport_c/type_support_map.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_ik__type_support.cpp.o: /opt/ros/foxy/include/rosidl_typesupport_c/visibility_control.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_ik__type_support.cpp.o: /opt/ros/foxy/include/rosidl_typesupport_interface/macros.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_ik__type_support.cpp.o: rosidl_generator_c/aubo_msgs/srv/detail/get_ik__struct.h
+CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/get_ik__type_support.cpp.o: rosidl_typesupport_c/aubo_msgs/msg/rosidl_typesupport_c__visibility_control.h
 
 CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/set_io__type_support.cpp.o: rosidl_typesupport_c/aubo_msgs/srv/set_io__type_support.cpp
 CMakeFiles/aubo_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/aubo_msgs/srv/set_io__type_support.cpp.o: /opt/ros/foxy/include/rosidl_runtime_c/message_type_support_struct.h

@@ -88,6 +88,11 @@ CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/detail/tool_data_m
 CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/detail/tool_data_msg__struct.hpp
 CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/detail/tool_data_msg__traits.hpp
 CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/detail/tool_data_msg__type_support.hpp
+CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/joint_trajectory_feedback.hpp
+CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__builder.hpp
+CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__struct.hpp
+CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__traits.hpp
+CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.hpp
 CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/set_payload.hpp
 CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/set_payload__builder.hpp
 CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/set_payload__struct.hpp
@@ -103,6 +108,16 @@ CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/set_io__bui
 CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/set_io__struct.hpp
 CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/set_io__traits.hpp
 CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/set_io__type_support.hpp
+CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/get_fk.hpp
+CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/get_fk__builder.hpp
+CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/get_fk__struct.hpp
+CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/get_fk__traits.hpp
+CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/get_fk__type_support.hpp
+CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/get_ik.hpp
+CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/get_ik__builder.hpp
+CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/get_ik__struct.hpp
+CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/get_ik__traits.hpp
+CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/get_ik__type_support.hpp
 CMakeFiles/aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/rosidl_generator_cpp__visibility_control.hpp
 
 
@@ -132,9 +147,12 @@ rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: rosidl_adapter/aubo_msgs/msg/Robo
 rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: rosidl_adapter/aubo_msgs/msg/MasterboardDataMsg.idl
 rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: rosidl_adapter/aubo_msgs/msg/RobotModeDataMsg.idl
 rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: rosidl_adapter/aubo_msgs/msg/ToolDataMsg.idl
+rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: rosidl_adapter/aubo_msgs/msg/JointTrajectoryFeedback.idl
 rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: rosidl_adapter/aubo_msgs/srv/SetPayload.idl
 rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: rosidl_adapter/aubo_msgs/srv/SetSpeedSliderFraction.idl
 rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: rosidl_adapter/aubo_msgs/srv/SetIO.idl
+rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: rosidl_adapter/aubo_msgs/srv/GetFK.idl
+rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: rosidl_adapter/aubo_msgs/srv/GetIK.idl
 rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: /opt/ros/foxy/share/builtin_interfaces/msg/Duration.idl
 rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: /opt/ros/foxy/share/builtin_interfaces/msg/Time.idl
 rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: /opt/ros/foxy/share/geometry_msgs/msg/Accel.idl
@@ -196,6 +214,10 @@ rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: /opt/ros/foxy/share/std_msgs/msg/
 rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: /opt/ros/foxy/share/std_msgs/msg/UInt64MultiArray.idl
 rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: /opt/ros/foxy/share/std_msgs/msg/UInt8.idl
 rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: /opt/ros/foxy/share/std_msgs/msg/UInt8MultiArray.idl
+rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: /opt/ros/foxy/share/trajectory_msgs/msg/JointTrajectory.idl
+rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: /opt/ros/foxy/share/trajectory_msgs/msg/JointTrajectoryPoint.idl
+rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: /opt/ros/foxy/share/trajectory_msgs/msg/MultiDOFJointTrajectory.idl
+rosidl_generator_cpp/aubo_msgs/msg/analog.hpp: /opt/ros/foxy/share/trajectory_msgs/msg/MultiDOFJointTrajectoryPoint.idl
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Generating C++ code for ROS interfaces"
 	/usr/bin/python3 /opt/ros/foxy/share/rosidl_generator_cpp/cmake/../../../lib/rosidl_generator_cpp/rosidl_generator_cpp --generator-arguments-file /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_cpp__arguments.json
 
@@ -301,6 +323,21 @@ rosidl_generator_cpp/aubo_msgs/msg/detail/tool_data_msg__traits.hpp: rosidl_gene
 rosidl_generator_cpp/aubo_msgs/msg/detail/tool_data_msg__type_support.hpp: rosidl_generator_cpp/aubo_msgs/msg/analog.hpp
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_cpp/aubo_msgs/msg/detail/tool_data_msg__type_support.hpp
 
+rosidl_generator_cpp/aubo_msgs/msg/joint_trajectory_feedback.hpp: rosidl_generator_cpp/aubo_msgs/msg/analog.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_cpp/aubo_msgs/msg/joint_trajectory_feedback.hpp
+
+rosidl_generator_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__builder.hpp: rosidl_generator_cpp/aubo_msgs/msg/analog.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__builder.hpp
+
+rosidl_generator_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__struct.hpp: rosidl_generator_cpp/aubo_msgs/msg/analog.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__struct.hpp
+
+rosidl_generator_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__traits.hpp: rosidl_generator_cpp/aubo_msgs/msg/analog.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__traits.hpp
+
+rosidl_generator_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.hpp: rosidl_generator_cpp/aubo_msgs/msg/analog.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.hpp
+
 rosidl_generator_cpp/aubo_msgs/srv/set_payload.hpp: rosidl_generator_cpp/aubo_msgs/msg/analog.hpp
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_cpp/aubo_msgs/srv/set_payload.hpp
 
@@ -346,6 +383,36 @@ rosidl_generator_cpp/aubo_msgs/srv/detail/set_io__traits.hpp: rosidl_generator_c
 rosidl_generator_cpp/aubo_msgs/srv/detail/set_io__type_support.hpp: rosidl_generator_cpp/aubo_msgs/msg/analog.hpp
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_cpp/aubo_msgs/srv/detail/set_io__type_support.hpp
 
+rosidl_generator_cpp/aubo_msgs/srv/get_fk.hpp: rosidl_generator_cpp/aubo_msgs/msg/analog.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_cpp/aubo_msgs/srv/get_fk.hpp
+
+rosidl_generator_cpp/aubo_msgs/srv/detail/get_fk__builder.hpp: rosidl_generator_cpp/aubo_msgs/msg/analog.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_cpp/aubo_msgs/srv/detail/get_fk__builder.hpp
+
+rosidl_generator_cpp/aubo_msgs/srv/detail/get_fk__struct.hpp: rosidl_generator_cpp/aubo_msgs/msg/analog.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_cpp/aubo_msgs/srv/detail/get_fk__struct.hpp
+
+rosidl_generator_cpp/aubo_msgs/srv/detail/get_fk__traits.hpp: rosidl_generator_cpp/aubo_msgs/msg/analog.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_cpp/aubo_msgs/srv/detail/get_fk__traits.hpp
+
+rosidl_generator_cpp/aubo_msgs/srv/detail/get_fk__type_support.hpp: rosidl_generator_cpp/aubo_msgs/msg/analog.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_cpp/aubo_msgs/srv/detail/get_fk__type_support.hpp
+
+rosidl_generator_cpp/aubo_msgs/srv/get_ik.hpp: rosidl_generator_cpp/aubo_msgs/msg/analog.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_cpp/aubo_msgs/srv/get_ik.hpp
+
+rosidl_generator_cpp/aubo_msgs/srv/detail/get_ik__builder.hpp: rosidl_generator_cpp/aubo_msgs/msg/analog.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_cpp/aubo_msgs/srv/detail/get_ik__builder.hpp
+
+rosidl_generator_cpp/aubo_msgs/srv/detail/get_ik__struct.hpp: rosidl_generator_cpp/aubo_msgs/msg/analog.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_cpp/aubo_msgs/srv/detail/get_ik__struct.hpp
+
+rosidl_generator_cpp/aubo_msgs/srv/detail/get_ik__traits.hpp: rosidl_generator_cpp/aubo_msgs/msg/analog.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_cpp/aubo_msgs/srv/detail/get_ik__traits.hpp
+
+rosidl_generator_cpp/aubo_msgs/srv/detail/get_ik__type_support.hpp: rosidl_generator_cpp/aubo_msgs/msg/analog.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_cpp/aubo_msgs/srv/detail/get_ik__type_support.hpp
+
 aubo_msgs__cpp: CMakeFiles/aubo_msgs__cpp
 aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/analog.hpp
 aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/detail/analog__builder.hpp
@@ -382,6 +449,11 @@ aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/detail/tool_data_msg__builder
 aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/detail/tool_data_msg__struct.hpp
 aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/detail/tool_data_msg__traits.hpp
 aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/detail/tool_data_msg__type_support.hpp
+aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/joint_trajectory_feedback.hpp
+aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__builder.hpp
+aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__struct.hpp
+aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__traits.hpp
+aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.hpp
 aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/set_payload.hpp
 aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/set_payload__builder.hpp
 aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/set_payload__struct.hpp
@@ -397,6 +469,16 @@ aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/set_io__builder.hpp
 aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/set_io__struct.hpp
 aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/set_io__traits.hpp
 aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/set_io__type_support.hpp
+aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/get_fk.hpp
+aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/get_fk__builder.hpp
+aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/get_fk__struct.hpp
+aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/get_fk__traits.hpp
+aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/get_fk__type_support.hpp
+aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/get_ik.hpp
+aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/get_ik__builder.hpp
+aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/get_ik__struct.hpp
+aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/get_ik__traits.hpp
+aubo_msgs__cpp: rosidl_generator_cpp/aubo_msgs/srv/detail/get_ik__type_support.hpp
 aubo_msgs__cpp: CMakeFiles/aubo_msgs__cpp.dir/build.make
 
 .PHONY : aubo_msgs__cpp

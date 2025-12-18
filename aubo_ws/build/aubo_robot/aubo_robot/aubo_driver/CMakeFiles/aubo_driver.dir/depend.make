@@ -11,6 +11,7 @@ aubo_robot/aubo_robot/aubo_driver/CMakeFiles/aubo_driver.dir/src/driver_node.cpp
 aubo_robot/aubo_robot/aubo_driver/CMakeFiles/aubo_driver.dir/src/driver_node.cpp.o: /home/mu/IVG/aubo_ws/devel/include/aubo_msgs/GetIKResponse.h
 aubo_robot/aubo_robot/aubo_driver/CMakeFiles/aubo_driver.dir/src/driver_node.cpp.o: /home/mu/IVG/aubo_ws/devel/include/aubo_msgs/IOState.h
 aubo_robot/aubo_robot/aubo_driver/CMakeFiles/aubo_driver.dir/src/driver_node.cpp.o: /home/mu/IVG/aubo_ws/devel/include/aubo_msgs/JointPos.h
+aubo_robot/aubo_robot/aubo_driver/CMakeFiles/aubo_driver.dir/src/driver_node.cpp.o: /home/mu/IVG/aubo_ws/devel/include/aubo_msgs/JointTrajectoryFeedback.h
 aubo_robot/aubo_robot/aubo_driver/CMakeFiles/aubo_driver.dir/src/driver_node.cpp.o: /home/mu/IVG/aubo_ws/devel/include/aubo_msgs/SetIO.h
 aubo_robot/aubo_robot/aubo_driver/CMakeFiles/aubo_driver.dir/src/driver_node.cpp.o: /home/mu/IVG/aubo_ws/devel/include/aubo_msgs/SetIORequest.h
 aubo_robot/aubo_robot/aubo_driver/CMakeFiles/aubo_driver.dir/src/driver_node.cpp.o: /home/mu/IVG/aubo_ws/devel/include/aubo_msgs/SetIOResponse.h
@@ -34,7 +35,6 @@ aubo_robot/aubo_robot/aubo_driver/CMakeFiles/aubo_driver.dir/src/driver_node.cpp
 aubo_robot/aubo_robot/aubo_driver/CMakeFiles/aubo_driver.dir/src/driver_node.cpp.o: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_driver/include/aubo_driver/serviceinterface.h
 aubo_robot/aubo_robot/aubo_driver/CMakeFiles/aubo_driver.dir/src/driver_node.cpp.o: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_driver/src/aubo_driver.cpp
 aubo_robot/aubo_robot/aubo_driver/CMakeFiles/aubo_driver.dir/src/driver_node.cpp.o: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_driver/src/driver_node.cpp
-aubo_robot/aubo_robot/aubo_driver/CMakeFiles/aubo_driver.dir/src/driver_node.cpp.o: /opt/ros/noetic/include/control_msgs/FollowJointTrajectoryFeedback.h
 aubo_robot/aubo_robot/aubo_driver/CMakeFiles/aubo_driver.dir/src/driver_node.cpp.o: /opt/ros/noetic/include/ros/advertise_options.h
 aubo_robot/aubo_robot/aubo_driver/CMakeFiles/aubo_driver.dir/src/driver_node.cpp.o: /opt/ros/noetic/include/ros/advertise_service_options.h
 aubo_robot/aubo_robot/aubo_driver/CMakeFiles/aubo_driver.dir/src/driver_node.cpp.o: /opt/ros/noetic/include/ros/assert.h

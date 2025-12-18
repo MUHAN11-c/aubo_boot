@@ -72,9 +72,12 @@ rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesup
 rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp: rosidl_adapter/aubo_msgs/msg/MasterboardDataMsg.idl
 rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp: rosidl_adapter/aubo_msgs/msg/RobotModeDataMsg.idl
 rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp: rosidl_adapter/aubo_msgs/msg/ToolDataMsg.idl
+rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp: rosidl_adapter/aubo_msgs/msg/JointTrajectoryFeedback.idl
 rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp: rosidl_adapter/aubo_msgs/srv/SetPayload.idl
 rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp: rosidl_adapter/aubo_msgs/srv/SetSpeedSliderFraction.idl
 rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp: rosidl_adapter/aubo_msgs/srv/SetIO.idl
+rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp: rosidl_adapter/aubo_msgs/srv/GetFK.idl
+rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp: rosidl_adapter/aubo_msgs/srv/GetIK.idl
 rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp: /opt/ros/foxy/share/builtin_interfaces/msg/Duration.idl
 rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp: /opt/ros/foxy/share/builtin_interfaces/msg/Time.idl
 rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp: /opt/ros/foxy/share/geometry_msgs/msg/Accel.idl
@@ -136,6 +139,10 @@ rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesup
 rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp: /opt/ros/foxy/share/std_msgs/msg/UInt64MultiArray.idl
 rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp: /opt/ros/foxy/share/std_msgs/msg/UInt8.idl
 rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp: /opt/ros/foxy/share/std_msgs/msg/UInt8MultiArray.idl
+rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp: /opt/ros/foxy/share/trajectory_msgs/msg/JointTrajectory.idl
+rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp: /opt/ros/foxy/share/trajectory_msgs/msg/JointTrajectoryPoint.idl
+rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp: /opt/ros/foxy/share/trajectory_msgs/msg/MultiDOFJointTrajectory.idl
+rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp: /opt/ros/foxy/share/trajectory_msgs/msg/MultiDOFJointTrajectoryPoint.idl
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Generating C++ introspection for ROS interfaces"
 	/usr/bin/python3 /opt/ros/foxy/lib/rosidl_typesupport_introspection_cpp/rosidl_typesupport_introspection_cpp --generator-arguments-file /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_typesupport_introspection_cpp__arguments.json
 
@@ -157,6 +164,9 @@ rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/robot_mode_data_msg__r
 rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/tool_data_msg__rosidl_typesupport_introspection_cpp.hpp: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/tool_data_msg__rosidl_typesupport_introspection_cpp.hpp
 
+rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__rosidl_typesupport_introspection_cpp.hpp: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__rosidl_typesupport_introspection_cpp.hpp
+
 rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_payload__rosidl_typesupport_introspection_cpp.hpp: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_payload__rosidl_typesupport_introspection_cpp.hpp
 
@@ -165,6 +175,12 @@ rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_speed_slider_fract
 
 rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__rosidl_typesupport_introspection_cpp.hpp: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__rosidl_typesupport_introspection_cpp.hpp
+
+rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__rosidl_typesupport_introspection_cpp.hpp: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__rosidl_typesupport_introspection_cpp.hpp
+
+rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__rosidl_typesupport_introspection_cpp.hpp: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__rosidl_typesupport_introspection_cpp.hpp
 
 rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__type_support.cpp: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__type_support.cpp
@@ -187,6 +203,9 @@ rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/robot_mode_data_msg__t
 rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/tool_data_msg__type_support.cpp: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/tool_data_msg__type_support.cpp
 
+rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.cpp: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.cpp
+
 rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_payload__type_support.cpp: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_payload__type_support.cpp
 
@@ -195,6 +214,12 @@ rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_speed_slider_fract
 
 rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__type_support.cpp: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__type_support.cpp
+
+rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__type_support.cpp: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__type_support.cpp
+
+rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__type_support.cpp: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__rosidl_typesupport_introspection_cpp.hpp
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__type_support.cpp
 
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__type_support.cpp.o: CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/flags.make
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__type_support.cpp.o: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__type_support.cpp
@@ -287,9 +312,22 @@ CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesuppor
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/tool_data_msg__type_support.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/tool_data_msg__type_support.cpp -o CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/tool_data_msg__type_support.cpp.s
 
+CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.cpp.o: CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/flags.make
+CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.cpp.o: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.cpp.o"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.cpp.o -c /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.cpp
+
+CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.cpp > CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.cpp.i
+
+CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.cpp -o CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.cpp.s
+
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_payload__type_support.cpp.o: CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/flags.make
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_payload__type_support.cpp.o: rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_payload__type_support.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_payload__type_support.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building CXX object CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_payload__type_support.cpp.o"
 	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_payload__type_support.cpp.o -c /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_payload__type_support.cpp
 
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_payload__type_support.cpp.i: cmake_force
@@ -302,7 +340,7 @@ CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesuppor
 
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_speed_slider_fraction__type_support.cpp.o: CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/flags.make
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_speed_slider_fraction__type_support.cpp.o: rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_speed_slider_fraction__type_support.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building CXX object CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_speed_slider_fraction__type_support.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Building CXX object CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_speed_slider_fraction__type_support.cpp.o"
 	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_speed_slider_fraction__type_support.cpp.o -c /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_speed_slider_fraction__type_support.cpp
 
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_speed_slider_fraction__type_support.cpp.i: cmake_force
@@ -315,7 +353,7 @@ CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesuppor
 
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__type_support.cpp.o: CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/flags.make
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__type_support.cpp.o: rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__type_support.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Building CXX object CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__type_support.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Building CXX object CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__type_support.cpp.o"
 	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__type_support.cpp.o -c /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__type_support.cpp
 
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__type_support.cpp.i: cmake_force
@@ -326,6 +364,32 @@ CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesuppor
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__type_support.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__type_support.cpp -o CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__type_support.cpp.s
 
+CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__type_support.cpp.o: CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/flags.make
+CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__type_support.cpp.o: rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__type_support.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Building CXX object CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__type_support.cpp.o"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__type_support.cpp.o -c /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__type_support.cpp
+
+CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__type_support.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__type_support.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__type_support.cpp > CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__type_support.cpp.i
+
+CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__type_support.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__type_support.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__type_support.cpp -o CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__type_support.cpp.s
+
+CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__type_support.cpp.o: CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/flags.make
+CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__type_support.cpp.o: rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__type_support.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_14) "Building CXX object CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__type_support.cpp.o"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__type_support.cpp.o -c /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__type_support.cpp
+
+CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__type_support.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__type_support.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__type_support.cpp > CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__type_support.cpp.i
+
+CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__type_support.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__type_support.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__type_support.cpp -o CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__type_support.cpp.s
+
 # Object files for target aubo_msgs__rosidl_typesupport_introspection_cpp
 aubo_msgs__rosidl_typesupport_introspection_cpp_OBJECTS = \
 "CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__type_support.cpp.o" \
@@ -335,9 +399,12 @@ aubo_msgs__rosidl_typesupport_introspection_cpp_OBJECTS = \
 "CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/masterboard_data_msg__type_support.cpp.o" \
 "CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/robot_mode_data_msg__type_support.cpp.o" \
 "CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/tool_data_msg__type_support.cpp.o" \
+"CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.cpp.o" \
 "CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_payload__type_support.cpp.o" \
 "CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_speed_slider_fraction__type_support.cpp.o" \
-"CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__type_support.cpp.o"
+"CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__type_support.cpp.o" \
+"CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__type_support.cpp.o" \
+"CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__type_support.cpp.o"
 
 # External object files for target aubo_msgs__rosidl_typesupport_introspection_cpp
 aubo_msgs__rosidl_typesupport_introspection_cpp_EXTERNAL_OBJECTS =
@@ -349,15 +416,23 @@ libaubo_msgs__rosidl_typesupport_introspection_cpp.so: CMakeFiles/aubo_msgs__ros
 libaubo_msgs__rosidl_typesupport_introspection_cpp.so: CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/masterboard_data_msg__type_support.cpp.o
 libaubo_msgs__rosidl_typesupport_introspection_cpp.so: CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/robot_mode_data_msg__type_support.cpp.o
 libaubo_msgs__rosidl_typesupport_introspection_cpp.so: CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/tool_data_msg__type_support.cpp.o
+libaubo_msgs__rosidl_typesupport_introspection_cpp.so: CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.cpp.o
 libaubo_msgs__rosidl_typesupport_introspection_cpp.so: CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_payload__type_support.cpp.o
 libaubo_msgs__rosidl_typesupport_introspection_cpp.so: CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_speed_slider_fraction__type_support.cpp.o
 libaubo_msgs__rosidl_typesupport_introspection_cpp.so: CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__type_support.cpp.o
+libaubo_msgs__rosidl_typesupport_introspection_cpp.so: CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__type_support.cpp.o
+libaubo_msgs__rosidl_typesupport_introspection_cpp.so: CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__type_support.cpp.o
 libaubo_msgs__rosidl_typesupport_introspection_cpp.so: CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/build.make
+libaubo_msgs__rosidl_typesupport_introspection_cpp.so: /opt/ros/foxy/lib/libtrajectory_msgs__rosidl_typesupport_introspection_c.so
+libaubo_msgs__rosidl_typesupport_introspection_cpp.so: /opt/ros/foxy/lib/libtrajectory_msgs__rosidl_typesupport_c.so
+libaubo_msgs__rosidl_typesupport_introspection_cpp.so: /opt/ros/foxy/lib/libtrajectory_msgs__rosidl_typesupport_cpp.so
+libaubo_msgs__rosidl_typesupport_introspection_cpp.so: /opt/ros/foxy/lib/libtrajectory_msgs__rosidl_typesupport_introspection_cpp.so
+libaubo_msgs__rosidl_typesupport_introspection_cpp.so: /opt/ros/foxy/lib/libtrajectory_msgs__rosidl_generator_c.so
 libaubo_msgs__rosidl_typesupport_introspection_cpp.so: /opt/ros/foxy/lib/libgeometry_msgs__rosidl_typesupport_introspection_c.so
-libaubo_msgs__rosidl_typesupport_introspection_cpp.so: /opt/ros/foxy/lib/libgeometry_msgs__rosidl_typesupport_c.so
-libaubo_msgs__rosidl_typesupport_introspection_cpp.so: /opt/ros/foxy/lib/libgeometry_msgs__rosidl_typesupport_cpp.so
-libaubo_msgs__rosidl_typesupport_introspection_cpp.so: /opt/ros/foxy/lib/libgeometry_msgs__rosidl_typesupport_introspection_cpp.so
 libaubo_msgs__rosidl_typesupport_introspection_cpp.so: /opt/ros/foxy/lib/libgeometry_msgs__rosidl_generator_c.so
+libaubo_msgs__rosidl_typesupport_introspection_cpp.so: /opt/ros/foxy/lib/libgeometry_msgs__rosidl_typesupport_c.so
+libaubo_msgs__rosidl_typesupport_introspection_cpp.so: /opt/ros/foxy/lib/libgeometry_msgs__rosidl_typesupport_introspection_cpp.so
+libaubo_msgs__rosidl_typesupport_introspection_cpp.so: /opt/ros/foxy/lib/libgeometry_msgs__rosidl_typesupport_cpp.so
 libaubo_msgs__rosidl_typesupport_introspection_cpp.so: /opt/ros/foxy/lib/libstd_msgs__rosidl_typesupport_introspection_c.so
 libaubo_msgs__rosidl_typesupport_introspection_cpp.so: /opt/ros/foxy/lib/libstd_msgs__rosidl_generator_c.so
 libaubo_msgs__rosidl_typesupport_introspection_cpp.so: /opt/ros/foxy/lib/libstd_msgs__rosidl_typesupport_c.so
@@ -376,7 +451,7 @@ libaubo_msgs__rosidl_typesupport_introspection_cpp.so: /opt/ros/foxy/lib/librosi
 libaubo_msgs__rosidl_typesupport_introspection_cpp.so: /opt/ros/foxy/lib/librcpputils.so
 libaubo_msgs__rosidl_typesupport_introspection_cpp.so: /opt/ros/foxy/lib/librcutils.so
 libaubo_msgs__rosidl_typesupport_introspection_cpp.so: CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Linking CXX shared library libaubo_msgs__rosidl_typesupport_introspection_cpp.so"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_15) "Linking CXX shared library libaubo_msgs__rosidl_typesupport_introspection_cpp.so"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
@@ -395,9 +470,12 @@ CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_ty
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/masterboard_data_msg__rosidl_typesupport_introspection_cpp.hpp
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/robot_mode_data_msg__rosidl_typesupport_introspection_cpp.hpp
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/tool_data_msg__rosidl_typesupport_introspection_cpp.hpp
+CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__rosidl_typesupport_introspection_cpp.hpp
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_payload__rosidl_typesupport_introspection_cpp.hpp
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_speed_slider_fraction__rosidl_typesupport_introspection_cpp.hpp
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__rosidl_typesupport_introspection_cpp.hpp
+CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__rosidl_typesupport_introspection_cpp.hpp
+CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__rosidl_typesupport_introspection_cpp.hpp
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/analog__type_support.cpp
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/digital__type_support.cpp
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/io_states__type_support.cpp
@@ -405,9 +483,12 @@ CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_ty
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/masterboard_data_msg__type_support.cpp
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/robot_mode_data_msg__type_support.cpp
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/tool_data_msg__type_support.cpp
+CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.cpp
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_payload__type_support.cpp
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_speed_slider_fraction__type_support.cpp
 CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/set_io__type_support.cpp
+CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_fk__type_support.cpp
+CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend: rosidl_typesupport_introspection_cpp/aubo_msgs/srv/detail/get_ik__type_support.cpp
 	cd /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_msgs /home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_msgs /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/aubo_msgs__rosidl_typesupport_introspection_cpp.dir/depend
 

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(aubo_msgs)
 
-find_package(catkin REQUIRED COMPONENTS message_generation std_msgs)
+find_package(catkin REQUIRED COMPONENTS message_generation std_msgs trajectory_msgs)
 
 add_message_files(
    FILES
@@ -11,6 +11,7 @@ add_message_files(
    JointPos.msg
    TraPoint.msg
    GoalPoint.msg
+   JointTrajectoryFeedback.msg
  )
 
 ## Generate services in the 'srv' folder
@@ -26,10 +27,11 @@ add_service_files(
 generate_messages(
    DEPENDENCIES
    std_msgs
+   trajectory_msgs
 )
 
 catkin_package(
-  CATKIN_DEPENDS message_runtime std_msgs
+  CATKIN_DEPENDS message_runtime std_msgs trajectory_msgs
 )
 
 include_directories(

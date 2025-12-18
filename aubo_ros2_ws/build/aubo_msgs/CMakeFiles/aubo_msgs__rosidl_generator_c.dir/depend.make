@@ -41,6 +41,29 @@ CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/de
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/io_states__functions.c.o: rosidl_generator_c/aubo_msgs/msg/detail/io_states__struct.h
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/io_states__functions.c.o: rosidl_generator_c/aubo_msgs/msg/rosidl_generator_c__visibility_control.h
 
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: /opt/ros/foxy/include/builtin_interfaces/msg/detail/duration__struct.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: /opt/ros/foxy/include/builtin_interfaces/msg/detail/time__struct.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: /opt/ros/foxy/include/rcutils/allocator.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: /opt/ros/foxy/include/rcutils/macros.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: /opt/ros/foxy/include/rcutils/testing/fault_injection.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: /opt/ros/foxy/include/rcutils/types/rcutils_ret.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: /opt/ros/foxy/include/rcutils/visibility_control.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: /opt/ros/foxy/include/rcutils/visibility_control_macros.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: /opt/ros/foxy/include/rosidl_runtime_c/primitives_sequence.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: /opt/ros/foxy/include/rosidl_runtime_c/string.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: /opt/ros/foxy/include/rosidl_runtime_c/string_functions.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: /opt/ros/foxy/include/rosidl_runtime_c/visibility_control.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: /opt/ros/foxy/include/std_msgs/msg/detail/header__functions.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: /opt/ros/foxy/include/std_msgs/msg/detail/header__struct.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: /opt/ros/foxy/include/std_msgs/msg/rosidl_generator_c__visibility_control.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: /opt/ros/foxy/include/trajectory_msgs/msg/detail/joint_trajectory_point__functions.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: /opt/ros/foxy/include/trajectory_msgs/msg/detail/joint_trajectory_point__struct.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: /opt/ros/foxy/include/trajectory_msgs/msg/rosidl_generator_c__visibility_control.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__struct.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: rosidl_generator_c/aubo_msgs/msg/rosidl_generator_c__visibility_control.h
+
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/masterboard_data_msg__functions.c.o: rosidl_generator_c/aubo_msgs/msg/detail/masterboard_data_msg__functions.c
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/masterboard_data_msg__functions.c.o: /opt/ros/foxy/include/rcutils/allocator.h
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/masterboard_data_msg__functions.c.o: /opt/ros/foxy/include/rcutils/macros.h
@@ -90,6 +113,30 @@ CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/de
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__functions.c.o: rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__functions.h
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__functions.c.o: rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__struct.h
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__functions.c.o: rosidl_generator_c/aubo_msgs/msg/rosidl_generator_c__visibility_control.h
+
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.o: rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.o: /opt/ros/foxy/include/rcutils/allocator.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.o: /opt/ros/foxy/include/rcutils/macros.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.o: /opt/ros/foxy/include/rcutils/testing/fault_injection.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.o: /opt/ros/foxy/include/rcutils/types/rcutils_ret.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.o: /opt/ros/foxy/include/rcutils/visibility_control.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.o: /opt/ros/foxy/include/rcutils/visibility_control_macros.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.o: /opt/ros/foxy/include/rosidl_runtime_c/visibility_control.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.o: rosidl_generator_c/aubo_msgs/msg/rosidl_generator_c__visibility_control.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.o: rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.o: rosidl_generator_c/aubo_msgs/srv/detail/get_fk__struct.h
+
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.o: rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.o: /opt/ros/foxy/include/rcutils/allocator.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.o: /opt/ros/foxy/include/rcutils/macros.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.o: /opt/ros/foxy/include/rcutils/testing/fault_injection.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.o: /opt/ros/foxy/include/rcutils/types/rcutils_ret.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.o: /opt/ros/foxy/include/rcutils/visibility_control.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.o: /opt/ros/foxy/include/rcutils/visibility_control_macros.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.o: /opt/ros/foxy/include/rosidl_runtime_c/visibility_control.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.o: rosidl_generator_c/aubo_msgs/msg/rosidl_generator_c__visibility_control.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.o: rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.o: rosidl_generator_c/aubo_msgs/srv/detail/get_ik__struct.h
 
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c.o: rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c.o: /opt/ros/foxy/include/rcutils/allocator.h

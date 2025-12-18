@@ -228,6 +228,36 @@ aubo_msgs_generate_messages_eus/fast:
 .PHONY : aubo_msgs_generate_messages_eus/fast
 
 # Convenience name for target.
+aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/aubo_msgs_gencpp.dir/rule:
+	cd /home/mu/IVG/aubo_ws/build && $(MAKE) -f CMakeFiles/Makefile2 aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/aubo_msgs_gencpp.dir/rule
+.PHONY : aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/aubo_msgs_gencpp.dir/rule
+
+# Convenience name for target.
+aubo_msgs_gencpp: aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/aubo_msgs_gencpp.dir/rule
+
+.PHONY : aubo_msgs_gencpp
+
+# fast build rule for target.
+aubo_msgs_gencpp/fast:
+	cd /home/mu/IVG/aubo_ws/build && $(MAKE) -f aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/aubo_msgs_gencpp.dir/build.make aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/aubo_msgs_gencpp.dir/build
+.PHONY : aubo_msgs_gencpp/fast
+
+# Convenience name for target.
+aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/_aubo_msgs_generate_messages_check_deps_JointTrajectoryFeedback.dir/rule:
+	cd /home/mu/IVG/aubo_ws/build && $(MAKE) -f CMakeFiles/Makefile2 aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/_aubo_msgs_generate_messages_check_deps_JointTrajectoryFeedback.dir/rule
+.PHONY : aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/_aubo_msgs_generate_messages_check_deps_JointTrajectoryFeedback.dir/rule
+
+# Convenience name for target.
+_aubo_msgs_generate_messages_check_deps_JointTrajectoryFeedback: aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/_aubo_msgs_generate_messages_check_deps_JointTrajectoryFeedback.dir/rule
+
+.PHONY : _aubo_msgs_generate_messages_check_deps_JointTrajectoryFeedback
+
+# fast build rule for target.
+_aubo_msgs_generate_messages_check_deps_JointTrajectoryFeedback/fast:
+	cd /home/mu/IVG/aubo_ws/build && $(MAKE) -f aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/_aubo_msgs_generate_messages_check_deps_JointTrajectoryFeedback.dir/build.make aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/_aubo_msgs_generate_messages_check_deps_JointTrajectoryFeedback.dir/build
+.PHONY : _aubo_msgs_generate_messages_check_deps_JointTrajectoryFeedback/fast
+
+# Convenience name for target.
 aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/_aubo_msgs_generate_messages_check_deps_Analog.dir/rule:
 	cd /home/mu/IVG/aubo_ws/build && $(MAKE) -f CMakeFiles/Makefile2 aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/_aubo_msgs_generate_messages_check_deps_Analog.dir/rule
 .PHONY : aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/_aubo_msgs_generate_messages_check_deps_Analog.dir/rule
@@ -467,21 +497,6 @@ aubo_msgs_generate_messages_cpp/fast:
 	cd /home/mu/IVG/aubo_ws/build && $(MAKE) -f aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/aubo_msgs_generate_messages_cpp.dir/build.make aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/aubo_msgs_generate_messages_cpp.dir/build
 .PHONY : aubo_msgs_generate_messages_cpp/fast
 
-# Convenience name for target.
-aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/aubo_msgs_gencpp.dir/rule:
-	cd /home/mu/IVG/aubo_ws/build && $(MAKE) -f CMakeFiles/Makefile2 aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/aubo_msgs_gencpp.dir/rule
-.PHONY : aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/aubo_msgs_gencpp.dir/rule
-
-# Convenience name for target.
-aubo_msgs_gencpp: aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/aubo_msgs_gencpp.dir/rule
-
-.PHONY : aubo_msgs_gencpp
-
-# fast build rule for target.
-aubo_msgs_gencpp/fast:
-	cd /home/mu/IVG/aubo_ws/build && $(MAKE) -f aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/aubo_msgs_gencpp.dir/build.make aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/aubo_msgs_gencpp.dir/build
-.PHONY : aubo_msgs_gencpp/fast
-
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -496,6 +511,8 @@ help:
 	@echo "... aubo_msgs_generate_messages_py"
 	@echo "... aubo_msgs_geneus"
 	@echo "... aubo_msgs_generate_messages_eus"
+	@echo "... aubo_msgs_gencpp"
+	@echo "... _aubo_msgs_generate_messages_check_deps_JointTrajectoryFeedback"
 	@echo "... _aubo_msgs_generate_messages_check_deps_Analog"
 	@echo "... _aubo_msgs_generate_messages_check_deps_SetIO"
 	@echo "... _aubo_msgs_generate_messages_check_deps_Digital"
@@ -515,7 +532,6 @@ help:
 	@echo "... _aubo_msgs_generate_messages_check_deps_GetIK"
 	@echo "... aubo_msgs_gennodejs"
 	@echo "... aubo_msgs_generate_messages_cpp"
-	@echo "... aubo_msgs_gencpp"
 .PHONY : help
 
 

@@ -4,6 +4,7 @@ file(REMOVE_RECURSE
   "/home/mu/IVG/aubo_ws/devel/share/common-lisp/ros/aubo_msgs/msg/GoalPoint.lisp"
   "/home/mu/IVG/aubo_ws/devel/share/common-lisp/ros/aubo_msgs/msg/IOState.lisp"
   "/home/mu/IVG/aubo_ws/devel/share/common-lisp/ros/aubo_msgs/msg/JointPos.lisp"
+  "/home/mu/IVG/aubo_ws/devel/share/common-lisp/ros/aubo_msgs/msg/JointTrajectoryFeedback.lisp"
   "/home/mu/IVG/aubo_ws/devel/share/common-lisp/ros/aubo_msgs/msg/TraPoint.lisp"
   "/home/mu/IVG/aubo_ws/devel/share/common-lisp/ros/aubo_msgs/srv/GetFK.lisp"
   "/home/mu/IVG/aubo_ws/devel/share/common-lisp/ros/aubo_msgs/srv/GetIK.lisp"

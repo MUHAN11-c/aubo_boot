@@ -1,8 +1,36 @@
 #!/usr/bin/env python3
-#
-# Software License Agreement (BSD License)
-# Copyright (c) 2017-2018, Aubo Robotics
-# All rights reserved.
+"""
+@file aubo_robot_simulator
+@brief AUBO 机器人控制器仿真器（Python 版本）
+ 
+该文件实现了 AUBO 机器人的控制器仿真器，用于在没有真实机器人的情况下
+测试和开发 MoveIt 运动规划功能，也可在真实机器人模式下作为轨迹插值器使用。
+仿真器遵循 ROS-Industrial 机器人驱动规范。
+
+主要功能：
+- 接收轨迹命令（/joint_path_command）并模拟执行
+- 使用5次多项式插值生成平滑运动轨迹（200Hz）
+- 发布关节状态和反馈信息
+- 发布高频率轨迹点（/moveItController_cmd）给真实机器人驱动器
+- 提供与真实控制器兼容的接口
+
+工作流程：
+1. 接收来自 aubo_joint_trajectory_action 的轨迹命令
+2. 对轨迹进行速度缩放（velocity_scale_factor）
+3. 使用5次多项式插值生成高频率中间点（200Hz）
+4. 发布轨迹点到 /moveItController_cmd（供 aubo_driver 使用）
+5. 发布反馈到 /feedback_states（供 aubo_joint_trajectory_action 使用）
+
+注意：这是实际运行的版本，话题名称为 moveItController_cmd（驼峰命名），
+与 aubo_driver 订阅的话题名称匹配。
+
+@author AUBO Robotics
+@date 2017-2018
+
+Software License Agreement (BSD License)
+Copyright (c) 2017-2018, Aubo Robotics
+All rights reserved.
+"""
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -43,7 +71,7 @@ else:
 
 # Publish
 from sensor_msgs.msg import JointState
-from control_msgs.msg import FollowJointTrajectoryFeedback
+from aubo_msgs.msg import JointTrajectoryFeedback
 from std_msgs.msg import Int32MultiArray
 from std_msgs.msg import Float32MultiArray
 from std_msgs.msg import UInt8
@@ -62,79 +90,115 @@ from trajectory_speed import scale_trajectory_speed
 
 
 """
-MotionController
-This class simulates the motion controller for an Aubo robot.
-This class IS threadsafe
+@class MotionControllerSimulator
+@brief 运动控制器仿真器类（线程安全）
+
+负责模拟机器人运动控制器的核心功能：
+- 接收轨迹点并存储在缓冲区（FIFO队列）
+- 使用5次多项式插值生成平滑运动轨迹
+- 按指定更新频率（默认200Hz）执行运动
+- 发布高频率轨迹点给真实机器人驱动器
+
+该类是线程安全的，使用 threading.Lock() 保护共享数据。
 """
 class MotionControllerSimulator():
     """
-    Constructor of motion controller simulator
+    @brief 构造函数：初始化运动控制器仿真器
+    
+    @param num_joints: 关节数量
+    @param update_rate: 运动更新频率（Hz），默认200Hz，更高的频率产生更平滑的仿真运动
+    @param buffer_size: 运动缓冲区大小，0表示无限制
+    
+    初始化流程：
+    1. 设置更新频率和缓冲区
+    2. 从参数服务器获取关节名称和初始关节状态
+    3. 创建发布者：发布轨迹点到 /moveItController_cmd
+    4. 创建订阅者：订阅真实关节位置更新和取消轨迹事件
+    5. 启动运动控制工作线程
     """
     def __init__(self, num_joints, update_rate = 200, buffer_size = 0):
-        # Class lock
-        self.lock = threading.Lock()
-        self.cancle_trajectory = 0;
+        # ========== 线程同步 ==========
+        self.lock = threading.Lock()  # 互斥锁，保护共享数据（关节位置、速度、加速度）
+        self.cancle_trajectory = 0  # 取消轨迹标志
 
-        # Motion loop update rate (higher update rates result in smoother simulated motion)
+        # ========== 运动参数 ==========
+        # 运动循环更新频率（更高的更新频率产生更平滑的仿真运动）
         self.update_rate = update_rate
         rospy.loginfo("Setting motion update rate (hz): %f", self.update_rate)
 
-        # Initialize motion buffer (contains joint position lists)
+        # 初始化运动缓冲区（FIFO队列，包含关节位置列表）
         self.motion_buffer = Queue.Queue(buffer_size)
         rospy.logdebug("Setting motion buffer size: %i", buffer_size)
 
+        # ========== 关节配置 ==========
+        # 从参数服务器获取关节名称，如果不存在则使用默认值
         def_joint_names = ["joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"]
         self.joint_names = rospy.get_param('controller_joint_names', def_joint_names)
 
+        # 初始化关节状态（位置、速度、加速度）
         initial_joint_state = rospy.get_param('initial_joint_state', [0]*num_joints)
-        # same_len = len(initial_joint_state) == len(self.joint_names)
-        # same_len = 6
+        # 当前实现中，初始关节状态被强制设置为全零
         initial_joint_state = [0]*num_joints
-        # all_num  = all(type(x) is int or type(x) is float for x in initial_joint_state)
-        # if not same_len or not all_num:
-        #     initial_joint_state = [0]*num_joints
-        #     rospy.logwarn("Invalid initial_joint_state parameter, defaulting to all-zeros "
-        #                   "(len: %s, types: %s).", same_len, all_num)
         rospy.loginfo("Using initial joint state: %s", str(initial_joint_state))
 
-         # Initialize joint position
+        # 初始化关节位置、速度、加速度数组
         self.joint_positions = initial_joint_state
         rospy.logdebug("Setting initial joint state: %s", str(initial_joint_state))
         self.joint_velocities = [0]*num_joints
         self.joint_accelerations = [0]*num_joints
 
-        self.ribBufferSize = 0
-        self.ControllerConnectedFlag = 1
-        self.positionUpdatedFlag = '0'
+        # ========== 控制器状态 ==========
+        self.ribBufferSize = 0  # RIB（机器人接口缓冲区）大小
+        self.ControllerConnectedFlag = 1  # 控制器连接标志
+        self.positionUpdatedFlag = '0'  # 位置更新标志
 
+        # ========== ROS 发布者和订阅者 ==========
+        # 发布高频率轨迹点到 /moveItController_cmd（供 aubo_driver 使用）
+        # 注意：话题名称使用驼峰命名，与 aubo_driver 订阅的话题名称匹配
         rospy.logdebug("Creating joint state publisher")
         self.moveit_joint_state_pub = rospy.Publisher('moveItController_cmd', JointTrajectoryPoint, queue_size=2000)
 
+        # 订阅真实关节位置更新（从真实机器人驱动获取）
         rospy.logdebug("Creating joint state subscriber!")
         self.update_joint_state_subs = rospy.Subscriber('/aubo_driver/real_pose', Float32MultiArray, self.update_joint_state_callback)
+        
+        # 订阅取消轨迹事件（用于外部停止轨迹执行）
         self.Is_cancel_trajectory_subs = rospy.Subscriber('aubo_driver/cancel_trajectory', UInt8, self.Is_cancel_trajectory_callback)
 
-        self.MinimumBufferSize = 800
-        # Shutdown signal
-        self.sig_shutdown = False
+        # ========== 缓冲区管理 ==========
+        self.MinimumBufferSize = 800  # 最小缓冲区大小阈值
+        
+        # ========== 控制信号 ==========
+        self.sig_shutdown = False  # 关闭信号标志
+        self.sig_stop = False  # 停止信号标志
 
-        # Stop signal
-        self.sig_stop = False
-
-        # Motion thread
+        # ========== 启动运动控制工作线程 ==========
+        # 该线程在后台运行，持续处理轨迹点并执行插值
         self.motion_thread = threading.Thread(target=self._motion_worker)
-        self.motion_thread.daemon = True
+        self.motion_thread.daemon = True  # 设置为守护线程，主程序退出时自动退出
         self.motion_thread.start()
 
     """
-    Update the joint position from extern controller.
+    @brief 更新关节状态回调函数
+    
+    从真实机器人驱动接收当前关节位置，仅在非运动状态下更新。
+    这用于同步仿真器与真实机器人的初始位置。
+    
+    @param msg_in: 包含真实关节位置的浮点数组消息
     """
     def update_joint_state_callback(self, msg_in):
         if not self.is_in_motion():
             self.joint_positions = msg_in.data
             rospy.loginfo('update joints, %s' , str(self.joint_positions))
 
-    # The function will recieve info about cancel trajectory because user want the robot stop when the robot running
+    """
+    @brief 取消轨迹回调函数
+    
+    当外部节点（如用户程序）发布取消轨迹事件时，此回调函数被触发。
+    主要用于处理外部停止请求。
+    
+    @param msg_in: 取消轨迹消息，如果 data == 1 则停止当前轨迹执行
+    """
     def Is_cancel_trajectory_callback(self, msg_in):
         self.cancle_trajectory = msg_in.data
         if self.cancle_trajectory == 1:
@@ -144,30 +208,67 @@ class MotionControllerSimulator():
         rospy.loginfo('is cancel trajectory status %d' , self.cancle_trajectory)
 
 
+    """
+    @brief 添加运动轨迹点
+    
+    将新的轨迹点添加到运动缓冲区队列中。
+    注意：添加新轨迹到缓冲区时，需要处理加速度信息。
+    
+    @param point: 轨迹点（包含位置、速度、加速度和时间信息）
+    """
     def add_motion_waypoint(self, point):
-    # When add new trajectory into the buffer, here need to handle the accelerations!!
+        # 当添加新轨迹到缓冲区时，这里需要处理加速度信息
         self.motion_buffer.put(point)
 
+    """
+    @brief 获取当前关节位置
+    
+    线程安全地获取当前所有关节的位置值。
+    
+    @return: 关节位置列表的副本
+    """
     def get_joint_positions(self):
         with self.lock:
             return self.joint_positions[:]
 
     """
-    return the status of the controller.
+    @brief 检查是否在运动中
+    
+    @return: True 如果运动缓冲区不为空（有轨迹在执行），False 否则
     """
     def is_in_motion(self):
         return not self.motion_buffer.empty()
 
+    """
+    @brief 关闭运动控制器
+    
+    设置关闭信号，使运动工作线程退出循环。
+    """
     def shutdown(self):
         self.sig_shutdown = True
         rospy.logdebug('Motion_Controller shutdown signaled')
 
+    """
+    @brief 立即停止运动
+    
+    清空运动缓冲区并设置停止信号，使当前运动立即停止。
+    """
     def stop(self):
         rospy.logdebug('Motion_Controller stop signaled')
         with self.lock:
             self._clear_buffer()
             self.sig_stop = True
 
+    """
+    @brief 线性插值函数（未使用，当前使用5次多项式插值）
+    
+    在两个轨迹点之间进行线性插值。
+    
+    @param last_pt: 上一个轨迹点
+    @param current_pt: 当前轨迹点
+    @param alpha: 插值系数（0.0 到 1.0）
+    @return: 插值后的中间轨迹点
+    """
     def interpolate(self, last_pt, current_pt, alpha):
         intermediate_pt = JointTrajectoryPoint()
         for last_joint, current_joint in zip(last_pt.positions, current_pt.positions):
@@ -175,253 +276,350 @@ class MotionControllerSimulator():
         intermediate_pt.time_from_start = last_pt.time_from_start + rospy.Duration(alpha*(current_pt.time_from_start.to_sec() - last_pt.time_from_start.to_sec()))
         return intermediate_pt
 
+    """
+    @brief 清空运动缓冲区
+    
+    线程安全地清空所有待执行的轨迹点。
+    """
     def _clear_buffer(self):
         with self.motion_buffer.mutex:
             self.motion_buffer.queue.clear()
 
+    """
+    @brief 发布关节状态
+    
+    将当前关节位置、速度、加速度发布到 /moveItController_cmd 话题。
+    该话题被 aubo_driver 订阅，用于控制真实机器人。
+    
+    发布频率：跟随 motion_worker 的更新频率（200Hz）
+    """
     def joint_state_publisher(self):
         try:
             joint_point_msg = JointTrajectoryPoint()
             time = rospy.Time.now()
 
             with self.lock:
-                #Joint states
+                # 填充关节状态信息
                 joint_point_msg.time_from_start = time
                 joint_point_msg.positions = self.joint_positions
                 joint_point_msg.velocities = self.joint_velocities
                 joint_point_msg.accelerations = self.joint_accelerations
 
-                # rospy.loginfo('Moved to position: %s', str(self.joint_positions))
+                # 发布轨迹点到 /moveItController_cmd（供 aubo_driver 使用）
                 self.moveit_joint_state_pub.publish(joint_point_msg)
 
         except Exception as e:
             rospy.loginfo('Unexpected exception in joint state publisher: %s', e)
 
     """
-    update the motion controller state combining with the robot controller information
+    @brief 移动到目标位置
+    
+    更新关节位置到目标值，并处理缓冲区大小和停止信号。
+    该方法结合机器人控制器信息更新运动控制器状态。
+    
+    @param point: 目标轨迹点（包含位置、速度、加速度）
+    @param dur: 移动持续时间（秒）
     """
     def _move_to(self, point, dur):
+        # 如果缓冲区过大，等待一段时间（防止生成控制数据过快）
         while self.ribBufferSize > self.MinimumBufferSize:
             #rospy.loginfo('The number of driver Buffer Data is big enough, not send this time: %d', self.ribBufferSize)
             rospy.sleep(dur)
 
-        if self.ribBufferSize == 0 and self.ControllerConnectedFlag == 0:      # motion start or no robot connected!
+        # 如果缓冲区为空且控制器未连接，等待（运动开始或没有机器人连接）
+        if self.ribBufferSize == 0 and self.ControllerConnectedFlag == 0:
             rospy.sleep(dur)
 
-        if self.ribBufferSize == 0 and self.ControllerConnectedFlag == 1:      # motion start but with robot connected!
+        # 如果缓冲区为空但控制器已连接，继续执行（运动开始且有机器人连接）
+        if self.ribBufferSize == 0 and self.ControllerConnectedFlag == 1:
             pass
             # rospy.loginfo('too slow slow!!')
 
+        # 线程安全地更新关节位置
         with self.lock:
             if not self.sig_stop:
+                # 复制目标位置、速度、加速度到当前关节状态
                 self.joint_positions = point.positions
                 self.joint_velocities = point.velocities
                 self.joint_accelerations = point.accelerations
-                # self.joint_state_publisher()                #publish the control command to the robot
-                # rospy.logdebug('Moved to position: %s in %s', str(self.joint_positions), str(dur))
+                # 注意：joint_state_publisher() 在 motion_worker 中调用，不在这里调用
             else:
+                # 如果收到停止信号，清除停止标志但不更新位置
                 rospy.loginfo('Stopping motion immediately, clearing stop signal')
                 self.sig_stop = False
 
+    """
+    @brief 运动控制工作线程函数
+    
+    这是运动控制的核心函数，运行在独立线程中：
+    1. 从缓冲区取出轨迹点
+    2. 使用5次多项式插值生成平滑轨迹
+    3. 按更新频率（200Hz）执行运动
+    4. 发布关节状态到 /moveItController_cmd
+    
+    使用5次多项式插值确保位置、速度、加速度的连续性：
+    p(t) = p₀ + a₁·t + a₂·t² + a₃·t³ + a₄·t⁴ + a₅·t⁵
+    
+    其中：
+    - p₀: 起始位置
+    - a₁: 初始速度系数
+    - a₂: 初始加速度系数（0.5 × 初始加速度）
+    - a₃, a₄, a₅: 高阶系数，用于保证连续性
+    """
     def _motion_worker(self):
-        # first update the robot real postion
-
+        # ========== 等待机器人连接 ==========
+        # 首先更新机器人真实位置，等待机器人连接
         self.positionUpdatedFlag = rospy.get_param('/aubo_driver/robot_connected', '0')
         while self.positionUpdatedFlag == '0':
             rospy.sleep( self.update_rate/400)
             self.positionUpdatedFlag = rospy.get_param('/aubo_driver/robot_connected', '0')
 
         rospy.loginfo('Starting motion worker in motion controller simulator')
+        
+        # ========== 初始化变量 ==========
         move_duration = rospy.Duration()
         if self.update_rate != 0:
-            update_duration = rospy.Duration(1./self.update_rate)
+            update_duration = rospy.Duration(1./self.update_rate)  # 计算更新周期（秒）
         last_goal_point = JointTrajectoryPoint()
 
+        # 初始化上一个目标点为当前关节位置
         with self.lock:
             last_goal_point.positions = self.joint_positions[:]
 
+        # ========== 主循环：持续处理轨迹点直到收到关闭信号 ==========
         while not self.sig_shutdown:
             try:
+                # 从缓冲区取出下一个轨迹点（阻塞等待）
                 current_goal_point = self.motion_buffer.get()
                 intermediate_goal_point = copy.deepcopy(current_goal_point)
-                # If the current time from start is less than or equal to the last, then it's a new trajectory
+                
+                # 检查时间顺序，如果时间不递增，使用绝对时间（新轨迹开始）
                 if current_goal_point.time_from_start <= last_goal_point.time_from_start:
                     move_duration = current_goal_point.time_from_start
-                # Else it's an existing trajectory and subtract the two
+                # 否则，计算时间间隔并进行5次多项式插值
                 else:
-                    # If current move duration is greater than update_duration, interpolate the joint positions to form a smooth trajectory
-                    # Provide an exception to this rule: if update rate is <=0, do not add interpolated points
+                    # 如果当前移动持续时间大于更新周期，插值关节位置以形成平滑轨迹
+                    # 例外：如果更新频率 <= 0，则不添加插值点
                     T = current_goal_point.time_from_start.to_sec() - last_goal_point.time_from_start.to_sec()
-                    # five degree polynomial interpolation
-                    # a0 = last_goal_point.positions[:]
-                    a1 = last_goal_point.velocities[:]
+                    
+                    # ========== 5次多项式插值 ==========
+                    # 计算5次多项式的各项系数
+                    a1 = last_goal_point.velocities[:]  # a1: 初始速度系数
                     N = len(a1)
-                    T2 = T * T
-                    T3 = T2 * T
-                    T4 = T3 * T
-                    T5 = T4 * T
-                    a2 = [0] *N
-                    h  = [0] *N
-                    a3 = [0] *N
-                    a4 = [0] *N
-                    a5 = [0] *N
+                    T2 = T * T   # T²
+                    T3 = T2 * T  # T³
+                    T4 = T3 * T  # T⁴
+                    T5 = T4 * T  # T⁵
+                    
+                    # 初始化系数数组
+                    a2 = [0] * N  # 初始加速度系数
+                    h  = [0] * N  # 位置差
+                    a3 = [0] * N  # 3次项系数
+                    a4 = [0] * N  # 4次项系数
+                    a5 = [0] * N  # 5次项系数
 
-                    for i in range(0,N):
-                        a2[i] = 0.5 * last_goal_point.accelerations[i]
-                        h[i] = current_goal_point.positions[i] - last_goal_point.positions[i]
-                        a3[i] =0.5/T3*(20*h[i] - (8*current_goal_point.velocities[i] + 12*last_goal_point.velocities[i])*T - (3*last_goal_point.accelerations[i] -current_goal_point.accelerations[i])*T2)
-                        a4[i] =0.5/T4*(-30*h[i] + (14*current_goal_point.velocities[i] + 16*last_goal_point.velocities[i])*T + (3*last_goal_point.accelerations[i] - 2*current_goal_point.accelerations[i])*T2)
-                        a5[i] =0.5/T5*(12*h[i] - 6*(current_goal_point.velocities[i] + last_goal_point.velocities[i])*T + (current_goal_point.accelerations[i] - last_goal_point.accelerations[i])*T2)
+                    # 为每个关节计算5次多项式系数
+                    for i in range(0, N):
+                        a2[i] = 0.5 * last_goal_point.accelerations[i]  # 初始加速度系数
+                        h[i] = current_goal_point.positions[i] - last_goal_point.positions[i]  # 位置差
+                        
+                        # 计算3次项系数（确保位置和速度连续性）
+                        a3[i] = 0.5/T3 * (20*h[i] - (8*current_goal_point.velocities[i] + 12*last_goal_point.velocities[i])*T - (3*last_goal_point.accelerations[i] - current_goal_point.accelerations[i])*T2)
+                        
+                        # 计算4次项系数（确保加速度连续性）
+                        a4[i] = 0.5/T4 * (-30*h[i] + (14*current_goal_point.velocities[i] + 16*last_goal_point.velocities[i])*T + (3*last_goal_point.accelerations[i] - 2*current_goal_point.accelerations[i])*T2)
+                        
+                        # 计算5次项系数（平滑过渡）
+                        a5[i] = 0.5/T5 * (12*h[i] - 6*(current_goal_point.velocities[i] + last_goal_point.velocities[i])*T + (current_goal_point.accelerations[i] - last_goal_point.accelerations[i])*T2)
+                    
+                    # ========== 按更新频率插值生成中间轨迹点 ==========
                     if self.update_rate > 0:
-                        tt = last_goal_point.time_from_start.to_sec()
-                        ti = tt
+                        tt = last_goal_point.time_from_start.to_sec()  # 当前时间
+                        ti = tt  # 起始时间
 
+                        # 在起始点和目标点之间插值
                         while ((tt < current_goal_point.time_from_start.to_sec()) and (0 == self.cancle_trajectory)):
+                            # 计算相对时间
                             t1 = tt - ti
-                            t2 = t1 * t1
-                            t3 = t2 * t1
-                            t4 = t3 * t1
-                            t5 = t4 * t1
-                            for i in range(0,N):
-                                intermediate_goal_point.positions[i] = last_goal_point.positions[i]+a1[i]*t1+a2[i]*t2+a3[i]*t3 +a4[i]*t4 +a5[i]*t5
-                                intermediate_goal_point.velocities[i] = a1[i]+2*a2[i]*t1+3*a3[i]*t2+4*a4[i]*t3+5*a5[i]*t4
-                                intermediate_goal_point.accelerations[i] = 2*a2[i]+6*a3[i]*t1+12*a4[i]*t2+20*a5[i]*t3
+                            t2 = t1 * t1   # t²
+                            t3 = t2 * t1   # t³
+                            t4 = t3 * t1   # t⁴
+                            t5 = t4 * t1   # t⁵
+                            
+                            # 使用5次多项式计算每个关节的中间位置、速度、加速度
+                            # p(t) = p₀ + a₁·t + a₂·t² + a₃·t³ + a₄·t⁴ + a₅·t⁵
+                            # v(t) = a₁ + 2·a₂·t + 3·a₃·t² + 4·a₄·t³ + 5·a₅·t⁴
+                            # a(t) = 2·a₂ + 6·a₃·t + 12·a₄·t² + 20·a₅·t³
+                            for i in range(0, N):
+                                intermediate_goal_point.positions[i] = last_goal_point.positions[i] + a1[i]*t1 + a2[i]*t2 + a3[i]*t3 + a4[i]*t4 + a5[i]*t5
+                                intermediate_goal_point.velocities[i] = a1[i] + 2*a2[i]*t1 + 3*a3[i]*t2 + 4*a4[i]*t3 + 5*a5[i]*t4
+                                intermediate_goal_point.accelerations[i] = 2*a2[i] + 6*a3[i]*t1 + 12*a4[i]*t2 + 20*a5[i]*t3
+                            
+                            # 移动到中间目标点并发布状态（200Hz）
                             tt = tt + update_duration.to_sec()
                             self._move_to(intermediate_goal_point, update_duration.to_sec())
                             self.joint_state_publisher()
 
-                        # here need to do some adjustment to make the trajectory smoother
+                        # 计算剩余时间（用于移动到最终目标点）
                         move_duration = current_goal_point.time_from_start.to_sec() - tt
 
+                # ========== 移动到最终目标点 ==========
                 self._move_to(current_goal_point, move_duration)
                 self.joint_state_publisher()
                 last_goal_point = copy.deepcopy(current_goal_point)
 
-
             except Exception as e:
                 rospy.logerr('Unexpected exception: %s', e)
-
-            # if user want stop ,we will clear Trajectory buffer data from moveit
-            #if self.cancle_trajectory == 1:
-            #    if not self.motion_buffer.empty():
-            #        self.motion_buffer.queue.clear()
-            #    self.cancle_trajectory = 0
-            #    rospy.logerr("ssssss")
 
         rospy.logdebug("Shutting down motion controller")
 
 
 
 """
-AuboRobotSimulator
+@class AuboRobotSimulatorNode
+@brief AUBO 机器人仿真器节点类
 
-This class simulates an Aubo robot controller.  The simulator
-adheres to the ROS-Industrial robot driver specification:
-
+该类模拟 AUBO 机器人控制器，遵循 ROS-Industrial 机器人驱动规范：
 http://www.ros.org/wiki/Industrial/Industrial_Robot_Driver_Spec
 
-TODO: Currently the simulator only supports the bare minimum motion interface.
+主要功能：
+- 接收轨迹命令（/joint_path_command）
+- 发布关节状态（/joint_states）
+- 发布轨迹执行反馈（/feedback_states）
+- 与 MoveIt 集成，提供仿真环境
+- 在真实机器人模式下，作为轨迹插值器使用
 
-TODO: Interfaces to add:
-Joint streaming
-All services
+TODO: 当前仅支持最基本的运动接口
+TODO: 待添加的接口：
+  - 关节流式控制
+  - 所有服务接口
 """
 class AuboRobotSimulatorNode():
     """
-    Constructor of aubo robot simulator
+    @brief 构造函数：初始化 AUBO 机器人仿真器节点
+    
+    初始化流程：
+    1. 初始化 ROS 节点
+    2. 从参数服务器获取关节名称和发布频率
+    3. 创建运动控制器仿真器（200Hz 更新频率）
+    4. 设置话题发布器和订阅器
+    5. 创建 GetRobotInfo 服务
+    6. 注册关闭回调
     """
     def __init__(self):
         rospy.init_node('aubo_robot_simulator')
 
-        # Class lock
-        self.lock = threading.Lock()
+        # ========== 线程同步 ==========
+        self.lock = threading.Lock()  # 互斥锁，保护共享数据
 
-        # Publish rate (hz)
+        # ========== 发布频率配置 ==========
+        # 发布速率（Hz），用于周期性发布反馈（当前未使用定时器）
         self.pub_rate = rospy.get_param('pub_rate', 50.0)
         rospy.loginfo("Setting publish rate (hz) based on parameter: %f", self.pub_rate)
 
-        # Joint names
+        # ========== 关节配置 ==========
+        # 从参数服务器获取关节名称，如果不存在则使用默认值
         def_joint_names = ["joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"]
         self.joint_names = rospy.get_param('controller_joint_names', def_joint_names)
         if len(self.joint_names) == 0:
             rospy.logwarn("Joint list is empty, did you set controller_joint_name?")
         rospy.loginfo("Simulating manipulator with %d joints: %s", len(self.joint_names), ", ".join(self.joint_names))
 
-        # Setup initial joint positions
+        # ========== 创建运动控制器仿真器 ==========
         num_joints = len(self.joint_names)
-
-        # retrieve update rate
+        # 从参数服务器获取运动更新频率，默认200Hz
+        # 设置为0可以忽略插值运动（直接使用原始轨迹点）
         motion_update_rate = rospy.get_param('motion_update_rate', 200.)  # set param to 0 to ignore interpolated motion
         self.motion_ctrl = MotionControllerSimulator(num_joints, update_rate=motion_update_rate)
 
+        # ========== 速度缩放因子 ==========
+        # 从参数服务器获取速度缩放因子，用于调整轨迹执行速度
+        # 默认值为1.0（不缩放），可以设置为0.1-1.0之间的值来减慢运动速度
         self.velocity_scale_factor = rospy.get_param('/aubo_controller/velocity_scale_factor', 1.0)
         rospy.loginfo("The velocity scale factor of the trajetory is: %f", self.velocity_scale_factor)
 
-        # Published to joint states
+        # ========== ROS 发布者 ==========
+        # 发布关节状态（供 robot_state_publisher 和 move_group 使用）
         rospy.logdebug("Creating joint state publisher")
         self.joint_state_pub = rospy.Publisher('joint_states', JointState, queue_size=100)
 
-        # Published to joint feedback
+        # 发布轨迹执行反馈（供 aubo_joint_trajectory_action 使用）
         rospy.logdebug("Creating joint feedback publisher")
-        self.joint_feedback_pub = rospy.Publisher('feedback_states', FollowJointTrajectoryFeedback, queue_size=100)
+        self.joint_feedback_pub = rospy.Publisher('feedback_states', JointTrajectoryFeedback, queue_size=100)
 
-        # Subscribe to a joint trajectory
+        # ========== ROS 订阅者 ==========
+        # 订阅轨迹命令（从 aubo_joint_trajectory_action 接收）
         rospy.loginfo("Creating joint trajectory subscriber")
         self.joint_path_sub = rospy.Subscriber('joint_path_command', JointTrajectory, self.trajectory_callback)
 
-        # Subscribe to a joint trajectory
+        # 订阅 RIB 状态（从 aubo_driver 接收，用于同步缓冲区状态）
         rospy.loginfo("Enable Switch")
         self.plan_type_sub = rospy.Subscriber('/aubo_driver/rib_status', Int32MultiArray, self.rib_status_callback)
 
-        # JointStates timed task (started automatically)
+        # ========== 定时器（当前未使用）==========
+        # 原本用于周期性发布关节状态，现在改为在 motion_worker 中实时发布
         # period = rospy.Duration(1.0/self.pub_rate)
         # rospy.logdebug('Setting up publish worker with period (sec): %s', str(period.to_sec()))
         # rospy.Timer(period, self.publish_worker)
 
-        self.EnableFlag = 1
+        # ========== 控制标志 ==========
+        self.EnableFlag = 1  # 控制器使能标志
 
-        # GetRobotInfo service server and pre-cooked svc response
+        # ========== ROS 服务 ==========
+        # GetRobotInfo 服务服务器，返回机器人信息
         self.get_robot_info_response = self._init_robot_info_response()
         self.svc_get_robot_info = rospy.Service('get_robot_info', GetRobotInfo, self.cb_svc_get_robot_info)
 
+        # ========== 注册关闭回调 ==========
         rospy.loginfo("Clean up init")
         rospy.on_shutdown(self.motion_ctrl.shutdown)
 
     """
-    Service callback for GetRobotInfo() service. Returns fake information.
+    @brief GetRobotInfo 服务回调函数
+    
+    返回缓存的机器人信息响应实例。
+    
+    @param req: 服务请求（未使用）
+    @return: 机器人信息响应
     """
     def cb_svc_get_robot_info(self, req):
-        # return cached response instance
+        # 返回缓存的响应实例
         return self.get_robot_info_response
 
     """
-    The publish worker is executed at a fixed rate.  This publishes the various
-    state and status information to the action controller.
+    @brief 定时发布工作函数（当前未使用）
+    
+    原本用于以固定频率发布各种状态和状态信息到动作控制器。
+    现在改为在 motion_worker 中实时发布。
+    
+    @param event: 定时器事件
     """
     def publish_worker(self, event):
         pass
         # self.joint_state_publisher()
-        # self.robot_status_publisher()         # robot_status message is published by aubo_driver
+        # self.robot_status_publisher()  # robot_status 消息由 aubo_driver 发布
 
     """
-    The joint state publisher publishes the current joint state and the current
-    feedback state (as these are closely related)
+    @brief 发布关节状态和反馈
+    
+    发布当前关节状态和当前反馈状态（这两者密切相关）。
+    该方法在 motion_worker 中调用，用于发布反馈给 aubo_joint_trajectory_action。
     """
     def joint_state_publisher(self):
-        if 1:#self.EnableFlag == 1 and self.motion_ctrl.positionUpdatedFlag == '1':
+        if 1:  # self.EnableFlag == 1 and self.motion_ctrl.positionUpdatedFlag == '1':
             try:
                 joint_state_msg = JointState()
-                joint_fb_msg = FollowJointTrajectoryFeedback()
+                joint_fb_msg = JointTrajectoryFeedback()
                 time = rospy.Time.now()
 
                 with self.lock:
-                    #Joint states
+                    # 填充关节状态消息（当前未发布，仅用于内部）
                     joint_state_msg.header.stamp = time
                     joint_state_msg.name = self.joint_names
                     joint_state_msg.position = self.motion_ctrl.get_joint_positions()
                     # self.joint_state_pub.publish(joint_state_msg)
 
-                    #Joint feedback
+                    # 填充并发布关节反馈消息（供 aubo_joint_trajectory_action 使用）
                     joint_fb_msg.header.stamp = time
                     joint_fb_msg.joint_names = self.joint_names
                     joint_fb_msg.actual.positions = self.motion_ctrl.get_joint_positions()
@@ -432,26 +630,28 @@ class AuboRobotSimulatorNode():
                 rospy.loginfo('Unexpected exception in joint state publisher: %s', e)
 
     """
-    The robot status publisher publishes the current simulated robot status.
-
-    The following values are hard coded:
-     - robot always in AUTO mode
-     - drives always powered
-     - motion always possible
-     - robot never E-stopped
-     - no error code
-     - robot never in error
-
-    The value of 'in_motion' is derived from the state of the MotionControllerSimulator.
+    @brief RIB 状态回调函数
+    
+    从 aubo_driver 接收 RIB（机器人接口缓冲区）状态信息：
+    - data[0]: 缓冲区大小
+    - data[1]: 控制器连接状态（1=ROS控制，0=其他控制）
+    - data[2]: 控制器连接标志
+    
+    用于同步仿真器与真实驱动器的状态。
+    
+    @param data: RIB 状态消息（整数数组）
     """
     def rib_status_callback(self, data):
         try:
-            if  data.data[1] == 1:
-#                self.EnableFlag = 1
-                rospy.logdebug('True True %d',  self.EnableFlag)
+            # 检查控制器连接状态
+            if data.data[1] == 1:
+                # self.EnableFlag = 1  # 当前被注释，保持默认使能状态
+                rospy.logdebug('True True %d', self.EnableFlag)
             else:
-#                self.EnableFlag = 0
-                rospy.logdebug('False False %d',  self.EnableFlag)
+                # self.EnableFlag = 0  # 当前被注释，保持默认使能状态
+                rospy.logdebug('False False %d', self.EnableFlag)
+            
+            # 更新缓冲区大小和连接标志到运动控制器
             self.motion_ctrl.ribBufferSize = data.data[0]
             self.motion_ctrl.ControllerConnectedFlag = data.data[2]
             # rospy.loginfo('mode %d', data.data[1])
@@ -460,37 +660,49 @@ class AuboRobotSimulatorNode():
             rospy.logerr('Unexpected exception: %s', e)
 
     """
-    Trajectory subscription callback (gets called whenever a "joint_path_command" message is received).
-    @param msg_in: joint trajectory message
+    @brief 轨迹命令回调函数
+    
+    处理从 aubo_joint_trajectory_action 接收的轨迹命令：
+    1. 验证轨迹有效性
+    2. 如果正在运动，停止当前轨迹（不支持轨迹拼接）
+    3. 对轨迹进行速度缩放
+    4. 将轨迹点重新映射到控制器关节顺序
+    5. 添加到运动控制器缓冲区执行
+    
+    @param msg_in: 接收到的关节轨迹消息
     @type  msg_in: JointTrajectory
     """
     def trajectory_callback(self, msg_in):
+        # 如果轨迹为空或控制器未使能，不处理
         if (len(msg_in.points) == 0) or (self.EnableFlag == 0):
-            # if the JointTrajectory is null or the robot is controlled by other controller.
+            # 如果 JointTrajectory 为空或机器人由其他控制器控制，则不执行任何操作
             pass
         else:
             rospy.logdebug('handle joint_path_command')
             try:
                 rospy.loginfo('Received trajectory with %s points, executing callback', str(len(msg_in.points)))
-                #if self.motion_ctrl.cancle_trajectory:
-                #    while self.motion_ctrl.cancle_trajectory:
-                #        rospy.spin()
 
+                # 检查是否正在运动中
                 if self.motion_ctrl.is_in_motion():
                     if len(msg_in.points) > 0:
                         rospy.logerr('Received trajectory while still in motion, trajectory splicing not supported')
                     else:
                         rospy.logdebug('Received empty trajectory while still in motion, stopping current trajectory')
-                    # maybe no need to stop the controller, just feedback the status of the controller to outside!!
+                    # 停止当前运动（不支持轨迹拼接）
                     self.motion_ctrl.stop()
 
                 else:
-
+                    # ========== 处理新轨迹 ==========
+                    # 从参数服务器获取速度缩放因子（可能已更新）
                     self.velocity_scale_factor = rospy.get_param('/aubo_controller/velocity_scale_factor', 1.0)
                     rospy.loginfo('The velocity scale factor is: %s', str(self.velocity_scale_factor))
+                    
+                    # 对轨迹进行速度缩放（调整时间戳和速度）
                     new_traj = scale_trajectory_speed(msg_in, self.velocity_scale_factor)
+                    
+                    # 处理每个轨迹点
                     for point in new_traj.points:
-                        # first remaps point to controller joint order, the add the point to the controller.
+                        # 首先将轨迹点重新映射到控制器关节顺序，然后添加到控制器
                         point = self._to_controller_order(msg_in.joint_names, point)
                         self.motion_ctrl.add_motion_waypoint(point)
                     rospy.loginfo('Add new position: %s', str(point.positions))
@@ -501,35 +713,52 @@ class AuboRobotSimulatorNode():
             rospy.logdebug('Exiting trajectory callback')
 
     """
-    Remaps point to controller joint order
-
-    @param point:  joint trajectory point
-    @type  point:  JointTrajectoryPoint
-    @return point: reorder point
+    @brief 将轨迹点重新映射到控制器关节顺序
+    
+    将消息中的关节顺序映射到控制器期望的关节顺序。
+    这确保了即使 MoveIt 和控制器使用不同的关节顺序，也能正确执行轨迹。
+    
+    @param keys: 消息中的关节名称列表
+    @param point: 关节轨迹点
+    @type  point: JointTrajectoryPoint
+    @return: 重新排序后的轨迹点
     """
     def _to_controller_order(self, keys, point):
         pt_rtn = copy.deepcopy(point)
+        # 重新映射位置、速度、加速度到控制器关节顺序
         pt_rtn.positions = self._remap_order(self.joint_names, keys, point.positions)
         pt_rtn.velocities = self._remap_order(self.joint_names, keys, point.velocities)
         pt_rtn.accelerations = self._remap_order(self.joint_names, keys, point.accelerations)
         return pt_rtn
 
+    """
+    @brief 重新映射值到指定顺序
+    
+    根据 ordered_keys（目标顺序）和 value_keys（源顺序），重新排列 values。
+    
+    @param ordered_keys: 目标关节名称顺序（控制器期望的顺序）
+    @param value_keys: 源关节名称顺序（消息中的顺序）
+    @param values: 源值列表（位置、速度或加速度）
+    @return: 重新排序后的值列表
+    """
     def _remap_order(self, ordered_keys, value_keys, values):
-        #rospy.loginfo('remap order, ordered_keys: %s, value_keys: %s, values: %s', str(ordered_keys), str(value_keys), str(values))
-        ordered_values = []
-
-        ordered_values = [0]*len(ordered_keys)
+        # 创建映射字典：关节名称 -> 值
+        ordered_values = [0] * len(ordered_keys)
         mapping = dict(zip(value_keys, values))
-        #rospy.loginfo('maping: %s', str(mapping))
 
+        # 按照目标顺序重新排列值
         for i in range(len(ordered_keys)):
             ordered_values[i] = mapping[ordered_keys[i]]
-            pass
 
         return ordered_values
 
     """
-    Constructs a GetRobotInfoResponse instance with either default data.
+    @brief 初始化 GetRobotInfo 服务响应
+    
+    构造 GetRobotInfoResponse 实例，使用默认数据或用户提供的数据。
+    返回机器人控制器和机械臂的型号、序列号、软件版本等信息。
+    
+    @return: GetRobotInfoResponse 实例
     """
     def _init_robot_info_response(self):
         if not rospy.has_param('~robot_info'):
@@ -569,10 +798,18 @@ class AuboRobotSimulatorNode():
         resp.code.val = ServiceReturnCode.SUCCESS
         return resp
 
+"""
+@brief 主函数：启动 AUBO 机器人仿真器节点
+
+初始化 ROS 节点并启动 AUBO 机器人仿真器。
+使用 rospy.spin() 进入 ROS 事件循环，处理回调函数。
+"""
 if __name__ == '__main__':
     try:
         rospy.loginfo('Starting aubo_controller_simulator')
+        # 创建 AUBO 机器人仿真器节点（在构造函数中完成所有初始化）
         controller = AuboRobotSimulatorNode()
+        # 进入 ROS 事件循环，处理回调函数
         rospy.spin()
     except rospy.ROSInterruptException:
         pass

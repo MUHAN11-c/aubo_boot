@@ -1,0 +1,96 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"hasInstallRule" : true,
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.10.2"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4
+					]
+				}
+			],
+			"name" : "Release",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "moveit_ros_benchmarks",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "moveit_combine_predefined_poses_benchmark::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-moveit_combine_predefined_poses_benchmark-Release-772c4cbd8f2ff5b325c7.json",
+					"name" : "moveit_combine_predefined_poses_benchmark",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "moveit_ros_benchmarks::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-moveit_ros_benchmarks-Release-581b2ef40df701d89fa0.json",
+					"name" : "moveit_ros_benchmarks",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "moveit_ros_benchmarks_uninstall::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-moveit_ros_benchmarks_uninstall-Release-58f2d20a1b52d7a6886e.json",
+					"name" : "moveit_ros_benchmarks_uninstall",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "moveit_run_benchmark::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-moveit_run_benchmark-Release-44c19615fbfd198901cc.json",
+					"name" : "moveit_run_benchmark",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "uninstall::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-uninstall-Release-f5ac87b091729644a536.json",
+					"name" : "uninstall",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/mu/IVG/ws_moveit/build/moveit_ros_benchmarks",
+		"source" : "/home/mu/IVG/ws_moveit/src/moveit2/moveit_ros/benchmarks"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 0
+	}
+}

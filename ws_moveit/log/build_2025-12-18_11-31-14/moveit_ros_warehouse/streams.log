@@ -1,0 +1,59 @@
+[0.022s] Invoking command in '/home/mu/IVG/ws_moveit/build/moveit_ros_warehouse': AMENT_PREFIX_PATH=/home/mu/IVG/ws_moveit/install/moveit_ros_planning:/home/mu/IVG/ws_moveit/install/moveit_ros_occupancy_map_monitor:/home/mu/IVG/ws_moveit/install/moveit_core:/home/mu/IVG/ws_moveit/install/moveit_common:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/mu/IVG/ws_moveit/install/moveit_ros_planning:/home/mu/IVG/ws_moveit/install/moveit_ros_occupancy_map_monitor:/home/mu/IVG/ws_moveit/install/moveit_core:/home/mu/IVG/ws_moveit/install/moveit_common:/home/mu/IVG/ws_moveit/install/moveit2_tutorials:/home/mu/IVG/ws_moveit/install/moveit_visual_tools:/home/mu/IVG/ws_moveit/install/rviz_visual_tools:/opt/ros/foxy LD_LIBRARY_PATH=/home/mu/IVG/ws_moveit/install/moveit_ros_planning/lib:/home/mu/IVG/ws_moveit/install/moveit_ros_occupancy_map_monitor/lib:/home/mu/IVG/ws_moveit/install/moveit_core/lib:${LD_LIBRARY_PATH} PATH=/home/mu/IVG/ws_moveit/install/moveit_core/bin:${PATH} /usr/bin/cmake /home/mu/IVG/ws_moveit/src/moveit2/moveit_ros/warehouse -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/home/mu/IVG/ws_moveit/install/moveit_ros_warehouse
+[0.047s] -- The C compiler identification is GNU 9.4.0
+[0.076s] -- The CXX compiler identification is GNU 9.4.0
+[0.079s] -- Check for working C compiler: /usr/bin/cc
+[0.119s] -- Check for working C compiler: /usr/bin/cc -- works
+[0.120s] -- Detecting C compiler ABI info
+[0.158s] -- Detecting C compiler ABI info - done
+[0.165s] -- Detecting C compile features
+[0.165s] -- Detecting C compile features - done
+[0.166s] -- Check for working CXX compiler: /usr/bin/c++
+[0.209s] -- Check for working CXX compiler: /usr/bin/c++ -- works
+[0.210s] -- Detecting CXX compiler ABI info
+[0.255s] -- Detecting CXX compiler ABI info - done
+[0.261s] -- Detecting CXX compile features
+[0.262s] -- Detecting CXX compile features - done
+[0.262s] -- Found moveit_common: 2.2.3 (/home/mu/IVG/ws_moveit/install/moveit_common/share/moveit_common/cmake)
+[0.263s] -- Found ament_cmake: 0.9.12 (/opt/ros/foxy/share/ament_cmake/cmake)
+[0.278s] -- Found PythonInterp: /usr/bin/python3 (found suitable version "3.8.10", minimum required is "3") 
+[0.279s] -- Using PYTHON_EXECUTABLE: /usr/bin/python3
+[0.422s] -- Found rclcpp: 2.4.3 (/opt/ros/foxy/share/rclcpp/cmake)
+[0.452s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[0.456s] -- Found rosidl_adapter: 1.3.1 (/opt/ros/foxy/share/rosidl_adapter/cmake)
+[0.502s] -- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "1.1.1f")  
+[0.520s] -- Found FastRTPS: /opt/ros/foxy/include  
+[0.570s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[0.609s] -- Found rmw_implementation_cmake: 1.0.4 (/opt/ros/foxy/share/rmw_implementation_cmake/cmake)
+[0.610s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[0.610s] -- Looking for pthread.h
+[0.655s] -- Looking for pthread.h - found
+[0.655s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+[0.703s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+[0.704s] -- Looking for pthread_create in pthreads
+[0.743s] -- Looking for pthread_create in pthreads - not found
+[0.743s] -- Looking for pthread_create in pthread
+[0.791s] -- Looking for pthread_create in pthread - found
+[0.792s] -- Found Threads: TRUE  
+[0.900s] -- Found moveit_core: 2.2.3 (/home/mu/IVG/ws_moveit/install/moveit_core/share/moveit_core/cmake)
+[0.924s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found version "1.71.0") found components: chrono date_time filesystem iostreams program_options regex serialization system thread 
+[0.939s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found version "1.71.0") found components: filesystem 
+[1.042s] -- library: /usr/lib/x86_64-linux-gnu/libcurl.so
+[1.169s] -- Found Eigen3: TRUE (found version "3.3.7") 
+[2.445s] -- Found warehouse_ros: 2.0.3 (/opt/ros/foxy/share/warehouse_ros/cmake)
+[2.476s] -- Found moveit_ros_planning: 2.2.3 (/home/mu/IVG/ws_moveit/install/moveit_ros_planning/share/moveit_ros_planning/cmake)
+[2.481s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found version "1.71.0") found components: system filesystem date_time program_options thread chrono 
+[2.679s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found version "1.71.0") found components: thread 
+[3.132s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found version "1.71.0") found components: thread system filesystem regex date_time program_options 
+[3.136s] -- Performing Test COMPILER_HAS_HIDDEN_VISIBILITY
+[3.187s] -- Performing Test COMPILER_HAS_HIDDEN_VISIBILITY - Success
+[3.187s] -- Performing Test COMPILER_HAS_HIDDEN_INLINE_VISIBILITY
+[3.239s] -- Performing Test COMPILER_HAS_HIDDEN_INLINE_VISIBILITY - Success
+[3.239s] -- Performing Test COMPILER_HAS_DEPRECATED_ATTR
+[3.291s] -- Performing Test COMPILER_HAS_DEPRECATED_ATTR - Success
+[3.306s] -- Found ament_lint_auto: 0.9.8 (/opt/ros/foxy/share/ament_lint_auto/cmake)
+[3.315s] -- Added test 'lint_cmake' to check CMake code style
+[3.315s] -- Added test 'pep257' to check Python code against some of the style conventions in PEP 257
+[3.316s] -- Added test 'xmllint' to check XML markup files
+[3.319s] -- Configuring done
+[3.431s] -- Generating done
+[3.466s] -- Build files have been written to: /home/mu/IVG/ws_moveit/build/moveit_ros_warehouse

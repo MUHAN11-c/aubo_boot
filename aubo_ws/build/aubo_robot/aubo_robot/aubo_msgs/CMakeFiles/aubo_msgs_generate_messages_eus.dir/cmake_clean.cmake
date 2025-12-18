@@ -5,6 +5,7 @@ file(REMOVE_RECURSE
   "/home/mu/IVG/aubo_ws/devel/share/roseus/ros/aubo_msgs/msg/GoalPoint.l"
   "/home/mu/IVG/aubo_ws/devel/share/roseus/ros/aubo_msgs/msg/IOState.l"
   "/home/mu/IVG/aubo_ws/devel/share/roseus/ros/aubo_msgs/msg/JointPos.l"
+  "/home/mu/IVG/aubo_ws/devel/share/roseus/ros/aubo_msgs/msg/JointTrajectoryFeedback.l"
   "/home/mu/IVG/aubo_ws/devel/share/roseus/ros/aubo_msgs/msg/TraPoint.l"
   "/home/mu/IVG/aubo_ws/devel/share/roseus/ros/aubo_msgs/srv/GetFK.l"
   "/home/mu/IVG/aubo_ws/devel/share/roseus/ros/aubo_msgs/srv/GetIK.l"

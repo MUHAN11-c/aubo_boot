@@ -50,13 +50,13 @@ CMAKE_AR:FILEPATH=/usr/bin/ar
 
 //Choose the type of build, options are: None Debug Release RelWithDebInfo
 // MinSizeRel ...
-CMAKE_BUILD_TYPE:STRING=Release
+CMAKE_BUILD_TYPE:STRING=
 
 //Enable/Disable color output during build.
 CMAKE_COLOR_MAKEFILE:BOOL=ON
 
 //CXX compiler
-CMAKE_CXX_COMPILER:STRING=/usr/bin/c++
+CMAKE_CXX_COMPILER:FILEPATH=/usr/bin/c++
 
 //A wrapper around 'ar' adding the appropriate '--plugin' option
 // for the GCC compiler
@@ -82,7 +82,7 @@ CMAKE_CXX_FLAGS_RELEASE:STRING=-O3 -DNDEBUG
 CMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING=-O2 -g -DNDEBUG
 
 //C compiler
-CMAKE_C_COMPILER:STRING=/usr/bin/cc
+CMAKE_C_COMPILER:FILEPATH=/usr/bin/cc
 
 //A wrapper around 'ar' adding the appropriate '--plugin' option
 // for the GCC compiler
@@ -128,9 +128,6 @@ CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO:STRING=
 //Enable/Disable output of compile commands during generation.
 CMAKE_EXPORT_COMPILE_COMMANDS:BOOL=OFF
 
-//Value Computed by CMake.
-CMAKE_FIND_PACKAGE_REDIRECTS_DIR:STATIC=/home/mu/IVG/aubo_ros2_ws/build/aubo_dashboard_msgs/CMakeFiles/pkgRedirects
-
 //Install path prefix, prepended onto install directories.
 CMAKE_INSTALL_PREFIX:PATH=/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs
 
@@ -170,9 +167,6 @@ CMAKE_OBJCOPY:FILEPATH=/usr/bin/objcopy
 CMAKE_OBJDUMP:FILEPATH=/usr/bin/objdump
 
 //Value Computed by CMake
-CMAKE_PROJECT_COMPAT_VERSION:STATIC=
-
-//Value Computed by CMake
 CMAKE_PROJECT_DESCRIPTION:STATIC=
 
 //Value Computed by CMake
@@ -180,9 +174,6 @@ CMAKE_PROJECT_HOMEPAGE_URL:STATIC=
 
 //Value Computed by CMake
 CMAKE_PROJECT_NAME:STATIC=aubo_dashboard_msgs
-
-//Value Computed by CMake
-CMAKE_PROJECT_SPDX_LICENSE:STATIC=
 
 //Path to a program.
 CMAKE_RANLIB:FILEPATH=/usr/bin/ranlib
@@ -240,9 +231,6 @@ CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO:STRING=
 //Path to a program.
 CMAKE_STRIP:FILEPATH=/usr/bin/strip
 
-//Path to a program.
-CMAKE_TAPI:FILEPATH=CMAKE_TAPI-NOTFOUND
-
 //If this value is on, makefiles will be generated without the
 // .SILENT directive, and all commands will be echoed to the console
 // during the make.  This is useful for debugging only. With Visual
@@ -272,9 +260,6 @@ OPENSSL_INCLUDE_DIR:PATH=/usr/include
 
 //Path to a library.
 OPENSSL_SSL_LIBRARY:FILEPATH=/usr/lib/x86_64-linux-gnu/libssl.so
-
-//Arguments to supply to pkg-config
-PKG_CONFIG_ARGN:STRING=
 
 //pkg-config executable
 PKG_CONFIG_EXECUTABLE:FILEPATH=/usr/bin/pkg-config
@@ -368,9 +353,6 @@ ament_cmake_version_DIR:PATH=/opt/ros/foxy/share/ament_cmake_version/cmake
 
 //Value Computed by CMake
 aubo_dashboard_msgs_BINARY_DIR:STATIC=/home/mu/IVG/aubo_ros2_ws/build/aubo_dashboard_msgs
-
-//Value Computed by CMake
-aubo_dashboard_msgs_IS_TOP_LEVEL:STATIC=ON
 
 //Value Computed by CMake
 aubo_dashboard_msgs_SOURCE_DIR:STATIC=/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_dashboard_msgs
@@ -582,8 +564,6 @@ CMAKE_HOME_DIRECTORY:INTERNAL=/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aub
 CMAKE_INSTALL_SO_NO_EXE:INTERNAL=1
 //ADVANCED property for variable: CMAKE_LINKER
 CMAKE_LINKER-ADVANCED:INTERNAL=1
-//Name of CMakeLists files to read
-CMAKE_LIST_FILE_NAME:INTERNAL=CMakeLists.txt
 //ADVANCED property for variable: CMAKE_MAKE_PROGRAM
 CMAKE_MAKE_PROGRAM-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_MODULE_LINKER_FLAGS
@@ -638,8 +618,6 @@ CMAKE_STATIC_LINKER_FLAGS_RELEASE-ADVANCED:INTERNAL=1
 CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_STRIP
 CMAKE_STRIP-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: CMAKE_TAPI
-CMAKE_TAPI-ADVANCED:INTERNAL=1
 //uname command
 CMAKE_UNAME:INTERNAL=/usr/bin/uname
 //ADVANCED property for variable: CMAKE_VERBOSE_MAKEFILE
@@ -660,8 +638,6 @@ OPENSSL_CRYPTO_LIBRARY-ADVANCED:INTERNAL=1
 OPENSSL_INCLUDE_DIR-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: OPENSSL_SSL_LIBRARY
 OPENSSL_SSL_LIBRARY-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: PKG_CONFIG_ARGN
-PKG_CONFIG_ARGN-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: PKG_CONFIG_EXECUTABLE
 PKG_CONFIG_EXECUTABLE-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: PYTHON_EXECUTABLE

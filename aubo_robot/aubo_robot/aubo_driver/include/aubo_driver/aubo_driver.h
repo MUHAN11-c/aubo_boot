@@ -58,12 +58,12 @@
 #include <aubo_msgs/Digital.h>
 #include <aubo_msgs/Analog.h>
 #include <aubo_msgs/JointPos.h>
+#include <aubo_msgs/JointTrajectoryFeedback.h>
 #include <industrial_msgs/RobotStatus.h>
 #include "aubo_driver/AuboRobotMetaType.h"
 #include "aubo_driver/serviceinterface.h"
 #include "aubo_driver/readerwriterqueue.h"
 #include "sensor_msgs/JointState.h"
-#include <control_msgs/FollowJointTrajectoryFeedback.h>
 
 #include "otg/otgnewslib.h"
 

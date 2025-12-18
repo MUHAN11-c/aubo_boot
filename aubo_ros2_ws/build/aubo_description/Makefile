@@ -193,19 +193,6 @@ uninstall/fast:
 	$(MAKE) -f CMakeFiles/uninstall.dir/build.make CMakeFiles/uninstall.dir/build
 .PHONY : uninstall/fast
 
-#=============================================================================
-# Target rules for targets named aubo_description
-
-# Build rule for target.
-aubo_description: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 aubo_description
-.PHONY : aubo_description
-
-# fast build rule for target.
-aubo_description/fast:
-	$(MAKE) -f CMakeFiles/aubo_description.dir/build.make CMakeFiles/aubo_description.dir/build
-.PHONY : aubo_description/fast
-
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -221,7 +208,6 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... aubo_description_uninstall"
 	@echo "... uninstall"
-	@echo "... aubo_description"
 .PHONY : help
 
 

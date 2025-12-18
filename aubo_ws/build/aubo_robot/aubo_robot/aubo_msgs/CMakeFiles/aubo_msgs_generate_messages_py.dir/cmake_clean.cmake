@@ -4,6 +4,7 @@ file(REMOVE_RECURSE
   "/home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/aubo_msgs/msg/_GoalPoint.py"
   "/home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/aubo_msgs/msg/_IOState.py"
   "/home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/aubo_msgs/msg/_JointPos.py"
+  "/home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/aubo_msgs/msg/_JointTrajectoryFeedback.py"
   "/home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/aubo_msgs/msg/_TraPoint.py"
   "/home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/aubo_msgs/msg/__init__.py"
   "/home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/aubo_msgs/srv/_GetFK.py"

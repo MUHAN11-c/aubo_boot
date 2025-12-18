@@ -63,9 +63,12 @@ aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_robot
 aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_masterboard_data_msg.py
 aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_robot_mode_data_msg.py
 aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_tool_data_msg.py
+aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_joint_trajectory_feedback.py
 aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_set_payload.py
 aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_set_speed_slider_fraction.py
 aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_set_io.py
+aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_get_fk.py
+aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_get_ik.py
 aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/__init__.py
 aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/__init__.py
 aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_analog_s.c
@@ -75,9 +78,12 @@ aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_robot
 aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_masterboard_data_msg_s.c
 aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_robot_mode_data_msg_s.c
 aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_tool_data_msg_s.c
+aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_joint_trajectory_feedback_s.c
 aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_set_payload_s.c
 aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_set_speed_slider_fraction_s.c
 aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_set_io_s.c
+aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_get_fk_s.c
+aubo_msgs__py/CMakeFiles/aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_get_ik_s.c
 
 
 rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: /opt/ros/foxy/lib/rosidl_generator_py/rosidl_generator_py
@@ -100,9 +106,12 @@ rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: r
 rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: rosidl_adapter/aubo_msgs/msg/MasterboardDataMsg.idl
 rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: rosidl_adapter/aubo_msgs/msg/RobotModeDataMsg.idl
 rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: rosidl_adapter/aubo_msgs/msg/ToolDataMsg.idl
+rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: rosidl_adapter/aubo_msgs/msg/JointTrajectoryFeedback.idl
 rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: rosidl_adapter/aubo_msgs/srv/SetPayload.idl
 rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: rosidl_adapter/aubo_msgs/srv/SetSpeedSliderFraction.idl
 rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: rosidl_adapter/aubo_msgs/srv/SetIO.idl
+rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: rosidl_adapter/aubo_msgs/srv/GetFK.idl
+rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: rosidl_adapter/aubo_msgs/srv/GetIK.idl
 rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: /opt/ros/foxy/share/builtin_interfaces/msg/Duration.idl
 rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: /opt/ros/foxy/share/builtin_interfaces/msg/Time.idl
 rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: /opt/ros/foxy/share/geometry_msgs/msg/Accel.idl
@@ -164,6 +173,10 @@ rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: /
 rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: /opt/ros/foxy/share/std_msgs/msg/UInt64MultiArray.idl
 rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: /opt/ros/foxy/share/std_msgs/msg/UInt8.idl
 rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: /opt/ros/foxy/share/std_msgs/msg/UInt8MultiArray.idl
+rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: /opt/ros/foxy/share/trajectory_msgs/msg/JointTrajectory.idl
+rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: /opt/ros/foxy/share/trajectory_msgs/msg/JointTrajectoryPoint.idl
+rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: /opt/ros/foxy/share/trajectory_msgs/msg/MultiDOFJointTrajectory.idl
+rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c: /opt/ros/foxy/share/trajectory_msgs/msg/MultiDOFJointTrajectoryPoint.idl
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Generating Python code for ROS interfaces"
 	cd /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/aubo_msgs__py && /usr/bin/python3 /opt/ros/foxy/share/rosidl_generator_py/cmake/../../../lib/rosidl_generator_py/rosidl_generator_py --generator-arguments-file /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_py__arguments.json --typesupport-impls "rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c;rosidl_typesupport_c"
 
@@ -194,6 +207,9 @@ rosidl_generator_py/aubo_msgs/msg/_robot_mode_data_msg.py: rosidl_generator_py/a
 rosidl_generator_py/aubo_msgs/msg/_tool_data_msg.py: rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_py/aubo_msgs/msg/_tool_data_msg.py
 
+rosidl_generator_py/aubo_msgs/msg/_joint_trajectory_feedback.py: rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_py/aubo_msgs/msg/_joint_trajectory_feedback.py
+
 rosidl_generator_py/aubo_msgs/srv/_set_payload.py: rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_py/aubo_msgs/srv/_set_payload.py
 
@@ -202,6 +218,12 @@ rosidl_generator_py/aubo_msgs/srv/_set_speed_slider_fraction.py: rosidl_generato
 
 rosidl_generator_py/aubo_msgs/srv/_set_io.py: rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_py/aubo_msgs/srv/_set_io.py
+
+rosidl_generator_py/aubo_msgs/srv/_get_fk.py: rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_py/aubo_msgs/srv/_get_fk.py
+
+rosidl_generator_py/aubo_msgs/srv/_get_ik.py: rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_py/aubo_msgs/srv/_get_ik.py
 
 rosidl_generator_py/aubo_msgs/msg/__init__.py: rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_py/aubo_msgs/msg/__init__.py
@@ -230,6 +252,9 @@ rosidl_generator_py/aubo_msgs/msg/_robot_mode_data_msg_s.c: rosidl_generator_py/
 rosidl_generator_py/aubo_msgs/msg/_tool_data_msg_s.c: rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_py/aubo_msgs/msg/_tool_data_msg_s.c
 
+rosidl_generator_py/aubo_msgs/msg/_joint_trajectory_feedback_s.c: rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_py/aubo_msgs/msg/_joint_trajectory_feedback_s.c
+
 rosidl_generator_py/aubo_msgs/srv/_set_payload_s.c: rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_py/aubo_msgs/srv/_set_payload_s.c
 
@@ -238,6 +263,12 @@ rosidl_generator_py/aubo_msgs/srv/_set_speed_slider_fraction_s.c: rosidl_generat
 
 rosidl_generator_py/aubo_msgs/srv/_set_io_s.c: rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_py/aubo_msgs/srv/_set_io_s.c
+
+rosidl_generator_py/aubo_msgs/srv/_get_fk_s.c: rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_py/aubo_msgs/srv/_get_fk_s.c
+
+rosidl_generator_py/aubo_msgs/srv/_get_ik_s.c: rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_py/aubo_msgs/srv/_get_ik_s.c
 
 aubo_msgs__py: aubo_msgs__py/CMakeFiles/aubo_msgs__py
 aubo_msgs__py: rosidl_generator_py/aubo_msgs/_aubo_msgs_s.ep.rosidl_typesupport_fastrtps_c.c
@@ -250,9 +281,12 @@ aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_robot_state_rt_msg.py
 aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_masterboard_data_msg.py
 aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_robot_mode_data_msg.py
 aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_tool_data_msg.py
+aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_joint_trajectory_feedback.py
 aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_set_payload.py
 aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_set_speed_slider_fraction.py
 aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_set_io.py
+aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_get_fk.py
+aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_get_ik.py
 aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/__init__.py
 aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/__init__.py
 aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_analog_s.c
@@ -262,9 +296,12 @@ aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_robot_state_rt_msg_s.c
 aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_masterboard_data_msg_s.c
 aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_robot_mode_data_msg_s.c
 aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_tool_data_msg_s.c
+aubo_msgs__py: rosidl_generator_py/aubo_msgs/msg/_joint_trajectory_feedback_s.c
 aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_set_payload_s.c
 aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_set_speed_slider_fraction_s.c
 aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_set_io_s.c
+aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_get_fk_s.c
+aubo_msgs__py: rosidl_generator_py/aubo_msgs/srv/_get_ik_s.c
 aubo_msgs__py: aubo_msgs__py/CMakeFiles/aubo_msgs__py.dir/build.make
 
 .PHONY : aubo_msgs__py

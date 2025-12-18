@@ -77,9 +77,12 @@ rosidl_generator_c/aubo_msgs/msg/analog.h: rosidl_adapter/aubo_msgs/msg/RobotSta
 rosidl_generator_c/aubo_msgs/msg/analog.h: rosidl_adapter/aubo_msgs/msg/MasterboardDataMsg.idl
 rosidl_generator_c/aubo_msgs/msg/analog.h: rosidl_adapter/aubo_msgs/msg/RobotModeDataMsg.idl
 rosidl_generator_c/aubo_msgs/msg/analog.h: rosidl_adapter/aubo_msgs/msg/ToolDataMsg.idl
+rosidl_generator_c/aubo_msgs/msg/analog.h: rosidl_adapter/aubo_msgs/msg/JointTrajectoryFeedback.idl
 rosidl_generator_c/aubo_msgs/msg/analog.h: rosidl_adapter/aubo_msgs/srv/SetPayload.idl
 rosidl_generator_c/aubo_msgs/msg/analog.h: rosidl_adapter/aubo_msgs/srv/SetSpeedSliderFraction.idl
 rosidl_generator_c/aubo_msgs/msg/analog.h: rosidl_adapter/aubo_msgs/srv/SetIO.idl
+rosidl_generator_c/aubo_msgs/msg/analog.h: rosidl_adapter/aubo_msgs/srv/GetFK.idl
+rosidl_generator_c/aubo_msgs/msg/analog.h: rosidl_adapter/aubo_msgs/srv/GetIK.idl
 rosidl_generator_c/aubo_msgs/msg/analog.h: /opt/ros/foxy/share/builtin_interfaces/msg/Duration.idl
 rosidl_generator_c/aubo_msgs/msg/analog.h: /opt/ros/foxy/share/builtin_interfaces/msg/Time.idl
 rosidl_generator_c/aubo_msgs/msg/analog.h: /opt/ros/foxy/share/geometry_msgs/msg/Accel.idl
@@ -141,6 +144,10 @@ rosidl_generator_c/aubo_msgs/msg/analog.h: /opt/ros/foxy/share/std_msgs/msg/UInt
 rosidl_generator_c/aubo_msgs/msg/analog.h: /opt/ros/foxy/share/std_msgs/msg/UInt64MultiArray.idl
 rosidl_generator_c/aubo_msgs/msg/analog.h: /opt/ros/foxy/share/std_msgs/msg/UInt8.idl
 rosidl_generator_c/aubo_msgs/msg/analog.h: /opt/ros/foxy/share/std_msgs/msg/UInt8MultiArray.idl
+rosidl_generator_c/aubo_msgs/msg/analog.h: /opt/ros/foxy/share/trajectory_msgs/msg/JointTrajectory.idl
+rosidl_generator_c/aubo_msgs/msg/analog.h: /opt/ros/foxy/share/trajectory_msgs/msg/JointTrajectoryPoint.idl
+rosidl_generator_c/aubo_msgs/msg/analog.h: /opt/ros/foxy/share/trajectory_msgs/msg/MultiDOFJointTrajectory.idl
+rosidl_generator_c/aubo_msgs/msg/analog.h: /opt/ros/foxy/share/trajectory_msgs/msg/MultiDOFJointTrajectoryPoint.idl
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Generating C code for ROS interfaces"
 	/usr/bin/python3 /opt/ros/foxy/share/rosidl_generator_c/cmake/../../../lib/rosidl_generator_c/rosidl_generator_c --generator-arguments-file /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c__arguments.json
 
@@ -225,6 +232,18 @@ rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__struct.h: rosidl_generato
 rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__type_support.h: rosidl_generator_c/aubo_msgs/msg/analog.h
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__type_support.h
 
+rosidl_generator_c/aubo_msgs/msg/joint_trajectory_feedback.h: rosidl_generator_c/aubo_msgs/msg/analog.h
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/msg/joint_trajectory_feedback.h
+
+rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.h: rosidl_generator_c/aubo_msgs/msg/analog.h
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.h
+
+rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__struct.h: rosidl_generator_c/aubo_msgs/msg/analog.h
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__struct.h
+
+rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.h: rosidl_generator_c/aubo_msgs/msg/analog.h
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.h
+
 rosidl_generator_c/aubo_msgs/srv/set_payload.h: rosidl_generator_c/aubo_msgs/msg/analog.h
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/srv/set_payload.h
 
@@ -261,6 +280,30 @@ rosidl_generator_c/aubo_msgs/srv/detail/set_io__struct.h: rosidl_generator_c/aub
 rosidl_generator_c/aubo_msgs/srv/detail/set_io__type_support.h: rosidl_generator_c/aubo_msgs/msg/analog.h
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/srv/detail/set_io__type_support.h
 
+rosidl_generator_c/aubo_msgs/srv/get_fk.h: rosidl_generator_c/aubo_msgs/msg/analog.h
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/srv/get_fk.h
+
+rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.h: rosidl_generator_c/aubo_msgs/msg/analog.h
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.h
+
+rosidl_generator_c/aubo_msgs/srv/detail/get_fk__struct.h: rosidl_generator_c/aubo_msgs/msg/analog.h
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/srv/detail/get_fk__struct.h
+
+rosidl_generator_c/aubo_msgs/srv/detail/get_fk__type_support.h: rosidl_generator_c/aubo_msgs/msg/analog.h
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/srv/detail/get_fk__type_support.h
+
+rosidl_generator_c/aubo_msgs/srv/get_ik.h: rosidl_generator_c/aubo_msgs/msg/analog.h
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/srv/get_ik.h
+
+rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.h: rosidl_generator_c/aubo_msgs/msg/analog.h
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.h
+
+rosidl_generator_c/aubo_msgs/srv/detail/get_ik__struct.h: rosidl_generator_c/aubo_msgs/msg/analog.h
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/srv/detail/get_ik__struct.h
+
+rosidl_generator_c/aubo_msgs/srv/detail/get_ik__type_support.h: rosidl_generator_c/aubo_msgs/msg/analog.h
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/srv/detail/get_ik__type_support.h
+
 rosidl_generator_c/aubo_msgs/msg/detail/analog__functions.c: rosidl_generator_c/aubo_msgs/msg/analog.h
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/msg/detail/analog__functions.c
 
@@ -282,6 +325,9 @@ rosidl_generator_c/aubo_msgs/msg/detail/robot_mode_data_msg__functions.c: rosidl
 rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__functions.c: rosidl_generator_c/aubo_msgs/msg/analog.h
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__functions.c
 
+rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c: rosidl_generator_c/aubo_msgs/msg/analog.h
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c
+
 rosidl_generator_c/aubo_msgs/srv/detail/set_payload__functions.c: rosidl_generator_c/aubo_msgs/msg/analog.h
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/srv/detail/set_payload__functions.c
 
@@ -290,6 +336,12 @@ rosidl_generator_c/aubo_msgs/srv/detail/set_speed_slider_fraction__functions.c: 
 
 rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c: rosidl_generator_c/aubo_msgs/msg/analog.h
 	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c
+
+rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c: rosidl_generator_c/aubo_msgs/msg/analog.h
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c
+
+rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c: rosidl_generator_c/aubo_msgs/msg/analog.h
+	@$(CMAKE_COMMAND) -E touch_nocreate rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c
 
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/analog__functions.c.o: CMakeFiles/aubo_msgs__rosidl_generator_c.dir/flags.make
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/analog__functions.c.o: rosidl_generator_c/aubo_msgs/msg/detail/analog__functions.c
@@ -382,9 +434,22 @@ CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/de
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling C source to assembly CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__functions.c.s"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__functions.c -o CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__functions.c.s
 
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: CMakeFiles/aubo_msgs__rosidl_generator_c.dir/flags.make
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o: rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building C object CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o"
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -o CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o   -c /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c
+
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing C source to CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.i"
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -E /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c > CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.i
+
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling C source to assembly CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.s"
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c -o CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.s
+
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_payload__functions.c.o: CMakeFiles/aubo_msgs__rosidl_generator_c.dir/flags.make
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_payload__functions.c.o: rosidl_generator_c/aubo_msgs/srv/detail/set_payload__functions.c
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building C object CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_payload__functions.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building C object CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_payload__functions.c.o"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -o CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_payload__functions.c.o   -c /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/srv/detail/set_payload__functions.c
 
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_payload__functions.c.i: cmake_force
@@ -397,7 +462,7 @@ CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/de
 
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_speed_slider_fraction__functions.c.o: CMakeFiles/aubo_msgs__rosidl_generator_c.dir/flags.make
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_speed_slider_fraction__functions.c.o: rosidl_generator_c/aubo_msgs/srv/detail/set_speed_slider_fraction__functions.c
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building C object CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_speed_slider_fraction__functions.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Building C object CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_speed_slider_fraction__functions.c.o"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -o CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_speed_slider_fraction__functions.c.o   -c /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/srv/detail/set_speed_slider_fraction__functions.c
 
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_speed_slider_fraction__functions.c.i: cmake_force
@@ -410,7 +475,7 @@ CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/de
 
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c.o: CMakeFiles/aubo_msgs__rosidl_generator_c.dir/flags.make
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c.o: rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Building C object CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Building C object CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c.o"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -o CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c.o   -c /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c
 
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c.i: cmake_force
@@ -421,6 +486,32 @@ CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/de
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling C source to assembly CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c.s"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c -o CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c.s
 
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.o: CMakeFiles/aubo_msgs__rosidl_generator_c.dir/flags.make
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.o: rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Building C object CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.o"
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -o CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.o   -c /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c
+
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing C source to CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.i"
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -E /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c > CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.i
+
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling C source to assembly CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.s"
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c -o CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.s
+
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.o: CMakeFiles/aubo_msgs__rosidl_generator_c.dir/flags.make
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.o: rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_14) "Building C object CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.o"
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -o CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.o   -c /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c
+
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing C source to CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.i"
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -E /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c > CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.i
+
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling C source to assembly CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.s"
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c -o CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.s
+
 # Object files for target aubo_msgs__rosidl_generator_c
 aubo_msgs__rosidl_generator_c_OBJECTS = \
 "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/analog__functions.c.o" \
@@ -430,9 +521,12 @@ aubo_msgs__rosidl_generator_c_OBJECTS = \
 "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/masterboard_data_msg__functions.c.o" \
 "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/robot_mode_data_msg__functions.c.o" \
 "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__functions.c.o" \
+"CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o" \
 "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_payload__functions.c.o" \
 "CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_speed_slider_fraction__functions.c.o" \
-"CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c.o"
+"CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c.o" \
+"CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.o" \
+"CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.o"
 
 # External object files for target aubo_msgs__rosidl_generator_c
 aubo_msgs__rosidl_generator_c_EXTERNAL_OBJECTS =
@@ -444,15 +538,23 @@ libaubo_msgs__rosidl_generator_c.so: CMakeFiles/aubo_msgs__rosidl_generator_c.di
 libaubo_msgs__rosidl_generator_c.so: CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/masterboard_data_msg__functions.c.o
 libaubo_msgs__rosidl_generator_c.so: CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/robot_mode_data_msg__functions.c.o
 libaubo_msgs__rosidl_generator_c.so: CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__functions.c.o
+libaubo_msgs__rosidl_generator_c.so: CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c.o
 libaubo_msgs__rosidl_generator_c.so: CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_payload__functions.c.o
 libaubo_msgs__rosidl_generator_c.so: CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_speed_slider_fraction__functions.c.o
 libaubo_msgs__rosidl_generator_c.so: CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c.o
+libaubo_msgs__rosidl_generator_c.so: CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c.o
+libaubo_msgs__rosidl_generator_c.so: CMakeFiles/aubo_msgs__rosidl_generator_c.dir/rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c.o
 libaubo_msgs__rosidl_generator_c.so: CMakeFiles/aubo_msgs__rosidl_generator_c.dir/build.make
+libaubo_msgs__rosidl_generator_c.so: /opt/ros/foxy/lib/libtrajectory_msgs__rosidl_typesupport_introspection_c.so
+libaubo_msgs__rosidl_generator_c.so: /opt/ros/foxy/lib/libtrajectory_msgs__rosidl_typesupport_c.so
+libaubo_msgs__rosidl_generator_c.so: /opt/ros/foxy/lib/libtrajectory_msgs__rosidl_typesupport_introspection_cpp.so
+libaubo_msgs__rosidl_generator_c.so: /opt/ros/foxy/lib/libtrajectory_msgs__rosidl_typesupport_cpp.so
+libaubo_msgs__rosidl_generator_c.so: /opt/ros/foxy/lib/libtrajectory_msgs__rosidl_generator_c.so
 libaubo_msgs__rosidl_generator_c.so: /opt/ros/foxy/lib/libgeometry_msgs__rosidl_typesupport_introspection_c.so
+libaubo_msgs__rosidl_generator_c.so: /opt/ros/foxy/lib/libgeometry_msgs__rosidl_generator_c.so
 libaubo_msgs__rosidl_generator_c.so: /opt/ros/foxy/lib/libgeometry_msgs__rosidl_typesupport_c.so
 libaubo_msgs__rosidl_generator_c.so: /opt/ros/foxy/lib/libgeometry_msgs__rosidl_typesupport_introspection_cpp.so
 libaubo_msgs__rosidl_generator_c.so: /opt/ros/foxy/lib/libgeometry_msgs__rosidl_typesupport_cpp.so
-libaubo_msgs__rosidl_generator_c.so: /opt/ros/foxy/lib/libgeometry_msgs__rosidl_generator_c.so
 libaubo_msgs__rosidl_generator_c.so: /opt/ros/foxy/lib/libstd_msgs__rosidl_typesupport_introspection_c.so
 libaubo_msgs__rosidl_generator_c.so: /opt/ros/foxy/lib/libstd_msgs__rosidl_generator_c.so
 libaubo_msgs__rosidl_generator_c.so: /opt/ros/foxy/lib/libstd_msgs__rosidl_typesupport_c.so
@@ -471,7 +573,7 @@ libaubo_msgs__rosidl_generator_c.so: /opt/ros/foxy/lib/librosidl_runtime_c.so
 libaubo_msgs__rosidl_generator_c.so: /opt/ros/foxy/lib/librcpputils.so
 libaubo_msgs__rosidl_generator_c.so: /opt/ros/foxy/lib/librcutils.so
 libaubo_msgs__rosidl_generator_c.so: CMakeFiles/aubo_msgs__rosidl_generator_c.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Linking C shared library libaubo_msgs__rosidl_generator_c.so"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_15) "Linking C shared library libaubo_msgs__rosidl_generator_c.so"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/aubo_msgs__rosidl_generator_c.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
@@ -511,6 +613,10 @@ CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msg
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__functions.h
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__struct.h
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__type_support.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/msg/joint_trajectory_feedback.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__struct.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__type_support.h
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/srv/set_payload.h
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/srv/detail/set_payload__functions.h
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/srv/detail/set_payload__struct.h
@@ -523,6 +629,14 @@ CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msg
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.h
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/srv/detail/set_io__struct.h
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/srv/detail/set_io__type_support.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/srv/get_fk.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/srv/detail/get_fk__struct.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/srv/detail/get_fk__type_support.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/srv/get_ik.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/srv/detail/get_ik__struct.h
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/srv/detail/get_ik__type_support.h
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/msg/detail/analog__functions.c
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/msg/detail/digital__functions.c
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/msg/detail/io_states__functions.c
@@ -530,9 +644,12 @@ CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msg
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/msg/detail/masterboard_data_msg__functions.c
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/msg/detail/robot_mode_data_msg__functions.c
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/msg/detail/tool_data_msg__functions.c
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/msg/detail/joint_trajectory_feedback__functions.c
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/srv/detail/set_payload__functions.c
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/srv/detail/set_speed_slider_fraction__functions.c
 CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/srv/detail/set_io__functions.c
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/srv/detail/get_fk__functions.c
+CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend: rosidl_generator_c/aubo_msgs/srv/detail/get_ik__functions.c
 	cd /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_msgs /home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_msgs /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs /home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/CMakeFiles/aubo_msgs__rosidl_generator_c.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/aubo_msgs__rosidl_generator_c.dir/depend
 

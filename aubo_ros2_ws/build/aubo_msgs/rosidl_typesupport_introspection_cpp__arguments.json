@@ -10,9 +10,12 @@
     "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs:msg/MasterboardDataMsg.idl",
     "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs:msg/RobotModeDataMsg.idl",
     "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs:msg/ToolDataMsg.idl",
+    "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs:msg/JointTrajectoryFeedback.idl",
     "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs:srv/SetPayload.idl",
     "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs:srv/SetSpeedSliderFraction.idl",
-    "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs:srv/SetIO.idl"
+    "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs:srv/SetIO.idl",
+    "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs:srv/GetFK.idl",
+    "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs:srv/GetIK.idl"
   ],
   "ros_interface_dependencies": [
     "builtin_interfaces:/opt/ros/foxy/share/builtin_interfaces/msg/Duration.idl",
@@ -75,7 +78,11 @@
     "std_msgs:/opt/ros/foxy/share/std_msgs/msg/UInt64.idl",
     "std_msgs:/opt/ros/foxy/share/std_msgs/msg/UInt64MultiArray.idl",
     "std_msgs:/opt/ros/foxy/share/std_msgs/msg/UInt8.idl",
-    "std_msgs:/opt/ros/foxy/share/std_msgs/msg/UInt8MultiArray.idl"
+    "std_msgs:/opt/ros/foxy/share/std_msgs/msg/UInt8MultiArray.idl",
+    "trajectory_msgs:/opt/ros/foxy/share/trajectory_msgs/msg/JointTrajectory.idl",
+    "trajectory_msgs:/opt/ros/foxy/share/trajectory_msgs/msg/JointTrajectoryPoint.idl",
+    "trajectory_msgs:/opt/ros/foxy/share/trajectory_msgs/msg/MultiDOFJointTrajectory.idl",
+    "trajectory_msgs:/opt/ros/foxy/share/trajectory_msgs/msg/MultiDOFJointTrajectoryPoint.idl"
   ],
   "target_dependencies": [
     "/opt/ros/foxy/lib/rosidl_typesupport_introspection_cpp/rosidl_typesupport_introspection_cpp",
@@ -93,9 +100,12 @@
     "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs/msg/MasterboardDataMsg.idl",
     "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs/msg/RobotModeDataMsg.idl",
     "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs/msg/ToolDataMsg.idl",
+    "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs/msg/JointTrajectoryFeedback.idl",
     "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs/srv/SetPayload.idl",
     "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs/srv/SetSpeedSliderFraction.idl",
     "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs/srv/SetIO.idl",
+    "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs/srv/GetFK.idl",
+    "/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_adapter/aubo_msgs/srv/GetIK.idl",
     "/opt/ros/foxy/share/builtin_interfaces/msg/Duration.idl",
     "/opt/ros/foxy/share/builtin_interfaces/msg/Time.idl",
     "/opt/ros/foxy/share/geometry_msgs/msg/Accel.idl",
@@ -156,6 +166,10 @@
     "/opt/ros/foxy/share/std_msgs/msg/UInt64.idl",
     "/opt/ros/foxy/share/std_msgs/msg/UInt64MultiArray.idl",
     "/opt/ros/foxy/share/std_msgs/msg/UInt8.idl",
-    "/opt/ros/foxy/share/std_msgs/msg/UInt8MultiArray.idl"
+    "/opt/ros/foxy/share/std_msgs/msg/UInt8MultiArray.idl",
+    "/opt/ros/foxy/share/trajectory_msgs/msg/JointTrajectory.idl",
+    "/opt/ros/foxy/share/trajectory_msgs/msg/JointTrajectoryPoint.idl",
+    "/opt/ros/foxy/share/trajectory_msgs/msg/MultiDOFJointTrajectory.idl",
+    "/opt/ros/foxy/share/trajectory_msgs/msg/MultiDOFJointTrajectoryPoint.idl"
   ]
 }

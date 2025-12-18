@@ -65,7 +65,6 @@ preinstall:
 # The main recursive "clean" target.
 clean: CMakeFiles/aubo_description_uninstall.dir/clean
 clean: CMakeFiles/uninstall.dir/clean
-clean: CMakeFiles/aubo_description.dir/clean
 
 .PHONY : clean
 
@@ -122,33 +121,6 @@ uninstall: CMakeFiles/uninstall.dir/rule
 CMakeFiles/uninstall.dir/clean:
 	$(MAKE) -f CMakeFiles/uninstall.dir/build.make CMakeFiles/uninstall.dir/clean
 .PHONY : CMakeFiles/uninstall.dir/clean
-
-#=============================================================================
-# Target rules for target CMakeFiles/aubo_description.dir
-
-# All Build rule for target.
-CMakeFiles/aubo_description.dir/all:
-	$(MAKE) -f CMakeFiles/aubo_description.dir/build.make CMakeFiles/aubo_description.dir/depend
-	$(MAKE) -f CMakeFiles/aubo_description.dir/build.make CMakeFiles/aubo_description.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mu/IVG/aubo_ros2_ws/build/aubo_description/CMakeFiles --progress-num= "Built target aubo_description"
-.PHONY : CMakeFiles/aubo_description.dir/all
-
-# Build rule for subdir invocation for target.
-CMakeFiles/aubo_description.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/mu/IVG/aubo_ros2_ws/build/aubo_description/CMakeFiles 0
-	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/aubo_description.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/mu/IVG/aubo_ros2_ws/build/aubo_description/CMakeFiles 0
-.PHONY : CMakeFiles/aubo_description.dir/rule
-
-# Convenience name for target.
-aubo_description: CMakeFiles/aubo_description.dir/rule
-
-.PHONY : aubo_description
-
-# clean rule for target.
-CMakeFiles/aubo_description.dir/clean:
-	$(MAKE) -f CMakeFiles/aubo_description.dir/build.make CMakeFiles/aubo_description.dir/clean
-.PHONY : CMakeFiles/aubo_description.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

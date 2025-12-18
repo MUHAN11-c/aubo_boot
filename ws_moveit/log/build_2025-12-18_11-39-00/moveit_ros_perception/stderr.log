@@ -1,0 +1,14 @@
+[01m[K/home/mu/IVG/ws_moveit/src/moveit2/moveit_ros/perception/mesh_filter/src/gl_mesh.cpp:40:10:[m[K [01;31m[Kfatal error: [m[KEigen/Eigen: 没有那个文件或目录
+   40 | #include [01;31m[K<Eigen/Eigen>[m[K
+      |          [01;31m[K^~~~~~~~~~~~~[m[K
+compilation terminated.
+make[2]: *** [mesh_filter/CMakeFiles/moveit_mesh_filter.dir/build.make:115：mesh_filter/CMakeFiles/moveit_mesh_filter.dir/src/gl_mesh.cpp.o] 错误 1
+make[2]: *** 正在等待未完成的任务....
+[01m[K/home/mu/IVG/ws_moveit/src/moveit2/moveit_ros/perception/mesh_filter/src/mesh_filter_base.cpp:43:10:[m[K [01;31m[Kfatal error: [m[KEigen/Eigen: 没有那个文件或目录
+   43 | #include [01;31m[K<Eigen/Eigen>[m[K
+      |          [01;31m[K^~~~~~~~~~~~~[m[K
+compilation terminated.
+make[2]: *** [mesh_filter/CMakeFiles/moveit_mesh_filter.dir/build.make:63：mesh_filter/CMakeFiles/moveit_mesh_filter.dir/src/mesh_filter_base.cpp.o] 错误 1
+make[1]: *** [CMakeFiles/Makefile2:368：mesh_filter/CMakeFiles/moveit_mesh_filter.dir/all] 错误 2
+make[1]: *** 正在等待未完成的任务....
+make: *** [Makefile:141：all] 错误 2

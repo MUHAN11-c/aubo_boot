@@ -1,0 +1,182 @@
+[0.008s] Invoking command in '/home/mu/IVG/ws_moveit/build/moveit2_tutorials': AMENT_PREFIX_PATH=/home/mu/IVG/ws_moveit/install/moveit_visual_tools:/home/mu/IVG/ws_moveit/install/rviz_visual_tools:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/mu/IVG/ws_moveit/install/moveit_visual_tools:/home/mu/IVG/ws_moveit/install/rviz_visual_tools:/opt/ros/foxy LD_LIBRARY_PATH=/home/mu/IVG/ws_moveit/install/moveit_visual_tools/lib:/home/mu/IVG/ws_moveit/install/rviz_visual_tools/lib:${LD_LIBRARY_PATH} /usr/bin/cmake /home/mu/IVG/ws_moveit/src/moveit2_tutorials -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/home/mu/IVG/ws_moveit/install/moveit2_tutorials
+[0.051s] -- The C compiler identification is GNU 9.4.0
+[0.085s] -- The CXX compiler identification is GNU 9.4.0
+[0.088s] -- Check for working C compiler: /usr/bin/cc
+[0.144s] -- Check for working C compiler: /usr/bin/cc -- works
+[0.145s] -- Detecting C compiler ABI info
+[0.219s] -- Detecting C compiler ABI info - done
+[0.227s] -- Detecting C compile features
+[0.227s] -- Detecting C compile features - done
+[0.229s] -- Check for working CXX compiler: /usr/bin/c++
+[0.280s] -- Check for working CXX compiler: /usr/bin/c++ -- works
+[0.281s] -- Detecting CXX compiler ABI info
+[0.337s] -- Detecting CXX compiler ABI info - done
+[0.344s] -- Detecting CXX compile features
+[0.345s] -- Detecting CXX compile features - done
+[0.346s] -- Found moveit_common: 2.2.3 (/opt/ros/foxy/share/moveit_common/cmake)
+[0.347s] -- Found ament_cmake: 0.9.12 (/opt/ros/foxy/share/ament_cmake/cmake)
+[0.359s] -- Found PythonInterp: /usr/bin/python3 (found suitable version "3.8.10", minimum required is "3") 
+[0.359s] -- Using PYTHON_EXECUTABLE: /usr/bin/python3
+[0.710s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found version "1.71.0") found components: system filesystem date_time thread 
+[0.715s] -- Found control_msgs: 2.5.1 (/opt/ros/foxy/share/control_msgs/cmake)
+[0.740s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[0.743s] -- Found rosidl_adapter: 1.3.1 (/opt/ros/foxy/share/rosidl_adapter/cmake)
+[0.782s] -- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "1.1.1f")  
+[0.802s] -- Found FastRTPS: /opt/ros/foxy/include  
+[0.843s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[1.066s] -- Found moveit_core: 2.2.3 (/opt/ros/foxy/share/moveit_core/cmake)
+[1.075s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found version "1.71.0") found components: chrono date_time filesystem iostreams program_options regex serialization system thread 
+[1.085s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found version "1.71.0") found components: filesystem 
+[1.124s] -- Found rmw_implementation_cmake: 1.0.4 (/opt/ros/foxy/share/rmw_implementation_cmake/cmake)
+[1.124s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[1.125s] -- Found Threads: TRUE  
+[1.240s] -- library: /usr/lib/x86_64-linux-gnu/libcurl.so
+[1.344s] -- Found Eigen3: TRUE (found version "3.3.7") 
+[2.268s] -- Found moveit_ros_planning: 2.2.3 (/opt/ros/foxy/share/moveit_ros_planning/cmake)
+[2.271s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found version "1.71.0") found components: system filesystem date_time program_options thread chrono 
+[2.414s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found version "1.71.0") found components: thread 
+[2.726s] -- Found moveit_ros_planning_interface: 2.2.3 (/opt/ros/foxy/share/moveit_ros_planning_interface/cmake)
+[2.728s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found version "1.71.0")  
+[2.731s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found version "1.71.0") found components: date_time filesystem program_options system thread 
+[2.918s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found version "1.71.0") found components: thread system filesystem regex date_time program_options 
+[3.121s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found version "1.71.0") found components: system filesystem date_time program_options thread 
+[3.435s] -- Found moveit_ros_perception: 2.2.3 (/opt/ros/foxy/share/moveit_ros_perception/cmake)
+[3.437s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found version "1.71.0") found components: thread 
+[3.724s] -- Found moveit_servo: 2.2.3 (/opt/ros/foxy/share/moveit_servo/cmake)
+[3.897s] -- Found interactive_markers: 2.1.3 (/opt/ros/foxy/share/interactive_markers/cmake)
+[3.909s] -- Found rviz_visual_tools: 4.0.3 (/home/mu/IVG/ws_moveit/install/rviz_visual_tools/share/rviz_visual_tools/cmake)
+[3.963s] -- Setting OGRE_DIR to: '/opt/ros/foxy/share/rviz_ogre_vendor/cmake/../../../opt/rviz_ogre_vendor/lib/OGRE/cmake'
+[3.964s] -- Found OGRE
+[3.964s] --   static     : OFF
+[3.964s] --   components : HLMS;MeshLodGenerator;Overlay;Paging;Property;RTShaderSystem;Terrain;Volume
+[3.964s] --   plugins    : Plugin_BSPSceneManager;Plugin_OctreeSceneManager;Plugin_PCZSceneManager;Plugin_ParticleFX;RenderSystem_GL;RenderSystem_GL3Plus;Codec_STBI
+[3.964s] --   media      : /opt/ros/foxy/opt/rviz_ogre_vendor/share/OGRE/Media
+[3.964s] -- OGRE_LIBRARIES: OgreHLMS;OgreMeshLodGenerator;OgreOverlay;OgrePaging;OgreProperty;OgreRTShaderSystem;OgreTerrain;OgreVolume;OgreMain
+[3.964s] -- OGRE_LIBRARY_DIRS: /opt/ros/foxy/opt/rviz_ogre_vendor/lib
+[3.964s] -- OGRE_PLUGINS: Plugin_BSPSceneManager;Plugin_OctreeSceneManager;Plugin_PCZSceneManager;Plugin_ParticleFX;RenderSystem_GL;RenderSystem_GL3Plus;Codec_STBI
+[3.964s] -- OGRE_PLUGIN_DIR: /opt/ros/foxy/opt/rviz_ogre_vendor/lib/OGRE
+[3.965s] -- rviz_ogre_vendor::OgreOverlay for IMPORTED_LOCATION_RELEASE: /opt/ros/foxy/opt/rviz_ogre_vendor/lib/libOgreOverlay.so
+[3.965s] -- rviz_ogre_vendor::OgreOverlay for IMPORTED_LOCATION_DEBUG: /opt/ros/foxy/opt/rviz_ogre_vendor/lib/libOgreOverlay.so
+[3.965s] -- rviz_ogre_vendor::OgreMain for IMPORTED_LOCATION_RELEASE: /opt/ros/foxy/opt/rviz_ogre_vendor/lib/libOgreMain.so
+[3.965s] -- rviz_ogre_vendor::OgreMain for IMPORTED_LOCATION_DEBUG: /opt/ros/foxy/opt/rviz_ogre_vendor/lib/libOgreMain.so
+[3.976s] -- Found ZLIB: /usr/lib/x86_64-linux-gnu/libz.so (found version "1.2.11") 
+[3.978s] -- Found OpenGL: /usr/lib/x86_64-linux-gnu/libOpenGL.so   
+[4.023s] -- Found X11: /usr/include   
+[4.024s] -- Looking for XOpenDisplay in /usr/lib/x86_64-linux-gnu/libX11.so;/usr/lib/x86_64-linux-gnu/libXext.so
+[4.089s] -- Looking for XOpenDisplay in /usr/lib/x86_64-linux-gnu/libX11.so;/usr/lib/x86_64-linux-gnu/libXext.so - found
+[4.090s] -- Looking for gethostbyname
+[4.145s] -- Looking for gethostbyname - found
+[4.145s] -- Looking for connect
+[4.203s] -- Looking for connect - found
+[4.203s] -- Looking for remove
+[4.258s] -- Looking for remove - found
+[4.259s] -- Looking for shmat
+[4.335s] -- Looking for shmat - found
+[4.335s] -- Looking for IceConnectionNumber in ICE
+[4.396s] -- Looking for IceConnectionNumber in ICE - found
+[4.399s] -- rviz_ogre_vendor::RenderSystem_GL for IMPORTED_LOCATION_RELEASE: _render_system_gl_static_library_abs-NOTFOUND
+[4.399s] -- rviz_ogre_vendor::RenderSystem_GL for IMPORTED_LOCATION_DEBUG: _render_system_gl_static_library_abs-NOTFOUND
+[4.403s] -- library: libassimp.so.5
+[4.436s] -- Setting yaml-cpp_DIR to: '/opt/ros/foxy/share/yaml_cpp_vendor/cmake/../../../opt/yaml_cpp_vendor/lib/cmake/yaml-cpp'
+[4.660s] -- Found moveit_visual_tools: 4.0.0 (/home/mu/IVG/ws_moveit/install/moveit_visual_tools/share/moveit_visual_tools/cmake)
+[6.376s] -- Configuring done
+[6.663s] -- Generating done
+[6.830s] -- Build files have been written to: /home/mu/IVG/ws_moveit/build/moveit2_tutorials
+[6.842s] Invoked command in '/home/mu/IVG/ws_moveit/build/moveit2_tutorials' returned '0': AMENT_PREFIX_PATH=/home/mu/IVG/ws_moveit/install/moveit_visual_tools:/home/mu/IVG/ws_moveit/install/rviz_visual_tools:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/mu/IVG/ws_moveit/install/moveit_visual_tools:/home/mu/IVG/ws_moveit/install/rviz_visual_tools:/opt/ros/foxy LD_LIBRARY_PATH=/home/mu/IVG/ws_moveit/install/moveit_visual_tools/lib:/home/mu/IVG/ws_moveit/install/rviz_visual_tools/lib:${LD_LIBRARY_PATH} /usr/bin/cmake /home/mu/IVG/ws_moveit/src/moveit2_tutorials -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/home/mu/IVG/ws_moveit/install/moveit2_tutorials
+[6.843s] Invoking command in '/home/mu/IVG/ws_moveit/build/moveit2_tutorials': AMENT_PREFIX_PATH=/home/mu/IVG/ws_moveit/install/moveit_visual_tools:/home/mu/IVG/ws_moveit/install/rviz_visual_tools:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/mu/IVG/ws_moveit/install/moveit_visual_tools:/home/mu/IVG/ws_moveit/install/rviz_visual_tools:/opt/ros/foxy LD_LIBRARY_PATH=/home/mu/IVG/ws_moveit/install/moveit_visual_tools/lib:/home/mu/IVG/ws_moveit/install/rviz_visual_tools/lib:${LD_LIBRARY_PATH} /usr/bin/cmake --build /home/mu/IVG/ws_moveit/build/moveit2_tutorials -- -j32 -l32
+[6.864s] [35m[1mScanning dependencies of target moveit_cpp_tutorial[0m
+[6.865s] [35m[1mScanning dependencies of target move_group_interface_tutorial[0m
+[6.865s] [35m[1mScanning dependencies of target planning_scene_tutorial[0m
+[6.865s] [35m[1mScanning dependencies of target servo_cpp_interface_demo[0m
+[6.865s] [35m[1mScanning dependencies of target planning_scene_ros_api_tutorial[0m
+[6.866s] [35m[1mScanning dependencies of target motion_planning_api_tutorial[0m
+[6.866s] [35m[1mScanning dependencies of target robot_model_and_robot_state_tutorial[0m
+[6.869s] [35m[1mScanning dependencies of target servo_keyboard_input[0m
+[6.890s] [  6%] [32mBuilding CXX object doc/realtime_servo/CMakeFiles/servo_keyboard_input.dir/src/servo_keyboard_input.cpp.o[0m
+[6.902s] [ 12%] [32mBuilding CXX object doc/robot_model_and_robot_state/CMakeFiles/robot_model_and_robot_state_tutorial.dir/src/robot_model_and_robot_state_tutorial.cpp.o[0m
+[6.915s] [ 18%] [32mBuilding CXX object doc/planning_scene_ros_api/CMakeFiles/planning_scene_ros_api_tutorial.dir/src/planning_scene_ros_api_tutorial.cpp.o[0m
+[6.918s] [ 25%] [32mBuilding CXX object doc/move_group_interface/CMakeFiles/move_group_interface_tutorial.dir/src/move_group_interface_tutorial.cpp.o[0m
+[6.918s] [ 31%] [32mBuilding CXX object doc/moveit_cpp/CMakeFiles/moveit_cpp_tutorial.dir/src/moveit_cpp_tutorial.cpp.o[0m
+[6.918s] [ 37%] [32mBuilding CXX object doc/planning_scene/CMakeFiles/planning_scene_tutorial.dir/src/planning_scene_tutorial.cpp.o[0m
+[6.920s] [ 43%] [32mBuilding CXX object doc/realtime_servo/CMakeFiles/servo_cpp_interface_demo.dir/src/servo_cpp_interface_demo.cpp.o[0m
+[6.946s] [ 50%] [32mBuilding CXX object doc/motion_planning_api/CMakeFiles/motion_planning_api_tutorial.dir/src/motion_planning_api_tutorial.cpp.o[0m
+[9.485s] [ 56%] [32m[1mLinking CXX executable servo_keyboard_input[0m
+[9.732s] [ 56%] Built target servo_keyboard_input
+[10.098s] [ 62%] [32m[1mLinking CXX executable robot_model_and_robot_state_tutorial[0m
+[10.370s] [ 62%] Built target robot_model_and_robot_state_tutorial
+[10.440s] [ 68%] [32m[1mLinking CXX executable planning_scene_tutorial[0m
+[10.744s] [ 68%] Built target planning_scene_tutorial
+[12.167s] [ 75%] [32m[1mLinking CXX executable planning_scene_ros_api_tutorial[0m
+[12.576s] [ 75%] Built target planning_scene_ros_api_tutorial
+[12.658s] [ 81%] [32m[1mLinking CXX executable move_group_interface_tutorial[0m
+[12.958s] [ 87%] [32m[1mLinking CXX executable moveit_cpp_tutorial[0m
+[13.118s] [ 87%] Built target move_group_interface_tutorial
+[13.397s] [ 87%] Built target moveit_cpp_tutorial
+[14.328s] [ 93%] [32m[1mLinking CXX executable servo_cpp_interface_demo[0m
+[14.638s] [ 93%] Built target servo_cpp_interface_demo
+[16.009s] [100%] [32m[1mLinking CXX executable motion_planning_api_tutorial[0m
+[16.453s] [100%] Built target motion_planning_api_tutorial
+[16.458s] Invoked command in '/home/mu/IVG/ws_moveit/build/moveit2_tutorials' returned '0': AMENT_PREFIX_PATH=/home/mu/IVG/ws_moveit/install/moveit_visual_tools:/home/mu/IVG/ws_moveit/install/rviz_visual_tools:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/mu/IVG/ws_moveit/install/moveit_visual_tools:/home/mu/IVG/ws_moveit/install/rviz_visual_tools:/opt/ros/foxy LD_LIBRARY_PATH=/home/mu/IVG/ws_moveit/install/moveit_visual_tools/lib:/home/mu/IVG/ws_moveit/install/rviz_visual_tools/lib:${LD_LIBRARY_PATH} /usr/bin/cmake --build /home/mu/IVG/ws_moveit/build/moveit2_tutorials -- -j32 -l32
+[16.460s] Invoking command in '/home/mu/IVG/ws_moveit/build/moveit2_tutorials': AMENT_PREFIX_PATH=/home/mu/IVG/ws_moveit/install/moveit_visual_tools:/home/mu/IVG/ws_moveit/install/rviz_visual_tools:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/mu/IVG/ws_moveit/install/moveit_visual_tools:/home/mu/IVG/ws_moveit/install/rviz_visual_tools:/opt/ros/foxy LD_LIBRARY_PATH=/home/mu/IVG/ws_moveit/install/moveit_visual_tools/lib:/home/mu/IVG/ws_moveit/install/rviz_visual_tools/lib:${LD_LIBRARY_PATH} /usr/bin/cmake --install /home/mu/IVG/ws_moveit/build/moveit2_tutorials
+[16.463s] -- Install configuration: "Release"
+[16.464s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/ament_index/resource_index/package_run_dependencies/moveit2_tutorials
+[16.464s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/ament_index/resource_index/parent_prefix_path/moveit2_tutorials
+[16.464s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/environment/ament_prefix_path.sh
+[16.464s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/environment/ament_prefix_path.dsv
+[16.464s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/environment/path.sh
+[16.464s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/environment/path.dsv
+[16.464s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/local_setup.bash
+[16.464s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/local_setup.sh
+[16.464s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/local_setup.zsh
+[16.465s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/local_setup.dsv
+[16.465s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/package.dsv
+[16.465s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/ament_index/resource_index/packages/moveit2_tutorials
+[16.465s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/cmake/ament_cmake_export_dependencies-extras.cmake
+[16.465s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/cmake/ament_cmake_export_include_directories-extras.cmake
+[16.465s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/cmake/moveit2_tutorialsConfig.cmake
+[16.465s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/cmake/moveit2_tutorialsConfig-version.cmake
+[16.465s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/package.xml
+[16.465s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/lib/moveit2_tutorials/motion_planning_api_tutorial
+[16.465s] -- Set runtime path of "/home/mu/IVG/ws_moveit/install/moveit2_tutorials/lib/moveit2_tutorials/motion_planning_api_tutorial" to ""
+[16.465s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch
+[16.465s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch/motion_planning_api_tutorial.launch.py
+[16.465s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/lib/moveit2_tutorials/move_group_interface_tutorial
+[16.465s] -- Set runtime path of "/home/mu/IVG/ws_moveit/install/moveit2_tutorials/lib/moveit2_tutorials/move_group_interface_tutorial" to ""
+[16.465s] -- Up-to-date: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch
+[16.465s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch/move_group.rviz
+[16.466s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch/move_group_interface_tutorial.launch.py
+[16.466s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch/move_group.launch.py
+[16.466s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/lib/moveit2_tutorials/moveit_cpp_tutorial
+[16.466s] -- Set runtime path of "/home/mu/IVG/ws_moveit/install/moveit2_tutorials/lib/moveit2_tutorials/moveit_cpp_tutorial" to ""
+[16.466s] -- Up-to-date: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch
+[16.466s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch/moveit_cpp_tutorial.rviz
+[16.466s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch/moveit_cpp_tutorial.launch.py
+[16.466s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/config
+[16.466s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/config/moveit_cpp.yaml
+[16.466s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/lib/moveit2_tutorials/planning_scene_tutorial
+[16.466s] -- Set runtime path of "/home/mu/IVG/ws_moveit/install/moveit2_tutorials/lib/moveit2_tutorials/planning_scene_tutorial" to ""
+[16.466s] -- Up-to-date: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch
+[16.466s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch/planning_scene_tutorial.launch.py
+[16.466s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/lib/moveit2_tutorials/planning_scene_ros_api_tutorial
+[16.466s] -- Set runtime path of "/home/mu/IVG/ws_moveit/install/moveit2_tutorials/lib/moveit2_tutorials/planning_scene_ros_api_tutorial" to ""
+[16.466s] -- Up-to-date: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch
+[16.466s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch/planning_scene_ros_api_tutorial.launch.py
+[16.467s] -- Up-to-date: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch
+[16.467s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch/demo.launch.py
+[16.467s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch/panda_moveit_config_demo.rviz
+[16.467s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch/panda_moveit_config_demo_empty.rviz
+[16.467s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/lib/moveit2_tutorials/servo_keyboard_input
+[16.467s] -- Set runtime path of "/home/mu/IVG/ws_moveit/install/moveit2_tutorials/lib/moveit2_tutorials/servo_keyboard_input" to ""
+[16.467s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/lib/moveit2_tutorials/servo_cpp_interface_demo
+[16.467s] -- Set runtime path of "/home/mu/IVG/ws_moveit/install/moveit2_tutorials/lib/moveit2_tutorials/servo_cpp_interface_demo" to ""
+[16.467s] -- Up-to-date: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch
+[16.467s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch/servo_server_panda.launch.py
+[16.467s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch/servo_teleop.launch.py
+[16.467s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch/servo_cpp_interface_demo.launch.py
+[16.467s] -- Up-to-date: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/config
+[16.467s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/config/demo_rviz_config.rviz
+[16.467s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/lib/moveit2_tutorials/robot_model_and_robot_state_tutorial
+[16.468s] -- Set runtime path of "/home/mu/IVG/ws_moveit/install/moveit2_tutorials/lib/moveit2_tutorials/robot_model_and_robot_state_tutorial" to ""
+[16.468s] -- Up-to-date: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch
+[16.468s] -- Installing: /home/mu/IVG/ws_moveit/install/moveit2_tutorials/share/moveit2_tutorials/launch/robot_model_and_robot_state_tutorial.launch.py
+[16.469s] Invoked command in '/home/mu/IVG/ws_moveit/build/moveit2_tutorials' returned '0': AMENT_PREFIX_PATH=/home/mu/IVG/ws_moveit/install/moveit_visual_tools:/home/mu/IVG/ws_moveit/install/rviz_visual_tools:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/mu/IVG/ws_moveit/install/moveit_visual_tools:/home/mu/IVG/ws_moveit/install/rviz_visual_tools:/opt/ros/foxy LD_LIBRARY_PATH=/home/mu/IVG/ws_moveit/install/moveit_visual_tools/lib:/home/mu/IVG/ws_moveit/install/rviz_visual_tools/lib:${LD_LIBRARY_PATH} /usr/bin/cmake --install /home/mu/IVG/ws_moveit/build/moveit2_tutorials

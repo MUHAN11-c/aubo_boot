@@ -1,0 +1,25 @@
+[0.020s] Invoking command in '/home/mu/IVG/ws_moveit/build/moveit_ros_perception': AMENT_PREFIX_PATH=/home/mu/IVG/ws_moveit/install/moveit_ros_planning:/home/mu/IVG/ws_moveit/install/moveit_ros_occupancy_map_monitor:/home/mu/IVG/ws_moveit/install/moveit_core:/home/mu/IVG/ws_moveit/install/moveit_common:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/mu/IVG/ws_moveit/install/moveit_ros_planning:/home/mu/IVG/ws_moveit/install/moveit_ros_occupancy_map_monitor:/home/mu/IVG/ws_moveit/install/moveit_core:/home/mu/IVG/ws_moveit/install/moveit_common:/home/mu/IVG/ws_moveit/install/moveit2_tutorials:/home/mu/IVG/ws_moveit/install/moveit_visual_tools:/home/mu/IVG/ws_moveit/install/rviz_visual_tools:/opt/ros/foxy LD_LIBRARY_PATH=/home/mu/IVG/ws_moveit/install/moveit_ros_planning/lib:/home/mu/IVG/ws_moveit/install/moveit_ros_occupancy_map_monitor/lib:/home/mu/IVG/ws_moveit/install/moveit_core/lib:${LD_LIBRARY_PATH} PATH=/home/mu/IVG/ws_moveit/install/moveit_core/bin:${PATH} /usr/bin/cmake --build /home/mu/IVG/ws_moveit/build/moveit_ros_perception -- -j32 -l32
+[0.054s] [ 10%] Built target moveit_lazy_free_space_updater
+[0.057s] [ 15%] [32mBuilding CXX object mesh_filter/CMakeFiles/moveit_mesh_filter.dir/src/mesh_filter_base.cpp.o[0m
+[0.059s] [ 20%] [32mBuilding CXX object mesh_filter/CMakeFiles/moveit_mesh_filter.dir/src/gl_mesh.cpp.o[0m
+[0.063s] [ 30%] Built target moveit_point_containment_filter
+[0.072s] [35m[1mScanning dependencies of target moveit_pointcloud_octomap_updater_core[0m
+[0.083s] [ 40%] Built target moveit_semantic_world
+[0.153s] [ 45%] [32mBuilding CXX object pointcloud_octomap_updater/CMakeFiles/moveit_pointcloud_octomap_updater_core.dir/src/pointcloud_octomap_updater.cpp.o[0m
+[0.163s] [01m[K/home/mu/IVG/ws_moveit/src/moveit2/moveit_ros/perception/mesh_filter/src/gl_mesh.cpp:40:10:[m[K [01;31m[Kfatal error: [m[KEigen/Eigen: 没有那个文件或目录
+[0.163s]    40 | #include [01;31m[K<Eigen/Eigen>[m[K
+[0.163s]       |          [01;31m[K^~~~~~~~~~~~~[m[K
+[0.163s] compilation terminated.
+[0.163s] make[2]: *** [mesh_filter/CMakeFiles/moveit_mesh_filter.dir/build.make:115：mesh_filter/CMakeFiles/moveit_mesh_filter.dir/src/gl_mesh.cpp.o] 错误 1
+[0.163s] make[2]: *** 正在等待未完成的任务....
+[0.276s] [01m[K/home/mu/IVG/ws_moveit/src/moveit2/moveit_ros/perception/mesh_filter/src/mesh_filter_base.cpp:43:10:[m[K [01;31m[Kfatal error: [m[KEigen/Eigen: 没有那个文件或目录
+[0.276s]    43 | #include [01;31m[K<Eigen/Eigen>[m[K
+[0.276s]       |          [01;31m[K^~~~~~~~~~~~~[m[K
+[0.276s] compilation terminated.
+[0.279s] make[2]: *** [mesh_filter/CMakeFiles/moveit_mesh_filter.dir/build.make:63：mesh_filter/CMakeFiles/moveit_mesh_filter.dir/src/mesh_filter_base.cpp.o] 错误 1
+[0.279s] make[1]: *** [CMakeFiles/Makefile2:368：mesh_filter/CMakeFiles/moveit_mesh_filter.dir/all] 错误 2
+[0.279s] make[1]: *** 正在等待未完成的任务....
+[8.238s] [ 50%] [32m[1mLinking CXX shared library libmoveit_pointcloud_octomap_updater_core.so[0m
+[8.417s] [ 50%] Built target moveit_pointcloud_octomap_updater_core
+[8.417s] make: *** [Makefile:141：all] 错误 2
+[8.419s] Invoked command in '/home/mu/IVG/ws_moveit/build/moveit_ros_perception' returned '2': AMENT_PREFIX_PATH=/home/mu/IVG/ws_moveit/install/moveit_ros_planning:/home/mu/IVG/ws_moveit/install/moveit_ros_occupancy_map_monitor:/home/mu/IVG/ws_moveit/install/moveit_core:/home/mu/IVG/ws_moveit/install/moveit_common:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/mu/IVG/ws_moveit/install/moveit_ros_planning:/home/mu/IVG/ws_moveit/install/moveit_ros_occupancy_map_monitor:/home/mu/IVG/ws_moveit/install/moveit_core:/home/mu/IVG/ws_moveit/install/moveit_common:/home/mu/IVG/ws_moveit/install/moveit2_tutorials:/home/mu/IVG/ws_moveit/install/moveit_visual_tools:/home/mu/IVG/ws_moveit/install/rviz_visual_tools:/opt/ros/foxy LD_LIBRARY_PATH=/home/mu/IVG/ws_moveit/install/moveit_ros_planning/lib:/home/mu/IVG/ws_moveit/install/moveit_ros_occupancy_map_monitor/lib:/home/mu/IVG/ws_moveit/install/moveit_core/lib:${LD_LIBRARY_PATH} PATH=/home/mu/IVG/ws_moveit/install/moveit_core/bin:${PATH} /usr/bin/cmake --build /home/mu/IVG/ws_moveit/build/moveit_ros_perception -- -j32 -l32

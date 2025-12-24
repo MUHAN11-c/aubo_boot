@@ -7,6 +7,7 @@
 
 #include "demo_driver/get_current_state_server.h"
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/executors/multi_threaded_executor.hpp>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <moveit/robot_state/robot_state.h>
 #include <moveit/robot_state/conversions.h>
@@ -14,6 +15,9 @@
 #include <aubo_msgs/srv/get_fk.hpp>
 #include <Eigen/Geometry>
 #include <cmath>
+#include <thread>
+#include <chrono>
+#include <rclcpp/parameter_client.hpp>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -28,40 +32,16 @@ namespace demo_driver
 GetCurrentStateServer::GetCurrentStateServer()
     : Node("get_current_state_server_node")
     , joint_states_received_(false)
-    , planning_group_name_("manipulator_e5")
+    , planning_group_name_("manipulator")
     , base_frame_("base_link")
     , end_effector_link_("")
 {
     // 获取参数
-    this->declare_parameter("planning_group_name", std::string("manipulator_e5"));
+    this->declare_parameter("planning_group_name", std::string("manipulator"));
     this->declare_parameter("base_frame", std::string("base_link"));
     
     this->get_parameter("planning_group_name", planning_group_name_);
     this->get_parameter("base_frame", base_frame_);
-
-    // 初始化 MoveIt 接口
-    RCLCPP_INFO(this->get_logger(), "Initializing MoveIt interfaces for planning group: %s", planning_group_name_.c_str());
-    
-    try
-    {
-        move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
-            shared_from_this(), planning_group_name_);
-        planning_scene_interface_ = std::make_shared<moveit::planning_interface::PlanningSceneInterface>();
-        
-        // 设置参考坐标系
-        move_group_->setPoseReferenceFrame(base_frame_);
-        
-        // 获取末端执行器链接名称
-        end_effector_link_ = move_group_->getEndEffectorLink();
-        RCLCPP_INFO(this->get_logger(), "End effector link: %s", end_effector_link_.c_str());
-        
-        RCLCPP_INFO(this->get_logger(), "MoveIt interfaces initialized successfully");
-    }
-    catch (const std::exception& e)
-    {
-        RCLCPP_ERROR(this->get_logger(), "Failed to initialize MoveIt interfaces: %s", e.what());
-        throw;
-    }
 
     // 初始化订阅器
     joint_states_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
@@ -71,18 +51,160 @@ GetCurrentStateServer::GetCurrentStateServer()
     // 初始化服务客户端
     fk_client_ = this->create_client<aubo_msgs::srv::GetFK>("/aubo_driver/get_fk");
 
-    // 等待服务可用
-    if (!fk_client_->wait_for_service(std::chrono::seconds(5)))
-    {
-        RCLCPP_WARN(this->get_logger(), "FK service not available, will try to use MoveIt to get cartesian position");
-    }
-
     // 初始化服务服务器
     get_current_state_service_ = this->create_service<demo_interface::srv::GetCurrentState>(
         "/get_current_state",
         std::bind(&GetCurrentStateServer::getCurrentStateCallback, this, std::placeholders::_1, std::placeholders::_2));
 
-    RCLCPP_INFO(this->get_logger(), "GetCurrentStateServer initialized, service '/get_current_state' is ready");
+    RCLCPP_INFO(this->get_logger(), "GetCurrentStateServer node created, ready to initialize MoveIt");
+}
+
+bool GetCurrentStateServer::wait_for_robot_description(int timeout_seconds)
+{
+    RCLCPP_INFO(this->get_logger(), "Waiting for robot_description parameter and MoveIt2 services...");
+    
+    auto start_time = std::chrono::steady_clock::now();
+    int check_count = 0;
+    
+    // 尝试从其他节点获取 robot_description 参数
+    std::vector<std::string> source_nodes = {"/move_group", "/robot_state_publisher"};
+    bool param_copied = false;
+    
+    for (const auto& source_node : source_nodes) {
+        try {
+            auto remote_param_client = std::make_shared<rclcpp::SyncParametersClient>(
+                shared_from_this(), source_node);
+            
+            if (remote_param_client->wait_for_service(std::chrono::seconds(2))) {
+                std::vector<rclcpp::Parameter> params = remote_param_client->get_parameters(
+                    {"robot_description", "robot_description_semantic"});
+                
+                if (!params.empty()) {
+                    for (const auto& param : params) {
+                        this->declare_parameter(param.get_name(), param.get_parameter_value());
+                        this->set_parameter(param);
+                    }
+                    param_copied = true;
+                    RCLCPP_INFO(this->get_logger(), "Successfully copied robot_description parameter from %s node", source_node.c_str());
+                    break;
+                }
+            }
+        } catch (const std::exception& e) {
+            RCLCPP_DEBUG(this->get_logger(), "Failed to get param from source %s: %s", source_node.c_str(), e.what());
+        }
+    }
+    
+    if (!param_copied) {
+        RCLCPP_WARN(this->get_logger(), "Could not get robot_description parameter from other nodes, will try to use MoveGroupInterface directly");
+    }
+    
+    while (rclcpp::ok())
+    {
+        try
+        {
+            auto test_move_group = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
+                shared_from_this(), planning_group_name_);
+            
+            std::string test_frame = test_move_group->getPlanningFrame();
+            
+            if (!test_frame.empty())
+            {
+                RCLCPP_INFO(this->get_logger(), "Robot description parameter and MoveIt2 services are ready");
+                RCLCPP_INFO(this->get_logger(), "Planning frame: %s", test_frame.c_str());
+                return true;
+            }
+        }
+        catch (const std::exception& e)
+        {
+            check_count++;
+            if (check_count % 10 == 0)
+            {
+                auto elapsed_seconds = std::chrono::duration_cast<std::chrono::seconds>(
+                    std::chrono::steady_clock::now() - start_time).count();
+                RCLCPP_INFO(this->get_logger(), "Still waiting... (elapsed %ld seconds, error: %s)",
+                           elapsed_seconds, e.what());
+            }
+        }
+        
+        auto elapsed = std::chrono::steady_clock::now() - start_time;
+        if (std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() >= timeout_seconds)
+        {
+            RCLCPP_ERROR(this->get_logger(), "Timeout waiting (%d seconds)", timeout_seconds);
+            RCLCPP_ERROR(this->get_logger(), "Please ensure:");
+            RCLCPP_ERROR(this->get_logger(), "  1. MoveIt2 is running: ros2 launch aubo_moveit_config aubo_moveit_bridge_ros1.launch.py");
+            RCLCPP_ERROR(this->get_logger(), "  2. Planning group name is correct: currently using '%s'", planning_group_name_.c_str());
+            RCLCPP_ERROR(this->get_logger(), "  3. move_group node is running");
+            return false;
+        }
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+    
+    return false;
+}
+
+bool GetCurrentStateServer::initialize(int max_retries, int retry_delay_seconds)
+{
+    RCLCPP_INFO(this->get_logger(), "Initializing MoveIt interfaces for planning group: %s", planning_group_name_.c_str());
+    
+    // 等待机器人描述参数
+    if (!wait_for_robot_description(30))
+    {
+        return false;
+    }
+    
+    // 等待一段时间，确保参数完全加载
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    
+    for (int attempt = 1; attempt <= max_retries; ++attempt)
+    {
+        try
+        {
+            RCLCPP_INFO(this->get_logger(), "Attempting to initialize MoveIt interfaces (attempt %d/%d)...", attempt, max_retries);
+            
+            move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
+                shared_from_this(), planning_group_name_);
+            planning_scene_interface_ = std::make_shared<moveit::planning_interface::PlanningSceneInterface>();
+            
+            // 设置参考坐标系
+            move_group_->setPoseReferenceFrame(base_frame_);
+            
+            // 获取末端执行器链接名称
+            end_effector_link_ = move_group_->getEndEffectorLink();
+            RCLCPP_INFO(this->get_logger(), "End effector link: %s", end_effector_link_.c_str());
+            
+            RCLCPP_INFO(this->get_logger(), "MoveIt interfaces initialized successfully");
+            
+            // 等待服务可用
+            if (!fk_client_->wait_for_service(std::chrono::seconds(5)))
+            {
+                RCLCPP_WARN(this->get_logger(), "FK service not available, will try to use MoveIt to get cartesian position");
+            }
+            
+            RCLCPP_INFO(this->get_logger(), "GetCurrentStateServer initialized, service '/get_current_state' is ready");
+            
+            return true;
+        }
+        catch (const std::exception& e)
+        {
+            RCLCPP_WARN(this->get_logger(), "Failed to initialize MoveIt interfaces (attempt %d/%d): %s", 
+                       attempt, max_retries, e.what());
+            
+            if (attempt < max_retries)
+            {
+                RCLCPP_INFO(this->get_logger(), "Waiting %d seconds before retry...", retry_delay_seconds);
+                std::this_thread::sleep_for(std::chrono::seconds(retry_delay_seconds));
+            }
+            else
+            {
+                RCLCPP_ERROR(this->get_logger(), "Failed to initialize MoveIt interfaces after %d attempts", max_retries);
+                RCLCPP_ERROR(this->get_logger(), "Please ensure MoveIt2 is running: ros2 launch aubo_moveit_config aubo_moveit_bridge_ros1.launch.py");
+                return false;
+            }
+        }
+    }
+    
+    return false;
 }
 
 GetCurrentStateServer::~GetCurrentStateServer()
@@ -199,11 +321,42 @@ bool GetCurrentStateServer::getCurrentState(std::vector<double>& joint_position_
         {
             // 获取当前关节值
             moveit::core::RobotStatePtr current_state = move_group_->getCurrentState();
+            
+            // 如果 getCurrentState() 返回 null（通常是因为没有 joint_states），使用机器人模型创建默认状态
+            moveit::core::RobotStatePtr robot_state;
+            if (!current_state)
+            {
+                RCLCPP_WARN(this->get_logger(), "getCurrentState() returned null (likely no joint_states available), creating default state from robot model");
+                
+                // 从机器人模型创建默认状态
+                const moveit::core::RobotModelConstPtr& robot_model = move_group_->getRobotModel();
+                if (!robot_model)
+                {
+                    message = "Failed to get robot model from MoveIt";
+                    RCLCPP_ERROR(this->get_logger(), "%s", message.c_str());
+                    return false;
+                }
+                
+                robot_state = std::make_shared<moveit::core::RobotState>(robot_model);
+                robot_state->setToDefaultValues();  // 设置为默认值（通常是零位）
+            }
+            else
+            {
+                robot_state = current_state;
+            }
+            
             const moveit::core::JointModelGroup* joint_model_group =
-                current_state->getJointModelGroup(planning_group_name_);
+                robot_state->getJointModelGroup(planning_group_name_);
+            
+            if (!joint_model_group)
+            {
+                message = "Failed to get joint model group from MoveIt: joint_model_group is null";
+                RCLCPP_WARN(this->get_logger(), "%s", message.c_str());
+                return false;
+            }
 
             std::vector<double> joint_values;
-            current_state->copyJointGroupPositions(joint_model_group, joint_values);
+            robot_state->copyJointGroupPositions(joint_model_group, joint_values);
 
             if (joint_values.size() >= 6)
             {
@@ -214,8 +367,39 @@ bool GetCurrentStateServer::getCurrentState(std::vector<double>& joint_position_
                 }
 
                 // 获取当前位姿
-                geometry_msgs::msg::PoseStamped current_pose = move_group_->getCurrentPose(end_effector_link_);
-                cartesian_position = current_pose.pose;
+                if (end_effector_link_.empty())
+                {
+                    message = "End effector link is empty, cannot get current pose";
+                    RCLCPP_WARN(this->get_logger(), "%s", message.c_str());
+                    return false;
+                }
+                
+                // 尝试使用 getCurrentPose，如果失败则使用 robot_state 计算
+                try
+                {
+                    geometry_msgs::msg::PoseStamped current_pose = move_group_->getCurrentPose(end_effector_link_);
+                    
+                    cartesian_position = current_pose.pose;
+                }
+                catch (const std::exception& e)
+                {
+                    // 如果 getCurrentPose 失败，使用 robot_state 计算位姿
+                    RCLCPP_WARN(this->get_logger(), "getCurrentPose() failed: %s, computing pose from robot_state", e.what());
+                    
+                    robot_state->update();
+                    const Eigen::Isometry3d& end_effector_transform = robot_state->getGlobalLinkTransform(end_effector_link_);
+                    
+                    Eigen::Vector3d position = end_effector_transform.translation();
+                    Eigen::Quaterniond orientation(end_effector_transform.rotation());
+                    
+                    cartesian_position.position.x = position.x();
+                    cartesian_position.position.y = position.y();
+                    cartesian_position.position.z = position.z();
+                    cartesian_position.orientation.w = orientation.w();
+                    cartesian_position.orientation.x = orientation.x();
+                    cartesian_position.orientation.y = orientation.y();
+                    cartesian_position.orientation.z = orientation.z();
+                }
 
                 // 速度信息从 MoveIt 较难获取，设为0
                 velocity.clear();
@@ -288,8 +472,27 @@ bool GetCurrentStateServer::getForwardKinematics(const std::vector<double>& join
         {
             // 设置关节值
             moveit::core::RobotStatePtr current_state = move_group_->getCurrentState();
+            
+            if (!current_state)
+            {
+                RCLCPP_DEBUG(this->get_logger(), "Failed to get current state from MoveIt: current_state is null");
+                return false;
+            }
+            
             const moveit::core::JointModelGroup* joint_model_group =
                 current_state->getJointModelGroup(planning_group_name_);
+            
+            if (!joint_model_group)
+            {
+                RCLCPP_DEBUG(this->get_logger(), "Failed to get joint model group from MoveIt: joint_model_group is null");
+                return false;
+            }
+            
+            if (end_effector_link_.empty())
+            {
+                RCLCPP_DEBUG(this->get_logger(), "End effector link is empty, cannot compute FK");
+                return false;
+            }
 
             std::vector<double> joint_values;
             for (size_t i = 0; i < 6 && i < joint_positions.size(); ++i)
@@ -336,3 +539,50 @@ void GetCurrentStateServer::spin()
 }
 
 } // namespace demo_driver
+
+/**
+ * @brief 主函数
+ * 初始化 ROS 节点并启动获取当前状态服务服务器
+ */
+int main(int argc, char** argv)
+{
+    // 初始化 ROS 节点
+    rclcpp::init(argc, argv);
+    
+    // 创建执行器（MoveIt 需要多线程执行器）
+    rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
+
+    try
+    {
+        // 创建获取当前状态服务服务器对象
+        auto server = std::make_shared<demo_driver::GetCurrentStateServer>();
+        RCLCPP_INFO(server->get_logger(), "Get Current State Server node created");
+        
+        // 初始化 MoveIt 接口（在节点创建为 shared_ptr 后，带重试机制）
+        // 最多重试 10 次，每次间隔 2 秒，总共等待最多 20 秒
+        if (!server->initialize(10, 2))
+        {
+            RCLCPP_ERROR(rclcpp::get_logger("get_current_state_server_node"), 
+                        "Failed to initialize MoveIt interfaces after retries");
+            rclcpp::shutdown();
+            return 1;
+        }
+        
+        executor.add_node(server);
+        RCLCPP_INFO(server->get_logger(), "Get Current State Server node started");
+        
+        // 进入主循环
+        executor.spin();
+    }
+    catch (const std::exception& e)
+    {
+        // 捕获异常并输出错误信息
+        RCLCPP_ERROR(rclcpp::get_logger("get_current_state_server_node"), 
+                    "Exception in get_current_state_server_node: %s", e.what());
+        rclcpp::shutdown();
+        return 1;
+    }
+
+    rclcpp::shutdown();
+    return 0;
+}

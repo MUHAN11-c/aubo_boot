@@ -63,7 +63,8 @@ public:
 private:
   rclcpp_action::Server<FollowJointTrajectory>::SharedPtr action_server_;
 
-  rclcpp::Publisher<trajectory_msgs::msg::JointTrajectoryPoint>::SharedPtr moveit_controller_pub_;
+  // 发布完整轨迹到 joint_path_command，由 ROS 1 端的 aubo_robot_simulator 接收并处理插补
+  rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr trajectory_command_pub_;
   rclcpp::Subscription<control_msgs::action::FollowJointTrajectory_Feedback>::SharedPtr fjt_feedback_sub_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr moveit_execution_sub_;
 
@@ -85,8 +86,9 @@ private:
 
   void abortActiveGoal();
 
-  void calculateMotionTrajectory();
+  void publishTrajectory();  // 发布完整轨迹，插补在 ROS 1 端完成
   double toSec(const builtin_interfaces::msg::Duration &duration);
+  builtin_interfaces::msg::Duration toDuration(double time_in_seconds);
 
   bool isSimilar(std::vector<std::string> lhs, std::vector<std::string> rhs);
 

@@ -1,2 +1,1 @@
-uint8 pin
-bool state
+/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_msgs/msg/Digital.msg

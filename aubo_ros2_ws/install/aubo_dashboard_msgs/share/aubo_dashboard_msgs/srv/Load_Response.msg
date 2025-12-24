@@ -1,3 +1,1 @@
-
-string answer
-bool success
+/home/mu/IVG/aubo_ros2_ws/build/aubo_dashboard_msgs/rosidl_cmake/srv/Load_Response.msg

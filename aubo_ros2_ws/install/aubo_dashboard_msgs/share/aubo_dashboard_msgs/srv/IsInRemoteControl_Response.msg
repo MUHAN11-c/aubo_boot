@@ -1,4 +1,1 @@
-
-string answer
-bool in_remote_control # is the robot currently in remote control mode?
-bool success # Did the dashboard server call succeed?
+/home/mu/IVG/aubo_ros2_ws/build/aubo_dashboard_msgs/rosidl_cmake/srv/IsInRemoteControl_Response.msg

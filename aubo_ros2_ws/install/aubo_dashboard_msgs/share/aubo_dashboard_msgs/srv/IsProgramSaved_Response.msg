@@ -1,5 +1,1 @@
-
-string answer
-string program_name
-bool program_saved # is the current program saved?
-bool success # Did the dashboard server call succeed?
+/home/mu/IVG/aubo_ros2_ws/build/aubo_dashboard_msgs/rosidl_cmake/srv/IsProgramSaved_Response.msg

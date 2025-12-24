@@ -1,5 +1,1 @@
-string STOPPED=STOPPED
-string PLAYING=PLAYING
-string PAUSED=PAUSED
-
-string state
+/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_dashboard_msgs/msg/ProgramState.msg

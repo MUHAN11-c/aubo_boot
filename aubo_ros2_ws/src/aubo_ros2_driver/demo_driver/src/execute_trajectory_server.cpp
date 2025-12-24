@@ -7,6 +7,7 @@
 
 #include "demo_driver/execute_trajectory_server.h"
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/executors/multi_threaded_executor.hpp>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <moveit_msgs/msg/move_it_error_codes.hpp>
 #include <moveit_msgs/msg/robot_trajectory.hpp>
@@ -22,42 +23,152 @@ namespace demo_driver
  */
 ExecuteTrajectoryServer::ExecuteTrajectoryServer()
     : Node("execute_trajectory_server_node")
-    , planning_group_name_("manipulator_e5")
+    , planning_group_name_("manipulator")
     , base_frame_("base_link")
 {
     // 获取参数
-    this->declare_parameter("planning_group_name", std::string("manipulator_e5"));
+    this->declare_parameter("planning_group_name", std::string("manipulator"));
     this->declare_parameter("base_frame", std::string("base_link"));
     
     this->get_parameter("planning_group_name", planning_group_name_);
     this->get_parameter("base_frame", base_frame_);
-
-    // 初始化 MoveIt 接口
-    RCLCPP_INFO(this->get_logger(), "Initializing MoveIt interfaces for planning group: %s", planning_group_name_.c_str());
-    
-    try
-    {
-        move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
-            shared_from_this(), planning_group_name_);
-        planning_scene_interface_ = std::make_shared<moveit::planning_interface::PlanningSceneInterface>();
-        
-        // 设置参考坐标系
-        move_group_->setPoseReferenceFrame(base_frame_);
-        
-        RCLCPP_INFO(this->get_logger(), "MoveIt interfaces initialized successfully");
-    }
-    catch (const std::exception& e)
-    {
-        RCLCPP_ERROR(this->get_logger(), "Failed to initialize MoveIt interfaces: %s", e.what());
-        throw;
-    }
 
     // 初始化服务服务器
     execute_trajectory_service_ = this->create_service<demo_interface::srv::ExecuteTrajectory>(
         "/execute_trajectory",
         std::bind(&ExecuteTrajectoryServer::executeTrajectoryCallback, this, std::placeholders::_1, std::placeholders::_2));
 
-    RCLCPP_INFO(this->get_logger(), "ExecuteTrajectoryServer initialized, service '/execute_trajectory' is ready");
+    RCLCPP_INFO(this->get_logger(), "ExecuteTrajectoryServer node created, ready to initialize MoveIt");
+}
+
+bool ExecuteTrajectoryServer::wait_for_robot_description(int timeout_seconds)
+{
+    RCLCPP_INFO(this->get_logger(), "Waiting for robot_description parameter and MoveIt2 services...");
+    
+    auto start_time = std::chrono::steady_clock::now();
+    int check_count = 0;
+    
+    std::vector<std::string> source_nodes = {"/move_group", "/robot_state_publisher"};
+    bool param_copied = false;
+    
+    for (const auto& source_node : source_nodes) {
+        try {
+            auto remote_param_client = std::make_shared<rclcpp::SyncParametersClient>(
+                shared_from_this(), source_node);
+            
+            if (remote_param_client->wait_for_service(std::chrono::seconds(2))) {
+                std::vector<rclcpp::Parameter> params = remote_param_client->get_parameters(
+                    {"robot_description", "robot_description_semantic"});
+                
+                if (!params.empty()) {
+                    for (const auto& param : params) {
+                        this->declare_parameter(param.get_name(), param.get_parameter_value());
+                        this->set_parameter(param);
+                    }
+                    param_copied = true;
+                    RCLCPP_INFO(this->get_logger(), "Successfully copied robot_description parameter from %s node", source_node.c_str());
+                    break;
+                }
+            }
+        } catch (const std::exception& e) {
+            RCLCPP_DEBUG(this->get_logger(), "Failed to get param from source %s: %s", source_node.c_str(), e.what());
+        }
+    }
+    
+    if (!param_copied) {
+        RCLCPP_WARN(this->get_logger(), "Could not get robot_description parameter from other nodes, will try to use MoveGroupInterface directly");
+    }
+    
+    while (rclcpp::ok())
+    {
+        try
+        {
+            auto test_move_group = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
+                shared_from_this(), planning_group_name_);
+            
+            std::string test_frame = test_move_group->getPlanningFrame();
+            
+            if (!test_frame.empty())
+            {
+                RCLCPP_INFO(this->get_logger(), "Robot description parameter and MoveIt2 services are ready");
+                RCLCPP_INFO(this->get_logger(), "Planning frame: %s", test_frame.c_str());
+                return true;
+            }
+        }
+        catch (const std::exception& e)
+        {
+            check_count++;
+            if (check_count % 10 == 0)
+            {
+                auto elapsed_seconds = std::chrono::duration_cast<std::chrono::seconds>(
+                    std::chrono::steady_clock::now() - start_time).count();
+                RCLCPP_INFO(this->get_logger(), "Still waiting... (elapsed %ld seconds, error: %s)",
+                           elapsed_seconds, e.what());
+            }
+        }
+        
+        auto elapsed = std::chrono::steady_clock::now() - start_time;
+        if (std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() >= timeout_seconds)
+        {
+            RCLCPP_ERROR(this->get_logger(), "Timeout waiting (%d seconds)", timeout_seconds);
+            return false;
+        }
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+    
+    return false;
+}
+
+bool ExecuteTrajectoryServer::initialize(int max_retries, int retry_delay_seconds)
+{
+    RCLCPP_INFO(this->get_logger(), "Initializing MoveIt interfaces for planning group: %s", planning_group_name_.c_str());
+    
+    // 等待机器人描述参数
+    if (!wait_for_robot_description(30))
+    {
+        return false;
+    }
+    
+    // 等待一段时间，确保参数完全加载
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    
+    for (int attempt = 1; attempt <= max_retries; ++attempt)
+    {
+        try
+        {
+            RCLCPP_INFO(this->get_logger(), "Attempting to initialize MoveIt interfaces (attempt %d/%d)...", attempt, max_retries);
+            
+            move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
+                shared_from_this(), planning_group_name_);
+            planning_scene_interface_ = std::make_shared<moveit::planning_interface::PlanningSceneInterface>();
+            
+            // 设置参考坐标系
+            move_group_->setPoseReferenceFrame(base_frame_);
+            
+            RCLCPP_INFO(this->get_logger(), "MoveIt interfaces initialized successfully");
+            RCLCPP_INFO(this->get_logger(), "ExecuteTrajectoryServer initialized, service '/execute_trajectory' is ready");
+            return true;
+        }
+        catch (const std::exception& e)
+        {
+            RCLCPP_WARN(this->get_logger(), "Failed to initialize MoveIt interfaces (attempt %d/%d): %s", 
+                       attempt, max_retries, e.what());
+            
+            if (attempt < max_retries)
+            {
+                RCLCPP_INFO(this->get_logger(), "Waiting %d seconds before retry...", retry_delay_seconds);
+                std::this_thread::sleep_for(std::chrono::seconds(retry_delay_seconds));
+            }
+            else
+            {
+                RCLCPP_ERROR(this->get_logger(), "Failed to initialize MoveIt interfaces after %d attempts", max_retries);
+                return false;
+            }
+        }
+    }
+    
+    return false;
 }
 
 ExecuteTrajectoryServer::~ExecuteTrajectoryServer()
@@ -181,3 +292,48 @@ void ExecuteTrajectoryServer::spin()
 }
 
 } // namespace demo_driver
+
+/**
+ * @brief 主函数
+ * 初始化 ROS 节点并启动执行轨迹服务服务器
+ */
+int main(int argc, char** argv)
+{
+    // 初始化 ROS 节点
+    rclcpp::init(argc, argv);
+    
+    // 创建执行器（MoveIt 需要多线程执行器）
+    rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
+
+    try
+    {
+        // 创建执行轨迹服务服务器对象
+        auto server = std::make_shared<demo_driver::ExecuteTrajectoryServer>();
+        RCLCPP_INFO(server->get_logger(), "Execute Trajectory Server node created");
+        
+        // 初始化 MoveIt 接口（在节点创建为 shared_ptr 后）
+        if (!server->initialize(10, 2))
+        {
+            RCLCPP_ERROR(rclcpp::get_logger("execute_trajectory_server_node"), 
+                        "Failed to initialize MoveIt interfaces");
+            rclcpp::shutdown();
+            return 1;
+        }
+        
+        executor.add_node(server);
+        RCLCPP_INFO(server->get_logger(), "Execute Trajectory Server node started");
+        // 进入主循环
+        executor.spin();
+    }
+    catch (const std::exception& e)
+    {
+        // 捕获异常并输出错误信息
+        RCLCPP_ERROR(rclcpp::get_logger("execute_trajectory_server_node"), 
+                    "Exception in execute_trajectory_server_node: %s", e.what());
+        rclcpp::shutdown();
+        return 1;
+    }
+
+    rclcpp::shutdown();
+    return 0;
+}

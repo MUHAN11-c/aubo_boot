@@ -1,5 +1,1 @@
-Digital[] digital_in_states
-Digital[] digital_out_states
-Digital[] flag_states
-Analog[] analog_in_states
-Analog[] analog_out_states
+/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_msgs/msg/IOStates.msg

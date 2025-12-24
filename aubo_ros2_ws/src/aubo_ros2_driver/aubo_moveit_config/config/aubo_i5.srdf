@@ -35,7 +35,9 @@
     <!--END EFFECTOR: Purpose: Represent information about an end effector.-->
     <end_effector name="moveit_ee" parent_link="ee_link" group="endeffector"/>
     <!--VIRTUAL JOINT: Purpose: this element defines a virtual joint between a robot link and an external frame of reference (considered fixed with respect to the robot)-->
-    <virtual_joint name="fixed_base" type="fixed" parent_frame="world" child_link="world"/>
+    <!-- parent_frame 决定规划框架（planning frame），child_link 是机器人基座链接 -->
+    <!-- 将 parent_frame 改为 base_link 以使规划框架为 base_link -->
+    <virtual_joint name="fixed_base" type="fixed" parent_frame="base_link" child_link="base_link"/>
     <!--DISABLE COLLISIONS: By default it is assumed that any link of the robot could potentially come into collision with any other link in the robot. This tag disables collision checking between a specified pair of links. -->
     <disable_collisions link1="base_link" link2="shoulder_Link" reason="Adjacent"/>
     <disable_collisions link1="base_link" link2="upperArm_Link" reason="Never"/>

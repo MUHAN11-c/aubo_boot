@@ -131,9 +131,9 @@ class MotionControllerSimulator():
         rospy.logdebug("Setting motion buffer size: %i", buffer_size)
 
         # ========== 关节配置 ==========
-        # 从参数服务器获取关节名称，如果不存在则使用默认值
-        def_joint_names = ["joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"]
-        self.joint_names = rospy.get_param('controller_joint_names', def_joint_names)
+        # 硬编码关节名称，与 ROS 2 端保持一致
+        # ROS 2 端使用: [shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint]
+        self.joint_names = ["shoulder_joint", "upperArm_joint", "foreArm_joint", "wrist1_joint", "wrist2_joint", "wrist3_joint"]
 
         # 初始化关节状态（位置、速度、加速度）
         initial_joint_state = rospy.get_param('initial_joint_state', [0]*num_joints)
@@ -518,11 +518,9 @@ class AuboRobotSimulatorNode():
         rospy.loginfo("Setting publish rate (hz) based on parameter: %f", self.pub_rate)
 
         # ========== 关节配置 ==========
-        # 从参数服务器获取关节名称，如果不存在则使用默认值
-        def_joint_names = ["joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"]
-        self.joint_names = rospy.get_param('controller_joint_names', def_joint_names)
-        if len(self.joint_names) == 0:
-            rospy.logwarn("Joint list is empty, did you set controller_joint_name?")
+        # 硬编码关节名称，与 ROS 2 端保持一致
+        # ROS 2 端使用: [shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint]
+        self.joint_names = ["shoulder_joint", "upperArm_joint", "foreArm_joint", "wrist1_joint", "wrist2_joint", "wrist3_joint"]
         rospy.loginfo("Simulating manipulator with %d joints: %s", len(self.joint_names), ", ".join(self.joint_names))
 
         # ========== 创建运动控制器仿真器 ==========

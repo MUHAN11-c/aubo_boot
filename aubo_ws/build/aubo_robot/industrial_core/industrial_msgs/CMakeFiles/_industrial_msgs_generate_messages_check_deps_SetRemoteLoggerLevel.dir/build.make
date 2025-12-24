@@ -54,7 +54,7 @@ CMAKE_BINARY_DIR = /home/mu/IVG/aubo_ws/build
 include aubo_robot/industrial_core/industrial_msgs/CMakeFiles/_industrial_msgs_generate_messages_check_deps_SetRemoteLoggerLevel.dir/progress.make
 
 aubo_robot/industrial_core/industrial_msgs/CMakeFiles/_industrial_msgs_generate_messages_check_deps_SetRemoteLoggerLevel:
-	cd /home/mu/IVG/aubo_ws/build/aubo_robot/industrial_core/industrial_msgs && ../../../catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/genmsg/cmake/../../../lib/genmsg/genmsg_check_deps.py industrial_msgs /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/SetRemoteLoggerLevel.srv industrial_msgs/DebugLevel:industrial_msgs/ServiceReturnCode
+	cd /home/mu/IVG/aubo_ws/build/aubo_robot/industrial_core/industrial_msgs && ../../../catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/genmsg/cmake/../../../lib/genmsg/genmsg_check_deps.py industrial_msgs /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/SetRemoteLoggerLevel.srv industrial_msgs/ServiceReturnCode:industrial_msgs/DebugLevel
 
 _industrial_msgs_generate_messages_check_deps_SetRemoteLoggerLevel: aubo_robot/industrial_core/industrial_msgs/CMakeFiles/_industrial_msgs_generate_messages_check_deps_SetRemoteLoggerLevel
 _industrial_msgs_generate_messages_check_deps_SetRemoteLoggerLevel: aubo_robot/industrial_core/industrial_msgs/CMakeFiles/_industrial_msgs_generate_messages_check_deps_SetRemoteLoggerLevel.dir/build.make

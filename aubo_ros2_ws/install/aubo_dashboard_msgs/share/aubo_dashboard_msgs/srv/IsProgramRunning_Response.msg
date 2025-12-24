@@ -1,4 +1,1 @@
-
-string answer
-bool program_running # is a program running?
-bool success # Did the dashboard server call succeed?
+/home/mu/IVG/aubo_ros2_ws/build/aubo_dashboard_msgs/rosidl_cmake/srv/IsProgramRunning_Response.msg

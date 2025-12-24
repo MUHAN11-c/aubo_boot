@@ -38,74 +38,11 @@ if(NOT DEFINED CMAKE_CROSSCOMPILING)
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/ament_index/resource_index/package_run_dependencies" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config/ament_cmake_index/share/ament_index/resource_index/package_run_dependencies/aubo_moveit_config")
+  include("/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config/ament_cmake_symlink_install/ament_cmake_symlink_install.cmake")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/ament_index/resource_index/parent_prefix_path" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config/ament_cmake_index/share/ament_index/resource_index/parent_prefix_path/aubo_moveit_config")
-endif()
-
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_moveit_config/environment" TYPE FILE FILES "/opt/ros/foxy/share/ament_cmake_core/cmake/environment_hooks/environment/ament_prefix_path.sh")
-endif()
-
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_moveit_config/environment" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config/ament_cmake_environment_hooks/ament_prefix_path.dsv")
-endif()
-
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_moveit_config/environment" TYPE FILE FILES "/opt/ros/foxy/share/ament_cmake_core/cmake/environment_hooks/environment/path.sh")
-endif()
-
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_moveit_config/environment" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config/ament_cmake_environment_hooks/path.dsv")
-endif()
-
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_moveit_config" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config/ament_cmake_environment_hooks/local_setup.bash")
-endif()
-
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_moveit_config" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config/ament_cmake_environment_hooks/local_setup.sh")
-endif()
-
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_moveit_config" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config/ament_cmake_environment_hooks/local_setup.zsh")
-endif()
-
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_moveit_config" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config/ament_cmake_environment_hooks/local_setup.dsv")
-endif()
-
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_moveit_config" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config/ament_cmake_environment_hooks/package.dsv")
-endif()
-
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/ament_index/resource_index/packages" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config/ament_cmake_index/share/ament_index/resource_index/packages/aubo_moveit_config")
-endif()
-
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_moveit_config/cmake" TYPE FILE FILES
-    "/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config/ament_cmake_core/aubo_moveit_configConfig.cmake"
-    "/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config/ament_cmake_core/aubo_moveit_configConfig-version.cmake"
-    )
-endif()
-
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_moveit_config" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_moveit_config/package.xml")
-endif()
-
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_moveit_config" TYPE DIRECTORY FILES "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_moveit_config/launch" REGEX "/setup\\_assistant\\.launch$" EXCLUDE)
-endif()
-
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_moveit_config" TYPE DIRECTORY FILES "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_moveit_config/config")
-endif()
-
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_moveit_config" TYPE FILE FILES "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_moveit_config/.setup_assistant")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/aubo_moveit_config" TYPE DIRECTORY FILES "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_moveit_config/scripts" USE_SOURCE_PERMISSIONS)
 endif()
 
 if(CMAKE_INSTALL_COMPONENT)

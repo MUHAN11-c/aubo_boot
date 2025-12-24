@@ -108,10 +108,10 @@ aubo_robot/industrial_core/industrial_msgs/CMakeFiles/industrial_msgs_generate_m
 
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/CmdJointTrajectory.h: /opt/ros/noetic/lib/gencpp/gen_cpp.py
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/CmdJointTrajectory.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/CmdJointTrajectory.srv
-/home/mu/IVG/aubo_ws/devel/include/industrial_msgs/CmdJointTrajectory.h: /opt/ros/noetic/share/std_msgs/msg/Header.msg
+/home/mu/IVG/aubo_ws/devel/include/industrial_msgs/CmdJointTrajectory.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/CmdJointTrajectory.h: /opt/ros/noetic/share/trajectory_msgs/msg/JointTrajectory.msg
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/CmdJointTrajectory.h: /opt/ros/noetic/share/trajectory_msgs/msg/JointTrajectoryPoint.msg
-/home/mu/IVG/aubo_ws/devel/include/industrial_msgs/CmdJointTrajectory.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg
+/home/mu/IVG/aubo_ws/devel/include/industrial_msgs/CmdJointTrajectory.h: /opt/ros/noetic/share/std_msgs/msg/Header.msg
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/CmdJointTrajectory.h: /opt/ros/noetic/share/gencpp/msg.h.template
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/CmdJointTrajectory.h: /opt/ros/noetic/share/gencpp/srv.h.template
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ws/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Generating C++ code from industrial_msgs/CmdJointTrajectory.srv"
@@ -136,8 +136,8 @@ aubo_robot/industrial_core/industrial_msgs/CMakeFiles/industrial_msgs_generate_m
 
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/SetRemoteLoggerLevel.h: /opt/ros/noetic/lib/gencpp/gen_cpp.py
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/SetRemoteLoggerLevel.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/SetRemoteLoggerLevel.srv
-/home/mu/IVG/aubo_ws/devel/include/industrial_msgs/SetRemoteLoggerLevel.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/DebugLevel.msg
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/SetRemoteLoggerLevel.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg
+/home/mu/IVG/aubo_ws/devel/include/industrial_msgs/SetRemoteLoggerLevel.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/DebugLevel.msg
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/SetRemoteLoggerLevel.h: /opt/ros/noetic/share/gencpp/msg.h.template
 /home/mu/IVG/aubo_ws/devel/include/industrial_msgs/SetRemoteLoggerLevel.h: /opt/ros/noetic/share/gencpp/srv.h.template
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ws/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Generating C++ code from industrial_msgs/SetRemoteLoggerLevel.srv"

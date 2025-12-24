@@ -49,7 +49,7 @@ add_custom_target(_industrial_msgs_generate_messages_check_deps_${_filename}
 
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/CmdJointTrajectory.srv" NAME_WE)
 add_custom_target(_industrial_msgs_generate_messages_check_deps_${_filename}
-  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "industrial_msgs" "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/CmdJointTrajectory.srv" "std_msgs/Header:trajectory_msgs/JointTrajectory:trajectory_msgs/JointTrajectoryPoint:industrial_msgs/ServiceReturnCode"
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "industrial_msgs" "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/CmdJointTrajectory.srv" "industrial_msgs/ServiceReturnCode:trajectory_msgs/JointTrajectory:trajectory_msgs/JointTrajectoryPoint:std_msgs/Header"
 )
 
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/GetRobotInfo.srv" NAME_WE)
@@ -64,7 +64,7 @@ add_custom_target(_industrial_msgs_generate_messages_check_deps_${_filename}
 
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/SetRemoteLoggerLevel.srv" NAME_WE)
 add_custom_target(_industrial_msgs_generate_messages_check_deps_${_filename}
-  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "industrial_msgs" "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/SetRemoteLoggerLevel.srv" "industrial_msgs/DebugLevel:industrial_msgs/ServiceReturnCode"
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "industrial_msgs" "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/SetRemoteLoggerLevel.srv" "industrial_msgs/ServiceReturnCode:industrial_msgs/DebugLevel"
 )
 
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/StartMotion.srv" NAME_WE)
@@ -124,7 +124,7 @@ _generate_msg_cpp(industrial_msgs
 _generate_srv_cpp(industrial_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/CmdJointTrajectory.srv"
   "${MSG_I_FLAGS}"
-  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg"
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/industrial_msgs
 )
 _generate_srv_cpp(industrial_msgs
@@ -142,7 +142,7 @@ _generate_srv_cpp(industrial_msgs
 _generate_srv_cpp(industrial_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/SetRemoteLoggerLevel.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/DebugLevel.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg"
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/DebugLevel.msg"
   ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/industrial_msgs
 )
 _generate_srv_cpp(industrial_msgs
@@ -245,7 +245,7 @@ _generate_msg_eus(industrial_msgs
 _generate_srv_eus(industrial_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/CmdJointTrajectory.srv"
   "${MSG_I_FLAGS}"
-  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg"
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/industrial_msgs
 )
 _generate_srv_eus(industrial_msgs
@@ -263,7 +263,7 @@ _generate_srv_eus(industrial_msgs
 _generate_srv_eus(industrial_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/SetRemoteLoggerLevel.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/DebugLevel.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg"
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/DebugLevel.msg"
   ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/industrial_msgs
 )
 _generate_srv_eus(industrial_msgs
@@ -366,7 +366,7 @@ _generate_msg_lisp(industrial_msgs
 _generate_srv_lisp(industrial_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/CmdJointTrajectory.srv"
   "${MSG_I_FLAGS}"
-  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg"
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/industrial_msgs
 )
 _generate_srv_lisp(industrial_msgs
@@ -384,7 +384,7 @@ _generate_srv_lisp(industrial_msgs
 _generate_srv_lisp(industrial_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/SetRemoteLoggerLevel.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/DebugLevel.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg"
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/DebugLevel.msg"
   ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/industrial_msgs
 )
 _generate_srv_lisp(industrial_msgs
@@ -487,7 +487,7 @@ _generate_msg_nodejs(industrial_msgs
 _generate_srv_nodejs(industrial_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/CmdJointTrajectory.srv"
   "${MSG_I_FLAGS}"
-  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg"
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/industrial_msgs
 )
 _generate_srv_nodejs(industrial_msgs
@@ -505,7 +505,7 @@ _generate_srv_nodejs(industrial_msgs
 _generate_srv_nodejs(industrial_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/SetRemoteLoggerLevel.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/DebugLevel.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg"
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/DebugLevel.msg"
   ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/industrial_msgs
 )
 _generate_srv_nodejs(industrial_msgs
@@ -608,7 +608,7 @@ _generate_msg_py(industrial_msgs
 _generate_srv_py(industrial_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/CmdJointTrajectory.srv"
   "${MSG_I_FLAGS}"
-  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg"
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/opt/ros/noetic/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/industrial_msgs
 )
 _generate_srv_py(industrial_msgs
@@ -626,7 +626,7 @@ _generate_srv_py(industrial_msgs
 _generate_srv_py(industrial_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/SetRemoteLoggerLevel.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/DebugLevel.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg"
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/DebugLevel.msg"
   ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/industrial_msgs
 )
 _generate_srv_py(industrial_msgs

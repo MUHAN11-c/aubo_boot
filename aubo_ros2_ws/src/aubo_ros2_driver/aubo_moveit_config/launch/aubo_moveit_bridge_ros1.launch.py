@@ -210,7 +210,18 @@ def launch_setup(context, *args, **kwargs):
         package="aubo_ros2_trajectory_action",
         executable="aubo_ros2_trajectory_action",
         output="screen",
-        parameters=[joint_names_yaml],
+        parameters=[
+            joint_names_yaml,
+            {
+                # 速度缩放因子：控制轨迹执行速度
+                # 范围：0.0 - 1.0
+                # 1.0 = 100% 速度（不缩放）
+                # 0.5 = 50% 速度（减慢一半）
+                # 0.3 = 30% 速度（更慢，更安全）
+                # 建议值：0.3-0.5，根据实际测试调整
+                "velocity_scale_factor": 0.5,  # 默认设置为 50% 速度，避免超速
+            }
+        ],
     )
     
     # Feedback bridge node: 将 aubo_msgs/msg/JointTrajectoryFeedback 转换为 
@@ -222,28 +233,32 @@ def launch_setup(context, *args, **kwargs):
         output="screen",
         parameters=[{
             "input_topic": "feedback_states",  # 从 ROS 1 桥接过来的话题
-            "output_topic": "aubo/feedback_states",  # 发布给 ROS 2 节点的话题
+            "output_topic": "aubo/feedback_states",  # 发布给 ROS 2 节点的话题（与 aubo_ros2_trajectory_action 订阅的话题一致）
         }],
     )
     
-    # 启动控制器（参考 moveit2_tutorials demo.launch.py 的方式）
-    # 使用 TimerAction 延迟启动控制器，增加超时时间以确保controller_manager已启动
-    # 注意：joint_state 由真实机械臂发布，不需要 joint_state_broadcaster
-    trajectory_controller_spawner = TimerAction(
-        period=3.0,
-        actions=[
-            ExecuteProcess(
-                cmd=["ros2 run controller_manager spawner.py joint_trajectory_controller --controller-manager-timeout 20"],
-                shell=True,
-                output="screen",
-            )
-        ]
-    )
+    # 注意：在桥接 ROS 1 的场景中，不需要启动 ROS 2 Control 的 joint_trajectory_controller
+    # 因为 aubo_ros2_trajectory_action 会监听 /joint_trajectory_controller/follow_joint_trajectory
+    # 并将轨迹发布到 /moveItController_cmd，由 ROS 1 端的 aubo_driver 执行
+    # 如果同时启动 joint_trajectory_controller，会导致 action server 冲突
+    # trajectory_controller_spawner = TimerAction(
+    #     period=3.0,
+    #     actions=[
+    #         ExecuteProcess(
+    #             cmd=["ros2 run controller_manager spawner.py joint_trajectory_controller --controller-manager-timeout 20"],
+    #             shell=True,
+    #             output="screen",
+    #         )
+    #     ]
+    # )
     
     nodes_to_start = [
-        controller_manager_node,
-        trajectory_controller_spawner,
-        aubo_trajectory_action_node,
+        # 注意：虽然不使用 ROS 2 Control 的 joint_trajectory_controller，
+        # 但 MoveIt 可能仍需要 controller_manager 来管理控制器状态
+        # 如果 MoveIt 报错找不到 controller_manager，可以取消下面的注释
+        # controller_manager_node,
+        # trajectory_controller_spawner,  # 不需要启动 joint_trajectory_controller
+        aubo_trajectory_action_node,  # 这个节点会监听 /joint_trajectory_controller/follow_joint_trajectory
         feedback_bridge_node,
     ]
     
@@ -253,6 +268,9 @@ def launch_setup(context, *args, **kwargs):
         static_tf_node,
         move_group_node,
         rviz_node,
+        # 注意：Demo Driver 服务节点已分离到独立的 launch 文件
+        # 使用以下命令单独启动：
+        # ros2 launch aubo_moveit_config demo_driver_services.launch.py
     ])
     
     return nodes_to_start

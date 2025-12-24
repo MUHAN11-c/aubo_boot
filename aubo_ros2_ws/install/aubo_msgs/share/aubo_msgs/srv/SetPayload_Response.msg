@@ -1,2 +1,1 @@
-
-bool success
+/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_cmake/srv/SetPayload_Response.msg

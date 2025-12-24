@@ -3678,95 +3678,17 @@ aubo_planner_test/fast:
 .PHONY : aubo_planner_test/fast
 
 #=============================================================================
-# Target rules for targets named demo_driver
+# Target rules for targets named read_robot_io_server_node
 
 # Build rule for target.
-demo_driver: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 demo_driver
-.PHONY : demo_driver
+read_robot_io_server_node: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 read_robot_io_server_node
+.PHONY : read_robot_io_server_node
 
 # fast build rule for target.
-demo_driver/fast:
-	$(MAKE) -f aubo_robot/aubo_robot/demo_driver/CMakeFiles/demo_driver.dir/build.make aubo_robot/aubo_robot/demo_driver/CMakeFiles/demo_driver.dir/build
-.PHONY : demo_driver/fast
-
-#=============================================================================
-# Target rules for targets named get_current_state_server_node
-
-# Build rule for target.
-get_current_state_server_node: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 get_current_state_server_node
-.PHONY : get_current_state_server_node
-
-# fast build rule for target.
-get_current_state_server_node/fast:
-	$(MAKE) -f aubo_robot/aubo_robot/demo_driver/CMakeFiles/get_current_state_server_node.dir/build.make aubo_robot/aubo_robot/demo_driver/CMakeFiles/get_current_state_server_node.dir/build
-.PHONY : get_current_state_server_node/fast
-
-#=============================================================================
-# Target rules for targets named robot_io_status_publisher_node
-
-# Build rule for target.
-robot_io_status_publisher_node: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 robot_io_status_publisher_node
-.PHONY : robot_io_status_publisher_node
-
-# fast build rule for target.
-robot_io_status_publisher_node/fast:
-	$(MAKE) -f aubo_robot/aubo_robot/demo_driver/CMakeFiles/robot_io_status_publisher_node.dir/build.make aubo_robot/aubo_robot/demo_driver/CMakeFiles/robot_io_status_publisher_node.dir/build
-.PHONY : robot_io_status_publisher_node/fast
-
-#=============================================================================
-# Target rules for targets named set_robot_enable_server_node
-
-# Build rule for target.
-set_robot_enable_server_node: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 set_robot_enable_server_node
-.PHONY : set_robot_enable_server_node
-
-# fast build rule for target.
-set_robot_enable_server_node/fast:
-	$(MAKE) -f aubo_robot/aubo_robot/demo_driver/CMakeFiles/set_robot_enable_server_node.dir/build.make aubo_robot/aubo_robot/demo_driver/CMakeFiles/set_robot_enable_server_node.dir/build
-.PHONY : set_robot_enable_server_node/fast
-
-#=============================================================================
-# Target rules for targets named execute_trajectory_server_node
-
-# Build rule for target.
-execute_trajectory_server_node: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 execute_trajectory_server_node
-.PHONY : execute_trajectory_server_node
-
-# fast build rule for target.
-execute_trajectory_server_node/fast:
-	$(MAKE) -f aubo_robot/aubo_robot/demo_driver/CMakeFiles/execute_trajectory_server_node.dir/build.make aubo_robot/aubo_robot/demo_driver/CMakeFiles/execute_trajectory_server_node.dir/build
-.PHONY : execute_trajectory_server_node/fast
-
-#=============================================================================
-# Target rules for targets named plan_trajectory_server_node
-
-# Build rule for target.
-plan_trajectory_server_node: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 plan_trajectory_server_node
-.PHONY : plan_trajectory_server_node
-
-# fast build rule for target.
-plan_trajectory_server_node/fast:
-	$(MAKE) -f aubo_robot/aubo_robot/demo_driver/CMakeFiles/plan_trajectory_server_node.dir/build.make aubo_robot/aubo_robot/demo_driver/CMakeFiles/plan_trajectory_server_node.dir/build
-.PHONY : plan_trajectory_server_node/fast
-
-#=============================================================================
-# Target rules for targets named set_speed_factor_server_node
-
-# Build rule for target.
-set_speed_factor_server_node: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 set_speed_factor_server_node
-.PHONY : set_speed_factor_server_node
-
-# fast build rule for target.
-set_speed_factor_server_node/fast:
-	$(MAKE) -f aubo_robot/aubo_robot/demo_driver/CMakeFiles/set_speed_factor_server_node.dir/build.make aubo_robot/aubo_robot/demo_driver/CMakeFiles/set_speed_factor_server_node.dir/build
-.PHONY : set_speed_factor_server_node/fast
+read_robot_io_server_node/fast:
+	$(MAKE) -f aubo_robot/aubo_robot/demo_driver/CMakeFiles/read_robot_io_server_node.dir/build.make aubo_robot/aubo_robot/demo_driver/CMakeFiles/read_robot_io_server_node.dir/build
+.PHONY : read_robot_io_server_node/fast
 
 #=============================================================================
 # Target rules for targets named set_robot_io_server_node
@@ -3782,30 +3704,30 @@ set_robot_io_server_node/fast:
 .PHONY : set_robot_io_server_node/fast
 
 #=============================================================================
-# Target rules for targets named move_to_pose_server_node
+# Target rules for targets named set_robot_enable_server_node
 
 # Build rule for target.
-move_to_pose_server_node: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 move_to_pose_server_node
-.PHONY : move_to_pose_server_node
+set_robot_enable_server_node: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 set_robot_enable_server_node
+.PHONY : set_robot_enable_server_node
 
 # fast build rule for target.
-move_to_pose_server_node/fast:
-	$(MAKE) -f aubo_robot/aubo_robot/demo_driver/CMakeFiles/move_to_pose_server_node.dir/build.make aubo_robot/aubo_robot/demo_driver/CMakeFiles/move_to_pose_server_node.dir/build
-.PHONY : move_to_pose_server_node/fast
+set_robot_enable_server_node/fast:
+	$(MAKE) -f aubo_robot/aubo_robot/demo_driver/CMakeFiles/set_robot_enable_server_node.dir/build.make aubo_robot/aubo_robot/demo_driver/CMakeFiles/set_robot_enable_server_node.dir/build
+.PHONY : set_robot_enable_server_node/fast
 
 #=============================================================================
-# Target rules for targets named read_robot_io_server_node
+# Target rules for targets named robot_io_status_publisher_node
 
 # Build rule for target.
-read_robot_io_server_node: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 read_robot_io_server_node
-.PHONY : read_robot_io_server_node
+robot_io_status_publisher_node: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 robot_io_status_publisher_node
+.PHONY : robot_io_status_publisher_node
 
 # fast build rule for target.
-read_robot_io_server_node/fast:
-	$(MAKE) -f aubo_robot/aubo_robot/demo_driver/CMakeFiles/read_robot_io_server_node.dir/build.make aubo_robot/aubo_robot/demo_driver/CMakeFiles/read_robot_io_server_node.dir/build
-.PHONY : read_robot_io_server_node/fast
+robot_io_status_publisher_node/fast:
+	$(MAKE) -f aubo_robot/aubo_robot/demo_driver/CMakeFiles/robot_io_status_publisher_node.dir/build.make aubo_robot/aubo_robot/demo_driver/CMakeFiles/robot_io_status_publisher_node.dir/build
+.PHONY : robot_io_status_publisher_node/fast
 
 #=============================================================================
 # Target rules for targets named robot_status_publisher_node
@@ -3819,6 +3741,19 @@ robot_status_publisher_node: cmake_check_build_system
 robot_status_publisher_node/fast:
 	$(MAKE) -f aubo_robot/aubo_robot/demo_driver/CMakeFiles/robot_status_publisher_node.dir/build.make aubo_robot/aubo_robot/demo_driver/CMakeFiles/robot_status_publisher_node.dir/build
 .PHONY : robot_status_publisher_node/fast
+
+#=============================================================================
+# Target rules for targets named demo_driver
+
+# Build rule for target.
+demo_driver: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 demo_driver
+.PHONY : demo_driver
+
+# fast build rule for target.
+demo_driver/fast:
+	$(MAKE) -f aubo_robot/aubo_robot/demo_driver/CMakeFiles/demo_driver.dir/build.make aubo_robot/aubo_robot/demo_driver/CMakeFiles/demo_driver.dir/build
+.PHONY : demo_driver/fast
 
 # Help Target
 help:
@@ -4103,17 +4038,12 @@ help:
 	@echo "... aubo_i3_kinematic"
 	@echo "... aubo_joint_trajectory_action"
 	@echo "... aubo_planner_test"
-	@echo "... demo_driver"
-	@echo "... get_current_state_server_node"
-	@echo "... robot_io_status_publisher_node"
-	@echo "... set_robot_enable_server_node"
-	@echo "... execute_trajectory_server_node"
-	@echo "... plan_trajectory_server_node"
-	@echo "... set_speed_factor_server_node"
-	@echo "... set_robot_io_server_node"
-	@echo "... move_to_pose_server_node"
 	@echo "... read_robot_io_server_node"
+	@echo "... set_robot_io_server_node"
+	@echo "... set_robot_enable_server_node"
+	@echo "... robot_io_status_publisher_node"
 	@echo "... robot_status_publisher_node"
+	@echo "... demo_driver"
 .PHONY : help
 
 

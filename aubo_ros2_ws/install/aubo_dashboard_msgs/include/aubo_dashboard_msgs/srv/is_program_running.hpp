@@ -1,12 +1,1 @@
-// generated from rosidl_generator_cpp/resource/idl.hpp.em
-// generated code does not contain a copyright notice
-
-#ifndef AUBO_DASHBOARD_MSGS__SRV__IS_PROGRAM_RUNNING_HPP_
-#define AUBO_DASHBOARD_MSGS__SRV__IS_PROGRAM_RUNNING_HPP_
-
-#include "aubo_dashboard_msgs/srv/detail/is_program_running__struct.hpp"
-#include "aubo_dashboard_msgs/srv/detail/is_program_running__builder.hpp"
-#include "aubo_dashboard_msgs/srv/detail/is_program_running__traits.hpp"
-#include "aubo_dashboard_msgs/srv/detail/is_program_running__type_support.hpp"
-
-#endif  // AUBO_DASHBOARD_MSGS__SRV__IS_PROGRAM_RUNNING_HPP_
+/home/mu/IVG/aubo_ros2_ws/build/aubo_dashboard_msgs/rosidl_generator_cpp/aubo_dashboard_msgs/srv/is_program_running.hpp

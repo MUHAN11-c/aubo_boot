@@ -1,5 +1,1 @@
-#pragma once
-#include <string>
-
-bool TextHuffmanCompression(const std::string& text, std::string& result);
-bool TextHuffmanDecompression(const std::string& huffman, std::string& text);
+/home/mu/IVG/aubo_ros2_ws/src/camport_ros2/src/percipio_camera/include/huffman.h

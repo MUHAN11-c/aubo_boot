@@ -23,7 +23,15 @@ JointTrajectoryAction::JointTrajectoryAction(std::string controller_name):Node("
     RCLCPP_INFO(this->get_logger(), "joint name %d %s", i, joint_names[i].c_str());
   }
 
-  moveit_controller_pub_ = this->create_publisher<trajectory_msgs::msg::JointTrajectoryPoint>("/aubo_robot/moveit_controller", 5000);
+  // 声明并获取速度缩放因子参数（默认值为 1.0，表示不缩放）
+  // 可以设置为 0.1-1.0 之间的值来减慢运动速度，例如 0.5 表示 50% 速度
+  this->declare_parameter<double>("velocity_scale_factor", 1.0);
+  double velocity_scale_factor = this->get_parameter("velocity_scale_factor").as_double();
+  RCLCPP_INFO(this->get_logger(), "Velocity scale factor: %f", velocity_scale_factor);
+
+  // 发布完整轨迹到 joint_path_command，由 ROS 1 端的 aubo_joint_trajectory_action 或 aubo_robot_simulator 接收
+  // ros1_bridge 会自动桥接 trajectory_msgs::JointTrajectory 消息
+  trajectory_command_pub_ = this->create_publisher<trajectory_msgs::msg::JointTrajectory>("joint_path_command", 100);
   fjt_feedback_sub_ = this->create_subscription<control_msgs::action::FollowJointTrajectory_Feedback>(
     "aubo/feedback_states", 10, std::bind(&JointTrajectoryAction::fjtFeedbackCallback, this, _1));
   moveit_execution_sub_ = this->create_subscription<std_msgs::msg::String>(
@@ -121,8 +129,8 @@ void JointTrajectoryAction::handleAccept(const std::shared_ptr<GoalHandleFjt> go
   current_trajectory_ = goal_handle->get_goal()->trajectory;
   has_active_goal_ = true;
 
-  std::thread calculateThread(std::bind(&JointTrajectoryAction::calculateMotionTrajectory, this));
-  calculateThread.detach();
+  // 直接发布完整轨迹，插补在 ROS 1 端完成
+  publishTrajectory();
 
   return;
 }
@@ -137,97 +145,68 @@ void JointTrajectoryAction::abortActiveGoal()
   trajectory_state_recvd_ = false;
 }
 
-void JointTrajectoryAction::calculateMotionTrajectory()
+void JointTrajectoryAction::publishTrajectory()
 {
-  RCLCPP_INFO(this->get_logger(), "calculate trajectory and publish motion trajectory point");
+  RCLCPP_INFO(this->get_logger(), "Publishing complete trajectory to ROS 1 for interpolation");
 
-  std::queue<trajectory_msgs::msg::JointTrajectoryPoint> motion_buffer, plan_motion_buffer;
-
-  //sometimes current_trajectory.joint_names order: foreArm_joint, shoulder_joint, upperArm_joint, wrist1_joint, wrist2_joint, wrist3_joint
-  //will change order: shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint
-
+  // 重映射关节顺序（如果需要）
+  // sometimes current_trajectory.joint_names order: foreArm_joint, shoulder_joint, upperArm_joint, wrist1_joint, wrist2_joint, wrist3_joint
+  // will change order: shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint
   trajectory_msgs::msg::JointTrajectory remap_traj = remapTrajectoryByJointName(current_trajectory_);
-
   current_trajectory_ = remap_traj;
 
-  trajectory_msgs::msg::JointTrajectory uniform_filter_traj;
-  UniformSampleFilter uniform_filter;
-  if (uniform_filter.update(remap_traj, uniform_filter_traj))
+  // ========== 速度缩放处理（可选）==========
+  // 获取速度缩放因子（从参数服务器，支持运行时修改）
+  double velocity_scale_factor = this->get_parameter("velocity_scale_factor").as_double();
+  
+  // 如果缩放因子不是 1.0 且有效，对轨迹进行速度缩放
+  if (velocity_scale_factor != 1.0 && velocity_scale_factor > 0.0 && velocity_scale_factor <= 1.0)
   {
-    RCLCPP_INFO(this->get_logger(), "uniform filter trajectory: %ld time from start: %f", uniform_filter_traj.points.size(), toSec(uniform_filter_traj.points.back().time_from_start));
-    for (auto point : uniform_filter_traj.points)
-      moveit_controller_pub_->publish(point);
-    return;
-  }
-
-  for(uint64_t i = 0; i < remap_traj.points.size(); i++)
-  {
-    trajectory_msgs::msg::JointTrajectoryPoint point = remap_traj.points[i];
-    motion_buffer.push(point);
-  }
-
-  RCLCPP_INFO(this->get_logger(), "trajectory: %ld time from start: %f", remap_traj.points.size(), toSec(remap_traj.points.back().time_from_start));
-
-  double T, T2, T3, T4, T5, tt, ti, t1, t2, t3, t4, t5;
-  double a1[6], a2[6], a3[6], a4[6], a5[6], h[6];
-
-  trajectory_msgs::msg::JointTrajectoryPoint last_goal_point, current_goal_point, intermediate_goal_point;
-  intermediate_goal_point.positions.resize(6);
-  intermediate_goal_point.velocities.resize(6);
-  intermediate_goal_point.accelerations.resize(6);
-
-  last_goal_point = motion_buffer.front();
-
-  int motion_size = motion_buffer.size();
-
-  for (int i = 0; i < motion_size - 1; i++)
-  {
-    motion_buffer.pop();
-    current_goal_point = motion_buffer.front();
-
-    T = toSec(current_goal_point.time_from_start) - toSec(last_goal_point.time_from_start);
-    memcpy(a1, &last_goal_point.velocities[0], 6 * sizeof(double));
-    T2 = T * T;
-    T3 = T2 * T;
-    T4 = T3 * T;
-    T5 = T4 * T;
-    for (int j = 0; j < 6; j++)
+    RCLCPP_INFO(this->get_logger(), "Scaling trajectory velocity by factor: %f", velocity_scale_factor);
+    
+    for (auto& point : current_trajectory_.points)
     {
-      a2[j] = 0.5 * last_goal_point.accelerations[j];
-      h[j] = current_goal_point.positions[j] - last_goal_point.positions[j];
-      a3[j] = 0.5 / T3 * (20 * h[j] - (8 * current_goal_point.velocities[j] + 12 * last_goal_point.velocities[j]) * T - (3 * last_goal_point.accelerations[j] - current_goal_point.accelerations[j]) * T2);
-      a4[j] = 0.5 / T4 * (-30 * h[j] + (14 * current_goal_point.velocities[j] + 16 * last_goal_point.velocities[j]) * T + (3 * last_goal_point.accelerations[j] - 2 * current_goal_point.accelerations[j]) * T2);
-      a5[j] = 0.5 / T5 * (12 * h[j] - 6 * (current_goal_point.velocities[j] + last_goal_point.velocities[j]) * T + (current_goal_point.accelerations[j] - last_goal_point.accelerations[j]) * T2);
-    }
-    tt = toSec(last_goal_point.time_from_start);
-    ti = tt;
-    while (tt < toSec(current_goal_point.time_from_start))
-    {
-      t1 = tt - ti;
-      t2 = t1 * t1;
-      t3 = t2 * t1;
-      t4 = t3 * t1;
-      t5 = t4 * t1;
-      for (int j = 0; j < 6; j++)
+      // 缩放时间：time_from_start = time_from_start / scale
+      // 这样轨迹执行时间会变长，速度会变慢
+      double time_sec = toSec(point.time_from_start);
+      point.time_from_start = toDuration(time_sec / velocity_scale_factor);
+      
+      // 缩放速度和加速度（如果存在）
+      // 速度：velocities = velocities * scale
+      // 加速度：accelerations = accelerations * scale * scale
+      if (!point.velocities.empty())
       {
-        intermediate_goal_point.positions[j] = last_goal_point.positions[j] + a1[j] * t1 + a2[j] * t2 + a3[j] * t3 + a4[j] * t4 + a5[j] * t5;
-        intermediate_goal_point.velocities[j] = a1[j] + 2 * a2[j] * t1 + 3 * a3[j] * t2 + 4 * a4[j] * t3 + 5 * a5[j] * t4;
-        intermediate_goal_point.accelerations[j] = 2 * a2[j] + 6 * a3[j] * t1 + 12 * a4[j] * t2 + 20 * a5[j] * t3;
+        for (size_t j = 0; j < point.velocities.size(); j++)
+        {
+          point.velocities[j] *= velocity_scale_factor;
+        }
       }
-      tt += DEFAULT_SAMPLE_DURATION;
-
-      plan_motion_buffer.push(intermediate_goal_point);
-
-      if (has_active_goal_)
-        moveit_controller_pub_->publish(intermediate_goal_point);  
+      if (!point.accelerations.empty())
+      {
+        for (size_t j = 0; j < point.accelerations.size(); j++)
+        {
+          point.accelerations[j] *= velocity_scale_factor * velocity_scale_factor;
+        }
+      }
     }
-    plan_motion_buffer.push(current_goal_point);
-    last_goal_point = current_goal_point;
-    if (has_active_goal_)
-      moveit_controller_pub_->publish(current_goal_point);
+    double original_time = toSec(current_trajectory_.points.back().time_from_start) * velocity_scale_factor;
+    double scaled_time = toSec(current_trajectory_.points.back().time_from_start);
+    RCLCPP_INFO(this->get_logger(), "Trajectory scaled: %zu points, original time: %f s, scaled time: %f s (scale factor: %f)", 
+                current_trajectory_.points.size(), 
+                original_time,
+                scaled_time,
+                velocity_scale_factor);
+  }
+  else if (velocity_scale_factor <= 0.0 || velocity_scale_factor > 1.0)
+  {
+    RCLCPP_WARN(this->get_logger(), "Invalid velocity_scale_factor: %f (must be 0.0-1.0), using 1.0", velocity_scale_factor);
   }
 
-  RCLCPP_INFO(this->get_logger(), "send trajectory %ld trajectory point finished", plan_motion_buffer.size());
+  // 直接发布完整轨迹到 joint_path_command
+  // ROS 1 端的 aubo_joint_trajectory_action 或 aubo_robot_simulator 会接收并处理插补
+  trajectory_command_pub_->publish(current_trajectory_);
+  RCLCPP_INFO(this->get_logger(), "Published complete trajectory with %zu points to joint_path_command", 
+              current_trajectory_.points.size());
 }
 
 bool JointTrajectoryAction::isSimilar(std::vector<std::string> lhs, std::vector<std::string> rhs)
@@ -244,6 +223,14 @@ bool JointTrajectoryAction::isSimilar(std::vector<std::string> lhs, std::vector<
 double JointTrajectoryAction::toSec(const builtin_interfaces::msg::Duration &duration)
 {
   return (double)duration.sec + 1e-9*(double)duration.nanosec;
+}
+
+builtin_interfaces::msg::Duration JointTrajectoryAction::toDuration(double time_in_seconds)
+{
+  builtin_interfaces::msg::Duration duration;
+  duration.sec = static_cast<int32_t>(time_in_seconds);
+  duration.nanosec = static_cast<uint32_t>((time_in_seconds - duration.sec) * 1e9);
+  return duration;
 }
 
 bool JointTrajectoryAction::checkReachTarget(const control_msgs::action::FollowJointTrajectory_Feedback::ConstSharedPtr feedback, const trajectory_msgs::msg::JointTrajectory &traj)

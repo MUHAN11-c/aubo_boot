@@ -1,12 +1,1 @@
-// generated from rosidl_generator_c/resource/idl.h.em
-// with input from aubo_msgs:msg/MasterboardDataMsg.idl
-// generated code does not contain a copyright notice
-
-#ifndef AUBO_MSGS__MSG__MASTERBOARD_DATA_MSG_H_
-#define AUBO_MSGS__MSG__MASTERBOARD_DATA_MSG_H_
-
-#include "aubo_msgs/msg/detail/masterboard_data_msg__struct.h"
-#include "aubo_msgs/msg/detail/masterboard_data_msg__functions.h"
-#include "aubo_msgs/msg/detail/masterboard_data_msg__type_support.h"
-
-#endif  // AUBO_MSGS__MSG__MASTERBOARD_DATA_MSG_H_
+/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/masterboard_data_msg.h

@@ -28,9 +28,11 @@ public:
     SetSpeedFactorServer();  // 构造函数
     ~SetSpeedFactorServer(); // 析构函数
 
+    bool initialize(int max_retries = 10, int retry_delay_seconds = 2);  // 初始化 MoveIt 接口（在节点创建为 shared_ptr 后调用，带重试机制）
     void spin();  // 主循环，保持节点运行
 
 private:
+    bool wait_for_robot_description(int timeout_seconds = 30);  // 等待并从其他节点复制 robot_description 参数
     // MoveIt 接口
     std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;  // MoveIt 运动组接口
     std::shared_ptr<moveit::planning_interface::PlanningSceneInterface> planning_scene_interface_;  // 规划场景接口

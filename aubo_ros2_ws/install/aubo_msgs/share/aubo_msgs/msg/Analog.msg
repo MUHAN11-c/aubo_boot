@@ -1,6 +1,1 @@
-uint8 CURRENT=0
-uint8 VOLTAGE=1
-
-uint8 pin
-uint8 domain # can be VOLTAGE or CURRENT
-float32 state
+/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_msgs/msg/Analog.msg

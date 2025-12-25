@@ -16,6 +16,7 @@
 #include <moveit/robot_state/conversions.h>
 #include <moveit_msgs/msg/robot_trajectory.hpp>
 #include <chrono>
+#include <thread>
 
 namespace demo_driver
 {
@@ -23,8 +24,8 @@ namespace demo_driver
 /**
  * @brief 构造函数，初始化 MoveIt 接口和服务服务器
  */
-PlanTrajectoryServer::PlanTrajectoryServer()
-    : Node("plan_trajectory_server_node")
+PlanTrajectoryServer::PlanTrajectoryServer(const rclcpp::NodeOptions& options)
+    : Node("plan_trajectory_server_node", options)
     , planning_group_name_("manipulator")
     , base_frame_("base_link")
     , end_effector_link_("")
@@ -48,39 +49,15 @@ bool PlanTrajectoryServer::wait_for_robot_description(int timeout_seconds)
 {
     RCLCPP_INFO(this->get_logger(), "Waiting for robot_description parameter and MoveIt2 services...");
     
+    // 检查参数是否已通过 launch 文件传递（使用 automatically_declare_parameters_from_overrides）
+    if (!this->has_parameter("robot_description") || !this->has_parameter("robot_description_semantic")) {
+        RCLCPP_WARN(this->get_logger(), "robot_description or robot_description_semantic parameter not found. Make sure they are passed via launch file.");
+    } else {
+        RCLCPP_INFO(this->get_logger(), "robot_description parameters found on local parameter server");
+    }
+    
     auto start_time = std::chrono::steady_clock::now();
     int check_count = 0;
-    
-    std::vector<std::string> source_nodes = {"/move_group", "/robot_state_publisher"};
-    bool param_copied = false;
-    
-    for (const auto& source_node : source_nodes) {
-        try {
-            auto remote_param_client = std::make_shared<rclcpp::SyncParametersClient>(
-                shared_from_this(), source_node);
-            
-            if (remote_param_client->wait_for_service(std::chrono::seconds(2))) {
-                std::vector<rclcpp::Parameter> params = remote_param_client->get_parameters(
-                    {"robot_description", "robot_description_semantic"});
-                
-                if (!params.empty()) {
-                    for (const auto& param : params) {
-                        this->declare_parameter(param.get_name(), param.get_parameter_value());
-                        this->set_parameter(param);
-                    }
-                    param_copied = true;
-                    RCLCPP_INFO(this->get_logger(), "Successfully copied robot_description parameter from %s node", source_node.c_str());
-                    break;
-                }
-            }
-        } catch (const std::exception& e) {
-            RCLCPP_DEBUG(this->get_logger(), "Failed to get param from source %s: %s", source_node.c_str(), e.what());
-        }
-    }
-    
-    if (!param_copied) {
-        RCLCPP_WARN(this->get_logger(), "Could not get robot_description parameter from other nodes, will try to use MoveGroupInterface directly");
-    }
     
     while (rclcpp::ok())
     {
@@ -101,6 +78,7 @@ bool PlanTrajectoryServer::wait_for_robot_description(int timeout_seconds)
         catch (const std::exception& e)
         {
             check_count++;
+            
             if (check_count % 10 == 0)
             {
                 auto elapsed_seconds = std::chrono::duration_cast<std::chrono::seconds>(
@@ -403,8 +381,10 @@ int main(int argc, char** argv)
 
     try
     {
-        // 创建规划轨迹服务服务器对象
-        auto server = std::make_shared<demo_driver::PlanTrajectoryServer>();
+        // 创建规划轨迹服务服务器对象，使用 automatically_declare_parameters_from_overrides 自动声明参数
+        rclcpp::NodeOptions node_options;
+        node_options.automatically_declare_parameters_from_overrides(true);
+        auto server = std::make_shared<demo_driver::PlanTrajectoryServer>(node_options);
         RCLCPP_INFO(server->get_logger(), "Plan Trajectory Server node created");
         
         // 初始化 MoveIt 接口（在节点创建为 shared_ptr 后）

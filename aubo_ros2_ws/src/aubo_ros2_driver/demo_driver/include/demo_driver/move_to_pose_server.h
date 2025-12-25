@@ -25,7 +25,7 @@ namespace demo_driver
 class MoveToPoseServer : public rclcpp::Node
 {
 public:
-    MoveToPoseServer();  // 构造函数
+    explicit MoveToPoseServer(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());  // 构造函数
     ~MoveToPoseServer(); // 析构函数
 
     bool initialize(int max_retries = 10, int retry_delay_seconds = 2);  // 初始化 MoveIt 接口（在节点创建为 shared_ptr 后调用，带重试机制）

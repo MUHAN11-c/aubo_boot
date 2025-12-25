@@ -80,8 +80,8 @@ aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/aubo_msgs_generate_messages_py: /home
 
 /home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/aubo_msgs/msg/_IOState.py: /opt/ros/noetic/lib/genpy/genmsg_py.py
 /home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/aubo_msgs/msg/_IOState.py: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/IOState.msg
-/home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/aubo_msgs/msg/_IOState.py: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Digital.msg
 /home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/aubo_msgs/msg/_IOState.py: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Analog.msg
+/home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/aubo_msgs/msg/_IOState.py: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Digital.msg
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ws/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Generating Python from MSG aubo_msgs/IOState"
 	cd /home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/aubo_msgs && ../../../catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/genpy/cmake/../../../lib/genpy/genmsg_py.py /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/IOState.msg -Iaubo_msgs:/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg -Istd_msgs:/opt/ros/noetic/share/std_msgs/cmake/../msg -Itrajectory_msgs:/opt/ros/noetic/share/trajectory_msgs/cmake/../msg -Igeometry_msgs:/opt/ros/noetic/share/geometry_msgs/cmake/../msg -p aubo_msgs -o /home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/aubo_msgs/msg
 
@@ -102,8 +102,8 @@ aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/aubo_msgs_generate_messages_py: /home
 
 /home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/aubo_msgs/msg/_JointTrajectoryFeedback.py: /opt/ros/noetic/lib/genpy/genmsg_py.py
 /home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/aubo_msgs/msg/_JointTrajectoryFeedback.py: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg
-/home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/aubo_msgs/msg/_JointTrajectoryFeedback.py: /opt/ros/noetic/share/trajectory_msgs/msg/JointTrajectoryPoint.msg
 /home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/aubo_msgs/msg/_JointTrajectoryFeedback.py: /opt/ros/noetic/share/std_msgs/msg/Header.msg
+/home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/aubo_msgs/msg/_JointTrajectoryFeedback.py: /opt/ros/noetic/share/trajectory_msgs/msg/JointTrajectoryPoint.msg
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ws/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Generating Python from MSG aubo_msgs/JointTrajectoryFeedback"
 	cd /home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/aubo_msgs && ../../../catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/genpy/cmake/../../../lib/genpy/genmsg_py.py /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg -Iaubo_msgs:/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg -Istd_msgs:/opt/ros/noetic/share/std_msgs/cmake/../msg -Itrajectory_msgs:/opt/ros/noetic/share/trajectory_msgs/cmake/../msg -Igeometry_msgs:/opt/ros/noetic/share/geometry_msgs/cmake/../msg -p aubo_msgs -o /home/mu/IVG/aubo_ws/devel/lib/python3/dist-packages/aubo_msgs/msg
 

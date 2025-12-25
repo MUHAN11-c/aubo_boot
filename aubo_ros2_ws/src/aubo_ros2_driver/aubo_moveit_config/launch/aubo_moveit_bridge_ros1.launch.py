@@ -177,13 +177,13 @@ def launch_setup(context, *args, **kwargs):
     )
 
     # Static TF
-    static_tf_node = Node(
-        package="tf2_ros",
-        executable="static_transform_publisher",
-        name="static_transform_publisher",
-        output="log",
-        arguments=["0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "world", "base_link"],
-    )
+    # static_tf_node = Node(
+    #     package="tf2_ros",
+    #     executable="static_transform_publisher",
+    #     name="static_transform_publisher",
+    #     output="log",
+    #     arguments=["0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "world", "base_link"],
+    # )
 
     # Publish TF
     robot_state_pub_node = Node(
@@ -226,14 +226,20 @@ def launch_setup(context, *args, **kwargs):
     
     # Feedback bridge node: 将 aubo_msgs/msg/JointTrajectoryFeedback 转换为 
     # control_msgs/action/FollowJointTrajectory_Feedback
+    # 同时桥接 joint_states 消息（从 ROS1 转发到 ROS2）
     feedback_bridge_node = Node(
         package="feedback_bridge",
         executable="feedback_bridge_node",
         name="feedback_bridge",
         output="screen",
         parameters=[{
-            "input_topic": "feedback_states",  # 从 ROS 1 桥接过来的话题
-            "output_topic": "aubo/feedback_states",  # 发布给 ROS 2 节点的话题（与 aubo_ros2_trajectory_action 订阅的话题一致）
+            # Feedback 消息桥接参数
+            "feedback_input_topic": "feedback_states",  # 从 ROS 1 桥接过来的话题
+            "feedback_output_topic": "aubo/feedback_states",  # 发布给 ROS 2 节点的话题（与 aubo_ros2_trajectory_action 订阅的话题一致）
+            # Joint States 消息桥接参数
+            "joint_states_input_topic": "joint_states",  # 从 ROS 1 桥接过来的 joint_states 话题
+            "joint_states_output_topic": "joint_states",  # 发布给 ROS 2 节点的 joint_states 话题
+            "enable_joint_states_bridge": True,  # 启用 joint_states 桥接
         }],
     )
     
@@ -265,7 +271,7 @@ def launch_setup(context, *args, **kwargs):
     # 添加其他必需的节点
     nodes_to_start.extend([
         robot_state_pub_node,
-        static_tf_node,
+        # static_tf_node,
         move_group_node,
         rviz_node,
         # 注意：Demo Driver 服务节点已分离到独立的 launch 文件

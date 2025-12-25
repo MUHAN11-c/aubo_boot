@@ -54,7 +54,7 @@ CMAKE_BINARY_DIR = /home/mu/IVG/aubo_ws/build
 include aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/_aubo_msgs_generate_messages_check_deps_IOState.dir/progress.make
 
 aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/_aubo_msgs_generate_messages_check_deps_IOState:
-	cd /home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/aubo_msgs && ../../../catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/genmsg/cmake/../../../lib/genmsg/genmsg_check_deps.py aubo_msgs /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/IOState.msg aubo_msgs/Digital:aubo_msgs/Analog
+	cd /home/mu/IVG/aubo_ws/build/aubo_robot/aubo_robot/aubo_msgs && ../../../catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/genmsg/cmake/../../../lib/genmsg/genmsg_check_deps.py aubo_msgs /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/IOState.msg aubo_msgs/Analog:aubo_msgs/Digital
 
 _aubo_msgs_generate_messages_check_deps_IOState: aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/_aubo_msgs_generate_messages_check_deps_IOState
 _aubo_msgs_generate_messages_check_deps_IOState: aubo_robot/aubo_robot/aubo_msgs/CMakeFiles/_aubo_msgs_generate_messages_check_deps_IOState.dir/build.make

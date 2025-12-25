@@ -62,7 +62,7 @@ Visualization Manager:
         Center:
           X: 0
           Y: 0
-          Z: 0
+          Z: 0.503
         Size:
           X: 2
           Y: 2
@@ -225,10 +225,17 @@ Visualization Manager:
         Show Robot Visual: true
       Value: true
       Velocity_Scaling_Factor: 0.1
+    - Class: rviz_default_plugins/Axes
+      Enabled: true
+      Length: 1
+      Name: Axes
+      Radius: 0.10000000149011612
+      Reference Frame: <Fixed Frame>
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
-    Fixed Frame: world
+    Fixed Frame: base_link
     Frame Rate: 30
   Name: root
   Tools:
@@ -268,7 +275,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 6.619869709014893
+      Distance: 2.0560879707336426
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -283,10 +290,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5603980422019958
+      Pitch: 0.0703982412815094
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 5.293582439422607
+      Yaw: 3.0485787391662598
     Saved: ~
 Window Geometry:
   Displays:
@@ -306,5 +313,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 2560
-  X: 365
-  Y: 207
+  X: 642
+  Y: 321

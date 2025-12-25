@@ -26,7 +26,7 @@ namespace demo_driver
 class PlanTrajectoryServer : public rclcpp::Node
 {
 public:
-    PlanTrajectoryServer();  // 构造函数
+    explicit PlanTrajectoryServer(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());  // 构造函数
     ~PlanTrajectoryServer(); // 析构函数
 
     bool initialize(int max_retries = 10, int retry_delay_seconds = 2);  // 初始化 MoveIt 接口（在节点创建为 shared_ptr 后调用，带重试机制）

@@ -29,8 +29,8 @@ namespace demo_driver
 /**
  * @brief 构造函数，初始化 MoveIt 接口和服务服务器
  */
-GetCurrentStateServer::GetCurrentStateServer()
-    : Node("get_current_state_server_node")
+GetCurrentStateServer::GetCurrentStateServer(const rclcpp::NodeOptions& options)
+    : Node("get_current_state_server_node", options)
     , joint_states_received_(false)
     , planning_group_name_("manipulator")
     , base_frame_("base_link")
@@ -63,40 +63,15 @@ bool GetCurrentStateServer::wait_for_robot_description(int timeout_seconds)
 {
     RCLCPP_INFO(this->get_logger(), "Waiting for robot_description parameter and MoveIt2 services...");
     
+    // 检查参数是否已通过 launch 文件传递（使用 automatically_declare_parameters_from_overrides）
+    if (!this->has_parameter("robot_description") || !this->has_parameter("robot_description_semantic")) {
+        RCLCPP_WARN(this->get_logger(), "robot_description or robot_description_semantic parameter not found. Make sure they are passed via launch file.");
+    } else {
+        RCLCPP_INFO(this->get_logger(), "robot_description parameters found on local parameter server");
+    }
+    
     auto start_time = std::chrono::steady_clock::now();
     int check_count = 0;
-    
-    // 尝试从其他节点获取 robot_description 参数
-    std::vector<std::string> source_nodes = {"/move_group", "/robot_state_publisher"};
-    bool param_copied = false;
-    
-    for (const auto& source_node : source_nodes) {
-        try {
-            auto remote_param_client = std::make_shared<rclcpp::SyncParametersClient>(
-                shared_from_this(), source_node);
-            
-            if (remote_param_client->wait_for_service(std::chrono::seconds(2))) {
-                std::vector<rclcpp::Parameter> params = remote_param_client->get_parameters(
-                    {"robot_description", "robot_description_semantic"});
-                
-                if (!params.empty()) {
-                    for (const auto& param : params) {
-                        this->declare_parameter(param.get_name(), param.get_parameter_value());
-                        this->set_parameter(param);
-                    }
-                    param_copied = true;
-                    RCLCPP_INFO(this->get_logger(), "Successfully copied robot_description parameter from %s node", source_node.c_str());
-                    break;
-                }
-            }
-        } catch (const std::exception& e) {
-            RCLCPP_DEBUG(this->get_logger(), "Failed to get param from source %s: %s", source_node.c_str(), e.what());
-        }
-    }
-    
-    if (!param_copied) {
-        RCLCPP_WARN(this->get_logger(), "Could not get robot_description parameter from other nodes, will try to use MoveGroupInterface directly");
-    }
     
     while (rclcpp::ok())
     {
@@ -374,32 +349,23 @@ bool GetCurrentStateServer::getCurrentState(std::vector<double>& joint_position_
                     return false;
                 }
                 
-                // 尝试使用 getCurrentPose，如果失败则使用 robot_state 计算
-                try
-                {
-                    geometry_msgs::msg::PoseStamped current_pose = move_group_->getCurrentPose(end_effector_link_);
-                    
-                    cartesian_position = current_pose.pose;
-                }
-                catch (const std::exception& e)
-                {
-                    // 如果 getCurrentPose 失败，使用 robot_state 计算位姿
-                    RCLCPP_WARN(this->get_logger(), "getCurrentPose() failed: %s, computing pose from robot_state", e.what());
-                    
-                    robot_state->update();
-                    const Eigen::Isometry3d& end_effector_transform = robot_state->getGlobalLinkTransform(end_effector_link_);
-                    
-                    Eigen::Vector3d position = end_effector_transform.translation();
-                    Eigen::Quaterniond orientation(end_effector_transform.rotation());
-                    
-                    cartesian_position.position.x = position.x();
-                    cartesian_position.position.y = position.y();
-                    cartesian_position.position.z = position.z();
-                    cartesian_position.orientation.w = orientation.w();
-                    cartesian_position.orientation.x = orientation.x();
-                    cartesian_position.orientation.y = orientation.y();
-                    cartesian_position.orientation.z = orientation.z();
-                }
+                // 获取当前位姿
+                // 注意：getCurrentPose 返回的位姿在规划框架中（可能是 world）
+                // 为了确保返回 base_link 坐标系下的位姿，我们使用 robot_state 计算
+                // robot_state->getGlobalLinkTransform 返回的位姿在机器人模型的根坐标系中（base_link）
+                robot_state->update();
+                const Eigen::Isometry3d& end_effector_transform = robot_state->getGlobalLinkTransform(end_effector_link_);
+                
+                Eigen::Vector3d position = end_effector_transform.translation();
+                Eigen::Quaterniond orientation(end_effector_transform.rotation());
+                
+                cartesian_position.position.x = position.x();
+                cartesian_position.position.y = position.y();
+                cartesian_position.position.z = position.z();
+                cartesian_position.orientation.w = orientation.w();
+                cartesian_position.orientation.x = orientation.x();
+                cartesian_position.orientation.y = orientation.y();
+                cartesian_position.orientation.z = orientation.z();
 
                 // 速度信息从 MoveIt 较难获取，设为0
                 velocity.clear();
@@ -554,8 +520,10 @@ int main(int argc, char** argv)
 
     try
     {
-        // 创建获取当前状态服务服务器对象
-        auto server = std::make_shared<demo_driver::GetCurrentStateServer>();
+        // 创建获取当前状态服务服务器对象，使用 automatically_declare_parameters_from_overrides 自动声明参数
+        rclcpp::NodeOptions node_options;
+        node_options.automatically_declare_parameters_from_overrides(true);
+        auto server = std::make_shared<demo_driver::GetCurrentStateServer>(node_options);
         RCLCPP_INFO(server->get_logger(), "Get Current State Server node created");
         
         // 初始化 MoveIt 接口（在节点创建为 shared_ptr 后，带重试机制）

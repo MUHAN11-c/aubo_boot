@@ -17,12 +17,14 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(control_msgs REQUIRED)
 find_package(aubo_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 add_executable(feedback_bridge_node src/feedback_bridge_node.cpp)
 ament_target_dependencies(feedback_bridge_node
   rclcpp
   control_msgs
   aubo_msgs
+  sensor_msgs
 )
 
 install(TARGETS

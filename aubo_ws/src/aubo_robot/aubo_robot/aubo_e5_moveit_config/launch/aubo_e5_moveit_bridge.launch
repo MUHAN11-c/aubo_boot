@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- 加载机器人描述和 MoveIt 规划上下文 -->
+  <include file="$(find aubo_e5_moveit_config)/launch/planning_context.launch">
+    <arg name="load_robot_description" value="true"/>
+  </include>
+  
+  <!-- 机器人控制节点 -->
+  <node pkg="aubo_controller" type="aubo_robot_simulator" name="aubo_robot_simulator"/>
+  <node pkg="aubo_controller" type="aubo_joint_trajectory_action" name="aubo_joint_trajectory_action"/>
+  <node name="aubo_driver" pkg="aubo_driver" type="aubo_driver" >
+    <param name="/server_host" type="str" value="10.8.144.98"/>
+  </node>
+  
+  <!-- 机器人反馈节点 -->
+  <node name="robot_status_publisher_node" 
+        pkg="demo_driver" 
+        type="robot_status_publisher_node" 
+        output="screen">
+  </node>
+  <node name="robot_io_status_publisher_node" 
+        pkg="demo_driver" 
+        type="robot_io_status_publisher_node" 
+        output="screen">
+  </node>
+    <node name="set_robot_io_server_node" 
+        pkg="demo_driver" 
+        type="set_robot_io_server_node" 
+        output="screen">
+  </node>
+    <node name="read_robot_io_server_node" 
+        pkg="demo_driver" 
+        type="read_robot_io_server_node" 
+        output="screen">
+  </node>
+    <node name="set_robot_enable_server_node" 
+        pkg="demo_driver" 
+        type="set_robot_enable_server_node" 
+        output="screen">
+  </node>
+</launch>

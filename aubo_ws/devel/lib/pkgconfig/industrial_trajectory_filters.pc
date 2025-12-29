@@ -1,8 +1,0 @@
-prefix=/home/mu/IVG/aubo_ws/devel
-
-Name: industrial_trajectory_filters
-Description: Description of industrial_trajectory_filters
-Version: 0.7.3
-Cflags: -I/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_trajectory_filters/include -I/usr/share/orocos_kdl/cmake/../../../include -I/usr/include/eigen3
-Libs: -L${prefix}/lib -lindustrial_trajectory_filters -lorocos-kdl
-Requires: class_loader moveit_core moveit_ros_planning pluginlib trajectory_msgs

@@ -98,7 +98,8 @@ int main(int argc, char** argv)
 
     // 示例1: 笛卡尔空间规划
     RCLCPP_INFO(client->get_logger(), "\n=== 示例1: 笛卡尔空间轨迹规划 ===");
-    auto target_pose1 = create_pose(0.3, 0.2, 0.5);
+    auto target_pose1 = create_pose(-0.07401805371046066, -0.20905423164367676, 0.9532700777053833,
+                                     0.7025718092918396, -0.00014736213779542595, -0.0008002749527804554, 0.711612343788147);
     auto response1 = client->call_service(target_pose1, false);
 
     if (response1 && response1->success) {
@@ -108,7 +109,8 @@ int main(int argc, char** argv)
 
     // 示例2: 关节空间规划
     RCLCPP_INFO(client->get_logger(), "\n=== 示例2: 关节空间轨迹规划 ===");
-    auto target_pose2 = create_pose(0.4, 0.1, 0.4);
+    auto target_pose2 = create_pose(-0.07401805371046066, -0.20905423164367676, 0.9532700777053833,
+                                     0.7025718092918396, -0.00014736213779542595, -0.0008002749527804554, 0.711612343788147);
     auto response2 = client->call_service(target_pose2, true);
 
     if (response2 && response2->success) {

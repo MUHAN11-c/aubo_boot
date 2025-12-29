@@ -118,8 +118,10 @@ def launch_setup(context, *args, **kwargs):
     trajectory_execution = {
         # MoveIt does not handle controller switching automatically
         "moveit_manage_controllers": False,
-        "trajectory_execution.allowed_execution_duration_scaling": 1.2,
-        "trajectory_execution.allowed_goal_duration_margin": 0.5,
+        # 增加超时缩放因子以支持速度缩放（velocity_scale_factor = 0.5 时，执行时间会翻倍）
+        # 原始时间 1.355s * 缩放因子 0.5 = 2.71s，需要至少 2.71 / 1.355 = 2.0 倍的缩放
+        "trajectory_execution.allowed_execution_duration_scaling": 3.0,
+        "trajectory_execution.allowed_goal_duration_margin": 1.0,
         "trajectory_execution.allowed_start_tolerance": 0.01,
     }
 

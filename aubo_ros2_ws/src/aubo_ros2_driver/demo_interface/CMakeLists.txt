@@ -19,6 +19,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/RobotIOStatus.msg"
   "msg/ToolIOStatus.msg"
   "srv/MoveToPose.srv"
+  "srv/SetRobotPose.srv"
   "srv/PlanTrajectory.srv"
   "srv/ExecuteTrajectory.srv"
   "srv/GetCurrentState.srv"

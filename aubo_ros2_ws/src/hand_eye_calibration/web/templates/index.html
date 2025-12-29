@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>单目相机手眼标定工具</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20241025-2">
+</head>
+<body>
+    <!-- 主容器 -->
+    <div class="container">
+        <!-- 标题栏 -->
+        <header class="header">
+            <h1>单目相机手眼标定工具</h1>
+        </header>
+
+        <!-- 选项卡导航 -->
+        <nav class="tabs">
+            <button class="tab-button active" data-tab="camera-verify">相机标定精度验证</button>
+            <button class="tab-button" data-tab="hand-eye-calib">手眼标定</button>
+            <button class="tab-button" data-tab="hand-eye-verify">手眼标定精度验证</button>
+        </nav>
+
+        <!-- 选项卡内容 -->
+        <main class="content">
+            <!-- 相机标定精度验证 -->
+            <div id="camera-verify" class="tab-content tab-camera-verify active">
+                <div class="top-section">
+                    <!-- 左侧：功能操作区 -->
+                    <div class="left-panel">
+                        <h3>功能操作</h3>
+                        <div class="button-group">
+                            <button class="action-button" id="btn-load-camera-params">加载相机参数</button>
+                            <button class="action-button" id="btn-capture-verify-image">采集验证图像</button>
+                            <button class="action-button" id="btn-open-local-image">打开本地图像</button>
+                            <button class="action-button" id="btn-manual-pick">手动选点</button>
+                            <button class="action-button" id="btn-extract-corners">提取棋盘格角点</button>
+                            <button class="action-button primary" id="btn-calculate-result">计算结果</button>
+                        </div>
+                        
+                        <!-- 相机ID设置 -->
+                        <div class="param-setting">
+                            <label for="camera-id">相机 ID:</label>
+                            <input type="text" id="camera-id" value="DA3234363" readonly>
+                            <div class="camera-status-indicator">
+                                <span class="status-dot" id="camera-id-status"></span>
+                                <span class="status-text" id="camera-id-status-text">检查中...</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 棋盘格大小设置 -->
+                        <div class="param-setting">
+                            <label for="checkerboard-size">棋盘格大小 (mm):</label>
+                            <input type="number" id="checkerboard-size" value="15" min="1" step="0.1">
+                        </div>
+                    </div>
+
+                    <!-- 图像显示 -->
+                    <div class="image-panel">
+                        <div class="panel-header">
+                            <h3>图像显示</h3>
+                            <span class="zoom-hint-header" id="camera-verify-zoom-hint">滚轮缩放 | 右键拖拽</span>
+                        </div>
+                        <div class="image-container" id="camera-verify-image-container">
+                            <img id="camera-verify-image" src="" alt="相机图像">
+                            <div class="image-placeholder">等待图像...</div>
+                            <button class="save-image-btn" id="save-camera-verify-image" title="保存当前图像">
+                                💾 保存图像
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 放大镜 -->
+                    <div class="magnifier-panel">
+                        <div class="panel-header">
+                            <h3>🔍 放大镜（中心点）</h3>
+                            <span class="zoom-hint-header magnifier-hint" id="camera-verify-mag-hint">中心点 X: - | Y: -</span>
+                        </div>
+                        <div class="magnifier-container">
+                            <canvas id="camera-verify-magnifier"></canvas>
+                            <div class="magnifier-placeholder">显示可视区域中心</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 操作日志 -->
+                    <div class="log-panel">
+                        <h3>📊 数据流 & 操作日志</h3>
+                        <div class="log-container">
+                            <div id="camera-verify-log" class="log-display">
+                                <div class="log-entry info">系统就绪，等待操作...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 底部：左侧引导+参数，右侧数据表格 -->
+                <div class="bottom-section">
+                    <!-- 左侧：使用引导和参数信息 -->
+                    <div class="bottom-left-panel">
+                        <div class="guide-section">
+                            <h4>📖 使用说明</h4>
+                            <div class="guide-content">
+                                <ol>
+                                    <li>点击"加载相机参数"加载标定文件</li>
+                                    <li>点击"采集验证图像"获取图像</li>
+                                    <li>放大镜显示可视区域中心（红色十字线）</li>
+                                    <li>手动选点：点击图像即选择中心点</li>
+                                    <li>滚动/缩放定位到目标点后再点击</li>
+                                    <li>点击"计算结果"验证精度</li>
+                                </ol>
+                            </div>
+                        </div>
+                        
+                        <div class="info-section">
+                            <h4>标定参数信息</h4>
+                            <div id="camera-params-info" class="info-display">
+                                <p>等待加载相机参数...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：数据表格 -->
+                    <div class="bottom-right-panel">
+                        <h3>验证结果数据</h3>
+                        <div class="data-display">
+                            <div class="data-table">
+                                <table id="camera-verify-table">
+                                    <thead>
+                                        <tr>
+                                            <th>角点序号</th>
+                                            <th>像素坐标 U</th>
+                                            <th>像素坐标 V</th>
+                                            <th>相机坐标 X(mm)</th>
+                                            <th>相机坐标 Y(mm)</th>
+                                            <th>相机坐标 Z(mm)</th>
+                                            <th>相邻距离(mm)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="7" class="no-data">暂无数据</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 手眼标定 -->
+            <div id="hand-eye-calib" class="tab-content tab-hand-eye-calib">
+                <div class="top-section">
+                    <!-- 左侧：功能操作区 -->
+                    <div class="left-panel">
+                        <h3>功能操作</h3>
+                        <div class="button-group">
+                            <button class="action-button" id="btn-he-load-camera-params">加载相机参数</button>
+                            <button class="action-button" id="btn-he-capture-image">采集图像</button>
+                            <button class="action-button" id="btn-he-open-local-image">打开本地图像</button>
+                            <button class="action-button" id="btn-he-extract-corners">提取棋盘格角点</button>
+                            <button class="action-button" id="btn-he-format-pose">格式化位姿数据</button>
+                            <button class="action-button" id="btn-he-save-pose-data">保存位姿数据</button>
+                            <button class="action-button" id="btn-he-load-pose-data">加载本地位姿数据</button>
+                            <button class="action-button primary" id="btn-he-start-calibration">开始标定</button>
+                            <button class="action-button" id="btn-he-save-calibration">保存标定结果</button>
+                        </div>
+                        
+                        <!-- 棋盘格大小设置 -->
+                        <div class="param-setting">
+                            <label for="he-checkerboard-size">棋盘格大小 (mm):</label>
+                            <input type="number" id="he-checkerboard-size" value="15" min="1" step="0.1">
+                        </div>
+                        
+                        <!-- 相机高度设置 -->
+                        <div class="param-setting">
+                            <label for="he-camera-height">相机高度 (mm):</label>
+                            <input type="number" id="he-camera-height" value="840" min="100" max="1000" step="1">
+                            <small style="color: #888; font-size: 11px; display: block; margin-top: 4px;">
+                                相机到标定板平面的垂直距离
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- 图像显示 -->
+                    <div class="image-panel">
+                        <div class="panel-header">
+                            <h3>标定板图像</h3>
+                            <span class="zoom-hint-header" id="hand-eye-calib-zoom-hint">滚轮缩放 | 右键拖拽</span>
+                        </div>
+                        <div class="image-container" id="hand-eye-calib-image-container">
+                            <img id="hand-eye-calib-image" src="" alt="标定板图像">
+                            <div class="image-placeholder">等待图像...</div>
+                            <button class="save-image-btn" id="save-hand-eye-image" title="保存当前图像">
+                                💾 保存图像
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 放大镜 -->
+                    <div class="magnifier-panel">
+                        <div class="panel-header">
+                            <h3>🔍 放大镜（中心点）</h3>
+                            <span class="zoom-hint-header magnifier-hint" id="hand-eye-calib-mag-hint">中心点 X: - | Y: -</span>
+                        </div>
+                        <div class="magnifier-container">
+                            <canvas id="hand-eye-calib-magnifier"></canvas>
+                            <div class="magnifier-placeholder">显示可视区域中心</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 操作日志 -->
+                    <div class="log-panel">
+                        <h3>📊 数据流 & 操作日志</h3>
+                        <div class="log-container">
+                            <div id="hand-eye-calib-log" class="log-display">
+                                <div class="log-entry info">系统就绪，等待操作...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 底部：左侧引导+参数，右侧数据表格 -->
+                <div class="bottom-section">
+                    <!-- 左侧：使用引导和参数信息 -->
+                    <div class="bottom-left-panel">
+                        <div class="guide-section">
+                            <h4>📖 使用说明</h4>
+                            <div class="guide-content">
+                                <ol>
+                                    <li>加载相机参数</li>
+                                    <li>采集图像并提取角点</li>
+                                    <li>加载或输入机器人位姿数据</li>
+                                    <li>重复采集 8-15 组数据</li>
+                                    <li>位姿要均匀分布在工作空间</li>
+                                    <li>点击"开始标定"执行计算</li>
+                                </ol>
+                            </div>
+                        </div>
+                        
+                        <div class="info-section">
+                            <h4>相机标定参数</h4>
+                            <div id="he-camera-params-info" class="info-display">
+                                <p>等待加载相机参数...</p>
+                            </div>
+                        </div>
+                        
+                        <div class="info-section">
+                            <h4>标定状态</h4>
+                            <div id="calibration-status" class="info-display">
+                                <p>已采集数据: <span id="pose-count">0</span> 组</p>
+                                <p>标定状态: <span id="calib-status">未开始</span></p>
+                                <p>标定误差: <span id="calib-error">-</span></p>
+                            </div>
+                        </div>
+                        
+                        <div class="info-section">
+                            <h4>机器人当前位姿</h4>
+                            <div id="robot-pose-info" class="info-display">
+                                <p><strong>状态:</strong> <span id="robot-online-indicator" class="status-indicator">检查中...</span></p>
+                                <p>位置 X: <span id="pos-x">-</span> mm</p>
+                                <p>位置 Y: <span id="pos-y">-</span> mm</p>
+                                <p>位置 Z: <span id="pos-z">-</span> mm</p>
+                                <p>姿态 Qx: <span id="ori-x">-</span></p>
+                                <p>姿态 Qy: <span id="ori-y">-</span></p>
+                                <p>姿态 Qz: <span id="ori-z">-</span></p>
+                                <p>姿态 Qw: <span id="ori-w">-</span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：数据表格 -->
+                    <div class="bottom-right-panel">
+                        <h3>手眼标定数据</h3>
+                        <div class="data-display">
+                            <div class="data-table">
+                                <table id="pose-list-table">
+                                    <thead>
+                                        <tr>
+                                            <th>角点序号</th>
+                                            <th>像素坐标 U (px)</th>
+                                            <th>像素坐标 V (px)</th>
+                                            <th>相机坐标 X (mm)</th>
+                                            <th>相机坐标 Y (mm)</th>
+                                            <th>位置 X (mm)</th>
+                                            <th>位置 Y (mm)</th>
+                                            <th>位置 Z (mm)</th>
+                                            <th>姿态 Qx</th>
+                                            <th>姿态 Qy</th>
+                                            <th>姿态 Qz</th>
+                                            <th>姿态 Qw</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="12" class="no-data">暂无数据</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 手眼标定精度验证 -->
+            <div id="hand-eye-verify" class="tab-content tab-hand-eye-verify">
+                <div class="top-section">
+                    <!-- 左侧：功能操作区 -->
+                    <div class="left-panel">
+                        <h3>功能操作</h3>
+                        <div class="button-group">
+                            <button class="action-button" id="btn-load-hand-eye-params">加载手眼标定参数</button>
+                        </div>
+                        
+                        <div class="button-group horizontal">
+                            <button class="action-button" id="btn-load-image-verify">加载图像</button>
+                            <button class="action-button" id="btn-capture-image-verify">采集图像</button>
+                        </div>
+                        
+                        <div class="button-group">
+                            <button class="action-button" id="btn-extract-corners-verify">提取棋盘格角点</button>
+                        </div>
+                        
+                        <div class="button-group">
+                            <button class="action-button" id="btn-get-robot-test-pose">获取机器人测试姿态</button>
+                        </div>
+                        
+                        <!-- 高度设置（一行显示） -->
+                        <div class="param-setting param-setting-row">
+                            <div class="param-input-group">
+                                <label for="translation-height">平移高度 (mm):</label>
+                                <input type="number" id="translation-height" value="50" min="10" max="200" step="5">
+                            </div>
+                            <div class="param-input-group">
+                                <label for="min-test-height">测试高度 (mm):</label>
+                                <input type="number" id="min-test-height" value="100" min="50" max="500" step="10">
+                            </div>
+                        </div>
+                        
+                        <div class="button-group horizontal">
+                            <button class="action-button primary" id="btn-single-point-test">单点测试</button>
+                            <button class="action-button" id="btn-auto-point-test">自动测试</button>
+                        </div>
+                    </div>
+
+                    <!-- 图像显示 -->
+                    <div class="image-panel">
+                        <div class="panel-header">
+                            <h3>验证图像</h3>
+                            <span class="zoom-hint-header" id="hand-eye-verify-zoom-hint">滚轮缩放 | 右键拖拽</span>
+                        </div>
+                        <div class="image-container" id="hand-eye-verify-image-container">
+                            <img id="hand-eye-verify-image" src="" alt="验证图像">
+                            <div class="image-placeholder">等待图像...</div>
+                            <button class="save-image-btn" id="save-hand-eye-verify-image" title="保存当前图像">
+                                💾 保存图像
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 放大镜 -->
+                    <div class="magnifier-panel">
+                        <div class="panel-header">
+                            <h3>🔍 放大镜（中心点）</h3>
+                            <span class="zoom-hint-header magnifier-hint" id="hand-eye-verify-mag-hint">中心点 X: - | Y: -</span>
+                        </div>
+                        <div class="magnifier-container">
+                            <canvas id="hand-eye-verify-magnifier"></canvas>
+                            <div class="magnifier-placeholder">显示可视区域中心</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 操作日志 -->
+                    <div class="log-panel">
+                        <h3>📊 数据流 & 操作日志</h3>
+                        <div class="log-container">
+                            <div id="hand-eye-verify-log" class="log-display">
+                                <div class="log-entry info">系统就绪，等待操作...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 底部：左侧引导+参数，右侧数据表格 -->
+                <div class="bottom-section">
+                    <!-- 左侧：使用引导和参数信息 -->
+                    <div class="bottom-left-panel">
+                        <div class="guide-section">
+                            <h4>📖 使用说明</h4>
+                            <div class="guide-content">
+                                <ol>
+                                    <li>系统自动加载手眼标定参数</li>
+                                    <li>采集图像并提取棋盘格角点</li>
+                                    <li>选择测试模式：单点或自动逐点</li>
+                                    <li>设置平移高度和最低测试高度</li>
+                                    <li>执行测试并查看精度结果</li>
+                                    <li>平均误差 &lt; 2mm 为优秀</li>
+                                </ol>
+                            </div>
+                        </div>
+                        
+                        <div class="info-section">
+                            <h4>机器人当前位姿</h4>
+                            <div id="verify-robot-pose-info" class="info-display">
+                                <p><strong>状态:</strong> <span id="verify-robot-online-indicator" class="status-indicator">检查中...</span></p>
+                                <p>位置 X: <span id="verify-pos-x">-</span> mm</p>
+                                <p>位置 Y: <span id="verify-pos-y">-</span> mm</p>
+                                <p>位置 Z: <span id="verify-pos-z">-</span> mm</p>
+                                <p>姿态 Qx: <span id="verify-ori-x">-</span></p>
+                                <p>姿态 Qy: <span id="verify-ori-y">-</span></p>
+                                <p>姿态 Qz: <span id="verify-ori-z">-</span></p>
+                                <p>姿态 Qw: <span id="verify-ori-w">-</span></p>
+                            </div>
+                        </div>
+                        
+                        <div class="info-section">
+                            <h4>相机内参信息</h4>
+                            <div id="verify-camera-intrinsic-info" class="info-display">
+                                <p>等待加载相机参数...</p>
+                            </div>
+                        </div>
+                        
+                        <div class="info-section">
+                            <h4>手眼标定信息</h4>
+                            <div id="verify-hand-eye-info" class="info-display">
+                                <p>等待加载手眼标定参数...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：数据表格 -->
+                    <div class="bottom-right-panel">
+                        <h3>验证结果数据 <span class="robot-pose-label" id="robot-pose-label">Z: --; Qx: --; Qy: --; Qz: --; Qw: --;</span></h3>
+                        <div class="data-display">
+                            <div class="data-table">
+                                <table id="verify-result-table">
+                                    <thead>
+                                        <tr>
+                                            <th>序号</th>
+                                            <th>像素坐标 U (px)</th>
+                                            <th>像素坐标 V (px)</th>
+                                            <th>相机坐标 X (mm)</th>
+                                            <th>相机坐标 Y (mm)</th>
+                                            <th>机器人位置 X (mm)</th>
+                                            <th>机器人位置 Y (mm)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="7" class="no-data">暂无数据</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 状态栏 -->
+        <footer class="status-bar">
+            <div class="status-item">
+                <span class="status-label">连接状态:</span>
+                <span id="connection-status" class="status-value">连接中...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">相机状态:</span>
+                <span id="camera-status" class="status-value">未知</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">机器人状态:</span>
+                <span id="robot-status" class="status-value">未知</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 单点测试模态窗口 -->
+    <div id="single-point-test-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>单点测试</h3>
+                <span class="close" onclick="closeSinglePointTestModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="pose-display">
+                    <h4>平移点位：</h4>
+                    <div class="pose-info" id="translation-pose-info">
+                        X: <span id="translation-x">--</span>; 
+                        Y: <span id="translation-y">--</span>; 
+                        Z: <span id="translation-z">--</span>; 
+                        Qx: <span id="translation-qx">--</span>; 
+                        Qy: <span id="translation-qy">--</span>; 
+                        Qz: <span id="translation-qz">--</span>; 
+                        Qw: <span id="translation-qw">--</span>;
+                    </div>
+                </div>
+                
+                <div class="pose-display">
+                    <h4>测试点位：</h4>
+                    <div class="pose-info" id="test-pose-info">
+                        X: <span id="test-x">--</span>; 
+                        Y: <span id="test-y">--</span>; 
+                        Z: <span id="test-z">--</span>; 
+                        Qx: <span id="test-qx">--</span>; 
+                        Qy: <span id="test-qy">--</span>; 
+                        Qz: <span id="test-qz">--</span>; 
+                        Qw: <span id="test-qw">--</span>;
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="moveToTranslationPose()">到达平移点位</button>
+                <button class="btn btn-danger" onclick="moveToTestPose()">到达测试点位</button>
+                <button class="btn btn-secondary" onclick="closeSinglePointTestModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script_v2.js') }}?v=20241025-6"></script>
+</body>
+</html>

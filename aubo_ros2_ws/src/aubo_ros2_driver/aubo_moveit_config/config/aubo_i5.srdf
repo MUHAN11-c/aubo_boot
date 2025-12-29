@@ -36,7 +36,9 @@
     <end_effector name="moveit_ee" parent_link="ee_link" group="endeffector"/>
     <!--VIRTUAL JOINT: Purpose: this element defines a virtual joint between a robot link and an external frame of reference (considered fixed with respect to the robot)-->
     <!-- parent_frame 决定规划框架（planning frame），child_link 是机器人基座链接 -->
-    <virtual_joint name="fixed_base" type="fixed" parent_frame="world" child_link="pedestal_Link"/>
+    <!-- 修改：由于 URDF 中 base_link 现在是根链接，virtual_joint 的 parent_frame 和 child_link 都设置为 base_link -->
+    <!-- 这样 planning_frame 就是 base_link，getRootLinkName() 也会返回 base_link -->
+    <virtual_joint name="fixed_base" type="fixed" parent_frame="base_link" child_link="base_link"/>
     <!--DISABLE COLLISIONS: By default it is assumed that any link of the robot could potentially come into collision with any other link in the robot. This tag disables collision checking between a specified pair of links. -->
     <disable_collisions link1="base_link" link2="shoulder_Link" reason="Adjacent"/>
     <disable_collisions link1="base_link" link2="upperArm_Link" reason="Never"/>

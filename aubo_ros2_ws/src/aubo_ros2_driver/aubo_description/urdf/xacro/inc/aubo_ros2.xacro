@@ -539,6 +539,7 @@
 
 
   <!-- /////////////////////////////////   e5 pedestal_Link   ////////////////////////////////////// -->
+  <!-- 修改：将 base_link 作为根链接，pedestal_Link 作为 base_link 的子链接 -->
   <link name="pedestal_Link">
     <visual>
       <geometry>
@@ -547,21 +548,24 @@
     </visual>
   </link>
 
+  <!-- 修改：反转关节关系，使 base_link 成为父链接，pedestal_Link 成为子链接 -->
+  <!-- 注意：偏移量需要反转（从 base_link 到 pedestal_Link 是向下 0.503m） -->
   <joint name="pedestal_joint" type="fixed">
-    <parent link="pedestal_Link"/>
-    <child link="base_link"/>
-    <origin xyz="0.0 0.0 0.503" rpy="0.0 0.0 0.0" />
+    <parent link="base_link"/>
+    <child link="pedestal_Link"/>
+    <origin xyz="0.0 0.0 -0.503" rpy="0.0 0.0 0.0" />
   </joint>
 
-
- <!-- /////////////////////////////////   world   ////////////////////////////////////// -->
+  <!-- 注释掉 world 链接和 world_joint，使 base_link 成为根链接 -->
+  <!-- 如果需要 world 坐标系，可以通过 TF 静态变换发布 -->
+  <!--
   <link name="world" />
-
   <joint name="world_joint" type="fixed">
     <parent link="world" />
     <child link ="pedestal_Link" />
     <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
   </joint>
+  -->
 
 
   <!-- /////////////////////////////////   gazebo color   ////////////////////////////////////// -->

@@ -1,4 +1,3 @@
-from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import TimerAction
 from launch.actions import DeclareLaunchArgument
@@ -11,7 +10,6 @@ from launch.substitutions import (
 )
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-import os
 
 
 def launch_setup(context, *args, **kwargs):
@@ -60,6 +58,9 @@ def launch_setup(context, *args, **kwargs):
     common_parameters = [
         robot_description,
         robot_description_semantic,
+        {
+            "moveit_velocity_scaling_factor": 0.1,  # 默认速度缩放因子
+        },
     ]
     
     # Demo Driver 服务节点（延迟启动，等待 MoveIt2 就绪）
@@ -130,12 +131,35 @@ def launch_setup(context, *args, **kwargs):
         ]
     )
     
+    # Robot status publisher node: 发布机器人状态信息
+    # robot_status_publisher_node = TimerAction(
+    #     period=10.0,
+    #     actions=[
+    #         Node(
+    #             package="demo_driver",
+    #             executable="robot_status_publisher_node",
+    #             name="robot_status_publisher",
+    #             output="screen",
+    #             parameters=[
+    #                 *common_parameters,
+    #                 {
+    #                     "publish_rate": 10.0,
+    #                     "base_frame": "base_link",
+    #                     "planning_group_name": "manipulator",
+    #                     "robot_status_topic": "/demo_robot_status_ros2",
+    #                 }
+    #             ],
+    #         )
+    #     ]
+    # )
+    
     return [
         move_to_pose_server_node,
         plan_trajectory_server_node,
         execute_trajectory_server_node,
         get_current_state_server_node,
         set_speed_factor_server_node,
+        # robot_status_publisher_node,
     ]
 
 

@@ -208,7 +208,8 @@ int main(int argc, char** argv)
     // 步骤4: 规划轨迹
     RCLCPP_INFO(example->get_logger(), "\n步骤4: 规划轨迹到目标位置");
     RCLCPP_INFO(example->get_logger(), "------------------------------------------------------------");
-    auto target_pose = create_pose(0.3, 0.2, 0.5);
+    auto target_pose = create_pose(-0.07401805371046066, -0.20905423164367676, 0.9532700777053833,
+                                     0.7025718092918396, -0.00014736213779542595, -0.0008002749527804554, 0.711612343788147);
     auto plan_response = example->plan_trajectory(target_pose, false);
     if (plan_response && plan_response->success) {
         RCLCPP_INFO(example->get_logger(), "✓ 规划成功: %s", plan_response->message.c_str());

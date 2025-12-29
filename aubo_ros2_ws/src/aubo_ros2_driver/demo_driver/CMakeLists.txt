@@ -24,20 +24,19 @@ find_package(moveit_common REQUIRED)
 include_directories(include)
 
 # Declare executables (server files now contain main functions)
-# Note: The following executables are commented out because source files don't exist yet
-# add_executable(robot_status_publisher_node src/robot_status_publisher.cpp)
-# ament_target_dependencies(robot_status_publisher_node
-#   rclcpp
-#   std_msgs
-#   sensor_msgs
-#   geometry_msgs
-#   demo_interface
-#   aubo_msgs
-#   tf2_ros
-#   tf2_geometry_msgs
-#   moveit_core
-#   moveit_ros_planning_interface
-# )
+add_executable(robot_status_publisher_node src/robot_status_publisher.cpp)
+ament_target_dependencies(robot_status_publisher_node
+  rclcpp
+  std_msgs
+  sensor_msgs
+  geometry_msgs
+  demo_interface
+  aubo_msgs
+  tf2_ros
+  tf2_geometry_msgs
+  moveit_core
+  moveit_ros_planning_interface
+)
 
 # add_executable(robot_io_status_publisher_node src/robot_io_status_publisher.cpp)
 # ament_target_dependencies(robot_io_status_publisher_node
@@ -122,7 +121,7 @@ ament_target_dependencies(set_speed_factor_server_node
 
 # Install targets
 install(TARGETS
-  # robot_status_publisher_node
+  robot_status_publisher_node
   # robot_io_status_publisher_node
   move_to_pose_server_node
   plan_trajectory_server_node

@@ -13,12 +13,20 @@
 #include <moveit_msgs/msg/robot_trajectory.hpp>
 #include <moveit/robot_state/robot_state.h>
 #include <moveit/robot_state/conversions.h>
-#include <moveit/trajectory_processing/iterative_time_parameterization.h>
 #include <thread>
 #include <chrono>
+#include <iomanip>
+#include <sstream>
+#include <cstdlib>
+#include <string>
+#include <rclcpp/parameter_client.hpp>
+#include <rclcpp/exceptions.hpp>
+#include <fstream>
 
 namespace demo_driver
 {
+
+
 
 /**
  * @brief 构造函数，初始化 MoveIt 接口和服务服务器
@@ -35,23 +43,19 @@ ExecuteTrajectoryServer::ExecuteTrajectoryServer(const rclcpp::NodeOptions& opti
     this->get_parameter("planning_group_name", planning_group_name_);
     this->get_parameter("base_frame", base_frame_);
 
-    // 初始化服务服务器
     execute_trajectory_service_ = this->create_service<demo_interface::srv::ExecuteTrajectory>(
         "/execute_trajectory",
         std::bind(&ExecuteTrajectoryServer::executeTrajectoryCallback, this, std::placeholders::_1, std::placeholders::_2));
-
-    RCLCPP_INFO(this->get_logger(), "ExecuteTrajectoryServer node created, ready to initialize MoveIt");
 }
 
 bool ExecuteTrajectoryServer::wait_for_robot_description(int timeout_seconds)
 {
-    RCLCPP_INFO(this->get_logger(), "Waiting for robot_description parameter and MoveIt2 services...");
-    
-    // 检查参数是否已通过 launch 文件传递（使用 automatically_declare_parameters_from_overrides）
+    static bool warned_once = false;
     if (!this->has_parameter("robot_description") || !this->has_parameter("robot_description_semantic")) {
-        RCLCPP_WARN(this->get_logger(), "robot_description or robot_description_semantic parameter not found. Make sure they are passed via launch file.");
-    } else {
-        RCLCPP_INFO(this->get_logger(), "robot_description parameters found on local parameter server");
+        if (!warned_once) {
+            RCLCPP_WARN(this->get_logger(), "robot_description or robot_description_semantic parameter not found");
+            warned_once = true;
+        }
     }
     
     auto start_time = std::chrono::steady_clock::now();
@@ -68,8 +72,6 @@ bool ExecuteTrajectoryServer::wait_for_robot_description(int timeout_seconds)
             
             if (!test_frame.empty())
             {
-                RCLCPP_INFO(this->get_logger(), "Robot description parameter and MoveIt2 services are ready");
-                RCLCPP_INFO(this->get_logger(), "Planning frame: %s", test_frame.c_str());
                 return true;
             }
         }
@@ -100,42 +102,27 @@ bool ExecuteTrajectoryServer::wait_for_robot_description(int timeout_seconds)
 
 bool ExecuteTrajectoryServer::initialize(int max_retries, int retry_delay_seconds)
 {
-    RCLCPP_INFO(this->get_logger(), "Initializing MoveIt interfaces for planning group: %s", planning_group_name_.c_str());
-    
-    // 等待机器人描述参数
     if (!wait_for_robot_description(30))
     {
         return false;
     }
     
-    // 等待一段时间，确保参数完全加载
     std::this_thread::sleep_for(std::chrono::seconds(2));
     
     for (int attempt = 1; attempt <= max_retries; ++attempt)
     {
         try
         {
-            RCLCPP_INFO(this->get_logger(), "Attempting to initialize MoveIt interfaces (attempt %d/%d)...", attempt, max_retries);
-            
             move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
                 shared_from_this(), planning_group_name_);
             planning_scene_interface_ = std::make_shared<moveit::planning_interface::PlanningSceneInterface>();
-            
-            // 设置参考坐标系
             move_group_->setPoseReferenceFrame(base_frame_);
-            
-            RCLCPP_INFO(this->get_logger(), "MoveIt interfaces initialized successfully");
-            RCLCPP_INFO(this->get_logger(), "ExecuteTrajectoryServer initialized, service '/execute_trajectory' is ready");
             return true;
         }
         catch (const std::exception& e)
         {
-            RCLCPP_WARN(this->get_logger(), "Failed to initialize MoveIt interfaces (attempt %d/%d): %s", 
-                       attempt, max_retries, e.what());
-            
             if (attempt < max_retries)
             {
-                RCLCPP_INFO(this->get_logger(), "Waiting %d seconds before retry...", retry_delay_seconds);
                 std::this_thread::sleep_for(std::chrono::seconds(retry_delay_seconds));
             }
             else
@@ -153,23 +140,18 @@ ExecuteTrajectoryServer::~ExecuteTrajectoryServer()
 {
 }
 
-/**
- * @brief 服务回调函数
- */
 void ExecuteTrajectoryServer::executeTrajectoryCallback(
     const std::shared_ptr<demo_interface::srv::ExecuteTrajectory::Request> req,
     std::shared_ptr<demo_interface::srv::ExecuteTrajectory::Response> res)
 {
-    RCLCPP_INFO(this->get_logger(), "Received execute_trajectory request");
-    RCLCPP_INFO(this->get_logger(), "Trajectory has %zu waypoints", req->trajectory.points.size());
-
-    // 验证轨迹
+    RCLCPP_INFO(this->get_logger(), "ExecuteTrajectory request: %zu waypoints", req->trajectory.points.size());
+    
     if (req->trajectory.points.empty())
     {
         res->success = false;
         res->error_code = -1;
         res->message = "Trajectory is empty";
-        RCLCPP_WARN(this->get_logger(), "%s", res->message.c_str());
+        RCLCPP_WARN(this->get_logger(), "ExecuteTrajectory response: %s", res->message.c_str());
         return;
     }
 
@@ -178,11 +160,10 @@ void ExecuteTrajectoryServer::executeTrajectoryCallback(
         res->success = false;
         res->error_code = -2;
         res->message = "Trajectory joint names are empty";
-        RCLCPP_WARN(this->get_logger(), "%s", res->message.c_str());
+        RCLCPP_WARN(this->get_logger(), "ExecuteTrajectory response: %s", res->message.c_str());
         return;
     }
 
-    // 执行轨迹
     int32_t error_code = 0;
     std::string message;
     bool success = executeTrajectory(req->trajectory, error_code, message);
@@ -190,20 +171,18 @@ void ExecuteTrajectoryServer::executeTrajectoryCallback(
     res->success = success;
     res->error_code = error_code;
     res->message = message;
-
+    
     if (success)
     {
-        RCLCPP_INFO(this->get_logger(), "Trajectory execution succeeded: %s", message.c_str());
+        RCLCPP_INFO(this->get_logger(), "ExecuteTrajectory response: success");
     }
     else
     {
-        RCLCPP_WARN(this->get_logger(), "Trajectory execution failed: %s (error_code: %d)", message.c_str(), error_code);
+        RCLCPP_WARN(this->get_logger(), "ExecuteTrajectory response: failed (error_code: %d, message: %s)", 
+                   error_code, message.c_str());
     }
 }
 
-/**
- * @brief 执行轨迹
- */
 bool ExecuteTrajectoryServer::executeTrajectory(const trajectory_msgs::msg::JointTrajectory& trajectory,
                                                 int32_t& error_code,
                                                 std::string& message)
@@ -217,15 +196,12 @@ bool ExecuteTrajectoryServer::executeTrajectory(const trajectory_msgs::msg::Join
 
     try
     {
-        // 将 trajectory_msgs::JointTrajectory 转换为 MoveIt 的 RobotTrajectory
         moveit_msgs::msg::RobotTrajectory robot_trajectory_msg;
         robot_trajectory_msg.joint_trajectory = trajectory;
 
-        // 创建 MoveIt 轨迹对象
         moveit::planning_interface::MoveGroupInterface::Plan plan;
         plan.trajectory_ = robot_trajectory_msg;
 
-        // 验证轨迹点数量
         if (plan.trajectory_.joint_trajectory.points.empty())
         {
             error_code = -101;
@@ -233,23 +209,81 @@ bool ExecuteTrajectoryServer::executeTrajectory(const trajectory_msgs::msg::Join
             return false;
         }
 
-        RCLCPP_INFO(this->get_logger(), "Executing trajectory with %zu waypoints", 
-                 plan.trajectory_.joint_trajectory.points.size());
-
-        // 执行轨迹
+        double trajectory_duration = 0.0;
+        if (!plan.trajectory_.joint_trajectory.points.empty())
+        {
+            auto& last_point = plan.trajectory_.joint_trajectory.points.back();
+            trajectory_duration = last_point.time_from_start.sec + last_point.time_from_start.nanosec * 1e-9;
+        }
+        
+        auto start_time = std::chrono::steady_clock::now();
+        
+        double velocity_scaling = 0.1;
+        double acceleration_scaling = 0.1;
+        
+        if (this->has_parameter("moveit_velocity_scaling_factor"))
+        {
+            velocity_scaling = this->get_parameter("moveit_velocity_scaling_factor").as_double();
+            move_group_->setMaxVelocityScalingFactor(velocity_scaling);
+        }
+        else
+        {
+            velocity_scaling = 0.1;
+        }
+        
+        try
+        {
+            auto param_client = std::make_shared<rclcpp::SyncParametersClient>(shared_from_this(), "move_group");
+            if (param_client->wait_for_service(std::chrono::milliseconds(200)))
+            {
+                try
+                {
+                    auto params = param_client->get_parameters({"robot_description_planning.default_acceleration_scaling_factor"});
+                    if (!params.empty())
+                    {
+                        acceleration_scaling = params[0].as_double();
+                    }
+                }
+                catch (...)
+                {
+                }
+            }
+        }
+        catch (...)
+        {
+        }
+        
+        RCLCPP_INFO(this->get_logger(), "ExecuteTrajectory: %zu waypoints, %.3f s, vel=%.2f, acc=%.2f",
+                   plan.trajectory_.joint_trajectory.points.size(), trajectory_duration,
+                   velocity_scaling, acceleration_scaling);
+        
         moveit::planning_interface::MoveItErrorCode execute_result = move_group_->execute(plan);
+        
+        auto end_time = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() / 1000.0;
+        RCLCPP_INFO(this->get_logger(), "ExecuteTrajectory: MoveIt execute() returned after %.3f s (error_code: %d)", 
+                   elapsed, execute_result.val);
 
-        if (execute_result != moveit::planning_interface::MoveItErrorCode::SUCCESS)
+        if (execute_result.val == 0)
+        {
+            error_code = -1000;
+            message = "Execution returned unknown error code 0. This may indicate MoveIt timed out, but the robot may still be executing the trajectory. Check robot position to confirm.";
+            RCLCPP_WARN(this->get_logger(), "ExecuteTrajectory: MoveIt reported timeout (error_code=0), but robot may have reached target. Elapsed time: %.3f s, trajectory duration: %.3f s", 
+                      elapsed, trajectory_duration);
+            return false;
+        }
+        else if (execute_result != moveit::planning_interface::MoveItErrorCode::SUCCESS)
         {
             error_code = static_cast<int32_t>(execute_result.val);
             message = "Execution failed with error code: " + std::to_string(execute_result.val);
+            RCLCPP_WARN(this->get_logger(), "ExecuteTrajectory: MoveIt reported failure (error_code=%d), but robot may have reached target. Elapsed time: %.3f s, trajectory duration: %.3f s", 
+                      execute_result.val, elapsed, trajectory_duration);
             return false;
         }
 
-        // 成功
         error_code = 0;
-        message = "Successfully executed trajectory with " + 
-                  std::to_string(plan.trajectory_.joint_trajectory.points.size()) + " waypoints";
+        message = "Successfully executed trajectory";
+        RCLCPP_INFO(this->get_logger(), "ExecuteTrajectory: Execution completed, duration=%.3f s", trajectory_duration);
         return true;
     }
     catch (const std::exception& e)
@@ -261,9 +295,7 @@ bool ExecuteTrajectoryServer::executeTrajectory(const trajectory_msgs::msg::Join
     }
 }
 
-/**
- * @brief 主循环，保持节点运行
- */
+
 void ExecuteTrajectoryServer::spin()
 {
     rclcpp::spin(this->shared_from_this());
@@ -271,27 +303,18 @@ void ExecuteTrajectoryServer::spin()
 
 } // namespace demo_driver
 
-/**
- * @brief 主函数
- * 初始化 ROS 节点并启动执行轨迹服务服务器
- */
 int main(int argc, char** argv)
 {
-    // 初始化 ROS 节点
     rclcpp::init(argc, argv);
     
-    // 创建执行器（MoveIt 需要多线程执行器）
     rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
 
     try
     {
-        // 创建执行轨迹服务服务器对象，使用 automatically_declare_parameters_from_overrides 自动声明参数
         rclcpp::NodeOptions node_options;
         node_options.automatically_declare_parameters_from_overrides(true);
         auto server = std::make_shared<demo_driver::ExecuteTrajectoryServer>(node_options);
-        RCLCPP_INFO(server->get_logger(), "Execute Trajectory Server node created");
         
-        // 初始化 MoveIt 接口（在节点创建为 shared_ptr 后）
         if (!server->initialize(10, 2))
         {
             RCLCPP_ERROR(rclcpp::get_logger("execute_trajectory_server_node"), 
@@ -301,13 +324,10 @@ int main(int argc, char** argv)
         }
         
         executor.add_node(server);
-        RCLCPP_INFO(server->get_logger(), "Execute Trajectory Server node started");
-        // 进入主循环
         executor.spin();
     }
     catch (const std::exception& e)
     {
-        // 捕获异常并输出错误信息
         RCLCPP_ERROR(rclcpp::get_logger("execute_trajectory_server_node"), 
                     "Exception in execute_trajectory_server_node: %s", e.what());
         rclcpp::shutdown();

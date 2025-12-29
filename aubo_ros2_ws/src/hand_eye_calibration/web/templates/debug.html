@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>调试</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .ok { color: green; }
+        .error { color: red; }
+        pre { background: #f0f0f0; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>调试信息</h1>
+    <div id="info">检测中...</div>
+    
+    <script>
+        const info = [];
+        
+        // 测试1: 基本JavaScript
+        info.push('<h2>测试1: JavaScript基础</h2>');
+        info.push('<span class="ok">✅ JavaScript可执行</span><br>');
+        info.push('当前时间: ' + new Date() + '<br>');
+        
+        // 测试2: DOM
+        info.push('<h2>测试2: DOM</h2>');
+        info.push(document.getElementById('info') ? '<span class="ok">✅ getElementById可用</span><br>' : '<span class="error">❌</span><br>');
+        
+        // 测试3: Fetch
+        info.push('<h2>测试3: 网络</h2>');
+        fetch('/api/robot_pose')
+            .then(r => r.json())
+            .then(d => {
+                info.push('<span class="ok">✅ API可访问</span><br>');
+                info.push('<pre>' + JSON.stringify(d, null, 2) + '</pre>');
+                document.getElementById('info').innerHTML = info.join('');
+            })
+            .catch(e => {
+                info.push('<span class="error">❌ API失败: ' + e + '</span><br>');
+                document.getElementById('info').innerHTML = info.join('');
+            });
+        
+        // 测试4: 立即更新
+        document.getElementById('info').innerHTML = info.join('');
+        
+        // 测试5: 尝试加载主script
+        info.push('<h2>测试4: 加载主脚本</h2>');
+        const script = document.createElement('script');
+        script.src = '/static/script_v2.js?test=' + Date.now();
+        script.onload = () => {
+            setTimeout(() => {
+                info.push('<span class="ok">✅ script_v2.js加载成功</span><br>');
+                info.push('检查函数存在性:<br>');
+                info.push('- loadCameraParams: ' + (typeof loadCameraParams) + '<br>');
+                info.push('- initCameraVerifyButtons: ' + (typeof initCameraVerifyButtons) + '<br>');
+                info.push('- checkConnectionStatus: ' + (typeof checkConnectionStatus) + '<br>');
+                info.push('- imageZoomStates: ' + (typeof imageZoomStates) + '<br>');
+                info.push('- manualPickMode: ' + (typeof manualPickMode) + '<br>');
+                
+                info.push('<h2>测试5: 尝试调用checkConnectionStatus</h2>');
+                try {
+                    if (typeof checkConnectionStatus === 'function') {
+                        // 创建必要的DOM元素
+                        const div = document.createElement('div');
+                        div.innerHTML = '<span id="connection-status">测试中...</span>';
+                        document.body.appendChild(div);
+                        
+                        checkConnectionStatus();
+                        info.push('<span class="ok">✅ checkConnectionStatus调用成功</span><br>');
+                        
+                        setTimeout(() => {
+                            const status = document.getElementById('connection-status').textContent;
+                            info.push('连接状态: ' + status + '<br>');
+                            document.getElementById('info').innerHTML = info.join('');
+                        }, 3000);
+                    } else {
+                        info.push('<span class="error">❌ checkConnectionStatus不是函数</span><br>');
+                    }
+                } catch(e) {
+                    info.push('<span class="error">❌ 调用失败: ' + e.message + '</span><br>');
+                }
+                
+                document.getElementById('info').innerHTML = info.join('');
+            }, 500);
+        };
+        script.onerror = () => {
+            info.push('<span class="error">❌ script_v2.js加载失败</span><br>');
+            document.getElementById('info').innerHTML = info.join('');
+        };
+        document.head.appendChild(script);
+    </script>
+</body>
+</html>
+
+
+
+
+

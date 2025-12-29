@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<opencv_storage>
+   <!-- ========================================== -->
+   <!-- 相机标定参数 (Camera Calibration Parameters) -->
+   <!-- ========================================== -->
+
+   <ImageSize type_id="opencv-matrix">
+      <rows>1</rows>
+      <cols>2</cols>
+      <dt>d</dt>
+      <data>3072 2048</data>
+   </ImageSize>
+   <CameraMatrix type_id="opencv-matrix">
+      <rows>3</rows>
+      <cols>3</cols>
+      <dt>d</dt>
+      <data>1948.8900563405006778 0.0000000000000000 1596.0493964044310360 0.0000000000000000 1948.6961941641043268 1033.6649479088405315 0.0000000000000000 0.0000000000000000 1.0000000000000000</data>
+   </CameraMatrix>
+   <FocalLength type_id="opencv-matrix">
+      <rows>1</rows>
+      <cols>2</cols>
+      <dt>d</dt>
+      <data>1948.8900563405006778 1948.6961941641043268</data>
+   </FocalLength>
+   <PrincipalPoint type_id="opencv-matrix">
+      <rows>1</rows>
+      <cols>2</cols>
+      <dt>d</dt>
+      <data>1596.0493964044310360 1033.6649479088405315</data>
+   </PrincipalPoint>
+   <DistortionCoefficients type_id="opencv-matrix">
+      <rows>1</rows>
+      <cols>4</cols>
+      <dt>d</dt>
+      <data>-0.0115433794245979 0.0029436384059040 0.0003924986795159 -0.0000470176857935</data>
+   </DistortionCoefficients>
+
+   <!-- ========================================== -->
+   <!-- 手眼标定结果 (Hand-Eye Calibration Results) -->
+   <!-- ========================================== -->
+
+   <!-- 标定元数据 -->
+   <CalibrationType>Eye-to-Hand</CalibrationType>
+   <CalibrationMethod>SVD Point Cloud Registration</CalibrationMethod>
+   <CalibrationDate>2025-10-25 10:30:42</CalibrationDate>
+   <CameraHeight unit="mm">840.000</CameraHeight>
+
+   <!-- 变换矩阵: 相机坐标系 → 机器人基座坐标系 -->
+   <TransformationMatrix type_id="opencv-matrix">
+      <rows>4</rows>
+      <cols>4</cols>
+      <dt>d</dt>
+      <data>-0.0540905987206061 0.9985338419305225 0.0020913272141381 365.7890388860327562 0.9985317605468444 0.0540963747036189 -0.0028116584331532 516.9323632747332340 -0.0029206693180567 0.0019361723569657 -0.9999938604448223 830.8636625859919604 0.0000000000000000 0.0000000000000000 0.0000000000000000 1.0000000000000000</data>
+   </TransformationMatrix>
+
+   <!-- 旋转矩阵 (3x3) -->
+   <RotationMatrix type_id="opencv-matrix">
+      <rows>3</rows>
+      <cols>3</cols>
+      <dt>d</dt>
+      <data>-0.0540905987206061 0.9985338419305225 0.0020913272141381 0.9985317605468444 0.0540963747036189 -0.0028116584331532 -0.0029206693180567 0.0019361723569657 -0.9999938604448223</data>
+   </RotationMatrix>
+
+   <!-- 平移向量 (单位: mm) -->
+   <TranslationVector type_id="opencv-matrix" unit="mm">
+      <rows>3</rows>
+      <cols>1</cols>
+      <dt>d</dt>
+      <data>365.7890388860327562 516.9323632747332340 830.8636625859919604</data>
+   </TranslationVector>
+
+   <!-- 标定精度评估 -->
+   <MeanCalibrationError unit="mm">0.750379</MeanCalibrationError>
+   <MaxCalibrationError unit="mm">1.075588</MaxCalibrationError>
+   <MinCalibrationError unit="mm">0.250771</MinCalibrationError>
+   <StdCalibrationError unit="mm">0.218319</StdCalibrationError>
+   <DataPointCount>15</DataPointCount>
+
+   <!-- 使用说明 -->
+   <UsageNotes>
+      此文件包含完整的相机内参和手眼标定结果。
+      变换矩阵将相机坐标系的点转换到机器人基座坐标系。
+      标定场景: Eye-to-Hand
+      标定方法: SVD Point Cloud Registration
+      平均误差: 0.750 mm
+      单位说明: 平移向量单位为毫米(mm)，旋转矩阵无单位
+   </UsageNotes>
+</opencv_storage>

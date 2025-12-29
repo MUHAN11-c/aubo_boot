@@ -10,9 +10,15 @@
 #include <rclcpp/executors/multi_threaded_executor.hpp>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <cmath>
+#include <cstdlib>
+#include <string>
+#include <thread>
+#include <chrono>
 
 namespace demo_driver
 {
+
+
 
 /**
  * @brief 构造函数，初始化 MoveIt 接口和服务服务器
@@ -33,19 +39,23 @@ SetSpeedFactorServer::SetSpeedFactorServer(const rclcpp::NodeOptions& options)
     set_speed_factor_service_ = this->create_service<demo_interface::srv::SetSpeedFactor>(
         "/set_speed_factor",
         std::bind(&SetSpeedFactorServer::setSpeedFactorCallback, this, std::placeholders::_1, std::placeholders::_2));
-
-    RCLCPP_INFO(this->get_logger(), "SetSpeedFactorServer node created, ready to initialize MoveIt");
 }
 
 bool SetSpeedFactorServer::wait_for_robot_description(int timeout_seconds)
 {
-    RCLCPP_INFO(this->get_logger(), "Waiting for robot_description parameter and MoveIt2 services...");
+    static bool info_logged = false;
+    static bool warned_once = false;
     
-    // 检查参数是否已通过 launch 文件传递（使用 automatically_declare_parameters_from_overrides）
+    if (!info_logged) {
+        RCLCPP_INFO(this->get_logger(), "Waiting for robot_description parameter and MoveIt2 services...");
+        info_logged = true;
+    }
+    
     if (!this->has_parameter("robot_description") || !this->has_parameter("robot_description_semantic")) {
-        RCLCPP_WARN(this->get_logger(), "robot_description or robot_description_semantic parameter not found. Make sure they are passed via launch file.");
-    } else {
-        RCLCPP_INFO(this->get_logger(), "robot_description parameters found on local parameter server");
+        if (!warned_once) {
+            RCLCPP_WARN(this->get_logger(), "robot_description or robot_description_semantic parameter not found");
+            warned_once = true;
+        }
     }
     
     auto start_time = std::chrono::steady_clock::now();
@@ -62,8 +72,11 @@ bool SetSpeedFactorServer::wait_for_robot_description(int timeout_seconds)
             
             if (!test_frame.empty())
             {
-                RCLCPP_INFO(this->get_logger(), "Robot description parameter and MoveIt2 services are ready");
-                RCLCPP_INFO(this->get_logger(), "Planning frame: %s", test_frame.c_str());
+                static bool ready_logged = false;
+                if (!ready_logged) {
+                    RCLCPP_INFO(this->get_logger(), "Robot description ready, planning frame: %s", test_frame.c_str());
+                    ready_logged = true;
+                }
                 return true;
             }
         }
@@ -94,42 +107,45 @@ bool SetSpeedFactorServer::wait_for_robot_description(int timeout_seconds)
 
 bool SetSpeedFactorServer::initialize(int max_retries, int retry_delay_seconds)
 {
-    RCLCPP_INFO(this->get_logger(), "Initializing MoveIt interfaces for planning group: %s", planning_group_name_.c_str());
+    static bool init_logged = false;
+    if (!init_logged) {
+        RCLCPP_INFO(this->get_logger(), "Initializing MoveIt interfaces for planning group: %s", planning_group_name_.c_str());
+        init_logged = true;
+    }
     
-    // 等待机器人描述参数
     if (!wait_for_robot_description(30))
     {
         return false;
     }
     
-    // 等待一段时间，确保参数完全加载
     std::this_thread::sleep_for(std::chrono::seconds(2));
     
     for (int attempt = 1; attempt <= max_retries; ++attempt)
     {
         try
         {
-            RCLCPP_INFO(this->get_logger(), "Attempting to initialize MoveIt interfaces (attempt %d/%d)...", attempt, max_retries);
-            
             move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
                 shared_from_this(), planning_group_name_);
             planning_scene_interface_ = std::make_shared<moveit::planning_interface::PlanningSceneInterface>();
-            
-            // 设置参考坐标系
             move_group_->setPoseReferenceFrame(base_frame_);
             
-            RCLCPP_INFO(this->get_logger(), "MoveIt interfaces initialized successfully");
-            RCLCPP_INFO(this->get_logger(), "SetSpeedFactorServer initialized, service '/set_speed_factor' is ready");
+            static bool success_logged = false;
+            if (!success_logged) {
+                RCLCPP_INFO(this->get_logger(), "SetSpeedFactorServer initialized, service '/set_speed_factor' ready");
+                success_logged = true;
+            }
             return true;
         }
         catch (const std::exception& e)
         {
-            RCLCPP_WARN(this->get_logger(), "Failed to initialize MoveIt interfaces (attempt %d/%d): %s", 
-                       attempt, max_retries, e.what());
-            
             if (attempt < max_retries)
             {
-                RCLCPP_INFO(this->get_logger(), "Waiting %d seconds before retry...", retry_delay_seconds);
+                static int last_attempt_logged = 0;
+                if (attempt != last_attempt_logged) {
+                    RCLCPP_WARN(this->get_logger(), "Initialization attempt %d/%d failed: %s, retrying...", 
+                               attempt, max_retries, e.what());
+                    last_attempt_logged = attempt;
+                }
                 std::this_thread::sleep_for(std::chrono::seconds(retry_delay_seconds));
             }
             else
@@ -154,18 +170,22 @@ void SetSpeedFactorServer::setSpeedFactorCallback(
     const std::shared_ptr<demo_interface::srv::SetSpeedFactor::Request> req,
     std::shared_ptr<demo_interface::srv::SetSpeedFactor::Response> res)
 {
-    RCLCPP_INFO(this->get_logger(), "Received set_speed_factor request: velocity_factor = %.2f", req->velocity_factor);
+    static bool first_request = true;
+    if (first_request) {
+        RCLCPP_INFO(this->get_logger(), "SetSpeedFactor service ready");
+        first_request = false;
+    }
+    
+    RCLCPP_INFO(this->get_logger(), "SetSpeedFactor request: velocity_factor=%.2f", req->velocity_factor);
 
-    // 验证输入参数
     if (req->velocity_factor < 0.0 || req->velocity_factor > 1.0)
     {
         res->success = false;
         res->message = "Invalid velocity_factor, must be between 0.0 and 1.0";
-        RCLCPP_WARN(this->get_logger(), "%s", res->message.c_str());
+        RCLCPP_WARN(this->get_logger(), "SetSpeedFactor response: %s", res->message.c_str());
         return;
     }
 
-    // 设置速度因子
     std::string message;
     bool success = setSpeedFactor(req->velocity_factor, message);
 
@@ -174,11 +194,11 @@ void SetSpeedFactorServer::setSpeedFactorCallback(
 
     if (success)
     {
-        RCLCPP_INFO(this->get_logger(), "Set speed factor succeeded: %s", message.c_str());
+        RCLCPP_INFO(this->get_logger(), "SetSpeedFactor response: success (velocity_factor=%.2f)", req->velocity_factor);
     }
     else
     {
-        RCLCPP_WARN(this->get_logger(), "Set speed factor failed: %s", message.c_str());
+        RCLCPP_WARN(this->get_logger(), "SetSpeedFactor response: failed (message: %s)", message.c_str());
     }
 }
 
@@ -195,11 +215,40 @@ bool SetSpeedFactorServer::setSpeedFactor(float velocity_factor, std::string& me
 
     try
     {
-        // 设置速度缩放因子
         move_group_->setMaxVelocityScalingFactor(velocity_factor);
+        this->set_parameter(rclcpp::Parameter("moveit_velocity_scaling_factor", velocity_factor));
+        
+        std::vector<rclcpp::Parameter> params_to_set = {
+            rclcpp::Parameter("moveit_velocity_scaling_factor", velocity_factor)
+        };
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        
+        auto param_client = std::make_shared<rclcpp::SyncParametersClient>(shared_from_this(), "plan_trajectory_server");
+        if (param_client->wait_for_service(std::chrono::milliseconds(1000)))
+        {
+            try
+            {
+                param_client->set_parameters(params_to_set);
+            }
+            catch (...)
+            {
+            }
+        }
+        
+        param_client = std::make_shared<rclcpp::SyncParametersClient>(shared_from_this(), "execute_trajectory_server");
+        if (param_client->wait_for_service(std::chrono::milliseconds(1000)))
+        {
+            try
+            {
+                param_client->set_parameters(params_to_set);
+            }
+            catch (...)
+            {
+            }
+        }
         
         message = "Successfully set velocity factor to " + std::to_string(velocity_factor);
-        RCLCPP_INFO(this->get_logger(), "Velocity factor set to %.2f", velocity_factor);
         return true;
     }
     catch (const std::exception& e)
@@ -238,9 +287,7 @@ int main(int argc, char** argv)
         rclcpp::NodeOptions node_options;
         node_options.automatically_declare_parameters_from_overrides(true);
         auto server = std::make_shared<demo_driver::SetSpeedFactorServer>(node_options);
-        RCLCPP_INFO(server->get_logger(), "Set Speed Factor Server node created");
         
-        // 初始化 MoveIt 接口（在节点创建为 shared_ptr 后）
         if (!server->initialize(10, 2))
         {
             RCLCPP_ERROR(rclcpp::get_logger("set_speed_factor_server_node"), 
@@ -250,8 +297,6 @@ int main(int argc, char** argv)
         }
         
         executor.add_node(server);
-        RCLCPP_INFO(server->get_logger(), "Set Speed Factor Server node started");
-        // 进入主循环
         executor.spin();
     }
     catch (const std::exception& e)

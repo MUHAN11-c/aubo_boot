@@ -325,6 +325,281 @@ void PercipioCameraNode::setupTopics() {
   setupSubscribers();
 }
 
+bool PercipioCameraNode::updateParameter(const std::string& param_name, const rclcpp::Parameter& parameter) {
+    try {
+        // 处理深度斑点滤波参数
+        if (param_name == "depth_speckle_filter") {
+            depth_speckle_filter_enable = parameter.as_bool();
+            device_ptr->depth_speckle_filter_init(depth_speckle_filter_enable, max_speckle_size, max_speckle_diff);
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                "Updated depth_speckle_filter: " << depth_speckle_filter_enable);
+            return true;
+        }
+        
+        if (param_name == "max_speckle_size") {
+            max_speckle_size = parameter.as_int();
+            if (max_speckle_size < 0) {
+                RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                    "max_speckle_size must be >= 0");
+                return false;
+            }
+            device_ptr->depth_speckle_filter_init(depth_speckle_filter_enable, max_speckle_size, max_speckle_diff);
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                "Updated max_speckle_size: " << max_speckle_size);
+            return true;
+        }
+        
+        if (param_name == "max_speckle_diff") {
+            max_speckle_diff = parameter.as_int();
+            if (max_speckle_diff < 0) {
+                RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                    "max_speckle_diff must be >= 0");
+                return false;
+            }
+            device_ptr->depth_speckle_filter_init(depth_speckle_filter_enable, max_speckle_size, max_speckle_diff);
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                "Updated max_speckle_diff: " << max_speckle_diff);
+            return true;
+        }
+        
+        // 处理时域滤波参数
+        if (param_name == "depth_time_domain_filter") {
+            depth_time_domain_filter_enable = parameter.as_bool();
+            device_ptr->dpeth_time_domain_filter_init(depth_time_domain_filter_enable, depth_time_domain_num);
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                "Updated depth_time_domain_filter: " << depth_time_domain_filter_enable);
+            return true;
+        }
+        
+        if (param_name == "depth_time_domain_num") {
+            int new_value = parameter.as_int();
+            if (new_value < 2 || new_value > 10) {
+                RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                    "depth_time_domain_num must be between 2 and 10");
+                return false;
+            }
+            depth_time_domain_num = new_value;
+            device_ptr->dpeth_time_domain_filter_init(depth_time_domain_filter_enable, depth_time_domain_num);
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                "Updated depth_time_domain_num: " << depth_time_domain_num);
+            return true;
+        }
+        
+        // 处理深度配准参数
+        if (param_name == "depth_registration_enable") {
+            depth_registration_enable = parameter.as_bool();
+            device_ptr->topics_depth_registration_enable(depth_registration_enable);
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                "Updated depth_registration_enable: " << depth_registration_enable);
+            return true;
+        }
+        
+        // 处理点云参数
+        if (param_name == "point_cloud_enable") {
+            point_cloud_enable = parameter.as_bool();
+            if (point_cloud_enable && color_point_cloud_enable) {
+                RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                    "Cannot enable point_cloud_enable when color_point_cloud_enable is true");
+                return false;
+            }
+            device_ptr->topics_point_cloud_enable(point_cloud_enable);
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                "Updated point_cloud_enable: " << point_cloud_enable);
+            return true;
+        }
+        
+        if (param_name == "color_point_cloud_enable") {
+            color_point_cloud_enable = parameter.as_bool();
+            if (color_point_cloud_enable) {
+                depth_registration_enable = true;
+                point_cloud_enable = false;
+                device_ptr->topics_depth_registration_enable(depth_registration_enable);
+                device_ptr->topics_point_cloud_enable(point_cloud_enable);
+            }
+            device_ptr->topics_color_point_cloud_enable(color_point_cloud_enable);
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                "Updated color_point_cloud_enable: " << color_point_cloud_enable);
+            return true;
+        }
+        
+        // 处理激光功率
+        if (param_name == "laser_power") {
+            int new_value = parameter.as_int();
+            if (new_value < -1) {
+                RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                    "laser_power must be >= -1");
+                return false;
+            }
+            m_laser_power = new_value;
+            if (m_laser_power >= 0) {
+                device_ptr->set_laser_power(m_laser_power);
+                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                    "Updated laser_power: " << m_laser_power);
+            }
+            return true;
+        }
+        
+        // 处理TOF参数
+        if (param_name == "tof_depth_quality") {
+            tof_depth_quality = parameter.as_string();
+            if (!tof_depth_quality.empty()) {
+                device_ptr->set_tof_depth_quality(tof_depth_quality);
+                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                    "Updated tof_depth_quality: " << tof_depth_quality);
+            }
+            return true;
+        }
+        
+        if (param_name == "tof_modulation_threshold") {
+            int new_value = parameter.as_int();
+            if (new_value >= 0) {
+                m_tof_modulation_threshold = new_value;
+                device_ptr->set_tof_modulation_threshold(m_tof_modulation_threshold);
+                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                    "Updated tof_modulation_threshold: " << m_tof_modulation_threshold);
+            }
+            return true;
+        }
+        
+        if (param_name == "tof_jitter_threshold") {
+            int new_value = parameter.as_int();
+            if (new_value >= 0) {
+                m_tof_jitter_threshold = new_value;
+                device_ptr->set_tof_jitter_threshold(m_tof_jitter_threshold);
+                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                    "Updated tof_jitter_threshold: " << m_tof_jitter_threshold);
+            }
+            return true;
+        }
+        
+        if (param_name == "tof_filter_threshold") {
+            int new_value = parameter.as_int();
+            if (new_value >= 0) {
+                m_tof_filter_threshold = new_value;
+                device_ptr->set_tof_filter_threshold(m_tof_filter_threshold);
+                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                    "Updated tof_filter_threshold: " << m_tof_filter_threshold);
+            }
+            return true;
+        }
+        
+        if (param_name == "tof_channel") {
+            int new_value = parameter.as_int();
+            if (new_value >= 0) {
+                m_tof_channel = new_value;
+                device_ptr->set_tof_channel(m_tof_channel);
+                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                    "Updated tof_channel: " << m_tof_channel);
+            }
+            return true;
+        }
+        
+        if (param_name == "tof_HDR_ratio") {
+            int new_value = parameter.as_int();
+            if (new_value >= 0) {
+                m_tof_HDR_ratio = new_value;
+                device_ptr->set_tof_HDR_ratio(m_tof_HDR_ratio);
+                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                    "Updated tof_HDR_ratio: " << m_tof_HDR_ratio);
+            }
+            return true;
+        }
+        
+        // 处理网络重传参数
+        if (param_name == "gvsp_resend") {
+            m_gvsp_resend = parameter.as_bool();
+            device_ptr->enable_gvsp_resend(m_gvsp_resend);
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                "Updated gvsp_resend: " << m_gvsp_resend);
+            return true;
+        }
+        
+        // 处理自动重连参数
+        if (param_name == "device_auto_reconnect") {
+            m_offline_auto_reconnection = parameter.as_bool();
+            device_ptr->enable_offline_reconnect(m_offline_auto_reconnection);
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                "Updated device_auto_reconnect: " << m_offline_auto_reconnection);
+            return true;
+        }
+        
+        // 处理颜色AEC ROI参数
+        if (param_name == "color_aec_roi") {
+            std::string roi_str = parameter.as_string();
+            if (!roi_str.empty()) {
+                int cnt = sscanf(roi_str.c_str(), "%d.%d.%d.%d", &roi[0], &roi[1], &roi[2], &roi[3]);
+                if (cnt == 4) {
+                    b_enable_roi_aec = true;
+                    if (stream_enable[COLOR_STREAM]) {
+                        device_ptr->update_color_aec_roi(roi[0], roi[1], roi[2], roi[3]);
+                        RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                            "Updated color_aec_roi: " << roi_str);
+                    }
+                } else {
+                    RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                        "Invalid color_aec_roi format. Expected: x.y.width.height");
+                    return false;
+                }
+            } else {
+                b_enable_roi_aec = false;
+            }
+            return true;
+        }
+        
+        // 处理曝光时间参数
+        // 依据：TYDefs.h中定义的TY_FLOAT_EXPOSURE_TIME_US (0x0308) 和 TY_INT_EXPOSURE_TIME (0x0301)
+        // 使用TYSetFloat/TYSetInt API设置，参考percipio_device.cpp中的set_exposure_time实现
+        if (param_name == "exposure_time") {
+            float new_value = parameter.as_double();
+            if (new_value <= 0.0f) {
+                RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                    "exposure_time must be > 0");
+                return false;
+            }
+            if (device_ptr->set_exposure_time(new_value)) {
+                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                    "Updated exposure_time: " << new_value << " us");
+                return true;
+            } else {
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                    "Failed to set exposure_time");
+                return false;
+            }
+        }
+        
+        // 处理增益参数
+        // 依据：TYDefs.h中定义的TY_INT_GAIN (0x0303)
+        // 使用TYSetInt API设置，参考percipio_device.cpp中的set_gain实现
+        if (param_name == "gain") {
+            float new_value = parameter.as_double();
+            if (new_value < 0.0f) {
+                RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                    "gain must be >= 0");
+                return false;
+            }
+            if (device_ptr->set_gain(new_value)) {
+                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                    "Updated gain: " << new_value);
+                return true;
+            } else {
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+                    "Failed to set gain");
+                return false;
+            }
+        }
+        
+        // 未识别的参数
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+            "Parameter '" << param_name << "' is not supported for dynamic update");
+        return false;
+        
+    } catch (const std::exception& e) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), 
+            "Error updating parameter '" << param_name << "': " << e.what());
+        return false;
+    }
+}
+
 void PercipioCameraNode::SendOfflineMsg(const char* sn) {
     auto msg = std_msgs::msg::String();
     msg.data = " DeviceOffline<" + std::string(sn) + ">";

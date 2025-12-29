@@ -1731,4 +1731,491 @@ void PercipioDevice::dpeth_time_domain_filter_init(bool enable, int number)
     DepthDomainTimeFilterMgrPtr->reset(m_depth_time_domain_frame_num);
 }
 
+bool PercipioDevice::set_exposure_time(float exposure_time_us)
+{
+    if(!handle || !isAlive()) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Device not available");
+        return false;
+    }
+    
+    TY_STATUS status;
+    
+    if(GigeE_2_1 == gige_version) {
+        // 参考文档：设置曝光时间需要先设置SourceSelector和ComponentEnable
+        auto source = StreamCompID2GenICamSource(TY_COMPONENT_RGB_CAM);
+        if(!source) {
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid component for exposure time");
+            return false;
+        }
+        
+        // 设置SourceSelector（文档要求）
+        status = TYEnumSetString(handle, "SourceSelector", source);
+        if(status != TY_STATUS_OK) {
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set SourceSelector failed: " << status);
+            return false;
+        }
+        
+        // 使能组件（文档要求：设置组件并使能组件）
+        status = TYBooleanSetValue(handle, "ComponentEnable", true);
+        if(status != TY_STATUS_OK) {
+            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set ComponentEnable failed: " << status);
+        }
+        
+        // 关闭自动曝光（文档要求：设置曝光时间前需要关闭自动曝光）
+        status = TYBooleanSetValue(handle, "ExposureAuto", false);
+        if(status != TY_STATUS_OK) {
+            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Disable ExposureAuto failed: " << status);
+        }
+        
+        // 查询曝光时间范围（文档：使用TYFloatGetMin/Max查询范围）
+        double fmin = 0.0, fmax = 0.0, fstep = 0.0, fdefault = 0.0;
+        status = TYFloatGetMin(handle, "ExposureTime", &fmin);
+        if(status == TY_STATUS_OK) {
+            status = TYFloatGetMax(handle, "ExposureTime", &fmax);
+            if(status == TY_STATUS_OK) {
+                if(exposure_time_us < fmin || exposure_time_us > fmax) {
+                    RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), 
+                                      "Exposure time " << exposure_time_us << " out of range [" 
+                                      << fmin << ", " << fmax << "], clamping...");
+                    exposure_time_us = (exposure_time_us < fmin) ? static_cast<float>(fmin) : 
+                                      ((exposure_time_us > fmax) ? static_cast<float>(fmax) : exposure_time_us);
+                }
+                RCLCPP_DEBUG_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), 
+                                    "ExposureTime range: [" << fmin << ", " << fmax << "]");
+            }
+        }
+        
+        // 设置曝光时间（文档：使用TYFloatSetValue设置ExposureTime）
+        status = TYFloatSetValue(handle, "ExposureTime", static_cast<double>(exposure_time_us));
+        if(status != TY_STATUS_OK) {
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set ExposureTime failed: " << status);
+            return false;
+        }
+    } else {
+        // 先关闭自动曝光（文档要求：设置曝光时间前必须先关闭自动曝光）
+        bool has_auto_exp = false;
+        TYHasFeature(handle, TY_COMPONENT_RGB_CAM, TY_BOOL_AUTO_EXPOSURE, &has_auto_exp);
+        if(has_auto_exp) {
+            status = TYSetBool(handle, TY_COMPONENT_RGB_CAM, TY_BOOL_AUTO_EXPOSURE, false);
+            if(status != TY_STATUS_OK) {
+                RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Disable auto exposure failed: " << status);
+            }
+        }
+        
+        // 优先尝试使用FLOAT类型设置（TY_FLOAT_EXPOSURE_TIME_US：曝光时间绝对真值，单位：μs）
+        bool has_float_exp = false;
+        TYHasFeature(handle, TY_COMPONENT_RGB_CAM, TY_FLOAT_EXPOSURE_TIME_US, &has_float_exp);
+        if(has_float_exp) {
+            status = TYSetFloat(handle, TY_COMPONENT_RGB_CAM, TY_FLOAT_EXPOSURE_TIME_US, exposure_time_us);
+            if(status == TY_STATUS_OK) {
+                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), 
+                                  "Exposure time set to: " << exposure_time_us << " us (FLOAT)");
+                return true;
+            }
+        }
+        
+        // 如果FLOAT类型失败或不支持，尝试使用INT类型（TY_INT_EXPOSURE_TIME）
+        bool has_int_exp = false;
+        TYHasFeature(handle, TY_COMPONENT_RGB_CAM, TY_INT_EXPOSURE_TIME, &has_int_exp);
+        if(has_int_exp) {
+            // 查询曝光时间范围（文档建议：使用TYGetIntRange查询有效范围）
+            TY_INT_RANGE range;
+            status = TYGetIntRange(handle, TY_COMPONENT_RGB_CAM, TY_INT_EXPOSURE_TIME, &range);
+            if(status == TY_STATUS_OK) {
+                int32_t exp_time_int = static_cast<int32_t>(exposure_time_us);
+                if(exp_time_int < range.min || exp_time_int > range.max) {
+                    RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), 
+                                      "Exposure time " << exp_time_int << " out of range [" 
+                                      << range.min << ", " << range.max << "], clamping...");
+                    exp_time_int = (exp_time_int < range.min) ? range.min : 
+                                  ((exp_time_int > range.max) ? range.max : exp_time_int);
+                }
+                status = TYSetInt(handle, TY_COMPONENT_RGB_CAM, TY_INT_EXPOSURE_TIME, exp_time_int);
+                if(status == TY_STATUS_OK) {
+                    RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), 
+                                      "Exposure time set to: " << exp_time_int << " us (INT, range: [" 
+                                      << range.min << ", " << range.max << "])");
+                    return true;
+                }
+            } else {
+                // 如果查询范围失败，直接设置
+                status = TYSetInt(handle, TY_COMPONENT_RGB_CAM, TY_INT_EXPOSURE_TIME, 
+                                 static_cast<int32_t>(exposure_time_us));
+                if(status == TY_STATUS_OK) {
+                    RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), 
+                                      "Exposure time set to: " << static_cast<int32_t>(exposure_time_us) << " us (INT)");
+                    return true;
+                }
+            }
+        }
+        
+        // 如果两种方式都失败
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), 
+                          "Set ExposureTime failed: neither FLOAT nor INT type is supported");
+        return false;
+    }
+    
+    // GigeE_2.1版本的成功日志已在上面输出
+    return true;
+}
+
+// 设置增益
+// 依据：TYDefs.h中定义的增益相关常量
+// 对于彩色图像传感器（RGB_CAM），应使用TY_INT_R_GAIN, TY_INT_G_GAIN, TY_INT_B_GAIN分别设置R、G、B通道
+// 对于单色图像传感器，使用TY_INT_GAIN (0x0303)
+// 设置彩色图像增益前需先关闭自动白平衡（TY_BOOL_AUTO_AWB）
+// API：TYSetInt, TYFloatSetValue (GigeE_2.1)
+// 参考：代码中已有使用TYSetInt的示例（如set_laser_power等）
+bool PercipioDevice::set_gain(float gain_value)
+{
+    if(!handle || !isAlive()) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Device not available");
+        return false;
+    }
+    
+    TY_STATUS status;
+    int32_t gain_int = static_cast<int32_t>(gain_value);
+    
+    if(GigeE_2_1 == gige_version) {
+        // 参考文档：数字增益需要通过R、G、B三通道独立设置
+        auto source = StreamCompID2GenICamSource(TY_COMPONENT_RGB_CAM);
+        if(!source) {
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid component for gain");
+            return false;
+        }
+        
+        // 设置SourceSelector（文档要求）
+        status = TYEnumSetString(handle, "SourceSelector", source);
+        if(status != TY_STATUS_OK) {
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set SourceSelector failed: " << status);
+            return false;
+        }
+        
+        // 关闭自动白平衡（文档要求：设置数字增益前需要先关闭自动白平衡）
+        status = TYBooleanSetValue(handle, "BalanceWhiteAuto", false);
+        if(status != TY_STATUS_OK) {
+            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Disable BalanceWhiteAuto failed: " << status);
+        }
+        
+        // 尝试使用数字增益（DigitalRed, DigitalGreen, DigitalBlue）
+        // 文档：彩色图像传感器模组的数字增益需要通过R、G、B三通道独立设置
+        bool digital_gain_success = true;
+        
+        // 设置R通道增益（文档：查询范围后设置）
+        status = TYEnumSetString(handle, "GainSelector", "DigitalRed");
+        if(status == TY_STATUS_OK) {
+            // 查询增益范围
+            double gmin = 0.0, gmax = 0.0, gstep = 0.0, gdefault = 0.0;
+            status = TYFloatGetMin(handle, "Gain", &gmin);
+            if(status == TY_STATUS_OK) {
+                status = TYFloatGetMax(handle, "Gain", &gmax);
+                if(status == TY_STATUS_OK) {
+                    double clamped_gain = gain_value;
+                    if(gain_value < gmin || gain_value > gmax) {
+                        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), 
+                                          "DigitalRed Gain " << gain_value << " out of range [" 
+                                          << gmin << ", " << gmax << "], clamping...");
+                        clamped_gain = (gain_value < gmin) ? gmin : ((gain_value > gmax) ? gmax : gain_value);
+                    }
+                    status = TYFloatSetValue(handle, "Gain", clamped_gain);
+                    if(status != TY_STATUS_OK) {
+                        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set DigitalRed Gain failed: " << status);
+                        digital_gain_success = false;
+                    }
+                } else {
+                    // 如果查询范围失败，直接设置
+                    status = TYFloatSetValue(handle, "Gain", static_cast<double>(gain_value));
+                    if(status != TY_STATUS_OK) {
+                        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set DigitalRed Gain failed: " << status);
+                        digital_gain_success = false;
+                    }
+                }
+            } else {
+                // 如果查询范围失败，直接设置
+                status = TYFloatSetValue(handle, "Gain", static_cast<double>(gain_value));
+                if(status != TY_STATUS_OK) {
+                    RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set DigitalRed Gain failed: " << status);
+                    digital_gain_success = false;
+                }
+            }
+        } else {
+            digital_gain_success = false;
+        }
+        
+        // 设置G通道增益
+        if(digital_gain_success) {
+            status = TYEnumSetString(handle, "GainSelector", "DigitalGreen");
+            if(status == TY_STATUS_OK) {
+                // 查询增益范围
+                double gmin = 0.0, gmax = 0.0;
+                status = TYFloatGetMin(handle, "Gain", &gmin);
+                if(status == TY_STATUS_OK) {
+                    status = TYFloatGetMax(handle, "Gain", &gmax);
+                    if(status == TY_STATUS_OK) {
+                        double clamped_gain = gain_value;
+                        if(gain_value < gmin || gain_value > gmax) {
+                            clamped_gain = (gain_value < gmin) ? gmin : ((gain_value > gmax) ? gmax : gain_value);
+                        }
+                        status = TYFloatSetValue(handle, "Gain", clamped_gain);
+                        if(status != TY_STATUS_OK) {
+                            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set DigitalGreen Gain failed: " << status);
+                            digital_gain_success = false;
+                        }
+                    } else {
+                        status = TYFloatSetValue(handle, "Gain", static_cast<double>(gain_value));
+                        if(status != TY_STATUS_OK) {
+                            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set DigitalGreen Gain failed: " << status);
+                            digital_gain_success = false;
+                        }
+                    }
+                } else {
+                    status = TYFloatSetValue(handle, "Gain", static_cast<double>(gain_value));
+                    if(status != TY_STATUS_OK) {
+                        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set DigitalGreen Gain failed: " << status);
+                        digital_gain_success = false;
+                    }
+                }
+            } else {
+                digital_gain_success = false;
+            }
+        }
+        
+        // 设置B通道增益
+        if(digital_gain_success) {
+            status = TYEnumSetString(handle, "GainSelector", "DigitalBlue");
+            if(status == TY_STATUS_OK) {
+                // 查询增益范围
+                double gmin = 0.0, gmax = 0.0;
+                status = TYFloatGetMin(handle, "Gain", &gmin);
+                if(status == TY_STATUS_OK) {
+                    status = TYFloatGetMax(handle, "Gain", &gmax);
+                    if(status == TY_STATUS_OK) {
+                        double clamped_gain = gain_value;
+                        if(gain_value < gmin || gain_value > gmax) {
+                            clamped_gain = (gain_value < gmin) ? gmin : ((gain_value > gmax) ? gmax : gain_value);
+                        }
+                        status = TYFloatSetValue(handle, "Gain", clamped_gain);
+                        if(status != TY_STATUS_OK) {
+                            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set DigitalBlue Gain failed: " << status);
+                            digital_gain_success = false;
+                        }
+                    } else {
+                        status = TYFloatSetValue(handle, "Gain", static_cast<double>(gain_value));
+                        if(status != TY_STATUS_OK) {
+                            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set DigitalBlue Gain failed: " << status);
+                            digital_gain_success = false;
+                        }
+                    }
+                } else {
+                    status = TYFloatSetValue(handle, "Gain", static_cast<double>(gain_value));
+                    if(status != TY_STATUS_OK) {
+                        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set DigitalBlue Gain failed: " << status);
+                        digital_gain_success = false;
+                    }
+                }
+            } else {
+                digital_gain_success = false;
+            }
+        }
+        
+        if(digital_gain_success) {
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), 
+                              "Digital Gain set to: R=" << gain_value << ", G=" << gain_value << ", B=" << gain_value);
+            return true;
+        }
+        
+        // 如果数字增益设置失败，尝试使用通用增益接口（可能是模拟增益或其他类型）
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), 
+                          "Digital gain setting failed, trying generic gain interface");
+        status = TYFloatSetValue(handle, "Gain", static_cast<double>(gain_value));
+        if(status != TY_STATUS_OK) {
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set Gain failed: " << status);
+            return false;
+        }
+    } else {
+        // 对于RGB彩色图像传感器，需要先关闭自动白平衡
+        bool has_auto_awb = false;
+        TYHasFeature(handle, TY_COMPONENT_RGB_CAM, TY_BOOL_AUTO_AWB, &has_auto_awb);
+        if(has_auto_awb) {
+            status = TYSetBool(handle, TY_COMPONENT_RGB_CAM, TY_BOOL_AUTO_AWB, false);
+            if(status != TY_STATUS_OK) {
+                RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Disable auto AWB failed: " << status);
+            }
+        }
+        
+        // 先关闭自动增益
+        bool has_auto_gain = false;
+        TYHasFeature(handle, TY_COMPONENT_RGB_CAM, TY_BOOL_AUTO_GAIN, &has_auto_gain);
+        if(has_auto_gain) {
+            status = TYSetBool(handle, TY_COMPONENT_RGB_CAM, TY_BOOL_AUTO_GAIN, false);
+            if(status != TY_STATUS_OK) {
+                RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Disable auto gain failed: " << status);
+            }
+        }
+        
+        // 对于彩色图像传感器，尝试使用R、G、B三通道独立设置
+        // 如果设备支持，分别设置R、G、B通道增益为相同值
+        bool has_r_gain = false, has_g_gain = false, has_b_gain = false;
+        TYHasFeature(handle, TY_COMPONENT_RGB_CAM, TY_INT_R_GAIN, &has_r_gain);
+        TYHasFeature(handle, TY_COMPONENT_RGB_CAM, TY_INT_G_GAIN, &has_g_gain);
+        TYHasFeature(handle, TY_COMPONENT_RGB_CAM, TY_INT_B_GAIN, &has_b_gain);
+        
+        if(has_r_gain && has_g_gain && has_b_gain) {
+            // 彩色图像传感器：分别设置R、G、B通道，并查询范围
+            TY_INT_RANGE range_r, range_g, range_b;
+            bool has_range_r = (TYGetIntRange(handle, TY_COMPONENT_RGB_CAM, TY_INT_R_GAIN, &range_r) == TY_STATUS_OK);
+            bool has_range_g = (TYGetIntRange(handle, TY_COMPONENT_RGB_CAM, TY_INT_G_GAIN, &range_g) == TY_STATUS_OK);
+            bool has_range_b = (TYGetIntRange(handle, TY_COMPONENT_RGB_CAM, TY_INT_B_GAIN, &range_b) == TY_STATUS_OK);
+            
+            // 限制R通道增益范围
+            int32_t gain_r = gain_int;
+            if(has_range_r) {
+                if(gain_r < range_r.min || gain_r > range_r.max) {
+                    RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), 
+                                      "R Gain " << gain_r << " out of range [" << range_r.min << ", " << range_r.max << "], clamping...");
+                    gain_r = (gain_r < range_r.min) ? range_r.min : ((gain_r > range_r.max) ? range_r.max : gain_r);
+                }
+            }
+            
+            // 限制G通道增益范围
+            int32_t gain_g = gain_int;
+            if(has_range_g) {
+                if(gain_g < range_g.min || gain_g > range_g.max) {
+                    gain_g = (gain_g < range_g.min) ? range_g.min : ((gain_g > range_g.max) ? range_g.max : gain_g);
+                }
+            }
+            
+            // 限制B通道增益范围
+            int32_t gain_b = gain_int;
+            if(has_range_b) {
+                if(gain_b < range_b.min || gain_b > range_b.max) {
+                    gain_b = (gain_b < range_b.min) ? range_b.min : ((gain_b > range_b.max) ? range_b.max : gain_b);
+                }
+            }
+            
+            // 设置R、G、B通道增益
+            status = TYSetInt(handle, TY_COMPONENT_RGB_CAM, TY_INT_R_GAIN, gain_r);
+            if(status == TY_STATUS_OK) {
+                status = TYSetInt(handle, TY_COMPONENT_RGB_CAM, TY_INT_G_GAIN, gain_g);
+                if(status == TY_STATUS_OK) {
+                    status = TYSetInt(handle, TY_COMPONENT_RGB_CAM, TY_INT_B_GAIN, gain_b);
+                }
+            }
+            if(status != TY_STATUS_OK) {
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), 
+                                  "Set RGB Gain failed: " << status);
+                return false;
+            }
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), 
+                              "RGB Gain set to: R=" << gain_r << ", G=" << gain_g << ", B=" << gain_b);
+        } else {
+            // 如果不支持R、G、B独立设置，尝试使用通用增益接口
+            // 注意：TY_INT_GAIN主要用于单色图像传感器，但某些RGB传感器也可能支持
+            TY_INT_RANGE range;
+            status = TYGetIntRange(handle, TY_COMPONENT_RGB_CAM, TY_INT_GAIN, &range);
+            if(status == TY_STATUS_OK) {
+                if(gain_int < range.min || gain_int > range.max) {
+                    RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), 
+                                      "Gain " << gain_int << " out of range [" << range.min << ", " << range.max << "], clamping...");
+                    gain_int = (gain_int < range.min) ? range.min : ((gain_int > range.max) ? range.max : gain_int);
+                }
+            }
+            
+            status = TYSetInt(handle, TY_COMPONENT_RGB_CAM, TY_INT_GAIN, gain_int);
+            if(status != TY_STATUS_OK) {
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), 
+                                  "Set Gain failed: " << status);
+                return false;
+            }
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), 
+                              "Gain set to: " << gain_value);
+        }
+    }
+    
+    return true;
+}
+
+bool PercipioDevice::get_exposure_time(float& exposure_time_us)
+{
+    if(!handle || !isAlive()) {
+        return false;
+    }
+    
+    TY_STATUS status;
+    
+    if(GigeE_2_1 == gige_version) {
+        auto source = StreamCompID2GenICamSource(TY_COMPONENT_RGB_CAM);
+        if(!source) {
+            return false;
+        }
+        
+        status = TYEnumSetString(handle, "SourceSelector", source);
+        if(status != TY_STATUS_OK) {
+            return false;
+        }
+        
+        double exp_time_double = 0.0;
+        status = TYFloatGetValue(handle, "ExposureTime", &exp_time_double);
+        if(status == TY_STATUS_OK) {
+            exposure_time_us = static_cast<float>(exp_time_double);
+            return true;
+        }
+    } else {
+        // 尝试使用FLOAT类型获取
+        float exp_time_float = 0.0f;
+        status = TYGetFloat(handle, TY_COMPONENT_RGB_CAM, TY_FLOAT_EXPOSURE_TIME_US, &exp_time_float);
+        if(status == TY_STATUS_OK) {
+            exposure_time_us = exp_time_float;
+            return true;
+        } else {
+            // 如果失败，尝试使用INT类型
+            int32_t exp_time_int = 0;
+            status = TYGetInt(handle, TY_COMPONENT_RGB_CAM, TY_INT_EXPOSURE_TIME, &exp_time_int);
+            if(status == TY_STATUS_OK) {
+                exposure_time_us = static_cast<float>(exp_time_int);
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
+bool PercipioDevice::get_gain(float& gain_value)
+{
+    if(!handle || !isAlive()) {
+        return false;
+    }
+    
+    TY_STATUS status;
+    
+    if(GigeE_2_1 == gige_version) {
+        auto source = StreamCompID2GenICamSource(TY_COMPONENT_RGB_CAM);
+        if(!source) {
+            return false;
+        }
+        
+        status = TYEnumSetString(handle, "SourceSelector", source);
+        if(status != TY_STATUS_OK) {
+            return false;
+        }
+        
+        double gain_double = 0.0;
+        status = TYFloatGetValue(handle, "Gain", &gain_double);
+        if(status == TY_STATUS_OK) {
+            gain_value = static_cast<float>(gain_double);
+            return true;
+        }
+    } else {
+        int32_t gain_int = 0;
+        status = TYGetInt(handle, TY_COMPONENT_RGB_CAM, TY_INT_GAIN, &gain_int);
+        if(status == TY_STATUS_OK) {
+            gain_value = static_cast<float>(gain_int);
+            return true;
+        }
+    }
+    
+    return false;
+}
+
 }

@@ -114,6 +114,7 @@ rclcpp_action::CancelResponse JointTrajectoryAction::handleCancel(const std::sha
   RCLCPP_INFO(this->get_logger(), "cancel goal");
 
   auto result = std::make_shared<FollowJointTrajectory::Result>();
+  result->error_code = FollowJointTrajectory::Result::PATH_TOLERANCE_VIOLATED;
   result->error_string = "aborted";
   active_goal_->abort(result);
   has_active_goal_ = false;
@@ -129,7 +130,6 @@ void JointTrajectoryAction::handleAccept(const std::shared_ptr<GoalHandleFjt> go
   current_trajectory_ = goal_handle->get_goal()->trajectory;
   has_active_goal_ = true;
 
-  // 直接发布完整轨迹，插补在 ROS 1 端完成
   publishTrajectory();
 
   return;
@@ -139,6 +139,7 @@ void JointTrajectoryAction::abortActiveGoal()
 {
   RCLCPP_INFO(this->get_logger(), "Marks the active goal as aborted");
   auto result = std::make_shared<FollowJointTrajectory::Result>();
+  result->error_code = FollowJointTrajectory::Result::PATH_TOLERANCE_VIOLATED;
   result->error_string = "aborted";
   active_goal_->abort(result);
   has_active_goal_ = false;
@@ -193,8 +194,8 @@ void JointTrajectoryAction::publishTrajectory()
     double scaled_time = toSec(current_trajectory_.points.back().time_from_start);
     RCLCPP_INFO(this->get_logger(), "Trajectory scaled: %zu points, original time: %f s, scaled time: %f s (scale factor: %f)", 
                 current_trajectory_.points.size(), 
-                original_time,
-                scaled_time,
+                original_time, 
+                scaled_time, 
                 velocity_scale_factor);
   }
   else if (velocity_scale_factor <= 0.0 || velocity_scale_factor > 1.0)

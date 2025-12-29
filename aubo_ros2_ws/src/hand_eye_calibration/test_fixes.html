@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手眼标定功能修复测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        .warning { color: orange; }
+        code { background: #f5f5f5; padding: 2px 4px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 手眼标定功能修复测试</h1>
+    
+    <div class="test-section">
+        <h2>修复的问题</h2>
+        <ul>
+            <li class="success">✅ <strong>放大镜区域bug</strong>：ID不匹配导致放大镜无法更新</li>
+            <li class="success">✅ <strong>打开本地图片功能</strong>：文件输入框ID不匹配导致无法使用</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>修复详情</h2>
+        
+        <h3>1. 放大镜区域修复</h3>
+        <ul>
+            <li>更新JavaScript中的选项卡ID：<code>'hand-eye'</code> → <code>'hand-eye-calib'</code></li>
+            <li>更新HTML模板中的相关ID映射</li>
+            <li>修复了放大镜canvas、提示、图像容器等所有相关元素的ID</li>
+        </ul>
+        
+        <h3>2. 打开本地图片功能修复</h3>
+        <ul>
+            <li>修复文件输入框ID：<code>'file-input-hand-eye'</code> → <code>'file-input-hand-eye-calib'</code></li>
+            <li>确保<code>openLocalImageForTab('hand-eye-calib')</code>能正确找到对应的文件输入框</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>测试步骤</h2>
+        
+        <h3>测试1：放大镜功能</h3>
+        <ol>
+            <li>启动手眼标定节点：<code>ros2 launch hand_eye_calibration hand_eye_calibration_launch.py</code></li>
+            <li>打开浏览器：<code>http://localhost:8080</code></li>
+            <li>切换到"手眼标定"选项卡</li>
+            <li>加载一张图像（本地或采集）</li>
+            <li>将鼠标移动到图像区域</li>
+            <li><strong>预期结果</strong>：放大镜应该实时更新，显示鼠标位置的内容</li>
+        </ol>
+        
+        <h3>测试2：打开本地图片功能</h3>
+        <ol>
+            <li>在"手眼标定"选项卡中，点击"打开本地图像"按钮</li>
+            <li><strong>预期结果</strong>：应该弹出文件选择对话框</li>
+            <li>选择一张图片文件（JPG/PNG/BMP）</li>
+            <li><strong>预期结果</strong>：图片应该成功加载并显示在图像区域</li>
+            <li>检查日志区域是否有成功信息</li>
+        </ol>
+    </div>
+    
+    <div class="test-section">
+        <h2>控制台错误说明</h2>
+        <div class="warning">
+            <h3>⚠️ 浏览器扩展相关错误</h3>
+            <p>您看到的这些错误是浏览器扩展（如Edge的Copilot）产生的，不是我们代码的问题：</p>
+            <ul>
+                <li><code>content_script.js:40227 content-script-dev: downloader-gv-edge</code></li>
+                <li><code>Uncaught (in promise) Error: A listener indicated an asynchronous response...</code></li>
+            </ul>
+            <p>这些错误可以忽略，不影响手眼标定工具的正常功能。</p>
+        </div>
+        
+        <div class="info">
+            <h3>✅ 正常的日志信息</h3>
+            <ul>
+                <li><code>手眼标定工具初始化...</code> - 系统正常启动</li>
+                <li><code>Upload response status: 200</code> - 图像上传成功</li>
+                <li><code>Image loaded successfully</code> - 图像加载成功</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>故障排除</h2>
+        
+        <h3>如果"打开本地图片"仍然不工作：</h3>
+        <ol>
+            <li>检查浏览器控制台是否有JavaScript错误</li>
+            <li>确认文件输入框是否正确创建（在Elements面板中搜索<code>file-input-hand-eye-calib</code>）</li>
+            <li>检查按钮点击事件是否正确绑定</li>
+        </ol>
+        
+        <h3>如果放大镜仍然不更新：</h3>
+        <ol>
+            <li>确认图像已正确加载（有<code>loaded</code>类）</li>
+            <li>检查放大镜canvas元素是否存在</li>
+            <li>确认鼠标移动事件是否正确触发</li>
+        </ol>
+    </div>
+    
+    <div class="test-section">
+        <h2>技术细节</h2>
+        <h3>修复的核心问题：</h3>
+        <p>JavaScript代码中使用的DOM元素ID与HTML模板中实际的ID不匹配，导致：</p>
+        <ul>
+            <li><code>document.getElementById()</code> 返回 <code>null</code></li>
+            <li>事件监听器无法正确绑定</li>
+            <li>DOM操作失败</li>
+        </ul>
+        
+        <h3>修复方法：</h3>
+        <p>统一了所有相关的ID命名规范，确保JavaScript和HTML中的ID完全一致。</p>
+    </div>
+    
+    <script>
+        console.log('🔧 手眼标定功能修复测试页面已加载');
+        console.log('修复内容：');
+        console.log('1. 放大镜区域ID不匹配问题');
+        console.log('2. 打开本地图片功能ID不匹配问题');
+        console.log('请按照测试步骤验证修复效果');
+    </script>
+</body>
+</html>
+

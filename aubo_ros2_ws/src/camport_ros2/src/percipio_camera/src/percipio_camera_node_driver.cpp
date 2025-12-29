@@ -7,6 +7,7 @@
 #include <sys/mman.h>
 
 #include <vector>
+#include <algorithm>
 
 #include "common.hpp"
 
@@ -48,6 +49,11 @@ void PercipioCameraNodeDriver::init() {
     
     RCLCPP_INFO_STREAM(logger_, "PercipioCameraNodeDriver::init, deivce sn :" << device_serial_number_);
     RCLCPP_INFO_STREAM(logger_, "PercipioCameraNodeDriver::init, deivce ip :" << device_ip_);
+    
+    // 注册参数变更回调
+    this->add_on_set_parameters_callback(
+        std::bind(&PercipioCameraNodeDriver::onSetParameters, this, std::placeholders::_1));
+    
     startDevice();
 }
 
@@ -106,6 +112,38 @@ bool PercipioCameraNodeDriver::initializeDevice(const TY_DEVICE_BASE_INFO& devic
     
     percipio_camera_node_ = std::make_unique<PercipioCameraNode>(this, percipio_device);
     return true;
+}
+
+rcl_interfaces::msg::SetParametersResult PercipioCameraNodeDriver::onSetParameters(
+    const std::vector<rclcpp::Parameter> &parameters) {
+    rcl_interfaces::msg::SetParametersResult result;
+    result.successful = true;
+    
+    // 不允许修改设备连接相关参数
+    std::vector<std::string> immutable_params = {"serial_number", "device_ip", "device_workmode"};
+    
+    for (const auto &param : parameters) {
+        // 检查是否为不可变参数
+        if (std::find(immutable_params.begin(), immutable_params.end(), param.get_name()) != immutable_params.end()) {
+            result.successful = false;
+            result.reason = "Parameter '" + param.get_name() + "' cannot be changed at runtime. It requires device reconnection.";
+            RCLCPP_WARN_STREAM(logger_, result.reason);
+            continue;
+        }
+        
+        // 将参数变更传递给 PercipioCameraNode 处理
+        if (percipio_camera_node_) {
+            if (!percipio_camera_node_->updateParameter(param.get_name(), param)) {
+                result.successful = false;
+                result.reason = "Failed to update parameter '" + param.get_name() + "'";
+                RCLCPP_WARN_STREAM(logger_, result.reason);
+            } else {
+                RCLCPP_INFO_STREAM(logger_, "Successfully updated parameter: " << param.get_name() << " = " << param.value_to_string());
+            }
+        }
+    }
+    
+    return result;
 }
 }
 

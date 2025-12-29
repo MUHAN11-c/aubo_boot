@@ -17,9 +17,15 @@
 #include <moveit_msgs/msg/robot_trajectory.hpp>
 #include <chrono>
 #include <thread>
+#include <cstdlib>
+#include <string>
+#include <rclcpp/parameter_client.hpp>
+#include <rclcpp/exceptions.hpp>
 
 namespace demo_driver
 {
+
+
 
 /**
  * @brief 构造函数，初始化 MoveIt 接口和服务服务器
@@ -41,19 +47,23 @@ PlanTrajectoryServer::PlanTrajectoryServer(const rclcpp::NodeOptions& options)
     plan_trajectory_service_ = this->create_service<demo_interface::srv::PlanTrajectory>(
         "/plan_trajectory",
         std::bind(&PlanTrajectoryServer::planTrajectoryCallback, this, std::placeholders::_1, std::placeholders::_2));
-
-    RCLCPP_INFO(this->get_logger(), "PlanTrajectoryServer node created, ready to initialize MoveIt");
 }
 
 bool PlanTrajectoryServer::wait_for_robot_description(int timeout_seconds)
 {
-    RCLCPP_INFO(this->get_logger(), "Waiting for robot_description parameter and MoveIt2 services...");
+    static bool info_logged = false;
+    static bool warned_once = false;
     
-    // 检查参数是否已通过 launch 文件传递（使用 automatically_declare_parameters_from_overrides）
+    if (!info_logged) {
+        RCLCPP_INFO(this->get_logger(), "Waiting for robot_description parameter and MoveIt2 services...");
+        info_logged = true;
+    }
+    
     if (!this->has_parameter("robot_description") || !this->has_parameter("robot_description_semantic")) {
-        RCLCPP_WARN(this->get_logger(), "robot_description or robot_description_semantic parameter not found. Make sure they are passed via launch file.");
-    } else {
-        RCLCPP_INFO(this->get_logger(), "robot_description parameters found on local parameter server");
+        if (!warned_once) {
+            RCLCPP_WARN(this->get_logger(), "robot_description or robot_description_semantic parameter not found");
+            warned_once = true;
+        }
     }
     
     auto start_time = std::chrono::steady_clock::now();
@@ -70,8 +80,11 @@ bool PlanTrajectoryServer::wait_for_robot_description(int timeout_seconds)
             
             if (!test_frame.empty())
             {
-                RCLCPP_INFO(this->get_logger(), "Robot description parameter and MoveIt2 services are ready");
-                RCLCPP_INFO(this->get_logger(), "Planning frame: %s", test_frame.c_str());
+                static bool ready_logged = false;
+                if (!ready_logged) {
+                    RCLCPP_INFO(this->get_logger(), "Robot description ready, planning frame: %s", test_frame.c_str());
+                    ready_logged = true;
+                }
                 return true;
             }
         }
@@ -103,49 +116,48 @@ bool PlanTrajectoryServer::wait_for_robot_description(int timeout_seconds)
 
 bool PlanTrajectoryServer::initialize(int max_retries, int retry_delay_seconds)
 {
-    RCLCPP_INFO(this->get_logger(), "Initializing MoveIt interfaces for planning group: %s", planning_group_name_.c_str());
+    static bool init_logged = false;
+    if (!init_logged) {
+        RCLCPP_INFO(this->get_logger(), "Initializing MoveIt interfaces for planning group: %s", planning_group_name_.c_str());
+        init_logged = true;
+    }
     
-    // 等待机器人描述参数
     if (!wait_for_robot_description(30))
     {
         return false;
     }
     
-    // 等待一段时间，确保参数完全加载
     std::this_thread::sleep_for(std::chrono::seconds(2));
     
     for (int attempt = 1; attempt <= max_retries; ++attempt)
     {
         try
         {
-            RCLCPP_INFO(this->get_logger(), "Attempting to initialize MoveIt interfaces (attempt %d/%d)...", attempt, max_retries);
-            
             move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
                 shared_from_this(), planning_group_name_);
             planning_scene_interface_ = std::make_shared<moveit::planning_interface::PlanningSceneInterface>();
-            
-            // 设置参考坐标系
             move_group_->setPoseReferenceFrame(base_frame_);
-            
-            // 获取末端执行器链接名称
             end_effector_link_ = move_group_->getEndEffectorLink();
-            RCLCPP_INFO(this->get_logger(), "End effector link: %s", end_effector_link_.c_str());
-            
-            // 设置规划时间
             move_group_->setPlanningTime(10.0);
             
-            RCLCPP_INFO(this->get_logger(), "MoveIt interfaces initialized successfully");
-            RCLCPP_INFO(this->get_logger(), "PlanTrajectoryServer initialized, service '/plan_trajectory' is ready");
+            static bool success_logged = false;
+            if (!success_logged) {
+                RCLCPP_INFO(this->get_logger(), "PlanTrajectoryServer initialized, end effector: %s, service '/plan_trajectory' ready", 
+                           end_effector_link_.c_str());
+                success_logged = true;
+            }
             return true;
         }
         catch (const std::exception& e)
         {
-            RCLCPP_WARN(this->get_logger(), "Failed to initialize MoveIt interfaces (attempt %d/%d): %s", 
-                       attempt, max_retries, e.what());
-            
             if (attempt < max_retries)
             {
-                RCLCPP_INFO(this->get_logger(), "Waiting %d seconds before retry...", retry_delay_seconds);
+                static int last_attempt_logged = 0;
+                if (attempt != last_attempt_logged) {
+                    RCLCPP_WARN(this->get_logger(), "Initialization attempt %d/%d failed: %s, retrying...", 
+                               attempt, max_retries, e.what());
+                    last_attempt_logged = attempt;
+                }
                 std::this_thread::sleep_for(std::chrono::seconds(retry_delay_seconds));
             }
             else
@@ -170,12 +182,26 @@ void PlanTrajectoryServer::planTrajectoryCallback(
     const std::shared_ptr<demo_interface::srv::PlanTrajectory::Request> req,
     std::shared_ptr<demo_interface::srv::PlanTrajectory::Response> res)
 {
-    RCLCPP_INFO(this->get_logger(), "Received plan_trajectory request");
-    RCLCPP_INFO(this->get_logger(), "Target pose: x=%.3f, y=%.3f, z=%.3f", 
-             req->target_pose.position.x, req->target_pose.position.y, req->target_pose.position.z);
-    RCLCPP_INFO(this->get_logger(), "Use joints: %s", req->use_joints ? "true" : "false");
+    static bool first_request = true;
+    if (first_request) {
+        RCLCPP_INFO(this->get_logger(), "PlanTrajectory service ready");
+        first_request = false;
+    }
+    
+    RCLCPP_INFO(this->get_logger(), "PlanTrajectory request: pose=(%.3f, %.3f, %.3f), use_joints=%s",
+               req->target_pose.position.x, req->target_pose.position.y, req->target_pose.position.z,
+               req->use_joints ? "true" : "false");
+    
+    if (!move_group_)
+    {
+        RCLCPP_ERROR(this->get_logger(), "MoveIt interface not initialized");
+        res->success = false;
+        res->planning_time = 0.0;
+        res->message = "MoveIt interface not initialized";
+        RCLCPP_WARN(this->get_logger(), "PlanTrajectory response: %s", res->message.c_str());
+        return;
+    }
 
-    // 执行规划
     float planning_time = 0.0;
     std::string message;
     bool success = planTrajectory(req->target_pose, req->use_joints,
@@ -187,11 +213,12 @@ void PlanTrajectoryServer::planTrajectoryCallback(
 
     if (success)
     {
-        RCLCPP_INFO(this->get_logger(), "Trajectory planning succeeded: %s (time: %.3f s)", message.c_str(), planning_time);
+        RCLCPP_INFO(this->get_logger(), "PlanTrajectory response: success, %zu waypoints, planning_time=%.3f s",
+                   res->trajectory.points.size(), planning_time);
     }
     else
     {
-        RCLCPP_WARN(this->get_logger(), "Trajectory planning failed: %s", message.c_str());
+        RCLCPP_WARN(this->get_logger(), "PlanTrajectory response: failed (message: %s)", message.c_str());
     }
 }
 
@@ -212,22 +239,59 @@ bool PlanTrajectoryServer::planTrajectory(const geometry_msgs::msg::Pose& target
 
     try
     {
+        double velocity_scaling = 0.1;
+        double acceleration_scaling = 0.1;
+        
+        if (this->has_parameter("moveit_velocity_scaling_factor"))
+        {
+            velocity_scaling = this->get_parameter("moveit_velocity_scaling_factor").as_double();
+            move_group_->setMaxVelocityScalingFactor(velocity_scaling);
+        }
+        else
+        {
+            velocity_scaling = 0.1;
+        }
+        
+        try
+        {
+            auto param_client = std::make_shared<rclcpp::SyncParametersClient>(shared_from_this(), "move_group");
+            if (param_client->wait_for_service(std::chrono::milliseconds(200)))
+            {
+                try
+                {
+                    auto params = param_client->get_parameters({"robot_description_planning.default_acceleration_scaling_factor"});
+                    if (!params.empty())
+                    {
+                        acceleration_scaling = params[0].as_double();
+                    }
+                }
+                catch (...)
+                {
+                }
+            }
+        }
+        catch (...)
+        {
+        }
+        
+        RCLCPP_INFO(this->get_logger(), "PlanTrajectory: vel=%.2f, acc=%.2f",
+                   velocity_scaling, acceleration_scaling);
+        
         // 记录规划开始时间
         auto start_time = std::chrono::high_resolution_clock::now();
 
         if (use_joints)
         {
-            // 关节空间规划：需要先将目标位姿转换为关节角度
-            RCLCPP_INFO(this->get_logger(), "Planning in joint space");
-            
-            // 获取当前关节状态
             moveit::core::RobotStatePtr current_state = move_group_->getCurrentState();
             
-            // 如果 getCurrentState() 返回 null，使用机器人模型创建默认状态
             moveit::core::RobotStatePtr robot_state;
             if (!current_state)
             {
-                RCLCPP_WARN(this->get_logger(), "getCurrentState() returned null (likely no joint_states available), creating default state from robot model");
+                static bool warned_once = false;
+                if (!warned_once) {
+                    RCLCPP_WARN(this->get_logger(), "getCurrentState() returned null, using default state from robot model");
+                    warned_once = true;
+                }
                 const moveit::core::RobotModelConstPtr& robot_model = move_group_->getRobotModel();
                 if (!robot_model)
                 {
@@ -254,18 +318,15 @@ bool PlanTrajectoryServer::planTrajectory(const geometry_msgs::msg::Pose& target
             
             robot_state->copyJointGroupPositions(joint_model_group, joint_group_positions);
 
-            // 使用 IK 服务计算目标关节角度
             auto ik_client = this->create_client<aubo_msgs::srv::GetIK>("/aubo_driver/get_ik");
             
             if (ik_client->wait_for_service(std::chrono::seconds(1)))
             {
                 auto request = std::make_shared<aubo_msgs::srv::GetIK::Request>();
-                // 使用当前关节位置作为参考
                 for (size_t i = 0; i < 6 && i < joint_group_positions.size(); ++i)
                 {
                     request->ref_joint[i] = static_cast<float>(joint_group_positions[i]);
                 }
-                // 如果关节数少于6，填充剩余位置为0
                 for (size_t i = joint_group_positions.size(); i < 6; ++i)
                 {
                     request->ref_joint[i] = 0.0f;
@@ -285,7 +346,6 @@ bool PlanTrajectoryServer::planTrajectory(const geometry_msgs::msg::Pose& target
                     auto response = result.get();
                     if (response->joint.size() >= 6)
                     {
-                        // 使用 IK 计算得到的关节角度
                         std::vector<double> target_joints;
                         for (size_t i = 0; i < 6; ++i)
                         {
@@ -307,19 +367,19 @@ bool PlanTrajectoryServer::planTrajectory(const geometry_msgs::msg::Pose& target
             }
             else
             {
-                // 如果没有 IK 服务，使用 MoveIt 内置的 IK 求解器
+                static bool ik_warned = false;
+                if (!ik_warned) {
+                    RCLCPP_INFO(this->get_logger(), "IK service not available, using MoveIt's built-in IK solver");
+                    ik_warned = true;
+                }
                 move_group_->setPoseTarget(target_pose);
-                RCLCPP_INFO(this->get_logger(), "IK service not available, using MoveIt's built-in IK solver");
             }
         }
         else
         {
-            // 笛卡尔空间规划：直接设置目标位姿
-            RCLCPP_INFO(this->get_logger(), "Planning in Cartesian space");
             move_group_->setPoseTarget(target_pose);
         }
 
-        // 执行规划
         moveit::planning_interface::MoveGroupInterface::Plan my_plan;
         moveit::planning_interface::MoveItErrorCode plan_result = move_group_->plan(my_plan);
 
@@ -331,6 +391,7 @@ bool PlanTrajectoryServer::planTrajectory(const geometry_msgs::msg::Pose& target
         if (plan_result != moveit::planning_interface::MoveItErrorCode::SUCCESS)
         {
             message = "Planning failed with error code: " + std::to_string(plan_result.val);
+            RCLCPP_WARN(this->get_logger(), "%s", message.c_str());
             return false;
         }
 
@@ -385,9 +446,7 @@ int main(int argc, char** argv)
         rclcpp::NodeOptions node_options;
         node_options.automatically_declare_parameters_from_overrides(true);
         auto server = std::make_shared<demo_driver::PlanTrajectoryServer>(node_options);
-        RCLCPP_INFO(server->get_logger(), "Plan Trajectory Server node created");
         
-        // 初始化 MoveIt 接口（在节点创建为 shared_ptr 后）
         if (!server->initialize(10, 2))
         {
             RCLCPP_ERROR(rclcpp::get_logger("plan_trajectory_server_node"), 
@@ -397,8 +456,6 @@ int main(int argc, char** argv)
         }
         
         executor.add_node(server);
-        RCLCPP_INFO(server->get_logger(), "Plan Trajectory Server node started");
-        // 进入主循环
         executor.spin();
     }
     catch (const std::exception& e)

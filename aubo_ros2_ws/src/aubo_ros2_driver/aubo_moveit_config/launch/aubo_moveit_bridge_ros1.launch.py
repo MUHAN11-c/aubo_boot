@@ -118,8 +118,10 @@ def launch_setup(context, *args, **kwargs):
     trajectory_execution = {
         # MoveIt does not handle controller switching automatically
         "moveit_manage_controllers": False,
-        "trajectory_execution.allowed_execution_duration_scaling": 1.2,
-        "trajectory_execution.allowed_goal_duration_margin": 0.5,
+        # 增加超时缩放因子以提供足够的执行时间余量
+        # 设置为 3.0 以提供足够的余量
+        "trajectory_execution.allowed_execution_duration_scaling": 3.0,
+        "trajectory_execution.allowed_goal_duration_margin": 1.0,
         "trajectory_execution.allowed_start_tolerance": 0.01,
     }
 
@@ -212,15 +214,6 @@ def launch_setup(context, *args, **kwargs):
         output="screen",
         parameters=[
             joint_names_yaml,
-            {
-                # 速度缩放因子：控制轨迹执行速度
-                # 范围：0.0 - 1.0
-                # 1.0 = 100% 速度（不缩放）
-                # 0.5 = 50% 速度（减慢一半）
-                # 0.3 = 30% 速度（更慢，更安全）
-                # 建议值：0.3-0.5，根据实际测试调整
-                "velocity_scale_factor": 0.5,  # 默认设置为 50% 速度，避免超速
-            }
         ],
     )
     

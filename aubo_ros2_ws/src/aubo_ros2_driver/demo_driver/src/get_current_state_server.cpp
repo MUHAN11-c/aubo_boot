@@ -18,6 +18,8 @@
 #include <thread>
 #include <chrono>
 #include <rclcpp/parameter_client.hpp>
+#include <cstdlib>
+#include <string>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -25,6 +27,8 @@
 
 namespace demo_driver
 {
+
+
 
 /**
  * @brief 构造函数，初始化 MoveIt 接口和服务服务器
@@ -55,19 +59,23 @@ GetCurrentStateServer::GetCurrentStateServer(const rclcpp::NodeOptions& options)
     get_current_state_service_ = this->create_service<demo_interface::srv::GetCurrentState>(
         "/get_current_state",
         std::bind(&GetCurrentStateServer::getCurrentStateCallback, this, std::placeholders::_1, std::placeholders::_2));
-
-    RCLCPP_INFO(this->get_logger(), "GetCurrentStateServer node created, ready to initialize MoveIt");
 }
 
 bool GetCurrentStateServer::wait_for_robot_description(int timeout_seconds)
 {
-    RCLCPP_INFO(this->get_logger(), "Waiting for robot_description parameter and MoveIt2 services...");
+    static bool info_logged = false;
+    static bool warned_once = false;
     
-    // 检查参数是否已通过 launch 文件传递（使用 automatically_declare_parameters_from_overrides）
+    if (!info_logged) {
+        RCLCPP_INFO(this->get_logger(), "Waiting for robot_description parameter and MoveIt2 services...");
+        info_logged = true;
+    }
+    
     if (!this->has_parameter("robot_description") || !this->has_parameter("robot_description_semantic")) {
-        RCLCPP_WARN(this->get_logger(), "robot_description or robot_description_semantic parameter not found. Make sure they are passed via launch file.");
-    } else {
-        RCLCPP_INFO(this->get_logger(), "robot_description parameters found on local parameter server");
+        if (!warned_once) {
+            RCLCPP_WARN(this->get_logger(), "robot_description or robot_description_semantic parameter not found");
+            warned_once = true;
+        }
     }
     
     auto start_time = std::chrono::steady_clock::now();
@@ -84,8 +92,11 @@ bool GetCurrentStateServer::wait_for_robot_description(int timeout_seconds)
             
             if (!test_frame.empty())
             {
-                RCLCPP_INFO(this->get_logger(), "Robot description parameter and MoveIt2 services are ready");
-                RCLCPP_INFO(this->get_logger(), "Planning frame: %s", test_frame.c_str());
+                static bool ready_logged = false;
+                if (!ready_logged) {
+                    RCLCPP_INFO(this->get_logger(), "Robot description ready, planning frame: %s", test_frame.c_str());
+                    ready_logged = true;
+                }
                 return true;
             }
         }
@@ -120,54 +131,57 @@ bool GetCurrentStateServer::wait_for_robot_description(int timeout_seconds)
 
 bool GetCurrentStateServer::initialize(int max_retries, int retry_delay_seconds)
 {
-    RCLCPP_INFO(this->get_logger(), "Initializing MoveIt interfaces for planning group: %s", planning_group_name_.c_str());
+    static bool init_logged = false;
+    if (!init_logged) {
+        RCLCPP_INFO(this->get_logger(), "Initializing MoveIt interfaces for planning group: %s", planning_group_name_.c_str());
+        init_logged = true;
+    }
     
-    // 等待机器人描述参数
     if (!wait_for_robot_description(30))
     {
         return false;
     }
     
-    // 等待一段时间，确保参数完全加载
     std::this_thread::sleep_for(std::chrono::seconds(2));
     
     for (int attempt = 1; attempt <= max_retries; ++attempt)
     {
         try
         {
-            RCLCPP_INFO(this->get_logger(), "Attempting to initialize MoveIt interfaces (attempt %d/%d)...", attempt, max_retries);
-            
             move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
                 shared_from_this(), planning_group_name_);
             planning_scene_interface_ = std::make_shared<moveit::planning_interface::PlanningSceneInterface>();
-            
-            // 设置参考坐标系
             move_group_->setPoseReferenceFrame(base_frame_);
-            
-            // 获取末端执行器链接名称
             end_effector_link_ = move_group_->getEndEffectorLink();
-            RCLCPP_INFO(this->get_logger(), "End effector link: %s", end_effector_link_.c_str());
             
-            RCLCPP_INFO(this->get_logger(), "MoveIt interfaces initialized successfully");
-            
-            // 等待服务可用
+            static bool fk_warned = false;
             if (!fk_client_->wait_for_service(std::chrono::seconds(5)))
             {
-                RCLCPP_WARN(this->get_logger(), "FK service not available, will try to use MoveIt to get cartesian position");
+                if (!fk_warned) {
+                    RCLCPP_WARN(this->get_logger(), "FK service not available, will use MoveIt for cartesian position");
+                    fk_warned = true;
+                }
             }
             
-            RCLCPP_INFO(this->get_logger(), "GetCurrentStateServer initialized, service '/get_current_state' is ready");
+            static bool success_logged = false;
+            if (!success_logged) {
+                RCLCPP_INFO(this->get_logger(), "GetCurrentStateServer initialized, end effector: %s, service '/get_current_state' ready", 
+                           end_effector_link_.c_str());
+                success_logged = true;
+            }
             
             return true;
         }
         catch (const std::exception& e)
         {
-            RCLCPP_WARN(this->get_logger(), "Failed to initialize MoveIt interfaces (attempt %d/%d): %s", 
-                       attempt, max_retries, e.what());
-            
             if (attempt < max_retries)
             {
-                RCLCPP_INFO(this->get_logger(), "Waiting %d seconds before retry...", retry_delay_seconds);
+                static int last_attempt_logged = 0;
+                if (attempt != last_attempt_logged) {
+                    RCLCPP_WARN(this->get_logger(), "Initialization attempt %d/%d failed: %s, retrying...", 
+                               attempt, max_retries, e.what());
+                    last_attempt_logged = attempt;
+                }
                 std::this_thread::sleep_for(std::chrono::seconds(retry_delay_seconds));
             }
             else
@@ -202,9 +216,8 @@ void GetCurrentStateServer::getCurrentStateCallback(
     const std::shared_ptr<demo_interface::srv::GetCurrentState::Request> /* req */,
     std::shared_ptr<demo_interface::srv::GetCurrentState::Response> res)
 {
-    RCLCPP_DEBUG(this->get_logger(), "Received get_current_state request");
-
-    // 获取当前状态
+    RCLCPP_INFO(this->get_logger(), "GetCurrentState request");
+    
     std::string message;
     bool success = getCurrentState(res->joint_position_rad,
                                    res->cartesian_position,
@@ -216,11 +229,13 @@ void GetCurrentStateServer::getCurrentStateCallback(
 
     if (success)
     {
-        RCLCPP_DEBUG(this->get_logger(), "Get current state succeeded: %s", message.c_str());
+        RCLCPP_INFO(this->get_logger(), "GetCurrentState response: success, cartesian=(%.3f, %.3f, %.3f)",
+                   res->cartesian_position.position.x, res->cartesian_position.position.y, 
+                   res->cartesian_position.position.z);
     }
     else
     {
-        RCLCPP_WARN(this->get_logger(), "Get current state failed: %s", message.c_str());
+        RCLCPP_WARN(this->get_logger(), "GetCurrentState response: failed (message: %s)", message.c_str());
     }
 }
 
@@ -524,10 +539,7 @@ int main(int argc, char** argv)
         rclcpp::NodeOptions node_options;
         node_options.automatically_declare_parameters_from_overrides(true);
         auto server = std::make_shared<demo_driver::GetCurrentStateServer>(node_options);
-        RCLCPP_INFO(server->get_logger(), "Get Current State Server node created");
         
-        // 初始化 MoveIt 接口（在节点创建为 shared_ptr 后，带重试机制）
-        // 最多重试 10 次，每次间隔 2 秒，总共等待最多 20 秒
         if (!server->initialize(10, 2))
         {
             RCLCPP_ERROR(rclcpp::get_logger("get_current_state_server_node"), 
@@ -537,9 +549,6 @@ int main(int argc, char** argv)
         }
         
         executor.add_node(server);
-        RCLCPP_INFO(server->get_logger(), "Get Current State Server node started");
-        
-        // 进入主循环
         executor.spin();
     }
     catch (const std::exception& e)

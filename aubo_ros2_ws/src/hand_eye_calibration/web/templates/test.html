@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>诊断测试</title>
+</head>
+<body>
+    <h1>JavaScript诊断测试</h1>
+    <div id="result"></div>
+    <script>
+        const results = [];
+        
+        // 测试1: fetch API
+        results.push('测试1: fetch API');
+        fetch('/api/robot_pose')
+            .then(r => {
+                results.push('✅ fetch可用，状态: ' + r.status);
+                document.getElementById('result').innerHTML = results.join('<br>');
+            })
+            .catch(e => {
+                results.push('❌ fetch失败: ' + e);
+                document.getElementById('result').innerHTML = results.join('<br>');
+            });
+        
+        // 测试2: DOM元素
+        results.push('测试2: DOM元素');
+        const testDiv = document.getElementById('result');
+        results.push(testDiv ? '✅ getElementById可用' : '❌ getElementById不可用');
+        
+        // 测试3: 加载主script.js
+        results.push('测试3: 加载script.js');
+        const script = document.createElement('script');
+        script.src = '/static/script.js';
+        script.onload = () => {
+            results.push('✅ script.js加载成功');
+            
+            // 等待100ms确保脚本执行完成
+            setTimeout(() => {
+                // 检查函数是否存在
+                results.push('测试4: 检查函数（延迟100ms后）');
+                results.push(typeof window.loadCameraParams !== 'undefined' ? '✅ loadCameraParams存在' : '❌ loadCameraParams不存在: ' + typeof window.loadCameraParams);
+                results.push(typeof window.initCameraVerifyButtons !== 'undefined' ? '✅ initCameraVerifyButtons存在' : '❌ initCameraVerifyButtons不存在');
+                results.push(typeof window.toggleManualPickMode !== 'undefined' ? '✅ toggleManualPickMode存在' : '❌ toggleManualPickMode不存在');
+                
+                // 检查全局变量
+                results.push('测试5: 检查全局变量');
+                results.push(typeof window.manualPickMode !== 'undefined' ? '✅ manualPickMode存在' : '❌ manualPickMode不存在');
+                results.push(typeof window.imageZoomStates !== 'undefined' ? '✅ imageZoomStates存在' : '❌ imageZoomStates不存在');
+                
+                // 列出所有window上的自定义函数
+                results.push('测试6: window对象上的函数');
+                const funcs = [];
+                for (let key in window) {
+                    if (typeof window[key] === 'function' && key.includes('Camera') || key.includes('Manual') || key.includes('init')) {
+                        funcs.push(key);
+                    }
+                }
+                results.push('找到的函数: ' + (funcs.length > 0 ? funcs.join(', ') : '无'));
+                
+                document.getElementById('result').innerHTML = results.join('<br>');
+            }, 100);
+        };
+        script.onerror = (e) => {
+            results.push('❌ script.js加载失败');
+            results.push('错误: ' + JSON.stringify(e));
+            document.getElementById('result').innerHTML = results.join('<br>');
+        };
+        document.head.appendChild(script);
+        
+        document.getElementById('result').innerHTML = results.join('<br>');
+    </script>
+</body>
+</html>
+

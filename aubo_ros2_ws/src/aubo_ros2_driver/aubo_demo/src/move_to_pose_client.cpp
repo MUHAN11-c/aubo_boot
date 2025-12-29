@@ -98,17 +98,20 @@ int main(int argc, char** argv)
 
     // 示例1: 移动到指定笛卡尔位置（笛卡尔空间规划）
     RCLCPP_INFO(client->get_logger(), "\n=== 示例1: 笛卡尔空间移动到目标位姿 ===");
-    auto target_pose1 = create_pose(0.3, 0.2, 0.5);
+    auto target_pose1 = create_pose(-0.07401805371046066, -0.20905423164367676, 0.9532700777053833,
+                                     0.7025718092918396, -0.00014736213779542595, -0.0008002749527804554, 0.711612343788147);
     client->call_service(target_pose1, false, 0.5f, 0.5f);
 
     // 示例2: 使用关节空间规划
     RCLCPP_INFO(client->get_logger(), "\n=== 示例2: 关节空间移动到目标位姿 ===");
-    auto target_pose2 = create_pose(0.4, 0.1, 0.4, 0.0, 0.0, 0.0, 1.0);
+    auto target_pose2 = create_pose(-0.07401805371046066, -0.20905423164367676, 0.9532700777053833,
+                                     0.7025718092918396, -0.00014736213779542595, -0.0008002749527804554, 0.711612343788147);
     client->call_service(target_pose2, true, 0.3f, 0.3f);
 
     // 示例3: 高速移动到目标位姿
     RCLCPP_INFO(client->get_logger(), "\n=== 示例3: 高速移动到目标位姿 ===");
-    auto target_pose3 = create_pose(0.35, 0.15, 0.45);
+    auto target_pose3 = create_pose(-0.07401805371046066, -0.20905423164367676, 0.9532700777053833,
+                                     0.7025718092918396, -0.00014736213779542595, -0.0008002749527804554, 0.711612343788147);
     client->call_service(target_pose3, false, 0.8f, 0.8f);
 
     rclcpp::shutdown();

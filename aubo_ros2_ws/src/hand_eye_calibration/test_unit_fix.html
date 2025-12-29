@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>单位转换错误修复测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        .warning { color: orange; }
+        code { background: #f5f5f5; padding: 2px 4px; border-radius: 3px; }
+        .fix-details { background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #28a745; }
+        .before-after { display: flex; gap: 20px; }
+        .before, .after { flex: 1; padding: 10px; border-radius: 5px; }
+        .before { background: #f8d7da; border-left: 4px solid #dc3545; }
+        .after { background: #d4edda; border-left: 4px solid #28a745; }
+    </style>
+</head>
+<body>
+    <h1>🔧 单位转换错误修复测试</h1>
+    
+    <div class="test-section">
+        <h2>🐛 问题分析</h2>
+        
+        <h3>问题现象</h3>
+        <div class="error">
+            <ul>
+                <li>实际Z轴值：200.00mm</li>
+                <li>显示Z轴值：200000.0（错误）</li>
+                <li>测试高度：200000（错误，应该是200.00）</li>
+                <li>平移高度：20020（错误，应该是220.00）</li>
+            </ul>
+        </div>
+        
+        <h3>根本原因</h3>
+        <div class="warning">
+            <p><strong>错误假设</strong>：JavaScript代码中错误地假设机器人位置数据单位是米(m)</p>
+            <p><strong>实际单位</strong>：机器人状态API返回的位置数据单位是毫米(mm)</p>
+            <p><strong>错误操作</strong>：将毫米数据乘以1000，导致数值放大1000倍</p>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>🔍 技术分析</h2>
+        
+        <h3>API数据单位确认</h3>
+        <div class="fix-details">
+            <p>通过检查源代码确认：</p>
+            <ul>
+                <li><strong>robot_communication.cpp:576-578</strong>：<code>current_x = std::stod(cart_response.return_parameters[0]); // 保持mm单位</code></li>
+                <li><strong>USAGE_EXAMPLES.md:251-253</strong>：<code>x = float(response.return_parameters[0])  # 单位：mm</code></li>
+                <li><strong>RobotStatus消息</strong>：cartesian_position使用geometry_msgs/Pose，位置单位是毫米</li>
+            </ul>
+        </div>
+        
+        <h3>修复前后对比</h3>
+        <div class="before-after">
+            <div class="before">
+                <h4>❌ 修复前（错误）</h4>
+                <pre><code>// 错误假设单位是米，乘以1000
+const robotZ = data.cartesian_position.position.z * 1000;
+
+// 结果：
+// 实际200mm → 显示200000.0
+// 测试高度：200000
+// 平移高度：20020</code></pre>
+            </div>
+            <div class="after">
+                <h4>✅ 修复后（正确）</h4>
+                <pre><code>// 正确识别单位是毫米，不转换
+const robotZ = data.cartesian_position.position.z;
+
+// 结果：
+// 实际200mm → 显示200.0
+// 测试高度：200
+// 平移高度：220</code></pre>
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>🔧 修复内容</h2>
+        
+        <h3>修改的代码位置</h3>
+        <ol>
+            <li><strong>getRobotTestPose函数</strong>：
+                <pre><code>// 修复前
+const robotZ = data.cartesian_position.position.z * 1000;
+
+// 修复后  
+const robotZ = data.cartesian_position.position.z;</code></pre>
+            </li>
+            
+            <li><strong>updateCurrentRobotPoseDisplay函数</strong>：
+                <pre><code>// 修复前
+const robotZ = (robotStatus.cartesian_position.position.z * 1000).toFixed(1);
+
+// 修复后
+const robotZ = robotStatus.cartesian_position.position.z.toFixed(1);</code></pre>
+            </li>
+        </ol>
+        
+        <h3>修复效果</h3>
+        <div class="success">
+            <ul>
+                <li>✅ Z轴值显示正确：200.0mm</li>
+                <li>✅ 测试高度正确：200</li>
+                <li>✅ 平移高度正确：220（200+20）</li>
+                <li>✅ 姿态标签显示正确：Z: 200.0; Qx: 0.000; Qy: 0.000; Qz: 0.000; Qw: 1.000;</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>🧪 测试步骤</h2>
+        
+        <h3>前置条件</h3>
+        <ol>
+            <li>启动手眼标定节点：<code>ros2 launch hand_eye_calibration hand_eye_calibration_launch.py</code></li>
+            <li>确保机器人状态话题正常发布</li>
+            <li>打开浏览器访问：<code>http://localhost:8080</code></li>
+            <li>切换到"手眼标定精度验证"选项卡</li>
+        </ol>
+        
+        <h3>测试用例</h3>
+        <ol>
+            <li><strong>测试用例1：Z=200mm</strong>
+                <ul>
+                    <li>点击"获取机器人测试姿态"按钮</li>
+                    <li>检查姿态标签：应显示 <code>Z: 200.0; Qx: 0.000; Qy: 0.000; Qz: 0.000; Qw: 1.000;</code></li>
+                    <li>检查测试高度：应显示 <code>200</code></li>
+                    <li>检查平移高度：应显示 <code>220</code></li>
+                </ul>
+            </li>
+            
+            <li><strong>测试用例2：Z=150.5mm</strong>
+                <ul>
+                    <li>移动机器人到Z=150.5mm位置</li>
+                    <li>点击"获取机器人测试姿态"按钮</li>
+                    <li>检查姿态标签：应显示 <code>Z: 150.5; Qx: 0.000; Qy: 0.000; Qz: 0.000; Qw: 1.000;</code></li>
+                    <li>检查测试高度：应显示 <code>151</code>（四舍五入）</li>
+                    <li>检查平移高度：应显示 <code>171</code>（151+20）</li>
+                </ul>
+            </li>
+            
+            <li><strong>测试用例3：Z=300.0mm</strong>
+                <ul>
+                    <li>移动机器人到Z=300.0mm位置</li>
+                    <li>点击"获取机器人测试姿态"按钮</li>
+                    <li>检查姿态标签：应显示 <code>Z: 300.0; Qx: 0.000; Qy: 0.000; Qz: 0.000; Qw: 1.000;</code></li>
+                    <li>检查测试高度：应显示 <code>300</code></li>
+                    <li>检查平移高度：应显示 <code>320</code>（300+20）</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+    
+    <div class="test-section">
+        <h2>📊 预期结果</h2>
+        
+        <h3>成功场景</h3>
+        <div class="success">
+            <ul>
+                <li>✅ 姿态标签显示正确的Z轴值（毫米）</li>
+                <li>✅ 测试高度编辑框显示正确的Z轴值</li>
+                <li>✅ 平移高度编辑框显示正确的Z轴值+20</li>
+                <li>✅ 数值不再放大1000倍</li>
+                <li>✅ 所有数值单位一致（毫米）</li>
+            </ul>
+        </div>
+        
+        <h3>验证方法</h3>
+        <div class="info">
+            <p><strong>数值验证</strong>：检查显示值是否与实际机器人位置一致</p>
+            <p><strong>单位验证</strong>：确认所有数值单位都是毫米</p>
+            <p><strong>计算验证</strong>：确认平移高度 = 测试高度 + 20</p>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>📝 经验教训</h2>
+        
+        <h3>开发建议</h3>
+        <ul>
+            <li><strong>单位文档化</strong>：在API文档中明确标注数据单位</li>
+            <li><strong>代码注释</strong>：在关键位置添加单位说明注释</li>
+            <li><strong>测试验证</strong>：使用已知数值进行单位验证测试</li>
+            <li><strong>代码审查</strong>：重点关注单位转换逻辑</li>
+        </ul>
+        
+        <h3>调试技巧</h3>
+        <ul>
+            <li><strong>日志输出</strong>：在关键位置输出原始数值和转换后数值</li>
+            <li><strong>对比验证</strong>：与机器人控制器显示值对比</li>
+            <li><strong>分步调试</strong>：逐步验证每个转换步骤</li>
+        </ul>
+    </div>
+    
+    <script>
+        console.log('🔧 单位转换错误修复测试页面已加载');
+        console.log('修复内容：');
+        console.log('1. 移除错误的单位转换（*1000）');
+        console.log('2. 正确识别机器人位置数据单位是毫米');
+        console.log('3. 修复Z轴值显示和文本框填充');
+        console.log('请按照测试步骤验证修复效果');
+    </script>
+</body>
+</html>

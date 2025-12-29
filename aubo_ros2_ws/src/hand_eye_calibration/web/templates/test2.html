@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>简单测试</title>
+</head>
+<body>
+    <h1>简单JavaScript测试</h1>
+    <div id="result">加载中...</div>
+    
+    <script src="/static/test_simple.js"></script>
+    <script>
+        setTimeout(() => {
+            const results = [];
+            results.push('测试1: 简单脚本');
+            results.push(typeof window.testFunction !== 'undefined' ? '✅ testFunction存在' : '❌ testFunction不存在');
+            results.push(typeof window.testVariable !== 'undefined' ? '✅ testVariable存在: ' + window.testVariable : '❌ testVariable不存在');
+            
+            results.push('<br>测试2: 加载主script.js并检查第一行');
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', '/static/script.js', false);
+            xhr.send();
+            if (xhr.status === 200) {
+                const firstLines = xhr.responseText.split('\n').slice(0, 5).join('\n');
+                results.push('前5行:<pre>' + firstLines + '</pre>');
+                results.push('文件大小: ' + xhr.responseText.length + ' 字符');
+                
+                // 检查是否有语法错误
+                try {
+                    eval('(function(){' + xhr.responseText + '})()');
+                    results.push('✅ 语法检查通过');
+                } catch(e) {
+                    results.push('❌ 语法错误: ' + e.message);
+                    results.push('错误位置: ' + e.stack);
+                }
+            }
+            
+            document.getElementById('result').innerHTML = results.join('<br>');
+        }, 200);
+    </script>
+</body>
+</html>
+
+
+
+
+

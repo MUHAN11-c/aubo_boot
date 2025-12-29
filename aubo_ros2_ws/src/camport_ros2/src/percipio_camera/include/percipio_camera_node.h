@@ -44,6 +44,9 @@ class PercipioCameraNode {
         void setupPublishers();
         void setupSubscribers();
         void setupTopics();
+        
+        // 动态更新参数
+        bool updateParameter(const std::string& param_name, const rclcpp::Parameter& parameter);
 
         void SendOfflineMsg(const char* sn);
         

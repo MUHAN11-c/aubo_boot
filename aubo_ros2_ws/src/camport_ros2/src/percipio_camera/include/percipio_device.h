@@ -179,6 +179,14 @@ class PercipioDevice
         void dpeth_time_domain_filter_init(bool enable, int number);
         
         bool load_default_parameter();
+        
+        // 设置相机曝光时间和增益
+        bool set_exposure_time(float exposure_time_us);
+        bool set_gain(float gain_value);
+        
+        // 获取相机曝光时间和增益
+        bool get_exposure_time(float& exposure_time_us);
+        bool get_gain(float& gain_value);
 
         std::mutex softtrigger_mutex;
 

@@ -36,5 +36,9 @@ class PercipioCameraNodeDriver : public rclcpp::Node {
     void startDevice();
     bool initializeDevice(const TY_DEVICE_BASE_INFO& device);
     void onCameraEventCallback(PercipioDevice* Handle, TY_EVENT_INFO *event_info);
+    
+    // 参数变更回调函数
+    rcl_interfaces::msg::SetParametersResult onSetParameters(
+        const std::vector<rclcpp::Parameter> &parameters);
 };
 }

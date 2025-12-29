@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>放大镜修复测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>🔍 放大镜修复测试</h1>
+    
+    <div class="test-section">
+        <h2>修复内容总结</h2>
+        <ul>
+            <li class="success">✅ 更新了JavaScript中的选项卡ID：'hand-eye' → 'hand-eye-calib'</li>
+            <li class="success">✅ 更新了HTML模板中的ID映射</li>
+            <li class="success">✅ 修复了放大镜canvas ID：hand-eye-magnifier → hand-eye-calib-magnifier</li>
+            <li class="success">✅ 修复了放大镜提示ID：hand-eye-mag-hint → hand-eye-calib-mag-hint</li>
+            <li class="success">✅ 修复了图像容器ID：hand-eye-image-container → hand-eye-calib-image-container</li>
+            <li class="success">✅ 修复了图像元素ID：hand-eye-image → hand-eye-calib-image</li>
+            <li class="success">✅ 修复了日志容器ID：hand-eye-log → hand-eye-calib-log</li>
+            <li class="success">✅ 修复了缩放提示ID：hand-eye-zoom-hint → hand-eye-calib-zoom-hint</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>测试步骤</h2>
+        <ol>
+            <li>启动手眼标定节点：<code>ros2 launch hand_eye_calibration hand_eye_calibration_launch.py</code></li>
+            <li>打开浏览器访问：<code>http://localhost:8080</code></li>
+            <li>切换到"手眼标定"选项卡</li>
+            <li>加载一张图像（本地或采集）</li>
+            <li>将鼠标移动到图像区域</li>
+            <li>观察放大镜区域是否实时更新</li>
+            <li>检查放大镜标题右侧的坐标显示是否正常</li>
+        </ol>
+    </div>
+    
+    <div class="test-section">
+        <h2>预期结果</h2>
+        <ul>
+            <li class="info">🔍 放大镜应该实时显示鼠标位置的内容</li>
+            <li class="info">📍 坐标显示应该实时更新：X: [像素坐标] | Y: [像素坐标]</li>
+            <li class="info">🎯 十字线应该精确对应鼠标位置</li>
+            <li class="info">⚡ 放大镜更新应该流畅无延迟</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>修复的技术细节</h2>
+        <h3>问题根因：</h3>
+        <p>JavaScript代码中使用的选项卡ID是 <code>'hand-eye'</code>，但HTML模板中实际的选项卡ID是 <code>'hand-eye-calib'</code>，导致DOM元素查找失败。</p>
+        
+        <h3>修复方法：</h3>
+        <ul>
+            <li>统一了所有相关的ID命名</li>
+            <li>更新了放大镜初始化函数中的选项卡列表</li>
+            <li>更新了图像缩放功能中的选项卡列表</li>
+            <li>更新了所有相关的DOM元素ID引用</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>相关文件修改</h2>
+        <ul>
+            <li><strong>script_v2.js</strong>: 更新了所有选项卡ID引用</li>
+            <li><strong>index.html</strong>: 更新了HTML元素ID</li>
+        </ul>
+    </div>
+    
+    <script>
+        console.log('🔍 放大镜修复测试页面已加载');
+        console.log('修复内容：');
+        console.log('- 选项卡ID统一：hand-eye → hand-eye-calib');
+        console.log('- 放大镜功能现在应该正常工作');
+        console.log('- 请按照测试步骤验证修复效果');
+    </script>
+</body>
+</html>
+

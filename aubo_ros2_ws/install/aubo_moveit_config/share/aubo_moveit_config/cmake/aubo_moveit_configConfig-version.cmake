@@ -1,1 +1,0 @@
-/home/mu/IVG/aubo_ros2_ws/build/aubo_moveit_config/ament_cmake_core/aubo_moveit_configConfig-version.cmake

@@ -1,1 +1,0 @@
-/home/mu/IVG/aubo_ros2_ws/build/aubo_dashboard_msgs/rosidl_typesupport_fastrtps_c/aubo_dashboard_msgs/srv/detail/get_program_state__rosidl_typesupport_fastrtps_c.h

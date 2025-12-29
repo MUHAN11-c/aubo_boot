@@ -1,1 +1,0 @@
-/home/mu/IVG/aubo_ros2_ws/build/percipio_camera/ament_cmake_export_libraries/ament_cmake_export_libraries-extras.cmake

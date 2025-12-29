@@ -1,1 +1,0 @@
-/home/mu/IVG/aubo_ros2_ws/build/percipio_camera/ament_cmake_core/percipio_cameraConfig-version.cmake

@@ -1,1 +1,0 @@
-/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_typesupport_fastrtps_cpp/aubo_msgs/msg/detail/io_states__rosidl_typesupport_fastrtps_cpp.hpp

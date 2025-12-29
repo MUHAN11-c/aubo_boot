@@ -1,1 +1,0 @@
-/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/ament_cmake_core/aubo_msgsConfig.cmake

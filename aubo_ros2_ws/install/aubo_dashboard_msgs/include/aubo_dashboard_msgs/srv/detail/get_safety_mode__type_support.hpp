@@ -1,1 +1,0 @@
-/home/mu/IVG/aubo_ros2_ws/build/aubo_dashboard_msgs/rosidl_generator_cpp/aubo_dashboard_msgs/srv/detail/get_safety_mode__type_support.hpp

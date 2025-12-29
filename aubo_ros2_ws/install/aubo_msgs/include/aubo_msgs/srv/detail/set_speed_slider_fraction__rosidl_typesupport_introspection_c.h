@@ -1,1 +1,0 @@
-/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_typesupport_introspection_c/aubo_msgs/srv/detail/set_speed_slider_fraction__rosidl_typesupport_introspection_c.h

@@ -1,4 +1,0 @@
-# generated from rosidl_cmake/cmake/rosidl_cmake-extras.cmake.in
-
-set(aubo_msgs_IDL_FILES "msg/Analog.idl;msg/Digital.idl;msg/IOStates.idl;msg/RobotStateRTMsg.idl;msg/MasterboardDataMsg.idl;msg/RobotModeDataMsg.idl;msg/ToolDataMsg.idl;msg/JointTrajectoryFeedback.idl;srv/SetPayload.idl;srv/SetSpeedSliderFraction.idl;srv/SetIO.idl;srv/GetFK.idl;srv/GetIK.idl")
-set(aubo_msgs_INTERFACE_FILES "msg/Analog.msg;msg/Digital.msg;msg/IOStates.msg;msg/RobotStateRTMsg.msg;msg/MasterboardDataMsg.msg;msg/RobotModeDataMsg.msg;msg/ToolDataMsg.msg;msg/JointTrajectoryFeedback.msg;srv/SetPayload.srv;srv/SetPayload_Request.msg;srv/SetPayload_Response.msg;srv/SetSpeedSliderFraction.srv;srv/SetSpeedSliderFraction_Request.msg;srv/SetSpeedSliderFraction_Response.msg;srv/SetIO.srv;srv/SetIO_Request.msg;srv/SetIO_Response.msg;srv/GetFK.srv;srv/GetFK_Request.msg;srv/GetFK_Response.msg;srv/GetIK.srv;srv/GetIK_Request.msg;srv/GetIK_Response.msg")

@@ -1,1 +1,0 @@
-/home/mu/IVG/aubo_ros2_ws/build/aubo_dashboard_msgs/rosidl_generator_c/aubo_dashboard_msgs/msg/detail/safety_mode__functions.h

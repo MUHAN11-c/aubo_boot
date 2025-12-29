@@ -1,1 +1,0 @@
-/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/aubo_moveit_config/launch/static_virtual_joint_tfs.launch.py

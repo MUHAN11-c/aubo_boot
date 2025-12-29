@@ -1,1 +1,0 @@
-/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_c/aubo_msgs/msg/digital.h

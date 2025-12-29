@@ -1,1 +1,0 @@
-/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_typesupport_introspection_c/aubo_msgs/msg/detail/tool_data_msg__rosidl_typesupport_introspection_c.h

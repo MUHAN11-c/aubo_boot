@@ -1,1 +1,0 @@
-/home/mu/IVG/aubo_ros2_ws/build/aubo_dashboard_msgs/rosidl_typesupport_fastrtps_c/aubo_dashboard_msgs/srv/detail/is_in_remote_control__rosidl_typesupport_fastrtps_c.h

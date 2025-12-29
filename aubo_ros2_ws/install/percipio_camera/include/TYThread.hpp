@@ -1,1 +1,0 @@
-/home/mu/IVG/aubo_ros2_ws/src/camport_ros2/src/percipio_camera/include/TYThread.hpp

@@ -1,1 +1,0 @@
-/home/mu/IVG/aubo_ros2_ws/build/aubo_dashboard_msgs/rosidl_generator_cpp/aubo_dashboard_msgs/srv/detail/get_robot_mode__struct.hpp

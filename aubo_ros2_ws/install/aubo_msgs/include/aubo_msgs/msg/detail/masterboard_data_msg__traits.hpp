@@ -1,1 +1,0 @@
-/home/mu/IVG/aubo_ros2_ws/build/aubo_msgs/rosidl_generator_cpp/aubo_msgs/msg/detail/masterboard_data_msg__traits.hpp

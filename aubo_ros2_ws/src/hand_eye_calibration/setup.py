@@ -28,6 +28,7 @@ setup(
     entry_points={
         'console_scripts': [
             'hand_eye_calibration_node = hand_eye_calibration.hand_eye_calibration_node:main',
+            'image_data_converter_node = hand_eye_calibration.image_data_converter_node:main',
         ],
     },
 )

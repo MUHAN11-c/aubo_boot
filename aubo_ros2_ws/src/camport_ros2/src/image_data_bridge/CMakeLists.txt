@@ -12,6 +12,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(percipio_camera_interface REQUIRED)
 find_package(cv_bridge REQUIRED)
+find_package(image_transport REQUIRED)
 
 # 包含目录
 include_directories(include)
@@ -24,11 +25,17 @@ ament_target_dependencies(image_data_bridge_node
   std_msgs
   percipio_camera_interface
   cv_bridge
+  image_transport
 )
 
 # 安装
 install(TARGETS image_data_bridge_node
   DESTINATION lib/${PROJECT_NAME}
+)
+
+# 安装launch文件
+install(DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)

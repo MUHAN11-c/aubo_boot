@@ -97,9 +97,11 @@ class HandEyeCalibrationNode(Node):
         from demo_interface.srv import SetRobotPose
         self.set_robot_pose_client = self.create_client(SetRobotPose, '/set_robot_pose')
         
+        # 使用固定话题名 'robot_status'，通过launch文件的remapping映射到实际话题
+        # 这样可以通过remapping灵活映射到 /demo_robot_status 或其他话题
         self.robot_status_subscription = self.create_subscription(
             RobotStatus,
-            self.get_parameter('robot_status_topic').value,
+            'robot_status',  # 固定话题名，通过remapping映射
             self.robot_status_callback,
             10
         )
@@ -325,7 +327,7 @@ class HandEyeCalibrationNode(Node):
                     return jsonify({'success': False, 'error': '相机服务未运行，请先启动vision_acquisition节点'})
                 
                 # 获取相机ID
-                camera_id = 'DA3234363'  # 默认相机ID
+                camera_id = '207000152740'  # 默认相机ID
                 if self.current_camera_status is not None:
                     camera_id = self.current_camera_status.camera_id
                 

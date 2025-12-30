@@ -5,12 +5,25 @@ echo "  启动手眼标定Web界面"
 echo "=========================================="
 echo ""
 
-# 切换到工作空间
-cd /home/nvidia/RVG_ws
+# 获取脚本所在目录并切换到工作空间
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+cd "$WORKSPACE_DIR"
+
+# 检测ROS2版本
+if [ -d "/opt/ros/humble" ]; then
+    ROS_DISTRO="humble"
+elif [ -d "/opt/ros/foxy" ]; then
+    ROS_DISTRO="foxy"
+elif [ -d "/opt/ros/galactic" ]; then
+    ROS_DISTRO="galactic"
+else
+    ROS_DISTRO="foxy"  # 默认
+fi
 
 # 加载ROS2环境
-echo "🔧 加载ROS2环境..."
-source /opt/ros/foxy/setup.bash
+echo "🔧 加载ROS2环境 (ROS_DISTRO=$ROS_DISTRO)..."
+source /opt/ros/$ROS_DISTRO/setup.bash
 source install/setup.bash
 
 echo "✅ 环境加载完成"

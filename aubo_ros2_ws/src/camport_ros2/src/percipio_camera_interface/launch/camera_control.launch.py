@@ -23,6 +23,12 @@ def generate_launch_description():
                 'camera_name': LaunchConfiguration('camera_name'),
                 'status_publish_rate': LaunchConfiguration('status_publish_rate'),
             }],
+            remappings=[
+                # 话题重映射：将节点内部的话题名重映射到全局话题名
+                ('camera_status', '/camera_status'),
+                # 服务重映射：将节点内部的服务名重映射到全局服务名
+                ('software_trigger', '/software_trigger'),
+            ],
             output='screen'
         ),
     ])

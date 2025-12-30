@@ -63,8 +63,44 @@ public:
         trigger_pub_ = this->create_publisher<std_msgs::msg::String>(
             "/" + camera_name_ + "/trigger_event", 10);
         
-        // 创建参数客户端
-        param_client_ = std::make_shared<rclcpp::SyncParametersClient>(this, camera_name_);
+        // 创建参数客户端 - 使用完整的节点路径
+        // 相机节点在命名空间下，完整路径为 /camera_name/camera_name
+        std::string camera_node_name = "/" + camera_name_ + "/" + camera_name_;
+        param_client_ = std::make_shared<rclcpp::SyncParametersClient>(this, camera_node_name);
+        
+        // 尝试从相机节点获取序列号作为camera_id
+        // 等待参数服务可用
+        if (param_client_->wait_for_service(std::chrono::seconds(3))) {
+            try {
+                auto params = param_client_->get_parameters({"serial_number"});
+                if (!params.empty() && params[0].get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                    std::string serial_number = params[0].as_string();
+                    // 移除引号（如果launch文件中使用了引号）
+                    if (serial_number.length() > 2 && serial_number.front() == '"' && serial_number.back() == '"') {
+                        serial_number = serial_number.substr(1, serial_number.length() - 2);
+                    }
+                    if (!serial_number.empty() && serial_number != "\"\"" && serial_number != "") {
+                        camera_id_ = serial_number;
+                        RCLCPP_INFO(this->get_logger(), "从相机节点获取序列号: %s", camera_id_.c_str());
+                    } else {
+                        RCLCPP_WARN(this->get_logger(), "序列号为空，使用camera_name: %s", camera_name_.c_str());
+                    }
+                }
+            } catch (const std::exception& e) {
+                // 获取失败，使用camera_name作为fallback
+                RCLCPP_WARN(this->get_logger(), "无法从相机节点获取序列号 (%s)，使用camera_name: %s", 
+                           e.what(), camera_name_.c_str());
+            }
+        } else {
+            RCLCPP_WARN(this->get_logger(), "参数服务不可用，使用camera_name: %s", camera_name_.c_str());
+        }
+        
+        // 如果仍未获取到序列号，使用camera_name
+        if (camera_id_.empty()) {
+            camera_id_ = camera_name_;
+        }
+        
+        RCLCPP_INFO(this->get_logger(), "相机ID设置为: %s", camera_id_.c_str());
         
         // 创建定时器发布状态
         status_timer_ = this->create_wall_timer(
@@ -72,7 +108,6 @@ public:
             std::bind(&CameraControlNode::publishStatus, this));
         
         // 初始化状态
-        camera_id_ = camera_name_;
         is_connected_ = true;  // 假设初始连接
         resolution_width_ = 0;
         resolution_height_ = 0;
@@ -261,9 +296,9 @@ private:
         response->success = false;
         response->message = "";
         
-        // 检查相机ID是否匹配
-        if (!request->camera_id.empty() && request->camera_id != camera_name_) {
-            response->message = "Camera ID mismatch. Expected: " + camera_name_ + ", got: " + request->camera_id;
+        // 检查相机ID是否匹配 - 接受camera_name或camera_id（序列号）
+        if (!request->camera_id.empty() && request->camera_id != camera_name_ && request->camera_id != camera_id_) {
+            response->message = "Camera ID mismatch. Expected: " + camera_name_ + " or " + camera_id_ + ", got: " + request->camera_id;
             RCLCPP_WARN(this->get_logger(), "%s", response->message.c_str());
             return;
         }

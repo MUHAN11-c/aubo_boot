@@ -9,7 +9,7 @@
   <node pkg="aubo_controller" type="aubo_robot_simulator" name="aubo_robot_simulator"/>
   <node pkg="aubo_controller" type="aubo_joint_trajectory_action" name="aubo_joint_trajectory_action"/>
   <node name="aubo_driver" pkg="aubo_driver" type="aubo_driver" >
-    <param name="/server_host" type="str" value="10.8.144.98"/>
+    <param name="/server_host" type="str" value="169.254.10.98"/>
   </node>
   
   <!-- 机器人反馈节点 -->

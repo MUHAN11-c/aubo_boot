@@ -1273,7 +1273,7 @@ const CAMERA_STATUS_HISTORY_SIZE = 3;  // 保留最近3次状态
 function checkCameraIDStatus() {
     // 降低检查频率到5秒，并使用防抖机制
     setInterval(() => {
-        const expectedCameraId = document.getElementById('camera-id')?.value || 'DA3234363';
+        const expectedCameraId = document.getElementById('camera-id')?.value || '207000152740';
         
         fetch('/api/camera_status')
             .then(response => response.json())

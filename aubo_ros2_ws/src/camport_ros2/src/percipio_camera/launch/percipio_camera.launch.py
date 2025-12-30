@@ -16,7 +16,7 @@ def generate_launch_description():
         DeclareLaunchArgument('serial_number', default_value='"207000152740"'),
         
         # 相机 IP 地址，可为空；也可填写待连接相机的 IP 地址
-        DeclareLaunchArgument('device_ip', default_value='169.25410.91'),
+        DeclareLaunchArgument('device_ip', default_value='169.254.10.91'),
 
         # 相机触发模式，支持连续出图、硬触发和软触发模式
         # 可选值：trigger_off（连续模式）/ trigger_soft（软触发）/ trigger_hard（硬触发）

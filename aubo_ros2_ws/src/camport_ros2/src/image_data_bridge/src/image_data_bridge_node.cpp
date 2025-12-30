@@ -3,6 +3,7 @@
 #include <percipio_camera_interface/msg/image_data.hpp>
 #include <percipio_camera_interface/msg/camera_status.hpp>
 #include <cv_bridge/cv_bridge.h>
+#include <image_transport/image_transport.hpp>
 #include <opencv2/opencv.hpp>
 #include <memory>
 
@@ -21,7 +22,7 @@ public:
         this->declare_parameter<int>("jpeg_quality", 90);
 
         // 获取参数
-        std::string input_image_topic = this->get_parameter("input_image_topic").as_string();
+        input_image_topic_ = this->get_parameter("input_image_topic").as_string();
         std::string camera_status_topic = this->get_parameter("camera_status_topic").as_string();
         std::string output_topic = this->get_parameter("output_topic").as_string();
         camera_id_ = this->get_parameter("camera_id").as_string();
@@ -32,18 +33,29 @@ public:
         image_data_pub_ = this->create_publisher<percipio_camera_interface::msg::ImageData>(
             output_topic, 10);
 
-        // 创建订阅者 - 订阅相机图像
-        image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-            input_image_topic, 10,
-            std::bind(&ImageDataBridgeNode::imageCallback, this, std::placeholders::_1));
-
         // 创建订阅者 - 订阅相机状态
         camera_status_sub_ = this->create_subscription<percipio_camera_interface::msg::CameraStatus>(
             camera_status_topic, 10,
             std::bind(&ImageDataBridgeNode::cameraStatusCallback, this, std::placeholders::_1));
 
+        // 延迟初始化image_transport订阅（在构造函数完成后）
+        // 使用定时器在节点完全初始化后创建订阅
+        init_timer_ = this->create_wall_timer(
+            std::chrono::milliseconds(100),
+            [this]() {
+                if (!image_sub_) {
+                    // 使用image_transport订阅相机图像（与percipio_camera的发布方式匹配）
+                    it_ = std::make_shared<image_transport::ImageTransport>(shared_from_this());
+                    image_sub_ = it_->subscribe(
+                        input_image_topic_, 10,
+                        std::bind(&ImageDataBridgeNode::imageCallback, this, std::placeholders::_1));
+                    init_timer_->cancel(); // 只执行一次
+                    RCLCPP_INFO(this->get_logger(), "图像订阅已初始化: %s", input_image_topic_.c_str());
+                }
+            });
+
         RCLCPP_INFO(this->get_logger(), "图像数据桥接节点已启动");
-        RCLCPP_INFO(this->get_logger(), "  输入图像话题: %s", input_image_topic.c_str());
+        RCLCPP_INFO(this->get_logger(), "  输入图像话题: %s", input_image_topic_.c_str());
         RCLCPP_INFO(this->get_logger(), "  相机状态话题: %s", camera_status_topic.c_str());
         RCLCPP_INFO(this->get_logger(), "  输出话题: %s", output_topic.c_str());
         RCLCPP_INFO(this->get_logger(), "  相机ID: %s", camera_id_.c_str());
@@ -51,7 +63,7 @@ public:
     }
 
 private:
-    void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
+    void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& msg)
     {
         try {
             // 创建ImageData消息
@@ -143,9 +155,12 @@ private:
     }
 
     rclcpp::Publisher<percipio_camera_interface::msg::ImageData>::SharedPtr image_data_pub_;
-    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
+    std::shared_ptr<image_transport::ImageTransport> it_;
+    image_transport::Subscriber image_sub_;
     rclcpp::Subscription<percipio_camera_interface::msg::CameraStatus>::SharedPtr camera_status_sub_;
+    rclcpp::TimerBase::SharedPtr init_timer_;
 
+    std::string input_image_topic_;
     std::string camera_id_;
     std::string current_camera_id_;
     bool use_jpeg_encoding_;

@@ -131,6 +131,19 @@ def launch_setup(context, *args, **kwargs):
         ]
     )
     
+    set_robot_pose_server_node = TimerAction(
+        period=15.0,
+        actions=[
+            Node(
+                package="demo_driver",
+                executable="set_robot_pose_server_node",
+                name="set_robot_pose_server",
+                output="screen",
+                parameters=common_parameters,
+            )
+        ]
+    )
+    
     # Robot status publisher node: 发布机器人状态信息
     # robot_status_publisher_node = TimerAction(
     #     period=10.0,
@@ -159,6 +172,7 @@ def launch_setup(context, *args, **kwargs):
         execute_trajectory_server_node,
         get_current_state_server_node,
         set_speed_factor_server_node,
+        set_robot_pose_server_node,
         # robot_status_publisher_node,
     ]
 

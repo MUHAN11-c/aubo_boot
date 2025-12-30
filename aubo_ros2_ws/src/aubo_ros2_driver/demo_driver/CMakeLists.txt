@@ -16,6 +16,7 @@ find_package(demo_interface REQUIRED)
 find_package(aubo_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(tf2 REQUIRED)
 find_package(moveit_core REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 find_package(moveit_common REQUIRED)
@@ -97,6 +98,18 @@ ament_target_dependencies(set_speed_factor_server_node
   moveit_ros_planning_interface
 )
 
+add_executable(set_robot_pose_server_node src/set_robot_pose_server.cpp)
+ament_target_dependencies(set_robot_pose_server_node
+  rclcpp
+  geometry_msgs
+  demo_interface
+  aubo_msgs
+  tf2
+  tf2_geometry_msgs
+  moveit_core
+  moveit_ros_planning_interface
+)
+
 # Note: The following executables are commented out because source files don't exist yet
 # add_executable(set_robot_enable_server_node src/set_robot_enable_server.cpp)
 # ament_target_dependencies(set_robot_enable_server_node
@@ -128,6 +141,7 @@ install(TARGETS
   execute_trajectory_server_node
   get_current_state_server_node
   set_speed_factor_server_node
+  set_robot_pose_server_node
   # set_robot_enable_server_node
   # set_robot_io_server_node
   # read_robot_io_server_node

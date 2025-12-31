@@ -99,12 +99,25 @@ class HandEyeCalibrationNode(Node):
         
         # 使用固定话题名 'robot_status'，通过launch文件的remapping映射到实际话题
         # 这样可以通过remapping灵活映射到 /demo_robot_status 或其他话题
+        robot_status_topic = 'robot_status'  # 固定话题名，通过remapping映射
+        # #region agent log
+        log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
+        import json
+        import time
+        log_file.write(json.dumps({'id': 'log_init_sub', 'timestamp': int(time.time()*1000), 'location': 'hand_eye_calibration_node.py:102', 'message': '创建robot_status订阅', 'data': {'topic': robot_status_topic, 'msg_type': 'RobotStatus'}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'A'}) + '\n')
+        log_file.close()
+        # #endregion
         self.robot_status_subscription = self.create_subscription(
             RobotStatus,
-            'robot_status',  # 固定话题名，通过remapping映射
+            robot_status_topic,
             self.robot_status_callback,
             10
         )
+        # #region agent log
+        log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
+        log_file.write(json.dumps({'id': 'log_sub_created', 'timestamp': int(time.time()*1000), 'location': 'hand_eye_calibration_node.py:115', 'message': 'robot_status订阅已创建', 'data': {'sub_exists': self.robot_status_subscription is not None}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'A'}) + '\n')
+        log_file.close()
+        # #endregion
         
         # 订阅相机状态
         self.camera_status_subscription = self.create_subscription(
@@ -228,31 +241,74 @@ class HandEyeCalibrationNode(Node):
         @self.app.route('/api/robot_status')
         def get_robot_status():
             """获取完整的机器人状态（包括在线状态、运动状态、位姿等）"""
-            if self.current_robot_status is not None:
-                return jsonify({
-                    'success': True,
-                    'is_online': self.current_robot_status.is_online,
-                    'enable': self.current_robot_status.enable,
-                    'in_motion': self.current_robot_status.in_motion,
-                    'joint_position_rad': list(self.current_robot_status.joint_position_rad),
-                    'joint_position_deg': list(self.current_robot_status.joint_position_deg),
-                    'cartesian_position': {
-                        'position': {
-                            'x': self.current_robot_status.cartesian_position.position.x,
-                            'y': self.current_robot_status.cartesian_position.position.y,
-                            'z': self.current_robot_status.cartesian_position.position.z
-                        },
-                        'orientation': {
-                            'x': self.current_robot_status.cartesian_position.orientation.x,
-                            'y': self.current_robot_status.cartesian_position.orientation.y,
-                            'z': self.current_robot_status.cartesian_position.orientation.z,
-                            'w': self.current_robot_status.cartesian_position.orientation.w
-                        },
-                        'euler_orientation_rpy_rad': list(self.current_robot_status.cartesian_position.euler_orientation_rpy_rad),
-                        'euler_orientation_rpy_deg': list(self.current_robot_status.cartesian_position.euler_orientation_rpy_deg)
-                    }
-                })
-            return jsonify({'success': False, 'message': '无机器人状态数据'})
+            try:
+                # #region agent log
+                log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
+                import json
+                import time
+                log_file.write(json.dumps({'id': 'log_api_entry', 'timestamp': int(time.time()*1000), 'location': 'hand_eye_calibration_node.py:242', 'message': 'API /api/robot_status被调用', 'data': {'current_robot_status_is_none': self.current_robot_status is None, 'current_robot_pose_is_none': self.current_robot_pose is None}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'C'}) + '\n')
+                log_file.close()
+                # #endregion
+                if self.current_robot_status is not None:
+                    # #region agent log
+                    log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
+                    try:
+                        cart = self.current_robot_status.cartesian_position
+                        log_file.write(json.dumps({'id': 'log_api_success_path', 'timestamp': int(time.time()*1000), 'location': 'hand_eye_calibration_node.py:255', 'message': 'API返回成功路径', 'data': {'is_online': self.current_robot_status.is_online, 'position': {'x': cart.position.x, 'y': cart.position.y, 'z': cart.position.z}, 'orientation': {'x': cart.orientation.x, 'y': cart.orientation.y, 'z': cart.orientation.z, 'w': cart.orientation.w}}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'C'}) + '\n')
+                    except Exception as e:
+                        log_file.write(json.dumps({'id': 'log_api_error_in_log', 'timestamp': int(time.time()*1000), 'location': 'hand_eye_calibration_node.py:257', 'message': '日志记录时出错', 'data': {'error': str(e)}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'C'}) + '\n')
+                    log_file.close()
+                    # #endregion
+                    try:
+                        return jsonify({
+                            'success': True,
+                            'is_online': self.current_robot_status.is_online,
+                            'enable': self.current_robot_status.enable,
+                            'in_motion': self.current_robot_status.in_motion,
+                            'joint_position_rad': list(self.current_robot_status.joint_position_rad),
+                            'joint_position_deg': list(self.current_robot_status.joint_position_deg),
+                            'cartesian_position': {
+                                'position': {
+                                    'x': self.current_robot_status.cartesian_position.position.x,
+                                    'y': self.current_robot_status.cartesian_position.position.y,
+                                    'z': self.current_robot_status.cartesian_position.position.z
+                                },
+                                'orientation': {
+                                    'x': self.current_robot_status.cartesian_position.orientation.x,
+                                    'y': self.current_robot_status.cartesian_position.orientation.y,
+                                    'z': self.current_robot_status.cartesian_position.orientation.z,
+                                    'w': self.current_robot_status.cartesian_position.orientation.w
+                                }
+                            }
+                        })
+                    except Exception as e:
+                        # #region agent log
+                        log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
+                        import traceback
+                        log_file.write(json.dumps({'id': 'log_api_error_creating_response', 'timestamp': int(time.time()*1000), 'location': 'hand_eye_calibration_node.py:288', 'message': '创建API响应时出错', 'data': {'error': str(e), 'traceback': traceback.format_exc()[:500]}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'C'}) + '\n')
+                        log_file.close()
+                        # #endregion
+                        self.get_logger().error(f'创建API响应时出错: {str(e)}')
+                        import traceback
+                        self.get_logger().error(traceback.format_exc())
+                        return jsonify({'success': False, 'message': f'处理机器人状态数据时出错: {str(e)}'}), 500
+                # #region agent log
+                log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
+                log_file.write(json.dumps({'id': 'log_api_fail_path', 'timestamp': int(time.time()*1000), 'location': 'hand_eye_calibration_node.py:295', 'message': 'API返回失败路径', 'data': {'reason': 'current_robot_status is None'}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'C'}) + '\n')
+                log_file.close()
+                # #endregion
+                return jsonify({'success': False, 'message': '无机器人状态数据'})
+            except Exception as e:
+                # #region agent log
+                log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
+                import traceback
+                log_file.write(json.dumps({'id': 'log_api_unhandled_exception', 'timestamp': int(time.time()*1000), 'location': 'hand_eye_calibration_node.py:300', 'message': 'API未处理异常', 'data': {'error': str(e), 'traceback': traceback.format_exc()[:500]}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'C'}) + '\n')
+                log_file.close()
+                # #endregion
+                self.get_logger().error(f'/api/robot_status 未处理异常: {str(e)}')
+                import traceback
+                self.get_logger().error(traceback.format_exc())
+                return jsonify({'success': False, 'message': f'服务器错误: {str(e)}'}), 500
         
         @self.app.route('/api/camera_status')
         def get_camera_status():
@@ -1089,8 +1145,36 @@ class HandEyeCalibrationNode(Node):
     
     def robot_status_callback(self, msg):
         """机器人状态回调函数"""
+        # #region agent log
+        log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
+        import json
+        import time
+        log_file.write(json.dumps({'id': 'log_callback_entry', 'timestamp': int(time.time()*1000), 'location': 'hand_eye_calibration_node.py:1090', 'message': 'robot_status_callback被调用', 'data': {'msg_type': type(msg).__name__, 'has_cartesian': hasattr(msg, 'cartesian_position')}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'B'}) + '\n')
+        log_file.close()
+        # #endregion
+        # #region agent log
+        log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
+        has_cartesian = hasattr(msg, 'cartesian_position')
+        cartesian_info = {}
+        if has_cartesian:
+            cart = msg.cartesian_position
+            cartesian_info = {'has_position': hasattr(cart, 'position'), 'has_orientation': hasattr(cart, 'orientation')}
+            if hasattr(cart, 'position'):
+                pos = cart.position
+                cartesian_info['position'] = {'x': pos.x, 'y': pos.y, 'z': pos.z}
+            if hasattr(cart, 'orientation'):
+                ori = cart.orientation
+                cartesian_info['orientation'] = {'x': ori.x, 'y': ori.y, 'z': ori.z, 'w': ori.w}
+        log_file.write(json.dumps({'id': 'log_callback_before_set', 'timestamp': int(time.time()*1000), 'location': 'hand_eye_calibration_node.py:1093', 'message': '设置前检查消息内容', 'data': cartesian_info, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'B'}) + '\n')
+        log_file.close()
+        # #endregion
         self.current_robot_status = msg  # 保存完整的机器人状态
         self.current_robot_pose = msg.cartesian_position  # 保持兼容性
+        # #region agent log
+        log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
+        log_file.write(json.dumps({'id': 'log_callback_after_set', 'timestamp': int(time.time()*1000), 'location': 'hand_eye_calibration_node.py:1096', 'message': '设置后状态', 'data': {'current_robot_status_set': self.current_robot_status is not None, 'current_robot_pose_set': self.current_robot_pose is not None}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'B'}) + '\n')
+        log_file.close()
+        # #endregion
     
     def camera_status_callback(self, msg):
         """相机状态回调函数"""

@@ -297,6 +297,11 @@ function switchTab(tabId) {
     
     currentTab = tabId;
     addLog('info', `切换到 ${getTabName(tabId)} 选项卡`);
+    
+    // 如果切换到"手眼标定"标签页，立即更新机器人位姿
+    if (tabId === 'hand-eye-calib') {
+        updateRobotPose();
+    }
 }
 
 function getTabName(tabId) {
@@ -1309,10 +1314,10 @@ function captureRobotPoseToRow(row) {
                 // 获取表格单元格（从第5列开始是位姿数据）
                 const cells = row.querySelectorAll('td');
                 
-                // 填充位姿数据（单位：毫米）
-                cells[5].textContent = pose.position.x.toFixed(3);  // 位置 X
-                cells[6].textContent = pose.position.y.toFixed(3);  // 位置 Y
-                cells[7].textContent = pose.position.z.toFixed(3);  // 位置 Z
+                // 填充位姿数据（单位：毫米）- 将米转换为毫米（乘以1000）
+                cells[5].textContent = (pose.position.x * 1000).toFixed(3);  // 位置 X
+                cells[6].textContent = (pose.position.y * 1000).toFixed(3);  // 位置 Y
+                cells[7].textContent = (pose.position.z * 1000).toFixed(3);  // 位置 Z
                 cells[8].textContent = pose.orientation.x.toFixed(6);  // 姿态 Qx
                 cells[9].textContent = pose.orientation.y.toFixed(6);  // 姿态 Qy
                 cells[10].textContent = pose.orientation.z.toFixed(6);  // 姿态 Qz
@@ -1789,9 +1794,10 @@ function updateVerifyRobotPoseDisplay(robotStatus) {
     const onlineIndicator = document.getElementById('verify-robot-online-indicator');
     
     if (posX && robotStatus.cartesian_position) {
-        posX.textContent = robotStatus.cartesian_position.position.x.toFixed(2);
-        posY.textContent = robotStatus.cartesian_position.position.y.toFixed(2);
-        posZ.textContent = robotStatus.cartesian_position.position.z.toFixed(2);
+        // 将米转换为毫米（乘以1000）
+        posX.textContent = (robotStatus.cartesian_position.position.x * 1000).toFixed(2);
+        posY.textContent = (robotStatus.cartesian_position.position.y * 1000).toFixed(2);
+        posZ.textContent = (robotStatus.cartesian_position.position.z * 1000).toFixed(2);
         oriX.textContent = robotStatus.cartesian_position.orientation.x.toFixed(4);
         oriY.textContent = robotStatus.cartesian_position.orientation.y.toFixed(4);
         oriZ.textContent = robotStatus.cartesian_position.orientation.z.toFixed(4);
@@ -3291,6 +3297,11 @@ function updateCurrentImage() {
 
 // ============= 机器人位姿更新 =============
 function startRobotPoseUpdate() {
+    // 立即调用一次，确保页面加载时就能看到位姿
+    updateRobotPose();
+    // #region agent log
+    console.log('startRobotPoseUpdate called, currentTab:', currentTab);
+    // #endregion
     robotPoseUpdateInterval = setInterval(() => {
         if (currentTab === 'hand-eye-calib' && !document.hidden) {
             updateRobotPose();
@@ -3321,16 +3332,37 @@ function updateVerifyRobotStatus() {
 }
 
 function updateRobotPose() {
+    // #region agent log
+    console.log('updateRobotPose called, currentTab:', currentTab, 'document.hidden:', document.hidden);
+    // #endregion
     fetch('/api/robot_status')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
-            if (data.success) {
+            // #region agent log
+            console.log('updateRobotPose received data:', data.success, 'has cartesian:', !!data.cartesian_position);
+            // #endregion
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/624c3f7c-4087-438c-abd0-30e00d1e2e18',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script_v2.js:3332',message:'updateRobotPose收到API响应',data:{success:data.success,has_cartesian:!!data.cartesian_position,has_position:!!(data.cartesian_position&&data.cartesian_position.position),pos_x_exists:!!document.getElementById('pos-x')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+            // #endregion
+            if (data.success && data.cartesian_position && data.cartesian_position.position) {
                 const pose = data.cartesian_position;
+                const posX = document.getElementById('pos-x');
+                const posY = document.getElementById('pos-y');
+                const posZ = document.getElementById('pos-z');
                 
-                // 更新位姿显示（单位：毫米）
-                document.getElementById('pos-x').textContent = pose.position.x.toFixed(3);
-                document.getElementById('pos-y').textContent = pose.position.y.toFixed(3);
-                document.getElementById('pos-z').textContent = pose.position.z.toFixed(3);
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/624c3f7c-4087-438c-abd0-30e00d1e2e18',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script_v2.js:3339',message:'准备更新DOM元素',data:{posX_exists:!!posX,posY_exists:!!posY,posZ_exists:!!posZ,x_value:pose.position.x,y_value:pose.position.y,z_value:pose.position.z},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                // #endregion
+                
+                // 更新位姿显示（单位：毫米）- 将米转换为毫米（乘以1000）
+                if (posX) posX.textContent = (pose.position.x * 1000).toFixed(3);
+                if (posY) posY.textContent = (pose.position.y * 1000).toFixed(3);
+                if (posZ) posZ.textContent = (pose.position.z * 1000).toFixed(3);
                 document.getElementById('ori-x').textContent = pose.orientation.x.toFixed(6);
                 document.getElementById('ori-y').textContent = pose.orientation.y.toFixed(6);
                 document.getElementById('ori-z').textContent = pose.orientation.z.toFixed(6);
@@ -3353,19 +3385,65 @@ function updateRobotPose() {
                     indicator.textContent = data.is_online ? '🟡 在线(运动中)' : '🔴 离线';
                 }
             } else {
+                // #region agent log
+                console.log('updateRobotPose: data.success is false or missing cartesian_position');
+                // #endregion
                 // 如果无法获取数据，显示离线
                 const indicator = document.getElementById('robot-online-indicator');
-                indicator.textContent = '🔴 无数据';
-                indicator.className = 'status-indicator offline';
-                updateRobotStatus('离线');
+                if (indicator) {
+                    indicator.textContent = '🔴 无数据';
+                    indicator.className = 'status-indicator offline';
+                    updateRobotStatus('离线');
+                    // 重置位置值为"-"
+                    const posX = document.getElementById('pos-x');
+                    const posY = document.getElementById('pos-y');
+                    const posZ = document.getElementById('pos-z');
+                    const oriX = document.getElementById('ori-x');
+                    const oriY = document.getElementById('ori-y');
+                    const oriZ = document.getElementById('ori-z');
+                    const oriW = document.getElementById('ori-w');
+                    if (posX) posX.textContent = '-';
+                    if (posY) posY.textContent = '-';
+                    if (posZ) posZ.textContent = '-';
+                    if (oriX) oriX.textContent = '-';
+                    if (oriY) oriY.textContent = '-';
+                    if (oriZ) oriZ.textContent = '-';
+                    if (oriW) oriW.textContent = '-';
+                }
             }
         })
         .catch(error => {
+            // #region agent log
+            console.error('updateRobotPose catch error:', error);
+            console.error('Error stack:', error.stack);
+            fetch('http://127.0.0.1:7243/ingest/624c3f7c-4087-438c-abd0-30e00d1e2e18',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script_v2.js:3403',message:'updateRobotPose捕获错误',data:{error:error.message||String(error),error_type:error.name,stack:error.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+            // #endregion
             // 网络错误或API错误
-            const indicator = document.getElementById('robot-online-indicator');
-            indicator.textContent = '⚠️ 错误';
-            indicator.className = 'status-indicator error';
-            updateRobotStatus('错误');
+            try {
+                const indicator = document.getElementById('robot-online-indicator');
+                if (indicator) {
+                    indicator.textContent = '⚠️ 错误';
+                    indicator.className = 'status-indicator error';
+                    updateRobotStatus('错误');
+                    // 重置位置值为"-"
+                    const posX = document.getElementById('pos-x');
+                    const posY = document.getElementById('pos-y');
+                    const posZ = document.getElementById('pos-z');
+                    const oriX = document.getElementById('ori-x');
+                    const oriY = document.getElementById('ori-y');
+                    const oriZ = document.getElementById('ori-z');
+                    const oriW = document.getElementById('ori-w');
+                    if (posX) posX.textContent = '-';
+                    if (posY) posY.textContent = '-';
+                    if (posZ) posZ.textContent = '-';
+                    if (oriX) oriX.textContent = '-';
+                    if (oriY) oriY.textContent = '-';
+                    if (oriZ) oriZ.textContent = '-';
+                    if (oriW) oriW.textContent = '-';
+                }
+            } catch (domError) {
+                console.error('Error updating DOM in catch block:', domError);
+            }
             console.error('更新机器人位姿失败:', error);
         });
 }

@@ -17,7 +17,9 @@ import json
 import cv2
 import numpy as np
 from cv_bridge import CvBridge
-from sensor_msgs.msg import Image, CompressedImage
+from scipy.spatial.transform import Rotation as R
+from scipy.optimize import least_squares
+from sensor_msgs.msg import Image, CompressedImage, PointCloud2
 from demo_interface.msg import RobotStatus
 from percipio_camera_interface.msg import CameraStatus, ImageData
 from percipio_camera_interface.srv import SoftwareTrigger
@@ -49,6 +51,8 @@ class HandEyeCalibrationNode(Node):
         self.current_robot_pose = None
         self.current_robot_status = None  # 完整的机器人状态（包括is_online等）
         self.current_camera_status = None  # 相机状态
+        self.current_point_cloud = None  # 当前点云数据（保留兼容性）
+        self.current_depth_image = None  # 当前深度图（对齐到彩色图）
         self.bridge = CvBridge()
         
         # 相机标定工具
@@ -89,6 +93,53 @@ class HandEyeCalibrationNode(Node):
         )
         
         self.get_logger().info('📡 已订阅 /image_data 话题，等待图像数据...')
+        
+        # 订阅点云数据（用于深度误差检查）
+        point_cloud_qos = QoSProfile(
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=5
+        )
+        # 深度图话题名称（可通过参数配置）
+        # 默认使用 depth/image_raw（对齐到彩色图的深度图）
+        self.declare_parameter('depth_image_topic', '/camera/depth/image_raw')
+        depth_image_topic = self.get_parameter('depth_image_topic').value
+        
+        # 深度图缩放因子（参考 depth_z_reader 的实现方式）
+        # depth_z_reader 使用 depth_scale（转换为米），默认 0.00025（适用于 scale_unit=0.25）
+        # hand_eye_calibration 使用 depth_scale_unit（转换为毫米），默认 0.25（适用于 scale_unit=0.25）
+        # 可以通过查看相机节点日志获取：Depth stream scale unit: <value>
+        # 或者通过 TYGetFloat(handle, m_comp, TY_FLOAT_SCALE_UNIT, &f_scale_unit) 从相机获取
+        # 如果未设置，将自动推断
+        self.declare_parameter('depth_scale_unit', '')  # 空字符串表示自动推断
+        depth_scale_unit_str = self.get_parameter('depth_scale_unit').value
+        if depth_scale_unit_str and depth_scale_unit_str.strip():
+            try:
+                depth_scale_unit = float(depth_scale_unit_str)
+                self.calib_utils.depth_scale_unit = depth_scale_unit
+                self.get_logger().info(f'📏 使用指定的深度缩放因子: {depth_scale_unit} (转换为毫米)')
+                self.get_logger().info(f'   参考 depth_z_reader: 如果转换为米，应使用 {depth_scale_unit * 0.001}')
+            except ValueError:
+                self.get_logger().warn(f'⚠️  无效的深度缩放因子值: {depth_scale_unit_str}，将使用自动推断')
+        else:
+            self.get_logger().info('📏 深度缩放因子未指定，将自动推断')
+            self.get_logger().info('   提示: 对于 scale_unit=0.25 的相机，建议设置 depth_scale_unit=0.25')
+        
+        self.depth_image_subscription = self.create_subscription(
+            Image,
+            depth_image_topic,  # percipio相机发布的深度图话题（已对齐到彩色图）
+            self.depth_image_callback,
+            image_qos
+        )
+        # #region agent log
+        log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
+        import json
+        import time
+        log_file.write(json.dumps({'id': 'log_depth_image_sub_created', 'timestamp': int(time.time()*1000), 'location': 'hand_eye_calibration_node.py:109', 'message': '深度图订阅已创建', 'data': {'topic': depth_image_topic, 'sub_exists': self.depth_image_subscription is not None}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'I'}) + '\n')
+        log_file.close()
+        # #endregion
+        self.get_logger().info(f'📡 已订阅 {depth_image_topic} 话题，等待深度图数据...')
         
         # 软触发客户端
         self.trigger_client = self.create_client(SoftwareTrigger, '/software_trigger')
@@ -544,14 +595,115 @@ class HandEyeCalibrationNode(Node):
                         'adjacent_distance': float(dist)
                     })
                 
-                return jsonify({
+                # 深度误差检查（如果深度图可用）
+                depth_error_result = None
+                if self.current_depth_image is not None:
+                    try:
+                        depth_error_result = self.calib_utils.evaluate_depth_error(
+                            corners, self.current_depth_image, self.pattern_size, square_size
+                        )
+                        if depth_error_result['success']:
+                            self.get_logger().info(f'深度误差检查完成: 平均误差 {depth_error_result["depth_statistics"]["mean_error"]:.2f} mm')
+                    except Exception as e:
+                        self.get_logger().warn(f'深度误差检查失败: {str(e)}')
+                
+                result = {
                     'success': True,
                     'corners_count': len(corners),
                     'corners_data': corners_data,
                     'image_with_corners': f'data:image/jpeg;base64,{img_base64}'
-                })
+                }
+                
+                # 如果深度误差检查成功，添加到结果中
+                if depth_error_result and depth_error_result.get('success'):
+                    result['depth_error'] = depth_error_result
+                
+                return jsonify(result)
             except Exception as e:
                 self.get_logger().error(f'提取角点失败: {str(e)}')
+                return jsonify({'success': False, 'error': str(e)})
+        
+        @self.app.route('/api/camera/get_board_pose', methods=['POST'])
+        def get_board_pose():
+            """获取当前图像中标定板的姿态（用于姿态法标定）
+            返回标定板坐标系到相机坐标系的变换（位置+四元数）
+            """
+            try:
+                data = request.get_json()
+                square_size = data.get('square_size', 15.0)  # mm
+                
+                if self.current_image_raw is None:
+                    return jsonify({'success': False, 'error': '请先加载图像'})
+                
+                if self.calib_utils.camera_matrix is None:
+                    return jsonify({'success': False, 'error': '请先加载相机参数'})
+                
+                # 检测角点
+                corners = self.calib_utils.detect_checkerboard_corners(
+                    self.current_image_raw, self.pattern_size
+                )
+                
+                if corners is None:
+                    return jsonify({'success': False, 'error': '未检测到棋盘格角点'})
+                
+                # 使用solvePnP估计标定板姿态
+                # 构建3D对象点（标定板坐标系）
+                pattern_w, pattern_h = self.pattern_size
+                obj_points = []
+                for j in range(pattern_h):
+                    for i in range(pattern_w):
+                        obj_points.append([i * square_size, j * square_size, 0.0])
+                obj_points = np.array(obj_points, dtype=np.float32)
+                
+                # 使用solvePnP求解
+                corners_2d = corners.reshape(-1, 1, 2).astype(np.float32)
+                success, rvec, tvec = cv2.solvePnP(
+                    obj_points,
+                    corners_2d,
+                    self.calib_utils.camera_matrix,
+                    self.calib_utils.dist_coeffs
+                )
+                
+                if not success:
+                    return jsonify({'success': False, 'error': 'solvePnP求解失败'})
+                
+                # 将旋转向量转换为旋转矩阵
+                R_board2cam, _ = cv2.Rodrigues(rvec)
+                
+                # 旋转矩阵转四元数
+                from scipy.spatial.transform import Rotation as R
+                r = R.from_matrix(R_board2cam)
+                quat = r.as_quat()  # [x, y, z, w]
+                
+                # tvec是标定板坐标系原点到相机坐标系原点的平移向量（在相机坐标系下）
+                position = {
+                    'x': float(tvec[0, 0]),
+                    'y': float(tvec[1, 0]),
+                    'z': float(tvec[2, 0])
+                }
+                
+                orientation = {
+                    'x': float(quat[0]),
+                    'y': float(quat[1]),
+                    'z': float(quat[2]),
+                    'w': float(quat[3])
+                }
+                
+                return jsonify({
+                    'success': True,
+                    'position': position,
+                    'orientation': orientation,
+                    'translation_mm': {
+                        'x': position['x'],
+                        'y': position['y'],
+                        'z': position['z']
+                    }
+                })
+                
+            except Exception as e:
+                self.get_logger().error(f'获取标定板姿态失败: {str(e)}')
+                import traceback
+                self.get_logger().error(f'   堆栈: {traceback.format_exc()}')
                 return jsonify({'success': False, 'error': str(e)})
         
         @self.app.route('/api/camera/pixel_to_camera', methods=['POST'])
@@ -627,10 +779,28 @@ class HandEyeCalibrationNode(Node):
                 if self.corners_3d is None:
                     return jsonify({'success': False, 'error': '请先提取角点'})
                 
+                if self.detected_corners is None:
+                    return jsonify({'success': False, 'error': '请先提取角点'})
+                
                 # 计算最大距离和误差
                 result = self.calib_utils.calculate_max_distance_error(
                     self.corners_3d, self.pattern_size, expected_size
                 )
+                
+                # 深度误差检查（如果深度图数据可用）
+                if self.current_depth_image is not None:
+                    try:
+                        depth_error_result = self.calib_utils.evaluate_depth_error(
+                            self.detected_corners,
+                            self.current_depth_image,
+                            self.pattern_size,
+                            expected_size
+                        )
+                        if depth_error_result.get('success'):
+                            result['depth_error'] = depth_error_result
+                            self.get_logger().info(f'深度误差检查完成: 平均误差 {depth_error_result["depth_statistics"]["mean_error"]:.2f} mm')
+                    except Exception as e:
+                        self.get_logger().warn(f'深度误差检查失败: {str(e)}')
                 
                 return jsonify(result)
             except Exception as e:
@@ -722,13 +892,44 @@ class HandEyeCalibrationNode(Node):
         
         @self.app.route('/api/hand_eye/calibrate', methods=['POST'])
         def perform_hand_eye_calibration():
-            """执行手眼标定 - Eye-to-Hand方式（相机固定，机器人末端点选角点）"""
+            """执行手眼标定 - 支持Eye-to-Hand和Eye-in-Hand两种方式"""
             try:
                 data = request.get_json()
+                calibration_type = data.get('calibration_type', 'eye-to-hand')  # 默认Eye-to-Hand
+                pose_data = data.get('pose_data', [])
+                
+                self.get_logger().info('='*60)
+                
+                if calibration_type == 'eye-in-hand':
+                    # Eye-in-Hand标定
+                    calibration_method = data.get('calibration_method', 'corner-based')  # 默认角点法
+                    if calibration_method == 'pose-based':
+                        # 姿态法标定（已实现但暂时禁用）
+                        # TODO: 启用姿态法时，将下面的return注释掉，启用实际的标定调用
+                        return jsonify({
+                            'success': False,
+                            'error': '姿态法标定功能已实现但暂时禁用，请先使用角点法进行标定'
+                        })
+                        # return self._perform_eye_in_hand_pose_based_calibration(data)  # 启用时取消注释
+                    else:
+                        # 角点法标定（原有逻辑）
+                        return self._perform_eye_in_hand_calibration(data)
+                else:
+                    # Eye-to-Hand标定（原有逻辑）
+                    return self._perform_eye_to_hand_calibration(data)
+                
+            except Exception as e:
+                self.get_logger().error(f'❌ 手眼标定失败: {str(e)}')
+                import traceback
+                self.get_logger().error(f'   堆栈: {traceback.format_exc()}')
+                return jsonify({'success': False, 'error': str(e)})
+        
+        def _perform_eye_to_hand_calibration(self, data):
+            """执行Eye-to-Hand标定"""
+            try:
                 pose_data = data.get('pose_data', [])
                 camera_height = data.get('camera_height', 840.0)  # 相机高度，默认840mm
                 
-                self.get_logger().info('='*60)
                 self.get_logger().info(f'🤖 开始Eye-to-Hand手眼标定')
                 self.get_logger().info(f'   标定场景: 相机固定，机器人末端点选角点')
                 self.get_logger().info(f'   相机高度: {camera_height} mm')
@@ -910,12 +1111,629 @@ class HandEyeCalibrationNode(Node):
                         'success': False, 
                         'error': f'标定计算失败: {str(e)}'
                     })
-                
+                    
             except Exception as e:
-                self.get_logger().error(f'❌ 手眼标定失败: {str(e)}')
+                self.get_logger().error(f'❌ Eye-to-Hand标定失败: {str(e)}')
                 import traceback
                 self.get_logger().error(f'   堆栈: {traceback.format_exc()}')
                 return jsonify({'success': False, 'error': str(e)})
+        
+        def _perform_eye_in_hand_calibration(self, data):
+            """执行Eye-in-Hand标定"""
+            try:
+                pose_data = data.get('pose_data', [])  # 点选姿态数据
+                shot_pose_data = data.get('shot_pose', None)  # 拍照姿态数据
+                
+                self.get_logger().info(f'🤖 开始Eye-in-Hand手眼标定')
+                self.get_logger().info(f'   标定场景: 相机安装在机器人末端')
+                self.get_logger().info(f'   点选姿态组数: {len(pose_data)}')
+                
+                if len(pose_data) < 3:
+                    return jsonify({
+                        'success': False, 
+                        'error': f'数据不足，至少需要3组点选姿态数据，当前只有{len(pose_data)}组'
+                    })
+                
+                if shot_pose_data is None:
+                    return jsonify({
+                        'success': False,
+                        'error': '缺少拍照姿态数据，请先提取角点以保存拍照姿态'
+                    })
+                
+                # 检查相机标定参数
+                if self.calib_utils.camera_matrix is None or self.calib_utils.dist_coeffs is None:
+                    return jsonify({
+                        'success': False, 
+                        'error': '请先加载相机标定参数'
+                    })
+                
+                # 构建拍照姿态的变换矩阵（末端执行器到基座）
+                shot_pose = self._pose_to_transform_matrix(
+                    {'x': shot_pose_data['robot_pos_x'], 'y': shot_pose_data['robot_pos_y'], 'z': shot_pose_data['robot_pos_z']},
+                    {'x': shot_pose_data['robot_ori_x'], 'y': shot_pose_data['robot_ori_y'], 'z': shot_pose_data['robot_ori_z'], 'w': shot_pose_data['robot_ori_w']}
+                )
+                
+                # 构建点选姿态的变换矩阵列表
+                pick_poses = []
+                camera_points_shot = []  # 拍照时角点在相机坐标系下的坐标
+                
+                # 从拍照姿态数据中获取角点坐标（需要找到对应的角点）
+                shot_corners = {corner['index']: {
+                    'camera_x': corner['camera_x'], 
+                    'camera_y': corner['camera_y'],
+                    'camera_z': corner.get('camera_z', 550.0)  # 使用拍照时的Z坐标
+                } for corner in shot_pose_data.get('corners', [])}
+                
+                for idx, pose in enumerate(pose_data):
+                    try:
+                        corner_index = pose.get('corner_index')
+                        
+                        # 查找拍照时对应的角点坐标
+                        if corner_index is None or corner_index not in shot_corners:
+                            self.get_logger().warning(f'   数据点 #{idx+1} 缺少对应的拍照角点数据（角点索引: {corner_index}），已跳过')
+                            continue
+                        
+                        shot_corner = shot_corners[corner_index]
+                        
+                        # 构建点选姿态的变换矩阵
+                        pick_pose = self._pose_to_transform_matrix(
+                            {'x': pose['robot_pos_x'], 'y': pose['robot_pos_y'], 'z': pose['robot_pos_z']},
+                            {'x': pose['robot_ori_x'], 'y': pose['robot_ori_y'], 'z': pose['robot_ori_z'], 'w': pose['robot_ori_w']}
+                        )
+                        pick_poses.append(pick_pose)
+                        
+                        # 拍照时角点在相机坐标系下的坐标（使用拍照时的camera_z）
+                        camera_points_shot.append(np.array([
+                            shot_corner['camera_x'],
+                            shot_corner['camera_y'],
+                            shot_corner['camera_z']
+                        ]))
+                        
+                        self.get_logger().info(f'   点对 #{len(pick_poses)}: 角点#{corner_index}, 相机({shot_corner["camera_x"]:.2f}, {shot_corner["camera_y"]:.2f}, {shot_corner["camera_z"]:.2f})mm')
+                        
+                    except Exception as e:
+                        self.get_logger().warning(f'   数据点 #{idx+1} 处理失败: {str(e)}')
+                        continue
+                
+                if len(pick_poses) < 3:
+                    return jsonify({
+                        'success': False, 
+                        'error': f'有效数据不足，至少需要3组，当前只有{len(pick_poses)}组'
+                    })
+                
+                # 执行Eye-in-Hand标定
+                self.get_logger().info(f'   开始Eye-in-Hand标定计算（优化方法）...')
+                self.get_logger().info(f'   使用 {len(pick_poses)} 组点对')
+                
+                try:
+                    T_camera2gripper, fixed_z = self._solve_eye_in_hand(shot_pose, pick_poses, camera_points_shot)
+                    
+                    # 计算误差
+                    errors = []
+                    for i in range(len(pick_poses)):
+                        P_camera_shot = camera_points_shot[i]
+                        T_gripper_pick2base = pick_poses[i]
+                        
+                        # 计算角点在基座坐标系下的位置
+                        P_camera_shot_homogeneous = np.append(P_camera_shot, 1.0)
+                        P_gripper_homogeneous = T_camera2gripper @ P_camera_shot_homogeneous
+                        P_base_computed_homogeneous = shot_pose @ P_gripper_homogeneous
+                        P_base_computed = P_base_computed_homogeneous[:3]
+                        
+                        # 实际位置（点选姿态的末端执行器位置）
+                        P_base_actual = T_gripper_pick2base[:3, 3]
+                        
+                        # 计算误差
+                        error = np.linalg.norm(P_base_computed - P_base_actual)
+                        errors.append(error)
+                    
+                    mean_error = np.mean(errors)
+                    max_error = np.max(errors)
+                    min_error = np.min(errors)
+                    std_error = np.std(errors)
+                    
+                    self.get_logger().info('✅ Eye-in-Hand标定完成')
+                    self.get_logger().info(f'   平均误差: {mean_error:.3f} mm')
+                    self.get_logger().info(f'   最大误差: {max_error:.3f} mm')
+                    self.get_logger().info(f'   最小误差: {min_error:.3f} mm')
+                    self.get_logger().info(f'   标准差: {std_error:.3f} mm')
+                    self.get_logger().info('='*60)
+                    
+                    # 保存标定结果
+                    self.hand_eye_calibration_data['transformation_matrix'] = T_camera2gripper.tolist()
+                    self.hand_eye_calibration_data['calibration_error'] = {
+                        'mean': float(mean_error),
+                        'max': float(max_error),
+                        'min': float(min_error),
+                        'std': float(std_error),
+                        'errors': [float(e) for e in errors]
+                    }
+                    
+                    R_cam2gripper = T_camera2gripper[:3, :3]
+                    t_cam2gripper = T_camera2gripper[:3, 3]
+                    
+                    return jsonify({
+                        'success': True,
+                        'method': 'Optimization with XY+Z Constraint',
+                        'calibration_type': 'Eye-in-Hand',
+                        'transformation_matrix': T_camera2gripper.tolist(),  # 4x4矩阵，相机→末端执行器
+                        'rotation_matrix': R_cam2gripper.tolist(),  # 3x3旋转矩阵
+                        'translation_vector': t_cam2gripper.tolist(),  # 平移向量，单位：mm
+                        'units': {
+                            'translation': 'mm',
+                            'rotation': 'rad',
+                            'error': 'mm'
+                        },
+                        'evaluation': {
+                            'mean_error': float(mean_error),
+                            'max_error': float(max_error),
+                            'min_error': float(min_error),
+                            'std_error': float(std_error),
+                            'data_count': len(pick_poses),
+                            'errors_per_pose': [float(e) for e in errors]
+                        },
+                        'message': f'Eye-in-Hand标定成功，平均误差: {mean_error:.3f} mm'
+                    })
+                    
+                except Exception as e:
+                    self.get_logger().error(f'❌ Eye-in-Hand标定计算失败: {str(e)}')
+                    import traceback
+                    self.get_logger().error(f'   堆栈: {traceback.format_exc()}')
+                    return jsonify({
+                        'success': False, 
+                        'error': f'标定计算失败: {str(e)}'
+                    })
+                    
+            except Exception as e:
+                self.get_logger().error(f'❌ Eye-in-Hand标定失败: {str(e)}')
+                import traceback
+                self.get_logger().error(f'   堆栈: {traceback.format_exc()}')
+                return jsonify({'success': False, 'error': str(e)})
+        
+        def _pose_to_transform_matrix(self, position, orientation_quat):
+            """将位置和四元数组合成4x4齐次变换矩阵"""
+            T = np.eye(4)
+            T[:3, :3] = self._quaternion_to_rotation_matrix([
+                orientation_quat['x'],
+                orientation_quat['y'],
+                orientation_quat['z'],
+                orientation_quat['w']
+            ])
+            T[:3, 3] = [position['x'], position['y'], position['z']]
+            return T
+        
+        def _solve_eye_in_hand(self, shot_pose, pick_poses, camera_points_shot, fixed_z=None):
+            """
+            Eye-in-Hand手眼标定核心算法
+            基于hand_eye_calibration.py中的实现
+            """
+            n = len(pick_poses)
+            
+            # 计算Z值（棋盘格桌面高度）
+            pick_z_values = [T_pick[2, 3] for T_pick in pick_poses]
+            if fixed_z is None:
+                fixed_z = np.mean(pick_z_values)
+                self.get_logger().info(f'   平均Z值（棋盘格桌面高度）: {fixed_z:.6f} mm')
+            
+            # 优化目标函数
+            def residuals(params):
+                """计算残差"""
+                axis_angle = params[:3]
+                translation = params[3:6]
+                
+                # 构建旋转矩阵
+                angle = np.linalg.norm(axis_angle)
+                if angle < 1e-6:
+                    R_mat = np.eye(3)
+                else:
+                    axis = axis_angle / angle
+                    r = R.from_rotvec(axis * angle)
+                    R_mat = r.as_matrix()
+                
+                # 构建变换矩阵 T_camera2gripper
+                T_camera2gripper = np.eye(4)
+                T_camera2gripper[:3, :3] = R_mat
+                T_camera2gripper[:3, 3] = translation
+                
+                residuals_list = []
+                
+                for i in range(n):
+                    T_gripper_pick2base = pick_poses[i]
+                    P_camera_shot = camera_points_shot[i]
+                    
+                    # 从拍照姿态和手眼标定矩阵计算角点在基座坐标系下的位置
+                    P_camera_shot_homogeneous = np.append(P_camera_shot, 1.0)
+                    P_gripper_homogeneous = T_camera2gripper @ P_camera_shot_homogeneous
+                    P_base_computed_homogeneous = shot_pose @ P_gripper_homogeneous
+                    P_base_computed = P_base_computed_homogeneous[:3]
+                    
+                    # 从点选姿态得到角点在基座坐标系下的实际位置
+                    P_base_actual = T_gripper_pick2base[:3, 3]
+                    
+                    # XY+Z约束
+                    residual = P_base_computed - P_base_actual
+                    residuals_list.extend(residual)
+                
+                return np.array(residuals_list)
+            
+            # 初始估计：使用SVD方法
+            T_gripper_shot2base_inv = np.linalg.inv(shot_pose)
+            
+            points_gripper = []
+            points_camera = []
+            
+            for i in range(n):
+                T_gripper_pick2base = pick_poses[i]
+                P_camera_shot = camera_points_shot[i]
+                
+                # 从点选姿态得到角点在基座坐标系的位置
+                P_base = T_gripper_pick2base[:3, 3]
+                
+                # 转换到末端执行器坐标系（拍照时的末端执行器坐标系）
+                P_base_homogeneous = np.append(P_base, 1.0)
+                P_gripper_homogeneous = T_gripper_shot2base_inv @ P_base_homogeneous
+                P_gripper = P_gripper_homogeneous[:3]
+                
+                points_gripper.append(P_gripper)
+                points_camera.append(P_camera_shot)
+            
+            points_gripper = np.array(points_gripper)
+            points_camera = np.array(points_camera)
+            
+            # SVD方法求解初始估计
+            centroid_gripper = np.mean(points_gripper, axis=0)
+            centroid_camera = np.mean(points_camera, axis=0)
+            
+            points_gripper_centered = points_gripper - centroid_gripper
+            points_camera_centered = points_camera - centroid_camera
+            
+            H = points_camera_centered.T @ points_gripper_centered
+            
+            U, S, Vt = np.linalg.svd(H)
+            
+            R_init = Vt.T @ U.T
+            
+            if np.linalg.det(R_init) < 0:
+                Vt[-1, :] *= -1
+                R_init = Vt.T @ U.T
+            
+            t_init = centroid_gripper - R_init @ centroid_camera
+            
+            r_init = R.from_matrix(R_init)
+            axis_angle_init = r_init.as_rotvec()
+            
+            initial_params = np.concatenate([axis_angle_init, t_init])
+            
+            self.get_logger().info(f'   初始估计完成，开始优化求解...')
+            
+            # 优化求解
+            result = least_squares(residuals, initial_params, method='lm',
+                                  max_nfev=10000, ftol=1e-8, xtol=1e-8, verbose=0)
+            
+            # 提取结果
+            axis_angle = result.x[:3]
+            translation = result.x[3:6]
+            
+            # 构建旋转矩阵
+            angle = np.linalg.norm(axis_angle)
+            if angle < 1e-6:
+                R_camera2gripper = np.eye(3)
+            else:
+                axis = axis_angle / angle
+                r = R.from_rotvec(axis * angle)
+                R_camera2gripper = r.as_matrix()
+            
+            # 构建变换矩阵
+            T_camera2gripper = np.eye(4)
+            T_camera2gripper[:3, :3] = R_camera2gripper
+            T_camera2gripper[:3, 3] = translation
+            
+            mean_residual = np.mean(np.abs(result.fun))
+            self.get_logger().info(f'   优化完成，平均残差: {mean_residual:.6f} mm')
+            
+            return T_camera2gripper, fixed_z
+        
+        def _perform_eye_in_hand_pose_based_calibration(self, data):
+            """执行Eye-in-Hand标定 - 姿态法（Pose-based method，类似Tsai方法）
+            
+            姿态法原理：通过多组机器人运动，求解AX=XB问题
+            - A: 机器人基座坐标系下的运动（从姿态1到姿态2）
+            - X: 相机到末端执行器的变换（待求）
+            - B: 相机坐标系下的运动（通过观察标定板计算）
+            
+            流程：
+            1. 使用Tsai方法或SVD方法求解初始估计
+            2. 使用非线性优化进一步优化结果
+            """
+            try:
+                # 姿态法需要多组运动数据，每组包含两个姿态和对应的标定板观察
+                motion_groups = data.get('motion_groups', [])
+                
+                self.get_logger().info(f'🤖 开始Eye-in-Hand手眼标定（姿态法）')
+                self.get_logger().info(f'   标定场景: 相机安装在机器人末端')
+                self.get_logger().info(f'   运动组数: {len(motion_groups)}')
+                
+                if len(motion_groups) < 2:
+                    return jsonify({
+                        'success': False, 
+                        'error': f'数据不足，至少需要2组运动数据，当前只有{len(motion_groups)}组'
+                    })
+                
+                # 检查相机标定参数
+                if self.calib_utils.camera_matrix is None or self.calib_utils.dist_coeffs is None:
+                    return jsonify({
+                        'success': False, 
+                        'error': '请先加载相机标定参数'
+                    })
+                
+                # 构建运动矩阵
+                A_list = []  # 机器人基座坐标系下的运动
+                B_list = []  # 相机坐标系下的运动（通过标定板观察计算）
+                
+                for idx, motion in enumerate(motion_groups):
+                    try:
+                        pose1_data = motion.get('pose1')
+                        pose2_data = motion.get('pose2')
+                        board_pose1_data = motion.get('board_pose1')
+                        board_pose2_data = motion.get('board_pose2')
+                        
+                        if not all([pose1_data, pose2_data, board_pose1_data, board_pose2_data]):
+                            self.get_logger().warning(f'   运动组 #{idx+1} 数据不完整，已跳过')
+                            continue
+                        
+                        # 构建变换矩阵
+                        T_gripper1 = self._pose_to_transform_matrix(
+                            {'x': pose1_data['robot_pos_x'], 'y': pose1_data['robot_pos_y'], 'z': pose1_data['robot_pos_z']},
+                            {'x': pose1_data['robot_ori_x'], 'y': pose1_data['robot_ori_y'], 'z': pose1_data['robot_ori_z'], 'w': pose1_data['robot_ori_w']}
+                        )
+                        T_gripper2 = self._pose_to_transform_matrix(
+                            {'x': pose2_data['robot_pos_x'], 'y': pose2_data['robot_pos_y'], 'z': pose2_data['robot_pos_z']},
+                            {'x': pose2_data['robot_ori_x'], 'y': pose2_data['robot_ori_y'], 'z': pose2_data['robot_ori_z'], 'w': pose2_data['robot_ori_w']}
+                        )
+                        
+                        T_board1 = self._pose_to_transform_matrix(
+                            {'x': board_pose1_data['position']['x'], 'y': board_pose1_data['position']['y'], 'z': board_pose1_data['position']['z']},
+                            {'x': board_pose1_data['orientation']['x'], 'y': board_pose1_data['orientation']['y'], 
+                             'z': board_pose1_data['orientation']['z'], 'w': board_pose1_data['orientation']['w']}
+                        )
+                        T_board2 = self._pose_to_transform_matrix(
+                            {'x': board_pose2_data['position']['x'], 'y': board_pose2_data['position']['y'], 'z': board_pose2_data['position']['z']},
+                            {'x': board_pose2_data['orientation']['x'], 'y': board_pose2_data['orientation']['y'], 
+                             'z': board_pose2_data['orientation']['z'], 'w': board_pose2_data['orientation']['w']}
+                        )
+                        
+                        # 计算运动：A = T_gripper2 * T_gripper1^-1（基座坐标系）
+                        T_gripper1_inv = np.linalg.inv(T_gripper1)
+                        A = T_gripper2 @ T_gripper1_inv
+                        
+                        # 计算运动：B = T_board2^-1 * T_board1（相机坐标系）
+                        T_board2_inv = np.linalg.inv(T_board2)
+                        B = T_board2_inv @ T_board1
+                        
+                        A_list.append(A)
+                        B_list.append(B)
+                        
+                        self.get_logger().info(f'   运动组 #{len(A_list)}: 已添加')
+                        
+                    except Exception as e:
+                        self.get_logger().warning(f'   运动组 #{idx+1} 处理失败: {str(e)}')
+                        continue
+                
+                if len(A_list) < 2:
+                    return jsonify({
+                        'success': False, 
+                        'error': f'有效运动组不足，至少需要2组，当前只有{len(A_list)}组'
+                    })
+                
+                # 执行姿态法标定（AX=XB问题）
+                self.get_logger().info(f'   开始姿态法标定计算（AX=XB方法）...')
+                self.get_logger().info(f'   使用 {len(A_list)} 组运动数据')
+                
+                try:
+                    T_camera2gripper = self._solve_pose_based_hand_eye(A_list, B_list)
+                    
+                    # 计算误差（验证AX=XB约束）
+                    errors = []
+                    for i in range(len(A_list)):
+                        left_side = A_list[i] @ T_camera2gripper
+                        right_side = T_camera2gripper @ B_list[i]
+                        error_matrix = left_side - right_side
+                        pos_error = np.linalg.norm(error_matrix[:3, 3])
+                        rot_error = np.linalg.norm(error_matrix[:3, :3], 'fro')
+                        combined_error = pos_error + rot_error * 100.0
+                        errors.append(combined_error)
+                    
+                    mean_error = np.mean(errors)
+                    max_error = np.max(errors)
+                    min_error = np.min(errors)
+                    std_error = np.std(errors)
+                    
+                    self.get_logger().info('✅ Eye-in-Hand姿态法标定完成')
+                    self.get_logger().info(f'   平均误差: {mean_error:.3f} mm')
+                    self.get_logger().info(f'   最大误差: {max_error:.3f} mm')
+                    self.get_logger().info(f'   最小误差: {min_error:.3f} mm')
+                    self.get_logger().info(f'   标准差: {std_error:.3f} mm')
+                    self.get_logger().info('='*60)
+                    
+                    # 保存标定结果
+                    self.hand_eye_calibration_data['transformation_matrix'] = T_camera2gripper.tolist()
+                    self.hand_eye_calibration_data['calibration_error'] = {
+                        'mean': float(mean_error),
+                        'max': float(max_error),
+                        'min': float(min_error),
+                        'std': float(std_error),
+                        'errors': [float(e) for e in errors]
+                    }
+                    
+                    R_cam2gripper = T_camera2gripper[:3, :3]
+                    t_cam2gripper = T_camera2gripper[:3, 3]
+                    
+                    return jsonify({
+                        'success': True,
+                        'method': 'Pose-Based (AX=XB)',
+                        'calibration_type': 'Eye-in-Hand',
+                        'transformation_matrix': T_camera2gripper.tolist(),
+                        'rotation_matrix': R_cam2gripper.tolist(),
+                        'translation_vector': t_cam2gripper.tolist(),
+                        'units': {
+                            'translation': 'mm',
+                            'rotation': 'rad',
+                            'error': 'mm'
+                        },
+                        'evaluation': {
+                            'mean_error': float(mean_error),
+                            'max_error': float(max_error),
+                            'min_error': float(min_error),
+                            'std_error': float(std_error),
+                            'data_count': len(A_list),
+                            'errors_per_motion': [float(e) for e in errors]
+                        },
+                        'message': f'Eye-in-Hand姿态法标定成功，平均误差: {mean_error:.3f} mm'
+                    })
+                    
+                except Exception as e:
+                    self.get_logger().error(f'❌ 姿态法标定计算失败: {str(e)}')
+                    import traceback
+                    self.get_logger().error(f'   堆栈: {traceback.format_exc()}')
+                    return jsonify({
+                        'success': False, 
+                        'error': f'标定计算失败: {str(e)}'
+                    })
+                    
+            except Exception as e:
+                self.get_logger().error(f'❌ Eye-in-Hand姿态法标定失败: {str(e)}')
+                import traceback
+                self.get_logger().error(f'   堆栈: {traceback.format_exc()}')
+                return jsonify({'success': False, 'error': str(e)})
+        
+        def _solve_pose_based_hand_eye(self, A_list, B_list):
+            """
+            求解AX=XB问题（姿态法手眼标定）
+            使用类似Tsai的方法，基于SVD求解，然后非线性优化
+            
+            参数:
+                A_list: 机器人基座坐标系下的运动列表 (N个4x4矩阵)
+                B_list: 相机坐标系下的运动列表 (N个4x4矩阵)
+            
+            返回:
+                T_camera2gripper: 4x4变换矩阵，相机→末端执行器
+            """
+            n = len(A_list)
+            if n < 2:
+                raise ValueError("至少需要2组运动数据")
+            
+            # 提取旋转和平移
+            Ra_list = [A[:3, :3] for A in A_list]
+            ta_list = [A[:3, 3] for A in A_list]
+            Rb_list = [B[:3, :3] for B in B_list]
+            tb_list = [B[:3, 3] for B in B_list]
+            
+            # 步骤1：求解旋转部分（使用非线性优化）
+            def rotation_residual(rx_params):
+                """旋转残差函数"""
+                angle = np.linalg.norm(rx_params)
+                if angle < 1e-6:
+                    Rx = np.eye(3)
+                else:
+                    axis = rx_params / angle
+                    r = R.from_rotvec(axis * angle)
+                    Rx = r.as_matrix()
+                
+                residual = []
+                for i in range(n):
+                    res = Ra_list[i] @ Rx - Rx @ Rb_list[i]
+                    residual.extend(res.flatten())
+                return np.array(residual)
+            
+            initial_rx = np.array([0.0, 0.0, 0.0])
+            
+            self.get_logger().info(f'   步骤1: 求解旋转部分（初始估计）...')
+            result_rx = least_squares(rotation_residual, initial_rx, method='lm', 
+                                     max_nfev=1000, ftol=1e-8, xtol=1e-8, verbose=0)
+            
+            # 提取旋转矩阵
+            rx_params = result_rx.x
+            angle = np.linalg.norm(rx_params)
+            if angle < 1e-6:
+                Rx = np.eye(3)
+            else:
+                axis = rx_params / angle
+                r = R.from_rotvec(axis * angle)
+                Rx = r.as_matrix()
+            
+            self.get_logger().info(f'   初始旋转求解完成，旋转角度: {np.degrees(angle):.3f} deg')
+            
+            # 步骤2：求解平移部分（线性系统）
+            A_mat = []
+            b_vec = []
+            for i in range(n):
+                A_block = np.eye(3) - Ra_list[i]
+                b_block = Rx @ tb_list[i] - ta_list[i]
+                A_mat.append(A_block)
+                b_vec.append(b_block)
+            
+            A_mat = np.vstack(A_mat)
+            b_vec = np.hstack(b_vec)
+            
+            tx, residuals, rank, s = np.linalg.lstsq(A_mat, b_vec, rcond=None)
+            
+            self.get_logger().info(f'   步骤2: 平移部分求解完成')
+            
+            # 步骤3：非线性优化（进一步优化结果）
+            def full_residual(params):
+                """完整约束的残差函数"""
+                axis_angle = params[:3]
+                translation = params[3:6]
+                
+                angle = np.linalg.norm(axis_angle)
+                if angle < 1e-6:
+                    R_mat = np.eye(3)
+                else:
+                    axis = axis_angle / angle
+                    r = R.from_rotvec(axis * angle)
+                    R_mat = r.as_matrix()
+                
+                T = np.eye(4)
+                T[:3, :3] = R_mat
+                T[:3, 3] = translation
+                
+                residual = []
+                for i in range(n):
+                    left = A_list[i] @ T
+                    right = T @ B_list[i]
+                    error = left - right
+                    residual.extend(error.flatten())
+                
+                return np.array(residual)
+            
+            r_init = R.from_matrix(Rx)
+            axis_angle_init = r_init.as_rotvec()
+            initial_params = np.concatenate([axis_angle_init, tx])
+            
+            self.get_logger().info(f'   步骤3: 非线性优化（进一步优化）...')
+            result_full = least_squares(full_residual, initial_params, method='lm',
+                                       max_nfev=10000, ftol=1e-8, xtol=1e-8, verbose=0)
+            
+            # 提取优化后的结果
+            axis_angle_opt = result_full.x[:3]
+            translation_opt = result_full.x[3:6]
+            
+            angle_opt = np.linalg.norm(axis_angle_opt)
+            if angle_opt < 1e-6:
+                R_opt = np.eye(3)
+            else:
+                axis_opt = axis_angle_opt / angle_opt
+                r_opt = R.from_rotvec(axis_opt * angle_opt)
+                R_opt = r_opt.as_matrix()
+            
+            T_camera2gripper = np.eye(4)
+            T_camera2gripper[:3, :3] = R_opt
+            T_camera2gripper[:3, 3] = translation_opt
+            
+            mean_residual = np.mean(np.abs(result_full.fun))
+            self.get_logger().info(f'   优化完成，平均残差: {mean_residual:.6f} mm')
+            
+            return T_camera2gripper
         
         @self.app.route('/api/hand_eye/save_calibration', methods=['POST'])
         def save_hand_eye_calibration():
@@ -1179,6 +1997,30 @@ class HandEyeCalibrationNode(Node):
     def camera_status_callback(self, msg):
         """相机状态回调函数"""
         self.current_camera_status = msg
+    
+    def depth_image_callback(self, msg):
+        """深度图回调函数 - 保存当前深度图用于深度误差检查"""
+        try:
+            # 将ROS图像消息转换为OpenCV格式（16位深度图）
+            cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
+            self.current_depth_image = cv_image
+            # #region agent log
+            log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
+            import json
+            import time
+            log_file.write(json.dumps({'id': 'log_depth_image_received', 'timestamp': int(time.time()*1000), 'location': 'hand_eye_calibration_node.py:1633', 'message': '收到深度图数据', 'data': {'width': msg.width, 'height': msg.height, 'encoding': msg.encoding, 'cv_shape': cv_image.shape if cv_image is not None else None, 'cv_dtype': str(cv_image.dtype) if cv_image is not None else None}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'A'}) + '\n')
+            log_file.close()
+            # #endregion
+            self.get_logger().info(f'📦 收到深度图: {msg.width}x{msg.height}, 编码: {msg.encoding}', throttle_duration_sec=5.0)
+        except Exception as e:
+            self.get_logger().error(f'深度图转换失败: {str(e)}')
+            # #region agent log
+            log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
+            import json
+            import time
+            log_file.write(json.dumps({'id': 'log_depth_image_error', 'timestamp': int(time.time()*1000), 'location': 'hand_eye_calibration_node.py:1645', 'message': '深度图转换失败', 'data': {'error': str(e)}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'A'}) + '\n')
+            log_file.close()
+            # #endregion
     
     def _quaternion_to_euler(self, qx, qy, qz, qw):
         """

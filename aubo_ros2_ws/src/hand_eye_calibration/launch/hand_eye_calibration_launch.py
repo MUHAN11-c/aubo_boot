@@ -53,6 +53,18 @@ def generate_launch_description():
         description='输入图像话题（相机发布的原始图像话题）'
     )
     
+    depth_image_topic_arg = DeclareLaunchArgument(
+        'depth_image_topic',
+        default_value='/camera/depth/image_raw',
+        description='深度图话题（用于深度误差检查，已对齐到彩色图）'
+    )
+    
+    depth_scale_unit_arg = DeclareLaunchArgument(
+        'depth_scale_unit',
+        default_value='',
+        description='深度图缩放因子（f_scale_unit），用于将深度图像素值转换为毫米。参考 depth_z_reader 的实现：对于 scale_unit=0.25 的相机，使用 0.25（转换为毫米）或 0.00025（转换为米）。如果未设置，将自动推断。可以通过查看相机节点日志获取：Depth stream scale unit: <value>'
+    )
+    
     # 图像数据转换节点（将 sensor_msgs/Image 转换为 ImageData）
     # 如果不需要转换，可以注释掉这个节点，直接使用 image_data_bridge
     image_data_converter_node = Node(
@@ -78,6 +90,8 @@ def generate_launch_description():
             'web_port': LaunchConfiguration('web_port'),
             'camera_topic': LaunchConfiguration('camera_topic'),
             'robot_status_topic': LaunchConfiguration('robot_status_topic'),
+            'depth_image_topic': LaunchConfiguration('depth_image_topic'),
+            'depth_scale_unit': LaunchConfiguration('depth_scale_unit'),
         }],
         remappings=[
             # 将节点内部订阅的 /robot_status 映射到实际的话题 /demo_robot_status
@@ -92,6 +106,8 @@ def generate_launch_description():
         robot_status_topic_arg,
         actual_robot_status_topic_arg,
         input_image_topic_arg,
+        depth_image_topic_arg,
+        depth_scale_unit_arg,
         image_data_converter_node,
         hand_eye_calibration_node,
     ])

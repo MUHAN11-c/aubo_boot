@@ -11,7 +11,7 @@
     <div class="container">
         <!-- 标题栏 -->
         <header class="header">
-            <h1>单目相机手眼标定工具</h1>
+            <h1>单目相机手眼标定工具 <span id="version-number" style="font-size: 0.6em; color: #888; font-weight: normal;"></span></h1>
         </header>
 
         <!-- 选项卡导航 -->
@@ -166,18 +166,64 @@
                             <button class="action-button" id="btn-he-save-calibration">保存标定结果</button>
                         </div>
                         
+                        <!-- 标定类型切换 -->
+                        <div class="param-setting">
+                            <label for="he-calibration-type">标定类型:</label>
+                            <select id="he-calibration-type" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="eye-to-hand">眼在手外 (Eye-to-Hand)</option>
+                                <option value="eye-in-hand">眼在手上 (Eye-in-Hand)</option>
+                            </select>
+                            <small style="color: #888; font-size: 11px; display: block; margin-top: 4px;">
+                                <span id="he-calibration-type-desc">相机固定，机器人末端点选角点</span>
+                            </small>
+                        </div>
+                        
+                        <!-- 标定方法选择（仅Eye-in-Hand显示） -->
+                        <div class="param-setting" id="he-calibration-method-setting" style="display: none;">
+                            <label for="he-calibration-method">标定方法:</label>
+                            <select id="he-calibration-method" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="corner-based">角点法（拍照+点选）</option>
+                                <option value="pose-based">姿态法（运动约束）</option>
+                            </select>
+                            <small style="color: #888; font-size: 11px; display: block; margin-top: 4px;">
+                                <span id="he-calibration-method-desc">角点法：拍照后点选角点；姿态法：多组机器人运动</span>
+                            </small>
+                        </div>
+                        
                         <!-- 棋盘格大小设置 -->
                         <div class="param-setting">
                             <label for="he-checkerboard-size">棋盘格大小 (mm):</label>
                             <input type="number" id="he-checkerboard-size" value="15" min="1" step="0.1">
                         </div>
                         
-                        <!-- 相机高度设置 -->
-                        <div class="param-setting">
+                        <!-- 相机高度设置（仅Eye-to-Hand显示） -->
+                        <div class="param-setting" id="he-camera-height-setting">
                             <label for="he-camera-height">相机高度 (mm):</label>
                             <input type="number" id="he-camera-height" value="840" min="100" max="1000" step="1">
                             <small style="color: #888; font-size: 11px; display: block; margin-top: 4px;">
                                 相机到标定板平面的垂直距离
+                            </small>
+                        </div>
+                        
+                        <!-- 拍照姿态说明（仅Eye-in-Hand显示，角点法） -->
+                        <div class="param-setting" id="he-shot-pose-info" style="display: none;">
+                            <small style="color: #666; font-size: 11px; display: block; padding: 8px; background: #f5f5f5; border-radius: 4px;">
+                                <strong>Eye-in-Hand角点法使用说明：</strong><br>
+                                1. 先采集一张图像并提取角点（作为拍照姿态）<br>
+                                2. 然后移动机器人到不同位置，点击表格行捕获点选姿态<br>
+                                3. 每组数据使用相同的拍照姿态和不同的点选姿态
+                            </small>
+                        </div>
+                        
+                        <!-- 姿态法使用说明（仅Eye-in-Hand姿态法显示） -->
+                        <div class="param-setting" id="he-pose-based-info" style="display: none;">
+                            <small style="color: #666; font-size: 11px; display: block; padding: 8px; background: #f5f5f5; border-radius: 4px;">
+                                <strong>Eye-in-Hand姿态法使用说明：</strong><br>
+                                1. 采集图像1并提取角点（获取初始标定板姿态）→ 捕获机器人姿态1<br>
+                                2. 移动机器人到新位置<br>
+                                3. 采集图像2并提取角点（获取结束标定板姿态）→ 捕获机器人姿态2<br>
+                                4. 重复上述步骤，至少采集2组运动数据<br>
+                                5. 点击"开始标定"进行姿态法标定
                             </small>
                         </div>
                     </div>
@@ -518,6 +564,23 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='script_v2.js') }}?v=20241231-3"></script>
+    <script src="{{ url_for('static', filename='script_v2.js') }}?v=20241231-13"></script>
+    <script>
+        // 动态设置版本号为当前时间（精确到秒）
+        (function() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const version = `v${year}${month}${day}-${hours}${minutes}${seconds}`;
+            const versionElement = document.getElementById('version-number');
+            if (versionElement) {
+                versionElement.textContent = version;
+            }
+        })();
+    </script>
 </body>
 </html>

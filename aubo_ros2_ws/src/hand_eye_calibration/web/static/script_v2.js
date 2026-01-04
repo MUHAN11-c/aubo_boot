@@ -1045,6 +1045,115 @@ function showResultDialog(result, expectedSize) {
                 </div>
             </div>
             
+            ${result.depth_error && result.depth_error.success ? `
+            <!-- 深度误差评估 -->
+            <div class="result-section depth-error-section">
+                <h4>📊 深度误差评估（与深度相机对比）</h4>
+                <div class="depth-error-info">
+                    <p class="depth-error-desc">对比估计深度（solvePnP）与深度相机实际深度</p>
+                </div>
+                <div class="result-grid">
+                    <div class="result-item">
+                        <span class="result-label">总角点数:</span>
+                        <span class="result-value">${result.depth_error.total_corners || result.depth_error.num_valid_points}</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">有效点数:</span>
+                        <span class="result-value">${result.depth_error.num_valid_points}</span>
+                    </div>
+                    ${result.depth_error.no_depth_count !== undefined ? `
+                    <div class="result-item">
+                        <span class="result-label">无深度值:</span>
+                        <span class="result-value">${result.depth_error.no_depth_count}</span>
+                    </div>
+                    ` : ''}
+                    ${result.depth_error.filtered_count !== undefined ? `
+                    <div class="result-item">
+                        <span class="result-label">过滤异常值:</span>
+                        <span class="result-value">${result.depth_error.filtered_count}</span>
+                    </div>
+                    ` : ''}
+                    <div class="result-item">
+                        <span class="result-label">估计深度:</span>
+                        <span class="result-value">${result.depth_error.estimated_depth.toFixed(2)} mm</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">平均实际深度:</span>
+                        <span class="result-value">${result.depth_error.depth_statistics.mean_actual.toFixed(2)} mm</span>
+                    </div>
+                    <div class="result-item highlight">
+                        <span class="result-label">平均深度误差:</span>
+                        <span class="result-value ${result.depth_error.depth_statistics.mean_error < 2.0 ? 'success-value' : result.depth_error.depth_statistics.mean_error < 5.0 ? 'warning-value' : 'error-value'}">
+                            ${result.depth_error.depth_statistics.mean_error.toFixed(2)} mm
+                        </span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">最大深度误差:</span>
+                        <span class="result-value error-value">${result.depth_error.depth_statistics.max_error.toFixed(2)} mm</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">最小深度误差:</span>
+                        <span class="result-value">${result.depth_error.depth_statistics.min_error.toFixed(2)} mm</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">深度误差标准差:</span>
+                        <span class="result-value">${result.depth_error.depth_statistics.std_error.toFixed(2)} mm</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">平均相对误差:</span>
+                        <span class="result-value ${result.depth_error.depth_statistics.mean_relative_error_percent < 1.0 ? 'success-value' : result.depth_error.depth_statistics.mean_relative_error_percent < 2.0 ? 'warning-value' : 'error-value'}">
+                            ${result.depth_error.depth_statistics.mean_relative_error_percent.toFixed(2)}%
+                        </span>
+                    </div>
+                </div>
+                ${result.depth_error.depth_details && result.depth_error.depth_details.length > 0 ? `
+                <!-- 详细深度值列表 -->
+                <div class="depth-details-section">
+                    <button class="toggle-details-btn" onclick="toggleDepthDetails(this)">
+                        <span class="toggle-icon">▼</span>
+                        <span>显示详细深度值（${result.depth_error.depth_details.length}个角点）</span>
+                    </button>
+                    <div class="depth-details-table" style="display: none;">
+                        <table class="depth-table">
+                            <thead>
+                                <tr>
+                                    <th>角点</th>
+                                    <th>像素坐标</th>
+                                    <th>估计深度</th>
+                                    <th>实际深度（深度图）</th>
+                                    <th>深度误差</th>
+                                    <th>相对误差</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${result.depth_error.depth_details.map((detail, idx) => `
+                                    <tr>
+                                        <td>#${detail.corner_index}</td>
+                                        <td>(${detail.pixel_u.toFixed(0)}, ${detail.pixel_v.toFixed(0)})</td>
+                                        <td>${detail.estimated_depth.toFixed(2)} mm</td>
+                                        <td class="actual-depth-value">${detail.actual_depth.toFixed(2)} mm</td>
+                                        <td class="${detail.depth_error < 2.0 ? 'success-value' : detail.depth_error < 5.0 ? 'warning-value' : 'error-value'}">
+                                            ${detail.depth_error.toFixed(2)} mm
+                                        </td>
+                                        <td class="${detail.relative_error_percent < 1.0 ? 'success-value' : detail.relative_error_percent < 2.0 ? 'warning-value' : 'error-value'}">
+                                            ${detail.relative_error_percent.toFixed(2)}%
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                ` : ''}
+                <div class="depth-error-status ${result.depth_error.evaluation.excellent ? 'success' : result.depth_error.evaluation.good ? 'warning' : result.depth_error.evaluation.acceptable ? 'warning' : 'error'}">
+                    ${result.depth_error.evaluation.excellent ? '✅ 深度精度优秀（误差 < 2mm）' : 
+                      result.depth_error.evaluation.good ? '⚠️ 深度精度良好（误差 < 5mm）' : 
+                      result.depth_error.evaluation.acceptable ? '⚠️ 深度精度可接受（误差 < 10mm）' : 
+                      '❌ 深度精度较差（误差 >= 10mm），建议检查相机标定'}
+                </div>
+            </div>
+            ` : ''}
+            
             <!-- 整体评估 -->
             <div class="result-status ${result.error_percent < 3 && result.diagonal_error_percent < 1 ? 'success' : result.error_percent < 5 ? 'warning' : 'error'}">
                 ${result.error_percent < 3 && result.diagonal_error_percent < 1 ? '✅ 精度优秀' : result.error_percent < 5 ? '⚠️ 精度良好' : '❌ 精度较差，建议重新标定'}
@@ -1243,7 +1352,21 @@ function extractCornersForTab(tabId) {
             if (tabId === 'camera-verify') {
                 fillCornersTable(data.corners_data);
             } else if (tabId === 'hand-eye-calib') {
+                // 检查是否是姿态法模式
+                const calibrationMethod = document.getElementById('he-calibration-method')?.value || 'corner-based';
+                if (calibrationMethod === 'pose-based') {
+                    // 姿态法：检查是否是第二步
+                    if (currentMotionGroup && currentMotionGroup.pose1 && currentMotionGroup.board_pose1) {
+                        // 第二步：采集结束状态
+                        captureMotionGroupStep2(data.corners_data);
+                    } else {
+                        // 第一步：采集初始状态
+                        captureMotionGroupStep1(data.corners_data);
+                    }
+                } else {
+                    // 角点法：正常填充表格
                 fillHandEyeTable(data.corners_data);
+                }
             }
             
             addLog('success', `成功提取 ${data.corners_count} 个角点`);
@@ -1259,10 +1382,66 @@ function extractCornersForTab(tabId) {
     });
 }
 
+// 全局变量：保存拍照姿态（Eye-in-Hand模式使用）
+let shotPoseData = null;  // 包含：机器人位姿（pos/ori）和角点数据（camera_x, camera_y等）
+
+// 全局变量：姿态法运动组数据（Eye-in-Hand姿态法模式使用）
+let motionGroupsData = [];  // 运动组列表，每组包含：{pose1, pose2, board_pose1, board_pose2}
+
 // 填充手眼标定表格（角点数据，位姿留空）
 function fillHandEyeTable(cornersData) {
+    // #region debug log
+    console.log('[HandEye] fillHandEyeTable开始', {corners_count: cornersData.length, timestamp: new Date().toISOString()});
+    // #endregion
+    
+    const calibrationType = document.getElementById('he-calibration-type')?.value || 'eye-to-hand';
+    const calibrationMethod = document.getElementById('he-calibration-method')?.value || 'corner-based';
     const tbody = document.querySelector('#pose-list-table tbody');
     tbody.innerHTML = '';
+    
+    // 姿态法模式：处理运动组数据采集
+    if (calibrationType === 'eye-in-hand' && calibrationMethod === 'pose-based') {
+        // 姿态法：提取角点后需要获取标定板姿态
+        captureMotionGroupStep1(cornersData);
+        return;  // 姿态法不需要填充表格，直接返回
+    }
+    
+    // Eye-in-Hand模式：保存拍照姿态数据（角点法）
+    if (calibrationType === 'eye-in-hand') {
+        // 获取当前机器人位姿作为拍照姿态
+        fetch('/api/robot_status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.is_online && data.cartesian_position) {
+                    shotPoseData = {
+                        robot_pos_x: data.cartesian_position.position.x,
+                        robot_pos_y: data.cartesian_position.position.y,
+                        robot_pos_z: data.cartesian_position.position.z,
+                        robot_ori_x: data.cartesian_position.orientation.x,
+                        robot_ori_y: data.cartesian_position.orientation.y,
+                        robot_ori_z: data.cartesian_position.orientation.z,
+                        robot_ori_w: data.cartesian_position.orientation.w,
+                        corners: cornersData  // 保存角点数据
+                    };
+                    // #region debug log
+                    console.log('[HandEye] 保存拍照姿态（Eye-in-Hand）', {
+                        robot_pos: {x: shotPoseData.robot_pos_x, y: shotPoseData.robot_pos_y, z: shotPoseData.robot_pos_z},
+                        corners_count: cornersData.length
+                    });
+                    // #endregion
+                    addLog('info', '已保存拍照姿态（Eye-in-Hand模式），请移动机器人到不同位置并点击表格行捕获点选姿态');
+                } else {
+                    addLog('warning', '无法获取机器人位姿，拍照姿态未保存。请确保机器人在线后再提取角点。');
+                }
+            })
+            .catch(error => {
+                console.error('[HandEye] 获取拍照姿态失败', error);
+                addLog('warning', '获取拍照姿态失败: ' + error);
+            });
+    } else {
+        // Eye-to-Hand模式：清除拍照姿态
+        shotPoseData = null;
+    }
     
     cornersData.forEach((corner, index) => {
         const row = tbody.insertRow();
@@ -1290,7 +1469,7 @@ function fillHandEyeTable(cornersData) {
         
         // 添加点击捕获机器人位姿功能
         row.style.cursor = 'pointer';
-        row.title = '点击捕获当前机器人位姿';
+        row.title = calibrationType === 'eye-in-hand' ? '点击捕获点选姿态（Eye-in-Hand）' : '点击捕获当前机器人位姿';
         row.addEventListener('click', function() {
             captureRobotPoseToRow(this);
         });
@@ -1299,7 +1478,123 @@ function fillHandEyeTable(cornersData) {
     // 更新数据计数
     document.getElementById('pose-count').textContent = cornersData.length;
     
-    addLog('info', `手眼标定表格已更新，共 ${cornersData.length} 行角点数据 (点击行可捕获位姿)`);
+    // #region debug log
+    console.log('[HandEye] 表格更新完成', {
+        rows_count: cornersData.length,
+        mode: 'clear_and_fill',
+        calibration_type: calibrationType
+    });
+    // #endregion
+    
+    const modeText = calibrationType === 'eye-in-hand' ? '（拍照姿态已保存，请捕获点选姿态）' : '';
+    addLog('info', `手眼标定表格已更新，共 ${cornersData.length} 行角点数据 (点击行可捕获位姿)${modeText}`);
+}
+
+// 自动为多个表格行捕获机器人位姿
+function autoCapturePoseForRows(rows) {
+    // #region debug log
+    console.log('[HandEye] autoCapturePoseForRows开始', {rows_count: rows.length, timestamp: new Date().toISOString()});
+    // #endregion
+    
+    if (rows.length === 0) {
+        console.warn('[HandEye] 空行列表，跳过捕获');
+        return;
+    }
+    
+    // 获取当前机器人位姿
+    fetch('/api/robot_status')
+        .then(response => response.json())
+        .then(data => {
+            // #region debug log
+            console.log('[HandEye] 机器人状态API响应', {
+                success: data.success,
+                is_online: data.is_online,
+                has_cartesian: !!data.cartesian_position
+            });
+            // #endregion
+            
+            if (data.success && data.is_online && data.cartesian_position) {
+                const pose = data.cartesian_position;
+                let capturedCount = 0;
+                
+                // #region debug log
+                console.log('[HandEye] 开始填充位姿数据', {
+                    pose_x: pose.position.x,
+                    pose_y: pose.position.y,
+                    pose_z: pose.position.z
+                });
+                // #endregion
+                
+                // 为所有新行填充相同的位姿数据（因为它们是同一时刻捕获的）
+                rows.forEach((row, index) => {
+                    const cells = row.querySelectorAll('td');
+                    
+                    // 填充位姿数据（单位：毫米）- 将米转换为毫米（乘以1000）
+                    if (cells[5]) cells[5].textContent = (pose.position.x * 1000).toFixed(3);  // 位置 X
+                    if (cells[6]) cells[6].textContent = (pose.position.y * 1000).toFixed(3);  // 位置 Y
+                    if (cells[7]) cells[7].textContent = (pose.position.z * 1000).toFixed(3);  // 位置 Z
+                    if (cells[8]) cells[8].textContent = pose.orientation.x.toFixed(6);  // 姿态 Qx
+                    if (cells[9]) cells[9].textContent = pose.orientation.y.toFixed(6);  // 姿态 Qy
+                    if (cells[10]) cells[10].textContent = pose.orientation.z.toFixed(6);  // 姿态 Qz
+                    if (cells[11]) cells[11].textContent = pose.orientation.w.toFixed(6);  // 姿态 Qw
+                    
+                    // 保存位姿数据到行属性（单位：米，用于后续标定计算）
+                    row.dataset.posX = pose.position.x;
+                    row.dataset.posY = pose.position.y;
+                    row.dataset.posZ = pose.position.z;
+                    row.dataset.oriX = pose.orientation.x;
+                    row.dataset.oriY = pose.orientation.y;
+                    row.dataset.oriZ = pose.orientation.z;
+                    row.dataset.oriW = pose.orientation.w;
+                    row.dataset.hasPose = 'true';
+                    
+                    // 高亮显示该行表示已捕获
+                    row.classList.add('pose-captured');
+                    
+                    capturedCount++;
+                });
+                
+                // 为新添加的行添加闪烁效果
+                rows.forEach(row => {
+                    row.style.backgroundColor = '#4caf5033';
+                });
+                setTimeout(() => {
+                    rows.forEach(row => {
+                        row.style.backgroundColor = '';
+                    });
+                }, 500);
+                
+                // #region debug log
+                console.log('[HandEye] 位姿捕获完成', {
+                    captured_count: capturedCount,
+                    total_rows: rows.length,
+                    pose_x: (pose.position.x * 1000).toFixed(3),
+                    pose_y: (pose.position.y * 1000).toFixed(3),
+                    pose_z: (pose.position.z * 1000).toFixed(3)
+                });
+                // #endregion
+                
+                addLog('success', `已自动捕获 ${capturedCount} 个角点的机器人位姿: X=${(pose.position.x * 1000).toFixed(3)}, Y=${(pose.position.y * 1000).toFixed(3)}, Z=${(pose.position.z * 1000).toFixed(3)} mm`);
+                showToast(`已自动捕获 ${capturedCount} 个角点的位姿`, 'success');
+                
+                // 更新已捕获位姿的统计
+                updateCapturedPoseCount();
+            } else if (!data.is_online) {
+                // #region debug log
+                console.warn('[HandEye] 机器人离线，无法捕获位姿');
+                // #endregion
+                addLog('warning', '机器人离线，无法自动捕获位姿');
+                showToast('机器人离线，请先连接机器人', 'warning');
+            } else {
+                addLog('warning', '无法获取机器人位姿数据，请稍后手动点击行捕获');
+                showToast('无法获取机器人位姿，可手动点击行捕获', 'warning');
+            }
+        })
+        .catch(error => {
+            addLog('error', '自动捕获机器人位姿失败: ' + error);
+            showToast('自动捕获位姿失败，可手动点击行捕获', 'error');
+            console.error('自动捕获机器人位姿失败:', error);
+        });
 }
 
 // 捕获机器人位姿到指定表格行
@@ -1343,7 +1638,7 @@ function captureRobotPoseToRow(row) {
                 }, 500);
                 
                 const cornerIndex = row.dataset.cornerIndex;
-                addLog('success', `角点 #${cornerIndex} 已捕获机器人位姿: X=${pose.position.x.toFixed(3)}, Y=${pose.position.y.toFixed(3)}, Z=${pose.position.z.toFixed(3)} mm`);
+                addLog('success', `角点 #${cornerIndex} 已捕获机器人位姿: X=${(pose.position.x * 1000).toFixed(3)}, Y=${(pose.position.y * 1000).toFixed(3)}, Z=${(pose.position.z * 1000).toFixed(3)} mm`);
                 showToast('机器人位姿已捕获', 'success');
                 
                 // 更新已捕获位姿的统计
@@ -2180,6 +2475,77 @@ function initHandEyeCalibButtons() {
         }
     });
     
+    // 标定类型切换事件
+    const calibrationTypeSelect = document.getElementById('he-calibration-type');
+    if (calibrationTypeSelect) {
+        calibrationTypeSelect.addEventListener('change', function() {
+            updateCalibrationTypeUI(this.value);
+        });
+        // 初始化UI
+        updateCalibrationTypeUI(calibrationTypeSelect.value);
+    }
+    
+    // 标定方法切换事件
+    const calibrationMethodSelect = document.getElementById('he-calibration-method');
+    if (calibrationMethodSelect) {
+        calibrationMethodSelect.addEventListener('change', function() {
+            updateCalibrationMethodUI();
+            addLog('info', `已切换为${this.value === 'pose-based' ? '姿态法' : '角点法'}`);
+        });
+    }
+}
+
+// 更新标定类型UI显示
+function updateCalibrationTypeUI(calibrationType) {
+    const cameraHeightSetting = document.getElementById('he-camera-height-setting');
+    const shotPoseInfo = document.getElementById('he-shot-pose-info');
+    const methodSetting = document.getElementById('he-calibration-method-setting');
+    const descElement = document.getElementById('he-calibration-type-desc');
+    
+    if (calibrationType === 'eye-in-hand') {
+        if (cameraHeightSetting) cameraHeightSetting.style.display = 'none';
+        if (shotPoseInfo) shotPoseInfo.style.display = 'block';
+        if (methodSetting) methodSetting.style.display = 'block';
+        if (descElement) descElement.textContent = '相机安装在机器人末端，需要拍照姿态和点选姿态';
+        updateCalibrationMethodUI(); // 更新方法描述
+        addLog('info', '已切换为眼在手上（Eye-in-Hand）标定模式');
+    } else {
+        if (cameraHeightSetting) cameraHeightSetting.style.display = 'block';
+        if (shotPoseInfo) shotPoseInfo.style.display = 'none';
+        if (methodSetting) methodSetting.style.display = 'none';
+        if (descElement) descElement.textContent = '相机固定，机器人末端点选角点';
+        addLog('info', '已切换为眼在手外（Eye-to-Hand）标定模式');
+    }
+    
+    // #region debug log
+    console.log('[HandEye] 标定类型切换', {type: calibrationType});
+    // #endregion
+}
+
+// 更新标定方法UI显示
+function updateCalibrationMethodUI() {
+    const method = document.getElementById('he-calibration-method')?.value || 'corner-based';
+    const descElement = document.getElementById('he-calibration-method-desc');
+    const shotPoseInfo = document.getElementById('he-shot-pose-info');
+    const poseBasedInfo = document.getElementById('he-pose-based-info');
+    
+    if (method === 'pose-based') {
+        if (descElement) descElement.textContent = '姿态法：需要多组机器人运动（每组2个姿态），观察标定板';
+        if (shotPoseInfo) shotPoseInfo.style.display = 'none';
+        if (poseBasedInfo) poseBasedInfo.style.display = 'block';
+        // 清除角点法的数据
+        shotPoseData = null;
+        motionGroupsData = [];
+        currentMotionGroup = null;
+    } else {
+        if (descElement) descElement.textContent = '角点法：拍照后点选角点；姿态法：多组机器人运动';
+        if (shotPoseInfo) shotPoseInfo.style.display = 'block';
+        if (poseBasedInfo) poseBasedInfo.style.display = 'none';
+        // 清除姿态法的数据
+        motionGroupsData = [];
+        currentMotionGroup = null;
+    }
+    
     // 添加图像文件输入框（手眼标定用）
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
@@ -2515,14 +2881,23 @@ function parseCSVLine(line) {
 
 // 开始手眼标定
 function startHandEyeCalibration() {
+    // #region debug log
+    console.log('[HandEye] startHandEyeCalibration开始', {timestamp: new Date().toISOString()});
+    // #endregion
+    
     addLog('info', '准备开始手眼标定...');
     
     // 收集表格中的数据
     const tbody = document.querySelector('#pose-list-table tbody');
     const rows = tbody.querySelectorAll('tr');
     
+    // #region debug log
+    console.log('[HandEye] 数据收集', {total_rows: rows.length});
+    // #endregion
+    
     // 检查是否有数据
     if (rows.length === 0 || (rows.length === 1 && rows[0].querySelector('.no-data'))) {
+        console.error('[HandEye] 表格中没有数据');
         addLog('error', '表格中没有数据');
         showToast('请先采集数据', 'error');
         return;
@@ -2530,8 +2905,10 @@ function startHandEyeCalibration() {
     
     // 收集有位姿数据的行
     const poseData = [];
-    rows.forEach(row => {
+    let hasPoseCount = 0;
+    rows.forEach((row, index) => {
         if (row.dataset.hasPose === 'true') {
+            hasPoseCount++;
             try {
                 const data = {
                     corner_index: parseInt(row.dataset.cornerIndex),
@@ -2549,21 +2926,73 @@ function startHandEyeCalibration() {
                 };
                 poseData.push(data);
             } catch (error) {
+                console.error(`[HandEye] 数据行解析失败 (行${index}):`, error, row.dataset);
                 addLog('warning', `数据行解析失败: ${error.message}`);
             }
         }
     });
     
+    // #region debug log
+    console.log('[HandEye] 数据收集完成', {
+        total_rows: rows.length,
+        has_pose_rows: hasPoseCount,
+        valid_pose_data: poseData.length
+    });
+    // #endregion
+    
     if (poseData.length < 3) {
+        console.error('[HandEye] 数据不足', {pose_data_count: poseData.length, required: 3});
         addLog('error', `数据不足，至少需要3组位姿数据，当前只有${poseData.length}组`);
         showToast(`至少需要3组完整数据，当前只有${poseData.length}组`, 'error');
         return;
     }
     
-    // 获取相机高度设置
-    const cameraHeight = parseFloat(document.getElementById('he-camera-height').value) || 840.0;
+    // 获取标定类型和方法
+    const calibrationType = document.getElementById('he-calibration-type')?.value || 'eye-to-hand';
+    const calibrationMethod = document.getElementById('he-calibration-method')?.value || 'corner-based';
     
-    addLog('info', `开始标定，使用 ${poseData.length} 组位姿数据，相机高度: ${cameraHeight} mm`);
+    // #region debug log
+    console.log('[HandEye] 开始标定调用', {
+        calibration_type: calibrationType,
+        calibration_method: calibrationMethod,
+        pose_data_count: poseData.length,
+        has_shot_pose: !!shotPoseData
+    });
+    // #endregion
+    
+    // 准备请求数据
+    let requestData = {
+        calibration_type: calibrationType,
+        calibration_method: calibrationMethod,  // 传递标定方法
+        pose_data: poseData
+    };
+    
+    if (calibrationType === 'eye-to-hand') {
+        // Eye-to-Hand: 需要相机高度
+        const cameraHeight = parseFloat(document.getElementById('he-camera-height').value) || 840.0;
+        requestData.camera_height = cameraHeight;
+        addLog('info', `开始Eye-to-Hand标定，使用 ${poseData.length} 组位姿数据，相机高度: ${cameraHeight} mm`);
+    } else {
+        // Eye-in-Hand: 需要拍照姿态
+        if (!shotPoseData) {
+            console.error('[HandEye] Eye-in-Hand模式缺少拍照姿态');
+            addLog('error', 'Eye-in-Hand模式需要拍照姿态，请先提取角点以保存拍照姿态');
+            showToast('请先提取角点以保存拍照姿态', 'error');
+            return;
+        }
+        requestData.shot_pose = {
+            robot_pos_x: shotPoseData.robot_pos_x,
+            robot_pos_y: shotPoseData.robot_pos_y,
+            robot_pos_z: shotPoseData.robot_pos_z,
+            robot_ori_x: shotPoseData.robot_ori_x,
+            robot_ori_y: shotPoseData.robot_ori_y,
+            robot_ori_z: shotPoseData.robot_ori_z,
+            robot_ori_w: shotPoseData.robot_ori_w,
+            corners: shotPoseData.corners  // 拍照时的角点数据
+        };
+        addLog('info', `开始Eye-in-Hand标定，使用 ${poseData.length} 组点选姿态数据`);
+    }
+    
     showToast('正在进行手眼标定...', 'info');
     
     // 更新状态
@@ -2576,36 +3005,90 @@ function startHandEyeCalibration() {
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-            pose_data: poseData,
-            camera_height: cameraHeight  // 传递相机高度
-        })
+        body: JSON.stringify(requestData)
     })
-    .then(response => response.json())
+    .then(response => {
+        // #region debug log
+        console.log('[HandEye] API响应状态', {ok: response.ok, status: response.status, statusText: response.statusText});
+        // #endregion
+        
+        // 检查HTTP状态码
+        if (!response.ok) {
+            // 尝试解析错误响应
+            return response.json().then(errorData => {
+                throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+            }).catch(() => {
+                // 如果无法解析JSON，抛出HTTP错误
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            });
+        }
+        
+        return response.json();
+    })
     .then(data => {
+        // #region debug log
+        console.log('[HandEye] 标定API返回', {
+            success: data.success,
+            has_evaluation: !!data.evaluation,
+            mean_error: data.evaluation?.mean_error,
+            error: data.error,
+            message: data.message,
+            full_data: data
+        });
+        // #endregion
+        
         if (data.success) {
             addLog('success', `标定成功！平均误差: ${data.evaluation.mean_error.toFixed(3)} mm`);
             
             // 更新状态显示
-            document.getElementById('calib-status').textContent = '标定完成';
-            document.getElementById('calib-error').textContent = `${data.evaluation.mean_error.toFixed(3)} mm`;
+            const statusEl = document.getElementById('calib-status');
+            const errorEl = document.getElementById('calib-error');
+            if (statusEl) statusEl.textContent = '标定完成';
+            if (errorEl) errorEl.textContent = `${data.evaluation.mean_error.toFixed(3)} mm`;
             
             // 显示详细评估结果弹窗
             showCalibrationResult(data);
             
             showToast('手眼标定完成', 'success');
         } else {
-            addLog('error', `标定失败: ${data.error}`);
-            showToast(`标定失败: ${data.error}`, 'error');
-            document.getElementById('calib-status').textContent = '标定失败';
-            document.getElementById('calib-error').textContent = '-';
+            // 获取错误信息
+            const errorMsg = data.error || data.message || '未知错误';
+            
+            console.error('[HandEye] 标定失败', {
+                error: errorMsg,
+                full_response: data,
+                timestamp: new Date().toISOString()
+            });
+            
+            addLog('error', `标定失败: ${errorMsg}`);
+            showToast(`标定失败: ${errorMsg}`, 'error');
+            
+            // 更新状态显示
+            const statusEl = document.getElementById('calib-status');
+            const errorEl = document.getElementById('calib-error');
+            if (statusEl) statusEl.textContent = '标定失败';
+            if (errorEl) errorEl.textContent = errorMsg.length > 20 ? errorMsg.substring(0, 20) + '...' : errorMsg;
         }
     })
     .catch(error => {
-        addLog('error', `标定失败: ${error}`);
-        showToast('标定失败', 'error');
-        document.getElementById('calib-status').textContent = '标定失败';
-        document.getElementById('calib-error').textContent = '-';
+        const errorMsg = error.message || String(error) || '网络错误或服务器错误';
+        
+        console.error('[HandEye] 标定API调用错误', {
+            error: errorMsg,
+            error_type: error.name,
+            stack: error.stack,
+            timestamp: new Date().toISOString()
+        });
+        
+        addLog('error', `标定失败: ${errorMsg}`);
+        showToast(`标定失败: ${errorMsg}`, 'error');
+        
+        // 更新状态显示
+        const statusEl = document.getElementById('calib-status');
+        const errorEl = document.getElementById('calib-error');
+        if (statusEl) statusEl.textContent = '标定失败';
+        if (errorEl) errorEl.textContent = errorMsg.length > 20 ? errorMsg.substring(0, 20) + '...' : errorMsg;
+        
         console.error('手眼标定错误:', error);
     });
 }
@@ -3299,9 +3782,6 @@ function updateCurrentImage() {
 function startRobotPoseUpdate() {
     // 立即调用一次，确保页面加载时就能看到位姿
     updateRobotPose();
-    // #region agent log
-    console.log('startRobotPoseUpdate called, currentTab:', currentTab);
-    // #endregion
     robotPoseUpdateInterval = setInterval(() => {
         if (currentTab === 'hand-eye-calib' && !document.hidden) {
             updateRobotPose();
@@ -3332,9 +3812,6 @@ function updateVerifyRobotStatus() {
 }
 
 function updateRobotPose() {
-    // #region agent log
-    console.log('updateRobotPose called, currentTab:', currentTab, 'document.hidden:', document.hidden);
-    // #endregion
     fetch('/api/robot_status')
         .then(response => {
             if (!response.ok) {
@@ -3343,30 +3820,24 @@ function updateRobotPose() {
             return response.json();
         })
         .then(data => {
-            // #region agent log
-            console.log('updateRobotPose received data:', data.success, 'has cartesian:', !!data.cartesian_position);
-            // #endregion
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/624c3f7c-4087-438c-abd0-30e00d1e2e18',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script_v2.js:3332',message:'updateRobotPose收到API响应',data:{success:data.success,has_cartesian:!!data.cartesian_position,has_position:!!(data.cartesian_position&&data.cartesian_position.position),pos_x_exists:!!document.getElementById('pos-x')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-            // #endregion
             if (data.success && data.cartesian_position && data.cartesian_position.position) {
                 const pose = data.cartesian_position;
                 const posX = document.getElementById('pos-x');
                 const posY = document.getElementById('pos-y');
                 const posZ = document.getElementById('pos-z');
                 
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/624c3f7c-4087-438c-abd0-30e00d1e2e18',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script_v2.js:3339',message:'准备更新DOM元素',data:{posX_exists:!!posX,posY_exists:!!posY,posZ_exists:!!posZ,x_value:pose.position.x,y_value:pose.position.y,z_value:pose.position.z},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-                // #endregion
-                
                 // 更新位姿显示（单位：毫米）- 将米转换为毫米（乘以1000）
                 if (posX) posX.textContent = (pose.position.x * 1000).toFixed(3);
                 if (posY) posY.textContent = (pose.position.y * 1000).toFixed(3);
                 if (posZ) posZ.textContent = (pose.position.z * 1000).toFixed(3);
-                document.getElementById('ori-x').textContent = pose.orientation.x.toFixed(6);
-                document.getElementById('ori-y').textContent = pose.orientation.y.toFixed(6);
-                document.getElementById('ori-z').textContent = pose.orientation.z.toFixed(6);
-                document.getElementById('ori-w').textContent = pose.orientation.w.toFixed(6);
+                const oriX = document.getElementById('ori-x');
+                const oriY = document.getElementById('ori-y');
+                const oriZ = document.getElementById('ori-z');
+                const oriW = document.getElementById('ori-w');
+                if (oriX) oriX.textContent = pose.orientation.x.toFixed(6);
+                if (oriY) oriY.textContent = pose.orientation.y.toFixed(6);
+                if (oriZ) oriZ.textContent = pose.orientation.z.toFixed(6);
+                if (oriW) oriW.textContent = pose.orientation.w.toFixed(6);
                 
                 // 更新机器人在线状态指示器
                 const indicator = document.getElementById('robot-online-indicator');
@@ -3385,9 +3856,6 @@ function updateRobotPose() {
                     indicator.textContent = data.is_online ? '🟡 在线(运动中)' : '🔴 离线';
                 }
             } else {
-                // #region agent log
-                console.log('updateRobotPose: data.success is false or missing cartesian_position');
-                // #endregion
                 // 如果无法获取数据，显示离线
                 const indicator = document.getElementById('robot-online-indicator');
                 if (indicator) {
@@ -3413,11 +3881,6 @@ function updateRobotPose() {
             }
         })
         .catch(error => {
-            // #region agent log
-            console.error('updateRobotPose catch error:', error);
-            console.error('Error stack:', error.stack);
-            fetch('http://127.0.0.1:7243/ingest/624c3f7c-4087-438c-abd0-30e00d1e2e18',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script_v2.js:3403',message:'updateRobotPose捕获错误',data:{error:error.message||String(error),error_type:error.name,stack:error.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-            // #endregion
             // 网络错误或API错误
             try {
                 const indicator = document.getElementById('robot-online-indicator');
@@ -3974,6 +4437,19 @@ function resetImageZoom(tab) {
             container.scrollLeft = 0;
             container.scrollTop = 0;
         }
+    }
+}
+
+// 切换深度详细信息显示
+function toggleDepthDetails(btn) {
+    const table = btn.nextElementSibling;
+    const icon = btn.querySelector('.toggle-icon');
+    if (table.style.display === 'none') {
+        table.style.display = 'block';
+        icon.textContent = '▲';
+    } else {
+        table.style.display = 'none';
+        icon.textContent = '▼';
     }
 }
 

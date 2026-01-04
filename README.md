@@ -343,6 +343,43 @@ alias use_ros2="source /opt/ros/foxy/setup.bash"
 
 
 
+## 8. 深度 z 读取节点 (depth_z_reader)
+
+### 8.1 编译和启动
+
+编译 `depth_z_reader` 包：
+
+```bash
+cd /home/mu/IVG/aubo_ros2_ws
+colcon build --packages-select depth_z_reader
+source install/setup.bash
+```
+
+启动深度 z 读取节点：
+
+```bash
+ros2 launch depth_z_reader depth_z_reader.launch.py
+```
+
+### 8.2 功能说明
+
+`depth_z_reader` 节点用于从 percipio 相机获取深度 z 值：
+
+- 订阅深度图像话题：`/camera/depth/image_raw`
+- 读取指定像素位置的深度值（默认读取图像中心点）
+- 发布深度值到话题：`/depth_z/center`
+- 支持自动搜索有效深度值（当中心点深度无效时）
+
+### 8.3 参数配置
+
+可通过 launch 文件参数配置：
+
+- `depth_image_topic`：深度图像话题名称（默认：`/camera/depth/image_raw`）
+- `pixel_x`、`pixel_y`：要读取的像素坐标（-1 表示图像中心）
+- `depth_scale`：深度缩放因子（默认：`0.00025`，适用于 scale_unit=0.25 的相机）
+- `search_valid_depth`：是否在中心点无效时搜索附近有效深度（默认：`true`）
+- `search_radius`：搜索有效深度值的半径（默认：`50` 像素）
+
 ---
 
 **文档版本**：1.0  

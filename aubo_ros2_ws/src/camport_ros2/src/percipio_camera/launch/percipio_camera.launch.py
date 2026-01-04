@@ -36,11 +36,11 @@ def generate_launch_description():
         DeclareLaunchArgument('color_enable', default_value='true'),
         
         # 彩色图像分辨率，设定范围请参考相机的 fetch_config.xml 文件
-        DeclareLaunchArgument('color_resolution', default_value='"1280x960"'),
+        DeclareLaunchArgument('color_resolution', default_value='"640x480"'),
         
         # 彩色图像格式，参考 camport_ros2/src/percipio_camera/src/percipio_device.cpp StreamFormatMapper format_mapper_list[]
         # 格式列表:yuv / jpeg / bayer / mono...
-        #DeclareLaunchArgument('color_format', default_value='"yuv"'),
+        DeclareLaunchArgument('color_format', default_value='"yuv"'),
 
         # 彩色图自动曝光 ROI，格式为 'x,y,width,height'
         # 其中(x,y)表示 ROI 左上角坐标，width 和 height 分别表示区域的宽度和高度

@@ -56,8 +56,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // 检查相机状态
     checkCameraIDStatus();
     
-    // 尝试自动加载默认标定参数
+    // 尝试自动加载默认标定参数（只从 ROS2 话题获取）
     autoLoadDefaultCameraParams();
+    
+    // 启动相机内参定期更新（从 ROS2 话题）
+    startCameraInfoUpdate();
     
     // 尝试自动加载手眼标定参数
     autoLoadHandEyeCalibrationParams();
@@ -70,6 +73,7 @@ function addLog(type, message) {
     // 映射：选项卡ID -> 日志容器ID
     const logIdMap = {
         'hand-eye-calib': 'hand-eye-calib-log',
+        'auto-hand-eye-calib': 'auto-hand-eye-calib-log',
         'hand-eye-verify': 'hand-eye-verify-log'
     };
     const logContainerId = logIdMap[currentTab] || `${currentTab}-log`;
@@ -111,7 +115,7 @@ function clearLog() {
 // ============= 放大镜功能 =============
 function initMagnifiers() {
     // 为每个选项卡的图像容器添加放大镜功能
-    const tabs = ['camera-verify', 'hand-eye-calib', 'hand-eye-verify'];
+    const tabs = ['camera-verify', 'hand-eye-calib', 'hand-eye-verify', 'auto-hand-eye-calib'];
     
     tabs.forEach(tab => {
         const imageContainer = document.getElementById(`${tab}-image-container`);
@@ -298,8 +302,8 @@ function switchTab(tabId) {
     currentTab = tabId;
     addLog('info', `切换到 ${getTabName(tabId)} 选项卡`);
     
-    // 如果切换到"手眼标定"标签页，立即更新机器人位姿
-    if (tabId === 'hand-eye-calib') {
+    // 如果切换到"手眼标定"或"自动手眼标定"标签页，立即更新机器人位姿
+    if (tabId === 'hand-eye-calib' || tabId === 'auto-hand-eye-calib') {
         updateRobotPose();
     }
 }
@@ -308,6 +312,7 @@ function getTabName(tabId) {
     const names = {
         'camera-verify': '相机标定精度验证',
         'hand-eye-calib': '手眼标定',
+        'auto-hand-eye-calib': '🤖 自动手眼标定',
         'hand-eye-verify': '手眼标定精度验证'
     };
     return names[tabId] || tabId;
@@ -390,9 +395,11 @@ function handleCalibFileSelect(event) {
     .then(data => {
         if (data.success) {
             cameraParamsLoaded = true;
+            cameraInfoSource = 'loaded_file';  // 标记为文件加载
             const cm = data.camera_matrix;
             
             const paramHTML = `
+                <p>数据源: <span style="color: #2196f3;">(从文件)</span></p>
                 <p>图像尺寸: <span>${data.image_size[0]} x ${data.image_size[1]}</span></p>
                 <p>焦距 fx: <span>${cm.fx.toFixed(2)}</span></p>
                 <p>焦距 fy: <span>${cm.fy.toFixed(2)}</span></p>
@@ -411,8 +418,9 @@ function handleCalibFileSelect(event) {
                 heParamsInfo.innerHTML = paramHTML;
             }
             
-            addLog('success', `相机参数加载成功：fx=${cm.fx.toFixed(2)}, fy=${cm.fy.toFixed(2)}`);
-            showToast('相机参数加载成功', 'success');
+            addLog('success', `相机参数从文件加载成功：fx=${cm.fx.toFixed(2)}, fy=${cm.fy.toFixed(2)}`);
+            addLog('info', '💡 提示: 如果 ROS2 CameraInfo 话题可用，系统会自动切换到话题数据');
+            showToast('相机参数从文件加载成功', 'success');
         } else {
             addLog('error', '加载相机参数失败: ' + data.error);
             showToast('加载失败: ' + data.error, 'error');
@@ -429,57 +437,42 @@ function handleCalibFileSelect(event) {
 
 // 自动加载默认标定参数
 function autoLoadDefaultCameraParams() {
-    addLog('info', '尝试自动加载默认相机参数...');
+    addLog('info', '正在等待 ROS2 CameraInfo 话题数据...');
     
-    fetch('/api/camera/load_params', {
-        method: 'POST'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            cameraParamsLoaded = true;
-            const cm = data.camera_matrix;
+    const waitingHTML = `
+        <p style="color: #2196f3;">⏳ 等待相机内参数据...</p>
+        <p>优先从 ROS2 CameraInfo 话题获取</p>
+        <p style="font-size: 0.9em; color: #666;">系统会自动加载，请稍候...</p>
+    `;
+    
+    // 显示等待提示
+    document.getElementById('camera-params-info').innerHTML = waitingHTML;
+    const heParamsInfo = document.getElementById('he-camera-params-info');
+    if (heParamsInfo) {
+        heParamsInfo.innerHTML = waitingHTML;
+    }
+    
+    // 定期检查机制会自动获取和更新内参（由 startCameraInfoUpdate() 处理）
+    // 不再自动从文件加载，完全依赖 ROS2 话题
+    
+    // 如果10秒后还没有获取到，提示用户可以手动加载
+    setTimeout(() => {
+        if (!cameraParamsLoaded) {
+            addLog('warning', '⚠️ 10秒内未从 ROS2 话题获取到内参，系统将继续等待...');
+            addLog('info', '提示: 请确保相机节点正在运行，或点击"加载相机参数"按钮手动加载文件');
             
-            const paramHTML = `
-                <p>图像尺寸: <span>${data.image_size[0]} x ${data.image_size[1]}</span></p>
-                <p>焦距 fx: <span>${cm.fx.toFixed(2)}</span></p>
-                <p>焦距 fy: <span>${cm.fy.toFixed(2)}</span></p>
-                <p>主点 cx: <span>${cm.cx.toFixed(2)}</span></p>
-                <p>主点 cy: <span>${cm.cy.toFixed(2)}</span></p>
-                <p>畸变系数: <span>${data.dist_coeffs.length}个</span></p>
-                <p>重投影误差: <span>${data.mean_reprojection_error.toFixed(4)} px</span></p>
+            const stillWaitingHTML = `
+                <p style="color: #ff9800;">⏳ 仍在等待 ROS2 CameraInfo 话题...</p>
+                <p>请确保相机节点正在运行</p>
+                <p style="font-size: 0.9em;">或点击"加载相机参数"手动加载文件</p>
             `;
             
-            // 更新相机标定验证选项卡
-            document.getElementById('camera-params-info').innerHTML = paramHTML;
-            
-            // 同时更新手眼标定选项卡
-            const heParamsInfo = document.getElementById('he-camera-params-info');
+            document.getElementById('camera-params-info').innerHTML = stillWaitingHTML;
             if (heParamsInfo) {
-                heParamsInfo.innerHTML = paramHTML;
-            }
-            
-            addLog('success', `✅ 已自动加载默认相机参数：fx=${cm.fx.toFixed(2)}, fy=${cm.fy.toFixed(2)}`);
-            showToast('已自动加载默认相机参数', 'success');
-        } else {
-            addLog('warning', '未找到默认标定文件，请手动加载');
-            
-            const warningHTML = `
-                <p style="color: #ff9800;">未找到默认标定文件</p>
-                <p>请点击"加载相机参数"按钮选择标定文件</p>
-            `;
-            
-            document.getElementById('camera-params-info').innerHTML = warningHTML;
-            
-            const heParamsInfo = document.getElementById('he-camera-params-info');
-            if (heParamsInfo) {
-                heParamsInfo.innerHTML = warningHTML;
+                heParamsInfo.innerHTML = stillWaitingHTML;
             }
         }
-    })
-    .catch(error => {
-        addLog('warning', '自动加载失败，请手动加载标定参数');
-    });
+    }, 10000);
 }
 
 // 自动加载手眼标定参数
@@ -3822,25 +3815,29 @@ function updateRobotPose() {
         .then(data => {
             if (data.success && data.cartesian_position && data.cartesian_position.position) {
                 const pose = data.cartesian_position;
-                const posX = document.getElementById('pos-x');
-                const posY = document.getElementById('pos-y');
-                const posZ = document.getElementById('pos-z');
+                
+                // 根据当前选项卡确定元素ID前缀
+                const prefix = (currentTab === 'auto-hand-eye-calib') ? 'auto-' : '';
+                
+                const posX = document.getElementById(prefix + 'pos-x');
+                const posY = document.getElementById(prefix + 'pos-y');
+                const posZ = document.getElementById(prefix + 'pos-z');
                 
                 // 更新位姿显示（单位：毫米）- 将米转换为毫米（乘以1000）
                 if (posX) posX.textContent = (pose.position.x * 1000).toFixed(3);
                 if (posY) posY.textContent = (pose.position.y * 1000).toFixed(3);
                 if (posZ) posZ.textContent = (pose.position.z * 1000).toFixed(3);
-                const oriX = document.getElementById('ori-x');
-                const oriY = document.getElementById('ori-y');
-                const oriZ = document.getElementById('ori-z');
-                const oriW = document.getElementById('ori-w');
+                const oriX = document.getElementById(prefix + 'ori-x');
+                const oriY = document.getElementById(prefix + 'ori-y');
+                const oriZ = document.getElementById(prefix + 'ori-z');
+                const oriW = document.getElementById(prefix + 'ori-w');
                 if (oriX) oriX.textContent = pose.orientation.x.toFixed(6);
                 if (oriY) oriY.textContent = pose.orientation.y.toFixed(6);
                 if (oriZ) oriZ.textContent = pose.orientation.z.toFixed(6);
                 if (oriW) oriW.textContent = pose.orientation.w.toFixed(6);
                 
                 // 更新机器人在线状态指示器
-                const indicator = document.getElementById('robot-online-indicator');
+                const indicator = document.getElementById(prefix + 'robot-online-indicator');
                 if (data.is_online) {
                     indicator.textContent = '🟢 在线';
                     indicator.className = 'status-indicator online';
@@ -3909,6 +3906,86 @@ function updateRobotPose() {
             }
             console.error('更新机器人位姿失败:', error);
         });
+}
+
+// ============= 相机内参更新 =============
+let cameraInfoUpdateInterval = null;
+let cameraInfoSource = null;  // 跟踪当前内参来源
+
+function startCameraInfoUpdate() {
+    // 定期尝试从 ROS2 话题获取内参（话题数据优先级最高）
+    cameraInfoUpdateInterval = setInterval(() => {
+        if (!document.hidden) {
+            updateCameraInfoFromROS2();
+        }
+    }, 5000);  // 每5秒尝试一次
+}
+
+function updateCameraInfoFromROS2() {
+    fetch('/api/camera_info')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.camera_intrinsic) {
+            const cm = data.camera_intrinsic;
+            const imageSizeText = cm.image_size && cm.image_size.length === 2 
+                ? `${cm.image_size[0]} x ${cm.image_size[1]}` 
+                : '未知';
+            
+            // 如果是从 ROS2 话题获取的，或者当前还没有数据，则更新界面
+            if (data.source === 'ros2_topic') {
+                // ROS2 话题数据优先级最高，总是更新
+                if (cameraInfoSource !== 'ros2_topic') {
+                    cameraParamsLoaded = true;
+                    cameraInfoSource = 'ros2_topic';
+                    
+                    const paramHTML = `
+                        <p>数据源: <span style="color: #4caf50;">(从 ROS2 话题)</span></p>
+                        <p>图像尺寸: <span>${imageSizeText}</span></p>
+                        <p>焦距 fx: <span>${cm.fx.toFixed(2)}</span></p>
+                        <p>焦距 fy: <span>${cm.fy.toFixed(2)}</span></p>
+                        <p>主点 cx: <span>${cm.cx.toFixed(2)}</span></p>
+                        <p>主点 cy: <span>${cm.cy.toFixed(2)}</span></p>
+                        <p>畸变系数: <span>${cm.dist_coeffs ? cm.dist_coeffs.length : 0}个</span></p>
+                    `;
+                    
+                    // 更新相机标定验证选项卡
+                    document.getElementById('camera-params-info').innerHTML = paramHTML;
+                    
+                    // 同时更新手眼标定选项卡
+                    const heParamsInfo = document.getElementById('he-camera-params-info');
+                    if (heParamsInfo) {
+                        heParamsInfo.innerHTML = paramHTML;
+                    }
+                    
+                    addLog('success', `✅ 已从 ROS2 CameraInfo 话题获取相机内参：fx=${cm.fx.toFixed(2)}, fy=${cm.fy.toFixed(2)}`);
+                    showToast('已从 ROS2 话题获取相机内参', 'success');
+                }
+            } else if (!cameraParamsLoaded) {
+                // 如果还没有加载过任何数据，使用文件数据
+                cameraParamsLoaded = true;
+                cameraInfoSource = 'loaded_file';
+                
+                const paramHTML = `
+                    <p>数据源: <span style="color: #2196f3;">(从文件)</span></p>
+                    <p>图像尺寸: <span>${imageSizeText}</span></p>
+                    <p>焦距 fx: <span>${cm.fx.toFixed(2)}</span></p>
+                    <p>焦距 fy: <span>${cm.fy.toFixed(2)}</span></p>
+                    <p>主点 cx: <span>${cm.cx.toFixed(2)}</span></p>
+                    <p>主点 cy: <span>${cm.cy.toFixed(2)}</span></p>
+                    <p>畸变系数: <span>${cm.dist_coeffs ? cm.dist_coeffs.length : 0}个</span></p>
+                `;
+                
+                document.getElementById('camera-params-info').innerHTML = paramHTML;
+                const heParamsInfo = document.getElementById('he-camera-params-info');
+                if (heParamsInfo) {
+                    heParamsInfo.innerHTML = paramHTML;
+                }
+            }
+        }
+    })
+    .catch(error => {
+        // 静默失败，不打印日志
+    });
 }
 
 // ============= 状态更新 =============
@@ -4255,7 +4332,7 @@ function performUndistortion(imgElement) {
 
 // ============= 图像缩放功能 =============
 function initImageZoom() {
-    const tabs = ['camera-verify', 'hand-eye-calib', 'hand-eye-verify'];
+    const tabs = ['camera-verify', 'hand-eye-calib', 'hand-eye-verify', 'auto-hand-eye-calib'];
     
     tabs.forEach(tab => {
         const container = document.getElementById(`${tab}-image-container`);

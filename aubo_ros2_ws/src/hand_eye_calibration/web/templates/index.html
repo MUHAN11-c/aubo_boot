@@ -18,6 +18,7 @@
         <nav class="tabs">
             <button class="tab-button active" data-tab="camera-verify">相机标定精度验证</button>
             <button class="tab-button" data-tab="hand-eye-calib">手眼标定</button>
+            <button class="tab-button" data-tab="auto-hand-eye-calib">🤖 自动手眼标定</button>
             <button class="tab-button" data-tab="hand-eye-verify">手眼标定精度验证</button>
         </nav>
 
@@ -349,6 +350,256 @@
                 </div>
             </div>
 
+            <!-- 自动手眼标定 -->
+            <div id="auto-hand-eye-calib" class="tab-content tab-hand-eye-calib">
+                <div class="top-section">
+                    <!-- 左侧：功能操作区 -->
+                    <div class="left-panel">
+                        <h3>功能操作</h3>
+                        
+                        <!-- 自动标定控制 -->
+                        <div style="margin-bottom: 15px; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                            <h4 style="margin: 0 0 12px 0; color: white; font-size: 16px;">🤖 自动标定控制</h4>
+                            <div class="button-group">
+                                <button class="action-button" id="btn-auto-start" style="background: #28a745; color: white; font-weight: bold;">
+                                    🚀 开始自动标定
+                                </button>
+                                <button class="action-button" id="btn-auto-pause" style="background: #ffc107; color: #333;" disabled>
+                                    ⏸️ 暂停
+                                </button>
+                                <button class="action-button" id="btn-auto-resume" style="background: #17a2b8; color: white; display: none;">
+                                    ▶️ 继续
+                                </button>
+                                <button class="action-button" id="btn-auto-stop" style="background: #dc3545; color: white;" disabled>
+                                    ⏹️ 停止
+                                </button>
+                            </div>
+                            
+                            <!-- 自动标定进度 -->
+                            <div style="margin-top: 12px; padding: 10px; background: rgba(255,255,255,0.15); border-radius: 6px;">
+                                <div style="font-size: 13px; color: white; margin-bottom: 6px; display: flex; justify-content: space-between;">
+                                    <span>进度: <strong id="auto-progress">0/12</strong></span>
+                                    <span>状态: <strong id="auto-status">待开始</strong></span>
+                                </div>
+                                <div style="width: 100%; height: 24px; background: rgba(0,0,0,0.2); border-radius: 12px; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);">
+                                    <div id="auto-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #28a745, #20c997); transition: width 0.5s ease; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;">
+                                        <span id="auto-progress-text">0%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="button-group">
+                            <button class="action-button" id="btn-auto-load-camera-params">加载相机参数</button>
+                            <button class="action-button" id="btn-auto-capture-image">采集图像</button>
+                            <button class="action-button" id="btn-auto-extract-corners">提取棋盘格角点</button>
+                        </div>
+                        
+                        <div class="button-group">
+                            <button class="action-button" id="btn-auto-save-pose-data">保存位姿数据</button>
+                            <button class="action-button" id="btn-auto-load-pose-data">加载位姿数据</button>
+                            <button class="action-button primary" id="btn-auto-start-calibration">手动开始标定</button>
+                            <button class="action-button" id="btn-auto-save-calibration">保存标定结果</button>
+                        </div>
+                        
+                        <!-- 标定类型切换 -->
+                        <div class="param-setting">
+                            <label for="auto-calibration-type">标定类型:</label>
+                            <select id="auto-calibration-type" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="eye-to-hand">眼在手外 (Eye-to-Hand)</option>
+                                <option value="eye-in-hand">眼在手上 (Eye-in-Hand)</option>
+                            </select>
+                            <small style="color: #888; font-size: 11px; display: block; margin-top: 4px;">
+                                <span id="auto-calibration-type-desc">相机固定，机器人末端点选角点</span>
+                            </small>
+                        </div>
+                        
+                        <!-- 棋盘格大小设置 -->
+                        <div class="param-setting">
+                            <label for="auto-checkerboard-size">棋盘格大小 (mm):</label>
+                            <input type="number" id="auto-checkerboard-size" value="15" min="1" step="0.1">
+                        </div>
+                        
+                        <!-- 相机高度设置（仅Eye-to-Hand显示） -->
+                        <div class="param-setting" id="auto-camera-height-setting">
+                            <label for="auto-camera-height">相机高度 (mm):</label>
+                            <input type="number" id="auto-camera-height" value="840" min="100" max="1000" step="1">
+                            <small style="color: #888; font-size: 11px; display: block; margin-top: 4px;">
+                                相机到标定板平面的垂直距离
+                            </small>
+                        </div>
+                        
+                        <!-- 自动标定参数设置 -->
+                        <div style="margin-top: 15px; padding: 14px; background: #fff9e6; border: 2px solid #ffd700; border-radius: 8px;">
+                            <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #d97706; font-weight: bold;">⚙️ 自动标定参数</h4>
+                            
+                            <div class="param-setting" style="margin-bottom: 10px;">
+                                <label for="auto-sample-count" style="font-size: 12px; font-weight: 600;">采样点数:</label>
+                                <input type="number" id="auto-sample-count" value="12" min="8" max="20" step="1" 
+                                    style="width: 100%; padding: 8px; font-size: 13px; border: 2px solid #ffd700; border-radius: 4px;">
+                                <small style="color: #d97706; font-size: 11px; margin-top: 2px; display: block;">✓ 推荐: 8-15个点，分布越均匀精度越高</small>
+                            </div>
+                            
+                            <div class="param-setting" style="margin-bottom: 10px;">
+                                <label for="auto-workspace-range" style="font-size: 12px; font-weight: 600;">工作空间范围 (mm):</label>
+                                <input type="number" id="auto-workspace-range" value="300" min="100" max="500" step="50"
+                                    style="width: 100%; padding: 8px; font-size: 13px; border: 2px solid #ffd700; border-radius: 4px;">
+                                <small style="color: #d97706; font-size: 11px; margin-top: 2px; display: block;">✓ 点位分布范围（X和Y方向）</small>
+                            </div>
+                            
+                            <div class="param-setting" style="margin-bottom: 0;">
+                                <label for="auto-z-height" style="font-size: 12px; font-weight: 600;">Z轴高度 (mm):</label>
+                                <input type="number" id="auto-z-height" value="300" min="200" max="500" step="10"
+                                    style="width: 100%; padding: 8px; font-size: 13px; border: 2px solid #ffd700; border-radius: 4px;">
+                                <small style="color: #d97706; font-size: 11px; margin-top: 2px; display: block;">✓ 机器人末端Z轴高度（统一高度）</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 图像显示 -->
+                    <div class="image-panel">
+                        <div class="panel-header">
+                            <h3>标定板图像 <span style="font-size: 12px; color: #667eea;">（自动模式）</span></h3>
+                            <span class="zoom-hint-header" id="auto-hand-eye-calib-zoom-hint">滚轮缩放 | 右键拖拽</span>
+                        </div>
+                        <div class="image-container" id="auto-hand-eye-calib-image-container">
+                            <img id="auto-hand-eye-calib-image" alt="标定板图像">
+                            <div class="image-placeholder">🤖 自动标定模式 - 等待图像...</div>
+                            <button class="save-image-btn" id="save-auto-hand-eye-image" title="保存当前图像">
+                                💾 保存图像
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 放大镜 -->
+                    <div class="magnifier-panel">
+                        <div class="panel-header">
+                            <h3>🔍 放大镜（中心点）</h3>
+                            <span class="zoom-hint-header magnifier-hint" id="auto-hand-eye-calib-mag-hint">中心点 X: - | Y: -</span>
+                        </div>
+                        <div class="magnifier-container">
+                            <canvas id="auto-hand-eye-calib-magnifier"></canvas>
+                            <div class="magnifier-placeholder">显示可视区域中心</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 操作日志 -->
+                    <div class="log-panel">
+                        <h3>📊 数据流 & 操作日志</h3>
+                        <div class="log-container">
+                            <div id="auto-hand-eye-calib-log" class="log-display">
+                                <div class="log-entry info">🤖 自动标定系统就绪，等待操作...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 底部：左侧引导+参数，右侧数据表格 -->
+                <div class="bottom-section">
+                    <!-- 左侧：使用引导和参数信息 -->
+                    <div class="bottom-left-panel">
+                        <div class="guide-section">
+                            <h4>📖 自动标定流程</h4>
+                            <div class="guide-content">
+                                <ol style="line-height: 1.8;">
+                                    <li>🔧 <strong>加载相机参数</strong>（自动从ROS2话题获取）</li>
+                                    <li>⚙️ <strong>设置标定参数</strong>
+                                        <ul style="margin: 5px 0; font-size: 12px; color: #666;">
+                                            <li>采样点数：建议8-15个</li>
+                                            <li>工作空间：根据实际工作范围设置</li>
+                                            <li>Z轴高度：机器人末端高度</li>
+                                        </ul>
+                                    </li>
+                                    <li>🚀 <strong>点击"开始自动标定"</strong></li>
+                                    <li>🤖 <strong>系统自动执行：</strong>
+                                        <ul style="margin: 5px 0; font-size: 12px; color: #666;">
+                                            <li>自动规划位姿（均匀分布）</li>
+                                            <li>机器人移动→拍照→提取角点</li>
+                                            <li>循环采集所有数据点</li>
+                                        </ul>
+                                    </li>
+                                    <li>✅ <strong>完成后自动执行标定计算</strong></li>
+                                    <li>💾 <strong>保存标定结果</strong></li>
+                                </ol>
+                                <div style="margin-top: 12px; padding: 10px; background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%); border-left: 4px solid #0284c7; font-size: 12px; border-radius: 4px;">
+                                    <strong style="color: #0369a1;">💡 优势：</strong>
+                                    <ul style="margin: 5px 0 0 15px; color: #0c4a6e;">
+                                        <li>无需手动操作，全程自动化</li>
+                                        <li>位姿分布均匀，提高标定精度</li>
+                                        <li>节省时间，提高效率</li>
+                                        <li>可重复性强，结果稳定</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="info-section">
+                            <h4>相机标定参数</h4>
+                            <div id="auto-camera-params-info" class="info-display">
+                                <p>等待从ROS2话题加载相机参数...</p>
+                            </div>
+                        </div>
+                        
+                        <div class="info-section">
+                            <h4>自动标定状态</h4>
+                            <div id="auto-calibration-status" class="info-display">
+                                <p>已采集数据: <span id="auto-pose-count" style="font-weight: bold; color: #667eea;">0</span> 组</p>
+                                <p>当前步骤: <span id="auto-current-step" style="font-weight: bold; color: #667eea;">-</span></p>
+                                <p>标定状态: <span id="auto-calib-status" style="font-weight: bold; color: #667eea;">未开始</span></p>
+                                <p>标定误差: <span id="auto-calib-error" style="font-weight: bold; color: #667eea;">-</span></p>
+                            </div>
+                        </div>
+                        
+                        <div class="info-section">
+                            <h4>机器人当前位姿</h4>
+                            <div id="auto-robot-pose-info" class="info-display">
+                                <p><strong>状态:</strong> <span id="auto-robot-online-indicator" class="status-indicator">检查中...</span></p>
+                                <p>位置 X: <span id="auto-pos-x">-</span> mm</p>
+                                <p>位置 Y: <span id="auto-pos-y">-</span> mm</p>
+                                <p>位置 Z: <span id="auto-pos-z">-</span> mm</p>
+                                <p>姿态 Qx: <span id="auto-ori-x">-</span></p>
+                                <p>姿态 Qy: <span id="auto-ori-y">-</span></p>
+                                <p>姿态 Qz: <span id="auto-ori-z">-</span></p>
+                                <p>姿态 Qw: <span id="auto-ori-w">-</span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：数据表格 -->
+                    <div class="bottom-right-panel">
+                        <h3>自动标定数据 <span style="font-size: 12px; color: #667eea; font-weight: normal;">（实时更新）</span></h3>
+                        <div class="data-display">
+                            <div class="data-table">
+                                <table id="auto-pose-list-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="background: #667eea; color: white;">组号</th>
+                                            <th>角点序号</th>
+                                            <th>像素坐标 U (px)</th>
+                                            <th>像素坐标 V (px)</th>
+                                            <th>相机坐标 X (mm)</th>
+                                            <th>相机坐标 Y (mm)</th>
+                                            <th>位置 X (mm)</th>
+                                            <th>位置 Y (mm)</th>
+                                            <th>位置 Z (mm)</th>
+                                            <th>姿态 Qx</th>
+                                            <th>姿态 Qy</th>
+                                            <th>姿态 Qz</th>
+                                            <th>姿态 Qw</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="13" class="no-data">🤖 等待自动标定开始...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- 手眼标定精度验证 -->
             <div id="hand-eye-verify" class="tab-content tab-hand-eye-verify">
                 <div class="top-section">
@@ -565,7 +816,18 @@
     </div>
 
     <script src="{{ url_for('static', filename='script_v2.js') }}?v=20241231-13"></script>
+    <script src="{{ url_for('static', filename='script_v2_auto_calib_addon.js') }}?v=20250104-1"></script>
     <script>
+        // 初始化自动标定功能（在DOMContentLoaded之后）
+        document.addEventListener('DOMContentLoaded', function() {
+            // 延迟初始化，确保script_v2.js已经完全加载
+            setTimeout(function() {
+                if (typeof initAutoHandEyeCalibTab === 'function') {
+                    initAutoHandEyeCalibTab();
+                }
+            }, 500);
+        });
+        
         // 动态设置版本号为当前时间（精确到秒）
         (function() {
             const now = new Date();

@@ -20,16 +20,70 @@ class CameraCalibrationUtils:
         self.dist_coeffs = None
         self.image_size = None
         self.detected_pattern_size = None  # 检测到的实际棋盘格尺寸
-        self.depth_scale_unit = None  # 深度图缩放因子（f_scale_unit），如果为None则自动推断
-        # 注意：参考 depth_z_reader 的实现
-        # - 对于 scale_unit=0.25 的相机（如 PS800-E1）：
-        #   * 转换为米：depth_raw * 0.00025（depth_z_reader 使用此方式）
-        #   * 转换为毫米：depth_raw * 0.25（hand_eye_calibration 使用此方式，因为需要毫米单位）
-        # - 对于 scale_unit=1.0 的相机：
-        #   * 转换为米：depth_raw * 0.001
-        #   * 转换为毫米：depth_raw * 1.0
-        # 查看相机启动日志中的 "Depth stream scale unit" 来确定正确的值
         
+        # 深度缩放因子：与 depth_z_reader 完全一致，写死为 0.00025
+        # 参考 depth_z_reader 的实现：
+        # - depth_raw * 0.00025 = 深度（米）
+        # - 适用于 scale_unit=0.25 的相机（如 PS800-E1）
+        # - 转换为毫米需要再乘以 1000
+        self.DEPTH_SCALE = 0.00025  # 写死，与 depth_z_reader 保持一致
+        
+    def set_camera_params_from_camera_info(self, camera_info_msg) -> Dict:
+        """
+        从 ROS2 CameraInfo 消息设置相机参数
+        参考 depth_z_reader 的实现方式，从话题获取内参
+        
+        Args:
+            camera_info_msg: sensor_msgs/CameraInfo 消息
+            
+        Returns:
+            参数字典
+        """
+        try:
+            # 提取相机内参矩阵 K (3x3)
+            # K = [fx  0 cx]
+            #     [ 0 fy cy]
+            #     [ 0  0  1]
+            self.camera_matrix = np.array([
+                [camera_info_msg.k[0], camera_info_msg.k[1], camera_info_msg.k[2]],
+                [camera_info_msg.k[3], camera_info_msg.k[4], camera_info_msg.k[5]],
+                [camera_info_msg.k[6], camera_info_msg.k[7], camera_info_msg.k[8]]
+            ], dtype=np.float64)
+            
+            # 提取畸变系数
+            self.dist_coeffs = np.array(camera_info_msg.d, dtype=np.float64)
+            
+            # 提取图像尺寸
+            self.image_size = (camera_info_msg.width, camera_info_msg.height)
+            
+            # 提取fx, fy, cx, cy
+            fx = self.camera_matrix[0, 0]
+            fy = self.camera_matrix[1, 1]
+            cx = self.camera_matrix[0, 2]
+            cy = self.camera_matrix[1, 2]
+            
+            result = {
+                'success': True,
+                'source': 'ros2_camera_info',
+                'image_size': self.image_size,
+                'camera_matrix': {
+                    'fx': fx,
+                    'fy': fy,
+                    'cx': cx,
+                    'cy': cy
+                },
+                'dist_coeffs': self.dist_coeffs.tolist(),
+                'mean_reprojection_error': 0.0  # CameraInfo 不包含此信息
+            }
+            
+            return result
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
     def load_camera_params(self, xml_file: str) -> Dict:
         """
         加载相机标定参数从XML文件
@@ -76,6 +130,7 @@ class CameraCalibrationUtils:
             
             result = {
                 'success': True,
+                'source': 'xml_file',
                 'image_size': self.image_size,
                 'camera_matrix': {
                     'fx': fx,
@@ -195,14 +250,14 @@ class CameraCalibrationUtils:
     
     def calculate_adjacent_distances(self, points_3d: np.ndarray, pattern_size: Tuple[int, int]) -> List[float]:
         """
-        计算相邻角点之间的距离
+        计算每个角点到其右侧或下侧相邻点的距离（用于显示）
         
         Args:
             points_3d: 3D点坐标 (N, 3)
             pattern_size: 棋盘格大小 (列数, 行数)
             
         Returns:
-            相邻距离列表
+            相邻距离列表（每个角点一个值）
         """
         cols, rows = pattern_size
         distances = []
@@ -211,17 +266,19 @@ class CameraCalibrationUtils:
             row = i // cols
             col = i % cols
             
-            # 计算到右侧相邻点的距离
+            # 优先计算到右侧相邻点的距离
             if col < cols - 1:
                 neighbor_idx = i + 1
                 dist = np.linalg.norm(points_3d[i] - points_3d[neighbor_idx])
                 distances.append(dist)
+            # 如果是最后一列，计算到下侧相邻点的距离
+            elif row < rows - 1:
+                neighbor_idx = i + cols
+                dist = np.linalg.norm(points_3d[i] - points_3d[neighbor_idx])
+                distances.append(dist)
             else:
-                # 最后一列没有右侧相邻点
-                if distances:
-                    distances.append(distances[-1])  # 使用上一个距离
-                else:
-                    distances.append(0.0)
+                # 右下角的点没有右侧和下侧相邻点，使用0.0
+                distances.append(0.0)
         
         return distances
     
@@ -388,10 +445,9 @@ class CameraCalibrationUtils:
             深度值（mm），如果未找到则返回None
             
         注意：
-            - 参考 depth_z_reader 的实现方式
-            - 深度图像的原始值需要乘以 depth_scale_unit 才能得到毫米值
-              * 对于 scale_unit=0.25 的相机：depth_scale_unit = 0.25（转换为毫米）
-              * 对于 scale_unit=1.0 的相机：depth_scale_unit = 1.0（转换为毫米）
+            - 与 depth_z_reader 完全一致的实现方式
+            - 深度缩放因子写死为 0.00025：depth_raw * 0.00025 * 1000 = 深度（毫米）
+            - 适用于 scale_unit=0.25 的相机（如 PS800-E1）
             - 无效深度值：0 或 65535（16位无符号整数的最大值）
             - 使用圆形搜索区域，从内到外搜索，找到第一个有效值即返回
         """
@@ -433,29 +489,12 @@ class CameraCalibrationUtils:
                 if len(depths) > 0:
                     median_depth_raw = float(np.median(depths))
                     
-                    # #region agent log
-                    # 记录深度图的原始像素值统计信息（仅前几次调用）
-                    if not hasattr(CameraCalibrationUtils, '_depth_raw_log_count'):
-                        CameraCalibrationUtils._depth_raw_log_count = 0
-                    if CameraCalibrationUtils._depth_raw_log_count < 3:
-                        log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
-                        import json
-                        import time
-                        log_file.write(json.dumps({'id': 'log_depth_raw_stats', 'timestamp': int(time.time()*1000), 'location': 'camera_calibration_utils.py:get_depth_from_depth_image', 'message': '深度图原始值统计', 'data': {'pixel_u': pixel_u, 'pixel_v': pixel_v, 'search_radius': r, 'num_samples': len(depths), 'raw_min': float(min(depths)), 'raw_max': float(max(depths)), 'raw_median': float(median_depth_raw), 'raw_mean': float(np.mean(depths))}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'U'}) + '\n')
-                        log_file.close()
-                        CameraCalibrationUtils._depth_raw_log_count += 1
-                    # #endregion
-                    
-                    # 应用深度缩放因子（参考 depth_z_reader 的实现方式）
-                    # depth_z_reader: depth_z = depth_raw * depth_scale (0.00025 for meters)
-                    # hand_eye_calibration: depth_mm = depth_raw * depth_scale_unit (0.25 for mm)
-                    # 对于 scale_unit=0.25 的相机：depth_scale_unit = 0.25（转换为毫米）
-                    # 如果设置了深度缩放因子，应用它转换为毫米
-                    if self.depth_scale_unit is not None:
-                        return median_depth_raw * self.depth_scale_unit
-                    
-                    # 否则返回原始值（假设单位已经是毫米，或者后续会自动推断）
-                    return median_depth_raw
+                    # 应用深度缩放因子（与 depth_z_reader 完全一致）
+                    # depth_raw * 0.00025 = 深度（米）
+                    # depth_raw * 0.00025 * 1000 = 深度（毫米）
+                    depth_meters = median_depth_raw * self.DEPTH_SCALE
+                    depth_mm = depth_meters * 1000.0
+                    return depth_mm
             
             # 未找到有效深度值
             return None
@@ -697,59 +736,8 @@ class CameraCalibrationUtils:
         filtered_count = 0
         valid_count = 0
         
-        # 自动推断深度缩放因子（如果未设置）
-        # 通过对比前几个角点的估计深度和实际深度来推断
-        if is_depth_image and self.depth_scale_unit is None and len(corners_2d) > 0:
-            # 尝试从前几个角点推断缩放因子
-            # 直接读取原始深度值（不通过get_depth_from_depth_image，因为它会应用缩放因子）
-            sample_corners = min(5, len(corners_2d))
-            sample_ratios = []
-            height, width = depth_data.shape[:2]
-            
-            for i in range(sample_corners):
-                pixel_u = int(round(float(corners_2d[i][0])))
-                pixel_v = int(round(float(corners_2d[i][1])))
-                
-                # 直接读取原始深度值（使用圆形搜索，参考 depth_z_reader）
-                raw_depths = []
-                for r in range(0, search_radius + 1):
-                    for du in range(-r, r + 1):
-                        for dv in range(-r, r + 1):
-                            # 检查是否在圆形范围内
-                            if du * du + dv * dv > r * r:
-                                continue
-                            
-                            u = pixel_u + du
-                            v = pixel_v + dv
-                            if 0 <= u < width and 0 <= v < height:
-                                depth_value = depth_data[v, u]
-                                # 检查是否为有效深度值（0 和 65535 表示无效）
-                                if depth_value > 0 and depth_value < 65535:
-                                    raw_depths.append(float(depth_value))
-                    
-                    # 如果找到有效深度值，跳出循环
-                    if len(raw_depths) > 0:
-                        break
-                
-                if len(raw_depths) > 0 and estimated_depths_per_corner[i] > 0:
-                    actual_depth_raw = float(np.median(raw_depths))
-                    ratio = actual_depth_raw / estimated_depths_per_corner[i]
-                    if 0.1 < ratio < 10.0:  # 合理的比例范围
-                        sample_ratios.append(ratio)
-            
-            if len(sample_ratios) > 0:
-                # 如果比例稳定（都在0.2-0.4范围内），说明需要缩放
-                median_ratio = np.median(sample_ratios)
-                if 0.2 < median_ratio < 0.5:  # 典型的原始像素值/毫米比例
-                    inferred_scale = 1.0 / median_ratio
-                    self.depth_scale_unit = inferred_scale
-                    # #region agent log
-                    log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
-                    import json
-                    import time
-                    log_file.write(json.dumps({'id': 'log_depth_scale_inferred', 'timestamp': int(time.time()*1000), 'location': 'camera_calibration_utils.py:687', 'message': '自动推断深度缩放因子', 'data': {'sample_ratios': [float(r) for r in sample_ratios], 'median_ratio': float(median_ratio), 'inferred_scale_unit': float(inferred_scale)}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'W'}) + '\n')
-                    log_file.close()
-                    # #endregion
+        # 深度缩放因子已写死为 0.00025，与 depth_z_reader 保持一致
+        # 不再需要自动推断逻辑
         
         for i, corner in enumerate(corners_2d):
             pixel_u = int(round(float(corner[0])))

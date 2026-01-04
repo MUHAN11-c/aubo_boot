@@ -56,6 +56,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 尝试自动加载默认标定参数
     autoLoadDefaultCameraParams();
     
+    // 定期检查并更新相机内参（如果从 ROS2 话题获取）
+    startCameraInfoUpdate();
+    
     addLog('success', 'Web界面启动成功，等待ROS2数据...');
 });
 
@@ -364,8 +367,10 @@ function handleCalibFileSelect(event) {
     .then(data => {
         if (data.success) {
             cameraParamsLoaded = true;
+            cameraInfoSource = 'loaded_file';  // 标记为文件加载
             const cm = data.camera_matrix;
             document.getElementById('camera-params-info').innerHTML = `
+                <p>数据源: <span style="color: #2196f3;">(从文件)</span></p>
                 <p>图像尺寸: <span>${data.image_size[0]} x ${data.image_size[1]}</span></p>
                 <p>焦距 fx: <span>${cm.fx.toFixed(2)}</span></p>
                 <p>焦距 fy: <span>${cm.fy.toFixed(2)}</span></p>
@@ -374,8 +379,9 @@ function handleCalibFileSelect(event) {
                 <p>畸变系数: <span>${data.dist_coeffs.length}个</span></p>
                 <p>重投影误差: <span>${data.mean_reprojection_error.toFixed(4)} px</span></p>
             `;
-            addLog('success', `相机参数加载成功：fx=${cm.fx.toFixed(2)}, fy=${cm.fy.toFixed(2)}`);
-            showToast('相机参数加载成功', 'success');
+            addLog('success', `相机参数从文件加载成功：fx=${cm.fx.toFixed(2)}, fy=${cm.fy.toFixed(2)}`);
+            addLog('info', '💡 提示: 如果 ROS2 CameraInfo 话题可用，系统会自动切换到话题数据');
+            showToast('相机参数从文件加载成功', 'success');
         } else {
             addLog('error', '加载相机参数失败: ' + data.error);
             showToast('加载失败: ' + data.error, 'error');
@@ -392,38 +398,30 @@ function handleCalibFileSelect(event) {
 
 // 自动加载默认标定参数
 function autoLoadDefaultCameraParams() {
-    addLog('info', '尝试自动加载默认相机参数...');
+    addLog('info', '正在等待 ROS2 CameraInfo 话题数据...');
     
-    fetch('/api/camera/load_params', {
-        method: 'POST'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            cameraParamsLoaded = true;
-            const cm = data.camera_matrix;
+    // 显示等待提示
+    document.getElementById('camera-params-info').innerHTML = `
+        <p style="color: #2196f3;">⏳ 等待相机内参数据...</p>
+        <p>优先从 ROS2 CameraInfo 话题获取</p>
+        <p style="font-size: 0.9em; color: #666;">系统会自动加载，请稍候...</p>
+    `;
+    
+    // 定期检查机制会自动获取和更新内参
+    // 不再急于加载文件，让 startCameraInfoUpdate() 处理
+    
+    // 如果10秒后还没有获取到，提示用户可以手动加载
+    setTimeout(() => {
+        if (!cameraParamsLoaded) {
+            addLog('warning', '⚠️ 10秒内未从 ROS2 话题获取到内参，系统将继续等待...');
+            addLog('info', '提示: 可以点击"加载相机参数"按钮手动加载文件（可选）');
             document.getElementById('camera-params-info').innerHTML = `
-                <p>图像尺寸: <span>${data.image_size[0]} x ${data.image_size[1]}</span></p>
-                <p>焦距 fx: <span>${cm.fx.toFixed(2)}</span></p>
-                <p>焦距 fy: <span>${cm.fy.toFixed(2)}</span></p>
-                <p>主点 cx: <span>${cm.cx.toFixed(2)}</span></p>
-                <p>主点 cy: <span>${cm.cy.toFixed(2)}</span></p>
-                <p>畸变系数: <span>${data.dist_coeffs.length}个</span></p>
-                <p>重投影误差: <span>${data.mean_reprojection_error.toFixed(4)} px</span></p>
-            `;
-            addLog('success', `✅ 已自动加载默认相机参数：fx=${cm.fx.toFixed(2)}, fy=${cm.fy.toFixed(2)}`);
-            showToast('已自动加载默认相机参数', 'success');
-        } else {
-            addLog('warning', '未找到默认标定文件，请手动加载');
-            document.getElementById('camera-params-info').innerHTML = `
-                <p style="color: #ff9800;">未找到默认标定文件</p>
-                <p>请点击"加载相机参数"按钮选择标定文件</p>
+                <p style="color: #ff9800;">⏳ 仍在等待 ROS2 CameraInfo 话题...</p>
+                <p>请确保相机节点正在运行</p>
+                <p style="font-size: 0.9em;">或点击"加载相机参数"手动加载文件</p>
             `;
         }
-    })
-    .catch(error => {
-        addLog('warning', '自动加载失败，请手动加载标定参数');
-    });
+    }, 10000);
 }
 
 function captureVerifyImage() {
@@ -1222,6 +1220,71 @@ function updateRobotPose() {
         .catch(error => {
             updateRobotStatus('错误');
         });
+}
+
+// ============= 相机内参更新 =============
+let cameraInfoUpdateInterval = null;
+let cameraInfoSource = null;  // 跟踪当前内参来源
+
+function startCameraInfoUpdate() {
+    // 定期尝试从 ROS2 话题获取内参（话题数据优先级最高）
+    cameraInfoUpdateInterval = setInterval(() => {
+        if (!document.hidden) {
+            updateCameraInfoFromROS2();
+        }
+    }, 5000);  // 每5秒尝试一次
+}
+
+function updateCameraInfoFromROS2() {
+    fetch('/api/camera_info')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.camera_intrinsic) {
+            const cm = data.camera_intrinsic;
+            const imageSizeText = cm.image_size && cm.image_size.length === 2 
+                ? `${cm.image_size[0]} x ${cm.image_size[1]}` 
+                : '未知';
+            
+            // 如果是从 ROS2 话题获取的，或者当前还没有数据，则更新界面
+            if (data.source === 'ros2_topic') {
+                // ROS2 话题数据优先级最高，总是更新
+                if (cameraInfoSource !== 'ros2_topic') {
+                    cameraParamsLoaded = true;
+                    cameraInfoSource = 'ros2_topic';
+                    
+                    document.getElementById('camera-params-info').innerHTML = `
+                        <p>数据源: <span style="color: #4caf50;">(从 ROS2 话题)</span></p>
+                        <p>图像尺寸: <span>${imageSizeText}</span></p>
+                        <p>焦距 fx: <span>${cm.fx.toFixed(2)}</span></p>
+                        <p>焦距 fy: <span>${cm.fy.toFixed(2)}</span></p>
+                        <p>主点 cx: <span>${cm.cx.toFixed(2)}</span></p>
+                        <p>主点 cy: <span>${cm.cy.toFixed(2)}</span></p>
+                        <p>畸变系数: <span>${cm.dist_coeffs ? cm.dist_coeffs.length : 0}个</span></p>
+                    `;
+                    
+                    addLog('success', `✅ 已从 ROS2 CameraInfo 话题获取相机内参：fx=${cm.fx.toFixed(2)}, fy=${cm.fy.toFixed(2)}`);
+                    showToast('已从 ROS2 话题获取相机内参', 'success');
+                }
+            } else if (!cameraParamsLoaded) {
+                // 如果还没有加载过任何数据，使用文件数据
+                cameraParamsLoaded = true;
+                cameraInfoSource = 'loaded_file';
+                
+                document.getElementById('camera-params-info').innerHTML = `
+                    <p>数据源: <span style="color: #2196f3;">(从文件)</span></p>
+                    <p>图像尺寸: <span>${imageSizeText}</span></p>
+                    <p>焦距 fx: <span>${cm.fx.toFixed(2)}</span></p>
+                    <p>焦距 fy: <span>${cm.fy.toFixed(2)}</span></p>
+                    <p>主点 cx: <span>${cm.cx.toFixed(2)}</span></p>
+                    <p>主点 cy: <span>${cm.cy.toFixed(2)}</span></p>
+                    <p>畸变系数: <span>${cm.dist_coeffs ? cm.dist_coeffs.length : 0}个</span></p>
+                `;
+            }
+        }
+    })
+    .catch(error => {
+        // 静默失败，不打印日志
+    });
 }
 
 // ============= 状态更新 =============

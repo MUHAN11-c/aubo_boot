@@ -19,7 +19,7 @@ import numpy as np
 from cv_bridge import CvBridge
 from scipy.spatial.transform import Rotation as R
 from scipy.optimize import least_squares
-from sensor_msgs.msg import Image, CompressedImage, PointCloud2
+from sensor_msgs.msg import Image, CompressedImage, PointCloud2, CameraInfo
 from demo_interface.msg import RobotStatus
 from percipio_camera_interface.msg import CameraStatus, ImageData
 from percipio_camera_interface.srv import SoftwareTrigger
@@ -53,6 +53,7 @@ class HandEyeCalibrationNode(Node):
         self.current_camera_status = None  # 相机状态
         self.current_point_cloud = None  # 当前点云数据（保留兼容性）
         self.current_depth_image = None  # 当前深度图（对齐到彩色图）
+        self.current_camera_info = None  # 当前相机内参（从 CameraInfo 话题获取）
         self.bridge = CvBridge()
         
         # 相机标定工具
@@ -106,25 +107,11 @@ class HandEyeCalibrationNode(Node):
         self.declare_parameter('depth_image_topic', '/camera/depth/image_raw')
         depth_image_topic = self.get_parameter('depth_image_topic').value
         
-        # 深度图缩放因子（参考 depth_z_reader 的实现方式）
-        # depth_z_reader 使用 depth_scale（转换为米），默认 0.00025（适用于 scale_unit=0.25）
-        # hand_eye_calibration 使用 depth_scale_unit（转换为毫米），默认 0.25（适用于 scale_unit=0.25）
-        # 可以通过查看相机节点日志获取：Depth stream scale unit: <value>
-        # 或者通过 TYGetFloat(handle, m_comp, TY_FLOAT_SCALE_UNIT, &f_scale_unit) 从相机获取
-        # 如果未设置，将自动推断
-        self.declare_parameter('depth_scale_unit', '')  # 空字符串表示自动推断
-        depth_scale_unit_str = self.get_parameter('depth_scale_unit').value
-        if depth_scale_unit_str and depth_scale_unit_str.strip():
-            try:
-                depth_scale_unit = float(depth_scale_unit_str)
-                self.calib_utils.depth_scale_unit = depth_scale_unit
-                self.get_logger().info(f'📏 使用指定的深度缩放因子: {depth_scale_unit} (转换为毫米)')
-                self.get_logger().info(f'   参考 depth_z_reader: 如果转换为米，应使用 {depth_scale_unit * 0.001}')
-            except ValueError:
-                self.get_logger().warn(f'⚠️  无效的深度缩放因子值: {depth_scale_unit_str}，将使用自动推断')
-        else:
-            self.get_logger().info('📏 深度缩放因子未指定，将自动推断')
-            self.get_logger().info('   提示: 对于 scale_unit=0.25 的相机，建议设置 depth_scale_unit=0.25')
+        # 深度缩放因子已写死为 0.00025，与 depth_z_reader 完全一致
+        # 参考 depth_z_reader 的实现方式：depth_raw * 0.00025 = 深度（米）
+        # 适用于 scale_unit=0.25 的相机（如 PS800-E1）
+        self.get_logger().info(f'📏 深度缩放因子: {self.calib_utils.DEPTH_SCALE} (与 depth_z_reader 一致)')
+        self.get_logger().info('   深度处理: depth_raw * 0.00025 * 1000 = 深度（毫米）')
         
         self.depth_image_subscription = self.create_subscription(
             Image,
@@ -177,6 +164,18 @@ class HandEyeCalibrationNode(Node):
             self.camera_status_callback,
             10
         )
+        
+        # 订阅相机内参（CameraInfo）
+        # 参考 depth_z_reader 的实现，订阅相机发布的 CameraInfo 话题
+        self.declare_parameter('camera_info_topic', '/camera/color/camera_info')
+        camera_info_topic = self.get_parameter('camera_info_topic').value
+        self.camera_info_subscription = self.create_subscription(
+            CameraInfo,
+            camera_info_topic,
+            self.camera_info_callback,
+            image_qos
+        )
+        self.get_logger().info(f'📡 已订阅 {camera_info_topic} 话题，等待相机内参数据...')
         
         # Flask应用
         self.app = Flask(__name__,
@@ -374,6 +373,57 @@ class HandEyeCalibrationNode(Node):
                     'gain': self.current_camera_status.gain
                 })
             return jsonify({'success': False, 'message': '无相机状态数据'})
+        
+        @self.app.route('/api/camera_info')
+        def get_camera_info():
+            """获取相机内参（从 ROS2 CameraInfo 话题）"""
+            try:
+                # 优先使用从 ROS2 话题获取的内参
+                if self.current_camera_info is not None:
+                    msg = self.current_camera_info
+                    camera_matrix = np.array([
+                        [msg.k[0], msg.k[1], msg.k[2]],
+                        [msg.k[3], msg.k[4], msg.k[5]],
+                        [msg.k[6], msg.k[7], msg.k[8]]
+                    ], dtype=np.float64)
+                    
+                    return jsonify({
+                        'success': True,
+                        'source': 'ros2_topic',
+                        'camera_intrinsic': {
+                            'fx': float(camera_matrix[0, 0]),
+                            'fy': float(camera_matrix[1, 1]),
+                            'cx': float(camera_matrix[0, 2]),
+                            'cy': float(camera_matrix[1, 2]),
+                            'camera_matrix': camera_matrix.tolist(),
+                            'dist_coeffs': list(msg.d),
+                            'image_size': [msg.width, msg.height]
+                        }
+                    })
+                
+                # 如果没有从话题获取，尝试使用已加载的参数
+                if self.calib_utils.camera_matrix is not None:
+                    return jsonify({
+                        'success': True,
+                        'source': 'loaded_file',
+                        'camera_intrinsic': {
+                            'fx': float(self.calib_utils.camera_matrix[0, 0]),
+                            'fy': float(self.calib_utils.camera_matrix[1, 1]),
+                            'cx': float(self.calib_utils.camera_matrix[0, 2]),
+                            'cy': float(self.calib_utils.camera_matrix[1, 2]),
+                            'camera_matrix': self.calib_utils.camera_matrix.tolist(),
+                            'dist_coeffs': self.calib_utils.dist_coeffs.tolist() if self.calib_utils.dist_coeffs is not None else [],
+                            'image_size': []
+                        }
+                    })
+                
+                return jsonify({
+                    'success': False,
+                    'message': '相机内参不可用，请加载标定文件或等待 CameraInfo 话题数据'
+                })
+            except Exception as e:
+                self.get_logger().error(f'获取相机内参失败: {str(e)}')
+                return jsonify({'success': False, 'error': str(e)})
         
         @self.app.route('/api/camera/load_params', methods=['POST'])
         def load_camera_params():
@@ -604,6 +654,49 @@ class HandEyeCalibrationNode(Node):
                         )
                         if depth_error_result['success']:
                             self.get_logger().info(f'深度误差检查完成: 平均误差 {depth_error_result["depth_statistics"]["mean_error"]:.2f} mm')
+                            
+                            # 使用实际深度重新构建3D点（优先使用实际深度，无效时才用估计深度）
+                            # 这样计算相邻角点距离和对角线距离时会更准确
+                            depth_details = depth_error_result.get('depth_details', [])
+                            if len(depth_details) == len(corners_2d):
+                                points_3d_with_real_depth = []
+                                for i, (corner_2d, point_3d_est, detail) in enumerate(zip(corners_2d, points_3d, depth_details)):
+                                    # 优先使用实际深度，如果无效则使用估计深度
+                                    actual_depth = detail.get('actual_depth', 0)
+                                    estimated_depth = detail.get('estimated_depth', point_3d_est[2])
+                                    
+                                    # 使用实际深度（如果有效），否则使用估计深度
+                                    z_to_use = actual_depth if actual_depth > 0 else estimated_depth
+                                    
+                                    # 使用实际深度重新计算3D坐标
+                                    point_3d_real = self.calib_utils.pixel_to_camera_coords(
+                                        corner_2d.reshape(1, 2), z_to_use
+                                    )[0]
+                                    points_3d_with_real_depth.append(point_3d_real)
+                                
+                                # 更新points_3d和corners_3d为使用实际深度的版本
+                                points_3d = np.array(points_3d_with_real_depth)
+                                self.corners_3d = points_3d
+                                
+                                # 重新计算相邻距离（使用实际深度）
+                                distances = self.calib_utils.calculate_adjacent_distances(
+                                    points_3d, self.pattern_size
+                                )
+                                
+                                # 更新corners_data中的3D坐标和距离
+                                corners_data = []
+                                for i, (corner, point_3d, dist) in enumerate(zip(corners_2d, points_3d, distances)):
+                                    corners_data.append({
+                                        'index': i,
+                                        'pixel_u': float(corner[0]),
+                                        'pixel_v': float(corner[1]),
+                                        'camera_x': float(point_3d[0]),
+                                        'camera_y': float(point_3d[1]),
+                                        'camera_z': float(point_3d[2]),  # 现在使用实际深度
+                                        'adjacent_distance': float(dist)
+                                    })
+                                
+                                self.get_logger().info('✅ 已使用实际深度重新构建3D点，距离计算更准确')
                     except Exception as e:
                         self.get_logger().warn(f'深度误差检查失败: {str(e)}')
                 
@@ -799,6 +892,34 @@ class HandEyeCalibrationNode(Node):
                         if depth_error_result.get('success'):
                             result['depth_error'] = depth_error_result
                             self.get_logger().info(f'深度误差检查完成: 平均误差 {depth_error_result["depth_statistics"]["mean_error"]:.2f} mm')
+                            
+                            # 使用实际深度重新构建3D点并重新计算距离
+                            depth_details = depth_error_result.get('depth_details', [])
+                            corners_2d = self.detected_corners.reshape(-1, 2)
+                            if len(depth_details) == len(corners_2d):
+                                points_3d_with_real_depth = []
+                                for i, (corner_2d, detail) in enumerate(zip(corners_2d, depth_details)):
+                                    # 优先使用实际深度，无效时使用估计深度
+                                    actual_depth = detail.get('actual_depth', 0)
+                                    estimated_depth = detail.get('estimated_depth', self.corners_3d[i][2] if i < len(self.corners_3d) else 0)
+                                    z_to_use = actual_depth if actual_depth > 0 else estimated_depth
+                                    
+                                    # 使用实际深度重新计算3D坐标
+                                    point_3d_real = self.calib_utils.pixel_to_camera_coords(
+                                        corner_2d.reshape(1, 2), z_to_use
+                                    )[0]
+                                    points_3d_with_real_depth.append(point_3d_real)
+                                
+                                # 更新corners_3d
+                                self.corners_3d = np.array(points_3d_with_real_depth)
+                                
+                                # 重新计算距离（使用实际深度）
+                                result = self.calib_utils.calculate_max_distance_error(
+                                    self.corners_3d, self.pattern_size, expected_size
+                                )
+                                result['depth_error'] = depth_error_result
+                                
+                                self.get_logger().info('✅ 距离计算使用实际深度，结果更准确')
                     except Exception as e:
                         self.get_logger().warn(f'深度误差检查失败: {str(e)}')
                 
@@ -1997,6 +2118,44 @@ class HandEyeCalibrationNode(Node):
     def camera_status_callback(self, msg):
         """相机状态回调函数"""
         self.current_camera_status = msg
+    
+    def camera_info_callback(self, msg):
+        """相机内参回调函数 - 从 CameraInfo 话题获取相机内参"""
+        try:
+            # 保存 CameraInfo 消息
+            self.current_camera_info = msg
+            
+            # 提取相机内参矩阵 K (3x3)
+            # K = [fx  0 cx]
+            #     [ 0 fy cy]
+            #     [ 0  0  1]
+            camera_matrix = np.array([
+                [msg.k[0], msg.k[1], msg.k[2]],
+                [msg.k[3], msg.k[4], msg.k[5]],
+                [msg.k[6], msg.k[7], msg.k[8]]
+            ], dtype=np.float64)
+            
+            # 提取畸变系数
+            dist_coeffs = np.array(msg.d, dtype=np.float64)
+            
+            # 更新到 calib_utils（如果还没有从文件加载）
+            if self.calib_utils.camera_matrix is None:
+                self.calib_utils.camera_matrix = camera_matrix
+                self.calib_utils.dist_coeffs = dist_coeffs
+                self.get_logger().info(
+                    f'📷 从 CameraInfo 话题获取相机内参: '
+                    f'fx={camera_matrix[0,0]:.2f}, fy={camera_matrix[1,1]:.2f}, '
+                    f'cx={camera_matrix[0,2]:.2f}, cy={camera_matrix[1,2]:.2f}',
+                    throttle_duration_sec=10.0
+                )
+            
+            # 同时更新到 camera_calibration_data
+            if self.camera_calibration_data['camera_matrix'] is None:
+                self.camera_calibration_data['camera_matrix'] = camera_matrix
+                self.camera_calibration_data['dist_coeffs'] = dist_coeffs
+                
+        except Exception as e:
+            self.get_logger().error(f'处理 CameraInfo 消息失败: {str(e)}')
     
     def depth_image_callback(self, msg):
         """深度图回调函数 - 保存当前深度图用于深度误差检查"""

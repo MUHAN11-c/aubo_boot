@@ -401,7 +401,7 @@ function autoLoadDefaultCameraParams() {
     addLog('info', '正在等待 ROS2 CameraInfo 话题数据...');
     
     // 显示等待提示
-    document.getElementById('camera-params-info').innerHTML = `
+            document.getElementById('camera-params-info').innerHTML = `
         <p style="color: #2196f3;">⏳ 等待相机内参数据...</p>
         <p>优先从 ROS2 CameraInfo 话题获取</p>
         <p style="font-size: 0.9em; color: #666;">系统会自动加载，请稍候...</p>
@@ -1284,7 +1284,7 @@ function updateCameraInfoFromROS2() {
     })
     .catch(error => {
         // 静默失败，不打印日志
-    });
+        });
 }
 
 // ============= 状态更新 =============

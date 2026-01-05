@@ -83,7 +83,7 @@ class CameraCalibrationUtils:
                 'success': False,
                 'error': str(e)
             }
-    
+        
     def load_camera_params(self, xml_file: str) -> Dict:
         """
         加载相机标定参数从XML文件
@@ -278,7 +278,7 @@ class CameraCalibrationUtils:
                 distances.append(dist)
             else:
                 # 右下角的点没有右侧和下侧相邻点，使用0.0
-                distances.append(0.0)
+                    distances.append(0.0)
         
         return distances
     
@@ -500,13 +500,6 @@ class CameraCalibrationUtils:
             return None
             
         except Exception as e:
-            # #region agent log
-            log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
-            import json
-            import time
-            log_file.write(json.dumps({'id': 'log_get_depth_image_exception', 'timestamp': int(time.time()*1000), 'location': 'camera_calibration_utils.py:365', 'message': 'get_depth_from_depth_image异常', 'data': {'error': str(e), 'pixel_u': pixel_u, 'pixel_v': pixel_v}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'Q'}) + '\n')
-            log_file.close()
-            # #endregion
             return None
     
     def get_depth_from_point_cloud(self, point_cloud_msg, pixel_u: int, pixel_v: int, 
@@ -598,13 +591,6 @@ class CameraCalibrationUtils:
                                 depths.append(z * 1000.0)  # 转换为mm
                     
                 except Exception as e:
-                    # #region agent log
-                    log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
-                    import json
-                    import time
-                    log_file.write(json.dumps({'id': 'log_pc2_read_error', 'timestamp': int(time.time()*1000), 'location': 'camera_calibration_utils.py:508', 'message': '读取点云失败', 'data': {'error': str(e), 'pixel_u': pixel_u, 'pixel_v': pixel_v}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'M'}) + '\n')
-                    log_file.close()
-                    # #endregion
                     return None
             
             if len(depths) == 0:
@@ -614,13 +600,6 @@ class CameraCalibrationUtils:
             return float(np.median(depths))
             
         except Exception as e:
-            # #region agent log
-            log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
-            import json
-            import time
-            log_file.write(json.dumps({'id': 'log_get_depth_exception', 'timestamp': int(time.time()*1000), 'location': 'camera_calibration_utils.py:435', 'message': 'get_depth_from_point_cloud异常', 'data': {'error': str(e), 'pixel_u': pixel_u, 'pixel_v': pixel_v}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'N'}) + '\n')
-            log_file.close()
-            # #endregion
             return None
     
     def evaluate_depth_error(self, corners: np.ndarray, depth_data, 
@@ -690,14 +669,6 @@ class CameraCalibrationUtils:
         # 平均估计深度（用于显示）
         mean_estimated_z = np.mean(estimated_depths_per_corner)
         
-        # #region agent log
-        # 记录solvePnP的tvec值，用于验证估计深度
-        log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
-        import json
-        import time
-        log_file.write(json.dumps({'id': 'log_estimate_z_result', 'timestamp': int(time.time()*1000), 'location': 'camera_calibration_utils.py:629', 'message': '深度估计完成', 'data': {'tvec_x': float(tvec[0, 0]), 'tvec_y': float(tvec[1, 0]), 'tvec_z': float(tvec[2, 0]), 'mean_estimated_z': mean_estimated_z, 'min_estimated_z': float(np.min(estimated_depths_per_corner)), 'max_estimated_z': float(np.max(estimated_depths_per_corner)), 'std_estimated_z': float(np.std(estimated_depths_per_corner))}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'K'}) + '\n')
-        log_file.close()
-        # #endregion
         
         # 从深度图或点云中获取每个角点的实际深度
         # 重新定义corners_2d用于遍历（形状为(N, 2)）
@@ -711,24 +682,6 @@ class CameraCalibrationUtils:
         is_depth_image = isinstance(depth_data, np.ndarray)
         search_radius = 3  # 深度图使用较小的搜索半径即可
         
-        # #region agent log
-        # 记录深度图的整体统计信息
-        log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
-        import json
-        import time
-        if is_depth_image:
-            # 统计深度图的非零值
-            valid_pixels = depth_data[depth_data > 0]
-            if len(valid_pixels) > 0:
-                log_file.write(json.dumps({'id': 'log_depth_image_stats', 'timestamp': int(time.time()*1000), 'location': 'camera_calibration_utils.py:649', 'message': '深度图整体统计', 'data': {'shape': list(depth_data.shape), 'dtype': str(depth_data.dtype), 'valid_pixel_count': int(len(valid_pixels)), 'raw_min': float(np.min(valid_pixels)), 'raw_max': float(np.max(valid_pixels)), 'raw_median': float(np.median(valid_pixels)), 'raw_mean': float(np.mean(valid_pixels)), 'raw_std': float(np.std(valid_pixels))}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'V'}) + '\n')
-            log_file.write(json.dumps({'id': 'log_extract_depth_start', 'timestamp': int(time.time()*1000), 'location': 'camera_calibration_utils.py:658', 'message': '开始从深度图提取深度', 'data': {'width': depth_data.shape[1], 'height': depth_data.shape[0], 'dtype': str(depth_data.dtype), 'search_radius': search_radius, 'total_corners': len(corners_2d)}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'O'}) + '\n')
-        else:
-            # 向后兼容：点云数据
-            is_organized = depth_data.height > 1
-            search_radius = 3 if is_organized else 15
-            log_file.write(json.dumps({'id': 'log_extract_depth_start', 'timestamp': int(time.time()*1000), 'location': 'camera_calibration_utils.py:664', 'message': '开始从点云提取深度', 'data': {'is_organized': is_organized, 'width': depth_data.width, 'height': depth_data.height, 'search_radius': search_radius, 'total_corners': len(corners_2d)}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'O'}) + '\n')
-        log_file.close()
-        # #endregion
         
         # 统计信息
         total_corners = len(corners_2d)
@@ -756,24 +709,11 @@ class CameraCalibrationUtils:
             
             if actual_depth is None:
                 no_depth_count += 1
-                # #region agent log
-                log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
-                log_file.write(json.dumps({'id': 'log_no_depth_value', 'timestamp': int(time.time()*1000), 'location': 'camera_calibration_utils.py:655', 'message': '角点无深度值', 'data': {'corner_index': i, 'pixel_u': pixel_u, 'pixel_v': pixel_v}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'S'}) + '\n')
-                log_file.close()
-                # #endregion
                 continue
             
             # 使用该角点对应的估计深度（考虑棋盘格倾斜）
             estimated_depth = estimated_depths_per_corner[i]
             
-            # #region agent log
-            if i < 5:  # 记录前几个角点的详细信息
-                log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
-                import json
-                import time
-                log_file.write(json.dumps({'id': 'log_depth_comparison', 'timestamp': int(time.time()*1000), 'location': 'camera_calibration_utils.py:690', 'message': '深度对比', 'data': {'corner_index': i, 'pixel_u': pixel_u, 'pixel_v': pixel_v, 'estimated_depth': estimated_depth, 'actual_depth': actual_depth, 'ratio': actual_depth / estimated_depth if estimated_depth > 0 else 0}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'N'}) + '\n')
-                log_file.close()
-            # #endregion
             
             # 过滤异常深度值（深度值应该在合理范围内）
             # 如果实际深度与估计深度差异过大，可能是深度图噪声，跳过
@@ -784,23 +724,8 @@ class CameraCalibrationUtils:
             if estimated_depth > 0:
                 depth_ratio = actual_depth / estimated_depth
                 should_filter = bool(depth_ratio < DEPTH_RATIO_MIN or depth_ratio > DEPTH_RATIO_MAX)  # 转换为 Python bool 类型，避免 JSON 序列化错误
-                # #region agent log
-                if i < 3:  # 记录前几个点的详细信息用于调试
-                    log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
-                    import json
-                    import time
-                    log_file.write(json.dumps({'id': 'log_depth_filter_check', 'timestamp': int(time.time()*1000), 'location': 'camera_calibration_utils.py:697', 'message': '深度过滤检查', 'data': {'corner_index': i, 'depth_ratio': float(depth_ratio), 'min_threshold': DEPTH_RATIO_MIN, 'max_threshold': DEPTH_RATIO_MAX, 'should_filter': should_filter}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'T'}) + '\n')
-                    log_file.close()
-                # #endregion
                 if should_filter:  # 实际深度应该在估计深度的5%-2000%范围内（非常宽松的阈值）
                     filtered_count += 1
-                    # #region agent log
-                    log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
-                    import json
-                    import time
-                    log_file.write(json.dumps({'id': 'log_depth_outlier_filtered', 'timestamp': int(time.time()*1000), 'location': 'camera_calibration_utils.py:705', 'message': '过滤异常深度值', 'data': {'corner_index': i, 'pixel_u': pixel_u, 'pixel_v': pixel_v, 'estimated_depth': estimated_depth, 'actual_depth': actual_depth, 'depth_ratio': depth_ratio, 'min_threshold': DEPTH_RATIO_MIN, 'max_threshold': DEPTH_RATIO_MAX}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'R'}) + '\n')
-                    log_file.close()
-                    # #endregion
                     continue  # 跳过异常值
             
             valid_count += 1
@@ -823,11 +748,6 @@ class CameraCalibrationUtils:
                 'relative_error_percent': float(relative_error_percent)
             })
         
-        # #region agent log
-        log_file = open('/home/mu/IVG/.cursor/debug.log', 'a')
-        log_file.write(json.dumps({'id': 'log_depth_extraction_result', 'timestamp': int(time.time()*1000), 'location': 'camera_calibration_utils.py:730', 'message': '深度提取结果统计', 'data': {'total_corners': total_corners, 'valid_points': len(actual_depths), 'no_depth_count': no_depth_count, 'filtered_count': filtered_count, 'valid_count': valid_count}, 'sessionId': 'debug-session', 'runId': 'run1', 'hypothesisId': 'L'}) + '\n')
-        log_file.close()
-        # #endregion
         
         if len(actual_depths) == 0:
             return {

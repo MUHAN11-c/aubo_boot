@@ -5,8 +5,9 @@ let robotPoseUpdateInterval = null;
 let capturedPoses = [];
 
 // 放大镜配置
-const MAGNIFIER_ZOOM = 3; // 放大倍数
-const MAGNIFIER_SIZE = 100; // 采样区域大小（像素）
+const MAGNIFIER_ZOOM = 5; // 放大倍数（提高以获得更好的细节观察）
+const MAGNIFIER_SIZE = 80; // 采样区域大小（像素，减小以获得更高放大倍数）
+const MAGNIFIER_SMOOTHING = true; // 图像平滑（true=平滑，false=像素清晰）
 
 // 手动选点模式
 let manualPickMode = false;
@@ -245,7 +246,9 @@ function drawMagnifier(imageElement, canvas, ctx, container, mouseX = null, mous
     ctx.clearRect(0, 0, containerWidth, containerHeight);
     
     // 绘制放大的图像 - 填满整个canvas
-    ctx.imageSmoothingEnabled = false; // 保持像素清晰
+    // 使用高质量图像平滑以获得更好的视觉效果
+    ctx.imageSmoothingEnabled = MAGNIFIER_SMOOTHING;
+    ctx.imageSmoothingQuality = 'high'; // 高质量平滑
     ctx.drawImage(imageElement, sx, sy, sw, sh, 0, 0, containerWidth, containerHeight);
     
     // 绘制十字线 - 固定在canvas中心
@@ -443,15 +446,15 @@ function autoLoadDefaultCameraParams() {
         <p style="color: #2196f3;">⏳ 等待相机内参数据...</p>
         <p>优先从 ROS2 CameraInfo 话题获取</p>
         <p style="font-size: 0.9em; color: #666;">系统会自动加载，请稍候...</p>
-    `;
-    
+            `;
+            
     // 显示等待提示
     document.getElementById('camera-params-info').innerHTML = waitingHTML;
-    const heParamsInfo = document.getElementById('he-camera-params-info');
-    if (heParamsInfo) {
+            const heParamsInfo = document.getElementById('he-camera-params-info');
+            if (heParamsInfo) {
         heParamsInfo.innerHTML = waitingHTML;
-    }
-    
+            }
+            
     // 定期检查机制会自动获取和更新内参（由 startCameraInfoUpdate() 处理）
     // 不再自动从文件加载，完全依赖 ROS2 话题
     
@@ -3985,7 +3988,7 @@ function updateCameraInfoFromROS2() {
     })
     .catch(error => {
         // 静默失败，不打印日志
-    });
+        });
 }
 
 // ============= 状态更新 =============

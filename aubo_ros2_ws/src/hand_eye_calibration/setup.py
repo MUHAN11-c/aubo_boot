@@ -17,6 +17,7 @@ setup(
         (os.path.join('share', package_name, 'web/static'), glob('web/static/*.*')),
         (os.path.join('share', package_name, 'web/templates'), glob('web/templates/*.*')),
         (os.path.join('share', package_name, 'config'), glob('config/*.*')),
+        (os.path.join('share', package_name, 'config/calibrationdata'), glob('config/calibrationdata/*.*')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

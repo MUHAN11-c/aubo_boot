@@ -14,6 +14,7 @@ from flask_cors import CORS
 import threading
 import os
 import json
+import time
 import cv2
 import numpy as np
 from cv_bridge import CvBridge
@@ -51,6 +52,7 @@ class HandEyeCalibrationNode(Node):
         # 数据存储
         self.current_image = None
         self.current_image_raw = None  # 保存原始BGR图像用于处理
+        self._image_is_undistorted = False  # 标记当前图像是否已去畸变
         self.current_robot_pose = None
         self.current_robot_status = None  # 完整的机器人状态（包括is_online等）
         self.current_robot_status_timestamp = None  # 机器人状态时间戳（原始类型）
@@ -70,7 +72,7 @@ class HandEyeCalibrationNode(Node):
         # 角点检测结果
         self.detected_corners = None
         self.corners_3d = None
-        self.pattern_size = (10, 7)  # 默认棋盘格大小
+        self.pattern_size = (9, 6)  # 默认棋盘格大小（9x6 = 54个内角点）
         
         # 标定数据
         self.camera_calibration_data = {
@@ -158,17 +160,44 @@ class HandEyeCalibrationNode(Node):
             10
         )
         
-        # 订阅相机内参（CameraInfo）
-        # 参考 depth_z_reader 的实现，订阅相机发布的 CameraInfo 话题
-        self.declare_parameter('camera_info_topic', '/camera/color/camera_info')
-        camera_info_topic = self.get_parameter('camera_info_topic').value
-        self.camera_info_subscription = self.create_subscription(
-            CameraInfo,
-            camera_info_topic,
-            self.camera_info_callback,
-            image_qos
-        )
-        self.get_logger().info(f'📡 已订阅 {camera_info_topic} 话题，等待相机内参数据...')
+        # 完全从文件加载相机内参（不使用 CameraInfo 话题）
+        import yaml
+        try:
+            from ament_index_python.packages import get_package_share_directory
+            package_share = get_package_share_directory('hand_eye_calibration')
+            ost_path = os.path.join(package_share, 'config', 'calibrationdata', 'ost.yaml')
+            
+            if os.path.exists(ost_path):
+                with open(ost_path, 'r') as f:
+                    calib_data = yaml.safe_load(f)
+                
+                # 提取相机内参矩阵
+                if 'camera_matrix' in calib_data:
+                    camera_matrix_data = calib_data['camera_matrix']['data']
+                    self.calib_utils.camera_matrix = np.array(camera_matrix_data).reshape(3, 3)
+                
+                # 提取畸变系数
+                if 'distortion_coefficients' in calib_data:
+                    dist_data = calib_data['distortion_coefficients']['data']
+                    self.calib_utils.dist_coeffs = np.array(dist_data, dtype=np.float64)
+                    self.get_logger().info(f'✅ 从文件加载畸变系数: {self.calib_utils.dist_coeffs[:5]}')
+                
+                # 提取图像尺寸
+                if 'image_width' in calib_data and 'image_height' in calib_data:
+                    self.calib_utils.image_size = (calib_data['image_width'], calib_data['image_height'])
+                
+                # 同时更新到 camera_calibration_data
+                self.camera_calibration_data['camera_matrix'] = self.calib_utils.camera_matrix
+                self.camera_calibration_data['dist_coeffs'] = self.calib_utils.dist_coeffs
+                self.camera_calibration_data['image_size'] = self.calib_utils.image_size
+                
+                self.get_logger().info(f'✅ 从文件加载相机内参: fx={self.calib_utils.camera_matrix[0,0]:.2f}, fy={self.calib_utils.camera_matrix[1,1]:.2f}, cx={self.calib_utils.camera_matrix[0,2]:.2f}, cy={self.calib_utils.camera_matrix[1,2]:.2f}')
+                self.get_logger().info(f'   图像尺寸: {self.calib_utils.image_size}')
+            else:
+                self.get_logger().error(f'❌ 相机标定文件不存在: {ost_path}')
+                self.get_logger().error('   请先进行相机内参标定或提供 ost.yaml 文件')
+        except Exception as e:
+            self.get_logger().error(f'❌ 加载相机内参失败: {str(e)}')
         
         # Flask应用
         self.app = Flask(__name__,
@@ -526,6 +555,7 @@ class HandEyeCalibrationNode(Node):
                 # 保存当前图像
                 self.current_image = image
                 self.current_image_raw = image.copy()
+                self._image_is_undistorted = False  # 新图像未去畸变
                 
                 # 转换为base64返回
                 encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
@@ -613,7 +643,7 @@ class HandEyeCalibrationNode(Node):
                         'adjacent_distance': float(dist)
                     })
                 
-                # 深度误差检查（如果深度图可用）
+                # 深度误差检查（如果深度图可用）- 仅用于验证，不用于计算
                 depth_error_result = None
                 if self.current_depth_image is not None:
                     try:
@@ -622,49 +652,7 @@ class HandEyeCalibrationNode(Node):
                         )
                         if depth_error_result['success']:
                             self.get_logger().info(f'深度误差检查完成: 平均误差 {depth_error_result["depth_statistics"]["mean_error"]:.2f} mm')
-                            
-                            # 使用实际深度重新构建3D点（优先使用实际深度，无效时才用估计深度）
-                            # 这样计算相邻角点距离和对角线距离时会更准确
-                            depth_details = depth_error_result.get('depth_details', [])
-                            if len(depth_details) == len(corners_2d):
-                                points_3d_with_real_depth = []
-                                for i, (corner_2d, point_3d_est, detail) in enumerate(zip(corners_2d, points_3d, depth_details)):
-                                    # 优先使用实际深度，如果无效则使用估计深度
-                                    actual_depth = detail.get('actual_depth', 0)
-                                    estimated_depth = detail.get('estimated_depth', point_3d_est[2])
-                                    
-                                    # 使用实际深度（如果有效），否则使用估计深度
-                                    z_to_use = actual_depth if actual_depth > 0 else estimated_depth
-                                    
-                                    # 使用实际深度重新计算3D坐标
-                                    point_3d_real = self.calib_utils.pixel_to_camera_coords(
-                                        corner_2d.reshape(1, 2), z_to_use
-                                    )[0]
-                                    points_3d_with_real_depth.append(point_3d_real)
-                                
-                                # 更新points_3d和corners_3d为使用实际深度的版本
-                                points_3d = np.array(points_3d_with_real_depth)
-                                self.corners_3d = points_3d
-                                
-                                # 重新计算相邻距离（使用实际深度）
-                                distances = self.calib_utils.calculate_adjacent_distances(
-                                    points_3d, self.pattern_size
-                                )
-                                
-                                # 更新corners_data中的3D坐标和距离
-                                corners_data = []
-                                for i, (corner, point_3d, dist) in enumerate(zip(corners_2d, points_3d, distances)):
-                                    corners_data.append({
-                                        'index': i,
-                                        'pixel_u': float(corner[0]),
-                                        'pixel_v': float(corner[1]),
-                                        'camera_x': float(point_3d[0]),
-                                        'camera_y': float(point_3d[1]),
-                                        'camera_z': float(point_3d[2]),  # 现在使用实际深度
-                                        'adjacent_distance': float(dist)
-                                    })
-                                
-                                self.get_logger().info('✅ 已使用实际深度重新构建3D点，距离计算更准确')
+                            self.get_logger().info('📊 深度数据仅用于验证，计算使用估计z值')
                     except Exception as e:
                         self.get_logger().warn(f'深度误差检查失败: {str(e)}')
                 
@@ -772,15 +760,53 @@ class HandEyeCalibrationNode(Node):
                 
                 self.get_logger().info(f'🔍 调用solvePnP：obj_points={obj_points.shape}, corners_2d={corners_2d.shape}')
                 
+                # 如果图像已去畸变，不使用畸变系数（避免双重校正）
+                dist_coeffs_to_use = None if self._image_is_undistorted else self.calib_utils.dist_coeffs
+                
+                self.get_logger().info(f'🔍 solvePnP配置: 图像已去畸变={self._image_is_undistorted}, 使用畸变系数={dist_coeffs_to_use is not None}')
+                
                 success, rvec, tvec = cv2.solvePnP(
                     obj_points,
                     corners_2d,
                     self.calib_utils.camera_matrix,
-                    self.calib_utils.dist_coeffs
+                    dist_coeffs_to_use
                 )
                 
                 if not success:
                     return jsonify({'success': False, 'error': 'solvePnP求解失败'})
+                
+                # 计算重投影误差（用于评估solvePnP质量）
+                # 重要：必须使用与solvePnP相同的畸变系数！
+                projected_points, _ = cv2.projectPoints(
+                    obj_points,
+                    rvec,
+                    tvec,
+                    self.calib_utils.camera_matrix,
+                    dist_coeffs_to_use  # 修复：使用与solvePnP相同的畸变系数
+                )
+                projected_points = projected_points.reshape(-1, 2)
+                corners_reshaped = corners.reshape(-1, 2)
+                reprojection_errors = np.linalg.norm(corners_reshaped - projected_points, axis=1)
+                mean_reprojection_error = np.mean(reprojection_errors)
+                max_reprojection_error = np.max(reprojection_errors)
+                
+                # 记录重投影误差（用于诊断）
+                if mean_reprojection_error > 10.0:  # 误差超过10像素，严重问题
+                    self.get_logger().error(f'❌ 重投影误差严重异常：平均 {mean_reprojection_error:.3f} 像素，最大 {max_reprojection_error:.3f} 像素')
+                    self.get_logger().error(f'   正常情况下重投影误差应小于1像素！')
+                    self.get_logger().error(f'   可能原因：')
+                    self.get_logger().error(f'     1. 相机内参不准确（请重新标定相机内参）')
+                    self.get_logger().error(f'     2. 棋盘格尺寸设置错误（当前检测到{len(corners)}个角点）')
+                    self.get_logger().error(f'     3. 畸变校正参数不正确')
+                    self.get_logger().error(f'     4. 标定板角点检测不准确')
+                    self.get_logger().error(f'   建议：不要使用此姿态数据进行手眼标定！')
+                elif mean_reprojection_error > 2.0:  # 误差超过2像素
+                    self.get_logger().warning(f'⚠️ 重投影误差较大：平均 {mean_reprojection_error:.3f} 像素，最大 {max_reprojection_error:.3f} 像素')
+                    self.get_logger().warning(f'   正常情况下应小于1像素，建议检查相机标定参数')
+                elif mean_reprojection_error > 1.0:  # 误差超过1像素
+                    self.get_logger().warning(f'⚠️ 重投影误差略高：平均 {mean_reprojection_error:.3f} 像素，最大 {max_reprojection_error:.3f} 像素')
+                else:
+                    self.get_logger().info(f'✅ 重投影误差良好：平均 {mean_reprojection_error:.3f} 像素，最大 {max_reprojection_error:.3f} 像素')
                 
                 # 将旋转向量转换为旋转矩阵
                 R_board2cam, _ = cv2.Rodrigues(rvec)
@@ -839,6 +865,36 @@ class HandEyeCalibrationNode(Node):
                 _, buffer = cv2.imencode('.jpg', img_with_features, encode_param)
                 img_base64 = base64.b64encode(buffer).decode('utf-8')
                 
+                # 计算每个角点在相机坐标系下的3D坐标
+                corners_3d = []
+                if corners is not None:
+                    for j in range(actual_h):
+                        for i in range(actual_w):
+                            idx = j * actual_w + i
+                            if idx < len(corners):
+                                # 角点在标定板坐标系下的坐标
+                                obj_point = np.array([i * square_size, j * square_size, 0.0], dtype=np.float32)
+                                # 转换为相机坐标系
+                                obj_point_cam = R_board2cam @ obj_point.reshape(3, 1) + tvec
+                                corners_3d.append({
+                                    'x': float(obj_point_cam[0, 0]),
+                                    'y': float(obj_point_cam[1, 0]),
+                                    'z': float(obj_point_cam[2, 0])
+                                })
+                
+                # 准备角点列表（像素坐标）
+                corners_list = []
+                if corners is not None:
+                    # 确保corners是(N, 2)形状的数组
+                    corners_flat = corners.reshape(-1, 2)
+                    for idx in range(len(corners_flat)):
+                        corner = corners_flat[idx]
+                        corners_list.append({
+                            'index': idx,
+                            'u': float(corner[0]),
+                            'v': float(corner[1])
+                        })
+                
                 return jsonify({
                     'success': True,
                     'position': position,
@@ -849,7 +905,11 @@ class HandEyeCalibrationNode(Node):
                         'z': position['z']
                     },
                     'image_with_corners': f'data:image/jpeg;base64,{img_base64}',
-                    'corners_count': len(corners) if corners is not None else 0
+                    'corners_count': len(corners) if corners is not None else 0,
+                    'corners': corners_list,  # 角点像素坐标列表
+                    'corners_3d': corners_3d,  # 角点相机坐标列表
+                    'reprojection_error': float(mean_reprojection_error),  # 平均重投影误差（像素）
+                    'max_reprojection_error': float(max_reprojection_error)  # 最大重投影误差（像素）
                 })
                 
             except Exception as e:
@@ -939,7 +999,7 @@ class HandEyeCalibrationNode(Node):
                     self.corners_3d, self.pattern_size, expected_size
                 )
                 
-                # 深度误差检查（如果深度图数据可用）
+                # 深度误差检查（如果深度图数据可用）- 仅用于验证，不用于计算
                 if self.current_depth_image is not None:
                     try:
                         depth_error_result = self.calib_utils.evaluate_depth_error(
@@ -951,34 +1011,7 @@ class HandEyeCalibrationNode(Node):
                         if depth_error_result.get('success'):
                             result['depth_error'] = depth_error_result
                             self.get_logger().info(f'深度误差检查完成: 平均误差 {depth_error_result["depth_statistics"]["mean_error"]:.2f} mm')
-                            
-                            # 使用实际深度重新构建3D点并重新计算距离
-                            depth_details = depth_error_result.get('depth_details', [])
-                            corners_2d = self.detected_corners.reshape(-1, 2)
-                            if len(depth_details) == len(corners_2d):
-                                points_3d_with_real_depth = []
-                                for i, (corner_2d, detail) in enumerate(zip(corners_2d, depth_details)):
-                                    # 优先使用实际深度，无效时使用估计深度
-                                    actual_depth = detail.get('actual_depth', 0)
-                                    estimated_depth = detail.get('estimated_depth', self.corners_3d[i][2] if i < len(self.corners_3d) else 0)
-                                    z_to_use = actual_depth if actual_depth > 0 else estimated_depth
-                                    
-                                    # 使用实际深度重新计算3D坐标
-                                    point_3d_real = self.calib_utils.pixel_to_camera_coords(
-                                        corner_2d.reshape(1, 2), z_to_use
-                                    )[0]
-                                    points_3d_with_real_depth.append(point_3d_real)
-                                
-                                # 更新corners_3d
-                                self.corners_3d = np.array(points_3d_with_real_depth)
-                                
-                                # 重新计算距离（使用实际深度）
-                                result = self.calib_utils.calculate_max_distance_error(
-                                    self.corners_3d, self.pattern_size, expected_size
-                                )
-                                result['depth_error'] = depth_error_result
-                                
-                                self.get_logger().info('✅ 距离计算使用实际深度，结果更准确')
+                            self.get_logger().info('📊 深度数据仅用于验证，计算使用估计z值')
                     except Exception as e:
                         self.get_logger().warn(f'深度误差检查失败: {str(e)}')
                 
@@ -1033,6 +1066,7 @@ class HandEyeCalibrationNode(Node):
                 # 更新当前图像
                 self.current_image = undistorted
                 self.current_image_raw = undistorted.copy()
+                self._image_is_undistorted = True  # 标记图像已去畸变
                 
                 # 转换为base64 - 使用较低质量以减小数据量
                 encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 85]
@@ -1089,6 +1123,8 @@ class HandEyeCalibrationNode(Node):
                 self.get_logger().info(f'🤖 开始Eye-in-Hand手眼标定（姿态法）')
                 self.get_logger().info(f'   标定场景: 相机安装在机器人末端')
                 self.get_logger().info(f'   运动组数: {len(motion_groups)}')
+                self.get_logger().info(f'   标定方法: AX=XB (Tsai-Lenz类)')
+                self.get_logger().info(f'   单位统一: 机器人位姿(米→毫米), 标定板位姿(毫米)')
                 
                 if len(motion_groups) < 2:
                     return jsonify({
@@ -1118,16 +1154,19 @@ class HandEyeCalibrationNode(Node):
                             self.get_logger().warning(f'   运动组 #{idx+1} 数据不完整，已跳过')
                             continue
                         
-                        # 构建变换矩阵
+                        # 构建变换矩阵（将机器人位姿从米转换为毫米，保持单位一致）
+                        # 机器人位姿原始单位：米(m) → 转换为毫米(mm)
+                        # 标定板位姿单位：毫米(mm)（solvePnP使用square_size=15.0mm）
                         T_gripper1 = _pose_to_transform_matrix(
-                            {'x': pose1_data['robot_pos_x'], 'y': pose1_data['robot_pos_y'], 'z': pose1_data['robot_pos_z']},
+                            {'x': pose1_data['robot_pos_x'] * 1000.0, 'y': pose1_data['robot_pos_y'] * 1000.0, 'z': pose1_data['robot_pos_z'] * 1000.0},
                             {'x': pose1_data['robot_ori_x'], 'y': pose1_data['robot_ori_y'], 'z': pose1_data['robot_ori_z'], 'w': pose1_data['robot_ori_w']}
                         )
                         T_gripper2 = _pose_to_transform_matrix(
-                            {'x': pose2_data['robot_pos_x'], 'y': pose2_data['robot_pos_y'], 'z': pose2_data['robot_pos_z']},
+                            {'x': pose2_data['robot_pos_x'] * 1000.0, 'y': pose2_data['robot_pos_y'] * 1000.0, 'z': pose2_data['robot_pos_z'] * 1000.0},
                             {'x': pose2_data['robot_ori_x'], 'y': pose2_data['robot_ori_y'], 'z': pose2_data['robot_ori_z'], 'w': pose2_data['robot_ori_w']}
                         )
                         
+                        # 标定板位姿（已经是毫米单位）
                         T_board1 = _pose_to_transform_matrix(
                             {'x': board_pose1_data['position']['x'], 'y': board_pose1_data['position']['y'], 'z': board_pose1_data['position']['z']},
                             {'x': board_pose1_data['orientation']['x'], 'y': board_pose1_data['orientation']['y'], 
@@ -1139,13 +1178,27 @@ class HandEyeCalibrationNode(Node):
                              'z': board_pose2_data['orientation']['z'], 'w': board_pose2_data['orientation']['w']}
                         )
                         
-                        # 计算运动：A = T_gripper2 * T_gripper1^-1（基座坐标系）
+                        # 计算运动矩阵（修正矩阵乘法顺序）
+                        # A = inv(T_gripper1) @ T_gripper2（机器人从位置1到位置2的运动）
+                        # B = T_board1 @ inv(T_board2)（标定板从位置1到位置2的运动）
+                        # AX = XB 约束方程
                         T_gripper1_inv = np.linalg.inv(T_gripper1)
-                        A = T_gripper2 @ T_gripper1_inv
+                        A = T_gripper1_inv @ T_gripper2  # ✅ 修正顺序
                         
-                        # 计算运动：B = T_board2^-1 * T_board1（相机坐标系）
                         T_board2_inv = np.linalg.inv(T_board2)
-                        B = T_board2_inv @ T_board1
+                        B = T_board1 @ T_board2_inv  # ✅ 修正顺序
+                        
+                        # 调试：检查旋转部分
+                        Ra_debug = A[:3, :3]
+                        Rb_debug = B[:3, :3]
+                        # 检查是否是单位矩阵（没有旋转）
+                        Ra_is_identity = np.allclose(Ra_debug, np.eye(3), atol=1e-3)
+                        Rb_is_identity = np.allclose(Rb_debug, np.eye(3), atol=1e-3)
+                        
+                        if Ra_is_identity:
+                            self.get_logger().warning(f'   运动组 #{len(A_list)+1}: ⚠️ 机器人旋转矩阵接近单位矩阵（无旋转）')
+                        if Rb_is_identity:
+                            self.get_logger().warning(f'   运动组 #{len(A_list)+1}: ⚠️ 标定板旋转矩阵接近单位矩阵（观察角度无变化）')
                         
                         A_list.append(A)
                         B_list.append(B)
@@ -1169,27 +1222,225 @@ class HandEyeCalibrationNode(Node):
                 try:
                     T_camera2gripper = _solve_pose_based_hand_eye(A_list, B_list)
                     
-                    # 计算误差（验证AX=XB约束）
-                    errors = []
-                    for i in range(len(A_list)):
-                        left_side = A_list[i] @ T_camera2gripper
-                        right_side = T_camera2gripper @ B_list[i]
-                        error_matrix = left_side - right_side
-                        pos_error = np.linalg.norm(error_matrix[:3, 3])
-                        rot_error = np.linalg.norm(error_matrix[:3, :3], 'fro')
-                        combined_error = pos_error + rot_error * 100.0
-                        errors.append(combined_error)
+                    # 计算误差（验证AX=XB约束，优化：使用列表推导式）
+                    error_matrices = [A_list[i] @ T_camera2gripper - T_camera2gripper @ B_list[i] 
+                                     for i in range(len(A_list))]
+                    pos_errors = [np.linalg.norm(err[:3, 3]) for err in error_matrices]  # 位置误差（mm）
+                    rot_errors = [np.linalg.norm(err[:3, :3], 'fro') for err in error_matrices]  # 旋转误差（Frobenius范数）
                     
-                    mean_error = np.mean(errors)
-                    max_error = np.max(errors)
-                    min_error = np.min(errors)
-                    std_error = np.std(errors)
+                    # 位置误差统计（主要指标）
+                    mean_error = np.mean(pos_errors)
+                    max_error = np.max(pos_errors)
+                    min_error = np.min(pos_errors)
+                    std_error = np.std(pos_errors)
+                    
+                    # 旋转误差统计
+                    mean_rot_error = np.mean(rot_errors)
                     
                     self.get_logger().info('✅ Eye-in-Hand姿态法标定完成')
-                    self.get_logger().info(f'   平均误差: {mean_error:.3f} mm')
-                    self.get_logger().info(f'   最大误差: {max_error:.3f} mm')
-                    self.get_logger().info(f'   最小误差: {min_error:.3f} mm')
-                    self.get_logger().info(f'   标准差: {std_error:.3f} mm')
+                    self.get_logger().info(f'   位置误差（主要指标）:')
+                    self.get_logger().info(f'     平均误差: {mean_error:.3f} mm')
+                    self.get_logger().info(f'     最大误差: {max_error:.3f} mm')
+                    self.get_logger().info(f'     最小误差: {min_error:.3f} mm')
+                    self.get_logger().info(f'     标准差: {std_error:.3f} mm')
+                    self.get_logger().info(f'   旋转误差（Frobenius范数）: {mean_rot_error:.6f}')
+                    
+                    # 详细诊断：每组运动的误差和运动幅度
+                    self.get_logger().info(f'   详细诊断信息:')
+                    Ra_list_check = [A[:3, :3] for A in A_list]
+                    ta_list_check = [A[:3, 3] for A in A_list]
+                    Rb_list_check = [B[:3, :3] for B in B_list]
+                    tb_list_check = [B[:3, 3] for B in B_list]
+                    
+                    # 保存motion_groups的引用以便在诊断中使用
+                    motion_groups_for_diagnosis = motion_groups
+                    
+                    # 计算每组运动的幅度
+                    motion_amplitudes = []
+                    for i in range(len(A_list)):
+                        # 机器人运动幅度
+                        Ra = Ra_list_check[i]
+                        ta = ta_list_check[i]
+                        # 旋转角度（从旋转矩阵提取，使用trace方法更可靠）
+                        try:
+                            # 方法1：使用trace计算旋转角度（更可靠）
+                            trace = np.trace(Ra)
+                            # trace(R) = 1 + 2*cos(θ)，所以 cos(θ) = (trace(R) - 1) / 2
+                            cos_angle = np.clip((trace - 1.0) / 2.0, -1.0, 1.0)
+                            angle_a = np.arccos(cos_angle)
+                            angle_a_deg = np.degrees(angle_a)
+                            
+                            # 如果角度很小，尝试使用as_rotvec方法验证
+                            if angle_a_deg < 0.01:
+                                try:
+                                    r_a = R.from_matrix(Ra)
+                                    angle_a_vec = np.linalg.norm(r_a.as_rotvec())
+                                    angle_a_deg_vec = np.degrees(angle_a_vec)
+                                    # 如果两种方法差异很大，使用as_rotvec的结果
+                                    if abs(angle_a_deg - angle_a_deg_vec) > 0.1:
+                                        angle_a_deg = angle_a_deg_vec
+                                except:
+                                    pass
+                        except Exception as e:
+                            # 如果trace方法失败，尝试as_rotvec
+                            try:
+                                r_a = R.from_matrix(Ra)
+                                angle_a = np.linalg.norm(r_a.as_rotvec())
+                                angle_a_deg = np.degrees(angle_a)
+                            except:
+                                angle_a_deg = 0.0
+                        trans_a = np.linalg.norm(ta)
+                        
+                        # 标定板观察变化幅度
+                        Rb = Rb_list_check[i]
+                        tb = tb_list_check[i]
+                        try:
+                            # 方法1：使用trace计算旋转角度（更可靠）
+                            trace = np.trace(Rb)
+                            cos_angle = np.clip((trace - 1.0) / 2.0, -1.0, 1.0)
+                            angle_b = np.arccos(cos_angle)
+                            angle_b_deg = np.degrees(angle_b)
+                            
+                            # 如果角度很小，尝试使用as_rotvec方法验证
+                            if angle_b_deg < 0.01:
+                                try:
+                                    r_b = R.from_matrix(Rb)
+                                    angle_b_vec = np.linalg.norm(r_b.as_rotvec())
+                                    angle_b_deg_vec = np.degrees(angle_b_vec)
+                                    if abs(angle_b_deg - angle_b_deg_vec) > 0.1:
+                                        angle_b_deg = angle_b_deg_vec
+                                except:
+                                    pass
+                        except Exception as e:
+                            # 如果trace方法失败，尝试as_rotvec
+                            try:
+                                r_b = R.from_matrix(Rb)
+                                angle_b = np.linalg.norm(r_b.as_rotvec())
+                                angle_b_deg = np.degrees(angle_b)
+                            except:
+                                angle_b_deg = 0.0
+                        trans_b = np.linalg.norm(tb)
+                        
+                        motion_amplitudes.append({
+                            'group': i+1,
+                            'robot_rot_deg': angle_a_deg,
+                            'robot_trans_mm': trans_a,
+                            'board_rot_deg': angle_b_deg,
+                            'board_trans_mm': trans_b,
+                            'pos_error': pos_errors[i],
+                            'rot_error': rot_errors[i]
+                        })
+                        
+                        # 获取重投影误差（如果可用）
+                        reproj_error1 = motion_groups_for_diagnosis[i].get('board_pose1', {}).get('reprojection_error') if i < len(motion_groups_for_diagnosis) else None
+                        reproj_error2 = motion_groups_for_diagnosis[i].get('board_pose2', {}).get('reprojection_error') if i < len(motion_groups_for_diagnosis) else None
+                        reproj_info = ""
+                        if reproj_error1 is not None and reproj_error2 is not None:
+                            avg_reproj = (reproj_error1 + reproj_error2) / 2.0
+                            max_reproj = max(reproj_error1, reproj_error2)
+                            reproj_info = f", 重投影误差: 平均 {avg_reproj:.3f} 像素, 最大 {max_reproj:.3f} 像素"
+                            if avg_reproj > 1.0:
+                                reproj_info = f", ⚠️ 重投影误差较大: 平均 {avg_reproj:.3f} 像素, 最大 {max_reproj:.3f} 像素"
+                        
+                        self.get_logger().info(f'     运动组 #{i+1}:')
+                        self.get_logger().info(f'       位置误差: {pos_errors[i]:.3f} mm, 旋转误差: {rot_errors[i]:.6f}{reproj_info}')
+                        self.get_logger().info(f'       机器人运动: 旋转 {angle_a_deg:.2f}°, 平移 {trans_a:.2f} mm')
+                        self.get_logger().info(f'       标定板变化: 旋转 {angle_b_deg:.2f}°, 平移 {trans_b:.2f} mm')
+                    
+                    # 数据质量检查
+                    if len(A_list) < 3:
+                        self.get_logger().warning(f'   ⚠️ 运动组数较少（{len(A_list)}组），建议至少3-5组以提高精度')
+                    
+                    # 检查运动幅度是否足够
+                    avg_robot_rot = np.mean([m['robot_rot_deg'] for m in motion_amplitudes])
+                    avg_robot_trans = np.mean([m['robot_trans_mm'] for m in motion_amplitudes])
+                    avg_board_rot = np.mean([m['board_rot_deg'] for m in motion_amplitudes])
+                    
+                    self.get_logger().info(f'   数据质量检查:')
+                    self.get_logger().info(f'     平均机器人旋转: {avg_robot_rot:.2f}°')
+                    self.get_logger().info(f'     平均机器人平移: {avg_robot_trans:.2f} mm')
+                    self.get_logger().info(f'     平均标定板旋转: {avg_board_rot:.2f}°')
+                    
+                    # 检查旋转矩阵的差异（数据质量指标）
+                    if len(Ra_list_check) >= 2:
+                        Ra_diff = np.linalg.norm(Ra_list_check[0] - Ra_list_check[1], 'fro')
+                        Rb_diff = np.linalg.norm(Rb_list_check[0] - Rb_list_check[1], 'fro')
+                        self.get_logger().info(f'     Ra差异（机器人旋转变化）: {Ra_diff:.6f}')
+                        self.get_logger().info(f'     Rb差异（标定板旋转变化）: {Rb_diff:.6f}')
+                        if Ra_diff < 0.1 or Rb_diff < 0.1:
+                            self.get_logger().warning(f'   ⚠️ 旋转变化过小，可能导致标定精度差')
+                    
+                    # 检查重投影误差（最关键的质量指标）
+                    high_reproj_error_count = 0
+                    max_reproj_in_all_groups = 0.0
+                    avg_reproj_all_groups = 0.0
+                    reproj_count = 0
+                    
+                    for i in range(len(A_list)):
+                        reproj1 = motion_groups_for_diagnosis[i].get('board_pose1', {}).get('reprojection_error') if i < len(motion_groups_for_diagnosis) else None
+                        reproj2 = motion_groups_for_diagnosis[i].get('board_pose2', {}).get('reprojection_error') if i < len(motion_groups_for_diagnosis) else None
+                        if reproj1 is not None:
+                            avg_reproj_all_groups += reproj1
+                            max_reproj_in_all_groups = max(max_reproj_in_all_groups, reproj1)
+                            reproj_count += 1
+                            if reproj1 > 2.0:
+                                high_reproj_error_count += 1
+                        if reproj2 is not None:
+                            avg_reproj_all_groups += reproj2
+                            max_reproj_in_all_groups = max(max_reproj_in_all_groups, reproj2)
+                            reproj_count += 1
+                            if reproj2 > 2.0:
+                                high_reproj_error_count += 1
+                    
+                    if reproj_count > 0:
+                        avg_reproj_all_groups /= reproj_count
+                    
+                    # 误差过大时的改进建议
+                    if mean_error > 10.0:  # 误差超过10mm
+                        self.get_logger().warning(f'   ⚠️ 标定误差较大（{mean_error:.3f} mm），可能原因:')
+                        
+                        # 首先检查重投影误差（最可能的原因）
+                        if avg_reproj_all_groups > 10.0:
+                            self.get_logger().error(f'     ❌ 根本原因：重投影误差严重异常（平均 {avg_reproj_all_groups:.3f} 像素）！')
+                            self.get_logger().error(f'       正常情况下重投影误差应小于1像素，当前平均 {avg_reproj_all_groups:.3f} 像素')
+                            self.get_logger().error(f'       最大重投影误差: {max_reproj_in_all_groups:.3f} 像素')
+                            self.get_logger().error(f'       {high_reproj_error_count} 个姿态的重投影误差超过2像素')
+                            self.get_logger().error(f'       解决方案：')
+                            self.get_logger().error(f'         1. 重新标定相机内参（重投影误差过大通常是内参不准确）')
+                            self.get_logger().error(f'         2. 检查棋盘格尺寸设置（检测到的角点数是否正确）')
+                            self.get_logger().error(f'         3. 确保标定板平整、清晰可见')
+                            self.get_logger().error(f'         4. 删除所有数据，重新采集姿态数据')
+                        elif avg_reproj_all_groups > 2.0:
+                            self.get_logger().warning(f'     ⚠️ 重要因素：重投影误差较大（平均 {avg_reproj_all_groups:.3f} 像素）')
+                            self.get_logger().warning(f'       建议重新标定相机内参，确保重投影误差小于1像素')
+                        
+                        # 检查是否有旋转运动（这是关键问题）
+                        if avg_robot_rot < 1.0:  # 几乎没有旋转
+                            self.get_logger().error(f'     ❌ 严重问题：机器人没有旋转运动（{avg_robot_rot:.2f}°）！')
+                            self.get_logger().error(f'       手眼标定必须包含旋转运动才能准确求解旋转部分！')
+                            self.get_logger().error(f'       建议：')
+                            self.get_logger().error(f'         1. 确保每组运动包含至少15-30°的旋转（绕X、Y、Z轴）')
+                            self.get_logger().error(f'         2. 旋转应该覆盖不同的轴（不要只绕一个轴旋转）')
+                            self.get_logger().error(f'         3. 结合平移和旋转运动（不要只有平移）')
+                        elif avg_robot_rot < 10.0:
+                            self.get_logger().warning(f'     - 机器人旋转幅度过小（{avg_robot_rot:.2f}°），建议至少15-30°')
+                        
+                        if avg_robot_trans < 50.0:
+                            self.get_logger().warning(f'     - 机器人平移幅度过小（{avg_robot_trans:.2f} mm），建议至少100-200 mm')
+                        
+                        if avg_board_rot < 1.0:
+                            self.get_logger().error(f'     ❌ 严重问题：标定板观察角度无变化（{avg_board_rot:.2f}°）！')
+                            self.get_logger().error(f'       可能原因：标定板位姿检测不准确或机器人运动不足')
+                        elif avg_board_rot < 5.0:
+                            self.get_logger().warning(f'     - 标定板观察角度变化过小（{avg_board_rot:.2f}°），检查标定板检测精度')
+                        
+                        if avg_reproj_all_groups <= 2.0:  # 只有在重投影误差不大时才建议其他改进
+                            self.get_logger().warning(f'     - 检查标定板位姿检测是否准确（solvePnP质量）')
+                            self.get_logger().warning(f'     - 检查机器人位姿数据是否准确（特别是旋转部分）')
+                            self.get_logger().warning(f'     - 确保标定板在相机视野内且清晰可见')
+                            self.get_logger().warning(f'     - 增加运动组数（当前{len(A_list)}组），建议5-10组')
+                            self.get_logger().warning(f'     - 确保运动覆盖不同的旋转轴和平移方向')
+                    
                     self.get_logger().info('='*60)
                     
                     # 保存标定结果
@@ -1199,7 +1450,7 @@ class HandEyeCalibrationNode(Node):
                         'max': float(max_error),
                         'min': float(min_error),
                         'std': float(std_error),
-                        'errors': [float(e) for e in errors]
+                        'errors': [float(e) for e in pos_errors]
                     }
                     
                     R_cam2gripper = T_camera2gripper[:3, :3]
@@ -1223,7 +1474,7 @@ class HandEyeCalibrationNode(Node):
                             'min_error': float(min_error),
                             'std_error': float(std_error),
                             'data_count': len(A_list),
-                            'errors_per_motion': [float(e) for e in errors]
+                            'errors_per_motion': [float(e) for e in pos_errors]
                         },
                         'message': f'Eye-in-Hand姿态法标定成功，平均误差: {mean_error:.3f} mm'
                     })
@@ -1243,7 +1494,7 @@ class HandEyeCalibrationNode(Node):
                 self.get_logger().error(f'   堆栈: {traceback.format_exc()}')
                 return jsonify({'success': False, 'error': str(e)})
         
-
+        
         @self.app.route('/api/hand_eye/calibrate', methods=['POST'])
         def perform_hand_eye_calibration():
             """执行手眼标定 - 支持Eye-to-Hand和Eye-in-Hand两种方式"""
@@ -1866,9 +2117,55 @@ class HandEyeCalibrationNode(Node):
             Rb_list = [B[:3, :3] for B in B_list]
             tb_list = [B[:3, 3] for B in B_list]
             
-            # 步骤1：求解旋转部分（使用非线性优化）
+            # 步骤1：求解旋转部分（先使用SVD估计初始值，然后非线性优化）
+            # 使用Kronecker积方法构建线性系统求解初始旋转估计
+            # 从约束 Ra @ Rx = Rx @ Rb，可以构建线性系统求解Rx
+            
+            self.get_logger().info(f'   步骤1: 求解旋转部分（SVD初始估计）...')
+            
+            # 方法1：使用Kronecker积构建线性系统（适用于多组数据）
+            # 对于 Ra @ Rx = Rx @ Rb，可以写成：
+            # (Ra ⊗ I - I ⊗ Rb^T) @ vec(Rx) = 0
+            # 其中 vec(Rx) 是Rx的列向量堆叠
+            
+            try:
+                # 构建线性系统（优化：使用列表推导式加速）
+                # 对于每个约束 Ra_i @ Rx = Rx @ Rb_i
+                # 使用Kronecker积: (Ra_i ⊗ I - I ⊗ Rb_i^T) @ vec(Rx) = 0
+                A_kron = np.vstack([
+                    np.kron(Ra_list[i], np.eye(3)) - np.kron(np.eye(3), Rb_list[i].T)
+                    for i in range(n)
+                ])  # (9n x 9) 矩阵
+                
+                # SVD分解，最小奇异值对应的右奇异向量就是vec(Rx)的估计
+                # 使用full_matrices=False加速计算（只计算需要的奇异向量）
+                U, S, Vt = np.linalg.svd(A_kron, full_matrices=False)
+                Rx_vec = Vt[-1, :].reshape(3, 3)  # 取最后一个右奇异向量
+                
+                # 投影到SO(3)（正交化，优化：使用full_matrices=False）
+                U_proj, _, Vt_proj = np.linalg.svd(Rx_vec, full_matrices=False)
+                Rx_init = U_proj @ Vt_proj.T
+                
+                # 确保行列式为+1（右手坐标系）
+                if np.linalg.det(Rx_init) < 0:
+                    U_proj[:, -1] *= -1
+                    Rx_init = U_proj @ Vt_proj.T
+                
+                # 转换为轴角表示作为初始值
+                import cv2
+                axis_angle_init, _ = cv2.Rodrigues(Rx_init)
+                initial_rx = axis_angle_init.flatten()
+                
+                angle_init = np.linalg.norm(initial_rx)
+                self.get_logger().info(f'   SVD初始估计完成，旋转角度: {np.degrees(angle_init):.3f} deg')
+                
+            except Exception as e:
+                self.get_logger().warning(f'   SVD初始估计失败: {e}，使用零初始值')
+                initial_rx = np.array([0.0, 0.0, 0.0])
+            
+            # 非线性优化进一步优化旋转
             def rotation_residual(rx_params):
-                """旋转残差函数"""
+                """旋转残差函数（优化：使用numpy数组操作）"""
                 angle = np.linalg.norm(rx_params)
                 if angle < 1e-6:
                     Rx = np.eye(3)
@@ -1877,17 +2174,16 @@ class HandEyeCalibrationNode(Node):
                     r = R.from_rotvec(axis * angle)
                     Rx = rotation_to_matrix(r)
                 
-                residual = []
-                for i in range(n):
-                    res = Ra_list[i] @ Rx - Rx @ Rb_list[i]
-                    residual.extend(res.flatten())
-                return np.array(residual)
+                # 使用列表推导式加速计算
+                residual = np.concatenate([
+                    (Ra_list[i] @ Rx - Rx @ Rb_list[i]).flatten()
+                    for i in range(n)
+                ])
+                return residual
             
-            initial_rx = np.array([0.0, 0.0, 0.0])
-            
-            self.get_logger().info(f'   步骤1: 求解旋转部分（初始估计）...')
+            self.get_logger().info(f'   步骤1b: 非线性优化旋转...')
             result_rx = least_squares(rotation_residual, initial_rx, method='lm', 
-                                     max_nfev=1000, ftol=1e-8, xtol=1e-8, verbose=0)
+                                     max_nfev=200, ftol=1e-6, xtol=1e-6, verbose=0)
             
             # 提取旋转矩阵
             rx_params = result_rx.x
@@ -1902,24 +2198,23 @@ class HandEyeCalibrationNode(Node):
             self.get_logger().info(f'   初始旋转求解完成，旋转角度: {np.degrees(angle):.3f} deg')
             
             # 步骤2：求解平移部分（线性系统）
-            A_mat = []
-            b_vec = []
-            for i in range(n):
-                A_block = np.eye(3) - Ra_list[i]
-                b_block = Rx @ tb_list[i] - ta_list[i]
-                A_mat.append(A_block)
-                b_vec.append(b_block)
-            
-            A_mat = np.vstack(A_mat)
-            b_vec = np.hstack(b_vec)
+            # 从 Ra @ tx + ta = Rx @ tb + tx 推导：
+            # (I - Ra) @ tx = ta - Rx @ tb
+            # 优化：使用列表推导式加速矩阵构建
+            A_mat = np.vstack([np.eye(3) - Ra_list[i] for i in range(n)])
+            b_vec = np.hstack([ta_list[i] - Rx @ tb_list[i] for i in range(n)])
             
             tx, residuals, rank, s = np.linalg.lstsq(A_mat, b_vec, rcond=None)
             
+            # 检查线性系统求解的质量
+            tx_magnitude = np.linalg.norm(tx)
             self.get_logger().info(f'   步骤2: 平移部分求解完成')
+            if rank < 3:
+                self.get_logger().warning(f'   ⚠️ 线性系统秩不足（rank={rank}），可能数据质量差')
             
             # 步骤3：非线性优化（进一步优化结果）
             def full_residual(params):
-                """完整约束的残差函数"""
+                """完整约束的残差函数（优化：使用numpy数组操作）"""
                 axis_angle = params[:3]
                 translation = params[3:6]
                 
@@ -1935,14 +2230,13 @@ class HandEyeCalibrationNode(Node):
                 T[:3, :3] = R_mat
                 T[:3, 3] = translation
                 
-                residual = []
-                for i in range(n):
-                    left = A_list[i] @ T
-                    right = T @ B_list[i]
-                    error = left - right
-                    residual.extend(error.flatten())
+                # 使用列表推导式加速计算
+                residual = np.concatenate([
+                    (A_list[i] @ T - T @ B_list[i]).flatten()
+                    for i in range(n)
+                ])
                 
-                return np.array(residual)
+                return residual
             
             # 使用安全的转换函数
             quat_init = self._rotation_matrix_to_quaternion(Rx)
@@ -1974,7 +2268,11 @@ class HandEyeCalibrationNode(Node):
             
             self.get_logger().info(f'   步骤3: 非线性优化（进一步优化）...')
             result_full = least_squares(full_residual, initial_params, method='lm',
-                                       max_nfev=10000, ftol=1e-8, xtol=1e-8, verbose=0)
+                                       max_nfev=500, ftol=1e-6, xtol=1e-6, verbose=0)
+            
+            # 检查优化是否成功
+            if not result_full.success:
+                self.get_logger().warning(f'   优化未成功收敛: {result_full.message}')
             
             # 提取优化后的结果
             axis_angle_opt = result_full.x[:3]
@@ -1988,11 +2286,61 @@ class HandEyeCalibrationNode(Node):
                 r_opt = R.from_rotvec(axis_opt * angle_opt)
                 R_opt = rotation_to_matrix(r_opt)
             
-            T_camera2gripper = np.eye(4)
-            T_camera2gripper[:3, :3] = R_opt
-            T_camera2gripper[:3, 3] = translation_opt
+            # 检查平移向量是否过大（可能表示数据质量差）
+            translation_magnitude = np.linalg.norm(translation_opt)
+            tx_magnitude_step2 = np.linalg.norm(tx)
             
-            mean_residual = np.mean(np.abs(result_full.fun))
+            # 计算步骤2和步骤3的残差（优化：使用numpy数组操作）
+            T_step2 = np.eye(4)
+            T_step2[:3, :3] = Rx
+            T_step2[:3, 3] = tx
+            # 使用列表推导式加速计算
+            residual_step2 = np.concatenate([
+                (A_list[i] @ T_step2 - T_step2 @ B_list[i]).flatten()
+                for i in range(n)
+            ])
+            mean_residual_step2 = np.mean(np.abs(residual_step2))
+            
+            mean_residual_step3 = np.mean(np.abs(result_full.fun))
+            
+            # 智能选择：如果步骤3的平移向量过大，且残差改善不明显，使用步骤2的结果
+            # 相机到末端执行器的距离应该在合理范围内（10-1000mm）
+            REASONABLE_TRANSLATION_MAX = 1000.0  # 1米，相机到末端执行器的最大合理距离
+            REASONABLE_TRANSLATION_MIN = 10.0     # 1厘米，相机到末端执行器的最小合理距离
+            
+            use_step2_result = False
+            translation_reasonable = (REASONABLE_TRANSLATION_MIN <= translation_magnitude <= REASONABLE_TRANSLATION_MAX)
+            tx_step2_reasonable = (REASONABLE_TRANSLATION_MIN <= tx_magnitude_step2 <= REASONABLE_TRANSLATION_MAX)
+            
+            if not translation_reasonable:
+                self.get_logger().warning(f'   平移向量模长超出合理范围: {translation_magnitude:.3f} mm（合理范围: {REASONABLE_TRANSLATION_MIN:.0f}-{REASONABLE_TRANSLATION_MAX:.0f} mm）')
+                # 如果步骤2的平移向量在合理范围内，优先使用步骤2的结果
+                if tx_step2_reasonable:
+                    self.get_logger().warning(f'   使用步骤2的结果（平移向量在合理范围内）')
+                    use_step2_result = True
+                else:
+                    self.get_logger().warning(f'   步骤2平移向量也不合理，使用步骤2的结果')
+                    use_step2_result = True
+            elif translation_magnitude > 500.0:  # 500mm = 0.5m，虽然合理但较大
+                # 如果步骤3的残差没有显著改善，且平移向量较大，使用步骤2的结果
+                if mean_residual_step3 > mean_residual_step2 * 0.9:  # 改善小于10%
+                    self.get_logger().info(f'   步骤3残差改善不明显，使用步骤2的结果')
+                    use_step2_result = True
+                else:
+                    improvement = (mean_residual_step2 - mean_residual_step3) / mean_residual_step2 * 100
+                    self.get_logger().info(f'   步骤3残差改善: {improvement:.1f}%，使用步骤3结果')
+            
+            if use_step2_result:
+                # 使用步骤2的结果（线性解）
+                T_camera2gripper = T_step2
+                mean_residual = mean_residual_step2
+            else:
+                # 使用步骤3的结果（优化解）
+                T_camera2gripper = np.eye(4)
+                T_camera2gripper[:3, :3] = R_opt
+                T_camera2gripper[:3, 3] = translation_opt
+                mean_residual = mean_residual_step3
+            
             self.get_logger().info(f'   优化完成，平均残差: {mean_residual:.6f} mm')
             
             return T_camera2gripper
@@ -2223,13 +2571,47 @@ class HandEyeCalibrationNode(Node):
                 if not self.move_to_pose_client.wait_for_service(timeout_sec=5.0):
                     return jsonify({'success': False, 'error': '机器人运动控制服务不可用'})
                 
-                future = self.move_to_pose_client.call_async(request_msg)
-                rclpy.spin_until_future_complete(self, future, timeout_sec=30.0)
                 
-                if future.result() is not None:
+                future = self.move_to_pose_client.call_async(request_msg)
+                
+                # 使用轮询方式检查服务是否完成，而不是等待固定超时时间
+                # 根据日志，机器人实际执行时间只有2-7秒，但spin_until_future_complete会等待30秒
+                max_wait_time = 10.0  # 最大等待10秒
+                check_interval = 0.1  # 每100ms检查一次
+                elapsed_time = 0.0
+                
+                while elapsed_time < max_wait_time:
+                    # 短暂spin以处理服务响应
+                    rclpy.spin_once(self, timeout_sec=check_interval)
+                    
+                    if future.done():
+                        # 服务已完成，跳出循环
+                        break
+                    
+                    elapsed_time += check_interval
+                
+                
+                # 检查服务是否完成
+                if future.done():
                     response = future.result()
-                    if response.success:
-                        self.get_logger().info(f'✅ 机器人移动成功: 位置({request_msg.target_pose.position.x:.3f}, {request_msg.target_pose.position.y:.3f}, {request_msg.target_pose.position.z:.3f})')
+                    if response and response.success:
+                        self.get_logger().info(f'✅ 机器人移动服务返回成功: 位置({request_msg.target_pose.position.x:.3f}, {request_msg.target_pose.position.y:.3f}, {request_msg.target_pose.position.z:.3f})')
+                        
+                        # 等待机器人真正到位并稳定
+                        self.get_logger().info(f'⏳ 等待机器人到位并稳定...')
+                        is_settled = self._wait_for_robot_settled(
+                            request_msg.target_pose, 
+                            position_tolerance=0.001,  # 1mm
+                            orientation_tolerance=0.01,  # 约0.57度
+                            max_wait_time=5.0,  # 最大等待5秒
+                            stable_duration=0.3  # 稳定持续0.3秒
+                        )
+                        
+                        if is_settled:
+                            self.get_logger().info(f'✅ 机器人已到位并稳定，可以采集图像')
+                        else:
+                            self.get_logger().warning(f'⚠️ 机器人未完全稳定（超时），继续执行')
+                        
                         return jsonify({
                             'success': True, 
                             'message': response.message,
@@ -2251,6 +2633,95 @@ class HandEyeCalibrationNode(Node):
                 self.get_logger().error(f'   堆栈: {traceback.format_exc()}')
                 return jsonify({'success': False, 'error': str(e)})
     
+    def _wait_for_robot_settled(self, target_pose, position_tolerance=0.001, 
+                                 orientation_tolerance=0.01, max_wait_time=5.0, 
+                                 stable_duration=0.3):
+        """
+        等待机器人到达目标位姿并稳定
+        
+        Args:
+            target_pose: 目标位姿 (geometry_msgs/Pose)
+            position_tolerance: 位置容差 (米)
+            orientation_tolerance: 姿态容差 (四元数距离)
+            max_wait_time: 最大等待时间 (秒)
+            stable_duration: 稳定持续时间 (秒)
+            
+        Returns:
+            bool: 是否成功到位并稳定
+        """
+        import time
+        import math
+        
+        start_time = time.time()
+        stable_start_time = None
+        
+        while (time.time() - start_time) < max_wait_time:
+            # 短暂spin以更新机器人状态
+            rclpy.spin_once(self, timeout_sec=0.05)
+            
+            # 检查机器人状态是否可用
+            if self.current_robot_status is None:
+                time.sleep(0.05)
+                continue
+            
+            # 检查机器人是否仍在运动
+            if self.current_robot_status.in_motion:
+                stable_start_time = None  # 重置稳定计时
+                time.sleep(0.05)
+                continue
+            
+            # 计算位置误差
+            current_pos = self.current_robot_status.cartesian_position.position
+            pos_error = math.sqrt(
+                (current_pos.x - target_pose.position.x)**2 +
+                (current_pos.y - target_pose.position.y)**2 +
+                (current_pos.z - target_pose.position.z)**2
+            )
+            
+            # 计算姿态误差 (四元数内积)
+            current_ori = self.current_robot_status.cartesian_position.orientation
+            target_ori = target_pose.orientation
+            quat_dot = abs(
+                current_ori.x * target_ori.x +
+                current_ori.y * target_ori.y +
+                current_ori.z * target_ori.z +
+                current_ori.w * target_ori.w
+            )
+            # 四元数角度差: θ = 2 * arccos(|q1·q2|)
+            ori_error = 2.0 * math.acos(min(1.0, quat_dot))
+            
+            # 检查是否在容差范围内
+            if pos_error <= position_tolerance and ori_error <= orientation_tolerance:
+                # 首次满足条件，开始计时
+                if stable_start_time is None:
+                    stable_start_time = time.time()
+                    self.get_logger().info(
+                        f'   位姿误差满足要求: 位置 {pos_error*1000:.2f}mm, '
+                        f'姿态 {math.degrees(ori_error):.2f}°, '
+                        f'等待稳定 {stable_duration}秒...'
+                    )
+                
+                # 检查是否已稳定足够时间
+                if (time.time() - stable_start_time) >= stable_duration:
+                    self.get_logger().info(
+                        f'   最终位姿: 位置误差 {pos_error*1000:.3f}mm, '
+                        f'姿态误差 {math.degrees(ori_error):.3f}°'
+                    )
+                    return True
+            else:
+                # 不满足条件，重置稳定计时
+                if stable_start_time is not None:
+                    self.get_logger().info(
+                        f'   位姿偏离: 位置 {pos_error*1000:.2f}mm, '
+                        f'姿态 {math.degrees(ori_error):.2f}°'
+                    )
+                    stable_start_time = None
+            
+            time.sleep(0.05)
+        
+        # 超时
+        return False
+    
     def _run_web_server(self):
         """运行Web服务器"""
         self.app.run(
@@ -2266,36 +2737,19 @@ class HandEyeCalibrationNode(Node):
             # 从ImageData消息中提取Image
             image_msg = msg.image
             
-            # 详细日志：接收到ImageData
-            self.get_logger().info('='*60)
-            self.get_logger().info(f'📸 接收到ImageData消息')
-            self.get_logger().info(f'   相机ID: {msg.camera_id}')
-            self.get_logger().info(f'   时间戳: {msg.header.stamp.sec}.{msg.header.stamp.nanosec}')
-            self.get_logger().info(f'   图像尺寸: {image_msg.width} x {image_msg.height}')
-            self.get_logger().info(f'   图像编码: {image_msg.encoding}')
-            self.get_logger().info(f'   数据大小: {len(image_msg.data)} bytes ({len(image_msg.data)/1024:.1f} KB)')
-            
             # 检查编码类型
             if image_msg.encoding == 'jpeg' or image_msg.encoding == 'jpg':
                 # JPEG编码，直接解码
-                self.get_logger().info(f'   检测到JPEG编码，使用imdecode解码...')
                 np_arr = np.frombuffer(bytes(image_msg.data), np.uint8)
                 image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
             else:
                 # 其他编码，使用cv_bridge
-                self.get_logger().info(f'   使用cv_bridge转换...')
                 image = self.bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8')
             
             if image is not None:
                 self.current_image = image
                 self.current_image_raw = image.copy()  # 保存副本用于处理
-                
-                self.get_logger().info(f'✅ 图像转换成功!')
-                self.get_logger().info(f'   OpenCV格式: {image.shape} (H x W x C)')
-                self.get_logger().info(f'   数据类型: {image.dtype}')
-                self.get_logger().info(f'   内存大小: {image.nbytes / 1024 / 1024:.2f} MB')
-                self.get_logger().info(f'   像素范围: [{image.min()}, {image.max()}]')
-                self.get_logger().info('='*60)
+                self._image_is_undistorted = False  # 新图像未去畸变
             else:
                 self.get_logger().warn('⚠️ 图像转换结果为None')
         except Exception as e:
@@ -2348,43 +2802,7 @@ class HandEyeCalibrationNode(Node):
         """相机状态回调函数"""
         self.current_camera_status = msg
     
-    def camera_info_callback(self, msg):
-        """相机内参回调函数 - 从 CameraInfo 话题获取相机内参"""
-        try:
-            # 保存 CameraInfo 消息
-            self.current_camera_info = msg
-            
-            # 提取相机内参矩阵 K (3x3)
-            # K = [fx  0 cx]
-            #     [ 0 fy cy]
-            #     [ 0  0  1]
-            camera_matrix = np.array([
-                [msg.k[0], msg.k[1], msg.k[2]],
-                [msg.k[3], msg.k[4], msg.k[5]],
-                [msg.k[6], msg.k[7], msg.k[8]]
-            ], dtype=np.float64)
-            
-            # 提取畸变系数
-            dist_coeffs = np.array(msg.d, dtype=np.float64)
-            
-            # 更新到 calib_utils（如果还没有从文件加载）
-            if self.calib_utils.camera_matrix is None:
-                self.calib_utils.camera_matrix = camera_matrix
-                self.calib_utils.dist_coeffs = dist_coeffs
-                self.get_logger().info(
-                    f'📷 从 CameraInfo 话题获取相机内参: '
-                    f'fx={camera_matrix[0,0]:.2f}, fy={camera_matrix[1,1]:.2f}, '
-                    f'cx={camera_matrix[0,2]:.2f}, cy={camera_matrix[1,2]:.2f}',
-                    throttle_duration_sec=10.0
-                )
-            
-            # 同时更新到 camera_calibration_data
-            if self.camera_calibration_data['camera_matrix'] is None:
-                self.camera_calibration_data['camera_matrix'] = camera_matrix
-                self.camera_calibration_data['dist_coeffs'] = dist_coeffs
-                
-        except Exception as e:
-            self.get_logger().error(f'处理 CameraInfo 消息失败: {str(e)}')
+    # camera_info_callback 已完全删除，改为在初始化时从文件加载相机内参
     
     def depth_image_callback(self, msg):
         """深度图回调函数 - 保存当前深度图用于深度误差检查"""
@@ -2392,7 +2810,6 @@ class HandEyeCalibrationNode(Node):
             # 将ROS图像消息转换为OpenCV格式（16位深度图）
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
             self.current_depth_image = cv_image
-            self.get_logger().info(f'📦 收到深度图: {msg.width}x{msg.height}, 编码: {msg.encoding}', throttle_duration_sec=5.0)
         except Exception as e:
             self.get_logger().error(f'深度图转换失败: {str(e)}')
     

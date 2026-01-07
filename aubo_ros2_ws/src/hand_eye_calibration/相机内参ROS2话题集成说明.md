@@ -2635,5 +2635,222 @@ function drawMagnifier() {
 - `script_v2.js`: v=20250105-23
 - `script_v2_auto_calib_addon.js`: v=20250105-26
 
-**最后更新**：2025-01-05
+**最后更新**：2025-01-06
+
+---
+
+### 📝 [2025-01-06] 手眼标定AX=XB公式实现错误修复
+
+**问题描述**：
+通过系统性检查自动手眼标定的完整流程，发现了**3个严重问题**导致标定结果完全错误。
+
+**发现的问题**：
+
+1. **A矩阵计算顺序错误** ❌
+   - **位置**：`hand_eye_calibration_node.py` 第1144行
+   - **错误代码**：`A = T_gripper2 @ inv(T_gripper1)`
+   - **正确应该是**：`A = inv(T_gripper1) @ T_gripper2`
+   - **影响**：标定结果完全错误
+
+2. **B矩阵计算顺序错误** ❌
+   - **位置**：`hand_eye_calibration_node.py` 第1148行
+   - **错误代码**：`B = inv(T_board2) @ T_board1`
+   - **正确应该是**：`B = T_board1 @ inv(T_board2)`
+   - **影响**：标定结果完全错误
+
+3. **单位不一致** ⚠️
+   - **位置**：`hand_eye_calibration_node.py` 第1122-1129行
+   - **问题**：机器人位姿单位是米(m)，标定板位姿单位是毫米(mm)
+   - **影响**：平移向量数值错误，单位混乱
+
+**数学验证**：
+
+从约束方程：
+```
+T_gripper1 @ X @ T_board1 = T_gripper2 @ X @ T_board2
+```
+
+推导得到（详细推导见`手眼标定问题修复说明.md`）：
+```
+A = inv(T_gripper1) @ T_gripper2  ✅ 正确
+B = T_board1 @ inv(T_board2)      ✅ 正确
+AX = XB
+```
+
+**修复内容**：
+
+```python
+# 1. 单位转换：机器人位姿从米转换为毫米
+T_gripper1 = _pose_to_transform_matrix(
+    {
+        'x': pose1_data['robot_pos_x'] * 1000.0,  # 米 → 毫米
+        'y': pose1_data['robot_pos_y'] * 1000.0,
+        'z': pose1_data['robot_pos_z'] * 1000.0
+    },
+    {...}  # 四元数不变
+)
+
+# 2. 修正A矩阵计算顺序
+A = inv(T_gripper1) @ T_gripper2  # ✅ 修正
+
+# 3. 修正B矩阵计算顺序
+B = T_board1 @ inv(T_board2)  # ✅ 修正
+```
+
+**验证方法**：
+
+1. 运行数学验证脚本：
+   ```bash
+   cd /home/mu/IVG/aubo_ros2_ws/src/hand_eye_calibration
+   python3 verify_hand_eye_math.py
+   ```
+
+2. 重新构建包：
+   ```bash
+   cd /home/mu/IVG/aubo_ros2_ws
+   colcon build --packages-select hand_eye_calibration
+   source install/setup.bash
+   ```
+
+3. 重新进行标定测试：
+   - 采集3-5组运动数据
+   - 执行自动标定
+   - 检查标定结果是否合理
+
+**修复后的期望结果**：
+- ✅ 平移向量单位明确：毫米(mm)
+- ✅ 平移向量数值合理：50-200mm范围
+- ✅ 标定误差：< 5mm
+- ✅ 运动质量评分：> 60%
+
+**影响的文件**：
+- `hand_eye_calibration/hand_eye_calibration_node.py`：
+  - 第1122-1148行：修复A/B矩阵计算和单位转换（约30行修改）
+  - 添加日志说明单位转换
+
+**相关文档**：
+- `手眼标定问题修复说明.md`：详细的问题分析和修复说明
+- `verify_hand_eye_math.py`：数学验证脚本
+
+**状态**：✅ 已完成并验证
+
+**关键结论**：
+这3个问题的存在会导致标定结果完全错误。修复前的所有标定结果都是不可用的，必须在修复后重新进行标定。
+
+---
+
+### 2025-01-06 (下午) - 平移公式符号错误修复
+
+**修复时间**：2025-01-06 下午
+
+**问题描述**：
+
+在对旋转和平移求解公式进行详细验证时，发现了**第4个严重问题**：
+
+**问题4：平移求解公式符号错误** ❌
+
+- **位置**：`hand_eye_calibration_node.py` 第1916行
+- **错误代码**：`b_block = Rx @ tb_list[i] - ta_list[i]`
+- **正确公式**：`b_block = ta_list[i] - Rx @ tb_list[i]`
+- **影响**：求解的平移向量`tx`符号完全相反
+
+**数学推导**：
+
+从平移约束方程：
+```
+Ra @ tx + ta = Rx @ tb + tx
+```
+
+移项得：
+```
+Ra @ tx - tx = Rx @ tb - ta
+(Ra - I) @ tx = Rx @ tb - ta
+```
+
+两边乘以-1：
+```
+(I - Ra) @ tx = ta - Rx @ tb  ✅ 正确
+```
+
+但代码中实现的是：
+```
+(I - Ra) @ tx = Rx @ tb - ta  ❌ 符号相反
+```
+
+**验证方法**：
+
+创建了多个验证脚本，使用多组满足AX=XB约束的测试数据进行验证：
+
+```bash
+cd /home/mu/IVG/aubo_ros2_ws/src/hand_eye_calibration
+python3 verify_final_formula.py
+```
+
+**验证结果**：
+- 错误公式：误差 = 291.2mm（符号全部相反）
+- 正确公式：误差 = 0.0mm（完全准确）
+
+**修复内容**：
+
+```python
+# 修复前（错误）
+b_block = Rx @ tb_list[i] - ta_list[i]  # ❌
+
+# 修复后（正确）
+b_block = ta_list[i] - Rx @ tb_list[i]  # ✅
+```
+
+**影响分析**：
+
+由于符号错误，求解的平移向量完全相反：
+- 如果真实 tx = [80, -20, 120]mm
+- 代码求解 tx = [-80, 20, -120]mm
+
+这会导致：
+- 标定后的相机位置方向完全错误
+- 视觉定位、抓取等应用失败
+- 与前3个问题叠加，标定结果完全不可用
+
+**关键发现**：
+
+1. **单组数据不够**：单个运动时，`(I-Ra)`矩阵秩不足（秩=2），需要多组运动使堆叠后的矩阵满秩（秩=3）
+2. **旋转和平移解耦**：先求解旋转，再求解平移，这种策略是正确的
+
+**影响的文件**：
+
+- `hand_eye_calibration/hand_eye_calibration_node.py`：
+  - 第1911-1923行：修复平移求解公式（1行关键修改）
+  - 添加注释说明公式推导
+
+**相关文档**：
+
+- `旋转和平移公式检查-2025-01-06.md`：详细的验证和修复说明
+- `verify_final_formula.py`：多组数据验证脚本
+- `verify_translation_rank.py`：矩阵秩分析脚本
+
+**修复状态**：✅ 已完成并通过验证
+
+**重新构建**：
+```bash
+cd /home/mu/IVG/aubo_ros2_ws
+colcon build --packages-select hand_eye_calibration
+```
+结果：✅ 构建成功
+
+**最终总结**：
+
+**发现的所有问题（共4个）**：
+1. ✅ A矩阵计算顺序错误（第1144行）
+2. ✅ B矩阵计算顺序错误（第1148行）
+3. ✅ 单位不一致（第1122-1129行）
+4. ✅ 平移公式符号错误（第1916行）
+
+**所有问题叠加的影响**：
+- 旋转部分：完全错误（问题1+2）
+- 平移部分：数值错误（问题3）+ 符号错误（问题4）
+- 结果：**标定矩阵完全不可用**
+
+**⚠️ 所有历史标定数据必须废弃并重新标定！**
+
+---
 

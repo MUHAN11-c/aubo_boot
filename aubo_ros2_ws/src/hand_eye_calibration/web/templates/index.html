@@ -351,116 +351,103 @@
             </div>
 
             <!-- 自动手眼标定 -->
-            <div id="auto-hand-eye-calib" class="tab-content tab-hand-eye-calib">
-                <div class="top-section">
+            <div id="auto-hand-eye-calib" class="tab-content tab-hand-eye-calib" style="display: flex; flex-direction: column; height: 100%;">
+                <div class="top-section" style="flex: 1; min-height: 0; display: flex; gap: 10px;">
                     <!-- 左侧：功能操作区 -->
-                    <div class="left-panel">
-                        <h3>Eye-in-Hand 自动标定</h3>
-                        
-                        <!-- 智能操作状态卡片 -->
-                        <div id="auto-status-card" style="margin-bottom: 15px; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: white;">
-                            <div style="display: flex; align-items: center; justify-content: space-between;">
-                                <div style="flex: 1;">
-                                    <div style="font-size: 12px; opacity: 0.9; margin-bottom: 4px;">当前状态</div>
-                                    <div id="auto-status-text" style="font-size: 15px; font-weight: bold;">🎯 准备就绪</div>
+                    <div class="left-panel" style="flex: 0 0 280px; display: flex; flex-direction: column; overflow-y: auto;">
+                        <!-- 第一层：状态概览（紧凑版） -->
+                        <div class="section-group" style="margin-bottom: 10px;">
+                            <div id="auto-status-card" style="padding: 8px 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: white;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                                    <div style="flex: 1;">
+                                        <div id="auto-status-text" style="font-size: 17px; font-weight: bold; line-height: 1.2;">🎯 准备就绪</div>
+                                    </div>
+                                    <div id="auto-status-icon" style="font-size: 26px; opacity: 0.9;">🤖</div>
                                 </div>
-                                <div id="auto-status-icon" style="font-size: 32px; opacity: 0.8;">🤖</div>
-                            </div>
-                            <div id="auto-next-step" style="margin-top: 8px; padding: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; font-size: 11px;">
-                                💡 下一步：移动机器人到位置1，点击"记录机器人位姿"
+                                <div id="auto-next-step" style="padding: 6px 8px; background: rgba(255,255,255,0.2); border-radius: 4px; font-size: 14px; line-height: 1.3;">
+                                    💡 下一步：移动机器人到第一个位姿，点击"记录机器人位姿"
+                                </div>
                             </div>
                         </div>
                         
-                        <!-- 姿态法标定设置 -->
-                        <div style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 2px solid #dee2e6;">
-                            <h4 style="margin: 0 0 12px 0; color: #495057; font-size: 15px;">📍 姿态法标定（Eye-in-Hand全自动）</h4>
-                            
-                            <!-- 操作步骤说明 -->
-                            <div style="margin-bottom: 12px; padding: 10px; background: #e8f5e9; border-radius: 4px; border-left: 4px solid #4caf50;">
-                                <strong style="color: #2e7d32;">📖 操作流程（极简版）</strong>
-                                <ol style="margin: 8px 0 0 20px; padding: 0; font-size: 11px; line-height: 1.6;">
-                                    <li>移动机器人到<strong>位置1</strong>（能清晰看到棋盘格）</li>
-                                    <li>点击"📡 记录机器人位姿"（自动拍照+提取标定板+显示带角点图像）</li>
-                                    <li>移动机器人到<strong>位置2</strong>（不同角度和距离）</li>
-                                    <li>点击"📡 记录机器人位姿"（完成一组观测）</li>
-                                    <li>重复步骤1-4，至少<strong>3组</strong>（建议5-8组）</li>
-                                    <li>点击"💾 保存运动数据"（可选，用于后续快速加载）</li>
-                                    <li>点击"🚀 开始自动标定"</li>
-                                </ol>
-                            </div>
-                            
-                            <!-- 位姿记录 -->
-                            <div style="margin-bottom: 12px; padding: 10px; background: #e7f3ff; border-radius: 4px; border-left: 4px solid #2196f3;">
-                                <strong style="color: #1976d2;">📝 记录标定位姿（已记录 <span id="auto-motion-groups-count">0</span> 个，至少需要3个）</strong>
-                                <div class="button-group" style="margin-top: 8px;">
-                                    <button class="action-button" id="btn-auto-record-robot-pose" style="background: #1976d2; color: white; font-size: 13px;">
-                                        📡 记录机器人位姿
+                        <!-- 第二层：位姿记录操作（紧凑版） -->
+                        <div class="section-group" style="margin-bottom: 10px;">
+                            <div style="padding: 10px; background: #ffffff; border-radius: 6px; border: 1px solid #e0e0e0; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <h4 style="margin: 0; color: #1976d2; font-size: 16px; font-weight: 600;">📍 位姿记录</h4>
+                                    <div style="font-size: 14px; color: #666;">
+                                        已记录: <span id="auto-motion-groups-count" style="font-weight: bold; color: #1976d2; font-size: 16px;">0</span> 个
+                                        <span style="color: #999; font-size: 13px;">(需≥3)</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- 操作按钮 -->
+                                <div class="button-group" style="margin: 0 0 8px 0;">
+                                    <button class="action-button" id="btn-auto-record-robot-pose" style="background: #1976d2; color: white; font-size: 15px; padding: 8px 12px; flex: 1; font-weight: 500;">
+                                        📡 记录位姿
                                     </button>
-                                    <button class="action-button" id="btn-auto-clear-motion-data" style="background: #d32f2f; color: white; font-size: 13px;">
+                                    <button class="action-button" id="btn-auto-clear-motion-data" style="background: #d32f2f; color: white; font-size: 15px; padding: 8px 12px; margin-left: 6px; font-weight: 500;">
                                         🗑️ 清空
                                     </button>
                                 </div>
-                                <div style="margin: 8px 0; padding: 8px; background: white; border-radius: 4px; font-size: 10px; color: #666;">
-                                    💡 提示：手动移动机器人到不同位姿，点击"记录机器人位姿"保存位姿。记录完成后，点击"开始自动标定"，系统将自动移动到每个位姿并采集数据。
-                                </div>
-                                <div id="auto-motion-progress" style="margin-top: 8px; padding: 8px; background: white; border-radius: 4px; font-size: 11px;">
-                                    <span style="color: #666;">尚未开始运动数据采集</span>
-                                </div>
-                                <div id="auto-motion-groups-list" style="margin-top: 8px; max-height: 200px; overflow-y: auto;">
-                                    <div style="padding: 8px; background: white; border-radius: 4px; text-align: center; color: #666; font-size: 11px;">
-                                        暂无运动数据
+                                
+                                <!-- 位姿列表（紧凑，可滚动） -->
+                                <div id="auto-motion-groups-list" style="max-height: 80px; overflow-y: auto; padding: 4px; background: #fafafa; border-radius: 4px; border: 1px solid #e0e0e0; margin-bottom: 8px;">
+                                    <div style="padding: 4px 6px; background: white; border-radius: 3px; text-align: center; color: #999; font-size: 13px; line-height: 1.3;">
+                                        暂无记录的位姿，请点击"记录位姿"按钮
                                     </div>
                                 </div>
-                            </div>
-                            
-                            <!-- 位姿数据管理 -->
-                            <div class="button-group">
-                                <button class="action-button" id="btn-auto-save-all-poses" style="background: #4caf50; color: white;">
-                                    💾 保存位姿到文件
-                                </button>
-                                <button class="action-button" id="btn-auto-load-all-poses" style="background: #2196f3; color: white;">
-                                    📂 从文件加载位姿
-                                </button>
-                            </div>
-                            
-                            <p style="margin: 10px 0 0 0; color: #666; font-size: 11px;">
-                                💡 <strong>姿态法优势：</strong>完全自动化，一键完成所有操作。无需点击"开始新运动组"，直接在不同位置点击"记录机器人位姿"即可。每两次记录形成一组观测数据，至少3组（建议5-8组）
-                            </p>
-                            
-                            <p style="margin: 8px 0 0 0; color: #f57c00; font-size: 11px; background: #fff3e0; padding: 6px 8px; border-radius: 4px;">
-                                ⚠️ <strong>位置选择建议：</strong>相邻两次记录应有明显角度变化（建议30-60度旋转）和距离变化（100-300mm移动），确保都能清晰看到完整棋盘格
-                            </p>
-                        </div>
-                        
-                        <!-- 标定执行和结果保存 -->
-                        <div style="margin-bottom: 15px; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                            <h4 style="margin: 0 0 12px 0; color: white; font-size: 15px;">🚀 执行标定</h4>
-                            <div class="button-group">
-                                <button class="action-button" id="btn-auto-start-calibration" style="background: #28a745; color: white; font-weight: bold; font-size: 14px;">
-                                    🚀 开始自动标定
-                                </button>
-                                <button class="action-button" id="btn-auto-save-calibration" style="background: #4caf50; color: white; font-size: 14px;">
-                                    💾 保存标定结果
-                                </button>
+                                
+                                <!-- 数据管理按钮 -->
+                                <div class="button-group" style="margin: 0;">
+                                    <button class="action-button" id="btn-auto-save-all-poses" style="background: #4caf50; color: white; font-size: 14px; padding: 8px 12px; flex: 1; font-weight: 500;">
+                                        💾 保存
+                                    </button>
+                                    <button class="action-button" id="btn-auto-load-all-poses" style="background: #2196f3; color: white; font-size: 14px; padding: 8px 12px; margin-left: 6px; flex: 1; font-weight: 500;">
+                                        📂 加载
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         
-                        <!-- 棋盘格大小设置 -->
-                        <div class="param-setting">
-                            <label for="auto-checkerboard-size">棋盘格大小 (mm):</label>
-                            <input type="number" id="auto-checkerboard-size" value="15" min="1" step="0.1">
+                        <!-- 第三层：标定执行（紧凑版） -->
+                        <div class="section-group" style="margin-bottom: 10px;">
+                            <div style="padding: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                <h4 style="margin: 0 0 8px 0; color: white; font-size: 16px; font-weight: 600;">🚀 执行标定</h4>
+                                <div class="button-group" style="margin: 0 0 8px 0;">
+                                    <button class="action-button" id="btn-auto-start-calibration" style="background: #28a745; color: white; font-weight: bold; font-size: 16px; padding: 10px 14px; flex: 1;">
+                                        🚀 开始自动标定
+                                    </button>
+                                    <button class="action-button" id="btn-auto-save-calibration" style="background: rgba(255,255,255,0.2); color: white; font-size: 15px; padding: 10px 14px; margin-left: 6px; border: 1px solid rgba(255,255,255,0.3); font-weight: 500;">
+                                        💾 保存
+                                    </button>
+                                </div>
+                                <div id="auto-motion-progress" style="padding: 6px 8px; background: rgba(255,255,255,0.15); border-radius: 4px; font-size: 14px; color: white;">
+                                    <span>尚未开始运动数据采集</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 第四层：参数设置（紧凑版） -->
+                        <div class="section-group">
+                            <div style="padding: 8px 10px; background: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <label for="auto-checkerboard-size" style="font-size: 15px; color: #666; margin: 0; font-weight: 500;">⚙️ 棋盘格大小 (mm):</label>
+                                    <input type="number" id="auto-checkerboard-size" value="15" min="1" step="0.1" style="font-size: 15px; width: 80px; padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px;">
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <!-- 图像显示 -->
-                    <div class="image-panel">
-                        <div class="panel-header">
-                            <h3>标定板图像 <span style="font-size: 12px; color: #667eea;">（自动模式）</span></h3>
-                            <span class="zoom-hint-header" id="auto-hand-eye-calib-zoom-hint">滚轮缩放 | 右键拖拽</span>
+                    <div class="image-panel" style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+                        <div class="panel-header" style="padding: 2px 6px; flex-shrink: 0;">
+                            <h3 style="font-size: 15px; margin: 0; line-height: 1.2;">标定板图像 <span style="font-size: 13px; color: #667eea;">（自动模式）</span></h3>
+                            <span class="zoom-hint-header" id="auto-hand-eye-calib-zoom-hint" style="font-size: 12px;">滚轮缩放 | 右键拖拽</span>
                         </div>
-                        <div class="image-container" id="auto-hand-eye-calib-image-container">
+                        <div class="image-container" id="auto-hand-eye-calib-image-container" style="flex: 1; min-height: 0;">
                             <img id="auto-hand-eye-calib-image" alt="标定板图像">
-                            <div class="image-placeholder">🤖 自动标定模式 - 等待图像...</div>
+                            <div class="image-placeholder" style="font-size: 14px; padding: 8px;">🤖 自动标定模式 - 等待图像...</div>
                             <button class="save-image-btn" id="save-auto-hand-eye-image" title="保存当前图像">
                                 💾 保存图像
                             </button>
@@ -468,128 +455,114 @@
                     </div>
 
                     <!-- 放大镜 -->
-                    <div class="magnifier-panel">
-                        <div class="panel-header">
-                            <h3>🔍 放大镜（中心点）</h3>
-                            <span class="zoom-hint-header magnifier-hint" id="auto-hand-eye-calib-mag-hint">中心点 X: - | Y: -</span>
+                    <div class="magnifier-panel" style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+                        <div class="panel-header" style="padding: 2px 6px; flex-shrink: 0;">
+                            <h3 style="font-size: 15px; margin: 0; line-height: 1.2;">🔍 放大镜（中心点）</h3>
+                            <span class="zoom-hint-header magnifier-hint" id="auto-hand-eye-calib-mag-hint" style="font-size: 12px;">中心点 X: - | Y: -</span>
                         </div>
-                        <div class="magnifier-container">
+                        <div class="magnifier-container" style="flex: 1; min-height: 0;">
                             <canvas id="auto-hand-eye-calib-magnifier"></canvas>
-                            <div class="magnifier-placeholder">显示可视区域中心</div>
+                            <div class="magnifier-placeholder" style="font-size: 13px; padding: 6px;">显示可视区域中心</div>
                         </div>
                     </div>
                     
                     <!-- 操作日志 -->
-                    <div class="log-panel">
-                        <h3>📊 数据流 & 操作日志</h3>
-                        <div class="log-container">
-                            <div id="auto-hand-eye-calib-log" class="log-display">
-                                <div class="log-entry info">🤖 自动标定系统就绪，等待操作...</div>
+                    <div class="log-panel" style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+                        <h3 style="font-size: 15px; margin-bottom: 2px; padding: 2px 6px; flex-shrink: 0; line-height: 1.2;">📊 数据流 & 操作日志</h3>
+                        <div class="log-container" style="flex: 1; min-height: 0; overflow: hidden;">
+                            <div id="auto-hand-eye-calib-log" class="log-display" style="height: 100%; overflow-y: auto;">
+                                <div class="log-entry info" style="padding: 4px 8px; font-size: 14px; line-height: 1.4;">🤖 自动标定系统就绪，等待操作...</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- 底部：左侧引导+参数，右侧数据表格 -->
-                <div class="bottom-section">
-                    <!-- 左侧：使用引导和参数信息 -->
-                    <div class="bottom-left-panel">
-                        <div class="guide-section">
-                            <h4>📖 快速使用指南</h4>
-                            <div class="guide-content">
-                                <div style="padding: 12px; background: #e8f5e9; border-radius: 6px; border-left: 4px solid #4caf50; margin-bottom: 12px;">
-                                    <strong style="color: #2e7d32; font-size: 14px;">🎯 操作步骤</strong>
-                                    <ol style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; line-height: 1.8; color: #1b5e20;">
-                                        <li>移动机器人到<strong>位置1</strong> → 点击"📡 记录机器人位姿"</li>
-                                        <li>移动机器人到<strong>位置2</strong> → 点击"📡 记录机器人位姿"</li>
-                                        <li>重复以上步骤，<strong>至少采集3组</strong>（建议5-8组）</li>
-                                        <li>点击"🚀 开始自动标定"</li>
-                                        <li>查看标定结果 → 点击"💾 保存标定结果"</li>
-                                    </ol>
-                                </div>
-                                
-                                <div style="padding: 10px; background: #e3f2fd; border-radius: 6px; border-left: 4px solid #2196f3; margin-bottom: 12px;">
-                                    <strong style="color: #1976d2; font-size: 13px;">💡 关键提示</strong>
-                                    <ul style="margin: 6px 0 0 0; padding-left: 20px; font-size: 12px; line-height: 1.6; color: #0d47a1;">
-                                        <li>每次"记录"自动完成：<strong>获取位姿 → 拍照 → 提取标定板 → 显示图像</strong></li>
-                                        <li>每<strong>两次记录</strong>形成<strong>一组观测数据</strong></li>
-                                        <li>相邻两次记录应有<strong>明显角度变化</strong>（30-60度旋转）</li>
-                                        <li>相邻两次记录应有<strong>距离变化</strong>（100-300mm移动）</li>
-                                    </ul>
-                                </div>
-                                
-                                <div style="padding: 10px; background: #fff3e0; border-radius: 6px; border-left: 4px solid #ff9800;">
-                                    <strong style="color: #e65100; font-size: 13px;">⚙️ 数据管理</strong>
-                                    <ul style="margin: 6px 0 0 0; padding-left: 20px; font-size: 12px; line-height: 1.6; color: #e65100;">
-                                        <li>可随时点击"💾 保存运动数据"保存当前采集的所有位姿</li>
-                                        <li>下次使用时点击"📂 从文件加载运动数据"快速恢复</li>
-                                        <li>点击"🗑️ 清空"可删除当前采集的所有数据重新开始</li>
-                                    </ul>
-                                </div>
+                <div class="bottom-section" style="flex: 0 0 auto; display: flex; gap: 10px; margin-top: 10px; min-height: 200px; max-height: 300px;">
+                    <!-- 左侧：信息面板 -->
+                    <div class="bottom-left-panel" style="flex: 0 0 300px; display: flex; flex-direction: column; overflow-y: auto;">
+                        <!-- 信息面板组1：相机参数 -->
+                        <div class="info-section" style="margin-bottom: 10px;">
+                            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 16px; font-weight: 600; display: flex; align-items: center;">
+                                <span style="margin-right: 6px;">📷</span>相机标定参数
+                            </h4>
+                            <div id="auto-camera-params-info" class="info-display" style="padding: 8px; background: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6;">
+                                <p style="color: #2196f3; margin: 0 0 3px 0; font-size: 14px; line-height: 1.4;">⏳ 等待相机内参数据...</p>
+                                <p style="margin: 0 0 3px 0; font-size: 13px; color: #666; line-height: 1.4;">优先从 ROS2 CameraInfo 话题获取</p>
+                                <p style="margin: 0; font-size: 13px; color: #999; line-height: 1.4;">系统会自动加载，请稍候...</p>
                             </div>
                         </div>
                         
-                        <div class="info-section">
-                            <h4>相机标定参数</h4>
-                            <div id="auto-camera-params-info" class="info-display">
-                                <p>等待从ROS2话题加载相机参数...</p>
-                            </div>
+                    </div>
+
+                    <!-- 右侧：自动标定数据列表 -->
+                    <div class="bottom-right-panel" style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+                        <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                            <h3 style="margin: 0; color: #495057; font-size: 17px; font-weight: 600; display: flex; align-items: center;">
+                                <span style="margin-right: 6px;">📊</span>自动标定数据
+                            </h3>
                         </div>
-                        
-                        <div class="info-section">
-                            <h4>自动标定状态</h4>
-                            <div id="auto-calibration-status" class="info-display">
-                                <p>已采集数据: <span id="auto-pose-count" style="font-weight: bold; color: #667eea;">0</span> 组</p>
-                                <p>当前步骤: <span id="auto-current-step" style="font-weight: bold; color: #667eea;">-</span></p>
-                                <p>标定状态: <span id="auto-calib-status" style="font-weight: bold; color: #667eea;">未开始</span></p>
-                                <p>标定误差: <span id="auto-calib-error" style="font-weight: bold; color: #667eea;">-</span></p>
-                            </div>
-                        </div>
-                        
-                        <div class="info-section">
-                            <h4>机器人当前位姿</h4>
-                            <div id="auto-robot-pose-info" class="info-display">
-                                <p><strong>状态:</strong> <span id="auto-robot-online-indicator" class="status-indicator">检查中...</span></p>
-                                <p>位置 X: <span id="auto-pos-x">-</span> mm</p>
-                                <p>位置 Y: <span id="auto-pos-y">-</span> mm</p>
-                                <p>位置 Z: <span id="auto-pos-z">-</span> mm</p>
-                                <p>姿态 Qx: <span id="auto-ori-x">-</span></p>
-                                <p>姿态 Qy: <span id="auto-ori-y">-</span></p>
-                                <p>姿态 Qz: <span id="auto-ori-z">-</span></p>
-                                <p>姿态 Qw: <span id="auto-ori-w">-</span></p>
+                        <div id="auto-calibration-data-display" class="data-display" style="background: white; border-radius: 6px; border: 1px solid #dee2e6; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05); flex: 1; min-height: 0; overflow-y: auto; padding: 10px;">
+                            <div style="text-align: center; color: #999; font-size: 14px; padding: 15px 10px; line-height: 1.5;">
+                                <div style="margin-bottom: 6px;">🤖 等待自动标定开始</div>
+                                <div style="font-size: 13px; color: #bbb;">数据采集后将显示在此处</div>
                             </div>
                         </div>
                     </div>
-
-                    <!-- 右侧：数据表格 -->
-                    <div class="bottom-right-panel">
-                        <h3>自动标定数据 <span style="font-size: 12px; color: #667eea; font-weight: normal;">（实时更新）</span></h3>
-                        <div class="data-display">
-                            <div class="data-table">
-                                <table id="auto-pose-list-table">
-                                    <thead>
-                                        <tr>
-                                            <th style="background: #667eea; color: white;">组号</th>
-                                            <th>角点序号</th>
-                                            <th>像素坐标 U (px)</th>
-                                            <th>像素坐标 V (px)</th>
-                                            <th>相机坐标 X (mm)</th>
-                                            <th>相机坐标 Y (mm)</th>
-                                            <th>位置 X (mm)</th>
-                                            <th>位置 Y (mm)</th>
-                                            <th>位置 Z (mm)</th>
-                                            <th>姿态 Qx</th>
-                                            <th>姿态 Qy</th>
-                                            <th>姿态 Qz</th>
-                                            <th>姿态 Qw</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td colspan="13" class="no-data">🤖 等待自动标定开始...</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                </div>
+                
+                <!-- 底部横向：机器人当前位姿 -->
+                <div style="flex: 0 0 auto; margin-top: 10px; padding: 10px 14px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 6px; border: 1px solid #dee2e6; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                        <!-- 标题 -->
+                        <div style="display: flex; align-items: center; gap: 8px; min-width: 130px;">
+                            <span style="font-size: 20px;">🤖</span>
+                            <span style="font-size: 16px; font-weight: 600; color: #495057;">机器人当前位姿</span>
+                            <span style="font-size: 13px; color: #667eea; background: #e3f2fd; padding: 2px 6px; border-radius: 3px; font-weight: 500;">实时更新</span>
+                        </div>
+                        
+                        <!-- 状态指示器 -->
+                        <div style="display: flex; align-items: center; gap: 8px; min-width: 100px;">
+                            <span style="font-size: 14px; color: #666;">状态:</span>
+                            <span id="auto-robot-online-indicator" class="status-indicator" style="font-size: 14px; font-weight: 500;">检查中...</span>
+                        </div>
+                        
+                        <!-- 位置信息 -->
+                        <div style="display: flex; align-items: center; gap: 16px; flex: 1; justify-content: flex-start;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 14px; color: #999;">位置 X:</span>
+                                <span id="auto-pos-x" style="font-weight: 600; color: #4caf50; font-size: 15px; font-family: monospace; min-width: 80px;">-</span>
+                                <span style="font-size: 13px; color: #999;">mm</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 14px; color: #999;">位置 Y:</span>
+                                <span id="auto-pos-y" style="font-weight: 600; color: #4caf50; font-size: 15px; font-family: monospace; min-width: 80px;">-</span>
+                                <span style="font-size: 13px; color: #999;">mm</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 14px; color: #999;">位置 Z:</span>
+                                <span id="auto-pos-z" style="font-weight: 600; color: #4caf50; font-size: 15px; font-family: monospace; min-width: 80px;">-</span>
+                                <span style="font-size: 13px; color: #999;">mm</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 姿态信息 -->
+                        <div style="display: flex; align-items: center; gap: 16px; flex: 1; justify-content: flex-start;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 14px; color: #999;">姿态 Qx:</span>
+                                <span id="auto-ori-x" style="font-weight: 500; color: #495057; font-size: 14px; font-family: monospace; min-width: 90px;">-</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 14px; color: #999;">姿态 Qy:</span>
+                                <span id="auto-ori-y" style="font-weight: 500; color: #495057; font-size: 14px; font-family: monospace; min-width: 90px;">-</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 14px; color: #999;">姿态 Qz:</span>
+                                <span id="auto-ori-z" style="font-weight: 500; color: #495057; font-size: 14px; font-family: monospace; min-width: 90px;">-</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 14px; color: #999;">姿态 Qw:</span>
+                                <span id="auto-ori-w" style="font-weight: 500; color: #495057; font-size: 14px; font-family: monospace; min-width: 90px;">-</span>
                             </div>
                         </div>
                     </div>
@@ -815,7 +788,10 @@
     <div id="calibration-result-modal" class="modal">
         <div class="modal-content" style="max-width: 900px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
             <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px 12px 0 0; padding: 20px;">
-                <h3 style="margin: 0; font-size: 1.5em; font-weight: 600;">📊 标定结果确认</h3>
+                <div>
+                    <h3 style="margin: 0 0 5px 0; font-size: 1.5em; font-weight: 600;">📊 标定结果确认</h3>
+                    <p style="margin: 0; font-size: 0.9em; opacity: 0.9;">请仔细检查标定结果，确认无误后点击"确认保存"</p>
+                </div>
                 <span class="close" onclick="closeCalibrationResultModal()" style="color: white; opacity: 0.9; font-size: 1.5em; transition: opacity 0.2s;">&times;</span>
             </div>
             <div class="modal-body" style="max-height: 75vh; overflow-y: auto; padding: 25px; background: #f8f9fa;">

@@ -454,6 +454,10 @@ function autoLoadDefaultCameraParams() {
             if (heParamsInfo) {
         heParamsInfo.innerHTML = waitingHTML;
             }
+            const autoParamsInfo = document.getElementById('auto-camera-params-info');
+            if (autoParamsInfo) {
+        autoParamsInfo.innerHTML = waitingHTML;
+            }
             
     // 定期检查机制会自动获取和更新内参（由 startCameraInfoUpdate() 处理）
     // 不再自动从文件加载，完全依赖 ROS2 话题
@@ -473,6 +477,10 @@ function autoLoadDefaultCameraParams() {
             document.getElementById('camera-params-info').innerHTML = stillWaitingHTML;
             if (heParamsInfo) {
                 heParamsInfo.innerHTML = stillWaitingHTML;
+            }
+            const autoParamsInfo = document.getElementById('auto-camera-params-info');
+            if (autoParamsInfo) {
+                autoParamsInfo.innerHTML = stillWaitingHTML;
             }
         }
     }, 10000);
@@ -3779,7 +3787,7 @@ function startRobotPoseUpdate() {
     // 立即调用一次，确保页面加载时就能看到位姿
     updateRobotPose();
     robotPoseUpdateInterval = setInterval(() => {
-        if (currentTab === 'hand-eye-calib' && !document.hidden) {
+        if ((currentTab === 'hand-eye-calib' || currentTab === 'auto-hand-eye-calib') && !document.hidden) {
             updateRobotPose();
         }
     }, 100);  // 每100ms更新一次
@@ -3857,19 +3865,20 @@ function updateRobotPose() {
                 }
             } else {
                 // 如果无法获取数据，显示离线
-                const indicator = document.getElementById('robot-online-indicator');
+                const prefix = (currentTab === 'auto-hand-eye-calib') ? 'auto-' : '';
+                const indicator = document.getElementById(prefix + 'robot-online-indicator');
                 if (indicator) {
                     indicator.textContent = '🔴 无数据';
                     indicator.className = 'status-indicator offline';
                     updateRobotStatus('离线');
                     // 重置位置值为"-"
-                    const posX = document.getElementById('pos-x');
-                    const posY = document.getElementById('pos-y');
-                    const posZ = document.getElementById('pos-z');
-                    const oriX = document.getElementById('ori-x');
-                    const oriY = document.getElementById('ori-y');
-                    const oriZ = document.getElementById('ori-z');
-                    const oriW = document.getElementById('ori-w');
+                    const posX = document.getElementById(prefix + 'pos-x');
+                    const posY = document.getElementById(prefix + 'pos-y');
+                    const posZ = document.getElementById(prefix + 'pos-z');
+                    const oriX = document.getElementById(prefix + 'ori-x');
+                    const oriY = document.getElementById(prefix + 'ori-y');
+                    const oriZ = document.getElementById(prefix + 'ori-z');
+                    const oriW = document.getElementById(prefix + 'ori-w');
                     if (posX) posX.textContent = '-';
                     if (posY) posY.textContent = '-';
                     if (posZ) posZ.textContent = '-';
@@ -3883,19 +3892,20 @@ function updateRobotPose() {
         .catch(error => {
             // 网络错误或API错误
             try {
-                const indicator = document.getElementById('robot-online-indicator');
+                const prefix = (currentTab === 'auto-hand-eye-calib') ? 'auto-' : '';
+                const indicator = document.getElementById(prefix + 'robot-online-indicator');
                 if (indicator) {
                     indicator.textContent = '⚠️ 错误';
                     indicator.className = 'status-indicator error';
                     updateRobotStatus('错误');
                     // 重置位置值为"-"
-                    const posX = document.getElementById('pos-x');
-                    const posY = document.getElementById('pos-y');
-                    const posZ = document.getElementById('pos-z');
-                    const oriX = document.getElementById('ori-x');
-                    const oriY = document.getElementById('ori-y');
-                    const oriZ = document.getElementById('ori-z');
-                    const oriW = document.getElementById('ori-w');
+                    const posX = document.getElementById(prefix + 'pos-x');
+                    const posY = document.getElementById(prefix + 'pos-y');
+                    const posZ = document.getElementById(prefix + 'pos-z');
+                    const oriX = document.getElementById(prefix + 'ori-x');
+                    const oriY = document.getElementById(prefix + 'ori-y');
+                    const oriZ = document.getElementById(prefix + 'ori-z');
+                    const oriW = document.getElementById(prefix + 'ori-w');
                     if (posX) posX.textContent = '-';
                     if (posY) posY.textContent = '-';
                     if (posZ) posZ.textContent = '-';
@@ -3960,6 +3970,12 @@ function updateCameraInfoFromROS2() {
                         heParamsInfo.innerHTML = paramHTML;
                     }
                     
+                    // 同时更新自动标定选项卡
+                    const autoParamsInfo = document.getElementById('auto-camera-params-info');
+                    if (autoParamsInfo) {
+                        autoParamsInfo.innerHTML = paramHTML;
+                    }
+                    
                     addLog('success', `✅ 已从 ROS2 CameraInfo 话题获取相机内参：fx=${cm.fx.toFixed(2)}, fy=${cm.fy.toFixed(2)}`);
                     showToast('已从 ROS2 话题获取相机内参', 'success');
                 }
@@ -3982,6 +3998,10 @@ function updateCameraInfoFromROS2() {
                 const heParamsInfo = document.getElementById('he-camera-params-info');
                 if (heParamsInfo) {
                     heParamsInfo.innerHTML = paramHTML;
+                }
+                const autoParamsInfo = document.getElementById('auto-camera-params-info');
+                if (autoParamsInfo) {
+                    autoParamsInfo.innerHTML = paramHTML;
                 }
             }
         }

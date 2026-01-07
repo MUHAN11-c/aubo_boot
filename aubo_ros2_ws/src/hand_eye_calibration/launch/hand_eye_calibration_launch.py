@@ -53,6 +53,12 @@ def generate_launch_description():
         description='输入图像话题（相机发布的原始图像话题）'
     )
     
+    camera_info_topic_arg = DeclareLaunchArgument(
+        'camera_info_topic',
+        default_value='/camera/color/camera_info',
+        description='相机内参话题（CameraInfo，用于自动获取相机标定参数）'
+    )
+    
     depth_image_topic_arg = DeclareLaunchArgument(
         'depth_image_topic',
         default_value='/camera/depth/image_raw',
@@ -89,6 +95,7 @@ def generate_launch_description():
             'web_host': LaunchConfiguration('web_host'),
             'web_port': LaunchConfiguration('web_port'),
             'camera_topic': LaunchConfiguration('camera_topic'),
+            'camera_info_topic': LaunchConfiguration('camera_info_topic'),
             'robot_status_topic': LaunchConfiguration('robot_status_topic'),
             'depth_image_topic': LaunchConfiguration('depth_image_topic'),
             'depth_scale_unit': LaunchConfiguration('depth_scale_unit'),
@@ -103,6 +110,7 @@ def generate_launch_description():
         web_host_arg,
         web_port_arg,
         camera_topic_arg,
+        camera_info_topic_arg,
         robot_status_topic_arg,
         actual_robot_status_topic_arg,
         input_image_topic_arg,

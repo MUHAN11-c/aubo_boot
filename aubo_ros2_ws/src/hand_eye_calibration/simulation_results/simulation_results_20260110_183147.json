@@ -1,0 +1,95 @@
+{
+  "simulation_info": {
+    "timestamp": "20260110_183147",
+    "num_poses": 20,
+    "description": "手眼标定完整流程模拟验证（含噪声）"
+  },
+  "ground_truth": {
+    "T_cam2gripper": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        50.0
+      ],
+      [
+        0.0,
+        -1.0,
+        -1.2246467991473532e-16,
+        0.0
+      ],
+      [
+        0.0,
+        1.2246467991473532e-16,
+        -1.0,
+        150.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "translation_mm": [
+      50.0,
+      0.0,
+      150.0
+    ],
+    "translation_norm_mm": 158.11388300841898
+  },
+  "estimated": {
+    "T_cam2gripper": [
+      [
+        1.0,
+        9.94648529478278e-16,
+        -2.3367810872229647e-16,
+        49.99999999999981
+      ],
+      [
+        9.94648529478278e-16,
+        -1.0,
+        3.296191919053883e-16,
+        -1.0503937377629196e-13
+      ],
+      [
+        -2.3367810872229617e-16,
+        -3.296191919053885e-16,
+        -1.0,
+        150.00000000000003
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "translation_mm": [
+      49.99999999999981,
+      -1.0503937377629196e-13,
+      150.00000000000003
+    ],
+    "translation_norm_mm": 158.11388300841892
+  },
+  "errors": {
+    "translation_error_mm": 2.2055874048482734e-13,
+    "rotation_error_deg": 0.0,
+    "translation_error_xyz_mm": [
+      -1.9184653865522705e-13,
+      -1.0503937377629196e-13,
+      2.842170943040401e-14
+    ],
+    "ax_xb_constraint": {
+      "mean_translation_error_mm": 412.8269973202587,
+      "mean_rotation_error_deg": 88.78489599427749,
+      "max_translation_error_mm": 704.2687651451928,
+      "max_rotation_error_deg": 159.81859298969331
+    }
+  },
+  "calibration_details": {
+    "input_poses_count": 20,
+    "processed_poses_count": 1768041107979,
+    "config_dir": "C:\\Users\\wjz\\Desktop\\IVG1.9\\IVG\\aubo_ros2_ws\\src\\hand_eye_calibration\\hand_eye_calibration\\..\\config"
+  }
+}

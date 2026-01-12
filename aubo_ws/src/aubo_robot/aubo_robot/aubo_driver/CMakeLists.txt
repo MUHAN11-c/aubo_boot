@@ -52,8 +52,8 @@ add_executable(aubo_gazebo_driver src/aubo_gazebo_driver.cpp)
 
 #LINK_LIBRARIES(${CMAKE_CURRENT_SOURCE_DIR}/lib)
 
-target_link_libraries(aubo_driver pthread ${catkin_LIBRARIES} auborobotcontroller otgLib)
-target_link_libraries(testAuboAPI ${catkin_LIBRARIES} auborobotcontroller otgLib)
+target_link_libraries(aubo_driver pthread ${catkin_LIBRARIES} auborobotcontroller otgLib log4cplus config)
+target_link_libraries(testAuboAPI ${catkin_LIBRARIES} auborobotcontroller otgLib log4cplus config)
 target_link_libraries(testIO ${catkin_LIBRARIES} otgLib)
 target_link_libraries(aubo_gazebo_driver ${catkin_LIBRARIES})
 

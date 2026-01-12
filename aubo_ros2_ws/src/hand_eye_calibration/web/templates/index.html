@@ -52,7 +52,7 @@
                         <!-- 棋盘格大小设置 -->
                         <div class="param-setting">
                             <label for="checkerboard-size">棋盘格大小 (mm):</label>
-                            <input type="number" id="checkerboard-size" value="15" min="1" step="0.1">
+                            <input type="number" id="checkerboard-size" value="20" min="1" step="0.1">
                         </div>
                     </div>
 
@@ -194,7 +194,7 @@
                         <!-- 棋盘格大小设置 -->
                         <div class="param-setting">
                             <label for="he-checkerboard-size">棋盘格大小 (mm):</label>
-                            <input type="number" id="he-checkerboard-size" value="15" min="1" step="0.1">
+                            <input type="number" id="he-checkerboard-size" value="20" min="1" step="0.1">
                         </div>
                         
                         <!-- 相机高度设置（仅Eye-to-Hand显示） -->
@@ -391,6 +391,20 @@
                                     </button>
                                 </div>
                                 
+                                <!-- 运动到位姿按钮 -->
+                                <div class="button-group" style="margin: 0 0 8px 0;">
+                                    <button class="action-button" id="btn-auto-move-to-first-pose" style="background: #ff9800; color: white; font-size: 14px; padding: 8px 12px; flex: 1; font-weight: 500;">
+                                        ➡️ 运动到拍照位姿
+                                    </button>
+                                </div>
+                                
+                                <!-- 刷新图像按钮 -->
+                                <div class="button-group" style="margin: 0 0 8px 0;">
+                                    <button class="action-button" id="btn-auto-refresh-image" style="background: #00bcd4; color: white; font-size: 14px; padding: 8px 12px; flex: 1; font-weight: 500;">
+                                        🔄 刷新图像
+                                    </button>
+                                </div>
+                                
                                 <!-- 位姿列表（紧凑，可滚动） -->
                                 <div id="auto-motion-groups-list" style="max-height: 80px; overflow-y: auto; padding: 4px; background: #fafafa; border-radius: 4px; border: 1px solid #e0e0e0; margin-bottom: 8px;">
                                     <div style="padding: 4px 6px; background: white; border-radius: 3px; text-align: center; color: #999; font-size: 13px; line-height: 1.3;">
@@ -414,12 +428,29 @@
                         <div class="section-group" style="margin-bottom: 10px;">
                             <div style="padding: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                                 <h4 style="margin: 0 0 8px 0; color: white; font-size: 16px; font-weight: 600;">🚀 执行标定</h4>
+                                <!-- 标定方法切换 -->
+                                <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                                    <label style="color: white; font-size: 14px; font-weight: 500;">标定方法:</label>
+                                    <div style="display: flex; background: rgba(255,255,255,0.2); border-radius: 4px; padding: 2px;">
+                                        <button id="btn-method-custom" class="method-toggle-btn active" data-method="custom" style="flex: 1; padding: 6px 12px; border: none; background: rgba(255,255,255,0.3); color: white; border-radius: 3px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s;">
+                                            自定义 (AX=XB)
+                                        </button>
+                                        <button id="btn-method-opencv" class="method-toggle-btn" data-method="opencv" style="flex: 1; padding: 6px 12px; border: none; background: transparent; color: rgba(255,255,255,0.7); border-radius: 3px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s;">
+                                            OpenCV
+                                        </button>
+                                    </div>
+                                </div>
                                 <div class="button-group" style="margin: 0 0 8px 0;">
                                     <button class="action-button" id="btn-auto-start-calibration" style="background: #28a745; color: white; font-weight: bold; font-size: 16px; padding: 10px 14px; flex: 1;">
                                         🚀 开始自动标定
                                     </button>
-                                    <button class="action-button" id="btn-auto-save-calibration" style="background: rgba(255,255,255,0.2); color: white; font-size: 15px; padding: 10px 14px; margin-left: 6px; border: 1px solid rgba(255,255,255,0.3); font-weight: 500;">
-                                        💾 保存
+                                    <button class="action-button" id="btn-auto-stop-calibration" style="background: #dc3545; color: white; font-weight: bold; font-size: 16px; padding: 10px 14px; margin-left: 6px; border: 1px solid rgba(255,255,255,0.3); opacity: 0.5; cursor: not-allowed;" disabled>
+                                        🛑 停止自动标定
+                                    </button>
+                                </div>
+                                <div class="button-group" style="margin: 0 0 8px 0;">
+                                    <button class="action-button" id="btn-auto-save-calibration" style="background: rgba(255,255,255,0.2); color: white; font-size: 15px; padding: 10px 14px; border: 1px solid rgba(255,255,255,0.3); font-weight: 500; width: 100%;">
+                                        💾 保存标定结果
                                     </button>
                                 </div>
                                 <div id="auto-motion-progress" style="padding: 6px 8px; background: rgba(255,255,255,0.15); border-radius: 4px; font-size: 14px; color: white;">
@@ -433,7 +464,7 @@
                             <div style="padding: 8px 10px; background: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6;">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <label for="auto-checkerboard-size" style="font-size: 15px; color: #666; margin: 0; font-weight: 500;">⚙️ 棋盘格大小 (mm):</label>
-                                    <input type="number" id="auto-checkerboard-size" value="15" min="1" step="0.1" style="font-size: 15px; width: 80px; padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px;">
+                                    <input type="number" id="auto-checkerboard-size" value="20" min="1" step="0.1" style="font-size: 15px; width: 80px; padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px;">
                                 </div>
                             </div>
                         </div>
@@ -454,18 +485,6 @@
                         </div>
                     </div>
 
-                    <!-- 放大镜 -->
-                    <div class="magnifier-panel" style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
-                        <div class="panel-header" style="padding: 2px 6px; flex-shrink: 0;">
-                            <h3 style="font-size: 15px; margin: 0; line-height: 1.2;">🔍 放大镜（中心点）</h3>
-                            <span class="zoom-hint-header magnifier-hint" id="auto-hand-eye-calib-mag-hint" style="font-size: 12px;">中心点 X: - | Y: -</span>
-                        </div>
-                        <div class="magnifier-container" style="flex: 1; min-height: 0;">
-                            <canvas id="auto-hand-eye-calib-magnifier"></canvas>
-                            <div class="magnifier-placeholder" style="font-size: 13px; padding: 6px;">显示可视区域中心</div>
-                        </div>
-                    </div>
-                    
                     <!-- 操作日志 -->
                     <div class="log-panel" style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
                         <h3 style="font-size: 15px; margin-bottom: 2px; padding: 2px 6px; flex-shrink: 0; line-height: 1.2;">📊 数据流 & 操作日志</h3>
@@ -799,9 +818,20 @@
                     <!-- 结果内容将动态填充 -->
                 </div>
             </div>
-            <div class="modal-footer" style="padding: 20px; background: white; border-radius: 0 0 12px 12px; border-top: 1px solid #e0e0e0; display: flex; justify-content: flex-end; gap: 10px;">
-                <button class="btn btn-primary" id="btn-confirm-save-calibration" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 10px 25px; border-radius: 6px; font-weight: 600; transition: transform 0.2s, box-shadow 0.2s;">✅ 确认保存</button>
-                <button class="btn btn-secondary" onclick="closeCalibrationResultModal()" style="padding: 10px 25px; border-radius: 6px; font-weight: 600; transition: transform 0.2s;">取消</button>
+            <div class="modal-footer" style="padding: 20px; background: white; border-radius: 0 0 12px 12px; border-top: 1px solid #e0e0e0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <label style="font-weight: 500; color: #333;">保存格式:</label>
+                        <select id="calibration-save-format" style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; cursor: pointer;">
+                            <option value="yaml" selected>YAML (推荐)</option>
+                            <option value="xml">XML</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button class="btn btn-primary" id="btn-confirm-save-calibration" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 10px 25px; border-radius: 6px; font-weight: 600; transition: transform 0.2s, box-shadow 0.2s;">✅ 确认保存</button>
+                    <button class="btn btn-secondary" onclick="closeCalibrationResultModal()" style="padding: 10px 25px; border-radius: 6px; font-weight: 600; transition: transform 0.2s;">取消</button>
+                </div>
             </div>
         </div>
     </div>

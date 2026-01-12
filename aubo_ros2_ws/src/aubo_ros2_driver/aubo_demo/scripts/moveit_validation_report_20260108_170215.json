@@ -1,0 +1,442 @@
+{
+  "timestamp": "2026-01-08T17:02:15.802220",
+  "summary": {
+    "total_tests": 5,
+    "passed": 0,
+    "failed": 5,
+    "pass_rate": "0.0%"
+  },
+  "validation_criteria": {
+    "position_tolerance_mm": 1.0,
+    "orientation_tolerance_deg": 0.5729577951308232
+  },
+  "statistics": {
+    "controller_vs_target": {
+      "average_position_error_mm": 24.075,
+      "average_orientation_error_deg": 2.58,
+      "max_position_error_mm": 25.227,
+      "max_orientation_error_deg": 2.764
+    },
+    "average_motion_time_s": 1.08,
+    "moveit2_vs_target": {
+      "average_position_error_mm": 0.077,
+      "average_orientation_error_deg": 0.067
+    },
+    "moveit2_vs_controller": {
+      "average_position_error_mm": 24.068,
+      "average_orientation_error_deg": 2.582
+    }
+  },
+  "test_results": [
+    {
+      "pose_index": 1,
+      "target_pose": {
+        "position": {
+          "x": 0.47336241602897644,
+          "y": -0.11985275894403458,
+          "z": 0.5588631629943848
+        },
+        "orientation": {
+          "x": -0.7029491662979126,
+          "y": -0.7111008167266846,
+          "z": -0.010446865111589432,
+          "w": 0.00943086203187704
+        }
+      },
+      "timestamp": "2026-01-08T17:01:52.429401",
+      "moveit_call": {
+        "success": true,
+        "message": "Successfully moved to target pose",
+        "execution_time": 2.304046154022217
+      },
+      "motion_detection": {
+        "motion_detected": true,
+        "motion_started": true,
+        "motion_ended": true,
+        "start_time": 1767862913.2150018,
+        "end_time": 1767862914.023052,
+        "motion_duration": 0.8080501556396484
+      },
+      "actual_pose": {
+        "position": {
+          "x": 0.4733958840370178,
+          "y": -0.12408054620027542,
+          "z": 0.5354111194610596
+        },
+        "orientation": {
+          "x": -0.7055741548538208,
+          "y": -0.7077287435531616,
+          "z": -0.02607502043247223,
+          "w": 0.024600926786661148
+        }
+      },
+      "pose_difference": {
+        "position_distance_mm": 23.830099686752778,
+        "position_distance_m": 0.023830099686752777,
+        "orientation_angle_deg": 2.5435633579971997,
+        "orientation_angle_rad": 0.04439355533013437,
+        "dx": 3.3468008041381836e-05,
+        "dy": -0.004227787256240845,
+        "dz": -0.023452043533325195
+      },
+      "moveit2_tcp_pose": {
+        "position": {
+          "x": 0.4733637772374503,
+          "y": -0.11979817727344581,
+          "z": 0.5588805031852964
+        },
+        "orientation": {
+          "x": 0.7029397691855522,
+          "y": 0.7110995118155102,
+          "z": 0.011094718218766016,
+          "w": -0.009490649121740751
+        }
+      },
+      "moveit2_vs_target": {
+        "position_distance_mm": 0.05728607050252471,
+        "orientation_angle_deg": 0.07629427834204608,
+        "dx": 1.361208473882325e-06,
+        "dy": 5.4581670588763065e-05,
+        "dz": 1.7340190911596665e-05
+      },
+      "moveit2_vs_controller": {
+        "position_distance_mm": 23.856900194021957,
+        "orientation_angle_deg": 2.487127271666279,
+        "dx": 3.210679956749951e-05,
+        "dy": -0.004282368926829608,
+        "dz": -0.023469383724236792
+      },
+      "position_ok": false,
+      "orientation_ok": false,
+      "success": false
+    },
+    {
+      "pose_index": 2,
+      "target_pose": {
+        "position": {
+          "x": 0.5107815265655518,
+          "y": -0.13148565590381622,
+          "z": 0.4749206602573395
+        },
+        "orientation": {
+          "x": -0.6992166638374329,
+          "y": -0.7044124007225037,
+          "z": 0.07563911378383636,
+          "w": 0.09580180794000626
+        }
+      },
+      "timestamp": "2026-01-08T17:01:57.244875",
+      "moveit_call": {
+        "success": true,
+        "message": "Successfully moved to target pose",
+        "execution_time": 2.0032222270965576
+      },
+      "motion_detection": {
+        "motion_detected": true,
+        "motion_started": true,
+        "motion_ended": true,
+        "start_time": 1767862918.021805,
+        "end_time": 1767862918.6145866,
+        "motion_duration": 0.5927815437316895
+      },
+      "actual_pose": {
+        "position": {
+          "x": 0.5102599859237671,
+          "y": -0.1362747848033905,
+          "z": 0.45103710889816284
+        },
+        "orientation": {
+          "x": -0.7023410201072693,
+          "y": -0.7005944848060608,
+          "z": 0.05952748656272888,
+          "w": 0.11108981817960739
+        }
+      },
+      "pose_difference": {
+        "position_distance_mm": 24.36456003674597,
+        "position_distance_m": 0.02436456003674597,
+        "orientation_angle_deg": 2.6071102226901335,
+        "orientation_angle_rad": 0.0455026573483454,
+        "dx": -0.000521540641784668,
+        "dy": -0.00478912889957428,
+        "dz": -0.023883551359176636
+      },
+      "moveit2_tcp_pose": {
+        "position": {
+          "x": 0.5107347863749946,
+          "y": -0.1314464360491566,
+          "z": 0.47491078655435337
+        },
+        "orientation": {
+          "x": 0.6988847816973215,
+          "y": 0.7047654137886675,
+          "z": -0.07573924669420068,
+          "w": -0.09554757950555562
+        }
+      },
+      "moveit2_vs_target": {
+        "position_distance_mm": 0.06180883774591485,
+        "orientation_angle_deg": 0.06000534375757991,
+        "dx": -4.674019055717071e-05,
+        "dy": 3.921985465962785e-05,
+        "dz": -9.873702986107347e-06
+      },
+      "moveit2_vs_controller": {
+        "position_distance_mm": 24.361668087236733,
+        "orientation_angle_deg": 2.6473832110073063,
+        "dx": -0.00047480045122749726,
+        "dy": -0.004828348754233908,
+        "dz": -0.02387367765619053
+      },
+      "position_ok": false,
+      "orientation_ok": false,
+      "success": false
+    },
+    {
+      "pose_index": 3,
+      "target_pose": {
+        "position": {
+          "x": 0.4722929000854492,
+          "y": -0.13417771458625793,
+          "z": 0.46024420857429504
+        },
+        "orientation": {
+          "x": 0.6967930793762207,
+          "y": 0.6951167583465576,
+          "z": 0.13537999987602234,
+          "w": 0.11386082321405411
+        }
+      },
+      "timestamp": "2026-01-08T17:02:01.757840",
+      "moveit_call": {
+        "success": true,
+        "message": "Successfully moved to target pose",
+        "execution_time": 3.1043617725372314
+      },
+      "motion_detection": {
+        "motion_detected": true,
+        "motion_started": true,
+        "motion_ended": true,
+        "start_time": 1767862922.5145154,
+        "end_time": 1767862924.114546,
+        "motion_duration": 1.6000306606292725
+      },
+      "actual_pose": {
+        "position": {
+          "x": 0.471638947725296,
+          "y": -0.14097769558429718,
+          "z": 0.435960054397583
+        },
+        "orientation": {
+          "x": 0.7050610780715942,
+          "y": 0.6857212781906128,
+          "z": 0.15060602128505707,
+          "w": 0.09996512532234192
+        }
+      },
+      "pose_difference": {
+        "position_distance_mm": 25.226722722965132,
+        "position_distance_m": 0.025226722722965132,
+        "orientation_angle_deg": 2.763665847831968,
+        "orientation_angle_rad": 0.04823506846958843,
+        "dx": -0.0006539523601531982,
+        "dy": -0.006799980998039246,
+        "dz": -0.024284154176712036
+      },
+      "moveit2_tcp_pose": {
+        "position": {
+          "x": 0.47220654375273113,
+          "y": -0.13415523888742945,
+          "z": 0.4602088999294709
+        },
+        "orientation": {
+          "x": 0.6969248726678703,
+          "y": 0.6948682326092056,
+          "z": 0.13597106611837892,
+          "w": 0.11386716096427074
+        }
+      },
+      "moveit2_vs_target": {
+        "position_distance_mm": 0.09596496046820176,
+        "orientation_angle_deg": 0.08053298515387726,
+        "dx": -8.635633271808496e-05,
+        "dy": 2.24756988284891e-05,
+        "dz": -3.530864482415019e-05
+      },
+      "moveit2_vs_controller": {
+        "position_distance_mm": 25.196717846980675,
+        "orientation_angle_deg": 2.705292669445269,
+        "dx": -0.0005675960274351133,
+        "dy": -0.006822456696867735,
+        "dz": -0.024248845531887886
+      },
+      "position_ok": false,
+      "orientation_ok": false,
+      "success": false
+    },
+    {
+      "pose_index": 4,
+      "target_pose": {
+        "position": {
+          "x": 0.47155511379241943,
+          "y": -0.17457789182662964,
+          "z": 0.4396178424358368
+        },
+        "orientation": {
+          "x": -0.685297429561615,
+          "y": -0.6778663992881775,
+          "z": -0.17250612378120422,
+          "w": 0.2027466744184494
+        }
+      },
+      "timestamp": "2026-01-08T17:02:07.373515",
+      "moveit_call": {
+        "success": true,
+        "message": "Successfully moved to target pose",
+        "execution_time": 2.8036131858825684
+      },
+      "motion_detection": {
+        "motion_detected": true,
+        "motion_started": true,
+        "motion_ended": true,
+        "start_time": 1767862928.214661,
+        "end_time": 1767862929.5147035,
+        "motion_duration": 1.3000426292419434
+      },
+      "actual_pose": {
+        "position": {
+          "x": 0.47084105014801025,
+          "y": -0.17948231101036072,
+          "z": 0.4172736704349518
+        },
+        "orientation": {
+          "x": -0.6867802739143372,
+          "y": -0.669200599193573,
+          "z": -0.19070202112197876,
+          "w": 0.21008619666099548
+        }
+      },
+      "pose_difference": {
+        "position_distance_mm": 22.88722868376925,
+        "position_distance_m": 0.022887228683769252,
+        "orientation_angle_deg": 2.4636266441059993,
+        "orientation_angle_rad": 0.04299839647950824,
+        "dx": -0.0007140636444091797,
+        "dy": -0.004904419183731079,
+        "dz": -0.02234417200088501
+      },
+      "moveit2_tcp_pose": {
+        "position": {
+          "x": 0.4715194186632045,
+          "y": -0.17462148890719395,
+          "z": 0.43957148055048356
+        },
+        "orientation": {
+          "x": 0.6850513938517835,
+          "y": 0.6782644994076068,
+          "z": 0.17223902672689967,
+          "w": -0.2024736385242474
+        }
+      },
+      "moveit2_vs_target": {
+        "position_distance_mm": 0.07296760991636535,
+        "orientation_angle_deg": 0.06931882854513471,
+        "dx": -3.56951292149188e-05,
+        "dy": -4.359708056431155e-05,
+        "dz": -4.636188535322994e-05
+      },
+      "moveit2_vs_controller": {
+        "position_distance_mm": 22.831559546149116,
+        "orientation_angle_deg": 2.5208542467484096,
+        "dx": -0.0006783685151942609,
+        "dy": -0.0048608221031667675,
+        "dz": -0.02229781011553178
+      },
+      "position_ok": false,
+      "orientation_ok": false,
+      "success": false
+    },
+    {
+      "pose_index": 5,
+      "target_pose": {
+        "position": {
+          "x": 0.55,
+          "y": -0.13,
+          "z": 0.5
+        },
+        "orientation": {
+          "x": -0.6992166638374329,
+          "y": -0.7044124007225037,
+          "z": 0.07563911378383636,
+          "w": 0.09580180794000626
+        }
+      },
+      "timestamp": "2026-01-08T17:02:12.689065",
+      "moveit_call": {
+        "success": true,
+        "message": "Successfully moved to target pose",
+        "execution_time": 2.604158878326416
+      },
+      "motion_detection": {
+        "motion_detected": true,
+        "motion_started": true,
+        "motion_ended": true,
+        "start_time": 1767862933.5146184,
+        "end_time": 1767862934.6145883,
+        "motion_duration": 1.0999698638916016
+      },
+      "actual_pose": {
+        "position": {
+          "x": 0.5496242046356201,
+          "y": -0.13537488877773285,
+          "z": 0.4765440821647644
+        },
+        "orientation": {
+          "x": -0.701408863067627,
+          "y": -0.7015599012374878,
+          "z": 0.05984392762184143,
+          "w": 0.1107158437371254
+        }
+      },
+      "pose_difference": {
+        "position_distance_mm": 24.066797315434624,
+        "position_distance_m": 0.024066797315434624,
+        "orientation_angle_deg": 2.5232564078943747,
+        "orientation_angle_rad": 0.04403913218980188,
+        "dx": -0.0003757953643799272,
+        "dy": -0.005374888777732845,
+        "dz": -0.023455917835235596
+      },
+      "moveit2_tcp_pose": {
+        "position": {
+          "x": 0.5499096412007555,
+          "y": -0.13000816014841873,
+          "z": 0.5000311347568259
+        },
+        "orientation": {
+          "x": 0.6990310172839588,
+          "y": 0.7046553770572204,
+          "z": -0.07554378136438533,
+          "w": -0.09544408602145232
+        }
+      },
+      "moveit2_vs_target": {
+        "position_distance_mm": 0.09592014233593452,
+        "orientation_angle_deg": 0.05064599723592515,
+        "dx": -9.035879924457202e-05,
+        "dy": -8.160148418728808e-06,
+        "dz": 3.113475682592348e-05
+      },
+      "moveit2_vs_controller": {
+        "position_distance_mm": 24.09408412195159,
+        "orientation_angle_deg": 2.549466700217126,
+        "dx": -0.0002854365651353552,
+        "dy": -0.005366728629314116,
+        "dz": -0.02348705259206152
+      },
+      "position_ok": false,
+      "orientation_ok": false,
+      "success": false
+    }
+  ]
+}

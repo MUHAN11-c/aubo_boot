@@ -534,6 +534,32 @@
     <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
   </joint>
 
+  <!-- /////////////////////////////////   Tool Center Point (TCP) with Camera   ////////////////////////////////////// -->
+  <!-- 添加 TCP 偏移以匹配手眼标定的位姿 -->
+  <!-- Z 轴偏移 0.024m (24mm) 用于补偿相机或工具的偏移 -->
+  <link name="tool_center_point">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.001" />
+      <inertia ixx="0.000001" ixy="0" ixz="0" iyy="0.000001" iyz="0" izz="0.000001" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.005"/>
+      </geometry>
+      <material name="">
+        <color rgba="1 0 0 1" />  <!-- 红色标记 TCP -->
+      </material>
+    </visual>
+  </link>
+
+  <joint name="ee_to_tcp_joint" type="fixed">
+    <parent link="ee_link" />
+    <child link="tool_center_point" />
+    <!-- TCP with no offset - Accurate MoveIt2 TF tree for hand-eye calibration -->
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
+  </joint>
 
 
 

@@ -236,6 +236,32 @@ def launch_setup(context, *args, **kwargs):
         }],
     )
     
+    # Move To Pose Service Server: 提供高级位姿控制服务
+    move_to_pose_server_node = Node(
+        package="demo_driver",
+        executable="move_to_pose_server_node",
+        name="move_to_pose_server_node",
+        output="screen",
+        parameters=[{
+            "planning_group_name": "manipulator",
+            "base_frame": "base_link",
+        }],
+    )
+    
+    # MoveIt2 TCP位姿发布器: 基于TF树发布准确的末端执行器位姿
+    # 用于手眼标定，提供比机器人控制器更准确的位姿数据
+    # moveit2_tcp_pose_publisher_node = Node(
+    #     package="demo_driver",
+    #     executable="moveit2_tcp_pose_publisher.py",
+    #     name="moveit2_tcp_pose_publisher",
+    #     output="screen",
+    #     parameters=[{
+    #         "base_frame": "base_link",
+    #         "end_effector_link": "tool_center_point",  # 使用SRDF中定义的TCP
+    #         "publish_rate_hz": 20.0,
+    #     }],
+    # )
+    
     # 注意：在桥接 ROS 1 的场景中，不需要启动 ROS 2 Control 的 joint_trajectory_controller
     # 因为 aubo_ros2_trajectory_action 会监听 /joint_trajectory_controller/follow_joint_trajectory
     # 并将轨迹发布到 /moveItController_cmd，由 ROS 1 端的 aubo_driver 执行
@@ -259,6 +285,8 @@ def launch_setup(context, *args, **kwargs):
         # trajectory_controller_spawner,  # 不需要启动 joint_trajectory_controller
         aubo_trajectory_action_node,  # 这个节点会监听 /joint_trajectory_controller/follow_joint_trajectory
         feedback_bridge_node,
+        move_to_pose_server_node,  # 高级位姿控制服务
+        # moveit2_tcp_pose_publisher_node,  # MoveIt2 TCP位姿发布器（用于手眼标定）
     ]
     
     # 添加其他必需的节点

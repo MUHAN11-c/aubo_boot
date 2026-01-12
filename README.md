@@ -6,6 +6,7 @@
 PC  169.254.10.11
 Arm 169.254.10.98
 交换机 169.254.10.5
+启动脚本 ./start_hand_eye_calibration.sh 
 ```
 
 ## 1. ROS1 ROS2 Bridge 桥接

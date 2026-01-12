@@ -116,7 +116,7 @@ function clearLog() {
 // ============= 放大镜功能 =============
 function initMagnifiers() {
     // 为每个选项卡的图像容器添加放大镜功能
-    const tabs = ['camera-verify', 'hand-eye-calib', 'hand-eye-verify', 'auto-hand-eye-calib'];
+    const tabs = ['camera-verify', 'hand-eye-calib', 'hand-eye-verify']; // 移除 'auto-hand-eye-calib'，该选项卡不需要放大镜
     
     tabs.forEach(tab => {
         const imageContainer = document.getElementById(`${tab}-image-container`);
@@ -280,34 +280,81 @@ function drawMagnifier(imageElement, canvas, ctx, container, mouseX = null, mous
 // ============= 选项卡切换 =============
 function initTabs() {
     const tabButtons = document.querySelectorAll('.tab-button');
+    console.log(`初始化选项卡: 找到 ${tabButtons.length} 个选项卡按钮`);
     
     tabButtons.forEach(button => {
+        const tabId = button.getAttribute('data-tab');
+        console.log(`注册选项卡按钮: ${tabId}`);
         button.addEventListener('click', function() {
             const tabId = this.getAttribute('data-tab');
+            console.log(`点击选项卡: ${tabId}`);
             switchTab(tabId);
         });
     });
 }
 
 function switchTab(tabId) {
-    // 移除所有active类
-    document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.remove('active');
-    });
-    
-    // 添加active类到选中的选项卡
-    document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
-    document.getElementById(tabId).classList.add('active');
-    
-    currentTab = tabId;
-    addLog('info', `切换到 ${getTabName(tabId)} 选项卡`);
-    
-    // 如果切换到"手眼标定"或"自动手眼标定"标签页，立即更新机器人位姿
-    if (tabId === 'hand-eye-calib' || tabId === 'auto-hand-eye-calib') {
-        updateRobotPose();
+    console.log(`switchTab 被调用，tabId=${tabId}`);
+    try {
+        // 移除所有active类
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        
+        console.log(`已移除所有active类`);
+        
+        // 查找并激活选中的选项卡按钮
+        const tabButton = document.querySelector(`[data-tab="${tabId}"]`);
+        if (!tabButton) {
+            console.error(`未找到选项卡按钮: data-tab="${tabId}"`);
+            return;
+        }
+        tabButton.classList.add('active');
+        console.log(`已激活选项卡按钮: ${tabId}`);
+        
+        // 查找并激活选中的选项卡内容
+        const tabContent = document.getElementById(tabId);
+        if (!tabContent) {
+            console.error(`未找到选项卡内容: id="${tabId}"`);
+            // 列出所有tab-content元素以便调试
+            const allTabs = document.querySelectorAll('.tab-content');
+            console.log(`当前页面中的tab-content元素:`, Array.from(allTabs).map(t => t.id));
+            return;
+        }
+        tabContent.classList.add('active');
+        console.log(`已激活选项卡内容: ${tabId}`);
+        
+        currentTab = tabId;
+        console.log(`currentTab 已更新为: ${currentTab}`);
+        
+        // 尝试添加日志（如果失败也不影响切换）
+        try {
+            addLog('info', `切换到 ${getTabName(tabId)} 选项卡`);
+        } catch (logError) {
+            console.warn('添加日志失败:', logError);
+        }
+        
+        // 如果切换到"手眼标定"或"自动手眼标定"标签页，立即更新机器人位姿
+        if (tabId === 'hand-eye-calib' || tabId === 'auto-hand-eye-calib') {
+            try {
+                updateRobotPose();
+            } catch (poseError) {
+                console.warn('更新机器人位姿失败:', poseError);
+            }
+        }
+        
+        console.log(`选项卡切换完成: ${tabId}`);
+    } catch (error) {
+        console.error('切换选项卡时出错:', error);
+        console.error('错误堆栈:', error.stack);
+        try {
+            addLog('error', `切换选项卡失败: ${error.message}`);
+        } catch (logError) {
+            console.error('无法添加错误日志:', logError);
+        }
     }
 }
 
@@ -861,7 +908,7 @@ function extractCorners() {
     addLog('info', '开始提取棋盘格角点...');
     showToast('正在提取角点...', 'info');
     
-    const squareSize = parseFloat(document.getElementById('checkerboard-size').value) || 15.0;
+    const squareSize = parseFloat(document.getElementById('checkerboard-size').value) || 20.0;
     
     fetch('/api/camera/extract_corners', {
         method: 'POST',
@@ -926,7 +973,7 @@ function calculateResult() {
     addLog('info', '开始计算结果...');
     showToast('正在计算...', 'info');
     
-    const expectedSize = parseFloat(document.getElementById('checkerboard-size').value) || 15.0;
+    const expectedSize = parseFloat(document.getElementById('checkerboard-size').value) || 20.0;
     
     fetch('/api/camera/calculate_result', {
         method: 'POST',
@@ -3462,17 +3509,25 @@ function saveHandEyeCalibration() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // 生成文件名（带时间戳）
-            const now = new Date();
-            const timestamp = now.getFullYear() + 
-                             String(now.getMonth() + 1).padStart(2, '0') + 
-                             String(now.getDate()).padStart(2, '0') + '_' +
-                             String(now.getHours()).padStart(2, '0') + 
-                             String(now.getMinutes()).padStart(2, '0') + 
-                             String(now.getSeconds()).padStart(2, '0');
-            const filename = `hand_eye_calibration_${timestamp}.xml`;
+            // 使用服务器返回的文件名，如果没有则生成
+            const filename = data.filename || (() => {
+                const now = new Date();
+                const timestamp = now.getFullYear() + 
+                                 String(now.getMonth() + 1).padStart(2, '0') + 
+                                 String(now.getDate()).padStart(2, '0') + '_' +
+                                 String(now.getHours()).padStart(2, '0') + 
+                                 String(now.getMinutes()).padStart(2, '0') + 
+                                 String(now.getSeconds()).padStart(2, '0');
+                return `hand_eye_calibration_${timestamp}.xml`;
+            })();
             
-            // 创建Blob并触发下载
+            // 如果成功保存到服务器
+            if (data.filename) {
+                addLog('success', `💾 标定结果已保存到服务器: ${filename}`);
+                addLog('info', `   📍 保存路径: config/calibration_results/${filename}`);
+            }
+            
+            // 创建Blob并触发下载（无论是否保存到服务器都提供下载）
             const blob = new Blob([data.xml_content], { type: 'application/xml;charset=utf-8' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
@@ -3483,8 +3538,10 @@ function saveHandEyeCalibration() {
             document.body.removeChild(link);
             URL.revokeObjectURL(link.href);
             
-            addLog('success', `标定结果已下载: ${filename}`);
-            showToast(`标定文件已下载: ${filename}`, 'success');
+            if (!data.filename) {
+                addLog('success', `标定结果已下载: ${filename}`);
+            }
+            showToast(`标定文件已${data.filename ? '保存' : '下载'}: ${filename}`, 'success');
             
             // 显示下载成功信息
             const message = `

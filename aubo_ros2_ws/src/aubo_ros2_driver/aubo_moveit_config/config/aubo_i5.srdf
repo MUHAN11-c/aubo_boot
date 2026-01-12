@@ -10,10 +10,12 @@
     <!--CHAINS: When a chain is specified, all the links along the chain (including endpoints) are included in the group. Additionally, all the joints that are parents to included links are also included. This means that joints along the chain and the parent joint of the base link are included in the group-->
     <!--SUBGROUPS: Groups can also be formed by referencing to already defined group names-->
     <group name="manipulator">
-        <chain base_link="base_link" tip_link="ee_link"/>
+        <!-- 修改：将 tip_link 改为 tool_center_point，以使用包含 TCP 偏移的链接 -->
+        <chain base_link="base_link" tip_link="tool_center_point"/>
     </group>
     <group name="endeffector">
-        <link name="ee_link"/>
+        <!-- 修改：将末端执行器链接改为 tool_center_point -->
+        <link name="tool_center_point"/>
     </group>
     <!--GROUP STATES: Purpose: Define a named state for a particular group, in terms of joint values. This is useful to define states like 'folded arms'-->
     <group_state name="up" group="manipulator">
@@ -33,7 +35,8 @@
         <joint name="wrist3_joint" value="0"/>
     </group_state>
     <!--END EFFECTOR: Purpose: Represent information about an end effector.-->
-    <end_effector name="moveit_ee" parent_link="ee_link" group="endeffector"/>
+    <!-- 修改：将 parent_link 改为 tool_center_point，使 MoveIt2 控制 TCP 而不是 ee_link -->
+    <end_effector name="moveit_ee" parent_link="tool_center_point" group="endeffector"/>
     <!--VIRTUAL JOINT: Purpose: this element defines a virtual joint between a robot link and an external frame of reference (considered fixed with respect to the robot)-->
     <!-- parent_frame 决定规划框架（planning frame），child_link 是机器人基座链接 -->
     <!-- 修改：由于 URDF 中 base_link 现在是根链接，virtual_joint 的 parent_frame 和 child_link 都设置为 base_link -->
@@ -45,6 +48,11 @@
     <disable_collisions link1="ee_link" link2="wrist1_Link" reason="Never"/>
     <disable_collisions link1="ee_link" link2="wrist2_Link" reason="Never"/>
     <disable_collisions link1="ee_link" link2="wrist3_Link" reason="Adjacent"/>
+    <!-- 添加：tool_center_point 的碰撞检测禁用规则 -->
+    <disable_collisions link1="tool_center_point" link2="ee_link" reason="Adjacent"/>
+    <disable_collisions link1="tool_center_point" link2="wrist1_Link" reason="Never"/>
+    <disable_collisions link1="tool_center_point" link2="wrist2_Link" reason="Never"/>
+    <disable_collisions link1="tool_center_point" link2="wrist3_Link" reason="Never"/>
     <disable_collisions link1="foreArm_Link" link2="upperArm_Link" reason="Adjacent"/>
     <disable_collisions link1="foreArm_Link" link2="wrist1_Link" reason="Adjacent"/>
     <disable_collisions link1="shoulder_Link" link2="upperArm_Link" reason="Adjacent"/>

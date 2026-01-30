@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Move To Pose Service Server Node -->
+  <node name="move_to_pose_server_node" 
+        pkg="demo_driver" 
+        type="move_to_pose_server_node" 
+        output="screen">
+    
+    <!-- Parameters -->
+    <param name="planning_group_name" value="manipulator_e5" />
+    <param name="base_frame" value="base_link" />
+  </node>
+</launch>
+

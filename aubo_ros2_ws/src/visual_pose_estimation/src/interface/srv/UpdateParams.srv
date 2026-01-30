@@ -1,0 +1,12 @@
+# 更新参数服务
+# 用于动态更新预处理器、特征提取器、姿态估计器的参数
+
+# 请求
+string section           # 参数段：preprocessor, feature_extractor, pose_estimator
+string params_json       # 参数JSON字符串 {"key": value, ...}
+
+---
+
+# 响应
+bool success             # 是否成功
+string message           # 消息

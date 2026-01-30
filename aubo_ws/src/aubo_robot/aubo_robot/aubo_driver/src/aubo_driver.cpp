@@ -100,7 +100,8 @@ AuboDriver::AuboDriver(int num = 0):delay_clear_times(0),buffer_size_(400),io_fl
     waypoint_vector_.clear();
 
     /** publish messages **/
-    joint_states_pub_ = nh_.advertise<sensor_msgs::JointState>("joint_states", 3000);
+    // ROS1: 将 joint_states 改名为 joint_states_ros1，供 ros1_bridge 桥接到 ROS2
+    joint_states_pub_ = nh_.advertise<sensor_msgs::JointState>("joint_states_ros1", 3000);
     joint_feedback_pub_ = nh_.advertise<aubo_msgs::JointTrajectoryFeedback>("feedback_states", 1000);
     joint_target_pub_ = nh_.advertise<std_msgs::Float32MultiArray>("/aubo_driver/real_pose", 500);
     robot_status_pub_ = nh_.advertise<industrial_msgs::RobotStatus>("robot_status", 1000);

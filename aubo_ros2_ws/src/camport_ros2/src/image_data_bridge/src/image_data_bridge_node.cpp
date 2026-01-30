@@ -17,7 +17,7 @@ public:
         this->declare_parameter<std::string>("input_image_topic", "color/image_raw");
         this->declare_parameter<std::string>("camera_status_topic", "/camera_status");
         this->declare_parameter<std::string>("output_topic", "/image_data");
-        this->declare_parameter<std::string>("camera_id", "DA3234363");
+        this->declare_parameter<std::string>("camera_id", "207000152740");
         this->declare_parameter<bool>("use_jpeg_encoding", false);
         this->declare_parameter<int>("jpeg_quality", 90);
 

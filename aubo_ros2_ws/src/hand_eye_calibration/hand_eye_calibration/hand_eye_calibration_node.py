@@ -818,89 +818,7 @@ class HandEyeCalibrationNode(Node):
                 # 计算每个角点的3D坐标并进行深度滤波（见下方代码）
                 # 然后使用滤波后的角点重新计算棋盘格位姿（欠定义方法）
                 
-                # #region agent log - 数据采集阶段：solvePnP原始结果
-                import json
-                import time
-                log_entry_solvepnp = {
-                    'sessionId': 'debug-session',
-                    'runId': 'opencv-full-pipeline',
-                    'hypothesisId': 'FULL0',
-                    'location': 'hand_eye_calibration_node.py:get_board_pose',
-                    'message': '[数据采集] solvePnP原始结果',
-                    'data': {
-                        'success': bool(success),
-                        'square_size_mm': square_size,
-                        'pattern_size': actual_pattern_size,
-                        'num_corners': len(corners),
-                        'rvec_raw': rvec.flatten().tolist() if success else None,
-                        'tvec_raw_mm': tvec.flatten().tolist() if success else None,
-                        'tvec_z_mm': float(tvec[2, 0]) if success else None,
-                        'tvec_norm_mm': float(np.linalg.norm(tvec)) if success else None,
-                        'camera_matrix_fx': float(self.calib_utils.camera_matrix[0, 0]),
-                        'camera_matrix_fy': float(self.calib_utils.camera_matrix[1, 1]),
-                        'obj_points_unit': 'mm',
-                        'note': 'solvePnP使用square_size=20.0mm，返回tvec单位也是mm'
-                    },
-                    'timestamp': int(time.time() * 1000)
-                }
-                log_entry_clean = _convert_to_json_serializable(log_entry_solvepnp)
-                open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-                # #endregion
-                
-                # #region agent log - Z值追踪：solvePnP阶段的Z值来源
-                if success:
-                    # 详细记录solvePnP返回的tvec信息，用于追踪Z值来源
-                    tvec_x_mm = float(tvec[0, 0])
-                    tvec_y_mm = float(tvec[1, 0])
-                    tvec_z_mm = float(tvec[2, 0])
-                    tvec_norm_mm = float(np.linalg.norm(tvec))
-                    
-                    # 计算tvec的各个分量占比
-                    tvec_x_ratio = abs(tvec_x_mm) / tvec_norm_mm if tvec_norm_mm > 1e-6 else 0.0
-                    tvec_y_ratio = abs(tvec_y_mm) / tvec_norm_mm if tvec_norm_mm > 1e-6 else 0.0
-                    tvec_z_ratio = abs(tvec_z_mm) / tvec_norm_mm if tvec_norm_mm > 1e-6 else 0.0
-                    
-                    log_entry_z_solvepnp = {
-                        'sessionId': 'debug-session',
-                        'runId': 'opencv-full-pipeline',
-                        'hypothesisId': 'Z_TRACK_SOLVEPNP',
-                        'location': 'hand_eye_calibration_node.py:get_board_pose',
-                        'message': '[Z值追踪] solvePnP返回的tvec详细信息',
-                        'data': {
-                            'square_size_mm': square_size,
-                            'pattern_size': actual_pattern_size,
-                            'num_corners': len(corners),
-                            'tvec_mm': {
-                                'x': tvec_x_mm,
-                                'y': tvec_y_mm,
-                                'z': tvec_z_mm,
-                                'norm': tvec_norm_mm
-                            },
-                            'tvec_components_ratio': {
-                                'x_ratio': tvec_x_ratio,
-                                'y_ratio': tvec_y_ratio,
-                                'z_ratio': tvec_z_ratio
-                            },
-                            'tvec_z_analysis': {
-                                'z_value_mm': tvec_z_mm,
-                                'z_value_m': tvec_z_mm / 1000.0,
-                                'z_is_dominant': tvec_z_ratio > 0.8,  # Z分量是否占主导（>80%）
-                                'expected_z_range_mm': [300.0, 800.0],
-                                'z_value_anomaly': tvec_z_mm > 1500.0 or tvec_z_mm < 100.0
-                            },
-                            'camera_intrinsics': {
-                                'fx': float(self.calib_utils.camera_matrix[0, 0]),
-                                'fy': float(self.calib_utils.camera_matrix[1, 1]),
-                                'cx': float(self.calib_utils.camera_matrix[0, 2]),
-                                'cy': float(self.calib_utils.camera_matrix[1, 2])
-                            },
-                            'note': 'solvePnP使用square_size=20.0mm，返回tvec单位也是mm，Z值表示标定板到相机的距离'
-                        },
-                        'timestamp': int(time.time() * 1000)
-                    }
-                    log_entry_clean = _convert_to_json_serializable(log_entry_z_solvepnp)
-                    open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-                # #endregion
+                # （已清理遗留调试插桩）
                 
                 if not success:
                     return jsonify({'success': False, 'error': 'solvePnP求解失败'})
@@ -919,9 +837,7 @@ class HandEyeCalibrationNode(Node):
                 reprojection_errors = np.linalg.norm(corners_reshaped - projected_points, axis=1)
                 mean_reprojection_error = np.mean(reprojection_errors)
                 max_reprojection_error = np.max(reprojection_errors)
-                # #region agent log
-                import json,time;corner_center=corners_reshaped.mean(axis=0);max_err_idx=int(np.argmax(reprojection_errors));open('/home/mu/IVG/.cursor/debug.log','a').write(json.dumps({"sessionId":"debug-session","runId":"auto-calib","hypothesisId":"B,C","location":"hand_eye_calibration_node.py:792","message":"Reprojection error calculated","data":{"mean_error_px":float(mean_reprojection_error),"max_error_px":float(max_reprojection_error),"max_error_corner_idx":max_err_idx,"max_error_corner_detected":[float(corners_reshaped[max_err_idx,0]),float(corners_reshaped[max_err_idx,1])],"max_error_corner_projected":[float(projected_points[max_err_idx,0]),float(projected_points[max_err_idx,1])],"corner_center_px":[float(corner_center[0]),float(corner_center[1])],"image_center_px":[320.0,240.0],"tvec_z_mm":float(tvec[2,0]),"camera_fx":float(self.calib_utils.camera_matrix[0,0]),"camera_fy":float(self.calib_utils.camera_matrix[1,1])},"timestamp":int(time.time()*1000)})+'\n');
-                # #endregion
+                # （已清理遗留调试插桩）
                 
                 # 记录重投影误差（用于诊断）
                 if mean_reprojection_error > 10.0:  # 误差超过10像素，严重问题
@@ -965,11 +881,9 @@ class HandEyeCalibrationNode(Node):
                     'y': float(tvec[1, 0]),
                     'z': float(tvec[2, 0])
                 }
-                # #region agent log
-                import json,time;open('/home/mu/IVG/.cursor/debug.log','a').write(json.dumps({"sessionId":"debug-session","runId":"auto-calib","hypothesisId":"D","location":"hand_eye_calibration_node.py:827","message":"Board pose estimated by solvePnP","data":{"tvec_x_mm":float(tvec[0,0]),"tvec_y_mm":float(tvec[1,0]),"tvec_z_mm":float(tvec[2,0]),"reproj_error_px":float(mean_reprojection_error)},"timestamp":int(time.time()*1000)})+'\n');
-                # #endregion
+                # （已清理遗留调试插桩）
                 
-                # #region agent log - depth comparison with detailed analysis
+                # （已清理遗留调试插桩：depth comparison）
                 import json,time;
                 depth_z_values = [];
                 depth_z_details = [];
@@ -1037,32 +951,7 @@ class HandEyeCalibrationNode(Node):
                     else:
                         self.get_logger().info(f'✅ 深度数据质量优秀: 标准差{std_depth_z:.1f}mm');
                 
-                # #region agent log H3,H5 - 记录solvePnP结果和深度质量
-                rvec_magnitude = float(np.linalg.norm(rvec))
-                log_payload = {
-                    'sessionId': 'debug-session',
-                    'runId': 'pose-debug',
-                    'hypothesisId': 'H3,H5',
-                    'location': 'hand_eye_calibration_node.py:898',
-                    'message': 'solvePnP标定板位姿结果',
-                    'data': {
-                        'tvec_mm': {'x': float(tvec[0,0]), 'y': float(tvec[1,0]), 'z': float(tvec[2,0])},
-                        'rvec': {'x': float(rvec[0,0]), 'y': float(rvec[1,0]), 'z': float(rvec[2,0]), 'magnitude_rad': rvec_magnitude},
-                        'reproj_error_px': float(mean_reprojection_error),
-                        'depth_std_mm': std_depth_z,
-                        'depth_avg_mm': avg_depth_z if avg_depth_z is not None else 0.0,
-                        'depth_quality_ok': bool(depth_quality_ok),  # 转换为Python原生bool
-                        'depth_sample_count': len(depth_z_values)
-                    },
-                    'timestamp': int(time.time() * 1000)
-                }
-                try:
-                    with open('/home/mu/IVG/.cursor/debug.log', 'a') as f:
-                        # 确保所有NumPy类型都被转换为Python原生类型
-                        log_payload_clean = _convert_to_json_serializable(log_payload)
-                        f.write(json.dumps(log_payload_clean) + '\n')
-                except: pass
-                # #endregion
+                # （已清理遗留调试插桩）
                 
                 corner_center_px = corners_reshaped.mean(axis=0).tolist();
                 depth_data = {
@@ -1079,8 +968,7 @@ class HandEyeCalibrationNode(Node):
                     "corner_offset_from_center": float(np.linalg.norm(np.array(corner_center_px) - np.array([320.0, 240.0]))),
                     "depth_details": depth_z_details[:5]
                 };
-                open('/home/mu/IVG/.cursor/debug.log','a').write(json.dumps({"sessionId":"debug-session","runId":"depth-compare","hypothesisId":"H","location":"hand_eye_calibration_node.py:840","message":"Depth Z comparison","data":depth_data,"timestamp":int(time.time()*1000)})+'\n');
-                # #endregion
+                # （已清理遗留调试插桩）
                 
                 orientation = {
                     'x': float(quat[0]),
@@ -1592,22 +1480,31 @@ class HandEyeCalibrationNode(Node):
                     })
                 
                 # 根据方法选择执行标定
-                # #region agent log - 记录使用的标定方法
-                import json as json_module
-                open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log','a').write(json_module.dumps({"sessionId":"debug-session","runId":"unit-coord-check","hypothesisId":"H2,H3","location":"hand_eye_calibration_node.py:1593","message":"标定方法选择","data":{"method":method,"data_format":"poses_list","data_count":len(poses_list)},"timestamp":int(time.time()*1000)})+'\n')
-                # #endregion
+                # （已清理遗留调试插桩）
                 if method == 'opencv':
-                    # 使用OpenCV calibrateHandEye方法（TSAI算法）
+                    # 使用OpenCV calibrateHandEye方法
                     # OpenCV模式使用独立的模块（opencv_hand_eye_calibration.py）
                     # OpenCV模式直接处理位姿列表
-                    self.get_logger().info(f'   [OpenCV模式] 开始标定计算（TSAI方法）...')
+                    # 获取OpenCV算法选择参数（如果提供）
+                    opencv_algorithm = data.get('opencv_algorithm', 'TSAI')
+                    
+                    # 获取算法名称用于日志
+                    algorithm_names = {
+                        'TSAI': 'TSAI',
+                        'PARK': 'PARK',
+                        'HORAUD': 'HORAUD',
+                        'ANDREFF': 'ANDREFF',
+                        'DANIILIDIS': 'DANIILIDIS'
+                    }
+                    algorithm_name = algorithm_names.get(opencv_algorithm, opencv_algorithm)
+                    self.get_logger().info(f'   [OpenCV模式] 开始标定计算（{algorithm_name}方法）...')
                     self.get_logger().info(f'   使用位姿列表格式：{len(poses_list)} 个位姿')
                     
                     try:
                         # 使用OpenCV模式模块进行完整标定流程
                         # prepare_data方法直接处理位姿列表
                         opencv_calib = OpenCVHandEyeCalibration(logger=self.get_logger())
-                        result = opencv_calib.calibrate(input_data)
+                        result = opencv_calib.calibrate(input_data, opencv_algorithm=opencv_algorithm)
                         
                         T_camera2gripper = result['T_camera2gripper']
                         translation_errors = result['translation_errors']
@@ -1625,7 +1522,7 @@ class HandEyeCalibrationNode(Node):
                         max_rotation_error = error_statistics['max_rotation_error_rad']
                         min_rotation_error = error_statistics['min_rotation_error_rad']
                         
-                        self.get_logger().info('✅ [OpenCV模式] 标定完成（TSAI方法）')
+                        self.get_logger().info(f'✅ [OpenCV模式] 标定完成（{algorithm_name}方法）')
                         self.get_logger().info(f'   平移误差统计:')
                         self.get_logger().info(f'     RMS误差: {mean_translation_error:.3f} mm')
                         self.get_logger().info(f'     最大误差: {max_translation_error:.3f} mm')
@@ -1699,7 +1596,7 @@ class HandEyeCalibrationNode(Node):
                             saved_calibration_data = {
                                 'timestamp': timestamp,
                                 'timestamp_readable': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                'method': 'OpenCV calibrateHandEye (TSAI)',
+                                'method': f'OpenCV calibrateHandEye ({algorithm_name})',
                                 'calibration_type': 'Eye-in-Hand',
                                 'solver_method': 'TSAI',
                                 'num_pose_pairs': len(translation_errors),  # 姿态对数量
@@ -1826,7 +1723,8 @@ class HandEyeCalibrationNode(Node):
                         # 构建响应数据，确保所有NumPy类型都转换为Python原生类型
                         response_data = {
                             'success': True,
-                            'method': 'OpenCV calibrateHandEye',
+                            'method': f'OpenCV calibrateHandEye ({algorithm_name})',
+                            'opencv_algorithm': opencv_algorithm,  # 添加算法信息
                             'calibration_type': 'Eye-in-Hand',
                             'transformation_matrix': T_camera2gripper.tolist(),
                             'rotation_matrix': R_cam2gripper.tolist(),
@@ -1854,14 +1752,14 @@ class HandEyeCalibrationNode(Node):
                                 'rotation_errors_per_pose_rad': [float(e) for e in rotation_errors],
                                 'rotation_errors_per_pose_deg': [float(np.degrees(e)) for e in rotation_errors]
                             },
-                            'message': f'OpenCV calibrateHandEye标定成功（TSAI方法），平移RMS误差: {mean_translation_error:.3f} mm, 旋转RMS误差: {np.degrees(mean_rotation_error):.3f}°'
+                            'message': f'OpenCV calibrateHandEye标定成功（{algorithm_name}方法），平移RMS误差: {mean_translation_error:.3f} mm, 旋转RMS误差: {np.degrees(mean_rotation_error):.3f}°'
                         }
                         # 确保所有NumPy类型都被转换为Python原生类型
                         response_data_clean = _convert_to_json_serializable(response_data)
                         return jsonify(response_data_clean)
                         
                     except Exception as e:
-                        self.get_logger().error(f'❌ OpenCV calibrateHandEye标定失败（TSAI方法）: {str(e)}')
+                        self.get_logger().error(f'❌ OpenCV calibrateHandEye标定失败（{algorithm_name}方法）: {str(e)}')
                         import traceback
                         self.get_logger().error(f'   堆栈: {traceback.format_exc()}')
                         return jsonify({
@@ -2885,22 +2783,6 @@ class HandEyeCalibrationNode(Node):
             import json
             import time
             
-            # #region agent log - OpenCV数据准备开始
-            log_entry = {
-                'sessionId': 'debug-session',
-                'runId': 'opencv-prepare',
-                'hypothesisId': 'OP1',
-                'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                'message': 'OpenCV模式：开始数据准备',
-                'data': {
-                    'motion_groups_count': len(motion_groups),
-                    'expected_poses_count': len(motion_groups) * 2
-                },
-                'timestamp': int(time.time() * 1000)
-            }
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry) + '\n')
-            # #endregion
-            
             self.get_logger().info(f'   [OpenCV模式] 开始数据准备：{len(motion_groups)} 个运动组')
             
             # 提取所有唯一姿态数据用于OpenCV（去重处理）
@@ -2935,29 +2817,8 @@ class HandEyeCalibrationNode(Node):
                     if not all([pose1_data, pose2_data, board_pose1_data, board_pose2_data]):
                         skipped_groups += 1
                         self.get_logger().warning(f'   [OpenCV模式] 运动组 #{idx+1} 数据不完整，已跳过')
-                        # #region agent log - 数据不完整
-                        log_entry = {
-                            'sessionId': 'debug-session',
-                            'runId': 'opencv-prepare',
-                            'hypothesisId': 'OP2',
-                            'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                            'message': f'OpenCV模式：运动组#{idx+1}数据不完整',
-                            'data': {
-                                'motion_group_idx': idx + 1,
-                                'has_pose1': pose1_data is not None,
-                                'has_pose2': pose2_data is not None,
-                                'has_board_pose1': board_pose1_data is not None,
-                                'has_board_pose2': board_pose2_data is not None
-                            },
-                            'timestamp': int(time.time() * 1000)
-                        }
-                        # 确保所有NumPy类型都被转换为Python原生类型
-                        log_entry_clean = _convert_to_json_serializable(log_entry)
-                        open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-                        # #endregion
                         continue
                     
-                    # #region agent log - 数据采集阶段：原始数据
                     log_entry = {
                         'sessionId': 'debug-session',
                         'runId': 'opencv-full-pipeline',
@@ -3016,9 +2877,6 @@ class HandEyeCalibrationNode(Node):
                     if 'rvec' in board_pose2_data and 'tvec' in board_pose2_data:
                         log_entry['data']['board_pose2_rvec'] = board_pose2_data['rvec']
                         log_entry['data']['board_pose2_tvec'] = board_pose2_data['tvec']
-                    log_entry_clean = _convert_to_json_serializable(log_entry)
-                    open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-                    # #endregion
                     
                     # 构建变换矩阵（将机器人位姿从米转换为毫米）
                     T_gripper1 = _pose_to_transform_matrix(
@@ -3042,44 +2900,6 @@ class HandEyeCalibrationNode(Node):
                          'z': board_pose2_data['orientation']['z'], 'w': board_pose2_data['orientation']['w']}
                     )
                     
-                    # #region agent log - 数据处理阶段：变换矩阵构建
-                    log_entry = {
-                        'sessionId': 'debug-session',
-                        'runId': 'opencv-full-pipeline',
-                        'hypothesisId': 'FULL2',
-                        'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                        'message': f'[数据处理] 运动组#{idx+1}变换矩阵构建',
-                        'data': {
-                            'motion_group_idx': idx + 1,
-                            'T_gripper1_mm': {
-                                'translation': T_gripper1[:3, 3].tolist(),
-                                'translation_norm': float(np.linalg.norm(T_gripper1[:3, 3])),
-                                'rotation_det': float(np.linalg.det(T_gripper1[:3, :3]))
-                            },
-                            'T_gripper2_mm': {
-                                'translation': T_gripper2[:3, 3].tolist(),
-                                'translation_norm': float(np.linalg.norm(T_gripper2[:3, 3])),
-                                'rotation_det': float(np.linalg.det(T_gripper2[:3, :3]))
-                            },
-                            'T_board1_mm': {
-                                'translation': T_board1[:3, 3].tolist(),
-                                'translation_norm': float(np.linalg.norm(T_board1[:3, 3])),
-                                'z_value': float(T_board1[2, 3]),
-                                'rotation_det': float(np.linalg.det(T_board1[:3, :3]))
-                            },
-                            'T_board2_mm': {
-                                'translation': T_board2[:3, 3].tolist(),
-                                'translation_norm': float(np.linalg.norm(T_board2[:3, 3])),
-                                'z_value': float(T_board2[2, 3]),
-                                'rotation_det': float(np.linalg.det(T_board2[:3, :3]))
-                            }
-                        },
-                        'timestamp': int(time.time() * 1000)
-                    }
-                    log_entry_clean = _convert_to_json_serializable(log_entry)
-                    open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-                    # #endregion
-                    
                     # 验证变换矩阵的有效性
                     if idx == 0:  # 只记录第一个运动组
                         det_R_gripper1 = float(np.linalg.det(T_gripper1[:3, :3]))
@@ -3087,33 +2907,6 @@ class HandEyeCalibrationNode(Node):
                         robot_pos_norm = float(np.linalg.norm(T_gripper1[:3, 3]))
                         board_pos_norm = float(np.linalg.norm(T_board1[:3, 3]))
                         board_z1 = float(T_board1[2, 3])  # Z方向值（mm）
-                        
-                        # #region agent log - 第一个运动组数据验证
-                        log_entry = {
-                            'sessionId': 'debug-session',
-                            'runId': 'opencv-prepare',
-                            'hypothesisId': 'OP3',
-                            'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                            'message': 'OpenCV模式：第一个运动组数据验证',
-                            'data': {
-                                'robot_pose1_det': det_R_gripper1,
-                                'robot_pose1_translation_mm': robot_pos_norm,
-                                'robot_pose1_xyz_mm': T_gripper1[:3, 3].tolist(),
-                                'board_pose1_det': det_R_board1,
-                                'board_pose1_translation_mm': board_pos_norm,
-                                'board_pose1_xyz_mm': T_board1[:3, 3].tolist(),
-                                'board_pose1_z_mm': board_z1,
-                                'robot_unit_expected': 'mm',
-                                'board_unit_expected': 'mm',
-                                'expected_board_z_range_mm': [300.0, 800.0],
-                                'warn_if_z_exceeds_mm': 1500.0
-                            },
-                            'timestamp': int(time.time() * 1000)
-                        }
-                        # 确保所有NumPy类型都被转换为Python原生类型
-                        log_entry_clean = _convert_to_json_serializable(log_entry)
-                        open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-                        # #endregion
                         
                         if abs(det_R_gripper1 - 1.0) > 0.01:
                             self.get_logger().warning(f'   [OpenCV模式] 机器人旋转矩阵行列式异常: {det_R_gripper1:.6f}（应为1.0）')
@@ -3158,49 +2951,9 @@ class HandEyeCalibrationNode(Node):
                                 'tvec': board_pose1_data['tvec']
                             }
                         added_pose1 = True
-                        
-                        # #region agent log - 数据处理阶段：去重过程（添加新姿态）
-                        log_entry = {
-                            'sessionId': 'debug-session',
-                            'runId': 'opencv-full-pipeline',
-                            'hypothesisId': 'FULL3',
-                            'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                            'message': f'[数据处理] 运动组#{idx+1}位姿1已添加（去重后索引#{pose_idx_1}）',
-                            'data': {
-                                'motion_group_idx': idx + 1,
-                                'pose_index': pose_idx_1,
-                                'robot_translation_mm': T_gripper1[:3, 3].tolist(),
-                                'board_translation_mm': T_board1[:3, 3].tolist(),
-                                'board_z_mm': float(T_board1[2, 3]),
-                                'has_original_rvec_tvec': 'rvec' in board_pose1_data and 'tvec' in board_pose1_data
-                            },
-                            'timestamp': int(time.time() * 1000)
-                        }
-                        log_entry_clean = _convert_to_json_serializable(log_entry)
-                        open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-                        # #endregion
                     else:
                         duplicate_poses += 1
                         self.get_logger().debug(f'   [OpenCV模式] 运动组 #{idx+1} 位姿1重复（机器人+标定板组合）')
-                        
-                        # #region agent log - 数据处理阶段：去重过程（跳过重复姿态）
-                        log_entry = {
-                            'sessionId': 'debug-session',
-                            'runId': 'opencv-full-pipeline',
-                            'hypothesisId': 'FULL3',
-                            'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                            'message': f'[数据处理] 运动组#{idx+1}位姿1重复，已跳过',
-                            'data': {
-                                'motion_group_idx': idx + 1,
-                                'robot_translation_mm': T_gripper1[:3, 3].tolist(),
-                                'board_translation_mm': T_board1[:3, 3].tolist(),
-                                'board_z_mm': float(T_board1[2, 3])
-                            },
-                            'timestamp': int(time.time() * 1000)
-                        }
-                        log_entry_clean = _convert_to_json_serializable(log_entry)
-                        open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-                        # #endregion
                     
                     if key2_combined not in seen_poses:
                         seen_poses.add(key2_combined)
@@ -3215,93 +2968,19 @@ class HandEyeCalibrationNode(Node):
                                 'tvec': board_pose2_data['tvec']
                             }
                         added_pose2 = True
-                        
-                        # #region agent log - 数据处理阶段：去重过程（添加新姿态）
-                        log_entry = {
-                            'sessionId': 'debug-session',
-                            'runId': 'opencv-full-pipeline',
-                            'hypothesisId': 'FULL3',
-                            'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                            'message': f'[数据处理] 运动组#{idx+1}位姿2已添加（去重后索引#{pose_idx_2}）',
-                            'data': {
-                                'motion_group_idx': idx + 1,
-                                'pose_index': pose_idx_2,
-                                'robot_translation_mm': T_gripper2[:3, 3].tolist(),
-                                'board_translation_mm': T_board2[:3, 3].tolist(),
-                                'board_z_mm': float(T_board2[2, 3]),
-                                'has_original_rvec_tvec': 'rvec' in board_pose2_data and 'tvec' in board_pose2_data
-                            },
-                            'timestamp': int(time.time() * 1000)
-                        }
-                        log_entry_clean = _convert_to_json_serializable(log_entry)
-                        open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-                        # #endregion
                     else:
                         duplicate_poses += 1
                         self.get_logger().debug(f'   [OpenCV模式] 运动组 #{idx+1} 位姿2重复（机器人+标定板组合）')
-                        
-                        # #region agent log - 数据处理阶段：去重过程（跳过重复姿态）
-                        log_entry = {
-                            'sessionId': 'debug-session',
-                            'runId': 'opencv-full-pipeline',
-                            'hypothesisId': 'FULL3',
-                            'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                            'message': f'[数据处理] 运动组#{idx+1}位姿2重复，已跳过',
-                            'data': {
-                                'motion_group_idx': idx + 1,
-                                'robot_translation_mm': T_gripper2[:3, 3].tolist(),
-                                'board_translation_mm': T_board2[:3, 3].tolist(),
-                                'board_z_mm': float(T_board2[2, 3])
-                            },
-                            'timestamp': int(time.time() * 1000)
-                        }
-                        log_entry_clean = _convert_to_json_serializable(log_entry)
-                        open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-                        # #endregion
                     
                     processed_groups += 1
                     
                 except Exception as e:
                     skipped_groups += 1
                     self.get_logger().warning(f'   [OpenCV模式] 运动组 #{idx+1} 处理失败: {str(e)}')
-                    # #region agent log - 处理失败
-                    log_entry = {
-                        'sessionId': 'debug-session',
-                        'runId': 'opencv-prepare',
-                        'hypothesisId': 'OP4',
-                        'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                        'message': f'OpenCV模式：运动组#{idx+1}处理失败',
-                        'data': {
-                            'motion_group_idx': idx + 1,
-                            'error': str(e)
-                        },
-                        'timestamp': int(time.time() * 1000)
-                    }
-                    open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry) + '\n')
-                    # #endregion
                     continue
             
             self.get_logger().info(f'   [OpenCV模式] 数据准备完成：处理{processed_groups}组，跳过{skipped_groups}组，去重后{len(T_gripper_list)}个唯一姿态对（去除{duplicate_poses}个重复姿态对）')
             self.get_logger().info(f'   [OpenCV模式] 去重策略：基于（机器人位姿+标定板位姿）组合，确保数据匹配')
-            
-            # #region agent log - 去重统计
-            log_entry = {
-                'sessionId': 'debug-session',
-                'runId': 'opencv-prepare',
-                'hypothesisId': 'OP5',
-                'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                'message': 'OpenCV模式：去重统计',
-                'data': {
-                    'processed_groups': processed_groups,
-                    'skipped_groups': skipped_groups,
-                    'unique_poses_count': len(T_gripper_list),
-                    'duplicate_poses_count': duplicate_poses,
-                    'duplicate_ratio': duplicate_poses / (processed_groups * 2) if processed_groups > 0 else 0.0
-                },
-                'timestamp': int(time.time() * 1000)
-            }
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry) + '\n')
-            # #endregion
             
             if len(T_gripper_list) < 4:
                 raise ValueError(f'有效姿态数据不足，至少需要4个姿态，当前只有{len(T_gripper_list)}个')
@@ -3347,27 +3026,6 @@ class HandEyeCalibrationNode(Node):
                         # 过滤掉第二个姿态（这样不会影响后续的姿态对计算）
                         pose_keep_mask[i + 1] = False
                         self.get_logger().warning(f'   [OpenCV模式] ⚠️ 迭代#{iteration}：姿态对#{i+1}-#{i+2}运动幅度过小，已过滤第二个姿态：平移={robot_translation:.2f}mm, 旋转={robot_rotation:.2f}°')
-                        # #region agent log - 数据过滤：过滤运动幅度过小的姿态对
-                        log_entry = {
-                            'sessionId': 'debug-session',
-                            'runId': 'opencv-full-pipeline',
-                            'hypothesisId': 'FULL3A',
-                            'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                            'message': f'[数据处理] 迭代#{iteration}：姿态对#{i+1}-#{i+2}运动幅度过小，已过滤第二个姿态',
-                            'data': {
-                                'iteration': iteration,
-                                'pose_pair_idx': f'{i+1}-{i+2}',
-                                'robot_translation_mm': robot_translation,
-                                'robot_rotation_deg': robot_rotation,
-                                'min_translation_mm': MIN_ROBOT_TRANSLATION_MM,
-                                'min_rotation_deg': MIN_ROBOT_ROTATION_DEG,
-                                'filtered_pose_idx': i + 2
-                            },
-                            'timestamp': int(time.time() * 1000)
-                        }
-                        log_entry_clean = _convert_to_json_serializable(log_entry)
-                        open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-                        # #endregion
                 
                 # 如果没有过滤任何姿态对，说明所有姿态对都满足要求，可以退出循环
                 if iteration_filtered_count == 0:
@@ -3404,30 +3062,6 @@ class HandEyeCalibrationNode(Node):
                         'meets_criteria': robot_translation_f >= MIN_ROBOT_TRANSLATION_MM and robot_rotation_f >= MIN_ROBOT_ROTATION_DEG
                     })
             
-            # #region agent log - 数据过滤：过滤结果统计
-            log_entry = {
-                'sessionId': 'debug-session',
-                'runId': 'opencv-full-pipeline',
-                'hypothesisId': 'FULL3B',
-                'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                'message': '[数据处理] 数据过滤结果统计',
-                'data': {
-                    'original_pose_count': T_gripper_list_orig_count,
-                    'filtered_pose_count': len(T_gripper_filtered),
-                    'filtered_pairs_count': filtered_pairs_count,
-                    'filtered_poses_count': filtered_poses_count,
-                    'min_translation_mm': MIN_ROBOT_TRANSLATION_MM,
-                    'min_rotation_deg': MIN_ROBOT_ROTATION_DEG,
-                    'pose_keep_mask': pose_keep_mask,
-                    'filtered_motion_amplitudes': filtered_motion_amplitudes,
-                    'all_meet_criteria': all([m['meets_criteria'] for m in filtered_motion_amplitudes]) if filtered_motion_amplitudes else True
-                },
-                'timestamp': int(time.time() * 1000)
-            }
-            log_entry_clean = _convert_to_json_serializable(log_entry)
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-            # #endregion
-            
             # 更新列表
             filtered_poses_count = T_gripper_list_orig_count - len(T_gripper_filtered)
             T_gripper_list = T_gripper_filtered
@@ -3457,25 +3091,6 @@ class HandEyeCalibrationNode(Node):
             for idx, (T_gripper, T_board) in enumerate(zip(T_gripper_list, T_board_list)):
                 R_gripper2base_list.append(T_gripper[:3, :3])
                 t_gripper2base_list.append(T_gripper[:3, 3])
-                
-                # #region agent log - 数据处理阶段：开始提取rvec/tvec
-                log_entry_start = {
-                    'sessionId': 'debug-session',
-                    'runId': 'opencv-full-pipeline',
-                    'hypothesisId': 'FULL4',
-                    'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                    'message': f'[数据处理] 姿态#{idx+1}开始提取rvec/tvec',
-                    'data': {
-                        'pose_index': idx + 1,
-                        'robot_translation_mm': T_gripper[:3, 3].tolist(),
-                        'board_translation_mm': T_board[:3, 3].tolist(),
-                        'board_z_mm': float(T_board[2, 3])
-                    },
-                    'timestamp': int(time.time() * 1000)
-                }
-                log_entry_clean = _convert_to_json_serializable(log_entry_start)
-                open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-                # #endregion
                 
                 # 尝试从保存的原始数据中获取rvec和tvec（优先使用）
                 rvec_found = False
@@ -3556,77 +3171,14 @@ class HandEyeCalibrationNode(Node):
                     R_reconstructed, _ = cv2.Rodrigues(rvec)
                     rvec_recon_error = np.linalg.norm(R_reconstructed - R_board, 'fro')
                     
-                    # #region agent log - rvec转换精度检查
-                    if idx < 3 or rvec_recon_error > 1e-6:  # 记录前3个或误差较大的
-                        log_entry = {
-                            'sessionId': 'debug-session',
-                            'runId': 'opencv-prepare',
-                            'hypothesisId': 'OP6',
-                            'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                            'message': f'OpenCV模式：姿态#{idx+1} rvec转换',
-                            'data': {
-                                'pose_idx': idx + 1,
-                                'rvec_from': 'T_board_matrix',
-                                'reconstruction_error_frobenius': float(rvec_recon_error),
-                                'warn_high_error': bool(rvec_recon_error > 1e-6)  # 转换为Python原生bool
-                            },
-                            'timestamp': int(time.time() * 1000)
-                        }
-                        # 确保所有NumPy类型都被转换为Python原生类型
-                        log_entry_clean = _convert_to_json_serializable(log_entry)
-                        open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-                    # #endregion
                 
                 if not tvec_found:
                     tvec = T_board[:3, 3].reshape(3, 1)
                     tvecs_list.append(tvec)
                     tvec_source = 'converted_from_matrix'
                     tvec_converted_count += 1
-                
-                # #region agent log - 数据处理阶段：rvec/tvec提取结果
-                log_entry_result = {
-                    'sessionId': 'debug-session',
-                    'runId': 'opencv-full-pipeline',
-                    'hypothesisId': 'FULL5',
-                    'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                    'message': f'[数据处理] 姿态#{idx+1}rvec/tvec提取结果',
-                    'data': {
-                        'pose_index': idx + 1,
-                        'rvec_found': rvec_found,
-                        'tvec_found': tvec_found,
-                        'rvec_source': rvec_source,
-                        'tvec_source': tvec_source,
-                        'rvec_mm': rvec.flatten().tolist() if rvec_found else None,
-                        'tvec_mm': tvec.flatten().tolist() if tvec_found else None,
-                        'tvec_norm_mm': float(np.linalg.norm(tvec)) if tvec_found else None,
-                        'tvec_z_mm': float(tvec[2, 0]) if tvec_found else None
-                    },
-                    'timestamp': int(time.time() * 1000)
-                }
-                log_entry_clean = _convert_to_json_serializable(log_entry_result)
-                open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-                # #endregion
             
             self.get_logger().info(f'   [OpenCV模式] rvec/tvec提取：从原始数据找到{rvec_found_count}个rvec，转换{rvec_converted_count}个；找到{tvec_found_count}个tvec，转换{tvec_converted_count}个')
-            
-            # #region agent log - rvec/tvec提取统计
-            log_entry = {
-                'sessionId': 'debug-session',
-                'runId': 'opencv-prepare',
-                'hypothesisId': 'OP7',
-                'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                'message': 'OpenCV模式：rvec/tvec提取统计',
-                'data': {
-                    'total_poses': len(T_gripper_list),
-                    'rvec_found_from_data': rvec_found_count,
-                    'rvec_converted_from_matrix': rvec_converted_count,
-                    'tvec_found_from_data': tvec_found_count,
-                    'tvec_converted_from_matrix': tvec_converted_count
-                },
-                'timestamp': int(time.time() * 1000)
-            }
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry) + '\n')
-            # #endregion
             
             # 验证数据一致性
             if len(R_gripper2base_list) != len(rvecs_list):
@@ -3634,127 +3186,14 @@ class HandEyeCalibrationNode(Node):
             if len(t_gripper2base_list) != len(tvecs_list):
                 raise ValueError(f'数据不一致: t_gripper2base({len(t_gripper2base_list)}) != tvecs({len(tvecs_list)})')
             
-            # #region agent log - 数据处理阶段：单位转换前数据
-            log_entry_before_convert = {
-                'sessionId': 'debug-session',
-                'runId': 'opencv-full-pipeline',
-                'hypothesisId': 'FULL6',
-                'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                'message': '[数据处理] 单位转换前数据（毫米）',
-                'data': {
-                    'num_poses': len(t_gripper2base_list),
-                    'sample_robot_t_mm': t_gripper2base_list[0].tolist() if len(t_gripper2base_list) > 0 else None,
-                    'sample_robot_t_norm_mm': float(np.linalg.norm(t_gripper2base_list[0])) if len(t_gripper2base_list) > 0 else None,
-                    'sample_tvec_mm': tvecs_list[0].flatten().tolist() if len(tvecs_list) > 0 else None,
-                    'sample_tvec_norm_mm': float(np.linalg.norm(tvecs_list[0])) if len(tvecs_list) > 0 else None,
-                    'sample_tvec_z_mm': float(tvecs_list[0][2, 0]) if len(tvecs_list) > 0 else None
-                },
-                'timestamp': int(time.time() * 1000)
-            }
-            log_entry_clean = _convert_to_json_serializable(log_entry_before_convert)
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-            # #endregion
-            
             # 单位转换：毫米 → 米（OpenCV要求）
-            # #region agent log - Z值追踪：单位转换前的原始数据（毫米）
             tvecs_list_z_mm = [float(t[2, 0]) for t in tvecs_list]
             tvecs_list_norms_mm = [float(np.linalg.norm(t)) for t in tvecs_list]
-            log_entry_z_before_convert = {
-                'sessionId': 'debug-session',
-                'runId': 'opencv-full-pipeline',
-                'hypothesisId': 'Z_TRACK0',
-                'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                'message': '[Z值追踪] 单位转换前的tvecs数据（毫米）',
-                'data': {
-                    'num_tvecs': len(tvecs_list),
-                    'tvecs_z_statistics_mm': {
-                        'min': float(np.min(tvecs_list_z_mm)),
-                        'max': float(np.max(tvecs_list_z_mm)),
-                        'mean': float(np.mean(tvecs_list_z_mm)),
-                        'std': float(np.std(tvecs_list_z_mm)),
-                        'median': float(np.median(tvecs_list_z_mm)),
-                        'all_values': tvecs_list_z_mm
-                    },
-                    'tvecs_norm_statistics_mm': {
-                        'min': float(np.min(tvecs_list_norms_mm)),
-                        'max': float(np.max(tvecs_list_norms_mm)),
-                        'mean': float(np.mean(tvecs_list_norms_mm)),
-                        'std': float(np.std(tvecs_list_norms_mm))
-                    },
-                    'sample_tvec_mm': tvecs_list[0].flatten().tolist() if len(tvecs_list) > 0 else None,
-                    'sample_tvec_z_mm': float(tvecs_list[0][2, 0]) if len(tvecs_list) > 0 else None,
-                    'expected_range_mm': [300.0, 800.0],
-                    'conversion_factor': 1000.0
-                },
-                'timestamp': int(time.time() * 1000)
-            }
-            log_entry_clean = _convert_to_json_serializable(log_entry_z_before_convert)
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-            # #endregion
             
             R_gripper2base = np.array(R_gripper2base_list, dtype=np.float64)
             t_gripper2base = [t.reshape(3, 1) / 1000.0 for t in t_gripper2base_list]  # 毫米 → 米
             rvecs = rvecs_list  # 弧度，无需转换
             tvecs = [t / 1000.0 for t in tvecs_list]  # 毫米 → 米
-            
-            # #region agent log - Z值追踪：单位转换后的tvecs数据（米）
-            tvecs_z_m = [float(t[2, 0]) for t in tvecs]
-            log_entry_z_after_convert = {
-                'sessionId': 'debug-session',
-                'runId': 'opencv-full-pipeline',
-                'hypothesisId': 'Z_TRACK0A',
-                'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                'message': '[Z值追踪] 单位转换后的tvecs数据（米）',
-                'data': {
-                    'num_tvecs': len(tvecs),
-                    'tvecs_z_statistics_m': {
-                        'min': float(np.min(tvecs_z_m)),
-                        'max': float(np.max(tvecs_z_m)),
-                        'mean': float(np.mean(tvecs_z_m)),
-                        'std': float(np.std(tvecs_z_m)),
-                        'median': float(np.median(tvecs_z_m)),
-                        'all_values': tvecs_z_m
-                    },
-                    'tvecs_z_statistics_mm': {
-                        'min': float(np.min(tvecs_z_m)) * 1000.0,
-                        'max': float(np.max(tvecs_z_m)) * 1000.0,
-                        'mean': float(np.mean(tvecs_z_m)) * 1000.0,
-                        'std': float(np.std(tvecs_z_m)) * 1000.0,
-                        'median': float(np.median(tvecs_z_m)) * 1000.0,
-                        'all_values_mm': [z * 1000.0 for z in tvecs_z_m]
-                    },
-                    'sample_tvec_m': tvecs[0].flatten().tolist() if len(tvecs) > 0 else None,
-                    'sample_tvec_z_m': float(tvecs[0][2, 0]) if len(tvecs) > 0 else None,
-                    'sample_tvec_z_mm': float(tvecs[0][2, 0]) * 1000.0 if len(tvecs) > 0 else None,
-                    'conversion_verified': abs(float(tvecs[0][2, 0]) * 1000.0 - tvecs_list_z_mm[0]) < 0.01 if len(tvecs) > 0 and len(tvecs_list_z_mm) > 0 else None
-                },
-                'timestamp': int(time.time() * 1000)
-            }
-            log_entry_clean = _convert_to_json_serializable(log_entry_z_after_convert)
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-            # #endregion
-            
-            # #region agent log - 数据处理阶段：单位转换后数据
-            log_entry_after_convert = {
-                'sessionId': 'debug-session',
-                'runId': 'opencv-full-pipeline',
-                'hypothesisId': 'FULL7',
-                'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                'message': '[数据处理] 单位转换后数据（米）',
-                'data': {
-                    'num_poses': len(t_gripper2base),
-                    'sample_robot_t_m': t_gripper2base[0].flatten().tolist() if len(t_gripper2base) > 0 else None,
-                    'sample_robot_t_norm_m': float(np.linalg.norm(t_gripper2base[0])) if len(t_gripper2base) > 0 else None,
-                    'sample_tvec_m': tvecs[0].flatten().tolist() if len(tvecs) > 0 else None,
-                    'sample_tvec_norm_m': float(np.linalg.norm(tvecs[0])) if len(tvecs) > 0 else None,
-                    'sample_tvec_z_m': float(tvecs[0][2, 0]) if len(tvecs) > 0 else None,
-                    'all_tvec_z_m': [float(t[2, 0]) for t in tvecs]
-                },
-                'timestamp': int(time.time() * 1000)
-            }
-            log_entry_clean = _convert_to_json_serializable(log_entry_after_convert)
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-            # #endregion
             
             # 验证单位转换后的数据合理性
             if len(t_gripper2base) > 0:
@@ -3801,48 +3240,6 @@ class HandEyeCalibrationNode(Node):
                 elif board_z_mean > 1.5:  # 1.5-2.0米，警告
                     self.get_logger().warning(f'   [OpenCV模式] ⚠️ 标定板Z方向平均距离较大 {board_z_mean:.3f}m（{board_z_mean*1000:.1f}mm），建议检查')
             
-            # #region agent log - 单位转换验证
-            robot_t_norms_all = [float(np.linalg.norm(t)) for t in t_gripper2base] if len(t_gripper2base) > 0 else []
-            board_tvec_norms_all = [float(np.linalg.norm(t)) for t in tvecs] if len(tvecs) > 0 else []
-            board_tvec_z_all = [float(t[2, 0]) for t in tvecs] if len(tvecs) > 0 else []
-            
-            log_entry = {
-                'sessionId': 'debug-session',
-                'runId': 'opencv-prepare',
-                'hypothesisId': 'OP8',
-                'location': 'hand_eye_calibration_node.py:_prepare_opencv_data',
-                'message': 'OpenCV模式：单位转换验证',
-                'data': {
-                    'num_poses': len(R_gripper2base_list),
-                    'robot_t_norms_m': {
-                        'min': float(np.min(robot_t_norms_all)) if robot_t_norms_all else 0.0,
-                        'max': float(np.max(robot_t_norms_all)) if robot_t_norms_all else 0.0,
-                        'mean': float(np.mean(robot_t_norms_all)) if robot_t_norms_all else 0.0,
-                        'std': float(np.std(robot_t_norms_all)) if robot_t_norms_all else 0.0
-                    },
-                    'board_tvec_norms_m': {
-                        'min': float(np.min(board_tvec_norms_all)) if board_tvec_norms_all else 0.0,
-                        'max': float(np.max(board_tvec_norms_all)) if board_tvec_norms_all else 0.0,
-                        'mean': float(np.mean(board_tvec_norms_all)) if board_tvec_norms_all else 0.0,
-                        'std': float(np.std(board_tvec_norms_all)) if board_tvec_norms_all else 0.0
-                    },
-                    'board_tvec_z_m': {
-                        'min': float(np.min(board_tvec_z_all)) if board_tvec_z_all else 0.0,
-                        'max': float(np.max(board_tvec_z_all)) if board_tvec_z_all else 0.0,
-                        'mean': float(np.mean(board_tvec_z_all)) if board_tvec_z_all else 0.0,
-                        'all_values': board_tvec_z_all[:10]  # 记录前10个Z值
-                    },
-                    'expected_robot_t_range_m': [0.1, 2.0],
-                    'expected_board_tvec_range_m': [0.1, 2.0],
-                    'expected_board_z_range_m': [0.3, 0.8],  # 正常范围300-800mm
-                    'warn_if_z_mean_exceeds_m': 2.0
-                },
-                'timestamp': int(time.time() * 1000)
-            }
-            log_entry_clean = _convert_to_json_serializable(log_entry)
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-            # #endregion
-            
             self.get_logger().info(f'   [OpenCV模式] 单位转换完成：机器人位姿({len(t_gripper2base)}个)和标定板位姿({len(tvecs)}个)已转换为米')
             
             return R_gripper2base, t_gripper2base, rvecs, tvecs, T_gripper_list, T_board_list
@@ -3862,22 +3259,6 @@ class HandEyeCalibrationNode(Node):
             """
             import json
             import time
-            
-            # #region agent log - OpenCV算法计算开始
-            log_entry = {
-                'sessionId': 'debug-session',
-                'runId': 'opencv-solve',
-                'hypothesisId': 'OP9',
-                'location': 'hand_eye_calibration_node.py:_solve_opencv_hand_eye',
-                'message': 'OpenCV模式：开始算法计算',
-                'data': {
-                    'num_poses': len(R_gripper2base),
-                    'method': 'CALIB_HAND_EYE_DANIILIDIS'
-                },
-                'timestamp': int(time.time() * 1000)
-            }
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry) + '\n')
-            # #endregion
             
             self.get_logger().info(f'   [OpenCV模式] 开始算法计算（TSAI方法）')
             self.get_logger().info(f'   输入数据：{len(R_gripper2base)} 个姿态')
@@ -3913,94 +3294,10 @@ class HandEyeCalibrationNode(Node):
                 for idx, det in det_errors[:5]:  # 只显示前5个
                     self.get_logger().warning(f'     姿态#{idx}: det={det:.6f}')
             
-            # #region agent log - 输入数据验证
-            log_entry = {
-                'sessionId': 'debug-session',
-                'runId': 'opencv-solve',
-                'hypothesisId': 'OP10',
-                'location': 'hand_eye_calibration_node.py:_solve_opencv_hand_eye',
-                'message': 'OpenCV模式：输入数据验证',
-                'data': {
-                    'num_poses': len(R_gripper2base),
-                    'data_consistent': True,
-                    'rotation_matrix_det_errors_count': len(det_errors),
-                    'rotation_matrix_det_errors': [{'pose_idx': idx, 'det': float(det)} for idx, det in det_errors[:10]]
-                },
-                'timestamp': int(time.time() * 1000)
-            }
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry) + '\n')
-            # #endregion
-            
-            # #region agent log - 算法计算阶段：输入数据验证
-            log_entry_input = {
-                'sessionId': 'debug-session',
-                'runId': 'opencv-full-pipeline',
-                'hypothesisId': 'FULL8',
-                'location': 'hand_eye_calibration_node.py:_solve_opencv_hand_eye',
-                'message': '[算法计算] OpenCV输入数据验证',
-                'data': {
-                    'num_poses': len(R_gripper2base),
-                    'solver_method': 'CALIB_HAND_EYE_DANIILIDIS',
-                    'robot_t_norms_m': [float(np.linalg.norm(t)) for t in t_gripper2base],
-                    'tvec_norms_m': [float(np.linalg.norm(t)) for t in tvecs],
-                    'tvec_z_values_m': [float(t[2, 0]) for t in tvecs],
-                    'sample_robot_t_m': t_gripper2base[0].flatten().tolist() if len(t_gripper2base) > 0 else None,
-                    'sample_tvec_m': tvecs[0].flatten().tolist() if len(tvecs) > 0 else None,
-                    'sample_tvec_z_m': float(tvecs[0][2, 0]) if len(tvecs) > 0 else None
-                },
-                'timestamp': int(time.time() * 1000)
-            }
-            log_entry_clean = _convert_to_json_serializable(log_entry_input)
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-            # #endregion
-            
             # 调用OpenCV calibrateHandEye
             solver_method = cv2.CALIB_HAND_EYE_DANIILIDIS
             
-            # #region agent log - OpenCV调用前
-            log_entry = {
-                'sessionId': 'debug-session',
-                'runId': 'opencv-solve',
-                'hypothesisId': 'OP11',
-                'location': 'hand_eye_calibration_node.py:_solve_opencv_hand_eye',
-                'message': 'OpenCV模式：调用calibrateHandEye前',
-                'data': {
-                    'solver_method': 'CALIB_HAND_EYE_DANIILIDIS',
-                    'num_poses': len(R_gripper2base),
-                    'sample_robot_t_norm_m': float(np.linalg.norm(t_gripper2base[0])) if len(t_gripper2base) > 0 else 0.0,
-                    'sample_board_tvec_norm_m': float(np.linalg.norm(tvecs[0])) if len(tvecs) > 0 else 0.0
-                },
-                'timestamp': int(time.time() * 1000)
-            }
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry) + '\n')
-            # #endregion
-            
             try:
-                # #region agent log - 算法计算阶段：调用OpenCV前
-                log_entry_before_call = {
-                    'sessionId': 'debug-session',
-                    'runId': 'opencv-full-pipeline',
-                    'hypothesisId': 'FULL9',
-                    'location': 'hand_eye_calibration_node.py:_solve_opencv_hand_eye',
-                    'message': '[算法计算] 调用calibrateHandEye前（输入验证）',
-                    'data': {
-                        'num_poses': len(R_gripper2base),
-                        'R_gripper2base_shape': list(R_gripper2base.shape) if isinstance(R_gripper2base, np.ndarray) else None,
-                        't_gripper2base_length': len(t_gripper2base),
-                        't_gripper2base_sample_shape': list(t_gripper2base[0].shape) if len(t_gripper2base) > 0 else None,
-                        'rvecs_length': len(rvecs),
-                        'rvecs_sample_shape': list(rvecs[0].shape) if len(rvecs) > 0 else None,
-                        'tvecs_length': len(tvecs),
-                        'tvecs_sample_shape': list(tvecs[0].shape) if len(tvecs) > 0 else None,
-                        'all_tvec_z_m': [float(t[2, 0]) for t in tvecs],
-                        'method': 'CALIB_HAND_EYE_DANIILIDIS'
-                    },
-                    'timestamp': int(time.time() * 1000)
-                }
-                log_entry_clean = _convert_to_json_serializable(log_entry_before_call)
-                open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-                # #endregion
-                
                 # 数据质量检查：计算相邻姿态之间的运动幅度
                 # 如果运动幅度过小，可能导致算法不稳定
                 motion_amplitudes_check = []
@@ -4052,26 +3349,6 @@ class HandEyeCalibrationNode(Node):
                         'board_rotation_deg': board_rotation
                     })
                 
-                # #region agent log - 数据质量检查：运动幅度
-                log_entry_motion_check = {
-                    'sessionId': 'debug-session',
-                    'runId': 'opencv-full-pipeline',
-                    'hypothesisId': 'FULL9A',
-                    'location': 'hand_eye_calibration_node.py:_solve_opencv_hand_eye',
-                    'message': '[算法计算] 数据质量检查：运动幅度',
-                    'data': {
-                        'num_motion_pairs': len(motion_amplitudes_check),
-                        'motion_amplitudes': motion_amplitudes_check,
-                        'min_robot_translation_m': float(min([m['robot_translation_m'] for m in motion_amplitudes_check])) if motion_amplitudes_check else 0.0,
-                        'min_robot_rotation_deg': float(min([m['robot_rotation_deg'] for m in motion_amplitudes_check])) if motion_amplitudes_check else 0.0,
-                        'warn_small_motion': any([m['robot_translation_m'] < 0.01 or m['robot_rotation_deg'] < 1.0 for m in motion_amplitudes_check])
-                    },
-                    'timestamp': int(time.time() * 1000)
-                }
-                log_entry_clean = _convert_to_json_serializable(log_entry_motion_check)
-                open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-                # #endregion
-                
                 # 检查是否有运动幅度过小的情况
                 small_motions = [m for m in motion_amplitudes_check if m['robot_translation_m'] < 0.01 or m['robot_rotation_deg'] < 1.0]
                 if small_motions:
@@ -4079,7 +3356,7 @@ class HandEyeCalibrationNode(Node):
                     for m in small_motions[:5]:
                         self.get_logger().warning(f'     运动对#{m["motion_pair_idx"]}: 平移={m["robot_translation_m"]*1000:.2f}mm, 旋转={m["robot_rotation_deg"]:.2f}°')
                 
-                # #region agent log - Z值追踪：OpenCV调用前的详细输入数据
+                """
                 # 详细记录所有输入数据，特别是tvecs的Z值，用于分析Z值误差的来源
                 all_robot_t = [t.flatten().tolist() for t in t_gripper2base]
                 all_robot_t_norms = [float(np.linalg.norm(t)) for t in t_gripper2base]
@@ -4171,129 +3448,19 @@ class HandEyeCalibrationNode(Node):
                     'timestamp': int(time.time() * 1000)
                 }
                 log_entry_clean = _convert_to_json_serializable(log_entry_z_tracking_before)
-                open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-                # #endregion
+                # open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
+                """
                 
                 R_cam2gripper, t_cam2gripper = cv2.calibrateHandEye(
                     R_gripper2base, t_gripper2base,  # 单位：米
                     rvecs, tvecs,                     # 单位：米
                     method=solver_method
                 )
-                
-                # #region agent log - Z值追踪：OpenCV调用后的详细输出数据
                 t_cam2gripper_flat = t_cam2gripper.flatten()
-                t_cam2gripper_z_m = float(t_cam2gripper_flat[2])
-                t_cam2gripper_z_mm = t_cam2gripper_z_m * 1000.0
                 t_cam2gripper_norm_m = float(np.linalg.norm(t_cam2gripper))
                 t_cam2gripper_norm_mm = t_cam2gripper_norm_m * 1000.0
-                
-                # 分析Z值与输入数据的关系
-                # 假设：如果输入tvecs的Z值异常，可能导致输出Z值异常
-                input_tvec_z_mean = tvec_z_stats['mean']
-                input_tvec_z_std = tvec_z_stats['std']
-                output_z_m = t_cam2gripper_z_m
-                z_ratio = output_z_m / input_tvec_z_mean if input_tvec_z_mean > 1e-6 else 9999.0
-                
-                log_entry_z_tracking_after = {
-                    'sessionId': 'debug-session',
-                    'runId': 'opencv-full-pipeline',
-                    'hypothesisId': 'Z_TRACK2',
-                    'location': 'hand_eye_calibration_node.py:_solve_opencv_hand_eye',
-                    'message': '[Z值追踪] OpenCV调用后的输出数据详细分析',
-                    'data': {
-                        'R_cam2gripper_det': float(np.linalg.det(R_cam2gripper)),
-                        't_cam2gripper_m': t_cam2gripper_flat.tolist(),
-                        't_cam2gripper_norm_m': t_cam2gripper_norm_m,
-                        't_cam2gripper_norm_mm': t_cam2gripper_norm_mm,
-                        't_cam2gripper_z_m': t_cam2gripper_z_m,
-                        't_cam2gripper_z_mm': t_cam2gripper_z_mm,
-                        'returned_unit': 'meter',
-                        'z_value_analysis': {
-                            'input_tvec_z_mean_m': input_tvec_z_mean,
-                            'input_tvec_z_mean_mm': input_tvec_z_mean * 1000.0,
-                            'input_tvec_z_std_m': input_tvec_z_std,
-                            'input_tvec_z_std_mm': input_tvec_z_std * 1000.0,
-                            'output_z_m': output_z_m,
-                            'output_z_mm': t_cam2gripper_z_mm,
-                            'z_ratio': z_ratio,  # 输出Z值 / 输入Z值平均值
-                            'z_difference_m': output_z_m - input_tvec_z_mean,
-                            'z_difference_mm': (output_z_m - input_tvec_z_mean) * 1000.0,
-                            'z_difference_std': abs(output_z_m - input_tvec_z_mean) / input_tvec_z_std if input_tvec_z_std > 1e-6 else 9999.0
-                        },
-                        'expected_z_range_mm': [100.0, 800.0],
-                        'z_value_anomaly': t_cam2gripper_z_mm > 1000.0 or t_cam2gripper_z_mm < 100.0
-                    },
-                    'timestamp': int(time.time() * 1000)
-                }
-                log_entry_clean = _convert_to_json_serializable(log_entry_z_tracking_after)
-                open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-                # #endregion
-                
-                # #region agent log - 算法计算阶段：OpenCV调用成功
-                log_entry_after_call = {
-                    'sessionId': 'debug-session',
-                    'runId': 'opencv-full-pipeline',
-                    'hypothesisId': 'FULL10',
-                    'location': 'hand_eye_calibration_node.py:_solve_opencv_hand_eye',
-                    'message': '[算法计算] calibrateHandEye调用成功（返回结果）',
-                    'data': {
-                        'R_cam2gripper_det': float(np.linalg.det(R_cam2gripper)),
-                        't_cam2gripper_m': t_cam2gripper_flat.tolist(),
-                        't_cam2gripper_norm_m': t_cam2gripper_norm_m,
-                        't_cam2gripper_z_m': t_cam2gripper_z_m,
-                        'returned_unit': 'meter'
-                    },
-                    'timestamp': int(time.time() * 1000)
-                }
-                log_entry_clean = _convert_to_json_serializable(log_entry_after_call)
-                open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-                # #endregion
             except Exception as e:
-                # #region agent log - OpenCV调用失败
-                log_entry = {
-                    'sessionId': 'debug-session',
-                    'runId': 'opencv-solve',
-                    'hypothesisId': 'OP12',
-                    'location': 'hand_eye_calibration_node.py:_solve_opencv_hand_eye',
-                    'message': 'OpenCV模式：calibrateHandEye调用失败',
-                    'data': {
-                        'error': str(e),
-                        'error_type': type(e).__name__
-                    },
-                    'timestamp': int(time.time() * 1000)
-                }
-                open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry) + '\n')
-                # #endregion
                 raise
-            
-            # #region agent log - OpenCV调用成功
-            t_cam2gripper_flat = t_cam2gripper.flatten()
-            t_cam2gripper_norm_m = float(np.linalg.norm(t_cam2gripper))
-            t_cam2gripper_norm_mm = t_cam2gripper_norm_m * 1000.0
-            
-            log_entry = {
-                'sessionId': 'debug-session',
-                'runId': 'opencv-solve',
-                'hypothesisId': 'OP13',
-                'location': 'hand_eye_calibration_node.py:_solve_opencv_hand_eye',
-                'message': 'OpenCV模式：calibrateHandEye调用成功',
-                'data': {
-                    'R_cam2gripper_det': float(np.linalg.det(R_cam2gripper)),
-                    't_cam2gripper_m': t_cam2gripper_flat.tolist(),
-                    't_cam2gripper_norm_m': t_cam2gripper_norm_m,
-                    't_cam2gripper_norm_mm': t_cam2gripper_norm_mm,
-                    't_cam2gripper_z_m': float(t_cam2gripper_flat[2]),
-                    't_cam2gripper_z_mm': float(t_cam2gripper_flat[2] * 1000.0),
-                    'returned_unit': 'meter',
-                    'expected_t_norm_mm_range': [100.0, 1000.0],  # 正常范围100-1000mm
-                    'expected_z_mm_range': [100.0, 800.0],  # 正常Z范围100-800mm
-                    'warn_if_z_exceeds_mm': 1000.0  # 如果Z>1000mm，异常
-                },
-                'timestamp': int(time.time() * 1000)
-            }
-            log_entry_clean = _convert_to_json_serializable(log_entry)
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-            # #endregion
             
             # 检查返回结果的合理性
             if t_cam2gripper_norm_mm > 2000.0:  # 如果>2米（2000mm），异常
@@ -4314,53 +3481,10 @@ class HandEyeCalibrationNode(Node):
             if abs(det_R - 1.0) > 0.01:
                 self.get_logger().warning(f'   [OpenCV模式] ⚠️ 返回的旋转矩阵行列式异常: {det_R:.6f}（应为1.0）')
             
-            # #region agent log - 算法计算阶段：结果转换（米→毫米）
-            log_entry_convert_result = {
-                'sessionId': 'debug-session',
-                'runId': 'opencv-full-pipeline',
-                'hypothesisId': 'FULL11',
-                'location': 'hand_eye_calibration_node.py:_solve_opencv_hand_eye',
-                'message': '[算法计算] 结果转换（米→毫米）',
-                'data': {
-                    't_cam2gripper_m': t_cam2gripper.flatten().tolist(),
-                    't_cam2gripper_norm_m': float(np.linalg.norm(t_cam2gripper)),
-                    't_cam2gripper_z_m': float(t_cam2gripper[2, 0]),
-                    'conversion_factor': 1000.0,
-                    't_cam2gripper_mm_after_convert': (t_cam2gripper.flatten() * 1000.0).tolist(),
-                    't_cam2gripper_norm_mm_after_convert': float(np.linalg.norm(t_cam2gripper) * 1000.0),
-                    't_cam2gripper_z_mm_after_convert': float(t_cam2gripper[2, 0] * 1000.0)
-                },
-                'timestamp': int(time.time() * 1000)
-            }
-            log_entry_clean = _convert_to_json_serializable(log_entry_convert_result)
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-            # #endregion
-            
             # 构建4x4变换矩阵（单位：毫米）
             T_camera2gripper = np.eye(4)
             T_camera2gripper[:3, :3] = R_cam2gripper
             T_camera2gripper[:3, 3] = t_cam2gripper.flatten() * 1000.0  # 米 → 毫米
-            
-            # #region agent log - 算法计算阶段：最终结果
-            log_entry_final_result = {
-                'sessionId': 'debug-session',
-                'runId': 'opencv-full-pipeline',
-                'hypothesisId': 'FULL12',
-                'location': 'hand_eye_calibration_node.py:_solve_opencv_hand_eye',
-                'message': '[算法计算] 最终标定结果（毫米）',
-                'data': {
-                    'T_camera2gripper': T_camera2gripper.tolist(),
-                    'translation_mm': T_camera2gripper[:3, 3].tolist(),
-                    'translation_norm_mm': float(np.linalg.norm(T_camera2gripper[:3, 3])),
-                    'translation_z_mm': float(T_camera2gripper[2, 3]),
-                    'rotation_det': float(np.linalg.det(T_camera2gripper[:3, :3])),
-                    'rotation_matrix': T_camera2gripper[:3, :3].tolist()
-                },
-                'timestamp': int(time.time() * 1000)
-            }
-            log_entry_clean = _convert_to_json_serializable(log_entry_final_result)
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
-            # #endregion
             
             self.get_logger().info(f'   [OpenCV模式] 算法计算完成：t_cam2gripper={np.linalg.norm(T_camera2gripper[:3, 3]):.1f}mm, det(R)={det_R:.6f}')
             
@@ -4396,7 +3520,7 @@ class HandEyeCalibrationNode(Node):
                 },
                 'timestamp': int(time.time() * 1000)
             }
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry) + '\n')
+            # open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry) + '\n')
             # #endregion
             
             self.get_logger().info(f'   [OpenCV模式] 开始误差计算：验证AX=XB约束')
@@ -4474,7 +3598,7 @@ class HandEyeCalibrationNode(Node):
                         }
                         # 确保所有NumPy类型都被转换为Python原生类型
                         log_entry_clean = _convert_to_json_serializable(log_entry)
-                        open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
+                        # open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
                     # #endregion
                     
                     self.get_logger().info(f'     运动组 #{i+1}: 机器人平移 {robot_translation:.1f}mm, 旋转 {robot_rotation_angle:.1f}° | 标定板平移 {board_translation:.1f}mm, 旋转 {board_rotation_angle:.1f}°')
@@ -4494,7 +3618,7 @@ class HandEyeCalibrationNode(Node):
                         },
                         'timestamp': int(time.time() * 1000)
                     }
-                    open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry) + '\n')
+                    # open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry) + '\n')
                     # #endregion
                     continue
             
@@ -4559,7 +3683,7 @@ class HandEyeCalibrationNode(Node):
                     'timestamp': int(time.time() * 1000)
                 }
                 log_entry_clean = _convert_to_json_serializable(log_entry)
-                open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
+                # open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
                 # #endregion
             
             # #region agent log - 误差计算阶段：开始计算
@@ -4578,7 +3702,7 @@ class HandEyeCalibrationNode(Node):
                 'timestamp': int(time.time() * 1000)
             }
             log_entry_clean = _convert_to_json_serializable(log_entry_error_start)
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
+            # open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
             # #endregion
             
             # 直接验证AX=XB约束：计算 A @ X - X @ B 的误差
@@ -4606,7 +3730,7 @@ class HandEyeCalibrationNode(Node):
                         'timestamp': int(time.time() * 1000)
                     }
                     log_entry_clean = _convert_to_json_serializable(log_entry_motion_group)
-                    open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
+                    # open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
                     # #endregion
                     
                     # 计算误差矩阵：E = A @ X - X @ B
@@ -4634,7 +3758,7 @@ class HandEyeCalibrationNode(Node):
                         'timestamp': int(time.time() * 1000)
                     }
                     log_entry_clean = _convert_to_json_serializable(log_entry_intermediate)
-                    open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
+                    # open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
                     # #endregion
                     
                     # 平移误差：误差矩阵的平移部分的范数
@@ -4670,7 +3794,7 @@ class HandEyeCalibrationNode(Node):
                         'timestamp': int(time.time() * 1000)
                     }
                     log_entry_clean = _convert_to_json_serializable(log_entry_error)
-                    open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
+                    # open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
                     # #endregion
                     
                     # #region agent log - 每个运动组误差
@@ -4692,7 +3816,7 @@ class HandEyeCalibrationNode(Node):
                         }
                         # 确保所有NumPy类型都被转换为Python原生类型
                         log_entry_clean = _convert_to_json_serializable(log_entry)
-                        open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
+                        # open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
                     # #endregion
                     
                 except Exception as e:
@@ -4710,7 +3834,7 @@ class HandEyeCalibrationNode(Node):
                         },
                         'timestamp': int(time.time() * 1000)
                     }
-                    open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry) + '\n')
+                    # open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry) + '\n')
                     # #endregion
                     continue
             
@@ -4733,7 +3857,7 @@ class HandEyeCalibrationNode(Node):
                 'timestamp': int(time.time() * 1000)
             }
             log_entry_clean = _convert_to_json_serializable(log_entry_all_errors)
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
+            # open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
             # #endregion
             
             # 计算RMS误差
@@ -4782,7 +3906,7 @@ class HandEyeCalibrationNode(Node):
                 'timestamp': int(time.time() * 1000)
             }
             log_entry_clean = _convert_to_json_serializable(log_entry_statistics)
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
+            # open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry_clean) + '\n')
             # #endregion
             
             error_statistics = {
@@ -4818,7 +3942,7 @@ class HandEyeCalibrationNode(Node):
                 },
                 'timestamp': int(time.time() * 1000)
             }
-            open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry) + '\n')
+            # open('/home/mu/IVG/aubo_ros2_ws/.cursor/debug.log', 'a').write(json.dumps(log_entry) + '\n')
             # #endregion
             
             self.get_logger().info(f'   [OpenCV模式] 误差计算完成：平移RMS={mean_translation_error:.3f}mm，旋转RMS={np.degrees(mean_rotation_error):.3f}°')
@@ -6090,9 +5214,6 @@ class HandEyeCalibrationNode(Node):
                             self.get_logger().info(f'✅ 机器人已到位，可以采集图像')
                         else:
                             self.get_logger().warning(f'⚠️ 等待机器人到位超时，继续执行')
-                            # #region agent log
-                            import json,time;open('/home/mu/IVG/.cursor/debug.log','a').write(json.dumps({"sessionId":"debug-session","runId":"auto-calib","hypothesisId":"A","location":"hand_eye_calibration_node.py:2616","message":"Robot settling timeout - image about to be captured","data":{"timeout_happened":True},"timestamp":int(time.time()*1000)})+'\n');
-                            # #endregion
                         
                         return jsonify({
                             'success': True, 

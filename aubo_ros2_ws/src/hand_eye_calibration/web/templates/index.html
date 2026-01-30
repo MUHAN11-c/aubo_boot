@@ -370,6 +370,17 @@
                             </div>
                         </div>
                         
+                        <!-- 跳转到视觉姿态估计算法Web UI -->
+                        <div class="section-group" style="margin-bottom: 10px;">
+                            <div style="padding: 10px; background: #ffffff; border-radius: 6px; border: 1px solid #e0e0e0; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+                                <div class="button-group" style="margin: 0;">
+                                    <button class="action-button" id="btn-jump-to-visual-pose-estimation" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 15px; padding: 10px 14px; width: 100%; font-weight: 500; border: none; cursor: pointer; transition: all 0.2s;" onclick="window.open('http://localhost:8088/index.html', '_blank')">
+                                        🔗 跳转到视觉姿态估计算法Web UI
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- 第二层：位姿记录操作（紧凑版） -->
                         <div class="section-group" style="margin-bottom: 10px;">
                             <div style="padding: 10px; background: #ffffff; border-radius: 6px; border: 1px solid #e0e0e0; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
@@ -439,6 +450,17 @@
                                             OpenCV
                                         </button>
                                     </div>
+                                </div>
+                                <!-- OpenCV 算法选择（仅 OpenCV 模式显示） -->
+                                <div id="opencv-algorithm-setting" style="margin-bottom: 8px; display: none; align-items: center; gap: 8px;">
+                                    <label style="color: white; font-size: 14px; font-weight: 500;">算法选择:</label>
+                                    <select id="opencv-algorithm-select" style="flex: 1; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.2); color: white; border-radius: 4px; font-size: 13px; font-weight: 500; cursor: pointer;">
+                                        <option value="TSAI" style="background: #667eea; color: white;">TSAI (经典方法，稳定可靠)</option>
+                                        <option value="PARK" style="background: #667eea; color: white;">PARK (Park & Martin)</option>
+                                        <option value="HORAUD" style="background: #667eea; color: white;">HORAUD (Horaud & Dornaika)</option>
+                                        <option value="ANDREFF" style="background: #667eea; color: white;">ANDREFF (Andreff et al.)</option>
+                                        <option value="DANIILIDIS" style="background: #667eea; color: white;">DANIILIDIS (Daniilidis)</option>
+                                    </select>
                                 </div>
                                 <div class="button-group" style="margin: 0 0 8px 0;">
                                     <button class="action-button" id="btn-auto-start-calibration" style="background: #28a745; color: white; font-weight: bold; font-size: 16px; padding: 10px 14px; flex: 1;">

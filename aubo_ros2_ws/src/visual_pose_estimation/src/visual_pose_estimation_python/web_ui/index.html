@@ -1,0 +1,1779 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>姿态大师（深度相机版）v1.1 - PoseMaster Depth Camera Edition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
+            height: 100vh;
+            overflow: hidden;
+            color: #1e293b;
+        }
+
+        /* 顶部标题栏 */
+        .header {
+            height: 80px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 1000;
+        }
+
+        .logo {
+            height: 60px;
+            width: auto;
+            margin-right: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .title-section {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .title-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .title-chinese {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1e293b;
+            margin-bottom: 2px;
+        }
+
+        .title-english {
+            font-size: 14px;
+            color: #64748b;
+            font-style: italic;
+        }
+
+        .version-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 2px solid #10b981;
+            box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+            letter-spacing: 0.5px;
+            margin-top: 12px;
+            align-self: flex-end;
+        }
+
+        /* 主内容区域 */
+        .main-content {
+            height: calc(100vh - 80px - 50px);
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* 左侧选项卡区域 */
+        .tab-panel {
+            width: 70%;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(15px);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            overflow: hidden;
+        }
+
+        .tab-header {
+            display: flex;
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 15px 20px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .tab-button:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .tab-button.active {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #fff;
+        }
+
+        .tab-content {
+            padding: 30px;
+            height: calc(100% - 60px);
+            overflow-y: auto;
+        }
+
+        /* 工作流程选项卡 */
+        .workflow-layout {
+            display: flex;
+            height: 100%;
+            gap: 20px;
+        }
+
+        .image-display-area {
+            flex: 0 0 65%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 600px;
+        }
+
+        .main-image-container {
+            width: 100%;
+            min-height: 400px;
+            max-height: 80vh;
+            aspect-ratio: 4 / 3;  /* 640x480 默认宽高比 */
+            background: rgba(248, 250, 252, 0.9);
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            align-items: stretch;
+            justify-content: stretch;
+        }
+
+        .image-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, rgba(248, 250, 252, 0.9), rgba(241, 245, 249, 0.9));
+            border: 2px dashed rgba(148, 163, 184, 0.3);
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .image-placeholder img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .image-placeholder:hover {
+            border-color: #3b82f6;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(37, 99, 235, 0.05));
+        }
+
+        .placeholder-content {
+            text-align: center;
+            color: #64748b;
+        }
+
+        .placeholder-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .placeholder-text {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+
+        .placeholder-subtext {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .workflow-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            padding: 15px;
+            background: rgba(248, 250, 252, 0.9);
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .template-edit-area {
+            background: rgba(248, 250, 252, 0.9);
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+        }
+
+        .form-row .form-group label {
+            margin-bottom: 0;
+            width: 100%;
+            font-size: 13px;
+        }
+
+        .form-row .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            font-size: 13px;
+            box-sizing: border-box;
+        }
+
+        /* Debug选项卡样式 */
+        .debug-layout {
+            display: flex;
+            height: 100%;
+            gap: 15px;
+        }
+
+        /* 左侧图像区域 */
+        .debug-images-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+        }
+
+        .debug-images-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 10px;
+            min-height: 800px;
+        }
+
+        .debug-image-container {
+            background: rgba(248, 250, 252, 0.9);
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .debug-image-header {
+            padding: 8px 12px;
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .debug-image-header-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .debug-image-stats {
+            font-size: 11px;
+            opacity: 0.9;
+        }
+
+        .debug-image-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8fafc;
+            position: relative;
+            overflow: auto;
+            min-height: 200px;
+        }
+
+        .debug-image-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1));
+        }
+
+        .debug-image-content img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* 右侧参数调整区域 */
+        .debug-params-area {
+            width: 350px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+        }
+
+        .debug-param-group {
+            background: rgba(248, 250, 252, 0.9);
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            overflow: hidden;
+        }
+
+        .debug-param-header {
+            padding: 10px 15px;
+            background: linear-gradient(90deg, #10b981, #059669);
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .debug-param-content {
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .param-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .param-slider-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nudge-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(255, 255, 255, 0.9);
+            color: #0f172a;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            line-height: 1;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+
+        .nudge-btn:hover {
+            border-color: rgba(59, 130, 246, 0.55);
+            box-shadow: 0 2px 10px rgba(59, 130, 246, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .nudge-btn:active {
+            transform: translateY(0px);
+        }
+
+        .nudge-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .param-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            color: #1e293b;
+            font-weight: 500;
+        }
+
+        .param-value-display {
+            color: #3b82f6;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .param-slider {
+            width: 100%;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: #cbd5e1;
+            outline: none;
+        }
+
+        .param-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .param-slider::-webkit-slider-thumb:hover {
+            background: #2563eb;
+            transform: scale(1.2);
+        }
+
+        .param-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            border: none;
+        }
+
+        .debug-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            padding: 15px;
+            background: rgba(248, 250, 252, 0.9);
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            flex-wrap: wrap;
+        }
+
+        .debug-buttons .btn {
+            min-width: 100px;
+            font-size: 13px;
+            padding: 8px 12px;
+        }
+
+        .results-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(248, 250, 252, 0.9);
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            overflow: hidden;
+        }
+
+        .results-header {
+            padding: 15px 20px;
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .results-header h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .results-count {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .results-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .result-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 6px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .result-item:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .result-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .result-image {
+            width: 100%;
+            flex-shrink: 0;
+            margin-bottom: 12px;
+        }
+
+        .mini-image-placeholder {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(248, 250, 252, 0.9), rgba(241, 245, 249, 0.9));
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #64748b;
+        }
+
+        .result-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .pose-block-clickable:hover {
+            background: #e2e8f0 !important;
+            transform: translateX(2px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 模态框样式 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .modal-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #64748b;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .pose-data-item {
+            margin-bottom: 12px;
+            padding: 10px;
+            background: #f8fafc;
+            border-radius: 6px;
+            border-left: 3px solid #3b82f6;
+        }
+
+        .pose-data-label {
+            font-size: 0.85em;
+            color: #64748b;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        .pose-data-value {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #1e293b;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .modal-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .modal-button-cartesian {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .modal-button-cartesian:hover {
+            background: #2563eb;
+        }
+
+        .modal-button-joint {
+            background: #10b981;
+            color: white;
+        }
+
+        .modal-button-joint:hover {
+            background: #059669;
+        }
+
+        .modal-button-cancel {
+            background: #e2e8f0;
+            color: #64748b;
+        }
+
+        .modal-button-cancel:hover {
+            background: #cbd5e1;
+        }
+
+        .result-param {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .param-label {
+            color: #64748b;
+            font-weight: 500;
+            min-width: 60px;
+        }
+
+        .param-value {
+            color: #1e293b;
+            font-weight: 400;
+            text-align: right;
+            font-family: 'Courier New', monospace;
+        }
+
+        .status-card {
+            background: linear-gradient(135deg, rgba(248, 250, 252, 0.9), rgba(241, 245, 249, 0.9));
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .status-card h3 {
+            color: #1e293b;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.online {
+            background: #10b981;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+        }
+
+        .status-dot.offline {
+            background: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+        }
+
+        .status-dot.warning {
+            background: #f59e0b;
+            box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .control-panel {
+            background: linear-gradient(135deg, rgba(248, 250, 252, 0.9), rgba(241, 245, 249, 0.9));
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #ef4444;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .control-panel h3 {
+            color: #1e293b;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            line-height: 1.4;
+        }
+        
+        .workflow-buttons .btn {
+            text-transform: none;
+            letter-spacing: 0;
+            white-space: normal;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+            background: linear-gradient(135deg, #059669, #047857);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-warning:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+            background: linear-gradient(135deg, #d97706, #b45309);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, #06b6d4, #0891b2);
+            color: white;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .btn-info:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4);
+            background: linear-gradient(135deg, #0891b2, #0e7490);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #64748b, #475569);
+            color: white;
+            border: 1px solid rgba(100, 116, 139, 0.3);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(100, 116, 139, 0.4);
+            background: linear-gradient(135deg, #475569, #334155);
+        }
+
+        /* 模板设置选项卡 */
+        .template-section {
+            margin-bottom: 30px;
+        }
+
+        .template-section h3 {
+            color: #1e293b;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 5px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #1e293b;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 15px;
+            border: 2px solid rgba(148, 163, 184, 0.3);
+            border-radius: 6px;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #1e293b;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            background: rgba(255, 255, 255, 1);
+        }
+
+        .form-control::placeholder {
+            color: #64748b;
+        }
+
+        .template-list {
+            background: rgba(248, 250, 252, 0.8);
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .template-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            color: #1e293b;
+        }
+
+        .template-item:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Debug选项卡 */
+        .debug-section {
+            margin-bottom: 30px;
+        }
+
+        .debug-section h3 {
+            color: #1e293b;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #ef4444;
+            padding-bottom: 5px;
+        }
+
+        .debug-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .debug-info {
+            background: rgba(248, 250, 252, 0.9);
+            color: #1e293b;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        /* 右侧日志区域 */
+        .log-panel {
+            width: 30%;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(15px);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .log-header {
+            background: linear-gradient(90deg, #10b981, #059669);
+            color: white;
+            padding: 15px 20px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .log-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: rgba(248, 250, 252, 0.9);
+            color: #1e293b;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-timestamp {
+            color: #64748b;
+            margin-right: 10px;
+        }
+
+        .log-level {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .log-level.info {
+            color: #3b82f6;
+        }
+
+        .log-level.warning {
+            color: #f59e0b;
+        }
+
+        .log-level.error {
+            color: #ef4444;
+        }
+
+        .log-level.success {
+            color: #10b981;
+        }
+
+        /* 底部状态栏 */
+        .status-bar {
+            height: 50px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(15px);
+            border-top: 1px solid rgba(148, 163, 184, 0.2);
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            margin-right: 40px;
+        }
+
+        .status-item:last-child {
+            margin-right: 0;
+        }
+
+        .status-label {
+            font-weight: 500;
+            margin-right: 10px;
+            color: #1e293b;
+            font-size: 14px;
+        }
+
+        .status-value {
+            display: flex;
+            align-items: center;
+            color: #1e293b;
+            font-size: 14px;
+        }
+
+        .status-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-icon.camera-online {
+            background: #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+            animation: pulse 2s infinite;
+        }
+
+        .status-icon.camera-offline {
+            background: #ef4444;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+        }
+
+        .status-icon.robot-online {
+            background: #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+            animation: pulse 2s infinite;
+        }
+
+        .status-icon.robot-offline {
+            background: #ef4444;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+        }
+
+        .status-icon.backend-online {
+            background: #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+            animation: pulse 2s infinite;
+        }
+
+        .status-icon.backend-offline {
+            background: #ef4444;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+        }
+
+        /* 版权信息样式 */
+        .copyright-info {
+            margin-left: auto;
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .copyright-chinese {
+            font-size: 11px;
+            color: #9ca3af;
+            font-weight: 400;
+        }
+
+        .copyright-english {
+            font-size: 10px;
+            color: #9ca3af;
+            font-weight: 400;
+            font-style: italic;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 1400px) {
+            .main-content {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .tab-panel, .log-panel {
+                width: 100%;
+            }
+            
+            .log-panel {
+                height: 300px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 0 15px;
+            }
+            
+            .title-chinese {
+                font-size: 20px;
+            }
+            
+            .title-english {
+                font-size: 12px;
+            }
+            
+            .main-content {
+                padding: 10px;
+                gap: 10px;
+            }
+            
+            .tab-content {
+                padding: 20px;
+            }
+            
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .control-buttons {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+
+        /* 隐藏选项卡内容 */
+        .tab-content.hidden {
+            display: none;
+        }
+
+        /* 退出服务按钮 */
+        .exit-service-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 80px;
+            height: 35px;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+            transition: all 0.3s ease;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .exit-service-btn:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 6px 25px rgba(239, 68, 68, 0.6);
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+        }
+
+        .exit-service-btn:active {
+            transform: translateY(-1px) scale(1.02);
+        }
+
+        .exit-service-btn::before {
+            content: "退出";
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部标题栏 -->
+    <div class="header">
+        <img src="web_ui/resources/logo.png" alt="Logo" class="logo">
+        <div class="title-section">
+            <div class="title-text">
+                <div class="title-chinese">姿态大师（深度相机版）</div>
+                <div class="title-english">PoseMaster Depth Camera Edition</div>
+            </div>
+            <div class="version-badge">v1.1</div>
+        </div>
+    </div>
+
+    <!-- 主内容区域 -->
+    <div class="main-content">
+        <!-- 左侧选项卡区域 -->
+        <div class="tab-panel">
+            <div class="tab-header">
+                <button class="tab-button active" onclick="switchTab('workflow')">工作流程</button>
+                <button class="tab-button" onclick="switchTab('template')">模板设置</button>
+                <button class="tab-button" onclick="switchTab('debug')">Debug</button>
+            </div>
+
+            <!-- 工作流程选项卡 -->
+            <div id="workflow-tab" class="tab-content">
+                <div class="workflow-layout">
+                    <!-- 左上角：图像显示区域 -->
+                    <div class="image-display-area">
+                        <div class="main-image-container">
+                            <div class="image-placeholder" id="main-image">
+                                <div class="placeholder-content">
+                                    <div class="placeholder-icon">📷</div>
+                                    <div class="placeholder-text">主图像显示区域</div>
+                                    <div class="placeholder-subtext">640 × 480</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 工件ID和姿态ID下拉框 -->
+                        <div class="template-edit-area" style="margin-top: 10px;">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="workpiece-id-workflow">工件ID:</label>
+                                    <select id="workpiece-id-workflow" class="form-control" style="width: 100%;" onchange="refreshPoseIdDropdown()">
+                                        <option value="">请选择工件ID...</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="pose-id-workflow">姿态ID:</label>
+                                    <select id="pose-id-workflow" class="form-control" style="width: 100%;">
+                                        <option value="">请先选择工件ID...</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 左下角：按钮区域 -->
+                        <div class="workflow-buttons">
+                            <button class="btn btn-primary" onclick="loadImage()">📂<br>加载图像</button>
+                            <button class="btn btn-success" onclick="captureImage()">📷<br>采集图像</button>
+                            <button class="btn btn-warning" onclick="estimatePose()">🎯<br>姿态估计</button>
+                            <button class="btn btn-info" onclick="openGripper()">✋<br>打开夹爪</button>
+                            <button class="btn btn-secondary" onclick="closeGripper()">✊<br>关闭夹爪</button>
+                            <button class="btn btn-success" onclick="autoGrasp()">🤖<br>自动抓取</button>
+                            <button class="btn btn-success" id="loop-auto-grasp-btn" onclick="toggleLoopAutoGrasp()">🔄<br>循环抓取</button>
+                            <button class="btn btn-primary" onclick="moveToCameraPose()">📸<br>拍照姿态</button>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：结果滑动窗口 -->
+                    <div class="results-panel">
+                        <div class="results-header">
+                            <h3>检测结果</h3>
+                            <div class="results-count">共 <span id="result-count">0</span> 个目标</div>
+                        </div>
+                        <div class="results-list" id="results-list">
+                            <!-- 结果列表将动态填充 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 模板设置选项卡 -->
+            <div id="template-tab" class="tab-content hidden">
+                <div class="workflow-layout">
+                    <!-- 左侧：图像显示区域 -->
+                    <div class="image-display-area">
+                        <div class="main-image-container">
+                            <div class="image-placeholder" id="template-image">
+                                <div class="placeholder-content">
+                                    <div class="placeholder-icon">📷</div>
+                                    <div class="placeholder-text">模板图像显示区域</div>
+                                    <div class="placeholder-subtext">640 × 480</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 编辑框区域 -->
+                        <div class="template-edit-area">
+                            <div class="form-row" style="display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(120px, 0.6fr) minmax(0, 0.9fr) minmax(0, 1.1fr); column-gap: 12px; align-items: flex-end;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label for="workpiece-id">工件ID:</label>
+                                    <div style="position: relative; width: 100%; height: 38px;">
+                                        <select id="workpiece-id" class="form-control" style="width: 100%; box-sizing: border-box; position: absolute; top: 0; left: 0; height: 38px;" onchange="handleWorkpieceIdChange()">
+                                            <option value="">请选择或输入工件ID...</option>
+                                        </select>
+                                        <input type="text" id="workpiece-id-input" class="form-control" 
+                                               style="position: absolute; top: 0; left: 0; right: 0; width: 100%; box-sizing: border-box; display: none; z-index: 10; height: 38px;"
+                                               placeholder="输入新工件ID..." 
+                                               onblur="handleWorkpieceIdInputBlur()"
+                                               onkeypress="if(event.key === 'Enter') handleWorkpieceIdInputBlur()">
+                                    </div>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="visibility: hidden;">新建ID</label>
+                                    <button type="button" class="btn btn-sm btn-link" style="padding: 8px 12px; font-size: 0.9em; color: #3b82f6; white-space: nowrap; height: 38px; box-sizing: border-box; width: 100%; text-align: center;" 
+                                            onclick="toggleWorkpieceIdInput()">+ 新建ID</button>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label for="pose-id">姿态ID:</label>
+                                    <input type="text" id="pose-id" class="form-control" placeholder="例如: 1" style="width: 100%;">
+                                </div>
+                                <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                                    <label for="pose-type">姿态类型:</label>
+                                    <select id="pose-type" class="form-control" style="width: 100%;">
+                                        <option value="camera_pose">相机姿态 (camera_pose)</option>
+                                        <option value="preparation_position">准备姿态 (preparation_position)</option>
+                                        <option value="grab_position">抓取姿态 (grab_position)</option>
+                                        <option value="preplace_position">预放置姿态 (preplace_position)</option>
+                                        <option value="place_position">放置位姿 (place_position)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 按钮区域 -->
+                        <div class="workflow-buttons">
+                            <button class="btn btn-warning" onclick="refreshTemplateList()">🔄<br>重载模板</button>
+                            <button class="btn btn-primary" onclick="loadTemplateImage()">📂<br>加载图像</button>
+                            <button class="btn btn-success" onclick="captureTemplateImage()">📷<br>采集图像</button>
+                            <button class="btn btn-info" onclick="getRobotPose()">🤖<br>获取姿态</button>
+                            <button class="btn btn-info" onclick="openGripper()">✋<br>打开夹爪</button>
+                            <button class="btn btn-secondary" onclick="closeGripper()">✊<br>关闭夹爪</button>
+                            <button class="btn btn-primary" onclick="moveToCameraPoseFromTemplate()">📸<br>拍摄姿态</button>
+                            <button class="btn btn-primary" onclick="standardizeTemplate()">📐<br>标准化</button>
+                        </div>
+                        
+                        <!-- 运动到位姿按钮区域 -->
+                        <div class="workflow-buttons" style="margin-top: 10px;">
+                            <button class="btn btn-success" onclick="moveToPreparationPose()">📍<br>准备位姿</button>
+                            <button class="btn btn-success" onclick="moveToGrabPose()">🤏<br>抓取位姿</button>
+                            <button class="btn btn-success" onclick="moveToPreplacePose()">📌<br>预放置位姿</button>
+                            <button class="btn btn-success" onclick="moveToPlacePose()">🎯<br>放置位姿</button>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：模板列表 -->
+                    <div class="results-panel">
+                        <div class="results-header">
+                            <h3>模板列表</h3>
+                            <div class="results-count">共 <span id="template-count">0</span> 个模板</div>
+                        </div>
+                        <div class="results-list" id="template-results-list">
+                            <!-- 模板列表将动态填充 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Debug选项卡 -->
+            <div id="debug-tab" class="tab-content hidden">
+                <div class="debug-layout">
+                    <!-- 左侧：4个图像显示区域 -->
+                    <div class="debug-images-area">
+                        <!-- 操作按钮 -->
+                        <div class="debug-buttons">
+                            <button class="btn btn-success" onclick="debugCaptureImage()">📷 采集图像</button>
+                            <button class="btn btn-info" onclick="debugRefresh()">🔄 刷新显示</button>
+                            <button class="btn btn-warning" onclick="debugSaveThresholds()">💾 保存阈值</button>
+                        </div>
+
+                        <!-- 4个图像窗口 -->
+                        <div class="debug-images-grid">
+                            <!-- 1. 深度图 -->
+                            <div class="debug-image-container">
+                                <div class="debug-image-header">
+                                    <div class="debug-image-header-title">
+                                        <span>📊</span>
+                                        <span>深度图 (Depth Image)</span>
+                                    </div>
+                                    <div class="debug-image-stats" id="depth-stats">等待图像...</div>
+                                </div>
+                                <div class="debug-image-content" id="depth-image-content">
+                                    <div class="debug-image-placeholder">
+                                        <div class="placeholder-content">
+                                            <div class="placeholder-icon">📊</div>
+                                            <div class="placeholder-text">深度图显示区域</div>
+                                            <div class="placeholder-subtext">点击"采集图像"开始</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 2. 彩色图 -->
+                            <div class="debug-image-container">
+                                <div class="debug-image-header">
+                                    <div class="debug-image-header-title">
+                                        <span>🎨</span>
+                                        <span>彩色图 (Color Image)</span>
+                                    </div>
+                                    <div class="debug-image-stats" id="color-stats">等待图像...</div>
+                                </div>
+                                <div class="debug-image-content" id="color-image-content">
+                                    <div class="debug-image-placeholder">
+                                        <div class="placeholder-content">
+                                            <div class="placeholder-icon">🎨</div>
+                                            <div class="placeholder-text">彩色图显示区域</div>
+                                            <div class="placeholder-subtext">点击"采集图像"开始</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 3. 二值化深度图 -->
+                            <div class="debug-image-container">
+                                <div class="debug-image-header">
+                                    <div class="debug-image-header-title">
+                                        <span>⚫</span>
+                                        <span>二值化深度图 (Binary)</span>
+                                    </div>
+                                    <div class="debug-image-stats" id="binary-stats">等待图像...</div>
+                                </div>
+                                <div class="debug-image-content" id="binary-image-content">
+                                    <div class="debug-image-placeholder">
+                                        <div class="placeholder-content">
+                                            <div class="placeholder-icon">⚫</div>
+                                            <div class="placeholder-text">二值化深度图显示区域</div>
+                                            <div class="placeholder-subtext">调整阈值查看效果</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 4. 预处理图像 -->
+                            <div class="debug-image-container">
+                                <div class="debug-image-header">
+                                    <div class="debug-image-header-title">
+                                        <span>🔧</span>
+                                        <span>预处理图像 (Preprocessed)</span>
+                                    </div>
+                                    <div class="debug-image-stats" id="preprocessed-stats">等待图像...</div>
+                                </div>
+                                <div class="debug-image-content" id="preprocessed-image-content">
+                                    <div class="debug-image-placeholder">
+                                        <div class="placeholder-content">
+                                            <div class="placeholder-icon">🔧</div>
+                                            <div class="placeholder-text">预处理图像显示区域</div>
+                                            <div class="placeholder-subtext">提取的工件特征</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：参数调整区域 -->
+                    <div class="debug-params-area">
+                        <!-- 深度阈值参数组 -->
+                        <div class="debug-param-group">
+                            <div class="debug-param-header">🎚️ 深度阈值 (Depth Threshold)</div>
+                            <div class="debug-param-content">
+                                <div class="param-item">
+                                    <div class="param-label">
+                                        <span>最小深度 (Min Depth)</span>
+                                        <span class="param-value-display" id="min-depth-value">4000</span>
+                                    </div>
+                                    <div class="param-slider-row">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('min-depth-slider', -1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">-</button>
+                                        <input type="range" class="param-slider" id="min-depth-slider" 
+                                               min="0" max="3000" value="4000" step="100"
+                                               oninput="updateDebugParam('min-depth', this.value)">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('min-depth-slider', 1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">+</button>
+                                    </div>
+                                </div>
+                                <div class="param-item">
+                                    <div class="param-label">
+                                        <span>最大深度 (Max Depth)</span>
+                                        <span class="param-value-display" id="max-depth-value">20000</span>
+                                    </div>
+                                    <div class="param-slider-row">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('max-depth-slider', -1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">-</button>
+                                        <input type="range" class="param-slider" id="max-depth-slider" 
+                                               min="0" max="3000" value="20000" step="100"
+                                               oninput="updateDebugParam('max-depth', this.value)">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('max-depth-slider', 1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 连通域面积参数组 -->
+                        <div class="debug-param-group">
+                            <div class="debug-param-header">📐 连通域面积 (Component Area)</div>
+                            <div class="debug-param-content">
+                                <div class="param-item">
+                                    <div class="param-label">
+                                        <span>最小面积 (Min Area)</span>
+                                        <span class="param-value-display" id="contour-min-area-value">10</span>
+                                    </div>
+                                    <div class="param-slider-row">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('contour-min-area-slider', -1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">-</button>
+                                        <input type="range" class="param-slider" id="contour-min-area-slider" 
+                                               min="0" max="5000" value="10" step="10"
+                                               oninput="updateDebugParam('contour-min-area', this.value)">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('contour-min-area-slider', 1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">+</button>
+                                    </div>
+                                </div>
+                                <div class="param-item">
+                                    <div class="param-label">
+                                        <span>最大面积 (Max Area)</span>
+                                        <span class="param-value-display" id="contour-max-area-value">34921</span>
+                                    </div>
+                                    <div class="param-slider-row">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('contour-max-area-slider', -1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">-</button>
+                                        <input type="range" class="param-slider" id="contour-max-area-slider" 
+                                               min="0" max="5000" value="34921" step="100"
+                                               oninput="updateDebugParam('contour-max-area', this.value)">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('contour-max-area-slider', 1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 连通域筛选参数组 -->
+                        <div class="debug-param-group">
+                            <div class="debug-param-header">🔍 连通域筛选 (Component Filter)</div>
+                            <div class="debug-param-content">
+                                <div class="param-item">
+                                    <div class="param-label">
+                                        <span>最小宽高比 (Min Aspect)</span>
+                                        <span class="param-value-display" id="min-aspect-value">0.3</span>
+                                    </div>
+                                    <div class="param-slider-row">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('min-aspect-slider', -1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">-</button>
+                                        <input type="range" class="param-slider" id="min-aspect-slider" 
+                                               min="0" max="100" value="3" step="1"
+                                               oninput="updateDebugParam('min-aspect', this.value / 10)">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('min-aspect-slider', 1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">+</button>
+                                    </div>
+                                </div>
+                                <div class="param-item">
+                                    <div class="param-label">
+                                        <span>最大宽高比 (Max Aspect)</span>
+                                        <span class="param-value-display" id="max-aspect-value">4.0</span>
+                                    </div>
+                                    <div class="param-slider-row">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('max-aspect-slider', -1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">-</button>
+                                        <input type="range" class="param-slider" id="max-aspect-slider" 
+                                               min="0" max="100" value="40" step="1"
+                                               oninput="updateDebugParam('max-aspect', this.value / 10)">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('max-aspect-slider', 1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">+</button>
+                                    </div>
+                                </div>
+                                <div class="param-item">
+                                    <div class="param-label">
+                                        <span>最小宽度 (Min Width)</span>
+                                        <span class="param-value-display" id="min-width-value">60</span>
+                                    </div>
+                                    <div class="param-slider-row">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('min-width-slider', -1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">-</button>
+                                        <input type="range" class="param-slider" id="min-width-slider" 
+                                               min="0" max="500" value="60" step="1"
+                                               oninput="updateDebugParam('min-width', this.value)">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('min-width-slider', 1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">+</button>
+                                    </div>
+                                </div>
+                                <div class="param-item">
+                                    <div class="param-label">
+                                        <span>最小高度 (Min Height)</span>
+                                        <span class="param-value-display" id="min-height-value">60</span>
+                                    </div>
+                                    <div class="param-slider-row">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('min-height-slider', -1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">-</button>
+                                        <input type="range" class="param-slider" id="min-height-slider" 
+                                               min="0" max="500" value="60" step="1"
+                                               oninput="updateDebugParam('min-height', this.value)">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('min-height-slider', 1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">+</button>
+                                    </div>
+                                </div>
+                                <div class="param-item">
+                                    <div class="param-label">
+                                        <span>最大数量 (Max Count)</span>
+                                        <span class="param-value-display" id="max-count-value">3</span>
+                                    </div>
+                                    <div class="param-slider-row">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('max-count-slider', -1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">-</button>
+                                        <input type="range" class="param-slider" id="max-count-slider" 
+                                               min="1" max="10" value="3" step="1"
+                                               oninput="updateDebugParam('max-count', this.value)">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('max-count-slider', 1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 统计信息显示 -->
+                        <div class="debug-param-group">
+                            <div class="debug-param-header">📊 处理统计 (Statistics)</div>
+                            <div class="debug-param-content">
+                                <div style="font-size: 13px; color: #64748b; line-height: 1.6;">
+                                    <div id="debug-stats-content">
+                                        <div>• 深度图像: <span id="stat-depth-size">-</span></div>
+                                        <div>• 彩色图像: <span id="stat-color-size">-</span></div>
+                                        <div>• 有效深度点: <span id="stat-valid-points">-</span></div>
+                                        <div>• 检测到的连通域: <span id="stat-components">-</span></div>
+                                        <div>• 筛选后连通域: <span id="stat-filtered">-</span></div>
+                                        <div>• 处理时间: <span id="stat-time">-</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧日志区域 -->
+        <div class="log-panel">
+            <div class="log-header">
+                📊 实时日志与数据流
+            </div>
+            <div class="log-content" id="log-content">
+                <div class="log-entry">
+                    <span class="log-timestamp">[16:30:15]</span>
+                    <span class="log-level info">[INFO]</span>
+                    <span>系统初始化完成</span>
+                </div>
+                <div class="log-entry">
+                    <span class="log-timestamp">[16:30:16]</span>
+                    <span class="log-level success">[SUCCESS]</span>
+                    <span>ROS2节点启动成功</span>
+                </div>
+                <div class="log-entry">
+                    <span class="log-timestamp">[16:30:18]</span>
+                    <span class="log-level info">[INFO]</span>
+                    <span>模板库加载完成 (2个模板)</span>
+                </div>
+                <div class="log-entry">
+                    <span class="log-timestamp">[16:30:19]</span>
+                    <span class="log-level success">[SUCCESS]</span>
+                    <span>算法模块初始化完成</span>
+                </div>
+                <div class="log-entry">
+                    <span class="log-timestamp">[16:30:20]</span>
+                    <span class="log-level info">[INFO]</span>
+                    <span>系统就绪，等待指令</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部状态栏 -->
+    <div class="status-bar">
+        <div class="status-item">
+            <span class="status-label">相机状态:</span>
+            <div class="status-value">
+                <div class="status-icon camera-online"></div>
+                <span>在线</span>
+            </div>
+        </div>
+        <div class="status-item">
+            <span class="status-label">机器人状态:</span>
+            <div class="status-value">
+                <div class="status-icon robot-online"></div>
+                <span>在线</span>
+            </div>
+        </div>
+        <div class="status-item">
+            <span class="status-label">后端服务状态:</span>
+            <div class="status-value">
+                <div class="status-icon backend-online"></div>
+                <span>在线</span>
+            </div>
+        </div>
+        <div class="copyright-info">
+            <div class="copyright-chinese">湖北工业大学版权所有</div>
+            <div class="copyright-english">Copyright © Hubei University of Technology</div>
+        </div>
+    </div>
+
+    <!-- 退出服务按钮 -->
+    <button class="exit-service-btn" onclick="exitWebService()" title="退出Web服务"></button>
+
+    <script src="scripts/app.js"></script>
+</body>
+</html>

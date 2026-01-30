@@ -158,6 +158,7 @@ install(DIRECTORY launch/
 
 install(PROGRAMS
   scripts/moveit2_tcp_pose_publisher.py
+  scripts/verify_kinematics.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

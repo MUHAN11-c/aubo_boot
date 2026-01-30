@@ -534,18 +534,33 @@
     <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
   </joint>
 
-
-
-
+  <!-- /////////////////////////////////   End Effector (Camera and Gripper)   ////////////////////////////////////// -->
+  <xacro:include filename="$(find aubo_description)/urdf/xacro/inc/end_effector.xacro"/>
 
   <!-- /////////////////////////////////   e5 pedestal_Link   ////////////////////////////////////// -->
   <!-- 修改：将 base_link 作为根链接，pedestal_Link 作为 base_link 的子链接 -->
+  <!-- 基座尺寸：长150cm(1.5m) x 宽80cm(0.8m) x 高10cm(0.1m) -->
   <link name="pedestal_Link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="100.0" />  <!-- 假设密度为800kg/m³，体积为1.5*0.8*0.1=0.12m³ -->
+      <inertia ixx="1.333" ixy="0" ixz="0" iyy="2.25" iyz="0" izz="3.416" />
+    </inertial>
     <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://aubo_description/meshes/aubo_e5/collision/pedestal.STL" />
+        <box size="1.5 0.8 0.1" />  <!-- 长150cm x 宽80cm x 高10cm -->
       </geometry>
+      <material name="">
+        <color rgba="0.96 0.96 0.96 1" />  <!-- 灰色 -->
+      </material>
     </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="1.5 0.8 0.1" />  <!-- 长150cm x 宽80cm x 高10cm -->
+      </geometry>
+    </collision>
   </link>
 
   <!-- 修改：反转关节关系，使 base_link 成为父链接，pedestal_Link 成为子链接 -->
@@ -553,7 +568,7 @@
   <joint name="pedestal_joint" type="fixed">
     <parent link="base_link"/>
     <child link="pedestal_Link"/>
-    <origin xyz="0.0 0.0 -0.503" rpy="0.0 0.0 0.0" />
+    <origin xyz="0.0 0.0 -0.05" rpy="0.0 0.0 0.0" />
   </joint>
 
   <!-- 注释掉 world 链接和 world_joint，使 base_link 成为根链接 -->
@@ -567,6 +582,37 @@
   </joint>
   -->
 
+  <!-- /////////////////////////////////   Square on Pedestal   ////////////////////////////////////// -->
+  <!-- 在基座上创建一个矩形，占满基座的后半部分 -->
+  <!-- 尺寸：0.75m(长) x 0.8m(宽) x 0.2m(高)，位置：xyz="-0.55 0.0 0.16" -->
+  <link name="pedestal_square_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="96.0" />  <!-- 体积=0.75*0.8*0.2=0.12m³，假设密度800kg/m³，质量=96kg -->
+      <inertia ixx="5.44" ixy="0" ixz="0" iyy="4.82" iyz="0" izz="9.62" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.75 0.8 0.2" />  <!-- 尺寸：长75cm x 宽80cm x 高20cm -->
+      </geometry>
+      <material name="">
+        <color rgba="0.2 0.6 1.0 1" />  <!-- 蓝色 -->
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.75 0.8 0.2" />  <!-- 尺寸：长75cm x 宽80cm x 高20cm -->
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="pedestal_square_joint" type="fixed">
+    <parent link="pedestal_Link"/>
+    <child link="pedestal_square_link"/>
+    <origin xyz="-0.55 0.0 0.16" rpy="0.0 0.0 0.0" />  <!-- 位置：相对于pedestal_Link的坐标 -->
+  </joint>
 
   <!-- /////////////////////////////////   gazebo color   ////////////////////////////////////// -->
   <gazebo reference="pedestal_Link">
@@ -596,18 +642,12 @@
   <xacro:aubo_arm_transmission joint_name="wrist2_joint"/>
   <xacro:aubo_arm_transmission joint_name="wrist3_joint"/>
 
-
-
-
   <!-- ros_control plugin -->
   <gazebo>
       <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
           <robotNamespace>/aubo_e5</robotNamespace>
       </plugin>
   </gazebo>
-
-
-
 
   <!-- ros2_control plugin -->
   <xacro:include filename="$(find aubo_description)/urdf/xacro/inc/aubo_ros2_control.ros2_control.xacro"/>

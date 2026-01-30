@@ -539,7 +539,7 @@ class AuboRobotSimulatorNode():
         # ========== ROS 发布者 ==========
         # 发布关节状态（供 robot_state_publisher 和 move_group 使用）
         rospy.logdebug("Creating joint state publisher")
-        self.joint_state_pub = rospy.Publisher('joint_states', JointState, queue_size=100)
+        self.joint_state_pub = rospy.Publisher('joint_states_ros1', JointState, queue_size=100)
 
         # 发布轨迹执行反馈（供 aubo_joint_trajectory_action 使用）
         rospy.logdebug("Creating joint feedback publisher")

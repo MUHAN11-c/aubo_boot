@@ -61,11 +61,29 @@ target_link_libraries(aubo_gazebo_driver ${catkin_LIBRARIES})
 
 install(DIRECTORY launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
+## Install config directory for log4cplus
+install(DIRECTORY config DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+
 ## Mark cpp header files for installation
 install(DIRECTORY include/${PROJECT_NAME}/
    DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
    FILES_MATCHING PATTERN "*.h"
  )
+
+## Copy config directory to devel lib directory for runtime access
+# This ensures the config directory is available at runtime where the executable runs
+# The executable is in ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}/
+# So we copy config to ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}/config
+add_custom_command(TARGET aubo_driver POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}/config
+  COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/config ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}/config
+  COMMENT "Copying config directory for runtime access"
+)
+add_custom_command(TARGET testAuboAPI POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}/config
+  COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/config ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}/config
+  COMMENT "Copying config directory for runtime access"
+)
 
 add_dependencies(aubo_driver aubo_msgs_gencpp)
 add_dependencies(testIO aubo_msgs_gencpp)

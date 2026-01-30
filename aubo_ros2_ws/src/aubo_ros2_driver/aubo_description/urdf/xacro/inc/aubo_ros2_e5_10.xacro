@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="aubo_robot">
+  <xacro:arg name="transmission_hw_interface" default=""/>
+  <xacro:arg name="robot_ip" default="None"/>
+    <xacro:property name="robot_ip" value="$(arg robot_ip)"/>
+  <xacro:arg name="aubo_type" default="None"/>
+    <xacro:property name="aubo_type" value="$(arg aubo_type)"/>
+  <xacro:arg name="use_fake_hardware" default="true"/>
+    <xacro:property name="use_fake_hardware" value="$(arg use_fake_hardware)"/>
+  
+  <!-- Include the GitHub official e5_10 URDF -->
+  <xacro:include filename="$(find aubo_description)/urdf/aubo_e5_10.urdf" />
+  
+  <!-- Add ee_link for compatibility -->
+  <joint name="ee_fixed_joint" type="fixed">
+    <parent link="wrist3_Link" />
+    <child link="ee_link" />
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 ${pi/2.0}" />
+  </joint>
+
+  <link name="ee_link">
+    <collision>
+      <geometry>
+        <box size="0.01 0.01 0.01"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="-0.01 0 0"/>
+    </collision>
+  </link>
+  
+  <!-- Transmission definitions -->
+  <xacro:macro name="aubo_arm_transmission" params="joint_name">
+    <transmission name="${joint_name}_trans">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${joint_name}">
+        <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+      </joint>
+      <actuator name="${joint_name}_motor">
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
+  </xacro:macro>
+  
+  <xacro:aubo_arm_transmission joint_name="shoulder_joint"/>
+  <xacro:aubo_arm_transmission joint_name="upperArm_joint"/>
+  <xacro:aubo_arm_transmission joint_name="foreArm_joint"/>
+  <xacro:aubo_arm_transmission joint_name="wrist1_joint"/>
+  <xacro:aubo_arm_transmission joint_name="wrist2_joint"/>
+  <xacro:aubo_arm_transmission joint_name="wrist3_joint"/>
+  
+  <!-- ros2_control -->
+  <xacro:include filename="$(find aubo_description)/urdf/xacro/inc/aubo_ros2_control.ros2_control.xacro" />
+  <xacro:aubo_ros2_control
+    name="auboHardwareInterface"
+    prefix=""
+    use_fake_hardware="${use_fake_hardware}"
+    robot_ip="${robot_ip}"/>
+</robot>

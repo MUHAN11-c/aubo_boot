@@ -18,6 +18,7 @@ setup(
         (os.path.join('share', package_name, 'web/templates'), glob('web/templates/*.*')),
         (os.path.join('share', package_name, 'config'), glob('config/*.*')),
         (os.path.join('share', package_name, 'config/calibrationdata'), glob('config/calibrationdata/*.*')),
+        (os.path.join('share', package_name, 'config/calibration_results'), glob('config/calibration_results/*.*')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -30,6 +31,7 @@ setup(
         'console_scripts': [
             'hand_eye_calibration_node = hand_eye_calibration.hand_eye_calibration_node:main',
             'image_data_converter_node = hand_eye_calibration.image_data_converter_node:main',
+            'hand_eye_calibration_tf_publisher = hand_eye_calibration.hand_eye_calibration_tf_publisher:main',
         ],
     },
 )

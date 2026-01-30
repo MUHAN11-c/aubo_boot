@@ -14,8 +14,6 @@
 #include <aubo_msgs/srv/get_ik.hpp>
 #include <moveit/robot_state/robot_state.h>
 #include <moveit/robot_state/conversions.h>
-#include <thread>
-#include <chrono>
 #include <rclcpp/parameter_client.hpp>
 #include <cstdlib>
 #include <string>
@@ -31,12 +29,17 @@ MoveToPoseServer::MoveToPoseServer(const rclcpp::NodeOptions& options)
     , base_frame_("base_link")
     , end_effector_link_("")
 {
-    this->declare_parameter("planning_group_name", std::string("manipulator"));
-    this->declare_parameter("base_frame", std::string("base_link"));
+    if (!this->has_parameter("planning_group_name")) {
+        this->declare_parameter("planning_group_name", std::string("manipulator"));
+    }
+    if (!this->has_parameter("base_frame")) {
+        this->declare_parameter("base_frame", std::string("base_link"));
+    }
     
     this->get_parameter("planning_group_name", planning_group_name_);
     this->get_parameter("base_frame", base_frame_);
 
+    // 创建服务服务器
     move_to_pose_service_ = this->create_service<demo_interface::srv::MoveToPose>(
         "/move_to_pose",
         std::bind(&MoveToPoseServer::moveToPoseCallback, this, std::placeholders::_1, std::placeholders::_2));
@@ -112,7 +115,21 @@ bool MoveToPoseServer::initialize(int max_retries, int retry_delay_seconds)
             planning_scene_interface_ = std::make_shared<moveit::planning_interface::PlanningSceneInterface>();
             move_group_->setPoseReferenceFrame(base_frame_);
             end_effector_link_ = move_group_->getEndEffectorLink();
-            move_group_->setPlanningTime(10.0);
+            
+            // 打印基座坐标系和末端坐标系信息
+            std::string planning_frame = move_group_->getPlanningFrame();
+            RCLCPP_INFO(this->get_logger(), "========== MoveIt 坐标系信息 ==========");
+            RCLCPP_INFO(this->get_logger(), "规划组名称 (Planning Group): %s", planning_group_name_.c_str());
+            RCLCPP_INFO(this->get_logger(), "基座坐标系 (Base Frame): %s", base_frame_.c_str());
+            RCLCPP_INFO(this->get_logger(), "规划坐标系 (Planning Frame): %s", planning_frame.c_str());
+            RCLCPP_INFO(this->get_logger(), "末端执行器链接 (End Effector Link): %s", end_effector_link_.c_str());
+            RCLCPP_INFO(this->get_logger(), "========================================");
+            
+            move_group_->setPlanningTime(20.0);
+            move_group_->setNumPlanningAttempts(10);  // 增加规划尝试次数，提高成功率
+            // 设置最严格的目标容差（最高精度要求）
+            move_group_->setGoalPositionTolerance(0.001);  // 位置容差 1mm（最严格）
+            move_group_->setGoalOrientationTolerance(0.001);  // 姿态容差 0.057 度（最严格）
             return true;
         }
         catch (const std::exception& e)
@@ -294,43 +311,48 @@ bool MoveToPoseServer::moveToPose(const geometry_msgs::msg::Pose& target_pose,
             }
             else
             {
-                move_group_->setPoseTarget(target_pose);
+                move_group_->setPoseTarget(target_pose, end_effector_link_);
             }
         }
         else
         {
-            move_group_->setPoseTarget(target_pose);
+            move_group_->setPoseTarget(target_pose, end_effector_link_);
         }
 
+        // 规划运动轨迹
+        RCLCPP_INFO(this->get_logger(), "MoveToPose: Planning with velocity_factor=%.2f, acceleration_factor=%.2f",
+                   velocity_factor, acceleration_factor);
+        
         moveit::planning_interface::MoveGroupInterface::Plan my_plan;
         moveit::planning_interface::MoveItErrorCode plan_result = move_group_->plan(my_plan);
-
+        
         if (plan_result != moveit::planning_interface::MoveItErrorCode::SUCCESS)
         {
             error_code = static_cast<int32_t>(plan_result.val);
             message = "Planning failed with error code: " + std::to_string(plan_result.val);
+            RCLCPP_WARN(this->get_logger(), "MoveToPose: %s", message.c_str());
             return false;
         }
-
-        RCLCPP_INFO(this->get_logger(), "MoveToPose: Executing trajectory with %zu waypoints", 
+        
+        RCLCPP_INFO(this->get_logger(), "MoveToPose: Planning succeeded");
+        
+        // 执行规划好的轨迹
+        RCLCPP_INFO(this->get_logger(), "MoveToPose: Executing trajectory with %zu waypoints",
                    my_plan.trajectory_.joint_trajectory.points.size());
-        RCLCPP_INFO(this->get_logger(), "MoveToPose: Using velocity_factor=%.2f, acceleration_factor=%.2f",
-                   velocity_factor, acceleration_factor);
         
         moveit::planning_interface::MoveItErrorCode execute_result = move_group_->execute(my_plan);
-
+        
         if (execute_result != moveit::planning_interface::MoveItErrorCode::SUCCESS)
         {
             error_code = static_cast<int32_t>(execute_result.val);
             message = "Execution failed with error code: " + std::to_string(execute_result.val);
+            RCLCPP_WARN(this->get_logger(), "MoveToPose: %s", message.c_str());
             return false;
         }
 
         error_code = 0;
         message = "Successfully moved to target pose";
-        RCLCPP_INFO(this->get_logger(), "MoveToPose: Execution completed");
-        RCLCPP_INFO(this->get_logger(), "MoveToPose: Used velocity_factor=%.2f, acceleration_factor=%.2f",
-                   velocity_factor, acceleration_factor);
+        RCLCPP_INFO(this->get_logger(), "MoveToPose: Plan and execute completed successfully");
         return true;
     }
     catch (const std::exception& e)

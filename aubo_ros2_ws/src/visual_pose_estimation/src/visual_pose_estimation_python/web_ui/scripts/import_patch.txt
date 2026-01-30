@@ -1,0 +1,25 @@
+from interface.srv import EstimatePose, ListTemplates, StandardizeTemplate
+try:
+    from interface.srv import ProcessDebugStep, VisualizeGraspPose
+except ImportError:
+    ProcessDebugStep = None
+    VisualizeGraspPose = None
+
+from geometry_msgs.msg import Pose, Point, Quaternion
+from sensor_msgs.msg import Image as SensorImage
+
+# 可选导入 - 相机接口
+try:
+    from percipio_camera_interface.srv import SoftwareTrigger
+    from percipio_camera_interface.msg import ImageData
+    CAMERA_AVAILABLE = True
+except ImportError:
+    CAMERA_AVAILABLE = False
+
+# 可选导入 - 机器人接口  
+try:
+    from demo_interface.srv import MoveToPose
+    from demo_interface.msg import RobotStatus
+    ROBOT_AVAILABLE = True
+except ImportError:
+    ROBOT_AVAILABLE = False

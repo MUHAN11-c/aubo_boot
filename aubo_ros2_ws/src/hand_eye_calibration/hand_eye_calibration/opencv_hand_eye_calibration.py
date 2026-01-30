@@ -831,7 +831,7 @@ class OpenCVHandEyeCalibration:
         
         return R_gripper2base, t_gripper2base, rvecs, tvecs, T_gripper_list, T_board_list
     
-    def solve_hand_eye(self, R_gripper2base, t_gripper2base, rvecs, tvecs):
+    def solve_hand_eye(self, R_gripper2base, t_gripper2base, rvecs, tvecs, opencv_algorithm='TSAI'):
         """
         OpenCV模式：调用calibrateHandEye算法计算手眼标定
         
@@ -840,11 +840,21 @@ class OpenCVHandEyeCalibration:
             t_gripper2base: 列表，每个元素(3,1)数组，机器人平移向量（单位：米）
             rvecs: 列表，每个元素(3,1)数组，标定板旋转向量（单位：弧度）
             tvecs: 列表，每个元素(3,1)数组，标定板平移向量（单位：米）
+            opencv_algorithm: OpenCV算法选择，可选值: 'TSAI', 'PARK', 'HORAUD', 'ANDREFF', 'DANIILIDIS'（默认: 'TSAI'）
         
         返回:
             T_camera2gripper: 4x4变换矩阵，相机→末端执行器（单位：毫米）
         """
-        self._log('info', f'开始算法计算（TSAI方法）')
+        # 算法名称映射
+        algorithm_names = {
+            'TSAI': 'TSAI (经典方法，稳定可靠)',
+            'PARK': 'PARK (Park & Martin)',
+            'HORAUD': 'HORAUD (Horaud & Dornaika)',
+            'ANDREFF': 'ANDREFF (Andreff et al.)',
+            'DANIILIDIS': 'DANIILIDIS (Daniilidis)'
+        }
+        algorithm_name = algorithm_names.get(opencv_algorithm, opencv_algorithm)
+        self._log('info', f'开始算法计算（{algorithm_name}）')
         self._log('info', f'输入数据：{len(R_gripper2base)} 个姿态')
         
         # 验证输入数据格式
@@ -930,8 +940,17 @@ class OpenCVHandEyeCalibration:
         # #endregion
         
         # 调用OpenCV calibrateHandEye
-        # 使用TSAI方法（经典方法，稳定可靠）
-        solver_method = cv2.CALIB_HAND_EYE_TSAI
+        # 根据选择的算法设置solver_method
+        algorithm_map = {
+            'TSAI': cv2.CALIB_HAND_EYE_TSAI,
+            'PARK': cv2.CALIB_HAND_EYE_PARK,
+            'HORAUD': cv2.CALIB_HAND_EYE_HORAUD,
+            'ANDREFF': cv2.CALIB_HAND_EYE_ANDREFF,
+            'DANIILIDIS': cv2.CALIB_HAND_EYE_DANIILIDIS
+        }
+        solver_method = algorithm_map.get(opencv_algorithm.upper(), cv2.CALIB_HAND_EYE_TSAI)
+        if opencv_algorithm.upper() not in algorithm_map:
+            self._log('warning', f'未知的算法 "{opencv_algorithm}"，使用默认TSAI方法')
         
         try:
             R_cam2gripper, t_cam2gripper = cv2.calibrateHandEye(
@@ -1369,7 +1388,7 @@ class OpenCVHandEyeCalibration:
         except:
             return [0.0, 0.0, 0.0]
     
-    def calibrate(self, poses_data):
+    def calibrate(self, poses_data, opencv_algorithm='TSAI'):
         """
         OpenCV模式完整标定流程
         
@@ -1377,6 +1396,7 @@ class OpenCVHandEyeCalibration:
             poses_data: 位姿列表，每个元素包含{'robot_pose': {...}, 'board_pose': {...}}
                 - robot_pose: 机器人位姿，包含robot_pos_x/y/z（单位：米）和robot_ori_x/y/z/w（四元数）
                 - board_pose: 标定板位姿，包含position（x/y/z，单位：毫米）和orientation（x/y/z/w，四元数）
+            opencv_algorithm: OpenCV算法选择，可选值: 'TSAI', 'PARK', 'HORAUD', 'ANDREFF', 'DANIILIDIS'（默认: 'TSAI'）
         
         返回:
             dict: 包含标定结果和误差统计的字典
@@ -1430,7 +1450,7 @@ class OpenCVHandEyeCalibration:
         R_gripper2base, t_gripper2base, rvecs, tvecs, T_gripper_list, T_board_list = self.prepare_data(poses_data)
         
         # 步骤2：算法计算
-        T_camera2gripper = self.solve_hand_eye(R_gripper2base, t_gripper2base, rvecs, tvecs)
+        T_camera2gripper = self.solve_hand_eye(R_gripper2base, t_gripper2base, rvecs, tvecs, opencv_algorithm=opencv_algorithm)
         
         # 步骤3：误差计算
         translation_errors, rotation_errors, error_statistics = self.calculate_errors(T_gripper_list, T_board_list, T_camera2gripper)

@@ -1,0 +1,20 @@
+# 可视化抓取姿态服务请求
+
+# 图像
+sensor_msgs/Image image
+
+# 抓取位置（笛卡尔坐标）
+interface/CartesianPosition grasp_position
+
+---
+
+# 可视化抓取姿态服务响应
+
+# 是否成功
+bool success
+
+# 错误消息（如果失败）
+string error_message
+
+# 可视化图像（包含绘制了抓取姿态的图像）
+sensor_msgs/Image visualization_image

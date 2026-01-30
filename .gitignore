@@ -1,19 +1,25 @@
 # ROS/ROS2 构建和开发目录
 # 忽略所有工作空间中的 build 目录
+build/
 **/build/
 aubo_ros2_ws/build/
 aubo_ws/build/
 ros2_ws/build/
 
 # 忽略所有工作空间中的 install 目录
+install/
 **/install/
 aubo_ros2_ws/install/
+ros2_ws/install/
 
 # 忽略所有工作空间中的 log 目录
+log/
 **/log/
 aubo_ros2_ws/log/
+ros2_ws/log/
 
 # 忽略所有工作空间中的 devel 目录
+devel/
 **/devel/
 aubo_ws/devel/
 

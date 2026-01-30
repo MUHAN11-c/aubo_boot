@@ -80,7 +80,7 @@ def generate_launch_description():
 
         # 深度图斑点滤波器开关
         # 可选值：true / false
-        DeclareLaunchArgument('depth_speckle_filter', default_value='false'),
+        DeclareLaunchArgument('depth_speckle_filter', default_value='true'),
         
         # 斑点滤波器面积阈值，小于此大小的斑点将被移除
         # 默认值：150，取值范围：10-3000
@@ -88,7 +88,7 @@ def generate_launch_description():
         
         # 斑点滤波器聚类，相邻视差像素之间的最大差值
         # 默认值：64，取值范围：5-1500
-        DeclareLaunchArgument('max_speckle_diff', default_value='64'),
+        DeclareLaunchArgument('max_speckle_diff', default_value='5'),
   
         # 时域滤波开关
         # 可选值：true / false
@@ -100,7 +100,7 @@ def generate_launch_description():
 
         # 点云图像使能
         # 可选值：true / false
-        DeclareLaunchArgument('point_cloud_enable', default_value='false'),
+        DeclareLaunchArgument('point_cloud_enable', default_value='true'),
 
         # 彩色点云图像使能
         # 当启用彩色点云时，depth_registration_enable 将自动设置为 true，point_cloud_enable 将自动设置为 false

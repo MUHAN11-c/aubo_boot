@@ -1,0 +1,337 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="aubo_urdf">
+  <!-- 虚拟根链接，用于解决KDL不支持根链接有惯性参数的问题 -->
+  <!-- 注意：根链接不能有任何惯性参数 -->
+  <link
+    name="base_link" />
+  <joint
+    name="base_joint"
+    type="fixed">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="base1_link" />
+  </joint>
+  <link
+    name="base1_link">
+    <inertial>
+      <origin
+        xyz="0.13794 0.053728 0.43381"
+        rpy="0 0 0" />
+      <mass
+        value="11.951" />
+      <inertia
+        ixx="0.040481"
+        ixy="-4.1612E-08"
+        ixz="0.00013797"
+        iyy="0.04551"
+        iyz="1.0214E-07"
+        izz="0.022497" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://aubo_urdf/meshes/base1_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://aubo_urdf/meshes/base1_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="camera_Link">
+    <inertial>
+      <origin
+        xyz="-0.0005963 0.085972 -0.026401"
+        rpy="0 0 0" />
+      <mass
+        value="0.72743" />
+      <inertia
+        ixx="0.00064649"
+        ixy="2.7688E-06"
+        ixz="-2.0272E-05"
+        iyy="0.0013072"
+        iyz="8.2399E-05"
+        izz="0.0014971" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://aubo_urdf/meshes/camera_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://aubo_urdf/meshes/camera_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="camera_joint"
+    type="fixed">
+    <origin
+      xyz="0.28779 0.053728 1.0181"
+      rpy="1.5708 0 1.5708" />
+    <parent
+      link="base1_link" />
+    <child
+      link="camera_Link" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="kuaihuan_Link">
+    <inertial>
+      <origin
+        xyz="-0.00074639 7.4616E-05 0.0097884"
+        rpy="0 0 0" />
+      <mass
+        value="0.21939" />
+      <inertia
+        ixx="6.3771E-05"
+        ixy="4.2875E-07"
+        ixz="-1.7848E-07"
+        iyy="6.9403E-05"
+        iyz="-4.5085E-07"
+        izz="0.0001149" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://aubo_urdf/meshes/kuaihuan_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://aubo_urdf/meshes/kuaihuan_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="kuaihuan_joint"
+    type="fixed">
+    <origin
+      xyz="0 0 0.0215"
+      rpy="0 0 3.1416" />
+    <parent
+      link="camera_Link" />
+    <child
+      link="kuaihuan_Link" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="grap_Link">
+    <inertial>
+      <origin
+        xyz="-1.7896E-05 0.034049 2.2204E-16"
+        rpy="0 0 0" />
+      <mass
+        value="0.1827" />
+      <inertia
+        ixx="8.3598E-05"
+        ixy="1.9801E-07"
+        ixz="-1.0929E-07"
+        iyy="4.5508E-05"
+        iyz="3.0889E-08"
+        izz="0.00010397" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://aubo_urdf/meshes/grap_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.69804 0.69804 0.69804 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://aubo_urdf/meshes/grap_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="grap_joint"
+    type="fixed">
+    <origin
+      xyz="0 0 0.031"
+      rpy="1.5708 0 -3.1241" />
+    <parent
+      link="kuaihuan_Link" />
+    <child
+      link="grap_Link" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="grap0_Link">
+    <inertial>
+      <origin
+        xyz="0.0054631 0.023534 3.0043E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.032548" />
+      <inertia
+        ixx="3.7445E-06"
+        ixy="3.3476E-07"
+        ixz="1.7283E-13"
+        iyy="8.7532E-07"
+        iyz="2.3846E-11"
+        izz="3.5313E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://aubo_urdf/meshes/grap0_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.69804 0.69804 0.69804 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://aubo_urdf/meshes/grap0_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="grap0_joint"
+    type="prismatic">
+    <origin
+      xyz="-0.009 0.06556 0"
+      rpy="-3.1416 0 -3.1416" />
+    <parent
+      link="grap_Link" />
+    <child
+      link="grap0_Link" />
+    <axis
+      xyz="-1 0 0" />
+    <limit
+      lower="-0.02"
+      upper="0.02"
+      effort="10"
+      velocity="0.1" />
+  </joint>
+  <link
+    name="grap1_Link">
+    <inertial>
+      <origin
+        xyz="0.0054631 0.023533 2.0614E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.032548" />
+      <inertia
+        ixx="3.7444E-06"
+        ixy="3.3472E-07"
+        ixz="-7.6637E-11"
+        iyy="8.7529E-07"
+        iyz="-1.1804E-11"
+        izz="3.5313E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://aubo_urdf/meshes/grap1_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.69804 0.69804 0.69804 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://aubo_urdf/meshes/grap1_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="grap1_joint"
+    type="prismatic">
+    <origin
+      xyz="0.009 0.06556 0"
+      rpy="0 0 0" />
+    <parent
+      link="grap_Link" />
+    <child
+      link="grap1_Link" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      lower="-0.02"
+      upper="0.02"
+      effort="10"
+      velocity="0.1" />
+  </joint>
+</robot>

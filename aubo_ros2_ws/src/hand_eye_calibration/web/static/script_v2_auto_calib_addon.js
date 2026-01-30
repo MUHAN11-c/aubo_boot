@@ -28,6 +28,7 @@ let autoCalibState = {
     calibrationType: 'eye-in-hand',
     calibrationMethod: 'pose-based',  // 使用姿态法
     calibrationAlgorithm: 'custom',   // 'custom' 或 'opencv' - 标定算法选择
+    opencvAlgorithm: 'TSAI',         // OpenCV 算法选择: 'TSAI', 'PARK', 'HORAUD', 'ANDREFF', 'DANIILIDIS'
     // 自动化数据
     recordedPoses: [],           // 空数组，无默认位姿
     collectedCalibrationData: [], // 收集的标定数据（每个位姿的机器人位姿+标定板位姿）
@@ -62,6 +63,34 @@ function initAutoHandEyeCalibTab() {
 function initCalibrationMethodToggle() {
     const btnCustom = document.getElementById('btn-method-custom');
     const btnOpenCV = document.getElementById('btn-method-opencv');
+    const opencvAlgorithmSetting = document.getElementById('opencv-algorithm-setting');
+    const opencvAlgorithmSelect = document.getElementById('opencv-algorithm-select');
+    
+    // 初始化算法选择下拉框事件
+    if (opencvAlgorithmSelect) {
+        opencvAlgorithmSelect.addEventListener('change', function() {
+            autoCalibState.opencvAlgorithm = this.value;
+            const algorithmNames = {
+                'TSAI': 'TSAI (经典方法，稳定可靠)',
+                'PARK': 'PARK (Park & Martin)',
+                'HORAUD': 'HORAUD (Horaud & Dornaika)',
+                'ANDREFF': 'ANDREFF (Andreff et al.)',
+                'DANIILIDIS': 'DANIILIDIS (Daniilidis)'
+            };
+            addLog('info', `🔄 已切换OpenCV算法: ${algorithmNames[this.value] || this.value}`);
+        });
+    }
+    
+    // 更新算法选择UI显示
+    function updateAlgorithmSettingVisibility() {
+        if (opencvAlgorithmSetting) {
+            if (autoCalibState.calibrationAlgorithm === 'opencv') {
+                opencvAlgorithmSetting.style.display = 'flex';
+            } else {
+                opencvAlgorithmSetting.style.display = 'none';
+            }
+        }
+    }
     
     if (btnCustom && btnOpenCV) {
         // 点击自定义方法
@@ -74,6 +103,7 @@ function initCalibrationMethodToggle() {
             btnOpenCV.style.background = 'transparent';
             btnOpenCV.style.color = 'rgba(255,255,255,0.7)';
             addLog('info', '🔄 已切换标定算法: Custom模式 (AX=XB方法)');
+            updateAlgorithmSettingVisibility();
             // 更新数据显示
             updateAutoCalibrationDataDisplay();
         });
@@ -87,18 +117,30 @@ function initCalibrationMethodToggle() {
             btnCustom.classList.remove('active');
             btnCustom.style.background = 'transparent';
             btnCustom.style.color = 'rgba(255,255,255,0.7)';
-            addLog('info', '🔄 已切换标定算法: OpenCV模式 (TSAI方法)');
+            const algorithmNames = {
+                'TSAI': 'TSAI',
+                'PARK': 'PARK',
+                'HORAUD': 'HORAUD',
+                'ANDREFF': 'ANDREFF',
+                'DANIILIDIS': 'DANIILIDIS'
+            };
+            addLog('info', `🔄 已切换标定算法: OpenCV模式 (${algorithmNames[autoCalibState.opencvAlgorithm] || autoCalibState.opencvAlgorithm}方法)`);
+            updateAlgorithmSettingVisibility();
             // 更新数据显示
             updateAutoCalibrationDataDisplay();
         });
     }
+    
+    // 初始化时更新显示状态
+    updateAlgorithmSettingVisibility();
 }
 
 // 初始化自动标定按钮事件
 function initAutoCalibButtons() {
-    // 初始化标定方法切换
+    // 初始化标定方法切换（Custom/OpenCV）
     initCalibrationMethodToggle();
-    // 位姿管理按钮
+    
+    // 位姿管理按钮：记录、清空、保存、加载、移动到第一个位姿、刷新图像
     const btnRecordRobotPose = document.getElementById('btn-auto-record-robot-pose');
     const btnClearMotionData = document.getElementById('btn-auto-clear-motion-data');
     const btnSaveAllPoses = document.getElementById('btn-auto-save-all-poses');
@@ -137,7 +179,7 @@ function initAutoCalibButtons() {
         });
     }
     
-    // 标定执行按钮
+    // 标定执行按钮：开始、停止、保存标定结果
     const btnAutoStartCalib = document.getElementById('btn-auto-start-calibration');
     const btnAutoStopCalib = document.getElementById('btn-auto-stop-calibration');
     const btnAutoSaveCalib = document.getElementById('btn-auto-save-calibration');
@@ -160,11 +202,12 @@ function initAutoCalibButtons() {
 // ============= 自动标定功能 =============
 
 // 记录机器人位姿（先显示图像预览，再记录位姿）
+// 功能：采集当前图像并获取机器人当前位姿，保存到位姿列表
 async function handleRecordRobotPose() {
     addLog('info', '📡 开始记录机器人位姿...');
     
     try {
-        // 步骤1: 先采集并显示图像预览
+        // 步骤1: 先采集并显示图像预览（确保能看到标定板）
         addLog('info', '   📷 步骤1/2: 采集图像预览...');
         
         const captureResponse = await fetch('/api/camera/capture', {
@@ -232,7 +275,7 @@ async function handleRecordRobotPose() {
             imgElement.src = imageData.image;
         }
         
-        // 步骤2: 获取机器人位姿
+        // 步骤2: 获取机器人当前位姿（Base->Gripper变换）
         addLog('info', '   🤖 步骤2/2: 获取机器人当前位姿...');
         
         const robotResponse = await fetch('/api/robot_status');
@@ -247,7 +290,7 @@ async function handleRecordRobotPose() {
             throw new Error('机器人未在线');
         }
         
-        // 保存机器人位姿（深拷贝避免引用共享）
+        // 保存机器人位姿（深拷贝避免引用共享，单位：米）
         const recordedPose = {
             position: {
                 x: robotData.cartesian_position.position.x,
@@ -293,10 +336,11 @@ async function handleRecordRobotPose() {
 // 标定板位姿提取功能已集成到自动标定流程的captureImageAndExtractCorners函数中
 
 // 清空记录的位姿数据
+// 功能：清空所有记录的位姿和采集的标定数据，重置状态
 function handleClearMotionData() {
     const count = autoCalibState.recordedPoses?.length || 0;
     
-    // 完全清空所有位姿
+    // 完全清空所有位姿和采集数据，重置进度
     autoCalibState.recordedPoses = [];
     autoCalibState.collectedCalibrationData = [];
     autoCalibState.totalSteps = 0;
@@ -311,7 +355,8 @@ function handleClearMotionData() {
     updateAutoCalibrationDataDisplay(null);
 }
 
-// 在图像中心绘制十字
+// 在图像中心绘制十字标记
+// 功能：在图像中心绘制绿色十字，用于辅助对齐标定板
 function drawCrosshairOnImage(imgElementId) {
     const imgElement = document.getElementById(imgElementId);
     if (!imgElement || !imgElement.complete) {
@@ -325,13 +370,13 @@ function drawCrosshairOnImage(imgElementId) {
         return;
     }
     
-    // 确保容器是相对定位
+    // 确保容器是相对定位（用于canvas绝对定位）
     const computedStyle = window.getComputedStyle(container);
     if (computedStyle.position === 'static') {
         container.style.position = 'relative';
     }
     
-    // 查找或创建canvas覆盖层
+    // 查找或创建canvas覆盖层（用于绘制十字）
     let canvas = container.querySelector('.crosshair-canvas');
     if (!canvas) {
         canvas = document.createElement('canvas');
@@ -401,11 +446,12 @@ function drawCrosshairOnImage(imgElementId) {
 }
 
 // 刷新图像（不运动机械臂）
+// 功能：在当前位姿下重新采集并显示图像，不移动机器人
 async function handleRefreshImage() {
     addLog('info', '🔄 开始刷新图像...');
     
     try {
-        // 步骤1: 采集图像
+        // 步骤1: 采集图像（不移动机器人）
         addLog('info', '📷 正在采集图像...');
         
         const captureResponse = await fetch('/api/camera/capture', {
@@ -478,8 +524,9 @@ async function handleRefreshImage() {
 }
 
 // 运动到拍照位姿
+// 功能：移动机器人到固定的拍照位姿，然后采集图像并在中心绘制十字
 async function handleMoveToFirstPose() {
-    // 使用固定的拍照位姿
+    // 使用固定的拍照位姿（FIXED_PHOTO_POSE）
     const firstPose = FIXED_PHOTO_POSE;
     
     addLog('info', '🚀 开始移动机器人到拍照位姿...');
@@ -488,7 +535,7 @@ async function handleMoveToFirstPose() {
     
     try {
         // 步骤1: 使用moveRobotToPose函数运动到目标位姿
-        // velocityFactor=0.3, accelerationFactor=0.3 确保安全平稳
+        // velocityFactor=0.3, accelerationFactor=0.3 确保安全平稳运动
         await moveRobotToPose(firstPose, false, 0.3, 0.3);
         
         addLog('success', '✅ 机器人已到达拍照位姿');
@@ -572,10 +619,12 @@ async function handleMoveToFirstPose() {
 }
 
 // 显示记录的位姿列表
+// 功能：更新UI中显示的位姿列表和数量
 function updateRecordedPosesDisplay() {
     const listDiv = document.getElementById('auto-motion-groups-list');
     const countSpan = document.getElementById('auto-motion-groups-count');
     
+    // 更新位姿数量显示
     if (countSpan) {
         countSpan.textContent = autoCalibState.recordedPoses?.length || 0;
     }
@@ -609,11 +658,13 @@ function updateRecordedPosesDisplay() {
 }
 
 // 更新自动标定进度条
+// 功能：更新进度条显示当前标定进度和状态
 function updateAutoCalibrationProgress() {
     const progressDiv = document.getElementById('auto-motion-progress');
     
     if (!progressDiv) return;
     
+    // 获取当前进度状态
     const totalSteps = autoCalibState.totalSteps || 0;
     const currentStep = autoCalibState.currentStep || 0;
     const isRunning = autoCalibState.isRunning || false;
@@ -664,7 +715,9 @@ function updateMotionProgress() {
 }
 
 // 保存记录的位姿到文件（v4.0格式）- 保存到服务器
+// 功能：将记录的位姿列表保存为JSON文件（先尝试保存到服务器，失败则下载到本地）
 async function handleSaveAllPosesToFile() {
+    // 检查位姿数量（至少需要3个）
     if (!autoCalibState.recordedPoses || autoCalibState.recordedPoses.length < 3) {
         addLog('warning', `⚠️ 位姿数据不足: 至少需要3个位姿，当前只有 ${autoCalibState.recordedPoses?.length || 0} 个`);
         addLog('info', '💡 提示: 请先记录足够的位姿数据后再开始自动标定');
@@ -673,6 +726,7 @@ async function handleSaveAllPosesToFile() {
     
     const poseCount = autoCalibState.recordedPoses.length;
     
+    // 构建v4.0格式的配置文件
     const config = {
         version: '4.0',
         calibrationType: 'eye-in-hand',
@@ -731,6 +785,7 @@ async function handleSaveAllPosesToFile() {
 }
 
 // 从文件加载运动数据 - 支持从服务器列表选择或本地文件选择
+// 功能：加载位姿配置文件，优先从服务器选择，失败则使用本地文件选择器
 async function handleLoadAllPosesFromFile() {
     // 先尝试从服务器获取文件列表
     try {
@@ -739,7 +794,7 @@ async function handleLoadAllPosesFromFile() {
         const listResult = await listResponse.json();
         
         if (listResult.success && listResult.files && listResult.files.length > 0) {
-            // 显示文件选择对话框
+            // 显示文件选择对话框（服务器文件列表）
             showPoseFileSelectionDialog(listResult.files);
             return;
         } else {
@@ -902,16 +957,18 @@ function loadPoseFileFromLocal() {
 }
 
 // 处理加载的位姿数据（通用函数）
+// 功能：验证并加载位姿配置文件，更新全局状态
 function processLoadedPoseData(config) {
-    // 检查版本和数据结构
+    // 检查版本和数据结构（仅支持v4.0格式）
     if (config.version === '4.0' && config.recordedPoses) {
-        // 新版本：记录的位姿列表
+        // 新版本：记录的位姿列表（至少需要3个位姿）
         if (!Array.isArray(config.recordedPoses) || config.recordedPoses.length < 3) {
             addLog('warning', `⚠️ 配置文件中的位姿数据不足: 至少需要3个，当前只有 ${config.recordedPoses?.length || 0} 个`);
             showToast(`位姿数据不足: 需要至少3个位姿`, 'warning');
             return;
         }
         
+        // 更新全局状态：位姿列表、总步数，清空已采集数据
         autoCalibState.recordedPoses = config.recordedPoses;
         autoCalibState.totalSteps = config.recordedPoses.length;
         autoCalibState.collectedCalibrationData = [];
@@ -940,6 +997,8 @@ function processLoadedPoseData(config) {
 // 等待机器人运动完成
 
 // 移动机器人到指定位姿
+// 功能：调用后端API移动机器人到目标位姿，等待移动完成
+// 参数：targetPose-目标位姿, useJoints-是否使用关节空间, velocityFactor-速度因子, accelerationFactor-加速度因子
 async function moveRobotToPose(targetPose, useJoints = false, velocityFactor = 0.5, accelerationFactor = 0.5) {
     try {
         addLog('info', `🤖 正在移动机器人到位姿...`);
@@ -950,6 +1009,7 @@ async function moveRobotToPose(targetPose, useJoints = false, velocityFactor = 0
             addLog('warning', `   ⚠️  警告：位姿数据缺少orientation（旋转信息）！`);
         }
         
+        // 调用后端API移动机器人
         const response = await fetch('/api/robot/move_to_pose', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -1012,9 +1072,11 @@ async function moveRobotToPose(targetPose, useJoints = false, velocityFactor = 0
 }
 
 // 在当前位置采集图像和角点
+// 功能：在当前位姿下拍照、提取标定板位姿、获取机器人位姿，返回完整的标定数据
+// 参数：poseIndex-位姿索引
 async function captureImageAndExtractCorners(poseIndex) {
     try {
-        // 步骤1: 拍照
+        // 步骤1: 拍照（触发相机采集图像）
         addLog('info', `   📷 触发相机拍照...`);
         const captureResponse = await fetch('/api/camera/capture', {
             method: 'POST',
@@ -1033,7 +1095,7 @@ async function captureImageAndExtractCorners(poseIndex) {
         addLog('success', '   ✅ 拍照完成');
         await sleep(200);  // 优化：从500ms减少到200ms
         
-        // 步骤2: 等待图像可用（优化：减少轮询间隔和最大尝试次数）
+        // 步骤2: 等待图像可用（轮询获取图像，最多5次）
         let imageData = null;
         for (let attempt = 1; attempt <= 5; attempt++) {  // 优化：从10次减少到5次
             await sleep(200);  // 优化：从500ms减少到200ms
@@ -1070,7 +1132,7 @@ async function captureImageAndExtractCorners(poseIndex) {
             imgElement.src = imageData.image;
         }
         
-        // 步骤3: 提取标定板位姿
+        // 步骤3: 提取标定板位姿（使用solvePnP计算Board->Camera变换）
         addLog('info', `   🔍 提取标定板位姿...`);
         const squareSize = parseFloat(document.getElementById('auto-checkerboard-size').value) || 20;
         const boardPoseResponse = await fetch('/api/camera/get_board_pose', {
@@ -1088,7 +1150,7 @@ async function captureImageAndExtractCorners(poseIndex) {
             throw new Error(`提取标定板位姿失败：${boardPoseData.error || '未知错误'}`);
         }
         
-        // 显示带角点的图像
+        // 显示带角点的图像（用于可视化验证）
         if (boardPoseData.image_with_corners) {
             if (imgElement) {
                 imgElement.onload = null;
@@ -1109,7 +1171,7 @@ async function captureImageAndExtractCorners(poseIndex) {
             addLog('info', `      检测到 ${boardPoseData.corners_count} 个角点`);
         }
         
-        // 获取当前机器人位姿（运动后的实际位姿）
+        // 步骤4: 获取当前机器人位姿（运动后的实际位姿，Base->Gripper）
         const robotResponse = await fetch('/api/robot_status');
         if (!robotResponse.ok) {
             throw new Error('获取机器人位姿失败');
@@ -1120,7 +1182,7 @@ async function captureImageAndExtractCorners(poseIndex) {
             throw new Error('机器人未在线');
         }
         
-        // 返回采集的数据（包含角点信息）
+        // 返回采集的数据（包含机器人位姿、标定板位姿、角点信息）
         return {
             pose_index: poseIndex,
             robot_pose: {
@@ -1162,10 +1224,12 @@ async function captureImageAndExtractCorners(poseIndex) {
 }
 
 // 更新自动标定按钮状态
+// 功能：根据标定运行状态启用/禁用开始和停止按钮
 function updateAutoCalibButtonsState(isRunning) {
     const btnAutoStartCalib = document.getElementById('btn-auto-start-calibration');
     const btnAutoStopCalib = document.getElementById('btn-auto-stop-calibration');
     
+    // 运行时禁用开始按钮，启用停止按钮
     if (btnAutoStartCalib) {
         btnAutoStartCalib.disabled = isRunning;
         btnAutoStartCalib.style.opacity = isRunning ? '0.5' : '1';
@@ -1177,6 +1241,7 @@ function updateAutoCalibButtonsState(isRunning) {
 }
 
 // 停止自动标定
+// 功能：停止正在运行的自动标定流程，重置状态
 function handleAutoCalibStop() {
     if (!autoCalibState.isRunning) {
         addLog('warning', '⚠️ 自动标定未在运行');
@@ -1184,30 +1249,33 @@ function handleAutoCalibStop() {
     }
     
     addLog('warning', '🛑 正在停止自动标定...');
-    autoCalibState.isRunning = false;
+    autoCalibState.isRunning = false;  // 设置停止标志
     updateAutoCalibrationProgress();
     
-    // 更新按钮状态
+    // 更新按钮状态（启用开始按钮，禁用停止按钮）
     updateAutoCalibButtonsState(false);
     
     addLog('warning', '⚠️ 自动标定已停止');
 }
 
 // 开始自动标定（完全自动化流程）
+// 功能：自动移动到每个记录的位姿，采集图像和标定板位姿，最后执行标定计算
 async function handleAutoCalibStart() {
     try {
+        // 检查是否已在运行
         if (autoCalibState.isRunning) {
             addLog('warning', '⚠️ 自动标定正在进行中');
             return;
         }
         
-        // 检查记录的位姿数量（v4.0格式）
+        // 检查记录的位姿数量（v4.0格式，至少需要3个）
         if (!autoCalibState.recordedPoses || autoCalibState.recordedPoses.length < 3) {
             addLog('error', `❌ 位姿数据不足，至少需要3个位姿，当前只有${autoCalibState.recordedPoses?.length || 0}个`);
             addLog('info', '💡 请先点击"记录机器人位姿"记录多个位姿（建议5-8个）');
             return;
         }
         
+        // 检查相机参数是否已加载
         if (!cameraParamsLoaded) {
             addLog('warning', '⚠️ 请先加载相机参数（系统将自动从ROS2话题获取）');
             await new Promise(resolve => setTimeout(resolve, 1000));  // 优化：从2000ms减少到1000ms
@@ -1217,7 +1285,7 @@ async function handleAutoCalibStart() {
             }
         }
         
-        // 初始化状态
+        // 初始化状态：设置运行标志、重置进度、清空采集数据
         autoCalibState.isRunning = true;
         autoCalibState.currentStep = 0;
         autoCalibState.totalSteps = autoCalibState.recordedPoses.length;
@@ -1253,11 +1321,12 @@ async function handleAutoCalibStart() {
         // 更新进度条
         updateAutoCalibrationProgress();
         
-        // 依次处理每个位姿
+        // 依次处理每个位姿（循环遍历所有记录的位姿）
         for (let i = 0; i < autoCalibState.recordedPoses.length && autoCalibState.isRunning; i++) {
             const poseIndex = i + 1;
             const targetPose = autoCalibState.recordedPoses[i];
             
+            // 更新当前进度
             autoCalibState.currentStep = poseIndex;
             updateAutoCalibrationProgress();
             
@@ -1265,13 +1334,13 @@ async function handleAutoCalibStart() {
             addLog('info', `   目标位置: X=${targetPose.position.x.toFixed(3)}m, Y=${targetPose.position.y.toFixed(3)}m, Z=${targetPose.position.z.toFixed(3)}m`);
             
             try {
-                // 检查是否已停止
+                // 检查是否已停止（在循环开始前检查）
                 if (!autoCalibState.isRunning) {
                     addLog('warning', '⚠️ 自动标定已停止');
                     break;
                 }
                 
-                // 步骤1: 移动机器人到目标位姿
+                // 步骤1: 移动机器人到目标位姿（使用较低的速度和加速度确保稳定）
                 addLog('info', `   📍 [${poseIndex}/${autoCalibState.totalSteps}] 步骤1/3: 移动机器人到目标位姿...`);
                 await moveRobotToPose(targetPose, false, 0.2, 0.1);
                 
@@ -1317,13 +1386,13 @@ async function handleAutoCalibStart() {
                 } catch (e) {}
                 // #endregion
                 
-                // OpenCV模式：位姿到位后延迟3秒，确保机器人稳定
+                // OpenCV模式：位姿到位后延迟3秒，确保机器人稳定（避免振动影响）
                 if (autoCalibState.calibrationAlgorithm === 'opencv') {
                     addLog('info', `   ⏱️  [${poseIndex}/${autoCalibState.totalSteps}] OpenCV模式：位姿到位后等待3秒，确保机器人稳定...`);
                     await sleep(3000);  // 延时3秒
                 }
                 
-                // 步骤2: 采集图像和角点
+                // 步骤2: 采集图像和角点（拍照、提取标定板位姿、获取机器人位姿）
                 addLog('info', `   📷 [${poseIndex}/${autoCalibState.totalSteps}] 步骤2/3: 采集图像和提取角点...`);
                 const calibrationData = await captureImageAndExtractCorners(poseIndex);
                 
@@ -1333,7 +1402,7 @@ async function handleAutoCalibStart() {
                     break;
                 }
                 
-                // 步骤3: 保存图像和位姿到collect_data目录
+                // 步骤3: 保存图像和位姿到collect_data目录（用于离线验证）
                 addLog('info', `   💾 [${poseIndex}/${autoCalibState.totalSteps}] 步骤3/3: 保存图像和位姿数据...`);
                 try {
                     // 获取square_size参数（与步骤2保持一致）
@@ -1363,13 +1432,13 @@ async function handleAutoCalibStart() {
                     break;
                 }
                 
-                // 步骤4: 保存采集的数据
+                // 步骤4: 保存采集的数据到内存（用于后续标定计算）
                 autoCalibState.collectedCalibrationData.push(calibrationData);
                 
-                // 更新数据显示（每个位姿到位后更新一次）
+                // 更新数据显示（每个位姿到位后更新一次，实时显示采集进度）
                 updateAutoCalibrationDataDisplay();
                 
-                // 显示重投影误差信息
+                // 显示重投影误差信息（评估标定板位姿计算质量）
                 const lastData = autoCalibState.collectedCalibrationData[autoCalibState.collectedCalibrationData.length - 1];
                 let logMsg = `✅ 位姿 #${poseIndex} 数据采集完成`;
                 if (lastData?.board_pose?.reprojection_error !== undefined) {
@@ -1405,7 +1474,7 @@ async function handleAutoCalibStart() {
             return;
         }
         
-        // 检查采集的数据是否足够
+        // 检查采集的数据是否足够（至少需要2组数据才能计算相对运动）
         const collectedCount = autoCalibState.collectedCalibrationData.length;
         if (collectedCount < 2) {
             addLog('error', `❌ 有效数据不足: 至少需要2组运动数据，当前只有 ${collectedCount} 组`);
@@ -1420,7 +1489,7 @@ async function handleAutoCalibStart() {
             return;
         }
         
-        // 步骤4: 执行标定计算
+        // 步骤4: 执行标定计算（使用采集的所有位姿数据）
         addLog('info', '');
         addLog('info', '═══════════════════════════════════════════');
         addLog('info', `📊 开始标定计算 (使用 ${collectedCount} 组运动数据)...`);
@@ -1455,9 +1524,11 @@ async function handleAutoCalibStart() {
 }
 
 // 使用采集的数据执行标定计算
+// 功能：将采集的数据格式化为后端API需要的格式，调用标定API，保存结果
 async function performAutoCalibrationFromCollectedData() {
     try {
         // 直接使用位姿列表格式，每个元素包含robot_pose和board_pose
+        // 将前端数据格式转换为后端API需要的格式
         const posesList = autoCalibState.collectedCalibrationData.map(poseData => ({
             robot_pose: {
                 robot_pos_x: poseData.robot_pose.position.x,
@@ -1472,22 +1543,29 @@ async function performAutoCalibrationFromCollectedData() {
                 position: poseData.board_pose.position,
                 orientation: poseData.board_pose.orientation,
                 reprojection_error: poseData.board_pose.reprojection_error,
-                rvec: poseData.board_pose.rvec,
-                tvec: poseData.board_pose.tvec,
+                rvec: poseData.board_pose.rvec,  // OpenCV模式需要
+                tvec: poseData.board_pose.tvec,  // OpenCV模式需要
                 corners_3d_filtered: poseData.corners_3d_filtered || []
             }
         }));
         
+        // 验证数据数量（至少需要3个位姿）
         if (posesList.length < 3) {
             throw new Error(`位姿数据不足，至少需要3个位姿，当前只有${posesList.length}个`);
         }
         
+        // 构建标定请求数据（包含标定类型、方法、算法选择）
         const calibData = {
             calibration_type: 'eye-in-hand',
             calibration_method: 'pose-based',
             method: autoCalibState.calibrationAlgorithm || 'custom',  // 'custom' 或 'opencv'
             poses_list: posesList
         };
+        
+        // 如果是 OpenCV 模式，添加算法选择参数
+        if (autoCalibState.calibrationAlgorithm === 'opencv') {
+            calibData.opencv_algorithm = autoCalibState.opencvAlgorithm || 'TSAI';
+        }
         
         addLog('info', `📊 提交标定数据: ${posesList.length} 个位姿`);
         
@@ -1504,7 +1582,7 @@ async function performAutoCalibrationFromCollectedData() {
         const result = await response.json();
         
         if (result.success) {
-            // 保存标定结果
+            // 保存标定结果到全局状态（用于后续显示和保存）
             autoCalibState.calibrationResult = result;
             
             // 更新数据显示（不清空，保持所有位姿数据）
@@ -1513,6 +1591,7 @@ async function performAutoCalibrationFromCollectedData() {
             addLog('success', `✅ 标定计算成功！`);
             addLog('info', `📊 标定方法: ${result.method || 'Pose-Based (AX=XB)'}`);
             
+            // 显示误差统计信息（AX=XB约束验证误差）
             if (result.evaluation) {
                 addLog('info', `📊 标定误差统计:`);
                 addLog('info', `   平均误差: ${result.evaluation.mean_error.toFixed(3)} mm`);
@@ -1520,7 +1599,7 @@ async function performAutoCalibrationFromCollectedData() {
                 addLog('info', `   最小误差: ${result.evaluation.min_error.toFixed(3)} mm`);
                 addLog('info', `   标准差: ${result.evaluation.std_error.toFixed(3)} mm`);
                 
-                // 添加误差质量评估
+                // 添加误差质量评估（根据平均误差评估标定质量）
                 const meanError = result.evaluation.mean_error;
                 if (meanError < 5.0) {
                     addLog('success', `   ✅ 标定精度: 优秀 (平均误差 < 5mm)`);
@@ -1531,7 +1610,7 @@ async function performAutoCalibrationFromCollectedData() {
                 }
             }
             
-            updateAutoStatusCard();
+            updateAutoStatusCard();  // 更新状态卡片显示
         } else {
             addLog('error', `❌ 标定失败: ${result.error || '未知错误'}`);
             if (result.error_type) {
@@ -1626,18 +1705,23 @@ function calculatePercentiles(errors) {
 }
 
 // 更新自动标定数据显示（表格形式，每个位姿的输入输出数据）
+// 功能：以表格形式显示所有采集的位姿数据，根据算法模式显示不同的列
 function updateAutoCalibrationDataDisplay() {
     const displayDiv = document.getElementById('auto-calibration-data-display');
     if (!displayDiv) return;
     
-    // 获取已收集的数据列表
+    // 获取已收集的数据列表（每个位姿的机器人位姿+标定板位姿）
     const collectedData = autoCalibState.collectedCalibrationData || [];
     
-    // 获取当前选择的标定算法
+    // 获取当前选择的标定算法（custom或opencv）
     const algorithm = autoCalibState.calibrationAlgorithm || 'custom';
     
     if (collectedData.length === 0) {
-        const methodName = algorithm === 'opencv' ? 'OpenCV (TSAI)' : 'Custom (AX=XB)';
+        // 从标定结果中获取方法名称，如果没有则使用默认
+        let methodName = algorithm === 'opencv' ? `OpenCV (${autoCalibState.opencvAlgorithm || 'TSAI'})` : 'Custom (AX=XB)';
+        if (autoCalibState.calibrationResult && autoCalibState.calibrationResult.method) {
+            methodName = autoCalibState.calibrationResult.method;
+        }
         displayDiv.innerHTML = `<div style="text-align: center; color: #999; font-size: 15px; padding: 40px 20px;">
             🤖 等待自动标定开始，数据将显示在这里...<br>
             <span style="font-size: 13px; color: #bbb; margin-top: 8px; display: block;">当前模式: ${methodName}</span>
@@ -1658,7 +1742,11 @@ function updateAutoCalibrationDataDisplay() {
     html += '</style>';
     
     // 显示当前模式提示
-    const methodName = algorithm === 'opencv' ? 'OpenCV (TSAI)' : 'Custom (AX=XB)';
+    // 从标定结果中获取方法名称，如果没有则使用默认
+    let methodName = algorithm === 'opencv' ? `OpenCV (${autoCalibState.opencvAlgorithm || 'TSAI'})` : 'Custom (AX=XB)';
+    if (autoCalibState.calibrationResult && autoCalibState.calibrationResult.method) {
+        methodName = autoCalibState.calibrationResult.method;
+    }
     html += `<div style="margin-bottom: 10px; padding: 8px 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 6px; font-size: 14px; font-weight: 500;">
         当前标定模式: ${methodName}
     </div>`;
@@ -1925,6 +2013,7 @@ function updateCalibrationResultDisplay() {
 }
 
 // 显示标定结果确认模态框
+// 功能：显示标定结果的详细信息，包括变换矩阵、误差统计等，并提供保存选项
 function showCalibrationResultModal() {
     console.log('showCalibrationResultModal called');
     const modal = document.getElementById('calibration-result-modal');
@@ -1948,7 +2037,7 @@ function showCalibrationResultModal() {
         return;
     }
     
-    // 构建结果显示HTML - 使用现代化的卡片式设计
+    // 构建结果显示HTML - 使用现代化的卡片式设计（包含CSS样式）
     let html = '<style>';
     html += '.calib-result-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.1); }';
     html += '.calib-info-card { background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 18px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: transform 0.2s, box-shadow 0.2s; }';
@@ -2290,6 +2379,7 @@ function showCalibrationResultModal() {
 }
 
 // 关闭标定结果模态框
+// 功能：隐藏标定结果模态框
 function closeCalibrationResultModal() {
     const modal = document.getElementById('calibration-result-modal');
     if (modal) {
@@ -2298,11 +2388,13 @@ function closeCalibrationResultModal() {
 }
 
 // 实际执行保存操作
+// 功能：调用后端API保存标定结果到服务器，并下载到本地
+// 参数：format-保存格式（yaml或xml）
 async function doSaveCalibration(format = 'yaml') {
     addLog('info', `💾 正在保存标定结果（${format.toUpperCase()}格式）...`);
     
     try {
-        // 调用后端API生成标定结果并保存到服务器
+        // 调用后端API生成标定结果并保存到服务器（生成YAML或XML文件）
         const response = await fetch('/api/hand_eye/save_calibration', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -2361,18 +2453,19 @@ async function doSaveCalibration(format = 'yaml') {
 }
 
 // 保存标定结果（先显示确认）
+// 功能：检查标定结果是否存在，然后显示结果确认模态框（用户可以在模态框中查看结果并保存）
 async function handleSaveCalibrationForAuto() {
     console.log('handleSaveCalibrationForAuto called');
     console.log('autoCalibState.calibrationResult:', autoCalibState.calibrationResult);
     
-    // 检查是否有标定结果
+    // 检查是否有标定结果（必须先执行标定）
     if (!autoCalibState.calibrationResult || !autoCalibState.calibrationResult.success) {
         addLog('error', '❌ 没有可用的标定结果，请先执行标定');
         console.error('No calibration result available');
         return;
     }
     
-    // 显示标定结果确认模态框
+    // 显示标定结果确认模态框（用户查看结果后点击保存）
     try {
         showCalibrationResultModal();
         console.log('Modal should be displayed now');
@@ -2392,6 +2485,7 @@ async function handleSaveCalibrationForAuto() {
 // 当前流程使用updateAutoCalibrationProgress和updateRecordedPosesDisplay
 
 // 标定类型切换
+// 功能：处理标定类型选择（eye-in-hand或eye-to-hand），更新UI显示
 function initAutoCalibTypeChange() {
     const typeSelect = document.getElementById('auto-calibration-type');
     if (typeSelect) {
@@ -2400,6 +2494,7 @@ function initAutoCalibTypeChange() {
             const desc = document.getElementById('auto-calibration-type-desc');
             const heightSetting = document.getElementById('auto-camera-height-setting');
             
+            // 根据类型更新描述和高度设置显示
             if (type === 'eye-to-hand') {
                 if (desc) desc.textContent = '相机固定，机器人末端点选角点';
                 if (heightSetting) heightSetting.style.display = 'block';
@@ -2437,6 +2532,7 @@ function initImageZoomForTab(tabId) {
 // }
 
 // 更新智能操作状态卡片
+// 功能：根据当前状态（运行中、位姿数量等）更新状态卡片显示和提示信息
 function updateAutoStatusCard() {
     const statusCard = document.getElementById('auto-status-card');
     const statusText = document.getElementById('auto-status-text');
@@ -2445,6 +2541,7 @@ function updateAutoStatusCard() {
     
     if (!statusCard || !statusText || !statusIcon || !nextStep) return;
     
+    // 获取当前状态信息
     const poseCount = autoCalibState.recordedPoses?.length || 0;
     const isRunning = autoCalibState.isRunning || false;
     
@@ -2495,6 +2592,7 @@ function updateAutoStatusCard() {
 
 
 // 辅助函数：延时
+// 功能：异步延时函数，用于等待指定时间（毫秒）
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }

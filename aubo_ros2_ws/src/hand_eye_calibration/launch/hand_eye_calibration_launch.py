@@ -9,6 +9,7 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
+from launch.conditions import IfCondition
 import os
 from ament_index_python.packages import get_package_share_directory
 
@@ -71,6 +72,31 @@ def generate_launch_description():
         description='深度图缩放因子（f_scale_unit），用于将深度图像素值转换为毫米。参考 depth_z_reader 的实现：对于 scale_unit=0.25 的相机，使用 0.25（转换为毫米）或 0.00025（转换为米）。如果未设置，将自动推断。可以通过查看相机节点日志获取：Depth stream scale unit: <value>'
     )
     
+    # 手眼标定 TF 发布参数
+    calibration_file_arg = DeclareLaunchArgument(
+        'calibration_file',
+        default_value='',
+        description='手眼标定结果文件路径（YAML格式）。如果为空，将使用默认路径：config/calibration_results/hand_eye_calibration_20260112_155451.yaml'
+    )
+    
+    tf_parent_frame_arg = DeclareLaunchArgument(
+        'tf_parent_frame',
+        default_value='ee_link',
+        description='TF 变换的父坐标系（默认：ee_link）'
+    )
+    
+    tf_child_frame_arg = DeclareLaunchArgument(
+        'tf_child_frame',
+        default_value='camera_link',
+        description='TF 变换的子坐标系（默认：camera_link）'
+    )
+    
+    publish_tf_arg = DeclareLaunchArgument(
+        'publish_tf',
+        default_value='true',
+        description='是否发布手眼标定 TF 变换（true/false）'
+    )
+    
     # 图像数据转换节点（将 sensor_msgs/Image 转换为 ImageData）
     # 如果不需要转换，可以注释掉这个节点，直接使用 image_data_bridge
     image_data_converter_node = Node(
@@ -106,6 +132,21 @@ def generate_launch_description():
         ]
     )
     
+    # 手眼标定 TF 发布节点（根据标定结果发布相机与末端执行器之间的 TF 变换）
+    hand_eye_tf_publisher_node = Node(
+        package='hand_eye_calibration',
+        executable='hand_eye_calibration_tf_publisher',
+        name='hand_eye_calibration_tf_publisher',
+        output='screen',
+        parameters=[{
+            'calibration_file': LaunchConfiguration('calibration_file'),
+            'parent_frame': LaunchConfiguration('tf_parent_frame'),
+            'child_frame': LaunchConfiguration('tf_child_frame'),
+            'publish_rate': 1.0,
+        }],
+        condition=IfCondition(LaunchConfiguration('publish_tf'))
+    )
+    
     return LaunchDescription([
         web_host_arg,
         web_port_arg,
@@ -116,8 +157,13 @@ def generate_launch_description():
         input_image_topic_arg,
         depth_image_topic_arg,
         depth_scale_unit_arg,
+        calibration_file_arg,
+        tf_parent_frame_arg,
+        tf_child_frame_arg,
+        publish_tf_arg,
         image_data_converter_node,
         hand_eye_calibration_node,
+        hand_eye_tf_publisher_node,
     ])
 
 

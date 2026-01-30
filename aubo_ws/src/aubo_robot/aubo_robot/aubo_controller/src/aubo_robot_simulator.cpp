@@ -511,7 +511,8 @@ public:
         motion_ctrl_ = new MotionControllerSimulator(6, 200, &jointNames[0]);
 
         // 发布关节状态（供 robot_state_publisher 和 move_group 使用）
-        joint_state_pub_ = nh_.advertise<sensor_msgs::JointState>("joint_states", 100);
+        // ROS1: 将 joint_states 改名为 joint_states_ros1，供 ros1_bridge 桥接到 ROS2
+        joint_state_pub_ = nh_.advertise<sensor_msgs::JointState>("joint_states_ros1", 100);
         
         // 发布轨迹执行反馈（供 aubo_joint_trajectory_action 使用，使用自定义消息类型便于 ROS 1 到 ROS 2 桥接）
         joint_feedback_pub_ = nh_.advertise<aubo_msgs::JointTrajectoryFeedback>("feedback_states", 100);

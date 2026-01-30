@@ -230,7 +230,8 @@ def launch_setup(context, *args, **kwargs):
             "feedback_input_topic": "feedback_states",  # 从 ROS 1 桥接过来的话题
             "feedback_output_topic": "aubo/feedback_states",  # 发布给 ROS 2 节点的话题（与 aubo_ros2_trajectory_action 订阅的话题一致）
             # Joint States 消息桥接参数
-            "joint_states_input_topic": "joint_states",  # 从 ROS 1 桥接过来的 joint_states 话题
+            # ROS1 侧已将 joint_states 改名为 joint_states_ros1（通过 ros1_bridge 桥接到 ROS2）
+            "joint_states_input_topic": "joint_states_ros1",  # 从 ROS 1 桥接过来的 joint_states 话题
             "joint_states_output_topic": "joint_states",  # 发布给 ROS 2 节点的 joint_states 话题
             "enable_joint_states_bridge": True,  # 启用 joint_states 桥接
         }],
@@ -242,14 +243,20 @@ def launch_setup(context, *args, **kwargs):
         executable="move_to_pose_server_node",
         name="move_to_pose_server_node",
         output="screen",
-        parameters=[{
-            "planning_group_name": "manipulator",
-            "base_frame": "base_link",
-        }],
+        parameters=[
+            robot_description,
+            robot_description_semantic,
+            kinematics_yaml,
+            ompl_planning_pipeline_config,
+            joint_limits_yaml,
+            {
+                "planning_group_name": "manipulator",
+                "base_frame": "base_link",
+            }
+        ],
     )
     
     # MoveIt2 TCP位姿发布器: 基于TF树发布准确的末端执行器位姿
-    # 用于手眼标定，提供比机器人控制器更准确的位姿数据
     # moveit2_tcp_pose_publisher_node = Node(
     #     package="demo_driver",
     #     executable="moveit2_tcp_pose_publisher.py",

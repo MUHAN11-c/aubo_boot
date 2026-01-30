@@ -1,4 +1,5 @@
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/executors/multi_threaded_executor.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <std_msgs/msg/string.hpp>
@@ -36,10 +37,23 @@ public:
             std::bind(&CameraControlNode::setCameraParametersCallback, this,
                      std::placeholders::_1, std::placeholders::_2));
         
+        // 创建软件触发服务
+        // 注意：使用相对服务名，通过launch文件中的remapping映射到全局服务名 /software_trigger
         software_trigger_srv_ = this->create_service<percipio_camera_interface::srv::SoftwareTrigger>(
             "software_trigger",
             std::bind(&CameraControlNode::softwareTriggerCallback, this,
                      std::placeholders::_1, std::placeholders::_2));
+        
+        // 获取服务的实际全名（包括命名空间）
+        std::string service_full_name = this->get_name();
+        std::string service_name = "software_trigger";
+        // 如果节点在命名空间下，服务名会是 /namespace/software_trigger
+        // 通过remapping后应该是 /software_trigger
+        RCLCPP_INFO(this->get_logger(), "软件触发服务已创建");
+        RCLCPP_INFO(this->get_logger(), "  节点名: %s", this->get_name());
+        RCLCPP_INFO(this->get_logger(), "  节点命名空间: %s", this->get_namespace());
+        RCLCPP_INFO(this->get_logger(), "  服务名: %s (通过remapping映射到 /software_trigger)", service_name.c_str());
+        RCLCPP_INFO(this->get_logger(), "  服务类型: percipio_camera_interface/srv/SoftwareTrigger");
         
         // 订阅相机信息话题来获取分辨率
         std::string camera_info_topic = "/" + camera_name_ + "/color/camera_info";
@@ -296,21 +310,33 @@ private:
         response->success = false;
         response->message = "";
         
+        RCLCPP_INFO(this->get_logger(), "收到软件触发请求，相机ID: '%s'", request->camera_id.c_str());
+        RCLCPP_INFO(this->get_logger(), "  当前camera_name: '%s'", camera_name_.c_str());
+        RCLCPP_INFO(this->get_logger(), "  当前camera_id: '%s'", camera_id_.c_str());
+        
         // 检查相机ID是否匹配 - 接受camera_name或camera_id（序列号）
-        if (!request->camera_id.empty() && request->camera_id != camera_name_ && request->camera_id != camera_id_) {
-            response->message = "Camera ID mismatch. Expected: " + camera_name_ + " or " + camera_id_ + ", got: " + request->camera_id;
+        // 如果请求中的camera_id为空，也接受（兼容性）
+        bool camera_id_match = request->camera_id.empty() || 
+                               request->camera_id == camera_name_ || 
+                               request->camera_id == camera_id_;
+        
+        if (!camera_id_match) {
+            response->message = "Camera ID mismatch. Expected: " + camera_name_ + " or " + camera_id_ + " or empty, got: " + request->camera_id;
             RCLCPP_WARN(this->get_logger(), "%s", response->message.c_str());
             return;
         }
         
         // 发布触发事件
+        std::string trigger_topic = "/" + camera_name_ + "/trigger_event";
         auto trigger_msg = std_msgs::msg::String();
         trigger_msg.data = "SoftTrigger";
         trigger_pub_->publish(trigger_msg);
         
+        RCLCPP_INFO(this->get_logger(), "已发布触发事件到话题: %s", trigger_topic.c_str());
+        
         response->success = true;
         response->message = "Software trigger command sent";
-        RCLCPP_INFO(this->get_logger(), "Software trigger sent for camera: %s", camera_name_.c_str());
+        RCLCPP_INFO(this->get_logger(), "✓ 软件触发成功 (相机: %s)", camera_name_.c_str());
     }
     
     std::string camera_name_;
@@ -345,7 +371,17 @@ private:
 int main(int argc, char * argv[])
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<CameraControlNode>());
+    
+    // 使用多线程执行器以提高服务响应性能
+    // 这样可以避免图像回调阻塞服务回调，提高服务调用的稳定性
+    auto node = std::make_shared<CameraControlNode>();
+    
+    // 创建多线程执行器（默认使用所有可用CPU核心）
+    // 服务回调可以在独立线程中执行，不会被图像回调阻塞
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(node);
+    executor.spin();
+    
     rclcpp::shutdown();
     return 0;
 }

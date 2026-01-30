@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Robot IO Status Publisher Node -->
+  <node name="robot_io_status_publisher_node" 
+        pkg="demo_driver" 
+        type="robot_io_status_publisher_node" 
+        output="screen">
+    
+    <!-- Parameters -->
+    <param name="io_states_topic" value="/aubo_driver/io_states" />
+    <param name="base_frame" value="base_link" />
+  </node>
+</launch>
+

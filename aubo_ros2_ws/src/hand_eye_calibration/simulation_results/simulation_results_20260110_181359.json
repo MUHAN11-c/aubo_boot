@@ -1,0 +1,95 @@
+{
+  "simulation_info": {
+    "timestamp": "20260110_181359",
+    "num_poses": 20,
+    "description": "手眼标定完整流程模拟验证（含噪声）"
+  },
+  "ground_truth": {
+    "T_cam2gripper": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        50.0
+      ],
+      [
+        0.0,
+        -1.0,
+        -1.2246467991473532e-16,
+        0.0
+      ],
+      [
+        0.0,
+        1.2246467991473532e-16,
+        -1.0,
+        150.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "translation_mm": [
+      50.0,
+      0.0,
+      150.0
+    ],
+    "translation_norm_mm": 158.11388300841898
+  },
+  "estimated": {
+    "T_cam2gripper": [
+      [
+        -0.25391681982195957,
+        0.937286705754325,
+        0.23878835781442326,
+        490.1977972642464
+      ],
+      [
+        -0.9272944179756246,
+        -0.16569415324805936,
+        -0.3356642816426215,
+        36.819160276343894
+      ],
+      [
+        -0.2750478340266492,
+        -0.30665791820139754,
+        0.911213262744586,
+        300.5453351264069
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "translation_mm": [
+      490.1977972642464,
+      36.819160276343894,
+      300.5453351264069
+    ],
+    "translation_norm_mm": 576.1744783244209
+  },
+  "errors": {
+    "translation_error_mm": 466.68367146073564,
+    "rotation_error_deg": 178.63918338336163,
+    "translation_error_xyz_mm": [
+      440.1977972642464,
+      36.819160276343894,
+      150.54533512640688
+    ],
+    "ax_xb_constraint": {
+      "mean_translation_error_mm": 163.94294519619876,
+      "mean_rotation_error_deg": 24.54289490276722,
+      "max_translation_error_mm": 334.8440427336531,
+      "max_rotation_error_deg": 50.88518252856483
+    }
+  },
+  "calibration_details": {
+    "input_poses_count": 20,
+    "processed_poses_count": 1768040039521,
+    "config_dir": "C:\\Users\\wjz\\Desktop\\IVG1.9\\IVG\\aubo_ros2_ws\\src\\hand_eye_calibration\\hand_eye_calibration\\..\\config"
+  }
+}

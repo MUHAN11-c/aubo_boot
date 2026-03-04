@@ -1,0 +1,15 @@
+# Forward Kinematics service
+# Computes the Cartesian pose (position and orientation) from joint angles
+#
+# Request:
+#   joint[6]  - Joint angles in radians (6 DOF robot)
+#
+# Response:
+#   pos[3]    - Cartesian position (x, y, z) in meters
+#   ori[4]    - Orientation quaternion (w, x, y, z)
+
+float32[6] joint
+---
+float32[3] pos
+float32[4] ori
+

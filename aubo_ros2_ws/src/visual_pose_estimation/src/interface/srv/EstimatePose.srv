@@ -1,0 +1,45 @@
+# 姿态估计服务请求
+# 请求估计图像中目标物体的姿态
+
+# 输入深度图像
+sensor_msgs/Image image
+
+# 输入彩色图像（可选，用于特征检测和可视化）
+sensor_msgs/Image color_image
+
+# 目标物体ID（工件ID）
+string object_id
+
+---
+
+# 姿态估计服务响应
+
+# 成功检测到的物体数量
+int32 success_num
+
+# 每个检测到的物体的置信度
+float64[] confidence
+
+# 每个检测到的物体的位置（图像坐标系中的中心点）
+geometry_msgs/Point[] position
+
+# 准备位置（笛卡尔坐标）
+interface/CartesianPosition[] preparation_position
+
+# 抓取位置（笛卡尔坐标）
+interface/CartesianPosition[] grab_position
+
+# 预放置位置（笛卡尔坐标）
+interface/CartesianPosition[] preplace_position
+
+# 放置位置（笛卡尔坐标）
+interface/CartesianPosition[] place_position
+
+# 每个检测结果对应的匹配模板姿态ID（例如 "pose_1"）
+string[] matched_pose_ids
+
+# 姿态可视化图像
+sensor_msgs/Image[] pose_image
+
+# 处理时间（秒）
+float32 processing_time_sec

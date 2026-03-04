@@ -1,0 +1,84 @@
+image_width: 640
+image_height: 480
+camera_name: hand_eye_camera
+camera_matrix:
+- - 466.174635
+  - 0.0
+  - 326.071333
+- - 0.0
+  - 465.556589
+  - 244.789156
+- - 0.0
+  - 0.0
+  - 1.0
+camera_matrix_info:
+  rows: 3
+  cols: 3
+  description: 相机内参矩阵 [fx, 0, cx; 0, fy, cy; 0, 0, 1]
+distortion_model: plumb_bob
+distortion_coefficients:
+- 0.003695
+- -0.000856
+- -0.000655
+- 4.2e-05
+- 0.0
+distortion_coefficients_info:
+  count: 5
+  description: 畸变系数 (k1, k2, p1, p2, k3)
+hand_eye_calibration:
+  calibration_type: Eye-to-Hand
+  calibration_method: SVD
+  calibration_date: '2026-01-28 11:28:55'
+  camera_height_mm: 550.0
+  transformation_matrix:
+  - - -0.9997594614607858
+    - -0.02005433465012404
+    - -0.008879351405409092
+    - 43.92432445707432
+  - - 0.02004946620446543
+    - -0.9997987863415576
+    - 0.0006369732056594579
+    - 108.76819385816161
+  - - -0.00889033883245767
+    - 0.0004587937331347277
+    - 0.9999603749068032
+    - 1.7706980775102954
+  - - 0.0
+    - 0.0
+    - 0.0
+    - 1.0
+  transformation_matrix_info:
+    rows: 4
+    cols: 4
+    description: 齐次变换矩阵：相机坐标系 → 机器人基座坐标系
+    format: '[[R11, R12, R13, tx], [R21, R22, R23, ty], [R31, R32, R33, tz], [0, 0,
+      0, 1]]'
+  rotation_matrix:
+  - - -0.9997594614607858
+    - -0.02005433465012404
+    - -0.008879351405409092
+  - - 0.02004946620446543
+    - -0.9997987863415576
+    - 0.0006369732056594579
+  - - -0.00889033883245767
+    - 0.0004587937331347277
+    - 0.9999603749068032
+  rotation_matrix_info:
+    rows: 3
+    cols: 3
+    description: 旋转矩阵（3x3），无单位
+  translation_vector:
+  - 43.92432445707432
+  - 108.76819385816161
+  - 1.7706980775102954
+  translation_vector_info:
+    rows: 3
+    cols: 1
+    unit: mm
+    description: 平移向量 [tx, ty, tz]，单位：毫米
+  calibration_accuracy:
+    mean_error_mm: 3.505246411820734
+    max_error_mm: 6.303547793019847
+    min_error_mm: 0.9544904985200209
+    std_error_mm: 1.619652597105111
+    data_point_count: 0

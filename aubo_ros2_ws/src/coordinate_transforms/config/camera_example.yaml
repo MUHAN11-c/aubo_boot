@@ -1,0 +1,10 @@
+# Example camera intrinsics (same convention as graspnet_ros2)
+# intrinsic_matrix 3x3: [[fx, 0, cx], [0, fy, cy], [0, 0, 1]]
+# factor_depth: depth_raw / factor_depth = depth in meters
+
+intrinsic_matrix:
+  - [466.174635, 0.0, 326.071333]
+  - [0.0, 465.556589, 244.789156]
+  - [0.0, 0.0, 1.0]
+
+factor_depth: 4000.0

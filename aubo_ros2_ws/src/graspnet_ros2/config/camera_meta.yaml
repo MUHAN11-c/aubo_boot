@@ -1,0 +1,15 @@
+# 相机内参配置（来自 graspnet-baseline/doc/pose_1/meta.mat）
+# 用于 GraspNet 点云生成：depth_value / factor_depth = 实际深度(米)
+#
+# intrinsic_matrix: 3x3 相机内参矩阵
+#   [[fx,  0, cx],
+#    [ 0, fy, cy],
+#    [ 0,  0,  1]]
+#
+intrinsic_matrix:
+  - [466.174635, 0.0, 326.071333]
+  - [0.0, 465.556589, 244.789156]
+  - [0.0, 0.0, 1.0]
+
+# 深度缩放因子：深度图像素值 / factor_depth = 米
+factor_depth: 4000.0

@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Robot Status Publisher Node -->
+  <node name="robot_status_publisher_node" 
+        pkg="demo_driver" 
+        type="robot_status_publisher_node" 
+        output="screen">
+    
+    <!-- Parameters -->
+    <param name="publish_rate" value="10.0" />
+    <param name="base_frame" value="base_link" />
+    <param name="planning_group_name" value="manipulator_e5" />
+  </node>
+</launch>
+

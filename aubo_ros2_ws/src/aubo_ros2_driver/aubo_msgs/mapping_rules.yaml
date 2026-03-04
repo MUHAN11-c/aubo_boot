@@ -1,0 +1,25 @@
+# aubo_msgs IOState (ROS 1) <-> IOStates (ROS 2) 消息映射规则
+# 注意：ROS 1 和 ROS 2 的字段不完全匹配，只映射共同字段
+- ros1_package_name: 'aubo_msgs'
+  ros1_message_name: 'IOState'
+  ros2_package_name: 'aubo_msgs'
+  ros2_message_name: 'IOStates'
+  fields_1_to_2:
+    digital_in_states: 'digital_in_states'
+    digital_out_states: 'digital_out_states'
+    analog_in_states: 'analog_in_states'
+    analog_out_states: 'analog_out_states'
+
+# aubo_msgs JointTrajectoryFeedback (ROS 1) <-> JointTrajectoryFeedback (ROS 2) 消息映射规则
+# 格式与 control_msgs/FollowJointTrajectoryFeedback 相同，用于 ROS 1 到 ROS 2 桥接
+- ros1_package_name: 'aubo_msgs'
+  ros1_message_name: 'JointTrajectoryFeedback'
+  ros2_package_name: 'aubo_msgs'
+  ros2_message_name: 'JointTrajectoryFeedback'
+  fields_1_to_2:
+    header: 'header'
+    joint_names: 'joint_names'
+    desired: 'desired'
+    actual: 'actual'
+    error: 'error'
+

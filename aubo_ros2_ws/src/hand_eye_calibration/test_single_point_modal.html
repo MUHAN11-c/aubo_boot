@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>单点测试模态窗口功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #5a6fd8;
+        }
+        .input-group {
+            margin: 10px 0;
+        }
+        .input-group label {
+            display: inline-block;
+            width: 120px;
+            font-weight: bold;
+        }
+        .input-group input {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            width: 100px;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        /* 模态窗口样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 0;
+            border: none;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .close {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+            transition: opacity 0.2s;
+        }
+
+        .close:hover {
+            opacity: 0.7;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .pose-display {
+            margin-bottom: 20px;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .pose-display h4 {
+            margin: 0 0 12px 0;
+            color: #333;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .pose-info {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #555;
+            line-height: 1.6;
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .pose-info span {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .modal-footer {
+            padding: 20px 24px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            background: #f8f9fa;
+            border-radius: 0 0 12px 12px;
+        }
+
+        .modal-footer .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 120px;
+        }
+
+        .modal-footer .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .modal-footer .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .modal-footer .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .modal-footer .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>单点测试模态窗口功能测试</h2>
+        
+        <div class="test-section">
+            <h3>测试参数设置</h3>
+            <div class="input-group">
+                <label>平移高度:</label>
+                <input type="number" id="translation-height" value="220" placeholder="mm">
+            </div>
+            <div class="input-group">
+                <label>测试高度:</label>
+                <input type="number" id="min-test-height" value="200" placeholder="mm">
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>测试操作</h3>
+            <button class="test-button" onclick="testSinglePointModal()">测试单点测试模态窗口</button>
+            <button class="test-button" onclick="clearLog()">清空日志</button>
+        </div>
+        
+        <div class="test-section">
+            <h4>测试日志</h4>
+            <div class="log" id="test-log"></div>
+        </div>
+    </div>
+
+    <!-- 单点测试模态窗口 -->
+    <div id="single-point-test-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>单点测试</h3>
+                <span class="close" onclick="closeSinglePointTestModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="pose-display">
+                    <h4>平移点位：</h4>
+                    <div class="pose-info" id="translation-pose-info">
+                        X: <span id="translation-x">--</span>; 
+                        Y: <span id="translation-y">--</span>; 
+                        Z: <span id="translation-z">--</span>; 
+                        Qx: <span id="translation-qx">--</span>; 
+                        Qy: <span id="translation-qy">--</span>; 
+                        Qz: <span id="translation-qz">--</span>; 
+                        Qw: <span id="translation-qw">--</span>;
+                    </div>
+                </div>
+                
+                <div class="pose-display">
+                    <h4>测试点位：</h4>
+                    <div class="pose-info" id="test-pose-info">
+                        X: <span id="test-x">--</span>; 
+                        Y: <span id="test-y">--</span>; 
+                        Z: <span id="test-z">--</span>; 
+                        Qx: <span id="test-qx">--</span>; 
+                        Qy: <span id="test-qy">--</span>; 
+                        Qz: <span id="test-qz">--</span>; 
+                        Qw: <span id="test-qw">--</span>;
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="moveToTranslationPose()">到达平移点位</button>
+                <button class="btn btn-primary" onclick="moveToTestPose()">到达测试点位</button>
+                <button class="btn btn-secondary" onclick="closeSinglePointTestModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 模拟机器人状态数据
+        const mockRobotStatus = {
+            success: true,
+            cartesian_position: {
+                position: { x: 321.9, y: 499.1, z: 200.0 },
+                orientation: { x: -1.000, y: 0.000, z: 0.000, w: 0.000 }
+            }
+        };
+
+        // 显示单点测试模态窗口
+        function showSinglePointTestModal(robotStatus) {
+            const modal = document.getElementById('single-point-test-modal');
+            if (!modal) {
+                addLog('error', '找不到单点测试模态窗口');
+                return;
+            }
+            
+            // 获取编辑框的值
+            const translationHeightInput = document.getElementById('translation-height');
+            const testHeightInput = document.getElementById('min-test-height');
+            
+            const translationHeight = translationHeightInput ? parseFloat(translationHeightInput.value) || 0 : 0;
+            const testHeight = testHeightInput ? parseFloat(testHeightInput.value) || 0 : 0;
+            
+            // 获取当前机器人姿态（X, Y, Z, Qx, Qy, Qz, Qw）
+            const robotX = robotStatus.cartesian_position.position.x;
+            const robotY = robotStatus.cartesian_position.position.y;
+            const robotZ = robotStatus.cartesian_position.position.z;
+            const qx = robotStatus.cartesian_position.orientation.x;
+            const qy = robotStatus.cartesian_position.orientation.y;
+            const qz = robotStatus.cartesian_position.orientation.z;
+            const qw = robotStatus.cartesian_position.orientation.w;
+            
+            // 更新平移点位信息
+            document.getElementById('translation-x').textContent = robotX.toFixed(1);
+            document.getElementById('translation-y').textContent = robotY.toFixed(1);
+            document.getElementById('translation-z').textContent = translationHeight.toFixed(1);
+            document.getElementById('translation-qx').textContent = qx.toFixed(3);
+            document.getElementById('translation-qy').textContent = qy.toFixed(3);
+            document.getElementById('translation-qz').textContent = qz.toFixed(3);
+            document.getElementById('translation-qw').textContent = qw.toFixed(3);
+            
+            // 更新测试点位信息
+            document.getElementById('test-x').textContent = robotX.toFixed(1);
+            document.getElementById('test-y').textContent = robotY.toFixed(1);
+            document.getElementById('test-z').textContent = testHeight.toFixed(1);
+            document.getElementById('test-qx').textContent = qx.toFixed(3);
+            document.getElementById('test-qy').textContent = qy.toFixed(3);
+            document.getElementById('test-qz').textContent = qz.toFixed(3);
+            document.getElementById('test-qw').textContent = qw.toFixed(3);
+            
+            // 显示模态窗口
+            modal.style.display = 'block';
+            
+            addLog('info', `单点测试模态窗口已打开 - 平移高度: ${translationHeight}mm, 测试高度: ${testHeight}mm`);
+        }
+
+        // 关闭单点测试模态窗口
+        function closeSinglePointTestModal() {
+            const modal = document.getElementById('single-point-test-modal');
+            if (modal) {
+                modal.style.display = 'none';
+                addLog('info', '单点测试模态窗口已关闭');
+            }
+        }
+
+        // 移动到平移点位
+        function moveToTranslationPose() {
+            addLog('info', '开始移动到平移点位...');
+            
+            // 获取平移点位数据
+            const translationX = parseFloat(document.getElementById('translation-x').textContent);
+            const translationY = parseFloat(document.getElementById('translation-y').textContent);
+            const translationZ = parseFloat(document.getElementById('translation-z').textContent);
+            const qx = parseFloat(document.getElementById('translation-qx').textContent);
+            const qy = parseFloat(document.getElementById('translation-qy').textContent);
+            const qz = parseFloat(document.getElementById('translation-qz').textContent);
+            const qw = parseFloat(document.getElementById('translation-qw').textContent);
+            
+            addLog('info', `准备移动到平移点位: X:${translationX}, Y:${translationY}, Z:${translationZ}`);
+            addLog('success', '移动到平移点位功能待实现');
+            
+            // 关闭模态窗口
+            closeSinglePointTestModal();
+        }
+
+        // 移动到测试点位
+        function moveToTestPose() {
+            addLog('info', '开始移动到测试点位...');
+            
+            // 获取测试点位数据
+            const testX = parseFloat(document.getElementById('test-x').textContent);
+            const testY = parseFloat(document.getElementById('test-y').textContent);
+            const testZ = parseFloat(document.getElementById('test-z').textContent);
+            const qx = parseFloat(document.getElementById('test-qx').textContent);
+            const qy = parseFloat(document.getElementById('test-qy').textContent);
+            const qz = parseFloat(document.getElementById('test-qz').textContent);
+            const qw = parseFloat(document.getElementById('test-qw').textContent);
+            
+            addLog('info', `准备移动到测试点位: X:${testX}, Y:${testY}, Z:${testZ}`);
+            addLog('success', '移动到测试点位功能待实现');
+            
+            // 关闭模态窗口
+            closeSinglePointTestModal();
+        }
+
+        // 测试单点测试模态窗口
+        function testSinglePointModal() {
+            addLog('info', '开始测试单点测试模态窗口...');
+            showSinglePointTestModal(mockRobotStatus);
+        }
+
+        // 添加日志
+        function addLog(message) {
+            const logDiv = document.getElementById('test-log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // 清空日志
+        function clearLog() {
+            document.getElementById('test-log').innerHTML = '';
+        }
+
+        // 模态窗口点击外部关闭功能
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('single-point-test-modal');
+            if (event.target === modal) {
+                closeSinglePointTestModal();
+            }
+        });
+
+        // ESC键关闭模态窗口
+        window.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const modal = document.getElementById('single-point-test-modal');
+                if (modal && modal.style.display === 'block') {
+                    closeSinglePointTestModal();
+                }
+            }
+        });
+
+        // 页面加载时初始化
+        window.onload = function() {
+            addLog('页面加载完成，可以开始测试...');
+        };
+    </script>
+</body>
+</html>

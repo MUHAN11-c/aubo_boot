@@ -1,0 +1,20 @@
+# 模板列表服务请求
+
+# 工件ID（可选，如果为空则列出所有工件）
+string workpiece_id
+
+---
+
+# 模板列表服务响应
+
+# 是否成功
+bool success
+
+# 错误消息（如果失败）
+string error_message
+
+# 模板ID列表
+string[] template_ids
+
+# 工件ID列表
+string[] workpiece_ids

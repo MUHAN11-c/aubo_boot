@@ -1,0 +1,157 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="aubo_robot">
+  <xacro:arg name="transmission_hw_interface" default=""/>
+  <xacro:arg name="robot_ip" default="None"/>
+    <xacro:property name="robot_ip" value="$(arg robot_ip)"/>
+  <xacro:arg name="aubo_type" default="None"/>
+    <xacro:property name="aubo_type" value="$(arg aubo_type)"/>
+  <xacro:arg name="use_fake_hardware" default="true"/>
+    <xacro:property name="use_fake_hardware" value="$(arg use_fake_hardware)"/>
+  
+  <!-- Include E5_10 base URDF (cleaned, in standard robots/) -->
+  <xacro:include filename="$(find aubo_description)/urdf/robots/aubo_e5_10_clean.urdf" />
+
+  <!-- 盒子模型：相对 world，偏移 x=0.4 y=0.18 z=高度一半=0.04，长宽 0.2 高 0.08 -->
+  <link name="box_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.1" />
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.2 0.2 0.08" />
+      </geometry>
+      <material name="box_material">
+        <color rgba="0.6 0.4 0.2 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.2 0.2 0.08" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="world_to_box_joint" type="fixed">
+    <parent link="world" />
+    <child link="box_link" />
+    <origin xyz="0.4 0.18 0.04" rpy="0 0 0" />
+  </joint>
+  
+  <!-- MoveIt2 Tool Center Point -->
+  <link name="tool_tcp">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.005"/>
+      </geometry>
+      <material name="tcp_marker">
+        <color rgba="1.0 0.0 0.0 1.0" />
+      </material>
+    </visual>
+  </link>
+
+  <joint name="wrist3_to_tcp" type="fixed">
+    <parent link="wrist3_Link" />
+    <child link="tool_tcp" />
+    <origin xyz="0.0 0.0 0.0235" rpy="0.0 0.0 0.0" />
+  </joint>
+  
+  <!-- End Effector -->
+  <xacro:include filename="$(find aubo_description)/urdf/xacro/inc/end_effector.xacro"/>
+
+  <!-- Pedestal -->
+  <link name="pedestal_Link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="100.0" />
+      <inertia ixx="1.333" ixy="0" ixz="0" iyy="2.25" iyz="0" izz="3.416" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="1.5 0.8 0.1" />
+      </geometry>
+      <material name="">
+        <color rgba="0.96 0.96 0.96 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="1.5 0.8 0.1" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="pedestal_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="pedestal_Link"/>
+    <origin xyz="0.0 0.0 -0.05" rpy="0.0 0.0 0.0" />
+  </joint>
+
+  <!-- pedestal square link (optional table) - temporarily commented -->
+  <!--
+  <link name="pedestal_square_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="50.0" />
+      <inertia ixx="0.7333" ixy="0" ixz="0" iyy="0.6416" iyz="0" izz="1.3583" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.75 0.8 0.2" />
+      </geometry>
+      <material name="">
+        <color rgba="0.2 0.6 1.0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.75 0.8 0.2" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="pedestal_square_joint" type="fixed">
+    <parent link="pedestal_Link"/>
+    <child link="pedestal_square_link"/>
+    <origin xyz="-0.55 0.0 0.16" rpy="0.0 0.0 0.0" />
+  </joint>
+  -->
+
+  <!-- gazebo color -->
+  <gazebo reference="pedestal_Link">
+     <material>Gazebo/Grey</material>
+  </gazebo>
+
+  <!-- Transmission definitions -->
+  <xacro:macro name="aubo_arm_transmission" params="joint_name">
+    <transmission name="${joint_name}_trans">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${joint_name}">
+        <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+      </joint>
+      <actuator name="${joint_name}_motor">
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
+  </xacro:macro>
+  
+  <xacro:aubo_arm_transmission joint_name="shoulder_joint"/>
+  <xacro:aubo_arm_transmission joint_name="upperArm_joint"/>
+  <xacro:aubo_arm_transmission joint_name="foreArm_joint"/>
+  <xacro:aubo_arm_transmission joint_name="wrist1_joint"/>
+  <xacro:aubo_arm_transmission joint_name="wrist2_joint"/>
+  <xacro:aubo_arm_transmission joint_name="wrist3_joint"/>
+  
+  <!-- ros2_control -->
+  <xacro:include filename="$(find aubo_description)/urdf/xacro/inc/aubo_ros2_control.ros2_control.xacro" />
+  <xacro:aubo_ros2_control
+    name="auboHardwareInterface"
+    use_fake_hardware="${use_fake_hardware}"/>
+</robot>

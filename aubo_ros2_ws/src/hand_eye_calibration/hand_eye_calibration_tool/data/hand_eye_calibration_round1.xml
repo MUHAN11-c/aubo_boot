@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<opencv_storage>
+   <!-- 相机标定参数 (Camera Calibration Parameters) -->
+   <ImageSize type_id="opencv-matrix">
+      <rows>1</rows>
+      <cols>2</cols>
+      <dt>d</dt>
+      <data>2048 3072</data>
+   </ImageSize>
+   <CameraMatrix type_id="opencv-matrix">
+      <rows>3</rows>
+      <cols>3</cols>
+      <dt>d</dt>
+      <data>6228.1098516540232595 0.0000000000000000 1553.6852292449366360 0.0000000000000000 6227.2898084228299922 1087.2257304776233013 0.0000000000000000 0.0000000000000000 1.0000000000000000</data>
+   </CameraMatrix>
+   <FocalLength type_id="opencv-matrix">
+      <rows>1</rows>
+      <cols>2</cols>
+      <dt>d</dt>
+      <data>6228.1098516540232595 6227.2898084228299922</data>
+   </FocalLength>
+   <PrincipalPoint type_id="opencv-matrix">
+      <rows>1</rows>
+      <cols>2</cols>
+      <dt>d</dt>
+      <data>1553.6852292449366360 1087.2257304776233013</data>
+   </PrincipalPoint>
+   <DistortionCoefficients type_id="opencv-matrix">
+      <rows>1</rows>
+      <cols>5</cols>
+      <dt>d</dt>
+      <data>-0.1206993398441046 0.3941556118919451 0.0000000000000000 0.0000000000000000 -0.9837426457828150</data>
+   </DistortionCoefficients>
+   <!-- 手眼标定结果 (Hand-Eye Calibration Results) -->
+   <CalibrationType>Eye-in-Hand</CalibrationType>
+   <CalibrationMethod>Nonlinear Optimization with XY+Z Constraints</CalibrationMethod>
+   <CalibrationDate>2025-11-05 15:47:19</CalibrationDate>
+   <TransformationMatrix type_id="opencv-matrix">
+      <rows>4</rows>
+      <cols>4</cols>
+      <dt>d</dt>
+      <data>0.1189796655150400 -0.9928729145386709 0.0068713004165688 44.7597985183356570 0.9928726172160122 0.1189257403653990 -0.0077868004448626 9.2068466755183564 0.0069141287633083 0.0077487969406383 0.9999460740307036 65.7785863261956365 0.0000000000000000 0.0000000000000000 0.0000000000000000 1.0000000000000000</data>
+   </TransformationMatrix>
+   <RotationMatrix type_id="opencv-matrix">
+      <rows>3</rows>
+      <cols>3</cols>
+      <dt>d</dt>
+      <data>0.1189796655150400 -0.9928729145386709 0.0068713004165688 0.9928726172160122 0.1189257403653990 -0.0077868004448626 0.0069141287633083 0.0077487969406383 0.9999460740307036</data>
+   </RotationMatrix>
+   <TranslationVector type_id="opencv-matrix" unit="mm">
+      <rows>3</rows>
+      <cols>1</cols>
+      <dt>d</dt>
+      <data>44.7597985183356570 9.2068466755183564 65.7785863261956365</data>
+   </TranslationVector>
+   <MeanCalibrationError unit="mm">16.948958</MeanCalibrationError>
+   <MaxCalibrationError unit="mm">104.321918</MaxCalibrationError>
+   <MinCalibrationError unit="mm">2.130514</MinCalibrationError>
+   <StdCalibrationError unit="mm">23.868442</StdCalibrationError>
+   <DataPointCount>15</DataPointCount>
+   <UsageNotes>
+      此文件包含完整的相机内参和手眼标定结果。
+      变换矩阵将相机坐标系的点转换到末端执行器坐标系。
+      标定场景: Eye-in-Hand
+      标定方法: Nonlinear Optimization with XY+Z Constraints
+      平均误差: 16.949 mm
+      单位说明: 平移向量单位为毫米(mm)，旋转矩阵无单位
+    </UsageNotes>
+</opencv_storage>

@@ -1,0 +1,37 @@
+# ROS2 构建与安装
+aubo_ros2_ws/build/
+aubo_ros2_ws/install/
+aubo_ros2_ws/log/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.eggs/
+*.egg-info/
+*.egg
+
+# IDE / 编辑器
+.cursor/
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 环境与本地配置
+.env
+.env.local
+*.local
+
+# 大文件与输出
+*.pcd
+*.bag
+*.zip
+**/src.zip
+coord_tf_output/
+
+# 系统
+.DS_Store
+Thumbs.db

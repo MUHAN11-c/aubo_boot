@@ -1,0 +1,25 @@
+moveit_setup_assistant_config:
+  urdf:
+    package: aubo_description
+    relative_path: urdf/robots/aubo_robot.urdf.xacro
+  srdf:
+    relative_path: config/aubo_robot.srdf
+  package_settings:
+    author_name: wjz
+    author_email: 2155413529@qq.com
+    generated_timestamp: 1772502333
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity
+  modified_urdf:
+    xacros:
+      - control_xacro
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity

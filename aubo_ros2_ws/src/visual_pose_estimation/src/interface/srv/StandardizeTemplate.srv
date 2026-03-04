@@ -1,0 +1,26 @@
+# 模板标准化服务请求
+
+# 工件ID
+string workpiece_id
+
+---
+
+# 模板标准化服务响应
+
+# 是否成功
+bool success
+
+# 错误消息（如果失败）
+string error_message
+
+# 成功处理的姿态数量
+int32 processed_count
+
+# 跳过的姿态数量
+int32 skipped_count
+
+# 成功处理的姿态ID列表
+string[] processed_pose_ids
+
+# 跳过的姿态ID列表
+string[] skipped_pose_ids

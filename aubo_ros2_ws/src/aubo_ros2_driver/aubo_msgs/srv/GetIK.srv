@@ -1,0 +1,17 @@
+# Inverse Kinematics service
+# Computes joint angles from a Cartesian pose
+#
+# Request:
+#   ref_joint[6]  - Reference joint angles in radians (for IK solution selection)
+#   pos[3]        - Target Cartesian position (x, y, z) in meters
+#   ori[4]        - Target orientation quaternion (w, x, y, z)
+#
+# Response:
+#   joint[6]      - Computed joint angles in radians
+
+float32[6] ref_joint
+float32[3] pos
+float32[4] ori
+---
+float32[6] joint
+

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>机器人姿态标签更新测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .robot-pose-label {
+            font-size: 12px;
+            font-weight: normal;
+            color: #667eea;
+            font-family: 'Courier New', monospace;
+            background: rgba(102, 126, 234, 0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            margin-left: 10px;
+            white-space: nowrap;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #5a6fd8;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:hover {
+            background-color: #f0f0f0;
+            cursor: pointer;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>机器人姿态标签更新功能测试</h2>
+        
+        <div class="test-section">
+            <h3>验证结果数据 <span class="robot-pose-label" id="robot-pose-label">X: --; Y: --; Z: --; Qx: --; Qy: --; Qz: --; Qw: --;</span></h3>
+            
+            <button class="test-button" onclick="testInitialPose()">测试初始姿态（X和Y为--）</button>
+            <button class="test-button" onclick="testTableClick()">测试表格行点击</button>
+            <button class="test-button" onclick="clearLog()">清空日志</button>
+        </div>
+        
+        <div class="test-section">
+            <h4>模拟验证结果表格</h4>
+            <table id="verify-result-table">
+                <thead>
+                    <tr>
+                        <th>序号</th>
+                        <th>像素坐标 U (px)</th>
+                        <th>像素坐标 V (px)</th>
+                        <th>相机坐标 X (mm)</th>
+                        <th>相机坐标 Y (mm)</th>
+                        <th>机器人位置 X (mm)</th>
+                        <th>机器人位置 Y (mm)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr onclick="updateRobotPoseXY(100.5, 200.3)">
+                        <td>1</td>
+                        <td>320.5</td>
+                        <td>240.2</td>
+                        <td>15.2</td>
+                        <td>8.7</td>
+                        <td>100.5</td>
+                        <td>200.3</td>
+                    </tr>
+                    <tr onclick="updateRobotPoseXY(150.8, 180.1)">
+                        <td>2</td>
+                        <td>350.1</td>
+                        <td>220.8</td>
+                        <td>18.5</td>
+                        <td>12.3</td>
+                        <td>150.8</td>
+                        <td>180.1</td>
+                    </tr>
+                    <tr onclick="updateRobotPoseXY(80.2, 250.7)">
+                        <td>3</td>
+                        <td>300.3</td>
+                        <td>260.5</td>
+                        <td>12.8</td>
+                        <td>6.2</td>
+                        <td>80.2</td>
+                        <td>250.7</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="test-section">
+            <h4>测试日志</h4>
+            <div class="log" id="test-log"></div>
+        </div>
+    </div>
+
+    <script>
+        // 更新机器人姿态标签中的X和Y坐标
+        function updateRobotPoseXY(x, y) {
+            const poseLabel = document.getElementById('robot-pose-label');
+            if (poseLabel) {
+                const currentText = poseLabel.textContent;
+                // 替换X和Y的值
+                const updatedText = currentText.replace(/X: [^;]+/, `X: ${x.toFixed(1)}`).replace(/Y: [^;]+/, `Y: ${y.toFixed(1)}`);
+                poseLabel.textContent = updatedText;
+                addLog(`姿态标签X和Y已更新: X:${x.toFixed(1)}, Y:${y.toFixed(1)}`);
+            }
+        }
+
+        // 更新当前机器人姿态显示（验证结果数据标题右侧）
+        function updateCurrentRobotPoseDisplay(robotStatus) {
+            const poseLabel = document.getElementById('robot-pose-label');
+            
+            if (poseLabel && robotStatus.cartesian_position) {
+                // 获取位置和姿态（X和Y用"--"占位）
+                const robotZ = robotStatus.cartesian_position.position.z.toFixed(1); // 已经是毫米单位
+                const qx = robotStatus.cartesian_position.orientation.x.toFixed(3);
+                const qy = robotStatus.cartesian_position.orientation.y.toFixed(3);
+                const qz = robotStatus.cartesian_position.orientation.z.toFixed(3);
+                const qw = robotStatus.cartesian_position.orientation.w.toFixed(3);
+                
+                // 更新标签文本（X和Y用"--"占位）
+                poseLabel.textContent = `X: --; Y: --; Z: ${robotZ}; Qx: ${qx}; Qy: ${qy}; Qz: ${qz}; Qw: ${qw};`;
+                addLog(`姿态标签已更新: X:--, Y:--, Z:${robotZ}, Qx:${qx}, Qy:${qy}, Qz:${qz}, Qw:${qw}`);
+            }
+        }
+
+        // 测试初始姿态
+        function testInitialPose() {
+            const mockRobotStatus = {
+                cartesian_position: {
+                    position: { z: 200.0 },
+                    orientation: { x: 1.0, y: 0.0, z: 0.0, w: 0.0 }
+                }
+            };
+            updateCurrentRobotPoseDisplay(mockRobotStatus);
+        }
+
+        // 测试表格行点击
+        function testTableClick() {
+            addLog('点击表格行测试：');
+            addLog('1. 点击第一行 (100.5, 200.3)');
+            updateRobotPoseXY(100.5, 200.3);
+            addLog('2. 点击第二行 (150.8, 180.1)');
+            updateRobotPoseXY(150.8, 180.1);
+            addLog('3. 点击第三行 (80.2, 250.7)');
+            updateRobotPoseXY(80.2, 250.7);
+        }
+
+        // 添加日志
+        function addLog(message) {
+            const logDiv = document.getElementById('test-log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // 清空日志
+        function clearLog() {
+            document.getElementById('test-log').innerHTML = '';
+        }
+
+        // 页面加载时初始化
+        window.onload = function() {
+            addLog('页面加载完成，开始测试...');
+            testInitialPose();
+        };
+    </script>
+</body>
+</html>

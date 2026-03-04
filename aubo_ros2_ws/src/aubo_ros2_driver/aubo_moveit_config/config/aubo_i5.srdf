@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--This does not replace URDF, and is not an extension of URDF.
+    This is a format for representing semantic information about the robot structure.
+    A URDF file must exist for this robot as well, where the joints and the links that are referenced are defined
+-->
+<robot name="aubo_robot">
+    <!--GROUPS: Representation of a set of joints and links. This can be useful for specifying DOF to plan for, defining arms, end effectors, etc-->
+    <!--LINKS: When a link is specified, the parent joint of that link (if it exists) is automatically included-->
+    <!--JOINTS: When a joint is specified, the child link of that joint (which will always exist) is automatically included-->
+    <!--CHAINS: When a chain is specified, all the links along the chain (including endpoints) are included in the group. Additionally, all the joints that are parents to included links are also included. This means that joints along the chain and the parent joint of the base link are included in the group-->
+    <!--SUBGROUPS: Groups can also be formed by referencing to already defined group names-->
+    <group name="manipulator">
+        <chain base_link="base_link" tip_link="tool_tcp"/>
+    </group>
+    <group name="endeffector">
+        <link name="tool_tcp"/>
+    </group>
+    <!--GROUP STATES: Purpose: Define a named state for a particular group, in terms of joint values. This is useful to define states like 'folded arms'-->
+    <group_state name="up" group="manipulator">
+        <joint name="foreArm_joint" value="0"/>
+        <joint name="shoulder_joint" value="0"/>
+        <joint name="upperArm_joint" value="0"/>
+        <joint name="wrist1_joint" value="0"/>
+        <joint name="wrist2_joint" value="0"/>
+        <joint name="wrist3_joint" value="0"/>
+    </group_state>
+    <group_state name="home" group="manipulator">
+        <joint name="foreArm_joint" value="1.236"/>
+        <joint name="shoulder_joint" value="0"/>
+        <joint name="upperArm_joint" value="-0.0334"/>
+        <joint name="wrist1_joint" value="-0.3675"/>
+        <joint name="wrist2_joint" value="1.5701"/>
+        <joint name="wrist3_joint" value="0"/>
+    </group_state>
+    <group_state name="camera_pose" group="manipulator">
+        <joint name="foreArm_joint" value="1.7700852155685425"/>
+        <joint name="shoulder_joint" value="-0.27411168813705444"/>
+        <joint name="upperArm_joint" value="0.4963911175727844"/>
+        <joint name="wrist1_joint" value="-0.2978658676147461"/>
+        <joint name="wrist2_joint" value="1.571584939956665"/>
+        <joint name="wrist3_joint" value="-0.2750104069709778"/>
+    </group_state>
+    <!--END EFFECTOR: Purpose: Represent information about an end effector.-->
+    <end_effector name="moveit_ee" parent_link="tool_tcp" group="endeffector"/>
+    <!--VIRTUAL JOINT: Purpose: this element defines a virtual joint between a robot link and an external frame of reference (considered fixed with respect to the robot)-->
+    <!-- parent_frame 决定规划框架（planning frame），child_link 是机器人基座链接 -->
+    <!-- URDF 中定义了 world 作为根链接，base_link 是 world 的子链接 -->
+    <!-- 因此 virtual_joint 的 parent_frame 设置为 world，child_link 设置为 base_link -->
+    <!-- 这样 planning_frame 就是 world，符合 URDF 的链接层次结构 -->
+    <virtual_joint name="fixed_base" type="fixed" parent_frame="world" child_link="base_link"/>
+    <!--DISABLE COLLISIONS: By default it is assumed that any link of the robot could potentially come into collision with any other link in the robot. This tag disables collision checking between a specified pair of links. -->
+    <!-- 禁用基座与机器人链接之间的碰撞检测 -->
+    <disable_collisions link1="base_link" link2="pedestal_Link" reason="Adjacent"/>
+
+    <disable_collisions link1="base_link" link2="shoulder_Link" reason="Adjacent"/>
+    <disable_collisions link1="base_link" link2="upperArm_Link" reason="Never"/>
+    <disable_collisions link1="tool_tcp" link2="wrist1_Link" reason="Never"/>
+    <disable_collisions link1="tool_tcp" link2="wrist2_Link" reason="Never"/>
+    <disable_collisions link1="tool_tcp" link2="wrist3_Link" reason="Adjacent"/>
+    <!-- 禁用末端执行器与手腕之间的碰撞检测 -->
+    <disable_collisions link1="wrist3_Link" link2="camera_Link" reason="Adjacent"/>
+    <disable_collisions link1="wrist3_Link" link2="kuaihuan_Link" reason="Never"/>
+    <disable_collisions link1="wrist3_Link" link2="grap_Link" reason="Never"/>
+    <disable_collisions link1="wrist3_Link" link2="grap0_Link" reason="Never"/>
+    <disable_collisions link1="wrist3_Link" link2="grap1_Link" reason="Never"/>
+    <disable_collisions link1="wrist3_Link" link2="gripper_tip_link" reason="Never"/>
+    <disable_collisions link1="foreArm_Link" link2="upperArm_Link" reason="Adjacent"/>
+    <disable_collisions link1="foreArm_Link" link2="wrist1_Link" reason="Adjacent"/>
+    <disable_collisions link1="shoulder_Link" link2="upperArm_Link" reason="Adjacent"/>
+    <disable_collisions link1="shoulder_Link" link2="wrist1_Link" reason="Never"/>
+    <disable_collisions link1="wrist1_Link" link2="wrist2_Link" reason="Adjacent"/>
+    <disable_collisions link1="wrist1_Link" link2="wrist3_Link" reason="Never"/>
+    <disable_collisions link1="wrist2_Link" link2="wrist3_Link" reason="Adjacent"/>
+    <!-- 禁用末端执行器链接之间的碰撞检测 -->
+    <disable_collisions link1="camera_Link" link2="kuaihuan_Link" reason="Adjacent"/>
+    <disable_collisions link1="camera_Link" link2="grap_Link" reason="Never"/>
+    <disable_collisions link1="camera_Link" link2="grap0_Link" reason="Never"/>
+    <disable_collisions link1="camera_Link" link2="grap1_Link" reason="Never"/>
+    <disable_collisions link1="camera_Link" link2="gripper_tip_link" reason="Never"/>
+    <disable_collisions link1="kuaihuan_Link" link2="grap_Link" reason="Adjacent"/>
+    <disable_collisions link1="kuaihuan_Link" link2="grap0_Link" reason="Never"/>
+    <disable_collisions link1="kuaihuan_Link" link2="grap1_Link" reason="Never"/>
+    <disable_collisions link1="kuaihuan_Link" link2="gripper_tip_link" reason="Never"/>
+    <disable_collisions link1="grap_Link" link2="grap0_Link" reason="Adjacent"/>
+    <disable_collisions link1="grap_Link" link2="grap1_Link" reason="Adjacent"/>
+    <disable_collisions link1="grap0_Link" link2="grap1_Link" reason="Never"/>
+    <disable_collisions link1="grap1_Link" link2="gripper_tip_link" reason="Adjacent"/>
+    <disable_collisions link1="grap_Link" link2="gripper_tip_link" reason="Never"/>
+    <disable_collisions link1="grap0_Link" link2="gripper_tip_link" reason="Never"/>
+</robot>

@@ -13,10 +13,10 @@ aubo_ros2_ws/
 │   ├── camport_ros2/              # 知微(Percipio) 相机驱动与接口
 │   ├── coordinate_transforms/     # 坐标系与变换（C++：四元数/旋转矩阵/RPY、投影、点变换）
 │   ├── coordinate_transforms_py/  # 同上 Python 实现（NumPy/scipy，与 C++ 约定一致）
-│   ├── graspnet_ros2/             # GraspNet 6-DoF 抓取位姿预测
-│   ├── graspnet-baseline/         # GraspNet 基线算法（Python 包名: graspnet）
-│   ├── hand_eye_calibration/      # 手眼标定（Web UI）
-│   └── visual_pose_estimation/   # 视觉位姿估计（C++/Python）
+│   ├── graspnet_ros2/             # GraspNet 6-DoF 抓取位姿预测（内含 graspnet-baseline）
+│   ├── hand_eye_calibration/     # 手眼标定（Web UI）
+│   ├── ros2_moveit2_ur5e_grasp/   # UR5e 抓取参考/仿真等
+│   └── visual_pose_estimation/    # 视觉位姿估计（C++/Python）
 ├── build/
 ├── install/
 ├── log/
@@ -60,8 +60,7 @@ aubo_ros2_ws/
 
 | 包名 | 类型 | 说明 |
 |------|------|------|
-| **graspnet** | ament_python | GraspNet 基线算法（graspnet-baseline 的 Python 包） |
-| **graspnet_ros2** | ament_python | GraspNet ROS2 封装：6-DoF 抓取位姿预测与相关节点 |
+| **graspnet_ros2** | ament_python | GraspNet ROS2 封装：6-DoF 抓取位姿预测（含 graspnet-baseline，随包安装） |
 | **hand_eye_calibration** | ament_python | 单目相机手眼标定，基于 Web UI 的交互式标定 |
 | **visual_pose_estimation** | ament_cmake | 基于单目模板匹配的工件 3D 抓取姿态估计（C++） |
 | **visual_pose_estimation_python** | ament_cmake+python | 视觉位姿估计的 Python 实现 |
@@ -114,8 +113,8 @@ source /opt/ros/humble/setup.bash
 
 ### 3.7 GraspNet 抓取
 
-- **graspnet_demo.launch.py** / **graspnet_demo_with_tf.launch.py**：抓取预测与 TF 演示。
-- **percipio_camera_calibration.launch.py**：相机标定相关。
+- **graspnet_ros2**：`graspnet_demo.launch.py`、`graspnet_demo_with_tf.launch.py` 抓取预测与 TF；详见 `src/graspnet_ros2/README.md`。
+- **percipio_camera_calibration.launch.py**（graspnet_ros2）：相机标定相关。
 
 ### 3.8 demo_driver 服务示例
 

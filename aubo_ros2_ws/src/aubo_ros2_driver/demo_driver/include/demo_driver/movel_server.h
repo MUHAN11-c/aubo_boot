@@ -11,9 +11,11 @@
 #include <rclcpp/rclcpp.hpp>
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
+#include <moveit/moveit_cpp/moveit_cpp.h>
 #include <demo_interface/srv/movel.hpp>
-#include <moveit_msgs/srv/get_cartesian_path.hpp>
 #include <geometry_msgs/msg/pose.hpp>
+#include <moveit_msgs/msg/robot_trajectory.hpp>
+#include <moveit_msgs/msg/move_it_error_codes.hpp>
 #include <cstdint>
 #include <string>
 #include <memory>
@@ -26,15 +28,13 @@ namespace demo_driver
 enum class MovelErrorCode : int32_t
 {
   SUCCESS = 0,
-  MOVEIT_NOT_INITIALIZED = -100,
-  GET_CURRENT_STATE_FAILED = -101,
-  JOINT_MODEL_GROUP_FAILED = -102,
-  END_EFFECTOR_LINK_EMPTY = -103,
-  CARTESIAN_PATH_SERVICE_UNAVAILABLE = -104,
-  CARTESIAN_PATH_CALL_TIMEOUT = -105,
-  CARTESIAN_PATH_FRACTION_INCOMPLETE = -106,
-  CARTESIAN_PATH_EMPTY_TRAJECTORY = -107,
-  EXCEPTION = -200,
+  MOVEIT_NOT_INITIALIZED = -1,
+  GET_CURRENT_STATE_FAILED = -2,
+  JOINT_MODEL_GROUP_FAILED = -3,
+  END_EFFECTOR_LINK_EMPTY = -4,
+  CARTESIAN_PATH_FRACTION_INCOMPLETE = -5,
+  CARTESIAN_PATH_EMPTY_TRAJECTORY = -6,
+  EXCEPTION = -7
 };
 
 /**
@@ -53,11 +53,11 @@ public:
 private:
   bool wait_for_robot_description(int timeout_seconds = 30);
 
+  std::shared_ptr<moveit_cpp::MoveItCpp> moveit_cpp_;
   std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
   std::shared_ptr<moveit::planning_interface::PlanningSceneInterface> planning_scene_interface_;
 
   rclcpp::Service<demo_interface::srv::Movel>::SharedPtr movel_service_;
-  rclcpp::Client<moveit_msgs::srv::GetCartesianPath>::SharedPtr compute_cartesian_path_client_;
 
   void movelCallback(
     const std::shared_ptr<demo_interface::srv::Movel::Request> req,
@@ -73,7 +73,6 @@ private:
   std::string planning_group_name_;
   std::string base_frame_;
   std::string end_effector_link_;
-  std::string compute_cartesian_path_service_name_;
   double cartesian_max_step_;
 
   std::mutex movel_mutex_;

@@ -21,18 +21,35 @@
 
 #include "demo_driver/movel_server.h"
 #include <rclcpp/rclcpp.hpp>
-#include <rclcpp/executors/single_threaded_executor.hpp>
+#include <rclcpp/executors/multi_threaded_executor.hpp>
 #include <moveit/robot_state/conversions.h>
 #include <moveit_msgs/msg/robot_trajectory.hpp>
 #include <moveit/utils/moveit_error_code.h>
 #include <Eigen/Geometry>
 #include <chrono>
 #include <cmath>
+#include <iomanip>
+#include <sstream>
 #include <string>
 #include <thread>
 
 namespace demo_driver
 {
+
+namespace
+{
+void setMovelError(int32_t& error_code, std::string& message, int32_t code, std::string msg)
+{
+  error_code = code;
+  message = std::move(msg);
+}
+
+void setMovelSuccess(int32_t& error_code, std::string& message)
+{
+  error_code = static_cast<int32_t>(MovelErrorCode::SUCCESS);
+  message = "笛卡尔直线运动完成";
+}
+}  // namespace
 
 static constexpr float kDefaultVelocityFactor = 0.15f;
 static constexpr float kDefaultAccelerationFactor = 0.1f;
@@ -43,28 +60,21 @@ MovelServer::MovelServer(const rclcpp::NodeOptions& options)
   planning_group_name_("manipulator"),
   base_frame_("base_link"),
   end_effector_link_(""),
-  compute_cartesian_path_service_name_("move_group/compute_cartesian_path"),
-  cartesian_max_step_(0.002)
+  cartesian_max_step_(0.01)
 {
   this->declare_parameter("planning_group_name", std::string("manipulator"));
   this->declare_parameter("base_frame", std::string("base_link"));
-  this->declare_parameter("compute_cartesian_path_service", std::string("move_group/compute_cartesian_path"));
-  this->declare_parameter("cartesian_max_step", 0.002);
+  this->declare_parameter("cartesian_max_step", 0.01);  // 与 RViz2 笛卡尔一致，0.002 易导致路径仅部分完成(-106)
 
   this->get_parameter("planning_group_name", planning_group_name_);
   this->get_parameter("base_frame", base_frame_);
-  this->get_parameter("compute_cartesian_path_service", compute_cartesian_path_service_name_);
   this->get_parameter("cartesian_max_step", cartesian_max_step_);
 
   movel_service_ = this->create_service<demo_interface::srv::Movel>(
     "/movel",
     std::bind(&MovelServer::movelCallback, this, std::placeholders::_1, std::placeholders::_2));
 
-  compute_cartesian_path_client_ =
-    this->create_client<moveit_msgs::srv::GetCartesianPath>(compute_cartesian_path_service_name_);
-
-  RCLCPP_INFO(this->get_logger(), "MovelServer: 服务 /movel 已创建, GetCartesianPath 客户端: %s",
-    compute_cartesian_path_service_name_.c_str());
+  RCLCPP_INFO(this->get_logger(), "MovelServer: 服务 /movel 已创建（笛卡尔路径使用 MoveGroupInterface::computeCartesianPath，与 moveit2_tutorials 一致）");
 }
 
 MovelServer::~MovelServer() {}
@@ -101,7 +111,7 @@ bool MovelServer::wait_for_robot_description(int timeout_seconds)
   return false;
 }
 
-bool MovelServer::initialize(int max_retries, int retry_delay_seconds)
+bool MovelServer::initialize(int /* max_retries */, int /* retry_delay_seconds */)
 {
   if (!wait_for_robot_description(30)) {
     return false;
@@ -109,27 +119,23 @@ bool MovelServer::initialize(int max_retries, int retry_delay_seconds)
 
   std::this_thread::sleep_for(std::chrono::seconds(2));
 
-  for (int attempt = 1; attempt <= max_retries; ++attempt) {
-    try {
-      move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
-        shared_from_this(), planning_group_name_);
-      planning_scene_interface_ = std::make_shared<moveit::planning_interface::PlanningSceneInterface>();
-      move_group_->setPoseReferenceFrame(base_frame_);
-      end_effector_link_ = move_group_->getEndEffectorLink();
-      std::string planning_frame = move_group_->getPlanningFrame();
-      RCLCPP_INFO(this->get_logger(), "[Movel] 初始化 规划组=%s | 参考系=%s | 末端=%s",
-        planning_group_name_.c_str(), planning_frame.c_str(), end_effector_link_.c_str());
-      return true;
-    } catch (const std::exception& e) {
-      if (attempt < max_retries) {
-        std::this_thread::sleep_for(std::chrono::seconds(retry_delay_seconds));
-      } else {
-        RCLCPP_ERROR(this->get_logger(), "MovelServer: MoveIt 接口初始化失败，已尝试 %d 次", max_retries);
-        return false;
-      }
-    }
+  try {
+    moveit_cpp_ = std::make_shared<moveit_cpp::MoveItCpp>(shared_from_this());
+    moveit_cpp_->getPlanningSceneMonitorNonConst()->providePlanningSceneService();
+
+    move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
+      shared_from_this(), planning_group_name_);
+    planning_scene_interface_ = std::make_shared<moveit::planning_interface::PlanningSceneInterface>();
+    move_group_->setPoseReferenceFrame(base_frame_);
+    end_effector_link_ = move_group_->getEndEffectorLink();
+    std::string planning_frame = move_group_->getPlanningFrame();
+    RCLCPP_INFO(this->get_logger(), "[Movel] 初始化 规划组=%s | 参考系=%s | 末端=%s",
+      planning_group_name_.c_str(), planning_frame.c_str(), end_effector_link_.c_str());
+    return true;
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(this->get_logger(), "MovelServer: MoveIt 接口初始化失败: %s", e.what());
+    return false;
   }
-  return false;
 }
 
 void MovelServer::movelCallback(
@@ -175,44 +181,27 @@ bool MovelServer::movel(
   std::string& message)
 {
   if (!move_group_) {
-    error_code = static_cast<int32_t>(MovelErrorCode::MOVEIT_NOT_INITIALIZED);
-    message = "MoveIt 接口未初始化";
+    setMovelError(error_code, message, static_cast<int32_t>(MovelErrorCode::MOVEIT_NOT_INITIALIZED), "MoveIt 接口未初始化");
     return false;
   }
 
   try {
-    // Retry getCurrentState (joint_states may have stamp 0 at startup; allow time for valid state)
     moveit::core::RobotStatePtr current_state;
-    const int kMaxGetStateRetries = 5;
-    const auto kRetryDelay = std::chrono::milliseconds(500);
-    for (int attempt = 0; attempt < kMaxGetStateRetries; ++attempt) {
-      current_state = move_group_->getCurrentState();
-      if (current_state) {
-        break;
-      }
-      if (attempt < kMaxGetStateRetries - 1) {
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
-                             "[Movel] getCurrentState attempt %d/%d failed, retrying...", attempt + 1,
-                             kMaxGetStateRetries);
-        rclcpp::sleep_for(kRetryDelay);
-      }
-    }
-    if (!current_state) {
-      error_code = static_cast<int32_t>(MovelErrorCode::GET_CURRENT_STATE_FAILED);
-      message = "无法获取当前机器人状态（请检查 /joint_states 发布与 use_sim_time 一致性）";
+    const double kGetStateTimeout = 10.0;
+    if (!moveit_cpp_ || !moveit_cpp_->getCurrentState(current_state, kGetStateTimeout) || !current_state) {
+      setMovelError(error_code, message, static_cast<int32_t>(MovelErrorCode::GET_CURRENT_STATE_FAILED),
+                    "无法获取当前机器人状态（请检查 /joint_states 发布与 use_sim_time 一致性）");
       return false;
     }
 
     const moveit::core::JointModelGroup* jmg = current_state->getJointModelGroup(planning_group_name_);
     if (!jmg) {
-      error_code = static_cast<int32_t>(MovelErrorCode::JOINT_MODEL_GROUP_FAILED);
-      message = "无法获取关节模型组";
+      setMovelError(error_code, message, static_cast<int32_t>(MovelErrorCode::JOINT_MODEL_GROUP_FAILED), "无法获取关节模型组");
       return false;
     }
 
     if (end_effector_link_.empty()) {
-      error_code = static_cast<int32_t>(MovelErrorCode::END_EFFECTOR_LINK_EMPTY);
-      message = "末端执行器 link 为空";
+      setMovelError(error_code, message, static_cast<int32_t>(MovelErrorCode::END_EFFECTOR_LINK_EMPTY), "末端执行器 link 为空");
       return false;
     }
 
@@ -230,54 +219,54 @@ bool MovelServer::movel(
     current_pose.orientation.z = quat.z();
     current_pose.orientation.w = quat.w();
 
-    moveit_msgs::msg::RobotState start_state_msg;
-    moveit::core::robotStateToRobotStateMsg(*current_state, start_state_msg, true);
+    // 当前状态打印日志
+    std::vector<double> joint_positions;
+    current_state->copyJointGroupPositions(jmg, joint_positions);
+    std::vector<std::string> joint_names = jmg->getActiveJointModelNames();
+    std::stringstream ss;
+    ss << "关节(rad): ";
+    for (size_t i = 0; i < joint_names.size() && i < joint_positions.size(); ++i)
+      ss << joint_names[i] << "=" << std::fixed << std::setprecision(4) << joint_positions[i] << " ";
+    RCLCPP_INFO(this->get_logger(), "[Movel] 当前状态 %s", ss.str().c_str());
+    RCLCPP_INFO(this->get_logger(), "[Movel] 当前末端(%s) xyz=[%.4f, %.4f, %.4f] xyzw=[%.4f, %.4f, %.4f, %.4f]",
+                end_effector_link_.c_str(), pos.x(), pos.y(), pos.z(),
+                quat.x(), quat.y(), quat.z(), quat.w());
 
-    if (!compute_cartesian_path_client_->wait_for_service(std::chrono::seconds(5))) {
-      error_code = static_cast<int32_t>(MovelErrorCode::CARTESIAN_PATH_SERVICE_UNAVAILABLE);
-      message = "GetCartesianPath 服务不可用: " + compute_cartesian_path_service_name_;
+    move_group_->setStartState(*current_state);
+    // 暂时不使用请求的目标点：记录当前位姿作为起点和终点（三角形闭合）
+    geometry_msgs::msg::Pose start_pose = current_pose;
+    geometry_msgs::msg::Pose end_pose = start_pose;
+
+    std::vector<geometry_msgs::msg::Pose> waypoints;
+    waypoints.push_back(start_pose);
+
+    geometry_msgs::msg::Pose wppose = start_pose;
+    wppose.position.z -= 0.2;  // 向下 20 cm
+    waypoints.push_back(wppose);
+
+    wppose.position.y += 0.2;  // 向右 20 cm
+    waypoints.push_back(wppose);
+
+    waypoints.push_back(end_pose);  // 回到起点，形成三角形
+
+    move_group_->setPlanningTime(5.0);  // 规划超时 5 秒
+
+    moveit_msgs::msg::RobotTrajectory trajectory_msg;
+    moveit_msgs::msg::MoveItErrorCodes path_error;
+    double fraction = move_group_->computeCartesianPath(
+        waypoints, cartesian_max_step_, 0.0, trajectory_msg, true, &path_error);
+
+    if (path_error.val != moveit_msgs::msg::MoveItErrorCodes::SUCCESS) {
+      setMovelError(error_code, message, path_error.val, "笛卡尔路径规划失败, error_code=" + std::to_string(path_error.val));
       return false;
     }
-
-    auto request = std::make_shared<moveit_msgs::srv::GetCartesianPath::Request>();
-    request->header.frame_id = move_group_->getPlanningFrame();
-    request->header.stamp = this->now();
-    request->start_state = start_state_msg;
-    request->group_name = planning_group_name_;
-    request->link_name = end_effector_link_;
-    request->waypoints.push_back(current_pose);
-    request->waypoints.push_back(target_pose);
-    request->max_step = cartesian_max_step_;
-    request->jump_threshold = 0.0;
-    request->prismatic_jump_threshold = 0.0;
-    request->revolute_jump_threshold = 0.0;
-    request->avoid_collisions = true;
-
-    auto result_future = compute_cartesian_path_client_->async_send_request(request);
-    if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result_future, std::chrono::seconds(30)) !=
-      rclcpp::FutureReturnCode::SUCCESS)
-    {
-      error_code = static_cast<int32_t>(MovelErrorCode::CARTESIAN_PATH_CALL_TIMEOUT);
-      message = "GetCartesianPath 调用超时或失败";
+    if (fraction < kMinFractionSuccess) {
+      setMovelError(error_code, message, static_cast<int32_t>(MovelErrorCode::CARTESIAN_PATH_FRACTION_INCOMPLETE),
+                    "笛卡尔路径仅完成 " + std::to_string(static_cast<int>(fraction * 100)) + "%");
       return false;
     }
-
-    auto response = result_future.get();
-    if (response->error_code.val != moveit_msgs::msg::MoveItErrorCodes::SUCCESS) {
-      error_code = response->error_code.val;
-      message = "GetCartesianPath 规划失败, error_code=" + std::to_string(response->error_code.val);
-      return false;
-    }
-
-    if (response->fraction < kMinFractionSuccess) {
-      error_code = static_cast<int32_t>(MovelErrorCode::CARTESIAN_PATH_FRACTION_INCOMPLETE);
-      message = "笛卡尔路径仅完成 " + std::to_string(static_cast<int>(response->fraction * 100)) + "%";
-      return false;
-    }
-
-    if (response->solution.joint_trajectory.points.empty()) {
-      error_code = static_cast<int32_t>(MovelErrorCode::CARTESIAN_PATH_EMPTY_TRAJECTORY);
-      message = "GetCartesianPath 返回空轨迹";
+    if (trajectory_msg.joint_trajectory.points.empty()) {
+      setMovelError(error_code, message, static_cast<int32_t>(MovelErrorCode::CARTESIAN_PATH_EMPTY_TRAJECTORY), "笛卡尔路径返回空轨迹");
       return false;
     }
 
@@ -285,21 +274,18 @@ bool MovelServer::movel(
     move_group_->setMaxAccelerationScalingFactor(acceleration_factor);
 
     moveit::planning_interface::MoveGroupInterface::Plan plan;
-    plan.trajectory_ = response->solution;
+    plan.trajectory_ = trajectory_msg;
 
     auto exec_result = move_group_->execute(plan);
     if (exec_result != moveit::core::MoveItErrorCode::SUCCESS) {
-      error_code = exec_result.val;
-      message = "轨迹执行失败, error_code=" + std::to_string(exec_result.val);
+      setMovelError(error_code, message, exec_result.val, "轨迹执行失败, error_code=" + std::to_string(exec_result.val));
       return false;
     }
 
-    error_code = static_cast<int32_t>(MovelErrorCode::SUCCESS);
-    message = "笛卡尔直线运动完成";
+    setMovelSuccess(error_code, message);
     return true;
   } catch (const std::exception& e) {
-    error_code = static_cast<int32_t>(MovelErrorCode::EXCEPTION);
-    message = std::string("异常: ") + e.what();
+    setMovelError(error_code, message, static_cast<int32_t>(MovelErrorCode::EXCEPTION), std::string("异常: ") + e.what());
     RCLCPP_ERROR(this->get_logger(), "[Movel] %s", message.c_str());
     return false;
   }
@@ -315,12 +301,13 @@ void MovelServer::spin()
 int main(int argc, char** argv)
 {
   rclcpp::init(argc, argv);
-  rclcpp::executors::SingleThreadedExecutor executor;
+  // 多线程：回调内会 wait_for_service()，若用单线程会阻塞 executor 导致服务发现无法完成
+  rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
 
   try {
     rclcpp::NodeOptions node_options;
     node_options.automatically_declare_parameters_from_overrides(true);
-    node_options.append_parameter_override("use_sim_time", false);
+    // 不在此处写死 use_sim_time，由 launch 传入，与 move_group / joint_states 一致，否则 CurrentStateMonitor 会认为时间戳过期
     auto server = std::make_shared<demo_driver::MovelServer>(node_options);
 
     if (!server->initialize(10, 2)) {
@@ -329,14 +316,8 @@ int main(int argc, char** argv)
       return 1;
     }
 
-    // Spin SingleThreadedExecutor so the current state monitor can receive joint_states
     executor.add_node(server);
-    std::thread([&executor]() { executor.spin(); }).detach();
-    /* Otherwise robot with zeros joint_states */
-    rclcpp::sleep_for(std::chrono::seconds(1));
-    while (rclcpp::ok()) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
+    executor.spin();
   } catch (const std::exception& e) {
     RCLCPP_ERROR(rclcpp::get_logger("movel_server_node"), "movel_server_node 异常: %s", e.what());
     rclcpp::shutdown();

@@ -122,6 +122,7 @@ ament_target_dependencies(movel_server_node
   moveit_msgs
   moveit_core
   moveit_ros_planning_interface
+  moveit_ros_planning
 )
 
 # MoveIt C++ 教程测试节点（MoveItCpp + PlanningComponent，适配 Aubo）
@@ -134,6 +135,16 @@ ament_target_dependencies(moveit_cpp_tutorial_node
   moveit_ros_planning
   moveit_msgs
   moveit_visual_tools
+)
+
+# Aubo 三角形笛卡尔 demo（复刻 xarm moveit_beeline_demo，与 graspnet_demo.launch.py 配合）
+add_executable(moveit_beeline_demo_node src/moveit_beeline_demo.cpp)
+ament_target_dependencies(moveit_beeline_demo_node
+  rclcpp
+  geometry_msgs
+  moveit_msgs
+  moveit_core
+  moveit_ros_planning_interface
 )
 
 # Note: The following executables are commented out because source files don't exist yet
@@ -170,6 +181,7 @@ install(TARGETS
   set_robot_pose_server_node
   movel_server_node
   moveit_cpp_tutorial_node
+  moveit_beeline_demo_node
   # set_robot_enable_server_node
   # set_robot_io_server_node
   # read_robot_io_server_node
@@ -187,6 +199,7 @@ install(DIRECTORY launch/
 install(PROGRAMS
   scripts/moveit2_tcp_pose_publisher.py
   scripts/verify_kinematics.py
+  scripts/test_movel_service.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

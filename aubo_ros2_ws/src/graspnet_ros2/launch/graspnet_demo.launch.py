@@ -150,12 +150,13 @@ def launch_setup_robot_and_tf(context):
             ],
         )
 
-    # move_group（官方无；graspnet 需要）parameters 与官方风格一致
+    # move_group（与 moveit_configs_utils generate_move_group_launch 一致，发布 semantic 供单独运行的节点如 moveit_beeline_demo_node 订阅）
+    move_group_extra = {"publish_robot_description_semantic": True}
     run_move_group_node = Node(
         package="moveit_ros_move_group",
         executable="move_group",
         output="screen",
-        parameters=[moveit_config.to_dict(), robot_description],
+        parameters=[moveit_config.to_dict(), robot_description, move_group_extra],
     )
 
     move_to_pose_node = Node(

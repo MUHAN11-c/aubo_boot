@@ -20,6 +20,9 @@ find_package(tf2 REQUIRED)
 find_package(moveit_core REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 find_package(moveit_common REQUIRED)
+find_package(moveit_msgs REQUIRED)
+find_package(moveit_ros_planning REQUIRED)
+find_package(moveit_visual_tools REQUIRED)
 
 # Include directories
 include_directories(include)
@@ -110,6 +113,29 @@ ament_target_dependencies(set_robot_pose_server_node
   moveit_ros_planning_interface
 )
 
+add_executable(movel_server_node src/movel_server.cpp)
+ament_target_dependencies(movel_server_node
+  rclcpp
+  geometry_msgs
+  demo_interface
+  tf2_geometry_msgs
+  moveit_msgs
+  moveit_core
+  moveit_ros_planning_interface
+)
+
+# MoveIt C++ 教程测试节点（MoveItCpp + PlanningComponent，适配 Aubo）
+add_executable(moveit_cpp_tutorial_node src/moveit_cpp_tutorial.cpp)
+ament_target_dependencies(moveit_cpp_tutorial_node
+  rclcpp
+  geometry_msgs
+  moveit_core
+  moveit_ros_planning_interface
+  moveit_ros_planning
+  moveit_msgs
+  moveit_visual_tools
+)
+
 # Note: The following executables are commented out because source files don't exist yet
 # add_executable(set_robot_enable_server_node src/set_robot_enable_server.cpp)
 # ament_target_dependencies(set_robot_enable_server_node
@@ -142,6 +168,8 @@ install(TARGETS
   get_current_state_server_node
   set_speed_factor_server_node
   set_robot_pose_server_node
+  movel_server_node
+  moveit_cpp_tutorial_node
   # set_robot_enable_server_node
   # set_robot_io_server_node
   # read_robot_io_server_node

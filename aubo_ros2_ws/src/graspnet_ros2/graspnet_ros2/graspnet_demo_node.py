@@ -84,7 +84,7 @@ def _vis_grasps_open3d_process(gg, cloud):
         # ===== 组合并显示(不变换坐标系) =====
         geometries = [cloud] + grippers
         
-        o3d.visualization.draw_geometries(  # type: ignore[attr-defined]
+        o3d.visualization.draw_geometries(  
             geometries,
             window_name='GraspNet visualization',
             width=640,

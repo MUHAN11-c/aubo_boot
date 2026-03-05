@@ -2,15 +2,20 @@
 # -*- coding: utf-8 -*-
 """
 GraspNet ROS2 Demo（仅仿真）：使用 aubo2_moveit_config 配置与模型，ros2_control 仿真 + MoveIt2 + graspnet_demo_node + 手眼 TF + RViz。
-本 launch 明确用于仿真，不连接真实机械臂。
-用法: ros2 launch graspnet_ros2 graspnet_demo.launch.py
+本 launch 明确用于仿真，不连接真实机械臂。规划使用 OMPL 最短路径（默认 RRTstar）。
+
+用法:
+  ros2 launch graspnet_ros2 graspnet_demo.launch.py
+  # 同时启动 MoveIt C++ 教程节点（规划演示 + RViz 可视化）:
+  ros2 launch graspnet_ros2 graspnet_demo.launch.py use_moveit_cpp_tutorial:=true
 """
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, OpaqueFunction, TimerAction
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, OpaqueFunction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 from ament_index_python.packages import get_package_share_directory as get_ament_package_share
 from moveit_configs_utils import MoveItConfigsBuilder
@@ -70,96 +75,72 @@ def load_hand_eye_static_tf_args(yaml_path):
 
 
 def launch_setup_robot_and_tf(context):
-    """使用 aubo2_moveit_config 配置与模型（与 demo.launch.py 一致），ros2_control 仿真 + MoveIt2 + 末端->camera 静态 TF。"""
-    moveit_pkg = 'aubo2_moveit_config'
-    hand_eye_yaml = LaunchConfiguration('hand_eye_yaml_path').perform(context)
-    ee_frame_id = LaunchConfiguration('ee_frame_id').perform(context)
-
-    nodes = []
+    """MoveIt 与仿真部分完全参考 moveit2_tutorials doc/examples/moveit_cpp/launch/moveit_cpp_tutorial.launch.py。"""
+    moveit_pkg = "aubo2_moveit_config"
+    hand_eye_yaml = LaunchConfiguration("hand_eye_yaml_path").perform(context)
+    ee_frame_id = LaunchConfiguration("ee_frame_id").perform(context)
     pkg_share = get_ament_package_share(moveit_pkg)
 
-    # MoveIt configuration：与 demo.launch.py 一致，仅用 Builder 默认加载，不显式加载 pilz（避免 pilz_planning.yaml 缺失）
-    moveit_config = MoveItConfigsBuilder('aubo_robot', package_name=moveit_pkg).to_moveit_configs()
-    robot_description = moveit_config.robot_description
+    # MoveIt configuration：与官方一致，robot_description_semantic/kinematics/joint_limits + trajectory_execution + moveit_cpp（规划从 moveit_cpp 的 ompl_planning.yaml 读）；planning_pipelines 为 move_group/move_to_pose/movel 所需
+    moveit_config = (
+        MoveItConfigsBuilder("aubo_robot", package_name=moveit_pkg)
+        .robot_description_semantic(file_path="config/aubo_robot.srdf")
+        .robot_description_kinematics(file_path="config/kinematics.yaml")
+        .joint_limits(file_path="config/joint_limits.yaml")
+        .trajectory_execution(file_path="config/moveit_controllers.yaml")
+        .planning_pipelines(default_planning_pipeline="ompl", pipelines=["ompl"], load_all=False)
+        .moveit_cpp(file_path="config/ompl_planning.yaml")
+        .to_moveit_configs()
+    )
+    # robot_description 与官方一致：用 xacro 生成（aubo_description）
+    robot_description_content = Command(
+        [
+            PathJoinSubstitution([FindExecutable(name="xacro")]),
+            " ",
+            PathJoinSubstitution([
+                FindPackageShare("aubo_description"),
+                "urdf/robots/",
+                "aubo_robot.urdf.xacro",
+            ]),
+        ]
+    )
+    # 用 ParameterValue(value_type=str) 避免 launch 将 robot_description 当 YAML 解析
+    robot_description = {"robot_description": ParameterValue(robot_description_content, value_type=str)}
 
-    # Static TF: 末端 -> camera_frame（手眼标定）
+    # ----- 节点顺序与参数完全对照官方 -----
+    # Static TF（官方：world->panda_link0；此处保留 末端->camera_frame 手眼标定）
     tf_args = load_hand_eye_static_tf_args(hand_eye_yaml)
     x, y, z = (tf_args[0], tf_args[1], tf_args[2]) if tf_args else (0, 0, 0)
     yaw, pitch, roll = (tf_args[3], tf_args[4], tf_args[5]) if tf_args else (0, 0, 0)
     static_tf = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='static_transform_publisher',
-        arguments=['--x', str(x), '--y', str(y), '--z', str(z), '--yaw', str(yaw), '--pitch', str(pitch), '--roll', str(roll), '--frame-id', ee_frame_id, '--child-frame-id', 'camera_frame'],
-        output='log',
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name="static_transform_publisher",
+        output="log",
+        arguments=["--x", str(x), "--y", str(y), "--z", str(z), "--yaw", str(yaw), "--pitch", str(pitch), "--roll", str(roll), "--frame-id", ee_frame_id, "--child-frame-id", "camera_frame"],
     )
-    nodes.append(static_tf)
 
-    # robot_state_publisher
+    # Publish TF（官方：parameters=[moveit_config.robot_description]）
     robot_state_publisher = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        name='robot_state_publisher',
-        output='both',
+        package="robot_state_publisher",
+        executable="robot_state_publisher",
+        name="robot_state_publisher",
+        output="both",
         parameters=[robot_description],
     )
-    nodes.append(robot_state_publisher)
 
-    # move_group（aubo2 使用 to_dict() + robot_description，与 demo 一致）
-    run_move_group_node = Node(
-        package='moveit_ros_move_group',
-        executable='move_group',
-        output='screen',
-        parameters=[moveit_config.to_dict(), robot_description],
-    )
-    nodes.append(run_move_group_node)
-
-    nodes.append(TimerAction(
-        period=10.0,
-        actions=[
-            Node(
-                package='demo_driver',
-                executable='move_to_pose_server_node',
-                name='move_to_pose_server_node',
-                output='screen',
-                parameters=[
-                    robot_description,
-                    moveit_config.robot_description_semantic,
-                    moveit_config.robot_description_kinematics,
-                    moveit_config.planning_pipelines,
-                    moveit_config.joint_limits,
-                ],
-            )
-        ],
-    ))
-
-    # ros2_control 仿真（aubo2：manipulator_controller + joint_state_broadcaster）
-    ros2_controllers_path = os.path.join(str(pkg_share), 'config', 'ros2_controllers.yaml')
-    nodes.append(Node(
-        package='controller_manager',
-        executable='ros2_control_node',
-        parameters=[robot_description, ros2_controllers_path],
-        remappings=[('/controller_manager/robot_description', '/robot_description')],
-        output='both',
-    ))
-    nodes.append(TimerAction(period=2.0, actions=[
-        Node(package='controller_manager', executable='spawner', arguments=['joint_state_broadcaster', '--controller-manager', '/controller_manager']),
-    ]))
-    nodes.append(TimerAction(period=3.0, actions=[
-        Node(package='controller_manager', executable='spawner', arguments=['manipulator_controller', '-c', '/controller_manager']),
-    ]))
-
-    # RViz（aubo2：默认 moveit.rviz 在 aubo2_moveit_config/config/；也支持传绝对路径）
-    use_rviz = LaunchConfiguration('use_rviz').perform(context) == 'true'
-    rviz_config_file = LaunchConfiguration('rviz_config').perform(context)
-    rviz_config_path = rviz_config_file if os.path.isabs(rviz_config_file) else os.path.join(str(pkg_share), 'config', rviz_config_file)
+    # RViz（官方：parameters=[moveit_config.robot_description, moveit_config.robot_description_semantic]）
+    use_rviz = LaunchConfiguration("use_rviz").perform(context) == "true"
+    rviz_config_file = LaunchConfiguration("rviz_config").perform(context)
+    rviz_config_path = rviz_config_file if os.path.isabs(rviz_config_file) else os.path.join(str(pkg_share), "config", rviz_config_file)
+    rviz_node = None
     if use_rviz and os.path.exists(rviz_config_path):
         rviz_node = Node(
-            package='rviz2',
-            executable='rviz2',
-            name='rviz2',
-            output='log',
-            arguments=['-d', rviz_config_path],
+            package="rviz2",
+            executable="rviz2",
+            name="rviz2",
+            output="log",
+            arguments=["-d", rviz_config_path],
             parameters=[
                 robot_description,
                 moveit_config.robot_description_semantic,
@@ -168,8 +149,80 @@ def launch_setup_robot_and_tf(context):
                 moveit_config.joint_limits,
             ],
         )
-        nodes.append(TimerAction(period=8.0, actions=[rviz_node]))
 
+    # move_group（官方无；graspnet 需要）parameters 与官方风格一致
+    run_move_group_node = Node(
+        package="moveit_ros_move_group",
+        executable="move_group",
+        output="screen",
+        parameters=[moveit_config.to_dict(), robot_description],
+    )
+
+    move_to_pose_node = Node(
+        package="demo_driver",
+        executable="move_to_pose_server_node",
+        name="move_to_pose_server_node",
+        output="screen",
+        parameters=[
+            robot_description,
+            moveit_config.robot_description_semantic,
+            moveit_config.robot_description_kinematics,
+            moveit_config.planning_pipelines,
+            moveit_config.joint_limits,
+        ],
+    )
+
+    movel_node = Node(
+        package="demo_driver",
+        executable="movel_server_node",
+        name="movel_server_node",
+        output="screen",
+        parameters=[moveit_config.to_dict(), robot_description],
+    )
+
+    # MoveItCpp demo executable（官方：parameters=[moveit_config.to_dict()]）
+    use_moveit_cpp_tutorial = LaunchConfiguration("use_moveit_cpp_tutorial", default="false").perform(context) == "true"
+    moveit_cpp_node = None
+    if use_moveit_cpp_tutorial:
+        moveit_cpp_node = Node(
+            name="moveit_cpp_tutorial",
+            package="demo_driver",
+            executable="moveit_cpp_tutorial_node",
+            output="screen",
+            parameters=[moveit_config.to_dict(), robot_description],
+        )
+
+    # ros2_control using FakeSystem as hardware（官方：parameters=[moveit_config.robot_description, ros2_controllers_path]）
+    ros2_controllers_path = os.path.join(str(pkg_share), "config", "ros2_controllers.yaml")
+    ros2_control_node = Node(
+        package="controller_manager",
+        executable="ros2_control_node",
+        parameters=[robot_description, ros2_controllers_path],
+        remappings=[("/controller_manager/robot_description", "/robot_description")],
+        output="both",
+    )
+
+    # Load controllers（官方：ExecuteProcess shell 调用 spawner）
+    load_controllers = []
+    for i, controller in enumerate(["joint_state_broadcaster", "manipulator_controller"]):
+        args = [controller, "--controller-manager", "/controller_manager"] if i == 0 else [controller, "-c", "/controller_manager"]
+        load_controllers.append(
+            ExecuteProcess(
+                cmd=["ros2 run controller_manager spawner " + " ".join(args)],
+                shell=True,
+                output="screen",
+            )
+        )
+
+    # 组装顺序与官方一致：static_tf, robot_state_publisher, rviz, moveit_cpp, ros2_control, load_controllers（官方无 move_group/move_to_pose/movel）
+    nodes = [static_tf, robot_state_publisher]
+    if rviz_node is not None:
+        nodes.append(rviz_node)
+    nodes.extend([run_move_group_node, move_to_pose_node, movel_node])
+    if moveit_cpp_node is not None:
+        nodes.append(moveit_cpp_node)
+    nodes.append(ros2_control_node)
+    nodes.extend(load_controllers)
     return nodes
 
 
@@ -494,6 +547,13 @@ def generate_launch_description():
             'trigger_grasp_service',
             default_value='trigger_grasp',
             description='触发抓取服务名',
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            'use_moveit_cpp_tutorial',
+            default_value='false',
+            description='是否启动 MoveIt C++ 教程节点（需在 launch 内启动并传入 robot_description 等参数，因 ROS2 参数按节点隔离）',
         )
     )
     

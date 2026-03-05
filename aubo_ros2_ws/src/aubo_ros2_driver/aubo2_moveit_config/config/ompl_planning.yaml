@@ -1,0 +1,72 @@
+# OMPL + MoveItCpp 配置（aubo2_moveit_config）
+# 完全参考 moveit2_tutorials doc/examples/moveit_cpp/config/moveit_cpp.yaml 结构：
+# planning_pipelines、planning_scene_monitor_options、plan_request_params、ompl（planning_plugin/request_adapters/planner_configs/manipulator）
+planning_pipelines:
+  pipeline_names: ["ompl"]
+
+planning_scene_monitor_options:
+  name: "planning_scene_monitor"
+  robot_description: "robot_description"
+  joint_state_topic: "/joint_states"
+  attached_collision_object_topic: "/moveit_cpp/planning_scene_monitor"
+  publish_planning_scene_topic: "/moveit_cpp/publish_planning_scene"
+  monitored_planning_scene_topic: "/moveit_cpp/monitored_planning_scene"
+  wait_for_initial_state_timeout: 10.0
+
+plan_request_params:
+  planning_attempts: 5
+  planning_pipeline: ompl
+  max_velocity_scaling_factor: 1.0
+  max_acceleration_scaling_factor: 1.0
+
+planning_plugin: ompl_interface/OMPLPlanner
+request_adapters: >-
+  default_planner_request_adapters/AddTimeOptimalParameterization
+  default_planner_request_adapters/ResolveConstraintFrames
+  default_planner_request_adapters/FixWorkspaceBounds
+  default_planner_request_adapters/FixStartStateBounds
+  default_planner_request_adapters/FixStartStateCollision
+  default_planner_request_adapters/FixStartStatePathConstraints
+
+planner_configs:
+  RRTConnect:
+    type: geometric::RRTConnect
+    range: 0.0
+  RRTstar:
+    type: geometric::RRTstar
+    range: 0.0
+    goal_bias: 0.05
+    delay_collision_checking: 1
+  RRT:
+    type: geometric::RRT
+    range: 0.0
+    goal_bias: 0.05
+  PRM:
+    type: geometric::PRM
+    max_nearest_neighbors: 10
+  PRMstar:
+    type: geometric::PRMstar
+  EST:
+    type: geometric::EST
+    range: 0.0
+    goal_bias: 0.05
+  KPIECE:
+    type: geometric::KPIECE
+    range: 0.0
+    goal_bias: 0.05
+    border_fraction: 0.9
+    failed_expansion_score_factor: 0.5
+    min_valid_path_fraction: 0.5
+manipulator:
+  # 最短路径：RRTstar 渐近最优，规划时间较 RRTConnect 更长
+  default_planner_config: RRTConnect
+  planner_configs:
+    - RRTstar
+    - RRTConnect
+    - RRT
+    - PRM
+    - PRMstar
+    - EST
+    - KPIECE
+  projection_evaluator: joints(shoulder_joint,upperArm_joint)
+  longest_valid_segment_fraction: 0.005

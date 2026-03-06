@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ws_moveit/install_isolated
+
+Name: realtime_tools
+Description: Description of realtime_tools
+Version: 1.16.1
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib -lrealtime_tools
+Requires: roscpp

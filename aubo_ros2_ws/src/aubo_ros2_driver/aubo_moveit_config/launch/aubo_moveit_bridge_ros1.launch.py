@@ -55,20 +55,14 @@ def launch_setup(context, *args, **kwargs):
     )
     robot_description = {"robot_description": robot_description_content}
 
-    robot_description_semantic_content = Command(
-        [
-            PathJoinSubstitution([FindExecutable(name="xacro")]),
-            " ",
-            PathJoinSubstitution(
-                [FindPackageShare(moveit_config_package), "config", moveit_config_file]
-            ),
-        ]
+    # SRDF: load by reading file (xacro fails in ROS2 due to $(find ...) in .srdf.xacro)
+    moveit_config_file_val = context.perform_substitution(moveit_config_file)
+    moveit_config_package_val = context.perform_substitution(moveit_config_package)
+    srdf_path = os.path.join(
+        get_package_share_directory(moveit_config_package_val), "config", moveit_config_file_val
     )
-    robot_description_semantic = {
-        "robot_description_semantic": robot_description_semantic_content.perform(
-            context
-        )
-    }
+    with open(srdf_path, "r") as f:
+        robot_description_semantic = {"robot_description_semantic": f.read()}
 
     kinematics_yaml = load_yaml(
         "aubo_moveit_config", "config/kinematics.yaml"
@@ -92,6 +86,9 @@ def launch_setup(context, *args, **kwargs):
             "request_adapters": """default_planner_request_adapters/AddTimeOptimalParameterization default_planner_request_adapters/ResolveConstraintFrames default_planner_request_adapters/FixWorkspaceBounds default_planner_request_adapters/FixStartStateBounds default_planner_request_adapters/FixStartStateCollision default_planner_request_adapters/FixStartStatePathConstraints""",
             "start_state_max_bounds_error": 0.1,
             "sample_duration": 0.005,
+            # 增大规划时间和尝试次数，避免复杂场景下 Planning request aborted（-2）
+            "planning_time": 15.0,
+            "max_planning_attempts": 10,
         }
     }
     ompl_planning_yaml = load_yaml(
@@ -118,11 +115,11 @@ def launch_setup(context, *args, **kwargs):
     trajectory_execution = {
         # MoveIt does not handle controller switching automatically
         "moveit_manage_controllers": False,
-        # 增加超时缩放因子以提供足够的执行时间余量
-        # 设置为 3.0 以提供足够的余量
-        "trajectory_execution.allowed_execution_duration_scaling": 3.0,
-        "trajectory_execution.allowed_goal_duration_margin": 1.0,
-        "trajectory_execution.allowed_start_tolerance": 0.01,
+        # 允许时间 = 轨迹时长×scaling + margin；过大会延长异常暴露（无动作时等很久才 cancel），过小易误超时
+        "trajectory_execution.allowed_execution_duration_scaling": 8.0,
+        "trajectory_execution.allowed_goal_duration_margin": 3.0,
+        # 放宽起始容差，避免 joint_states 与轨迹起点略偏时 MoveIt 立即 abort（0.2 rad≈11.5°，缓解 client_cancel）
+        "trajectory_execution.allowed_start_tolerance": 0.2,
     }
 
     planning_scene_monitor_parameters = {
@@ -218,22 +215,32 @@ def launch_setup(context, *args, **kwargs):
     )
     
     # Feedback bridge node: 将 aubo_msgs/msg/JointTrajectoryFeedback 转换为 
-    # control_msgs/action/FollowJointTrajectory_Feedback
-    # 同时桥接 joint_states 消息（从 ROS1 转发到 ROS2）
+    # control_msgs/action/FollowJointTrajectory_Feedback（仅在使用 ROS1 driver 时需要）
+    # 使用 aubo_driver_ros2 全 ROS2 时不需要 feedback_bridge
     feedback_bridge_node = Node(
         package="feedback_bridge",
         executable="feedback_bridge_node",
         name="feedback_bridge",
         output="screen",
         parameters=[{
-            # Feedback 消息桥接参数
-            "feedback_input_topic": "feedback_states",  # 从 ROS 1 桥接过来的话题
-            "feedback_output_topic": "aubo/feedback_states",  # 发布给 ROS 2 节点的话题（与 aubo_ros2_trajectory_action 订阅的话题一致）
-            # Joint States 消息桥接参数
-            # ROS1 侧已将 joint_states 改名为 joint_states_ros1（通过 ros1_bridge 桥接到 ROS2）
-            "joint_states_input_topic": "joint_states_ros1",  # 从 ROS 1 桥接过来的 joint_states 话题
-            "joint_states_output_topic": "joint_states",  # 发布给 ROS 2 节点的 joint_states 话题
-            "enable_joint_states_bridge": True,  # 启用 joint_states 桥接
+            "feedback_input_topic": "feedback_states",
+            "feedback_output_topic": "aubo/feedback_states",
+            "joint_states_input_topic": "joint_states_ros1",
+            "joint_states_output_topic": "joint_states",
+            "enable_joint_states_bridge": True,
+        }],
+    )
+
+    # aubo_driver_ros2: 全 ROS2 驱动，直接发布 joint_states、aubo/feedback_states，无需 feedback_bridge
+    use_aubo_driver_ros2 = context.perform_substitution(LaunchConfiguration("use_aubo_driver_ros2")).lower() == "true"
+    aubo_driver_ros2_node = Node(
+        package="aubo_driver_ros2",
+        executable="aubo_driver_ros2",
+        name="aubo_driver",
+        output="screen",
+        parameters=[{
+            "server_host": LaunchConfiguration("aubo_driver_server_host"),
+            "external_axis_number": 0,
         }],
     )
     
@@ -255,23 +262,27 @@ def launch_setup(context, *args, **kwargs):
             }
         ],
     )
-    
-    # MoveIt2 TCP位姿发布器: 基于TF树发布准确的末端执行器位姿
-    # moveit2_tcp_pose_publisher_node = Node(
-    #     package="demo_driver",
-    #     executable="moveit2_tcp_pose_publisher.py",
-    #     name="moveit2_tcp_pose_publisher",
-    #     output="screen",
-    #     parameters=[{
-    #         "base_frame": "base_link",
-    #         "end_effector_link": "tool_center_point",  # 使用SRDF中定义的TCP
-    #         "publish_rate_hz": 20.0,
-    #     }],
-    # )
-    
+    # ROS2 轨迹插值节点（替代 ROS1 aubo_robot_simulator）：订阅 joint_path_command，插值后发布 moveItController_cmd，由 ros1_bridge 桥接到 ROS1 aubo_driver
+    joint_names_list = joint_names_yaml.get("joint_name", {}).get("controller_joint_names", [
+        "shoulder_joint", "upperArm_joint", "foreArm_joint", "wrist1_joint", "wrist2_joint", "wrist3_joint"
+    ])
+    aubo_robot_simulator_ros2_node = Node(
+        package="aubo_robot_simulator_ros2",
+        executable="aubo_robot_simulator_node",
+        name="aubo_robot_simulator",
+        output="screen",
+        parameters=[{
+            "motion_update_rate": 200.0,
+            "minimum_buffer_size": 2000,
+            "joint_names": joint_names_list,
+            "velocity_scale_factor": 1.0,
+            "cartesian_resample_threshold": 0.095,
+            "cartesian_min_segment_interval": 0.09,
+        }],
+    )
     # 注意：在桥接 ROS 1 的场景中，不需要启动 ROS 2 Control 的 joint_trajectory_controller
     # 因为 aubo_ros2_trajectory_action 会监听 /joint_trajectory_controller/follow_joint_trajectory
-    # 并将轨迹发布到 /moveItController_cmd，由 ROS 1 端的 aubo_driver 执行
+    # 并将轨迹发布到 joint_path_command；aubo_robot_simulator_ros2 插值后发布 moveItController_cmd，由 ROS 1 端 aubo_driver 执行
     # 如果同时启动 joint_trajectory_controller，会导致 action server 冲突
     # trajectory_controller_spawner = TimerAction(
     #     period=3.0,
@@ -284,17 +295,15 @@ def launch_setup(context, *args, **kwargs):
     #     ]
     # )
     
-    nodes_to_start = [
-        # 注意：虽然不使用 ROS 2 Control 的 joint_trajectory_controller，
-        # 但 MoveIt 可能仍需要 controller_manager 来管理控制器状态
-        # 如果 MoveIt 报错找不到 controller_manager，可以取消下面的注释
-        # controller_manager_node,
-        # trajectory_controller_spawner,  # 不需要启动 joint_trajectory_controller
-        aubo_trajectory_action_node,  # 这个节点会监听 /joint_trajectory_controller/follow_joint_trajectory
-        feedback_bridge_node,
-        move_to_pose_server_node,  # 高级位姿控制服务
-        # moveit2_tcp_pose_publisher_node,  # MoveIt2 TCP位姿发布器（用于手眼标定）
-    ]
+    # 移植前/后对比：simulator_in_ros2=false 时不启动 aubo_robot_simulator_ros2，轨迹经 bridge 到 ROS1 插值
+    simulator_in_ros2 = context.perform_substitution(LaunchConfiguration("simulator_in_ros2")).lower() == "true"
+    nodes_to_start = [aubo_trajectory_action_node, move_to_pose_server_node]
+    if use_aubo_driver_ros2:
+        nodes_to_start.insert(0, aubo_driver_ros2_node)
+    else:
+        nodes_to_start.insert(1, feedback_bridge_node)
+    if simulator_in_ros2:
+        nodes_to_start.insert(1, aubo_robot_simulator_ros2_node)
     
     # 添加其他必需的节点
     nodes_to_start.extend([
@@ -342,7 +351,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "moveit_config_file",
-            description="Name of the SRDF file",
+            description="Name of the SRDF file (plain .srdf, loaded directly)",
             default_value="aubo_i5.srdf",
             choices=["aubo_i5.srdf"],
         )
@@ -366,6 +375,27 @@ def generate_launch_description():
             "use_ros2_control",
             default_value="true",
             description="Whether to use ros2_control (requires ros-foxy-controller-manager package)",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "simulator_in_ros2",
+            default_value="true",
+            description="If true, run trajectory interpolator in ROS2 (aubo_robot_simulator_ros2). If false, use ROS1 simulator (for before-migration comparison).",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_aubo_driver_ros2",
+            default_value="false",
+            description="If true, run aubo_driver_ros2 (full ROS2 driver) and do not start feedback_bridge. If false, use ROS1 aubo_driver + feedback_bridge.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "aubo_driver_server_host",
+            default_value="169.254.10.98",
+            description="Robot controller IP for aubo_driver_ros2 when use_aubo_driver_ros2=true.",
         )
     )
 

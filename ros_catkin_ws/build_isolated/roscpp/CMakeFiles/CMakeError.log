@@ -1,0 +1,26 @@
+Determining if the function trunc exists failed with the following output:
+Change Dir: /home/mu/IVG/ros_catkin_ws/build_isolated/roscpp/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_298f2/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_298f2.dir/build.make CMakeFiles/cmTC_298f2.dir/build
+gmake[1]: 进入目录“/home/mu/IVG/ros_catkin_ws/build_isolated/roscpp/CMakeFiles/CMakeTmp”
+Building C object CMakeFiles/cmTC_298f2.dir/CheckFunctionExists.c.o
+/usr/bin/cc   -DCHECK_FUNCTION_EXISTS=trunc -o CMakeFiles/cmTC_298f2.dir/CheckFunctionExists.c.o -c /usr/share/cmake-3.22/Modules/CheckFunctionExists.c
+<command-line>: warning: conflicting types for built-in function ‘trunc’; expected ‘double(double)’ [-Wbuiltin-declaration-mismatch]
+/usr/share/cmake-3.22/Modules/CheckFunctionExists.c:7:3: note: in expansion of macro ‘CHECK_FUNCTION_EXISTS’
+    7 |   CHECK_FUNCTION_EXISTS(void);
+      |   ^~~~~~~~~~~~~~~~~~~~~
+/usr/share/cmake-3.22/Modules/CheckFunctionExists.c:1:1: note: ‘trunc’ is declared in header ‘<math.h>’
+  +++ |+#include <math.h>
+    1 | #ifdef CHECK_FUNCTION_EXISTS
+Linking C executable cmTC_298f2
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_298f2.dir/link.txt --verbose=1
+/usr/bin/cc  -DCHECK_FUNCTION_EXISTS=trunc -rdynamic CMakeFiles/cmTC_298f2.dir/CheckFunctionExists.c.o -o cmTC_298f2 
+/usr/bin/ld: CMakeFiles/cmTC_298f2.dir/CheckFunctionExists.c.o: in function `main':
+CheckFunctionExists.c:(.text+0x14): undefined reference to `trunc'
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [CMakeFiles/cmTC_298f2.dir/build.make:99：cmTC_298f2] 错误 1
+gmake[1]: 离开目录“/home/mu/IVG/ros_catkin_ws/build_isolated/roscpp/CMakeFiles/CMakeTmp”
+gmake: *** [Makefile:127：cmTC_298f2/fast] 错误 2
+
+
+

@@ -20,7 +20,7 @@ setup(
         (os.path.join('share', package_name, 'config/calibrationdata'), glob('config/calibrationdata/*.*')),
         (os.path.join('share', package_name, 'config/calibration_results'), glob('config/calibration_results/*.*')),
     ],
-    install_requires=['setuptools'],
+    install_requires=['setuptools', 'flask', 'flask-cors'],
     zip_safe=True,
     maintainer='developer',
     maintainer_email='developer@example.com',

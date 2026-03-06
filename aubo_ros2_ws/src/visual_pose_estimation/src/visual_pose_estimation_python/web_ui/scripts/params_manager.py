@@ -1,4 +1,8 @@
-"""参数管理模块 - 统一的参数和路径配置中心"""
+"""参数管理模块 - 统一的参数和路径配置中心
+
+默认路径：web_ui/configs（本文件在 web_ui/scripts 下，ROOT_DIR=web_ui，CONFIG_DIR=web_ui/configs）。
+阈值文件默认：web_ui/configs/debug_thresholds.json。可在 __init__(config_path=...) 中配置路径。
+"""
 
 import json
 from pathlib import Path
@@ -9,21 +13,21 @@ class ParamsManager:
     """统一的参数管理器 - 唯一配置源
     
     统一管理阈值的保存和读取：
-    - 所有参数读写都通过这个类
-    - 使用内存缓存减少文件IO
-    - 自动同步到文件
+    - 默认路径：web_ui/configs/debug_thresholds.json
+    - 可在 __init__(config_path=...) 中配置路径
+    - 使用内存缓存减少文件IO，自动同步到文件
     """
     
-    # 路径配置（所有加载路径集中于此）
+    # 默认路径：web_ui/configs（本文件在 web_ui/scripts，parent.parent = web_ui）
     ROOT_DIR = Path(__file__).resolve().parent.parent
     CONFIG_DIR = ROOT_DIR / 'configs'
     PARAMS_FILE = CONFIG_DIR / 'debug_thresholds.json'
     
-    def __init__(self, config_path: str = None):
+    def __init__(self, config_path: Optional[str] = None):
         """初始化参数管理器
         
         Args:
-            config_path: 自定义配置文件路径（可选）
+            config_path: 可选，自定义阈值配置文件路径；默认使用 web_ui/configs/debug_thresholds.json
         """
         if config_path:
             self.config_path = Path(config_path)
@@ -41,27 +45,15 @@ class ParamsManager:
             'component_min_width': 60,
             'component_min_height': 60,
             'component_max_count': 3,
-            'enable_zero_interp': True
+            'enable_zero_interp': True,
+            'enable_smooth_edges': True,
+            'smooth_edges_blur_sigma': 0,
+            'use_rembg': False
         }
         
         # 内存缓存（避免频繁文件读写）
         self._cache = None
         self._cache_dirty = False  # 标记缓存是否已修改但未保存
-    
-    @staticmethod
-    def get_shared_config_path() -> Path:
-        """获取共享配置文件路径（ROS2节点使用此方法）"""
-        return ParamsManager.PARAMS_FILE
-    
-    @staticmethod
-    def get_root_dir() -> Path:
-        """获取包根目录"""
-        return ParamsManager.ROOT_DIR
-    
-    @staticmethod
-    def get_config_dir() -> Path:
-        """获取配置目录"""
-        return ParamsManager.CONFIG_DIR
     
     def load(self, force_reload: bool = False) -> Dict:
         """加载参数（统一读取接口）
@@ -206,7 +198,9 @@ class ParamsManager:
             'component_min_width': params.get('component_min_width', self.defaults['component_min_width']),
             'component_min_height': params.get('component_min_height', self.defaults['component_min_height']),
             'component_max_count': params.get('component_max_count', self.defaults['component_max_count']),
-            'enable_zero_interp': params.get('enable_zero_interp', self.defaults['enable_zero_interp'])
+            'enable_zero_interp': params.get('enable_zero_interp', self.defaults['enable_zero_interp']),
+            'enable_smooth_edges': params.get('enable_smooth_edges', self.defaults['enable_smooth_edges']),
+            'smooth_edges_blur_sigma': params.get('smooth_edges_blur_sigma', self.defaults['smooth_edges_blur_sigma'])
         }
     
     def get_feature_extractor_params(self) -> Dict:

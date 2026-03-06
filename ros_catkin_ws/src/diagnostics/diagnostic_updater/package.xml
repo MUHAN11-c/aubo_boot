@@ -1,0 +1,40 @@
+<package format="2">
+  <name>diagnostic_updater</name>
+  <version>1.12.1</version>
+  <description>diagnostic_updater contains tools for easily updating diagnostics. it is commonly used in device drivers to keep track of the status of output topics, device status, etc.</description>
+  <author>Kevin Watts</author>
+  <author email="brice.rebsamen@gmail.com">Brice Rebsamen</author>
+  <maintainer email="guglielmo.gemignani@gmail.com">Guglielmo Gemignani</maintainer>
+  <maintainer email="namniart@gmail.com">Austin Hendrix</maintainer>
+
+  <license>BSD</license>
+
+  <url type="website">http://www.ros.org/wiki/diagnostic_updater</url>
+<!-- <url type="bugtracker"></url> -->
+
+  <author>Jeremy Leibs</author>
+  <author>Blaise Gassend</author>
+
+  <buildtool_depend version_gte="0.5.68">catkin</buildtool_depend>
+
+  <build_depend>diagnostic_msgs</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>rostest</build_depend>
+  <build_depend>std_msgs</build_depend>
+
+  <exec_depend>diagnostic_msgs</exec_depend>
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  
+  <doc_depend>rosdoc_lite</doc_depend>
+  <doc_depend>python3-catkin-sphinx</doc_depend>
+
+  <!-- <test_depend>roscpp</test_depend> -->
+  <!-- <test_depend>diagnostic_msgs</test_depend> -->
+  <!-- <test_depend>std_msgs</test_depend> -->
+
+  <export>
+    <rosdoc config="rosdoc.yaml"/>
+    <architecture_independent/>
+  </export>
+</package>

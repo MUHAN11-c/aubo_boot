@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>aubo_driver_ros2</name>
+  <version>1.0.0</version>
+  <description>ROS2 driver for Aubo robot controller (ported from ROS1 aubo_driver). Publishes joint_states, aubo/feedback_states; no industrial_msgs.</description>
+  <maintainer email="user@example.com">IVG</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>trajectory_msgs</depend>
+  <depend>control_msgs</depend>
+  <depend>aubo_msgs</depend>
+  <depend>demo_interface</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

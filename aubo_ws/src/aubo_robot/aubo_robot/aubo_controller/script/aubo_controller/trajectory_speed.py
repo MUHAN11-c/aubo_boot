@@ -80,6 +80,28 @@ def scale_trajectory_speed(traj, scale):
     # Return the new trajecotry
     return new_traj
 
+
+def resample_trajectory_min_interval(traj, min_interval_sec):
+    """
+    按最小点间隔抽稀轨迹，减少 segment 边界密度（缓解笛卡尔路径持续异响）。
+    关节空间通常点间隔已 >= min_interval，几乎不受影响；笛卡尔点密则会被抽稀。
+    min_interval_sec <= 0 时不抽稀。
+    """
+    if min_interval_sec <= 0 or len(traj.points) < 3:
+        return traj
+    kept = [traj.points[0]]
+    last_t = traj.points[0].time_from_start.to_sec()
+    for i in range(1, len(traj.points) - 1):
+        t = traj.points[i].time_from_start.to_sec()
+        if t - last_t >= min_interval_sec:
+            kept.append(traj.points[i])
+            last_t = t
+    kept.append(traj.points[-1])
+    out = JointTrajectory()
+    out.joint_names = list(traj.joint_names)
+    out.points = kept
+    return out
+
 def set_trajectory_speed(traj, speed):
     # Create a new trajectory object
     new_traj = RobotTrajectory()

@@ -1,0 +1,32 @@
+Determining if the include file pthread.h exists failed with the following output:
+Change Dir: /home/mu/IVG/aubo_ws/build_isolated/aubo_driver/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_5b4af/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_5b4af.dir/build.make CMakeFiles/cmTC_5b4af.dir/build
+gmake[1]: 进入目录“/home/mu/IVG/aubo_ws/build_isolated/aubo_driver/CMakeFiles/CMakeTmp”
+Building C object CMakeFiles/cmTC_5b4af.dir/CheckIncludeFile.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_5b4af.dir/CheckIncludeFile.c.o -c /home/mu/IVG/aubo_ws/build_isolated/aubo_driver/CMakeFiles/CMakeTmp/CheckIncludeFile.c
+Linking C executable cmTC_5b4af
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_5b4af.dir/link.txt --verbose=1
+Error opening link script "CMakeFiles/cmTC_5b4af.dir/link.txt"
+gmake[1]: *** [CMakeFiles/cmTC_5b4af.dir/build.make:99：cmTC_5b4af] 错误 1
+gmake[1]: 离开目录“/home/mu/IVG/aubo_ws/build_isolated/aubo_driver/CMakeFiles/CMakeTmp”
+gmake: *** [Makefile:127：cmTC_5b4af/fast] 错误 2
+
+
+
+Performing C++ SOURCE FILE Test COMPILER_SUPPORTS_CXX11 failed with the following output:
+Change Dir: /home/mu/IVG/aubo_ws/build_isolated/aubo_driver/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_db188/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_db188.dir/build.make CMakeFiles/cmTC_db188.dir/build
+gmake[1]: Entering directory '/home/mu/IVG/aubo_ws/build_isolated/aubo_driver/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_db188.dir/src.cxx.o
+/usr/bin/c++ -DCOMPILER_SUPPORTS_CXX11  -std=c++11 -o CMakeFiles/cmTC_db188.dir/src.cxx.o -c /home/mu/IVG/aubo_ws/build_isolated/aubo_driver/CMakeFiles/CMakeTmp/src.cxx
+cc1plus: fatal error: /home/mu/IVG/aubo_ws/build_isolated/aubo_driver/CMakeFiles/CMakeTmp/src.cxx: No such file or directory
+compilation terminated.
+gmake[1]: *** [CMakeFiles/cmTC_db188.dir/build.make:78: CMakeFiles/cmTC_db188.dir/src.cxx.o] Error 1
+gmake[1]: Leaving directory '/home/mu/IVG/aubo_ws/build_isolated/aubo_driver/CMakeFiles/CMakeTmp'
+gmake: *** [Makefile:127: cmTC_db188/fast] Error 2
+
+
+Source file was:
+int main() { return 0; }

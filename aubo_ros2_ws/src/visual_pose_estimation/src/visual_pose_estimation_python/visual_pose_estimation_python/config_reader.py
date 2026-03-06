@@ -4,10 +4,10 @@
 
 功能：
 1. 提供所有配置参数的默认值
-2. 加载Debug阈值参数（从debug_thresholds.json）
+2. 加载Debug阈值参数（从 debug_thresholds.json）
 
-注意：目前只有 debug_thresholds.json 这一个配置文件。
-其他参数使用本模块定义的默认值。
+默认路径：web_ui/configs/debug_thresholds.json（包内相对路径），可在代码中通过
+debug_thresholds_path 或 load_debug_thresholds(debug_thresholds_file) 配置。
 """
 
 import json
@@ -15,16 +15,30 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
 
+# 默认阈值配置文件路径：web_ui/configs/debug_thresholds.json（包根上一级为 visual_pose_estimation_python 包目录）
+_PKG_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_DEBUG_THRESHOLDS_PATH = _PKG_ROOT / "web_ui" / "configs" / "debug_thresholds.json"
+FALLBACK_DEBUG_THRESHOLDS_PATH = Path(
+    "/home/mu/IVG/aubo_ros2_ws/src/visual_pose_estimation/src/visual_pose_estimation_python/web_ui/configs/debug_thresholds.json"
+)
+
 
 class ConfigReader:
     """配置读取器类
     
     负责提供所有配置参数的默认值，并加载 debug_thresholds.json 中的阈值参数。
+    默认从 web_ui/configs/debug_thresholds.json 读取，可通过 debug_thresholds_path 或
+    load_debug_thresholds(debug_thresholds_file) 配置路径。
     """
     
-    def __init__(self):
-        """初始化配置读取器"""
+    def __init__(self, debug_thresholds_path: Optional[str] = None):
+        """初始化配置读取器
+        
+        Args:
+            debug_thresholds_path: 可选，Debug 阈值配置文件路径（默认使用 web_ui/configs/debug_thresholds.json）
+        """
         self.logger = logging.getLogger(__name__)
+        self._debug_thresholds_path = Path(debug_thresholds_path) if debug_thresholds_path else None
         self._initialize_default_config()
     
     def _initialize_default_config(self):
@@ -62,10 +76,10 @@ class ConfigReader:
                 'brute_force_angle_matching_scale': 0.8  # 角度匹配时缩小尺寸的比例 (0.0-1.0)
             },
             
-            # 其他参数
+            # 其他参数（template_root/calib_file 通常由 launch/ROS 参数传入；未指定时从 web_ui/configs 或标准路径查找）
             'debug': False,  # 调试模式开关
-            'template_root': '/home/mu/IVG/aubo_ros2_ws/src/visual_pose_estimation/templates',  # 模板根目录路径
-            'calib_file': '/home/mu/IVG/aubo_ros2_ws/src/hand_eye_calibration/config/calibration_results/hand_eye_calibration_20260112_155451.yaml'  # 手眼标定文件路径
+            'template_root': '',  # 模板根目录，空则节点内用包相对路径或 launch 默认值
+            'calib_file': ''  # 手眼标定文件，空则从 web_ui/configs 或 hand_eye_calibration 标准路径查找
         }
     
     def get(self, key: str, default: Any = None) -> Any:
@@ -100,23 +114,6 @@ class ConfigReader:
         """
         return self.config.get(section, {}).copy()
     
-    def set(self, key: str, value: Any):
-        """设置配置值
-        
-        支持嵌套键，如 'preprocessor.scale_factor'
-        
-        Args:
-            key: 配置键
-            value: 配置值
-        """
-        keys = key.split('.')
-        target = self.config
-        for k in keys[:-1]:
-            if k not in target:
-                target[k] = {}
-            target = target[k]
-        target[keys[-1]] = value
-    
     def load_debug_thresholds(self, debug_thresholds_file: Optional[str] = None) -> Dict[str, Any]:
         """加载Debug阈值参数（从debug_thresholds.json）
         
@@ -145,14 +142,19 @@ class ConfigReader:
             'component_min_width': 32,
             'component_min_height': 47,
             'component_max_count': 1,
-            'enable_zero_interp': True
+            'enable_zero_interp': True,
+            'enable_smooth_edges': True,
+            'smooth_edges_blur_sigma': 0,
+            'use_rembg': False
         }
         
-        # 确定要加载的文件路径（显式指定 > 默认路径）
+        # 确定要加载的文件路径：显式参数 > 实例配置 > 默认路径(web_ui/configs) > 备用绝对路径
         if debug_thresholds_file:
             config_path = Path(debug_thresholds_file)
+        elif self._debug_thresholds_path is not None:
+            config_path = self._debug_thresholds_path
         else:
-            config_path = Path('/home/mu/IVG/aubo_ros2_ws/src/visual_pose_estimation/src/visual_pose_estimation_python/web_ui/configs/debug_thresholds.json')
+            config_path = DEFAULT_DEBUG_THRESHOLDS_PATH if DEFAULT_DEBUG_THRESHOLDS_PATH.exists() else FALLBACK_DEBUG_THRESHOLDS_PATH
         
         # 加载配置文件
         if config_path and config_path.exists():

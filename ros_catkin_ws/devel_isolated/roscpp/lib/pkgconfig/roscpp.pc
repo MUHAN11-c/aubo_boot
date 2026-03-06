@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ros_catkin_ws/devel_isolated/roscpp
+
+Name: roscpp
+Description: Description of roscpp
+Version: 1.17.4
+Cflags: -I/home/mu/IVG/ros_catkin_ws/devel_isolated/roscpp/include -I/home/mu/IVG/ros_catkin_ws/src/ros_comm/roscpp/include -I/home/mu/IVG/ros_catkin_ws/devel_isolated/roscpp/include/ros -I/usr/include
+Libs: -L${prefix}/lib -lroscpp /usr/lib/x86_64-linux-gnu/libboost_chrono.so.1.74.0 /usr/lib/x86_64-linux-gnu/libboost_filesystem.so.1.74.0 /usr/lib/x86_64-linux-gnu/libboost_system.so.1.74.0
+Requires: cpp_common message_runtime rosconsole roscpp_serialization roscpp_traits rosgraph_msgs rostime std_msgs xmlrpcpp

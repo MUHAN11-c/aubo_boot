@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ros_catkin_ws/install_isolated
+
+Name: interactive_markers
+Description: Description of interactive_markers
+Version: 1.12.2
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib -linteractive_markers
+Requires: roscpp rosconsole rospy tf2_ros std_msgs visualization_msgs

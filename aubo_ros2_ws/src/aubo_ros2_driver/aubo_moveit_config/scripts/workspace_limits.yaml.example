@@ -1,0 +1,91 @@
+# 工作空间边界限制配置文件
+# 单位：米（相对于 world 坐标系）
+# 
+# 使用方法：
+#   python3 limit_workspace.py --config workspace_limits.yaml
+#
+# 或者将文件重命名为 workspace_limits.yaml 后使用
+
+# X轴边界（米）
+x_min: -0.8   # X轴最小边界
+x_max: 0.8    # X轴最大边界
+
+# Y轴边界（米）
+y_min: -0.8   # Y轴最小边界
+y_max: 0.8    # Y轴最大边界
+
+# Z轴边界（米）
+z_min: 0.0    # Z轴最小边界（地面）
+z_max: 1.2    # Z轴最大边界
+
+# 边界墙厚度（米）
+wall_thickness: 0.05  # 建议值：0.05米（5厘米）
+
+# 启用/禁用边界墙（可选配置）
+# 设置为 true 启用该边界墙，false 禁用
+# 如果未指定，默认值如下：
+enabled_walls:
+  left: true      # 左墙（X轴负方向边界）
+  right: true     # 右墙（X轴正方向边界）
+  front: true     # 前墙（Y轴正方向边界）
+  back: true      # 后墙（Y轴负方向边界）
+  top: true       # 顶墙（Z轴正方向边界）
+  bottom: false   # 底墙（Z轴负方向边界，默认禁用）
+
+# ============================================
+# 配置示例
+# ============================================
+
+# 示例1：小工作空间
+# x_min: -0.5
+# x_max: 0.5
+# y_min: -0.3
+# y_max: 0.3
+# z_min: 0.1
+# z_max: 0.8
+# wall_thickness: 0.05
+
+# 示例2：大工作空间
+# x_min: -1.0
+# x_max: 1.0
+# y_min: -1.0
+# y_max: 1.0
+# z_min: 0.0
+# z_max: 1.5
+# wall_thickness: 0.05
+
+# 示例3：只启用左右两面墙（限制X轴方向）
+# enabled_walls:
+#   left: true
+#   right: true
+#   front: false
+#   back: false
+#   top: false
+#   bottom: false
+
+# 示例4：只启用前后两面墙（限制Y轴方向）
+# enabled_walls:
+#   left: false
+#   right: false
+#   front: true
+#   back: true
+#   top: false
+#   bottom: false
+
+# 示例5：只启用顶墙（限制Z轴上方）
+# enabled_walls:
+#   left: false
+#   right: false
+#   front: false
+#   back: false
+#   top: true
+#   bottom: false
+
+# 示例6：启用所有边界墙（包括底墙）
+# enabled_walls:
+#   left: true
+#   right: true
+#   front: true
+#   back: true
+#   top: true
+#   bottom: true

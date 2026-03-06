@@ -15,9 +15,10 @@ NC='\033[0m' # No Color
 
 # 不再需要日志目录，直接在 terminator 标签页中查看
 
-# 环境路径
+# 环境路径（使用绝对路径，避免 conda 等导致 ros2 未找到）
 ROS1_SETUP="/opt/ros/noetic/setup.bash"
 ROS2_SETUP="/opt/ros/foxy/setup.bash"
+ROS2_BIN="/opt/ros/foxy/bin"
 AUBO_WS="/home/mu/IVG/aubo_ws"
 AUBO_ROS2_WS="/home/mu/IVG/aubo_ros2_ws"
 ROS2_WS="/home/mu/ros2_ws"
@@ -60,64 +61,72 @@ sleep 3
 
 # 步骤2: 启动 ROS1-ROS2 桥接
 echo -e "${GREEN}[2/10] 启动 ROS1-ROS2 桥接...${NC}"
-BRIDGE_CMD="cd $ROS2_WS && source $ROS1_SETUP && source $AUBO_WS/devel/setup.bash && source $ROS2_SETUP && source $AUBO_ROS2_WS/install/setup.bash &&  source install/setup.bash && ros2 run ros1_bridge dynamic_bridge --bridge-all-topics --ros-args -r __node:=ros_bridge_test"
+BRIDGE_CMD="cd $ROS2_WS && source $ROS1_SETUP && source $AUBO_WS/devel/setup.bash && source $ROS2_SETUP && source $AUBO_ROS2_WS/install/setup.bash && source install/setup.bash && $ROS2_BIN/ros2 run ros1_bridge dynamic_bridge --bridge-all-topics --ros-args -r __node:=ros_bridge_test"
 launch_in_terminator "ROS1-ROS2 Bridge" "$BRIDGE_CMD"
 echo -e "${GREEN}  ✓ ROS1-ROS2 桥接已启动${NC}"
 sleep 3
 
 # 步骤3: 启动 ROS2 MoveIt 桥接
-echo -e "${GREEN}[3/10] 启动 ROS2 MoveIt 桥接...${NC}"
-MOVEIT_BRIDGE_CMD="cd $AUBO_ROS2_WS && source $ROS2_SETUP && colcon build && source install/setup.bash && ros2 launch aubo_moveit_config aubo_moveit_bridge_ros1.launch.py"
+echo -e "${GREEN}[3/11] 启动 ROS2 MoveIt 桥接...${NC}"
+MOVEIT_BRIDGE_CMD="cd $AUBO_ROS2_WS && source $ROS2_SETUP && colcon build && source install/setup.bash && $ROS2_BIN/ros2 launch aubo_moveit_config aubo_moveit_bridge_ros1.launch.py"
 launch_in_terminator "ROS2 MoveIt Bridge" "$MOVEIT_BRIDGE_CMD"
 echo -e "${GREEN}  ✓ ROS2 MoveIt 桥接已启动${NC}"
 sleep 3
 
-# 步骤4: 启动机器人驱动服务
-echo -e "${GREEN}[4/10] 启动机器人驱动服务...${NC}"
-DRIVER_CMD="cd $AUBO_ROS2_WS && source $ROS2_SETUP && colcon build && source install/setup.bash && ros2 launch aubo_moveit_config demo_driver_services.launch.py"
+# 步骤4: 启动 MoveIt 工作空间限制（边界墙）
+echo -e "${GREEN}[4/11] 启动 MoveIt 工作空间限制（边界墙）...${NC}"
+LIMIT_WORKSPACE_CMD="cd $AUBO_ROS2_WS && source $ROS2_SETUP && source install/setup.bash && /usr/bin/python3 src/aubo_ros2_driver/aubo_moveit_config/scripts/limit_workspace.py"
+launch_in_terminator "MoveIt Workspace Limit" "$LIMIT_WORKSPACE_CMD"
+echo -e "${GREEN}  ✓ MoveIt 工作空间限制已启动${NC}"
+sleep 3
+
+# 步骤5: 启动机器人驱动服务
+echo -e "${GREEN}[5/11] 启动机器人驱动服务...${NC}"
+DRIVER_CMD="cd $AUBO_ROS2_WS && source $ROS2_SETUP && colcon build && source install/setup.bash && $ROS2_BIN/ros2 launch aubo_moveit_config demo_driver_services.launch.py"
 launch_in_terminator "Robot Driver" "$DRIVER_CMD"
 echo -e "${GREEN}  ✓ 机器人驱动服务已启动${NC}"
 sleep 3
 
-# 步骤5: 启动相机节点
-echo -e "${GREEN}[5/10] 启动相机节点...${NC}"
-CAMERA_CMD="cd $AUBO_ROS2_WS && source $ROS2_SETUP && colcon build --packages-select percipio_camera && source install/setup.bash && ros2 launch percipio_camera percipio_camera.launch.py"
+# 步骤6: 启动相机节点
+echo -e "${GREEN}[6/11] 启动相机节点...${NC}"
+CAMERA_CMD="cd $AUBO_ROS2_WS && source $ROS2_SETUP && colcon build --packages-select percipio_camera && source install/setup.bash && $ROS2_BIN/ros2 launch percipio_camera percipio_camera.launch.py"
 launch_in_terminator "Percipio Camera" "$CAMERA_CMD"
 echo -e "${GREEN}  ✓ 相机节点已启动${NC}"
 sleep 5  # 相机需要更多时间初始化
 
-# 步骤6: 启动相机控制节点
-echo -e "${GREEN}[6/10] 启动相机控制节点...${NC}"
-CAMERA_CONTROL_CMD="cd $AUBO_ROS2_WS && source $ROS2_SETUP && colcon build --packages-select percipio_camera_interface && source install/setup.bash && ros2 launch percipio_camera_interface camera_control.launch.py"
+# 步骤7: 启动相机控制节点
+echo -e "${GREEN}[7/11] 启动相机控制节点...${NC}"
+CAMERA_CONTROL_CMD="cd $AUBO_ROS2_WS && source $ROS2_SETUP && colcon build --packages-select percipio_camera_interface && source install/setup.bash && $ROS2_BIN/ros2 launch percipio_camera_interface camera_control.launch.py"
 launch_in_terminator "Camera Control" "$CAMERA_CONTROL_CMD"
 echo -e "${GREEN}  ✓ 相机控制节点已启动${NC}"
 sleep 2
 
-# 步骤7: 启动图像数据桥接节点
-echo -e "${GREEN}[7/10] 启动图像数据桥接节点...${NC}"
-IMAGE_BRIDGE_CMD="cd $AUBO_ROS2_WS && source $ROS2_SETUP && colcon build --packages-select image_data_bridge && source install/setup.bash && ros2 launch image_data_bridge image_data_bridge.launch.py input_image_topic:=/camera/color/image_raw"
+# 步骤8: 启动图像数据桥接节点
+echo -e "${GREEN}[8/11] 启动图像数据桥接节点...${NC}"
+IMAGE_BRIDGE_CMD="cd $AUBO_ROS2_WS && source $ROS2_SETUP && colcon build --packages-select image_data_bridge && source install/setup.bash && $ROS2_BIN/ros2 launch image_data_bridge image_data_bridge.launch.py input_image_topic:=/camera/color/image_raw"
 launch_in_terminator "Image Data Bridge" "$IMAGE_BRIDGE_CMD"
 echo -e "${GREEN}  ✓ 图像数据桥接节点已启动${NC}"
 sleep 2
 
-# 步骤8: 启动手眼标定节点
-echo -e "${GREEN}[8/10] 启动手眼标定节点...${NC}"
-HAND_EYE_CMD="cd $AUBO_ROS2_WS && source $ROS2_SETUP && colcon build --packages-select hand_eye_calibration && source install/setup.bash && ros2 launch hand_eye_calibration hand_eye_calibration_launch.py"
+# 步骤9: 启动手眼标定节点
+echo -e "${GREEN}[9/11] 启动手眼标定节点...${NC}"
+HAND_EYE_CMD="cd $AUBO_ROS2_WS && source $ROS2_SETUP && colcon build --packages-select hand_eye_calibration && source install/setup.bash && $ROS2_BIN/ros2 launch hand_eye_calibration hand_eye_calibration_launch.py"
 launch_in_terminator "Hand Eye Calibration" "$HAND_EYE_CMD"
 echo -e "${GREEN}  ✓ 手眼标定节点已启动${NC}"
 sleep 2
 
-# 步骤9: 启动视觉姿态估计算法节点
-echo -e "${GREEN}[9/10] 启动视觉姿态估计算法节点...${NC}"
-VPE_CMD="cd $AUBO_ROS2_WS && source $ROS2_SETUP && colcon build --packages-select visual_pose_estimation_python && source install/setup.bash && ros2 launch visual_pose_estimation_python visual_pose_estimation_python.launch.py"
+# 步骤10: 启动视觉姿态估计算法节点（RemBG 子进程使用 conda 环境 ros2_env）
+echo -e "${GREEN}[10/11] 启动视觉姿态估计算法节点...${NC}"
+VPE_CMD="cd $AUBO_ROS2_WS && source $ROS2_SETUP && colcon build --packages-select visual_pose_estimation_python && source install/setup.bash && export PATH=\"/usr/bin:\$PATH\" && $ROS2_BIN/ros2 launch visual_pose_estimation_python visual_pose_estimation_python.launch.py"
 launch_in_terminator "Visual Pose Estimation" "$VPE_CMD"
 echo -e "${GREEN}  ✓ 视觉姿态估计算法节点已启动${NC}"
 sleep 2
 
-# 步骤10: 启动HTTP桥接服务器
-echo -e "${GREEN}[10/10] 启动HTTP桥接服务器...${NC}"
+# 步骤11: 启动HTTP桥接服务器（RemBG：当前 Python 有 rembg 则进程内使用，否则子进程回退到 conda ros2_env）
+echo -e "${GREEN}[11/11] 启动HTTP桥接服务器...${NC}"
 WEB_UI_DIR="$AUBO_ROS2_WS/src/visual_pose_estimation/src/visual_pose_estimation_python/web_ui"
-HTTP_BRIDGE_CMD="cd $WEB_UI_DIR && source $ROS2_SETUP && source $AUBO_ROS2_WS/install/setup.bash && python3 scripts/http_bridge_server.py"
+# 使用系统 Python 3.8（可导入 rclpy）；若已安装 rembg 则进程内使用，否则子进程用 conda ros2_env
+HTTP_BRIDGE_CMD="cd $WEB_UI_DIR && source $ROS2_SETUP && source $AUBO_ROS2_WS/install/setup.bash && /usr/bin/python3 scripts/http_bridge_server.py"
 launch_in_terminator "HTTP Bridge Server" "$HTTP_BRIDGE_CMD"
 echo -e "${GREEN}  ✓ HTTP桥接服务器已启动${NC}"
 sleep 2

@@ -31,18 +31,15 @@ class VisualPoseEstimationNode(Node):
         # 声明参数
         self.declare_parameter('calib_file', '')
         self.declare_parameter('template_root', '')
-        self.declare_parameter('debug', False)
         
         # 获取参数
         try:
             calib_file = self.get_parameter('calib_file').value
             template_root = self.get_parameter('template_root').value
-            debug = self.get_parameter('debug').value
         except Exception as e:
             self.get_logger().warn(f'参数获取失败，使用默认值: {e}')
             calib_file = ''
             template_root = ''
-            debug = False
         
         if not template_root:
             # 使用包内的templates目录
@@ -59,7 +56,6 @@ class VisualPoseEstimationNode(Node):
         # 保存参数
         self.calib_file = calib_file
         self.template_root = template_root
-        self.debug = debug
         
         # 延迟初始化（使用定时器确保对象已被shared_ptr管理）
         self.init_timer = self.create_timer(0.1, self._delayed_initialize)
@@ -90,8 +86,7 @@ class VisualPoseEstimationNode(Node):
             if not self.ros2_communication.initialize(
                 config_reader,
                 self.template_root,
-                self.calib_file,
-                self.debug
+                self.calib_file
             ):
                 self.get_logger().error('ROS2通信初始化失败')
                 return
@@ -105,9 +100,8 @@ class VisualPoseEstimationNode(Node):
                 else:
                     self.get_logger().warning(f'标定文件不存在: {self.calib_file}，将从标准路径查找')
             else:
-                self.get_logger().info('标定文件: 未指定，将从标准路径查找（hand_eye_calibration/config/calibration_results/）')
+                self.get_logger().info('标定文件: 未指定，将从标准路径查找（web_ui/configs/ 或 hand_eye_calibration/...）')
             self.get_logger().info(f'模板根目录: {self.template_root}')
-            self.get_logger().info(f'调试模式: {"开启" if self.debug else "关闭"}')
             
         except Exception as e:
             self.get_logger().error(f'延迟初始化失败: {e}')

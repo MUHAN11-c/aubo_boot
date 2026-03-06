@@ -37,7 +37,8 @@ planner_configs:
     goal_bias: 0.05  # When close to goal select goal, with this probability? default: 0.05
   RRTConnect:
     type: geometric::RRTConnect
-    range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
+    # range=0 由 OMPL 自动设置，成功率最高；非零(如 0.05~0.15)路径更直但可能 INVALID_MOTION_PLAN(-2)
+    range: 0.0
   RRTstar:
     type: geometric::RRTstar
     range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
@@ -128,6 +129,7 @@ planner_configs:
     dense_delta_fraction: 0.001  # delta fraction for interface detection. default: 0.001
     max_failures: 5000  # maximum consecutive failure limit. default: 5000
 manipulator:
+  # RRTConnect：比 RRT 路径更直、略短，速度接近；RRTstar 最优但太慢；AnytimePathShortening 会触发 bad lexical cast
   default_planner_config: RRTConnect
   planner_configs:
     - AnytimePathShortening

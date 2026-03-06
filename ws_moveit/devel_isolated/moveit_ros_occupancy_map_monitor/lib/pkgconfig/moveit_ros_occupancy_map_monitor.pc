@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ws_moveit/devel_isolated/moveit_ros_occupancy_map_monitor
+
+Name: moveit_ros_occupancy_map_monitor
+Description: Description of moveit_ros_occupancy_map_monitor
+Version: 1.1.16
+Cflags: -I/home/mu/IVG/ws_moveit/src/moveit/moveit_ros/occupancy_map_monitor/include -I/usr/local/include/eigen3 -I/usr/include
+Libs: -L${prefix}/lib -lmoveit_ros_occupancy_map_monitor /usr/lib/x86_64-linux-gnu/liboctomap.so /usr/lib/x86_64-linux-gnu/liboctomath.so
+Requires: moveit_core moveit_msgs geometric_shapes tf2_ros

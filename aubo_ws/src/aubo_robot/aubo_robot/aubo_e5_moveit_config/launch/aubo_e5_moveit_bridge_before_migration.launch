@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<!-- 移植前：ROS1 侧包含 aubo_robot_simulator，用于对比记录关键数据、分析移植后抖动 -->
+<launch>
+  <include file="$(find aubo_e5_moveit_config)/launch/planning_context.launch">
+    <arg name="load_robot_description" value="true"/>
+  </include>
+
+  <node name="aubo_driver" pkg="aubo_driver" type="aubo_driver" cwd="node">
+    <param name="/server_host" type="str" value="169.254.10.98"/>
+  </node>
+
+  <!-- 移植前：轨迹插值在 ROS1，joint_path_command 由 bridge 从 ROS2 桥接过来 -->
+  <group ns="aubo_controller">
+    <param name="motion_update_rate" value="200.0"/>
+    <param name="minimum_buffer_size" value="2000"/>
+    <param name="velocity_scale_factor" value="1.0"/>
+    <param name="cartesian_resample_threshold" value="0.095"/>
+    <param name="cartesian_min_segment_interval" value="0.09"/>
+  </group>
+  <node name="aubo_robot_simulator" pkg="aubo_controller" type="aubo_robot_simulator" output="screen"/>
+
+  <node name="robot_status_publisher_node" pkg="demo_driver" type="robot_status_publisher_node" output="screen"/>
+  <node name="robot_io_status_publisher_node" pkg="demo_driver" type="robot_io_status_publisher_node" output="screen"/>
+  <node name="set_robot_io_server_node" pkg="demo_driver" type="set_robot_io_server_node" output="screen"/>
+  <node name="read_robot_io_server_node" pkg="demo_driver" type="read_robot_io_server_node" output="screen"/>
+  <node name="set_robot_enable_server_node" pkg="demo_driver" type="set_robot_enable_server_node" output="screen"/>
+</launch>

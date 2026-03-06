@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ws_moveit/install_isolated
+
+Name: moveit_kinematics
+Description: Description of moveit_kinematics
+Version: 1.1.16
+Cflags: -I${prefix}/include -I/usr/local/include/eigen3
+Libs: -L${prefix}/lib 
+Requires: moveit_core pluginlib roscpp

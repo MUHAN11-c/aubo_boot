@@ -4865,6 +4865,164 @@ class HandEyeCalibrationNode(Node):
                 import traceback
                 self.get_logger().error(f'   堆栈: {traceback.format_exc()}')
                 return jsonify({'success': False, 'error': str(e)})
+
+        @self.app.route('/api/hand_eye/best_calibration_result', methods=['GET'])
+        def get_best_calibration_result():
+            """从config/calibration_results目录中选择“最佳”手眼标定结果并返回摘要，同时复制为标准化文件名"""
+            try:
+                from datetime import datetime
+                import yaml
+                import shutil
+                
+                # 获取config/calibration_results目录
+                config_dir = self._get_config_dir()
+                calibration_results_dir = os.path.join(config_dir, 'calibration_results')
+                os.makedirs(calibration_results_dir, exist_ok=True)
+                
+                candidates = []
+                if os.path.exists(calibration_results_dir):
+                    for filename in os.listdir(calibration_results_dir):
+                        if not filename.startswith('hand_eye_calibration_'):
+                            continue
+                        if not (filename.endswith('.yaml') or filename.endswith('.xml')):
+                            continue
+                        filepath = os.path.join(calibration_results_dir, filename)
+                        try:
+                            mtime = os.path.getmtime(filepath)
+                            candidates.append((mtime, filename, filepath))
+                        except OSError:
+                            continue
+                
+                if not candidates:
+                    return jsonify({
+                        'success': False,
+                        'error': '未在config/calibration_results中找到手眼标定结果文件'
+                    })
+                
+                # 遍历所有候选文件，按“平均误差”选择最优
+                best_entry = None  # (metric, mtime, filename, filepath, summary_dict)
+                for mtime, filename, filepath in candidates:
+                    try:
+                        file_format = 'yaml' if filename.endswith('.yaml') else 'xml'
+                        calibration = {}
+                        camera_intrinsic = {}
+                        mean_error_mm = None
+                        
+                        if file_format == 'yaml':
+                            with open(filepath, 'r', encoding='utf-8') as f:
+                                yaml_data = yaml.safe_load(f) or {}
+                            
+                            # 相机内参
+                            if 'camera_matrix' in yaml_data:
+                                camera_intrinsic['camera_matrix'] = yaml_data.get('camera_matrix')
+                            if 'distortion_coefficients' in yaml_data:
+                                camera_intrinsic['dist_coeffs'] = yaml_data.get('distortion_coefficients')
+                            if 'image_width' in yaml_data and 'image_height' in yaml_data:
+                                camera_intrinsic['image_size'] = [
+                                    int(yaml_data.get('image_width', 0)),
+                                    int(yaml_data.get('image_height', 0))
+                                ]
+                            
+                            he = yaml_data.get('hand_eye_calibration', {})
+                            calib_acc = he.get('calibration_accuracy', {})
+                            mean_error_mm = calib_acc.get('mean_error_mm', None)
+                            calibration = {
+                                'calibration_type': he.get('calibration_type'),
+                                'calibration_method': he.get('calibration_method'),
+                                'calibration_date': he.get('calibration_date'),
+                                'camera_height_mm': he.get('camera_height_mm'),
+                                'transformation_matrix': he.get('transformation_matrix'),
+                                'rotation_matrix': he.get('rotation_matrix'),
+                                'translation_vector': he.get('translation_vector'),
+                                'calibration_accuracy': {
+                                    'mean_error_mm': mean_error_mm,
+                                    'max_error_mm': calib_acc.get('max_error_mm'),
+                                    'min_error_mm': calib_acc.get('min_error_mm'),
+                                    'std_error_mm': calib_acc.get('std_error_mm'),
+                                    'data_point_count': calib_acc.get('data_point_count')
+                                }
+                            }
+                        else:
+                            base_result = self._load_hand_eye_calibration_xml(filepath)
+                            if not base_result.get('success', False):
+                                continue
+                            
+                            camera_intrinsic = base_result.get('camera_intrinsic', {})
+                            he = base_result.get('hand_eye_calibration', {})
+                            mean_error_mm = he.get('mean_error', None)
+                            calibration = {
+                                'calibration_type': he.get('calibration_type'),
+                                'calibration_method': he.get('calibration_method'),
+                                'calibration_date': he.get('calibration_date'),
+                                'camera_height_mm': he.get('camera_height'),
+                                'transformation_matrix': he.get('transformation_matrix'),
+                                'rotation_matrix': he.get('rotation_matrix'),
+                                'translation_vector': he.get('translation_vector'),
+                                'calibration_accuracy': {
+                                    'mean_error_mm': mean_error_mm,
+                                    'max_error_mm': he.get('max_error'),
+                                    'min_error_mm': he.get('min_error'),
+                                    'std_error_mm': he.get('std_error'),
+                                    'data_point_count': he.get('data_count')
+                                }
+                            }
+                        
+                        # 如果没有平均误差数据，则跳过该文件
+                        if mean_error_mm is None:
+                            continue
+                        
+                        summary = {
+                            'format': file_format,
+                            'filename': filename,
+                            'filepath': filepath,
+                            'camera_intrinsic': camera_intrinsic,
+                            'calibration': calibration
+                        }
+                        
+                        if best_entry is None or mean_error_mm < best_entry[0]:
+                            best_entry = (mean_error_mm, mtime, filename, filepath, summary)
+                    except Exception as parse_error:
+                        self.get_logger().warn(f'⚠️ 解析标定结果文件失败: {filepath}, 错误: {str(parse_error)}')
+                        continue
+                
+                if best_entry is None:
+                    return jsonify({
+                        'success': False,
+                        'error': '未在标定结果文件中找到有效的平均误差数据'
+                    })
+                
+                best_mean_error, best_mtime, best_filename, best_path, best_summary = best_entry
+                saved_at = datetime.fromtimestamp(best_mtime).strftime('%Y-%m-%d %H:%M:%S')
+                
+                # 将最佳标定结果复制为 config 目录下的标准化名称文件
+                best_ext = '.yaml' if best_summary['format'] == 'yaml' else '.xml'
+                best_standard_name = f'hand_eye_calibration_best{best_ext}'
+                best_standard_path = os.path.join(config_dir, best_standard_name)
+                
+                try:
+                    shutil.copyfile(best_path, best_standard_path)
+                    self.get_logger().info(f'✅ 已将最佳手眼标定结果复制为标准文件: {best_standard_path}')
+                except Exception as copy_error:
+                    self.get_logger().warn(f'⚠️ 复制最佳标定结果到标准文件失败: {str(copy_error)}')
+                    best_standard_path = None
+                
+                response_data = {
+                    'success': True,
+                    'filename': best_filename,
+                    'filepath': best_path,
+                    'format': best_summary['format'],
+                    'saved_at': saved_at,
+                    'best_mean_error_mm': best_mean_error,
+                    'standard_filename': best_standard_name,
+                    'standard_filepath': best_standard_path,
+                    'camera_intrinsic': best_summary['camera_intrinsic'],
+                    'calibration': best_summary['calibration']
+                }
+                
+                return jsonify(response_data)
+            except Exception as e:
+                self.get_logger().error(f'❌ 选择最佳手眼标定结果失败: {str(e)}')
+                return jsonify({'success': False, 'error': str(e)})
         
         @self.app.route('/api/hand_eye/load_calibration_params', methods=['POST'])
         def load_hand_eye_calibration_params():

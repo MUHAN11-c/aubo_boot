@@ -35,6 +35,17 @@
 #include <stdio.h>
 #include <cstdlib>
 #include <algorithm>
+#include <chrono>
+#include <sstream>
+
+// #region agent log — 移植前后对比：写入 MOTION_DEBUG_LOG，与 ROS2 同文件
+static void ros1_debug_log_json(const std::string& json_line) {
+    const char* path = std::getenv("MOTION_DEBUG_LOG");
+    if (!path || json_line.empty()) return;
+    std::ofstream f(path, std::ios::app);
+    if (f) f << json_line << "\n";
+}
+// #endregion
 
 namespace aubo_driver {
 
@@ -396,6 +407,20 @@ bool AuboDriver::setRobotJointsByMoveIt()
                 }
                 jpt.time_from_start = ps.time_from_start_;
                 ros_motion_queue_.enqueue(jpt);
+                // #region agent log — 每 20 次打一条，与 ROS2 driver_feed 对比
+                {
+                    static int feed_count = 0;
+                    if (++feed_count >= 20) {
+                        feed_count = 0;
+                        int64_t ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+                        size_t q = buf_queue_.size();
+                        size_t ros_sz = ros_motion_queue_.size_approx();
+                        std::ostringstream os;
+                        os << "{\"stage\":\"ros1_driver_feed\",\"message\":\"cycle\",\"ts_ms\":" << ts_ms << ",\"data\":{\"batch\":1,\"buf_queue_size\":" << q << ",\"ros_motion_queue_size\":" << ros_sz << "}}";
+                        ros1_debug_log_json(os.str());
+                    }
+                }
+                // #endregion
 
                file << ps.joint_pos_[0] << ","
                     << ps.joint_pos_[1] << ","
@@ -491,6 +516,15 @@ void AuboDriver::moveItPosCallback(const trajectory_msgs::JointTrajectoryPoint::
             ps.time_from_start_ = msg->time_from_start.toSec();
             memcpy(last_recieve_point_, jointAngle, sizeof(double) * axis_number_);
             buf_queue_.push(ps);
+            // #region agent log
+            {
+                int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+                int qsize = static_cast<int>(buf_queue_.size());
+                std::ostringstream os;
+                os << "{\"stage\":\"ros1_driver_cb\",\"message\":\"callback\",\"ts_ms\":" << now_ms << ",\"data\":{\"buf_queue_size\":" << qsize << "}}";
+                ros1_debug_log_json(os.str());
+            }
+            // #endregion
             if(buf_queue_.size() > buffer_size_ && !start_move_)
                 start_move_ = true;
         }
@@ -1033,6 +1067,14 @@ void AuboDriver::publishWaypointToRobot()
             if(0 != wayPointVector.size()){
                 // ROS_ERROR("----------->>>>>>>>>  size %d cnt %d", (int)wayPointVector.size(), cnt);
                 robot_mac_size_service_.robotServiceSetRobotPosData2Canbus(wayPointVector);
+                // #region agent log
+                {
+                    int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+                    std::ostringstream os;
+                    os << "{\"stage\":\"ros1_driver_send\",\"message\":\"send_batch\",\"ts_ms\":" << now_ms << ",\"data\":{\"batch_size\":" << wayPointVector.size() << ",\"rib_macsz\":" << current_macsz << "}}";
+                    ros1_debug_log_json(os.str());
+                }
+                // #endregion
             }
             wayPointVector.clear();
 

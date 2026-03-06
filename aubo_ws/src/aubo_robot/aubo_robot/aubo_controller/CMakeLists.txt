@@ -7,7 +7,7 @@ find_package(Boost REQUIRED system filesystem date_time thread)
 
 find_package(catkin REQUIRED COMPONENTS roscpp std_msgs sensor_msgs
   control_msgs trajectory_msgs actionlib_msgs actionlib
-  urdf industrial_msgs industrial_utils)
+  urdf industrial_msgs industrial_utils industrial_robot_client)
 
 #find_package(Eigen REQUIRED)
 

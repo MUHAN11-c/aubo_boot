@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ws_moveit/devel_isolated/combined_robot_hw
+
+Name: combined_robot_hw
+Description: Description of combined_robot_hw
+Version: 0.20.0
+Cflags: -I/home/mu/IVG/ws_moveit/src/ros_control/combined_robot_hw/include
+Libs: -L${prefix}/lib -lcombined_robot_hw
+Requires: hardware_interface pluginlib roscpp

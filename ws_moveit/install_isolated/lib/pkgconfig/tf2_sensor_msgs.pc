@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ws_moveit/install_isolated
+
+Name: tf2_sensor_msgs
+Description: Description of tf2_sensor_msgs
+Version: 0.7.10
+Cflags: -I${prefix}/include -I/usr/local/include/eigen3
+Libs: -L${prefix}/lib 
+Requires: sensor_msgs tf2_ros tf2

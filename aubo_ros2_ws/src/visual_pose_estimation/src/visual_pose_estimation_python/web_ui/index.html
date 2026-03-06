@@ -169,8 +169,8 @@
             overflow: hidden;
             position: relative;
             display: flex;
-            align-items: stretch;
-            justify-content: stretch;
+            align-items: center;
+            justify-content: center;
         }
 
         .image-placeholder {
@@ -185,10 +185,14 @@
             overflow: hidden;
         }
         
+        /* 主图完整显示：contain 保证整图可见，不裁剪 */
         .image-placeholder img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            object-position: center;
             display: block;
         }
 
@@ -266,49 +270,64 @@
             box-sizing: border-box;
         }
 
-        /* Debug选项卡样式 */
+        /* Debug 选项卡样式：布局合理、显示清晰 */
         .debug-layout {
             display: flex;
             height: 100%;
-            gap: 15px;
+            min-height: 480px;
+            gap: 20px;
+            min-width: 0;
         }
 
-        /* 左侧图像区域 */
+        /* 左侧：图像预览区 */
         .debug-images-area {
             flex: 1;
+            min-width: 0;
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            overflow-y: auto;
+            gap: 12px;
+            overflow: hidden;
+        }
+
+        .debug-images-area-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #475569;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+            margin-bottom: 4px;
         }
 
         .debug-images-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            grid-template-rows: 1fr 1fr;
-            gap: 10px;
-            min-height: 800px;
+            grid-template-rows: minmax(200px, 1fr) minmax(200px, 1fr);
+            gap: 12px;
+            flex: 1;
+            min-height: 0;
         }
 
         .debug-image-container {
-            background: rgba(248, 250, 252, 0.9);
-            border-radius: 8px;
-            border: 1px solid rgba(148, 163, 184, 0.2);
+            background: #fff;
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.25);
             overflow: hidden;
-            position: relative;
             display: flex;
             flex-direction: column;
+            min-height: 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
         }
 
         .debug-image-header {
-            padding: 8px 12px;
+            padding: 10px 14px;
             background: linear-gradient(90deg, #3b82f6, #2563eb);
             color: white;
-            font-size: 14px;
-            font-weight: 500;
+            font-size: 13px;
+            font-weight: 600;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-shrink: 0;
         }
 
         .debug-image-header-title {
@@ -319,77 +338,152 @@
 
         .debug-image-stats {
             font-size: 11px;
-            opacity: 0.9;
+            opacity: 0.95;
+            font-weight: 500;
         }
 
         .debug-image-content {
             flex: 1;
+            min-height: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #f8fafc;
-            position: relative;
+            background: #f1f5f9;
             overflow: auto;
-            min-height: 200px;
+            padding: 8px;
         }
 
         .debug-image-placeholder {
             width: 100%;
             height: 100%;
+            min-height: 120px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1));
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(147, 51, 234, 0.08));
+            border: 1px dashed rgba(100, 116, 139, 0.3);
+            border-radius: 8px;
+        }
+
+        .debug-image-placeholder .placeholder-content {
+            padding: 16px;
+        }
+
+        .debug-image-placeholder .placeholder-icon {
+            font-size: 36px;
+        }
+
+        .debug-image-placeholder .placeholder-text {
+            font-size: 14px;
+        }
+
+        .debug-image-placeholder .placeholder-subtext {
+            font-size: 11px;
         }
 
         .debug-image-content img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
             display: block;
+            border-radius: 4px;
         }
 
-        /* 右侧参数调整区域 */
+        /* 右侧：参数与统计区 */
         .debug-params-area {
-            width: 350px;
+            width: 400px;
+            min-width: 360px;
+            max-width: 420px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            overflow-y: auto;
-        }
-
-        .debug-param-group {
-            background: rgba(248, 250, 252, 0.9);
-            border-radius: 8px;
-            border: 1px solid rgba(148, 163, 184, 0.2);
+            gap: 0;
             overflow: hidden;
         }
 
+        .debug-params-area-inner {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            align-content: start;
+            overflow-y: auto;
+            padding: 2px;
+        }
+
+        .debug-param-group {
+            background: #fff;
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        }
+
+        /* 统计信息占满整行 */
+        .debug-param-group.debug-param-group-stats {
+            grid-column: 1 / -1;
+        }
+
         .debug-param-header {
-            padding: 10px 15px;
+            padding: 10px 14px;
             background: linear-gradient(90deg, #10b981, #059669);
             color: white;
-            font-size: 14px;
-            font-weight: 500;
+            font-size: 13px;
+            font-weight: 600;
         }
 
         .debug-param-content {
-            padding: 15px;
+            padding: 12px 14px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 12px;
+        }
+
+        /* 统计区内容：键值对网格，便于扫读 */
+        .debug-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px 20px;
+            font-size: 13px;
+        }
+
+        .debug-stats-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            background: rgba(241, 245, 249, 0.8);
+            border-radius: 6px;
+            border-left: 3px solid #3b82f6;
+        }
+
+        .debug-stats-item .label {
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .debug-stats-item .value {
+            color: #1e293b;
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
         }
 
         .param-item {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 4px;
         }
 
         .param-slider-row {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
+        }
+
+        .param-slider-row .param-slider {
+            flex: 1;
+            min-width: 0;
         }
 
         .nudge-btn {
@@ -430,12 +524,22 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 13px;
+            font-size: 12px;
             color: #1e293b;
             font-weight: 500;
+            gap: 8px;
+        }
+
+        .param-label span:first-child {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .param-value-display {
+            flex: 0 0 auto;
             color: #3b82f6;
             font-family: 'Courier New', monospace;
             font-size: 12px;
@@ -476,21 +580,31 @@
             border: none;
         }
 
-        .debug-buttons {
+        .debug-toolbar {
             display: flex;
-            gap: 10px;
-            justify-content: center;
-            padding: 15px;
-            background: rgba(248, 250, 252, 0.9);
-            border-radius: 8px;
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            padding: 12px 16px;
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            flex-shrink: 0;
         }
 
-        .debug-buttons .btn {
-            min-width: 100px;
+        .debug-toolbar .btn {
+            min-width: 120px;
             font-size: 13px;
-            padding: 8px 12px;
+            padding: 10px 14px;
+        }
+
+        .debug-params-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #475569;
+            padding: 4px 0 8px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+            margin-bottom: 8px;
+            flex-shrink: 0;
         }
 
         .results-panel {
@@ -1168,6 +1282,25 @@
             font-style: italic;
         }
 
+        /* Debug 选项卡：窄屏时参数区单列、图像区保持 2x2 */
+        @media (max-width: 1200px) {
+            .debug-layout {
+                flex-direction: column;
+                min-height: 600px;
+            }
+            .debug-params-area {
+                width: 100%;
+                min-width: 0;
+                max-width: none;
+            }
+            .debug-params-area-inner {
+                grid-template-columns: 1fr;
+            }
+            .debug-images-grid {
+                min-height: 360px;
+            }
+        }
+
         /* 响应式设计 */
         @media (max-width: 1400px) {
             .main-content {
@@ -1450,19 +1583,17 @@
                 </div>
             </div>
 
-            <!-- Debug选项卡 -->
+            <!-- Debug 选项卡 -->
             <div id="debug-tab" class="tab-content hidden">
                 <div class="debug-layout">
-                    <!-- 左侧：4个图像显示区域 -->
+                    <!-- 左侧：图像预览区 -->
                     <div class="debug-images-area">
-                        <!-- 操作按钮 -->
-                        <div class="debug-buttons">
+                        <div class="debug-toolbar">
                             <button class="btn btn-success" onclick="debugCaptureImage()">📷 采集图像</button>
                             <button class="btn btn-info" onclick="debugRefresh()">🔄 刷新显示</button>
                             <button class="btn btn-warning" onclick="debugSaveThresholds()">💾 保存阈值</button>
                         </div>
-
-                        <!-- 4个图像窗口 -->
+                        <div class="debug-images-area-title">图像预览</div>
                         <div class="debug-images-grid">
                             <!-- 1. 深度图 -->
                             <div class="debug-image-container">
@@ -1546,8 +1677,10 @@
                         </div>
                     </div>
 
-                    <!-- 右侧：参数调整区域 -->
+                    <!-- 右侧：参数与统计 -->
                     <div class="debug-params-area">
+                        <div class="debug-params-title">参数与统计</div>
+                        <div class="debug-params-area-inner">
                         <!-- 深度阈值参数组 -->
                         <div class="debug-param-group">
                             <div class="debug-param-header">🎚️ 深度阈值 (Depth Threshold)</div>
@@ -1686,21 +1819,73 @@
                             </div>
                         </div>
 
-                        <!-- 统计信息显示 -->
+                        <!-- 去毛边参数组 -->
                         <div class="debug-param-group">
-                            <div class="debug-param-header">📊 处理统计 (Statistics)</div>
+                            <div class="debug-param-header">🧹 去毛边 (Smooth Edges)</div>
                             <div class="debug-param-content">
-                                <div style="font-size: 13px; color: #64748b; line-height: 1.6;">
-                                    <div id="debug-stats-content">
-                                        <div>• 深度图像: <span id="stat-depth-size">-</span></div>
-                                        <div>• 彩色图像: <span id="stat-color-size">-</span></div>
-                                        <div>• 有效深度点: <span id="stat-valid-points">-</span></div>
-                                        <div>• 检测到的连通域: <span id="stat-components">-</span></div>
-                                        <div>• 筛选后连通域: <span id="stat-filtered">-</span></div>
-                                        <div>• 处理时间: <span id="stat-time">-</span></div>
+                                <div class="param-item">
+                                    <div class="param-label">
+                                        <span>启用去毛边 (Enable)</span>
+                                        <span class="param-value-display" id="enable-smooth-edges-value">开</span>
+                                    </div>
+                                    <div class="param-slider-row">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('enable-smooth-edges-slider', -1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">-</button>
+                                        <input type="range" class="param-slider" id="enable-smooth-edges-slider" 
+                                               min="0" max="1" value="1" step="1"
+                                               oninput="updateDebugParam('enable-smooth-edges', this.value)">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('enable-smooth-edges-slider', 1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">+</button>
+                                    </div>
+                                </div>
+                                <div class="param-item">
+                                    <div class="param-label">
+                                        <span>边缘平滑 σ (Blur)</span>
+                                        <span class="param-value-display" id="smooth-edges-blur-sigma-value">关闭</span>
+                                    </div>
+                                    <div class="param-slider-row">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('smooth-edges-blur-sigma-slider', -1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">-</button>
+                                        <input type="range" class="param-slider" id="smooth-edges-blur-sigma-slider" 
+                                               min="0" max="30" value="0" step="1"
+                                               oninput="updateDebugParam('smooth-edges-blur-sigma', this.value / 10)">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('smooth-edges-blur-sigma-slider', 1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">+</button>
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- RemBG 参数组 -->
+                        <div class="debug-param-group">
+                            <div class="debug-param-header">🎯 RemBG (GPU)</div>
+                            <div class="debug-param-content">
+                                <div class="param-item">
+                                    <div class="param-label">
+                                        <span>启用 RemBG</span>
+                                        <span class="param-value-display" id="use-rembg-value">关</span>
+                                    </div>
+                                    <div class="param-slider-row">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('use-rembg-slider', -1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">-</button>
+                                        <input type="range" class="param-slider" id="use-rembg-slider" 
+                                               min="0" max="1" value="0" step="1"
+                                               oninput="updateDebugParam('use-rembg', this.value)">
+                                        <button type="button" class="nudge-btn" onpointerdown="startNudge('use-rembg-slider', 1)" onpointerup="stopNudge()" onpointercancel="stopNudge()" onpointerleave="stopNudge()">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 统计信息（占满一行，键值对网格） -->
+                        <div class="debug-param-group debug-param-group-stats">
+                            <div class="debug-param-header">📊 处理统计 (Statistics)</div>
+                            <div class="debug-param-content">
+                                <div class="debug-stats-grid" id="debug-stats-content">
+                                    <div class="debug-stats-item"><span class="label">深度图像</span><span class="value" id="stat-depth-size">-</span></div>
+                                    <div class="debug-stats-item"><span class="label">彩色图像</span><span class="value" id="stat-color-size">-</span></div>
+                                    <div class="debug-stats-item"><span class="label">有效深度点</span><span class="value" id="stat-valid-points">-</span></div>
+                                    <div class="debug-stats-item"><span class="label">检测连通域</span><span class="value" id="stat-components">-</span></div>
+                                    <div class="debug-stats-item"><span class="label">筛选后连通域</span><span class="value" id="stat-filtered">-</span></div>
+                                    <div class="debug-stats-item"><span class="label">处理时间</span><span class="value" id="stat-time">-</span></div>
+                                </div>
+                            </div>
+                        </div>
                         </div>
                     </div>
                 </div>

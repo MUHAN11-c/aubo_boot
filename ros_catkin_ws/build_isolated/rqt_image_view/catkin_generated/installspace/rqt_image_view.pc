@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ros_catkin_ws/install_isolated
+
+Name: rqt_image_view
+Description: Description of rqt_image_view
+Version: 0.4.19
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib -lrqt_image_view
+Requires: rqt_gui rqt_gui_cpp image_transport sensor_msgs cv_bridge geometry_msgs

@@ -1,22 +1,22 @@
 <launch>
-  <!-- By default we do not overwrite the URDF. Change the following to true to change the default behavior -->
+  <!-- 是否加载机器人 URDF：默认不覆盖已有 URDF，设为 true 可改变默认行为 -->
   <arg name="load_robot_description" default="false"/>
 
-  <!-- The name of the parameter under which the URDF is loaded -->
+  <!-- 加载 URDF 时使用的参数名 -->
   <arg name="robot_description" default="robot_description"/>
 
-  <!-- Load universal robot description format (URDF) -->
+  <!-- 加载通用机器人描述格式 (URDF)，通过 xacro 解析 aubo_e5.xacro -->
   <param if="$(arg load_robot_description)" name="$(arg robot_description)" command="xacro --inorder  '$(find aubo_gazebo)/urdf/aubo_e5.xacro'"/>
 
-  <!-- The semantic description that corresponds to the URDF -->
+  <!-- 与 URDF 对应的语义描述 (SRDF)，用于 MoveIt 规划 -->
   <param name="$(arg robot_description)_semantic" textfile="$(find aubo_e5_moveit_config)/config/aubo_e5.srdf" />
 
-  <!-- Load updated joint limits (override information from URDF) -->
+  <!-- 加载关节限位配置，覆盖 URDF 中的限位信息 -->
   <group ns="$(arg robot_description)_planning">
     <rosparam command="load" file="$(find aubo_e5_moveit_config)/config/joint_limits.yaml"/>
   </group>
 
-  <!-- Load default settings for kinematics; these settings are overridden by settings in a node's namespace -->
+  <!-- 加载运动学默认配置；可被节点命名空间内的设置覆盖 -->
   <group ns="$(arg robot_description)_kinematics">
     <rosparam command="load" file="$(find aubo_e5_moveit_config)/config/kinematics.yaml"/>
   </group>

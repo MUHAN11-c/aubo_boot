@@ -15,7 +15,7 @@ import logging
 import traceback
 from pathlib import Path
 from typing import Dict, Tuple, Optional, Union
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from .debug_visualizer import DebugVisualizer
 
 
@@ -78,7 +78,7 @@ class TemplateStandardizer:
         crop_x, crop_y, crop_w, crop_h = self._calculate_crop_region(
             workpiece_center, workpiece_radius, image.shape
         )
-        
+
         # 裁剪图像和掩码，并应用白色背景
         cropped_image, cropped_mask = self._crop_with_white_background(
             image, mask, crop_x, crop_y, crop_w, crop_h
@@ -377,14 +377,17 @@ class TemplateStandardizer:
                     preprocessed_image, [feature_dict], draw_bbox=False
                 )
             
+            # 为了便于人眼查看，这里以 RGB 顺序保存到 JPG
+            preprocessed_rgb = cv2.cvtColor(preprocessed_with_features, cv2.COLOR_BGR2RGB)
             preprocessed_image_path = pose_dir / "preprocessed_image.jpg"
-            cv2.imwrite(str(preprocessed_image_path), preprocessed_with_features, [cv2.IMWRITE_JPEG_QUALITY, 95])
+            cv2.imwrite(str(preprocessed_image_path), preprocessed_rgb, [cv2.IMWRITE_JPEG_QUALITY, 95])
             self.logger.info(f'保存预处理图像: {preprocessed_image_path}')
         except Exception as e:
             self.logger.warning(f'绘制特征失败，保存未绘制特征的图像: {e}')
             preprocessed_with_features = preprocessed_image.copy()
+            preprocessed_rgb = cv2.cvtColor(preprocessed_with_features, cv2.COLOR_BGR2RGB)
             preprocessed_image_path = pose_dir / "preprocessed_image.jpg"
-            cv2.imwrite(str(preprocessed_image_path), preprocessed_with_features, [cv2.IMWRITE_JPEG_QUALITY, 95])
+            cv2.imwrite(str(preprocessed_image_path), preprocessed_rgb, [cv2.IMWRITE_JPEG_QUALITY, 95])
             self.logger.info(f'保存预处理图像: {preprocessed_image_path}')
     
     def _build_template_info(
@@ -504,7 +507,9 @@ class TemplateStandardizer:
             
             image_path = pose_dir / "image.jpg"
             mask_path = pose_dir / "mask.jpg"
-            cv2.imwrite(str(image_path), standardized_image)
+            # standardized_image 是 BGR（OpenCV 内部格式），这里转成 RGB 存盘，便于查看
+            image_rgb = cv2.cvtColor(standardized_image, cv2.COLOR_BGR2RGB)
+            cv2.imwrite(str(image_path), image_rgb)
             cv2.imwrite(str(mask_path), standardized_mask)
             
             # 保存预处理图像（类似debug选项卡中的预处理图像，白色背景抠图+特征绘制）
@@ -539,109 +544,6 @@ class TemplateStandardizer:
         except Exception as e:
             self.logger.error(f'保存标准化模板失败: {e}')
             return False
-    
-    def load_standardized_template(
-        self, 
-        template_dir: Path,
-        pose_id: str
-    ) -> Optional[StandardizedTemplate]:
-        """加载已标准化的模板（仅读取 template_info.json）"""
-        try:
-            template_dir = Path(template_dir)
-            pose_dir = template_dir / pose_id
-            info_path = pose_dir / "template_info.json"
-            
-            if not info_path.exists():
-                self.logger.warning(f'template_info.json 不存在: {info_path}')
-                return None
-            
-            with open(info_path, 'r', encoding='utf-8') as f:
-                info = json.load(f)
-            
-            feature_params = info.get("feature_parameters", {})
-            
-            workpiece_center = (
-                float(feature_params.get('workpiece_center_x_original', 0.0)),
-                float(feature_params.get('workpiece_center_y_original', 0.0))
-            )
-            workpiece_radius = float(feature_params.get('workpiece_radius_original', 0.0))
-            valve_center = (
-                float(feature_params.get('valve_center_x', 0.0)),
-                float(feature_params.get('valve_center_y', 0.0))
-            )
-            valve_radius = float(feature_params.get('valve_radius', 0.0))
-            standardized_angle = float(feature_params.get('standardized_angle_rad', 0.0))
-            standardized_angle_deg = float(feature_params.get('standardized_angle_deg', 0.0))
-
-            # 构建路径（与当前精简落盘保持一致）
-            original_image_path = str((pose_dir / "image.jpg").relative_to(template_dir))
-            mask_path = str((pose_dir / "mask.jpg").relative_to(template_dir))
-            standardized_mask_path = str((pose_dir / "mask.jpg").relative_to(template_dir))  # 与精简保存保持一致
-            
-            # 检查预处理图像是否存在（从metadata.json或直接检查文件）
-            preprocessed_image_path = ""
-            metadata_path = pose_dir / "metadata.json"
-            if metadata_path.exists():
-                try:
-                    with open(metadata_path, 'r', encoding='utf-8') as f:
-                        metadata = json.load(f)
-                    preprocessed_image_path = metadata.get('preprocessed_image_path', '')
-                except Exception:
-                    pass
-            
-            # 如果metadata中没有，直接检查文件是否存在
-            if not preprocessed_image_path:
-                preprocessed_image_file = pose_dir / "preprocessed_image.jpg"
-                if preprocessed_image_file.exists():
-                    preprocessed_image_path = str(preprocessed_image_file.relative_to(template_dir))
-
-            template = StandardizedTemplate(
-                template_id=str(template_dir.name),
-                pose_id=pose_id,
-                original_image_path=original_image_path,
-                preprocessed_image_path=preprocessed_image_path,
-                depth_display_path="",
-                mask_path=mask_path,
-                standardized_mask_path=standardized_mask_path,
-                workpiece_center=workpiece_center,
-                workpiece_radius=workpiece_radius,
-                valve_center=valve_center,
-                valve_radius=valve_radius,
-                standardized_angle=standardized_angle,
-                standardized_angle_deg=standardized_angle_deg,
-                is_standardized=True
-            )
-            
-            return template
-            
-        except Exception as e:
-            self.logger.error(f'加载标准化模板失败: {e}')
-            return None
-    
-    def list_template_poses(self, template_dir: Path) -> list:
-        """列出模板中的所有姿态
-        
-        Args:
-            template_dir: 模板目录
-            
-        Returns:
-            姿态ID列表
-        """
-        try:
-            template_dir = Path(template_dir)
-            if not template_dir.exists():
-                return []
-            
-            poses = []
-            for item in template_dir.iterdir():
-                if item.is_dir() and (item / "template_info.json").exists():
-                    poses.append(item.name)
-            
-            return sorted(poses)
-            
-        except Exception as e:
-            self.logger.error(f'列出模板姿态失败: {e}')
-            return []
     
     def draw_gripper(
         self,

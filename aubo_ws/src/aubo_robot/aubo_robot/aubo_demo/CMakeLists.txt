@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(aubo_demo)
 
-## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
+## C++17 required for std::shared_mutex used by system log4cxx (via ros/moveit headers)
+add_compile_options(-std=c++17)
 
 if("$ENV{ROS_DISTRO}" STREQUAL "noetic")
     find_package(catkin REQUIRED COMPONENTS

@@ -1245,23 +1245,8 @@ class FeatureExtractorDebugger:
         if not contours:
             return ((0, 0), 0.0)
         
-        # ========== 步骤2: 保存轮廓可视化（用于调试）==========
-        if debug_images is not None:
-            # 创建彩色图像用于可视化（3通道BGR）
-            contour_vis = np.zeros((mask.shape[0], mask.shape[1], 3), dtype=np.uint8)
-            
-            # cv2.drawContours()函数: 绘制轮廓
-            #   函数语法:
-            #     cv2.drawContours(image, contours, contourIdx, color, thickness)
-            #   参数:
-            #     - image: 输出图像（会被修改）
-            #     - contours: 轮廓列表
-            #     - contourIdx: 轮廓索引，-1表示绘制所有轮廓
-            #     - color: 颜色，格式为(B, G, R)，(0, 255, 255)表示黄色
-            #     - thickness: 线条粗细，2表示2像素
-            #   说明: 在图像上绘制轮廓（黄色线条）
-            cv2.drawContours(contour_vis, contours, -1, (0, 255, 255), 2)
-            debug_images[f'wp_contours_{component_idx}'] = contour_vis
+        # 筛选前不绘制轮廓（原步骤2: 保存轮廓可视化 已移除）
+        # 若需恢复轮廓可视化，可在此处根据筛选后的 contours 再绘制
         
         # ========== 步骤3: 轮廓过滤和合并 ==========
         # cv2.contourArea()函数: 计算轮廓面积

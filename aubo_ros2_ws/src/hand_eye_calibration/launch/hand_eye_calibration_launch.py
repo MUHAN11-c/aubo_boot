@@ -93,7 +93,7 @@ def generate_launch_description():
     
     publish_tf_arg = DeclareLaunchArgument(
         'publish_tf',
-        default_value='true',
+        default_value='false',  # 暂时关闭手眼标定 TF 发布；需要时改为 true
         description='是否发布手眼标定 TF 变换（true/false）'
     )
     

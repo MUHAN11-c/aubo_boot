@@ -86,8 +86,90 @@ from industrial_msgs.srv import GetRobotInfo, GetRobotInfoResponse
 # Reference
 from industrial_msgs.msg import TriState, RobotMode, ServiceReturnCode, DeviceInfo
 
-from trajectory_speed import scale_trajectory_speed
+from trajectory_speed import scale_trajectory_speed, resample_trajectory_min_interval
 
+# #region agent log
+def _dbg_log(location, message, data=None, hypothesis_id=None):
+    import json
+    import time
+    entry = {"location": location, "message": message, "timestamp": int(time.time()*1000), "sessionId": "debug-session"}
+    if data is not None:
+        entry["data"] = data
+    if hypothesis_id is not None:
+        entry["hypothesisId"] = hypothesis_id
+    try:
+        with open("/home/mu/IVG/.cursor/debug.log", "a") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+_CARTESIAN_DATA_PATH = "/home/mu/IVG/.cursor/cartesian_path_data.ndjson"
+_FULL_CHAIN_DATA_PATH = "/home/mu/IVG/.cursor/full_chain_motion.ndjson"
+
+# 移植前后对比：MOTION_DEBUG_LOG 与 ROS2 共用同一文件，stage=ros1_sim 便于对比
+def _log_ros1_stage(stage, message, ts_ms=None, **data):
+    path = os.environ.get("MOTION_DEBUG_LOG")
+    if not path:
+        return
+    import json
+    import time
+    if ts_ms is None:
+        ts_ms = int(time.time() * 1000)
+    entry = {"stage": stage, "message": message, "ts_ms": ts_ms, "data": data}
+    try:
+        with open(path, "a") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+# 移植前后对比：MOTION_LOG_FILE 由启动脚本设置，记录关键数据用于分析抖动
+def _motion_analysis_log(event_type, **kwargs):
+    path = os.environ.get("MOTION_LOG_FILE")
+    if not path:
+        return
+    import json
+    import time
+    entry = {"ts_ms": int(time.time() * 1000), "side": "before", "event": event_type, **kwargs}
+    try:
+        with open(path, "a") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+def _cartesian_log(event_type, **kwargs):
+    """笛卡尔路径卡顿分析：写入 NDJSON 到 cartesian_path_data.ndjson"""
+    import json
+    import time
+    try:
+        enabled = rospy.get_param("/aubo_controller/cartesian_analysis_enabled", True)
+        if not enabled:
+            return
+    except Exception:
+        return
+    entry = {"ts_ms": int(time.time() * 1000), "event": event_type, **kwargs}
+    try:
+        with open(_CARTESIAN_DATA_PATH, "a") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+def _full_chain_log(event_type, **kwargs):
+    """MoveIt2→机械臂全链路：写入 NDJSON 到 full_chain_motion.ndjson"""
+    import json
+    import time
+    try:
+        enabled = rospy.get_param("/aubo_controller/full_chain_log_enabled", True)
+        if not enabled:
+            return
+    except Exception:
+        return
+    entry = {"ts_ms": int(time.time() * 1000), "event": event_type, **kwargs}
+    try:
+        with open(_FULL_CHAIN_DATA_PATH, "a") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+# #endregion
 
 """
 @class MotionControllerSimulator
@@ -166,16 +248,25 @@ class MotionControllerSimulator():
         self.Is_cancel_trajectory_subs = rospy.Subscriber('aubo_driver/cancel_trajectory', UInt8, self.Is_cancel_trajectory_callback)
 
         # ========== 缓冲区管理 ==========
-        self.MinimumBufferSize = 800  # 最小缓冲区大小阈值
+        # 笛卡尔路径点密集，需更大缓冲阈值避免频繁节流导致卡顿；可通过 rosparam 调节
+        self.MinimumBufferSize = rospy.get_param('/aubo_controller/minimum_buffer_size', 2000)
+        rospy.loginfo("Minimum buffer size (RIB throttle threshold): %d", self.MinimumBufferSize)
         
         # ========== 控制信号 ==========
         self.sig_shutdown = False  # 关闭信号标志
         self.sig_stop = False  # 停止信号标志
 
+        # ========== 时间参数化轨迹存储（参考 ROS Control）==========
+        self.trajectory_lock = threading.Lock()
+        self.current_trajectory_ = None
+        self.trajectory_start_time_ = None
+        self.trajectory_active_ = False
+        self.current_desired_point_ = None
+        self.trajectory_duration_ = 0.0
+
         # ========== 启动运动控制工作线程 ==========
-        # 该线程在后台运行，持续处理轨迹点并执行插值
         self.motion_thread = threading.Thread(target=self._motion_worker)
-        self.motion_thread.daemon = True  # 设置为守护线程，主程序退出时自动退出
+        self.motion_thread.daemon = True
         self.motion_thread.start()
 
     """
@@ -254,10 +345,119 @@ class MotionControllerSimulator():
     清空运动缓冲区并设置停止信号，使当前运动立即停止。
     """
     def stop(self):
+        # #region agent log
+        _dbg_log("MotionControllerSimulator.stop", "entry", {"buffer_size_before_clear": self.motion_buffer.qsize()}, "H5")
+        # #endregion
         rospy.logdebug('Motion_Controller stop signaled')
         with self.lock:
             self._clear_buffer()
             self.sig_stop = True
+
+    def set_trajectory(self, trajectory_msg):
+        """设置新轨迹（参考 ROS Control 的 update()）"""
+        # #region agent log
+        _dbg_log("MotionControllerSimulator.set_trajectory", "entry", {"num_points": len(trajectory_msg.points) if trajectory_msg else 0}, "H1")
+        # #endregion
+        with self.trajectory_lock:
+            self.current_trajectory_ = trajectory_msg
+            self.trajectory_start_time_ = rospy.Time.now()
+            self.trajectory_active_ = True
+            if len(trajectory_msg.points) > 0:
+                self.trajectory_duration_ = trajectory_msg.points[-1].time_from_start.to_sec()
+            else:
+                self.trajectory_duration_ = 0.0
+            rospy.loginfo('Trajectory set: %d points, duration: %.3f s', len(trajectory_msg.points), self.trajectory_duration_)
+        # #region agent log
+        _dbg_log("MotionControllerSimulator.set_trajectory", "exit", {"duration": self.trajectory_duration_}, "H1")
+        # #endregion
+
+    def stop_trajectory(self):
+        """停止当前轨迹执行"""
+        # #region agent log
+        _dbg_log("MotionControllerSimulator.stop_trajectory", "entry", {}, "H2")
+        # #endregion
+        with self.trajectory_lock:
+            self.trajectory_active_ = False
+            self.current_trajectory_ = None
+
+    def is_trajectory_active(self):
+        """检查轨迹是否正在执行"""
+        with self.trajectory_lock:
+            return self.trajectory_active_
+
+    def interpolate_trajectory_by_time(self, current_time):
+        """基于轨迹开始时间进行时间参数化插补（参考 ROS Control 的 sample()）"""
+        with self.trajectory_lock:
+            if not self.trajectory_active_ or self.current_trajectory_ is None:
+                return None
+            trajectory = self.current_trajectory_
+            start_time = self.trajectory_start_time_
+            duration = self.trajectory_duration_
+
+        elapsed = (current_time - start_time).to_sec()
+
+        if elapsed >= duration:
+            with self.trajectory_lock:
+                self.trajectory_active_ = False
+            # #region agent log
+            _dbg_log("MotionControllerSimulator.interpolate_trajectory_by_time", "trajectory_done", {"elapsed": elapsed, "duration": duration}, "H3")
+            # #endregion
+            return trajectory.points[-1] if len(trajectory.points) > 0 else None
+
+        if len(trajectory.points) == 1:
+            # #region agent log
+            _dbg_log("MotionControllerSimulator.interpolate_trajectory_by_time", "single_point", {}, "H3")
+            # #endregion
+            return trajectory.points[0]
+
+        for i in range(len(trajectory.points) - 1):
+            t1 = trajectory.points[i].time_from_start.to_sec()
+            t2 = trajectory.points[i+1].time_from_start.to_sec()
+            if elapsed >= t1 and elapsed <= t2:
+                T = t2 - t1
+                t_rel = elapsed - t1  # 段内时间 [0, T]
+                alpha = t_rel / T if T > 1e-6 else 0.0
+                desired_point = JointTrajectoryPoint()
+                p1, p2 = trajectory.points[i], trajectory.points[i+1]
+                N = len(p1.positions)
+
+                # 5次多项式插补（与旧 _motion_worker 一致，保证 C2 连续、运动平滑）
+                use_poly = (len(p1.velocities) == N and len(p2.velocities) == N and
+                            len(p1.accelerations) == N and len(p2.accelerations) == N and T > 1e-6)
+                if use_poly:
+                    T2, T3 = T * T, T * T * T
+                    T4, T5 = T3 * T, T4 * T
+                    poss, vels, accs = [], [], []
+                    for j in range(N):
+                        a1 = p1.velocities[j]
+                        a2 = 0.5 * p1.accelerations[j]
+                        h = p2.positions[j] - p1.positions[j]
+                        a3 = 0.5/T3 * (20*h - (8*p2.velocities[j] + 12*p1.velocities[j])*T - (3*p1.accelerations[j] - p2.accelerations[j])*T2)
+                        a4 = 0.5/T4 * (-30*h + (14*p2.velocities[j] + 16*p1.velocities[j])*T + (3*p1.accelerations[j] - 2*p2.accelerations[j])*T2)
+                        a5 = 0.5/T5 * (12*h - 6*(p2.velocities[j] + p1.velocities[j])*T + (p2.accelerations[j] - p1.accelerations[j])*T2)
+                        t2 = t_rel * t_rel
+                        t3 = t2 * t_rel
+                        t4 = t3 * t_rel
+                        t5 = t4 * t_rel
+                        poss.append(p1.positions[j] + a1*t_rel + a2*t2 + a3*t3 + a4*t4 + a5*t5)
+                        vels.append(a1 + 2*a2*t_rel + 3*a3*t2 + 4*a4*t3 + 5*a5*t4)
+                        accs.append(2*a2 + 6*a3*t_rel + 12*a4*t2 + 20*a5*t3)
+                    desired_point.positions = poss
+                    desired_point.velocities = vels
+                    desired_point.accelerations = accs
+                else:
+                    desired_point.positions = [p1.positions[j] * (1 - alpha) + p2.positions[j] * alpha for j in range(N)]
+                    desired_point.velocities = [p1.velocities[j] * (1 - alpha) + p2.velocities[j] * alpha for j in range(len(p1.velocities))] if len(p1.velocities) == N and len(p2.velocities) == N else [0.0] * N
+                    desired_point.accelerations = [p1.accelerations[j] * (1 - alpha) + p2.accelerations[j] * alpha for j in range(len(p1.accelerations))] if len(p1.accelerations) == N and len(p2.accelerations) == N else [0.0] * N
+
+                desired_point.time_from_start = rospy.Duration(elapsed)
+                with self.trajectory_lock:
+                    self.current_desired_point_ = desired_point
+                return desired_point
+        # #region agent log
+        _dbg_log("MotionControllerSimulator.interpolate_trajectory_by_time", "no_match", {"elapsed": elapsed}, "H3")
+        # #endregion
+        return None
 
     """
     @brief 线性插值函数（未使用，当前使用5次多项式插值）
@@ -294,20 +494,28 @@ class MotionControllerSimulator():
     发布频率：跟随 motion_worker 的更新频率（200Hz）
     """
     def joint_state_publisher(self):
+        """发布到 moveItController_cmd。与原实现一致，使用 rospy.Time.now() 供 driver 计算时间间隔。"""
         try:
+            import time as _t
+            now_ms = int(_t.time() * 1000)
+            if not hasattr(self, "_publish_count"):
+                self._publish_count = 0
+                self._last_publish_ts_ms = now_ms
+            self._publish_count += 1
             joint_point_msg = JointTrajectoryPoint()
-            time = rospy.Time.now()
-
             with self.lock:
-                # 填充关节状态信息
-                joint_point_msg.time_from_start = time
-                joint_point_msg.positions = self.joint_positions
-                joint_point_msg.velocities = self.joint_velocities
-                joint_point_msg.accelerations = self.joint_accelerations
-
-                # 发布轨迹点到 /moveItController_cmd（供 aubo_driver 使用）
+                joint_point_msg.time_from_start = rospy.Time.now()
+                joint_point_msg.positions = list(self.joint_positions)
+                v, a = self.joint_velocities, self.joint_accelerations
+                n = len(joint_point_msg.positions)
+                joint_point_msg.velocities = list(v) if len(v) == n else [0.0] * n
+                joint_point_msg.accelerations = list(a) if len(a) == n else [0.0] * n
                 self.moveit_joint_state_pub.publish(joint_point_msg)
-
+            if self._publish_count % 200 == 0:
+                _motion_analysis_log("publish_dt", dt_ms=now_ms - self._last_publish_ts_ms, count=self._publish_count)
+            if self._publish_count % 50 == 0:
+                _log_ros1_stage("ros1_sim", "publish_interval", ts_ms=now_ms, dt_ms=now_ms - self._last_publish_ts_ms, count=self._publish_count)
+            self._last_publish_ts_ms = now_ms
         except Exception as e:
             rospy.loginfo('Unexpected exception in joint state publisher: %s', e)
 
@@ -321,10 +529,23 @@ class MotionControllerSimulator():
     @param dur: 移动持续时间（秒）
     """
     def _move_to(self, point, dur):
-        # 如果缓冲区过大，等待一段时间（防止生成控制数据过快）
+        throttle_sleep = max(min(dur, 0.002), 0.0005)
+        _block_count = 0
+        _total_sleep_ms = 0.0
+        _rib_at_start = 0
         while self.ribBufferSize > self.MinimumBufferSize:
-            #rospy.loginfo('The number of driver Buffer Data is big enough, not send this time: %d', self.ribBufferSize)
-            rospy.sleep(dur)
+            if _block_count == 0:
+                _rib_at_start = self.ribBufferSize
+            _block_count += 1
+            _total_sleep_ms += throttle_sleep * 1000
+            if _block_count <= 5:
+                _dbg_log("MotionControllerSimulator._move_to", "throttle_block", {"ribBufferSize": self.ribBufferSize, "MinimumBufferSize": self.MinimumBufferSize}, "H6")
+            rospy.sleep(throttle_sleep)
+        if _block_count > 0:
+            _cartesian_log("throttle", block_count=_block_count, ribBufferSize=_rib_at_start,
+                           minBufferSize=self.MinimumBufferSize, sleep_ms=round(_total_sleep_ms, 2), dur_sec=round(float(dur), 4))
+            _full_chain_log("throttle", block_count=_block_count, ribBufferSize=_rib_at_start, sleep_ms=round(_total_sleep_ms, 2))
+            _motion_analysis_log("throttle", block_count=_block_count, rib_buffer_size=_rib_at_start, sleep_ms=round(_total_sleep_ms, 2), dur_sec=round(float(dur), 4))
 
         # 如果缓冲区为空且控制器未连接，等待（运动开始或没有机器人连接）
         if self.ribBufferSize == 0 and self.ControllerConnectedFlag == 0:
@@ -336,12 +557,14 @@ class MotionControllerSimulator():
             # rospy.loginfo('too slow slow!!')
 
         # 线程安全地更新关节位置
+        n = len(point.positions)
+        v = point.velocities if len(point.velocities) == n else [0.0] * n
+        a = point.accelerations if len(point.accelerations) == n else [0.0] * n
         with self.lock:
             if not self.sig_stop:
-                # 复制目标位置、速度、加速度到当前关节状态
-                self.joint_positions = point.positions
-                self.joint_velocities = point.velocities
-                self.joint_accelerations = point.accelerations
+                self.joint_positions = list(point.positions)
+                self.joint_velocities = v
+                self.joint_accelerations = a
                 # 注意：joint_state_publisher() 在 motion_worker 中调用，不在这里调用
             else:
                 # 如果收到停止信号，清除停止标志但不更新位置
@@ -381,10 +604,13 @@ class MotionControllerSimulator():
         if self.update_rate != 0:
             update_duration = rospy.Duration(1./self.update_rate)  # 计算更新周期（秒）
         last_goal_point = JointTrajectoryPoint()
-
-        # 初始化上一个目标点为当前关节位置
+        last_goal_point.time_from_start = rospy.Duration(0)
+        # 初始化上一个目标点为当前关节位置（含速度、加速度，供5次多项式插值使用）
         with self.lock:
             last_goal_point.positions = self.joint_positions[:]
+            n = len(last_goal_point.positions)
+            last_goal_point.velocities = [0.0] * n
+            last_goal_point.accelerations = [0.0] * n
 
         # ========== 主循环：持续处理轨迹点直到收到关闭信号 ==========
         while not self.sig_shutdown:
@@ -392,18 +618,30 @@ class MotionControllerSimulator():
                 # 从缓冲区取出下一个轨迹点（阻塞等待）
                 current_goal_point = self.motion_buffer.get()
                 intermediate_goal_point = copy.deepcopy(current_goal_point)
-                
                 # 检查时间顺序，如果时间不递增，使用绝对时间（新轨迹开始）
-                if current_goal_point.time_from_start <= last_goal_point.time_from_start:
+                curr_sec = current_goal_point.time_from_start.to_sec()
+                last_sec = last_goal_point.time_from_start.to_sec()
+                is_new_traj = current_goal_point.time_from_start <= last_goal_point.time_from_start
+                # #region agent log
+                _dbg_log("MotionControllerSimulator._motion_worker", "before_branch", {"curr_sec": curr_sec, "last_sec": last_sec, "is_new_traj": is_new_traj, "buffer_remaining": self.motion_buffer.qsize()}, "H5")
+                # #endregion
+                if is_new_traj:
+                    _dbg_log("MotionControllerSimulator._motion_worker", "new_trajectory_point", {"t": curr_sec, "buffer_remaining": self.motion_buffer.qsize()}, "H5")
                     move_duration = current_goal_point.time_from_start
                 # 否则，计算时间间隔并进行5次多项式插值
                 else:
-                    # 如果当前移动持续时间大于更新周期，插值关节位置以形成平滑轨迹
-                    # 例外：如果更新频率 <= 0，则不添加插值点
+                    # #region agent log
+                    _dbg_log("MotionControllerSimulator._motion_worker", "poly_interp_branch", {"curr_sec": curr_sec, "last_sec": last_sec}, "H5")
+                    # #endregion
                     T = current_goal_point.time_from_start.to_sec() - last_goal_point.time_from_start.to_sec()
-                    
+                    if T < 0.12:
+                        _cartesian_log("segment", segment_T=round(T, 4), curr_sec=round(curr_sec, 3),
+                                       motion_buf_remaining=self.motion_buffer.qsize())
+                    t_start = last_goal_point.time_from_start.to_sec()
+                    t_end = current_goal_point.time_from_start.to_sec()
+                    _full_chain_log("segment_start", T=round(T, 4), t_start=round(t_start, 4), t_end=round(t_end, 4),
+                                   motion_buf_remaining=self.motion_buffer.qsize())
                     # ========== 5次多项式插值 ==========
-                    # 计算5次多项式的各项系数
                     a1 = last_goal_point.velocities[:]  # a1: 初始速度系数
                     N = len(a1)
                     T2 = T * T   # T²
@@ -433,42 +671,44 @@ class MotionControllerSimulator():
                         a5[i] = 0.5/T5 * (12*h[i] - 6*(current_goal_point.velocities[i] + last_goal_point.velocities[i])*T + (current_goal_point.accelerations[i] - last_goal_point.accelerations[i])*T2)
                     
                     # ========== 按更新频率插值生成中间轨迹点 ==========
+                    num_steps = 0
                     if self.update_rate > 0:
-                        tt = last_goal_point.time_from_start.to_sec()  # 当前时间
-                        ti = tt  # 起始时间
+                        tt = last_goal_point.time_from_start.to_sec()
+                        ti = tt
 
                         # 在起始点和目标点之间插值
                         while ((tt < current_goal_point.time_from_start.to_sec()) and (0 == self.cancle_trajectory)):
-                            # 计算相对时间
                             t1 = tt - ti
-                            t2 = t1 * t1   # t²
-                            t3 = t2 * t1   # t³
-                            t4 = t3 * t1   # t⁴
-                            t5 = t4 * t1   # t⁵
-                            
-                            # 使用5次多项式计算每个关节的中间位置、速度、加速度
-                            # p(t) = p₀ + a₁·t + a₂·t² + a₃·t³ + a₄·t⁴ + a₅·t⁵
-                            # v(t) = a₁ + 2·a₂·t + 3·a₃·t² + 4·a₄·t³ + 5·a₅·t⁴
-                            # a(t) = 2·a₂ + 6·a₃·t + 12·a₄·t² + 20·a₅·t³
+                            t2 = t1 * t1
+                            t3 = t2 * t1
+                            t4 = t3 * t1
+                            t5 = t4 * t1
                             for i in range(0, N):
                                 intermediate_goal_point.positions[i] = last_goal_point.positions[i] + a1[i]*t1 + a2[i]*t2 + a3[i]*t3 + a4[i]*t4 + a5[i]*t5
                                 intermediate_goal_point.velocities[i] = a1[i] + 2*a2[i]*t1 + 3*a3[i]*t2 + 4*a4[i]*t3 + 5*a5[i]*t4
                                 intermediate_goal_point.accelerations[i] = 2*a2[i] + 6*a3[i]*t1 + 12*a4[i]*t2 + 20*a5[i]*t3
-                            
-                            # 移动到中间目标点并发布状态（200Hz）
+                            num_steps += 1
                             tt = tt + update_duration.to_sec()
                             self._move_to(intermediate_goal_point, update_duration.to_sec())
                             self.joint_state_publisher()
 
+                        _full_chain_log("segment_done", T=round(T, 4), num_steps=num_steps, t_end=round(current_goal_point.time_from_start.to_sec(), 4))
+                        _motion_analysis_log("segment", T=round(T, 4), num_steps=num_steps)
+                        _log_ros1_stage("ros1_sim", "segment_done", T=round(T, 4), num_steps=num_steps)
                         # 计算剩余时间（用于移动到最终目标点）
                         move_duration = current_goal_point.time_from_start.to_sec() - tt
 
                 # ========== 移动到最终目标点 ==========
-                self._move_to(current_goal_point, move_duration)
+                dur_val = move_duration.to_sec() if hasattr(move_duration, 'to_sec') else float(move_duration)
+                self._move_to(current_goal_point, dur_val)
                 self.joint_state_publisher()
                 last_goal_point = copy.deepcopy(current_goal_point)
+                # #region agent log
+                _dbg_log("MotionControllerSimulator._motion_worker", "after_last_update", {"last_sec_now": last_goal_point.time_from_start.to_sec()}, "H5")
+                # #endregion
 
             except Exception as e:
+                _dbg_log("MotionControllerSimulator._motion_worker", "exception", {"error": str(e)}, "H5")
                 rospy.logerr('Unexpected exception: %s', e)
 
         rospy.logdebug("Shutting down motion controller")
@@ -679,31 +919,58 @@ class AuboRobotSimulatorNode():
             rospy.logdebug('handle joint_path_command')
             try:
                 rospy.loginfo('Received trajectory with %s points, executing callback', str(len(msg_in.points)))
+                # #region agent log
+                in_motion = self.motion_ctrl.is_in_motion()
+                buf_size_before = self.motion_ctrl.motion_buffer.qsize()
+                _dbg_log("AuboRobotSimulatorNode.trajectory_callback", "received", {"num_points": len(msg_in.points), "in_motion": in_motion, "buffer_size_before": buf_size_before}, "H0")
+                # #endregion
 
-                # 检查是否正在运动中
-                if self.motion_ctrl.is_in_motion():
-                    if len(msg_in.points) > 0:
-                        rospy.logerr('Received trajectory while still in motion, trajectory splicing not supported')
-                    else:
-                        rospy.logdebug('Received empty trajectory while still in motion, stopping current trajectory')
-                    # 停止当前运动（不支持轨迹拼接）
+                # 若正在运动则先停止，再添加新轨迹（支持轨迹替换）
+                if in_motion:
+                    rospy.logwarn('Received new trajectory while in motion, replacing current trajectory')
                     self.motion_ctrl.stop()
 
-                else:
-                    # ========== 处理新轨迹 ==========
-                    # 从参数服务器获取速度缩放因子（可能已更新）
-                    self.velocity_scale_factor = rospy.get_param('/aubo_controller/velocity_scale_factor', 1.0)
-                    rospy.loginfo('The velocity scale factor is: %s', str(self.velocity_scale_factor))
-                    
-                    # 对轨迹进行速度缩放（调整时间戳和速度）
-                    new_traj = scale_trajectory_speed(msg_in, self.velocity_scale_factor)
-                    
-                    # 处理每个轨迹点
-                    for point in new_traj.points:
-                        # 首先将轨迹点重新映射到控制器关节顺序，然后添加到控制器
-                        point = self._to_controller_order(msg_in.joint_names, point)
-                        self.motion_ctrl.add_motion_waypoint(point)
-                    rospy.loginfo('Add new position: %s', str(point.positions))
+                # 始终添加新轨迹
+                self.velocity_scale_factor = rospy.get_param('/aubo_controller/velocity_scale_factor', 1.0)
+                rospy.loginfo('The velocity scale factor is: %s', str(self.velocity_scale_factor))
+                new_traj = scale_trajectory_speed(msg_in, self.velocity_scale_factor)
+                # 仅对“异常笛卡尔”抽稀：存在点间隔 < 阈值时才抽稀，关节空间(间隔~0.095)不受影响
+                # 抽稀目标：使笛卡尔 segment_T 对齐关节空间（~0.095s）
+                cartesian_threshold = rospy.get_param('/aubo_controller/cartesian_resample_threshold', 0.095)
+                target_interval = rospy.get_param('/aubo_controller/cartesian_min_segment_interval', 0.09)
+                pts = new_traj.points
+                if len(pts) >= 3 and target_interval > 0:
+                    intervals = [pts[i].time_from_start.to_sec() - pts[i-1].time_from_start.to_sec() for i in range(1, len(pts))]
+                    min_iv = min(intervals)
+                    if min_iv < cartesian_threshold:
+                        new_traj = resample_trajectory_min_interval(new_traj, target_interval)
+                        n_before, pts = len(pts), new_traj.points
+                        rospy.loginfo('Cartesian resampled: %d -> %d points (target_interval=%.3fs, align to joint ~0.095s)', n_before, len(pts), target_interval)
+                for point in pts:
+                    point = self._to_controller_order(msg_in.joint_names, point)
+                    self.motion_ctrl.add_motion_waypoint(point)
+                # #region agent log
+                buf_size_after = self.motion_ctrl.motion_buffer.qsize()
+                _dbg_log("AuboRobotSimulatorNode.trajectory_callback", "add_motion_waypoint_done", {"num_points_added": len(pts), "buffer_size_after": buf_size_after}, "H0")
+                _log_ros1_stage("ros1_sim", "trajectory_received", num_points=len(pts))
+                if len(pts) >= 2:
+                    t0 = pts[0].time_from_start.to_sec()
+                    t1 = pts[-1].time_from_start.to_sec()
+                    avg_dt = (t1 - t0) / (len(pts) - 1) if len(pts) > 1 else 0
+                    _cartesian_log("trajectory_received", num_points=len(pts), duration_sec=round(t1 - t0, 3),
+                                   avg_interval_sec=round(avg_dt, 4), first_t=t0, last_t=t1)
+                point_times = [round(p.time_from_start.to_sec(), 4) for p in pts]
+                _full_chain_log("trajectory_received", num_points=len(pts), point_times=point_times,
+                               duration_sec=round(pts[-1].time_from_start.to_sec() - pts[0].time_from_start.to_sec(), 3) if pts else 0)
+                # #endregion
+                rospy.loginfo('Add new position: %s', str(point.positions))
+                if len(pts) >= 2:
+                    t0 = pts[0].time_from_start.to_sec()
+                    t1 = pts[-1].time_from_start.to_sec()
+                    intervals = [pts[i].time_from_start.to_sec() - pts[i-1].time_from_start.to_sec() for i in range(1, len(pts))]
+                    _motion_analysis_log("trajectory_received", num_points=len(pts), duration_sec=round(t1 - t0, 4),
+                                         min_interval=round(min(intervals), 4), max_interval=round(max(intervals), 4),
+                                         avg_interval=round((t1 - t0) / (len(pts) - 1), 4) if len(pts) > 1 else 0)
 
             except Exception as e:
                 rospy.logerr('Unexpected exception: %s', e)

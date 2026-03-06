@@ -86,6 +86,16 @@ class PoseEstimator:
         self.brute_force_acceptance_threshold = 0.7
         self.brute_force_angle_matching_scale = 1.0  # 提高缩放因子，使用原始尺寸匹配
     
+    @staticmethod
+    def _normalize_angle_to_180(angle_deg: float) -> float:
+        """将角度归一化到 [-180, 180] 区间（与 360° 等价，便于比较和显示）。"""
+        a = float(angle_deg)
+        while a > 180.0:
+            a -= 360.0
+        while a < -180.0:
+            a += 360.0
+        return a
+    
     def load_template_library(
         self,
         template_root: str,
@@ -139,9 +149,11 @@ class PoseEstimator:
             T_E_C: 末端到相机的变换矩阵
         """
         try:
+            self.logger.info(f'正在加载模板姿态: {pose_dir.name}')
             # 直接加载template_info.json
             template_info_json = pose_dir / "template_info.json"
             if not template_info_json.exists():
+                self.logger.info(f'跳过 {pose_dir.name}: 无 template_info.json')
                 return
             
             template_info = None
@@ -293,9 +305,11 @@ class PoseEstimator:
                     template_item.T_C_E_prep = T_B_E_prep
             
             self.templates.append(template_item)
+            self.logger.info(f'已加载模板: {pose_dir.name}')
                 
         except Exception as e:
-            self.logger.warning(f'加载模板姿态失败 {pose_dir}: {e}')
+            self.logger.warning(f'加载模板姿态失败 {pose_dir.name}: {e}')
+            self.logger.warning(traceback.format_exc())
     
     def _load_pose_json(self, pose_path: str) -> Optional[np.ndarray]:
         """加载姿态JSON文件
@@ -478,82 +492,6 @@ class PoseEstimator:
             return 0.0
         
         return float(intersection_area) / float(union_area)
-    
-    def find_best_mask_alignment(
-        self,
-        template_mask: np.ndarray,
-        target_mask: np.ndarray,
-        target_center: Tuple[float, float],
-        scale: float = 1.0,
-        initial_angle_deg: float = 0.0,
-        angle_range_deg: float = 180.0,
-        angle_step_deg: float = 5.0
-    ) -> Tuple[bool, float, float, np.ndarray]:
-        """通过旋转搜索找到最佳掩膜对齐角度和重合度
-        
-        Args:
-            template_mask: 模板掩膜（标准化后的掩膜，工件中心在掩膜中心）
-            target_mask: 待估计工件的掩膜（输入图像坐标系）
-            target_center: 待估计工件中心在输入图像中的位置
-            scale: 缩放比例（基于外接圆半径）
-            initial_angle_deg: 初始角度（度），用于确定搜索范围
-            angle_range_deg: 搜索角度范围（度），在初始角度两侧各搜索此范围
-            angle_step_deg: 角度搜索步长（度）
-            
-        Returns:
-            (是否成功找到匹配, 最佳角度(度), 最佳置信度, 最佳对齐后的掩膜)
-        """
-        if template_mask.size == 0 or target_mask.size == 0:
-            return False, 0.0, 0.0, np.array([])
-        
-        # 模板掩膜中心（标准化后的掩膜，工件中心在掩膜中心）
-        template_mask_center = (
-            template_mask.shape[1] / 2.0,
-            template_mask.shape[0] / 2.0
-        )
-        
-        # 计算搜索角度范围（与C++一致：±angle_range_deg，总范围 2*angle_range_deg）
-        min_angle = initial_angle_deg - angle_range_deg
-        max_angle = initial_angle_deg + angle_range_deg
-        
-        best_confidence = 0.0
-        best_angle_deg = initial_angle_deg
-        best_aligned_mask = None
-        
-        # 遍历所有角度
-        angle = min_angle
-        while angle <= max_angle:
-            # 创建旋转变换矩阵（以模板掩膜中心为旋转中心）
-            M = cv2.getRotationMatrix2D(template_mask_center, angle, scale)
-            
-            # 计算平移量：目标中心 - 变换后的掩膜中心
-            # 由于以掩膜中心为旋转中心，旋转和缩放后掩膜中心位置不变
-            M[0, 2] += target_center[0] - template_mask_center[0]
-            M[1, 2] += target_center[1] - template_mask_center[1]
-            
-            # 变换模板掩膜到目标图像坐标系
-            aligned_mask = cv2.warpAffine(
-                template_mask, M, (target_mask.shape[1], target_mask.shape[0]),
-                flags=cv2.INTER_NEAREST,
-                borderMode=cv2.BORDER_CONSTANT,
-                borderValue=0
-            )
-            
-            # 重新二值化，确保掩膜是纯二值的（0或255）
-            _, aligned_mask = cv2.threshold(aligned_mask, 127, 255, cv2.THRESH_BINARY)
-            
-            # 计算重合度（IoU）
-            confidence = self.calculate_mask_iou(aligned_mask, target_mask)
-            
-            # 更新最佳匹配
-            if confidence > best_confidence:
-                best_confidence = confidence
-                best_angle_deg = angle
-                best_aligned_mask = aligned_mask.copy()
-            
-            angle += angle_step_deg
-        
-        return best_confidence > 0.0, best_angle_deg, best_confidence, best_aligned_mask if best_aligned_mask is not None else np.array([])
     
     def select_best_template(
         self,
@@ -936,7 +874,8 @@ class PoseEstimator:
             
             # 提前通过阈值
             if confidence >= self.brute_force_acceptance_threshold:
-                self.logger.info(f'[模板 {template_idx}] {template_id}: 达到接受阈值, 角度={angle:.1f}°, 置信度={confidence:.4f}')
+                angle_norm_180 = self._normalize_angle_to_180(angle)
+                self.logger.info(f'[模板 {template_idx}] {template_id}: 达到接受阈值, 角度={angle_norm_180:.1f}°, 置信度={confidence:.4f}')
                 normalized_best_angle = angle
                 while normalized_best_angle < 0.0:
                     normalized_best_angle += 360.0
@@ -960,23 +899,24 @@ class PoseEstimator:
                 with template_results_lock:
                     if confidence > template_results[template_idx]['best_confidence']:
                         template_results[template_idx]['best_confidence'] = confidence
-                        template_results[template_idx]['best_angle_deg'] = angle
+                        template_results[template_idx]['best_angle_deg'] = angle_norm_180
                 
-                # 更新全局最佳结果
+                # 更新全局最佳结果：用归一化到 ±180° 的角度判断，等价角度（如 -412° 与 -52°）可参与比较
                 with global_result_lock:
                     if confidence > global_best_result['confidence']:
                         global_best_result['template_idx'] = template_idx
                         global_best_result['confidence'] = confidence
-                        global_best_result['angle'] = angle
+                        global_best_result['angle'] = angle_norm_180
                         global_best_result['mask'] = aligned_mask_full.copy()
                 should_early_exit.set()
                 return
             
             angle += angle_step_deg
         
-        # 只输出有有效匹配的结果
+        # 只输出有有效匹配的结果（日志显示归一化到 ±180° 的角度，便于理解）
         if local_best_confidence > 0.0:
-            self.logger.info(f'[模板 {template_idx}] {template_id}: 最佳角度={local_best_angle_deg:.2f}°, 置信度={local_best_confidence:.4f}')
+            local_best_angle_norm = self._normalize_angle_to_180(local_best_angle_deg)
+            self.logger.info(f'[模板 {template_idx}] {template_id}: 最佳角度={local_best_angle_norm:.2f}°, 置信度={local_best_confidence:.4f}')
         
         # 更新模板局部最佳结果和全局最佳结果
         if local_best_confidence > 0.0:
@@ -999,17 +939,18 @@ class PoseEstimator:
             )
             _, aligned_mask_full = cv2.threshold(aligned_mask_full, 127, 255, cv2.THRESH_BINARY)
             
+            local_best_angle_norm = self._normalize_angle_to_180(local_best_angle_deg)
             with template_results_lock:
                 if local_best_confidence > template_results[template_idx]['best_confidence']:
                     template_results[template_idx]['best_confidence'] = local_best_confidence
-                    template_results[template_idx]['best_angle_deg'] = local_best_angle_deg
+                    template_results[template_idx]['best_angle_deg'] = local_best_angle_norm
             
+            # 用归一化到 ±180° 的角度参与全局最佳比较，等价旋转（如 -412° 与 -52°）可参与竞争
             with global_result_lock:
                 if local_best_confidence > global_best_result['confidence']:
-                    old_best = global_best_result['confidence']
                     global_best_result['template_idx'] = template_idx
                     global_best_result['confidence'] = local_best_confidence
-                    global_best_result['angle'] = local_best_angle_deg
+                    global_best_result['angle'] = local_best_angle_norm
                     global_best_result['mask'] = aligned_mask_full.copy()
     
     def _calculate_feature_distance(
@@ -1043,58 +984,6 @@ class PoseEstimator:
         distance = np.sqrt(radius_diff**2 + angle_diff_norm**2)
         
         return distance
-    
-    def compute_2d_alignment(
-        self,
-        template_feature: ComponentFeature,
-        target_feature: ComponentFeature,
-        allow_scale: bool = False
-    ) -> np.ndarray:
-        """计算2D对齐矩阵
-        
-        Args:
-            template_feature: 模板特征
-            target_feature: 目标特征
-            allow_scale: 是否允许尺度变化
-            
-        Returns:
-            2x3相似变换矩阵
-        """
-        # 源点（模板）和目标点
-        src_pts = np.array([
-            template_feature.workpiece_center,
-            template_feature.valve_center
-        ], dtype=np.float32)
-        
-        dst_pts = np.array([
-            target_feature.workpiece_center,
-            target_feature.valve_center
-        ], dtype=np.float32)
-        
-        # 计算相似变换矩阵
-        if allow_scale:
-            # 使用estimateAffinePartial2D计算相似变换（刚性+缩放）
-            M, _ = cv2.estimateAffinePartial2D(src_pts, dst_pts)
-        else:
-            # 只允许刚性变换（旋转+平移）
-            # 计算旋转角度
-            template_angle = template_feature.standardized_angle
-            target_angle = target_feature.standardized_angle
-            rotation_angle = np.degrees(target_angle - template_angle)
-            
-            # 计算变换矩阵
-            center = template_feature.workpiece_center
-            M_rot = cv2.getRotationMatrix2D(center, rotation_angle, 1.0)
-            
-            # 计算平移
-            rotated_center = M_rot @ np.array([center[0], center[1], 1.0])
-            translation = np.array(target_feature.workpiece_center) - rotated_center[:2]
-            
-            M = M_rot.copy()
-            M[0, 2] += translation[0]
-            M[1, 2] += translation[1]
-        
-        return M if M is not None else np.eye(2, 3)
     
     def _get_depth_from_image(
         self,

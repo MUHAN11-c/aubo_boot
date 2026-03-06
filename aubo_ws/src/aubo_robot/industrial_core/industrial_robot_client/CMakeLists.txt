@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.0.2)
 
 project(industrial_robot_client)
 
-set(CMAKE_CXX_STANDARD 11)
+# C++17 required for std::shared_mutex used by system log4cxx (via ros headers)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(catkin REQUIRED COMPONENTS actionlib actionlib_msgs

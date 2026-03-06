@@ -1,0 +1,7 @@
+set(rqt_action_SETUP_PY_SETUP_MODULE "setuptools")
+set(rqt_action_SETUP_PY_VERSION "0.4.11")
+set(rqt_action_SETUP_PY_SCRIPTS "")
+set(rqt_action_SETUP_PY_PACKAGES "rqt_action")
+set(rqt_action_SETUP_PY_PACKAGE_DIRS "src/rqt_action")
+set(rqt_action_SETUP_PY_MODULES "")
+set(rqt_action_SETUP_PY_MODULE_DIRS "")

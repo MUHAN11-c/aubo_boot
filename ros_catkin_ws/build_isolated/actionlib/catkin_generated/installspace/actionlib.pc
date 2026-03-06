@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ros_catkin_ws/install_isolated
+
+Name: actionlib
+Description: Description of actionlib
+Version: 1.14.3
+Cflags: -I${prefix}/include -I/usr/include
+Libs: -L${prefix}/lib -lactionlib /usr/lib/x86_64-linux-gnu/libboost_thread.so.1.74.0
+Requires: actionlib_msgs message_runtime roscpp std_msgs

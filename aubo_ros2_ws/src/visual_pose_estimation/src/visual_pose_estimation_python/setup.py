@@ -15,9 +15,12 @@ setup(
         # Launch文件
         (os.path.join('share', package_name, 'launch'),
             glob('launch/*.launch.py')),
-        # 配置文件
+        # 配置文件（保留旧 configs 以兼容）
         (os.path.join('share', package_name, 'configs'),
-            glob('configs/*.yaml')),
+            glob('configs/*.yaml') + glob('configs/*.xml') + glob('configs/*.json')),
+        # 默认配置目录：web_ui/configs
+        (os.path.join('share', package_name, 'web_ui', 'configs'),
+            glob('web_ui/configs/*.json') + glob('web_ui/configs/*.yaml') + glob('web_ui/configs/*.xml') + glob('web_ui/configs/*.md')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

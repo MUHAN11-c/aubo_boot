@@ -1,18 +1,43 @@
 {
-    "ros.distro": "foxy",
-    "python.analysis.extraPaths": [
-        "/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline",
-        "/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/models",
-        "/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/dataset",
-        "/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/utils"
-    ],
+    "ROS2.distro": "humble",
     "python.autoComplete.extraPaths": [
-        "/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline",
-        "/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/models",
-        "/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/dataset",
-        "/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/utils"
+        "/home/mu/IVG/install/aubo_robot_simulator_ros2/lib/python3.10/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/visual_pose_estimation_python/lib/python3.10/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/vision/lib/python3.10/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/ur_moveit_config/local/lib/python3.10/dist-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/ur_bringup/lib/python3.10/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/realsense2_camera_msgs/local/lib/python3.10/dist-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/graspnet_ros2/lib/python3.10/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/percipio_camera_interface/local/lib/python3.10/dist-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/octo_bringup/lib/python3.10/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/hand_eye_calibration/lib/python3.10/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/interface/local/lib/python3.10/dist-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/graspnet/lib/python3.10/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/demo_interface/local/lib/python3.10/dist-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/aubo_robot_simulator_ros2/lib/python3.10/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/aubo_msgs/local/lib/python3.10/dist-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs/local/lib/python3.10/dist-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
     ],
-    "terminal.integrated.env.linux": {
-        "PYTHONPATH": "/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline:/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/models:/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/dataset:/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/utils:${env:PYTHONPATH}"
-    }
+    "python.analysis.extraPaths": [
+        "/home/mu/IVG/install/aubo_robot_simulator_ros2/lib/python3.10/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/visual_pose_estimation_python/lib/python3.10/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/vision/lib/python3.10/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/ur_moveit_config/local/lib/python3.10/dist-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/ur_bringup/lib/python3.10/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/realsense2_camera_msgs/local/lib/python3.10/dist-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/graspnet_ros2/lib/python3.10/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/percipio_camera_interface/local/lib/python3.10/dist-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/octo_bringup/lib/python3.10/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/hand_eye_calibration/lib/python3.10/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/interface/local/lib/python3.10/dist-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/graspnet/lib/python3.10/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/demo_interface/local/lib/python3.10/dist-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/aubo_robot_simulator_ros2/lib/python3.10/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/aubo_msgs/local/lib/python3.10/dist-packages",
+        "/home/mu/IVG/aubo_ros2_ws/install/aubo_dashboard_msgs/local/lib/python3.10/dist-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ]
 }

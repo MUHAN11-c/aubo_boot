@@ -59,6 +59,199 @@ function initAutoHandEyeCalibTab() {
     addLog('info', '💡 提示: 请从 auto_hand_eye_poses_optimized.json 文件加载位姿数据');
 }
 
+// 读取并显示“最佳”手眼标定结果（自动手眼标定选项卡用）
+// 功能：调用后端API，从 config/calibration_results 中找到“最佳”标定结果文件，并在模态框中展示摘要信息
+async function loadBestCalibrationResultForAutoTab() {
+    const modal = document.getElementById('best-calibration-modal');
+    const content = document.getElementById('best-calibration-content');
+    if (!modal || !content) {
+        console.warn('best-calibration-modal 或 best-calibration-content 未找到，无法显示最佳标定结果');
+        return;
+    }
+
+    // 打开模态框并显示加载提示
+    content.innerHTML = `
+        <p style="color: #ff9800; margin: 0 0 6px 0; font-size: 14px; line-height: 1.4;">⏳ 正在计算最佳手眼标定结果...</p>
+        <p style="margin: 0; font-size: 13px; color: #8d6e63; line-height: 1.4;">系统会遍历 <code>config/calibration_results</code> 中的所有结果文件，选出平均误差最小的一组。</p>
+    `;
+    modal.style.display = 'block';
+
+    try {
+        const response = await fetch('/api/hand_eye/best_calibration_result');
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (!result.success) {
+            content.innerHTML = `
+                <p style="color: #e64a19; margin: 0 0 6px 0; font-size: 14px; line-height: 1.4;">
+                    ⚠️ ${result.error || '未找到可用的手眼标定结果文件，请先完成一次标定并保存结果。'}
+                </p>
+                <p style="margin: 0; font-size: 13px; color: #8d6e63;">请在自动手眼标定完成后点击“💾 保存标定结果”，再尝试此操作。</p>
+            `;
+            return;
+        }
+
+        const calib = result.calibration || {};
+        const acc = calib.calibration_accuracy || {};
+        const ci = result.camera_intrinsic || {};
+
+        const filename = result.filename || '未知文件';
+        const savedAt = result.saved_at || '未知时间';
+        const method = calib.calibration_method || '未知方法';
+        const type = calib.calibration_type || '未知类型';
+        const meanError = acc.mean_error_mm != null ? acc.mean_error_mm.toFixed(3) : '未知';
+        const maxError = acc.max_error_mm != null ? acc.max_error_mm.toFixed(3) : '未知';
+        const dataCount = acc.data_point_count != null ? acc.data_point_count : '未知';
+
+        const tv = calib.translation_vector || [];
+        // 源数据单位默认视为 mm，这里统一转换成 m 显示
+        const txVal = tv.length > 0 && tv[0] != null ? tv[0] / 1000.0 : 0.0;
+        const tyVal = tv.length > 1 && tv[1] != null ? tv[1] / 1000.0 : 0.0;
+        const tzVal = tv.length > 2 && tv[2] != null ? tv[2] / 1000.0 : 0.0;
+        const tx = txVal.toFixed(4);
+        const ty = tyVal.toFixed(4);
+        const tz = tzVal.toFixed(4);
+
+        // 构造相机内参显示（显式注明单位：像素 px）
+        let cameraInfoHtml = '';
+        if (ci && (ci.camera_matrix || ci.image_size)) {
+            const imageSize = ci.image_size || [];
+            const fx = ci.camera_matrix && ci.camera_matrix[0] ? ci.camera_matrix[0][0] : null;
+            const fy = ci.camera_matrix && ci.camera_matrix[1] ? ci.camera_matrix[1][1] : null;
+            const cx = ci.camera_matrix && ci.camera_matrix[0] ? ci.camera_matrix[0][2] : null;
+            const cy = ci.camera_matrix && ci.camera_matrix[1] ? ci.camera_matrix[1][2] : null;
+            cameraInfoHtml = `
+                <div style="margin-bottom: 12px;">
+                    <h4 style="margin: 0 0 6px 0; font-size: 14px; color: #5d4037;">相机内参</h4>
+                    <p style="margin: 0 0 4px 0; font-size: 13px; color: #5d4037;">
+                        图像尺寸: ${imageSize.length === 2 ? imageSize[0] + ' × ' + imageSize[1] : '未知'} px
+                    </p>
+                    ${fx != null && fy != null && cx != null && cy != null ? `
+                    <p style="margin: 0; font-size: 13px; color: #5d4037;">
+                        fx = <span style="font-family: monospace;">${fx.toFixed(3)}</span> px,
+                        fy = <span style="font-family: monospace;">${fy.toFixed(3)}</span> px,
+                        cx = <span style="font-family: monospace;">${cx.toFixed(3)}</span> px,
+                        cy = <span style="font-family: monospace;">${cy.toFixed(3)}</span> px
+                    </p>` : ''}
+                </div>
+            `;
+        }
+
+        // 构造4x4变换矩阵（以预格式化文本显示，统一说明：旋转无单位，平移为 m）
+        let T = calib.transformation_matrix || null;
+        let THtml = '';
+        if (Array.isArray(T) && T.length === 4 && Array.isArray(T[0]) && T[0].length === 4) {
+            // 拷贝并将最后一列平移从 mm 转成 m
+            const rows = T.map((row, rowIdx) => {
+                if (!Array.isArray(row)) return row;
+                return row.map((v, colIdx) => {
+                    if (typeof v !== 'number') return v;
+                    // 第 0~2 行第 3 列是平移量，单位从 mm 转成 m，最后一行保持 1 不变
+                    if (colIdx === 3 && rowIdx < 3) {
+                        return (v / 1000.0).toFixed(6);
+                    }
+                    return v.toFixed(6);
+                });
+            });
+            const matrixLines = rows.map(r => `[ ${r.join('  ')} ]`).join('\n');
+            THtml = `
+                <div style="margin-bottom: 12px;">
+                    <h4 style="margin: 0 0 4px 0; font-size: 14px; color: #5d4037;">齐次变换矩阵 T (相机 → 基座)</h4>
+                    <p style="margin: 0 0 4px 0; font-size: 13px; color: #8d6e63;">R 无单位，最后一列平移向量单位为 m</p>
+                    <pre style="margin: 0; padding: 10px 12px; background: #fff3e0; border-radius: 6px; border: 1px solid #ffe0b2; font-family: monospace; font-size: 13px; white-space: pre;">
+${matrixLines}
+                    </pre>
+                </div>
+            `;
+        }
+
+        // 构造3x3旋转矩阵（预格式化文本显示，强调无单位）
+        let Rm = calib.rotation_matrix || null;
+        let RHtml = '';
+        if (Array.isArray(Rm) && Rm.length === 3 && Array.isArray(Rm[0]) && Rm[0].length === 3) {
+            const rowsR = Rm.map(row => row.map(v => typeof v === 'number' ? v.toFixed(6) : v));
+            const matrixLinesR = rowsR.map(r => `[ ${r.join('  ')} ]`).join('\n');
+            RHtml = `
+                <div style="margin-bottom: 12px;">
+                    <h4 style="margin: 0 0 4px 0; font-size: 14px; color: #5d4037;">旋转矩阵 R</h4>
+                    <p style="margin: 0 0 4px 0; font-size: 12px; color: #8d6e63;">R 为无单位的方向余弦矩阵</p>
+                    <pre style="margin: 0; padding: 10px 12px; background: #fff3e0; border-radius: 6px; border: 1px solid #ffe0b2; font-family: monospace; font-size: 13px; white-space: pre;">
+${matrixLinesR}
+                    </pre>
+                </div>
+            `;
+        }
+
+        content.innerHTML = `
+            <div style="margin-bottom: 12px; padding: 10px 12px; background: #fff3e0; border-radius: 8px; border: 1px solid #ffe0b2;">
+                <p style="margin: 0 0 4px 0; font-size: 13px; color: #6d4c41;">
+                    <strong>源文件:</strong> <span style="font-family: monospace;">${filename}</span>
+                </p>
+                <p style="margin: 0; font-size: 13px; color: #6d4c41;">
+                    <strong>保存时间:</strong> ${savedAt} &nbsp;&nbsp;
+                    <strong>格式:</strong> ${result.format ? result.format.toUpperCase() : '未知'}
+                </p>
+            </div>
+            <div style="margin-bottom: 12px;">
+                <h4 style="margin: 0 0 6px 0; font-size: 14px; color: #5d4037;">标定信息</h4>
+                <p style="margin: 0 0 4px 0; font-size: 13px; color: #5d4037;">
+                    <strong>类型/方法:</strong> ${type} / ${method}
+                </p>
+                <p style="margin: 0; font-size: 13px; color: #5d4037;">
+                    <strong>标定日期:</strong> ${calib.calibration_date || '未知'}
+                </p>
+            </div>
+            ${cameraInfoHtml}
+            <div style="margin-bottom: 12px;">
+                <h4 style="margin: 0 0 6px 0; font-size: 14px; color: #5d4037;">平移向量 (m)</h4>
+                <p style="margin: 0; font-size: 13px; color: #5d4037;">
+                    tx = <span style="font-family: monospace; color: #2e7d32;">${tx}</span>,
+                    ty = <span style="font-family: monospace; color: #2e7d32;">${ty}</span>,
+                    tz = <span style="font-family: monospace; color: #2e7d32;">${tz}</span>
+                </p>
+            </div>
+            ${THtml}
+            ${RHtml}
+            <div style="margin-bottom: 12px;">
+                <h4 style="margin: 0 0 6px 0; font-size: 14px; color: #5d4037;">标定精度 (mm)</h4>
+                <p style="margin: 0 0 4px 0; font-size: 13px; color: #5d4037;">
+                    平均误差 = <span style="font-family: monospace; color: #1565c0;">${meanError}</span>,
+                    最大误差 = <span style="font-family: monospace; color: #c62828;">${maxError}</span>
+                </p>
+                <p style="margin: 0; font-size: 13px; color: #6d4c41;">
+                    使用数据点数: ${dataCount}
+                </p>
+            </div>
+            <div style="margin-top: 8px; padding: 8px 10px; background: #fffde7; border-radius: 6px; border: 1px dashed #ffe082; font-size: 12px; color: #8d6e63;">
+                <p style="margin: 0 0 4px 0;">
+                    ✅ 已将该结果复制为标准文件：
+                    <code>${result.standard_filename || 'hand_eye_calibration_best.*'}</code>
+                </p>
+                ${result.standard_filepath ? `<p style="margin: 0;">路径: <span style="font-family: monospace;">${result.standard_filepath}</span></p>` : ''}
+            </div>
+        `;
+    } catch (error) {
+        console.error('读取最佳手眼标定结果失败:', error);
+        content.innerHTML = `
+            <p style="color: #c62828; margin: 0 0 6px 0; font-size: 14px; line-height: 1.4;">
+                ❌ 读取最佳手眼标定结果失败: ${error.message}
+            </p>
+            <p style="margin: 0; font-size: 13px; color: #8d6e63;">请检查后端日志和配置文件后重试。</p>
+        `;
+    }
+}
+
+// 关闭最佳手眼标定结果模态框
+function closeBestCalibrationModal() {
+    const modal = document.getElementById('best-calibration-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
 // 初始化标定方法切换按钮
 function initCalibrationMethodToggle() {
     const btnCustom = document.getElementById('btn-method-custom');
@@ -183,6 +376,7 @@ function initAutoCalibButtons() {
     const btnAutoStartCalib = document.getElementById('btn-auto-start-calibration');
     const btnAutoStopCalib = document.getElementById('btn-auto-stop-calibration');
     const btnAutoSaveCalib = document.getElementById('btn-auto-save-calibration');
+    const btnAutoShowBestCalib = document.getElementById('btn-auto-show-best-calibration');
     
     if (btnAutoStartCalib) {
         btnAutoStartCalib.addEventListener('click', () => {
@@ -196,6 +390,11 @@ function initAutoCalibButtons() {
     }
     if (btnAutoSaveCalib) {
         btnAutoSaveCalib.addEventListener('click', () => handleSaveCalibrationForAuto());
+    }
+    if (btnAutoShowBestCalib) {
+        btnAutoShowBestCalib.addEventListener('click', () => {
+            loadBestCalibrationResultForAutoTab();
+        });
     }
 }
 

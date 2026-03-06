@@ -1,0 +1,14 @@
+Metadata-Version: 2.1
+Name: rqt-moveit
+Version: 0.5.13
+Summary: An rqt-based tool that assists monitoring tasks for MoveIt! motion planner developers and users. Currently the following items are monitored if they are either running, existing or published:  Node...
+Home-page: http://wiki.ros.org/rqt_moveit
+Author: Isaac Saito
+Maintainer: Isaac I.Y. Saito <iisaito@kinugarage.com>, Arne Hitzmann <arne.hitzmann@gmail.com>
+License: BSD
+Platform: UNKNOWN
+License-File: LICENSE
+
+An rqt-based tool that assists monitoring tasks for MoveIt! motion planner developers and users. Currently the following items are monitored if they are either running, existing or published:  Node: /move_group Parameter: [/robot_description, /robot_description_semantic] Topic: Following types are monitored. Published "names" are ignored.
+ [sensor_msgs/PointCloud, sensor_msgs/PointCloud2, sensor_msgs/Image, sensor_msgs/CameraInfo]  Since this package is not made by the MoveIt! development team (although with assistance from the them), please post issue reports to the designated tracker (not MoveIt!'s main tracker).
+

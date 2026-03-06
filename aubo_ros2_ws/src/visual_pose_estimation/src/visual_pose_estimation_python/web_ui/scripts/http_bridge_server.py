@@ -7,18 +7,20 @@ import time
 import sys
 import os
 import json
-import signal
 import base64
 import csv
 import yaml
 import datetime
 import math
+import io
 from pathlib import Path
+from typing import Optional, Tuple
+from PIL import Image
 
 # ROS2 imports
 import rclpy
 from rclpy.node import Node
-from interface.srv import EstimatePose, ListTemplates, StandardizeTemplate, VisualizeGraspPose, UpdateParams
+from interface.srv import EstimatePose, ListTemplates, StandardizeTemplate, UpdateParams
 
 from geometry_msgs.msg import Pose, Point, Quaternion
 from sensor_msgs.msg import Image as SensorImage
@@ -38,6 +40,392 @@ try:
 except ImportError as e:
     print(f"警告: 无法导入算法模块: {e}")
     ALGORITHM_AVAILABLE = False
+
+# 可选导入 - rembg：当前 Python 能导入则进程内使用，否则回退到子进程（conda 环境）
+REMBG_AVAILABLE = False
+RemBGProcessor = None
+try:
+    import onnxruntime  # noqa: F401
+    from visual_pose_estimation_python.rembg_processor import RemBGProcessor as _RemBGProcessorClass
+    RemBGProcessor = _RemBGProcessorClass
+    REMBG_AVAILABLE = True
+    print(f"✓ RemBG 进程内可用 (Python: {sys.executable})，将直接使用 GPU/CPU")
+except ImportError as e:
+    print(f"RemBG 进程内不可用: {e}")
+    print(f"  Python: {sys.executable}，将回退到子进程（conda 环境）")
+    RemBGProcessor = None
+    REMBG_AVAILABLE = False
+
+# Subprocess 版本的 RemBG 处理器（当无法直接导入时使用）
+class SubprocessRemBGProcessor:
+    """通过 subprocess 调用 conda 环境中的 rembg 脚本"""
+    
+    def __init__(self, model: str = "u2net", prefer_cuda: bool = True):
+        self.model = model
+        self.prefer_cuda = prefer_cuda
+        self._conda_python = "/home/mu/miniconda3/envs/ros2_env/bin/python"
+        self._script_path = Path(__file__).parent / "rembg_subprocess.py"
+        self._providers = None
+    
+    @property
+    def providers(self):
+        return self._providers
+    
+    def process_roi(self, color_bgr: np.ndarray, bbox: Tuple[int, int, int, int]) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+        """通过 subprocess 处理 ROI"""
+        import subprocess
+        import tempfile
+        import os
+
+        x0, y0, x1, y1 = bbox
+
+        # 准备临时文件
+        temp_dir = tempfile.gettempdir()
+        input_file = None
+        bbox_file = None
+        
+        try:
+            # 保存图像到临时文件
+            img_pil = Image.fromarray(color_bgr[:, :, ::-1])  # BGR to RGB
+            input_file = tempfile.NamedTemporaryFile(mode='wb', suffix='.png', delete=False, dir=temp_dir)
+            img_pil.save(input_file, format="PNG")
+            input_file.close()
+            input_path = input_file.name
+
+            # 保存 bbox JSON 到临时文件
+            bbox_data = {"x0": x0, "y0": y0, "x1": x1, "y1": y1}
+            bbox_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, dir=temp_dir)
+            json.dump(bbox_data, bbox_file)
+            bbox_file.close()
+            bbox_path = bbox_file.name
+
+            # #region agent log
+            import time as _time
+            try:
+                with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                    log_entry = {
+                        "sessionId": "rembg-debug",
+                        "runId": "run1",
+                        "hypothesisId": "SP",
+                        "location": "http_bridge_server.py:SubprocessRemBGProcessor.process_roi",
+                        "message": "准备调用子进程 RemBG（使用临时文件）",
+                        "data": {
+                            "bbox": [x0, y0, x1, y1],
+                            "image_shape": list(color_bgr.shape[:2]),
+                            "script_path": str(self._script_path),
+                            "conda_python": self._conda_python,
+                            "input_file": input_path,
+                            "bbox_file": bbox_path
+                        },
+                        "timestamp": int(_time.time() * 1000),
+                    }
+                    f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+            # #endregion
+
+            # 调用 subprocess（使用临时文件路径）
+            result = subprocess.run(
+                [self._conda_python, str(self._script_path), input_path, bbox_path, self.model],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            # #region agent log
+            try:
+                with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                    log_entry = {
+                        "sessionId": "rembg-debug",
+                        "runId": "run1",
+                        "hypothesisId": "SP",
+                        "location": "http_bridge_server.py:SubprocessRemBGProcessor.process_roi",
+                        "message": "子进程 RemBG 返回",
+                        "data": {
+                            "returncode": result.returncode,
+                            "stderr_tail": result.stderr[-200:] if result.stderr else "",
+                            "stdout_head": result.stdout[:200] if result.stdout else "",
+                        },
+                        "timestamp": int(_time.time() * 1000),
+                    }
+                    f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+            # #endregion
+
+            if result.returncode != 0:
+                # #region agent log
+                import time as _time
+                try:
+                    with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                        log_entry = {
+                            "sessionId": "rembg-debug",
+                            "runId": "run1",
+                            "hypothesisId": "H11",
+                            "location": "http_bridge_server.py:SubprocessRemBGProcessor.process_roi",
+                            "message": "RemBG subprocess 返回非零退出码",
+                            "data": {
+                                "returncode": result.returncode,
+                                "stderr": result.stderr[-500:] if result.stderr else "",
+                                "stdout": result.stdout[-500:] if result.stdout else ""
+                            },
+                            "timestamp": int(_time.time() * 1000)
+                        }
+                        f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+                except Exception:
+                    pass
+                # #endregion
+                print(f"RemBG subprocess 错误: {result.stderr}", file=sys.stderr)
+                return None, None
+
+            output = json.loads(result.stdout)
+            if not output.get("success"):
+                # #region agent log
+                import time as _time
+                try:
+                    with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                        log_entry = {
+                            "sessionId": "rembg-debug",
+                            "runId": "run1",
+                            "hypothesisId": "H12",
+                            "location": "http_bridge_server.py:SubprocessRemBGProcessor.process_roi",
+                            "message": "RemBG subprocess 处理失败",
+                            "data": {
+                                "error": output.get('error'),
+                                "traceback": output.get('traceback'),
+                                "output_keys": list(output.keys())
+                            },
+                            "timestamp": int(_time.time() * 1000)
+                        }
+                        f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+                except Exception:
+                    pass
+                # #endregion
+                print(f"RemBG subprocess 处理失败: {output.get('error')}", file=sys.stderr)
+                return None, None
+
+            self._providers = output.get("providers", ["CPUExecutionProvider"])
+
+            # 解码结果
+            mask_data = base64.b64decode(output["mask_b64"])
+            mask_img = Image.open(io.BytesIO(mask_data))
+            mask = np.array(mask_img.convert("L"))
+
+            cutout_data = base64.b64decode(output["cutout_b64"])
+            cutout_img = Image.open(io.BytesIO(cutout_data))
+            cutout_rgb = np.array(cutout_img.convert("RGB"))
+            cutout_bgr = cutout_rgb[:, :, ::-1]  # RGB to BGR
+
+            # #region agent log
+            import time as _time
+            try:
+                with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                    log_entry = {
+                        "sessionId": "rembg-debug",
+                        "runId": "run1",
+                        "hypothesisId": "H13",
+                        "location": "http_bridge_server.py:SubprocessRemBGProcessor.process_roi",
+                        "message": "RemBG subprocess 处理成功，返回结果",
+                        "data": {
+                            "providers": self._providers,
+                            "mask_shape": list(mask.shape),
+                            "cutout_shape": list(cutout_bgr.shape),
+                            "mask_nonzero": int(np.count_nonzero(mask))
+                        },
+                        "timestamp": int(_time.time() * 1000)
+                    }
+                    f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+            # #endregion
+
+            return mask, cutout_bgr
+
+        except subprocess.TimeoutExpired as e:
+            # #region agent log
+            import time as _time
+            try:
+                with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                    log_entry = {
+                        "sessionId": "rembg-debug",
+                        "runId": "run1",
+                        "hypothesisId": "H14",
+                        "location": "http_bridge_server.py:SubprocessRemBGProcessor.process_roi",
+                        "message": "RemBG subprocess 超时",
+                        "data": {
+                            "timeout": 30
+                        },
+                        "timestamp": int(_time.time() * 1000)
+                    }
+                    f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+            # #endregion
+            print("RemBG subprocess 超时", file=sys.stderr)
+            return None, None
+        except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            # #region agent log
+            import time as _time
+            try:
+                with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                    log_entry = {
+                        "sessionId": "rembg-debug",
+                        "runId": "run1",
+                        "hypothesisId": "H15",
+                        "location": "http_bridge_server.py:SubprocessRemBGProcessor.process_roi",
+                        "message": "RemBG subprocess 异常",
+                        "data": {
+                            "error": str(e),
+                            "error_type": type(e).__name__,
+                            "traceback": tb
+                        },
+                        "timestamp": int(_time.time() * 1000)
+                    }
+                    f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+            # #endregion
+            print(f"RemBG subprocess 异常: {e}", file=sys.stderr)
+            return None, None
+        finally:
+            # 清理临时文件
+            if input_file and os.path.exists(input_path):
+                try:
+                    os.unlink(input_path)
+                except Exception:
+                    pass
+            if bbox_file and os.path.exists(bbox_path):
+                try:
+                    os.unlink(bbox_path)
+                except Exception:
+                    pass
+
+# 检查是否可以使用 subprocess 方式
+SUBPROCESS_REMBG_AVAILABLE = False
+# #region agent log
+import time
+try:
+    with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+        log_entry = {
+            "sessionId": "rembg-debug",
+            "runId": "run1",
+            "hypothesisId": "H19",
+            "location": "http_bridge_server.py:<module>",
+            "message": "检查 RemBG 可用性",
+            "data": {
+                "rembg_available": REMBG_AVAILABLE,
+                "will_check_subprocess": not REMBG_AVAILABLE
+            },
+            "timestamp": int(time.time() * 1000)
+        }
+        f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+except Exception:
+    pass
+# #endregion
+if not REMBG_AVAILABLE:
+    conda_python = "/home/mu/miniconda3/envs/ros2_env/bin/python"
+    script_path = Path(__file__).parent / "rembg_subprocess.py"
+    # #region agent log
+    import time
+    try:
+        with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+            log_entry = {
+                "sessionId": "rembg-debug",
+                "runId": "run1",
+                "hypothesisId": "H20",
+                "location": "http_bridge_server.py:<module>",
+                "message": "检查 subprocess RemBG 路径",
+                "data": {
+                    "conda_python": conda_python,
+                    "conda_python_exists": Path(conda_python).exists(),
+                    "script_path": str(script_path),
+                    "script_path_exists": script_path.exists()
+                },
+                "timestamp": int(time.time() * 1000)
+            }
+            f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+    # #endregion
+    if Path(conda_python).exists() and script_path.exists():
+        try:
+            # 测试 conda Python 是否可以运行脚本
+            import subprocess
+            test_result = subprocess.run(
+                [conda_python, "-c", "import rembg; import onnxruntime; print('OK')"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            # #region agent log
+            import time
+            try:
+                with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                    log_entry = {
+                        "sessionId": "rembg-debug",
+                        "runId": "run1",
+                        "hypothesisId": "H21",
+                        "location": "http_bridge_server.py:<module>",
+                        "message": "测试 conda RemBG 环境",
+                        "data": {
+                            "returncode": test_result.returncode,
+                            "stdout": test_result.stdout,
+                            "stderr": test_result.stderr[-200:] if test_result.stderr else ""
+                        },
+                        "timestamp": int(time.time() * 1000)
+                    }
+                    f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+            # #endregion
+            if test_result.returncode == 0:
+                SUBPROCESS_REMBG_AVAILABLE = True
+                REMBG_AVAILABLE = True  # 标记为可用，但使用 subprocess 方式
+                print(f"✓ RemBG 将通过 subprocess 使用 conda 环境: {conda_python}")
+                # #region agent log
+                import time
+                try:
+                    with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                        log_entry = {
+                            "sessionId": "rembg-debug",
+                            "runId": "run1",
+                            "hypothesisId": "H22",
+                            "location": "http_bridge_server.py:<module>",
+                            "message": "Subprocess RemBG 可用",
+                            "data": {
+                                "subprocess_rembg_available": True,
+                                "rembg_available": True
+                            },
+                            "timestamp": int(time.time() * 1000)
+                        }
+                        f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+                except Exception:
+                    pass
+                # #endregion
+        except Exception as e:
+            # #region agent log
+            import time
+            try:
+                with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                    log_entry = {
+                        "sessionId": "rembg-debug",
+                        "runId": "run1",
+                        "hypothesisId": "H23",
+                        "location": "http_bridge_server.py:<module>",
+                        "message": "无法验证 conda rembg 环境",
+                        "data": {
+                            "error": str(e),
+                            "error_type": type(e).__name__
+                        },
+                        "timestamp": int(time.time() * 1000)
+                    }
+                    f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+            # #endregion
+            print(f"警告: 无法验证 conda rembg 环境: {e}")
 
 # 可选导入 - 相机接口
 try:
@@ -80,16 +468,152 @@ def quaternion_to_euler_rpy(x, y, z, w):
     
     return [roll, pitch, yaw]
 
-def get_templates_dir():
-    """获取模板目录路径"""
-    # 使用相对于工作空间的模板目录
-    script_dir = Path(__file__).parent
-    workspace_templates = script_dir.parent.parent.parent / "templates"
-    if workspace_templates.exists():
-        return str(workspace_templates)
+# 拍照姿态固定旋转：z 垂直地面无倾斜，精确四元数 (-0.707, -0.707, 0, 0)，姿态角 (-180, 0, 90) deg
+CAMERA_POSE_FIXED_ORIENTATION = {
+    "orientation": {"x": -0.7071067811865476, "y": -0.7071067811865476, "z": 0.0, "w": 0.0},
+    "euler_orientation_rpy_rad": [-3.141592653589793, 0.0, 1.5707963267948966],
+    "euler_orientation_rpy_deg": [-180.0, 0.0, 90.0],
+}
+
+_APP_CONFIG_CACHE = None
+
+_REMBG_PROCESSOR = None
+
+
+def _get_rembg_processor():
+    global _REMBG_PROCESSOR
+    # #region agent log
+    import time
+    try:
+        with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+            log_entry = {
+                "sessionId": "rembg-debug",
+                "runId": "run1",
+                "hypothesisId": "H16",
+                "location": "http_bridge_server.py:_get_rembg_processor",
+                "message": "获取 RemBG 处理器",
+                "data": {
+                    "has_processor": _REMBG_PROCESSOR is not None,
+                    "rembg_available": REMBG_AVAILABLE,
+                    "subprocess_rembg_available": SUBPROCESS_REMBG_AVAILABLE,
+                    "rembg_processor_class": RemBGProcessor is not None,
+                    "will_create": _REMBG_PROCESSOR is None and (REMBG_AVAILABLE or SUBPROCESS_REMBG_AVAILABLE)
+                },
+                "timestamp": int(time.time() * 1000)
+            }
+            f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+    # #endregion
+    if _REMBG_PROCESSOR is None and (REMBG_AVAILABLE or SUBPROCESS_REMBG_AVAILABLE):
+        if RemBGProcessor is not None:
+            # 直接导入方式
+            _REMBG_PROCESSOR = RemBGProcessor(prefer_cuda=True)
+            # #region agent log
+            import time
+            try:
+                with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                    log_entry = {
+                        "sessionId": "rembg-debug",
+                        "runId": "run1",
+                        "hypothesisId": "H17",
+                        "location": "http_bridge_server.py:_get_rembg_processor",
+                        "message": "创建直接导入 RemBG 处理器",
+                        "data": {
+                            "processor_type": "RemBGProcessor"
+                        },
+                        "timestamp": int(time.time() * 1000)
+                    }
+                    f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+            # #endregion
+        elif SUBPROCESS_REMBG_AVAILABLE:
+            # subprocess 方式
+            _REMBG_PROCESSOR = SubprocessRemBGProcessor(prefer_cuda=True)
+            # #region agent log
+            import time
+            try:
+                with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                    log_entry = {
+                        "sessionId": "rembg-debug",
+                        "runId": "run1",
+                        "hypothesisId": "H18",
+                        "location": "http_bridge_server.py:_get_rembg_processor",
+                        "message": "创建 Subprocess RemBG 处理器",
+                        "data": {
+                            "processor_type": "SubprocessRemBGProcessor"
+                        },
+                        "timestamp": int(time.time() * 1000)
+                    }
+                    f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+            # #endregion
+    return _REMBG_PROCESSOR
+
+def _load_app_config():
+    """加载 web_ui/configs/app_config.json（默认路径：web_ui/configs，可配置 template_root、camera_pose_fixed_orientation）"""
+    global _APP_CONFIG_CACHE
+    if _APP_CONFIG_CACHE is not None:
+        return _APP_CONFIG_CACHE
+    # 默认配置目录：web_ui/configs（本文件在 web_ui/scripts）
+    config_dir = Path(__file__).resolve().parent.parent / "configs"
+    config_path = config_dir / "app_config.json"
+    if config_path.exists():
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                _APP_CONFIG_CACHE = json.load(f)
+        except Exception:
+            _APP_CONFIG_CACHE = {}
     else:
-        # 备用路径
-        return "/home/mu/IVG/aubo_ros2_ws/src/visual_pose_estimation/templates"
+        _APP_CONFIG_CACHE = {}
+    return _APP_CONFIG_CACHE
+
+def get_templates_dir():
+    """获取模板根目录（唯一路径）：优先从 web_ui/configs/app_config.json 的 template_root 读取"""
+    config = _load_app_config()
+    template_root = config.get("template_root", "").strip()
+    if template_root and Path(template_root).exists():
+        return template_root
+    script_dir = Path(__file__).resolve().parent
+    repo_root = script_dir.parent.parent.parent.parent
+    fallback = repo_root / "templates"
+    if fallback.exists():
+        return str(fallback)
+    return "/home/mu/IVG/aubo_ros2_ws/src/visual_pose_estimation/templates"
+
+
+def _normalize_pose_rotation(robot_status):
+    """规范化姿态中的旋转字段，与 camera_pose.json 一致：orientation (四元数) + euler_orientation_rpy_rad + euler_orientation_rpy_deg"""
+    if not robot_status or 'cartesian_position' not in robot_status:
+        return robot_status
+    cp = robot_status['cartesian_position']
+    pos = cp.get('position', {})
+    ori = cp.get('orientation', {})
+    ox = float(ori.get('x', 0.0))
+    oy = float(ori.get('y', 0.0))
+    oz = float(ori.get('z', 0.0))
+    ow = float(ori.get('w', 1.0))
+    euler_rad = cp.get('euler_orientation_rpy_rad')
+    euler_deg = cp.get('euler_orientation_rpy_deg')
+    if not isinstance(euler_rad, (list, tuple)) or len(euler_rad) != 3:
+        euler_rad = quaternion_to_euler_rpy(ox, oy, oz, ow)
+    else:
+        euler_rad = [float(v) for v in euler_rad]
+    if not isinstance(euler_deg, (list, tuple)) or len(euler_deg) != 3:
+        euler_deg = [math.degrees(v) for v in euler_rad]
+    else:
+        euler_deg = [float(v) for v in euler_deg]
+    # 按 camera_pose.json (34-49) 顺序：position, orientation, euler_orientation_rpy_rad, euler_orientation_rpy_deg
+    robot_status['cartesian_position'] = {
+        'position': pos,
+        'orientation': {'x': ox, 'y': oy, 'z': oz, 'w': ow},
+        'euler_orientation_rpy_rad': euler_rad,
+        'euler_orientation_rpy_deg': euler_deg,
+    }
+    return robot_status
+
 
 class ROS2Node(Node):
     """ROS2节点，用于与ROS2系统通信"""
@@ -636,24 +1160,18 @@ class ROS2Node(Node):
             self.get_logger().error(f'姿态估计服务异常: {str(e)}\n{error_detail}')
             return None, f"姿态估计服务异常: {str(e)}"
     
-    def list_templates(self, templates_dir="", timeout=10.0):
-        """调用列出模板服务"""
+    def list_templates(self, workpiece_id="", timeout=10.0):
+        """调用 ROS2 /list_templates 服务获取工件列表（符合 ROS2 接口）"""
         try:
-            self.get_logger().info(f'开始列出模板，目录: {templates_dir if templates_dir else "默认"}')
+            self.get_logger().info(f'调用 /list_templates 服务，workpiece_id: {workpiece_id if workpiece_id else "全部"}')
             
-            # 等待服务可用
-            # 等待服务可用（增加超时时间，因为服务可能需要时间启动）
             if not self.list_templates_client.wait_for_service(timeout_sec=5.0):
-                return None, "列出模板服务未运行，请先启动visual_pose_estimation节点（ros2 launch visual_pose_estimation visual_pose_estimation.launch.py）"
+                return None, "列出模板服务未运行，请先启动 visual_pose_estimation_python 节点"
             
-            # 创建请求
             request = ListTemplates.Request()
-            request.templates_dir = templates_dir
+            request.workpiece_id = workpiece_id or ""
             
-            # 调用服务
             future = self.list_templates_client.call_async(request)
-            
-            # 等待服务响应 - 使用spin_until_future_complete
             with self.executor_lock:
                 self.executor_running = True
             try:
@@ -669,23 +1187,18 @@ class ROS2Node(Node):
                 response = future.result()
                 if response is None:
                     return None, "列出模板服务调用失败"
-                
                 if response.success:
                     result = {
                         "success": True,
-                        "template_paths": list(response.template_paths),
                         "template_ids": list(response.template_ids),
                         "workpiece_ids": list(response.workpiece_ids),
-                        "pose_ids": list(response.pose_ids)
                     }
-                    self.get_logger().info(f'列出模板成功，找到 {len(result["template_ids"])} 个模板')
+                    self.get_logger().info(f'列出模板成功，工件数: {len(result["workpiece_ids"])}')
                     return result, None
                 else:
-                    return None, response.error_message if response.error_message else "列出模板失败"
-                    
+                    return None, response.error_message or "列出模板失败"
             except Exception as e:
                 return None, f"处理服务响应失败: {str(e)}"
-                
         except Exception as e:
             import traceback
             error_detail = traceback.format_exc()
@@ -900,6 +1413,24 @@ class ROS2Node(Node):
 
 # 全局ROS2节点实例
 ros2_node = None
+
+# 调试：move_to_pose 请求序号，用于与 C++/前端日志对照，排查响应错位
+_move_to_pose_req_id = 0
+_DEBUG_LOG_PATH = "/home/mu/IVG/.cursor/debug-157b9d.log"
+
+def _debug_log_move_to_pose(session_id, event, req_id, pose_str, success=None, error_code=None):
+    """写一条 NDJSON 到调试日志（用于与 C++ 日志、前端对照）"""
+    try:
+        import time
+        payload = {"sessionId": session_id, "event": event, "req_id": req_id, "pose_str": pose_str, "timestamp": int(time.time() * 1000)}
+        if success is not None:
+            payload["success"] = success
+        if error_code is not None:
+            payload["error_code"] = error_code
+        with open(_DEBUG_LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
 
 class AlgorithmHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
@@ -1297,13 +1828,27 @@ class AlgorithmHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps(response).encode('utf-8'))
                 return
             
-            # 保存文件
+            # 规范化旋转字段，与 camera_pose.json 一致：orientation (四元数) + euler_orientation_rpy_rad + euler_orientation_rpy_deg
+            robot_status = _normalize_pose_rotation(robot_status)
+            # 使用固定旋转（z 垂直地面无倾斜），精确四元数 (-0.707, -0.707, 0, 0)，姿态角 (-180, 0, 90) deg
+            # 原先仅对拍照姿态 camera_pose 生效；现在对所有保存的姿态类型统一使用该固定旋转，
+            # 以保证准备姿态、抓取姿态、预放置、放置等在旋转上与拍照姿态一致（位置仍取机器人当前实际位置）。
+            fixed = _load_app_config().get("camera_pose_fixed_orientation") or CAMERA_POSE_FIXED_ORIENTATION
+            if fixed and "cartesian_position" in robot_status:
+                cp = robot_status["cartesian_position"]
+                cp["orientation"] = dict(fixed.get("orientation", CAMERA_POSE_FIXED_ORIENTATION["orientation"]))
+                cp["euler_orientation_rpy_rad"] = list(fixed.get("euler_orientation_rpy_rad", CAMERA_POSE_FIXED_ORIENTATION["euler_orientation_rpy_rad"]))
+                cp["euler_orientation_rpy_deg"] = list(fixed.get("euler_orientation_rpy_deg", CAMERA_POSE_FIXED_ORIENTATION["euler_orientation_rpy_deg"]))
+            
+            # 保存文件（使用配置中的唯一模板根路径）
             template_dir = Path(get_templates_dir()) / workpiece_id / f"pose_{pose_id}"
             template_dir.mkdir(parents=True, exist_ok=True)
             
             json_path = template_dir / filename_map[pose_type]
             with open(json_path, 'w', encoding='utf-8') as f:
                 json.dump(robot_status, f, indent=2, ensure_ascii=False)
+                f.flush()
+                os.fsync(f.fileno())
             
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
@@ -1560,118 +2105,72 @@ class AlgorithmHandler(http.server.SimpleHTTPRequestHandler):
                 pass
     
     def handle_list_templates(self):
-        """处理列出模板请求（直接扫描文件系统，查找image.jpg）"""
+        """处理列出模板请求：先调用 ROS2 /list_templates 服务获取工件列表，再按模板根目录扫描各工件的 pose 与 image.jpg"""
         try:
-            # 读取请求数据
-            templates_dir = get_templates_dir()
-            workpiece_id = ""
+            workpiece_id_filter = ""
             content_length = int(self.headers.get('Content-Length', 0))
             if content_length > 0:
                 post_data = self.rfile.read(content_length)
                 data = json.loads(post_data.decode('utf-8'))
-                # 如果templates_dir为空字符串，使用默认值
-                requested_dir = data.get('templates_dir', '')
-                if requested_dir and requested_dir.strip():
-                    templates_dir = requested_dir
-                workpiece_id = data.get('workpiece_id', '')
+                workpiece_id_filter = data.get('workpiece_id', '')
             
-            # 检查模板目录是否存在
-            templates_path = Path(templates_dir)
-            if not templates_path.exists() or not templates_path.is_dir():
+            if ros2_node is None:
                 self.send_response(500)
                 self.send_header('Content-type', 'application/json; charset=utf-8')
                 self.end_headers()
-                response = {
-                    "success": False,
-                    "error": f"模板目录不存在: {templates_dir}"
-                }
-                self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+                self.wfile.write(json.dumps({"success": False, "error": "ROS2 节点未初始化"}, ensure_ascii=False).encode('utf-8'))
                 self.wfile.flush()
                 return
             
-            print(f"[INFO] 扫描模板目录: {templates_dir}, 工件ID过滤: {workpiece_id if workpiece_id else '无'}")
+            # 符合 ROS2：通过 /list_templates 服务获取工件 ID 列表
+            result, error = ros2_node.list_templates(workpiece_id=workpiece_id_filter, timeout=10.0)
+            if error is not None:
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": error}, ensure_ascii=False).encode('utf-8'))
+                self.wfile.flush()
+                return
             
-            # 直接扫描文件系统查找模板（查找image.jpg）
+            workpiece_ids = result.get("workpiece_ids", [])
+            templates_root = Path(get_templates_dir())
+            if not templates_root.exists() or not templates_root.is_dir():
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": f"模板根目录不存在: {templates_root}"}, ensure_ascii=False).encode('utf-8'))
+                self.wfile.flush()
+                return
+            
             template_list = []
+            for current_workpiece_id in workpiece_ids:
+                workpiece_entry = templates_root / current_workpiece_id
+                if not workpiece_entry.is_dir():
+                    continue
+                try:
+                    for pose_entry in workpiece_entry.iterdir():
+                        if not pose_entry.is_dir() or not pose_entry.name.startswith('pose_'):
+                            continue
+                        pose_id = pose_entry.name[5:]
+                        image_path = pose_entry / "image.jpg"
+                        if not image_path.is_file():
+                            continue
+                        try:
+                            with open(image_path, 'rb') as f:
+                                image_base64 = base64.b64encode(f.read()).decode('utf-8')
+                            template_list.append({
+                                "template_id": f"{current_workpiece_id}_{pose_id}",
+                                "workpiece_id": current_workpiece_id,
+                                "pose_id": pose_id,
+                                "image_path": str(image_path),
+                                "image_base64": "data:image/jpeg;base64," + image_base64
+                            })
+                        except Exception as e:
+                            print(f"[WARN] 无法读取模板图像 {image_path}: {e}")
+                except Exception as e:
+                    print(f"[WARN] 遍历工件目录 {current_workpiece_id} 时出错: {e}")
             
-            # 遍历所有工件ID目录
-            try:
-                for workpiece_entry in templates_path.iterdir():
-                    if not workpiece_entry.is_dir():
-                        continue
-                    
-                    current_workpiece_id = workpiece_entry.name
-                    
-                    # 跳过隐藏文件和特殊文件
-                    if current_workpiece_id.startswith('.'):
-                        continue
-                    
-                    # 如果指定了workpiece_id，进行过滤
-                    if workpiece_id and current_workpiece_id != workpiece_id:
-                        print(f"[DEBUG] 跳过工件ID: {current_workpiece_id} (不匹配过滤条件: {workpiece_id})")
-                        continue
-                    
-                    print(f"[DEBUG] 检查工件ID目录: {current_workpiece_id}")
-                    
-                    # 遍历该工件ID下的所有pose目录
-                    try:
-                        for pose_entry in workpiece_entry.iterdir():
-                            if not pose_entry.is_dir():
-                                continue
-                            
-                            pose_dir_name = pose_entry.name
-                            
-                            # 检查是否是pose_开头的目录
-                            if not pose_dir_name.startswith('pose_'):
-                                continue
-                            
-                            # 提取姿态ID（pose_后面的部分）
-                            pose_id = pose_dir_name[5:]  # 跳过"pose_"前缀
-                            
-                            # 查找image.jpg文件
-                            image_path = pose_entry / "image.jpg"
-                            
-                            print(f"[DEBUG] 检查路径: {image_path}, 存在: {image_path.exists()}, 是文件: {image_path.is_file() if image_path.exists() else False}")
-                            
-                            if image_path.exists() and image_path.is_file():
-                                try:
-                                    # 读取图像文件并转换为base64
-                                    with open(image_path, 'rb') as f:
-                                        image_bytes = f.read()
-                                        image_base64 = base64.b64encode(image_bytes).decode('utf-8')
-                                    
-                                    template_list.append({
-                                        "template_id": f"{current_workpiece_id}_{pose_id}",
-                                        "workpiece_id": current_workpiece_id,
-                                        "pose_id": pose_id,
-                                        "image_path": str(image_path),
-                                        "image_base64": "data:image/jpeg;base64," + image_base64
-                                    })
-                                    
-                                    print(f"[DEBUG] 找到模板: 工件ID={current_workpiece_id}, 姿态ID={pose_id}, 路径={image_path}")
-                                except Exception as e:
-                                    print(f"[WARN] 无法读取模板图像 {image_path}: {str(e)}")
-                                    continue
-                            else:
-                                print(f"[DEBUG] 图像文件不存在或不是文件: {image_path}")
-                    except Exception as e:
-                        print(f"[WARN] 遍历工件ID目录 {current_workpiece_id} 时出错: {str(e)}")
-                        continue
-            except Exception as e:
-                print(f"[ERROR] 遍历模板目录时出错: {str(e)}")
-                import traceback
-                traceback.print_exc()
-            
-            # 构建响应
-            response = {
-                "success": True,
-                "templates": template_list,
-                "count": len(template_list)
-            }
-            
-            print(f"[INFO] 列出模板成功，找到 {len(template_list)} 个模板")
-            
-            # 发送响应
+            response = {"success": True, "templates": template_list, "count": len(template_list)}
             response_json = json.dumps(response, ensure_ascii=False)
             self.send_response(200)
             self.send_header('Content-type', 'application/json; charset=utf-8')
@@ -1679,18 +2178,13 @@ class AlgorithmHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(response_json.encode('utf-8'))
             self.wfile.flush()
-            
         except Exception as e:
             import traceback
             print(f"[ERROR] 处理列出模板请求异常: {str(e)}\n{traceback.format_exc()}")
             self.send_response(500)
             self.send_header('Content-type', 'application/json; charset=utf-8')
             self.end_headers()
-            response = {
-                "success": False,
-                "error": f"服务器错误: {str(e)}"
-            }
-            self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+            self.wfile.write(json.dumps({"success": False, "error": str(e)}, ensure_ascii=False).encode('utf-8'))
             self.wfile.flush()
     
     def handle_get_template_image(self):
@@ -2283,16 +2777,42 @@ class AlgorithmHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": "target_pose格式错误，应为数组或字典"}, ensure_ascii=False).encode('utf-8'))
                 return
             
+            # 便于与 C++ 日志、前端对照：记下本次请求位姿（支持 list 与 dict）
+            if isinstance(target_pose, dict) and 'position' in target_pose:
+                pos = target_pose['position']
+                pose_str = f"({float(pos.get('x', 0)):.3f}, {float(pos.get('y', 0)):.3f}, {float(pos.get('z', 0)):.3f})"
+            elif isinstance(target_pose, (list, tuple)) and len(target_pose) >= 3:
+                pose_str = f"({float(target_pose[0]):.3f}, {float(target_pose[1]):.3f}, {float(target_pose[2]):.3f})"
+            else:
+                pose_str = "(?, ?, ?)"
+            # #region agent log — 请求序号，用于与 C++/前端对照，排查响应错位
+            global _move_to_pose_req_id
+            _move_to_pose_req_id += 1
+            req_id = _move_to_pose_req_id
+            print(f"[move_to_pose 桥接] SEND req_id={req_id} pose={pose_str}")
+            _debug_log_move_to_pose("157b9d", "SEND", req_id, pose_str)
+            # #endregion
             # 调用ROS2服务
             result, error = ros2_node.move_to_pose(target_pose, use_joints, velocity_factor, acceleration_factor)
-            
+            # #region agent log
+            succ = result.get("success") if result is not None else None
+            err_code = result.get("error_code") if result is not None else None
+            print(f"[move_to_pose 桥接] RECV req_id={req_id} pose={pose_str} success={succ} error_code={err_code}")
+            _debug_log_move_to_pose("157b9d", "RECV", req_id, pose_str, success=succ, error_code=err_code)
+            # #endregion
+            # 诊断：记录桥接层收到的 C++ 返回值，便于与 C++ 日志、前端显示对照
+            if error:
+                print(f"[move_to_pose 桥接] pose={pose_str} ROS 返回 error: {error}, 将返回 HTTP 500")
+            elif result is not None:
+                print(f"[move_to_pose 桥接] pose={pose_str} ROS 返回 success={result.get('success')}, error_code={result.get('error_code')}, 将返回 HTTP 200")
+
             if error:
                 self.send_response(500)
                 self.send_header('Content-type', 'application/json; charset=utf-8')
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": error}, ensure_ascii=False).encode('utf-8'))
                 return
-            
+
             response_json = json.dumps(result, ensure_ascii=False)
             self.send_response(200)
             self.send_header('Content-type', 'application/json; charset=utf-8')
@@ -2450,93 +2970,6 @@ class AlgorithmHandler(http.server.SimpleHTTPRequestHandler):
             response = {"success": False, "error": str(e)}
             self.wfile.write(json.dumps(response).encode('utf-8'))
     
-    def save_geometric_features(self, debug_dir, metadata):
-        """保存几何特征数据到文件（JSON和CSV格式）
-        保存的数据包括：
-        - 整体连通域面积
-        - 大圆圆心、大圆半径
-        - 小圆圆心、小圆半径
-        """
-        try:
-            # 提取特征数据
-            big_circle_features = metadata.get('big_circle_features', [])
-            valve_circle_features = metadata.get('valve_circle_features', [])
-            
-            # 计算整体连通域面积（从 remove_green 步骤的结果图像）
-            total_area = 0.0
-            remove_green_path = debug_dir / "step_01_remove_green.jpg"
-            if remove_green_path.exists():
-                remove_green_img = cv2.imread(str(remove_green_path), cv2.IMREAD_GRAYSCALE)
-                if remove_green_img is not None:
-                    # 计算非零像素的数量（连通域面积）
-                    total_area = float(np.count_nonzero(remove_green_img))
-            
-            # 准备几何特征数据
-            geometric_features = {
-                'timestamp': datetime.datetime.now().isoformat(),
-                'total_area': total_area,  # 整体连通域面积（像素²）
-                'big_circle': None,  # 大圆信息
-                'valve_circle': None  # 小圆（阀体圆）信息
-            }
-            
-            # 提取大圆信息（取第一个，如果有多个）
-            if big_circle_features and len(big_circle_features) > 0:
-                big_circle = big_circle_features[0]
-                geometric_features['big_circle'] = {
-                    'center_x': big_circle.get('center_x', 0.0),
-                    'center_y': big_circle.get('center_y', 0.0),
-                    'radius': big_circle.get('radius', 0.0),
-                    'area': big_circle.get('area', 0.0)
-                }
-            
-            # 提取小圆信息（取第一个，如果有多个）
-            if valve_circle_features and len(valve_circle_features) > 0:
-                valve_circle = valve_circle_features[0]
-                geometric_features['valve_circle'] = {
-                    'center_x': valve_circle.get('center_x', 0.0),
-                    'center_y': valve_circle.get('center_y', 0.0),
-                    'radius': valve_circle.get('radius', 0.0),
-                    'area': valve_circle.get('area', 0.0)
-                }
-            
-            # 保存为JSON格式
-            json_path = debug_dir / "geometric_features.json"
-            with open(json_path, 'w', encoding='utf-8') as f:
-                json.dump(geometric_features, f, indent=2, ensure_ascii=False)
-            print(f"[INFO] 几何特征数据已保存到: {json_path}")
-            
-            # 保存为CSV格式（便于Excel等工具查看）
-            csv_path = debug_dir / "geometric_features.csv"
-            with open(csv_path, 'w', newline='', encoding='utf-8') as f:
-                writer = csv.writer(f)
-                # 写入表头
-                writer.writerow([
-                    '特征名称', '数值', '单位', '说明'
-                ])
-                # 写入数据
-                writer.writerow(['整体连通域面积', f"{total_area:.2f}", '像素²', '去除绿色背景后的连通域总面积'])
-                
-                if geometric_features['big_circle']:
-                    bc = geometric_features['big_circle']
-                    writer.writerow(['大圆圆心X', f"{bc['center_x']:.2f}", '像素', '大圆圆心X坐标'])
-                    writer.writerow(['大圆圆心Y', f"{bc['center_y']:.2f}", '像素', '大圆圆心Y坐标'])
-                    writer.writerow(['大圆半径', f"{bc['radius']:.2f}", '像素', '大圆半径'])
-                    writer.writerow(['大圆面积', f"{bc['area']:.2f}", '像素²', '大圆对应的轮廓面积'])
-                
-                if geometric_features['valve_circle']:
-                    vc = geometric_features['valve_circle']
-                    writer.writerow(['小圆圆心X', f"{vc['center_x']:.2f}", '像素', '小圆（阀体圆）圆心X坐标'])
-                    writer.writerow(['小圆圆心Y', f"{vc['center_y']:.2f}", '像素', '小圆（阀体圆）圆心Y坐标'])
-                    writer.writerow(['小圆半径', f"{vc['radius']:.2f}", '像素', '小圆（阀体圆）半径'])
-                    writer.writerow(['小圆面积', f"{vc['area']:.2f}", '像素²', '小圆对应的轮廓面积'])
-            
-            print(f"[INFO] 几何特征数据已保存到: {csv_path}")
-            
-        except Exception as e:
-            import traceback
-            error_detail = traceback.format_exc()
-            print(f"[ERROR] 保存几何特征数据失败: {error_detail}")
-    
     # ========== Debug API 处理函数 ==========
     
     def handle_debug_capture(self):
@@ -2644,6 +3077,8 @@ class AlgorithmHandler(http.server.SimpleHTTPRequestHandler):
                     "component_min_height": params.get("component_min_height"),
                     "component_max_count": params.get("component_max_count"),
                     "enable_zero_interp": params.get("enable_zero_interp"),
+                    "enable_smooth_edges": params.get("enable_smooth_edges", True),
+                    "smooth_edges_blur_sigma": params.get("smooth_edges_blur_sigma", 0),
                 })
             if ros2_node.feature_extractor:
                 ros2_node.feature_extractor.set_parameters({
@@ -2695,6 +3130,295 @@ class AlgorithmHandler(http.server.SimpleHTTPRequestHandler):
                     'valve_radius': float(feat.valve_radius),
                     'angle_deg': float(feat.standardized_angle_deg)
                 })
+
+            use_rembg = bool(params.get("use_rembg", False)) and params.get("use_rembg") != 0
+            # #region agent log
+            import time
+            try:
+                with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                    log_entry = {
+                        "sessionId": "rembg-debug",
+                        "runId": "run1",
+                        "hypothesisId": "H1",
+                        "location": "http_bridge_server.py:handle_debug_get_images",
+                        "message": "检查 Debug 接口中 RemBG 是否启用",
+                        "data": {
+                            "use_rembg": use_rembg,
+                            "rembg_available": REMBG_AVAILABLE,
+                            "subprocess_rembg_available": SUBPROCESS_REMBG_AVAILABLE,
+                            "has_preprocessed_color": preprocessed_color is not None,
+                            "config_value": params.get("use_rembg", False),
+                            "config_value_type": str(type(params.get("use_rembg", False))),
+                            "has_components": len(components) > 0,
+                            "has_features": len(features) > 0
+                        },
+                        "timestamp": int(time.time() * 1000)
+                    }
+                    f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+            # #endregion
+            # #region agent log
+            import time
+            try:
+                with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                    log_entry = {
+                        "sessionId": "rembg-debug",
+                        "runId": "run1",
+                        "hypothesisId": "H2",
+                        "location": "http_bridge_server.py:handle_debug_get_images",
+                        "message": "检查 RemBG 调用条件",
+                        "data": {
+                            "condition_use_rembg": use_rembg,
+                            "condition_rembg_available": REMBG_AVAILABLE,
+                            "condition_preprocessed_color": preprocessed_color is not None,
+                            "will_call_rembg": use_rembg and REMBG_AVAILABLE and preprocessed_color is not None
+                        },
+                        "timestamp": int(time.time() * 1000)
+                    }
+                    f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+            # #endregion
+            if use_rembg and REMBG_AVAILABLE and preprocessed_color is not None:
+                try:
+                    processor = _get_rembg_processor()
+                    # #region agent log
+                    import time
+                    try:
+                        with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                            log_entry = {
+                                "sessionId": "rembg-debug",
+                                "runId": "run1",
+                                "hypothesisId": "G",
+                                "location": "http_bridge_server.py:handle_debug_get_images",
+                                "message": "获取 RemBG 处理器",
+                                "data": {
+                                    "has_processor": processor is not None,
+                                    "providers": processor.providers if processor else None
+                                },
+                                "timestamp": int(time.time() * 1000)
+                            }
+                            f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+                    except Exception:
+                        pass
+                    # #endregion
+                    if processor is not None:
+                        bbox = None
+                        if features:
+                            wp_center = features[0].get("workpiece_center")
+                            wp_radius = features[0].get("workpiece_radius")
+                            if wp_center and wp_radius:
+                                cx, cy = wp_center
+                                radius = wp_radius
+                                bbox = (
+                                    int(round(cx - radius)),
+                                    int(round(cy - radius)),
+                                    int(round(radius * 2)),
+                                    int(round(radius * 2)),
+                                )
+                        if bbox is None and components:
+                            ys, xs = np.where(components[0] > 0)
+                            if ys.size and xs.size:
+                                x0 = int(xs.min())
+                                x1 = int(xs.max())
+                                y0 = int(ys.min())
+                                y1 = int(ys.max())
+                                bbox = (x0, y0, x1 - x0 + 1, y1 - y0 + 1)
+                        # #region agent log
+                        import time
+                        try:
+                            with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                                log_entry = {
+                                    "sessionId": "rembg-debug",
+                                    "runId": "run1",
+                                    "hypothesisId": "H3",
+                                    "location": "http_bridge_server.py:handle_debug_get_images",
+                                    "message": "解析 RemBG bbox",
+                                    "data": {
+                                        "bbox": bbox,
+                                        "bbox_valid": bbox is not None,
+                                        "has_features": len(features) > 0,
+                                        "has_components": len(components) > 0,
+                                        "bbox_from_features": features and features[0].get("workpiece_center") is not None,
+                                        "bbox_from_components": bbox is None and len(components) > 0
+                                    },
+                                    "timestamp": int(time.time() * 1000)
+                                }
+                                f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+                        except Exception:
+                            pass
+                        # #endregion
+                        if bbox is not None:
+                            # #region agent log
+                            import time
+                            try:
+                                with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                                    log_entry = {
+                                        "sessionId": "rembg-debug",
+                                        "runId": "run1",
+                                        "hypothesisId": "H4",
+                                        "location": "http_bridge_server.py:handle_debug_get_images",
+                                        "message": "准备调用 RemBG process_roi",
+                                        "data": {
+                                            "bbox": bbox,
+                                            "color_image_shape": list(color_image.shape),
+                                            "processor_type": type(processor).__name__
+                                        },
+                                        "timestamp": int(time.time() * 1000)
+                                    }
+                                    f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+                            except Exception:
+                                pass
+                            # #endregion
+                            rembg_mask, rembg_cutout = processor.process_roi(color_image, bbox)
+                            # #region agent log
+                            import time
+                            try:
+                                with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                                    log_entry = {
+                                        "sessionId": "rembg-debug",
+                                        "runId": "run1",
+                                        "hypothesisId": "H5",
+                                        "location": "http_bridge_server.py:handle_debug_get_images",
+                                        "message": "RemBG process_roi 完成",
+                                        "data": {
+                                            "has_mask": rembg_mask is not None,
+                                            "has_cutout": rembg_cutout is not None,
+                                            "mask_shape": list(rembg_mask.shape) if rembg_mask is not None else None,
+                                            "cutout_shape": list(rembg_cutout.shape) if rembg_cutout is not None else None,
+                                            "mask_nonzero": int(np.count_nonzero(rembg_mask)) if rembg_mask is not None else 0,
+                                            "will_replace": rembg_cutout is not None
+                                        },
+                                        "timestamp": int(time.time() * 1000)
+                                    }
+                                    f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+                            except Exception:
+                                pass
+                            # #endregion
+                            if rembg_cutout is not None:
+                                preprocessed_color = rembg_cutout
+                                # 同时替换 components[0] 中的掩模
+                                if rembg_mask is not None and len(components) > 0:
+                                    components[0] = rembg_mask
+                                print(
+                                    f"[HTTP桥接] Rembg启用，预处理图像和掩模切换为Rembg输出 (providers={processor.providers})"
+                                )
+                                # #region agent log
+                                import time
+                                try:
+                                    with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                                        log_entry = {
+                                            "sessionId": "rembg-debug",
+                                            "runId": "run1",
+                                            "hypothesisId": "H6",
+                                            "location": "http_bridge_server.py:handle_debug_get_images",
+                                            "message": "RemBG 已替换预处理图像和掩模",
+                                            "data": {
+                                                "providers": processor.providers,
+                                                "mask_replaced": rembg_mask is not None,
+                                                "cutout_replaced": True,
+                                                "preprocessed_color_shape": list(preprocessed_color.shape),
+                                                "components_count": len(components)
+                                            },
+                                            "timestamp": int(time.time() * 1000)
+                                        }
+                                        f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+                                except Exception:
+                                    pass
+                                # #endregion
+                            else:
+                                # #region agent log
+                                import time
+                                try:
+                                    with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                                        log_entry = {
+                                            "sessionId": "rembg-debug",
+                                            "runId": "run1",
+                                            "hypothesisId": "H7",
+                                            "location": "http_bridge_server.py:handle_debug_get_images",
+                                            "message": "RemBG 处理失败：cutout 为 None",
+                                            "data": {
+                                                "has_mask": rembg_mask is not None,
+                                                "has_cutout": False
+                                            },
+                                            "timestamp": int(time.time() * 1000)
+                                        }
+                                        f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+                                except Exception:
+                                    pass
+                                # #endregion
+                        else:
+                            # #region agent log
+                            import time
+                            try:
+                                with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                                    log_entry = {
+                                        "sessionId": "rembg-debug",
+                                        "runId": "run1",
+                                        "hypothesisId": "H8",
+                                        "location": "http_bridge_server.py:handle_debug_get_images",
+                                        "message": "RemBG 未调用：bbox 为 None",
+                                        "data": {
+                                            "bbox": None,
+                                            "has_features": len(features) > 0,
+                                            "has_components": len(components) > 0
+                                        },
+                                        "timestamp": int(time.time() * 1000)
+                                    }
+                                    f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+                            except Exception:
+                                pass
+                            # #endregion
+                except Exception as e:
+                    import traceback
+                    tb = traceback.format_exc()
+                    print(f"[HTTP桥接] Rembg处理失败: {e}")
+                    print(f"[HTTP桥接] Traceback: {tb}")
+                    # #region agent log
+                    import time
+                    try:
+                        with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                            log_entry = {
+                                "sessionId": "rembg-debug",
+                                "runId": "run1",
+                                "hypothesisId": "H9",
+                                "location": "http_bridge_server.py:handle_debug_get_images",
+                                "message": "RemBG 处理异常",
+                                "data": {
+                                    "error": str(e),
+                                    "error_type": type(e).__name__,
+                                    "traceback": tb
+                                },
+                                "timestamp": int(time.time() * 1000)
+                            }
+                            f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+                    except Exception:
+                        pass
+                    # #endregion
+            else:
+                # #region agent log
+                import time
+                try:
+                    with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                        log_entry = {
+                            "sessionId": "rembg-debug",
+                            "runId": "run1",
+                            "hypothesisId": "H10",
+                            "location": "http_bridge_server.py:handle_debug_get_images",
+                            "message": "RemBG 未调用：条件不满足",
+                            "data": {
+                                "use_rembg": use_rembg,
+                                "rembg_available": REMBG_AVAILABLE,
+                                "has_preprocessed_color": preprocessed_color is not None,
+                                "all_conditions_met": use_rembg and REMBG_AVAILABLE and preprocessed_color is not None
+                            },
+                            "timestamp": int(time.time() * 1000)
+                        }
+                        f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+                except Exception:
+                    pass
+                # #endregion
             
             # 使用可视化器生成调试图像
             from visual_pose_estimation_python.debug_visualizer import DebugVisualizer
@@ -2781,6 +3505,9 @@ class AlgorithmHandler(http.server.SimpleHTTPRequestHandler):
                 'min_width': 'component_min_width',
                 'min_height': 'component_min_height',
                 'max_count': 'component_max_count',
+                'enable_smooth_edges': 'enable_smooth_edges',
+                'smooth_edges_blur_sigma': 'smooth_edges_blur_sigma',
+                'use_rembg': 'use_rembg',
             }
             target_key = key_map.get(normalized_key, normalized_key)
             
@@ -2861,6 +3588,46 @@ class AlgorithmHandler(http.server.SimpleHTTPRequestHandler):
 def start_server():
     global ros2_node
     
+    # 诊断信息：显示 Python 环境和模块可用性
+    print(f"\n{'='*60}")
+    print(f"🔍 环境诊断信息")
+    print(f"{'='*60}")
+    print(f"Python 可执行文件: {sys.executable}")
+    print(f"Python 版本: {sys.version.split()[0]}")
+    print(f"PYTHONPATH: {os.environ.get('PYTHONPATH', '未设置')}")
+    print(f"算法模块可用: {ALGORITHM_AVAILABLE}")
+    print(f"RemBG 模块可用: {REMBG_AVAILABLE}")
+    if REMBG_AVAILABLE:
+        if RemBGProcessor is not None:
+            print(f"RemBG 模式: 直接导入")
+            try:
+                import onnxruntime as ort
+                providers = ort.get_available_providers()
+                print(f"ONNX Runtime Providers: {providers}")
+            except Exception as e:
+                print(f"ONNX Runtime 检查失败: {e}")
+        elif SUBPROCESS_REMBG_AVAILABLE:
+            conda_python = "/home/mu/miniconda3/envs/ros2_env/bin/python"
+            print(f"RemBG 模式: subprocess (conda 环境)")
+            print(f"Conda Python: {conda_python}")
+            # 测试 conda 环境
+            try:
+                import subprocess
+                test_result = subprocess.run(
+                    [conda_python, "-c", "import onnxruntime; print(','.join(onnxruntime.get_available_providers()))"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if test_result.returncode == 0:
+                    providers = test_result.stdout.strip().split(',')
+                    print(f"ONNX Runtime Providers (conda): {providers}")
+                else:
+                    print(f"Conda 环境检查失败: {test_result.stderr}")
+            except Exception as e:
+                print(f"Conda 环境检查异常: {e}")
+    print(f"{'='*60}\n")
+    
     # 初始化ROS2
     if not rclpy.ok():
         rclpy.init()
@@ -2894,6 +3661,12 @@ def start_server():
         print(f"🎯 视觉姿态估计算法Web UI服务器启动成功!")
         print(f"🌐 服务地址: http://localhost:{PORT}/")
         print(f"📱 Web界面: http://localhost:{PORT}/index.html")
+        print(f"🐍 Python 环境: {sys.executable}")
+        print(f"📦 RemBG 可用: {REMBG_AVAILABLE}")
+        if REMBG_AVAILABLE:
+            print(f"✓ RemBG GPU 功能已启用")
+        else:
+            print(f"⚠ RemBG 不可用，请检查 Python 环境是否包含 rembg 和 onnxruntime")
         print(f"⚡ 按 Ctrl+C 停止服务器")
         try:
             httpd.serve_forever()

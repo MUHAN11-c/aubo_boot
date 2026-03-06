@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ros_catkin_ws/devel_isolated/diagnostic_aggregator
+
+Name: diagnostic_aggregator
+Description: Description of diagnostic_aggregator
+Version: 1.12.1
+Cflags: -I/home/mu/IVG/ros_catkin_ws/src/diagnostics/diagnostic_aggregator/include
+Libs: -L${prefix}/lib -ldiagnostic_aggregator
+Requires: diagnostic_msgs pluginlib roscpp rospy xmlrpcpp bondcpp

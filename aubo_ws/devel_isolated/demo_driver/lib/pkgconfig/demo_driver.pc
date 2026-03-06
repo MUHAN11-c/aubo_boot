@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/aubo_ws/devel_isolated/demo_driver
+
+Name: demo_driver
+Description: Description of demo_driver
+Version: 1.0.0
+Cflags: -I/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_driver/include
+Libs: -L${prefix}/lib -ldemo_driver
+Requires: roscpp std_msgs sensor_msgs geometry_msgs trajectory_msgs industrial_msgs demo_interface aubo_msgs moveit_core moveit_ros_planning_interface

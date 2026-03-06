@@ -178,7 +178,8 @@ const debugState = {
         max_aspect: 4.0,
         min_width: 60,
         min_height: 60,
-        max_count: 3
+        max_count: 3,
+        use_rembg: 0
     }
 };
 
@@ -402,14 +403,16 @@ function estimatePose() {
             workflowState.lastEstimateResult = data;
 
             // 输出结果信息
+            const matchedPoseIds = data.matched_pose_ids || [];
             for (let i = 0; i < successNum; i++) {
+                const templateId = (matchedPoseIds[i] !== undefined && matchedPoseIds[i] !== null) ? String(matchedPoseIds[i]) : '—';
                 const confidence = (data.confidence && data.confidence[i] !== undefined) ? data.confidence[i] : 0;
                 const pos = (data.positions && data.positions[i]) ? data.positions[i] : {x: 0, y: 0, z: 0};
                 const grabPos = (data.grab_positions && data.grab_positions[i]) ? data.grab_positions[i] : null;
                 if (grabPos) {
-                    addLogEntry('info', `目标 ${i+1}: 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}), 抓取位置=(${grabPos.position.x.toFixed(3)}, ${grabPos.position.y.toFixed(3)}, ${grabPos.position.z.toFixed(3)})`);
+                    addLogEntry('info', `目标 ${i+1}: 匹配模板=${templateId}, 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}), 抓取位置=(${grabPos.position.x.toFixed(3)}, ${grabPos.position.y.toFixed(3)}, ${grabPos.position.z.toFixed(3)})`);
                 } else {
-                    addLogEntry('info', `目标 ${i+1}: 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)})`);
+                    addLogEntry('info', `目标 ${i+1}: 匹配模板=${templateId}, 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)})`);
                 }
             }
         } else {
@@ -433,7 +436,9 @@ function updateResultsList(data) {
         return;
     }
     
+    const matchedPoseIdsList = data.matched_pose_ids || [];
     for (let i = 0; i < data.success_num; i++) {
+        const templateIdList = (matchedPoseIdsList[i] !== undefined && matchedPoseIdsList[i] !== null) ? String(matchedPoseIdsList[i]) : '—';
         const confidence = (data.confidence && data.confidence[i] !== undefined) ? data.confidence[i] : 0;
         const pos = (data.positions && data.positions[i]) ? data.positions[i] : {x: 0, y: 0, z: 0};
         const grabPos = (data.grab_positions && data.grab_positions[i]) || {};
@@ -496,7 +501,7 @@ function updateResultsList(data) {
             
             <div style="width: 100%; padding: 0 4px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0;">
-                    <div style="font-weight: 600; color: #1e293b; font-size: 0.95em;">目标 #${i + 1}</div>
+                    <div style="font-weight: 600; color: #1e293b; font-size: 0.95em;">目标 #${i + 1} · 匹配模板 <span style="color: #0ea5e9;">${templateIdList}</span></div>
                     <div style="color: #64748b; font-size: 0.8em;">
                         置信度: <span style="color: #3b82f6; font-weight: 600;">${(confidence * 100).toFixed(1)}%</span>
                         ${data.processing_time_sec !== undefined && data.processing_time_sec !== null && i === 0 ? 
@@ -573,10 +578,10 @@ function showPoseModal(poseType, poseDataStr) {
                         <!-- 内容将动态填充 -->
                     </div>
                     <div class="modal-buttons">
-                        <button class="modal-button modal-button-cartesian" onclick="executeRobotPose(false)">
+                        <button id="execute-pose-cartesian-btn" class="modal-button modal-button-cartesian" onclick="executeRobotPose(false)">
                             笛卡尔坐标
                         </button>
-                        <button class="modal-button modal-button-joint" onclick="executeRobotPose(true)">
+                        <button id="execute-pose-joint-btn" class="modal-button modal-button-joint" onclick="executeRobotPose(true)">
                             关节坐标
                         </button>
                         <button class="modal-button modal-button-cancel" onclick="closePoseModal()">
@@ -680,6 +685,20 @@ async function executeRobotPose(useJoints) {
         addLogEntry('error', '没有选中的姿态数据');
         return;
     }
+    if (_setRobotPoseInFlight) {
+        addLogEntry('warning', '移动请求进行中，请勿重复点击');
+        console.warn('[set_robot_pose] executeRobotPose 忽略重复点击（请求进行中）', new Error().stack);
+        return;
+    }
+
+    const btnCartesian = document.getElementById('execute-pose-cartesian-btn');
+    const btnJoint = document.getElementById('execute-pose-joint-btn');
+    if (btnCartesian) btnCartesian.disabled = true;
+    if (btnJoint) btnJoint.disabled = true;
+    _setRobotPoseInFlight = true;
+    _setRobotPoseRequestSeq += 1;
+    const reqSeq = _setRobotPoseRequestSeq;
+    console.log('[set_robot_pose] 发送请求 #' + reqSeq + ' (executeRobotPose ' + (useJoints ? '关节' : '笛卡尔') + ')');
 
     let targetPose = [];
     let isRadian = false;
@@ -745,6 +764,10 @@ async function executeRobotPose(useJoints) {
     } catch (error) {
         addLogEntry('error', `机器人动作执行异常: ${error.message}`);
         console.error('执行机器人动作错误:', error);
+    } finally {
+        _setRobotPoseInFlight = false;
+        if (btnCartesian) btnCartesian.disabled = false;
+        if (btnJoint) btnJoint.disabled = false;
     }
 }
 
@@ -936,6 +959,14 @@ async function _gripperClosePlaceholder() {
 }
 
 let _autoGraspRunning = false;
+
+/** 防止同一时刻多发 set_robot_pose 请求：若已有请求未返回则拒绝或等待（用于排查/避免多次请求导致 -4） */
+let _setRobotPoseInFlight = false;
+/** 请求序号，仅用于前端控制台诊断 */
+let _setRobotPoseRequestSeq = 0;
+
+/** 移动请求串行锁：同一时刻只允许一个 /api/set_robot_pose 请求，避免后端收到重复请求导致 -4 */
+let _moveToPoseLock = Promise.resolve();
 let _loopAutoGraspRunning = false;
 let _loopAutoGraspStopFlag = false;
 
@@ -1090,14 +1121,16 @@ async function estimatePoseAsync() {
                 workflowState.lastEstimateResult = data;
 
                 // 输出结果信息
+                const matchedPoseIdsAsync = data.matched_pose_ids || [];
                 for (let i = 0; i < successNum; i++) {
+                    const templateId = (matchedPoseIdsAsync[i] !== undefined && matchedPoseIdsAsync[i] !== null) ? String(matchedPoseIdsAsync[i]) : '—';
                     const confidence = (data.confidence && data.confidence[i] !== undefined) ? data.confidence[i] : 0;
                     const pos = (data.positions && data.positions[i]) ? data.positions[i] : {x: 0, y: 0, z: 0};
                     const grabPos = (data.grab_positions && data.grab_positions[i]) ? data.grab_positions[i] : null;
                     if (grabPos) {
-                        addLogEntry('info', `目标 ${i+1}: 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}), 抓取位置=(${grabPos.position.x.toFixed(3)}, ${grabPos.position.y.toFixed(3)}, ${grabPos.position.z.toFixed(3)})`);
+                        addLogEntry('info', `目标 ${i+1}: 匹配模板=${templateId}, 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}), 抓取位置=(${grabPos.position.x.toFixed(3)}, ${grabPos.position.y.toFixed(3)}, ${grabPos.position.z.toFixed(3)})`);
                     } else {
-                        addLogEntry('info', `目标 ${i+1}: 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)})`);
+                        addLogEntry('info', `目标 ${i+1}: 匹配模板=${templateId}, 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)})`);
                     }
                 }
                 
@@ -1165,7 +1198,7 @@ async function loopAutoGrasp() {
             addLogEntry('info', '采集图像...');
             const captureResult = await captureImageAsync();
             if (!captureResult.success) {
-                addLogEntry('warning', '图像采集失败，等待1秒后重试');
+                addLogEntry('warning', '图像采集失败，等待1秒后再次尝试');
                 await _delayMs(1000);
                 continue;
             }
@@ -1207,7 +1240,7 @@ async function loopAutoGrasp() {
                 // 执行自动抓取（autoGrasp内部会回到拍照姿态）
                 const graspSuccess = await autoGrasp();
                 
-                // 如果自动抓取失败（包括机械臂移动失败），退出循环
+                // 自动抓取失败（机械臂移动失败）则退出循环
                 if (!graspSuccess) {
                     addLogEntry('error', '自动抓取失败（机械臂移动失败），退出循环自动抓取');
                     break;
@@ -1262,6 +1295,23 @@ function toggleLoopAutoGrasp() {
     }
 }
 
+/** 单次移动时速度/加速度缩放（attempt=1 即全速） */
+function moveRetryScale(attempt) {
+    return attempt === 1 ? 1 : (attempt === 2 ? 0.5 : 0.35);
+}
+
+/**
+ * 执行一次移动，不重试。
+ * @param {(attempt: number) => Promise<{ok: boolean, error?: string, result?: object}>} doMove
+ * @param {string} label - 日志标签（如「移动到准备姿态」）
+ * @returns {Promise<{ok: boolean, error?: string}>}
+ */
+async function moveWithRetry(doMove, label) {
+    const { ok, error } = await doMove(1);
+    if (ok) return { ok: true };
+    return { ok: false, error: error || '未知错误' };
+}
+
 /**
  * 自动抓取函数
  * @returns {Promise<boolean>} 返回true表示成功，false表示失败（包括移动失败）
@@ -1298,11 +1348,11 @@ async function autoGrasp() {
 
     addLogEntry('info', `开始自动抓取，目标 1/${n}（回到拍照→打开夹爪→准备→抓取→关闭夹爪→准备→预放置→放置→打开夹爪→回到拍照）`);
 
-    const v = 0.1;
-    const a = 0.025;
+    const v = 0.15;
+    const a = 0.05;
 
-    // 辅助函数：回到拍照姿态
-    async function moveToCameraPose() {
+    // 辅助函数：回到拍照姿态。attempt 用于速度/加速度缩放（attempt=1 即全速）
+    async function moveToCameraPose(attempt = 1) {
         try {
             const workpieceId = (document.getElementById('workpiece-id-workflow')?.value || '').trim();
             const matchedPoseId = (d.matched_pose_ids && d.matched_pose_ids[0]) ? String(d.matched_pose_ids[0]) : '';
@@ -1340,8 +1390,10 @@ async function autoGrasp() {
                         position: { x: pos.x, y: pos.y, z: pos.z },
                         orientation: { x: ori.x, y: ori.y, z: ori.z, w: ori.w }
                     };
+                    const vel = attempt === 1 ? v : v * 0.5;
+                    const acc = attempt === 1 ? a : a * 0.5;
                     addLogEntry('info', '移动到拍照姿态...');
-                    const { ok: okCam, error: errCam } = await moveRobotToPoseCartesian(targetPose, v, a, '拍照姿态');
+                    const { ok: okCam, error: errCam } = await moveRobotToPoseCartesian(targetPose, vel, acc, '拍照姿态');
                     if (!okCam) {
                         addLogEntry('warning', '回到拍照姿态失败: ' + (errCam || '未知错误'));
                         return false;
@@ -1372,23 +1424,29 @@ async function autoGrasp() {
 
         // 步骤3: 移动到准备姿态
         addLogEntry('info', '移动到准备姿态...');
-        const { ok: okPrep, error: errPrep } = await moveRobotToPoseCartesian(prep, v, a, '准备姿态');
+        const { ok: okPrep, error: errPrep } = await moveWithRetry(
+            (attempt) => moveRobotToPoseCartesian(prep, v * moveRetryScale(attempt), a * moveRetryScale(attempt), '准备姿态'),
+            '移动到准备姿态'
+        );
         if (!okPrep) {
             addLogEntry('error', '移动到准备姿态失败: ' + (errPrep || '未知错误'));
             return false;
         }
         addLogEntry('success', '已到达准备姿态');
-        await _delayMs(500);
+        await _delayMs(100);
 
         // 步骤4: 移动到抓取姿态
         addLogEntry('info', '移动到抓取姿态...');
-        const { ok: okGrab, error: errGrab } = await moveRobotToPoseCartesian(grab, v, a, '抓取姿态');
+        const { ok: okGrab, error: errGrab } = await moveWithRetry(
+            (attempt) => moveRobotToPoseCartesian(grab, v * moveRetryScale(attempt), a * moveRetryScale(attempt), '抓取姿态'),
+            '移动到抓取姿态'
+        );
         if (!okGrab) {
             addLogEntry('error', '移动到抓取姿态失败: ' + (errGrab || '未知错误'));
             return false;
         }
         addLogEntry('success', '已到达抓取姿态');
-        await _delayMs(300);
+        await _delayMs(100);
 
         // 步骤5: 关闭夹爪
         const okClose = await _gripperClosePlaceholder();
@@ -1396,28 +1454,34 @@ async function autoGrasp() {
             addLogEntry('error', '关闭夹爪失败');
             return false;
         }
-        await _delayMs(300);
+        await _delayMs(100);
 
         // 步骤6: 移动到准备姿态（抓取后先回到准备姿态）
         addLogEntry('info', '移动到准备姿态...');
-        const { ok: okPrep2, error: errPrep2 } = await moveRobotToPoseCartesian(prep, v, a, '准备姿态');
+        const { ok: okPrep2, error: errPrep2 } = await moveWithRetry(
+            (attempt) => moveRobotToPoseCartesian(prep, v * moveRetryScale(attempt), a * moveRetryScale(attempt), '准备姿态'),
+            '移动到准备姿态'
+        );
         if (!okPrep2) {
             addLogEntry('error', '移动到准备姿态失败: ' + (errPrep2 || '未知错误'));
             return false;
         }
         addLogEntry('success', '已到达准备姿态');
-        await _delayMs(500);
+        await _delayMs(100);
 
         // 步骤7: 移动到预放置姿态（如果存在）
         if (preplace?.position) {
             addLogEntry('info', '移动到预放置姿态...');
-            const { ok: okPreplace, error: errPreplace } = await moveRobotToPoseCartesian(preplace, v, a, '预放置姿态');
+            const { ok: okPreplace, error: errPreplace } = await moveWithRetry(
+                (attempt) => moveRobotToPoseCartesian(preplace, v * moveRetryScale(attempt), a * moveRetryScale(attempt), '预放置姿态'),
+                '移动到预放置姿态'
+            );
             if (!okPreplace) {
                 addLogEntry('error', '移动到预放置姿态失败: ' + (errPreplace || '未知错误'));
                 return false;
             }
             addLogEntry('success', '已到达预放置姿态');
-            await _delayMs(500);
+            await _delayMs(100);
         } else {
             addLogEntry('warning', '跳过预放置姿态（未提供）');
         }
@@ -1425,13 +1489,16 @@ async function autoGrasp() {
         // 步骤8: 移动到放置姿态（如果存在）
         if (place?.position) {
             addLogEntry('info', '移动到放置姿态...');
-            const { ok: okPlace, error: errPlace } = await moveRobotToPoseCartesian(place, v, a, '放置姿态');
+            const { ok: okPlace, error: errPlace } = await moveWithRetry(
+                (attempt) => moveRobotToPoseCartesian(place, v * moveRetryScale(attempt), a * moveRetryScale(attempt), '放置姿态'),
+                '移动到放置姿态'
+            );
             if (!okPlace) {
                 addLogEntry('error', '移动到放置姿态失败: ' + (errPlace || '未知错误'));
                 return false;
             }
             addLogEntry('success', '已到达放置姿态');
-            await _delayMs(300);
+            await _delayMs(100);
         } else {
             addLogEntry('warning', '跳过放置姿态（未提供）');
         }
@@ -1442,10 +1509,10 @@ async function autoGrasp() {
             addLogEntry('error', '打开夹爪失败');
             return false;
         }
-        await _delayMs(300);
+        await _delayMs(100);
 
         // 步骤10: 回到拍照姿态
-        const okCamera = await moveToCameraPose();
+        const okCamera = await moveToCameraPose(1);
         if (!okCamera) {
             addLogEntry('error', '回到拍照姿态失败');
             return false;
@@ -1524,7 +1591,21 @@ async function moveRobotToPoseCartesian(pose, velocityFactor = 0.1, acceleration
     
     addLogEntry('info', label ? `即将运动到【${label}】: ${posStr}, ${oriStr}${eulerStr}` : `即将运动到位姿: ${posStr}, ${oriStr}${eulerStr}`);
 
-    const res = await fetch(`${API_BASE_URL}/api/set_robot_pose`, {
+    // 防止重复请求：若已有请求未返回则拒绝本次调用并打日志，便于确认是否由前端触发多次请求
+    if (_setRobotPoseInFlight) {
+        const msg = '[set_robot_pose] 忽略重复请求（上一请求未返回） label=' + (label || '') + ' 调用栈见下方';
+        console.warn(msg, new Error().stack);
+        addLogEntry('warning', '移动请求进行中，已忽略重复操作');
+        return { ok: false, result: null, error: '请求进行中，请勿重复操作' };
+    }
+    _setRobotPoseInFlight = true;
+    _setRobotPoseRequestSeq += 1;
+    const reqSeq = _setRobotPoseRequestSeq;
+    console.log('[set_robot_pose] 发送请求 #' + reqSeq + ' label=' + (label || '') + ' (仅前端诊断)');
+
+    let res, result;
+    try {
+        res = await fetch(`${API_BASE_URL}/api/set_robot_pose`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1534,8 +1615,15 @@ async function moveRobotToPoseCartesian(pose, velocityFactor = 0.1, acceleration
             acceleration_factor: accelerationFactor
         })
     });
-    const result = await res.json();
-    return { ok: res.ok && result.success, result, error: result.error || result.message };
+        result = await res.json();
+        // 诊断：与 C++/桥接日志对照，确认前端收到的 success、error_code 是否一致（label 对应步骤：准备/抓取/预放置等）
+        if (typeof result.success !== 'undefined' || result.error_code !== undefined) {
+            console.log('[move_to_pose 前端] 请求 #' + reqSeq + ' label=', label, 'HTTP', res.status, 'result.success=', result.success, 'result.error_code=', result.error_code);
+        }
+        return { ok: res.ok && result.success, result, error: result.error || result.message };
+    } finally {
+        _setRobotPoseInFlight = false;
+    }
 }
 
 // 通用函数：从模板读取位姿并运动到该位姿
@@ -2241,7 +2329,7 @@ function getRobotPose() {
             })
             .then(saveData => {
                 if (saveData.success) {
-                    // 显示姿态信息
+                    // 显示姿态信息（仅写入日志，不再弹出对话框）
                     const pos = data.robot_status.cartesian_position.position;
                     const ori = data.robot_status.cartesian_position.orientation;
                     const euler = data.robot_status.cartesian_position.euler_orientation_rpy_deg;
@@ -2252,28 +2340,41 @@ function getRobotPose() {
                     const eulerStr = euler && euler.length >= 3 ? `, 姿态角(${euler[0].toFixed(2)}, ${euler[1].toFixed(2)}, ${euler[2].toFixed(2)})deg` : '';
                     
                     addLogEntry('success', `${poseTypeNames[poseType]}已保存到: ${saveData.file_path} - ${posStr}, ${oriStr}${eulerStr}`);
-                    
-                    const poseInfo = `位置: (${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}) mm\n` +
-                                   `姿态: (${euler[0].toFixed(2)}, ${euler[1].toFixed(2)}, ${euler[2].toFixed(2)}) deg`;
-                    
-                    alert(`${poseTypeNames[poseType]}获取并保存成功！\n\n${poseInfo}`);
-    } else {
+                    console.log(`${poseTypeNames[poseType]}获取并保存成功:`, {
+                        position_mm: {
+                            x: pos.x.toFixed(3),
+                            y: pos.y.toFixed(3),
+                            z: pos.z.toFixed(3),
+                        },
+                        orientation_quat: {
+                            x: ori.x.toFixed(6),
+                            y: ori.y.toFixed(6),
+                            z: ori.z.toFixed(6),
+                            w: ori.w.toFixed(6),
+                        },
+                        euler_deg: euler && euler.length >= 3 ? [
+                            euler[0].toFixed(2),
+                            euler[1].toFixed(2),
+                            euler[2].toFixed(2),
+                        ] : [],
+                    });
+                } else {
                     addLogEntry('error', `姿态保存失败: ${saveData.error}`);
-                    alert(`姿态保存失败: ${saveData.error}`);
+                    console.error(`姿态保存失败: ${saveData.error}`);
                 }
             })
             .catch(error => {
                 addLogEntry('error', `姿态保存异常: ${error.message}`);
-                alert(`姿态保存异常: ${error.message}`);
+                console.error(`姿态保存异常: ${error.message}`);
             });
         } else {
             addLogEntry('error', `获取机器人状态失败: ${data.error || '未知错误'}`);
-            alert(`获取机器人状态失败: ${data.error || '未知错误'}`);
+            console.error(`获取机器人状态失败: ${data.error || '未知错误'}`);
         }
     })
     .catch(error => {
         addLogEntry('error', `获取姿态异常: ${error.message}`);
-        alert(`获取姿态异常: ${error.message}`);
+        console.error(`获取姿态异常: ${error.message}`);
     });
 }
 
@@ -2652,8 +2753,12 @@ function updateDebugParam(paramName, paramValue) {
     // 更新显示值
     const valueDisplay = document.getElementById(`${paramName}-value`);
     if (valueDisplay) {
-        // 对于宽高比，显示原始值
-        if (paramName.includes('aspect')) {
+        if (paramName === 'enable-smooth-edges' || paramName === 'use-rembg') {
+            valueDisplay.textContent = parseFloat(paramValue) ? '开' : '关';
+        } else if (paramName === 'smooth-edges-blur-sigma') {
+            const v = parseFloat(paramValue);
+            valueDisplay.textContent = v === 0 ? '关闭' : v.toFixed(1);
+        } else if (paramName.includes('aspect')) {
             valueDisplay.textContent = parseFloat(paramValue).toFixed(1);
         } else {
             valueDisplay.textContent = Math.round(paramValue);
@@ -2739,7 +2844,10 @@ function loadDebugParams() {
                 'component_max_aspect_ratio': 'max-aspect',
                 'component_min_width': 'min-width',
                 'component_min_height': 'min-height',
-                'component_max_count': 'max-count'
+                'component_max_count': 'max-count',
+                'enable_smooth_edges': 'enable-smooth-edges',
+                'smooth_edges_blur_sigma': 'smooth-edges-blur-sigma',
+                'use_rembg': 'use-rembg'
             };
             
             // 更新滑动条值和显示值
@@ -2761,10 +2869,14 @@ function loadDebugParams() {
                 if (slider) {
                     let value = data.params[key];
                     
-                    // 对于宽高比参数，需要乘以10
+                    // 对于宽高比参数，需要乘以10；对于启用去毛边，转为 0/1；对于边缘平滑 σ，转为 0-30
                     let sliderValue;
                     if (dashKey.includes('aspect')) {
                         sliderValue = Math.round(value * 10);
+                    } else if (dashKey === 'enable-smooth-edges' || dashKey === 'use-rembg') {
+                        sliderValue = (value === true || value === 1 || value === '1') ? 1 : 0;
+                    } else if (dashKey === 'smooth-edges-blur-sigma') {
+                        sliderValue = Math.round(parseFloat(value) * 10);
                     } else {
                         sliderValue = Math.round(value);
                     }
@@ -2806,8 +2918,13 @@ function loadDebugParams() {
                     // 注意：这里只更新显示，不触发oninput事件，避免在加载默认值时触发参数更新并覆盖配置文件
                     const valueDisplay = document.getElementById(valueId);
                     if (valueDisplay) {
-                        let displayValue = value;
-                        if (dashKey.includes('aspect')) {
+                        let displayValue;
+                        if (dashKey === 'enable-smooth-edges' || dashKey === 'use-rembg') {
+                            displayValue = (value === true || value === 1 || value === '1') ? '开' : '关';
+                        } else if (dashKey === 'smooth-edges-blur-sigma') {
+                            const v = parseFloat(value);
+                            displayValue = v === 0 ? '关闭' : v.toFixed(1);
+                        } else if (dashKey.includes('aspect')) {
                             displayValue = value.toFixed(1);
                         } else {
                             displayValue = Math.round(value);

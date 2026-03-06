@@ -72,23 +72,23 @@ def generate_launch_description():
         except:
             pass
     
-    # 手眼标定 TF 发布节点
-    hand_eye_tf_publisher_node = Node(
-        package='hand_eye_calibration',
-        executable='hand_eye_calibration_tf_publisher',
-        name='hand_eye_calibration_tf_publisher',
-        output='screen',
-        parameters=[{
-            'calibration_file': LaunchConfiguration('calibration_file'),
-            'parent_frame': LaunchConfiguration('parent_frame'),
-            'child_frame': LaunchConfiguration('child_frame'),
-            'publish_rate': 1.0,
-        }]
-    )
+    # 手眼标定 TF 发布节点（暂时关闭，需要时取消注释并加入 LaunchDescription）
+    # hand_eye_tf_publisher_node = Node(
+    #     package='hand_eye_calibration',
+    #     executable='hand_eye_calibration_tf_publisher',
+    #     name='hand_eye_calibration_tf_publisher',
+    #     output='screen',
+    #     parameters=[{
+    #         'calibration_file': LaunchConfiguration('calibration_file'),
+    #         'parent_frame': LaunchConfiguration('parent_frame'),
+    #         'child_frame': LaunchConfiguration('child_frame'),
+    #         'publish_rate': 1.0,
+    #     }]
+    # )
     
     return LaunchDescription([
         calibration_file_arg,
         parent_frame_arg,
         child_frame_arg,
-        hand_eye_tf_publisher_node,
+        # hand_eye_tf_publisher_node,
     ])

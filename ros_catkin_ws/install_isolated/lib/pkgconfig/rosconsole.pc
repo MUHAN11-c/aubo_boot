@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ros_catkin_ws/install_isolated
+
+Name: rosconsole
+Description: Description of rosconsole
+Version: 1.14.4
+Cflags: -I${prefix}/include -I/usr/include
+Libs: -L${prefix}/lib -lrosconsole -lrosconsole_log4cxx -lrosconsole_backend_interface /usr/lib/x86_64-linux-gnu/liblog4cxx.so /usr/lib/x86_64-linux-gnu/libboost_regex.so.1.74.0 /usr/lib/x86_64-linux-gnu/libboost_system.so.1.74.0 /usr/lib/x86_64-linux-gnu/libboost_thread.so.1.74.0
+Requires: cpp_common rostime

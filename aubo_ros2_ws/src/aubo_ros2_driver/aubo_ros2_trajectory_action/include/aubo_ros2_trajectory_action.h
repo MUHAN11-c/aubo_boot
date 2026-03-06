@@ -72,8 +72,12 @@ private:
 
   bool has_active_goal_;
   bool trajectory_state_recvd_;
+  double goal_accept_time_sec_;  // 接受目标时刻（ROS time 秒），看门狗仅在“接受后满 2 秒仍无反馈”时才 abort
   trajectory_msgs::msg::JointTrajectory current_trajectory_;
   std::shared_ptr<GoalHandleFjt> active_goal_;
+  // 诊断 client_cancel：记录最后一次 feedback 的 actual.positions，abort 时与轨迹起点对比
+  std::vector<double> last_feedback_positions_;
+  bool last_feedback_valid_{false};
 
   void watchDogTimer();
 
@@ -84,7 +88,7 @@ private:
   rclcpp_action::CancelResponse handleCancel(const std::shared_ptr<GoalHandleFjt> goal_handle);
   void handleAccept(const std::shared_ptr<GoalHandleFjt> goal_handle);
 
-  void abortActiveGoal();
+  void abortActiveGoal(const char* reason = nullptr);
 
   void publishTrajectory();  // 发布完整轨迹，插补在 ROS 1 端完成
   double toSec(const builtin_interfaces::msg::Duration &duration);
@@ -97,6 +101,9 @@ private:
   bool checkReachTarget(const control_msgs::action::FollowJointTrajectory_Feedback::ConstSharedPtr feedback, const trajectory_msgs::msg::JointTrajectory &traj);
 
   std::vector<std::string> joint_names;
+  
+  // 轨迹重采样过滤器（用于笛卡尔路径）
+  UniformSampleFilter resample_filter_;
 };
 
 }

@@ -53,6 +53,7 @@ find_package(nav_msgs REQUIRED)
 #find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs  REQUIRED)
 find_package(cv_bridge REQUIRED)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui photo)
 
 set(SOURCE_FILES
   src/percipio_camera_node_driver.cpp
@@ -74,7 +75,7 @@ set(SOURCE_INCLUDES_DIR
 
 set(SDK_INCLUDE_DIRS
   camport4/include
-  ${OpenCV_INCLUDED_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "i686")
@@ -94,7 +95,7 @@ set(SDK_LIBRARIES ${CMAKE_CURRENT_SOURCE_DIR}/camport4/lib/linux/lib_${ARCH}/lib
 macro(add_percipio_ros_executable TARGET SOURCE)
   add_executable(${TARGET} ${SOURCE} src/DepthInpainter.cpp  src/ImageSpeckleFilter.cpp src/MatViewer.cpp src/TYThread.cpp)
   target_include_directories(${TARGET} PUBLIC ${SDK_INCLUDE_DIRS} ${SOURCE_INCLUDES_DIR})
-  target_link_libraries(${TARGET} ${SDK_LIBRARIES} ${PROJECT_NAME})
+  target_link_libraries(${TARGET} ${SDK_LIBRARIES} ${PROJECT_NAME} ${OpenCV_LIBS})
   ament_target_dependencies(${TARGET} ${dependencies})
 endmacro()
 
@@ -111,7 +112,7 @@ add_library(${PROJECT_NAME} SHARED
 )
 ament_target_dependencies(${PROJECT_NAME} ${dependencies})
 target_include_directories(${PROJECT_NAME} PUBLIC ${SDK_INCLUDE_DIRS} ${SOURCE_INCLUDES_DIR})
-target_link_libraries(${PROJECT_NAME} ${SDK_LIBRARIES} ${rclcpp_LIBRARIES} ${opencv_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${SDK_LIBRARIES} ${rclcpp_LIBRARIES} ${OpenCV_LIBS})
 
 rclcpp_components_register_node(${PROJECT_NAME}
     PLUGIN "percipio_camera::PercipioCameraNodeDriver"

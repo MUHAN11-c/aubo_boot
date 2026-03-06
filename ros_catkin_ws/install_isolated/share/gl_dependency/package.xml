@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>gl_dependency</name>
+  <version>1.1.4</version>
+  <description>This encapsulates the GL dependency for a specific ROS distribution and its Qt version</description>
+  <maintainer email="michel@ekumenlabs.com">Michel Hidalgo</maintainer>
+  <license>BSD</license>
+  <author email="dthomas@osrfoundation.org">Dirk Thomas</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <exec_depend condition="$ROS_PYTHON_VERSION == 2">python-qt5-bindings-gl</exec_depend>
+  <exec_depend condition="$ROS_PYTHON_VERSION == 3">python3-qt5-bindings-gl</exec_depend>
+</package>

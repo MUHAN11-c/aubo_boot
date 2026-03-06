@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ros_catkin_ws/devel_isolated/bondcpp
+
+Name: bondcpp
+Description: Description of bondcpp
+Version: 1.8.7
+Cflags: -I/home/mu/IVG/ros_catkin_ws/src/bond_core/bondcpp/include -I/usr/include
+Libs: -L${prefix}/lib -lbondcpp /usr/lib/x86_64-linux-gnu/libboost_date_time.so.1.74.0 /usr/lib/x86_64-linux-gnu/libboost_thread.so.1.74.0 /usr/lib/x86_64-linux-gnu/libuuid.so
+Requires: bond roscpp smclib

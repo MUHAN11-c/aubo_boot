@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ros_catkin_ws/install_isolated
+
+Name: kdl_conversions
+Description: Description of kdl_conversions
+Version: 1.13.4
+Cflags: -I${prefix}/include -I/usr/local/include/eigen3
+Libs: -L${prefix}/lib -lkdl_conversions -lorocos-kdl
+Requires: geometry_msgs

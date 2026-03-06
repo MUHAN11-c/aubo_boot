@@ -110,14 +110,12 @@ ros2 launch visual_pose_estimation_python visual_pose_estimation_python.launch.p
 # 或自定义参数
 ros2 launch visual_pose_estimation_python visual_pose_estimation_python.launch.py \
   template_root:=/path/to/templates \
-  config_file:=/path/to/config.yaml \
-  calib_file:=/path/to/hand_eye_calibration.json \
-  debug:=true
+  calib_file:=/path/to/hand_eye_calibration.yaml
 ```
 
 **默认配置：**
-- 模板目录：`/home/mu/IVG/aubo_ros2_ws/src/visual_pose_estimation/templates`
-- 配置文件：`configs/default.yaml`
+- 模板目录：由 launch 参数 `template_root` 指定（空则使用包内 `visual_pose_estimation/templates`）
+- 标定：未指定 `calib_file` 时从 `web_ui/configs/` 或 hand_eye_calibration 标准路径查找
 - 订阅话题：
   - 深度图：`/camera/depth/image_raw`（可通过参数 `depth_image_topic` 配置）
   - 彩色图：`/camera/color/image_raw`（可通过参数 `color_image_topic` 配置）
@@ -331,28 +329,13 @@ ros2 service call /estimate_pose interface/srv/EstimatePose \
 
 ## 配置文件
 
-配置文件位于`configs/default.yaml`，包含：
-- **深度图预处理参数**（深度阈值、0值插值、连通域筛选）
-- **特征提取参数**（大圆、小圆提取、腐蚀膨胀参数、线程数）
-- **姿态估计参数**（匹配阈值、暴力匹配）
+节点参数来自 **ConfigReader 默认值** 与 **web_ui/configs/debug_thresholds.json**（二值化、连通域等阈值）。标定与相机内参未指定时从 `web_ui/configs/`（标准文件名：**camera_intrinsics.yaml**、**hand_eye_calibration.yaml**）或 hand_eye_calibration 标准路径加载。
 
-### 关键参数说明
+### 关键参数（debug_thresholds.json）
 
-```yaml
-preprocess:
-  # 深度阈值（原始值，单位取决于相机）
-  binary_threshold_min: 0        # 最小深度
-  binary_threshold_max: 65535    # 最大深度
-  enable_zero_interp: true       # 启用0值插值
-  
-  feature_extraction:
-    # 小圆（阀体）提取参数
-    small_circle:
-      erode_kernel: 11           # 腐蚀核大小
-      erode_iterations: 5        # 腐蚀迭代次数
-      dilate_kernel: 9           # 膨胀核大小
-      dilate_iterations: 1       # 膨胀迭代次数
-```
+- **binary_threshold_min / max**：深度二值化阈值  
+- **component_***：连通域筛选（面积、宽高比、数量等）  
+- 特征提取与姿态估计的其余默认值在 ConfigReader 中写死，可按需改代码或扩展从文件加载
 
 ### 订阅的话题
 
@@ -390,18 +373,12 @@ visual_pose_estimation_python/
 │   └── debug_visualizer.py         # 调试可视化器
 ├── launch/                         # 启动文件
 │   └── visual_pose_estimation_python.launch.py
-├── configs/                        # 配置文件
-│   ├── default.yaml
-│   ├── hand_eye_calibration.xml
+├── configs/                        # 配置文件（旧版兼容）
 │   └── trigger_depth_thresholds_camera.json
 ├── test/                           # 核心模块测试
 │   ├── test_copyright.py
 │   ├── test_flake8.py
 │   └── test_pep257.py
-├── examples/                       # 示例文件
-│   └── example_usage.py           # 使用示例
-├── scripts/                        # 工具脚本
-│   └── smart_estimate.py
 ├── web_ui/                         # Web UI
 │   ├── index.html                  # Web UI主页面
 │   ├── README.md                   # Web UI文档
@@ -410,8 +387,7 @@ visual_pose_estimation_python/
 │   │   └── debug_thresholds.json
 │   ├── scripts/                    # Web UI脚本
 │   │   ├── http_bridge_server.py  # HTTP桥接服务器
-│   │   ├── params_manager.py      # 参数管理器
-│   │   └── import_patch.txt       # 导入补丁
+│   │   └── params_manager.py      # 参数管理器
 │   ├── docs/                       # Web UI文档
 │   │   ├── DEBUG_IMPLEMENTATION_SUMMARY.md
 │   │   ├── DEBUG_USAGE.md
@@ -469,7 +445,7 @@ visual_pose_estimation_python/
 3. **深度阈值**：
    - 需要根据实际场景调整 `binary_threshold_min/max` 参数
    - 默认值 `[0, 65535]` 适用于16位深度图
-   - 可在 `configs/default.yaml` 中修改
+   - 可在 `web_ui/configs/debug_thresholds.json` 中修改
 
 4. **模板目录**：
    - 默认目录：`/home/mu/IVG/aubo_ros2_ws/src/visual_pose_estimation/templates`
@@ -482,11 +458,9 @@ visual_pose_estimation_python/
    - 标定文件包含：相机内参、畸变系数、手眼变换矩阵
    - 用于将相机坐标系下的姿态转换到机器人基座坐标系
 
-6. **调试模式**：启用debug可以保存中间处理结果
+6. **性能优化**：可以通过调整`max_threads`来优化并行处理性能
 
-7. **性能优化**：可以通过调整`max_threads`来优化并行处理性能
-
-8. **触发拍照模式**：
+7. **触发拍照模式**：
    - 节点启动时自动订阅深度图和彩色图话题
    - 调用软触发服务拍照后，直接调用姿态估计服务即可（无需在请求中传递图像）
    - 系统会自动使用触发拍照获取的最新深度图和彩色图
@@ -499,20 +473,12 @@ visual_pose_estimation_python/
 - **特征可视化**：在彩色工件图上进行特征可视化
 - **算法实现**：完全遵循`trigger_depth.py`的处理流程
 
-## 详细文档
-
-### 核心算法详解
-
-- **[`PROCESS_SINGLE_FEATURE_DETAILED.md`](./PROCESS_SINGLE_FEATURE_DETAILED.md)** - `_process_single_feature` 方法详细说明
-  - 面向零基础用户的完整教程
-  - 包含基础概念、算法详解、数学公式推导
-  - 实际应用示例和常见问题解答
-  - 从图像特征到机器人姿态的完整流程说明
-
 ## 参考
 
 - C++实现：`visual_pose_estimation`
 - 图像处理参考：`trigger_depth.py`
+- [目录结构说明](DIRECTORY_STRUCTURE.md)
+- [准备/抓取位姿计算说明](GRASP_PREP_POSE_CHECK.md)
 
 ## 许可证
 

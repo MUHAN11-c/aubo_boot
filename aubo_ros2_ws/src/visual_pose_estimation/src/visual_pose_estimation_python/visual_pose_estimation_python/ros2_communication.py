@@ -47,16 +47,31 @@ from .template_standardizer import TemplateStandardizer
 from .config_reader import ConfigReader
 from .pose_estimator import PoseEstimator, TemplateItem
 from .debug_visualizer import DebugVisualizer
+from .rembg_processor import RemBGProcessor
+from .subprocess_rembg import SubprocessRemBGProcessor
 
 # 导入参数管理器（从web_ui共享）
 import sys
-web_ui_path = Path(__file__).parent.parent / 'web_ui' / 'scripts'
+_ros2_comm_pkg_root = Path(__file__).resolve().parent.parent
+web_ui_path = _ros2_comm_pkg_root / 'web_ui' / 'scripts'
 if str(web_ui_path) not in sys.path:
     sys.path.insert(0, str(web_ui_path))
 try:
     from params_manager import ParamsManager
 except ImportError:
     ParamsManager = None
+
+# 默认配置目录：web_ui/configs（标定等优先从此加载）
+# 源码运行：包内 web_ui/configs；install 运行：configs 在 share/ 下，需用 ament 解析
+_configs_from_pkg = _ros2_comm_pkg_root / 'web_ui' / 'configs'
+if _configs_from_pkg.exists():
+    WEB_UI_CONFIGS_DIR = _configs_from_pkg
+else:
+    try:
+        from ament_index_python.packages import get_package_share_directory
+        WEB_UI_CONFIGS_DIR = Path(get_package_share_directory('visual_pose_estimation_python')) / 'web_ui' / 'configs'
+    except Exception:
+        WEB_UI_CONFIGS_DIR = _configs_from_pkg
 
 
 class ROS2Communication:
@@ -78,11 +93,13 @@ class ROS2Communication:
         self.template_standardizer = None
         self.config_reader = None
         self.pose_estimator = None
+        self.rembg_processor = None
+        self._rembg_mask_cache: Dict[int, np.ndarray] = {}
+        self._rembg_cutout_cache: Dict[int, np.ndarray] = {}
         
         # 配置
         self.template_root = ""
         self.calib_file = ""
-        self.debug = False
         
         # 相机参数
         self.camera_matrix = None
@@ -131,8 +148,7 @@ class ROS2Communication:
         self,
         config_reader: ConfigReader,
         template_root: str,
-        calib_file: str = "",
-        debug: bool = False
+        calib_file: str = ""
     ) -> bool:
         """初始化ROS2通信
         
@@ -140,7 +156,6 @@ class ROS2Communication:
             config_reader: 配置读取器
             template_root: 模板根目录
             calib_file: 手眼标定文件路径
-            debug: 是否启用调试模式
             
         Returns:
             是否初始化成功
@@ -149,7 +164,6 @@ class ROS2Communication:
             self.config_reader = config_reader
             self.template_root = template_root
             self.calib_file = calib_file
-            self.debug = debug
             
             # 创建组件
             self.preprocessor = Preprocessor()
@@ -300,7 +314,8 @@ class ROS2Communication:
                 'component_min_area', 'component_max_area',
                 'component_min_aspect_ratio', 'component_max_aspect_ratio',
                 'component_min_width', 'component_min_height',
-                'component_max_count', 'enable_zero_interp'
+                'component_max_count', 'enable_zero_interp',
+                'enable_smooth_edges', 'smooth_edges_blur_sigma'
             ]
         elif module == 'feature_extractor':
             # FeatureExtractor需要的阈值参数（不包含binary_threshold和enable_zero_interp）
@@ -338,6 +353,8 @@ class ROS2Communication:
             'component_min_height': float(debug_params.get('component_min_height', 60)),
             'component_max_count': float(debug_params.get('component_max_count', 3)),
             'enable_zero_interp': float(debug_params.get('enable_zero_interp', 1.0)),
+            'enable_smooth_edges': float(1 if debug_params.get('enable_smooth_edges', True) else 0),
+            'smooth_edges_blur_sigma': float(debug_params.get('smooth_edges_blur_sigma', 0)),
         }
 
         # FeatureExtractor参数映射（参考 http_bridge_server.py）
@@ -357,7 +374,9 @@ class ROS2Communication:
             f'aspect=[{preprocessor_params["component_min_aspect_ratio"]}, {preprocessor_params["component_max_aspect_ratio"]}], '
             f'size=[{preprocessor_params["component_min_width"]}x{preprocessor_params["component_min_height"]}], '
             f'max_count={preprocessor_params["component_max_count"]}, '
-            f'enable_zero_interp={preprocessor_params["enable_zero_interp"]}'
+            f'enable_zero_interp={preprocessor_params["enable_zero_interp"]}, '
+            f'enable_smooth_edges={preprocessor_params["enable_smooth_edges"]}, '
+            f'blur_sigma={preprocessor_params["smooth_edges_blur_sigma"]}'
         )
 
         try:
@@ -665,62 +684,85 @@ class ROS2Communication:
     def _load_hand_eye_calibration_from_standard_paths(self) -> bool:
         """从标准路径加载手眼标定参数
         
-        尝试从以下位置加载：
-        1. /home/mu/IVG/aubo_ros2_ws/src/hand_eye_calibration/config/calibration_results/（最新的YAML文件）
-        2. 相机内参：/home/mu/IVG/aubo_ros2_ws/src/hand_eye_calibration/config/calibrationdata/ost.yaml
+        优先从 web_ui/configs 加载，若无则回退到 hand_eye_calibration 包路径：
+        1. 相机内参：web_ui/configs/camera_intrinsics.yaml（标准名），或 ost.yaml 兼容，或 hand_eye_calibration/.../ost.yaml
+        2. 手眼标定：web_ui/configs/hand_eye_calibration.yaml（标准名），或最新 hand_eye_calibration*.yaml，或 hand_eye_calibration/.../calibration_results/
         
         Returns:
             是否加载成功
         """
         try:
-            # 标准路径
-            calib_results_dir = Path('/home/mu/IVG/aubo_ros2_ws/src/hand_eye_calibration/config/calibration_results')
-            camera_params_path = Path('/home/mu/IVG/aubo_ros2_ws/src/hand_eye_calibration/config/calibrationdata/ost.yaml')
+            # 1. 先加载相机内参（如果还没有加载）：优先 web_ui/configs
+            if self.camera_matrix is None and yaml is not None:
+                for candidate in (WEB_UI_CONFIGS_DIR / 'camera_intrinsics.yaml', WEB_UI_CONFIGS_DIR / 'ost.yaml'):
+                    if candidate.exists():
+                        try:
+                            with open(candidate, 'r', encoding='utf-8') as f:
+                                cam_data = yaml.safe_load(f)
+                            camera_matrix_data = cam_data.get('camera_matrix', {})
+                            if camera_matrix_data:
+                                if isinstance(camera_matrix_data, dict) and 'data' in camera_matrix_data:
+                                    flat_data = camera_matrix_data['data']
+                                    self.camera_matrix = np.array(flat_data, dtype=np.float64).reshape(3, 3)
+                                elif isinstance(camera_matrix_data, list):
+                                    self.camera_matrix = np.array(camera_matrix_data, dtype=np.float64)
+                                dist_coeffs_data = cam_data.get('distortion_coefficients', {})
+                                if dist_coeffs_data:
+                                    if isinstance(dist_coeffs_data, dict) and 'data' in dist_coeffs_data:
+                                        self.dist_coeffs = np.array(dist_coeffs_data['data'], dtype=np.float64)
+                                    elif isinstance(dist_coeffs_data, list):
+                                        self.dist_coeffs = np.array(dist_coeffs_data, dtype=np.float64)
+                                self.logger.info(f'相机内参文件: {candidate}')
+                                break
+                        except Exception as e:
+                            self.logger.warning(f'加载相机内参失败: {candidate}, 错误: {e}')
+                # 回退：hand_eye_calibration 包路径
+                if self.camera_matrix is None:
+                    fallback_camera = Path('/home/mu/IVG/aubo_ros2_ws/src/hand_eye_calibration/config/calibrationdata/ost.yaml')
+                    if fallback_camera.exists():
+                        try:
+                            with open(fallback_camera, 'r', encoding='utf-8') as f:
+                                cam_data = yaml.safe_load(f)
+                            camera_matrix_data = cam_data.get('camera_matrix', {})
+                            if camera_matrix_data:
+                                if isinstance(camera_matrix_data, dict) and 'data' in camera_matrix_data:
+                                    self.camera_matrix = np.array(camera_matrix_data['data'], dtype=np.float64).reshape(3, 3)
+                                elif isinstance(camera_matrix_data, list):
+                                    self.camera_matrix = np.array(camera_matrix_data, dtype=np.float64)
+                                dist_coeffs_data = cam_data.get('distortion_coefficients', {})
+                                if dist_coeffs_data and isinstance(dist_coeffs_data, dict) and 'data' in dist_coeffs_data:
+                                    self.dist_coeffs = np.array(dist_coeffs_data['data'], dtype=np.float64)
+                                self.logger.info(f'相机内参文件: {fallback_camera}')
+                        except Exception as e:
+                            self.logger.warning(f'加载相机内参失败: {fallback_camera}, 错误: {e}')
             
-            # 1. 先加载相机内参（如果还没有加载）
-            if self.camera_matrix is None and camera_params_path.exists():
-                try:
-                    if yaml is None:
-                        self.logger.warning('需要 yaml 模块来加载相机内参')
-                    else:
-                        with open(camera_params_path, 'r', encoding='utf-8') as f:
-                            cam_data = yaml.safe_load(f)
-                        
-                        camera_matrix_data = cam_data.get('camera_matrix', {})
-                        if camera_matrix_data:
-                            if isinstance(camera_matrix_data, dict) and 'data' in camera_matrix_data:
-                                flat_data = camera_matrix_data['data']
-                                self.camera_matrix = np.array(flat_data, dtype=np.float64).reshape(3, 3)
-                            elif isinstance(camera_matrix_data, list):
-                                self.camera_matrix = np.array(camera_matrix_data, dtype=np.float64)
-                        
-                        dist_coeffs_data = cam_data.get('distortion_coefficients', {})
-                        if dist_coeffs_data:
-                            if isinstance(dist_coeffs_data, dict) and 'data' in dist_coeffs_data:
-                                self.dist_coeffs = np.array(dist_coeffs_data['data'], dtype=np.float64)
-                            elif isinstance(dist_coeffs_data, list):
-                                self.dist_coeffs = np.array(dist_coeffs_data, dtype=np.float64)
-                        
-                        self.logger.info(f'相机内参文件: {camera_params_path}')
-                except Exception as e:
-                    self.logger.warning(f'加载相机内参失败: {camera_params_path}, 错误: {e}')
-            
-            # 2. 加载手眼标定结果（最新的YAML文件）
-            if calib_results_dir.exists():
-                # 查找所有YAML文件，按修改时间排序，使用最新的
-                yaml_files = sorted(calib_results_dir.glob('*.yaml'), key=lambda p: p.stat().st_mtime, reverse=True)
-                if yaml_files:
-                    latest_calib_file = yaml_files[0]
-                    success = self._load_hand_eye_calibration(str(latest_calib_file))
-                    if success:
-                        self.actual_calib_file_path = str(latest_calib_file)
+            # 2. 加载手眼标定结果：优先 web_ui/configs/hand_eye_calibration.yaml（标准名），否则最新 hand_eye_calibration*.yaml
+            if WEB_UI_CONFIGS_DIR.exists():
+                standard_he = WEB_UI_CONFIGS_DIR / 'hand_eye_calibration.yaml'
+                if standard_he.exists() and self._load_hand_eye_calibration(str(standard_he)):
+                    self.actual_calib_file_path = str(standard_he)
+                    return True
+                he_files = [p for p in WEB_UI_CONFIGS_DIR.glob('hand_eye_calibration*.yaml')
+                            if p.name != 'hand_eye_calibration.yaml']
+                if not he_files:
+                    he_files = [p for p in WEB_UI_CONFIGS_DIR.glob('*.yaml')
+                                if p.name not in ('ost.yaml', 'camera_intrinsics.yaml')]
+                if he_files:
+                    latest = max(he_files, key=lambda p: p.stat().st_mtime)
+                    if self._load_hand_eye_calibration(str(latest)):
+                        self.actual_calib_file_path = str(latest)
                         return True
             
-            # 如果没有找到手眼标定结果文件，但相机内参已加载，也算部分成功
+            # 回退：hand_eye_calibration 包 calibration_results
+            calib_results_dir = Path('/home/mu/IVG/aubo_ros2_ws/src/hand_eye_calibration/config/calibration_results')
+            if calib_results_dir.exists():
+                yaml_files = sorted(calib_results_dir.glob('*.yaml'), key=lambda p: p.stat().st_mtime, reverse=True)
+                if yaml_files and self._load_hand_eye_calibration(str(yaml_files[0])):
+                    self.actual_calib_file_path = str(yaml_files[0])
+                    return True
+            
             if self.camera_matrix is not None:
                 self.logger.warning('相机内参已加载，但手眼标定参数未找到')
-                return False  # 返回False因为缺少T_E_C
-            
             return False
             
         except Exception as e:
@@ -879,6 +921,8 @@ class ROS2Communication:
         start_time = time.time()
         
         try:
+            self._rembg_mask_cache.clear()
+            self._rembg_cutout_cache.clear()
             self.logger.info(f'姿态估计请求: 工件ID={request.object_id}')
             
             # 1. 获取深度图和彩色图
@@ -1020,6 +1064,201 @@ class ROS2Communication:
             self.logger.warning(f'深度图和彩色图尺寸不匹配: 深度图={depth_image.shape[:2]}, 彩色图={color_image.shape[:2]}')
         
         return True
+
+    def _should_use_rembg(self) -> bool:
+        # #region agent log
+        import json
+        import time
+        try:
+            with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                params = self.config_reader.load_debug_thresholds() if self.config_reader else {}
+                value = params.get("use_rembg", False)
+                result = bool(value) and value != 0
+                log_entry = {
+                    "sessionId": "rembg-debug",
+                    "runId": "run1",
+                    "hypothesisId": "C",
+                    "location": "ros2_communication.py:_should_use_rembg",
+                    "message": "检查 RemBG 是否启用",
+                    "data": {
+                        "config_value": value,
+                        "enabled": result,
+                        "has_config_reader": self.config_reader is not None
+                    },
+                    "timestamp": int(time.time() * 1000)
+                }
+                f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+        except Exception:
+            pass
+        # #endregion
+        params = self.config_reader.load_debug_thresholds() if self.config_reader else {}
+        value = params.get("use_rembg", False)
+        return bool(value) and value != 0
+
+    def _get_rembg_processor(self):
+        """获取 RemBG 处理器（支持直接/子进程两种模式，兼容旧程序）."""
+        # #region agent log
+        import json
+        import time
+        try:
+            with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                log_entry = {
+                    "sessionId": "rembg-debug",
+                    "runId": "run1",
+                    "hypothesisId": "C",
+                    "location": "ros2_communication.py:_get_rembg_processor",
+                    "message": "获取 RemBG 处理器（direct/subprocess 自动选择）",
+                    "data": {
+                        "has_processor": self.rembg_processor is not None,
+                    },
+                    "timestamp": int(time.time() * 1000)
+                }
+                f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+        except Exception:
+            pass
+        # #endregion
+
+        if self.rembg_processor is not None:
+            return self.rembg_processor
+
+        # 尝试检测系统 Python 环境是否可以直接使用 RemBGProcessor
+        direct_available = False
+        try:
+            import onnxruntime  # type: ignore  # noqa: F401
+            import rembg  # type: ignore  # noqa: F401
+            direct_available = True
+        except Exception as exc:
+            # #region agent log
+            import json
+            import time
+            try:
+                with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                    log_entry = {
+                        "sessionId": "rembg-debug",
+                        "runId": "run1",
+                        "hypothesisId": "C",
+                        "location": "ros2_communication.py:_get_rembg_processor",
+                        "message": "系统环境 RemBG 不可用，将回退到子进程模式",
+                        "data": {
+                            "error": str(exc),
+                            "error_type": type(exc).__name__
+                        },
+                        "timestamp": int(time.time() * 1000)
+                    }
+                    f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+            # #endregion
+
+        if direct_available:
+            # 兼容模式：直接在 ROS2 Python 环境中使用 RemBGProcessor
+            self.rembg_processor = RemBGProcessor(prefer_cuda=True)
+            # #region agent log
+            import json
+            import time
+            try:
+                with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                    log_entry = {
+                        "sessionId": "rembg-debug",
+                        "runId": "run1",
+                        "hypothesisId": "C",
+                        "location": "ros2_communication.py:_get_rembg_processor",
+                        "message": "创建 RemBGProcessor（direct 模式）",
+                        "data": {
+                            "mode": "direct",
+                            "providers": self.rembg_processor.providers if self.rembg_processor else None
+                        },
+                        "timestamp": int(time.time() * 1000)
+                    }
+                    f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+            # #endregion
+        else:
+            # 默认模式：使用子进程 RemBG（通过 conda 环境）
+            self.rembg_processor = SubprocessRemBGProcessor(prefer_cuda=True)
+            # #region agent log
+            import json
+            import time
+            try:
+                with open("/home/mu/IVG/.cursor/debug.log", "a", encoding="utf-8") as f:
+                    log_entry = {
+                        "sessionId": "rembg-debug",
+                        "runId": "run1",
+                        "hypothesisId": "C",
+                        "location": "ros2_communication.py:_get_rembg_processor",
+                        "message": "创建 SubprocessRemBGProcessor（subprocess 模式）",
+                        "data": {
+                            "mode": "subprocess"
+                        },
+                        "timestamp": int(time.time() * 1000)
+                    }
+                    f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+            # #endregion
+
+        return self.rembg_processor
+
+    def _resolve_rembg_bbox(
+        self,
+        feature: Optional[ComponentFeature],
+        component_mask: Optional[np.ndarray],
+        image_shape: Tuple[int, int]
+    ) -> Optional[Tuple[int, int, int, int]]:
+        if feature and feature.workpiece_center and feature.workpiece_radius > 0:
+            cx, cy = feature.workpiece_center
+            radius = feature.workpiece_radius
+            x = int(round(cx - radius))
+            y = int(round(cy - radius))
+            w = int(round(radius * 2))
+            h = int(round(radius * 2))
+            return (x, y, w, h)
+
+        if component_mask is None or component_mask.size == 0:
+            return None
+
+        ys, xs = np.where(component_mask > 0)
+        if ys.size == 0 or xs.size == 0:
+            return None
+
+        x0 = int(xs.min())
+        x1 = int(xs.max())
+        y0 = int(ys.min())
+        y1 = int(ys.max())
+        return (x0, y0, x1 - x0 + 1, y1 - y0 + 1)
+
+    def _get_rembg_outputs(
+        self,
+        idx: int,
+        color_image: np.ndarray,
+        feature: Optional[ComponentFeature] = None,
+        component_mask: Optional[np.ndarray] = None
+    ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+        if idx in self._rembg_mask_cache and idx in self._rembg_cutout_cache:
+            return self._rembg_mask_cache[idx], self._rembg_cutout_cache[idx]
+
+        bbox = self._resolve_rembg_bbox(
+            feature,
+            component_mask,
+            color_image.shape[:2]
+        )
+        if bbox is None:
+            return None, None
+
+        processor = self._get_rembg_processor()
+        mask, cutout = processor.process_roi(color_image, bbox)
+        if mask is None or cutout is None:
+            return None, None
+
+        self._rembg_mask_cache[idx] = mask
+        self._rembg_cutout_cache[idx] = cutout
+        return mask, cutout
+
+    def _clear_rembg_cache(self) -> None:
+        """清空 RemBG 结果缓存，避免跨模板 / 跨姿态复用错误的掩模。"""
+        self._rembg_mask_cache.clear()
+        self._rembg_cutout_cache.clear()
     
     def _preprocess_images(
         self,
@@ -1162,7 +1401,7 @@ class ROS2Communication:
         # 处理特征 {idx}/{len(features)-1}
         
         # 获取目标掩膜
-        target_mask = self._get_target_mask(idx, components, color_image)
+        target_mask = self._get_target_mask(idx, feature, components, color_image)
         
         # 模板匹配
         match_result = self._match_template(idx, feature, target_mask, object_id)
@@ -1197,6 +1436,7 @@ class ROS2Communication:
     def _get_target_mask(
         self,
         idx: int,
+        feature: ComponentFeature,
         components: List[np.ndarray],
         color_image: np.ndarray
     ) -> Optional[np.ndarray]:
@@ -1211,7 +1451,20 @@ class ROS2Communication:
             目标掩膜，如果获取失败则返回None
         """
         target_mask = None
-        if idx < len(components):
+        use_rembg = self._should_use_rembg()
+        if use_rembg:
+            rembg_mask, rembg_cutout = self._get_rembg_outputs(
+                idx,
+                color_image,
+                feature=feature,
+                component_mask=components[idx] if idx < len(components) else None
+            )
+            if rembg_mask is not None:
+                target_mask = rembg_mask
+                feature.component_mask = rembg_mask
+                if rembg_cutout is not None:
+                    feature.color_image = rembg_cutout
+        if target_mask is None and idx < len(components):
             target_mask = components[idx].copy()
             original_mask_shape = target_mask.shape[:2]
             self.logger.info(f'    [5.{idx+1}.0] 获取目标掩膜 - 原始尺寸: {original_mask_shape[1]}x{original_mask_shape[0]}')
@@ -1565,7 +1818,9 @@ class ROS2Communication:
         if preprocessed_color is not None and features:
             try:
                 # 使用第一个特征绘制可视化
-                vis_image = features[0].draw_features(preprocessed_color)
+                # 如果启用了 RemBG，则优先使用特征中保存的白底抠图（feature.color_image）
+                base_image = features[0].color_image if features[0].color_image is not None else preprocessed_color
+                vis_image = features[0].draw_features(base_image)
                 
                 # 转换为ROS图像消息
                 vis_msg = self.cv_bridge.cv2_to_imgmsg(vis_image, encoding='bgr8')
@@ -1793,88 +2048,6 @@ class ROS2Communication:
             self.logger.error(f'参数重新加载失败: {e}')
         
         return response
-    
-    def process_debug_images(
-        self,
-        depth_image: np.ndarray,
-        color_image: np.ndarray,
-        binary_threshold_min: int,
-        binary_threshold_max: int
-    ) -> Tuple:
-        """处理Debug图像（供HTTP桥接调用，使用算法模块处理）
-        
-        ⚠️ 重要：此函数确保Debug预览使用真实的算法处理流程！
-        让用户能够观察算法实现过程是否正确。
-        
-        Debug参数直接应用到算法模块，所有处理都使用算法模块完成。
-        
-        Args:
-            depth_image: 深度图
-            color_image: 彩色图
-            binary_threshold_min: 二值化最小阈值（Debug参数，直接应用到算法）
-            binary_threshold_max: 二值化最大阈值（Debug参数，直接应用到算法）
-            
-        Returns:
-            (components, features_dict_list, debug_panel, stats)
-            - components: 连通域列表（算法输出）
-            - features_dict_list: 特征字典列表（算法输出）
-            - debug_panel: 调试图像面板字典（可视化输出）
-            - stats: 统计信息
-        """
-        try:
-            self.logger.info(f'[Debug] 应用阈值参数到算法: [{binary_threshold_min}, {binary_threshold_max}]')
-            
-            # 步骤1: 使用Preprocessor预处理（应用Debug参数）
-            components, preprocessed_color = self.preprocessor.preprocess(
-                depth_image,
-                color_image,
-                binary_threshold_min,
-                binary_threshold_max
-            )
-            self.logger.info(f'[Debug] Preprocessor输出: {len(components)} 个连通域')
-            
-            # 步骤2: 使用FeatureExtractor提取特征
-            features = self.feature_extractor.extract_features(components, preprocessed_color)
-            self.logger.info(f'[Debug] FeatureExtractor输出: {len(features)} 个特征')
-            
-            # 步骤3: 将特征转换为字典格式（用于可视化）
-            features_dict_list = []
-            for feat in features:
-                features_dict_list.append({
-                    'workpiece_center': list(feat.workpiece_center),
-                    'workpiece_radius': float(feat.workpiece_radius),
-                    'valve_center': list(feat.valve_center),
-                    'valve_radius': float(feat.valve_radius),
-                    'angle_deg': float(feat.standardized_angle_deg)
-                })
-            
-            # 步骤4: 使用DebugVisualizer生成所有调试图像
-            debug_panel = self.debug_visualizer.create_debug_panel(
-                depth_image=depth_image,
-                color_image=color_image,
-                components=components,
-                features=features_dict_list,
-                binary_threshold_min=binary_threshold_min,
-                binary_threshold_max=binary_threshold_max,
-                preprocessed_color=preprocessed_color
-            )
-            self.logger.info(f'[Debug] DebugVisualizer生成4张调试图像')
-            
-            # 步骤5: 统计信息
-            stats = {
-                'component_count': len(components),
-                'feature_count': len(features),
-                'has_preprocessed_color': preprocessed_color is not None,
-                'algorithm_version': 'unified',  # 标记使用统一算法
-                'debug_params_applied': True  # 标记Debug参数已应用
-            }
-            
-            return components, features_dict_list, debug_panel, stats
-            
-        except Exception as e:
-            self.logger.error(f'[Debug] 图像处理失败: {e}')
-            self.logger.error(traceback.format_exc())
-            return [], [], {}, {'error': str(e)}
     
     def _handle_standardize_template(
         self,
@@ -2185,7 +2358,7 @@ class ROS2Communication:
         color_image: np.ndarray,
         binary_threshold_min: int,
         binary_threshold_max: int
-    ) -> Tuple[Optional[ComponentFeature], Optional[np.ndarray]]:
+        ) -> Tuple[Optional[ComponentFeature], Optional[np.ndarray]]:
         """处理pose进行标准化：预处理和特征提取
         
         Args:
@@ -2198,6 +2371,9 @@ class ROS2Communication:
         Returns:
             (feature, preprocessed_color) 特征对象和预处理后的彩色图，如果失败则返回None
         """
+        # 每个 pose 单独清空一次 RemBG 缓存，防止不同姿态之间复用同一张掩模
+        self._clear_rembg_cache()
+
         # 预处理与特征提取（与在线估计保持一致）
         components, preprocessed_color = self.preprocessor.preprocess(
             depth_image,
@@ -2219,6 +2395,22 @@ class ROS2Communication:
 
         # 选择面积最大的特征（更稳定）
         feature = max(features, key=lambda f: float(getattr(f, 'workpiece_area', 0.0)))
+
+        # 检查模板标准化阶段是否启用 RemBG
+        use_rembg = self._should_use_rembg()
+
+        if use_rembg:
+            rembg_mask, rembg_cutout = self._get_rembg_outputs(
+                0,
+                color_image,
+                feature=feature,
+                component_mask=feature.component_mask
+            )
+            if rembg_mask is not None:
+                feature.component_mask = rembg_mask
+            if rembg_cutout is not None:
+                feature.color_image = rembg_cutout
+                preprocessed_color = rembg_cutout
         
         return feature, preprocessed_color
     

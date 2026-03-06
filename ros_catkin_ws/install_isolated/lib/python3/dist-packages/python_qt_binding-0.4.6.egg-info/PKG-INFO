@@ -1,0 +1,20 @@
+Metadata-Version: 2.1
+Name: python-qt-binding
+Version: 0.4.6
+Summary: This stack provides Python bindings for Qt. There are two providers: pyside and pyqt. PySide is released under the LGPL. PyQt is released under the GPL. Both the bindings and tools to build binding...
+Home-page: http://ros.org/wiki/python_qt_binding
+Author: Dave Hershberger, Dorian Scholz, Dirk Thomas
+Maintainer: Claire Wang <clairewang@openrobotics.org>, Shane Loretz <sloretz@openrobotics.org>
+License: BSD
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: License :: OSI Approved :: BSD License
+Classifier: License :: OSI Approved :: GNU Library or Lesser General Public License (LGPL)
+Classifier: License :: OSI Approved :: GNU General Public License (GPL)
+
+This stack provides Python bindings for Qt. There are two providers: pyside and pyqt. PySide is released under the LGPL. PyQt is released under the GPL. Both the bindings and tools to build bindings are included from each available provider. For PySide, it is called "Shiboken". For PyQt, this is called "SIP". Also provided is adapter code to make the user's Python code independent of which binding provider was actually used which makes it very easy to switch between these.
+

@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ros_catkin_ws/devel_isolated/rosbag
+
+Name: rosbag
+Description: Description of rosbag
+Version: 1.17.4
+Cflags: -I/home/mu/IVG/ros_catkin_ws/src/ros_comm/rosbag/include
+Libs: -L${prefix}/lib -lrosbag
+Requires: rosbag_storage rosconsole roscpp std_srvs topic_tools xmlrpcpp

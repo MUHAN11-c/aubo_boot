@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ws_moveit/devel_isolated/warehouse_ros
+
+Name: warehouse_ros
+Description: Description of warehouse_ros
+Version: 0.9.5
+Cflags: -I/home/mu/IVG/ws_moveit/src/warehouse_ros/include -I/usr/include
+Libs: -L${prefix}/lib -lwarehouse_ros /usr/lib/x86_64-linux-gnu/libboost_system.so.1.74.0 /usr/lib/x86_64-linux-gnu/libboost_filesystem.so.1.74.0 /usr/lib/x86_64-linux-gnu/libboost_thread.so.1.74.0
+Requires: roscpp rostime std_msgs geometry_msgs tf

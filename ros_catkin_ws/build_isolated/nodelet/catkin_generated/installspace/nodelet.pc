@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ros_catkin_ws/install_isolated
+
+Name: nodelet
+Description: Description of nodelet
+Version: 1.11.2
+Cflags: -I${prefix}/include -I/usr/include
+Libs: -L${prefix}/lib -lnodeletlib
+Requires: bondcpp message_runtime pluginlib rosconsole roscpp std_msgs

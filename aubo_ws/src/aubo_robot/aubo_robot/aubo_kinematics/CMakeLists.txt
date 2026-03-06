@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(aubo_kinematics)
 
-add_compile_options(-std=c++11)
+# C++17 required for std::shared_mutex used by system log4cxx (via pluginlib/ros headers)
+add_compile_options(-std=c++17)
 find_package(catkin REQUIRED COMPONENTS roscpp geometry_msgs moveit_core moveit_kinematics moveit_ros_planning_interface moveit_ros_planning pluginlib tf_conversions)
 if("$ENV{ROS_DISTRO}" STREQUAL "kinetic")
     find_package(catkin REQUIRED COMPONENTS roscpp geometry_msgs moveit_core moveit_kinematics moveit_ros_planning_interface

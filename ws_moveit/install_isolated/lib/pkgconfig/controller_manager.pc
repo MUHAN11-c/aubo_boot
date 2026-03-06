@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ws_moveit/install_isolated
+
+Name: controller_manager
+Description: Description of controller_manager
+Version: 0.20.0
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib -lcontroller_manager
+Requires: controller_interface controller_manager_msgs hardware_interface pluginlib roscpp

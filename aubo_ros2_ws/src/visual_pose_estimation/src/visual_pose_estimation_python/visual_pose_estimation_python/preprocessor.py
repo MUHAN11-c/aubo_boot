@@ -40,6 +40,9 @@ class Preprocessor:
         self.parameters['component_min_width'] = 60.0
         self.parameters['component_min_height'] = 60.0
         self.parameters['component_max_count'] = 10.0
+        # 去毛边：面积筛选后仅做边缘平滑（高斯模糊+重阈值），默认开启
+        self.parameters['enable_smooth_edges'] = 1.0
+        self.parameters['smooth_edges_blur_sigma'] = 0.0    # 高斯模糊 sigma，0 表示不平滑
     
     def set_parameters(self, params: Dict[str, float]):
         """设置参数
@@ -333,6 +336,20 @@ class Preprocessor:
         
         return filtered
     
+    def _smooth_components(self, components: List[np.ndarray]) -> List[np.ndarray]:
+        """对连通域做边缘平滑：高斯模糊 + 重阈值。σ=0 时不处理，直接返回原连通域。"""
+        if not components:
+            return []
+        blur_sigma = float(self._get_param('smooth_edges_blur_sigma', 0.0))
+        if blur_sigma <= 0:
+            return components
+        blur_sigma = min(blur_sigma, 10.0)
+        result = []
+        for mask in components:
+            m_blur = cv2.GaussianBlur(mask, (0, 0), blur_sigma)
+            m_smooth = np.where(m_blur >= 127, 255, 0).astype(np.uint8)
+            result.append(m_smooth)
+        return result
     
     def preprocess(
         self, 
@@ -396,6 +413,10 @@ class Preprocessor:
         
         # 4. 筛选连通域
         filtered_components = self._filter_components(components)
+        
+        # 4.5 去毛边：腐蚀+膨胀（默认开启）
+        if filtered_components and bool(self._get_param('enable_smooth_edges', 1.0)):
+            filtered_components = self._smooth_components(filtered_components)
         
         # 5. 如果提供了彩色图，使用掩模提取彩色工件图像
         preprocessed_color = None

@@ -1,0 +1,7 @@
+set(topic_tools_SETUP_PY_SETUP_MODULE "setuptools")
+set(topic_tools_SETUP_PY_VERSION "1.17.4")
+set(topic_tools_SETUP_PY_SCRIPTS "")
+set(topic_tools_SETUP_PY_PACKAGES "topic_tools")
+set(topic_tools_SETUP_PY_PACKAGE_DIRS "python/topic_tools")
+set(topic_tools_SETUP_PY_MODULES "")
+set(topic_tools_SETUP_PY_MODULE_DIRS "")

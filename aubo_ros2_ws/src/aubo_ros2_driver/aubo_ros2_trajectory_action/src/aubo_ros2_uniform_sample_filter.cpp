@@ -32,6 +32,12 @@ bool UniformSampleFilter::update(const trajectory_msgs::msg::JointTrajectory &in
 {
   bool success = false;
   size_t size_in = in.points.size();
+  if (size_in < 2)
+  {
+    out = in;
+    return true;
+  }
+  
   double duration_in = toSec(in.points.back().time_from_start);
   double interpolated_time = 0.0;
   size_t index_in = 0;
@@ -39,19 +45,26 @@ bool UniformSampleFilter::update(const trajectory_msgs::msg::JointTrajectory &in
   trajectory_msgs::msg::JointTrajectoryPoint p1, p2, interp_pt;
 
   out = in;
-
   out.points.clear();
+
+  // 始终保留起点
+  out.points.push_back(in.points[0]);
+  
+  // 从第一个间隔开始插值
+  interpolated_time = sample_duration_;
 
   while (interpolated_time < duration_in)
   {
-    while (interpolated_time > toSec(in.points[index_in + 1].time_from_start))
+    // 找到包含 interpolated_time 的两个原始点
+    while (index_in + 1 < size_in && 
+           interpolated_time > toSec(in.points[index_in + 1].time_from_start))
     {
       index_in++;
+    }
 
-      if (index_in > size_in)
-      {
-        return false;
-      }
+    if (index_in + 1 >= size_in)
+    {
+      break;
     }
 
     p1 = in.points[index_in];
@@ -65,10 +78,8 @@ bool UniformSampleFilter::update(const trajectory_msgs::msg::JointTrajectory &in
     interpolated_time += sample_duration_;
   }
 
-  p2 = in.points.back();
-  p2.time_from_start = toDuration(interpolated_time);
-
-  out.points.push_back(p2);
+  // 保留终点
+  out.points.push_back(in.points.back());
 
   success = true;
   return success;

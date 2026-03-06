@@ -61,11 +61,8 @@ class DebugVisualizer:
         invalid_mask = (processed_depth == 0) | (processed_depth == 65535)
         depth_colored[invalid_mask] = [0, 0, 0]
         
-        # 绘制连通域边界（如果提供）
-        if components:
-            for component in components:
-                contours, _ = cv2.findContours(component, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                cv2.drawContours(depth_colored, contours, -1, (0, 255, 0), 2)
+        # 筛选前不绘制轮廓，仅显示深度图
+        # （components 仍保留参数以兼容调用方，但不用于绘制）
         
         return depth_colored
     
@@ -77,46 +74,48 @@ class DebugVisualizer:
         components: Optional[List[np.ndarray]] = None,
         features: Optional[List[Dict]] = None
     ) -> np.ndarray:
-        """创建二值图显示
+        """创建二值图显示：使用去毛边后的连通域合并图（单独创建图像）
+        
+        当 components 非空时，用处理后的连通域合并成一张二值图显示；
+        否则回退为阈值二值图。
         
         Args:
-            depth_image: 深度图
-            binary_threshold_min: 最小阈值
-            binary_threshold_max: 最大阈值
-            components: 连通域列表（用于标记轮廓）
+            depth_image: 深度图（用于尺寸或回退二值化）
+            binary_threshold_min: 最小阈值（无连通域时回退用）
+            binary_threshold_max: 最大阈值（无连通域时回退用）
+            components: 去毛边后的连通域列表（用于生成显示图）
             features: 特征列表（用于绘制与彩色图一致的边界框）
             
         Returns:
             二值图显示（BGR）
         """
-        # 使用 preprocessor 的 create_binary_image 方法创建二值图像，参考 preprocessor.py (203-218)
-        binary_display = self.preprocessor.create_binary_image(
-            depth_image,
-            binary_threshold_min,
-            binary_threshold_max
-        )
+        h, w = depth_image.shape[:2]
+        if components and len(components) > 0:
+            # 用去毛边后的连通域单独创建二值图
+            binary_display = np.zeros((h, w), dtype=np.uint8)
+            for comp in components:
+                if comp.shape[:2] == (h, w):
+                    binary_display[comp > 0] = 255
+            binary_display = cv2.cvtColor(binary_display, cv2.COLOR_GRAY2BGR)
+        else:
+            # 无连通域时回退为阈值二值图
+            binary_display = self.preprocessor.create_binary_image(
+                depth_image,
+                binary_threshold_min,
+                binary_threshold_max
+            )
+            binary_display = cv2.cvtColor(binary_display, cv2.COLOR_GRAY2BGR)
         
-        # 转换为BGR用于显示
-        binary_display = cv2.cvtColor(binary_display, cv2.COLOR_GRAY2BGR)
-        
-        # 在二值图上绘制连通域轮廓（绿色）
-        if components:
-            for component in components:
-                contours, _ = cv2.findContours(component, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                cv2.drawContours(binary_display, contours, -1, (0, 255, 0), 2)
-        
-        # 使用features绘制边界框（与彩色图保持一致）
         if features:
             for feat in features:
                 wp_center = feat.get('workpiece_center')
                 wp_radius = feat.get('workpiece_radius')
                 if wp_center and wp_radius:
-                    # 使用与彩色图相同的计算方法
                     x = int(wp_center[0] - wp_radius)
                     y = int(wp_center[1] - wp_radius)
-                    w = int(wp_radius * 2)
-                    h = int(wp_radius * 2)
-                    cv2.rectangle(binary_display, (x, y), (x+w, y+h), (0, 255, 255), 2)
+                    wb = int(wp_radius * 2)
+                    hb = int(wp_radius * 2)
+                    cv2.rectangle(binary_display, (x, y), (x + wb, y + hb), (0, 255, 255), 2)
         
         return binary_display
     

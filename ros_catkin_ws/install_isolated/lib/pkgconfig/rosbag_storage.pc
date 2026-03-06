@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ros_catkin_ws/install_isolated
+
+Name: rosbag_storage
+Description: Description of rosbag_storage
+Version: 1.17.4
+Cflags: -I${prefix}/include -I/usr/include
+Libs: -L${prefix}/lib -lrosbag_storage /usr/lib/x86_64-linux-gnu/libconsole_bridge.so.1.0 /usr/lib/x86_64-linux-gnu/libboost_filesystem.so.1.74.0
+Requires: pluginlib roslz4

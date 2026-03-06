@@ -1,0 +1,20 @@
+{
+    "ros.distro": "foxy",
+    "python.analysis.extraPaths": [
+        "/opt/ros/foxy/lib/python3.8/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline",
+        "/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/models",
+        "/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/dataset",
+        "/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/utils"
+    ],
+    "python.autoComplete.extraPaths": [
+        "/opt/ros/foxy/lib/python3.8/site-packages",
+        "/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline",
+        "/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/models",
+        "/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/dataset",
+        "/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/utils"
+    ],
+    "terminal.integrated.env.linux": {
+        "PYTHONPATH": "/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline:/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/models:/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/dataset:/home/mu/IVG/aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/utils:${env:PYTHONPATH}"
+    }
+}

@@ -1,11 +1,28 @@
 #include "aubo_ros2_trajectory_action.h"
+#include <cmath>
+#include <fstream>
+#include <chrono>
 
 using namespace aubo_ros2_trajectory_action;
+
+// #region agent log — 调试偶发 -4：记录 accept/abort/success 及时间，写入 NDJSON
+static const char* kDebugLogPath = "/home/mu/IVG/.cursor/debug-157b9d.log";
+static const char* kLastAbortReasonPath = "/home/mu/IVG/.cursor/last_abort_reason.txt";
+static void debugLog(const std::string& jsonLine) {
+  std::ofstream f(kDebugLogPath, std::ios::app);
+  if (f) { f << jsonLine << "\n"; }
+}
+static void writeLastAbortReason(const char* reason) {
+  std::ofstream f(kLastAbortReasonPath);
+  if (f && reason) f << reason << "\n";
+}
+// #endregion
 
 JointTrajectoryAction::JointTrajectoryAction(std::string controller_name):Node("aubo_ros2_trajectory_action")
 {
   has_active_goal_ = false;
   trajectory_state_recvd_ = false;
+  goal_accept_time_sec_ = 0.0;
 
   using namespace std::placeholders;
   this->action_server_ = rclcpp_action::create_server<FollowJointTrajectory>(
@@ -29,6 +46,18 @@ JointTrajectoryAction::JointTrajectoryAction(std::string controller_name):Node("
   double velocity_scale_factor = this->get_parameter("velocity_scale_factor").as_double();
   RCLCPP_INFO(this->get_logger(), "Velocity scale factor: %f", velocity_scale_factor);
 
+  // 声明并获取笛卡尔路径重采样参数
+  // 仅对"异常笛卡尔"重采样：存在点间隔 < 阈值时才重采样，关节空间(间隔~0.095)不受影响
+  // 重采样目标：使笛卡尔 segment_T 对齐关节空间（~0.095s）
+  this->declare_parameter<double>("cartesian_resample_threshold", 0.095);
+  this->declare_parameter<double>("cartesian_min_segment_interval", 0.095);
+  double cartesian_threshold = this->get_parameter("cartesian_resample_threshold").as_double();
+  double target_interval = this->get_parameter("cartesian_min_segment_interval").as_double();
+  RCLCPP_INFO(this->get_logger(), "Cartesian resample threshold: %f, target interval: %f", cartesian_threshold, target_interval);
+  
+  // 配置重采样过滤器
+  resample_filter_.configure(target_interval);
+
   // 发布完整轨迹到 joint_path_command，由 ROS 1 端的 aubo_joint_trajectory_action 或 aubo_robot_simulator 接收
   // ros1_bridge 会自动桥接 trajectory_msgs::JointTrajectory 消息
   trajectory_command_pub_ = this->create_publisher<trajectory_msgs::msg::JointTrajectory>("joint_path_command", 100);
@@ -42,14 +71,16 @@ JointTrajectoryAction::JointTrajectoryAction(std::string controller_name):Node("
 
 void JointTrajectoryAction::watchDogTimer()
 {
-  if (has_active_goal_)
-  {
-    if (!trajectory_state_recvd_)
-    {
-      RCLCPP_INFO(this->get_logger(), "abort active goal because driver no feedback");
-      abortActiveGoal();
-    }
-  }
+  if (!has_active_goal_)
+    return;
+  if (trajectory_state_recvd_)
+    return;
+  // 仅在“接受目标后已满 2 秒仍无反馈”时才 abort，避免接受后几毫秒内定时器触发误杀
+  double now_sec = this->now().seconds();
+  if (now_sec - goal_accept_time_sec_ < 2.0)
+    return;
+  RCLCPP_INFO(this->get_logger(), "abort active goal because driver no feedback (2s)");
+  abortActiveGoal("watchdog_no_feedback_2s");
 }
 
 void JointTrajectoryAction::fjtFeedbackCallback(const control_msgs::action::FollowJointTrajectory_Feedback::ConstSharedPtr msg)
@@ -58,10 +89,22 @@ void JointTrajectoryAction::fjtFeedbackCallback(const control_msgs::action::Foll
     return;
 
   trajectory_state_recvd_ = true;
+  last_feedback_valid_ = true;
+  last_feedback_positions_.clear();
+  for (size_t i = 0; i < msg->actual.positions.size() && i < 6u; ++i)
+    last_feedback_positions_.push_back(msg->actual.positions[i]);
   active_goal_->publish_feedback(std::const_pointer_cast<control_msgs::action::FollowJointTrajectory_Feedback>(msg));
-  if (checkReachTarget(msg, current_trajectory_))
+  bool reached = checkReachTarget(msg, current_trajectory_);
+  if (reached)
   {
     RCLCPP_INFO(this->get_logger(), "reach target");
+    // #region agent log
+    {
+      double since = this->now().seconds() - goal_accept_time_sec_;
+      std::string line = "{\"sessionId\":\"157b9d\",\"event\":\"success\",\"time_since_accept_sec\":" + std::to_string(since) + "}";
+      debugLog(line);
+    }
+    // #endregion
     auto result = std::make_shared<FollowJointTrajectory::Result>();
     result->error_code = result->SUCCESSFUL;
     result->error_string = "successful";
@@ -75,10 +118,9 @@ void JointTrajectoryAction::moveitExecutionCallback(const std_msgs::msg::String:
 {
   if (msg->data == "stop")
   {
-    RCLCPP_INFO(this->get_logger(), "moveit execution stopped");
-
+    RCLCPP_INFO(this->get_logger(), "moveit execution stopped (trajectory_execution_event=stop)");
     if (has_active_goal_)
-      abortActiveGoal();
+      abortActiveGoal("trajectory_execution_event_stop");
   }
 }
 
@@ -101,7 +143,7 @@ rclcpp_action::GoalResponse JointTrajectoryAction::handleGoal(const rclcpp_actio
   if (has_active_goal_)
   {
     RCLCPP_INFO(this->get_logger(), "Received new goal, canceling current goal");
-    abortActiveGoal();
+    abortActiveGoal("new_goal_received");
   }
 
   (void)uuid;
@@ -111,15 +153,9 @@ rclcpp_action::GoalResponse JointTrajectoryAction::handleGoal(const rclcpp_actio
 
 rclcpp_action::CancelResponse JointTrajectoryAction::handleCancel(const std::shared_ptr<GoalHandleFjt> goal_handle)
 {
-  RCLCPP_INFO(this->get_logger(), "cancel goal");
-
-  auto result = std::make_shared<FollowJointTrajectory::Result>();
-  result->error_code = FollowJointTrajectory::Result::PATH_TOLERANCE_VIOLATED;
-  result->error_string = "aborted";
-  active_goal_->abort(result);
-  has_active_goal_ = false;
-  trajectory_state_recvd_ = false;
-
+  RCLCPP_INFO(this->get_logger(), "cancel goal (client/MoveIt requested cancel)");
+  (void)goal_handle;
+  abortActiveGoal("client_cancel");
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
@@ -127,17 +163,73 @@ void JointTrajectoryAction::handleAccept(const std::shared_ptr<GoalHandleFjt> go
 {
   RCLCPP_INFO(this->get_logger(), "accepted new goal");
   active_goal_ = std::move(goal_handle);
-  current_trajectory_ = goal_handle->get_goal()->trajectory;
+  current_trajectory_ = active_goal_->get_goal()->trajectory;
   has_active_goal_ = true;
+  trajectory_state_recvd_ = false;  // 新目标重置，避免沿用上次的反馈标志
+  last_feedback_valid_ = false;     // 诊断：重置，abort 时可知是否在取消前收到过 feedback
+  goal_accept_time_sec_ = this->now().seconds();  // 记录接受时刻，看门狗满 2 秒后再判无反馈
+
+  // #region agent log — 诊断 client_cancel：记录轨迹起点，abort 时与 joint_states/feedback 对比
+  {
+    double dur = 0.0;
+    if (!current_trajectory_.points.empty())
+      dur = toSec(current_trajectory_.points.back().time_from_start);
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+    std::string line = "{\"sessionId\":\"157b9d\",\"event\":\"accept\",\"timestamp_ms\":" + std::to_string(ms) +
+        ",\"trajectory_points\":" + std::to_string(current_trajectory_.points.size()) +
+        ",\"trajectory_duration_sec\":" + std::to_string(dur);
+    if (!current_trajectory_.points.empty()) {
+      line += ",\"trajectory_start_positions\":[";
+      for (size_t i = 0; i < current_trajectory_.points[0].positions.size(); ++i)
+        line += (i ? "," : "") + std::to_string(current_trajectory_.points[0].positions[i]);
+      line += "]";
+    }
+    line += "}";
+    debugLog(line);
+  }
+  // #endregion
 
   publishTrajectory();
 
   return;
 }
 
-void JointTrajectoryAction::abortActiveGoal()
+void JointTrajectoryAction::abortActiveGoal(const char* reason)
 {
-  RCLCPP_INFO(this->get_logger(), "Marks the active goal as aborted");
+  const char* r = reason ? reason : "unknown";
+  RCLCPP_INFO(this->get_logger(), "JointTrajectoryAction: abort, reason=%s", r);
+  writeLastAbortReason(r);
+  // #region agent log — 诊断 client_cancel：轨迹起点 vs 最后 feedback，判断是否起点偏差导致取消
+  {
+    double since = this->now().seconds() - goal_accept_time_sec_;
+    std::string line = "{\"sessionId\":\"157b9d\",\"event\":\"abort\",\"reason\":\"" + std::string(r) +
+        "\",\"time_since_accept_sec\":" + std::to_string(since) +
+        ",\"feedback_received_before_abort\":" + (last_feedback_valid_ ? "true" : "false");
+    if (!current_trajectory_.points.empty()) {
+      line += ",\"trajectory_start_positions\":[";
+      for (size_t i = 0; i < current_trajectory_.points[0].positions.size(); ++i)
+        line += (i ? "," : "") + std::to_string(current_trajectory_.points[0].positions[i]);
+      line += "]";
+    }
+    if (last_feedback_valid_ && !last_feedback_positions_.empty()) {
+      line += ",\"last_feedback_positions\":[";
+      for (size_t i = 0; i < last_feedback_positions_.size(); ++i)
+        line += (i ? "," : "") + std::to_string(last_feedback_positions_[i]);
+      line += "]";
+      if (!current_trajectory_.points.empty() && current_trajectory_.points[0].positions.size() == last_feedback_positions_.size()) {
+        double max_delta = 0.0;
+        for (size_t i = 0; i < last_feedback_positions_.size(); ++i) {
+          double d = std::abs(current_trajectory_.points[0].positions[i] - last_feedback_positions_[i]);
+          if (d > max_delta) max_delta = d;
+        }
+        line += ",\"max_delta_start_vs_feedback_rad\":" + std::to_string(max_delta);
+      }
+    }
+    line += "}";
+    debugLog(line);
+  }
+  // #endregion
   auto result = std::make_shared<FollowJointTrajectory::Result>();
   result->error_code = FollowJointTrajectory::Result::PATH_TOLERANCE_VIOLATED;
   result->error_string = "aborted";
@@ -203,6 +295,47 @@ void JointTrajectoryAction::publishTrajectory()
     RCLCPP_WARN(this->get_logger(), "Invalid velocity_scale_factor: %f (must be 0.0-1.0), using 1.0", velocity_scale_factor);
   }
 
+  // ========== 笛卡尔路径重采样处理 ==========
+  // 仅对"异常笛卡尔"重采样：存在点间隔 < 阈值时才重采样，关节空间(间隔~0.095)不受影响
+  // 重采样目标：使笛卡尔 segment_T 对齐关节空间（~0.095s）
+  double cartesian_threshold = this->get_parameter("cartesian_resample_threshold").as_double();
+  double target_interval = this->get_parameter("cartesian_min_segment_interval").as_double();
+  
+  if (current_trajectory_.points.size() >= 3 && target_interval > 0)
+  {
+    // 计算点间隔
+    double min_interval = 1.0;
+    for (size_t i = 1; i < current_trajectory_.points.size(); i++)
+    {
+      double interval = toSec(current_trajectory_.points[i].time_from_start) - 
+                        toSec(current_trajectory_.points[i-1].time_from_start);
+      if (interval < min_interval)
+      {
+        min_interval = interval;
+      }
+    }
+    
+    // 如果最小间隔小于阈值，说明是密集的笛卡尔路径，需要重采样
+    if (min_interval < cartesian_threshold)
+    {
+      size_t n_before = current_trajectory_.points.size();
+      trajectory_msgs::msg::JointTrajectory resampled_traj;
+      
+      // 使用 UniformSampleFilter 进行重采样（插值重采样，保证均匀时间间隔）
+      resample_filter_.configure(target_interval);
+      if (resample_filter_.update(current_trajectory_, resampled_traj))
+      {
+        current_trajectory_ = resampled_traj;
+        RCLCPP_INFO(this->get_logger(), "Cartesian resampled: %zu -> %zu points (target_interval=%.3fs, align to joint ~0.095s)", 
+                    n_before, current_trajectory_.points.size(), target_interval);
+      }
+      else
+      {
+        RCLCPP_WARN(this->get_logger(), "Cartesian resampling failed, using original trajectory");
+      }
+    }
+  }
+
   // 直接发布完整轨迹到 joint_path_command
   // ROS 1 端的 aubo_joint_trajectory_action 或 aubo_robot_simulator 会接收并处理插补
   trajectory_command_pub_->publish(current_trajectory_);
@@ -236,20 +369,17 @@ builtin_interfaces::msg::Duration JointTrajectoryAction::toDuration(double time_
 
 bool JointTrajectoryAction::checkReachTarget(const control_msgs::action::FollowJointTrajectory_Feedback::ConstSharedPtr feedback, const trajectory_msgs::msg::JointTrajectory &traj)
 {
-  bool ret = false;
-  int last_point = traj.points.size() - 1;
-  ret = true;
-  
+  if (traj.points.empty() || feedback->actual.positions.size() < 6u ||
+      traj.points.back().positions.size() < 6u)
+    return false;
+  const size_t last_point = traj.points.size() - 1;
+  const double kReachedToleranceRad = 0.01;
   for (int i = 0; i < 6; i++)
   {
-    if(abs(feedback->actual.positions[i] - traj.points[last_point].positions[i]) > fabs(0.002))
-    {
-      ret = false;
-      break;
-    }
+    if (std::abs(feedback->actual.positions[i] - traj.points[last_point].positions[i]) > kReachedToleranceRad)
+      return false;
   }
-
-  return ret;
+  return true;
 }
 
 trajectory_msgs::msg::JointTrajectory JointTrajectoryAction::remapTrajectoryByJointName(trajectory_msgs::msg::JointTrajectory &trajectory)

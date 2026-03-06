@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ws_moveit/install_isolated
+
+Name: moveit_planners_ompl
+Description: Description of moveit_planners_ompl
+Version: 1.1.16
+Cflags: -I${prefix}/include -I/usr/include/ompl-1.5 -I/usr/include -I/usr/include/eigen3
+Libs: -L${prefix}/lib -lmoveit_ompl_interface /usr/lib/x86_64-linux-gnu/libompl.so /usr/lib/x86_64-linux-gnu/libboost_serialization.so /usr/lib/x86_64-linux-gnu/libboost_filesystem.so /usr/lib/x86_64-linux-gnu/libboost_system.so -lode
+Requires: dynamic_reconfigure moveit_core roscpp

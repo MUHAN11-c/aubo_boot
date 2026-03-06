@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ws_moveit/devel_isolated/joint_limits_interface
+
+Name: joint_limits_interface
+Description: Description of joint_limits_interface
+Version: 0.20.0
+Cflags: -I/home/mu/IVG/ws_moveit/src/ros_control/joint_limits_interface/include
+Libs: -L${prefix}/lib 
+Requires: hardware_interface roscpp urdf

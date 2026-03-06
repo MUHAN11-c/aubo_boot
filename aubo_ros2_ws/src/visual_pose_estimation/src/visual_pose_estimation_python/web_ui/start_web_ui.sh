@@ -186,6 +186,8 @@ echo ""
 
 cd "${WEB_UI_DIR}"
 
+# 使用当前 Python；RemBG 能导入则进程内使用，否则子进程回退到 conda ros2_env
+echo -e "${GREEN}RemBG：进程内可用则直接使用，否则子进程使用 conda ros2_env${NC}"
 python3 "${SCRIPTS_DIR}/http_bridge_server.py" &
 HTTP_PID=$!
 

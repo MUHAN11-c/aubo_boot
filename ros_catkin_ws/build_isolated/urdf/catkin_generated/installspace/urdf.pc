@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ros_catkin_ws/install_isolated
+
+Name: urdf
+Description: Description of urdf
+Version: 1.13.4
+Cflags: -I${prefix}/include -I/usr/include -I/usr/lib/x86_64-linux-gnu/urdfdom/cmake/../../../../include
+Libs: -L${prefix}/lib -lurdf /usr/lib/x86_64-linux-gnu/liburdfdom_sensor.so /usr/lib/x86_64-linux-gnu/liburdfdom_model_state.so /usr/lib/x86_64-linux-gnu/liburdfdom_model.so /usr/lib/x86_64-linux-gnu/liburdfdom_world.so /usr/lib/x86_64-linux-gnu/libconsole_bridge.so.1.0 /usr/lib/x86_64-linux-gnu/libboost_thread.so.1.74.0 /usr/lib/x86_64-linux-gnu/libtinyxml.so /usr/lib/x86_64-linux-gnu/libtinyxml2.so
+Requires: pluginlib rosconsole_bridge roscpp

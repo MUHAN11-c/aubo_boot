@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ros_catkin_ws/devel_isolated/eigen_conversions
+
+Name: eigen_conversions
+Description: Description of eigen_conversions
+Version: 1.13.4
+Cflags: -I/home/mu/IVG/ros_catkin_ws/src/geometry/eigen_conversions/include -I/usr/local/include/eigen3
+Libs: -L${prefix}/lib -leigen_conversions -lorocos-kdl
+Requires: geometry_msgs std_msgs

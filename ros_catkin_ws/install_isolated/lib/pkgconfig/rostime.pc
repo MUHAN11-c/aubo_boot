@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ros_catkin_ws/install_isolated
+
+Name: rostime
+Description: Description of rostime
+Version: 0.7.3
+Cflags: -I${prefix}/include -I/usr/include
+Libs: -L${prefix}/lib -lrostime /usr/lib/x86_64-linux-gnu/libboost_date_time.so.1.74.0 /usr/lib/x86_64-linux-gnu/libboost_system.so.1.74.0 /usr/lib/x86_64-linux-gnu/libboost_thread.so.1.74.0
+Requires: cpp_common

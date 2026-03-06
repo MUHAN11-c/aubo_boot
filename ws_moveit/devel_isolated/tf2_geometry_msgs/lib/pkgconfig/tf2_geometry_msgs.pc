@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ws_moveit/devel_isolated/tf2_geometry_msgs
+
+Name: tf2_geometry_msgs
+Description: Description of tf2_geometry_msgs
+Version: 0.7.10
+Cflags: -I/home/mu/IVG/ws_moveit/src/geometry2/tf2_geometry_msgs/include -I/usr/local/include/eigen3
+Libs: -L${prefix}/lib /usr/lib/x86_64-linux-gnu/liborocos-kdl.so -lorocos-kdl
+Requires: geometry_msgs tf2_ros tf2

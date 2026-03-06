@@ -1,0 +1,8 @@
+prefix=/home/mu/IVG/ros_catkin_ws/install_isolated
+
+Name: filters
+Description: Description of filters
+Version: 1.9.3
+Cflags: -I${prefix}/include -I/usr/include
+Libs: -L${prefix}/lib -lmean -lparams -lincrement -lmedian -ltransfer_function
+Requires: roslib roscpp rosconsole pluginlib

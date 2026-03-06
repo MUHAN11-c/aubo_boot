@@ -777,8 +777,35 @@ templates/
   ```
 - **包内**：`hand_eye_calibration/setup.py` 已加入 `install_requires=['setuptools', 'flask', 'flask-cors']`，便于 pip 安装时自动拉取依赖。
 
+### GitHub 推送报错：Large files detected (GH001)
+
+- **原因**：历史提交中包含超过 GitHub 限制的文件（单文件 100MB 硬限制，50MB 会警告）。常见如：
+  - `aubo_ros2_ws/src/.vscode/browse.vc.db`（VS Code 数据库，易超 1GB）
+  - `aubo_ros2_ws/src/aubo_ros2_driver.zip`（>50MB）
+- **预防**：已在 `.gitignore` 中加入 `**/.vscode/`、`*.zip` 等，新提交不会再跟踪这些文件。
+- **处理（从历史中移除大文件后再推送）**：
+  1. 在**临时克隆**中重写历史（避免本仓未提交修改影响 filter-branch）：
+     ```bash
+     cd /tmp
+     rm -rf IVG-push-tmp && git clone /home/mu/IVG IVG-push-tmp && cd IVG-push-tmp
+     git checkout stable
+     FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --force --index-filter \
+       'git rm --cached --ignore-unmatch "aubo_ros2_ws/src/.vscode/browse.vc.db" "aubo_ros2_ws/src/aubo_ros2_driver.zip"' \
+       --prune-empty --tag-name-filter cat -- stable
+     ```
+  2. 添加 github 远程并强制推送（会覆盖远程 `stable`）：
+     ```bash
+     git remote add github https://github.com/MUHAN11-c/aubo_boot.git  # 若已存在则跳过
+     git push github stable --force
+     ```
+  3. 本地主仓库与远程同步（可选）：
+     ```bash
+     cd /home/mu/IVG && git fetch github && git reset --hard github/stable
+     ```
+- **可选**：使用更快的 `git-filter-repo` 替代 filter-branch：`pip3 install git-filter-repo`，再用其从历史中删除指定路径。
+
 ---
 
-**文档版本**：1.6  
-**最后更新**：2026-02-25
+**文档版本**：1.7  
+**最后更新**：2026-03-06
 

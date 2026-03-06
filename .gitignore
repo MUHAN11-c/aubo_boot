@@ -23,3 +23,12 @@ devel/
 **/devel/
 aubo_ws/devel/
 
+# VS Code 数据库和缓存（避免超大 browse.vc.db 被提交）
+**/.vscode/browse.vc.db
+**/.vscode/*.db
+**/.vscode/*.db-*
+
+# 大体积 zip 包（超过 GitHub 推荐 50MB，请用 LFS 或文档说明另行获取）
+*.zip
+aubo_ros2_ws/src/aubo_ros2_driver.zip
+

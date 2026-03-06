@@ -39,32 +39,43 @@ int main(int argc, char** argv)
   arm.allowReplanning(true);
   arm.setMaxVelocityScalingFactor(0.8);
 
-  // 先移动到 Home 姿态（Aubo SRDF 中为 "home" 小写）
-  RCLCPP_INFO(node->get_logger(), "Moving to pose: Home");
-  arm.setNamedTarget("home");
-  arm.move();
-
 
   arm.setStartStateToCurrentState();
   // arm.setPoseTarget(target_pose);
-  arm.setNamedTarget("camera_pose");
-  arm.move();
+  // arm.setNamedTarget("camera_pose");
+  // arm.move();
 
-  // 记录当前位姿作为起点和终点（三角形闭合）
+  // 记录当前位姿作为起点；终点与 test_movel_service.py (24-25) 一致
   geometry_msgs::msg::Pose start_pose = arm.getCurrentPose().pose;
-  geometry_msgs::msg::Pose end_pose = start_pose;
+  RCLCPP_INFO(node->get_logger(), "Start pose: x=%.3f, y=%.3f, z=%.3f", start_pose.position.x, start_pose.position.y, start_pose.position.z);
+  geometry_msgs::msg::Pose end_pose;
+  end_pose.position.x = -0.4345;
+  end_pose.position.y = 0.0843;
+  end_pose.position.z = 0.3398;
+  end_pose.orientation.x = 0.7074;
+  end_pose.orientation.y = -0.7068;
+  end_pose.orientation.z = 0.0005;
+  end_pose.orientation.w = 0.0001;
+  RCLCPP_INFO(node->get_logger(), "End pose: x=%.3f, y=%.3f, z=%.3f", end_pose.position.x, end_pose.position.y, end_pose.position.z);
+
+  // 分三个轴添加：先 x，再 y，再 z，各一个 waypoint
+  const double dx = end_pose.position.x - start_pose.position.x;
+  const double dy = end_pose.position.y - start_pose.position.y;
+  const double dz = end_pose.position.z - start_pose.position.z;
 
   std::vector<geometry_msgs::msg::Pose> waypoints;
   waypoints.push_back(start_pose);
 
   geometry_msgs::msg::Pose wppose = start_pose;
-  wppose.position.z -= 0.2;  // 向下 20 cm
+  wppose.position.x += dx;  // x 轴
   waypoints.push_back(wppose);
 
-  wppose.position.y += 0.2;  // 向右 20 cm
+  wppose.position.y += dy;  // y 轴
   waypoints.push_back(wppose);
 
-  waypoints.push_back(end_pose);  // 回到起点，形成三角形
+  wppose.position.z += dz;  // z 轴
+  wppose.orientation = end_pose.orientation;
+  waypoints.push_back(wppose);
 
   moveit_msgs::msg::RobotTrajectory trajectory;
   const double jump_threshold = 0.0;
@@ -83,10 +94,8 @@ int main(int argc, char** argv)
   {
     RCLCPP_WARN(node->get_logger(), "Cartesian path only %.2f%% achievable, skip execution", fraction * 100.0);
   }
-
-  RCLCPP_INFO(node->get_logger(), "Moving to pose: Home");
-  arm.setNamedTarget("home");
-  arm.move();
+  // arm.setNamedTarget("home");
+  // arm.move();
 
   rclcpp::shutdown();
   spinner.join();

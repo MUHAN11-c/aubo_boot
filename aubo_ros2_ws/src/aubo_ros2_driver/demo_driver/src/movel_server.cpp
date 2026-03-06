@@ -28,6 +28,7 @@
 #include <Eigen/Geometry>
 #include <chrono>
 #include <cmath>
+#include <fstream>
 #include <iomanip>
 #include <sstream>
 #include <string>
@@ -60,15 +61,18 @@ MovelServer::MovelServer(const rclcpp::NodeOptions& options)
   planning_group_name_("manipulator"),
   base_frame_("base_link"),
   end_effector_link_(""),
-  cartesian_max_step_(0.01)
+  cartesian_max_step_(0.02),
+  use_request_orientation_(false)
 {
   this->declare_parameter("planning_group_name", std::string("manipulator"));
   this->declare_parameter("base_frame", std::string("base_link"));
-  this->declare_parameter("cartesian_max_step", 0.01);  // 与 RViz2 笛卡尔一致，0.002 易导致路径仅部分完成(-106)
+  this->declare_parameter("cartesian_max_step", 0.02);  // 步长越大插值点越少，有时可避开奇异/限位导致的部分完成；可 launch 覆盖
+  this->declare_parameter("use_request_orientation", false);  // false=仅用请求位置、姿态保持当前，易提高完成率
 
   this->get_parameter("planning_group_name", planning_group_name_);
   this->get_parameter("base_frame", base_frame_);
   this->get_parameter("cartesian_max_step", cartesian_max_step_);
+  this->get_parameter("use_request_orientation", use_request_orientation_);
 
   movel_service_ = this->create_service<demo_interface::srv::Movel>(
     "/movel",
@@ -142,6 +146,15 @@ void MovelServer::movelCallback(
   const std::shared_ptr<demo_interface::srv::Movel::Request> req,
   std::shared_ptr<demo_interface::srv::Movel::Response> res)
 {
+  const std::string& move_axis = req->move_axis;
+  if (move_axis != "x" && move_axis != "y" && move_axis != "z") {
+    res->success = false;
+    res->error_code = static_cast<int32_t>(MovelErrorCode::INVALID_MOVE_AXIS);
+    res->message = "move_axis 必须为 x、y 或 z";
+    RCLCPP_WARN(this->get_logger(), "[Movel] 响应 失败 move_axis 非法: \"%s\"", move_axis.c_str());
+    return;
+  }
+
   float velocity_factor = req->velocity_factor;
   float acceleration_factor = req->acceleration_factor;
   if (velocity_factor <= 0.f || velocity_factor > 1.f) {
@@ -151,16 +164,16 @@ void MovelServer::movelCallback(
     acceleration_factor = kDefaultAccelerationFactor;
   }
 
-  RCLCPP_INFO(this->get_logger(), "[Movel] 目标 (%.3f, %.3f, %.3f) vel=%.2f acc=%.2f",
+  RCLCPP_INFO(this->get_logger(), "[Movel] 目标 (%.3f, %.3f, %.3f) move_axis=%s vel=%.2f acc=%.2f",
     req->target_pose.position.x, req->target_pose.position.y, req->target_pose.position.z,
-    velocity_factor, acceleration_factor);
+    move_axis.c_str(), velocity_factor, acceleration_factor);
 
   int32_t error_code = 0;
   std::string message;
   bool success = false;
   {
     std::lock_guard<std::mutex> lock(movel_mutex_);
-    success = movel(req->target_pose, velocity_factor, acceleration_factor, error_code, message);
+    success = movel(req->target_pose, velocity_factor, acceleration_factor, move_axis, error_code, message);
   }
   res->success = success;
   res->error_code = error_code;
@@ -177,6 +190,7 @@ bool MovelServer::movel(
   const geometry_msgs::msg::Pose& target_pose,
   float velocity_factor,
   float acceleration_factor,
+  const std::string& move_axis,
   int32_t& error_code,
   std::string& message)
 {
@@ -233,28 +247,53 @@ bool MovelServer::movel(
                 quat.x(), quat.y(), quat.z(), quat.w());
 
     move_group_->setStartState(*current_state);
-    // 暂时不使用请求的目标点：记录当前位姿作为起点和终点（三角形闭合）
-    geometry_msgs::msg::Pose start_pose = current_pose;
-    geometry_msgs::msg::Pose end_pose = start_pose;
-
+    // 单轴移动：仅 move_axis 取 target，其余两轴保持 current
+    geometry_msgs::msg::Pose waypoint_pose;
+    waypoint_pose.position.x = (move_axis == "x") ? target_pose.position.x : current_pose.position.x;
+    waypoint_pose.position.y = (move_axis == "y") ? target_pose.position.y : current_pose.position.y;
+    waypoint_pose.position.z = (move_axis == "z") ? target_pose.position.z : current_pose.position.z;
+    if (use_request_orientation_) {
+      waypoint_pose.orientation = target_pose.orientation;
+    } else {
+      waypoint_pose.orientation = current_pose.orientation;
+    }
+    RCLCPP_INFO(this->get_logger(), "[Movel] move_axis=%s waypoint xyz=[%.4f, %.4f, %.4f]",
+                move_axis.c_str(), waypoint_pose.position.x, waypoint_pose.position.y, waypoint_pose.position.z);
     std::vector<geometry_msgs::msg::Pose> waypoints;
-    waypoints.push_back(start_pose);
-
-    geometry_msgs::msg::Pose wppose = start_pose;
-    wppose.position.z -= 0.2;  // 向下 20 cm
-    waypoints.push_back(wppose);
-
-    wppose.position.y += 0.2;  // 向右 20 cm
-    waypoints.push_back(wppose);
-
-    waypoints.push_back(end_pose);  // 回到起点，形成三角形
+    waypoints.push_back(waypoint_pose);
 
     move_group_->setPlanningTime(5.0);  // 规划超时 5 秒
+
+    // #region agent log
+    {
+      std::ofstream f("/home/mu/IVG2.0/.cursor/debug-5074e2.log", std::ios::app);
+      if (f) {
+        f << std::fixed << std::setprecision(6)
+          << "{\"sessionId\":\"5074e2\",\"hypothesisId\":\"H1,H2,H4\",\"location\":\"movel_server.cpp:before_computeCartesianPath\",\"message\":\"movel inputs\",\"data\":{"
+          << "\"target_xyz\":[" << target_pose.position.x << "," << target_pose.position.y << "," << target_pose.position.z << "],"
+          << "\"current_xyz\":[" << current_pose.position.x << "," << current_pose.position.y << "," << current_pose.position.z << "],"
+          << "\"cartesian_max_step\":" << cartesian_max_step_ << ","
+          << "\"waypoints_count\":" << waypoints.size() << "},\"timestamp\":" << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() << "}\n";
+      }
+    }
+    // #endregion
 
     moveit_msgs::msg::RobotTrajectory trajectory_msg;
     moveit_msgs::msg::MoveItErrorCodes path_error;
     double fraction = move_group_->computeCartesianPath(
         waypoints, cartesian_max_step_, 0.0, trajectory_msg, true, &path_error);
+
+    // #region agent log
+    {
+      std::ofstream f("/home/mu/IVG2.0/.cursor/debug-5074e2.log", std::ios::app);
+      if (f) {
+        size_t npt = trajectory_msg.joint_trajectory.points.size();
+        f << std::fixed << std::setprecision(6)
+          << "{\"sessionId\":\"5074e2\",\"hypothesisId\":\"H1,H3,H5\",\"location\":\"movel_server.cpp:after_computeCartesianPath\",\"message\":\"movel result\",\"data\":{"
+          << "\"fraction\":" << fraction << ",\"path_error_val\":" << path_error.val << ",\"trajectory_points\":" << npt << "},\"timestamp\":" << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() << "}\n";
+      }
+    }
+    // #endregion
 
     if (path_error.val != moveit_msgs::msg::MoveItErrorCodes::SUCCESS) {
       setMovelError(error_code, message, path_error.val, "笛卡尔路径规划失败, error_code=" + std::to_string(path_error.val));

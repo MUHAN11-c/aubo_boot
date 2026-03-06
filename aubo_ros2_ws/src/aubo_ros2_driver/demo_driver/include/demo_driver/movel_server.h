@@ -34,7 +34,8 @@ enum class MovelErrorCode : int32_t
   END_EFFECTOR_LINK_EMPTY = -4,
   CARTESIAN_PATH_FRACTION_INCOMPLETE = -5,
   CARTESIAN_PATH_EMPTY_TRAJECTORY = -6,
-  EXCEPTION = -7
+  EXCEPTION = -7,
+  INVALID_MOVE_AXIS = -8
 };
 
 /**
@@ -67,6 +68,7 @@ private:
     const geometry_msgs::msg::Pose& target_pose,
     float velocity_factor,
     float acceleration_factor,
+    const std::string& move_axis,
     int32_t& error_code,
     std::string& message);
 
@@ -74,6 +76,8 @@ private:
   std::string base_frame_;
   std::string end_effector_link_;
   double cartesian_max_step_;
+  /** true=使用请求的位姿(位置+四元数)；false=仅用请求位置、姿态保持当前末端，易提高笛卡尔完成率 */
+  bool use_request_orientation_;
 
   std::mutex movel_mutex_;
 };

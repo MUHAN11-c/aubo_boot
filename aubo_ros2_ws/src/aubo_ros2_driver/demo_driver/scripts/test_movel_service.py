@@ -5,7 +5,8 @@
 
 用法:
   ros2 run demo_driver test_movel_service.py
-  ros2 run demo_driver test_movel_service.py --x 0.4 --y 0.0 --z 0.3
+  ros2 run demo_driver test_movel_service.py --axis x --x 0.4
+  ros2 run demo_driver test_movel_service.py --x 0.4 --y 0.0 --z 0.3 --axis z
   ros2 run demo_driver test_movel_service.py -0.667 0.048 0.258
 """
 
@@ -20,10 +21,11 @@ def main():
     rclpy.init()
     node = Node("test_movel_client")
 
-    # 默认目标位姿
+    # 默认目标位姿；move_axis 必填，默认 "x"
     x, y, z = -0.4345, 0.0843, 0.3398
     qx, qy, qz, qw = 0.7074, -0.7068, 0.0005, 0.0001
     vel, acc = 0.15, 0.1
+    move_axis = "x"
 
     argv = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(argv) >= 3:
@@ -38,6 +40,10 @@ def main():
             y = float(sys.argv[i + 1])
         elif arg == "--z" and i < len(sys.argv) - 1:
             z = float(sys.argv[i + 1])
+        elif arg == "--axis" and i < len(sys.argv) - 1:
+            move_axis = sys.argv[i + 1].strip().lower()
+            if move_axis not in ("x", "y", "z"):
+                move_axis = "x"
 
     client = node.create_client(Movel, "/movel")
     if not client.wait_for_service(timeout_sec=10.0):
@@ -55,10 +61,11 @@ def main():
     req.target_pose.orientation.w = qw
     req.velocity_factor = vel
     req.acceleration_factor = acc
+    req.move_axis = move_axis
 
     node.get_logger().info(
-        "调用 /movel: xyz=[%.3f, %.3f, %.3f] xyzw=[%.2f, %.2f, %.2f, %.2f] vel=%.2f acc=%.2f"
-        % (x, y, z, qx, qy, qz, qw, vel, acc)
+        "调用 /movel: move_axis=%s xyz=[%.3f, %.3f, %.3f] xyzw=[%.2f, %.2f, %.2f, %.2f] vel=%.2f acc=%.2f"
+        % (move_axis, x, y, z, qx, qy, qz, qw, vel, acc)
     )
     future = client.call_async(req)
     rclpy.spin_until_future_complete(node, future, timeout_sec=60.0)

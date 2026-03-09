@@ -8,8 +8,8 @@ endif()
 # Find dependencies
 find_package(ament_cmake REQUIRED)
 
-# Install directories
-install(DIRECTORY urdf meshes config launch
+# Install directories（无 launch 目录则仅安装 urdf/meshes/config）
+install(DIRECTORY urdf meshes config
   DESTINATION share/${PROJECT_NAME}
   PATTERN ".svn" EXCLUDE
 )

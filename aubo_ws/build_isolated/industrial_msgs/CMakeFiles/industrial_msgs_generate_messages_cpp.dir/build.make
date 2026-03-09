@@ -81,10 +81,10 @@ CMakeFiles/industrial_msgs_generate_messages_cpp: /home/mu/IVG/aubo_ws/devel_iso
 
 /home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/CmdJointTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/lib/gencpp/gen_cpp.py
 /home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/CmdJointTrajectory.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/CmdJointTrajectory.srv
-/home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/CmdJointTrajectory.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg
-/home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/CmdJointTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/msg/JointTrajectoryPoint.msg
 /home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/CmdJointTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/msg/JointTrajectory.msg
+/home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/CmdJointTrajectory.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg
 /home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/CmdJointTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/msg/Header.msg
+/home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/CmdJointTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/msg/JointTrajectoryPoint.msg
 /home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/CmdJointTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/gencpp/msg.h.template
 /home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/CmdJointTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/gencpp/srv.h.template
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ws/build_isolated/industrial_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Generating C++ code from industrial_msgs/CmdJointTrajectory.srv"
@@ -104,8 +104,8 @@ CMakeFiles/industrial_msgs_generate_messages_cpp: /home/mu/IVG/aubo_ws/devel_iso
 
 /home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/GetRobotInfo.h: /home/mu/IVG/ros_catkin_ws/install_isolated/lib/gencpp/gen_cpp.py
 /home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/GetRobotInfo.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/srv/GetRobotInfo.srv
-/home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/GetRobotInfo.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/DeviceInfo.msg
 /home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/GetRobotInfo.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/ServiceReturnCode.msg
+/home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/GetRobotInfo.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/DeviceInfo.msg
 /home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/GetRobotInfo.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/gencpp/msg.h.template
 /home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/GetRobotInfo.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/gencpp/srv.h.template
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ws/build_isolated/industrial_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Generating C++ code from industrial_msgs/GetRobotInfo.srv"
@@ -120,8 +120,8 @@ CMakeFiles/industrial_msgs_generate_messages_cpp: /home/mu/IVG/aubo_ws/devel_iso
 /home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/RobotStatus.h: /home/mu/IVG/ros_catkin_ws/install_isolated/lib/gencpp/gen_cpp.py
 /home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/RobotStatus.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/RobotStatus.msg
 /home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/RobotStatus.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/TriState.msg
-/home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/RobotStatus.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/msg/Header.msg
 /home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/RobotStatus.h: /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/RobotMode.msg
+/home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/RobotStatus.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/msg/Header.msg
 /home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs/RobotStatus.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/gencpp/msg.h.template
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ws/build_isolated/industrial_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Generating C++ code from industrial_msgs/RobotStatus.msg"
 	cd /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs && /home/mu/IVG/aubo_ws/build_isolated/industrial_msgs/catkin_generated/env_cached.sh /usr/bin/python3 /home/mu/IVG/ros_catkin_ws/install_isolated/share/gencpp/cmake/../../../lib/gencpp/gen_cpp.py /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/RobotStatus.msg -Iindustrial_msgs:/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg -Istd_msgs:/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg -Itrajectory_msgs:/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg -Igeometry_msgs:/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg -p industrial_msgs -o /home/mu/IVG/aubo_ws/devel_isolated/industrial_msgs/include/industrial_msgs -e /home/mu/IVG/ros_catkin_ws/install_isolated/share/gencpp/cmake/..

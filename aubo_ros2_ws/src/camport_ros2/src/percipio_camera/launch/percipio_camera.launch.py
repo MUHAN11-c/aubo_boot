@@ -100,7 +100,7 @@ def generate_launch_description():
 
         # 点云图像使能
         # 可选值：true / false
-        DeclareLaunchArgument('point_cloud_enable', default_value='true'),
+        DeclareLaunchArgument('point_cloud_enable', default_value='false'),
 
         # 彩色点云图像使能
         # 当启用彩色点云时，depth_registration_enable 将自动设置为 true，point_cloud_enable 将自动设置为 false

@@ -67,7 +67,7 @@ include CMakeFiles/_aubo_msgs_generate_messages_check_deps_IOState.dir/compiler_
 include CMakeFiles/_aubo_msgs_generate_messages_check_deps_IOState.dir/progress.make
 
 CMakeFiles/_aubo_msgs_generate_messages_check_deps_IOState:
-	catkin_generated/env_cached.sh /usr/bin/python3 /home/mu/IVG/ros_catkin_ws/install_isolated/share/genmsg/cmake/../../../lib/genmsg/genmsg_check_deps.py aubo_msgs /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/IOState.msg aubo_msgs/Digital:aubo_msgs/Analog
+	catkin_generated/env_cached.sh /usr/bin/python3 /home/mu/IVG/ros_catkin_ws/install_isolated/share/genmsg/cmake/../../../lib/genmsg/genmsg_check_deps.py aubo_msgs /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/IOState.msg aubo_msgs/Analog:aubo_msgs/Digital
 
 _aubo_msgs_generate_messages_check_deps_IOState: CMakeFiles/_aubo_msgs_generate_messages_check_deps_IOState
 _aubo_msgs_generate_messages_check_deps_IOState: CMakeFiles/_aubo_msgs_generate_messages_check_deps_IOState.dir/build.make

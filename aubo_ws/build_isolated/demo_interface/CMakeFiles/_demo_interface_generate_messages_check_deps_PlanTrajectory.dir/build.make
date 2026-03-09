@@ -67,7 +67,7 @@ include CMakeFiles/_demo_interface_generate_messages_check_deps_PlanTrajectory.d
 include CMakeFiles/_demo_interface_generate_messages_check_deps_PlanTrajectory.dir/progress.make
 
 CMakeFiles/_demo_interface_generate_messages_check_deps_PlanTrajectory:
-	catkin_generated/env_cached.sh /usr/bin/python3 /home/mu/IVG/ros_catkin_ws/install_isolated/share/genmsg/cmake/../../../lib/genmsg/genmsg_check_deps.py demo_interface /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/PlanTrajectory.srv trajectory_msgs/JointTrajectory:geometry_msgs/Pose:trajectory_msgs/JointTrajectoryPoint:geometry_msgs/Quaternion:geometry_msgs/Point:std_msgs/Header
+	catkin_generated/env_cached.sh /usr/bin/python3 /home/mu/IVG/ros_catkin_ws/install_isolated/share/genmsg/cmake/../../../lib/genmsg/genmsg_check_deps.py demo_interface /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/PlanTrajectory.srv geometry_msgs/Quaternion:geometry_msgs/Point:std_msgs/Header:trajectory_msgs/JointTrajectory:trajectory_msgs/JointTrajectoryPoint:geometry_msgs/Pose
 
 _demo_interface_generate_messages_check_deps_PlanTrajectory: CMakeFiles/_demo_interface_generate_messages_check_deps_PlanTrajectory
 _demo_interface_generate_messages_check_deps_PlanTrajectory: CMakeFiles/_demo_interface_generate_messages_check_deps_PlanTrajectory.dir/build.make

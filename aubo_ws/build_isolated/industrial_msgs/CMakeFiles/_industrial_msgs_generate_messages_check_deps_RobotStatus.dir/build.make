@@ -67,7 +67,7 @@ include CMakeFiles/_industrial_msgs_generate_messages_check_deps_RobotStatus.dir
 include CMakeFiles/_industrial_msgs_generate_messages_check_deps_RobotStatus.dir/progress.make
 
 CMakeFiles/_industrial_msgs_generate_messages_check_deps_RobotStatus:
-	catkin_generated/env_cached.sh /usr/bin/python3 /home/mu/IVG/ros_catkin_ws/install_isolated/share/genmsg/cmake/../../../lib/genmsg/genmsg_check_deps.py industrial_msgs /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/RobotStatus.msg industrial_msgs/TriState:std_msgs/Header:industrial_msgs/RobotMode
+	catkin_generated/env_cached.sh /usr/bin/python3 /home/mu/IVG/ros_catkin_ws/install_isolated/share/genmsg/cmake/../../../lib/genmsg/genmsg_check_deps.py industrial_msgs /home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_msgs/msg/RobotStatus.msg industrial_msgs/TriState:industrial_msgs/RobotMode:std_msgs/Header
 
 _industrial_msgs_generate_messages_check_deps_RobotStatus: CMakeFiles/_industrial_msgs_generate_messages_check_deps_RobotStatus
 _industrial_msgs_generate_messages_check_deps_RobotStatus: CMakeFiles/_industrial_msgs_generate_messages_check_deps_RobotStatus.dir/build.make

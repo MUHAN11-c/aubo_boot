@@ -19,6 +19,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/RobotIOStatus.msg"
   "msg/ToolIOStatus.msg"
   "srv/MoveToPose.srv"
+  "srv/MoveToJoints.srv"
+  "srv/MoveCartesian.srv"
   "srv/SetRobotPose.srv"
   "srv/PlanTrajectory.srv"
   "srv/ExecuteTrajectory.srv"

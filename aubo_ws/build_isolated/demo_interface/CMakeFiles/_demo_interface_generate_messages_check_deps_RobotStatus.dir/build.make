@@ -67,7 +67,7 @@ include CMakeFiles/_demo_interface_generate_messages_check_deps_RobotStatus.dir/
 include CMakeFiles/_demo_interface_generate_messages_check_deps_RobotStatus.dir/progress.make
 
 CMakeFiles/_demo_interface_generate_messages_check_deps_RobotStatus:
-	catkin_generated/env_cached.sh /usr/bin/python3 /home/mu/IVG/ros_catkin_ws/install_isolated/share/genmsg/cmake/../../../lib/genmsg/genmsg_check_deps.py demo_interface /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/msg/RobotStatus.msg geometry_msgs/Point:geometry_msgs/Quaternion:std_msgs/Header:geometry_msgs/Pose
+	catkin_generated/env_cached.sh /usr/bin/python3 /home/mu/IVG/ros_catkin_ws/install_isolated/share/genmsg/cmake/../../../lib/genmsg/genmsg_check_deps.py demo_interface /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/msg/RobotStatus.msg geometry_msgs/Quaternion:geometry_msgs/Point:std_msgs/Header:geometry_msgs/Pose
 
 _demo_interface_generate_messages_check_deps_RobotStatus: CMakeFiles/_demo_interface_generate_messages_check_deps_RobotStatus
 _demo_interface_generate_messages_check_deps_RobotStatus: CMakeFiles/_demo_interface_generate_messages_check_deps_RobotStatus.dir/build.make

@@ -80,8 +80,8 @@ CMakeFiles/demo_interface_generate_messages_cpp: /home/mu/IVG/aubo_ws/devel_isol
 
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/ExecuteTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/lib/gencpp/gen_cpp.py
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/ExecuteTrajectory.h: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/ExecuteTrajectory.srv
-/home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/ExecuteTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/msg/JointTrajectory.msg
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/ExecuteTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/msg/Header.msg
+/home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/ExecuteTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/msg/JointTrajectory.msg
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/ExecuteTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/msg/JointTrajectoryPoint.msg
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/ExecuteTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/gencpp/msg.h.template
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/ExecuteTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/gencpp/srv.h.template
@@ -90,8 +90,8 @@ CMakeFiles/demo_interface_generate_messages_cpp: /home/mu/IVG/aubo_ws/devel_isol
 
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/GetCurrentState.h: /home/mu/IVG/ros_catkin_ws/install_isolated/lib/gencpp/gen_cpp.py
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/GetCurrentState.h: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/GetCurrentState.srv
-/home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/GetCurrentState.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/msg/Point.msg
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/GetCurrentState.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/msg/Quaternion.msg
+/home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/GetCurrentState.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/msg/Point.msg
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/GetCurrentState.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/msg/Pose.msg
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/GetCurrentState.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/gencpp/msg.h.template
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/GetCurrentState.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/gencpp/srv.h.template
@@ -100,8 +100,8 @@ CMakeFiles/demo_interface_generate_messages_cpp: /home/mu/IVG/aubo_ws/devel_isol
 
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/MoveToPose.h: /home/mu/IVG/ros_catkin_ws/install_isolated/lib/gencpp/gen_cpp.py
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/MoveToPose.h: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/MoveToPose.srv
-/home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/MoveToPose.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/msg/Point.msg
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/MoveToPose.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/msg/Quaternion.msg
+/home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/MoveToPose.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/msg/Point.msg
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/MoveToPose.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/msg/Pose.msg
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/MoveToPose.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/gencpp/msg.h.template
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/MoveToPose.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/gencpp/srv.h.template
@@ -110,12 +110,12 @@ CMakeFiles/demo_interface_generate_messages_cpp: /home/mu/IVG/aubo_ws/devel_isol
 
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/PlanTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/lib/gencpp/gen_cpp.py
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/PlanTrajectory.h: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/PlanTrajectory.srv
-/home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/PlanTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/msg/JointTrajectory.msg
-/home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/PlanTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/msg/Pose.msg
-/home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/PlanTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/msg/JointTrajectoryPoint.msg
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/PlanTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/msg/Quaternion.msg
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/PlanTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/msg/Point.msg
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/PlanTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/msg/Header.msg
+/home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/PlanTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/msg/JointTrajectory.msg
+/home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/PlanTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/msg/JointTrajectoryPoint.msg
+/home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/PlanTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/msg/Pose.msg
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/PlanTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/gencpp/msg.h.template
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/PlanTrajectory.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/gencpp/srv.h.template
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ws/build_isolated/demo_interface/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Generating C++ code from demo_interface/PlanTrajectory.srv"
@@ -138,8 +138,8 @@ CMakeFiles/demo_interface_generate_messages_cpp: /home/mu/IVG/aubo_ws/devel_isol
 
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/RobotStatus.h: /home/mu/IVG/ros_catkin_ws/install_isolated/lib/gencpp/gen_cpp.py
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/RobotStatus.h: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/msg/RobotStatus.msg
-/home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/RobotStatus.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/msg/Point.msg
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/RobotStatus.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/msg/Quaternion.msg
+/home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/RobotStatus.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/msg/Point.msg
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/RobotStatus.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/msg/Header.msg
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/RobotStatus.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/msg/Pose.msg
 /home/mu/IVG/aubo_ws/devel_isolated/demo_interface/include/demo_interface/RobotStatus.h: /home/mu/IVG/ros_catkin_ws/install_isolated/share/gencpp/msg.h.template

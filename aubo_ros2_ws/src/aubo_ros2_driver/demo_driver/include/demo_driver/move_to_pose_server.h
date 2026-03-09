@@ -12,6 +12,8 @@
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <demo_interface/srv/move_to_pose.hpp>
+#include <demo_interface/srv/move_to_joints.hpp>
+#include <demo_interface/srv/move_cartesian.hpp>
 #include <demo_interface/msg/robot_status.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 #include <aubo_msgs/srv/get_ik.hpp>
@@ -45,6 +47,8 @@ private:
 
     // 服务服务器
     rclcpp::Service<demo_interface::srv::MoveToPose>::SharedPtr move_to_pose_service_;  // 移动到目标位姿服务
+    rclcpp::Service<demo_interface::srv::MoveToJoints>::SharedPtr move_to_joints_service_;  // 移动到目标关节角服务
+    rclcpp::Service<demo_interface::srv::MoveCartesian>::SharedPtr move_cartesian_service_;  // movel 笛卡尔直线服务
 
     // IK 逆解客户端（类成员只创建一次，避免每次请求创建导致句柄泄漏）
     rclcpp::Client<aubo_msgs::srv::GetIK>::SharedPtr ik_client_;
@@ -60,6 +64,12 @@ private:
     void moveToPoseCallback(
         const std::shared_ptr<demo_interface::srv::MoveToPose::Request> req,
         std::shared_ptr<demo_interface::srv::MoveToPose::Response> res);
+    void moveToJointsCallback(
+        const std::shared_ptr<demo_interface::srv::MoveToJoints::Request> req,
+        std::shared_ptr<demo_interface::srv::MoveToJoints::Response> res);
+    void moveCartesianCallback(
+        const std::shared_ptr<demo_interface::srv::MoveCartesian::Request> req,
+        std::shared_ptr<demo_interface::srv::MoveCartesian::Response> res);
 
     // 机器人状态话题回调函数
     void robotStatusCallback(const demo_interface::msg::RobotStatus::SharedPtr msg);
@@ -71,6 +81,16 @@ private:
                     float acceleration_factor,
                     int32_t& error_code,
                     std::string& message);
+    bool moveToJoints(const std::vector<double>& joint_positions_rad,
+                      float velocity_factor,
+                      float acceleration_factor,
+                      int32_t& error_code,
+                      std::string& message);
+    bool moveCartesian(const geometry_msgs::msg::Pose& target_pose,
+                       float velocity_factor,
+                       float acceleration_factor,
+                       int32_t& error_code,
+                       std::string& message);
 
     // 参数
     std::string planning_group_name_;   // 规划组名称

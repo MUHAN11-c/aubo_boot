@@ -37,6 +37,14 @@ MoveToPoseServer::MoveToPoseServer(const rclcpp::NodeOptions& options)
         "/move_to_pose",
         std::bind(&MoveToPoseServer::moveToPoseCallback, this, std::placeholders::_1, std::placeholders::_2));
 
+    move_to_joints_service_ = this->create_service<demo_interface::srv::MoveToJoints>(
+        "/move_to_joints",
+        std::bind(&MoveToPoseServer::moveToJointsCallback, this, std::placeholders::_1, std::placeholders::_2));
+
+    move_cartesian_service_ = this->create_service<demo_interface::srv::MoveCartesian>(
+        "/move_cartesian",
+        std::bind(&MoveToPoseServer::moveCartesianCallback, this, std::placeholders::_1, std::placeholders::_2));
+
     // 订阅机器人状态话题（demo_robot_status_ros2），获取当前关节角与笛卡尔位姿
     robot_status_sub_ = this->create_subscription<demo_interface::msg::RobotStatus>(
         robot_status_topic_, rclcpp::QoS(10), std::bind(&MoveToPoseServer::robotStatusCallback, this, std::placeholders::_1));
@@ -213,8 +221,85 @@ void MoveToPoseServer::moveToPoseCallback(
         RCLCPP_WARN(this->get_logger(), "[MoveToPose] 响应 失败 error_code=%d | %s", error_code, message.c_str());
 }
 
+void MoveToPoseServer::moveToJointsCallback(
+    const std::shared_ptr<demo_interface::srv::MoveToJoints::Request> req,
+    std::shared_ptr<demo_interface::srv::MoveToJoints::Response> res)
+{
+    RCLCPP_INFO(this->get_logger(), "[MoveToJoints] 目标关节数=%zu vel=%.2f acc=%.2f",
+                req->joint_positions_rad.size(), req->velocity_factor, req->acceleration_factor);
+
+    if (req->joint_positions_rad.size() != 6u)
+    {
+        res->success = false;
+        res->error_code = -1;
+        res->message = "需要恰好 6 个关节角 (joint_positions_rad.size() == 6)";
+        RCLCPP_WARN(this->get_logger(), "[MoveToJoints] %s", res->message.c_str());
+        return;
+    }
+    if (req->velocity_factor < 0.f || req->velocity_factor > 1.f || req->acceleration_factor < 0.f || req->acceleration_factor > 1.f)
+    {
+        res->success = false;
+        res->error_code = -1;
+        res->message = "velocity_factor 与 acceleration_factor 须在 0.0～1.0 之间";
+        RCLCPP_WARN(this->get_logger(), "[MoveToJoints] %s", res->message.c_str());
+        return;
+    }
+
+    std::vector<double> joints(req->joint_positions_rad.begin(), req->joint_positions_rad.end());
+    int32_t error_code = 0;
+    std::string message;
+    bool success = false;
+    {
+        std::lock_guard<std::mutex> lock(move_to_pose_mutex_);
+        success = moveToJoints(joints, req->velocity_factor, req->acceleration_factor, error_code, message);
+        res->success = success;
+        res->error_code = error_code;
+        res->message = message;
+    }
+    if (success)
+        RCLCPP_INFO(this->get_logger(), "[MoveToJoints] 响应 成功");
+    else
+        RCLCPP_WARN(this->get_logger(), "[MoveToJoints] 响应 失败 error_code=%d | %s", error_code, message.c_str());
+}
+
+void MoveToPoseServer::moveCartesianCallback(
+    const std::shared_ptr<demo_interface::srv::MoveCartesian::Request> req,
+    std::shared_ptr<demo_interface::srv::MoveCartesian::Response> res)
+{
+    RCLCPP_INFO(this->get_logger(), "[MoveCartesian] 目标 位姿=(%.3f, %.3f, %.3f) vel=%.2f acc=%.2f",
+                req->target_pose.position.x, req->target_pose.position.y, req->target_pose.position.z,
+                req->velocity_factor, req->acceleration_factor);
+
+    if (req->velocity_factor < 0.f || req->velocity_factor > 1.f || req->acceleration_factor < 0.f || req->acceleration_factor > 1.f)
+    {
+        res->success = false;
+        res->error_code = -1;
+        res->message = "velocity_factor 与 acceleration_factor 须在 0.0～1.0 之间";
+        RCLCPP_WARN(this->get_logger(), "[MoveCartesian] %s", res->message.c_str());
+        return;
+    }
+
+    int32_t error_code = 0;
+    std::string message;
+    bool success = false;
+    {
+        std::lock_guard<std::mutex> lock(move_to_pose_mutex_);
+        success = moveCartesian(req->target_pose, req->velocity_factor, req->acceleration_factor, error_code, message);
+        res->success = success;
+        res->error_code = error_code;
+        res->message = message;
+    }
+    if (success)
+        RCLCPP_INFO(this->get_logger(), "[MoveCartesian] 响应 成功");
+    else
+        RCLCPP_WARN(this->get_logger(), "[MoveCartesian] 响应 失败 error_code=%d | %s", error_code, message.c_str());
+}
+
 namespace
 {
+// 位姿与关节运动共用的执行锁，同一时刻只允许一个轨迹执行
+std::atomic<bool> g_is_executing(false);
+
 bool isTrajectoryNoOp(const moveit::planning_interface::MoveGroupInterface::Plan& plan)
 {
     const auto& pts = plan.trajectory_.joint_trajectory.points;
@@ -253,19 +338,18 @@ bool MoveToPoseServer::moveToPose(const geometry_msgs::msg::Pose& target_pose,
         return false;
     }
 
-    static std::atomic<bool> is_executing(false);
-    if (is_executing.exchange(true))
+    if (g_is_executing.exchange(true))
     {
         error_code = -5;
         message = "已有轨迹在执行，拒绝重复请求";
         RCLCPP_WARN(this->get_logger(), "[MoveToPose] %s", message.c_str());
-        is_executing.store(false);
+        g_is_executing.store(false);
         return false;
     }
 
     try
     {
-        ExecutingGuard guard(is_executing);
+        ExecutingGuard guard(g_is_executing);
         move_group_->setMaxVelocityScalingFactor(velocity_factor);
         move_group_->setMaxAccelerationScalingFactor(acceleration_factor);
 
@@ -350,7 +434,168 @@ bool MoveToPoseServer::moveToPose(const geometry_msgs::msg::Pose& target_pose,
         error_code = -200;
         message = "异常：" + std::string(e.what());
         RCLCPP_ERROR(this->get_logger(), "[MoveToPose] %s", message.c_str());
-        is_executing.store(false);
+        g_is_executing.store(false);
+        return false;
+    }
+}
+
+bool MoveToPoseServer::moveToJoints(const std::vector<double>& joint_positions_rad,
+                                    float velocity_factor,
+                                    float acceleration_factor,
+                                    int32_t& error_code,
+                                    std::string& message)
+{
+    if (!move_group_)
+    {
+        error_code = -100;
+        message = "MoveIt 接口未初始化";
+        return false;
+    }
+
+    if (g_is_executing.exchange(true))
+    {
+        error_code = -5;
+        message = "已有轨迹在执行，拒绝重复请求";
+        RCLCPP_WARN(this->get_logger(), "[MoveToJoints] %s", message.c_str());
+        g_is_executing.store(false);
+        return false;
+    }
+
+    try
+    {
+        ExecutingGuard guard(g_is_executing);
+        move_group_->setMaxVelocityScalingFactor(velocity_factor);
+        move_group_->setMaxAccelerationScalingFactor(acceleration_factor);
+
+        move_group_->setJointValueTarget(joint_positions_rad);
+
+        const double max_duration = 5.0;
+        moveit::planning_interface::MoveGroupInterface::Plan exec_plan;
+        double best_duration = 1e9;
+        bool has_plan = false;
+
+        for (int attempt = 1; attempt <= 10; ++attempt)
+        {
+            moveit::planning_interface::MoveGroupInterface::Plan cand;
+            if (move_group_->plan(cand) != moveit::core::MoveItErrorCode::SUCCESS)
+            {
+                if (attempt == 1) { error_code = -2; message = "关节规划失败"; return false; }
+                continue;
+            }
+            double dur = 0.0;
+            if (!cand.trajectory_.joint_trajectory.points.empty())
+                dur = rclcpp::Duration(cand.trajectory_.joint_trajectory.points.back().time_from_start).seconds();
+            if (dur < best_duration) { best_duration = dur; exec_plan = cand; has_plan = true; }
+            if (dur < max_duration) break;
+        }
+        if (!has_plan) { error_code = -2; message = "多次规划均失败"; return false; }
+        if (best_duration > max_duration) { error_code = -3; message = "轨迹时长 > 5s，拒绝执行"; return false; }
+        if (isTrajectoryNoOp(exec_plan)) { error_code = 0; message = "无运动，已到达"; return true; }
+
+        auto exec_res = move_group_->execute(exec_plan);
+        if (exec_res != moveit::core::MoveItErrorCode::SUCCESS)
+        {
+            error_code = exec_res.val;
+            message = "执行失败，错误码：" + std::to_string(exec_res.val);
+            return false;
+        }
+
+        error_code = 0;
+        message = "关节运动完成";
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        error_code = -200;
+        message = "异常：" + std::string(e.what());
+        RCLCPP_ERROR(this->get_logger(), "[MoveToJoints] %s", message.c_str());
+        g_is_executing.store(false);
+        return false;
+    }
+}
+
+bool MoveToPoseServer::moveCartesian(const geometry_msgs::msg::Pose& target_pose,
+                                     float velocity_factor,
+                                     float acceleration_factor,
+                                     int32_t& error_code,
+                                     std::string& message)
+{
+    if (!move_group_)
+    {
+        error_code = -100;
+        message = "MoveIt 接口未初始化";
+        return false;
+    }
+
+    if (g_is_executing.exchange(true))
+    {
+        error_code = -5;
+        message = "已有轨迹在执行，拒绝重复请求";
+        RCLCPP_WARN(this->get_logger(), "[MoveCartesian] %s", message.c_str());
+        g_is_executing.store(false);
+        return false;
+    }
+
+    try
+    {
+        ExecutingGuard guard(g_is_executing);
+        move_group_->setMaxVelocityScalingFactor(velocity_factor);
+        move_group_->setMaxAccelerationScalingFactor(acceleration_factor);
+
+        // 当前末端位姿（规划坐标系，与 target_pose 一致）
+        geometry_msgs::msg::PoseStamped current_stamped = move_group_->getCurrentPose(end_effector_link_);
+        RCLCPP_INFO(this->get_logger(),
+                    "[MoveCartesian] current_stamped: frame_id=%s position=(%.4f, %.4f, %.4f) orientation=(%.4f, %.4f, %.4f, %.4f)",
+                    current_stamped.header.frame_id.c_str(),
+                    current_stamped.pose.position.x, current_stamped.pose.position.y, current_stamped.pose.position.z,
+                    current_stamped.pose.orientation.x, current_stamped.pose.orientation.y,
+                    current_stamped.pose.orientation.z, current_stamped.pose.orientation.w);
+        std::vector<geometry_msgs::msg::Pose> waypoints;
+        waypoints.push_back(current_stamped.pose);
+        waypoints.push_back(target_pose);
+
+        const double eef_step = 0.01;
+        const double jump_threshold = 0.0;
+        moveit_msgs::msg::RobotTrajectory trajectory;
+
+        double fraction = move_group_->computeCartesianPath(
+            waypoints, eef_step, jump_threshold, trajectory);
+
+        if (fraction < 1.0)
+        {
+            error_code = -2;
+            message = "笛卡尔直线路径规划未完全达成 (fraction=" + std::to_string(fraction) + ")";
+            RCLCPP_WARN(this->get_logger(), "[MoveCartesian] %s", message.c_str());
+            return false;
+        }
+
+        if (trajectory.joint_trajectory.points.size() <= 1u)
+        {
+            error_code = 0;
+            message = "无运动，已到达";
+            return true;
+        }
+
+        moveit::planning_interface::MoveGroupInterface::Plan plan;
+        plan.trajectory_ = trajectory;
+        auto exec_res = move_group_->execute(plan);
+        if (exec_res != moveit::core::MoveItErrorCode::SUCCESS)
+        {
+            error_code = exec_res.val;
+            message = "执行失败，错误码：" + std::to_string(exec_res.val);
+            return false;
+        }
+
+        error_code = 0;
+        message = "笛卡尔直线运动完成";
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        error_code = -200;
+        message = "异常：" + std::string(e.what());
+        RCLCPP_ERROR(this->get_logger(), "[MoveCartesian] %s", message.c_str());
+        g_is_executing.store(false);
         return false;
     }
 }

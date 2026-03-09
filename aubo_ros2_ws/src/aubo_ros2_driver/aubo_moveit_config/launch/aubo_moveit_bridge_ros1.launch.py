@@ -138,21 +138,37 @@ def launch_setup(context, *args, **kwargs):
            }
     }
 
+    # 点云/Octomap 传感器配置（参考 graspnet_demo.launch.py，使用 graspnet_ros2/config/sensors_3d.yaml）
+    # 仅当 use_octomap:=true 时启用
+    use_octomap = context.perform_substitution(LaunchConfiguration("use_octomap")).lower() == "true"
+    octomap_config = {"octomap_frame": "camera_frame", "octomap_resolution": 0.01}
+    octomap_updater_config = None
+    if use_octomap:
+        try:
+            octomap_updater_config = load_yaml("graspnet_ros2", "config/sensors_3d.yaml")
+        except Exception:
+            pass
+
+    move_group_parameters = [
+        robot_description,
+        robot_description_semantic,
+        kinematics_yaml,
+        ompl_planning_pipeline_config,
+        trajectory_execution,
+        moveit_controllers,
+        planning_scene_monitor_parameters,
+        joint_limits_yaml,
+        {"publish_robot_description_semantic": True},
+    ]
+    if use_octomap and octomap_updater_config:
+        move_group_parameters.extend([octomap_config, octomap_updater_config])
+
     # Start the actual move_group node/action server
     move_group_node = Node(
         package="moveit_ros_move_group",
         executable="move_group",
         output="screen",
-        parameters=[
-            robot_description,
-            robot_description_semantic,
-            kinematics_yaml,
-            ompl_planning_pipeline_config,
-            trajectory_execution,
-            moveit_controllers,
-            planning_scene_monitor_parameters,
-            joint_limits_yaml,
-        ],
+        parameters=move_group_parameters,
     )
 
     # RViz
@@ -183,6 +199,28 @@ def launch_setup(context, *args, **kwargs):
     #     output="log",
     #     arguments=["0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "world", "base_link"],
     # )
+
+    # 手眼静态 TF（参考 graspnet_demo.launch.py）：末端 -> camera_frame，供 Octomap/点云等使用
+    hand_eye_yaml = context.perform_substitution(LaunchConfiguration("hand_eye_yaml_path"))
+    ee_frame_id = context.perform_substitution(LaunchConfiguration("ee_frame_id"))
+    hand_eye_static_tf_node = Node(
+        package="graspnet_ros2",
+        executable="hand_eye_static_tf_node",
+        name="hand_eye_static_tf_node",
+        output="screen",
+        parameters=[{
+            "hand_eye_yaml_path": hand_eye_yaml,
+            "ee_frame_id": ee_frame_id,
+            "child_frame_id": "camera_frame",
+        }],
+    )
+    # 感知帧与 link 同名等价：camera_frame 与 camera_link 视为同一坐标系（0 变换，仅旋转对齐）
+    camera_frame_to_camera_link_node = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name="camera_frame_to_camera_link",
+        arguments=["0", "0", "0", "1.5708", "-1.5708", "0", "camera_frame", "camera_link"],
+    )
 
     # Publish TF
     robot_state_pub_node = Node(
@@ -308,6 +346,8 @@ def launch_setup(context, *args, **kwargs):
     # 添加其他必需的节点
     nodes_to_start.extend([
         robot_state_pub_node,
+        hand_eye_static_tf_node,
+        camera_frame_to_camera_link_node,
         # static_tf_node,
         move_group_node,
         rviz_node,
@@ -396,6 +436,35 @@ def generate_launch_description():
             "aubo_driver_server_host",
             default_value="169.254.10.98",
             description="Robot controller IP for aubo_driver_ros2 when use_aubo_driver_ros2=true.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_octomap",
+            default_value="false",
+            description="If true, enable Octomap/point cloud obstacle monitoring (sensors_3d.yaml). Default off.",
+        )
+    )
+    # 手眼静态 TF（与 graspnet_demo 一致）
+    try:
+        hand_eye_default = os.path.join(
+            get_package_share_directory("hand_eye_calibration"),
+            "config", "hand_eye_calibration_best.yaml",
+        )
+    except Exception:
+        hand_eye_default = ""
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "hand_eye_yaml_path",
+            default_value=hand_eye_default,
+            description="手眼标定 YAML 路径（用于发布末端 -> camera_frame 静态 TF）",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "ee_frame_id",
+            default_value="wrist3_Link",
+            description="末端 link（手眼 TF 父坐标系）",
         )
     )
 

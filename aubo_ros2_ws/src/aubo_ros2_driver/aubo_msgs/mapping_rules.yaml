@@ -23,3 +23,9 @@
     actual: 'actual'
     error: 'error'
 
+# aubo_msgs SetIO 服务：桥接后 ROS2 侧可调用 /aubo_driver/set_io，供 set_robot_io_server 使用
+- ros1_package_name: 'aubo_msgs'
+  ros2_package_name: 'aubo_msgs'
+  ros1_service_name: 'SetIO'
+  ros2_service_name: 'SetIO'
+

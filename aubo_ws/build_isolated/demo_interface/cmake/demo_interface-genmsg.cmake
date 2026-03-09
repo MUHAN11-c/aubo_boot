@@ -19,7 +19,7 @@ add_custom_target(demo_interface_generate_messages ALL)
 
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/msg/RobotStatus.msg" NAME_WE)
 add_custom_target(_demo_interface_generate_messages_check_deps_${_filename}
-  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "demo_interface" "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/msg/RobotStatus.msg" "geometry_msgs/Point:geometry_msgs/Quaternion:std_msgs/Header:geometry_msgs/Pose"
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "demo_interface" "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/msg/RobotStatus.msg" "geometry_msgs/Quaternion:geometry_msgs/Point:std_msgs/Header:geometry_msgs/Pose"
 )
 
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/msg/RobotIOStatus.msg" NAME_WE)
@@ -34,22 +34,22 @@ add_custom_target(_demo_interface_generate_messages_check_deps_${_filename}
 
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/MoveToPose.srv" NAME_WE)
 add_custom_target(_demo_interface_generate_messages_check_deps_${_filename}
-  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "demo_interface" "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/MoveToPose.srv" "geometry_msgs/Point:geometry_msgs/Quaternion:geometry_msgs/Pose"
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "demo_interface" "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/MoveToPose.srv" "geometry_msgs/Quaternion:geometry_msgs/Point:geometry_msgs/Pose"
 )
 
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/PlanTrajectory.srv" NAME_WE)
 add_custom_target(_demo_interface_generate_messages_check_deps_${_filename}
-  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "demo_interface" "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/PlanTrajectory.srv" "trajectory_msgs/JointTrajectory:geometry_msgs/Pose:trajectory_msgs/JointTrajectoryPoint:geometry_msgs/Quaternion:geometry_msgs/Point:std_msgs/Header"
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "demo_interface" "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/PlanTrajectory.srv" "geometry_msgs/Quaternion:geometry_msgs/Point:std_msgs/Header:trajectory_msgs/JointTrajectory:trajectory_msgs/JointTrajectoryPoint:geometry_msgs/Pose"
 )
 
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/ExecuteTrajectory.srv" NAME_WE)
 add_custom_target(_demo_interface_generate_messages_check_deps_${_filename}
-  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "demo_interface" "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/ExecuteTrajectory.srv" "trajectory_msgs/JointTrajectory:std_msgs/Header:trajectory_msgs/JointTrajectoryPoint"
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "demo_interface" "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/ExecuteTrajectory.srv" "std_msgs/Header:trajectory_msgs/JointTrajectory:trajectory_msgs/JointTrajectoryPoint"
 )
 
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/GetCurrentState.srv" NAME_WE)
 add_custom_target(_demo_interface_generate_messages_check_deps_${_filename}
-  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "demo_interface" "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/GetCurrentState.srv" "geometry_msgs/Point:geometry_msgs/Quaternion:geometry_msgs/Pose"
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "demo_interface" "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/GetCurrentState.srv" "geometry_msgs/Quaternion:geometry_msgs/Point:geometry_msgs/Pose"
 )
 
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/SetSpeedFactor.srv" NAME_WE)
@@ -81,7 +81,7 @@ add_custom_target(_demo_interface_generate_messages_check_deps_${_filename}
 _generate_msg_cpp(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/msg/RobotStatus.msg"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/demo_interface
 )
 _generate_msg_cpp(demo_interface
@@ -101,25 +101,25 @@ _generate_msg_cpp(demo_interface
 _generate_srv_cpp(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/MoveToPose.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/demo_interface
 )
 _generate_srv_cpp(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/PlanTrajectory.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/demo_interface
 )
 _generate_srv_cpp(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/ExecuteTrajectory.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg"
   ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/demo_interface
 )
 _generate_srv_cpp(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/GetCurrentState.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/demo_interface
 )
 _generate_srv_cpp(demo_interface
@@ -194,7 +194,7 @@ list(APPEND ${PROJECT_NAME}_EXPORTED_TARGETS demo_interface_generate_messages_cp
 _generate_msg_eus(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/msg/RobotStatus.msg"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/demo_interface
 )
 _generate_msg_eus(demo_interface
@@ -214,25 +214,25 @@ _generate_msg_eus(demo_interface
 _generate_srv_eus(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/MoveToPose.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/demo_interface
 )
 _generate_srv_eus(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/PlanTrajectory.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/demo_interface
 )
 _generate_srv_eus(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/ExecuteTrajectory.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg"
   ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/demo_interface
 )
 _generate_srv_eus(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/GetCurrentState.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/demo_interface
 )
 _generate_srv_eus(demo_interface
@@ -307,7 +307,7 @@ list(APPEND ${PROJECT_NAME}_EXPORTED_TARGETS demo_interface_generate_messages_eu
 _generate_msg_lisp(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/msg/RobotStatus.msg"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/demo_interface
 )
 _generate_msg_lisp(demo_interface
@@ -327,25 +327,25 @@ _generate_msg_lisp(demo_interface
 _generate_srv_lisp(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/MoveToPose.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/demo_interface
 )
 _generate_srv_lisp(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/PlanTrajectory.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/demo_interface
 )
 _generate_srv_lisp(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/ExecuteTrajectory.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg"
   ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/demo_interface
 )
 _generate_srv_lisp(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/GetCurrentState.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/demo_interface
 )
 _generate_srv_lisp(demo_interface
@@ -420,7 +420,7 @@ list(APPEND ${PROJECT_NAME}_EXPORTED_TARGETS demo_interface_generate_messages_li
 _generate_msg_nodejs(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/msg/RobotStatus.msg"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/demo_interface
 )
 _generate_msg_nodejs(demo_interface
@@ -440,25 +440,25 @@ _generate_msg_nodejs(demo_interface
 _generate_srv_nodejs(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/MoveToPose.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/demo_interface
 )
 _generate_srv_nodejs(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/PlanTrajectory.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/demo_interface
 )
 _generate_srv_nodejs(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/ExecuteTrajectory.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg"
   ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/demo_interface
 )
 _generate_srv_nodejs(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/GetCurrentState.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/demo_interface
 )
 _generate_srv_nodejs(demo_interface
@@ -533,7 +533,7 @@ list(APPEND ${PROJECT_NAME}_EXPORTED_TARGETS demo_interface_generate_messages_no
 _generate_msg_py(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/msg/RobotStatus.msg"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/demo_interface
 )
 _generate_msg_py(demo_interface
@@ -553,25 +553,25 @@ _generate_msg_py(demo_interface
 _generate_srv_py(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/MoveToPose.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/demo_interface
 )
 _generate_srv_py(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/PlanTrajectory.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/demo_interface
 )
 _generate_srv_py(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/ExecuteTrajectory.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectory.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg"
   ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/demo_interface
 )
 _generate_srv_py(demo_interface
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/GetCurrentState.srv"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Quaternion.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Point.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg/Pose.msg"
   ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/demo_interface
 )
 _generate_srv_py(demo_interface

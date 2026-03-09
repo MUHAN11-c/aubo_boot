@@ -18,8 +18,8 @@ roslaunch aubo_e5_moveit_config moveit_planning_execution.launch robot_ip:=169.2
 打花反馈信号灯	VI3	3V	3.3V
 咖啡开关	DO2		
 打花开关	DO4		
-快换盘开环	DO6		
-夹爪开关	DO7		
+快换盘开环	DO7		
+夹爪开关	DO6		
 ```
 
 ## 1. ROS1 ROS2 Bridge 桥接
@@ -779,30 +779,34 @@ templates/
 
 ### GitHub 推送报错：Large files detected (GH001)
 
-- **原因**：历史提交中包含超过 GitHub 限制的文件（单文件 100MB 硬限制，50MB 会警告）。常见如：
-  - `aubo_ros2_ws/src/.vscode/browse.vc.db`（VS Code 数据库，易超 1GB）
+- **原因**：历史提交中包含超过 GitHub 限制的文件（单文件 100MB 硬限制，50MB 会警告）。本仓曾出现：
+  - `aubo_ros2_ws/src/.vscode/browse.vc.db`（VS Code C++ 数据库，易超 1GB）
   - `aubo_ros2_ws/src/aubo_ros2_driver.zip`（>50MB）
-- **预防**：已在 `.gitignore` 中加入 `**/.vscode/`、`*.zip` 等，新提交不会再跟踪这些文件。
-- **处理（从历史中移除大文件后再推送）**：
-  1. 在**临时克隆**中重写历史（避免本仓未提交修改影响 filter-branch）：
+- **预防**：已在 `.gitignore` 中加入：
+  - `**/.vscode/browse.vc.db`、`**/.vscode/*.db`、`**/.vscode/*.db-*`
+  - `*.zip`、`aubo_ros2_ws/src/aubo_ros2_driver.zip`  
+  新提交不会再跟踪这些文件。
+- **处理（从历史中移除大文件后再推送）**——推荐用 `git-filter-repo`（快且干净）：
+  1. 安装（若未安装）：`pip3 install --user git-filter-repo`
+  2. 在本仓执行（会重写当前分支历史；`git-filter-repo` 会删掉 `origin` 远程，需之后重加）：
      ```bash
-     cd /tmp
-     rm -rf IVG-push-tmp && git clone /home/mu/IVG IVG-push-tmp && cd IVG-push-tmp
-     git checkout stable
-     FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --force --index-filter \
-       'git rm --cached --ignore-unmatch "aubo_ros2_ws/src/.vscode/browse.vc.db" "aubo_ros2_ws/src/aubo_ros2_driver.zip"' \
-       --prune-empty --tag-name-filter cat -- stable
+     cd /home/mu/IVG
+     git filter-repo --force \
+       --path aubo_ros2_ws/src/.vscode/browse.vc.db --invert-paths \
+       --path aubo_ros2_ws/src/aubo_ros2_driver.zip --invert-paths
      ```
-  2. 添加 github 远程并强制推送（会覆盖远程 `stable`）：
+  3. 重新添加被删除的远程（若之前有 `origin`）：
      ```bash
-     git remote add github https://github.com/MUHAN11-c/aubo_boot.git  # 若已存在则跳过
+     git remote add origin https://gitee.com/tangyx1029/IVG.git   # 按实际地址
+     # github 若被保留则无需再 add
+     ```
+  4. 提交更新后的 `.gitignore` 并强制推送到 GitHub（会覆盖远程对应分支）：
+     ```bash
+     git add .gitignore && git commit -m "chore: ignore large files (.vscode db, zip)"
      git push github stable --force
      ```
-  3. 本地主仓库与远程同步（可选）：
-     ```bash
-     cd /home/mu/IVG && git fetch github && git reset --hard github/stable
-     ```
-- **可选**：使用更快的 `git-filter-repo` 替代 filter-branch：`pip3 install git-filter-repo`，再用其从历史中删除指定路径。
+- **注意**：`--force` 会覆盖远程历史，若他人已基于该分支开发需先协调。大 zip 若仍需在仓库中提供可考虑 [Git LFS](https://git-lfs.github.com/) 或 README 中放下载链接。
+- **备选**：用内置 `git filter-branch` 在临时克隆中重写历史（较慢），见旧版本文档或 [Git 文档](https://git-scm.com/docs/git-filter-branch)。
 
 ---
 

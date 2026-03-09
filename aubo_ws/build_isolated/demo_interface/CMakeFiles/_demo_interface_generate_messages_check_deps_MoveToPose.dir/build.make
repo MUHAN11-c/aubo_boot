@@ -67,7 +67,7 @@ include CMakeFiles/_demo_interface_generate_messages_check_deps_MoveToPose.dir/c
 include CMakeFiles/_demo_interface_generate_messages_check_deps_MoveToPose.dir/progress.make
 
 CMakeFiles/_demo_interface_generate_messages_check_deps_MoveToPose:
-	catkin_generated/env_cached.sh /usr/bin/python3 /home/mu/IVG/ros_catkin_ws/install_isolated/share/genmsg/cmake/../../../lib/genmsg/genmsg_check_deps.py demo_interface /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/MoveToPose.srv geometry_msgs/Point:geometry_msgs/Quaternion:geometry_msgs/Pose
+	catkin_generated/env_cached.sh /usr/bin/python3 /home/mu/IVG/ros_catkin_ws/install_isolated/share/genmsg/cmake/../../../lib/genmsg/genmsg_check_deps.py demo_interface /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/MoveToPose.srv geometry_msgs/Quaternion:geometry_msgs/Point:geometry_msgs/Pose
 
 _demo_interface_generate_messages_check_deps_MoveToPose: CMakeFiles/_demo_interface_generate_messages_check_deps_MoveToPose
 _demo_interface_generate_messages_check_deps_MoveToPose: CMakeFiles/_demo_interface_generate_messages_check_deps_MoveToPose.dir/build.make

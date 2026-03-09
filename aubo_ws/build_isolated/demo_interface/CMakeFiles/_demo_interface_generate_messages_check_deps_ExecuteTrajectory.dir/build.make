@@ -67,7 +67,7 @@ include CMakeFiles/_demo_interface_generate_messages_check_deps_ExecuteTrajector
 include CMakeFiles/_demo_interface_generate_messages_check_deps_ExecuteTrajectory.dir/progress.make
 
 CMakeFiles/_demo_interface_generate_messages_check_deps_ExecuteTrajectory:
-	catkin_generated/env_cached.sh /usr/bin/python3 /home/mu/IVG/ros_catkin_ws/install_isolated/share/genmsg/cmake/../../../lib/genmsg/genmsg_check_deps.py demo_interface /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/ExecuteTrajectory.srv trajectory_msgs/JointTrajectory:std_msgs/Header:trajectory_msgs/JointTrajectoryPoint
+	catkin_generated/env_cached.sh /usr/bin/python3 /home/mu/IVG/ros_catkin_ws/install_isolated/share/genmsg/cmake/../../../lib/genmsg/genmsg_check_deps.py demo_interface /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/demo_interface/srv/ExecuteTrajectory.srv std_msgs/Header:trajectory_msgs/JointTrajectory:trajectory_msgs/JointTrajectoryPoint
 
 _demo_interface_generate_messages_check_deps_ExecuteTrajectory: CMakeFiles/_demo_interface_generate_messages_check_deps_ExecuteTrajectory
 _demo_interface_generate_messages_check_deps_ExecuteTrajectory: CMakeFiles/_demo_interface_generate_messages_check_deps_ExecuteTrajectory.dir/build.make

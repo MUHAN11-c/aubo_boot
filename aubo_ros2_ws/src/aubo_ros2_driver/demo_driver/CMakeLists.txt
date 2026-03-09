@@ -110,7 +110,16 @@ ament_target_dependencies(set_robot_pose_server_node
   moveit_ros_planning_interface
 )
 
-# Note: The following executables are commented out because source files don't exist yet
+add_executable(moveit_arcline_demo_node src/moveit_arcline_demo.cpp)
+ament_target_dependencies(moveit_arcline_demo_node
+  rclcpp
+  geometry_msgs
+  demo_interface
+  moveit_core
+  moveit_ros_planning_interface
+)
+
+# Note: The following executables are commented out
 # add_executable(set_robot_enable_server_node src/set_robot_enable_server.cpp)
 # ament_target_dependencies(set_robot_enable_server_node
 #   rclcpp
@@ -118,12 +127,12 @@ ament_target_dependencies(set_robot_pose_server_node
 #   demo_interface
 # )
 
-# add_executable(set_robot_io_server_node src/set_robot_io_server.cpp)
-# ament_target_dependencies(set_robot_io_server_node
-#   rclcpp
-#   demo_interface
-#   aubo_msgs
-# )
+add_executable(set_robot_io_server_node src/set_robot_io_server.cpp)
+ament_target_dependencies(set_robot_io_server_node
+  rclcpp
+  demo_interface
+  aubo_msgs
+)
 
 # add_executable(read_robot_io_server_node src/read_robot_io_server.cpp)
 # ament_target_dependencies(read_robot_io_server_node
@@ -142,8 +151,9 @@ install(TARGETS
   get_current_state_server_node
   set_speed_factor_server_node
   set_robot_pose_server_node
+  moveit_arcline_demo_node
+  set_robot_io_server_node
   # set_robot_enable_server_node
-  # set_robot_io_server_node
   # read_robot_io_server_node
   DESTINATION lib/${PROJECT_NAME}
 )

@@ -11,35 +11,6 @@
   <!-- Include GitHub E5_10 URDF (cleaned version) -->
   <xacro:include filename="$(find aubo_description)/urdf/aubo_e5_10_clean.urdf" />
 
-  <!-- 盒子模型：相对 world，偏移 x=0.4 y=0.18 z=高度一半=0.04，长宽 0.2 高 0.08 -->
-  <link name="box_link">
-    <inertial>
-      <origin xyz="0 0 0" rpy="0 0 0" />
-      <mass value="0.1" />
-      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001" />
-    </inertial>
-    <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
-      <geometry>
-        <box size="0.2 0.2 0.08" />
-      </geometry>
-      <material name="box_material">
-        <color rgba="0.6 0.4 0.2 1" />
-      </material>
-    </visual>
-    <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
-      <geometry>
-        <box size="0.2 0.2 0.08" />
-      </geometry>
-    </collision>
-  </link>
-  <joint name="world_to_box_joint" type="fixed">
-    <parent link="world" />
-    <child link="box_link" />
-    <origin xyz="0.4 0.18 0.04" rpy="0 0 0" />
-  </joint>
-  
   <!-- MoveIt2 Tool Center Point -->
   <link name="tool_tcp">
     <visual>
@@ -72,7 +43,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <box size="1.5 0.8 0.1" />
+        <box size="1.5 0.6 0.1" />
       </geometry>
       <material name="">
         <color rgba="0.96 0.96 0.96 1" />
@@ -81,7 +52,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <box size="1.5 0.8 0.1" />
+        <box size="1.5 0.6 0.1" />
       </geometry>
     </collision>
   </link>

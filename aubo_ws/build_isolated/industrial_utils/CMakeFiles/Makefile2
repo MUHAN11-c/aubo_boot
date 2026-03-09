@@ -702,8 +702,8 @@ CMakeFiles/industrial_utils.dir/clean:
 # Target rules for target CMakeFiles/utest_inds_utils.dir
 
 # All Build rule for target.
-CMakeFiles/utest_inds_utils.dir/all: CMakeFiles/industrial_utils.dir/all
 CMakeFiles/utest_inds_utils.dir/all: gtest/googletest/CMakeFiles/gtest.dir/all
+CMakeFiles/utest_inds_utils.dir/all: CMakeFiles/industrial_utils.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/utest_inds_utils.dir/build.make CMakeFiles/utest_inds_utils.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/utest_inds_utils.dir/build.make CMakeFiles/utest_inds_utils.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mu/IVG/aubo_ws/build_isolated/industrial_utils/CMakeFiles --progress-num=12,13 "Built target utest_inds_utils"
@@ -939,8 +939,8 @@ gtest/googlemock/CMakeFiles/gmock.dir/clean:
 # Target rules for target gtest/googlemock/CMakeFiles/gmock_main.dir
 
 # All Build rule for target.
-gtest/googlemock/CMakeFiles/gmock_main.dir/all: gtest/googlemock/CMakeFiles/gmock.dir/all
 gtest/googlemock/CMakeFiles/gmock_main.dir/all: gtest/googletest/CMakeFiles/gtest.dir/all
+gtest/googlemock/CMakeFiles/gmock_main.dir/all: gtest/googlemock/CMakeFiles/gmock.dir/all
 	$(MAKE) $(MAKESILENT) -f gtest/googlemock/CMakeFiles/gmock_main.dir/build.make gtest/googlemock/CMakeFiles/gmock_main.dir/depend
 	$(MAKE) $(MAKESILENT) -f gtest/googlemock/CMakeFiles/gmock_main.dir/build.make gtest/googlemock/CMakeFiles/gmock_main.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/mu/IVG/aubo_ws/build_isolated/industrial_utils/CMakeFiles --progress-num=3,4 "Built target gmock_main"

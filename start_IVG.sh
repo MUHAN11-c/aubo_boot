@@ -100,12 +100,12 @@ launch_in_terminator "ROS2 MoveIt Bridge" "$MOVEIT_BRIDGE_CMD"
 echo -e "${GREEN}  ✓ ROS2 MoveIt 已启动${NC}"
 sleep 3
 
-# 步骤4: 启动 MoveIt 工作空间限制（边界墙）
-echo -e "${GREEN}[4/11] 启动 MoveIt 工作空间限制（边界墙）...${NC}"
-LIMIT_WORKSPACE_CMD="cd $AUBO_ROS2_WS && source $ROS2_SETUP && source install/setup.bash && /usr/bin/python3 src/aubo_ros2_driver/aubo_moveit_config/scripts/limit_workspace.py"
-launch_in_terminator "MoveIt Workspace Limit" "$LIMIT_WORKSPACE_CMD"
-echo -e "${GREEN}  ✓ MoveIt 工作空间限制已启动${NC}"
-sleep 3
+# 步骤4: 启动 MoveIt 工作空间限制（边界墙）- 暂时不启动
+# echo -e "${GREEN}[4/11] 启动 MoveIt 工作空间限制（边界墙）...${NC}"
+# LIMIT_WORKSPACE_CMD="cd $AUBO_ROS2_WS && source $ROS2_SETUP && source install/setup.bash && /usr/bin/python3 src/aubo_ros2_driver/aubo_moveit_config/scripts/limit_workspace.py"
+# launch_in_terminator "MoveIt Workspace Limit" "$LIMIT_WORKSPACE_CMD"
+# echo -e "${GREEN}  ✓ MoveIt 工作空间限制已启动${NC}"
+# sleep 3
 
 # 步骤5: 启动机器人驱动服务
 echo -e "${GREEN}[5/11] 启动机器人驱动服务...${NC}"

@@ -8,5 +8,7 @@
 
 # modified environment variables
 export CMAKE_PREFIX_PATH="/home/mu/IVG/aubo_ws/devel_isolated/industrial_robot_client:$CMAKE_PREFIX_PATH"
+export LD_LIBRARY_PATH="/home/mu/IVG/aubo_ws/devel_isolated/industrial_robot_client/lib:$LD_LIBRARY_PATH"
+export PKG_CONFIG_PATH="/home/mu/IVG/aubo_ws/devel_isolated/industrial_robot_client/lib/pkgconfig:$PKG_CONFIG_PATH"
 export ROSLISP_PACKAGE_DIRECTORIES="/home/mu/IVG/aubo_ws/devel_isolated/industrial_robot_client/share/common-lisp:$ROSLISP_PACKAGE_DIRECTORIES"
 export ROS_PACKAGE_PATH="/home/mu/IVG/aubo_ws/src/aubo_robot/industrial_core/industrial_robot_client:$ROS_PACKAGE_PATH"

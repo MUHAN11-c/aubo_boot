@@ -10,3 +10,9 @@
     analog_in_states: 'analog_in_states'
     analog_out_states: 'analog_out_states'
 
+# aubo_msgs SetIO 服务：桥接后 ROS2 侧可调用 /aubo_driver/set_io
+- ros1_package_name: 'aubo_msgs'
+  ros2_package_name: 'aubo_msgs'
+  ros1_service_name: 'SetIO'
+  ros2_service_name: 'SetIO'
+

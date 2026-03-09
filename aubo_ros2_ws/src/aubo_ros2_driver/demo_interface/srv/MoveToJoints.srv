@@ -1,0 +1,10 @@
+# 6 个关节目标位置（弧度），顺序与规划组一致
+float64[] joint_positions_rad
+# 速度比例 0.0～1.0
+float32 velocity_factor
+# 加速度比例 0.0～1.0
+float32 acceleration_factor
+---
+bool success
+int32 error_code
+string message

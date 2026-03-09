@@ -95,8 +95,8 @@ CMakeFiles/aubo_msgs_generate_messages_lisp: /home/mu/IVG/aubo_ws/devel_isolated
 
 /home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/common-lisp/ros/aubo_msgs/msg/IOState.lisp: /home/mu/IVG/ros_catkin_ws/install_isolated/lib/genlisp/gen_lisp.py
 /home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/common-lisp/ros/aubo_msgs/msg/IOState.lisp: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/IOState.msg
-/home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/common-lisp/ros/aubo_msgs/msg/IOState.lisp: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Digital.msg
 /home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/common-lisp/ros/aubo_msgs/msg/IOState.lisp: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Analog.msg
+/home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/common-lisp/ros/aubo_msgs/msg/IOState.lisp: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Digital.msg
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ws/build_isolated/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Generating Lisp code from aubo_msgs/IOState.msg"
 	catkin_generated/env_cached.sh /usr/bin/python3 /home/mu/IVG/ros_catkin_ws/install_isolated/share/genlisp/cmake/../../../lib/genlisp/gen_lisp.py /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/IOState.msg -Iaubo_msgs:/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg -Istd_msgs:/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg -Itrajectory_msgs:/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg -Igeometry_msgs:/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg -p aubo_msgs -o /home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/common-lisp/ros/aubo_msgs/msg
 
@@ -107,8 +107,8 @@ CMakeFiles/aubo_msgs_generate_messages_lisp: /home/mu/IVG/aubo_ws/devel_isolated
 
 /home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/common-lisp/ros/aubo_msgs/msg/JointTrajectoryFeedback.lisp: /home/mu/IVG/ros_catkin_ws/install_isolated/lib/genlisp/gen_lisp.py
 /home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/common-lisp/ros/aubo_msgs/msg/JointTrajectoryFeedback.lisp: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg
-/home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/common-lisp/ros/aubo_msgs/msg/JointTrajectoryFeedback.lisp: /home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/msg/Header.msg
 /home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/common-lisp/ros/aubo_msgs/msg/JointTrajectoryFeedback.lisp: /home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/msg/JointTrajectoryPoint.msg
+/home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/common-lisp/ros/aubo_msgs/msg/JointTrajectoryFeedback.lisp: /home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/msg/Header.msg
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ws/build_isolated/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Generating Lisp code from aubo_msgs/JointTrajectoryFeedback.msg"
 	catkin_generated/env_cached.sh /usr/bin/python3 /home/mu/IVG/ros_catkin_ws/install_isolated/share/genlisp/cmake/../../../lib/genlisp/gen_lisp.py /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg -Iaubo_msgs:/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg -Istd_msgs:/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg -Itrajectory_msgs:/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg -Igeometry_msgs:/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg -p aubo_msgs -o /home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/common-lisp/ros/aubo_msgs/msg
 

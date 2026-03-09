@@ -1,0 +1,11 @@
+# movel：笛卡尔直线运动，从当前末端位姿直线移动到目标位姿
+# 目标位姿（与 move_to_pose 相同，一般为 base_link 或 planning_frame）
+geometry_msgs/Pose target_pose
+# 速度比例 0.0～1.0
+float32 velocity_factor
+# 加速度比例 0.0～1.0
+float32 acceleration_factor
+---
+bool success
+int32 error_code
+string message

@@ -100,8 +100,8 @@ CMakeFiles/aubo_msgs_generate_messages_eus: /home/mu/IVG/aubo_ws/devel_isolated/
 
 /home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/roseus/ros/aubo_msgs/msg/IOState.l: /home/mu/IVG/ros_catkin_ws/install_isolated/lib/geneus/gen_eus.py
 /home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/roseus/ros/aubo_msgs/msg/IOState.l: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/IOState.msg
-/home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/roseus/ros/aubo_msgs/msg/IOState.l: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Digital.msg
 /home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/roseus/ros/aubo_msgs/msg/IOState.l: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Analog.msg
+/home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/roseus/ros/aubo_msgs/msg/IOState.l: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Digital.msg
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ws/build_isolated/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Generating EusLisp code from aubo_msgs/IOState.msg"
 	catkin_generated/env_cached.sh /usr/bin/python3 /home/mu/IVG/ros_catkin_ws/install_isolated/share/geneus/cmake/../../../lib/geneus/gen_eus.py /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/IOState.msg -Iaubo_msgs:/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg -Istd_msgs:/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg -Itrajectory_msgs:/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg -Igeometry_msgs:/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg -p aubo_msgs -o /home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/roseus/ros/aubo_msgs/msg
 
@@ -112,8 +112,8 @@ CMakeFiles/aubo_msgs_generate_messages_eus: /home/mu/IVG/aubo_ws/devel_isolated/
 
 /home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/roseus/ros/aubo_msgs/msg/JointTrajectoryFeedback.l: /home/mu/IVG/ros_catkin_ws/install_isolated/lib/geneus/gen_eus.py
 /home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/roseus/ros/aubo_msgs/msg/JointTrajectoryFeedback.l: /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg
-/home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/roseus/ros/aubo_msgs/msg/JointTrajectoryFeedback.l: /home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/msg/Header.msg
 /home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/roseus/ros/aubo_msgs/msg/JointTrajectoryFeedback.l: /home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/msg/JointTrajectoryPoint.msg
+/home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/roseus/ros/aubo_msgs/msg/JointTrajectoryFeedback.l: /home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/msg/Header.msg
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/mu/IVG/aubo_ws/build_isolated/aubo_msgs/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Generating EusLisp code from aubo_msgs/JointTrajectoryFeedback.msg"
 	catkin_generated/env_cached.sh /usr/bin/python3 /home/mu/IVG/ros_catkin_ws/install_isolated/share/geneus/cmake/../../../lib/geneus/gen_eus.py /home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg -Iaubo_msgs:/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg -Istd_msgs:/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg -Itrajectory_msgs:/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg -Igeometry_msgs:/home/mu/IVG/ros_catkin_ws/install_isolated/share/geometry_msgs/cmake/../msg -p aubo_msgs -o /home/mu/IVG/aubo_ws/devel_isolated/aubo_msgs/share/roseus/ros/aubo_msgs/msg
 

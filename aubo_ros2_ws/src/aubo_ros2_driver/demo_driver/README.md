@@ -81,29 +81,46 @@
 
 ### 3. move_to_pose_server_node
 
-**功能**：提供移动到目标位姿服务，支持关节空间和笛卡尔空间规划，可设置速度和加速度缩放因子。
+**功能**：提供移动到目标位姿服务与移动到目标关节角服务，支持关节空间和笛卡尔空间规划，可设置速度和加速度缩放因子。
 
 #### 提供的服务
 
-- `/move_to_pose` (demo_interface/MoveToPose)
+- `/move_to_pose` (demo_interface/MoveToPose) — **位姿控制**
   - **Request**:
     - **target_pose** (geometry_msgs/Pose): 目标位姿（位置单位：m，姿态：四元数）
-    - **use_joints** (bool): True表示使用关节空间规划，False表示笛卡尔空间规划
-    - **velocity_factor** (float32): 速度缩放因子（0.0-1.0）
-    - **acceleration_factor** (float32): 加速度缩放因子（0.0-1.0）
+    - **use_joints** (bool): True 表示先通过 IK 得到关节角再规划，False 表示笛卡尔位姿目标
+    - **velocity_factor** (float32): 速度缩放因子（0.0–1.0）
+    - **acceleration_factor** (float32): 加速度缩放因子（0.0–1.0）
   - **Response**:
-    - **success** (bool): 执行结果，成功为true
-    - **error_code** (int32): 错误代码，成功为0
+    - **success** (bool): 执行结果，成功为 true
+    - **error_code** (int32): 错误代码，成功为 0
     - **message** (string): 执行结果的详细信息
+
+- `/move_to_joints` (demo_interface/MoveToJoints) — **6 关节控制**
+  - **Request**:
+    - **joint_positions_rad** (float64[]): 6 个关节目标角度（弧度），顺序与规划组一致
+    - **velocity_factor** (float32): 速度缩放因子（0.0–1.0）
+    - **acceleration_factor** (float32): 加速度缩放因子（0.0–1.0）
+  - **Response**:
+    - **success** (bool): 执行结果，成功为 true
+    - **error_code** (int32): 错误代码，成功为 0
+    - **message** (string): 执行结果的详细信息
+
+**说明**：`/move_to_pose` 与 `/move_to_joints` 共用同一执行锁，同一时刻只会执行其中一个请求；轨迹时长超过 5s 会拒绝执行。
 
 #### 使用的服务
 
-- `/aubo_driver/get_ik` (aubo_msgs/GetIK): 逆运动学计算服务（可选）
+- `/aubo_driver/get_ik` (aubo_msgs/GetIK): 逆运动学计算服务（`/move_to_pose` 在 use_joints=true 时使用）
+
+#### 订阅的话题
+
+- `robot_status_topic`（默认 `/demo_robot_status`）(demo_interface/RobotStatus): 机器人状态，用于当前关节角与笛卡尔位姿
 
 #### 参数
 
-- `planning_group_name` (string, default: "manipulator_e5"): 规划组名称
+- `planning_group_name` (string, default: "manipulator"): 规划组名称
 - `base_frame` (string, default: "base_link"): 基础坐标系
+- `robot_status_topic` (string, default: "/demo_robot_status"): 机器人状态话题
 
 ---
 
@@ -322,7 +339,49 @@ rosrun demo_driver move_to_pose_server_node
 roslaunch demo_driver move_to_pose_server.launch
 ```
 
-调用服务示例：
+**ROS2 命令行测试**
+
+先 source 工作空间：`source /path/to/aubo_ros2_ws/install/setup.bash`
+
+检查服务是否存在：
+```bash
+ros2 service list | grep move_to_pose
+ros2 service list | grep move_to_joints
+ros2 service type /move_to_pose   # demo_interface/srv/MoveToPose
+ros2 service type /move_to_joints # demo_interface/srv/MoveToJoints
+```
+
+**位姿控制** `/move_to_pose`（笛卡尔目标，use_joints: false）：
+```bash
+ros2 service call /move_to_pose demo_interface/srv/MoveToPose \
+  "{target_pose: {position: {x: 0.4, y: 0.0, z: 0.3}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}, use_joints: false, velocity_factor: 0.5, acceleration_factor: 0.5}"
+```
+
+**位姿控制** `/move_to_pose`（先 IK 再关节规划，use_joints: true）：
+```bash
+ros2 service call /move_to_pose demo_interface/srv/MoveToPose \
+  "{target_pose: {position: {x: 0.4, y: 0.0, z: 0.3}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}, use_joints: true, velocity_factor: 0.3, acceleration_factor: 0.3}"
+```
+
+**6 关节控制** `/move_to_joints`（6 个关节角，单位：弧度）：
+```bash
+ros2 service call /move_to_joints demo_interface/srv/MoveToJoints \
+  "{joint_positions_rad: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], velocity_factor: 0.5, acceleration_factor: 0.5}"
+```
+
+指定关节角示例（弧度）：
+```bash
+ros2 service call /move_to_joints demo_interface/srv/MoveToJoints \
+  "{joint_positions_rad: [0.1, -0.2, 0.5, 0.0, 0.8, 0.0], velocity_factor: 0.3, acceleration_factor: 0.3}"
+```
+
+**参数说明**：
+- `target_pose.position`：目标位置 (x,y,z)，单位 m，相对于 base_link
+- `target_pose.orientation`：四元数 (x,y,z,w)，单位四元数示例：0,0,0,1
+- `joint_positions_rad`：必须恰好 6 个值，顺序与规划组关节一致
+- `velocity_factor` / `acceleration_factor`：须在 0.0～1.0 之间
+
+调用服务示例（ROS1）：
 ```bash
 rosservice call /move_to_pose "target_pose:
   position:

@@ -29,7 +29,7 @@ add_custom_target(_aubo_msgs_generate_messages_check_deps_${_filename}
 
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/IOState.msg" NAME_WE)
 add_custom_target(_aubo_msgs_generate_messages_check_deps_${_filename}
-  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "aubo_msgs" "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/IOState.msg" "aubo_msgs/Digital:aubo_msgs/Analog"
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "aubo_msgs" "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/IOState.msg" "aubo_msgs/Analog:aubo_msgs/Digital"
 )
 
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointPos.msg" NAME_WE)
@@ -49,7 +49,7 @@ add_custom_target(_aubo_msgs_generate_messages_check_deps_${_filename}
 
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg" NAME_WE)
 add_custom_target(_aubo_msgs_generate_messages_check_deps_${_filename}
-  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "aubo_msgs" "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg" "std_msgs/Header:trajectory_msgs/JointTrajectoryPoint"
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "aubo_msgs" "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg" "trajectory_msgs/JointTrajectoryPoint:std_msgs/Header"
 )
 
 get_filename_component(_filename "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/srv/SetPayload.srv" NAME_WE)
@@ -93,7 +93,7 @@ _generate_msg_cpp(aubo_msgs
 _generate_msg_cpp(aubo_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/IOState.msg"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Digital.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Analog.msg"
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Analog.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Digital.msg"
   ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/aubo_msgs
 )
 _generate_msg_cpp(aubo_msgs
@@ -117,7 +117,7 @@ _generate_msg_cpp(aubo_msgs
 _generate_msg_cpp(aubo_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/aubo_msgs
 )
 
@@ -206,7 +206,7 @@ _generate_msg_eus(aubo_msgs
 _generate_msg_eus(aubo_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/IOState.msg"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Digital.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Analog.msg"
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Analog.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Digital.msg"
   ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/aubo_msgs
 )
 _generate_msg_eus(aubo_msgs
@@ -230,7 +230,7 @@ _generate_msg_eus(aubo_msgs
 _generate_msg_eus(aubo_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/aubo_msgs
 )
 
@@ -319,7 +319,7 @@ _generate_msg_lisp(aubo_msgs
 _generate_msg_lisp(aubo_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/IOState.msg"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Digital.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Analog.msg"
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Analog.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Digital.msg"
   ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/aubo_msgs
 )
 _generate_msg_lisp(aubo_msgs
@@ -343,7 +343,7 @@ _generate_msg_lisp(aubo_msgs
 _generate_msg_lisp(aubo_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/aubo_msgs
 )
 
@@ -432,7 +432,7 @@ _generate_msg_nodejs(aubo_msgs
 _generate_msg_nodejs(aubo_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/IOState.msg"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Digital.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Analog.msg"
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Analog.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Digital.msg"
   ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/aubo_msgs
 )
 _generate_msg_nodejs(aubo_msgs
@@ -456,7 +456,7 @@ _generate_msg_nodejs(aubo_msgs
 _generate_msg_nodejs(aubo_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/aubo_msgs
 )
 
@@ -545,7 +545,7 @@ _generate_msg_py(aubo_msgs
 _generate_msg_py(aubo_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/IOState.msg"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Digital.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Analog.msg"
+  "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Analog.msg;/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/Digital.msg"
   ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/aubo_msgs
 )
 _generate_msg_py(aubo_msgs
@@ -569,7 +569,7 @@ _generate_msg_py(aubo_msgs
 _generate_msg_py(aubo_msgs
   "/home/mu/IVG/aubo_ws/src/aubo_robot/aubo_robot/aubo_msgs/msg/JointTrajectoryFeedback.msg"
   "${MSG_I_FLAGS}"
-  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg"
+  "/home/mu/IVG/ros_catkin_ws/install_isolated/share/trajectory_msgs/cmake/../msg/JointTrajectoryPoint.msg;/home/mu/IVG/ros_catkin_ws/install_isolated/share/std_msgs/cmake/../msg/Header.msg"
   ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/aubo_msgs
 )
 

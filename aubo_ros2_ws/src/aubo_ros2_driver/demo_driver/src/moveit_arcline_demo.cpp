@@ -391,7 +391,12 @@ bool MoveitArclineDemo::runArcPathSequence(const std::vector<CartesianSegment>& 
 //  每个夹爪流程：到位 -> 沿 Z 下降 -> 延时 -> 沿 Z 上升 ->（最后一个夹爪）回 home(camera_pose)。
 //  夹爪 0/1 的代码已注释，当前仅执行夹爪 2 的快换。
 // -----------------------------------------------------------------------------
-
+bool MoveitArclineDemo::moveToHome()
+{
+  move_group_->setNamedTarget("camera_pose");
+  move_group_->move();
+  return true;
+}
 bool MoveitArclineDemo::run()
 {
   // ----- 夹爪 0 快换换下 -----
@@ -428,14 +433,6 @@ bool MoveitArclineDemo::run()
   // moveToPose(0.36767 - 0.003 + 0.105, 0.24267 + 0.105 + 0.012, 0.0405 + 0.185 + 0.1, 0.7068, 0.7074, 0.0002,
   //                 -0.0005, false, 0.15f, 0.1f);
   moveToJoints({0.860766, -0.265055, 1.501074, 0.195106, 1.571464, 0.859643}, 0.15f, 0.1f);
-  // runArcPath('y',0.1);
-  // std::this_thread::sleep_for(std::chrono::duration<double>(0.1));
-  // runArcPath('z',-0.243);
-  // std::this_thread::sleep_for(std::chrono::duration<double>(0.1));
-  // runArcPath('y',-0.1);
-  // std::this_thread::sleep_for(std::chrono::duration<double>(0.1));
-  // runArcPath('z',-0.10);
-  // std::this_thread::sleep_for(std::chrono::duration<double>(5));
   const double y_step = 0.1;
   std::vector<CartesianSegment> segments = {
     {'y', y_step},
@@ -472,34 +469,3 @@ bool MoveitArclineDemo::run()
 }
 
 }  // namespace demo_driver
-
-// -----------------------------------------------------------------------------
-//  main：创建节点、多线程执行、等待服务、执行三夹爪快换
-// -----------------------------------------------------------------------------
-
-int main(int argc, char** argv)
-{
-  rclcpp::init(argc, argv);
-  rclcpp::NodeOptions options;
-  options.automatically_declare_parameters_from_overrides(true);
-
-  auto node = demo_driver::MoveitArclineDemo::create(options);  // 三夹爪快换 Demo 节点
-
-  rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);  // 2 线程处理回调
-  executor.add_node(node);
-  std::thread spinner([&executor]() { executor.spin(); });  // 后台旋转，使服务客户端等可用
-
-  const int kServiceWaitSec = 10;  // 等待 move_to_pose / move_to_joints / set_io 就绪的秒数
-  if (!node->waitForServices(std::chrono::seconds(kServiceWaitSec)))
-  {
-    rclcpp::shutdown();
-    spinner.join();
-    return 1;
-  }
-
-  bool ok = node->run();  // 执行三夹爪快换流程，成功为 true
-
-  rclcpp::shutdown();
-  spinner.join();
-  return ok ? 0 : 1;
-}

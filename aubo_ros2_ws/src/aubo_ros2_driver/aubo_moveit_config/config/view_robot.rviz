@@ -88,11 +88,6 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
             Value: false
-          box_link:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-            Value: false
           camera_Link:
             Alpha: 1
             Show Axes: false
@@ -218,11 +213,6 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
             Value: true
-          box_link:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-            Value: true
           camera_Link:
             Alpha: 1
             Show Axes: false
@@ -316,8 +306,6 @@ Visualization Manager:
         All Enabled: false
         base_link:
           Value: false
-        box_link:
-          Value: false
         camera_Link:
           Value: false
         camera_color_frame:
@@ -328,6 +316,8 @@ Visualization Manager:
           Value: false
         camera_depth_optical_frame:
           Value: false
+        camera_frame:
+          Value: true
         camera_link:
           Value: false
         foreArm_Link:
@@ -381,12 +371,18 @@ Visualization Manager:
                                 {}
                               grap1_Link:
                                 {}
+                        camera_frame:
+                          camera_link:
+                            camera_color_frame:
+                              camera_color_optical_frame:
+                                {}
+                            camera_depth_frame:
+                              camera_depth_optical_frame:
+                                {}
                         gripper_tip_link:
                           {}
                         tool_tcp:
                           {}
-          box_link:
-            {}
       Update Interval: 0
       Value: true
     - Class: rviz_default_plugins/MarkerArray
@@ -496,10 +492,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.3453981280326843
+      Pitch: 0.2553982138633728
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 5.036770820617676
+      Yaw: 6.176774501800537
     Saved: ~
 Window Geometry:
   Displays:

@@ -11,8 +11,10 @@
 
 #include "demo_driver/set_robot_io_server.h"
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/executors/multi_threaded_executor.hpp>
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 
 namespace demo_driver
 {
@@ -203,29 +205,27 @@ bool SetRobotIOServer::setRobotIO(const std::string& io_type,
         }
 
         // 调用 aubo_driver 的 IO 设置服务（与 ROS1 set_robot_io_server 行为一致）
+        // 使用 wait_for 等待响应，避免在回调内调用 spin_until_future_complete 导致“节点已被加入 executor”异常
         auto result = aubo_set_io_client_->async_send_request(request);
-        if (rclcpp::spin_until_future_complete(this->shared_from_this(), result) ==
-            rclcpp::FutureReturnCode::SUCCESS)
+        constexpr std::chrono::seconds kCallTimeout(5);
+        if (result.wait_for(kCallTimeout) != std::future_status::ready)
         {
-            auto response = result.get();
-            if (response->success)
-            {
-                error_code = 0;
-                message = "Successfully set " + io_type + " pin " +
-                         std::to_string(io_index) + " to " + std::to_string(value);
-                return true;
-            }
-            else
-            {
-                error_code = -5;
-                message = "Aubo SetIO service returned failure";
-                return false;
-            }
+            error_code = -6;
+            message = "Failed to call Aubo SetIO service (timeout)";
+            return false;
+        }
+        auto response = result.get();
+        if (response->success)
+        {
+            error_code = 0;
+            message = "Successfully set " + io_type + " pin " +
+                     std::to_string(io_index) + " to " + std::to_string(value);
+            return true;
         }
         else
         {
-            error_code = -6;
-            message = "Failed to call Aubo SetIO service";
+            error_code = -5;
+            message = "Aubo SetIO service returned failure";
             return false;
         }
     }
@@ -254,7 +254,9 @@ int main(int argc, char** argv)
     try
     {
         auto node = std::make_shared<demo_driver::SetRobotIOServer>();
-        rclcpp::spin(node);
+        rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
+        executor.add_node(node);
+        executor.spin();
     }
     catch (const std::exception& e)
     {

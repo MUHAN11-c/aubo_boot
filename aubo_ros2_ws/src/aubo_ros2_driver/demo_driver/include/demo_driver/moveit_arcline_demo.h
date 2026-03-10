@@ -56,11 +56,11 @@ public:
   /** 等待所需服务就绪，超时返回 false */
   bool waitForServices(std::chrono::seconds timeout);
 
-  /** 执行完整 demo 流程，任一步失败返回 false */
-  bool run();
+  /** 执行完整 demo 流程，任一步失败返回 false；子类可重写实现不同流程 */
+  virtual bool run();
 
-private:
-  /** 在对象已被 shared_ptr 持有后调用，创建 MoveGroupInterface（仅由 create() 调用） */
+protected:
+  /** 在对象已被 shared_ptr 持有后调用，创建 MoveGroupInterface（供 create() 或子类 create() 调用） */
   void initMoveGroup();
   /** 调用 /move_to_joints */
   bool moveToJoints(const std::array<double, 6>& joint_positions_rad,
@@ -101,6 +101,8 @@ private:
    */
   bool setDigitalOutput(int32_t io_index, bool high);
 
+private:
+  /** 成员变量与静态常量（子类通过 protected 方法间接使用） */
   rclcpp::Client<demo_interface::srv::MoveToPose>::SharedPtr move_to_pose_client_;
   rclcpp::Client<demo_interface::srv::MoveToJoints>::SharedPtr move_to_joints_client_;
   rclcpp::Client<demo_interface::srv::SetRobotIO>::SharedPtr set_robot_io_client_;

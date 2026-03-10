@@ -20,6 +20,7 @@ find_package(tf2 REQUIRED)
 find_package(moveit_core REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 find_package(moveit_common REQUIRED)
+find_package(std_srvs REQUIRED)
 
 # Include directories
 include_directories(include)
@@ -110,7 +111,17 @@ ament_target_dependencies(set_robot_pose_server_node
   moveit_ros_planning_interface
 )
 
-add_executable(moveit_arcline_demo_node src/moveit_arcline_demo.cpp)
+# 基类 MoveitArclineDemo 实现（无 main），供 moveit_arcline_demo_node 与 moveit_arcline_gripper_worker_node 共用
+add_library(demo_driver_moveit_arcline src/moveit_arcline_demo.cpp)
+ament_target_dependencies(demo_driver_moveit_arcline
+  rclcpp
+  geometry_msgs
+  demo_interface
+  moveit_core
+  moveit_ros_planning_interface
+)
+
+add_executable(moveit_arcline_demo_node src/moveit_arcline_demo_main.cpp)
 ament_target_dependencies(moveit_arcline_demo_node
   rclcpp
   geometry_msgs
@@ -118,6 +129,18 @@ ament_target_dependencies(moveit_arcline_demo_node
   moveit_core
   moveit_ros_planning_interface
 )
+target_link_libraries(moveit_arcline_demo_node demo_driver_moveit_arcline)
+
+add_executable(moveit_arcline_gripper_worker_node src/moveit_arcline_gripper_worker.cpp)
+ament_target_dependencies(moveit_arcline_gripper_worker_node
+  rclcpp
+  geometry_msgs
+  demo_interface
+  std_srvs
+  moveit_core
+  moveit_ros_planning_interface
+)
+target_link_libraries(moveit_arcline_gripper_worker_node demo_driver_moveit_arcline)
 
 # Note: The following executables are commented out
 # add_executable(set_robot_enable_server_node src/set_robot_enable_server.cpp)
@@ -152,6 +175,7 @@ install(TARGETS
   set_speed_factor_server_node
   set_robot_pose_server_node
   moveit_arcline_demo_node
+  moveit_arcline_gripper_worker_node
   set_robot_io_server_node
   # set_robot_enable_server_node
   # read_robot_io_server_node

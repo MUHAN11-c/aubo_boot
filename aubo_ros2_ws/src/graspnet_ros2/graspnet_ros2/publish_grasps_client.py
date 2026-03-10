@@ -324,8 +324,9 @@ class PublishGraspsClient(Node):
                         
                         return True
                 except json.JSONDecodeError:
-                    # 如果不是 JSON 格式，就是普通消息
+                    # 服务未返回 JSON（如 graspnet_demo_points_node 只返回「已发布 N 个抓取」），无 grasp_data，后续仅从 TF 获取位姿
                     self.get_logger().info(f"消息: {response.message}")
+                    self.get_logger().info('未收到 JSON 抓取数据，将仅从 TF 获取抓取位姿（不保存 CSV）')
                     return True
                 
                 return True
@@ -413,10 +414,12 @@ class PublishGraspsClient(Node):
         if not self.call_publish_service():
             return False
         
-        # 检查是否有抓取数据
+        # 无 JSON 抓取数据时仍可从 TF 获取位姿并运动；仅当需要保存 CSV 时提示
         if not self.grasp_data:
-            self.get_logger().error('没有抓取数据')
-            return False
+            if self.save_grasp_data:
+                self.get_logger().warn('未收到抓取数据（服务未返回 JSON），无法保存 CSV，将仅从 TF 获取位姿继续')
+            else:
+                self.get_logger().info('将仅从 TF 获取抓取位姿')
         
         # 等待一段时间让 TF 发布
         time.sleep(0.5)

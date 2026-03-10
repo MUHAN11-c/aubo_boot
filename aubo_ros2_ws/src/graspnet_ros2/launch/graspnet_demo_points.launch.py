@@ -4,16 +4,19 @@
 GraspNet ROS2 Demo（点云版）Launch 文件。
 
 功能：
-  1. 启动 Aubo 机械臂模型与 ros2_control 仿真
-  2. 启动 graspnet_demo_points_node（订阅 PointCloud2，预测抓取，发布 MarkerArray、点云与 TF）
-  3. 发布手眼标定静态 TF（末端 -> camera_frame），以及 camera_frame -> camera_link 单位变换
-  4. 启动 MoveIt2 move_group 与 MoveToPose 服务
-  5. 启动 RViz2
+  1. 启动 Percipio 相机驱动（percipio_camera_calibration.launch.py）
+  2. 启动 Aubo 机械臂模型与 ros2_control 仿真
+  3. 启动 graspnet_demo_points_node（订阅 PointCloud2，预测抓取，发布 MarkerArray 与 TF）
+  4. 发布手眼标定静态 TF（末端 -> camera_frame），以及 camera_frame -> camera_link 单位变换
+  5. 启动 MoveIt2 move_group 与 MoveToPose 服务
+  6. 启动 RViz2
 
 使用：
   source /opt/ros/humble/setup.bash
   source install/setup.bash
   ros2 launch graspnet_ros2 graspnet_demo_points.launch.py
+
+不启动相机（仅机械臂+GraspNet）：launch_camera:=false
 
 点云话题默认：/camera/depth_registered/points（可在 launch 参数中覆盖）。
 """
@@ -22,7 +25,9 @@ import os
 import yaml
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, OpaqueFunction
+from launch.conditions import IfCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -258,6 +263,10 @@ def _declare_launch_arguments(package_path, baseline_dir):
         hand_eye_default = ''
 
     return [
+        # 相机驱动（Percipio）
+        DeclareLaunchArgument('launch_camera', default_value='true',
+                              description='是否启动 Percipio 相机驱动（percipio_camera_calibration.launch.py）'),
+
         # GraspNet 点云版核心
         DeclareLaunchArgument('model_path', default_value=os.path.join(
             baseline_dir, 'logs', 'log_kn', 'checkpoint-rs.tar'
@@ -265,16 +274,8 @@ def _declare_launch_arguments(package_path, baseline_dir):
         DeclareLaunchArgument('input_pointcloud_topic', default_value='/camera/depth_registered/points',
                               description='输入点云话题'),
         DeclareLaunchArgument('marker_topic', default_value='grasp_markers', description='MarkerArray 话题'),
-        DeclareLaunchArgument('pointcloud_topic', default_value='graspnet_pointcloud', description='发布点云话题'),
         DeclareLaunchArgument('frame_id', default_value='camera_frame', description='抓取坐标系'),
-        DeclareLaunchArgument('num_point', default_value='20000', description='点云采样点数'),
-        DeclareLaunchArgument('num_view', default_value='300', description='视角数'),
-        DeclareLaunchArgument('collision_thresh', default_value='0.01', description='碰撞检测阈值'),
-        DeclareLaunchArgument('voxel_size', default_value='0.01', description='体素下采样尺寸'),
-        DeclareLaunchArgument('max_grasps_num', default_value='20', description='最大抓取数量'),
-        DeclareLaunchArgument('gpu', default_value='0', description='GPU 设备 ID'),
         DeclareLaunchArgument('use_open3d', default_value='false', description='是否启用 Open3D 可视化'),
-        DeclareLaunchArgument('auto_run', default_value='false', description='是否自动运行（否则需服务触发）'),
         DeclareLaunchArgument('baseline_dir', default_value=baseline_dir, description='graspnet-baseline 路径'),
 
         # 机械臂与手眼
@@ -293,8 +294,15 @@ def generate_launch_description():
     """生成 LaunchDescription。"""
     package_path = get_package_share_directory(PKG_GRASPNET)
     baseline_dir = os.path.join(package_path, 'graspnet-baseline')
+    launch_dir = os.path.dirname(os.path.abspath(__file__))
 
     declared_arguments = _declare_launch_arguments(package_path, baseline_dir)
+
+    # 相机驱动（与 graspnet 点云话题 /camera/depth_registered/points 对应，camera_name 保持默认 'camera'）
+    percipio_camera_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(launch_dir, 'percipio_camera_calibration.launch.py')),
+        condition=IfCondition(LaunchConfiguration('launch_camera')),
+    )
 
     graspnet_demo_points_node = Node(
         package=PKG_GRASPNET,
@@ -306,19 +314,13 @@ def generate_launch_description():
             'model_path': LaunchConfiguration('model_path'),
             'input_pointcloud_topic': LaunchConfiguration('input_pointcloud_topic'),
             'marker_topic': LaunchConfiguration('marker_topic'),
-            'pointcloud_topic': LaunchConfiguration('pointcloud_topic'),
             'frame_id': LaunchConfiguration('frame_id'),
-            'num_point': LaunchConfiguration('num_point'),
-            'num_view': LaunchConfiguration('num_view'),
-            'collision_thresh': LaunchConfiguration('collision_thresh'),
-            'voxel_size': LaunchConfiguration('voxel_size'),
-            'max_grasps_num': LaunchConfiguration('max_grasps_num'),
-            'gpu': LaunchConfiguration('gpu'),
             'use_open3d': LaunchConfiguration('use_open3d'),
-            'auto_run': LaunchConfiguration('auto_run'),
         }],
     )
 
     robot_and_tf = OpaqueFunction(function=launch_setup_robot_and_tf)
 
-    return LaunchDescription(declared_arguments + [graspnet_demo_points_node, robot_and_tf])
+    return LaunchDescription(
+        declared_arguments + [percipio_camera_launch, graspnet_demo_points_node, robot_and_tf]
+    )

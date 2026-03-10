@@ -1,6 +1,6 @@
 Panels:
   - Class: rviz_common/Displays
-    Help Height: 138
+    Help Height: 0
     Name: Displays
     Property Tree Widget:
       Expanded:
@@ -8,15 +8,13 @@ Panels:
         - /Status1
         - /MotionPlanning1
         - /MotionPlanning1/Planned Path1
-        - /MotionPlanning1/Planned Path1/Links1
-        - /MotionPlanning1/Planned Path1/Links1/tool_tcp1
         - /MarkerArray1
         - /MarkerArray1/Topic1
         - /TF1/Frames1
         - /PointCloud21
         - /PointCloud21/Topic1
       Splitter Ratio: 0.5
-    Tree Height: 407
+    Tree Height: 545
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -70,11 +68,6 @@ Visualization Manager:
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
         base_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        box_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -172,7 +165,7 @@ Visualization Manager:
       MoveIt_Planning_Attempts: 10
       MoveIt_Planning_Time: 5
       MoveIt_Use_Cartesian_Path: false
-      MoveIt_Use_Constraint_Aware_IK: false
+      MoveIt_Use_Constraint_Aware_IK: true
       MoveIt_Workspace:
         Center:
           X: 0
@@ -187,76 +180,71 @@ Visualization Manager:
         Color Enabled: false
         Interrupt Display: false
         Links:
-          All Links Enabled: false
+          All Links Enabled: true
           Expand Joint Details: false
-          Expand Link Details: true
+          Expand Link Details: false
           Expand Tree: false
           Link Tree Style: Links in Alphabetic Order
           base_link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
-            Value: false
-          box_link:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-            Value: false
+            Value: true
           camera_Link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
-            Value: false
+            Value: true
           foreArm_Link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
-            Value: false
+            Value: true
           grap0_Link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
-            Value: false
+            Value: true
           grap1_Link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
-            Value: false
+            Value: true
           grap_Link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
-            Value: false
+            Value: true
           gripper_tip_link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
-            Value: false
+            Value: true
           kuaihuan_Link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
-            Value: false
+            Value: true
           pedestal_Link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
-            Value: false
+            Value: true
           shoulder_Link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
-            Value: false
+            Value: true
           tool_tcp:
             Alpha: 1
-            Show Axes: true
-            Show Trail: true
+            Show Axes: false
+            Show Trail: false
             Value: true
           upperArm_Link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
-            Value: false
+            Value: true
           world:
             Alpha: 1
             Show Axes: false
@@ -265,17 +253,17 @@ Visualization Manager:
             Alpha: 1
             Show Axes: false
             Show Trail: false
-            Value: false
+            Value: true
           wrist2_Link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
-            Value: false
+            Value: true
           wrist3_Link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
-            Value: false
+            Value: true
         Loop Animation: false
         Robot Alpha: 0.5
         Robot Color: 150; 50; 150
@@ -323,11 +311,6 @@ Visualization Manager:
           Expand Tree: false
           Link Tree Style: Links in Alphabetic Order
           base_link:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-            Value: true
-          box_link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -467,7 +450,7 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /graspnet_pointcloud
+        Value: /camera/depth_registered/points
       Use Fixed Frame: true
       Use rainbow: true
       Value: true

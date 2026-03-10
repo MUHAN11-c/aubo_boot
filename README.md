@@ -727,6 +727,82 @@ templates/
 
 ---
 
+## GraspNet 点云版与坐标系说明
+
+本节记录 `graspnet_ros2` 中 **点云版节点**（`graspnet_demo_points_node.py`）与 **文件版节点**（`graspnet_demo_node.py`）的输入、输出及坐标系约定，便于排查“抓取方向不对”或“Marker 与 TF 不一致”等问题。
+
+### 节点与输入
+
+| 节点 | 输入 | 说明 |
+|------|------|------|
+| `graspnet_demo_node` | 文件：`color.png`、`depth.png`、`workspace_mask.png`、`meta.mat` | 从深度图 + 相机内参反投影得到相机系点云，再采样送入 GraspNet |
+| `graspnet_demo_points_node` | ROS2 话题：`PointCloud2`（默认 `/camera/depth_registered/points`） | 直接使用点云中的 `x,y,z`，要求**相机坐标系、单位米**，与文件版一致 |
+
+只要相机驱动发布的 `PointCloud2` 是**相机光学系、米制**，两路输入的坐标系含义一致；点云版不做额外坐标变换。
+
+### GraspNet 的 XYZ 约定
+
+**场景/相机坐标系（点云与抓取位置所在坐标系）**  
+与常见 RGB-D 相机、ROS 光学系一致：
+
+| 轴 | 方向 | 说明 |
+|----|------|------|
+| **X** | 右   | 图像向右为正 |
+| **Y** | 下   | 图像向下为正 |
+| **Z** | 前   | 光轴方向，相机朝场景为正 |
+
+点云中每个点的 `(x, y, z)` 即在此坐标系下，单位：**米**。GraspNet 的 `translation`（抓取中心位置）也在此坐标系下。
+
+**抓取位姿的旋转矩阵 `rotation_matrix`**  
+3×3 矩阵的**列向量**表示抓取**局部坐标系**的三个轴（在场景系下的方向）：
+
+| 列   | 含义        | 说明                     |
+|------|-------------|--------------------------|
+| **col0** | approach  | 手指伸出方向（夹爪接近物体的方向） |
+| **col1** | width      | 两指张开方向（夹爪宽度方向）     |
+| **col2** | height     | 夹爪高度方向（与 approach、width 正交） |
+
+即：`rotation_matrix = [approach_vec | width_vec | height_vec]`，每个向量为 3×1 在场景 XYZ 下的分量。
+
+### GraspNet 输出与 ROS 坐标系
+
+- **GraspNet 内部**：`rotation_matrix` 列为  
+  - `col0` = approach（手指伸出方向）  
+  - `col1` = width（左右张开）  
+  - `col2` = height（上下）  
+  平移 `translation` 在**同一相机系**下。
+
+- **ROS 末端执行器惯例**（用于 TF / 运动控制）：  
+  - Z 轴 = approach  
+  - X 轴 = width  
+  - Y 轴 = height  
+
+因此发布 TF 时需做**轴重排**，与 `graspnet_demo_node.py` 一致：
+
+```text
+R_ros = [ R_graspnet[:,1], R_graspnet[:,2], R_graspnet[:,0] ]
+```
+
+点云版在 `_publish_grasp_tf` 中已按上述方式构造 `R_ros` 再转四元数，故 **TF（如 `grasp_pose_0`）与文件版行为一致**，可直接用于机械臂运动。
+
+### Marker 可视化
+
+- **点云版**的 `_create_grasp_markers` 已与文件版的 `create_grasp_markers` 对齐：
+  - 使用相同的 GraspNet 几何常数（`finger_width`、`depth_base`、`tail_length`）和局部偏移；
+  - 手指/手腕圆柱：旋转取 `[R[:,1], R[:,2], R[:,0]]`（Marker Z = approach）；
+  - 手掌圆柱：旋转取 `[R[:,2], R[:,0], R[:,1]]`（Marker Z = width）。
+- 这样 **RViz 中 Marker 的朝向与 TF 一致**，与文件版 demo 视觉效果一致。
+
+### 小结
+
+- **PointCloud2 → end_points**：仅使用 `x,y,z`，不改坐标系；保证点云为相机系、米制即可。
+- **TF**：对 `rotation_matrix` 做 GraspNet → ROS 末端轴重排后再发布，与文件版一致。
+- **Marker**：几何与轴选择与文件版 `create_grasp_markers` 一致，避免“坐标系不对”的观感。
+
+详细实现见：`aubo_ros2_ws/src/graspnet_ros2/graspnet_ros2/graspnet_demo_points_node.py`（`_publish_grasp_tf`、`_create_grasp_markers`、`_create_marker`、`_matrix_to_pose`）。
+
+---
+
 ## 环境与故障排查记录
 
 以下为 IVG 环境与启动脚本相关问题的处理记录，便于复现与排查。
@@ -810,6 +886,6 @@ templates/
 
 ---
 
-**文档版本**：1.7  
-**最后更新**：2026-03-06
+**文档版本**：1.8  
+**最后更新**：2026-03-10
 

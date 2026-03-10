@@ -6,48 +6,47 @@ GraspNet ROS2 Demo(点云版)：
   - 将点云转换为 GraspNet 的 end_points['point_clouds'] 输入
   - 推理 → 碰撞检测 → NMS/排序
   - 发布 MarkerArray / TF（复用 graspnet_demo_node.py 的发布逻辑风格）
-  - 可选发布点云到 pointcloud_topic（供 RViz/Octomap 等使用）
 
 说明：
   - 本文件参考 graspnet_demo_node.py，但将模型输入从“文件RGB-D反投影点云”改为“直接使用 PointCloud2 点云话题”
   - GraspNet 的最小输入仅需要 end_points['point_clouds']，形状 (1, N, 3)，dtype float32，单位米
 """
 
+# ---------- 标准库 ----------
 import os
 import sys
-import time
 import multiprocessing
-from typing import Optional, Tuple
+from typing import Optional, Tuple, cast
 
+# ---------- 第三方 ----------
 import numpy as np
 import torch
 import open3d as o3d
-from typing import cast
+from scipy.spatial.transform import Rotation
 
+# ---------- ROS2 ----------
 import rclpy
 from rclpy.node import Node
-
-from sensor_msgs.msg import PointCloud2, PointField
+from sensor_msgs.msg import PointCloud2
 from sensor_msgs_py import point_cloud2 as pc2
 from visualization_msgs.msg import Marker, MarkerArray
-from geometry_msgs.msg import TransformStamped
-from std_msgs.msg import Header
+from geometry_msgs.msg import Pose, TransformStamped
+from builtin_interfaces.msg import Duration, Time
 from std_srvs.srv import Trigger
 from tf2_ros import TransformBroadcaster
 
 
-def _get_graspnet_baseline_root():
+# ========== graspnet-baseline 路径与依赖（须先设置 sys.path 再导入） ==========
+def _get_graspnet_baseline_root() -> str:
     """解析 graspnet-baseline 根目录：源码为 ../graspnet-baseline，install 为 share/graspnet_ros2/graspnet-baseline。"""
     this_file = os.path.abspath(__file__)
-    src_root = os.path.join(os.path.dirname(this_file), '..', 'graspnet-baseline')
-    src_root = os.path.abspath(src_root)
+    src_root = os.path.abspath(os.path.join(os.path.dirname(this_file), '..', 'graspnet-baseline'))
     if os.path.isdir(src_root) and os.path.isdir(os.path.join(src_root, 'models')):
         return src_root
     try:
         from ament_index_python.packages import get_package_share_directory
 
-        share = get_package_share_directory('graspnet_ros2')
-        install_root = os.path.join(share, 'graspnet-baseline')
+        install_root = os.path.join(get_package_share_directory('graspnet_ros2'), 'graspnet-baseline')
         if os.path.isdir(install_root) and os.path.isdir(os.path.join(install_root, 'models')):
             return install_root
     except Exception:
@@ -55,17 +54,25 @@ def _get_graspnet_baseline_root():
     return src_root
 
 
-ROOT_DIR = _get_graspnet_baseline_root()
-sys.path.insert(0, ROOT_DIR)
-sys.path.insert(0, os.path.join(ROOT_DIR, 'models'))
-sys.path.insert(0, os.path.join(ROOT_DIR, 'dataset'))
-sys.path.append(os.path.join(ROOT_DIR, 'utils'))
+def _setup_graspnet_baseline():
+    """设置 sys.path 并导入 graspnet-baseline 依赖，返回 (ROOT_DIR, GraspNet, pred_decode, ModelFreeCollisionDetector, GraspGroup)。"""
+    root = _get_graspnet_baseline_root()
+    sys.path.insert(0, root)
+    sys.path.insert(0, os.path.join(root, 'models'))
+    sys.path.insert(0, os.path.join(root, 'dataset'))
+    sys.path.append(os.path.join(root, 'utils'))
 
-from models.graspnet import GraspNet, pred_decode  # noqa: E402
-from utils.collision_detector import ModelFreeCollisionDetector  # noqa: E402
-from graspnetAPI import GraspGroup  # noqa: E402
+    from models.graspnet import GraspNet, pred_decode  # noqa: E402
+    from utils.collision_detector import ModelFreeCollisionDetector  # noqa: E402
+    from graspnetAPI import GraspGroup  # noqa: E402
+
+    return root, GraspNet, pred_decode, ModelFreeCollisionDetector, GraspGroup
 
 
+ROOT_DIR, GraspNet, pred_decode, ModelFreeCollisionDetector, GraspGroup = _setup_graspnet_baseline()
+
+
+# ========== 模块级：Open3D 可视化（独立进程） ==========
 def _vis_grasps_open3d_process(gg: GraspGroup, cloud: o3d.geometry.PointCloud):
     """在独立进程中运行 Open3D 可视化（与 graspnet_demo_node.py 一致的思路）"""
     try:
@@ -88,8 +95,13 @@ def _vis_grasps_open3d_process(gg: GraspGroup, cloud: o3d.geometry.PointCloud):
         traceback.print_exc()
 
 
+# ========== GraspNet 点云版节点 ==========
 class GraspNetDemoPointsNode(Node):
-    """订阅点云 → GraspNet 推理 → 发布 MarkerArray/TF"""
+    """
+    订阅点云 → GraspNet 推理 → 发布 MarkerArray/TF
+
+    类内方法顺序：初始化 → 输入(订阅) → 模型加载 → 服务入口 → 数据处理 → 推理与流水线 → 发布与辅助
+    """
 
     def __init__(self):
         super().__init__('graspnet_demo_points_node')
@@ -101,37 +113,27 @@ class GraspNetDemoPointsNode(Node):
         # 输入点云（新需求）
         self.declare_parameter('input_pointcloud_topic', '/camera/depth_registered/points')
 
-        # 推理参数（与 graspnet_demo_node.py 保持一致默认值）
-        self.declare_parameter('num_point', 20000)
-        self.declare_parameter('num_view', 300)
-        self.declare_parameter('collision_thresh', 0.01)
-        self.declare_parameter('voxel_size', 0.01)
-        self.declare_parameter('max_grasps_num', 20)
-        self.declare_parameter('gpu', 0)
+        # 推理参数使用 GraspNet 默认值，不暴露为 launch 参数
+        self.num_point = 20000
+        self.num_view = 300
+        self.collision_thresh = 0.01
+        self.voxel_size = 0.01
+        self.max_grasps_num = 5
+        self.gpu = 0
 
         # 发布参数
         self.declare_parameter('marker_topic', 'grasp_markers')
-        self.declare_parameter('pointcloud_topic', 'graspnet_pointcloud')  # 可选：发布点云（从输入点云转换/复用）
         self.declare_parameter('frame_id', 'camera_frame')  # 若输入点云 header.frame_id 为空则用它
 
-        # 可视化/运行模式
+        # 可视化
         self.declare_parameter('use_open3d', False)
-        self.declare_parameter('auto_run', False)
 
         # ========== 获取参数 ==========
         self.model_path = self.get_parameter('model_path').get_parameter_value().string_value
         self.input_pointcloud_topic = self.get_parameter('input_pointcloud_topic').get_parameter_value().string_value
-        self.num_point = self.get_parameter('num_point').get_parameter_value().integer_value
-        self.num_view = self.get_parameter('num_view').get_parameter_value().integer_value
-        self.collision_thresh = self.get_parameter('collision_thresh').get_parameter_value().double_value
-        self.voxel_size = self.get_parameter('voxel_size').get_parameter_value().double_value
-        self.max_grasps_num = self.get_parameter('max_grasps_num').get_parameter_value().integer_value
-        self.gpu = self.get_parameter('gpu').get_parameter_value().integer_value
         self.marker_topic = self.get_parameter('marker_topic').get_parameter_value().string_value
-        self.pointcloud_topic = self.get_parameter('pointcloud_topic').get_parameter_value().string_value
         self.default_frame_id = self.get_parameter('frame_id').get_parameter_value().string_value
         self.use_open3d = bool(self.get_parameter('use_open3d').get_parameter_value().bool_value)
-        self.auto_run = bool(self.get_parameter('auto_run').get_parameter_value().bool_value)
 
         # ========== 设备/模型 ==========
         self.device = torch.device(f"cuda:{self.gpu}" if torch.cuda.is_available() else "cpu")
@@ -140,38 +142,32 @@ class GraspNetDemoPointsNode(Node):
 
         # ========== ROS 通信 ==========
         self.marker_pub = self.create_publisher(MarkerArray, self.marker_topic, 10)
-        self.pointcloud_pub = self.create_publisher(PointCloud2, self.pointcloud_topic, 10)
         self.tf_broadcaster = TransformBroadcaster(self)
-
-        # 订阅输入点云
-        self._latest_pc_msg: Optional[PointCloud2] = None
         self.create_subscription(PointCloud2, self.input_pointcloud_topic, self._pc_callback, 10)
-
-        # 服务：手动触发一次推理（命名沿用 graspnet_demo_node.py）
         self.publish_srv = self.create_service(Trigger, 'publish_grasps', self.publish_service_callback)
 
-        # 缓存结果（与 graspnet_demo_node.py 风格一致）
+        # ========== 状态缓存（服务回调与发布使用） ==========
+        self._latest_pc_msg: Optional[PointCloud2] = None
         self.processed_gg: Optional[GraspGroup] = None
         self.cloud_o3d: Optional[o3d.geometry.PointCloud] = None
+        self.processed_frame_id: str = ''
         self.has_computed = False
 
+        self._log_startup()
+
+    # ========== 初始化辅助 ==========
+    def _log_startup(self):
+        """打印节点启动信息（话题、服务）。"""
         self.get_logger().info('GraspNet 点云版节点已启动')
         self.get_logger().info(f'订阅输入点云: {self.input_pointcloud_topic}')
         self.get_logger().info(f'发布 MarkerArray: {self.marker_topic}')
-        self.get_logger().info(f'发布点云(可选): {self.pointcloud_topic}')
+        self.get_logger().info('调用 /publish_grasps 服务触发推理与发布')
 
-        self._run_count = 0
-        self._auto_timer = None
-        if self.auto_run:
-            # 轮询等待点云到达；成功计算一次后取消
-            self._auto_timer = self.create_timer(1.0, self._auto_run_once)
-            self.get_logger().info('自动模式：收到点云后将自动计算并发布一次抓取')
-        else:
-            self.get_logger().info('手动模式：调用 /publish_grasps 服务触发推理与发布')
-
+    # ========== 输入：点云订阅 ==========
     def _pc_callback(self, msg: PointCloud2):
         self._latest_pc_msg = msg
 
+    # ========== 模型加载 ==========
     def _load_model(self):
         self.get_logger().info(f'正在加载模型: {self.model_path}')
         if not os.path.exists(self.model_path):
@@ -194,26 +190,7 @@ class GraspNetDemoPointsNode(Node):
         self.get_logger().info('模型加载完成')
         return net
 
-    def _auto_run_once(self):
-        if self._run_count > 0:
-            return
-        if self._latest_pc_msg is None:
-            self.get_logger().warn('自动模式：尚未收到点云，等待中...')
-            return
-        try:
-            self._compute_grasps(self._latest_pc_msg)
-            self.publish_marker_array(self.processed_gg)  # type: ignore[arg-type]
-            self.publish_pointcloud(self.cloud_o3d, self.processed_frame_id)  # type: ignore[arg-type]
-            self._run_count += 1
-            if self._auto_timer is not None:
-                self._auto_timer.cancel()
-            self.get_logger().info('自动模式：预测和发布完成')
-        except Exception as e:
-            self.get_logger().error(f'自动模式预测失败: {str(e)}')
-            import traceback
-
-            self.get_logger().error(traceback.format_exc())
-
+    # ========== 服务入口：触发推理与发布 ==========
     def publish_service_callback(self, request, response):
         if self._latest_pc_msg is None:
             response.success = False
@@ -222,7 +199,6 @@ class GraspNetDemoPointsNode(Node):
         try:
             self._compute_grasps(self._latest_pc_msg)
             self.publish_marker_array(self.processed_gg)  # type: ignore[arg-type]
-            self.publish_pointcloud(self.cloud_o3d, self.processed_frame_id)  # type: ignore[arg-type]
             response.success = True
             response.message = f'已发布 {len(self.processed_gg)} 个抓取'  # type: ignore[arg-type]
             return response
@@ -235,7 +211,7 @@ class GraspNetDemoPointsNode(Node):
             self.get_logger().error(traceback.format_exc())
             return response
 
-    # ========= 数据处理：PointCloud2 -> end_points =========
+    # ========== 数据处理：PointCloud2 -> end_points ==========
     def _pc2_to_xyz(self, msg: PointCloud2) -> np.ndarray:
         """PointCloud2 转 (N,3) float32。优先使用 read_points_numpy，失败则回退迭代方式。"""
         try:
@@ -252,6 +228,7 @@ class GraspNetDemoPointsNode(Node):
             return np.asarray(pts_list, dtype=np.float32).reshape(-1, 3)
 
     def _get_and_process_data(self, pc_msg: PointCloud2) -> Tuple[dict, o3d.geometry.PointCloud, str]:
+        """PointCloud2 → 采样/转张量 → end_points、Open3D 点云、frame_id（流水线第一步）。"""
         points = self._pc2_to_xyz(pc_msg)
         if points.shape[0] == 0:
             raise RuntimeError('输入点云为空（或全部为 NaN）')
@@ -276,7 +253,7 @@ class GraspNetDemoPointsNode(Node):
         frame_id = (pc_msg.header.frame_id or '').strip() or self.default_frame_id
         return end_points, cloud_o3d, frame_id
 
-    # ========= 推理与后处理 =========
+    # ========== 推理与后处理 ==========
     def _get_grasps(self, end_points) -> GraspGroup:
         with torch.no_grad():
             end_points = self.net(end_points)
@@ -284,6 +261,7 @@ class GraspNetDemoPointsNode(Node):
         gg_array = grasp_preds[0].detach().cpu().numpy()
         return GraspGroup(gg_array)
 
+    # ========== 碰撞检测 ==========
     def _collision_detection(self, gg: GraspGroup, cloud_xyz: np.ndarray) -> GraspGroup:
         if self.collision_thresh <= 0:
             return gg
@@ -294,7 +272,9 @@ class GraspNetDemoPointsNode(Node):
         self.get_logger().info(f'碰撞检测后剩余 {len(gg)} 个抓取')
         return gg
 
+    # ========== 流水线入口：点云 → 抓取结果 ==========
     def _compute_grasps(self, pc_msg: PointCloud2):
+        """数据准备 → 网络推理 → 碰撞检测 → NMS/排序 → 写缓存，可选 Open3D 可视化。"""
         end_points, cloud, frame_id = self._get_and_process_data(pc_msg)
         gg = self._get_grasps(end_points)
         gg = self._collision_detection(gg, np.asarray(cloud.points))
@@ -317,7 +297,7 @@ class GraspNetDemoPointsNode(Node):
             )
             vis_process.start()
 
-    # ========= 发布：MarkerArray / TF / PointCloud2 =========
+    # ========== 发布：MarkerArray / TF ==========
     def publish_marker_array(self, gg: GraspGroup):
         if gg is None or len(gg) == 0:
             self.get_logger().warn('没有可发布的抓取')
@@ -353,19 +333,39 @@ class GraspNetDemoPointsNode(Node):
         self.marker_pub.publish(marker_array)
         self.get_logger().info(f'已发布 MarkerArray: {len(gg)} 个抓取')
 
+    # ---------- TF 与 Marker 辅助 ----------
     def _publish_grasp_tf(self, grasp, idx: int, stamp, frame_id: str):
+        """发布 GraspNet 抓取位姿对应的 TF（对齐 graspnet_demo_node.py 的坐标系转换）。"""
         t = TransformStamped()
         t.header.stamp = stamp
         t.header.frame_id = frame_id
         t.child_frame_id = f'grasp_pose_{idx}'
+
+        # 平移直接使用 GraspNet 输出（与 demo 节点一致，均在相机系下）
         t.transform.translation.x = float(grasp.translation[0])
         t.transform.translation.y = float(grasp.translation[1])
         t.transform.translation.z = float(grasp.translation[2])
 
-        # grasp.rotation_matrix -> quaternion (x,y,z,w)
-        from scipy.spatial.transform import Rotation
+        # 坐标系转换：GraspNet -> ROS 末端执行器标准坐标系
+        # GraspNet rotation_matrix 列为:
+        #   col0 = approach (手指伸出方向)
+        #   col1 = width   (左右张开方向)
+        #   col2 = height  (上下方向)
+        # ROS 末端坐标约定:
+        #   Z 轴 = approach
+        #   X 轴 = width
+        #   Y 轴 = height
+        R_graspnet = grasp.rotation_matrix
+        R_ros = np.column_stack(
+            [
+                R_graspnet[:, 1],  # ROS X = GraspNet width
+                R_graspnet[:, 2],  # ROS Y = GraspNet height
+                R_graspnet[:, 0],  # ROS Z = GraspNet approach
+            ]
+        )
 
-        quat = Rotation.from_matrix(grasp.rotation_matrix).as_quat(canonical=False)
+        # ROS 四元数 (x, y, z, w)
+        quat = Rotation.from_matrix(R_ros).as_quat(canonical=False)
         t.transform.rotation.x = float(quat[0])
         t.transform.rotation.y = float(quat[1])
         t.transform.rotation.z = float(quat[2])
@@ -374,108 +374,164 @@ class GraspNetDemoPointsNode(Node):
 
     def _create_grasp_markers(self, grasp, rgba, id_start: int, stamp, frame_id: str):
         """
-        用 4 个圆柱体表示夹爪：
-          - 左指、右指、手腕、手掌
-        坐标系与 graspnet_demo_node.py 的 RViz 绘制一致（以 grasp 的 rotation/translation 为基础）。
+        为单个抓取创建可视化标记（4 个圆柱：左指、右指、手腕、手掌），
+        几何和坐标系与 graspnet_demo_node.py 的 create_grasp_markers 完全对齐。
         """
-        from scipy.spatial.transform import Rotation
-
+        # ===== 构建抓取位姿矩阵（GraspNet 坐标系）=====
         pose_mat = np.eye(4, dtype=np.float32)
         pose_mat[:3, 3] = grasp.translation.astype(np.float32)
         pose_mat[:3, :3] = grasp.rotation_matrix.astype(np.float32)
+        R = pose_mat[:3, :3]
 
         w = float(grasp.width)
         d = float(grasp.depth)
         radius = 0.005
+        markers: list[Marker] = []
 
-        def mk_cyl(id_, center_xyz, rot_mat, scale_xyz):
-            m = Marker()
-            m.header.frame_id = frame_id
-            m.header.stamp = stamp
-            m.ns = 'grasp'
-            m.id = int(id_)
-            m.type = Marker.CYLINDER
-            m.action = Marker.ADD
+        # 与 plot_gripper_pro_max 完全一致的几何常数
+        finger_width = 0.004  # 手指/手掌厚度
+        depth_base = 0.02  # 夹爪基座深度
+        tail_length = 0.04  # 手腕(tail)长度
+        finger_length = d + (depth_base + finger_width)
+        finger_center_x = d / 2 - (depth_base + finger_width) / 2
 
-            quat = Rotation.from_matrix(rot_mat).as_quat(canonical=False)
-            m.pose.position.x = float(center_xyz[0])
-            m.pose.position.y = float(center_xyz[1])
-            m.pose.position.z = float(center_xyz[2])
-            m.pose.orientation.x = float(quat[0])
-            m.pose.orientation.y = float(quat[1])
-            m.pose.orientation.z = float(quat[2])
-            m.pose.orientation.w = float(quat[3])
+        # ===== 左指 =====
+        left_point = pose_mat @ np.array(
+            [finger_center_x, -w / 2 - finger_width / 2, 0, 1], dtype=np.float32
+        )
+        left_pose = np.eye(4, dtype=np.float32)
+        # Marker Z = approach(col0)，(X,Y,Z) = (width,height,approach) = (col1,col2,col0)
+        left_pose[:3, :3] = np.column_stack([R[:, 1], R[:, 2], R[:, 0]])
+        left_pose[:3, 3] = left_point[:3]
+        markers.append(
+            self._create_marker(
+                Marker.CYLINDER,
+                left_pose,
+                [radius, radius, finger_length],
+                rgba,
+                id_start,
+                stamp,
+                frame_id,
+            )
+        )
 
-            m.scale.x = float(scale_xyz[0])
-            m.scale.y = float(scale_xyz[1])
-            m.scale.z = float(scale_xyz[2])
-            m.color.r = float(rgba[0])
-            m.color.g = float(rgba[1])
-            m.color.b = float(rgba[2])
-            m.color.a = float(rgba[3])
-            return m
+        # ===== 右指 =====
+        right_point = pose_mat @ np.array(
+            [finger_center_x, w / 2 + finger_width / 2, 0, 1], dtype=np.float32
+        )
+        right_pose = np.eye(4, dtype=np.float32)
+        right_pose[:3, :3] = np.column_stack([R[:, 1], R[:, 2], R[:, 0]])
+        right_pose[:3, 3] = right_point[:3]
+        markers.append(
+            self._create_marker(
+                Marker.CYLINDER,
+                right_pose,
+                [radius, radius, finger_length],
+                rgba,
+                id_start + 1,
+                stamp,
+                frame_id,
+            )
+        )
 
-        # grasp 坐标系下的局部点（与 graspnet_demo_node.py 类似）
-        left_local = np.array([-w / 2, 0.0, -d / 2, 1.0], dtype=np.float32)
-        right_local = np.array([w / 2, 0.0, -d / 2, 1.0], dtype=np.float32)
-        wrist_local = np.array([0.0, 0.0, -d * 5 / 4, 1.0], dtype=np.float32)
-        palm_local = np.array([0.0, 0.0, -d, 1.0], dtype=np.float32)
+        # ===== 手腕(tail) =====
+        wrist_center_x = -(tail_length / 2 + finger_width + depth_base)
+        wrist_point = pose_mat @ np.array([wrist_center_x, 0, 0, 1], dtype=np.float32)
+        wrist_pose = np.eye(4, dtype=np.float32)
+        wrist_pose[:3, :3] = np.column_stack([R[:, 1], R[:, 2], R[:, 0]])
+        wrist_pose[:3, 3] = wrist_point[:3]
+        markers.append(
+            self._create_marker(
+                Marker.CYLINDER,
+                wrist_pose,
+                [radius, radius, tail_length],
+                rgba,
+                id_start + 2,
+                stamp,
+                frame_id,
+            )
+        )
 
-        left_world = (pose_mat @ left_local)[:3]
-        right_world = (pose_mat @ right_local)[:3]
-        wrist_world = (pose_mat @ wrist_local)[:3]
-        palm_world = (pose_mat @ palm_local)[:3]
+        # ===== 手掌(bottom): 轴沿 width(col1)，长度 w =====
+        palm_center_x = -depth_base - finger_width / 2
+        palm_point = pose_mat @ np.array([palm_center_x, 0, 0, 1], dtype=np.float32)
+        palm_pose = np.eye(4, dtype=np.float32)
+        # 右手系: Marker Z=col1, X=col2, Y=col0，保证 X×Y=Z
+        palm_pose[:3, :3] = np.column_stack([R[:, 2], R[:, 0], R[:, 1]])
+        palm_pose[:3, 3] = palm_point[:3]
+        markers.append(
+            self._create_marker(
+                Marker.CYLINDER,
+                palm_pose,
+                [radius, radius, w],
+                rgba,
+                id_start + 3,
+                stamp,
+                frame_id,
+            )
+        )
 
-        # 圆柱默认轴沿 z；这里简单用 grasp 的旋转即可（与 demo 的“简化绘制”一致）
-        rot_world = pose_mat[:3, :3]
-
-        # 手掌需要绕 y 轴旋转 90°（让圆柱横向连接两指）
-        rot_y_90 = Rotation.from_rotvec([0.0, np.pi / 2, 0.0]).as_matrix().astype(np.float32)
-        palm_rot_world = rot_world @ rot_y_90
-
-        markers = [
-            mk_cyl(id_start, left_world, rot_world, (radius, radius, d)),
-            mk_cyl(id_start + 1, right_world, rot_world, (radius, radius, d)),
-            mk_cyl(id_start + 2, wrist_world, rot_world, (radius, radius, d / 2)),
-            mk_cyl(id_start + 3, palm_world, palm_rot_world, (radius, radius, w)),
-        ]
         return markers
 
-    def publish_pointcloud(self, cloud: o3d.geometry.PointCloud, frame_id: str):
-        if cloud is None:
-            return
-        msg = self._o3d_to_ros2_pointcloud(cloud, frame_id)
-        self.pointcloud_pub.publish(msg)
+    def _create_marker(
+        self,
+        marker_type: int,
+        pose_mat: np.ndarray,
+        scale,
+        color,
+        marker_id: int,
+        stamp,
+        frame_id: str,
+    ) -> Marker:
+        """创建单个 RViz Marker（与 graspnet_demo_node.py 对齐）。"""
+        # 处理尺寸
+        if np.isscalar(scale):
+            scale = [float(scale), float(scale), float(scale)]
+        else:
+            scale = [float(s) for s in scale]
 
-    def _o3d_to_ros2_pointcloud(self, o3d_cloud: o3d.geometry.PointCloud, frame_id: str) -> PointCloud2:
-        points = np.asarray(o3d_cloud.points, dtype=np.float32)
-        header = Header()
-        header.stamp = self.get_clock().now().to_msg()
-        header.frame_id = frame_id
+        marker = Marker()
+        marker.header.frame_id = frame_id
+        marker.header.stamp = stamp
 
-        fields = [
-            PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
-            PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
-            PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1),
-        ]
-        cloud_data = np.zeros(len(points), dtype=[('x', np.float32), ('y', np.float32), ('z', np.float32)])
-        cloud_data['x'] = points[:, 0]
-        cloud_data['y'] = points[:, 1]
-        cloud_data['z'] = points[:, 2]
+        marker.ns = 'grasp'
+        marker.id = marker_id
+        marker.type = marker_type
+        marker.action = Marker.ADD
 
-        msg = PointCloud2()
-        msg.header = header
-        msg.height = 1
-        msg.width = len(points)
-        msg.fields = fields
-        msg.is_bigendian = False
-        msg.point_step = cloud_data.dtype.itemsize
-        msg.row_step = cloud_data.dtype.itemsize * len(points)
-        msg.is_dense = True
-        msg.data = cloud_data.tobytes()
-        return msg
+        marker.lifetime = Duration(sec=0, nanosec=0)
+
+        marker.pose = self._matrix_to_pose(pose_mat)
+
+        marker.scale.x = scale[0]
+        marker.scale.y = scale[1]
+        marker.scale.z = scale[2]
+
+        marker.color.r = float(color[0])
+        marker.color.g = float(color[1])
+        marker.color.b = float(color[2])
+        marker.color.a = float(color[3])
+
+        return marker
+
+    def _matrix_to_pose(self, pose_mat: np.ndarray) -> Pose:
+        """将 4x4 齐次变换矩阵转换为 geometry_msgs/Pose（与 graspnet_demo_node.py 对齐）。"""
+        pose = Pose()
+
+        quat = Rotation.from_matrix(pose_mat[:3, :3]).as_quat()
+        pose.orientation.x = float(quat[0])
+        pose.orientation.y = float(quat[1])
+        pose.orientation.z = float(quat[2])
+        pose.orientation.w = float(quat[3])
+
+        pose.position.x = float(pose_mat[0, 3])
+        pose.position.y = float(pose_mat[1, 3])
+        pose.position.z = float(pose_mat[2, 3])
+
+        return pose
 
 
+# ========== 节点入口 ==========
 def main(args=None):
     rclpy.init(args=args)
     node = GraspNetDemoPointsNode()

@@ -44,7 +44,7 @@ bool MoveitArclineGripperWorker::gripper2_to_gripper0()
   std::vector<CartesianSegment> segments = { { 'y', y_step }, { 'z', -0.243 }, { 'y', -y_step }, { 'z', -0.012 } };
   CHECK(runArcPathSequence(segments));
   setDigitalOutput(7, true);  //快换松开
-  std::this_thread::sleep_for(std::chrono::duration<double>(0.2));
+  std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
   // std::vector<CartesianSegment> segments1 = { { 'z', 0.012 }, { 'y', y_step }, { 'z', 0.243 } };
   // CHECK(runArcPathSequence(segments1));
   CHECK(runArcPath(0.255));
@@ -55,9 +55,9 @@ bool MoveitArclineGripperWorker::gripper2_to_gripper0()
                    0.1f));
   setDigitalOutput(7, true);  //快换松开
   CHECK(runArcPath(-0.255));
-  std::this_thread::sleep_for(std::chrono::duration<double>(0.2));
+  std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
   setDigitalOutput(7, false);  //快换夹紧
-  std::this_thread::sleep_for(std::chrono::duration<double>(0.2));
+  std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
   CHECK(runArcPath(0.255));
   CHECK(moveToHome());
   return true;
@@ -71,9 +71,9 @@ bool MoveitArclineGripperWorker::gripper0_to_gripper2()
                    0.1f));
   CHECK(runArcPath(-0.255));
   setDigitalOutput(7, true);  //快换松开
-  std::this_thread::sleep_for(std::chrono::duration<double>(0.2));
+  std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
   CHECK(runArcPath(0.255));
-  std::this_thread::sleep_for(std::chrono::duration<double>(0.2));
+  std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
   setDigitalOutput(7, false);  //快换夹紧
 
   // ----- 夹爪 2（graspnet） 快换换上-----
@@ -81,9 +81,9 @@ bool MoveitArclineGripperWorker::gripper0_to_gripper2()
   CHECK(moveToJoints({ 0.860766, -0.265055, 1.501074, 0.195106, 1.571464, 0.859643 }, 0.15f, 0.1f));
   setDigitalOutput(7, true);  //快换松开
   CHECK(runArcPath(-0.255));
-  std::this_thread::sleep_for(std::chrono::duration<double>(0.2));
+  std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
   setDigitalOutput(7, false);  //快换夹紧
-  std::this_thread::sleep_for(std::chrono::duration<double>(0.2));
+  std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
   std::vector<CartesianSegment> segments1 = { { 'z', 0.012 }, { 'y', y_step }, { 'z', 0.243 } };
   CHECK(runArcPathSequence(segments1));
 

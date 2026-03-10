@@ -8,9 +8,13 @@
 #include <cmath>
 #include <future>
 #include <thread>
+#include <vector>
 
 #include <moveit/robot_state/robot_state.h>
 #include <rclcpp/executors/multi_threaded_executor.hpp>
+
+/** 任一步失败则 return false，用于 run() 中链式检查 */
+#define CHECK(expr) do { if (!(expr)) return false; } while (0)
 
 namespace demo_driver
 {
@@ -309,6 +313,79 @@ bool MoveitArclineDemo::runArcPath(char axis, double offset)
 }
 
 // -----------------------------------------------------------------------------
+//  多段单轴笛卡尔路径一次规划、一次执行
+// -----------------------------------------------------------------------------
+
+bool MoveitArclineDemo::runArcPathSequence(const std::vector<CartesianSegment>& segments)
+{
+  // segments: 多段 (axis, offset)，按顺序累加得到 waypoints；空则视为成功且不运动
+  if (segments.empty())
+  {
+    RCLCPP_INFO(get_logger(), "[runArcPathSequence] segments 为空，不运动");
+    return true;
+  }
+
+  RCLCPP_INFO(get_logger(), "多段笛卡尔路径，共 %zu 段", segments.size());
+  for (size_t i = 0; i < segments.size(); ++i)
+  {
+    const char* label = (segments[i].axis == 'x') ? "X" : (segments[i].axis == 'y') ? "Y" : "Z";
+    RCLCPP_INFO(get_logger(), "  段 %zu: %s 轴 %+.3f m", i + 1, label, segments[i].offset);
+  }
+
+  // 首次规划前等待，使 joint_states 与规划场景同步（与 runArcPath 一致）
+  if (kArcPathInitialDelaySec > 0)
+  {
+    RCLCPP_INFO(get_logger(), "等待 %.1f 秒以便当前状态同步...", kArcPathInitialDelaySec);
+    std::this_thread::sleep_for(std::chrono::duration<double>(kArcPathInitialDelaySec));
+  }
+
+  const std::string eef_link = move_group_->getEndEffectorLink();   // 末端连杆名，如 tool_tcp
+  geometry_msgs::msg::PoseStamped current_pose = move_group_->getCurrentPose(eef_link);  // 当前末端位姿
+
+  // 构建 waypoints：起点 + 每段累加后的位姿（每段仅沿 seg.axis 偏移 seg.offset）
+  std::vector<geometry_msgs::msg::Pose> waypoints;
+  waypoints.push_back(current_pose.pose);
+  geometry_msgs::msg::Pose p = current_pose.pose;
+  for (const CartesianSegment& seg : segments)
+  {
+    if (seg.axis == 'x')
+      p.position.x += seg.offset;
+    else if (seg.axis == 'y')
+      p.position.y += seg.offset;
+    else
+      p.position.z += seg.offset;
+    waypoints.push_back(p);
+  }
+
+  moveit_msgs::msg::RobotTrajectory trajectory;  // 规划得到的关节轨迹
+  for (int attempt = 1; attempt <= kArcPathMaxRetries; ++attempt)  // attempt: 当前重试次数
+  {
+    double fraction =  // 规划完成度 [0,1]，1 表示 100% 可达
+      move_group_->computeCartesianPath(waypoints, kCartesianEefStep, kCartesianJumpThreshold, trajectory);
+    RCLCPP_INFO(get_logger(), "多段笛卡尔路径完成度: %.2f%% (尝试 %d/%d)",
+                fraction * 100.0, attempt, kArcPathMaxRetries);
+
+    if (fraction >= 1.0)
+    {
+      moveit::planning_interface::MoveGroupInterface::Plan plan;  // 可执行的运动计划
+      plan.trajectory_ = trajectory;
+      move_group_->execute(plan);  // 只执行一次
+      RCLCPP_INFO(get_logger(), "多段笛卡尔路径执行完成");
+      return true;
+    }
+
+    if (attempt < kArcPathMaxRetries)
+    {
+      RCLCPP_WARN(get_logger(), "规划未达 100%%，%d 秒后重试...", kArcPathRetryDelaySec);
+      std::this_thread::sleep_for(std::chrono::seconds(kArcPathRetryDelaySec));
+    }
+  }
+
+  RCLCPP_ERROR(get_logger(), "多段笛卡尔路径在 %d 次尝试后仍未达 100%%", kArcPathMaxRetries);
+  return false;
+}
+
+// -----------------------------------------------------------------------------
 //  三夹爪快换主流程 run()
 //
 //  每个夹爪流程：到位 -> 沿 Z 下降 -> 延时 -> 沿 Z 上升 ->（最后一个夹爪）回 home(camera_pose)。
@@ -317,35 +394,79 @@ bool MoveitArclineDemo::runArcPath(char axis, double offset)
 
 bool MoveitArclineDemo::run()
 {
-  // ----- 夹爪 0 快换（已注释） -----
-  moveToPose(0.36767 - 0.003, 0.24267 + 0.105, 0.0405 + 0.185 + 0.1, 0.7068, 0.7074, 0.0002, -0.0005, false, 0.1f, 0.1f);
-  runArcPath(-0.255);
-  setDigitalOutput(7, true);
-  std::this_thread::sleep_for(std::chrono::seconds(2));
-  setDigitalOutput(7, false);
-  runArcPath(0.255);
+  // ----- 夹爪 0 快换换下 -----
+  // moveToPose(0.36767 - 0.003, 0.24267 + 0.105, 0.0405 + 0.185 + 0.1, 0.7068, 0.7074, 0.0002, -0.0005, false, 0.15f, 0.1f);
+  // runArcPath(-0.255);
+  // setDigitalOutput(7, true);
+  // std::this_thread::sleep_for(std::chrono::duration<double>(0.1));
+  // runArcPath(0.255);
+  // std::this_thread::sleep_for(std::chrono::seconds(2));
+  // setDigitalOutput(7, false);
+
+    // ----- 夹爪 0 快换换上 -----
+  // moveToPose(0.36767 - 0.003, 0.24267 + 0.105, 0.0405 + 0.185 + 0.1, 0.7068, 0.7074, 0.0002, -0.0005, false, 0.1f, 0.1f);
+  // setDigitalOutput(7, true);
+  // runArcPath(-0.255);
+  // std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
+  // setDigitalOutput(7, false);
+  // std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
+  // runArcPath(0.255);
+  // std::this_thread::sleep_for(std::chrono::seconds(2));
+
 
 //   ----- 夹爪 1 快换（已注释） -----
-  moveToJoints(kHomeJointsRad1, 0.15f, 0.1f);
-  runArcPath(-0.255);
-  std::this_thread::sleep_for(std::chrono::seconds(2));
-  runArcPath(0.255);
-  move_group_->setNamedTarget("camera_pose");
-  move_group_->move();
+  // moveToJoints(kHomeJointsRad1, 0.15f, 0.1f);
+  // runArcPath(-0.255);
+  // std::this_thread::sleep_for(std::chrono::seconds(2));
+  // runArcPath(0.255);
+  // // runArcPathSequence({{'z', -0.255}, {'z', 0.255}});
+  // move_group_->setNamedTarget("camera_pose");
+  // move_group_->move();
 
   // ----- 夹爪 2 快换（当前执行） -----
-  if (!moveToPose(0.36767 - 0.003 + 0.105, 0.24267 + 0.105 + 0.012, 0.0405 + 0.185 + 0.1, 0.7068, 0.7074, 0.0002,
-                  -0.0005, false, 0.1f, 0.1f))
-    return false;
-  if (!runArcPath(-0.245))
-    return false;
-  std::this_thread::sleep_for(std::chrono::seconds(20));
-  if (!runArcPath(0.245))
-    return false;
+  //当前末端 'tool_tcp': pos(0.4690, 0.3594, 0.1204) ori(0.7067, 0.7075, -0.0000, -0.0003)
+  // moveToPose(0.36767 - 0.003 + 0.105, 0.24267 + 0.105 + 0.012, 0.0405 + 0.185 + 0.1, 0.7068, 0.7074, 0.0002,
+  //                 -0.0005, false, 0.15f, 0.1f);
+  moveToJoints({0.860766, -0.265055, 1.501074, 0.195106, 1.571464, 0.859643}, 0.15f, 0.1f);
+  // runArcPath('y',0.1);
+  // std::this_thread::sleep_for(std::chrono::duration<double>(0.1));
+  // runArcPath('z',-0.243);
+  // std::this_thread::sleep_for(std::chrono::duration<double>(0.1));
+  // runArcPath('y',-0.1);
+  // std::this_thread::sleep_for(std::chrono::duration<double>(0.1));
+  // runArcPath('z',-0.10);
+  // std::this_thread::sleep_for(std::chrono::duration<double>(5));
+  const double y_step = 0.1;
+  std::vector<CartesianSegment> segments = {
+    {'y', y_step},
+    {'z', -0.243},
+    {'y', -y_step},
+    {'z', -0.012}
+  };
+  CHECK(runArcPathSequence(segments));
+  setDigitalOutput(7, true);
+  std::this_thread::sleep_for(std::chrono::duration<double>(1));
+  std::vector<CartesianSegment> segments1 = {
+    {'z', 0.012},
+    {'y', y_step},
+    {'z', 0.243}
+  };
+  CHECK(runArcPathSequence(segments1));
+  setDigitalOutput(7, false);
 
-  RCLCPP_INFO(get_logger(), "夹爪 2 快换完成，回到 camera_pose");
-  move_group_->setNamedTarget("camera_pose");
-  move_group_->move();
+      // ----- 夹爪 0 快换换上 -----
+  moveToPose(0.36767 - 0.003, 0.24267 + 0.105, 0.0405 + 0.185 + 0.1, 0.7068, 0.7074, 0.0002, -0.0005, false, 0.1f, 0.1f);
+  setDigitalOutput(7, true);
+  runArcPath(-0.255);
+  std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
+  setDigitalOutput(7, false);
+  std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
+  runArcPath(0.255);
+  std::this_thread::sleep_for(std::chrono::seconds(2));
+
+  // RCLCPP_INFO(get_logger(), "夹爪 2 快换完成，回到 camera_pose");
+  // move_group_->setNamedTarget("camera_pose");
+  // move_group_->move();
 
   return true;
 }

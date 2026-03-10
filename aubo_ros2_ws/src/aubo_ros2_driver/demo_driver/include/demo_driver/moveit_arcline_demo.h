@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <rclcpp/rclcpp.hpp>
 #include <moveit/move_group_interface/move_group_interface.h>
@@ -23,6 +24,13 @@
 
 namespace demo_driver
 {
+
+/** 单段单轴笛卡尔运动：轴 axis ('x'/'y'/'z')，沿该轴位移 offset（m），便于用变量构造多段后传入 runArcPathSequence */
+struct CartesianSegment
+{
+  char axis;     // 轴 'x' / 'y' / 'z'
+  double offset; // 沿该轴位移量（m），正负表示方向
+};
 
 /**
  * @brief 三夹爪快换 Demo 节点
@@ -77,6 +85,13 @@ private:
 
   /** 沿指定轴（'x'/'y'/'z'）做笛卡尔直线移动，offset 为位移量（米），正负表示方向 */
   bool runArcPath(char axis, double offset);
+
+  /**
+   * 多段单轴笛卡尔路径一次规划、一次执行。
+   * 每段为 CartesianSegment(axis, offset)，按顺序累加得到 waypoints 后只调用一次 computeCartesianPath 与一次 execute。
+   * segments 为空则视为成功且不运动；调用方可先用变量构造 segments 再传入。
+   */
+  bool runArcPathSequence(const std::vector<CartesianSegment>& segments);
 
   /**
    * 设置数字输出（调用 /demo_driver/set_io，io_type=digital_output）

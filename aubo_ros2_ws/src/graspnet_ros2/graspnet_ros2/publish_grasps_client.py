@@ -1,36 +1,38 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-GraspNet 发布客户端：手动触发抓取结果发布并控制机械臂运动
+GraspNet 发布客户端：使用抓取结果并控制机械臂运动
 
 功能：
-  - 调用 /publish_grasps 服务发布抓取位姿、MarkerArray 和点云
-  - 从 TF 树中获取所有抓取位姿（grasp_pose_0, grasp_pose_1, ...），挑选尽量垂直的抓取
+  - 订阅 graspnet_demo_points_node 发布的抓取位姿话题（PoseArray，base_link 下），挑选尽量垂直的抓取
   - 通过 MoveIt2 笛卡尔路径（grasp_motion_controller）执行：XY → 姿态旋转 → Z 垂直抓取（一条轨迹一次执行）
 
-与 graspnet_demo_points_node 配合时：该节点最多发布 5 个抓取（max_grasps_num=5），
-TF 父坐标系为 frame_id（默认 camera_frame），子坐标系为 grasp_pose_0..grasp_pose_4。
+与 graspnet_demo_points_node 配合时：该节点循环发布 PoseArray 到 grasp_poses_base（默认），
+本客户端订阅该话题，等待非空位姿列表后选最垂直、做 gripper_tip 补偿并执行运动。抓取位姿全部来自话题，不再从 TF 查询。
 
 使用方法：
   ros2 run graspnet_ros2 publish_grasps_client
 
 前置条件：
-  步骤 3（运动控制）依赖 MoveIt2 move_group。请先在一个终端启动含 move_group 的 launch
-  （如 graspnet_demo_points.launch.py），待出现 "You can start planning now!" 后，
-  在另一终端 source 同一工作空间（aubo_ros2_ws/install/setup.bash）再运行本节点。
+  1. 已启动 graspnet_demo_points_node（含 move_group 的 launch，如 graspnet_demo_points.launch.py）
+  2. 节点已收到点云并开始循环发布抓取 TF
+  3. 本客户端与 move_group 需 source 同一工作空间（aubo_ros2_ws/install/setup.bash）
 """
 
 import rclpy
 from rclpy.node import Node
-from std_srvs.srv import Trigger
-from geometry_msgs.msg import Pose
+from rclpy.executors import MultiThreadedExecutor
+from geometry_msgs.msg import Pose, PoseArray
 from tf2_ros import Buffer, TransformListener
 import sys
 import time
+import threading
+from typing import Optional
+from collections import deque
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
-from graspnet_ros2.grasp_motion_controller import run_grasp_approach
+from graspnet_ros2.grasp_motion_controller import GraspMotionController
 
 
 class PublishGraspsClient(Node):
@@ -40,42 +42,66 @@ class PublishGraspsClient(Node):
         super().__init__('publish_grasps_client')
         
         # 声明参数
-        self.declare_parameter('base_frame', 'base_link')
-        self.declare_parameter('grasp_frame', 'grasp_pose_0')
-        self.declare_parameter('max_grasp_candidates', 5)   # 与 graspnet_demo_points_node 的 max_grasps_num 一致（最多 5 个）
         self.declare_parameter('prefer_vertical', True)
-        self.declare_parameter('velocity_factor', 0.3)
-        self.declare_parameter('acceleration_factor', 0.3)
-        self.declare_parameter('use_joints', True)
-        self.declare_parameter('grasp_z_offset', 0.16)  # gripper_tip_link 相对 wrist3_Link 的 z 偏移补偿（沿末端z轴）
+        self.declare_parameter('grasp_z_offset', 0.15)  # gripper_tip_link 相对 wrist3_Link 的 z 偏移补偿（沿末端z轴）
         self.declare_parameter('height_above', 0.05)  # 抓取点上方安全高度 (m)，用于笛卡尔路径
-        self.declare_parameter('flip_grasp_z_180', True)  # 抓取姿态绕 Z 转 180° 修正（避免末端多转 180°）
+        self.declare_parameter('joint_velocity_scaling', 0.15)  # 关节空间回退速度缩放（0~1）
+        self.declare_parameter('joint_acceleration_scaling', 0.1)  # 关节空间回退加速度缩放（0~1）
         
         # 获取参数
-        self.base_frame = self.get_parameter('base_frame').value
-        self.grasp_frame = self.get_parameter('grasp_frame').value
-        self.max_grasp_candidates = self.get_parameter('max_grasp_candidates').value
         self.prefer_vertical = self.get_parameter('prefer_vertical').value
-        self.velocity_factor = self.get_parameter('velocity_factor').value
-        self.acceleration_factor = self.get_parameter('acceleration_factor').value
-        self.use_joints = self.get_parameter('use_joints').value
         self.grasp_z_offset = self.get_parameter('grasp_z_offset').value
         self.height_above = self.get_parameter('height_above').value
-        self.flip_grasp_z_180 = self.get_parameter('flip_grasp_z_180').value
-        
-        # 创建发布服务客户端
-        self.publish_client = self.create_client(Trigger, 'publish_grasps')
+        self.joint_velocity_scaling = float(self.get_parameter('joint_velocity_scaling').value)
+        self.joint_acceleration_scaling = float(self.get_parameter('joint_acceleration_scaling').value)
 
-        # TF 监听器
+        # 抓取位姿话题（与 graspnet_demo_points_node 的 grasp_poses_topic 一致）
+        self.declare_parameter('grasp_poses_topic', 'grasp_poses_base')
+        self.grasp_poses_topic = self.get_parameter('grasp_poses_topic').value
+
+        # 等待话题非空的最长时间（秒）
+        self.declare_parameter('wait_poses_timeout_sec', 30.0)
+        self.wait_poses_timeout_sec = self.get_parameter('wait_poses_timeout_sec').value
+        # 选择策略：缓存最近 N 组抓取位姿，至少攒够 M 组后再选最优
+        self.declare_parameter('grasp_window_size', 5)
+        self.declare_parameter('min_groups_before_pick', 3)
+        self.grasp_window_size = int(self.get_parameter('grasp_window_size').value)
+        self.min_groups_before_pick = int(self.get_parameter('min_groups_before_pick').value)
+
+        # 订阅抓取位姿话题（base_link 下 PoseArray）
+        self._latest_grasp_poses: Optional[PoseArray] = None
+        self._grasp_groups_window = deque(maxlen=max(1, self.grasp_window_size))
+        self.create_subscription(PoseArray, self.grasp_poses_topic, self._grasp_poses_callback, 10)
+
+        # TF 监听器（仅供 run_grasp_approach 获取当前末端位姿 base_link -> tool_tcp）
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
-        
-        # 等待服务可用
-        self.get_logger().info('等待 /publish_grasps 服务...')
-        while not self.publish_client.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('/publish_grasps 服务不可用，继续等待...')
-        
-        self.get_logger().info('/publish_grasps 服务已连接')
+        self.motion_controller = GraspMotionController(self)
+
+        self.get_logger().info(f'订阅抓取位姿话题: {self.grasp_poses_topic}（由 graspnet_demo_points_node 发布）')
+
+    def _grasp_poses_callback(self, msg: PoseArray):
+        """缓存最新抓取位姿（base_link 下）。"""
+        if len(msg.poses) == 0:
+            return
+        self._latest_grasp_poses = msg
+        self._grasp_groups_window.append(msg)
+
+    def wait_for_grasp_window_ready(self) -> bool:
+        """等待缓存窗口达到最少组数。"""
+        deadline = time.time() + self.wait_poses_timeout_sec
+        while time.time() < deadline:
+            if len(self._grasp_groups_window) >= self.min_groups_before_pick:
+                self.get_logger().info(
+                    f'抓取窗口已就绪: {len(self._grasp_groups_window)}/{self.grasp_window_size} 组'
+                )
+                return True
+            time.sleep(0.1)
+        self.get_logger().error(
+            f'等待抓取窗口超时 ({self.wait_poses_timeout_sec} s), '
+            f'当前仅 {len(self._grasp_groups_window)} 组'
+        )
+        return False
 
     def build_grasp_to_end_effector_transform(self):
         """
@@ -126,99 +152,13 @@ class PublishGraspsClient(Node):
         transformed_pose.position.y = float(T_base_target[1, 3])
         transformed_pose.position.z = float(T_base_target[2, 3])
 
-        quat_target = R.from_matrix(T_base_target[:3, :3]).as_quat()
+        quat_target = R.from_matrix(T_base_target[:3, :3]).as_quat(canonical=False)
         transformed_pose.orientation.x = float(quat_target[0])
         transformed_pose.orientation.y = float(quat_target[1])
         transformed_pose.orientation.z = float(quat_target[2])
         transformed_pose.orientation.w = float(quat_target[3])
 
         return transformed_pose
-    
-    def call_publish_service(self):
-        """调用发布服务"""
-        request = Trigger.Request()
-        
-        self.get_logger().info('发送发布请求...')
-        future = self.publish_client.call_async(request)
-        
-        rclpy.spin_until_future_complete(self, future)
-        
-        try:
-            response = future.result()
-            if response.success:
-                self.get_logger().info(f'✓ 发布成功: {response.message}')
-                return True
-            else:
-                self.get_logger().error(f'✗ 发布失败: {response.message}')
-                return False
-        except Exception as e:
-            self.get_logger().error(f'发布服务调用异常: {str(e)}')
-            return False
-    
-    def get_grasp_pose(self, grasp_frame=None):
-        """从 TF 树中获取指定抓取帧的位姿。grasp_frame 为 None 时使用 self.grasp_frame。"""
-        frame = grasp_frame if grasp_frame is not None else self.grasp_frame
-        self.get_logger().info(f'等待 TF 变换: {self.base_frame} -> {frame}...')
-        
-        # 等待 TF 变换可用（最多等待 5 秒）
-        max_attempts = 50
-        for attempt in range(max_attempts):
-            try:
-                # 尝试获取变换
-                transform = self.tf_buffer.lookup_transform(
-                    self.base_frame,
-                    frame,
-                    rclpy.time.Time(),
-                    timeout=rclpy.duration.Duration(seconds=0.1)
-                )
-                
-                # 转换为 Pose 消息
-                pose = Pose()
-                pose.position.x = transform.transform.translation.x
-                pose.position.y = transform.transform.translation.y
-                pose.position.z = transform.transform.translation.z
-                pose.orientation = transform.transform.rotation
-                
-                self.get_logger().info(f'✓ 获取到抓取位姿 ({frame}):')
-                self.get_logger().info(f'  位置 (position): x={pose.position.x:.3f}, y={pose.position.y:.3f}, z={pose.position.z:.3f}')
-                self.get_logger().info(f'  姿态 (orientation): x={pose.orientation.x:.3f}, y={pose.orientation.y:.3f}, z={pose.orientation.z:.3f}, w={pose.orientation.w:.3f}')
-                return pose
-                
-            except Exception as e:
-                if attempt < max_attempts - 1:
-                    time.sleep(0.1)
-                else:
-                    self.get_logger().error(f'✗ 无法获取 TF 变换 {self.base_frame} -> {frame}: {str(e)}')
-                    return None
-        
-        return None
-
-    def get_all_grasp_poses(self):
-        """
-        从 TF 树中获取所有可用的抓取位姿 (grasp_pose_0, grasp_pose_1, ...)。
-        与 graspnet_demo_points_node 一致：该节点最多发布 max_grasps_num=5 个抓取。
-        Returns:
-            list of (frame_id: str, pose: Pose)，按帧序号排序。
-        """
-        results = []
-        for i in range(self.max_grasp_candidates):
-            frame_id = f'grasp_pose_{i}'
-            try:
-                transform = self.tf_buffer.lookup_transform(
-                    self.base_frame,
-                    frame_id,
-                    rclpy.time.Time(),
-                    timeout=rclpy.duration.Duration(seconds=0.05)
-                )
-                pose = Pose()
-                pose.position.x = transform.transform.translation.x
-                pose.position.y = transform.transform.translation.y
-                pose.position.z = transform.transform.translation.z
-                pose.orientation = transform.transform.rotation
-                results.append((frame_id, pose))
-            except Exception:
-                break
-        return results
 
     def _verticality_score(self, pose):
         """
@@ -252,50 +192,60 @@ class PublishGraspsClient(Node):
         self.get_logger().info(f'从 {len(frame_pose_list)} 个抓取中挑选最垂直: {best[0]}, 垂直度得分={score:.3f}')
         return best
 
+    def select_best_from_window(self):
+        """
+        从最近 N 组抓取位姿中挑选垂直度最高的抓取。
+        Returns:
+            (tag: str, pose: Pose) 或 None
+        """
+        best = None
+        best_score = -1.0
+        for group_idx, group in enumerate(self._grasp_groups_window):
+            for pose_idx, pose in enumerate(group.poses):
+                score = self._verticality_score(pose)
+                if score > best_score:
+                    best_score = score
+                    best = (f'group{group_idx}_grasp{pose_idx}', pose)
+        if best is not None:
+            self.get_logger().info(
+                f'从最近 {len(self._grasp_groups_window)} 组中挑选最垂直: {best[0]}, 垂直度得分={best_score:.3f}'
+            )
+        return best
+
     def run_grasp_motion(self, target_pose: Pose) -> bool:
         """通过 MoveIt2 笛卡尔路径执行抓取接近（XY → 姿态旋转 → Z），一条轨迹一次执行。"""
-        return run_grasp_approach(
-            self,
+        return self.motion_controller.run_grasp_approach(
             target_pose,
             height_above=self.height_above,
-            velocity_scaling=self.velocity_factor,
-            tf_buffer=self.tf_buffer,
-            base_frame=self.base_frame,
-            flip_grasp_z_180=self.flip_grasp_z_180,
+            velocity_scaling=self.joint_velocity_scaling,
+            acceleration_scaling=self.joint_acceleration_scaling,
         )
     
     def run(self):
-        """执行完整流程：发布抓取 -> 保存数据 -> 获取位姿 -> 控制运动"""
-        # 步骤 1: 调用发布服务（保存抓取数据到 CSV）
+        """执行完整流程：等待抓取窗口 → 选最垂直 → 控制运动"""
+        # 步骤 1: 等待抓取窗口就绪（最近多组）
         self.get_logger().info('=' * 60)
-        self.get_logger().info('步骤 1: 调用发布服务')
+        self.get_logger().info('步骤 1: 等待抓取位姿窗口')
         self.get_logger().info('=' * 60)
-        if not self.call_publish_service():
+        if not self.wait_for_grasp_window_ready():
             return False
-        
-        # 等待一段时间让 TF 发布
-        time.sleep(0.5)
-        
-        # 步骤 2: 从 TF 获取抓取位姿（获取所有后挑选尽量垂直的）
+
+        # 步骤 2: 从窗口中挑选尽量垂直的抓取
         self.get_logger().info('=' * 60)
-        self.get_logger().info('步骤 2: 从 TF 获取抓取位姿（获取所有，挑选尽量垂直）')
+        self.get_logger().info('步骤 2: 从抓取窗口中挑选尽量垂直')
         self.get_logger().info('=' * 60)
         if self.prefer_vertical:
-            all_grasps = self.get_all_grasp_poses()
-            if not all_grasps:
-                self.get_logger().error('未找到任何抓取 TF (grasp_pose_0, grasp_pose_1, ...)')
-                return False
-            self.get_logger().info(f'共获取 {len(all_grasps)} 个抓取位姿: {[f for f, _ in all_grasps]}')
-            selected = self.select_most_vertical_grasp(all_grasps)
+            selected = self.select_best_from_window()
             if selected is None:
                 return False
             grasp_frame_id, grasp_pose = selected
             self.get_logger().info(f'选用抓取: {grasp_frame_id}')
         else:
-            grasp_pose = self.get_grasp_pose()
-            if grasp_pose is None:
+            if self._latest_grasp_poses is None or len(self._latest_grasp_poses.poses) == 0:
+                self.get_logger().error('最新抓取位姿为空')
                 return False
-            grasp_frame_id = self.grasp_frame
+            grasp_frame_id, grasp_pose = ('latest_grasp_0', self._latest_grasp_poses.poses[0])
+            self.get_logger().info(f'选用抓取: {grasp_frame_id}（第一个）')
         
         # 步骤 2.1: 构建变换矩阵（沿末端 z 轴平移，含 gripper_tip 补偿）
         self.get_logger().info('=' * 60)
@@ -336,8 +286,13 @@ def main(args=None):
     
     try:
         client = PublishGraspsClient()
+        executor = MultiThreadedExecutor(num_threads=2)
+        executor.add_node(client)
+        spin_thread = threading.Thread(target=executor.spin, daemon=True)
+        spin_thread.start()
         success = client.run()
-        
+        executor.shutdown()
+        spin_thread.join(timeout=1.0)
         client.destroy_node()
         rclpy.shutdown()
         

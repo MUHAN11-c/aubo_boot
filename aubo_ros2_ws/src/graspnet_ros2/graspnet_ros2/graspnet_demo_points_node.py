@@ -30,10 +30,9 @@ from rclpy.node import Node
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs_py import point_cloud2 as pc2
 from visualization_msgs.msg import Marker, MarkerArray
-from geometry_msgs.msg import Pose, TransformStamped
+from geometry_msgs.msg import Pose, PoseArray, TransformStamped
 from builtin_interfaces.msg import Duration
-from std_srvs.srv import Trigger
-from tf2_ros import StaticTransformBroadcaster
+from tf2_ros import TransformBroadcaster, Buffer, TransformListener
 
 
 # ========== graspnet-baseline 路径与依赖（须先设置 sys.path 再导入） ==========
@@ -98,9 +97,9 @@ def _vis_grasps_open3d_process(gg: GraspGroup, cloud: o3d.geometry.PointCloud):
 # ========== GraspNet 点云版节点 ==========
 class GraspNetDemoPointsNode(Node):
     """
-    订阅点云 → GraspNet 推理 → 发布 MarkerArray/TF
+    订阅点云 → 定时循环 GraspNet 推理 → 发布 MarkerArray/TF
 
-    类内方法顺序：初始化 → 输入(订阅) → 模型加载 → 服务入口 → 数据处理 → 推理与流水线 → 发布与辅助
+    类内方法顺序：初始化 → 输入(订阅) → 模型加载 → 定时器(循环推理与发布) → 数据处理 → 推理与流水线 → 发布与辅助
     """
 
     def __init__(self):
@@ -125,6 +124,13 @@ class GraspNetDemoPointsNode(Node):
         self.declare_parameter('marker_topic', 'grasp_markers')
         self.declare_parameter('frame_id', 'camera_frame')  # 若输入点云 header.frame_id 为空则用它
 
+        # 循环执行：推理与发布的间隔（秒），无需服务触发
+        self.declare_parameter('compute_interval_sec', 1.0)
+
+        # 抓取位姿话题：发布 base_frame 下的 PoseArray 供客户端使用
+        self.declare_parameter('base_frame', 'base_link')
+        self.declare_parameter('grasp_poses_topic', 'grasp_poses_base')
+
         # 可视化
         self.declare_parameter('use_open3d', False)
 
@@ -133,6 +139,9 @@ class GraspNetDemoPointsNode(Node):
         self.input_pointcloud_topic = self.get_parameter('input_pointcloud_topic').get_parameter_value().string_value
         self.marker_topic = self.get_parameter('marker_topic').get_parameter_value().string_value
         self.default_frame_id = self.get_parameter('frame_id').get_parameter_value().string_value
+        self.compute_interval_sec = self.get_parameter('compute_interval_sec').get_parameter_value().double_value
+        self.base_frame = self.get_parameter('base_frame').get_parameter_value().string_value
+        self.grasp_poses_topic = self.get_parameter('grasp_poses_topic').get_parameter_value().string_value
         self.use_open3d = bool(self.get_parameter('use_open3d').get_parameter_value().bool_value)
 
         # ========== 设备/模型 ==========
@@ -142,9 +151,12 @@ class GraspNetDemoPointsNode(Node):
 
         # ========== ROS 通信 ==========
         self.marker_pub = self.create_publisher(MarkerArray, self.marker_topic, 10)
-        self.static_tf_broadcaster = StaticTransformBroadcaster(self)
+        self.grasp_poses_pub = self.create_publisher(PoseArray, self.grasp_poses_topic, 10)
+        self.tf_broadcaster = TransformBroadcaster(self)
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
         self.create_subscription(PointCloud2, self.input_pointcloud_topic, self._pc_callback, 10)
-        self.publish_srv = self.create_service(Trigger, 'publish_grasps', self.publish_service_callback)
+        self.create_timer(self.compute_interval_sec, self._timer_callback)
 
         # ========== 状态缓存（服务回调与发布使用） ==========
         self._latest_pc_msg: Optional[PointCloud2] = None
@@ -157,11 +169,12 @@ class GraspNetDemoPointsNode(Node):
 
     # ========== 初始化辅助 ==========
     def _log_startup(self):
-        """打印节点启动信息（话题、服务）。"""
+        """打印节点启动信息（话题、定时器）。"""
         self.get_logger().info('GraspNet 点云版节点已启动')
         self.get_logger().info(f'订阅输入点云: {self.input_pointcloud_topic}')
         self.get_logger().info(f'发布 MarkerArray: {self.marker_topic}')
-        self.get_logger().info('调用 /publish_grasps 服务触发推理与发布')
+        self.get_logger().info(f'循环执行推理与发布，间隔 {self.compute_interval_sec} s（无需服务触发）')
+        self.get_logger().info(f'发布 base_link 下抓取位姿: {self.grasp_poses_topic}')
 
     # ========== 输入：点云订阅 ==========
     def _pc_callback(self, msg: PointCloud2):
@@ -190,26 +203,19 @@ class GraspNetDemoPointsNode(Node):
         self.get_logger().info('模型加载完成')
         return net
 
-    # ========== 服务入口：触发推理与发布 ==========
-    def publish_service_callback(self, request, response):
+    # ========== 定时器：循环推理与发布 ==========
+    def _timer_callback(self):
+        """定时执行：用最新点云推理并发布 MarkerArray/TF。"""
         if self._latest_pc_msg is None:
-            response.success = False
-            response.message = f'尚未收到输入点云: {self.input_pointcloud_topic}'
-            return response
+            return
         try:
             self._compute_grasps(self._latest_pc_msg)
-            self.publish_marker_array(self.processed_gg)  # type: ignore[arg-type]
-            response.success = True
-            response.message = f'已发布 {len(self.processed_gg)} 个抓取'  # type: ignore[arg-type]
-            return response
+            if self.processed_gg is not None:
+                self.publish_marker_array(self.processed_gg)
         except Exception as e:
-            response.success = False
-            response.message = str(e)
-            self.get_logger().error(f'服务触发预测失败: {str(e)}')
+            self.get_logger().error(f'循环推理/发布失败: {str(e)}')
             import traceback
-
             self.get_logger().error(traceback.format_exc())
-            return response
 
     # ========== 数据处理：PointCloud2 -> end_points ==========
     def _pc2_to_xyz(self, msg: PointCloud2) -> np.ndarray:
@@ -333,9 +339,67 @@ class GraspNetDemoPointsNode(Node):
         self.marker_pub.publish(marker_array)
         self.get_logger().info(f'已发布 MarkerArray: {len(gg)} 个抓取')
 
+        # 发布 base_frame 下抓取位姿到话题，供 publish_grasps_client 直接使用（避免客户端查 TF）
+        try:
+            T_base_camera_msg = self.tf_buffer.lookup_transform(
+                self.base_frame,
+                self.processed_frame_id,
+                rclpy.time.Time(),
+                rclpy.duration.Duration(seconds=0.5),
+            )
+            q = T_base_camera_msg.transform.rotation
+            R_base_cam = Rotation.from_quat([q.x, q.y, q.z, q.w]).as_matrix()
+            p_base_cam = np.array(
+                [
+                    T_base_camera_msg.transform.translation.x,
+                    T_base_camera_msg.transform.translation.y,
+                    T_base_camera_msg.transform.translation.z,
+                ],
+                dtype=np.float64,
+            )
+            T_base_camera = np.eye(4)
+            T_base_camera[:3, :3] = R_base_cam
+            T_base_camera[:3, 3] = p_base_cam
+
+            pose_array = PoseArray()
+            pose_array.header.frame_id = self.base_frame
+            pose_array.header.stamp = stamp
+            for i in range(len(gg)):
+                grasp = gg[i]
+                R_graspnet = grasp.rotation_matrix
+                R_ros = np.column_stack(
+                    [
+                        R_graspnet[:, 1],
+                        R_graspnet[:, 2],
+                        R_graspnet[:, 0],
+                    ]
+                )
+                T_camera_grasp = np.eye(4)
+                T_camera_grasp[:3, :3] = R_ros
+                T_camera_grasp[:3, 3] = grasp.translation.astype(np.float64)
+                T_base_grasp = T_base_camera @ T_camera_grasp
+                quat = Rotation.from_matrix(T_base_grasp[:3, :3]).as_quat(canonical=False)
+                pose = Pose()
+                pose.position.x = float(T_base_grasp[0, 3])
+                pose.position.y = float(T_base_grasp[1, 3])
+                pose.position.z = float(T_base_grasp[2, 3])
+                pose.orientation.x = float(quat[0])
+                pose.orientation.y = float(quat[1])
+                pose.orientation.z = float(quat[2])
+                pose.orientation.w = float(quat[3])
+                pose_array.poses.append(pose)
+            self.grasp_poses_pub.publish(pose_array)
+            self.get_logger().info(f'已发布 {len(pose_array.poses)} 个抓取位姿到 {self.grasp_poses_topic}（frame_id={self.base_frame}）')
+        except Exception as e:
+            self.get_logger().warn(f'查询 {self.base_frame} -> {self.processed_frame_id} 失败，未发布 PoseArray: {e}')
+            pose_array = PoseArray()
+            pose_array.header.frame_id = self.base_frame
+            pose_array.header.stamp = stamp
+            self.grasp_poses_pub.publish(pose_array)
+
     # ---------- TF 与 Marker 辅助 ----------
     def _publish_grasp_tf(self, grasp, idx: int, stamp, frame_id: str):
-        """发布 GraspNet 抓取位姿对应的 TF（静态 TF，避免客户端 lookup 时时间外推）。"""
+        """发布 GraspNet 抓取位姿对应的动态 TF（camera_frame -> grasp_pose_i）。"""
         t = TransformStamped()
         t.header.stamp = self.get_clock().now().to_msg()
         t.header.frame_id = frame_id
@@ -370,7 +434,7 @@ class GraspNetDemoPointsNode(Node):
         t.transform.rotation.y = float(quat[1])
         t.transform.rotation.z = float(quat[2])
         t.transform.rotation.w = float(quat[3])
-        self.static_tf_broadcaster.sendTransform(t)
+        self.tf_broadcaster.sendTransform(t)
 
     def _create_grasp_markers(self, grasp, rgba, id_start: int, stamp, frame_id: str):
         """
@@ -518,7 +582,7 @@ class GraspNetDemoPointsNode(Node):
         """将 4x4 齐次变换矩阵转换为 geometry_msgs/Pose（与 graspnet_demo_node.py 对齐）。"""
         pose = Pose()
 
-        quat = Rotation.from_matrix(pose_mat[:3, :3]).as_quat()
+        quat = Rotation.from_matrix(pose_mat[:3, :3]).as_quat(canonical=False)
         pose.orientation.x = float(quat[0])
         pose.orientation.y = float(quat[1])
         pose.orientation.z = float(quat[2])

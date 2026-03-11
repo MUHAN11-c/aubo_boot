@@ -146,3 +146,136 @@ graspnet_ros2/
 ## 许可证
 
 MIT License
+
+## 近期改动记录（2026-03）
+
+本节记录本仓当前抓取链路的关键变更，便于现场排障与参数调优。
+
+### 1) `graspnet_demo_points_node.py`：由“服务触发”改为“定时循环”
+
+- 旧流程：通过 `/publish_grasps`（Trigger）手动触发一次推理与发布。
+- 新流程：使用定时器循环执行 `点云输入 -> 推理 -> 碰撞检测 -> NMS -> 发布`，无需服务调用。
+- 新增参数：
+  - `compute_interval_sec`：循环间隔（秒），默认 `1.0`
+  - `base_frame`：抓取位姿转换目标坐标系，默认 `base_link`
+  - `grasp_poses_topic`：发布抓取位姿话题，默认 `grasp_poses_base`
+
+### 2) TF 发布改为动态 TF
+
+- 旧方式：静态 TF 广播器。
+- 新方式：动态 TF 广播器 `TransformBroadcaster`，循环发布：
+  - `camera_frame -> grasp_pose_i`
+- 作用：每轮推理结果都会更新时间戳，TF 与当前点云更一致。
+
+### 3) 新增抓取位姿话题（客户端不再从 TF 查抓取）
+
+为降低动态 TF 查询偶发失败带来的抖动，`graspnet_demo_points_node.py` 在发布 Marker/TF 后，额外发布：
+
+- 话题：`grasp_poses_base`
+- 消息类型：`geometry_msgs/PoseArray`
+- 约定：
+  - `header.frame_id = base_link`（可由 `base_frame` 参数修改）
+  - `poses[]` 为各抓取位姿（与 `grasp_pose_i` 等价的 base 系表达）
+
+节点内部做法：
+- 先查 `base_frame -> camera_frame`（最新可用变换）
+- 再将每个 grasp 的相机系位姿变换到 `base_frame`
+- 最终发布 `PoseArray`
+
+### 4) `publish_grasps_client.py`：抓取位姿全部来自话题
+
+- 旧流程：客户端等待并查询 TF（`base_link -> grasp_pose_i`）。
+- 新流程：客户端订阅 `PoseArray`，不再查询抓取 TF。
+- 保留 TF 的唯一用途：`run_grasp_approach(...)` 内部获取当前末端位姿（如 `base_link -> tool_tcp`）。
+
+新增参数：
+- `grasp_poses_topic`：抓取位姿输入话题，默认 `grasp_poses_base`
+- `wait_poses_timeout_sec`：等待位姿话题超时，默认 `30.0`
+
+### 5) 客户端新增“最近多组窗口选优”
+
+问题背景：点云实时变化，最新一组抓取可能不是最优。
+
+新增策略：缓存最近 N 组抓取位姿，在窗口内全量评分，选择垂直度最高的抓取再执行运动。
+
+新增参数：
+- `grasp_window_size`：窗口组数，默认 `5`
+- `min_groups_before_pick`：至少累计多少组后再选择，默认 `3`
+
+实现要点：
+- 回调中把非空 `PoseArray` 追加到 `deque(maxlen=grasp_window_size)`
+- `run()` 中先等待窗口满足 `min_groups_before_pick`
+- 在最近窗口内按 `_verticality_score` 选择最优抓取
+
+### 6) `grasp_motion_controller.py`：极简运动接口（对标 C++）
+
+运动控制模块已重构为三个公开函数，调用方只需传最少业务输入：
+
+1. `move_to_pose(node, pose)`  
+   - 关节空间到位姿（等价 C++ `moveToPose`）。
+2. `run_arc_path_sequence(node, segments)`  
+   - 多段笛卡尔路径一次规划一次执行（等价 C++ `runArcPathSequence`）。
+3. `run_grasp_approach(node, pose_ee, height_above=0.05)`  
+   - 抓取业务封装：`XY -> 姿态 -> Z`。
+
+其余配置（group/base_frame/ee_link/容差/速度/阈值/重试）全部收敛到模块默认常量，不再作为函数参数对外暴露。
+
+### 7) MoveIt2 action/service 流程与参数含义
+
+当前实现统一采用 action/service 调用链：
+- 关节空间：`MoveGroup` action（`/move_action`）
+- 笛卡尔路径：`GetCartesianPath` service（`/compute_cartesian_path`）+ `ExecuteTrajectory` action（`/execute_trajectory`）
+
+#### 7.1 关节空间到位姿（`move_to_pose`）
+
+- 当前调用链（action）：
+  1. 构造 `MotionPlanRequest`（`start_state`、`group_name`、`goal_constraints` 等）
+  2. 构造 `PlanningOptions`（`plan_only=False`）
+  3. 发送 `MoveGroup.Goal` 到 `/move_action`
+  4. 等待结果并按 `error_code` 判断成功/失败
+
+- 关键参数说明（`MotionPlanRequest`）：
+  - `start_state`：规划起点；当前传空 `RobotState()`，由 `move_group` 使用其当前状态
+  - `group_name`：规划组（默认 `manipulator`）
+  - `goal_constraints`：位姿约束（位置球体 + 姿态容差）
+  - `num_planning_attempts`：规划尝试次数
+  - `allowed_planning_time`：规划时间预算（秒）
+  - `max_velocity_scaling_factor` / `max_acceleration_scaling_factor`：速度/加速度缩放
+
+#### 7.2 笛卡尔路径（`run_arc_path_sequence` / `run_grasp_approach`）
+
+- 当前调用链（服务 + action）：
+  1. `GetCartesianPath` 服务：`/compute_cartesian_path`
+  2. `ExecuteTrajectory` action：`/execute_trajectory`
+
+- 关键参数说明（`GetCartesianPath.Request`）：
+  - `header.frame_id`：waypoints 所在参考系（当前默认 `base_link`）
+  - `start_state`：起始机器人状态（当前使用空 `RobotState()`，由 MoveIt 当前状态解析）
+  - `group_name`：规划组（默认 `manipulator`）
+  - `link_name`：笛卡尔插值末端 link（默认 `tool_tcp`）
+  - `waypoints`：笛卡尔路径关键点序列
+  - `max_step`：笛卡尔插值步长（米），越小点越密
+  - `jump_threshold` / `prismatic_jump_threshold` / `revolute_jump_threshold`：关节跳变约束
+  - `avoid_collisions`：是否开启碰撞检测
+
+- 关键参数说明（`ExecuteTrajectory.Goal`）：
+  - `trajectory`：待执行的 `RobotTrajectory`
+
+### 8) 回退策略与姿态一致性
+
+- 为提升执行稳定性，笛卡尔路径在以下情况自动回退 `move_to_pose`：
+  1. `fraction < 1.0`
+  2. 轨迹点数过多（`CARTESIAN_MAX_POINTS_FOR_EXECUTION = 60`）
+- 抓取流程默认启用 `DEFAULT_FLIP_GRASP_Z_180`，回退到关节空间时会做对应姿态处理，避免末端多转 180°。
+
+### 9) 建议启动顺序
+
+1. 启动 `graspnet_demo_points.launch.py`（含相机、GraspNet 节点、move_group）
+2. 等待 `grasp_poses_base` 开始稳定发布
+3. 启动：
+   - `ros2 run graspnet_ros2 publish_grasps_client`
+4. 按现场效果调整：
+   - `compute_interval_sec`
+   - `grasp_window_size`
+   - `min_groups_before_pick`
+   - `height_above` / `grasp_z_offset`

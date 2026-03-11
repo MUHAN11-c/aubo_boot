@@ -6,31 +6,25 @@ GraspNet 发布客户端：手动触发抓取结果发布并控制机械臂运�
 功能：
   - 调用 /publish_grasps 服务发布抓取位姿、MarkerArray 和点云
   - 从 TF 树中获取所有抓取位姿（grasp_pose_0, grasp_pose_1, ...），挑选尽量垂直的抓取
-  - 通过 MoveIt2 笛卡尔路径（grasp_motion_controller）执行：XY → 姿态旋转 → Z 垂直抓取（一条轨迹一次执行）
+  - 调用 /move_to_pose 服务控制机械臂运动到该抓取位姿
 
 与 graspnet_demo_points_node 配合时：该节点最多发布 5 个抓取（max_grasps_num=5），
 TF 父坐标系为 frame_id（默认 camera_frame），子坐标系为 grasp_pose_0..grasp_pose_4。
 
 使用方法：
   ros2 run graspnet_ros2 publish_grasps_client
-
-前置条件：
-  步骤 3（运动控制）依赖 MoveIt2 move_group。请先在一个终端启动含 move_group 的 launch
-  （如 graspnet_demo_points.launch.py），待出现 "You can start planning now!" 后，
-  在另一终端 source 同一工作空间（aubo_ros2_ws/install/setup.bash）再运行本节点。
 """
 
 import rclpy
 from rclpy.node import Node
 from std_srvs.srv import Trigger
+from demo_interface.srv import MoveToPose
 from geometry_msgs.msg import Pose
 from tf2_ros import Buffer, TransformListener
 import sys
 import time
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-
-from graspnet_ros2.grasp_motion_controller import run_grasp_approach
 
 
 class PublishGraspsClient(Node):
@@ -47,9 +41,7 @@ class PublishGraspsClient(Node):
         self.declare_parameter('velocity_factor', 0.3)
         self.declare_parameter('acceleration_factor', 0.3)
         self.declare_parameter('use_joints', True)
-        self.declare_parameter('grasp_z_offset', 0.16)  # gripper_tip_link 相对 wrist3_Link 的 z 偏移补偿（沿末端z轴）
-        self.declare_parameter('height_above', 0.05)  # 抓取点上方安全高度 (m)，用于笛卡尔路径
-        self.declare_parameter('flip_grasp_z_180', True)  # 抓取姿态绕 Z 转 180° 修正（避免末端多转 180°）
+        self.declare_parameter('grasp_z_offset', 0.185+0.02)  # gripper_tip_link 相对 wrist3_Link 的 z 偏移补偿（沿末端z轴）
         
         # 获取参数
         self.base_frame = self.get_parameter('base_frame').value
@@ -60,13 +52,14 @@ class PublishGraspsClient(Node):
         self.acceleration_factor = self.get_parameter('acceleration_factor').value
         self.use_joints = self.get_parameter('use_joints').value
         self.grasp_z_offset = self.get_parameter('grasp_z_offset').value
-        self.height_above = self.get_parameter('height_above').value
-        self.flip_grasp_z_180 = self.get_parameter('flip_grasp_z_180').value
         
         # 创建发布服务客户端
         self.publish_client = self.create_client(Trigger, 'publish_grasps')
-
-        # TF 监听器
+        
+        # 创建运动控制服务客户端
+        self.move_client = self.create_client(MoveToPose, '/move_to_pose')
+        
+        # 创建 TF 监听器
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
         
@@ -76,7 +69,13 @@ class PublishGraspsClient(Node):
             self.get_logger().info('/publish_grasps 服务不可用，继续等待...')
         
         self.get_logger().info('/publish_grasps 服务已连接')
-
+        
+        self.get_logger().info('等待 /move_to_pose 服务...')
+        while not self.move_client.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('/move_to_pose 服务不可用，继续等待...')
+        
+        self.get_logger().info('/move_to_pose 服务已连接')
+    
     def build_grasp_to_end_effector_transform(self):
         """
         构建从 gripper_tip（抓取位姿）到 end_effector（wrist3/tool_tcp）的局部变换矩阵。
@@ -251,18 +250,37 @@ class PublishGraspsClient(Node):
         score = self._verticality_score(best[1])
         self.get_logger().info(f'从 {len(frame_pose_list)} 个抓取中挑选最垂直: {best[0]}, 垂直度得分={score:.3f}')
         return best
-
-    def run_grasp_motion(self, target_pose: Pose) -> bool:
-        """通过 MoveIt2 笛卡尔路径执行抓取接近（XY → 姿态旋转 → Z），一条轨迹一次执行。"""
-        return run_grasp_approach(
-            self,
-            target_pose,
-            height_above=self.height_above,
-            velocity_scaling=self.velocity_factor,
-            tf_buffer=self.tf_buffer,
-            base_frame=self.base_frame,
-            flip_grasp_z_180=self.flip_grasp_z_180,
-        )
+    
+    def call_move_service(self, target_pose):
+        """调用运动控制服务"""
+        request = MoveToPose.Request()
+        request.target_pose = target_pose
+        request.use_joints = self.use_joints
+        request.velocity_factor = self.velocity_factor
+        request.acceleration_factor = self.acceleration_factor
+        
+        self.get_logger().info(f'发送运动控制请求...')
+        self.get_logger().info(f'  目标位姿:')
+        self.get_logger().info(f'    位置: x={target_pose.position.x:.3f}, y={target_pose.position.y:.3f}, z={target_pose.position.z:.3f}')
+        self.get_logger().info(f'    姿态: x={target_pose.orientation.x:.3f}, y={target_pose.orientation.y:.3f}, z={target_pose.orientation.z:.3f}, w={target_pose.orientation.w:.3f}')
+        self.get_logger().info(f'  速度因子: {self.velocity_factor}, 加速度因子: {self.acceleration_factor}')
+        self.get_logger().info(f'  使用关节空间规划: {self.use_joints}')
+        
+        future = self.move_client.call_async(request)
+        
+        rclpy.spin_until_future_complete(self, future)
+        
+        try:
+            response = future.result()
+            if response.success:
+                self.get_logger().info(f'✓ 运动控制成功: {response.message}')
+                return True
+            else:
+                self.get_logger().error(f'✗ 运动控制失败 (错误码 {response.error_code}): {response.message}')
+                return False
+        except Exception as e:
+            self.get_logger().error(f'运动控制服务调用异常: {str(e)}')
+            return False
     
     def run(self):
         """执行完整流程：发布抓取 -> 保存数据 -> 获取位姿 -> 控制运动"""
@@ -317,11 +335,11 @@ class PublishGraspsClient(Node):
         self.get_logger().info(f'  位置: x={transformed_pose.position.x:.3f}, y={transformed_pose.position.y:.3f}, z={transformed_pose.position.z:.3f}')
         self.get_logger().info(f'  姿态: x={transformed_pose.orientation.x:.3f}, y={transformed_pose.orientation.y:.3f}, z={transformed_pose.orientation.z:.3f}, w={transformed_pose.orientation.w:.3f}')
         
-        # 步骤 3: 通过 MoveIt2 笛卡尔路径执行抓取接近
+        # 步骤 3: 调用运动控制服务
         self.get_logger().info('=' * 60)
-        self.get_logger().info('步骤 3: 控制机械臂运动 (MoveIt2 笛卡尔路径)')
+        self.get_logger().info('步骤 3: 控制机械臂运动')
         self.get_logger().info('=' * 60)
-        if not self.run_grasp_motion(transformed_pose):
+        if not self.call_move_service(transformed_pose):
             return False
 
         self.get_logger().info('=' * 60)

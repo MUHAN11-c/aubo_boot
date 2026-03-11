@@ -31,9 +31,9 @@ from sensor_msgs.msg import PointCloud2
 from sensor_msgs_py import point_cloud2 as pc2
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Pose, TransformStamped
-from builtin_interfaces.msg import Duration, Time
+from builtin_interfaces.msg import Duration
 from std_srvs.srv import Trigger
-from tf2_ros import TransformBroadcaster
+from tf2_ros import StaticTransformBroadcaster
 
 
 # ========== graspnet-baseline 路径与依赖（须先设置 sys.path 再导入） ==========
@@ -142,7 +142,7 @@ class GraspNetDemoPointsNode(Node):
 
         # ========== ROS 通信 ==========
         self.marker_pub = self.create_publisher(MarkerArray, self.marker_topic, 10)
-        self.tf_broadcaster = TransformBroadcaster(self)
+        self.static_tf_broadcaster = StaticTransformBroadcaster(self)
         self.create_subscription(PointCloud2, self.input_pointcloud_topic, self._pc_callback, 10)
         self.publish_srv = self.create_service(Trigger, 'publish_grasps', self.publish_service_callback)
 
@@ -335,9 +335,9 @@ class GraspNetDemoPointsNode(Node):
 
     # ---------- TF 与 Marker 辅助 ----------
     def _publish_grasp_tf(self, grasp, idx: int, stamp, frame_id: str):
-        """发布 GraspNet 抓取位姿对应的 TF（对齐 graspnet_demo_node.py 的坐标系转换）。"""
+        """发布 GraspNet 抓取位姿对应的 TF（静态 TF，避免客户端 lookup 时时间外推）。"""
         t = TransformStamped()
-        t.header.stamp = stamp
+        t.header.stamp = self.get_clock().now().to_msg()
         t.header.frame_id = frame_id
         t.child_frame_id = f'grasp_pose_{idx}'
 
@@ -370,7 +370,7 @@ class GraspNetDemoPointsNode(Node):
         t.transform.rotation.y = float(quat[1])
         t.transform.rotation.z = float(quat[2])
         t.transform.rotation.w = float(quat[3])
-        self.tf_broadcaster.sendTransform(t)
+        self.static_tf_broadcaster.sendTransform(t)
 
     def _create_grasp_markers(self, grasp, rgba, id_start: int, stamp, frame_id: str):
         """

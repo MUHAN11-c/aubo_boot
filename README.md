@@ -801,6 +801,50 @@ R_ros = [ R_graspnet[:,1], R_graspnet[:,2], R_graspnet[:,0] ]
 
 详细实现见：`aubo_ros2_ws/src/graspnet_ros2/graspnet_ros2/graspnet_demo_points_node.py`（`_publish_grasp_tf`、`_create_grasp_markers`、`_create_marker`、`_matrix_to_pose`）。
 
+### 抓取姿态绕 Z 轴 180° 修正（flip_grasp_z_180）
+
+**现象**：若直接使用 `grasp_pose_*` TF 变换后的 end_effector 目标位姿做 MoveIt2 笛卡尔路径规划，机械臂执行时末端会多绕 approach 方向（Z）转 180°，导致夹爪朝向与预期相反。
+
+**原因简述**：
+
+1. **GraspNet 与节点侧**  
+   `graspnet_demo_points_node` 已按 README 约定做轴重排：GraspNet 的 `rotation_matrix`（col0=approach, col1=width, col2=height）转为 ROS 末端约定（Z=approach, X=width, Y=height），并发布为 TF（`grasp_pose_0` 等）。  
+   即：**TF 中的 Z 轴 = 手指伸出/接近物体的方向**，与 GraspNet 的 approach 一致。
+
+2. **机械臂 / MoveIt 侧**  
+   AUBO 的 `tool_tcp`（或 gripper_tip）在 URDF/SRDF 中的**局部 Z 轴方向**可能与 GraspNet 的 approach 定义相反（例如：GraspNet 的 approach 指向物体，而模型里末端 Z 指向手腕方向，或手眼安装导致“前向”相反）。  
+   此时**位置**正确（TF 与 base 的平移一致），但**姿态**差绕 Z 的 180°。
+
+3. **数据流**  
+   - `graspnet_demo_points_node`：推理 → 轴重排 → 发布 TF（`frame_id` → `grasp_pose_*`）。  
+   - `publish_grasps_client`：从 TF 读抓取位姿 → `build_grasp_to_end_effector_transform` 沿 Z 做平移补偿 → 得到 end_effector 目标位姿 → `grasp_motion_controller.run_grasp_approach` 做笛卡尔路径规划并执行。  
+   若不做 180° 修正，MoveIt 会按当前 TF 姿态规划，机械臂会以“approach 反了”的姿态到达，表现为绕 Z 转 180°。
+
+**处理方式**：  
+在 `grasp_motion_controller.run_grasp_approach` 中，在**抓取局部坐标系**下绕 Z 轴（approach）旋转 180°，再用于规划；等价于把“GraspNet 的 approach”与“机械臂末端的 Z 轴约定”对齐。  
+该修正由参数 `flip_grasp_z_180`（默认 `True`）控制；在 `publish_grasps_client` 中可通过 `--ros-args -p flip_grasp_z_180:=false` 关闭。若实测中不再出现多转 180°，可设为 `false`。
+
+**相关代码**：  
+- `graspnet_ros2/grasp_motion_controller.py`：`_apply_grasp_z_flip_180`、`run_grasp_approach(..., flip_grasp_z_180=True)`  
+- `graspnet_ros2/publish_grasps_client.py`：参数 `flip_grasp_z_180`，并传入 `run_grasp_approach`。
+
+### 笛卡尔路径失败时的关节空间回退
+
+**现象**：`compute_cartesian_path` 返回的 `fraction < 1.0`（路径未达 100%，例如在“上方抓取姿态 → 最终 Z 下降”段被截断），若直接报错会导致抓取流程中断。此外，**笛卡尔路径规划成功但轨迹点数超过 60** 时，为避免轨迹过长导致执行慢或异响，同样改为关节空间回退。
+
+**处理方式**：  
+在 `grasp_motion_controller.run_grasp_approach` 中，在以下两种情况会**自动回退到关节空间**（不再执行笛卡尔轨迹）：
+
+1. **笛卡尔路径未达 100%**（`fraction < 1.0`）：路径被截断，无法完整执行。
+2. **笛卡尔路径轨迹点数 > 60**（常量 `CARTESIAN_MAX_POINTS_FOR_EXECUTION`）：规划成功但点数过多，改为关节空间一次到位。
+
+3. **回退目标**：用“最终抓取位姿”（位置 + 四元数）作为 MoveIt 位姿目标，通过 **MoveGroup** action（默认 `/move_action`）发送 `MotionPlanRequest`，约束为 `PositionConstraint`（球体容差）+ `OrientationConstraint`（欧拉角容差），`plan_only=False` 即规划并执行。笛卡尔路径使用的 waypoint[3]（p3）是**已做 Z 轴 180° 修正**的抓取位姿（当 `flip_grasp_z_180=True`）。若回退时仍用 p3 作为关节空间目标，机械臂会再按“修正后”的姿态运动，**末端会多转 180°**。因此当 `flip_grasp_z_180=True` 时，回退使用的目标位姿会对 p3 的姿态**再乘一次绕 Z 的 180° 四元数**，得到“未做 Z 轴 180° 修正”的抓取位姿再发给 MoveGroup，这样关节空间回退不会多转 180°。
+4. **日志**：会打 WARNING 标明笛卡尔截断发生在哪一段（或“轨迹点数过多”），以及 INFO“改用关节空间到位姿目标（未做 Z 轴 180° 修正的抓取位姿，避免多转 180°）”或“改用关节空间到位姿目标（抓取位姿 p3）”。
+
+**相关代码**：  
+- `graspnet_ros2/grasp_motion_controller.py`：`_build_pose_goal_constraints`、`_run_joint_space_move_to_pose`；`run_grasp_approach` 中 `resp.fraction < 1.0` 或轨迹点数 `> CARTESIAN_MAX_POINTS_FOR_EXECUTION`（默认 60）时构造回退目标并调用 `_run_joint_space_move_to_pose`。  
+- MoveGroup action 名称由常量 `MOVE_GROUP_ACTION` 指定（默认 `/move_action`）；若 move_group 带命名空间可改为 `/move_group/move_action`。
+
 ---
 
 ## 环境与故障排查记录
@@ -886,6 +930,6 @@ R_ros = [ R_graspnet[:,1], R_graspnet[:,2], R_graspnet[:,0] ]
 
 ---
 
-**文档版本**：1.8  
-**最后更新**：2026-03-10
+**文档版本**：1.9  
+**最后更新**：2026-03-11
 

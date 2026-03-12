@@ -12,6 +12,7 @@
 #include "demo_driver/set_robot_io_server.h"
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/executors/multi_threaded_executor.hpp>
+#include <rclcpp/qos.hpp>
 #include <algorithm>
 #include <cctype>
 #include <chrono>
@@ -19,41 +20,60 @@
 namespace demo_driver
 {
 
+// aubo_driver 协议功能码，与 aubo_driver_ros2.cpp setIO 实现一致
+constexpr int8_t AUBO_FUN_DIGITAL_OUT = 1;   // RobotBoardUserDO
+constexpr int8_t AUBO_FUN_ANALOG_OUT = 2;    // RobotBoardUserAO
+constexpr int8_t AUBO_FUN_TOOL_DIGITAL = 3;  // ToolDigitalIO
+constexpr int8_t AUBO_FUN_TOOL_ANALOG = 4;   // RobotToolAO
+
+// tool_io 专用：value=-1 表示将 pin 设为输入模式
+constexpr double TOOL_IO_VALUE_INPUT_MODE = -1.0;
+
+// pin 字段为 int8_t，有效范围 0~17
+constexpr int32_t PIN_INDEX_MAX = 17;
+
 /**
  * @brief 构造函数，初始化服务客户端和服务服务器
  */
 SetRobotIOServer::SetRobotIOServer()
     : Node("set_robot_io_server_node")
     , aubo_set_io_service_name_("/aubo_driver/set_io")
+    , service_wait_timeout_(5)
+    , call_timeout_(5)
 {
-    // 获取参数
+    // 参数：服务名、超时
     this->declare_parameter("aubo_set_io_service", std::string("/aubo_driver/set_io"));
+    this->declare_parameter("service_wait_timeout_sec", 5);
+    this->declare_parameter("call_timeout_sec", 5);
     this->get_parameter("aubo_set_io_service", aubo_set_io_service_name_);
+    int wait_sec = 0, call_sec = 0;
+    this->get_parameter("service_wait_timeout_sec", wait_sec);
+    this->get_parameter("call_timeout_sec", call_sec);
+    service_wait_timeout_ = std::chrono::seconds(std::max(1, wait_sec));
+    call_timeout_ = std::chrono::seconds(std::max(1, call_sec));
 
-    // 初始化服务客户端
+    // 回调组：服务回调独立，避免阻塞
+    callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
+    // 服务客户端（异步初始化，不阻塞启动），QoS 使用默认
     aubo_set_io_client_ = this->create_client<aubo_msgs::srv::SetIO>(aubo_set_io_service_name_);
+    RCLCPP_INFO(this->get_logger(), "SetRobotIOServer 已启动，aubo 服务: %s", aubo_set_io_service_name_.c_str());
 
-    // 等待服务可用
-    if (!aubo_set_io_client_->wait_for_service(std::chrono::seconds(5)))
-    {
-        RCLCPP_WARN(this->get_logger(), "Aubo SetIO service not available: %s", aubo_set_io_service_name_.c_str());
-        RCLCPP_WARN(this->get_logger(), "Make sure aubo_driver is running");
-    }
-    else
-    {
-        RCLCPP_INFO(this->get_logger(), "Connected to Aubo SetIO service: %s", aubo_set_io_service_name_.c_str());
-    }
-
-    // 初始化服务服务器（与 ROS1 接口一致：/demo_driver/set_io）
+    // 服务服务器，QoS 使用默认，callback_group 独立
     set_robot_io_service_ = this->create_service<demo_interface::srv::SetRobotIO>(
         "/demo_driver/set_io",
-        std::bind(&SetRobotIOServer::setRobotIOCallback, this, std::placeholders::_1, std::placeholders::_2));
+        std::bind(&SetRobotIOServer::setRobotIOCallback, this, std::placeholders::_1, std::placeholders::_2),
+        rmw_qos_profile_services_default,
+        callback_group_);
 
-    RCLCPP_INFO(this->get_logger(), "SetRobotIOServer initialized, service '/demo_driver/set_io' is ready");
+    RCLCPP_INFO(this->get_logger(), "服务 /demo_driver/set_io 已就绪");
 }
 
 SetRobotIOServer::~SetRobotIOServer()
 {
+    set_robot_io_service_.reset();
+    aubo_set_io_client_.reset();
+    callback_group_.reset();
 }
 
 /**
@@ -65,22 +85,45 @@ void SetRobotIOServer::setRobotIOCallback(
     const std::shared_ptr<demo_interface::srv::SetRobotIO::Request> req,
     std::shared_ptr<demo_interface::srv::SetRobotIO::Response> res)
 {
-    RCLCPP_INFO(this->get_logger(), "Received set_robot_io request");
-    RCLCPP_INFO(this->get_logger(), "IO type: %s, index: %d, value: %.2f",
+    if (!req || !res)
+    {
+        RCLCPP_ERROR(this->get_logger(), "回调参数无效");
+        return;
+    }
+
+    RCLCPP_INFO(this->get_logger(), "收到请求: io_type=%s, io_index=%d, value=%.2f",
              req->io_type.c_str(), req->io_index, req->value);
 
-    // 验证输入参数
+    // 严格校验：io_type 非空
+    if (req->io_type.empty())
+    {
+        res->success = false;
+        res->error_code = static_cast<int32_t>(SetRobotIOServer::ErrorCode::kInvalidIoType);
+        res->message = "io_type 不能为空";
+        RCLCPP_WARN(this->get_logger(), "%s", res->message.c_str());
+        return;
+    }
+
+    // 严格校验：io_index 范围 0~127
     if (req->io_index < 0)
     {
         res->success = false;
-        res->error_code = -1;
-        res->message = "Invalid io_index, must be >= 0";
+        res->error_code = static_cast<int32_t>(SetRobotIOServer::ErrorCode::kInvalidIoIndex);
+        res->message = "io_index 非法，需 >= 0";
+        RCLCPP_WARN(this->get_logger(), "%s", res->message.c_str());
+        return;
+    }
+    if (req->io_index > PIN_INDEX_MAX)
+    {
+        res->success = false;
+        res->error_code = static_cast<int32_t>(SetRobotIOServer::ErrorCode::kIoIndexOutOfRange);
+        res->message = "io_index 超出范围 0~" + std::to_string(PIN_INDEX_MAX);
         RCLCPP_WARN(this->get_logger(), "%s", res->message.c_str());
         return;
     }
 
     // 设置机器人IO
-    int32_t error_code = 0;
+    int32_t error_code = static_cast<int32_t>(SetRobotIOServer::ErrorCode::kSuccess);
     std::string message;
     bool success = setRobotIO(req->io_type, req->io_index, req->value, error_code, message);
 
@@ -113,11 +156,20 @@ bool SetRobotIOServer::setRobotIO(const std::string& io_type,
                                   int32_t& error_code,
                                   std::string& message)
 {
-    // 检查服务是否可用
-    if (!aubo_set_io_client_->service_is_ready())
+    // 状态检查：客户端有效
+    if (!aubo_set_io_client_)
     {
-        error_code = -100;
-        message = "Aubo SetIO service not available: " + aubo_set_io_service_name_;
+        error_code = static_cast<int32_t>(ErrorCode::kAuboServiceNotReady);
+        message = "aubo_driver 客户端未初始化";
+        return false;
+    }
+
+    // 状态检查：等待服务就绪
+    if (!aubo_set_io_client_->service_is_ready() &&
+        !aubo_set_io_client_->wait_for_service(service_wait_timeout_))
+    {
+        error_code = static_cast<int32_t>(ErrorCode::kAuboServiceNotReady);
+        message = "aubo_driver 服务不可用";
         return false;
     }
 
@@ -129,36 +181,29 @@ bool SetRobotIOServer::setRobotIO(const std::string& io_type,
                       [](unsigned char c) { return std::tolower(c); });
 
         auto request = std::make_shared<aubo_msgs::srv::SetIO::Request>();
-        bool valid_type = false;
 
         // 根据IO类型设置功能码和参数
-        if (io_type_lower == "digital_output" || io_type_lower == "digitaloutput")
+        if (io_type_lower == "digital_output")
         {
-            // 数字输出：fun=1 (RobotBoardUserDO)
-            request->fun = 1;
+            request->fun = AUBO_FUN_DIGITAL_OUT;
             request->pin = static_cast<int8_t>(io_index);
             // 数字IO：0.0表示低电平，1.0表示高电平
             request->state = (value != 0.0) ? 1.0f : 0.0f;
-            valid_type = true;
             RCLCPP_INFO(this->get_logger(), "Setting digital output pin %d to %s", io_index,
                      (request->state != 0.0) ? "HIGH" : "LOW");
         }
-        else if (io_type_lower == "analog_output" || io_type_lower == "analogoutput")
+        else if (io_type_lower == "analog_output")
         {
-            // 模拟输出：fun=2 (RobotBoardUserAO)
-            request->fun = 2;
+            request->fun = AUBO_FUN_ANALOG_OUT;
             request->pin = static_cast<int8_t>(io_index);
             request->state = static_cast<float>(value);
-            valid_type = true;
             RCLCPP_INFO(this->get_logger(), "Setting analog output pin %d to %.2f", io_index, value);
         }
-        else if (io_type_lower == "tool_io" || io_type_lower == "toolio")
+        else if (io_type_lower == "tool_io")
         {
-            // 工具数字IO：fun=3 (ToolDigitalIO)
-            request->fun = 3;
+            request->fun = AUBO_FUN_TOOL_DIGITAL;
             request->pin = static_cast<int8_t>(io_index);
-            // 如果value为-1，设置为输入模式；否则设置为输出模式并设置值
-            if (value == -1.0)
+            if (value == TOOL_IO_VALUE_INPUT_MODE)
             {
                 request->state = -1.0f;  // 设置为输入模式
                 RCLCPP_INFO(this->get_logger(), "Setting tool IO pin %d to input mode", io_index);
@@ -169,81 +214,58 @@ bool SetRobotIOServer::setRobotIO(const std::string& io_type,
                 RCLCPP_INFO(this->get_logger(), "Setting tool IO pin %d to output mode with value %s", io_index,
                          (request->state != 0.0) ? "HIGH" : "LOW");
             }
-            valid_type = true;
         }
-        else if (io_type_lower == "tool_analog_output" || io_type_lower == "toolanalogoutput")
+        else if (io_type_lower == "tool_analog_output")
         {
-            // 工具模拟输出：fun=4 (RobotToolAO)
-            request->fun = 4;
+            request->fun = AUBO_FUN_TOOL_ANALOG;
             request->pin = static_cast<int8_t>(io_index);
             request->state = static_cast<float>(value);
-            valid_type = true;
             RCLCPP_INFO(this->get_logger(), "Setting tool analog output pin %d to %.2f", io_index, value);
         }
-        else if (io_type_lower == "digital_input" || io_type_lower == "digitalinput" ||
-                 io_type_lower == "analog_input" || io_type_lower == "analoginput")
+        else if (io_type_lower == "digital_input" || io_type_lower == "analog_input")
         {
             // 输入类型不能设置，只能读取
-            error_code = -2;
-            message = "Cannot set input IO. Input IO can only be read, not written. "
-                     "Use 'digital_output' or 'analog_output' for setting values.";
+            error_code = static_cast<int32_t>(ErrorCode::kInputTypeNotWritable);
+            message = "输入类型不可写";
             return false;
         }
         else
         {
-            error_code = -3;
-            message = "Invalid io_type: " + io_type +
-                     ". Valid types: digital_output, analog_output, tool_io, tool_analog_output";
+            error_code = static_cast<int32_t>(ErrorCode::kInvalidIoType);
+            message = "无效 io_type: " + io_type;
             return false;
         }
 
-        if (!valid_type)
-        {
-            error_code = -4;
-            message = "Failed to determine IO type";
-            return false;
-        }
-
-        // 调用 aubo_driver 的 IO 设置服务（与 ROS1 set_robot_io_server 行为一致）
-        // 使用 wait_for 等待响应，避免在回调内调用 spin_until_future_complete 导致“节点已被加入 executor”异常
+        // 调用 aubo_driver 的 IO 设置服务
         auto result = aubo_set_io_client_->async_send_request(request);
-        constexpr std::chrono::seconds kCallTimeout(5);
-        if (result.wait_for(kCallTimeout) != std::future_status::ready)
+        if (result.wait_for(call_timeout_) != std::future_status::ready)
         {
-            error_code = -6;
-            message = "Failed to call Aubo SetIO service (timeout)";
+            error_code = static_cast<int32_t>(ErrorCode::kAuboServiceCallTimeout);
+            message = "调用超时";
             return false;
         }
         auto response = result.get();
         if (response->success)
         {
-            error_code = 0;
-            message = "Successfully set " + io_type + " pin " +
-                     std::to_string(io_index) + " to " + std::to_string(value);
+            error_code = static_cast<int32_t>(ErrorCode::kSuccess);
+            message = "已设置 " + io_type + " pin " +
+                     std::to_string(io_index) + " = " + std::to_string(value);
             return true;
         }
         else
         {
-            error_code = -5;
-            message = "Aubo SetIO service returned failure";
+            error_code = static_cast<int32_t>(ErrorCode::kAuboServiceReturnedFailure);
+            message = "aubo_driver 返回失败";
             return false;
         }
     }
     catch (const std::exception& e)
     {
-        error_code = -200;
-        message = std::string("Exception occurred: ") + e.what();
+        error_code = static_cast<int32_t>(ErrorCode::kInternalException);
+        message = std::string("异常: ") + e.what();
         RCLCPP_ERROR(this->get_logger(), "%s", message.c_str());
         return false;
     }
-}
-
-/**
- * @brief 主循环，保持节点运行
- */
-void SetRobotIOServer::spin()
-{
-    rclcpp::spin(this->shared_from_this());
 }
 
 } // namespace demo_driver

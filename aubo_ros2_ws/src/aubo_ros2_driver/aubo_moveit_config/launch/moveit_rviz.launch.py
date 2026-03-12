@@ -15,7 +15,7 @@ from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
-    moveit_config = MoveItConfigsBuilder("aubo_robot", package_name="aubo_moveit_config").to_moveit_configs() # 之前不知道为什么写错了，现在修改过来了。 20230612，感谢评论区的指正。
+    moveit_config = MoveItConfigsBuilder("aubo_i5", package_name="aubo_moveit_config").to_moveit_configs()
 
     ld = LaunchDescription()
 

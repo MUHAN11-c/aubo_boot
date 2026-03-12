@@ -30,6 +30,7 @@ import yaml
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction
+from launch.conditions import IfCondition
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -279,6 +280,7 @@ def _declare_launch_arguments(package_path, baseline_dir):
         DeclareLaunchArgument('use_open3d', default_value='true', description='是否启用 Open3D'),
         DeclareLaunchArgument('auto_run', default_value='false', description='是否自动运行（否则需服务触发）'),
         DeclareLaunchArgument('baseline_dir', default_value=baseline_dir, description='graspnet-baseline 路径'),
+        DeclareLaunchArgument('enable_graspnet_node', default_value='true', description='是否启动 graspnet_demo_node'),
 
         # 机械臂与手眼
         DeclareLaunchArgument('ee_frame_id', default_value='wrist3_Link', description='末端 link（手眼 TF 父坐标系）'),
@@ -313,6 +315,7 @@ def generate_launch_description():
         executable='graspnet_demo_node',
         name='graspnet_demo_node',
         output='screen',
+        condition=IfCondition(LaunchConfiguration('enable_graspnet_node')),
         parameters=[{
             'baseline_dir': LaunchConfiguration('baseline_dir'),
             'model_path': LaunchConfiguration('model_path'),

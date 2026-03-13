@@ -132,7 +132,8 @@ void JointTrajectoryAction::handleAccept(const std::shared_ptr<GoalHandleFjt> go
   trajectory_state_recvd_ = false;  // 新目标重置，避免沿用上次的反馈标志
   last_feedback_valid_ = false;     // 诊断：重置，abort 时可知是否在取消前收到过 feedback
   goal_accept_time_sec_ = this->now().seconds();  // 记录接受时刻，看门狗满 2 秒后再判无反馈
-
+  const double total_t = toSec(current_trajectory_.points.back().time_from_start);
+  const size_t n = current_trajectory_.points.size();
   publishTrajectory();
   return;
 }

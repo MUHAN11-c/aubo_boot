@@ -99,6 +99,7 @@ def launch_setup(context, *args, **kwargs):
             moveit_config.joint_limits,
             ompl_planning,
             trajectory_execution,
+            {'publish_robot_description_semantic': True},
             moveit_controllers,
             {"planning_scene_monitor_options": {"joint_state_topic": "/joint_states", "wait_for_initial_state_timeout": 10.0}},
         ],

@@ -34,6 +34,7 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <cstdint>
 #include <string>
 #include <fstream>
 #include <iostream>
@@ -65,7 +66,7 @@
 
 #define MINIMUM_BUFFER_SIZE 300
 #define ARM_DOF 8
-#define MAXALLOWEDDELAY 50   // 与 ROS1 一致：50*2ms=100ms 启动延迟；500Hz 专用线程下路径 B 可先于路径 A 触发
+#define MAXALLOWEDDELAY 400   // 与 ROS1 一致：50*2ms=100ms 启动延迟；500Hz 专用线程下路径 B 可先于路径 A 触发
 #define server_port 8899
 #define BIG_MODULE_RATIO 2 * M_PI / 60.0 / 121
 #define SMALL_MODULE_RATIO 2 * M_PI / 60.0 / 101
@@ -82,6 +83,7 @@ namespace aubo_driver
         double joint_acc_[ARM_DOF];
         double joint_pos_[ARM_DOF];
         double time_from_start_;
+        uint64_t trajectory_epoch_;
     };
     enum ROBOT_CONTROLLER_MODE
     {
@@ -219,6 +221,7 @@ namespace aubo_driver
             std::thread* joint_feedback_publish_thread_;
             std::atomic<bool> publish_thread_running_{false};
             mutable std::mutex joints_mutex_;
+            mutable std::mutex moveit_cb_mutex_;
             mutable std::mutex buf_queue_mutex_;      // 保护 buf_queue_（push/pop/size），与 feedToRosMotionLoop 线程共享
             std::thread* feed_to_ros_motion_thread_{nullptr};
 
@@ -236,11 +239,16 @@ namespace aubo_driver
             struct JointPosWithTime {
                 std::array<double, 6> joint_pos;
                 double time_from_start;
+                uint64_t trajectory_epoch;
             };
             moodycamel::ReaderWriterQueue<JointPosWithTime> ros_motion_queue_;
             aubo_robot_namespace::wayPoint_S waypoint_;
             std::array<double, 6> joint_filter_;
             double last_time_from_start_;
+            double last_received_time_from_start_{-1.0};
+            std::atomic<uint64_t> current_trajectory_epoch_{0};
+            std::atomic<int> moveit_cb_in_flight_{0};
+            std::atomic<uint64_t> moveit_cb_seq_{0};
 
             ServiceInterface robot_mac_size_service_;
             std::thread* send_to_robot_thread_;

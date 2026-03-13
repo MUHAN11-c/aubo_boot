@@ -147,6 +147,21 @@ ament_target_dependencies(moveit_beeline_demo_node
   moveit_ros_planning_interface
 )
 
+# Aubo 夹爪快换 worker（提供 run_gripper_swap 服务）
+add_executable(moveit_arcline_gripper_worker_node
+  src/moveit_arcline_demo.cpp
+  src/moveit_arcline_gripper_worker.cpp
+)
+ament_target_dependencies(moveit_arcline_gripper_worker_node
+  rclcpp
+  geometry_msgs
+  demo_interface
+  aubo_msgs
+  moveit_msgs
+  moveit_core
+  moveit_ros_planning_interface
+)
+
 # Note: The following executables are commented out because source files don't exist yet
 # add_executable(set_robot_enable_server_node src/set_robot_enable_server.cpp)
 # ament_target_dependencies(set_robot_enable_server_node
@@ -182,6 +197,7 @@ install(TARGETS
   movel_server_node
   moveit_cpp_tutorial_node
   moveit_beeline_demo_node
+  moveit_arcline_gripper_worker_node
   # set_robot_enable_server_node
   # set_robot_io_server_node
   # read_robot_io_server_node

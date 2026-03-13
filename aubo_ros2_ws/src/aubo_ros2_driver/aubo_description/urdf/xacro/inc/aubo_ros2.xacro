@@ -27,12 +27,7 @@
         <color rgba="0.6 0.4 0.2 1" />
       </material>
     </visual>
-    <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
-      <geometry>
-        <box size="0.2 0.2 0.08" />
-      </geometry>
-    </collision>
+    <!-- no collision geometry for box_link -->
   </link>
   <joint name="world_to_box_joint" type="fixed">
     <parent link="world" />
@@ -78,12 +73,7 @@
         <color rgba="0.96 0.96 0.96 1" />
       </material>
     </visual>
-    <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
-      <geometry>
-        <box size="1.5 0.8 0.1" />
-      </geometry>
-    </collision>
+    <!-- no collision geometry for pedestal_Link -->
   </link>
 
   <joint name="pedestal_joint" type="fixed">

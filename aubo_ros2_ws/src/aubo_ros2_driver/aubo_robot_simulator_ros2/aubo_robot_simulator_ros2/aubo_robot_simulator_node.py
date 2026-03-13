@@ -207,12 +207,14 @@ class AuboRobotSimulatorNode(Node):
                     self.motion_ctrl.joint_positions = list(pt0.positions)
                     self.motion_ctrl.joint_velocities = list(pt0.velocities)[:n] if len(pt0.velocities) == n else [0.0] * n
                     self.motion_ctrl.joint_accelerations = list(pt0.accelerations)[:n] if len(pt0.accelerations) == n else [0.0] * n
-            self._publish_cmd()
+            # 保持单线程发布：仅 motion_worker 发布命令，避免 callback 与 worker 在轨迹边界并发发布导致突变
     def _move_to(self, point: JointTrajectoryPoint, dur: float) -> None:
         import time
         throttle_sleep = max(min(dur, 0.002), 0.0005)
+        throttle_wait = 0.0
         while self.motion_ctrl.rib_buffer_size > self.motion_ctrl.minimum_buffer_size:
             time.sleep(throttle_sleep)
+            throttle_wait += throttle_sleep
         if self.motion_ctrl.rib_buffer_size == 0 and self.motion_ctrl.controller_connected_flag == 0:
             time.sleep(dur)
         n = len(point.positions)
@@ -226,9 +228,9 @@ class AuboRobotSimulatorNode(Node):
             else:
                 self.motion_ctrl.sig_stop = False
 
-    def _publish_cmd(self) -> None:
+    def _publish_cmd(self, point_time_sec: float, source: str = "unknown") -> None:
         msg = JointTrajectoryPoint()
-        msg.time_from_start = sec_to_duration(self.get_clock().now().nanoseconds * 1e-9)
+        msg.time_from_start = sec_to_duration(point_time_sec)
         with self.motion_ctrl.lock:
             msg.positions = list(self.motion_ctrl.joint_positions)
             msg.velocities = list(self.motion_ctrl.joint_velocities)
@@ -266,20 +268,21 @@ class AuboRobotSimulatorNode(Node):
                     T = curr_sec - last_sec
                     n_steps = max(1, round(T / update_duration_sec))
                     _timing_wall_start = _time.perf_counter()
-                    for _step_idx in range(n_steps):
+                    for _step_idx in range(1, n_steps):
                         if self.motion_ctrl.cancel_trajectory != 0:
                             break
-                        t = _step_idx * update_duration_sec
+                        t = min(_step_idx * update_duration_sec, T)
                         pos, vel, acc = _quintic_interpolate(last_goal_point, current_goal_point, t, T)
                         intermediate_goal_point.positions = pos
                         intermediate_goal_point.velocities = vel
                         intermediate_goal_point.accelerations = acc
+                        intermediate_goal_point.time_from_start = sec_to_duration(last_sec + t)
                         self._move_to(intermediate_goal_point, update_duration_sec)
-                        self._publish_cmd()
-                        _wait = (_step_idx + 1) * update_duration_sec - (_time.perf_counter() - _timing_wall_start)
+                        self._publish_cmd(last_sec + t, "motion_worker_step")
+                        _wait = _step_idx * update_duration_sec - (_time.perf_counter() - _timing_wall_start)
                         if _wait > 0.0001:
                             _time.sleep(_wait)
-                    tt = last_sec + n_steps * update_duration_sec
+                    tt = last_sec + max(0, n_steps - 1) * update_duration_sec
                     move_duration_sec = curr_sec - tt if tt < curr_sec else 0.0
                     seg_elapsed = _time.perf_counter() - _timing_wall_start
                     if seg_elapsed > T * 1.01 and move_duration_sec > 0:
@@ -289,7 +292,7 @@ class AuboRobotSimulatorNode(Node):
                 if dur_val > 0:
                     time.sleep(dur_val)
                 self._move_to(current_goal_point, dur_val)
-                self._publish_cmd()
+                self._publish_cmd(curr_sec, "motion_worker_final")
                 last_goal_point = copy.deepcopy(current_goal_point)
             except Exception as e:
                 self.get_logger().error("motion_worker exception: %s" % str(e))

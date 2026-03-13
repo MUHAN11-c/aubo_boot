@@ -28,8 +28,6 @@
 #include <Eigen/Geometry>
 #include <chrono>
 #include <cmath>
-#include <fstream>
-#include <iomanip>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -264,36 +262,10 @@ bool MovelServer::movel(
 
     move_group_->setPlanningTime(5.0);  // 规划超时 5 秒
 
-    // #region agent log
-    {
-      std::ofstream f("/home/mu/IVG2.0/.cursor/debug-5074e2.log", std::ios::app);
-      if (f) {
-        f << std::fixed << std::setprecision(6)
-          << "{\"sessionId\":\"5074e2\",\"hypothesisId\":\"H1,H2,H4\",\"location\":\"movel_server.cpp:before_computeCartesianPath\",\"message\":\"movel inputs\",\"data\":{"
-          << "\"target_xyz\":[" << target_pose.position.x << "," << target_pose.position.y << "," << target_pose.position.z << "],"
-          << "\"current_xyz\":[" << current_pose.position.x << "," << current_pose.position.y << "," << current_pose.position.z << "],"
-          << "\"cartesian_max_step\":" << cartesian_max_step_ << ","
-          << "\"waypoints_count\":" << waypoints.size() << "},\"timestamp\":" << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() << "}\n";
-      }
-    }
-    // #endregion
-
     moveit_msgs::msg::RobotTrajectory trajectory_msg;
     moveit_msgs::msg::MoveItErrorCodes path_error;
     double fraction = move_group_->computeCartesianPath(
         waypoints, cartesian_max_step_, 0.0, trajectory_msg, true, &path_error);
-
-    // #region agent log
-    {
-      std::ofstream f("/home/mu/IVG2.0/.cursor/debug-5074e2.log", std::ios::app);
-      if (f) {
-        size_t npt = trajectory_msg.joint_trajectory.points.size();
-        f << std::fixed << std::setprecision(6)
-          << "{\"sessionId\":\"5074e2\",\"hypothesisId\":\"H1,H3,H5\",\"location\":\"movel_server.cpp:after_computeCartesianPath\",\"message\":\"movel result\",\"data\":{"
-          << "\"fraction\":" << fraction << ",\"path_error_val\":" << path_error.val << ",\"trajectory_points\":" << npt << "},\"timestamp\":" << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() << "}\n";
-      }
-    }
-    // #endregion
 
     if (path_error.val != moveit_msgs::msg::MoveItErrorCodes::SUCCESS) {
       setMovelError(error_code, message, path_error.val, "笛卡尔路径规划失败, error_code=" + std::to_string(path_error.val));

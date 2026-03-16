@@ -2,6 +2,73 @@
 
 机器人驱动功能包，提供机器人状态发布、运动控制和IO控制等功能。
 
+```bash
+source install/setup.bash
+ros2 run demo_driver publish_grasps_client_worker_node
+```
+
+**调用逻辑**：详见 [docs/GRASP_CALL_FLOW.md](docs/GRASP_CALL_FLOW.md)
+
+```bash
+ros2 run demo_driver gripper_swap_worker_node
+# 切换到 gripper2
+ros2 service call /run_gripper_swap demo_interface/srv/RunGripperSwap "{direction: 'gripper2'}"
+# 原有方向仍可使用
+ros2 service call /run_gripper_swap demo_interface/srv/RunGripperSwap "{direction: 'gripper0_to_gripper2'}"
+ros2 service call /run_gripper_swap demo_interface/srv/RunGripperSwap "{direction: 'gripper2_to_gripper0'}"
+```
+
+## 笛卡尔路径速度缩放
+
+`MoveitGripperIoBase` 中的笛卡尔运动函数（`runArcPath`、`runArcPathSequence`）支持通过 `velocity_factor` 参数控制执行速度。
+
+### 背景：为何 setMaxVelocityScalingFactor 无效
+
+MoveIt2 的 `computeCartesianPath()` 生成的轨迹已包含固定的 `time_from_start`，执行时不会重新计算时间。在 `execute(plan)` 前调用 `setMaxVelocityScalingFactor()` 对笛卡尔路径**无效**，因为轨迹的时间戳在规划阶段就已确定。
+
+### 实现方式：手动缩放轨迹时间
+
+在 `execute` 前对轨迹做时间缩放，通过 `scaleTrajectoryTime()` 实现：
+
+1. **时间缩放**：`new_time = old_time × (1 / velocity_factor)`
+   - `velocity_factor = 0.5` → 轨迹时长变为 2 倍，速度约为 50%
+   - `velocity_factor = 0.15` → 轨迹时长约为 6.67 倍，速度约为 15%
+
+2. **速度缩放**：`v_new = v_old / scale`（`scale = 1/velocity_factor`）
+   - 因 `v = Δθ/Δt`，时间放大 `scale` 倍，速度应除以 `scale`
+
+3. **加速度缩放**：`a_new = a_old / scale²`
+   - 因 `a = Δv/Δt`，时间放大 `scale` 倍、速度除以 `scale`，加速度应除以 `scale²`
+
+### API 与默认值
+
+| 函数 | 参数 | 默认值 |
+|------|------|--------|
+| `runArcPath(double z_offset, float velocity_factor)` | `velocity_factor` | 0.5 |
+| `runArcPath(char axis, double offset, float velocity_factor)` | `velocity_factor` | 0.5 |
+| `runArcPathSequence(segments, float velocity_factor)` | `velocity_factor` | 0.5 |
+
+### 调用示例
+
+```cpp
+runArcPath(-0.255);                    // 默认 0.5
+runArcPath(-0.255, 0.2f);              // 20% 速度（更慢）
+runArcPathSequence(segments, 0.15f);  // 15% 速度
+```
+
+### 数值示例
+
+| velocity_factor | scale | 原 1 s 轨迹 | 新时长 | 等效速度 |
+|-----------------|-------|-------------|--------|----------|
+| 1.0             | 1.0   | 1 s         | 1 s    | 100%     |
+| 0.5             | 2.0   | 1 s         | 2 s    | 50%      |
+| 0.2             | 5.0   | 1 s         | 5 s    | 20%      |
+| 0.15            | 6.67  | 1 s         | 6.67 s | 15%      |
+
+### 关节空间与位姿空间
+
+`moveToJoints` 和 `moveToPose` 使用 MoveIt 规划流程，`setMaxVelocityScalingFactor` 在**规划前**设置即可生效，无需手动缩放轨迹。
+
 ## 依赖
 
 - `demo_interface`: 消息和服务定义包

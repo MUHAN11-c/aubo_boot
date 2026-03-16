@@ -82,10 +82,10 @@ setup(
             'image_saver = graspnet_ros2.image_saver:main',
             'graspnet_node = graspnet_ros2.graspnet_node:main',
             'graspnet_demo_node = graspnet_ros2.graspnet_demo_node:main',
+            'graspnet_demo_points_node = graspnet_ros2.graspnet_demo_points_node:main',
             'graspnet_test_node = graspnet_ros2.test_node:main',
             'publish_grasps_client = graspnet_ros2.publish_grasps_client:main',
-            'grasp_move_service = graspnet_ros2.grasp_move_service:main',
-            'grasp_move_client = graspnet_ros2.grasp_move_client:main',
+            'hand_eye_static_tf_node = graspnet_ros2.hand_eye_static_tf_node:main',
         ],
     },
 )

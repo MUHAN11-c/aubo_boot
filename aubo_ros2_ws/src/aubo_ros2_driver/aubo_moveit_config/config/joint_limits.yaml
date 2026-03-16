@@ -7,34 +7,35 @@ default_acceleration_scaling_factor: 0.1
 
 # Specific joint properties can be changed with the keys [max_position, min_position, max_velocity, max_acceleration]
 # Joint limits can be turned off with [has_velocity_limits, has_acceleration_limits]
+# Pilz 规划器及 request adapters 需要 has_acceleration_limits: true
 joint_limits:
   foreArm_joint:
     has_velocity_limits: true
     max_velocity: 2.5964
-    has_acceleration_limits: false
-    max_acceleration: 0
+    has_acceleration_limits: true
+    max_acceleration: 2.5
   shoulder_joint:
     has_velocity_limits: true
     max_velocity: 2.5964
-    has_acceleration_limits: false
-    max_acceleration: 0
+    has_acceleration_limits: true
+    max_acceleration: 2.5
   upperArm_joint:
     has_velocity_limits: true
     max_velocity: 2.5964
-    has_acceleration_limits: false
-    max_acceleration: 0
+    has_acceleration_limits: true
+    max_acceleration: 2.5
   wrist1_joint:
     has_velocity_limits: true
     max_velocity: 3.1105
-    has_acceleration_limits: false
-    max_acceleration: 0
+    has_acceleration_limits: true
+    max_acceleration: 3.0
   wrist2_joint:
     has_velocity_limits: true
     max_velocity: 3.1105
-    has_acceleration_limits: false
-    max_acceleration: 0
+    has_acceleration_limits: true
+    max_acceleration: 3.0
   wrist3_joint:
     has_velocity_limits: true
     max_velocity: 3.1105
-    has_acceleration_limits: false
-    max_acceleration: 0
+    has_acceleration_limits: true
+    max_acceleration: 3.0

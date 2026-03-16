@@ -29,9 +29,11 @@ MoveToPoseServer::MoveToPoseServer(const rclcpp::NodeOptions& options)
     this->declare_parameter("planning_group_name", std::string("manipulator"));
     this->declare_parameter("base_frame", std::string("base_link"));
     this->declare_parameter("robot_status_topic", std::string("/demo_robot_status"));
+    this->declare_parameter("planner_id", std::string(""));  // Pilz 需设为 PTP/LIN/CIRC，OMPL 可留空
     this->get_parameter("planning_group_name", planning_group_name_);
     this->get_parameter("base_frame", base_frame_);
     this->get_parameter("robot_status_topic", robot_status_topic_);
+    this->get_parameter("planner_id", planner_id_);
 
     move_to_pose_service_ = this->create_service<demo_interface::srv::MoveToPose>(
         "/move_to_pose",
@@ -121,6 +123,8 @@ bool MoveToPoseServer::initialize(int max_retries, int retry_delay_seconds)
             move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
                 shared_from_this(), planning_group_name_);
             planning_scene_interface_ = std::make_shared<moveit::planning_interface::PlanningSceneInterface>();
+            if (!planner_id_.empty())
+                move_group_->setPlannerId(planner_id_);
             move_group_->setPoseReferenceFrame(base_frame_);
             end_effector_link_ = move_group_->getEndEffectorLink();
             std::string planning_frame = move_group_->getPlanningFrame();

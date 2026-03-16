@@ -39,7 +39,7 @@ moveItController_cmd (topic)
     ↓ moveItPosCallback
 aubo_driver_ros2
     ├─ buf_queue_ (入队，mutex 保护)
-    ├─ feedToRosMotionLoop (500Hz，批量排空 buf_queue_ → ros_motion_queue_)
+    ├─ feedToRosMotionLoop (200Hz/5ms，buf_queue_ → ros_motion_queue_)
     └─ publishWaypointToRobot 线程
            ↓ 实时查询 RIB → robotServiceSetRobotPosData2Canbus
        机器人控制器 (RIB 缓冲 400，按 6 为单位消费)
@@ -244,7 +244,7 @@ def _dbg(msg: str, data: dict) -> None:
 
 ### 5.1 核心原则
 
-**忠实还原 ROS1 的通信架构**，不做"优化"偏离。
+**忠实还原 ROS1 的通信架构**，不做"优化"偏离。当前实现采用**按需 RIB 刷新**（RIB≤0 或 diag_age 超时）在流控精度与 TCP 调用频率之间取得平衡。
 
 ### 5.2 aubo_robot_simulator_ros2（Python 插值节点）
 
@@ -261,7 +261,7 @@ def _dbg(msg: str, data: dict) -> None:
 
 #### feedToRosMotionLoop()（200Hz 取点线程，周期 5ms）
 
-- **批量排空**：每次循环用 `while(setRobotJointsByMoveIt() && batch < max_batch_per_cycle)` 将 `buf_queue_` 中最多 **150 点**转入 `ros_motion_queue_`，避免 RIB=0 时送机线程一次抽空 `ros_motion_queue_` 后长时间补不上导致单条轨迹内停顿（Fix13）
+- **按 RIB 调节取点次数**：`feed_count = (rib < 200) ? 3 : 1`，每周期 for 循环取 1～3 点
 - **超时关闭 `start_move_`**：当 `ros_motion_queue_` 持续为空超过 500 次循环（~2.5 秒）才关闭 `start_move_`，防止短暂空队列导致误关
 
 #### setRobotJointsByMoveIt()
@@ -269,38 +269,43 @@ def _dbg(msg: str, data: dict) -> None:
 - 返回 `bool`：`buf_queue_` 为空时返回 `false`，支持上层批量排空
 - 不再负责 `start_move_` 状态管理
 
-#### publishWaypointToRobot()（送机线程，与 ROS1 对齐）
+#### publishWaypointToRobot()（送机线程，当前实现）
 
 ```cpp
 while(rclcpp::ok()) {
-    // 1. 实时查询 RIB 大小（TCP 调用）
-    aubo_robot_namespace::RobotDiagnosis pub_diag;  // 局部变量，避免数据竞争
-    if(0 == robot_mac_size_service_.robotServiceGetRobotDiagnosisInfo(pub_diag)) {
-        rib_buffer_size_ = pub_diag.macTargetPosDataSize;
-        current_macsz = pub_diag.macTargetPosDataSize;
-        if(current_macsz == 0)
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));   // RIB=0 时 1ms，减少单条轨迹内停顿（原 10ms 会叠加成数秒间隔，Fix13）
+    current_macsz = rib_buffer_size_.load();
+    need_diag_refresh = (current_macsz <= 0) || (diag_age_ms >= diag_refresh_interval_ms);
+    // diag_refresh_interval_ms: RIB<200 且 qsz>0 时为 20ms，否则 100ms
+    if(need_diag_refresh) {
+        aubo_robot_namespace::RobotDiagnosis pub_diag;  // 局部变量，避免数据竞争
+        if(0 == robot_mac_size_service_.robotServiceGetRobotDiagnosisInfo(pub_diag)) {
+            rib_buffer_size_ = pub_diag.macTargetPosDataSize;
+            current_macsz = pub_diag.macTargetPosDataSize;
+            last_diag_refresh = now;
+            if(current_macsz == 0)
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));  // RIB=0 时 1ms
+        }
     }
-    // 2. 按 RIB 空间送点
-    if(current_macsz < expect_macsz && 0 != ros_motion_queue_.size_approx()) {
-        cnt = ceil((expect_macsz - current_macsz) / 6.0);
+    if(current_macsz < expect_macsz && 0 != qsz) {
+        cnt = std::min(max_cnt_per_send, ceil((expect_macsz - current_macsz) / 6.0));  // max_cnt_per_send=8
         wayPointVector = tryPopWaypoint(cnt);
         if(!wayPointVector.empty())
             robot_mac_size_service_.robotServiceSetRobotPosData2Canbus(wayPointVector);
-        wayPointVector.clear();
     }
-    // 3. 4ms 间隔（~250Hz，与 ROS1 一致）
-    std::this_thread::sleep_for(std::chrono::milliseconds(4));
+    if (current_macsz < 200 && ros_motion_queue_.size_approx() > 0)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    else
+        std::this_thread::sleep_for(std::chrono::milliseconds(4));
 }
 ```
 
 关键设计要点：
-1. **实时 RIB 查询**：每次循环调用 `robotServiceGetRobotDiagnosisInfo` 获取真实缓冲区大小，确保流控精确
+1. **按需 RIB 刷新**：RIB≤0 或 `diag_age_ms >= diag_refresh_interval_ms` 时调用 `robotServiceGetRobotDiagnosisInfo`；低 RIB 且队列非空时 20ms 刷新，否则 100ms
 2. **局部 `pub_diag`**：避免与 `timerCallback` 共享 `rs.robot_diagnosis_info_` 的数据竞争
-3. **4ms 循环间隔**：与 ROS1 一致的 250Hz 发送频率
-4. **RIB=0 时 1ms 等待**：修复单条轨迹内停顿时由 10ms 改为 1ms，避免 RIB 持续为 0 时叠加成数秒送机间隔（Fix13）
-5. **`expect_macsz = 400`**：与 ROS1 相同的 RIB 目标填充值
-6. **RIB<50 时循环末 1ms、否则 4ms**：低 RIB 时加快灌点，减少等点卡顿
+3. **RIB=0 时 1ms 等待**：避免 RIB 持续为 0 时叠加成数秒送机间隔（Fix13）
+4. **`expect_macsz = 400`**：与 ROS1 相同的 RIB 目标填充值
+5. **`max_cnt_per_send = 8`**：单次最多取 8 批点，限制突发
+6. **RIB<200 时循环末 1ms、否则 4ms**：低 RIB 时加快灌点
 
 #### 线程安全
 
@@ -308,7 +313,7 @@ while(rclcpp::ok()) {
 |------|----------|
 | `buf_queue_` | `buf_queue_mutex_`（所有 push/pop/size/clear 操作均加锁）|
 | `rib_buffer_size_` | `std::atomic<int>` |
-| `ros_motion_queue_` | `moodycamel::ConcurrentQueue`（无锁队列）|
+| `ros_motion_queue_` | `moodycamel::ReaderWriterQueue`（无锁队列）|
 | `robot_diagnosis_info_` | `publishWaypointToRobot` 使用局部 `pub_diag` 而非共享的 `rs.robot_diagnosis_info_` |
 | `current_joints_` / `target_point_` | `joints_mutex_` |
 
@@ -319,8 +324,8 @@ while(rclcpp::ok()) {
 | 线程 | 频率 | 职责 |
 |------|------|------|
 | **主线程** | — | `spin_some` + `updateControlStatus`（计数、`start_move_` 置位、`delay_clear_times` 处理，**不取点**）|
-| **feedToRosMotionLoop** | 200Hz（5ms）| 每周期最多 150 点从 `buf_queue_` 转入 `ros_motion_queue_`；超时管理 `start_move_` |
-| **publishWaypointToRobot** | ~250Hz | 实时查询 RIB → 按缺额送点 → RIB<50 时 1ms 否则 4ms |
+| **feedToRosMotionLoop** | 200Hz（5ms）| 每周期取 1～3 点（rib<200 时 3 次）；超时管理 `start_move_` |
+| **publishWaypointToRobot** | ~250Hz | 按需刷新 RIB → 按缺额送点（max_cnt=8）→ RIB<200 时 1ms 否则 4ms |
 | **timerCallback** | 50Hz | 状态查询、`robot_status` / `rib_status` 发布 |
 | **publishJointStateAndFeedbackLoop** | 50Hz | 发布 `joint_states` / `feedback_states` |
 
@@ -344,7 +349,7 @@ while(rclcpp::ok()) {
 | Fix10 | buffer_size_ 60→200 | 预缓冲增加，仍偶发卡顿 |
 | Fix11 | local_sent 追踪 + min_batch=5 智能批量 | RIB 过冲缓解，TCP 尖峰 225ms |
 | **Fix12** | **完全恢复 ROS1 架构：实时 RIB 查询 + buffer_size_=400 + 4ms 间隔 + 局部 pub_diag** | 连续/偶发卡顿解决 |
-| **Fix13** | **单条轨迹内停顿**：RIB=0 时 sleep 由 10ms 改为 1ms；feedToRosMotionLoop 每周期最多转 150 点（批量排空），避免送机抽空 ros_motion_queue_ 后补点不足导致数秒间隔 | 单条轨迹内异常停顿消除 |
+| **Fix13** | **单条轨迹内停顿**：RIB=0 时 sleep 由 10ms 改为 1ms；feedToRosMotionLoop 按 rib 调节取点次数（rib<200 时 3 次） | 单条轨迹内异常停顿消除 |
 
 ---
 
@@ -358,10 +363,10 @@ while(rclcpp::ok()) {
   1. RIB=0 时原逻辑 sleep 10ms，多轮叠加导致同轨迹内两次送机间隔达数秒。  
   2. feedToRosMotionLoop 每 5ms 仅取 1～2 点，送机线程在 RIB=0 时一次可送出约 400/6 批点，瞬间抽空 `ros_motion_queue_`，补点需数百次 5ms 周期，期间送机线程空转，形成长 gap。
 
-### 8.2 修复
+### 8.2 修复（当前实现）
 
 - **publishWaypointToRobot**：`current_macsz == 0` 时由 `sleep_for(10ms)` 改为 `sleep_for(1ms)`。  
-- **feedToRosMotionLoop**：每周期 `while (setRobotJointsByMoveIt() && batch < 150)` 批量转点，单周期最多 150 点，保证送机抽空后能快速补足。
+- **feedToRosMotionLoop**：`feed_count = (rib < 200) ? 3 : 1`，每周期取 1～3 点；RIB 低时多取以快速补足。
 
 ---
 
@@ -373,7 +378,7 @@ while(rclcpp::ok()) {
 
 3. **数据竞争即使在"看似只读"场景中也有害**：`robot_diagnosis_info_` 被两个线程写入（`timerCallback` 和 `publishWaypointToRobot`），即使只用一个字段也会导致不可预测行为。解决方案是使用局部变量。
 
-4. **feeder 应批量排空且单周期有上限**：每周期最多转 150 点，既避免单点转移造成补点太慢（单条轨迹内停顿），又避免单周期占用过长。
+4. **feeder 应按 RIB 调节取点量**：RIB<200 时每周期取 3 点，否则取 1 点，保证低 RIB 时快速补足。
 
 5. **`start_move_` 关闭要有足够容忍度**：短暂的队列为空不代表运动结束，500×5ms 超时能有效避免误关。
 
@@ -424,4 +429,4 @@ while(rclcpp::ok()) {
 
 ---
 
-*文档版本：与当前 `aubo_driver_ros2` 及 `aubo_robot_simulator_ros2` 代码一致（含 Fix13）。若后续修改线程、缓冲或送点逻辑，请同步更新本文档。*
+*文档版本：与当前 `aubo_driver_ros2` 及 `aubo_robot_simulator_ros2` 代码一致。RIB 按需刷新、feed_count 按 rib 调节、max_cnt_per_send=8。若后续修改线程、缓冲或送点逻辑，请同步更新本文档。*

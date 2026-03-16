@@ -1,0 +1,48 @@
+/*
+ * Software License Agreement (BSD License)
+ *
+ * Copyright (c) 2024
+ * All rights reserved.
+ */
+
+#ifndef DEMO_DRIVER_GRIPPER_SWAP_WORKER_H_
+#define DEMO_DRIVER_GRIPPER_SWAP_WORKER_H_
+
+#include "demo_driver/moveit_gripper_io_base.h"
+
+#include <demo_interface/srv/run_gripper_swap.hpp>
+
+namespace demo_driver
+{
+
+/**
+ * @brief 夹爪更换 Worker 节点
+ *
+ * 继承 MoveitGripperIoBase，实现夹爪快换（gripper0 <-> gripper2）及夹爪 IO 控制。
+ */
+class GripperSwapWorker : public MoveitGripperIoBase
+{
+public:
+  explicit GripperSwapWorker(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
+  ~GripperSwapWorker() override = default;
+
+  static std::shared_ptr<GripperSwapWorker> create(const rclcpp::NodeOptions& options);
+
+  bool run() override;
+  /** 从 gripper2 更换到 gripper0 */
+  bool swapToGripper0();
+  /** 从 gripper0 更换到 gripper2 */
+  bool swapToGripper2();
+  /** 切换到 gripper2 位姿 */
+  bool switchToGripper2();
+
+private:
+  void onGripperSwapRequest(const std::shared_ptr<demo_interface::srv::RunGripperSwap::Request> request,
+                            std::shared_ptr<demo_interface::srv::RunGripperSwap::Response> response);
+
+  rclcpp::Service<demo_interface::srv::RunGripperSwap>::SharedPtr gripper_swap_srv_;
+};
+
+}  // namespace demo_driver
+
+#endif  // DEMO_DRIVER_GRIPPER_SWAP_WORKER_H_

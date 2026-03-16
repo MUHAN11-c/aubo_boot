@@ -11,6 +11,7 @@ Panels:
         - /MotionPlanning1/Planned Path1
         - /GraspMarkers1
         - /GraspNetPointCloud1
+        - /OccupancyGrid1
         - /Axes1
       Splitter Ratio: 0.4957627058029175
     Tree Height: 533
@@ -199,7 +200,7 @@ Visualization Manager:
         Scene Alpha: 0.8999999761581421
         Scene Color: 50; 230; 50
         Scene Display Time: 0.009999999776482582
-        Show Scene Geometry: false
+        Show Scene Geometry: true
         Voxel Coloring: Z-Axis
         Voxel Rendering: Occupied Voxels
       Scene Robot:
@@ -338,6 +339,23 @@ Visualization Manager:
         Value: /graspnet_pointcloud
       Use Fixed Frame: true
       Value: true
+    - Class: octomap_rviz_plugins/OccupancyGrid
+      Enabled: true
+      Max. Height Display: 3.4028234663852886e+38
+      Max. Octree Depth: 16
+      Min. Height Display: -3.4028234663852886e+38
+      Name: OccupancyGrid
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /octomap_full
+      Value: true
+      Voxel Alpha: 1
+      Voxel Coloring: Z-Axis
+      Voxel Rendering: Occupied Voxels
     - Class: rviz_default_plugins/Axes
       Enabled: true
       Length: 1

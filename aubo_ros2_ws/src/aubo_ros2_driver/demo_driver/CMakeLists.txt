@@ -113,49 +113,67 @@ ament_target_dependencies(set_robot_pose_server_node
   moveit_ros_planning_interface
 )
 
-add_executable(movel_server_node src/movel_server.cpp)
-ament_target_dependencies(movel_server_node
-  rclcpp
-  geometry_msgs
-  demo_interface
-  tf2_geometry_msgs
-  moveit_msgs
-  moveit_core
-  moveit_ros_planning_interface
-  moveit_ros_planning
-)
+# movel_server 源文件不存在时注释
+# add_executable(movel_server_node src/movel_server.cpp)
+# ament_target_dependencies(movel_server_node
+#   rclcpp
+#   geometry_msgs
+#   demo_interface
+#   tf2_geometry_msgs
+#   moveit_msgs
+#   moveit_core
+#   moveit_ros_planning_interface
+#   moveit_ros_planning
+# )
 
 # MoveIt C++ 教程测试节点（MoveItCpp + PlanningComponent，适配 Aubo）
-add_executable(moveit_cpp_tutorial_node src/moveit_cpp_tutorial.cpp)
-ament_target_dependencies(moveit_cpp_tutorial_node
-  rclcpp
-  geometry_msgs
-  moveit_core
-  moveit_ros_planning_interface
-  moveit_ros_planning
-  moveit_msgs
-  moveit_visual_tools
-)
+# moveit_cpp_tutorial 源文件不存在时注释
+# add_executable(moveit_cpp_tutorial_node src/moveit_cpp_tutorial.cpp)
+# ament_target_dependencies(moveit_cpp_tutorial_node
+#   rclcpp
+#   geometry_msgs
+#   moveit_core
+#   moveit_ros_planning_interface
+#   moveit_ros_planning
+#   moveit_msgs
+#   moveit_visual_tools
+# )
 
 # Aubo 三角形笛卡尔 demo（复刻 xarm moveit_beeline_demo，与 graspnet_demo.launch.py 配合）
-add_executable(moveit_beeline_demo_node src/moveit_beeline_demo.cpp)
-ament_target_dependencies(moveit_beeline_demo_node
-  rclcpp
-  geometry_msgs
-  moveit_msgs
-  moveit_core
-  moveit_ros_planning_interface
-)
+# 注：moveit_beeline_demo.cpp 不存在时注释掉
+# add_executable(moveit_beeline_demo_node src/moveit_beeline_demo.cpp)
+# ament_target_dependencies(moveit_beeline_demo_node
+#   rclcpp
+#   geometry_msgs
+#   moveit_msgs
+#   moveit_core
+#   moveit_ros_planning_interface
+# )
 
-# Aubo 夹爪快换 worker（提供 run_gripper_swap 服务）
-add_executable(moveit_arcline_gripper_worker_node
-  src/moveit_arcline_demo.cpp
-  src/moveit_arcline_gripper_worker.cpp
+# Aubo 夹爪快换 worker（提供 run_gripper_swap 服务，夹爪 IO 控制 + 更换夹爪）
+add_executable(gripper_swap_worker_node
+  src/moveit_gripper_io_base.cpp
+  src/gripper_swap_worker.cpp
 )
-ament_target_dependencies(moveit_arcline_gripper_worker_node
+ament_target_dependencies(gripper_swap_worker_node
   rclcpp
   geometry_msgs
   demo_interface
+  aubo_msgs
+  moveit_msgs
+  moveit_core
+  moveit_ros_planning_interface
+)
+
+# GraspNet 抓取放置 worker（订阅 grasp_poses_base，循环抓取→放置→回安全位）
+add_executable(publish_grasps_client_worker_node
+  src/moveit_gripper_io_base.cpp
+  src/publish_grasps_client_worker.cpp
+)
+ament_target_dependencies(publish_grasps_client_worker_node
+  rclcpp
+  geometry_msgs
+  std_msgs
   aubo_msgs
   moveit_msgs
   moveit_core
@@ -194,10 +212,11 @@ install(TARGETS
   get_current_state_server_node
   set_speed_factor_server_node
   set_robot_pose_server_node
-  movel_server_node
-  moveit_cpp_tutorial_node
-  moveit_beeline_demo_node
-  moveit_arcline_gripper_worker_node
+  # movel_server_node
+  # moveit_cpp_tutorial_node
+  # moveit_beeline_demo_node
+  gripper_swap_worker_node
+  publish_grasps_client_worker_node
   # set_robot_enable_server_node
   # set_robot_io_server_node
   # read_robot_io_server_node

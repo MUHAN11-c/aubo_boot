@@ -32,9 +32,11 @@
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │ 4. aubo_driver_ros2 (C++)                                                        │
 │    moveItPosCallback: 订阅 moveItController_cmd → buf_queue_ (mutex)               │
-│    feedToRosMotionLoop 线程 (200Hz/5ms): buf_queue_ → ros_motion_queue_ (批量)     │
-│    publishWaypointToRobot 线程 (~250Hz/4ms):                                      │
-│       - 实时查询 RIB (robotServiceGetRobotDiagnosisInfo)                           │
+│    feedToRosMotionLoop 线程 (200Hz/5ms): buf_queue_ → ros_motion_queue_           │
+│       - rib<200 时每周期喂 3 点，否则 1 点                                         │
+│    publishWaypointToRobot 线程:                                                  │
+│       - 按需刷新 RIB（diag 间隔 rib<200 时 20ms，否则 100ms）；max_cnt_per_send=8    │
+│       - rib<200 且队列非空时 1ms 睡眠，否则 4ms                                     │
 │       - tryPopWaypoint → robotServiceSetRobotPosData2Canbus                       │
 └──────────────────────────────────────────┬──────────────────────────────────────┘
                                           ▼
@@ -62,7 +64,7 @@
 | 名称 | 类型 | 含义 | 写入 | 读取 |
 |------|------|------|------|------|
 | `buf_queue_` | `std::queue<PlanningState>` | 来自插值节点的轨迹点 | moveItPosCallback | feedToRosMotionLoop |
-| `ros_motion_queue_` | `readerwriterqueue` | 待送机的关节点（无锁） | setRobotJointsByMoveIt | tryPopWaypoint |
+| `ros_motion_queue_` | `ReaderWriterQueue` | 待送机的关节点（无锁） | setRobotJointsByMoveIt | tryPopWaypoint |
 | `rib_buffer_size_` | `std::atomic<int>` | 控制器 RIB 缓冲量 | publishWaypointToRobot、timerCallback | feedToRosMotionLoop |
 | `start_move_` | `bool` | 运动标志 | updateControlStatus、feedToRosMotionLoop | feedToRosMotionLoop |
 | `buffer_size_` | `int` (400) | 预缓冲阈值 | 构造函数 | moveItPosCallback |
@@ -174,8 +176,9 @@
 
 **依据**：运动中 `cached_rib` 大但 RIB 实际耗尽；对比 ROS1 在 publishWaypointToRobot 热循环内实时查 RIB。
 
-**解决**：
-- 在 `publishWaypointToRobot` 每次循环内调用 `robotServiceGetRobotDiagnosisInfo`，获取真实 RIB
+**解决**（当前实现）：
+- 在 `publishWaypointToRobot` 内**按需刷新** RIB：`need_diag_refresh = (current_macsz <= 0) || (diag_age_ms >= diag_refresh_interval_ms)`，RIB≤0 或距上次查询超时则调用 `robotServiceGetRobotDiagnosisInfo`
+- `diag_refresh_interval_ms`：RIB<200 且队列非空时为 20ms，否则 100ms
 - 使用局部变量 `pub_diag`，不再共享 `rs.robot_diagnosis_info_`
 
 **修改文件**：`aubo_driver_ros2.cpp` publishWaypointToRobot
@@ -190,13 +193,11 @@
 
 **依据**：driver 侧记录两次 SetRobotPosData2Canbus 墙钟间隔 2～4s 且 rib=0；simulator 段间间隔 <1ms，排除插值侧。
 
-**解决**：
-- RIB=0 时 `sleep_for(10ms)` → `sleep_for(1ms)`
-- feedToRosMotionLoop 每周期 `while(setRobotJointsByMoveIt() && batch < 150)` 批量转点，单周期最多 150 点
+**解决**（当前实现）：
+- RIB=0 时 `sleep_for(1ms)` ✓
+- feedToRosMotionLoop：`feed_count = (rib < 200) ? 3 : 1`，每周期 for 循环取 1～3 点（非 batch<150 上限）
 
 **修改文件**：`aubo_driver_ros2.cpp` publishWaypointToRobot、feedToRosMotionLoop
-
-注：当前代码中 feedToRosMotionLoop 为 `feed_count` 控制（rib<200 时 3 次），批量 150 的上限见历史迭代；若仍有停顿可考虑恢复 150 上限。
 
 ---
 
@@ -206,7 +207,7 @@
 
 **根因**：
 - 路径 A：`buf_queue_.size() > 400` 时置位，401 点 @ 200Hz ≈ 2s
-- 路径 B：`data_count_ == MAXALLOWEDDELAY` 且 `bq >= 50` 时置位，理论 50×2ms=100ms
+- 路径 B：`data_count_ == MAXALLOWEDDELAY`（400）且 `bq >= 50` 时置位
 - ROS2 多线程下路径 B 的 50 次与数据到达错位，路径 B 未先触发
 
 **解决**：
@@ -232,6 +233,23 @@
 **-6 (TIMED_OUT)**：允许时间内未收到 SUCCESS，MoveIt 主动取消。常见诱因：**同一次操作触发了两次 ExecuteTrajectory**，第二个 goal 一直未完成。
 
 **诊断**：查看 aubo_ros2_trajectory_action 日志中的 `abort, reason=XXX`。
+
+---
+
+### 3.9 偶发大抖动修复（Fix14，基于运行日志验证）
+
+**现象**：整体运动平滑，但偶发一次明显大抖动（>200ms 发送延迟导致 RIB 排空）。
+
+**根因**（通过 NDJSON 日志验证）：
+1. **diag 刷新 100ms 过稀**：低 RIB 阶段 rib 估算严重偏高（如估算 132 vs 实际 12），误判缓冲充足而未积极补点；SDK 出现 ~215ms 固有延迟时，真实 rib 仅 ~48，不足以扛过延迟。
+2. **feedToRosMotionLoop 吞吐瓶颈**：200Hz 每周期喂 1 点，与机器人消耗率相等，净填充率≈0，rib 长期在 6～48 振荡，无法爬升到 200+ 安全水位。
+
+**解决**：
+- **自适应 diag 刷新**：`rib < 200 && ros_q > 0` 时 `diag_refresh_interval_ms = 20`，否则 100ms；保证低水位时估算准确。
+- **自适应多点喂入**：`rib < 200` 时 `feed_count = 3`（每 5ms 喂 3 点，供给 600Hz），否则 1；净填充 +400/sec，~500ms 内 rib 可爬到 200+。
+- **自适应睡眠**（已有）：`rib < 200 && ros_q > 0` 时 1ms，否则 4ms。
+
+**修改文件**：`aubo_driver_ros2.cpp`（publishWaypointToRobot、feedToRosMotionLoop）
 
 ---
 
@@ -302,8 +320,9 @@ if (dbg_count % 1000 == 0) {
 | Fix9 | 批量排空 + 1s 超时 | 数据流通 |
 | Fix10 | buffer_size_=200 | 仍偶发卡顿 |
 | Fix11 | local_sent + min_batch=5 | RIB 过冲缓解 |
-| Fix12 | 实时 RIB 查询 + buffer_size_=400 + 4ms + 局部 pub_diag | 连续/偶发卡顿解决 |
-| Fix13 | RIB=0 时 1ms sleep + 批量 150 点 | 单条轨迹内停顿消除 |
+| Fix12 | 实时/按需 RIB 查询 + buffer_size_=400 + 4ms + 局部 pub_diag | 连续/偶发卡顿解决 |
+| Fix13 | RIB=0 时 1ms sleep + feed_count 按 rib 调节（rib<200 时 3 次） | 单条轨迹内停顿消除 |
+| Fix14 | diag 刷新 20/100ms 自适应 + feed_count 1～3 + 1/4ms 睡眠 | 偶发大抖动消除 |
 
 ---
 
@@ -313,7 +332,7 @@ if (dbg_count % 1000 == 0) {
 |------|------|------|
 | 主线程 / driver 主循环 | — | spin_some、updateControlStatus（由 timer 触发）|
 | feedToRosMotionLoop | 200Hz (5ms) | buf_queue_ → ros_motion_queue_ |
-| publishWaypointToRobot | ~250Hz (4ms) | 实时查 RIB、送点；RIB<200 时循环末 1ms |
+| publishWaypointToRobot | ~250Hz (4ms) | 按需刷新 RIB（RIB≤0 或 diag_age≥20/100ms）；RIB<200 时循环末 1ms |
 | timerCallback | 50Hz | 状态查询、robot_status/rib_status 发布 |
 | publishJointStateAndFeedbackLoop | 50Hz | joint_states、feedback_states |
 
@@ -338,4 +357,4 @@ if (dbg_count % 1000 == 0) {
 
 ---
 
-*文档版本：与当前 aubo_driver_ros2、aubo_robot_simulator_ros2、aubo_ros2_trajectory_action 代码一致。*
+*文档版本：与当前代码一致。publishWaypointToRobot 使用按需 RIB 刷新（diag_refresh_interval 20/100ms 自适应）、1/4ms 自适应睡眠；feedToRosMotionLoop 使用 feed_count 1～3（rib<200 时 3）；max_cnt_per_send=8。调试埋点已移除。*

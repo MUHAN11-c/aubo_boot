@@ -77,6 +77,7 @@ private:
     std::string base_frame_;            // 基础坐标系名称
     std::string end_effector_link_;    // 末端执行器链接名称
     std::string robot_status_topic_;   // 机器人状态话题（默认 /demo_robot_status）
+    std::string planner_id_;           // 规划器 ID（Pilz 需 PTP/LIN/CIRC，OMPL 可留空）
 
     // 串行化 move_to_pose：同一时刻只处理一个请求，避免多线程下后发请求取消前发轨迹导致 -4
     std::mutex move_to_pose_mutex_;

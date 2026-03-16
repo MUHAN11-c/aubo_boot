@@ -1,0 +1,16 @@
+# Pilz Industrial Motion Planner 配置
+# 参考: moveit2_tutorials/doc/how_to_guides/pilz_industrial_motion_planner
+# 支持 PTP(点对点)、LIN(直线)、CIRC(圆弧) 运动
+planning_plugin: pilz_industrial_motion_planner/CommandPlanner
+request_adapters: >-
+  default_planner_request_adapters/FixWorkspaceBounds
+  default_planner_request_adapters/FixStartStateBounds
+  default_planner_request_adapters/FixStartStateCollision
+  default_planner_request_adapters/FixStartStatePathConstraints
+default_planner_config: PTP
+# manipulator 组的默认规划器，供 RViz MotionPlanning 面板使用
+manipulator:
+  default_planner_config: PTP
+capabilities: >-
+    pilz_industrial_motion_planner/MoveGroupSequenceAction
+    pilz_industrial_motion_planner/MoveGroupSequenceService

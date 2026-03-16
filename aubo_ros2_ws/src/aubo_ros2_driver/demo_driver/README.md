@@ -1,22 +1,224 @@
 # demo_driver
 
-机器人驱动功能包，提供机器人状态发布、运动控制和IO控制等功能。
+机器人驱动功能包（ROS 2），提供机器人状态发布、运动控制、位姿设置、夹爪快换与 GraspNet 循环抓取等功能。
+
+## 快速开始
 
 ```bash
 source install/setup.bash
+
+# GraspNet 抓取放置 Worker（订阅 grasp_poses_base，循环抓取→放置→回安全位）
 ros2 run demo_driver publish_grasps_client_worker_node
+
+# 夹爪快换 Worker
+ros2 run demo_driver gripper_swap_worker_node
 ```
 
 **调用逻辑**：详见 [docs/GRASP_CALL_FLOW.md](docs/GRASP_CALL_FLOW.md)
 
+## 包结构
+
+```
+demo_driver/
+├── include/demo_driver/          # 头文件
+│   ├── moveit_gripper_io_base.h  # 基类：MoveIt + 夹爪 IO
+│   ├── publish_grasps_client_worker.h
+│   ├── gripper_swap_worker.h
+│   ├── set_robot_pose_server.h
+│   └── ...
+├── src/                          # 源文件
+├── launch/                       # Launch 文件（部分为 ROS1 格式，建议用 demo_driver_services.launch.py）
+├── scripts/                      # Python 脚本
+└── docs/                         # 文档
+```
+
+## 依赖
+
+- `demo_interface`: 消息和服务定义包
+- `aubo_msgs`: Aubo 机器人消息包
+- `moveit_core`, `moveit_ros_planning_interface`: MoveIt 2
+- `geometry_msgs`, `sensor_msgs`, `trajectory_msgs`, `std_msgs`
+- `tf2`, `tf2_ros`, `tf2_geometry_msgs`
+
+## 节点说明
+
+### 已启用节点
+
+| 节点 | 可执行文件 | 说明 |
+|------|------------|------|
+| robot_status_publisher | robot_status_publisher_node | 发布机器人完整状态（在线、使能、运动、关节、笛卡尔位姿） |
+| move_to_pose_server | move_to_pose_server_node | 移动到目标位姿服务（关节/笛卡尔空间） |
+| plan_trajectory_server | plan_trajectory_server_node | 轨迹规划服务（不执行） |
+| execute_trajectory_server | execute_trajectory_server_node | 执行轨迹服务 |
+| get_current_state_server | get_current_state_server_node | 获取当前状态服务 |
+| set_speed_factor_server | set_speed_factor_server_node | 设置速度因子服务 |
+| set_robot_pose_server | set_robot_pose_server_node | 设置机器人位姿服务（欧拉角/关节空间） |
+| gripper_swap_worker | gripper_swap_worker_node | 夹爪快换（gripper0 ↔ gripper2） |
+| publish_grasps_client_worker | publish_grasps_client_worker_node | GraspNet 循环抓取放置 |
+
+### 已禁用节点（CMakeLists 中注释）
+
+- `robot_io_status_publisher_node`
+- `set_robot_enable_server_node`
+- `set_robot_io_server_node`
+- `read_robot_io_server_node`
+- `movel_server_node`
+
+---
+
+### 1. robot_status_publisher_node
+
+**功能**：发布机器人完整状态信息。
+
+#### 发布的话题
+
+- `/robot_status` (demo_interface/RobotStatus)
+  - **is_online**, **enable**, **in_motion**, **planning_status**
+  - **joint_position_rad/deg**, **cartesian_position**
+
+#### 参数
+
+- `publish_rate` (double, default: 10.0)
+- `base_frame` (string, default: "base_link")
+- `planning_group_name` (string, default: "manipulator_e5")
+
+---
+
+### 2. move_to_pose_server_node
+
+**功能**：移动到目标位姿服务，支持关节空间和笛卡尔空间规划。
+
+#### 服务
+
+- `/move_to_pose` (demo_interface/MoveToPose)
+  - **Request**: target_pose, use_joints, velocity_factor, acceleration_factor
+  - **Response**: success, error_code, message
+
+---
+
+### 3. plan_trajectory_server_node
+
+**功能**：规划到目标位姿的轨迹但不执行。
+
+#### 服务
+
+- `/plan_trajectory` (demo_interface/PlanTrajectory)
+  - **Request**: target_pose, use_joints
+  - **Response**: success, trajectory, planning_time, message
+
+---
+
+### 4. execute_trajectory_server_node
+
+**功能**：执行给定的关节轨迹。
+
+#### 服务
+
+- `/execute_trajectory` (demo_interface/ExecuteTrajectory)
+  - **Request**: trajectory
+  - **Response**: success, error_code, message
+
+---
+
+### 5. get_current_state_server_node
+
+**功能**：获取当前关节位置、笛卡尔位姿和关节速度。
+
+#### 服务
+
+- `/get_current_state` (demo_interface/GetCurrentState)
+  - **Response**: joint_position_rad, cartesian_position, velocity
+
+---
+
+### 6. set_speed_factor_server_node
+
+**功能**：设置机器人整体速度缩放因子。
+
+#### 服务
+
+- `/set_speed_factor` (demo_interface/SetSpeedFactor)
+  - **Request**: velocity_factor (0.0–1.0)
+
+---
+
+### 7. set_robot_pose_server_node
+
+**功能**：通过欧拉角（roll-pitch-yaw）或关节空间设置目标位姿。
+
+#### 服务
+
+- `/set_robot_pose` (demo_interface/SetRobotPose)
+  - **Request**: target_pose[6], use_joints, is_radian, velocity
+  - **Response**: success, error_code, message
+
+#### 调用示例
+
 ```bash
-ros2 run demo_driver gripper_swap_worker_node
+# 欧拉角模式（弧度）
+ros2 service call /set_robot_pose demo_interface/srv/SetRobotPose "{target_pose: [0.4, 0.0, 0.3, 0.0, 1.57, 0.0], use_joints: false, is_radian: true, velocity: 0.5}"
+
+# 关节空间模式
+ros2 service call /set_robot_pose demo_interface/srv/SetRobotPose "{target_pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], use_joints: true, is_radian: true, velocity: 0.3}"
+```
+
+---
+
+### 8. gripper_swap_worker_node
+
+**功能**：夹爪快换，提供 `/run_gripper_swap` 服务。
+
+#### 服务
+
+- `/run_gripper_swap` (demo_interface/srv/RunGripperSwap)
+  - **Request**: direction — `"gripper2"` / `"gripper0"` / `"gripper0_to_gripper2"` / `"gripper2_to_gripper0"`
+
+#### 调用示例
+
+```bash
 # 切换到 gripper2
 ros2 service call /run_gripper_swap demo_interface/srv/RunGripperSwap "{direction: 'gripper2'}"
+
 # 原有方向仍可使用
 ros2 service call /run_gripper_swap demo_interface/srv/RunGripperSwap "{direction: 'gripper0_to_gripper2'}"
 ros2 service call /run_gripper_swap demo_interface/srv/RunGripperSwap "{direction: 'gripper2_to_gripper0'}"
 ```
+
+---
+
+### 9. publish_grasps_client_worker_node
+
+**功能**：GraspNet 抓取放置 Worker。订阅 `grasp_poses_base`（PoseArray），循环执行：清理窗口 → 等待新数据 → 选优 → gripper_tip 补偿 → 抓取接近 → 闭夹爪 → 抬起 → 移动到放置位 → 开夹爪 → 回安全位。
+
+#### 订阅
+
+- `grasp_poses_base` (geometry_msgs/PoseArray): base_link 下抓取位姿
+
+#### 发布
+
+- `grasp_place_status` (std_msgs/String): JSON 格式周期状态（cycle_count, success_count, fail_count 等）
+
+#### 主要参数（可通过 `--ros-args -p` 覆盖）
+
+| 参数 | 类型 | 默认 | 说明 |
+|------|------|------|------|
+| prefer_vertical | bool | true | 选优策略：true 取垂直度最高 |
+| grasp_z_offset | double | 0.2 | gripper_tip→end_effector 沿 z 轴补偿 (m) |
+| height_above | double | 0.05 | 抓取点上方安全高度 (m) |
+| joint_velocity_scaling | float | 0.5 | 速度缩放 [0~1] |
+| joint_acceleration_scaling | float | 0.1 | 加速度缩放 [0~1] |
+| grasp_poses_topic | string | grasp_poses_base | 抓取位姿话题 |
+| wait_poses_timeout_sec | double | 30.0 | 等待窗口就绪超时 (s) |
+| grasp_window_size | int | 5 | 滑动窗口大小 |
+| min_groups_before_pick | int | 3 | 至少 M 组后再选优 |
+| gripper_io_index | int | 7 | Aubo 夹爪 IO pin 号 |
+| lift_offset | double | 0.2 | 抓取后沿 Z 轴抬起高度 (m) |
+| place_mode | string | home_offset | "pose"/"joints"/"home_offset" |
+| place_offset_y, place_offset_z | double | -0.2, -0.20 | 安全位偏移 (m) |
+| cycle_delay_sec | double | 1.0 | 每周期结束后等待 (s) |
+| max_cycles | int | -1 | 最大周期数，-1 无限循环 |
+
+---
 
 ## 笛卡尔路径速度缩放
 
@@ -35,527 +237,108 @@ MoveIt2 的 `computeCartesianPath()` 生成的轨迹已包含固定的 `time_fro
    - `velocity_factor = 0.15` → 轨迹时长约为 6.67 倍，速度约为 15%
 
 2. **速度缩放**：`v_new = v_old / scale`（`scale = 1/velocity_factor`）
-   - 因 `v = Δθ/Δt`，时间放大 `scale` 倍，速度应除以 `scale`
 
 3. **加速度缩放**：`a_new = a_old / scale²`
-   - 因 `a = Δv/Δt`，时间放大 `scale` 倍、速度除以 `scale`，加速度应除以 `scale²`
 
 ### API 与默认值
 
 | 函数 | 参数 | 默认值 |
 |------|------|--------|
-| `runArcPath(double z_offset, float velocity_factor)` | `velocity_factor` | 0.5 |
-| `runArcPath(char axis, double offset, float velocity_factor)` | `velocity_factor` | 0.5 |
-| `runArcPathSequence(segments, float velocity_factor)` | `velocity_factor` | 0.5 |
-
-### 调用示例
-
-```cpp
-runArcPath(-0.255);                    // 默认 0.5
-runArcPath(-0.255, 0.2f);              // 20% 速度（更慢）
-runArcPathSequence(segments, 0.15f);  // 15% 速度
-```
+| `runArcPath(double z_offset, float velocity_factor)` | velocity_factor | 0.5 |
+| `runArcPath(char axis, double offset, float velocity_factor)` | velocity_factor | 0.5 |
+| `runArcPathSequence(segments, float velocity_factor)` | velocity_factor | 0.5 |
 
 ### 数值示例
 
 | velocity_factor | scale | 原 1 s 轨迹 | 新时长 | 等效速度 |
 |-----------------|-------|-------------|--------|----------|
-| 1.0             | 1.0   | 1 s         | 1 s    | 100%     |
-| 0.5             | 2.0   | 1 s         | 2 s    | 50%      |
-| 0.2             | 5.0   | 1 s         | 5 s    | 20%      |
-| 0.15            | 6.67  | 1 s         | 6.67 s | 15%      |
-
-### 关节空间与位姿空间
+| 1.0 | 1.0 | 1 s | 1 s | 100% |
+| 0.5 | 2.0 | 1 s | 2 s | 50% |
+| 0.2 | 5.0 | 1 s | 5 s | 20% |
+| 0.15 | 6.67 | 1 s | 6.67 s | 15% |
 
 `moveToJoints` 和 `moveToPose` 使用 MoveIt 规划流程，`setMaxVelocityScalingFactor` 在**规划前**设置即可生效，无需手动缩放轨迹。
 
-## 依赖
+---
 
-- `demo_interface`: 消息和服务定义包
-- `aubo_msgs`: Aubo机器人消息包
-- `industrial_msgs`: 工业机器人消息包
-- `sensor_msgs`: 传感器消息包
-- `geometry_msgs`: 几何消息包
-- `trajectory_msgs`: 轨迹消息包
-- `moveit_core`: MoveIt!核心库
-- `moveit_ros_planning_interface`: MoveIt!规划接口
+## 构建与运行
 
-## 节点说明
+### 构建
 
-### 1. robot_status_publisher_node
+```bash
+cd aubo_ros2_ws
+source /opt/ros/humble/setup.bash
+colcon build --packages-select demo_driver
+source install/setup.bash
+```
 
-**功能**：发布机器人完整状态信息，包括在线状态、使能状态、运动状态、规划状态、关节位置和笛卡尔位姿。
+### 运行方式
 
-#### 发布的话题
+#### 方式一：通过 aubo_moveit_config 统一启动（推荐）
 
-- `/robot_status` (demo_interface/RobotStatus)
-  - **header** (std_msgs/Header): 标准消息头（时间戳和帧ID）
-  - **is_online** (bool): 机器人与上位机通信状态（心跳），在线为true
-  - **enable** (bool): 机器人使能状态，已使能为true（独占控制）
-  - **in_motion** (bool): 机器人运动状态，运动中为true
-  - **planning_status** (string): MoveIt规划状态（idle/planning/executing/error）
-  - **joint_position_rad** (float64[6]): 6个关节的当前角度值（弧度）
-  - **joint_position_deg** (float64[6]): 6个关节的当前角度值（度）
-  - **cartesian_position** (geometry_msgs/Pose): 当前工具中心点（TCP）的笛卡尔位姿（位置单位：m，姿态：四元数）
+先启动 MoveIt2，再启动 demo_driver 服务：
 
-#### 订阅的话题
+```bash
+# 终端 1：MoveIt2 + 机械臂
+ros2 launch aubo_moveit_config aubo_moveit_pure_ros2.launch.py
 
-- `joint_states` (sensor_msgs/JointState): 关节状态
-- `robot_status` (industrial_msgs/RobotStatus): 工业机器人状态
-- `trajectory_execution_event` (std_msgs/String): 轨迹执行事件
+# 终端 2：demo_driver 服务（延迟 15s 启动，等待 MoveIt2 就绪）
+ros2 launch aubo_moveit_config demo_driver_services.launch.py
+```
 
-#### 使用的服务
+`demo_driver_services.launch.py` 会启动：move_to_pose、plan_trajectory、execute_trajectory、get_current_state、set_speed_factor、set_robot_pose 等节点。**注意**：若包含 `movel_server_node` 且该节点未编译，启动时会报错，可从 launch 中移除。
 
-- `/aubo_driver/get_fk` (aubo_msgs/GetFK): 正运动学计算服务
+#### 方式二：单独运行节点
 
-#### 参数
+```bash
+# 机器人状态
+ros2 run demo_driver robot_status_publisher_node
+ros2 topic echo /robot_status
 
-- `publish_rate` (double, default: 10.0): 发布频率（Hz）
-- `base_frame` (string, default: "base_link"): 基础坐标系
-- `planning_group_name` (string, default: "manipulator_e5"): 规划组名称
+# 移动到目标位姿
+ros2 run demo_driver move_to_pose_server_node
+ros2 service call /move_to_pose demo_interface/srv/MoveToPose "{target_pose: {position: {x: 0.4, y: 0.3, z: 0.3}, orientation: {w: 1.0, x: 0.0, y: 0.0, z: 0.0}}, use_joints: false, velocity_factor: 0.5, acceleration_factor: 0.5}"
+
+# 规划轨迹
+ros2 run demo_driver plan_trajectory_server_node
+
+# 执行轨迹
+ros2 run demo_driver execute_trajectory_server_node
+
+# 获取当前状态
+ros2 run demo_driver get_current_state_server_node
+ros2 service call /get_current_state demo_interface/srv/GetCurrentState
+
+# 设置速度因子
+ros2 run demo_driver set_speed_factor_server_node
+ros2 service call /set_speed_factor demo_interface/srv/SetSpeedFactor "{velocity_factor: 0.5}"
+
+# 设置机器人位姿
+ros2 run demo_driver set_robot_pose_server_node
+
+# 夹爪快换
+ros2 run demo_driver gripper_swap_worker_node
+
+# GraspNet 抓取放置
+ros2 run demo_driver publish_grasps_client_worker_node
+```
+
+**典型工作流程**：调用 `/plan_trajectory` 规划 → 获取轨迹 → 调用 `/execute_trajectory` 执行。
 
 ---
 
-### 2. robot_io_status_publisher_node
+## 脚本
 
-**功能**：发布机器人IO状态信息，包括数字输入/输出、模拟输入/输出、工具IO状态和连接状态。
-
-#### 发布的话题
-
-- `/robot_io_status` (demo_interface/RobotIOStatus)
-  - **header** (std_msgs/Header): 标准消息头（时间戳和帧ID）
-  - **digital_inputs** (bool[]): 数字输入点状态数组
-  - **digital_outputs** (bool[]): 数字输出点状态数组
-  - **analog_inputs** (float32[]): 模拟输入点状态数组
-  - **analog_outputs** (float32[]): 模拟输出点状态数组
-  - **tool_io_status** (demo_interface/ToolIOStatus): 工具IO状态
-    - **digital_inputs** (bool[]): 工具数字输入点状态数组
-    - **digital_outputs** (bool[]): 工具数字输出点状态数组
-    - **analog_inputs** (float32[]): 工具模拟输入点状态数组
-    - **analog_outputs** (float32[]): 工具模拟输出点状态数组
-  - **is_connected** (bool): IO接口连接状态
-
-#### 订阅的话题
-
-- `/aubo_driver/io_states` (aubo_msgs/IOState): aubo驱动器的IO状态
-
-#### 参数
-
-- `io_states_topic` (string, default: "/aubo_driver/io_states"): IO状态话题名称
-- `base_frame` (string, default: "base_link"): 基础坐标系
+| 脚本 | 说明 |
+|------|------|
+| `moveit2_tcp_pose_publisher.py` | 发布 TCP 位姿 |
+| `verify_kinematics.py` | 运动学验证 |
+| `test_movel_service.py` | Movel 服务测试 |
 
 ---
 
-### 3. move_to_pose_server_node
-
-**功能**：提供移动到目标位姿服务，支持关节空间和笛卡尔空间规划，可设置速度和加速度缩放因子。
-
-#### 提供的服务
-
-- `/move_to_pose` (demo_interface/MoveToPose)
-  - **Request**:
-    - **target_pose** (geometry_msgs/Pose): 目标位姿（位置单位：m，姿态：四元数）
-    - **use_joints** (bool): True表示使用关节空间规划，False表示笛卡尔空间规划
-    - **velocity_factor** (float32): 速度缩放因子（0.0-1.0）
-    - **acceleration_factor** (float32): 加速度缩放因子（0.0-1.0）
-  - **Response**:
-    - **success** (bool): 执行结果，成功为true
-    - **error_code** (int32): 错误代码，成功为0
-    - **message** (string): 执行结果的详细信息
-
-#### 使用的服务
-
-- `/aubo_driver/get_ik` (aubo_msgs/GetIK): 逆运动学计算服务（可选）
-
-#### 参数
-
-- `planning_group_name` (string, default: "manipulator_e5"): 规划组名称
-- `base_frame` (string, default: "base_link"): 基础坐标系
-
----
-
-### 4. plan_trajectory_server_node
-
-**功能**：提供轨迹规划服务，规划到目标位姿的轨迹但不执行，返回规划的轨迹和规划时间。
-
-#### 提供的服务
-
-- `/plan_trajectory` (demo_interface/PlanTrajectory)
-  - **Request**:
-    - **target_pose** (geometry_msgs/Pose): 目标位姿
-    - **use_joints** (bool): True表示使用关节空间规划，False表示笛卡尔空间规划
-  - **Response**:
-    - **success** (bool): 规划成功为true
-    - **trajectory** (trajectory_msgs/JointTrajectory): 规划的轨迹
-    - **planning_time** (float32): 规划耗时（秒）
-    - **message** (string): 规划状态信息
-
-#### 参数
-
-- `planning_group_name` (string, default: "manipulator_e5"): 规划组名称
-- `base_frame` (string, default: "base_link"): 基础坐标系
-
----
-
-### 5. execute_trajectory_server_node
-
-**功能**：提供执行轨迹服务，执行给定的关节轨迹。
-
-#### 提供的服务
-
-- `/execute_trajectory` (demo_interface/ExecuteTrajectory)
-  - **Request**:
-    - **trajectory** (trajectory_msgs/JointTrajectory): 要执行的轨迹
-  - **Response**:
-    - **success** (bool): 执行成功为true
-    - **error_code** (int32): 错误代码，成功为0
-    - **message** (string): 执行结果信息
-
-#### 参数
-
-- `planning_group_name` (string, default: "manipulator_e5"): 规划组名称
-- `base_frame` (string, default: "base_link"): 基础坐标系
-
----
-
-### 6. get_current_state_server_node
-
-**功能**：提供获取当前状态服务，返回当前关节位置、笛卡尔位姿和关节速度。
-
-#### 提供的服务
-
-- `/get_current_state` (demo_interface/GetCurrentState)
-  - **Request**: 无
-  - **Response**:
-    - **success** (bool): 获取成功为true
-    - **joint_position_rad** (float64[]): 当前关节角度（弧度）
-    - **cartesian_position** (geometry_msgs/Pose): 当前笛卡尔位姿
-    - **velocity** (float64[]): 当前关节速度（rad/s）
-    - **message** (string): 状态信息
-
-#### 订阅的话题
-
-- `joint_states` (sensor_msgs/JointState): 关节状态
-
-#### 使用的服务
-
-- `/aubo_driver/get_fk` (aubo_msgs/GetFK): 正运动学计算服务
-
-#### 参数
-
-- `planning_group_name` (string, default: "manipulator_e5"): 规划组名称
-- `base_frame` (string, default: "base_link"): 基础坐标系
-
----
-
-### 7. set_speed_factor_server_node
-
-**功能**：提供设置速度因子服务，设置机器人的整体速度缩放因子。
-
-#### 提供的服务
-
-- `/set_speed_factor` (demo_interface/SetSpeedFactor)
-  - **Request**:
-    - **velocity_factor** (float32): 速度缩放因子（0.0-1.0）
-  - **Response**:
-    - **success** (bool): 设置成功为true
-    - **message** (string): 设置结果信息
-
-#### 参数
-
-- `planning_group_name` (string, default: "manipulator_e5"): 规划组名称
-- `base_frame` (string, default: "base_link"): 基础坐标系
-
----
-
-### 8. set_robot_enable_server_node
-
-**功能**：提供设置机器人使能状态服务，使能或禁用机器人。
-
-#### 提供的服务
-
-- `/set_robot_enable` (demo_interface/SetRobotEnable)
-  - **Request**:
-    - **enable** (bool): 使能状态，true为使能，false为禁用
-  - **Response**:
-    - **success** (bool): 执行结果，成功为true
-    - **error_code** (int32): 错误代码，成功为0
-    - **message** (string): 执行结果的详细信息
-
-#### 发布的话题
-
-- `robot_control` (std_msgs/String): 机器人控制命令（powerOn/powerOff）
-
-#### 参数
-
-- `robot_control_topic` (string, default: "robot_control"): 机器人控制话题名称
-
----
-
-### 9. set_robot_io_server_node
-
-**功能**：提供设置机器人IO服务，设置指定IO点的状态。
-
-#### 提供的服务
-
-- `/set_robot_io` (demo_interface/SetRobotIO)
-  - **Request**:
-    - **io_type** (string): IO类型（digital_output/analog_output/tool_io/tool_analog_output）
-    - **io_index** (int32): IO点索引
-    - **value** (float64): 要设置的值（数字IO：0.0/1.0，模拟IO：实际数值，tool_io输入模式：-1.0）
-  - **Response**:
-    - **success** (bool): 设置成功为true
-    - **error_code** (int32): 错误代码，成功为0
-    - **message** (string): 设置结果信息
-
-#### 使用的服务
-
-- `/aubo_driver/set_io` (aubo_msgs/SetIO): aubo驱动器的IO设置服务
-
-#### 参数
-
-- `aubo_set_io_service` (string, default: "/aubo_driver/set_io"): aubo_driver的IO设置服务名称
-
----
-
-### 10. read_robot_io_server_node
-
-**功能**：提供读取机器人IO服务，读取指定IO点的当前状态。
-
-#### 提供的服务
-
-- `/read_robot_io` (demo_interface/ReadRobotIO)
-  - **Request**:
-    - **io_type** (string): IO类型（digital_input/digital_output/analog_input/analog_output/tool_io/tool_analog_input）
-    - **io_index** (int32): IO点索引
-  - **Response**:
-    - **success** (bool): 读取成功为true
-    - **value** (float64): 读取到的值（数字IO：0.0/1.0，模拟IO：实际数值）
-    - **message** (string): 读取结果信息
-
-#### 订阅的话题
-
-- `/aubo_driver/io_states` (aubo_msgs/IOState): aubo驱动器的IO状态
-
-#### 参数
-
-- `io_states_topic` (string, default: "/aubo_driver/io_states"): IO状态话题名称
-
----
-
-## 使用方法
-
-### 编译
-
-```bash
-cd ~/aubo_ws
-catkin_make
-source devel/setup.bash
-```
-
-### 运行节点
-
-#### robot_status_publisher_node
-
-```bash
-rosrun demo_driver robot_status_publisher_node
-# 或
-roslaunch demo_driver robot_status_publisher.launch
-```
-
-查看发布的状态：
-```bash
-rostopic echo /robot_status
-```
-
-#### robot_io_status_publisher_node
-
-```bash
-rosrun demo_driver robot_io_status_publisher_node
-# 或
-roslaunch demo_driver robot_io_status_publisher.launch
-```
-
-查看发布的IO状态：
-```bash
-rostopic echo /robot_io_status
-```
-
-#### move_to_pose_server_node
-
-```bash
-rosrun demo_driver move_to_pose_server_node
-# 或
-roslaunch demo_driver move_to_pose_server.launch
-```
-
-调用服务示例：
-```bash
-rosservice call /move_to_pose "target_pose:
-  position:
-    x: 0.4
-    y: 0.3
-    z: 0.3
-  orientation:
-    w: 1.0
-    x: 0.0
-    y: 0.0
-    z: 0.0
-use_joints: false
-velocity_factor: 0.5
-acceleration_factor: 0.5"
-```
-
-#### plan_trajectory_server_node
-
-```bash
-rosrun demo_driver plan_trajectory_server_node
-# 或
-roslaunch demo_driver plan_trajectory_server.launch
-```
-
-调用服务示例：
-```bash
-rosservice call /plan_trajectory "target_pose:
-  position:
-    x: 0.4
-    y: 0.3
-    z: 0.3
-  orientation:
-    w: 1.0
-    x: 0.0
-    y: 0.0
-    z: 0.0
-use_joints: false"
-```
-
-#### execute_trajectory_server_node
-
-```bash
-rosrun demo_driver execute_trajectory_server_node
-# 或
-roslaunch demo_driver execute_trajectory_server.launch
-```
-
-调用服务示例：
-```bash
-rosservice call /execute_trajectory "trajectory:
-  joint_names: ['shoulder_joint', 'upperArm_joint', 'foreArm_joint', 'wrist1_joint', 'wrist2_joint', 'wrist3_joint']
-  points:
-  - positions: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-    velocities: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-    time_from_start: {secs: 0, nsecs: 0}"
-```
-
-**典型工作流程**：
-1. 调用 `/plan_trajectory` 服务规划轨迹
-2. 获取返回的轨迹
-3. 调用 `/execute_trajectory` 服务执行轨迹
-
-#### get_current_state_server_node
-
-```bash
-rosrun demo_driver get_current_state_server_node
-# 或
-roslaunch demo_driver get_current_state_server.launch
-```
-
-调用服务示例：
-```bash
-rosservice call /get_current_state
-```
-
-#### set_speed_factor_server_node
-
-```bash
-rosrun demo_driver set_speed_factor_server_node
-# 或
-roslaunch demo_driver set_speed_factor_server.launch
-```
-
-调用服务示例：
-```bash
-# 设置速度因子为 0.5（50%速度）
-rosservice call /set_speed_factor "velocity_factor: 0.5"
-```
-
-**注意**：速度因子范围：0.0 - 1.0，设置后会影响后续的所有运动规划。
-
-#### set_robot_enable_server_node
-
-```bash
-rosrun demo_driver set_robot_enable_server_node
-# 或
-roslaunch demo_driver set_robot_enable_server.launch
-```
-
-调用服务示例：
-```bash
-# 使能机器人
-rosservice call /set_robot_enable "enable: true"
-# 禁用机器人
-rosservice call /set_robot_enable "enable: false"
-```
-
-#### set_robot_io_server_node
-
-```bash
-rosrun demo_driver set_robot_io_server_node
-# 或
-roslaunch demo_driver set_robot_io_server.launch
-```
-
-调用服务示例：
-```bash
-# 设置数字输出点0为高电平
-rosservice call /set_robot_io "io_type: 'digital_output'
-io_index: 0
-value: 1.0"
-
-# 设置模拟输出点0为5.0V
-rosservice call /set_robot_io "io_type: 'analog_output'
-io_index: 0
-value: 5.0"
-
-# 设置工具IO点0为输出模式，高电平
-rosservice call /set_robot_io "io_type: 'tool_io'
-io_index: 0
-value: 1.0"
-```
-
-**支持的IO类型**：
-- `digital_output`: 数字输出（值：0.0=低电平，1.0=高电平）
-- `analog_output`: 模拟输出（值：实际电压值）
-- `tool_io`: 工具数字IO（值：0.0/1.0=输出模式并设置值，-1.0=输入模式）
-- `tool_analog_output`: 工具模拟输出（值：实际电压值）
-
-#### read_robot_io_server_node
-
-```bash
-rosrun demo_driver read_robot_io_server_node
-# 或
-roslaunch demo_driver read_robot_io_server.launch
-```
-
-调用服务示例：
-```bash
-# 读取数字输入点0
-rosservice call /read_robot_io "io_type: 'digital_input'
-io_index: 0"
-
-# 读取模拟输入点0
-rosservice call /read_robot_io "io_type: 'analog_input'
-io_index: 0"
-
-# 读取工具IO点0
-rosservice call /read_robot_io "io_type: 'tool_io'
-io_index: 0"
-```
-
-**支持的IO类型**：
-- `digital_input`: 数字输入（返回值：0.0=低电平，1.0=高电平）
-- `digital_output`: 数字输出（返回值：0.0=低电平，1.0=高电平）
-- `analog_input`: 模拟输入（返回值：实际电压值）
-- `analog_output`: 模拟输出（返回值：实际电压值）
-- `tool_io`: 工具数字IO（返回值：0.0=低电平，1.0=高电平）
-- `tool_analog_input`: 工具模拟输入（返回值：实际电压值）
+## 相关文档
+
+- [docs/GRASP_CALL_FLOW.md](docs/GRASP_CALL_FLOW.md) — GraspNet 抓取放置调用逻辑
+- [docs/GRASP_MOTION_CPP_PORT_FINAL_PLAN.md](docs/GRASP_MOTION_CPP_PORT_FINAL_PLAN.md) — 抓取运动 C++ 移植规划
+- [docs/MOVE_TO_POSE_AND_ERROR_MINUS4_ANALYSIS.md](docs/MOVE_TO_POSE_AND_ERROR_MINUS4_ANALYSIS.md) — move_to_pose 错误分析

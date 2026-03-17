@@ -80,7 +80,7 @@ public:
 
 private:
   /**
-   * 4 点笛卡尔抓取接近，fraction<1 或点数>60 直接返回 false，不回退
+   * 4 点笛卡尔抓取接近，fraction<1 或点数>cartesian_max_points 直接返回 false，不回退
    * @param pose_ee end_effector 在 base_link 下的目标位姿（gripper_tip 补偿后）
    * @param height_above 抓取点上方安全高度 (m)
    * @param vel 笛卡尔轨迹速度缩放 [0~1]
@@ -127,10 +127,14 @@ private:
   double grasp_z_offset_;
   /** 抓取点上方安全高度 (m)，笛卡尔路径先到该高度再垂直下降 */
   double height_above_;
-  /** 关节/笛卡尔速度缩放 [0~1]，用于 scaleTrajectoryTime */
+  /** 关节/笛卡尔速度缩放 [0~1]，用于抓取接近、抬起、放置位姿等 */
   float joint_velocity_scaling_;
-  /** 关节/笛卡尔加速度缩放 [0~1] */
+  /** 关节/笛卡尔加速度缩放 [0~1]，用于抓取接近、放置位姿等 */
   float joint_acceleration_scaling_;
+  /** moveToHome 回安全位速度缩放 [0~1]，与笛卡尔分开 */
+  float home_velocity_scaling_;
+  /** moveToHome 回安全位加速度缩放 [0~1]，与笛卡尔分开 */
+  float home_acceleration_scaling_;
   /** 抓取位姿话题名，与 graspnet_demo_points_node 发布一致 */
   std::string grasp_poses_topic_;
   /** 等待窗口就绪超时 (s)，超时返回 false */
@@ -161,6 +165,8 @@ private:
   int max_cycles_;
   /** 状态监控话题，发布 cycle_count、success_count、fail_count 等 JSON */
   std::string status_topic_;
+  /** 抓取接近笛卡尔轨迹点数上限，超过则拒绝执行（即使规划 100%%） */
+  int cartesian_max_points_;
 
   std::atomic<bool> shutdown_requested_{ false };
   int cycle_count_{ 0 };

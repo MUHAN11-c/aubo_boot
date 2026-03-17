@@ -61,8 +61,8 @@ protected:
   bool moveToPose(double x, double y, double z, double qx, double qy, double qz, double qw, bool use_joints = false,
                   float velocity_factor = 0.5f, float acceleration_factor = 0.5f);
 
-  /** 移动到命名目标 camera_pose */
-  bool moveToHome();
+  /** 移动到命名目标 camera_pose，velocity_factor/acceleration_factor 控制速度与加速度 [0~1] */
+  bool moveToHome(float velocity_factor = 0.5f, float acceleration_factor = 0.5f);
   /** 移动到 arc 起点位姿 */
   bool moveToArcStart();
   /** 沿 Z 轴笛卡尔直线移动 z_offset 米，velocity_factor 0~1 控制速度，默认 0.5 */
@@ -79,6 +79,7 @@ protected:
 
 protected:
   std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
+  static constexpr double kZMinLimit = 0.2;  /**< Z 轴安全下限 (m)，末端 z 坐标不能低于此值 */
 
 private:
   rclcpp::Client<aubo_msgs::srv::SetIO>::SharedPtr aubo_set_io_client_;

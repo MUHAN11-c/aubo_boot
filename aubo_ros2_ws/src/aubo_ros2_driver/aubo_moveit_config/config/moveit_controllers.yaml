@@ -1,6 +1,6 @@
 trajectory_execution:
-  allowed_execution_duration_scaling: 1.2
-  allowed_goal_duration_margin: 0.5
+  allowed_execution_duration_scaling: 4.0
+  allowed_goal_duration_margin: 3.0
   # 起始关节容差(rad)，过严会在 joint_states 与轨迹起点略偏时立即 abort（0.15≈8.6°）
   allowed_start_tolerance: 0.15
 

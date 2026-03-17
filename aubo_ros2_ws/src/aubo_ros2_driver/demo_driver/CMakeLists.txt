@@ -234,7 +234,8 @@ install(DIRECTORY launch/
 install(PROGRAMS
   scripts/moveit2_tcp_pose_publisher.py
   scripts/verify_kinematics.py
-  scripts/test_movel_service.py
+  scripts/test_ros2_communication.py
+  scripts/run_tracetools_analysis.sh
   DESTINATION lib/${PROJECT_NAME}
 )
 

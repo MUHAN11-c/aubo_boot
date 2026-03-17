@@ -8,6 +8,7 @@
 #include <chrono>
 #include <cmath>
 #include <csignal>
+#include <fstream>
 #include <sstream>
 #include <thread>
 
@@ -25,6 +26,35 @@
 
 namespace demo_driver
 {
+
+// #region agent log
+namespace {
+constexpr const char* kDebugLogPath = "/home/mu/IVG2.0/.cursor/debug-a15b92.log";
+constexpr const char* kDebugSessionId = "a15b92";
+inline void dbg_log(const char* run_id, const char* hypothesis_id, const char* location,
+                    const char* message, const std::string& data_json)
+{
+  try
+  {
+    std::ofstream f(kDebugLogPath, std::ios::app);
+    if (!f.is_open())
+      return;
+    const auto ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::system_clock::now().time_since_epoch()).count();
+    f << "{\"sessionId\":\"" << kDebugSessionId
+      << "\",\"runId\":\"" << run_id
+      << "\",\"hypothesisId\":\"" << hypothesis_id
+      << "\",\"location\":\"" << location
+      << "\",\"message\":\"" << message
+      << "\",\"data\":" << data_json
+      << ",\"timestamp\":" << ts_ms << "}\n";
+  }
+  catch (...)
+  {
+  }
+}
+}  // namespace
+// #endregion
 
 /** 供 SIGINT 处理访问，在 main 中设置 */
 static PublishGraspsClientWorker* g_worker_for_signal = nullptr;
@@ -47,7 +77,6 @@ static void sleepInterruptible(PublishGraspsClientWorker* worker, double seconds
   }
 }
 
-static constexpr int kCartesianMaxPointsForExecution = 60;
 static constexpr int kArcPathMaxRetries = 3;
 static constexpr double kArcPathRetryDelaySec = 0.5;
 static constexpr double kCartesianEefStep = 0.01;
@@ -97,8 +126,10 @@ static void scaleTrajectoryTimeLocal(moveit_msgs::msg::RobotTrajectory& traj, do
 // | prefer_vertical          | bool    | true           | 选优策略：true 取垂直度最高，false 取最新组第一个                    |
 // | grasp_z_offset           | double  | 0.15           | gripper_tip→end_effector 沿 z 轴补偿 (m)            |
 // | height_above             | double  | 0.05           | 抓取点上方安全高度 (m)，笛卡尔路径先到该高度再下降                  |
-// | joint_velocity_scaling   | float   | 0.15           | 关节/笛卡尔速度缩放 [0~1]                                |
-// | joint_acceleration_scaling| float   | 0.1            | 关节/笛卡尔加速度缩放 [0~1]                              |
+// | joint_velocity_scaling   | float   | 1.0            | 关节/笛卡尔速度缩放 [0~1]，用于抓取接近、抬起、放置位姿等   |
+// | joint_acceleration_scaling| float   | 0.1            | 关节/笛卡尔加速度缩放 [0~1]，用于抓取接近、放置位姿等       |
+// | home_velocity_scaling    | float   | 0.5            | moveToHome 回安全位速度缩放 [0~1]，与笛卡尔分开               |
+// | home_acceleration_scaling| float   | 0.5            | moveToHome 回安全位加速度缩放 [0~1]，与笛卡尔分开             |
 // | grasp_poses_topic        | string  | grasp_poses_base| 抓取位姿话题，与 graspnet_demo_points_node 发布一致        |
 // | wait_poses_timeout_sec   | double  | 30.0           | 等待窗口就绪超时 (s)                                   |
 // | grasp_window_size        | int     | 5              | 滑动窗口大小：缓存最近 N 组 PoseArray                      |
@@ -114,6 +145,7 @@ static void scaleTrajectoryTimeLocal(moveit_msgs::msg::RobotTrajectory& traj, do
 // | fail_retry_delay_sec     | double  | 1.0            | 失败后额外等待 (s)                                     |
 // | max_cycles               | int     | -1             | 最大周期数，-1 无限循环                                  |
 // | status_topic             | string  | grasp_place_status | 状态监控话题，发布 JSON 状态                         |
+// | cartesian_max_points     | int     | 50                | 抓取接近笛卡尔轨迹点数上限，超过则拒绝执行（即使规划100%%）   |
 //
 // ============================================================================
 
@@ -121,10 +153,12 @@ PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& 
   : MoveitGripperIoBase(options)
 {
   declare_parameter("prefer_vertical", true);
-  declare_parameter("grasp_z_offset", 0.15+0.05);
-  declare_parameter("height_above", 0.05);
-  declare_parameter("joint_velocity_scaling", 0.5f);
+  declare_parameter("grasp_z_offset", 0.15);
+  declare_parameter("height_above", 0.1);
+  declare_parameter("joint_velocity_scaling", 1.0f);
   declare_parameter("joint_acceleration_scaling", 0.1f);
+  declare_parameter("home_velocity_scaling", 0.7f);
+  declare_parameter("home_acceleration_scaling", 0.45f);
   declare_parameter("grasp_poses_topic", std::string("grasp_poses_base"));
   declare_parameter("wait_poses_timeout_sec", 30.0);
   declare_parameter("grasp_window_size", 5);
@@ -138,6 +172,7 @@ PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& 
   declare_parameter("fail_retry_delay_sec", 1.0);
   declare_parameter("max_cycles", -1);
   declare_parameter("status_topic", std::string("grasp_place_status"));
+  declare_parameter("cartesian_max_points", 50);
   declare_parameter("place_pose", std::vector<double>({ 0.4, 0.0, 0.45, 0.0, 1.0, 0.0, 0.0 }));
   declare_parameter("place_joints",
                     std::vector<double>({ 1.210212, 0.129677, 1.925533, 0.225356, 1.571783, 1.209540 }));
@@ -147,6 +182,8 @@ PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& 
   height_above_ = get_parameter("height_above").as_double();
   joint_velocity_scaling_ = get_parameter("joint_velocity_scaling").as_double();
   joint_acceleration_scaling_ = get_parameter("joint_acceleration_scaling").as_double();
+  home_velocity_scaling_ = get_parameter("home_velocity_scaling").as_double();
+  home_acceleration_scaling_ = get_parameter("home_acceleration_scaling").as_double();
   grasp_poses_topic_ = get_parameter("grasp_poses_topic").as_string();
   wait_poses_timeout_sec_ = get_parameter("wait_poses_timeout_sec").as_double();
   grasp_window_size_ = static_cast<size_t>(std::max<int64_t>(1, get_parameter("grasp_window_size").as_int()));
@@ -160,6 +197,10 @@ PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& 
   fail_retry_delay_sec_ = get_parameter("fail_retry_delay_sec").as_double();
   max_cycles_ = get_parameter("max_cycles").as_int();
   status_topic_ = get_parameter("status_topic").as_string();
+  {
+    int val = static_cast<int>(get_parameter("cartesian_max_points").as_int());
+    cartesian_max_points_ = (val < 1) ? 1 : val;
+  }
 
   place_pose_ = { 0.4, 0.0, 0.45, 0.0, 1.0, 0.0, 0.0 };
   place_joints_ = { 1.210212, 0.129677, 1.925533, 0.225356, 1.571783, 1.209540 };
@@ -376,6 +417,12 @@ bool PublishGraspsClientWorker::runGraspApproach(const geometry_msgs::msg::Pose&
   double gz = pose_for_plan.position.z;
   double z_above = gz + height_above;
 
+  if (gz < kZMinLimit)
+  {
+    RCLCPP_ERROR(get_logger(), "[runGraspApproach] Z 轴安全限位: 抓取点 z=%.3f < %.2f m，拒绝执行", gz, kZMinLimit);
+    return false;
+  }
+
   geometry_msgs::msg::Quaternion grasp_ori = pose_for_plan.orientation;
   geometry_msgs::msg::Quaternion grasp_ori_short = quatSameHemisphere(current_pose.orientation, grasp_ori);
 
@@ -409,9 +456,28 @@ bool PublishGraspsClientWorker::runGraspApproach(const geometry_msgs::msg::Pose&
     double fraction = move_group_->computeCartesianPath(
         waypoints, kCartesianEefStep, kCartesianJumpThreshold, trajectory);
     size_t num_points = trajectory.joint_trajectory.points.size();
+    double raw_duration_sec = 0.0;
+    if (!trajectory.joint_trajectory.points.empty())
+    {
+      const auto& last = trajectory.joint_trajectory.points.back().time_from_start;
+      raw_duration_sec = static_cast<double>(last.sec) + 1e-9 * static_cast<double>(last.nanosec);
+    }
 
     RCLCPP_INFO(get_logger(), "抓取接近笛卡尔: fraction=%.2f%%, 点数=%zu (尝试 %d/%d)",
                 fraction * 100.0, num_points, attempt, kArcPathMaxRetries);
+    {
+      std::ostringstream oss;
+      oss << "{\"attempt\":" << attempt
+          << ",\"fraction\":" << fraction
+          << ",\"num_points\":" << num_points
+          << ",\"raw_duration_sec\":" << raw_duration_sec
+          << ",\"vel_factor\":" << static_cast<double>(vel)
+          << ",\"acc_factor\":" << static_cast<double>(acc) << "}";
+      // #region agent log
+      dbg_log("pre-fix-2", "H6", "publish_grasps_client_worker.cpp:runGraspApproach:after_compute",
+              "computed grasp cartesian path", oss.str());
+      // #endregion
+    }
 
     if (fraction < 1.0)
     {
@@ -422,10 +488,10 @@ bool PublishGraspsClientWorker::runGraspApproach(const geometry_msgs::msg::Pose&
         std::this_thread::sleep_for(std::chrono::duration<double>(kArcPathRetryDelaySec));
       continue;
     }
-    if (num_points > static_cast<size_t>(kCartesianMaxPointsForExecution))
+    if (num_points > static_cast<size_t>(cartesian_max_points_))
     {
-      RCLCPP_ERROR(get_logger(), "笛卡尔轨迹点数过多 (%zu > %d)。不回退，直接失败。", num_points,
-                   kCartesianMaxPointsForExecution);
+      RCLCPP_ERROR(get_logger(), "笛卡尔轨迹点数过多 (%zu > %d)，规划100%%也不执行。", num_points,
+                   cartesian_max_points_);
       if (attempt < kArcPathMaxRetries)
         std::this_thread::sleep_for(std::chrono::duration<double>(kArcPathRetryDelaySec));
       continue;
@@ -434,7 +500,37 @@ bool PublishGraspsClientWorker::runGraspApproach(const geometry_msgs::msg::Pose&
     scaleTrajectoryTimeLocal(trajectory, static_cast<double>(vel));
     moveit::planning_interface::MoveGroupInterface::Plan plan;
     plan.trajectory_ = trajectory;
+    double scaled_duration_sec = 0.0;
+    if (!plan.trajectory_.joint_trajectory.points.empty())
+    {
+      const auto& last = plan.trajectory_.joint_trajectory.points.back().time_from_start;
+      scaled_duration_sec = static_cast<double>(last.sec) + 1e-9 * static_cast<double>(last.nanosec);
+    }
+    {
+      std::ostringstream oss;
+      oss << "{\"attempt\":" << attempt
+          << ",\"planned_points\":" << plan.trajectory_.joint_trajectory.points.size()
+          << ",\"scaled_duration_sec\":" << scaled_duration_sec << "}";
+      // #region agent log
+      dbg_log("pre-fix-2", "H7", "publish_grasps_client_worker.cpp:runGraspApproach:before_execute",
+              "about to execute grasp approach plan", oss.str());
+      // #endregion
+    }
+    const auto exec_wall_start = std::chrono::steady_clock::now();
     auto exec_ok = move_group_->execute(plan);
+    const auto exec_wall_ms =
+      std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - exec_wall_start).count();
+    {
+      std::ostringstream oss;
+      oss << "{\"attempt\":" << attempt
+          << ",\"exec_code\":" << exec_ok.val
+          << ",\"exec_wall_ms\":" << exec_wall_ms
+          << ",\"scaled_duration_sec\":" << scaled_duration_sec << "}";
+      // #region agent log
+      dbg_log("pre-fix-2", "H8", "publish_grasps_client_worker.cpp:runGraspApproach:after_execute",
+              "grasp approach execute returned", oss.str());
+      // #endregion
+    }
     if (exec_ok != moveit::core::MoveItErrorCode::SUCCESS)
     {
       RCLCPP_ERROR(get_logger(), "[runGraspApproach] 执行失败，错误码=%d", exec_ok.val);
@@ -460,7 +556,7 @@ bool PublishGraspsClientWorker::runOneCycle()
   if (!rclcpp::ok() || shutdown_requested_)
     return false;
   RCLCPP_INFO(get_logger(), "步骤 0: 回安全位（识别前到位）");
-  if (!moveToHome())
+  if (!moveToHome(home_velocity_scaling_, home_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "runOneCycle 步骤0 回安全位失败，需在识别前到位");
     return false;
@@ -520,7 +616,7 @@ bool PublishGraspsClientWorker::runOneCycle()
   RCLCPP_INFO(get_logger(), "步骤 8: 移动到放置位 (place_mode=%s)", place_mode_.c_str());
   if (place_mode_ == "home_offset")
   {
-    if (!moveToHome())
+    if (!moveToHome(home_velocity_scaling_, home_acceleration_scaling_))
     {
       RCLCPP_ERROR(get_logger(), "runOneCycle 步骤8 回安全位失败");
       return false;
@@ -562,7 +658,7 @@ bool PublishGraspsClientWorker::runOneCycle()
   // }
 
   RCLCPP_INFO(get_logger(), "步骤 10: 回安全位");
-  if (!moveToHome())
+  if (!moveToHome(home_velocity_scaling_, home_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "runOneCycle 步骤10 回安全位失败");
     return false;
@@ -591,7 +687,7 @@ void PublishGraspsClientWorker::onShutdown()
 {
   RCLCPP_INFO(get_logger(), "onShutdown: 回安全位、开夹爪");
   setGripperIo(gripper_io_index_, false);
-  moveToHome();
+  moveToHome(home_velocity_scaling_, home_acceleration_scaling_);
 }
 
 void PublishGraspsClientWorker::requestShutdown()

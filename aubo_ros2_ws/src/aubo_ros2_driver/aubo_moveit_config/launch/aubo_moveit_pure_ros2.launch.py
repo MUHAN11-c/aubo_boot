@@ -80,11 +80,11 @@ def launch_setup(context, *args, **kwargs):
             "moveit_controller_manager": "moveit_simple_controller_manager/MoveItSimpleControllerManager",
         }
 
-    # 轨迹执行允许时间 = 规划时长×scaling + margin；在 launch 中设置合理值，避免过早超时又不过大
+    # 轨迹执行允许时间 = 规划时长×scaling + margin；400Hz 插值+边界 blend 使执行略慢，需更大余量
     trajectory_execution = {
         "moveit_manage_controllers": False,
-        "trajectory_execution.allowed_execution_duration_scaling": 1.5,
-        "trajectory_execution.allowed_goal_duration_margin": 1.0,
+        "trajectory_execution.allowed_execution_duration_scaling": 4.0,
+        "trajectory_execution.allowed_goal_duration_margin": 3.0,
         "trajectory_execution.allowed_start_tolerance": 0.15,
     }
 
@@ -98,9 +98,9 @@ def launch_setup(context, *args, **kwargs):
             moveit_config.robot_description_kinematics,
             moveit_config.joint_limits,
             ompl_planning,
-            trajectory_execution,
-            {'publish_robot_description_semantic': True},
             moveit_controllers,
+            trajectory_execution,  # 放最后以覆盖 yaml 中的 1.2/0.5
+            {'publish_robot_description_semantic': True},
             {"planning_scene_monitor_options": {"joint_state_topic": "/joint_states", "wait_for_initial_state_timeout": 10.0}},
         ],
     )
@@ -186,7 +186,7 @@ def launch_setup(context, *args, **kwargs):
         name="aubo_robot_simulator",
         output="screen",
         parameters=[{
-            "motion_update_rate": 200.0,
+            "motion_update_rate": 400.0,  # 400Hz 更密插值，减轻运动过程中轻微抖动
             "minimum_buffer_size": 600,  # 降低节流阈值，避免速度因子 0.1 时 rib>2000 导致成批发送卡顿
             "joint_names": joint_names_list,
         }],

@@ -1,10 +1,37 @@
 #include "aubo_ros2_trajectory_action.h"
+#include <algorithm>
 #include <cmath>
 #include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <fstream>
 
 using namespace aubo_ros2_trajectory_action;
+
+// #region agent log
+namespace {
+const char* DBG_LOG = "/home/mu/IVG2.0/.cursor/debug-a15b92.log";
+const char* DBG_SESSION = "a15b92";
+void dbg_log(const char* run_id, const char* hypothesis_id, const char* location, const char* msg, const char* data_json) {
+    try {
+        std::ofstream f(DBG_LOG, std::ios::app);
+        if (f) {
+            auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count();
+            f << "{\"sessionId\":\"" << DBG_SESSION
+              << "\",\"runId\":\"" << run_id
+              << "\",\"hypothesisId\":\"" << hypothesis_id
+              << "\",\"location\":\"" << location
+              << "\",\"message\":\"" << msg
+              << "\",\"timestamp\":" << ts;
+            if (data_json && data_json[0]) f << ",\"data\":" << data_json;
+            f << "}\n";
+        }
+    } catch (...) {}
+}
+}
+// #endregion
 
 JointTrajectoryAction::JointTrajectoryAction(std::string controller_name):Node("aubo_ros2_trajectory_action")
 {
@@ -66,6 +93,25 @@ void JointTrajectoryAction::fjtFeedbackCallback(const control_msgs::action::Foll
     last_feedback_positions_.push_back(msg->actual.positions[i]);
   active_goal_->publish_feedback(std::const_pointer_cast<control_msgs::action::FollowJointTrajectory_Feedback>(msg));
   bool reached = checkReachTarget(msg, current_trajectory_);
+  // #region agent log
+  if (!reached && !current_trajectory_.points.empty())
+  {
+    static int s_feedback_debug_count = 0;
+    if (s_feedback_debug_count < 3)
+    {
+      const auto& target = current_trajectory_.points.back();
+      double max_abs_err = 0.0;
+      for (size_t i = 0; i < target.positions.size() && i < msg->actual.positions.size(); ++i)
+        max_abs_err = std::max(max_abs_err, std::abs(target.positions[i] - msg->actual.positions[i]));
+      char buf[256];
+      snprintf(buf, sizeof(buf),
+               "{\"feedback_count\":%d,\"actual_size\":%zu,\"target_size\":%zu,\"max_abs_err_rad\":%.6f}",
+               s_feedback_debug_count + 1, msg->actual.positions.size(), target.positions.size(), max_abs_err);
+      dbg_log("pre-fix-1", "H4", "aubo_ros2_trajectory_action.cpp:fjtFeedbackCallback", "feedback not yet reached target", buf);
+      s_feedback_debug_count++;
+    }
+  }
+  // #endregion
   if (reached)
   {
     RCLCPP_INFO(this->get_logger(), "reach target");
@@ -80,6 +126,14 @@ void JointTrajectoryAction::fjtFeedbackCallback(const control_msgs::action::Foll
 
 void JointTrajectoryAction::moveitExecutionCallback(const std_msgs::msg::String::ConstSharedPtr msg)
 {
+  // #region agent log
+  {
+    char buf[192];
+    snprintf(buf, sizeof(buf), "{\"event\":\"%s\",\"has_active_goal\":%s}",
+             msg->data.c_str(), has_active_goal_ ? "true" : "false");
+    dbg_log("pre-fix-1", "H3", "aubo_ros2_trajectory_action.cpp:moveitExecutionCallback", "trajectory execution event received", buf);
+  }
+  // #endregion
   if (msg->data == "stop")
   {
     RCLCPP_INFO(this->get_logger(), "moveit execution stopped (trajectory_execution_event=stop)");
@@ -134,6 +188,13 @@ void JointTrajectoryAction::handleAccept(const std::shared_ptr<GoalHandleFjt> go
   goal_accept_time_sec_ = this->now().seconds();  // 记录接受时刻，看门狗满 2 秒后再判无反馈
   const double total_t = toSec(current_trajectory_.points.back().time_from_start);
   const size_t n = current_trajectory_.points.size();
+  // #region agent log
+  {
+    char buf[256];
+    snprintf(buf, sizeof(buf), "{\"n_points\":%zu,\"total_t\":%.6f}", n, total_t);
+    dbg_log("pre-fix-1", "H1", "aubo_ros2_trajectory_action.cpp:handleAccept", "goal accepted and trajectory cached", buf);
+  }
+  // #endregion
   publishTrajectory();
   return;
 }
@@ -142,6 +203,14 @@ void JointTrajectoryAction::abortActiveGoal(const char* reason)
 {
   const char* r = reason ? reason : "unknown";
   RCLCPP_INFO(this->get_logger(), "JointTrajectoryAction: abort, reason=%s", r);
+  // #region agent log
+  {
+    char buf[256];
+    snprintf(buf, sizeof(buf), "{\"reason\":\"%s\",\"has_active_goal\":%s,\"trajectory_state_recvd\":%s}",
+             r, has_active_goal_ ? "true" : "false", trajectory_state_recvd_ ? "true" : "false");
+    dbg_log("pre-fix-2", "H9", "aubo_ros2_trajectory_action.cpp:abortActiveGoal", "trajectory action aborting goal", buf);
+  }
+  // #endregion
 
   auto result = std::make_shared<FollowJointTrajectory::Result>();
   result->error_code = FollowJointTrajectory::Result::PATH_TOLERANCE_VIOLATED;
@@ -158,6 +227,37 @@ void JointTrajectoryAction::publishTrajectory()
   // 重映射关节顺序（如果需要）
   trajectory_msgs::msg::JointTrajectory remap_traj = remapTrajectoryByJointName(current_trajectory_);
   current_trajectory_ = remap_traj;
+
+  // #region agent log
+  const auto& pts = current_trajectory_.points;
+  if (!pts.empty()) {
+    double t0 = toSec(pts.front().time_from_start);
+    double tN = toSec(pts.back().time_from_start);
+    int time_reversal = 0;
+    for (size_t i = 1; i < pts.size(); i++) {
+      double ti = toSec(pts[i].time_from_start);
+      double tp = toSec(pts[i-1].time_from_start);
+      if (ti <= tp - 1e-9) time_reversal++;
+    }
+    char buf[512];
+    snprintf(buf, sizeof(buf),
+      "{\"n_points\":%zu,\"t0\":%.4f,\"tN\":%.4f,\"time_reversal_count\":%d,\"pos0\":[%.4f,%.4f,%.4f,%.4f,%.4f,%.4f],\"posN\":[%.4f,%.4f,%.4f,%.4f,%.4f,%.4f],\"hypothesisId\":\"H3\"}",
+      pts.size(), t0, tN, time_reversal,
+      pts.front().positions.size() > 0 ? pts.front().positions[0] : 0,
+      pts.front().positions.size() > 1 ? pts.front().positions[1] : 0,
+      pts.front().positions.size() > 2 ? pts.front().positions[2] : 0,
+      pts.front().positions.size() > 3 ? pts.front().positions[3] : 0,
+      pts.front().positions.size() > 4 ? pts.front().positions[4] : 0,
+      pts.front().positions.size() > 5 ? pts.front().positions[5] : 0,
+      pts.back().positions.size() > 0 ? pts.back().positions[0] : 0,
+      pts.back().positions.size() > 1 ? pts.back().positions[1] : 0,
+      pts.back().positions.size() > 2 ? pts.back().positions[2] : 0,
+      pts.back().positions.size() > 3 ? pts.back().positions[3] : 0,
+      pts.back().positions.size() > 4 ? pts.back().positions[4] : 0,
+      pts.back().positions.size() > 5 ? pts.back().positions[5] : 0);
+    dbg_log("pre-fix-1", "H3", "aubo_ros2_trajectory_action.cpp:publishTrajectory", "publishTrajectory boundary", buf);
+  }
+  // #endregion
 
   // 直接发布到 joint_path_command，由 simulator 做 5 次样条插值
   trajectory_command_pub_->publish(current_trajectory_);

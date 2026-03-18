@@ -9,7 +9,6 @@
 #include "demo_driver/moveit_gripper_io_base.h"
 
 #include <chrono>
-#include <fstream>
 #include <future>
 #include <iomanip>
 #include <sstream>
@@ -24,36 +23,6 @@
 
 namespace demo_driver
 {
-// #region agent log
-namespace {
-constexpr const char* kDebugLogPath = "/home/mu/IVG2.0/.cursor/debug-a15b92.log";
-constexpr const char* kDebugSessionId = "a15b92";
-inline void dbg_log(const char* run_id, const char* hypothesis_id, const char* location,
-                    const char* message, const std::string& data_json)
-{
-  try
-  {
-    std::ofstream f(kDebugLogPath, std::ios::app);
-    if (!f.is_open())
-      return;
-    const auto ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-      std::chrono::system_clock::now().time_since_epoch()).count();
-    f << "{\"sessionId\":\"" << kDebugSessionId
-      << "\",\"runId\":\"" << run_id
-      << "\",\"hypothesisId\":\"" << hypothesis_id
-      << "\",\"location\":\"" << location
-      << "\",\"message\":\"" << message
-      << "\",\"data\":" << data_json
-      << ",\"timestamp\":" << ts_ms << "}\n";
-  }
-  catch (...)
-  {
-  }
-}
-}  // namespace
-// #endregion
-
-
 // ============================================================================
 // 静态成员定义
 // ============================================================================
@@ -197,8 +166,9 @@ bool MoveitGripperIoBase::moveToPose(double x, double y, double z,
 
   if (z < kZMinLimit)
   {
-    RCLCPP_ERROR(get_logger(), "[move_to_pose] Z 轴安全限位: z=%.3f < %.2f m，拒绝执行", z, kZMinLimit);
-    return false;
+    RCLCPP_WARN(get_logger(), "[move_to_pose] Z 轴安全限位: z=%.3f < %.2f m，覆盖为 %.2f m 执行", z, kZMinLimit,
+                kZMinLimit);
+    z = kZMinLimit;
   }
 
   move_group_->setMaxVelocityScalingFactor(velocity_factor);
@@ -381,9 +351,9 @@ bool MoveitGripperIoBase::runArcPath(char axis, double offset, float velocity_fa
 
   if (axis == 'z' && target_pose.position.z < kZMinLimit)
   {
-    RCLCPP_ERROR(get_logger(), "笛卡尔路径 Z 轴安全限位: 目标 z=%.3f < %.2f m，拒绝执行",
-                 target_pose.position.z, kZMinLimit);
-    return false;
+    RCLCPP_WARN(get_logger(), "笛卡尔路径 Z 轴安全限位: 目标 z=%.3f < %.2f m，覆盖为 %.2f m 执行",
+                target_pose.position.z, kZMinLimit, kZMinLimit);
+    target_pose.position.z = kZMinLimit;
   }
   waypoints.push_back(target_pose);
 
@@ -443,9 +413,9 @@ bool MoveitGripperIoBase::runArcPathSequence(const std::vector<CartesianSegment>
 
     if (seg.axis == 'z' && p.position.z < kZMinLimit)
     {
-      RCLCPP_ERROR(get_logger(), "多段笛卡尔路径 Z 轴安全限位: 段后 z=%.3f < %.2f m，拒绝执行",
-                   p.position.z, kZMinLimit);
-      return false;
+      RCLCPP_WARN(get_logger(), "多段笛卡尔路径 Z 轴安全限位: 段后 z=%.3f < %.2f m，覆盖为 %.2f m 执行",
+                  p.position.z, kZMinLimit, kZMinLimit);
+      p.position.z = kZMinLimit;
     }
     waypoints.push_back(p);
   }
@@ -463,39 +433,7 @@ bool MoveitGripperIoBase::runArcPathSequence(const std::vector<CartesianSegment>
       scaleTrajectoryTime(trajectory, static_cast<double>(velocity_factor));
       moveit::planning_interface::MoveGroupInterface::Plan plan;
       plan.trajectory_ = trajectory;
-      double planned_sec = 0.0;
-      const auto& pts = plan.trajectory_.joint_trajectory.points;
-      if (!pts.empty())
-      {
-        planned_sec = static_cast<double>(pts.back().time_from_start.sec) +
-                      1e-9 * static_cast<double>(pts.back().time_from_start.nanosec);
-      }
-      {
-        std::ostringstream oss;
-        oss << "{\"attempt\":" << attempt
-            << ",\"velocity_factor\":" << static_cast<double>(velocity_factor)
-            << ",\"planned_points\":" << pts.size()
-            << ",\"planned_duration_sec\":" << planned_sec
-            << ",\"fraction\":" << fraction << "}";
-        // #region agent log
-        dbg_log("pre-fix-1", "H1", "moveit_gripper_io_base.cpp:runArcPathSequence:before_execute",
-                "about to execute cartesian trajectory", oss.str());
-        // #endregion
-      }
-      const auto exec_wall_start = std::chrono::steady_clock::now();
-      const auto exec_ok = move_group_->execute(plan);
-      const auto exec_wall_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - exec_wall_start).count();
-      {
-        std::ostringstream oss;
-        oss << "{\"exec_code\":" << exec_ok.val
-            << ",\"exec_wall_ms\":" << exec_wall_ms
-            << ",\"planned_duration_sec\":" << planned_sec << "}";
-        // #region agent log
-        dbg_log("pre-fix-1", "H1", "moveit_gripper_io_base.cpp:runArcPathSequence:after_execute",
-                "cartesian trajectory execute returned", oss.str());
-        // #endregion
-      }
+      move_group_->execute(plan);
       RCLCPP_INFO(get_logger(), "多段笛卡尔路径执行完成 (速度因子 %.2f)", velocity_factor);
       return true;
     }

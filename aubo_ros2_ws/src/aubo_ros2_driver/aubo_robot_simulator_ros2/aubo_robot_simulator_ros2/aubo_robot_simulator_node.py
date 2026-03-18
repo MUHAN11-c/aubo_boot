@@ -12,28 +12,6 @@ ROS2 轨迹插值节点：替代 ROS1 aubo_robot_simulator。
 - joint_names: 与 MoveIt 一致
 """
 
-# #region agent log
-import json
-import os
-_DEBUG_LOG_PATH = "/home/mu/IVG2.0/.cursor/debug-a15b92.log"
-def _dbg(stage, msg, data=None, hyp=None, run_id="pre-fix-motion-1"):
-    try:
-        entry = {
-            "sessionId": "a15b92",
-            "runId": run_id,
-            "location": "aubo_robot_simulator_node.py",
-            "message": msg,
-            "stage": stage,
-            "timestamp": __import__("time").time() * 1000,
-        }
-        if data: entry["data"] = data
-        if hyp: entry["hypothesisId"] = hyp
-        with open(_DEBUG_LOG_PATH, "a") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-    except Exception:
-        pass
-# #endregion
-
 import copy
 import queue
 import threading
@@ -185,8 +163,6 @@ class AuboRobotSimulatorNode(Node):
         self.motion_thread = threading.Thread(target=self._motion_worker)
         self.motion_thread.daemon = True
         self.motion_thread.start()
-        self._last_publish_wall = None
-        self._publish_seq = 0
         self.get_logger().info("aubo_robot_simulator_ros2 started (interpolation in ROS2)")
 
     def real_pose_callback(self, msg: Float32MultiArray) -> None:
@@ -216,12 +192,6 @@ class AuboRobotSimulatorNode(Node):
     def trajectory_callback(self, msg: JointTrajectory) -> None:
         if not msg.points:
             return
-        # #region agent log
-        pt0, ptN = msg.points[0], msg.points[-1]
-        t0 = duration_to_sec(pt0.time_from_start)
-        tN = duration_to_sec(ptN.time_from_start)
-        _dbg("sim_traj_recv", "trajectory received", {"n_points": len(msg.points), "t0": t0, "tN": tN, "pos0": list(pt0.positions)[:6], "posN": list(ptN.positions)[:6]}, "H3")
-        # #endregion
         self.get_logger().info("Received trajectory with %d points" % len(msg.points))
         if self.motion_ctrl.is_in_motion():
             self.get_logger().warn("New trajectory while in motion, replacing")
@@ -233,43 +203,14 @@ class AuboRobotSimulatorNode(Node):
             pt0 = self._to_controller_order(msg.joint_names, pts[0])
             with self.motion_ctrl.lock:
                 prev_positions = list(self.motion_ctrl.joint_positions)
-            # #region agent log
-            if prev_positions and pt0.positions:
-                snap_jump = [
-                    abs(float(pt0.positions[i]) - float(prev_positions[i]))
-                    for i in range(min(6, len(pt0.positions), len(prev_positions)))
-                ]
-                max_snap = max(snap_jump) if snap_jump else 0.0
-                if max_snap > 0.01:
-                    _dbg(
-                        "sim_traj_pt0_snap",
-                        "first waypoint differs from current state; keep state unchanged and let motion_worker blend",
-                        {"max_snap_rad": max_snap, "snap_jump_rad": snap_jump, "n_points": len(pts)},
-                        "H10",
-                        run_id="post-fix-motion-1",
-                    )
-            # #endregion
             # 关键修复：不要在 callback 中直接覆写 joint state，交由 motion_worker 按轨迹时间推进/边界平滑处理
     def _move_to(self, point: JointTrajectoryPoint, dur: float) -> None:
         import time
         throttle_sleep = max(min(dur, 0.002), 0.0005)
-        throttle_wait = 0.0
-        # #region agent log
-        _throttle_start = time.perf_counter()
-        _throttle_blocks = 0
-        # #endregion
         while self.motion_ctrl.rib_buffer_size > self.motion_ctrl.minimum_buffer_size:
             time.sleep(throttle_sleep)
-            throttle_wait += throttle_sleep
-            # #region agent log
-            _throttle_blocks += 1
-            # #endregion
         if self.motion_ctrl.rib_buffer_size == 0 and self.motion_ctrl.controller_connected_flag == 0:
             time.sleep(dur)
-        # #region agent log
-        if _throttle_blocks > 0:
-            _dbg("sim_throttle", "backpressure throttle", {"blocks": _throttle_blocks, "total_sleep_ms": throttle_wait * 1000, "rib": self.motion_ctrl.rib_buffer_size, "min_buf": self.motion_ctrl.minimum_buffer_size}, "H2")
-        # #endregion
         n = len(point.positions)
         v = list(point.velocities) if len(point.velocities) == n else [0.0] * n
         a = list(point.accelerations) if len(point.accelerations) == n else [0.0] * n
@@ -289,27 +230,6 @@ class AuboRobotSimulatorNode(Node):
             msg.velocities = list(self.motion_ctrl.joint_velocities)
             msg.accelerations = list(self.motion_ctrl.joint_accelerations)
         self.moveit_cmd_pub.publish(msg)
-        # #region agent log
-        now_wall = _time.perf_counter()
-        self._publish_seq += 1
-        if self._last_publish_wall is not None:
-            dt = now_wall - self._last_publish_wall
-            expected = 1.0 / self.motion_ctrl.update_rate if self.motion_ctrl.update_rate > 0 else 0.005
-            if expected > 0 and (dt > expected * 2.0 or dt < expected * 0.5):
-                _dbg(
-                    "sim_publish_jitter",
-                    "publish cadence jitter detected",
-                    {
-                        "seq": self._publish_seq,
-                        "source": source,
-                        "dt_ms": dt * 1000.0,
-                        "expected_ms": expected * 1000.0,
-                        "ratio": dt / expected,
-                    },
-                    "H11",
-                )
-        self._last_publish_wall = now_wall
-        # #endregion
 
     def _motion_worker(self) -> None:
         update_duration_sec = 1.0 / self.motion_ctrl.update_rate if self.motion_ctrl.update_rate > 0 else 0.01
@@ -335,20 +255,14 @@ class AuboRobotSimulatorNode(Node):
                 curr_sec = duration_to_sec(current_goal_point.time_from_start)
                 last_sec = duration_to_sec(last_goal_point.time_from_start)
                 is_new_traj = curr_sec <= last_sec
-
-                # #region agent log
                 pos_jump = [abs(current_goal_point.positions[i] - last_goal_point.positions[i]) for i in range(min(6, len(current_goal_point.positions), len(last_goal_point.positions)))]
                 max_jump = max(pos_jump) if pos_jump else 0.0
-                if is_new_traj:
-                    _dbg("sim_seg_boundary", "segment boundary (new traj)", {"curr_sec": curr_sec, "last_sec": last_sec, "pos_jump_rad": pos_jump, "max_jump": max_jump}, "H3")
-                # #endregion
 
                 # 轨迹边界平滑：is_new_traj 时始终用 quintic 插值过渡，避免直接跳转导致位置突变
                 # 日志显示 max_jump 0.001–0.005 的边界未触发 blend，仍会直接跳转
                 did_boundary_blend = False
                 if is_new_traj:
                     T_blend = 0.05 if max_jump < 0.01 else min(max(max_jump / 0.5, 0.05), 0.15)
-                    _dbg("sim_boundary_blend", "boundary blend applied", {"max_jump_rad": max_jump, "T_blend_s": T_blend}, "H3")
                     n_steps = max(1, round(T_blend / update_duration_sec))
                     _timing_wall_start = _time.perf_counter()
                     for _step_idx in range(1, n_steps + 1):
@@ -372,22 +286,6 @@ class AuboRobotSimulatorNode(Node):
                     with self.motion_ctrl.lock:
                         measured_vel = list(self.motion_ctrl.joint_velocities)
                         last_goal_point.velocities = measured_vel
-                    # #region agent log
-                    try:
-                        target_vel = list(current_goal_point.velocities) if current_goal_point.velocities else []
-                        if measured_vel and target_vel:
-                            dv = [abs(float(target_vel[i]) - float(measured_vel[i])) for i in range(min(6, len(target_vel), len(measured_vel)))]
-                            max_dv = max(dv) if dv else 0.0
-                            if max_dv > 0.5:
-                                _dbg(
-                                    "sim_vel_discontinuity",
-                                    "large velocity discontinuity before interpolation segment",
-                                    {"max_dv_rad_s": max_dv, "dv_rad_s": dv, "curr_sec": curr_sec, "last_sec": last_sec},
-                                    "H12",
-                                )
-                    except Exception:
-                        pass
-                    # #endregion
                     T = curr_sec - last_sec
                     n_steps = max(1, round(T / update_duration_sec))
                     _timing_wall_start = _time.perf_counter()
@@ -408,10 +306,6 @@ class AuboRobotSimulatorNode(Node):
                     tt = last_sec + max(0, n_steps - 1) * update_duration_sec
                     move_duration_sec = curr_sec - tt if tt < curr_sec else 0.0
                     seg_elapsed = _time.perf_counter() - _timing_wall_start
-                    # #region agent log
-                    if n_steps > 10 and (seg_elapsed > T * 1.1 or seg_elapsed < T * 0.9):
-                        _dbg("sim_seg_timing", "segment timing anomaly", {"T": T, "n_steps": n_steps, "seg_elapsed_ms": seg_elapsed * 1000, "expected_ms": T * 1000, "ratio": seg_elapsed / T if T > 0 else 0}, "H4")
-                    # #endregion
                     if seg_elapsed > T * 1.01 and move_duration_sec > 0:
                         move_duration_sec = 0.0
 

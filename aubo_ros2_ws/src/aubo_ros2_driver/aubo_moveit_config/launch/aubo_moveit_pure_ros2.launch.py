@@ -83,7 +83,7 @@ def launch_setup(context, *args, **kwargs):
     # 轨迹执行允许时间 = 规划时长×scaling + margin；400Hz 插值+边界 blend 使执行略慢，需更大余量
     trajectory_execution = {
         "moveit_manage_controllers": False,
-        "trajectory_execution.allowed_execution_duration_scaling": 4.0,
+        "trajectory_execution.allowed_execution_duration_scaling": 5.0,
         "trajectory_execution.allowed_goal_duration_margin": 3.0,
         "trajectory_execution.allowed_start_tolerance": 0.15,
     }

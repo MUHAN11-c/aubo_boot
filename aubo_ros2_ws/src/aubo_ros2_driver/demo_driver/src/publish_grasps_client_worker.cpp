@@ -8,7 +8,6 @@
 #include <chrono>
 #include <cmath>
 #include <csignal>
-#include <fstream>
 #include <sstream>
 #include <thread>
 
@@ -26,35 +25,6 @@
 
 namespace demo_driver
 {
-
-// #region agent log
-namespace {
-constexpr const char* kDebugLogPath = "/home/mu/IVG2.0/.cursor/debug-a15b92.log";
-constexpr const char* kDebugSessionId = "a15b92";
-inline void dbg_log(const char* run_id, const char* hypothesis_id, const char* location,
-                    const char* message, const std::string& data_json)
-{
-  try
-  {
-    std::ofstream f(kDebugLogPath, std::ios::app);
-    if (!f.is_open())
-      return;
-    const auto ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-      std::chrono::system_clock::now().time_since_epoch()).count();
-    f << "{\"sessionId\":\"" << kDebugSessionId
-      << "\",\"runId\":\"" << run_id
-      << "\",\"hypothesisId\":\"" << hypothesis_id
-      << "\",\"location\":\"" << location
-      << "\",\"message\":\"" << message
-      << "\",\"data\":" << data_json
-      << ",\"timestamp\":" << ts_ms << "}\n";
-  }
-  catch (...)
-  {
-  }
-}
-}  // namespace
-// #endregion
 
 /** 供 SIGINT 处理访问，在 main 中设置 */
 static PublishGraspsClientWorker* g_worker_for_signal = nullptr;
@@ -163,7 +133,7 @@ PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& 
   declare_parameter("wait_poses_timeout_sec", 30.0);
   declare_parameter("grasp_window_size", 5);
   declare_parameter("min_groups_before_pick", 3);
-  declare_parameter("gripper_io_index", 7);
+  declare_parameter("gripper_io_index", 6);
   declare_parameter("lift_offset", 0.2);
   declare_parameter("place_mode", std::string("home_offset"));
   declare_parameter("place_offset_y", -0.2);
@@ -419,8 +389,10 @@ bool PublishGraspsClientWorker::runGraspApproach(const geometry_msgs::msg::Pose&
 
   if (gz < kZMinLimit)
   {
-    RCLCPP_ERROR(get_logger(), "[runGraspApproach] Z 轴安全限位: 抓取点 z=%.3f < %.2f m，拒绝执行", gz, kZMinLimit);
-    return false;
+    RCLCPP_WARN(get_logger(), "[runGraspApproach] Z 轴安全限位: 抓取点 z=%.3f < %.2f m，覆盖为 %.2f m 执行", gz,
+                kZMinLimit, kZMinLimit);
+    gz = kZMinLimit;
+    z_above = gz + height_above;
   }
 
   geometry_msgs::msg::Quaternion grasp_ori = pose_for_plan.orientation;
@@ -456,28 +428,9 @@ bool PublishGraspsClientWorker::runGraspApproach(const geometry_msgs::msg::Pose&
     double fraction = move_group_->computeCartesianPath(
         waypoints, kCartesianEefStep, kCartesianJumpThreshold, trajectory);
     size_t num_points = trajectory.joint_trajectory.points.size();
-    double raw_duration_sec = 0.0;
-    if (!trajectory.joint_trajectory.points.empty())
-    {
-      const auto& last = trajectory.joint_trajectory.points.back().time_from_start;
-      raw_duration_sec = static_cast<double>(last.sec) + 1e-9 * static_cast<double>(last.nanosec);
-    }
 
     RCLCPP_INFO(get_logger(), "抓取接近笛卡尔: fraction=%.2f%%, 点数=%zu (尝试 %d/%d)",
                 fraction * 100.0, num_points, attempt, kArcPathMaxRetries);
-    {
-      std::ostringstream oss;
-      oss << "{\"attempt\":" << attempt
-          << ",\"fraction\":" << fraction
-          << ",\"num_points\":" << num_points
-          << ",\"raw_duration_sec\":" << raw_duration_sec
-          << ",\"vel_factor\":" << static_cast<double>(vel)
-          << ",\"acc_factor\":" << static_cast<double>(acc) << "}";
-      // #region agent log
-      dbg_log("pre-fix-2", "H6", "publish_grasps_client_worker.cpp:runGraspApproach:after_compute",
-              "computed grasp cartesian path", oss.str());
-      // #endregion
-    }
 
     if (fraction < 1.0)
     {
@@ -500,37 +453,7 @@ bool PublishGraspsClientWorker::runGraspApproach(const geometry_msgs::msg::Pose&
     scaleTrajectoryTimeLocal(trajectory, static_cast<double>(vel));
     moveit::planning_interface::MoveGroupInterface::Plan plan;
     plan.trajectory_ = trajectory;
-    double scaled_duration_sec = 0.0;
-    if (!plan.trajectory_.joint_trajectory.points.empty())
-    {
-      const auto& last = plan.trajectory_.joint_trajectory.points.back().time_from_start;
-      scaled_duration_sec = static_cast<double>(last.sec) + 1e-9 * static_cast<double>(last.nanosec);
-    }
-    {
-      std::ostringstream oss;
-      oss << "{\"attempt\":" << attempt
-          << ",\"planned_points\":" << plan.trajectory_.joint_trajectory.points.size()
-          << ",\"scaled_duration_sec\":" << scaled_duration_sec << "}";
-      // #region agent log
-      dbg_log("pre-fix-2", "H7", "publish_grasps_client_worker.cpp:runGraspApproach:before_execute",
-              "about to execute grasp approach plan", oss.str());
-      // #endregion
-    }
-    const auto exec_wall_start = std::chrono::steady_clock::now();
     auto exec_ok = move_group_->execute(plan);
-    const auto exec_wall_ms =
-      std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - exec_wall_start).count();
-    {
-      std::ostringstream oss;
-      oss << "{\"attempt\":" << attempt
-          << ",\"exec_code\":" << exec_ok.val
-          << ",\"exec_wall_ms\":" << exec_wall_ms
-          << ",\"scaled_duration_sec\":" << scaled_duration_sec << "}";
-      // #region agent log
-      dbg_log("pre-fix-2", "H8", "publish_grasps_client_worker.cpp:runGraspApproach:after_execute",
-              "grasp approach execute returned", oss.str());
-      // #endregion
-    }
     if (exec_ok != moveit::core::MoveItErrorCode::SUCCESS)
     {
       RCLCPP_ERROR(get_logger(), "[runGraspApproach] 执行失败，错误码=%d", exec_ok.val);
@@ -621,14 +544,15 @@ bool PublishGraspsClientWorker::runOneCycle()
       RCLCPP_ERROR(get_logger(), "runOneCycle 步骤8 回安全位失败");
       return false;
     }
-    if (!runArcPath('y', place_offset_y_, joint_velocity_scaling_))
+    const std::vector<CartesianSegment> place_segments = {
+      { 'y', place_offset_y_ },
+      { 'x', -0.2 },
+      { 'z', place_offset_z_ },
+    };
+    if (!runArcPathSequence(place_segments, joint_velocity_scaling_))
     {
-      RCLCPP_ERROR(get_logger(), "runOneCycle 步骤8 放置位 y=%.2f 失败", place_offset_y_);
-      return false;
-    }
-    if (!runArcPath('z', place_offset_z_, joint_velocity_scaling_))
-    {
-      RCLCPP_ERROR(get_logger(), "runOneCycle 步骤8 放置位 z=%.2f 失败", place_offset_z_);
+      RCLCPP_ERROR(get_logger(), "runOneCycle 步骤8 放置位多段笛卡尔失败 (y=%.2f, z=%.2f)",
+                   place_offset_y_, place_offset_z_);
       return false;
     }
   }

@@ -22,25 +22,6 @@
 #include <fstream>
 #include <sstream>
 
-// #region agent log
-namespace {
-const char* DBG_LOG = "/home/mu/IVG2.0/.cursor/debug-a15b92.log";
-void dbg_log(const char* stage, const char* msg, const char* data_json) {
-    try {
-        std::ofstream f(DBG_LOG, std::ios::app);
-        if (f) {
-            auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::system_clock::now().time_since_epoch()).count();
-            f << "{\"sessionId\":\"a15b92\",\"runId\":\"pre-fix-motion-1\",\"location\":\"aubo_driver_ros2.cpp\",\"message\":\"" << msg
-              << "\",\"stage\":\"" << stage << "\",\"timestamp\":" << ts;
-            if (data_json && data_json[0]) f << ",\"data\":" << data_json;
-            f << "}\n";
-        }
-    } catch (...) {}
-}
-}
-// #endregion
-
 namespace aubo_driver {
 
 double MaxAcc[ARM_DOF] = {17.30878, 17.30878, 17.30878, 20.73676, 20.73676, 20.73676};
@@ -141,18 +122,8 @@ AuboDriver::~AuboDriver()
 void AuboDriver::timerCallback()
 {
     static uint32_t waypoint_skip_counter = 0;
-    static uint32_t poll_skip_counter = 0;
     if(controller_connected_flag_) {
         const bool do_sdk_poll = !start_move_ || ((++waypoint_skip_counter) % 5 == 0);
-        // #region agent log
-        if (start_move_ && !do_sdk_poll && (++poll_skip_counter % 200 == 1)) {
-            char buf[192];
-            snprintf(buf, sizeof(buf),
-                     "{\"start_move\":true,\"skip_counter\":%u,\"hypothesisId\":\"H15\"}",
-                     poll_skip_counter);
-            dbg_log("driver_sdk_poll_skip", "skip sdk waypoint polling during motion", buf);
-        }
-        // #endregion
         if (do_sdk_poll) {
             const auto waypoint_t0 = std::chrono::steady_clock::now();
             int ret = robot_receive_service_.robotServiceGetCurrentWaypointInfo(rs.wayPoint_);
@@ -263,13 +234,8 @@ void AuboDriver::publishJointStateAndFeedbackLoop()
                         }
                     }
                 }
-                // #region agent log
-                if (has_prev && max_jump > 0.03) {
-                    char buf[180];
-                    snprintf(buf, sizeof(buf), "{\"max_jump_rad\":%.4f,\"jump_joint\":%d,\"hypothesisId\":\"H_pos_mutation\"}", max_jump, jump_joint);
-                    dbg_log("driver_feedback_jump", "joint_state position jump", buf);
-                }
-                // #endregion
+                (void)max_jump;
+                (void)jump_joint;
                 for (int i = 0; i < 6; i++) prev_pos[i] = joint_state.position[i];
                 has_prev = true;
             }
@@ -300,15 +266,20 @@ void AuboDriver::setTagrtPosition(double *target) {
 
 bool AuboDriver::setRobotJointsByMoveIt()
 {
-    PlanningState ps;
+    std::vector<PlanningState> ps_batch;
     {
         std::lock_guard<std::mutex> lock(buf_queue_mutex_);
         if(buf_queue_.empty())
             return false;
-        ps = buf_queue_.front();
-        buf_queue_.pop();
+        const size_t kMaxBufPopPerCycle = 8;
+        ps_batch.reserve(kMaxBufPopPerCycle);
+        while(!buf_queue_.empty() && ps_batch.size() < kMaxBufPopPerCycle) {
+            ps_batch.push_back(buf_queue_.front());
+            buf_queue_.pop();
+        }
         buf_queue_size_.store(buf_queue_.size());
     }
+    const PlanningState &ps = ps_batch.front();
     if(controller_connected_flag_) {
         if(emergency_stopped_) {
             start_move_ = false;
@@ -333,30 +304,17 @@ bool AuboDriver::setRobotJointsByMoveIt()
             clearBufQueue();
             if(normal_stopped_) { normal_stopped_ = false; delay_clear_times = STOP_DELAY_CLEAR_TIMES; }
         } else {
-            JointPosWithTime jpt;
-            for(int i = 0; i < 6; i++) jpt.joint_pos[i] = ps.joint_pos_[i];
-            jpt.time_from_start = ps.time_from_start_;
-            jpt.trajectory_epoch = ps.trajectory_epoch_;
-            ros_motion_queue_.enqueue(jpt);
-            // #region agent log
-            static auto last_enqueue_tp = std::chrono::steady_clock::now();
-            auto now_tp = std::chrono::steady_clock::now();
-            const double enqueue_dt_ms =
-                std::chrono::duration<double, std::milli>(now_tp - last_enqueue_tp).count();
-            last_enqueue_tp = now_tp;
-            if (enqueue_dt_ms > 15.0 || enqueue_dt_ms < 0.8) {
-                char buf[256];
-                snprintf(buf, sizeof(buf),
-                         "{\"enqueue_dt_ms\":%.3f,\"time_from_start\":%.6f,\"trajectory_epoch\":%llu,\"hypothesisId\":\"H18\"}",
-                         enqueue_dt_ms, jpt.time_from_start,
-                         static_cast<unsigned long long>(jpt.trajectory_epoch));
-                dbg_log("driver_enqueue_jitter", "ros_motion_queue enqueue cadence anomaly", buf);
+            for (const auto &st : ps_batch) {
+                JointPosWithTime jpt;
+                for(int i = 0; i < 6; i++) jpt.joint_pos[i] = st.joint_pos_[i];
+                jpt.time_from_start = st.time_from_start_;
+                jpt.trajectory_epoch = st.trajectory_epoch_;
+                ros_motion_queue_.enqueue(jpt);
             }
-            // #endregion
             file << ps.joint_pos_[0] << "," << ps.joint_pos_[1] << "," << ps.joint_pos_[2] << "," << ps.joint_pos_[3] << "," << ps.joint_pos_[4] << "," << ps.joint_pos_[5] << std::endl;
         }
     }
-    setTagrtPosition(ps.joint_pos_);
+    setTagrtPosition(ps_batch.back().joint_pos_);
     return true;
 }
 
@@ -403,18 +361,6 @@ void AuboDriver::moveItPosCallback(const trajectory_msgs::msg::JointTrajectoryPo
             if(msg->accelerations.size() >= static_cast<size_t>(axis_number_))
                 memcpy(ps.joint_acc_, msg->accelerations.data(), sizeof(double) * axis_number_);
             ps.time_from_start_ = time_from_start_to_sec(msg->time_from_start);
-            // #region agent log
-            if (last_received_time_from_start_ >= 0.0) {
-                const double dt = ps.time_from_start_ - last_received_time_from_start_;
-                if (dt <= 0.0 || dt > 0.01) {
-                    char buf_dt[220];
-                    snprintf(buf_dt, sizeof(buf_dt),
-                             "{\"incoming_dt_ms\":%.3f,\"curr_t\":%.6f,\"last_t\":%.6f,\"hypothesisId\":\"H16\"}",
-                             dt * 1000.0, ps.time_from_start_, last_received_time_from_start_);
-                    dbg_log("driver_msg_time_gap", "moveItPosCallback irregular time_from_start spacing", buf_dt);
-                }
-            }
-            // #endregion
             const bool new_trajectory =
                 (ps.time_from_start_ <= 1e-9) ||
                 (last_received_time_from_start_ >= 0.0 && ps.time_from_start_ < last_received_time_from_start_ - 1e-9);
@@ -427,27 +373,6 @@ void AuboDriver::moveItPosCallback(const trajectory_msgs::msg::JointTrajectoryPo
             {
                 std::lock_guard<std::mutex> lock(buf_queue_mutex_);
                 if (new_trajectory) {
-                    // #region agent log
-                    char buf[320];
-                    snprintf(buf, sizeof(buf), "{\"time_from_start\":%.4f,\"pos0\":[%.4f,%.4f,%.4f,%.4f,%.4f,%.4f],\"hypothesisId\":\"H3\"}",
-                        ps.time_from_start_, jointAngle[0], jointAngle[1], jointAngle[2], jointAngle[3], jointAngle[4], jointAngle[5]);
-                    dbg_log("driver_new_traj", "moveItPosCallback new trajectory first point", buf);
-                    // #endregion
-                    // #region agent log
-                    double jump[6] = {0.0};
-                    double max_jump = 0.0;
-                    for (int j = 0; j < 6; j++) {
-                        jump[j] = std::fabs(jointAngle[j] - last_recieve_point_[j]);
-                        if (jump[j] > max_jump) max_jump = jump[j];
-                    }
-                    if (max_jump > 0.01) {
-                        char buf2[360];
-                        snprintf(buf2, sizeof(buf2),
-                                 "{\"max_jump_rad\":%.6f,\"jump_rad\":[%.6f,%.6f,%.6f,%.6f,%.6f,%.6f],\"time_from_start\":%.6f,\"hypothesisId\":\"H13\"}",
-                                 max_jump, jump[0], jump[1], jump[2], jump[3], jump[4], jump[5], ps.time_from_start_);
-                        dbg_log("driver_new_traj_jump", "new trajectory first point jump vs last received", buf2);
-                    }
-                    // #endregion
                     while (!buf_queue_.empty()) buf_queue_.pop();
                     buf_queue_size_.store(0);
                 }
@@ -524,8 +449,6 @@ void AuboDriver::feedToRosMotionLoop()
     const auto period = std::chrono::milliseconds(5);   // 200Hz，与插值发布一致
     int empty_streak = 0;
     int idle_log_stride = 0;
-    auto last_feed_ts = std::chrono::steady_clock::now();
-    int feed_log_counter = 0;
     while (publish_thread_running_ && rclcpp::ok()) {
         auto loop_start = std::chrono::steady_clock::now();
         if (start_move_) {
@@ -536,21 +459,6 @@ void AuboDriver::feedToRosMotionLoop()
                 if (!setRobotJointsByMoveIt()) break;
                 batch++;
             }
-            // #region agent log
-            if (batch > 0) {
-                feed_log_counter++;
-                if (feed_log_counter % 100 == 1) {
-                    size_t bq = 0;
-                    { std::lock_guard<std::mutex> lk(buf_queue_mutex_); bq = buf_queue_.size(); }
-                    auto now = std::chrono::steady_clock::now();
-                    double interval_ms = std::chrono::duration<double, std::milli>(now - last_feed_ts).count();
-                    last_feed_ts = now;
-                    char buf[256];
-                    snprintf(buf, sizeof(buf), "{\"batch\":%d,\"rib\":%d,\"buf_queue_size\":%zu,\"interval_ms\":%.2f,\"hypothesisId\":\"H4\"}", batch, rib, bq, interval_ms);
-                    dbg_log("driver_feed", "feedToRosMotionLoop", buf);
-                }
-            }
-            // #endregion
             if(batch > 0) {
                 empty_streak = 0;
                 idle_log_stride = 0;
@@ -786,11 +694,6 @@ std::vector<aubo_robot_namespace::wayPoint_S> AuboDriver::tryPopWaypoint(int cou
             double time_diff = jpt.time_from_start - last_time_from_start_;
             if (time_diff <= 0.0 || time_diff > 0.02) {
                 discontinuity = true;
-                // #region agent log
-                char buf[256];
-                snprintf(buf, sizeof(buf), "{\"time_diff_ms\":%.2f,\"last_t\":%.4f,\"curr_t\":%.4f,\"hypothesisId\":\"H1\"}", time_diff * 1000, last_time_from_start_, jpt.time_from_start);
-                dbg_log("driver_discontinuity", "tryPopWaypoint time discontinuity", buf);
-                // #endregion
             }
             if(time_diff > 0.0 && time_diff <= 0.02)
                 actual_time_step = time_diff;
@@ -822,24 +725,8 @@ std::vector<aubo_robot_namespace::wayPoint_S> AuboDriver::tryPopWaypoint(int cou
                 if(n_equalpart < 1) n_equalpart = 1;
                 const int kMaxOverspeedSplitParts = 8;
                 if (n_equalpart > kMaxOverspeedSplitParts) {
-                    // #region agent log
-                    char buf_cap[256];
-                    snprintf(buf_cap, sizeof(buf_cap),
-                             "{\"n_equalpart_raw\":%d,\"n_equalpart_capped\":%d,\"max_target_vel\":%.6f,\"max_allowed\":%.6f,\"hypothesisId\":\"H17\"}",
-                             n_equalpart, kMaxOverspeedSplitParts, max_target_vel, MaxVelc[0]);
-                    dbg_log("driver_overspeed_cap", "cap overspeed split parts to avoid burst batch", buf_cap);
-                    // #endregion
                     n_equalpart = kMaxOverspeedSplitParts;
                 }
-                // #region agent log
-                if (n_equalpart > 1) {
-                    char buf_split[220];
-                    snprintf(buf_split, sizeof(buf_split),
-                             "{\"n_equalpart\":%d,\"max_target_vel\":%.6f,\"max_allowed\":%.6f,\"hypothesisId\":\"H17\"}",
-                             n_equalpart, max_target_vel, MaxVelc[0]);
-                    dbg_log("driver_overspeed_split", "overspeed split inserted interpolation points", buf_split);
-                }
-                // #endregion
                 interpolation_joint = joint_filter_;
                 for(int i = 0; i < n_equalpart - 1; i++) {
                     for(int j = 0; j < 6; j++)
@@ -871,20 +758,9 @@ void AuboDriver::publishWaypointToRobot()
     const int kMaxWaypointBatchSend = 16;
     int cnt = 0;
     auto last_diag_refresh = std::chrono::steady_clock::now() - std::chrono::milliseconds(200);
-    auto last_send_tp = std::chrono::steady_clock::now();
-    bool build_marker_logged = false;
+    double canbus_send_ms_ema = 0.0;
 
     while(rclcpp::ok()) {
-        // #region agent log
-        if (!build_marker_logged) {
-            build_marker_logged = true;
-            char buf_marker[256];
-            snprintf(buf_marker, sizeof(buf_marker),
-                     "{\"base_cnt_per_send\":%d,\"max_adaptive_cnt_per_send\":%d,\"max_send_batch_cap\":%d,\"hypothesisId\":\"H19\"}",
-                     kBaseCntPerSend, kMaxAdaptiveCntPerSend, kMaxWaypointBatchSend);
-            dbg_log("driver_build_marker", "driver build marker active", buf_marker);
-        }
-        // #endregion
         current_macsz = rib_buffer_size_.load();
         const size_t qsz = ros_motion_queue_.size_approx();
         const auto now = std::chrono::steady_clock::now();
@@ -900,15 +776,7 @@ void AuboDriver::publishWaypointToRobot()
             const int diag_ret = robot_mac_size_service_.robotServiceGetRobotDiagnosisInfo(pub_diag);
             const double diag_call_ms = std::chrono::duration<double, std::milli>(
                 std::chrono::steady_clock::now() - diag_call_start).count();
-            // #region agent log
-            if (diag_call_ms > 8.0) {
-                char buf_diag_call[240];
-                snprintf(buf_diag_call, sizeof(buf_diag_call),
-                         "{\"diag_call_ms\":%.3f,\"diag_ret\":%d,\"need_diag_refresh\":%s,\"qsz\":%zu,\"current_macsz\":%d,\"hypothesisId\":\"H22\"}",
-                         diag_call_ms, diag_ret, need_diag_refresh ? "true" : "false", qsz, current_macsz);
-                dbg_log("driver_diag_call_slow", "robotServiceGetRobotDiagnosisInfo call is slow", buf_diag_call);
-            }
-            // #endregion
+            (void)diag_call_ms;
             if(0 == diag_ret) {
                 rib_buffer_size_ = pub_diag.macTargetPosDataSize;
                 current_macsz = pub_diag.macTargetPosDataSize;
@@ -923,65 +791,25 @@ void AuboDriver::publishWaypointToRobot()
             if (qsz > 80) desired_cnt = std::max(desired_cnt, 4);
             if (qsz > 160) desired_cnt = std::max(desired_cnt, 6);
             if (qsz > 240) desired_cnt = std::max(desired_cnt, 8);
+            int min_cnt_from_send_cost = kBaseCntPerSend;
+            if (canbus_send_ms_ema > 10.0) min_cnt_from_send_cost = 4;
+            if (canbus_send_ms_ema > 14.0) min_cnt_from_send_cost = 6;
+            if (canbus_send_ms_ema > 20.0) min_cnt_from_send_cost = 8;
+            desired_cnt = std::max(desired_cnt, min_cnt_from_send_cost);
             cnt = std::max(kBaseCntPerSend, std::min(kMaxAdaptiveCntPerSend, desired_cnt));
-            // #region agent log
-            if (qsz > 120) {
-                static int boost_log_cnt = 0;
-                if ((++boost_log_cnt % 25) == 1) {
-                    char buf_boost[240];
-                    snprintf(buf_boost, sizeof(buf_boost),
-                             "{\"qsz\":%zu,\"current_macsz\":%d,\"desired_cnt\":%d,\"cnt\":%d,\"hypothesisId\":\"H21\"}",
-                             qsz, current_macsz, desired_cnt, cnt);
-                    dbg_log("driver_send_boost", "adaptive send boost active under backlog", buf_boost);
-                }
-            }
-            // #endregion
             wayPointVector = tryPopWaypoint(cnt);
             if(!wayPointVector.empty()) {
-                // #region agent log
                 if (wayPointVector.size() > static_cast<size_t>(kMaxWaypointBatchSend)) {
-                    char buf_cap[220];
-                    snprintf(buf_cap, sizeof(buf_cap),
-                             "{\"batch_before_cap\":%zu,\"batch_cap\":%d,\"hypothesisId\":\"H20\"}",
-                             wayPointVector.size(), kMaxWaypointBatchSend);
-                    dbg_log("driver_send_cap", "cap oversized send batch before sending", buf_cap);
                     wayPointVector.resize(static_cast<size_t>(kMaxWaypointBatchSend));
                 }
-                // #endregion
-                // #region agent log
-                const auto now_send = std::chrono::steady_clock::now();
-                const double send_dt_ms = std::chrono::duration<double, std::milli>(now_send - last_send_tp).count();
-                last_send_tp = now_send;
-                if (send_dt_ms > 10.0 || wayPointVector.size() >= 6) {
-                    char buf_rate[220];
-                    snprintf(buf_rate, sizeof(buf_rate),
-                             "{\"send_dt_ms\":%.3f,\"batch_size\":%zu,\"current_macsz\":%d,\"qsz\":%zu,\"hypothesisId\":\"H15\"}",
-                             send_dt_ms, wayPointVector.size(), current_macsz, qsz);
-                    dbg_log("driver_send_cadence", "send cadence/batch anomaly", buf_rate);
-                }
-                // #endregion
-                // #region agent log
-                static int send_log_cnt = 0;
-                if ((++send_log_cnt % 50) == 1) {
-                    char buf[180];
-                    snprintf(buf, sizeof(buf), "{\"batch_size\":%zu,\"current_macsz\":%d,\"qsz\":%zu,\"hypothesisId\":\"H5\"}",
-                        wayPointVector.size(), current_macsz, qsz);
-                    dbg_log("driver_send", "publishWaypointToRobot send batch", buf);
-                }
-                // #endregion
                 const auto canbus_send_start = std::chrono::steady_clock::now();
                 robot_mac_size_service_.robotServiceSetRobotPosData2Canbus(wayPointVector);
                 const double canbus_send_ms = std::chrono::duration<double, std::milli>(
                     std::chrono::steady_clock::now() - canbus_send_start).count();
-                // #region agent log
-                if (canbus_send_ms > 8.0) {
-                    char buf_send_call[240];
-                    snprintf(buf_send_call, sizeof(buf_send_call),
-                             "{\"canbus_send_ms\":%.3f,\"batch_size\":%zu,\"qsz\":%zu,\"current_macsz\":%d,\"hypothesisId\":\"H23\"}",
-                             canbus_send_ms, wayPointVector.size(), qsz, current_macsz);
-                    dbg_log("driver_canbus_send_slow", "robotServiceSetRobotPosData2Canbus call is slow", buf_send_call);
-                }
-                // #endregion
+                if (canbus_send_ms_ema <= 0.0)
+                    canbus_send_ms_ema = canbus_send_ms;
+                else
+                    canbus_send_ms_ema = 0.9 * canbus_send_ms_ema + 0.1 * canbus_send_ms;
                 current_macsz += static_cast<int>(wayPointVector.size()) * 6;
                 rib_buffer_size_ = current_macsz;
             }

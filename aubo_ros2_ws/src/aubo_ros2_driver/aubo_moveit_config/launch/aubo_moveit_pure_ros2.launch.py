@@ -74,6 +74,10 @@ def launch_setup(context, *args, **kwargs):
         }
     }
     ompl_planning["move_group"].update(load_yaml("aubo_moveit_config", "config/ompl_planning.yaml"))
+    # Enable MTC execute action server: /execute_task_solution
+    move_group_capabilities = {
+        "capabilities": "move_group/ExecuteTaskSolutionCapability",
+    }
     with open(os.path.join(pkg_share, "config", "moveit_controllers.yaml"), "r") as f:
         moveit_controllers = {
             "moveit_simple_controller_manager": yaml.safe_load(f),
@@ -98,6 +102,7 @@ def launch_setup(context, *args, **kwargs):
             moveit_config.robot_description_kinematics,
             moveit_config.joint_limits,
             ompl_planning,
+            move_group_capabilities,
             moveit_controllers,
             trajectory_execution,  # 放最后以覆盖 yaml 中的 1.2/0.5
             {'publish_robot_description_semantic': True},

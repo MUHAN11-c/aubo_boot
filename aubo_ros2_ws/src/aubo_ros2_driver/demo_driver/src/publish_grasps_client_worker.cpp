@@ -49,7 +49,7 @@ static void sleepInterruptible(PublishGraspsClientWorker* worker, double seconds
 
 static constexpr int kArcPathMaxRetries = 3;
 static constexpr double kArcPathRetryDelaySec = 0.5;
-static constexpr double kCartesianEefStep = 0.01;
+static constexpr double kCartesianEefStep = 0.015;
 static constexpr double kCartesianJumpThreshold = 0.0;
 
 /** GraspNet Z 轴 180° 修正四元数 (qx,qy,qz,qw) = (0,0,1,0) */
@@ -137,7 +137,7 @@ PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& 
   declare_parameter("lift_offset", 0.2);
   declare_parameter("place_mode", std::string("home_offset"));
   declare_parameter("place_offset_y", -0.2);
-  declare_parameter("place_offset_z", -0.20);
+  declare_parameter("place_offset_z", -0.15);
   declare_parameter("cycle_delay_sec", 1.0);
   declare_parameter("fail_retry_delay_sec", 1.0);
   declare_parameter("max_cycles", -1);
@@ -401,26 +401,41 @@ bool PublishGraspsClientWorker::runGraspApproach(const geometry_msgs::msg::Pose&
   std::vector<geometry_msgs::msg::Pose> waypoints;
   waypoints.push_back(current_pose);
 
-  geometry_msgs::msg::Pose p1;
-  p1.position.x = gx;
-  p1.position.y = gy;
-  p1.position.z = z_above;
-  p1.orientation = current_pose.orientation;
-  waypoints.push_back(p1);
+  // 多段笛卡尔：按 x -> y -> up(z_above) -> rotate -> down 顺序
+  geometry_msgs::msg::Pose p_up;
+  p_up.position.x = gx;
+  p_up.position.y = gy;
+  p_up.position.z = z_above;
+  p_up.orientation = current_pose.orientation;
+  geometry_msgs::msg::Pose p_x;
+  p_x.position.x = gx;
+  p_x.position.y = current_pose.position.y;
+  p_x.position.z = current_pose.position.z;
+  p_x.orientation = current_pose.orientation;
+  waypoints.push_back(p_x);
 
-  geometry_msgs::msg::Pose p2;
-  p2.position.x = gx;
-  p2.position.y = gy;
-  p2.position.z = z_above;
-  p2.orientation = grasp_ori_short;
-  waypoints.push_back(p2);
+  geometry_msgs::msg::Pose p_y;
+  p_y.position.x = gx;
+  p_y.position.y = gy;
+  p_y.position.z = current_pose.position.z;
+  p_y.orientation = current_pose.orientation;
+  waypoints.push_back(p_y);
 
-  geometry_msgs::msg::Pose p3;
-  p3.position.x = gx;
-  p3.position.y = gy;
-  p3.position.z = gz;
-  p3.orientation = grasp_ori_short;
-  waypoints.push_back(p3);
+  waypoints.push_back(p_up);
+
+  geometry_msgs::msg::Pose p_rot;
+  p_rot.position.x = gx;
+  p_rot.position.y = gy;
+  p_rot.position.z = z_above;
+  p_rot.orientation = grasp_ori_short;
+  waypoints.push_back(p_rot);
+
+  geometry_msgs::msg::Pose p_down;
+  p_down.position.x = gx;
+  p_down.position.y = gy;
+  p_down.position.z = gz;
+  p_down.orientation = grasp_ori_short;
+  waypoints.push_back(p_down);
 
   moveit_msgs::msg::RobotTrajectory trajectory;
   for (int attempt = 1; attempt <= kArcPathMaxRetries; ++attempt)
@@ -434,7 +449,8 @@ bool PublishGraspsClientWorker::runGraspApproach(const geometry_msgs::msg::Pose&
 
     if (fraction < 1.0)
     {
-      int seg_idx = std::min(2, static_cast<int>(fraction * 3));
+      const int segment_count = static_cast<int>(waypoints.size()) - 1;
+      int seg_idx = std::min(segment_count - 1, static_cast<int>(fraction * segment_count));
       RCLCPP_ERROR(get_logger(), "笛卡尔路径未达100%%, fraction=%.2f, 截断于第%d段。不回退，直接失败。", fraction,
                    seg_idx + 1);
       if (attempt < kArcPathMaxRetries)
@@ -476,6 +492,10 @@ bool PublishGraspsClientWorker::runGraspMotion(const geometry_msgs::msg::Pose& t
 
 bool PublishGraspsClientWorker::runOneCycle()
 {
+  if (!rclcpp::ok() || shutdown_requested_)
+    return false;
+  RCLCPP_INFO(get_logger(), "周期开始: 预清空抓取窗口（清理上周期残留）");
+  clearGraspWindow();
   if (!rclcpp::ok() || shutdown_requested_)
     return false;
   RCLCPP_INFO(get_logger(), "步骤 0: 回安全位（识别前到位）");

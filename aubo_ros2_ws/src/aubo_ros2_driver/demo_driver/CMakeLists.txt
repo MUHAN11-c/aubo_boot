@@ -23,6 +23,8 @@ find_package(moveit_common REQUIRED)
 find_package(moveit_msgs REQUIRED)
 find_package(moveit_ros_planning REQUIRED)
 find_package(moveit_visual_tools REQUIRED)
+find_package(moveit_task_constructor_core REQUIRED)
+find_package(moveit_task_constructor_msgs REQUIRED)
 
 # Include directories
 include_directories(include)
@@ -180,6 +182,38 @@ ament_target_dependencies(publish_grasps_client_worker_node
   moveit_ros_planning_interface
 )
 
+# GraspNet 抓取放置 worker（MTC：一次规划并执行）
+add_executable(publish_grasps_client_worker_mtc_once_node
+  src/moveit_gripper_io_base.cpp
+  src/publish_grasps_client_worker_mtc_once.cpp
+)
+ament_target_dependencies(publish_grasps_client_worker_mtc_once_node
+  rclcpp
+  geometry_msgs
+  aubo_msgs
+  moveit_msgs
+  moveit_core
+  moveit_ros_planning_interface
+  moveit_task_constructor_core
+  moveit_task_constructor_msgs
+)
+
+# GraspNet 抓取放置 worker（MTC 替换版：一次规划并执行）
+add_executable(publish_grasps_client_worker_mtc_replacement_once_node
+  src/moveit_gripper_io_base.cpp
+  src/publish_grasps_client_worker_mtc_replacement_once.cpp
+)
+ament_target_dependencies(publish_grasps_client_worker_mtc_replacement_once_node
+  rclcpp
+  geometry_msgs
+  aubo_msgs
+  moveit_msgs
+  moveit_core
+  moveit_ros_planning_interface
+  moveit_task_constructor_core
+  moveit_task_constructor_msgs
+)
+
 # Note: The following executables are commented out because source files don't exist yet
 # add_executable(set_robot_enable_server_node src/set_robot_enable_server.cpp)
 # ament_target_dependencies(set_robot_enable_server_node
@@ -217,6 +251,8 @@ install(TARGETS
   # moveit_beeline_demo_node
   gripper_swap_worker_node
   publish_grasps_client_worker_node
+  publish_grasps_client_worker_mtc_once_node
+  publish_grasps_client_worker_mtc_replacement_once_node
   # set_robot_enable_server_node
   # set_robot_io_server_node
   # read_robot_io_server_node

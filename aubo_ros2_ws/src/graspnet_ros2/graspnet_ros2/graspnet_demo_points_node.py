@@ -32,6 +32,7 @@ from sensor_msgs_py import point_cloud2 as pc2
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Pose, PoseArray, TransformStamped
 from builtin_interfaces.msg import Duration
+from std_srvs.srv import SetBool
 from tf2_ros import TransformBroadcaster, Buffer, TransformListener
 
 
@@ -126,6 +127,8 @@ class GraspNetDemoPointsNode(Node):
 
         # 循环执行：推理与发布的间隔（秒），无需服务触发
         self.declare_parameter('compute_interval_sec', 1.0)
+        self.declare_parameter('capture_groups_target', 3)
+        self.declare_parameter('capture_control_service', '/graspnet_capture_control')
 
         # 抓取位姿话题：发布 base_frame 下的 PoseArray 供客户端使用
         self.declare_parameter('base_frame', 'base_link')
@@ -140,9 +143,17 @@ class GraspNetDemoPointsNode(Node):
         self.marker_topic = self.get_parameter('marker_topic').get_parameter_value().string_value
         self.default_frame_id = self.get_parameter('frame_id').get_parameter_value().string_value
         self.compute_interval_sec = self.get_parameter('compute_interval_sec').get_parameter_value().double_value
+        self.capture_groups_target = int(
+            self.get_parameter('capture_groups_target').get_parameter_value().integer_value
+        )
+        self.capture_control_service = self.get_parameter(
+            'capture_control_service'
+        ).get_parameter_value().string_value
         self.base_frame = self.get_parameter('base_frame').get_parameter_value().string_value
         self.grasp_poses_topic = self.get_parameter('grasp_poses_topic').get_parameter_value().string_value
         self.use_open3d = bool(self.get_parameter('use_open3d').get_parameter_value().bool_value)
+        if self.capture_groups_target < 1:
+            self.capture_groups_target = 1
 
         # ========== 设备/模型 ==========
         self.device = torch.device(f"cuda:{self.gpu}" if torch.cuda.is_available() else "cpu")
@@ -157,6 +168,7 @@ class GraspNetDemoPointsNode(Node):
         self.tf_listener = TransformListener(self.tf_buffer, self)
         self.create_subscription(PointCloud2, self.input_pointcloud_topic, self._pc_callback, 10)
         self.create_timer(self.compute_interval_sec, self._timer_callback)
+        self.create_service(SetBool, self.capture_control_service, self._capture_control_callback)
 
         # ========== 状态缓存（服务回调与发布使用） ==========
         self._latest_pc_msg: Optional[PointCloud2] = None
@@ -164,6 +176,10 @@ class GraspNetDemoPointsNode(Node):
         self.cloud_o3d: Optional[o3d.geometry.PointCloud] = None
         self.processed_frame_id: str = ''
         self.has_computed = False
+        self.collect_enabled = False
+        self.target_groups = self.capture_groups_target
+        self.collected_groups = 0
+        self.session_id = 0
 
         self._log_startup()
 
@@ -173,8 +189,34 @@ class GraspNetDemoPointsNode(Node):
         self.get_logger().info('GraspNet 点云版节点已启动')
         self.get_logger().info(f'订阅输入点云: {self.input_pointcloud_topic}')
         self.get_logger().info(f'发布 MarkerArray: {self.marker_topic}')
-        self.get_logger().info(f'循环执行推理与发布，间隔 {self.compute_interval_sec} s（无需服务触发）')
+        self.get_logger().info(f'定时器间隔: {self.compute_interval_sec} s（默认待命，不主动采集）')
         self.get_logger().info(f'发布 base_link 下抓取位姿: {self.grasp_poses_topic}')
+        self.get_logger().info(
+            f'采集控制服务: {self.capture_control_service} (True=开始, False=停止), 目标组数={self.capture_groups_target}'
+        )
+
+    def _capture_control_callback(self, request: SetBool.Request, response: SetBool.Response):
+        if request.data:
+            self.session_id += 1
+            self.collect_enabled = True
+            self.target_groups = max(1, self.capture_groups_target)
+            self.collected_groups = 0
+            self._latest_pc_msg = None
+            self.processed_gg = None
+            self.has_computed = False
+            response.success = True
+            response.message = (
+                f'已开始采集: session={self.session_id}, target_groups={self.target_groups}'
+            )
+            self.get_logger().info(response.message)
+        else:
+            self.collect_enabled = False
+            response.success = True
+            response.message = (
+                f'已停止采集: session={self.session_id}, collected={self.collected_groups}/{self.target_groups}'
+            )
+            self.get_logger().info(response.message)
+        return response
 
     # ========== 输入：点云订阅 ==========
     def _pc_callback(self, msg: PointCloud2):
@@ -206,12 +248,25 @@ class GraspNetDemoPointsNode(Node):
     # ========== 定时器：循环推理与发布 ==========
     def _timer_callback(self):
         """定时执行：用最新点云推理并发布 MarkerArray/TF。"""
+        if not self.collect_enabled:
+            return
         if self._latest_pc_msg is None:
             return
         try:
             self._compute_grasps(self._latest_pc_msg)
             if self.processed_gg is not None:
-                self.publish_marker_array(self.processed_gg)
+                published_valid = self.publish_marker_array(self.processed_gg)
+                if published_valid:
+                    self.collected_groups += 1
+                    self.get_logger().info(
+                        f'采集进度: session={self.session_id}, {self.collected_groups}/{self.target_groups}'
+                    )
+                    if self.collected_groups >= self.target_groups:
+                        self.collect_enabled = False
+                        self.get_logger().info(
+                            f'达到目标组数，自动停止采集: session={self.session_id}, '
+                            f'collected={self.collected_groups}/{self.target_groups}'
+                        )
         except Exception as e:
             self.get_logger().error(f'循环推理/发布失败: {str(e)}')
             import traceback
@@ -304,10 +359,10 @@ class GraspNetDemoPointsNode(Node):
             vis_process.start()
 
     # ========== 发布：MarkerArray / TF ==========
-    def publish_marker_array(self, gg: GraspGroup):
+    def publish_marker_array(self, gg: GraspGroup) -> bool:
         if gg is None or len(gg) == 0:
             self.get_logger().warn('没有可发布的抓取')
-            return
+            return False
 
         # 先清空
         delete_marker = Marker()
@@ -390,12 +445,14 @@ class GraspNetDemoPointsNode(Node):
                 pose_array.poses.append(pose)
             self.grasp_poses_pub.publish(pose_array)
             self.get_logger().info(f'已发布 {len(pose_array.poses)} 个抓取位姿到 {self.grasp_poses_topic}（frame_id={self.base_frame}）')
+            return len(pose_array.poses) > 0
         except Exception as e:
             self.get_logger().warn(f'查询 {self.base_frame} -> {self.processed_frame_id} 失败，未发布 PoseArray: {e}')
             pose_array = PoseArray()
             pose_array.header.frame_id = self.base_frame
             pose_array.header.stamp = stamp
             self.grasp_poses_pub.publish(pose_array)
+            return False
 
     # ---------- TF 与 Marker 辅助 ----------
     def _publish_grasp_tf(self, grasp, idx: int, stamp, frame_id: str):

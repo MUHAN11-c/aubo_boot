@@ -22,6 +22,7 @@
 #include <geometry_msgs/msg/pose_array.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <std_srvs/srv/set_bool.hpp>
 
 namespace demo_driver
 {
@@ -51,6 +52,8 @@ public:
 
   /** 阻塞等待窗口达到 min_groups_before_pick，超时返回 false */
   bool waitForGraspWindowReady();
+  /** 调用感知节点采集控制服务（true 开始采集，false 结束采集） */
+  bool requestGraspCapture(bool enable);
 
   /** 从窗口选优，prefer_vertical 时取 verticalityScore 最高；返回 (tag, pose) 或 nullopt */
   std::optional<std::pair<std::string, geometry_msgs::msg::Pose>> selectBestFromWindow();
@@ -116,6 +119,7 @@ private:
 
   rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr grasp_poses_sub_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr status_pub_;
+  rclcpp::Client<std_srvs::srv::SetBool>::SharedPtr grasp_capture_client_;
 
   std::deque<geometry_msgs::msg::PoseArray> grasp_groups_window_;
   geometry_msgs::msg::PoseArray latest_grasp_poses_;
@@ -139,6 +143,10 @@ private:
   std::string grasp_poses_topic_;
   /** 等待窗口就绪超时 (s)，超时返回 false */
   double wait_poses_timeout_sec_;
+  /** 感知节点采集控制服务名（SetBool: true 启动, false 停止） */
+  std::string grasp_capture_service_name_;
+  /** 采集控制服务等待超时 (s) */
+  double grasp_capture_service_timeout_sec_;
   /** 滑动窗口大小：缓存最近 N 组 PoseArray */
   size_t grasp_window_size_;
   /** 至少积累 M 组后再选优，避免单次识别噪声 */

@@ -8,6 +8,7 @@
 #include <chrono>
 #include <cmath>
 #include <csignal>
+#include <future>
 #include <sstream>
 #include <thread>
 
@@ -101,6 +102,8 @@ static void scaleTrajectoryTimeLocal(moveit_msgs::msg::RobotTrajectory& traj, do
 // | home_velocity_scaling    | float   | 0.5            | moveToHome 回安全位速度缩放 [0~1]，与笛卡尔分开               |
 // | home_acceleration_scaling| float   | 0.5            | moveToHome 回安全位加速度缩放 [0~1]，与笛卡尔分开             |
 // | grasp_poses_topic        | string  | grasp_poses_base| 抓取位姿话题，与 graspnet_demo_points_node 发布一致        |
+// | grasp_capture_service_name | string| /graspnet_capture_control | 感知采集控制服务（SetBool）                 |
+// | grasp_capture_service_timeout_sec | double | 2.0    | 采集控制服务等待超时 (s)                      |
 // | wait_poses_timeout_sec   | double  | 30.0           | 等待窗口就绪超时 (s)                                   |
 // | grasp_window_size        | int     | 5              | 滑动窗口大小：缓存最近 N 组 PoseArray                      |
 // | min_groups_before_pick   | int     | 3              | 至少 M 组后再选优                                      |
@@ -130,6 +133,8 @@ PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& 
   declare_parameter("home_velocity_scaling", 0.7f);
   declare_parameter("home_acceleration_scaling", 0.45f);
   declare_parameter("grasp_poses_topic", std::string("grasp_poses_base"));
+  declare_parameter("grasp_capture_service_name", std::string("/graspnet_capture_control"));
+  declare_parameter("grasp_capture_service_timeout_sec", 2.0);
   declare_parameter("wait_poses_timeout_sec", 30.0);
   declare_parameter("grasp_window_size", 5);
   declare_parameter("min_groups_before_pick", 3);
@@ -155,6 +160,8 @@ PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& 
   home_velocity_scaling_ = get_parameter("home_velocity_scaling").as_double();
   home_acceleration_scaling_ = get_parameter("home_acceleration_scaling").as_double();
   grasp_poses_topic_ = get_parameter("grasp_poses_topic").as_string();
+  grasp_capture_service_name_ = get_parameter("grasp_capture_service_name").as_string();
+  grasp_capture_service_timeout_sec_ = get_parameter("grasp_capture_service_timeout_sec").as_double();
   wait_poses_timeout_sec_ = get_parameter("wait_poses_timeout_sec").as_double();
   grasp_window_size_ = static_cast<size_t>(std::max<int64_t>(1, get_parameter("grasp_window_size").as_int()));
   min_groups_before_pick_ = static_cast<size_t>(std::max<int64_t>(1, get_parameter("min_groups_before_pick").as_int()));
@@ -188,9 +195,10 @@ PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& 
   grasp_poses_sub_ = create_subscription<geometry_msgs::msg::PoseArray>(
       grasp_poses_topic_, 10, std::bind(&PublishGraspsClientWorker::graspPosesCallback, this, std::placeholders::_1));
   status_pub_ = create_publisher<std_msgs::msg::String>(status_topic_, 10);
+  grasp_capture_client_ = create_client<std_srvs::srv::SetBool>(grasp_capture_service_name_);
 
-  RCLCPP_INFO(get_logger(), "订阅抓取位姿: %s, 窗口大小=%zu, 最少%zu组后选优",
-              grasp_poses_topic_.c_str(), grasp_window_size_, min_groups_before_pick_);
+  RCLCPP_INFO(get_logger(), "订阅抓取位姿: %s, 窗口大小=%zu, 最少%zu组后选优, 触发服务=%s",
+              grasp_poses_topic_.c_str(), grasp_window_size_, min_groups_before_pick_, grasp_capture_service_name_.c_str());
 }
 
 std::shared_ptr<PublishGraspsClientWorker> PublishGraspsClientWorker::create(const rclcpp::NodeOptions& options)
@@ -245,6 +253,48 @@ bool PublishGraspsClientWorker::waitForGraspWindowReady()
   }
   RCLCPP_ERROR(get_logger(), "等待抓取窗口超时 (%.1f s)", wait_poses_timeout_sec_);
   return false;
+}
+
+bool PublishGraspsClientWorker::requestGraspCapture(bool enable)
+{
+  if (!grasp_capture_client_)
+  {
+    RCLCPP_ERROR(get_logger(), "采集控制服务客户端未初始化");
+    return false;
+  }
+  if (!grasp_capture_client_->wait_for_service(std::chrono::duration<double>(grasp_capture_service_timeout_sec_)))
+  {
+    RCLCPP_ERROR(get_logger(), "采集控制服务不可用: %s (timeout=%.2fs)", grasp_capture_service_name_.c_str(),
+                 grasp_capture_service_timeout_sec_);
+    return false;
+  }
+
+  auto req = std::make_shared<std_srvs::srv::SetBool::Request>();
+  req->data = enable;
+  auto future = grasp_capture_client_->async_send_request(req);
+  auto wait_ret = future.wait_for(std::chrono::duration<double>(grasp_capture_service_timeout_sec_));
+  if (wait_ret != std::future_status::ready)
+  {
+    RCLCPP_ERROR(get_logger(), "采集控制服务调用超时: %s", enable ? "start" : "stop");
+    return false;
+  }
+  std::shared_ptr<std_srvs::srv::SetBool::Response> resp;
+  try
+  {
+    resp = future.get();
+  }
+  catch (const std::exception& e)
+  {
+    RCLCPP_ERROR(get_logger(), "采集控制服务调用异常: %s", e.what());
+    return false;
+  }
+  if (!resp->success)
+  {
+    RCLCPP_ERROR(get_logger(), "采集控制服务返回失败: %s", resp->message.c_str());
+    return false;
+  }
+  RCLCPP_INFO(get_logger(), "采集控制服务成功: %s (%s)", enable ? "start" : "stop", resp->message.c_str());
+  return true;
 }
 
 std::optional<std::pair<std::string, geometry_msgs::msg::Pose>> PublishGraspsClientWorker::selectBestFromWindow()
@@ -492,42 +542,59 @@ bool PublishGraspsClientWorker::runGraspMotion(const geometry_msgs::msg::Pose& t
 
 bool PublishGraspsClientWorker::runOneCycle()
 {
+  bool capture_started = false;
+  const auto stopCaptureIfNeeded = [this, &capture_started]() {
+    if (capture_started)
+      (void)requestGraspCapture(false);
+  };
+  const auto failCycle = [&stopCaptureIfNeeded]() {
+    stopCaptureIfNeeded();
+    return false;
+  };
+
   if (!rclcpp::ok() || shutdown_requested_)
     return false;
   RCLCPP_INFO(get_logger(), "周期开始: 预清空抓取窗口（清理上周期残留）");
   clearGraspWindow();
   if (!rclcpp::ok() || shutdown_requested_)
     return false;
+  RCLCPP_INFO(get_logger(), "步骤 -1: 触发感知开始采集");
+  if (!requestGraspCapture(true))
+  {
+    RCLCPP_ERROR(get_logger(), "runOneCycle 步骤-1 触发感知采集失败");
+    return false;
+  }
+  capture_started = true;
   RCLCPP_INFO(get_logger(), "步骤 0: 回安全位（识别前到位）");
   if (!moveToHome(home_velocity_scaling_, home_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "runOneCycle 步骤0 回安全位失败，需在识别前到位");
-    return false;
+    return failCycle();
   }
   if (!rclcpp::ok() || shutdown_requested_)
-    return false;
+    return failCycle();
 
   RCLCPP_INFO(get_logger(), "步骤 1: 清空抓取窗口");
   clearGraspWindow();
   if (!rclcpp::ok() || shutdown_requested_)
-    return false;
+    return failCycle();
 
   RCLCPP_INFO(get_logger(), "步骤 2: 等待抓取窗口就绪 (>=%zu 组)", min_groups_before_pick_);
   if (!waitForGraspWindowReady())
-    return false;
+    return failCycle();
 
   if (!rclcpp::ok() || shutdown_requested_)
-    return false;
+    return failCycle();
   RCLCPP_INFO(get_logger(), "步骤 3: 从窗口选优 (prefer_vertical=%s)", prefer_vertical_ ? "true" : "false");
   auto selected = selectBestFromWindow();
   if (!selected)
   {
     RCLCPP_ERROR(get_logger(), "步骤 3 选优失败，窗口无有效抓取");
-    return false;
+    return failCycle();
   }
 
   if (!rclcpp::ok() || shutdown_requested_)
-    return false;
+    return failCycle();
   auto [tag, grasp_pose] = *selected;
   RCLCPP_INFO(get_logger(), "步骤 4: gripper_tip 变换为 end_effector 目标 (选用 %s)", tag.c_str());
   Eigen::Matrix4d T_local = buildGraspToEndEffectorTransform();
@@ -539,7 +606,7 @@ bool PublishGraspsClientWorker::runOneCycle()
   if (!runGraspApproach(pose_ee, height_above_, joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "runOneCycle 步骤5 抓取接近失败");
-    return false;
+    return failCycle();
   }
 
   // RCLCPP_INFO(get_logger(), "步骤 6: 闭夹爪");
@@ -553,7 +620,7 @@ bool PublishGraspsClientWorker::runOneCycle()
   if (!runArcPath('z', lift_offset_, joint_velocity_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "runOneCycle 步骤7 抬起失败");
-    return false;
+    return failCycle();
   }
 
   RCLCPP_INFO(get_logger(), "步骤 8: 移动到放置位 (place_mode=%s)", place_mode_.c_str());
@@ -562,7 +629,7 @@ bool PublishGraspsClientWorker::runOneCycle()
     if (!moveToHome(home_velocity_scaling_, home_acceleration_scaling_))
     {
       RCLCPP_ERROR(get_logger(), "runOneCycle 步骤8 回安全位失败");
-      return false;
+      return failCycle();
     }
     const std::vector<CartesianSegment> place_segments = {
       { 'y', place_offset_y_ },
@@ -573,7 +640,7 @@ bool PublishGraspsClientWorker::runOneCycle()
     {
       RCLCPP_ERROR(get_logger(), "runOneCycle 步骤8 放置位多段笛卡尔失败 (y=%.2f, z=%.2f)",
                    place_offset_y_, place_offset_z_);
-      return false;
+      return failCycle();
     }
   }
   else if (place_mode_ == "pose")
@@ -582,7 +649,7 @@ bool PublishGraspsClientWorker::runOneCycle()
                     place_pose_[6], false, joint_velocity_scaling_, joint_acceleration_scaling_))
     {
       RCLCPP_ERROR(get_logger(), "runOneCycle 步骤8 移动到放置位失败");
-      return false;
+      return failCycle();
     }
   }
   else
@@ -590,7 +657,7 @@ bool PublishGraspsClientWorker::runOneCycle()
     if (!moveToJoints(place_joints_, joint_velocity_scaling_, joint_acceleration_scaling_))
     {
       RCLCPP_ERROR(get_logger(), "runOneCycle 步骤8 移动到放置关节失败");
-      return false;
+      return failCycle();
     }
   }
 
@@ -605,9 +672,10 @@ bool PublishGraspsClientWorker::runOneCycle()
   if (!moveToHome(home_velocity_scaling_, home_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "runOneCycle 步骤10 回安全位失败");
-    return false;
+    return failCycle();
   }
 
+  stopCaptureIfNeeded();
   return true;
 }
 

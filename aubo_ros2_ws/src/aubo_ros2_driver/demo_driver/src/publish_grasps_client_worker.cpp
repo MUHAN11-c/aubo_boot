@@ -104,6 +104,8 @@ static void scaleTrajectoryTimeLocal(moveit_msgs::msg::RobotTrajectory& traj, do
 // | grasp_poses_topic        | string  | grasp_poses_base| 抓取位姿话题，与 graspnet_demo_points_node 发布一致        |
 // | grasp_capture_service_name | string| /graspnet_capture_control | 感知采集控制服务（SetBool）                 |
 // | grasp_capture_service_timeout_sec | double | 2.0    | 采集控制服务等待超时 (s)                      |
+// | loop_control_service_name | string| /publish_grasps_worker_loop_control | Worker 循环控制服务（SetBool） |
+// | auto_start_loop         | bool    | false          | 启动后是否立即进入循环；false 时等待服务开启               |
 // | wait_poses_timeout_sec   | double  | 30.0           | 等待窗口就绪超时 (s)                                   |
 // | grasp_window_size        | int     | 5              | 滑动窗口大小：缓存最近 N 组 PoseArray                      |
 // | min_groups_before_pick   | int     | 3              | 至少 M 组后再选优                                      |
@@ -135,6 +137,8 @@ PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& 
   declare_parameter("grasp_poses_topic", std::string("grasp_poses_base"));
   declare_parameter("grasp_capture_service_name", std::string("/graspnet_capture_control"));
   declare_parameter("grasp_capture_service_timeout_sec", 2.0);
+  declare_parameter("loop_control_service_name", std::string("/publish_grasps_worker_loop_control"));
+  declare_parameter("auto_start_loop", false);
   declare_parameter("wait_poses_timeout_sec", 30.0);
   declare_parameter("grasp_window_size", 5);
   declare_parameter("min_groups_before_pick", 3);
@@ -162,6 +166,8 @@ PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& 
   grasp_poses_topic_ = get_parameter("grasp_poses_topic").as_string();
   grasp_capture_service_name_ = get_parameter("grasp_capture_service_name").as_string();
   grasp_capture_service_timeout_sec_ = get_parameter("grasp_capture_service_timeout_sec").as_double();
+  loop_control_service_name_ = get_parameter("loop_control_service_name").as_string();
+  auto_start_loop_ = get_parameter("auto_start_loop").as_bool();
   wait_poses_timeout_sec_ = get_parameter("wait_poses_timeout_sec").as_double();
   grasp_window_size_ = static_cast<size_t>(std::max<int64_t>(1, get_parameter("grasp_window_size").as_int()));
   min_groups_before_pick_ = static_cast<size_t>(std::max<int64_t>(1, get_parameter("min_groups_before_pick").as_int()));
@@ -196,9 +202,16 @@ PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& 
       grasp_poses_topic_, 10, std::bind(&PublishGraspsClientWorker::graspPosesCallback, this, std::placeholders::_1));
   status_pub_ = create_publisher<std_msgs::msg::String>(status_topic_, 10);
   grasp_capture_client_ = create_client<std_srvs::srv::SetBool>(grasp_capture_service_name_);
+  loop_control_service_ = create_service<std_srvs::srv::SetBool>(
+      loop_control_service_name_,
+      std::bind(&PublishGraspsClientWorker::handleLoopControl, this, std::placeholders::_1, std::placeholders::_2));
+  loop_enabled_.store(auto_start_loop_);
+  stop_after_cycle_.store(false);
 
-  RCLCPP_INFO(get_logger(), "订阅抓取位姿: %s, 窗口大小=%zu, 最少%zu组后选优, 触发服务=%s",
-              grasp_poses_topic_.c_str(), grasp_window_size_, min_groups_before_pick_, grasp_capture_service_name_.c_str());
+  RCLCPP_INFO(get_logger(),
+              "订阅抓取位姿: %s, 窗口大小=%zu, 最少%zu组后选优, 触发服务=%s, 循环控制服务=%s, auto_start_loop=%s",
+              grasp_poses_topic_.c_str(), grasp_window_size_, min_groups_before_pick_, grasp_capture_service_name_.c_str(),
+              loop_control_service_name_.c_str(), auto_start_loop_ ? "true" : "false");
 }
 
 std::shared_ptr<PublishGraspsClientWorker> PublishGraspsClientWorker::create(const rclcpp::NodeOptions& options)
@@ -295,6 +308,38 @@ bool PublishGraspsClientWorker::requestGraspCapture(bool enable)
   }
   RCLCPP_INFO(get_logger(), "采集控制服务成功: %s (%s)", enable ? "start" : "stop", resp->message.c_str());
   return true;
+}
+
+void PublishGraspsClientWorker::handleLoopControl(
+    const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
+    std::shared_ptr<std_srvs::srv::SetBool::Response> response)
+{
+  if (request->data)
+  {
+    if (shutdown_requested_)
+    {
+      response->success = false;
+      response->message = "节点已进入退出流程，无法重新开启循环";
+      return;
+    }
+    loop_enabled_.store(true);
+    stop_after_cycle_.store(false);
+    response->success = true;
+    response->message = "已开启循环抓取";
+    RCLCPP_INFO(get_logger(), "收到循环控制: start，已开启循环抓取");
+    return;
+  }
+
+  // false: 当前周期结束后退出；若当前不在周期中则立即退出
+  loop_enabled_.store(false);
+  stop_after_cycle_.store(true);
+  if (!cycle_in_progress_.load())
+    shutdown_requested_.store(true);
+
+  response->success = true;
+  response->message = cycle_in_progress_.load() ? "已收到关闭请求，将在当前周期结束后退出"
+                                                : "已收到关闭请求，当前无活动周期，立即退出";
+  RCLCPP_INFO(get_logger(), "收到循环控制: stop，%s", response->message.c_str());
 }
 
 std::optional<std::pair<std::string, geometry_msgs::msg::Pose>> PublishGraspsClientWorker::selectBestFromWindow()
@@ -542,6 +587,13 @@ bool PublishGraspsClientWorker::runGraspMotion(const geometry_msgs::msg::Pose& t
 
 bool PublishGraspsClientWorker::runOneCycle()
 {
+  struct CycleProgressGuard
+  {
+    explicit CycleProgressGuard(std::atomic<bool>& in_progress) : in_progress_(in_progress) { in_progress_.store(true); }
+    ~CycleProgressGuard() { in_progress_.store(false); }
+    std::atomic<bool>& in_progress_;
+  } cycle_progress_guard(cycle_in_progress_);
+
   bool capture_started = false;
   const auto stopCaptureIfNeeded = [this, &capture_started]() {
     if (capture_started)
@@ -710,10 +762,19 @@ void PublishGraspsClientWorker::requestShutdown()
 
 bool PublishGraspsClientWorker::run()
 {
-  RCLCPP_INFO(get_logger(), "主循环启动，max_cycles=%d，Ctrl+C 可随时退出", max_cycles_);
-  while (rclcpp::ok() && !shutdown_requested_ &&
-         (max_cycles_ < 0 || cycle_count_ < max_cycles_))
+  RCLCPP_INFO(get_logger(), "主循环启动，max_cycles=%d，Ctrl+C 可随时退出，初始循环状态=%s",
+              max_cycles_, loop_enabled_.load() ? "running" : "idle");
+  while (rclcpp::ok() && !shutdown_requested_ && (max_cycles_ < 0 || cycle_count_ < max_cycles_))
   {
+    if (!loop_enabled_.load())
+    {
+      publishStatus(cycle_count_, success_count_, fail_count_, 0, false);
+      sleepInterruptible(this, 0.2);
+      if (stop_after_cycle_.load() && !cycle_in_progress_.load())
+        shutdown_requested_.store(true);
+      continue;
+    }
+
     bool success = runOneCycle();
     if (success)
     {
@@ -729,6 +790,8 @@ bool PublishGraspsClientWorker::run()
       RCLCPP_WARN(get_logger(), "周期失败，fail_count=%d", fail_count_);
       sleepInterruptible(this, fail_retry_delay_sec_);
     }
+    if (stop_after_cycle_.load())
+      shutdown_requested_.store(true);
     sleepInterruptible(this, cycle_delay_sec_);
   }
   publishStatus(cycle_count_, success_count_, fail_count_, 0, false);

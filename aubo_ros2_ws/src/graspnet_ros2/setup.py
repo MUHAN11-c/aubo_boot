@@ -85,6 +85,7 @@ setup(
             'graspnet_demo_points_node = graspnet_ros2.graspnet_demo_points_node:main',
             'graspnet_test_node = graspnet_ros2.test_node:main',
             'publish_grasps_client = graspnet_ros2.publish_grasps_client:main',
+            'publish_grasps_worker_loop_control_client = graspnet_ros2.publish_grasps_worker_loop_control_client:main',
             'hand_eye_static_tf_node = graspnet_ros2.hand_eye_static_tf_node:main',
         ],
     },

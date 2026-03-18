@@ -12,6 +12,7 @@ find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 find_package(demo_interface REQUIRED)
 find_package(aubo_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
@@ -176,6 +177,7 @@ ament_target_dependencies(publish_grasps_client_worker_node
   rclcpp
   geometry_msgs
   std_msgs
+  std_srvs
   aubo_msgs
   moveit_msgs
   moveit_core

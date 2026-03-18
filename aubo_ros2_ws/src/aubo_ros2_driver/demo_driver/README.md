@@ -6,12 +6,32 @@
 
 ```bash
 source install/setup.bash
+cd IVG2.0/aubo_ros2_ws/
+use_ros2
 
-# GraspNet 抓取放置 Worker（订阅 grasp_poses_base，循环抓取→放置→回安全位）
-ros2 run demo_driver publish_grasps_client_worker_node
+# 终端1：MoveIt2 + 机械臂
+ros2 launch aubo_moveit_config aubo_moveit_pure_ros2.launch.py
 
-# 夹爪快换 Worker
-ros2 run demo_driver gripper_swap_worker_node
+# 终端2：GraspNet 点云推理 + TF（触发式采集）
+ros2 launch graspnet_ros2 graspnet_demo_points_with_tf.launch.py \
+  capture_groups_target:=3 \
+  capture_control_service:=/graspnet_capture_control
+
+# 终端3：抓取 Worker（与感知服务名、组数保持一致）
+ros2 run demo_driver publish_grasps_client_worker_node --ros-args \
+  -p grasp_capture_service_name:=/graspnet_capture_control \
+  -p loop_control_service_name:=/publish_grasps_worker_loop_control \
+  -p auto_start_loop:=false \
+  -p min_groups_before_pick:=3
+
+# 终端4：开启循环抓取
+ros2 run graspnet_ros2 publish_grasps_worker_loop_control_client --start
+
+# 终端4：关闭循环抓取（当前周期结束后退出）
+ros2 run graspnet_ros2 publish_grasps_worker_loop_control_client --stop
+
+# 可选：夹爪快换 Worker（单独使用）
+# ros2 run demo_driver gripper_swap_worker_node
 ```
 
 **调用逻辑**：详见 [docs/GRASP_CALL_FLOW.md](docs/GRASP_CALL_FLOW.md)
@@ -188,11 +208,76 @@ ros2 service call /run_gripper_swap demo_interface/srv/RunGripperSwap "{directio
 
 ### 9. publish_grasps_client_worker_node
 
-**功能**：GraspNet 抓取放置 Worker。订阅 `grasp_poses_base`（PoseArray），循环执行：清理窗口 → 等待新数据 → 选优 → gripper_tip 补偿 → 抓取接近 → 闭夹爪 → 抬起 → 移动到放置位 → 开夹爪 → 回安全位。
+**功能**：GraspNet 抓取放置 Worker。订阅 `grasp_poses_base`（PoseArray），循环执行：触发采集 → 等待窗口就绪 → 选优 → gripper_tip 补偿 → 抓取接近 → 抬起 → 放置 → 回安全位。
+
+#### 本次改造总结（服务化循环控制）
+
+本次围绕“降低长期运行占用 + 可远程控制启停”做了两层改造：
+
+- **感知层（graspnet）**：`graspnet_demo_points_node` 从常开推理改为触发式采集。
+  - 通过 `/graspnet_capture_control` (`std_srvs/SetBool`) 控制采集开关。
+  - 开启后累计 `capture_groups_target` 组有效 PoseArray 自动停采。
+- **执行层（worker）**：`publish_grasps_client_worker_node` 从“启动即无限循环”改为“服务控制循环”。
+  - 新增 `/publish_grasps_worker_loop_control` (`std_srvs/SetBool`)。
+  - `true`：开启循环抓取。
+  - `false`：发出关闭请求，**当前周期完成后退出**（若当前空闲则立即退出）。
+
+设计上的关键约束与收益：
+
+1. **数据新鲜性**：每周期开始前清空窗口，只使用本周期新数据。
+2. **性能可控**：仅在周期窗口内推理，非采集阶段不做无效计算。
+3. **停机可预期**：stop 请求不会粗暴中断机械臂，保证“当前周期收尾后退出”。
+4. **线程安全与稳定性**：服务调用使用 `async_send_request + wait_for`，避免已在 executor 中再次 spin 的崩溃。
+
+#### 触发式采集设计思路（重点）
+
+为降低持续推理带来的资源占用，系统由“常开采集”改为“按周期触发采集”：
+
+- `publish_grasps_client_worker_node` 在每个周期开始时，调用 `SetBool(true)` 触发感知采集服务（默认 `/graspnet_capture_control`）。
+- `graspnet_demo_points_node` 仅在采集使能状态下运行定时推理并发布抓取位姿。
+- 当感知端发布达到目标组数 `capture_groups_target` 后自动停采（`collect_enabled=false`）。
+- Worker 在周期结束（成功或失败）时再次调用 `SetBool(false)` 兜底停采，防止异常路径导致采集遗留。
+
+这套设计的核心目标：
+
+1. **降低空闲资源占用**：非采集窗口内不做推理发布。
+2. **保证周期数据新鲜性**：每周期先清窗口，再等待新采集数据。
+3. **提高故障可恢复性**：失败路径统一停采，避免感知端“跑飞”。
+
+#### 两节点职责边界
+
+- Worker（控制端）负责：
+  - 周期编排、运动执行、触发采集/停止采集。
+  - 对抓取位姿窗口进行“清理-等待-选优”。
+- GraspNet（感知端）负责：
+  - 点云推理、姿态发布。
+  - 采集会话计数（`collected_groups/target_groups`）与自动停采。
+
+#### 周期时序（简化）
+
+1. Worker 周期开始，`clearGraspWindow()` 清空历史数据。
+2. Worker 调用 `/graspnet_capture_control`，`SetBool(true)`。
+3. GraspNet 进入采集态，按 `compute_interval_sec` 推理并发布 `grasp_poses_base`。
+4. Worker 等待窗口达到 `min_groups_before_pick` 组后选优并执行抓取运动。
+5. GraspNet 达到 `capture_groups_target` 自动停采。
+6. Worker 在周期尾部再调用 `SetBool(false)` 做兜底。
+
+#### 常见实现陷阱与修复
+
+- **问题**：节点已在 `MultiThreadedExecutor` 中 `spin()`，再调用 `spin_until_future_complete(...)` 等待服务返回，会触发：
+  - `Node '...' has already been added to an executor.`
+- **原因**：同一个 node 被二次 spin。
+- **修复策略**：保持 `async_send_request`，使用 `future.wait_for(timeout)` + `future.get()` 等待结果，不再对该 node 二次 spin。
 
 #### 订阅
 
-- `grasp_poses_base` (geometry_msgs/PoseArray): base_link 下抓取位姿
+- `grasp_poses_base` (geometry_msgs/PoseArray): base_link 下抓取位姿（来自 GraspNet 感知节点）
+
+#### 依赖服务（新增）
+
+- `/graspnet_capture_control` (std_srvs/SetBool):
+  - `data=true`：开始采集
+  - `data=false`：停止采集
 
 #### 发布
 
@@ -203,20 +288,96 @@ ros2 service call /run_gripper_swap demo_interface/srv/RunGripperSwap "{directio
 | 参数 | 类型 | 默认 | 说明 |
 |------|------|------|------|
 | prefer_vertical | bool | true | 选优策略：true 取垂直度最高 |
-| grasp_z_offset | double | 0.2 | gripper_tip→end_effector 沿 z 轴补偿 (m) |
-| height_above | double | 0.05 | 抓取点上方安全高度 (m) |
-| joint_velocity_scaling | float | 0.5 | 速度缩放 [0~1] |
+| grasp_z_offset | double | 0.15 | gripper_tip→end_effector 沿 z 轴补偿 (m) |
+| height_above | double | 0.1 | 抓取点上方安全高度 (m) |
+| joint_velocity_scaling | float | 1.0 | 速度缩放 [0~1] |
 | joint_acceleration_scaling | float | 0.1 | 加速度缩放 [0~1] |
+| home_velocity_scaling | float | 0.7 | 回安全位速度缩放 [0~1] |
+| home_acceleration_scaling | float | 0.45 | 回安全位加速度缩放 [0~1] |
 | grasp_poses_topic | string | grasp_poses_base | 抓取位姿话题 |
+| grasp_capture_service_name | string | /graspnet_capture_control | 感知采集控制服务名 |
+| grasp_capture_service_timeout_sec | double | 2.0 | 采集控制服务超时 (s) |
 | wait_poses_timeout_sec | double | 30.0 | 等待窗口就绪超时 (s) |
 | grasp_window_size | int | 5 | 滑动窗口大小 |
 | min_groups_before_pick | int | 3 | 至少 M 组后再选优 |
-| gripper_io_index | int | 7 | Aubo 夹爪 IO pin 号 |
+| gripper_io_index | int | 6 | Aubo 夹爪 IO pin 号 |
 | lift_offset | double | 0.2 | 抓取后沿 Z 轴抬起高度 (m) |
 | place_mode | string | home_offset | "pose"/"joints"/"home_offset" |
-| place_offset_y, place_offset_z | double | -0.2, -0.20 | 安全位偏移 (m) |
+| place_offset_y, place_offset_z | double | -0.2, -0.15 | 安全位偏移 (m) |
 | cycle_delay_sec | double | 1.0 | 每周期结束后等待 (s) |
+| fail_retry_delay_sec | double | 1.0 | 失败后额外等待 (s) |
 | max_cycles | int | -1 | 最大周期数，-1 无限循环 |
+| cartesian_max_points | int | 50 | 抓取接近笛卡尔轨迹点数上限 |
+
+#### 与 GraspNet 侧参数对齐建议
+
+建议将以下参数保持一致，避免“窗口永远不就绪”或“采集组数不足”：
+
+- Worker：`min_groups_before_pick`
+- GraspNet：`capture_groups_target`
+
+推荐初始值：两者都设为 `3`。
+
+#### 推荐启动方式（触发式采集）
+
+```bash
+# 终端1：MoveIt/机械臂
+ros2 launch aubo_moveit_config aubo_moveit_pure_ros2.launch.py
+
+# 终端2：GraspNet 点云推理 + TF（触发式采集参数）
+ros2 launch graspnet_ros2 graspnet_demo_points_with_tf.launch.py \
+  capture_groups_target:=3 \
+  capture_control_service:=/graspnet_capture_control
+
+# 终端3：抓取 Worker（触发服务名与组数对齐）
+ros2 run demo_driver publish_grasps_client_worker_node --ros-args \
+  -p grasp_capture_service_name:=/graspnet_capture_control \
+  -p min_groups_before_pick:=3
+
+# 终端4：开启循环抓取（服务控制）
+ros2 run graspnet_ros2 publish_grasps_worker_loop_control_client --start
+```
+
+#### 执行命令（最常用）
+
+```bash
+# 1) 启动 MoveIt
+ros2 launch aubo_moveit_config aubo_moveit_pure_ros2.launch.py
+
+# 2) 启动 GraspNet 点云推理（触发式采集）
+ros2 launch graspnet_ros2 graspnet_demo_points_with_tf.launch.py \
+  capture_groups_target:=3 \
+  capture_control_service:=/graspnet_capture_control
+
+# 3) 启动 Worker（初始待机，等待 start 命令）
+ros2 run demo_driver publish_grasps_client_worker_node --ros-args \
+  -p grasp_capture_service_name:=/graspnet_capture_control \
+  -p loop_control_service_name:=/publish_grasps_worker_loop_control \
+  -p auto_start_loop:=false \
+  -p min_groups_before_pick:=3
+
+# 4) 开始循环抓取
+ros2 run graspnet_ros2 publish_grasps_worker_loop_control_client --start
+
+# 5) 关闭循环抓取（等待当前周期结束后退出）
+ros2 run graspnet_ros2 publish_grasps_worker_loop_control_client --stop
+```
+
+#### 联调排障清单
+
+1. 服务存在性：
+   - `ros2 service list | rg graspnet_capture_control`
+2. 触发功能自检：
+   - `ros2 service call /graspnet_capture_control std_srvs/srv/SetBool "{data: true}"`
+3. 话题流量检查：
+   - `ros2 topic hz /grasp_poses_base`
+4. 参数一致性：
+   - `min_groups_before_pick == capture_groups_target`
+5. 若出现 executor 报错：
+   - 检查是否在已 spin 的 node 上调用了 `spin_until_future_complete`（应改为 `future.wait_for`）。
+6. 循环控制（新增）：
+   - 开启：`ros2 run graspnet_ros2 publish_grasps_worker_loop_control_client --start`
+   - 关闭（当前周期结束后退出）：`ros2 run graspnet_ros2 publish_grasps_worker_loop_control_client --stop`
 
 ---
 
@@ -274,19 +435,29 @@ source install/setup.bash
 
 ### 运行方式
 
-#### 方式一：通过 aubo_moveit_config 统一启动（推荐）
+#### 方式一：触发式抓取放置（推荐）
 
-先启动 MoveIt2，再启动 demo_driver 服务：
+按以下顺序启动（与你当前实测流程一致）：
 
 ```bash
 # 终端 1：MoveIt2 + 机械臂
 ros2 launch aubo_moveit_config aubo_moveit_pure_ros2.launch.py
 
-# 终端 2：demo_driver 服务（延迟 15s 启动，等待 MoveIt2 就绪）
-ros2 launch aubo_moveit_config demo_driver_services.launch.py
+# 终端 2：GraspNet 点云推理 + TF（触发式采集）
+ros2 launch graspnet_ros2 graspnet_demo_points_with_tf.launch.py \
+  capture_groups_target:=3 \
+  capture_control_service:=/graspnet_capture_control
+
+# 终端 3：抓取 Worker
+ros2 run demo_driver publish_grasps_client_worker_node --ros-args \
+  -p grasp_capture_service_name:=/graspnet_capture_control \
+  -p min_groups_before_pick:=3
 ```
 
-`demo_driver_services.launch.py` 会启动：move_to_pose、plan_trajectory、execute_trajectory、get_current_state、set_speed_factor、set_robot_pose 等节点。**注意**：若包含 `movel_server_node` 且该节点未编译，启动时会报错，可从 launch 中移除。
+说明：
+
+- `capture_groups_target` 与 `min_groups_before_pick` 建议保持一致（推荐都为 `3`）。
+- 若服务名改动，`capture_control_service` 与 `grasp_capture_service_name` 必须同步。
 
 #### 方式二：单独运行节点
 

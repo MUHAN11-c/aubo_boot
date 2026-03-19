@@ -34,6 +34,10 @@ const std::array<double, 6> MoveitGripperIoBase::kHomeJointsRad1 = {
 
 /** Aubo 驱动 SetIO 服务名 */
 const std::string MoveitGripperIoBase::kAuboSetIOService = "/aubo_driver/set_io";
+/** 快换 IO 默认 pin */
+const int32_t MoveitGripperIoBase::kQuickSwapIoIndex = 7;
+/** 夹爪 IO 默认 pin */
+const int32_t MoveitGripperIoBase::kGripperIoIndex = 6;
 
 // ============================================================================
 // 笛卡尔路径相关常量
@@ -75,7 +79,7 @@ static void scaleTrajectoryTime(moveit_msgs::msg::RobotTrajectory& traj, double 
 MoveitGripperIoBase::MoveitGripperIoBase(const rclcpp::NodeOptions& options)
   : rclcpp::Node("moveit_gripper_io_base", options)
 {
-  aubo_set_io_client_ = create_client<aubo_msgs::srv::SetIO>(kAuboSetIOService);
+  aubo_set_io_client_ = create_client<demo_interface::srv::SetRobotIO>(kAuboSetIOService);
 }
 
 std::shared_ptr<MoveitGripperIoBase> MoveitGripperIoBase::create(const rclcpp::NodeOptions& options)
@@ -294,10 +298,10 @@ bool MoveitGripperIoBase::setGripperIo(int32_t io_index, bool high)
     return false;
   }
 
-  auto req = std::make_shared<aubo_msgs::srv::SetIO::Request>();
-  req->fun = aubo_msgs::srv::SetIO::Request::FUN_SET_DIGITAL_OUT;
-  req->pin = static_cast<int8_t>(io_index);
-  req->state = high ? aubo_msgs::srv::SetIO::Request::STATE_ON : aubo_msgs::srv::SetIO::Request::STATE_OFF;
+  auto req = std::make_shared<demo_interface::srv::SetRobotIO::Request>();
+  req->io_type = "digital_output";
+  req->io_index = io_index;
+  req->value = high ? 1.0 : 0.0;
 
   auto future = aubo_set_io_client_->async_send_request(req);
   if (future.wait_for(std::chrono::seconds(kCallTimeoutSeconds)) != std::future_status::ready)
@@ -309,7 +313,8 @@ bool MoveitGripperIoBase::setGripperIo(int32_t io_index, bool high)
   auto res = future.get();
   if (!res->success)
   {
-    RCLCPP_ERROR(get_logger(), "[set_gripper_io] %s 返回失败", kAuboSetIOService.c_str());
+    RCLCPP_ERROR(get_logger(), "[set_gripper_io] %s 返回失败: code=%d, msg=%s", kAuboSetIOService.c_str(),
+                 res->error_code, res->message.c_str());
     return false;
   }
 

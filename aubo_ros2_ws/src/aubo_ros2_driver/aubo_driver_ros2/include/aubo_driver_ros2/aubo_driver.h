@@ -48,13 +48,13 @@
 #include <std_msgs/msg/string.hpp>
 #include <std_msgs/msg/int32_multi_array.hpp>
 #include <std_msgs/msg/int64.hpp>
-#include <aubo_msgs/srv/set_io.hpp>
 #include <aubo_msgs/srv/get_fk.hpp>
 #include <aubo_msgs/srv/get_ik.hpp>
-#include <aubo_msgs/msg/io_states.hpp>
 #include <aubo_msgs/msg/joint_trajectory_feedback.hpp>
 #include <control_msgs/action/follow_joint_trajectory.hpp>
+#include <demo_interface/msg/robot_io_status.hpp>
 #include <demo_interface/msg/robot_status.hpp>
+#include <demo_interface/srv/set_robot_io.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <trajectory_msgs/msg/joint_trajectory_point.hpp>
 
@@ -139,7 +139,8 @@ namespace aubo_driver
             void updateControlStatus();
             void run();
             bool connectToRobotController();
-            void setIO(const std::shared_ptr<aubo_msgs::srv::SetIO::Request> req, std::shared_ptr<aubo_msgs::srv::SetIO::Response> resp);
+            void setIO(const std::shared_ptr<demo_interface::srv::SetRobotIO::Request> req,
+                       std::shared_ptr<demo_interface::srv::SetRobotIO::Response> resp);
             void getFK(const std::shared_ptr<aubo_msgs::srv::GetFK::Request> req, std::shared_ptr<aubo_msgs::srv::GetFK::Response> resp);
             void getIK(const std::shared_ptr<aubo_msgs::srv::GetIK::Request> req, std::shared_ptr<aubo_msgs::srv::GetIK::Response> resp);
 
@@ -173,7 +174,7 @@ namespace aubo_driver
             rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr teach_subs_;
             rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr moveAPI_subs_;
             rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr controller_switch_sub_;
-            rclcpp::Publisher<aubo_msgs::msg::IOStates>::SharedPtr io_pub_;
+            rclcpp::Publisher<demo_interface::msg::RobotIOStatus>::SharedPtr io_pub_;
 
         private:
             void trajectoryExecutionCallback(const std_msgs::msg::String::ConstSharedPtr msg);
@@ -214,7 +215,7 @@ namespace aubo_driver
             rclcpp::TimerBase::SharedPtr update_control_timer_;  // 500Hz，独立 callback group 与轨迹/50Hz 并行
             rclcpp::CallbackGroup::SharedPtr trajectory_cb_group_;   // 轨迹订阅专用，与 500Hz/50Hz 不同组
             rclcpp::CallbackGroup::SharedPtr update_control_cb_group_; // 500Hz 定时器专用
-            rclcpp::Service<aubo_msgs::srv::SetIO>::SharedPtr io_srv_;
+            rclcpp::Service<demo_interface::srv::SetRobotIO>::SharedPtr io_srv_;
             rclcpp::Service<aubo_msgs::srv::GetFK>::SharedPtr fk_srv_;
             rclcpp::Service<aubo_msgs::srv::GetIK>::SharedPtr ik_srv_;
             std::thread* mb_publish_thread_;

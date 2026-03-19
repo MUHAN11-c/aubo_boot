@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 
-#include <aubo_msgs/srv/set_io.hpp>
+#include <demo_interface/srv/set_robot_io.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <moveit/move_group_interface/move_group_interface.h>
@@ -80,9 +80,11 @@ protected:
 protected:
   std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
   static constexpr double kZMinLimit = 0.2;  /**< Z 轴安全下限 (m)，末端 z 坐标不能低于此值 */
+  static const int32_t kQuickSwapIoIndex;    /**< 快换 IO 默认 pin：7 */
+  static const int32_t kGripperIoIndex;      /**< 夹爪 IO 默认 pin：6 */
 
 private:
-  rclcpp::Client<aubo_msgs::srv::SetIO>::SharedPtr aubo_set_io_client_;
+  rclcpp::Client<demo_interface::srv::SetRobotIO>::SharedPtr aubo_set_io_client_;
 
   static const std::array<double, 6> kHomeJointsRad1;  /**< 回零关节角 (rad) */
   static const std::string kAuboSetIOService;          /**< Aubo SetIO 服务名 */

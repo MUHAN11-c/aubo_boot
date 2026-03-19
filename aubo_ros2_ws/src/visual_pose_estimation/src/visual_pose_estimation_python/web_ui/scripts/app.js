@@ -790,7 +790,7 @@ async function openGripper() {
             },
             body: JSON.stringify({
                 io_type: 'digital_output',
-                io_index: 8,
+                io_index: 6,
                 value: 0.0
             })
         });
@@ -806,7 +806,7 @@ async function openGripper() {
     } catch (error) {
         addLogEntry('error', `打开夹爪异常: ${error.message}`);
         console.error('打开夹爪错误详情:', error);
-        alert(`打开夹爪异常: ${error.message}\n\n请检查：\n1. 服务器是否正常运行\n2. ROS2节点是否已启动\n3. /demo_driver/set_io 服务是否可用`);
+        alert(`打开夹爪异常: ${error.message}\n\n请检查：\n1. 服务器是否正常运行\n2. ROS2节点是否已启动\n3. /aubo_driver/set_io 服务是否可用`);
     }
 }
 
@@ -821,7 +821,7 @@ async function closeGripper() {
             },
             body: JSON.stringify({
                 io_type: 'digital_output',
-                io_index: 8,
+                io_index: 6,
                 value: 1.0
             })
         });
@@ -837,7 +837,7 @@ async function closeGripper() {
     } catch (error) {
         addLogEntry('error', `关闭夹爪异常: ${error.message}`);
         console.error('关闭夹爪错误详情:', error);
-        alert(`关闭夹爪异常: ${error.message}\n\n请检查：\n1. 服务器是否正常运行\n2. ROS2节点是否已启动\n3. /demo_driver/set_io 服务是否可用`);
+        alert(`关闭夹爪异常: ${error.message}\n\n请检查：\n1. 服务器是否正常运行\n2. ROS2节点是否已启动\n3. /aubo_driver/set_io 服务是否可用`);
     }
 }
 
@@ -908,7 +908,7 @@ async function _gripperOpenPlaceholder() {
             },
             body: JSON.stringify({
                 io_type: 'digital_output',
-                io_index: 8,
+                io_index: 6,
                 value: 0.0
             })
         });
@@ -938,7 +938,7 @@ async function _gripperClosePlaceholder() {
             },
             body: JSON.stringify({
                 io_type: 'digital_output',
-                io_index: 8,
+                io_index: 6,
                 value: 1.0
             })
         });

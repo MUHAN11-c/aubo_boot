@@ -21,6 +21,7 @@
 #include <mutex>
 #include <fstream>
 #include <sstream>
+#include <cctype>
 
 namespace aubo_driver {
 
@@ -35,6 +36,42 @@ char *t1[128] = {0};
 
 static double time_from_start_to_sec(const builtin_interfaces::msg::Duration& t) {
     return static_cast<double>(t.sec) + 1e-9 * static_cast<double>(t.nanosec);
+}
+
+static void fillCartesianPoseAndRpy(demo_interface::msg::RobotStatus& msg,
+                                    const aubo_robot_namespace::wayPoint_S& wp)
+{
+    msg.cartesian_position.position.x = wp.cartPos.position.x;
+    msg.cartesian_position.position.y = wp.cartPos.position.y;
+    msg.cartesian_position.position.z = wp.cartPos.position.z;
+
+    const double w = wp.orientation.w;
+    const double x = wp.orientation.x;
+    const double y = wp.orientation.y;
+    const double z = wp.orientation.z;
+    msg.cartesian_position.orientation.w = w;
+    msg.cartesian_position.orientation.x = x;
+    msg.cartesian_position.orientation.y = y;
+    msg.cartesian_position.orientation.z = z;
+
+    msg.cartesian_position_xyz.x = msg.cartesian_position.position.x;
+    msg.cartesian_position_xyz.y = msg.cartesian_position.position.y;
+    msg.cartesian_position_xyz.z = msg.cartesian_position.position.z;
+
+    const double sinr_cosp = 2.0 * (w * x + y * z);
+    const double cosr_cosp = 1.0 - 2.0 * (x * x + y * y);
+    const double roll = std::atan2(sinr_cosp, cosr_cosp);
+
+    const double sinp = 2.0 * (w * y - z * x);
+    const double pitch = (std::abs(sinp) >= 1.0) ? std::copysign(M_PI / 2.0, sinp) : std::asin(sinp);
+
+    const double siny_cosp = 2.0 * (w * z + x * y);
+    const double cosy_cosp = 1.0 - 2.0 * (y * y + z * z);
+    const double yaw = std::atan2(siny_cosp, cosy_cosp);
+
+    msg.cartesian_rpy.x = roll * 180.0 / M_PI;
+    msg.cartesian_rpy.y = pitch * 180.0 / M_PI;
+    msg.cartesian_rpy.z = yaw * 180.0 / M_PI;
 }
 
 AuboDriver::AuboDriver(int num)
@@ -67,12 +104,12 @@ AuboDriver::AuboDriver(int num)
     joint_states_pub_ = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", 3000);
     joint_feedback_pub_ = this->create_publisher<control_msgs::action::FollowJointTrajectory_Feedback>("aubo/feedback_states", 1000);
     joint_target_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("/aubo_driver/real_pose", 500);
-    robot_status_pub_ = this->create_publisher<demo_interface::msg::RobotStatus>("robot_status", 1000);
-    io_pub_ = this->create_publisher<aubo_msgs::msg::IOStates>("/aubo_driver/io_states", 10);
+    robot_status_pub_ = this->create_publisher<demo_interface::msg::RobotStatus>("/aubo_driver/robot_status", 1000);
     rib_pub_ = this->create_publisher<std_msgs::msg::Int32MultiArray>("/aubo_driver/rib_status", 1000);
     cancle_trajectory_pub_ = this->create_publisher<std_msgs::msg::UInt8>("aubo_driver/cancel_trajectory", 100);
-
-    io_srv_ = this->create_service<aubo_msgs::srv::SetIO>("/aubo_driver/set_io", std::bind(&AuboDriver::setIO, this, std::placeholders::_1, std::placeholders::_2));
+    
+    io_pub_ = this->create_publisher<demo_interface::msg::RobotIOStatus>("/aubo_driver/io_states", 10);
+    io_srv_ = this->create_service<demo_interface::srv::SetRobotIO>("/aubo_driver/set_io", std::bind(&AuboDriver::setIO, this, std::placeholders::_1, std::placeholders::_2));
     ik_srv_ = this->create_service<aubo_msgs::srv::GetIK>("/aubo_driver/get_ik", std::bind(&AuboDriver::getIK, this, std::placeholders::_1, std::placeholders::_2));
     fk_srv_ = this->create_service<aubo_msgs::srv::GetFK>("/aubo_driver/get_fk", std::bind(&AuboDriver::getFK, this, std::placeholders::_1, std::placeholders::_2));
 
@@ -151,8 +188,11 @@ void AuboDriver::timerCallback()
             }
         }
         robot_status_msg_.header.stamp = this->now();
-        for(int i = 0; i < 6 && i < axis_number_; i++)
+        for(int i = 0; i < 6 && i < axis_number_; i++) {
             robot_status_msg_.joint_position_rad[i] = current_joints_[i];
+            robot_status_msg_.joint_position_deg[i] = current_joints_[i] * 180.0 / M_PI;
+        }
+        fillCartesianPoseAndRpy(robot_status_msg_, rs.wayPoint_);
         { std::lock_guard<std::mutex> lock(buf_queue_mutex_); rib_status_.data[0] = static_cast<int32_t>(buf_queue_.size()); }
         rib_status_.data[1] = control_mode_;
         rib_status_.data[2] = controller_connected_flag_ ? 1 : 0;
@@ -161,6 +201,23 @@ void AuboDriver::timerCallback()
         robot_status_msg_.is_online = false;
         robot_status_msg_.in_motion = false;
         robot_status_msg_.header.stamp = this->now();
+        for (int i = 0; i < 6; ++i) {
+            robot_status_msg_.joint_position_rad[i] = current_joints_[i];
+            robot_status_msg_.joint_position_deg[i] = current_joints_[i] * 180.0 / M_PI;
+        }
+        robot_status_msg_.cartesian_position_xyz.x = 0.0;
+        robot_status_msg_.cartesian_position_xyz.y = 0.0;
+        robot_status_msg_.cartesian_position_xyz.z = 0.0;
+        robot_status_msg_.cartesian_rpy.x = 0.0;
+        robot_status_msg_.cartesian_rpy.y = 0.0;
+        robot_status_msg_.cartesian_rpy.z = 0.0;
+        robot_status_msg_.cartesian_position.position.x = 0.0;
+        robot_status_msg_.cartesian_position.position.y = 0.0;
+        robot_status_msg_.cartesian_position.position.z = 0.0;
+        robot_status_msg_.cartesian_position.orientation.w = 1.0;
+        robot_status_msg_.cartesian_position.orientation.x = 0.0;
+        robot_status_msg_.cartesian_position.orientation.y = 0.0;
+        robot_status_msg_.cartesian_position.orientation.z = 0.0;
         rib_status_.data[0] = 0;
         rib_status_.data[1] = control_mode_;
         rib_status_.data[2] = 0;
@@ -587,34 +644,52 @@ void AuboDriver::run()
 void AuboDriver::publishIOMsg()
 {
     rclcpp::Rate update_rate(50);
+    const auto parse_io_pin = [](const std::string& io_name, int fallback) -> int {
+        std::string digits;
+        digits.reserve(io_name.size());
+        for (const char ch : io_name) {
+            if (std::isdigit(static_cast<unsigned char>(ch))) {
+                digits.push_back(ch);
+            }
+        }
+        if (!digits.empty()) {
+            return std::atoi(digits.c_str());
+        }
+        return fallback;
+    };
+
     while (rclcpp::ok()) {
         if (start_move_) {
             update_rate.sleep();
             continue;
         }
-        aubo_msgs::msg::IOStates io_msg;
+        demo_interface::msg::RobotIOStatus io_msg;
+        io_msg.header.stamp = this->now();
+        io_msg.header.frame_id = "base_link";
+        io_msg.is_connected = controller_connected_flag_;
         std::vector<aubo_robot_namespace::RobotIoDesc> status_vector_in, status_vector_out;
         std::vector<aubo_robot_namespace::RobotIoType> io_type_in, io_type_out;
         io_type_in.push_back(aubo_robot_namespace::RobotBoardUserDI);
         io_type_out.push_back(aubo_robot_namespace::RobotBoardUserDO);
         robot_receive_service_.robotServiceGetBoardIOStatus(io_type_in, status_vector_in);
         robot_receive_service_.robotServiceGetBoardIOStatus(io_type_out, status_vector_out);
-        char num[2];
         for (size_t i = 6; i < status_vector_in.size(); i++) {
-            aubo_msgs::msg::Digital digi;
-            num[0] = status_vector_in[i].ioName[5];
-            num[1] = status_vector_in[i].ioName[6];
-            digi.pin = static_cast<uint8_t>(std::atoi(num));
-            digi.state = (status_vector_in[i].ioValue != 0);
-            io_msg.digital_in_states.push_back(digi);
+            const int pin = parse_io_pin(status_vector_in[i].ioName, static_cast<int>(i - 6));
+            if (pin >= 0) {
+                if (io_msg.digital_inputs.size() <= static_cast<size_t>(pin)) {
+                    io_msg.digital_inputs.resize(static_cast<size_t>(pin) + 1, false);
+                }
+                io_msg.digital_inputs[static_cast<size_t>(pin)] = (status_vector_in[i].ioValue != 0);
+            }
         }
         for (size_t i = 0; i < status_vector_out.size(); i++) {
-            aubo_msgs::msg::Digital digo;
-            num[0] = status_vector_out[i].ioName[5];
-            num[1] = status_vector_out[i].ioName[6];
-            digo.pin = static_cast<uint8_t>(std::atoi(num));
-            digo.state = (status_vector_out[i].ioValue != 0);
-            io_msg.digital_out_states.push_back(digo);
+            const int pin = parse_io_pin(status_vector_out[i].ioName, static_cast<int>(i));
+            if (pin >= 0) {
+                if (io_msg.digital_outputs.size() <= static_cast<size_t>(pin)) {
+                    io_msg.digital_outputs.resize(static_cast<size_t>(pin) + 1, false);
+                }
+                io_msg.digital_outputs[static_cast<size_t>(pin)] = (status_vector_out[i].ioValue != 0);
+            }
         }
         status_vector_in.clear();
         status_vector_out.clear();
@@ -643,28 +718,44 @@ void AuboDriver::publishIOMsg()
         robot_receive_service_.robotServiceGetBoardIOStatus(io_type_in, status_vector_in);
         robot_receive_service_.robotServiceGetBoardIOStatus(io_type_out, status_vector_out);
         for (size_t i = 0; i < status_vector_in.size(); i++) {
-            aubo_msgs::msg::Analog ana;
-            ana.pin = static_cast<uint8_t>(status_vector_in[i].ioAddr);
-            ana.domain = aubo_msgs::msg::Analog::VOLTAGE;
-            ana.state = status_vector_in[i].ioValue;
-            io_msg.analog_in_states.push_back(ana);
+            const int pin = static_cast<int>(status_vector_in[i].ioAddr);
+            if (pin >= 0) {
+                if (io_msg.analog_inputs.size() <= static_cast<size_t>(pin)) {
+                    io_msg.analog_inputs.resize(static_cast<size_t>(pin) + 1, 0.0f);
+                }
+                io_msg.analog_inputs[static_cast<size_t>(pin)] = static_cast<float>(status_vector_in[i].ioValue);
+            }
         }
         for (size_t i = 0; i < status_vector_out.size(); i++) {
-            aubo_msgs::msg::Analog ana;
-            ana.pin = static_cast<uint8_t>(status_vector_out[i].ioAddr);
-            ana.domain = aubo_msgs::msg::Analog::VOLTAGE;
-            ana.state = status_vector_out[i].ioValue;
-            io_msg.analog_out_states.push_back(ana);
+            const int pin = static_cast<int>(status_vector_out[i].ioAddr);
+            if (pin >= 0) {
+                if (io_msg.analog_outputs.size() <= static_cast<size_t>(pin)) {
+                    io_msg.analog_outputs.resize(static_cast<size_t>(pin) + 1, 0.0f);
+                }
+                io_msg.analog_outputs[static_cast<size_t>(pin)] = static_cast<float>(status_vector_out[i].ioValue);
+            }
         }
         status_vector_in.clear();
         status_vector_out.clear();
         robot_receive_service_.robotServiceGetAllToolDigitalIOStatus(status_vector_in);
         robot_receive_service_.robotServiceGetAllToolAIStatus(status_vector_out);
         for (size_t i = 0; i < status_vector_in.size(); i++) {
-            aubo_msgs::msg::Digital digo;
-            digo.pin = static_cast<uint8_t>(status_vector_in[i].ioAddr);
-            digo.state = (status_vector_in[i].ioValue != 0);
-            io_msg.flag_states.push_back(digo);
+            const int pin = static_cast<int>(status_vector_in[i].ioAddr);
+            if (pin >= 0) {
+                if (io_msg.tool_io_status.digital_outputs.size() <= static_cast<size_t>(pin)) {
+                    io_msg.tool_io_status.digital_outputs.resize(static_cast<size_t>(pin) + 1, false);
+                }
+                io_msg.tool_io_status.digital_outputs[static_cast<size_t>(pin)] = (status_vector_in[i].ioValue != 0);
+            }
+        }
+        for (size_t i = 0; i < status_vector_out.size(); i++) {
+            const int pin = static_cast<int>(status_vector_out[i].ioAddr);
+            if (pin >= 0) {
+                if (io_msg.tool_io_status.analog_inputs.size() <= static_cast<size_t>(pin)) {
+                    io_msg.tool_io_status.analog_inputs.resize(static_cast<size_t>(pin) + 1, 0.0f);
+                }
+                io_msg.tool_io_status.analog_inputs[static_cast<size_t>(pin)] = static_cast<float>(status_vector_out[i].ioValue);
+            }
         }
         io_pub_->publish(io_msg);
         update_rate.sleep();
@@ -841,32 +932,64 @@ int AuboDriver::checkTargetAcc(JointVelcAccParam mLastJointVelc, JointVelcAccPar
     return 0;
 }
 
-void AuboDriver::setIO(const std::shared_ptr<aubo_msgs::srv::SetIO::Request> req, std::shared_ptr<aubo_msgs::srv::SetIO::Response> resp)
+void AuboDriver::setIO(const std::shared_ptr<demo_interface::srv::SetRobotIO::Request> req,
+                       std::shared_ptr<demo_interface::srv::SetRobotIO::Response> resp)
 {
-    resp->success = true;
-    if (req->fun == 1) {
-        robot_send_service_.robotServiceSetBoardIOStatus(aubo_robot_namespace::RobotBoardUserDO, req->pin + 32, req->state);
+    resp->success = false;
+    resp->error_code = -1;
+    resp->message = "未知 io_type";
+
+    std::string io_type = req->io_type;
+    std::transform(io_type.begin(), io_type.end(), io_type.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+    const int io_index = req->io_index;
+    const double value = req->value;
+
+    if (io_type == "digital_output") {
+        robot_send_service_.robotServiceSetBoardIOStatus(
+            aubo_robot_namespace::RobotBoardUserDO, io_index + 32, value);
         std::this_thread::sleep_for(std::chrono::duration<double>(io_flag_delay_));
-    } else if (req->fun == 2) {
-        robot_send_service_.robotServiceSetBoardIOStatus(aubo_robot_namespace::RobotBoardUserAO, req->pin, req->state);
+        resp->success = true;
+        resp->error_code = 0;
+        resp->message = "digital_output 设置成功";
+    } else if (io_type == "analog_output") {
+        robot_send_service_.robotServiceSetBoardIOStatus(
+            aubo_robot_namespace::RobotBoardUserAO, io_index, value);
         std::this_thread::sleep_for(std::chrono::duration<double>(io_flag_delay_));
-    } else if (req->fun == 3) {
-        if(req->state == -1) {
-            robot_send_service_.robotServiceSetToolDigitalIOType(static_cast<aubo_robot_namespace::ToolDigitalIOAddr>(req->pin), aubo_robot_namespace::IO_IN);
+        resp->success = true;
+        resp->error_code = 0;
+        resp->message = "analog_output 设置成功";
+    } else if (io_type == "tool_io") {
+        if (value < 0.0) {
+            robot_send_service_.robotServiceSetToolDigitalIOType(
+                static_cast<aubo_robot_namespace::ToolDigitalIOAddr>(io_index), aubo_robot_namespace::IO_IN);
             std::this_thread::sleep_for(std::chrono::duration<double>(io_flag_delay_));
         } else {
-            robot_send_service_.robotServiceSetToolDigitalIOType(static_cast<aubo_robot_namespace::ToolDigitalIOAddr>(req->pin), aubo_robot_namespace::IO_OUT);
+            robot_send_service_.robotServiceSetToolDigitalIOType(
+                static_cast<aubo_robot_namespace::ToolDigitalIOAddr>(io_index), aubo_robot_namespace::IO_OUT);
             std::this_thread::sleep_for(std::chrono::duration<double>(io_flag_delay_));
-            robot_send_service_.robotServiceSetToolDOStatus(static_cast<aubo_robot_namespace::ToolDigitalIOAddr>(req->pin), static_cast<aubo_robot_namespace::IO_STATUS>(req->state));
+            robot_send_service_.robotServiceSetToolDOStatus(
+                static_cast<aubo_robot_namespace::ToolDigitalIOAddr>(io_index),
+                (value > 0.5) ? aubo_robot_namespace::IO_STATUS_VALID : aubo_robot_namespace::IO_STATUS_INVALID);
             std::this_thread::sleep_for(std::chrono::duration<double>(io_flag_delay_));
         }
-    } else if (req->fun == 4) {
-        robot_send_service_.robotServiceSetBoardIOStatus(aubo_robot_namespace::RobotToolAO, req->pin, req->state);
+        resp->success = true;
+        resp->error_code = 0;
+        resp->message = "tool_io 设置成功";
+    } else if (io_type == "tool_analog_output") {
+        robot_send_service_.robotServiceSetBoardIOStatus(
+            aubo_robot_namespace::RobotToolAO, io_index, value);
         std::this_thread::sleep_for(std::chrono::duration<double>(io_flag_delay_));
-    } else if (req->fun == 5) {
-        robot_send_service_.robotServiceSetToolPowerVoltageType(static_cast<aubo_robot_namespace::ToolPowerType>(req->state));
-    } else {
-        resp->success = false;
+        resp->success = true;
+        resp->error_code = 0;
+        resp->message = "tool_analog_output 设置成功";
+    } else if (io_type == "tool_power") {
+        robot_send_service_.robotServiceSetToolPowerVoltageType(
+            static_cast<aubo_robot_namespace::ToolPowerType>(static_cast<int>(value)));
+        resp->success = true;
+        resp->error_code = 0;
+        resp->message = "tool_power 设置成功";
     }
 }
 

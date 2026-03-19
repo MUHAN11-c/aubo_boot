@@ -66,18 +66,6 @@ def launch_setup(context, *args, **kwargs):
     # Demo Driver 服务节点（延迟启动，等待 MoveIt2 就绪）
     # 使用 TimerAction 延迟 15 秒启动，确保 MoveIt2 已完全初始化
     # 参数通过 launch 文件传递，节点使用 automatically_declare_parameters_from_overrides(true) 自动声明
-    move_to_pose_server_node = TimerAction(
-        period=15.0,
-        actions=[
-            Node(
-                package="demo_driver",
-                executable="move_to_pose_server_node",
-                name="move_to_pose_server",
-                output="screen",
-                parameters=common_parameters,
-            )
-        ]
-    )
     
     plan_trajectory_server_node = TimerAction(
         period=15.0,
@@ -143,19 +131,6 @@ def launch_setup(context, *args, **kwargs):
             )
         ]
     )
-
-    movel_server_node = TimerAction(
-        period=15.0,
-        actions=[
-            Node(
-                package="demo_driver",
-                executable="movel_server_node",
-                name="movel_server",
-                output="screen",
-                parameters=common_parameters,
-            )
-        ]
-    )
     
     # Robot status publisher node: 发布机器人状态信息
     # robot_status_publisher_node = TimerAction(
@@ -180,13 +155,11 @@ def launch_setup(context, *args, **kwargs):
     # )
     
     return [
-        move_to_pose_server_node,
         plan_trajectory_server_node,
         execute_trajectory_server_node,
         get_current_state_server_node,
         set_speed_factor_server_node,
         set_robot_pose_server_node,
-        movel_server_node,
         # robot_status_publisher_node,
     ]
 

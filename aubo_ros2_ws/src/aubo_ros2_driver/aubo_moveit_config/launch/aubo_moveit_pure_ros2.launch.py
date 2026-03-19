@@ -106,6 +106,7 @@ def launch_setup(context, *args, **kwargs):
             moveit_controllers,
             trajectory_execution,  # 放最后以覆盖 yaml 中的 1.2/0.5
             {'publish_robot_description_semantic': True},
+            {'publish_robot_description': True},
             {"planning_scene_monitor_options": {"joint_state_topic": "/joint_states", "wait_for_initial_state_timeout": 10.0}},
         ],
     )
@@ -130,13 +131,13 @@ def launch_setup(context, *args, **kwargs):
     # -------------------------------------------------------------------------
     # Publishing Transforms to tf2
     # -------------------------------------------------------------------------
-    robot_state_publisher = Node(
-        package="robot_state_publisher",
-        executable="robot_state_publisher",
-        name="robot_state_publisher",
-        output="both",
-        parameters=[robot_description],
-    )
+    # robot_state_publisher = Node(
+    #     package="robot_state_publisher",
+    #     executable="robot_state_publisher",
+    #     name="robot_state_publisher",
+    #     output="both",
+    #     parameters=[robot_description],
+    # )
 
     # 与 aubo_moveit_bridge_ros1.launch.py 一致：use_aubo_driver_ros2 时不启动 ros2_control_node，
     # joint_states 与执行由 aubo_driver_ros2 + aubo_robot_simulator_ros2 完成。
@@ -191,7 +192,7 @@ def launch_setup(context, *args, **kwargs):
         name="aubo_robot_simulator",
         output="screen",
         parameters=[{
-            "motion_update_rate": 400.0,  # 400Hz 更密插值，减轻运动过程中轻微抖动
+            "motion_update_rate": 300.0,  # 400Hz 更密插值，减轻运动过程中轻微抖动
             "minimum_buffer_size": 600,  # 降低节流阈值，避免速度因子 0.1 时 rib>2000 导致成批发送卡顿
             "joint_names": joint_names_list,
         }],
@@ -205,7 +206,7 @@ def launch_setup(context, *args, **kwargs):
         aubo_robot_simulator_ros2_node,
         aubo_trajectory_action_node,
         move_to_pose_server_node,
-        robot_state_publisher,
+        # robot_state_publisher,
         run_move_group_node,
         rviz_node,
     ]

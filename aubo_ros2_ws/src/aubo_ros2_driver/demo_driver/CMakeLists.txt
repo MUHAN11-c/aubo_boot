@@ -52,7 +52,10 @@ ament_target_dependencies(robot_status_publisher_node
 #   aubo_msgs
 # )
 
-add_executable(move_to_pose_server_node src/move_to_pose_server.cpp)
+add_executable(move_to_pose_server_node
+  src/moveit_gripper_io_base.cpp
+  src/move_to_pose_server.cpp
+)
 ament_target_dependencies(move_to_pose_server_node
   rclcpp
   geometry_msgs
@@ -178,42 +181,11 @@ ament_target_dependencies(publish_grasps_client_worker_node
   geometry_msgs
   std_msgs
   std_srvs
+  demo_interface
   aubo_msgs
   moveit_msgs
   moveit_core
   moveit_ros_planning_interface
-)
-
-# GraspNet 抓取放置 worker（MTC：一次规划并执行）
-add_executable(publish_grasps_client_worker_mtc_once_node
-  src/moveit_gripper_io_base.cpp
-  src/publish_grasps_client_worker_mtc_once.cpp
-)
-ament_target_dependencies(publish_grasps_client_worker_mtc_once_node
-  rclcpp
-  geometry_msgs
-  aubo_msgs
-  moveit_msgs
-  moveit_core
-  moveit_ros_planning_interface
-  moveit_task_constructor_core
-  moveit_task_constructor_msgs
-)
-
-# GraspNet 抓取放置 worker（MTC 替换版：一次规划并执行）
-add_executable(publish_grasps_client_worker_mtc_replacement_once_node
-  src/moveit_gripper_io_base.cpp
-  src/publish_grasps_client_worker_mtc_replacement_once.cpp
-)
-ament_target_dependencies(publish_grasps_client_worker_mtc_replacement_once_node
-  rclcpp
-  geometry_msgs
-  aubo_msgs
-  moveit_msgs
-  moveit_core
-  moveit_ros_planning_interface
-  moveit_task_constructor_core
-  moveit_task_constructor_msgs
 )
 
 # Note: The following executables are commented out because source files don't exist yet
@@ -248,13 +220,8 @@ install(TARGETS
   get_current_state_server_node
   set_speed_factor_server_node
   set_robot_pose_server_node
-  # movel_server_node
-  # moveit_cpp_tutorial_node
-  # moveit_beeline_demo_node
   gripper_swap_worker_node
   publish_grasps_client_worker_node
-  publish_grasps_client_worker_mtc_once_node
-  publish_grasps_client_worker_mtc_replacement_once_node
   # set_robot_enable_server_node
   # set_robot_io_server_node
   # read_robot_io_server_node

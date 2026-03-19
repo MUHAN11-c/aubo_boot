@@ -142,7 +142,7 @@ PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& 
   declare_parameter("wait_poses_timeout_sec", 30.0);
   declare_parameter("grasp_window_size", 5);
   declare_parameter("min_groups_before_pick", 3);
-  declare_parameter("gripper_io_index", 6);
+  declare_parameter("gripper_io_index", kGripperIoIndex);
   declare_parameter("lift_offset", 0.2);
   declare_parameter("place_mode", std::string("home_offset"));
   declare_parameter("place_offset_y", -0.2);

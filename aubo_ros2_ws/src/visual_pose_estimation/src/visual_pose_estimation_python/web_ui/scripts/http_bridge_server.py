@@ -321,14 +321,14 @@ class ROS2Node(Node):
         self.write_plc_register_client = None
         # 创建SetRobotIO服务客户端
         if ROBOT_AVAILABLE:
-            self.set_robot_io_client = self.create_client(SetRobotIO, '/demo_driver/set_io')
+            self.set_robot_io_client = self.create_client(SetRobotIO, '/aubo_driver/set_io')
         else:
             self.set_robot_io_client = None
         
         # 创建订阅者
         self.robot_status_sub = self.create_subscription(
             RobotStatus,
-            '/demo_robot_status',
+            '/aubo_driver/robot_status',
             self.robot_status_callback,
             10
         )
@@ -984,7 +984,7 @@ class ROS2Node(Node):
             return None, f"移动机器人位姿服务调用异常: {str(e)}"
     
     def set_robot_io(self, io_type, io_index, value, timeout=10.0):
-        """设置机器人IO（使用 /demo_driver/set_io 服务）"""
+        """设置机器人IO（使用 /aubo_driver/set_io 服务）"""
         try:
             if not ROBOT_AVAILABLE or self.set_robot_io_client is None:
                 return None, "机器人接口不可用"
@@ -2826,13 +2826,16 @@ class AlgorithmHandler(http.server.SimpleHTTPRequestHandler):
                                     f"[HTTP桥接] Rembg启用，预处理图像和掩模切换为Rembg输出 (providers={processor.providers})"
                                 )
                             else:
+                                print("[HTTP桥接] Rembg已启用，但未生成cutout，继续使用原预处理结果")
                         else:
+                            print("[HTTP桥接] Rembg已启用，但未能确定ROI，跳过Rembg处理")
                 except Exception as e:
                     import traceback
                     tb = traceback.format_exc()
                     print(f"[HTTP桥接] Rembg处理失败: {e}")
                     print(f"[HTTP桥接] Traceback: {tb}")
             else:
+                print("[HTTP桥接] Rembg未启用或不可用，使用算法原始预处理结果")
             
             # 使用可视化器生成调试图像
             from visual_pose_estimation_python.debug_visualizer import DebugVisualizer

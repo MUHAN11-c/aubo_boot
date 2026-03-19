@@ -2,6 +2,8 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/executors/multi_threaded_executor.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Quaternion.h>
 #include <cmath>
 #include <thread>
 #include <vector>
@@ -383,6 +385,21 @@ void RobotStatusPublisher::publishRobotStatus()
         status_msg.cartesian_position.orientation.x = 0.0;
         status_msg.cartesian_position.orientation.y = 0.0;
         status_msg.cartesian_position.orientation.z = 0.0;
+    }
+
+    // 填充 xyz + rpy（deg）
+    status_msg.cartesian_position_xyz.x = status_msg.cartesian_position.position.x;
+    status_msg.cartesian_position_xyz.y = status_msg.cartesian_position.position.y;
+    status_msg.cartesian_position_xyz.z = status_msg.cartesian_position.position.z;
+    {
+        const auto& q_msg = status_msg.cartesian_position.orientation;
+        tf2::Quaternion q(q_msg.x, q_msg.y, q_msg.z, q_msg.w);
+        tf2::Matrix3x3 m(q);
+        double roll = 0.0, pitch = 0.0, yaw = 0.0;
+        m.getRPY(roll, pitch, yaw);
+        status_msg.cartesian_rpy.x = roll * 180.0 / M_PI;
+        status_msg.cartesian_rpy.y = pitch * 180.0 / M_PI;
+        status_msg.cartesian_rpy.z = yaw * 180.0 / M_PI;
     }
     
     robot_status_pub_->publish(status_msg);

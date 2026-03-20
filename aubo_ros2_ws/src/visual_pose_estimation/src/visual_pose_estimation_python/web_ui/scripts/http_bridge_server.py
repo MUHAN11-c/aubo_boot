@@ -21,6 +21,8 @@ from PIL import Image
 import rclpy
 from rclpy.node import Node
 from interface.srv import EstimatePose, ListTemplates, StandardizeTemplate, UpdateParams
+from demo_interface.srv import ExecuteGraspPose
+from std_srvs.srv import SetBool
 
 from geometry_msgs.msg import Pose, Point, Quaternion
 from sensor_msgs.msg import Image as SensorImage
@@ -316,6 +318,8 @@ class ROS2Node(Node):
         self.move_to_pose_client = self.create_client(MoveToPose, '/move_to_pose')
         self.standardize_template_client = self.create_client(StandardizeTemplate, '/standardize_template')
         self.update_params_client = self.create_client(UpdateParams, '/update_params')
+        self.execute_single_grasp_client = self.create_client(ExecuteGraspPose, '/execute_single_grasp')
+        self.loop_grasp_control_client = self.create_client(SetBool, '/loop_grasp_control')
         # WritePLCRegister 服务暂未定义，相关功能已禁用
         # self.write_plc_register_client = self.create_client(WritePLCRegister, '/write_plc_register')
         self.write_plc_register_client = None
@@ -893,8 +897,10 @@ class ROS2Node(Node):
             self.get_logger().error(f'列出模板服务异常: {str(e)}\n{error_detail}')
             return None, f"列出模板服务异常: {str(e)}"
     
-    def move_to_pose(self, target_pose, use_joints=False, velocity_factor=0.08, acceleration_factor=0.05, timeout=30.0):
-        """移动机器人到目标位姿（使用 /move_to_pose 服务）"""
+    def move_to_pose(self, target_pose, use_joints=False, velocity_factor=0.08, acceleration_factor=0.05, timeout=180.0):
+        """移动机器人到目标位姿（使用 /move_to_pose 服务）
+        timeout: 秒；笛卡尔长距离运动可能超过 30s，默认放宽到 180s，避免桥接提前超时导致浏览器报 Failed to fetch。
+        """
         try:
             if not self.move_to_pose_client.wait_for_service(timeout_sec=5.0):
                 return None, "移动机器人位姿服务不可用"
@@ -1097,6 +1103,108 @@ class ROS2Node(Node):
     def write_plc_register(self, address, value):
         """写入PLC寄存器（功能已禁用，WritePLCRegister服务未定义）"""
         return None, "PLC写入功能暂未实现：WritePLCRegister服务未定义"
+    
+    def call_execute_single_grasp(self, object_id, use_visual_estimation, timeout=300.0):
+        """调用单次抓取服务（execute_grasp_pose_worker）；含视觉+整段 MoveIt 周期，默认等待 300s。"""
+        try:
+            if not self.execute_single_grasp_client.wait_for_service(timeout_sec=5.0):
+                self.get_logger().error("单次抓取服务未运行，请先启动 execute_grasp_pose_worker 节点")
+                return None
+            
+            request = ExecuteGraspPose.Request()
+            request.object_id = str(object_id)
+            request.use_visual_estimation = bool(use_visual_estimation)
+            
+            self.get_logger().info(f'调用单次抓取服务: object_id={object_id}, use_visual_estimation={use_visual_estimation}')
+            
+            future = self.execute_single_grasp_client.call_async(request)
+            
+            # 等待服务响应
+            with self.executor_lock:
+                self.executor_running = True
+            try:
+                rclpy.spin_until_future_complete(self, future, timeout_sec=timeout)
+            finally:
+                with self.executor_lock:
+                    self.executor_running = False
+            
+            if not future.done():
+                self.get_logger().error("单次抓取服务调用超时")
+                return None
+            
+            try:
+                response = future.result()
+                if response is None:
+                    self.get_logger().error("单次抓取服务调用失败")
+                    return None
+                
+                if response.success:
+                    self.get_logger().info(f'单次抓取成功: {response.message}')
+                else:
+                    self.get_logger().warn(f'单次抓取失败: {response.message}')
+                
+                return response
+                    
+            except Exception as e:
+                self.get_logger().error(f"处理服务响应失败: {str(e)}")
+                return None
+            
+        except Exception as e:
+            import traceback
+            error_detail = traceback.format_exc()
+            self.get_logger().error(f'单次抓取服务异常: {str(e)}\n{error_detail}')
+            return None
+    
+    def call_loop_grasp_control(self, start, timeout=10.0):
+        """调用循环抓取控制服务"""
+        try:
+            if not self.loop_grasp_control_client.wait_for_service(timeout_sec=5.0):
+                self.get_logger().error("循环抓取控制服务未运行，请先启动 execute_grasp_pose_worker 节点")
+                return None
+            
+            request = SetBool.Request()
+            request.data = bool(start)
+            
+            action = "启动" if start else "停止"
+            self.get_logger().info(f'调用循环抓取控制服务: {action}')
+            
+            future = self.loop_grasp_control_client.call_async(request)
+            
+            # 等待服务响应
+            with self.executor_lock:
+                self.executor_running = True
+            try:
+                rclpy.spin_until_future_complete(self, future, timeout_sec=timeout)
+            finally:
+                with self.executor_lock:
+                    self.executor_running = False
+            
+            if not future.done():
+                self.get_logger().error(f"循环抓取{action}服务调用超时")
+                return None
+            
+            try:
+                response = future.result()
+                if response is None:
+                    self.get_logger().error(f"循环抓取{action}服务调用失败")
+                    return None
+                
+                if response.success:
+                    self.get_logger().info(f'循环抓取{action}成功: {response.message}')
+                else:
+                    self.get_logger().warn(f'循环抓取{action}失败: {response.message}')
+                
+                return response
+                    
+            except Exception as e:
+                self.get_logger().error(f"处理服务响应失败: {str(e)}")
+                return None
+            
+        except Exception as e:
+            import traceback
+            error_detail = traceback.format_exc()
+            self.get_logger().error(f'循环抓取控制服务异常: {str(e)}\n{error_detail}')
+            return None
 
 
 # 全局ROS2节点实例
@@ -1202,6 +1310,12 @@ class AlgorithmHandler(http.server.SimpleHTTPRequestHandler):
         # 姿态估计相关
         elif self.path == '/api/estimate_pose':
             self.handle_estimate_pose()  # 估计工件姿态
+        
+        # 执行抓取相关 (execute_grasp_pose_worker 服务)
+        elif self.path == '/api/execute_single_grasp':
+            self.handle_execute_single_grasp()  # 调用单次抓取服务
+        elif self.path == '/api/loop_grasp_control':
+            self.handle_loop_grasp_control()  # 控制循环抓取服务
         
         # 调试功能相关
         elif self.path == '/api/save_debug_features':
@@ -2421,6 +2535,12 @@ class AlgorithmHandler(http.server.SimpleHTTPRequestHandler):
             use_joints = request_data.get('use_joints', False)
             velocity_factor = request_data.get('velocity_factor', 0.08)
             acceleration_factor = request_data.get('acceleration_factor', 0.05)
+            # 可选：前端传入等待 ROS 服务完成的最长时间（秒）；自动抓取等长运动建议 >=120
+            try:
+                timeout_sec = float(request_data.get('timeout_sec', 180.0))
+            except (TypeError, ValueError):
+                timeout_sec = 180.0
+            timeout_sec = max(5.0, min(timeout_sec, 600.0))
             
             # z值不再限制，使用原始值
             
@@ -2456,8 +2576,13 @@ class AlgorithmHandler(http.server.SimpleHTTPRequestHandler):
             else:
                 pose_str = "(?, ?, ?)"
             # 调用ROS2服务
-            result, error = ros2_node.move_to_pose(target_pose, use_joints, velocity_factor, acceleration_factor)
-            print(f"[move_to_pose 桥接] RECV pose={pose_str} success={result.get('success') if result else None} error_code={result.get('error_code') if result else None}")
+            result, error = ros2_node.move_to_pose(
+                target_pose, use_joints, velocity_factor, acceleration_factor, timeout=timeout_sec
+            )
+            print(
+                f"[move_to_pose 桥接] RECV pose={pose_str} timeout_sec={timeout_sec} "
+                f"success={result.get('success') if result else None} error_code={result.get('error_code') if result else None}"
+            )
             # 诊断：记录桥接层收到的 C++ 返回值，便于与 C++ 日志、前端显示对照
             if error:
                 print(f"[move_to_pose 桥接] pose={pose_str} ROS 返回 error: {error}, 将返回 HTTP 500")
@@ -3000,6 +3125,159 @@ class AlgorithmHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             response = {"success": False, "error": str(e)}
+            self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+    
+    def handle_execute_single_grasp(self):
+        """处理单次抓取服务调用"""
+        try:
+            # 检查ROS2节点是否已初始化
+            if ros2_node is None:
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                response = {"success": False, "message": "ROS2节点未初始化"}
+                self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+                return
+            
+            # 读取请求数据
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length == 0:
+                self.send_response(400)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                response = {"success": False, "message": "请求体为空"}
+                self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+                return
+            
+            post_data = self.rfile.read(content_length)
+            data = json.loads(post_data.decode('utf-8'))
+            
+            object_id = data.get('object_id', 'default')
+            use_visual_estimation = data.get('use_visual_estimation', True)
+            try:
+                timeout_sec = float(data.get('timeout_sec', 300.0))
+            except (TypeError, ValueError):
+                timeout_sec = 300.0
+            timeout_sec = max(30.0, min(timeout_sec, 900.0))
+            
+            print(
+                f"[execute_single_grasp] 调用单次抓取服务: object_id={object_id}, "
+                f"use_visual_estimation={use_visual_estimation}, timeout_sec={timeout_sec}"
+            )
+            
+            # 调用ROS2服务
+            result = ros2_node.call_execute_single_grasp(
+                object_id, use_visual_estimation, timeout=timeout_sec
+            )
+            
+            if result is None:
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                response = {"success": False, "message": "服务调用失败（超时或服务不可用）"}
+                self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+                return
+            
+            # 构建响应
+            response_data = {
+                "success": result.success,
+                "message": result.message,
+                "final_position": {
+                    "x": result.final_position.x,
+                    "y": result.final_position.y,
+                    "z": result.final_position.z
+                },
+                "final_orientation": {
+                    "x": result.final_orientation.x,
+                    "y": result.final_orientation.y,
+                    "z": result.final_orientation.z,
+                    "w": result.final_orientation.w
+                }
+            }
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(response_data, ensure_ascii=False).encode('utf-8'))
+            
+        except Exception as e:
+            import traceback
+            print(f"[ERROR] 处理单次抓取请求异常: {str(e)}\n{traceback.format_exc()}")
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            response = {"success": False, "message": str(e)}
+            self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+    
+    def handle_loop_grasp_control(self):
+        """处理循环抓取控制服务调用"""
+        try:
+            # 检查ROS2节点是否已初始化
+            if ros2_node is None:
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                response = {"success": False, "message": "ROS2节点未初始化"}
+                self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+                return
+            
+            # 读取请求数据
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length == 0:
+                self.send_response(400)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                response = {"success": False, "message": "请求体为空"}
+                self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+                return
+            
+            post_data = self.rfile.read(content_length)
+            data = json.loads(post_data.decode('utf-8'))
+            
+            start = data.get('data', False)
+            action = "启动" if start else "停止"
+            
+            print(f"[loop_grasp_control] 调用循环抓取控制服务: action={action}")
+            
+            # 调用ROS2服务
+            result = ros2_node.call_loop_grasp_control(start)
+            
+            if result is None:
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                response = {"success": False, "message": f"循环抓取{action}服务调用失败（超时或服务不可用）"}
+                self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+                return
+            
+            # 构建响应
+            response_data = {
+                "success": result.success,
+                "message": result.message
+            }
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(response_data, ensure_ascii=False).encode('utf-8'))
+            
+        except Exception as e:
+            import traceback
+            print(f"[ERROR] 处理循环抓取控制请求异常: {str(e)}\n{traceback.format_exc()}")
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            response = {"success": False, "message": str(e)}
             self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
     
 def start_server():

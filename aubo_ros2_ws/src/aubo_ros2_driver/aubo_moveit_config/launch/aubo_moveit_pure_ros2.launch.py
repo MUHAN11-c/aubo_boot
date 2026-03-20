@@ -131,16 +131,17 @@ def launch_setup(context, *args, **kwargs):
     # -------------------------------------------------------------------------
     # Publishing Transforms to tf2
     # -------------------------------------------------------------------------
-    # robot_state_publisher = Node(
-    #     package="robot_state_publisher",
-    #     executable="robot_state_publisher",
-    #     name="robot_state_publisher",
-    #     output="both",
-    #     parameters=[robot_description],
-    # )
+    robot_state_publisher = Node(
+        package="robot_state_publisher",
+        executable="robot_state_publisher",
+        name="robot_state_publisher",
+        output="both",
+        parameters=[robot_description],
+    )
 
     # 与 aubo_moveit_bridge_ros1.launch.py 一致：use_aubo_driver_ros2 时不启动 ros2_control_node，
     # joint_states 与执行由 aubo_driver_ros2 + aubo_robot_simulator_ros2 完成。
+    # robot_state_publisher 需要启动以发布 TF 树（基于 URDF 和 /joint_states）。
 
     # -------------------------------------------------------------------------
     # Aubo 专用节点：轨迹 action、真实机驱动、插值器、Move To Pose 服务
@@ -206,7 +207,7 @@ def launch_setup(context, *args, **kwargs):
         aubo_robot_simulator_ros2_node,
         aubo_trajectory_action_node,
         move_to_pose_server_node,
-        # robot_state_publisher,
+        robot_state_publisher,
         run_move_group_node,
         rviz_node,
     ]

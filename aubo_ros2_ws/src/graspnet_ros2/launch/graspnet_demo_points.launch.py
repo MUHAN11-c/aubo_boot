@@ -211,8 +211,9 @@ def launch_setup_robot_and_tf(context):
         joint_limits_yaml,
         sim_time_param,
     ]
-    if octomap_updater_config:
-        move_group_params.extend([octomap_config, octomap_updater_config])
+    # 临时关闭 octomap（后续恢复时放开这里即可）
+    # if octomap_updater_config:
+    #     move_group_params.extend([octomap_config, octomap_updater_config])
 
     nodes.append(Node(
         package='moveit_ros_move_group',

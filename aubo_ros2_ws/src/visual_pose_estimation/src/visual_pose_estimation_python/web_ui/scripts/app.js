@@ -410,7 +410,12 @@ function estimatePose() {
                 const pos = (data.positions && data.positions[i]) ? data.positions[i] : {x: 0, y: 0, z: 0};
                 const grabPos = (data.grab_positions && data.grab_positions[i]) ? data.grab_positions[i] : null;
                 if (grabPos) {
-                    addLogEntry('info', `目标 ${i+1}: 匹配模板=${templateId}, 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}), 抓取位置=(${grabPos.position.x.toFixed(3)}, ${grabPos.position.y.toFixed(3)}, ${grabPos.position.z.toFixed(3)})`);
+                    const grabPosData = grabPos.position || {x: 0, y: 0, z: 0};
+                    const grabOriData = grabPos.orientation || {x: 0, y: 0, z: 0, w: 1};
+                    addLogEntry(
+                        'info',
+                        `目标 ${i+1}: 匹配模板=${templateId}, 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}), 抓取位置=(${grabPosData.x.toFixed(3)}, ${grabPosData.y.toFixed(3)}, ${grabPosData.z.toFixed(3)}), 抓取四元数=(${grabOriData.x.toFixed(6)}, ${grabOriData.y.toFixed(6)}, ${grabOriData.z.toFixed(6)}, ${grabOriData.w.toFixed(6)})`
+                    );
                 } else {
                     addLogEntry('info', `目标 ${i+1}: 匹配模板=${templateId}, 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)})`);
                 }
@@ -1128,7 +1133,12 @@ async function estimatePoseAsync() {
                     const pos = (data.positions && data.positions[i]) ? data.positions[i] : {x: 0, y: 0, z: 0};
                     const grabPos = (data.grab_positions && data.grab_positions[i]) ? data.grab_positions[i] : null;
                     if (grabPos) {
-                        addLogEntry('info', `目标 ${i+1}: 匹配模板=${templateId}, 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}), 抓取位置=(${grabPos.position.x.toFixed(3)}, ${grabPos.position.y.toFixed(3)}, ${grabPos.position.z.toFixed(3)})`);
+                        const grabPosData = grabPos.position || {x: 0, y: 0, z: 0};
+                        const grabOriData = grabPos.orientation || {x: 0, y: 0, z: 0, w: 1};
+                        addLogEntry(
+                            'info',
+                            `目标 ${i+1}: 匹配模板=${templateId}, 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}), 抓取位置=(${grabPosData.x.toFixed(3)}, ${grabPosData.y.toFixed(3)}, ${grabPosData.z.toFixed(3)}), 抓取四元数=(${grabOriData.x.toFixed(6)}, ${grabOriData.y.toFixed(6)}, ${grabOriData.z.toFixed(6)}, ${grabOriData.w.toFixed(6)})`
+                        );
                     } else {
                         addLogEntry('info', `目标 ${i+1}: 匹配模板=${templateId}, 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)})`);
                     }
@@ -1149,6 +1159,97 @@ async function estimatePoseAsync() {
             resolve({ success: false, error: error.message });
         });
     });
+}
+
+/**
+ * 调用 execute_grasp_pose_worker 的单次抓取服务 (/execute_single_grasp)
+ * @param {string} objectId - 工件ID
+ * @param {boolean} useVisualEstimation - 是否使用视觉估计（true 时 worker 内会再调 /estimate_pose）
+ * @param {number} [timeoutSec=600] - 桥接等待 ROS 服务完成的超时（秒），整段抓取可能较长
+ * @returns {Promise<{success: boolean, message: string, final_position?: object, final_orientation?: object}>}
+ */
+async function callExecuteSingleGrasp(objectId, useVisualEstimation = true, timeoutSec = 600) {
+    try {
+        addLogEntry('info', `调用单次抓取服务 (object_id=${objectId}, use_visual_estimation=${useVisualEstimation}, timeout_sec=${timeoutSec})...`);
+        
+        const response = await fetch(`${API_BASE_URL}/api/execute_single_grasp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                object_id: objectId,
+                use_visual_estimation: useVisualEstimation,
+                timeout_sec: timeoutSec
+            })
+        });
+
+        if (!response.ok) {
+            const text = await response.text().catch(() => '');
+            const errorMsg = `单次抓取 HTTP ${response.status}: ${text.slice(0, 200)}`;
+            addLogEntry('error', errorMsg);
+            return { success: false, message: errorMsg };
+        }
+
+        const result = await response.json().catch(() => ({}));
+        
+        if (!result.success) {
+            const errorMsg = result.message || '单次抓取服务调用失败';
+            addLogEntry('error', errorMsg);
+            return { success: false, message: errorMsg };
+        }
+
+        addLogEntry('success', result.message || '单次抓取完成');
+        if (result.final_position) {
+            addLogEntry('info', `最终抓取位置: (${result.final_position.x.toFixed(3)}, ${result.final_position.y.toFixed(3)}, ${result.final_position.z.toFixed(3)})`);
+        }
+        
+        return {
+            success: true,
+            message: result.message,
+            final_position: result.final_position,
+            final_orientation: result.final_orientation
+        };
+    } catch (e) {
+        const errorMsg = '单次抓取服务调用异常: ' + e.message;
+        addLogEntry('error', errorMsg);
+        console.error('callExecuteSingleGrasp 错误:', e);
+        return { success: false, message: errorMsg };
+    }
+}
+
+/**
+ * 控制循环抓取服务（启动或停止）
+ * @param {boolean} start - true=启动，false=停止
+ * @returns {Promise<{success: boolean, message: string}>}
+ */
+async function callLoopGraspControl(start) {
+    try {
+        const action = start ? '启动' : '停止';
+        addLogEntry('info', `调用循环抓取控制服务 (${action})...`);
+        
+        const response = await fetch(`${API_BASE_URL}/api/loop_grasp_control`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                data: start
+            })
+        });
+
+        const result = await response.json().catch(() => ({}));
+        
+        if (!response.ok || !result.success) {
+            const errorMsg = result.message || `循环抓取${action}失败`;
+            addLogEntry('error', errorMsg);
+            return { success: false, message: errorMsg };
+        }
+
+        addLogEntry('success', result.message || `循环抓取${action}成功`);
+        return { success: true, message: result.message };
+    } catch (e) {
+        const errorMsg = '循环抓取控制服务调用异常: ' + e.message;
+        addLogEntry('error', errorMsg);
+        console.error('callLoopGraspControl 错误:', e);
+        return { success: false, message: errorMsg };
+    }
 }
 
 /**
@@ -1235,14 +1336,13 @@ async function loopAutoGrasp() {
             // 步骤3: 检查是否检测到工件
             const successNum = estimateResult.success_num || 0;
             if (successNum > 0) {
-                addLogEntry('info', `检测到 ${successNum} 个工件，开始自动抓取...`);
+                addLogEntry('info', `检测到 ${successNum} 个工件，开始自动抓取（ExecuteGraspPose / execute_grasp_pose_worker）...`);
                 
-                // 执行自动抓取（autoGrasp内部会回到拍照姿态）
                 const graspSuccess = await autoGrasp();
                 
                 // 自动抓取失败（机械臂移动失败）则退出循环
                 if (!graspSuccess) {
-                    addLogEntry('error', '自动抓取失败（机械臂移动失败），退出循环自动抓取');
+                    addLogEntry('error', '自动抓取失败（execute_grasp_pose_worker / ExecuteGraspPose），退出循环自动抓取');
                     break;
                 }
                 
@@ -1313,31 +1413,29 @@ async function moveWithRetry(doMove, label) {
 }
 
 /**
- * 自动抓取函数
- * @returns {Promise<boolean>} 返回true表示成功，false表示失败（包括移动失败）
+ * 自动抓取（工作流程页）
+ *
+ * 调用 ROS `execute_grasp_pose_worker` 的 /execute_single_grasp（经 HTTP /api/execute_single_grasp）：
+ * use_visual_estimation=true 时 worker 内会再次调用 /estimate_pose（相机最新图），再执行 runOneCycle() 整段 MoveIt 抓取。
+ *
+ * 前置：填写工作流程「工件ID」；建议先做一次姿态估计以确认场景（抓取仍会使用 worker 侧视觉结果）。
+ *
+ * @returns {Promise<boolean>}
  */
 async function autoGrasp() {
+    const workpieceId = (document.getElementById('workpiece-id-workflow')?.value || '').trim();
+    if (!workpieceId) {
+        alert('请在工作流程中填写工件ID');
+        addLogEntry('error', '自动抓取失败：请先填写工件ID（与模板/视觉估计一致）');
+        return false;
+    }
+
     const d = workflowState.lastEstimateResult;
     const n = d && (d.success_num || 0);
-
     if (!n) {
         alert('请先执行姿态估计');
         addLogEntry('warning', '自动抓取失败：请先执行姿态估计');
         return false;
-    }
-
-    const prep = (d.preparation_positions && d.preparation_positions[0]) || null;
-    const grab = (d.grab_positions && d.grab_positions[0]) || null;
-    const preplace = (d.preplace_positions && d.preplace_positions[0]) || null;
-    const place = (d.place_positions && d.place_positions[0]) || null;
-
-    if (!prep?.position || !grab?.position) {
-        addLogEntry('error', '自动抓取失败：缺少准备姿态或抓取姿态');
-        return false;
-    }
-
-    if (!preplace?.position || !place?.position) {
-        addLogEntry('warning', '缺少预放置姿态或放置姿态，将跳过放置步骤');
     }
 
     if (_autoGraspRunning) {
@@ -1346,179 +1444,18 @@ async function autoGrasp() {
     }
     _autoGraspRunning = true;
 
-    addLogEntry('info', `开始自动抓取，目标 1/${n}（回到拍照→打开夹爪→准备→抓取→关闭夹爪→准备→预放置→放置→打开夹爪→回到拍照）`);
-
-    const v = 0.15;
-    const a = 0.05;
-
-    // 辅助函数：回到拍照姿态。attempt 用于速度/加速度缩放（attempt=1 即全速）
-    async function moveToCameraPose(attempt = 1) {
-        try {
-            const workpieceId = (document.getElementById('workpiece-id-workflow')?.value || '').trim();
-            const matchedPoseId = (d.matched_pose_ids && d.matched_pose_ids[0]) ? String(d.matched_pose_ids[0]) : '';
-
-            if (!workpieceId) {
-                addLogEntry('warning', '跳过回到拍照姿态：缺少工件ID');
-                return false;
-            } else if (!matchedPoseId) {
-                addLogEntry('warning', '跳过回到拍照姿态：响应缺少 matched_pose_ids[0]');
-                return false;
-            } else {
-                addLogEntry('info', `回到拍照姿态：使用匹配模板 pose_id=${matchedPoseId} 的 camera_pose`);
-                const response = await fetch(`${API_BASE_URL}/api/read_template_pose`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        workpiece_id: workpieceId,
-                        pose_id: matchedPoseId,
-                        pose_type: 'camera_pose'
-                    })
-                });
-
-                const data = await response.json().catch(() => ({}));
-                const poseData = data && data.pose_data;
-                const cart = poseData && poseData.cartesian_position;
-                const pos = cart && cart.position;
-                const ori = cart && cart.orientation;
-
-                if (!response.ok || !data.success || !pos || !ori) {
-                    const errorMsg = data && data.error ? data.error : '未知错误';
-                    addLogEntry('warning', `跳过回到拍照姿态：无法读取拍照姿态（camera_pose），错误: ${errorMsg}`);
-                    return false;
-                } else {
-                    const targetPose = {
-                        position: { x: pos.x, y: pos.y, z: pos.z },
-                        orientation: { x: ori.x, y: ori.y, z: ori.z, w: ori.w }
-                    };
-                    const vel = attempt === 1 ? v : v * 0.5;
-                    const acc = attempt === 1 ? a : a * 0.5;
-                    addLogEntry('info', '移动到拍照姿态...');
-                    const { ok: okCam, error: errCam } = await moveRobotToPoseCartesian(targetPose, vel, acc, '拍照姿态');
-                    if (!okCam) {
-                        addLogEntry('warning', '回到拍照姿态失败: ' + (errCam || '未知错误'));
-                        return false;
-                    } else {
-                        addLogEntry('success', '已回到拍照姿态');
-                        return true;
-                    }
-                }
-            }
-        } catch (e) {
-            addLogEntry('warning', '回到拍照姿态异常: ' + e.message);
-            return false;
-        }
-    }
+    addLogEntry(
+        'info',
+        `开始自动抓取 → ExecuteGraspPose（execute_grasp_pose_worker），工件ID=${workpieceId}，` +
+            `目标数=${n}（服务端对单次调用处理首个抓取周期；use_visual_estimation=true）`
+    );
 
     try {
-        // // 步骤1: 回到拍照姿态
-        // await moveToCameraPose();
-        // await _delayMs(500);
-
-        // 步骤2: 打开夹爪
-        const okOpen = await _gripperOpenPlaceholder();
-        if (!okOpen) {
-            addLogEntry('error', '打开夹爪失败');
+        const r = await callExecuteSingleGrasp(workpieceId, true, 600);
+        if (!r.success) {
             return false;
         }
-        /* 占位函数内已延时 500ms，此处不再重复 */
-
-        // 步骤3: 移动到准备姿态
-        addLogEntry('info', '移动到准备姿态...');
-        const { ok: okPrep, error: errPrep } = await moveWithRetry(
-            (attempt) => moveRobotToPoseCartesian(prep, v * moveRetryScale(attempt), a * moveRetryScale(attempt), '准备姿态'),
-            '移动到准备姿态'
-        );
-        if (!okPrep) {
-            addLogEntry('error', '移动到准备姿态失败: ' + (errPrep || '未知错误'));
-            return false;
-        }
-        addLogEntry('success', '已到达准备姿态');
-        await _delayMs(100);
-
-        // 步骤4: 移动到抓取姿态
-        addLogEntry('info', '移动到抓取姿态...');
-        const { ok: okGrab, error: errGrab } = await moveWithRetry(
-            (attempt) => moveRobotToPoseCartesian(grab, v * moveRetryScale(attempt), a * moveRetryScale(attempt), '抓取姿态'),
-            '移动到抓取姿态'
-        );
-        if (!okGrab) {
-            addLogEntry('error', '移动到抓取姿态失败: ' + (errGrab || '未知错误'));
-            return false;
-        }
-        addLogEntry('success', '已到达抓取姿态');
-        await _delayMs(100);
-
-        // 步骤5: 关闭夹爪
-        const okClose = await _gripperClosePlaceholder();
-        if (!okClose) {
-            addLogEntry('error', '关闭夹爪失败');
-            return false;
-        }
-        await _delayMs(100);
-
-        // 步骤6: 移动到准备姿态（抓取后先回到准备姿态）
-        addLogEntry('info', '移动到准备姿态...');
-        const { ok: okPrep2, error: errPrep2 } = await moveWithRetry(
-            (attempt) => moveRobotToPoseCartesian(prep, v * moveRetryScale(attempt), a * moveRetryScale(attempt), '准备姿态'),
-            '移动到准备姿态'
-        );
-        if (!okPrep2) {
-            addLogEntry('error', '移动到准备姿态失败: ' + (errPrep2 || '未知错误'));
-            return false;
-        }
-        addLogEntry('success', '已到达准备姿态');
-        await _delayMs(100);
-
-        // 步骤7: 移动到预放置姿态（如果存在）
-        if (preplace?.position) {
-            addLogEntry('info', '移动到预放置姿态...');
-            const { ok: okPreplace, error: errPreplace } = await moveWithRetry(
-                (attempt) => moveRobotToPoseCartesian(preplace, v * moveRetryScale(attempt), a * moveRetryScale(attempt), '预放置姿态'),
-                '移动到预放置姿态'
-            );
-            if (!okPreplace) {
-                addLogEntry('error', '移动到预放置姿态失败: ' + (errPreplace || '未知错误'));
-                return false;
-            }
-            addLogEntry('success', '已到达预放置姿态');
-            await _delayMs(100);
-        } else {
-            addLogEntry('warning', '跳过预放置姿态（未提供）');
-        }
-
-        // 步骤8: 移动到放置姿态（如果存在）
-        if (place?.position) {
-            addLogEntry('info', '移动到放置姿态...');
-            const { ok: okPlace, error: errPlace } = await moveWithRetry(
-                (attempt) => moveRobotToPoseCartesian(place, v * moveRetryScale(attempt), a * moveRetryScale(attempt), '放置姿态'),
-                '移动到放置姿态'
-            );
-            if (!okPlace) {
-                addLogEntry('error', '移动到放置姿态失败: ' + (errPlace || '未知错误'));
-                return false;
-            }
-            addLogEntry('success', '已到达放置姿态');
-            await _delayMs(100);
-        } else {
-            addLogEntry('warning', '跳过放置姿态（未提供）');
-        }
-
-        // 步骤9: 打开夹爪
-        const okOpen1 = await _gripperOpenPlaceholder();
-        if (!okOpen1) {
-            addLogEntry('error', '打开夹爪失败');
-            return false;
-        }
-        await _delayMs(100);
-
-        // 步骤10: 回到拍照姿态
-        const okCamera = await moveToCameraPose(1);
-        if (!okCamera) {
-            addLogEntry('error', '回到拍照姿态失败');
-            return false;
-        }
-
-        addLogEntry('success', '自动抓取完成');
+        addLogEntry('success', '自动抓取完成（execute_grasp_pose_worker 整周期）');
         return true;
     } catch (e) {
         addLogEntry('error', '自动抓取异常: ' + e.message);
@@ -1612,9 +1549,15 @@ async function moveRobotToPoseCartesian(pose, velocityFactor = 0.1, acceleration
             target_pose: targetPose,
             use_joints: false,
             velocity_factor: velocityFactor,
-            acceleration_factor: accelerationFactor
+            acceleration_factor: accelerationFactor,
+            // 与 http_bridge move_to_pose 等待一致，避免长距离笛卡尔运动桥接 30s 超时、浏览器侧 Failed to fetch
+            timeout_sec: 300.0
         })
     });
+        if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+        }
         result = await res.json();
         // 诊断：与 C++/桥接日志对照，确认前端收到的 success、error_code 是否一致（label 对应步骤：准备/抓取/预放置等）
         if (typeof result.success !== 'undefined' || result.error_code !== undefined) {

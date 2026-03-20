@@ -14,6 +14,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(demo_interface REQUIRED)
+find_package(interface REQUIRED)
 find_package(aubo_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
@@ -188,6 +189,24 @@ ament_target_dependencies(publish_grasps_client_worker_node
   moveit_ros_planning_interface
 )
 
+# 执行常量抓取位姿 worker（服务驱动模式：支持视觉估计和参数常量两种抓取模式）
+add_executable(execute_grasp_pose_worker_node
+  src/moveit_gripper_io_base.cpp
+  src/execute_grasp_pose_worker.cpp
+)
+ament_target_dependencies(execute_grasp_pose_worker_node
+  rclcpp
+  geometry_msgs
+  sensor_msgs
+  std_srvs
+  demo_interface
+  interface
+  aubo_msgs
+  moveit_msgs
+  moveit_core
+  moveit_ros_planning_interface
+)
+
 # Note: The following executables are commented out because source files don't exist yet
 # add_executable(set_robot_enable_server_node src/set_robot_enable_server.cpp)
 # ament_target_dependencies(set_robot_enable_server_node
@@ -222,6 +241,7 @@ install(TARGETS
   set_robot_pose_server_node
   gripper_swap_worker_node
   publish_grasps_client_worker_node
+  execute_grasp_pose_worker_node
   # set_robot_enable_server_node
   # set_robot_io_server_node
   # read_robot_io_server_node

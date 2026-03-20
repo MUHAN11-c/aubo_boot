@@ -157,6 +157,9 @@ visual_pose_estimation / visual_pose_estimation_python ──► interface, cv_b
 1. **percipio_camera**：CMake 中需显式 `find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui photo)` 并链接 `OpenCV_LIBS`，否则 `list_devices` 等会报 `cv::inpaint`、`cv::imshow` 等未定义引用。
 2. **visual_pose_estimation_python**：`setup.cfg` 中已使用 `script_dir`、`install_scripts`（下划线形式），避免 setuptools 弃用警告。
 3. **ROS1 桥接**：与 ROS1 联合使用时需单独启动 ros1_bridge，并参考 aubo_moveit_config 中 bridge 相关 launch。
+4. **关于“`joint_state_count` 很高 + 最新帧毫秒级，但 `getCurrentPose` 仍失败”**：这通常不是“机器人没有发 `joint_states`”，而是 **MoveIt 的 `CurrentStateMonitor` 回调没被执行到**。  
+   在本项目中，`/execute_single_grasp` 服务曾与默认 `MutuallyExclusive` 回调组竞争，长耗时服务回调占住执行槽位后，MoveIt 订阅虽然有新消息进入中间件，`joint_state_count` 也会持续增长，但 `CurrentStateMonitor` 内部状态时间戳不更新，最终触发 `Failed to fetch current robot state` / `getCurrentPose` 失败。  
+   已验证的修复是：将抓取服务放入独立 `service_cb_group_`，避免阻塞默认组；同时保留估姿客户端的独立回调组配置，保证服务回调内异步等待期间状态更新可并发处理。
 
 ---
 

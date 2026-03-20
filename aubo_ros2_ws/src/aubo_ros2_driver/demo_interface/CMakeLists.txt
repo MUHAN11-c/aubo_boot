@@ -29,6 +29,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/ReadRobotIO.srv"
   "srv/Movel.srv"
   "srv/RunGripperSwap.srv"
+  "srv/ExecuteGraspPose.srv"
   DEPENDENCIES std_msgs geometry_msgs trajectory_msgs
 )
 

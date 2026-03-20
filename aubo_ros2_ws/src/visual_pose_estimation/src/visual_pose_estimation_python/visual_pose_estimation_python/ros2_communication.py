@@ -123,6 +123,7 @@ class ROS2Communication:
         self.color_image_timestamp = 0.0  # 彩色图接收时间戳
         self.depth_image_timestamp = 0.0  # 深度图接收时间戳
         self.image_lock = threading.Lock()  # 线程锁，保护图像访问
+        self._sw_trigger_client = None  # /software_trigger，空请求估姿时与 Web 采集一致先拍照
         
         # 机器人状态订阅和存储
         self.robot_status_subscription = None
@@ -143,7 +144,7 @@ class ROS2Communication:
         else:
             # 兜底：使用info
             self.logger.info(msg)
-    
+
     def initialize(
         self,
         config_reader: ConfigReader,
@@ -267,8 +268,23 @@ class ROS2Communication:
                 10
             )
             
-            # 不再持续订阅图像话题，改为在需要时临时订阅获取图像
-            # 移除初始化时的订阅设置，改为触发拍照后临时获取
+            # 空图像走 _capture 时，与 http_bridge 使用同一相机 ID 调 SoftwareTrigger
+            self.node.declare_parameter('capture_camera_id', '207000152740')
+            self.node.declare_parameter('cache_image_max_age_sec', 8.0)
+            self.node.declare_parameter('depth_image_topic', '/camera/depth/image_raw')
+            self.node.declare_parameter('color_image_topic', '/camera/color/image_raw')
+            
+            # 持续订阅图像话题，缓存最新帧，供空图请求（如 execute_grasp_pose_worker）直接复用。
+            # 这样避免在服务回调内再走触发抓图链路导致额外阻塞/超时。
+            depth_topic = self.node.get_parameter('depth_image_topic').value
+            color_topic = self.node.get_parameter('color_image_topic').value
+            self.depth_image_subscription = self.node.create_subscription(
+                Image, depth_topic, self._depth_image_callback, 10
+            )
+            self.color_image_subscription = self.node.create_subscription(
+                Image, color_topic, self._color_image_callback, 10
+            )
+            self.logger.info(f'已启用图像缓存订阅: {depth_topic}, {color_topic}')
             
             # ========== 订阅机器人状态话题 ==========
             # 用于获取当前机器人位姿，计算 T_B_C
@@ -495,7 +511,13 @@ class ROS2Communication:
             # 等待一小段时间让订阅建立（ROS2订阅需要时间建立连接）
             time.sleep(0.2)
             
+            # Percipio 等相机需先触发才发布；与 Web 采集路径一致
+            self._try_software_trigger_before_capture()
+            
             # 等待图像到达
+            # 注意：主节点使用 rclpy.spin() 单线程。在 /estimate_pose 服务回调内若仅用 sleep 等待，
+            # 订阅回调永远不会执行 → 超时后无图（execute_grasp_pose_worker 等空请求会 success_num=0）。
+            # 必须在等待循环中 spin_once，才能在本线程处理 depth/color 消息。
             start_time = time.time()
             while time.time() - start_time < timeout:
                 with self.image_lock:
@@ -512,8 +534,11 @@ class ROS2Communication:
                         self.logger.info(f'获取图像: 深度图={depth_copy.shape}, 彩色图={color_copy.shape}')
                         return depth_copy, color_copy
                 
-                # 短暂休眠，等待消息到达
-                time.sleep(0.05)
+                try:
+                    rclpy.spin_once(self.node, timeout_sec=0.05)
+                except Exception as e:
+                    self.logger.warning(f'spin_once 等待图像时异常: {e}')
+                    time.sleep(0.05)
             
             # 超时，销毁订阅
             self.node.destroy_subscription(depth_sub)
@@ -533,6 +558,49 @@ class ROS2Communication:
             except:
                 return None, None
             return None, None
+    
+    def _try_software_trigger_before_capture(self) -> bool:
+        """调用 /software_trigger 触发相机出图（与 Web /api/capture_image 一致）。
+        单线程 spin 下用 spin_once 等待服务完成。服务不可用时返回 False，不阻断后续仅订阅等待。"""
+        try:
+            from percipio_camera_interface.srv import SoftwareTrigger
+        except ImportError:
+            self.logger.info('未安装 percipio_camera_interface，跳过 SoftwareTrigger')
+            return False
+        
+        if self._sw_trigger_client is None:
+            self._sw_trigger_client = self.node.create_client(SoftwareTrigger, '/software_trigger')
+        
+        if not self._sw_trigger_client.wait_for_service(timeout_sec=1.0):
+            self.logger.info('/software_trigger 不可用，将依赖话题上已有图像流')
+            return False
+        
+        cam_id = str(self.node.get_parameter('capture_camera_id').value or '207000152740')
+        
+        def call_trigger(cid: str) -> bool:
+            req = SoftwareTrigger.Request()
+            req.camera_id = cid
+            fut = self._sw_trigger_client.call_async(req)
+            deadline = time.time() + 10.0
+            while time.time() < deadline and not fut.done():
+                rclpy.spin_once(self.node, timeout_sec=0.05)
+            if not fut.done():
+                self.logger.warning(f'SoftwareTrigger 超时 camera_id={cid}')
+                return False
+            try:
+                resp = fut.result()
+                if resp is not None and resp.success:
+                    self.logger.info(f'SoftwareTrigger 成功: {cid} {resp.message}')
+                    return True
+                msg = getattr(resp, 'message', '') if resp is not None else ''
+                self.logger.warning(f'SoftwareTrigger 失败: {cid} {msg}')
+                if resp is not None and 'Expected: camera' in str(msg) and cid != 'camera':
+                    return call_trigger('camera')
+            except Exception as e:
+                self.logger.warning(f'SoftwareTrigger 异常: {e}')
+            return False
+        
+        return call_trigger(cam_id)
     
     def _depth_image_callback(self, msg: Image):
         """深度图回调函数
@@ -1759,10 +1827,23 @@ class ROS2Communication:
         
         # 1.3 如果请求中没有图像，触发拍照后临时订阅获取图像
         if depth_image is None or color_image is None:
+            now_ts = time.time()
+            with self.image_lock:
+                cached_depth = self.current_depth_image.copy() if self.current_depth_image is not None else None
+                cached_color = self.current_color_image.copy() if self.current_color_image is not None else None
+                depth_age = (now_ts - self.depth_image_timestamp) if self.depth_image_timestamp > 0 else None
+                color_age = (now_ts - self.color_image_timestamp) if self.color_image_timestamp > 0 else None
+            max_age = float(self.node.get_parameter('cache_image_max_age_sec').value)
+            cache_depth_ok = cached_depth is not None and (depth_age is not None and depth_age <= max_age)
+            cache_color_ok = cached_color is not None and (color_age is not None and color_age <= max_age)
+            if depth_image is None and cache_depth_ok:
+                depth_image = cached_depth
+            if color_image is None and cache_color_ok:
+                color_image = cached_color
+
+        if depth_image is None or color_image is None:
             # 临时订阅并等待图像
-            trigger_start = time.time()
             latest_depth, latest_color = self._capture_images_on_trigger(timeout=10.0)
-            trigger_time = time.time() - trigger_start
             
             if depth_image is None:
                 if latest_depth is not None:

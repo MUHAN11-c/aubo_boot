@@ -1477,7 +1477,7 @@
                             <button class="btn btn-warning" onclick="estimatePose()">🎯<br>姿态估计</button>
                             <button class="btn btn-info" onclick="openGripper()">✋<br>打开夹爪</button>
                             <button class="btn btn-secondary" onclick="closeGripper()">✊<br>关闭夹爪</button>
-                            <button class="btn btn-success" onclick="autoGrasp()">🤖<br>自动抓取</button>
+                            <button class="btn btn-success" onclick="autoGrasp()" title="调用 execute_grasp_pose_worker（/execute_single_grasp），需先填工件ID并做姿态估计">🤖<br>自动抓取</button>
                             <button class="btn btn-success" id="loop-auto-grasp-btn" onclick="toggleLoopAutoGrasp()">🔄<br>循环抓取</button>
                             <button class="btn btn-primary" onclick="moveToCameraPose()">📸<br>拍照姿态</button>
                         </div>

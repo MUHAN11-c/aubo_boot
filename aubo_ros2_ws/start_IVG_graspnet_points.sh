@@ -48,7 +48,7 @@ echo -e "${BLUE}每个节点在独立的标签页中运行，可直接查看日�
 echo ""
 
 # 预先构建工作空间一次，后续各步骤仅 source，避免每步重复 colcon build
-echo -e "${GREEN}[0/9] 构建工作空间...${NC}"
+echo -e "${GREEN}[0/12] 构建工作空间...${NC}"
 (cd "$AUBO_ROS2_WS" && source /opt/ros/humble/setup.bash && source ~/ws_moveit/install/setup.bash && source install/setup.bash && colcon build)
 echo -e "${GREEN}  ✓ 构建完成${NC}"
 echo ""
@@ -68,63 +68,87 @@ launch_in_terminator() {
 }
 
 # 步骤1: 启动 GraspNet Points（替代原 aubo_moveit_pure_ros2.launch.py）
-echo -e "${GREEN}[1/9] 启动 GraspNet Points...${NC}"
+echo -e "${GREEN}[1/12] 启动 GraspNet Points...${NC}"
 GRASPNET_POINTS_CMD="$WS_ENV && ros2 launch graspnet_ros2 graspnet_demo_points.launch.py"
 launch_in_terminator "GraspNet Demo Points" "$GRASPNET_POINTS_CMD"
 echo -e "${GREEN}  ✓ GraspNet Points 已启动${NC}"
 sleep 3
 
-# 步骤3: 启动机器人驱动服务
-echo -e "${GREEN}[3/9] 启动机器人驱动服务...${NC}"
+# 步骤2: 启动机器人驱动服务
+echo -e "${GREEN}[2/12] 启动机器人驱动服务...${NC}"
 DRIVER_CMD="$WS_ENV && ros2 launch aubo_moveit_config demo_driver_services.launch.py"
 launch_in_terminator "Robot Driver" "$DRIVER_CMD"
 echo -e "${GREEN}  ✓ 机器人驱动服务已启动${NC}"
 sleep 3
 
-# 步骤4: 启动相机节点
-echo -e "${GREEN}[4/9] 启动相机节点...${NC}"
+# 步骤3: 启动相机节点
+echo -e "${GREEN}[3/12] 启动相机节点...${NC}"
 CAMERA_CMD="$WS_ENV && ros2 launch percipio_camera percipio_camera.launch.py"
 launch_in_terminator "Percipio Camera" "$CAMERA_CMD"
 echo -e "${GREEN}  ✓ 相机节点已启动${NC}"
 sleep 5  # 相机需要更多时间初始化
 
-# 步骤5: 启动相机控制节点
-echo -e "${GREEN}[5/9] 启动相机控制节点...${NC}"
+# 步骤4: 启动相机控制节点
+echo -e "${GREEN}[4/12] 启动相机控制节点...${NC}"
 CAMERA_CONTROL_CMD="$WS_ENV && ros2 launch percipio_camera_interface camera_control.launch.py"
 launch_in_terminator "Camera Control" "$CAMERA_CONTROL_CMD"
 echo -e "${GREEN}  ✓ 相机控制节点已启动${NC}"
 sleep 2
 
-# 步骤6: 启动图像数据桥接节点
-echo -e "${GREEN}[6/9] 启动图像数据桥接节点...${NC}"
+# 步骤5: 启动图像数据桥接节点
+echo -e "${GREEN}[5/12] 启动图像数据桥接节点...${NC}"
 IMAGE_BRIDGE_CMD="$WS_ENV && ros2 launch image_data_bridge image_data_bridge.launch.py input_image_topic:=/camera/color/image_raw"
 launch_in_terminator "Image Data Bridge" "$IMAGE_BRIDGE_CMD"
 echo -e "${GREEN}  ✓ 图像数据桥接节点已启动${NC}"
 sleep 2
 
-# 步骤7: 启动手眼标定节点
-echo -e "${GREEN}[7/9] 启动手眼标定节点...${NC}"
+# 步骤6: 启动手眼标定节点
+echo -e "${GREEN}[6/12] 启动手眼标定节点...${NC}"
 HAND_EYE_CMD="$WS_ENV && ros2 launch hand_eye_calibration hand_eye_calibration_launch.py"
 launch_in_terminator "Hand Eye Calibration" "$HAND_EYE_CMD"
 echo -e "${GREEN}  ✓ 手眼标定节点已启动${NC}"
 sleep 2
 
-# 步骤8: 启动视觉姿态估计算法节点（RemBG 子进程使用 conda 环境 ros2_env）
-echo -e "${GREEN}[8/10] 启动视觉姿态估计算法节点...${NC}"
+# 步骤7: 启动视觉姿态估计算法节点（RemBG 子进程使用 conda 环境 ros2_env）
+echo -e "${GREEN}[7/12] 启动视觉姿态估计算法节点...${NC}"
 VPE_CMD="$WS_ENV && export PATH=\"/usr/bin:\$PATH\" && ros2 launch visual_pose_estimation_python visual_pose_estimation_python.launch.py"
 launch_in_terminator "Visual Pose Estimation" "$VPE_CMD"
 echo -e "${GREEN}  ✓ 视觉姿态估计算法节点已启动${NC}"
 sleep 2
 
-# 步骤9: 启动执行抓取位姿服务节点
-echo -e "${GREEN}[9/10] 启动执行抓取位姿服务节点...${NC}"
+# 步骤8: 启动执行抓取位姿服务节点（gripper0 模板匹配循环抓取链路）
+echo -e "${GREEN}[8/12] 启动执行抓取位姿服务节点...${NC}"
 GRASP_WORKER_CMD="$WS_ENV && ros2 launch demo_driver execute_grasp_pose_worker.launch.py"
 launch_in_terminator "Execute Grasp Worker" "$GRASP_WORKER_CMD"
 echo -e "${GREEN}  ✓ 执行抓取位姿服务节点已启动${NC}"
 sleep 2
 
-# 步骤10: 启动HTTP桥接服务器
-echo -e "${GREEN}[10/10] 启动HTTP桥接服务器...${NC}"
+# 步骤9: 启动夹爪切换服务节点（gripper0 -> gripper2）
+echo -e "${GREEN}[9/12] 启动夹爪切换服务节点...${NC}"
+GRIPPER_SWAP_CMD="$WS_ENV && ros2 run demo_driver gripper_swap_worker_node"
+launch_in_terminator "Gripper Swap Worker" "$GRIPPER_SWAP_CMD"
+echo -e "${GREEN}  ✓ 夹爪切换服务节点已启动${NC}"
+sleep 2
+
+# 步骤10: 启动 GraspNet 循环抓取 Worker（gripper2 抓取链路）
+echo -e "${GREEN}[10/12] 启动 GraspNet 循环抓取 Worker...${NC}"
+# 注意：该节点内部使用了 `automatically_declare_parameters_from_overrides(true)` 并手动 declare_parameter，
+# 若此处再通过 `--ros-args -p ...` 传入同名参数，会触发 ParameterAlreadyDeclaredException。
+# 这里直接使用节点默认参数（当前默认值已满足本计划验证链路）。
+PUBLISH_GRASPS_WORKER_CMD="$WS_ENV && ros2 run demo_driver publish_grasps_client_worker_node"
+launch_in_terminator "Publish Grasps Worker" "$PUBLISH_GRASPS_WORKER_CMD"
+echo -e "${GREEN}  ✓ GraspNet 循环抓取 Worker 已启动${NC}"
+sleep 2
+
+# 步骤11: 校验关键服务是否已就绪（便于计划验证）
+echo -e "${GREEN}[11/12] 校验关键服务...${NC}"
+SERVICE_CHECK_CMD="$WS_ENV && ros2 service list | rg '/publish_grasps_worker_loop_control|/loop_grasp_control|/run_gripper_swap' || true"
+launch_in_terminator "Service Check" "$SERVICE_CHECK_CMD"
+echo -e "${GREEN}  ✓ 关键服务校验标签页已启动${NC}"
+sleep 1
+
+# 步骤12: 启动HTTP桥接服务器
+echo -e "${GREEN}[12/12] 启动HTTP桥接服务器...${NC}"
 WEB_UI_DIR="$AUBO_ROS2_WS/src/visual_pose_estimation/src/visual_pose_estimation_python/web_ui"
 HTTP_BRIDGE_CMD="$WS_ENV && cd $WEB_UI_DIR && /usr/bin/python3 scripts/http_bridge_server.py"
 launch_in_terminator "HTTP Bridge Server" "$HTTP_BRIDGE_CMD"
@@ -158,6 +182,9 @@ echo "  pkill -f 'image_data_bridge'"
 echo "  pkill -f 'hand_eye_calibration'"
 echo "  pkill -f 'visual_pose_estimation_python'"
 echo "  pkill -f 'execute_grasp_pose_worker'"
+echo "  pkill -f 'gripper_swap_worker_node'"
+echo "  pkill -f 'publish_grasps_client_worker_node'"
+echo "  pkill -f 'publish_grasps_worker_loop_control_client'"
 echo "  pkill -f 'http_bridge_server'"
 
 # 保持脚本运行

@@ -50,8 +50,6 @@
     <virtual_joint name="fixed_base" type="fixed" parent_frame="world" child_link="base_link"/>
     <!--DISABLE COLLISIONS: By default it is assumed that any link of the robot could potentially come into collision with any other link in the robot. This tag disables collision checking between a specified pair of links. -->
     <!-- 禁用基座与机器人链接之间的碰撞检测 -->
-    <disable_collisions link1="base_link" link2="pedestal_Link" reason="Adjacent"/>
-
     <disable_collisions link1="base_link" link2="shoulder_Link" reason="Adjacent"/>
     <disable_collisions link1="base_link" link2="upperArm_Link" reason="Never"/>
     <disable_collisions link1="tool_tcp" link2="wrist1_Link" reason="Never"/>

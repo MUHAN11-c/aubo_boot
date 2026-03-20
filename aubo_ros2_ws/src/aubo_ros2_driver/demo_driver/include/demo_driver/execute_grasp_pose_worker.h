@@ -172,6 +172,8 @@ private:
   // 循环抓取状态
   std::atomic<bool> loop_grasp_running_{false};
   std::atomic<bool> stop_loop_flag_{false};
+  std::atomic<bool> stop_after_cycle_{false};
+  std::atomic<bool> cycle_in_progress_{false};
   std::thread loop_thread_;
 };
 

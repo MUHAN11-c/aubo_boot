@@ -11,6 +11,7 @@
 #include "demo_driver/moveit_gripper_io_base.h"
 
 #include <demo_interface/srv/run_gripper_swap.hpp>
+#include <atomic>
 #include <cstdint>
 
 namespace demo_driver
@@ -54,7 +55,10 @@ private:
   double home_velocity_scaling_{ 0.7 };
   double home_acceleration_scaling_{ 0.45 };
   int32_t gripper_io_index_{ kQuickSwapIoIndex };
+  std::atomic<bool> swap_in_progress_{ false };
 
+  // 将换爪服务放入独立回调组，避免长耗时服务回调阻塞 MoveIt 状态更新回调。
+  rclcpp::CallbackGroup::SharedPtr service_cb_group_;
   rclcpp::Service<demo_interface::srv::RunGripperSwap>::SharedPtr gripper_swap_srv_;
 };
 

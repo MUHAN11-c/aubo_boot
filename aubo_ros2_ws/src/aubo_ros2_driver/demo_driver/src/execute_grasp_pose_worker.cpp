@@ -51,7 +51,8 @@ static constexpr double kCartesianJumpThreshold = 0.0;
 //    切回真实流程：改为 false（将使用 response->grab_position[0]）。
 //
 // 2) kSkipTemporaryGripperIo = true:
-//    跳过步骤 4/7 的 setGripperIo（不调用 /aubo_driver/set_io）。
+//    仿真临时模式：跳过步骤 4/7 的 setGripperIo（不调用 /aubo_driver/set_io）。
+//    适用场景：仿真环境未提供 /aubo_driver/set_io，避免流程因 IO 失败中断。
 //    切回真实流程：改为 false（恢复真实夹爪 IO 控制）。
 // ============================================================================
 static constexpr bool kUseTemporaryFixedGraspPose = true;
@@ -250,8 +251,12 @@ std::shared_ptr<ExecuteGraspPoseWorker> ExecuteGraspPoseWorker::create(const rcl
 
 ExecuteGraspPoseWorker::~ExecuteGraspPoseWorker()
 {
-  // 停止循环抓取线程
+  // 请求优雅停止并在析构阶段等待线程退出，避免后台线程悬挂。
   stopLoopGrasp();
+  if (loop_thread_.joinable())
+  {
+    loop_thread_.join();
+  }
 }
 
 // ============================================================================
@@ -596,7 +601,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   if (kSkipTemporaryGripperIo)
   {
     RCLCPP_WARN(get_logger(),
-                "⚠ 临时模式：已跳过闭夹爪 IO 设置（未调用 /aubo_driver/set_io）。"
+                "⚠ 仿真临时模式：已跳过闭夹爪 IO 设置（未调用 /aubo_driver/set_io）。"
                 "如需真实机械臂夹爪控制，请将 kSkipTemporaryGripperIo 改为 false。");
     RCLCPP_INFO(get_logger(), "✓ 步骤 4 完成（已跳过IO）");
   }
@@ -667,7 +672,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   if (kSkipTemporaryGripperIo)
   {
     RCLCPP_WARN(get_logger(),
-                "⚠ 临时模式：已跳过开夹爪 IO 设置（未调用 /aubo_driver/set_io）。"
+                "⚠ 仿真临时模式：已跳过开夹爪 IO 设置（未调用 /aubo_driver/set_io）。"
                 "如需真实机械臂夹爪控制，请将 kSkipTemporaryGripperIo 改为 false。");
     RCLCPP_INFO(get_logger(), "✓ 步骤 7 完成（已跳过IO）");
   }
@@ -830,6 +835,15 @@ void ExecuteGraspPoseWorker::handleExecuteSingleGrasp(
   RCLCPP_INFO(get_logger(), "[handleExecuteSingleGrasp]   use_visual_estimation: %s", 
               request->use_visual_estimation ? "true（使用视觉估计）" : "false（使用参数常量）");
 
+  if (loop_grasp_running_.load() || cycle_in_progress_.load())
+  {
+    response->success = false;
+    response->message = "循环抓取执行中，拒绝单次抓取请求（避免并发运动）";
+    RCLCPP_WARN(get_logger(), "[handleExecuteSingleGrasp] ⚠ %s", response->message.c_str());
+    RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
+    return;
+  }
+
   // 如果启用视觉估计，先调用视觉服务
   if (request->use_visual_estimation)
   {
@@ -933,10 +947,11 @@ void ExecuteGraspPoseWorker::handleLoopGraspControl(
       return;
     }
 
-    RCLCPP_INFO(get_logger(), "[handleLoopGraspControl] 正在停止循环抓取线程...");
+    RCLCPP_INFO(get_logger(), "[handleLoopGraspControl] 已发送优雅停止请求（当前轮结束后停止）...");
     stopLoopGrasp();
     response->success = true;
-    response->message = "循环抓取已停止";
+    response->message = cycle_in_progress_.load() ? "已收到停止请求，将在当前轮结束后停止"
+                                                  : "已收到停止请求，当前无活动周期，立即停止";
     RCLCPP_INFO(get_logger(), "[handleLoopGraspControl] ✓ %s", response->message.c_str());
   }
   
@@ -946,7 +961,14 @@ void ExecuteGraspPoseWorker::handleLoopGraspControl(
 
 void ExecuteGraspPoseWorker::startLoopGrasp()
 {
+  // 若上一次循环线程已退出但尚未 join，先回收线程资源再重启。
+  if (loop_thread_.joinable())
+  {
+    loop_thread_.join();
+  }
+
   stop_loop_flag_ = false;
+  stop_after_cycle_ = false;
   loop_grasp_running_ = true;
 
   // 启动循环抓取线程
@@ -955,15 +977,12 @@ void ExecuteGraspPoseWorker::startLoopGrasp()
 
 void ExecuteGraspPoseWorker::stopLoopGrasp()
 {
-  if (loop_grasp_running_)
-  {
-    stop_loop_flag_ = true;
-    if (loop_thread_.joinable())
-    {
-      loop_thread_.join();
-    }
-    loop_grasp_running_ = false;
-  }
+  if (!loop_grasp_running_)
+    return;
+
+  // 优雅停止：请求当前轮结束后退出，避免在服务回调内长时间阻塞。
+  stop_after_cycle_ = true;
+  stop_loop_flag_ = true;
 }
 
 void ExecuteGraspPoseWorker::loopGraspThread()
@@ -987,6 +1006,7 @@ void ExecuteGraspPoseWorker::loopGraspThread()
   int cycle_count = 0;
   while (!stop_loop_flag_ && rclcpp::ok())
   {
+    cycle_in_progress_ = true;
     cycle_count++;
     RCLCPP_INFO(get_logger(), "");
     RCLCPP_INFO(get_logger(), "╔════════════════════════════════════════════════════════════╗");
@@ -998,6 +1018,9 @@ void ExecuteGraspPoseWorker::loopGraspThread()
     if (!estimatePoseFromVision(object_id))
     {
       RCLCPP_WARN(get_logger(), "[loopGraspThread] ⚠ 视觉估计失败，等待2秒后重试...");
+      cycle_in_progress_ = false;
+      if (stop_after_cycle_)
+        break;
       std::this_thread::sleep_for(std::chrono::seconds(2));
       continue;
     }
@@ -1014,14 +1037,24 @@ void ExecuteGraspPoseWorker::loopGraspThread()
     if (!success)
     {
       RCLCPP_WARN(get_logger(), "[loopGraspThread] ⚠ 抓取周期失败，等待2秒后重试...");
+      cycle_in_progress_ = false;
+      if (stop_after_cycle_)
+        break;
       std::this_thread::sleep_for(std::chrono::seconds(2));
       continue;
     }
+
+    cycle_in_progress_ = false;
+    if (stop_after_cycle_)
+      break;
 
     RCLCPP_INFO(get_logger(), "[loopGraspThread] ✓ 循环第 %d 次完成，等待1秒后继续...", cycle_count);
     RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
+
+  cycle_in_progress_ = false;
+  loop_grasp_running_ = false;
 
   if (stop_loop_flag_)
   {

@@ -27,6 +27,10 @@ static constexpr int kArcPathRetryDelaySec = 2;
 static constexpr double kArcPathInitialDelaySec = 0.2;
 static constexpr double kCartesianEefStep = 0.01;
 static constexpr double kCartesianJumpThreshold = 0.0;
+// 仿真临时开关：
+// true  -> 跳过本文件全部 setGripperIo 调用（不调用 /aubo_driver/set_io）
+// false -> 恢复真实夹爪快换 IO 控制
+static constexpr bool kSkipTemporaryGripperIo = true;
 
 static void scaleTrajectoryTimeLocal(moveit_msgs::msg::RobotTrajectory& traj, double velocity_factor,
                                      double acceleration_factor)
@@ -74,9 +78,12 @@ GripperSwapWorker::GripperSwapWorker(const rclcpp::NodeOptions& options) : Movei
   home_acceleration_scaling_ = get_parameter("home_acceleration_scaling").as_double();
   gripper_io_index_ = static_cast<int32_t>(get_parameter("gripper_io_index").as_int());
 
+  // 服务回调放入独立 CallbackGroup，避免长耗时换爪流程占住默认组，导致 MoveIt current_state_monitor 无法及时更新。
+  service_cb_group_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   gripper_swap_srv_ = create_service<demo_interface::srv::RunGripperSwap>(
       "run_gripper_swap",
-      std::bind(&GripperSwapWorker::onGripperSwapRequest, this, std::placeholders::_1, std::placeholders::_2));
+      std::bind(&GripperSwapWorker::onGripperSwapRequest, this, std::placeholders::_1, std::placeholders::_2),
+      rmw_qos_profile_services_default, service_cb_group_);
   RCLCPP_INFO(get_logger(),
               "服务 run_gripper_swap 已创建，通过 direction 选择 gripper0_to_gripper2、gripper2_to_gripper0 或 gripper2；"
               "joint_vel=%.2f joint_acc=%.2f cart_vel=%.2f cart_acc=%.2f home_vel=%.2f home_acc=%.2f io_index=%d",
@@ -209,18 +216,49 @@ bool GripperSwapWorker::swapToGripper0()
   const double y_step = 0.1;
   std::vector<CartesianSegment> segments = { { 'y', y_step }, { 'z', -0.243 }, { 'y', -y_step }, { 'z', -0.012 } };
   CHECK(runArcPathSequence(segments, cartesian_velocity_scaling_, cartesian_acceleration_scaling_));
-  CHECK(setGripperIo(gripper_io_index_, true));
+  if (kSkipTemporaryGripperIo)
+  {
+    RCLCPP_WARN(get_logger(),
+                "⚠ 仿真临时模式：跳过 setGripperIo(%d, true)。"
+                "如需真实夹爪快换，请将 kSkipTemporaryGripperIo 改为 false。",
+                gripper_io_index_);
+  }
+  else
+  {
+    CHECK(setGripperIo(gripper_io_index_, true));
+  }
   std::this_thread::sleep_for(std::chrono::duration<double>(0.3));
   CHECK(runArcPath('z', 0.255, cartesian_velocity_scaling_, cartesian_acceleration_scaling_));
-  CHECK(setGripperIo(gripper_io_index_, false));
+  if (kSkipTemporaryGripperIo)
+  {
+    RCLCPP_WARN(get_logger(), "⚠ 仿真临时模式：跳过 setGripperIo(%d, false)", gripper_io_index_);
+  }
+  else
+  {
+    CHECK(setGripperIo(gripper_io_index_, false));
+  }
   std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
 
   CHECK(moveToJoints({ 1.004674, -0.050534, 1.752202, 0.231544, 1.571618, 1.004515 },
                      joint_velocity_scaling_, joint_acceleration_scaling_));
-  CHECK(setGripperIo(gripper_io_index_, true));
+  if (kSkipTemporaryGripperIo)
+  {
+    RCLCPP_WARN(get_logger(), "⚠ 仿真临时模式：跳过 setGripperIo(%d, true)", gripper_io_index_);
+  }
+  else
+  {
+    CHECK(setGripperIo(gripper_io_index_, true));
+  }
   CHECK(runArcPath('z', -0.255, cartesian_velocity_scaling_, cartesian_acceleration_scaling_));
   std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
-  CHECK(setGripperIo(gripper_io_index_, false));
+  if (kSkipTemporaryGripperIo)
+  {
+    RCLCPP_WARN(get_logger(), "⚠ 仿真临时模式：跳过 setGripperIo(%d, false)", gripper_io_index_);
+  }
+  else
+  {
+    CHECK(setGripperIo(gripper_io_index_, false));
+  }
   std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
   CHECK(runArcPath('z', 0.255, cartesian_velocity_scaling_, cartesian_acceleration_scaling_));
   CHECK(moveToHome(home_velocity_scaling_, home_acceleration_scaling_));
@@ -233,19 +271,47 @@ bool GripperSwapWorker::swapToGripper2()
   CHECK(moveToJoints({ 1.004674, -0.050534, 1.752202, 0.231544, 1.571618, 1.004515 },
                      joint_velocity_scaling_, joint_acceleration_scaling_));
   CHECK(runArcPath('z', -0.255, cartesian_velocity_scaling_, cartesian_acceleration_scaling_));
-  CHECK(setGripperIo(gripper_io_index_, true));
+  if (kSkipTemporaryGripperIo)
+  {
+    RCLCPP_WARN(get_logger(), "⚠ 仿真临时模式：跳过 setGripperIo(%d, true)", gripper_io_index_);
+  }
+  else
+  {
+    CHECK(setGripperIo(gripper_io_index_, true));
+  }
   std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
   CHECK(runArcPath('z', 0.255, cartesian_velocity_scaling_, cartesian_acceleration_scaling_));
   std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
-  CHECK(setGripperIo(gripper_io_index_, false));
+  if (kSkipTemporaryGripperIo)
+  {
+    RCLCPP_WARN(get_logger(), "⚠ 仿真临时模式：跳过 setGripperIo(%d, false)", gripper_io_index_);
+  }
+  else
+  {
+    CHECK(setGripperIo(gripper_io_index_, false));
+  }
 
   const double y_step = 0.1;
   CHECK(moveToJoints({ 0.860766, -0.265055, 1.501074, 0.195106, 1.571464, 0.859643 },
                      joint_velocity_scaling_, joint_acceleration_scaling_));
-  CHECK(setGripperIo(gripper_io_index_, true));
+  if (kSkipTemporaryGripperIo)
+  {
+    RCLCPP_WARN(get_logger(), "⚠ 仿真临时模式：跳过 setGripperIo(%d, true)", gripper_io_index_);
+  }
+  else
+  {
+    CHECK(setGripperIo(gripper_io_index_, true));
+  }
   CHECK(runArcPath('z', -0.255, cartesian_velocity_scaling_, cartesian_acceleration_scaling_));
   std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
-  CHECK(setGripperIo(gripper_io_index_, false));
+  if (kSkipTemporaryGripperIo)
+  {
+    RCLCPP_WARN(get_logger(), "⚠ 仿真临时模式：跳过 setGripperIo(%d, false)", gripper_io_index_);
+  }
+  else
+  {
+    CHECK(setGripperIo(gripper_io_index_, false));
+  }
   std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
   std::vector<CartesianSegment> segments1 = { { 'z', 0.012 }, { 'y', y_step }, { 'z', 0.243 } };
   CHECK(runArcPathSequence(segments1, cartesian_velocity_scaling_, cartesian_acceleration_scaling_));
@@ -259,10 +325,24 @@ bool GripperSwapWorker::switchToGripper2()
   const double y_step = 0.1;
   CHECK(moveToJoints({ 0.860766, -0.265055, 1.501074, 0.195106, 1.571464, 0.859643 },
                      joint_velocity_scaling_, joint_acceleration_scaling_));
-  CHECK(setGripperIo(gripper_io_index_, true));
+  if (kSkipTemporaryGripperIo)
+  {
+    RCLCPP_WARN(get_logger(), "⚠ 仿真临时模式：跳过 setGripperIo(%d, true)", gripper_io_index_);
+  }
+  else
+  {
+    CHECK(setGripperIo(gripper_io_index_, true));
+  }
   CHECK(runArcPath('z', -0.255, cartesian_velocity_scaling_, cartesian_acceleration_scaling_));
   std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
-  CHECK(setGripperIo(gripper_io_index_, false));
+  if (kSkipTemporaryGripperIo)
+  {
+    RCLCPP_WARN(get_logger(), "⚠ 仿真临时模式：跳过 setGripperIo(%d, false)", gripper_io_index_);
+  }
+  else
+  {
+    CHECK(setGripperIo(gripper_io_index_, false));
+  }
   std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
   std::vector<CartesianSegment> segments1 = { { 'z', 0.012 }, { 'y', y_step }, { 'z', 0.243 } };
   CHECK(runArcPathSequence(segments1, cartesian_velocity_scaling_, cartesian_acceleration_scaling_));
@@ -277,18 +357,46 @@ bool GripperSwapWorker::run()
   const double y_step = 0.1;
   std::vector<CartesianSegment> segments = { { 'y', y_step }, { 'z', -0.243 }, { 'y', -y_step }, { 'z', -0.012 } };
   CHECK(runArcPathSequence(segments, cartesian_velocity_scaling_, cartesian_acceleration_scaling_));
-  CHECK(setGripperIo(gripper_io_index_, true));
+  if (kSkipTemporaryGripperIo)
+  {
+    RCLCPP_WARN(get_logger(), "⚠ 仿真临时模式：跳过 setGripperIo(%d, true)", gripper_io_index_);
+  }
+  else
+  {
+    CHECK(setGripperIo(gripper_io_index_, true));
+  }
   std::this_thread::sleep_for(std::chrono::duration<double>(1));
   std::vector<CartesianSegment> segments1 = { { 'z', 0.012 }, { 'y', y_step }, { 'z', 0.243 } };
   CHECK(runArcPathSequence(segments1, cartesian_velocity_scaling_, cartesian_acceleration_scaling_));
-  CHECK(setGripperIo(gripper_io_index_, false));
+  if (kSkipTemporaryGripperIo)
+  {
+    RCLCPP_WARN(get_logger(), "⚠ 仿真临时模式：跳过 setGripperIo(%d, false)", gripper_io_index_);
+  }
+  else
+  {
+    CHECK(setGripperIo(gripper_io_index_, false));
+  }
 
   CHECK(moveToPose(0.36767 - 0.003, 0.24267 + 0.105, 0.0405 + 0.185 + 0.1, 0.7068, 0.7074, 0.0002, -0.0005, false,
                    joint_velocity_scaling_, joint_acceleration_scaling_));
-  CHECK(setGripperIo(gripper_io_index_, true));
+  if (kSkipTemporaryGripperIo)
+  {
+    RCLCPP_WARN(get_logger(), "⚠ 仿真临时模式：跳过 setGripperIo(%d, true)", gripper_io_index_);
+  }
+  else
+  {
+    CHECK(setGripperIo(gripper_io_index_, true));
+  }
   CHECK(runArcPath('z', -0.255, cartesian_velocity_scaling_, cartesian_acceleration_scaling_));
   std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
-  CHECK(setGripperIo(gripper_io_index_, false));
+  if (kSkipTemporaryGripperIo)
+  {
+    RCLCPP_WARN(get_logger(), "⚠ 仿真临时模式：跳过 setGripperIo(%d, false)", gripper_io_index_);
+  }
+  else
+  {
+    CHECK(setGripperIo(gripper_io_index_, false));
+  }
   std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
   CHECK(runArcPath('z', 0.255, cartesian_velocity_scaling_, cartesian_acceleration_scaling_));
   CHECK(moveToHome(home_velocity_scaling_, home_acceleration_scaling_));
@@ -310,24 +418,45 @@ void GripperSwapWorker::onGripperSwapRequest(
     return;
   }
 
-  RCLCPP_INFO(get_logger(), "收到 run_gripper_swap 请求 direction=%s，已在后台线程启动", direction.c_str());
-  std::thread worker([this, direction]() {
-    bool ok = false;
+  bool expected = false;
+  if (!swap_in_progress_.compare_exchange_strong(expected, true))
+  {
+    response->success = false;
+    response->message = "夹爪切换正在执行中，请勿并发调用";
+    RCLCPP_WARN(get_logger(), "%s", response->message.c_str());
+    return;
+  }
+
+  RCLCPP_INFO(get_logger(), "收到 run_gripper_swap 请求 direction=%s，开始同步执行（阻塞返回）", direction.c_str());
+  bool ok = false;
+  try
+  {
     if (direction == "gripper0_to_gripper2")
       ok = swapToGripper2();
     else if (direction == "gripper2_to_gripper0")
       ok = swapToGripper0();
     else if (direction == "gripper2")
       ok = switchToGripper2();
-    if (ok)
-      RCLCPP_INFO(get_logger(), "后台执行完成: 成功 (%s)", direction.c_str());
-    else
-      RCLCPP_WARN(get_logger(), "后台执行完成: 失败 (%s)", direction.c_str());
-  });
-  worker.detach();
+  }
+  catch (const std::exception& e)
+  {
+    ok = false;
+    RCLCPP_ERROR(get_logger(), "run_gripper_swap 执行异常: %s", e.what());
+  }
+  catch (...)
+  {
+    ok = false;
+    RCLCPP_ERROR(get_logger(), "run_gripper_swap 执行异常: 未知异常");
+  }
 
-  response->success = true;
-  response->message = "已启动: " + direction;
+  swap_in_progress_.store(false);
+
+  response->success = ok;
+  response->message = ok ? ("切换完成: " + direction) : ("切换失败: " + direction);
+  if (ok)
+    RCLCPP_INFO(get_logger(), "%s", response->message.c_str());
+  else
+    RCLCPP_WARN(get_logger(), "%s", response->message.c_str());
 }
 
 }  // namespace demo_driver

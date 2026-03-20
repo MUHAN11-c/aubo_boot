@@ -334,6 +334,12 @@ bool MoveitGripperIoBase::runArcPath(double z_offset, float velocity_factor)
 
 bool MoveitGripperIoBase::runArcPath(char axis, double offset, float velocity_factor)
 {
+  if (!move_group_)
+  {
+    RCLCPP_ERROR(get_logger(), "[runArcPath] MoveGroup 未初始化");
+    return false;
+  }
+
   const char* axis_label = (axis == 'x') ? "X" : (axis == 'y') ? "Y" : "Z";
   RCLCPP_INFO(get_logger(), "笛卡尔路径: 沿 %s 轴 %+.2f m", axis_label, offset);
 
@@ -375,7 +381,12 @@ bool MoveitGripperIoBase::runArcPath(char axis, double offset, float velocity_fa
       scaleTrajectoryTime(trajectory, static_cast<double>(velocity_factor));
       moveit::planning_interface::MoveGroupInterface::Plan plan;
       plan.trajectory_ = trajectory;
-      move_group_->execute(plan);
+      auto exec_ok = move_group_->execute(plan);
+      if (exec_ok != moveit::core::MoveItErrorCode::SUCCESS)
+      {
+        RCLCPP_ERROR(get_logger(), "笛卡尔路径执行失败，错误码=%d", exec_ok.val);
+        return false;
+      }
       RCLCPP_INFO(get_logger(), "%s 轴直线移动执行完成 (速度因子 %.2f)", axis_label, velocity_factor);
       return true;
     }
@@ -391,6 +402,12 @@ bool MoveitGripperIoBase::runArcPath(char axis, double offset, float velocity_fa
 
 bool MoveitGripperIoBase::runArcPathSequence(const std::vector<CartesianSegment>& segments, float velocity_factor)
 {
+  if (!move_group_)
+  {
+    RCLCPP_ERROR(get_logger(), "[runArcPathSequence] MoveGroup 未初始化");
+    return false;
+  }
+
   if (segments.empty())
   {
     RCLCPP_INFO(get_logger(), "[runArcPathSequence] segments 为空，不运动");
@@ -438,7 +455,12 @@ bool MoveitGripperIoBase::runArcPathSequence(const std::vector<CartesianSegment>
       scaleTrajectoryTime(trajectory, static_cast<double>(velocity_factor));
       moveit::planning_interface::MoveGroupInterface::Plan plan;
       plan.trajectory_ = trajectory;
-      move_group_->execute(plan);
+      auto exec_ok = move_group_->execute(plan);
+      if (exec_ok != moveit::core::MoveItErrorCode::SUCCESS)
+      {
+        RCLCPP_ERROR(get_logger(), "多段笛卡尔路径执行失败，错误码=%d", exec_ok.val);
+        return false;
+      }
       RCLCPP_INFO(get_logger(), "多段笛卡尔路径执行完成 (速度因子 %.2f)", velocity_factor);
       return true;
     }
@@ -457,10 +479,20 @@ bool MoveitGripperIoBase::runArcPathSequence(const std::vector<CartesianSegment>
 
 bool MoveitGripperIoBase::moveToHome(float velocity_factor, float acceleration_factor)
 {
+  if (!move_group_)
+  {
+    RCLCPP_ERROR(get_logger(), "[move_to_home] MoveGroup 未初始化");
+    return false;
+  }
   move_group_->setMaxVelocityScalingFactor(velocity_factor);
   move_group_->setMaxAccelerationScalingFactor(acceleration_factor);
   move_group_->setNamedTarget("camera_pose");
-  move_group_->move();
+  auto move_ok = move_group_->move();
+  if (move_ok != moveit::core::MoveItErrorCode::SUCCESS)
+  {
+    RCLCPP_ERROR(get_logger(), "[move_to_home] 执行失败，错误码=%d", move_ok.val);
+    return false;
+  }
   return true;
 }
 

@@ -21,7 +21,7 @@ from PIL import Image
 import rclpy
 from rclpy.node import Node
 from interface.srv import EstimatePose, ListTemplates, StandardizeTemplate, UpdateParams
-from demo_interface.srv import ExecuteGraspPose
+from demo_interface.srv import ExecuteGraspPose, RunGripperSwap
 from std_srvs.srv import SetBool
 
 from geometry_msgs.msg import Pose, Point, Quaternion
@@ -320,6 +320,8 @@ class ROS2Node(Node):
         self.update_params_client = self.create_client(UpdateParams, '/update_params')
         self.execute_single_grasp_client = self.create_client(ExecuteGraspPose, '/execute_single_grasp')
         self.loop_grasp_control_client = self.create_client(SetBool, '/loop_grasp_control')
+        self.publish_grasps_loop_control_client = self.create_client(SetBool, '/publish_grasps_worker_loop_control')
+        self.run_gripper_swap_client = self.create_client(RunGripperSwap, '/run_gripper_swap')
         # WritePLCRegister 服务暂未定义，相关功能已禁用
         # self.write_plc_register_client = self.create_client(WritePLCRegister, '/write_plc_register')
         self.write_plc_register_client = None
@@ -1206,6 +1208,93 @@ class ROS2Node(Node):
             self.get_logger().error(f'循环抓取控制服务异常: {str(e)}\n{error_detail}')
             return None
 
+    def call_publish_grasps_loop_control(self, start, timeout=10.0):
+        """调用 publish_grasps_client_worker 循环控制服务"""
+        try:
+            if not self.publish_grasps_loop_control_client.wait_for_service(timeout_sec=5.0):
+                self.get_logger().error("publish_grasps 循环控制服务未运行，请先启动 publish_grasps_client_worker 节点")
+                return None
+
+            request = SetBool.Request()
+            request.data = bool(start)
+
+            action = "启动" if start else "停止"
+            self.get_logger().info(f'调用 publish_grasps 循环控制服务: {action}')
+
+            future = self.publish_grasps_loop_control_client.call_async(request)
+
+            with self.executor_lock:
+                self.executor_running = True
+            try:
+                rclpy.spin_until_future_complete(self, future, timeout_sec=timeout)
+            finally:
+                with self.executor_lock:
+                    self.executor_running = False
+
+            if not future.done():
+                self.get_logger().error(f"publish_grasps 循环{action}服务调用超时")
+                return None
+
+            response = future.result()
+            if response is None:
+                self.get_logger().error(f"publish_grasps 循环{action}服务调用失败")
+                return None
+
+            if response.success:
+                self.get_logger().info(f'publish_grasps 循环{action}成功: {response.message}')
+            else:
+                self.get_logger().warn(f'publish_grasps 循环{action}失败: {response.message}')
+            return response
+        except Exception as e:
+            import traceback
+            error_detail = traceback.format_exc()
+            self.get_logger().error(f'publish_grasps 循环控制服务异常: {str(e)}\n{error_detail}')
+            return None
+
+    def call_run_gripper_swap(self, direction, timeout=None):
+        """调用夹爪切换服务。timeout=None 表示无限等待。"""
+        try:
+            if not self.run_gripper_swap_client.wait_for_service(timeout_sec=5.0):
+                self.get_logger().error("夹爪切换服务未运行，请先启动 gripper_swap_worker 节点")
+                return None
+
+            request = RunGripperSwap.Request()
+            request.direction = str(direction)
+
+            self.get_logger().info(f'调用夹爪切换服务: direction={request.direction}')
+            future = self.run_gripper_swap_client.call_async(request)
+
+            with self.executor_lock:
+                self.executor_running = True
+            try:
+                if timeout is None:
+                    rclpy.spin_until_future_complete(self, future)
+                else:
+                    rclpy.spin_until_future_complete(self, future, timeout_sec=timeout)
+            finally:
+                with self.executor_lock:
+                    self.executor_running = False
+
+            if not future.done():
+                self.get_logger().error("夹爪切换服务调用超时")
+                return None
+
+            response = future.result()
+            if response is None:
+                self.get_logger().error("夹爪切换服务调用失败")
+                return None
+
+            if response.success:
+                self.get_logger().info(f'夹爪切换成功: {response.message}')
+            else:
+                self.get_logger().warn(f'夹爪切换失败: {response.message}')
+            return response
+        except Exception as e:
+            import traceback
+            error_detail = traceback.format_exc()
+            self.get_logger().error(f'夹爪切换服务异常: {str(e)}\n{error_detail}')
+            return None
+
 
 # 全局ROS2节点实例
 ros2_node = None
@@ -1316,6 +1405,10 @@ class AlgorithmHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_execute_single_grasp()  # 调用单次抓取服务
         elif self.path == '/api/loop_grasp_control':
             self.handle_loop_grasp_control()  # 控制循环抓取服务
+        elif self.path == '/api/publish_grasps_loop_control':
+            self.handle_publish_grasps_loop_control()  # 控制 graspnet 循环抓取服务
+        elif self.path == '/api/run_gripper_swap':
+            self.handle_run_gripper_swap()  # 调用夹爪切换服务
         
         # 调试功能相关
         elif self.path == '/api/save_debug_features':
@@ -3273,6 +3366,129 @@ class AlgorithmHandler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             import traceback
             print(f"[ERROR] 处理循环抓取控制请求异常: {str(e)}\n{traceback.format_exc()}")
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            response = {"success": False, "message": str(e)}
+            self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+
+    def handle_publish_grasps_loop_control(self):
+        """处理 publish_grasps 循环控制服务调用"""
+        try:
+            if ros2_node is None:
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                response = {"success": False, "message": "ROS2节点未初始化"}
+                self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+                return
+
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length == 0:
+                self.send_response(400)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                response = {"success": False, "message": "请求体为空"}
+                self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+                return
+
+            post_data = self.rfile.read(content_length)
+            data = json.loads(post_data.decode('utf-8'))
+            start = data.get('data', False)
+            action = "启动" if start else "停止"
+
+            result = ros2_node.call_publish_grasps_loop_control(start)
+            if result is None:
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                response = {"success": False, "message": f"publish_grasps 循环{action}服务调用失败（超时或服务不可用）"}
+                self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+                return
+
+            response_data = {
+                "success": result.success,
+                "message": result.message
+            }
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(response_data, ensure_ascii=False).encode('utf-8'))
+        except Exception as e:
+            import traceback
+            print(f"[ERROR] 处理 publish_grasps 循环控制请求异常: {str(e)}\n{traceback.format_exc()}")
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            response = {"success": False, "message": str(e)}
+            self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+
+    def handle_run_gripper_swap(self):
+        """处理夹爪切换服务调用"""
+        try:
+            if ros2_node is None:
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                response = {"success": False, "message": "ROS2节点未初始化"}
+                self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+                return
+
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length == 0:
+                self.send_response(400)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                response = {"success": False, "message": "请求体为空"}
+                self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+                return
+
+            post_data = self.rfile.read(content_length)
+            data = json.loads(post_data.decode('utf-8'))
+            direction = str(data.get('direction', '')).strip()
+            if not direction:
+                self.send_response(400)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                response = {"success": False, "message": "direction 不能为空"}
+                self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+                return
+
+            timeout_sec = data.get('timeout_sec', None)
+            timeout = None if timeout_sec is None else float(timeout_sec)
+            result = ros2_node.call_run_gripper_swap(direction, timeout=timeout)
+
+            if result is None:
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                response = {"success": False, "message": "夹爪切换服务调用失败（超时或服务不可用）"}
+                self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+                return
+
+            response_data = {
+                "success": result.success,
+                "message": result.message,
+                "direction": direction
+            }
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(response_data, ensure_ascii=False).encode('utf-8'))
+        except Exception as e:
+            import traceback
+            print(f"[ERROR] 处理夹爪切换请求异常: {str(e)}\n{traceback.format_exc()}")
             self.send_response(500)
             self.send_header('Content-type', 'application/json; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')

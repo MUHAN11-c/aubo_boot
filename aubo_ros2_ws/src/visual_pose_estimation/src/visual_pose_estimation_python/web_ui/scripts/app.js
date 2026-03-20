@@ -974,6 +974,8 @@ let _setRobotPoseRequestSeq = 0;
 let _moveToPoseLock = Promise.resolve();
 let _loopAutoGraspRunning = false;
 let _loopAutoGraspStopFlag = false;
+let _switchFlowInProgress = false;
+let _stopAllRequested = false;
 
 /**
  * Promise包装的采集图像函数
@@ -1237,6 +1239,14 @@ async function callLoopGraspControl(start) {
         const result = await response.json().catch(() => ({}));
         
         if (!response.ok || !result.success) {
+            // 停止接口做幂等：未运行视为已停止，避免流程编排中出现误报。
+            if (!start) {
+                const msg = (result.message || '').toString();
+                if (msg.includes('未在运行')) {
+                    addLogEntry('info', '循环抓取当前未运行，按已停止处理');
+                    return { success: true, message: msg || '循环抓取未运行' };
+                }
+            }
             const errorMsg = result.message || `循环抓取${action}失败`;
             addLogEntry('error', errorMsg);
             return { success: false, message: errorMsg };
@@ -1248,6 +1258,75 @@ async function callLoopGraspControl(start) {
         const errorMsg = '循环抓取控制服务调用异常: ' + e.message;
         addLogEntry('error', errorMsg);
         console.error('callLoopGraspControl 错误:', e);
+        return { success: false, message: errorMsg };
+    }
+}
+
+/**
+ * 控制 publish_grasps_client_worker 循环（graspnet）
+ * @param {boolean} start - true=启动，false=停止
+ * @returns {Promise<{success: boolean, message: string}>}
+ */
+async function callPublishGraspsLoopControl(start) {
+    try {
+        const action = start ? '启动' : '停止';
+        addLogEntry('info', `调用 graspnet 循环控制服务 (${action})...`);
+
+        const response = await fetch(`${API_BASE_URL}/api/publish_grasps_loop_control`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                data: start
+            })
+        });
+
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) {
+            const errorMsg = result.message || `graspnet 循环${action}失败`;
+            addLogEntry('error', errorMsg);
+            return { success: false, message: errorMsg };
+        }
+
+        addLogEntry('success', result.message || `graspnet 循环${action}成功`);
+        return { success: true, message: result.message };
+    } catch (e) {
+        const errorMsg = 'graspnet 循环控制服务调用异常: ' + e.message;
+        addLogEntry('error', errorMsg);
+        console.error('callPublishGraspsLoopControl 错误:', e);
+        return { success: false, message: errorMsg };
+    }
+}
+
+/**
+ * 调用夹爪切换服务（阻塞到切换结束）
+ * @param {string} direction - gripper0_to_gripper2 / gripper2_to_gripper0 / gripper2
+ * @returns {Promise<{success: boolean, message: string}>}
+ */
+async function callRunGripperSwap(direction) {
+    try {
+        addLogEntry('info', `调用夹爪切换服务: direction=${direction}（等待切换完成）...`);
+
+        const response = await fetch(`${API_BASE_URL}/api/run_gripper_swap`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                direction: direction
+            })
+        });
+
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) {
+            const errorMsg = result.message || `夹爪切换失败: ${direction}`;
+            addLogEntry('error', errorMsg);
+            return { success: false, message: errorMsg };
+        }
+
+        addLogEntry('success', result.message || `夹爪切换成功: ${direction}`);
+        return { success: true, message: result.message || '' };
+    } catch (e) {
+        const errorMsg = '夹爪切换服务调用异常: ' + e.message;
+        addLogEntry('error', errorMsg);
+        console.error('callRunGripperSwap 错误:', e);
         return { success: false, message: errorMsg };
     }
 }
@@ -1272,6 +1351,7 @@ async function loopAutoGrasp() {
 
     _loopAutoGraspRunning = true;
     _loopAutoGraspStopFlag = false;
+    _stopAllRequested = false;
     
     // 更新按钮状态
     const btn = document.getElementById('loop-auto-grasp-btn');
@@ -1280,7 +1360,7 @@ async function loopAutoGrasp() {
         btn.className = 'btn btn-danger';
     }
 
-    addLogEntry('info', '开始循环自动抓取模式（请确保机械臂已在拍照姿态）');
+    addLogEntry('info', '开始循环自动抓取模式（前端逐轮触发抓取，请确保机械臂已在拍照姿态）');
     
     try {
         // 循环检测和抓取
@@ -1337,15 +1417,15 @@ async function loopAutoGrasp() {
             const successNum = estimateResult.success_num || 0;
             if (successNum > 0) {
                 addLogEntry('info', `检测到 ${successNum} 个工件，开始自动抓取（ExecuteGraspPose / execute_grasp_pose_worker）...`);
-                
+
                 const graspSuccess = await autoGrasp();
-                
+
                 // 自动抓取失败（机械臂移动失败）则退出循环
                 if (!graspSuccess) {
                     addLogEntry('error', '自动抓取失败（execute_grasp_pose_worker / ExecuteGraspPose），退出循环自动抓取');
                     break;
                 }
-                
+
                 // 自动抓取完成后，等待回到拍照姿态稳定
                 addLogEntry('info', '等待回到拍照姿态稳定...');
                 await _delayMs(500);
@@ -1374,24 +1454,102 @@ async function loopAutoGrasp() {
 /**
  * 停止循环自动抓取
  */
-function stopLoopAutoGrasp() {
+async function stopLoopAutoGrasp() {
     if (!_loopAutoGraspRunning) {
-        addLogEntry('warning', '循环自动抓取未在运行');
-        return;
+        addLogEntry('info', '循环自动抓取当前未运行');
+        return { success: true, message: '前端循环未运行' };
     }
     
     addLogEntry('info', '正在停止循环自动抓取...');
     _loopAutoGraspStopFlag = true;
+    const res = await callLoopGraspControl(false);
+    return res;
 }
 
 /**
  * 循环自动抓取按钮点击处理函数
  */
-function toggleLoopAutoGrasp() {
+async function toggleLoopAutoGrasp() {
     if (_loopAutoGraspRunning) {
-        stopLoopAutoGrasp();
+        await stopLoopAutoGrasp();
     } else {
-        loopAutoGrasp();
+        await loopAutoGrasp();
+    }
+}
+
+/**
+ * 停止并切换到 gripper2，再启动 graspnet 循环。
+ */
+async function stopAndSwitchToGripper2ThenStartGraspnet() {
+    if (_switchFlowInProgress) {
+        addLogEntry('warning', '停止并切换流程正在执行中，请勿重复点击');
+        return;
+    }
+    _switchFlowInProgress = true;
+    _stopAllRequested = false;
+
+    try {
+        addLogEntry('info', '[SwitchFlow] 开始：停止 gripper0 循环并切换到 gripper2');
+
+        // 先请求停止两类循环，避免并发轨迹。
+        if (_loopAutoGraspRunning) {
+            await stopLoopAutoGrasp();
+        } else {
+            await callLoopGraspControl(false);
+        }
+        await callPublishGraspsLoopControl(false);
+
+        if (_stopAllRequested) {
+            addLogEntry('info', '[SwitchFlow] 已收到全部停止请求，终止后续切换流程');
+            return;
+        }
+
+        const swapRes = await callRunGripperSwap('gripper0_to_gripper2');
+        if (!swapRes.success) {
+            addLogEntry('error', '[SwitchFlow] 夹爪切换失败，流程终止');
+            return;
+        }
+
+        if (_stopAllRequested) {
+            addLogEntry('info', '[SwitchFlow] 切换完成后检测到全部停止请求，不启动 graspnet 循环');
+            return;
+        }
+
+        const g2StartRes = await callPublishGraspsLoopControl(true);
+        if (!g2StartRes.success) {
+            addLogEntry('error', '[SwitchFlow] gripper2 graspnet 循环启动失败');
+            return;
+        }
+
+        addLogEntry('success', '[SwitchFlow] 已完成：gripper2 graspnet 循环已启动');
+    } catch (e) {
+        addLogEntry('error', '[SwitchFlow] 异常: ' + e.message);
+        console.error('stopAndSwitchToGripper2ThenStartGraspnet 错误:', e);
+    } finally {
+        _switchFlowInProgress = false;
+    }
+}
+
+/**
+ * 全部停止（优雅停止）：请求当前轮结束后停止，不再开启新一轮。
+ */
+async function stopAllFlows() {
+    _stopAllRequested = true;
+    addLogEntry('info', '[StopAll] 发起优雅停止请求（当前轮完成后停止）...');
+
+    if (_loopAutoGraspRunning) {
+        _loopAutoGraspStopFlag = true;
+    }
+
+    const [g0StopRes, g2StopRes] = await Promise.all([
+        callLoopGraspControl(false),
+        callPublishGraspsLoopControl(false),
+    ]);
+
+    if (g0StopRes.success && g2StopRes.success) {
+        addLogEntry('success', '[StopAll] 停止请求已下发完成，等待当前轮收尾');
+    } else {
+        addLogEntry('warning', '[StopAll] 部分停止请求失败，请检查日志并手动确认状态');
     }
 }
 

@@ -53,6 +53,20 @@ static constexpr double kArcPathRetryDelaySec = 0.5;
 static constexpr double kCartesianEefStep = 0.015;
 static constexpr double kCartesianJumpThreshold = 0.0;
 
+// ============================================================================
+// 仿真临时开关（切回真实机械臂时只需改这里）
+// ----------------------------------------------------------------------------
+// kSkipTemporaryGripperIo = true:
+//   - 跳过抓取周期中的夹爪 IO（闭夹爪/开夹爪）
+//   - 跳过 onShutdown 中的“开夹爪”IO
+//   - 不调用 /aubo_driver/set_io，避免仿真环境下服务不可用导致流程失败
+//
+// 切回真实机械臂：
+//   1) 将 kSkipTemporaryGripperIo 改为 false
+//   2) 确认 /aubo_driver/set_io 服务可用
+// ============================================================================
+static constexpr bool kSkipTemporaryGripperIo = true;
+
 /** GraspNet Z 轴 180° 修正四元数 (qx,qy,qz,qw) = (0,0,1,0) */
 static const geometry_msgs::msg::Quaternion kQuatZ180 = []() {
   geometry_msgs::msg::Quaternion q;
@@ -330,15 +344,13 @@ void PublishGraspsClientWorker::handleLoopControl(
     return;
   }
 
-  // false: 当前周期结束后退出；若当前不在周期中则立即退出
+  // false: 当前周期结束后停止循环；若当前不在周期中则立即转为空闲（不退出节点）
   loop_enabled_.store(false);
   stop_after_cycle_.store(true);
-  if (!cycle_in_progress_.load())
-    shutdown_requested_.store(true);
 
   response->success = true;
-  response->message = cycle_in_progress_.load() ? "已收到关闭请求，将在当前周期结束后退出"
-                                                : "已收到关闭请求，当前无活动周期，立即退出";
+  response->message = cycle_in_progress_.load() ? "已收到关闭请求，将在当前周期结束后停止循环"
+                                                : "已收到关闭请求，当前无活动周期，已停止循环";
   RCLCPP_INFO(get_logger(), "收到循环控制: stop，%s", response->message.c_str());
 }
 
@@ -661,12 +673,21 @@ bool PublishGraspsClientWorker::runOneCycle()
     return failCycle();
   }
 
-  // RCLCPP_INFO(get_logger(), "步骤 6: 闭夹爪");
-  // if (!setGripperIo(gripper_io_index_, true))
-  // {
-  //   RCLCPP_ERROR(get_logger(), "runOneCycle 步骤6 闭夹爪失败");
-  //   return false;
-  // }
+  RCLCPP_INFO(get_logger(), "步骤 6: 闭夹爪 (IO=%d)", gripper_io_index_);
+  if (kSkipTemporaryGripperIo)
+  {
+    RCLCPP_WARN(get_logger(),
+                "⚠ 仿真临时模式：已跳过步骤6 夹爪IO（未调用 /aubo_driver/set_io）。"
+                "如需真实夹爪控制，请将 kSkipTemporaryGripperIo 改为 false。");
+  }
+  else
+  {
+    if (!setGripperIo(gripper_io_index_, true))
+    {
+      RCLCPP_ERROR(get_logger(), "runOneCycle 步骤6 闭夹爪失败");
+      return failCycle();
+    }
+  }
 
   RCLCPP_INFO(get_logger(), "步骤 7: 抬起 (z=%.2f m)", lift_offset_);
   if (!runArcPath('z', lift_offset_, joint_velocity_scaling_))
@@ -713,12 +734,21 @@ bool PublishGraspsClientWorker::runOneCycle()
     }
   }
 
-  // RCLCPP_INFO(get_logger(), "步骤 9: 开夹爪");
-  // if (!setGripperIo(gripper_io_index_, false))
-  // {
-  //   RCLCPP_ERROR(get_logger(), "runOneCycle 步骤9 开夹爪失败");
-  //   return false;
-  // }
+  RCLCPP_INFO(get_logger(), "步骤 9: 开夹爪 (IO=%d)", gripper_io_index_);
+  if (kSkipTemporaryGripperIo)
+  {
+    RCLCPP_WARN(get_logger(),
+                "⚠ 仿真临时模式：已跳过步骤9 夹爪IO（未调用 /aubo_driver/set_io）。"
+                "如需真实夹爪控制，请将 kSkipTemporaryGripperIo 改为 false。");
+  }
+  else
+  {
+    if (!setGripperIo(gripper_io_index_, false))
+    {
+      RCLCPP_ERROR(get_logger(), "runOneCycle 步骤9 开夹爪失败");
+      return failCycle();
+    }
+  }
 
   RCLCPP_INFO(get_logger(), "步骤 10: 回安全位");
   if (!moveToHome(home_velocity_scaling_, home_acceleration_scaling_))
@@ -749,8 +779,12 @@ void PublishGraspsClientWorker::publishStatus(int cycle_count, int success_count
 
 void PublishGraspsClientWorker::onShutdown()
 {
-  RCLCPP_INFO(get_logger(), "onShutdown: 回安全位、开夹爪");
-  setGripperIo(gripper_io_index_, false);
+  RCLCPP_INFO(get_logger(), "onShutdown: 回安全位%s",
+              kSkipTemporaryGripperIo ? "（仿真模式：跳过开夹爪IO）" : "、开夹爪");
+  if (!kSkipTemporaryGripperIo)
+  {
+    setGripperIo(gripper_io_index_, false);
+  }
   moveToHome(home_velocity_scaling_, home_acceleration_scaling_);
 }
 
@@ -770,8 +804,9 @@ bool PublishGraspsClientWorker::run()
     {
       publishStatus(cycle_count_, success_count_, fail_count_, 0, false);
       sleepInterruptible(this, 0.2);
+      // stop_after_cycle_ 仅用于“当前周期后停循环”，停稳后清标志，节点保持 idle 可再次 start。
       if (stop_after_cycle_.load() && !cycle_in_progress_.load())
-        shutdown_requested_.store(true);
+        stop_after_cycle_.store(false);
       continue;
     }
 
@@ -791,7 +826,11 @@ bool PublishGraspsClientWorker::run()
       sleepInterruptible(this, fail_retry_delay_sec_);
     }
     if (stop_after_cycle_.load())
-      shutdown_requested_.store(true);
+    {
+      loop_enabled_.store(false);
+      stop_after_cycle_.store(false);
+      RCLCPP_INFO(get_logger(), "已按请求在当前周期结束后停止循环，节点保持空闲可再次启动");
+    }
     sleepInterruptible(this, cycle_delay_sec_);
   }
   publishStatus(cycle_count_, success_count_, fail_count_, 0, false);

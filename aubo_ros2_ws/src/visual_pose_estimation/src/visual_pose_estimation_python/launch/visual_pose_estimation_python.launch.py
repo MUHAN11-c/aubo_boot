@@ -23,7 +23,7 @@ def generate_launch_description():
     # 声明launch参数
     calib_file_arg = DeclareLaunchArgument(
         'calib_file',
-        default_value='/home/mu/IVG/aubo_ros2_ws/src/visual_pose_estimation/src/visual_pose_estimation_python/web_ui/configs/hand_eye_calibration.yaml',
+        default_value='/home/mu/IVG2.0/aubo_ros2_ws/src/visual_pose_estimation/src/visual_pose_estimation_python/web_ui/configs/hand_eye_calibration.yaml',
         description='手眼标定文件路径'
     )
     

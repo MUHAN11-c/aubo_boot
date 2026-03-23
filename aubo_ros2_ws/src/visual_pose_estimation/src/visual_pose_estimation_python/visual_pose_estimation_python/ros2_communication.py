@@ -786,7 +786,7 @@ class ROS2Communication:
                             self.logger.warning(f'加载相机内参失败: {candidate}, 错误: {e}')
                 # 回退：hand_eye_calibration 包路径
                 if self.camera_matrix is None:
-                    fallback_camera = Path('/home/mu/IVG/aubo_ros2_ws/src/hand_eye_calibration/config/calibrationdata/ost.yaml')
+                    fallback_camera = Path('/home/mu/IVG2.0/aubo_ros2_ws/src/hand_eye_calibration/config/calibrationdata/ost.yaml')
                     if fallback_camera.exists():
                         try:
                             with open(fallback_camera, 'r', encoding='utf-8') as f:
@@ -822,7 +822,7 @@ class ROS2Communication:
                         return True
             
             # 回退：hand_eye_calibration 包 calibration_results
-            calib_results_dir = Path('/home/mu/IVG/aubo_ros2_ws/src/hand_eye_calibration/config/calibration_results')
+            calib_results_dir = Path('/home/mu/IVG2.0/aubo_ros2_ws/src/hand_eye_calibration/config/calibration_results')
             if calib_results_dir.exists():
                 yaml_files = sorted(calib_results_dir.glob('*.yaml'), key=lambda p: p.stat().st_mtime, reverse=True)
                 if yaml_files and self._load_hand_eye_calibration(str(yaml_files[0])):

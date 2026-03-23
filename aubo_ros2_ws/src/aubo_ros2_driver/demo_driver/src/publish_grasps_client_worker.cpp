@@ -65,7 +65,7 @@ static constexpr double kCartesianJumpThreshold = 0.0;
 //   1) 将 kSkipTemporaryGripperIo 改为 false
 //   2) 确认 /aubo_driver/set_io 服务可用
 // ============================================================================
-static constexpr bool kSkipTemporaryGripperIo = true;
+static constexpr bool kSkipTemporaryGripperIo = false;
 
 /** GraspNet Z 轴 180° 修正四元数 (qx,qy,qz,qw) = (0,0,1,0) */
 static const geometry_msgs::msg::Quaternion kQuatZ180 = []() {
@@ -98,6 +98,20 @@ static void scaleTrajectoryTimeLocal(moveit_msgs::msg::RobotTrajectory& traj, do
       for (auto& a : pts[i].accelerations)
         a /= (scale * scale);
   }
+}
+
+static double normalizeYawToShortEquivalent(double yaw_rad)
+{
+  double a = yaw_rad;
+  while (a > M_PI)
+    a -= 2.0 * M_PI;
+  while (a < -M_PI)
+    a += 2.0 * M_PI;
+  if (a > (M_PI / 2.0))
+    a -= M_PI;
+  else if (a < (-M_PI / 2.0))
+    a += M_PI;
+  return a;
 }
 
 // ============================================================================
@@ -505,6 +519,50 @@ bool PublishGraspsClientWorker::runGraspApproach(const geometry_msgs::msg::Pose&
   geometry_msgs::msg::Quaternion grasp_ori = pose_for_plan.orientation;
   geometry_msgs::msg::Quaternion grasp_ori_short = quatSameHemisphere(current_pose.orientation, grasp_ori);
 
+  Eigen::Quaterniond q_current(current_pose.orientation.w, current_pose.orientation.x, current_pose.orientation.y,
+                               current_pose.orientation.z);
+  Eigen::Quaterniond q_goal(grasp_ori_short.w, grasp_ori_short.x, grasp_ori_short.y, grasp_ori_short.z);
+  q_current.normalize();
+  q_goal.normalize();
+  Eigen::Quaterniond q_delta = q_current.conjugate() * q_goal;
+  q_delta.normalize();
+
+  // 仅对相对旋转中的 Z 轴扭转分量做短角归一化，保留其余旋转（roll/pitch 对应分量）。
+  const Eigen::Vector3d z_axis = Eigen::Vector3d::UnitZ();
+  const Eigen::Vector3d q_vec(q_delta.x(), q_delta.y(), q_delta.z());
+  const Eigen::Vector3d proj_on_z = z_axis * q_vec.dot(z_axis);
+
+  Eigen::Quaterniond q_twist(q_delta.w(), proj_on_z.x(), proj_on_z.y(), proj_on_z.z());
+  if (q_twist.norm() < 1e-9)
+  {
+    q_twist = Eigen::Quaterniond::Identity();
+  }
+  else
+  {
+    q_twist.normalize();
+  }
+
+  Eigen::Quaterniond q_swing = q_delta * q_twist.conjugate();
+  q_swing.normalize();
+
+  const double delta_yaw = 2.0 * std::atan2(q_twist.z(), q_twist.w());
+  const double delta_yaw_short = normalizeYawToShortEquivalent(delta_yaw);
+  Eigen::Quaterniond q_twist_short(Eigen::AngleAxisd(delta_yaw_short, z_axis));
+
+  Eigen::Quaterniond q_delta_short = q_swing * q_twist_short;
+  q_delta_short.normalize();
+  Eigen::Quaterniond q_target = q_current * q_delta_short;
+  q_target.normalize();
+
+  geometry_msgs::msg::Quaternion grasp_ori_rot_short;
+  grasp_ori_rot_short.x = q_target.x();
+  grasp_ori_rot_short.y = q_target.y();
+  grasp_ori_rot_short.z = q_target.z();
+  grasp_ori_rot_short.w = q_target.w();
+
+  RCLCPP_INFO(get_logger(), "抓取接近旋转: 当前->目标相对Z旋转 %.4f rad (%.2f°), 短角 %.4f rad (%.2f°)", delta_yaw,
+              delta_yaw * 180.0 / M_PI, delta_yaw_short, delta_yaw_short * 180.0 / M_PI);
+
   std::vector<geometry_msgs::msg::Pose> waypoints;
   waypoints.push_back(current_pose);
 
@@ -534,14 +592,14 @@ bool PublishGraspsClientWorker::runGraspApproach(const geometry_msgs::msg::Pose&
   p_rot.position.x = gx;
   p_rot.position.y = gy;
   p_rot.position.z = z_above;
-  p_rot.orientation = grasp_ori_short;
+  p_rot.orientation = grasp_ori_rot_short;
   waypoints.push_back(p_rot);
 
   geometry_msgs::msg::Pose p_down;
   p_down.position.x = gx;
   p_down.position.y = gy;
   p_down.position.z = gz;
-  p_down.orientation = grasp_ori_short;
+  p_down.orientation = grasp_ori_rot_short;
   waypoints.push_back(p_down);
 
   moveit_msgs::msg::RobotTrajectory trajectory;
@@ -666,42 +724,58 @@ bool PublishGraspsClientWorker::runOneCycle()
   RCLCPP_INFO(get_logger(), "  目标位姿 xyz=[%.3f, %.3f, %.3f]", pose_ee.position.x, pose_ee.position.y,
               pose_ee.position.z);
 
-  RCLCPP_INFO(get_logger(), "步骤 5: 抓取接近 (4 点笛卡尔)");
-  if (!runGraspApproach(pose_ee, height_above_, joint_velocity_scaling_, joint_acceleration_scaling_))
-  {
-    RCLCPP_ERROR(get_logger(), "runOneCycle 步骤5 抓取接近失败");
-    return failCycle();
-  }
-
-  RCLCPP_INFO(get_logger(), "步骤 6: 闭夹爪 (IO=%d)", gripper_io_index_);
+  RCLCPP_INFO(get_logger(), "步骤 5: 抓取前开夹爪 (IO=%d)", gripper_io_index_);
   if (kSkipTemporaryGripperIo)
   {
     RCLCPP_WARN(get_logger(),
-                "⚠ 仿真临时模式：已跳过步骤6 夹爪IO（未调用 /aubo_driver/set_io）。"
+                "⚠ 仿真临时模式：已跳过步骤5 夹爪IO（未调用 /aubo_driver/set_io）。"
+                "如需真实夹爪控制，请将 kSkipTemporaryGripperIo 改为 false。");
+  }
+  else
+  {
+    if (!setGripperIo(gripper_io_index_, false))
+    {
+      RCLCPP_ERROR(get_logger(), "runOneCycle 步骤5 抓取前开夹爪失败");
+      return failCycle();
+    }
+  }
+
+  RCLCPP_INFO(get_logger(), "步骤 6: 抓取接近 (4 点笛卡尔)");
+  if (!runGraspApproach(pose_ee, height_above_, joint_velocity_scaling_, joint_acceleration_scaling_))
+  {
+    RCLCPP_ERROR(get_logger(), "runOneCycle 步骤6 抓取接近失败");
+    return failCycle();
+  }
+
+  RCLCPP_INFO(get_logger(), "步骤 7: 闭夹爪 (IO=%d)", gripper_io_index_);
+  if (kSkipTemporaryGripperIo)
+  {
+    RCLCPP_WARN(get_logger(),
+                "⚠ 仿真临时模式：已跳过步骤7 夹爪IO（未调用 /aubo_driver/set_io）。"
                 "如需真实夹爪控制，请将 kSkipTemporaryGripperIo 改为 false。");
   }
   else
   {
     if (!setGripperIo(gripper_io_index_, true))
     {
-      RCLCPP_ERROR(get_logger(), "runOneCycle 步骤6 闭夹爪失败");
+      RCLCPP_ERROR(get_logger(), "runOneCycle 步骤7 闭夹爪失败");
       return failCycle();
     }
   }
 
-  RCLCPP_INFO(get_logger(), "步骤 7: 抬起 (z=%.2f m)", lift_offset_);
+  RCLCPP_INFO(get_logger(), "步骤 8: 抬起 (z=%.2f m)", lift_offset_);
   if (!runArcPath('z', lift_offset_, joint_velocity_scaling_))
   {
-    RCLCPP_ERROR(get_logger(), "runOneCycle 步骤7 抬起失败");
+    RCLCPP_ERROR(get_logger(), "runOneCycle 步骤8 抬起失败");
     return failCycle();
   }
 
-  RCLCPP_INFO(get_logger(), "步骤 8: 移动到放置位 (place_mode=%s)", place_mode_.c_str());
+  RCLCPP_INFO(get_logger(), "步骤 9: 移动到放置位 (place_mode=%s)", place_mode_.c_str());
   if (place_mode_ == "home_offset")
   {
     if (!moveToHome(home_velocity_scaling_, home_acceleration_scaling_))
     {
-      RCLCPP_ERROR(get_logger(), "runOneCycle 步骤8 回安全位失败");
+      RCLCPP_ERROR(get_logger(), "runOneCycle 步骤9 回安全位失败");
       return failCycle();
     }
     const std::vector<CartesianSegment> place_segments = {
@@ -711,7 +785,7 @@ bool PublishGraspsClientWorker::runOneCycle()
     };
     if (!runArcPathSequence(place_segments, joint_velocity_scaling_))
     {
-      RCLCPP_ERROR(get_logger(), "runOneCycle 步骤8 放置位多段笛卡尔失败 (y=%.2f, z=%.2f)",
+      RCLCPP_ERROR(get_logger(), "runOneCycle 步骤9 放置位多段笛卡尔失败 (y=%.2f, z=%.2f)",
                    place_offset_y_, place_offset_z_);
       return failCycle();
     }
@@ -721,7 +795,7 @@ bool PublishGraspsClientWorker::runOneCycle()
     if (!moveToPose(place_pose_[0], place_pose_[1], place_pose_[2], place_pose_[3], place_pose_[4], place_pose_[5],
                     place_pose_[6], false, joint_velocity_scaling_, joint_acceleration_scaling_))
     {
-      RCLCPP_ERROR(get_logger(), "runOneCycle 步骤8 移动到放置位失败");
+      RCLCPP_ERROR(get_logger(), "runOneCycle 步骤9 移动到放置位失败");
       return failCycle();
     }
   }
@@ -729,31 +803,31 @@ bool PublishGraspsClientWorker::runOneCycle()
   {
     if (!moveToJoints(place_joints_, joint_velocity_scaling_, joint_acceleration_scaling_))
     {
-      RCLCPP_ERROR(get_logger(), "runOneCycle 步骤8 移动到放置关节失败");
+      RCLCPP_ERROR(get_logger(), "runOneCycle 步骤9 移动到放置关节失败");
       return failCycle();
     }
   }
 
-  RCLCPP_INFO(get_logger(), "步骤 9: 开夹爪 (IO=%d)", gripper_io_index_);
+  RCLCPP_INFO(get_logger(), "步骤 10: 开夹爪 (IO=%d)", gripper_io_index_);
   if (kSkipTemporaryGripperIo)
   {
     RCLCPP_WARN(get_logger(),
-                "⚠ 仿真临时模式：已跳过步骤9 夹爪IO（未调用 /aubo_driver/set_io）。"
+                "⚠ 仿真临时模式：已跳过步骤10 夹爪IO（未调用 /aubo_driver/set_io）。"
                 "如需真实夹爪控制，请将 kSkipTemporaryGripperIo 改为 false。");
   }
   else
   {
     if (!setGripperIo(gripper_io_index_, false))
     {
-      RCLCPP_ERROR(get_logger(), "runOneCycle 步骤9 开夹爪失败");
+      RCLCPP_ERROR(get_logger(), "runOneCycle 步骤10 开夹爪失败");
       return failCycle();
     }
   }
 
-  RCLCPP_INFO(get_logger(), "步骤 10: 回安全位");
+  RCLCPP_INFO(get_logger(), "步骤 11: 回安全位");
   if (!moveToHome(home_velocity_scaling_, home_acceleration_scaling_))
   {
-    RCLCPP_ERROR(get_logger(), "runOneCycle 步骤10 回安全位失败");
+    RCLCPP_ERROR(get_logger(), "runOneCycle 步骤11 回安全位失败");
     return failCycle();
   }
 

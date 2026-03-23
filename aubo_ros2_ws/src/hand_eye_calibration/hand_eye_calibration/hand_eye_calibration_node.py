@@ -2037,7 +2037,7 @@ class HandEyeCalibrationNode(Node):
                                 json.dump(saved_calibration_data_clean, f, indent=2, ensure_ascii=False)
                             
                             self.get_logger().info(f'✅ 标定数据已保存到: {data_file}')
-                            self.get_logger().info(f'   可用于验证脚本: /home/mu/IVG/hand_eye_calibration_validation/verify_calibration.py')
+                            self.get_logger().info(f'   可用于验证脚本: /home/mu/IVG2.0/hand_eye_calibration_validation/verify_calibration.py')
                             
                         except Exception as e:
                             self.get_logger().warn(f'⚠️ 保存标定数据失败: {str(e)}')
@@ -4381,7 +4381,7 @@ class HandEyeCalibrationNode(Node):
         def clear_collect_data():
             """清空collect_data目录中的图像和位姿文件"""
             try:
-                collect_data_dir = '/home/mu/IVG/hand_eye_calibrate/collect_data'
+                collect_data_dir = '/home/mu/IVG2.0/hand_eye_calibrate/collect_data'
                 
                 if not os.path.exists(collect_data_dir):
                     os.makedirs(collect_data_dir, exist_ok=True)
@@ -4432,7 +4432,7 @@ class HandEyeCalibrationNode(Node):
                 if robot_pose is None:
                     return jsonify({'success': False, 'error': '机器人位姿数据缺失'})
                 
-                collect_data_dir = '/home/mu/IVG/hand_eye_calibrate/collect_data'
+                collect_data_dir = '/home/mu/IVG2.0/hand_eye_calibrate/collect_data'
                 pose_dir = os.path.join(collect_data_dir, f'pose_{pose_index}')
                 os.makedirs(pose_dir, exist_ok=True)
                 

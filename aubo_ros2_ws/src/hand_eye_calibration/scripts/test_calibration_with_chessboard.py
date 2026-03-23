@@ -32,7 +32,7 @@ class CalibrationTester(Node):
             import glob
             import os
             
-            calib_dir = '/home/mu/IVG/hand_eye_calibration_validation'
+            calib_dir = '/home/mu/IVG2.0/hand_eye_calibration_validation'
             pattern = os.path.join(calib_dir, 'calibration_data_*.json')
             files = sorted(glob.glob(pattern), reverse=True)
             
@@ -166,7 +166,7 @@ class CalibrationTester(Node):
     def save_test_results(self, positions, orientations, statistics):
         """保存测试结果"""
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f'/home/mu/IVG/hand_eye_calibration_validation/test_results_{timestamp}.json'
+        filename = f'/home/mu/IVG2.0/hand_eye_calibration_validation/test_results_{timestamp}.json'
         
         data = {
             'timestamp': timestamp,

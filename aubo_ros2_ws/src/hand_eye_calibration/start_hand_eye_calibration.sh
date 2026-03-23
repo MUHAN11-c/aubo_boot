@@ -18,8 +18,8 @@ NC='\033[0m' # No Color
 # 环境路径
 ROS1_SETUP="/opt/ros/noetic/setup.bash"
 ROS2_SETUP="/opt/ros/foxy/setup.bash"
-AUBO_WS="/home/mu/IVG/aubo_ws"
-AUBO_ROS2_WS="/home/mu/IVG/aubo_ros2_ws"
+AUBO_WS="/home/mu/IVG2.0/aubo_ws"
+AUBO_ROS2_WS="/home/mu/IVG2.0/aubo_ros2_ws"
 ROS2_WS="/home/mu/ros2_ws"
 
 echo -e "${GREEN}========================================${NC}"

@@ -353,10 +353,10 @@ def main():
     print("使用实际数据验证OpenCV手眼标定模式")
     print("="*80)
     print(f"验证时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"数据来源: /home/mu/IVG/hand_eye_calibrate/collect_data")
+    print(f"数据来源: /home/mu/IVG2.0/hand_eye_calibrate/collect_data")
     
     # 数据路径
-    data_dir = '/home/mu/IVG/hand_eye_calibrate/collect_data'
+    data_dir = '/home/mu/IVG2.0/hand_eye_calibrate/collect_data'
     poses_file = os.path.join(data_dir, 'poses.txt')
     
     # 检查数据

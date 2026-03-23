@@ -186,7 +186,7 @@ def main():
     print("="*80)
     
     # 查找最新的误差计算文件
-    config_dir = '/home/mu/IVG/aubo_ros2_ws/install/hand_eye_calibration/share/hand_eye_calibration/config'
+    config_dir = '/home/mu/IVG2.0/aubo_ros2_ws/install/hand_eye_calibration/share/hand_eye_calibration/config'
     error_files = glob.glob(os.path.join(config_dir, 'opencv_calib_05_error_calculation_*.json'))
     
     if not error_files:

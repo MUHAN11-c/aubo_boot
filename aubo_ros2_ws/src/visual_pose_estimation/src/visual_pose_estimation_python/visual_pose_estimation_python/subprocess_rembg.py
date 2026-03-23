@@ -40,7 +40,7 @@ class SubprocessRemBGProcessor:
         script_candidates = [
             pkg_root / "web_ui" / "scripts" / "rembg_subprocess.py",
             # 兼容当前工作空间的源码绝对路径（防止安装后找不到脚本）
-            Path("/home/mu/IVG/aubo_ros2_ws/src/visual_pose_estimation/src/visual_pose_estimation_python/web_ui/scripts/rembg_subprocess.py"),
+            Path("/home/mu/IVG2.0/aubo_ros2_ws/src/visual_pose_estimation/src/visual_pose_estimation_python/web_ui/scripts/rembg_subprocess.py"),
         ]
         chosen = None
         for cand in script_candidates:

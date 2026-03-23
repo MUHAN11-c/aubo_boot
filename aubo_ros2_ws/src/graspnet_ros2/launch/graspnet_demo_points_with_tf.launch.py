@@ -52,6 +52,8 @@ def _declare_launch_arguments(package_path, baseline_dir):
         # 相机
         DeclareLaunchArgument('launch_camera', default_value='true',
                               description='是否启动 Percipio 相机驱动'),
+        DeclareLaunchArgument('launch_hand_eye_tf', default_value='true',
+                              description='是否发布手眼静态 TF（末端->camera_frame）及 camera_frame->camera_link'),
         DeclareLaunchArgument('ee_frame_id', default_value='wrist3_Link', description='末端 link（手眼 TF 父坐标系）'),
         DeclareLaunchArgument('hand_eye_yaml_path', default_value=hand_eye_default, description='手眼标定 YAML'),
         # GraspNet
@@ -101,7 +103,7 @@ def generate_launch_description():
     )
     hand_eye_and_camera_tf = GroupAction(
         [hand_eye_static_tf_node, camera_frame_to_camera_link],
-        condition=IfCondition(LaunchConfiguration('launch_camera')),
+        condition=IfCondition(LaunchConfiguration('launch_hand_eye_tf')),
     )
 
     graspnet_demo_points_node = Node(

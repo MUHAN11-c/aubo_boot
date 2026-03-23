@@ -2,36 +2,111 @@
 
 机器人驱动功能包（ROS 2），提供机器人状态发布、运动控制、位姿设置、夹爪快换与 GraspNet 循环抓取等功能。
 
-## 快速开始
+## 第一节：启动命令与服务测试命令
+
+### 1) 启动命令
 
 ```bash
+# 统一环境（每个终端都先执行）
+cd ~/IVG2.0/aubo_ros2_ws
+source /opt/ros/humble/setup.bash
 source install/setup.bash
-cd IVG2.0/aubo_ros2_ws/
-use_ros2
+```
 
-# 终端1：MoveIt2 + 机械臂
+```bash
+# 终端1：MoveIt2 + 机械臂（先启动）
 ros2 launch aubo_moveit_config aubo_moveit_pure_ros2.launch.py
+```
 
-# 终端2：GraspNet 点云推理 + TF（触发式采集）
-ros2 launch graspnet_ros2 graspnet_demo_points_with_tf.launch.py \
-  capture_groups_target:=3 \
-  capture_control_service:=/graspnet_capture_control
+```bash
+# 终端2：demo_driver 基础服务（/move_to_pose /plan_trajectory /execute_trajectory /get_current_state /set_speed_factor /set_robot_pose）
+ros2 launch aubo_moveit_config demo_driver_services.launch.py
+```
 
-# 终端3：抓取 Worker（与感知服务名、组数保持一致）
+```bash
+# 终端3（可选）：单次抓取 Worker（/execute_single_grasp /loop_grasp_control）
+ros2 launch demo_driver execute_grasp_pose_worker.launch.py
+```
+
+```bash
+# 终端4（可选）：GraspNet 循环抓取 Worker（默认服务 /publish_grasps_worker_loop_control）
 ros2 run demo_driver publish_grasps_client_worker_node --ros-args \
   -p grasp_capture_service_name:=/graspnet_capture_control \
   -p loop_control_service_name:=/publish_grasps_worker_loop_control \
   -p auto_start_loop:=false \
   -p min_groups_before_pick:=3
+```
 
-# 终端4：开启循环抓取
-ros2 run graspnet_ros2 publish_grasps_worker_loop_control_client --start
+```bash
+# 终端5（可选）：夹爪快换 Worker（/run_gripper_swap）
+ros2 run demo_driver gripper_swap_worker_node
+```
 
-# 终端4：关闭循环抓取（当前周期结束后退出）
-ros2 run graspnet_ros2 publish_grasps_worker_loop_control_client --stop
+### 2) 各服务测试命令（按当前 src 实现）
 
-# 可选：夹爪快换 Worker（单独使用）
-# ros2 run demo_driver gripper_swap_worker_node
+```bash
+# 先查看服务是否就绪
+ros2 service list | rg -E "/move_to_pose|/plan_trajectory|/execute_trajectory|/get_current_state|/set_speed_factor|/set_robot_pose|/run_gripper_swap|/execute_single_grasp|/loop_grasp_control|/publish_grasps_worker_loop_control"
+```
+
+```bash
+# /move_to_pose (demo_interface/srv/MoveToPose)
+ros2 service call /move_to_pose demo_interface/srv/MoveToPose \
+"{target_pose: {position: {x: 0.40, y: 0.00, z: 0.30}, orientation: {x: 0.0, y: 1.0, z: 0.0, w: 0.0}}, target_joints: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], use_joints: false, velocity_factor: 0.3, acceleration_factor: 0.2}"
+```
+
+```bash
+# /plan_trajectory (demo_interface/srv/PlanTrajectory)
+ros2 service call /plan_trajectory demo_interface/srv/PlanTrajectory \
+"{target_pose: {position: {x: 0.40, y: 0.00, z: 0.30}, orientation: {x: 0.0, y: 1.0, z: 0.0, w: 0.0}}, use_joints: false}"
+```
+
+```bash
+# /execute_trajectory (demo_interface/srv/ExecuteTrajectory)
+# 建议：将 /plan_trajectory 返回的 trajectory 原样填入后再执行
+ros2 service call /execute_trajectory demo_interface/srv/ExecuteTrajectory \
+"{trajectory: {joint_names: [], points: []}}"
+```
+
+```bash
+# /get_current_state (demo_interface/srv/GetCurrentState)
+ros2 service call /get_current_state demo_interface/srv/GetCurrentState "{}"
+```
+
+```bash
+# /set_speed_factor (demo_interface/srv/SetSpeedFactor)
+ros2 service call /set_speed_factor demo_interface/srv/SetSpeedFactor "{velocity_factor: 0.5}"
+```
+
+```bash
+# /set_robot_pose (demo_interface/srv/SetRobotPose)
+# target_pose 含义: [x, y, z, roll, pitch, yaw]
+ros2 service call /set_robot_pose demo_interface/srv/SetRobotPose \
+"{target_pose: [0.40, 0.00, 0.30, 3.14159, 0.0, 1.5708], use_joints: false, is_radian: true, velocity: 0.3}"
+```
+
+```bash
+# /run_gripper_swap (demo_interface/srv/RunGripperSwap)
+ros2 service call /run_gripper_swap demo_interface/srv/RunGripperSwap "{direction: 'gripper2'}"
+```
+
+```bash
+# /execute_single_grasp (demo_interface/srv/ExecuteGraspPose)
+# use_visual_estimation=true 时会调用 /estimate_pose（interface/srv/EstimatePose）
+ros2 service call /execute_single_grasp demo_interface/srv/ExecuteGraspPose \
+"{object_id: '3211242785', use_visual_estimation: true}"
+```
+
+```bash
+# /loop_grasp_control (std_srvs/srv/SetBool) - execute_grasp_pose_worker 循环控制
+ros2 service call /loop_grasp_control std_srvs/srv/SetBool "{data: true}"   # 开始
+ros2 service call /loop_grasp_control std_srvs/srv/SetBool "{data: false}"  # 停止（当前周期后停）
+```
+
+```bash
+# /publish_grasps_worker_loop_control (std_srvs/srv/SetBool) - publish_grasps_client_worker 循环控制
+ros2 service call /publish_grasps_worker_loop_control std_srvs/srv/SetBool "{data: true}"   # 开始
+ros2 service call /publish_grasps_worker_loop_control std_srvs/srv/SetBool "{data: false}"  # 停止（当前周期后停）
 ```
 
 **调用逻辑**：详见 [docs/GRASP_CALL_FLOW.md](docs/GRASP_CALL_FLOW.md)

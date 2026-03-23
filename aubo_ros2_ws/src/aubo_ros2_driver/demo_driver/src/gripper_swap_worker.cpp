@@ -30,7 +30,7 @@ static constexpr double kCartesianJumpThreshold = 0.0;
 // 仿真临时开关：
 // true  -> 跳过本文件全部 setGripperIo 调用（不调用 /aubo_driver/set_io）
 // false -> 恢复真实夹爪快换 IO 控制
-static constexpr bool kSkipTemporaryGripperIo = true;
+static constexpr bool kSkipTemporaryGripperIo = false;
 
 static void scaleTrajectoryTimeLocal(moveit_msgs::msg::RobotTrajectory& traj, double velocity_factor,
                                      double acceleration_factor)

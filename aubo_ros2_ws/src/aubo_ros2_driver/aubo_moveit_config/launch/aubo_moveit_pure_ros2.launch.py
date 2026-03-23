@@ -193,7 +193,7 @@ def launch_setup(context, *args, **kwargs):
         name="aubo_robot_simulator",
         output="screen",
         parameters=[{
-            "motion_update_rate": 300.0,  # 400Hz 更密插值，减轻运动过程中轻微抖动
+            "motion_update_rate": 350.0,  # 400Hz 更密插值，减轻运动过程中轻微抖动
             "minimum_buffer_size": 600,  # 降低节流阈值，避免速度因子 0.1 时 rib>2000 导致成批发送卡顿
             "joint_names": joint_names_list,
         }],

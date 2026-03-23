@@ -96,6 +96,12 @@ def generate_launch_description():
         default_value='false',  # 暂时关闭手眼标定 TF 发布；需要时改为 true
         description='是否发布手眼标定 TF 变换（true/false）'
     )
+
+    enable_image_data_converter_arg = DeclareLaunchArgument(
+        'enable_image_data_converter',
+        default_value='false',
+        description='是否启动 image_data_converter_node（若已启用 image_data_bridge，建议保持 false）'
+    )
     
     # 图像数据转换节点（将 sensor_msgs/Image 转换为 ImageData）
     # 如果不需要转换，可以注释掉这个节点，直接使用 image_data_bridge
@@ -109,6 +115,8 @@ def generate_launch_description():
             'output_topic': '/image_data',
             'camera_id': '207000152740',
         }]
+        ,
+        condition=IfCondition(LaunchConfiguration('enable_image_data_converter'))
     )
     
     # 手眼标定节点
@@ -161,6 +169,7 @@ def generate_launch_description():
         tf_parent_frame_arg,
         tf_child_frame_arg,
         publish_tf_arg,
+        enable_image_data_converter_arg,
         image_data_converter_node,
         hand_eye_calibration_node,
         hand_eye_tf_publisher_node,

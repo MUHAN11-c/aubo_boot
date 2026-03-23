@@ -19,13 +19,13 @@ def generate_launch_description():
     
     calib_file_arg = DeclareLaunchArgument(
         'calib_file',
-        default_value='/home/mu/IVG/aubo_ros2_ws/src/hand_eye_calibration/config/calibration_results/hand_eye_calibration_20260112_155451.yaml',
+        default_value='/home/mu/IVG2.0/aubo_ros2_ws/src/hand_eye_calibration/config/calibration_results/hand_eye_calibration_20260112_155451.yaml',
         description='标定文件路径'
     )
     
     template_root_arg = DeclareLaunchArgument(
         'template_root',
-        default_value='/home/mu/IVG/aubo_ros2_ws/src/visual_pose_estimation/templates',
+        default_value='/home/mu/IVG2.0/aubo_ros2_ws/src/visual_pose_estimation/templates',
         description='模板库根目录'
     )
     

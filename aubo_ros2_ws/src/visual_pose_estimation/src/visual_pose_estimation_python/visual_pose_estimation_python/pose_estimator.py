@@ -95,7 +95,7 @@ class PoseEstimator:
         while a < -180.0:
             a += 360.0
         return a
-    
+
     def load_template_library(
         self,
         template_root: str,
@@ -1089,7 +1089,7 @@ class PoseEstimator:
             template_angle = best_template.feature.standardized_angle if best_template.feature else 0.0
             target_angle = target_feature.standardized_angle
             dtheta = target_angle - template_angle
-        
+
         # 获取模板抓取姿态（已经是T_C_E_grasp，相机坐标系到末端执行器）
         T_C_E_grasp_template = best_template.T_C_E_grasp.copy()
         

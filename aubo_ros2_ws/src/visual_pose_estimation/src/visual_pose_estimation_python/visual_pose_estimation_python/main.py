@@ -51,7 +51,7 @@ class VisualPoseEstimationNode(Node):
             
             if not Path(template_root).exists():
                 # 备用路径
-                template_root = '/home/mu/IVG/aubo_ros2_ws/src/visual_pose_estimation/templates'
+                template_root = '/home/mu/IVG2.0/aubo_ros2_ws/src/visual_pose_estimation/templates'
         
         # 保存参数
         self.calib_file = calib_file

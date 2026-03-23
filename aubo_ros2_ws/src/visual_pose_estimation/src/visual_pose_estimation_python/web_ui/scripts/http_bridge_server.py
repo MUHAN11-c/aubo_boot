@@ -271,7 +271,7 @@ def get_templates_dir():
     fallback = repo_root / "templates"
     if fallback.exists():
         return str(fallback)
-    return "/home/mu/IVG/aubo_ros2_ws/src/visual_pose_estimation/templates"
+    return "/home/mu/IVG2.0/aubo_ros2_ws/src/visual_pose_estimation/templates"
 
 
 def _normalize_pose_rotation(robot_status):
@@ -3498,6 +3498,8 @@ class AlgorithmHandler(http.server.SimpleHTTPRequestHandler):
     
 def start_server():
     global ros2_node
+    rembg_providers = []
+    rembg_gpu_enabled = False
     
     # 诊断信息：显示 Python 环境和模块可用性
     print(f"\n{'='*60}")
@@ -3513,8 +3515,9 @@ def start_server():
             print(f"RemBG 模式: 直接导入")
             try:
                 import onnxruntime as ort
-                providers = ort.get_available_providers()
-                print(f"ONNX Runtime Providers: {providers}")
+                rembg_providers = ort.get_available_providers()
+                rembg_gpu_enabled = "CUDAExecutionProvider" in rembg_providers
+                print(f"ONNX Runtime Providers: {rembg_providers}")
             except Exception as e:
                 print(f"ONNX Runtime 检查失败: {e}")
         elif SUBPROCESS_REMBG_AVAILABLE:
@@ -3531,12 +3534,15 @@ def start_server():
                     timeout=5
                 )
                 if test_result.returncode == 0:
-                    providers = test_result.stdout.strip().split(',')
-                    print(f"ONNX Runtime Providers (conda): {providers}")
+                    rembg_providers = test_result.stdout.strip().split(',')
+                    rembg_gpu_enabled = "CUDAExecutionProvider" in rembg_providers
+                    print(f"ONNX Runtime Providers (conda): {rembg_providers}")
                 else:
                     print(f"Conda 环境检查失败: {test_result.stderr}")
             except Exception as e:
                 print(f"Conda 环境检查异常: {e}")
+        if rembg_providers and not rembg_gpu_enabled:
+            print(f"⚠ 未检测到 CUDAExecutionProvider，RemBG 将使用 CPU 推理")
     print(f"{'='*60}\n")
     
     # 初始化ROS2
@@ -3575,7 +3581,10 @@ def start_server():
         print(f"🐍 Python 环境: {sys.executable}")
         print(f"📦 RemBG 可用: {REMBG_AVAILABLE}")
         if REMBG_AVAILABLE:
-            print(f"✓ RemBG GPU 功能已启用")
+            if rembg_gpu_enabled:
+                print(f"✓ RemBG GPU 功能已启用 (CUDAExecutionProvider)")
+            else:
+                print(f"⚠ RemBG 可用，但当前未启用 CUDAExecutionProvider，将使用 CPU")
         else:
             print(f"⚠ RemBG 不可用，请检查 Python 环境是否包含 rembg 和 onnxruntime")
         print(f"⚡ 按 Ctrl+C 停止服务器")

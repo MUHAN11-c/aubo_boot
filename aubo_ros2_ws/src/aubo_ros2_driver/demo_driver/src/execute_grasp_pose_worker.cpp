@@ -42,6 +42,7 @@ static constexpr int kArcPathMaxRetries = 3;
 static constexpr double kArcPathRetryDelaySec = 0.5;
 static constexpr double kCartesianEefStep = 0.015;
 static constexpr double kCartesianJumpThreshold = 0.0;
+static constexpr double kExecuteGraspZMinLimit = 0.19;
 
 // ============================================================================
 // 临时调试开关（切回真实机械臂时只需改这里）
@@ -55,8 +56,8 @@ static constexpr double kCartesianJumpThreshold = 0.0;
 //    适用场景：仿真环境未提供 /aubo_driver/set_io，避免流程因 IO 失败中断。
 //    切回真实流程：改为 false（恢复真实夹爪 IO 控制）。
 // ============================================================================
-static constexpr bool kUseTemporaryFixedGraspPose = true;
-static constexpr bool kSkipTemporaryGripperIo = true;
+static constexpr bool kUseTemporaryFixedGraspPose = false;
+static constexpr bool kSkipTemporaryGripperIo = false;
 
 static constexpr double kTemporaryGraspX = 0.396;
 static constexpr double kTemporaryGraspY = -0.128;
@@ -89,6 +90,20 @@ static void scaleTrajectoryTimeLocal(moveit_msgs::msg::RobotTrajectory& traj, do
   }
 }
 
+static double normalizeYawToShortEquivalent(double yaw_rad)
+{
+  double a = yaw_rad;
+  while (a > M_PI)
+    a -= 2.0 * M_PI;
+  while (a < -M_PI)
+    a += 2.0 * M_PI;
+  if (a > (M_PI / 2.0))
+    a -= M_PI;
+  else if (a < (-M_PI / 2.0))
+    a += M_PI;
+  return a;
+}
+
 // ============================================================================
 // 构造与初始化
 // ============================================================================
@@ -113,7 +128,7 @@ static void scaleTrajectoryTimeLocal(moveit_msgs::msg::RobotTrajectory& traj, do
 // | egp_place_offset_z         | double   | -0.15          | 安全位 z 偏移 (m)                                   |
 // | egp_place_pose             | double[7]| 见代码         | (x,y,z,qx,qy,qz,qw)                                 |
 // | egp_place_joints           | double[6]| 见代码         | 放置关节角 (rad)                                     |
-// | egp_cartesian_max_points   | int      | 50             | 抓取接近笛卡尔轨迹点数上限                           |
+// | egp_cartesian_max_points   | int      | 40             | 抓取接近笛卡尔轨迹点数上限                           |
 //
 // ============================================================================
 
@@ -150,7 +165,7 @@ ExecuteGraspPoseWorker::ExecuteGraspPoseWorker(const rclcpp::NodeOptions& option
   if (!has_parameter("egp_place_offset_z"))
     declare_parameter("egp_place_offset_z", -0.15);
   if (!has_parameter("egp_cartesian_max_points"))
-    declare_parameter("egp_cartesian_max_points", 50);
+    declare_parameter("egp_cartesian_max_points", 40);
   if (!has_parameter("egp_place_pose"))
     declare_parameter("egp_place_pose", std::vector<double>({ 0.4, 0.0, 0.45, 0.0, 1.0, 0.0, 0.0 }));
   if (!has_parameter("egp_place_joints"))
@@ -347,11 +362,11 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
   double gz = pose_ee.position.z;
   double z_above = gz + height_above;
 
-  if (gz < kZMinLimit)
+  if (gz < kExecuteGraspZMinLimit)
   {
     RCLCPP_WARN(get_logger(), "[runGraspApproach] Z 轴安全限位: 抓取点 z=%.3f < %.2f m，覆盖为 %.2f m 执行", gz,
-                kZMinLimit, kZMinLimit);
-    gz = kZMinLimit;
+                kExecuteGraspZMinLimit, kExecuteGraspZMinLimit);
+    gz = kExecuteGraspZMinLimit;
     z_above = gz + height_above;
   }
 
@@ -444,14 +459,18 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
 
       Eigen::Matrix3d delta_rot = q_delta.toRotationMatrix();
       const double delta_yaw = std::atan2(delta_rot(1, 0), delta_rot(0, 0));
+      const double delta_yaw_short = normalizeYawToShortEquivalent(delta_yaw);
 
       RCLCPP_INFO(get_logger(), "  当前->目标 相对Z旋转: %.4f rad (%.2f°)",
                   delta_yaw, delta_yaw * 180.0 / M_PI);
+      RCLCPP_INFO(get_logger(), "  使用短角等价旋转: %.4f rad (%.2f°)",
+                  delta_yaw_short, delta_yaw_short * 180.0 / M_PI);
       RCLCPP_INFO(get_logger(), "  相对旋转四元数 (qx,qy,qz,qw): [%.6f, %.6f, %.6f, %.6f]",
                   q_delta.x(), q_delta.y(), q_delta.z(), q_delta.w());
 
-      // 应用相对旋转后应到达目标姿态
-      Eigen::Quaterniond q_target = q_current * q_delta;
+      // 只在旋转段使用短角等价姿态，避免大角度绕行；位置 xyz 保持不变。
+      Eigen::Quaterniond q_delta_short(Eigen::AngleAxisd(delta_yaw_short, Eigen::Vector3d::UnitZ()));
+      Eigen::Quaterniond q_target = q_current * q_delta_short;
       q_target.normalize();
       
       segment.target.orientation.x = q_target.x();
@@ -588,50 +607,69 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   RCLCPP_INFO(get_logger(), "✓ 步骤 2 完成");
 
   RCLCPP_INFO(get_logger(), "");
-  RCLCPP_INFO(get_logger(), "► 步骤 3/8: 抓取接近 (多段笛卡尔路径)");
-  if (!runGraspApproach(pose_ee, height_above_, joint_velocity_scaling_, joint_acceleration_scaling_))
+  RCLCPP_INFO(get_logger(), "► 步骤 3/9: 抓取前开夹爪 (IO=%d, 状态=true)", gripper_io_index_);
+  if (kSkipTemporaryGripperIo)
   {
-    RCLCPP_ERROR(get_logger(), "✗ 步骤 3 失败：抓取接近失败");
-    return false;
+    RCLCPP_WARN(get_logger(),
+                "⚠ 仿真临时模式：已跳过抓取前开夹爪 IO 设置（未调用 /aubo_driver/set_io）。"
+                "如需真实机械臂夹爪控制，请将 kSkipTemporaryGripperIo 改为 false。");
+    RCLCPP_INFO(get_logger(), "✓ 步骤 3 完成（已跳过IO）");
   }
-  RCLCPP_INFO(get_logger(), "✓ 步骤 3 完成");
+  else
+  {
+    if (!setGripperIo(gripper_io_index_, true))  // IO反转：true=打开
+    {
+      RCLCPP_ERROR(get_logger(), "✗ 步骤 3 失败：抓取前开夹爪失败");
+      return false;
+    }
+    RCLCPP_INFO(get_logger(), "✓ 步骤 3 完成");
+  }
 
   RCLCPP_INFO(get_logger(), "");
-  RCLCPP_INFO(get_logger(), "► 步骤 4/8: 闭夹爪 (IO=%d, 状态=false)", gripper_io_index_);
+  RCLCPP_INFO(get_logger(), "► 步骤 4/9: 抓取接近 (多段笛卡尔路径)");
+  if (!runGraspApproach(pose_ee, height_above_, joint_velocity_scaling_, joint_acceleration_scaling_))
+  {
+    RCLCPP_ERROR(get_logger(), "✗ 步骤 4 失败：抓取接近失败");
+    return false;
+  }
+  RCLCPP_INFO(get_logger(), "✓ 步骤 4 完成");
+
+  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), "► 步骤 5/9: 闭夹爪 (IO=%d, 状态=false)", gripper_io_index_);
   if (kSkipTemporaryGripperIo)
   {
     RCLCPP_WARN(get_logger(),
                 "⚠ 仿真临时模式：已跳过闭夹爪 IO 设置（未调用 /aubo_driver/set_io）。"
                 "如需真实机械臂夹爪控制，请将 kSkipTemporaryGripperIo 改为 false。");
-    RCLCPP_INFO(get_logger(), "✓ 步骤 4 完成（已跳过IO）");
+    RCLCPP_INFO(get_logger(), "✓ 步骤 5 完成（已跳过IO）");
   }
   else
   {
     if (!setGripperIo(gripper_io_index_, false))  // IO反转：false=闭合
     {
-      RCLCPP_ERROR(get_logger(), "✗ 步骤 4 失败：闭夹爪失败");
+      RCLCPP_ERROR(get_logger(), "✗ 步骤 5 失败：闭夹爪失败");
       return false;
     }
-    RCLCPP_INFO(get_logger(), "✓ 步骤 4 完成");
+    RCLCPP_INFO(get_logger(), "✓ 步骤 5 完成");
   }
 
   RCLCPP_INFO(get_logger(), "");
-  RCLCPP_INFO(get_logger(), "► 步骤 5/8: 抬起 (z=%.2f m)", lift_offset_);
+  RCLCPP_INFO(get_logger(), "► 步骤 6/9: 抬起 (z=%.2f m)", lift_offset_);
   if (!runArcPath('z', lift_offset_, joint_velocity_scaling_))
   {
-    RCLCPP_ERROR(get_logger(), "✗ 步骤 5 失败：抬起失败");
+    RCLCPP_ERROR(get_logger(), "✗ 步骤 6 失败：抬起失败");
     return false;
   }
-  RCLCPP_INFO(get_logger(), "✓ 步骤 5 完成");
+  RCLCPP_INFO(get_logger(), "✓ 步骤 6 完成");
 
   RCLCPP_INFO(get_logger(), "");
-  RCLCPP_INFO(get_logger(), "► 步骤 6/8: 移动到放置位 (place_mode=%s)", place_mode_.c_str());
+  RCLCPP_INFO(get_logger(), "► 步骤 7/9: 移动到放置位 (place_mode=%s)", place_mode_.c_str());
   if (place_mode_ == "home_offset")
   {
     RCLCPP_INFO(get_logger(), "  放置模式：home_offset (回安全位 + 偏移)");
     if (!moveToHome(home_velocity_scaling_, home_acceleration_scaling_))
     {
-      RCLCPP_ERROR(get_logger(), "✗ 步骤 6 失败：回安全位失败");
+      RCLCPP_ERROR(get_logger(), "✗ 步骤 7 失败：回安全位失败");
       return false;
     }
     const std::vector<CartesianSegment> place_segments = {
@@ -642,7 +680,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
     RCLCPP_INFO(get_logger(), "  执行偏移：y=%.2f, x=-0.2, z=%.2f", place_offset_y_, place_offset_z_);
     if (!runArcPathSequence(place_segments, joint_velocity_scaling_))
     {
-      RCLCPP_ERROR(get_logger(), "✗ 步骤 6 失败：放置位多段笛卡尔失败");
+      RCLCPP_ERROR(get_logger(), "✗ 步骤 7 失败：放置位多段笛卡尔失败");
       return false;
     }
   }
@@ -652,7 +690,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
     if (!moveToPose(place_pose_[0], place_pose_[1], place_pose_[2], place_pose_[3], place_pose_[4], place_pose_[5],
                     place_pose_[6], false, joint_velocity_scaling_, joint_acceleration_scaling_))
     {
-      RCLCPP_ERROR(get_logger(), "✗ 步骤 6 失败：移动到放置位失败");
+      RCLCPP_ERROR(get_logger(), "✗ 步骤 7 失败：移动到放置位失败");
       return false;
     }
   }
@@ -661,43 +699,43 @@ bool ExecuteGraspPoseWorker::runOneCycle()
     RCLCPP_INFO(get_logger(), "  放置模式：joints (移动到关节角度)");
     if (!moveToJoints(place_joints_, joint_velocity_scaling_, joint_acceleration_scaling_))
     {
-      RCLCPP_ERROR(get_logger(), "✗ 步骤 6 失败：移动到放置关节失败");
+      RCLCPP_ERROR(get_logger(), "✗ 步骤 7 失败：移动到放置关节失败");
       return false;
     }
   }
-  RCLCPP_INFO(get_logger(), "✓ 步骤 6 完成");
+  RCLCPP_INFO(get_logger(), "✓ 步骤 7 完成");
 
   RCLCPP_INFO(get_logger(), "");
-  RCLCPP_INFO(get_logger(), "► 步骤 7/8: 开夹爪 (IO=%d, 状态=true)", gripper_io_index_);
+  RCLCPP_INFO(get_logger(), "► 步骤 8/9: 开夹爪 (IO=%d, 状态=true)", gripper_io_index_);
   if (kSkipTemporaryGripperIo)
   {
     RCLCPP_WARN(get_logger(),
                 "⚠ 仿真临时模式：已跳过开夹爪 IO 设置（未调用 /aubo_driver/set_io）。"
                 "如需真实机械臂夹爪控制，请将 kSkipTemporaryGripperIo 改为 false。");
-    RCLCPP_INFO(get_logger(), "✓ 步骤 7 完成（已跳过IO）");
+    RCLCPP_INFO(get_logger(), "✓ 步骤 8 完成（已跳过IO）");
   }
   else
   {
     if (!setGripperIo(gripper_io_index_, true))  // IO反转：true=打开
     {
-      RCLCPP_ERROR(get_logger(), "✗ 步骤 7 失败：开夹爪失败");
+      RCLCPP_ERROR(get_logger(), "✗ 步骤 8 失败：开夹爪失败");
       return false;
     }
-    RCLCPP_INFO(get_logger(), "✓ 步骤 7 完成");
+    RCLCPP_INFO(get_logger(), "✓ 步骤 8 完成");
   }
 
   RCLCPP_INFO(get_logger(), "");
-  RCLCPP_INFO(get_logger(), "► 步骤 8/8: 回安全位");
+  RCLCPP_INFO(get_logger(), "► 步骤 9/9: 回安全位");
   if (!moveToHome(home_velocity_scaling_, home_acceleration_scaling_))
   {
-    RCLCPP_ERROR(get_logger(), "✗ 步骤 8 失败：回安全位失败");
+    RCLCPP_ERROR(get_logger(), "✗ 步骤 9 失败：回安全位失败");
     return false;
   }
-  RCLCPP_INFO(get_logger(), "✓ 步骤 8 完成");
+  RCLCPP_INFO(get_logger(), "✓ 步骤 9 完成");
 
   RCLCPP_INFO(get_logger(), "");
   RCLCPP_INFO(get_logger(), "┌────────────────────────────────────────────────────────────┐");
-  RCLCPP_INFO(get_logger(), "│             ✓ 抓取周期成功完成 (8/8 步骤)                │");
+  RCLCPP_INFO(get_logger(), "│             ✓ 抓取周期成功完成 (9/9 步骤)                │");
   RCLCPP_INFO(get_logger(), "└────────────────────────────────────────────────────────────┘");
   RCLCPP_INFO(get_logger(), "");
 

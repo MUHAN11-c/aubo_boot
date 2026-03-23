@@ -54,7 +54,7 @@ class RobotVsMoveItPoseMonitor(Node):
         self.declare_parameter("moveit_pose_topic", "/moveit2_tcp_pose")
         self.declare_parameter(
             "log_file",
-            "/home/mu/IVG/aubo_ros2_ws/src/aubo_ros2_driver/demo_driver/scripts/robot_vs_moveit_pose.csv",
+            "/home/mu/IVG2.0/aubo_ros2_ws/src/aubo_ros2_driver/demo_driver/scripts/robot_vs_moveit_pose.csv",
         )
 
         robot_status_topic = self.get_parameter("robot_status_topic").value

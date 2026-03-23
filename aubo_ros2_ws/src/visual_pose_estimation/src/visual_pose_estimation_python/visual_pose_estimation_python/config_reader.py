@@ -19,7 +19,7 @@ from typing import Dict, Any, Optional
 _PKG_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DEBUG_THRESHOLDS_PATH = _PKG_ROOT / "web_ui" / "configs" / "debug_thresholds.json"
 FALLBACK_DEBUG_THRESHOLDS_PATH = Path(
-    "/home/mu/IVG/aubo_ros2_ws/src/visual_pose_estimation/src/visual_pose_estimation_python/web_ui/configs/debug_thresholds.json"
+    "/home/mu/IVG2.0/aubo_ros2_ws/src/visual_pose_estimation/src/visual_pose_estimation_python/web_ui/configs/debug_thresholds.json"
 )
 
 

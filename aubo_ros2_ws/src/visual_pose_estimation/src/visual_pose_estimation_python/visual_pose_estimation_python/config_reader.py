@@ -15,12 +15,10 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-# 默认阈值配置文件路径：web_ui/configs/debug_thresholds.json（包根上一级为 visual_pose_estimation_python 包目录）
-_PKG_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_DEBUG_THRESHOLDS_PATH = _PKG_ROOT / "web_ui" / "configs" / "debug_thresholds.json"
-FALLBACK_DEBUG_THRESHOLDS_PATH = Path(
-    "/home/mu/IVG2.0/aubo_ros2_ws/src/visual_pose_estimation/src/visual_pose_estimation_python/web_ui/configs/debug_thresholds.json"
-)
+from .web.resources import resolve_web_paths
+
+
+DEFAULT_DEBUG_THRESHOLDS_PATH = resolve_web_paths().debug_thresholds_file
 
 
 class ConfigReader:
@@ -148,13 +146,13 @@ class ConfigReader:
             'use_rembg': False
         }
         
-        # 确定要加载的文件路径：显式参数 > 实例配置 > 默认路径(web_ui/configs) > 备用绝对路径
+        # 确定要加载的文件路径：显式参数 > 实例配置 > 包资源默认路径
         if debug_thresholds_file:
             config_path = Path(debug_thresholds_file)
         elif self._debug_thresholds_path is not None:
             config_path = self._debug_thresholds_path
         else:
-            config_path = DEFAULT_DEBUG_THRESHOLDS_PATH if DEFAULT_DEBUG_THRESHOLDS_PATH.exists() else FALLBACK_DEBUG_THRESHOLDS_PATH
+            config_path = DEFAULT_DEBUG_THRESHOLDS_PATH
         
         # 加载配置文件
         if config_path and config_path.exists():

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Pose Estimation Web</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            background: #0f172a;
+            color: #e2e8f0;
+            font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+        }
+
+        .panel {
+            max-width: 36rem;
+            padding: 2rem;
+            border-radius: 1rem;
+            background: rgba(15, 23, 42, 0.92);
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.45);
+            text-align: center;
+        }
+
+        .hint {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+    </style>
+    <script>
+        window.location.replace("/legacy-ui/index.html");
+    </script>
+</head>
+<body>
+    <div class="panel">
+        <h1>正在跳转到兼容界面</h1>
+        <p class="hint">FastAPI 入口已启用，当前页面会先跳转到兼容的旧版 UI，后续可在此基础上逐步迁移到新的静态资源结构。</p>
+    </div>
+</body>
+</html>

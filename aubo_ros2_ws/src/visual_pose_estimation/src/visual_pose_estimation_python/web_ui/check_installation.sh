@@ -46,9 +46,9 @@ FILES=(
     "requirements.txt"
     "start_web_ui.sh"
     "stop_web_ui.sh"
-    "scripts/http_bridge_server.py"
-    "PROJECT_SUMMARY.md"
-    "QUICK_REFERENCE.md"
+    "scripts/rembg_subprocess.py"
+    "docs/FASTAPI_DOCS_INDEX.md"
+    "tools/check_fastapi_startup.sh"
 )
 
 for file in "${FILES[@]}"; do
@@ -66,7 +66,8 @@ DIRS=(
     "scripts"
     "configs"
     "docs"
-    "web_ui/resources"
+    "assets"
+    "tools"
 )
 
 for dir in "${DIRS[@]}"; do
@@ -83,7 +84,6 @@ echo -e "${BLUE}[3/7] 检查文件权限...${NC}"
 EXECUTABLE_FILES=(
     "start_web_ui.sh"
     "stop_web_ui.sh"
-    "scripts/http_bridge_server.py"
 )
 
 for file in "${EXECUTABLE_FILES[@]}"; do
@@ -149,7 +149,7 @@ echo ""
 # 6. 检查端口可用性
 echo -e "${BLUE}[6/7] 检查端口可用性...${NC}"
 
-PORT=8089
+PORT=8088
 if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1 ; then
     PID=$(lsof -ti:$PORT)
     check_warn "端口 $PORT 已被占用 (PID: $PID)"
@@ -206,7 +206,7 @@ if [ $FAIL_COUNT -eq 0 ]; then
     echo -e "${BLUE}下一步:${NC}"
     echo -e "  1. 启动ROS2节点: ros2 launch visual_pose_estimation_python visual_pose_estimation_python.launch.py"
     echo -e "  2. 启动Web UI: ./start_web_ui.sh"
-    echo -e "  3. 访问: ${GREEN}http://localhost:8089${NC}"
+    echo -e "  3. 访问: ${GREEN}http://127.0.0.1:8088/${NC}"
     exit 0
 else
     echo -e "${RED}✗ 发现 $FAIL_COUNT 个问题需要解决${NC}"

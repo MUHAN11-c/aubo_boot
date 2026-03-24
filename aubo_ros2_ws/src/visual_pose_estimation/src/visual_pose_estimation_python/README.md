@@ -2,6 +2,119 @@
 
 Python ROS2实现的视觉姿态估计功能包
 
+## 第一节：配置文件、路径规则与快速使用
+
+这一节优先说明新同学最关心的三件事：
+
+1. 配置文件分别放在哪里、做什么。
+2. 模板目录、标定文件、Web 资源是按什么规则解析的。
+3. 拿到包之后，最快怎么启动和联调。
+
+### 配置文件说明
+
+当前推荐把运行时配置统一放在 `web_ui/configs/`：
+
+- `web_ui/configs/app_config.json`
+  - Web/FastAPI 运行时总配置。
+  - 目前主要控制 `template_root` 和 `camera_pose_fixed_orientation`。
+- `web_ui/configs/debug_thresholds.json`
+  - 深度图阈值、连通域筛选、边缘平滑等调试参数。
+  - Web debug 能力和算法调参都依赖它。
+- `web_ui/configs/camera_intrinsics.yaml`
+  - 相机内参默认文件。
+  - 算法节点未显式指定内参时，优先从这里读取。
+- `web_ui/configs/hand_eye_calibration.yaml`
+  - 手眼标定默认文件。
+  - launch 未传 `calib_file` 时，默认先从这里找。
+- `web_ui/configs/config_paths.md`
+  - 配置与路径约定说明，方便二次开发时查阅。
+
+### 路径规则
+
+路径统一由 `visual_pose_estimation_python/web/resources.py` 解析，避免源码路径、安装路径和本机绝对路径混用。
+
+#### 模板目录 `template_root` 的解析优先级
+
+1. launch 参数 `template_root:=...`
+2. 环境变量 `VPE_TEMPLATE_ROOT`
+3. `web_ui/configs/app_config.json` 中的 `template_root`
+4. 工作空间中的 `visual_pose_estimation/templates`
+
+#### 标定和相机内参的解析规则
+
+- 手眼标定优先顺序：
+  - `web_ui/configs/hand_eye_calibration.yaml`
+  - `web_ui/configs/hand_eye_calibration*.yaml`
+  - `hand_eye_calibration` 包 share 目录中的标定结果
+- 相机内参优先顺序：
+  - `web_ui/configs/camera_intrinsics.yaml`
+  - `web_ui/configs/ost.yaml`
+  - `hand_eye_calibration` 包 share 目录中的 `ost.yaml`
+
+#### Web 资源的解析规则
+
+- Python Web 代码在 `visual_pose_estimation_python/web/`
+- 前端、文档、配置、脚本在 `web_ui/`
+- 运行时优先使用安装后的 `share/visual_pose_estimation_python/web_ui/...`
+- 如果当前是源码开发态，再自动回退到源码目录 `web_ui/...`
+
+### 快速使用
+
+#### 1. 编译包
+
+```bash
+cd <your_ros2_workspace>
+colcon build --packages-select visual_pose_estimation_python
+source install/setup.bash
+```
+
+#### 2. 只启动算法节点
+
+```bash
+ros2 launch visual_pose_estimation_python visual_pose_estimation_python.launch.py
+```
+
+#### 3. 只启动 FastAPI Web
+
+```bash
+ros2 launch visual_pose_estimation_python visual_pose_estimation_web.launch.py
+```
+
+默认访问地址：
+
+- `http://127.0.0.1:8088/`
+- `http://127.0.0.1:8088/legacy-ui/index.html`
+
+#### 4. 启动完整系统
+
+```bash
+cd <your_ros2_workspace>
+bash start_IVG_graspnet_points_fastapi.sh
+```
+
+#### 5. 常用自定义启动方式
+
+自定义模板目录和手眼标定：
+
+```bash
+ros2 launch visual_pose_estimation_python visual_pose_estimation_python.launch.py \
+  template_root:=/path/to/templates \
+  calib_file:=/path/to/hand_eye_calibration.yaml
+```
+
+自定义 FastAPI 监听地址和端口：
+
+```bash
+ros2 run visual_pose_estimation_python visual_pose_estimation_web --host 0.0.0.0 --port 8088
+```
+
+使用环境变量覆盖模板目录：
+
+```bash
+export VPE_TEMPLATE_ROOT=/path/to/templates
+ros2 launch visual_pose_estimation_python visual_pose_estimation_python.launch.py
+```
+
 ## 功能特性
 
 该包使用Python实现了C++版本的visual_pose_estimation功能，基于**深度图像**进行处理，主要包括：
@@ -85,7 +198,7 @@ Python ROS2实现的视觉姿态估计功能包
 ## 安装和编译
 
 ```bash
-cd /home/mu/IVG/aubo_ros2_ws
+cd <your_ros2_workspace>
 colcon build --packages-select visual_pose_estimation_python
 source install/setup.bash
 ```
@@ -114,7 +227,7 @@ ros2 launch visual_pose_estimation_python visual_pose_estimation_python.launch.p
 ```
 
 **默认配置：**
-- 模板目录：由 launch 参数 `template_root` 指定（空则使用包内 `visual_pose_estimation/templates`）
+- 模板目录：由 launch 参数 `template_root` 指定；为空时按包资源规则自动解析，默认回退到工作空间中的 `visual_pose_estimation/templates`
 - 标定：未指定 `calib_file` 时从 `web_ui/configs/` 或 hand_eye_calibration 标准路径查找
 - 订阅话题：
   - 深度图：`/camera/depth/image_raw`（可通过参数 `depth_image_topic` 配置）
@@ -357,63 +470,113 @@ ros2 launch visual_pose_estimation_python visual_pose_estimation_python.launch.p
   color_image_topic:=/custom/color/topic
 ```
 
-## 目录结构
+## 文件架构与含义
 
-```
+```text
 visual_pose_estimation_python/
-├── visual_pose_estimation_python/  # Python模块
-│   ├── __init__.py
-│   ├── main.py                     # 主节点
-│   ├── config_reader.py            # 配置读取器
-│   ├── preprocessor.py             # 预处理器
-│   ├── feature_extractor.py        # 特征提取器
-│   ├── template_standardizer.py    # 模板标准化器
-│   ├── pose_estimator.py           # 姿态估计器
-│   ├── ros2_communication.py       # ROS2通信
-│   └── debug_visualizer.py         # 调试可视化器
-├── launch/                         # 启动文件
-│   └── visual_pose_estimation_python.launch.py
-├── configs/                        # 配置文件（旧版兼容）
-│   └── trigger_depth_thresholds_camera.json
-├── test/                           # 核心模块测试
+├── visual_pose_estimation_python/          # Python 源码层
+│   ├── __init__.py                         # 包导出与延迟导入
+│   ├── main.py                             # 算法 ROS2 节点入口
+│   ├── config_reader.py                    # 算法侧默认配置读取
+│   ├── preprocessor.py                     # 深度图预处理
+│   ├── feature_extractor.py                # 特征提取
+│   ├── template_standardizer.py            # 模板标准化
+│   ├── pose_estimator.py                   # 姿态估计核心逻辑
+│   ├── ros2_communication.py               # ROS2 服务、订阅、节点协调
+│   ├── debug_visualizer.py                 # 调试可视化输出
+│   ├── rembg_processor.py                  # 直接 rembg 处理
+│   ├── subprocess_rembg.py                 # 子进程 rembg 处理
+│   └── web/                                # FastAPI Web 后端
+│       ├── app.py                          # FastAPI 应用创建
+│       ├── server.py                       # uvicorn 启动入口
+│       ├── resources.py                    # 统一路径/资源解析入口
+│       ├── runtime_support.py              # Web 运行时辅助逻辑
+│       ├── params_manager.py               # Web 参数持久化
+│       ├── dependencies.py                 # FastAPI 依赖注入
+│       ├── routers/                        # 路由层
+│       ├── services/                       # 业务服务层
+│       ├── ros_bridge/                     # FastAPI 与 ROS2 bridge
+│       └── ws/                             # WebSocket 管理
+├── web_ui/                                 # 可分发资源层
+│   ├── index.html                          # 兼容旧版 UI 主页面
+│   ├── static/                             # FastAPI 根页静态入口
+│   ├── assets/                             # logo 等静态资源
+│   ├── configs/                            # 配置、标定、阈值文件
+│   ├── scripts/                            # 辅助脚本，如 rembg 子进程入口
+│   ├── tools/                              # 手工验证工具
+│   ├── docs/                               # 学习、迁移、测试文档
+│   ├── start_web_ui.sh                     # 启动 Web 服务脚本
+│   ├── stop_web_ui.sh                      # 停止 Web 服务脚本
+│   ├── check_installation.sh               # 安装检查脚本
+│   └── start_service_now.sh                # 快速包装启动脚本
+├── launch/                                 # ROS2 启动层
+│   ├── visual_pose_estimation_python.launch.py
+│   └── visual_pose_estimation_web.launch.py
+├── test/                                   # 自动化测试层
 │   ├── test_copyright.py
 │   ├── test_flake8.py
-│   └── test_pep257.py
-├── web_ui/                         # Web UI
-│   ├── index.html                  # Web UI主页面
-│   ├── README.md                   # Web UI文档
-│   ├── requirements.txt            # Python依赖
-│   ├── configs/                    # Web UI配置文件
-│   │   └── debug_thresholds.json
-│   ├── scripts/                    # Web UI脚本
-│   │   ├── http_bridge_server.py  # HTTP桥接服务器
-│   │   └── params_manager.py      # 参数管理器
-│   ├── docs/                       # Web UI文档
-│   │   ├── DEBUG_IMPLEMENTATION_SUMMARY.md
-│   │   ├── DEBUG_USAGE.md
-│   │   ├── FIX_APPLIED.md
-│   │   ├── PROJECT_SUMMARY.md
-│   │   ├── QUICK_REFERENCE.md
-│   │   ├── TEST_GUIDE.md
-│   │   ├── 使用示例.md
-│   │   └── 快速开始.md
-│   ├── test/                       # Web UI测试
-│   │   ├── test_color.py
-│   │   ├── test_debug_api.py
-│   │   └── test_startup.sh
-│   ├── resources/                  # Web UI资源
-│   │   └── logo.png
-│   ├── start_web_ui.sh            # 启动脚本
-│   ├── stop_web_ui.sh             # 停止脚本
-│   ├── check_installation.sh      # 安装检查脚本
-│   └── start_service_now.sh       # 快速启动脚本
-├── resource/                       # ROS2资源文件
+│   ├── test_pep257.py
+│   └── test_web_app.py                     # FastAPI Web 回归主入口
+├── resource/                               # ament index 资源登记
 │   └── visual_pose_estimation_python
-├── package.xml                     # 包配置
-├── setup.py                        # Python包配置
-├── setup.cfg                       # 配置文件
-└── README.md                       # 本文件
+├── package.xml                             # ROS2 功能包元数据
+├── setup.py                                # Python 安装与资源分发
+├── setup.cfg                               # 脚本安装路径配置
+├── DIRECTORY_STRUCTURE.md                  # 目录结构补充说明
+└── README.md                               # 当前总说明
 ```
+
+### 架构分层理解
+
+#### 1. 源码层：`visual_pose_estimation_python/`
+
+这是功能包真正会被 Python 导入的代码层，可以再分成两条主线：
+
+- 算法与 ROS2 主链
+  - `main.py`
+  - `ros2_communication.py`
+  - `pose_estimator.py`
+  - `template_standardizer.py`
+  - `preprocessor.py`
+  - `feature_extractor.py`
+- Web 后端主链
+  - `web/app.py`
+  - `web/routers/*.py`
+  - `web/services/native_api.py`
+  - `web/ros_bridge/manager.py`
+  - `web/ros_bridge/node_runtime.py`
+
+也就是说，算法服务和 FastAPI Web 都已经收口在同一个 `ament_python` 包里。
+
+#### 2. 资源层：`web_ui/`
+
+这一层不负责核心算法执行，而是负责：
+
+- 前端页面和静态资源
+- Web/FastAPI 运行配置
+- 标定和调试阈值文件
+- 开发与验证辅助脚本
+- 学习文档与迁移文档
+
+它最终会通过 `setup.py` 被安装到 `share/visual_pose_estimation_python/web_ui/...`，供运行时统一读取。
+
+#### 3. 启动层：`launch/`
+
+- `visual_pose_estimation_python.launch.py`
+  - 启动视觉姿态估计 ROS2 节点
+- `visual_pose_estimation_web.launch.py`
+  - 启动 FastAPI Web 服务
+
+两者分开后，算法和 Web 可以独立调试，也可以在完整系统脚本里一起启动。
+
+#### 4. 测试层：`test/`
+
+自动化测试统一放在包根 `test/`：
+
+- 代码规范测试：`test_flake8.py`、`test_pep257.py`
+- Web 行为回归：`test_web_app.py`
+
+依赖运行中服务或人工观察的内容，则放在 `web_ui/tools/`，避免和 pytest 自动测试混淆。
 
 ## 依赖项
 
@@ -448,7 +611,7 @@ visual_pose_estimation_python/
    - 可在 `web_ui/configs/debug_thresholds.json` 中修改
 
 4. **模板目录**：
-   - 默认目录：`/home/mu/IVG/aubo_ros2_ws/src/visual_pose_estimation/templates`
+   - 默认目录：工作空间中的 `visual_pose_estimation/templates`
    - 目录结构：`templates/{工件ID}/{姿态ID}/`
    - 首次使用需要创建模板库（使用 standardize_template 服务）
    - 建议为每个工件创建5-10个不同姿态的模板

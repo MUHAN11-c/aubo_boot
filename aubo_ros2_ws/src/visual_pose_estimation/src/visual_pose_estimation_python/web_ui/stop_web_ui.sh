@@ -2,7 +2,7 @@
 
 ###############################################################################
 # Visual Pose Estimation Python - Web UI 停止脚本
-# 用于停止HTTP桥接服务器
+# 用于停止 FastAPI Web 服务
 ###############################################################################
 
 # 颜色定义
@@ -50,7 +50,7 @@ else
 fi
 
 # 按端口查找并终止
-PORT=8089
+PORT=8088
 echo -e "${BLUE}检查端口 ${PORT}...${NC}"
 
 if lsof -Pi :${PORT} -sTCP:LISTEN -t >/dev/null 2>&1 ; then
@@ -66,7 +66,7 @@ fi
 # 查找所有相关Python进程
 echo ""
 echo -e "${BLUE}查找相关Python进程...${NC}"
-PIDS=$(pgrep -f "http_bridge_server.py")
+PIDS=$(pgrep -f "visual_pose_estimation_web|uvicorn")
 
 if [ ! -z "$PIDS" ]; then
     echo -e "${YELLOW}找到相关进程:${NC}"

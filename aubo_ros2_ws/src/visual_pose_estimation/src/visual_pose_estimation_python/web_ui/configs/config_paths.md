@@ -20,12 +20,12 @@
 - **可配置**：`ConfigReader(debug_thresholds_path="...")` 或 `load_debug_thresholds(debug_thresholds_file="...")`
 - **备用**：当默认路径不存在时（如从 install 运行）使用 `FALLBACK_DEBUG_THRESHOLDS_PATH`
 
-### 2. ParamsManager（web_ui/scripts/params_manager.py）
+### 2. ParamsManager（visual_pose_estimation_python/web/params_manager.py）
 
-- **默认路径**：`ROOT_DIR/configs/debug_thresholds.json`，其中 `ROOT_DIR = web_ui`，即 `web_ui/configs/debug_thresholds.json`
+- **默认路径**：`web_ui/configs/debug_thresholds.json`
 - **可配置**：`ParamsManager(config_path="...")`
 
-### 3. HTTP 桥接（web_ui/scripts/http_bridge_server.py）
+### 3. FastAPI Web 运行时（visual_pose_estimation_python/web/runtime_support.py）
 
 - **app_config**：默认 `web_ui/configs/app_config.json`（`Path(__file__).resolve().parent.parent / "configs"`）
 - **模板根目录**：优先从 `app_config.json` 的 `template_root` 读取；否则按包结构推导或备用绝对路径
@@ -33,7 +33,7 @@
 ### 4. 模板根目录（template_root）
 
 - **节点/launch**：由 launch 参数 `template_root` 传入（默认可为 `/home/.../visual_pose_estimation/templates`）
-- **Web 保存/列表**：由 `get_templates_dir()` 提供，优先 `app_config.json` 的 `template_root`，与节点保持一致时请在该文件中配置相同路径
+- **Web 保存/列表**：由 `visual_pose_estimation_python/web/runtime_support.py` 提供，优先 `app_config.json` 的 `template_root`，与节点保持一致时请在该文件中配置相同路径
 
 ## 小结
 

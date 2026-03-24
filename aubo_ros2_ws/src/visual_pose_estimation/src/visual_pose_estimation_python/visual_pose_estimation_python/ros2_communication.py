@@ -49,29 +49,15 @@ from .pose_estimator import PoseEstimator, TemplateItem
 from .debug_visualizer import DebugVisualizer
 from .rembg_processor import RemBGProcessor
 from .subprocess_rembg import SubprocessRemBGProcessor
+from .web.params_manager import ParamsManager
+from .web.resources import (
+    resolve_camera_intrinsics_candidates,
+    resolve_hand_eye_calibration_candidates,
+    resolve_web_paths,
+)
 
-# 导入参数管理器（从web_ui共享）
-import sys
-_ros2_comm_pkg_root = Path(__file__).resolve().parent.parent
-web_ui_path = _ros2_comm_pkg_root / 'web_ui' / 'scripts'
-if str(web_ui_path) not in sys.path:
-    sys.path.insert(0, str(web_ui_path))
-try:
-    from params_manager import ParamsManager
-except ImportError:
-    ParamsManager = None
-
-# 默认配置目录：web_ui/configs（标定等优先从此加载）
-# 源码运行：包内 web_ui/configs；install 运行：configs 在 share/ 下，需用 ament 解析
-_configs_from_pkg = _ros2_comm_pkg_root / 'web_ui' / 'configs'
-if _configs_from_pkg.exists():
-    WEB_UI_CONFIGS_DIR = _configs_from_pkg
-else:
-    try:
-        from ament_index_python.packages import get_package_share_directory
-        WEB_UI_CONFIGS_DIR = Path(get_package_share_directory('visual_pose_estimation_python')) / 'web_ui' / 'configs'
-    except Exception:
-        WEB_UI_CONFIGS_DIR = _configs_from_pkg
+WEB_PATHS = resolve_web_paths()
+WEB_UI_CONFIGS_DIR = WEB_PATHS.configs_dir
 
 
 class ROS2Communication:
@@ -357,7 +343,7 @@ class ROS2Communication:
         binary_min = int(debug_params.get('binary_threshold_min', 0))
         binary_max = int(debug_params.get('binary_threshold_max', 65535))
 
-        # Preprocessor参数映射（参考 http_bridge_server.py）
+        # Preprocessor参数映射（与当前 Web Debug 参数保持一致）
         preprocessor_params = {
             'binary_threshold_min': float(binary_min),
             'binary_threshold_max': float(binary_max),
@@ -373,7 +359,7 @@ class ROS2Communication:
             'smooth_edges_blur_sigma': float(debug_params.get('smooth_edges_blur_sigma', 0)),
         }
 
-        # FeatureExtractor参数映射（参考 http_bridge_server.py）
+        # FeatureExtractor参数映射（与当前 Web Debug 参数保持一致）
         feature_extractor_params = {
             'component_min_area': float(debug_params.get('component_min_area', 10)),
             'component_max_area': float(debug_params.get('component_max_area', 100000)),
@@ -752,17 +738,17 @@ class ROS2Communication:
     def _load_hand_eye_calibration_from_standard_paths(self) -> bool:
         """从标准路径加载手眼标定参数
         
-        优先从 web_ui/configs 加载，若无则回退到 hand_eye_calibration 包路径：
-        1. 相机内参：web_ui/configs/camera_intrinsics.yaml（标准名），或 ost.yaml 兼容，或 hand_eye_calibration/.../ost.yaml
-        2. 手眼标定：web_ui/configs/hand_eye_calibration.yaml（标准名），或最新 hand_eye_calibration*.yaml，或 hand_eye_calibration/.../calibration_results/
+        优先从 visual_pose_estimation_python 包资源加载，若无则回退到 hand_eye_calibration 包路径：
+        1. 相机内参：`web_ui/configs/camera_intrinsics.yaml`、`ost.yaml`
+        2. 手眼标定：`web_ui/configs/hand_eye_calibration.yaml` 或最近生成的同类 YAML
         
         Returns:
             是否加载成功
         """
         try:
-            # 1. 先加载相机内参（如果还没有加载）：优先 web_ui/configs
+            # 1. 先加载相机内参（如果还没有加载）
             if self.camera_matrix is None and yaml is not None:
-                for candidate in (WEB_UI_CONFIGS_DIR / 'camera_intrinsics.yaml', WEB_UI_CONFIGS_DIR / 'ost.yaml'):
+                for candidate in resolve_camera_intrinsics_candidates(WEB_PATHS):
                     if candidate.exists():
                         try:
                             with open(candidate, 'r', encoding='utf-8') as f:
@@ -784,49 +770,11 @@ class ROS2Communication:
                                 break
                         except Exception as e:
                             self.logger.warning(f'加载相机内参失败: {candidate}, 错误: {e}')
-                # 回退：hand_eye_calibration 包路径
-                if self.camera_matrix is None:
-                    fallback_camera = Path('/home/mu/IVG2.0/aubo_ros2_ws/src/hand_eye_calibration/config/calibrationdata/ost.yaml')
-                    if fallback_camera.exists():
-                        try:
-                            with open(fallback_camera, 'r', encoding='utf-8') as f:
-                                cam_data = yaml.safe_load(f)
-                            camera_matrix_data = cam_data.get('camera_matrix', {})
-                            if camera_matrix_data:
-                                if isinstance(camera_matrix_data, dict) and 'data' in camera_matrix_data:
-                                    self.camera_matrix = np.array(camera_matrix_data['data'], dtype=np.float64).reshape(3, 3)
-                                elif isinstance(camera_matrix_data, list):
-                                    self.camera_matrix = np.array(camera_matrix_data, dtype=np.float64)
-                                dist_coeffs_data = cam_data.get('distortion_coefficients', {})
-                                if dist_coeffs_data and isinstance(dist_coeffs_data, dict) and 'data' in dist_coeffs_data:
-                                    self.dist_coeffs = np.array(dist_coeffs_data['data'], dtype=np.float64)
-                                self.logger.info(f'相机内参文件: {fallback_camera}')
-                        except Exception as e:
-                            self.logger.warning(f'加载相机内参失败: {fallback_camera}, 错误: {e}')
             
-            # 2. 加载手眼标定结果：优先 web_ui/configs/hand_eye_calibration.yaml（标准名），否则最新 hand_eye_calibration*.yaml
-            if WEB_UI_CONFIGS_DIR.exists():
-                standard_he = WEB_UI_CONFIGS_DIR / 'hand_eye_calibration.yaml'
-                if standard_he.exists() and self._load_hand_eye_calibration(str(standard_he)):
-                    self.actual_calib_file_path = str(standard_he)
-                    return True
-                he_files = [p for p in WEB_UI_CONFIGS_DIR.glob('hand_eye_calibration*.yaml')
-                            if p.name != 'hand_eye_calibration.yaml']
-                if not he_files:
-                    he_files = [p for p in WEB_UI_CONFIGS_DIR.glob('*.yaml')
-                                if p.name not in ('ost.yaml', 'camera_intrinsics.yaml')]
-                if he_files:
-                    latest = max(he_files, key=lambda p: p.stat().st_mtime)
-                    if self._load_hand_eye_calibration(str(latest)):
-                        self.actual_calib_file_path = str(latest)
-                        return True
-            
-            # 回退：hand_eye_calibration 包 calibration_results
-            calib_results_dir = Path('/home/mu/IVG2.0/aubo_ros2_ws/src/hand_eye_calibration/config/calibration_results')
-            if calib_results_dir.exists():
-                yaml_files = sorted(calib_results_dir.glob('*.yaml'), key=lambda p: p.stat().st_mtime, reverse=True)
-                if yaml_files and self._load_hand_eye_calibration(str(yaml_files[0])):
-                    self.actual_calib_file_path = str(yaml_files[0])
+            # 2. 加载手眼标定结果
+            for candidate in resolve_hand_eye_calibration_candidates(WEB_PATHS):
+                if self._load_hand_eye_calibration(str(candidate)):
+                    self.actual_calib_file_path = str(candidate)
                     return True
             
             if self.camera_matrix is not None:

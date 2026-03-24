@@ -23,14 +23,14 @@ def generate_launch_description():
     # 声明launch参数
     calib_file_arg = DeclareLaunchArgument(
         'calib_file',
-        default_value='/home/mu/IVG2.0/aubo_ros2_ws/src/visual_pose_estimation/src/visual_pose_estimation_python/web_ui/configs/hand_eye_calibration.yaml',
+        default_value=os.path.join(pkg_share, 'web_ui', 'configs', 'hand_eye_calibration.yaml'),
         description='手眼标定文件路径'
     )
     
     template_root_arg = DeclareLaunchArgument(
         'template_root',
         default_value='',
-        description='模板根目录路径（空则节点内使用包相对路径 visual_pose_estimation/templates）'
+        description='模板根目录路径（空则按包资源规则自动解析）'
     )
     
     depth_image_topic_arg = DeclareLaunchArgument(

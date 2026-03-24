@@ -13,6 +13,7 @@ from __future__ import annotations
 import base64
 import io
 import json
+import os
 import subprocess
 import tempfile
 import time
@@ -21,6 +22,9 @@ from typing import Optional, Tuple, List
 
 import numpy as np
 from PIL import Image
+
+from .web.resources import resolve_web_paths
+
 
 class SubprocessRemBGProcessor:
     """通过 conda 子进程调用 rembg 的处理器。
@@ -32,22 +36,11 @@ class SubprocessRemBGProcessor:
     def __init__(self, model: str = "u2net", prefer_cuda: bool = True) -> None:
         self.model = model
         self.prefer_cuda = prefer_cuda
-        # 与 web_ui 相同的 conda Python 路径
-        self._conda_python = "/home/mu/miniconda3/envs/ros2_env/bin/python"
-        # 计算脚本路径（同时兼容源码运行和 install 运行）
-        pkg_root = Path(__file__).resolve().parent.parent
-        # 优先：源码布局下的 web_ui/scripts/rembg_subprocess.py
-        script_candidates = [
-            pkg_root / "web_ui" / "scripts" / "rembg_subprocess.py",
-            # 兼容当前工作空间的源码绝对路径（防止安装后找不到脚本）
-            Path("/home/mu/IVG2.0/aubo_ros2_ws/src/visual_pose_estimation/src/visual_pose_estimation_python/web_ui/scripts/rembg_subprocess.py"),
-        ]
-        chosen = None
-        for cand in script_candidates:
-            if cand.exists():
-                chosen = cand
-                break
-        self._script_path = chosen if chosen is not None else script_candidates[0]
+        self._conda_python = os.environ.get(
+            "VPE_REMBG_PYTHON",
+            str(Path.home() / "miniconda3" / "envs" / "ros2_env" / "bin" / "python"),
+        )
+        self._script_path = resolve_web_paths().rembg_subprocess_script
 
         self._providers: Optional[List[str]] = None
 

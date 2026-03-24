@@ -2,7 +2,7 @@
 
 ###############################################################################
 # Visual Pose Estimation Python - Web UI 启动脚本
-# 用于启动HTTP桥接服务器和Web UI界面
+# 用于启动 FastAPI Web 服务和兼容 UI 界面
 ###############################################################################
 
 # 颜色定义
@@ -36,7 +36,7 @@ launch_in_terminator() {
 }
 
 # 端口配置
-HTTP_PORT=8088  # Web UI服务器端口（与http_bridge_server.py保持一致）
+HTTP_PORT=8088  # Web UI服务器端口（由 FastAPI Web 服务提供）
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}  Visual Pose Estimation Python - Web UI${NC}"
@@ -178,17 +178,17 @@ fi
 
 echo ""
 
-# 启动HTTP桥接服务器
+# 启动 FastAPI Web 服务
 echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}启动HTTP桥接服务器...${NC}"
+echo -e "${BLUE}启动 FastAPI Web 服务...${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo ""
 
 cd "${WEB_UI_DIR}"
 
-# 使用当前 Python；RemBG 能导入则进程内使用，否则子进程回退到 conda ros2_env
-echo -e "${GREEN}RemBG：进程内可用则直接使用，否则子进程使用 conda ros2_env${NC}"
-python3 "${SCRIPTS_DIR}/http_bridge_server.py" &
+# 使用 ROS2 功能包入口启动新的 FastAPI Web 服务
+echo -e "${GREEN}启动 FastAPI Web 服务（兼容旧版 UI 与 API）${NC}"
+ros2 run visual_pose_estimation_python visual_pose_estimation_web --host 127.0.0.1 --port ${HTTP_PORT} &
 HTTP_PID=$!
 
 # 等待服务器启动
@@ -196,18 +196,20 @@ sleep 3
 
 # 检查服务器是否成功启动
 if ps -p $HTTP_PID > /dev/null; then
+    HEALTH_URL="http://127.0.0.1:${HTTP_PORT}/health"
     echo ""
     echo -e "${GREEN}========================================${NC}"
     echo -e "${GREEN}✓ Web UI 启动成功！${NC}"
     echo -e "${GREEN}========================================${NC}"
     echo ""
     echo -e "${GREEN}访问地址:${NC}"
-    echo -e "  ${BLUE}http://localhost:${HTTP_PORT}${NC}"
-    echo -e "  ${BLUE}http://localhost:${HTTP_PORT}/index.html${NC}"
+    echo -e "  ${BLUE}http://127.0.0.1:${HTTP_PORT}/${NC}"
+    echo -e "  ${BLUE}http://127.0.0.1:${HTTP_PORT}/legacy-ui/index.html${NC}"
     echo ""
     echo -e "${YELLOW}提示:${NC}"
     echo -e "  - 使用浏览器访问上述地址"
     echo -e "  - 确保 visual_pose_estimation_python 节点正在运行"
+    echo -e "  - 健康检查接口: ${HEALTH_URL}"
     echo -e "  - 按 Ctrl+C 停止服务"
     echo ""
     echo -e "${GREEN}========================================${NC}"
@@ -220,6 +222,6 @@ if ps -p $HTTP_PID > /dev/null; then
     
     wait $HTTP_PID
 else
-    echo -e "${RED}✗ HTTP桥接服务器启动失败${NC}"
+    echo -e "${RED}✗ FastAPI Web 服务启动失败${NC}"
     exit 1
 fi

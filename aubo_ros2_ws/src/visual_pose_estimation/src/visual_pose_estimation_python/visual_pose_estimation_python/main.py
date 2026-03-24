@@ -16,6 +16,7 @@ import traceback
 from pathlib import Path
 from .ros2_communication import ROS2Communication
 from .config_reader import ConfigReader
+from .web.resources import resolve_templates_root, resolve_web_paths
 
 
 class VisualPoseEstimationNode(Node):
@@ -42,16 +43,7 @@ class VisualPoseEstimationNode(Node):
             template_root = ''
         
         if not template_root:
-            # 使用包内的templates目录
-            current_file = Path(__file__).resolve()
-            # visual_pose_estimation_python/visual_pose_estimation_python/main.py
-            # 向上4级到 visual_pose_estimation_python 包目录，再向上2级到 visual_pose_estimation
-            pkg_root = current_file.parents[4]  # visual_pose_estimation
-            template_root = str(pkg_root / 'templates')
-            
-            if not Path(template_root).exists():
-                # 备用路径
-                template_root = '/home/mu/IVG2.0/aubo_ros2_ws/src/visual_pose_estimation/templates'
+            template_root = str(resolve_templates_root(resolve_web_paths()))
         
         # 保存参数
         self.calib_file = calib_file

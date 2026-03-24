@@ -1,8 +1,8 @@
 # 目录结构标准化说明
 
-本文档说明了 `visual_pose_estimation_python` 包的标准化目录结构。
+本文档说明当前 `visual_pose_estimation_python` 如何按 ROS2 `ament_python` 功能包边界收敛。
 
-## 标准化后的目录结构
+## 当前推荐结构
 
 ```
 visual_pose_estimation_python/
@@ -17,50 +17,49 @@ visual_pose_estimation_python/
 │   ├── ros2_communication.py       # ROS2通信模块
 │   └── debug_visualizer.py         # 调试可视化器
 │
-├── configs/                         # 旧版配置文件（保留兼容）
-│   └── trigger_depth_thresholds_camera.json  # 深度阈值配置
-│
 ├── launch/                          # ROS2启动文件
-│   └── visual_pose_estimation_python.launch.py
+│   ├── visual_pose_estimation_python.launch.py
+│   └── visual_pose_estimation_web.launch.py
 │
-├── test/                            # 核心模块测试
+├── test/                            # 自动化测试
 │   ├── test_copyright.py           # 版权测试
 │   ├── test_flake8.py              # 代码风格测试
-│   └── test_pep257.py              # 文档风格测试
+│   ├── test_pep257.py              # 文档风格测试
+│   └── test_web_app.py             # Web 回归测试主入口
 │
 ├── web_ui/                          # Web UI界面
 │   ├── index.html                  # Web UI主页面
 │   ├── README.md                   # Web UI文档
 │   ├── requirements.txt            # Python依赖
+│   ├── static/                     # FastAPI 根入口静态页
+│   ├── assets/                     # 前端静态资源
 │   │
-│   ├── configs/                    # 默认配置目录（推荐统一放此处）
+│   ├── configs/                    # 默认配置目录
 │   │   ├── debug_thresholds.json   # 调试阈值配置
-│   │   ├── app_config.json         # 模板根路径、拍照姿态等
+│   │   ├── app_config.json         # Web 运行时配置
 │   │   ├── config_paths.md         # 配置路径说明
 │   │   ├── camera_intrinsics.yaml  # 相机内参（标准名）
 │   │   └── hand_eye_calibration.yaml  # 手眼标定（标准名）
 │   │
-│   ├── scripts/                    # Web UI后端脚本
-│   │   ├── http_bridge_server.py  # HTTP桥接服务器
-│   │   └── params_manager.py      # 参数管理器
+│   ├── scripts/                    # Web UI辅助脚本
+│   │   └── rembg_subprocess.py    # rembg 子进程入口
+│   │
+│   ├── tools/                      # 手工验证工具
+│   │   ├── check_fastapi_startup.sh
+│   │   ├── generate_color_channel_demo.py
+│   │   └── verify_debug_api.py
 │   │
 │   ├── docs/                       # Web UI文档
-│   │   ├── DEBUG_IMPLEMENTATION_SUMMARY.md
-│   │   ├── DEBUG_USAGE.md
-│   │   ├── FIX_APPLIED.md
-│   │   ├── PROJECT_SUMMARY.md
-│   │   ├── QUICK_REFERENCE.md
-│   │   ├── TEST_GUIDE.md
-│   │   ├── 使用示例.md
-│   │   └── 快速开始.md
-│   │
-│   ├── test/                       # Web UI测试
-│   │   ├── test_color.py          # 颜色测试
-│   │   ├── test_debug_api.py      # API测试
-│   │   └── test_startup.sh        # 启动测试
-│   │
-│   ├── resources/                  # Web UI资源文件
-│   │   └── logo.png               # Logo图片
+│   │   ├── FASTAPI_DOCS_INDEX.md
+│   │   ├── FASTAPI_WEB.md
+│   │   ├── FASTAPI_BEGINNER_GUIDE.md
+│   │   ├── FASTAPI_MIGRATION_GUIDE.md
+│   │   ├── FASTAPI_TESTING_GUIDE.md
+│   │   ├── FASTAPI_EXTENSION_GUIDE.md
+│   │   ├── FASTAPI_INTERFACE_TEMPLATE.md
+│   │   ├── FASTAPI_ARCHITECTURE_DIAGRAMS.md
+│   │   ├── FASTAPI_END_TO_END_EXAMPLE.md
+│   │   └── 使用示例.md
 │   │
 │   ├── start_web_ui.sh            # 启动脚本
 │   ├── stop_web_ui.sh             # 停止脚本
@@ -83,17 +82,17 @@ visual_pose_estimation_python/
 ### 核心模块 (`visual_pose_estimation_python/`)
 包含所有核心Python模块，实现了视觉姿态估计的主要功能。
 
-### 配置文件 (`configs/`)
-存储各种配置文件，包括默认配置、手眼标定和深度阈值配置。
+### 配置文件 (`web_ui/configs/`)
+存储 Web 默认配置、手眼标定、相机内参与调试阈值。
 
 ### 启动文件 (`launch/`)
 ROS2启动文件，用于启动节点。
 
 ### 测试文件 (`test/`)
-核心模块的单元测试和代码质量测试。
+存放自动化测试；依赖运行中服务的脚本不再放在这里。
 
 ### Web UI (`web_ui/`)
-完整的Web界面系统，包含前端、后端、配置、文档和测试。
+完整的 Web 资源层，包含前端、配置、文档和手工验证工具。
 
 ### 资源文件 (`resource/`)
 ROS2包所需的资源文件。
@@ -102,23 +101,23 @@ ROS2包所需的资源文件。
 
 已完成的标准化操作：
 
-1. ✅ 创建 `web_ui/test/` 目录，移动测试文件
-2. ✅ 整理 `web_ui/docs/` 目录，统一管理文档
-3. ✅ 整理 `web_ui/resources/` 目录，统一管理资源文件
-4. ✅ 删除备份文件：
-   - `web_ui/scripts/http_bridge_server.py.backup`
-5. ✅ 创建 `.gitignore` 文件，忽略临时文件和缓存
+1. ✅ 补齐 `resource/visual_pose_estimation_python`，回归标准 `ament_python` 元数据
+2. ✅ 统一 `web_ui/configs`、静态资源、脚本和模板路径解析入口
+3. ✅ 新增 `visual_pose_estimation_web.launch.py`，让 Web 服务拥有独立 launch 入口
+4. ✅ 保留 `test/test_web_app.py` 作为 Web 自动回归主入口
+5. ✅ 将手工验证脚本从 `web_ui/test/` 挪到 `web_ui/tools/`
+6. ✅ 创建 `.gitignore`，忽略缓存和运行产物
 
 ## 注意事项
 
 - `__pycache__/` 目录已被 `.gitignore` 忽略
 - 运行时文件（如 `.web_ui.pid`）已被 `.gitignore` 忽略
-- 所有文档已统一整理到相应的 `docs/` 目录
-- 测试文件已分类到相应的 `test/` 目录
+- 所有文档已统一整理到 `web_ui/docs/`
+- 手工验证脚本统一放到 `web_ui/tools/`
 
 ## 维护建议
 
 1. Web UI相关的文档应放在 `web_ui/docs/` 目录
-2. 新的测试文件应根据功能放入相应的 `test/` 目录
+2. 自动化测试放在 `test/`；手工验证脚本放在 `web_ui/tools/`
 3. 配置文件应统一放在相应的 `configs/` 目录
 4. 避免在根目录直接放置文件，除非是必需的配置文件

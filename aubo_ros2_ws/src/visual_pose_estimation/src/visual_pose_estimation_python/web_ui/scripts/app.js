@@ -1418,10 +1418,17 @@ async function loopAutoGrasp() {
             if (successNum > 0) {
                 addLogEntry('info', `检测到 ${successNum} 个工件，开始自动抓取（ExecuteGraspPose / execute_grasp_pose_worker）...`);
 
-                const graspSuccess = await autoGrasp();
+                const graspResult = await autoGrasp();
+
+                // worker 内部视觉估计失败属于可恢复错误，继续下一轮循环
+                if (!graspResult.success && (graspResult.message || '').includes('视觉位姿估计失败')) {
+                    addLogEntry('warning', '自动抓取内视觉位姿估计失败，继续下一轮循环');
+                    await _delayMs(1000);
+                    continue;
+                }
 
                 // 自动抓取失败（机械臂移动失败）则退出循环
-                if (!graspSuccess) {
+                if (!graspResult.success) {
                     addLogEntry('error', '自动抓取失败（execute_grasp_pose_worker / ExecuteGraspPose），退出循环自动抓取');
                     break;
                 }
@@ -1474,6 +1481,32 @@ async function toggleLoopAutoGrasp() {
         await stopLoopAutoGrasp();
     } else {
         await loopAutoGrasp();
+    }
+}
+
+/**
+ * 直接切换到 gripper0。
+ */
+async function switchToGripper0() {
+    if (_switchFlowInProgress) {
+        addLogEntry('warning', '夹爪切换流程正在执行中，请勿重复点击');
+        return;
+    }
+
+    _switchFlowInProgress = true;
+    try {
+        addLogEntry('info', '[GripperSwap] 开始切换到 gripper0');
+        const swapRes = await callRunGripperSwap('gripper2_to_gripper0');
+        if (!swapRes.success) {
+            addLogEntry('error', '[GripperSwap] 切换到 gripper0 失败');
+            return;
+        }
+        addLogEntry('success', '[GripperSwap] 已切换到 gripper0');
+    } catch (e) {
+        addLogEntry('error', '[GripperSwap] 切换异常: ' + e.message);
+        console.error('switchToGripper0 错误:', e);
+    } finally {
+        _switchFlowInProgress = false;
     }
 }
 
@@ -1578,14 +1611,14 @@ async function moveWithRetry(doMove, label) {
  *
  * 前置：填写工作流程「工件ID」；建议先做一次姿态估计以确认场景（抓取仍会使用 worker 侧视觉结果）。
  *
- * @returns {Promise<boolean>}
+ * @returns {Promise<{success: boolean, message: string}>}
  */
 async function autoGrasp() {
     const workpieceId = (document.getElementById('workpiece-id-workflow')?.value || '').trim();
     if (!workpieceId) {
         alert('请在工作流程中填写工件ID');
         addLogEntry('error', '自动抓取失败：请先填写工件ID（与模板/视觉估计一致）');
-        return false;
+        return { success: false, message: '自动抓取失败：请先填写工件ID（与模板/视觉估计一致）' };
     }
 
     const d = workflowState.lastEstimateResult;
@@ -1593,12 +1626,12 @@ async function autoGrasp() {
     if (!n) {
         alert('请先执行姿态估计');
         addLogEntry('warning', '自动抓取失败：请先执行姿态估计');
-        return false;
+        return { success: false, message: '自动抓取失败：请先执行姿态估计' };
     }
 
     if (_autoGraspRunning) {
         addLogEntry('warning', '自动抓取进行中，请勿重复点击');
-        return false;
+        return { success: false, message: '自动抓取进行中，请勿重复点击' };
     }
     _autoGraspRunning = true;
 
@@ -1611,14 +1644,14 @@ async function autoGrasp() {
     try {
         const r = await callExecuteSingleGrasp(workpieceId, true, 600);
         if (!r.success) {
-            return false;
+            return { success: false, message: r.message || '单次抓取服务调用失败' };
         }
         addLogEntry('success', '自动抓取完成（execute_grasp_pose_worker 整周期）');
-        return true;
+        return { success: true, message: r.message || '自动抓取完成' };
     } catch (e) {
         addLogEntry('error', '自动抓取异常: ' + e.message);
         console.error('自动抓取错误:', e);
-        return false;
+        return { success: false, message: e.message || '自动抓取异常' };
     } finally {
         _autoGraspRunning = false;
     }

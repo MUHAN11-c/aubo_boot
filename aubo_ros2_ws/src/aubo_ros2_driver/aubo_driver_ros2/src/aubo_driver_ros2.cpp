@@ -20,10 +20,11 @@
 #include <functional>
 #include <mutex>
 #include <fstream>
-#include <sstream>
 #include <cctype>
 
 namespace aubo_driver {
+
+static std::atomic<int64_t> g_last_moveit_cb_steady_ms{0};
 
 double MaxAcc[ARM_DOF] = {17.30878, 17.30878, 17.30878, 20.73676, 20.73676, 20.73676};
 double MaxVelc[ARM_DOF] = {2.596177, 2.596177, 2.596177, 3.110177, 3.110177, 3.110177};
@@ -109,15 +110,36 @@ AuboDriver::AuboDriver(int num)
     cancle_trajectory_pub_ = this->create_publisher<std_msgs::msg::UInt8>("aubo_driver/cancel_trajectory", 100);
     
     io_pub_ = this->create_publisher<demo_interface::msg::RobotIOStatus>("/aubo_driver/io_states", 10);
-    io_srv_ = this->create_service<demo_interface::srv::SetRobotIO>("/aubo_driver/set_io", std::bind(&AuboDriver::setIO, this, std::placeholders::_1, std::placeholders::_2));
-    ik_srv_ = this->create_service<aubo_msgs::srv::GetIK>("/aubo_driver/get_ik", std::bind(&AuboDriver::getIK, this, std::placeholders::_1, std::placeholders::_2));
-    fk_srv_ = this->create_service<aubo_msgs::srv::GetFK>("/aubo_driver/get_fk", std::bind(&AuboDriver::getFK, this, std::placeholders::_1, std::placeholders::_2));
-
-    trajectory_execution_subs_ = this->create_subscription<std_msgs::msg::String>("trajectory_execution_event", 10, std::bind(&AuboDriver::trajectoryExecutionCallback, this, std::placeholders::_1));
-    robot_control_subs_ = this->create_subscription<std_msgs::msg::String>("robot_control", 10, std::bind(&AuboDriver::robotControlCallback, this, std::placeholders::_1));
-    // moveItController_cmd 与 timer 并行即可；订阅回调自身必须串行，避免 time_from_start 顺序被并发重入打乱
+    // 以功能域拆分 callback group：轨迹、500Hz 控制、50Hz 状态、服务、控制命令互相隔离
     trajectory_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     update_control_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+    state_timer_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+    service_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+    control_cmd_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
+    io_srv_ = this->create_service<demo_interface::srv::SetRobotIO>(
+        "/aubo_driver/set_io",
+        std::bind(&AuboDriver::setIO, this, std::placeholders::_1, std::placeholders::_2),
+        rmw_qos_profile_services_default,
+        service_cb_group_);
+    ik_srv_ = this->create_service<aubo_msgs::srv::GetIK>(
+        "/aubo_driver/get_ik",
+        std::bind(&AuboDriver::getIK, this, std::placeholders::_1, std::placeholders::_2),
+        rmw_qos_profile_services_default,
+        service_cb_group_);
+    fk_srv_ = this->create_service<aubo_msgs::srv::GetFK>(
+        "/aubo_driver/get_fk",
+        std::bind(&AuboDriver::getFK, this, std::placeholders::_1, std::placeholders::_2),
+        rmw_qos_profile_services_default,
+        service_cb_group_);
+
+    rclcpp::SubscriptionOptions control_sub_opts;
+    control_sub_opts.callback_group = control_cmd_cb_group_;
+    trajectory_execution_subs_ = this->create_subscription<std_msgs::msg::String>(
+        "trajectory_execution_event", 10, std::bind(&AuboDriver::trajectoryExecutionCallback, this, std::placeholders::_1), control_sub_opts);
+    robot_control_subs_ = this->create_subscription<std_msgs::msg::String>(
+        "robot_control", 10, std::bind(&AuboDriver::robotControlCallback, this, std::placeholders::_1), control_sub_opts);
+    // moveItController_cmd 与 timer 并行即可；订阅回调自身必须串行，避免 time_from_start 顺序被并发重入打乱
     rclcpp::SubscriptionOptions moveit_sub_opts;
     moveit_sub_opts.callback_group = trajectory_cb_group_;
     moveit_controller_subs_ = this->create_subscription<trajectory_msgs::msg::JointTrajectoryPoint>(
@@ -125,9 +147,12 @@ AuboDriver::AuboDriver(int num)
         rclcpp::QoS(20000),
         std::bind(&AuboDriver::moveItPosCallback, this, std::placeholders::_1),
         moveit_sub_opts);
-    teach_subs_ = this->create_subscription<std_msgs::msg::Float32MultiArray>("teach_cmd", 10, std::bind(&AuboDriver::teachCallback, this, std::placeholders::_1));
-    moveAPI_subs_ = this->create_subscription<std_msgs::msg::Float32MultiArray>("moveAPI_cmd", 10, std::bind(&AuboDriver::AuboAPICallback, this, std::placeholders::_1));
-    controller_switch_sub_ = this->create_subscription<std_msgs::msg::Int32>("/aubo_driver/controller_switch", 10, std::bind(&AuboDriver::controllerSwitchCallback, this, std::placeholders::_1));
+    teach_subs_ = this->create_subscription<std_msgs::msg::Float32MultiArray>(
+        "teach_cmd", 10, std::bind(&AuboDriver::teachCallback, this, std::placeholders::_1), control_sub_opts);
+    moveAPI_subs_ = this->create_subscription<std_msgs::msg::Float32MultiArray>(
+        "moveAPI_cmd", 10, std::bind(&AuboDriver::AuboAPICallback, this, std::placeholders::_1), control_sub_opts);
+    controller_switch_sub_ = this->create_subscription<std_msgs::msg::Int32>(
+        "/aubo_driver/controller_switch", 10, std::bind(&AuboDriver::controllerSwitchCallback, this, std::placeholders::_1), control_sub_opts);
 
     std::string file_name = "/tmp/aubo_driver_ros2_jointpose.csv";
     remove(file_name.c_str());
@@ -158,24 +183,39 @@ AuboDriver::~AuboDriver()
 
 void AuboDriver::timerCallback()
 {
+    static auto last_timer_ts = std::chrono::steady_clock::now();
+    static auto last_diag_poll_ts = std::chrono::steady_clock::now() - std::chrono::milliseconds(500);
+    const auto timer_now = std::chrono::steady_clock::now();
+    const double timer_delta_ms = std::chrono::duration<double, std::milli>(timer_now - last_timer_ts).count();
+    last_timer_ts = timer_now;
+    double sampled_waypoint_ms = -1.0;
+    double sampled_diag_ms = -1.0;
+    bool sampled_do_sdk_poll = false;
     static uint32_t waypoint_skip_counter = 0;
     if(controller_connected_flag_) {
         const bool do_sdk_poll = !start_move_ || ((++waypoint_skip_counter) % 5 == 0);
+        sampled_do_sdk_poll = do_sdk_poll;
         if (do_sdk_poll) {
             const auto waypoint_t0 = std::chrono::steady_clock::now();
             int ret = robot_receive_service_.robotServiceGetCurrentWaypointInfo(rs.wayPoint_);
             const double waypoint_ms = std::chrono::duration<double, std::milli>(
                 std::chrono::steady_clock::now() - waypoint_t0).count();
+            sampled_waypoint_ms = waypoint_ms;
             if(ret == aubo_robot_namespace::InterfaceCallSuccCode) {
                 double joints[ARM_DOF];
                 for(int i = 0; i < 6; i++) joints[i] = rs.wayPoint_.jointpos[i];
                 setCurrentPosition(joints);
                 const bool should_poll_diag = real_robot_exist_ && !start_move_;
-                if(should_poll_diag) {
+                const auto diag_gap_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    timer_now - last_diag_poll_ts).count();
+                const bool diag_due = (diag_gap_ms >= 200);
+                if(should_poll_diag && diag_due) {
                     const auto diag_t0 = std::chrono::steady_clock::now();
                     robot_receive_service_.robotServiceGetRobotDiagnosisInfo(rs.robot_diagnosis_info_);
                     const double diag_ms = std::chrono::duration<double, std::milli>(
                         std::chrono::steady_clock::now() - diag_t0).count();
+                    sampled_diag_ms = diag_ms;
+                    last_diag_poll_ts = timer_now;
                     rib_buffer_size_ = rs.robot_diagnosis_info_.macTargetPosDataSize;
                 }
                 robot_status_msg_.is_online = controller_connected_flag_;
@@ -326,8 +366,9 @@ bool AuboDriver::setRobotJointsByMoveIt()
     std::vector<PlanningState> ps_batch;
     {
         std::lock_guard<std::mutex> lock(buf_queue_mutex_);
-        if(buf_queue_.empty())
+        if(buf_queue_.empty()) {
             return false;
+        }
         const size_t kMaxBufPopPerCycle = 8;
         ps_batch.reserve(kMaxBufPopPerCycle);
         while(!buf_queue_.empty() && ps_batch.size() < kMaxBufPopPerCycle) {
@@ -406,6 +447,10 @@ void AuboDriver::controllerSwitchCallback(const std_msgs::msg::Int32::ConstShare
 
 void AuboDriver::moveItPosCallback(const trajectory_msgs::msg::JointTrajectoryPoint::ConstSharedPtr msg)
 {
+    const auto moveit_cb_t0 = std::chrono::steady_clock::now();
+    const auto now_steady_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        moveit_cb_t0.time_since_epoch()).count();
+    g_last_moveit_cb_steady_ms.store(now_steady_ms, std::memory_order_relaxed);
     std::lock_guard<std::mutex> cb_lock(moveit_cb_mutex_);
     double jointAngle[ARM_DOF];
     for(int i = 0; i < axis_number_; i++) jointAngle[i] = msg->positions[i];
@@ -487,6 +532,10 @@ void AuboDriver::clearBufQueue()
 
 void AuboDriver::updateControlStatus()
 {
+    static auto last_update_ts = std::chrono::steady_clock::now();
+    const auto update_now = std::chrono::steady_clock::now();
+    const double update_delta_ms = std::chrono::duration<double, std::milli>(update_now - last_update_ts).count();
+    last_update_ts = update_now;
     size_t bq = buf_queue_size_.load(std::memory_order_relaxed);
     if (delay_clear_times > 0) {
         clearBufQueue();
@@ -496,7 +545,8 @@ void AuboDriver::updateControlStatus()
     int c = data_count_.fetch_add(1) + 1;
     if (c == MAXALLOWEDDELAY) {
         data_count_.store(0);
-        if (bq >= 50 && !start_move_ && delay_clear_times == 0)
+        // 与 Noetic 对齐：100ms 后只要缓冲非空就可启动，避免等待过多点导致可见停顿
+        if (bq > 0 && !start_move_ && delay_clear_times == 0)
             start_move_ = true;
     }
 }
@@ -512,6 +562,7 @@ void AuboDriver::feedToRosMotionLoop()
             const int rib = rib_buffer_size_.load();
             const int feed_count = (rib < 200) ? 3 : 1;
             int batch = 0;
+            int qsz_snapshot = static_cast<int>(ros_motion_queue_.size_approx());
             for (int i = 0; i < feed_count; i++) {
                 if (!setRobotJointsByMoveIt()) break;
                 batch++;
@@ -525,8 +576,22 @@ void AuboDriver::feedToRosMotionLoop()
                 if (idle_log_stride >= 100) {
                     idle_log_stride = 0;
                 }
-                if(empty_streak > 500) {
+                const auto now_steady_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now().time_since_epoch()).count();
+                const int64_t last_cb_ms = g_last_moveit_cb_steady_ms.load(std::memory_order_relaxed);
+                const int64_t gap_since_cb_ms = (last_cb_ms > 0) ? (now_steady_ms - last_cb_ms) : -1;
+                const bool rib_low = (rib <= 5);
+                if (gap_since_cb_ms > 800 && empty_streak > 80 && rib_low) {
                     start_move_ = false;
+                    empty_streak = 0;
+                }
+                if(empty_streak > 500) {
+                    // 上游在 worker 周期切换中会出现秒级无回调窗口：仅在“长时间无回调”时退出 start_move_，
+                    // 既避免短时欠供导致频繁停启，又能在长空窗时进入可控 idle 状态。
+                    if (gap_since_cb_ms > 800) {
+                        start_move_ = false;
+                    }
+                    // 与 Noetic 语义对齐：不因短时/间歇缺点直接退出运动态，避免频繁停启造成卡顿
                     empty_streak = 0;
                 }
             } else {
@@ -629,7 +694,10 @@ void AuboDriver::run()
             joint_target_pub_->publish(*robot_joints);
         }
     }
-    timer_ = this->create_wall_timer(std::chrono::milliseconds(1000 / TIMER_SPAN_), std::bind(&AuboDriver::timerCallback, this));
+    timer_ = this->create_wall_timer(
+        std::chrono::milliseconds(1000 / TIMER_SPAN_),
+        std::bind(&AuboDriver::timerCallback, this),
+        state_timer_cb_group_);
     // 500Hz updateControlStatus 使用独立 callback group，与 50Hz timer/轨迹订阅并行（单节点 + MultiThreadedExecutor）
     update_control_timer_ = this->create_wall_timer(
         std::chrono::milliseconds(2),

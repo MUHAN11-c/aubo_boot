@@ -43,6 +43,8 @@ static constexpr double kArcPathRetryDelaySec = 0.5;
 static constexpr double kCartesianEefStep = 0.015;
 static constexpr double kCartesianJumpThreshold = 0.0;
 static constexpr double kExecuteGraspZMinLimit = 0.19;
+static constexpr int kVisionEstimateMaxRetries = 3;
+static constexpr double kVisionEstimateRetryDelaySec = 1.0;
 
 // ============================================================================
 // 临时调试开关（切回真实机械臂时只需改这里）
@@ -374,17 +376,11 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
   geometry_msgs::msg::Quaternion grasp_ori_short = quatSameHemisphere(current_pose.orientation, grasp_ori);
 
   // 定义各个路径点
-  geometry_msgs::msg::Pose p_x;
-  p_x.position.x = gx;
-  p_x.position.y = current_pose.position.y;
-  p_x.position.z = current_pose.position.z;
-  p_x.orientation = current_pose.orientation;
-
-  geometry_msgs::msg::Pose p_y;
-  p_y.position.x = gx;
-  p_y.position.y = gy;
-  p_y.position.z = current_pose.position.z;
-  p_y.orientation = current_pose.orientation;
+  geometry_msgs::msg::Pose p_xy;
+  p_xy.position.x = gx;
+  p_xy.position.y = gy;
+  p_xy.position.z = current_pose.position.z;
+  p_xy.orientation = current_pose.orientation;
 
   geometry_msgs::msg::Pose p_up;
   p_up.position.x = gx;
@@ -402,7 +398,7 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
   p_down.position.x = gx;
   p_down.position.y = gy;
   p_down.position.z = gz;
-  // p_down的姿态将在第5段时从第4段的结果继承
+  // p_down的姿态将在第4段时从第3段的结果继承
 
   // 分段执行笛卡尔路径
   struct Segment {
@@ -412,11 +408,9 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
   };
   
   std::vector<Segment> segments = {
-    {"X轴移动", p_x, false},
-    {"Y轴移动", p_y, false},
-    {"上升到安全高度", p_up, false},
-    {"相对Z轴旋转", {}, true},  // 第4段特殊处理
-    {"下降到抓取点", {}, true}   // 第5段继承第4段姿态
+    {"XY平移并上升到安全高度", p_up, false},
+    {"相对Z轴旋转", {}, true},  // 第2段特殊处理
+    {"下降到抓取点", {}, true}   // 第3段继承第2段姿态
   };
 
   for (size_t seg_idx = 0; seg_idx < segments.size(); ++seg_idx)
@@ -427,8 +421,8 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
     
     geometry_msgs::msg::PoseStamped current = move_group_->getCurrentPose(eef_link);
     
-    // 第4段：在当前姿态基础上叠加Z轴旋转
-    if (segment.use_current_orientation && seg_idx == 3)
+    // 第2段：在当前姿态基础上叠加Z轴旋转
+    if (segment.use_current_orientation && seg_idx == 1)
     {
       segment.target.position.x = gx;
       segment.target.position.y = gy;
@@ -448,7 +442,7 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
                                     current.pose.orientation.y,
                                     current.pose.orientation.z);
       
-      // 目标姿态（绝对目标）：来自抓取位姿，只在第4段完成“当前 -> 目标”的旋转
+      // 目标姿态（绝对目标）：来自抓取位姿，只在第2段完成“当前 -> 目标”的旋转
       Eigen::Quaterniond q_goal(grasp_ori_short.w, grasp_ori_short.x, grasp_ori_short.y, grasp_ori_short.z);
       q_goal.normalize();
       q_current.normalize();
@@ -485,8 +479,8 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
                   segment.target.orientation.z, segment.target.orientation.w);
       RCLCPP_INFO(get_logger(), "  =========================================");
     }
-    // 第5段：继承当前姿态，只改变Z位置
-    else if (segment.use_current_orientation && seg_idx == 4)
+    // 第3段：继承当前姿态，只改变Z位置
+    else if (segment.use_current_orientation && seg_idx == 2)
     {
       segment.target.position.x = gx;
       segment.target.position.y = gy;
@@ -498,7 +492,15 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
     
     std::vector<geometry_msgs::msg::Pose> waypoints;
     waypoints.push_back(current.pose);
-    waypoints.push_back(segment.target);
+    if (!segment.use_current_orientation && seg_idx == 0)
+    {
+      waypoints.push_back(p_xy);
+      waypoints.push_back(p_up);
+    }
+    else
+    {
+      waypoints.push_back(segment.target);
+    }
     
     moveit_msgs::msg::RobotTrajectory trajectory;
     bool success = false;
@@ -886,10 +888,30 @@ void ExecuteGraspPoseWorker::handleExecuteSingleGrasp(
   if (request->use_visual_estimation)
   {
     RCLCPP_INFO(get_logger(), "[handleExecuteSingleGrasp] 步骤 1/2: 调用视觉位姿估计服务...");
-    if (!estimatePoseFromVision(request->object_id))
+    bool vision_success = false;
+    for (int attempt = 1; attempt <= kVisionEstimateMaxRetries; ++attempt)
+    {
+      RCLCPP_INFO(get_logger(), "[handleExecuteSingleGrasp]   视觉估计尝试 %d/%d",
+                  attempt, kVisionEstimateMaxRetries);
+      if (estimatePoseFromVision(request->object_id))
+      {
+        vision_success = true;
+        break;
+      }
+
+      if (attempt < kVisionEstimateMaxRetries)
+      {
+        RCLCPP_WARN(get_logger(),
+                    "[handleExecuteSingleGrasp]   视觉估计失败，%.1f 秒后重试...",
+                    kVisionEstimateRetryDelaySec);
+        std::this_thread::sleep_for(std::chrono::duration<double>(kVisionEstimateRetryDelaySec));
+      }
+    }
+
+    if (!vision_success)
     {
       response->success = false;
-      response->message = "视觉位姿估计失败";
+      response->message = "视觉位姿估计失败（已重试3次）";
       RCLCPP_ERROR(get_logger(), "[handleExecuteSingleGrasp] ❌ %s", response->message.c_str());
       RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
       return;

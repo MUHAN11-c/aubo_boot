@@ -215,6 +215,9 @@ namespace aubo_driver
             rclcpp::TimerBase::SharedPtr update_control_timer_;  // 500Hz，独立 callback group 与轨迹/50Hz 并行
             rclcpp::CallbackGroup::SharedPtr trajectory_cb_group_;   // 轨迹订阅专用，与 500Hz/50Hz 不同组
             rclcpp::CallbackGroup::SharedPtr update_control_cb_group_; // 500Hz 定时器专用
+            rclcpp::CallbackGroup::SharedPtr state_timer_cb_group_;    // 50Hz 状态定时器专用，避免被服务阻塞
+            rclcpp::CallbackGroup::SharedPtr service_cb_group_;        // set_io/get_fk/get_ik 专用
+            rclcpp::CallbackGroup::SharedPtr control_cmd_cb_group_;    // 控制命令订阅专用
             rclcpp::Service<demo_interface::srv::SetRobotIO>::SharedPtr io_srv_;
             rclcpp::Service<aubo_msgs::srv::GetFK>::SharedPtr fk_srv_;
             rclcpp::Service<aubo_msgs::srv::GetIK>::SharedPtr ik_srv_;

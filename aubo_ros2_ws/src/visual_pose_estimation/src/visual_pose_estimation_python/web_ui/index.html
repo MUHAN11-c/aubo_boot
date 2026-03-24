@@ -1480,6 +1480,7 @@
                             <button class="btn btn-success" onclick="autoGrasp()" title="调用 execute_grasp_pose_worker（/execute_single_grasp），需先填工件ID并做姿态估计">🤖<br>自动抓取</button>
                             <button class="btn btn-success" id="loop-auto-grasp-btn" onclick="toggleLoopAutoGrasp()">🔄<br>循环抓取</button>
                             <button class="btn btn-warning" id="switch-to-gripper2-btn" onclick="stopAndSwitchToGripper2ThenStartGraspnet()" title="优雅停止 gripper0 循环 -> 切换 gripper2 -> 启动 graspnet 循环">🔁<br>停并切换</button>
+                            <button class="btn btn-secondary" id="switch-to-gripper0-btn" onclick="switchToGripper0()" title="调用 /run_gripper_swap 切换到 gripper0">🛠<br>切回夹爪0</button>
                             <button class="btn btn-danger" id="stop-all-btn" onclick="stopAllFlows()" title="全部优雅停止（当前轮结束后停止）">🛑<br>全部停止</button>
                             <button class="btn btn-primary" onclick="moveToCameraPose()">📸<br>拍照姿态</button>
                         </div>

@@ -1,8 +1,10 @@
 """
-纯 ROS2 启动（无 ROS1 桥接）：真实机用 aubo_driver_ros2，轨迹插值在 ROS2。
+纯 ROS2 启动：真实机用 aubo_driver_ros2，轨迹插值在 ROS2。
 
-等价于（推荐直接用本文件，更简单）:
-  ros2 launch aubo_moveit_config aubo_moveit_bridge_ros1.launch.py use_aubo_driver_ros2:=true aubo_driver_server_host:=<IP>
+全链路运动指令频率由 launch 参数 motion_command_hz（默认 200）统一：
+  move_group.sample_duration = 1/hz ；aubo_robot_simulator motion_update_rate = hz ；aubo_driver motion_command_hz = hz 。
+  笛卡尔路径（computeCartesianPath → execute）生成的关节轨迹同样会经规划管线里的 AddTimeOptimalParameterization 做时间参数化与重采样；
+  若未设置 move_group.resample_dt，默认 0.1 s 比 sample_duration 粗很多，容易在笛卡尔执行阶段表现为顿挫；此处将 resample_dt 与 sample_duration 对齐。
 
 用法:
   ros2 launch aubo_moveit_config aubo_moveit_pure_ros2.launch.py
@@ -36,6 +38,15 @@ def load_yaml(package_name, file_path):
 
 
 def launch_setup(context, *args, **kwargs):
+    # 运动指令链统一频率：MoveIt 轨迹采样 ≡ simulator 插补 ≡ driver 取点周期（默认 200Hz，与 Noetic jti 1/200 一致）
+    try:
+        motion_command_hz = float(LaunchConfiguration("motion_command_hz").perform(context))
+    except ValueError:
+        motion_command_hz = 200.0
+    if motion_command_hz < 1.0:
+        motion_command_hz = 200.0
+    trajectory_sample_duration = 1.0 / motion_command_hz
+
     # MoveItConfigsBuilder：显式指定各配置文件（路径相对于 aubo_moveit_config 包）
     moveit_config = (
         MoveItConfigsBuilder("aubo_robot", package_name="aubo_moveit_config")
@@ -47,7 +58,7 @@ def launch_setup(context, *args, **kwargs):
     )
     pkg_share = get_package_share_directory("aubo_moveit_config")
 
-    # robot_description 使用 aubo_ros2.xacro（与 bridge 一致，不用 to_dict 里的默认 urdf）
+    # robot_description 使用 aubo_ros2.xacro（不用 to_dict 里的默认 urdf）
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
@@ -68,12 +79,14 @@ def launch_setup(context, *args, **kwargs):
             "planning_plugin": "ompl_interface/OMPLPlanner",
             "request_adapters": "default_planner_request_adapters/AddTimeOptimalParameterization default_planner_request_adapters/ResolveConstraintFrames default_planner_request_adapters/FixWorkspaceBounds default_planner_request_adapters/FixStartStateBounds default_planner_request_adapters/FixStartStateCollision default_planner_request_adapters/FixStartStatePathConstraints",
             "start_state_max_bounds_error": 0.1,
-            "sample_duration": 0.005,
+            "sample_duration": trajectory_sample_duration,
             "planning_time": 15.0,
             "max_planning_attempts": 10,
         }
     }
     ompl_planning["move_group"].update(load_yaml("aubo_moveit_config", "config/ompl_planning.yaml"))
+    # AddTimeOptimalParameterization：默认 resample_dt=0.1；笛卡尔与关节规划后的轨迹重采样均走此处，过稀时笛卡尔执行段尤其易顿挫
+    ompl_planning["move_group"]["resample_dt"] = 0.05
     # Enable MTC execute action server: /execute_task_solution
     move_group_capabilities = {
         "capabilities": "move_group/ExecuteTaskSolutionCapability",
@@ -84,11 +97,11 @@ def launch_setup(context, *args, **kwargs):
             "moveit_controller_manager": "moveit_simple_controller_manager/MoveItSimpleControllerManager",
         }
 
-    # 轨迹执行允许时间 = 规划时长×scaling + margin；400Hz 插值+边界 blend 使执行略慢，需更大余量
+    # 上界 ≈ 末点时间×scaling + margin；MTC 需在节点侧启用 AddTimeOptimalParameterization，勿仅靠放大 margin。
     trajectory_execution = {
         "moveit_manage_controllers": False,
         "trajectory_execution.allowed_execution_duration_scaling": 5.0,
-        "trajectory_execution.allowed_goal_duration_margin": 3.0,
+        "trajectory_execution.allowed_goal_duration_margin": 10.0,
         "trajectory_execution.allowed_start_tolerance": 0.15,
     }
 
@@ -139,7 +152,7 @@ def launch_setup(context, *args, **kwargs):
         parameters=[robot_description],
     )
 
-    # 与 aubo_moveit_bridge_ros1.launch.py 一致：use_aubo_driver_ros2 时不启动 ros2_control_node，
+    # use_aubo_driver_ros2 时不启动 ros2_control_node，
     # joint_states 与执行由 aubo_driver_ros2 + aubo_robot_simulator_ros2 完成。
     # robot_state_publisher 需要启动以发布 TF 树（基于 URDF 和 /joint_states）。
 
@@ -169,6 +182,7 @@ def launch_setup(context, *args, **kwargs):
         parameters=[{
             "server_host": LaunchConfiguration("aubo_driver_server_host"),
             "external_axis_number": 0,
+            "motion_command_hz": motion_command_hz,
         }],
     )
 
@@ -193,7 +207,7 @@ def launch_setup(context, *args, **kwargs):
         name="aubo_robot_simulator",
         output="screen",
         parameters=[{
-            "motion_update_rate": 200.0,  # 400Hz 更密插值，减轻运动过程中轻微抖动
+            "motion_update_rate": motion_command_hz,
             "minimum_buffer_size": 600,  # 降低节流阈值，避免速度因子 0.1 时 rib>2000 导致成批发送卡顿
             "joint_names": joint_names_list,
         }],
@@ -219,6 +233,11 @@ def generate_launch_description():
             "aubo_driver_server_host",
             default_value=DEFAULT_SERVER_HOST,
             description="机械臂控制器 IP（aubo_driver_ros2）",
+        ),
+        DeclareLaunchArgument(
+            "motion_command_hz",
+            default_value="200.0",
+            description="MoveIt→simulator→driver 运动指令统一频率(Hz)，与 motion_update_rate、motion_command_hz 一致",
         ),
         OpaqueFunction(function=launch_setup),
     ])

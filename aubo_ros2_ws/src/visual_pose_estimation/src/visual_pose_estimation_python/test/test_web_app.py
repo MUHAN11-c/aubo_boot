@@ -243,10 +243,14 @@ def test_status_endpoint():
 
 def test_index_alias_exists():
     with create_test_client() as client:
-        response = client.get("/index.html")
+        response = client.get("/index.html", follow_redirects=False)
+        assert response.status_code == 307
+        assert response.headers.get("location") == "/legacy-ui/index.html"
+        main = client.get("/legacy-ui/index.html")
 
-    assert response.status_code == 200
-    assert "兼容界面" in response.text
+    assert main.status_code == 200
+    assert "演示" in main.text
+    assert "姿态大师" in main.text
 
 
 def test_native_estimate_pose_route():

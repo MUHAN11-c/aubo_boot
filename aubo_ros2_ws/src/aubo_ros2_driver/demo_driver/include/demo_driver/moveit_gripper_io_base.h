@@ -65,12 +65,16 @@ protected:
   bool moveToHome(float velocity_factor = 0.5f, float acceleration_factor = 0.5f);
   /** 移动到 arc 起点位姿 */
   bool moveToArcStart();
-  /** 沿 Z 轴笛卡尔直线移动 z_offset 米，velocity_factor 0~1 控制速度，默认 0.5 */
-  bool runArcPath(double z_offset = 0.2, float velocity_factor = 0.5f);
-  /** 沿指定轴笛卡尔直线移动 */
-  bool runArcPath(char axis, double offset, float velocity_factor = 0.5f);
-  /** 多段笛卡尔路径依次执行 */
-  bool runArcPathSequence(const std::vector<CartesianSegment>& segments, float velocity_factor = 0.5f);
+  /**
+   * 沿 Z 轴笛卡尔直线移动 z_offset 米。
+   * @param acceleration_factor 加速度缩放 [0~1]；<0 时与 velocity_factor 相同（与 publish_grasps_client_worker 一致）
+   */
+  bool runArcPath(double z_offset = 0.2, float velocity_factor = 0.5f, float acceleration_factor = -1.f);
+  /** 沿指定轴笛卡尔直线移动（多段路点一次 computeCartesianPath + 一次 execute） */
+  bool runArcPath(char axis, double offset, float velocity_factor = 0.5f, float acceleration_factor = -1.f);
+  /** 多段笛卡尔路径一条轨迹一次执行 */
+  bool runArcPathSequence(const std::vector<CartesianSegment>& segments, float velocity_factor = 0.5f,
+                          float acceleration_factor = -1.f);
   /** 设置夹爪 IO：io_index 为 pin 号，high 为电平（开关夹爪/锁紧等） */
   bool setGripperIo(int32_t io_index, bool high);
 

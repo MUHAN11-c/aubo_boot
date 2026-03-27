@@ -8,18 +8,20 @@
 #ifndef DEMO_DRIVER_PUBLISH_GRASPS_CLIENT_WORKER_H_
 #define DEMO_DRIVER_PUBLISH_GRASPS_CLIENT_WORKER_H_
 
-#include "demo_driver/moveit_gripper_io_base.h"
-
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <deque>
 #include <mutex>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include <Eigen/Core>
+#include <demo_interface/srv/set_robot_io.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 #include <geometry_msgs/msg/pose_array.hpp>
+#include <moveit/move_group_interface/move_group_interface.h>
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <std_srvs/srv/set_bool.hpp>
@@ -27,22 +29,32 @@
 namespace demo_driver
 {
 
+/** 笛卡尔路径单段：沿 axis 轴移动 offset 米（与放置多段路径一致） */
+struct CartesianSegment
+{
+  char axis;
+  double offset;
+};
+
 /**
- * @brief GraspNet 抓取放置 Worker 节点
+ * @brief GraspNet 抓取放置 Worker 节点（独立 rclcpp::Node，不继承 MoveitGripperIoBase）
  *
- * 继承 MoveitGripperIoBase，订阅 grasp_poses_base（PoseArray），循环执行：
- * 清理窗口 -> 等待新数据 -> 选优 -> gripper_tip 补偿 -> 抓取接近 -> 闭夹爪 -> 抬起 ->
- * 移动到放置位 -> 开夹爪 -> 回安全位。
+ * 【对外】run / runOneCycle、窗口与采集控制、关机钩子；实现见 publish_grasps_client_worker.cpp 分部注释。
+ * 【流程】滑窗选优 → tip→EEF → MoveIt（关节/命名位姿/笛卡尔）→ 夹爪 IO → 放置 → 回 camera_pose。
+ *
+ * 订阅 grasp_poses_base（PoseArray）；循环由 loop_control(SetBool) 或 auto_start_loop 驱动。
  */
-class PublishGraspsClientWorker : public MoveitGripperIoBase
+class PublishGraspsClientWorker : public rclcpp::Node
 {
 public:
   explicit PublishGraspsClientWorker(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
-  ~PublishGraspsClientWorker() override = default;
+  ~PublishGraspsClientWorker() = default;
 
   static std::shared_ptr<PublishGraspsClientWorker> create(const rclcpp::NodeOptions& options);
 
-  bool run() override;
+  bool waitForServices(std::chrono::seconds timeout);
+
+  bool run();
 
   /** 单次抓取放置周期，任一步失败返回 false */
   bool runOneCycle();
@@ -85,6 +97,7 @@ public:
   bool isShutdownRequested() const { return shutdown_requested_.load(); }
 
 private:
+  // 感知几何、MoveIt 封装与周期内部步骤；调用顺序以 runOneCycle 为准
   /**
    * 4 点笛卡尔抓取接近，fraction<1 或点数>cartesian_max_points 直接返回 false，不回退
    * @param pose_ee end_effector 在 base_link 下的目标位姿（gripper_tip 补偿后）
@@ -95,20 +108,25 @@ private:
   bool runGraspApproach(const geometry_msgs::msg::Pose& pose_ee, double height_above, float vel, float acc);
 
   /**
-   * 四元数同半球，避免笛卡尔插值走 180° 长路径
-   * @param q_ref 参考四元数（通常为当前末端姿态）
-   * @param q 待选四元数（抓取姿态），若 dot<0 返回 -q
+   * GraspNet 预测抓取专属修正：网络抓取系与实物夹爪绕局部 Z 常差 180°，ori * (0,0,1,0)，位置不变。
+   * 仅用于 grasp_poses 等 GraspNet 输出；其它位姿来源勿调用。
    */
-  geometry_msgs::msg::Quaternion quatSameHemisphere(const geometry_msgs::msg::Quaternion& q_ref,
-                                                     const geometry_msgs::msg::Quaternion& q);
-
-  /** GraspNet Z 轴 180° 修正：ori * _QUAT_Z_180，位置不变 */
   geometry_msgs::msg::Pose applyGraspZFlip180(const geometry_msgs::msg::Pose& pose);
 
   /** 垂直度得分 [0,1]：抓取 Z 轴与 [0,0,-1] 点积绝对值，越大越垂直 */
   double verticalityScore(const geometry_msgs::msg::Pose& pose);
 
-  void graspPosesCallback(const geometry_msgs::msg::PoseArray::SharedPtr msg);
+  /** 工业惯例：每次规划前同步当前状态并设置速度/加速度缩放（关节与笛卡尔均适用） */
+  void preparePlanningState(float velocity_factor, float acceleration_factor);
+
+  void initMoveGroup();
+  bool setGripperIo(int32_t io_index, bool high);
+  bool moveToHome(float velocity_factor, float acceleration_factor);
+  bool runArcPath(char axis, double offset, float velocity_factor, float acceleration_factor);
+  bool runArcPathSequence(const std::vector<CartesianSegment>& segments, float velocity_factor,
+                          float acceleration_factor);
+
+  void graspPosesCallback(geometry_msgs::msg::PoseArray::ConstSharedPtr msg);
 
   /**
    * 发布周期状态到 status_topic（JSON 格式）
@@ -135,14 +153,10 @@ private:
   double grasp_z_offset_;
   /** 抓取点上方安全高度 (m)，笛卡尔路径先到该高度再垂直下降 */
   double height_above_;
-  /** 关节/笛卡尔速度缩放 [0~1]，用于抓取接近、抬起、放置位姿等 */
+  /** 速度缩放 [0~1]：关节规划、moveToHome、笛卡尔（经 preparePlanningState + 笛卡尔时间缩放）共用 */
   float joint_velocity_scaling_;
-  /** 关节/笛卡尔加速度缩放 [0~1]，用于抓取接近、放置位姿等 */
+  /** 加速度缩放 [0~1]，与 joint_velocity_scaling_ 共用场景一致 */
   float joint_acceleration_scaling_;
-  /** moveToHome 回安全位速度缩放 [0~1]，与笛卡尔分开 */
-  float home_velocity_scaling_;
-  /** moveToHome 回安全位加速度缩放 [0~1]，与笛卡尔分开 */
-  float home_acceleration_scaling_;
   /** 抓取位姿话题名，与 graspnet_demo_points_node 发布一致 */
   std::string grasp_poses_topic_;
   /** 等待窗口就绪超时 (s)，超时返回 false */
@@ -163,16 +177,11 @@ private:
   int32_t gripper_io_index_;
   /** 抓取后沿 Z 轴抬起高度 (m)，正为向上 */
   double lift_offset_;
-  /** 放置模式："pose" 用 place_pose，"joints" 用 place_joints，"home_offset" 用安全位+偏移 */
-  std::string place_mode_;
-  /** 放置位姿 (x,y,z,qx,qy,qz,qw)，place_mode=pose 时使用，end_effector 在 base_link 下 */
-  std::array<double, 7> place_pose_;
-  /** 放置关节角 6×rad，place_mode=joints 时使用 */
-  std::array<double, 6> place_joints_;
-  /** 安全位偏移 y (m)，place_mode=home_offset 时使用 */
+  /** 放置：先回安全位再沿 y/x/z 做笛卡尔偏移 (m) */
   double place_offset_y_;
-  /** 安全位偏移 z (m)，place_mode=home_offset 时使用 */
   double place_offset_z_;
+  /** 关节空间轨迹与笛卡尔轨迹相互切换时，在「上一段执行结束 → 下一段规划/执行开始」之间的延时 (s)；0 关闭 */
+  double joint_cartesian_switch_delay_sec_;
   /** 每周期结束后的等待时间 (s)，成功与失败后均执行 */
   double cycle_delay_sec_;
   /** 失败后额外等待 (s)，避免连续失败时过于频繁重试 */
@@ -194,6 +203,12 @@ private:
   int cycle_count_{ 0 };
   int success_count_{ 0 };
   int fail_count_{ 0 };
+
+  std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
+  rclcpp::Client<demo_interface::srv::SetRobotIO>::SharedPtr aubo_set_io_client_;
+
+  static constexpr double kZMinLimit = 0.2;
+  static const int32_t kGripperIoIndex;
 };
 
 }  // namespace demo_driver

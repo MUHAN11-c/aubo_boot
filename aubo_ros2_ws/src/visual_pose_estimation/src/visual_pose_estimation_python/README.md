@@ -88,9 +88,11 @@ ros2 launch visual_pose_estimation_python visual_pose_estimation_web.launch.py
 #### 4. 启动完整系统
 
 ```bash
-cd <your_ros2_workspace>
+cd /home/mu/IVG2.0/aubo_ros2_ws
 bash start_IVG_graspnet_points_fastapi.sh
 ```
+
+（脚本位于 **工作空间根** `aubo_ros2_ws/`，与 `src/` 同级；若你的路径不同，请替换 `cd` 目录。）
 
 #### 5. 常用自定义启动方式
 
@@ -522,8 +524,7 @@ visual_pose_estimation_python/
 ├── package.xml                             # ROS2 功能包元数据
 ├── setup.py                                # Python 安装与资源分发
 ├── setup.cfg                               # 脚本安装路径配置
-├── DIRECTORY_STRUCTURE.md                  # 目录结构补充说明
-└── README.md                               # 当前总说明
+└── README.md                               # 当前总说明（含「目录结构标准化说明」章节）
 ```
 
 ### 架构分层理解
@@ -636,12 +637,418 @@ visual_pose_estimation_python/
 - **特征可视化**：在彩色工件图上进行特征可视化
 - **算法实现**：完全遵循`trigger_depth.py`的处理流程
 
+
+---
+
+## 目录结构标准化说明（原 DIRECTORY_STRUCTURE.md）
+
+本文档说明当前 `visual_pose_estimation_python` 如何按 ROS2 `ament_python` 功能包边界收敛。
+
+### 当前推荐结构
+
+```
+visual_pose_estimation_python/
+├── visual_pose_estimation_python/  # Python模块（核心代码）
+│   ├── __init__.py
+│   ├── main.py                     # 主节点入口
+│   ├── config_reader.py            # 配置读取器
+│   ├── preprocessor.py             # 深度图预处理器
+│   ├── feature_extractor.py        # 特征提取器
+│   ├── template_standardizer.py    # 模板标准化器
+│   ├── pose_estimator.py           # 姿态估计器
+│   ├── ros2_communication.py       # ROS2通信模块
+│   └── debug_visualizer.py         # 调试可视化器
+│
+├── launch/                          # ROS2启动文件
+│   ├── visual_pose_estimation_python.launch.py
+│   └── visual_pose_estimation_web.launch.py
+│
+├── test/                            # 自动化测试
+│   ├── test_copyright.py           # 版权测试
+│   ├── test_flake8.py              # 代码风格测试
+│   ├── test_pep257.py              # 文档风格测试
+│   └── test_web_app.py             # Web 回归测试主入口
+│
+├── web_ui/                          # Web UI界面
+│   ├── index.html                  # Web UI主页面
+│   ├── README.md                   # Web UI文档
+│   ├── requirements.txt            # Python依赖
+│   ├── static/                     # FastAPI 根入口静态页
+│   ├── assets/                     # 前端静态资源
+│   │
+│   ├── configs/                    # 默认配置目录
+│   │   ├── debug_thresholds.json   # 调试阈值配置
+│   │   ├── app_config.json         # Web 运行时配置
+│   │   ├── config_paths.md         # 配置路径说明
+│   │   ├── camera_intrinsics.yaml  # 相机内参（标准名）
+│   │   └── hand_eye_calibration.yaml  # 手眼标定（标准名）
+│   │
+│   ├── scripts/                    # Web UI辅助脚本
+│   │   └── rembg_subprocess.py    # rembg 子进程入口
+│   │
+│   ├── tools/                      # 手工验证工具
+│   │   ├── check_fastapi_startup.sh
+│   │   ├── generate_color_channel_demo.py
+│   │   └── verify_debug_api.py
+│   │
+│   ├── docs/                       # Web UI文档
+│   │   ├── FASTAPI_DOCS_INDEX.md
+│   │   ├── FASTAPI_WEB.md
+│   │   ├── FASTAPI_BEGINNER_GUIDE.md
+│   │   ├── FASTAPI_MIGRATION_GUIDE.md
+│   │   ├── FASTAPI_TESTING_GUIDE.md
+│   │   ├── FASTAPI_EXTENSION_GUIDE.md
+│   │   ├── FASTAPI_INTERFACE_TEMPLATE.md
+│   │   ├── FASTAPI_ARCHITECTURE_DIAGRAMS.md
+│   │   ├── FASTAPI_END_TO_END_EXAMPLE.md
+│   │   └── 使用示例.md
+│   │
+│   ├── start_web_ui.sh            # 启动脚本
+│   ├── stop_web_ui.sh             # 停止脚本
+│   ├── check_installation.sh      # 安装检查脚本
+│   └── start_service_now.sh       # 快速启动脚本
+│
+├── resource/                       # ROS2资源文件
+│   └── visual_pose_estimation_python
+│
+├── .gitignore                      # Git忽略文件
+├── package.xml                     # ROS2包配置
+├── setup.py                        # Python包配置
+├── setup.cfg                       # 配置文件
+├── README.md                       # 主文档
+└── README.md（本文）                 # 含目录结构标准化说明
+```
+
+### 目录说明
+
+#### 核心模块 (`visual_pose_estimation_python/`)
+包含所有核心Python模块，实现了视觉姿态估计的主要功能。
+
+#### 配置文件 (`web_ui/configs/`)
+存储 Web 默认配置、手眼标定、相机内参与调试阈值。
+
+#### 启动文件 (`launch/`)
+ROS2启动文件，用于启动节点。
+
+#### 测试文件 (`test/`)
+存放自动化测试；依赖运行中服务的脚本不再放在这里。
+
+#### Web UI (`web_ui/`)
+完整的 Web 资源层，包含前端、配置、文档和手工验证工具。
+
+#### 资源文件 (`resource/`)
+ROS2包所需的资源文件。
+
+### 标准化操作
+
+已完成的标准化操作：
+
+1. ✅ 补齐 `resource/visual_pose_estimation_python`，回归标准 `ament_python` 元数据
+2. ✅ 统一 `web_ui/configs`、静态资源、脚本和模板路径解析入口
+3. ✅ 新增 `visual_pose_estimation_web.launch.py`，让 Web 服务拥有独立 launch 入口
+4. ✅ 保留 `test/test_web_app.py` 作为 Web 自动回归主入口
+5. ✅ 将手工验证脚本从 `web_ui/test/` 挪到 `web_ui/tools/`
+6. ✅ 创建 `.gitignore`，忽略缓存和运行产物
+
+### 注意事项
+
+- `__pycache__/` 目录已被 `.gitignore` 忽略
+- 运行时文件（如 `.web_ui.pid`）已被 `.gitignore` 忽略
+- 所有文档已统一整理到 `web_ui/docs/`
+- 手工验证脚本统一放到 `web_ui/tools/`
+
+### 维护建议
+
+1. Web UI相关的文档应放在 `web_ui/docs/` 目录
+2. 自动化测试放在 `test/`；手工验证脚本放在 `web_ui/tools/`
+3. 配置文件应统一放在相应的 `configs/` 目录
+4. 避免在根目录直接放置文件，除非是必需的配置文件
+
+
+---
+
+## 函数调用检查报告（原 FUNCTION_CALL_REPORT.md）
+
+这份报告原本针对旧的 `http_bridge_server.py` 单体实现整理，现已不再适用。
+
+### 当前有效的 Web 调用主链
+
+1. `visual_pose_estimation_python/web/app.py`
+   - 创建 FastAPI 应用
+   - 注册 `system`、`camera`、`pose`、`templates`、`robot`、`grasp`、`debug` 路由
+
+2. `visual_pose_estimation_python/web/routers/*.py`
+   - 暴露 `/api/*` 与 `/ws`
+   - 通过依赖注入调用 `NativeWebService`
+
+3. `visual_pose_estimation_python/web/services/native_api.py`
+   - 负责模板、机器人、抓取、debug 等核心 Web 业务逻辑
+   - 调用 `RosBridgeManager.node`
+
+4. `visual_pose_estimation_python/web/ros_bridge/manager.py`
+   - 管理 ROS2 bridge 生命周期
+   - 启动 `visual_pose_estimation_python/web/ros_bridge/node_runtime.py` 中的 `ROS2Node`
+
+5. `visual_pose_estimation_python/web/ros_bridge/node_runtime.py`
+   - 封装相机触发、姿态估计、模板标准化、机器人控制、夹爪切换、循环抓取控制等 ROS2 交互
+
+6. `visual_pose_estimation_python/ros2_communication.py`
+   - 提供底层 ROS2 服务实现
+   - 调用 `pose_estimator.py`、`template_standardizer.py`、`preprocessor.py`、`feature_extractor.py`
+
+### 说明
+
+- 旧 `web_ui/scripts/http_bridge_server.py` 已移除
+- 旧 `web_ui/scripts/params_manager.py` 已移除
+- 当前 Web 入口应以 FastAPI 与 `visual_pose_estimation_python/web/*` 目录为准
+
+
+---
+
+## 准备 / 抓取位姿计算（原 GRASP_PREP_POSE_CHECK.md）
+
+本文档梳理**准备姿态**（preparation）与**抓取姿态**（grasp）的完整计算链路、公式与潜在问题。
+
+---
+
+### 1. 数据流概览
+
+```
+模板加载 (pose_estimator)
+  ├─ grab_position.json / preparation_position.json → T_B_E_grasp, T_B_E_prep
+  ├─ camera_pose.json → T_B_E_camera
+  ├─ T_E_C (手眼标定)
+  └─ T_C_E_grasp = inv(T_B_C_template) @ T_B_E_grasp
+     T_C_E_prep   = inv(T_B_C_template) @ T_B_E_prep
+     (T_B_C_template = T_B_E_camera @ T_E_C)
+
+估计请求 (ros2_communication → pose_estimator.estimate_pose)
+  ├─ T_B_C: 当前相机位姿 (基座→相机)
+  ├─ T_B_C_template: 模板相机位姿 (来自 camera_pose + T_E_C)
+  ├─ 目标特征: workpiece_center (u,v), 深度图 or 模板深度
+  ├─ dtheta: 角度差 (暴力匹配 or standardized_angle 差)
+  └─ 输出: result.T_B_E_grasp, result.T_B_E_prep
+```
+
+---
+
+### 2. 抓取姿态 (T_B_E_grasp) 计算步骤
+
+**代码位置**: `pose_estimator.py` → `estimate_pose`，约 1358–1504 行。
+
+#### 2.1 输入
+
+| 符号 | 含义 | 来源 |
+|------|------|------|
+| `T_C_E_grasp_template` | 模板抓取位姿（相机→末端） | `best_template.T_C_E_grasp` |
+| `T_B_C_template` | 模板拍摄时基座→相机 | `camera_pose.json` → `T_B_E_camera @ T_E_C`，缺省时用 `T_B_C` |
+| `T_B_C` | **当前**拍摄时基座→相机 | `_load_camera_pose`，**当前恒为 `np.eye(4)`** |
+| `target_feature` | 当前检测到的工件特征 | `workpiece_center` (u,v)、`workpiece_radius` 等 |
+| `dtheta` | 绕基座 Z 轴的角度差 (rad) | 暴力匹配 `best_angle_deg` 或 `target_angle - template_angle` |
+| `depth_image` | 深度图 | 请求传入，可选 |
+| `camera_matrix` | 相机内参 fx, fy, cx, cy | 配置 |
+
+#### 2.2 步骤 1：模板抓取深度
+
+- `z_template_camera = T_C_E_grasp_template[2, 3]`（相机系 Z）
+- 若 `z_template_camera <= 0`：退化为直接用模板位姿转基座，不进行目标相对变换。
+
+#### 2.3 步骤 2：模板抓取转基座
+
+- `T_B_E_grasp_template = T_B_C_template @ T_C_E_grasp_template`
+- `template_grasp_pos = T_B_E_grasp_template[:3, 3]`
+- 模板抓取**位置、姿态**均在基座系。
+
+#### 2.4 步骤 3：模板工件中心（基座系）
+
+- 像素：`(template_center_u, template_center_v) = best_template.feature.workpiece_center`
+- 相机系：  
+  `x = (u - cx) * z_template / fx`，  
+  `y = (v - cy) * z_template / fy`，  
+  `z = z_template`  
+  其中 `z_template = z_template_camera`（即抓取深度）。
+- `template_center_base = T_B_C_template @ [x,y,z,1]`，取平移部分 `template_center_base_pos`。
+
+#### 2.5 步骤 4：模板抓取相对模板中心的偏移（基座系）
+
+- `offset_template_base = template_grasp_pos - template_center_base_pos`
+- XY 偏移：`template_grasp_offset_xy = [offset[0], offset[1], 0]`（Z 置 0）
+
+#### 2.6 步骤 5：目标工件中心（基座系）
+
+- 像素：`(target_center_u, target_center_v) = target_feature.workpiece_center`
+- 深度：优先从 `depth_image` 在 `(u,v)` 邻域取深度；失败则用 `z_template_camera`。
+- 相机系：  
+  `x = (u - cx) * z_target / fx`，  
+  `y = (v - cy) * z_target / fy`，  
+  `z = z_target`
+- **`target_center_base = T_B_C @ target_center_camera`**  
+  当前实现中 **`T_B_C = I`**，故 `target_center_base = target_center_camera`（目标中心被当作在“基座”系，实际未做相机→基座变换）。
+
+#### 2.7 步骤 6：目标抓取位置与姿态
+
+- 绕基座 Z 轴旋转矩阵：`R_z_base = Rz(dtheta)`（标准 2D 旋转）。
+- 中间偏移：  
+  `intermediate_offset = template_grasp_offset_xy`  
+  然后 `rotated_offset = R_z_base @ intermediate_offset`。
+- 目标抓取位置：  
+  `target_grasp_pos_base = target_center_base + rotated_offset`，  
+  再 **强制 `target_grasp_pos_base[2] = template_grasp_pos[2]`**（Z 始终用模板抓取高度）。
+- 目标抓取旋转：  
+  `R_target_grasp = R_z_base @ R_template_grasp`，  
+  其中 `R_template_grasp = T_B_E_grasp_template[:3,:3]`。
+- 最终：  
+  `T_B_E_grasp_current[:3,:3] = R_target_grasp`，  
+  `T_B_E_grasp_current[:3,3] = target_grasp_pos_base`，  
+  即 `result.T_B_E_grasp`。
+
+#### 2.8 小结（抓取）
+
+- 逻辑：用模板“抓取相对工件中心的 XY 偏移”+ 模板 Z，经 `dtheta` 旋转后平移到**当前目标中心**，得到目标抓取位姿。
+- 前提：**目标中心**、**模板中心**均在**同一坐标系**（基座）下表示。当前 **`T_B_C = I`** 破坏了这一点（见下文）。
+
+---
+
+### 3. 准备姿态 (T_B_E_prep) 计算步骤
+
+**代码位置**: 同上，约 1512–1552 行。
+
+#### 3.1 输入
+
+- 与抓取共用 `T_B_C`、`T_B_C_template`、`target_feature`、`dtheta`、`R_z_base`、`target_center_base_pos` 等。
+- 额外：`best_template.T_C_E_prep`（模板准备位姿，相机→末端）。
+
+#### 3.2 步骤
+
+- `T_B_E_prep_template = T_B_C_template @ T_C_E_prep`  
+  `prep_pos_template = T_B_E_prep_template[:3, 3]`
+- `offset_prep_base = prep_pos_template - template_center_base_pos`（**含 Z**）
+- `intermediate_prep_pos = target_center_base + offset_prep_base`  
+  `intermediate_prep_offset = intermediate_prep_pos - target_center_base = offset_prep_base`  
+  `rotated_prep_offset = R_z_base @ intermediate_prep_offset`
+- `target_prep_pos_base = target_center_base + rotated_prep_offset`  
+  再 **`target_prep_pos_base[2] = prep_pos_template[2]`**（Z 用模板准备高度）。
+- `R_target_prep = R_z_base @ R_template_prep`，  
+  `T_B_E_prep_current` 由旋转 + 平移构成，即 `result.T_B_E_prep`。
+
+#### 3.3 小结（准备）
+
+- 与抓取类似：用模板“准备相对模板中心的偏移”（含 Z，但最终 Z 被覆盖为模板值），绕 Z 旋转 `dtheta` 后平移到目标中心。
+- 同样依赖 **目标中心** 在 **基座系** 下的正确表示。
+
+---
+
+### 4. 潜在问题与检查结论
+
+#### 4.1 【严重】当前 T_B_C 恒为单位阵
+
+**位置**: `ros2_communication.py` → `_load_camera_pose`。
+
+```python
+T_B_C = np.eye(4)  # 当前使用单位矩阵作为相机位姿（未来可从机器人获取）
+```
+
+- **影响**：  
+  `target_center_base = T_B_C @ target_center_camera` 实际等于 `target_center_camera`。  
+  即目标工件中心**未被变换到基座**，而是直接当作基座系坐标使用。
+- **后果**：  
+  模板相关量（中心、抓取、准备）均在**真实基座系**（由 `T_B_C_template` 定义）；目标中心却在**相机系**。两者混用，导致抓取/准备位姿在基座系下**系统性错误**。
+- **正确做法**：  
+  眼在手上时，应用 **当前** 机器人位姿 + 手眼标定得到 **当前** `T_B_C = T_B_E_current @ T_E_C`，再对 `target_center_camera` 做变换。  
+- **建议**：  
+  从机器人/控制器获取当前 `T_B_E`（或等效的相机位姿），在 `_load_camera_pose` 中填充 `T_B_C`，不再使用单位阵。
+
+#### 4.2 目标中心深度回退到模板深度
+
+- 深度图在 `(u,v)` 邻域无有效深度时，使用 `z_template_camera`。  
+- 若目标高度/倾斜与模板差异大，会带来误差；属设计上的回退策略，需知悉。
+
+#### 4.3 抓取 / 准备 Z 完全沿用模板
+
+- 抓取：`target_grasp_pos_base[2] = template_grasp_pos[2]`  
+- 准备：`target_prep_pos_base[2] = prep_pos_template[2]`  
+- 即 **高度** 不随当前场景变化。若工作面或工件高度与模板不一致，可能不合适。  
+- 若希望随深度或工作面变化，需额外设计（例如用目标中心 Z、或固定平面约束等）。
+
+#### 4.4 角度差 dtheta 的两种来源
+
+- **暴力匹配**：  
+  `dtheta_rad = np.deg2rad(best_angle_deg)`，`best_angle_deg` 为匹配得到的最优角度。  
+  若启用暴力匹配，则使用该值。
+- **特征角度差**：  
+  `dtheta = target_feature.standardized_angle - template_angle`。  
+  若未启用暴力匹配或未提供 `dtheta_rad`，则用此式。  
+- 两者需与模板匹配策略一致，避免混用导致朝向偏差。
+
+#### 4.5 四元数取反与笛卡尔输出
+
+- `_convert_transform_to_cartesian_position` 中，对旋转矩阵得到的四元数 **整体取反** 再写入 `CartesianPosition.orientation`，与 C++ 对齐。
+- `q` 与 `-q` 表示同一旋转，但若下游（如 MoveIt、机械臂接口）对四元数符号有约定，需保持一致。
+
+#### 4.6 抓取/准备 关节角为 0
+
+- 估计结果仅输出笛卡尔位姿（位置 + 四元数 / RPY），**不做逆解**。  
+- 故 `joint_position_deg` / `joint_position_rad` 对抓取、准备**恒为 0**，属当前设计；preplace/place 若来自模板 JSON，可保留模板关节角（见前序修改）。
+
+---
+
+### 5. 公式速查
+
+- **模板抓取转基座**：  
+  `T_B_E_grasp_template = T_B_C_template @ T_C_E_grasp_template`
+- **模板工件中心（基座）**：  
+  `p_cam = [(u-cx)*z/fx, (v-cy)*z/fy, z]` → `p_base = T_B_C_template @ p_cam`
+- **目标工件中心（基座）**：  
+  `p_cam` 同理，深度可用深度图或模板 → **`p_base = T_B_C @ p_cam`**（当前 `T_B_C=I` 即未变换）
+- **抓取 XY**：  
+  `offset_xy = (template_grasp - template_center)_xy`，  
+  `target_grasp_xy = target_center_xy + Rz(dtheta) @ offset_xy`  
+  **抓取 Z**：`template_grasp_z`
+- **准备**：  
+  同思路，偏移用 `prep - template_center`，旋转后加至 `target_center`，**Z 用 `prep_pos_template[2]`**
+
+---
+
+### 6. 建议修改优先级
+
+1. **高**：  
+   实现并接入 **当前** `T_B_C`（如从机器人读取 `T_B_E`，再 `T_B_C = T_B_E @ T_E_C`），替换 `_load_camera_pose` 中的单位阵。  
+   否则准备/抓取位姿在基座系下始终存在坐标系错误。
+2. **中**：  
+   评估抓取/准备 Z 是否必须随场景变化；若需要，再设计基于深度或工作面的 Z 修正。
+3. **低**：  
+   统一并显式约定 dtheta 来源（暴力匹配 vs 特征角）、四元数符号与下游接口的一致性。
+
+---
+
+*文档版本：基于当前 `pose_estimator` 与 `ros2_communication` 实现整理。*
+
+
+---
+
+## FastAPI Web UI 文档索引
+
+`web_ui/docs/` 下文档体量较大，保持独立文件；入口与总索引见：
+
+- [`web_ui/docs/FASTAPI_ARCHITECTURE_DIAGRAMS.md`](web_ui/docs/FASTAPI_ARCHITECTURE_DIAGRAMS.md)
+- [`web_ui/docs/FASTAPI_BEGINNER_GUIDE.md`](web_ui/docs/FASTAPI_BEGINNER_GUIDE.md)
+- [`web_ui/docs/FASTAPI_DOCS_INDEX.md`](web_ui/docs/FASTAPI_DOCS_INDEX.md)
+- [`web_ui/docs/FASTAPI_END_TO_END_EXAMPLE.md`](web_ui/docs/FASTAPI_END_TO_END_EXAMPLE.md)
+- [`web_ui/docs/FASTAPI_EXTENSION_GUIDE.md`](web_ui/docs/FASTAPI_EXTENSION_GUIDE.md)
+- [`web_ui/docs/FASTAPI_INTERFACE_TEMPLATE.md`](web_ui/docs/FASTAPI_INTERFACE_TEMPLATE.md)
+- [`web_ui/docs/FASTAPI_MIGRATION_GUIDE.md`](web_ui/docs/FASTAPI_MIGRATION_GUIDE.md)
+- [`web_ui/docs/FASTAPI_TESTING_GUIDE.md`](web_ui/docs/FASTAPI_TESTING_GUIDE.md)
+- [`web_ui/docs/FASTAPI_WEB.md`](web_ui/docs/FASTAPI_WEB.md)
+- [`web_ui/docs/使用示例.md`](web_ui/docs/使用示例.md)
+
+配置路径说明见 [`web_ui/configs/config_paths.md`](web_ui/configs/config_paths.md)；Web 概览见 [`web_ui/README.md`](web_ui/README.md)。
+
+
 ## 参考
 
-- C++实现：`visual_pose_estimation`
+- C++ 实现包：`visual_pose_estimation`（同工作空间）
 - 图像处理参考：`trigger_depth.py`
-- [目录结构说明](DIRECTORY_STRUCTURE.md)
-- [准备/抓取位姿计算说明](GRASP_PREP_POSE_CHECK.md)
+- 目录结构、调用链与抓取位姿推导：见本文上方各节（由原 `DIRECTORY_STRUCTURE.md`、`FUNCTION_CALL_REPORT.md`、`GRASP_PREP_POSE_CHECK.md` 合并）
 
 ## 许可证
 

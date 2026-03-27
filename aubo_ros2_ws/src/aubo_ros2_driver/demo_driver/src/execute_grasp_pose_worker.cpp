@@ -5,6 +5,7 @@
 
 #include "demo_driver/execute_grasp_pose_worker.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <csignal>
@@ -69,29 +70,6 @@ static constexpr double kTemporaryQy = -0.800965;
 static constexpr double kTemporaryQz = -0.000000;
 static constexpr double kTemporaryQw = -0.000000;
 
-/** 子类内实现：基类 scaleTrajectoryTime 为 static 不可访问 */
-static void scaleTrajectoryTimeLocal(moveit_msgs::msg::RobotTrajectory& traj, double velocity_factor)
-{
-  if (velocity_factor <= 0.0 || velocity_factor > 1.0)
-    return;
-  const double scale = 1.0 / velocity_factor;
-  auto& pts = traj.joint_trajectory.points;
-  for (size_t i = 0; i < pts.size(); ++i)
-  {
-    double sec =
-        static_cast<double>(pts[i].time_from_start.sec) + 1e-9 * static_cast<double>(pts[i].time_from_start.nanosec);
-    sec *= scale;
-    pts[i].time_from_start.sec = static_cast<int32_t>(sec);
-    pts[i].time_from_start.nanosec = static_cast<uint32_t>((sec - pts[i].time_from_start.sec) * 1e9);
-    if (!pts[i].velocities.empty())
-      for (auto& v : pts[i].velocities)
-        v /= scale;
-    if (!pts[i].accelerations.empty())
-      for (auto& a : pts[i].accelerations)
-        a /= (scale * scale);
-  }
-}
-
 static double normalizeYawToShortEquivalent(double yaw_rad)
 {
   double a = yaw_rad;
@@ -119,17 +97,13 @@ static double normalizeYawToShortEquivalent(double yaw_rad)
 // | egp_object_id              | string   | default        | 循环抓取默认工件 ID（可选）                         |
 // | egp_grasp_z_offset         | double   | 0.01           | gripper_tip→end_effector 沿 z 轴补偿 (m)            |
 // | egp_height_above           | double   | 0.1            | 抓取点上方安全高度 (m)                              |
-// | egp_joint_velocity_scaling | double   | 1.0            | 关节/笛卡尔速度缩放 [0~1]                           |
-// | egp_joint_acceleration_scaling| double| 0.1            | 关节/笛卡尔加速度缩放 [0~1]                         |
-// | egp_home_velocity_scaling  | double   | 0.7            | moveToHome 回安全位速度缩放 [0~1]                   |
-// | egp_home_acceleration_scaling| double| 0.45           | moveToHome 回安全位加速度缩放 [0~1]                 |
+// | egp_joint_velocity_scaling | double   | 0.7            | 速度缩放 [0~1]：moveToHome / 抓取接近 / 抬起 / 放置笛卡尔 共用 |
+// | egp_joint_acceleration_scaling| double| 0.3            | 加速度缩放 [0~1]，同上共用                          |
 // | egp_gripper_io_index       | int      | 7              | Aubo 夹爪 IO pin 号                                  |
 // | egp_lift_offset            | double   | 0.2            | 抓取后沿 Z 轴抬起高度 (m)                            |
-// | egp_place_mode             | string   | home_offset    | pose/joints/home_offset                             |
-// | egp_place_offset_y         | double   | -0.2           | 安全位 y 偏移 (m)                                   |
-// | egp_place_offset_z         | double   | -0.15          | 安全位 z 偏移 (m)                                   |
-// | egp_place_pose             | double[7]| 见代码         | (x,y,z,qx,qy,qz,qw)                                 |
-// | egp_place_joints           | double[6]| 见代码         | 放置关节角 (rad)                                     |
+// | egp_place_offset_y         | double   | -0.2           | 安全位后笛卡尔 y 偏移 (m)                           |
+// | egp_place_offset_z         | double   | -0.15          | 安全位后笛卡尔 z 偏移 (m)                           |
+// | egp_joint_cartesian_switch_delay_sec | double | 0.2 | 关节↔笛卡尔切换衔接延时 (s)，每处 j↔c 边界各一次；0 关闭 |
 // | egp_cartesian_max_points   | int      | 40             | 抓取接近笛卡尔轨迹点数上限                           |
 //
 // ============================================================================
@@ -149,29 +123,21 @@ ExecuteGraspPoseWorker::ExecuteGraspPoseWorker(const rclcpp::NodeOptions& option
   if (!has_parameter("egp_height_above"))
     declare_parameter("egp_height_above", 0.1);
   if (!has_parameter("egp_joint_velocity_scaling"))
-    declare_parameter("egp_joint_velocity_scaling", 1.0);
+    declare_parameter("egp_joint_velocity_scaling", 0.7);
   if (!has_parameter("egp_joint_acceleration_scaling"))
-    declare_parameter("egp_joint_acceleration_scaling", 0.1);
-  if (!has_parameter("egp_home_velocity_scaling"))
-    declare_parameter("egp_home_velocity_scaling", 0.7);
-  if (!has_parameter("egp_home_acceleration_scaling"))
-    declare_parameter("egp_home_acceleration_scaling", 0.45);
+    declare_parameter("egp_joint_acceleration_scaling", 0.3);
   if (!has_parameter("egp_gripper_io_index"))
     declare_parameter("egp_gripper_io_index", kGripperIoIndex);
   if (!has_parameter("egp_lift_offset"))
     declare_parameter("egp_lift_offset", 0.2);
-  if (!has_parameter("egp_place_mode"))
-    declare_parameter("egp_place_mode", std::string("home_offset"));
   if (!has_parameter("egp_place_offset_y"))
     declare_parameter("egp_place_offset_y", -0.2);
   if (!has_parameter("egp_place_offset_z"))
     declare_parameter("egp_place_offset_z", -0.15);
+  if (!has_parameter("egp_joint_cartesian_switch_delay_sec"))
+    declare_parameter("egp_joint_cartesian_switch_delay_sec", 0.2);
   if (!has_parameter("egp_cartesian_max_points"))
     declare_parameter("egp_cartesian_max_points", 40);
-  if (!has_parameter("egp_place_pose"))
-    declare_parameter("egp_place_pose", std::vector<double>({ 0.4, 0.0, 0.45, 0.0, 1.0, 0.0, 0.0 }));
-  if (!has_parameter("egp_place_joints"))
-    declare_parameter("egp_place_joints", std::vector<double>({ 1.210212, 0.129677, 1.925533, 0.225356, 1.571783, 1.209540 }));
 
   // 读取抓取姿态四元数
   auto quat_param = get_parameter("egp_grasp_orientation").as_double_array();
@@ -201,13 +167,11 @@ ExecuteGraspPoseWorker::ExecuteGraspPoseWorker(const rclcpp::NodeOptions& option
   height_above_ = get_parameter("egp_height_above").as_double();
   joint_velocity_scaling_ = get_parameter("egp_joint_velocity_scaling").as_double();
   joint_acceleration_scaling_ = get_parameter("egp_joint_acceleration_scaling").as_double();
-  home_velocity_scaling_ = get_parameter("egp_home_velocity_scaling").as_double();
-  home_acceleration_scaling_ = get_parameter("egp_home_acceleration_scaling").as_double();
   gripper_io_index_ = get_parameter("egp_gripper_io_index").as_int();
   lift_offset_ = get_parameter("egp_lift_offset").as_double();
-  place_mode_ = get_parameter("egp_place_mode").as_string();
   place_offset_y_ = get_parameter("egp_place_offset_y").as_double();
   place_offset_z_ = get_parameter("egp_place_offset_z").as_double();
+  joint_cartesian_switch_delay_sec_ = std::max(0.0, get_parameter("egp_joint_cartesian_switch_delay_sec").as_double());
   {
     int val = static_cast<int>(get_parameter("egp_cartesian_max_points").as_int());
     cartesian_max_points_ = (val < 1) ? 1 : val;
@@ -218,19 +182,6 @@ ExecuteGraspPoseWorker::ExecuteGraspPoseWorker(const rclcpp::NodeOptions& option
     auto p = get_parameter("egp_grasp_position").as_double_array();
     for (size_t i = 0; i < 3 && i < p.size(); ++i)
       grasp_position_[i] = p[i];
-  }
-
-  place_pose_ = { 0.4, 0.0, 0.45, 0.0, 1.0, 0.0, 0.0 };
-  place_joints_ = { 1.210212, 0.129677, 1.925533, 0.225356, 1.571783, 1.209540 };
-  {
-    auto p = get_parameter("egp_place_pose").as_double_array();
-    for (size_t i = 0; i < 7 && i < p.size(); ++i)
-      place_pose_[i] = p[i];
-  }
-  {
-    auto p = get_parameter("egp_place_joints").as_double_array();
-    for (size_t i = 0; i < 6 && i < p.size(); ++i)
-      place_joints_[i] = p[i];
   }
 
   RCLCPP_INFO(get_logger(),
@@ -274,6 +225,18 @@ ExecuteGraspPoseWorker::~ExecuteGraspPoseWorker()
   {
     loop_thread_.join();
   }
+}
+
+bool ExecuteGraspPoseWorker::sleepJointCartesianSwitchDelay(const char* where)
+{
+  if (joint_cartesian_switch_delay_sec_ <= 0.0)
+    return true;
+  RCLCPP_INFO(get_logger(), "%s: 关节↔笛卡尔切换延时 %.3f s", where, joint_cartesian_switch_delay_sec_);
+  const auto deadline = std::chrono::steady_clock::now() +
+                        std::chrono::duration<double>(joint_cartesian_switch_delay_sec_);
+  while (rclcpp::ok() && std::chrono::steady_clock::now() < deadline)
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  return rclcpp::ok();
 }
 
 // ============================================================================
@@ -341,7 +304,11 @@ geometry_msgs::msg::Quaternion ExecuteGraspPoseWorker::createOrientationFromZRot
 bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& pose_ee, double height_above,
                                                float vel, float acc)
 {
-  (void)acc;
+  if (!move_group_)
+  {
+    RCLCPP_ERROR(get_logger(), "[runGraspApproach] MoveGroup 未初始化");
+    return false;
+  }
 
   const std::string eef_link = move_group_->getEndEffectorLink();
   if (eef_link.empty())
@@ -349,15 +316,6 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
     RCLCPP_ERROR(get_logger(), "[runGraspApproach] 无法获取末端 link");
     return false;
   }
-
-  geometry_msgs::msg::PoseStamped current_stamped = move_group_->getCurrentPose(eef_link);
-  geometry_msgs::msg::Pose current_pose = current_stamped.pose;
-
-  RCLCPP_INFO(get_logger(), "[runGraspApproach] 当前位姿 Position: [%.6f, %.6f, %.6f]",
-              current_pose.position.x, current_pose.position.y, current_pose.position.z);
-  RCLCPP_INFO(get_logger(), "[runGraspApproach] 当前位姿 Orientation (qx,qy,qz,qw): [%.6f, %.6f, %.6f, %.6f]",
-              current_pose.orientation.x, current_pose.orientation.y,
-              current_pose.orientation.z, current_pose.orientation.w);
 
   double gx = pose_ee.position.x;
   double gy = pose_ee.position.y;
@@ -372,189 +330,138 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
     z_above = gz + height_above;
   }
 
-  geometry_msgs::msg::Quaternion grasp_ori = pose_ee.orientation;
-  geometry_msgs::msg::Quaternion grasp_ori_short = quatSameHemisphere(current_pose.orientation, grasp_ori);
-
-  // 定义各个路径点
-  geometry_msgs::msg::Pose p_xy;
-  p_xy.position.x = gx;
-  p_xy.position.y = gy;
-  p_xy.position.z = current_pose.position.z;
-  p_xy.orientation = current_pose.orientation;
-
-  geometry_msgs::msg::Pose p_up;
-  p_up.position.x = gx;
-  p_up.position.y = gy;
-  p_up.position.z = z_above;
-  p_up.orientation = current_pose.orientation;
-
-  geometry_msgs::msg::Pose p_rot;
-  p_rot.position.x = gx;
-  p_rot.position.y = gy;
-  p_rot.position.z = z_above;
-  p_rot.orientation = grasp_ori_short;
-
-  geometry_msgs::msg::Pose p_down;
-  p_down.position.x = gx;
-  p_down.position.y = gy;
-  p_down.position.z = gz;
-  // p_down的姿态将在第4段时从第3段的结果继承
-
-  // 分段执行笛卡尔路径
-  struct Segment {
-    std::string name;
-    geometry_msgs::msg::Pose target;
-    bool use_current_orientation;  // 是否基于当前姿态计算
-  };
-  
-  std::vector<Segment> segments = {
-    {"XY平移并上升到安全高度", p_up, false},
-    {"相对Z轴旋转", {}, true},  // 第2段特殊处理
-    {"下降到抓取点", {}, true}   // 第3段继承第2段姿态
-  };
-
-  for (size_t seg_idx = 0; seg_idx < segments.size(); ++seg_idx)
+  // 与 publish_grasps_client_worker::runGraspApproach 一致：每轮 preparePlanningState、刷新当前位姿、
+  // 路点 当前→X→Y→抬升→姿态→下降，一条笛卡尔轨迹一次 execute。
+  for (int attempt = 1; attempt <= kArcPathMaxRetries; ++attempt)
   {
-    auto segment = segments[seg_idx];  // 拷贝，因为可能需要修改
-    RCLCPP_INFO(get_logger(), "[runGraspApproach] 执行第%zu/%zu段: %s",
-                seg_idx + 1, segments.size(), segment.name.c_str());
-    
-    geometry_msgs::msg::PoseStamped current = move_group_->getCurrentPose(eef_link);
-    
-    // 第2段：在当前姿态基础上叠加Z轴旋转
-    if (segment.use_current_orientation && seg_idx == 1)
+    move_group_->setStartStateToCurrentState();
+    move_group_->setMaxVelocityScalingFactor(vel);
+    move_group_->setMaxAccelerationScalingFactor(acc);
+
+    geometry_msgs::msg::Pose current_pose = move_group_->getCurrentPose(eef_link).pose;
+
+    if (attempt == 1)
     {
-      segment.target.position.x = gx;
-      segment.target.position.y = gy;
-      segment.target.position.z = z_above;
-      
-      // 打印当前姿态
-      RCLCPP_INFO(get_logger(), "  ========== Z轴旋转前后姿态对比 ==========");
-      RCLCPP_INFO(get_logger(), "  当前位置: [%.6f, %.6f, %.6f]",
-                  current.pose.position.x, current.pose.position.y, current.pose.position.z);
-      RCLCPP_INFO(get_logger(), "  当前姿态 (qx,qy,qz,qw): [%.6f, %.6f, %.6f, %.6f]",
-                  current.pose.orientation.x, current.pose.orientation.y,
-                  current.pose.orientation.z, current.pose.orientation.w);
-      
-      // 将当前姿态转换为四元数
-      Eigen::Quaterniond q_current(current.pose.orientation.w,
-                                    current.pose.orientation.x,
-                                    current.pose.orientation.y,
-                                    current.pose.orientation.z);
-      
-      // 目标姿态（绝对目标）：来自抓取位姿，只在第2段完成“当前 -> 目标”的旋转
-      Eigen::Quaterniond q_goal(grasp_ori_short.w, grasp_ori_short.x, grasp_ori_short.y, grasp_ori_short.z);
-      q_goal.normalize();
-      q_current.normalize();
-
-      // 计算当前到目标的相对旋转：q_delta = q_current^{-1} * q_goal
-      Eigen::Quaterniond q_delta = q_current.conjugate() * q_goal;
-      q_delta.normalize();
-
-      Eigen::Matrix3d delta_rot = q_delta.toRotationMatrix();
-      const double delta_yaw = std::atan2(delta_rot(1, 0), delta_rot(0, 0));
-      const double delta_yaw_short = normalizeYawToShortEquivalent(delta_yaw);
-
-      RCLCPP_INFO(get_logger(), "  当前->目标 相对Z旋转: %.4f rad (%.2f°)",
-                  delta_yaw, delta_yaw * 180.0 / M_PI);
-      RCLCPP_INFO(get_logger(), "  使用短角等价旋转: %.4f rad (%.2f°)",
-                  delta_yaw_short, delta_yaw_short * 180.0 / M_PI);
-      RCLCPP_INFO(get_logger(), "  相对旋转四元数 (qx,qy,qz,qw): [%.6f, %.6f, %.6f, %.6f]",
-                  q_delta.x(), q_delta.y(), q_delta.z(), q_delta.w());
-
-      // 只在旋转段使用短角等价姿态，避免大角度绕行；位置 xyz 保持不变。
-      Eigen::Quaterniond q_delta_short(Eigen::AngleAxisd(delta_yaw_short, Eigen::Vector3d::UnitZ()));
-      Eigen::Quaterniond q_target = q_current * q_delta_short;
-      q_target.normalize();
-      
-      segment.target.orientation.x = q_target.x();
-      segment.target.orientation.y = q_target.y();
-      segment.target.orientation.z = q_target.z();
-      segment.target.orientation.w = q_target.w();
-      
-      RCLCPP_INFO(get_logger(), "  目标位置: [%.6f, %.6f, %.6f]",
-                  segment.target.position.x, segment.target.position.y, segment.target.position.z);
-      RCLCPP_INFO(get_logger(), "  目标姿态 (qx,qy,qz,qw): [%.6f, %.6f, %.6f, %.6f]",
-                  segment.target.orientation.x, segment.target.orientation.y,
-                  segment.target.orientation.z, segment.target.orientation.w);
-      RCLCPP_INFO(get_logger(), "  =========================================");
+      RCLCPP_INFO(get_logger(), "[runGraspApproach] 当前位姿 Position: [%.6f, %.6f, %.6f]",
+                  current_pose.position.x, current_pose.position.y, current_pose.position.z);
+      RCLCPP_INFO(get_logger(), "[runGraspApproach] 当前位姿 Orientation (qx,qy,qz,qw): [%.6f, %.6f, %.6f, %.6f]",
+                  current_pose.orientation.x, current_pose.orientation.y,
+                  current_pose.orientation.z, current_pose.orientation.w);
     }
-    // 第3段：继承当前姿态，只改变Z位置
-    else if (segment.use_current_orientation && seg_idx == 2)
+
+    const geometry_msgs::msg::Quaternion grasp_ori = pose_ee.orientation;
+    const geometry_msgs::msg::Quaternion grasp_ori_short =
+        quatSameHemisphere(current_pose.orientation, grasp_ori);
+
+    Eigen::Quaterniond q_after_up(current_pose.orientation.w, current_pose.orientation.x, current_pose.orientation.y,
+                                    current_pose.orientation.z);
+    Eigen::Quaterniond q_goal(grasp_ori_short.w, grasp_ori_short.x, grasp_ori_short.y, grasp_ori_short.z);
+    q_goal.normalize();
+    q_after_up.normalize();
+
+    Eigen::Quaterniond q_delta = q_after_up.conjugate() * q_goal;
+    q_delta.normalize();
+    Eigen::Matrix3d delta_rot = q_delta.toRotationMatrix();
+    const double delta_yaw = std::atan2(delta_rot(1, 0), delta_rot(0, 0));
+    const double delta_yaw_short = normalizeYawToShortEquivalent(delta_yaw);
+    Eigen::Quaterniond q_delta_short(Eigen::AngleAxisd(delta_yaw_short, Eigen::Vector3d::UnitZ()));
+    Eigen::Quaterniond q_target = q_after_up * q_delta_short;
+    q_target.normalize();
+
+    if (attempt == 1)
     {
-      segment.target.position.x = gx;
-      segment.target.position.y = gy;
-      segment.target.position.z = gz;
-      segment.target.orientation = current.pose.orientation;  // 继承当前姿态
-      
-      RCLCPP_INFO(get_logger(), "  保持当前姿态，下降到目标高度");
+      RCLCPP_INFO(get_logger(), "[runGraspApproach] 路点顺序与 publish_grasps_client_worker 对齐（X→Y→抬升→旋转→下降）");
+      RCLCPP_INFO(get_logger(), "  相对 Z 旋转: %.4f rad (%.2f°), 短角: %.4f rad (%.2f°)", delta_yaw,
+                  delta_yaw * 180.0 / M_PI, delta_yaw_short, delta_yaw_short * 180.0 / M_PI);
     }
-    
+
+    geometry_msgs::msg::Pose p_x;
+    p_x.position.x = gx;
+    p_x.position.y = current_pose.position.y;
+    p_x.position.z = current_pose.position.z;
+    p_x.orientation = current_pose.orientation;
+
+    geometry_msgs::msg::Pose p_y;
+    p_y.position.x = gx;
+    p_y.position.y = gy;
+    p_y.position.z = current_pose.position.z;
+    p_y.orientation = current_pose.orientation;
+
+    geometry_msgs::msg::Pose p_up;
+    p_up.position.x = gx;
+    p_up.position.y = gy;
+    p_up.position.z = z_above;
+    p_up.orientation = current_pose.orientation;
+
+    geometry_msgs::msg::Pose p_rot;
+    p_rot.position.x = gx;
+    p_rot.position.y = gy;
+    p_rot.position.z = z_above;
+    p_rot.orientation.x = q_target.x();
+    p_rot.orientation.y = q_target.y();
+    p_rot.orientation.z = q_target.z();
+    p_rot.orientation.w = q_target.w();
+
+    geometry_msgs::msg::Pose p_down;
+    p_down.position.x = gx;
+    p_down.position.y = gy;
+    p_down.position.z = gz;
+    p_down.orientation = p_rot.orientation;
+
     std::vector<geometry_msgs::msg::Pose> waypoints;
-    waypoints.push_back(current.pose);
-    if (!segment.use_current_orientation && seg_idx == 0)
-    {
-      waypoints.push_back(p_xy);
-      waypoints.push_back(p_up);
-    }
-    else
-    {
-      waypoints.push_back(segment.target);
-    }
-    
+    waypoints.push_back(current_pose);
+    waypoints.push_back(p_x);
+    waypoints.push_back(p_y);
+    waypoints.push_back(p_up);
+    waypoints.push_back(p_rot);
+    waypoints.push_back(p_down);
+
     moveit_msgs::msg::RobotTrajectory trajectory;
-    bool success = false;
-    
-    for (int attempt = 1; attempt <= kArcPathMaxRetries; ++attempt)
+    const double fraction = move_group_->computeCartesianPath(waypoints, kCartesianEefStep, kCartesianJumpThreshold,
+                                                              trajectory);
+    const size_t num_points = trajectory.joint_trajectory.points.size();
+
+    RCLCPP_INFO(get_logger(), "[runGraspApproach] 抓取接近笛卡尔: fraction=%.2f%%, 点数=%zu (尝试 %d/%d)",
+                fraction * 100.0, num_points, attempt, kArcPathMaxRetries);
+
+    if (fraction < 1.0)
     {
-      double fraction = move_group_->computeCartesianPath(
-          waypoints, kCartesianEefStep, kCartesianJumpThreshold, trajectory);
-      size_t num_points = trajectory.joint_trajectory.points.size();
-
-      RCLCPP_INFO(get_logger(), "  第%zu段笛卡尔: fraction=%.2f%%, 点数=%zu (尝试 %d/%d)",
-                  seg_idx + 1, fraction * 100.0, num_points, attempt, kArcPathMaxRetries);
-
-      if (fraction < 1.0)
-      {
-        RCLCPP_WARN(get_logger(), "  第%zu段笛卡尔路径未达100%%, fraction=%.2f", seg_idx + 1, fraction);
-        if (attempt < kArcPathMaxRetries)
-          std::this_thread::sleep_for(std::chrono::duration<double>(kArcPathRetryDelaySec));
-        continue;
-      }
-      if (num_points > static_cast<size_t>(cartesian_max_points_))
-      {
-        RCLCPP_ERROR(get_logger(), "  第%zu段笛卡尔轨迹点数过多 (%zu > %d)", seg_idx + 1, num_points,
-                     cartesian_max_points_);
-        if (attempt < kArcPathMaxRetries)
-          std::this_thread::sleep_for(std::chrono::duration<double>(kArcPathRetryDelaySec));
-        continue;
-      }
-
-      scaleTrajectoryTimeLocal(trajectory, static_cast<double>(vel));
-      moveit::planning_interface::MoveGroupInterface::Plan plan;
-      plan.trajectory_ = trajectory;
-      auto exec_ok = move_group_->execute(plan);
-      if (exec_ok != moveit::core::MoveItErrorCode::SUCCESS)
-      {
-        RCLCPP_ERROR(get_logger(), "  第%zu段执行失败，错误码=%d", seg_idx + 1, exec_ok.val);
-        if (attempt < kArcPathMaxRetries)
-          std::this_thread::sleep_for(std::chrono::duration<double>(kArcPathRetryDelaySec));
-        continue;
-      }
-      RCLCPP_INFO(get_logger(), "  第%zu段完成", seg_idx + 1);
-      success = true;
-      break;
+      const int segment_count = static_cast<int>(waypoints.size()) - 1;
+      const int seg_idx = std::min(segment_count - 1, static_cast<int>(fraction * segment_count));
+      RCLCPP_ERROR(get_logger(),
+                   "[runGraspApproach] 笛卡尔未达 100%%, fraction=%.2f, 截断于第%d段；%.3f s 后重试", fraction,
+                   seg_idx + 1, kArcPathRetryDelaySec);
+      if (attempt < kArcPathMaxRetries)
+        std::this_thread::sleep_for(std::chrono::duration<double>(kArcPathRetryDelaySec));
+      continue;
     }
-    
-    if (!success)
+    if (num_points > static_cast<size_t>(cartesian_max_points_))
     {
-      RCLCPP_ERROR(get_logger(), "[runGraspApproach] 第%zu段失败: %s", seg_idx + 1, segment.name.c_str());
-      return false;
+      RCLCPP_ERROR(get_logger(), "[runGraspApproach] 轨迹点数过多 (%zu > %d)，%.3f s 后重试", num_points,
+                   cartesian_max_points_, kArcPathRetryDelaySec);
+      if (attempt < kArcPathMaxRetries)
+        std::this_thread::sleep_for(std::chrono::duration<double>(kArcPathRetryDelaySec));
+      continue;
     }
+
+    moveit::planning_interface::MoveGroupInterface::Plan plan;
+    plan.trajectory_ = trajectory;
+    const auto exec_ok = move_group_->execute(plan);
+    if (exec_ok != moveit::core::MoveItErrorCode::SUCCESS)
+    {
+      RCLCPP_ERROR(get_logger(), "[runGraspApproach] 执行失败，错误码=%d；%.3f s 后重试", exec_ok.val,
+                   kArcPathRetryDelaySec);
+      if (attempt < kArcPathMaxRetries)
+        std::this_thread::sleep_for(std::chrono::duration<double>(kArcPathRetryDelaySec));
+      continue;
+    }
+
+    RCLCPP_INFO(get_logger(), "[runGraspApproach] 抓取接近完成（单次 execute）");
+    return true;
   }
 
-  RCLCPP_INFO(get_logger(), "抓取接近完成（所有%zu段执行成功）", segments.size());
-  return true;
+  RCLCPP_ERROR(get_logger(), "[runGraspApproach] %d 次尝试后仍失败", kArcPathMaxRetries);
+  return false;
 }
 
 // ============================================================================
@@ -572,7 +479,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   RCLCPP_INFO(get_logger(), "└────────────────────────────────────────────────────────────┘");
 
   RCLCPP_INFO(get_logger(), "► 步骤 0/8: 回安全位");
-  if (!moveToHome(home_velocity_scaling_, home_acceleration_scaling_))
+  if (!moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "✗ 步骤 0 失败：回安全位失败");
     return false;
@@ -629,6 +536,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
 
   RCLCPP_INFO(get_logger(), "");
   RCLCPP_INFO(get_logger(), "► 步骤 4/9: 抓取接近 (多段笛卡尔路径)");
+  CHECK(sleepJointCartesianSwitchDelay("步骤 4 前（关节→笛卡尔）"));
   if (!runGraspApproach(pose_ee, height_above_, joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "✗ 步骤 4 失败：抓取接近失败");
@@ -657,7 +565,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
 
   RCLCPP_INFO(get_logger(), "");
   RCLCPP_INFO(get_logger(), "► 步骤 6/9: 抬起 (z=%.2f m)", lift_offset_);
-  if (!runArcPath('z', lift_offset_, joint_velocity_scaling_))
+  if (!runArcPath('z', lift_offset_, joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "✗ 步骤 6 失败：抬起失败");
     return false;
@@ -665,45 +573,24 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   RCLCPP_INFO(get_logger(), "✓ 步骤 6 完成");
 
   RCLCPP_INFO(get_logger(), "");
-  RCLCPP_INFO(get_logger(), "► 步骤 7/9: 移动到放置位 (place_mode=%s)", place_mode_.c_str());
-  if (place_mode_ == "home_offset")
+  RCLCPP_INFO(get_logger(), "► 步骤 7/9: 移动到放置位 (安全位 + y/x/z 偏移)");
+  CHECK(sleepJointCartesianSwitchDelay("步骤 7 前（笛卡尔→关节）"));
+  if (!moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
   {
-    RCLCPP_INFO(get_logger(), "  放置模式：home_offset (回安全位 + 偏移)");
-    if (!moveToHome(home_velocity_scaling_, home_acceleration_scaling_))
-    {
-      RCLCPP_ERROR(get_logger(), "✗ 步骤 7 失败：回安全位失败");
-      return false;
-    }
-    const std::vector<CartesianSegment> place_segments = {
-      { 'y', place_offset_y_ },
-      { 'x', -0.2 },
-      { 'z', place_offset_z_ },
-    };
-    RCLCPP_INFO(get_logger(), "  执行偏移：y=%.2f, x=-0.2, z=%.2f", place_offset_y_, place_offset_z_);
-    if (!runArcPathSequence(place_segments, joint_velocity_scaling_))
-    {
-      RCLCPP_ERROR(get_logger(), "✗ 步骤 7 失败：放置位多段笛卡尔失败");
-      return false;
-    }
+    RCLCPP_ERROR(get_logger(), "✗ 步骤 7 失败：回安全位失败");
+    return false;
   }
-  else if (place_mode_ == "pose")
+  CHECK(sleepJointCartesianSwitchDelay("步骤 7 放置笛卡尔前（关节→笛卡尔）"));
+  const std::vector<CartesianSegment> place_segments = {
+    { 'y', place_offset_y_ },
+    { 'x', -0.2 },
+    { 'z', place_offset_z_ },
+  };
+  RCLCPP_INFO(get_logger(), "  执行偏移：y=%.2f, x=-0.2, z=%.2f", place_offset_y_, place_offset_z_);
+  if (!runArcPathSequence(place_segments, joint_velocity_scaling_, joint_acceleration_scaling_))
   {
-    RCLCPP_INFO(get_logger(), "  放置模式：pose (直接移动到目标位姿)");
-    if (!moveToPose(place_pose_[0], place_pose_[1], place_pose_[2], place_pose_[3], place_pose_[4], place_pose_[5],
-                    place_pose_[6], false, joint_velocity_scaling_, joint_acceleration_scaling_))
-    {
-      RCLCPP_ERROR(get_logger(), "✗ 步骤 7 失败：移动到放置位失败");
-      return false;
-    }
-  }
-  else
-  {
-    RCLCPP_INFO(get_logger(), "  放置模式：joints (移动到关节角度)");
-    if (!moveToJoints(place_joints_, joint_velocity_scaling_, joint_acceleration_scaling_))
-    {
-      RCLCPP_ERROR(get_logger(), "✗ 步骤 7 失败：移动到放置关节失败");
-      return false;
-    }
+    RCLCPP_ERROR(get_logger(), "✗ 步骤 7 失败：放置位多段笛卡尔失败");
+    return false;
   }
   RCLCPP_INFO(get_logger(), "✓ 步骤 7 完成");
 
@@ -728,7 +615,8 @@ bool ExecuteGraspPoseWorker::runOneCycle()
 
   RCLCPP_INFO(get_logger(), "");
   RCLCPP_INFO(get_logger(), "► 步骤 9/9: 回安全位");
-  if (!moveToHome(home_velocity_scaling_, home_acceleration_scaling_))
+  CHECK(sleepJointCartesianSwitchDelay("步骤 9 前（笛卡尔→关节）"));
+  if (!moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "✗ 步骤 9 失败：回安全位失败");
     return false;

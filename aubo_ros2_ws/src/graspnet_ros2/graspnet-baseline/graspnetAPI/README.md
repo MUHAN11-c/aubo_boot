@@ -1,4 +1,9 @@
 # graspnetAPI
+
+**IVG2.0**：本目录为 GraspNet 上游 `graspnetAPI` 的随仓库副本，路径在 `graspnet_ros2/graspnet-baseline/graspnetAPI/`；日常集成以 **`graspnet_ros2`** 包文档为准。
+
+---
+
 [![PyPI version](https://badge.fury.io/py/graspnetAPI.svg)](https://badge.fury.io/py/graspnetAPI)
 
 ## Dataset

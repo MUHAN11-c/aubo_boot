@@ -24,10 +24,6 @@ find_package(moveit_ros_planning_interface REQUIRED)
 find_package(moveit_common REQUIRED)
 find_package(moveit_msgs REQUIRED)
 find_package(moveit_ros_planning REQUIRED)
-find_package(moveit_visual_tools REQUIRED)
-find_package(moveit_task_constructor_core REQUIRED)
-find_package(moveit_task_constructor_msgs REQUIRED)
-
 # Include directories
 include_directories(include)
 
@@ -172,9 +168,8 @@ ament_target_dependencies(gripper_swap_worker_node
   moveit_ros_planning_interface
 )
 
-# GraspNet 抓取放置 worker（订阅 grasp_poses_base，循环抓取→放置→回安全位）
+# GraspNet 抓取放置 worker（订阅 grasp_poses_base，循环抓取→放置→回安全位；运动逻辑自包含）
 add_executable(publish_grasps_client_worker_node
-  src/moveit_gripper_io_base.cpp
   src/publish_grasps_client_worker.cpp
 )
 ament_target_dependencies(publish_grasps_client_worker_node
@@ -206,6 +201,25 @@ ament_target_dependencies(execute_grasp_pose_worker_node
   moveit_core
   moveit_ros_planning_interface
 )
+
+# MTC Action：抓取放置任务（源码缺失时勿启用，否则 symlink-install / 编译失败）
+# add_executable(mtc_grasp_place_action_server_node
+#   src/mtc_grasp_place_action_server.cpp
+# )
+# ament_target_dependencies(mtc_grasp_place_action_server_node
+#   rclcpp
+#   rclcpp_action
+#   geometry_msgs
+#   std_srvs
+#   demo_interface
+#   aubo_msgs
+#   moveit_core
+#   moveit_msgs
+#   moveit_ros_planning_interface
+#   moveit_visual_tools
+#   moveit_task_constructor_core
+#   moveit_task_constructor_msgs
+# )
 
 # Note: The following executables are commented out because source files don't exist yet
 # add_executable(set_robot_enable_server_node src/set_robot_enable_server.cpp)
@@ -242,6 +256,7 @@ install(TARGETS
   gripper_swap_worker_node
   publish_grasps_client_worker_node
   execute_grasp_pose_worker_node
+  # mtc_grasp_place_action_server_node
   # set_robot_enable_server_node
   # set_robot_io_server_node
   # read_robot_io_server_node

@@ -48,12 +48,15 @@ private:
   void onGripperSwapRequest(const std::shared_ptr<demo_interface::srv::RunGripperSwap::Request> request,
                             std::shared_ptr<demo_interface::srv::RunGripperSwap::Response> response);
 
+  /** 关节↔笛卡尔切换衔接延时；<=0 关闭。返回 false 表示等待期间 rclcpp 已不可用 */
+  bool sleepJointCartesianSwitchDelay(const char* where);
+
   double joint_velocity_scaling_{ 1.0 };
   double joint_acceleration_scaling_{ 0.1 };
-  double cartesian_velocity_scaling_{ 0.5 };
-  double cartesian_acceleration_scaling_{ 0.1 };
   double home_velocity_scaling_{ 0.7 };
   double home_acceleration_scaling_{ 0.45 };
+  /** 与 publish_grasps_client_worker 的 joint_cartesian_switch_delay_sec 语义一致 */
+  double joint_cartesian_switch_delay_sec_{ 0.2 };
   int32_t gripper_io_index_{ kQuickSwapIoIndex };
   std::atomic<bool> swap_in_progress_{ false };
 

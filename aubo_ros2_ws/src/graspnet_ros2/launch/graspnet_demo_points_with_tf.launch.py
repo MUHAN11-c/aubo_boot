@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-GraspNet 点云版 + TF 专用 Launch（与 aubo_moveit_bridge_ros1 配合使用）
+GraspNet 点云版 + TF 专用 Launch（需 MoveIt/TF 树已就绪）
 
 功能：
   1. 可选启动 Percipio 相机驱动（launch_camera:=true 时）
@@ -9,7 +9,7 @@ GraspNet 点云版 + TF 专用 Launch（与 aubo_moveit_bridge_ros1 配合使用
   3. 启动 graspnet_demo_points_node（订阅 PointCloud2，预测抓取，发布 MarkerArray 与 TF）
 
 使用：
-  终端1: ros2 launch aubo_moveit_config aubo_moveit_bridge_ros1.launch.py
+  终端1: ros2 launch aubo_moveit_config aubo_moveit_pure_ros2.launch.py
   终端2: ros2 launch graspnet_ros2 graspnet_demo_points_with_tf.launch.py
 
 不启动相机（点云由外部提供）：launch_camera:=false

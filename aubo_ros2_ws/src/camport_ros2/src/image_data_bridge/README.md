@@ -20,7 +20,7 @@
 ## 编译
 
 ```bash
-cd /home/mu/IVG/aubo_ros2_ws
+cd /home/mu/IVG2.0/aubo_ros2_ws
 colcon build --packages-select image_data_bridge
 source install/setup.bash
 ```

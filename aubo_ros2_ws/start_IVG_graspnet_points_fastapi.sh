@@ -28,6 +28,9 @@ WS_ENV="cd $AUBO_ROS2_WS && $ROS2_BASE_ENV && if [ -f install/setup.bash ]; then
 WEB_HOST="${WEB_HOST:-127.0.0.1}"
 WEB_PORT="${WEB_PORT:-8088}"
 WEB_URL="http://${WEB_HOST}:${WEB_PORT}"
+# 步骤14 rosbag：输出目录；启动前会 rm -rf 实现覆盖。话题默认为 -a 全部；可设 IVG_ROSBAG_TOPICS="/t1 /t2"
+IVG_ROSBAG_DIR="${IVG_ROSBAG_DIR:-${AUBO_ROS2_WS}/rosbags/ivg_session}"
+IVG_ROSBAG_TOPICS="${IVG_ROSBAG_TOPICS:-}"
 
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}IVG 系统启动脚本（GraspNet Points + FastAPI）${NC}"
@@ -51,7 +54,7 @@ echo -e "${BLUE}每个节点在独立的标签页中运行，可直接查看日�
 echo ""
 
 # 预先构建工作空间一次，后续各步骤仅 source
-echo -e "${GREEN}[0/13] 构建工作空间...${NC}"
+echo -e "${GREEN}[0/14] 构建工作空间...${NC}"
 (
     cd "$AUBO_ROS2_WS" && \
     $ROS2_BASE_ENV && \
@@ -71,95 +74,109 @@ launch_in_terminator() {
 }
 
 # 步骤1: 启动真实机械臂驱动
-echo -e "${GREEN}[1/13] 启动真实机械臂驱动（aubo_moveit_pure_ros2）...${NC}"
+echo -e "${GREEN}[1/14] 启动真实机械臂驱动（aubo_moveit_pure_ros2）...${NC}"
 AUBO_PURE_ROS2_CMD="$WS_ENV && ros2 launch aubo_moveit_config aubo_moveit_pure_ros2.launch.py"
 launch_in_terminator "Aubo MoveIt Pure ROS2" "$AUBO_PURE_ROS2_CMD"
 echo -e "${GREEN}  ✓ 真实机械臂驱动已启动${NC}"
 sleep 3
 
 # 步骤2: 启动机器人驱动服务
-echo -e "${GREEN}[2/13] 启动机器人驱动服务...${NC}"
+echo -e "${GREEN}[2/14] 启动机器人驱动服务...${NC}"
 DRIVER_CMD="$WS_ENV && ros2 launch aubo_moveit_config demo_driver_services.launch.py"
 launch_in_terminator "Robot Driver" "$DRIVER_CMD"
 echo -e "${GREEN}  ✓ 机器人驱动服务已启动${NC}"
 sleep 3
 
 # 步骤3: 启动相机节点
-echo -e "${GREEN}[3/13] 启动相机节点...${NC}"
+echo -e "${GREEN}[3/14] 启动相机节点...${NC}"
 CAMERA_CMD="$WS_ENV && ros2 launch percipio_camera percipio_camera.launch.py"
 launch_in_terminator "Percipio Camera" "$CAMERA_CMD"
 echo -e "${GREEN}  ✓ 相机节点已启动${NC}"
 sleep 5
 
 # 步骤4: 启动相机控制节点
-echo -e "${GREEN}[4/13] 启动相机控制节点...${NC}"
+echo -e "${GREEN}[4/14] 启动相机控制节点...${NC}"
 CAMERA_CONTROL_CMD="$WS_ENV && ros2 launch percipio_camera_interface camera_control.launch.py"
 launch_in_terminator "Camera Control" "$CAMERA_CONTROL_CMD"
 echo -e "${GREEN}  ✓ 相机控制节点已启动${NC}"
 sleep 2
 
 # 步骤5: 启动图像数据桥接节点
-echo -e "${GREEN}[5/13] 启动图像数据桥接节点...${NC}"
+echo -e "${GREEN}[5/14] 启动图像数据桥接节点...${NC}"
 IMAGE_BRIDGE_CMD="$WS_ENV && ros2 launch image_data_bridge image_data_bridge.launch.py input_image_topic:=/camera/color/image_raw"
 launch_in_terminator "Image Data Bridge" "$IMAGE_BRIDGE_CMD"
 echo -e "${GREEN}  ✓ 图像数据桥接节点已启动${NC}"
 sleep 2
 
 # 步骤6: 启动手眼标定节点
-echo -e "${GREEN}[6/13] 启动手眼标定节点...${NC}"
+echo -e "${GREEN}[6/14] 启动手眼标定节点...${NC}"
 HAND_EYE_CMD="$WS_ENV && ros2 launch hand_eye_calibration hand_eye_calibration_launch.py"
 launch_in_terminator "Hand Eye Calibration" "$HAND_EYE_CMD"
 echo -e "${GREEN}  ✓ 手眼标定节点已启动${NC}"
 sleep 2
 
 # 步骤7: 启动视觉姿态估计算法节点
-echo -e "${GREEN}[7/13] 启动视觉姿态估计算法节点...${NC}"
+echo -e "${GREEN}[7/14] 启动视觉姿态估计算法节点...${NC}"
 VPE_CMD="$WS_ENV && export PATH=\"/usr/bin:\$PATH\" && ros2 launch visual_pose_estimation_python visual_pose_estimation_python.launch.py"
 launch_in_terminator "Visual Pose Estimation" "$VPE_CMD"
 echo -e "${GREEN}  ✓ 视觉姿态估计算法节点已启动${NC}"
 sleep 2
 
 # 步骤8: 启动 GraspNet 点云节点
-echo -e "${GREEN}[8/13] 启动 GraspNet 点云节点（with_tf）...${NC}"
+echo -e "${GREEN}[8/14] 启动 GraspNet 点云节点（with_tf）...${NC}"
 GRASPNET_WITH_TF_CMD="$WS_ENV && ros2 launch graspnet_ros2 graspnet_demo_points_with_tf.launch.py launch_camera:=false launch_hand_eye_tf:=true"
 launch_in_terminator "GraspNet Points With TF" "$GRASPNET_WITH_TF_CMD"
 echo -e "${GREEN}  ✓ GraspNet 点云节点已启动${NC}"
 sleep 2
 
 # 步骤9: 启动执行抓取位姿服务节点
-echo -e "${GREEN}[9/13] 启动执行抓取位姿服务节点...${NC}"
+echo -e "${GREEN}[9/14] 启动执行抓取位姿服务节点...${NC}"
 GRASP_WORKER_CMD="$WS_ENV && ros2 launch demo_driver execute_grasp_pose_worker.launch.py"
 launch_in_terminator "Execute Grasp Worker" "$GRASP_WORKER_CMD"
 echo -e "${GREEN}  ✓ 执行抓取位姿服务节点已启动${NC}"
 sleep 2
 
 # 步骤10: 启动夹爪切换服务节点
-echo -e "${GREEN}[10/13] 启动夹爪切换服务节点...${NC}"
+echo -e "${GREEN}[10/14] 启动夹爪切换服务节点...${NC}"
 GRIPPER_SWAP_CMD="$WS_ENV && ros2 run demo_driver gripper_swap_worker_node"
 launch_in_terminator "Gripper Swap Worker" "$GRIPPER_SWAP_CMD"
 echo -e "${GREEN}  ✓ 夹爪切换服务节点已启动${NC}"
 sleep 2
 
 # 步骤11: 启动 GraspNet 循环抓取 Worker
-echo -e "${GREEN}[11/13] 启动 GraspNet 循环抓取 Worker...${NC}"
+echo -e "${GREEN}[11/14] 启动 GraspNet 循环抓取 Worker...${NC}"
 PUBLISH_GRASPS_WORKER_CMD="$WS_ENV && ros2 run demo_driver publish_grasps_client_worker_node"
 launch_in_terminator "Publish Grasps Worker" "$PUBLISH_GRASPS_WORKER_CMD"
 echo -e "${GREEN}  ✓ GraspNet 循环抓取 Worker 已启动${NC}"
 sleep 2
 
 # 步骤12: 校验关键服务是否已就绪
-echo -e "${GREEN}[12/13] 校验关键服务...${NC}"
+echo -e "${GREEN}[12/14] 校验关键服务...${NC}"
 SERVICE_CHECK_CMD="$WS_ENV && ros2 service list | rg '/estimate_pose|/list_templates|/graspnet_capture_control|/publish_grasps_worker_loop_control|/loop_grasp_control|/run_gripper_swap' || true"
 launch_in_terminator "Service Check" "$SERVICE_CHECK_CMD"
 echo -e "${GREEN}  ✓ 关键服务校验标签页已启动${NC}"
 sleep 1
 
 # 步骤13: 启动 FastAPI Web 服务
-echo -e "${GREEN}[13/13] 启动 FastAPI Web 服务...${NC}"
+echo -e "${GREEN}[13/14] 启动 FastAPI Web 服务...${NC}"
 FASTAPI_WEB_CMD="$WS_ENV && ros2 launch visual_pose_estimation_python visual_pose_estimation_web.launch.py host:=${WEB_HOST} port:=${WEB_PORT}"
 launch_in_terminator "Visual Pose Web FastAPI" "$FASTAPI_WEB_CMD"
 echo -e "${GREEN}  ✓ FastAPI Web 服务已启动${NC}"
 sleep 3
+
+# 步骤14: rosbag 录制（删除已有同名目录后重新录，实现覆盖）
+echo -e "${GREEN}[14/14] rosbag 录制数据（覆盖: ${IVG_ROSBAG_DIR}）...${NC}"
+mkdir -p "$(dirname "$IVG_ROSBAG_DIR")"
+rm -rf "$IVG_ROSBAG_DIR"
+if [ -n "$IVG_ROSBAG_TOPICS" ]; then
+    # shellcheck disable=SC2086
+    ROSBAG_CMD="$WS_ENV && ros2 bag record -o \"$IVG_ROSBAG_DIR\" $IVG_ROSBAG_TOPICS"
+else
+    ROSBAG_CMD="$WS_ENV && ros2 bag record -o \"$IVG_ROSBAG_DIR\" -a"
+fi
+launch_in_terminator "ROS2 Bag Record IVG" "$ROSBAG_CMD"
+echo -e "${GREEN}  ✓ rosbag 已在独立标签页启动（Ctrl+C 停止录制）${NC}"
+sleep 1
 
 FASTAPI_HEALTH_URL="${WEB_URL}/health"
 if command -v curl >/dev/null 2>&1; then
@@ -205,6 +222,7 @@ echo "  pkill -f 'gripper_swap_worker_node'"
 echo "  pkill -f 'publish_grasps_client_worker_node'"
 echo "  pkill -f 'visual_pose_estimation_web.launch.py'"
 echo "  pkill -f 'visual_pose_estimation_web'"
+echo "  pkill -f 'ros2 bag record'"
 
 echo ""
 echo -e "${BLUE}按 Ctrl+C 退出此脚本（不会停止已启动的节点）${NC}"

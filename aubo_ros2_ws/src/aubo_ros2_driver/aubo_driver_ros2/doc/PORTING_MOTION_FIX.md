@@ -106,7 +106,7 @@ aubo_driver_ros2
 | buffer_size_ = 400 | ROS1 构造函数/头文件 | 与 ROS1 常量对比 |
 | 送点循环 4ms 间隔 | ROS1 `sleep_for(4ms)` | 与 ROS1 一致 |
 | RIB=0 时多等 10ms | ROS1 同一函数内分支 | 与 ROS1 一致 |
-| 启动与通信参数 | `start_IVG_before_migration.sh` 及 ROS1 launch | 端口、频率、缓冲区相关环境/参数一致 |
+| 启动与通信参数 | 历史 ROS1 launch 与现场参数记录 | 端口、频率、缓冲区相关环境/参数一致 |
 
 ### 3.5 如何编写日志代码获得判断依据
 
@@ -386,7 +386,7 @@ while(rclcpp::ok()) {
 
 ---
 
-## 十、桥接 ROS1 与纯 ROS2 的启动延迟差异（同为 400 时）
+## 十、ROS1 原版进程与纯 ROS2 的启动延迟差异（同为 400 时）
 
 `aubo_driver_ros2` 由 ROS1 `aubo_driver` 移植，逻辑一致：都有两条置位 `start_move_` 的路径：
 
@@ -398,7 +398,7 @@ while(rclcpp::ok()) {
 - **ROS1**：通常单进程、单线程 spin（或回调与“主循环”同一 executor）。收到首点后，下一次 spin 就会跑 `updateControlStatus`，计数与数据到达对齐较好，**路径 B 容易先触发**，约 100 ms 就开动，体感几乎无延迟。
 - **ROS2**：`driver_node_ros2` 中 **主线程只跑** `updateControlStatus()`，**不跑** driver 的 spin；`moveItPosCallback` 在**独立 listener 线程**。主线程的 50 次计数与 listener 写入 `buf_queue_` 的时机可能错位，实测中常出现“先到 401 点（路径 A）才置位”，导致约 2 s 启动延迟。
 
-因此：**同一套 400 逻辑下，桥接 ROS1 时“无延迟”是因为路径 B 在 ROS1 里先触发；纯 ROS2 时延迟明显是因为路径 B 未先触发、实际依赖路径 A。**
+因此：**同一套 400 逻辑下，在 ROS1 原版单进程调度里路径 B 往往先触发（约 100 ms 开动）；纯 ROS2 多线程调度下路径 B 可能未先触发，实际依赖路径 A（约 2 s）。**
 
 **解决方案（已实现）**：
 
@@ -421,7 +421,7 @@ while(rclcpp::ok()) {
 
 ## 十二、插值节点 aubo_robot_simulator_ros2 要点
 
-- **作用**：在 ROS2 侧实现原 ROS1 `aubo_robot_simulator` 的轨迹插值，使 MoveIt2 轨迹经插值后通过 ros1_bridge 下发给 ROS1 `aubo_driver`。
+- **作用**：在 ROS2 侧实现原 ROS1 `aubo_robot_simulator` 的轨迹插值，使 MoveIt2 轨迹经插值后发布 `moveItController_cmd`，由 **`aubo_driver_ros2`** 消费。
 - **话题**：订阅 `joint_path_command`（JointTrajectory），发布 `moveItController_cmd`（JointTrajectoryPoint）；可选订阅 `/aubo_driver/rib_status`、`/aubo_driver/real_pose`。
 - **插值**：相邻路径点 5 次多项式插值，按 `motion_update_rate`（默认 200 Hz）步进，每步 `_move_to` + `_publish_cmd()`；新轨迹以 `time_from_start` 不递增判断。
 - **参数**：`motion_update_rate`（200）、`minimum_buffer_size`（launch 中常设 600）、`joint_names` 与 MoveIt 一致。

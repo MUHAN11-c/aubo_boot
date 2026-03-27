@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#2563eb">
+    <title>抓取演示 · PoseMaster</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body class="demo-standalone-page">
+    <div class="header">
+        <img src="assets/logo.svg" alt="Logo" class="logo">
+        <div class="title-section">
+            <div class="title-text">
+                <div class="title-chinese">智能抓取演示</div>
+                <div class="title-english">展示界面 · 与控制台共用同一后端</div>
+            </div>
+            <div class="version-badge">演示</div>
+            <a href="index.html" class="header-dev-link">开发调试控制台</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="tab-panel demo-standalone-panel">
+            <div class="demo-page">
+                <div class="demo-hero">
+                    <h1 class="demo-hero-title">智能抓取演示</h1>
+                    <p class="demo-hero-sub"><strong>夹爪0</strong>用于<strong>视觉抓取</strong>（相机识别工件）；<strong>夹爪2</strong>用于<strong>AI 抓取</strong>（智能规划）。系统会在两种流程间自动协调换爪与安全停流。工件请在下方选择。</p>
+                </div>
+
+                <div class="demo-steps">
+                    <div class="demo-step-pill"><span class="step-num">1</span><span>本页选择工件 · 到拍照位</span></div>
+                    <div class="demo-step-pill"><span class="step-num">2</span><span>夹爪0 · 视觉抓取</span></div>
+                    <div class="demo-step-pill"><span class="step-num">3</span><span>夹爪2 · AI 抓取</span></div>
+                </div>
+
+                <div class="demo-intro">
+                    走<strong>视觉抓取</strong>时会停掉 AI 侧并切换到<strong>夹爪0</strong>；走<strong>AI 抓取</strong>时会切换到<strong>夹爪2</strong>并启动循环。可按下方卡片顺序操作。
+                </div>
+
+                <div class="demo-flow-note">
+                    推荐顺序：<strong>拍照位</strong>（夹爪0）→ <strong>连续/单次视觉抓取</strong> → <strong>夹爪2 · AI 抓取</strong>。需要手动换末端时用下方<strong>切换夹爪</strong>。可随时<strong>全部停止</strong>。
+                </div>
+
+                <div class="demo-grid">
+                    <div class="demo-card">
+                        <div class="demo-card-header visual">视觉抓取（夹爪0）</div>
+                        <div class="demo-card-body">
+                            <p>使用<strong>夹爪0</strong>：深度相机识别工件位姿后由机械臂完成抓取。</p>
+                            <div class="demo-actions">
+                                <button type="button" class="btn btn-primary" onclick="demoMoveToCameraPose()">📸<br>到拍照位</button>
+                                <button type="button" class="btn btn-success js-loop-visual-toggle" id="demo-loop-visual-btn" onclick="demoToggleVisualLoop()">🔄<br>连续自动抓取</button>
+                                <button type="button" class="btn btn-warning" onclick="demoVisualSingleGraspChain()">🤖<br>识别并抓一次</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="demo-card">
+                        <div class="demo-card-header graspnet">AI 抓取（夹爪2）</div>
+                        <div class="demo-card-body">
+                            <p>使用<strong>夹爪2</strong>：由智能算法规划抓取并循环演示。点「开始」会自动停视觉侧、快换到夹爪2 并启动循环。</p>
+                            <div class="demo-actions">
+                                <button type="button" class="btn btn-success" onclick="demoStartGraspnetLoop()">▶<br>开始 AI 演示</button>
+                                <button type="button" class="btn btn-secondary" onclick="demoStopGraspnetLoop()">⏹<br>结束 AI 演示</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="demo-card">
+                        <div class="demo-card-header swap">切换夹爪</div>
+                        <div class="demo-card-body">
+                            <p>两个「→AI爪2」都是把末端换到<strong>夹爪2</strong>（做 AI 抓取的那一侧）。区别是：<strong>快换→AI爪2</strong>走<strong>完整快换</strong>程序，轨迹规范，适合从<strong>视觉夹爪0</strong>正常切过去；<strong>简程→AI爪2</strong>动作更少、更快，适合末端已在夹爪2 附近或现场调试。<strong>快换→视觉爪0</strong>是完整快换回<strong>夹爪0</strong>（相机视觉抓取）。</p>
+                            <div class="demo-actions">
+                                <button type="button" class="btn btn-secondary" onclick="demoSwitchGripper0To2Full()" title="gripper0_to_gripper2，完整快换至夹爪2">🔧<br>快换→AI爪2</button>
+                                <button type="button" class="btn btn-secondary" onclick="demoSwitchGripper2Quick()" title="gripper2，简程至夹爪2">⚡<br>简程→AI爪2</button>
+                                <button type="button" class="btn btn-secondary" onclick="demoSwitchGripper2To0()" title="gripper2_to_gripper0，完整快换至夹爪0">🛠<br>快换→视觉爪0</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="demo-card">
+                        <div class="demo-card-header global">一键停止</div>
+                        <div class="demo-card-body">
+                            <p>立即停止当前自动流程（含夹爪0 视觉抓取与夹爪2 AI 抓取）。</p>
+                            <div class="demo-actions">
+                                <button type="button" class="btn btn-danger" onclick="demoStopAllFlows()">🛑<br>全部停止</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="workflow-layout demo-standalone-workflow">
+                    <div class="image-display-area">
+                        <div class="main-image-container">
+                            <div class="image-placeholder" id="main-image">
+                                <div class="placeholder-content">
+                                    <div class="placeholder-icon">📷</div>
+                                    <div class="placeholder-text">主图像显示区域</div>
+                                    <div class="placeholder-subtext">640 × 480</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="template-edit-area" style="margin-top: 10px;">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="workpiece-id-workflow">工件ID:</label>
+                                    <select id="workpiece-id-workflow" class="form-control" style="width: 100%;" onchange="refreshPoseIdDropdown()">
+                                        <option value="">请选择工件ID...</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="pose-id-workflow">姿态ID:</label>
+                                    <select id="pose-id-workflow" class="form-control" style="width: 100%;">
+                                        <option value="">请先选择工件ID...</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="results-panel">
+                        <div class="results-header">
+                            <h3>检测结果</h3>
+                            <div class="results-count">共 <span id="result-count">0</span> 个目标</div>
+                        </div>
+                        <div class="results-list" id="results-list">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="log-panel">
+            <div class="log-header">
+                📊 实时日志与数据流
+            </div>
+            <div class="log-content" id="log-content">
+                <div class="log-entry">
+                    <span class="log-timestamp">[--:--:--]</span>
+                    <span class="log-level info">[INFO]</span>
+                    <span>演示界面就绪</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <div class="status-item">
+            <span class="status-label">相机状态:</span>
+            <div class="status-value">
+                <div class="status-icon camera-online"></div>
+                <span>在线</span>
+            </div>
+        </div>
+        <div class="status-item">
+            <span class="status-label">机器人状态:</span>
+            <div class="status-value">
+                <div class="status-icon robot-online"></div>
+                <span>在线</span>
+            </div>
+        </div>
+        <div class="status-item">
+            <span class="status-label">后端服务状态:</span>
+            <div class="status-value">
+                <div class="status-icon backend-online"></div>
+                <span>在线</span>
+            </div>
+        </div>
+        <div class="copyright-info">
+            <div class="copyright-chinese">湖北工业大学版权所有</div>
+            <div class="copyright-english">Copyright © Hubei University of Technology</div>
+        </div>
+    </div>
+
+    <button class="exit-service-btn" onclick="exitWebService()" title="退出Web服务"></button>
+
+    <script src="scripts/app.js"></script>
+</body>
+</html>

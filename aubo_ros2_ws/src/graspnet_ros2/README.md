@@ -1,151 +1,378 @@
 # GraspNet ROS2 功能包
 
-GraspNet ROS2 功能包，提供 6 自由度抓取位姿预测功能。
+在 ROS2 中运行 GraspNet 基线推理：6-DOF 抓取预测、Marker/TF/`PoseArray` 发布，以及与 MoveIt2、手眼标定、现场 IVG 流水线的集成说明。
 
-## 功能
+## 目录
 
-- **graspnet_demo_node**: 从文件读取数据（color.png, depth.png, workspace_mask.png, meta.mat），预测抓取并发布 MarkerArray；提供 `trigger_grasp` 服务，可触发拍照、保存到 data_dir、执行预测并发布点云与 MarkerArray
-- **graspnet_node**: 订阅 PointCloud2 话题，实时预测抓取（需要 ros_numpy 支持）
-- **image_saver**: 订阅相机话题并保存图像
+- [功能一览](#功能一览)
+- [编译与安装](#编译与安装)
+- [Demo：文件 RGB-D（graspnet_demo_node）](#demo文件-rgb-dgraspnet_demo_node)
+- [点云推理（graspnet_demo_points_node）与 TF Launch](#点云推理graspnet_demo_points_node与-tf-launch)
+- [实时节点 graspnet_node](#实时节点-graspnet_node)
+- [图像保存 image_saver](#图像保存-image_saver)
+- [发布服务 `/publish_grasps`（Demo 手动/自动模式）](#发布服务-publish_graspsdemo-手动自动模式)
+- [GraspNet → ROS2 坐标系转换](#graspnet--ros2-坐标系转换)
+- [坐标转换与 TF 验证](#坐标转换与-tf-验证)
+- [包内测试（test.launch.py）](#包内测试testlaunchpy)
+- [IDE / Pyright 导入路径](#ide--pyright-导入路径)
+- [话题与数据格式摘要](#话题与数据格式摘要)
+- [目录结构](#目录结构)
+- [其他文档（未并入本文）](#其他文档未并入本文)
+- [许可证](#许可证)
+- [近期改动记录（2026-03）](#近期改动记录2026-03)
 
-## 安装
+---
 
-1. 确保已安装 ROS2 和相关依赖：
+## 功能一览
+
+| 能力 | 入口 |
+|------|------|
+| 从目录读取 color/depth/mask/meta，推理并发布 | `ros2 launch graspnet_ros2 graspnet_demo.launch.py` |
+| 订阅 `PointCloud2`，循环/采集推理，发布 `grasp_poses_base` 等 | `ros2 launch graspnet_ros2 graspnet_demo_points.launch.py`、`graspnet_demo_points_with_tf.launch.py` |
+| 订阅点云（简化实时节点） | `ros2 run graspnet_ros2 graspnet_node` |
+| 订阅相机话题存图 | `ros2 run graspnet_ros2 image_saver` |
+| 手眼静态 TF、相机链路 | `hand_eye_static_tf_node`，见各 points launch |
+| 连通性自检 | `ros2 launch graspnet_ros2 test.launch.py` |
+
+现场 IVG 全栈常配合：`graspnet_demo_points_with_tf.launch.py`（`launch_camera:=false` 时点云由外部提供）。
+
+---
+
+## 编译与安装
+
+### 依赖
+
 ```bash
-sudo apt-get install ros-<distro>-rclpy ros-<distro>-sensor-msgs ros-<distro>-visualization-msgs
-```
+# ROS2（将 <distro> 换为 foxy/humble 等）
+sudo apt-get install ros-<distro>-rclpy ros-<distro>-sensor-msgs \
+  ros-<distro>-visualization-msgs ros-<distro>-geometry-msgs
 
-2. 安装 Python 依赖：
-```bash
+# Python（建议在所用 conda/venv 中安装）
 pip install torch open3d scipy Pillow numpy
 ```
 
-3. 编译包：
+### 编译与 source
+
 ```bash
-cd ~/aubo_ros2_ws
+cd <你的_ws>   # 例如 ~/IVG2.0/aubo_ros2_ws
 colcon build --packages-select graspnet_ros2
 source install/setup.bash
 ```
 
-## 使用方法
+### 路径与安装说明
 
-### 1. 使用 Demo 节点（从文件读取数据）
+- `setup.py` 会将 `graspnet-baseline/` 下文件安装到 `install/graspnet_ros2/share/graspnet_ros2/graspnet-baseline/`（排除 `.git`、`__pycache__`、`.so` 等；扩展模块需在环境中单独编译/安装）。
+- 节点优先使用源码旁 `graspnet-baseline`，否则使用上述 share 路径（见各节点内 `_get_graspnet_baseline_root` 一类逻辑）。
+
+### 验证安装
+
+```bash
+ls install/graspnet_ros2/share/graspnet_ros2/graspnet-baseline/
+ros2 run graspnet_ros2 graspnet_demo_node --ros-args -p data_dir:=/path/to/data
+```
+
+### 常见问题
+
+- **找不到 baseline**：重新 `colcon build`，确认 `source install/setup.bash`；必要时 `export GRASPNET_BASELINE_DIR=/path/to/graspnet-baseline`。
+- **找不到权重**：默认 `graspnet-baseline/logs/log_kn/checkpoint-rs.tar`；可用 `-p model_path:=...` 指定。
+
+---
+
+## Demo：文件 RGB-D（graspnet_demo_node）
 
 ```bash
 ros2 launch graspnet_ros2 graspnet_demo.launch.py
-```
-
-或指定数据目录：
-
-```bash
+# 或
 ros2 launch graspnet_ros2 graspnet_demo.launch.py data_dir:=/path/to/data
 ```
 
-### 1.1 触发拍照服务（trigger_grasp）
+### trigger_grasp 服务
 
-当相机节点（如 Percipio）和 graspnet_demo_node 同时运行时，可调用 `trigger_grasp` 服务实现：
-
-1. 调用 SoftwareTrigger 触发相机拍照  
-2. 保存 color.png、depth.png 到 data_dir  
-3. 生成 workspace_mask.png、meta.mat  
-4. 执行模型预测并发布点云与 MarkerArray  
+在相机与节点同时运行时，可触发软触发、保存图、生成 mask/meta、推理并发布：
 
 ```bash
 ros2 service call /graspnet_demo_node/trigger_grasp std_srvs/srv/Trigger
 ```
 
-需确保 data_dir 已设置，且相机话题（color_image_topic、depth_image_topic）已发布。相机内参优先从 hand_eye_yaml_path 手眼标定文件的 camera_matrix 读取，若无则从 camera_info_topic 获取。
+内参优先从手眼 YAML 的 `camera_matrix` 读取，否则从 `camera_info_topic`。
 
-### 2. 使用实时节点（订阅点云话题）
+### graspnet_demo_node 主要参数
+
+- `model_path`：权重（默认 `graspnet-baseline/logs/log_kn/checkpoint-rs.tar`）
+- `data_dir`：数据目录
+- `num_point` / `num_view` / `collision_thresh` / `voxel_size` / `max_grasps_num` / `gpu`
+- `marker_topic` / `frame_id` / `use_open3d`
+- `trigger_service`、`camera_id`、彩色/深度/相机信息话题、`factor_depth`（如 Percipio 0.25mm 常用 `4000`）
+
+### 数据目录文件
+
+- `color.png`、`depth.png`（16 位）、`workspace_mask.png`
+- `meta.mat`：`intrinsic_matrix`、`factor_depth`
+
+---
+
+## 点云推理（graspnet_demo_points_node）与 TF Launch
+
+```bash
+# 点云版 + 可选相机与手眼 TF
+ros2 launch graspnet_ros2 graspnet_demo_points_with_tf.launch.py
+
+# IVG 常用：不启包内相机，点云由外部提供；发布手眼 TF
+ros2 launch graspnet_ros2 graspnet_demo_points_with_tf.launch.py \
+  launch_camera:=false launch_hand_eye_tf:=true
+```
+
+默认输入点云话题：`/camera/depth_registered/points`；默认权重：`baseline_dir/logs/log_kn/checkpoint-rs.tar`。
+
+要点（与下游 `demo_driver` 对齐）：
+
+- 定时循环推理，参数如 `compute_interval_sec`；采集由 `/graspnet_capture_control`（`std_srvs/SetBool`）控制。
+- 发布 `grasp_poses_base`（`geometry_msgs/PoseArray`，`frame_id` 默认 `base_link`，可由 `base_frame` 改）。
+- 动态 TF：`camera_frame` → `grasp_pose_i`。
+
+---
+
+## 实时节点 graspnet_node
 
 ```bash
 ros2 run graspnet_ros2 graspnet_node
 ```
 
-### 3. 保存图像
+订阅 `PointCloud2`（默认话题见节点实现），实时预测并发布 Marker 等（依赖环境与话题配置）。
+
+---
+
+## 图像保存 image_saver
 
 ```bash
 ros2 run graspnet_ros2 image_saver
 ```
 
-## 参数说明
+订阅相机话题并保存图像（参数见节点内声明）。
 
-### graspnet_demo_node 参数
+---
 
-- `model_path`: 模型权重文件路径（默认：graspnet-baseline/logs/log_kn/checkpoint-rs.tar）
-- `data_dir`: 数据目录路径（默认：graspnet-baseline/doc/pose_1）
-- `num_point`: 输入网络的点数（默认：20000）
-- `num_view`: GraspNet 视角数量（默认：300）
-- `collision_thresh`: 碰撞检测阈值（默认：0.01）
-- `voxel_size`: 体素下采样大小（默认：0.01）
-- `max_grasps_num`: 发布的最大抓取数量（默认：20）
-- `gpu`: GPU 设备编号（默认：0）
-- `marker_topic`: MarkerArray 话题名称（默认：grasp_markers）
-- `frame_id`: 坐标系名称（默认：camera_frame）
-- `use_open3d`: 是否启用 Open3D 可视化（默认：false）
-- `trigger_service`: 相机软触发服务名（默认：/software_trigger）
-- `camera_id`: 相机 ID（默认：207000152740）
-- `color_image_topic`: 彩色图话题（默认：/camera/color/image_raw）
-- `depth_image_topic`: 深度图话题（默认：/camera/depth/image_raw）
-- `camera_info_topic`: 相机内参话题（默认：/camera/color/camera_info）
-- `factor_depth`: 深度缩放因子，Percipio 0.25mm 用 4000，毫米用 1000（默认：4000.0）
+## 发布服务 `/publish_grasps`（Demo 手动/自动模式）
 
-## 话题
+适用于 **`graspnet_demo_node`** 场景：通过服务触发一次推理结果的发布（与当前 **点云版** 的定时循环 + `PoseArray` 流程不同）。
 
-### 订阅话题
+### 手动模式（推荐，便于 RViz 慢启动）
 
-- `/pointcloud` (sensor_msgs/PointCloud2): 点云数据（graspnet_node）
+```bash
+ros2 launch graspnet_ros2 graspnet_demo.launch.py auto_run:=false
+```
 
-### 发布话题
+节点加载模型与数据后等待服务，不会自动发布。
 
-- `/grasp_markers` (visualization_msgs/MarkerArray): 抓取可视化标记
+RViz2 中建议：`Fixed Frame` 为 `world` 或 `base_link`；添加 `MarkerArray` → `/grasp_markers`，`PointCloud2` → `/graspnet_pointcloud`。
 
-## 数据格式要求
+就绪后触发：
 
-### 文件数据格式（graspnet_demo_node）
+```bash
+ros2 run graspnet_ros2 publish_grasps_client
+# 或
+ros2 service call /publish_grasps std_srvs/srv/Trigger
+# 或 scripts/publish_grasps.sh
+```
 
-数据目录应包含以下文件：
+### 自动模式
 
-- `color.png`: RGB 彩色图像
-- `depth.png`: 深度图（16 位 PNG）
-- `workspace_mask.png`: 工作空间二值掩码
-- `meta.mat`: MATLAB 文件，包含：
-  - `intrinsic_matrix`: 3x3 相机内参矩阵
-  - `factor_depth`: 深度缩放因子
+```bash
+ros2 launch graspnet_ros2 graspnet_demo.launch.py auto_run:=true
+```
 
-## 依赖
+启动约 1 秒后自动计算并发布一次（RViz 未就绪时可能看不到首次可视化）。
 
-- ROS2 (rclpy, sensor_msgs, visualization_msgs, geometry_msgs)
-- PyTorch
-- Open3D
-- NumPy
-- SciPy
-- Pillow (PIL)
-- graspnetAPI (包含在 graspnet-baseline 中)
+### 服务行为
+
+- 类型：`std_srvs/Trigger`
+- **首次调用**：计算抓取并发布 MarkerArray、点云等
+- **再次调用**：直接发布缓存结果，不重新计算（需重新计算请重启节点）
+
+### Launch 常用参数示例
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `auto_run` | `false` | 是否启动后自动跑一轮 |
+| `use_open3d` | 视 launch | Open3D 窗口 |
+| `max_grasps_num` | 视 launch | 发布抓取个数 |
+| `data_dir` | 自动检测 | 输入数据目录 |
+
+```bash
+ros2 launch graspnet_ros2 graspnet_demo.launch.py \
+  auto_run:=false use_open3d:=false max_grasps_num:=5
+```
+
+### 调试
+
+```bash
+ros2 service list | grep publish_grasps
+ros2 node info /graspnet_demo_node
+```
+
+---
+
+## GraspNet → ROS2 坐标系转换
+
+GraspNet 与 ROS 工具坐标约定不同，需在 TF / Marker 中统一为「ROS 习惯」：**Z = approach（接近方向）**。
+
+### 定义对照
+
+- **GraspNet** `rotation_matrix` 列：col0 = approach，col1 = width，col2 = height。
+- **ROS 末端常用**：X = width，Y = height，Z = approach。
+
+### 转换（与代码一致）
+
+```python
+R_graspnet = grasp.rotation_matrix  # (3, 3)
+R_ros = np.column_stack([
+    R_graspnet[:, 1],  # ROS X = width
+    R_graspnet[:, 2],  # ROS Y = height
+    R_graspnet[:, 0],  # ROS Z = approach
+])
+```
+
+实现位置（文件模式 Demo）：`graspnet_demo_node.py` 中 `publish_grasp_tf()`、`create_grasp_markers()` 等（行号随版本变动，请搜索函数名）。
+
+**注意**：下游控制凡基于已发布 TF / `PoseArray` 的，应与上述一致；若只改一处会导致「RViz 对但臂错」之类问题。
+
+---
+
+## 坐标转换与 TF 验证
+
+1. 启动 Demo（示例）：
+   ```bash
+   cd <你的_ws> && source /opt/ros/<distro>/setup.bash && source install/setup.bash
+   ros2 launch graspnet_ros2 graspnet_demo.launch.py use_open3d:=true
+   ```
+2. RViz2：显示 TF，检查 `grasp_pose_0` — **蓝色 Z 轴应沿手指伸出（approach）**，与 Marker 夹爪一致。
+3. 命令行查看变换：
+   ```bash
+   ros2 run tf2_ros tf2_echo base_link grasp_pose_0
+   ros2 run tf2_tools view_frames
+   ```
+4. 机械臂联调：调用 `publish_grasps_client`（或当前系统使用的抓取接口），确认规划/执行姿态合理。
+
+若姿态异常：先查手眼 `wrist3_Link`（或你的 `ee_frame_id`）→ `camera_frame`，再沿链查 `grasp_pose_0`。
+
+---
+
+## 包内测试（test.launch.py）
+
+```bash
+cd <你的_ws>
+colcon build --packages-select graspnet_ros2
+source install/setup.bash
+
+# 基础：路径、模型加载、数据读取
+ros2 launch graspnet_ros2 test.launch.py
+
+# 含推理（需 GPU）
+ros2 launch graspnet_ros2 test.launch.py test_prediction:=true
+
+# 指定路径
+ros2 launch graspnet_ros2 test.launch.py \
+  model_path:=/path/to/checkpoint-rs.tar \
+  data_dir:=/path/to/data
+
+# RViz
+ros2 launch graspnet_ros2 test.launch.py use_rviz:=true
+```
+
+也可直接：
+
+```bash
+ros2 run graspnet_ros2 graspnet_test_node --ros-args \
+  -p test_model_load:=true -p test_data_read:=true -p test_prediction:=false
+```
+
+**Launch 参数摘要**：`test_model_load`、`test_data_read`、`test_prediction`、`model_path`、`data_dir`、`use_rviz`、`rviz_config`。
+
+测试节点失败时：确认已编译并 source、baseline 与权重路径、`doc/pose_1` 或自定义数据目录下四件套文件齐全。
+
+仓库内另有 `test_quick.sh` 可配合使用。
+
+---
+
+## IDE / Pyright 导入路径
+
+`models.graspnet`、`graspnetAPI` 等位于 `graspnet-baseline/`，运行时由 `sys.path` 注入，静态分析需手动加路径。
+
+**pyrightconfig.json**（路径按工作区调整）：
+
+```json
+{
+  "extraPaths": [
+    "aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline",
+    "/opt/ros/humble/lib/python3.10/site-packages"
+  ]
+}
+```
+
+**.vscode/settings.json** 示例：
+
+```json
+{
+  "python.analysis.extraPaths": [
+    "/opt/ros/humble/lib/python3.10/site-packages",
+    "<绝对路径>/src/graspnet_ros2/graspnet-baseline"
+  ],
+  "python.autoComplete.extraPaths": [
+    "/opt/ros/humble/lib/python3.10/site-packages",
+    "<绝对路径>/src/graspnet_ros2/graspnet-baseline"
+  ]
+}
+```
+
+将 `humble` / `python3.10` 换成本机 distro 与 Python 版本。修改后 `Developer: Reload Window`。
+
+---
+
+## 话题与数据格式摘要
+
+### graspnet_node
+
+- 订阅：`/pointcloud`（`sensor_msgs/PointCloud2`，以节点参数为准）
+- 发布：`/grasp_markers`（`visualization_msgs/MarkerArray`，默认名可配置）
+
+### 点云版节点
+
+- 订阅：参数 `input_pointcloud_topic`
+- 发布：`marker_topic`、`grasp_poses_topic`（默认 `grasp_poses_base`）、动态 TF 等
+
+---
 
 ## 目录结构
 
 ```
 graspnet_ros2/
-├── graspnet_ros2/          # Python 模块
-│   ├── __init__.py
-│   ├── image_saver.py      # 图像保存节点
-│   ├── graspnet_node.py    # 实时抓取预测节点
-│   └── graspnet_demo_node.py  # Demo 节点（从文件读取）
-├── graspnet-baseline/      # GraspNet 基线代码
-│   ├── models/             # 模型定义
-│   ├── utils/              # 工具函数
-│   ├── dataset/            # 数据集处理
-│   └── ...
-├── launch/                 # Launch 文件
-│   └── graspnet_demo.launch.py
-├── package.xml             # ROS2 包配置
-└── setup.py                # Python 包配置
+├── graspnet_ros2/           # Python 模块（节点、运动客户端等）
+├── graspnet-baseline/       # 模型与基线代码（随包安装到 share）
+├── launch/
+├── config/
+├── scripts/
+├── doc/                     # 独立文档，未并入本 README
+├── resource/
+├── test/
+├── package.xml
+├── setup.py
+└── README.md
 ```
+
+---
+
+## 其他文档（未并入本文）
+
+- **本包 `doc/`**：如仿真与 RViz 参考等，保持独立，不合并进本文件。
+- **`graspnet-baseline/`** 及其子目录若含 **`doc/`**（如数据集说明、自定义推理等），仍留在原路径，请参阅对应 Markdown。
+
+---
 
 ## 许可证
 
 MIT License
+
+---
 
 ## 近期改动记录（2026-03）
 
@@ -279,3 +506,14 @@ MIT License
    - `grasp_window_size`
    - `min_groups_before_pick`
    - `height_above` / `grasp_z_offset`
+
+### TF 诊断（文件 Demo Launch 场景）
+
+```text
+ros2 run tf2_ros tf2_echo base_link wrist3_Link
+ros2 run tf2_ros tf2_echo wrist3_Link camera_frame
+ros2 run tf2_ros tf2_echo camera_frame grasp_pose_0
+ros2 run tf2_tools view_frames
+```
+
+详见上文 [坐标转换与 TF 验证](#坐标转换与-tf-验证)。

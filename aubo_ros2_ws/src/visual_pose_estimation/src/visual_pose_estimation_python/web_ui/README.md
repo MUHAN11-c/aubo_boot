@@ -1,6 +1,8 @@
 # Visual Pose Estimation Python - Web UI
 
-基于Python的可视化网页界面，用于 `visual_pose_estimation_python` 模块的交互式操作和调试。
+基于 Python 的可视化网页界面，用于 **`visual_pose_estimation_python`** 包的交互式操作和调试。
+
+**路径**：`aubo_ros2_ws/src/visual_pose_estimation/src/visual_pose_estimation_python/web_ui/`（安装后资源位于 `share/visual_pose_estimation_python/web_ui/`）。
 
 ## 📋 目录
 

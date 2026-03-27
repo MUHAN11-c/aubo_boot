@@ -123,32 +123,26 @@ private:
    */
   void loopGraspThread();
 
+  /** 关节↔笛卡尔切换衔接延时；与 publish_grasps_client_worker 语义一致，<=0 跳过 */
+  bool sleepJointCartesianSwitchDelay(const char* where);
+
   /** gripper_tip 相对 end_effector 的 z 轴补偿 (m) */
   double grasp_z_offset_;
   /** 抓取点上方安全高度 (m) */
   double height_above_;
-  /** 关节/笛卡尔速度缩放 [0~1] */
+  /** 关节、回安全位与笛卡尔共用速度缩放 [0~1]（与 publish_grasps_client_worker 一致） */
   float joint_velocity_scaling_;
-  /** 关节/笛卡尔加速度缩放 [0~1] */
+  /** 关节、回安全位与笛卡尔共用加速度缩放 [0~1] */
   float joint_acceleration_scaling_;
-  /** moveToHome 回安全位速度缩放 [0~1] */
-  float home_velocity_scaling_;
-  /** moveToHome 回安全位加速度缩放 [0~1] */
-  float home_acceleration_scaling_;
   /** Aubo 夹爪 IO pin 号 */
   int32_t gripper_io_index_;
   /** 抓取后沿 Z 轴抬起高度 (m) */
   double lift_offset_;
-  /** 放置模式："pose"/"joints"/"home_offset" */
-  std::string place_mode_;
-  /** 放置位姿 (x,y,z,qx,qy,qz,qw) */
-  std::array<double, 7> place_pose_;
-  /** 放置关节角 6×rad */
-  std::array<double, 6> place_joints_;
-  /** 安全位偏移 y (m) */
+  /** 放置：先回安全位再沿 y/x/z 做笛卡尔偏移 (m) */
   double place_offset_y_;
-  /** 安全位偏移 z (m) */
   double place_offset_z_;
+  /** 关节↔笛卡尔切换衔接延时 (s)，与 egp_joint_cartesian_switch_delay_sec 对应；0 关闭 */
+  double joint_cartesian_switch_delay_sec_{ 0.2 };
   /** 抓取接近笛卡尔轨迹点数上限 */
   int cartesian_max_points_;
 

@@ -183,8 +183,8 @@ const debugState = {
     }
 };
 
-// 选项卡切换功能
-function switchTab(tabName) {
+// 选项卡切换功能（el 为点击的按钮；程序化切换时可省略，将按 data-tab 匹配）
+function switchTab(tabName, el) {
     // 隐藏所有选项卡内容
     const tabContents = document.querySelectorAll('.tab-content');
     tabContents.forEach(content => {
@@ -198,21 +198,30 @@ function switchTab(tabName) {
     });
 
     // 显示选中的选项卡内容
-    document.getElementById(tabName + '-tab').classList.remove('hidden');
-    
-    // 添加active类到选中的按钮
-    event.target.classList.add('active');
-    
+    const panel = document.getElementById(tabName + '-tab');
+    if (panel) {
+        panel.classList.remove('hidden');
+    }
+
+    const activeBtn = el || document.querySelector(`.tab-button[data-tab="${tabName}"]`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+    }
+
     // 如果切换到模板设置选项卡，刷新工件ID下拉框（不自动刷新模板列表）
     if (tabName === 'template') {
         refreshTemplateWorkpieceIdDropdown();
     }
-    
+
     // 如果切换到工作流程选项卡，刷新工件ID下拉框
     if (tabName === 'workflow') {
         refreshWorkpieceIdDropdown();
     }
-    
+
+    if (tabName === 'demo') {
+        refreshWorkpieceIdDropdown();
+    }
+
     // 如果切换到debug选项卡，加载参数并启动自动刷新
     if (tabName === 'debug') {
         loadDebugParams();
@@ -266,9 +275,19 @@ function loadImage() {
     */
 }
 
-function captureImage() {
+async function captureImage() {
+    if (_loopAutoGraspRunning) {
+        addLogEntry('warning', '视觉循环抓取进行中，请使用循环内自动采集，或先停止循环后再手动采集');
+        return;
+    }
+    const modeOk = await ensureVisualGraspMode();
+    if (!modeOk) {
+        addLogEntry('warning', '未能切换到视觉抓取模式（夹爪0），已取消采集');
+        return;
+    }
+
     addLogEntry('info', '正在触发相机拍照，相机ID: 207000152740');
-    
+
     fetch(`${API_BASE_URL}/api/capture_image`, {
         method: 'POST',
         headers: {
@@ -320,14 +339,24 @@ function captureImage() {
     });
 }
 
-function estimatePose() {
+async function estimatePose() {
+    if (_loopAutoGraspRunning) {
+        addLogEntry('warning', '视觉循环抓取进行中，姿态估计由循环自动执行；请先停止循环再手动估计');
+        return;
+    }
+    const modeOk = await ensureVisualGraspMode();
+    if (!modeOk) {
+        addLogEntry('warning', '未能切换到视觉抓取模式（夹爪0），已取消姿态估计');
+        return;
+    }
+
     // 检查是否有深度图和彩色图
     if (!workflowState.currentDepthImageBase64 || !workflowState.currentColorImageBase64) {
         addLogEntry('warning', '请先采集图像（需要深度图和彩色图）');
         alert('请先采集图像（需要深度图和彩色图）');
         return;
     }
-    
+
     const workpieceId = document.getElementById('workpiece-id-workflow').value.trim();
     if (!workpieceId) {
         addLogEntry('warning', '请选择工件ID');
@@ -978,6 +1007,56 @@ let _switchFlowInProgress = false;
 let _stopAllRequested = false;
 
 /**
+ * 演示页若曾提供独立工件输入则同步到工作流程（当前无独立输入，通常为空操作）
+ */
+function applyDemoWorkpieceFromDemoTab() {
+    const demoTab = document.getElementById('demo-tab');
+    if (!demoTab || demoTab.classList.contains('hidden')) {
+        return;
+    }
+    const demo = document.getElementById('demo-workpiece-id');
+    if (!demo) {
+        return;
+    }
+    const v = (demo.value || '').trim();
+    if (!v) {
+        return;
+    }
+    const w = document.getElementById('workpiece-id-workflow');
+    if (!w) {
+        return;
+    }
+    const exists = Array.from(w.options).some(o => o.value === v);
+    if (!exists) {
+        const opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = v;
+        w.appendChild(opt);
+    }
+    w.value = v;
+    try {
+        refreshPoseIdDropdown();
+    } catch (e) {
+        /* ignore */
+    }
+}
+
+/** 同步「视觉循环」开始/停止按钮组（工作流程 + 演示页） */
+function setLoopVisualToggleButtonsRunning(running) {
+    document.querySelectorAll('.js-loop-visual-toggle').forEach(btn => {
+        if (running) {
+            btn.innerHTML = '⏹️<br>停止循环';
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-danger');
+        } else {
+            btn.innerHTML = '🔄<br>循环抓取';
+            btn.classList.remove('btn-danger');
+            btn.classList.add('btn-success');
+        }
+    });
+}
+
+/**
  * Promise包装的采集图像函数
  * @returns {Promise<{success: boolean, error?: string}>}
  */
@@ -1263,14 +1342,14 @@ async function callLoopGraspControl(start) {
 }
 
 /**
- * 控制 publish_grasps_client_worker 循环（graspnet）
+ * 控制 publish_grasps_client_worker 循环（AI 抓取 / 夹爪2 侧 GraspNet）
  * @param {boolean} start - true=启动，false=停止
  * @returns {Promise<{success: boolean, message: string}>}
  */
 async function callPublishGraspsLoopControl(start) {
     try {
         const action = start ? '启动' : '停止';
-        addLogEntry('info', `调用 graspnet 循环控制服务 (${action})...`);
+        addLogEntry('info', `调用 AI 抓取循环控制（夹爪2 / GraspNet）(${action})...`);
 
         const response = await fetch(`${API_BASE_URL}/api/publish_grasps_loop_control`, {
             method: 'POST',
@@ -1299,7 +1378,7 @@ async function callPublishGraspsLoopControl(start) {
 
 /**
  * 调用夹爪切换服务（阻塞到切换结束）
- * @param {string} direction - gripper0_to_gripper2 / gripper2_to_gripper0 / gripper2
+ * @param {string} direction - gripper0_to_gripper2 快换→AI爪2 | gripper2_to_gripper0 快换→视觉爪0 | gripper2 简程→AI爪2
  * @returns {Promise<{success: boolean, message: string}>}
  */
 async function callRunGripperSwap(direction) {
@@ -1352,13 +1431,8 @@ async function loopAutoGrasp() {
     _loopAutoGraspRunning = true;
     _loopAutoGraspStopFlag = false;
     _stopAllRequested = false;
-    
-    // 更新按钮状态
-    const btn = document.getElementById('loop-auto-grasp-btn');
-    if (btn) {
-        btn.textContent = '⏹️\n停止循环';
-        btn.className = 'btn btn-danger';
-    }
+
+    setLoopVisualToggleButtonsRunning(true);
 
     addLogEntry('info', '开始循环自动抓取模式（前端逐轮触发抓取，请确保机械臂已在拍照姿态）');
     
@@ -1448,13 +1522,7 @@ async function loopAutoGrasp() {
     } finally {
         _loopAutoGraspRunning = false;
         _loopAutoGraspStopFlag = false;
-        
-        // 恢复按钮状态
-        const btn = document.getElementById('loop-auto-grasp-btn');
-        if (btn) {
-            btn.textContent = '🔄\n循环抓取';
-            btn.className = 'btn btn-success';
-        }
+        setLoopVisualToggleButtonsRunning(false);
     }
 }
 
@@ -1480,12 +1548,130 @@ async function toggleLoopAutoGrasp() {
     if (_loopAutoGraspRunning) {
         await stopLoopAutoGrasp();
     } else {
+        const ok = await ensureVisualGraspMode();
+        if (!ok) {
+            addLogEntry('warning', '未能切换到视觉抓取模式（夹爪0），已取消启动循环');
+            return;
+        }
         await loopAutoGrasp();
     }
 }
 
+/** 演示页：先尝试同步工件ID再切换视觉循环（与工作流程「循环抓取」一致） */
+async function demoToggleVisualLoop() {
+    applyDemoWorkpieceFromDemoTab();
+    await toggleLoopAutoGrasp();
+}
+
+/** 演示：采集 → 姿态估计 → 自动抓取（与工作流程页同一套 API） */
+async function demoVisualSingleGraspChain() {
+    applyDemoWorkpieceFromDemoTab();
+    const ok = await ensureVisualGraspMode();
+    if (!ok) {
+        addLogEntry('warning', '[演示] 未能切换到视觉抓取模式（夹爪0），已终止');
+        return;
+    }
+    const workpieceId = (document.getElementById('workpiece-id-workflow')?.value || '').trim();
+    if (!workpieceId) {
+        addLogEntry('error', '请先在「工作流程」中选择工件ID');
+        alert('请先在「工作流程」中选择工件ID');
+        return;
+    }
+    addLogEntry('info', '[演示] 单次识别抓取：采集 → 识别 → 抓取');
+    const cap = await captureImageAsync();
+    if (!cap.success) {
+        addLogEntry('error', '[演示] 采集失败，终止');
+        return;
+    }
+    const est = await estimatePoseAsync();
+    if (!est.success || !(est.success_num > 0)) {
+        addLogEntry('warning', '[演示] 未识别到工件，终止抓取');
+        return;
+    }
+    await autoGrasp();
+}
+
+async function demoStartGraspnetLoop() {
+    applyDemoWorkpieceFromDemoTab();
+    await stopAndSwitchToGripper2ThenStartGraspnet();
+}
+
+async function demoStopGraspnetLoop() {
+    await callPublishGraspsLoopControl(false);
+}
+
+async function demoStopAndSwitchToGraspnet() {
+    applyDemoWorkpieceFromDemoTab();
+    await stopAndSwitchToGripper2ThenStartGraspnet();
+}
+
+async function demoSwitchGripper2To0() {
+    await switchToGripper0();
+}
+
+async function demoSwitchGripper0To2Full() {
+    await switchToGripper2Full();
+}
+
+async function demoSwitchGripper2Quick() {
+    await switchToGripper2Quick();
+}
+
+async function demoStopAllFlows() {
+    await stopAllFlows();
+}
+
+async function demoMoveToCameraPose() {
+    applyDemoWorkpieceFromDemoTab();
+    await moveToCameraPose();
+}
+
 /**
- * 直接切换到 gripper0。
+ * 为视觉工件抓取准备工况（与「停并切换」对称）：
+ * 停止 GraspNet（AI/夹爪2）与视觉后端循环，再快换到夹爪0（视觉抓取），避免两套轨迹并发。
+ * @returns {Promise<boolean>}
+ */
+async function ensureVisualGraspMode() {
+    if (_switchFlowInProgress) {
+        addLogEntry('warning', '[AutoSwitch] 夹爪/流程切换进行中，请稍候再试');
+        return false;
+    }
+
+    _switchFlowInProgress = true;
+    try {
+        addLogEntry('info', '[AutoSwitch] 准备视觉抓取：停止循环 → 快换到夹爪0（视觉）');
+
+        if (_loopAutoGraspRunning) {
+            await stopLoopAutoGrasp();
+        } else {
+            await callLoopGraspControl(false);
+        }
+        await callPublishGraspsLoopControl(false);
+
+        if (_stopAllRequested) {
+            addLogEntry('info', '[AutoSwitch] 已请求全部停止，中止切换到视觉模式');
+            return false;
+        }
+
+        const swapRes = await callRunGripperSwap('gripper2_to_gripper0');
+        if (!swapRes.success) {
+            addLogEntry('error', '[AutoSwitch] 快换到夹爪0（视觉）失败');
+            return false;
+        }
+
+        addLogEntry('success', '[AutoSwitch] 已进入视觉抓取模式（夹爪0）');
+        return true;
+    } catch (e) {
+        addLogEntry('error', '[AutoSwitch] 准备视觉模式异常: ' + e.message);
+        console.error('ensureVisualGraspMode 错误:', e);
+        return false;
+    } finally {
+        _switchFlowInProgress = false;
+    }
+}
+
+/**
+ * run_gripper_swap：gripper2_to_gripper0（完整快换 → 夹爪0，视觉抓取）。
  */
 async function switchToGripper0() {
     if (_switchFlowInProgress) {
@@ -1495,13 +1681,13 @@ async function switchToGripper0() {
 
     _switchFlowInProgress = true;
     try {
-        addLogEntry('info', '[GripperSwap] 开始切换到 gripper0');
+        addLogEntry('info', '[GripperSwap] direction=gripper2_to_gripper0（快换 → 视觉夹爪0）');
         const swapRes = await callRunGripperSwap('gripper2_to_gripper0');
         if (!swapRes.success) {
-            addLogEntry('error', '[GripperSwap] 切换到 gripper0 失败');
+            addLogEntry('error', '[GripperSwap] 快换到视觉夹爪0 失败');
             return;
         }
-        addLogEntry('success', '[GripperSwap] 已切换到 gripper0');
+        addLogEntry('success', '[GripperSwap] 已切换到视觉夹爪0');
     } catch (e) {
         addLogEntry('error', '[GripperSwap] 切换异常: ' + e.message);
         console.error('switchToGripper0 错误:', e);
@@ -1511,7 +1697,59 @@ async function switchToGripper0() {
 }
 
 /**
- * 停止并切换到 gripper2，再启动 graspnet 循环。
+ * run_gripper_swap：gripper0_to_gripper2（完整快换 → 夹爪2，AI 抓取；不启动 GraspNet）。
+ */
+async function switchToGripper2Full() {
+    if (_switchFlowInProgress) {
+        addLogEntry('warning', '夹爪切换流程正在执行中，请勿重复点击');
+        return;
+    }
+
+    _switchFlowInProgress = true;
+    try {
+        addLogEntry('info', '[GripperSwap] direction=gripper0_to_gripper2（快换 → AI 夹爪2）');
+        const swapRes = await callRunGripperSwap('gripper0_to_gripper2');
+        if (!swapRes.success) {
+            addLogEntry('error', '[GripperSwap] 快换到 AI 夹爪2 失败');
+            return;
+        }
+        addLogEntry('success', '[GripperSwap] 快换到 AI 夹爪2 已完成');
+    } catch (e) {
+        addLogEntry('error', '[GripperSwap] 切换异常: ' + e.message);
+        console.error('switchToGripper2Full 错误:', e);
+    } finally {
+        _switchFlowInProgress = false;
+    }
+}
+
+/**
+ * run_gripper_swap：gripper2（简程至 AI 夹爪2，非完整快换轨迹）。
+ */
+async function switchToGripper2Quick() {
+    if (_switchFlowInProgress) {
+        addLogEntry('warning', '夹爪切换流程正在执行中，请勿重复点击');
+        return;
+    }
+
+    _switchFlowInProgress = true;
+    try {
+        addLogEntry('info', '[GripperSwap] direction=gripper2（简程 → AI 夹爪2）');
+        const swapRes = await callRunGripperSwap('gripper2');
+        if (!swapRes.success) {
+            addLogEntry('error', '[GripperSwap] 简程到 AI 夹爪2 失败');
+            return;
+        }
+        addLogEntry('success', '[GripperSwap] 简程到 AI 夹爪2 已完成');
+    } catch (e) {
+        addLogEntry('error', '[GripperSwap] 切换异常: ' + e.message);
+        console.error('switchToGripper2Quick 错误:', e);
+    } finally {
+        _switchFlowInProgress = false;
+    }
+}
+
+/**
+ * 停止视觉侧循环，快换到夹爪2（AI），再启动 GraspNet 循环。
  */
 async function stopAndSwitchToGripper2ThenStartGraspnet() {
     if (_switchFlowInProgress) {
@@ -1522,7 +1760,7 @@ async function stopAndSwitchToGripper2ThenStartGraspnet() {
     _stopAllRequested = false;
 
     try {
-        addLogEntry('info', '[SwitchFlow] 开始：停止 gripper0 循环并切换到 gripper2');
+        addLogEntry('info', '[SwitchFlow] 开始：停视觉循环 → 快换 AI 夹爪2 → 启动 GraspNet');
 
         // 先请求停止两类循环，避免并发轨迹。
         if (_loopAutoGraspRunning) {
@@ -1544,17 +1782,17 @@ async function stopAndSwitchToGripper2ThenStartGraspnet() {
         }
 
         if (_stopAllRequested) {
-            addLogEntry('info', '[SwitchFlow] 切换完成后检测到全部停止请求，不启动 graspnet 循环');
+            addLogEntry('info', '[SwitchFlow] 切换完成后检测到全部停止请求，不启动 AI（夹爪2）GraspNet 循环');
             return;
         }
 
         const g2StartRes = await callPublishGraspsLoopControl(true);
         if (!g2StartRes.success) {
-            addLogEntry('error', '[SwitchFlow] gripper2 graspnet 循环启动失败');
+            addLogEntry('error', '[SwitchFlow] AI 夹爪2 侧 GraspNet 循环启动失败');
             return;
         }
 
-        addLogEntry('success', '[SwitchFlow] 已完成：gripper2 graspnet 循环已启动');
+        addLogEntry('success', '[SwitchFlow] 已完成：AI 夹爪2 + GraspNet 循环已启动');
     } catch (e) {
         addLogEntry('error', '[SwitchFlow] 异常: ' + e.message);
         console.error('stopAndSwitchToGripper2ThenStartGraspnet 错误:', e);
@@ -1633,6 +1871,15 @@ async function autoGrasp() {
         addLogEntry('warning', '自动抓取进行中，请勿重复点击');
         return { success: false, message: '自动抓取进行中，请勿重复点击' };
     }
+
+    if (!_loopAutoGraspRunning) {
+        const modeOk = await ensureVisualGraspMode();
+        if (!modeOk) {
+            addLogEntry('warning', '未能切换到视觉抓取模式（夹爪0），已取消自动抓取');
+            return { success: false, message: '未能切换到视觉抓取模式（夹爪0）' };
+        }
+    }
+
     _autoGraspRunning = true;
 
     addLogEntry(
@@ -1850,6 +2097,15 @@ async function moveToTemplatePose(poseType, poseLabel, fromTemplateTab = true) {
 
 // 从工作流程选项卡运动到拍照姿态
 async function moveToCameraPose() {
+    if (_loopAutoGraspRunning) {
+        addLogEntry('warning', '请先停止视觉循环再移动到拍照姿态');
+        return;
+    }
+    const modeOk = await ensureVisualGraspMode();
+    if (!modeOk) {
+        addLogEntry('warning', '未能切换到视觉抓取模式（夹爪0），已取消移动到拍照姿态');
+        return;
+    }
     await moveToTemplatePose('camera_pose', '拍照姿态', false);
 }
 

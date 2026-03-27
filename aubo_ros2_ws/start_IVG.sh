@@ -10,7 +10,7 @@ fi
 # 按顺序启动所有必要的节点和服务
 # 使用 terminator 创建分屏终端
 #
-# 使用纯 ROS2 启动：aubo_moveit_pure_ros2.launch.py（aubo_driver_ros2 + move_group + RViz + 轨迹插值），无需 ROS1 与 ros1_bridge
+# 使用纯 ROS2 启动：aubo_moveit_pure_ros2.launch.py（aubo_driver_ros2 + move_group + RViz + 轨迹插值）
 
 set -e  # 遇到错误立即退出
 

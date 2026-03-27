@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-GraspNet Demo + TF 专用 Launch（与 aubo_moveit_bridge_ros1 配合使用）
+GraspNet Demo + TF 专用 Launch（需 MoveIt/TF 树已发布相机链）
 
 功能：
   启动 graspnet_demo_node（从文件或话题读取数据并预测抓取，发布 MarkerArray、点云和 grasp_pose_X 的 TF）
 
 使用：
-  终端1: ros2 launch aubo_moveit_config aubo_moveit_bridge_ros1.launch.py
+  终端1: ros2 launch aubo_moveit_config aubo_moveit_pure_ros2.launch.py
   终端2: ros2 launch graspnet_ros2 graspnet_demo_with_tf.launch.py
   手动触发: ros2 run graspnet_ros2 publish_grasps_client
 
-TF 链：bridge 发布 base_link -> ... -> wrist3_Link -> camera_frame；本节点发布 camera_frame -> grasp_pose_0, ...
+TF 链：MoveIt/驱动发布 base_link -> ... -> wrist3_Link -> camera_frame；本节点发布 camera_frame -> grasp_pose_0, ...
 """
 
 import os

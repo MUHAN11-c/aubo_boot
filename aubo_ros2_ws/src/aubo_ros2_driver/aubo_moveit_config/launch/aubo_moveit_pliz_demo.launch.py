@@ -37,6 +37,13 @@ def load_yaml(package_name, file_path):
 
 
 def launch_setup(context, *args, **kwargs):
+    try:
+        motion_command_hz = float(LaunchConfiguration("motion_command_hz").perform(context))
+    except ValueError:
+        motion_command_hz = 200.0
+    if motion_command_hz < 1.0:
+        motion_command_hz = 200.0
+
     # MoveItConfigsBuilder：使用 Pilz 规划器（PTP/LIN/CIRC）
     moveit_config = (
         MoveItConfigsBuilder("aubo_robot", package_name="aubo_moveit_config")
@@ -51,7 +58,7 @@ def launch_setup(context, *args, **kwargs):
     )
     pkg_share = get_package_share_directory("aubo_moveit_config")
 
-    # robot_description 使用 aubo_ros2.xacro（与 bridge 一致，不用 to_dict 里的默认 urdf）
+    # robot_description 使用 aubo_ros2.xacro（不用 to_dict 里的默认 urdf）
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
@@ -147,7 +154,7 @@ def launch_setup(context, *args, **kwargs):
         parameters=[robot_description],
     )
 
-    # 与 aubo_moveit_bridge_ros1.launch.py 一致：use_aubo_driver_ros2 时不启动 ros2_control_node，
+    # 与 aubo_moveit_pure_ros2 一致：use_aubo_driver_ros2 时不启动 ros2_control_node，
     # joint_states 与执行由 aubo_driver_ros2 + aubo_robot_simulator_ros2 完成。
 
     # -------------------------------------------------------------------------
@@ -176,6 +183,7 @@ def launch_setup(context, *args, **kwargs):
         parameters=[{
             "server_host": LaunchConfiguration("aubo_driver_server_host"),
             "external_axis_number": 0,
+            "motion_command_hz": motion_command_hz,
         }],
     )
 
@@ -202,7 +210,7 @@ def launch_setup(context, *args, **kwargs):
         name="aubo_robot_simulator",
         output="screen",
         parameters=[{
-            "motion_update_rate": 200.0,
+            "motion_update_rate": motion_command_hz,
             "minimum_buffer_size": 600,  # 降低节流阈值，避免速度因子 0.1 时 rib>2000 导致成批发送卡顿
             "joint_names": joint_names_list,
         }],
@@ -228,6 +236,11 @@ def generate_launch_description():
             "aubo_driver_server_host",
             default_value=DEFAULT_SERVER_HOST,
             description="机械臂控制器 IP（aubo_driver_ros2）",
+        ),
+        DeclareLaunchArgument(
+            "motion_command_hz",
+            default_value="200.0",
+            description="simulator 插补与 driver motion_command_hz 统一频率(Hz)；与 Noetic jti 1/200 对齐时取 200",
         ),
         OpaqueFunction(function=launch_setup),
     ])

@@ -39,6 +39,7 @@ setup(
         + package_files("web_ui/configs", ["*.json", "*.yaml", "*.xml", "*.md"])
         + package_files("web_ui/scripts", ["*.py", "*.js"])
         + package_files("web_ui/static", ["*.html", "*.css", "*.js"])
+        + package_files("web_ui/styles", ["*.css"])
         + package_files("web_ui/assets", ["*"])
         + package_files("web_ui/docs", ["*.md"])
         + package_files("web_ui/tools", ["*.py", "*.sh", "*.md", "*.html"])

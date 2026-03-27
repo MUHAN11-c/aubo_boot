@@ -43,7 +43,7 @@ public:
 private:
   rclcpp_action::Server<FollowJointTrajectory>::SharedPtr action_server_;
 
-  // 发布完整轨迹到 joint_path_command，由 ROS 1 端的 aubo_robot_simulator 接收并处理插补
+  // 发布完整轨迹到 joint_path_command，由 aubo_robot_simulator_ros2 等节点接收并插补
   rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr trajectory_command_pub_;
   rclcpp::Subscription<control_msgs::action::FollowJointTrajectory_Feedback>::SharedPtr fjt_feedback_sub_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr moveit_execution_sub_;
@@ -58,6 +58,11 @@ private:
   // 诊断 client_cancel：记录最后一次 feedback 的 actual.positions，abort 时与轨迹起点对比
   std::vector<double> last_feedback_positions_;
   bool last_feedback_valid_{false};
+  /// 借鉴 ros2_control：用反馈消息时间戳计算 Δt，区分「大步长」与「长间隔累积」
+  bool feedback_stamp_prev_valid_{false};
+  rclcpp::Time feedback_prev_stamp_;
+  /// 借鉴 joint_trajectory_controller：goal 容差内需连续多帧稳定再 succeed，避免单帧噪声
+  int goal_tolerance_hold_count_{0};
 
   void watchDogTimer();
 
@@ -70,7 +75,7 @@ private:
 
   void abortActiveGoal(const char* reason = nullptr);
 
-  void publishTrajectory();  // 发布完整轨迹，插补在 ROS 1 端完成
+  void publishTrajectory();  // 发布完整轨迹，插补在 simulator 节点完成
   double toSec(const builtin_interfaces::msg::Duration &duration);
   builtin_interfaces::msg::Duration toDuration(double time_in_seconds);
 

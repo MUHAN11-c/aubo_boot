@@ -23,7 +23,7 @@ def launch_setup(context, *args, **kwargs):
     moveit_config_file = LaunchConfiguration("moveit_config_file")
     aubo_type = LaunchConfiguration("aubo_type")
     
-    # 生成 robot_description 参数（与 aubo_moveit_bridge_ros1.launch.py 相同）
+    # 生成 robot_description 参数（与 aubo_moveit_pure_ros2.launch.py 中 xacro 链一致）
     robot_xacro_file_to_use = "aubo_ros2.xacro"
     robot_description_content = Command(
         [
@@ -174,10 +174,10 @@ def generate_launch_description():
     使用方法：
         ros2 launch aubo_moveit_config demo_driver_services.launch.py
     
-    注意：此 launch 文件需要先启动 MoveIt2（例如通过 aubo_moveit_bridge_ros1.launch.py）
+    注意：此 launch 文件需要先启动 MoveIt2（例如 aubo_moveit_pure_ros2.launch.py）
     """
     
-    # 声明启动参数（与 aubo_moveit_bridge_ros1.launch.py 保持一致）
+    # 声明启动参数（与主 MoveIt launch 中 robot_description 约定一致）
     declared_arguments = []
     declared_arguments.append(
         DeclareLaunchArgument(

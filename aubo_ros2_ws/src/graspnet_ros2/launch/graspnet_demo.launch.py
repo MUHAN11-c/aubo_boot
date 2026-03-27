@@ -18,7 +18,7 @@ GraspNet ROS2 Demo Launch 文件。
 手动触发抓取发布：
   ros2 run graspnet_ros2 publish_grasps_client
 
-TF 诊断（详见 TF_USAGE.md）：
+TF 诊断（详见包内 README「坐标转换与 TF 验证」）：
   ros2 run tf2_ros tf2_echo base_link wrist3_Link
   ros2 run tf2_ros tf2_echo wrist3_Link camera_frame
   ros2 run tf2_ros tf2_echo camera_frame grasp_pose_0
@@ -171,6 +171,7 @@ def launch_setup_robot_and_tf(context):
     ompl_yaml = load_yaml(PKG_AUBO_MOVEIT, 'config/ompl_planning.yaml')
     if ompl_yaml:
         ompl_planning_pipeline_config['move_group'].update(ompl_yaml)
+    ompl_planning_pipeline_config['move_group']['resample_dt'] = ompl_planning_pipeline_config['move_group']['sample_duration']
 
     moveit_controllers_yaml = load_yaml(PKG_AUBO_MOVEIT, 'config/moveit_controllers.yaml')
     moveit_controllers = {

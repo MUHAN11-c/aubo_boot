@@ -117,7 +117,7 @@ bool GetCurrentStateServer::wait_for_robot_description(int timeout_seconds)
         {
             RCLCPP_ERROR(this->get_logger(), "Timeout waiting (%d seconds)", timeout_seconds);
             RCLCPP_ERROR(this->get_logger(), "Please ensure:");
-            RCLCPP_ERROR(this->get_logger(), "  1. MoveIt2 is running: ros2 launch aubo_moveit_config aubo_moveit_bridge_ros1.launch.py");
+            RCLCPP_ERROR(this->get_logger(), "  1. MoveIt2 is running: ros2 launch aubo_moveit_config aubo_moveit_pure_ros2.launch.py");
             RCLCPP_ERROR(this->get_logger(), "  2. Planning group name is correct: currently using '%s'", planning_group_name_.c_str());
             RCLCPP_ERROR(this->get_logger(), "  3. move_group node is running");
             return false;
@@ -187,7 +187,7 @@ bool GetCurrentStateServer::initialize(int max_retries, int retry_delay_seconds)
             else
             {
                 RCLCPP_ERROR(this->get_logger(), "Failed to initialize MoveIt interfaces after %d attempts", max_retries);
-                RCLCPP_ERROR(this->get_logger(), "Please ensure MoveIt2 is running: ros2 launch aubo_moveit_config aubo_moveit_bridge_ros1.launch.py");
+                RCLCPP_ERROR(this->get_logger(), "Please ensure MoveIt2 is running: ros2 launch aubo_moveit_config aubo_moveit_pure_ros2.launch.py");
                 return false;
             }
         }

@@ -46,7 +46,7 @@ sudo apt-get install python3-flask python3-opencv python3-numpy
 ## 编译
 
 ```bash
-cd ~/RVG_ws
+cd /home/mu/IVG2.0/aubo_ros2_ws
 colcon build --packages-select hand_eye_calibration
 source install/setup.bash
 ```
@@ -56,7 +56,7 @@ source install/setup.bash
 ### 方式1：使用launch文件启动（推荐）
 
 ```bash
-source ~/RVG_ws/install/setup.bash
+source /home/mu/IVG2.0/aubo_ros2_ws/install/setup.bash
 ros2 launch hand_eye_calibration hand_eye_calibration_launch.py
 ```
 
@@ -115,10 +115,14 @@ ros2 run hand_eye_calibration hand_eye_calibration_node
 
 手眼标定结果存储在：`config/hand_eye_calibration.yaml`
 
-## 话题订阅
+## 话题与消息（与当前节点实现一致）
 
-- `/camera/image_raw` (sensor_msgs/Image): 相机图像
-- `/robot_status` (interface/RobotStatus): 机器人状态（包含位姿信息）
+- **`/image_data`**（`percipio_camera_interface/msg/ImageData`）：彩色图桥接输入（需运行 `image_data_bridge` 等）
+- **`/demo_robot_status`**（`demo_interface/msg/RobotStatus`）：机器人状态与位姿（源码中话题名固定为该字符串；launch 里 `robot_status_topic` 参数若与实现不一致，以 `hand_eye_calibration_node.py` 为准）
+- **`/camera_status`**（`percipio_camera_interface/msg/CameraStatus`）：相机状态
+- **`/camera/depth/image_raw`**（`sensor_msgs/Image`）：深度图，参数 `depth_image_topic` 可改
+
+另使用 **`demo_interface`** 服务：`/set_robot_pose`、`/move_to_pose`；客户端 **`/software_trigger`**（Percipio 软触发）。
 
 ## 参数说明
 
@@ -186,3 +190,22 @@ Web界面通过以下REST API与ROS2节点通信：
 - ✨ 支持三大功能模块
 - ✨ 实时图像和位姿显示
 
+
+
+## 仓库目录结构（相对 `aubo_ros2_ws/src/hand_eye_calibration/`）
+
+```
+hand_eye_calibration/
+├── hand_eye_calibration/          # ROS2 节点、Flask API、OpenCV/自定义手眼算法
+├── launch/                        # hand_eye_calibration_launch.py、hand_eye_calibration_tf.launch.py 等
+├── web/                           # Web UI 模板与静态资源
+├── config/                        # 相机参数、标定数据与结果
+├── scripts/                       # 棋盘格测试等辅助脚本
+├── hand_eye_calibration_tool/     # 独立标定工具与示例数据
+├── package.xml / setup.py / setup.cfg
+└── start_hand_eye_calibration.sh  # 可选一键启动脚本
+```
+
+## 文档精简说明
+
+原 README 中自「其他主题文档（由原分散文件合并）」起的超长附录（OpenCV 模式逐步骤、逐函数说明等）已移除，避免单文件过大、难以维护。需要对照实现时，请直接阅读源码：`hand_eye_calibration/opencv_hand_eye_calibration.py`、`custom_hand_eye_calibration.py`、`hand_eye_calibration_node.py`。

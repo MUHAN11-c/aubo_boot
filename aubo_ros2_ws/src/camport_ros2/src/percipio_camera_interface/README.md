@@ -86,7 +86,7 @@
 ### 1. 编译功能包
 
 ```bash
-cd /home/mu/IVG/aubo_ros2_ws
+cd /home/mu/IVG2.0/aubo_ros2_ws
 colcon build --packages-select percipio_camera_interface
 source install/setup.bash
 ```

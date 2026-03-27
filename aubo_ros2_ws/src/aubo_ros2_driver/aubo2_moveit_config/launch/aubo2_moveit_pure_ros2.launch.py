@@ -1,5 +1,5 @@
 """
-aubo2 纯 ROS2 启动（无 ROS1 桥接）：真实机用 aubo_driver_ros2，轨迹插值在 ROS2。
+aubo2 纯 ROS2 启动：真实机用 aubo_driver_ros2，轨迹插值在 ROS2。
 
 参考 MoveIt 官方教程编写：
   https://moveit.picknik.ai/main/doc/how_to_guides/moveit_launch_files/moveit_launch_files_tutorial.html

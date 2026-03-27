@@ -121,7 +121,7 @@ public:
             {
                 RCLCPP_ERROR(this->get_logger(), "等待超时 (%d 秒)", timeout_seconds);
                 RCLCPP_ERROR(this->get_logger(), "请确保:");
-                RCLCPP_ERROR(this->get_logger(), "  1. MoveIt2 已启动: ros2 launch aubo_moveit_config aubo_moveit_bridge_ros1.launch.py");
+                RCLCPP_ERROR(this->get_logger(), "  1. MoveIt2 已启动: ros2 launch aubo_moveit_config aubo_moveit_pure_ros2.launch.py");
                 RCLCPP_ERROR(this->get_logger(), "  2. 规划组名称正确: 当前使用 '%s'", planning_group_name_.c_str());
                 RCLCPP_ERROR(this->get_logger(), "  3. move_group 节点正在运行");
                 return false;
@@ -186,7 +186,7 @@ public:
                 {
                     RCLCPP_ERROR(this->get_logger(), "MoveIt2 接口初始化最终失败");
                     RCLCPP_ERROR(this->get_logger(), "请检查:");
-                    RCLCPP_ERROR(this->get_logger(), "  1. MoveIt2 是否已启动: ros2 launch aubo_moveit_config aubo_moveit_bridge_ros1.launch.py");
+                    RCLCPP_ERROR(this->get_logger(), "  1. MoveIt2 是否已启动: ros2 launch aubo_moveit_config aubo_moveit_pure_ros2.launch.py");
                     RCLCPP_ERROR(this->get_logger(), "  2. 规划组名称是否正确: 当前使用 '%s' (应该是 'manipulator')", 
                                planning_group_name_.c_str());
                     RCLCPP_ERROR(this->get_logger(), "  3. move_group 节点是否在运行: ros2 node list | grep move_group");

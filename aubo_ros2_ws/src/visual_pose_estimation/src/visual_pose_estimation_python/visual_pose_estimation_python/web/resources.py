@@ -97,10 +97,14 @@ def resolve_web_paths() -> WebPaths:
     docs_dir = legacy_ui_dir / "docs"
     legacy_scripts_dir = legacy_ui_dir / "scripts"
 
-    if static_dir.exists():
+    # 逻辑入口始终指向主 index（含工作流程、演示）；根路径由 system 路由重定向到 /legacy-ui/
+    primary_index = legacy_ui_dir / "index.html"
+    if primary_index.exists():
+        index_file = primary_index
+    elif static_dir.exists():
         index_file = static_dir / "index.html"
     else:
-        index_file = legacy_ui_dir / "index.html"
+        index_file = primary_index
 
     workspace_templates_dir = _resolve_workspace_templates_dir(source_root, package_share_dir)
     rembg_subprocess_script = _first_existing_path(

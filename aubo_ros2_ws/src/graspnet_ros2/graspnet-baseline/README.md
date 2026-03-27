@@ -1,4 +1,9 @@
 # GraspNet Baseline
+
+**IVG2.0 仓库说明**：本目录位于 `aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/`，随 **`graspnet_ros2`** 通过 `colcon build` 安装到 `install/graspnet_ros2/share/graspnet_ros2/graspnet-baseline/`；ROS2 节点与 launch 说明见上一级 [`../README.md`](../README.md)。
+
+---
+
 Baseline model for "GraspNet-1Billion: A Large-Scale Benchmark for General Object Grasping" (CVPR 2020).
 
 [[paper](https://openaccess.thecvf.com/content_CVPR_2020/papers/Fang_GraspNet-1Billion_A_Large-Scale_Benchmark_for_General_Object_Grasping_CVPR_2020_paper.pdf)]

@@ -122,7 +122,7 @@ demo_driver/
 │   ├── set_robot_pose_server.h
 │   └── ...
 ├── src/                          # 源文件
-├── launch/                       # Launch 文件（部分为 ROS1 格式，建议用 demo_driver_services.launch.py）
+├── launch/                       # Launch 与辅助资源（现场推荐用 aubo_moveit_config 的 demo_driver_services.launch.py）
 ├── scripts/                      # Python 脚本
 └── docs/                         # 文档
 ```
@@ -570,6 +570,93 @@ ros2 run demo_driver publish_grasps_client_worker_node
 ```
 
 **典型工作流程**：调用 `/plan_trajectory` 规划 → 获取轨迹 → 调用 `/execute_trajectory` 执行。
+
+---
+
+## ExecuteGraspPoseWorker 服务测试
+
+以下内容原独立文件 `EXECUTE_GRASP_SERVICE_TEST.md`，已并入本文。
+
+### 构建
+
+```bash
+cd <你的_ws>
+source /opt/ros/humble/setup.bash
+colcon build --packages-select demo_interface demo_driver
+source install/setup.bash
+```
+
+### 启动节点
+
+```bash
+ros2 launch demo_driver execute_grasp_pose_worker.launch.py
+```
+
+### 测试服务
+
+**1. 单次抓取（使用参数常量）**
+
+```bash
+ros2 service call /execute_single_grasp demo_interface/srv/ExecuteGraspPose "{object_id: 'test_object', use_visual_estimation: false}"
+```
+
+**2. 单次抓取（使用视觉估计）**
+
+确保 `/estimate_pose` 服务正在运行，然后：
+
+```bash
+ros2 service call /execute_single_grasp demo_interface/srv/ExecuteGraspPose "{object_id: 'default', use_visual_estimation: true}"
+```
+
+**3. 启动 / 停止循环抓取**
+
+```bash
+ros2 service call /loop_grasp_control std_srvs/srv/SetBool "{data: true}"
+ros2 service call /loop_grasp_control std_srvs/srv/SetBool "{data: false}"
+```
+
+### 参数说明
+
+节点参数统一使用 **`egp_` 前缀**（与 `automatically_declare_parameters_from_overrides` 配合）。可通过 launch 或 `ros2 run ... --ros-args -p ...` 覆盖，例如：
+
+- `egp_object_id`：循环抓取默认工件 ID，默认 `default`
+- `egp_grasp_position` / `egp_grasp_orientation`：抓取位姿
+- 其余见 `execute_grasp_pose_worker.cpp` 顶部参数表
+
+### Web「自动抓取」流程
+
+视觉 Web UI 中「自动抓取」会走 **`/api/execute_single_grasp`**，对应 `ExecuteGraspPose`（`use_visual_estimation: true` 时 worker 内会再请求 `/estimate_pose`）。需已启动 `execute_grasp_pose_worker`；桥接请求体可带 **`timeout_sec`**（默认 300，最大 900）。
+
+### 前端集成示例（roslibjs）
+
+```javascript
+const executeSingleGraspService = new ROSLIB.Service({
+  ros: ros,
+  name: '/execute_single_grasp',
+  serviceType: 'demo_interface/srv/ExecuteGraspPose'
+});
+executeSingleGraspService.callService(
+  new ROSLIB.ServiceRequest({ object_id: 'default', use_visual_estimation: true }),
+  function (result) { /* ... */ }
+);
+const loopGraspControlService = new ROSLIB.Service({
+  ros: ros,
+  name: '/loop_grasp_control',
+  serviceType: 'std_srvs/srv/SetBool'
+});
+```
+
+### 日志与排障
+
+```bash
+ros2 run rqt_console rqt_console
+```
+
+关键日志标签：`[estimatePoseFromVision]`、`[handleExecuteSingleGrasp]`、`[handleLoopGraspControl]`、`[loopGraspThread]`。
+
+- 服务不可用：检查 `ros2 node list` / `ros2 service list | grep grasp`
+- 视觉失败：确认 `/estimate_pose` 已注册
+- 循环无法启动：查看是否已有循环在运行（日志会提示）
 
 ---
 

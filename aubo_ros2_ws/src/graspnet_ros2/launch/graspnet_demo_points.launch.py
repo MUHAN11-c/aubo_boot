@@ -168,6 +168,7 @@ def launch_setup_robot_and_tf(context):
     ompl_yaml = load_yaml(PKG_AUBO_MOVEIT, 'config/ompl_planning.yaml')
     if ompl_yaml:
         ompl_planning_pipeline_config['move_group'].update(ompl_yaml)
+    ompl_planning_pipeline_config['move_group']['resample_dt'] = ompl_planning_pipeline_config['move_group']['sample_duration']
 
     moveit_controllers_yaml = load_yaml(PKG_AUBO_MOVEIT, 'config/moveit_controllers.yaml')
     moveit_controllers = {

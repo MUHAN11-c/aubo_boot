@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-ROS2 轨迹插值节点：替代 ROS1 aubo_robot_simulator。
+ROS2 轨迹插值节点：替代历史 ROS1 aubo_robot_simulator。
 
 - 订阅 joint_path_command (trajectory_msgs/JointTrajectory)，与 aubo_ros2_trajectory_action 输出一致
 - 使用 5 次多项式插值，按 motion_update_rate（默认 200Hz）生成中间点
-- 发布 moveItController_cmd (trajectory_msgs/JointTrajectoryPoint)，由 ros1_bridge 桥接到 ROS1 aubo_driver
+- 发布 moveItController_cmd (trajectory_msgs/JointTrajectoryPoint)，由 aubo_driver_ros2 等消费
 
-参数（与 aubo_e5_moveit_bridge.launch 中 aubo_controller 一致）：
+参数（与 MoveIt 栈中 aubo_controller 周期约定一致）：
 - motion_update_rate: 200
 - minimum_buffer_size: 600（launch 中设置，降低节流阈值以减轻速度因子 0.1 时卡顿）
 - joint_names: 与 MoveIt 一致
@@ -134,7 +134,7 @@ class AuboRobotSimulatorNode(Node):
             minimum_buffer_size=minimum_buffer_size,
         )
 
-        # 发布 moveItController_cmd -> ros1_bridge -> ROS1 aubo_driver
+        # 发布 moveItController_cmd -> aubo_driver_ros2
         self.moveit_cmd_pub = self.create_publisher(
             JointTrajectoryPoint,
             "moveItController_cmd",
@@ -146,7 +146,7 @@ class AuboRobotSimulatorNode(Node):
             self.trajectory_callback,
             10,
         )
-        # RIB 状态由 ROS1 aubo_driver 发布，经 bridge 到 ROS2（可选）
+        # RIB 状态由 aubo_driver_ros2 发布（可选订阅）
         self.rib_status_sub = self.create_subscription(
             Int32MultiArray,
             "/aubo_driver/rib_status",

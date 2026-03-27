@@ -7,10 +7,9 @@ import threading
 import time
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
-from ..dependencies import get_paths, get_ros_bridge
-from ..resources import WebPaths
+from ..dependencies import get_ros_bridge
 from ..ros_bridge import RosBridgeManager
 from ..ws import WebSocketManager
 
@@ -29,10 +28,22 @@ def schedule_exit(delay_seconds: float = 1.0) -> None:
     LOGGER.info("Scheduled FastAPI process shutdown in %.1fs", delay_seconds)
 
 
-@router.get("/", response_class=FileResponse)
-@router.get("/index.html", response_class=FileResponse)
-def index(paths: WebPaths = Depends(get_paths)):
-    return FileResponse(paths.index_file)
+# 主界面在 /legacy-ui/ 下，相对路径的 assets、scripts 才能正确加载。
+# 若直接返回 web_ui/index.html，浏览器地址为 / 时会请求 /scripts/app.js（404），界面残缺。
+_LEGACY_UI_ENTRY = "/legacy-ui/index.html"
+_LEGACY_UI_DEMO = "/legacy-ui/demo.html"
+
+
+@router.get("/")
+@router.get("/index.html")
+def index():
+    return RedirectResponse(url=_LEGACY_UI_ENTRY, status_code=307)
+
+
+@router.get("/demo.html")
+def demo_page():
+    """根路径 /demo.html → 正式演示页（/demo 由 StaticFiles 挂载占用，请用 /demo/index.html 或本路由）。"""
+    return RedirectResponse(url=_LEGACY_UI_DEMO, status_code=307)
 
 
 @router.get("/status")

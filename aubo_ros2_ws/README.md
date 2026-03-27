@@ -1,6 +1,8 @@
-# aubo_ros2_ws 工作空间总结
+# aubo_ros2_ws 工作空间说明
 
-本工作空间为基于 **ROS 2 Humble** 的奥博（Aubo）机械臂视觉抓取与运动规划系统，集成相机驱动、手眼标定、视觉位姿估计、抓取预测与 MoveIt 运动控制。
+基于 **ROS 2 Humble**（可用 `ROS_DISTRO_NAME` 覆盖）的奥博（Aubo）机械臂系统：MoveIt 2、真机驱动、知微（Percipio）相机、手眼标定、坐标变换、视觉位姿估计（C++/Python + FastAPI）、GraspNet 点云抓取，以及 `demo_driver` 侧规划/执行与抓取 Worker。
+
+当前 `src/` 下共 **22** 个 ROS 2 包（以各目录内 `package.xml` 为准，含 `aubo_description/world_map` 独立包）。
 
 ---
 
@@ -9,128 +11,199 @@
 ```
 aubo_ros2_ws/
 ├── src/
-│   ├── aubo_ros2_driver/          # 奥博机械臂驱动与 MoveIt 配置
-│   ├── camport_ros2/              # 知微(Percipio) 相机驱动与接口
-│   ├── graspnet_ros2/             # GraspNet 6-DoF 抓取位姿预测
-│   ├── graspnet-baseline/         # GraspNet 基线算法（Python 包名: graspnet）
-│   ├── hand_eye_calibration/      # 手眼标定（Web UI）
-│   └── visual_pose_estimation/   # 视觉位姿估计（C++/Python）
-├── build/
-├── install/
-└── log/
+│   ├── aubo_ros2_driver/                 # 机械臂描述、MoveIt、驱动、demo、消息、仿真、demo_driver
+│   ├── camport_ros2/src/                 # percipio_camera / percipio_camera_interface / image_data_bridge
+│   ├── coordinate_transforms/            # 坐标变换 C++ 库与示例节点
+│   ├── coordinate_transforms_py/         # 与 C++ 约定一致的 Python 实现
+│   ├── graspnet_ros2/                    # GraspNet ROS 2 封装（内含 graspnet-baseline，随包安装）
+│   ├── hand_eye_calibration/             # 手眼标定 Web UI + ROS 2 节点
+│   └── visual_pose_estimation/
+│       └── src/
+│           ├── interface/                # 视觉相关 msg/srv 等接口定义
+│           ├── visual_pose_estimation/   # 位姿估计算法（C++）
+│           └── visual_pose_estimation_python/  # Python 节点 + FastAPI/Web（web_ui/）
+├── rosbags/                              # 录包输出目录（如 ivg_session，脚本可覆盖）
+├── start_IVG.sh                          # 手眼等整栈（terminator 多标签）
+├── start_IVG_graspnet_points.sh          # 点云 GraspNet 路线整栈
+├── start_IVG_graspnet_points_fastapi.sh  # IVG 全栈：点云 GraspNet + FastAPI + rosbag 等
+├── test_coordinate_transforms.sh         # coordinate_transforms(_py) 编译与测试脚本
+├── build/  install/  log/                # colcon 产物
 ```
 
----
+说明：
 
-## 2. 功能包列表与说明
-
-### 2.1 机械臂与运动控制（aubo_ros2_driver）
-
-| 包名 | 类型 | 说明 |
-|------|------|------|
-| **aubo_description** | ament_cmake | 机械臂描述文件（URDF/XACRO）与网格 |
-| **aubo_moveit_config** | ament_cmake | Aubo 与 MoveIt 的配置与启动（aubo_i5 等） |
-| **aubo_msgs** | ament_cmake | 与机械臂控制器交互的消息与服务定义 |
-| **aubo_dashboard_msgs** | ament_cmake | Dashboard 相关消息 |
-| **aubo_ros2_trajectory_action** | ament_cmake | 轨迹 Action 服务（FollowJointTrajectory） |
-| **demo_driver** | ament_cmake | 机器人状态与运动接口（MoveIt 规划/执行、位姿控制等） |
-| **demo_interface** | ament_cmake | demo_driver 的消息/服务接口（含 ROS1 bridge 映射） |
-| **feedback_bridge** | ament_cmake | FollowJointTrajectory Feedback 转 Action Feedback 桥接 |
-| **aubo_demo** | ament_cmake | 调用 demo_driver 服务/话题的示例（C++） |
-
-### 2.2 相机与图像（camport_ros2）
-
-| 包名 | 类型 | 说明 |
-|------|------|------|
-| **percipio_camera** | ament_cmake | 知微相机驱动（深度/彩色、深度修复、MatViewer 等） |
-| **percipio_camera_interface** | ament_cmake | 相机状态与控制的消息/服务接口 |
-| **image_data_bridge** | ament_cmake | 将相机图像转换为统一 ImageData 消息格式的桥接节点 |
-
-### 2.3 视觉与抓取
-
-| 包名 | 类型 | 说明 |
-|------|------|------|
-| **graspnet** | ament_python | GraspNet 基线算法（graspnet-baseline 的 Python 包） |
-| **graspnet_ros2** | ament_python | GraspNet ROS2 封装：6-DoF 抓取位姿预测与相关节点 |
-| **hand_eye_calibration** | ament_python | 单目相机手眼标定，基于 Web UI 的交互式标定 |
-| **visual_pose_estimation** | ament_cmake | 基于单目模板匹配的工件 3D 抓取姿态估计（C++） |
-| **visual_pose_estimation_python** | ament_cmake+python | 视觉位姿估计的 Python 实现 |
-| **interface** | ament_cmake | 视觉位姿估计相关服务与消息接口 |
+- **`aubo_description/world_map/`**：遗留 **catkin** 格式场景包，一般不作为主工作流的一部分参与 colcon。
+- **GraspNet 训练用大数据**（历史 `graspnet-baseline/dataset/tolerance/`）已可按需移除；**现场推理**仅需权重 `logs/log_kn/checkpoint-rs.tar` 与模型代码，详见 `src/graspnet_ros2/README.md`。
+- 仿真与 RViz 联合调试的补充说明见 `src/graspnet_ros2/doc/RVIZ2_GAZEBO_SIM_REFERENCE.md`（该路径含 `doc/`，未并入 graspnet 主 README 正文）。
+- **`demo_driver`** 的 GraspNet/运动排障长文见包内 `src/aubo_ros2_driver/demo_driver/docs/`（含 `docs/` 子目录，与包根 `README.md` 分工）。
 
 ---
 
-## 3. 主要启动与使用
+## 2. 功能包列表（与源码位置一致）
 
-### 3.1 构建
+### 2.1 机械臂与运动控制（`src/aubo_ros2_driver/`）
+
+| 包名 | 构建类型 | 说明 |
+|------|----------|------|
+| **aubo_description** | ament_cmake | URDF/XACRO、网格；子目录 **`world_map/`** 为可选 catkin 场景包 |
+| **aubo_moveit_config** | ament_cmake | 主 MoveIt 配置：`aubo_moveit_pure_ros2.launch.py`、`demo_driver_services.launch.py` 等（详见该包 `launch/`） |
+| **aubo2_moveit_config** | ament_cmake | 另一套 MoveIt 配置（如 aubo2 相关 launch） |
+| **aubo_msgs** | ament_cmake | 与控制器交互的 msg/srv |
+| **aubo_dashboard_msgs** | ament_cmake | Dashboard 相关 msg/srv/action |
+| **aubo_ros2_trajectory_action** | ament_cmake | `FollowJointTrajectory` → `joint_path_command` |
+| **aubo_driver_ros2** | ament_cmake | 真机驱动：`moveItController_cmd`、`joint_states` 等 |
+| **aubo_robot_simulator_ros2** | ament_python | 订阅 `joint_path_command`，插值发布 `moveItController_cmd` |
+| **demo_driver** | ament_cmake | MoveIt 规划/执行、位姿与速度服务、夹爪快换、抓取 Worker（C++）；**服务列表与 IVG 启动见包内 `demo_driver/README.md`** |
+| **demo_interface** | ament_cmake | `demo_driver` 的 msg/srv 定义 |
+| **aubo_demo** | ament_cmake | 调用 `demo_driver` 的 C++ 示例与 `scripts/` 工具脚本 |
+
+#### 2.1.1 `demo_driver` 可执行节点（与 `CMakeLists.txt` 当前启用项一致）
+
+| 可执行名 | 作用摘要 |
+|----------|----------|
+| `robot_status_publisher_node` | 机器人状态发布 |
+| `move_to_pose_server_node` | 关节空间到位姿（`/move_to_pose`） |
+| `plan_trajectory_server_node` | `/plan_trajectory` |
+| `execute_trajectory_server_node` | `/execute_trajectory` |
+| `get_current_state_server_node` | `/get_current_state` |
+| `set_speed_factor_server_node` | `/set_speed_factor` |
+| `set_robot_pose_server_node` | `/set_robot_pose` |
+| `gripper_swap_worker_node` | 夹爪快换 `/run_gripper_swap` |
+| `publish_grasps_client_worker_node` | GraspNet 循环抓取 Worker（与 `/graspnet_capture_control`、`/publish_grasps_worker_loop_control` 等联调） |
+| `execute_grasp_pose_worker_node` | 单次/循环抓取 `/execute_single_grasp`、`/loop_grasp_control` |
+
+**本包内 launch**（`demo_driver/launch/`）：`execute_grasp_pose_worker.launch.py`、`moveit2_tcp_pose_publisher.launch.py`。  
+**整机 MoveIt + 多服务聚合启动**一般由 **`aubo_moveit_config`** 的 launch 完成（与 `start_IVG_graspnet_points_fastapi.sh` 步骤 1–2 一致）。
+
+### 2.2 相机与图像（`src/camport_ros2/src/`）
+
+| 包名 | 说明 |
+|------|------|
+| **percipio_camera** | 相机节点（深度/彩色、点云、参数等） |
+| **percipio_camera_interface** | 状态、参数、软触发等接口节点 |
+| **image_data_bridge** | 彩色图桥接（launch 中常 `input_image_topic:=/camera/color/image_raw`） |
+
+### 2.3 坐标系与变换
+
+| 包名 | 说明 |
+|------|------|
+| **coordinate_transforms** | C++：四元数/旋转矩阵/RPY、2D↔3D、点/坐标系变换；可选 Eigen3 |
+| **coordinate_transforms_py** | Python（NumPy / 可选 scipy），API 与 C++ 对齐 |
+
+### 2.4 视觉、手眼与抓取
+
+| 包名 | 路径 | 说明 |
+|------|------|------|
+| **interface** | `visual_pose_estimation/src/interface` | 视觉相关公共接口（`demo_driver`、`hand_eye_calibration`、`visual_pose_estimation*` 等依赖） |
+| **visual_pose_estimation** | `visual_pose_estimation/src/visual_pose_estimation` | 位姿估计 C++ 节点 |
+| **visual_pose_estimation_python** | `visual_pose_estimation/src/visual_pose_estimation_python` | Python 节点 + **`web_ui/`**（FastAPI、配置、前端）；`package.xml` 声明 `python3-fastapi`、`python3-uvicorn` 等 |
+| **hand_eye_calibration** | `hand_eye_calibration` | Web 手眼标定（默认浏览器端口多为 **8080**，以 launch 为准）；依赖 `interface`、`demo_interface`、`percipio_camera_interface` |
+| **graspnet_ros2** | `graspnet_ros2` | 点云/文件 Demo、`graspnet_demo_points_with_tf.launch.py` 等；**完整说明见包内 `README.md`** |
+
+---
+
+## 3. 构建与环境
 
 ```bash
-cd /home/mu/IVG/aubo_ros2_ws
+cd /path/to/aubo_ros2_ws
 source /opt/ros/humble/setup.bash
+# 若本机有独立 MoveIt 覆盖工作空间（与启动脚本一致）：
+# source ~/ws_moveit/install/setup.bash
 colcon build
 source install/setup.bash
 ```
 
-### 3.2 机械臂 + MoveIt（与 ROS1 桥接）
-
-- **aubo_moveit_bridge_ros1.launch.py**：机械臂描述、MoveIt、控制器、RViz 等一体化启动（支持与 ROS1 桥接）。
-
-### 3.3 相机
-
-- **percipio_camera**：`percipio_camera.launch.py` 启动相机节点。
-- **image_data_bridge**：将相机话题转为 ImageData 格式，供上位应用使用。
-
-### 3.4 手眼标定
-
-- **hand_eye_calibration_launch.py** / **hand_eye_calibration_tf.launch.py**：启动标定节点与 TF。
-
-### 3.5 视觉位姿估计
-
-- **visual_pose_estimation**：C++ 实现，对应 launch 在 `visual_pose_estimation/launch/`。
-- **visual_pose_estimation_python**：Python 实现，`visual_pose_estimation_python.launch.py`。
-
-### 3.6 GraspNet 抓取
-
-- **graspnet_demo.launch.py** / **graspnet_demo_with_tf.launch.py**：抓取预测与 TF 演示。
-- **percipio_camera_calibration.launch.py**：相机标定相关。
-
-### 3.7 demo_driver 服务示例
-
-- **aubo_demo**：示例程序，展示如何调用 demo_driver 的规划、执行、位姿控制等。
+`start_IVG_graspnet_points_fastapi.sh` 中默认还会在步骤 **0** 执行一次全工作空间 **`colcon build`**，环境链为：`/opt/ros/<ROS_DISTRO_NAME>` →（若存在）`~/ws_moveit/install/setup.bash` → 本仓库 `install/setup.bash`。可通过 **`AUBO_ROS2_WS`**、**`ROS_DISTRO_NAME`** 覆盖路径与发行版。
 
 ---
 
-## 4. 依赖关系简图
+## 4. 现场启动脚本（工作空间根目录）
+
+| 脚本 | 用途 |
+|------|------|
+| **start_IVG.sh** | 手眼/相机/MoveIt 等整栈（无 GraspNet FastAPI 扩展） |
+| **start_IVG_graspnet_points.sh** | 在上一类基础上按「点云 GraspNet」路线组织多标签启动 |
+| **start_IVG_graspnet_points_fastapi.sh** | **IVG 全栈**：机械臂 + `demo_driver` + 相机 + 手眼 + 视觉位姿（Python）+ **GraspNet 点云（`graspnet_demo_points_with_tf`，`launch_camera:=false`）** + 抓取 Worker + FastAPI Web + 可选 rosbag |
+
+**共性要求**：已安装 **terminator**（`sudo apt install terminator`），脚本在独立标签页中启动各节点。
+
+**`start_IVG_graspnet_points_fastapi.sh` 步骤概览（与脚本一致）**：
+
+0. `colcon build`  
+1. `aubo_moveit_pure_ros2.launch.py`  
+2. `demo_driver_services.launch.py`  
+3. `percipio_camera.launch.py`  
+4. `camera_control.launch.py`  
+5. `image_data_bridge.launch.py`（默认 `input_image_topic:=/camera/color/image_raw`）  
+6. `hand_eye_calibration_launch.py`  
+7. `visual_pose_estimation_python.launch.py`  
+8. `graspnet_demo_points_with_tf.launch.py`（`launch_camera:=false`，`launch_hand_eye_tf:=true`）  
+9. `execute_grasp_pose_worker.launch.py`  
+10. `gripper_swap_worker_node`  
+11. `publish_grasps_client_worker_node`  
+12. 关键 service 列表自检（`rg`）  
+13. `visual_pose_estimation_web.launch.py`（默认 **8088**，`WEB_HOST` / `WEB_PORT`）  
+14. `ros2 bag record` → `rosbags/ivg_session`（**`IVG_ROSBAG_DIR`** / **`IVG_ROSBAG_TOPICS`**）
+
+**Web 入口（典型）**：
+
+- 手眼标定界面：**http://localhost:8080**（脚本结束提示）  
+- 视觉位姿 FastAPI：**http://127.0.0.1:8088**（可用 `WEB_HOST` / `WEB_PORT` 修改）
+
+---
+
+## 5. 其他常用命令
+
+**坐标变换包测试**（脚本会处理 conda/venv，详见脚本内注释）：
+
+```bash
+cd /path/to/aubo_ros2_ws
+source /opt/ros/humble/setup.bash
+./test_coordinate_transforms.sh
+./test_coordinate_transforms.sh --no-build
+```
+
+**各子系统细节**：
+
+- 机械臂服务、抓取 Worker、话题约定：`src/aubo_ros2_driver/demo_driver/README.md`  
+- GraspNet 参数、坐标系、点云节点：`src/graspnet_ros2/README.md`  
+- 仓库级变更与注意事项（OpenCV、MoveIt 回调组、`joint_state_count` 等）：若本工作空间位于 **IVG2.0** 仓库内，见**上一级目录**的 `README.md`；亦可能有 `CHANGELOG_IVg到IVG2.0纯ROS2移植_*.md` 等根级文档。
+
+---
+
+## 6. 依赖关系简图（与当前 `package.xml` 一致，随源码演变）
 
 ```
 aubo_demo ──► demo_interface, demo_driver
-demo_driver ──► aubo_msgs, demo_interface, moveit_*, feedback_bridge(可选)
-aubo_moveit_config ──► aubo_description, moveit_*, rviz2, controller_manager
-feedback_bridge ──► control_msgs, aubo_msgs
+demo_driver ──► aubo_msgs, demo_interface, interface, moveit_*（经 MoveIt 配置与 launch）
+aubo_moveit_config ──► aubo_description, moveit_*, rviz2, ros2_control 相关
+aubo_driver_ros2 ──► aubo_msgs, demo_interface
 
-graspnet_ros2 ──► percipio_camera_interface, cv_bridge, sensor_msgs, ...
+coordinate_transforms ──► Eigen3（可选）
+coordinate_transforms_py ──► numpy、scipy（可选）
+
+graspnet_ros2 ──► sensor_msgs, geometry_msgs, tf2_* 等（点云版常与 hand_eye / 外部相机 launch 联用）
 image_data_bridge ──► percipio_camera_interface, cv_bridge
-hand_eye_calibration ──► interface, cv_bridge
+hand_eye_calibration ──► interface, demo_interface, percipio_camera_interface, cv_bridge
 visual_pose_estimation / visual_pose_estimation_python ──► interface, cv_bridge
 ```
 
 ---
 
-## 5. 外部依赖要点
+## 7. 外部依赖要点
 
-- **ROS 2**：Humble。
-- **MoveIt 2**：运动规划与执行。
-- **OpenCV**：图像处理与 GUI（percipio_camera 需链接 opencv_photo、opencv_highgui）。
-- **GraspNet**：graspnet_ros2 依赖 graspnet-baseline（建议在 conda/独立环境中安装 numpy、torch、open3d、scipy、Pillow 等）。
-- **手眼标定**：Flask、OpenCV、NumPy 等（见 hand_eye_calibration package.xml）。
-
----
-
-## 6. 注意事项
-
-1. **percipio_camera**：CMake 中需显式 `find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui photo)` 并链接 `OpenCV_LIBS`，否则 `list_devices` 等会报 `cv::inpaint`、`cv::imshow` 等未定义引用。
-2. **visual_pose_estimation_python**：`setup.cfg` 中已使用 `script_dir`、`install_scripts`（下划线形式），避免 setuptools 弃用警告。
-3. **ROS1 桥接**：与 ROS1 联合使用时需单独启动 ros1_bridge，并参考 aubo_moveit_config 中 bridge 相关 launch。
+- **ROS 2**（默认 Humble）、**MoveIt 2**、**ros2_control**（按 launch 与 `aubo_moveit_config` 配置）。
+- **OpenCV**：`percipio_camera` 建议在 CMake 中链接 `core imgproc highgui photo` 等组件（上一级仓库 `README.md` 中若有说明可对照）。
+- **GraspNet**：`torch`、`open3d`、`scipy` 等建议在 conda/venv 中预装；权重路径见 `graspnet_ros2` README。
+- **手眼 Web**：Flask、OpenCV、NumPy 等（见 `hand_eye_calibration/package.xml`）。
+- **视觉 Python Web**：FastAPI、uvicorn 等（见 `visual_pose_estimation_python/package.xml` 与 `web_ui/`）。
 
 ---
 
-*文档根据当前 `src/` 下 package.xml 与 launch 结构整理，如有增删包或节点请同步更新本文档。*
+## 8. 注意事项（摘录）
+
+1. **`/execute_single_grasp` 与 `getCurrentPose` / 当前状态异常**：若 `joint_state_count` 持续增长但 MoveIt 仍报无法获取机器人状态，可能与**服务回调与默认互斥回调组**有关；长耗时服务使用**独立回调组**的修复说明见**上一级仓库 `README.md`** 中相关小节（若存在）。
+
+---
+
+*修改 `src/` 下包名、launch、`demo_driver` 可执行列表或启动脚本时，请同步更新本文件及上一级仓库的总览文档。*

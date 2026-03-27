@@ -52,7 +52,7 @@ coordinate_transforms/
 ## 构建
 
 ```bash
-cd aubo_ros2_ws
+cd /home/mu/IVG2.0/aubo_ros2_ws   # 或你的 colcon 工作空间根目录
 source /opt/ros/humble/setup.bash
 colcon build --packages-select coordinate_transforms
 source install/setup.bash

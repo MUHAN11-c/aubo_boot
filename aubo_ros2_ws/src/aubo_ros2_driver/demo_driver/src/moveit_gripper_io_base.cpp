@@ -43,33 +43,16 @@ const int32_t MoveitGripperIoBase::kGripperIoIndex = 6;
 // 笛卡尔路径相关常量
 // ============================================================================
 
-static constexpr int kArcPathMaxRetries = 5;           /**< 笛卡尔路径最大重试次数 */
-static constexpr int kArcPathRetryDelaySec = 2;       /**< 重试间隔 (s) */
-static constexpr double kArcPathInitialDelaySec = 0.2; /**< 首次规划前延迟 (s) */
-static constexpr double kCartesianEefStep = 0.01;     /**< 笛卡尔路径步长 (m) */
-static constexpr double kCartesianJumpThreshold = 0.0;/**< 跳跃阈值，0 表示不限制 */
+/** 与 publish_grasps_client_worker 对齐：短延时、较密步长、每轮刷新状态后规划 */
+static constexpr int kArcPathMaxRetries = 3;
+static constexpr double kArcPathRetryDelaySec = 0.5;
+static constexpr double kArcPathInitialDelaySec = 0.05;
+static constexpr double kCartesianEefStep = 0.015;
+static constexpr double kCartesianJumpThreshold = 0.0;
 
-/** 缩放轨迹时间：computeCartesianPath 生成的轨迹 time_from_start 已固定，setMaxVelocityScalingFactor 无效，
- *  需手动缩放 time_from_start。factor=1/velocity_factor，如 0.15 速度 -> factor≈6.67，轨迹变慢 */
-static void scaleTrajectoryTime(moveit_msgs::msg::RobotTrajectory& traj, double velocity_factor)
+static float effectiveAccelerationFactor(float velocity_factor, float acceleration_factor)
 {
-  if (velocity_factor <= 0.0 || velocity_factor > 1.0)
-    return;
-  const double scale = 1.0 / velocity_factor;
-  auto& pts = traj.joint_trajectory.points;
-  for (size_t i = 0; i < pts.size(); ++i)
-  {
-    double sec = static_cast<double>(pts[i].time_from_start.sec) + 1e-9 * pts[i].time_from_start.nanosec;
-    sec *= scale;
-    pts[i].time_from_start.sec = static_cast<int32_t>(sec);
-    pts[i].time_from_start.nanosec = static_cast<uint32_t>((sec - pts[i].time_from_start.sec) * 1e9);
-    if (!pts[i].velocities.empty())
-      for (auto& v : pts[i].velocities)
-        v /= scale;
-    if (!pts[i].accelerations.empty())
-      for (auto& a : pts[i].accelerations)
-        a /= (scale * scale);
-  }
+  return (acceleration_factor < 0.f) ? velocity_factor : acceleration_factor;
 }
 
 // ============================================================================
@@ -95,6 +78,7 @@ void MoveitGripperIoBase::initMoveGroup()
       shared_from_this(), "manipulator");
   move_group_->allowReplanning(true);
   move_group_->setMaxVelocityScalingFactor(0.5);
+  move_group_->setMaxAccelerationScalingFactor(0.5);
 }
 
 // ============================================================================
@@ -327,50 +311,55 @@ bool MoveitGripperIoBase::setGripperIo(int32_t io_index, bool high)
 // 笛卡尔路径运动
 // ============================================================================
 
-bool MoveitGripperIoBase::runArcPath(double z_offset, float velocity_factor)
+bool MoveitGripperIoBase::runArcPath(double z_offset, float velocity_factor, float acceleration_factor)
 {
-  return runArcPath('z', z_offset, velocity_factor);
+  return runArcPath('z', z_offset, velocity_factor, acceleration_factor);
 }
 
-bool MoveitGripperIoBase::runArcPath(char axis, double offset, float velocity_factor)
+bool MoveitGripperIoBase::runArcPath(char axis, double offset, float velocity_factor, float acceleration_factor)
 {
   if (!move_group_)
   {
     RCLCPP_ERROR(get_logger(), "[runArcPath] MoveGroup 未初始化");
     return false;
   }
+  const float acc = effectiveAccelerationFactor(velocity_factor, acceleration_factor);
 
   const char* axis_label = (axis == 'x') ? "X" : (axis == 'y') ? "Y" : "Z";
   RCLCPP_INFO(get_logger(), "笛卡尔路径: 沿 %s 轴 %+.2f m", axis_label, offset);
 
-  if (kArcPathInitialDelaySec > 0)
+  if (kArcPathInitialDelaySec > 0.0)
     std::this_thread::sleep_for(std::chrono::duration<double>(kArcPathInitialDelaySec));
-
-  const std::string eef_link = move_group_->getEndEffectorLink();
-  geometry_msgs::msg::PoseStamped current_pose = move_group_->getCurrentPose(eef_link);
-
-  std::vector<geometry_msgs::msg::Pose> waypoints;
-  waypoints.push_back(current_pose.pose);
-
-  geometry_msgs::msg::Pose target_pose = current_pose.pose;
-  if (axis == 'x')
-    target_pose.position.x += offset;
-  else if (axis == 'y')
-    target_pose.position.y += offset;
-  else
-    target_pose.position.z += offset;
-
-  if (axis == 'z' && target_pose.position.z < kZMinLimit)
-  {
-    RCLCPP_WARN(get_logger(), "笛卡尔路径 Z 轴安全限位: 目标 z=%.3f < %.2f m，覆盖为 %.2f m 执行",
-                target_pose.position.z, kZMinLimit, kZMinLimit);
-    target_pose.position.z = kZMinLimit;
-  }
-  waypoints.push_back(target_pose);
 
   moveit_msgs::msg::RobotTrajectory trajectory;
   for (int attempt = 1; attempt <= kArcPathMaxRetries; ++attempt)
   {
+    move_group_->setStartStateToCurrentState();
+    move_group_->setMaxVelocityScalingFactor(velocity_factor);
+    move_group_->setMaxAccelerationScalingFactor(acc);
+
+    const std::string eef_link = move_group_->getEndEffectorLink();
+    geometry_msgs::msg::PoseStamped current_pose = move_group_->getCurrentPose(eef_link);
+
+    std::vector<geometry_msgs::msg::Pose> waypoints;
+    waypoints.push_back(current_pose.pose);
+
+    geometry_msgs::msg::Pose target_pose = current_pose.pose;
+    if (axis == 'x')
+      target_pose.position.x += offset;
+    else if (axis == 'y')
+      target_pose.position.y += offset;
+    else
+      target_pose.position.z += offset;
+
+    if (axis == 'z' && target_pose.position.z < kZMinLimit)
+    {
+      RCLCPP_WARN(get_logger(), "笛卡尔路径 Z 轴安全限位: 目标 z=%.3f < %.2f m，覆盖为 %.2f m 执行",
+                  target_pose.position.z, kZMinLimit, kZMinLimit);
+      target_pose.position.z = kZMinLimit;
+    }
+    waypoints.push_back(target_pose);
+
     double fraction = move_group_->computeCartesianPath(
         waypoints, kCartesianEefStep, kCartesianJumpThreshold, trajectory);
     RCLCPP_INFO(get_logger(), "笛卡尔路径（%s 轴 %+.2f m）完成度: %.2f%% (尝试 %d/%d)",
@@ -378,7 +367,6 @@ bool MoveitGripperIoBase::runArcPath(char axis, double offset, float velocity_fa
 
     if (fraction >= 1.0)
     {
-      scaleTrajectoryTime(trajectory, static_cast<double>(velocity_factor));
       moveit::planning_interface::MoveGroupInterface::Plan plan;
       plan.trajectory_ = trajectory;
       auto exec_ok = move_group_->execute(plan);
@@ -387,12 +375,12 @@ bool MoveitGripperIoBase::runArcPath(char axis, double offset, float velocity_fa
         RCLCPP_ERROR(get_logger(), "笛卡尔路径执行失败，错误码=%d", exec_ok.val);
         return false;
       }
-      RCLCPP_INFO(get_logger(), "%s 轴直线移动执行完成 (速度因子 %.2f)", axis_label, velocity_factor);
+      RCLCPP_INFO(get_logger(), "%s 轴直线移动执行完成", axis_label);
       return true;
     }
 
     if (attempt < kArcPathMaxRetries)
-      std::this_thread::sleep_for(std::chrono::seconds(kArcPathRetryDelaySec));
+      std::this_thread::sleep_for(std::chrono::duration<double>(kArcPathRetryDelaySec));
   }
 
   RCLCPP_ERROR(get_logger(), "笛卡尔路径（%s 轴 %+.2f m）在 %d 次尝试后仍未达 100%%",
@@ -400,13 +388,15 @@ bool MoveitGripperIoBase::runArcPath(char axis, double offset, float velocity_fa
   return false;
 }
 
-bool MoveitGripperIoBase::runArcPathSequence(const std::vector<CartesianSegment>& segments, float velocity_factor)
+bool MoveitGripperIoBase::runArcPathSequence(const std::vector<CartesianSegment>& segments, float velocity_factor,
+                                             float acceleration_factor)
 {
   if (!move_group_)
   {
     RCLCPP_ERROR(get_logger(), "[runArcPathSequence] MoveGroup 未初始化");
     return false;
   }
+  const float acc = effectiveAccelerationFactor(velocity_factor, acceleration_factor);
 
   if (segments.empty())
   {
@@ -414,37 +404,41 @@ bool MoveitGripperIoBase::runArcPathSequence(const std::vector<CartesianSegment>
     return true;
   }
 
-  if (kArcPathInitialDelaySec > 0)
+  if (kArcPathInitialDelaySec > 0.0)
     std::this_thread::sleep_for(std::chrono::duration<double>(kArcPathInitialDelaySec));
-
-  const std::string eef_link = move_group_->getEndEffectorLink();
-  geometry_msgs::msg::PoseStamped current_pose = move_group_->getCurrentPose(eef_link);
-
-  std::vector<geometry_msgs::msg::Pose> waypoints;
-  waypoints.push_back(current_pose.pose);
-
-  geometry_msgs::msg::Pose p = current_pose.pose;
-  for (const CartesianSegment& seg : segments)
-  {
-    if (seg.axis == 'x')
-      p.position.x += seg.offset;
-    else if (seg.axis == 'y')
-      p.position.y += seg.offset;
-    else
-      p.position.z += seg.offset;
-
-    if (seg.axis == 'z' && p.position.z < kZMinLimit)
-    {
-      RCLCPP_WARN(get_logger(), "多段笛卡尔路径 Z 轴安全限位: 段后 z=%.3f < %.2f m，覆盖为 %.2f m 执行",
-                  p.position.z, kZMinLimit, kZMinLimit);
-      p.position.z = kZMinLimit;
-    }
-    waypoints.push_back(p);
-  }
 
   moveit_msgs::msg::RobotTrajectory trajectory;
   for (int attempt = 1; attempt <= kArcPathMaxRetries; ++attempt)
   {
+    move_group_->setStartStateToCurrentState();
+    move_group_->setMaxVelocityScalingFactor(velocity_factor);
+    move_group_->setMaxAccelerationScalingFactor(acc);
+
+    const std::string eef_link = move_group_->getEndEffectorLink();
+    geometry_msgs::msg::PoseStamped current_pose = move_group_->getCurrentPose(eef_link);
+
+    std::vector<geometry_msgs::msg::Pose> waypoints;
+    waypoints.push_back(current_pose.pose);
+
+    geometry_msgs::msg::Pose p = current_pose.pose;
+    for (const CartesianSegment& seg : segments)
+    {
+      if (seg.axis == 'x')
+        p.position.x += seg.offset;
+      else if (seg.axis == 'y')
+        p.position.y += seg.offset;
+      else
+        p.position.z += seg.offset;
+
+      if (seg.axis == 'z' && p.position.z < kZMinLimit)
+      {
+        RCLCPP_WARN(get_logger(), "多段笛卡尔路径 Z 轴安全限位: 段后 z=%.3f < %.2f m，覆盖为 %.2f m 执行",
+                    p.position.z, kZMinLimit, kZMinLimit);
+        p.position.z = kZMinLimit;
+      }
+      waypoints.push_back(p);
+    }
+
     double fraction = move_group_->computeCartesianPath(
         waypoints, kCartesianEefStep, kCartesianJumpThreshold, trajectory);
     RCLCPP_INFO(get_logger(), "多段笛卡尔路径完成度: %.2f%% (尝试 %d/%d)",
@@ -452,7 +446,6 @@ bool MoveitGripperIoBase::runArcPathSequence(const std::vector<CartesianSegment>
 
     if (fraction >= 1.0)
     {
-      scaleTrajectoryTime(trajectory, static_cast<double>(velocity_factor));
       moveit::planning_interface::MoveGroupInterface::Plan plan;
       plan.trajectory_ = trajectory;
       auto exec_ok = move_group_->execute(plan);
@@ -461,12 +454,12 @@ bool MoveitGripperIoBase::runArcPathSequence(const std::vector<CartesianSegment>
         RCLCPP_ERROR(get_logger(), "多段笛卡尔路径执行失败，错误码=%d", exec_ok.val);
         return false;
       }
-      RCLCPP_INFO(get_logger(), "多段笛卡尔路径执行完成 (速度因子 %.2f)", velocity_factor);
+      RCLCPP_INFO(get_logger(), "多段笛卡尔路径执行完成");
       return true;
     }
 
     if (attempt < kArcPathMaxRetries)
-      std::this_thread::sleep_for(std::chrono::seconds(kArcPathRetryDelaySec));
+      std::this_thread::sleep_for(std::chrono::duration<double>(kArcPathRetryDelaySec));
   }
 
   RCLCPP_ERROR(get_logger(), "多段笛卡尔路径在 %d 次尝试后仍未达 100%%", kArcPathMaxRetries);

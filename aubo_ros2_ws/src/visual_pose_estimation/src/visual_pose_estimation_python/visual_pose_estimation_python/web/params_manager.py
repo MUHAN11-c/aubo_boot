@@ -1,3 +1,5 @@
+"""调试阈值 JSON 的读写与缓存（供 node_runtime / 调试接口使用）。"""
+
 from __future__ import annotations
 
 import json

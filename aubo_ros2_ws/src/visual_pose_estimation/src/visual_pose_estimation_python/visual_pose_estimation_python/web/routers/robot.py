@@ -1,3 +1,5 @@
+"""机器人 HTTP：状态、位姿、IO、姿态序列。"""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Body, Depends

@@ -1,3 +1,5 @@
+"""NativeWebService：HTTP 业务逻辑入口，转调 ros_bridge.node（同步阻塞式 ROS/ OpenCV 等）。"""
+
 from __future__ import annotations
 
 import base64

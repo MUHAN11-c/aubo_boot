@@ -1,3 +1,5 @@
+"""Web 层通用工具：路径解析封装、RemBG 可用性、姿态/图像辅助函数等。"""
+
 from __future__ import annotations
 
 import base64

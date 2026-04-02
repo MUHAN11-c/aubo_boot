@@ -1,3 +1,5 @@
+"""加载 node_runtime、启动/停止 ROS2Node 与 spin 线程，对外暴露 node 引用。"""
+
 from __future__ import annotations
 
 import importlib

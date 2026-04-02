@@ -25,7 +25,8 @@ aubo_ros2_ws/
 ├── rosbags/                              # 录包输出目录（如 ivg_session，脚本可覆盖）
 ├── start_IVG.sh                          # 手眼等整栈（terminator 多标签）
 ├── start_IVG_graspnet_points.sh          # 点云 GraspNet 路线整栈
-├── start_IVG_graspnet_points_fastapi.sh  # IVG 全栈：点云 GraspNet + FastAPI + rosbag 等
+├── start_IVG_graspnet_points_fastapi.sh  # IVG 全栈：点云 GraspNet + VPE FastAPI + rosbag 等
+├── start_IVG_web_dashboard.sh            # 同上整栈，第 13 步为统一网关 aubo_ros2_web_dashboard（默认 8090）
 ├── test_coordinate_transforms.sh         # coordinate_transforms(_py) 编译与测试脚本
 ├── build/  install/  log/                # colcon 产物
 ```
@@ -123,7 +124,8 @@ source install/setup.bash
 |------|------|
 | **start_IVG.sh** | 手眼/相机/MoveIt 等整栈（无 GraspNet FastAPI 扩展） |
 | **start_IVG_graspnet_points.sh** | 在上一类基础上按「点云 GraspNet」路线组织多标签启动 |
-| **start_IVG_graspnet_points_fastapi.sh** | **IVG 全栈**：机械臂 + `demo_driver` + 相机 + 手眼 + 视觉位姿（Python）+ **GraspNet 点云（`graspnet_demo_points_with_tf`，`launch_camera:=false`）** + 抓取 Worker + FastAPI Web + 可选 rosbag |
+| **start_IVG_graspnet_points_fastapi.sh** | **IVG 全栈**：机械臂 + `demo_driver` + 相机 + 手眼 + 视觉位姿（Python）+ **GraspNet 点云（`graspnet_demo_points_with_tf`，`launch_camera:=false`）** + 抓取 Worker + **VPE FastAPI Web（8088）** + 可选 rosbag |
+| **start_IVG_web_dashboard.sh** | 与上一脚本步骤 **0–12、14** 相同；第 **13** 步为 **`web_dashboard.launch.py`**：**rosbridge + 统一网关（默认 8090）**；默认 **`LAUNCH_VPE_WEB=true`** 同时拉起 VPE Web（8088）作上游 |
 
 **共性要求**：已安装 **terminator**（`sudo apt install terminator`），脚本在独立标签页中启动各节点。
 
@@ -145,10 +147,13 @@ source install/setup.bash
 13. `visual_pose_estimation_web.launch.py`（默认 **8088**，`WEB_HOST` / `WEB_PORT`）  
 14. `ros2 bag record` → `rosbags/ivg_session`（**`IVG_ROSBAG_DIR`** / **`IVG_ROSBAG_TOPICS`**）
 
+**`start_IVG_web_dashboard.sh`**：步骤 0–12、14 与上表相同；步骤 **13** 为 `ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py`，常用环境变量：**`WEB_DASH_HOST`**（默认 `0.0.0.0`）、**`WEB_DASH_PORT`**（默认 `8090`）、**`ROSBRIDGE_PORT`**（默认 `9090`）、**`VPE_UPSTREAM`**（默认 `http://127.0.0.1:8088`）、**`LAUNCH_VPE_WEB`**（默认 `true`）、**`IVG_STRIP_PROXY_FOR_DASH_LAUNCH`**（默认 `true`，第 13 步对 `ros2 launch` 剥离 `http_proxy`/`ALL_PROXY` 等，避免 socks 与 httpx 冲突）。第 13 步前会预检 **rosapi / tf2_web_republisher_node / 本包** 与 **rosbridge 端口占用**（仅黄字提示）。系统 deb：**`ros-humble-rosapi`**、**`ros-humble-rosbridge-suite`**、**`ros-humble-tf2-web-republisher`**。未安装 `visual_pose_estimation_python` 时可设 **`LAUNCH_VPE_WEB=false`** 并自行保证上游可达。
+
 **Web 入口（典型）**：
 
 - 手眼标定界面：**http://localhost:8080**（脚本结束提示）  
-- 视觉位姿 FastAPI：**http://127.0.0.1:8088**（可用 `WEB_HOST` / `WEB_PORT` 修改）
+- 视觉位姿 FastAPI：**http://127.0.0.1:8088**（`start_IVG_graspnet_points_fastapi.sh` 可用 `WEB_HOST` / `WEB_PORT` 修改）  
+- 统一 Web 网关（RWT 等）：**http://127.0.0.1:8090**（`start_IVG_web_dashboard.sh`，可用 `WEB_DASH_PORT` 修改）
 
 ---
 

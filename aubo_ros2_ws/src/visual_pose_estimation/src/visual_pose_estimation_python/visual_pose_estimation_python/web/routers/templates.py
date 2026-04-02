@@ -1,3 +1,5 @@
+"""模板工件 HTTP：列表、读写姿态、标准化、模板图下载。"""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Body, Depends, Query

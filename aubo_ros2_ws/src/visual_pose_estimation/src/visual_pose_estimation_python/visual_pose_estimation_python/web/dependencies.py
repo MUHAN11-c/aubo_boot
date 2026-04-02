@@ -1,3 +1,5 @@
+"""FastAPI Depends：从 request.app.state 注入路径、ROS 桥、业务服务、WS 管理器。"""
+
 from __future__ import annotations
 
 from fastapi import Request

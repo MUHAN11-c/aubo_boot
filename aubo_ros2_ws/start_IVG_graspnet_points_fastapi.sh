@@ -27,6 +27,8 @@ ROS2_BASE_ENV="source /opt/ros/${ROS_DISTRO_NAME}/setup.bash && if [ -f ~/ws_mov
 WS_ENV="cd $AUBO_ROS2_WS && $ROS2_BASE_ENV && if [ -f install/setup.bash ]; then source install/setup.bash; fi"
 WEB_HOST="${WEB_HOST:-127.0.0.1}"
 WEB_PORT="${WEB_PORT:-8088}"
+# FastAPI/uvicorn 开发热重载：默认开启；设为 false 可关闭（例如生产或稳定对比）
+IVG_WEB_RELOAD="${IVG_WEB_RELOAD:-true}"
 WEB_URL="http://${WEB_HOST}:${WEB_PORT}"
 # 步骤14 rosbag：输出目录；启动前会 rm -rf 实现覆盖。话题默认为 -a 全部；可设 IVG_ROSBAG_TOPICS="/t1 /t2"
 IVG_ROSBAG_DIR="${IVG_ROSBAG_DIR:-${AUBO_ROS2_WS}/rosbags/ivg_session}"
@@ -159,7 +161,7 @@ sleep 1
 
 # 步骤13: 启动 FastAPI Web 服务
 echo -e "${GREEN}[13/14] 启动 FastAPI Web 服务...${NC}"
-FASTAPI_WEB_CMD="$WS_ENV && ros2 launch visual_pose_estimation_python visual_pose_estimation_web.launch.py host:=${WEB_HOST} port:=${WEB_PORT}"
+FASTAPI_WEB_CMD="$WS_ENV && ros2 launch visual_pose_estimation_python visual_pose_estimation_web.launch.py host:=${WEB_HOST} port:=${WEB_PORT} reload:=${IVG_WEB_RELOAD}"
 launch_in_terminator "Visual Pose Web FastAPI" "$FASTAPI_WEB_CMD"
 echo -e "${GREEN}  ✓ FastAPI Web 服务已启动${NC}"
 sleep 3

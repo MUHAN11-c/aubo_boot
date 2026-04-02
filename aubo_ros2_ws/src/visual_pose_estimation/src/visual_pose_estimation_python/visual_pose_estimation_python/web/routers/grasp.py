@@ -1,3 +1,5 @@
+"""抓取与夹爪 HTTP：单次抓取、循环控制、快换等。"""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Body, Depends

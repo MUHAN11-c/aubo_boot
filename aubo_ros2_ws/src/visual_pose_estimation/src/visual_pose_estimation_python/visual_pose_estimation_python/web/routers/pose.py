@@ -1,3 +1,5 @@
+"""位姿估计 HTTP：/api/estimate_pose。"""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Body, Depends

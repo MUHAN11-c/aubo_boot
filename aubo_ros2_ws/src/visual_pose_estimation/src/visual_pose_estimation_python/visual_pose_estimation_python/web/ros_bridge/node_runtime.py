@@ -1,3 +1,5 @@
+"""ROS2 节点实现：相机、服务客户端、与算法包交互；由 RosBridgeManager 在后台线程 spin。"""
+
 from __future__ import annotations
 
 import base64

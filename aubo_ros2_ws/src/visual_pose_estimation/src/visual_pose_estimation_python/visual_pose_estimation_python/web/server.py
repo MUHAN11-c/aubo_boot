@@ -1,11 +1,11 @@
+"""命令行入口：解析 host/port，以 Uvicorn + create_app 工厂启动 ASGI 服务。"""
+
 from __future__ import annotations
 
 import argparse
 import os
 
 import uvicorn
-
-from .app import create_app
 
 
 def main() -> None:
@@ -17,8 +17,10 @@ def main() -> None:
     os.environ["VPE_WEB_HOST"] = args.host
     os.environ["VPE_WEB_PORT"] = str(args.port)
 
+    # reload 子进程需要可导入路径；factory 与 create_app 一致
     uvicorn.run(
-        create_app(),
+        "visual_pose_estimation_python.web.app:create_app",
+        factory=True,
         host=args.host,
         port=args.port,
         reload=args.reload,

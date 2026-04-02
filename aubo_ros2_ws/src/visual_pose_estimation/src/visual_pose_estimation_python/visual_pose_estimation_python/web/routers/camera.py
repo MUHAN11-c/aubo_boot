@@ -1,3 +1,5 @@
+"""相机相关 HTTP：采集现场图、模板图。"""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Body, Depends

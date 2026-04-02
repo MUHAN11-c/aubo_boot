@@ -1,3 +1,5 @@
+"""调试可视化 HTTP：多路图像、参数滑块、阈值保存等。"""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Body, Depends

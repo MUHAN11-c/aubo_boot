@@ -1,3 +1,5 @@
+"""系统路由：根路径重定向、健康检查、退出、WebSocket /ws。"""
+
 from __future__ import annotations
 
 import logging

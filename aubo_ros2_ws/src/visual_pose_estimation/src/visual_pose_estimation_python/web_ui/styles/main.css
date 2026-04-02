@@ -56,7 +56,7 @@ button:focus:not(:focus-visible) {
     outline: none;
 }
 
-/* 顶部标题栏 */
+/* 顶部标题栏：Grid 三列，右侧「链接+退出」独占 max-content 列，从布局上杜绝与标题重叠 */
 .header {
     flex-shrink: 0;
     min-height: 72px;
@@ -66,10 +66,11 @@ button:focus:not(:focus-visible) {
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--vpe-border);
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) max-content;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 12px 20px;
+    column-gap: 20px;
+    row-gap: 12px;
     box-shadow: var(--vpe-shadow);
     position: relative;
     z-index: 1000;
@@ -78,21 +79,38 @@ button:focus:not(:focus-visible) {
 .logo {
     height: 60px;
     width: auto;
-    margin-right: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    grid-column: 1;
+    justify-self: start;
 }
 
 .title-section {
-    flex: 1;
+    grid-column: 2;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
     display: flex;
     align-items: center;
     gap: 20px;
 }
 
+/* 跳转链接 + 退出：独立第三列，保证可点区域不被中间列文字盖住 */
+.header-actions {
+    grid-column: 3;
+    justify-self: end;
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 14px;
+    padding-left: 12px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+}
+
 .header-demo-link,
 .header-dev-link {
-    margin-left: auto;
     flex-shrink: 0;
     font-size: 14px;
     font-weight: 600;
@@ -113,6 +131,7 @@ button:focus:not(:focus-visible) {
 .title-text {
     display: flex;
     flex-direction: column;
+    min-width: 0;
 }
 
 .title-chinese {
@@ -120,16 +139,23 @@ button:focus:not(:focus-visible) {
     font-weight: bold;
     color: #1e293b;
     margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .title-english {
     font-size: 14px;
     color: #64748b;
     font-style: italic;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .version-badge {
     display: inline-block;
+    flex-shrink: 0;
     background: linear-gradient(135deg, #10b981, #059669);
     color: white;
     font-size: 12px;
@@ -737,6 +763,14 @@ button:focus:not(:focus-visible) {
     flex: 1;
     overflow-y: auto;
     padding: 10px;
+}
+
+.results-empty-msg {
+    padding: 20px 12px;
+    text-align: center;
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.5;
 }
 
 .result-item {
@@ -1369,6 +1403,25 @@ button:focus:not(:focus-visible) {
     box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
 }
 
+/* 底栏页面跳转（版权仍单独 margin-left:auto 靠右，位置与原先一致） */
+.footer-nav-link {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--vpe-accent, #2563eb);
+    text-decoration: none;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--vpe-border);
+    background: rgba(37, 99, 235, 0.06);
+    white-space: nowrap;
+    flex-shrink: 0;
+    align-self: center;
+}
+
+.footer-nav-link:hover {
+    background: rgba(37, 99, 235, 0.12);
+}
+
 /* 版权信息样式 */
 .copyright-info {
     margin-left: auto;
@@ -1436,13 +1489,46 @@ button:focus:not(:focus-visible) {
         min-height: 280px;
         height: min(360px, 40vh);
     }
+
+    /* 演示独立页：顶栏 + 中间 flex 吃满剩余高度 + 底栏；中间不整列滚轮（由内部主图 flex 消化） */
+    body.demo-standalone-page {
+        height: 100dvh;
+        max-height: 100dvh;
+        overflow: hidden;
+    }
+
+    body.demo-standalone-page .main-content.demo-main-shell {
+        flex: 1 1 0;
+        min-height: 0;
+        flex-direction: row;
+        overflow: hidden;
+        overflow-x: hidden;
+    }
 }
 
 @media (max-width: 768px) {
     .header {
-        padding: 0 15px;
+        padding: 10px 15px;
+        grid-template-columns: minmax(0, 1fr) max-content;
+        grid-template-rows: auto auto;
     }
-    
+
+    .logo {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .header-actions {
+        grid-column: 2;
+        grid-row: 1;
+        align-self: center;
+    }
+
+    .title-section {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+
     .title-chinese {
         font-size: 20px;
     }
@@ -1507,15 +1593,18 @@ button:focus:not(:focus-visible) {
     padding-bottom: 8px;
 }
 
-/* 独立演示页：全宽工作区 + 可滚动主栏 */
+/* 独立演示页：全宽；与 tab-panel 同高，内部双列 flex 分配高度 */
 .demo-standalone-page .demo-page {
     max-width: none;
     margin: 0;
-    padding: 20px 24px 24px;
+    padding: 8px 10px 10px;
     box-sizing: border-box;
-    flex: 1 1 auto;
+    flex: 1 1 0;
     min-height: 0;
-    overflow: auto;
+    overflow: hidden;
+    gap: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .demo-standalone-panel {
@@ -1528,71 +1617,16 @@ button:focus:not(:focus-visible) {
     min-height: 280px;
 }
 
-.demo-hero {
-    text-align: center;
-    padding: 28px 20px 8px;
+.demo-standalone-page .demo-live-card .demo-standalone-workflow {
+    margin-top: 0;
+    min-height: 0;
 }
 
-.demo-hero-title {
-    font-size: clamp(1.5rem, 3.5vw, 1.85rem);
-    font-weight: 700;
-    color: var(--vpe-text);
-    margin: 0 0 12px;
-    letter-spacing: 0.04em;
-}
-
-.demo-hero-sub {
-    font-size: 15px;
-    color: var(--vpe-text-muted);
-    line-height: 1.75;
-    margin: 0 auto;
-    max-width: 36em;
-}
-
-.demo-steps {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 12px 16px;
-    padding: 8px 0 4px;
-}
-
-.demo-step-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 16px;
-    background: #fff;
-    border-radius: 999px;
-    border: 1px solid var(--vpe-border);
-    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
-    font-size: 14px;
-    color: var(--vpe-text);
-}
-
-.demo-step-pill .step-num {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #2563eb, #0d9488);
-    color: #fff;
-    font-size: 13px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.demo-intro {
-    font-size: 14px;
-    color: #475569;
-    line-height: 1.7;
-    padding: 16px 20px;
-    background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
-    border-radius: var(--vpe-radius);
-    border: 1px solid var(--vpe-border);
-    text-align: center;
+/* 演示页 workflow：主栏全宽相机与工件选择 */
+.demo-standalone-workflow .image-display-area {
+    flex: 1 1 100%;
+    min-width: 0;
+    max-width: none;
 }
 
 .demo-grid {
@@ -1680,22 +1714,443 @@ button:focus:not(:focus-visible) {
     border-radius: 10px;
 }
 
-.demo-flow-note {
-    font-size: 13px;
-    color: #64748b;
-    padding: 14px 18px;
-    background: #f1f5f9;
-    border-radius: var(--vpe-radius-sm);
-    border: 1px solid #e2e8f0;
-    line-height: 1.65;
-    text-align: center;
+/* ---------- 独立演示页：展会 / GitHub 产品站式布局（仅 .demo-standalone-page） ---------- */
+.demo-standalone-page {
+    background-color: #f6f8fa;
+    background-image: radial-gradient(rgba(9, 105, 218, 0.055) 1px, transparent 1px);
+    background-size: 22px 22px;
+    min-height: 100dvh;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
 }
 
-/* 退出服务按钮 */
+.demo-standalone-page .header.demo-topbar {
+    background: #ffffff;
+    border-bottom: 1px solid #d0d7de;
+    box-shadow: none;
+}
+
+.demo-standalone-page .demo-topbar-badge.version-badge {
+    margin-top: 0;
+    align-self: center;
+    background: linear-gradient(135deg, #bf8700, #9a6700);
+    border-color: #bf8700;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+}
+
+/* 中间占满顶栏与底栏之间空间，不在此层用滚轮（主图区 flex 消化；右列必要时内部滚动） */
+.demo-standalone-page .main-content.demo-main-shell {
+    align-items: stretch;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
+    overflow-x: hidden;
+    padding: 6px 10px 8px;
+}
+
+/* 白卡片铺满中间区高度 */
+.demo-standalone-page .main-content.demo-main-shell > .tab-panel.demo-standalone-panel {
+    width: 100%;
+    max-width: none;
+    flex: 1 1 0;
+    min-height: 0;
+    align-self: stretch;
+}
+
+.demo-standalone-page .tab-panel.demo-standalone-panel {
+    background: #ffffff;
+    border: 1px solid #d0d7de;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(31, 35, 40, 0.12);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    overflow: hidden;
+}
+
+/* 演示页：左主屏 + 右操作列；双列同高，主图 flex 吃剩余高度 */
+.demo-layout-two-col {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
+    gap: 14px 16px;
+    align-items: stretch;
+    width: 100%;
+}
+
+.demo-standalone-page .demo-page .demo-layout-two-col {
+    flex: 1 1 0;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+}
+
+.demo-layout-main {
+    grid-column: 1;
+    min-width: 0;
+    min-height: 0;
+}
+
+.demo-standalone-page .demo-layout-main {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.demo-layout-rail {
+    grid-column: 2;
+    min-width: 0;
+    min-height: 0;
+}
+
+/* 右列：仅按钮区内部滚动，「演示操作」标题固定，避免整页滚轮 */
+.demo-standalone-page .demo-layout-rail {
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    overflow: hidden;
+}
+
+.demo-standalone-page .demo-layout-rail .demo-section--console {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+}
+
+.demo-standalone-page .demo-layout-rail .demo-section-head {
+    flex-shrink: 0;
+}
+
+.demo-standalone-page .demo-layout-rail .demo-grid--rail.demo-grid--console {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.demo-grid--rail.demo-grid--console {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.demo-standalone-page .demo-layout-rail .demo-card-header {
+    padding: 12px 14px;
+    font-size: 15px;
+}
+
+.demo-standalone-page .demo-layout-rail .demo-card-body--actions-only {
+    padding: 12px 14px 14px;
+}
+
+/* 右侧列：按钮纵向排列、满宽 */
+.demo-standalone-page .demo-layout-rail .demo-actions {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 8px;
+}
+
+.demo-standalone-page .demo-layout-rail .demo-actions .btn {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+}
+
+@media (max-width: 1024px) {
+    .demo-layout-two-col {
+        grid-template-columns: 1fr;
+    }
+
+    .demo-layout-main {
+        grid-column: 1;
+    }
+
+    .demo-layout-rail {
+        grid-column: 1;
+    }
+
+    .demo-grid--rail.demo-grid--console {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 14px;
+    }
+
+    .demo-standalone-page .demo-layout-rail .demo-actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .demo-standalone-page .demo-layout-rail .demo-actions .btn {
+        width: auto;
+        min-width: 120px;
+        flex: 1 1 calc(50% - 6px);
+    }
+
+    /* 单列时总高度可能超过视口：仅中间区域滚动，避免 body 被 1400px 规则拉成整页滚 */
+    .demo-standalone-page .main-content.demo-main-shell {
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .demo-standalone-page .main-content.demo-main-shell > .tab-panel.demo-standalone-panel {
+        flex: 0 1 auto;
+    }
+
+    .demo-standalone-page .demo-page {
+        flex: 0 1 auto;
+        overflow: visible;
+        min-height: 0;
+    }
+
+    .demo-standalone-page .demo-page .demo-layout-two-col {
+        flex: 0 1 auto;
+        grid-template-rows: auto auto;
+        min-height: 0;
+    }
+
+    .demo-standalone-page .demo-layout-two-col .demo-live-viewport.main-image-container {
+        min-height: 200px;
+        max-height: min(42vh, 360px);
+        flex: 0 1 auto;
+    }
+}
+
+/* 分区标题（文档式层级） */
+.demo-section {
+    margin-bottom: 8px;
+}
+
+.demo-section + .demo-section {
+    margin-top: 36px;
+}
+
+.demo-layout-two-col .demo-section--console {
+    margin-bottom: 0;
+}
+
+.demo-standalone-page .demo-section--live {
+    margin-bottom: 0;
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.demo-standalone-page .demo-section-head {
+    margin-bottom: 8px;
+    flex-shrink: 0;
+}
+
+.demo-section-head {
+    margin-bottom: 14px;
+}
+
+.demo-standalone-page .demo-section-title {
+    font-size: 16px;
+}
+
+.demo-section-title {
+    margin: 0 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #24292f;
+    letter-spacing: -0.02em;
+}
+
+.demo-section-title::before {
+    content: "";
+    width: 4px;
+    height: 1.15em;
+    border-radius: 2px;
+    background: #0969da;
+    flex-shrink: 0;
+}
+
+.demo-section-sub {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #57606a;
+    max-width: 48em;
+}
+
+/* 实时画面外框：展台「主屏」感 */
+.demo-live-card {
+    border: 1px solid #d0d7de;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #0d1117;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.demo-standalone-page .demo-live-card {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 演示页实时画面：纵向堆叠，高度链交给 flex，主图吃剩余空间（无固定 vh，避免整页滚轮） */
+.demo-standalone-page .demo-live-card .demo-live-stack.workflow-layout {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 0;
+    height: 100%;
+    gap: 0;
+}
+
+.demo-standalone-page .demo-live-card .demo-live-image-column.image-display-area {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+    gap: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 主显示区：深色底；由父级 flex 定高，相机图 object-fit contain */
+.demo-standalone-page .demo-live-card .demo-live-viewport.main-image-container {
+    width: 100%;
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: none;
+    aspect-ratio: unset;
+    max-width: 100%;
+    margin: 0 auto;
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid #30363d;
+    background: #0d1117;
+    box-sizing: border-box;
+}
+
+.demo-standalone-page .demo-live-card .demo-live-viewport .image-placeholder {
+    background: radial-gradient(ellipse 85% 75% at 50% 45%, #21262d 0%, #0d1117 62%);
+    border: none;
+    border-radius: 0;
+}
+
+.demo-standalone-page .demo-live-card .demo-live-viewport .image-placeholder:hover {
+    background: radial-gradient(ellipse 85% 75% at 50% 45%, #262c36 0%, #0d1117 62%);
+}
+
+.demo-standalone-page .demo-live-card .demo-live-viewport .placeholder-content {
+    color: #8b949e;
+}
+
+.demo-standalone-page .demo-live-card .demo-live-viewport .placeholder-icon {
+    font-size: clamp(44px, 7vw, 56px);
+    margin-bottom: 12px;
+    filter: grayscale(0.15);
+}
+
+.demo-standalone-page .demo-live-card .demo-live-viewport .placeholder-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: #c9d1d9;
+}
+
+.demo-standalone-page .demo-live-card .demo-live-viewport .placeholder-subtext {
+    font-size: 13px;
+    color: #6e7681;
+    margin-top: 4px;
+}
+
+/* 底部：工件 / 姿态 工具条 */
+.demo-live-form.template-edit-area {
+    margin-top: 0 !important;
+    padding: 10px 14px 12px;
+    background: #f6f8fa;
+    border: none;
+    border-top: 1px solid #d0d7de;
+}
+
+.demo-standalone-page .demo-live-form.template-edit-area {
+    flex-shrink: 0;
+}
+
+.demo-live-form .form-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 24px;
+    align-items: end;
+}
+
+.demo-live-form .form-row .form-group label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #24292f;
+    text-transform: none;
+    letter-spacing: 0.02em;
+}
+
+.demo-live-form .form-row .form-control {
+    min-height: 40px;
+    font-size: 14px;
+    border-radius: 8px;
+    border: 1px solid #d0d7de;
+    background: #ffffff;
+}
+
+.demo-live-form .form-row .form-control:focus {
+    border-color: #0969da;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.18);
+}
+
+@media (max-width: 560px) {
+    .demo-live-form .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .demo-standalone-page .demo-live-card .demo-live-viewport.main-image-container {
+        min-height: 160px;
+        max-height: min(38vh, 300px);
+    }
+}
+
+.demo-grid--console {
+    gap: 16px;
+}
+
+.demo-standalone-page .demo-card {
+    border: 1px solid #d0d7de;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(31, 35, 40, 0.08);
+}
+
+.demo-standalone-page .demo-card:hover {
+    box-shadow: 0 3px 12px rgba(31, 35, 40, 0.12);
+}
+
+/* 演示卡仅按钮：压缩留白，说明放在按钮 title 悬停 */
+.demo-standalone-page .demo-card-body--actions-only {
+    padding-top: 16px;
+    gap: 0;
+}
+
+.demo-standalone-page .demo-card-body--actions-only .demo-actions {
+    margin-top: 0;
+}
+
+@media (max-width: 1400px) {
+    .demo-standalone-page .demo-page {
+        padding: 8px 10px 10px;
+    }
+}
+
+/* 退出服务按钮（放在顶栏内，避免 fixed 遮挡「抓取演示 / 开发调试」链接） */
 .exit-service-btn {
-    position: fixed;
-    top: 20px;
-    right: 20px;
+    position: static;
+    flex-shrink: 0;
+    align-self: center;
     width: 80px;
     height: 35px;
     background: linear-gradient(135deg, #ef4444, #dc2626);
@@ -1707,20 +2162,19 @@ button:focus:not(:focus-visible) {
     cursor: pointer;
     box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
     transition: all 0.3s ease;
-    z-index: 10000;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .exit-service-btn:hover {
-    transform: translateY(-2px) scale(1.05);
-    box-shadow: 0 6px 25px rgba(239, 68, 68, 0.6);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45);
     background: linear-gradient(135deg, #dc2626, #b91c1c);
 }
 
 .exit-service-btn:active {
-    transform: translateY(-1px) scale(1.02);
+    transform: translateY(-1px);
 }
 
 .exit-service-btn::before {

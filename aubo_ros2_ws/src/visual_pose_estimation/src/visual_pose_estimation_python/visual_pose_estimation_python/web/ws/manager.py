@@ -1,3 +1,5 @@
+"""异步 WebSocket 连接表：accept / 单播 JSON / 全员广播（带 asyncio.Lock）。"""
+
 from __future__ import annotations
 
 import asyncio

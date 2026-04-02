@@ -1,3 +1,5 @@
+"""组装 FastAPI 应用：生命周期内启停 ROS 桥、注册路由与静态资源、挂载 app.state。"""
+
 from __future__ import annotations
 
 import logging
@@ -18,6 +20,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def create_app() -> FastAPI:
+    """构建应用实例（Uvicorn factory 模式）；每次调用返回新实例。"""
     paths = resolve_web_paths()
     ros_bridge = RosBridgeManager(paths)
     ws_manager = WebSocketManager()
@@ -25,6 +28,7 @@ def create_app() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        # 启动 ROS2 桥接线程，并向已连接 WebSocket 广播生命周期事件
         app.state.ros_bridge.start()
         await app.state.ws_manager.broadcast_json(
             {
@@ -49,6 +53,7 @@ def create_app() -> FastAPI:
     app.state.ws_manager = ws_manager
     app.state.native_service = native_service
 
+    # 浏览器直连或跨端口调试时允许跨域（现场部署可按需收紧 allow_origins）
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],

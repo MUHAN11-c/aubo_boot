@@ -463,10 +463,14 @@ async function estimatePose() {
 
 function updateResultsList(data) {
     const resultsList = document.getElementById('results-list');
+    if (!resultsList) {
+        return;
+    }
     resultsList.innerHTML = '';
     
     if (!data.success_num || data.success_num === 0) {
-        resultsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #64748b;">未检测到目标</div>';
+        resultsList.innerHTML =
+            '<div class="results-empty-msg" title="可重新采集图像或检查工件与模板">未检测到目标</div>';
         return;
     }
     
@@ -2136,7 +2140,10 @@ async function moveToPlacePose() {
 
 // 更新结果计数
 function updateResultCount(count) {
-    document.getElementById('result-count').textContent = count;
+    const el = document.getElementById('result-count');
+    if (el) {
+        el.textContent = count;
+    }
 }
 
 // 模板管理功能
@@ -3253,8 +3260,11 @@ function loadDebugParams() {
 // 添加日志条目
 function addLogEntry(level, message) {
     const logContent = document.getElementById('log-content');
+    if (!logContent) {
+        return;
+    }
     const timestamp = new Date().toLocaleTimeString();
-    
+
     const logEntry = document.createElement('div');
     logEntry.className = 'log-entry';
     logEntry.innerHTML = `
@@ -3262,7 +3272,7 @@ function addLogEntry(level, message) {
         <span class="log-level ${level}">[${level.toUpperCase()}]</span>
         <span>${message}</span>
     `;
-    
+
     logContent.appendChild(logEntry);
     logContent.scrollTop = logContent.scrollHeight;
 }

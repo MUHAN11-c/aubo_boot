@@ -1,3 +1,5 @@
+"""解析 web_ui 安装路径、模板目录、标定文件候选等与文件系统相关的路径。"""
+
 from __future__ import annotations
 
 import json
@@ -58,6 +60,8 @@ def load_json_file(path: Path) -> dict:
 
 @dataclass(frozen=True)
 class WebPaths:
+    """前端资源、配置、脚本等目录的快照（开发源码树 vs ament share）。"""
+
     source_root: Path
     package_share_dir: Optional[Path]
     hand_eye_package_share_dir: Optional[Path]
@@ -84,6 +88,7 @@ class WebPaths:
 
 
 def resolve_web_paths() -> WebPaths:
+    """根据源码或 ament share 定位 web_ui、模板与配置文件路径。"""
     source_root = Path(__file__).resolve().parents[2]
     package_share_dir = _get_package_share_directory(PACKAGE_NAME)
     hand_eye_package_share_dir = _get_package_share_directory(HAND_EYE_PACKAGE_NAME)

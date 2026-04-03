@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>IVG Web · 奥博机械臂与视觉抓取门户</title>
+	<link rel="stylesheet" href="css/home.css" />
+</head>
+<body>
+	<nav class="site-nav" aria-label="主导航">
+		<a class="brand" href="#home">IVG <span>Web</span></a>
+		<div class="links">
+			<a class="nav-link" href="#home">首页</a>
+			<a class="nav-link" href="#vision-grasp">视觉抓取</a>
+			<a class="nav-link" href="#coffee-latte">机械臂自动咖啡拉花</a>
+			<a class="nav-link primary" id="link-console" href="topics_lab.html">ROS 控制台</a>
+		</div>
+		<span class="spacer"></span>
+		<span class="hint" style="font-size:0.75rem;color:var(--muted)">rosbridge <code>?rosbridge_port=</code></span>
+	</nav>
+
+	<header class="hero" id="home">
+		<h1>奥博 ROS 2 现场门户</h1>
+		<p class="lead">
+			本页由 <code>aubo_ros2_web_dashboard</code> 托管，对接 IVG 工作流：MoveIt、Percipio 相机、
+			视觉位姿估计（VPE）、GraspNet 点云抓取与 <code>demo_driver</code> 服务。
+		</p>
+		<div class="chips">
+			<span class="chip">ROS 2 Humble</span>
+			<span class="chip">rosbridge</span>
+			<span class="chip">IVG</span>
+		</div>
+	</header>
+
+	<div class="sections">
+		<section class="card" id="vision-grasp">
+			<h2>视觉抓取</h2>
+			<p>结合 <strong>GraspNet</strong>（点云推理）与 <strong>visual_pose_estimation</strong>（位姿估计 / FastAPI Web），与 <code>demo_driver</code> 抓取 Worker 联调。</p>
+			<ul>
+				<li>GraspNet：<code>graspnet_ros2</code>，典型启动 <code>graspnet_demo_points_with_tf.launch.py</code></li>
+				<li>视觉位姿：Python 节点 + FastAPI（默认端口见现场脚本 <code>WEB_PORT</code>，多为 <strong>8088</strong>）</li>
+				<li>手眼标定 Web 多为 <strong>8080</strong>（以 launch 为准）</li>
+			</ul>
+			<div class="link-row">
+				<a class="btn btn-solid" id="link-vpe" href="#" target="_blank" rel="noopener">打开 VPE Web（FastAPI）</a>
+				<a class="btn" id="link-handeye" href="#" target="_blank" rel="noopener">手眼标定 8080</a>
+				<a class="btn" id="link-console-2" href="topics_lab.html">ROS 控制台（话题 / 服务 / 图）</a>
+			</div>
+		</section>
+
+		<section class="card" id="coffee-latte">
+			<h2>机械臂自动咖啡拉花 <span class="badge-soon">应用扩展</span></h2>
+			<p>
+				本仓库当前以 IVG 抓取与视觉栈为主；「自动咖啡拉花」可作为独立应用场景：
+				由轨迹规划/示教、奶缸与杯位标定、以及上位调度（可选 Web）组成。若你已有对应 ROS 2 包或 launch，
+				可在此节增加按钮链到该前端或文档路径。
+			</p>
+			<p>建议对接方式：在 <code>demo_driver</code> / MoveIt 上挂载专用节点，或通过本门户「ROS 控制台」观察话题与服务后再接业务 UI。</p>
+		</section>
+
+		<section class="card" id="ros-console-intro">
+			<h2>ROS 控制台</h2>
+			<p>
+				<code>topics_lab.html</code>：话题订阅与 JSON、服务调用、动作/参数列表、节点关系图、2D 地图与 3D 点云预览；
+				含 IVG 快捷条（与 <code>start_IVG_graspnet_points_fastapi.sh</code> 等脚本约定对齐）。
+			</p>
+			<div class="link-row">
+				<a class="btn btn-solid" id="link-console-3" href="topics_lab.html">进入 ROS 控制台</a>
+			</div>
+		</section>
+	</div>
+
+	<footer class="site-footer">
+		<code>aubo_ros2_web_dashboard</code> · 静态页由 launch 中 <code>python3 -m http.server</code> 提供 ·
+		与机器人通信经 <strong>rosbridge</strong> WebSocket
+	</footer>
+
+	<script>
+(function () {
+	var h = window.location.hostname || '127.0.0.1';
+	var q = window.location.search || '';
+	function setHref(id, url) {
+		var el = document.getElementById(id);
+		if (el) el.href = url;
+	}
+	setHref('link-vpe', 'http://' + h + ':8088/');
+	setHref('link-handeye', 'http://' + h + ':8080/');
+	['link-console', 'link-console-2', 'link-console-3'].forEach(function (id) {
+		setHref(id, 'topics_lab.html' + q);
+	});
+})();
+	</script>
+</body>
+</html>

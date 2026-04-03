@@ -119,7 +119,7 @@ class TriggerDepthNode(Node):
         self.service_ready = service_ready
         
         # 创建深度图像订阅者
-        # 注意：相机节点使用 image_transport，话题名称是 depth/image_raw（在节点命名空间下）
+        # 注意：相机节点发布 sensor_msgs/Image 到 depth/image_raw（在节点命名空间 /camera 下）
         depth_topic = f'/{camera_name}/depth/image_raw'
         self.depth_subscription = self.create_subscription(
             Image,

@@ -20,8 +20,6 @@ set(dependencies
   builtin_interfaces
   cv_bridge
   camera_info_manager
-  image_transport
-  image_publisher
   rclcpp
   rclcpp_components
   sensor_msgs

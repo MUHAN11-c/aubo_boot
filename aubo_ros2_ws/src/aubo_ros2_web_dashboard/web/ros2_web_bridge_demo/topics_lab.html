@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <!-- ROS 2 控制台：结构分顶栏(连接/网关)、IVG 快捷条、标签页、侧栏列表 + 主内容区；逻辑在 ros_console.js -->
 <html lang="zh-CN">
+
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -14,6 +15,7 @@
 	<script src="js/vendor/three.min.js"></script>
 	<script src="js/vendor/OrbitControls.js"></script>
 </head>
+
 <body>
 	<nav class="ivg-global-nav" aria-label="灵视IVG 站内导航" data-ivg-page="console">
 		<div class="ivg-global-nav__inner">
@@ -29,7 +31,8 @@
 	<nav class="topnav" aria-label="工具栏与连接">
 		<div class="topnav-start">
 			<span class="topnav-title">ROS 控制台</span>
-			<span class="topnav-sub">直连 <code class="topnav-code">?rosbridge_port=</code> · 网关 <code class="topnav-code">?ros_mode=gateway</code></span>
+			<span class="topnav-sub">直连 <code class="topnav-code">?rosbridge_port=</code> · 网关 <code
+					class="topnav-code">?ros_mode=gateway</code></span>
 		</div>
 		<span class="topnav-spacer" aria-hidden="true"></span>
 		<div class="topnav-gateway" id="topnav-gateway" aria-label="FastAPI 网关">
@@ -37,9 +40,12 @@
 				<input type="checkbox" id="use-gateway" />
 				经网关
 			</label>
-			<label class="gw-label">端口 <input type="text" class="ivg-port gw-port" id="gateway-port" value="8765" inputmode="numeric" aria-label="网关端口" /></label>
-			<input type="text" id="gw-user" class="gw-cred" placeholder="用户" autocomplete="username" aria-label="网关用户名" />
-			<input type="password" id="gw-pass" class="gw-cred" placeholder="密码" autocomplete="current-password" aria-label="网关密码" />
+			<label class="gw-label">端口 <input type="text" class="ivg-port gw-port" id="gateway-port" value="8765"
+					inputmode="numeric" aria-label="网关端口" /></label>
+			<input type="text" id="gw-user" class="gw-cred" placeholder="用户" autocomplete="username"
+				aria-label="网关用户名" />
+			<input type="password" id="gw-pass" class="gw-cred" placeholder="密码" autocomplete="current-password"
+				aria-label="网关密码" />
 			<button type="button" class="btn-top" id="btn-gw-login">登录</button>
 			<button type="button" class="btn-top" id="btn-gw-logout">登出</button>
 		</div>
@@ -51,7 +57,8 @@
 	<div class="ivg-bar" id="ivg-bar" title="与 start_IVG_graspnet_points_fastapi.sh 启动栈对齐的默认话题 / 常用服务">
 		<strong>IVG 快捷</strong>
 		<span>FastAPI 端口</span>
-		<input type="text" class="ivg-port" id="ivg-fastapi-port" value="8088" inputmode="numeric" aria-label="FastAPI 端口" />
+		<input type="text" class="ivg-port" id="ivg-fastapi-port" value="8088" inputmode="numeric"
+			aria-label="FastAPI 端口" />
 		<a href="#" id="ivg-link-fastapi">VPE Web</a>
 		<span class="ivg-sep">|</span>
 		<a href="#" id="ivg-link-handeye" target="_blank" rel="noopener">手眼 8080</a>
@@ -81,7 +88,8 @@
 		<button type="button" data-ivg="topics-status">订阅 /system_status</button>
 	</div>
 	<div class="tabs" role="tablist" aria-label="主功能">
-		<button type="button" role="tab" data-tab="topics" id="tab-topics" class="active" aria-selected="true">话题</button>
+		<button type="button" role="tab" data-tab="topics" id="tab-topics" class="active"
+			aria-selected="true">话题</button>
 		<button type="button" role="tab" data-tab="services" id="tab-services" aria-selected="false">服务</button>
 		<button type="button" role="tab" data-tab="actions" id="tab-actions" aria-selected="false">动作</button>
 		<button type="button" role="tab" data-tab="params" id="tab-params" aria-selected="false">参数</button>
@@ -106,94 +114,106 @@
 			</div>
 		</aside>
 		<div class="main-area" role="region" aria-label="详情与操作">
-		<main id="main-topics" class="main-stack">
-			<div class="controls">
-				<span id="selection-label">未选择话题</span>
-				<button type="button" id="btn-unsub-topic" class="btn-inline">停止订阅</button>
-				<label>节流 ms <input type="number" id="throttle-ms" value="80" min="0" step="10" title="消息刷新最小间隔；改小更实时，改大减 CPU" /></label>
-				<span class="hint">直连 rosbridge：<code>?rosbridge_port=</code>；网关：<code>?ros_mode=gateway&amp;gateway_port=8765</code></span>
-			</div>
-			<div class="panels">
-				<div class="panel">
-					<h3>按类型的可视化</h3>
-					<div class="body" id="viz-panel">
-						<div id="viz-body"></div>
-						<canvas id="viz-canvas" class="viz-canvas" style="display:none"></canvas>
+			<main id="main-topics" class="main-stack">
+				<div class="controls">
+					<span id="selection-label">未选择话题</span>
+					<button type="button" id="btn-unsub-topic" class="btn-inline">停止订阅</button>
+					<label>节流 ms <input type="number" id="throttle-ms" value="80" min="0" step="10"
+							title="消息刷新最小间隔；改小更实时，改大减 CPU" /></label>
+					<span class="hint">直连
+						rosbridge：<code>?rosbridge_port=</code>；网关：<code>?ros_mode=gateway&amp;gateway_port=8765</code></span>
+				</div>
+				<div class="panels">
+					<div class="panel">
+						<h3>按类型的可视化</h3>
+						<div class="body" id="viz-panel">
+							<div id="viz-body"></div>
+							<canvas id="viz-canvas" class="viz-canvas" style="display:none"></canvas>
+						</div>
+					</div>
+					<div class="panel">
+						<div class="panel-head">
+							<h3>原始 JSON</h3>
+							<button type="button" id="btn-copy-raw" class="btn-inline">复制</button>
+						</div>
+						<div class="body">
+							<pre class="raw" id="raw-pre" title="当前订阅话题的最新消息"></pre>
+						</div>
 					</div>
 				</div>
-				<div class="panel">
-					<div class="panel-head">
-						<h3>原始 JSON</h3>
-						<button type="button" id="btn-copy-raw" class="btn-inline">复制</button>
-					</div>
-					<div class="body"><pre class="raw" id="raw-pre" title="当前订阅话题的最新消息"></pre></div>
+			</main>
+			<main id="main-services" class="main-stack hidden">
+				<p class="hint">左侧选择服务。类型由 rosapi 查询；请求体为 JSON 对象（与 .srv 请求字段一致）。空服务可用 <code>{}</code>。</p>
+				<div class="controls"><span id="svc-selection">未选择</span></div>
+				<label class="block-label">service type</label>
+				<input type="text" id="svc-type" class="wide-input" readonly placeholder="选择服务后自动填充" />
+				<label class="block-label">request JSON</label>
+				<textarea id="svc-req-json" class="wide-text" rows="6" spellcheck="false">{}</textarea>
+				<button type="button" id="svc-call">调用服务</button>
+				<div class="subh-row">
+					<h3 class="subh">响应</h3>
+					<button type="button" id="btn-copy-svc-resp" class="btn-inline">复制响应</button>
 				</div>
-			</div>
-		</main>
-		<main id="main-services" class="main-stack hidden">
-			<p class="hint">左侧选择服务。类型由 rosapi 查询；请求体为 JSON 对象（与 .srv 请求字段一致）。空服务可用 <code>{}</code>。</p>
-			<div class="controls"><span id="svc-selection">未选择</span></div>
-			<label class="block-label">service type</label>
-			<input type="text" id="svc-type" class="wide-input" readonly placeholder="选择服务后自动填充" />
-			<label class="block-label">request JSON</label>
-			<textarea id="svc-req-json" class="wide-text" rows="6" spellcheck="false">{}</textarea>
-			<button type="button" id="svc-call">调用服务</button>
-			<div class="subh-row">
-				<h3 class="subh">响应</h3>
-				<button type="button" id="btn-copy-svc-resp" class="btn-inline">复制响应</button>
-			</div>
-			<pre class="raw" id="svc-resp"></pre>
-		</main>
-		<main id="main-actions" class="main-stack hidden">
-			<p class="hint">通过 <code>/rosapi/action_servers</code> 列出的动作服务器（名称空间）。动作 goal/cancel 需按具体 .action 类型构造，此处仅浏览列表。</p>
-			<pre class="raw" id="actions-dump"></pre>
-		</main>
-		<main id="main-params" class="main-stack hidden">
-			<p class="hint">左侧选择参数名，下方显示 <code>/rosapi/get_param</code> 返回值。</p>
-			<div class="subh-row">
-				<h3 class="subh">取值</h3>
-				<button type="button" id="btn-copy-param" class="btn-inline">复制</button>
-			</div>
-			<pre class="raw" id="param-value"></pre>
-		</main>
-		<main id="main-graph" class="main-stack hidden">
-			<p class="hint">数据来自 <code>/rosapi/nodes</code> 与 <code>node_details</code>。<strong>逻辑图</strong>：节点–节点力导向（经话题隐式相连）。<strong>架构图</strong>：按命名空间分组框 + 组间通信汇总。</p>
-			<div class="graph-toolbar" role="toolbar" aria-label="关系图视图">
-				<button type="button" id="btn-build-graph">重新计算关系图</button>
-				<span class="graph-toolbar-sep" aria-hidden="true">|</span>
-				<span class="hint graph-toolbar-label">视图</span>
-				<label class="graph-view-opt"><input type="radio" name="graph-view" value="logic" checked /> 逻辑图</label>
-				<label class="graph-view-opt"><input type="radio" name="graph-view" value="architecture" /> 架构图</label>
-			</div>
-			<span id="graph-progress" class="hint"></span>
-			<pre class="raw" id="graph-node-detail" style="max-height:6rem;overflow:auto"></pre>
-			<div class="graph-wrap"><canvas id="graph-canvas" width="900" height="520"></canvas></div>
-		</main>
-		<main id="main-view2d" class="main-stack hidden">
-			<p class="hint">ROS2：<code>nav_msgs/msg/OccupancyGrid</code> + 可选 <code>sensor_msgs/msg/LaserScan</code> 叠加（机器人系简化显示）。</p>
-			<div class="controls row-form">
-				<label>地图话题 <input type="text" id="map-topic" value="/map" /></label>
-				<label>雷达话题 <input type="text" id="scan-topic" value="" placeholder="可选，如 /scan" /></label>
-				<button type="button" id="btn-2d-start">启动 2D</button>
-				<button type="button" id="btn-2d-stop">停止</button>
-			</div>
-			<div id="view2d-host" class="view2d-host"></div>
-		</main>
-		<main id="main-view3d" class="main-stack hidden">
-			<p class="hint">Three.js r128：<code>sensor_msgs/msg/PointCloud2</code>（xyz float32）与可选 LaserScan。无 TF，数据在传感器坐标系显示。</p>
-			<div class="controls row-form">
-				<label>点云话题 <input type="text" id="pc-topic" value="" placeholder="/points 或留空" /></label>
-				<label>雷达话题 <input type="text" id="scan3-topic" value="" placeholder="可选" /></label>
-				<label>最大点数 <input type="number" id="pc-max" value="20000" min="1000" step="1000" /></label>
-				<button type="button" id="btn-3d-start">启动 3D</button>
-				<button type="button" id="btn-3d-stop">停止</button>
-			</div>
-			<div id="view3d-host" class="view3d-host"></div>
-		</main>
+				<pre class="raw" id="svc-resp"></pre>
+			</main>
+			<main id="main-actions" class="main-stack hidden">
+				<p class="hint">通过 <code>/rosapi/action_servers</code> 列出的动作服务器（名称空间）。动作 goal/cancel 需按具体 .action
+					类型构造，此处仅浏览列表。</p>
+				<pre class="raw" id="actions-dump"></pre>
+			</main>
+			<main id="main-params" class="main-stack hidden">
+				<p class="hint">左侧选择参数名，下方显示 <code>/rosapi/get_param</code> 返回值。</p>
+				<div class="subh-row">
+					<h3 class="subh">取值</h3>
+					<button type="button" id="btn-copy-param" class="btn-inline">复制</button>
+				</div>
+				<pre class="raw" id="param-value"></pre>
+			</main>
+			<main id="main-graph" class="main-stack hidden">
+				<p class="hint">数据来自 <code>/rosapi/nodes</code> 与
+					<code>node_details</code>。<strong>逻辑图</strong>：节点–节点力导向（经话题隐式相连）。<strong>架构图</strong>：按命名空间分组框 +
+					组间通信汇总。</p>
+				<div class="graph-toolbar" role="toolbar" aria-label="关系图视图">
+					<button type="button" id="btn-build-graph">重新计算关系图</button>
+					<span class="graph-toolbar-sep" aria-hidden="true">|</span>
+					<span class="hint graph-toolbar-label">视图</span>
+					<label class="graph-view-opt"><input type="radio" name="graph-view" value="logic" checked />
+						逻辑图</label>
+					<label class="graph-view-opt"><input type="radio" name="graph-view" value="architecture" />
+						架构图</label>
+				</div>
+				<span id="graph-progress" class="hint"></span>
+				<pre class="raw" id="graph-node-detail" style="max-height:6rem;overflow:auto"></pre>
+				<div class="graph-wrap"><canvas id="graph-canvas" width="900" height="520"></canvas></div>
+			</main>
+			<main id="main-view2d" class="main-stack hidden">
+				<p class="hint">ROS2：<code>nav_msgs/msg/OccupancyGrid</code> + 可选 <code>sensor_msgs/msg/LaserScan</code>
+					叠加（机器人系简化显示）。</p>
+				<div class="controls row-form">
+					<label>地图话题 <input type="text" id="map-topic" value="/map" /></label>
+					<label>雷达话题 <input type="text" id="scan-topic" value="" placeholder="可选，如 /scan" /></label>
+					<button type="button" id="btn-2d-start">启动 2D</button>
+					<button type="button" id="btn-2d-stop">停止</button>
+				</div>
+				<div id="view2d-host" class="view2d-host"></div>
+			</main>
+			<main id="main-view3d" class="main-stack hidden">
+				<p class="hint">Three.js r128：<code>sensor_msgs/msg/PointCloud2</code>（xyz float32）与可选 LaserScan。无
+					TF，数据在传感器坐标系显示。</p>
+				<div class="controls row-form">
+					<label>点云话题 <input type="text" id="pc-topic" value="" placeholder="/points 或留空" /></label>
+					<label>雷达话题 <input type="text" id="scan3-topic" value="" placeholder="可选" /></label>
+					<label>最大点数 <input type="number" id="pc-max" value="20000" min="1000" step="1000" /></label>
+					<button type="button" id="btn-3d-start">启动 3D</button>
+					<button type="button" id="btn-3d-stop">停止</button>
+				</div>
+				<div id="view3d-host" class="view3d-host"></div>
+			</main>
 		</div>
 	</div>
 	<script src="js/ivg_site_nav.js"></script>
 	<!-- 入口脚本：依赖上方 vendor（roslib / three / ros2d）；置于末尾以便 DOM 已就绪 -->
 	<script src="js/ros_console.js"></script>
 </body>
+
 </html>

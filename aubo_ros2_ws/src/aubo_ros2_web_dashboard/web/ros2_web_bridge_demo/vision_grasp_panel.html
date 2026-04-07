@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <!-- 视觉抓取面板：逻辑与话题/服务约定见 aubo_ros2_web_dashboard/README.md「视觉抓取面板」与 js/vision_grasp_panel.js 文件头注释 -->
 <html lang="zh-CN">
+
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -10,6 +11,7 @@
 	<script src="js/vendor/eventemitter2.js"></script>
 	<script src="js/vendor/roslib.min.js"></script>
 </head>
+
 <body class="vision-grasp-no-gateway ivg-single-screen">
 	<nav class="ivg-global-nav" aria-label="灵视IVG 站内导航" data-ivg-page="vision">
 		<div class="ivg-global-nav__inner">
@@ -34,7 +36,8 @@
 				<button type="button" class="btn-top" id="btn-gw-login">登录</button>
 				<button type="button" class="btn-top" id="btn-gw-logout">登出</button>
 			</div>
-			<button type="button" class="btn-top" id="btn-reconnect" title="连接 rosbridge：默认端口 9090；可在地址栏加 ?rosbridge_port= 修改">重新连接 ROS</button>
+			<button type="button" class="btn-top" id="btn-reconnect"
+				title="连接 rosbridge：默认端口 9090；可在地址栏加 ?rosbridge_port= 修改">重新连接 ROS</button>
 			<span id="conn-status" class="status off">未连接</span>
 		</div>
 	</header>
@@ -50,64 +53,68 @@
 				<span class="mode-row-label" id="mode-group-label">抓取方式</span>
 				<div class="mode-segmented" role="presentation">
 					<label class="mode-seg">
-						<input type="radio" name="grasp-mode" id="mode-workpiece" value="workpiece" checked aria-describedby="mode-group-label" />
+						<input type="radio" name="grasp-mode" id="mode-workpiece" value="workpiece" checked
+							aria-describedby="mode-group-label" />
 						<span class="mode-seg__face">工件（视觉估计）</span>
 					</label>
 					<label class="mode-seg">
-						<input type="radio" name="grasp-mode" id="mode-graspnet" value="graspnet" aria-describedby="mode-group-label" />
+						<input type="radio" name="grasp-mode" id="mode-graspnet" value="graspnet"
+							aria-describedby="mode-group-label" />
 						<span class="mode-seg__face">点云（GraspNet）</span>
 					</label>
 				</div>
 			</div>
 			<div class="toolbar-actions">
-				<button type="button" class="btn-settings" id="btn-topic-settings-open" aria-haspopup="dialog" aria-controls="topic-settings-modal">订阅话题设置</button>
+				<button type="button" class="btn-settings" id="btn-topic-settings-open" aria-haspopup="dialog"
+					aria-controls="topic-settings-modal">订阅话题设置</button>
 			</div>
 		</div>
 
 		<!-- 第二 + 三档：相机与操作按钮左右分栏（单屏布局下并排；窄屏自动上下堆叠） -->
 		<div class="layout-camera-controls layout-tier-2-3">
-		<section class="panel panel--camera panel--camera-hero layout-tier-2" aria-label="相机图像">
-			<h2>相机彩色图像</h2>
-			<div class="panel-canvas-wrap">
-				<canvas id="cam-canvas" width="640" height="480"></canvas>
-			</div>
-		</section>
+			<section class="panel panel--camera panel--camera-hero layout-tier-2" aria-label="相机图像">
+				<h2>相机彩色图像</h2>
+				<div class="panel-canvas-wrap">
+					<canvas id="cam-canvas" width="640" height="480"></canvas>
+				</div>
+			</section>
 
-		<section class="panel panel--control panel--tier-3" aria-label="抓取与工具控制">
-			<h2>抓取与工具控制</h2>
-			<div class="object-row">
-				<label for="object-id">目标工件编号</label>
-				<input type="text" id="object-id" placeholder="与现场 object_id 一致" />
-			</div>
+			<section class="panel panel--control panel--tier-3" aria-label="抓取与工具控制">
+				<h2>抓取与工具控制</h2>
+				<div class="object-row">
+					<label for="object-id">目标工件编号</label>
+					<input type="text" id="object-id" placeholder="与现场 object_id 一致" />
+				</div>
 
-			<div class="control-groups control-groups--tier">
-				<div class="control-group">
-					<h3 class="control-group-title">工件抓取（demo_driver）</h3>
-					<div class="btn-row" id="section-workpiece-btns">
-						<button type="button" class="ctrl ctrl--wide primary" id="btn-wp-single-start">执行单次抓取</button>
-						<button type="button" class="ctrl danger" id="btn-wp-single-stop">停止</button>
-						<button type="button" class="ctrl primary" id="btn-wp-loop-start">启动循环</button>
-						<button type="button" class="ctrl danger" id="btn-wp-loop-stop">停循环</button>
+				<div class="control-groups control-groups--tier">
+					<div class="control-group">
+						<h3 class="control-group-title">工件抓取（demo_driver）</h3>
+						<div class="btn-row" id="section-workpiece-btns">
+							<button type="button" class="ctrl ctrl--wide primary"
+								id="btn-wp-single-start">执行单次抓取</button>
+							<button type="button" class="ctrl danger" id="btn-wp-single-stop">停止</button>
+							<button type="button" class="ctrl primary" id="btn-wp-loop-start">启动循环</button>
+							<button type="button" class="ctrl danger" id="btn-wp-loop-stop">停循环</button>
+						</div>
+					</div>
+					<div class="control-group">
+						<h3 class="control-group-title">点云 GraspNet 节点</h3>
+						<div class="btn-row btn-row--dense" id="section-graspnet-btns">
+							<button type="button" class="ctrl primary" id="btn-gn-cap-start">开始采集</button>
+							<button type="button" class="ctrl danger" id="btn-gn-cap-stop">停止采集</button>
+							<button type="button" class="ctrl primary" id="btn-gn-loop-start">位姿循环开</button>
+							<button type="button" class="ctrl danger" id="btn-gn-loop-stop">位姿循环关</button>
+							<button type="button" class="ctrl ctrl--wide" id="btn-gn-exec-once">点云单次抓取</button>
+						</div>
+					</div>
+					<div class="control-group control-group--swap">
+						<h3 class="control-group-title">末端夹爪快换</h3>
+						<button type="button" class="ctrl" id="btn-quick-swap">切换到 gripper2</button>
 					</div>
 				</div>
-				<div class="control-group">
-					<h3 class="control-group-title">点云 GraspNet 节点</h3>
-					<div class="btn-row btn-row--dense" id="section-graspnet-btns">
-						<button type="button" class="ctrl primary" id="btn-gn-cap-start">开始采集</button>
-						<button type="button" class="ctrl danger" id="btn-gn-cap-stop">停止采集</button>
-						<button type="button" class="ctrl primary" id="btn-gn-loop-start">位姿循环开</button>
-						<button type="button" class="ctrl danger" id="btn-gn-loop-stop">位姿循环关</button>
-						<button type="button" class="ctrl ctrl--wide" id="btn-gn-exec-once">点云单次抓取</button>
-					</div>
-				</div>
-				<div class="control-group control-group--swap">
-					<h3 class="control-group-title">末端夹爪快换</h3>
-					<button type="button" class="ctrl" id="btn-quick-swap">切换到 gripper2</button>
-				</div>
-			</div>
 
-			<div class="svc-log" id="svc-log" aria-live="polite"></div>
-		</section>
+				<div class="svc-log" id="svc-log" aria-live="polite"></div>
+			</section>
 		</div>
 
 		<!-- 第四档：关节曲线 + 状态读数 -->
@@ -146,20 +153,28 @@
 		</div>
 	</main>
 
-	<div id="topic-settings-modal" class="topic-settings-modal" role="dialog" aria-modal="true" aria-labelledby="topic-settings-title" aria-hidden="true" hidden>
+	<div id="topic-settings-modal" class="topic-settings-modal" role="dialog" aria-modal="true"
+		aria-labelledby="topic-settings-title" aria-hidden="true" hidden>
 		<div class="topic-settings-backdrop" id="topic-settings-backdrop" tabindex="-1"></div>
 		<div class="topic-settings-sheet">
 			<div class="topic-settings-head">
 				<h2 id="topic-settings-title">ROS 订阅话题</h2>
-				<button type="button" class="btn-settings-close" id="btn-topic-settings-close" aria-label="关闭">×</button>
+				<button type="button" class="btn-settings-close" id="btn-topic-settings-close"
+					aria-label="关闭">×</button>
 			</div>
-			<p class="topic-settings-hint">现场话题名与默认一致时无需修改。改完后请点击「保存并重新连接」；「恢复内置默认」会清空本机已保存的自定义话题。连接端口说明：鼠标悬停顶栏「重新连接 ROS」。</p>
+			<p class="topic-settings-hint">现场话题名与默认一致时无需修改。改完后请点击「保存并重新连接」；「恢复内置默认」会清空本机已保存的自定义话题。连接端口说明：鼠标悬停顶栏「重新连接
+				ROS」。</p>
 			<div class="topic-grid topic-grid-modal">
-				<label>彩色相机图像 <input type="text" id="topic-color" value="/camera/color/image_raw" autocomplete="off" title="sensor_msgs/Image" /></label>
-				<label>机械臂状态 RobotStatus <input type="text" id="topic-robot" value="/aubo_driver/robot_status" autocomplete="off" /></label>
-				<label>关节角 JointState（曲线用） <input type="text" id="topic-joints" value="/joint_states" autocomplete="off" /></label>
-				<label>视觉位姿估计状态（字符串） <input type="text" id="topic-vpe-status" value="/system_status" autocomplete="off" /></label>
-				<label>GraspNet 输出抓取位姿 PoseArray <input type="text" id="topic-grasp-poses" value="/grasp_poses_base" autocomplete="off" /></label>
+				<label>彩色相机图像 <input type="text" id="topic-color" value="/camera/color/image_raw" autocomplete="off"
+						title="sensor_msgs/Image" /></label>
+				<label>机械臂状态 RobotStatus <input type="text" id="topic-robot" value="/aubo_driver/robot_status"
+						autocomplete="off" /></label>
+				<label>关节角 JointState（曲线用） <input type="text" id="topic-joints" value="/joint_states"
+						autocomplete="off" /></label>
+				<label>视觉位姿估计状态（字符串） <input type="text" id="topic-vpe-status" value="/system_status"
+						autocomplete="off" /></label>
+				<label>GraspNet 输出抓取位姿 PoseArray <input type="text" id="topic-grasp-poses" value="/grasp_poses_base"
+						autocomplete="off" /></label>
 			</div>
 			<div class="topic-settings-actions">
 				<button type="button" class="ctrl" id="btn-topic-restore-defaults">恢复内置默认话题</button>
@@ -171,4 +186,5 @@
 	<script src="js/ivg_site_nav.js"></script>
 	<script src="js/vision_grasp_panel.js"></script>
 </body>
+
 </html>

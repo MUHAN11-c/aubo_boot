@@ -1,6 +1,6 @@
 # aubo_ros2_web_dashboard
 
-ROS 2 **ament_python** 包：托管 IVG 现场 Web 门户与 **ROS 控制台**（话题 / 服务 / 参数 / 图 / 2D / 3D），可选 **FastAPI 网关**（JWT + WebSocket 代理至 rosbridge）。浏览器通过 **roslib** 与 ROS 通信；经网关时先连网关再转发到 rosbridge。
+ROS 2 **ament_python** 包：托管 **灵视 IVG** 现场 Web 门户（门户首页、视觉抓取、咖啡拉花）与 **ROS 控制台**（话题 / 服务 / 参数 / 图 / 2D / 3D），可选 **FastAPI 网关**（JWT + WebSocket 代理至 rosbridge）。浏览器通过 **roslib** 与 ROS 通信；**直连**时 WebSocket 指向本机 **rosbridge**；经网关时先连网关再转发到 rosbridge。
 
 ---
 
@@ -56,16 +56,18 @@ ROS 2 **ament_python** 包：托管 IVG 现场 Web 门户与 **ROS 控制台**�
 
 | 文件 | 作用与实现要点 |
 |------|----------------|
-| `index.html` | **灵视IVG 门户首页**：功能介绍与快速入口；链到视觉面板、咖啡拉花、控制台，以及视觉位姿 / 手眼标定外链（脚本按当前页 `hostname` 与固定端口写死 URL，并保留查询串 `q`）。页面对参观者弱化技术细节，部署与端口说明见本 README。 |
-| `vision_grasp_panel.html` | **视觉抓取面板**（精简 UI）。话题、服务、抓取策略与实现细节见下文 **「视觉抓取面板」**；脚本头部注释见 `js/vision_grasp_panel.js`。 |
-| `topics_lab.html` | **ROS 控制台页面结构**：顶栏（直连/网关登录）、链到视觉抓取面板、IVG 快捷条、多标签主区（话题、服务、动作、参数、关系图、2D、3D）；按序加载 vendor 与 `ros_console.js`。 |
-| `js/ros_console.js` | **控制台核心逻辑**：`ROSLIB.Ros` 连接（直连或 `ws://网关/ws/ros?token=`）、侧栏 rosapi 列表、话题订阅与可视化、服务调用、节点图 Canvas、ROS2D / Three.js 2D·3D；IVG 预设话题与服务。 |
+| `index.html` | **灵视 IVG 门户首页**：功能介绍与快速入口；链到视觉抓取、咖啡拉花、控制台；视觉位姿（默认 `http://hostname:8088/`）与手眼（`:8080`）由脚本按当前 `hostname` 拼接，控制台与面板链接继承 `location.search`（如 `?rosbridge_port=`）。 |
+| `vision_grasp_panel.html` | **视觉抓取面板**：相机图、关节曲线、状态区、抓取与 GraspNet 控制等。`body` 含 `ivg-single-screen`（单屏视口布局）与 `vision-grasp-no-gateway`（隐藏网关 UI）。详见下文 **「视觉抓取面板」**。 |
+| `topics_lab.html` | **ROS 控制台**：顶栏（直连 / 网关登录）、全站导航、IVG 快捷条、多标签主区（话题、服务、动作、参数、关系图、2D、3D）；加载 `ros_console.js`。 |
+| `js/ros_console.js` | **控制台核心逻辑**：`ROSLIB.Ros` 直连或 `ws://网关/ws/ros?token=`、rosapi、订阅/服务/图/2D/3D；IVG 预设话题与服务。 |
 | `js/vendor/*` | 第三方库：`roslib`、`eventemitter2`、`easeljs`、`ros2d`、`three`、`OrbitControls`；`fetch_vendor.sh` / `README.txt` 说明获取方式。 |
-| `coffee_latte_panel.html` | **咖啡拉花面板**（占位 UI）：布局对齐视觉抓取页；当前仅 Canvas 演示动画，无 rosbridge；样式 `css/coffee_latte_panel.css`，脚本 `js/coffee_latte_panel.js`。 |
-| `css/ivg_site_nav.css` | **全站主导航**样式：门户 / 视觉抓取 / 咖啡拉花 / ROS 控制台；由各 HTML 页面共用。 |
-| `js/ivg_site_nav.js` | 导航链接附加当前页 `location.search`（继承网关等参数），并按 `data-ivg-page` 高亮当前页。 |
-| `css/home.css` | `index.html` 门户样式（与控制台共用相近色板变量）。 |
-| `css/topics_lab.css` | `topics_lab.html` 布局与组件样式（顶栏、侧栏、图、2D/3D 容器等）。 |
+| `coffee_latte_panel.html` | **咖啡拉花面板**（演示）：`body.ivg-single-screen`；布局与视觉页一致，当前 Canvas 动画 + 日志，无 rosbridge。 |
+| `css/vision_grasp_panel.css` | 视觉抓取页主样式；单屏下相机与操作区 **左右分栏**（`.layout-camera-controls`），预览区 **4:3**、`object-fit: contain`，变量如 `--cam-split-max-w` 控制左侧最大宽度。 |
+| `css/coffee_latte_panel.css` | `@import vision_grasp_panel.css` 后追加拉花顶栏状态、画布与单屏下差异样式。 |
+| `css/ivg_site_nav.css` | 全站主导航（门户 / 视觉抓取 / 咖啡拉花 / ROS 控制台）。 |
+| `js/ivg_site_nav.js` | 导航链接附加 `location.search`（继承 `rosbridge_port` 等），并按 `data-ivg-page` 高亮。 |
+| `css/home.css` | `index.html` 门户样式。 |
+| `css/topics_lab.css` | `topics_lab.html` 布局与组件样式。 |
 | `css/demo.css` / `component.css` | 上游 RobotWebTools / demo 遗留样式（其它旧页面若引用）。 |
 | `README.md` | 上游 **ros2-web-bridge** 会议 demo 原始说明（硬件与 Node 桥接流程）；与本仓库 IVG 集成以本文件与 `launch` 为准。 |
 
@@ -74,6 +76,12 @@ ROS 2 **ament_python** 包：托管 IVG 现场 Web 门户与 **ROS 控制台**�
 ## 视觉抓取面板（`vision_grasp_panel.html`）
 
 面向 IVG 现场：在浏览器中查看相机图、机器人 `RobotStatus`（末端位置、四元数、RPY、关节）、VPE 字符串状态、GraspNet 发布的 `PoseArray` 摘要，以及 6 关节趋势曲线；并通过 rosbridge 调用 `demo_driver` / `graspnet_ros2` 相关服务。
+
+### 布局（`ivg-single-screen`）
+
+- `body.ivg-single-screen`：锁定 **整页视口高度**（`100dvh`），主区用 CSS Grid 分配 **工具栏 → 相机+操作 → 曲线与状态**，避免整页纵向滚动条；底部状态 `pre` 可在区域内滚动（滚动条弱化）。
+- **`.layout-camera-controls`**（HTML 包裹相机区块与控制区块）：宽屏 **两列**——左 **预览**（最大宽度见 `:root` 中 **`--cam-split-max-w`**，默认约 800px；列宽还与 **`--cam-split-col-pct`** 取 `min`），预览盒 **`aspect-ratio: 4/3`**，画布 **`object-fit: contain`**，避免 640×480 被压扁；右 **抓取与工具控制**（内容多时可纵向滚动）。窄屏（约 ≤920px）改为上下堆叠。
+- 若从源码中去掉 `body` 上的 `ivg-single-screen`，则退化为常规纵向排版（默认发布 HTML 带单屏 class）。
 
 ### 连接与网关
 
@@ -125,8 +133,8 @@ ROS 2 **ament_python** 包：托管 IVG 现场 Web 门户与 **ROS 控制台**�
 
 ## 咖啡拉花面板（`coffee_latte_panel.html`）
 
-- **当前**：仅前端占位；`css/coffee_latte_panel.css` 通过 `@import` 复用视觉抓取页布局与按钮样式；`js/coffee_latte_panel.js` 在画布上绘制杯口示意与奶泡心形路径动画，并写简要活动日志。
-- **后续**：可参照 `vision_grasp_panel.js` 接入 rosbridge、相机话题、关节曲线与自定义服务；全站导航中 `data-ivg-page="latte"` / `data-ivg-nav="latte"` 已与 `ivg_site_nav.js` 对齐。
+- **当前**：`body.ivg-single-screen` 与视觉页相同的单屏 + **左右分栏**（预览在左、杯位与动作在右）；`css/coffee_latte_panel.css` 通过 `@import` 复用 `vision_grasp_panel.css`；`js/coffee_latte_panel.js` 绘制杯口与奶泡心形动画并写活动日志，**无 rosbridge**。
+- **后续**：可参照 `vision_grasp_panel.js` 接入 rosbridge 与话题/服务；导航 `data-ivg-page="latte"` 已与 `ivg_site_nav.js` 对齐。
 
 ---
 
@@ -146,14 +154,34 @@ ROS 2 **ament_python** 包：托管 IVG 现场 Web 门户与 **ROS 控制台**�
 colcon build --packages-select aubo_ros2_web_dashboard --symlink-install
 source install/setup.bash
 
-# 仅静态 + rosbridge
+# 仅静态 + rosbridge（直连，默认 HTTP 8090、WS 9090）
 ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py
+
+# 可选参数示例
+ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_host:=0.0.0.0 web_port:=8090 rosbridge_port:=9090
 
 # 含网关（需已 pip install -r .../gateway/requirements.txt）
 ros2 launch aubo_ros2_web_dashboard web_dashboard_gateway.launch.py
 ```
 
-默认管理员（仅首次空库）：用户名 `admin`，密码 `changeme`；生产环境请修改 `IVG_GATEWAY_*` 配置。
+### 启动后浏览器入口（直连 `web_dashboard.launch.py`）
+
+假设静态站为 `http://<主机>:<web_port>`（默认 `8090`），rosbridge 为 `ws://<主机>:<rosbridge_port>`（默认 `9090`）。若 rosbridge 非 9090，请在各页面 URL 后加 **`?rosbridge_port=<端口>`**（与 `ivg_site_nav.js`、控制台一致）。
+
+| 页面 | 路径 |
+|------|------|
+| 灵视 IVG 门户 | `/index.html` |
+| 视觉抓取面板 | `/vision_grasp_panel.html` |
+| 咖啡拉花面板 | `/coffee_latte_panel.html` |
+| ROS 控制台 | `/topics_lab.html` |
+
+### 工作空间一键脚本（IVG 全栈示例）
+
+工作空间根目录下的 **`start_IVG_graspnet_points_fastapi_web_dashboard.sh`**（与本包同级，属现场集成脚本）在 **Terminator** 中拉起机械臂、感知、GraspNet、FastAPI、**本 launch（直连）**、rosbag 等；结束时会在终端打印上述静态页链接（含本机 / 局域网 IP）。环境变量示例：`WEB_DASH_HOST`、`WEB_DASH_PORT`、`ROSBRIDGE_PORT`、`WEB_HOST`、`WEB_PORT`（FastAPI）等，见脚本内注释。
+
+---
+
+默认管理员（仅首次空库，**仅网关模式**）：用户名 `admin`，密码 `changeme`；生产环境请修改 `IVG_GATEWAY_*` 配置。
 
 ---
 

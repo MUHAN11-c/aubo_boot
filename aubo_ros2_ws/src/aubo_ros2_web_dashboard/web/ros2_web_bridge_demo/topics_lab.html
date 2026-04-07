@@ -1,10 +1,12 @@
 <!DOCTYPE html>
+<!-- ROS 2 控制台：结构分顶栏(连接/网关)、IVG 快捷条、标签页、侧栏列表 + 主内容区；逻辑在 ros_console.js -->
 <html lang="zh-CN">
 <head>
 	<meta charset="UTF-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 	<title>ROS 2 控制台 · 话题 / 服务 / 动作 / 参数 / 图 / 2D / 3D</title>
 	<link rel="stylesheet" href="css/topics_lab.css" />
+	<link rel="stylesheet" href="css/ivg_site_nav.css" />
 	<script src="js/vendor/eventemitter2.js"></script>
 	<script src="js/vendor/roslib.min.js"></script>
 	<script src="js/vendor/easeljs.min.js"></script>
@@ -13,14 +15,34 @@
 	<script src="js/vendor/OrbitControls.js"></script>
 </head>
 <body>
+	<nav class="ivg-global-nav" aria-label="灵视IVG 站内导航" data-ivg-page="console">
+		<div class="ivg-global-nav__inner">
+			<a class="ivg-global-nav__brand" href="index.html">灵视 <span>IVG</span></a>
+			<ul class="ivg-global-nav__list" role="list">
+				<li><a class="ivg-global-nav__link" href="index.html" data-ivg-nav="index">门户</a></li>
+				<li><a class="ivg-global-nav__link" href="vision_grasp_panel.html" data-ivg-nav="vision">视觉抓取</a></li>
+				<li><a class="ivg-global-nav__link" href="coffee_latte_panel.html" data-ivg-nav="latte">咖啡拉花</a></li>
+				<li><a class="ivg-global-nav__link" href="topics_lab.html" data-ivg-nav="console">ROS 控制台</a></li>
+			</ul>
+		</div>
+	</nav>
 	<nav class="topnav" aria-label="工具栏与连接">
 		<div class="topnav-start">
-			<a href="index.html" class="topnav-link">首页</a>
-			<span class="topnav-sep" aria-hidden="true">/</span>
 			<span class="topnav-title">ROS 控制台</span>
-			<span class="topnav-sub">rosbridge · <code class="topnav-code">?rosbridge_port=</code></span>
+			<span class="topnav-sub">直连 <code class="topnav-code">?rosbridge_port=</code> · 网关 <code class="topnav-code">?ros_mode=gateway</code></span>
 		</div>
 		<span class="topnav-spacer" aria-hidden="true"></span>
+		<div class="topnav-gateway" id="topnav-gateway" aria-label="FastAPI 网关">
+			<label class="gw-check" title="经网关连接 rosbridge（JWT）；浏览器不直连 rosbridge">
+				<input type="checkbox" id="use-gateway" />
+				经网关
+			</label>
+			<label class="gw-label">端口 <input type="text" class="ivg-port gw-port" id="gateway-port" value="8765" inputmode="numeric" aria-label="网关端口" /></label>
+			<input type="text" id="gw-user" class="gw-cred" placeholder="用户" autocomplete="username" aria-label="网关用户名" />
+			<input type="password" id="gw-pass" class="gw-cred" placeholder="密码" autocomplete="current-password" aria-label="网关密码" />
+			<button type="button" class="btn-top" id="btn-gw-login">登录</button>
+			<button type="button" class="btn-top" id="btn-gw-logout">登出</button>
+		</div>
 		<div class="topnav-actions">
 			<button type="button" id="btn-reconnect" class="btn-top" title="重新连接 WebSocket">重连</button>
 			<span id="conn-status" class="status" role="status" aria-live="polite">未连接</span>
@@ -89,7 +111,7 @@
 				<span id="selection-label">未选择话题</span>
 				<button type="button" id="btn-unsub-topic" class="btn-inline">停止订阅</button>
 				<label>节流 ms <input type="number" id="throttle-ms" value="80" min="0" step="10" title="消息刷新最小间隔；改小更实时，改大减 CPU" /></label>
-				<span class="hint">rosbridge：<code>?rosbridge_port=</code></span>
+				<span class="hint">直连 rosbridge：<code>?rosbridge_port=</code>；网关：<code>?ros_mode=gateway&amp;gateway_port=8765</code></span>
 			</div>
 			<div class="panels">
 				<div class="panel">
@@ -170,6 +192,8 @@
 		</main>
 		</div>
 	</div>
+	<script src="js/ivg_site_nav.js"></script>
+	<!-- 入口脚本：依赖上方 vendor（roslib / three / ros2d）；置于末尾以便 DOM 已就绪 -->
 	<script src="js/ros_console.js"></script>
 </body>
 </html>

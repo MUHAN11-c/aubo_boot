@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<!-- 咖啡拉花面板：布局参考 vision_grasp_panel；当前仅前端演示，无 rosbridge / 无后端逻辑 -->
+<html lang="zh-CN">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+	<title>咖啡拉花面板</title>
+	<link rel="stylesheet" href="css/coffee_latte_panel.css" />
+	<link rel="stylesheet" href="css/ivg_site_nav.css" />
+</head>
+<body class="coffee-latte-panel ivg-single-screen">
+	<nav class="ivg-global-nav" aria-label="灵视IVG 站内导航" data-ivg-page="latte">
+		<div class="ivg-global-nav__inner">
+			<a class="ivg-global-nav__brand" href="index.html">灵视 <span>IVG</span></a>
+			<ul class="ivg-global-nav__list" role="list">
+				<li><a class="ivg-global-nav__link" href="index.html" data-ivg-nav="index">门户</a></li>
+				<li><a class="ivg-global-nav__link" href="vision_grasp_panel.html" data-ivg-nav="vision">视觉抓取</a></li>
+				<li><a class="ivg-global-nav__link" href="coffee_latte_panel.html" data-ivg-nav="latte">咖啡拉花</a></li>
+				<li><a class="ivg-global-nav__link" href="topics_lab.html" data-ivg-nav="console">ROS 控制台</a></li>
+			</ul>
+		</div>
+	</nav>
+	<header class="topbar">
+		<span class="topbar-page-hint" aria-hidden="true">本页 · 演示（无 ROS 后端）</span>
+		<span class="spacer"></span>
+		<span id="latte-demo-status" class="status latte-status is-idle" role="status">就绪 · 纯前端</span>
+	</header>
+
+	<main class="wrap">
+		<div class="layout-toolbar layout-tier-1">
+			<div class="toolbar-brand">
+				<h1>咖啡拉花面板</h1>
+				<p class="page-head-sub">① 流程与预览 · ② 预览与操作（左右）· ③ 状态与日志</p>
+			</div>
+			<div class="toolbar-mode" role="group" aria-label="流程（示意）">
+				<span class="mode-row-label">流程阶段</span>
+				<div class="mode-segmented" role="presentation">
+					<label class="mode-seg">
+						<input type="radio" name="latte-phase" checked disabled />
+						<span class="mode-seg__face">待机</span>
+					</label>
+					<label class="mode-seg">
+						<input type="radio" name="latte-phase" disabled />
+						<span class="mode-seg__face">对位</span>
+					</label>
+					<label class="mode-seg">
+						<input type="radio" name="latte-phase" disabled />
+						<span class="mode-seg__face">出图</span>
+					</label>
+				</div>
+			</div>
+			<div class="toolbar-actions">
+				<span class="page-head-sub" style="margin:0">后端就绪后可在此接「话题设置」等入口</span>
+			</div>
+		</div>
+
+		<div class="layout-camera-controls layout-tier-2-3">
+		<section class="panel panel--camera panel--camera-hero panel--latte-preview layout-tier-2" aria-label="拉花预览">
+			<h2>拉花预览（顶视示意）</h2>
+			<p class="latte-placeholder-note">下方为浏览器内绘制的奶泡路径动画，用于占位；真实场景可替换为相机画面或仿真视图。</p>
+			<div class="panel-canvas-wrap">
+				<canvas id="latte-preview-canvas" width="640" height="480" aria-label="拉花预览画布"></canvas>
+			</div>
+		</section>
+
+		<section class="panel panel--control panel--tier-3" aria-label="杯位与动作（占位）">
+			<h2>杯位、相机与动作</h2>
+			<div class="control-groups control-groups--tier">
+				<div class="control-group control-group--disabled-hint">
+					<h3 class="control-group-title">杯位与手眼标定</h3>
+					<div class="object-row">
+						<label for="latte-cup-x">杯心 X（mm）</label>
+						<input type="text" id="latte-cup-x" placeholder="—" disabled />
+					</div>
+					<div class="object-row">
+						<label for="latte-cup-y">杯心 Y（mm）</label>
+						<input type="text" id="latte-cup-y" placeholder="—" disabled />
+					</div>
+					<div class="btn-row">
+						<button type="button" class="ctrl" disabled title="后端接入后可用">读取标定</button>
+						<button type="button" class="ctrl" disabled title="后端接入后可用">保存杯位</button>
+					</div>
+				</div>
+				<div class="control-group control-group--disabled-hint">
+					<h3 class="control-group-title">拉花程序与机械臂</h3>
+					<div class="btn-row btn-row--dense">
+						<button type="button" class="ctrl primary" id="btn-latte-demo-start">演示拉花动画</button>
+						<button type="button" class="ctrl" id="btn-latte-demo-reset">重置画布</button>
+						<button type="button" class="ctrl" disabled title="后端接入后可用">执行拉花轨迹</button>
+						<button type="button" class="ctrl danger" disabled title="后端接入后可用">急停</button>
+					</div>
+				</div>
+			</div>
+		</section>
+		</div>
+
+		<div class="layout-body layout-tier-4">
+			<div class="layout-col layout-col--main">
+				<section class="panel panel--chart" aria-label="关节曲线（占位）">
+					<h2>关节 / 奶缸姿态曲线</h2>
+					<p class="latte-placeholder-note">接入 <code>/joint_states</code> 或专用话题后，可复用视觉面板的曲线组件。</p>
+					<div class="panel-canvas-wrap" style="min-height:180px;background:var(--graph-bg);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;">
+						（图表占位）
+					</div>
+				</section>
+			</div>
+			<aside class="layout-col layout-col--side" aria-label="状态与日志">
+				<div class="status-stack">
+					<section class="panel panel--status" aria-label="运行状态">
+						<h2>运行状态</h2>
+						<pre class="pose-pre" id="latte-status-text">模式：前端演示
+ROS：未连接（本页未加载 rosbridge）
+
+后续可显示：奶缸位姿、液位传感器、调度状态等。</pre>
+					</section>
+					<section class="panel panel--status" aria-label="活动日志">
+						<h2>活动日志</h2>
+						<pre class="result-pre" id="latte-log-text"></pre>
+					</section>
+				</div>
+			</aside>
+		</div>
+	</main>
+
+	<script src="js/ivg_site_nav.js"></script>
+	<script src="js/coffee_latte_panel.js"></script>
+</body>
+</html>

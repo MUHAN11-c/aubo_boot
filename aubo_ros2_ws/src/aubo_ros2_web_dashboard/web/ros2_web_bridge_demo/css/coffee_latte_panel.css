@@ -1,0 +1,111 @@
+/**
+ * 咖啡拉花面板：复用视觉抓取页布局与组件，仅追加本页差异样式。
+ */
+@import url("vision_grasp_panel.css");
+
+/* 顶栏状态 pill（无 .gateway-row 包裹时） */
+.topbar .status.latte-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	color: var(--warn);
+	font-size: 12px;
+	font-weight: 600;
+	max-width: min(100%, 22rem);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.topbar .status.latte-status::before {
+	content: "";
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--warn);
+	flex-shrink: 0;
+	box-shadow: 0 0 0 2px rgba(180, 83, 9, 0.2);
+}
+
+.topbar .status.latte-status.is-idle {
+	color: var(--muted);
+	font-weight: 500;
+}
+
+.topbar .status.latte-status.is-idle::before {
+	background: var(--border-strong);
+	box-shadow: none;
+}
+
+.panel--latte-preview .panel-canvas-wrap {
+	min-height: 320px;
+}
+
+#latte-preview-canvas {
+	display: block;
+	width: 100%;
+	max-width: min(800px, 100%);
+	height: auto;
+	margin: 0 auto;
+	aspect-ratio: 4 / 3;
+	background: var(--canvas-bg);
+	border-radius: var(--radius-sm);
+}
+
+.latte-placeholder-note {
+	margin: 0.5rem 0 0;
+	font-size: 12px;
+	color: var(--muted);
+}
+
+.control-group--disabled-hint h3::after {
+	content: "（待接入）";
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--muted);
+	margin-left: 0.35rem;
+}
+
+/* 与 body.ivg-single-screen 配合：单屏内压缩拉花预览区与图表占位 */
+body.ivg-single-screen .panel--latte-preview .latte-placeholder-note {
+	flex-shrink: 0;
+	margin: 0.2rem 0 0;
+	font-size: 11px;
+	line-height: 1.35;
+	max-height: 2.8em;
+	overflow: hidden;
+}
+
+body.ivg-single-screen .panel--latte-preview .panel-canvas-wrap {
+	min-height: 0 !important;
+}
+
+/* #latte-preview-canvas 带 id 的基础样式会盖过类选择器；单屏左右栏内与相机画布一致 */
+body.ivg-single-screen .layout-camera-controls .panel--camera-hero #latte-preview-canvas {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100% !important;
+	height: 100% !important;
+	max-width: none;
+	margin: 0;
+	object-fit: contain;
+	object-position: center;
+	border-radius: 0;
+}
+
+body.ivg-single-screen .layout-col--main .panel--chart > .latte-placeholder-note {
+	flex-shrink: 0;
+	margin: 0.25rem 0 0;
+	font-size: 11px;
+	max-height: 2.6em;
+	overflow: hidden;
+}
+
+body.ivg-single-screen .layout-col--main .panel--chart > .panel-canvas-wrap {
+	flex: 1 1 0;
+	min-height: 0 !important;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}

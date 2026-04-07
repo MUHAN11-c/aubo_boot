@@ -1,4 +1,7 @@
-/* ROS 控制台 — 亮色主题 */
+/*
+ * topics_lab.html 专用样式：顶栏/网关条/侧栏/多主栈/图与 2D·3D 画布。
+ * 与门户 home.css 共用相近色板（--bg、--accent 等），保持视觉一致。
+ */
 :root {
 	--bg: #f6f8fc;
 	--bg-elevated: #ffffff;
@@ -41,6 +44,7 @@
 
 html {
 	height: 100%;
+	-webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -50,14 +54,18 @@ body {
 	line-height: 1.45;
 	background: var(--bg);
 	color: var(--text);
+	width: 100%;
+	max-width: 100vw;
 	height: 100%;
 	min-height: 0;
 	max-height: 100vh;
 	max-height: 100dvh;
+	max-height: -webkit-fill-available;
 	overflow: hidden;
 	display: flex;
 	flex-direction: column;
 	-webkit-font-smoothing: antialiased;
+	padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .topnav,
@@ -70,7 +78,7 @@ body {
 	display: flex;
 	align-items: center;
 	gap: 0.75rem 1rem;
-	padding: 0.5rem 1.1rem;
+	padding: 0.5rem max(1.1rem, env(safe-area-inset-left, 0px)) 0.5rem max(1.1rem, env(safe-area-inset-right, 0px));
 	background: var(--panel);
 	border-bottom: 1px solid var(--border);
 	box-shadow: var(--shadow-sm);
@@ -118,6 +126,47 @@ body {
 .topnav-spacer {
 	flex: 1;
 	min-width: 0.5rem;
+}
+.topnav-gateway {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.35rem 0.55rem;
+	max-width: min(100%, 42rem);
+}
+.topnav-gateway .gw-check {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	font-size: 12px;
+	color: var(--text-secondary);
+	cursor: pointer;
+	user-select: none;
+}
+.topnav-gateway .gw-label {
+	font-size: 11px;
+	color: var(--muted);
+	display: inline-flex;
+	align-items: center;
+	gap: 0.2rem;
+}
+.topnav-gateway .gw-port {
+	width: 3.1rem;
+	padding: 0.2rem 0.35rem;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	font-size: 12px;
+	background: var(--bg-elevated);
+	color: var(--text);
+}
+.topnav-gateway .gw-cred {
+	width: 5.5rem;
+	padding: 0.2rem 0.35rem;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	font-size: 12px;
+	background: var(--bg-elevated);
+	color: var(--text);
 }
 .topnav-actions {
 	display: flex;
@@ -188,7 +237,7 @@ body {
 .ivg-bar {
 	background: linear-gradient(105deg, rgba(37, 99, 235, 0.07) 0%, rgba(37, 99, 235, 0.02) 45%, transparent 100%);
 	border-bottom: 1px solid var(--border);
-	padding: 0.5rem 0.85rem;
+	padding: 0.5rem max(0.85rem, env(safe-area-inset-left, 0px)) 0.5rem max(0.85rem, env(safe-area-inset-right, 0px));
 	font-size: 11px;
 	color: var(--text-secondary);
 	display: flex;
@@ -261,7 +310,7 @@ body {
 	gap: 0.1rem;
 	border-bottom: 1px solid var(--border);
 	background: var(--panel-muted);
-	padding: 0 0.5rem;
+	padding: 0 max(0.5rem, env(safe-area-inset-left, 0px)) 0 max(0.5rem, env(safe-area-inset-right, 0px));
 	overflow-x: auto;
 	overflow-y: hidden;
 	-webkit-overflow-scrolling: touch;
@@ -727,14 +776,15 @@ canvas.viz-canvas {
 	flex: 1;
 	min-height: 0;
 	overflow: auto;
-	padding: 0.55rem 0.85rem;
+	-webkit-overflow-scrolling: touch;
+	padding: 0.55rem max(0.85rem, env(safe-area-inset-left, 0px)) 0.55rem max(0.85rem, env(safe-area-inset-right, 0px));
 	gap: 0.55rem;
 }
 
 .block-label { display: block; margin-top: 0.4rem; color: var(--muted); font-size: 11px; font-weight: 500; }
 .wide-input, .wide-text {
 	width: 100%;
-	max-width: 56rem;
+	max-width: 100%;
 	padding: 0.45rem 0.55rem;
 	background: var(--bg-elevated);
 	border: 1px solid var(--border);
@@ -883,4 +933,21 @@ canvas.viz-canvas {
 #btn-2d-stop:hover, #btn-3d-stop:hover {
 	border-color: var(--border-strong);
 	color: var(--text);
+}
+
+@media (hover: none) and (pointer: coarse), (max-width: 1024px) {
+	.btn-top {
+		min-height: 44px;
+		padding: 0.35rem 0.75rem;
+	}
+
+	.tabs button {
+		min-height: 44px;
+		padding: 0.45rem 0.65rem;
+	}
+
+	.ivg-bar button {
+		min-height: 40px;
+		padding: 0.35rem 0.55rem;
+	}
 }

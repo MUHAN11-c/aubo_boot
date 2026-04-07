@@ -82,39 +82,13 @@ public:
         std::string camera_node_name = "/" + camera_name_ + "/" + camera_name_;
         param_client_ = std::make_shared<rclcpp::SyncParametersClient>(this, camera_node_name);
         
-        // 尝试从相机节点获取序列号作为camera_id
-        // 等待参数服务可用
-        if (param_client_->wait_for_service(std::chrono::seconds(3))) {
-            try {
-                auto params = param_client_->get_parameters({"serial_number"});
-                if (!params.empty() && params[0].get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
-                    std::string serial_number = params[0].as_string();
-                    // 移除引号（如果launch文件中使用了引号）
-                    if (serial_number.length() > 2 && serial_number.front() == '"' && serial_number.back() == '"') {
-                        serial_number = serial_number.substr(1, serial_number.length() - 2);
-                    }
-                    if (!serial_number.empty() && serial_number != "\"\"" && serial_number != "") {
-                        camera_id_ = serial_number;
-                        RCLCPP_INFO(this->get_logger(), "从相机节点获取序列号: %s", camera_id_.c_str());
-                    } else {
-                        RCLCPP_WARN(this->get_logger(), "序列号为空，使用camera_name: %s", camera_name_.c_str());
-                    }
-                }
-            } catch (const std::exception& e) {
-                // 获取失败，使用camera_name作为fallback
-                RCLCPP_WARN(this->get_logger(), "无法从相机节点获取序列号 (%s)，使用camera_name: %s", 
-                           e.what(), camera_name_.c_str());
-            }
-        } else {
-            RCLCPP_WARN(this->get_logger(), "参数服务不可用，使用camera_name: %s", camera_name_.c_str());
-        }
-        
-        // 如果仍未获取到序列号，使用camera_name
-        if (camera_id_.empty()) {
-            camera_id_ = camera_name_;
-        }
-        
-        RCLCPP_INFO(this->get_logger(), "相机ID设置为: %s", camera_id_.c_str());
+        // 序列号改为定时重试读取：避免与 percipio_camera 刚开流时的高频回调争抢同一执行器，
+        // 导致 get_parameters 响应超时（camera 侧 rclcpp WARN: failed to send response ... timeout）。
+        camera_id_ = camera_name_;
+        RCLCPP_INFO(this->get_logger(), "相机ID暂用 camera_name: %s，将在后台重试读取序列号", camera_id_.c_str());
+        serial_fetch_timer_ = this->create_wall_timer(
+            std::chrono::milliseconds(500),
+            std::bind(&CameraControlNode::serialFetchTimerCallback, this));
         
         // 创建定时器发布状态
         status_timer_ = this->create_wall_timer(
@@ -134,6 +108,51 @@ public:
     }
 
 private:
+    static constexpr int kMaxSerialFetchAttempts = 40;
+
+    void serialFetchTimerCallback()
+    {
+        if (serial_resolved_) {
+            serial_fetch_timer_->cancel();
+            return;
+        }
+        serial_fetch_attempts_++;
+        try {
+            if (!param_client_->wait_for_service(std::chrono::milliseconds(200))) {
+                if (serial_fetch_attempts_ >= kMaxSerialFetchAttempts) {
+                    RCLCPP_WARN(this->get_logger(),
+                                "参数服务在多次重试后仍不可用，相机ID保持为 camera_name: %s",
+                                camera_name_.c_str());
+                    serial_fetch_timer_->cancel();
+                }
+                return;
+            }
+            auto params = param_client_->get_parameters({"serial_number"});
+            if (!params.empty() && params[0].get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                std::string serial_number = params[0].as_string();
+                if (serial_number.length() > 2 && serial_number.front() == '"' && serial_number.back() == '"') {
+                    serial_number = serial_number.substr(1, serial_number.length() - 2);
+                }
+                if (!serial_number.empty() && serial_number != "\"\"") {
+                    camera_id_ = serial_number;
+                    serial_resolved_ = true;
+                    serial_fetch_timer_->cancel();
+                    RCLCPP_INFO(this->get_logger(), "从相机节点获取序列号: %s", camera_id_.c_str());
+                    return;
+                }
+            }
+        } catch (const std::exception& e) {
+            RCLCPP_DEBUG(this->get_logger(), "读取序列号尝试 %d/%d: %s",
+                         serial_fetch_attempts_, kMaxSerialFetchAttempts, e.what());
+        }
+        if (serial_fetch_attempts_ >= kMaxSerialFetchAttempts) {
+            RCLCPP_WARN(this->get_logger(),
+                        "多次重试后仍无法从相机节点读取序列号，相机ID保持为: %s",
+                        camera_id_.c_str());
+            serial_fetch_timer_->cancel();
+        }
+    }
+
     void cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPtr msg)
     {
         // 依据：从percipio_camera节点发布的/color/camera_info话题获取分辨率
@@ -353,6 +372,9 @@ private:
     
     rclcpp::SyncParametersClient::SharedPtr param_client_;
     rclcpp::TimerBase::SharedPtr status_timer_;
+    rclcpp::TimerBase::SharedPtr serial_fetch_timer_;
+    bool serial_resolved_{false};
+    int serial_fetch_attempts_{0};
     
     // 状态变量
     std::string camera_id_;

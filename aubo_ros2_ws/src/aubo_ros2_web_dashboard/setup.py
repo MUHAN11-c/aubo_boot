@@ -1,3 +1,9 @@
+"""
+ament_python 包定义：
+  aubo_ros2_web_dashboard：占位包名（resource/ 索引）；
+  ivg_gateway：FastAPI 网关源码，位于 gateway/ivg_gateway，随 colcon 装入 Python 路径；
+  data_files：launch、package.xml、静态 web 资源安装到 share。
+"""
 import os
 from collections import defaultdict
 from glob import glob
@@ -22,7 +28,9 @@ def web_data_files():
 setup(
     name=PKG,
     version='0.2.0',
-    packages=[PKG],
+    packages=[PKG, 'ivg_gateway'],
+    # ivg_gateway 物理路径在 gateway 子目录，与 ament 包根并列
+    package_dir={'ivg_gateway': os.path.join('gateway', 'ivg_gateway')},
     data_files=[
         ('share/ament_index/resource_index/packages', [f'resource/{PKG}']),
         (f'share/{PKG}', ['package.xml']),

@@ -7,7 +7,8 @@ if [ -z "${BASH_VERSION:-}" ]; then
 fi
 
 # IVG 完整启动脚本（GraspNet Points + FastAPI Web + aubo_ros2_web_dashboard）
-# 在 start_IVG_graspnet_points_fastapi.sh 基础上增加：rosbridge + tf2_web_republisher + 静态 ROS Web 控制台（默认 8090/9090）
+# 在 start_IVG_graspnet_points_fastapi.sh 基础上增加：rosbridge + tf2_web_republisher + 静态站（默认 8090/9090）
+# Web 栈使用 web_dashboard.launch.py：浏览器直连 rosbridge（ws://主机:rosbridge_port），不经 FastAPI 网关。
 # 使用 terminator 创建分屏终端
 
 set -e
@@ -97,13 +98,23 @@ ivg_lan_ipv4_addrs() {
     fi | grep -vE '^(127\.|169\.254\.)' | grep -v '^$' | sort -u
 }
 
-ivg_topics_lab_url() {
-    local host="$1"
-    local u="http://${host}:${WEB_DASH_PORT}/topics_lab.html"
+# 静态页 URL（与前端 ?rosbridge_port= 约定一致，供直连 rosbridge）
+ivg_rosbridge_query() {
     if [ "${ROSBRIDGE_PORT}" != "9090" ]; then
-        u="${u}?rosbridge_port=${ROSBRIDGE_PORT}"
+        printf '%s' "?rosbridge_port=${ROSBRIDGE_PORT}"
+    else
+        printf '%s' ""
     fi
-    printf '%s' "$u"
+}
+
+ivg_web_dash_url() {
+    local host="$1"
+    local path="$2"
+    printf 'http://%s:%s/%s%s' "$host" "$WEB_DASH_PORT" "$path" "$(ivg_rosbridge_query)"
+}
+
+ivg_topics_lab_url() {
+    ivg_web_dash_url "$1" "topics_lab.html"
 }
 
 ivg_print_access_urls() {
@@ -113,8 +124,13 @@ ivg_print_access_urls() {
     echo -e "${GREEN}手眼标定 Web:       http://${lh}:${HAND_EYE_PORT}/${NC}"
     echo -e "${GREEN}VPE FastAPI:        http://${lh}:${WEB_PORT}/${NC}"
     echo -e "${GREEN}VPE 旧版 UI:        http://${lh}:${WEB_PORT}/legacy-ui/index.html${NC}"
-    echo -e "${GREEN}ROS Web（RWT）:     http://${lh}:${WEB_DASH_PORT}/${NC}"
-    echo -e "${GREEN}ROS 控制台 topics_lab: $(ivg_topics_lab_url "$lh")${NC}"
+    echo ""
+    echo -e "${BLUE}灵视 IVG 静态站（直连 rosbridge ws://${lh}:${ROSBRIDGE_PORT}，非网关）${NC}"
+    echo -e "${GREEN}  门户首页:         $(ivg_web_dash_url "$lh" "index.html")${NC}"
+    echo -e "${GREEN}  视觉抓取面板:     $(ivg_web_dash_url "$lh" "vision_grasp_panel.html")${NC}"
+    echo -e "${GREEN}  咖啡拉花面板:     $(ivg_web_dash_url "$lh" "coffee_latte_panel.html")${NC}"
+    echo -e "${GREEN}  ROS 控制台:       $(ivg_topics_lab_url "$lh")${NC}"
+    echo -e "${GREEN}  静态根目录列表:   http://${lh}:${WEB_DASH_PORT}/${NC}"
 
     local -a lan_ips=()
     mapfile -t lan_ips < <(ivg_lan_ipv4_addrs)
@@ -126,12 +142,13 @@ ivg_print_access_urls() {
 
     echo ""
     echo -e "${BLUE}──────── 局域网（手机/平板等与 PC 同 Wi‑Fi）────────${NC}"
-    echo -e "${GREEN}ROS Web / topics_lab 默认监听 0.0.0.0，下列链接一般可直接用；${NC}"
-    echo -e "${GREEN}页面会通过当前主机名连接 rosbridge（ws://同一 IP:${ROSBRIDGE_PORT}）。${NC}"
+    echo -e "${GREEN}静态站监听 ${WEB_DASH_HOST}:${WEB_DASH_PORT}；页面按当前主机名直连 rosbridge（ws://同一 IP:${ROSBRIDGE_PORT}）。${NC}"
     local ip
     for ip in "${lan_ips[@]}"; do
-        echo -e "${GREEN}  [${ip}] ROS Web:     http://${ip}:${WEB_DASH_PORT}/${NC}"
-        echo -e "${GREEN}  [${ip}] topics_lab:  $(ivg_topics_lab_url "$ip")${NC}"
+        echo -e "${GREEN}  [${ip}] 门户:          $(ivg_web_dash_url "$ip" "index.html")${NC}"
+        echo -e "${GREEN}  [${ip}] 视觉抓取:      $(ivg_web_dash_url "$ip" "vision_grasp_panel.html")${NC}"
+        echo -e "${GREEN}  [${ip}] 咖啡拉花:      $(ivg_web_dash_url "$ip" "coffee_latte_panel.html")${NC}"
+        echo -e "${GREEN}  [${ip}] ROS 控制台:    $(ivg_topics_lab_url "$ip")${NC}"
     done
 
     if [ "${WEB_HOST}" = "127.0.0.1" ] || [ "${WEB_HOST}" = "localhost" ]; then
@@ -243,8 +260,8 @@ launch_in_terminator "Visual Pose Web FastAPI" "$FASTAPI_WEB_CMD"
 echo -e "${GREEN}  ✓ FastAPI Web 服务已启动${NC}"
 sleep 3
 
-# 步骤14: rosbridge + tf2_web_republisher + 静态页（aubo_ros2_web_dashboard）
-echo -e "${GREEN}[14/15] 启动 ROS Web 控制台（rosbridge + tf2_web + 静态站 ${WEB_DASH_HOST}:${WEB_DASH_PORT}，WS ${ROSBRIDGE_PORT}）...${NC}"
+# 步骤14: rosbridge + tf2_web_republisher + 静态页（直连 web_dashboard.launch.py，无网关）
+echo -e "${GREEN}[14/15] 启动灵视 IVG 静态站（rosbridge 端口 ${ROSBRIDGE_PORT} 直连 / 浏览器 ws://本机IP:${ROSBRIDGE_PORT}；HTTP ${WEB_DASH_HOST}:${WEB_DASH_PORT}）...${NC}"
 WEB_DASH_CMD="$WS_ENV && ${WEB_DASH_UNSET_PROXY}ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_host:=${WEB_DASH_HOST} web_port:=${WEB_DASH_PORT} rosbridge_port:=${ROSBRIDGE_PORT}"
 launch_in_terminator "IVG Web Dashboard (rosbridge)" "$WEB_DASH_CMD"
 echo -e "${GREEN}  ✓ ROS Web 控制台已启动${NC}"

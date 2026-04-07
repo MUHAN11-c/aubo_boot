@@ -1,11 +1,13 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<!-- ament_python：静态 web + launch；Python 网关见 gateway/ivg_gateway，运行依赖 pip requirements -->
 <package format="3">
   <name>aubo_ros2_web_dashboard</name>
   <version>0.2.0</version>
   <description>
     IVG Web stack: rosbridge_suite + tf2_web_republisher + static hosting of the official
     RobotWebTools ros2-web-bridge demo (see web/ros2_web_bridge_demo, upstream Apache-2.0).
+    Optional FastAPI gateway (gateway/ivg_gateway): JWT、审计、WS 代理至 rosbridge；依赖 pip 安装 gateway/requirements.txt。
   </description>
   <maintainer email="maintainer@example.com">IVG</maintainer>
   <license>Apache-2.0</license>

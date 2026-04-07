@@ -1,0 +1,155 @@
+/*
+ * 灵视IVG 全站主导航：门户 / 视觉抓取 / 咖啡拉花 / ROS 控制台
+ * 与 topics_lab / home / vision_grasp_panel 共用；颜色变量优先用页面已定义的 --accent 等。
+ */
+.ivg-global-nav {
+	--ivg-nav-bg: var(--panel, #ffffff);
+	--ivg-nav-border: var(--border, #d8dee8);
+	--ivg-nav-text: var(--text, #1e293b);
+	--ivg-nav-muted: var(--muted, #64748b);
+	--ivg-nav-accent: var(--accent, #2563eb);
+	--ivg-nav-accent-soft: var(--accent-soft, rgba(37, 99, 235, 0.1));
+
+	position: sticky;
+	top: 0;
+	z-index: 250;
+	background: var(--ivg-nav-bg);
+	border-bottom: 1px solid var(--ivg-nav-border);
+	box-shadow: var(--shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.06));
+	flex-shrink: 0;
+	/* iPad / 刘海屏：内容避开顶部安全区 */
+	padding-top: env(safe-area-inset-top, 0px);
+}
+
+.ivg-global-nav__inner {
+	width: 100%;
+	max-width: none;
+	margin: 0 auto;
+	padding: 0.45rem max(1.1rem, env(safe-area-inset-left, 0px)) 0.45rem max(1.1rem, env(safe-area-inset-right, 0px));
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 1rem;
+}
+
+.ivg-global-nav__brand {
+	font-weight: 700;
+	font-size: 0.9rem;
+	letter-spacing: -0.02em;
+	color: var(--ivg-nav-text);
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.ivg-global-nav__brand span {
+	color: var(--ivg-nav-accent);
+}
+
+.ivg-global-nav__brand:hover {
+	text-decoration: none;
+	color: var(--ivg-nav-accent);
+}
+
+.ivg-global-nav__list {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.2rem 0.35rem;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.ivg-global-nav__list li {
+	margin: 0;
+	padding: 0;
+}
+
+.ivg-global-nav__link {
+	display: inline-block;
+	padding: 0.32rem 0.7rem;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--ivg-nav-muted);
+	text-decoration: none;
+	border-radius: 6px;
+	transition: color 0.15s, background 0.15s;
+	white-space: nowrap;
+}
+
+.ivg-global-nav__link:hover {
+	color: var(--ivg-nav-accent);
+	background: var(--ivg-nav-accent-soft);
+	text-decoration: none;
+}
+
+.ivg-global-nav__link:focus-visible {
+	outline: 2px solid var(--ivg-nav-accent);
+	outline-offset: 2px;
+}
+
+.ivg-global-nav__link.is-active,
+.ivg-global-nav__link[aria-current="page"] {
+	background: var(--ivg-nav-accent);
+	color: #fff;
+}
+
+.ivg-global-nav__link.is-active:hover,
+.ivg-global-nav__link[aria-current="page"]:hover {
+	color: #fff;
+	background: var(--accent-hover, #1d4ed8);
+}
+
+/* 门户页：全站导航下的本页锚点（仅 index 使用） */
+.ivg-page-nav {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.2rem 0.35rem;
+	padding: 0.4rem max(1.1rem, env(safe-area-inset-left, 0px)) 0.4rem max(1.1rem, env(safe-area-inset-right, 0px));
+	background: var(--panel-muted, #f0f3f9);
+	border-bottom: 1px solid var(--border, #d8dee8);
+	font-size: 12px;
+}
+
+.ivg-page-nav a {
+	color: var(--muted, #64748b);
+	text-decoration: none;
+	font-weight: 500;
+	padding: 0.2rem 0.35rem;
+	border-radius: 4px;
+}
+
+.ivg-page-nav a:hover {
+	color: var(--accent, #2563eb);
+	background: var(--accent-soft, rgba(37, 99, 235, 0.1));
+}
+
+.ivg-page-nav__sep {
+	color: var(--border-strong, #c5cdd9);
+	user-select: none;
+	margin: 0 0.1rem;
+}
+
+/* 平板 / 触控：导航可点区域不低于约 44px（Apple HIG） */
+@media (hover: none) and (pointer: coarse), (max-width: 1024px) {
+	.ivg-global-nav__brand {
+		display: inline-flex;
+		align-items: center;
+		min-height: 44px;
+	}
+
+	.ivg-global-nav__link {
+		display: inline-flex;
+		align-items: center;
+		min-height: 44px;
+		padding: 0.35rem 0.85rem;
+	}
+
+	.ivg-page-nav a {
+		display: inline-flex;
+		align-items: center;
+		min-height: 44px;
+		padding: 0.25rem 0.5rem;
+	}
+}

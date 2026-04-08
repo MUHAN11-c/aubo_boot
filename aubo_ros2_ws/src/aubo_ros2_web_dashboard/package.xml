@@ -1,13 +1,13 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
-<!-- ament_python：静态 web + launch；Python 网关见 gateway/ivg_gateway，运行依赖 pip requirements -->
+<!-- ament_python：静态 web + launch -->
 <package format="3">
   <name>aubo_ros2_web_dashboard</name>
   <version>0.2.0</version>
   <description>
-    IVG Web stack: rosbridge_suite + tf2_web_republisher + static hosting of the official
-    RobotWebTools ros2-web-bridge demo (see web/ros2_web_bridge_demo, upstream Apache-2.0).
-    Optional FastAPI gateway (gateway/ivg_gateway): JWT、审计、WS 代理至 rosbridge；依赖 pip 安装 gateway/requirements.txt。
+    IVG Web stack: RobotWebTools rosbridge_suite (WebSocket rosbridge + rosapi) + tf2_web_republisher,
+    static HTTP document root at web/public (evolved from RobotWebTools ros2-web-bridge conference demo,
+    upstream Apache-2.0). Browser uses roslibjs against rosbridge; no Node.js ros2-web-bridge at runtime.
   </description>
   <maintainer email="maintainer@example.com">IVG</maintainer>
   <license>Apache-2.0</license>
@@ -17,9 +17,11 @@
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>ament_index_python</exec_depend>
-  <exec_depend>rosbridge_server</exec_depend>
-  <exec_depend>rosapi</exec_depend>
+  <!-- 与 apt ros-${ROS_DISTRO}-rosbridge-suite 一致：含 rosbridge_server、rosbridge_library、rosapi -->
+  <exec_depend>rosbridge_suite</exec_depend>
   <exec_depend>tf2_web_republisher</exec_depend>
+  <!-- RobotWebTools：HTTP MJPEG/快照，减轻 sensor_msgs/Image 经 rosbridge 的 JSON 负载 -->
+  <exec_depend>web_video_server</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

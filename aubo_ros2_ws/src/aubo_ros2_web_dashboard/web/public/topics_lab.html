@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- ROS 2 控制台：结构分顶栏(连接/网关)、IVG 快捷条、标签页、侧栏列表 + 主内容区；逻辑在 ros_console.js -->
+<!-- ROS 2 控制台：顶栏连接、IVG 快捷条、标签页、侧栏列表 + 主内容区；逻辑在 ros_console.js -->
 <html lang="zh-CN">
 
 <head>
@@ -14,6 +14,7 @@
 	<script src="js/vendor/ros2d.min.js"></script>
 	<script src="js/vendor/three.min.js"></script>
 	<script src="js/vendor/OrbitControls.js"></script>
+	<script src="js/ivg_web_video.js"></script>
 </head>
 
 <body>
@@ -31,24 +32,9 @@
 	<nav class="topnav" aria-label="工具栏与连接">
 		<div class="topnav-start">
 			<span class="topnav-title">ROS 控制台</span>
-			<span class="topnav-sub">直连 <code class="topnav-code">?rosbridge_port=</code> · 网关 <code
-					class="topnav-code">?ros_mode=gateway</code></span>
+			<span class="topnav-sub">直连 rosbridge：<code class="topnav-code">?rosbridge_port=9090</code></span>
 		</div>
 		<span class="topnav-spacer" aria-hidden="true"></span>
-		<div class="topnav-gateway" id="topnav-gateway" aria-label="FastAPI 网关">
-			<label class="gw-check" title="经网关连接 rosbridge（JWT）；浏览器不直连 rosbridge">
-				<input type="checkbox" id="use-gateway" />
-				经网关
-			</label>
-			<label class="gw-label">端口 <input type="text" class="ivg-port gw-port" id="gateway-port" value="8765"
-					inputmode="numeric" aria-label="网关端口" /></label>
-			<input type="text" id="gw-user" class="gw-cred" placeholder="用户" autocomplete="username"
-				aria-label="网关用户名" />
-			<input type="password" id="gw-pass" class="gw-cred" placeholder="密码" autocomplete="current-password"
-				aria-label="网关密码" />
-			<button type="button" class="btn-top" id="btn-gw-login">登录</button>
-			<button type="button" class="btn-top" id="btn-gw-logout">登出</button>
-		</div>
 		<div class="topnav-actions">
 			<button type="button" id="btn-reconnect" class="btn-top" title="重新连接 WebSocket">重连</button>
 			<span id="conn-status" class="status" role="status" aria-live="polite">未连接</span>
@@ -86,6 +72,10 @@
 		<button type="button" data-ivg="svc-estimate-hint">estimate_pose 说明</button>
 		<span class="ivg-sep">|</span>
 		<button type="button" data-ivg="topics-status">订阅 /system_status</button>
+		<span class="ivg-sep">|</span>
+		<span class="ivg-webvid ivg-webvid-hint" title="sensor_msgs/Image 经 web_video_server MJPEG，不经 rosbridge">web_video</span>
+		<label class="ivg-webvid">端口 <input type="text" class="ivg-port" id="web-video-port" value="8089"
+				inputmode="numeric" aria-label="web_video_server 端口" title="默认 8089；与 launch web_video_port 一致" /></label>
 	</div>
 	<div class="tabs" role="tablist" aria-label="主功能">
 		<button type="button" role="tab" data-tab="topics" id="tab-topics" class="active"
@@ -120,8 +110,7 @@
 					<button type="button" id="btn-unsub-topic" class="btn-inline">停止订阅</button>
 					<label>节流 ms <input type="number" id="throttle-ms" value="80" min="0" step="10"
 							title="消息刷新最小间隔；改小更实时，改大减 CPU" /></label>
-					<span class="hint">直连
-						rosbridge：<code>?rosbridge_port=</code>；网关：<code>?ros_mode=gateway&amp;gateway_port=8765</code></span>
+					<span class="hint">rosbridge：<code>?rosbridge_port=</code>；视频：<code>?web_video_port=8089</code></span>
 				</div>
 				<div class="panels">
 					<div class="panel">
@@ -172,7 +161,8 @@
 			<main id="main-graph" class="main-stack hidden">
 				<p class="hint">数据来自 <code>/rosapi/nodes</code> 与
 					<code>node_details</code>。<strong>逻辑图</strong>：节点–节点力导向（经话题隐式相连）。<strong>架构图</strong>：按命名空间分组框 +
-					组间通信汇总。</p>
+					组间通信汇总。
+				</p>
 				<div class="graph-toolbar" role="toolbar" aria-label="关系图视图">
 					<button type="button" id="btn-build-graph">重新计算关系图</button>
 					<span class="graph-toolbar-sep" aria-hidden="true">|</span>
@@ -198,8 +188,7 @@
 				<div id="view2d-host" class="view2d-host"></div>
 			</main>
 			<main id="main-view3d" class="main-stack hidden">
-				<p class="hint">Three.js r128：<code>sensor_msgs/msg/PointCloud2</code>（xyz float32）与可选 LaserScan。无
-					TF，数据在传感器坐标系显示。</p>
+				<p class="hint">Three.js r128：<code>sensor_msgs/msg/PointCloud2</code>（xyz float32）与可选 LaserScan；点云按步进采样 + 每帧合并更新，减轻主线程压力。无 TF，数据在传感器坐标系显示。</p>
 				<div class="controls row-form">
 					<label>点云话题 <input type="text" id="pc-topic" value="" placeholder="/points 或留空" /></label>
 					<label>雷达话题 <input type="text" id="scan3-topic" value="" placeholder="可选" /></label>

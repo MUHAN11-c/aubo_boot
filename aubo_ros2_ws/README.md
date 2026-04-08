@@ -151,7 +151,7 @@ source install/setup.bash
 
 **`start_IVG_graspnet_points_fastapi_web_dashboard.sh`**：步骤 **0–13** 与上表相同；**14**. `ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py`；**15**. `ros2 bag record`（同上）。
 
-**`start_IVG_web_dashboard.sh`**（若仓库中保留该脚本）：步骤 0–12、14 与 **`start_IVG_graspnet_points_fastapi.sh`** 对应步骤相同；步骤 **13** 为 `ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py`，常用环境变量：**`WEB_DASH_HOST`**（默认 `0.0.0.0`）、**`WEB_DASH_PORT`**（默认 `8090`）、**`ROSBRIDGE_PORT`**（默认 `9090`）、**`IVG_STRIP_PROXY_FOR_DASH_LAUNCH`**（默认 `true`）。预检 **rosapi / tf2_web_republisher_node / 本包 / `web/ros2_web_bridge_demo` 安装** 与 **rosbridge 端口占用**。若 **`ROSBRIDGE_PORT` ≠ 9090**，浏览器访问 **`http://<host>:<WEB_DASH_PORT>/?rosbridge_port=<端口>`**。系统 deb：**`ros-humble-rosapi`**、**`ros-humble-rosbridge-suite`**、**`ros-humble-tf2-web-republisher`**。
+**`start_IVG_web_dashboard.sh`**（若仓库中保留该脚本）：步骤 0–12、14 与 **`start_IVG_graspnet_points_fastapi.sh`** 对应步骤相同；步骤 **13** 为 `ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py`，常用环境变量：**`WEB_DASH_HOST`**（默认 `0.0.0.0`）、**`WEB_DASH_PORT`**（默认 `8090`）、**`ROSBRIDGE_PORT`**（默认 `9090`）、**`IVG_STRIP_PROXY_FOR_DASH_LAUNCH`**（默认 `true`）。预检 **rosapi / tf2_web_republisher_node / 本包 / `web/public` 安装** 与 **rosbridge 端口占用**。若 **`ROSBRIDGE_PORT` ≠ 9090**，浏览器访问 **`http://<host>:<WEB_DASH_PORT>/?rosbridge_port=<端口>`**。系统 deb：**`ros-humble-rosapi`**、**`ros-humble-rosbridge-suite`**、**`ros-humble-tf2-web-republisher`**。
 
 **Web 入口（典型）**：
 
@@ -160,7 +160,7 @@ source install/setup.bash
 - RWT ros2-web-bridge 官方 demo（本包托管）：**http://127.0.0.1:8090/**（可用 `WEB_DASH_PORT` 修改；与 rosbridge 端口不一致时加查询参数 **`?rosbridge_port=`**）
 - ROS 控制台（话题订阅可视化、服务调用、动作与参数列表、节点关系图、2D 地图/雷达、3D 点云/雷达；**IVG 快捷条**对齐 IVG 默认话题与服务）：**http://127.0.0.1:8090/topics_lab.html**（亦可通过 **`start_IVG_graspnet_points_fastapi_web_dashboard.sh`** 一并拉起）
 
-`aubo_ros2_web_dashboard` 目录内**只有**静态前端（`web/ros2_web_bridge_demo/`）与 **ROS 2 包元数据 + launch**（`package.xml`、`setup.py`、`launch/web_dashboard.launch.py`）：用 `python3 -m http.server` 托管页面、**不包含**业务层 FastAPI/自定义网关；与机器人的交互经系统 **`rosbridge_suite`**（WebSocket）完成。
+`aubo_ros2_web_dashboard` 目录内**只有**静态前端（`web/public/`，HTTP 文档根）与 **ROS 2 包元数据 + launch**（`package.xml`、`setup.py`、`launch/web_dashboard.launch.py`）：用 **`threaded_static_server`** 托管页面、**不包含**业务层 FastAPI/自定义网关；与机器人的交互经系统 **`rosbridge_suite`**（WebSocket）完成。
 
 ---
 

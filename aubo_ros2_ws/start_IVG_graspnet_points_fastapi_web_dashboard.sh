@@ -7,8 +7,9 @@ if [ -z "${BASH_VERSION:-}" ]; then
 fi
 
 # IVG 完整启动脚本（GraspNet Points + FastAPI Web + aubo_ros2_web_dashboard）
-# 在 start_IVG_graspnet_points_fastapi.sh 基础上增加：rosbridge + tf2_web_republisher + 静态站（默认 8090/9090）
+# 在 start_IVG_graspnet_points_fastapi.sh 基础上增加：rosbridge + tf2_web_republisher + web_video_server + 静态站
 # Web 栈使用 web_dashboard.launch.py：浏览器直连 rosbridge（ws://主机:rosbridge_port），不经 FastAPI 网关。
+# 端口：WEB_DASH_PORT=8090 静态页；WEB_VIDEO_PORT=8089 MJPEG（与 HAND_EYE_PORT=8080 手眼 Web 区分）；ROSBRIDGE_PORT=9090。
 # 使用 terminator 创建分屏终端
 
 set -e
@@ -41,6 +42,8 @@ IVG_ROSBAG_DIR="${IVG_ROSBAG_DIR:-${AUBO_ROS2_WS}/rosbags/ivg_session}"
 IVG_ROSBAG_TOPICS="${IVG_ROSBAG_TOPICS:-}"
 # 手眼 Web 端口（仅用于结束时的链接提示；实际以 hand_eye launch 为准）
 HAND_EYE_PORT="${HAND_EYE_PORT:-8080}"
+# web_video_server（MJPEG），默认 8089，避免与手眼 8080、静态站 8090、FastAPI 8088 冲突
+WEB_VIDEO_PORT="${WEB_VIDEO_PORT:-8089}"
 
 if [ "${IVG_STRIP_PROXY_FOR_DASH_LAUNCH}" = "true" ]; then
     WEB_DASH_UNSET_PROXY='unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY NO_PROXY no_proxy; '
@@ -131,6 +134,7 @@ ivg_print_access_urls() {
     echo -e "${GREEN}  咖啡拉花面板:     $(ivg_web_dash_url "$lh" "coffee_latte_panel.html")${NC}"
     echo -e "${GREEN}  ROS 控制台:       $(ivg_topics_lab_url "$lh")${NC}"
     echo -e "${GREEN}  静态根目录列表:   http://${lh}:${WEB_DASH_PORT}/${NC}"
+    echo -e "${GREEN}  MJPEG 相机流:     http://${lh}:${WEB_VIDEO_PORT}/ （web_video_server；控制台/视觉页「视频端口」填 ${WEB_VIDEO_PORT}）${NC}"
 
     local -a lan_ips=()
     mapfile -t lan_ips < <(ivg_lan_ipv4_addrs)
@@ -149,6 +153,7 @@ ivg_print_access_urls() {
         echo -e "${GREEN}  [${ip}] 视觉抓取:      $(ivg_web_dash_url "$ip" "vision_grasp_panel.html")${NC}"
         echo -e "${GREEN}  [${ip}] 咖啡拉花:      $(ivg_web_dash_url "$ip" "coffee_latte_panel.html")${NC}"
         echo -e "${GREEN}  [${ip}] ROS 控制台:    $(ivg_topics_lab_url "$ip")${NC}"
+        echo -e "${GREEN}  [${ip}] MJPEG:         http://${ip}:${WEB_VIDEO_PORT}/${NC}"
     done
 
     if [ "${WEB_HOST}" = "127.0.0.1" ] || [ "${WEB_HOST}" = "localhost" ]; then
@@ -260,9 +265,9 @@ launch_in_terminator "Visual Pose Web FastAPI" "$FASTAPI_WEB_CMD"
 echo -e "${GREEN}  ✓ FastAPI Web 服务已启动${NC}"
 sleep 3
 
-# 步骤14: rosbridge + tf2_web_republisher + 静态页（直连 web_dashboard.launch.py，无网关）
-echo -e "${GREEN}[14/15] 启动灵视 IVG 静态站（rosbridge 端口 ${ROSBRIDGE_PORT} 直连 / 浏览器 ws://本机IP:${ROSBRIDGE_PORT}；HTTP ${WEB_DASH_HOST}:${WEB_DASH_PORT}）...${NC}"
-WEB_DASH_CMD="$WS_ENV && ${WEB_DASH_UNSET_PROXY}ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_host:=${WEB_DASH_HOST} web_port:=${WEB_DASH_PORT} rosbridge_port:=${ROSBRIDGE_PORT}"
+# 步骤14: rosbridge + tf2_web_republisher + web_video_server + 静态页（直连 web_dashboard.launch.py，无网关）
+echo -e "${GREEN}[14/15] 启动灵视 IVG 静态站（rosbridge ${ROSBRIDGE_PORT}；HTTP ${WEB_DASH_HOST}:${WEB_DASH_PORT}；MJPEG web_video_server ${WEB_VIDEO_PORT}）...${NC}"
+WEB_DASH_CMD="$WS_ENV && ${WEB_DASH_UNSET_PROXY}ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_host:=${WEB_DASH_HOST} web_port:=${WEB_DASH_PORT} rosbridge_port:=${ROSBRIDGE_PORT} web_video_port:=${WEB_VIDEO_PORT}"
 launch_in_terminator "IVG Web Dashboard (rosbridge)" "$WEB_DASH_CMD"
 echo -e "${GREEN}  ✓ ROS Web 控制台已启动${NC}"
 sleep 2

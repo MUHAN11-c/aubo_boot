@@ -1,66 +1,73 @@
 /* global ROSLIB, ROS2D, createjs, THREE */
-/* topics_lab 主逻辑：话题/服务/参数/图/2D/3D + 可选 FastAPI 网关连接（见下方「经网关」注释块）。
- * 脚本体为 ES2015+（let/const、箭头函数、模板字符串等），需现代浏览器。 */
+/* topics_lab：话题/服务/参数/图/2D/3D。Image（非 Compressed）→ web_video_server MJPEG（?web_video_port=）。 */
 (() => {
-    /** 当前 ROSLIB.Ros 实例；直连时为 rosbridge，经网关时为 /ws/ros 代理。 */
-    let ros = null;
-    let activeTopic = null;
-    /** 每次取消订阅 +1，用于丢弃旧 Topic 在 dispose 后仍可能到达的回调（避免 raw JSON / 视图刷成上一话题） */
-    let subscriptionSeq = 0;
-    /** 侧边栏异步列表请求代数，避免快速输入过滤时旧 getTopics 覆盖新结果 */
-    let topicsListReq = 0;
-    let servicesListReq = 0;
-    let nodesListReq = 0;
-    let actionsListReq = 0;
-    let paramsListReq = 0;
-    let paramFetchSeq = 0;
-    /** 节点关系图串行构建代数；切换离开「图」标签或再次点击计算时递增，丢弃过期回调 */
-    let graphBuildSeq = 0;
-    /** 最近一次计算结果，用于在「逻辑图 / 架构图」间切换不重查 rosapi */
-    let graphModel = null;
-    /** 侧栏列表并发 rosapi 请求数，用于统一「加载中」与刷新按钮禁用（参考常见控制台 UX） */
-    let sidebarListInflight = 0;
-    let filterDebounceTimer = null;
-    let throttleMs = 80;
-    let lastEmit = 0;
-    let selectedName = '';
-    let selectedType = '';
-    let tab = 'topics';
-    let selectedService = '';
-    let selectedParam = '';
-    let selectedAction = '';
-    let mapTopicSub = null;
-    let scanTopicSub = null;
-    let viewer2d = null;
-    let gridRoot = null;
-    let scanShape = null;
-    let pcTopicSub = null;
-    let scan3TopicSub = null;
-    let threeRenderer = null;
-    let threeScene = null;
-    let threeCamera = null;
-    let threeControls = null;
-    let pointsObj = null;
-    let anim3d = null;
+	/** 当前 ROSLIB.Ros 实例（直连 rosbridge WebSocket）。 */
+	let ros = null;
+	let activeTopic = null;
+	/** 每次取消订阅 +1，用于丢弃旧 Topic 在 dispose 后仍可能到达的回调（避免 raw JSON / 视图刷成上一话题） */
+	let subscriptionSeq = 0;
+	/** 侧边栏异步列表请求代数，避免快速输入过滤时旧 getTopics 覆盖新结果 */
+	let topicsListReq = 0;
+	let servicesListReq = 0;
+	let nodesListReq = 0;
+	let actionsListReq = 0;
+	let paramsListReq = 0;
+	let paramFetchSeq = 0;
+	/** 节点关系图串行构建代数；切换离开「图」标签或再次点击计算时递增，丢弃过期回调 */
+	let graphBuildSeq = 0;
+	/** 最近一次计算结果，用于在「逻辑图 / 架构图」间切换不重查 rosapi */
+	let graphModel = null;
+	/** 侧栏列表并发 rosapi 请求数，用于统一「加载中」与刷新按钮禁用（参考常见控制台 UX） */
+	let sidebarListInflight = 0;
+	let filterDebounceTimer = null;
+	let throttleMs = 80;
+	let lastEmit = 0;
+	let selectedName = '';
+	let selectedType = '';
+	let tab = 'topics';
+	let selectedService = '';
+	let selectedParam = '';
+	let selectedAction = '';
+	let mapTopicSub = null;
+	let scanTopicSub = null;
+	let viewer2d = null;
+	let gridRoot = null;
+	let scanShape = null;
+	let pcTopicSub = null;
+	let scan3TopicSub = null;
+	let threeRenderer = null;
+	let threeScene = null;
+	let threeCamera = null;
+	let threeControls = null;
+	let pointsObj = null;
+	let anim3d = null;
+	/** 话题页 viz 渲染合并到下一帧，避免 rosbridge 回调内直接改 DOM 造成掉帧（RobotWebTools/roslib 高频消息场景） */
+	let topicVizRaf = null;
+	/** 当前话题为 web_video_server MJPEG，未创建 ROSLIB.Topic */
+	let webVideoStreamMode = false;
+	let pcUpdateRaf = null;
+	let pcPendingMsg = null;
+	let scan3UpdateRaf = null;
+	let scan3PendingMsg = null;
 
-    /** 亮色主题画布色（与 topics_lab.css 一致） */
-    const VIZ_CANVAS_BG = '#e8ecf2';
-    const LASER_STROKE = '#15803d';
-    const LASER_ARC_STROKE = '#94a3b8';
-    const GRAPH_BG = '#f1f5f9';
-    const GRAPH_EDGE = 'rgba(37, 99, 235, 0.38)';
-    const GRAPH_NODE = '#16a34a';
-    const GRAPH_LABEL = '#334155';
-    const GRAPH_ARCH_BOX = 'rgba(255, 255, 255, 0.94)';
-    const GRAPH_ARCH_STROKE = '#94a3b8';
-    const GRAPH_ARCH_TITLE = '#0f172a';
-    const GRAPH_ARCH_MEMBER = '#475569';
-    const GRAPH_ARCH_EDGE = 'rgba(37, 99, 235, 0.28)';
-    const ROS2D_VIEWER_BG = '#eef1f6';
+	/** 亮色主题画布色（与 topics_lab.css 一致） */
+	const VIZ_CANVAS_BG = '#e8ecf2';
+	const LASER_STROKE = '#15803d';
+	const LASER_ARC_STROKE = '#94a3b8';
+	const GRAPH_BG = '#f1f5f9';
+	const GRAPH_EDGE = 'rgba(37, 99, 235, 0.38)';
+	const GRAPH_NODE = '#16a34a';
+	const GRAPH_LABEL = '#334155';
+	const GRAPH_ARCH_BOX = 'rgba(255, 255, 255, 0.94)';
+	const GRAPH_ARCH_STROKE = '#94a3b8';
+	const GRAPH_ARCH_TITLE = '#0f172a';
+	const GRAPH_ARCH_MEMBER = '#475569';
+	const GRAPH_ARCH_EDGE = 'rgba(37, 99, 235, 0.28)';
+	const ROS2D_VIEWER_BG = '#eef1f6';
 
-    /* ---------- IVG 顶栏：话题排序、VPE FastAPI 端口、快捷订阅与常用服务预设 ---------- */
-    /** 与 start_IVG_graspnet_points_fastapi.sh + graspnet_demo_points_with_tf 默认一致 */
-    const IVG_TOPIC_ORDER = [
+	/* ---------- IVG 顶栏：话题排序、VPE FastAPI 端口、快捷订阅与常用服务预设 ---------- */
+	/** 与 start_IVG_graspnet_points_fastapi.sh + graspnet_demo_points_with_tf 默认一致 */
+	const IVG_TOPIC_ORDER = [
 		'/camera/color/image_raw',
 		'/camera/depth/image_raw',
 		'/camera/depth_registered/points',
@@ -72,7 +79,7 @@
 		'/tf_static'
 	];
 
-    function topicIvgRank(topicName) {
+	function topicIvgRank(topicName) {
 		const idx = IVG_TOPIC_ORDER.indexOf(topicName);
 		if (idx !== -1) return idx;
 		if (topicName.indexOf('/camera/') === 0) return 20;
@@ -80,14 +87,14 @@
 		return 500;
 	}
 
-    function ivgFastapiBase() {
+	function ivgFastapiBase() {
 		const el = $('ivg-fastapi-port');
 		const p = (el && el.value ? el.value : '8088').replace(/[^\d]/g, '') || '8088';
 		const h = window.location.hostname || '127.0.0.1';
 		return `http://${h}:${p}`;
 	}
 
-    function ivgSubscribeFixed(name, fallbackType) {
+	function ivgSubscribeFixed(name, fallbackType) {
 		if (!ros || !ros.isConnected) return;
 		switchTab('topics');
 		ros.getTopicType(name, typ => {
@@ -100,7 +107,7 @@
 		});
 	}
 
-    function ivgTrySubscribeMarkers() {
+	function ivgTrySubscribeMarkers() {
 		if (!ros || !ros.isConnected) return;
 		switchTab('topics');
 		ros.getTopicType('/grasp_markers', t => {
@@ -117,18 +124,18 @@
 		});
 	}
 
-    function ivg3dPointsPreset() {
+	function ivg3dPointsPreset() {
 		switchTab('view3d');
 		$('pc-topic').value = '/camera/depth_registered/points';
 		$('scan3-topic').value = '';
 	}
 
-    function ivg3dClearPreset() {
+	function ivg3dClearPreset() {
 		$('pc-topic').value = '';
 		$('scan3-topic').value = '';
 	}
 
-    function ivgPresetService(svcName, typeStr, jsonStr) {
+	function ivgPresetService(svcName, typeStr, jsonStr) {
 		switchTab('services');
 		selectedService = svcName;
 		if ($('svc-selection')) $('svc-selection').textContent = svcName;
@@ -138,7 +145,7 @@
 		/* switchTab 已 refreshSidebar→refreshServices，勿再调用以免连续两次 ++servicesListReq 制造竞态 */
 	}
 
-    function bindIvgBar() {
+	function bindIvgBar() {
 		const bar = $('ivg-bar');
 		if (!bar) return;
 		const link = $('ivg-link-fastapi');
@@ -211,110 +218,35 @@
 		});
 	}
 
-    function bridgePort() {
+	function bridgePort() {
 		const q = parseInt(new URLSearchParams(window.location.search).get('rosbridge_port') || '9090', 10);
 		return q || 9090;
 	}
 
-    /* ---------- FastAPI 网关模式（可选）----------
-	 * 勾选「经网关」或 URL ?ros_mode=gateway / ?gateway=1 时：
-	 *   1) POST /auth/token 取 JWT，存 sessionStorage（键 ivg_gateway_jwt）
-	 *   2) ros.connect('ws://主机:gatewayPort/ws/ros?token=' + encodeURIComponent(jwt))
-	 * 未勾选时仍直连 ws://主机:bridgePort()，与 rosbridge 行为与改网关前一致。
-	 */
-    const IVG_JWT_KEY = 'ivg_gateway_jwt';
-
-    function gatewayPort() {
-		const el = $('gateway-port');
-		const p = el && el.value ? parseInt(String(el.value).replace(/[^\d]/g, ''), 10) : NaN;
-		if (!isNaN(p) && p > 0) return p;
-		const q = parseInt(new URLSearchParams(window.location.search).get('gateway_port') || '8765', 10);
-		return q || 8765;
+	function webVideoPort() {
+		const el = $('web-video-port');
+		const pv = el && el.value ? parseInt(String(el.value).replace(/[^\d]/g, ''), 10) : NaN;
+		if (!isNaN(pv) && pv > 0) return pv;
+		const q = parseInt(new URLSearchParams(window.location.search).get('web_video_port') || '8089', 10);
+		return q || 8089;
 	}
 
-    function rosModeGateway() {
-		const el = $('use-gateway');
-		if (el && el.checked) return true;
-		const p = new URLSearchParams(window.location.search);
-		return p.get('ros_mode') === 'gateway' || p.get('gateway') === '1';
+	function reconnectImageTopicIfNeeded() {
+		if (tab !== 'topics' || !selectedName || !selectedType || !ros || !ros.isConnected) return;
+		if (!typeMatch(selectedType, 'Image') || typeMatch(selectedType, 'CompressedImage')) return;
+		subscribe(selectedName, selectedType);
 	}
 
-    function gatewayHttpBase() {
-		const h = window.location.hostname || '127.0.0.1';
-		return `http://${h}:${gatewayPort()}`;
+	/** 静态页 id 不变时缓存 getElementById，减轻 topics 高频回调与侧栏刷新时的查找开销 */
+	const elCache = Object.create(null);
+	function $(id) {
+		if (Object.prototype.hasOwnProperty.call(elCache, id)) return elCache[id];
+		const n = document.getElementById(id);
+		elCache[id] = n;
+		return n;
 	}
 
-    function getGatewayToken() {
-		try {
-			return sessionStorage.getItem(IVG_JWT_KEY) || '';
-		} catch (e) {
-			return '';
-		}
-	}
-
-    function setGatewayToken(t) {
-		try {
-			if (t) sessionStorage.setItem(IVG_JWT_KEY, t);
-			else sessionStorage.removeItem(IVG_JWT_KEY);
-		} catch (e) { /* ignore */ }
-	}
-
-    function gatewayLogin() {
-		const u = ($('gw-user') && $('gw-user').value || '').trim();
-		const pw = ($('gw-pass') && $('gw-pass').value) || '';
-		if (!u) {
-			alert('请输入用户名');
-			return;
-		}
-		const btn = $('btn-gw-login');
-		const orig = btn ? btn.textContent : '';
-		if (btn) {
-			btn.disabled = true;
-			btn.textContent = '登录中…';
-		}
-		const body = new URLSearchParams();
-		body.set('username', u);
-		body.set('password', pw);
-		fetch(`${gatewayHttpBase()}/auth/token`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: body.toString()
-		})
-			.then(r => {
-				if (!r.ok) return r.text().then(t => { throw new Error(t || `HTTP ${r.status}`); });
-				return r.json();
-			})
-			.then(j => {
-				if (!j || !j.access_token) throw new Error('响应无 access_token');
-				setGatewayToken(j.access_token);
-				connect();
-			})
-			.catch(e => {
-				alert(`登录失败：${e && e.message ? e.message : e}`);
-			})
-			.finally(() => {
-				if (btn) {
-					btn.disabled = false;
-					btn.textContent = orig || '登录';
-				}
-			});
-	}
-
-    function gatewayLogout() {
-		setGatewayToken('');
-		if (ros) {
-			try { ros.close(); } catch (e) { /* ignore */ }
-		}
-		ros = null;
-		setStatus('已登出', false);
-		refreshSidebar();
-	}
-
-    function $(id) {
-		return document.getElementById(id);
-	}
-
-    function setStatus(text, ok) {
+	function setStatus(text, ok) {
 		const el = $('conn-status');
 		if (!el) return;
 		el.textContent = text;
@@ -323,7 +255,7 @@
 		else if (/断开|错误|未连接|失败|连接错误/i.test(String(text))) el.classList.add('off');
 	}
 
-    function beginSidebarListFetch() {
+	function beginSidebarListFetch() {
 		sidebarListInflight++;
 		const sb = document.querySelector('.sidebar');
 		const br = $('btn-refresh');
@@ -338,7 +270,7 @@
 		}
 	}
 
-    function endSidebarListFetch() {
+	function endSidebarListFetch() {
 		sidebarListInflight = Math.max(0, sidebarListInflight - 1);
 		if (sidebarListInflight > 0) return;
 		const sb = document.querySelector('.sidebar');
@@ -350,7 +282,7 @@
 		}
 	}
 
-    function setSidebarContextLabel(t) {
+	function setSidebarContextLabel(t) {
 		const map = {
 			topics: '话题',
 			services: '服务',
@@ -364,13 +296,13 @@
 		if (el) el.textContent = map[t] || '列表';
 	}
 
-    function syncLocalHostLinks() {
+	function syncLocalHostLinks() {
 		const h = window.location.hostname || '127.0.0.1';
 		const he = $('ivg-link-handeye');
 		if (he) he.href = `http://${h}:8080/`;
 	}
 
-    function flashCopyButton(btn, ok) {
+	function flashCopyButton(btn, ok) {
 		if (!btn) return;
 		if (btn._copyOrig == null) btn._copyOrig = btn.textContent;
 		btn.textContent = ok ? '已复制' : '失败';
@@ -381,7 +313,7 @@
 		}, 900);
 	}
 
-    function copyToClipboard(text, btn) {
+	function copyToClipboard(text, btn) {
 		text = (text || '').trim();
 		if (!text) {
 			alert('没有可复制内容');
@@ -428,7 +360,7 @@
 		}
 	}
 
-    function stopTopicSubscription() {
+	function stopTopicSubscription() {
 		if (tab !== 'topics') switchTab('topics');
 		unsubscribe();
 		selectedName = '';
@@ -441,7 +373,7 @@
 		refreshTopics();
 	}
 
-    function safeJson(obj, maxLen) {
+	function safeJson(obj, maxLen) {
 		try {
 			const s = JSON.stringify(obj, null, 2);
 			if (maxLen && s.length > maxLen) {
@@ -453,8 +385,8 @@
 		}
 	}
 
-    /** 避免对 Image / PointCloud2 等整包 JSON.stringify（会卡主线程数秒）；右侧仅展示元数据 */
-    function rawPreviewForMessage(msgType, msg, maxLen) {
+	/** 避免对 Image / PointCloud2 等整包 JSON.stringify（会卡主线程数秒）；右侧仅展示元数据 */
+	function rawPreviewForMessage(msgType, msg, maxLen) {
 		if (!msg) return '';
 		const omit = hint => `[omitted: ${hint} — 降低卡顿；看图/3D 画布或 RViz]`;
 		if (typeMatch(msgType, 'Image') && !typeMatch(msgType, 'CompressedImage')) {
@@ -520,8 +452,8 @@
 		return safeJson(msg, maxLen);
 	}
 
-    /** Normalize rosbridge / ROS2 message byte payloads to Uint8Array */
-    function toUint8(data) {
+	/** Normalize rosbridge / ROS2 message byte payloads to Uint8Array */
+	function toUint8(data) {
 		if (!data) return null;
 		if (data instanceof Uint8Array) return data;
 		if (typeof data === 'string') {
@@ -539,12 +471,12 @@
 		return null;
 	}
 
-    function typeMatch(msgType, needle) {
+	function typeMatch(msgType, needle) {
 		if (!msgType) return false;
 		return msgType === needle || msgType.indexOf(needle) !== -1;
 	}
 
-    function renderScalar(msg) {
+	function renderScalar(msg) {
 		if (msg && Object.prototype.hasOwnProperty.call(msg, 'data')) {
 			const d = msg.data;
 			if (typeof d === 'boolean' || typeof d === 'number' || typeof d === 'string') {
@@ -554,7 +486,7 @@
 		return null;
 	}
 
-    function renderTwist(msg) {
+	function renderTwist(msg) {
 		let t = msg;
 		if (msg && msg.twist) t = msg.twist;
 		if (!t || !t.linear) return null;
@@ -572,7 +504,7 @@
 		return html;
 	}
 
-    function renderPose(msg) {
+	function renderPose(msg) {
 		let p = msg;
 		if (msg && msg.pose) p = msg.pose;
 		if (!p || !p.position) return null;
@@ -585,7 +517,7 @@
 		return html;
 	}
 
-    function renderJointState(msg) {
+	function renderJointState(msg) {
 		if (!msg || !Array.isArray(msg.name)) return null;
 		let html = '<table class="viz-table"><thead><tr><th>name</th><th>position</th><th>velocity</th><th>effort</th></tr></thead><tbody>';
 		const n = msg.name.length;
@@ -596,7 +528,7 @@
 		return html;
 	}
 
-    function renderImu(msg) {
+	function renderImu(msg) {
 		if (!msg) return null;
 		let html = '<table class="viz-table"><tbody>';
 		if (msg.orientation) {
@@ -615,7 +547,7 @@
 		return html;
 	}
 
-    function renderBattery(msg) {
+	function renderBattery(msg) {
 		if (!msg) return null;
 		let html = '<table class="viz-table"><tbody>';
 		const keys = ['voltage', 'temperature', 'current', 'charge', 'capacity', 'percentage', 'power_supply_status'];
@@ -628,7 +560,7 @@
 		return html;
 	}
 
-    function renderRange(msg) {
+	function renderRange(msg) {
 		if (!msg || typeof msg.range !== 'number') return null;
 		let html = '<table class="viz-table"><tbody>';
 		html += `<tr><th>range</th><td>${msg.range}</td></tr>`;
@@ -639,7 +571,7 @@
 		return html;
 	}
 
-    function renderNavSatFix(msg) {
+	function renderNavSatFix(msg) {
 		if (!msg || typeof msg.latitude !== 'number') return null;
 		let html = '<table class="viz-table"><tbody>';
 		html += `<tr><th>latitude</th><td>${msg.latitude}</td></tr>`;
@@ -650,7 +582,7 @@
 		return html;
 	}
 
-    function renderLaserScan(msg, canvas) {
+	function renderLaserScan(msg, canvas) {
 		if (!msg || !Array.isArray(msg.ranges)) return '<p class="hint">无效的 LaserScan</p>';
 		const w = canvas.parentElement.clientWidth || 400;
 		const h = Math.min(360, Math.floor(w * 0.6));
@@ -685,7 +617,7 @@
 		return '<p class="hint">LaserScan 极坐标预览（简化，非 RViz 语义）</p>';
 	}
 
-    function renderOccupancyGrid(msg, canvas) {
+	function renderOccupancyGrid(msg, canvas) {
 		if (!msg || !msg.info || !Array.isArray(msg.data)) return '<p class="hint">Invalid OccupancyGrid</p>';
 		const W = msg.info.width;
 		const H = msg.info.height;
@@ -715,7 +647,7 @@
 		return `<p class="hint">resolution ${msg.info.resolution} m/cell · origin (${msg.info.origin.position.x}, ${msg.info.origin.position.y})</p>`;
 	}
 
-    function renderImage(msg, canvas) {
+	function renderImage(msg, canvas) {
 		if (!msg || !msg.width || !msg.height) return '<p class="hint">Invalid Image</p>';
 		const enc = (msg.encoding || '').toLowerCase();
 		const raw = toUint8(msg.data);
@@ -769,7 +701,7 @@
 		return '';
 	}
 
-    function renderCompressedImage(msg) {
+	function renderCompressedImage(msg) {
 		if (!msg || !msg.format || !msg.data) return null;
 		const u8 = toUint8(msg.data);
 		if (!u8) return '<p class="hint">无法解析压缩图像数据</p>';
@@ -781,7 +713,7 @@
 		return `<img src="${window.__labBlobUrl}" alt="compressed" style="max-width:100%;height:auto;border-radius:4px"/>`;
 	}
 
-    function renderPointCloud2(msg) {
+	function renderPointCloud2(msg) {
 		if (!msg || !msg.fields) return null;
 		let rows = '<table class="viz-table"><tbody>';
 		rows += `<tr><th>height × width</th><td>${msg.height} × ${msg.width}</td></tr>`;
@@ -794,11 +726,11 @@
 		rows += '</tbody></table>';
 		const raw = toUint8(msg.data);
 		const bytes = raw ? raw.length : 0;
-		rows += `<p class="hint">Payload ~${bytes} bytes。IVG 默认点云：<code>/camera/depth_registered/points</code> → 顶部「3D: 点云」后启动 3D。</p>`;
+		rows += `<p class="hint">Payload ~${bytes} bytes。3D 图内按步进采样 + 每帧合并更新。彩色图经 <a href="https://github.com/RobotWebTools/web_video_server" target="_blank" rel="noopener">web_video_server</a> MJPEG。默认点云：<code>/camera/depth_registered/points</code> → 「3D: 点云」。</p>`;
 		return rows;
 	}
 
-    function renderPath(msg) {
+	function renderPath(msg) {
 		if (!msg || !Array.isArray(msg.poses)) return null;
 		const n = msg.poses.length;
 		if (n === 0) return '<p class="hint">Empty path</p>';
@@ -807,7 +739,7 @@
 		return `<p class="hint">poses: ${n}</p>${p ? renderPose(last.pose) : ''}`;
 	}
 
-    function renderPoseArray(msg) {
+	function renderPoseArray(msg) {
 		if (!msg || !Array.isArray(msg.poses)) return null;
 		const poses = msg.poses;
 		const n = poses.length;
@@ -827,7 +759,7 @@
 		return html;
 	}
 
-    function renderMarkerArray(msg) {
+	function renderMarkerArray(msg) {
 		if (!msg) return null;
 		const arr = msg.markers || msg;
 		if (!Array.isArray(arr)) return null;
@@ -848,19 +780,19 @@
 		return head;
 	}
 
-    function renderOdometry(msg) {
+	function renderOdometry(msg) {
 		if (!msg || !msg.pose || !msg.twist) return null;
 		return `<h4 class="viz-subheading">pose</h4>${renderPose(msg.pose)}<h4 class="viz-subheading viz-subheading--spaced">twist</h4>${renderTwist(msg.twist)}`;
 	}
 
-    function renderGenericNumericArray(msg) {
+	function renderGenericNumericArray(msg) {
 		if (!msg || !msg.layout || !Array.isArray(msg.data)) return null;
 		const dim = (msg.layout.dim || []).map(d => `${d.label}=${d.size}`).join(', ');
 		const sample = msg.data.slice(0, 32).join(', ');
 		return `${msg.data.length > 32}<p class="hint">${dim}</p><pre class="raw">data[0..31]: ${sample}${msg.data.length > 32 ? ' …' : ''}</pre>`;
 	}
 
-    function renderVisualization(msgType, msg, canvas) {
+	function renderVisualization(msgType, msg, canvas) {
 		let html = '';
 		if (typeMatch(msgType, 'LaserScan')) {
 			html = renderLaserScan(msg, canvas);
@@ -922,8 +854,8 @@
 			if (ps) return { html: ps, usedCanvas: false };
 		}
 		if (typeMatch(msgType, 'Float32MultiArray') || typeMatch(msgType, 'Float64MultiArray') ||
-				typeMatch(msgType, 'Int32MultiArray') || typeMatch(msgType, 'Int8MultiArray') ||
-				typeMatch(msgType, 'UInt8MultiArray') || typeMatch(msgType, 'UInt16MultiArray')) {
+			typeMatch(msgType, 'Int32MultiArray') || typeMatch(msgType, 'Int8MultiArray') ||
+			typeMatch(msgType, 'UInt8MultiArray') || typeMatch(msgType, 'UInt16MultiArray')) {
 			const ga = renderGenericNumericArray(msg);
 			if (ga) return { html: ga, usedCanvas: false };
 		}
@@ -935,22 +867,37 @@
 		};
 	}
 
-    function onMessage(msg) {
+	function onMessage(msg) {
+		if (webVideoStreamMode) return;
 		const now = Date.now();
 		if (now - lastEmit < throttleMs) return;
 		lastEmit = now;
 		const type = selectedType;
-		const vizBody = $('viz-body');
-		const canvas = $('viz-canvas');
-		const out = renderVisualization(type, msg, canvas);
-		vizBody.innerHTML = out.html;
-		canvas.style.display = out.usedCanvas ? 'block' : 'none';
-		// 大话题勿 JSON.stringify 全量 data，否则主线程阻塞数秒；摘要即可
-		$('raw-pre').textContent = rawPreviewForMessage(type, msg, 120000);
+		const seq = subscriptionSeq;
+		if (topicVizRaf != null) {
+			cancelAnimationFrame(topicVizRaf);
+			topicVizRaf = null;
+		}
+		topicVizRaf = requestAnimationFrame(() => {
+			topicVizRaf = null;
+			if (seq !== subscriptionSeq) return;
+			const vizBody = $('viz-body');
+			const canvas = $('viz-canvas');
+			const out = renderVisualization(type, msg, canvas);
+			vizBody.innerHTML = out.html;
+			canvas.style.display = out.usedCanvas ? 'block' : 'none';
+			// 大话题勿 JSON.stringify 全量 data，否则主线程阻塞数秒；摘要即可
+			$('raw-pre').textContent = rawPreviewForMessage(type, msg, 120000);
+		});
 	}
 
-    function unsubscribe() {
+	function unsubscribe() {
 		subscriptionSeq++;
+		webVideoStreamMode = false;
+		if (topicVizRaf != null) {
+			cancelAnimationFrame(topicVizRaf);
+			topicVizRaf = null;
+		}
 		if (activeTopic) {
 			try {
 				activeTopic.dispose();
@@ -963,15 +910,49 @@
 		}
 	}
 
-    /* ---------- 话题：订阅单话题、节流回调、按消息类型渲染 viz/canvas ---------- */
-    function subscribe(name, msgType) {
+	/* ---------- 话题：订阅单话题、节流回调、按消息类型渲染 viz/canvas ---------- */
+	function subscribe(name, msgType) {
 		if (!ros || !ros.isConnected) return;
 		unsubscribe();
-		const mySeq = subscriptionSeq;
 		selectedName = name;
 		selectedType = msgType;
 		lastEmit = 0;
 		$('selection-label').textContent = `${name}  ·  ${msgType}`;
+		if (typeof ivgWebVideo !== 'undefined' && typeMatch(msgType, 'Image') && !typeMatch(msgType, 'CompressedImage')) {
+			webVideoStreamMode = true;
+			const wvPort = webVideoPort();
+			const url = ivgWebVideo.streamUrl(name, {
+				port: wvPort,
+				quality: 88
+			});
+			const viewer = ivgWebVideo.viewerUrl(name, { port: wvPort });
+			$('viz-canvas').style.display = 'none';
+			const vizBody = $('viz-body');
+			vizBody.replaceChildren();
+			const hint = document.createElement('p');
+			hint.className = 'hint';
+			hint.append('MJPEG（web_video_server），sensor_msgs/Image 不经 rosbridge。');
+			const a = document.createElement('a');
+			a.href = viewer;
+			a.target = '_blank';
+			a.rel = 'noopener';
+			a.textContent = ' stream_viewer';
+			hint.appendChild(a);
+			vizBody.appendChild(hint);
+			const wrap = document.createElement('p');
+			wrap.className = 'viz-mjpeg-wrap';
+			const img = document.createElement('img');
+			img.alt = '';
+			img.className = 'viz-mjpeg-img';
+			img.decoding = 'async';
+			img.src = url;
+			wrap.appendChild(img);
+			vizBody.appendChild(wrap);
+			$('raw-pre').textContent = `[MJPEG] ${name}\n${url}\n\nCompressedImage 仍走 rosbridge。`;
+			return;
+		}
+		webVideoStreamMode = false;
+		const mySeq = subscriptionSeq;
 		activeTopic = new ROSLIB.Topic({
 			ros,
 			name,
@@ -986,7 +967,7 @@
 		$('raw-pre').textContent = '';
 	}
 
-    function fillSidebar(items, getMeta) {
+	function fillSidebar(items, getMeta) {
 		const list = $('sidebar-list');
 		const q = ($('filter-q').value || '').toLowerCase();
 		list.innerHTML = '';
@@ -1066,7 +1047,7 @@
 		}
 	}
 
-    function refreshTopics() {
+	function refreshTopics() {
 		if (!ros || !ros.isConnected) return;
 		beginSidebarListFetch();
 		const rid = ++topicsListReq;
@@ -1112,8 +1093,8 @@
 		});
 	}
 
-    /* ---------- 服务：侧栏 getServices；主区 ROSLIB.Service.callService ---------- */
-    function refreshServices() {
+	/* ---------- 服务：侧栏 getServices；主区 ROSLIB.Service.callService ---------- */
+	function refreshServices() {
 		if (!ros || !ros.isConnected) return;
 		beginSidebarListFetch();
 		const rid = ++servicesListReq;
@@ -1148,7 +1129,7 @@
 		});
 	}
 
-    function refreshNodes() {
+	function refreshNodes() {
 		if (!ros || !ros.isConnected) return;
 		beginSidebarListFetch();
 		const rid = ++nodesListReq;
@@ -1173,7 +1154,7 @@
 		});
 	}
 
-    function showMain(mainId) {
+	function showMain(mainId) {
 		const ids = ['main-topics', 'main-services', 'main-actions', 'main-params', 'main-graph', 'main-view2d', 'main-view3d'];
 		for (let i = 0; i < ids.length; i++) {
 			const el = $(ids[i]);
@@ -1181,7 +1162,7 @@
 		}
 	}
 
-    function refreshActionsList() {
+	function refreshActionsList() {
 		if (!ros || !ros.isConnected) return;
 		beginSidebarListFetch();
 		const rid = ++actionsListReq;
@@ -1207,7 +1188,7 @@
 		});
 	}
 
-    function refreshParamsList() {
+	function refreshParamsList() {
 		if (!ros || !ros.isConnected) return;
 		beginSidebarListFetch();
 		const rid = ++paramsListReq;
@@ -1232,7 +1213,7 @@
 		});
 	}
 
-    function fetchParamValue(paramName) {
+	function fetchParamValue(paramName) {
 		if (!ros || !ros.isConnected) return;
 		const pid = ++paramFetchSeq;
 		if ($('param-value')) $('param-value').textContent = '读取中…';
@@ -1251,12 +1232,12 @@
 		});
 	}
 
-    /**
+	/**
 	 * 切换标签时抬高所有侧栏列表的请求代数。
 	 * 仅抬高「非当前数据源」会在话题/2D/3D 共用 topics 列表、或 IVG 连点等组合下漏掉应失效的回调，
 	 * 晚到的 getTopics/getServices 仍可能把侧栏刷成上一标签的内容；此处一律作废全部进行中请求。
 	 */
-    function invalidateStaleSidebarLists() {
+	function invalidateStaleSidebarLists() {
 		topicsListReq++;
 		servicesListReq++;
 		nodesListReq++;
@@ -1264,8 +1245,8 @@
 		paramsListReq++;
 	}
 
-    /* ---------- 侧栏：按当前 tab 拉取 rosapi 列表并渲染 #sidebar-list ---------- */
-    function refreshSidebar() {
+	/* ---------- 侧栏：按当前 tab 拉取 rosapi 列表并渲染 #sidebar-list ---------- */
+	function refreshSidebar() {
 		if (!ros || !ros.isConnected) {
 			const sl0 = $('sidebar-list');
 			if (sl0) sl0.innerHTML = '<p class="hint">未连接 rosbridge，请点击顶栏「重连」。</p>';
@@ -1281,7 +1262,7 @@
 		else if (tab === 'view2d' || tab === 'view3d') refreshTopics();
 	}
 
-    function switchTab(t) {
+	function switchTab(t) {
 		const prevTab = tab;
 		if (tab === 'view2d' && t !== 'view2d') stop2d();
 		if (tab === 'view3d' && t !== 'view3d') stop3d();
@@ -1339,8 +1320,8 @@
 		}
 	}
 
-    /** 与 rosgraph 一致：前导 /、合并重复斜杠，避免同一话题因字符串写法不同而无法配对 */
-    function normalizeRosGraphName(s) {
+	/** 与 rosgraph 一致：前导 /、合并重复斜杠，避免同一话题因字符串写法不同而无法配对 */
+	function normalizeRosGraphName(s) {
 		if (s == null || s === '') return '';
 		if (typeof s !== 'string') s = String(s);
 		s = s.trim();
@@ -1349,13 +1330,13 @@
 		return s.replace(/\/+/g, '/');
 	}
 
-    function pushUniqueName(arr, name) {
+	function pushUniqueName(arr, name) {
 		if (!name || arr.indexOf(name) !== -1) return;
 		arr.push(name);
 	}
 
-    /** 兼容 roslib 单参整包与三数组回调 */
-    function coerceNodeDetails(sub, pub, srv) {
+	/** 兼容 roslib 单参整包与三数组回调 */
+	function coerceNodeDetails(sub, pub, srv) {
 		let s0 = sub;
 		let p0 = pub;
 		let v0 = srv;
@@ -1371,8 +1352,8 @@
 		};
 	}
 
-    /* ---------- 节点关系图：getNodes + 各节点 pub/sub/service 详情，Canvas 绘制 ---------- */
-    function buildGraph() {
+	/* ---------- 节点关系图：getNodes + 各节点 pub/sub/service 详情，Canvas 绘制 ---------- */
+	function buildGraph() {
 		if (!ros || !ros.isConnected) return;
 		const bid = ++graphBuildSeq;
 		const prog = $('graph-progress');
@@ -1409,7 +1390,7 @@
 		});
 	}
 
-    function finishGraph(bid, nodes, details) {
+	function finishGraph(bid, nodes, details) {
 		if (bid !== graphBuildSeq) return;
 		const topicEnds = {};
 		let ei;
@@ -1461,7 +1442,7 @@
 		redrawGraphCanvas();
 	}
 
-    function graphRosNamespace(fullName) {
+	function graphRosNamespace(fullName) {
 		const n = normalizeRosGraphName(fullName);
 		if (!n || n === '/') return '/';
 		const idx = n.lastIndexOf('/');
@@ -1469,7 +1450,7 @@
 		return n.slice(0, idx);
 	}
 
-    function graphRosShortName(fullName) {
+	function graphRosShortName(fullName) {
 		const n = normalizeRosGraphName(fullName);
 		const idx = n.lastIndexOf('/');
 		if (idx < 0) return n;
@@ -1477,12 +1458,12 @@
 		return s || n;
 	}
 
-    function getGraphViewMode() {
+	function getGraphViewMode() {
 		const r = document.querySelector('input[name="graph-view"]:checked');
 		return r && r.value === 'architecture' ? 'architecture' : 'logic';
 	}
 
-    function setupGraphCanvas2d() {
+	function setupGraphCanvas2d() {
 		const canvas = $('graph-canvas');
 		if (!canvas) return null;
 		const ctx = canvas.getContext('2d');
@@ -1502,7 +1483,7 @@
 		return { canvas, ctx, W: cssW, H: cssH };
 	}
 
-    function pathRoundRect(ctx, x, y, w, h, rad) {
+	function pathRoundRect(ctx, x, y, w, h, rad) {
 		const r = Math.min(rad, w / 2, h / 2);
 		ctx.beginPath();
 		ctx.moveTo(x + r, y);
@@ -1517,7 +1498,7 @@
 		ctx.closePath();
 	}
 
-    function drawGraphLogic(ctx, W, H, nodes, edges) {
+	function drawGraphLogic(ctx, W, H, nodes, edges) {
 		const pos = {};
 		const N = nodes.length;
 		const R = Math.min(W, H) * 0.32;
@@ -1599,7 +1580,7 @@
 		}
 	}
 
-    function drawGraphArchitecture(ctx, W, H, nodes, edges) {
+	function drawGraphArchitecture(ctx, W, H, nodes, edges) {
 		const groupMap = {};
 		let gi;
 		for (gi = 0; gi < nodes.length; gi++) {
@@ -1731,7 +1712,7 @@
 		}
 	}
 
-    function redrawGraphCanvas() {
+	function redrawGraphCanvas() {
 		const pack = setupGraphCanvas2d();
 		if (!pack) return;
 		if (!graphModel) {
@@ -1750,7 +1731,7 @@
 		}
 	}
 
-    function stop2d() {
+	function stop2d() {
 		if (mapTopicSub) {
 			try { mapTopicSub.dispose(); } catch (e1) { /* ignore */ }
 			mapTopicSub = null;
@@ -1766,8 +1747,8 @@
 		scanShape = null;
 	}
 
-    /* ---------- 2D（ROS2D）与 3D（Three.js）视图：地图、雷达、点云 ---------- */
-    function start2d() {
+	/* ---------- 2D（ROS2D）与 3D（Three.js）视图：地图、雷达、点云 ---------- */
+	function start2d() {
 		stop2d();
 		if (typeof ROS2D === 'undefined' || typeof createjs === 'undefined') {
 			alert('ROS2D / EaselJS 未加载');
@@ -1830,7 +1811,17 @@
 		}
 	}
 
-    function stop3d() {
+	function stop3d() {
+		if (pcUpdateRaf != null) {
+			cancelAnimationFrame(pcUpdateRaf);
+			pcUpdateRaf = null;
+		}
+		pcPendingMsg = null;
+		if (scan3UpdateRaf != null) {
+			cancelAnimationFrame(scan3UpdateRaf);
+			scan3UpdateRaf = null;
+		}
+		scan3PendingMsg = null;
 		if (anim3d) {
 			cancelAnimationFrame(anim3d);
 			anim3d = null;
@@ -1852,7 +1843,7 @@
 		pointsObj = null;
 	}
 
-    function fieldOffset(fields, name) {
+	function fieldOffset(fields, name) {
 		let f;
 		for (f = 0; f < fields.length; f++) {
 			if (fields[f].name === name) return fields[f].offset;
@@ -1860,7 +1851,7 @@
 		return -1;
 	}
 
-    function updatePointsFromPointCloud2(msg, maxPts) {
+	function updatePointsFromPointCloud2(msg, maxPts) {
 		if (!pointsObj || !msg.fields) return;
 		const ox = fieldOffset(msg.fields, 'x');
 		const oy = fieldOffset(msg.fields, 'y');
@@ -1871,13 +1862,14 @@
 		const le = !msg.is_bigendian;
 		const step = msg.point_step;
 		const total = msg.width * msg.height;
-		const n = Math.min(total, maxPts);
+		if (total <= 0 || step <= 0) return;
+		const stride = Math.max(1, Math.ceil(total / maxPts));
 		const arr = pointsObj.geometry.attributes.position.array;
 		const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
 		let count = 0;
-		let i;
-		for (i = 0; i < n; i++) {
-			const base = i * step;
+		let idx = 0;
+		for (; idx < total && count < maxPts; idx += stride) {
+			const base = idx * step;
 			if (base + step > buf.byteLength) break;
 			arr[count * 3] = dv.getFloat32(base + ox, le);
 			arr[count * 3 + 1] = dv.getFloat32(base + oy, le);
@@ -1888,7 +1880,7 @@
 		pointsObj.geometry.attributes.position.needsUpdate = true;
 	}
 
-    function updatePointsFromLaserScan3(msg, maxPts) {
+	function updatePointsFromLaserScan3(msg, maxPts) {
 		if (!pointsObj || !msg || !Array.isArray(msg.ranges)) return;
 		const arr = pointsObj.geometry.attributes.position.array;
 		let count = 0;
@@ -1906,7 +1898,7 @@
 		pointsObj.geometry.attributes.position.needsUpdate = true;
 	}
 
-    function start3d() {
+	function start3d() {
 		stop3d();
 		if (typeof THREE === 'undefined') {
 			alert('Three.js 未加载');
@@ -1953,7 +1945,14 @@
 				queue_length: 1
 			});
 			pcTopicSub.subscribe(m => {
-				updatePointsFromPointCloud2(m, maxPts);
+				pcPendingMsg = m;
+				if (pcUpdateRaf != null) return;
+				pcUpdateRaf = requestAnimationFrame(() => {
+					pcUpdateRaf = null;
+					const mm = pcPendingMsg;
+					pcPendingMsg = null;
+					if (mm) updatePointsFromPointCloud2(mm, maxPts);
+				});
 			});
 		} else if (sn) {
 			scan3TopicSub = new ROSLIB.Topic({
@@ -1963,34 +1962,28 @@
 				queue_length: 1
 			});
 			scan3TopicSub.subscribe(m => {
-				updatePointsFromLaserScan3(m, maxPts);
+				scan3PendingMsg = m;
+				if (scan3UpdateRaf != null) return;
+				scan3UpdateRaf = requestAnimationFrame(() => {
+					scan3UpdateRaf = null;
+					const mm = scan3PendingMsg;
+					scan3PendingMsg = null;
+					if (mm) updatePointsFromLaserScan3(mm, maxPts);
+				});
 			});
 		}
 	}
 
-    /** 建立或重建 ROSLIB.Ros：直连 rosbridge 或经网关 WS（由 rosModeGateway 决定）。 */
-    function connect() {
+	/** 建立或重建 ROSLIB.Ros：直连 rosbridge WebSocket。 */
+	function connect() {
 		if (ros) {
 			try { ros.close(); } catch (e) { /* ignore */ }
-		}
-		if (rosModeGateway()) {
-			const tok = getGatewayToken();
-			if (!tok) {
-				ros = null;
-				setStatus('网关模式：请先登录', false);
-				refreshSidebar();
-				return;
-			}
 		}
 		ros = new ROSLIB.Ros({ groovyCompatibility: false });
 		const h = window.location.hostname || '127.0.0.1';
 		ros.on('connection', () => {
 			syncLocalHostLinks();
-			if (rosModeGateway()) {
-				setStatus(`已连接网关 → rosbridge（${gatewayHttpBase()}）`, true);
-			} else {
-				setStatus(`已连接 ws://${h}:${bridgePort()}`, true);
-			}
+			setStatus(`已连接 ws://${h}:${bridgePort()}`, true);
 			refreshSidebar();
 		});
 		ros.on('error', () => {
@@ -2000,22 +1993,14 @@
 			setStatus('已断开', false);
 			refreshSidebar();
 		});
-		if (rosModeGateway()) {
-			ros.connect(`ws://${h}:${gatewayPort()}/ws/ros?token=${encodeURIComponent(getGatewayToken())}`);
-		} else {
-			ros.connect(`ws://${h}:${bridgePort()}`);
-		}
+		ros.connect(`ws://${h}:${bridgePort()}`);
 	}
 
-    document.addEventListener('DOMContentLoaded', () => {
-		(function initGatewayFromQuery() {
+	document.addEventListener('DOMContentLoaded', () => {
+		(function initWebVideoFromQuery() {
 			const p = new URLSearchParams(window.location.search);
-			if (p.get('ros_mode') === 'gateway' || p.get('gateway') === '1') {
-				const cb = $('use-gateway');
-				if (cb) cb.checked = true;
-			}
-			const gp = p.get('gateway_port');
-			if (gp && $('gateway-port')) $('gateway-port').value = gp;
+			const wp = p.get('web_video_port');
+			if (wp && $('web-video-port')) $('web-video-port').value = wp;
 		})();
 		syncLocalHostLinks();
 		function scheduleRefreshSidebar() {
@@ -2050,18 +2035,8 @@
 		$('throttle-ms').addEventListener('input', applyThrottleMs);
 		const br = $('btn-reconnect');
 		if (br) br.onclick = () => { connect(); };
-		const ug = $('use-gateway');
-		if (ug) ug.addEventListener('change', () => { connect(); });
-		const gpi = $('gateway-port');
-		if (gpi) {
-			gpi.addEventListener('change', () => {
-				if (rosModeGateway() && getGatewayToken()) connect();
-			});
-		}
-		const bl = $('btn-gw-login');
-		if (bl) bl.onclick = () => { gatewayLogin(); };
-		const bo = $('btn-gw-logout');
-		if (bo) bo.onclick = () => { gatewayLogout(); };
+		const wvportEl = $('web-video-port');
+		if (wvportEl) wvportEl.addEventListener('change', reconnectImageTopicIfNeeded);
 		const bu = $('btn-unsub-topic');
 		if (bu) bu.onclick = stopTopicSubscription;
 		const bc = $('btn-copy-raw');

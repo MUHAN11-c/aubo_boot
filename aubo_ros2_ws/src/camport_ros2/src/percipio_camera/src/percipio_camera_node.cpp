@@ -211,8 +211,9 @@ void PercipioCameraNode::setupDevices()
 
   if (!device_ptr->hasLeftIR())
   {
-    RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Left-IR image data stream is not "
-                                                                          "supported!");
+    RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE),
+                       "Left-IR image data stream is not "
+                       "supported!");
     stream_enable[LEFT_IR_STREAM] = false;
   }
 

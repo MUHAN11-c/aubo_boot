@@ -1,5 +1,5 @@
 /*
- * topics_lab.html 专用样式：顶栏/网关条/侧栏/多主栈/图与 2D·3D 画布。
+ * topics_lab.html 专用样式：顶栏/侧栏/多主栈/图与 2D·3D 画布。
  * 与门户 home.css 共用相近色板（--bg、--accent 等），保持视觉一致。
  */
 :root {
@@ -127,47 +127,6 @@ body {
 	flex: 1;
 	min-width: 0.5rem;
 }
-.topnav-gateway {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 0.35rem 0.55rem;
-	max-width: min(100%, 42rem);
-}
-.topnav-gateway .gw-check {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.25rem;
-	font-size: 12px;
-	color: var(--text-secondary);
-	cursor: pointer;
-	user-select: none;
-}
-.topnav-gateway .gw-label {
-	font-size: 11px;
-	color: var(--muted);
-	display: inline-flex;
-	align-items: center;
-	gap: 0.2rem;
-}
-.topnav-gateway .gw-port {
-	width: 3.1rem;
-	padding: 0.2rem 0.35rem;
-	border: 1px solid var(--border);
-	border-radius: var(--radius-sm);
-	font-size: 12px;
-	background: var(--bg-elevated);
-	color: var(--text);
-}
-.topnav-gateway .gw-cred {
-	width: 5.5rem;
-	padding: 0.2rem 0.35rem;
-	border: 1px solid var(--border);
-	border-radius: var(--radius-sm);
-	font-size: 12px;
-	background: var(--bg-elevated);
-	color: var(--text);
-}
 .topnav-actions {
 	display: flex;
 	align-items: center;
@@ -286,6 +245,34 @@ body {
 	outline: none;
 	border-color: var(--accent);
 	box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.ivg-bar .ivg-webvid {
+	font-size: 11px;
+	color: var(--text-secondary);
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	white-space: nowrap;
+}
+.ivg-bar .ivg-webvid-hint {
+	font-size: 11px;
+	color: var(--text-secondary);
+	font-weight: 500;
+	user-select: none;
+}
+
+.viz-mjpeg-wrap {
+	margin: 0;
+}
+.viz-mjpeg-img {
+	display: block;
+	max-width: 100%;
+	width: 100%;
+	height: auto;
+	aspect-ratio: 4 / 3;
+	object-fit: contain;
+	border-radius: 4px;
+	background: var(--viz-host-bg, #0f172a);
 }
 
 .layout {

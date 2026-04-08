@@ -5,15 +5,10 @@
  * =============================================================================
  *
  * 目的
- *   浏览器经 roslib ↔ rosbridge（或 IVG FastAPI 网关转 rosbridge）订阅话题、调用服务，
+ *   浏览器经 roslib ↔ rosbridge 订阅话题、调用服务，
  *   对接现场约定：VPE、graspnet_ros2、demo_driver、aubo_driver。不修改其它功能包源码。
  *
- * 连接
- *   - 直连：ws://当前主机:rosbridge_port，默认端口 9090，URL 参数 ?rosbridge_port=
- *   - 网关：勾选「经网关」或 ?ros_mode=gateway / ?gateway=1，先 POST /auth/token 取 JWT，
- *     再 ws://主机:gateway_port/ws/ros?token=…（与 ros_console.js 一致）。
- *   - 当前 HTML 使用 body.vision-grasp-no-gateway + CSS 隐藏网关控件；gatewayDisabled() 强制
- *     走直连。恢复网关：见 vision_grasp_panel.html / vision_grasp_panel.css 注释。
+ * 连接：ws://当前主机:rosbridge_port，默认 9090，URL 参数 ?rosbridge_port=
  *
  * 订阅（默认话题名可在页面修改，改后需「重连」）
  *   | 输入框 id        | 默认话题                  | 消息类型                          |
@@ -23,15 +18,19 @@
  *   | topic-joints    | /joint_states             | sensor_msgs/msg/JointState      |
  *   | topic-vpe-status| /system_status            | std_msgs/msg/String             |
  *   | topic-grasp-poses| /grasp_poses_base        | geometry_msgs/msg/PoseArray     |
+ *   | topic-result     | （可空）                  | sensor_msgs/msg/Image 识别/可视化结果 |
  *   各 Topic queue_length=1，减轻前端压力。
  *
  *   话题可在「话题设置」模态中修改；「保存并重连」写入 localStorage 键 ivg_vision_grasp_topics_v1
  *   并在下次打开页面时恢复。「恢复默认」填回内置默认值并清除该键。
  *
- *   图像：支持 rgb8 / rgba8 / bgr8 / mono8、8uc1；其余 encoding 不绘制。
+ *   图像：彩色与识别结果经 web_video_server MJPEG（/stream，与 RobotWebTools 一致）；顶栏「端口」与 ?web_video_port= 一致。
+ *   若页面未加载 ivg_web_video.js 则回退 rosbridge + canvas（rgb8/bgr8/mono8 等）。
  *
  *   关节曲线 jointHistory：RobotStatus.joint_position_rad 与 JointState.position 前 6 维
  *   都会 pushJointSample。若两路同时高频发布，同一时间轴会混合两源（仅作趋势参考）。
+ *   性能：RobotStatus 的 DOM 与关节采样合并到单帧 rAF；JointState 约 30Hz 上限采样；无 MJPEG 时
+ *   Image 经 rAF 每帧最多绘制一次；canvas 尺寸仅在分辨率变化时重置；关节图定时器 200ms。
  *   图表横轴为相对时间，纵轴为 6 关节在同一 min–max 内归一化，非独立纵轴。
  *
  * 服务
@@ -59,10 +58,11 @@
  * 流程下明确触发非视觉单次。
  *
  * DOM 约定（增删须同步）
- *   话题：topic-color / topic-robot / topic-joints / topic-vpe-status / topic-grasp-poses；
+ *   话题：topic-color / topic-result / topic-robot / topic-joints / topic-vpe-status / topic-grasp-poses；
  *   模态：topic-settings-modal、btn-topic-settings-open/close、topic-settings-backdrop、
  *   btn-topic-restore-defaults、btn-topic-save-reconnect。
- *   其余：btn-wp-*、btn-gn-*、btn-quick-swap、cam-canvas、joint-chart、pose-text、
+ *   其余：btn-wp-*、btn-gn-*、btn-quick-swap、cam-canvas、result-canvas、result-mjpeg、
+ *   result-placeholder、joint-chart、pose-text、
  *   vpe-status-text、graspnet-result-text、svc-log、section-*-btns。
  *
  * 更完整的面向使用者说明：仓库 aubo_ros2_web_dashboard/README.md「视觉抓取面板」。
@@ -71,32 +71,104 @@
  * =============================================================================
  */
 (() => {
-    let ros = null;
-    const subs = {};
-    const IVG_JWT_KEY = 'ivg_gateway_jwt';
-
-    const TOPIC_IDS = ['topic-color', 'topic-robot', 'topic-joints', 'topic-vpe-status', 'topic-grasp-poses'];
-    const TOPIC_DEFAULTS = {
+	let ros = null;
+	const subs = {};
+	const TOPIC_IDS = ['topic-color', 'topic-result', 'topic-robot', 'topic-joints', 'topic-vpe-status', 'topic-grasp-poses'];
+	const TOPIC_DEFAULTS = {
 		'topic-color': '/camera/color/image_raw',
+		'topic-result': '',
 		'topic-robot': '/aubo_driver/robot_status',
 		'topic-joints': '/joint_states',
 		'topic-vpe-status': '/system_status',
 		'topic-grasp-poses': '/grasp_poses_base'
 	};
-    const TOPIC_STORAGE_KEY = 'ivg_vision_grasp_topics_v1';
-
-    function $(id) {
-		return document.getElementById(id);
+	const TOPIC_STORAGE_KEY = 'ivg_vision_grasp_topics_v1';
+	const CONTROL_COL_PCT_KEY = 'ivg_vision_control_col_pct';
+	/** 面板 DOM 稳定，缓存 id 查找；回调内避免重复 getElementById */
+	const elCache = Object.create(null);
+	function $(id) {
+		if (Object.prototype.hasOwnProperty.call(elCache, id)) return elCache[id];
+		const n = document.getElementById(id);
+		elCache[id] = n;
+		return n;
 	}
 
-    function applyTopicDefaultsToDom() {
+	/** rosbridge 回退画相机/结果图：每帧最多提交一次，避免消息风暴卡主线程 */
+	let colorDrawRaf = null;
+	let pendingColorMsg = null;
+	let resultDrawRaf = null;
+	let pendingResultMsg = null;
+	/** RobotStatus：合并文本与关节采样到单帧 */
+	let poseFlushRaf = null;
+	let pendingRobotMsg = null;
+	/** /joint_states 与 RobotStatus 并行时限制采样率，减轻 jointHistory 与图表压力 */
+	let lastJointStatesPush = 0;
+	const JOINT_STATE_MIN_MS = 33;
+	let jointChartTimer = null;
+	const JOINT_CHART_MS = 200;
+
+	function cancelVisionVisualPending() {
+		pendingRobotMsg = null;
+		pendingColorMsg = null;
+		pendingResultMsg = null;
+		if (poseFlushRaf != null) {
+			cancelAnimationFrame(poseFlushRaf);
+			poseFlushRaf = null;
+		}
+		if (colorDrawRaf != null) {
+			cancelAnimationFrame(colorDrawRaf);
+			colorDrawRaf = null;
+		}
+		if (resultDrawRaf != null) {
+			cancelAnimationFrame(resultDrawRaf);
+			resultDrawRaf = null;
+		}
+	}
+
+	function scheduleRobotPoseFlush(poseTextEl) {
+		if (poseFlushRaf != null) return;
+		poseFlushRaf = requestAnimationFrame(() => {
+			poseFlushRaf = null;
+			const r = pendingRobotMsg;
+			pendingRobotMsg = null;
+			if (!r) return;
+			if (poseTextEl) poseTextEl.textContent = formatRobotStatus(r);
+			if (Array.isArray(r.joint_position_rad) && r.joint_position_rad.length >= 6) {
+				pushJointSample(r.joint_position_rad.slice(0, 6));
+			}
+		});
+	}
+
+	function scheduleColorDraw(canvas) {
+		if (!canvas) return;
+		if (colorDrawRaf != null) return;
+		colorDrawRaf = requestAnimationFrame(() => {
+			colorDrawRaf = null;
+			const msg = pendingColorMsg;
+			pendingColorMsg = null;
+			if (msg) drawSensorImageToCanvas(msg, canvas);
+		});
+	}
+
+	function scheduleResultDraw(canvas) {
+		if (!canvas) return;
+		if (resultDrawRaf != null) return;
+		resultDrawRaf = requestAnimationFrame(() => {
+			resultDrawRaf = null;
+			const msg = pendingResultMsg;
+			pendingResultMsg = null;
+			if (msg) drawSensorImageToCanvas(msg, canvas);
+		});
+	}
+
+	function applyTopicDefaultsToDom() {
 		TOPIC_IDS.forEach(id => {
 			const el = $(id);
 			if (el && TOPIC_DEFAULTS[id] !== undefined) el.value = TOPIC_DEFAULTS[id];
 		});
 	}
 
-    function readTopicsFromDom() {
+	function readTopicsFromDom() {
 		const o = {};
 		TOPIC_IDS.forEach(id => {
 			const el = $(id);
@@ -105,13 +177,20 @@
 		return o;
 	}
 
-    function loadTopicsFromStorage() {
+	function loadTopicsFromStorage() {
 		try {
 			const raw = localStorage.getItem(TOPIC_STORAGE_KEY);
 			if (!raw) return false;
 			const o = JSON.parse(raw);
 			if (!o || typeof o !== 'object') return false;
-			const ok = TOPIC_IDS.every(id => typeof o[id] === 'string' && o[id].length > 0);
+			TOPIC_IDS.forEach(id => {
+				if (o[id] === undefined && TOPIC_DEFAULTS[id] !== undefined) o[id] = TOPIC_DEFAULTS[id];
+			});
+			const ok = TOPIC_IDS.every(id => {
+				if (typeof o[id] !== 'string') return false;
+				if (id === 'topic-result') return true;
+				return o[id].length > 0;
+			});
 			if (!ok) return false;
 			TOPIC_IDS.forEach(id => {
 				const el = $(id);
@@ -123,24 +202,24 @@
 		}
 	}
 
-    function saveTopicsToStorage() {
+	function saveTopicsToStorage() {
 		try {
 			localStorage.setItem(TOPIC_STORAGE_KEY, JSON.stringify(readTopicsFromDom()));
 		} catch (e) { /* ignore quota / private mode */ }
 	}
 
-    function clearTopicsStorage() {
+	function clearTopicsStorage() {
 		try {
 			localStorage.removeItem(TOPIC_STORAGE_KEY);
 		} catch (e) { /* ignore */ }
 	}
 
-    function topicSettingsModalOpen() {
+	function topicSettingsModalOpen() {
 		const m = $('topic-settings-modal');
 		return m && !m.hasAttribute('hidden');
 	}
 
-    function openTopicSettingsModal() {
+	function openTopicSettingsModal() {
 		const m = $('topic-settings-modal');
 		if (!m) return;
 		m.removeAttribute('hidden');
@@ -150,7 +229,7 @@
 		if (first) first.focus();
 	}
 
-    function closeTopicSettingsModal() {
+	function closeTopicSettingsModal() {
 		const m = $('topic-settings-modal');
 		if (!m) return;
 		m.setAttribute('hidden', '');
@@ -160,55 +239,19 @@
 		if (btn) btn.focus();
 	}
 
-    /** 视觉面板暂关闭网关路径（与 HTML/CSS 隐藏网关 UI 一致）；恢复网关时删去 body 的 vision-grasp-no-gateway 并移除本判断 */
-    function gatewayDisabled() {
-		return document.body && document.body.classList.contains('vision-grasp-no-gateway');
-	}
-
-    function bridgePort() {
+	function bridgePort() {
 		const q = parseInt(new URLSearchParams(window.location.search).get('rosbridge_port') || '9090', 10);
 		return q || 9090;
 	}
 
-    function gatewayPort() {
-		const el = $('gateway-port');
-		const p = el && el.value ? parseInt(String(el.value).replace(/[^\d]/g, ''), 10) : NaN;
-		if (!isNaN(p) && p > 0) return p;
-		const q = parseInt(new URLSearchParams(window.location.search).get('gateway_port') || '8765', 10);
-		return q || 8765;
-	}
-
-    function rosModeGateway() {
-		if (gatewayDisabled()) return false;
-		const el = $('use-gateway');
-		if (el && el.checked) return true;
-		const p = new URLSearchParams(window.location.search);
-		return p.get('ros_mode') === 'gateway' || p.get('gateway') === '1';
-	}
-
-    function getGatewayToken() {
-		try {
-			return sessionStorage.getItem(IVG_JWT_KEY) || '';
-		} catch (e) {
-			return '';
-		}
-	}
-
-    function setGatewayToken(t) {
-		try {
-			if (t) sessionStorage.setItem(IVG_JWT_KEY, t);
-			else sessionStorage.removeItem(IVG_JWT_KEY);
-		} catch (e) { /* ignore */ }
-	}
-
-    function setConnStatus(text, ok) {
+	function setConnStatus(text, ok) {
 		const el = $('conn-status');
 		if (!el) return;
 		el.textContent = text;
 		el.className = `status${ok ? ' ok' : ' off'}`;
 	}
 
-    function toUint8(data) {
+	function toUint8(data) {
 		if (!data) return null;
 		if (data instanceof Uint8Array) return data;
 		if (typeof data === 'string') {
@@ -226,15 +269,17 @@
 		return null;
 	}
 
-    function drawSensorImageToCanvas(msg, canvas) {
+	function drawSensorImageToCanvas(msg, canvas) {
 		if (!msg || !msg.width || !msg.height || !canvas) return;
 		const enc = (msg.encoding || '').toLowerCase();
 		const raw = toUint8(msg.data);
 		if (!raw) return;
 		const w = msg.width;
 		const h = msg.height;
-		canvas.width = w;
-		canvas.height = h;
+		if (canvas.width !== w || canvas.height !== h) {
+			canvas.width = w;
+			canvas.height = h;
+		}
 		const ctx = canvas.getContext('2d');
 		const imgData = ctx.createImageData(w, h);
 		const px = imgData.data;
@@ -286,24 +331,24 @@
 		}
 	}
 
-    // --- 关节曲线缓冲（与 drawJointChart / chartLoop 配合）---
-    const jointHistory = {
+	// --- 关节曲线缓冲（与 drawJointChart / chartLoop 配合）---
+	const jointHistory = {
 		max: 280,
 		t: [],
 		joints: [[], [], [], [], [], []]
 	};
 
-    /**
+	/**
 	 * GraspNet 策略下「循环」状态：后端 /loop_grasp_control 线程始终走视觉，无法实现「非视觉循环」，
 	 * 故在页面内用 setTimeout 链重复调用 /execute_single_grasp(false)。pauseMs 为两次调用间隔。
 	 */
-    const clientGraspLoop = { active: false, timeoutId: null, pauseMs: 1500 };
+	const clientGraspLoop = { active: false, timeoutId: null, pauseMs: 1500 };
 
-    function useVisualFromMode() {
+	function useVisualFromMode() {
 		return !!($('mode-workpiece') && $('mode-workpiece').checked);
 	}
 
-    function stopClientGraspLoop() {
+	function stopClientGraspLoop() {
 		clientGraspLoop.active = false;
 		if (clientGraspLoop.timeoutId) {
 			clearTimeout(clientGraspLoop.timeoutId);
@@ -311,7 +356,7 @@
 		}
 	}
 
-    function startClientGraspLoop() {
+	function startClientGraspLoop() {
 		stopClientGraspLoop();
 		clientGraspLoop.active = true;
 		function tick() {
@@ -327,7 +372,7 @@
 		tick();
 	}
 
-    function pushJointSample(arr6) {
+	function pushJointSample(arr6) {
 		const now = performance.now() / 1000;
 		jointHistory.t.push(now);
 		for (let i = 0; i < 6; i++) {
@@ -339,9 +384,9 @@
 		}
 	}
 
-    const JOINT_COLORS = ['#2563eb', '#16a34a', '#d97706', '#db2777', '#7c3aed', '#0d9488'];
+	const JOINT_COLORS = ['#2563eb', '#16a34a', '#d97706', '#db2777', '#7c3aed', '#0d9488'];
 
-    function drawJointChart() {
+	function drawJointChart() {
 		const canvas = $('joint-chart');
 		if (!canvas) return;
 		const ctx = canvas.getContext('2d');
@@ -403,8 +448,8 @@
 		ctx.fillText(`${vmin.toFixed(3)} rad`, 4, H - pad.b);
 	}
 
-    /** RobotStatus → 末端 xyz、Pose 四元数、cartesian_rpy、关节角等可读多行文本 */
-    function formatRobotStatus(m) {
+	/** RobotStatus → 末端 xyz、Pose 四元数、cartesian_rpy、关节角等可读多行文本 */
+	function formatRobotStatus(m) {
 		if (!m) return '（尚无机械臂状态数据）';
 		const lines = [];
 		lines.push(`is_online: ${m.is_online}  enable: ${m.enable}  in_motion: ${m.in_motion}`);
@@ -432,11 +477,12 @@
 		return lines.join('\n');
 	}
 
-    /** PoseArray 摘要：数量、frame_id、首点 position/orientation */
-    function formatGraspPoses(m) {
+	/** PoseArray 摘要：数量、frame_id、首点 position/orientation */
+	function formatGraspPoses(m) {
 		if (!m || !Array.isArray(m.poses)) return '（尚无点云抓取位姿 PoseArray 数据）';
 		const n = m.poses.length;
-		const lines = [`  frame_id: ${m.header.frame_id}PoseArray 数量: ${n}${m.header && m.header.frame_id ? '  frame_id: ' + m.header.frame_id : ''}`];
+		const fid = m.header && m.header.frame_id ? m.header.frame_id : '（空）';
+		const lines = [`PoseArray 数量: ${n}`, `frame_id: ${fid}`];
 		if (n > 0) {
 			const p = m.poses[0].position;
 			const o = m.poses[0].orientation;
@@ -446,17 +492,54 @@
 		return lines.join('\n');
 	}
 
-    function unsubscribeAll() {
+	function webVideoPortVision() {
+		const el = $('web-video-port');
+		const pv = el && el.value ? parseInt(String(el.value).replace(/[^\d]/g, ''), 10) : NaN;
+		if (!isNaN(pv) && pv > 0) return pv;
+		const q = parseInt(new URLSearchParams(window.location.search).get('web_video_port') || '8089', 10);
+		return q || 8089;
+	}
+
+	function resetCameraDisplay() {
+		const canvas = $('cam-canvas');
+		const im = $('cam-mjpeg');
+		if (im) {
+			im.removeAttribute('src');
+			im.hidden = true;
+		}
+		if (canvas) canvas.hidden = false;
+	}
+
+	function resetResultPanel() {
+		const rm = $('result-mjpeg');
+		const rc = $('result-canvas');
+		const ph = $('result-placeholder');
+		if (rm) {
+			rm.removeAttribute('src');
+			rm.hidden = true;
+		}
+		if (rc) {
+			rc.hidden = true;
+			const ctx = rc.getContext('2d');
+			if (ctx && rc.width && rc.height) ctx.clearRect(0, 0, rc.width, rc.height);
+		}
+		if (ph) ph.hidden = false;
+	}
+
+	function unsubscribeAll() {
+		cancelVisionVisualPending();
 		Object.keys(subs).forEach(k => {
 			try {
 				if (subs[k] && subs[k].dispose) subs[k].dispose();
 			} catch (e) { /* ignore */ }
 			subs[k] = null;
 		});
+		resetCameraDisplay();
+		resetResultPanel();
 	}
 
-    /** 按输入框话题名建立全部订阅；connect 成功时调用 */
-    function startSubscriptions() {
+	/** 按输入框话题名建立全部订阅；connect 成功时调用 */
+	function startSubscriptions() {
 		unsubscribeAll();
 		if (!ros || !ros.isConnected) return;
 
@@ -465,16 +548,77 @@
 		const jointTopic = ($('topic-joints') && $('topic-joints').value.trim()) || TOPIC_DEFAULTS['topic-joints'];
 		const statusTopic = ($('topic-vpe-status') && $('topic-vpe-status').value.trim()) || TOPIC_DEFAULTS['topic-vpe-status'];
 		const graspTopic = ($('topic-grasp-poses') && $('topic-grasp-poses').value.trim()) || TOPIC_DEFAULTS['topic-grasp-poses'];
+		const resultTopic = $('topic-result') ? String($('topic-result').value || '').trim() : '';
 
-		subs.color = new ROSLIB.Topic({
-			ros,
-			name: colorTopic,
-			messageType: 'sensor_msgs/msg/Image',
-			queue_length: 1
-		});
-		subs.color.subscribe(msg => {
-			drawSensorImageToCanvas(msg, $('cam-canvas'));
-		});
+		const poseTextEl = $('pose-text');
+		const canvas = $('cam-canvas');
+		const camMjpeg = $('cam-mjpeg');
+		if (typeof ivgWebVideo !== 'undefined') {
+			if (canvas) canvas.hidden = true;
+			if (camMjpeg) {
+				camMjpeg.hidden = false;
+				camMjpeg.src = ivgWebVideo.streamUrl(colorTopic, {
+					port: webVideoPortVision(),
+				});
+			}
+			subs.color = null;
+		} else {
+			if (canvas) canvas.hidden = false;
+			if (camMjpeg) {
+				camMjpeg.hidden = true;
+				camMjpeg.removeAttribute('src');
+			}
+			subs.color = new ROSLIB.Topic({
+				ros,
+				name: colorTopic,
+				messageType: 'sensor_msgs/msg/Image',
+				queue_length: 1
+			});
+			subs.color.subscribe(msg => {
+				pendingColorMsg = msg;
+				scheduleColorDraw(canvas);
+			});
+		}
+
+		const rCanvas = $('result-canvas');
+		const rMjpeg = $('result-mjpeg');
+		const rPh = $('result-placeholder');
+		if (!resultTopic) {
+			if (rPh) rPh.hidden = false;
+			if (rCanvas) rCanvas.hidden = true;
+			if (rMjpeg) {
+				rMjpeg.hidden = true;
+				rMjpeg.removeAttribute('src');
+			}
+			subs.result = null;
+		} else if (typeof ivgWebVideo !== 'undefined') {
+			if (rPh) rPh.hidden = true;
+			if (rCanvas) rCanvas.hidden = true;
+			if (rMjpeg) {
+				rMjpeg.hidden = false;
+				rMjpeg.src = ivgWebVideo.streamUrl(resultTopic, {
+					port: webVideoPortVision(),
+				});
+			}
+			subs.result = null;
+		} else {
+			if (rPh) rPh.hidden = true;
+			if (rCanvas) rCanvas.hidden = false;
+			if (rMjpeg) {
+				rMjpeg.hidden = true;
+				rMjpeg.removeAttribute('src');
+			}
+			subs.result = new ROSLIB.Topic({
+				ros,
+				name: resultTopic,
+				messageType: 'sensor_msgs/msg/Image',
+				queue_length: 1
+			});
+			subs.result.subscribe(msg => {
+				pendingResultMsg = msg;
+				scheduleResultDraw(rCanvas);
+			});
+		}
 
 		subs.robot = new ROSLIB.Topic({
 			ros,
@@ -483,10 +627,8 @@
 			queue_length: 1
 		});
 		subs.robot.subscribe(m => {
-			$('pose-text').textContent = formatRobotStatus(m);
-			if (Array.isArray(m.joint_position_rad) && m.joint_position_rad.length >= 6) {
-				pushJointSample(m.joint_position_rad.slice(0, 6));
-			}
+			pendingRobotMsg = m;
+			scheduleRobotPoseFlush(poseTextEl);
 		});
 
 		subs.joints = new ROSLIB.Topic({
@@ -497,6 +639,9 @@
 		});
 		subs.joints.subscribe(m => {
 			if (!m.position || m.position.length < 6) return;
+			const now = performance.now();
+			if (now - lastJointStatesPush < JOINT_STATE_MIN_MS) return;
+			lastJointStatesPush = now;
 			/* 与 RobotStatus 并行推同一 jointHistory：未按 name 对齐关节序，仅作趋势 */
 			pushJointSample(m.position.slice(0, 6));
 		});
@@ -524,13 +669,13 @@
 		});
 	}
 
-    function logSvc(msg) {
+	function logSvc(msg) {
 		const el = $('svc-log');
 		if (el) el.textContent = `${new Date().toLocaleTimeString()} ${msg}`;
 	}
 
-    /** std_srvs/SetBool；done(err, r) 可选，在成功/失败回调末尾调用 */
-    function callSetBool(name, data, done) {
+	/** std_srvs/SetBool；done(err, r) 可选，在成功/失败回调末尾调用 */
+	function callSetBool(name, data, done) {
 		if (!ros || !ros.isConnected) {
 			logSvc('未连接');
 			if (typeof done === 'function') done(new Error('未连接'));
@@ -554,12 +699,12 @@
 		);
 	}
 
-    /**
+	/**
 	 * demo_interface/ExecuteGraspPose；done 在成功或失败时都会调用（浏览器循环据此排下一拍）
 	 * @param {boolean} useVisual
 	 * @param {function(Error=, *=)|undefined} done
 	 */
-    function callExecuteGrasp(useVisual, done) {
+	function callExecuteGrasp(useVisual, done) {
 		if (!ros || !ros.isConnected) {
 			logSvc('未连接');
 			if (typeof done === 'function') done(new Error('未连接'));
@@ -584,7 +729,7 @@
 		);
 	}
 
-    function callGripperSwap(direction) {
+	function callGripperSwap(direction) {
 		if (!ros || !ros.isConnected) {
 			logSvc('未连接');
 			return;
@@ -605,19 +750,12 @@
 		);
 	}
 
-    /** 建立 Ros 实例并 connect；on connection 调 startSubscriptions；on close 停浏览器循环并 dispose 订阅 */
-    function connect() {
+	/** 建立 Ros 实例并 connect；on connection 调 startSubscriptions；on close 停浏览器循环并 dispose 订阅 */
+	function connect() {
 		if (ros) {
 			try {
 				ros.close();
 			} catch (e) { /* ignore */ }
-		}
-		if (rosModeGateway()) {
-			if (!getGatewayToken()) {
-				ros = null;
-				setConnStatus('请先登录网关', false);
-				return;
-			}
 		}
 		ros = new ROSLIB.Ros({ groovyCompatibility: false });
 		const h = window.location.hostname || '127.0.0.1';
@@ -633,53 +771,11 @@
 			setConnStatus('已断开', false);
 			unsubscribeAll();
 		});
-		if (rosModeGateway()) {
-			ros.connect(`ws://${h}:${gatewayPort()}/ws/ros?token=${encodeURIComponent(getGatewayToken())}`);
-		} else {
-			ros.connect(`ws://${h}:${bridgePort()}`);
-		}
+		ros.connect(`ws://${h}:${bridgePort()}`);
 	}
 
-    function gatewayLogin() {
-		const u = ($('gw-user') && $('gw-user').value || '').trim();
-		const pw = ($('gw-pass') && $('gw-pass').value) || '';
-		if (!u) {
-			alert('请输入用户名');
-			return;
-		}
-		const h = window.location.hostname || '127.0.0.1';
-		const body = new URLSearchParams();
-		body.set('username', u);
-		body.set('password', pw);
-		fetch(`http://${h}:${gatewayPort()}/auth/token`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: body.toString()
-		})
-			.then(r => {
-				if (!r.ok) return r.text().then(t => { throw new Error(t || String(r.status)); });
-				return r.json();
-			})
-			.then(j => {
-				if (!j || !j.access_token) throw new Error('无 access_token');
-				setGatewayToken(j.access_token);
-				connect();
-			})
-			.catch(e => {
-				alert(`登录失败: ${e && e.message ? e.message : e}`);
-			});
-	}
-
-    function gatewayLogout() {
-		setGatewayToken('');
-		if (ros) try { ros.close(); } catch (e) { /* ignore */ }
-		ros = null;
-		setConnStatus('已登出', false);
-		unsubscribeAll();
-	}
-
-    /** 非当前策略的按钮区半透明，仍可点击 */
-    function syncModeUi() {
+	/** 非当前策略的按钮区半透明，仍可点击 */
+	function syncModeUi() {
 		const work = $('mode-workpiece') && $('mode-workpiece').checked;
 		const g = $('mode-graspnet') && $('mode-graspnet').checked;
 		const elW = $('section-workpiece-btns');
@@ -688,29 +784,51 @@
 		if (elG) elG.style.opacity = g ? '1' : '0.45';
 	}
 
-    function chartLoop() {
-		drawJointChart();
-		requestAnimationFrame(() => {
-			setTimeout(chartLoop, 200);
-		});
+	function startJointChartTimer() {
+		if (jointChartTimer != null) return;
+		jointChartTimer = setInterval(() => drawJointChart(), JOINT_CHART_MS);
 	}
 
-    document.addEventListener('DOMContentLoaded', () => {
+	document.addEventListener('DOMContentLoaded', () => {
 		loadTopicsFromStorage();
 
+		(function initControlColWidth() {
+			const el = $('control-col-width');
+			if (!el) return;
+			let v = 30;
+			try {
+				const s = localStorage.getItem(CONTROL_COL_PCT_KEY);
+				if (s != null && s !== '') {
+					const n = parseInt(s, 10);
+					if (!isNaN(n)) v = Math.min(45, Math.max(22, n));
+				}
+			} catch (e) { /* ignore */ }
+			el.value = String(v);
+			document.documentElement.style.setProperty('--vision-control-col-pct', String(v));
+			el.addEventListener('input', () => {
+				const n = parseInt(el.value, 10);
+				if (!isNaN(n)) {
+					document.documentElement.style.setProperty('--vision-control-col-pct', String(n));
+				}
+			});
+			el.addEventListener('change', () => {
+				try {
+					localStorage.setItem(CONTROL_COL_PCT_KEY, el.value);
+				} catch (e) { /* ignore */ }
+			});
+		})();
+
 		const p = new URLSearchParams(window.location.search);
-		if (!gatewayDisabled() && (p.get('ros_mode') === 'gateway' || p.get('gateway') === '1')) {
-			const cb = $('use-gateway');
-			if (cb) cb.checked = true;
+		const wvportQ = p.get('web_video_port');
+		if (wvportQ && $('web-video-port')) $('web-video-port').value = wvportQ;
+
+		function restartVisionCamIfConnected() {
+			if (ros && ros.isConnected) startSubscriptions();
 		}
-		const gp = p.get('gateway_port');
-		if (!gatewayDisabled() && gp && $('gateway-port')) $('gateway-port').value = gp;
+		const wvPortEl = $('web-video-port');
+		if (wvPortEl) wvPortEl.addEventListener('change', restartVisionCamIfConnected);
 
 		$('btn-reconnect').onclick = () => { connect(); };
-		const ug = $('use-gateway');
-		if (ug) ug.addEventListener('change', () => { connect(); });
-		$('btn-gw-login').onclick = gatewayLogin;
-		$('btn-gw-logout').onclick = gatewayLogout;
 
 		$('mode-workpiece').addEventListener('change', syncModeUi);
 		$('mode-graspnet').addEventListener('change', syncModeUi);
@@ -785,7 +903,7 @@
 			closeTopicSettingsModal();
 		});
 
-		chartLoop();
+		startJointChartTimer();
 		connect();
 	});
 })();

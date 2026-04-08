@@ -10,9 +10,10 @@
 	<link rel="stylesheet" href="css/ivg_site_nav.css" />
 	<script src="js/vendor/eventemitter2.js"></script>
 	<script src="js/vendor/roslib.min.js"></script>
+	<script src="js/ivg_web_video.js"></script>
 </head>
 
-<body class="vision-grasp-no-gateway ivg-single-screen">
+<body class="ivg-single-screen">
 	<nav class="ivg-global-nav" aria-label="灵视IVG 站内导航" data-ivg-page="vision">
 		<div class="ivg-global-nav__inner">
 			<a class="ivg-global-nav__brand" href="index.html">灵视 <span>IVG</span></a>
@@ -28,14 +29,9 @@
 		<span class="topbar-page-hint" aria-hidden="true">本页 · 连接与状态</span>
 		<span class="spacer"></span>
 		<div class="gateway-row" aria-label="连接">
-			<div class="gateway-only-block">
-				<label><input type="checkbox" id="use-gateway" /> 经网关</label>
-				<label>网关端口 <input type="text" id="gateway-port" value="8765" inputmode="numeric" /></label>
-				<input type="text" id="gw-user" class="cred" placeholder="用户" autocomplete="username" />
-				<input type="password" id="gw-pass" class="cred" placeholder="密码" autocomplete="current-password" />
-				<button type="button" class="btn-top" id="btn-gw-login">登录</button>
-				<button type="button" class="btn-top" id="btn-gw-logout">登出</button>
-			</div>
+			<span class="webvid-inline webvid-hint" title="彩色图与识别结果均经 web_video_server MJPEG，不经 rosbridge 传像素">web_video_server</span>
+			<label class="webvid-inline">端口 <input type="text" id="web-video-port" value="8089" inputmode="numeric"
+					class="webvid-port" aria-label="web_video_server HTTP 端口" /></label>
 			<button type="button" class="btn-top" id="btn-reconnect"
 				title="连接 rosbridge：默认端口 9090；可在地址栏加 ?rosbridge_port= 修改">重新连接 ROS</button>
 			<span id="conn-status" class="status off">未连接</span>
@@ -47,7 +43,7 @@
 		<div class="layout-toolbar layout-tier-1">
 			<div class="toolbar-brand">
 				<h1>视觉抓取面板</h1>
-				<p class="page-head-sub">① 标题与模式 · ② 相机与操作（左右）· ③ 曲线与状态</p>
+				<p class="page-head-sub">① 标题与模式 · ② 双相机与操作 · ③ 曲线与状态</p>
 			</div>
 			<div class="toolbar-mode" role="radiogroup" aria-label="抓取方式（影响单次与循环是否调用视觉位姿估计）">
 				<span class="mode-row-label" id="mode-group-label">抓取方式</span>
@@ -65,17 +61,32 @@
 				</div>
 			</div>
 			<div class="toolbar-actions">
+				<label class="toolbar-control-col" title="第三列宽度（抓取与工具控制）">
+					<span>控制列</span>
+					<input type="range" id="control-col-width" min="22" max="45" value="30" step="1"
+						aria-label="抓取与工具控制列占屏宽百分比" />
+				</label>
 				<button type="button" class="btn-settings" id="btn-topic-settings-open" aria-haspopup="dialog"
 					aria-controls="topic-settings-modal">订阅话题设置</button>
 			</div>
 		</div>
 
-		<!-- 第二 + 三档：相机与操作按钮左右分栏（单屏布局下并排；窄屏自动上下堆叠） -->
+		<!-- 第二 + 三档：彩色相机、识别结果、操作区（单屏三列；窄屏纵向堆叠） -->
 		<div class="layout-camera-controls layout-tier-2-3">
 			<section class="panel panel--camera panel--camera-hero layout-tier-2" aria-label="相机图像">
 				<h2>相机彩色图像</h2>
 				<div class="panel-canvas-wrap">
 					<canvas id="cam-canvas" width="640" height="480"></canvas>
+					<img id="cam-mjpeg" alt="" class="cam-mjpeg" hidden />
+				</div>
+			</section>
+
+			<section class="panel panel--camera panel--camera-result layout-tier-2" aria-label="识别结果图像">
+				<h2>识别结果图像</h2>
+				<div class="panel-canvas-wrap panel-canvas-wrap--result">
+					<p id="result-placeholder" class="result-image-placeholder">未配置话题：请在「订阅话题设置」中填写「识别结果图像」话题名</p>
+					<canvas id="result-canvas" width="640" height="480"></canvas>
+					<img id="result-mjpeg" alt="" class="cam-mjpeg result-cam-mjpeg" hidden />
 				</div>
 			</section>
 
@@ -167,6 +178,9 @@
 			<div class="topic-grid topic-grid-modal">
 				<label>彩色相机图像 <input type="text" id="topic-color" value="/camera/color/image_raw" autocomplete="off"
 						title="sensor_msgs/Image" /></label>
+				<label>识别结果图像（可空） <input type="text" id="topic-result" value=""
+						placeholder="例 /visual_pose/annotated_image" autocomplete="off"
+						title="sensor_msgs/Image；留空则中间栏仅显示提示" /></label>
 				<label>机械臂状态 RobotStatus <input type="text" id="topic-robot" value="/aubo_driver/robot_status"
 						autocomplete="off" /></label>
 				<label>关节角 JointState（曲线用） <input type="text" id="topic-joints" value="/joint_states"

@@ -1,6 +1,8 @@
 # aubo_ros2_web_dashboard
 
-ROS 2 **ament_python** 包：托管 **灵视 IVG** 现场 Web 门户（门户首页、视觉抓取、咖啡拉花）与 **ROS 控制台**（话题 / 服务 / 参数 / 图 / 2D / 3D），可选 **FastAPI 网关**（JWT + WebSocket 代理至 rosbridge）。浏览器通过 **roslib** 与 ROS 通信；**直连**时 WebSocket 指向本机 **rosbridge**；经网关时先连网关再转发到 rosbridge。
+ROS 2 **ament_python** 包：托管 **灵视 IVG** 现场 Web 门户（门户首页、视觉抓取、咖啡拉花）与 **ROS 控制台**（话题 / 服务 / 参数 / 图 / 2D / 3D）。浏览器通过 **[roslibjs](https://github.com/RobotWebTools/roslibjs)** 经 **WebSocket** 连接本机 **[rosbridge_suite](https://github.com/RobotWebTools/rosbridge_suite)**（`rosbridge_server` + `rosapi` 等），**不**使用已停更的 Node.js **ros2-web-bridge** 作运行时桥。
+
+**Foxglove 路线（Vue3 + FastAPI + foxglove_bridge）** 见同工作空间包 **`aubo_ros2_foxglove_dashboard`**：控制面板走 FastAPI，Foxglove Studio **直连** `foxglove_bridge`（默认 WS `8765`），与本包端口与协议独立。
 
 ---
 
@@ -8,13 +10,12 @@ ROS 2 **ament_python** 包：托管 **灵视 IVG** 现场 Web 门户（门户首
 
 | 路径 | 作用 |
 |------|------|
-| `package.xml` | ROS 包清单：依赖 `rosbridge_server`、`tf2_web_republisher` 等；说明网关需额外 `pip install -r gateway/requirements.txt`。 |
-| `setup.py` / `setup.cfg` | 安装 `aubo_ros2_web_dashboard` 占位模块、`ivg_gateway`（源码在 `gateway/ivg_gateway`）、`launch/`、`web/` 到 `share/`。 |
+| `package.xml` | ROS 包清单：依赖 **`rosbridge_suite`**（含 `rosbridge_server`、`rosapi`）、`tf2_web_republisher` 等。 |
+| `setup.py` / `setup.cfg` | 安装 Python 包、`launch/`、`web/public/` 到 `share/aubo_ros2_web_dashboard/`。 |
 | `resource/aubo_ros2_web_dashboard` | ament 索引用空标记文件。 |
-| `aubo_ros2_web_dashboard/__init__.py` | Python 包命名空间占位。 |
+| `aubo_ros2_web_dashboard/` | Python 模块：`threaded_static_server` 等。 |
 | `launch/` | `ros2 launch` 描述文件，见下表。 |
-| `gateway/` | FastAPI 网关（独立 pip 依赖），见下表。 |
-| `web/ros2_web_bridge_demo/` | 静态前端（由 launch 中 `http.server` 提供），见下表。 |
+| `web/public/` | **HTTP 文档根**：门户、视觉抓取、控制台等静态资源（`threaded_static_server` 的 `--directory`）。 |
 
 ---
 
@@ -22,44 +23,20 @@ ROS 2 **ament_python** 包：托管 **灵视 IVG** 现场 Web 门户（门户首
 
 | 文件 | 作用与实现要点 |
 |------|----------------|
-| `web_dashboard.launch.py` | 启动 **rosbridge**（含 rosapi）、**tf2_web_republisher**、`python3 -m http.server` 托管 `web/ros2_web_bridge_demo`。参数：`web_host`、`web_port`（默认 8090）、`rosbridge_port`（默认 9090）。浏览器 **直连** `ws://主机:rosbridge_port`。 |
-| `web_dashboard_gateway.launch.py` | 在上者基础上增加 **uvicorn** 运行 `ivg_gateway.main:app`，并 `SetEnvironmentVariable('IVG_GATEWAY_ROSBRIDGE_PORT', rosbridge_port)`，使网关与 launch 中 rosbridge 端口一致。参数额外：`gateway_host`、`gateway_port`（默认 8765）。 |
+| `web_dashboard.launch.py` | 启动 **[rosbridge_suite](https://github.com/RobotWebTools/rosbridge_suite)**：`rosbridge_server` 的 WebSocket launch（含 **rosapi**）、**tf2_web_republisher**、静态 HTTP 服务托管 `web/public`。参数：`web_host`、`web_port`（默认 8090）、`rosbridge_port`（默认 9090）。浏览器 **直连** `ws://主机:rosbridge_port`。 |
 
 ---
 
-## `gateway/`（FastAPI 网关）
+## `web/public/`（静态前端 / 文档根）
 
-安装：`pip install -r gateway/requirements.txt`（建议在与 ROS 同一 Python 环境或已 `source install/setup.bash` 的机器上）。
-
-| 文件 | 作用与实现要点 |
-|------|----------------|
-| `requirements.txt` | 网关 Python 依赖（FastAPI、uvicorn、SQLAlchemy、aiosqlite、JWT、slowapi、websockets、roslibpy 等）。 |
-| `.gitignore` | 忽略本地 SQLite `ivg_gateway.db`、`.env` 等。 |
-| `ivg_gateway/main.py` | **应用入口**：HTTP 路由（`/health`、`/auth/token`、`/auth/me`、`/api/v1/*`）、**WebSocket `/ws/ros`** 使用 `websockets` 库连接上游 rosbridge 并双向转发；出站消息经限流、`ws_policy`、可选空闲急停；生命周期内 `init_db`、种子管理员。 |
-| `ivg_gateway/config.py` | **Pydantic Settings**：环境变量前缀 `IVG_GATEWAY_*`（密钥、端口、DB URL、限流、禁区服务子串、急停话题等）。 |
-| `ivg_gateway/database.py` | **异步 SQLAlchemy** 引擎与 `SessionLocal`；`init_db()` 建表。 |
-| `ivg_gateway/models.py` | ORM：`User`、`AuditLog`、`Task`、`TrajectoryRecord` 及角色/状态枚举。 |
-| `ivg_gateway/schemas.py` | Pydantic 模型：Token、用户与任务/轨迹的 API 出入参、视觉占位请求/响应。 |
-| `ivg_gateway/auth_core.py` | bcrypt 密码哈希；JWT 签发/解码（载荷含 `sub`、`role`）。 |
-| `ivg_gateway/deps.py` | FastAPI `Depends`：`get_db`、`get_current_user`（Bearer）、`require_operator` / `require_admin`。 |
-| `ivg_gateway/services/audit.py` | 审计行写入 `audit_logs` 并 `commit`。 |
-| `ivg_gateway/services/ws_policy.py` | 解析 rosbridge JSON `op`；viewer 禁写；服务名禁区；**ClientMessageRateLimiter**；**PublishDebouncer**。 |
-| `ivg_gateway/services/safety.py` | **同步** `emergency_stop_sync`：可选 `roslibpy` 再连 rosbridge 发布零速度 Twist（由 `asyncio.to_thread` 调用）。 |
-| `ivg_gateway/services/__init__.py` | 子模块说明占位。 |
-| `ivg_gateway/__init__.py` | 包版本与说明。 |
-
----
-
-## `web/ros2_web_bridge_demo/`（静态前端）
-
-由 launch 将本目录作为 `http.server` 根目录下的子路径安装到 `share/.../web/ros2_web_bridge_demo/`（以实际 `colcon` 安装为准）。**业务脚本**（`js/vision_grasp_panel.js`、`js/ros_console.js`、`js/coffee_latte_panel.js`、`js/ivg_site_nav.js` 及门户内联脚本）为 **ES2015+**（`let`/`const`、箭头函数、模板字符串等），由浏览器直接执行，**无 Babel/打包**；需现代 Chromium / Firefox / Edge。
+源码位于包内 `web/public/`；`colcon` 安装后为 `share/aubo_ros2_web_dashboard/web/public/`。launch 中 **`threaded_static_server`** 将该目录作为 HTTP 根目录。**业务脚本**（`js/vision_grasp_panel.js`、`js/ros_console.js`、`js/coffee_latte_panel.js`、`js/ivg_site_nav.js` 及门户内联脚本）为 **ES2015+**（`let`/`const`、箭头函数、模板字符串等），由浏览器直接执行，**无 Babel/打包**；需现代 Chromium / Firefox / Edge。
 
 | 文件 | 作用与实现要点 |
 |------|----------------|
 | `index.html` | **灵视 IVG 门户首页**：功能介绍与快速入口；链到视觉抓取、咖啡拉花、控制台；视觉位姿（默认 `http://hostname:8088/`）与手眼（`:8080`）由脚本按当前 `hostname` 拼接，控制台与面板链接继承 `location.search`（如 `?rosbridge_port=`）。 |
-| `vision_grasp_panel.html` | **视觉抓取面板**：相机图、关节曲线、状态区、抓取与 GraspNet 控制等。`body` 含 `ivg-single-screen`（单屏视口布局）与 `vision-grasp-no-gateway`（隐藏网关 UI）。详见下文 **「视觉抓取面板」**。 |
-| `topics_lab.html` | **ROS 控制台**：顶栏（直连 / 网关登录）、全站导航、IVG 快捷条、多标签主区（话题、服务、动作、参数、关系图、2D、3D）；加载 `ros_console.js`。 |
-| `js/ros_console.js` | **控制台核心逻辑**：`ROSLIB.Ros` 直连或 `ws://网关/ws/ros?token=`、rosapi、订阅/服务/图/2D/3D；IVG 预设话题与服务。 |
+| `vision_grasp_panel.html` | **视觉抓取面板**：相机图、关节曲线、状态区、抓取与 GraspNet 控制等。`body` 含 `ivg-single-screen`（单屏视口布局）。详见下文 **「视觉抓取面板」**。 |
+| `topics_lab.html` | **ROS 控制台**：顶栏、全站导航、IVG 快捷条、多标签主区（话题、服务、动作、参数、关系图、2D、3D）；加载 `ros_console.js`。 |
+| `js/ros_console.js` | **控制台核心逻辑**：`ROSLIB.Ros` 直连 `ws://主机:rosbridge_port`、rosapi、订阅/服务/图/2D/3D；IVG 预设话题与服务。 |
 | `js/vendor/*` | 第三方库：`roslib`、`eventemitter2`、`easeljs`、`ros2d`、`three`、`OrbitControls`；`fetch_vendor.sh` / `README.txt` 说明获取方式。 |
 | `coffee_latte_panel.html` | **咖啡拉花面板**（演示）：`body.ivg-single-screen`；布局与视觉页一致，当前 Canvas 动画 + 日志，无 rosbridge。 |
 | `css/vision_grasp_panel.css` | 视觉抓取页主样式；单屏下相机与操作区 **左右分栏**（`.layout-camera-controls`），预览区 **4:3**、`object-fit: contain`，变量如 `--cam-split-max-w` 控制左侧最大宽度。 |
@@ -69,6 +46,7 @@ ROS 2 **ament_python** 包：托管 **灵视 IVG** 现场 Web 门户（门户首
 | `css/home.css` | `index.html` 门户样式。 |
 | `css/topics_lab.css` | `topics_lab.html` 布局与组件样式。 |
 | `css/demo.css` / `component.css` | 上游 RobotWebTools / demo 遗留样式（其它旧页面若引用）。 |
+| `assets/` | **图片与图标**：`assets/images/`、`assets/icons/`；说明见 `assets/README.md`。 |
 | `README.md` | 上游 **ros2-web-bridge** 会议 demo 原始说明（硬件与 Node 桥接流程）；与本仓库 IVG 集成以本文件与 `launch` 为准。 |
 
 ---
@@ -83,10 +61,9 @@ ROS 2 **ament_python** 包：托管 **灵视 IVG** 现场 Web 门户（门户首
 - **`.layout-camera-controls`**（HTML 包裹相机区块与控制区块）：宽屏 **两列**——左 **预览**（最大宽度见 `:root` 中 **`--cam-split-max-w`**，默认约 800px；列宽还与 **`--cam-split-col-pct`** 取 `min`），预览盒 **`aspect-ratio: 4/3`**，画布 **`object-fit: contain`**，避免 640×480 被压扁；右 **抓取与工具控制**（内容多时可纵向滚动）。窄屏（约 ≤920px）改为上下堆叠。
 - 若从源码中去掉 `body` 上的 `ivg-single-screen`，则退化为常规纵向排版（默认发布 HTML 带单屏 class）。
 
-### 连接与网关
+### 连接
 
-- 默认 **直连** `ws://当前页主机:9090`（可用 `?rosbridge_port=` 覆盖）。
-- 当前页面 **隐藏网关控件**（`body.vision-grasp-no-gateway` + `css/vision_grasp_panel.css`），脚本中 `gatewayDisabled()` 强制不走网关，避免 URL 中带 `ros_mode=gateway` 时误连。恢复网关：去掉上述 class/CSS/JS 判断，逻辑与 `topics_lab.html` / `ros_console.js` 一致（JWT 存 `sessionStorage`）。
+- **直连** `ws://当前页主机:9090`（可用 `?rosbridge_port=` 覆盖）。彩色图等可走 `web_video_server` MJPEG，端口可在顶栏或 `?web_video_port=` 配置。
 
 ### 话题设置
 
@@ -126,8 +103,8 @@ ROS 2 **ament_python** 包：托管 **灵视 IVG** 现场 Web 门户（门户首
 
 ### 相关文件
 
-- `web/ros2_web_bridge_demo/css/vision_grasp_panel.css`
-- `web/ros2_web_bridge_demo/js/vision_grasp_panel.js`（文件头为开发与运维用的完整约定表）
+- `web/public/css/vision_grasp_panel.css`
+- `web/public/js/vision_grasp_panel.js`（文件头为开发与运维用的完整约定表）
 
 ---
 
@@ -141,8 +118,7 @@ ROS 2 **ament_python** 包：托管 **灵视 IVG** 现场 Web 门户（门户首
 ## 数据流简图
 
 ```
-【直连】浏览器 --WebSocket--> rosbridge --> ROS 2
-【网关】浏览器 --WebSocket+JWT--> ivg_gateway --WebSocket--> rosbridge --> ROS 2
+浏览器 --WebSocket--> rosbridge_suite（rosbridge_server + rosapi）--> ROS 2
 ```
 
 ---
@@ -154,17 +130,14 @@ ROS 2 **ament_python** 包：托管 **灵视 IVG** 现场 Web 门户（门户首
 colcon build --packages-select aubo_ros2_web_dashboard --symlink-install
 source install/setup.bash
 
-# 仅静态 + rosbridge（直连，默认 HTTP 8090、WS 9090）
+# 静态 + rosbridge（默认 HTTP 8090、WS 9090）
 ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py
 
 # 可选参数示例
 ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_host:=0.0.0.0 web_port:=8090 rosbridge_port:=9090
-
-# 含网关（需已 pip install -r .../gateway/requirements.txt）
-ros2 launch aubo_ros2_web_dashboard web_dashboard_gateway.launch.py
 ```
 
-### 启动后浏览器入口（直连 `web_dashboard.launch.py`）
+### 启动后浏览器入口（`web_dashboard.launch.py`）
 
 假设静态站为 `http://<主机>:<web_port>`（默认 `8090`），rosbridge 为 `ws://<主机>:<rosbridge_port>`（默认 `9090`）。若 rosbridge 非 9090，请在各页面 URL 后加 **`?rosbridge_port=<端口>`**（与 `ivg_site_nav.js`、控制台一致）。
 
@@ -178,10 +151,6 @@ ros2 launch aubo_ros2_web_dashboard web_dashboard_gateway.launch.py
 ### 工作空间一键脚本（IVG 全栈示例）
 
 工作空间根目录下的 **`start_IVG_graspnet_points_fastapi_web_dashboard.sh`**（与本包同级，属现场集成脚本）在 **Terminator** 中拉起机械臂、感知、GraspNet、FastAPI、**本 launch（直连）**、rosbag 等；结束时会在终端打印上述静态页链接（含本机 / 局域网 IP）。环境变量示例：`WEB_DASH_HOST`、`WEB_DASH_PORT`、`ROSBRIDGE_PORT`、`WEB_HOST`、`WEB_PORT`（FastAPI）等，见脚本内注释。
-
----
-
-默认管理员（仅首次空库，**仅网关模式**）：用户名 `admin`，密码 `changeme`；生产环境请修改 `IVG_GATEWAY_*` 配置。
 
 ---
 

@@ -1,4 +1,7 @@
 # Introduction
+
+> **灵视 IVG / 本仓库部署说明**：现场与 `ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py` 使用的是 ROS 2 官方维护的 **[rosbridge_suite](https://github.com/RobotWebTools/rosbridge_suite)**（`sudo apt install ros-$ROS_DISTRO-rosbridge-suite`）。**请勿**按下文安装 Node.js **ros2-web-bridge**；下文仅为 2018 会议原版硬件流程存档。
+
 Web demo app for ROS Conference 2018
 
 ## Hardware:

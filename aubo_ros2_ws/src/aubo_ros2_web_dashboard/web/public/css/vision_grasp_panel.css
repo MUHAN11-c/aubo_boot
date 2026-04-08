@@ -35,9 +35,10 @@
 	--fs-ui: 0.875rem;
 	/* 相机预览区宽度：占满主栏（不再限制 960px，避免宽屏两侧大块留白） */
 	--cam-preview-max-w: 100%;
-	/* 单屏左右分栏时，左侧预览最大宽度（4:3 区域视觉尺寸） */
+	/* 单屏左右分栏时，相机面板内容最大宽度（居中于网格格内） */
 	--cam-split-max-w: 800px;
-	--cam-split-col-pct: 58%;
+	/* 第三列「抓取与工具控制」占整行宽度百分比（22–45，由顶栏滑块与 localStorage 写入） */
+	--vision-control-col-pct: 30;
 }
 
 * {
@@ -119,8 +120,25 @@ body {
 	color: var(--text-secondary);
 }
 
-.gateway-row input[type="text"],
-.gateway-row input[type="password"] {
+.gateway-row .webvid-inline {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	white-space: nowrap;
+}
+
+.gateway-row .webvid-port {
+	width: 3.25rem;
+}
+
+.gateway-row .webvid-hint {
+	font-size: 0.75rem;
+	color: var(--muted);
+	font-weight: 500;
+	user-select: none;
+}
+
+.gateway-row input[type="text"] {
 	width: 4rem;
 	padding: 0.2rem 0.35rem;
 	border: 1px solid var(--border);
@@ -128,10 +146,6 @@ body {
 	background: var(--panel);
 	color: var(--text);
 	font-size: var(--fs-ui);
-}
-
-.gateway-row .cred {
-	width: 5.5rem;
 }
 
 .btn-top {
@@ -199,10 +213,6 @@ body {
 	box-shadow: 0 0 0 2px rgba(185, 28, 28, 0.15);
 }
 
-.gateway-only-block {
-	display: none !important;
-}
-
 /* ---------- 主区域 ---------- */
 .wrap {
 	flex: 1 0 auto;
@@ -221,7 +231,8 @@ body {
 	margin-bottom: 1rem;
 }
 
-.layout-camera-controls > .panel--camera-hero {
+.layout-camera-controls > .panel--camera-hero,
+.layout-camera-controls > .panel--camera-result {
 	margin-bottom: 0;
 }
 
@@ -267,11 +278,22 @@ body.ivg-single-screen .wrap > .layout-toolbar {
 
 body.ivg-single-screen .layout-camera-controls {
 	display: grid;
-	grid-template-columns: minmax(0, min(var(--cam-split-max-w), var(--cam-split-col-pct))) minmax(260px, 1fr);
+	/* 两列页（如咖啡拉花）：预览 + 控制 */
+	grid-template-columns:
+		minmax(0, 1fr)
+		minmax(200px, calc(var(--vision-control-col-pct, 30) * 1%));
 	gap: 0.45rem 0.65rem;
 	min-height: 0;
 	align-items: stretch;
 	margin-bottom: 0;
+}
+
+/* 视觉抓取：双相机 + 控制 */
+body.ivg-single-screen .layout-camera-controls:has(> .panel--camera-result) {
+	grid-template-columns:
+		minmax(0, 1fr)
+		minmax(0, 1fr)
+		minmax(200px, calc(var(--vision-control-col-pct, 30) * 1%));
 }
 
 /* 窄屏恢复上下堆叠 */
@@ -281,8 +303,9 @@ body.ivg-single-screen .layout-camera-controls {
 	}
 }
 
-/* 左：取消通栏负边距；预览盒固定 4:3，最大见 --cam-split-max-w，避免图像被纵向挤压变形 */
-body.ivg-single-screen .layout-camera-controls .panel--camera-hero {
+/* 左、中、右：同一行等高；预览区在格内垂直向填满（图像 object-fit: contain） */
+body.ivg-single-screen .layout-camera-controls .panel--camera-hero,
+body.ivg-single-screen .layout-camera-controls .panel--camera-result {
 	margin-left: 0;
 	margin-right: 0;
 	margin-bottom: 0;
@@ -290,23 +313,31 @@ body.ivg-single-screen .layout-camera-controls .panel--camera-hero {
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
+	height: 100%;
 	overflow: hidden;
-	align-self: start;
+	align-self: stretch;
 	width: 100%;
-	max-width: var(--cam-split-max-w);
+	max-width: min(100%, var(--cam-split-max-w));
+	justify-self: center;
 }
 
-body.ivg-single-screen .layout-camera-controls .panel--camera-hero .panel-canvas-wrap {
-	flex: 0 0 auto;
+body.ivg-single-screen .layout-camera-controls .panel--camera-hero > h2,
+body.ivg-single-screen .layout-camera-controls .panel--camera-result > h2 {
+	flex-shrink: 0;
+}
+
+body.ivg-single-screen .layout-camera-controls .panel--camera-hero .panel-canvas-wrap,
+body.ivg-single-screen .layout-camera-controls .panel--camera-result .panel-canvas-wrap {
+	flex: 1 1 0;
 	width: 100%;
 	max-width: var(--cam-split-max-w);
-	aspect-ratio: 4 / 3;
+	min-height: 0;
 	position: relative;
 	overflow: hidden;
-	min-height: 0;
 }
 
-body.ivg-single-screen .layout-camera-controls .panel--camera-hero canvas {
+body.ivg-single-screen .layout-camera-controls .panel--camera-hero canvas,
+body.ivg-single-screen .layout-camera-controls .panel--camera-result canvas {
 	position: absolute;
 	left: 0;
 	top: 0;
@@ -317,14 +348,48 @@ body.ivg-single-screen .layout-camera-controls .panel--camera-hero canvas {
 	margin: 0;
 }
 
-/* 右：按钮区可滚动，避免撑破视口 */
-body.ivg-single-screen .layout-camera-controls .panel--tier-3 {
+body.ivg-single-screen .layout-camera-controls .panel--camera-hero .cam-mjpeg,
+body.ivg-single-screen .layout-camera-controls .panel--camera-result .cam-mjpeg {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	object-position: center;
+	margin: 0;
+	aspect-ratio: unset;
+	max-width: none;
+}
+
+/* 右：与两路相机同高；主内容在 control-groups 内滚动 */
+body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 {
+	min-height: 0;
+	height: 100%;
+	align-self: stretch;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	padding: 0.55rem 0.65rem 0.6rem;
+	scrollbar-width: thin;
+}
+
+body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 > h2 {
+	flex-shrink: 0;
+}
+
+body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .object-row {
+	flex-shrink: 0;
+	margin-bottom: 0.45rem;
+}
+
+body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .control-groups--tier {
+	flex: 1 1 0;
 	min-height: 0;
 	overflow-x: hidden;
 	overflow-y: auto;
-	display: flex;
-	flex-direction: column;
-	scrollbar-width: thin;
+	margin-top: 0.15rem;
+	-webkit-overflow-scrolling: touch;
 }
 
 body.ivg-single-screen .layout-camera-controls .control-groups--tier {
@@ -426,10 +491,11 @@ body.ivg-single-screen .status-stack .panel--status .result-pre::-webkit-scrollb
 	height: 0;
 }
 
-body.ivg-single-screen .svc-log {
-	max-height: 2.25rem;
-	margin-top: 0.4rem;
-	overflow: hidden;
+body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .svc-log {
+	flex-shrink: 0;
+	max-height: 3.25rem;
+	margin-top: 0.45rem;
+	overflow-y: auto;
 }
 
 /* ---------- 顶区：标题 + 抓取方式 + 设置 ---------- */
@@ -485,6 +551,30 @@ body.ivg-single-screen .svc-log {
 	display: flex;
 	align-items: center;
 	gap: 0.5rem;
+	flex-wrap: wrap;
+}
+
+.toolbar-control-col {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	font-size: var(--fs-ui);
+	color: var(--muted);
+	font-weight: 600;
+	white-space: nowrap;
+	user-select: none;
+}
+
+.toolbar-control-col input[type="range"] {
+	width: 6.5rem;
+	vertical-align: middle;
+	accent-color: var(--accent);
+}
+
+@media (max-width: 920px) {
+	.toolbar-control-col {
+		display: none;
+	}
 }
 
 .btn-settings {
@@ -645,18 +735,43 @@ body.ivg-single-screen .svc-log {
 
 /* 第二档：通栏相机（在标题栏之后）
  * 负边距与 .wrap 左右 padding 对消，预览条贴齐视口左右（仍保留安全区内边距），图像可尽量占满宽度 */
-.panel--camera-hero {
+.panel--camera-hero,
+.panel--camera-result {
 	margin-bottom: 0.85rem;
 	margin-left: calc(-1 * max(1.1rem, env(safe-area-inset-left, 0px)));
 	margin-right: calc(-1 * max(1.1rem, env(safe-area-inset-right, 0px)));
 	padding: 0.65rem max(1.1rem, env(safe-area-inset-right, 0px)) 0.75rem max(1.1rem, env(safe-area-inset-left, 0px));
 }
 
-.panel--camera-hero .panel-canvas-wrap {
+.panel--camera-hero .panel-canvas-wrap,
+.panel--camera-result .panel-canvas-wrap {
 	width: 100%;
 	max-width: var(--cam-preview-max-w);
 	margin-left: 0;
 	margin-right: 0;
+}
+
+.panel-canvas-wrap--result {
+	position: relative;
+}
+
+.result-image-placeholder {
+	position: absolute;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0;
+	padding: 0.85rem;
+	text-align: center;
+	font-size: 0.8125rem;
+	line-height: 1.5;
+	color: var(--muted);
+	background: var(--viz-host-bg);
 }
 
 .panel-canvas-wrap {
@@ -705,7 +820,8 @@ body.ivg-single-screen .svc-log {
 }
 
 /* 相机区块标题：更大字号、正文色（覆盖上一段 .panel h2，避免被其后规则盖掉） */
-.panel.panel--camera-hero h2 {
+.panel.panel--camera-hero h2,
+.panel.panel--camera-result h2 {
 	margin-bottom: 0.5rem;
 	font-size: var(--fs-camera-section-title);
 	letter-spacing: 0.02em;
@@ -717,7 +833,8 @@ body.ivg-single-screen .svc-log {
 }
 
 /* 默认 640×480；显示时随容器拉满宽度，保持 4:3 */
-#cam-canvas {
+#cam-canvas,
+#result-canvas {
 	display: block;
 	width: 100%;
 	height: auto;
@@ -725,6 +842,16 @@ body.ivg-single-screen .svc-log {
 	aspect-ratio: 4 / 3;
 	background: var(--viz-host-bg);
 	image-rendering: auto;
+}
+
+.panel-canvas-wrap .cam-mjpeg {
+	display: block;
+	width: 100%;
+	height: auto;
+	max-width: 100%;
+	aspect-ratio: 4 / 3;
+	object-fit: contain;
+	background: var(--viz-host-bg);
 }
 
 .pose-pre,

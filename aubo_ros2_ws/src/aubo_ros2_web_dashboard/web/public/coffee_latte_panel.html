@@ -25,14 +25,16 @@
 	<header class="topbar">
 		<span class="topbar-page-hint" aria-hidden="true">本页 · 演示（无 ROS 后端）</span>
 		<span class="spacer"></span>
-		<span id="latte-demo-status" class="status latte-status is-idle" role="status">就绪 · 纯前端</span>
+		<div class="gateway-row" aria-label="状态">
+			<span id="latte-demo-status" class="status latte-status is-idle" role="status">就绪 · 纯前端</span>
+		</div>
 	</header>
 
 	<main class="wrap">
 		<div class="layout-toolbar layout-tier-1">
 			<div class="toolbar-brand">
 				<h1>咖啡拉花面板</h1>
-				<p class="page-head-sub">① 流程与预览 · ② 预览与操作（左右）· ③ 状态与日志</p>
+				<p class="page-head-sub">① 流程阶段 · ② 双预览与操作 · ③ 曲线与状态</p>
 			</div>
 			<div class="toolbar-mode" role="group" aria-label="流程（示意）">
 				<span class="mode-row-label">流程阶段</span>
@@ -52,17 +54,30 @@
 				</div>
 			</div>
 			<div class="toolbar-actions">
-				<span class="page-head-sub" style="margin:0">后端就绪后可在此接「话题设置」等入口</span>
+				<label class="toolbar-control-col" title="第三列宽度（杯位、相机与动作）">
+					<span>控制列</span>
+					<input type="range" id="control-col-width" min="22" max="45" value="30" step="1"
+						aria-label="控制列占屏宽百分比" />
+				</label>
+				<span class="toolbar-latte-hint">后端就绪后可接话题与相机</span>
 			</div>
 		</div>
 
 		<div class="layout-camera-controls layout-tier-2-3">
 			<section class="panel panel--camera panel--camera-hero panel--latte-preview layout-tier-2"
-				aria-label="拉花预览">
+				aria-label="拉花顶视预览">
 				<h2>拉花预览（顶视示意）</h2>
-				<p class="latte-placeholder-note">下方为浏览器内绘制的奶泡路径动画，用于占位；真实场景可替换为相机画面或仿真视图。</p>
+				<p class="latte-placeholder-note">下方为浏览器内绘制的奶泡路径动画；可替换为相机或仿真。</p>
 				<div class="panel-canvas-wrap">
 					<canvas id="latte-preview-canvas" width="640" height="480" aria-label="拉花预览画布"></canvas>
+				</div>
+			</section>
+
+			<section class="panel panel--camera panel--camera-result panel--latte-side layout-tier-2"
+				aria-label="第二视角占位">
+				<h2>杯口侧视 / 第二视角（占位）</h2>
+				<div class="panel-canvas-wrap panel-canvas-wrap--result">
+					<p class="result-image-placeholder">接入 ROS 后可显示侧视相机、液面检测或仿真画面（布局与视觉抓取「识别结果」列一致）。</p>
 				</div>
 			</section>
 
@@ -94,6 +109,8 @@
 						</div>
 					</div>
 				</div>
+
+				<div class="svc-log" id="latte-svc-log" aria-live="polite"></div>
 			</section>
 		</div>
 

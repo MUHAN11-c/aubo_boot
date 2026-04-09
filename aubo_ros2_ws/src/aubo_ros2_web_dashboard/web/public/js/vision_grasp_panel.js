@@ -1,77 +1,12 @@
-/* global ROSLIB */
+/* global ROSLIB, ivgPorts */
 /**
- * =============================================================================
- * vision_grasp_panel.js — 视觉抓取面板（仅 aubo_ros2_web_dashboard）
- * =============================================================================
- *
- * 目的
- *   浏览器经 roslib ↔ rosbridge 订阅话题、调用服务，
- *   对接现场约定：VPE、graspnet_ros2、demo_driver、aubo_driver。不修改其它功能包源码。
- *
- * 连接：ws://当前主机:rosbridge_port，默认 9090，URL 参数 ?rosbridge_port=
- *
- * 订阅（默认话题名可在页面修改，改后需「重连」）
- *   | 输入框 id        | 默认话题                  | 消息类型                          |
- *   |-----------------|---------------------------|-----------------------------------|
- *   | topic-color     | /camera/color/image_raw   | sensor_msgs/msg/Image             |
- *   | topic-robot     | /aubo_driver/robot_status | demo_interface/msg/RobotStatus    |
- *   | topic-joints    | /joint_states             | sensor_msgs/msg/JointState      |
- *   | topic-vpe-status| /system_status            | std_msgs/msg/String             |
- *   | topic-grasp-poses| /grasp_poses_base        | geometry_msgs/msg/PoseArray     |
- *   | topic-result     | （可空）                  | sensor_msgs/msg/Image 识别/可视化结果 |
- *   各 Topic queue_length=1，减轻前端压力。
- *
- *   话题可在「话题设置」模态中修改；「保存并重连」写入 localStorage 键 ivg_vision_grasp_topics_v1
- *   并在下次打开页面时恢复。「恢复默认」填回内置默认值并清除该键。
- *
- *   图像：彩色与识别结果经 web_video_server MJPEG（/stream，与 RobotWebTools 一致）；顶栏「端口」与 ?web_video_port= 一致。
- *   若页面未加载 ivg_web_video.js 则回退 rosbridge + canvas（rgb8/bgr8/mono8 等）。
- *
- *   关节曲线 jointHistory：RobotStatus.joint_position_rad 与 JointState.position 前 6 维
- *   都会 pushJointSample。若两路同时高频发布，同一时间轴会混合两源（仅作趋势参考）。
- *   性能：RobotStatus 的 DOM 与关节采样合并到单帧 rAF；JointState 约 30Hz 上限采样；无 MJPEG 时
- *   Image 经 rAF 每帧最多绘制一次；canvas 尺寸仅在分辨率变化时重置；关节图定时器 200ms。
- *   图表横轴为相对时间，纵轴为 6 关节在同一 min–max 内归一化，非独立纵轴。
- *
- * 服务
- *   | 名称                                    | 类型                          | 用途 |
- *   |----------------------------------------|-------------------------------|------|
- *   | /execute_single_grasp                | demo_interface/ExecuteGraspPose | 单次抓取：object_id + use_visual_estimation |
- *   | /loop_grasp_control                    | std_srvs/SetBool              | demo_driver 后端循环（线程内固定先视觉估计再抓取） |
- *   | /graspnet_capture_control              | std_srvs/SetBool              | GraspNet 采集开关 |
- *   | /publish_grasps_worker_loop_control    | std_srvs/SetBool              | GraspNet worker 循环 |
- *   | /run_gripper_swap                      | demo_interface/RunGripperSwap | 快换，按钮写死 direction=gripper2 |
- *
- * 抓取策略（单选 mode-workpiece / mode-graspnet）
- *   - useVisualFromMode()：工件=true → ExecuteGraspPose.use_visual_estimation=true；
- *     GraspNet=false → 非视觉（点云/参数位姿等由 demo_driver 解释）。
- *   - 工件区「单次」：callExecuteGrasp(useVisualFromMode())。
- *   - 工件区「循环」：
- *       工件（视觉）：stopClientGraspLoop 后 loop_grasp_control=true。注意 demo_driver
- *       ExecuteGraspPoseWorker::loopGraspThread 内写死先 estimatePoseFromVision，与单次非视觉不同源。
- *       GraspNet（非视觉）：先 loop_grasp_control=false（等服务返回）再 startClientGraspLoop：
- *       浏览器顺序调用 execute_single_grasp(false)，间隔 clientGraspLoop.pauseMs（默认 1500ms），
- *       因后端循环无法传 use_visual_estimation=false。
- *   - 停止：stopClientGraspLoop + loop_grasp_control=false；WebSocket close 时亦停浏览器循环。
- *
- * GraspNet 区「单次抓取（非视觉）」：固定 callExecuteGrasp(false)，不受单选影响，便于在 GraspNet
- * 流程下明确触发非视觉单次。
- *
- * DOM 约定（增删须同步）
- *   话题：topic-color / topic-result / topic-robot / topic-joints / topic-vpe-status / topic-grasp-poses；
- *   模态：topic-settings-modal、btn-topic-settings-open/close、topic-settings-backdrop、
- *   btn-topic-restore-defaults、btn-topic-save-reconnect。
- *   其余：btn-wp-*、btn-gn-*、btn-quick-swap、cam-canvas、result-canvas、result-mjpeg、
- *   result-placeholder、joint-chart、pose-text、
- *   vpe-status-text、graspnet-result-text、svc-log、section-*-btns。
- *
- * 更完整的面向使用者说明：仓库 aubo_ros2_web_dashboard/README.md「视觉抓取面板」。
- *
- * 脚本体为 ES2015+（let/const、箭头函数、模板字符串等），需现代浏览器；无构建转译步骤。
- * =============================================================================
+ * 视觉抓取面板：roslib ↔ rosbridge；彩色图优先 web_video_server MJPEG（ivg_web_video.js），否则 rosbridge Image → Canvas（ivg_image_canvas）。
+ * 端口与 ``ivg_runtime.js`` + ``/api/ivg/runtime-config`` 一致；话题表、服务表、抓取策略与 DOM id 约定见包内 README「视觉抓取面板」与本文件内注释。
  */
 (() => {
 	let ros = null;
+	const rosReconnect = ivgPorts.createRosReconnectState();
+	const ROS_RECONNECT_MAX = 12;
 	const subs = {};
 	const TOPIC_IDS = ['topic-color', 'topic-result', 'topic-robot', 'topic-joints', 'topic-vpe-status', 'topic-grasp-poses'];
 	const TOPIC_DEFAULTS = {
@@ -93,7 +28,7 @@
 		return n;
 	}
 
-	/** rosbridge 回退画相机/结果图：每帧最多提交一次，避免消息风暴卡主线程 */
+	/** rosbridge Image → Canvas（非 MJPEG 路径）：每帧最多提交一次，避免消息风暴卡主线程 */
 	let colorDrawRaf = null;
 	let pendingColorMsg = null;
 	let resultDrawRaf = null;
@@ -239,11 +174,6 @@
 		if (btn) btn.focus();
 	}
 
-	function bridgePort() {
-		const q = parseInt(new URLSearchParams(window.location.search).get('rosbridge_port') || '9090', 10);
-		return q || 9090;
-	}
-
 	function setConnStatus(text, ok) {
 		const el = $('conn-status');
 		if (!el) return;
@@ -251,84 +181,10 @@
 		el.className = `status${ok ? ' ok' : ' off'}`;
 	}
 
-	function toUint8(data) {
-		if (!data) return null;
-		if (data instanceof Uint8Array) return data;
-		if (typeof data === 'string') {
-			try {
-				const bin = atob(data);
-				const out = new Uint8Array(bin.length);
-				for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-				return out;
-			} catch (e) {
-				return null;
-			}
-		}
-		if (Array.isArray(data)) return new Uint8Array(data);
-		if (data.data && Array.isArray(data.data)) return new Uint8Array(data.data);
-		return null;
-	}
-
 	function drawSensorImageToCanvas(msg, canvas) {
-		if (!msg || !msg.width || !msg.height || !canvas) return;
-		const enc = (msg.encoding || '').toLowerCase();
-		const raw = toUint8(msg.data);
-		if (!raw) return;
-		const w = msg.width;
-		const h = msg.height;
-		if (canvas.width !== w || canvas.height !== h) {
-			canvas.width = w;
-			canvas.height = h;
-		}
-		const ctx = canvas.getContext('2d');
-		const imgData = ctx.createImageData(w, h);
-		const px = imgData.data;
-		if (enc === 'rgb8' || enc === 'rgba8') {
-			const step = enc === 'rgba8' ? 4 : 3;
-			if (raw.length < w * h * step) return;
-			let p = 0;
-			for (let i = 0; i < w * h; i++) {
-				px[p++] = raw[i * step];
-				px[p++] = raw[i * step + 1];
-				px[p++] = raw[i * step + 2];
-				px[p++] = 255;
-			}
-		} else if (enc === 'bgr8') {
-			if (raw.length < w * h * 3) return;
-			let p2 = 0;
-			for (let j = 0; j < w * h; j++) {
-				px[p2++] = raw[j * 3 + 2];
-				px[p2++] = raw[j * 3 + 1];
-				px[p2++] = raw[j * 3];
-				px[p2++] = 255;
-			}
-		} else if (enc === 'mono8' || enc === '8uc1') {
-			if (raw.length < w * h) return;
-			let p3 = 0;
-			for (let k = 0; k < w * h; k++) {
-				const g = raw[k];
-				px[p3++] = g;
-				px[p3++] = g;
-				px[p3++] = g;
-				px[p3++] = 255;
-			}
-		} else {
-			return;
-		}
-		ctx.putImageData(imgData, 0, 0);
-		const host = canvas.parentElement;
-		if (host) {
-			if (document.body.classList.contains('ivg-single-screen')) {
-				canvas.style.width = '';
-				canvas.style.height = '';
-			} else {
-				canvas.style.width = '100%';
-				canvas.style.height = 'auto';
-			}
-		} else {
-			canvas.style.width = '';
-			canvas.style.height = '';
-		}
+		const r = IVGImageCanvas.paintSensorImage(msg, canvas);
+		if (!r.ok) return;
+		IVGImageCanvas.applyVisionPanelImageStyle(canvas);
 	}
 
 	// --- 关节曲线缓冲（与 drawJointChart / chartLoop 配合）---
@@ -493,17 +349,17 @@
 	}
 
 	function webVideoPortVision() {
-		const el = $('web-video-port');
-		const pv = el && el.value ? parseInt(String(el.value).replace(/[^\d]/g, ''), 10) : NaN;
-		if (!isNaN(pv) && pv > 0) return pv;
-		const q = parseInt(new URLSearchParams(window.location.search).get('web_video_port') || '8089', 10);
-		return q || 8089;
+		return ivgPorts.webVideo($('web-video-port'));
 	}
 
 	function resetCameraDisplay() {
 		const canvas = $('cam-canvas');
 		const im = $('cam-mjpeg');
 		if (im) {
+			if (im._ivgMjpegRecoverCleanup) {
+				im._ivgMjpegRecoverCleanup();
+				im._ivgMjpegRecoverCleanup = null;
+			}
 			im.removeAttribute('src');
 			im.hidden = true;
 		}
@@ -515,6 +371,10 @@
 		const rc = $('result-canvas');
 		const ph = $('result-placeholder');
 		if (rm) {
+			if (rm._ivgMjpegRecoverCleanup) {
+				rm._ivgMjpegRecoverCleanup();
+				rm._ivgMjpegRecoverCleanup = null;
+			}
 			rm.removeAttribute('src');
 			rm.hidden = true;
 		}
@@ -560,6 +420,13 @@
 				camMjpeg.src = ivgWebVideo.streamUrl(colorTopic, {
 					port: webVideoPortVision(),
 				});
+				if (typeof ivgWebVideo.mjpegStreamAttachAutoReload === 'function') {
+					ivgWebVideo.mjpegStreamAttachAutoReload(camMjpeg, () =>
+						ivgWebVideo.streamUrl(colorTopic, {
+							port: webVideoPortVision(),
+						})
+					);
+				}
 			}
 			subs.color = null;
 		} else {
@@ -599,6 +466,13 @@
 				rMjpeg.src = ivgWebVideo.streamUrl(resultTopic, {
 					port: webVideoPortVision(),
 				});
+				if (typeof ivgWebVideo.mjpegStreamAttachAutoReload === 'function') {
+					ivgWebVideo.mjpegStreamAttachAutoReload(rMjpeg, () =>
+						ivgWebVideo.streamUrl(resultTopic, {
+							port: webVideoPortVision(),
+						})
+					);
+				}
 			}
 			subs.result = null;
 		} else {
@@ -752,26 +626,41 @@
 
 	/** 建立 Ros 实例并 connect；on connection 调 startSubscriptions；on close 停浏览器循环并 dispose 订阅 */
 	function connect() {
+		ivgPorts.clearRosReconnectTimer(rosReconnect);
+		const myGen = ivgPorts.bumpRosReconnectGen(rosReconnect);
 		if (ros) {
 			try {
 				ros.close();
 			} catch (e) { /* ignore */ }
 		}
 		ros = new ROSLIB.Ros({ groovyCompatibility: false });
-		const h = window.location.hostname || '127.0.0.1';
 		ros.on('connection', () => {
-			setConnStatus('已连接', true);
+			if (myGen !== rosReconnect.gen) return;
+			rosReconnect.attempts = 0;
+			ivgPorts.clearRosReconnectTimer(rosReconnect);
+			setConnStatus('已连接（经网关）', true);
 			startSubscriptions();
 		});
 		ros.on('error', () => {
+			if (myGen !== rosReconnect.gen) return;
 			setConnStatus('连接错误', false);
 		});
 		ros.on('close', () => {
+			if (myGen !== rosReconnect.gen) return;
 			stopClientGraspLoop();
 			setConnStatus('已断开', false);
 			unsubscribeAll();
+			ivgPorts.scheduleRosReconnect(rosReconnect, connect, {
+				maxAttempts: ROS_RECONNECT_MAX,
+				onSchedule(delayMs, attempt, max) {
+					setConnStatus(`已断开：${Math.round(delayMs / 1000)}s 后自动重连（${attempt}/${max}）`, false);
+				},
+				onExhausted() {
+					setConnStatus('已断开（已达自动重连上限，请点「重新连接 ROS」）', false);
+				}
+			});
 		});
-		ros.connect(`ws://${h}:${bridgePort()}`);
+		ros.connect(ivgPorts.rosbridgeWebSocketUrl());
 	}
 
 	/** 非当前策略的按钮区半透明，仍可点击 */
@@ -790,37 +679,43 @@
 	}
 
 	document.addEventListener('DOMContentLoaded', () => {
-		loadTopicsFromStorage();
+		void (async () => {
+			await ivgPorts.loadRuntime();
+			const wvEl0 = $('web-video-port');
+			const rt0 = window.__IVG_RUNTIME || {};
+			if (wvEl0 && !String(wvEl0.value || '').trim() && rt0.web_video_port != null) {
+				wvEl0.value = String(rt0.web_video_port);
+			}
+			const wvportQ0 = new URLSearchParams(window.location.search).get('web_video_port');
+			if (wvportQ0 && wvEl0) wvEl0.value = wvportQ0;
 
-		(function initControlColWidth() {
-			const el = $('control-col-width');
-			if (!el) return;
-			let v = 30;
-			try {
-				const s = localStorage.getItem(CONTROL_COL_PCT_KEY);
-				if (s != null && s !== '') {
-					const n = parseInt(s, 10);
-					if (!isNaN(n)) v = Math.min(45, Math.max(22, n));
-				}
-			} catch (e) { /* ignore */ }
-			el.value = String(v);
-			document.documentElement.style.setProperty('--vision-control-col-pct', String(v));
-			el.addEventListener('input', () => {
-				const n = parseInt(el.value, 10);
-				if (!isNaN(n)) {
-					document.documentElement.style.setProperty('--vision-control-col-pct', String(n));
-				}
-			});
-			el.addEventListener('change', () => {
+			loadTopicsFromStorage();
+
+			(function initControlColWidth() {
+				const el = $('control-col-width');
+				if (!el) return;
+				let v = 30;
 				try {
-					localStorage.setItem(CONTROL_COL_PCT_KEY, el.value);
+					const s = localStorage.getItem(CONTROL_COL_PCT_KEY);
+					if (s != null && s !== '') {
+						const n = parseInt(s, 10);
+						if (!isNaN(n)) v = Math.min(45, Math.max(22, n));
+					}
 				} catch (e) { /* ignore */ }
-			});
-		})();
-
-		const p = new URLSearchParams(window.location.search);
-		const wvportQ = p.get('web_video_port');
-		if (wvportQ && $('web-video-port')) $('web-video-port').value = wvportQ;
+				el.value = String(v);
+				document.documentElement.style.setProperty('--vision-control-col-pct', String(v));
+				el.addEventListener('input', () => {
+					const n = parseInt(el.value, 10);
+					if (!isNaN(n)) {
+						document.documentElement.style.setProperty('--vision-control-col-pct', String(n));
+					}
+				});
+				el.addEventListener('change', () => {
+					try {
+						localStorage.setItem(CONTROL_COL_PCT_KEY, el.value);
+					} catch (e) { /* ignore */ }
+				});
+			})();
 
 		function restartVisionCamIfConnected() {
 			if (ros && ros.isConnected) startSubscriptions();
@@ -903,7 +798,9 @@
 			closeTopicSettingsModal();
 		});
 
-		startJointChartTimer();
-		connect();
+			startJointChartTimer();
+			ivgPorts.wireOnlineRosReconnect(rosReconnect, connect);
+			connect();
+		})();
 	});
 })();

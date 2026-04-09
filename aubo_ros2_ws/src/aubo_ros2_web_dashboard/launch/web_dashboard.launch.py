@@ -1,11 +1,11 @@
 """
-启动「直连」Web 栈（无 FastAPI 网关），通信栈为 RobotWebTools **rosbridge_suite**：
+启动 IVG Web 栈，通信栈为 RobotWebTools **rosbridge_suite**（默认 **统一代理**，非「浏览器直连 rosbridge」）：
 
   IncludeLaunchDescription(rosbridge_server/rosbridge_websocket_launch.xml)
-    → WebSocket JSON API（rosbridge + rosapi），浏览器 ws://主机:rosbridge_port；
-  tf2_web_republisher → 网页 TF；
-  ThreadingHTTPServer → 托管 web/public 静态页（文档根；上游 RobotWebTools 会议 demo 演化，非 Node ros2-web-bridge）；
-  web_video_server（可选）→ HTTP MJPEG/snapshot，/stream?topic=，减轻 sensor_msgs/Image 走 rosbridge。
+    → 本机 Tornado WebSocket（rosbridge + rosapi）；浏览器侧默认经 FastAPI **同源** ``/ws/rosbridge`` 转发到 ``rosbridge_host:rosbridge_port``（与 ``IVG_ROSBRIDGE_*`` 一致）。
+  tf2_web_republisher → 网页 TF。
+  web_video_server（可选）→ 本机 MJPEG/snapshot；浏览器侧默认经 **同源** ``/api/ivg/proxy/web-video/…`` 转发（``IVG_WEB_VIDEO_*`` 指网关访问上游的地址）。
+  FastAPI + Uvicorn 子进程：``--directory`` 指向已安装的 ``share/.../web/public``，提供静态页、``GET /health``、``GET /api/ivg/runtime-config``。
 
 参数：默认打开「服务 / 动作在新线程执行」，并提高 max_message_size，减轻大 JSON（点云等）被拒。
 参见 https://github.com/RobotWebTools/rosbridge_suite
@@ -13,14 +13,14 @@
 
 import os
 
-from ament_index_python.packages import get_package_share_directory
-from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription
-from launch.conditions import IfCondition
-from launch.launch_description_sources import FrontendLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node
-from launch_ros.parameter_descriptions import ParameterValue
+from ament_index_python.packages import get_package_share_directory #获取包的共享目录
+from launch import LaunchDescription #启动文件
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription #启动动作
+from launch.conditions import IfCondition #启动条件
+from launch.launch_description_sources import FrontendLaunchDescriptionSource #启动描述源
+from launch.substitutions import LaunchConfiguration #启动配置
+from launch_ros.actions import Node #启动节点
+from launch_ros.parameter_descriptions import ParameterValue #启动参数描述
 
 
 def generate_launch_description():
@@ -33,8 +33,9 @@ def generate_launch_description():
         'rosbridge_websocket_launch.xml',
     )
 
-    web_host = LaunchConfiguration('web_host')  # 静态页绑定地址
-    web_port = LaunchConfiguration('web_port')  # 静态页端口，如 8090
+    web_host = LaunchConfiguration('web_host')  # FastAPI 静态网关绑定地址
+    web_port = LaunchConfiguration('web_port')  # 静态网关端口，如 8090
+    rosbridge_host = LaunchConfiguration('rosbridge_host')  # 网关转发 rosbridge 时的上游地址
     rosbridge_port = LaunchConfiguration('rosbridge_port')  # 与前端 ?rosbridge_port= 一致
     rosbridge_max_message_size = LaunchConfiguration('rosbridge_max_message_size')
     rosbridge_call_services_in_new_thread = LaunchConfiguration('rosbridge_call_services_in_new_thread')
@@ -42,12 +43,18 @@ def generate_launch_description():
         'rosbridge_send_action_goals_in_new_thread'
     )
     include_web_video = LaunchConfiguration('include_web_video_server')
+    web_video_host = LaunchConfiguration('web_video_host')
     web_video_port = LaunchConfiguration('web_video_port')
 
     return LaunchDescription(
         [
             DeclareLaunchArgument('web_host', default_value='0.0.0.0'),
             DeclareLaunchArgument('web_port', default_value='8090'),
+            DeclareLaunchArgument(
+                'rosbridge_host',
+                default_value='127.0.0.1',
+                description='IVG_ROSBRIDGE_HOST：FastAPI 统一代理转发 rosbridge 时的上游主机',
+            ),
             DeclareLaunchArgument('rosbridge_port', default_value='9090'),
             DeclareLaunchArgument(
                 'rosbridge_max_message_size',
@@ -68,6 +75,11 @@ def generate_launch_description():
                 'include_web_video_server',
                 default_value='true',
                 description='若 true 则启动 web_video_server（需已安装 ros-humble-web-video-server）',
+            ),
+            DeclareLaunchArgument(
+                'web_video_host',
+                default_value='127.0.0.1',
+                description='IVG_WEB_VIDEO_HOST：网关转发 web_video 时的上游主机',
             ),
             DeclareLaunchArgument(
                 'web_video_port',
@@ -108,13 +120,20 @@ def generate_launch_description():
                 cmd=[
                     'python3',
                     '-m',
-                    'aubo_ros2_web_dashboard.threaded_static_server',
+                    'aubo_ros2_web_dashboard.fastapi_static_gateway',
                     web_port,
                     '--bind',
                     web_host,
                     '--directory',
                     web_dir,
                 ],
+                additional_env={
+                    # 与 launch 参数一致，供 /api/ivg/runtime-config 与上游代理使用
+                    'IVG_ROSBRIDGE_HOST': rosbridge_host,
+                    'IVG_ROSBRIDGE_PORT': rosbridge_port,
+                    'IVG_WEB_VIDEO_HOST': web_video_host,
+                    'IVG_WEB_VIDEO_PORT': web_video_port,
+                },
                 output='screen',
             ),
         ]

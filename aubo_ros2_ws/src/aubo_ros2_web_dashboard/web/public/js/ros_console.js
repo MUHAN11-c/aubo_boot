@@ -1,10 +1,10 @@
-/* global ROSLIB, ROS2D, createjs, THREE */
-/* topics_lab：话题/服务/参数/图/2D/3D。Image（非 Compressed）→ web_video_server MJPEG（?web_video_port=）。 */
+/* global ROSLIB, ROS2D, ROS3D, createjs, ivgPorts, IVGTopicsLabRender */
+/* topics_lab：编排 roslib/rosapi/2D/3D；消息类型 → HTML 见 js/topics_lab/render.js。sensor_msgs/Image 仅 MJPEG（无 rosbridge 收图）。 */
 (() => {
 	/** 当前 ROSLIB.Ros 实例（直连 rosbridge WebSocket）。 */
 	let ros = null;
 	let activeTopic = null;
-	/** 每次取消订阅 +1，用于丢弃旧 Topic 在 dispose 后仍可能到达的回调（避免 raw JSON / 视图刷成上一话题） */
+	/** 每次取消订阅 +1，用于丢弃旧 Topic 在 unsubscribe 后仍可能到达的回调（避免 raw JSON / 视图刷成上一话题） */
 	let subscriptionSeq = 0;
 	/** 侧边栏异步列表请求代数，避免快速输入过滤时旧 getTopics 覆盖新结果 */
 	let topicsListReq = 0;
@@ -28,32 +28,23 @@
 	let selectedService = '';
 	let selectedParam = '';
 	let selectedAction = '';
-	let mapTopicSub = null;
-	let scanTopicSub = null;
+	/** 2D：与 ros2djs continuous 示例一致 — ROS2D.OccupancyGridClient（上游无数组 dispose，重复启动前建议重连 rosbridge） */
+	let mapGridClient = null;
 	let viewer2d = null;
-	let gridRoot = null;
-	let scanShape = null;
-	let pcTopicSub = null;
-	let scan3TopicSub = null;
-	let threeRenderer = null;
-	let threeScene = null;
-	let threeCamera = null;
-	let threeControls = null;
-	let pointsObj = null;
-	let anim3d = null;
+	let viewer3d = null;
+	let tfClient3d = null;
+	let ros3dPointCloud2 = null;
+	let ros3dLaserScan = null;
+	let ros3dMarkerClient = null;
+	let ros3dAxes = null;
+	let ros3dGrid = null;
 	/** 话题页 viz 渲染合并到下一帧，避免 rosbridge 回调内直接改 DOM 造成掉帧（RobotWebTools/roslib 高频消息场景） */
 	let topicVizRaf = null;
 	/** 当前话题为 web_video_server MJPEG，未创建 ROSLIB.Topic */
 	let webVideoStreamMode = false;
-	let pcUpdateRaf = null;
-	let pcPendingMsg = null;
-	let scan3UpdateRaf = null;
-	let scan3PendingMsg = null;
-
-	/** 亮色主题画布色（与 topics_lab.css 一致） */
-	const VIZ_CANVAS_BG = '#e8ecf2';
-	const LASER_STROKE = '#15803d';
-	const LASER_ARC_STROKE = '#94a3b8';
+	/** rosbridge 断线自动重连（手动点重连会 bump gen，旧实例的 close 不触发调度） */
+	const rosReconnect = ivgPorts.createRosReconnectState();
+	const ROS_RECONNECT_MAX = 15;
 	const GRAPH_BG = '#f1f5f9';
 	const GRAPH_EDGE = 'rgba(37, 99, 235, 0.38)';
 	const GRAPH_NODE = '#16a34a';
@@ -94,14 +85,14 @@
 		return `http://${h}:${p}`;
 	}
 
-	function ivgSubscribeFixed(name, fallbackType) {
+	function ivgSubscribeFixed(name, defaultMsgType) {
 		if (!ros || !ros.isConnected) return;
 		switchTab('topics');
 		ros.getTopicType(name, typ => {
 			subscribe(name, typ);
 			refreshTopics();
 		}, () => {
-			if (fallbackType) subscribe(name, fallbackType);
+			if (defaultMsgType) subscribe(name, defaultMsgType);
 			else $('viz-body').innerHTML = `<p class="hint">未找到话题 <code>${name}</code>，请确认栈已启动。</p>`;
 			refreshTopics();
 		});
@@ -133,6 +124,8 @@
 	function ivg3dClearPreset() {
 		$('pc-topic').value = '';
 		$('scan3-topic').value = '';
+		const mt = $('marker3-topic');
+		if (mt) mt.value = '';
 	}
 
 	function ivgPresetService(svcName, typeStr, jsonStr) {
@@ -218,22 +211,13 @@
 		});
 	}
 
-	function bridgePort() {
-		const q = parseInt(new URLSearchParams(window.location.search).get('rosbridge_port') || '9090', 10);
-		return q || 9090;
-	}
-
 	function webVideoPort() {
-		const el = $('web-video-port');
-		const pv = el && el.value ? parseInt(String(el.value).replace(/[^\d]/g, ''), 10) : NaN;
-		if (!isNaN(pv) && pv > 0) return pv;
-		const q = parseInt(new URLSearchParams(window.location.search).get('web_video_port') || '8089', 10);
-		return q || 8089;
+		return ivgPorts.webVideo($('web-video-port'));
 	}
 
 	function reconnectImageTopicIfNeeded() {
 		if (tab !== 'topics' || !selectedName || !selectedType || !ros || !ros.isConnected) return;
-		if (!typeMatch(selectedType, 'Image') || typeMatch(selectedType, 'CompressedImage')) return;
+		if (!IVGTopicsLabRender.typeMatch(selectedType, 'Image') || IVGTopicsLabRender.typeMatch(selectedType, 'CompressedImage')) return;
 		subscribe(selectedName, selectedType);
 	}
 
@@ -289,8 +273,8 @@
 			actions: '动作服务器',
 			params: '参数',
 			graph: '节点',
-			view2d: '话题（2D 选图）',
-			view3d: '话题（3D 选图）'
+			view2d: '话题（2D 地图）',
+			view3d: '话题（3D 点云/雷达）'
 		};
 		const el = $('sidebar-context');
 		if (el) el.textContent = map[t] || '列表';
@@ -373,499 +357,6 @@
 		refreshTopics();
 	}
 
-	function safeJson(obj, maxLen) {
-		try {
-			const s = JSON.stringify(obj, null, 2);
-			if (maxLen && s.length > maxLen) {
-				return `${s.slice(0, maxLen)}\n…\n(truncated, total ${s.length} chars)`;
-			}
-			return s;
-		} catch (e) {
-			return String(obj);
-		}
-	}
-
-	/** 避免对 Image / PointCloud2 等整包 JSON.stringify（会卡主线程数秒）；右侧仅展示元数据 */
-	function rawPreviewForMessage(msgType, msg, maxLen) {
-		if (!msg) return '';
-		const omit = hint => `[omitted: ${hint} — 降低卡顿；看图/3D 画布或 RViz]`;
-		if (typeMatch(msgType, 'Image') && !typeMatch(msgType, 'CompressedImage')) {
-			let in0 = 0;
-			if (Array.isArray(msg.data)) in0 = msg.data.length;
-			else if (typeof msg.data === 'string') in0 = msg.data.length;
-			return safeJson({
-				header: msg.header,
-				height: msg.height,
-				width: msg.width,
-				encoding: msg.encoding,
-				is_bigendian: msg.is_bigendian,
-				step: msg.step,
-				data: omit(`image payload ~${in0} array el / base64 chars`)
-			}, maxLen);
-		}
-		if (typeMatch(msgType, 'CompressedImage')) {
-			let ic = 0;
-			if (typeof msg.data === 'string') ic = msg.data.length;
-			else if (Array.isArray(msg.data)) ic = msg.data.length;
-			return safeJson({
-				header: msg.header,
-				format: msg.format,
-				data: omit(`compressed ~${ic} chars`)
-			}, maxLen);
-		}
-		if (typeMatch(msgType, 'PointCloud2')) {
-			let ip = 0;
-			if (Array.isArray(msg.data)) ip = msg.data.length;
-			else if (typeof msg.data === 'string') ip = msg.data.length;
-			return safeJson({
-				header: msg.header,
-				height: msg.height,
-				width: msg.width,
-				fields: msg.fields,
-				is_bigendian: msg.is_bigendian,
-				point_step: msg.point_step,
-				row_step: msg.row_step,
-				is_dense: msg.is_dense,
-				data: omit(`pointcloud payload ~${ip} units`)
-			}, maxLen);
-		}
-		if (typeMatch(msgType, 'LaserScan') && Array.isArray(msg.ranges)) {
-			return safeJson({
-				header: msg.header,
-				angle_min: msg.angle_min,
-				angle_max: msg.angle_max,
-				angle_increment: msg.angle_increment,
-				time_increment: msg.time_increment,
-				scan_time: msg.scan_time,
-				range_min: msg.range_min,
-				range_max: msg.range_max,
-				ranges: omit(`${msg.ranges.length} samples`)
-			}, maxLen);
-		}
-		if (typeMatch(msgType, 'OccupancyGrid') && msg.info && Array.isArray(msg.data)) {
-			return safeJson({
-				header: msg.header,
-				info: msg.info,
-				data: omit(`${msg.data.length} cells`)
-			}, maxLen);
-		}
-		return safeJson(msg, maxLen);
-	}
-
-	/** Normalize rosbridge / ROS2 message byte payloads to Uint8Array */
-	function toUint8(data) {
-		if (!data) return null;
-		if (data instanceof Uint8Array) return data;
-		if (typeof data === 'string') {
-			try {
-				const bin = atob(data);
-				const out = new Uint8Array(bin.length);
-				for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-				return out;
-			} catch (e) {
-				return null;
-			}
-		}
-		if (Array.isArray(data)) return new Uint8Array(data);
-		if (data.data && Array.isArray(data.data)) return new Uint8Array(data.data);
-		return null;
-	}
-
-	function typeMatch(msgType, needle) {
-		if (!msgType) return false;
-		return msgType === needle || msgType.indexOf(needle) !== -1;
-	}
-
-	function renderScalar(msg) {
-		if (msg && Object.prototype.hasOwnProperty.call(msg, 'data')) {
-			const d = msg.data;
-			if (typeof d === 'boolean' || typeof d === 'number' || typeof d === 'string') {
-				return `<div class="viz-scalar">${String(d)}</div>`;
-			}
-		}
-		return null;
-	}
-
-	function renderTwist(msg) {
-		let t = msg;
-		if (msg && msg.twist) t = msg.twist;
-		if (!t || !t.linear) return null;
-		const L = t.linear;
-		const A = t.angular || {};
-		const rows = [
-			['linear.x', L.x], ['linear.y', L.y], ['linear.z', L.z],
-			['angular.x', A.x], ['angular.y', A.y], ['angular.z', A.z]
-		];
-		let html = '<table class="viz-table"><tbody>';
-		for (let i = 0; i < rows.length; i++) {
-			html += `<tr><th>${rows[i][0]}</th><td>${rows[i][1]}</td></tr>`;
-		}
-		html += '</tbody></table>';
-		return html;
-	}
-
-	function renderPose(msg) {
-		let p = msg;
-		if (msg && msg.pose) p = msg.pose;
-		if (!p || !p.position) return null;
-		const pos = p.position;
-		const o = p.orientation || {};
-		let html = '<table class="viz-table"><tbody>';
-		html += `<tr><th>position</th><td>x=${pos.x} y=${pos.y} z=${pos.z}</td></tr>`;
-		html += `<tr><th>orientation</th><td>x=${o.x} y=${o.y} z=${o.z} w=${o.w}</td></tr>`;
-		html += '</tbody></table>';
-		return html;
-	}
-
-	function renderJointState(msg) {
-		if (!msg || !Array.isArray(msg.name)) return null;
-		let html = '<table class="viz-table"><thead><tr><th>name</th><th>position</th><th>velocity</th><th>effort</th></tr></thead><tbody>';
-		const n = msg.name.length;
-		for (let i = 0; i < n; i++) {
-			html += `${msg.effort[i] !== undefined}${msg.velocity[i] !== undefined}${msg.position[i] !== undefined}<tr><td>${msg.name[i]}</td><td>${msg.position && msg.position[i] !== undefined ? msg.position[i] : ''}</td><td>${msg.velocity && msg.velocity[i] !== undefined ? msg.velocity[i] : ''}</td><td>${msg.effort && msg.effort[i] !== undefined ? msg.effort[i] : ''}</td></tr>`;
-		}
-		html += '</tbody></table>';
-		return html;
-	}
-
-	function renderImu(msg) {
-		if (!msg) return null;
-		let html = '<table class="viz-table"><tbody>';
-		if (msg.orientation) {
-			const o = msg.orientation;
-			html += `<tr><th>orientation</th><td>x=${o.x} y=${o.y} z=${o.z} w=${o.w}</td></tr>`;
-		}
-		if (msg.angular_velocity) {
-			const av = msg.angular_velocity;
-			html += `<tr><th>angular_velocity</th><td>x=${av.x} y=${av.y} z=${av.z}</td></tr>`;
-		}
-		if (msg.linear_acceleration) {
-			const la = msg.linear_acceleration;
-			html += `<tr><th>linear_acceleration</th><td>x=${la.x} y=${la.y} z=${la.z}</td></tr>`;
-		}
-		html += '</tbody></table>';
-		return html;
-	}
-
-	function renderBattery(msg) {
-		if (!msg) return null;
-		let html = '<table class="viz-table"><tbody>';
-		const keys = ['voltage', 'temperature', 'current', 'charge', 'capacity', 'percentage', 'power_supply_status'];
-		for (let i = 0; i < keys.length; i++) {
-			if (Object.prototype.hasOwnProperty.call(msg, keys[i])) {
-				html += `<tr><th>${keys[i]}</th><td>${msg[keys[i]]}</td></tr>`;
-			}
-		}
-		html += '</tbody></table>';
-		return html;
-	}
-
-	function renderRange(msg) {
-		if (!msg || typeof msg.range !== 'number') return null;
-		let html = '<table class="viz-table"><tbody>';
-		html += `<tr><th>range</th><td>${msg.range}</td></tr>`;
-		if (msg.min_range !== undefined) html += `<tr><th>min_range</th><td>${msg.min_range}</td></tr>`;
-		if (msg.max_range !== undefined) html += `<tr><th>max_range</th><td>${msg.max_range}</td></tr>`;
-		if (msg.radiation_type !== undefined) html += `<tr><th>radiation_type</th><td>${msg.radiation_type}</td></tr>`;
-		html += '</tbody></table>';
-		return html;
-	}
-
-	function renderNavSatFix(msg) {
-		if (!msg || typeof msg.latitude !== 'number') return null;
-		let html = '<table class="viz-table"><tbody>';
-		html += `<tr><th>latitude</th><td>${msg.latitude}</td></tr>`;
-		html += `<tr><th>longitude</th><td>${msg.longitude}</td></tr>`;
-		html += `<tr><th>altitude</th><td>${msg.altitude}</td></tr>`;
-		if (msg.status) html += `<tr><th>status</th><td>${safeJson(msg.status, 400)}</td></tr>`;
-		html += '</tbody></table>';
-		return html;
-	}
-
-	function renderLaserScan(msg, canvas) {
-		if (!msg || !Array.isArray(msg.ranges)) return '<p class="hint">无效的 LaserScan</p>';
-		const w = canvas.parentElement.clientWidth || 400;
-		const h = Math.min(360, Math.floor(w * 0.6));
-		canvas.width = w;
-		canvas.height = h;
-		const ctx = canvas.getContext('2d');
-		ctx.fillStyle = VIZ_CANVAS_BG;
-		ctx.fillRect(0, 0, w, h);
-		const cx = w * 0.5;
-		const cy = h * 0.92;
-		const maxR = Math.min(cx, cy) * 0.95;
-		const amin = msg.angle_min;
-		const inc = msg.angle_increment;
-		const ranges = msg.ranges;
-		ctx.strokeStyle = LASER_STROKE;
-		ctx.lineWidth = 1;
-		ctx.beginPath();
-		for (let i = 0; i < ranges.length; i++) {
-			const r = ranges[i];
-			if (!isFinite(r) || r <= 0 || r > 1e6) continue;
-			const ang = amin + i * inc;
-			const px = cx + r / (msg.range_max || 10) * maxR * Math.cos(ang);
-			const py = cy - r / (msg.range_max || 10) * maxR * Math.sin(ang);
-			if (i === 0) ctx.moveTo(px, py);
-			else ctx.lineTo(px, py);
-		}
-		ctx.stroke();
-		ctx.strokeStyle = LASER_ARC_STROKE;
-		ctx.beginPath();
-		ctx.arc(cx, cy, maxR, Math.PI, 2 * Math.PI);
-		ctx.stroke();
-		return '<p class="hint">LaserScan 极坐标预览（简化，非 RViz 语义）</p>';
-	}
-
-	function renderOccupancyGrid(msg, canvas) {
-		if (!msg || !msg.info || !Array.isArray(msg.data)) return '<p class="hint">Invalid OccupancyGrid</p>';
-		const W = msg.info.width;
-		const H = msg.info.height;
-		if (W * H !== msg.data.length) {
-			return '<p class="hint">Grid size mismatch (width×height vs data)</p>';
-		}
-		const maxW = canvas.parentElement.clientWidth || 400;
-		const scale = Math.max(1, Math.floor(maxW / W));
-		canvas.width = W * scale;
-		canvas.height = H * scale;
-		const ctx = canvas.getContext('2d');
-		const img = ctx.createImageData(W, H);
-		const d = img.data;
-		for (let i = 0; i < msg.data.length; i++) {
-			const v = msg.data[i];
-			const o = i * 4;
-			if (v < 0) { d[o] = 80; d[o + 1] = 80; d[o + 2] = 120; d[o + 3] = 255; }
-			else if (v === 0) { d[o] = 255; d[o + 1] = 255; d[o + 2] = 255; d[o + 3] = 255; }
-			else { const g = 255 - Math.min(255, v * 2); d[o] = g; d[o + 1] = g; d[o + 2] = g; d[o + 3] = 255; }
-		}
-		const tmp = document.createElement('canvas');
-		tmp.width = W;
-		tmp.height = H;
-		tmp.getContext('2d').putImageData(img, 0, 0);
-		ctx.imageSmoothingEnabled = false;
-		ctx.drawImage(tmp, 0, 0, W * scale, H * scale);
-		return `<p class="hint">resolution ${msg.info.resolution} m/cell · origin (${msg.info.origin.position.x}, ${msg.info.origin.position.y})</p>`;
-	}
-
-	function renderImage(msg, canvas) {
-		if (!msg || !msg.width || !msg.height) return '<p class="hint">Invalid Image</p>';
-		const enc = (msg.encoding || '').toLowerCase();
-		const raw = toUint8(msg.data);
-		if (!raw) return `<p class="hint">Could not decode image data (encoding ${enc})</p>`;
-		const w = msg.width;
-		const h = msg.height;
-		canvas.width = w;
-		canvas.height = h;
-		const ctx = canvas.getContext('2d');
-		const imgData = ctx.createImageData(w, h);
-		const px = imgData.data;
-		if (enc === 'rgb8' || enc === 'rgba8') {
-			const step = enc === 'rgba8' ? 4 : 3;
-			const need = w * h * step;
-			if (raw.length < need) return '<p class="hint">Image buffer too short</p>';
-			let p = 0;
-			for (let i = 0; i < w * h; i++) {
-				px[p++] = raw[i * step];
-				px[p++] = raw[i * step + 1];
-				px[p++] = raw[i * step + 2];
-				px[p++] = 255;
-			}
-		} else if (enc === 'bgr8') {
-			if (raw.length < w * h * 3) return '<p class="hint">Image buffer too short</p>';
-			let p2 = 0;
-			for (let j = 0; j < w * h; j++) {
-				px[p2++] = raw[j * 3 + 2];
-				px[p2++] = raw[j * 3 + 1];
-				px[p2++] = raw[j * 3];
-				px[p2++] = 255;
-			}
-		} else if (enc === 'mono8' || enc === '8uc1') {
-			if (raw.length < w * h) return '<p class="hint">Image buffer too short</p>';
-			let p3 = 0;
-			for (let k = 0; k < w * h; k++) {
-				const g = raw[k];
-				px[p3++] = g;
-				px[p3++] = g;
-				px[p3++] = g;
-				px[p3++] = 255;
-			}
-		} else {
-			return `<p class="hint">Encoding <code>${enc}</code> — use Raw JSON or RViz; supported: rgb8, bgr8, rgba8, mono8</p>`;
-		}
-		ctx.putImageData(imgData, 0, 0);
-		const mw = canvas.parentElement.clientWidth || w;
-		if (w > mw) {
-			canvas.style.width = '100%';
-			canvas.style.height = 'auto';
-		}
-		return '';
-	}
-
-	function renderCompressedImage(msg) {
-		if (!msg || !msg.format || !msg.data) return null;
-		const u8 = toUint8(msg.data);
-		if (!u8) return '<p class="hint">无法解析压缩图像数据</p>';
-		if (window.__labBlobUrl) {
-			try { URL.revokeObjectURL(window.__labBlobUrl); } catch (e) { /* ignore */ }
-		}
-		const blob = new Blob([u8], { type: `image/${msg.format.indexOf('png') !== -1 ? 'png' : 'jpeg'}` });
-		window.__labBlobUrl = URL.createObjectURL(blob);
-		return `<img src="${window.__labBlobUrl}" alt="compressed" style="max-width:100%;height:auto;border-radius:4px"/>`;
-	}
-
-	function renderPointCloud2(msg) {
-		if (!msg || !msg.fields) return null;
-		let rows = '<table class="viz-table"><tbody>';
-		rows += `<tr><th>height × width</th><td>${msg.height} × ${msg.width}</td></tr>`;
-		rows += `<tr><th>point_step</th><td>${msg.point_step}</td></tr>`;
-		rows += `<tr><th>row_step</th><td>${msg.row_step}</td></tr>`;
-		rows += `<tr><th>fields</th><td>${msg.fields.map(f => f.name + ' (' + f.datatype + '×' + f.count + ')').join(', ')}</td></tr>`;
-		if (msg.header && msg.header.frame_id) {
-			rows += `<tr><th>frame_id</th><td>${msg.header.frame_id}</td></tr>`;
-		}
-		rows += '</tbody></table>';
-		const raw = toUint8(msg.data);
-		const bytes = raw ? raw.length : 0;
-		rows += `<p class="hint">Payload ~${bytes} bytes。3D 图内按步进采样 + 每帧合并更新。彩色图经 <a href="https://github.com/RobotWebTools/web_video_server" target="_blank" rel="noopener">web_video_server</a> MJPEG。默认点云：<code>/camera/depth_registered/points</code> → 「3D: 点云」。</p>`;
-		return rows;
-	}
-
-	function renderPath(msg) {
-		if (!msg || !Array.isArray(msg.poses)) return null;
-		const n = msg.poses.length;
-		if (n === 0) return '<p class="hint">Empty path</p>';
-		const last = msg.poses[n - 1];
-		const p = last.pose ? last.pose.position : null;
-		return `<p class="hint">poses: ${n}</p>${p ? renderPose(last.pose) : ''}`;
-	}
-
-	function renderPoseArray(msg) {
-		if (!msg || !Array.isArray(msg.poses)) return null;
-		const poses = msg.poses;
-		const n = poses.length;
-		const fid = (msg.header && msg.header.frame_id) ? msg.header.frame_id : '';
-		const maxShow = Math.min(12, n);
-		let html = ` · frame <code>${fid}</code><p class="hint">poses: ${n}${fid ? ' · frame <code>' + fid + '</code>' : ''}</p>`;
-		html += '<table class="viz-table"><thead><tr><th>#</th><th>x</th><th>y</th><th>z</th><th>qx</th><th>qy</th><th>qz</th><th>qw</th></tr></thead><tbody>';
-		let i;
-		for (i = 0; i < maxShow; i++) {
-			const po = poses[i];
-			const pos = po.position || {};
-			const ori = po.orientation || {};
-			html += `<tr><td>${i}</td><td>${pos.x}</td><td>${pos.y}</td><td>${pos.z}</td><td>${ori.x}</td><td>${ori.y}</td><td>${ori.z}</td><td>${ori.w}</td></tr>`;
-		}
-		html += '</tbody></table>';
-		if (n > maxShow) html += `<p class="hint">… 其余 ${n - maxShow} 条见 JSON</p>`;
-		return html;
-	}
-
-	function renderMarkerArray(msg) {
-		if (!msg) return null;
-		const arr = msg.markers || msg;
-		if (!Array.isArray(arr)) return null;
-		const n = arr.length;
-		const maxShow = Math.min(12, n);
-		let head = `<p class="hint">markers: ${n}（GraspNet 抓取可视化常用）</p>`;
-		head += '<table class="viz-table"><thead><tr><th>#</th><th>id</th><th>type</th><th>ns</th><th>frame</th><th>xyz</th><th>scale</th></tr></thead><tbody>';
-		let i;
-		for (i = 0; i < maxShow; i++) {
-			const m = arr[i];
-			const pos = (m.pose && m.pose.position) ? m.pose.position : {};
-			const sc = m.scale || {};
-			head += `${Number(sc.x || 0).toFixed(2)}×${Number(sc.y || 0).toFixed(2)}×${Number(sc.z || 0).toFixed(2)}${Number(pos.x).toFixed(3)}, ${Number(pos.y).toFixed(3)}, ${Number(pos.z).toFixed(3)}${m.type != null}${m.id != null}<tr><td>${i}</td><td>${m.id != null ? m.id : ''}</td><td>${m.type != null ? m.type : ''}</td><td>${m.ns || ''}</td><td>${(m.header && m.header.frame_id) || ''}</td><td>${Number(pos.x).toFixed(3) + ', ' + Number(pos.y).toFixed(3) + ', ' + Number(pos.z).toFixed(3)}</td><td>${Number(sc.x || 0).toFixed(2) + '×' + Number(sc.y || 0).toFixed(2) + '×' + Number(sc.z || 0).toFixed(2)}</td></tr>`;
-		}
-		head += '</tbody></table>';
-		if (n > maxShow) head += '<p class="hint">… 其余见 JSON</p>';
-		head += `<details class="viz-details"><summary class="viz-summary">首条原始 JSON</summary><pre class="raw">${safeJson(arr[0] || {}, 4000)}</pre></details>`;
-		return head;
-	}
-
-	function renderOdometry(msg) {
-		if (!msg || !msg.pose || !msg.twist) return null;
-		return `<h4 class="viz-subheading">pose</h4>${renderPose(msg.pose)}<h4 class="viz-subheading viz-subheading--spaced">twist</h4>${renderTwist(msg.twist)}`;
-	}
-
-	function renderGenericNumericArray(msg) {
-		if (!msg || !msg.layout || !Array.isArray(msg.data)) return null;
-		const dim = (msg.layout.dim || []).map(d => `${d.label}=${d.size}`).join(', ');
-		const sample = msg.data.slice(0, 32).join(', ');
-		return `${msg.data.length > 32}<p class="hint">${dim}</p><pre class="raw">data[0..31]: ${sample}${msg.data.length > 32 ? ' …' : ''}</pre>`;
-	}
-
-	function renderVisualization(msgType, msg, canvas) {
-		let html = '';
-		if (typeMatch(msgType, 'LaserScan')) {
-			html = renderLaserScan(msg, canvas);
-			return { html, usedCanvas: true };
-		}
-		if (typeMatch(msgType, 'OccupancyGrid')) {
-			html = renderOccupancyGrid(msg, canvas);
-			return { html, usedCanvas: true };
-		}
-		if (typeMatch(msgType, 'Image') && !typeMatch(msgType, 'CompressedImage')) {
-			html = renderImage(msg, canvas);
-			return { html, usedCanvas: true };
-		}
-		if (typeMatch(msgType, 'CompressedImage')) {
-			return { html: renderCompressedImage(msg), usedCanvas: false };
-		}
-		if (typeMatch(msgType, 'PointCloud2')) {
-			return { html: renderPointCloud2(msg), usedCanvas: false };
-		}
-		if (typeMatch(msgType, 'Path')) {
-			return { html: renderPath(msg), usedCanvas: false };
-		}
-		if (typeMatch(msgType, 'PoseArray')) {
-			const pra = renderPoseArray(msg);
-			if (pra) return { html: pra, usedCanvas: false };
-		}
-		if (typeMatch(msgType, 'MarkerArray')) {
-			return { html: renderMarkerArray(msg), usedCanvas: false };
-		}
-		if (typeMatch(msgType, 'Marker') && !typeMatch(msgType, 'MarkerArray')) {
-			return { html: `<pre class="raw">${safeJson(msg, 8000)}</pre>`, usedCanvas: false };
-		}
-		if (typeMatch(msgType, 'Odometry')) {
-			return { html: renderOdometry(msg), usedCanvas: false };
-		}
-		if (typeMatch(msgType, 'JointState')) {
-			return { html: renderJointState(msg), usedCanvas: false };
-		}
-		if (typeMatch(msgType, 'Imu')) {
-			return { html: renderImu(msg), usedCanvas: false };
-		}
-		if (typeMatch(msgType, 'BatteryState')) {
-			return { html: renderBattery(msg), usedCanvas: false };
-		}
-		if (typeMatch(msgType, 'Range')) {
-			const rg = renderRange(msg);
-			if (rg) return { html: rg, usedCanvas: false };
-		}
-		if (typeMatch(msgType, 'NavSatFix')) {
-			const ns = renderNavSatFix(msg);
-			if (ns) return { html: ns, usedCanvas: false };
-		}
-		if (typeMatch(msgType, 'Twist')) {
-			const tw = renderTwist(msg);
-			if (tw) return { html: tw, usedCanvas: false };
-		}
-		if (typeMatch(msgType, 'Pose')) {
-			const ps = renderPose(msg);
-			if (ps) return { html: ps, usedCanvas: false };
-		}
-		if (typeMatch(msgType, 'Float32MultiArray') || typeMatch(msgType, 'Float64MultiArray') ||
-			typeMatch(msgType, 'Int32MultiArray') || typeMatch(msgType, 'Int8MultiArray') ||
-			typeMatch(msgType, 'UInt8MultiArray') || typeMatch(msgType, 'UInt16MultiArray')) {
-			const ga = renderGenericNumericArray(msg);
-			if (ga) return { html: ga, usedCanvas: false };
-		}
-		const sc = renderScalar(msg);
-		if (sc) return { html: sc, usedCanvas: false };
-		return {
-			html: '<p class="hint">无专用视图；右侧为完整 JSON。可在 <code>js/ros_console.js</code> 的 <code>renderVisualization()</code> 中扩展。</p>',
-			usedCanvas: false
-		};
-	}
 
 	function onMessage(msg) {
 		if (webVideoStreamMode) return;
@@ -883,11 +374,12 @@
 			if (seq !== subscriptionSeq) return;
 			const vizBody = $('viz-body');
 			const canvas = $('viz-canvas');
-			const out = renderVisualization(type, msg, canvas);
+			if (!vizBody || !canvas) return;
+			const out = IVGTopicsLabRender.renderVisualization(type, msg, canvas);
 			vizBody.innerHTML = out.html;
 			canvas.style.display = out.usedCanvas ? 'block' : 'none';
 			// 大话题勿 JSON.stringify 全量 data，否则主线程阻塞数秒；摘要即可
-			$('raw-pre').textContent = rawPreviewForMessage(type, msg, 120000);
+			$('raw-pre').textContent = IVGTopicsLabRender.rawPreviewForMessage(type, msg, 120000);
 		});
 	}
 
@@ -900,7 +392,11 @@
 		}
 		if (activeTopic) {
 			try {
-				activeTopic.dispose();
+				if (typeof activeTopic.unsubscribe === 'function') {
+					activeTopic.unsubscribe();
+				} else if (typeof activeTopic.dispose === 'function') {
+					activeTopic.dispose();
+				}
 			} catch (e) { /* ignore */ }
 			activeTopic = null;
 		}
@@ -918,7 +414,13 @@
 		selectedType = msgType;
 		lastEmit = 0;
 		$('selection-label').textContent = `${name}  ·  ${msgType}`;
-		if (typeof ivgWebVideo !== 'undefined' && typeMatch(msgType, 'Image') && !typeMatch(msgType, 'CompressedImage')) {
+		if (IVGTopicsLabRender.typeMatch(msgType, 'Image') && !IVGTopicsLabRender.typeMatch(msgType, 'CompressedImage')) {
+			if (typeof ivgWebVideo === 'undefined') {
+				$('viz-body').innerHTML =
+					'<p class="hint">sensor_msgs/Image 仅通过 <strong>web_video_server</strong> MJPEG 显示。请确认本页已加载 <code>ivg_web_video.js</code> 且 launch 已启动 web_video_server。</p>';
+				$('raw-pre').textContent = '';
+				return;
+			}
 			webVideoStreamMode = true;
 			const wvPort = webVideoPort();
 			const url = ivgWebVideo.streamUrl(name, {
@@ -926,7 +428,8 @@
 				quality: 88
 			});
 			const viewer = ivgWebVideo.viewerUrl(name, { port: wvPort });
-			$('viz-canvas').style.display = 'none';
+			const vcMjpeg = $('viz-canvas');
+			if (vcMjpeg) vcMjpeg.style.display = 'none';
 			const vizBody = $('viz-body');
 			vizBody.replaceChildren();
 			const hint = document.createElement('p');
@@ -946,18 +449,26 @@
 			img.className = 'viz-mjpeg-img';
 			img.decoding = 'async';
 			img.src = url;
+			if (typeof ivgWebVideo !== 'undefined' && typeof ivgWebVideo.mjpegStreamAttachAutoReload === 'function') {
+				ivgWebVideo.mjpegStreamAttachAutoReload(img, () =>
+					ivgWebVideo.streamUrl(name, {
+						port: webVideoPort(),
+						quality: 88
+					})
+				);
+			}
 			wrap.appendChild(img);
 			vizBody.appendChild(wrap);
 			$('raw-pre').textContent = `[MJPEG] ${name}\n${url}\n\nCompressedImage 仍走 rosbridge。`;
 			return;
 		}
-		webVideoStreamMode = false;
 		const mySeq = subscriptionSeq;
 		activeTopic = new ROSLIB.Topic({
 			ros,
 			name,
 			messageType: msgType,
-			queue_length: 1
+			queue_length: 1,
+			throttle_rate: throttleMs
 		});
 		activeTopic.subscribe(msg => {
 			if (mySeq !== subscriptionSeq) return;
@@ -1015,7 +526,6 @@
 						}
 					} else if (tab === 'view2d') {
 						if (m.indexOf('OccupancyGrid') !== -1) $('map-topic').value = n;
-						else if (m.indexOf('LaserScan') !== -1) $('scan-topic').value = n;
 					} else if (tab === 'view3d') {
 						if (m.indexOf('PointCloud2') !== -1) $('pc-topic').value = n;
 						else if (m.indexOf('LaserScan') !== -1) $('scan3-topic').value = n;
@@ -1217,25 +727,36 @@
 		if (!ros || !ros.isConnected) return;
 		const pid = ++paramFetchSeq;
 		if ($('param-value')) $('param-value').textContent = '读取中…';
-		const svc = new ROSLIB.Service({
-			ros,
-			name: '/rosapi/get_param',
-			serviceType: 'rosapi/GetParam'
-		});
-		const req = new ROSLIB.ServiceRequest({ name: paramName, default_value: '' });
-		svc.callService(req, res => {
-			if (pid !== paramFetchSeq) return;
-			if ($('param-value')) $('param-value').textContent = res.value;
-		}, err => {
+		function showErr(err) {
 			if (pid !== paramFetchSeq) return;
 			if ($('param-value')) $('param-value').textContent = `错误: ${err}`;
-		});
+		}
+		function callGetParam(serviceType, triedAlt) {
+			const svc = new ROSLIB.Service({
+				ros,
+				name: '/rosapi/get_param',
+				serviceType
+			});
+			svc.callService({ name: paramName, default_value: '' }, res => {
+				if (pid !== paramFetchSeq) return;
+				if ($('param-value')) $('param-value').textContent = res.value;
+			}, err => {
+				if (pid !== paramFetchSeq) return;
+				if (!triedAlt && serviceType === 'rosapi/GetParam') {
+					callGetParam('rosapi/srv/GetParam', true);
+					return;
+				}
+				showErr(err);
+			});
+		}
+		callGetParam('rosapi/GetParam', false);
 	}
 
 	/**
 	 * 切换标签时抬高所有侧栏列表的请求代数。
 	 * 仅抬高「非当前数据源」会在话题/2D/3D 共用 topics 列表、或 IVG 连点等组合下漏掉应失效的回调，
 	 * 晚到的 getTopics/getServices 仍可能把侧栏刷成上一标签的内容；此处一律作废全部进行中请求。
+	 * paramFetchSeq 同步抬高，避免离开「参数」后 get_param 晚到仍改写 #param-value。
 	 */
 	function invalidateStaleSidebarLists() {
 		topicsListReq++;
@@ -1243,6 +764,7 @@
 		nodesListReq++;
 		actionsListReq++;
 		paramsListReq++;
+		paramFetchSeq++;
 	}
 
 	/* ---------- 侧栏：按当前 tab 拉取 rosapi 列表并渲染 #sidebar-list ---------- */
@@ -1271,11 +793,12 @@
 			if (prevTab === 'topics') {
 				selectedName = '';
 				selectedType = '';
+				$('selection-label').textContent = '未选择话题';
+				$('viz-body').innerHTML = '<p class="hint">切换到「话题」可订阅。</p>';
+				const cvTab = $('viz-canvas');
+				if (cvTab) cvTab.style.display = 'none';
+				$('raw-pre').textContent = '';
 			}
-			$('selection-label').textContent = '未选择话题';
-			$('viz-body').innerHTML = '<p class="hint">切换到「话题」可订阅。</p>';
-			$('viz-canvas').style.display = 'none';
-			$('raw-pre').textContent = '';
 		}
 		tab = t;
 		if (t === 'topics' && prevTab !== 'topics') {
@@ -1732,22 +1255,13 @@
 	}
 
 	function stop2d() {
-		if (mapTopicSub) {
-			try { mapTopicSub.dispose(); } catch (e1) { /* ignore */ }
-			mapTopicSub = null;
-		}
-		if (scanTopicSub) {
-			try { scanTopicSub.dispose(); } catch (e2) { /* ignore */ }
-			scanTopicSub = null;
-		}
 		const h = $('view2d-host');
 		if (h) h.innerHTML = '';
 		viewer2d = null;
-		gridRoot = null;
-		scanShape = null;
+		mapGridClient = null;
 	}
 
-	/* ---------- 2D（ROS2D）与 3D（Three.js）视图：地图、雷达、点云 ---------- */
+	/* ---------- 2D：ros2djs continuous.html；3D：ros3djs pointcloud2.html、LaserScan、markers.html + 场景坐标轴/网格 ---------- */
 	function start2d() {
 		stop2d();
 		if (typeof ROS2D === 'undefined' || typeof createjs === 'undefined') {
@@ -1759,250 +1273,209 @@
 		inner.id = 'ros2d-inner';
 		host.appendChild(inner);
 		viewer2d = new ROS2D.Viewer({ divID: 'ros2d-inner', width: 800, height: 500, background: ROS2D_VIEWER_BG });
-		gridRoot = new createjs.Container();
-		viewer2d.addObject(gridRoot);
-		gridRoot.addChild(new ROS2D.Grid({ size: 1 }));
-		let currentGrid = null;
-		const mapTopic = $('map-topic').value || '/map';
-		mapTopicSub = new ROSLIB.Topic({
+		const mapTopic = ($('map-topic').value || '/map').trim();
+		mapGridClient = new ROS2D.OccupancyGridClient({
 			ros,
-			name: mapTopic,
-			messageType: 'nav_msgs/msg/OccupancyGrid',
-			queue_length: 1
+			topic: mapTopic,
+			rootObject: viewer2d.scene,
+			continuous: true
 		});
-		mapTopicSub.subscribe(message => {
-			if (currentGrid) gridRoot.removeChild(currentGrid);
-			currentGrid = new ROS2D.OccupancyGrid({ message });
-			gridRoot.addChildAt(currentGrid, 0);
-			const info = message.info;
-			viewer2d.scaleToDimensions(info.width * info.resolution, info.height * info.resolution);
-			viewer2d.shift(-info.origin.position.x, -info.origin.position.y);
+		mapGridClient.on('change', () => {
+			const mc = mapGridClient;
+			const v = viewer2d;
+			if (!mc || !v) return;
+			const cg = mc.currentGrid;
+			if (!cg || !cg.pose) return;
+			v.scaleToDimensions(cg.width, cg.height);
+			v.shift(cg.pose.position.x, cg.pose.position.y);
 		});
-		const st = ($('scan-topic').value || '').trim();
-		if (st) {
-			scanShape = new createjs.Shape();
-			gridRoot.addChild(scanShape);
-			scanTopicSub = new ROSLIB.Topic({
-				ros,
-				name: st,
-				messageType: 'sensor_msgs/msg/LaserScan',
-				queue_length: 1
-			});
-			scanTopicSub.subscribe(msg => {
-				if (!msg || !Array.isArray(msg.ranges)) return;
-				const g = scanShape.graphics;
-				g.clear();
-				g.setStrokeStyle(1);
-				g.beginStroke('rgba(255,80,80,0.9)');
-				const cx = 0;
-				const cy = 0;
-				let k;
-				for (k = 0; k < msg.ranges.length; k++) {
-					const r = msg.ranges[k];
-					if (!isFinite(r) || r <= 0) continue;
-					const ang = msg.angle_min + k * msg.angle_increment;
-					const px = cx + r * Math.cos(ang);
-					const py = cy - r * Math.sin(ang);
-					if (k === 0) g.moveTo(px, py);
-					else g.lineTo(px, py);
-				}
-				g.endStroke();
-			});
-		}
 	}
 
 	function stop3d() {
-		if (pcUpdateRaf != null) {
-			cancelAnimationFrame(pcUpdateRaf);
-			pcUpdateRaf = null;
+		if (ros3dMarkerClient) {
+			try { ros3dMarkerClient.unsubscribe(); } catch (e0) { /* ignore */ }
+			ros3dMarkerClient = null;
 		}
-		pcPendingMsg = null;
-		if (scan3UpdateRaf != null) {
-			cancelAnimationFrame(scan3UpdateRaf);
-			scan3UpdateRaf = null;
+		if (ros3dPointCloud2) {
+			try { ros3dPointCloud2.unsubscribe(); } catch (e1) { /* ignore */ }
+			ros3dPointCloud2 = null;
 		}
-		scan3PendingMsg = null;
-		if (anim3d) {
-			cancelAnimationFrame(anim3d);
-			anim3d = null;
+		if (ros3dLaserScan) {
+			try { ros3dLaserScan.unsubscribe(); } catch (e2) { /* ignore */ }
+			ros3dLaserScan = null;
 		}
-		if (pcTopicSub) {
-			try { pcTopicSub.dispose(); } catch (e3) { /* ignore */ }
-			pcTopicSub = null;
+		if (tfClient3d) {
+			try { tfClient3d.dispose(); } catch (e3) { /* ignore */ }
+			tfClient3d = null;
 		}
-		if (scan3TopicSub) {
-			try { scan3TopicSub.dispose(); } catch (e4) { /* ignore */ }
-			scan3TopicSub = null;
+		if (viewer3d) {
+			try {
+				if (ros3dAxes) {
+					viewer3d.scene.remove(ros3dAxes);
+					ros3dAxes = null;
+				}
+				if (ros3dGrid) {
+					viewer3d.scene.remove(ros3dGrid);
+					ros3dGrid = null;
+				}
+			} catch (e3a) { /* ignore */ }
+			try { viewer3d.stop(); } catch (e4) { /* ignore */ }
+			viewer3d = null;
+		} else {
+			ros3dAxes = null;
+			ros3dGrid = null;
 		}
-		const host = $('view3d-host');
-		if (host) host.innerHTML = '';
-		threeRenderer = null;
-		threeScene = null;
-		threeCamera = null;
-		threeControls = null;
-		pointsObj = null;
-	}
-
-	function fieldOffset(fields, name) {
-		let f;
-		for (f = 0; f < fields.length; f++) {
-			if (fields[f].name === name) return fields[f].offset;
-		}
-		return -1;
-	}
-
-	function updatePointsFromPointCloud2(msg, maxPts) {
-		if (!pointsObj || !msg.fields) return;
-		const ox = fieldOffset(msg.fields, 'x');
-		const oy = fieldOffset(msg.fields, 'y');
-		const oz = fieldOffset(msg.fields, 'z');
-		if (ox < 0 || oy < 0 || oz < 0) return;
-		const buf = toUint8(msg.data);
-		if (!buf || !buf.buffer) return;
-		const le = !msg.is_bigendian;
-		const step = msg.point_step;
-		const total = msg.width * msg.height;
-		if (total <= 0 || step <= 0) return;
-		const stride = Math.max(1, Math.ceil(total / maxPts));
-		const arr = pointsObj.geometry.attributes.position.array;
-		const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-		let count = 0;
-		let idx = 0;
-		for (; idx < total && count < maxPts; idx += stride) {
-			const base = idx * step;
-			if (base + step > buf.byteLength) break;
-			arr[count * 3] = dv.getFloat32(base + ox, le);
-			arr[count * 3 + 1] = dv.getFloat32(base + oy, le);
-			arr[count * 3 + 2] = dv.getFloat32(base + oz, le);
-			count++;
-		}
-		pointsObj.geometry.setDrawRange(0, count);
-		pointsObj.geometry.attributes.position.needsUpdate = true;
-	}
-
-	function updatePointsFromLaserScan3(msg, maxPts) {
-		if (!pointsObj || !msg || !Array.isArray(msg.ranges)) return;
-		const arr = pointsObj.geometry.attributes.position.array;
-		let count = 0;
-		let i;
-		for (i = 0; i < msg.ranges.length && count < maxPts; i++) {
-			const r = msg.ranges[i];
-			if (!isFinite(r) || r < msg.range_min || r > msg.range_max) continue;
-			const ang = msg.angle_min + i * msg.angle_increment;
-			arr[count * 3] = r * Math.cos(ang);
-			arr[count * 3 + 1] = r * Math.sin(ang);
-			arr[count * 3 + 2] = 0;
-			count++;
-		}
-		pointsObj.geometry.setDrawRange(0, count);
-		pointsObj.geometry.attributes.position.needsUpdate = true;
+		const host3 = $('view3d-host');
+		if (host3) host3.innerHTML = '';
 	}
 
 	function start3d() {
+		const pcn = ($('pc-topic').value || '').trim();
+		const sn = ($('scan3-topic').value || '').trim();
+		const mk = (($('marker3-topic') && $('marker3-topic').value) || '').trim();
+		if (!pcn && !sn && !mk) {
+			alert('请至少填写「点云」「雷达」或「Marker」话题之一（参见 ros3djs pointcloud2 / markers 示例）');
+			return;
+		}
+		if (mk && typeof ROS3D.MarkerClient === 'undefined') {
+			alert('已填写 Marker 话题但未加载 ROS3D.MarkerClient（需 ros3d.min.js）');
+			return;
+		}
 		stop3d();
-		if (typeof THREE === 'undefined') {
-			alert('Three.js 未加载');
+		if (typeof ROS3D === 'undefined' || typeof ROSLIB === 'undefined' || typeof ROSLIB.ROS2TFClient !== 'function') {
+			alert('ROS3D 或官方 roslib@2 未加载（需 js/vendor/roslib-2.iife.js + three r89 + ros3d，且含 ROS2TFClient）');
 			return;
 		}
 		const host = $('view3d-host');
+		const inner = document.createElement('div');
+		inner.id = 'view3d-inner';
+		host.appendChild(inner);
 		const w = host.clientWidth || 800;
 		const h = 420;
-		threeRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-		threeRenderer.setPixelRatio(window.devicePixelRatio || 1);
-		threeRenderer.setSize(w, h);
-		threeRenderer.setClearColor(0x111111, 1);
-		host.appendChild(threeRenderer.domElement);
-		threeScene = new THREE.Scene();
-		threeCamera = new THREE.PerspectiveCamera(50, w / h, 0.05, 200);
-		threeCamera.position.set(4, 4, 3);
-		threeControls = new THREE.OrbitControls(threeCamera, threeRenderer.domElement);
-		threeScene.add(new THREE.GridHelper(8, 16, 0x64748b, 0x334155));
-		threeScene.add(new THREE.AmbientLight(0x606060));
-		const dl = new THREE.DirectionalLight(0xffffff, 0.85);
-		dl.position.set(3, 6, 4);
-		threeScene.add(dl);
-		const maxPts = Math.max(1000, parseInt($('pc-max').value, 10) || 20000);
-		const geom = new THREE.BufferGeometry();
-		const posArr = new Float32Array(maxPts * 3);
-		geom.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
-		geom.setDrawRange(0, 0);
-		const mat = new THREE.PointsMaterial({ size: 0.04, color: 0x38bdf8 });
-		pointsObj = new THREE.Points(geom, mat);
-		threeScene.add(pointsObj);
-		function loop() {
-			anim3d = requestAnimationFrame(loop);
-			threeControls.update();
-			threeRenderer.render(threeScene, threeCamera);
+		viewer3d = new ROS3D.Viewer({
+			divID: 'view3d-inner',
+			width: w,
+			height: h,
+			antialias: true,
+			background: '#111111',
+			cameraPose: { x: 3, y: 3, z: 3 },
+			cameraZoomSpeed: 0.5
+		});
+		const axEl = $('view3d-show-axes');
+		const grEl = $('view3d-show-grid');
+		if (!axEl || axEl.checked) {
+			ros3dAxes = new ROS3D.Axes();
+			viewer3d.scene.add(ros3dAxes);
 		}
-		loop();
-		const pcn = ($('pc-topic').value || '').trim();
-		const sn = ($('scan3-topic').value || '').trim();
+		if (!grEl || grEl.checked) {
+			ros3dGrid = new ROS3D.Grid({ num_cells: 12, cellSize: 1, color: '#444444' });
+			viewer3d.scene.add(ros3dGrid);
+		}
+		let fixedFrame = (($('tf-fixed-frame') && $('tf-fixed-frame').value) || 'camera_link').trim().replace(/^\/+/, '');
+		if (fixedFrame === '') fixedFrame = 'camera_link';
+		fixedFrame = `/${fixedFrame}`;
+		tfClient3d = new ROSLIB.ROS2TFClient({
+			ros,
+			fixedFrame,
+			angularThres: 0.01,
+			transThres: 0.01,
+			rate: 10.0
+		});
+		const maxPts = Math.max(1000, parseInt($('pc-max').value, 10) || 10000);
+		const pszEl = $('view3d-point-size');
+		const ptSize = Math.max(0.01, parseFloat((pszEl && pszEl.value) || '0.05') || 0.05);
 		if (pcn) {
-			pcTopicSub = new ROSLIB.Topic({
+			/* 点云：throttle_rate 用 0 表示不限流；vendor/ros3d.min.js 已修 ||null 误判 0（见 bundle_roslib2_browser.sh） */
+			ros3dPointCloud2 = new ROS3D.PointCloud2({
 				ros,
-				name: pcn,
-				messageType: 'sensor_msgs/msg/PointCloud2',
-				queue_length: 1
+				tfClient: tfClient3d,
+				rootObject: viewer3d.scene,
+				topic: pcn,
+				max_pts: maxPts,
+				throttle_rate: 0,
+				material: { size: ptSize, color: 0x38bdf8 }
 			});
-			pcTopicSub.subscribe(m => {
-				pcPendingMsg = m;
-				if (pcUpdateRaf != null) return;
-				pcUpdateRaf = requestAnimationFrame(() => {
-					pcUpdateRaf = null;
-					const mm = pcPendingMsg;
-					pcPendingMsg = null;
-					if (mm) updatePointsFromPointCloud2(mm, maxPts);
-				});
-			});
-		} else if (sn) {
-			scan3TopicSub = new ROSLIB.Topic({
+		}
+		if (sn) {
+			ros3dLaserScan = new ROS3D.LaserScan({
 				ros,
-				name: sn,
-				messageType: 'sensor_msgs/msg/LaserScan',
-				queue_length: 1
+				tfClient: tfClient3d,
+				rootObject: viewer3d.scene,
+				topic: sn,
+				max_pts: maxPts,
+				material: { size: Math.max(0.01, ptSize * 0.85), color: 0xff4444 }
 			});
-			scan3TopicSub.subscribe(m => {
-				scan3PendingMsg = m;
-				if (scan3UpdateRaf != null) return;
-				scan3UpdateRaf = requestAnimationFrame(() => {
-					scan3UpdateRaf = null;
-					const mm = scan3PendingMsg;
-					scan3PendingMsg = null;
-					if (mm) updatePointsFromLaserScan3(mm, maxPts);
-				});
+		}
+		if (mk) {
+			ros3dMarkerClient = new ROS3D.MarkerClient({
+				ros,
+				tfClient: tfClient3d,
+				topic: mk,
+				rootObject: viewer3d.scene,
+				lifetime: 0
 			});
 		}
 	}
 
 	/** 建立或重建 ROSLIB.Ros：直连 rosbridge WebSocket。 */
 	function connect() {
+		ivgPorts.clearRosReconnectTimer(rosReconnect);
+		const myGen = ivgPorts.bumpRosReconnectGen(rosReconnect);
+		/* 先停视图与话题：避免旧 WebSocket 上的订阅与下一轮 ros 实例交错（勿把 stop 绑在 ros.on('close')，重连时旧连接晚到的 close 会误伤新视图） */
 		if (ros) {
+			try {
+				stop2d();
+				stop3d();
+				unsubscribe();
+			} catch (e0) { /* ignore */ }
 			try { ros.close(); } catch (e) { /* ignore */ }
 		}
-		ros = new ROSLIB.Ros({ groovyCompatibility: false });
-		const h = window.location.hostname || '127.0.0.1';
+		/* 官方 roslib@2：Ros + 异步 connect（见 RobotWebTools/roslibjs packages/roslib） */
+		ros = new ROSLIB.Ros();
 		ros.on('connection', () => {
+			if (myGen !== rosReconnect.gen) return;
+			rosReconnect.attempts = 0;
+			ivgPorts.clearRosReconnectTimer(rosReconnect);
 			syncLocalHostLinks();
-			setStatus(`已连接 ws://${h}:${bridgePort()}`, true);
+			setStatus('已连接 rosbridge（经网关）', true);
 			refreshSidebar();
 		});
 		ros.on('error', () => {
+			if (myGen !== rosReconnect.gen) return;
 			setStatus('连接错误', false);
 		});
 		ros.on('close', () => {
+			if (myGen !== rosReconnect.gen) return;
 			setStatus('已断开', false);
 			refreshSidebar();
+			ivgPorts.scheduleRosReconnect(rosReconnect, connect, {
+				maxAttempts: ROS_RECONNECT_MAX,
+				onSchedule(delayMs, attempt, max) {
+					setStatus(`已断开：${Math.round(delayMs / 1000)}s 后自动重连（${attempt}/${max}）`, false);
+				},
+				onExhausted() {
+					setStatus('已断开（已达自动重连上限，请点「重连」）', false);
+				}
+			});
 		});
-		ros.connect(`ws://${h}:${bridgePort()}`);
+		void ros.connect(ivgPorts.rosbridgeWebSocketUrl()).catch(() => {
+			if (myGen !== rosReconnect.gen) return;
+			setStatus('连接错误', false);
+		});
 	}
 
 	document.addEventListener('DOMContentLoaded', () => {
-		(function initWebVideoFromQuery() {
-			const p = new URLSearchParams(window.location.search);
-			const wp = p.get('web_video_port');
-			if (wp && $('web-video-port')) $('web-video-port').value = wp;
-		})();
-		syncLocalHostLinks();
+		void (async () => {
+			await ivgPorts.loadRuntime();
+			const wvEl = $('web-video-port');
+			const rt = window.__IVG_RUNTIME || {};
+			if (wvEl && !String(wvEl.value || '').trim() && rt.web_video_port != null) {
+				wvEl.value = String(rt.web_video_port);
+			}
+			const wp = new URLSearchParams(window.location.search).get('web_video_port');
+			if (wp && wvEl) wvEl.value = wp;
+
+			syncLocalHostLinks();
 		function scheduleRefreshSidebar() {
 			clearTimeout(filterDebounceTimer);
 			filterDebounceTimer = setTimeout(() => {
@@ -2096,10 +1569,10 @@
 					name: selectedService,
 					serviceType: typ
 				});
-				srv.callService(new ROSLIB.ServiceRequest(reqObj), r => {
+				srv.callService(reqObj, r => {
 					svcBtn.disabled = false;
 					svcBtn.textContent = origLabel;
-					$('svc-resp').textContent = safeJson(r, 80000);
+					$('svc-resp').textContent = IVGTopicsLabRender.safeJson(r, 80000);
 				}, e => {
 					svcBtn.disabled = false;
 					svcBtn.textContent = origLabel;
@@ -2107,7 +1580,9 @@
 				});
 			};
 		}
-		bindIvgBar();
-		connect();
+			bindIvgBar();
+			ivgPorts.wireOnlineRosReconnect(rosReconnect, connect);
+			connect();
+		})();
 	});
 })();

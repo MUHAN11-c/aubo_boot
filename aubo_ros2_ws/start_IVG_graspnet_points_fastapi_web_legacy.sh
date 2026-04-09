@@ -1,5 +1,5 @@
 #!/bin/bash
-# 请使用 bash 运行（./start_IVG_graspnet_points_fastapi_web_dashboard.sh 或 bash …），勿用 sh
+# 请使用 bash 运行（./start_IVG_graspnet_points_fastapi_web_legacy.sh 或 bash …），勿用 sh
 # 若已用 sh 启动，则自动用 bash 重新执行（避免 echo -e 等不生效）
 if [ -z "${BASH_VERSION:-}" ]; then
     exec /bin/bash "$0" "$@"
@@ -7,9 +7,9 @@ if [ -z "${BASH_VERSION:-}" ]; then
 fi
 
 # IVG 完整启动脚本（GraspNet Points + FastAPI Web + aubo_ros2_web_dashboard）
-# 在 start_IVG_graspnet_points_fastapi.sh 基础上增加：rosbridge + tf2_web_republisher + web_video_server + 静态站
-# Web 栈使用 web_dashboard.launch.py：浏览器直连 rosbridge（ws://主机:rosbridge_port），不经 FastAPI 网关。
-# 端口：WEB_DASH_PORT=8090 静态页；WEB_VIDEO_PORT=8089 MJPEG（与 HAND_EYE_PORT=8080 手眼 Web 区分）；ROSBRIDGE_PORT=9090。
+# 在 start_IVG_graspnet_points_fastapi.sh 基础上增加：rosbridge + tf2_web_republisher + web_video_server + FastAPI 静态网关（8090）
+# 端口：WEB_DASH_PORT=8090 网关（静态页 + 同源 /ws/rosbridge + /api/ivg/proxy/web-video）；WEB_VIDEO_PORT=8089（仅网关本机连上游 MJPEG）；
+#       ROSBRIDGE_PORT=9090（仅网关本机连上游 rosbridge）；VPE FastAPI WEB_PORT=8088；HAND_EYE_PORT=8080。
 # 使用 terminator 创建分屏终端
 
 set -e
@@ -32,10 +32,12 @@ WEB_PORT="${WEB_PORT:-8088}"
 # FastAPI/uvicorn 开发热重载：默认开启；设为 false 可关闭（例如生产或稳定对比）
 IVG_WEB_RELOAD="${IVG_WEB_RELOAD:-true}"
 WEB_URL="http://${WEB_HOST}:${WEB_PORT}"
-# aubo_ros2_web_dashboard（与 README 中 WEB_DASH_* / ROSBRIDGE_PORT 约定一致）
+# aubo_ros2_web_dashboard（launch 注入 IVG_*；浏览器只连 WEB_DASH_PORT，经网关转发至本机 rosbridge / web_video）
 WEB_DASH_HOST="${WEB_DASH_HOST:-0.0.0.0}"
 WEB_DASH_PORT="${WEB_DASH_PORT:-8090}"
 ROSBRIDGE_PORT="${ROSBRIDGE_PORT:-9090}"
+# 步骤 14 本地 Web（8090/8089/9090 等）是否清除系统代理。默认 true。
+# 若设为 false：仅追加 NO_PROXY，不 unset（仍可能被部分工具误走代理）；本机访问异常时请改回 true 或见文末代理提示。
 IVG_STRIP_PROXY_FOR_DASH_LAUNCH="${IVG_STRIP_PROXY_FOR_DASH_LAUNCH:-true}"
 # 步骤15 rosbag：输出目录；启动前会 rm -rf 实现覆盖。话题默认为 -a 全部；可设 IVG_ROSBAG_TOPICS="/t1 /t2"
 IVG_ROSBAG_DIR="${IVG_ROSBAG_DIR:-${AUBO_ROS2_WS}/rosbags/ivg_session}"
@@ -44,15 +46,16 @@ IVG_ROSBAG_TOPICS="${IVG_ROSBAG_TOPICS:-}"
 HAND_EYE_PORT="${HAND_EYE_PORT:-8080}"
 # web_video_server（MJPEG），默认 8089，避免与手眼 8080、静态站 8090、FastAPI 8088 冲突
 WEB_VIDEO_PORT="${WEB_VIDEO_PORT:-8089}"
-
+# 本机回环与局域网 Web 不应走 HTTP(S)_PROXY；否则浏览器/curl/Python 可能把 127.0.0.1:8090 等发到公司代理导致无法访问
+WEB_DASH_NO_PROXY_EXPORT='export NO_PROXY="127.0.0.1,localhost,0.0.0.0,::1${NO_PROXY:+,${NO_PROXY}}"; export no_proxy="$NO_PROXY"; '
 if [ "${IVG_STRIP_PROXY_FOR_DASH_LAUNCH}" = "true" ]; then
-    WEB_DASH_UNSET_PROXY='unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY NO_PROXY no_proxy; '
+    WEB_DASH_UNSET_PROXY="unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY all_proxy FTP_PROXY ftp_proxy; ${WEB_DASH_NO_PROXY_EXPORT}"
 else
-    WEB_DASH_UNSET_PROXY=''
+    WEB_DASH_UNSET_PROXY="${WEB_DASH_NO_PROXY_EXPORT}"
 fi
 
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}IVG 系统启动脚本（GraspNet + FastAPI + Web 控制台）${NC}"
+echo -e "${GREEN}IVG 系统启动脚本（GraspNet + FastAPI + Web 静态站）${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 
@@ -101,7 +104,7 @@ ivg_lan_ipv4_addrs() {
     fi | grep -vE '^(127\.|169\.254\.)' | grep -v '^$' | sort -u
 }
 
-# 静态页 URL（与前端 ?rosbridge_port= 约定一致，供直连 rosbridge）
+# 静态页 URL 可选查询串（非默认 rosbridge 端口时带上 ?rosbridge_port=，与 runtime-config/UI 展示一致；WebSocket 仍走同源 /ws/rosbridge）
 ivg_rosbridge_query() {
     if [ "${ROSBRIDGE_PORT}" != "9090" ]; then
         printf '%s' "?rosbridge_port=${ROSBRIDGE_PORT}"
@@ -128,13 +131,15 @@ ivg_print_access_urls() {
     echo -e "${GREEN}VPE FastAPI:        http://${lh}:${WEB_PORT}/${NC}"
     echo -e "${GREEN}VPE 旧版 UI:        http://${lh}:${WEB_PORT}/legacy-ui/index.html${NC}"
     echo ""
-    echo -e "${BLUE}灵视 IVG 静态站（直连 rosbridge ws://${lh}:${ROSBRIDGE_PORT}，非网关）${NC}"
+    echo -e "${BLUE}灵视 IVG 静态站（浏览器只开 :${WEB_DASH_PORT}；WS/MJPEG 经网关同源路径，上游 rosbridge :${ROSBRIDGE_PORT}、web_video :${WEB_VIDEO_PORT}）${NC}"
     echo -e "${GREEN}  门户首页:         $(ivg_web_dash_url "$lh" "index.html")${NC}"
     echo -e "${GREEN}  视觉抓取面板:     $(ivg_web_dash_url "$lh" "vision_grasp_panel.html")${NC}"
     echo -e "${GREEN}  咖啡拉花面板:     $(ivg_web_dash_url "$lh" "coffee_latte_panel.html")${NC}"
     echo -e "${GREEN}  ROS 控制台:       $(ivg_topics_lab_url "$lh")${NC}"
     echo -e "${GREEN}  静态根目录列表:   http://${lh}:${WEB_DASH_PORT}/${NC}"
-    echo -e "${GREEN}  MJPEG 相机流:     http://${lh}:${WEB_VIDEO_PORT}/ （web_video_server；控制台/视觉页「视频端口」填 ${WEB_VIDEO_PORT}）${NC}"
+    echo -e "${GREEN}  面板内 MJPEG:     走 http://${lh}:${WEB_DASH_PORT}/api/ivg/proxy/web-video/…（无需浏览器直连 :${WEB_VIDEO_PORT}）${NC}"
+    echo -e "${GREEN}  调试直连 web_video: http://${lh}:${WEB_VIDEO_PORT}/ （仅本机/排障）${NC}"
+    echo ""
 
     local -a lan_ips=()
     mapfile -t lan_ips < <(ivg_lan_ipv4_addrs)
@@ -146,14 +151,14 @@ ivg_print_access_urls() {
 
     echo ""
     echo -e "${BLUE}──────── 局域网（手机/平板等与 PC 同 Wi‑Fi）────────${NC}"
-    echo -e "${GREEN}静态站监听 ${WEB_DASH_HOST}:${WEB_DASH_PORT}；页面按当前主机名直连 rosbridge（ws://同一 IP:${ROSBRIDGE_PORT}）。${NC}"
+    echo -e "${GREEN}网关监听 ${WEB_DASH_HOST}:${WEB_DASH_PORT}；页面经同源 /ws/rosbridge、/api/ivg/proxy/web-video 转发（勿要求客户端直连 :${ROSBRIDGE_PORT}/:${WEB_VIDEO_PORT}）。${NC}"
     local ip
     for ip in "${lan_ips[@]}"; do
         echo -e "${GREEN}  [${ip}] 门户:          $(ivg_web_dash_url "$ip" "index.html")${NC}"
         echo -e "${GREEN}  [${ip}] 视觉抓取:      $(ivg_web_dash_url "$ip" "vision_grasp_panel.html")${NC}"
         echo -e "${GREEN}  [${ip}] 咖啡拉花:      $(ivg_web_dash_url "$ip" "coffee_latte_panel.html")${NC}"
         echo -e "${GREEN}  [${ip}] ROS 控制台:    $(ivg_topics_lab_url "$ip")${NC}"
-        echo -e "${GREEN}  [${ip}] MJPEG:         http://${ip}:${WEB_VIDEO_PORT}/${NC}"
+        echo -e "${GREEN}  [${ip}] IVG 网关:       http://${ip}:${WEB_DASH_PORT}/（含 WS/视频代理）${NC}"
     done
 
     if [ "${WEB_HOST}" = "127.0.0.1" ] || [ "${WEB_HOST}" = "localhost" ]; then
@@ -265,11 +270,11 @@ launch_in_terminator "Visual Pose Web FastAPI" "$FASTAPI_WEB_CMD"
 echo -e "${GREEN}  ✓ FastAPI Web 服务已启动${NC}"
 sleep 3
 
-# 步骤14: rosbridge + tf2_web_republisher + web_video_server + 静态页（直连 web_dashboard.launch.py，无网关）
-echo -e "${GREEN}[14/15] 启动灵视 IVG 静态站（rosbridge ${ROSBRIDGE_PORT}；HTTP ${WEB_DASH_HOST}:${WEB_DASH_PORT}；MJPEG web_video_server ${WEB_VIDEO_PORT}）...${NC}"
+# 步骤14: aubo_ros2_web_dashboard（FastAPI 网关：静态页 + 同源 WS/视频代理 → 本机 rosbridge / web_video）
+echo -e "${GREEN}[14/15] 启动灵视 IVG 网关（HTTP ${WEB_DASH_HOST}:${WEB_DASH_PORT} → 上游 rosbridge ${ROSBRIDGE_PORT}、web_video ${WEB_VIDEO_PORT}）...${NC}"
 WEB_DASH_CMD="$WS_ENV && ${WEB_DASH_UNSET_PROXY}ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_host:=${WEB_DASH_HOST} web_port:=${WEB_DASH_PORT} rosbridge_port:=${ROSBRIDGE_PORT} web_video_port:=${WEB_VIDEO_PORT}"
-launch_in_terminator "IVG Web Dashboard (rosbridge)" "$WEB_DASH_CMD"
-echo -e "${GREEN}  ✓ ROS Web 控制台已启动${NC}"
+launch_in_terminator "IVG Web Dashboard (gateway)" "$WEB_DASH_CMD"
+echo -e "${GREEN}  ✓ IVG Web 网关已启动${NC}"
 sleep 2
 
 # 步骤15: rosbag 录制（删除已有同名目录后重新录，实现覆盖）
@@ -288,7 +293,8 @@ sleep 1
 
 FASTAPI_HEALTH_URL="${WEB_URL}/health"
 if command -v curl >/dev/null 2>&1; then
-    if curl --fail --silent --max-time 5 "$FASTAPI_HEALTH_URL" >/dev/null; then
+    # --noproxy：避免本机 URL 被环境变量中的 http_proxy 劫持
+    if curl --noproxy '*' --fail --silent --max-time 5 "$FASTAPI_HEALTH_URL" >/dev/null; then
         echo -e "${GREEN}  ✓ FastAPI 健康检查通过: ${FASTAPI_HEALTH_URL}${NC}"
     else
         echo -e "${YELLOW}  ! FastAPI 健康检查暂未通过，请查看 'Visual Pose Web FastAPI' 标签页日志${NC}"

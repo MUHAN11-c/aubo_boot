@@ -828,6 +828,21 @@ canvas.viz-canvas {
 	border-radius: var(--radius-sm);
 	font: inherit;
 }
+.row-form .row-inline-checks {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.65rem 1rem;
+	font-size: 11px;
+	color: var(--muted);
+}
+.row-form .row-inline-checks label {
+	flex-direction: row;
+	align-items: center;
+	gap: 0.35rem;
+	cursor: pointer;
+}
 
 .graph-toolbar {
 	display: flex;

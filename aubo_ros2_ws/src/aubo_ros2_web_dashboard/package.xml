@@ -3,11 +3,10 @@
 <!-- ament_python：静态 web + launch -->
 <package format="3">
   <name>aubo_ros2_web_dashboard</name>
-  <version>0.2.0</version>
+  <version>0.4.0</version>
   <description>
-    IVG Web stack: RobotWebTools rosbridge_suite (WebSocket rosbridge + rosapi) + tf2_web_republisher,
-    static HTTP document root at web/public (evolved from RobotWebTools ros2-web-bridge conference demo,
-    upstream Apache-2.0). Browser uses roslibjs against rosbridge; no Node.js ros2-web-bridge at runtime.
+    IVG 现场 Web：rosbridge_suite、tf2_web_republisher、web_video_server 与 FastAPI/Uvicorn 网关，静态资源 web/public（roslibjs）。
+    浏览器经同源 /ws/rosbridge 与 /api/ivg/proxy/web-video 转发至本机 rosbridge 与 web_video；HTTP 静态页与轻量 BFF 由网关卡进程提供。
   </description>
   <maintainer email="maintainer@example.com">IVG</maintainer>
   <license>Apache-2.0</license>
@@ -20,11 +19,13 @@
   <!-- 与 apt ros-${ROS_DISTRO}-rosbridge-suite 一致：含 rosbridge_server、rosbridge_library、rosapi -->
   <exec_depend>rosbridge_suite</exec_depend>
   <exec_depend>tf2_web_republisher</exec_depend>
+  <exec_depend>tf2_web_republisher_interfaces</exec_depend>
   <!-- RobotWebTools：HTTP MJPEG/快照，减轻 sensor_msgs/Image 经 rosbridge 的 JSON 负载 -->
   <exec_depend>web_video_server</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
+  <test_depend>python3-pytest</test_depend>
 
   <export>
     <build_type>ament_python</build_type>

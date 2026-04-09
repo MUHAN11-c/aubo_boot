@@ -9,12 +9,18 @@
 	<link rel="stylesheet" href="css/topics_lab.css" />
 	<link rel="stylesheet" href="css/ivg_site_nav.css" />
 	<script src="js/vendor/eventemitter2.js"></script>
-	<script src="js/vendor/roslib.min.js"></script>
+	<!-- RobotWebTools 官方 roslib@2（npm），由 scripts/bundle_roslib2_browser.sh 打成 IIFE；含 ROS2TFClient -->
+	<script src="js/vendor/roslib-2.iife.js"></script>
+	<!-- Humble rosbridge：规范 Topic 的 throttle_rate / queue_*，避免 ros3d 传 null 订阅失败 -->
+	<script src="js/ivg_roslib_ros2_humble_compat.js"></script>
 	<script src="js/vendor/easeljs.min.js"></script>
 	<script src="js/vendor/ros2d.min.js"></script>
 	<script src="js/vendor/three.min.js"></script>
-	<script src="js/vendor/OrbitControls.js"></script>
+	<script src="js/vendor/ros3d.min.js"></script>
 	<script src="js/ivg_web_video.js"></script>
+	<script src="js/ivg_runtime.js"></script>
+	<script src="js/ivg_rosbridge_bytes.js"></script>
+	<script src="js/topics_lab/render.js"></script>
 </head>
 
 <body>
@@ -36,7 +42,8 @@
 		</div>
 		<span class="topnav-spacer" aria-hidden="true"></span>
 		<div class="topnav-actions">
-			<button type="button" id="btn-reconnect" class="btn-top" title="重新连接 WebSocket">重连</button>
+			<button type="button" id="btn-reconnect" class="btn-top"
+				title="手动重连 rosbridge。断线后会自动重连（指数退避）；浏览器网络恢复（online）时会立即再试；后台标签页会等切回前台再连。">重连</button>
 			<span id="conn-status" class="status" role="status" aria-live="polite">未连接</span>
 		</div>
 	</nav>
@@ -73,9 +80,11 @@
 		<span class="ivg-sep">|</span>
 		<button type="button" data-ivg="topics-status">订阅 /system_status</button>
 		<span class="ivg-sep">|</span>
-		<span class="ivg-webvid ivg-webvid-hint" title="sensor_msgs/Image 经 web_video_server MJPEG，不经 rosbridge">web_video</span>
+		<span class="ivg-webvid ivg-webvid-hint"
+			title="sensor_msgs/Image 经 web_video_server MJPEG，不经 rosbridge">web_video</span>
 		<label class="ivg-webvid">端口 <input type="text" class="ivg-port" id="web-video-port" value="8089"
-				inputmode="numeric" aria-label="web_video_server 端口" title="默认 8089；与 launch web_video_port 一致" /></label>
+				inputmode="numeric" aria-label="web_video_server 端口"
+				title="默认 8089；与 launch web_video_port 一致" /></label>
 	</div>
 	<div class="tabs" role="tablist" aria-label="主功能">
 		<button type="button" role="tab" data-tab="topics" id="tab-topics" class="active"
@@ -110,7 +119,8 @@
 					<button type="button" id="btn-unsub-topic" class="btn-inline">停止订阅</button>
 					<label>节流 ms <input type="number" id="throttle-ms" value="80" min="0" step="10"
 							title="消息刷新最小间隔；改小更实时，改大减 CPU" /></label>
-					<span class="hint">rosbridge：<code>?rosbridge_port=</code>；视频：<code>?web_video_port=8089</code></span>
+					<span
+						class="hint">rosbridge：<code>?rosbridge_port=</code>；视频：<code>?web_video_port=8089</code></span>
 				</div>
 				<div class="panels">
 					<div class="panel">
@@ -177,22 +187,38 @@
 				<div class="graph-wrap"><canvas id="graph-canvas" width="900" height="520"></canvas></div>
 			</main>
 			<main id="main-view2d" class="main-stack hidden">
-				<p class="hint">ROS2：<code>nav_msgs/msg/OccupancyGrid</code> + 可选 <code>sensor_msgs/msg/LaserScan</code>
-					叠加（机器人系简化显示）。</p>
+				<p class="hint">与 <a href="https://github.com/RobotWebTools/ros2djs/blob/develop/examples/continuous.html"
+						rel="noopener">ros2djs continuous</a> 一致：<code>ROS2D.Viewer</code> +
+					<code>ROS2D.OccupancyGridClient</code>（<code>continuous: true</code>）。激光请用下方 3D 标签的
+					<code>ROS3D.LaserScan</code>。</p>
 				<div class="controls row-form">
 					<label>地图话题 <input type="text" id="map-topic" value="/map" /></label>
-					<label>雷达话题 <input type="text" id="scan-topic" value="" placeholder="可选，如 /scan" /></label>
 					<button type="button" id="btn-2d-start">启动 2D</button>
 					<button type="button" id="btn-2d-stop">停止</button>
 				</div>
 				<div id="view2d-host" class="view2d-host"></div>
 			</main>
 			<main id="main-view3d" class="main-stack hidden">
-				<p class="hint">Three.js r128：<code>sensor_msgs/msg/PointCloud2</code>（xyz float32）与可选 LaserScan；点云按步进采样 + 每帧合并更新，减轻主线程压力。无 TF，数据在传感器坐标系显示。</p>
+				<p class="hint">对齐 <strong>RobotWebTools / ros3djs</strong> 官方示例：<a
+						href="https://github.com/RobotWebTools/ros3djs/blob/develop/examples/pointcloud2.html"
+						rel="noopener">pointcloud2.html</a>（<code>Viewer</code> + TF + <code>PointCloud2</code>）、<a
+						href="https://github.com/RobotWebTools/ros3djs/blob/develop/examples/markers.html"
+						rel="noopener">markers.html</a>（<code>MarkerClient</code>）。ROS 2 侧：<code>ros2 launch rosbridge_server
+						rosbridge_websocket_launch.xml</code>、<code>ros2 run tf2_web_republisher tf2_web_republisher_node</code>；网页 TF 为
+					官方 <a href="https://www.npmjs.com/package/roslib" rel="noopener">roslib@2</a> 的 <code>ROSLIB.ROS2TFClient</code>（<code>tf2_web_republisher_interfaces/TFSubscription</code>）与 ros3djs 的 <code>ROS3D.MarkerClient</code>。</p>
 				<div class="controls row-form">
+					<label>TF 固定坐标系 <input type="text" id="tf-fixed-frame" value="camera_link"
+							placeholder="如 camera_link、base_link" title="对应 ROSLIB.ROS2TFClient fixedFrame" /></label>
 					<label>点云话题 <input type="text" id="pc-topic" value="" placeholder="/points 或留空" /></label>
 					<label>雷达话题 <input type="text" id="scan3-topic" value="" placeholder="可选" /></label>
-					<label>最大点数 <input type="number" id="pc-max" value="20000" min="1000" step="1000" /></label>
+					<label>Marker 话题 <input type="text" id="marker3-topic" value=""
+							placeholder="如 /visualization_marker 或留空" title="与 markers.html 一致；ros3d MarkerClient 使用 visualization_msgs/Marker 类型串（由 rosbridge 解析）" /></label>
+					<label>最大点数 <input type="number" id="pc-max" value="10000" min="1000" step="1000" /></label>
+					<label>点大小 <input type="number" id="view3d-point-size" value="0.05" min="0.01" max="0.5" step="0.01"
+							title="PointCloud2 / LaserScan 点的尺寸（与官方 material.size 一致）" /></label>
+					<span class="hint row-inline-checks"><label><input type="checkbox" id="view3d-show-axes" checked />
+							坐标轴</label>
+						<label><input type="checkbox" id="view3d-show-grid" checked /> 网格</label></span>
 					<button type="button" id="btn-3d-start">启动 3D</button>
 					<button type="button" id="btn-3d-stop">停止</button>
 				</div>
@@ -201,7 +227,7 @@
 		</div>
 	</div>
 	<script src="js/ivg_site_nav.js"></script>
-	<!-- 入口脚本：依赖上方 vendor（roslib / three / ros2d）；置于末尾以便 DOM 已就绪 -->
+	<!-- 入口脚本：依赖 roslib-2.iife、easeljs、ros2d、three(r89)、ros3d；置于末尾以便 DOM 已就绪 -->
 	<script src="js/ros_console.js"></script>
 </body>
 

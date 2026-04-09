@@ -11,6 +11,9 @@
 	<script src="js/vendor/eventemitter2.js"></script>
 	<script src="js/vendor/roslib.min.js"></script>
 	<script src="js/ivg_web_video.js"></script>
+	<script src="js/ivg_runtime.js"></script>
+	<script src="js/ivg_rosbridge_bytes.js"></script>
+	<script src="js/ivg_image_canvas.js"></script>
 </head>
 
 <body class="ivg-single-screen">
@@ -29,11 +32,12 @@
 		<span class="topbar-page-hint" aria-hidden="true">本页 · 连接与状态</span>
 		<span class="spacer"></span>
 		<div class="gateway-row" aria-label="连接">
-			<span class="webvid-inline webvid-hint" title="彩色图与识别结果均经 web_video_server MJPEG，不经 rosbridge 传像素">web_video_server</span>
+			<span class="webvid-inline webvid-hint"
+				title="彩色图与识别结果均经 web_video_server MJPEG，不经 rosbridge 传像素">web_video_server</span>
 			<label class="webvid-inline">端口 <input type="text" id="web-video-port" value="8089" inputmode="numeric"
 					class="webvid-port" aria-label="web_video_server HTTP 端口" /></label>
 			<button type="button" class="btn-top" id="btn-reconnect"
-				title="连接 rosbridge：默认端口 9090；可在地址栏加 ?rosbridge_port= 修改">重新连接 ROS</button>
+				title="手动重连 rosbridge。断线自动重连（指数退避）；网络恢复（online）立即再试；MJPEG 断流会自动重载。?rosbridge_port= 可改端口。">重新连接 ROS</button>
 			<span id="conn-status" class="status off">未连接</span>
 		</div>
 	</header>

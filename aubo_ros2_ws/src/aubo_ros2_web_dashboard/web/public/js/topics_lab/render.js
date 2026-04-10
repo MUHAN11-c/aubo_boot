@@ -330,7 +330,7 @@
 		if (!Array.isArray(arr)) return null;
 		const n = arr.length;
 		const maxShow = Math.min(12, n);
-		let head = `<p class="hint">markers: ${n}（GraspNet 抓取可视化常用）</p>`;
+		let head = `<p class="hint">markers: ${n}（抓取可视化常用）</p>`;
 		head += '<table class="viz-table"><thead><tr><th>#</th><th>id</th><th>type</th><th>ns</th><th>frame</th><th>xyz</th><th>scale</th></tr></thead><tbody>';
 		let i;
 		for (i = 0; i < maxShow; i++) {

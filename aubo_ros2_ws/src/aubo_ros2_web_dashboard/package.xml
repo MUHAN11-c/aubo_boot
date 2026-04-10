@@ -22,6 +22,11 @@
   <exec_depend>tf2_web_republisher_interfaces</exec_depend>
   <!-- RobotWebTools：HTTP MJPEG/快照，减轻 sensor_msgs/Image 经 rosbridge 的 JSON 负载 -->
   <exec_depend>web_video_server</exec_depend>
+  <!-- 可选：ivg_pointcloud_web_throttle（瘦点云供网页） -->
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

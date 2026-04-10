@@ -18,6 +18,17 @@
 			.join('/');
 	}
 
+	function legacyStandalonePort(opts) {
+		let p = opts.port != null && opts.port > 0 ? Number(opts.port) : NaN;
+		if (!isNaN(p) && p > 0) return p;
+		if (typeof global !== 'undefined' && global.location && global.location.port) {
+			const lp = parseInt(String(global.location.port), 10);
+			if (!isNaN(lp) && lp > 0) return lp;
+		}
+		if (typeof global !== 'undefined' && global.location && global.location.protocol === 'https:') return 443;
+		return 80;
+	}
+
 	function buildQuery(topic, opts, defaultType) {
 		const parts = ['topic=' + encodeTopicQueryValue(topic)];
 		parts.push('type=' + encodeURIComponent(opts.type != null ? String(opts.type) : defaultType));
@@ -39,10 +50,18 @@
 		opts = opts || {};
 		if (typeof global.ivgPorts !== 'undefined' && typeof global.ivgPorts.webVideoProxyOriginPrefix === 'function') {
 			const base = global.ivgPorts.webVideoProxyOriginPrefix();
+			if (base && base.indexOf('/api/v1/camera/stream') !== -1) {
+				const q = new URLSearchParams();
+				q.set('topic', String(topic));
+				q.set('stream_id', opts.client_id != null ? String(opts.client_id) : 'ivg_web_video');
+				const qual = opts.quality != null && opts.quality > 0 ? opts.quality : 85;
+				q.set('quality', String(qual));
+				return `${base}?${q.toString()}`;
+			}
 			if (base) return `${base}/stream?${buildQuery(topic, opts, 'mjpeg')}`;
 		}
 		const h = opts.host != null && opts.host !== '' ? String(opts.host) : hostname();
-		const p = opts.port != null && opts.port > 0 ? Number(opts.port) : 8089;
+		const p = legacyStandalonePort(opts);
 		return `http://${h}:${p}/stream?${buildQuery(topic, opts, 'mjpeg')}`;
 	}
 
@@ -50,10 +69,13 @@
 		opts = opts || {};
 		if (typeof global.ivgPorts !== 'undefined' && typeof global.ivgPorts.webVideoProxyOriginPrefix === 'function') {
 			const base = global.ivgPorts.webVideoProxyOriginPrefix();
+			if (base && base.indexOf('/api/v1/camera/stream') !== -1) {
+				return streamUrl(topic, opts);
+			}
 			if (base) return `${base}/snapshot?${buildQuery(topic, opts, 'jpeg')}`;
 		}
 		const h = opts.host != null && opts.host !== '' ? String(opts.host) : hostname();
-		const p = opts.port != null && opts.port > 0 ? Number(opts.port) : 8089;
+		const p = legacyStandalonePort(opts);
 		return `http://${h}:${p}/snapshot?${buildQuery(topic, opts, 'jpeg')}`;
 	}
 
@@ -61,10 +83,13 @@
 		opts = opts || {};
 		if (typeof global.ivgPorts !== 'undefined' && typeof global.ivgPorts.webVideoProxyOriginPrefix === 'function') {
 			const base = global.ivgPorts.webVideoProxyOriginPrefix();
+			if (base && base.indexOf('/api/v1/camera/stream') !== -1) {
+				return streamUrl(topic, opts);
+			}
 			if (base) return `${base}/stream_viewer?topic=${encodeTopicQueryValue(topic)}`;
 		}
 		const h = opts.host != null && opts.host !== '' ? String(opts.host) : hostname();
-		const p = opts.port != null && opts.port > 0 ? Number(opts.port) : 8089;
+		const p = legacyStandalonePort(opts);
 		return `http://${h}:${p}/stream_viewer?topic=${encodeTopicQueryValue(topic)}`;
 	}
 

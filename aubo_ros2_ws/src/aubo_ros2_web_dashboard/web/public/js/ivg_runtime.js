@@ -1,9 +1,6 @@
 /**
- * IVG 运行时端口：与 FastAPI ``/api/ivg/runtime-config`` 及 URL 查询一致。
- *
- * 浏览器经同源 ``/ws/rosbridge`` 与 ``/api/ivg/proxy/web-video/…`` 访问上游；``rosbridge_port`` / ``web_video_port`` 供 UI 与 ``?rosbridge_port=`` 等展示或兼容旧表单。
- * **自动重连**：``scheduleRosReconnect`` 指数退避；后台标签页等 ``visibilitychange`` 后再 ``connect``；``wireOnlineRosReconnect`` 在 ``window.online`` 时清零计数并立即 ``connect``。
- * @see aubo_ros2_web_dashboard.gateway
+ * IVG 运行时：优先 ``/api/v1/runtime``，回退 ``/api/ivg/runtime-config``。
+ * 新栈：``ivg_ws_control`` / ``camera_stream_path``（同源 MJPEG，无独立 8089）；旧字段仍作兼容。
  */
 (function (g) {
 	'use strict';
@@ -12,9 +9,15 @@
 
 	async function loadRuntime() {
 		if (loadPromise) return loadPromise;
-		loadPromise = fetch('/api/ivg/runtime-config', { credentials: 'same-origin' })
-			.then(r => (r.ok ? r.json() : {}))
-			.catch(() => ({}))
+		loadPromise = fetch('/api/v1/runtime', { credentials: 'same-origin' })
+			.then(r => (r.ok ? r.json() : null))
+			.catch(() => null)
+			.then(cfg => {
+				if (cfg && typeof cfg === 'object') return cfg;
+				return fetch('/api/ivg/runtime-config', { credentials: 'same-origin' })
+					.then(r2 => (r2.ok ? r2.json() : {}))
+					.catch(() => ({}));
+			})
 			.then(cfg => {
 				g.__IVG_RUNTIME = cfg && typeof cfg === 'object' ? cfg : {};
 				return g.__IVG_RUNTIME;
@@ -39,18 +42,19 @@
 		return parsePort(rt[key]);
 	}
 
-	/** rosbridge WebSocket 完整 URL（同 host 的 /ws/rosbridge）。 */
+	/** 控制面 WebSocket 完整 URL（IVG：``ivg_ws_control``；旧：/ws/rosbridge）。 */
 	function rosbridgeWebSocketUrl() {
 		const rt = g.__IVG_RUNTIME || {};
-		const path = rt.rosbridge_ws_path || '/ws/rosbridge';
+		if (rt.ivg_ws_control) return String(rt.ivg_ws_control);
+		const path = rt.rosbridge_ws_path || '/ws/ivg/control';
 		const proto = g.location.protocol === 'https:' ? 'wss:' : 'ws:';
 		return `${proto}//${g.location.host}${path}`;
 	}
 
-	/** web_video 的 origin+代理前缀（同源 /api/ivg/proxy/web-video）。 */
+	/** 相机流同源前缀（IVG：``/api/v1/camera/stream``；旧：web_video 代理前缀）。 */
 	function webVideoProxyOriginPrefix() {
 		const rt = g.__IVG_RUNTIME || {};
-		const pre = rt.web_video_proxy_prefix || '/api/ivg/proxy/web-video';
+		const pre = rt.camera_stream_path || rt.web_video_proxy_prefix || '/api/v1/camera/stream';
 		return `${g.location.origin}${pre}`;
 	}
 
@@ -58,13 +62,16 @@
 		return fromQuery('rosbridge_port') || fromRuntime('rosbridge_port') || 9090;
 	}
 
-	/** @param {HTMLInputElement|null|undefined} inputEl 有值时优先于 query/runtime */
+	/**
+	 * 独立 web_video_server 的端口（遗留）；IVG 页面请用 ``ivg_transport.cameraStreamUrl`` 或 ``ivg_web_video`` 在已加载 ``ivg_runtime`` 时走同源 ``/api/v1/camera/stream``。
+	 * @returns {number|null}
+	 */
 	function webVideo(inputEl) {
 		if (inputEl && inputEl.value) {
 			const pv = parsePort(String(inputEl.value).replace(/[^\d]/g, ''));
 			if (pv) return pv;
 		}
-		return fromQuery('web_video_port') || fromRuntime('web_video_port') || 8089;
+		return fromQuery('web_video_port') || fromRuntime('web_video_port');
 	}
 
 	/** rosbridge 自动重连：与页面内 connect() 配合；用 gen 丢弃旧实例的 close。 */

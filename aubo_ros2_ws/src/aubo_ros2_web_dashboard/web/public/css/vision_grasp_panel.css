@@ -37,8 +37,8 @@
 	--cam-preview-max-w: 100%;
 	/* 单屏左右分栏时，相机面板内容最大宽度（居中于网格格内） */
 	--cam-split-max-w: 800px;
-	/* 第三列「抓取与工具控制」占整行宽度百分比（22–45，由顶栏滑块与 localStorage 写入） */
-	--vision-control-col-pct: 30;
+	/* 第三列「抓取与工具控制」占整行宽度百分比（固定为最窄 22%） */
+	--vision-control-col-pct: 22;
 }
 
 * {
@@ -172,19 +172,21 @@ body {
 	outline-offset: 2px;
 }
 
-.gateway-row .status {
+.gateway-row .status,
+.connection-footer .status {
 	display: inline-flex;
 	align-items: center;
 	gap: 0.4rem;
 	color: var(--muted);
 	font-size: var(--fs-ui);
-	max-width: min(100%, 22rem);
+	max-width: min(100%, 28rem);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.gateway-row .status::before {
+.gateway-row .status::before,
+.connection-footer .status::before {
 	content: "";
 	width: 8px;
 	height: 8px;
@@ -193,24 +195,79 @@ body {
 	flex-shrink: 0;
 }
 
-.gateway-row .status.ok {
+.gateway-row .status.ok,
+.connection-footer .status.ok {
 	color: var(--ok);
 	font-weight: 500;
 }
 
-.gateway-row .status.ok::before {
+.gateway-row .status.ok::before,
+.connection-footer .status.ok::before {
 	background: var(--ok);
 	box-shadow: 0 0 0 2px rgba(21, 128, 61, 0.2);
 }
 
-.gateway-row .status.off {
+.gateway-row .status.off,
+.connection-footer .status.off {
 	color: var(--danger-muted);
 	font-weight: 500;
 }
 
-.gateway-row .status.off::before {
+.gateway-row .status.off::before,
+.connection-footer .status.off::before {
 	background: var(--danger-muted);
 	box-shadow: 0 0 0 2px rgba(185, 28, 28, 0.15);
+}
+
+.gateway-row .status.pending,
+.connection-footer .status.pending {
+	color: var(--muted);
+	font-weight: 500;
+}
+
+.gateway-row .status.pending::before,
+.connection-footer .status.pending::before {
+	background: var(--accent);
+	box-shadow: 0 0 0 2px var(--accent-soft);
+	animation: ivg-conn-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes ivg-conn-pulse {
+	0%,
+	100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 0.55;
+		transform: scale(0.92);
+	}
+}
+
+/* 视觉抓取页：连接状态置于底部（nav 下为主内容，再为 footer） */
+.connection-footer {
+	flex-shrink: 0;
+	background: var(--panel);
+	border-top: 1px solid var(--border);
+	box-shadow: 0 -1px 3px rgba(15, 23, 42, 0.05);
+	padding: 0.5rem max(1.1rem, env(safe-area-inset-left, 0px)) max(0.55rem, env(safe-area-inset-bottom, 0px))
+		max(1.1rem, env(safe-area-inset-right, 0px));
+}
+
+.connection-footer__inner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem 1rem;
+	flex-wrap: wrap;
+	width: 100%;
+}
+
+.connection-footer__label {
+	font-size: var(--fs-ui);
+	font-weight: 600;
+	color: var(--text-secondary);
+	letter-spacing: 0.02em;
 }
 
 /* ---------- 主区域 ---------- */
@@ -259,7 +316,8 @@ body.ivg-single-screen .wrap {
 	min-height: 0;
 	overflow: hidden;
 	display: grid;
-	grid-template-rows: auto minmax(120px, 1fr) minmax(120px, min(32vh, 280px));
+	/* 第三档需容纳标题 + 画布 + 图例，行高过小会裁切底部图例 */
+	grid-template-rows: auto minmax(120px, 1fr) minmax(200px, min(40vh, 320px));
 	grid-template-columns: minmax(0, 1fr);
 	gap: 0.4rem;
 	align-content: stretch;
@@ -281,7 +339,7 @@ body.ivg-single-screen .layout-camera-controls {
 	/* 两列页（如咖啡拉花）：预览 + 控制 */
 	grid-template-columns:
 		minmax(0, 1fr)
-		minmax(200px, calc(var(--vision-control-col-pct, 30) * 1%));
+		minmax(200px, calc(var(--vision-control-col-pct, 22) * 1%));
 	gap: 0.45rem 0.65rem;
 	min-height: 0;
 	align-items: stretch;
@@ -293,7 +351,7 @@ body.ivg-single-screen .layout-camera-controls:has(> .panel--camera-result) {
 	grid-template-columns:
 		minmax(0, 1fr)
 		minmax(0, 1fr)
-		minmax(200px, calc(var(--vision-control-col-pct, 30) * 1%));
+		minmax(200px, calc(var(--vision-control-col-pct, 22) * 1%));
 }
 
 /* 窄屏恢复上下堆叠 */
@@ -360,6 +418,21 @@ body.ivg-single-screen .layout-camera-controls .panel--camera-result .cam-mjpeg 
 	margin: 0;
 	aspect-ratio: unset;
 	max-width: none;
+	z-index: 0;
+}
+
+body.ivg-single-screen .layout-camera-controls .panel--camera-result .result-viz-overlay {
+	z-index: 1;
+}
+
+/*
+ * 识别结果：MJPEG 与 overlay 在单屏下均为 absolute + height:100%。
+ * 若 .result-viz-stack 无明确高度，仅含脱离文档流的子元素时会塌成 0 高，底图与叠层均不可见（见 debug ch:0）。
+ */
+body.ivg-single-screen .layout-camera-controls .panel--camera-result .panel-canvas-wrap--result .result-viz-stack {
+	height: 100%;
+	min-height: 0;
+	width: 100%;
 }
 
 /* 右：与两路相机同高；主内容在 control-groups 内滚动 */
@@ -378,7 +451,7 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 > h2 {
 	flex-shrink: 0;
 }
 
-body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .object-row {
+body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .control-toolbar-field {
 	flex-shrink: 0;
 	margin-bottom: 0.45rem;
 }
@@ -428,7 +501,8 @@ body.ivg-single-screen .layout-col--main .panel--chart {
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
-	overflow: hidden;
+	overflow-x: hidden;
+	overflow-y: auto;
 	height: 100%;
 	max-height: 100%;
 	margin: 0;
@@ -438,13 +512,17 @@ body.ivg-single-screen .layout-col--main .panel--chart > h2 {
 	flex-shrink: 0;
 }
 
+/* 图例在画布上方，避免单屏 flex 把底部内容裁掉 */
 body.ivg-single-screen .layout-col--main .panel--chart > .legend-joint {
 	flex-shrink: 0;
+	order: 0;
 }
 
 body.ivg-single-screen #joint-chart {
+	order: 1;
 	flex: 1 1 0;
-	min-height: 72px;
+	/* 允许在窄行高下收缩，避免挤掉底部图例 */
+	min-height: 0;
 	width: 100% !important;
 	max-width: 100%;
 	height: auto !important;
@@ -552,29 +630,6 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .svc-log {
 	align-items: center;
 	gap: 0.5rem;
 	flex-wrap: wrap;
-}
-
-.toolbar-control-col {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.35rem;
-	font-size: var(--fs-ui);
-	color: var(--muted);
-	font-weight: 600;
-	white-space: nowrap;
-	user-select: none;
-}
-
-.toolbar-control-col input[type="range"] {
-	width: 6.5rem;
-	vertical-align: middle;
-	accent-color: var(--accent);
-}
-
-@media (max-width: 920px) {
-	.toolbar-control-col {
-		display: none;
-	}
 }
 
 .btn-settings {
@@ -755,6 +810,46 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .svc-log {
 	position: relative;
 }
 
+/* 识别结果：底图 MJPEG + 抓取模式下的点云/Marker 投影层 */
+.result-viz-stack {
+	position: relative;
+	display: block;
+	width: 100%;
+	line-height: 0;
+	cursor: grab;
+	touch-action: none;
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+.result-viz-stack.result-viz-stack--dragging {
+	cursor: grabbing;
+}
+
+.result-viz-stack .cam-mjpeg {
+	display: block;
+	width: 100%;
+	height: auto;
+	max-width: 100%;
+	aspect-ratio: 4 / 3;
+	object-fit: contain;
+	background: var(--viz-host-bg);
+	z-index: 0;
+	-webkit-user-drag: none;
+	user-select: none;
+}
+
+.result-viz-overlay {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	box-sizing: border-box;
+	z-index: 1;
+}
+
 .result-image-placeholder {
 	position: absolute;
 	left: 0;
@@ -883,36 +978,44 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .svc-log {
 	border: 1px solid var(--border);
 }
 
+.panel--chart .legend-joint {
+	margin-top: 0.15rem;
+	margin-bottom: 0.45rem;
+	flex-shrink: 0;
+	min-height: 1.35rem;
+}
+
 .legend-joint {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 0.45rem 0.85rem;
+	align-items: center;
+	gap: 0.4rem 0.75rem;
 	font-size: var(--fs-ui);
-	margin-top: 0.45rem;
-	color: var(--muted);
+	margin: 0;
+	padding-bottom: 0.15rem;
+	color: var(--text);
 	font-family: ui-monospace, monospace;
 }
 
 .legend-j {
 	display: inline-flex;
 	align-items: center;
-	gap: 0.3rem;
+	gap: 0.4rem;
 }
 
-.legend-j::before {
-	content: "";
-	width: 3px;
-	height: 0.8rem;
-	border-radius: 2px;
+.legend-j-swatch {
+	display: block;
+	width: 0.65rem;
+	height: 0.65rem;
+	border-radius: 3px;
 	flex-shrink: 0;
+	border: 1px solid rgba(15, 23, 42, 0.12);
+	box-sizing: border-box;
 }
 
-.legend-j0::before { background: #2563eb; }
-.legend-j1::before { background: #16a34a; }
-.legend-j2::before { background: #d97706; }
-.legend-j3::before { background: #db2777; }
-.legend-j4::before { background: #7c3aed; }
-.legend-j5::before { background: #0d9488; }
+.legend-j-name {
+	line-height: 1.2;
+}
 
 /* ---------- 话题网格（模态） ---------- */
 .topic-grid {
@@ -953,6 +1056,40 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .svc-log {
 }
 
 /* ---------- 控制区 ---------- */
+/* 抓取面板：与下方各 .control-group 同为「小标题 + 内容」结构 */
+.control-toolbar-field {
+	margin: 0.2rem 0 0.55rem;
+}
+
+.control-toolbar-field .control-group-title {
+	margin-bottom: 0.4rem;
+}
+
+.control-field-input {
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+	min-width: 0;
+	padding: 0.45rem 0.6rem;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	font-size: var(--fs-body);
+	font-family: ui-monospace, monospace;
+	background: var(--panel);
+	color: var(--text);
+	transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.control-field-input:hover {
+	border-color: var(--border-strong);
+}
+
+.control-field-input:focus {
+	outline: none;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
 .object-row {
 	display: flex;
 	flex-wrap: wrap;
@@ -1021,10 +1158,6 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .svc-log {
 .control-group:first-child {
 	padding-top: 0;
 	border-top: none;
-}
-
-.control-group--swap {
-	padding-bottom: 0.15rem;
 }
 
 .control-group-title {
@@ -1185,13 +1318,6 @@ button.ctrl.danger:hover {
 	color: var(--text);
 }
 
-.topic-settings-hint {
-	font-size: var(--fs-ui);
-	color: var(--muted);
-	margin: 0 0 0.85rem;
-	line-height: 1.5;
-}
-
 .topic-grid-modal {
 	margin-bottom: 1rem;
 }
@@ -1212,6 +1338,11 @@ button.ctrl.danger:hover {
 	button.ctrl:active,
 	.btn-top:active {
 		transform: none;
+	}
+
+	.gateway-row .status.pending::before,
+	.connection-footer .status.pending::before {
+		animation: none;
 	}
 }
 
@@ -1288,6 +1419,11 @@ button.ctrl.danger:hover {
 @media (max-width: 480px) {
 	.topbar {
 		padding: 0.45rem max(0.85rem, env(safe-area-inset-left, 0px)) 0.45rem max(0.85rem, env(safe-area-inset-right, 0px));
+	}
+
+	.connection-footer {
+		padding-left: max(0.85rem, env(safe-area-inset-left, 0px));
+		padding-right: max(0.85rem, env(safe-area-inset-right, 0px));
 	}
 }
 

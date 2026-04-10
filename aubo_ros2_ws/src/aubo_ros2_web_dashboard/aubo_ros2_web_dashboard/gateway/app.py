@@ -17,6 +17,7 @@ from starlette.middleware.gzip import GZipMiddleware #GZip中间件
 from aubo_ros2_web_dashboard.gateway import settings as cfg #配置
 from aubo_ros2_web_dashboard.gateway.routes import health as health_routes
 from aubo_ros2_web_dashboard.gateway.routes import ivg_runtime as ivg_runtime_routes
+from aubo_ros2_web_dashboard.gateway.routes import robot_mesh as robot_mesh_routes
 from aubo_ros2_web_dashboard.gateway.routes.upstream_proxy import http_proxy_router, ws_router
 
 
@@ -64,6 +65,8 @@ def create_app(web_root: str) -> FastAPI:
 	app.include_router(http_proxy_router)
 	app.include_router(health_routes.router)
 	app.include_router(ivg_runtime_routes.router)
+	app.include_router(ivg_runtime_routes.router_v1)
+	app.include_router(robot_mesh_routes.router)
 
 	# html=True：访问目录时可解析 index.html
 	app.mount(

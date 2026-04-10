@@ -14,18 +14,18 @@
 """
 from __future__ import annotations
 
-import asyncio
+import asyncio #异步操作
 import os
 
-import httpx
-import websockets
+import httpx #HTTP客户端
+import websockets #WebSocket客户端
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
-from starlette.responses import JSONResponse, StreamingResponse
+from starlette.responses import JSONResponse, StreamingResponse #响应
 
 from aubo_ros2_web_dashboard.gateway import settings as cfg
 
-# 与 launch 中 rosbridge max_message_size 同量级，避免大图 JSON 被上游库拒收
-_WS_MAX_MESSAGE_BYTES = int(os.environ.get("IVG_PROXY_WS_MAX_BYTES", str(25 * 1024 * 1024)))
+# 与 launch 中 rosbridge max_message_size 同量级，避免大点云/CBOR 帧被上游库拒收（默认 64MiB）
+_WS_MAX_MESSAGE_BYTES = int(os.environ.get("IVG_PROXY_WS_MAX_BYTES", str(64 * 1024 * 1024)))
 
 # WebSocket：完整路径 /ws/rosbridge（无 prefix）
 ws_router = APIRouter(tags=["proxy"])

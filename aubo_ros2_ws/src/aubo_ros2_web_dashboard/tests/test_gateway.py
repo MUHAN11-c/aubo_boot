@@ -39,6 +39,21 @@ def test_runtime_config_unified_proxy(client):
 	assert j.get("web_video_proxy_prefix") == "/api/ivg/proxy/web-video"
 
 
+def test_runtime_v1_matches_legacy_config(client):
+	r = client.get("/api/v1/runtime")
+	assert r.status_code == 200
+	j = r.json()
+	r2 = client.get("/api/ivg/runtime-config")
+	assert r2.status_code == 200
+	assert j == r2.json()
+
+
+def test_robot_mesh_rejects_path_traversal(client):
+	# 使用百分号编码的 ``..``，避免 TestClient/Starlette 在匹配前折叠路径段
+	r = client.get("/api/ivg/robot-mesh/aubo_description/meshes/%2e%2e/%2e%2e/etc/passwd")
+	assert r.status_code == 400
+
+
 def test_web_video_proxy_rejects_path_traversal(client):
 	# 避免 TestClient 在发送前规范化掉 ``..``，对路径段做百分号编码
 	evil = quote("snapshot/../../../etc/passwd", safe="")

@@ -1,6 +1,6 @@
 /**
  * 全站导航：为 .ivg-global-nav 内相对路径 .html 链接附加当前页 search（继承 ?rosbridge_port= 等）；
- * 根据 data-ivg-page 标记当前页链接 aria-current / .is-active（index / vision / latte / console）。
+ * 根据 data-ivg-page 标记当前页链接 aria-current / .is-active（index / vision / latte）。
  */
 (() => {
 	const q = typeof window.location.search === 'string' ? window.location.search : '';

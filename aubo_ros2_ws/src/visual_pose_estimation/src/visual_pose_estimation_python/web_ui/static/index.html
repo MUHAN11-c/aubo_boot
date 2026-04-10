@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Pose Estimation Web</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600&family=Noto+Sans+SC:wght@500;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 1.5rem;
+            background:
+                radial-gradient(ellipse 80% 60% at 50% -20%, rgba(37, 99, 235, 0.35), transparent),
+                #0f172a;
+            color: #e2e8f0;
+            font-family: "IBM Plex Sans", "Noto Sans SC", system-ui, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .panel {
+            max-width: 36rem;
+            padding: 2rem 2.25rem;
+            border-radius: 1rem;
+            background: rgba(30, 41, 59, 0.85);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+            text-align: center;
+        }
+
+        .panel h1 {
+            font-size: 1.35rem;
+            font-weight: 600;
+            margin: 0 0 0.75rem;
+            letter-spacing: 0.02em;
+        }
+
+        .hint {
+            color: #94a3b8;
+            line-height: 1.65;
+            font-size: 0.95rem;
+            margin: 0;
+        }
+    </style>
+    <script>
+        window.location.replace("/legacy-ui/index.html");
+    </script>
+</head>
+<body>
+    <div class="panel">
+        <h1>正在跳转到兼容界面</h1>
+        <p class="hint">FastAPI 入口已启用，当前页面会先跳转到兼容的旧版 UI，后续可在此基础上逐步迁移到新的静态资源结构。</p>
+    </div>
+</body>
+</html>

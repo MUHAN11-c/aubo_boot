@@ -12,11 +12,11 @@
 #include <moveit_msgs/msg/robot_trajectory.hpp>
 #include <rclcpp/executors/multi_threaded_executor.hpp>
 
-#define CHECK(expr)                                                                                                       \
-  do                                                                                                                      \
-  {                                                                                                                       \
-    if (!(expr))                                                                                                          \
-      return false;                                                                                                       \
+#define CHECK(expr)                                                                                                    \
+  do                                                                                                                   \
+  {                                                                                                                    \
+    if (!(expr))                                                                                                       \
+      return false;                                                                                                    \
   } while (0)
 
 namespace demo_driver
@@ -57,7 +57,8 @@ GripperSwapWorker::GripperSwapWorker(const rclcpp::NodeOptions& options) : Movei
       std::bind(&GripperSwapWorker::onGripperSwapRequest, this, std::placeholders::_1, std::placeholders::_2),
       rmw_qos_profile_services_default, service_cb_group_);
   RCLCPP_INFO(get_logger(),
-              "服务 run_gripper_swap 已创建，通过 direction 选择 gripper0_to_gripper2、gripper2_to_gripper0 或 gripper2；"
+              "服务 run_gripper_swap 已创建，通过 direction 选择 gripper0_to_gripper2、gripper2_to_gripper0 或 "
+              "gripper2；"
               "joint_vel=%.2f joint_acc=%.2f home_vel=%.2f home_acc=%.2f j↔c_switch_delay=%.3f io_index=%d",
               joint_velocity_scaling_, joint_acceleration_scaling_, home_velocity_scaling_, home_acceleration_scaling_,
               joint_cartesian_switch_delay_sec_, gripper_io_index_);
@@ -68,8 +69,8 @@ bool GripperSwapWorker::sleepJointCartesianSwitchDelay(const char* where)
   if (joint_cartesian_switch_delay_sec_ <= 0.0)
     return true;
   RCLCPP_INFO(get_logger(), "%s: 关节↔笛卡尔切换延时 %.3f s", where, joint_cartesian_switch_delay_sec_);
-  const auto deadline = std::chrono::steady_clock::now() +
-                        std::chrono::duration<double>(joint_cartesian_switch_delay_sec_);
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::duration<double>(joint_cartesian_switch_delay_sec_);
   while (rclcpp::ok() && std::chrono::steady_clock::now() < deadline)
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
   return rclcpp::ok();
@@ -115,10 +116,10 @@ bool GripperSwapWorker::runArcPath(char axis, double offset, float velocity_fact
   moveit_msgs::msg::RobotTrajectory trajectory;
   for (int attempt = 1; attempt <= kArcPathMaxRetries; ++attempt)
   {
-    double fraction = move_group_->computeCartesianPath(
-        waypoints, kCartesianEefStep, kCartesianJumpThreshold, trajectory);
-    RCLCPP_INFO(get_logger(), "[gripper_swap_worker] 笛卡尔完成度 %.2f%% (尝试 %d/%d)",
-                fraction * 100.0, attempt, kArcPathMaxRetries);
+    double fraction =
+        move_group_->computeCartesianPath(waypoints, kCartesianEefStep, kCartesianJumpThreshold, trajectory);
+    RCLCPP_INFO(get_logger(), "[gripper_swap_worker] 笛卡尔完成度 %.2f%% (尝试 %d/%d)", fraction * 100.0, attempt,
+                kArcPathMaxRetries);
 
     if (fraction >= 1.0)
     {
@@ -171,10 +172,10 @@ bool GripperSwapWorker::runArcPathSequence(const std::vector<CartesianSegment>& 
   moveit_msgs::msg::RobotTrajectory trajectory;
   for (int attempt = 1; attempt <= kArcPathMaxRetries; ++attempt)
   {
-    double fraction = move_group_->computeCartesianPath(
-        waypoints, kCartesianEefStep, kCartesianJumpThreshold, trajectory);
-    RCLCPP_INFO(get_logger(), "[gripper_swap_worker] 多段笛卡尔完成度 %.2f%% (尝试 %d/%d)",
-                fraction * 100.0, attempt, kArcPathMaxRetries);
+    double fraction =
+        move_group_->computeCartesianPath(waypoints, kCartesianEefStep, kCartesianJumpThreshold, trajectory);
+    RCLCPP_INFO(get_logger(), "[gripper_swap_worker] 多段笛卡尔完成度 %.2f%% (尝试 %d/%d)", fraction * 100.0, attempt,
+                kArcPathMaxRetries);
 
     if (fraction >= 1.0)
     {
@@ -197,8 +198,8 @@ bool GripperSwapWorker::runArcPathSequence(const std::vector<CartesianSegment>& 
 bool GripperSwapWorker::swapToGripper0()
 {
   RCLCPP_INFO(get_logger(), "swapToGripper0 (gripper2->gripper0) 开始执行");
-  CHECK(moveToJoints({ 0.860766, -0.265055, 1.501074, 0.195106, 1.571464, 0.859643 },
-                     joint_velocity_scaling_, joint_acceleration_scaling_));
+  CHECK(moveToJoints({ 0.860766, -0.265055, 1.501074, 0.195106, 1.571464, 0.859643 }, joint_velocity_scaling_,
+                     joint_acceleration_scaling_));
   const double y_step = 0.1;
   std::vector<CartesianSegment> segments = { { 'y', y_step }, { 'z', -0.243 }, { 'y', -y_step }, { 'z', -0.012 } };
   CHECK(sleepJointCartesianSwitchDelay("swapToGripper0: 关节→笛卡尔（首段多轴）"));
@@ -227,8 +228,8 @@ bool GripperSwapWorker::swapToGripper0()
   std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
 
   CHECK(sleepJointCartesianSwitchDelay("swapToGripper0: 笛卡尔→关节"));
-  CHECK(moveToJoints({ 1.004674, -0.050534, 1.752202, 0.231544, 1.571618, 1.004515 },
-                     joint_velocity_scaling_, joint_acceleration_scaling_));
+  CHECK(moveToJoints({ 1.004674, -0.050534, 1.752202, 0.231544, 1.571618, 1.004515 }, joint_velocity_scaling_,
+                     joint_acceleration_scaling_));
   if (kSkipTemporaryGripperIo)
   {
     RCLCPP_WARN(get_logger(), "⚠ 仿真临时模式：跳过 setGripperIo(%d, true)", gripper_io_index_);
@@ -258,8 +259,8 @@ bool GripperSwapWorker::swapToGripper0()
 bool GripperSwapWorker::swapToGripper2()
 {
   RCLCPP_INFO(get_logger(), "swapToGripper2 (gripper0->gripper2) 开始执行");
-  CHECK(moveToJoints({ 1.004674, -0.050534, 1.752202, 0.231544, 1.571618, 1.004515 },
-                     joint_velocity_scaling_, joint_acceleration_scaling_));
+  CHECK(moveToJoints({ 1.004674, -0.050534, 1.752202, 0.231544, 1.571618, 1.004515 }, joint_velocity_scaling_,
+                     joint_acceleration_scaling_));
   CHECK(sleepJointCartesianSwitchDelay("swapToGripper2: 关节→笛卡尔"));
   CHECK(runArcPath('z', -0.255, joint_velocity_scaling_, joint_acceleration_scaling_));
   if (kSkipTemporaryGripperIo)
@@ -284,8 +285,8 @@ bool GripperSwapWorker::swapToGripper2()
 
   const double y_step = 0.1;
   CHECK(sleepJointCartesianSwitchDelay("swapToGripper2: 笛卡尔→关节"));
-  CHECK(moveToJoints({ 0.860766, -0.265055, 1.501074, 0.195106, 1.571464, 0.859643 },
-                     joint_velocity_scaling_, joint_acceleration_scaling_));
+  CHECK(moveToJoints({ 0.860766, -0.265055, 1.501074, 0.195106, 1.571464, 0.859643 }, joint_velocity_scaling_,
+                     joint_acceleration_scaling_));
   if (kSkipTemporaryGripperIo)
   {
     RCLCPP_WARN(get_logger(), "⚠ 仿真临时模式：跳过 setGripperIo(%d, true)", gripper_io_index_);
@@ -317,8 +318,8 @@ bool GripperSwapWorker::switchToGripper2()
 {
   RCLCPP_INFO(get_logger(), "switchToGripper2 开始执行");
   const double y_step = 0.1;
-  CHECK(moveToJoints({ 0.860766, -0.265055, 1.501074, 0.195106, 1.571464, 0.859643 },
-                     joint_velocity_scaling_, joint_acceleration_scaling_));
+  CHECK(moveToJoints({ 0.860766, -0.265055, 1.501074, 0.195106, 1.571464, 0.859643 }, joint_velocity_scaling_,
+                     joint_acceleration_scaling_));
   if (kSkipTemporaryGripperIo)
   {
     RCLCPP_WARN(get_logger(), "⚠ 仿真临时模式：跳过 setGripperIo(%d, true)", gripper_io_index_);
@@ -348,8 +349,8 @@ bool GripperSwapWorker::switchToGripper2()
 
 bool GripperSwapWorker::run()
 {
-  CHECK(moveToJoints({ 0.860766, -0.265055, 1.501074, 0.195106, 1.571464, 0.859643 },
-                     joint_velocity_scaling_, joint_acceleration_scaling_));
+  CHECK(moveToJoints({ 0.860766, -0.265055, 1.501074, 0.195106, 1.571464, 0.859643 }, joint_velocity_scaling_,
+                     joint_acceleration_scaling_));
   const double y_step = 0.1;
   std::vector<CartesianSegment> segments = { { 'y', y_step }, { 'z', -0.243 }, { 'y', -y_step }, { 'z', -0.012 } };
   CHECK(sleepJointCartesianSwitchDelay("run: 关节→笛卡尔"));

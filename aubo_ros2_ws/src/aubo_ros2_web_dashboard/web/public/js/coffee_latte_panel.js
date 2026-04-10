@@ -1,36 +1,8 @@
 /**
  * 咖啡拉花面板 — 纯前端演示：顶视杯口 + 奶泡拉花路径动画；无 roslib / 无后端。
- * 布局与视觉抓取一致（三列 + 控制列宽度，localStorage 键与视觉页共用 ivg_vision_control_col_pct）。
+ * 布局与视觉抓取一致；第三列宽度由 vision_grasp_panel.css 中 --vision-control-col-pct 固定。
  */
 (() => {
-	const CONTROL_COL_PCT_KEY = 'ivg_vision_control_col_pct';
-
-	(function initControlColWidth() {
-		const el = document.getElementById('control-col-width');
-		if (!el) return;
-		let v = 30;
-		try {
-			const s = localStorage.getItem(CONTROL_COL_PCT_KEY);
-			if (s != null && s !== '') {
-				const n = parseInt(s, 10);
-				if (!isNaN(n)) v = Math.min(45, Math.max(22, n));
-			}
-		} catch (e) { /* ignore */ }
-		el.value = String(v);
-		document.documentElement.style.setProperty('--vision-control-col-pct', String(v));
-		el.addEventListener('input', () => {
-			const n = parseInt(el.value, 10);
-			if (!isNaN(n)) {
-				document.documentElement.style.setProperty('--vision-control-col-pct', String(n));
-			}
-		});
-		el.addEventListener('change', () => {
-			try {
-				localStorage.setItem(CONTROL_COL_PCT_KEY, el.value);
-			} catch (e) { /* ignore */ }
-		});
-	})();
-
 	const canvas = document.getElementById('latte-preview-canvas');
 	const logEl = document.getElementById('latte-log-text');
 	const svcLogEl = document.getElementById('latte-svc-log');

@@ -20,7 +20,7 @@
 	/** 侧栏列表并发 rosapi 请求数，用于统一「加载中」与刷新按钮禁用（参考常见控制台 UX） */
 	let sidebarListInflight = 0;
 	let filterDebounceTimer = null;
-	let throttleMs = 80;
+	let throttleMs = 40;
 	let lastEmit = 0;
 	let selectedName = '';
 	let selectedType = '';
@@ -38,6 +38,8 @@
 	let ros3dMarkerClient = null;
 	let ros3dAxes = null;
 	let ros3dGrid = null;
+	/** 3D：ROS3D.UrdfClient 根节点（随 ROS2TFClient 更新，与 RViz 类似） */
+	let ros3dUrdfRoot = null;
 	/** 话题页 viz 渲染合并到下一帧，避免 rosbridge 回调内直接改 DOM 造成掉帧（RobotWebTools/roslib 高频消息场景） */
 	let topicVizRaf = null;
 	/** 当前话题为 web_video_server MJPEG，未创建 ROSLIB.Topic */
@@ -56,12 +58,25 @@
 	const GRAPH_ARCH_EDGE = 'rgba(37, 99, 235, 0.28)';
 	const ROS2D_VIEWER_BG = '#eef1f6';
 
+	/** ROS PointCloud2 常见：rgb 字段为 float32，实为 0xRRGGBB 打包进 IEEE754；ros3d 默认 new THREE.Color(x) 会解析错 → 全黑/发灰。 */
+	function ivgRosPackedRgbFloatToColor(rgbFloat, littleEndian) {
+		const ab = new ArrayBuffer(4);
+		const dv = new DataView(ab);
+		dv.setFloat32(0, rgbFloat, littleEndian);
+		const u = dv.getUint32(0, littleEndian);
+		const r = (u >> 16) & 255;
+		const g = (u >> 8) & 255;
+		const b = u & 255;
+		return new THREE.Color(r / 255, g / 255, b / 255);
+	}
+
 	/* ---------- IVG 顶栏：话题排序、VPE FastAPI 端口、快捷订阅与常用服务预设 ---------- */
 	/** 与 start_IVG_graspnet_points_fastapi.sh + graspnet_demo_points_with_tf 默认一致 */
 	const IVG_TOPIC_ORDER = [
 		'/camera/color/image_raw',
 		'/camera/depth/image_raw',
 		'/camera/depth_registered/points',
+		'/camera/depth_registered/points_web',
 		'/grasp_markers',
 		'/grasp_poses_base',
 		'/system_status',
@@ -121,6 +136,12 @@
 		$('scan3-topic').value = '';
 	}
 
+	function ivg3dPointsWebPreset() {
+		switchTab('view3d');
+		$('pc-topic').value = '/camera/depth_registered/points_web';
+		$('scan3-topic').value = '';
+	}
+
 	function ivg3dClearPreset() {
 		$('pc-topic').value = '';
 		$('scan3-topic').value = '';
@@ -166,9 +187,12 @@
 			if (k === 'topics-color') ivgSubscribeFixed('/camera/color/image_raw', 'sensor_msgs/msg/Image');
 			else if (k === 'topics-depth') ivgSubscribeFixed('/camera/depth/image_raw', 'sensor_msgs/msg/Image');
 			else if (k === 'topics-points') ivgSubscribeFixed('/camera/depth_registered/points', 'sensor_msgs/msg/PointCloud2');
-			else if (k === 'topics-markers') ivgTrySubscribeMarkers();
+			else if (k === 'topics-points-web') {
+				ivgSubscribeFixed('/camera/depth_registered/points_web', 'sensor_msgs/msg/PointCloud2');
+			} else if (k === 'topics-markers') ivgTrySubscribeMarkers();
 			else if (k === 'topics-poses') ivgSubscribeFixed('/grasp_poses_base', 'geometry_msgs/msg/PoseArray');
 			else if (k === '3d-points') ivg3dPointsPreset();
+			else if (k === '3d-points-web') ivg3dPointsWebPreset();
 			else if (k === '3d-clear') ivg3dClearPreset();
 			else if (k === 'svc-list-templates') {
 				ivgPresetService('/list_templates', 'interface/srv/ListTemplates', '{"workpiece_id": ""}');
@@ -200,8 +224,8 @@
 					$('svc-resp').textContent = [
 						'/estimate_pose（interface/srv/EstimatePose）请求需嵌入 sensor_msgs/Image 等，JSON 体积大，',
 						'浏览器里不易手写。建议：',
-						'1）用顶部「VPE Web」打开 FastAPI（默认 8088，与 start_IVG_graspnet_points_fastapi.sh 中 WEB_PORT 一致）；',
-						'2）或在终端: ros2 interface show interface/srv/EstimatePose 后 ros2 service call …',
+						'1）用顶部「视觉位姿网页」入口（默认端口 8088）；',
+						'2）或在终端查看接口定义后调用对应服务 …',
 						''
 					].join('\n');
 				}
@@ -1304,12 +1328,12 @@
 			try { ros3dLaserScan.unsubscribe(); } catch (e2) { /* ignore */ }
 			ros3dLaserScan = null;
 		}
-		if (tfClient3d) {
-			try { tfClient3d.dispose(); } catch (e3) { /* ignore */ }
-			tfClient3d = null;
-		}
 		if (viewer3d) {
 			try {
+				if (ros3dUrdfRoot) {
+					viewer3d.scene.remove(ros3dUrdfRoot);
+					ros3dUrdfRoot = null;
+				}
 				if (ros3dAxes) {
 					viewer3d.scene.remove(ros3dAxes);
 					ros3dAxes = null;
@@ -1322,24 +1346,208 @@
 			try { viewer3d.stop(); } catch (e4) { /* ignore */ }
 			viewer3d = null;
 		} else {
+			ros3dUrdfRoot = null;
 			ros3dAxes = null;
 			ros3dGrid = null;
 		}
+		if (tfClient3d) {
+			try { tfClient3d.dispose(); } catch (e3) { /* ignore */ }
+			tfClient3d = null;
+		}
+		removeView3dUrdfHint();
 		const host3 = $('view3d-host');
 		if (host3) host3.innerHTML = '';
+	}
+
+	function removeView3dPc2Hint() {
+		const el = document.getElementById('view3d-pc2-hint');
+		if (el) el.remove();
+	}
+
+	/** 点云 6s 内无数据时的排查说明（依赖 rosapi/publishers 区分无发布者 vs QoS/rosbridge） */
+	function showView3dPc2Hint(hostEl, html) {
+		removeView3dPc2Hint();
+		if (!hostEl) return;
+		const d = document.createElement('div');
+		d.id = 'view3d-pc2-hint';
+		d.className = 'hint';
+		d.style.marginTop = '0.5rem';
+		d.innerHTML = html;
+		hostEl.appendChild(d);
+	}
+
+	function removeView3dUrdfHint() {
+		const el = document.getElementById('view3d-urdf-hint');
+		if (el) el.remove();
+	}
+
+	function showView3dUrdfHint(hostEl, html) {
+		removeView3dUrdfHint();
+		if (!hostEl) return;
+		const d = document.createElement('div');
+		d.id = 'view3d-urdf-hint';
+		d.className = 'hint';
+		d.style.marginTop = '0.5rem';
+		d.innerHTML = html;
+		hostEl.appendChild(d);
+	}
+
+	/** rosapi GetParam 的 value 为 JSON.dumps；偶发已解包成裸字符串时勿强依赖 JSON.parse。 */
+	function ivgDecodeRosapiParamString(raw) {
+		if (raw == null || raw === '') return '';
+		if (typeof raw === 'string') {
+			try {
+				const v = JSON.parse(raw);
+				return typeof v === 'string' ? v : '';
+			} catch (e0) {
+				return raw;
+			}
+		}
+		return '';
+	}
+
+	function ivgAttachUrdfFromRosParam(ros, paramFullName, meshBase, tfClient, rootGroup, onErr) {
+		if (!ros || typeof ROSLIB.Service !== 'function') {
+			onErr('ROSLIB.Service 不可用');
+			return;
+		}
+		const svc = new ROSLIB.Service({
+			ros,
+			name: '/rosapi/get_param',
+			serviceType: 'rosapi/GetParam'
+		});
+		svc.callService(
+			{ name: paramFullName, default_value: '' },
+			resp => {
+				const rawVal = resp && Object.prototype.hasOwnProperty.call(resp, 'value') ? resp.value : '';
+				const xml = ivgDecodeRosapiParamString(rawVal).trim();
+				if (!xml) {
+					onErr('get_param 返回空或无法解析为字符串（请核对「URDF 参数」全名）');
+					return;
+				}
+				const looks =
+					xml.indexOf('<robot') !== -1 || xml.indexOf('<?xml') !== -1 || xml.indexOf('<urdf') !== -1;
+				if (!looks) {
+					onErr(`返回值不像 URDF XML（开头）：${JSON.stringify(xml.slice(0, 96))}`);
+					return;
+				}
+				try {
+					const urdfModel = new ROSLIB.UrdfModel({ string: xml });
+					const urdfViz = new ROS3D.Urdf({
+						urdfModel,
+						path: meshBase,
+						tfClient,
+						tfPrefix: ''
+					});
+					rootGroup.add(urdfViz);
+					const h = $('view3d-host');
+					if (h) {
+						showView3dUrdfHint(
+							h,
+							'<strong>机械臂</strong>：URDF 已解析，网格异步加载中；若仍不可见请看 Network 是否对 <code>/api/ivg/robot-mesh/…</code> 404。'
+						);
+						setTimeout(removeView3dUrdfHint, 10000);
+					}
+				} catch (e2) {
+					onErr(e2 && e2.message ? e2.message : String(e2));
+				}
+			},
+			err => onErr(err && err.message ? err.message : String(err))
+		);
+	}
+
+	let ivgPc2NativeProcessMessage = null;
+
+	function ivgPc2RemoveLoadingHintOnFirstFrame(self) {
+		const sig = self.__ivgPc2Sig;
+		if (!sig || sig.got) return;
+		sig.got = true;
+		removeView3dPc2Hint();
+	}
+
+	/** 在 max_pts 限制下按步长均匀抽样整幅点云（ros3d 原版只画前 max_pts 个连续点，大图会缺大半）。 */
+	function ivgPointCloud2FillUniformStride(self, msg) {
+		const raw = msg.data;
+		const total = (msg.width * msg.height) | 0;
+		const ps = msg.point_step | 0;
+		if (total <= 0 || ps <= 0 || !raw || raw.byteLength == null) return;
+		const maxDraw = Math.min(self.max_pts, Math.floor(self.points.positions.array.length / 3));
+		let stride = 1;
+		if (total > maxDraw) stride = Math.ceil(total / maxDraw);
+		let n = Math.min(maxDraw, Math.ceil(total / stride));
+		const lastBase = (n - 1) * stride * ps + ps;
+		if (lastBase > raw.byteLength) {
+			n = Math.max(0, Math.floor(raw.byteLength / (stride * ps)));
+		}
+		const dv = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+		const littleEndian = msg.is_bigendian !== true;
+		const xo = self.points.fields.x.offset;
+		const yo = self.points.fields.y.offset;
+		const zo = self.points.fields.z.offset;
+		let base;
+		let color;
+		for (let i = 0; i < n; i++) {
+			base = i * stride * ps;
+			self.points.positions.array[3 * i] = dv.getFloat32(base + xo, littleEndian);
+			self.points.positions.array[3 * i + 1] = dv.getFloat32(base + yo, littleEndian);
+			self.points.positions.array[3 * i + 2] = dv.getFloat32(base + zo, littleEndian);
+			if (self.points.colors) {
+				color = self.points.colormap(self.points.getColor(dv, base, littleEndian));
+				self.points.colors.array[3 * i] = color.r;
+				self.points.colors.array[3 * i + 1] = color.g;
+				self.points.colors.array[3 * i + 2] = color.b;
+			}
+		}
+		self.points.update(n);
+	}
+
+	/** 替换 PointCloud2.processMessage：TF/颜色辅助字段 + 可选均匀步进（CBOR 二进制路径）。 */
+	function installIvgPointCloud2ProcessPatch() {
+		if (typeof ROS3D === 'undefined' || !ROS3D.PointCloud2) return;
+		const P = ROS3D.PointCloud2.prototype;
+		if (P.__ivgPc2ProcessPatched) return;
+		if (typeof P.processMessage !== 'function') return;
+		ivgPc2NativeProcessMessage = P.processMessage;
+		P.__ivgPc2ProcessPatched = true;
+		P.processMessage = function (msg) {
+			this.__ivgPc2Le = msg.is_bigendian === true ? false : true;
+			const rgbF = (msg.fields || []).find(f => f && f.name === 'rgb');
+			this.__ivgRgbFieldDt = rgbF ? rgbF.datatype : 0;
+
+			const typedArray =
+				msg.data && typeof msg.data !== 'string' && msg.data.buffer && typeof msg.data.buffer === 'object';
+			if (this.__ivgUniformStride && typedArray) {
+				if (!this.points.setup(msg.header.frame_id, msg.point_step, msg.fields)) return;
+				ivgPc2RemoveLoadingHintOnFirstFrame(this);
+				this.buffer = msg.data;
+				ivgPointCloud2FillUniformStride(this, msg);
+				return;
+			}
+
+			ivgPc2RemoveLoadingHintOnFirstFrame(this);
+			return ivgPc2NativeProcessMessage.call(this, msg);
+		};
 	}
 
 	function start3d() {
 		const pcn = ($('pc-topic').value || '').trim();
 		const sn = ($('scan3-topic').value || '').trim();
 		const mk = (($('marker3-topic') && $('marker3-topic').value) || '').trim();
-		if (!pcn && !sn && !mk) {
-			alert('请至少填写「点云」「雷达」或「Marker」话题之一（参见 ros3djs pointcloud2 / markers 示例）');
+		const urdfEl = $('view3d-show-urdf');
+		const wantUrdf = !urdfEl || urdfEl.checked;
+		if (!pcn && !sn && !mk && !wantUrdf) {
+			alert('请至少填写「点云」「雷达」或「Marker」话题之一，或勾选「显示机械臂 URDF」');
 			return;
 		}
 		if (mk && typeof ROS3D.MarkerClient === 'undefined') {
 			alert('已填写 Marker 话题但未加载 ROS3D.MarkerClient（需 ros3d.min.js）');
 			return;
+		}
+		if (wantUrdf && !pcn && !sn && !mk) {
+			if (typeof ROS3D.Urdf !== 'function' || typeof ROSLIB.UrdfModel !== 'function') {
+				alert('当前脚本缺少 ROS3D.Urdf / ROSLIB.UrdfModel，无法显示机械臂；请更新 ros3d / roslib');
+				return;
+			}
 		}
 		stop3d();
 		if (typeof ROS3D === 'undefined' || typeof ROSLIB === 'undefined' || typeof ROSLIB.ROS2TFClient !== 'function') {
@@ -1351,13 +1559,13 @@
 		inner.id = 'view3d-inner';
 		host.appendChild(inner);
 		const w = host.clientWidth || 800;
-		const h = 420;
+		const h = 800;
 		viewer3d = new ROS3D.Viewer({
 			divID: 'view3d-inner',
 			width: w,
 			height: h,
-			antialias: true,
-			background: '#111111',
+			antialias: false,
+			background: '#ffffff',
 			cameraPose: { x: 3, y: 3, z: 3 },
 			cameraZoomSpeed: 0.5
 		});
@@ -1368,33 +1576,60 @@
 			viewer3d.scene.add(ros3dAxes);
 		}
 		if (!grEl || grEl.checked) {
-			ros3dGrid = new ROS3D.Grid({ num_cells: 12, cellSize: 1, color: '#444444' });
+			ros3dGrid = new ROS3D.Grid({ num_cells: 12, cellSize: 1, color: '#94a3b8' });
 			viewer3d.scene.add(ros3dGrid);
 		}
-		let fixedFrame = (($('tf-fixed-frame') && $('tf-fixed-frame').value) || 'camera_link').trim().replace(/^\/+/, '');
-		if (fixedFrame === '') fixedFrame = 'camera_link';
-		fixedFrame = `/${fixedFrame}`;
+		/* ROS 2 tf2 帧名通常无前导斜杠；带 / 时部分栈上 republisher 与 URDF link 不一致会导致整场景 TF 不更新 */
+		let fixedFrame = (($('tf-fixed-frame') && $('tf-fixed-frame').value) || 'base_link').trim().replace(/^\/+/, '');
+		if (fixedFrame === '') fixedFrame = 'base_link';
 		tfClient3d = new ROSLIB.ROS2TFClient({
 			ros,
 			fixedFrame,
 			angularThres: 0.01,
 			transThres: 0.01,
-			rate: 10.0
+			rate: 20.0
 		});
-		const maxPts = Math.max(1000, parseInt($('pc-max').value, 10) || 10000);
+		const maxPts = Math.max(1000, parseInt($('pc-max').value, 10) || 12000);
 		const pszEl = $('view3d-point-size');
 		const ptSize = Math.max(0.01, parseFloat((pszEl && pszEl.value) || '0.05') || 0.05);
+		const pcThrottleEl = $('pc-throttle-ms');
+		const pcRatioEl = $('pc-msg-ratio');
+		const pcThrottleMs = Math.max(0, parseInt((pcThrottleEl && pcThrottleEl.value) || '120', 10) || 0);
+		const pcMsgRatio = Math.max(1, parseInt((pcRatioEl && pcRatioEl.value) || '2', 10) || 1);
+		installIvgPointCloud2ProcessPatch();
 		if (pcn) {
-			/* 点云：throttle_rate 用 0 表示不限流；vendor/ros3d.min.js 已修 ||null 误判 0（见 bundle_roslib2_browser.sh） */
+			/* throttle_rate：rosbridge 订阅最小间隔（ms），减轻大图 CPU/带宽；0=最快。messageRatio：隔帧绘制。
+			 * __ivgUniformStride：max_pts 下按 stride 均匀覆盖整幅。 */
+			const pcPixelSize = Math.max(1, Math.min(20, Math.round(ptSize * 60)));
 			ros3dPointCloud2 = new ROS3D.PointCloud2({
 				ros,
 				tfClient: tfClient3d,
 				rootObject: viewer3d.scene,
 				topic: pcn,
 				max_pts: maxPts,
-				throttle_rate: 0,
-				material: { size: ptSize, color: 0x38bdf8 }
+				messageRatio: pcMsgRatio,
+				throttle_rate: pcThrottleMs,
+				compression: 'cbor',
+				material: { size: pcPixelSize, sizeAttenuation: false, color: 0xffffff },
+				colormap(x) {
+					const littleE = ros3dPointCloud2 ? ros3dPointCloud2.__ivgPc2Le !== false : true;
+					const dt = ros3dPointCloud2 ? ros3dPointCloud2.__ivgRgbFieldDt : 7;
+					let c;
+					if (dt === 5 || dt === 6) {
+						const u = x >>> 0;
+						c = new THREE.Color(((u >> 16) & 255) / 255, ((u >> 8) & 255) / 255, (u & 255) / 255);
+					} else {
+						c = ivgRosPackedRgbFloatToColor(x, littleE);
+					}
+					return c;
+				}
 			});
+			ros3dPointCloud2.__ivgUniformStride = true;
+			ros3dPointCloud2.__ivgPc2Sig = { got: false };
+			showView3dPc2Hint(
+				host,
+				`<strong>加载点云</strong>：首帧大图仍可能需数秒。当前 <strong>节流 ${pcThrottleMs} ms</strong>、<strong>隔帧 ${pcMsgRatio}</strong>；若仍慢请调大节流、订阅 <code>…/points_web</code> 或调低「最大点数」。`
+			);
 		}
 		if (sn) {
 			ros3dLaserScan = new ROS3D.LaserScan({
@@ -1414,6 +1649,65 @@
 				rootObject: viewer3d.scene,
 				lifetime: 0
 			});
+		}
+		if (wantUrdf && typeof ROS3D.Urdf === 'function' && typeof ROSLIB.UrdfModel === 'function') {
+			ros3dUrdfRoot = new THREE.Group();
+			viewer3d.scene.add(ros3dUrdfRoot);
+			const pName = (($('urdf-param') && $('urdf-param').value) || '/robot_state_publisher:robot_description').trim();
+			const meshBase = `${window.location.origin}/api/ivg/robot-mesh/`;
+			showView3dUrdfHint(
+				host,
+				`<strong>机械臂 URDF</strong>：正在请求参数 <code>${pName}</code> 并加载网格（多 DAE 时请等待）…`
+			);
+			ivgAttachUrdfFromRosParam(ros, pName, meshBase, tfClient3d, ros3dUrdfRoot, err => {
+				console.error('URDF:', err);
+				showView3dUrdfHint(
+					host,
+					`<strong>机械臂加载失败</strong>：${String(err)}。请用「参数」页或 <code>ros2 param list</code> 核对 <code>节点名:robot_description</code>；并确认浏览器能打开 <code>${meshBase}aubo_description/meshes/…</code>（网关需 source 过工作空间）。`
+				);
+			});
+		}
+		if (pcn && ros && ros.isConnected) {
+			const pc2FailAfterMs = 45000;
+			setTimeout(() => {
+				const got = ros3dPointCloud2 && ros3dPointCloud2.__ivgPc2Sig && ros3dPointCloud2.__ivgPc2Sig.got;
+				if (!got) {
+					const metaT = new ROSLIB.Topic({
+						ros,
+						name: pcn,
+						messageType: 'sensor_msgs/msg/PointCloud2',
+						throttle_rate: 0,
+						queue_length: 0,
+						queue_size: 100
+					});
+					const hintHost = $('view3d-host');
+					metaT.getPublishers(
+						pubs => {
+							const n = Array.isArray(pubs) ? pubs.length : 0;
+							if (!hintHost) return;
+							if (n === 0) {
+								showView3dPc2Hint(
+									hintHost,
+									`<strong>点云无数据</strong>：<code>${pcn}</code> 上未发现发布者。请确认相机/深度节点已启动，或在侧栏选择实际在发布的 <code>sensor_msgs/msg/PointCloud2</code> 话题后再「启动 3D」。`
+								);
+							} else {
+								showView3dPc2Hint(
+									hintHost,
+									`<strong>点云无数据</strong>：检测到 <code>${n}</code> 个发布者，但 <strong>${pc2FailAfterMs / 1000} 秒</strong>内 ros3d 仍未收到帧。请查 rosbridge / 网关日志、<code>max_message_size</code>、CBOR 与 QoS（<a href="https://github.com/RobotWebTools/rosbridge_suite/issues/551" target="_blank" rel="noopener">#551</a>）；或降低相机点云分辨率以减轻单帧体积。`
+								);
+							}
+						},
+						err => {
+							if (hintHost) {
+								showView3dPc2Hint(
+									hintHost,
+									`<strong>点云无数据</strong>：无法查询发布者（rosapi 不可用或调用失败）。请确认 rosbridge 同进程已加载 <code>rosapi</code>，并查看浏览器控制台与 rosbridge 日志。`
+								);
+							}
+						}
+					);
+				}
+			}, pc2FailAfterMs);
 		}
 	}
 
@@ -1440,7 +1734,7 @@
 			setStatus('已连接 rosbridge（经网关）', true);
 			refreshSidebar();
 		});
-		ros.on('error', () => {
+		ros.on('error', err => {
 			if (myGen !== rosReconnect.gen) return;
 			setStatus('连接错误', false);
 		});

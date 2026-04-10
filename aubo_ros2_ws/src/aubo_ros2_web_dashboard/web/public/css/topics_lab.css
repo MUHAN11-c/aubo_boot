@@ -888,7 +888,12 @@ canvas.viz-canvas {
 	overflow: hidden;
 	box-shadow: var(--shadow-sm);
 }
-.view3d-host canvas { display: block; width: 100% !important; height: 420px !important; }
+/* 3D 图：与 ROS3D.Viewer 白底一致；画布高度 800px 与 Viewer 一致 */
+#main-view3d .view3d-host {
+	background: #ffffff;
+	min-height: 800px;
+}
+.view3d-host canvas { display: block; width: 100% !important; height: 800px !important; }
 
 #btn-build-graph {
 	background: var(--panel);

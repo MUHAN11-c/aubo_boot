@@ -18,7 +18,6 @@
 				<li><a class="ivg-global-nav__link" href="index.html" data-ivg-nav="index">门户</a></li>
 				<li><a class="ivg-global-nav__link" href="vision_grasp_panel.html" data-ivg-nav="vision">视觉抓取</a></li>
 				<li><a class="ivg-global-nav__link" href="coffee_latte_panel.html" data-ivg-nav="latte">咖啡拉花</a></li>
-				<li><a class="ivg-global-nav__link" href="topics_lab.html" data-ivg-nav="console">ROS 控制台</a></li>
 			</ul>
 		</div>
 	</nav>
@@ -30,8 +29,6 @@
 		<a href="#vision-grasp">视觉抓取</a>
 		<span class="ivg-page-nav__sep" aria-hidden="true">·</span>
 		<a href="#coffee-latte">咖啡拉花</a>
-		<span class="ivg-page-nav__sep" aria-hidden="true">·</span>
-		<a href="#ros-console-intro">数据与监控</a>
 	</nav>
 
 	<header class="hero" id="home">
@@ -48,7 +45,6 @@
 		<div class="hero-cta-row" id="quick" role="navigation" aria-label="快速入口">
 			<a class="hero-cta hero-cta--solid" id="link-hero-vision" href="vision_grasp_panel.html">视觉抓取面板</a>
 			<a class="hero-cta hero-cta--solid" id="link-hero-latte" href="coffee_latte_panel.html">咖啡拉花</a>
-			<a class="hero-cta" id="link-hero-console" href="topics_lab.html">数据与监控</a>
 		</div>
 	</header>
 
@@ -67,7 +63,6 @@
 				<a class="btn btn-solid" id="link-vision-panel" href="vision_grasp_panel.html">视觉抓取面板</a>
 				<a class="btn btn-solid" id="link-vpe" href="#" target="_blank" rel="noopener">打开视觉位姿网页</a>
 				<a class="btn" id="link-handeye" href="#" target="_blank" rel="noopener">打开手眼标定网页</a>
-				<a class="btn" id="link-console-2" href="topics_lab.html">数据与监控</a>
 			</div>
 		</section>
 
@@ -76,15 +71,6 @@
 			<p class="card-lead">面向咖啡拉花场景的界面与流程示意：杯位、动作与预览等区域，便于后续接入真实设备与调度。</p>
 			<div class="link-row">
 				<a class="btn btn-solid" id="link-coffee-latte-panel" href="coffee_latte_panel.html">打开咖啡拉花面板</a>
-				<a class="btn" id="link-console-from-latte" href="topics_lab.html">数据与监控</a>
-			</div>
-		</section>
-
-		<section class="card" id="ros-console-intro">
-			<h2>数据与监控</h2>
-			<p class="card-lead">查看现场数据与调试：消息与服务、关系图、地图与三维视图等；含常用快捷入口。</p>
-			<div class="link-row">
-				<a class="btn btn-solid" id="link-console-3" href="topics_lab.html">进入数据与监控</a>
 			</div>
 		</section>
 	</div>
@@ -104,9 +90,6 @@
 			};
 			setHref('link-vpe', `http://${h}:8088/`);
 			setHref('link-handeye', `http://${h}:8080/`);
-			['link-console-2', 'link-console-3', 'link-console-from-latte', 'link-hero-console'].forEach((id) => {
-				setHref(id, `topics_lab.html${q}`);
-			});
 			setHref('link-vision-panel', `vision_grasp_panel.html${q}`);
 			setHref('link-hero-vision', `vision_grasp_panel.html${q}`);
 			setHref('link-coffee-latte-panel', `coffee_latte_panel.html${q}`);

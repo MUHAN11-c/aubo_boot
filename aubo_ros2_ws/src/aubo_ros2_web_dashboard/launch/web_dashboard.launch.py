@@ -6,6 +6,7 @@
   tf2_web_republisher → 网页 TF。
   web_video_server（可选）→ 本机 MJPEG/snapshot；浏览器侧默认经 **同源** ``/api/ivg/proxy/web-video/…`` 转发（``IVG_WEB_VIDEO_*`` 指网关访问上游的地址）。
   FastAPI + Uvicorn 子进程：``--directory`` 指向已安装的 ``share/.../web/public``，提供静态页、``GET /health``、``GET /api/ivg/runtime-config``。
+  可选 ``include_pointcloud_web_bridge:=true``：同机启动 ``ivg_pointcloud_web_throttle``，发布 ``.../points_web`` 瘦点云（见 ``pointcloud_web_bridge.launch.py``）。
 
 参数：默认打开「服务 / 动作在新线程执行」，并提高 max_message_size，减轻大 JSON（点云等）被拒。
 参见 https://github.com/RobotWebTools/rosbridge_suite
@@ -45,6 +46,10 @@ def generate_launch_description():
     include_web_video = LaunchConfiguration('include_web_video_server')
     web_video_host = LaunchConfiguration('web_video_host')
     web_video_port = LaunchConfiguration('web_video_port')
+    include_pc_web = LaunchConfiguration('include_pointcloud_web_bridge')
+    pc_web_input = LaunchConfiguration('pointcloud_web_input_topic')
+    pc_web_output = LaunchConfiguration('pointcloud_web_output_topic')
+    pc_web_max_points = LaunchConfiguration('pointcloud_web_max_points')
 
     return LaunchDescription(
         [
@@ -58,8 +63,8 @@ def generate_launch_description():
             DeclareLaunchArgument('rosbridge_port', default_value='9090'),
             DeclareLaunchArgument(
                 'rosbridge_max_message_size',
-                default_value='20000000',
-                description='rosbridge max JSON frame size (bytes); raise for large PointCloud2 via rosbridge',
+                default_value='67108864',
+                description='rosbridge max JSON frame size (bytes); 大点云 JSON/CBOR 单帧；默认 64MiB',
             ),
             DeclareLaunchArgument(
                 'rosbridge_call_services_in_new_thread',
@@ -86,6 +91,26 @@ def generate_launch_description():
                 default_value='8089',
                 description='web_video_server HTTP 端口（默认 8089，避免与 IVG 手眼 Web 常用 8080 冲突）',
             ),
+            DeclareLaunchArgument(
+                'include_pointcloud_web_bridge',
+                default_value='false',
+                description='若 true 则启动 ivg_pointcloud_web_throttle（numpy 均匀下采样，供浏览器订阅 points_web）',
+            ),
+            DeclareLaunchArgument(
+                'pointcloud_web_input_topic',
+                default_value='/camera/depth_registered/points',
+                description='瘦点云桥接：源 PointCloud2',
+            ),
+            DeclareLaunchArgument(
+                'pointcloud_web_output_topic',
+                default_value='/camera/depth_registered/points_web',
+                description='瘦点云桥接：输出话题',
+            ),
+            DeclareLaunchArgument(
+                'pointcloud_web_max_points',
+                default_value='24000',
+                description='瘦点云桥接：单帧最多点数',
+            ),
             IncludeLaunchDescription(
                 FrontendLaunchDescriptionSource(rosbridge_xml),
                 launch_arguments={
@@ -100,6 +125,20 @@ def generate_launch_description():
                 executable='tf2_web_republisher_node',
                 name='tf2_web_republisher',
                 output='screen',
+            ),
+            Node(
+                package='aubo_ros2_web_dashboard',
+                executable='ivg_pointcloud_web_throttle',
+                name='ivg_pointcloud_web_throttle',
+                output='screen',
+                condition=IfCondition(include_pc_web),
+                parameters=[
+                    {
+                        'input_topic': pc_web_input,
+                        'output_topic': pc_web_output,
+                        'max_points': ParameterValue(pc_web_max_points, value_type=int),
+                    }
+                ],
             ),
             Node(
                 package='web_video_server',

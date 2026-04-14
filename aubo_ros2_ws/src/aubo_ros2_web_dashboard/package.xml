@@ -22,11 +22,11 @@
   <exec_depend>tf2_web_republisher_interfaces</exec_depend>
   <!-- RobotWebTools：HTTP MJPEG/快照，减轻 sensor_msgs/Image 经 rosbridge 的 JSON 负载 -->
   <exec_depend>web_video_server</exec_depend>
-  <!-- 可选：ivg_pointcloud_web_throttle（瘦点云供网页） -->
-  <exec_depend>rclpy</exec_depend>
-  <exec_depend>sensor_msgs</exec_depend>
-  <exec_depend>python3-numpy</exec_depend>
-  <exec_depend>ament_index_python</exec_depend>
+  <!-- web_video_server 经 image_transport 订阅图像；缺则报 raw_sub 插件无法加载、快照 502 -->
+  <exec_depend>image_transport</exec_depend>
+  <exec_depend>image_transport_plugins</exec_depend>
+  <!-- 与视觉面板 rosbridge 订阅 /aubo_driver/robot_status（demo_interface/msg/RobotStatus）一致；launch 需解析包前缀以补全 LD_LIBRARY_PATH -->
+  <exec_depend>demo_interface</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

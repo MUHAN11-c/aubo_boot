@@ -1,5 +1,5 @@
 #!/bin/bash
-# 请使用 bash 运行（./start_IVG_graspnet_points_fastapi_web_legacy.sh 或 bash …），勿用 sh
+# 请使用 bash 运行（./start_IVG_graspnet_points_fastapi_web_AB.sh 或 bash …），勿用 sh
 # 若已用 sh 启动，则自动用 bash 重新执行（避免 echo -e 等不生效）
 if [ -z "${BASH_VERSION:-}" ]; then
     exec /bin/bash "$0" "$@"
@@ -7,6 +7,7 @@ if [ -z "${BASH_VERSION:-}" ]; then
 fi
 
 # IVG 完整启动脚本（GraspNet Points + FastAPI Web + aubo_ros2_web_dashboard）
+# 由 start_IVG_graspnet_points_fastapi_web_legacy.sh 派生：第 11 步改用 A/B 工位交替抓取节点 publish_grasps_AB（循环服务 /publish_grasps_AB_loop_control，最终位姿 /ivg_worker_final_grasp_poses）。
 # 在 start_IVG_graspnet_points_fastapi.sh 基础上增加：rosbridge + tf2_web_republisher + web_video_server + FastAPI 静态网关（8090）
 # 端口：WEB_DASH_PORT=8090 网关（静态页 + 同源 /ws/rosbridge + /api/ivg/proxy/web-video）；WEB_VIDEO_PORT=8089（仅网关本机连上游 MJPEG）；
 #       ROSBRIDGE_PORT=9090（仅网关本机连上游 rosbridge）；VPE FastAPI WEB_PORT=8088；HAND_EYE_PORT=8080。
@@ -60,7 +61,7 @@ else
 fi
 
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}IVG 系统启动脚本（AI大模型抓取 + FastAPI + Web 静态站）${NC}"
+echo -e "${GREEN}IVG 系统启动脚本（AI 抓取 A/B 交替 Worker + FastAPI + Web 静态站）${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 
@@ -254,16 +255,16 @@ launch_in_terminator "Gripper Swap Worker" "$GRIPPER_SWAP_CMD"
 echo -e "${GREEN}  ✓ 夹爪切换服务节点已启动${NC}"
 sleep 2
 
-# 步骤11: 启动 AI 大模型抓取循环 Worker（publish_grasps_client_worker_node）
-echo -e "${GREEN}[11/15] 启动 AI 大模型抓取循环 Worker...${NC}"
-PUBLISH_GRASPS_WORKER_CMD="$WS_ENV && ros2 run demo_driver publish_grasps_client_worker_node"
-launch_in_terminator "Publish Grasps Worker" "$PUBLISH_GRASPS_WORKER_CMD"
-echo -e "${GREEN}  ✓ AI 大模型抓取循环 Worker 已启动${NC}"
+# 步骤11: 启动 AI 大模型抓取循环 Worker（publish_grasps_AB：A/B 工位交替，与 publish_grasps_client_worker_node 互斥择一）
+echo -e "${GREEN}[11/15] 启动 AI 大模型抓取循环 Worker（publish_grasps_AB）...${NC}"
+PUBLISH_GRASPS_WORKER_CMD="$WS_ENV && ros2 run demo_driver publish_grasps_AB"
+launch_in_terminator "Publish Grasps AB Worker" "$PUBLISH_GRASPS_WORKER_CMD"
+echo -e "${GREEN}  ✓ publish_grasps_AB 已启动（/publish_grasps_AB_loop_control）${NC}"
 sleep 2
 
 # 步骤12: 校验关键服务是否已就绪
 echo -e "${GREEN}[12/15] 校验关键服务...${NC}"
-SERVICE_CHECK_CMD="$WS_ENV && ros2 service list | rg '/estimate_pose|/list_templates|/graspnet_capture_control|/publish_grasps_worker_loop_control|/loop_grasp_control|/run_gripper_swap' || true"
+SERVICE_CHECK_CMD="$WS_ENV && ros2 service list | rg '/estimate_pose|/list_templates|/graspnet_capture_control|/publish_grasps_AB_loop_control|/loop_grasp_control|/run_gripper_swap' || true"
 launch_in_terminator "Service Check" "$SERVICE_CHECK_CMD"
 echo -e "${GREEN}  ✓ 关键服务校验标签页已启动${NC}"
 sleep 1
@@ -325,6 +326,7 @@ echo -e "${GREEN}启动完成！IVG 系统已就绪。${NC}"
 ivg_print_access_urls
 echo ""
 echo -e "${YELLOW}提示: 关闭 terminator 标签页或按 Ctrl+C 停止对应节点${NC}"
+echo -e "${YELLOW}A/B 抓取 Worker：循环控制服务为 /publish_grasps_AB_loop_control（非 legacy 的 /publish_grasps_worker_loop_control）；网页投影「最终抓取」话题建议 /ivg_worker_final_grasp_poses${NC}"
 echo -e "${YELLOW}或使用以下命令停止所有节点:${NC}"
 echo "  pkill -f 'aubo_moveit_pure_ros2.launch.py'"
 echo "  pkill -f 'demo_driver_services.launch.py'"
@@ -336,7 +338,8 @@ echo "  pkill -f 'visual_pose_estimation_python.launch.py'"
 echo "  pkill -f 'graspnet_demo_points_with_tf.launch.py'"
 echo "  pkill -f 'execute_grasp_pose_worker.launch.py'"
 echo "  pkill -f 'gripper_swap_worker_node'"
-echo "  pkill -f 'publish_grasps_client_worker_node'"
+echo "  pkill -f 'publish_grasps_AB'"
+echo "  # 旧版单工位 Worker: pkill -f 'publish_grasps_client_worker_node'"
 echo "  pkill -f 'visual_pose_estimation_web.launch.py'"
 echo "  pkill -f 'visual_pose_estimation_web'"
 echo "  pkill -f 'web_dashboard.launch.py'"

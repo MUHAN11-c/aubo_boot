@@ -44,6 +44,12 @@ private:
   bool runArcPath(char axis, double offset, float velocity_factor = 0.5f, float acceleration_factor = 0.1f);
   bool runArcPathSequence(const std::vector<CartesianSegment>& segments, float velocity_factor = 0.5f,
                           float acceleration_factor = 0.1f);
+  /**
+   * 平移到目标笛卡尔位置（与 getCurrentPose 同一规划系）：X/Y/Z 增量组成多段路点，
+   * 通过 runArcPathSequence 一次 computeCartesianPath + 一次 execute（单条轨迹）。
+   */
+  bool moveToTargetPositionCartesianXYZ(double target_x, double target_y, double target_z,
+                                        float velocity_factor = 0.5f, float acceleration_factor = 0.1f);
 
   void onGripperSwapRequest(const std::shared_ptr<demo_interface::srv::RunGripperSwap::Request> request,
                             std::shared_ptr<demo_interface::srv::RunGripperSwap::Response> response);

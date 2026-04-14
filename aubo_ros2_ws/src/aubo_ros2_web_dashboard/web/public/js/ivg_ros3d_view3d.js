@@ -1136,7 +1136,7 @@
 			});
 			showView3dPc2Hint(
 				host,
-				`<strong>加载点云</strong>：首帧大图仍可能需数秒。当前 <strong>节流 ${pcThrottleMs} ms</strong>、<strong>隔帧 ${pcMsgRatio}</strong>；若仍慢请调大节流、订阅 <code>…/points_web</code> 或调低「最大点数」。`
+				`<strong>加载点云</strong>：首帧大图仍可能需数秒。当前 <strong>节流 ${pcThrottleMs} ms</strong>、<strong>隔帧 ${pcMsgRatio}</strong>；若仍慢请调大节流或调低「最大点数」。`
 			);
 			this._pcAutoFrameFallbackTimer = setInterval(() => {
 				const pc2 = selfSession.ros3dPointCloud2;

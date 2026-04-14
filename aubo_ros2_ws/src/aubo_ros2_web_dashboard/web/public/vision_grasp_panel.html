@@ -1,21 +1,17 @@
 <!DOCTYPE html>
-<!-- 视觉抓取面板：ivg_transport + AI 模式 ros3djs（与官方 pointcloud2 / markers 示例一致） -->
+<!-- 视觉抓取面板：ivg_transport；AI 模式为相机图上的抓取位姿 2D 投影（与桌面/触控一致） -->
 <html lang="zh-CN">
 
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 	<title>视觉抓取面板</title>
-	<link rel="stylesheet" href="css/vision_grasp_panel.css?v=20260414_pose_label1" />
-	<link rel="stylesheet" href="css/ivg_site_nav.css?v=20260414_pose_label1" />
-	<script src="js/ivg_transport.js"></script>
+	<link rel="stylesheet" href="css/vision_grasp_panel.css?v=20260414_topic_svc_settings" />
+	<link rel="stylesheet" href="css/ivg_site_nav.css?v=20260414_unify_proj" />
+	<script src="js/ivg_transport.js?v=20260414_snap"></script>
 	<script src="js/ivg_runtime.js"></script>
 	<script src="js/vendor/eventemitter2.js"></script>
-	<script src="js/vendor/roslib-2.iife.js"></script>
-	<script src="js/vendor/easeljs.min.js"></script>
 	<script src="js/vendor/three.min.js"></script>
-	<script src="js/vendor/ros3d.min.js"></script>
-	<script src="js/ivg_ros3d_view3d.js?v=20260414_pose_label1"></script>
 </head>
 
 <body class="ivg-single-screen">
@@ -25,8 +21,10 @@
 				<a class="ivg-global-nav__brand" href="index.html">灵视 <span>IVG</span></a>
 				<ul class="ivg-global-nav__list" role="list">
 					<li><a class="ivg-global-nav__link" href="index.html" data-ivg-nav="index">门户</a></li>
-					<li><a class="ivg-global-nav__link" href="vision_grasp_panel.html" data-ivg-nav="vision">视觉抓取</a></li>
-					<li hidden><a class="ivg-global-nav__link" href="coffee_latte_panel.html" data-ivg-nav="latte">咖啡拉花</a></li>
+					<li><a class="ivg-global-nav__link" href="vision_grasp_panel.html" data-ivg-nav="vision">视觉抓取</a>
+					</li>
+					<li hidden><a class="ivg-global-nav__link" href="coffee_latte_panel.html"
+							data-ivg-nav="latte">咖啡拉花</a></li>
 				</ul>
 			</div>
 			<div class="ivg-global-nav__actions">
@@ -59,7 +57,7 @@
 			</div>
 			<div class="toolbar-actions">
 				<button type="button" class="btn-settings" id="btn-topic-settings-open" aria-haspopup="dialog"
-					aria-controls="topic-settings-modal">订阅话题设置</button>
+					aria-controls="topic-settings-modal">话题与服务设置</button>
 			</div>
 		</div>
 
@@ -73,7 +71,7 @@
 				</div>
 			</section>
 
-			<section class="panel panel--camera panel--camera-result layout-tier-2" aria-label="识别结果图像与 AI 三维视图">
+			<section class="panel panel--camera panel--camera-result layout-tier-2" aria-label="识别结果与 AI 抓取投影">
 				<h2 id="result-panel-title">结果视图</h2>
 				<div class="panel-canvas-wrap panel-canvas-wrap--result">
 					<div id="result-workpiece-wrap" class="result-workpiece-wrap" aria-hidden="false">
@@ -82,15 +80,13 @@
 							<canvas id="result-overlay-canvas" class="result-overlay-canvas" hidden></canvas>
 						</div>
 					</div>
-					<div id="gn-ros3d-wrap" class="gn-ros3d-wrap" hidden aria-hidden="true">
-						<div id="gn-ros3d-host" class="gn-ros3d-host"></div>
-					</div>
 				</div>
 			</section>
 
 			<section class="panel panel--control panel--tier-3" aria-label="抓取与工具控制">
 				<h2>抓取与工具控制</h2>
-				<div class="control-toolbar-field control-toolbar-field--mode-workpiece" id="control-field-workpiece-id">
+				<div class="control-toolbar-field control-toolbar-field--mode-workpiece"
+					id="control-field-workpiece-id">
 					<h3 class="control-group-title" id="object-id-heading">目标工件编号</h3>
 					<input type="text" id="object-id" class="control-field-input" placeholder="与现场 object_id 一致"
 						aria-labelledby="object-id-heading" autocomplete="off" />
@@ -116,7 +112,6 @@
 							<button type="button" class="ctrl danger" id="btn-gn-cap-stop">停止采集</button>
 							<button type="button" class="ctrl primary" id="btn-gn-loop-start">循环抓取开</button>
 							<button type="button" class="ctrl danger" id="btn-gn-loop-stop">循环抓取关</button>
-							<button type="button" class="ctrl ctrl--wide" id="btn-gn-exec-once">大模型单次抓取</button>
 						</div>
 					</div>
 					<div class="control-group">
@@ -157,7 +152,8 @@
 					<section class="panel panel--status panel--status-mode-graspnet" id="status-panel-graspnet-poses"
 						aria-label="AI大模型最终抓取位姿">
 						<h2>AI大模型最终抓取位姿</h2>
-						<div class="result-pre pose-card" id="graspnet-result-text" role="status" aria-live="polite"></div>
+						<div class="result-pre pose-card" id="graspnet-result-text" role="status" aria-live="polite">
+						</div>
 					</section>
 				</div>
 			</aside>
@@ -176,42 +172,41 @@
 		<div class="topic-settings-backdrop" id="topic-settings-backdrop" tabindex="-1"></div>
 		<div class="topic-settings-sheet">
 			<div class="topic-settings-head">
-				<h2 id="topic-settings-title">话题订阅</h2>
+				<h2 id="topic-settings-title">话题与服务</h2>
 				<button type="button" class="btn-settings-close" id="btn-topic-settings-close"
 					aria-label="关闭">×</button>
 			</div>
 			<div class="topic-grid topic-grid-modal">
+				<h3 class="topic-settings-section-title">订阅话题</h3>
 				<label>彩色相机图像 <input type="text" id="topic-color" value="/camera/color/image_raw" autocomplete="off"
 						title="sensor_msgs/Image" /></label>
 				<label>识别结果图像（可空） <input type="text" id="topic-result" value=""
 						placeholder="例 /visual_pose/annotated_image" autocomplete="off"
 						title="sensor_msgs/Image" /></label>
 				<label>机械臂状态 RobotStatus <input type="text" id="topic-robot" value="/aubo_driver/robot_status"
-						autocomplete="off" /></label>
+						autocomplete="off" title="demo_interface/msg/RobotStatus" /></label>
 				<label>关节角 JointState（曲线） <input type="text" id="topic-joints" value="/joint_states"
 						autocomplete="off" /></label>
 				<label>视觉位姿估计状态（字符串） <input type="text" id="topic-vpe-status" value="/system_status"
 						autocomplete="off" /></label>
-				<label>AI大模型最终抓取位姿话题 <input type="text" id="topic-grasp-poses" value="/grasp_poses_base"
-						autocomplete="off" /></label>
-				<label>AI 3D · 点云 PointCloud2 <input type="text" id="topic-pc-graspnet"
-						value="/camera/depth_registered/points_web" autocomplete="off"
-						title="ros3d 经 rosbridge CBOR 订阅；建议 ivg_pointcloud_web_throttle 输出（RELIABLE）" /></label>
-				<label>AI 3D · MarkerArray <input type="text" id="topic-markers-graspnet" value="/grasp_markers"
-						autocomplete="off" title="ROS3D.MarkerClient" /></label>
-				<p class="hint topic-settings-hint-ro3d">AI 模式下点云/Marker/TF/URDF 均由 <strong>第二条 WebSocket</strong>（<code>/ws/rosbridge</code>）走 ros3d，不再使用 JSON 叠加在相机图上。</p>
-				<label>3D 固定坐标系（TF） <input type="text" id="gn-tf-fixed-frame" value="base_link" autocomplete="off"
-						title="ROS2TFClient fixedFrame" /></label>
-				<label>3D 点云最大点数 <input type="text" id="gn-pc-max" value="32000" autocomplete="off" inputmode="numeric" /></label>
-				<label>3D 点大小（ros3d） <input type="text" id="gn-view3d-point-size" value="0.05" autocomplete="off" /></label>
-				<label>3D 点云节流 ms <input type="text" id="gn-pc-throttle-ms" value="120" autocomplete="off" inputmode="numeric" /></label>
-				<label>3D 点云隔帧 <input type="text" id="gn-pc-msg-ratio" value="2" autocomplete="off" inputmode="numeric" /></label>
-				<label>URDF 参数全名 <input type="text" id="gn-urdf-param" value="/robot_state_publisher:robot_description"
-						autocomplete="off" /></label>
-				<label class="topic-settings-check"><input type="checkbox" id="gn-view3d-show-axes" checked /> 3D 显示坐标轴</label>
-				<label class="topic-settings-check"><input type="checkbox" id="gn-view3d-show-grid" checked /> 3D 显示地面网格</label>
-				<label class="topic-settings-check"><input type="checkbox" id="gn-show-urdf" checked /> 3D 显示机械臂 URDF</label>
-				<input type="text" id="gn-scan3-stub" value="" hidden tabindex="-1" aria-hidden="true" title="内部占位，勿删" />
+				<label>AI 大模型最终抓取位姿（PoseArray） <input type="text" id="topic-grasp-poses"
+						value="/grasp_poses_base" autocomplete="off" /></label>
+				<h3 class="topic-settings-section-title">TF（2D 投影坐标变换）</h3>
+				<label>动态 TF <input type="text" id="topic-tf" value="/tf" autocomplete="off"
+						title="tf2_msgs/TFMessage" /></label>
+				<label>静态 TF <input type="text" id="topic-tf-static" value="/tf_static" autocomplete="off"
+						title="tf2_msgs/TFMessage" /></label>
+				<h3 class="topic-settings-section-title">服务（按钮对应；与 launch remap 一致）</h3>
+				<label>工件循环抓取开关 SetBool <input type="text" id="svc-loop-grasp-control"
+						value="/loop_grasp_control" autocomplete="off" title="std_srvs/srv/SetBool" /></label>
+				<label>大模型采集开关 SetBool <input type="text" id="svc-graspnet-capture" value="/graspnet_capture_control"
+						autocomplete="off" title="std_srvs/srv/SetBool" /></label>
+				<label>大模型循环发布开关 SetBool <input type="text" id="svc-publish-grasps-loop"
+						value="/publish_grasps_worker_loop_control" autocomplete="off"
+						title="std_srvs/srv/SetBool" /></label>
+				<label>末端夹爪快换 RunGripperSwap <input type="text" id="svc-gripper-swap" value="/run_gripper_swap"
+						autocomplete="off" title="demo_interface/srv/RunGripperSwap" /></label>
+				<p class="hint">订阅类含 CameraInfo（由彩色图话题推导）、投影用 TF。服务类型固定，仅可改名称以适配 remap。</p>
 			</div>
 			<div class="topic-settings-actions">
 				<button type="button" class="ctrl" id="btn-topic-restore-defaults">恢复内置默认话题</button>
@@ -221,7 +216,7 @@
 	</div>
 
 	<script src="js/ivg_site_nav.js"></script>
-	<script src="js/vision_grasp_panel.js?v=20260414_robot_rpy_deg_fix1"></script>
+	<script src="js/vision_grasp_panel.js?v=20260414_remove_gn_exec_once"></script>
 </body>
 
 </html>

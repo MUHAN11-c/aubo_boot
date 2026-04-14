@@ -99,6 +99,35 @@
 		return `${g.location.origin}${pre}/stream?${parts.join('&')}`;
 	};
 
+	/**
+	 * 单帧 JPEG（web_video_server ``/snapshot``）；用于避免 MJPEG 长连接持续解码。
+	 * IVG 同源 ``camera_stream_path`` 若路径段为 ``…/stream``，则换为 ``…/snapshot``（查询与 ``cameraStreamUrl`` 一致）。
+	 * @param {string} topic
+	 * @param {string} [streamId]
+	 * @param {number} [quality] 1–100
+	 */
+	IvgTransport.prototype.cameraSnapshotUrl = function (topic, streamId, quality) {
+		const rt = this.runtime || {};
+		const sid = streamId || String(topic).replace(/\//g, '_').replace(/^_/, '') || 'cam';
+		const qn = quality != null ? Number(quality) : NaN;
+		const qual = !isNaN(qn) && qn >= 1 && qn <= 100 ? Math.round(qn) : 85;
+		if (rt.camera_stream_path && String(rt.camera_stream_path).trim()) {
+			let rel = String(rt.camera_stream_path).trim();
+			if (/\/stream(\?|$)/i.test(rel)) {
+				rel = rel.replace(/\/stream(\?|$)/i, '/snapshot$1');
+			}
+			const base = `${g.location.origin}${rel.startsWith('/') ? rel : `/${rel}`}`;
+			const q = new URLSearchParams({ topic: String(topic), stream_id: sid });
+			q.set('quality', String(qual));
+			return `${base}?${q.toString()}`;
+		}
+		const proxy = (rt.web_video_proxy_prefix && String(rt.web_video_proxy_prefix).trim()) || '/api/ivg/proxy/web-video';
+		const pre = proxy.endsWith('/') ? proxy.slice(0, -1) : proxy;
+		const parts = ['topic=' + encodeTopicQueryValue(topic), 'type=jpeg', 'client_id=' + encodeURIComponent(sid)];
+		parts.push('quality=' + encodeURIComponent(String(qual)));
+		return `${g.location.origin}${pre}/snapshot?${parts.join('&')}`;
+	};
+
 	IvgTransport.prototype.isConnected = function () {
 		return !!(this.ctrl && this.ctrl.readyState === WebSocket.OPEN);
 	};

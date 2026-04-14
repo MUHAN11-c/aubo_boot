@@ -392,6 +392,7 @@ body.ivg-single-screen .layout-camera-controls .panel--camera-result > h2 {
 	flex-shrink: 0;
 }
 
+/* 左「相机彩色」与右「结果/投影」：同宽高比、同铺满方式，避免一列 contain 一列留白不一 */
 body.ivg-single-screen .layout-camera-controls .panel--camera-hero .panel-canvas-wrap,
 body.ivg-single-screen .layout-camera-controls .panel--camera-result .panel-canvas-wrap {
 	flex: 0 0 auto;
@@ -403,15 +404,7 @@ body.ivg-single-screen .layout-camera-controls .panel--camera-result .panel-canv
 	align-items: stretch;
 	justify-content: center;
 	overflow: hidden;
-}
-
-body.ivg-single-screen .layout-camera-controls .panel--camera-hero .panel-canvas-wrap {
 	aspect-ratio: var(--camera-aspect-ratio);
-}
-
-body.ivg-single-screen .layout-camera-controls .panel--camera-result .panel-canvas-wrap {
-	flex: 1 1 0;
-	height: 100%;
 }
 
 body.ivg-single-screen .layout-camera-controls .panel--camera-hero canvas,
@@ -421,28 +414,37 @@ body.ivg-single-screen .layout-camera-controls .panel--camera-result canvas {
 	top: 0;
 	width: 100% !important;
 	height: 100% !important;
-	object-fit: contain;
+	object-fit: cover;
 	object-position: center;
 	margin: 0;
 }
 
 body.ivg-single-screen .layout-camera-controls .panel--camera-hero .cam-mjpeg,
-body.ivg-single-screen .layout-camera-controls .panel--camera-result .cam-mjpeg {
+body.ivg-single-screen .layout-camera-controls .panel--camera-result .cam-mjpeg,
+body.ivg-single-screen .layout-camera-controls .panel--camera-result .result-viz-stack .cam-mjpeg {
 	position: absolute;
-	left: 0;
-	top: 0;
+	inset: 0;
 	width: 100%;
-	height: 100%;
-	object-fit: contain;
+	height: 100% !important;
+	object-fit: cover;
 	object-position: center;
 	margin: 0;
-	aspect-ratio: unset;
+	aspect-ratio: unset !important;
 	max-width: none;
+	max-height: none;
 	z-index: 0;
 }
 
+body.ivg-single-screen .layout-camera-controls .panel--camera-result .result-workpiece-wrap,
+body.ivg-single-screen .layout-camera-controls .panel--camera-result .result-viz-stack {
+	flex: 1;
+	min-height: 0;
+	width: 100%;
+	height: 100%;
+}
+
 /*
- * 识别结果区：工作模式显示 2D 结果图；AI 模式显示独立 3D 结果面板。
+ * 识别结果区：工件模式为 2D 结果图；AI 模式为相机快照 + 抓取位姿投影（2D）。
  */
 body.ivg-single-screen .layout-camera-controls .panel--camera-result .panel-canvas-wrap--result {
 	display: flex;
@@ -450,8 +452,7 @@ body.ivg-single-screen .layout-camera-controls .panel--camera-result .panel-canv
 	overflow: hidden;
 }
 
-body.ivg-single-screen .layout-camera-controls .panel--camera-result .panel-canvas-wrap--result .result-workpiece-wrap,
-body.ivg-single-screen .layout-camera-controls .panel--camera-result .panel-canvas-wrap--result .gn-ros3d-wrap {
+body.ivg-single-screen .layout-camera-controls .panel--camera-result .panel-canvas-wrap--result .result-workpiece-wrap {
 	flex: 1 1 auto;
 	width: 100%;
 	height: 100%;
@@ -854,26 +855,6 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .svc-log {
 	height: 100%;
 }
 
-.gn-ros3d-wrap {
-	width: 100%;
-	height: 100%;
-	line-height: normal;
-	padding: 0;
-	border-radius: var(--radius-sm);
-	background: transparent;
-	border: 0;
-}
-
-.gn-ros3d-host {
-	position: relative;
-	width: 100%;
-	height: 100%;
-	min-height: 0;
-	border-radius: var(--radius-sm);
-	overflow: hidden;
-	background: var(--canvas-bg);
-}
-
 .result-viz-stack {
 	position: relative;
 	display: block;
@@ -1122,6 +1103,24 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 > h2 {
 	color: var(--muted);
 	font-weight: 600;
 	font-size: var(--fs-ui);
+}
+
+/* 仅 ivg_display 文本时：可滚动、等宽换行，与数值卡区域视觉一致 */
+.pose-card__body--ivg-text {
+	max-height: min(40vh, 14rem);
+	overflow: auto;
+	overscroll-behavior: contain;
+}
+
+.pose-card__ivg-pre {
+	margin: 0;
+	padding: 0;
+	white-space: pre-wrap;
+	word-break: break-word;
+	font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+	font-size: clamp(10px, 0.78rem, 12px);
+	line-height: 1.35;
+	color: var(--code-fg);
 }
 
 #joint-chart {
@@ -1485,16 +1484,24 @@ button.ctrl.danger:hover {
 	margin-bottom: 1rem;
 }
 
+.topic-settings-section-title {
+	margin: 0.85rem 0 0.4rem;
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--muted);
+	border-bottom: 1px solid var(--border);
+	padding-bottom: 0.28rem;
+}
+
+.topic-grid-modal .topic-settings-section-title:first-of-type {
+	margin-top: 0;
+}
+
 .topic-grid-modal input {
 	width: 100%;
 	min-width: 0;
-}
-
-.topic-settings-hint-ro3d {
-	grid-column: 1 / -1;
-	margin: 0.25rem 0 0.5rem;
-	font-size: 0.8125rem;
-	line-height: 1.45;
 }
 
 .topic-grid label.topic-settings-check {
@@ -1582,11 +1589,9 @@ button.ctrl.danger:hover {
 		max-width: 100%;
 	}
 
-	body.ivg-single-screen .layout-camera-controls .panel--camera-hero .panel-canvas-wrap {
-		aspect-ratio: var(--camera-aspect-ratio);
-	}
-
+	body.ivg-single-screen .layout-camera-controls .panel--camera-hero .panel-canvas-wrap,
 	body.ivg-single-screen .layout-camera-controls .panel--camera-result .panel-canvas-wrap {
+		aspect-ratio: var(--camera-aspect-ratio);
 		height: auto;
 	}
 
@@ -1730,10 +1735,10 @@ button.ctrl.danger:hover {
 }
 
 /*
- * 仅视觉抓取单屏 + iPad 10 类横屏（触控、宽约 1024–1366）：贴安全区、少 gap；
- * 三列拉满格宽；相机/结果 object-fit: cover 消除 contain 黑边（不含咖啡拉花页）。
+ * 视觉抓取单屏、横屏且视口宽约 1024–1366（含 iPad 10 横屏与同类窄高屏）：
+ * 贴安全区、紧凑间距；三列拉满（不含咖啡拉花页）。
  */
-@media (orientation: landscape) and (min-width: 1024px) and (max-width: 1366px) and (hover: none) and (pointer: coarse) {
+@media (orientation: landscape) and (min-width: 1024px) and (max-width: 1366px) {
 	body.ivg-single-screen:not(.coffee-latte-panel) {
 		--vision-control-col-pct: 16;
 		--cam-split-max-w: 100%;
@@ -1769,8 +1774,9 @@ button.ctrl.danger:hover {
 	body.ivg-single-screen:not(.coffee-latte-panel) .layout-camera-controls .panel--camera-hero canvas,
 	body.ivg-single-screen:not(.coffee-latte-panel) .layout-camera-controls .panel--camera-result canvas,
 	body.ivg-single-screen:not(.coffee-latte-panel) .layout-camera-controls .panel--camera-hero .cam-mjpeg,
-	body.ivg-single-screen:not(.coffee-latte-panel) .layout-camera-controls .panel--camera-result .cam-mjpeg {
-		object-fit: contain;
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-camera-controls .panel--camera-result .cam-mjpeg,
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-camera-controls .panel--camera-result .result-viz-stack .cam-mjpeg {
+		object-fit: cover;
 	}
 
 	body.ivg-single-screen:not(.coffee-latte-panel) .layout-camera-controls .panel.panel--tier-3 {

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- IVG 控制台：ivg_transport（话题/服务）+ roslib@2/ros3d（3D 点云，与官方 pointcloud2 示例一致） -->
+<!-- IVG 控制台：ivg_transport（话题/服务）+ roslib@2/ros3d（3D：点云/Marker/UR 等，见 3D 图） -->
 <html lang="zh-CN">
 
 <head>
@@ -38,7 +38,7 @@
 	<nav class="topnav" aria-label="工具栏与连接">
 		<div class="topnav-start">
 			<span class="topnav-title">数据与监控</span>
-			<span class="topnav-sub">IVG：<code class="topnav-code">/ws/rosbridge</code>（3D 点云 ros3d）+ 控制面 <code>ivg_transport</code>；相机 <code>/api/v1/camera/stream</code></span>
+			<span class="topnav-sub">IVG：<code class="topnav-code">/ws/rosbridge</code>（3D ros3d）+ 控制面 <code>ivg_transport</code>；相机 <code>/api/v1/camera/stream</code></span>
 		</div>
 		<span class="topnav-spacer" aria-hidden="true"></span>
 		<div class="topnav-actions">
@@ -59,12 +59,10 @@
 		<button type="button" data-ivg="topics-color">订阅彩色图</button>
 		<button type="button" data-ivg="topics-depth">订阅深度图</button>
 		<button type="button" data-ivg="topics-points">订阅点云</button>
-		<button type="button" data-ivg="topics-points-web" title="需先启动 ivg_pointcloud_web_throttle 或 pointcloud_web_bridge.launch.py">订阅瘦点云</button>
 		<button type="button" data-ivg="topics-markers">订阅抓取 Markers</button>
 		<button type="button" data-ivg="topics-poses">订阅抓取位姿</button>
 		<span class="ivg-sep">|</span>
 		<button type="button" data-ivg="3d-points">3D: 点云</button>
-		<button type="button" data-ivg="3d-points-web" title="话题 points_web，需 ROS 侧瘦点云桥">3D: 瘦点云</button>
 		<button type="button" data-ivg="3d-clear">3D: 清空话题</button>
 		<span class="ivg-sep">|</span>
 		<button type="button" data-ivg="svc-list-templates">/list_templates</button>
@@ -200,7 +198,7 @@
 				<p class="hint">3D 与 <a href="https://github.com/RobotWebTools/ros3djs/blob/develop/examples/pointcloud2.html"
 						target="_blank" rel="noopener">ros3djs pointcloud2</a> 一致：<code>ROSLIB.Ros</code> → 同源
 					<code>/ws/rosbridge</code>，<code>ROS2TFClient</code> + <code>ROS3D.PointCloud2</code>（CBOR）。需
-					<code>tf2_web_republisher</code>。大点云请订阅 <code>…/points_web</code> 并调「最大点数」/节流。彩色图用 MJPEG。
+					<code>tf2_web_republisher</code>。大点云请调低「最大点数」与节流间隔以减轻卡顿。彩色图用 MJPEG。
 				</p>
 				<div class="controls row-form">
 					<label>TF 固定坐标系 <input type="text" id="tf-fixed-frame" value="base_link"

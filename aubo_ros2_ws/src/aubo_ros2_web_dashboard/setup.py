@@ -68,7 +68,6 @@ setup(
 		# 实际安装路径由 setup.cfg 的 install_scripts 指向 lib/<pkg>/
 		'console_scripts': [
 			'ivg_fastapi_static_gateway = aubo_ros2_web_dashboard.fastapi_static_gateway:main',
-			'ivg_pointcloud_web_throttle = aubo_ros2_web_dashboard.pointcloud_web_throttle:main',
 		],
 	},
 )

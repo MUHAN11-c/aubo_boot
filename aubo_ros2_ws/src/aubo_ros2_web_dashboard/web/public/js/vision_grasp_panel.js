@@ -1,4 +1,4 @@
-/* global ivgPorts, ivgTransport, ROSLIB, IvgRos3dView3dSession, THREE */
+/* global ivgPorts, ivgTransport, THREE */
 /**
  * 视觉抓取面板：仅连接与 DOM 展示；数值摘要由桥进程 ``ivg_display`` 字段提供，不在此做格式编排/曲线计算/抓取轮询。
  */
@@ -6,54 +6,53 @@
 	const rosReconnect = ivgPorts.createRosReconnectState();
 	const ROS_RECONNECT_MAX = 12;
 	const PAGE_STREAM_SUFFIX = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-	const coarsePointerQuery =
-		typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-			? window.matchMedia('(pointer: coarse)')
-			: null;
 	const subs = {};
+	/** 仅 rosbridge 订阅类话题 */
 	const TOPIC_IDS = [
 		'topic-color',
 		'topic-result',
 		'topic-robot',
 		'topic-joints',
 		'topic-vpe-status',
-		'topic-grasp-poses',
-		'topic-pc-graspnet',
-		'topic-markers-graspnet',
-		'gn-tf-fixed-frame',
-		'gn-pc-max',
-		'gn-view3d-point-size',
-		'gn-pc-throttle-ms',
-		'gn-pc-msg-ratio',
-		'gn-urdf-param'
+		'topic-grasp-poses'
 	];
-	const TOPIC_DEFAULTS = {
+	const TF_TOPIC_IDS = ['topic-tf', 'topic-tf-static'];
+	/** 按钮触发的服务名（std_srvs/SetBool 或 demo_interface 自定义） */
+	const SERVICE_IDS = [
+		'svc-loop-grasp-control',
+		'svc-graspnet-capture',
+		'svc-publish-grasps-loop',
+		'svc-gripper-swap'
+	];
+	/** 工件模式「执行单次抓取」固定调用的服务（不设为可选项，与后端 launch 一致） */
+	const SVC_EXECUTE_SINGLE_GRASP = '/execute_single_grasp';
+	const ALL_SETTING_IDS = ([]).concat(TOPIC_IDS, TF_TOPIC_IDS, SERVICE_IDS);
+	const SETTINGS_DEFAULTS = {
 		'topic-color': '/camera/color/image_raw',
 		'topic-result': '',
 		'topic-robot': '/aubo_driver/robot_status',
 		'topic-joints': '/joint_states',
 		'topic-vpe-status': '/system_status',
 		'topic-grasp-poses': '/grasp_poses_base',
-		'topic-pc-graspnet': '/camera/depth_registered/points_web',
-		'topic-markers-graspnet': '/grasp_markers',
-		'gn-tf-fixed-frame': 'base_link',
-		'gn-pc-max': '32000',
-		'gn-view3d-point-size': '0.05',
-		'gn-pc-throttle-ms': '120',
-		'gn-pc-msg-ratio': '2',
-		'gn-urdf-param': '/robot_state_publisher:robot_description'
+		'topic-tf': '/tf',
+		'topic-tf-static': '/tf_static',
+		'svc-loop-grasp-control': '/loop_grasp_control',
+		'svc-graspnet-capture': '/graspnet_capture_control',
+		'svc-publish-grasps-loop': '/publish_grasps_worker_loop_control',
+		'svc-gripper-swap': '/run_gripper_swap'
 	};
-	const TOPIC_STORAGE_KEY = 'ivg_vision_grasp_topics_v1';
+	/** v3：含 TF 与按钮服务名；v2 仅订阅话题 */
+	const TOPIC_STORAGE_KEY = 'ivg_vision_grasp_topics_v3';
 	const JOINT_CHART_MAX_SAMPLES = 280;
 	const JOINT_LINE_COLORS = ['#2563eb', '#16a34a', '#d97706', '#db2777', '#7c3aed', '#0d9488'];
 	/** @type {{ names: string[], series: number[][] }} */
 	let jointChartState = { names: [], series: [] };
 	let jointChartDrawRaf = null;
 	let jointChartResizeObs = null;
-	/** AI 模式：第二条 rosbridge WebSocket + ros3d 会话（与 ivg_transport 并行） */
-	let graspRos = null;
-	let graspRos3dSession = null;
 	let pageRealtimePaused = false;
+	/** AI/GraspNet：左图与投影底图用单帧 JPEG；抓取话题到达后防抖再各刷一帧，避免 MJPEG 卡顿 */
+	let graspColorSnapTimer = null;
+	const GRASP_COLOR_SNAP_DEBOUNCE_MS = 400;
 	/** 识别结果区：平移/缩放（底图与投影层同栈 transform，与 RViz 鼠标交互类比） */
 	const resultVizPanState = {
 		tx: 0,
@@ -70,12 +69,15 @@
 		tfEdges: Object.create(null),
 		drawRaf: null
 	};
-	/** 面板 DOM 稳定，缓存 id 查找；回调内避免重复 getElementById */
+	/** 面板 DOM 稳定，缓存 id 查找；回调内避免重复 getElementById（不缓存 null，避免早于 DOM 查询导致永久失败） */
 	const elCache = Object.create(null);
 	function $(id) {
-		if (Object.prototype.hasOwnProperty.call(elCache, id)) return elCache[id];
+		if (Object.prototype.hasOwnProperty.call(elCache, id)) {
+			const c = elCache[id];
+			if (c != null) return c;
+		}
 		const n = document.getElementById(id);
-		elCache[id] = n;
+		if (n != null) elCache[id] = n;
 		return n;
 	}
 
@@ -94,16 +96,12 @@
 		return `${prefix}_${PAGE_STREAM_SUFFIX}`;
 	}
 
-	function projectionPreferred() {
-		return !!(coarsePointerQuery && coarsePointerQuery.matches);
-	}
-
 	function normalizeFrameId(frame) {
 		return String(frame || '').trim().replace(/^\/+/, '');
 	}
 
 	function buildCameraInfoTopic(colorTopic) {
-		const t = normalizeIvgTopic(colorTopic || TOPIC_DEFAULTS['topic-color']);
+		const t = normalizeIvgTopic(colorTopic || SETTINGS_DEFAULTS['topic-color']);
 		if (!t) return '/camera/color/camera_info';
 		if (/\/camera_info$/.test(t)) return t;
 		if (/\/image(_raw|_color)?$/.test(t)) return t.replace(/\/image(_raw|_color)?$/, '/camera_info');
@@ -119,7 +117,7 @@
 		}
 		push(projectionState.cameraFrame);
 		push(cameraInfo && cameraInfo.header && cameraInfo.header.frame_id);
-		const t = normalizeIvgTopic(colorTopic || TOPIC_DEFAULTS['topic-color']);
+		const t = normalizeIvgTopic(colorTopic || SETTINGS_DEFAULTS['topic-color']);
 		const parts = t.split('/').filter(Boolean);
 		const cameraName = parts.length > 0 ? parts[0] : 'camera';
 		push(`${cameraName}_color_optical_frame`);
@@ -461,7 +459,7 @@
 	}
 
 	function drawProjectionOverlay() {
-		const active = $('mode-graspnet') && $('mode-graspnet').checked && projectionPreferred();
+		const active = $('mode-graspnet') && $('mode-graspnet').checked;
 		const resultImg = $('result-mjpeg');
 		if (!active || !resultImg || resultImg.hidden || !resultImg.getAttribute('src')) {
 			clearProjectionCanvas();
@@ -476,7 +474,7 @@
 		ctx.clearRect(0, 0, width, height);
 		const info = projectionState.cameraInfo;
 		const graspMsg = projectionState.graspMsg;
-		const colorTopic = ($('topic-color') && $('topic-color').value.trim()) || TOPIC_DEFAULTS['topic-color'];
+		const colorTopic = ($('topic-color') && $('topic-color').value.trim()) || SETTINGS_DEFAULTS['topic-color'];
 		const projectionFrames = buildProjectionFrameCandidates(colorTopic, info);
 		if (!info || projectionFrames.length === 0) {
 			clearProjectionCanvas();
@@ -539,80 +537,31 @@
 		});
 	}
 
+	/** 读 DOM 或回退默认；用于订阅话题、TF、服务名 */
+	function getSetting(id) {
+		return sanitizeTopicValue(id, $(id) ? $(id).value : '');
+	}
+
 	function sanitizeTopicValue(id, value) {
-		const raw = String(value == null ? '' : value).trim();
-		const fallback = TOPIC_DEFAULTS[id] !== undefined ? String(TOPIC_DEFAULTS[id]) : '';
-		if (!raw) return fallback;
+		const fallback =
+			SETTINGS_DEFAULTS[id] !== undefined ? String(SETTINGS_DEFAULTS[id]) : '';
+		let raw = String(value == null ? '' : value).trim();
 		if (id === 'topic-result') return raw;
-		if (id === 'topic-markers-graspnet') {
-			if (raw.indexOf('__ivg_disabled') !== -1) return fallback;
-			return normalizeIvgTopic(raw);
-		}
-		if (id === 'topic-pc-graspnet' || id === 'topic-color' || id === 'topic-robot' || id === 'topic-joints' || id === 'topic-vpe-status' || id === 'topic-grasp-poses') {
-			if (raw.indexOf('__ivg_disabled') !== -1) return fallback;
-			return normalizeIvgTopic(raw);
-		}
-		if (id === 'gn-urdf-param') {
-			if (raw.indexOf('__ivg_disabled') !== -1) return fallback;
-			// rosapi/get_param on this stack expects "<node_name>:<param_name>".
-			if (raw === 'robot_description' || raw === '/robot_description') return fallback;
-			if (raw.indexOf(':') === -1) return fallback;
-			return raw;
-		}
-		return raw;
+		if (!raw) raw = fallback.trim();
+		if (!raw) return '';
+		const isNamedTopicOrSvc =
+			id.startsWith('topic-') || id.startsWith('svc-');
+		if (!isNamedTopicOrSvc) return raw;
+		if (raw.indexOf('__ivg_disabled') !== -1) return fallback;
+		return normalizeIvgTopic(raw);
 	}
 
 	function sanitizeTopicConfig(obj) {
 		const out = {};
-		TOPIC_IDS.forEach(id => {
+		ALL_SETTING_IDS.forEach(id => {
 			out[id] = sanitizeTopicValue(id, obj && obj[id]);
 		});
 		return out;
-	}
-
-	/** ros3d 会话用：把 topics_lab 风格 id 映射到视觉面板上的表单 id */
-	const GN_ROS3D_DOM_MAP = {
-		'pc-topic': 'topic-pc-graspnet',
-		'marker3-topic': 'topic-markers-graspnet',
-		'scan3-topic': 'gn-scan3-stub',
-		'view3d-host': 'gn-ros3d-host',
-		'tf-fixed-frame': 'gn-tf-fixed-frame',
-		'pc-max': 'gn-pc-max',
-		'view3d-point-size': 'gn-view3d-point-size',
-		'pc-throttle-ms': 'gn-pc-throttle-ms',
-		'pc-msg-ratio': 'gn-pc-msg-ratio',
-		'view3d-show-axes': 'gn-view3d-show-axes',
-		'view3d-show-grid': 'gn-view3d-show-grid',
-		'view3d-show-urdf': 'gn-show-urdf',
-		'urdf-param': 'gn-urdf-param'
-	};
-
-	function gnRos3dDom$(id) {
-		const rid = GN_ROS3D_DOM_MAP[id] || id;
-		return document.getElementById(rid);
-	}
-
-	function stopGraspRos3d() {
-		if (graspRos3dSession) {
-			try {
-				graspRos3dSession.stop();
-			} catch (e) {
-				/* ignore */
-			}
-			graspRos3dSession = null;
-		}
-	}
-
-	function disconnectGraspRos() {
-		stopGraspRos3d();
-		if (graspRos) {
-			try {
-				graspRos.close();
-			} catch (e) {
-				/* ignore */
-			}
-			graspRos = null;
-		}
 	}
 
 	function pageShouldPauseRealtime() {
@@ -633,47 +582,6 @@
 		if (!pageRealtimePaused) return;
 		pageRealtimePaused = false;
 		connect();
-	}
-
-	function ensureGraspRosConnected() {
-		return new Promise((resolve, reject) => {
-			if (pageRealtimePaused || pageShouldPauseRealtime()) {
-				reject(new Error('页面处于后台，已暂停 AI 3D 连接'));
-				return;
-			}
-			if (graspRos && graspRos.isConnected) {
-				resolve(graspRos);
-				return;
-			}
-			if (typeof ROSLIB === 'undefined' || typeof ROSLIB.Ros !== 'function') {
-				reject(new Error('ROSLIB 未加载'));
-				return;
-			}
-			disconnectGraspRos();
-			const url = ivgPorts.rosbridgeWebSocketUrl();
-			const r = new ROSLIB.Ros();
-			const t = setTimeout(() => {
-				try {
-					r.close();
-				} catch (e1) {
-					/* ignore */
-				}
-				reject(new Error('rosbridge 连接超时'));
-			}, 20000);
-			r.on('connection', () => {
-				clearTimeout(t);
-				graspRos = r;
-				resolve(graspRos);
-			});
-			r.on('error', () => {
-				clearTimeout(t);
-				reject(new Error('rosbridge 连接错误'));
-			});
-			void r.connect(url).catch(() => {
-				clearTimeout(t);
-				reject(new Error('rosbridge connect() 失败'));
-			});
-		});
 	}
 
 	/**
@@ -698,13 +606,28 @@
 		return [];
 	}
 
-	/** RobotStatus：服务端 ivg_display 文本，浏览器仅 rAF 合并写 DOM */
-	let poseFlushRaf = null;
-	let pendingRobotMsg = null;
-
 	function fmtPoseNum(v, digits) {
 		const n = Number(v);
 		return isFinite(n) ? n.toFixed(digits == null ? 4 : digits) : '--';
+	}
+
+	/** 多来源取第一个有限数值（兼容 rosbridge JSON 与 cartesian_position / cartesian_position_xyz 差异） */
+	function numFirst(...vals) {
+		for (let i = 0; i < vals.length; i++) {
+			const n = Number(vals[i]);
+			if (isFinite(n)) return n;
+		}
+		return NaN;
+	}
+
+	/** 上一次成功渲染的末端位姿 HTML（静止或单帧缺字段时沿用，避免闪回「等待数据」） */
+	let lastRobotPoseCardHtml = '';
+
+	function robotPoseHtmlIsRenderable(html) {
+		return (
+			typeof html === 'string' &&
+			(html.indexOf('pose-card__body') !== -1 || html.indexOf('pose-card__body--ivg-text') !== -1)
+		);
 	}
 
 	function escapeHtml(value) {
@@ -714,6 +637,25 @@
 			.replace(/>/g, '&gt;')
 			.replace(/"/g, '&quot;')
 			.replace(/'/g, '&#39;');
+	}
+
+	/**
+	 * 兼容 IVG/网关将整条 RobotStatus 包在 msg.msg（或少数情况下 data）下的写法。
+	 * @param {*} raw
+	 * @returns {*}
+	 */
+	function normalizeRobotStatusJson(raw) {
+		if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw;
+		const hasFlat =
+			raw.cartesian_position != null ||
+			raw.cartesian_position_xyz != null ||
+			raw.cartesian_rpy != null ||
+			Array.isArray(raw.joint_position_deg) ||
+			Array.isArray(raw.joint_position_rad);
+		if (hasFlat) return raw;
+		const inner = raw.msg || raw.data;
+		if (inner && typeof inner === 'object' && !Array.isArray(inner)) return inner;
+		return raw;
 	}
 
 	function poseToRpyDeg(pose) {
@@ -776,30 +718,33 @@
 	}
 
 	function formatRobotPoseHtml(msg) {
+		msg = normalizeRobotStatusJson(msg);
 		if (!msg || typeof msg !== 'object') return '<div class="pose-card__empty">等待机械臂末端位姿数据...</div>';
+		const cp = msg.cartesian_position || {};
+		const cpos = cp.position || {};
 		const xyz = msg.cartesian_position_xyz || {};
-		const ori = (msg.cartesian_position && msg.cartesian_position.orientation) || {};
+		const x = numFirst(xyz.x, cpos.x);
+		const y = numFirst(xyz.y, cpos.y);
+		const z = numFirst(xyz.z, cpos.z);
+		const ori = cp.orientation || {};
+		const hasPos = [x, y, z].some(v => isFinite(v));
+		const hasOri = [ori.x, ori.y, ori.z, ori.w].some(v => isFinite(Number(v)));
 		const pose = {
-			position: {
-				x: xyz.x,
-				y: xyz.y,
-				z: xyz.z
-			},
+			position: { x, y, z },
 			orientation: {
-				x: ori.x,
-				y: ori.y,
-				z: ori.z,
-				w: ori.w
+				x: isFinite(Number(ori.x)) ? Number(ori.x) : 0,
+				y: isFinite(Number(ori.y)) ? Number(ori.y) : 0,
+				z: isFinite(Number(ori.z)) ? Number(ori.z) : 0,
+				w: isFinite(Number(ori.w)) ? Number(ori.w) : 1
 			}
 		};
 		const rpySrc = msg.cartesian_rpy || {};
-		const hasPose =
-			[pose.position.x, pose.position.y, pose.position.z, pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
-				.some(v => isFinite(Number(v)));
+		const hasPose = hasPos || hasOri;
 		if (!hasPose) {
-			return msg.ivg_display != null && String(msg.ivg_display).trim()
-				? `<div class="pose-card__empty">${escapeHtml(String(msg.ivg_display))}</div>`
-				: '<div class="pose-card__empty">等待机械臂末端位姿数据...</div>';
+			if (msg.ivg_display != null && String(msg.ivg_display).trim()) {
+				return `<div class="pose-card__body pose-card__body--ivg-text"><pre class="pose-card__ivg-pre">${escapeHtml(String(msg.ivg_display))}</pre></div>`;
+			}
+			return '<div class="pose-card__empty">等待机械臂末端位姿数据...</div>';
 		}
 		/* cartesian_rpy（Vector3）在 aubo_driver / demo_driver 中已为 roll/pitch/yaw 角度（度），勿再 *180/π */
 		const rr = Number(rpySrc.x);
@@ -820,35 +765,16 @@
 		return formatPoseBlockHtml(pose, null);
 	}
 
-	function cancelVisionVisualPending() {
-		pendingRobotMsg = null;
-		if (poseFlushRaf != null) {
-			cancelAnimationFrame(poseFlushRaf);
-			poseFlushRaf = null;
-		}
-	}
-
-	function scheduleRobotPoseFlush(poseTextEl) {
-		if (poseFlushRaf != null) return;
-		poseFlushRaf = requestAnimationFrame(() => {
-			poseFlushRaf = null;
-			const r = pendingRobotMsg;
-			pendingRobotMsg = null;
-			if (!r || !poseTextEl) return;
-			poseTextEl.innerHTML = formatRobotPoseHtml(r);
-		});
-	}
-
 	function applyTopicDefaultsToDom() {
-		TOPIC_IDS.forEach(id => {
+		ALL_SETTING_IDS.forEach(id => {
 			const el = $(id);
-			if (el && TOPIC_DEFAULTS[id] !== undefined) el.value = sanitizeTopicValue(id, TOPIC_DEFAULTS[id]);
+			if (el && SETTINGS_DEFAULTS[id] !== undefined) el.value = sanitizeTopicValue(id, SETTINGS_DEFAULTS[id]);
 		});
 	}
 
 	function readTopicsFromDom() {
 		const o = {};
-		TOPIC_IDS.forEach(id => {
+		ALL_SETTING_IDS.forEach(id => {
 			const el = $(id);
 			o[id] = sanitizeTopicValue(id, el ? el.value : '');
 		});
@@ -856,25 +782,29 @@
 	}
 
 	function loadTopicsFromStorage() {
-		try {
-			const raw = localStorage.getItem(TOPIC_STORAGE_KEY);
-			if (!raw) return false;
-			const o = sanitizeTopicConfig(JSON.parse(raw));
-			if (!o || typeof o !== 'object') return false;
-			const ok = TOPIC_IDS.every(id => {
-				if (typeof o[id] !== 'string') return false;
-				if (id === 'topic-result') return true;
-				return o[id].length > 0;
-			});
-			if (!ok) return false;
-			TOPIC_IDS.forEach(id => {
-				const el = $(id);
-				if (el) el.value = o[id];
-			});
-			return true;
-		} catch (e) {
-			return false;
+		const keys = [TOPIC_STORAGE_KEY, 'ivg_vision_grasp_topics_v2', 'ivg_vision_grasp_topics_v1'];
+		for (let k = 0; k < keys.length; k++) {
+			try {
+				const raw = localStorage.getItem(keys[k]);
+				if (!raw) continue;
+				const o = sanitizeTopicConfig(JSON.parse(raw));
+				if (!o || typeof o !== 'object') continue;
+				const ok = ALL_SETTING_IDS.every(id => {
+					if (typeof o[id] !== 'string') return false;
+					if (id === 'topic-result') return true;
+					return o[id].length > 0;
+				});
+				if (!ok) continue;
+				ALL_SETTING_IDS.forEach(id => {
+					const el = $(id);
+					if (el) el.value = o[id];
+				});
+				return true;
+			} catch (e) {
+				/* try next key */
+			}
 		}
+		return false;
 	}
 
 	function saveTopicsToStorage() {
@@ -963,28 +893,12 @@
 
 	function setResultPanelMode(mode) {
 		const gnMode = mode === 'graspnet';
-		const useProjection = gnMode && projectionPreferred();
 		const title = $('result-panel-title');
 		const workWrap = $('result-workpiece-wrap');
-		const gnWrap = $('gn-ros3d-wrap');
-		if (title) title.textContent = gnMode ? (useProjection ? 'AI 抓取位姿投影视图' : 'AI 实时 3D 结果') : '识别结果图像';
+		if (title) title.textContent = gnMode ? 'AI 抓取位姿投影视图' : '识别结果图像';
 		if (workWrap) {
-			if (gnMode && !useProjection) {
-				workWrap.setAttribute('hidden', '');
-				workWrap.setAttribute('aria-hidden', 'true');
-			} else {
-				workWrap.removeAttribute('hidden');
-				workWrap.setAttribute('aria-hidden', 'false');
-			}
-		}
-		if (gnWrap) {
-			if (gnMode && !useProjection) {
-				gnWrap.removeAttribute('hidden');
-				gnWrap.setAttribute('aria-hidden', 'false');
-			} else {
-				gnWrap.setAttribute('hidden', '');
-				gnWrap.setAttribute('aria-hidden', 'true');
-			}
+			workWrap.removeAttribute('hidden');
+			workWrap.setAttribute('aria-hidden', 'false');
 		}
 		scheduleProjectionDraw();
 	}
@@ -1259,9 +1173,53 @@
 		scheduleJointChartDraw();
 	}
 
+	function setAiColorSnapshotImg(img, url, colorTopic, streamIdForFallback) {
+		if (!img) return;
+		function fallback() {
+			if (!($('mode-graspnet') && $('mode-graspnet').checked)) return;
+			img.src = ivgTransport.cameraStreamUrl(colorTopic, streamIdForFallback);
+		}
+		img.addEventListener('error', fallback, { once: true });
+		img.src = url;
+	}
+
+	function refreshAiGraspnetColorImages(reason) {
+		const gnMode = !!($('mode-graspnet') && $('mode-graspnet').checked);
+		if (!gnMode) return;
+		const colorTopic = ($('topic-color') && $('topic-color').value.trim()) || SETTINGS_DEFAULTS['topic-color'];
+		const snapFn =
+			typeof ivgTransport.cameraSnapshotUrl === 'function'
+				? (topic, sid) => ivgTransport.cameraSnapshotUrl(topic, sid)
+				: (topic, sid) => ivgTransport.cameraStreamUrl(topic, sid);
+		const ts = Date.now();
+		const camMjpeg = $('cam-mjpeg');
+		const sidCam = `${buildPageStreamId('vision_color')}_${reason}_${ts}`;
+		const sidProj = `${buildPageStreamId('vision_projection')}_${reason}_${ts}`;
+		if (camMjpeg && !camMjpeg.hidden) {
+			setAiColorSnapshotImg(camMjpeg, snapFn(colorTopic, sidCam), colorTopic, buildPageStreamId('vision_color'));
+		}
+		const rMjpeg = $('result-mjpeg');
+		if (rMjpeg && !rMjpeg.hidden) {
+			setAiColorSnapshotImg(rMjpeg, snapFn(colorTopic, sidProj), colorTopic, buildPageStreamId('vision_projection'));
+		}
+	}
+
+	function scheduleGraspColorSnapshotRefresh() {
+		const gnMode = !!($('mode-graspnet') && $('mode-graspnet').checked);
+		if (!gnMode) return;
+		if (graspColorSnapTimer) clearTimeout(graspColorSnapTimer);
+		graspColorSnapTimer = setTimeout(() => {
+			graspColorSnapTimer = null;
+			refreshAiGraspnetColorImages('grasp');
+		}, GRASP_COLOR_SNAP_DEBOUNCE_MS);
+	}
+
 	function unsubscribeAll() {
-		cancelVisionVisualPending();
-		disconnectGraspRos();
+		if (graspColorSnapTimer) {
+			clearTimeout(graspColorSnapTimer);
+			graspColorSnapTimer = null;
+		}
+		lastRobotPoseCardHtml = '';
 		ivgTransport.clearRosHandlers();
 		ivgTransport.unsubscribeAll();
 		Object.keys(subs).forEach(k => {
@@ -1277,25 +1235,28 @@
 		unsubscribeAll();
 		if (!ivgTransport.isConnected() || pageRealtimePaused || pageShouldPauseRealtime()) return;
 
-		const colorTopic = ($('topic-color') && $('topic-color').value.trim()) || TOPIC_DEFAULTS['topic-color'];
-		const robotTopic = ($('topic-robot') && $('topic-robot').value.trim()) || TOPIC_DEFAULTS['topic-robot'];
-		const jointTopic = normalizeIvgTopic(
-			($('topic-joints') && $('topic-joints').value.trim()) || TOPIC_DEFAULTS['topic-joints']
-		);
-		const statusTopic = ($('topic-vpe-status') && $('topic-vpe-status').value.trim()) || TOPIC_DEFAULTS['topic-vpe-status'];
-		const graspTopic = ($('topic-grasp-poses') && $('topic-grasp-poses').value.trim()) || TOPIC_DEFAULTS['topic-grasp-poses'];
+		const colorTopic = ($('topic-color') && $('topic-color').value.trim()) || SETTINGS_DEFAULTS['topic-color'];
+		const robotTopic = normalizeIvgTopic(getSetting('topic-robot'));
+		const jointTopic = normalizeIvgTopic(getSetting('topic-joints'));
+		const statusTopic = getSetting('topic-vpe-status');
+		const graspTopic = normalizeIvgTopic(getSetting('topic-grasp-poses'));
+		const tfTopic = getSetting('topic-tf');
+		const tfStaticTopic = getSetting('topic-tf-static');
 		const cameraInfoTopic = buildCameraInfoTopic(colorTopic);
 		const resultTopic = $('topic-result') ? String($('topic-result').value || '').trim() : '';
 		const gnMode = !!($('mode-graspnet') && $('mode-graspnet').checked);
-		const projectionMode = gnMode && projectionPreferred();
+		const projectionMode = gnMode;
 
-		const poseTextEl = $('pose-text');
 		const canvas = $('cam-canvas');
 		const camMjpeg = $('cam-mjpeg');
 		if (canvas) canvas.hidden = true;
 		if (camMjpeg) {
 			camMjpeg.hidden = false;
-			camMjpeg.src = ivgTransport.cameraStreamUrl(colorTopic, buildPageStreamId('vision_color'));
+			if (!gnMode) {
+				camMjpeg.src = ivgTransport.cameraStreamUrl(colorTopic, buildPageStreamId('vision_color'));
+			} else {
+				camMjpeg.removeAttribute('src');
+			}
 		}
 		subs.color = true;
 
@@ -1305,13 +1266,10 @@
 			setResultPanelMode('graspnet');
 			if (rMjpeg) {
 				rMjpeg.hidden = !projectionMode;
-				if (projectionMode) {
-					rMjpeg.src = ivgTransport.cameraStreamUrl(colorTopic, buildPageStreamId('vision_projection'));
-				} else {
-					rMjpeg.removeAttribute('src');
-				}
+				rMjpeg.removeAttribute('src');
 			}
 			subs.result = null;
+			refreshAiGraspnetColorImages('init');
 		} else if (!underlayTopic) {
 			setResultPanelMode('workpiece');
 			if (rMjpeg) {
@@ -1328,11 +1286,32 @@
 			subs.result = true;
 		}
 
+		{
+			const elPose = $('pose-text');
+			if (elPose && robotTopic) {
+				elPose.innerHTML = `<div class="pose-card__empty">已订阅 ${escapeHtml(robotTopic)}，等待 RobotStatus…（若持续无数值请检查驱动发布与话题名）</div>`;
+			}
+		}
 		ivgTransport.onRosJson(robotTopic, m => {
-			pendingRobotMsg = m;
-			scheduleRobotPoseFlush(poseTextEl);
+			const el = $('pose-text');
+			if (!el) return;
+			let html;
+			try {
+				html = formatRobotPoseHtml(m);
+			} catch (err) {
+				html = `<div class="pose-card__empty">末端位姿解析异常：${escapeHtml(err && err.message ? String(err.message) : String(err))}</div>`;
+			}
+			if (robotPoseHtmlIsRenderable(html)) {
+				lastRobotPoseCardHtml = html;
+				el.innerHTML = html;
+			} else if (lastRobotPoseCardHtml) {
+				el.innerHTML = lastRobotPoseCardHtml;
+			} else {
+				el.innerHTML = html;
+			}
 		});
-		ivgTransport.subscribe({ topic: robotTopic, msgType: 'demo_interface/msg/RobotStatus', maxHz: 20 });
+		/* 与关节曲线同量级 Hz：长连接下持续刷新末端位姿（桥侧仍可能按 QoS/负载限流） */
+		ivgTransport.subscribe({ topic: robotTopic, msgType: 'demo_interface/msg/RobotStatus', maxHz: 50 });
 		subs.robot = true;
 
 		ivgTransport.onRosJson(jointTopic, m => {
@@ -1356,6 +1335,7 @@
 			if (el) el.innerHTML = formatFinalGraspPoseHtml(m);
 			projectionState.graspMsg = m || null;
 			scheduleProjectionDraw();
+			scheduleGraspColorSnapshotRefresh();
 		});
 		ivgTransport.subscribe({ topic: graspTopic, msgType: 'geometry_msgs/msg/PoseArray', maxHz: 15 });
 		subs.grasp = true;
@@ -1382,38 +1362,12 @@
 			}
 			scheduleProjectionDraw();
 		}
-		ivgTransport.onRosJson('/tf', handleTfMessage);
-		ivgTransport.onRosJson('/tf_static', handleTfMessage);
-		ivgTransport.subscribe({ topic: '/tf', msgType: 'tf2_msgs/msg/TFMessage', maxHz: 30 });
-		ivgTransport.subscribe({ topic: '/tf_static', msgType: 'tf2_msgs/msg/TFMessage', maxHz: 1 });
+		ivgTransport.onRosJson(tfTopic, handleTfMessage);
+		ivgTransport.onRosJson(tfStaticTopic, handleTfMessage);
+		ivgTransport.subscribe({ topic: tfTopic, msgType: 'tf2_msgs/msg/TFMessage', maxHz: 30 });
+		ivgTransport.subscribe({ topic: tfStaticTopic, msgType: 'tf2_msgs/msg/TFMessage', maxHz: 1 });
 		subs.tf = true;
 
-		/*
-		 * AI 模式：旧识别结果图实现已移除，结果区直接切到独立的实时 3D 面板。
-		 * 该面板由第二条 rosbridge 连接驱动，优先显示点云，再逐步叠加 Marker / URDF。
-		 */
-		if (gnMode && !projectionMode && typeof IvgRos3dView3dSession === 'function') {
-			const wrap = $('gn-ros3d-wrap');
-			const hostEl = $('gn-ros3d-host');
-			if (wrap && hostEl) {
-				void ensureGraspRosConnected()
-					.then(() => {
-						stopGraspRos3d();
-						graspRos3dSession = new IvgRos3dView3dSession(graspRos, gnRos3dDom$, {
-							viewerInnerId: 'gn-view3d-inner',
-							viewerHeight: null
-						});
-						graspRos3dSession.start();
-					})
-					.catch(err => {
-						console.warn('[ivg] AI 模式 ros3d:', err);
-						const logEl = $('svc-log');
-						if (logEl) {
-							logEl.textContent = `${new Date().toLocaleTimeString()} AI 3D：rosbridge 未连 — ${err && err.message ? err.message : String(err)}`;
-						}
-					});
-			}
-		}
 		if (projectionMode) scheduleProjectionDraw();
 	}
 
@@ -1455,16 +1409,16 @@
 		const oid = ($('object-id') && $('object-id').value.trim()) || '';
 		ivgTransport
 			.callService({
-				service: '/execute_single_grasp',
+				service: SVC_EXECUTE_SINGLE_GRASP,
 				type: 'demo_interface/srv/ExecuteGraspPose',
 				request: { object_id: oid, use_visual_estimation: !!useVisual }
 			})
 			.then(r => {
-				logSvc(`/execute_single_grasp → success=${r.success} ${r.message || ''}`);
+				logSvc(`${SVC_EXECUTE_SINGLE_GRASP} → success=${r.success} ${r.message || ''}`);
 				if (typeof done === 'function') done(null, r);
 			})
 			.catch(e => {
-				logSvc(`/execute_single_grasp 错误: ${e}`);
+				logSvc(`${SVC_EXECUTE_SINGLE_GRASP} 错误: ${e}`);
 				if (typeof done === 'function') done(e);
 			});
 	}
@@ -1476,15 +1430,15 @@
 		}
 		ivgTransport
 			.callService({
-				service: '/run_gripper_swap',
+				service: getSetting('svc-gripper-swap'),
 				type: 'demo_interface/srv/RunGripperSwap',
-				request: { direction: direction || 'gripper2' }
+				request: { direction: direction || 'gripper0_to_gripper2' }
 			})
 			.then(r => {
-				logSvc(`/run_gripper_swap → success=${r.success} ${r.message || ''}`);
+				logSvc(`${getSetting('svc-gripper-swap')} → success=${r.success} ${r.message || ''}`);
 			})
 			.catch(e => {
-				logSvc(`/run_gripper_swap 错误: ${e}`);
+				logSvc(`${getSetting('svc-gripper-swap')} 错误: ${e}`);
 			});
 	}
 
@@ -1597,13 +1551,6 @@
 			if (resultImg) {
 				resultImg.addEventListener('load', scheduleProjectionDraw);
 			}
-			if (coarsePointerQuery && typeof coarsePointerQuery.addEventListener === 'function') {
-				coarsePointerQuery.addEventListener('change', () => {
-					syncModeUi();
-					scheduleProjectionDraw();
-				});
-			}
-
 			document.addEventListener('visibilitychange', () => {
 				if (pageShouldPauseRealtime()) suspendRealtimeForBackground();
 				else resumeRealtimeFromForeground();
@@ -1621,33 +1568,38 @@
 				callExecuteGrasp(useVisualFromMode());
 			};
 			$('btn-wp-single-stop').onclick = () => {
-				callSetBool('/loop_grasp_control', false);
+				callSetBool(getSetting('svc-loop-grasp-control'), false);
 				logSvc('已停止');
 			};
 			$('btn-wp-loop-start').onclick = () => {
 				if (useVisualFromMode()) {
-					callSetBool('/loop_grasp_control', true);
+					callSetBool(getSetting('svc-loop-grasp-control'), true);
 					logSvc('循环：后端视觉');
 				} else {
-					callSetBool('/loop_grasp_control', false, err => {
+					callSetBool(getSetting('svc-loop-grasp-control'), false, err => {
 						if (err) return;
 						logSvc('非视觉循环应由 ROS/后端调度；浏览器不再轮询 execute_single_grasp');
 					});
 				}
 			};
 			$('btn-wp-loop-stop').onclick = () => {
-				callSetBool('/loop_grasp_control', false);
+				callSetBool(getSetting('svc-loop-grasp-control'), false);
 				logSvc('停循环');
 			};
 
-			// --- AI大模型抓取（原点云管线）节点默认服务名（launch 若改 remap 需同步改此常量或扩展 UI）---
-			$('btn-gn-cap-start').onclick = () => { callSetBool('/graspnet_capture_control', true); };
-			$('btn-gn-cap-stop').onclick = () => { callSetBool('/graspnet_capture_control', false); };
-			$('btn-gn-loop-start').onclick = () => { callSetBool('/publish_grasps_worker_loop_control', true); };
-			$('btn-gn-loop-stop').onclick = () => { callSetBool('/publish_grasps_worker_loop_control', false); };
-			if ($('btn-gn-exec-once')) {
-				$('btn-gn-exec-once').onclick = () => { callExecuteGrasp(false); };
-			}
+			// --- AI 大模型抓取：服务名见「订阅话题设置」---
+			$('btn-gn-cap-start').onclick = () => {
+				callSetBool(getSetting('svc-graspnet-capture'), true);
+			};
+			$('btn-gn-cap-stop').onclick = () => {
+				callSetBool(getSetting('svc-graspnet-capture'), false);
+			};
+			$('btn-gn-loop-start').onclick = () => {
+				callSetBool(getSetting('svc-publish-grasps-loop'), true);
+			};
+			$('btn-gn-loop-stop').onclick = () => {
+				callSetBool(getSetting('svc-publish-grasps-loop'), false);
+			};
 
 			if ($('btn-quick-swap-0')) {
 				$('btn-quick-swap-0').onclick = () => {
@@ -1655,7 +1607,7 @@
 				};
 			}
 			$('btn-quick-swap').onclick = () => {
-				callGripperSwap('gripper2');
+				callGripperSwap('gripper0_to_gripper2');
 			};
 
 			const btnOpen = $('btn-topic-settings-open');

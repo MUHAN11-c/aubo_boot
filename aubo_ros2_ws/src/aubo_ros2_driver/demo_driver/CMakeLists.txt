@@ -116,43 +116,6 @@ ament_target_dependencies(set_robot_pose_server_node
   moveit_ros_planning_interface
 )
 
-# movel_server 源文件不存在时注释
-# add_executable(movel_server_node src/movel_server.cpp)
-# ament_target_dependencies(movel_server_node
-#   rclcpp
-#   geometry_msgs
-#   demo_interface
-#   tf2_geometry_msgs
-#   moveit_msgs
-#   moveit_core
-#   moveit_ros_planning_interface
-#   moveit_ros_planning
-# )
-
-# MoveIt C++ 教程测试节点（MoveItCpp + PlanningComponent，适配 Aubo）
-# moveit_cpp_tutorial 源文件不存在时注释
-# add_executable(moveit_cpp_tutorial_node src/moveit_cpp_tutorial.cpp)
-# ament_target_dependencies(moveit_cpp_tutorial_node
-#   rclcpp
-#   geometry_msgs
-#   moveit_core
-#   moveit_ros_planning_interface
-#   moveit_ros_planning
-#   moveit_msgs
-#   moveit_visual_tools
-# )
-
-# Aubo 三角形笛卡尔 demo（复刻 xarm moveit_beeline_demo，与 graspnet_demo.launch.py 配合）
-# 注：moveit_beeline_demo.cpp 不存在时注释掉
-# add_executable(moveit_beeline_demo_node src/moveit_beeline_demo.cpp)
-# ament_target_dependencies(moveit_beeline_demo_node
-#   rclcpp
-#   geometry_msgs
-#   moveit_msgs
-#   moveit_core
-#   moveit_ros_planning_interface
-# )
-
 # Aubo 夹爪快换 worker（提供 run_gripper_swap 服务，夹爪 IO 控制 + 更换夹爪）
 add_executable(gripper_swap_worker_node
   src/moveit_gripper_io_base.cpp
@@ -166,6 +129,7 @@ ament_target_dependencies(gripper_swap_worker_node
   moveit_msgs
   moveit_core
   moveit_ros_planning_interface
+  tf2
 )
 
 # GraspNet 抓取放置 worker（订阅 grasp_poses_base，循环抓取→放置→回安全位；运动逻辑自包含）
@@ -173,6 +137,22 @@ add_executable(publish_grasps_client_worker_node
   src/publish_grasps_client_worker.cpp
 )
 ament_target_dependencies(publish_grasps_client_worker_node
+  rclcpp
+  geometry_msgs
+  std_msgs
+  std_srvs
+  demo_interface
+  aubo_msgs
+  moveit_msgs
+  moveit_core
+  moveit_ros_planning_interface
+)
+
+# GraspNet 抓取放置 worker（A/B 交替识别与放置，与 publish_grasps_client_worker_node 独立）
+add_executable(publish_grasps_AB
+  src/publish_grasps_AB.cpp
+)
+ament_target_dependencies(publish_grasps_AB
   rclcpp
   geometry_msgs
   std_msgs
@@ -202,47 +182,6 @@ ament_target_dependencies(execute_grasp_pose_worker_node
   moveit_ros_planning_interface
 )
 
-# MTC Action：抓取放置任务（源码缺失时勿启用，否则 symlink-install / 编译失败）
-# add_executable(mtc_grasp_place_action_server_node
-#   src/mtc_grasp_place_action_server.cpp
-# )
-# ament_target_dependencies(mtc_grasp_place_action_server_node
-#   rclcpp
-#   rclcpp_action
-#   geometry_msgs
-#   std_srvs
-#   demo_interface
-#   aubo_msgs
-#   moveit_core
-#   moveit_msgs
-#   moveit_ros_planning_interface
-#   moveit_visual_tools
-#   moveit_task_constructor_core
-#   moveit_task_constructor_msgs
-# )
-
-# Note: The following executables are commented out because source files don't exist yet
-# add_executable(set_robot_enable_server_node src/set_robot_enable_server.cpp)
-# ament_target_dependencies(set_robot_enable_server_node
-#   rclcpp
-#   std_msgs
-#   demo_interface
-# )
-
-# add_executable(set_robot_io_server_node src/set_robot_io_server.cpp)
-# ament_target_dependencies(set_robot_io_server_node
-#   rclcpp
-#   demo_interface
-#   aubo_msgs
-# )
-
-# add_executable(read_robot_io_server_node src/read_robot_io_server.cpp)
-# ament_target_dependencies(read_robot_io_server_node
-#   rclcpp
-#   demo_interface
-#   aubo_msgs
-# )
-
 # Install targets
 install(TARGETS
   robot_status_publisher_node
@@ -256,10 +195,7 @@ install(TARGETS
   gripper_swap_worker_node
   publish_grasps_client_worker_node
   execute_grasp_pose_worker_node
-  # mtc_grasp_place_action_server_node
-  # set_robot_enable_server_node
-  # set_robot_io_server_node
-  # read_robot_io_server_node
+  publish_grasps_AB
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -40,7 +40,7 @@ struct CartesianSegment
  * @brief GraspNet 抓取放置 Worker 节点（独立 rclcpp::Node，不继承 MoveitGripperIoBase）
  *
  * 【对外】run / runOneCycle、窗口与采集控制、关机钩子；实现见 publish_grasps_client_worker.cpp 分部注释。
- * 【流程】滑窗选优 → tip→EEF → MoveIt（关节/命名位姿/笛卡尔）→ 夹爪 IO → 放置 → 回 camera_pose。
+ * 【流程】滑窗选优 → tip→EEF → MoveIt（关节/命名位姿/笛卡尔）→ 夹爪 IO → B 点放置 → 回 A 点安全位（SRDF camera_pose）。
  *
  * 订阅 grasp_poses_base（PoseArray）；循环由 loop_control(SetBool) 或 auto_start_loop 驱动。
  */
@@ -88,7 +88,7 @@ public:
   /** 对 end_effector 目标位姿执行抓取接近（4 点笛卡尔） */
   bool runGraspMotion(const geometry_msgs::msg::Pose& target_pose);
 
-  /** 优雅退出：回安全位、开夹爪 */
+  /** 优雅退出：回 A 点安全位、开夹爪 */
   void onShutdown();
 
   /** 请求退出：SIGINT 时调用，设置 shutdown_requested_ 使主循环尽快退出 */
@@ -121,12 +121,18 @@ private:
 
   void initMoveGroup();
   bool setGripperIo(int32_t io_index, bool high);
+  /** 移动到安全位 A 点（命名目标 camera_pose） */
   bool moveToHome(float velocity_factor, float acceleration_factor);
+  /** 步骤 9：关节空间运动至放置 B 点（固定 6 轴角，与 manipulator 关节顺序一致） */
+  bool moveToPlacePointB(float velocity_factor, float acceleration_factor);
   bool runArcPath(char axis, double offset, float velocity_factor, float acceleration_factor);
   bool runArcPathSequence(const std::vector<CartesianSegment>& segments, float velocity_factor,
                           float acceleration_factor);
 
   void graspPosesCallback(geometry_msgs::msg::PoseArray::ConstSharedPtr msg);
+
+  /** 打印当前末端位姿与规划组关节（rad/deg）；MoveIt 未就绪或无 eef 时静默返回 */
+  void logCurrentEefPoseAndJoints(const char* stage_label);
 
   /**
    * 发布周期状态到 status_topic（JSON 格式）

@@ -118,6 +118,7 @@ demo_driver/
 ├── include/demo_driver/          # 头文件
 │   ├── moveit_gripper_io_base.h  # 基类：MoveIt + 夹爪 IO
 │   ├── publish_grasps_client_worker.h
+│   ├── publish_grasps_AB.h
 │   ├── gripper_swap_worker.h
 │   ├── set_robot_pose_server.h
 │   └── ...
@@ -150,6 +151,7 @@ demo_driver/
 | set_robot_pose_server | set_robot_pose_server_node | 设置机器人位姿服务（欧拉角/关节空间） |
 | gripper_swap_worker | gripper_swap_worker_node | 夹爪快换（gripper0 ↔ gripper2） |
 | publish_grasps_client_worker | publish_grasps_client_worker_node | GraspNet 循环抓取放置 |
+| publish_grasps_AB | publish_grasps_AB | A/B 工位交替抓取；与上节点独立（默认循环服务 `/publish_grasps_AB_loop_control`，状态 `grasp_place_status_ab`，最终位姿 `/ivg_worker_final_grasp_poses`） |
 
 ### 已禁用节点（CMakeLists 中注释）
 
@@ -372,7 +374,7 @@ ros2 service call /run_gripper_swap demo_interface/srv/RunGripperSwap "{directio
 | grasp_poses_topic | string | grasp_poses_base | 抓取位姿话题 |
 | grasp_capture_service_name | string | /graspnet_capture_control | 感知采集控制服务名 |
 | grasp_capture_service_timeout_sec | double | 2.0 | 采集控制服务超时 (s) |
-| wait_poses_timeout_sec | double | 30.0 | 等待窗口就绪超时 (s) |
+| wait_poses_timeout_sec | double | 5.0 | 等待窗口就绪超时 (s) |
 | grasp_window_size | int | 5 | 滑动窗口大小 |
 | min_groups_before_pick | int | 3 | 至少 M 组后再选优 |
 | gripper_io_index | int | 6 | Aubo 夹爪 IO pin 号 |

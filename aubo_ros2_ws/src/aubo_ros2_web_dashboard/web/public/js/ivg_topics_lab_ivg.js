@@ -123,12 +123,6 @@
 		if (pc) pc.value = '/camera/depth_registered/points';
 	}
 
-	function ivg3dPointsWebPreset() {
-		switchTab('view3d');
-		const pc = $('pc-topic');
-		if (pc) pc.value = '/camera/depth_registered/points_web';
-	}
-
 	function ivg3dClearPreset() {
 		const pc = $('pc-topic');
 		if (pc) pc.value = '';
@@ -167,11 +161,9 @@
 			if (k === 'topics-color') ivgSubscribeFixed('/camera/color/image_raw', 'sensor_msgs/msg/Image');
 			else if (k === 'topics-depth') ivgSubscribeFixed('/camera/depth/image_raw', 'sensor_msgs/msg/Image');
 			else if (k === 'topics-points') ivgSubscribeFixed('/camera/depth_registered/points', 'sensor_msgs/msg/PointCloud2');
-			else if (k === 'topics-points-web') ivgSubscribeFixed('/camera/depth_registered/points_web', 'sensor_msgs/msg/PointCloud2');
 			else if (k === 'topics-markers') ivgTrySubscribeMarkers();
 			else if (k === 'topics-poses') ivgSubscribeFixed('/grasp_poses_base', 'geometry_msgs/msg/PoseArray');
 			else if (k === '3d-points') ivg3dPointsPreset();
-			else if (k === '3d-points-web') ivg3dPointsWebPreset();
 			else if (k === '3d-clear') ivg3dClearPreset();
 			else if (k === 'svc-list-templates') ivgPresetService('/list_templates', 'interface/srv/ListTemplates', '{"workpiece_id": ""}');
 			else if (k === 'svc-graspnet-on') ivgPresetService('/graspnet_capture_control', 'std_srvs/srv/SetBool', '{"data": true}');
@@ -186,7 +178,7 @@
 					'demo_interface/srv/ExecuteGraspPose',
 					'{\n  "object_id": "填写工件ID",\n  "use_visual_estimation": true\n}'
 				);
-			} else if (k === 'svc-gripper2') ivgPresetService('/run_gripper_swap', 'demo_interface/srv/RunGripperSwap', '{"direction": "gripper2"}');
+			} else if (k === 'svc-gripper2') ivgPresetService('/run_gripper_swap', 'demo_interface/srv/RunGripperSwap', '{"direction": "gripper0_to_gripper2"}');
 			else if (k === 'svc-standardize') ivgPresetService('/standardize_template', 'interface/srv/StandardizeTemplate', '{"workpiece_id": ""}');
 			else if (k === 'svc-estimate-hint') {
 				switchTab('services');

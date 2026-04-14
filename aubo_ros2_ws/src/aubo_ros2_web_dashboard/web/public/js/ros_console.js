@@ -57,7 +57,6 @@
 		'/camera/color/image_raw',
 		'/camera/depth/image_raw',
 		'/camera/depth_registered/points',
-		'/camera/depth_registered/points_web',
 		'/grasp_markers',
 		'/grasp_poses_base',
 		'/system_status',
@@ -117,12 +116,6 @@
 		$('scan3-topic').value = '';
 	}
 
-	function ivg3dPointsWebPreset() {
-		switchTab('view3d');
-		$('pc-topic').value = '/camera/depth_registered/points_web';
-		$('scan3-topic').value = '';
-	}
-
 	function ivg3dClearPreset() {
 		$('pc-topic').value = '';
 		$('scan3-topic').value = '';
@@ -168,12 +161,9 @@
 			if (k === 'topics-color') ivgSubscribeFixed('/camera/color/image_raw', 'sensor_msgs/msg/Image');
 			else if (k === 'topics-depth') ivgSubscribeFixed('/camera/depth/image_raw', 'sensor_msgs/msg/Image');
 			else if (k === 'topics-points') ivgSubscribeFixed('/camera/depth_registered/points', 'sensor_msgs/msg/PointCloud2');
-			else if (k === 'topics-points-web') {
-				ivgSubscribeFixed('/camera/depth_registered/points_web', 'sensor_msgs/msg/PointCloud2');
-			} else if (k === 'topics-markers') ivgTrySubscribeMarkers();
+			else if (k === 'topics-markers') ivgTrySubscribeMarkers();
 			else if (k === 'topics-poses') ivgSubscribeFixed('/grasp_poses_base', 'geometry_msgs/msg/PoseArray');
 			else if (k === '3d-points') ivg3dPointsPreset();
-			else if (k === '3d-points-web') ivg3dPointsWebPreset();
 			else if (k === '3d-clear') ivg3dClearPreset();
 			else if (k === 'svc-list-templates') {
 				ivgPresetService('/list_templates', 'interface/srv/ListTemplates', '{"workpiece_id": ""}');
@@ -196,7 +186,7 @@
 					'{\n  "object_id": "填写工件ID",\n  "use_visual_estimation": true\n}'
 				);
 			} else if (k === 'svc-gripper2') {
-				ivgPresetService('/run_gripper_swap', 'demo_interface/srv/RunGripperSwap', '{"direction": "gripper2"}');
+				ivgPresetService('/run_gripper_swap', 'demo_interface/srv/RunGripperSwap', '{"direction": "gripper0_to_gripper2"}');
 			} else if (k === 'svc-standardize') {
 				ivgPresetService('/standardize_template', 'interface/srv/StandardizeTemplate', '{"workpiece_id": ""}');
 			} else if (k === 'svc-estimate-hint') {

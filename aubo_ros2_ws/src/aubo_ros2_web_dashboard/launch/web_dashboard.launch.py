@@ -108,8 +108,8 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'pointcloud_web_max_points',
-                default_value='24000',
-                description='瘦点云桥接：单帧最多点数',
+                default_value='32000',
+                description='瘦点云桥接：单帧最多点数（均匀覆盖整幅；过大则 rosbridge/浏览器压力升高）',
             ),
             IncludeLaunchDescription(
                 FrontendLaunchDescriptionSource(rosbridge_xml),

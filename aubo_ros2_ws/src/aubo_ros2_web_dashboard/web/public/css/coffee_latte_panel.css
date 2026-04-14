@@ -117,3 +117,49 @@ body.ivg-single-screen .layout-col--main .panel--chart > .panel-canvas-wrap {
 	align-items: center;
 	justify-content: center;
 }
+
+@media (max-width: 640px) {
+	.coffee-latte-panel .topbar {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.5rem;
+	}
+
+	.coffee-latte-panel .topbar .spacer {
+		display: none;
+	}
+
+	.toolbar-latte-hint {
+		max-width: none;
+		line-height: 1.45;
+	}
+}
+
+/* iPad 10 等横屏：顶栏更扁；单屏主区与视觉页一致少留白（不改用 cover，避免拉花画布被裁切） */
+@media (orientation: landscape) and (min-width: 1024px) and (max-width: 1366px) and (hover: none) and (pointer: coarse) {
+	.coffee-latte-panel .topbar {
+		padding-top: 0.36rem;
+		padding-bottom: 0.36rem;
+		padding-left: max(0.35rem, env(safe-area-inset-left, 0px));
+		padding-right: max(0.35rem, env(safe-area-inset-right, 0px));
+	}
+
+	body.coffee-latte-panel.ivg-single-screen .wrap {
+		padding-left: max(0.22rem, env(safe-area-inset-left, 0px));
+		padding-right: max(0.22rem, env(safe-area-inset-right, 0px));
+		gap: 0.22rem;
+	}
+
+	body.coffee-latte-panel.ivg-single-screen .layout-camera-controls .panel--camera-hero,
+	body.coffee-latte-panel.ivg-single-screen .layout-camera-controls .panel--camera-result,
+	body.coffee-latte-panel.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 {
+		justify-self: stretch;
+		max-width: 100%;
+		width: 100%;
+	}
+
+	body.coffee-latte-panel.ivg-single-screen .layout-camera-controls .panel--camera-hero .panel-canvas-wrap,
+	body.coffee-latte-panel.ivg-single-screen .layout-camera-controls .panel--camera-result .panel-canvas-wrap {
+		max-width: 100%;
+	}
+}

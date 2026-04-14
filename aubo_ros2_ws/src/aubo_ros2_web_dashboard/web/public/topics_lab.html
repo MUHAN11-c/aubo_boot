@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- IVG 控制台：ivg_topics_lab_ivg.js + ivg_transport（无 roslib/rosapi） -->
+<!-- IVG 控制台：ivg_transport（话题/服务）+ roslib@2/ros3d（3D 点云，与官方 pointcloud2 示例一致） -->
 <html lang="zh-CN">
 
 <head>
@@ -9,25 +9,36 @@
 	<link rel="stylesheet" href="css/topics_lab.css" />
 	<link rel="stylesheet" href="css/ivg_site_nav.css" />
 	<script src="js/ivg_transport.js"></script>
-	<script src="js/vendor/three.min.js"></script>
 	<script src="js/ivg_runtime.js"></script>
+	<script src="js/vendor/eventemitter2.js"></script>
+	<script src="js/vendor/roslib-2.iife.js"></script>
+	<script src="js/vendor/easeljs.min.js"></script>
+	<script src="js/vendor/three.min.js"></script>
+	<script src="js/vendor/ros3d.min.js"></script>
+	<script src="js/ivg_ros3d_view3d.js"></script>
 </head>
 
 <body>
 	<nav class="ivg-global-nav" aria-label="灵视IVG 站内导航" data-ivg-page="console">
 		<div class="ivg-global-nav__inner">
-			<a class="ivg-global-nav__brand" href="index.html">灵视 <span>IVG</span></a>
-			<ul class="ivg-global-nav__list" role="list">
-				<li><a class="ivg-global-nav__link" href="index.html" data-ivg-nav="index">门户</a></li>
-				<li><a class="ivg-global-nav__link" href="vision_grasp_panel.html" data-ivg-nav="vision">视觉抓取</a></li>
-				<li><a class="ivg-global-nav__link" href="coffee_latte_panel.html" data-ivg-nav="latte">咖啡拉花</a></li>
-			</ul>
+			<div class="ivg-global-nav__start">
+				<a class="ivg-global-nav__brand" href="index.html">灵视 <span>IVG</span></a>
+				<ul class="ivg-global-nav__list" role="list">
+					<li><a class="ivg-global-nav__link" href="index.html" data-ivg-nav="index">门户</a></li>
+					<li><a class="ivg-global-nav__link" href="vision_grasp_panel.html" data-ivg-nav="vision">视觉抓取</a></li>
+					<li hidden><a class="ivg-global-nav__link" href="coffee_latte_panel.html" data-ivg-nav="latte">咖啡拉花</a></li>
+				</ul>
+			</div>
+			<div class="ivg-global-nav__actions">
+				<button type="button" class="ivg-global-nav__fs-btn" id="ivg-nav-fullscreen-btn" aria-pressed="false"
+					aria-label="进入全屏" title="全屏显示页面（iPad：若无效请用 Safari 添加到主屏幕）">全屏</button>
+			</div>
 		</div>
 	</nav>
 	<nav class="topnav" aria-label="工具栏与连接">
 		<div class="topnav-start">
 			<span class="topnav-title">数据与监控</span>
-			<span class="topnav-sub">IVG 网关：<code class="topnav-code">/ws/ivg/control</code> + <code>/api/v1/camera/stream</code></span>
+			<span class="topnav-sub">IVG：<code class="topnav-code">/ws/rosbridge</code>（3D 点云 ros3d）+ 控制面 <code>ivg_transport</code>；相机 <code>/api/v1/camera/stream</code></span>
 		</div>
 		<span class="topnav-spacer" aria-hidden="true"></span>
 		<div class="topnav-actions">
@@ -186,7 +197,11 @@
 				<div id="view2d-host" class="view2d-host"></div>
 			</main>
 			<main id="main-view3d" class="main-stack hidden">
-				<p class="hint"><strong>IVG 网关</strong>：本页 3D 点云由 <code>/ws/ivg/binary</code> 下发浏览器二进制（<code>VPC\x01</code>），经 three.js 绘制；彩色图请用 <code>/api/v1/camera/stream</code>（MJPEG）。TF 不在浏览器内流式同步：可用顶部 <strong>TF 摘要</strong> 向桥请求整树 YAML（<code>tf_snapshot</code>），或后续扩展 <code>tf_lookup</code>。旧版 rosbridge + roslib + tf2_web_republisher 流程已不用于本栈。</p>
+				<p class="hint">3D 与 <a href="https://github.com/RobotWebTools/ros3djs/blob/develop/examples/pointcloud2.html"
+						target="_blank" rel="noopener">ros3djs pointcloud2</a> 一致：<code>ROSLIB.Ros</code> → 同源
+					<code>/ws/rosbridge</code>，<code>ROS2TFClient</code> + <code>ROS3D.PointCloud2</code>（CBOR）。需
+					<code>tf2_web_republisher</code>。大点云请订阅 <code>…/points_web</code> 并调「最大点数」/节流。彩色图用 MJPEG。
+				</p>
 				<div class="controls row-form">
 					<label>TF 固定坐标系 <input type="text" id="tf-fixed-frame" value="base_link"
 							placeholder="与 RViz 一致，如 base_link" title="供后续 tf_lookup 等扩展；当前 TF 摘要为整树" /></label>
@@ -194,7 +209,7 @@
 					<label>雷达话题 <input type="text" id="scan3-topic" value="" placeholder="可选" /></label>
 					<label>Marker 话题 <input type="text" id="marker3-topic" value=""
 							placeholder="如 /visualization_marker 或留空" title="预留；IVG 当前以 JSON 订阅 visualization_msgs/MarkerArray 等" /></label>
-					<label>最大点数 <input type="number" id="pc-max" value="12000" min="1000" max="500000" step="1000"
+					<label>最大点数 <input type="number" id="pc-max" value="32000" min="1000" max="500000" step="1000"
 							title="每帧绘制的点数上限（均匀抽样）；调低可明显减轻卡顿" /></label>
 					<label>点云节流 ms <input type="number" id="pc-throttle-ms" value="120" min="0" max="2000" step="20"
 							title="预留；桥侧 max_hz / 抽样由订阅参数控制" /></label>

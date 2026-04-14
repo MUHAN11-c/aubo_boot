@@ -13,12 +13,18 @@
 <body class="coffee-latte-panel ivg-single-screen">
 	<nav class="ivg-global-nav" aria-label="灵视IVG 站内导航" data-ivg-page="latte">
 		<div class="ivg-global-nav__inner">
-			<a class="ivg-global-nav__brand" href="index.html">灵视 <span>IVG</span></a>
-			<ul class="ivg-global-nav__list" role="list">
-				<li><a class="ivg-global-nav__link" href="index.html" data-ivg-nav="index">门户</a></li>
-				<li><a class="ivg-global-nav__link" href="vision_grasp_panel.html" data-ivg-nav="vision">视觉抓取</a></li>
-				<li><a class="ivg-global-nav__link" href="coffee_latte_panel.html" data-ivg-nav="latte">咖啡拉花</a></li>
-			</ul>
+			<div class="ivg-global-nav__start">
+				<a class="ivg-global-nav__brand" href="index.html">灵视 <span>IVG</span></a>
+				<ul class="ivg-global-nav__list" role="list">
+					<li><a class="ivg-global-nav__link" href="index.html" data-ivg-nav="index">门户</a></li>
+					<li><a class="ivg-global-nav__link" href="vision_grasp_panel.html" data-ivg-nav="vision">视觉抓取</a></li>
+					<li hidden><a class="ivg-global-nav__link" href="coffee_latte_panel.html" data-ivg-nav="latte">咖啡拉花</a></li>
+				</ul>
+			</div>
+			<div class="ivg-global-nav__actions">
+				<button type="button" class="ivg-global-nav__fs-btn" id="ivg-nav-fullscreen-btn" aria-pressed="false"
+					aria-label="进入全屏" title="全屏显示页面（iPad：若无效请用 Safari 添加到主屏幕）">全屏</button>
+			</div>
 		</div>
 	</nav>
 	<header class="topbar">

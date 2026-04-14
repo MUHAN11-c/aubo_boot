@@ -47,7 +47,7 @@ body {
 /* 本页段落导航：粘在主导航下方，便于长页跳转 */
 body > .ivg-page-nav {
 	position: sticky;
-	top: 2.65rem;
+	top: calc(2.65rem + env(safe-area-inset-top, 0px));
 	z-index: 240;
 	box-shadow: 0 1px 0 rgba(15, 23, 42, 0.05);
 }
@@ -354,5 +354,46 @@ code {
 	.card-list-label {
 		display: block;
 		margin-bottom: 0.15rem;
+	}
+
+	/* 锚点导航：与单行滚动主导航高度对齐，避免 sticky 错位 */
+	body > .ivg-page-nav {
+		top: calc(3.05rem + env(safe-area-inset-top, 0px));
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		overflow-y: hidden;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: thin;
+		gap: 0.15rem 0.25rem;
+		padding-top: 0.35rem;
+		padding-bottom: 0.35rem;
+	}
+
+	.ivg-page-nav__sep {
+		flex-shrink: 0;
+	}
+
+	.ivg-page-nav a {
+		flex-shrink: 0;
+		white-space: nowrap;
+	}
+
+	.hero,
+	section.card {
+		scroll-margin-top: 5.5rem;
+	}
+
+	section.card {
+		padding: 1.1rem 1.1rem;
+	}
+
+	.link-row {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.link-row a.btn {
+		justify-content: center;
+		width: 100%;
 	}
 }

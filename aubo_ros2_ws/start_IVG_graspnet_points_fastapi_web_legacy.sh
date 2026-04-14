@@ -48,7 +48,8 @@ HAND_EYE_PORT="${HAND_EYE_PORT:-8080}"
 WEB_VIDEO_PORT="${WEB_VIDEO_PORT:-8089}"
 # 网页 3D 瘦点云：与 web_dashboard 同进程启动 ivg_pointcloud_web_throttle（/points -> /points_web）
 IVG_INCLUDE_POINTCLOUD_WEB_BRIDGE="${IVG_INCLUDE_POINTCLOUD_WEB_BRIDGE:-true}"
-IVG_POINTCLOUD_WEB_MAX_POINTS="${IVG_POINTCLOUD_WEB_MAX_POINTS:-15000}"
+# 与 ivg_pointcloud_web_throttle 默认及前端 PC_BRIDGE_MAX_POINTS 对齐；过大加重 rosbridge JSON/浏览器解析
+IVG_POINTCLOUD_WEB_MAX_POINTS="${IVG_POINTCLOUD_WEB_MAX_POINTS:-32000}"
 # 本机回环与局域网 Web 不应走 HTTP(S)_PROXY；否则浏览器/curl/Python 可能把 127.0.0.1:8090 等发到公司代理导致无法访问
 WEB_DASH_NO_PROXY_EXPORT='export NO_PROXY="127.0.0.1,localhost,0.0.0.0,::1${NO_PROXY:+,${NO_PROXY}}"; export no_proxy="$NO_PROXY"; '
 if [ "${IVG_STRIP_PROXY_FOR_DASH_LAUNCH}" = "true" ]; then

@@ -13,15 +13,15 @@ function optimizeImageDisplay(img, container, options = {}) {
         maintainAspectRatio: options.maintainAspectRatio !== false,  // 是否保持宽高比
         fillContainer: options.fillContainer !== false  // 是否占满容器（默认true）
     };
-    
+
     // 等待图像加载完成
     if (img.complete && img.naturalWidth > 0) {
         applyImageOptimization(img, container, opts);
     } else {
-        img.onload = function() {
+        img.onload = function () {
             applyImageOptimization(img, container, opts);
         };
-        img.onerror = function() {
+        img.onerror = function () {
             console.error('图像加载失败');
         };
     }
@@ -31,11 +31,11 @@ function optimizeImageDisplay(img, container, options = {}) {
 function applyImageOptimization(img, container, options) {
     const imgWidth = img.naturalWidth;
     const imgHeight = img.naturalHeight;
-    
+
     // 如果图像尺寸无效，使用默认尺寸640x480
     const actualWidth = imgWidth > 0 ? imgWidth : 640;
     const actualHeight = imgHeight > 0 ? imgHeight : 480;
-    
+
     if (imgWidth === 0 || imgHeight === 0) {
         console.warn('图像尺寸无效，使用默认尺寸640x480');
         // 更新占位符显示默认尺寸
@@ -44,15 +44,15 @@ function applyImageOptimization(img, container, options) {
             placeholderSubtext.textContent = `640 × 480 (默认)`;
         }
     }
-    
+
     const imgAspectRatio = actualWidth / actualHeight;
-    
+
     // 获取容器的父元素（实际显示区域）
     let displayContainer = container;
     if (container.classList && container.classList.contains('image-placeholder')) {
-        displayContainer = container.closest('.main-image-container') || 
-                          container.closest('.debug-image-content') ||
-                          container.parentElement;
+        displayContainer = container.closest('.main-image-container') ||
+            container.closest('.debug-image-content') ||
+            container.parentElement;
     } else if (container.id && (container.id.includes('image-content') || container.id.includes('main-image') || container.id.includes('template-image'))) {
         // 如果容器本身就是显示容器
         displayContainer = container;
@@ -60,17 +60,17 @@ function applyImageOptimization(img, container, options) {
         // 尝试查找父容器
         displayContainer = container.parentElement || container;
     }
-    
+
     if (!displayContainer) {
         console.warn('无法找到显示容器');
         return;
     }
-    
+
     // 获取容器的可用空间（使用 offsetWidth/offsetHeight 更准确）
     // 默认尺寸：640x480 (4:3 宽高比)
     const containerWidth = displayContainer.offsetWidth || displayContainer.clientWidth || 640;
     const containerHeight = displayContainer.offsetHeight || displayContainer.clientHeight || 480;
-    
+
     // 如果要求占满容器
     if (options.fillContainer) {
         // 直接设置图像占满容器（忽略padding）
@@ -80,7 +80,7 @@ function applyImageOptimization(img, container, options) {
         img.style.display = 'block';
         img.style.margin = '0';
         img.style.padding = '0';
-        
+
         // 确保容器没有内边距
         if (container.classList && container.classList.contains('image-placeholder')) {
             container.style.padding = '0';
@@ -92,24 +92,24 @@ function applyImageOptimization(img, container, options) {
         const availableHeight = options.maxHeight || (containerHeight - options.padding * 2);
         // 计算最佳显示尺寸（保持宽高比）
         let displayWidth, displayHeight;
-        
+
         if (options.maintainAspectRatio) {
             // 根据可用空间和图像宽高比计算最佳尺寸
             const widthRatio = availableWidth / actualWidth;
             const heightRatio = availableHeight / actualHeight;
             const scale = Math.min(widthRatio, heightRatio, 1.0); // 不放大，只缩小
-            
+
             displayWidth = actualWidth * scale;
             displayHeight = actualHeight * scale;
         } else {
             displayWidth = availableWidth;
             displayHeight = availableHeight;
         }
-        
+
         // 确保尺寸在合理范围内
         displayWidth = Math.max(displayWidth, 100);
         displayHeight = Math.max(displayHeight, 100);
-        
+
         // 更新图像样式
         img.style.width = displayWidth + 'px';
         img.style.height = displayHeight + 'px';
@@ -119,7 +119,7 @@ function applyImageOptimization(img, container, options) {
         img.style.maxWidth = '100%';
         img.style.maxHeight = '100%';
     }
-    
+
     // 更新容器样式
     if (container.classList && container.classList.contains('image-placeholder')) {
         if (options.fillContainer) {
@@ -138,13 +138,13 @@ function applyImageOptimization(img, container, options) {
             container.style.minHeight = 'auto';
         }
     }
-    
+
     // 更新占位符文本显示图像尺寸信息
     const placeholderSubtext = container.querySelector ? container.querySelector('.placeholder-subtext') : null;
     if (placeholderSubtext && (imgWidth > 0 && imgHeight > 0)) {
         placeholderSubtext.textContent = `${imgWidth} × ${imgHeight}`;
     }
-    
+
     // 记录优化信息（仅在开发模式下）
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         if (imgWidth > 0 && imgHeight > 0) {
@@ -297,46 +297,46 @@ async function captureImage() {
             camera_id: '207000152740'
         })
     })
-    .then(async response => {
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
-        }
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            // 获取深度图和彩色图
-            workflowState.currentDepthImageBase64 = data.depth_image_base64;
-            workflowState.currentColorImageBase64 = data.color_image_base64;
-            // 保持向后兼容
-            workflowState.currentImageBase64 = data.color_image_base64;
-            
-            // 显示彩色图到图像显示区域
-            const placeholder = document.getElementById('main-image');
-            placeholder.innerHTML = '';
-            const img = document.createElement('img');
-            img.src = data.color_image_base64;
-            placeholder.appendChild(img);
-            // 根据图像尺寸优化显示
-            optimizeImageDisplay(img, placeholder);
-            
-            addLogEntry('success', '图像采集完成（深度图+彩色图），图像已显示并加载等待后续操作');
-        } else {
-            addLogEntry('error', '图像采集失败: ' + (data.error || '未知错误'));
-            alert('图像采集失败: ' + (data.error || '未知错误'));
-        }
-    })
-    .catch(error => {
-        addLogEntry('error', '图像采集异常: ' + error.message);
-        console.error('图像采集错误详情:', error);
-        alert('图像采集异常: ' + error.message + '\n\n请检查：\n1. 服务器是否正常运行\n2. ROS2节点是否已启动\n3. 相机服务是否可用');
-    });
+        .then(async response => {
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
+            }
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // 获取深度图和彩色图
+                workflowState.currentDepthImageBase64 = data.depth_image_base64;
+                workflowState.currentColorImageBase64 = data.color_image_base64;
+                // 保持向后兼容
+                workflowState.currentImageBase64 = data.color_image_base64;
+
+                // 显示彩色图到图像显示区域
+                const placeholder = document.getElementById('main-image');
+                placeholder.innerHTML = '';
+                const img = document.createElement('img');
+                img.src = data.color_image_base64;
+                placeholder.appendChild(img);
+                // 根据图像尺寸优化显示
+                optimizeImageDisplay(img, placeholder);
+
+                addLogEntry('success', '图像采集完成（深度图+彩色图），图像已显示并加载等待后续操作');
+            } else {
+                addLogEntry('error', '图像采集失败: ' + (data.error || '未知错误'));
+                alert('图像采集失败: ' + (data.error || '未知错误'));
+            }
+        })
+        .catch(error => {
+            addLogEntry('error', '图像采集异常: ' + error.message);
+            console.error('图像采集错误详情:', error);
+            alert('图像采集异常: ' + error.message + '\n\n请检查：\n1. 服务器是否正常运行\n2. ROS2节点是否已启动\n3. 相机服务是否可用');
+        });
 }
 
 async function estimatePose() {
@@ -363,9 +363,9 @@ async function estimatePose() {
         alert('请选择工件ID');
         return;
     }
-    
+
     addLogEntry('info', `开始姿态估计，工件ID: ${workpieceId}`);
-    
+
     fetch(`${API_BASE_URL}/api/estimate_pose`, {
         method: 'POST',
         headers: {
@@ -377,88 +377,88 @@ async function estimatePose() {
             object_id: workpieceId
         })
     })
-    .then(async response => {
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
-        }
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('姿态估计响应数据:', data);
-        
-        // 检查响应格式
-        if (!data) {
-            addLogEntry('error', '姿态估计响应为空');
-            return;
-        }
-        
-        // 如果响应有success字段，使用它；否则假设成功（因为HTTP 200）
-        const isSuccess = data.success !== false;
-        
-        if (isSuccess) {
-            const successNum = data.success_num || 0;
-            const processingTime = data.processing_time_sec !== undefined && data.processing_time_sec !== null 
-                ? data.processing_time_sec.toFixed(3) 
-                : null;
-            
-            if (processingTime !== null) {
-                addLogEntry('success', `姿态估计完成，检测到 ${successNum} 个目标，处理时间: ${processingTime} 秒`);
-            } else {
-                addLogEntry('success', `姿态估计完成，检测到 ${successNum} 个目标`);
+        .then(async response => {
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
             }
-            
-            // 更新可视化图像
-            if (data.vis_image) {
-                const placeholder = document.getElementById('main-image');
-                if (placeholder) {
-                    placeholder.innerHTML = '';
-                    const img = document.createElement('img');
-                    img.src = data.vis_image;
-                    placeholder.appendChild(img);
-                    // 根据图像尺寸优化显示
-                    optimizeImageDisplay(img, placeholder);
-                }
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
             }
-            
-            // 更新结果列表
-            updateResultCount(successNum);
-            updateResultsList(data);
-            workflowState.lastEstimateResult = data;
+            return response.json();
+        })
+        .then(data => {
+            console.log('姿态估计响应数据:', data);
 
-            // 输出结果信息
-            const matchedPoseIds = data.matched_pose_ids || [];
-            for (let i = 0; i < successNum; i++) {
-                const templateId = (matchedPoseIds[i] !== undefined && matchedPoseIds[i] !== null) ? String(matchedPoseIds[i]) : '—';
-                const confidence = (data.confidence && data.confidence[i] !== undefined) ? data.confidence[i] : 0;
-                const pos = (data.positions && data.positions[i]) ? data.positions[i] : {x: 0, y: 0, z: 0};
-                const grabPos = (data.grab_positions && data.grab_positions[i]) ? data.grab_positions[i] : null;
-                if (grabPos) {
-                    const grabPosData = grabPos.position || {x: 0, y: 0, z: 0};
-                    const grabOriData = grabPos.orientation || {x: 0, y: 0, z: 0, w: 1};
-                    addLogEntry(
-                        'info',
-                        `目标 ${i+1}: 匹配模板=${templateId}, 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}), 抓取位置=(${grabPosData.x.toFixed(3)}, ${grabPosData.y.toFixed(3)}, ${grabPosData.z.toFixed(3)}), 抓取四元数=(${grabOriData.x.toFixed(6)}, ${grabOriData.y.toFixed(6)}, ${grabOriData.z.toFixed(6)}, ${grabOriData.w.toFixed(6)})`
-                    );
-                } else {
-                    addLogEntry('info', `目标 ${i+1}: 匹配模板=${templateId}, 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)})`);
-                }
+            // 检查响应格式
+            if (!data) {
+                addLogEntry('error', '姿态估计响应为空');
+                return;
             }
-        } else {
+
+            // 如果响应有success字段，使用它；否则假设成功（因为HTTP 200）
+            const isSuccess = data.success !== false;
+
+            if (isSuccess) {
+                const successNum = data.success_num || 0;
+                const processingTime = data.processing_time_sec !== undefined && data.processing_time_sec !== null
+                    ? data.processing_time_sec.toFixed(3)
+                    : null;
+
+                if (processingTime !== null) {
+                    addLogEntry('success', `姿态估计完成，检测到 ${successNum} 个目标，处理时间: ${processingTime} 秒`);
+                } else {
+                    addLogEntry('success', `姿态估计完成，检测到 ${successNum} 个目标`);
+                }
+
+                // 更新可视化图像
+                if (data.vis_image) {
+                    const placeholder = document.getElementById('main-image');
+                    if (placeholder) {
+                        placeholder.innerHTML = '';
+                        const img = document.createElement('img');
+                        img.src = data.vis_image;
+                        placeholder.appendChild(img);
+                        // 根据图像尺寸优化显示
+                        optimizeImageDisplay(img, placeholder);
+                    }
+                }
+
+                // 更新结果列表
+                updateResultCount(successNum);
+                updateResultsList(data);
+                workflowState.lastEstimateResult = data;
+
+                // 输出结果信息
+                const matchedPoseIds = data.matched_pose_ids || [];
+                for (let i = 0; i < successNum; i++) {
+                    const templateId = (matchedPoseIds[i] !== undefined && matchedPoseIds[i] !== null) ? String(matchedPoseIds[i]) : '—';
+                    const confidence = (data.confidence && data.confidence[i] !== undefined) ? data.confidence[i] : 0;
+                    const pos = (data.positions && data.positions[i]) ? data.positions[i] : { x: 0, y: 0, z: 0 };
+                    const grabPos = (data.grab_positions && data.grab_positions[i]) ? data.grab_positions[i] : null;
+                    if (grabPos) {
+                        const grabPosData = grabPos.position || { x: 0, y: 0, z: 0 };
+                        const grabOriData = grabPos.orientation || { x: 0, y: 0, z: 0, w: 1 };
+                        addLogEntry(
+                            'info',
+                            `目标 ${i + 1}: 匹配模板=${templateId}, 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}), 抓取位置=(${grabPosData.x.toFixed(3)}, ${grabPosData.y.toFixed(3)}, ${grabPosData.z.toFixed(3)}), 抓取四元数=(${grabOriData.x.toFixed(6)}, ${grabOriData.y.toFixed(6)}, ${grabOriData.z.toFixed(6)}, ${grabOriData.w.toFixed(6)})`
+                        );
+                    } else {
+                        addLogEntry('info', `目标 ${i + 1}: 匹配模板=${templateId}, 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)})`);
+                    }
+                }
+            } else {
+                workflowState.lastEstimateResult = null;
+                addLogEntry('error', '姿态估计失败: ' + (data.error || '未知错误'));
+            }
+        })
+        .catch(error => {
             workflowState.lastEstimateResult = null;
-            addLogEntry('error', '姿态估计失败: ' + (data.error || '未知错误'));
-        }
-    })
-    .catch(error => {
-        workflowState.lastEstimateResult = null;
-        addLogEntry('error', '姿态估计异常: ' + error.message);
-        console.error('姿态估计错误详情:', error);
-    });
+            addLogEntry('error', '姿态估计异常: ' + error.message);
+            console.error('姿态估计错误详情:', error);
+        });
 }
 
 function updateResultsList(data) {
@@ -467,24 +467,24 @@ function updateResultsList(data) {
         return;
     }
     resultsList.innerHTML = '';
-    
+
     if (!data.success_num || data.success_num === 0) {
         resultsList.innerHTML =
             '<div class="results-empty-msg" title="可重新采集图像或检查工件与模板">未检测到目标</div>';
         return;
     }
-    
+
     const matchedPoseIdsList = data.matched_pose_ids || [];
     for (let i = 0; i < data.success_num; i++) {
         const templateIdList = (matchedPoseIdsList[i] !== undefined && matchedPoseIdsList[i] !== null) ? String(matchedPoseIdsList[i]) : '—';
         const confidence = (data.confidence && data.confidence[i] !== undefined) ? data.confidence[i] : 0;
-        const pos = (data.positions && data.positions[i]) ? data.positions[i] : {x: 0, y: 0, z: 0};
+        const pos = (data.positions && data.positions[i]) ? data.positions[i] : { x: 0, y: 0, z: 0 };
         const grabPos = (data.grab_positions && data.grab_positions[i]) || {};
         const prepPos = (data.preparation_positions && data.preparation_positions[i]) || {};
         const preplacePos = (data.preplace_positions && data.preplace_positions[i]) || {};
         const placePos = (data.place_positions && data.place_positions[i]) || {};
         const poseImage = (data.pose_images && data.pose_images[i]) ? data.pose_images[i] : '';
-        
+
         // 辅助函数：格式化数值
         const fmt = (val, decimals = 2) => val !== undefined && val !== null ? val.toFixed(decimals) : '0.00';
         const fmt4 = (val) => val !== undefined && val !== null ? val.toFixed(4) : '0.0000';
@@ -492,7 +492,7 @@ function updateResultsList(data) {
             if (!arr || !Array.isArray(arr)) return 'N/A';
             return arr.map(v => fmt(v, decimals)).join(', ');
         };
-        
+
         // 辅助函数：创建姿态信息块（小字体，可点击）
         const createPoseBlock = (pose, title, color, poseType) => {
             if (!pose || !pose.position) return '';
@@ -500,7 +500,7 @@ function updateResultsList(data) {
             const o = pose.orientation || {};
             const eulerDeg = pose.euler_orientation_rpy_deg || [];
             const jointsDeg = pose.joint_position_deg || [];
-            
+
             const poseData = JSON.stringify({
                 position: p,
                 orientation: o,
@@ -509,7 +509,7 @@ function updateResultsList(data) {
                 joint_position_deg: jointsDeg,
                 joint_position_rad: pose.joint_position_rad || []
             });
-            
+
             return `
                 <div style="margin-bottom: 8px;">
                     <div style="color: #64748b; font-size: 0.7em; margin-bottom: 2px; font-weight: 500;">${title}</div>
@@ -526,7 +526,7 @@ function updateResultsList(data) {
                 </div>
             `;
         };
-        
+
         const resultItem = document.createElement('div');
         resultItem.className = 'result-item';
         resultItem.style.marginBottom = '16px';
@@ -542,8 +542,8 @@ function updateResultsList(data) {
                     <div style="font-weight: 600; color: #1e293b; font-size: 0.95em;">目标 #${i + 1} · 匹配模板 <span style="color: #0ea5e9;">${templateIdList}</span></div>
                     <div style="color: #64748b; font-size: 0.8em;">
                         置信度: <span style="color: #3b82f6; font-weight: 600;">${(confidence * 100).toFixed(1)}%</span>
-                        ${data.processing_time_sec !== undefined && data.processing_time_sec !== null && i === 0 ? 
-                            `<span style="margin-left: 12px; color: #10b981;">处理时间: ${data.processing_time_sec.toFixed(3)}s</span>` : ''}
+                        ${data.processing_time_sec !== undefined && data.processing_time_sec !== null && i === 0 ?
+                `<span style="margin-left: 12px; color: #10b981;">处理时间: ${data.processing_time_sec.toFixed(3)}s</span>` : ''}
                     </div>
                 </div>
                 
@@ -585,7 +585,7 @@ function showPoseModal(poseType, poseDataStr) {
     } else {
         poseData = poseDataStr;
     }
-    
+
     // 转换模板数据格式为工作流程格式（如果数据是模板格式）
     if (poseData.cartesian_position) {
         const cartesian = poseData.cartesian_position;
@@ -598,10 +598,10 @@ function showPoseModal(poseType, poseDataStr) {
             joint_position_rad: poseData.joint_position_rad || []
         };
     }
-    
+
     currentPoseData = poseData;
     currentPoseType = poseType;
-    
+
     const modal = document.getElementById('pose-modal');
     if (!modal) {
         // 创建模态框
@@ -631,7 +631,7 @@ function showPoseModal(poseType, poseDataStr) {
         `;
         document.body.insertAdjacentHTML('beforeend', modalHTML);
     }
-    
+
     // 填充模态框内容
     const modalBody = document.getElementById('pose-modal-body');
     const fmt = (val, decimals = 2) => val !== undefined && val !== null ? val.toFixed(decimals) : '0.00';
@@ -640,7 +640,7 @@ function showPoseModal(poseType, poseDataStr) {
         if (!arr || !Array.isArray(arr)) return 'N/A';
         return arr.map(v => fmt(v, decimals)).join(', ');
     };
-    
+
     modalBody.innerHTML = `
         <div class="pose-data-item">
             <div class="pose-data-label">位置 (position)</div>
@@ -675,7 +675,7 @@ function showPoseModal(poseType, poseDataStr) {
         </div>
         ` : ''}
     `;
-    
+
     // 显示模态框
     document.getElementById('pose-modal').classList.add('show');
 }
@@ -757,7 +757,7 @@ async function executeRobotPose(useJoints) {
         // 使用笛卡尔坐标
         const pos = currentPoseData.position;
         let euler = [];
-        
+
         if (currentPoseData.euler_orientation_rpy_deg && currentPoseData.euler_orientation_rpy_deg.length >= 3) {
             euler = currentPoseData.euler_orientation_rpy_deg;
             isRadian = false;
@@ -768,7 +768,7 @@ async function executeRobotPose(useJoints) {
             addLogEntry('error', '欧拉角数据不可用');
             return;
         }
-        
+
         // target_pose格式: [x, y, z, roll, pitch, yaw]
         // z值不再限制，使用原始值
         const originalZ = pos.z !== undefined && pos.z !== null ? Number(pos.z) : 0;
@@ -819,7 +819,7 @@ function graspTarget() {
 
 async function openGripper() {
     addLogEntry('info', '正在打开夹爪...');
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/api/set_robot_io`, {
             method: 'POST',
@@ -832,9 +832,9 @@ async function openGripper() {
                 value: 0.0
             })
         });
-        
+
         const result = await response.json();
-        
+
         if (response.ok && result.success) {
             addLogEntry('success', '夹爪已打开');
         } else {
@@ -850,7 +850,7 @@ async function openGripper() {
 
 async function closeGripper() {
     addLogEntry('info', '正在关闭夹爪...');
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/api/set_robot_io`, {
             method: 'POST',
@@ -863,9 +863,9 @@ async function closeGripper() {
                 value: 1.0
             })
         });
-        
+
         const result = await response.json();
-        
+
         if (response.ok && result.success) {
             addLogEntry('success', '夹爪已关闭');
         } else {
@@ -888,9 +888,9 @@ async function executePoseSequence(folderName) {
         addLogEntry('error', '文件夹名称不能为空');
         return;
     }
-    
+
     addLogEntry('info', `开始执行姿态序列: ${folderName}`);
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/api/execute_pose_sequence`, {
             method: 'POST',
@@ -901,20 +901,20 @@ async function executePoseSequence(folderName) {
                 folder_name: folderName
             })
         });
-        
+
         if (!response.ok) {
             const text = await response.text();
             throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
         }
-        
+
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
             const text = await response.text();
             throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             if (data.skipped) {
                 addLogEntry('warning', data.message || '已跳过执行');
@@ -950,9 +950,9 @@ async function _gripperOpenPlaceholder() {
                 value: 0.0
             })
         });
-        
+
         const result = await response.json();
-        
+
         if (response.ok && result.success) {
             addLogEntry('success', '夹爪已打开');
             return true;
@@ -980,9 +980,9 @@ async function _gripperClosePlaceholder() {
                 value: 1.0
             })
         });
-        
+
         const result = await response.json();
-        
+
         if (response.ok && result.success) {
             addLogEntry('success', '夹爪已关闭');
             return true;
@@ -1067,7 +1067,7 @@ function setLoopVisualToggleButtonsRunning(running) {
 async function captureImageAsync() {
     return new Promise((resolve, reject) => {
         addLogEntry('info', '正在触发相机拍照，相机ID: 207000152740');
-        
+
         fetch(`${API_BASE_URL}/api/capture_image`, {
             method: 'POST',
             headers: {
@@ -1077,48 +1077,48 @@ async function captureImageAsync() {
                 camera_id: '207000152740'
             })
         })
-        .then(async response => {
-            if (!response.ok) {
-                const text = await response.text();
-                throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
-            }
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                const text = await response.text();
-                throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                // 获取深度图和彩色图
-                workflowState.currentDepthImageBase64 = data.depth_image_base64;
-                workflowState.currentColorImageBase64 = data.color_image_base64;
-                // 保持向后兼容
-                workflowState.currentImageBase64 = data.color_image_base64;
-                
-                // 显示彩色图到图像显示区域
-                const placeholder = document.getElementById('main-image');
-                placeholder.innerHTML = '';
-                const img = document.createElement('img');
-                img.src = data.color_image_base64;
-                placeholder.appendChild(img);
-                // 根据图像尺寸优化显示
-                optimizeImageDisplay(img, placeholder);
-                
-                addLogEntry('success', '图像采集完成（深度图+彩色图）');
-                resolve({ success: true });
-            } else {
-                const errorMsg = data.error || '未知错误';
-                addLogEntry('error', '图像采集失败: ' + errorMsg);
-                resolve({ success: false, error: errorMsg });
-            }
-        })
-        .catch(error => {
-            addLogEntry('error', '图像采集异常: ' + error.message);
-            console.error('图像采集错误详情:', error);
-            resolve({ success: false, error: error.message });
-        });
+            .then(async response => {
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
+                }
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // 获取深度图和彩色图
+                    workflowState.currentDepthImageBase64 = data.depth_image_base64;
+                    workflowState.currentColorImageBase64 = data.color_image_base64;
+                    // 保持向后兼容
+                    workflowState.currentImageBase64 = data.color_image_base64;
+
+                    // 显示彩色图到图像显示区域
+                    const placeholder = document.getElementById('main-image');
+                    placeholder.innerHTML = '';
+                    const img = document.createElement('img');
+                    img.src = data.color_image_base64;
+                    placeholder.appendChild(img);
+                    // 根据图像尺寸优化显示
+                    optimizeImageDisplay(img, placeholder);
+
+                    addLogEntry('success', '图像采集完成（深度图+彩色图）');
+                    resolve({ success: true });
+                } else {
+                    const errorMsg = data.error || '未知错误';
+                    addLogEntry('error', '图像采集失败: ' + errorMsg);
+                    resolve({ success: false, error: errorMsg });
+                }
+            })
+            .catch(error => {
+                addLogEntry('error', '图像采集异常: ' + error.message);
+                console.error('图像采集错误详情:', error);
+                resolve({ success: false, error: error.message });
+            });
     });
 }
 
@@ -1134,16 +1134,16 @@ async function estimatePoseAsync() {
             resolve({ success: false, error: '缺少图像数据' });
             return;
         }
-        
+
         const workpieceId = document.getElementById('workpiece-id-workflow').value.trim();
         if (!workpieceId) {
             addLogEntry('warning', '请选择工件ID');
             resolve({ success: false, error: '缺少工件ID' });
             return;
         }
-        
+
         addLogEntry('info', `开始姿态估计，工件ID: ${workpieceId}`);
-        
+
         fetch(`${API_BASE_URL}/api/estimate_pose`, {
             method: 'POST',
             headers: {
@@ -1155,94 +1155,94 @@ async function estimatePoseAsync() {
                 object_id: workpieceId
             })
         })
-        .then(async response => {
-            if (!response.ok) {
-                const text = await response.text();
-                throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
-            }
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                const text = await response.text();
-                throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('姿态估计响应数据:', data);
-            
-            // 检查响应格式
-            if (!data) {
-                addLogEntry('error', '姿态估计响应为空');
-                resolve({ success: false, error: '响应为空' });
-                return;
-            }
-            
-            // 如果响应有success字段，使用它；否则假设成功（因为HTTP 200）
-            const isSuccess = data.success !== false;
-            
-            if (isSuccess) {
-                const successNum = data.success_num || 0;
-                const processingTime = data.processing_time_sec !== undefined && data.processing_time_sec !== null 
-                    ? data.processing_time_sec.toFixed(3) 
-                    : null;
-                
-                if (processingTime !== null) {
-                    addLogEntry('success', `姿态估计完成，检测到 ${successNum} 个目标，处理时间: ${processingTime} 秒`);
-                } else {
-                    addLogEntry('success', `姿态估计完成，检测到 ${successNum} 个目标`);
+            .then(async response => {
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
                 }
-                
-                // 更新可视化图像
-                if (data.vis_image) {
-                    const placeholder = document.getElementById('main-image');
-                    if (placeholder) {
-                        placeholder.innerHTML = '';
-                        const img = document.createElement('img');
-                        img.src = data.vis_image;
-                        placeholder.appendChild(img);
-                        // 根据图像尺寸优化显示
-                        optimizeImageDisplay(img, placeholder);
-                    }
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
                 }
-                
-                // 更新结果列表
-                updateResultCount(successNum);
-                updateResultsList(data);
-                workflowState.lastEstimateResult = data;
+                return response.json();
+            })
+            .then(data => {
+                console.log('姿态估计响应数据:', data);
 
-                // 输出结果信息
-                const matchedPoseIdsAsync = data.matched_pose_ids || [];
-                for (let i = 0; i < successNum; i++) {
-                    const templateId = (matchedPoseIdsAsync[i] !== undefined && matchedPoseIdsAsync[i] !== null) ? String(matchedPoseIdsAsync[i]) : '—';
-                    const confidence = (data.confidence && data.confidence[i] !== undefined) ? data.confidence[i] : 0;
-                    const pos = (data.positions && data.positions[i]) ? data.positions[i] : {x: 0, y: 0, z: 0};
-                    const grabPos = (data.grab_positions && data.grab_positions[i]) ? data.grab_positions[i] : null;
-                    if (grabPos) {
-                        const grabPosData = grabPos.position || {x: 0, y: 0, z: 0};
-                        const grabOriData = grabPos.orientation || {x: 0, y: 0, z: 0, w: 1};
-                        addLogEntry(
-                            'info',
-                            `目标 ${i+1}: 匹配模板=${templateId}, 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}), 抓取位置=(${grabPosData.x.toFixed(3)}, ${grabPosData.y.toFixed(3)}, ${grabPosData.z.toFixed(3)}), 抓取四元数=(${grabOriData.x.toFixed(6)}, ${grabOriData.y.toFixed(6)}, ${grabOriData.z.toFixed(6)}, ${grabOriData.w.toFixed(6)})`
-                        );
-                    } else {
-                        addLogEntry('info', `目标 ${i+1}: 匹配模板=${templateId}, 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)})`);
-                    }
+                // 检查响应格式
+                if (!data) {
+                    addLogEntry('error', '姿态估计响应为空');
+                    resolve({ success: false, error: '响应为空' });
+                    return;
                 }
-                
-                resolve({ success: true, success_num: successNum });
-            } else {
+
+                // 如果响应有success字段，使用它；否则假设成功（因为HTTP 200）
+                const isSuccess = data.success !== false;
+
+                if (isSuccess) {
+                    const successNum = data.success_num || 0;
+                    const processingTime = data.processing_time_sec !== undefined && data.processing_time_sec !== null
+                        ? data.processing_time_sec.toFixed(3)
+                        : null;
+
+                    if (processingTime !== null) {
+                        addLogEntry('success', `姿态估计完成，检测到 ${successNum} 个目标，处理时间: ${processingTime} 秒`);
+                    } else {
+                        addLogEntry('success', `姿态估计完成，检测到 ${successNum} 个目标`);
+                    }
+
+                    // 更新可视化图像
+                    if (data.vis_image) {
+                        const placeholder = document.getElementById('main-image');
+                        if (placeholder) {
+                            placeholder.innerHTML = '';
+                            const img = document.createElement('img');
+                            img.src = data.vis_image;
+                            placeholder.appendChild(img);
+                            // 根据图像尺寸优化显示
+                            optimizeImageDisplay(img, placeholder);
+                        }
+                    }
+
+                    // 更新结果列表
+                    updateResultCount(successNum);
+                    updateResultsList(data);
+                    workflowState.lastEstimateResult = data;
+
+                    // 输出结果信息
+                    const matchedPoseIdsAsync = data.matched_pose_ids || [];
+                    for (let i = 0; i < successNum; i++) {
+                        const templateId = (matchedPoseIdsAsync[i] !== undefined && matchedPoseIdsAsync[i] !== null) ? String(matchedPoseIdsAsync[i]) : '—';
+                        const confidence = (data.confidence && data.confidence[i] !== undefined) ? data.confidence[i] : 0;
+                        const pos = (data.positions && data.positions[i]) ? data.positions[i] : { x: 0, y: 0, z: 0 };
+                        const grabPos = (data.grab_positions && data.grab_positions[i]) ? data.grab_positions[i] : null;
+                        if (grabPos) {
+                            const grabPosData = grabPos.position || { x: 0, y: 0, z: 0 };
+                            const grabOriData = grabPos.orientation || { x: 0, y: 0, z: 0, w: 1 };
+                            addLogEntry(
+                                'info',
+                                `目标 ${i + 1}: 匹配模板=${templateId}, 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}), 抓取位置=(${grabPosData.x.toFixed(3)}, ${grabPosData.y.toFixed(3)}, ${grabPosData.z.toFixed(3)}), 抓取四元数=(${grabOriData.x.toFixed(6)}, ${grabOriData.y.toFixed(6)}, ${grabOriData.z.toFixed(6)}, ${grabOriData.w.toFixed(6)})`
+                            );
+                        } else {
+                            addLogEntry('info', `目标 ${i + 1}: 匹配模板=${templateId}, 置信度=${(confidence * 100).toFixed(1)}%, 相机坐标=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)})`);
+                        }
+                    }
+
+                    resolve({ success: true, success_num: successNum });
+                } else {
+                    workflowState.lastEstimateResult = null;
+                    const errorMsg = data.error || '未知错误';
+                    addLogEntry('error', '姿态估计失败: ' + errorMsg);
+                    resolve({ success: false, error: errorMsg });
+                }
+            })
+            .catch(error => {
                 workflowState.lastEstimateResult = null;
-                const errorMsg = data.error || '未知错误';
-                addLogEntry('error', '姿态估计失败: ' + errorMsg);
-                resolve({ success: false, error: errorMsg });
-            }
-        })
-        .catch(error => {
-            workflowState.lastEstimateResult = null;
-            addLogEntry('error', '姿态估计异常: ' + error.message);
-            console.error('姿态估计错误详情:', error);
-            resolve({ success: false, error: error.message });
-        });
+                addLogEntry('error', '姿态估计异常: ' + error.message);
+                console.error('姿态估计错误详情:', error);
+                resolve({ success: false, error: error.message });
+            });
     });
 }
 
@@ -1256,7 +1256,7 @@ async function estimatePoseAsync() {
 async function callExecuteSingleGrasp(objectId, useVisualEstimation = true, timeoutSec = 600) {
     try {
         addLogEntry('info', `调用单次抓取服务 (object_id=${objectId}, use_visual_estimation=${useVisualEstimation}, timeout_sec=${timeoutSec})...`);
-        
+
         const response = await fetch(`${API_BASE_URL}/api/execute_single_grasp`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1275,7 +1275,7 @@ async function callExecuteSingleGrasp(objectId, useVisualEstimation = true, time
         }
 
         const result = await response.json().catch(() => ({}));
-        
+
         if (!result.success) {
             const errorMsg = result.message || '单次抓取服务调用失败';
             addLogEntry('error', errorMsg);
@@ -1286,7 +1286,7 @@ async function callExecuteSingleGrasp(objectId, useVisualEstimation = true, time
         if (result.final_position) {
             addLogEntry('info', `最终抓取位置: (${result.final_position.x.toFixed(3)}, ${result.final_position.y.toFixed(3)}, ${result.final_position.z.toFixed(3)})`);
         }
-        
+
         return {
             success: true,
             message: result.message,
@@ -1310,7 +1310,7 @@ async function callLoopGraspControl(start) {
     try {
         const action = start ? '启动' : '停止';
         addLogEntry('info', `调用循环抓取控制服务 (${action})...`);
-        
+
         const response = await fetch(`${API_BASE_URL}/api/loop_grasp_control`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1320,7 +1320,7 @@ async function callLoopGraspControl(start) {
         });
 
         const result = await response.json().catch(() => ({}));
-        
+
         if (!response.ok || !result.success) {
             // 停止接口做幂等：未运行视为已停止，避免流程编排中出现误报。
             if (!start) {
@@ -1439,7 +1439,7 @@ async function loopAutoGrasp() {
     setLoopVisualToggleButtonsRunning(true);
 
     addLogEntry('info', '开始循环自动抓取模式（前端逐轮触发抓取，请确保机械臂已在拍照姿态）');
-    
+
     try {
         // 循环检测和抓取
         let cycleCount = 0;
@@ -1538,7 +1538,7 @@ async function stopLoopAutoGrasp() {
         addLogEntry('info', '循环自动抓取当前未运行');
         return { success: true, message: '前端循环未运行' };
     }
-    
+
     addLogEntry('info', '正在停止循环自动抓取...');
     _loopAutoGraspStopFlag = true;
     const res = await callLoopGraspControl(false);
@@ -1631,8 +1631,9 @@ async function demoMoveToCameraPose() {
 }
 
 /**
- * 为视觉工件抓取准备工况（与「停并切换」对称）：
- * 停止 GraspNet（AI/夹爪2）与视觉后端循环，再快换到夹爪0（视觉抓取），避免两套轨迹并发。
+ * 为视觉工件抓取准备工况：
+ * 停止 GraspNet 与视觉后端循环，避免与视觉采集/估姿并发。
+ * 不再在此自动调用 run_gripper_swap：现场若无夹爪状态反馈，盲目快换不安全；需要时请用手动「快换→夹爪0」等按钮。
  * @returns {Promise<boolean>}
  */
 async function ensureVisualGraspMode() {
@@ -1643,7 +1644,7 @@ async function ensureVisualGraspMode() {
 
     _switchFlowInProgress = true;
     try {
-        addLogEntry('info', '[AutoSwitch] 准备视觉抓取：停止循环 → 快换到夹爪0（视觉）');
+        addLogEntry('info', '[AutoSwitch] 准备视觉抓取：停止循环与 GraspNet（不自动换爪，请自行确认末端工具）');
 
         if (_loopAutoGraspRunning) {
             await stopLoopAutoGrasp();
@@ -1657,13 +1658,7 @@ async function ensureVisualGraspMode() {
             return false;
         }
 
-        const swapRes = await callRunGripperSwap('gripper2_to_gripper0');
-        if (!swapRes.success) {
-            addLogEntry('error', '[AutoSwitch] 快换到夹爪0（视觉）失败');
-            return false;
-        }
-
-        addLogEntry('success', '[AutoSwitch] 已进入视觉抓取模式（夹爪0）');
+        addLogEntry('success', '[AutoSwitch] 已就绪（视觉相关操作可继续；换爪请用手动按钮）');
         return true;
     } catch (e) {
         addLogEntry('error', '[AutoSwitch] 准备视觉模式异常: ' + e.message);
@@ -1889,7 +1884,7 @@ async function autoGrasp() {
     addLogEntry(
         'info',
         `开始自动抓取 → ExecuteGraspPose（execute_grasp_pose_worker），工件ID=${workpieceId}，` +
-            `目标数=${n}（服务端对单次调用处理首个抓取周期；use_visual_estimation=true）`
+        `目标数=${n}（服务端对单次调用处理首个抓取周期；use_visual_estimation=true）`
     );
 
     try {
@@ -1952,10 +1947,10 @@ function quaternionToEulerDeg(q) {
 async function moveRobotToPoseCartesian(pose, velocityFactor = 0.1, accelerationFactor = 0.025, label = '') {
     const pos = pose.position || {};
     const ori = pose.orientation || {};
-    
+
     // z值不再限制，使用原始值
     const originalZ = pos.z !== undefined && pos.z !== null ? Number(pos.z) : 0;
-    
+
     const targetPose = {
         position: { x: pos.x, y: pos.y, z: originalZ },
         orientation: { x: ori.x, y: ori.y, z: ori.z, w: ori.w }
@@ -1963,11 +1958,11 @@ async function moveRobotToPoseCartesian(pose, velocityFactor = 0.1, acceleration
     const fmt = (v) => (v !== undefined && v !== null ? Number(v).toFixed(3) : '?');
     const posStr = `位置(${fmt(pos.x)}, ${fmt(pos.y)}, ${fmt(originalZ)})m`;
     const oriStr = `四元数(${fmt(ori.x)}, ${fmt(ori.y)}, ${fmt(ori.z)}, ${fmt(ori.w)})`;
-    
+
     // 计算欧拉角
     const euler = quaternionToEulerDeg(ori);
     const eulerStr = `, 姿态角(${euler[0].toFixed(2)}, ${euler[1].toFixed(2)}, ${euler[2].toFixed(2)})deg`;
-    
+
     addLogEntry('info', label ? `即将运动到【${label}】: ${posStr}, ${oriStr}${eulerStr}` : `即将运动到位姿: ${posStr}, ${oriStr}${eulerStr}`);
 
     // 防止重复请求：若已有请求未返回则拒绝本次调用并打日志，便于确认是否由前端触发多次请求
@@ -1985,17 +1980,17 @@ async function moveRobotToPoseCartesian(pose, velocityFactor = 0.1, acceleration
     let res, result;
     try {
         res = await fetch(`${API_BASE_URL}/api/set_robot_pose`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            target_pose: targetPose,
-            use_joints: false,
-            velocity_factor: velocityFactor,
-            acceleration_factor: accelerationFactor,
-            // 与 http_bridge move_to_pose 等待一致，避免长距离笛卡尔运动桥接 30s 超时、浏览器侧 Failed to fetch
-            timeout_sec: 300.0
-        })
-    });
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                target_pose: targetPose,
+                use_joints: false,
+                velocity_factor: velocityFactor,
+                acceleration_factor: accelerationFactor,
+                // 与 http_bridge move_to_pose 等待一致，避免长距离笛卡尔运动桥接 30s 超时、浏览器侧 Failed to fetch
+                timeout_sec: 300.0
+            })
+        });
         if (!res.ok) {
             const text = await res.text().catch(() => '');
             throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
@@ -2025,13 +2020,13 @@ async function moveToTemplatePose(poseType, poseLabel, fromTemplateTab = true) {
         workpieceId = document.getElementById('workpiece-id-workflow').value.trim();
         poseId = document.getElementById('pose-id-workflow').value.trim();
     }
-    
+
     if (!workpieceId || !poseId) {
         addLogEntry('warning', '请先选择工件ID和姿态ID');
         alert('请先选择工件ID和姿态ID');
         return;
     }
-    
+
     addLogEntry('info', `正在读取模板${poseLabel}: 工件ID=${workpieceId}, 姿态ID=${poseId}...`);
 
     try {
@@ -2047,24 +2042,24 @@ async function moveToTemplatePose(poseType, poseLabel, fromTemplateTab = true) {
                 pose_type: poseType
             })
         });
-        
+
         if (!response.ok) {
             const text = await response.text();
             throw new Error(`无法读取模板${poseLabel}: HTTP ${response.status}: ${text.substring(0, 100)}`);
         }
-        
+
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
             const text = await response.text();
             throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (!data.success || !data.pose_data) {
             throw new Error(data.error || `无法获取${poseLabel}数据`);
         }
-        
+
         const poseData = data.pose_data;
 
         if (!poseData.cartesian_position ||
@@ -2149,15 +2144,15 @@ function updateResultCount(count) {
 // 模板管理功能
 function refreshTemplateList() {
     const workpieceId = document.getElementById('workpiece-id').value.trim();
-    
+
     if (!workpieceId) {
         addLogEntry('warning', '请先选择或输入工件ID');
         alert('请先选择或输入工件ID');
         return;
     }
-    
+
     addLogEntry('info', `刷新模板列表，工件ID: ${workpieceId}`);
-    
+
     // 调用后端API列出模板，传入工件ID过滤
     fetch(`${API_BASE_URL}/api/list_templates`, {
         method: 'POST',
@@ -2169,65 +2164,65 @@ function refreshTemplateList() {
             workpiece_id: workpieceId  // 传入工件ID进行过滤
         })
     })
-    .then(async response => {
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
-        }
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            // 过滤出匹配的模板
-            let filteredTemplates = data.templates.filter(t => t.workpiece_id === workpieceId);
-            
-            // 按姿态ID增序排序
-            filteredTemplates.sort((a, b) => {
-                const poseIdA = a.pose_id || '';
-                const poseIdB = b.pose_id || '';
-                
-                // 尝试将姿态ID转换为数字进行排序
-                const numA = parseFloat(poseIdA);
-                const numB = parseFloat(poseIdB);
-                
-                // 如果两个都是有效数字，按数字排序
-                if (!isNaN(numA) && !isNaN(numB)) {
-                    return numA - numB;
-                }
-                
-                // 否则按字符串排序
-                return poseIdA.localeCompare(poseIdB, undefined, { numeric: true, sensitivity: 'base' });
-            });
-            
-            const count = filteredTemplates.length;
-            
-            addLogEntry('success', `找到 ${count} 个模板`);
-            
-            // 更新模板列表显示
-            const templateListContainer = document.getElementById('template-results-list');
-            templateListContainer.innerHTML = '';  // 清空现有列表
-            
-            // 更新模板数量
-            document.getElementById('template-count').textContent = count;
-            
-            // 显示每个模板（异步加载姿态数据）
-            filteredTemplates.forEach(async (template, index) => {
-                // 先创建模板项的基本结构
-                const templateItem = document.createElement('div');
-                templateItem.className = 'result-item';
-                templateItem.style.marginBottom = '16px';
-                templateItem.style.display = 'flex';
-                templateItem.style.flexDirection = 'column';
-                templateItem.setAttribute('data-workpiece-id', template.workpiece_id);
-                templateItem.setAttribute('data-pose-id', template.pose_id);
-                
-                // 显示加载中状态
-                templateItem.innerHTML = `
+        .then(async response => {
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
+            }
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // 过滤出匹配的模板
+                let filteredTemplates = data.templates.filter(t => t.workpiece_id === workpieceId);
+
+                // 按姿态ID增序排序
+                filteredTemplates.sort((a, b) => {
+                    const poseIdA = a.pose_id || '';
+                    const poseIdB = b.pose_id || '';
+
+                    // 尝试将姿态ID转换为数字进行排序
+                    const numA = parseFloat(poseIdA);
+                    const numB = parseFloat(poseIdB);
+
+                    // 如果两个都是有效数字，按数字排序
+                    if (!isNaN(numA) && !isNaN(numB)) {
+                        return numA - numB;
+                    }
+
+                    // 否则按字符串排序
+                    return poseIdA.localeCompare(poseIdB, undefined, { numeric: true, sensitivity: 'base' });
+                });
+
+                const count = filteredTemplates.length;
+
+                addLogEntry('success', `找到 ${count} 个模板`);
+
+                // 更新模板列表显示
+                const templateListContainer = document.getElementById('template-results-list');
+                templateListContainer.innerHTML = '';  // 清空现有列表
+
+                // 更新模板数量
+                document.getElementById('template-count').textContent = count;
+
+                // 显示每个模板（异步加载姿态数据）
+                filteredTemplates.forEach(async (template, index) => {
+                    // 先创建模板项的基本结构
+                    const templateItem = document.createElement('div');
+                    templateItem.className = 'result-item';
+                    templateItem.style.marginBottom = '16px';
+                    templateItem.style.display = 'flex';
+                    templateItem.style.flexDirection = 'column';
+                    templateItem.setAttribute('data-workpiece-id', template.workpiece_id);
+                    templateItem.setAttribute('data-pose-id', template.pose_id);
+
+                    // 显示加载中状态
+                    templateItem.innerHTML = `
                     <div style="width: 100%; margin-bottom: 12px;">
                         <img src="${template.image_base64}" style="width: 100%; max-height: 300px; object-fit: contain; border-radius: 4px; background: #f8fafc;" />
                     </div>
@@ -2238,69 +2233,69 @@ function refreshTemplateList() {
                         </div>
                     </div>
                 `;
-                
-                templateListContainer.appendChild(templateItem);
-                
-                // 异步加载所有姿态数据
-                try {
-                    const poseTypes = [
-                        { type: 'preparation_position', name: '准备姿态', color: '#f59e0b', key: 'preparation' },
-                        { type: 'grab_position', name: '抓取姿态', color: '#10b981', key: 'grab' },
-                        { type: 'preplace_position', name: '预放置姿态', color: '#8b5cf6', key: 'preplace' },
-                        { type: 'place_position', name: '放置位姿', color: '#ef4444', key: 'place' }
-                    ];
-                    
-                    const poses = {};
-                    const loadPromises = poseTypes.map(async ({ type, key }) => {
-                        try {
-                            const response = await fetch(`${API_BASE_URL}/api/read_template_pose`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    workpiece_id: template.workpiece_id,
-                                    pose_id: template.pose_id,
-                                    pose_type: type
-                                })
-                            });
-                            
-                            if (response.ok) {
-                                const data = await response.json();
-                                if (data.success && data.pose_data) {
-                                    poses[type] = data.pose_data;
-                                    poses[type]._poseKey = key; // 保存姿态类型key
+
+                    templateListContainer.appendChild(templateItem);
+
+                    // 异步加载所有姿态数据
+                    try {
+                        const poseTypes = [
+                            { type: 'preparation_position', name: '准备姿态', color: '#f59e0b', key: 'preparation' },
+                            { type: 'grab_position', name: '抓取姿态', color: '#10b981', key: 'grab' },
+                            { type: 'preplace_position', name: '预放置姿态', color: '#8b5cf6', key: 'preplace' },
+                            { type: 'place_position', name: '放置位姿', color: '#ef4444', key: 'place' }
+                        ];
+
+                        const poses = {};
+                        const loadPromises = poseTypes.map(async ({ type, key }) => {
+                            try {
+                                const response = await fetch(`${API_BASE_URL}/api/read_template_pose`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        workpiece_id: template.workpiece_id,
+                                        pose_id: template.pose_id,
+                                        pose_type: type
+                                    })
+                                });
+
+                                if (response.ok) {
+                                    const data = await response.json();
+                                    if (data.success && data.pose_data) {
+                                        poses[type] = data.pose_data;
+                                        poses[type]._poseKey = key; // 保存姿态类型key
+                                    }
                                 }
+                            } catch (error) {
+                                console.error(`加载姿态 ${type} 失败:`, error);
                             }
-                        } catch (error) {
-                            console.error(`加载姿态 ${type} 失败:`, error);
-                        }
-                    });
-                    
-                    await Promise.all(loadPromises);
-                    
-                    // 辅助函数：格式化数值
-                    const fmt = (val, decimals = 2) => val !== undefined && val !== null ? val.toFixed(decimals) : 'N/A';
-                    const fmt4 = (val) => val !== undefined && val !== null ? val.toFixed(4) : 'N/A';
-                    const fmtArray = (arr, decimals = 2) => {
-                        if (!arr || !Array.isArray(arr)) return 'N/A';
-                        return arr.map(v => fmt(v, decimals)).join(', ');
-                    };
-                    
-                    // 辅助函数：创建姿态信息块
-                    const createPoseBlock = (poseData, title, color, poseTypeKey) => {
-                        if (!poseData || !poseData.cartesian_position) return '';
-                        
-                        const cartesian = poseData.cartesian_position || {};
-                        const p = cartesian.position || {};
-                        const eulerDeg = cartesian.euler_orientation_rpy_deg || [];
-                        const jointsDeg = poseData.joint_position_deg || [];
-                        
-                        // 准备传递给模态窗口的数据（转义特殊字符）
-                        const poseDataEscaped = JSON.stringify(poseData)
-                            .replace(/\\/g, '\\\\')
-                            .replace(/'/g, "\\'")
-                            .replace(/"/g, '&quot;');
-                        
-                        return `
+                        });
+
+                        await Promise.all(loadPromises);
+
+                        // 辅助函数：格式化数值
+                        const fmt = (val, decimals = 2) => val !== undefined && val !== null ? val.toFixed(decimals) : 'N/A';
+                        const fmt4 = (val) => val !== undefined && val !== null ? val.toFixed(4) : 'N/A';
+                        const fmtArray = (arr, decimals = 2) => {
+                            if (!arr || !Array.isArray(arr)) return 'N/A';
+                            return arr.map(v => fmt(v, decimals)).join(', ');
+                        };
+
+                        // 辅助函数：创建姿态信息块
+                        const createPoseBlock = (poseData, title, color, poseTypeKey) => {
+                            if (!poseData || !poseData.cartesian_position) return '';
+
+                            const cartesian = poseData.cartesian_position || {};
+                            const p = cartesian.position || {};
+                            const eulerDeg = cartesian.euler_orientation_rpy_deg || [];
+                            const jointsDeg = poseData.joint_position_deg || [];
+
+                            // 准备传递给模态窗口的数据（转义特殊字符）
+                            const poseDataEscaped = JSON.stringify(poseData)
+                                .replace(/\\/g, '\\\\')
+                                .replace(/'/g, "\\'")
+                                .replace(/"/g, '&quot;');
+
+                            return `
                             <div style="margin-bottom: 10px; padding: 8px; background: #f8fafc; border-radius: 4px; border-left: 3px solid ${color}; cursor: pointer; transition: all 0.2s;"
                                  onmouseover="this.style.background='#f1f5f9'; this.style.transform='translateX(2px)'"
                                  onmouseout="this.style.background='#f8fafc'; this.style.transform='translateX(0)'"
@@ -2316,10 +2311,10 @@ function refreshTemplateList() {
                                 </div>
                             </div>
                         `;
-                    };
-                    
-                    // 更新模板项内容
-                    templateItem.innerHTML = `
+                        };
+
+                        // 更新模板项内容
+                        templateItem.innerHTML = `
                         <div style="width: 100%; margin-bottom: 12px;">
                             <img src="${template.image_base64}" style="width: 100%; max-height: 300px; object-fit: contain; border-radius: 4px; background: #f8fafc; cursor: pointer;" 
                                  onclick="displayTemplateImage('${template.workpiece_id}', '${template.pose_id}')" />
@@ -2331,15 +2326,15 @@ function refreshTemplateList() {
                             </div>
                             
                             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
-                                ${poseTypes.map(({ type, name, color, key }) => 
-                                    createPoseBlock(poses[type], name, color, key)
-                                ).join('')}
+                                ${poseTypes.map(({ type, name, color, key }) =>
+                            createPoseBlock(poses[type], name, color, key)
+                        ).join('')}
                             </div>
                         </div>
                     `;
-                } catch (error) {
-                    console.error('加载模板姿态数据失败:', error);
-                    templateItem.innerHTML = `
+                    } catch (error) {
+                        console.error('加载模板姿态数据失败:', error);
+                        templateItem.innerHTML = `
                         <div style="width: 100%; margin-bottom: 12px;">
                             <img src="${template.image_base64}" style="width: 100%; max-height: 300px; object-fit: contain; border-radius: 4px; background: #f8fafc;" />
                         </div>
@@ -2347,68 +2342,68 @@ function refreshTemplateList() {
                             加载姿态数据失败: ${error.message}
                         </div>
                     `;
+                    }
+                });
+
+                if (count === 0) {
+                    templateListContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b;">该工件ID下暂无模板</div>';
                 }
-            });
-            
-            if (count === 0) {
-                templateListContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b;">该工件ID下暂无模板</div>';
+            } else {
+                addLogEntry('error', `刷新模板列表失败: ${data.error}`);
+                alert(`刷新模板列表失败: ${data.error}`);
             }
-        } else {
-            addLogEntry('error', `刷新模板列表失败: ${data.error}`);
-            alert(`刷新模板列表失败: ${data.error}`);
-        }
-    })
-    .catch(error => {
-        addLogEntry('error', `刷新模板列表异常: ${error.message}`);
-        console.error('刷新模板列表错误详情:', error);
-        alert(`刷新模板列表异常: ${error.message}\n\n请检查：\n1. 服务器是否正常运行\n2. ROS2节点是否已启动`);
-    });
+        })
+        .catch(error => {
+            addLogEntry('error', `刷新模板列表异常: ${error.message}`);
+            console.error('刷新模板列表错误详情:', error);
+            alert(`刷新模板列表异常: ${error.message}\n\n请检查：\n1. 服务器是否正常运行\n2. ROS2节点是否已启动`);
+        });
 }
 
 // 显示模板图像（优先显示gripper_visualization.jpg）
 function displayTemplateImage(workpieceId, poseId) {
     // 优先尝试加载gripper_visualization.jpg
     const imageUrl = `/api/get_template_image?workpiece_id=${encodeURIComponent(workpieceId)}&pose_id=${encodeURIComponent(poseId)}&image_name=gripper_visualization.jpg`;
-    
+
     const placeholder = document.getElementById('template-image');
     placeholder.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b;">加载中...</div>';
-    
+
     fetch(imageUrl)
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-        return response.blob();
-    })
-    .then(blob => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const imageBase64 = e.target.result;
-            placeholder.innerHTML = '';
-            const img = document.createElement('img');
-            img.src = imageBase64;
-            placeholder.appendChild(img);
-            // 根据图像尺寸优化显示
-            optimizeImageDisplay(img, placeholder);
-            addLogEntry('success', `已显示模板图像: ${workpieceId}/pose_${poseId}/gripper_visualization.jpg`);
-        };
-        reader.readAsDataURL(blob);
-    })
-    .catch(error => {
-        placeholder.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444;">图像加载失败</div>';
-        addLogEntry('error', `加载模板图像失败: ${error.message}`);
-        console.error('加载模板图像错误:', error);
-    });
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const imageBase64 = e.target.result;
+                placeholder.innerHTML = '';
+                const img = document.createElement('img');
+                img.src = imageBase64;
+                placeholder.appendChild(img);
+                // 根据图像尺寸优化显示
+                optimizeImageDisplay(img, placeholder);
+                addLogEntry('success', `已显示模板图像: ${workpieceId}/pose_${poseId}/gripper_visualization.jpg`);
+            };
+            reader.readAsDataURL(blob);
+        })
+        .catch(error => {
+            placeholder.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444;">图像加载失败</div>';
+            addLogEntry('error', `加载模板图像失败: ${error.message}`);
+            console.error('加载模板图像错误:', error);
+        });
 }
 
 // 刷新模板设置的工件ID下拉框
 function refreshTemplateWorkpieceIdDropdown() {
     const dropdown = document.getElementById('workpiece-id');
     if (!dropdown) return;
-    
+
     // 保存当前选中的值
     const currentValue = dropdown.value;
-    
+
     // 调用API获取工件ID列表
     fetch(`${API_BASE_URL}/api/list_workpiece_ids`, {
         method: 'POST',
@@ -2416,34 +2411,34 @@ function refreshTemplateWorkpieceIdDropdown() {
             'Content-Type': 'application/json',
         }
     })
-    .then(async response => {
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success && data.workpiece_ids) {
-            // 清空下拉框（保留第一个选项）
-            dropdown.innerHTML = '<option value="">请选择或输入工件ID...</option>';
-            
-            // 填充选项
-            data.workpiece_ids.sort().forEach(id => {
-                const option = document.createElement('option');
-                option.value = id;
-                option.textContent = id;
-                dropdown.appendChild(option);
-            });
-            
-            // 恢复之前选中的值
-            if (currentValue && Array.from(dropdown.options).some(opt => opt.value === currentValue)) {
-                dropdown.value = currentValue;
+        .then(async response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
             }
-        }
-    })
-    .catch(error => {
-        console.log('获取工件ID列表失败:', error);
-    });
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.workpiece_ids) {
+                // 清空下拉框（保留第一个选项）
+                dropdown.innerHTML = '<option value="">请选择或输入工件ID...</option>';
+
+                // 填充选项
+                data.workpiece_ids.sort().forEach(id => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = id;
+                    dropdown.appendChild(option);
+                });
+
+                // 恢复之前选中的值
+                if (currentValue && Array.from(dropdown.options).some(opt => opt.value === currentValue)) {
+                    dropdown.value = currentValue;
+                }
+            }
+        })
+        .catch(error => {
+            console.log('获取工件ID列表失败:', error);
+        });
 }
 
 // 切换工件ID输入框显示
@@ -2451,7 +2446,7 @@ function toggleWorkpieceIdInput() {
     const select = document.getElementById('workpiece-id');
     const input = document.getElementById('workpiece-id-input');
     const container = input.parentElement;
-    
+
     if (input.style.display === 'none') {
         select.style.display = 'none';
         input.style.display = 'block';
@@ -2476,7 +2471,7 @@ function handleWorkpieceIdInputBlur() {
     const select = document.getElementById('workpiece-id');
     const input = document.getElementById('workpiece-id-input');
     const newValue = input.value.trim();
-    
+
     if (newValue) {
         // 检查下拉框中是否已存在该值
         const existingOption = Array.from(select.options).find(opt => opt.value === newValue);
@@ -2489,7 +2484,7 @@ function handleWorkpieceIdInputBlur() {
         }
         select.value = newValue;
     }
-    
+
     select.style.display = 'block';
     input.style.display = 'none';
 }
@@ -2513,14 +2508,14 @@ function loadTemplateImage() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.onchange = function(e) {
+    input.onchange = function (e) {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 const imageBase64 = e.target.result;
                 templateState.currentImageBase64 = imageBase64;
-                
+
                 const placeholder = document.getElementById('template-image');
                 placeholder.innerHTML = '';
                 const img = document.createElement('img');
@@ -2541,15 +2536,15 @@ function captureTemplateImage() {
     const workpieceId = document.getElementById('workpiece-id').value.trim();
     const poseId = document.getElementById('pose-id').value.trim();
     const cameraId = '207000152740'; // 默认相机ID
-    
+
     if (!workpieceId || !poseId) {
         addLogEntry('warning', '请先输入工件ID和姿态ID');
         alert('请先输入工件ID和姿态ID');
         return;
     }
-    
+
     addLogEntry('info', `正在触发相机拍照，相机ID: ${cameraId}，工件ID: ${workpieceId}，姿态ID: ${poseId}`);
-    
+
     // 调用 capture_template_image 接口，会自动保存图像到对应的姿态文件夹
     fetch(`${API_BASE_URL}/api/capture_template_image`, {
         method: 'POST',
@@ -2562,64 +2557,64 @@ function captureTemplateImage() {
             camera_id: cameraId
         })
     })
-    .then(async response => {
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
-        }
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            // 获取JPEG格式的图像数据
-            const imageBase64 = data.image_base64 || data.image;
-            templateState.currentImageBase64 = imageBase64;
-            
-            // 显示图像到模板图像显示区域
-            const placeholder = document.getElementById('template-image');
-            placeholder.innerHTML = '';
-            const img = document.createElement('img');
-            img.src = imageBase64;
-            placeholder.appendChild(img);
-            // 根据图像尺寸优化显示
-            optimizeImageDisplay(img, placeholder);
-            
-            // 显示保存路径信息（彩色图 + 深度图）
-            const imagePath = data.image_path || `templates/${workpieceId}/pose_${poseId}/original_image.jpg`;
-            addLogEntry('success', `图像采集完成，彩色图: ${imagePath}`);
-            if (data.depth_image_path) {
-                addLogEntry('success', `图像采集完成，深度图: ${data.depth_image_path}`);
-            } else {
-                addLogEntry('warning', '当前采集接口未返回深度图路径（可能未保存depth_image.png）');
+        .then(async response => {
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
             }
-        } else {
-            addLogEntry('error', '图像采集失败: ' + (data.error || '未知错误'));
-            alert('图像采集失败: ' + (data.error || '未知错误'));
-        }
-    })
-    .catch(error => {
-        addLogEntry('error', '图像采集异常: ' + error.message);
-        console.error('图像采集错误详情:', error);
-        alert('图像采集异常: ' + error.message + '\n\n请检查：\n1. 服务器是否正常运行\n2. ROS2节点是否已启动\n3. 相机服务是否可用');
-    });
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // 获取JPEG格式的图像数据
+                const imageBase64 = data.image_base64 || data.image;
+                templateState.currentImageBase64 = imageBase64;
+
+                // 显示图像到模板图像显示区域
+                const placeholder = document.getElementById('template-image');
+                placeholder.innerHTML = '';
+                const img = document.createElement('img');
+                img.src = imageBase64;
+                placeholder.appendChild(img);
+                // 根据图像尺寸优化显示
+                optimizeImageDisplay(img, placeholder);
+
+                // 显示保存路径信息（彩色图 + 深度图）
+                const imagePath = data.image_path || `templates/${workpieceId}/pose_${poseId}/original_image.jpg`;
+                addLogEntry('success', `图像采集完成，彩色图: ${imagePath}`);
+                if (data.depth_image_path) {
+                    addLogEntry('success', `图像采集完成，深度图: ${data.depth_image_path}`);
+                } else {
+                    addLogEntry('warning', '当前采集接口未返回深度图路径（可能未保存depth_image.png）');
+                }
+            } else {
+                addLogEntry('error', '图像采集失败: ' + (data.error || '未知错误'));
+                alert('图像采集失败: ' + (data.error || '未知错误'));
+            }
+        })
+        .catch(error => {
+            addLogEntry('error', '图像采集异常: ' + error.message);
+            console.error('图像采集错误详情:', error);
+            alert('图像采集异常: ' + error.message + '\n\n请检查：\n1. 服务器是否正常运行\n2. ROS2节点是否已启动\n3. 相机服务是否可用');
+        });
 }
 
 function getRobotPose() {
     const workpieceId = document.getElementById('workpiece-id').value.trim();
     const poseId = document.getElementById('pose-id').value.trim();
     const poseType = document.getElementById('pose-type').value;
-    
+
     if (!workpieceId || !poseId) {
         addLogEntry('warning', '请先输入工件ID和姿态ID');
         alert('请先输入工件ID和姿态ID');
         return;
     }
-    
+
     const poseTypeNames = {
         'camera_pose': '相机姿态',
         'preparation_position': '准备姿态',
@@ -2627,9 +2622,9 @@ function getRobotPose() {
         'preplace_position': '预放置姿态',
         'place_position': '放置位姿'
     };
-    
+
     addLogEntry('info', `正在获取${poseTypeNames[poseType]}: 工件ID=${workpieceId}, 姿态ID=${poseId}`);
-    
+
     // 先获取机器人状态
     fetch(`${API_BASE_URL}/api/get_robot_status`, {
         method: 'POST',
@@ -2638,121 +2633,121 @@ function getRobotPose() {
         },
         body: JSON.stringify({})
     })
-    .then(async response => {
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
-        }
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success && data.robot_status) {
-            addLogEntry('success', `${poseTypeNames[poseType]}获取成功`);
-            
-            // 保存姿态到文件
-            fetch(`${API_BASE_URL}/api/save_template_pose`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    workpiece_id: workpieceId,
-                    pose_id: poseId,
-                    pose_type: poseType,
-                    robot_status: data.robot_status
+        .then(async response => {
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
+            }
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.robot_status) {
+                addLogEntry('success', `${poseTypeNames[poseType]}获取成功`);
+
+                // 保存姿态到文件
+                fetch(`${API_BASE_URL}/api/save_template_pose`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        workpiece_id: workpieceId,
+                        pose_id: poseId,
+                        pose_type: poseType,
+                        robot_status: data.robot_status
+                    })
                 })
-            })
-            .then(async response => {
-                if (!response.ok) {
-                    const text = await response.text();
-                    throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
-                }
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    const text = await response.text();
-                    throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
-                }
-                return response.json();
-            })
-            .then(saveData => {
-                if (saveData.success) {
-                    // 显示姿态信息（仅写入日志，不再弹出对话框）
-                    const pos = data.robot_status.cartesian_position.position;
-                    const ori = data.robot_status.cartesian_position.orientation;
-                    const euler = data.robot_status.cartesian_position.euler_orientation_rpy_deg;
-                    
-                    const fmt = (v) => (v !== undefined && v !== null ? Number(v).toFixed(3) : '?');
-                    const posStr = `位置(${fmt(pos.x)}, ${fmt(pos.y)}, ${fmt(pos.z)})m`;
-                    const oriStr = `四元数(${fmt(ori.x)}, ${fmt(ori.y)}, ${fmt(ori.z)}, ${fmt(ori.w)})`;
-                    const eulerStr = euler && euler.length >= 3 ? `, 姿态角(${euler[0].toFixed(2)}, ${euler[1].toFixed(2)}, ${euler[2].toFixed(2)})deg` : '';
-                    
-                    addLogEntry('success', `${poseTypeNames[poseType]}已保存到: ${saveData.file_path} - ${posStr}, ${oriStr}${eulerStr}`);
-                    console.log(`${poseTypeNames[poseType]}获取并保存成功:`, {
-                        position_mm: {
-                            x: pos.x.toFixed(3),
-                            y: pos.y.toFixed(3),
-                            z: pos.z.toFixed(3),
-                        },
-                        orientation_quat: {
-                            x: ori.x.toFixed(6),
-                            y: ori.y.toFixed(6),
-                            z: ori.z.toFixed(6),
-                            w: ori.w.toFixed(6),
-                        },
-                        euler_deg: euler && euler.length >= 3 ? [
-                            euler[0].toFixed(2),
-                            euler[1].toFixed(2),
-                            euler[2].toFixed(2),
-                        ] : [],
+                    .then(async response => {
+                        if (!response.ok) {
+                            const text = await response.text();
+                            throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
+                        }
+                        const contentType = response.headers.get('content-type');
+                        if (!contentType || !contentType.includes('application/json')) {
+                            const text = await response.text();
+                            throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
+                        }
+                        return response.json();
+                    })
+                    .then(saveData => {
+                        if (saveData.success) {
+                            // 显示姿态信息（仅写入日志，不再弹出对话框）
+                            const pos = data.robot_status.cartesian_position.position;
+                            const ori = data.robot_status.cartesian_position.orientation;
+                            const euler = data.robot_status.cartesian_position.euler_orientation_rpy_deg;
+
+                            const fmt = (v) => (v !== undefined && v !== null ? Number(v).toFixed(3) : '?');
+                            const posStr = `位置(${fmt(pos.x)}, ${fmt(pos.y)}, ${fmt(pos.z)})m`;
+                            const oriStr = `四元数(${fmt(ori.x)}, ${fmt(ori.y)}, ${fmt(ori.z)}, ${fmt(ori.w)})`;
+                            const eulerStr = euler && euler.length >= 3 ? `, 姿态角(${euler[0].toFixed(2)}, ${euler[1].toFixed(2)}, ${euler[2].toFixed(2)})deg` : '';
+
+                            addLogEntry('success', `${poseTypeNames[poseType]}已保存到: ${saveData.file_path} - ${posStr}, ${oriStr}${eulerStr}`);
+                            console.log(`${poseTypeNames[poseType]}获取并保存成功:`, {
+                                position_mm: {
+                                    x: pos.x.toFixed(3),
+                                    y: pos.y.toFixed(3),
+                                    z: pos.z.toFixed(3),
+                                },
+                                orientation_quat: {
+                                    x: ori.x.toFixed(6),
+                                    y: ori.y.toFixed(6),
+                                    z: ori.z.toFixed(6),
+                                    w: ori.w.toFixed(6),
+                                },
+                                euler_deg: euler && euler.length >= 3 ? [
+                                    euler[0].toFixed(2),
+                                    euler[1].toFixed(2),
+                                    euler[2].toFixed(2),
+                                ] : [],
+                            });
+                        } else {
+                            addLogEntry('error', `姿态保存失败: ${saveData.error}`);
+                            console.error(`姿态保存失败: ${saveData.error}`);
+                        }
+                    })
+                    .catch(error => {
+                        addLogEntry('error', `姿态保存异常: ${error.message}`);
+                        console.error(`姿态保存异常: ${error.message}`);
                     });
-                } else {
-                    addLogEntry('error', `姿态保存失败: ${saveData.error}`);
-                    console.error(`姿态保存失败: ${saveData.error}`);
-                }
-            })
-            .catch(error => {
-                addLogEntry('error', `姿态保存异常: ${error.message}`);
-                console.error(`姿态保存异常: ${error.message}`);
-            });
-        } else {
-            addLogEntry('error', `获取机器人状态失败: ${data.error || '未知错误'}`);
-            console.error(`获取机器人状态失败: ${data.error || '未知错误'}`);
-        }
-    })
-    .catch(error => {
-        addLogEntry('error', `获取姿态异常: ${error.message}`);
-        console.error(`获取姿态异常: ${error.message}`);
-    });
+            } else {
+                addLogEntry('error', `获取机器人状态失败: ${data.error || '未知错误'}`);
+                console.error(`获取机器人状态失败: ${data.error || '未知错误'}`);
+            }
+        })
+        .catch(error => {
+            addLogEntry('error', `获取姿态异常: ${error.message}`);
+            console.error(`获取姿态异常: ${error.message}`);
+        });
 }
 
 function createTemplate() {
     const workpieceId = document.getElementById('workpiece-id').value.trim();
     const poseId = document.getElementById('pose-id').value.trim();
-    
+
     if (!workpieceId || !poseId) {
         addLogEntry('warning', '请输入工件ID和姿态ID');
         alert('请输入工件ID和姿态ID');
         return;
     }
-    
+
     addLogEntry('info', `检查模板完整性: 工件ID=${workpieceId}, 姿态ID=${poseId}`);
-    
+
     // 检查模板文件是否存在
     const templatePath = `/home/nvidia/RVG_ws/templates/${workpieceId}/pose_${poseId}`;
-    const requiredFiles = ['original_image.jpg', 'camera_pose.json', 
-                          'preparation_position.json', 'grab_position.json'];
-    
+    const requiredFiles = ['original_image.jpg', 'camera_pose.json',
+        'preparation_position.json', 'grab_position.json'];
+
     let missingFiles = [];
     for (const file of requiredFiles) {
         // 可以添加文件检查逻辑
         // 暂时只显示提示
     }
-    
+
     addLogEntry('info', `模板目录: ${templatePath}`);
     addLogEntry('success', `模板创建流程: 1.输入工件ID和姿态ID 2.采集图像 3.获取三种姿态`);
     alert('模板创建流程:\n1. 输入工件ID和姿态ID\n2. 点击"图像采集"按钮采集图像\n3. 选择姿态类型，点击"获取姿态"按钮获取并保存姿态\n4. 重复步骤3，获取所有姿态（相机姿态、准备姿态、抓取姿态、预放置姿态、放置位姿）');
@@ -2770,15 +2765,15 @@ function deleteTemplate() {
 // 模板标准化功能
 function standardizeTemplate() {
     const workpieceId = document.getElementById('workpiece-id').value.trim();
-    
+
     if (!workpieceId) {
         addLogEntry('warning', '请输入工件ID');
         alert('请输入工件ID');
         return;
     }
-    
+
     addLogEntry('info', `开始模板标准化: 工件ID=${workpieceId}`);
-    
+
     fetch(`${API_BASE_URL}/api/standardize_template`, {
         method: 'POST',
         headers: {
@@ -2788,39 +2783,39 @@ function standardizeTemplate() {
             workpiece_id: workpieceId
         })
     })
-    .then(async response => {
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
-        }
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            addLogEntry('success', `模板标准化完成: 处理 ${data.processed_count} 个姿态, 跳过 ${data.skipped_count} 个姿态`);
-            if (data.processed_pose_ids && data.processed_pose_ids.length > 0) {
-                addLogEntry('info', `已处理的姿态: ${data.processed_pose_ids.join(', ')}`);
+        .then(async response => {
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
             }
-            if (data.skipped_pose_ids && data.skipped_pose_ids.length > 0) {
-                addLogEntry('warning', `跳过的姿态: ${data.skipped_pose_ids.join(', ')}`);
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                throw new Error(`服务器返回的不是JSON格式: ${text.substring(0, 100)}`);
             }
-            // 标准化完成后，刷新模板列表
-            refreshTemplateList();
-        } else {
-            addLogEntry('error', `模板标准化失败: ${data.error_message}`);
-            alert(`模板标准化失败: ${data.error_message}`);
-        }
-    })
-    .catch(error => {
-        addLogEntry('error', `模板标准化异常: ${error.message}`);
-        console.error('模板标准化错误详情:', error);
-        alert(`模板标准化异常: ${error.message}\n\n请检查：\n1. 服务器是否正常运行\n2. ROS2节点是否已启动\n3. 模板文件是否存在`);
-    });
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                addLogEntry('success', `模板标准化完成: 处理 ${data.processed_count} 个姿态, 跳过 ${data.skipped_count} 个姿态`);
+                if (data.processed_pose_ids && data.processed_pose_ids.length > 0) {
+                    addLogEntry('info', `已处理的姿态: ${data.processed_pose_ids.join(', ')}`);
+                }
+                if (data.skipped_pose_ids && data.skipped_pose_ids.length > 0) {
+                    addLogEntry('warning', `跳过的姿态: ${data.skipped_pose_ids.join(', ')}`);
+                }
+                // 标准化完成后，刷新模板列表
+                refreshTemplateList();
+            } else {
+                addLogEntry('error', `模板标准化失败: ${data.error_message}`);
+                alert(`模板标准化失败: ${data.error_message}`);
+            }
+        })
+        .catch(error => {
+            addLogEntry('error', `模板标准化异常: ${error.message}`);
+            console.error('模板标准化错误详情:', error);
+            alert(`模板标准化异常: ${error.message}\n\n请检查：\n1. 服务器是否正常运行\n2. ROS2节点是否已启动\n3. 模板文件是否存在`);
+        });
 }
 
 // 更新模板计数
@@ -2833,7 +2828,7 @@ function updateTemplateCount(count) {
 function displayDebugImage(imageBase64, containerId) {
     const container = document.getElementById(containerId || 'debug-image-placeholder');
     if (!container) return;
-    
+
     container.innerHTML = '';
     const img = document.createElement('img');
     img.src = imageBase64;
@@ -2847,9 +2842,9 @@ function displayDebugImage(imageBase64, containerId) {
 
 function debugCaptureImage() {
     addLogEntry('info', 'Debug: 采集图像');
-    
+
     const cameraId = '207000152740'; // 可以从输入框获取
-    
+
     fetch(`${API_BASE_URL}/api/debug/capture`, {
         method: 'POST',
         headers: {
@@ -2859,26 +2854,26 @@ function debugCaptureImage() {
             camera_id: cameraId
         })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            addLogEntry('success', '图像采集成功');
-            // 立即刷新显示
-            debugRefreshImages();
-            // 启动自动刷新
-            startDebugAutoRefresh();
-        } else {
-            // 采集失败：停止自动刷新，避免一直刷“等待图像”
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                addLogEntry('success', '图像采集成功');
+                // 立即刷新显示
+                debugRefreshImages();
+                // 启动自动刷新
+                startDebugAutoRefresh();
+            } else {
+                // 采集失败：停止自动刷新，避免一直刷“等待图像”
+                stopDebugAutoRefresh();
+                addLogEntry('error', `图像采集失败: ${data.error}`);
+                alert(`图像采集失败: ${data.error}`);
+            }
+        })
+        .catch(error => {
             stopDebugAutoRefresh();
-            addLogEntry('error', `图像采集失败: ${data.error}`);
-            alert(`图像采集失败: ${data.error}`);
-        }
-    })
-    .catch(error => {
-        stopDebugAutoRefresh();
-        addLogEntry('error', `图像采集异常: ${error.message}`);
-        alert(`图像采集异常: ${error.message}`);
-    });
+            addLogEntry('error', `图像采集异常: ${error.message}`);
+            alert(`图像采集异常: ${error.message}`);
+        });
 }
 
 function debugRefresh() {
@@ -2890,31 +2885,31 @@ function debugRefreshImages() {
     if (debugState.isRefreshing) {
         return;
     }
-    
+
     debugState.isRefreshing = true;
-    
+
     fetch(`${API_BASE_URL}/api/debug/get_images`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         }
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success && data.has_images) {
-            // 更新图像
-            updateDebugImage('depth', data.depth_image, data.stats);
-            updateDebugImage('color', data.color_image);
-            updateDebugImage('binary', data.binary_image, data.stats);
-            updateDebugImage('preprocessed', data.preprocessed_image, data.features);
-        } else if (!data.has_images) {
-            const waitMessage = data && data.message ? String(data.message) : '等待图像...';
-            // 显示等待状态
-            ['depth', 'color', 'binary', 'preprocessed'].forEach(type => {
-                const content = document.getElementById(`${type}-image-content`);
-                const stats = document.getElementById(`${type}-stats`);
-                if (content) {
-                    content.innerHTML = `
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.has_images) {
+                // 更新图像
+                updateDebugImage('depth', data.depth_image, data.stats);
+                updateDebugImage('color', data.color_image);
+                updateDebugImage('binary', data.binary_image, data.stats);
+                updateDebugImage('preprocessed', data.preprocessed_image, data.features);
+            } else if (!data.has_images) {
+                const waitMessage = data && data.message ? String(data.message) : '等待图像...';
+                // 显示等待状态
+                ['depth', 'color', 'binary', 'preprocessed'].forEach(type => {
+                    const content = document.getElementById(`${type}-image-content`);
+                    const stats = document.getElementById(`${type}-stats`);
+                    if (content) {
+                        content.innerHTML = `
                         <div class="debug-image-placeholder">
                             <div class="placeholder-content">
                                 <div class="placeholder-icon">📷</div>
@@ -2923,19 +2918,19 @@ function debugRefreshImages() {
                             </div>
                         </div>
                     `;
-                }
-                if (stats) {
-                    stats.textContent = waitMessage;
-                }
-            });
-        }
-    })
-    .catch(error => {
-        console.error('刷新图像失败:', error);
-    })
-    .finally(() => {
-        debugState.isRefreshing = false;
-    });
+                    }
+                    if (stats) {
+                        stats.textContent = waitMessage;
+                    }
+                });
+            }
+        })
+        .catch(error => {
+            console.error('刷新图像失败:', error);
+        })
+        .finally(() => {
+            debugState.isRefreshing = false;
+        });
 }
 
 function updateDebugImage(type, imageBase64, stats) {
@@ -2950,7 +2945,7 @@ function updateDebugImage(type, imageBase64, stats) {
         // 根据图像尺寸优化显示（Debug区域使用较小的padding）
         optimizeImageDisplay(img, content, { padding: 10 });
     }
-    
+
     let statsText = '';
     if (statsElement && stats) {
         let statsText = '';
@@ -2973,12 +2968,12 @@ function updateDebugImage(type, imageBase64, stats) {
 function startDebugAutoRefresh() {
     // 停止之前的定时器
     stopDebugAutoRefresh();
-    
+
     // 启动新的定时器（每500ms刷新一次）
     debugState.refreshInterval = setInterval(() => {
         debugRefreshImages();
     }, 500);
-    
+
     addLogEntry('info', 'Debug: 启动自动刷新');
 }
 
@@ -3065,19 +3060,19 @@ function updateDebugParam(paramName, paramValue) {
             valueDisplay.textContent = Math.round(paramValue);
         }
     }
-    
+
     // 转换参数名（连字符转下划线）用于本地状态
     const serverParamName = paramName.replace(/-/g, '_');
-    
+
     // 更新本地状态
     debugState.params[serverParamName] = parseFloat(paramValue);
-    
+
     // 发送到服务器（保持连字符格式，后端支持这种格式）
     const requestBody = {
         param_name: paramName,  // 使用原始连字符格式
         param_value: parseFloat(paramValue)
     };
-    
+
     fetch(`${API_BASE_URL}/api/debug/update_params`, {
         method: 'POST',
         headers: {
@@ -3085,41 +3080,41 @@ function updateDebugParam(paramName, paramValue) {
         },
         body: JSON.stringify(requestBody)
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // 参数更新成功，刷新图像
-            debugRefreshImages();
-        }
-    })
-    .catch(error => {
-        console.error('更新参数失败:', error);
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 参数更新成功，刷新图像
+                debugRefreshImages();
+            }
+        })
+        .catch(error => {
+            console.error('更新参数失败:', error);
+        });
 }
 
 function debugSaveThresholds() {
     addLogEntry('info', 'Debug: 保存阈值');
-    
+
     fetch(`${API_BASE_URL}/api/debug/save_thresholds`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         }
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            addLogEntry('success', `阈值保存成功: ${data.message}`);
-            alert(`阈值保存成功: ${data.message}`);
-        } else {
-            addLogEntry('error', `阈值保存失败: ${data.error}`);
-            alert(`阈值保存失败: ${data.error}`);
-        }
-    })
-    .catch(error => {
-        addLogEntry('error', `保存阈值异常: ${error.message}`);
-        alert(`保存阈值异常: ${error.message}`);
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                addLogEntry('success', `阈值保存成功: ${data.message}`);
+                alert(`阈值保存成功: ${data.message}`);
+            } else {
+                addLogEntry('error', `阈值保存失败: ${data.error}`);
+                alert(`阈值保存失败: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            addLogEntry('error', `保存阈值异常: ${error.message}`);
+            alert(`保存阈值异常: ${error.message}`);
+        });
 }
 
 // 加载Debug参数
@@ -3130,131 +3125,131 @@ function loadDebugParams() {
             'Content-Type': 'application/json',
         }
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success && data.params) {
-            console.log('[DEBUG] 加载参数:', data.params);
-            
-            // 参数名映射表：JSON中的参数名 -> HTML滑动条ID前缀
-            const paramMap = {
-                'binary_threshold_min': 'min-depth',
-                'binary_threshold_max': 'max-depth',
-                'component_min_area': 'contour-min-area',
-                'component_max_area': 'contour-max-area',
-                'component_min_aspect_ratio': 'min-aspect',
-                'component_max_aspect_ratio': 'max-aspect',
-                'component_min_width': 'min-width',
-                'component_min_height': 'min-height',
-                'component_max_count': 'max-count',
-                'enable_smooth_edges': 'enable-smooth-edges',
-                'smooth_edges_blur_sigma': 'smooth-edges-blur-sigma',
-                'use_rembg': 'use-rembg'
-            };
-            
-            // 更新滑动条值和显示值
-            let loadedCount = 0;
-            let failedCount = 0;
-            
-            Object.keys(data.params).forEach(key => {
-                const dashKey = paramMap[key];
-                if (!dashKey) {
-                    // 跳过不映射到滑动条的参数（如 enable_zero_interp）
-                    return;
-                }
-                
-                const sliderId = `${dashKey}-slider`;
-                const valueId = `${dashKey}-value`;
-                
-                // 更新滑动条
-                const slider = document.getElementById(sliderId);
-                if (slider) {
-                    let value = data.params[key];
-                    
-                    // 对于宽高比参数，需要乘以10；对于启用去毛边，转为 0/1；对于边缘平滑 σ，转为 0-30
-                    let sliderValue;
-                    if (dashKey.includes('aspect')) {
-                        sliderValue = Math.round(value * 10);
-                    } else if (dashKey === 'enable-smooth-edges' || dashKey === 'use-rembg') {
-                        sliderValue = (value === true || value === 1 || value === '1') ? 1 : 0;
-                    } else if (dashKey === 'smooth-edges-blur-sigma') {
-                        sliderValue = Math.round(parseFloat(value) * 10);
-                    } else {
-                        sliderValue = Math.round(value);
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.params) {
+                console.log('[DEBUG] 加载参数:', data.params);
+
+                // 参数名映射表：JSON中的参数名 -> HTML滑动条ID前缀
+                const paramMap = {
+                    'binary_threshold_min': 'min-depth',
+                    'binary_threshold_max': 'max-depth',
+                    'component_min_area': 'contour-min-area',
+                    'component_max_area': 'contour-max-area',
+                    'component_min_aspect_ratio': 'min-aspect',
+                    'component_max_aspect_ratio': 'max-aspect',
+                    'component_min_width': 'min-width',
+                    'component_min_height': 'min-height',
+                    'component_max_count': 'max-count',
+                    'enable_smooth_edges': 'enable-smooth-edges',
+                    'smooth_edges_blur_sigma': 'smooth-edges-blur-sigma',
+                    'use_rembg': 'use-rembg'
+                };
+
+                // 更新滑动条值和显示值
+                let loadedCount = 0;
+                let failedCount = 0;
+
+                Object.keys(data.params).forEach(key => {
+                    const dashKey = paramMap[key];
+                    if (!dashKey) {
+                        // 跳过不映射到滑动条的参数（如 enable_zero_interp）
+                        return;
                     }
-                    
-                    // 确保值在滑动条的范围内
-                    const minValue = parseFloat(slider.min);
-                    const maxValue = parseFloat(slider.max);
-                    
-                    if (sliderValue < minValue) {
-                        sliderValue = minValue;
-                        console.warn(`[DEBUG] ${sliderId} 值 ${sliderValue} 小于最小值 ${minValue}，调整为 ${minValue}`);
-                    } else if (sliderValue > maxValue) {
-                        sliderValue = maxValue;
-                        console.warn(`[DEBUG] ${sliderId} 值 ${sliderValue} 大于最大值 ${maxValue}，调整为 ${maxValue}`);
-                    }
-                    
-                    // 临时将step设置为1，避免range input根据step属性自动调整值
-                    // 这样可以精确设置任何值（如2095），而不是被吸附到step的倍数（如2100）
-                    const originalStep = slider.getAttribute('step') || slider.step;
-                    
-                    // 保存原始step到dataset（nudgeParamSlider会使用）
-                    if (originalStep && !slider.dataset.nudgeOriginalStep) {
-                        slider.dataset.nudgeOriginalStep = originalStep;
-                    }
-                    
-                    // 将step设置为1以精确设置值
-                    slider.step = '1';
-                    
-                    // 设置滑动条的值（使用字符串确保正确设置）
-                    slider.value = String(sliderValue);
-                    
-                    // 保持step为1，确保值不被吸附
-                    // 这不会影响nudgeParamSlider的行为，因为它也会设置step为1
-                    // 但对于拖拽，用户仍然可以通过滑动条调整，只是步长变为1
-                    
-                    console.log(`[DEBUG] 设置 ${sliderId} = ${slider.value} (来自 ${key})`);
-                    
-                    // 手动更新显示值（确保显示值正确）
-                    // 注意：这里只更新显示，不触发oninput事件，避免在加载默认值时触发参数更新并覆盖配置文件
-                    const valueDisplay = document.getElementById(valueId);
-                    if (valueDisplay) {
-                        let displayValue;
-                        if (dashKey === 'enable-smooth-edges' || dashKey === 'use-rembg') {
-                            displayValue = (value === true || value === 1 || value === '1') ? '开' : '关';
+
+                    const sliderId = `${dashKey}-slider`;
+                    const valueId = `${dashKey}-value`;
+
+                    // 更新滑动条
+                    const slider = document.getElementById(sliderId);
+                    if (slider) {
+                        let value = data.params[key];
+
+                        // 对于宽高比参数，需要乘以10；对于启用去毛边，转为 0/1；对于边缘平滑 σ，转为 0-30
+                        let sliderValue;
+                        if (dashKey.includes('aspect')) {
+                            sliderValue = Math.round(value * 10);
+                        } else if (dashKey === 'enable-smooth-edges' || dashKey === 'use-rembg') {
+                            sliderValue = (value === true || value === 1 || value === '1') ? 1 : 0;
                         } else if (dashKey === 'smooth-edges-blur-sigma') {
-                            const v = parseFloat(value);
-                            displayValue = v === 0 ? '关闭' : v.toFixed(1);
-                        } else if (dashKey.includes('aspect')) {
-                            displayValue = value.toFixed(1);
+                            sliderValue = Math.round(parseFloat(value) * 10);
                         } else {
-                            displayValue = Math.round(value);
+                            sliderValue = Math.round(value);
                         }
-                        valueDisplay.textContent = displayValue;
+
+                        // 确保值在滑动条的范围内
+                        const minValue = parseFloat(slider.min);
+                        const maxValue = parseFloat(slider.max);
+
+                        if (sliderValue < minValue) {
+                            sliderValue = minValue;
+                            console.warn(`[DEBUG] ${sliderId} 值 ${sliderValue} 小于最小值 ${minValue}，调整为 ${minValue}`);
+                        } else if (sliderValue > maxValue) {
+                            sliderValue = maxValue;
+                            console.warn(`[DEBUG] ${sliderId} 值 ${sliderValue} 大于最大值 ${maxValue}，调整为 ${maxValue}`);
+                        }
+
+                        // 临时将step设置为1，避免range input根据step属性自动调整值
+                        // 这样可以精确设置任何值（如2095），而不是被吸附到step的倍数（如2100）
+                        const originalStep = slider.getAttribute('step') || slider.step;
+
+                        // 保存原始step到dataset（nudgeParamSlider会使用）
+                        if (originalStep && !slider.dataset.nudgeOriginalStep) {
+                            slider.dataset.nudgeOriginalStep = originalStep;
+                        }
+
+                        // 将step设置为1以精确设置值
+                        slider.step = '1';
+
+                        // 设置滑动条的值（使用字符串确保正确设置）
+                        slider.value = String(sliderValue);
+
+                        // 保持step为1，确保值不被吸附
+                        // 这不会影响nudgeParamSlider的行为，因为它也会设置step为1
+                        // 但对于拖拽，用户仍然可以通过滑动条调整，只是步长变为1
+
+                        console.log(`[DEBUG] 设置 ${sliderId} = ${slider.value} (来自 ${key})`);
+
+                        // 手动更新显示值（确保显示值正确）
+                        // 注意：这里只更新显示，不触发oninput事件，避免在加载默认值时触发参数更新并覆盖配置文件
+                        const valueDisplay = document.getElementById(valueId);
+                        if (valueDisplay) {
+                            let displayValue;
+                            if (dashKey === 'enable-smooth-edges' || dashKey === 'use-rembg') {
+                                displayValue = (value === true || value === 1 || value === '1') ? '开' : '关';
+                            } else if (dashKey === 'smooth-edges-blur-sigma') {
+                                const v = parseFloat(value);
+                                displayValue = v === 0 ? '关闭' : v.toFixed(1);
+                            } else if (dashKey.includes('aspect')) {
+                                displayValue = value.toFixed(1);
+                            } else {
+                                displayValue = Math.round(value);
+                            }
+                            valueDisplay.textContent = displayValue;
+                        }
+
+                        // 不触发oninput事件，因为这只是加载配置文件中的默认值
+                        // 不应该触发参数更新操作，避免覆盖配置文件
+                        loadedCount++;
+                    } else {
+                        console.warn(`[DEBUG] 未找到滑动条: ${sliderId} (参数: ${key})`);
+                        failedCount++;
                     }
-                    
-                    // 不触发oninput事件，因为这只是加载配置文件中的默认值
-                    // 不应该触发参数更新操作，避免覆盖配置文件
-                    loadedCount++;
-                } else {
-                    console.warn(`[DEBUG] 未找到滑动条: ${sliderId} (参数: ${key})`);
-                    failedCount++;
-                }
-            });
-            
-            // 更新debugState.params
-            debugState.params = data.params;
-            console.log('[DEBUG] 参数加载完成，当前参数:', debugState.params);
-            addLogEntry('success', `Debug参数已从配置文件加载 (${loadedCount} 个滑动条已设置)`);
-        } else {
-            console.warn('[DEBUG] 未获取到有效参数');
-            addLogEntry('warning', '未获取到有效参数，使用HTML默认值');
-        }
-    })
-    .catch(error => {
-        console.error('加载参数失败:', error);
-        addLogEntry('warning', '加载参数失败，使用默认值');
-    });
+                });
+
+                // 更新debugState.params
+                debugState.params = data.params;
+                console.log('[DEBUG] 参数加载完成，当前参数:', debugState.params);
+                addLogEntry('success', `Debug参数已从配置文件加载 (${loadedCount} 个滑动条已设置)`);
+            } else {
+                console.warn('[DEBUG] 未获取到有效参数');
+                addLogEntry('warning', '未获取到有效参数，使用HTML默认值');
+            }
+        })
+        .catch(error => {
+            console.error('加载参数失败:', error);
+            addLogEntry('warning', '加载参数失败，使用默认值');
+        });
 }
 
 // 添加日志条目
@@ -3288,7 +3283,7 @@ function exitWebService() {
     // 显示确认对话框
     if (confirm('确定要退出Web服务吗？\n\n这将停止所有Web服务器进程。')) {
         addLogEntry('warning', '正在退出Web服务...');
-        
+
         // 发送退出请求到服务器
         fetch(`${API_BASE_URL}/exit`, {
             method: 'POST',
@@ -3299,24 +3294,24 @@ function exitWebService() {
                 action: 'exit_service'
             })
         })
-        .then(response => {
-            if (response.ok) {
-                addLogEntry('success', 'Web服务已成功退出');
-                // 延迟关闭页面
+            .then(response => {
+                if (response.ok) {
+                    addLogEntry('success', 'Web服务已成功退出');
+                    // 延迟关闭页面
+                    setTimeout(() => {
+                        window.close();
+                    }, 2000);
+                } else {
+                    addLogEntry('error', '退出Web服务失败');
+                }
+            })
+            .catch(error => {
+                addLogEntry('error', '无法连接到服务器: ' + error.message);
+                // 如果无法连接到服务器，直接关闭页面
                 setTimeout(() => {
                     window.close();
                 }, 2000);
-            } else {
-                addLogEntry('error', '退出Web服务失败');
-            }
-        })
-        .catch(error => {
-            addLogEntry('error', '无法连接到服务器: ' + error.message);
-            // 如果无法连接到服务器，直接关闭页面
-            setTimeout(() => {
-                window.close();
-            }, 2000);
-        });
+            });
     }
 }
 
@@ -3324,10 +3319,10 @@ function exitWebService() {
 function refreshWorkpieceIdDropdown() {
     const dropdown = document.getElementById('workpiece-id-workflow');
     if (!dropdown) return;
-    
+
     // 保存当前选中的值
     const currentValue = dropdown.value;
-    
+
     // 先尝试从list_templates API获取
     fetch(`${API_BASE_URL}/api/list_templates`, {
         method: 'POST',
@@ -3338,89 +3333,89 @@ function refreshWorkpieceIdDropdown() {
             templates_dir: ''
         })
     })
-    .then(async response => {
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            throw new Error('服务器返回的不是JSON格式');
-        }
-        return response.json();
-    })
-    .then(data => {
-        let workpieceIds = [];
-        
-        // 优先使用API返回的workpiece_ids字段（如果存在）
-        if (data.success && data.workpiece_ids && data.workpiece_ids.length > 0) {
-            workpieceIds = data.workpiece_ids;
-        } 
-        // 否则从模板列表中提取唯一的工件ID
-        else if (data.success && data.templates && data.templates.length > 0) {
-            workpieceIds = [...new Set(data.templates.map(t => t.workpiece_id).filter(id => id))];
-        }
-        
-        // 如果从list_templates获取到了，直接使用
-        if (workpieceIds.length > 0) {
-            populateDropdown(workpieceIds, currentValue);
-        } else {
-            // 否则调用专门的API获取工件ID列表
+        .then(async response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('服务器返回的不是JSON格式');
+            }
+            return response.json();
+        })
+        .then(data => {
+            let workpieceIds = [];
+
+            // 优先使用API返回的workpiece_ids字段（如果存在）
+            if (data.success && data.workpiece_ids && data.workpiece_ids.length > 0) {
+                workpieceIds = data.workpiece_ids;
+            }
+            // 否则从模板列表中提取唯一的工件ID
+            else if (data.success && data.templates && data.templates.length > 0) {
+                workpieceIds = [...new Set(data.templates.map(t => t.workpiece_id).filter(id => id))];
+            }
+
+            // 如果从list_templates获取到了，直接使用
+            if (workpieceIds.length > 0) {
+                populateDropdown(workpieceIds, currentValue);
+            } else {
+                // 否则调用专门的API获取工件ID列表
+                fetch(`${API_BASE_URL}/api/list_workpiece_ids`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                    .then(async response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.success && data.workpiece_ids) {
+                            populateDropdown(data.workpiece_ids, currentValue);
+                        }
+                    })
+                    .catch(error => {
+                        console.log('获取工件ID列表失败:', error);
+                        addLogEntry('warning', '获取工件ID列表失败: ' + error.message);
+                    });
+            }
+        })
+        .catch(error => {
+            // 如果list_templates失败，直接调用list_workpiece_ids
             fetch(`${API_BASE_URL}/api/list_workpiece_ids`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 }
             })
-            .then(async response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success && data.workpiece_ids) {
-                    populateDropdown(data.workpiece_ids, currentValue);
-                }
-            })
-            .catch(error => {
-                console.log('获取工件ID列表失败:', error);
-                addLogEntry('warning', '获取工件ID列表失败: ' + error.message);
-            });
-        }
-    })
-    .catch(error => {
-        // 如果list_templates失败，直接调用list_workpiece_ids
-        fetch(`${API_BASE_URL}/api/list_workpiece_ids`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(async response => {
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success && data.workpiece_ids) {
-                populateDropdown(data.workpiece_ids, currentValue);
-            }
-        })
-        .catch(error2 => {
-            console.log('获取工件ID列表失败:', error2);
-            addLogEntry('warning', '获取工件ID列表失败: ' + error2.message);
+                .then(async response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success && data.workpiece_ids) {
+                        populateDropdown(data.workpiece_ids, currentValue);
+                    }
+                })
+                .catch(error2 => {
+                    console.log('获取工件ID列表失败:', error2);
+                    addLogEntry('warning', '获取工件ID列表失败: ' + error2.message);
+                });
         });
-    });
-    
+
     // 辅助函数：填充下拉框
     function populateDropdown(workpieceIds, currentValue) {
         const dropdown = document.getElementById('workpiece-id-workflow');
         if (!dropdown) return;
-        
+
         // 清空下拉框（保留第一个选项）
         dropdown.innerHTML = '<option value="">请选择工件ID...</option>';
-        
+
         // 填充选项
         workpieceIds.sort().forEach(id => {
             const option = document.createElement('option');
@@ -3428,12 +3423,12 @@ function refreshWorkpieceIdDropdown() {
             option.textContent = id;
             dropdown.appendChild(option);
         });
-        
+
         // 恢复之前选中的值
         if (currentValue && Array.from(dropdown.options).some(opt => opt.value === currentValue)) {
             dropdown.value = currentValue;
         }
-        
+
         if (workpieceIds.length > 0) {
             addLogEntry('info', `已加载 ${workpieceIds.length} 个工件ID`);
         }
@@ -3449,18 +3444,18 @@ function autoFillWorkpieceId() {
 function refreshPoseIdDropdown() {
     const workpieceId = document.getElementById('workpiece-id-workflow').value.trim();
     const poseIdDropdown = document.getElementById('pose-id-workflow');
-    
+
     if (!poseIdDropdown) return;
-    
+
     // 保存当前选中的值
     const currentValue = poseIdDropdown.value;
-    
+
     if (!workpieceId) {
         // 如果没有选择工件ID，清空姿态ID下拉框
         poseIdDropdown.innerHTML = '<option value="">请先选择工件ID...</option>';
         return;
     }
-    
+
     // 调用API获取该工件ID下的模板列表
     fetch(`${API_BASE_URL}/api/list_templates`, {
         method: 'POST',
@@ -3472,81 +3467,81 @@ function refreshPoseIdDropdown() {
             workpiece_id: workpieceId
         })
     })
-    .then(async response => {
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            throw new Error('服务器返回的不是JSON格式');
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success && data.templates) {
-            // 过滤出匹配的模板并提取唯一的姿态ID
-            const filteredTemplates = data.templates.filter(t => t.workpiece_id === workpieceId);
-            const poseIds = [...new Set(filteredTemplates.map(t => t.pose_id).filter(id => id))];
-            
-            // 按数字排序（如果可能）
-            poseIds.sort((a, b) => {
-                const numA = parseFloat(a);
-                const numB = parseFloat(b);
-                if (!isNaN(numA) && !isNaN(numB)) {
-                    return numA - numB;
+        .then(async response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('服务器返回的不是JSON格式');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.templates) {
+                // 过滤出匹配的模板并提取唯一的姿态ID
+                const filteredTemplates = data.templates.filter(t => t.workpiece_id === workpieceId);
+                const poseIds = [...new Set(filteredTemplates.map(t => t.pose_id).filter(id => id))];
+
+                // 按数字排序（如果可能）
+                poseIds.sort((a, b) => {
+                    const numA = parseFloat(a);
+                    const numB = parseFloat(b);
+                    if (!isNaN(numA) && !isNaN(numB)) {
+                        return numA - numB;
+                    }
+                    return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+                });
+
+                // 清空下拉框
+                poseIdDropdown.innerHTML = '<option value="">请选择姿态ID...</option>';
+
+                // 填充选项
+                poseIds.forEach(id => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = id;
+                    poseIdDropdown.appendChild(option);
+                });
+
+                // 恢复之前选中的值（如果存在）
+                if (currentValue && Array.from(poseIdDropdown.options).some(opt => opt.value === currentValue)) {
+                    poseIdDropdown.value = currentValue;
+                } else if (poseIds.length > 0) {
+                    // 如果没有之前的值，默认选择第一个
+                    poseIdDropdown.value = poseIds[0];
                 }
-                return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
-            });
-            
-            // 清空下拉框
-            poseIdDropdown.innerHTML = '<option value="">请选择姿态ID...</option>';
-            
-            // 填充选项
-            poseIds.forEach(id => {
-                const option = document.createElement('option');
-                option.value = id;
-                option.textContent = id;
-                poseIdDropdown.appendChild(option);
-            });
-            
-            // 恢复之前选中的值（如果存在）
-            if (currentValue && Array.from(poseIdDropdown.options).some(opt => opt.value === currentValue)) {
-                poseIdDropdown.value = currentValue;
-            } else if (poseIds.length > 0) {
-                // 如果没有之前的值，默认选择第一个
-                poseIdDropdown.value = poseIds[0];
-            }
-            
-            if (poseIds.length > 0) {
-                addLogEntry('info', `已加载 ${poseIds.length} 个姿态ID (工件ID: ${workpieceId})`);
+
+                if (poseIds.length > 0) {
+                    addLogEntry('info', `已加载 ${poseIds.length} 个姿态ID (工件ID: ${workpieceId})`);
+                } else {
+                    addLogEntry('warning', `该工件ID下暂无模板 (工件ID: ${workpieceId})`);
+                }
             } else {
-                addLogEntry('warning', `该工件ID下暂无模板 (工件ID: ${workpieceId})`);
+                poseIdDropdown.innerHTML = '<option value="">未找到模板...</option>';
             }
-        } else {
-            poseIdDropdown.innerHTML = '<option value="">未找到模板...</option>';
-        }
-    })
-    .catch(error => {
-        console.log('获取姿态ID列表失败:', error);
-        addLogEntry('warning', '获取姿态ID列表失败: ' + error.message);
-        poseIdDropdown.innerHTML = '<option value="">获取失败...</option>';
-    });
+        })
+        .catch(error => {
+            console.log('获取姿态ID列表失败:', error);
+            addLogEntry('warning', '获取姿态ID列表失败: ' + error.message);
+            poseIdDropdown.innerHTML = '<option value="">获取失败...</option>';
+        });
 }
 
 // 页面加载完成后的初始化
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     addLogEntry('success', 'Web界面加载完成');
-    
+
     // 刷新工作流程的工件ID下拉框
     refreshWorkpieceIdDropdown();
-    
+
     // 加载Debug参数（从JSON文件初始化滑动条）
     loadDebugParams();
-    
+
 });
 
 // 窗口大小改变时的自适应处理
-window.addEventListener('resize', function() {
+window.addEventListener('resize', function () {
     // 这里可以添加响应式处理的逻辑
     // console.log('窗口大小改变: ' + window.innerWidth + 'x' + window.innerHeight);
 });

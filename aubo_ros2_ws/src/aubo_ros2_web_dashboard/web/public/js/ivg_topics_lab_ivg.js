@@ -1,7 +1,7 @@
-/* global ivgTransport, ivgPorts */
+/* global ivgTransport, ivgPorts, ROSLIB, IvgRos3dView3dSession */
 /**
- * IVG 控制台：无 roslib/rosapi；话题订阅经 ivg_transport，服务经 ivg_ros_bridge call_service。
- * 节点图/参数/动作列表等依赖 rosapi 的标签页显示为不可用说明。
+ * IVG 控制台：话题 JSON 经 ivg_transport；服务经 call_service。
+ * 3D 点云：另建 ROSLIB.Ros → /ws/rosbridge，与 ros3djs 官方 PointCloud2 示例一致（见 ivg_ros3d_view3d.js）。
  */
 (() => {
 	const elCache = Object.create(null);
@@ -16,9 +16,58 @@
 	let selectedType = '';
 	const rosReconnect = ivgPorts.createRosReconnectState();
 	const ROS_RECONNECT_MAX = 12;
-	let scene3d = null;
-	let pointsGeom = null;
-	let raf3d = null;
+	/** ros3d 专用第二条 WebSocket（与 ivg_transport 并行，均为同源 /ws/rosbridge） */
+	let labRos = null;
+	let view3dSession = null;
+
+	function disconnectLabRos() {
+		stop3d();
+		if (labRos) {
+			try {
+				labRos.close();
+			} catch (e) {
+				/* ignore */
+			}
+			labRos = null;
+		}
+	}
+
+	function ensureLabRosConnected() {
+		return new Promise((resolve, reject) => {
+			if (labRos && labRos.isConnected) {
+				resolve(labRos);
+				return;
+			}
+			if (typeof ROSLIB === 'undefined' || typeof ROSLIB.Ros !== 'function') {
+				reject(new Error('ROSLIB 未加载'));
+				return;
+			}
+			disconnectLabRos();
+			const url = ivgPorts.rosbridgeWebSocketUrl();
+			const r = new ROSLIB.Ros();
+			const t = setTimeout(() => {
+				try {
+					r.close();
+				} catch (e1) {
+					/* ignore */
+				}
+				reject(new Error('rosbridge 连接超时'));
+			}, 20000);
+			r.on('connection', () => {
+				clearTimeout(t);
+				labRos = r;
+				resolve(labRos);
+			});
+			r.on('error', () => {
+				clearTimeout(t);
+				reject(new Error('rosbridge 连接错误'));
+			});
+			void r.connect(url).catch(() => {
+				clearTimeout(t);
+				reject(new Error('rosbridge connect() 失败'));
+			});
+		});
+	}
 
 	function setStatus(text, ok) {
 		const el = $('conn-status');
@@ -157,6 +206,7 @@
 	function connect() {
 		ivgPorts.clearRosReconnectTimer(rosReconnect);
 		const myGen = ivgPorts.bumpRosReconnectGen(rosReconnect);
+		disconnectLabRos();
 		ivgTransport.close();
 		void (async () => {
 			try {
@@ -195,16 +245,6 @@
 					}
 				});
 				ivgTransport.clearBinaryHandlers();
-				ivgTransport.onBinary(buf => {
-					const u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
-					const p = ivgTransport.parseBrowserBinary(u8);
-					if (p && p.kind === 'points' && scene3d && pointsGeom) {
-						const fa = new Float32Array(u8.buffer, u8.byteOffset + p.floatOffset, p.count * 3);
-						pointsGeom.setAttribute('position', new THREE.BufferAttribute(fa, 3));
-						pointsGeom.attributes.position.needsUpdate = true;
-						pointsGeom.setDrawRange(0, p.count);
-					}
-				});
 			} catch (e) {
 				if (myGen !== rosReconnect.gen) return;
 				setStatus('连接失败', false);
@@ -214,44 +254,30 @@
 	}
 
 	function stop3d() {
-		if (raf3d) cancelAnimationFrame(raf3d);
-		raf3d = null;
-		const host = $('view3d-host');
-		if (host) host.innerHTML = '';
-		scene3d = null;
-		pointsGeom = null;
+		if (view3dSession) {
+			try {
+				view3dSession.stop();
+			} catch (e) {
+				/* ignore */
+			}
+			view3dSession = null;
+		}
 	}
 
 	function start3d() {
-		stop3d();
-		const pcTopic = ($('pc-topic') && $('pc-topic').value.trim()) || '';
-		if (!pcTopic || typeof THREE === 'undefined') {
-			alert('请填写点云话题并确保已加载 three.js');
+		if (typeof IvgRos3dView3dSession !== 'function') {
+			alert('未加载 ivg_ros3d_view3d.js 或 ros3d');
 			return;
 		}
-		const host = $('view3d-host');
-		if (!host) return;
-		host.innerHTML = '';
-		const W = Math.max(400, host.clientWidth || 640);
-		const H = 420;
-		const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-		renderer.setSize(W, H);
-		host.appendChild(renderer.domElement);
-		scene3d = new THREE.Scene();
-		const cam = new THREE.PerspectiveCamera(50, W / H, 0.01, 100);
-		cam.position.set(1.2, 1.0, 1.5);
-		cam.lookAt(0, 0, 0);
-		scene3d.add(new THREE.AmbientLight(0xffffff, 0.9));
-		pointsGeom = new THREE.BufferGeometry();
-		const mat = new THREE.PointsMaterial({ size: 0.02, color: 0x38bdf8 });
-		const pts = new THREE.Points(pointsGeom, mat);
-		scene3d.add(pts);
-		ivgTransport.subscribe({ topic: pcTopic, msgType: 'sensor_msgs/msg/PointCloud2', maxHz: 8, maxPoints: 24000 });
-		function loop() {
-			raf3d = requestAnimationFrame(loop);
-			renderer.render(scene3d, cam);
-		}
-		loop();
+		void ensureLabRosConnected()
+			.then(() => {
+				stop3d();
+				view3dSession = new IvgRos3dView3dSession(labRos, $);
+				view3dSession.start();
+			})
+			.catch(err => {
+				alert(`3D 需要连接 rosbridge：${err && err.message ? err.message : String(err)}`);
+			});
 	}
 
 	document.addEventListener('DOMContentLoaded', () => {
@@ -285,11 +311,7 @@
 			};
 		}
 		if ($('btn-3d-start')) $('btn-3d-start').onclick = () => start3d();
-		if ($('btn-3d-stop')) $('btn-3d-stop').onclick = () => {
-			const t = ($('pc-topic') && $('pc-topic').value.trim()) || '';
-			if (t) ivgTransport.unsubscribe(t);
-			stop3d();
-		};
+		if ($('btn-3d-stop')) $('btn-3d-stop').onclick = () => stop3d();
 
 		if ($('btn-refresh')) {
 			$('btn-refresh').onclick = () => {

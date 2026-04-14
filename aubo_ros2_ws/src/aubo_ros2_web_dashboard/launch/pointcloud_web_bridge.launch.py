@@ -3,7 +3,7 @@
 
   ros2 launch aubo_ros2_web_dashboard pointcloud_web_bridge.launch.py
 
-默认：/camera/depth_registered/points -> /camera/depth_registered/points_web（max_points=24000）
+默认：/camera/depth_registered/points -> /camera/depth_registered/points_web（max_points=32000）
 
 在 topics_lab 中将「点云话题」填输出话题，或点顶栏「3D: 瘦点云」；RViz 仍可订阅原始高清话题。
 """
@@ -29,7 +29,7 @@ def generate_launch_description():
 			),
 			DeclareLaunchArgument(
 				'max_points',
-				default_value='24000',
+				default_value='32000',
 				description='单帧最多保留点数（均匀步长抽样，覆盖整幅）',
 			),
 			Node(

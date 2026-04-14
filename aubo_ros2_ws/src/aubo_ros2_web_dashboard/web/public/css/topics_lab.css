@@ -586,7 +586,9 @@ main {
 		max-height: none;
 		height: auto;
 		min-height: 100vh;
+		min-height: 100dvh;
 		overflow: auto;
+		-webkit-overflow-scrolling: touch;
 	}
 	.layout {
 		grid-template-columns: 1fr;
@@ -600,6 +602,54 @@ main {
 		min-height: 200px;
 	}
 	.panels { grid-template-columns: 1fr; }
+}
+
+/* 手机：顶栏副标题换行；快捷条横向滚动，避免撑破视口 */
+@media (max-width: 640px) {
+	.topnav {
+		align-items: flex-start;
+	}
+
+	.topnav-start {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.topnav-sub {
+		line-height: 1.45;
+		word-break: break-word;
+	}
+
+	.topnav-actions {
+		width: 100%;
+		justify-content: flex-start;
+		flex-wrap: wrap;
+	}
+
+	.ivg-bar {
+		flex-wrap: nowrap;
+		align-items: flex-start;
+		overflow-x: auto;
+		overflow-y: hidden;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: thin;
+		gap: 0.35rem 0.5rem;
+		padding-top: 0.45rem;
+		padding-bottom: 0.45rem;
+	}
+
+	.ivg-bar strong,
+	.ivg-bar span,
+	.ivg-bar a,
+	.ivg-bar button,
+	.ivg-bar input.ivg-port {
+		flex-shrink: 0;
+	}
+
+	main {
+		padding-left: max(0.55rem, env(safe-area-inset-left, 0px));
+		padding-right: max(0.55rem, env(safe-area-inset-right, 0px));
+	}
 }
 
 .panel {
@@ -956,5 +1006,43 @@ canvas.viz-canvas {
 	.ivg-bar button {
 		min-height: 40px;
 		padding: 0.35rem 0.55rem;
+	}
+}
+
+/* iPad 10 等横屏：顶栏压缩、主区少留白贴边（安全区内边距） */
+@media (orientation: landscape) and (min-width: 1024px) and (max-width: 1366px) and (hover: none) and (pointer: coarse) {
+	.topnav {
+		padding-top: 0.36rem;
+		padding-bottom: 0.36rem;
+		padding-left: max(0.35rem, env(safe-area-inset-left, 0px));
+		padding-right: max(0.35rem, env(safe-area-inset-right, 0px));
+	}
+
+	.ivg-bar {
+		padding-top: 0.38rem;
+		padding-bottom: 0.38rem;
+		padding-left: max(0.3rem, env(safe-area-inset-left, 0px));
+		padding-right: max(0.3rem, env(safe-area-inset-right, 0px));
+		font-size: 10.5px;
+		gap: 0.35rem 0.5rem;
+	}
+
+	main {
+		padding-left: max(0.35rem, env(safe-area-inset-left, 0px));
+		padding-right: max(0.35rem, env(safe-area-inset-right, 0px));
+	}
+
+	.tabs {
+		padding-left: max(0.35rem, env(safe-area-inset-left, 0px));
+		padding-right: max(0.35rem, env(safe-area-inset-right, 0px));
+	}
+
+	.view2d-host,
+	.view3d-host {
+		min-height: min(420px, 52vh);
+	}
+
+	#main-view3d .view3d-host {
+		min-height: min(800px, 58vh);
 	}
 }

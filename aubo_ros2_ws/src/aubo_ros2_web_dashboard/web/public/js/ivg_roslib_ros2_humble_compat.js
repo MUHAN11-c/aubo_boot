@@ -40,3 +40,19 @@
 	}
 	R.Topic = TopicHumbleCompat;
 })();
+
+/**
+ * ros3d.min.js 打包时对 ROSLIB 做 ``i(ROSLIB)`` 快照（见 bundle 末尾 ``})({}, ROSLIB)``）；
+ * 若加载 ros3d **当时** ``ROSLIB.URDF_MESH`` 等不存在，闭包内 ``r.URDF_MESH`` 恒为 ``undefined``，
+ * ``geometry.type === r.URDF_MESH`` 永不成立，机械臂 mesh 分支不会执行。
+ * 必须在 **ros3d.min.js 之前** 写入这些枚举（仅缺省时设置，不覆盖已有值）。
+ */
+(function () {
+	var R = typeof globalThis !== 'undefined' && globalThis.ROSLIB;
+	if (!R) return;
+	if (typeof R.URDF_MESH === 'number') return;
+	R.URDF_SPHERE = 0;
+	R.URDF_BOX = 1;
+	R.URDF_CYLINDER = 2;
+	R.URDF_MESH = 3;
+})();

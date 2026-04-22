@@ -110,7 +110,7 @@ class GraspNetDemoPointsNode(Node):
         self.declare_parameter('baseline_dir', ROOT_DIR)
         self.declare_parameter('model_path', '')
 
-        # 输入点云（新需求）
+        # 输入点云
         self.declare_parameter('input_pointcloud_topic', '/camera/depth_registered/points')
 
         # 推理参数使用 GraspNet 默认值，不暴露为 launch 参数

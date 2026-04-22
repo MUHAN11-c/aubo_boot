@@ -1,99 +1,22 @@
 /**
- * topics_lab：按 ROS 消息类型生成 HTML / Canvas 侧栏视图（无 Ros 连接状态）。
- * 依赖：IVGRosbridgeBytes.toUint8（CompressedImage / PointCloud2 等，与 roslibjs 字节形态一致）。
- * sensor_msgs/Image 仅 MJPEG（ros_console subscribe），无 Canvas 解码分支。
+ * topics_lab 可视化渲染器：
+ * - 输入消息类型、消息体和可选 canvas。
+ * - 输出 HTML 片段和是否使用 canvas。
+ * - 不管理订阅、节流和 DOM 挂载时机。
  */
-/* global IVGRosbridgeBytes */
+/* global IVGRosbridgeBytes, IVGTopicsLabRenderPreview */
 (function (global) {
 	'use strict';
+
+	const preview = global.IVGTopicsLabRenderPreview;
+	if (!preview) throw new Error('IVGTopicsLabRenderPreview 未加载');
+
+	const safeJson = preview.safeJson;
+	const typeMatch = preview.typeMatch;
 
 	const VIZ_CANVAS_BG = '#e8ecf2';
 	const LASER_STROKE = '#15803d';
 	const LASER_ARC_STROKE = '#94a3b8';
-
-	function safeJson(obj, maxLen) {
-		try {
-			const s = JSON.stringify(obj, null, 2);
-			if (maxLen && s.length > maxLen) {
-				return `${s.slice(0, maxLen)}\n…\n(truncated, total ${s.length} chars)`;
-			}
-			return s;
-		} catch (e) {
-			return String(obj);
-		}
-	}
-
-	/** 避免对 Image / PointCloud2 等整包 JSON.stringify（会卡主线程数秒）；右侧仅展示元数据 */
-	function rawPreviewForMessage(msgType, msg, maxLen) {
-		if (!msg) return '';
-		const omit = hint => `[omitted: ${hint} — 降低卡顿；完整显示请用 RViz、本页「3D 图」或 Image 的 MJPEG]`;
-		if (typeMatch(msgType, 'Image') && !typeMatch(msgType, 'CompressedImage')) {
-			let in0 = 0;
-			if (Array.isArray(msg.data)) in0 = msg.data.length;
-			else if (typeof msg.data === 'string') in0 = msg.data.length;
-			return safeJson({
-				header: msg.header,
-				height: msg.height,
-				width: msg.width,
-				encoding: msg.encoding,
-				is_bigendian: msg.is_bigendian,
-				step: msg.step,
-				data: omit(`image payload ~${in0} array el / base64 chars`)
-			}, maxLen);
-		}
-		if (typeMatch(msgType, 'CompressedImage')) {
-			let ic = 0;
-			if (typeof msg.data === 'string') ic = msg.data.length;
-			else if (Array.isArray(msg.data)) ic = msg.data.length;
-			return safeJson({
-				header: msg.header,
-				format: msg.format,
-				data: omit(`compressed ~${ic} chars`)
-			}, maxLen);
-		}
-		if (typeMatch(msgType, 'PointCloud2')) {
-			let ip = 0;
-			if (Array.isArray(msg.data)) ip = msg.data.length;
-			else if (typeof msg.data === 'string') ip = msg.data.length;
-			return safeJson({
-				header: msg.header,
-				height: msg.height,
-				width: msg.width,
-				fields: msg.fields,
-				is_bigendian: msg.is_bigendian,
-				point_step: msg.point_step,
-				row_step: msg.row_step,
-				is_dense: msg.is_dense,
-				data: omit(`pointcloud payload ~${ip} units`)
-			}, maxLen);
-		}
-		if (typeMatch(msgType, 'LaserScan') && Array.isArray(msg.ranges)) {
-			return safeJson({
-				header: msg.header,
-				angle_min: msg.angle_min,
-				angle_max: msg.angle_max,
-				angle_increment: msg.angle_increment,
-				time_increment: msg.time_increment,
-				scan_time: msg.scan_time,
-				range_min: msg.range_min,
-				range_max: msg.range_max,
-				ranges: omit(`${msg.ranges.length} samples`)
-			}, maxLen);
-		}
-		if (typeMatch(msgType, 'OccupancyGrid') && msg.info && Array.isArray(msg.data)) {
-			return safeJson({
-				header: msg.header,
-				info: msg.info,
-				data: omit(`${msg.data.length} cells`)
-			}, maxLen);
-		}
-		return safeJson(msg, maxLen);
-	}
-
-	function typeMatch(msgType, needle) {
-		if (!msgType) return false;
-		return msgType === needle || msgType.indexOf(needle) !== -1;
-	}
 
 	function renderScalar(msg) {
 		if (msg && Object.prototype.hasOwnProperty.call(msg, 'data')) {
@@ -255,7 +178,10 @@
 			const o = i * 4;
 			if (v < 0) { d[o] = 80; d[o + 1] = 80; d[o + 2] = 120; d[o + 3] = 255; }
 			else if (v === 0) { d[o] = 255; d[o + 1] = 255; d[o + 2] = 255; d[o + 3] = 255; }
-			else { const g = 255 - Math.min(255, v * 2); d[o] = g; d[o + 1] = g; d[o + 2] = g; d[o + 3] = 255; }
+			else {
+				const g = 255 - Math.min(255, v * 2);
+				d[o] = g; d[o + 1] = g; d[o + 2] = g; d[o + 3] = 255;
+			}
 		}
 		const tmp = document.createElement('canvas');
 		tmp.width = W;
@@ -312,8 +238,7 @@
 		const maxShow = Math.min(12, n);
 		let html = `<p class="hint">poses: ${n}${fid ? ` · frame <code>${fid}</code>` : ''}</p>`;
 		html += '<table class="viz-table"><thead><tr><th>#</th><th>x</th><th>y</th><th>z</th><th>qx</th><th>qy</th><th>qz</th><th>qw</th></tr></thead><tbody>';
-		let i;
-		for (i = 0; i < maxShow; i++) {
+		for (let i = 0; i < maxShow; i++) {
 			const po = poses[i];
 			const pos = po.position || {};
 			const ori = po.orientation || {};
@@ -332,8 +257,7 @@
 		const maxShow = Math.min(12, n);
 		let head = `<p class="hint">markers: ${n}（抓取可视化常用）</p>`;
 		head += '<table class="viz-table"><thead><tr><th>#</th><th>id</th><th>type</th><th>ns</th><th>frame</th><th>xyz</th><th>scale</th></tr></thead><tbody>';
-		let i;
-		for (i = 0; i < maxShow; i++) {
+		for (let i = 0; i < maxShow; i++) {
 			const m = arr[i];
 			const pos = (m.pose && m.pose.position) ? m.pose.position : {};
 			const sc = m.scale || {};
@@ -358,43 +282,23 @@
 	}
 
 	function renderVisualization(msgType, msg, canvas) {
-		if (typeMatch(msgType, 'LaserScan')) {
-			return { html: renderLaserScan(msg, canvas), usedCanvas: true };
-		}
-		if (typeMatch(msgType, 'OccupancyGrid')) {
-			return { html: renderOccupancyGrid(msg, canvas), usedCanvas: true };
-		}
-		if (typeMatch(msgType, 'CompressedImage')) {
-			return { html: renderCompressedImage(msg), usedCanvas: false };
-		}
-		if (typeMatch(msgType, 'PointCloud2')) {
-			return { html: renderPointCloud2(msg), usedCanvas: false };
-		}
-		if (typeMatch(msgType, 'Path')) {
-			return { html: renderPath(msg), usedCanvas: false };
-		}
+		if (typeMatch(msgType, 'LaserScan')) return { html: renderLaserScan(msg, canvas), usedCanvas: true };
+		if (typeMatch(msgType, 'OccupancyGrid')) return { html: renderOccupancyGrid(msg, canvas), usedCanvas: true };
+		if (typeMatch(msgType, 'CompressedImage')) return { html: renderCompressedImage(msg), usedCanvas: false };
+		if (typeMatch(msgType, 'PointCloud2')) return { html: renderPointCloud2(msg), usedCanvas: false };
+		if (typeMatch(msgType, 'Path')) return { html: renderPath(msg), usedCanvas: false };
 		if (typeMatch(msgType, 'PoseArray')) {
 			const pra = renderPoseArray(msg);
 			if (pra) return { html: pra, usedCanvas: false };
 		}
-		if (typeMatch(msgType, 'MarkerArray')) {
-			return { html: renderMarkerArray(msg), usedCanvas: false };
-		}
+		if (typeMatch(msgType, 'MarkerArray')) return { html: renderMarkerArray(msg), usedCanvas: false };
 		if (typeMatch(msgType, 'Marker') && !typeMatch(msgType, 'MarkerArray')) {
 			return { html: `<pre class="raw">${safeJson(msg, 8000)}</pre>`, usedCanvas: false };
 		}
-		if (typeMatch(msgType, 'Odometry')) {
-			return { html: renderOdometry(msg), usedCanvas: false };
-		}
-		if (typeMatch(msgType, 'JointState')) {
-			return { html: renderJointState(msg), usedCanvas: false };
-		}
-		if (typeMatch(msgType, 'Imu')) {
-			return { html: renderImu(msg), usedCanvas: false };
-		}
-		if (typeMatch(msgType, 'BatteryState')) {
-			return { html: renderBattery(msg), usedCanvas: false };
-		}
+		if (typeMatch(msgType, 'Odometry')) return { html: renderOdometry(msg), usedCanvas: false };
+		if (typeMatch(msgType, 'JointState')) return { html: renderJointState(msg), usedCanvas: false };
+		if (typeMatch(msgType, 'Imu')) return { html: renderImu(msg), usedCanvas: false };
+		if (typeMatch(msgType, 'BatteryState')) return { html: renderBattery(msg), usedCanvas: false };
 		if (typeMatch(msgType, 'Range')) {
 			const rg = renderRange(msg);
 			if (rg) return { html: rg, usedCanvas: false };
@@ -411,24 +315,26 @@
 			const ps = renderPose(msg);
 			if (ps) return { html: ps, usedCanvas: false };
 		}
-		if (typeMatch(msgType, 'Float32MultiArray') || typeMatch(msgType, 'Float64MultiArray') ||
-			typeMatch(msgType, 'Int32MultiArray') || typeMatch(msgType, 'Int8MultiArray') ||
-			typeMatch(msgType, 'UInt8MultiArray') || typeMatch(msgType, 'UInt16MultiArray')) {
+		if (
+			typeMatch(msgType, 'Float32MultiArray') ||
+			typeMatch(msgType, 'Float64MultiArray') ||
+			typeMatch(msgType, 'Int32MultiArray') ||
+			typeMatch(msgType, 'Int8MultiArray') ||
+			typeMatch(msgType, 'UInt8MultiArray') ||
+			typeMatch(msgType, 'UInt16MultiArray')
+		) {
 			const ga = renderGenericNumericArray(msg);
 			if (ga) return { html: ga, usedCanvas: false };
 		}
 		const sc = renderScalar(msg);
 		if (sc) return { html: sc, usedCanvas: false };
 		return {
-			html: '<p class="hint">无专用视图；右侧为完整 JSON。可在 <code>js/topics_lab/render.js</code> 的 <code>renderVisualization()</code> 中扩展。</p>',
+			html: '<p class="hint">无专用视图；右侧为完整 JSON。可在 <code>js/topics_lab/render_visualizers.js</code> 中扩展。</p>',
 			usedCanvas: false
 		};
 	}
 
-	global.IVGTopicsLabRender = {
-		safeJson,
-		typeMatch,
-		rawPreviewForMessage,
+	global.IVGTopicsLabRenderVisualizers = {
 		renderVisualization
 	};
-})(typeof window !== 'undefined' ? window : this);
+})(typeof window !== 'undefined' ? window : globalThis);

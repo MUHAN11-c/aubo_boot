@@ -4,12 +4,13 @@
 # - ros2d / ros3d / three / easeljs：与 npm 发布构建一致（钉版本，便于复现）
 #
 # 环境变量可覆盖版本（默认均为当前 npm 上适用于 ROS2 的稳定组合）：
-#   ROSVER ROS2D_VER ROS3D_VER THREE_VER EASELJS_VER
+#   EVENTEMITTER_VER ROSVER ROS2D_VER ROS3D_VER THREE_VER EASELJS_VER
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VENDOR="$ROOT/web/public/js/vendor"
 OUT="$VENDOR/roslib-2.iife.js"
 
+EVENTEMITTER_VER="${EVENTEMITTER_VER:-6.4.9}"
 ROSVER="${ROSVER:-2.1.0}"
 ROS2D_VER="${ROS2D_VER:-0.10.0}"
 ROS3D_VER="${ROS3D_VER:-1.1.0}"
@@ -21,6 +22,7 @@ trap 'rm -rf "$WORKDIR"' EXIT
 cd "$WORKDIR"
 npm init -y >/dev/null 2>&1
 npm install \
+	"eventemitter2@${EVENTEMITTER_VER}" \
 	"roslib@${ROSVER}" \
 	esbuild@0.25.12 \
 	"ros2d@${ROS2D_VER}" \
@@ -33,6 +35,7 @@ cat > entry.js <<'EOF'
 import * as ROSLIB from "roslib";
 globalThis.ROSLIB = ROSLIB;
 EOF
+cp -f "node_modules/eventemitter2/lib/eventemitter2.js" "$VENDOR/eventemitter2.js"
 npx esbuild entry.js --bundle --format=iife --outfile="$OUT" --platform=browser
 
 cp -f "node_modules/ros2d/build/ros2d.min.js" "$VENDOR/ros2d.min.js"
@@ -62,4 +65,4 @@ cp -f "node_modules/three/build/three.min.js" "$VENDOR/three.min.js"
 cp -f "node_modules/easeljs/lib/easeljs.min.js" "$VENDOR/easeljs.min.js"
 
 echo "Wrote $OUT ($(wc -c < "$OUT") bytes) roslib@${ROSVER}"
-echo "Synced ros2d@${ROS2D_VER} ros3d@${ROS3D_VER} three@${THREE_VER} easeljs@${EASELJS_VER} → $VENDOR"
+echo "Synced eventemitter2@${EVENTEMITTER_VER} roslib@${ROSVER} ros2d@${ROS2D_VER} ros3d@${ROS3D_VER} three@${THREE_VER} easeljs@${EASELJS_VER} → $VENDOR"

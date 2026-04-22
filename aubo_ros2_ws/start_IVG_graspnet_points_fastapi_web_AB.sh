@@ -33,11 +33,11 @@ ROS_UNDERLAY_LIB="/opt/ros/${ROS_DISTRO_NAME}/lib"
 IVG_WEB_VIDEO_LD_PRE="export LD_LIBRARY_PATH=\"${ROS_UNDERLAY_LIB}:\${LD_LIBRARY_PATH:-}\""
 ROS2_BASE_ENV="source /opt/ros/${ROS_DISTRO_NAME}/setup.bash && if [ -f ~/ws_moveit/install/setup.bash ]; then source ~/ws_moveit/install/setup.bash; fi"
 WS_ENV="cd $AUBO_ROS2_WS && $ROS2_BASE_ENV && if [ -f install/setup.bash ]; then source install/setup.bash; fi"
-WEB_HOST="${WEB_HOST:-127.0.0.1}"
+# 默认 0.0.0.0：平板/局域网可访问 VPE FastAPI（WEB_PORT）；仅本机可访请 export WEB_HOST=127.0.0.1
+WEB_HOST="${WEB_HOST:-0.0.0.0}"
 WEB_PORT="${WEB_PORT:-8088}"
 # FastAPI/uvicorn 开发热重载：默认开启；设为 false 可关闭（例如生产或稳定对比）
 IVG_WEB_RELOAD="${IVG_WEB_RELOAD:-true}"
-WEB_URL="http://${WEB_HOST}:${WEB_PORT}"
 # aubo_ros2_web_dashboard（launch 注入 IVG_*；浏览器只连 WEB_DASH_PORT，经网关转发至本机 rosbridge / web_video）
 WEB_DASH_HOST="${WEB_DASH_HOST:-0.0.0.0}"
 WEB_DASH_PORT="${WEB_DASH_PORT:-8090}"
@@ -101,13 +101,26 @@ launch_in_terminator() {
     sleep 0.5
 }
 
-# 本机 / 平板访问链接：收集非回环全局 IPv4（常见为有线或 Wi‑Fi）
+# 本机 / 平板访问链接：收集局域网 IPv4。
+# 1) 优先 scope global（DHCP/静态私网）；2) 若无（离线路由仅 APIPA、部分有线未标 global 等），回退为物理网卡上非 127 的 IPv4（可含 169.254 链路本地）。
 ivg_lan_ipv4_addrs() {
+    local ips
     if command -v ip >/dev/null 2>&1; then
-        ip -o -4 addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1
+        ips=$(ip -o -4 addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 \
+            | grep -vE '^(127\.|169\.254\.)' | grep -v '^$' || true)
+        if [ -n "$ips" ]; then
+            printf '%s\n' "$ips" | sort -u
+            return 0
+        fi
+        ip -o -4 addr show 2>/dev/null | awk '
+            $2 == "lo" { next }
+            $2 ~ /^(docker|br-|veth|virbr|tun|tap|tailscale|wg)/ { next }
+            $4 ~ /^127\./ { next }
+            { split($4, a, "/"); print a[1] }
+        ' | grep -v '^$' | sort -u
     else
-        hostname -I 2>/dev/null | tr ' ' '\n'
-    fi | grep -vE '^(127\.|169\.254\.)' | grep -v '^$' | sort -u
+        hostname -I 2>/dev/null | tr ' ' '\n' | grep -vE '^127\.' | grep -v '^$' | sort -u
+    fi
 }
 
 # 静态页 URL 可选查询串（非默认 rosbridge 端口时带上 ?rosbridge_port=，与 runtime-config/UI 展示一致；WebSocket 仍走同源 /ws/rosbridge）
@@ -151,13 +164,21 @@ ivg_print_access_urls() {
     mapfile -t lan_ips < <(ivg_lan_ipv4_addrs)
     if [ "${#lan_ips[@]}" -eq 0 ]; then
         echo ""
-        echo -e "${YELLOW}未检测到局域网 IPv4（有线/Wi‑Fi）；若已联网，可稍后手动查 ip addr 后替换下方地址。${NC}"
+        echo -e "${YELLOW}未检测到可用局域网 IPv4（有线/Wi‑Fi 无地址或仅 127.0.0.1）；请执行 ip -4 addr 查看后手动替换下方链接中的主机名。${NC}"
         return 0
     fi
 
     echo ""
     echo -e "${BLUE}──────── 局域网（手机/平板等与 PC 同 Wi‑Fi）────────${NC}"
     echo -e "${GREEN}网关监听 ${WEB_DASH_HOST}:${WEB_DASH_PORT}；页面经同源 /ws/rosbridge、/api/ivg/proxy/web-video 转发（勿要求客户端直连 :${ROSBRIDGE_PORT}/:${WEB_VIDEO_PORT}）。${NC}"
+    local ll
+    ll=0
+    for ip in "${lan_ips[@]}"; do
+        case "$ip" in 169.254.*) ll=1 ;; esac
+    done
+    if [ "$ll" -eq 1 ]; then
+        echo -e "${YELLOW}  提示: 含 169.254.x 为链路本地(APIPA)，常见于未出网的路由；请确认手机/平板与 PC 同二层网段。${NC}"
+    fi
     local ip
     for ip in "${lan_ips[@]}"; do
         echo -e "${GREEN}  [${ip}] 门户:          $(ivg_web_dash_url "$ip" "index.html")${NC}"
@@ -297,7 +318,8 @@ sleep 2
 # echo -e "${GREEN}  ✓ rosbag 已在独立标签页启动（Ctrl+C 停止录制）${NC}"
 # sleep 1
 
-FASTAPI_HEALTH_URL="${WEB_URL}/health"
+# 绑定 0.0.0.0 时不可用 http://0.0.0.0 做探测；健康检查固定走回环
+FASTAPI_HEALTH_URL="http://127.0.0.1:${WEB_PORT}/health"
 if command -v curl >/dev/null 2>&1; then
     # --noproxy：避免本机 URL 被环境变量中的 http_proxy 劫持
     if curl --noproxy '*' --fail --silent --max-time 5 "$FASTAPI_HEALTH_URL" >/dev/null; then

@@ -435,6 +435,27 @@ body.ivg-single-screen .layout-camera-controls .panel--camera-result .result-viz
 	z-index: 0;
 }
 
+/* 左栏：机械臂 URDF（ros3d），占位与原相机槽一致 */
+body.ivg-single-screen .layout-camera-controls .panel--camera-hero .panel-canvas-wrap--urdf .vision-urdf-host {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	background: var(--viz-host-bg);
+}
+
+body.ivg-single-screen .layout-camera-controls .panel--camera-hero .panel-canvas-wrap--urdf .vision-urdf-host canvas {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100% !important;
+	height: 100% !important;
+	object-fit: contain;
+	object-position: center;
+	margin: 0;
+}
+
 body.ivg-single-screen .layout-camera-controls .panel--camera-result .result-workpiece-wrap,
 body.ivg-single-screen .layout-camera-controls .panel--camera-result .result-viz-stack {
 	flex: 1;
@@ -955,7 +976,7 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 > h2 {
 	font-weight: 700;
 }
 
-/* 默认 640×480；显示时随容器拉满宽度，保持 4:3 */
+/* 默认 640×480；显示时随容器拉满宽度，保持 4:3（隐藏占位仍保留 id） */
 #cam-canvas {
 	display: block;
 	width: 100%;
@@ -964,6 +985,11 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 > h2 {
 	aspect-ratio: 4 / 3;
 	background: var(--viz-host-bg);
 	image-rendering: auto;
+}
+
+.panel-canvas-wrap--urdf .vision-urdf-host {
+	min-height: 220px;
+	background: var(--viz-host-bg);
 }
 
 .panel-canvas-wrap .cam-mjpeg {

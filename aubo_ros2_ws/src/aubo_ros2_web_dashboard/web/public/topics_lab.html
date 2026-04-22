@@ -10,12 +10,25 @@
 	<link rel="stylesheet" href="css/ivg_site_nav.css" />
 	<script src="js/ivg_transport.js"></script>
 	<script src="js/ivg_runtime.js"></script>
+	<script src="js/ivg_web_video.js"></script>
+	<script src="js/ivg_rosbridge_bytes.js"></script>
+	<script src="js/core/dom_cache.js"></script>
 	<script src="js/vendor/eventemitter2.js"></script>
 	<script src="js/vendor/roslib-2.iife.js"></script>
+	<script src="js/ivg_roslib_ros2_humble_compat.js?v=20260421_roslib_compat"></script>
 	<script src="js/vendor/easeljs.min.js"></script>
 	<script src="js/vendor/three.min.js"></script>
 	<script src="js/vendor/ros3d.min.js"></script>
-	<script src="js/ivg_ros3d_view3d.js"></script>
+	<script src="js/view3d/patches.js"></script>
+	<script src="js/view3d/tf_clients.js"></script>
+	<script src="js/view3d/hints.js"></script>
+	<script src="js/view3d/pointcloud.js"></script>
+	<script src="js/view3d/urdf_loader.js"></script>
+	<script src="js/view3d/session.js"></script>
+	<script src="js/topics_lab/render_preview.js"></script>
+	<script src="js/topics_lab/render_visualizers.js"></script>
+	<script src="js/topics_lab/view_sessions.js"></script>
+	<script src="js/ros_console.js"></script>
 </head>
 
 <body>
@@ -25,8 +38,10 @@
 				<a class="ivg-global-nav__brand" href="index.html">灵视 <span>IVG</span></a>
 				<ul class="ivg-global-nav__list" role="list">
 					<li><a class="ivg-global-nav__link" href="index.html" data-ivg-nav="index">门户</a></li>
-					<li><a class="ivg-global-nav__link" href="vision_grasp_panel.html" data-ivg-nav="vision">视觉抓取</a></li>
-					<li hidden><a class="ivg-global-nav__link" href="coffee_latte_panel.html" data-ivg-nav="latte">咖啡拉花</a></li>
+					<li><a class="ivg-global-nav__link" href="vision_grasp_panel.html" data-ivg-nav="vision">视觉抓取</a>
+					</li>
+					<li><a class="ivg-global-nav__link" href="coffee_latte_panel.html" data-ivg-nav="latte">咖啡拉花</a>
+					</li>
 				</ul>
 			</div>
 			<div class="ivg-global-nav__actions">
@@ -38,12 +53,12 @@
 	<nav class="topnav" aria-label="工具栏与连接">
 		<div class="topnav-start">
 			<span class="topnav-title">数据与监控</span>
-			<span class="topnav-sub">IVG：<code class="topnav-code">/ws/rosbridge</code>（3D ros3d）+ 控制面 <code>ivg_transport</code>；相机 <code>/api/v1/camera/stream</code></span>
+			<span class="topnav-sub">IVG：<code class="topnav-code">/ws/rosbridge</code>（3D ros3d）+ 控制面
+				<code>ivg_transport</code>；相机 <code>/api/v1/camera/stream</code></span>
 		</div>
 		<span class="topnav-spacer" aria-hidden="true"></span>
 		<div class="topnav-actions">
-			<button type="button" id="btn-reconnect" class="btn-top"
-				title="手动重连 IVG 控制面 WebSocket。">重连</button>
+			<button type="button" id="btn-reconnect" class="btn-top" title="手动重连 IVG 控制面 WebSocket。">重连</button>
 			<span id="conn-status" class="status" role="status" aria-live="polite">未连接</span>
 		</div>
 	</nav>
@@ -81,7 +96,8 @@
 		<button type="button" data-ivg="topics-status">订阅 /system_status</button>
 		<button type="button" data-ivg="tf-snapshot" title="向桥请求 TF 树摘要，结果在「话题」页 JSON 区">TF 摘要</button>
 		<span class="ivg-sep">|</span>
-		<span class="ivg-webvid ivg-webvid-hint" title="彩色图走同源 /api/v1/camera/stream（MJPEG），话题快捷按钮会绑定该路径">IVG MJPEG</span>
+		<span class="ivg-webvid ivg-webvid-hint" title="彩色图走同源 /api/v1/camera/stream（MJPEG），话题快捷按钮会绑定该路径">IVG
+			MJPEG</span>
 	</div>
 	<div class="tabs" role="tablist" aria-label="主功能">
 		<button type="button" role="tab" data-tab="topics" id="tab-topics" class="active"
@@ -183,10 +199,12 @@
 				<div class="graph-wrap"><canvas id="graph-canvas" width="900" height="520"></canvas></div>
 			</main>
 			<main id="main-view2d" class="main-stack hidden">
-				<p class="hint">与 <a href="https://github.com/RobotWebTools/ros2djs/blob/develop/examples/continuous.html"
+				<p class="hint">与 <a
+						href="https://github.com/RobotWebTools/ros2djs/blob/develop/examples/continuous.html"
 						rel="noopener">ros2djs continuous</a> 一致：<code>ROS2D.Viewer</code> +
 					<code>ROS2D.OccupancyGridClient</code>（<code>continuous: true</code>）。激光请用下方 3D 标签的
-					<code>ROS3D.LaserScan</code>。</p>
+					<code>ROS3D.LaserScan</code>。
+				</p>
 				<div class="controls row-form">
 					<label>地图话题 <input type="text" id="map-topic" value="/map" /></label>
 					<button type="button" id="btn-2d-start">启动 2D</button>
@@ -195,7 +213,8 @@
 				<div id="view2d-host" class="view2d-host"></div>
 			</main>
 			<main id="main-view3d" class="main-stack hidden">
-				<p class="hint">3D 与 <a href="https://github.com/RobotWebTools/ros3djs/blob/develop/examples/pointcloud2.html"
+				<p class="hint">3D 与 <a
+						href="https://github.com/RobotWebTools/ros3djs/blob/develop/examples/pointcloud2.html"
 						target="_blank" rel="noopener">ros3djs pointcloud2</a> 一致：<code>ROSLIB.Ros</code> → 同源
 					<code>/ws/rosbridge</code>，<code>ROS2TFClient</code> + <code>ROS3D.PointCloud2</code>（CBOR）。需
 					<code>tf2_web_republisher</code>。大点云请调低「最大点数」与节流间隔以减轻卡顿。彩色图用 MJPEG。
@@ -203,10 +222,14 @@
 				<div class="controls row-form">
 					<label>TF 固定坐标系 <input type="text" id="tf-fixed-frame" value="base_link"
 							placeholder="与 RViz 一致，如 base_link" title="供后续 tf_lookup 等扩展；当前 TF 摘要为整树" /></label>
+					<label class="block-label" style="flex-basis:100%"><input type="checkbox"
+							id="view3d-use-topic-tf-only" />
+						仅用浏览器 /tf（不经过 tf2_web_republisher；默认关闭，与官方 ROS2TFClient 一致）</label>
 					<label>点云话题 <input type="text" id="pc-topic" value="" placeholder="/points 或留空" /></label>
 					<label>雷达话题 <input type="text" id="scan3-topic" value="" placeholder="可选" /></label>
 					<label>Marker 话题 <input type="text" id="marker3-topic" value=""
-							placeholder="如 /visualization_marker 或留空" title="预留；IVG 当前以 JSON 订阅 visualization_msgs/MarkerArray 等" /></label>
+							placeholder="如 /visualization_marker 或留空"
+							title="预留；IVG 当前以 JSON 订阅 visualization_msgs/MarkerArray 等" /></label>
 					<label>最大点数 <input type="number" id="pc-max" value="32000" min="1000" max="500000" step="1000"
 							title="每帧绘制的点数上限（均匀抽样）；调低可明显减轻卡顿" /></label>
 					<label>点云节流 ms <input type="number" id="pc-throttle-ms" value="120" min="0" max="2000" step="20"
@@ -221,7 +244,7 @@
 							title="IVG 网格可走 /api/v1/mesh/...；此处表单项保留兼容旧习惯" /></label>
 					<span class="hint row-inline-checks"><label><input type="checkbox" id="view3d-show-axes" checked />
 							坐标轴</label>
-						<label><input type="checkbox" id="view3d-show-grid" checked /> 网格</label>
+						<label><input type="checkbox" id="view3d-show-grid" /> 网格</label>
 						<label><input type="checkbox" id="view3d-show-urdf" checked /> 机械臂 URDF（随 TF）</label></span>
 					<button type="button" id="btn-3d-start">启动 3D</button>
 					<button type="button" id="btn-3d-stop">停止</button>
@@ -231,7 +254,6 @@
 		</div>
 	</div>
 	<script src="js/ivg_site_nav.js"></script>
-	<script src="js/ivg_topics_lab_ivg.js"></script>
 </body>
 
 </html>

@@ -4,7 +4,7 @@ ament_python 包定义（目录与 ``ros2 pkg create --build-type ament_python``
 - ``resource/<pkg>/``：ament 索引标记
 - ``<pkg>/``：可导入的 Python 包（网关代码）
 - ``launch/``：ROS 2 Launch 描述
-- ``test/``：pytest（``colcon test`` / ``pytest``）
+- ``tests/``：pytest（``colcon test`` / ``pytest``）
 - ``web/public/``：静态资源，安装到 ``share/<pkg>/web/public/``
 - ``docs/``：架构与维护用 Markdown（可选安装到 share）
 """
@@ -39,7 +39,7 @@ setup(
 	name=PKG,
 	# 与 package.xml <version> 对齐
 	version='0.4.0',
-	# 含 aubo_ros2_web_dashboard.gateway 等子包；不把顶层 test/ 当作 Python 包收录
+	# 含 aubo_ros2_web_dashboard.gateway 等子包；不把顶层 tests/ 当作 Python 包收录
 	packages=find_packages(where='.', include=['aubo_ros2_web_dashboard*']),
 	data_files=[
 		# ament 索引：标记本包已安装
@@ -62,7 +62,7 @@ setup(
 	maintainer_email='maintainer@example.com',
 	description='IVG web dashboard: rosbridge + FastAPI static gateway for web/public (RobotWebTools / roslibjs)',
 	license='Apache-2.0',
-	# 与 pytest.ini（testpaths=test）配合；官方示例多用 extras_require['test']，此处沿用 tests_require
+	# 与 pytest.ini（testpaths=tests）配合；官方示例多用 extras_require['test']，此处沿用 tests_require
 	tests_require=['pytest'],
 	entry_points={
 		# 实际安装路径由 setup.cfg 的 install_scripts 指向 lib/<pkg>/

@@ -4,6 +4,7 @@ from __future__ import annotations
 from urllib.parse import quote
 
 import pytest
+from ament_index_python.packages import PackageNotFoundError
 from fastapi.testclient import TestClient
 
 from aubo_ros2_web_dashboard.gateway.app import create_app
@@ -52,6 +53,30 @@ def test_robot_mesh_rejects_path_traversal(client):
 	# 使用百分号编码的 ``..``，避免 TestClient/Starlette 在匹配前折叠路径段
 	r = client.get("/api/ivg/robot-mesh/aubo_description/meshes/%2e%2e/%2e%2e/etc/passwd")
 	assert r.status_code == 400
+
+
+def test_robot_mesh_resolves_case_insensitive_filename(client, monkeypatch, tmp_path):
+	"""Linux 上 URDF 经浏览器规范为小写扩展名时，仍能打开 share 内大写 ``.DAE`` 文件。"""
+	share = tmp_path / "aubo_description"
+	vis = share / "meshes" / "aubo_e5_10" / "visual"
+	vis.mkdir(parents=True)
+	(vis / "link0.DAE").write_text("<dae/>", encoding="utf-8")
+
+	def _get(pkg: str) -> str:
+		if pkg == "aubo_description":
+			return str(share)
+		raise PackageNotFoundError()
+
+	monkeypatch.setattr(
+		"aubo_ros2_web_dashboard.gateway.routes.robot_mesh.get_package_share_directory",
+		_get,
+	)
+	r = client.get(
+		"/api/ivg/robot-mesh/aubo_description/meshes/aubo_e5_10/visual/link0.dae"
+	)
+	assert r.status_code == 200
+	assert "collada" in (r.headers.get("content-type") or "").lower()
+	assert r.text == "<dae/>"
 
 
 def test_web_video_proxy_rejects_path_traversal(client):

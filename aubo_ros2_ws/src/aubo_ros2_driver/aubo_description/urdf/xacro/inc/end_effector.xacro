@@ -1,6 +1,8 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
 
+  <!-- 末端几何使用 package://aubo_description/meshes/end_effector/*.STL（源码见 src/.../meshes/end_effector）。 -->
+
   <!-- /////////////////////////////////   Camera Link   ////////////////////////////////////// -->
   <link name="camera_Link">
     <inertial>

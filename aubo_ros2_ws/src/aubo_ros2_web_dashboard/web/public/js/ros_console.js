@@ -1,5 +1,5 @@
-/* global ROSLIB, ROS2D, ROS3D, createjs, ivgPorts, IVGTopicsLabRender, IvgRos3dView3dSession */
-/* topics_lab：编排 roslib/rosapi/2D/3D；消息类型 → HTML 见 js/topics_lab/render.js。sensor_msgs/Image 仅 MJPEG（无 rosbridge 收图）。 */
+/* global ROSLIB, ROS2D, ROS3D, createjs, ivgPorts, ivgTransport, IVGTopicsLabRenderPreview, IVGTopicsLabRenderVisualizers, IvgRos3dView3dSession */
+/* topics_lab：编排 roslib/rosapi/2D/3D；消息类型渲染见 js/topics_lab/render_preview.js 与 render_visualizers.js。sensor_msgs/Image 仅 MJPEG（无 rosbridge 收图）。 */
 (() => {
 	/** 当前 ROSLIB.Ros 实例（直连 rosbridge WebSocket）。 */
 	let ros = null;
@@ -28,11 +28,8 @@
 	let selectedService = '';
 	let selectedParam = '';
 	let selectedAction = '';
-	/** 2D：与 ros2djs continuous 示例一致 — ROS2D.OccupancyGridClient（上游无数组 dispose，重复启动前建议重连 rosbridge） */
-	let mapGridClient = null;
-	let viewer2d = null;
-	/** 3D：与 ros3djs pointcloud2 示例一致，逻辑在 ivg_ros3d_view3d.js */
-	let view3dSession = null;
+	/** 2D/3D 视图生命周期由独立模块管理，主控制器只负责触发。 */
+	let labViewSessions = null;
 	/** 话题页 viz 渲染合并到下一帧，避免 rosbridge 回调内直接改 DOM 造成掉帧（RobotWebTools/roslib 高频消息场景） */
 	let topicVizRaf = null;
 	/** 当前话题为 web_video_server MJPEG，未创建 ROSLIB.Topic */
@@ -50,6 +47,14 @@
 	const GRAPH_ARCH_MEMBER = '#475569';
 	const GRAPH_ARCH_EDGE = 'rgba(37, 99, 235, 0.28)';
 	const ROS2D_VIEWER_BG = '#eef1f6';
+	if (window.IVGTopicsLabViewSessions && typeof window.IVGTopicsLabViewSessions.createTopicsLabViewSessions === 'function') {
+		labViewSessions = window.IVGTopicsLabViewSessions.createTopicsLabViewSessions({ ros2dBackground: ROS2D_VIEWER_BG });
+	}
+	const renderPreview = window.IVGTopicsLabRenderPreview || null;
+	const renderVisualizers = window.IVGTopicsLabRenderVisualizers || null;
+	if (!renderPreview || !renderVisualizers) {
+		throw new Error('topics_lab render 子模块未加载');
+	}
 
 	/* ---------- IVG 顶栏：话题排序、VPE FastAPI 端口、快捷订阅与常用服务预设 ---------- */
 	/** 与 start_IVG_graspnet_points_fastapi.sh + graspnet_demo_points_with_tf 默认一致 */
@@ -78,6 +83,47 @@
 		const p = (el && el.value ? el.value : '8088').replace(/[^\d]/g, '') || '8088';
 		const h = window.location.hostname || '127.0.0.1';
 		return `http://${h}:${p}`;
+	}
+
+	function ensureIvgControlHandlers() {
+		if (!ivgTransport || typeof ivgTransport.clearControlJsonHandlers !== 'function') return;
+		ivgTransport.clearControlJsonHandlers();
+		ivgTransport.onControlJson(o => {
+			if (!o) return;
+			if (o.op === 'tf_snapshot' || o.op === 'tf_lookup_result') {
+				if ($('raw-pre')) $('raw-pre').textContent = renderPreview.safeJson(o, 80000);
+			}
+		});
+	}
+
+	async function ensureIvgControlConnected() {
+		if (!ivgTransport || typeof ivgTransport.connectControl !== 'function') {
+			throw new Error('ivg_transport 未加载');
+		}
+		if (typeof ivgTransport.loadRuntime === 'function') {
+			await ivgTransport.loadRuntime();
+		}
+		ensureIvgControlHandlers();
+		if (typeof ivgTransport.isConnected === 'function' && ivgTransport.isConnected()) {
+			return;
+		}
+		await ivgTransport.connectControl();
+		if (typeof ivgTransport.connectBinary === 'function') {
+			await ivgTransport.connectBinary().catch(() => {});
+		}
+	}
+
+	function requestTfSnapshot() {
+		void ensureIvgControlConnected()
+			.then(() => {
+				if (!ivgTransport.ctrl || ivgTransport.ctrl.readyState !== WebSocket.OPEN) {
+					throw new Error('IVG 控制面未连接');
+				}
+				ivgTransport.ctrl.send(JSON.stringify({ op: 'tf_snapshot' }));
+			})
+			.catch(err => {
+				alert(`TF 摘要需要 IVG 控制面连接：${err && err.message ? err.message : String(err)}`);
+			});
 	}
 
 	function ivgSubscribeFixed(name, defaultMsgType) {
@@ -202,6 +248,8 @@
 				}
 			} else if (k === 'topics-status') {
 				ivgSubscribeFixed('/system_status', 'std_msgs/msg/String');
+			} else if (k === 'tf-snapshot') {
+				requestTfSnapshot();
 			}
 		});
 	}
@@ -212,18 +260,16 @@
 
 	function reconnectImageTopicIfNeeded() {
 		if (tab !== 'topics' || !selectedName || !selectedType || !ros || !ros.isConnected) return;
-		if (!IVGTopicsLabRender.typeMatch(selectedType, 'Image') || IVGTopicsLabRender.typeMatch(selectedType, 'CompressedImage')) return;
+		if (!renderPreview.typeMatch(selectedType, 'Image') || renderPreview.typeMatch(selectedType, 'CompressedImage')) return;
 		subscribe(selectedName, selectedType);
 	}
 
-	/** 静态页 id 不变时缓存 getElementById，减轻 topics 高频回调与侧栏刷新时的查找开销 */
-	const elCache = Object.create(null);
-	function $(id) {
-		if (Object.prototype.hasOwnProperty.call(elCache, id)) return elCache[id];
-		const n = document.getElementById(id);
-		elCache[id] = n;
-		return n;
-	}
+	/** 共享 DOM 缓存：避免 topics 高频回调里重复查找静态节点。 */
+	const $ = (window.IVGDomCache && typeof window.IVGDomCache.createDomCache === 'function')
+		? window.IVGDomCache.createDomCache(document)
+		: function fallbackGetById(id) {
+			return document.getElementById(id);
+		};
 
 	function setStatus(text, ok) {
 		const el = $('conn-status');
@@ -370,11 +416,11 @@
 			const vizBody = $('viz-body');
 			const canvas = $('viz-canvas');
 			if (!vizBody || !canvas) return;
-			const out = IVGTopicsLabRender.renderVisualization(type, msg, canvas);
+			const out = renderVisualizers.renderVisualization(type, msg, canvas);
 			vizBody.innerHTML = out.html;
 			canvas.style.display = out.usedCanvas ? 'block' : 'none';
 			// 大话题勿 JSON.stringify 全量 data，否则主线程阻塞数秒；摘要即可
-			$('raw-pre').textContent = IVGTopicsLabRender.rawPreviewForMessage(type, msg, 120000);
+			$('raw-pre').textContent = renderPreview.rawPreviewForMessage(type, msg, 120000);
 		});
 	}
 
@@ -409,7 +455,7 @@
 		selectedType = msgType;
 		lastEmit = 0;
 		$('selection-label').textContent = `${name}  ·  ${msgType}`;
-		if (IVGTopicsLabRender.typeMatch(msgType, 'Image') && !IVGTopicsLabRender.typeMatch(msgType, 'CompressedImage')) {
+		if (renderPreview.typeMatch(msgType, 'Image') && !renderPreview.typeMatch(msgType, 'CompressedImage')) {
 			if (typeof ivgWebVideo === 'undefined') {
 				$('viz-body').innerHTML =
 					'<p class="hint">sensor_msgs/Image 仅通过 <strong>web_video_server</strong> MJPEG 显示。请确认本页已加载 <code>ivg_web_video.js</code> 且 launch 已启动 web_video_server。</p>';
@@ -1250,65 +1296,20 @@
 	}
 
 	function stop2d() {
-		const h = $('view2d-host');
-		if (h) h.innerHTML = '';
-		viewer2d = null;
-		mapGridClient = null;
+		if (labViewSessions) labViewSessions.stop2d($);
 	}
 
 	/* ---------- 2D：ros2djs continuous.html；3D：ros3djs pointcloud2.html、LaserScan、markers.html + 场景坐标轴/网格 ---------- */
 	function start2d() {
-		stop2d();
-		if (typeof ROS2D === 'undefined' || typeof createjs === 'undefined') {
-			alert('ROS2D / EaselJS 未加载');
-			return;
-		}
-		const host = $('view2d-host');
-		const inner = document.createElement('div');
-		inner.id = 'ros2d-inner';
-		host.appendChild(inner);
-		viewer2d = new ROS2D.Viewer({ divID: 'ros2d-inner', width: 800, height: 500, background: ROS2D_VIEWER_BG });
-		const mapTopic = ($('map-topic').value || '/map').trim();
-		mapGridClient = new ROS2D.OccupancyGridClient({
-			ros,
-			topic: mapTopic,
-			rootObject: viewer2d.scene,
-			continuous: true
-		});
-		mapGridClient.on('change', () => {
-			const mc = mapGridClient;
-			const v = viewer2d;
-			if (!mc || !v) return;
-			const cg = mc.currentGrid;
-			if (!cg || !cg.pose) return;
-			v.scaleToDimensions(cg.width, cg.height);
-			v.shift(cg.pose.position.x, cg.pose.position.y);
-		});
+		if (labViewSessions) labViewSessions.start2d(ros, $);
 	}
 
 	function stop3d() {
-		if (view3dSession) {
-			try {
-				view3dSession.stop();
-			} catch (e0) {
-				/* ignore */
-			}
-			view3dSession = null;
-		}
+		if (labViewSessions) labViewSessions.stop3d();
 	}
 
 	function start3d() {
-		if (!ros || !ros.isConnected) {
-			alert('未连接 rosbridge，请先重连');
-			return;
-		}
-		if (typeof IvgRos3dView3dSession !== 'function') {
-			alert('未加载 ivg_ros3d_view3d.js（需在 ros_console.js 之前引入）');
-			return;
-		}
-		stop3d();
-		view3dSession = new IvgRos3dView3dSession(ros, $);
-		view3dSession.start();
+		if (labViewSessions) labViewSessions.start3d(ros, $);
 	}
 
 	/** 建立或重建 ROSLIB.Ros：直连 rosbridge WebSocket。 */
@@ -1466,7 +1467,7 @@
 				srv.callService(reqObj, r => {
 					svcBtn.disabled = false;
 					svcBtn.textContent = origLabel;
-					$('svc-resp').textContent = IVGTopicsLabRender.safeJson(r, 80000);
+					$('svc-resp').textContent = renderPreview.safeJson(r, 80000);
 				}, e => {
 					svcBtn.disabled = false;
 					svcBtn.textContent = origLabel;

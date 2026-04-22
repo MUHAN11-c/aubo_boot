@@ -25,11 +25,6 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AUBO_ROS2_WS="${AUBO_ROS2_WS:-${SCRIPT_DIR}}"
 ROS_DISTRO_NAME="${ROS_DISTRO_NAME:-humble}"
-# web_video_server 经 pluginlib 加载 image_transport::RawSubscriber（libimage_transport_plugins.so）。
-# 若 LD_LIBRARY_PATH 未包含 /opt/ros/$ROS_DISTRO/lib（仅含 lib/x86_64-linux-gnu 等），会报 raw_sub 插件无法创建、快照 502。
-ROS_UNDERLAY_LIB="/opt/ros/${ROS_DISTRO_NAME}/lib"
-# 在子 shell 中执行（供 IVG 网关步骤拼接）；内层 ${LD_LIBRARY_PATH:-} 勿在本脚本展开
-IVG_WEB_VIDEO_LD_PRE="export LD_LIBRARY_PATH=\"${ROS_UNDERLAY_LIB}:\${LD_LIBRARY_PATH:-}\""
 ROS2_BASE_ENV="source /opt/ros/${ROS_DISTRO_NAME}/setup.bash && if [ -f ~/ws_moveit/install/setup.bash ]; then source ~/ws_moveit/install/setup.bash; fi"
 WS_ENV="cd $AUBO_ROS2_WS && $ROS2_BASE_ENV && if [ -f install/setup.bash ]; then source install/setup.bash; fi"
 WEB_HOST="${WEB_HOST:-127.0.0.1}"
@@ -51,6 +46,9 @@ IVG_ROSBAG_TOPICS="${IVG_ROSBAG_TOPICS:-}"
 HAND_EYE_PORT="${HAND_EYE_PORT:-8080}"
 # web_video_server（MJPEG），默认 8089，避免与手眼 8080、静态站 8090、FastAPI 8088 冲突
 WEB_VIDEO_PORT="${WEB_VIDEO_PORT:-8089}"
+# 网页 3D 瘦点云：与 web_dashboard 同进程启动 ivg_pointcloud_web_throttle（/points -> /points_web）
+IVG_INCLUDE_POINTCLOUD_WEB_BRIDGE="${IVG_INCLUDE_POINTCLOUD_WEB_BRIDGE:-true}"
+IVG_POINTCLOUD_WEB_MAX_POINTS="${IVG_POINTCLOUD_WEB_MAX_POINTS:-15000}"
 # 本机回环与局域网 Web 不应走 HTTP(S)_PROXY；否则浏览器/curl/Python 可能把 127.0.0.1:8090 等发到公司代理导致无法访问
 WEB_DASH_NO_PROXY_EXPORT='export NO_PROXY="127.0.0.1,localhost,0.0.0.0,::1${NO_PROXY:+,${NO_PROXY}}"; export no_proxy="$NO_PROXY"; '
 if [ "${IVG_STRIP_PROXY_FOR_DASH_LAUNCH}" = "true" ]; then
@@ -60,7 +58,7 @@ else
 fi
 
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}IVG 系统启动脚本（AI大模型抓取 + FastAPI + Web 静态站）${NC}"
+echo -e "${GREEN}IVG 系统启动脚本（GraspNet + FastAPI + Web 静态站）${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 
@@ -140,7 +138,10 @@ ivg_print_access_urls() {
     echo -e "${GREEN}  门户首页:         $(ivg_web_dash_url "$lh" "index.html")${NC}"
     echo -e "${GREEN}  视觉抓取面板:     $(ivg_web_dash_url "$lh" "vision_grasp_panel.html")${NC}"
     echo -e "${GREEN}  咖啡拉花面板:     $(ivg_web_dash_url "$lh" "coffee_latte_panel.html")${NC}"
-    echo -e "${GREEN}  数据与监控（直接打开）: $(ivg_topics_lab_url "$lh")${NC}"
+    echo -e "${GREEN}  ROS 控制台:       $(ivg_topics_lab_url "$lh")${NC}"
+    if [ "${IVG_INCLUDE_POINTCLOUD_WEB_BRIDGE}" = "true" ]; then
+        echo -e "${GREEN}  3D 瘦点云话题:    /camera/depth_registered/points_web（顶栏「3D: 瘦点云」）${NC}"
+    fi
     echo -e "${GREEN}  静态根目录列表:   http://${lh}:${WEB_DASH_PORT}/${NC}"
     echo -e "${GREEN}  面板内 MJPEG:     走 http://${lh}:${WEB_DASH_PORT}/api/ivg/proxy/web-video/…（无需浏览器直连 :${WEB_VIDEO_PORT}）${NC}"
     echo -e "${GREEN}  调试直连 web_video: http://${lh}:${WEB_VIDEO_PORT}/ （仅本机/排障）${NC}"
@@ -162,7 +163,7 @@ ivg_print_access_urls() {
         echo -e "${GREEN}  [${ip}] 门户:          $(ivg_web_dash_url "$ip" "index.html")${NC}"
         echo -e "${GREEN}  [${ip}] 视觉抓取:      $(ivg_web_dash_url "$ip" "vision_grasp_panel.html")${NC}"
         echo -e "${GREEN}  [${ip}] 咖啡拉花:      $(ivg_web_dash_url "$ip" "coffee_latte_panel.html")${NC}"
-        echo -e "${GREEN}  [${ip}] 数据与监控:    $(ivg_topics_lab_url "$ip")${NC}"
+        echo -e "${GREEN}  [${ip}] ROS 控制台:    $(ivg_topics_lab_url "$ip")${NC}"
         echo -e "${GREEN}  [${ip}] IVG 网关:       http://${ip}:${WEB_DASH_PORT}/（含 WS/视频代理）${NC}"
     done
 
@@ -233,11 +234,11 @@ launch_in_terminator "Visual Pose Estimation" "$VPE_CMD"
 echo -e "${GREEN}  ✓ 视觉姿态估计算法节点已启动${NC}"
 sleep 2
 
-# 步骤8: 启动 AI 大模型抓取管线节点（launch: graspnet_demo_points_with_tf）
-echo -e "${GREEN}[8/15] 启动 AI 大模型抓取节点（with_tf）...${NC}"
+# 步骤8: 启动 GraspNet 点云节点
+echo -e "${GREEN}[8/15] 启动 GraspNet 点云节点（with_tf）...${NC}"
 GRASPNET_WITH_TF_CMD="$WS_ENV && ros2 launch graspnet_ros2 graspnet_demo_points_with_tf.launch.py launch_camera:=false launch_hand_eye_tf:=true"
 launch_in_terminator "GraspNet Points With TF" "$GRASPNET_WITH_TF_CMD"
-echo -e "${GREEN}  ✓ AI 大模型抓取节点已启动${NC}"
+echo -e "${GREEN}  ✓ GraspNet 点云节点已启动${NC}"
 sleep 2
 
 # 步骤9: 启动执行抓取位姿服务节点
@@ -254,11 +255,11 @@ launch_in_terminator "Gripper Swap Worker" "$GRIPPER_SWAP_CMD"
 echo -e "${GREEN}  ✓ 夹爪切换服务节点已启动${NC}"
 sleep 2
 
-# 步骤11: 启动 AI 大模型抓取循环 Worker（publish_grasps_client_worker_node）
-echo -e "${GREEN}[11/15] 启动 AI 大模型抓取循环 Worker...${NC}"
+# 步骤11: 启动 GraspNet 循环抓取 Worker
+echo -e "${GREEN}[11/15] 启动 GraspNet 循环抓取 Worker...${NC}"
 PUBLISH_GRASPS_WORKER_CMD="$WS_ENV && ros2 run demo_driver publish_grasps_client_worker_node"
 launch_in_terminator "Publish Grasps Worker" "$PUBLISH_GRASPS_WORKER_CMD"
-echo -e "${GREEN}  ✓ AI 大模型抓取循环 Worker 已启动${NC}"
+echo -e "${GREEN}  ✓ GraspNet 循环抓取 Worker 已启动${NC}"
 sleep 2
 
 # 步骤12: 校验关键服务是否已就绪
@@ -277,24 +278,31 @@ sleep 3
 
 # 步骤14: aubo_ros2_web_dashboard（FastAPI 网关：静态页 + 同源 WS/视频代理 → 本机 rosbridge / web_video）
 echo -e "${GREEN}[14/15] 启动灵视 IVG 网关（HTTP ${WEB_DASH_HOST}:${WEB_DASH_PORT} → 上游 rosbridge ${ROSBRIDGE_PORT}、web_video ${WEB_VIDEO_PORT}）...${NC}"
-WEB_DASH_CMD="$WS_ENV && ${IVG_WEB_VIDEO_LD_PRE} && ${WEB_DASH_UNSET_PROXY}ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_host:=${WEB_DASH_HOST} web_port:=${WEB_DASH_PORT} rosbridge_port:=${ROSBRIDGE_PORT} web_video_port:=${WEB_VIDEO_PORT}"
+WEB_DASH_PC_WEB_ARGS=""
+if [ "${IVG_INCLUDE_POINTCLOUD_WEB_BRIDGE}" = "true" ]; then
+    WEB_DASH_PC_WEB_ARGS=" include_pointcloud_web_bridge:=true pointcloud_web_max_points:=${IVG_POINTCLOUD_WEB_MAX_POINTS}"
+    echo -e "${BLUE}  瘦点云桥接已开启 → /camera/depth_registered/points_web（max_points=${IVG_POINTCLOUD_WEB_MAX_POINTS}）；ROS 控制台可点「3D: 瘦点云」${NC}"
+else
+    echo -e "${BLUE}  瘦点云桥接已关闭（IVG_INCLUDE_POINTCLOUD_WEB_BRIDGE=false）${NC}"
+fi
+WEB_DASH_CMD="$WS_ENV && ${WEB_DASH_UNSET_PROXY}ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_host:=${WEB_DASH_HOST} web_port:=${WEB_DASH_PORT} rosbridge_port:=${ROSBRIDGE_PORT} web_video_port:=${WEB_VIDEO_PORT}${WEB_DASH_PC_WEB_ARGS}"
 launch_in_terminator "IVG Web Dashboard (gateway)" "$WEB_DASH_CMD"
 echo -e "${GREEN}  ✓ IVG Web 网关已启动${NC}"
 sleep 2
 
-# # 步骤15: rosbag 录制（删除已有同名目录后重新录，实现覆盖）
-# echo -e "${GREEN}[15/15] rosbag 录制数据（覆盖: ${IVG_ROSBAG_DIR}）...${NC}"
-# mkdir -p "$(dirname "$IVG_ROSBAG_DIR")"
-# rm -rf "$IVG_ROSBAG_DIR"
-# if [ -n "$IVG_ROSBAG_TOPICS" ]; then
-#     # shellcheck disable=SC2086
-#     ROSBAG_CMD="$WS_ENV && ros2 bag record -o \"$IVG_ROSBAG_DIR\" $IVG_ROSBAG_TOPICS"
-# else
-#     ROSBAG_CMD="$WS_ENV && ros2 bag record -o \"$IVG_ROSBAG_DIR\" -a"
-# fi
-# launch_in_terminator "ROS2 Bag Record IVG" "$ROSBAG_CMD"
-# echo -e "${GREEN}  ✓ rosbag 已在独立标签页启动（Ctrl+C 停止录制）${NC}"
-# sleep 1
+# 步骤15: rosbag 录制（删除已有同名目录后重新录，实现覆盖）
+echo -e "${GREEN}[15/15] rosbag 录制数据（覆盖: ${IVG_ROSBAG_DIR}）...${NC}"
+mkdir -p "$(dirname "$IVG_ROSBAG_DIR")"
+rm -rf "$IVG_ROSBAG_DIR"
+if [ -n "$IVG_ROSBAG_TOPICS" ]; then
+    # shellcheck disable=SC2086
+    ROSBAG_CMD="$WS_ENV && ros2 bag record -o \"$IVG_ROSBAG_DIR\" $IVG_ROSBAG_TOPICS"
+else
+    ROSBAG_CMD="$WS_ENV && ros2 bag record -o \"$IVG_ROSBAG_DIR\" -a"
+fi
+launch_in_terminator "ROS2 Bag Record IVG" "$ROSBAG_CMD"
+echo -e "${GREEN}  ✓ rosbag 已在独立标签页启动（Ctrl+C 停止录制）${NC}"
+sleep 1
 
 FASTAPI_HEALTH_URL="${WEB_URL}/health"
 if command -v curl >/dev/null 2>&1; then

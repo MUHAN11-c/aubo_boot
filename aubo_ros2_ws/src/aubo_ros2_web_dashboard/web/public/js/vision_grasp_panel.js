@@ -1,4 +1,4 @@
-/* global ivgPorts, ivgTransport, THREE */
+/* global ivgPorts, ivgTransport, THREE, ROSLIB, IvgRos3dView3dSession */
 /**
  * 视觉抓取面板：仅连接与 DOM 展示；数值摘要由桥进程 ``ivg_display`` 字段提供，不在此做格式编排/曲线计算/抓取轮询。
  */
@@ -7,6 +7,15 @@
 	const ROS_RECONNECT_MAX = 12;
 	const PAGE_STREAM_SUFFIX = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 	const subs = {};
+	/** 左栏 URDF：独立 3D 会话控制器，避免与控制面 WS 生命周期互相干扰。 */
+	const visionUrdfPanel =
+		window.IVGVisionUrdfPanel && typeof window.IVGVisionUrdfPanel.createVisionUrdfPanel === 'function'
+			? window.IVGVisionUrdfPanel.createVisionUrdfPanel({
+				ports: ivgPorts,
+				SessionCtor: IvgRos3dView3dSession,
+				documentRef: document
+			})
+			: null;
 	/** 仅 rosbridge 订阅类话题 */
 	const TOPIC_IDS = [
 		'topic-color',
@@ -69,17 +78,12 @@
 		tfEdges: Object.create(null),
 		drawRaf: null
 	};
-	/** 面板 DOM 稳定，缓存 id 查找；回调内避免重复 getElementById（不缓存 null，避免早于 DOM 查询导致永久失败） */
-	const elCache = Object.create(null);
-	function $(id) {
-		if (Object.prototype.hasOwnProperty.call(elCache, id)) {
-			const c = elCache[id];
-			if (c != null) return c;
-		}
-		const n = document.getElementById(id);
-		if (n != null) elCache[id] = n;
-		return n;
-	}
+	/** 共享 DOM 缓存：不缓存 null，避免页面尚未完成渲染时形成永久未命中。 */
+	const $ = (window.IVGDomCache && typeof window.IVGDomCache.createDomCache === 'function')
+		? window.IVGDomCache.createDomCache(document)
+		: function fallbackGetById(id) {
+			return document.getElementById(id);
+		};
 
 	/** 图例节点不参与 id 缓存，避免首帧误缓存 null 后永不更新 */
 	function jointLegendEl() {
@@ -765,83 +769,50 @@
 		return formatPoseBlockHtml(pose, null);
 	}
 
+	const settingsController =
+		window.IVGVisionSettings && typeof window.IVGVisionSettings.createVisionSettingsController === 'function'
+			? window.IVGVisionSettings.createVisionSettingsController({
+				getById: $,
+				allIds: ALL_SETTING_IDS,
+				defaults: SETTINGS_DEFAULTS,
+				sanitizeTopicValue,
+				sanitizeTopicConfig,
+				storageKey: TOPIC_STORAGE_KEY,
+				documentRef: document
+			})
+			: null;
+
 	function applyTopicDefaultsToDom() {
-		ALL_SETTING_IDS.forEach(id => {
-			const el = $(id);
-			if (el && SETTINGS_DEFAULTS[id] !== undefined) el.value = sanitizeTopicValue(id, SETTINGS_DEFAULTS[id]);
-		});
+		if (settingsController) settingsController.applyDefaultsToDom();
 	}
 
 	function readTopicsFromDom() {
-		const o = {};
-		ALL_SETTING_IDS.forEach(id => {
-			const el = $(id);
-			o[id] = sanitizeTopicValue(id, el ? el.value : '');
-		});
-		return o;
+		if (settingsController) return settingsController.readFromDom();
+		return {};
 	}
 
 	function loadTopicsFromStorage() {
-		const keys = [TOPIC_STORAGE_KEY, 'ivg_vision_grasp_topics_v2', 'ivg_vision_grasp_topics_v1'];
-		for (let k = 0; k < keys.length; k++) {
-			try {
-				const raw = localStorage.getItem(keys[k]);
-				if (!raw) continue;
-				const o = sanitizeTopicConfig(JSON.parse(raw));
-				if (!o || typeof o !== 'object') continue;
-				const ok = ALL_SETTING_IDS.every(id => {
-					if (typeof o[id] !== 'string') return false;
-					if (id === 'topic-result') return true;
-					return o[id].length > 0;
-				});
-				if (!ok) continue;
-				ALL_SETTING_IDS.forEach(id => {
-					const el = $(id);
-					if (el) el.value = o[id];
-				});
-				return true;
-			} catch (e) {
-				/* try next key */
-			}
-		}
-		return false;
+		return settingsController ? settingsController.loadFromStorage() : false;
 	}
 
 	function saveTopicsToStorage() {
-		try {
-			localStorage.setItem(TOPIC_STORAGE_KEY, JSON.stringify(sanitizeTopicConfig(readTopicsFromDom())));
-		} catch (e) { /* ignore quota / private mode */ }
+		if (settingsController) settingsController.saveToStorage();
 	}
 
 	function clearTopicsStorage() {
-		try {
-			localStorage.removeItem(TOPIC_STORAGE_KEY);
-		} catch (e) { /* ignore */ }
+		if (settingsController) settingsController.clearStorage();
 	}
 
 	function topicSettingsModalOpen() {
-		const m = $('topic-settings-modal');
-		return m && !m.hasAttribute('hidden');
+		return settingsController ? settingsController.modalOpen() : false;
 	}
 
 	function openTopicSettingsModal() {
-		const m = $('topic-settings-modal');
-		if (!m) return;
-		m.removeAttribute('hidden');
-		m.setAttribute('aria-hidden', 'false');
-		document.body.style.overflow = 'hidden';
-		const first = $('topic-color');
-		if (first) first.focus();
+		if (settingsController) settingsController.openModal();
 	}
 
 	function closeTopicSettingsModal() {
-		const m = $('topic-settings-modal');
-		if (!m) return;
-		m.setAttribute('hidden', '');
-		m.setAttribute('aria-hidden', 'true');
-		document.body.style.overflow = '';
-		const btn = $('btn-topic-settings-open');
-		if (btn) btn.focus();
+		if (settingsController) settingsController.closeModal();
 	}
 
 	/** @param {boolean|null} ok true 已连 / false 异常或断开 / null 连接中 */
@@ -869,7 +840,19 @@
 			im.removeAttribute('src');
 			im.hidden = true;
 		}
-		if (canvas) canvas.hidden = false;
+		if (canvas) canvas.hidden = true;
+	}
+
+	function stopVisionUrdf3d() {
+		if (visionUrdfPanel) visionUrdfPanel.stop();
+	}
+
+	function layoutVisionUrdfViewer() {
+		if (visionUrdfPanel) visionUrdfPanel.layout();
+	}
+
+	function startVisionUrdf3d() {
+		if (visionUrdfPanel) visionUrdfPanel.start($);
 	}
 
 	function applyResultVizPanZoom(stack) {
@@ -1215,6 +1198,7 @@
 	}
 
 	function unsubscribeAll() {
+		stopVisionUrdf3d();
 		if (graspColorSnapTimer) {
 			clearTimeout(graspColorSnapTimer);
 			graspColorSnapTimer = null;
@@ -1251,12 +1235,8 @@
 		const camMjpeg = $('cam-mjpeg');
 		if (canvas) canvas.hidden = true;
 		if (camMjpeg) {
-			camMjpeg.hidden = false;
-			if (!gnMode) {
-				camMjpeg.src = ivgTransport.cameraStreamUrl(colorTopic, buildPageStreamId('vision_color'));
-			} else {
-				camMjpeg.removeAttribute('src');
-			}
+			camMjpeg.hidden = true;
+			camMjpeg.removeAttribute('src');
 		}
 		subs.color = true;
 
@@ -1369,6 +1349,8 @@
 		subs.tf = true;
 
 		if (projectionMode) scheduleProjectionDraw();
+
+		startVisionUrdf3d();
 	}
 
 	function logSvc(msg) {

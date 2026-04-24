@@ -1,0 +1,54 @@
+name: Docs Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Deploy to GitHub Pages"
+        required: true
+        type: boolean
+        default: false
+
+  workflow_call:
+    inputs:
+      deploy:
+        description: "Deploy to GitHub Pages"
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          cache: npm
+          node-version: 24
+      - name: Install
+        run: npm ci
+      - name: Generate docs
+        run: npm run doc --workspace packages/roslib
+      - name: Upload static files as artifact
+        id: deployment
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: packages/roslib/docs/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      actions: read # to read the artifact from the previous job
+      # pages and id-token required to deploy to GitHub Pages
+      pages: write
+      id-token: write
+    if: inputs.deploy
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

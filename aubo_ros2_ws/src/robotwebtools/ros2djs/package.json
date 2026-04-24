@@ -1,0 +1,42 @@
+{
+  "name": "ros2d",
+  "homepage": "https://www.robotwebtools.org",
+  "description": "2D Visualization Library for use with the ROS JavaScript Libraries",
+  "version": "0.10.0",
+  "license": "BSD-2-Clause",
+  "devDependencies": {
+    "grunt": "^1.0.0",
+    "grunt-cli": "^1.2.0",
+    "grunt-contrib-clean": "^2.0.0",
+    "grunt-contrib-concat": "^2.0.0",
+    "grunt-contrib-jshint": "^3.0.0",
+    "grunt-contrib-uglify": "^5.0.0",
+    "grunt-contrib-watch": "^1.0.0",
+    "grunt-jsdoc": "^2.1.0",
+    "grunt-karma": "^4.0.0",
+    "karma": "^6.3.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RobotWebTools/ros2djs/releases"
+  },
+  "bugs": {
+    "url": "https://github.com/RobotWebTools/ros2djs/issues"
+  },
+  "scripts": {
+    "build": "grunt build",
+    "doc": "grunt doc",
+    "publish": "npm run build"
+  },
+  "keywords": [
+    "ROS",
+    "ros",
+    "ros2d",
+    "ros2djs",
+    "robot"
+  ],
+  "author": "Robot Webtools Team <robot-web-tools@googlegroups.com> (http://robotwebtools.org)",
+  "dependencies": {
+    "easeljs": "^1.0.2"
+  }
+}

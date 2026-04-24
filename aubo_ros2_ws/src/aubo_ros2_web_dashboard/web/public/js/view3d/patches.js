@@ -1,30 +1,13 @@
 /**
  * 3D 兼容补丁层：
- * - 处理 ros3d 内嵌 THREE 与页面 THREE 不是同一实例的问题。
- * - 处理 MeshLoader 仅注册小写扩展名的问题。
- * - 这里不创建视图，只提供 session 启动前必须执行的补丁函数。
+ * - 统一只使用 ros3d 内嵌 THREE，不再依赖页面单独加载 three.min.js。
+ * - 这里只保留 dashboard 自己的运行时补丁；RobotWebTools 本体兼容应优先下沉到 src/robotwebtools。
+ * - 这里不创建视图，只提供 session 启动后围绕 Viewer.scene 的安全补丁函数。
  */
-(function (global) {
-	'use strict';
 
-	/** npm ros3d 构建内嵌独立 THREE，与页面 `three.min.js` 非同实例；按 prototype 去重打补丁。 */
+	/** ros3d 自带内嵌 THREE；按 prototype 去重打补丁。 */
 	const ivgObject3dAddPatchedPrototypes =
 		typeof WeakSet !== 'undefined' ? new WeakSet() : null;
-
-	function ivgInstallMeshLoaderCasePatch() {
-		if (typeof ROS3D === 'undefined' || !ROS3D.MeshLoader || !ROS3D.MeshLoader.loaders) return;
-		if (ROS3D.MeshLoader.__ivgCasePatched) return;
-		const loaders = ROS3D.MeshLoader.loaders;
-		const keys = Object.keys(loaders);
-		for (let i = 0; i < keys.length; i++) {
-			const k = keys[i];
-			const up = String(k).toUpperCase();
-			if (!Object.prototype.hasOwnProperty.call(loaders, up)) {
-				loaders[up] = loaders[k];
-			}
-		}
-		ROS3D.MeshLoader.__ivgCasePatched = true;
-	}
 
 	function installIvgThreeSafeAddPatchOnPrototype(object3dPrototype) {
 		if (!object3dPrototype || typeof object3dPrototype.add !== 'function') return;
@@ -65,17 +48,11 @@
 		object3dPrototype.__ivgSafeAddPatched = true;
 	}
 
-	/** 页面全局 THREE（若有）。 */
-	function installIvgThreeSafeAddPatch() {
-		if (typeof THREE === 'undefined' || !THREE.Object3D) return;
-		installIvgThreeSafeAddPatchOnPrototype(THREE.Object3D.prototype);
-	}
-
 	function ivgRos3dEmbeddedObject3DClass(viewer3d) {
-		if (!viewer3d || !viewer3d.scene) return typeof THREE !== 'undefined' ? THREE.Object3D : null;
+		if (!viewer3d || !viewer3d.scene) return null;
 		const object3dProto = Object.getPrototypeOf(Object.getPrototypeOf(viewer3d.scene));
 		const Ctor = object3dProto && object3dProto.constructor;
-		return typeof Ctor === 'function' ? Ctor : typeof THREE !== 'undefined' ? THREE.Object3D : null;
+		return typeof Ctor === 'function' ? Ctor : null;
 	}
 
 	function installIvgRos3dEmbeddedThreeSafeAddPatch(viewer3d) {
@@ -93,11 +70,17 @@
 		installIvgThreeSafeAddPatchOnPrototype(object3dPrototype);
 	}
 
-	global.IVGView3DPatches = {
-		ivgInstallMeshLoaderCasePatch,
-		installIvgThreeSafeAddPatchOnPrototype,
-		installIvgThreeSafeAddPatch,
-		ivgRos3dEmbeddedObject3DClass,
-		installIvgRos3dEmbeddedThreeSafeAddPatch
-	};
-})(typeof window !== 'undefined' ? window : globalThis);
+const IVGView3DPatches = {
+	installIvgThreeSafeAddPatchOnPrototype,
+	ivgRos3dEmbeddedObject3DClass,
+	installIvgRos3dEmbeddedThreeSafeAddPatch
+};
+
+globalThis.IVGView3DPatches = IVGView3DPatches;
+
+export {
+	installIvgThreeSafeAddPatchOnPrototype,
+	ivgRos3dEmbeddedObject3DClass,
+	installIvgRos3dEmbeddedThreeSafeAddPatch,
+	IVGView3DPatches
+};

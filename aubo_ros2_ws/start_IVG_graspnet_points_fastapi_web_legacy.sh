@@ -8,6 +8,7 @@ fi
 
 # IVG 完整启动脚本（GraspNet Points + FastAPI Web + aubo_ros2_web_dashboard）
 # 在 start_IVG_graspnet_points_fastapi.sh 基础上增加：rosbridge + tf2_web_republisher + web_video_server + FastAPI 静态网关（8090）
+# Dashboard 直接消费 src/robotwebtools/runtime_js_assets（由 build_robotwebtools.sh 自动汇总生成）。
 # 端口：WEB_DASH_PORT=8090 网关（静态页 + 同源 /ws/rosbridge + /api/ivg/proxy/web-video）；WEB_VIDEO_PORT=8089（仅网关本机连上游 MJPEG）；
 #       ROSBRIDGE_PORT=9090（仅网关本机连上游 rosbridge）；VPE FastAPI WEB_PORT=8088；HAND_EYE_PORT=8080。
 # 使用 terminator 创建分屏终端
@@ -27,6 +28,9 @@ AUBO_ROS2_WS="${AUBO_ROS2_WS:-${SCRIPT_DIR}}"
 ROS_DISTRO_NAME="${ROS_DISTRO_NAME:-humble}"
 ROS2_BASE_ENV="source /opt/ros/${ROS_DISTRO_NAME}/setup.bash && if [ -f ~/ws_moveit/install/setup.bash ]; then source ~/ws_moveit/install/setup.bash; fi"
 WS_ENV="cd $AUBO_ROS2_WS && $ROS2_BASE_ENV && if [ -f install/setup.bash ]; then source install/setup.bash; fi"
+ROBOTWEBTOOLS_ROOT="${ROBOTWEBTOOLS_ROOT:-${AUBO_ROS2_WS}/src/robotwebtools}"
+ROBOTWEBTOOLS_BUILD_SCRIPT="${ROBOTWEBTOOLS_ROOT}/build_robotwebtools.sh"
+ROBOTWEBTOOLS_ASSETS_DIR="${ROBOTWEBTOOLS_ASSETS_DIR:-${ROBOTWEBTOOLS_ROOT}/runtime_js_assets}"
 WEB_HOST="${WEB_HOST:-127.0.0.1}"
 WEB_PORT="${WEB_PORT:-8088}"
 # FastAPI/uvicorn 开发热重载：默认开启；设为 false 可关闭（例如生产或稳定对比）
@@ -87,6 +91,16 @@ echo -e "${GREEN}[0/15] 构建工作空间...${NC}"
     colcon build
 )
 echo -e "${GREEN}  ✓ 构建完成${NC}"
+if [ -x "$ROBOTWEBTOOLS_BUILD_SCRIPT" ]; then
+    echo -e "${GREEN}  → 导出 RobotWebTools 浏览器产物: ${ROBOTWEBTOOLS_ASSETS_DIR}${NC}"
+    (
+        cd "$ROBOTWEBTOOLS_ROOT" && \
+        bash "$ROBOTWEBTOOLS_BUILD_SCRIPT"
+    )
+    echo -e "${GREEN}  ✓ RobotWebTools 构建与 runtime_js_assets 汇总已更新${NC}"
+else
+    echo -e "${YELLOW}  ! 未找到 ${ROBOTWEBTOOLS_BUILD_SCRIPT}，跳过 runtime_js_assets 生成；请确认 ${ROBOTWEBTOOLS_ASSETS_DIR} 已存在${NC}"
+fi
 echo ""
 
 launch_in_terminator() {
@@ -122,10 +136,6 @@ ivg_web_dash_url() {
     printf 'http://%s:%s/%s%s' "$host" "$WEB_DASH_PORT" "$path" "$(ivg_rosbridge_query)"
 }
 
-ivg_topics_lab_url() {
-    ivg_web_dash_url "$1" "topics_lab.html"
-}
-
 ivg_print_access_urls() {
     local lh="127.0.0.1"
     echo ""
@@ -138,10 +148,10 @@ ivg_print_access_urls() {
     echo -e "${GREEN}  门户首页:         $(ivg_web_dash_url "$lh" "index.html")${NC}"
     echo -e "${GREEN}  视觉抓取面板:     $(ivg_web_dash_url "$lh" "vision_grasp_panel.html")${NC}"
     echo -e "${GREEN}  咖啡拉花面板:     $(ivg_web_dash_url "$lh" "coffee_latte_panel.html")${NC}"
-    echo -e "${GREEN}  ROS 控制台:       $(ivg_topics_lab_url "$lh")${NC}"
     if [ "${IVG_INCLUDE_POINTCLOUD_WEB_BRIDGE}" = "true" ]; then
-        echo -e "${GREEN}  3D 瘦点云话题:    /camera/depth_registered/points_web（顶栏「3D: 瘦点云」）${NC}"
+        echo -e "${GREEN}  3D 瘦点云话题:    /camera/depth_registered/points_web${NC}"
     fi
+    echo -e "${GREEN}  RobotWebTools 产物: ${ROBOTWEBTOOLS_ASSETS_DIR}${NC}"
     echo -e "${GREEN}  静态根目录列表:   http://${lh}:${WEB_DASH_PORT}/${NC}"
     echo -e "${GREEN}  面板内 MJPEG:     走 http://${lh}:${WEB_DASH_PORT}/api/ivg/proxy/web-video/…（无需浏览器直连 :${WEB_VIDEO_PORT}）${NC}"
     echo -e "${GREEN}  调试直连 web_video: http://${lh}:${WEB_VIDEO_PORT}/ （仅本机/排障）${NC}"
@@ -163,7 +173,6 @@ ivg_print_access_urls() {
         echo -e "${GREEN}  [${ip}] 门户:          $(ivg_web_dash_url "$ip" "index.html")${NC}"
         echo -e "${GREEN}  [${ip}] 视觉抓取:      $(ivg_web_dash_url "$ip" "vision_grasp_panel.html")${NC}"
         echo -e "${GREEN}  [${ip}] 咖啡拉花:      $(ivg_web_dash_url "$ip" "coffee_latte_panel.html")${NC}"
-        echo -e "${GREEN}  [${ip}] ROS 控制台:    $(ivg_topics_lab_url "$ip")${NC}"
         echo -e "${GREEN}  [${ip}] IVG 网关:       http://${ip}:${WEB_DASH_PORT}/（含 WS/视频代理）${NC}"
     done
 
@@ -277,15 +286,15 @@ echo -e "${GREEN}  ✓ FastAPI Web 服务已启动${NC}"
 sleep 3
 
 # 步骤14: aubo_ros2_web_dashboard（FastAPI 网关：静态页 + 同源 WS/视频代理 → 本机 rosbridge / web_video）
-echo -e "${GREEN}[14/15] 启动灵视 IVG 网关（HTTP ${WEB_DASH_HOST}:${WEB_DASH_PORT} → 上游 rosbridge ${ROSBRIDGE_PORT}、web_video ${WEB_VIDEO_PORT}）...${NC}"
+echo -e "${GREEN}[14/15] 启动灵视 IVG 网关（HTTP ${WEB_DASH_HOST}:${WEB_DASH_PORT} → 上游 rosbridge ${ROSBRIDGE_PORT}、web_video ${WEB_VIDEO_PORT}；RobotWebTools=${ROBOTWEBTOOLS_ASSETS_DIR}）...${NC}"
 WEB_DASH_PC_WEB_ARGS=""
 if [ "${IVG_INCLUDE_POINTCLOUD_WEB_BRIDGE}" = "true" ]; then
     WEB_DASH_PC_WEB_ARGS=" include_pointcloud_web_bridge:=true pointcloud_web_max_points:=${IVG_POINTCLOUD_WEB_MAX_POINTS}"
-    echo -e "${BLUE}  瘦点云桥接已开启 → /camera/depth_registered/points_web（max_points=${IVG_POINTCLOUD_WEB_MAX_POINTS}）；ROS 控制台可点「3D: 瘦点云」${NC}"
+    echo -e "${BLUE}  瘦点云桥接已开启 → /camera/depth_registered/points_web（max_points=${IVG_POINTCLOUD_WEB_MAX_POINTS}）${NC}"
 else
     echo -e "${BLUE}  瘦点云桥接已关闭（IVG_INCLUDE_POINTCLOUD_WEB_BRIDGE=false）${NC}"
 fi
-WEB_DASH_CMD="$WS_ENV && ${WEB_DASH_UNSET_PROXY}ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_host:=${WEB_DASH_HOST} web_port:=${WEB_DASH_PORT} rosbridge_port:=${ROSBRIDGE_PORT} web_video_port:=${WEB_VIDEO_PORT}${WEB_DASH_PC_WEB_ARGS}"
+WEB_DASH_CMD="$WS_ENV && ${WEB_DASH_UNSET_PROXY}ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_host:=${WEB_DASH_HOST} web_port:=${WEB_DASH_PORT} rosbridge_port:=${ROSBRIDGE_PORT} web_video_port:=${WEB_VIDEO_PORT} robotwebtools_assets_dir:=${ROBOTWEBTOOLS_ASSETS_DIR}${WEB_DASH_PC_WEB_ARGS}"
 launch_in_terminator "IVG Web Dashboard (gateway)" "$WEB_DASH_CMD"
 echo -e "${GREEN}  ✓ IVG Web 网关已启动${NC}"
 sleep 2

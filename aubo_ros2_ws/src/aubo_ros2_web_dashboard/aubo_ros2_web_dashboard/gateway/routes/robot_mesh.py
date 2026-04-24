@@ -18,6 +18,7 @@ router = APIRouter(prefix="/api/ivg/robot-mesh", tags=["ivg-robot-mesh"])
 
 
 def _suffix_media_type(path: Path) -> str:
+	"""按网格文件扩展名返回 ``Content-Type``（stl/dae/obj）；未知则 ``application/octet-stream``。"""
 	s = path.suffix.lower()
 	if s == ".stl":
 		return "model/stl"
@@ -29,8 +30,14 @@ def _suffix_media_type(path: Path) -> str:
 
 
 def _is_under_share(candidate: Path, share: Path) -> bool:
+	"""
+	路径遍历防护：``candidate`` 的安装区路径必须落在 ``share`` 目录树内。
+
+	这里不能对最终文件做 ``resolve()`` 后再比较，因为 ``--symlink-install`` 下的网格文件
+	常常是安装区内的符号链接；一旦解析到源码树真实路径，就会被误判成“越界”。
+	"""
 	try:
-		candidate.resolve().relative_to(share.resolve())
+		candidate.absolute().relative_to(share.absolute())
 	except ValueError:
 		return False
 	return True
@@ -44,7 +51,7 @@ def _resolve_mesh_under_share(share: Path, rel_path: str) -> Path | None:
 	Linux 默认区分大小写，会导致 ``link0.dae`` 无法打开 ``link0.DAE``。
 	"""
 	share = share.resolve()
-	direct = (share / rel_path).resolve()
+	direct = share / rel_path
 	if direct.is_file() and _is_under_share(direct, share):
 		return direct
 	parts = [p for p in Path(rel_path).parts if p not in ("", ".")]
@@ -54,13 +61,13 @@ def _resolve_mesh_under_share(share: Path, rel_path: str) -> Path | None:
 	for part in parts[:-1]:
 		nxt = current / part
 		if nxt.is_dir():
-			current = nxt.resolve()
+			current = nxt
 			continue
 		found: Path | None = None
 		try:
 			for c in current.iterdir():
 				if c.is_dir() and c.name.lower() == part.lower():
-					found = c.resolve()
+					found = c
 					break
 		except OSError:
 			return None
@@ -68,7 +75,7 @@ def _resolve_mesh_under_share(share: Path, rel_path: str) -> Path | None:
 			return None
 		current = found
 	last = parts[-1]
-	cand = (current / last).resolve()
+	cand = current / last
 	if cand.is_file() and _is_under_share(cand, share):
 		return cand
 	try:
@@ -77,7 +84,7 @@ def _resolve_mesh_under_share(share: Path, rel_path: str) -> Path | None:
 				continue
 			if c.name.lower() != last.lower():
 				continue
-			t = c.resolve()
+			t = c
 			if _is_under_share(t, share):
 				return t
 	except OSError:
@@ -87,6 +94,10 @@ def _resolve_mesh_under_share(share: Path, rel_path: str) -> Path | None:
 
 @router.get("/{remainder:path}")
 def serve_robot_mesh(remainder: str) -> FileResponse:
+	"""
+	按 ``包名/相对 share 路径`` 提供 ``ament_index`` 下网格文件；拒绝 ``..`` 与非法分段。
+	命中后带长缓存头，减轻浏览器重复解析 DAE/STL。
+	"""
 	if not remainder or remainder.startswith("/") or ".." in remainder.split("/"):
 		raise HTTPException(status_code=400, detail="invalid path")
 	parts = remainder.split("/", 1)

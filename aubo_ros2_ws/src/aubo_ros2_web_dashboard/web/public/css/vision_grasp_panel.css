@@ -1,5 +1,5 @@
 /*
- * 视觉抓取面板 — :root 与 home.css / topics_lab.css 对齐，整站统一蓝灰主题。
+ * 视觉抓取面板 — :root 与站内其它页面对齐，整站统一蓝灰主题。
  */
 :root {
 	--bg: #f6f8fc;
@@ -36,10 +36,21 @@
 	--fs-ui: 0.875rem;
 	/* 相机预览区宽度：占满主栏（不再限制 960px，避免宽屏两侧大块留白） */
 	--cam-preview-max-w: 100%;
-	/* 单屏左右分栏时，相机面板内容最大宽度（居中于网格格内） */
-	--cam-split-max-w: 800px;
-	/* 第三列「抓取与工具控制」占整行宽度百分比（固定为最窄 22%） */
+	/* 单屏左右分栏时，相机面板在格内的上限（vw + 百分比，不写死 px） */
+	--cam-split-max-w: min(100%, 50vw);
+	/* 第三列「抓取与工具控制」占整行宽度百分比；列宽用 Grid minmax + 流体下限（vw/rem），不写死 px */
 	--vision-control-col-pct: 22;
+	/* 主区 Grid 右侧栏（抓取控制）最小宽度：随视口缩放 */
+	--ivg-side-col-min: min(32vw, 14rem);
+	/* 监控底边栏内「位姿列」最小宽度（无容器查询时的回退） */
+	--ivg-monitoring-pose-col-min: min(34vw, 12rem);
+	/* 单屏紧凑布局：接近 GitHub / Linear 等 8px 栅格，减少大块留白 */
+	--ivg-gap-xs: 0.22rem;
+	--ivg-gap-sm: 0.28rem;
+	--ivg-gap: 0.35rem;
+	--ivg-gap-md: 0.45rem;
+	--ivg-pane-pad: 0.5rem 0.65rem;
+	--ivg-pane-pad-tight: 0.38rem 0.5rem;
 }
 
 * {
@@ -70,7 +81,7 @@ body {
 	padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* ---------- 顶栏（对齐 topics_lab .topnav） ---------- */
+/* ---------- 顶栏 ---------- */
 .topbar {
 	display: flex;
 	flex-wrap: wrap;
@@ -300,22 +311,64 @@ body.ivg-single-screen > footer.connection-footer {
 	margin-bottom: 0;
 }
 
-.layout-camera-controls > .panel--tier-3 {
+.layout-camera-controls > .panel--tier-3,
+.layout-stack-with-control > .panel--tier-3 {
 	margin-bottom: 0;
 }
 
 /* ---------- 单屏应用（视觉抓取 / 咖啡拉花）：锁定视口高度，避免整页纵向滚动条 ---------- */
 html:has(body.ivg-single-screen) {
 	height: 100%;
+	max-height: 100vh;
 	overflow: hidden;
 }
 
+/* iPad / Safari：100dvh 偶发大于当前可视高度，配合 overflow:hidden 会裁切底部；用 svh 与 min() 收敛 */
+@supports (height: 100svh) {
+	html:has(body.ivg-single-screen) {
+		max-height: 100svh;
+	}
+}
+
+@supports (height: min(1dvh, 1svh)) {
+	html:has(body.ivg-single-screen) {
+		max-height: min(100dvh, 100svh);
+	}
+}
+
 body.ivg-single-screen {
-	height: 100dvh;
-	max-height: 100dvh;
 	min-height: 0;
 	overflow: hidden;
 	padding-bottom: 0;
+	height: 100vh;
+	max-height: 100vh;
+}
+
+@supports (height: 100svh) {
+	body.ivg-single-screen {
+		height: 100svh;
+		max-height: 100svh;
+	}
+}
+
+@supports (height: min(1dvh, 1svh)) {
+	body.ivg-single-screen {
+		height: min(100dvh, 100svh);
+		max-height: min(100dvh, 100svh);
+	}
+}
+
+/* 视口较矮时：用 fr 分配剩余高度，避免 vh 随地址栏伸缩导致下行高度抖动 */
+@media (max-height: 880px) and (min-width: 768px) {
+	body.ivg-single-screen .layout-stack-left {
+		grid-template-rows: minmax(min(14vh, 4rem), 1fr) minmax(min(18vh, 5rem), 1fr);
+		gap: 0.32rem;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-stack-left {
+		grid-template-rows: minmax(min(14vh, 4rem), 1fr);
+		gap: var(--ivg-gap-xs);
+	}
 }
 
 body.ivg-single-screen .wrap {
@@ -323,14 +376,102 @@ body.ivg-single-screen .wrap {
 	min-height: 0;
 	overflow: hidden;
 	display: grid;
-	/* 第三档需容纳标题 + 画布 + 图例，行高过小会裁切底部图例 */
-	grid-template-rows: auto minmax(120px, 1fr) minmax(200px, min(40vh, 320px));
+	/* 顶栏 + 主工作区（视觉页含通栏监控底边） */
+	grid-template-rows: auto minmax(0, 1fr);
 	grid-template-columns: minmax(0, 1fr);
-	gap: 0.4rem;
+	gap: var(--ivg-gap-sm);
 	align-content: stretch;
-	padding-top: 0.35rem;
+	padding-top: var(--ivg-gap-sm);
 	/* 与底部「连接状态」栏之间少留白，安全区由 footer 处理 */
 	padding-bottom: 0;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .wrap {
+	gap: var(--ivg-gap-xs);
+	padding-top: var(--ivg-gap-xs);
+	padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+	padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+	padding-bottom: max(0.25rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* 左：双列预览；右：「抓取与工具控制」。视觉页下挂通栏监控底边（.layout-vision-main） */
+body.ivg-single-screen .layout-stack-with-control {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(var(--ivg-side-col-min), calc(var(--vision-control-col-pct, 22) * 1%));
+	gap: 0.45rem 0.65rem;
+	min-height: 0;
+	min-width: 0;
+	align-self: stretch;
+	align-items: stretch;
+}
+
+/* 视觉抓取：主工作区 = 上「预览|控制」+ 下通栏「关节曲线与位姿」底边栏 */
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-vision-main {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	flex: 1 1 0;
+	align-self: stretch;
+	width: 100%;
+	min-width: 0;
+	gap: var(--ivg-gap-sm);
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-vision-main > .layout-stack-with-control {
+	flex: 1 1 0;
+	min-height: 0;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-vision-main > .layout-body--monitoring {
+	flex: 0 1 auto;
+	width: 100%;
+	max-width: 100%;
+	align-self: stretch;
+	min-width: 0;
+	border-top: 1px solid var(--border);
+	padding-top: var(--ivg-gap-xs);
+	margin-top: 0;
+	box-sizing: border-box;
+}
+
+/* 底边栏高度：默认仅上限；PC 抬高最小高度，曲线/位姿更易读 */
+body.ivg-single-screen:not(.coffee-latte-panel)
+	.layout-vision-main > .layout-body--monitoring:not(.is-monitoring-collapsed) .layout-monitoring-bundle {
+	max-height: min(44vh, 540px);
+	min-height: 0;
+}
+
+@media (min-width: 768px) {
+	/*
+	 * 仅样式断点：脚本在所有视口下写入同一 --ivg-monitoring-bundle-min-px，是否参与布局只由本 @media 决定，
+	 * 避免 PC / iPad 在行为上分叉。最小高度 ≈ 右列位姿卡全部展开时的 scrollHeight；max-height 不低于该值以免裁切。
+	 */
+	body.ivg-single-screen:not(.coffee-latte-panel)
+		.layout-vision-main > .layout-body--monitoring:not(.is-monitoring-collapsed) .layout-monitoring-bundle {
+		min-height: max(var(--ivg-monitoring-bundle-min-px, 0px), clamp(240px, 26vh, 380px));
+		max-height: min(
+			max(min(52vh, 620px), var(--ivg-monitoring-bundle-min-px, 0px)),
+			min(80vh, 960px)
+		);
+	}
+}
+
+body.ivg-single-screen .layout-stack-left {
+	display: grid;
+	grid-template-rows: minmax(min(15vh, 5rem), 1.15fr) minmax(min(22vh, 6rem), 1fr);
+	min-height: 0;
+	min-width: 0;
+	align-self: stretch;
+}
+
+/* 视觉抓取：压低预览/监控最小行高与缝，多把像素留给内容区 */
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-stack-with-control {
+	gap: var(--ivg-gap) var(--ivg-gap-md);
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-stack-left {
+	grid-template-rows: minmax(min(12vh, 4rem), 1fr);
+	gap: var(--ivg-gap-sm);
 }
 
 body.ivg-single-screen .wrap > * {
@@ -342,28 +483,31 @@ body.ivg-single-screen .wrap > .layout-toolbar {
 	margin-bottom: 0;
 }
 
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-toolbar.layout-tier-1 {
+	padding: var(--ivg-pane-pad);
+	gap: 0.5rem 0.85rem;
+}
+
 body.ivg-single-screen .layout-camera-controls {
 	display: grid;
-	/* 两列页（如咖啡拉花）：预览 + 控制 */
-	grid-template-columns:
-		minmax(0, 1fr)
-		minmax(200px, calc(var(--vision-control-col-pct, 22) * 1%));
+	/* 仅双预览列；控制列已移到 .layout-stack-with-control 右侧 */
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 	gap: 0.45rem 0.65rem;
 	min-height: 0;
 	align-items: stretch;
 	margin-bottom: 0;
 }
 
-/* 视觉抓取：双相机 + 控制 */
-body.ivg-single-screen .layout-camera-controls:has(> .panel--camera-result) {
-	grid-template-columns:
-		minmax(0, 1fr)
-		minmax(0, 1fr)
-		minmax(200px, calc(var(--vision-control-col-pct, 22) * 1%));
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-camera-controls {
+	gap: var(--ivg-gap) var(--ivg-gap-md);
 }
 
-/* 窄屏恢复上下堆叠 */
+/* 窄屏：右列控制移到下方；预览仍可先单列或双列堆叠 */
 @media (max-width: 920px) {
+	body.ivg-single-screen .layout-stack-with-control {
+		grid-template-columns: 1fr;
+	}
+
 	body.ivg-single-screen .layout-camera-controls {
 		grid-template-columns: 1fr;
 	}
@@ -387,18 +531,25 @@ body.ivg-single-screen .layout-camera-controls .panel--camera-result {
 	justify-self: center;
 }
 
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-camera-controls .panel--camera-hero,
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-camera-controls .panel--camera-result {
+	padding: var(--ivg-pane-pad);
+}
+
 body.ivg-single-screen .layout-camera-controls .panel--camera-hero > h2,
 body.ivg-single-screen .layout-camera-controls .panel--camera-result > h2 {
 	flex-shrink: 0;
 }
 
-/* 左「相机彩色」与右「结果/投影」：同宽高比、同铺满方式，避免一列 contain 一列留白不一 */
+/* 左「相机彩色」与右「结果/投影」：同宽高比；flex:1+min-height:0 避免内容撑破父级面板 */
 body.ivg-single-screen .layout-camera-controls .panel--camera-hero .panel-canvas-wrap,
 body.ivg-single-screen .layout-camera-controls .panel--camera-result .panel-canvas-wrap {
-	flex: 0 0 auto;
+	flex: 1 1 0;
 	width: 100%;
-	max-width: var(--cam-split-max-w);
+	max-width: min(100%, var(--cam-split-max-w));
+	min-width: 0;
 	min-height: 0;
+	max-height: 100%;
 	position: relative;
 	display: flex;
 	align-items: stretch;
@@ -407,8 +558,9 @@ body.ivg-single-screen .layout-camera-controls .panel--camera-result .panel-canv
 	aspect-ratio: var(--camera-aspect-ratio);
 }
 
+/* 勿把 object-fit:cover 套到 AI 投影 canvas：位图由 JS 按容器像素生成，cover 在取整误差下会裁掉整幅叠加 */
 body.ivg-single-screen .layout-camera-controls .panel--camera-hero canvas,
-body.ivg-single-screen .layout-camera-controls .panel--camera-result canvas {
+body.ivg-single-screen .layout-camera-controls .panel--camera-result canvas:not(.result-overlay-canvas) {
 	position: absolute;
 	left: 0;
 	top: 0;
@@ -435,14 +587,40 @@ body.ivg-single-screen .layout-camera-controls .panel--camera-result .result-viz
 	z-index: 0;
 }
 
+/* 单屏结果区：投影 canvas 与底图同槽，提高优先级以免通用规则遗漏导致叠层不可见 */
+body.ivg-single-screen .layout-camera-controls .panel--camera-result .result-viz-stack .result-overlay-canvas {
+	display: block;
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	max-width: 100%;
+	max-height: 100%;
+	object-fit: fill;
+	object-position: center;
+	pointer-events: none;
+	z-index: 2;
+}
+
 /* 左栏：机械臂 URDF（ros3d），占位与原相机槽一致 */
 body.ivg-single-screen .layout-camera-controls .panel--camera-hero .panel-canvas-wrap--urdf .vision-urdf-host {
 	position: absolute;
 	inset: 0;
 	width: 100%;
 	height: 100%;
+	min-height: 0;
+	max-width: 100%;
+	max-height: 100%;
 	overflow: hidden;
 	background: var(--viz-host-bg);
+	box-sizing: border-box;
+}
+
+/* ros3d 可能向 host 内插入多层节点，统一限制在槽内 */
+body.ivg-single-screen .layout-camera-controls .panel--camera-hero .panel-canvas-wrap--urdf .vision-urdf-host > * {
+	max-width: 100% !important;
+	max-height: 100% !important;
+	box-sizing: border-box;
 }
 
 body.ivg-single-screen .layout-camera-controls .panel--camera-hero .panel-canvas-wrap--urdf .vision-urdf-host canvas {
@@ -451,6 +629,8 @@ body.ivg-single-screen .layout-camera-controls .panel--camera-hero .panel-canvas
 	top: 0;
 	width: 100% !important;
 	height: 100% !important;
+	max-width: 100% !important;
+	max-height: 100% !important;
 	object-fit: contain;
 	object-position: center;
 	margin: 0;
@@ -459,9 +639,14 @@ body.ivg-single-screen .layout-camera-controls .panel--camera-hero .panel-canvas
 body.ivg-single-screen .layout-camera-controls .panel--camera-result .result-workpiece-wrap,
 body.ivg-single-screen .layout-camera-controls .panel--camera-result .result-viz-stack {
 	flex: 1;
+	min-width: 0;
 	min-height: 0;
 	width: 100%;
 	height: 100%;
+	max-width: 100%;
+	max-height: 100%;
+	overflow: hidden;
+	box-sizing: border-box;
 }
 
 /*
@@ -475,12 +660,17 @@ body.ivg-single-screen .layout-camera-controls .panel--camera-result .panel-canv
 
 body.ivg-single-screen .layout-camera-controls .panel--camera-result .panel-canvas-wrap--result .result-workpiece-wrap {
 	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
 	width: 100%;
 	height: 100%;
+	max-width: 100%;
+	max-height: 100%;
+	overflow: hidden;
 }
 
 /* 右：与两路相机同高；列内不单独出现滚动条（超出由父级 overflow 裁剪） */
-body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 {
+body.ivg-single-screen .layout-stack-with-control > .panel.panel--tier-3 {
 	min-height: 0;
 	height: 100%;
 	align-self: stretch;
@@ -490,21 +680,90 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 {
 	padding: 0.55rem 0.65rem 0.6rem;
 }
 
-body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 > h2 {
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-stack-with-control > .panel.panel--tier-3 {
+	padding: var(--ivg-pane-pad);
+}
+
+body.ivg-single-screen .layout-stack-with-control > .panel.panel--tier-3 > h2 {
 	flex-shrink: 0;
 	margin: 0 0 0.5rem;
 }
 
-body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .control-toolbar-field {
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-stack-with-control > .panel.panel--tier-3 > h2 {
+	margin: 0 0 0.38rem;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-stack-with-control > .panel.panel--tier-3 .control-toolbar-field {
+	margin-bottom: 0.32rem;
+}
+
+body.ivg-single-screen .layout-stack-with-control > .panel.panel--tier-3 .control-toolbar-field {
 	flex-shrink: 0;
 	margin-bottom: 0.45rem;
 }
 
-body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .control-groups--tier {
+body.ivg-single-screen .layout-stack-with-control > .panel.panel--tier-3 .control-groups--tier {
 	flex: 0 0 auto;
 	overflow: visible;
 	margin-top: 0.15rem;
 	align-content: start;
+}
+
+/* 视觉抓取右栏：侧栏窄，三组纵向堆叠；组内按钮与工件编号横向排布、自动换行 */
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-stack-with-control > .panel.panel--tier-3 .control-groups--tier {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+	grid-template-columns: unset;
+	align-items: stretch;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel)
+	.layout-stack-with-control > .panel.panel--tier-3 .control-groups--tier .control-group:not(:first-child) {
+	border-left: none;
+	padding-left: 0;
+	margin-left: 0;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-stack-with-control > .panel.panel--tier-3 .control-toolbar-field {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.35rem 0.55rem;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel)
+	.layout-stack-with-control > .panel.panel--tier-3 .control-toolbar-field .control-group-title {
+	margin-bottom: 0;
+	flex: 0 0 auto;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-stack-with-control > .panel.panel--tier-3 .control-field-input {
+	flex: 1 1 6rem;
+	min-width: 0;
+	width: auto;
+	max-width: 100%;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-stack-with-control > .panel.panel--tier-3 .btn-row {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+	align-items: stretch;
+	grid-template-columns: unset;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-stack-with-control > .panel.panel--tier-3 .btn-row .ctrl {
+	flex: 1 1 auto;
+	min-width: min(100%, 6.75rem);
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-stack-with-control > .panel.panel--tier-3 .btn-row .ctrl--wide {
+	flex: 1 1 100%;
+	min-width: 100%;
+	grid-column: unset;
 }
 
 body.ivg-single-screen .layout-camera-controls .control-groups--tier {
@@ -517,7 +776,7 @@ body.ivg-single-screen .layout-camera-controls .control-groups--tier .control-gr
 	display: none !important;
 }
 
-body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .control-toolbar-field[hidden] {
+body.ivg-single-screen .layout-stack-with-control > .panel.panel--tier-3 .control-toolbar-field[hidden] {
 	display: none !important;
 }
 
@@ -531,25 +790,231 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .control-too
 	}
 }
 
-body.ivg-single-screen .wrap > .layout-body {
+body.ivg-single-screen .layout-stack-left > .layout-body {
 	margin-top: 0;
 	margin-bottom: 0;
 	min-height: 0;
 	overflow: hidden;
 	align-items: stretch;
 	align-self: stretch;
-	/* 关节曲线 | 状态读数 之间间隙（略小于默认 1rem） */
-	gap: 0.45rem;
+	gap: var(--ivg-gap-md);
 }
 
-body.ivg-single-screen .layout-body .layout-col {
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-stack-left > .layout-body {
+	gap: var(--ivg-gap-sm);
+}
+
+/* 视觉抓取：曲线与位姿同列；咖啡拉花：保留左曲线 | 右状态 双列 */
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-stack-left > .layout-body {
+	grid-template-columns: 1fr;
+	grid-template-rows: minmax(0, 1fr);
+	row-gap: 0;
+	column-gap: 0;
+	align-items: stretch;
+}
+
+/* 监控区宽度作容器：右列用 cqi 随实际像素宽度变化，少依赖 vh/% 变量抖动 */
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-body.layout-tier-4 {
+	container-type: inline-size;
+	container-name: ivg-monitoring-body;
+}
+
+/* 监控区：折叠条 + 内容栅格两行。
+ * 必须覆盖全局 .layout-body 的双列（1.15fr | 300–400px），否则 PC 上折叠条与 bundle 会并排，通栏底边失效 */
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-body.layout-tier-4.layout-body--monitoring {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	grid-template-rows: auto minmax(0, 1fr);
+	gap: var(--ivg-gap-xs) 0;
+	column-gap: 0;
+	align-content: stretch;
+	align-items: stretch;
+	width: 100%;
+	max-width: none;
+	box-sizing: border-box;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-body.layout-tier-4.layout-body--monitoring.is-monitoring-collapsed {
+	grid-template-rows: auto;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-toggle {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+	width: 100%;
+	margin: 0;
+	padding: 0.32rem 0.45rem;
+	box-sizing: border-box;
+	font: inherit;
+	font-size: var(--fs-ui, 0.82rem);
+	font-weight: 600;
+	color: var(--text);
+	background: var(--panel-muted);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	text-align: left;
+	-webkit-tap-highlight-color: transparent;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-toggle:hover {
+	filter: brightness(1.07);
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-toggle:focus-visible {
+	outline: 2px solid var(--accent, #3b82f6);
+	outline-offset: 2px;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-toggle__label {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-toggle__hint {
+	flex: 0 0 auto;
+	font-size: 0.72rem;
+	font-weight: 500;
+	color: var(--muted);
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-toggle__chevron {
+	flex: 0 0 auto;
+	width: 0.55rem;
+	height: 0.55rem;
+	border-right: 2px solid var(--muted);
+	border-bottom: 2px solid var(--muted);
+	transform: rotate(45deg);
+	margin-top: -0.2rem;
+	transition: transform 0.15s ease;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-body--monitoring.is-monitoring-collapsed .layout-monitoring-toggle__chevron {
+	transform: rotate(-135deg);
+	margin-top: 0.12rem;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-body--monitoring.is-monitoring-collapsed .layout-monitoring-bundle {
+	display: none !important;
+}
+
+body.coffee-latte-panel.ivg-single-screen .layout-stack-left > .layout-body {
+	grid-template-columns: minmax(0, 1fr) minmax(var(--ivg-side-col-min), calc(var(--vision-control-col-pct, 22) * 1%));
+}
+
+/* 关节曲线（左通高）| 右列 flex：末端位姿、视觉位姿估计、AI 抓取 */
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle {
+	display: grid;
+	/* 无容器查询时回退；有容器时由下方 @supports 用 cqi 覆盖右列宽 */
+	grid-template-columns: minmax(0, 1fr)
+		minmax(var(--ivg-monitoring-pose-col-min), calc(var(--vision-control-col-pct, 22) * 1%));
+	grid-template-rows: minmax(0, 1fr);
+	gap: var(--ivg-gap-xs) var(--ivg-gap);
+	align-items: stretch;
+	min-height: 0;
+	flex: 1 1 0;
+	overflow: hidden;
+	min-width: 0;
+	align-self: stretch;
+}
+
+@supports (container-type: inline-size) {
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle {
+		/* 右列随容器变宽，容纳 RPY 单行与四元数，减少位姿区内滚动条 */
+		grid-template-columns: minmax(0, 1fr) minmax(var(--ivg-monitoring-pose-col-min), min(38cqi, min(48vw, 45%)));
+	}
+
+	@media (min-width: 768px) and (max-width: 1199px) {
+		body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle {
+			grid-template-columns: minmax(0, 1fr) minmax(var(--ivg-monitoring-pose-col-min), min(44cqi, min(52vw, 48%)));
+		}
+	}
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle > .panel--chart {
+	grid-column: 1;
+	grid-row: 1;
+	min-width: 0;
+	min-height: 0;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-pose-col {
+	grid-column: 2;
+	grid-row: 1;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-start;
+	align-items: stretch;
+	gap: var(--ivg-gap-xs);
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+}
+
+/* 末端位姿与 VPE：高度随内容，避免与 AI 位姿卡之间被 flex 均分撑出大块留白 */
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-ee-vpe-pair {
+	flex: 0 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--ivg-gap-xs);
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-ee-vpe-pair > .panel--status {
+	flex: 0 1 auto;
+	min-height: 0;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-pose-col > .panel--status {
+	flex: 0 1 auto;
+	min-height: 0;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle > .panel--chart,
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-pose-col {
+	min-height: 0;
+}
+
+body.coffee-latte-panel.ivg-single-screen .layout-body .layout-col {
 	min-height: 0;
 	height: 100%;
 	max-height: 100%;
 	overflow: hidden;
 }
 
-body.ivg-single-screen .layout-col--main .panel--chart {
+/* 状态侧栏：横向随栅格列宽伸缩，占满列宽（高度仍由既有 flex/行分配决定） */
+body.coffee-latte-panel.ivg-single-screen .layout-body .layout-col--side {
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
+}
+
+/* 避免全局 .panel h2 的 inline-block 使标题栏不贴满宽度 */
+body.ivg-single-screen .status-stack .panel.panel--status > h2,
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel.panel--status > h2 {
+	display: block;
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--chart {
+	flex: 1 1 0;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	height: 100%;
+	max-height: 100%;
+	margin: 0;
+	padding: var(--ivg-pane-pad);
+}
+
+body.coffee-latte-panel.ivg-single-screen .layout-col--main .panel--chart {
 	flex: 1 1 0;
 	min-height: 0;
 	display: flex;
@@ -561,12 +1026,21 @@ body.ivg-single-screen .layout-col--main .panel--chart {
 	margin: 0;
 }
 
-body.ivg-single-screen .layout-col--main .panel--chart > h2 {
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--chart > h2 {
+	flex-shrink: 0;
+}
+
+body.coffee-latte-panel.ivg-single-screen .layout-col--main .panel--chart > h2 {
 	flex-shrink: 0;
 }
 
 /* 图例在画布上方，避免单屏 flex 把底部内容裁掉 */
-body.ivg-single-screen .layout-col--main .panel--chart > .legend-joint {
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--chart > .legend-joint {
+	flex-shrink: 0;
+	order: 0;
+}
+
+body.coffee-latte-panel.ivg-single-screen .layout-col--main .panel--chart > .legend-joint {
 	flex-shrink: 0;
 	order: 0;
 }
@@ -574,12 +1048,13 @@ body.ivg-single-screen .layout-col--main .panel--chart > .legend-joint {
 body.ivg-single-screen #joint-chart {
 	order: 1;
 	flex: 1 1 0;
-	/* 允许在窄行高下收缩，避免挤掉底部图例 */
 	min-height: 0;
 	width: 100% !important;
 	max-width: 100%;
+	max-height: 100%;
 	height: auto !important;
 	align-self: stretch;
+	box-sizing: border-box;
 }
 
 body.ivg-single-screen .status-stack {
@@ -588,7 +1063,10 @@ body.ivg-single-screen .status-stack {
 	overflow: hidden;
 	display: flex;
 	flex-direction: column;
-	gap: 0.28rem;
+	gap: var(--ivg-gap-xs);
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
 }
 
 body.ivg-single-screen .status-stack .panel--status {
@@ -597,12 +1075,35 @@ body.ivg-single-screen .status-stack .panel--status {
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
-	padding: 0.55rem 0.65rem;
+	padding: 0.5rem 0.6rem;
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status {
+	flex: 0 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-start;
+	overflow: hidden;
+	padding: var(--ivg-pane-pad-tight);
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
 }
 
 body.ivg-single-screen .status-stack .panel--status h2 {
 	flex-shrink: 0;
-	margin-bottom: 0.35rem;
+	margin-bottom: 0.3rem;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status h2 {
+	flex-shrink: 0;
+	margin-bottom: 0.2rem;
 }
 
 body.ivg-single-screen .status-stack .panel--status .pose-pre,
@@ -615,6 +1116,225 @@ body.ivg-single-screen .status-stack .panel--status .result-pre {
 	-ms-overflow-style: none;
 }
 
+/* 监控右栏：位姿数值卡不滚动；仅非 pose-card 文本区保留纵向滚动 */
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-pre,
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .result-pre {
+	flex: 1 1 0;
+	min-height: 0;
+	max-height: none;
+	overflow-x: hidden;
+	overflow-y: hidden;
+	scrollbar-gutter: auto;
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-pre:not(.pose-card),
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .result-pre:not(.pose-card) {
+	overflow-y: auto;
+	scrollbar-gutter: stable;
+	scrollbar-width: thin;
+	-ms-overflow-style: auto;
+}
+
+/*
+ * 视觉抓取 ≥768px（PC / iPad）：与 iPad 横屏同款「位姿 + 四元数」双列描述；
+ * 各状态面板独立 container + cqi 随可用宽度缩放；卡片横向撑满列宽（高度仍由上层 flex 决定）。
+ */
+@media (min-width: 768px) {
+	/*
+	 * 监控区右列：支持容器查询时为 min(34cqi, 20rem)；否则回退 --vision-control-col-pct。
+	 */
+	body.ivg-single-screen:not(.coffee-latte-panel) {
+		--vision-control-col-pct: 26;
+	}
+
+	/*
+	 * 每个状态面板单独 container：列宽变化时 cqi 贴合「机械臂末端位姿 / AI 抓取位姿」各自可用宽度，
+	 * 与整列 container 相比更利于窄列下字号与断行自适应。
+	 */
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle {
+		column-gap: var(--ivg-gap);
+		row-gap: var(--ivg-gap-xs);
+		flex: 1 1 0;
+		min-height: 0;
+		overflow: hidden;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-pose-col {
+		gap: var(--ivg-gap-xs);
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-ee-vpe-pair {
+		gap: var(--ivg-gap-xs);
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status {
+		container-type: inline-size;
+		container-name: ivg-pose-panel;
+		flex: 0 1 auto;
+		min-height: 0;
+		overflow: hidden;
+		padding: 0.3rem 0.38rem;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status h2 {
+		margin-bottom: 0.18rem;
+		font-size: 0.76rem;
+		padding-bottom: 0.22rem;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-pre,
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .result-pre {
+		font-size: 11px;
+		font-size: clamp(10px, 4cqi, 11px);
+		line-height: 1.28;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-pre:not(.pose-card),
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .result-pre:not(.pose-card) {
+		flex: 1 1 0;
+		min-height: 0;
+		overflow-x: hidden;
+		overflow-y: auto;
+		scrollbar-gutter: stable;
+		scrollbar-width: thin;
+		padding: 0.34rem 0.42rem;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-pre.pose-card,
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .result-pre.pose-card {
+		display: flex;
+		flex-direction: column;
+		flex: 0 1 auto;
+		min-height: 0;
+		overflow-x: hidden;
+		overflow-y: hidden;
+		scrollbar-gutter: auto;
+		scrollbar-width: none;
+		width: 100%;
+		max-width: 100%;
+		align-self: stretch;
+		padding: 0.18rem 0.22rem;
+		-ms-overflow-style: none;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-card__body {
+		display: grid;
+		/* 位姿列略宽于四元数，减少长数字在窄列被挤遮 */
+		grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+		grid-auto-rows: min-content;
+		align-items: start;
+		column-gap: clamp(0.22rem, 1.5cqi, 0.35rem);
+		row-gap: 0.12rem;
+		padding: clamp(0.14rem, 1cqi, 0.22rem);
+		width: 100%;
+		max-width: 100%;
+		min-height: 0;
+		flex: 0 0 auto;
+		overflow-x: clip;
+		overflow-y: hidden;
+		box-sizing: border-box;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-card__body > section:first-child {
+		grid-column: 1;
+		grid-row: 1;
+		min-width: 0;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-card__body > section:last-child {
+		grid-column: 2;
+		grid-row: 1;
+		align-self: start;
+		min-width: 0;
+		border-left: 1px solid var(--border);
+		padding-left: clamp(0.28rem, 2cqi, 0.42rem);
+		margin-left: 0;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-card__section + .pose-card__section {
+		padding-top: 0;
+		border-top: none;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-card__section-title {
+		font-size: clamp(0.5rem, 3.2cqi, 0.58rem);
+		margin-bottom: 0.06rem;
+		letter-spacing: 0.04em;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-card__unit-hint {
+		display: none;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-card__section {
+		gap: 0.18rem;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-card__section--pose6 .pose-card__triple--rpy {
+		margin-top: 0.06rem;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-card__triple,
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-card__quad {
+		gap: clamp(0.08rem, 1cqi, 0.14rem);
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-card__pill {
+		padding: clamp(0.08rem, 0.9cqi, 0.14rem) clamp(0.12rem, 1.2cqi, 0.2rem);
+		gap: 0.28em 0.38em;
+		border-radius: 4px;
+		min-width: auto;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-card__pill-key {
+		font-size: clamp(0.48rem, 2.8cqi, 0.55rem);
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-card__pill-val {
+		font-size: 10px;
+		font-size: clamp(8px, 5.2cqi, 11px);
+		line-height: 1.15;
+		white-space: nowrap;
+		word-break: normal;
+		overflow-wrap: normal;
+		min-width: 0;
+		max-width: none;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-card__quad {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	/* 文本回退：与数值卡同区无滚动条（极长内容由字号与换行消化） */
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-card__body--ivg-text {
+		max-height: none;
+		flex: 1 1 0;
+		min-height: 0;
+		overflow: hidden;
+		overflow-wrap: anywhere;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-card__ivg-pre {
+		font-size: clamp(8px, 3.6cqi, 10px);
+		line-height: 1.32;
+		overflow: hidden;
+	}
+}
+
+@media (min-width: 1400px) {
+	body.ivg-single-screen:not(.coffee-latte-panel) {
+		--vision-control-col-pct: 28;
+	}
+}
+
+@media (min-width: 1680px) {
+	body.ivg-single-screen:not(.coffee-latte-panel) {
+		--vision-control-col-pct: 30;
+	}
+}
+
 body.ivg-single-screen .status-stack .panel--status .pose-pre::-webkit-scrollbar,
 body.ivg-single-screen .status-stack .panel--status .result-pre::-webkit-scrollbar {
 	width: 0;
@@ -622,11 +1342,12 @@ body.ivg-single-screen .status-stack .panel--status .result-pre::-webkit-scrollb
 }
 
 /* 抓取方式：侧栏只显示与当前模式相关的状态块 */
-body.ivg-single-screen .status-stack .panel.panel--status[hidden] {
+body.ivg-single-screen .status-stack .panel.panel--status[hidden],
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel.panel--status[hidden] {
 	display: none !important;
 }
 
-body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .svc-log {
+body.ivg-single-screen .layout-stack-with-control > .panel.panel--tier-3 .svc-log {
 	flex: 1 1 0;
 	min-height: 0;
 	max-height: none;
@@ -816,7 +1537,7 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .svc-log {
 	outline-offset: 2px;
 }
 
-/* ---------- 第四档：左曲线 + 右状态 ---------- */
+/* ---------- 第四档：视觉为「左曲线 | 右栏位姿栈」；咖啡页为左曲线 + 右状态 ---------- */
 .layout-body {
 	display: grid;
 	grid-template-columns: minmax(0, 1.15fr) minmax(300px, 400px);
@@ -882,10 +1603,6 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .svc-log {
 	width: 100%;
 	height: 100%;
 	line-height: 0;
-	cursor: grab;
-	touch-action: none;
-	user-select: none;
-	-webkit-user-select: none;
 }
 
 .result-overlay-canvas {
@@ -893,12 +1610,12 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .svc-log {
 	inset: 0;
 	width: 100%;
 	height: 100%;
+	max-width: 100%;
+	max-height: 100%;
+	object-fit: fill;
+	object-position: center;
 	pointer-events: none;
 	z-index: 2;
-}
-
-.result-viz-stack.result-viz-stack--dragging {
-	cursor: grabbing;
 }
 
 .result-viz-stack .cam-mjpeg {
@@ -959,10 +1676,10 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .svc-log {
 	min-width: 3.5rem;
 }
 
-/* 相机区块与第三列「抓取与工具控制」标题：同字号（与识别结果图像一致） */
+/* 相机区块与右侧「抓取与工具控制」标题：同字号（与识别结果图像一致） */
 .panel.panel--camera-hero h2,
 .panel.panel--camera-result h2,
-body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 > h2 {
+body.ivg-single-screen .layout-stack-with-control > .panel.panel--tier-3 > h2 {
 	margin-bottom: 0.5rem;
 	font-size: var(--fs-camera-section-title);
 	letter-spacing: 0.02em;
@@ -1060,7 +1777,7 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 > h2 {
 
 .pose-card__triple {
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
+	grid-template-columns: repeat(3, minmax(max-content, 1fr));
 	gap: 0.28rem;
 }
 
@@ -1083,9 +1800,11 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 > h2 {
 
 .pose-card__pill {
 	display: flex;
-	flex-direction: column;
-	align-items: stretch;
-	gap: 0.1rem;
+	flex-direction: row;
+	flex-wrap: nowrap;
+	align-items: baseline;
+	justify-content: flex-start;
+	gap: 0.35em 0.45em;
 	padding: 0.26rem 0.3rem;
 	border-radius: 6px;
 	background: var(--graph-bg, var(--panel-muted));
@@ -1094,6 +1813,7 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 > h2 {
 }
 
 .pose-card__pill-key {
+	flex-shrink: 0;
 	font-size: 0.62rem;
 	font-weight: 700;
 	color: var(--muted);
@@ -1106,7 +1826,9 @@ body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 > h2 {
 	font-weight: 600;
 	font-variant-numeric: tabular-nums;
 	color: var(--code-fg);
-	word-break: break-all;
+	white-space: nowrap;
+	word-break: normal;
+	overflow-wrap: normal;
 	line-height: 1.28;
 }
 
@@ -1599,7 +2321,15 @@ button.ctrl.danger:hover {
 	body.ivg-single-screen .wrap {
 		flex: 1 0 auto;
 		overflow: visible;
-		grid-template-rows: auto minmax(200px, auto) minmax(240px, auto);
+		grid-template-rows: auto auto;
+	}
+
+	body.ivg-single-screen .layout-stack-left {
+		grid-template-rows: minmax(min(42dvh, 5rem), auto) minmax(min(38dvh, 5rem), auto);
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-stack-left {
+		grid-template-rows: minmax(min(44dvh, 5rem), auto);
 	}
 
 	body.ivg-single-screen .layout-camera-controls .panel--camera-hero,
@@ -1621,40 +2351,93 @@ button.ctrl.danger:hover {
 		height: auto;
 	}
 
-	body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 {
+	body.ivg-single-screen .layout-stack-with-control > .panel.panel--tier-3 {
 		height: auto;
 		min-height: 0;
 		max-height: none;
 		overflow: visible;
 	}
 
-	body.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 .control-groups--tier {
+	body.ivg-single-screen .layout-stack-with-control > .panel.panel--tier-3 .control-groups--tier {
 		overflow-y: visible;
 		max-height: none;
 	}
 
-	body.ivg-single-screen .wrap > .layout-body {
+	body.ivg-single-screen .layout-stack-left > .layout-body {
 		overflow: visible;
 		min-height: 0;
 	}
 
-	body.ivg-single-screen .layout-body .layout-col {
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-vision-main > .layout-body--monitoring {
+		overflow: visible;
+		min-height: 0;
+	}
+
+	body.coffee-latte-panel.ivg-single-screen .layout-body .layout-col {
 		height: auto;
 		max-height: none;
 		overflow: visible;
 	}
 
-	body.ivg-single-screen .layout-col--main .panel--chart {
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle {
+		grid-template-columns: 1fr;
+		grid-template-rows: auto auto;
+		gap: 0.45rem;
+		overflow: visible;
+		max-height: none;
+		flex: none;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-toggle {
+		min-height: 44px;
+		padding: 0.4rem 0.5rem;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle > .panel--chart {
+		grid-column: 1;
+		grid-row: 1;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-pose-col {
+		grid-column: 1;
+		grid-row: 2;
+		flex: none;
+		overflow: visible;
+		min-height: 0;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-ee-vpe-pair {
+		flex: none;
+		min-height: 0;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-ee-vpe-pair > .panel--status {
+		flex: 1 1 0;
+		min-height: 6.25rem;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-pose-col > .panel--status {
+		flex: none;
+	}
+
+	body.coffee-latte-panel.ivg-single-screen .layout-col--main .panel--chart {
 		height: auto;
 		max-height: none;
 		min-height: 260px;
 		overflow: visible;
 	}
 
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--chart {
+		height: auto;
+		max-height: none;
+		min-height: 200px;
+		overflow: hidden;
+	}
+
 	body.ivg-single-screen #joint-chart {
-		flex: none;
-		min-height: 180px;
-		max-height: min(45vh, 320px);
+		flex: 1 1 0;
+		min-height: 0;
+		max-height: 100%;
 	}
 
 	body.ivg-single-screen .status-stack {
@@ -1670,6 +2453,13 @@ button.ctrl.danger:hover {
 		overflow: hidden;
 	}
 
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status {
+		flex: none;
+		min-height: 0;
+		max-height: none;
+		overflow: hidden;
+	}
+
 	body.ivg-single-screen .status-stack .panel--status .pose-pre,
 	body.ivg-single-screen .status-stack .panel--status .result-pre {
 		max-height: min(28vh, 220px);
@@ -1678,8 +2468,28 @@ button.ctrl.danger:hover {
 		scrollbar-width: thin;
 	}
 
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-pre,
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .result-pre {
+		max-height: none;
+		overflow-y: hidden;
+		-webkit-overflow-scrolling: auto;
+		scrollbar-width: none;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-pre:not(.pose-card),
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .result-pre:not(.pose-card) {
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: thin;
+	}
+
 	body.ivg-single-screen .status-stack .panel--status .pose-pre::-webkit-scrollbar,
 	body.ivg-single-screen .status-stack .panel--status .result-pre::-webkit-scrollbar {
+		width: 6px;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .pose-pre::-webkit-scrollbar,
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status .result-pre::-webkit-scrollbar {
 		width: 6px;
 	}
 
@@ -1761,23 +2571,27 @@ button.ctrl.danger:hover {
 }
 
 /*
- * 视觉抓取单屏、横屏且视口宽约 1024–1366（含 iPad 10 横屏与同类窄高屏）：
+ * 视觉抓取单屏、横屏且视口宽约 900–1366（分屏 Safari、同类窄高屏等；不含 iPad 10 横屏 1024 精准微调，见文件末尾）。
  * 贴安全区、紧凑间距；三列拉满（不含咖啡拉花页）。
  */
-@media (orientation: landscape) and (min-width: 1024px) and (max-width: 1366px) {
+@media (orientation: landscape) and (min-width: 900px) and (max-width: 1366px) {
 	body.ivg-single-screen:not(.coffee-latte-panel) {
-		--vision-control-col-pct: 16;
+		/* iPad 10 横屏等：信息列略加宽，避免位姿/四元数挤作一团 */
+		--vision-control-col-pct: 28;
 		--cam-split-max-w: 100%;
 	}
 
 	body.ivg-single-screen:not(.coffee-latte-panel) .wrap {
-		/* 第四档略增高：末端/抓取位姿卡片在横屏下完整可见、无内部滚动 */
-		grid-template-rows: auto minmax(180px, 1fr) minmax(196px, min(38vh, 292px));
+		grid-template-rows: auto minmax(0, 1fr);
 		gap: 0.22rem;
 		padding-top: 0.18rem;
 		padding-bottom: 0;
 		padding-left: max(0.22rem, env(safe-area-inset-left, 0px));
 		padding-right: max(0.22rem, env(safe-area-inset-right, 0px));
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-stack-left {
+		grid-template-rows: minmax(min(16svh, 5rem), 1fr);
 	}
 
 	body.ivg-single-screen:not(.coffee-latte-panel) .layout-camera-controls {
@@ -1798,14 +2612,17 @@ button.ctrl.danger:hover {
 	}
 
 	body.ivg-single-screen:not(.coffee-latte-panel) .layout-camera-controls .panel--camera-hero canvas,
-	body.ivg-single-screen:not(.coffee-latte-panel) .layout-camera-controls .panel--camera-result canvas,
+	body.ivg-single-screen:not(.coffee-latte-panel)
+		.layout-camera-controls
+		.panel--camera-result
+		canvas:not(.result-overlay-canvas),
 	body.ivg-single-screen:not(.coffee-latte-panel) .layout-camera-controls .panel--camera-hero .cam-mjpeg,
 	body.ivg-single-screen:not(.coffee-latte-panel) .layout-camera-controls .panel--camera-result .cam-mjpeg,
 	body.ivg-single-screen:not(.coffee-latte-panel) .layout-camera-controls .panel--camera-result .result-viz-stack .cam-mjpeg {
 		object-fit: cover;
 	}
 
-	body.ivg-single-screen:not(.coffee-latte-panel) .layout-camera-controls .panel.panel--tier-3 {
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-stack-with-control > .panel.panel--tier-3 {
 		justify-self: stretch;
 		width: 100%;
 		max-width: 100%;
@@ -1817,25 +2634,33 @@ button.ctrl.danger:hover {
 		margin-bottom: 0;
 	}
 
-	body.ivg-single-screen:not(.coffee-latte-panel) .layout-body {
-		grid-template-columns: minmax(0, 1.08fr) minmax(350px, 0.92fr);
-		gap: 0.24rem;
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-stack-left > .layout-body {
+		grid-template-columns: 1fr;
+		grid-template-rows: minmax(0, 1fr);
+		row-gap: 0;
+		column-gap: 0;
 	}
 
-	body.ivg-single-screen:not(.coffee-latte-panel) .layout-col {
-		gap: 0.24rem;
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-vision-main > .layout-body--monitoring {
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-rows: auto minmax(0, 1fr);
+		gap: var(--ivg-gap-xs) 0;
+		column-gap: 0;
+		align-items: stretch;
+		max-width: none;
+		width: 100%;
 	}
 
-	body.ivg-single-screen:not(.coffee-latte-panel) .layout-col--main .panel--chart {
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--chart {
 		padding: 0.38rem 0.45rem 0.42rem;
 		overflow: hidden;
 	}
 
-	body.ivg-single-screen:not(.coffee-latte-panel) .layout-col--main .panel--chart > h2 {
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--chart > h2 {
 		margin-bottom: 0.22rem;
 	}
 
-	body.ivg-single-screen:not(.coffee-latte-panel) .layout-col--main .panel--chart > .legend-joint {
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--chart > .legend-joint {
 		margin-top: 0.05rem;
 		margin-bottom: 0.2rem;
 		min-height: 1rem;
@@ -1844,98 +2669,12 @@ button.ctrl.danger:hover {
 	}
 
 	body.ivg-single-screen:not(.coffee-latte-panel) #joint-chart {
-		min-height: 150px;
+		min-height: 0;
+		max-height: 100%;
 		height: 100% !important;
 	}
 
-	body.ivg-single-screen:not(.coffee-latte-panel) .status-stack {
-		gap: 0.2rem;
-	}
-
-	body.ivg-single-screen:not(.coffee-latte-panel) .status-stack .panel--status {
-		padding: 0.34rem 0.42rem;
-	}
-
-	body.ivg-single-screen:not(.coffee-latte-panel) .status-stack .panel--status h2 {
-		margin-bottom: 0.18rem;
-		font-size: 0.76rem;
-		padding-bottom: 0.22rem;
-	}
-
-	body.ivg-single-screen:not(.coffee-latte-panel) .status-stack .panel--status .pose-pre,
-	body.ivg-single-screen:not(.coffee-latte-panel) .status-stack .panel--status .result-pre {
-		font-size: 11px;
-		line-height: 1.28;
-		padding: 0.34rem 0.42rem;
-	}
-
-	/* 末端/抓取位姿：不用内部滚动条；内容靠双列+紧凑排版落在可视区内（与 VPE 的 result-pre 区分） */
-	body.ivg-single-screen:not(.coffee-latte-panel) .status-stack .panel--status .pose-pre.pose-card {
-		overflow: hidden;
-		max-height: none;
-		padding: 0.22rem 0.28rem;
-		min-height: 0;
-	}
-
-	body.ivg-single-screen:not(.coffee-latte-panel) .status-stack .panel--status .pose-card__body {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-		grid-auto-rows: min-content;
-		align-items: start;
-		column-gap: 0.35rem;
-		row-gap: 0.22rem;
-		padding: 0.22rem 0.28rem;
-	}
-
-	/* 位姿 + 四元数 两列（仅两个 section） */
-	body.ivg-single-screen:not(.coffee-latte-panel) .status-stack .panel--status .pose-card__body > section:first-child {
-		grid-column: 1;
-		grid-row: 1;
-	}
-
-	body.ivg-single-screen:not(.coffee-latte-panel) .status-stack .panel--status .pose-card__body > section:last-child {
-		grid-column: 2;
-		grid-row: 1;
-		align-self: start;
-	}
-
-	body.ivg-single-screen:not(.coffee-latte-panel) .status-stack .panel--status .pose-card__section + .pose-card__section {
-		padding-top: 0.28rem;
-	}
-
-	body.ivg-single-screen:not(.coffee-latte-panel) .status-stack .panel--status .pose-card__section-title {
-		font-size: 0.58rem;
-		margin-bottom: 0.06rem;
-		letter-spacing: 0.04em;
-	}
-
-	body.ivg-single-screen:not(.coffee-latte-panel) .status-stack .panel--status .pose-card__unit-hint {
-		display: none;
-	}
-
-	body.ivg-single-screen:not(.coffee-latte-panel) .status-stack .panel--status .pose-card__triple,
-	body.ivg-single-screen:not(.coffee-latte-panel) .status-stack .panel--status .pose-card__quad {
-		gap: 0.14rem;
-	}
-
-	body.ivg-single-screen:not(.coffee-latte-panel) .status-stack .panel--status .pose-card__pill {
-		padding: 0.12rem 0.18rem;
-		gap: 0.04rem;
-		border-radius: 4px;
-	}
-
-	body.ivg-single-screen:not(.coffee-latte-panel) .status-stack .panel--status .pose-card__pill-key {
-		font-size: 0.55rem;
-	}
-
-	body.ivg-single-screen:not(.coffee-latte-panel) .status-stack .panel--status .pose-card__pill-val {
-		font-size: 10px;
-		line-height: 1.22;
-	}
-
-	body.ivg-single-screen:not(.coffee-latte-panel) .status-stack .panel--status .pose-card__quad {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
+	/* 状态侧栏位姿卡样式由上方 @media (min-width: 768px) 块统一（PC 与 iPad 一致） */
 
 	body.ivg-single-screen:not(.coffee-latte-panel) .legend-joint {
 		font-size: 0.72rem;
@@ -1972,5 +2711,134 @@ button.ctrl.danger:hover {
 	body.ivg-single-screen:not(.coffee-latte-panel) > footer.connection-footer .status::before {
 		width: 6px;
 		height: 6px;
+	}
+}
+
+/*
+ * iPad 10（A14）Safari 全屏横屏：layout viewport 宽度常为 1024 CSS 像素。
+ * 与 (900px–1366px) 横屏泛化规则区分，仅在此精确覆盖流体 token。
+ */
+@media (width: 1024px) and (orientation: landscape) {
+	body.ivg-single-screen:not(.coffee-latte-panel) {
+		--vision-control-col-pct: 28;
+		--cam-split-max-w: 100%;
+		--ivg-side-col-min: min(28vw, 12rem);
+		--ivg-monitoring-pose-col-min: min(28vw, 11rem);
+	}
+}
+
+/*
+ * 监控底栏位姿卡放大：#pose-text（末端位姿）、#graspnet-result-text（AI 大模型最终抓取位姿）。
+ * 在默认 cqi 缩排之上统一字号/间距，便于查看。
+ */
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text.pose-pre.pose-card,
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text.result-pre.pose-card {
+	padding: 0.32rem 0.38rem;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text .pose-card__body,
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text .pose-card__body {
+	padding: 0.48rem 0.52rem;
+	gap: 0.55rem;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text .pose-card__section-title,
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text .pose-card__section-title {
+	font-size: 0.78rem;
+	margin-bottom: 0.12rem;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text .pose-card__section,
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text .pose-card__section {
+	gap: 0.32rem;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text .pose-card__triple,
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text .pose-card__quad,
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text .pose-card__triple,
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text .pose-card__quad {
+	gap: 0.34rem;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text .pose-card__pill,
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text .pose-card__pill {
+	padding: 0.32rem 0.36rem;
+	gap: 0.4em 0.5em;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text .pose-card__pill-key,
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text .pose-card__pill-key {
+	font-size: 0.72rem;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text .pose-card__pill-val,
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text .pose-card__pill-val {
+	font-size: clamp(12px, 0.95rem, 15px);
+	line-height: 1.25;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text .pose-card__empty,
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text .pose-card__empty {
+	font-size: var(--fs-ui);
+	min-height: 3rem;
+	padding: 0.5rem 0.55rem;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text .pose-card__ivg-pre,
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text .pose-card__ivg-pre {
+	font-size: clamp(11px, 0.88rem, 13px);
+	line-height: 1.4;
+}
+
+@media (min-width: 768px) {
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text.pose-pre.pose-card,
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text.result-pre.pose-card {
+		padding: 0.34rem 0.42rem;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text .pose-card__body,
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text .pose-card__body {
+		column-gap: clamp(0.32rem, 1.6cqi, 0.52rem);
+		row-gap: 0.2rem;
+		padding: clamp(0.24rem, 1.15cqi, 0.38rem);
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text .pose-card__section-title,
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text .pose-card__section-title {
+		font-size: clamp(0.68rem, 4.2cqi, 0.82rem);
+		margin-bottom: 0.1rem;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text .pose-card__section,
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text .pose-card__section {
+		gap: 0.26rem;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text .pose-card__triple,
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text .pose-card__quad,
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text .pose-card__triple,
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text .pose-card__quad {
+		gap: clamp(0.12rem, 1.25cqi, 0.22rem);
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text .pose-card__pill,
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text .pose-card__pill {
+		padding: clamp(0.14rem, 1.05cqi, 0.22rem) clamp(0.2rem, 1.35cqi, 0.3rem);
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text .pose-card__pill-key,
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text .pose-card__pill-key {
+		font-size: clamp(0.62rem, 3.6cqi, 0.78rem);
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text .pose-card__pill-val,
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text .pose-card__pill-val {
+		font-size: clamp(11px, 6.2cqi, 15px);
+		line-height: 1.22;
+	}
+
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #pose-text .pose-card__ivg-pre,
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel--status #graspnet-result-text .pose-card__ivg-pre {
+		font-size: clamp(11px, 4.5cqi, 13px);
 	}
 }

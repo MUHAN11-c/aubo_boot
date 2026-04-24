@@ -5,7 +5,7 @@
     → 本机 Tornado WebSocket（rosbridge + rosapi）；浏览器侧默认经 FastAPI **同源** ``/ws/rosbridge`` 转发到 ``rosbridge_host:rosbridge_port``（与 ``IVG_ROSBRIDGE_*`` 一致）。
   tf2_web_republisher → 网页 TF。
   web_video_server（可选）→ 本机 MJPEG/snapshot；浏览器侧默认经 **同源** ``/api/ivg/proxy/web-video/…`` 转发（``IVG_WEB_VIDEO_*`` 指网关访问上游的地址）。
-  FastAPI + Uvicorn 子进程：``--directory`` 指向已安装的 ``share/.../web/public``，提供静态页、``GET /health``、``GET /api/ivg/runtime-config``。
+  FastAPI + Uvicorn 子进程：``--directory`` 指向已安装的 ``share/.../web/public``，提供静态页、``GET /health``、``GET /api/v1/runtime``。
 
 参数：默认打开「服务 / 动作在新线程执行」，并提高 max_message_size。
 参见 https://github.com/RobotWebTools/rosbridge_suite
@@ -21,10 +21,13 @@ from launch.conditions import IfCondition  # 启动条件
 from launch.launch_description_sources import FrontendLaunchDescriptionSource #启动描述源
 from launch.substitutions import LaunchConfiguration #启动配置
 from launch_ros.actions import Node #启动节点
-from launch_ros.parameter_descriptions import ParameterValue #启动参数描述
 
 
 def generate_launch_description():
+    """
+    组装 IVG Web 栈 LaunchDescription：rosbridge、tf2_web_republisher、可选 web_video_server、
+    FastAPI 静态网关子进程；并向网关子进程注入 ``IVG_ROSBRIDGE_*`` / ``IVG_WEB_VIDEO_*``。
+    """
     # image_transport 的 Raw 插件在 libimage_transport_plugins.so（位于 /opt/ros/.../lib，而非仅 x86_64-linux-gnu 子目录）。
     _img_transport_lib = os.path.join(get_package_prefix('image_transport'), 'lib')
     # 已安装 share 目录（含 web 资源）
@@ -58,6 +61,27 @@ def generate_launch_description():
     include_web_video = LaunchConfiguration('include_web_video_server')
     web_video_host = LaunchConfiguration('web_video_host')
     web_video_port = LaunchConfiguration('web_video_port')
+    this_dir = os.path.dirname(os.path.realpath(__file__))
+    robotwebtools_assets_candidates = [
+        os.path.abspath(
+            os.path.join(this_dir, '..', '..', 'robotwebtools', 'runtime_js_assets')
+        ),
+        os.path.abspath(
+            os.path.join(pkg_share, '..', '..', '..', '..', 'src', 'robotwebtools', 'runtime_js_assets')
+        ),
+        os.path.abspath(
+            os.path.join(this_dir, '..', '..', 'robotwebtools', 'browser_dist')
+        ),
+        os.path.abspath(
+            os.path.join(pkg_share, '..', '..', '..', '..', 'src', 'robotwebtools', 'browser_dist')
+        ),
+    ]
+    robotwebtools_assets_default = robotwebtools_assets_candidates[0]
+    for candidate in robotwebtools_assets_candidates:
+        if os.path.isdir(candidate):
+            robotwebtools_assets_default = candidate
+            break
+    robotwebtools_assets_dir = LaunchConfiguration('robotwebtools_assets_dir')
 
     return LaunchDescription(
         [
@@ -99,6 +123,11 @@ def generate_launch_description():
                 default_value='8089',
                 description='web_video_server HTTP 端口（默认 8089，避免与 IVG 手眼 Web 常用 8080 冲突）',
             ),
+            DeclareLaunchArgument(
+                'robotwebtools_assets_dir',
+                default_value=robotwebtools_assets_default,
+                description='IVG_ROBOTWEBTOOLS_ASSETS_DIR：RobotWebTools 资产目录（优先 src/robotwebtools/runtime_js_assets）',
+            ),
             SetEnvironmentVariable(name='LD_LIBRARY_PATH', value=_rosbridge_ld),
             IncludeLaunchDescription(
                 FrontendLaunchDescriptionSource(rosbridge_xml),
@@ -126,7 +155,7 @@ def generate_launch_description():
                 additional_env={'LD_LIBRARY_PATH': _web_video_ld},
                 parameters=[
                     {
-                        'port': ParameterValue(web_video_port, value_type=int),
+                        'port': web_video_port,
                         'address': '0.0.0.0',
                         'server_threads': 4,
                         'ros_threads': 2,
@@ -145,11 +174,12 @@ def generate_launch_description():
                     web_dir,
                 ],
                 additional_env={
-                    # 与 launch 参数一致，供 /api/ivg/runtime-config 与上游代理使用
+                    # 与 launch 参数一致，供 /api/v1/runtime 与上游代理使用
                     'IVG_ROSBRIDGE_HOST': rosbridge_host,
                     'IVG_ROSBRIDGE_PORT': rosbridge_port,
                     'IVG_WEB_VIDEO_HOST': web_video_host,
                     'IVG_WEB_VIDEO_PORT': web_video_port,
+                    'IVG_ROBOTWEBTOOLS_ASSETS_DIR': robotwebtools_assets_dir,
                 },
                 output='screen',
             ),

@@ -1,33 +1,21 @@
 /**
  * 3D 会话编排层：
- * - 负责把补丁、TF、点云、雷达、Marker、URDF 装配成一个页面可复用的 viewer 会话。
- * - 继续对外保留 `IvgRos3dView3dSession`，让 topics_lab / vision_grasp 无需知道内部拆分细节。
+ * - 负责把补丁、TF、雷达、Marker、URDF 装配成一个页面可复用的 viewer 会话。
+ * - 继续对外保留 `IvgRos3dView3dSession`，让 vision_grasp 无需知道内部拆分细节。
  */
-(function (global) {
-	'use strict';
 
-	const patches = global.IVGView3DPatches;
-	const tfApi = global.IVGView3DTf;
-	const hints = global.IVGView3DHints;
-	const pcApi = global.IVGView3DPointCloud;
-	const urdfApi = global.IVGView3DUrdf;
-	if (!patches || !tfApi || !hints || !pcApi || !urdfApi) {
-		throw new Error('view3d session 依赖未按顺序加载');
-	}
+import * as ROSLIB from 'roslib';
+import * as ROS3D from 'ros3d';
+import { ivgRos3dEmbeddedObject3DClass, installIvgRos3dEmbeddedThreeSafeAddPatch } from './patches.js';
+import { IvgRos3dTfClient } from './tf_clients.js';
+import { removeView3dUrdfHint, showView3dUrdfHint } from './hints.js';
 
-	const normalizeFrameId = tfApi.normalizeFrameId;
-	const IvgRos3dTfClient = tfApi.IvgRos3dTfClient;
-	const IvgRosPointCloudClient = pcApi.IvgRosPointCloudClient;
-	const removeView3dPc2Hint = hints.removeView3dPc2Hint;
-	const showView3dPc2Hint = hints.showView3dPc2Hint;
-	const removeView3dUrdfHint = hints.removeView3dUrdfHint;
-	const showView3dUrdfHint = hints.showView3dUrdfHint;
-	const ivgAttachUrdfFromRosParam = urdfApi.ivgAttachUrdfFromRosParam;
-	const IVG_VIEW3D_DESKTOP_PIXEL_RATIO_MAX = 1.5;
-	const IVG_VIEW3D_AXES_SCALE = 0.35;
-	const IVG_VIEW3D_GRID_COLOR = '#cbd5e1';
-	const IVG_VIEW3D_GRID_CELLS = 10;
+const IVG_VIEW3D_DESKTOP_PIXEL_RATIO_MAX = 1.5; // 桌面像素比最大值
+const IVG_VIEW3D_AXES_SCALE = 0.35; // 坐标轴缩放比例
+const IVG_VIEW3D_GRID_COLOR = '#cbd5e1'; // 网格颜色
+const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 
+	/** 单页 3D 会话：持有 ros3d Viewer、TF、雷达/Marker/URDF 引用与延迟启动定时器。 */
 	function IvgRos3dView3dSession(ros, $, opts) {
 		this.ros = ros;
 		this.$ = $;
@@ -38,16 +26,12 @@
 		this._viewerHeight = typeof vh === 'number' && vh > 0 ? vh : null;
 		this.viewer3d = null;
 		this.tfClient3d = null;
-		this.ros3dPointCloud2 = null;
 		this.ros3dLaserScan = null;
 		this.ros3dMarkerClient = null;
 		this.ros3dMarkerRoot = null;
 		this.ros3dAxes = null;
 		this.ros3dGrid = null;
 		this.ros3dUrdfRoot = null;
-		this._pcAutoFrameFallbackTimer = null;
-		this._pcAutoFrameFallbackUsed = false;
-		this._pcCameraPrimed = false;
 		this._deferredStartTimers = [];
 		this._markersStarted = false;
 		this._urdfStarted = false;
@@ -56,14 +40,17 @@
 		this._Obj3DClass = null;
 		this._urdfFocusTimer = null;
 		this._urdfCameraPrimed = false;
+		this.ros3dUrdfClient = null;
 	}
 
+	/** 触控环境固定 1；桌面限制 DPR 上限以减轻 GPU 负载。 */
 	function ivgComputeViewerPixelRatio(globalObj, coarsePointer) {
 		if (coarsePointer) return 1;
 		const dpr = Number(globalObj && globalObj.devicePixelRatio) || 1;
 		return Math.max(1, Math.min(dpr, IVG_VIEW3D_DESKTOP_PIXEL_RATIO_MAX));
 	}
 
+	/** 将坐标轴辅助对象缩放到统一常量，避免默认尺寸过大遮挡场景。 */
 	function ivgApplyAxesScale(axesObj) {
 		if (!axesObj || !axesObj.scale || typeof axesObj.scale.set !== 'function') return;
 		axesObj.scale.set(IVG_VIEW3D_AXES_SCALE, IVG_VIEW3D_AXES_SCALE, IVG_VIEW3D_AXES_SCALE);
@@ -77,17 +64,20 @@
 		const center = new Vector3Emb();
 		let radius = 0.25;
 		try {
-			if (typeof THREE !== 'undefined' && THREE.Box3 && THREE.Sphere) {
-				const box = new THREE.Box3().setFromObject(obj3d);
-				if (!box.isEmpty()) {
-					box.getCenter(center);
-					const sphere = box.getBoundingSphere(new THREE.Sphere());
-					radius = Math.max(0.08, Number(sphere && sphere.radius) || 0.25);
-				} else if (typeof obj3d.getWorldPosition === 'function') {
-					obj3d.getWorldPosition(center);
-				}
-			} else if (typeof obj3d.getWorldPosition === 'function') {
+			if (typeof obj3d.getWorldPosition === 'function') {
 				obj3d.getWorldPosition(center);
+			}
+			if (typeof obj3d.traverse === 'function') {
+				obj3d.traverse(node => {
+					if (!node || !node.geometry || !node.geometry.boundingSphere) return;
+					const bs = node.geometry.boundingSphere;
+					if (node.localToWorld && bs.center) {
+						const c = new Vector3Emb(bs.center.x, bs.center.y, bs.center.z);
+						node.localToWorld(c);
+						center.copy(c);
+					}
+					radius = Math.max(radius, Number(bs.radius) || 0);
+				});
 			}
 		} catch (e) {
 			if (typeof obj3d.getWorldPosition === 'function') obj3d.getWorldPosition(center);
@@ -117,7 +107,7 @@
 
 	IvgRos3dView3dSession.prototype._startMarkersStage = function (mk) {
 		if (this._markersStarted || !mk) return;
-		const OC = this._Obj3DClass || (typeof THREE !== 'undefined' ? THREE.Object3D : null);
+		const OC = this._Obj3DClass || null;
 		if (!OC) return;
 		this._markersStarted = true;
 		this.ros3dMarkerRoot = new OC();
@@ -147,19 +137,36 @@
 
 	IvgRos3dView3dSession.prototype._startUrdfStage = function ($, host, fixedFrame) {
 		if (this._urdfStarted) return;
-		const OC = this._Obj3DClass || (typeof THREE !== 'undefined' ? THREE.Object3D : null);
+		const OC = this._Obj3DClass || null;
 		if (!OC) return;
 		this._urdfStarted = true;
 		this.ros3dUrdfRoot = new OC();
 		this.viewer3d.addObject(this.ros3dUrdfRoot);
-		const pName = (($('urdf-param') && $('urdf-param').value) || '/robot_state_publisher:robot_description').trim();
-		const meshBase = `${global.location.origin}/api/ivg/robot-mesh/`;
-		showView3dUrdfHint(host, '<strong>机械臂 URDF</strong>：阶段式加载中；若仍失败，不会再阻断点云与 Marker 主视图。');
+		const rawParam = (($('urdf-param') && $('urdf-param').value) || '').trim();
+		let pName = '/robot_state_publisher:robot_description';
+		if (rawParam) {
+			if (rawParam.includes(':')) pName = rawParam;
+			else pName = `/robot_state_publisher:${rawParam.replace(/^\/+/, '')}`;
+		}
+		const meshBase = `${globalThis.location.origin}/api/ivg/robot-mesh/`;
+		showView3dUrdfHint(host, '<strong>机械臂 URDF</strong>：使用 ROS3D.UrdfClient 官方链路加载中。');
+		try {
+			this.ros3dUrdfClient = new ROS3D.UrdfClient({
+				ros: this.ros,
+				tfClient: this.tfClient3d,
+				path: meshBase,
+				rootObject: this.ros3dUrdfRoot,
+				param: pName
+			});
+		} catch (err0) {
+			console.error('URDF:', err0);
+			showView3dUrdfHint(
+				host,
+				`<strong>机械臂加载失败</strong>：${String(err0)}。请检查参数 <code>${pName}</code>、TF 固定坐标 <code>${fixedFrame}</code> 与网格资源路径。`
+			);
+			return;
+		}
 		const selfUrdf = this;
-		ivgAttachUrdfFromRosParam(this.ros, pName, meshBase, this.tfClient3d, this.ros3dUrdfRoot, $, err => {
-			console.error('URDF:', err);
-			showView3dUrdfHint(host, `<strong>机械臂加载失败</strong>：${String(err)}。当前 3D 主视图已继续工作；请单独检查 <code>${fixedFrame}</code> 与网格资源。`);
-		}, host);
 		let urdfFocusTicks = 0;
 		selfUrdf._urdfFocusTimer = setInterval(() => {
 			urdfFocusTicks += 1;
@@ -198,12 +205,6 @@
 	IvgRos3dView3dSession.prototype.stop = function () {
 		this._deferredStartTimers.forEach(t => clearTimeout(t));
 		this._deferredStartTimers.length = 0;
-		if (this._pcAutoFrameFallbackTimer) {
-			clearInterval(this._pcAutoFrameFallbackTimer);
-			this._pcAutoFrameFallbackTimer = null;
-		}
-		this._pcAutoFrameFallbackUsed = false;
-		this._pcCameraPrimed = false;
 		this._markersStarted = false;
 		this._urdfStarted = false;
 		this._markerCameraPrimed = false;
@@ -216,13 +217,18 @@
 			clearInterval(this._markerFocusTimer);
 			this._markerFocusTimer = null;
 		}
+		if (this.ros3dUrdfClient) {
+			try {
+				const u = this.ros3dUrdfClient.urdf;
+				if (u && typeof u.unsubscribeTf === 'function') u.unsubscribeTf();
+			} catch (eUrdf) {
+				/* ignore */
+			}
+			this.ros3dUrdfClient = null;
+		}
 		if (this.ros3dMarkerClient) {
 			try { this.ros3dMarkerClient.unsubscribe(); } catch (e0) { /* ignore */ }
 			this.ros3dMarkerClient = null;
-		}
-		if (this.ros3dPointCloud2) {
-			try { this.ros3dPointCloud2.unsubscribe(); } catch (e1) { /* ignore */ }
-			this.ros3dPointCloud2 = null;
 		}
 		if (this.ros3dLaserScan) {
 			try { this.ros3dLaserScan.unsubscribe(); } catch (e2) { /* ignore */ }
@@ -264,7 +270,6 @@
 			this.tfClient3d = null;
 		}
 		const host3 = this.$(this._view3dHostId);
-		removeView3dPc2Hint(host3);
 		removeView3dUrdfHint(host3);
 		if (host3) host3.innerHTML = '';
 	};
@@ -272,39 +277,34 @@
 	IvgRos3dView3dSession.prototype.start = function () {
 		const $ = this.$;
 		const ros = this.ros;
-		const pcn = (($('pc-topic') && $('pc-topic').value) || '').trim();
 		const sn = (($('scan3-topic') && $('scan3-topic').value) || '').trim();
 		const mk = (($('marker3-topic') && $('marker3-topic').value) || '').trim();
 		const urdfEl = $('view3d-show-urdf');
-		const wantUrdf = !urdfEl || urdfEl.checked;
-		if (!pcn && !sn && !mk && !wantUrdf) {
-			alert('请至少填写「点云」「雷达」或「Marker」话题之一，或勾选「显示机械臂 URDF」');
+		const wantUrdf = this.opts && this.opts.forceUrdfOnly ? true : (!urdfEl || urdfEl.checked);
+		if (!sn && !mk && !wantUrdf) {
+			alert('请至少填写「雷达」或「Marker」话题之一，或勾选「显示机械臂 URDF」');
 			return;
 		}
 		if (mk && typeof ROS3D.MarkerArrayClient === 'undefined' && typeof ROS3D.MarkerClient === 'undefined') {
-			alert('已填写 Marker 话题但未加载 ROS3D.MarkerArrayClient / MarkerClient（需 ros3d.min.js）');
+			alert('已填写 Marker 话题但未加载 ROS3D.MarkerArrayClient / MarkerClient（需 ros3d）');
 			return;
 		}
-		if (wantUrdf && !pcn && !sn && !mk) {
-			if (typeof ROS3D.Urdf !== 'function' || typeof ROSLIB.UrdfModel !== 'function') {
-				alert('当前脚本缺少 ROS3D.Urdf / ROSLIB.UrdfModel，无法显示机械臂；请更新 ros3d / roslib');
-				return;
-			}
+		if (wantUrdf && typeof ROS3D.UrdfClient !== 'function') {
+			alert('当前脚本缺少 ROS3D.UrdfClient，无法显示机械臂；请更新 ros3d。');
+			return;
 		}
 		this.stop();
 		if (typeof ROS3D === 'undefined' || typeof ROSLIB === 'undefined') {
-			alert('ROS3D 或 ROSLIB 未加载（需 roslib-2.iife.js + three r89 + ros3d）');
+			alert('ROS3D 或 ROSLIB 未加载');
 			return;
 		}
-		patches.installIvgThreeSafeAddPatch();
-		patches.ivgInstallMeshLoaderCasePatch();
 		const host = $(this._view3dHostId);
 		const innerId = this._viewerInnerId;
 		const inner = document.createElement('div');
 		inner.id = innerId;
 		if (host) host.appendChild(inner);
 		if (host) host.setAttribute('data-ivg-hide-hints', '1');
-		const coarsePointer = typeof global.matchMedia === 'function' && global.matchMedia('(pointer: coarse)').matches;
+		const coarsePointer = typeof globalThis.matchMedia === 'function' && globalThis.matchMedia('(pointer: coarse)').matches;
 		const w = (host && host.clientWidth) || 800;
 		let h = 800;
 		if (this._viewerHeight != null) h = this._viewerHeight;
@@ -318,10 +318,10 @@
 			cameraPose: { x: 3, y: 3, z: 3 },
 			cameraZoomSpeed: 0.5
 		});
-		patches.installIvgRos3dEmbeddedThreeSafeAddPatch(this.viewer3d);
-		this._Obj3DClass = patches.ivgRos3dEmbeddedObject3DClass(this.viewer3d);
+		installIvgRos3dEmbeddedThreeSafeAddPatch(this.viewer3d);
+		this._Obj3DClass = ivgRos3dEmbeddedObject3DClass(this.viewer3d);
 		if (this.viewer3d && this.viewer3d.renderer && typeof this.viewer3d.renderer.setPixelRatio === 'function') {
-			this.viewer3d.renderer.setPixelRatio(ivgComputeViewerPixelRatio(global, coarsePointer));
+			this.viewer3d.renderer.setPixelRatio(ivgComputeViewerPixelRatio(globalThis, coarsePointer));
 		}
 		const axEl = $('view3d-show-axes');
 		const grEl = $('view3d-show-grid');
@@ -336,63 +336,11 @@
 		}
 		let fixedFrame = (($('tf-fixed-frame') && $('tf-fixed-frame').value) || 'base_link').trim().replace(/^\/+/, '');
 		if (fixedFrame === '') fixedFrame = 'base_link';
-		const topicTfEl = $('view3d-use-topic-tf-only');
-		const topicTfOnly = !!(topicTfEl && topicTfEl.checked);
 		const tf3dOpts = (this.opts && this.opts.tf3d) || {};
-		this.tfClient3d = new IvgRos3dTfClient(ros, fixedFrame, {
-			...tf3dOpts,
-			useTopicTfOnly: topicTfOnly ? true : tf3dOpts.useTopicTfOnly,
-			preferRos2TfClient: topicTfOnly ? false : tf3dOpts.preferRos2TfClient
-		});
-		const maxPts = Math.max(1000, parseInt(($('pc-max') && $('pc-max').value) || '32000', 10) || 32000);
+		this.tfClient3d = new IvgRos3dTfClient(ros, fixedFrame, tf3dOpts);
 		const pszEl = $('view3d-point-size');
 		const ptSize = Math.max(0.01, parseFloat((pszEl && pszEl.value) || '0.05') || 0.05);
-		const pcThrottleEl = $('pc-throttle-ms');
-		const pcRatioEl = $('pc-msg-ratio');
-		const pcThrottleMsRaw = Math.max(0, parseInt((pcThrottleEl && pcThrottleEl.value) || '120', 10) || 0);
-		const pcMsgRatioRaw = Math.max(1, parseInt((pcRatioEl && pcRatioEl.value) || '2', 10) || 1);
-		const effectiveMaxPts = coarsePointer ? Math.min(maxPts, 4500) : maxPts;
-		const pcThrottleMs = coarsePointer ? Math.max(pcThrottleMsRaw, 220) : pcThrottleMsRaw;
-		const pcMsgRatio = coarsePointer ? Math.max(pcMsgRatioRaw, 4) : pcMsgRatioRaw;
-		const selfSession = this;
-		if (pcn) {
-			const basePixelSize = Math.max(2, Math.min(24, Math.round(ptSize * 120)));
-			const pcPixelSize = coarsePointer ? 1 : basePixelSize;
-			this.ros3dPointCloud2 = new IvgRosPointCloudClient({
-				ros,
-				tfClient: this.tfClient3d,
-				rootObject: this.viewer3d.scene,
-				topic: pcn,
-				max_pts: effectiveMaxPts,
-				messageRatio: pcMsgRatio,
-				throttle_rate: pcThrottleMs,
-				pointSizePixels: pcPixelSize,
-				opacity: coarsePointer ? 0.9 : 0.72,
-				hintHost: host
-			});
-			showView3dPc2Hint(host, `<strong>加载点云</strong>：首帧大图仍可能需数秒。当前 <strong>节流 ${pcThrottleMs} ms</strong>、<strong>隔帧 ${pcMsgRatio}</strong>；若仍慢请调大节流或调低“最大点数”。`);
-			this._pcAutoFrameFallbackTimer = setInterval(() => {
-				const pc2 = selfSession.ros3dPointCloud2;
-				if (!pc2 || !pc2.__ivgPc2Sig || !pc2.__ivgPc2Sig.got) return;
-				const pcSceneNode = pc2.points && pc2.points.sn;
-				const pcFrame = normalizeFrameId(pc2.__ivgPc2Frame || (pcSceneNode && pcSceneNode.frameID));
-				if (!pcFrame) return;
-				if (pcSceneNode && !selfSession._pcCameraPrimed && !selfSession._markerCameraPrimed) {
-					selfSession._focusViewerOnObject(pcSceneNode, { distanceFactor: 2.4, minDistance: 0.42 });
-					selfSession._pcCameraPrimed = true;
-				}
-				if (pcSceneNode && pcSceneNode.visible === true) {
-					clearInterval(selfSession._pcAutoFrameFallbackTimer);
-					selfSession._pcAutoFrameFallbackTimer = null;
-				} else {
-					const firstFrameAt = pc2.__ivgPc2FirstFrameAt || 0;
-					if (firstFrameAt && Date.now() - firstFrameAt > 3000) {
-						clearInterval(selfSession._pcAutoFrameFallbackTimer);
-						selfSession._pcAutoFrameFallbackTimer = null;
-					}
-				}
-			}, 1000);
-		}
+		const maxPts = coarsePointer ? 4500 : 32000;
 		if (sn) {
 			this.ros3dLaserScan = new ROS3D.LaserScan({
 				ros,
@@ -404,55 +352,22 @@
 			});
 		}
 		if (mk) this._defer(() => this._startMarkersStage(mk), 1200);
-		if (wantUrdf && typeof ROS3D.Urdf === 'function' && typeof ROSLIB.UrdfModel === 'function') {
-			this._defer(() => this._startUrdfStage($, host, fixedFrame), 3500);
-		}
-		if (pcn && ros && ros.isConnected) {
-			const pc2FailAfterMs = 45000;
-			const hintHost = $(this._view3dHostId);
-			setTimeout(() => {
-				const got = selfSession.ros3dPointCloud2 && selfSession.ros3dPointCloud2.__ivgPc2Sig && selfSession.ros3dPointCloud2.__ivgPc2Sig.got;
-				if (!got) {
-					const metaT = new ROSLIB.Topic({
-						ros,
-						name: pcn,
-						messageType: 'sensor_msgs/msg/PointCloud2',
-						throttle_rate: 0,
-						queue_length: 0,
-						queue_size: 100
-					});
-					metaT.getPublishers(
-						pubs => {
-							const n = Array.isArray(pubs) ? pubs.length : 0;
-							if (!hintHost) return;
-							if (n === 0) {
-								showView3dPc2Hint(hintHost, `<strong>点云无数据</strong>：<code>${pcn}</code> 上未发现发布者。请确认相机/深度节点已启动，或在侧栏选择实际在发布的 <code>sensor_msgs/msg/PointCloud2</code> 话题后再“启动 3D”。`);
-							} else {
-								showView3dPc2Hint(hintHost, `<strong>点云无数据</strong>：检测到 <code>${n}</code> 个发布者，但 <strong>${pc2FailAfterMs / 1000} 秒</strong>内浏览器仍未收到可渲染首帧。请查 rosbridge / 网关日志、消息体大小与 QoS；或降低点云分辨率以减轻单帧体积。`);
-							}
-						},
-						() => {
-							if (hintHost) {
-								showView3dPc2Hint(hintHost, '<strong>点云无数据</strong>：无法查询发布者（rosapi 不可用或调用失败）。请确认 rosbridge 同进程已加载 <code>rosapi</code>，并查看浏览器控制台与 rosbridge 日志。');
-							}
-						}
-					);
-				} else {
-					const pcSceneNode = selfSession.ros3dPointCloud2 && selfSession.ros3dPointCloud2.points && selfSession.ros3dPointCloud2.points.sn;
-					const pcFrame = normalizeFrameId(pcSceneNode && pcSceneNode.frameID);
-					if (pcSceneNode && pcSceneNode.visible !== true && pcFrame) {
-						const tfOk = selfSession.tfClient3d && typeof selfSession.tfClient3d.hasTransformFor === 'function' && selfSession.tfClient3d.hasTransformFor(pcFrame);
-						if (!tfOk && hintHost) {
-							showView3dPc2Hint(hintHost, `<strong>点云首帧已到但不可见</strong>：已收到 <code>${pcn}</code> 数据，但浏览器端尚未建立 <code>${fixedFrame}</code> → <code>${pcFrame}</code> 的 TF 链。请确认相机/机械臂 TF 已发布到 <code>/tf</code> 或 <code>/tf_static</code>，或先把固定坐标系改为 <code>${pcFrame}</code> 进行验证。`);
-						}
-					}
-				}
-			}, pc2FailAfterMs);
+		if (wantUrdf && typeof ROS3D.UrdfClient === 'function') {
+			const urdfDelayMs = this.opts && this.opts.forceUrdfOnly ? 0 : 3500;
+			this._defer(() => this._startUrdfStage($, host, fixedFrame), urdfDelayMs);
 		}
 	};
 
-	global.IVGView3DSession = {
-		IvgRos3dView3dSession
-	};
-	global.IvgRos3dView3dSession = IvgRos3dView3dSession;
-})(typeof window !== 'undefined' ? window : globalThis);
+const IVGView3DSession = {
+	IvgRos3dView3dSession
+};
+
+globalThis.IVGView3DSession = IVGView3DSession;
+globalThis.IvgRos3dView3dSession = IvgRos3dView3dSession;
+
+export {
+	ivgComputeViewerPixelRatio,
+	ivgApplyAxesScale,
+	IvgRos3dView3dSession,
+	IVGView3DSession
+};

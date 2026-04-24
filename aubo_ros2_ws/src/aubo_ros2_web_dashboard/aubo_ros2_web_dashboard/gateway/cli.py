@@ -14,6 +14,7 @@ from aubo_ros2_web_dashboard.gateway.app import create_app
 
 
 def _build_parser() -> argparse.ArgumentParser:
+	"""构造 ``ivg_fastapi_static_gateway`` 命令行：监听地址/端口、静态根 ``--directory``（必填）。"""
 	# 监听端口与静态根目录由命令行决定；rosbridge/web_video 上游仅读环境变量（见 settings / launch additional_env）
 	p = argparse.ArgumentParser(description="FastAPI static gateway (IVG web dashboard).")
 	p.add_argument("port", type=int, nargs="?", default=8090, help="listen port")
@@ -35,6 +36,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> None:
+	"""解析参数，用 ``create_app`` 构建 ASGI 应用并以 Uvicorn 阻塞运行。"""
 	args = _build_parser().parse_args(argv)
 	app = create_app(args.directory)
 	host = args.bind if args.bind else "0.0.0.0"

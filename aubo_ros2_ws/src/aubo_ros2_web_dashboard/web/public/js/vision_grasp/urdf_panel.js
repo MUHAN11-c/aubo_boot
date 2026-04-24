@@ -3,18 +3,21 @@
  * - 负责独立 rosbridge 连接、3D 会话创建、ResizeObserver 自适应。
  * - 让 `vision_grasp_panel.js` 不再直接管理这部分资源生命周期。
  */
-(function (global) {
-	'use strict';
 
-	function createVisionUrdfPanel(opts) {
-		const options = opts || {};
-		const ports = options.ports;
-		const SessionCtor = options.SessionCtor || global.IvgRos3dView3dSession;
-		const doc = options.documentRef || document;
-		let visionUrdfRos = null;
-		let visionUrdfSession = null;
-		let visionUrdfResizeObs = null;
+import * as ROSLIB from 'roslib';
+import { IvgRos3dView3dSession } from '../view3d/session.js';
 
+/** 工厂：返回 ``{ stop, start, layout }``，管理独立 rosbridge + 3D 会话 + ResizeObserver。 */
+function createVisionUrdfPanel(opts) {
+	const options = opts || {};
+	const ports = options.ports;
+	const SessionCtor = options.SessionCtor || IvgRos3dView3dSession;
+	const doc = options.documentRef || document;
+	let visionUrdfRos = null;
+	let visionUrdfSession = null;
+	let visionUrdfResizeObs = null;
+
+		/** 断开观察器、停止 3D、关闭 Ros 实例。 */
 		function stop() {
 			if (visionUrdfResizeObs) {
 				try { visionUrdfResizeObs.disconnect(); } catch (e) { /* ignore */ }
@@ -30,6 +33,7 @@
 			}
 		}
 
+		/** 懒连接 rosbridge（``ports.rosbridgeWebSocketUrl()``），20s 超时。 */
 		function ensureRos() {
 			return new Promise((resolve, reject) => {
 				if (visionUrdfRos && visionUrdfRos.isConnected) {
@@ -41,10 +45,11 @@
 					return;
 				}
 				const url = ports.rosbridgeWebSocketUrl();
-				const r = new ROSLIB.Ros();
+				// 对齐 roslib-examples：通过构造参数直接发起连接。
+				const r = new ROSLIB.Ros({ url });
 				const t = setTimeout(() => {
 					try { r.close(); } catch (e1) { /* ignore */ }
-					reject(new Error('rosbridge 连接超时'));
+					reject(new Error('3D 连接超时'));
 				}, 20000);
 				r.on('connection', () => {
 					clearTimeout(t);
@@ -53,15 +58,12 @@
 				});
 				r.on('error', () => {
 					clearTimeout(t);
-					reject(new Error('rosbridge 连接错误'));
-				});
-				void r.connect(url).catch(() => {
-					clearTimeout(t);
-					reject(new Error('rosbridge connect() 失败'));
+					reject(new Error('3D 连接错误'));
 				});
 			});
 		}
 
+		/** 按 #vision-urdf-host 客户端尺寸调用 viewer3d.resize。 */
 		function layout() {
 			if (!visionUrdfSession || !visionUrdfSession.viewer3d) return;
 			const host = doc.getElementById('vision-urdf-host');
@@ -75,6 +77,7 @@
 			}
 		}
 
+		/** 异步启动：ensureRos → 新建 SessionCtor → start → ResizeObserver。 */
 		function start(getById) {
 			const host = doc.getElementById('vision-urdf-host');
 			if (!host || typeof SessionCtor !== 'function') return;
@@ -84,7 +87,8 @@
 					const ros = await ensureRos();
 					visionUrdfSession = new SessionCtor(ros, getById, {
 						view3dHostId: 'vision-urdf-host',
-						viewerInnerId: 'vision-urdf-inner'
+						viewerInnerId: 'vision-urdf-inner',
+						forceUrdfOnly: true
 					});
 					visionUrdfSession.start();
 					requestAnimationFrame(() => layout());
@@ -98,14 +102,17 @@
 			})();
 		}
 
-		return {
-			stop,
-			start,
-			layout
-		};
-	}
-
-	global.IVGVisionUrdfPanel = {
-		createVisionUrdfPanel
+	return {
+		stop,
+		start,
+		layout
 	};
-})(typeof window !== 'undefined' ? window : globalThis);
+}
+
+const IVGVisionUrdfPanel = {
+	createVisionUrdfPanel
+};
+
+globalThis.IVGVisionUrdfPanel = IVGVisionUrdfPanel;
+
+export { createVisionUrdfPanel, IVGVisionUrdfPanel };

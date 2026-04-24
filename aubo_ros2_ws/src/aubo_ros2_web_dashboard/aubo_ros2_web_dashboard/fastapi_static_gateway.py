@@ -3,8 +3,8 @@ FastAPI 统一静态网关：托管 ``web/public``，并作为 **HTTP 边界**�
 
 实现按常见 FastAPI 项目习惯拆在 ``aubo_ros2_web_dashboard.gateway``：
 
-- ``gateway.settings``：环境变量、版本、``runtime-config`` 载荷；
-- ``gateway.routes``：``APIRouter``（``/health``、``/api/ivg/runtime-config``、``/ws/rosbridge``、``/api/ivg/proxy/web-video/…``）；
+- ``gateway.settings``：环境变量、版本、``runtime`` 载荷；
+- ``gateway.routes``：``APIRouter``（``/health``、``/api/v1/runtime``、``/ws/rosbridge``、``/api/ivg/proxy/web-video/…``）；
 - ``gateway.app``：``create_app(web_root)``（``include_router``、中间件、``StaticFiles``）；
 - ``gateway.cli``：``main()`` → Uvicorn。
 

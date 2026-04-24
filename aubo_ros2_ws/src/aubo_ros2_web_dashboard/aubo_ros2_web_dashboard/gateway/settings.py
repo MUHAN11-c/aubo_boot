@@ -1,5 +1,5 @@
 """
-环境变量名、默认值，以及 ``GET /api/ivg/runtime-config`` 的 JSON 构造。
+环境变量名、默认值，以及 ``GET /api/v1/runtime`` 的 JSON 构造。
 
 说明：
   - 具体主机/端口由**进程环境**提供（launch ``additional_env`` 或 shell ``export``）；
@@ -24,9 +24,11 @@ ENV_ROSBRIDGE = "IVG_ROSBRIDGE_PORT"
 ENV_WEB_VIDEO = "IVG_WEB_VIDEO_PORT"
 ENV_ROSBRIDGE_HOST = "IVG_ROSBRIDGE_HOST"
 ENV_WEB_VIDEO_HOST = "IVG_WEB_VIDEO_HOST"
+ENV_RWT_ASSETS_DIR = "IVG_ROBOTWEBTOOLS_ASSETS_DIR"
 
 
 def package_version() -> str:
+	"""从 importlib.metadata 读取已安装 wheel 版本；不可用时回退 ``_PKG_FALLBACK``。"""
 	try:
 		from importlib.metadata import version
 
@@ -36,6 +38,7 @@ def package_version() -> str:
 
 
 def runtime_config_dict(static_root: str) -> dict[str, Any]:
+	"""构造 ``GET /api/v1/runtime`` 的 JSON：版本、端口、同源 WS/HTTP 代理路径等。"""
 	# 供前端 ivg_runtime.js：上游端口（展示/覆盖）、同源代理路径
 	rb_port = int(os.environ.get(ENV_ROSBRIDGE, str(DEFAULT_ROSBRIDGE_PORT)))
 	wv_port = int(os.environ.get(ENV_WEB_VIDEO, str(DEFAULT_WEB_VIDEO_PORT)))

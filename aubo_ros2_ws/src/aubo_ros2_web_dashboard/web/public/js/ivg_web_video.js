@@ -4,13 +4,15 @@
  *
  * topic 查询值勿用 URLSearchParams 整段编码（会把 / 编成 %2F，部分服务端无法解析）。
  */
-(function (global) {
-	'use strict';
 
+const global = globalThis;
+
+	/** 当前页 hostname；无 ``window`` 时回退 ``127.0.0.1``（独立 web_video 直连模式）。 */
 	function hostname() {
 		return (typeof window !== 'undefined' && window.location && window.location.hostname) || '127.0.0.1';
 	}
 
+	/** 按段 encodeURIComponent 再以 / 拼接，避免整段编码把 ROS topic 的 / 变成 %2F。 */
 	function encodeTopicQueryValue(topic) {
 		return String(topic)
 			.split('/')
@@ -18,6 +20,7 @@
 			.join('/');
 	}
 
+	/** 非代理模式下的 HTTP 端口：opts.port → location.port → https 443 / 80。 */
 	function legacyStandalonePort(opts) {
 		let p = opts.port != null && opts.port > 0 ? Number(opts.port) : NaN;
 		if (!isNaN(p) && p > 0) return p;
@@ -29,6 +32,7 @@
 		return 80;
 	}
 
+	/** 构造 web_video_server 查询串（topic 分段编码、type/quality/client_id 等）。 */
 	function buildQuery(topic, opts, defaultType) {
 		const parts = ['topic=' + encodeTopicQueryValue(topic)];
 		parts.push('type=' + encodeURIComponent(opts.type != null ? String(opts.type) : defaultType));
@@ -46,6 +50,7 @@
 		return parts.join('&');
 	}
 
+	/** MJPEG 流 URL：优先 IVG 同源 camera_stream 或代理前缀，否则直连 host:port/stream。 */
 	function streamUrl(topic, opts) {
 		opts = opts || {};
 		if (typeof global.ivgPorts !== 'undefined' && typeof global.ivgPorts.webVideoProxyOriginPrefix === 'function') {
@@ -65,6 +70,7 @@
 		return `http://${h}:${p}/stream?${buildQuery(topic, opts, 'mjpeg')}`;
 	}
 
+	/** 单帧 JPEG URL；IVG camera_stream 模式下可能与 stream 共用 API（见实现分支）。 */
 	function snapshotUrl(topic, opts) {
 		opts = opts || {};
 		if (typeof global.ivgPorts !== 'undefined' && typeof global.ivgPorts.webVideoProxyOriginPrefix === 'function') {
@@ -79,6 +85,7 @@
 		return `http://${h}:${p}/snapshot?${buildQuery(topic, opts, 'jpeg')}`;
 	}
 
+	/** web_video_server 自带 stream_viewer 页面 URL（或 IVG 模式下退化为 stream）。 */
 	function viewerUrl(topic, opts) {
 		opts = opts || {};
 		if (typeof global.ivgPorts !== 'undefined' && typeof global.ivgPorts.webVideoProxyOriginPrefix === 'function') {
@@ -146,4 +153,3 @@
 		viewerUrl,
 		mjpegStreamAttachAutoReload
 	};
-})(typeof window !== 'undefined' ? window : this);

@@ -1,165 +1,377 @@
-/**
- * 咖啡拉花面板：复用视觉抓取页布局与组件，仅追加本页差异样式。
+/*
+ * 咖啡拉花面板 — 在 vision_grasp_panel.css 之上：顶栏说明、流程区、DI/DO 控件、占位文案。
  */
-@import url("vision_grasp_panel.css");
-
-/* 顶栏状态 pill（无 .gateway-row 包裹时） */
-.topbar .status.latte-status {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.4rem;
-	color: var(--warn);
-	font-size: 12px;
-	font-weight: 600;
-	max-width: min(100%, 22rem);
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+:root {
+	--latte-accent: #7c4a2a;
+	--latte-accent-soft: rgba(124, 74, 42, 0.12);
+	/* DI 灯：灭灯用冷灰与主题边框一致；亮灯 / 警告对齐整站 --ok / --warn */
+	--latte-lamp-off-outer: #94a3b8;
+	--latte-lamp-off-mid: #cbd5e1;
+	--latte-lamp-off-highlight: #f1f5f9;
+	--latte-lamp-on-core: #4ade80;
+	--latte-lamp-warn-core: #fbbf24;
 }
 
-.topbar .status.latte-status::before {
-	content: "";
-	width: 8px;
-	height: 8px;
-	border-radius: 50%;
-	background: var(--warn);
-	flex-shrink: 0;
-	box-shadow: 0 0 0 2px rgba(180, 83, 9, 0.2);
+.toolbar-mode.latte-toolbar-hint {
+	align-items: flex-start;
 }
 
-.topbar .status.latte-status.is-idle {
-	color: var(--muted);
-	font-weight: 500;
-}
-
-.topbar .status.latte-status.is-idle::before {
-	background: var(--border-strong);
-	box-shadow: none;
-}
-
-.toolbar-latte-hint {
+.latte-toolbar-hint__text {
 	font-size: var(--fs-ui);
-	color: var(--muted);
-	font-weight: 500;
-	line-height: 1.35;
-	max-width: 11rem;
+	color: var(--text-secondary);
+	line-height: 1.45;
+	max-width: min(42rem, 100%);
 }
 
-.panel--latte-preview .panel-canvas-wrap {
-	min-height: 320px;
-}
-
-#latte-preview-canvas {
-	display: block;
-	width: 100%;
-	max-width: min(800px, 100%);
-	height: auto;
-	margin: 0 auto;
-	aspect-ratio: 4 / 3;
-	background: var(--canvas-bg);
+.latte-flow-viz {
+	min-height: 9.5rem;
+	padding: var(--ivg-pane-pad);
+	background: var(--panel-muted);
 	border-radius: var(--radius-sm);
-}
-
-.latte-placeholder-note {
-	margin: 0.5rem 0 0;
-	font-size: 12px;
-	color: var(--muted);
-}
-
-.control-group--disabled-hint h3::after {
-	content: "（待接入）";
-	font-size: 11px;
-	font-weight: 600;
-	color: var(--muted);
-	margin-left: 0.35rem;
-}
-
-/* 与 body.ivg-single-screen 配合：单屏内压缩拉花预览区与图表占位 */
-body.ivg-single-screen .panel--latte-preview .latte-placeholder-note {
-	flex-shrink: 0;
-	margin: 0.2rem 0 0;
-	font-size: 11px;
-	line-height: 1.35;
-	max-height: 2.8em;
-	overflow: hidden;
-}
-
-body.ivg-single-screen .panel--latte-preview .panel-canvas-wrap {
-	min-height: 0 !important;
-}
-
-/* #latte-preview-canvas 带 id 的基础样式会盖过类选择器；单屏左右栏内与相机画布一致 */
-body.ivg-single-screen .layout-camera-controls .panel--camera-hero #latte-preview-canvas {
-	position: absolute;
-	left: 0;
-	top: 0;
-	width: 100% !important;
-	height: 100% !important;
-	max-width: none;
-	margin: 0;
-	object-fit: contain;
-	object-position: center;
-	border-radius: 0;
-}
-
-body.ivg-single-screen .layout-col--main .panel--chart > .latte-placeholder-note {
-	flex-shrink: 0;
-	margin: 0.25rem 0 0;
-	font-size: 11px;
-	max-height: 2.6em;
-	overflow: hidden;
-}
-
-body.ivg-single-screen .layout-col--main .panel--chart > .panel-canvas-wrap {
-	flex: 1 1 0;
-	min-height: 0 !important;
+	border: 1px dashed var(--border);
 	display: flex;
-	align-items: center;
+	flex-direction: column;
+	gap: 0.75rem;
 	justify-content: center;
 }
 
-@media (max-width: 640px) {
-	.coffee-latte-panel .topbar {
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 0.5rem;
-	}
+.latte-flow-steps {
+	margin: 0;
+	padding-left: 0;
+	list-style: none;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem 0.75rem;
+}
 
-	.coffee-latte-panel .topbar .spacer {
-		display: none;
-	}
+.latte-flow-steps li {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	font-size: var(--fs-ui);
+	font-weight: 500;
+	color: var(--text);
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	padding: 0.35rem 0.65rem 0.35rem 0.4rem;
+	box-shadow: var(--shadow-sm);
+}
 
-	.toolbar-latte-hint {
-		max-width: none;
-		line-height: 1.45;
+.latte-flow-steps__idx {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.35rem;
+	height: 1.35rem;
+	border-radius: 50%;
+	background: var(--latte-accent);
+	color: #fff;
+	font-size: 0.75rem;
+	font-weight: 700;
+}
+
+.latte-flow-note {
+	margin: 0;
+	font-size: 0.8125rem;
+	color: var(--muted);
+}
+
+.panel--latte-io .latte-io-intro {
+	margin: 0 0 var(--ivg-gap-md);
+	font-size: 0.8125rem;
+	color: var(--muted);
+	line-height: 1.5;
+}
+
+.latte-io-block {
+	margin-bottom: var(--ivg-gap-md);
+}
+
+.latte-io-block:last-of-type {
+	margin-bottom: var(--ivg-gap-sm);
+}
+
+.latte-io-lights {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+	gap: var(--ivg-gap-md);
+}
+
+.latte-io-light {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	padding: 0.5rem 0.6rem;
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	box-shadow: var(--shadow-sm);
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.latte-io-light:hover {
+	border-color: var(--border-strong);
+	box-shadow: var(--shadow-sm), 0 0 0 1px var(--accent-soft);
+}
+
+/* 指示灯：灭灯为嵌入式透镜质感 */
+.latte-io-light__lamp {
+	width: 0.875rem;
+	height: 0.875rem;
+	border-radius: 50%;
+	flex-shrink: 0;
+	background: radial-gradient(
+		circle at 32% 28%,
+		var(--latte-lamp-off-highlight) 0%,
+		var(--latte-lamp-off-mid) 45%,
+		var(--latte-lamp-off-outer) 100%
+	);
+	box-shadow:
+		inset 0 1px 2px rgba(255, 255, 255, 0.85),
+		inset 0 -2px 4px rgba(15, 23, 42, 0.18),
+		0 0 0 1px rgba(15, 23, 42, 0.08);
+}
+
+.latte-io-light__lamp[data-state="on"] {
+	background: radial-gradient(circle at 30% 28%, var(--latte-lamp-on-core) 0%, var(--ok) 55%, #0f5132 100%);
+	box-shadow:
+		inset 0 -2px 5px rgba(0, 0, 0, 0.35),
+		inset 0 1px 1px rgba(255, 255, 255, 0.35),
+		0 0 0 1px color-mix(in srgb, var(--ok) 55%, transparent),
+		0 0 10px color-mix(in srgb, var(--ok) 40%, transparent);
+}
+
+/* DI4 警告：与主题 --warn 一致 */
+.latte-io-light__lamp[data-state="warn"] {
+	background: radial-gradient(circle at 30% 28%, var(--latte-lamp-warn-core) 0%, var(--warn) 58%, #7c2d12 100%);
+	box-shadow:
+		inset 0 -2px 5px rgba(0, 0, 0, 0.3),
+		inset 0 1px 1px rgba(255, 255, 255, 0.4),
+		0 0 0 1px color-mix(in srgb, var(--warn) 50%, transparent),
+		0 0 10px color-mix(in srgb, var(--warn) 38%, transparent);
+}
+
+.latte-io-light__meta {
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+	min-width: 0;
+}
+
+.latte-io-light__name {
+	font-size: var(--fs-control-group);
+	font-weight: 600;
+	color: var(--text);
+	letter-spacing: 0.01em;
+}
+
+.latte-io-light__tag {
+	display: inline-block;
+	align-self: flex-start;
+	font-size: 0.65rem;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	color: var(--accent);
+	background: var(--accent-soft);
+	border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+	border-radius: 4px;
+	padding: 0.1rem 0.38rem;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.2;
+}
+
+.latte-io-switches {
+	display: flex;
+	flex-direction: column;
+	gap: var(--ivg-gap);
+}
+
+.latte-io-switch-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	padding: 0.45rem 0.5rem;
+	background: var(--panel-muted);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+}
+
+.latte-io-switch__meta {
+	display: flex;
+	flex-direction: column;
+	gap: 0.1rem;
+	min-width: 0;
+}
+
+.latte-io-switch__name {
+	font-size: var(--fs-ui);
+	font-weight: 600;
+	color: var(--text);
+}
+
+.latte-io-switch__tag {
+	font-size: 0.7rem;
+	font-weight: 600;
+	color: var(--muted);
+}
+
+.latte-io-toggle {
+	min-width: 3.25rem;
+	padding: 0.38rem 0.75rem;
+	font-size: var(--fs-ui);
+	font-weight: 600;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--border-strong);
+	background: var(--bg-elevated);
+	color: var(--text-secondary);
+	cursor: not-allowed;
+	opacity: 0.72;
+}
+
+.latte-io-toggle:not(:disabled) {
+	cursor: pointer;
+	opacity: 1;
+}
+
+.latte-io-toggle[aria-pressed="true"] {
+	background: var(--latte-accent);
+	border-color: var(--latte-accent);
+	color: #fff;
+}
+
+/*
+ * 底栏 DI：避免与「末端位姿」在窄屏下 flex 均分等高（vision 767px 规则 flex:1 1 0），否则 DI 内大量留白。
+ * 三路灯横向紧凑排布，占满宽度，减少「空盒子」感。
+ */
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-ee-vpe-pair > .panel.panel--latte-di-monitoring {
+	flex: 0 0 auto;
+	min-height: 0;
+	align-self: stretch;
+}
+
+@media (max-width: 767px) {
+	body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-ee-vpe-pair > .panel.panel--latte-di-monitoring {
+		flex: 0 0 auto;
+		min-height: 0;
 	}
 }
 
-/* iPad 10 等横屏：顶栏更扁；单屏主区与视觉页一致少留白（不改用 cover，避免拉花画布被裁切） */
-@media (orientation: landscape) and (min-width: 1024px) and (max-width: 1366px) and (hover: none) and (pointer: coarse) {
-	.coffee-latte-panel .topbar {
-		padding-top: 0.36rem;
-		padding-bottom: 0.36rem;
-		padding-left: max(0.35rem, env(safe-area-inset-left, 0px));
-		padding-right: max(0.35rem, env(safe-area-inset-right, 0px));
+.panel--latte-di-monitoring {
+	background: color-mix(in srgb, var(--accent) 4%, var(--panel-muted));
+	border: 1px solid color-mix(in srgb, var(--accent) 12%, var(--border));
+	box-shadow: var(--shadow-sm);
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel.panel--latte-di-monitoring {
+	padding: 0.3rem 0.4rem 0.4rem;
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel.panel--latte-di-monitoring > h2 {
+	border-bottom-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+	color: var(--text);
+	text-transform: none;
+	letter-spacing: 0.04em;
+	font-weight: 700;
+	margin-bottom: 0.28rem;
+	padding-bottom: 0.2rem;
+}
+
+.panel--latte-di-monitoring .latte-io-lights--monitoring {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 0.35rem;
+	padding: 0;
+}
+
+.panel--latte-di-monitoring .latte-io-light {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0.35rem;
+	padding: 0.38rem 0.42rem;
+	border-left: none;
+	border-top: 3px solid var(--accent);
+	background: var(--bg-elevated);
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+	text-align: center;
+}
+
+.panel--latte-di-monitoring .latte-io-light:hover {
+	border-top-color: var(--accent-hover);
+	border-left-color: transparent;
+	box-shadow: 0 1px 3px rgba(37, 99, 235, 0.12);
+}
+
+.panel--latte-di-monitoring .latte-io-light__lamp {
+	align-self: center;
+}
+
+.panel--latte-di-monitoring .latte-io-light__meta {
+	align-items: center;
+	text-align: center;
+	gap: 0.2rem;
+}
+
+.panel--latte-di-monitoring .latte-io-light__tag {
+	align-self: center;
+}
+
+@media (max-width: 520px) {
+	.panel--latte-di-monitoring .latte-io-lights--monitoring {
+		grid-template-columns: 1fr;
+		gap: 0.3rem;
 	}
 
-	body.coffee-latte-panel.ivg-single-screen .wrap {
-		padding-left: max(0.22rem, env(safe-area-inset-left, 0px));
-		padding-right: max(0.22rem, env(safe-area-inset-right, 0px));
-		gap: 0.22rem;
+	.panel--latte-di-monitoring .latte-io-light {
+		flex-direction: row;
+		align-items: center;
+		text-align: left;
+		border-top: none;
+		border-left: 3px solid var(--accent);
+		padding: 0.35rem 0.45rem;
 	}
 
-	body.coffee-latte-panel.ivg-single-screen .layout-camera-controls .panel--camera-hero,
-	body.coffee-latte-panel.ivg-single-screen .layout-camera-controls .panel--camera-result,
-	body.coffee-latte-panel.ivg-single-screen .layout-camera-controls .panel.panel--tier-3 {
-		justify-self: stretch;
-		max-width: 100%;
-		width: 100%;
+	.panel--latte-di-monitoring .latte-io-light:hover {
+		border-left-color: var(--accent-hover);
 	}
 
-	body.coffee-latte-panel.ivg-single-screen .layout-camera-controls .panel--camera-hero .panel-canvas-wrap,
-	body.coffee-latte-panel.ivg-single-screen .layout-camera-controls .panel--camera-result .panel-canvas-wrap {
-		max-width: 100%;
+	.panel--latte-di-monitoring .latte-io-light__meta {
+		align-items: flex-start;
+		text-align: left;
+	}
+
+	.panel--latte-di-monitoring .latte-io-light__tag {
+		align-self: flex-start;
+	}
+}
+
+body.ivg-single-screen:not(.coffee-latte-panel) .layout-monitoring-bundle .panel.panel--latte-di-monitoring .latte-io-lights--monitoring {
+	flex: 0 0 auto;
+	min-height: 0;
+	overflow: visible;
+}
+
+/* 不支持 color-mix 的浏览器：回退为纯色描边/光晕 */
+@supports not (color: color-mix(in srgb, white 50%, black)) {
+	.latte-io-light__lamp[data-state="on"] {
+		box-shadow:
+			inset 0 -2px 5px rgba(0, 0, 0, 0.35),
+			inset 0 1px 1px rgba(255, 255, 255, 0.35),
+			0 0 0 1px rgba(21, 128, 61, 0.45),
+			0 0 10px rgba(21, 128, 61, 0.35);
+	}
+	.latte-io-light__lamp[data-state="warn"] {
+		box-shadow:
+			inset 0 -2px 5px rgba(0, 0, 0, 0.3),
+			inset 0 1px 1px rgba(255, 255, 255, 0.4),
+			0 0 0 1px rgba(180, 83, 9, 0.45),
+			0 0 10px rgba(180, 83, 9, 0.32);
+	}
+	.latte-io-light__tag {
+		border-color: rgba(37, 99, 235, 0.22);
+	}
+	.panel--latte-di-monitoring {
+		background: var(--panel-muted);
+		border-color: var(--border);
 	}
 }

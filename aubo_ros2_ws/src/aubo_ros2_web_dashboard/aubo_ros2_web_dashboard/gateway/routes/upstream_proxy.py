@@ -53,12 +53,14 @@ _HOP_BY_HOP = frozenset(
 
 
 def _rosbridge_upstream_url() -> str:
+	"""从环境变量拼出本机 rosbridge WebSocket URL（供代理连接 Tornado 端）。"""
 	host = os.environ.get(cfg.ENV_ROSBRIDGE_HOST, cfg.DEFAULT_ROSBRIDGE_HOST)
 	port = int(os.environ.get(cfg.ENV_ROSBRIDGE, str(cfg.DEFAULT_ROSBRIDGE_PORT)))
 	return f"ws://{host}:{port}/"
 
 
 def _web_video_upstream_base() -> str:
+	"""从环境变量拼出 web_video_server 的 HTTP 基址（无尾斜杠）。"""
 	host = os.environ.get(cfg.ENV_WEB_VIDEO_HOST, cfg.DEFAULT_WEB_VIDEO_HOST)
 	port = int(os.environ.get(cfg.ENV_WEB_VIDEO, str(cfg.DEFAULT_WEB_VIDEO_PORT)))
 	return f"http://{host}:{port}"
@@ -83,10 +85,12 @@ def _video_proxy_httpx_timeout() -> httpx.Timeout:
 
 
 def _video_proxy_chunk_bytes() -> int:
+	"""流式转发 MJPEG 时每块字节数（下限 4096，默认 64KiB）。"""
 	return max(4096, int(os.environ.get("IVG_PROXY_VIDEO_CHUNK_BYTES", str(64 * 1024))))
 
 
 async def _aclose_httpx_stream(resp: httpx.Response | None, client: httpx.AsyncClient | None) -> None:
+	"""安静关闭 httpx 流式响应与客户端，忽略异常（代理清理路径）。"""
 	if resp is not None:
 		try:
 			await resp.aclose()
@@ -100,6 +104,7 @@ async def _aclose_httpx_stream(resp: httpx.Response | None, client: httpx.AsyncC
 
 
 async def _close_upstream_quietly(upstream) -> None:
+	"""关闭 websockets 上游连接，忽略异常。"""
 	try:
 		await upstream.close()
 	except Exception:
@@ -107,6 +112,7 @@ async def _close_upstream_quietly(upstream) -> None:
 
 
 async def _close_browser_ws_quietly(websocket: WebSocket) -> None:
+	"""关闭浏览器侧 Starlette WebSocket，忽略异常。"""
 	try:
 		await websocket.close()
 	except Exception:
@@ -118,6 +124,10 @@ async def _close_browser_ws_quietly(websocket: WebSocket) -> None:
 
 @ws_router.websocket("/ws/rosbridge")
 async def rosbridge_websocket_proxy(websocket: WebSocket) -> None:
+	"""
+	浏览器 ``/ws/rosbridge`` 与上游 Tornado rosbridge 的双向透明代理；
+	任一侧结束则取消对向任务并关闭连接。
+	"""
 	await websocket.accept()
 	target = _rosbridge_upstream_url()
 	try:
@@ -198,6 +208,10 @@ async def rosbridge_websocket_proxy(websocket: WebSocket) -> None:
 	response_model=None,
 )
 async def web_video_http_proxy(path: str, request: Request) -> StreamingResponse | JSONResponse:
+	"""
+	将 ``GET/HEAD`` 转发到 web_video_server，原样流式回传 body（MJPEG 等）；
+	超时/不可达返回 JSON 502/504；``trust_env=False`` 避免系统代理劫持本机上游。
+	"""
 	if ".." in path or path.startswith("/"):
 		raise HTTPException(status_code=400, detail="invalid path")
 

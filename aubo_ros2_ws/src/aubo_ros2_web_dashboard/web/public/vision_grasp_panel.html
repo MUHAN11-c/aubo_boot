@@ -4,26 +4,13 @@
 
 <head>
 	<meta charset="UTF-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+	<!-- 视口基线：device-width + 安全区；interactive-widget 便于软键盘时布局与 Chrome 一致 -->
+	<meta name="viewport"
+		content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
 	<title>视觉抓取面板</title>
-	<link rel="stylesheet" href="css/vision_grasp_panel.css?v=20260421_vision_urdf" />
+	<link rel="stylesheet" href="css/vision_grasp_panel.css?v=20260424_monitoring_graspnet_pose_enlarged" />
 	<link rel="stylesheet" href="css/ivg_site_nav.css?v=20260414_unify_proj" />
-	<script src="js/ivg_transport.js?v=20260414_snap"></script>
-	<script src="js/ivg_runtime.js"></script>
-	<script src="js/core/dom_cache.js"></script>
-	<script src="js/vendor/eventemitter2.js"></script>
-	<script src="js/vendor/roslib-2.iife.js"></script>
-	<script src="js/ivg_roslib_ros2_humble_compat.js?v=20260421_roslib_compat"></script>
-	<script src="js/vendor/three.min.js"></script>
-	<script src="js/vendor/ros3d.min.js"></script>
-	<script src="js/view3d/patches.js"></script>
-	<script src="js/view3d/tf_clients.js"></script>
-	<script src="js/view3d/hints.js"></script>
-	<script src="js/view3d/pointcloud.js"></script>
-	<script src="js/view3d/urdf_loader.js"></script>
-	<script src="js/view3d/session.js"></script>
-	<script src="js/vision_grasp/ui_settings.js"></script>
-	<script src="js/vision_grasp/urdf_panel.js"></script>
+	<script src="/js/robotwebtools/importmap.js"></script>
 </head>
 
 <body class="ivg-single-screen">
@@ -73,28 +60,33 @@
 			</div>
 		</div>
 
-		<!-- 第二 + 三档：彩色相机、识别结果、操作区（单屏三列；窄屏纵向堆叠） -->
-		<div class="layout-camera-controls layout-tier-2-3">
-			<section class="panel panel--camera panel--camera-hero layout-tier-2" aria-label="机械臂 URDF 模型">
-				<h2>机械臂模型</h2>
-				<div class="panel-canvas-wrap panel-canvas-wrap--urdf">
-					<div id="vision-urdf-host" class="vision-urdf-host" title="拖拽旋转视角，滚轮缩放"></div>
-				</div>
-			</section>
+		<!-- 主列：上为「双预览 | 抓取控制」通高，下为通栏「关节曲线与末端位姿」底边栏 -->
+		<div class="layout-vision-main">
+			<div class="layout-stack-with-control">
+				<div class="layout-stack-left">
+					<div class="layout-camera-controls layout-tier-2">
+						<section class="panel panel--camera panel--camera-hero layout-tier-2" aria-label="机械臂 URDF 模型">
+							<h2>机械臂模型</h2>
+							<div class="panel-canvas-wrap panel-canvas-wrap--urdf">
+								<div id="vision-urdf-host" class="vision-urdf-host" title="拖拽旋转视角，滚轮缩放"></div>
+							</div>
+						</section>
 
-			<section class="panel panel--camera panel--camera-result layout-tier-2" aria-label="识别结果与 AI 抓取投影">
-				<h2 id="result-panel-title">结果视图</h2>
-				<div class="panel-canvas-wrap panel-canvas-wrap--result">
-					<div id="result-workpiece-wrap" class="result-workpiece-wrap" aria-hidden="false">
-						<div class="result-viz-stack" id="result-viz-stack" title="拖拽平移视图，滚轮缩放，双击复位">
-							<img id="result-mjpeg" alt="" class="cam-mjpeg result-cam-mjpeg" hidden />
-							<canvas id="result-overlay-canvas" class="result-overlay-canvas" hidden></canvas>
-						</div>
+						<section class="panel panel--camera panel--camera-result layout-tier-2" aria-label="识别结果与 AI 抓取投影">
+							<h2 id="result-panel-title">结果视图</h2>
+							<div class="panel-canvas-wrap panel-canvas-wrap--result">
+								<div id="result-workpiece-wrap" class="result-workpiece-wrap" aria-hidden="false">
+									<div class="result-viz-stack" id="result-viz-stack" title="识别结果图像">
+										<img id="result-mjpeg" alt="" class="cam-mjpeg result-cam-mjpeg" hidden />
+										<canvas id="result-overlay-canvas" class="result-overlay-canvas" hidden></canvas>
+									</div>
+								</div>
+							</div>
+						</section>
 					</div>
 				</div>
-			</section>
 
-			<section class="panel panel--control panel--tier-3" aria-label="抓取与工具控制">
+				<section class="panel panel--control panel--tier-3" aria-label="抓取与工具控制">
 				<h2>抓取与工具控制</h2>
 				<div class="control-toolbar-field control-toolbar-field--mode-workpiece"
 					id="control-field-workpiece-id">
@@ -135,39 +127,47 @@
 				</div>
 
 				<div class="svc-log" id="svc-log" aria-live="polite"></div>
-			</section>
-		</div>
-
-		<!-- 第四档：关节曲线 + 状态读数 -->
-		<div class="layout-body layout-tier-4">
-			<div class="layout-col layout-col--main">
-				<section class="panel panel--chart" aria-label="关节角曲线">
-					<h2>关节角曲线</h2>
-					<div id="joint-legend" class="legend-joint" role="list" aria-label="关节与曲线颜色" aria-hidden="true">
-					</div>
-					<canvas id="joint-chart" width="640" height="240" aria-label="各关节位置随时间变化"></canvas>
 				</section>
 			</div>
 
-			<aside class="layout-col layout-col--side" aria-label="状态读数">
-				<div class="status-stack">
-					<section class="panel panel--status" aria-label="机械臂末端位姿">
-						<h2>机械臂末端位姿</h2>
-						<div class="pose-pre pose-card" id="pose-text" role="status" aria-live="polite"></div>
-					</section>
-					<section class="panel panel--status panel--status-mode-workpiece" id="status-panel-vpe"
-						aria-label="视觉位姿估计状态">
-						<h2>视觉位姿估计状态</h2>
-						<pre class="result-pre" id="vpe-status-text"></pre>
-					</section>
-					<section class="panel panel--status panel--status-mode-graspnet" id="status-panel-graspnet-poses"
-						aria-label="AI大模型最终抓取位姿">
-						<h2>AI大模型最终抓取位姿</h2>
-						<div class="result-pre pose-card" id="graspnet-result-text" role="status" aria-live="polite">
+			<!-- 通栏底边：关节曲线 | 位姿读数；标题条可收起 -->
+			<div class="layout-body layout-tier-4 layout-body--monitoring" id="layout-monitoring-section">
+				<button type="button" class="layout-monitoring-toggle" id="btn-monitoring-toggle"
+					aria-expanded="true" aria-controls="layout-monitoring-bundle">
+					<span class="layout-monitoring-toggle__label">关节曲线与末端位姿</span>
+					<span class="layout-monitoring-toggle__hint" aria-hidden="true">收起</span>
+					<span class="layout-monitoring-toggle__chevron" aria-hidden="true"></span>
+				</button>
+				<div class="layout-monitoring-bundle" id="layout-monitoring-bundle" aria-label="关节曲线与末端位姿">
+					<section class="panel panel--chart" aria-label="关节角曲线">
+						<h2>关节角曲线</h2>
+						<div id="joint-legend" class="legend-joint" role="list" aria-label="关节与曲线颜色"
+							aria-hidden="true">
 						</div>
+						<canvas id="joint-chart" width="640" height="240" aria-label="各关节位置随时间变化"></canvas>
 					</section>
+					<div class="layout-monitoring-pose-col" aria-label="位姿读数">
+						<div class="layout-monitoring-ee-vpe-pair" aria-label="末端与视觉位姿">
+							<section class="panel panel--status" aria-label="机械臂末端位姿">
+								<h2>机械臂末端位姿</h2>
+								<div class="pose-pre pose-card" id="pose-text" role="status" aria-live="polite"></div>
+							</section>
+							<section class="panel panel--status panel--status-mode-workpiece" id="status-panel-vpe"
+								aria-label="视觉位姿估计状态">
+								<h2>视觉位姿估计状态</h2>
+								<pre class="result-pre" id="vpe-status-text"></pre>
+							</section>
+						</div>
+						<section class="panel panel--status panel--status-mode-graspnet" id="status-panel-graspnet-poses"
+							aria-label="AI大模型最终抓取位姿">
+							<h2>AI大模型最终抓取位姿</h2>
+							<div class="result-pre pose-card" id="graspnet-result-text" role="status"
+								aria-live="polite">
+							</div>
+						</section>
+					</div>
 				</div>
-			</aside>
+			</div>
 		</div>
 	</main>
 
@@ -208,13 +208,10 @@
 				<label>静态 TF <input type="text" id="topic-tf-static" value="/tf_static" autocomplete="off"
 						title="tf2_msgs/TFMessage" /></label>
 				<h3 class="topic-settings-section-title">机械臂 3D（左栏 URDF）</h3>
-				<label>URDF 参数（与 ros3d UrdfClient 相同，经 ROSLIB.Param / rosapi） <input type="text" id="urdf-param"
+				<label>URDF 参数（ros3d UrdfClient，rosapi 需 node:param） <input type="text" id="urdf-param"
 						value="/robot_state_publisher:robot_description" autocomplete="off"
-						title="例 robot_description、/robot_state_publisher/robot_description" /></label>
+						title="例 /robot_state_publisher:robot_description" /></label>
 				<label>TF 固定坐标系 <input type="text" id="tf-fixed-frame" value="base_link" autocomplete="off" /></label>
-				<label class="block-label" style="display:block;margin-top:0.35rem"><input type="checkbox"
-						id="view3d-use-topic-tf-only" />
-					3D 机械臂仅用浏览器订阅 /tf（不经过 tf2_web_republisher；官方 ros3d 默认走 republisher）</label>
 				<h3 class="topic-settings-section-title">服务（按钮对应；与 launch remap 一致）</h3>
 				<label>工件循环抓取开关 SetBool <input type="text" id="svc-loop-grasp-control" value="/loop_grasp_control"
 						autocomplete="off" title="std_srvs/srv/SetBool" /></label>
@@ -239,22 +236,18 @@
 		<canvas id="cam-canvas" width="640" height="480"></canvas>
 		<img id="cam-mjpeg" alt="" class="cam-mjpeg" hidden />
 	</div>
-	<!-- ros3d 会话读取与 topics_lab 3D 页相同的控件 id（此处仅 URDF，余下为空/默认） -->
+	<!-- ros3d 会话仅保留 URDF / TF / Marker 相关隐藏控件 -->
 	<div hidden aria-hidden="true">
-		<input type="text" id="pc-topic" value="" autocomplete="off" />
 		<input type="text" id="scan3-topic" value="" autocomplete="off" />
 		<input type="text" id="marker3-topic" value="" autocomplete="off" />
 		<input type="checkbox" id="view3d-show-urdf" checked />
 		<input type="checkbox" id="view3d-show-axes" checked />
 		<input type="checkbox" id="view3d-show-grid" />
-		<input type="text" id="pc-max" value="32000" />
 		<input type="text" id="view3d-point-size" value="0.05" />
-		<input type="text" id="pc-throttle-ms" value="120" />
-		<input type="text" id="pc-msg-ratio" value="2" />
 	</div>
 
-	<script src="js/ivg_site_nav.js"></script>
-	<script src="js/vision_grasp_panel.js?v=20260421_ros2_tf"></script>
+	<script type="module" src="js/ivg_site_nav.js"></script>
+	<script type="module" src="js/vision_grasp_panel.js?v=20260424_conn_status_plain"></script>
 </body>
 
 </html>

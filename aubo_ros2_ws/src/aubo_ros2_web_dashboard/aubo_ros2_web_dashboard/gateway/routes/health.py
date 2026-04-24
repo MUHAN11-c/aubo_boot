@@ -12,4 +12,5 @@ router = APIRouter(tags=["ops"])
 
 @router.get("/health")
 async def health(request: Request) -> dict[str, str]:
+	"""返回进程健康状态与当前静态站点根目录（供运维与前端排障对照）。"""
 	return {"status": "ok", "static_root": request.app.state.static_root}

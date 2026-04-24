@@ -32,9 +32,11 @@ class SecurityHeadersMiddleware:
 	"""
 
 	def __init__(self, app: ASGIApp) -> None:
+		"""包装内层 ASGI 应用 ``app``，在响应起始阶段注入安全相关 HTTP 头。"""
 		self.app = app
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+		"""ASGI 调用入口：非 HTTP 请求直通；HTTP 在 ``response.start`` 上补 ``X-Content-Type-Options`` 等。"""
 		if scope["type"] != "http":
 			await self.app(scope, receive, send)
 			return
@@ -49,13 +51,24 @@ class SecurityHeadersMiddleware:
 
 
 def create_app(web_root: str) -> FastAPI:
+	"""
+	创建并配置 FastAPI 实例：GZip、安全头、代理与健康检查路由，最后挂载 ``web_root`` 静态目录。
+	``web_root`` 须为已解析的绝对路径（与 launch 中 ``share/.../web/public`` 一致）。
+	"""
 	# 与 launch 传入的 share/.../web/public 一致；须为已解析的目录路径
 	root = os.path.abspath(os.path.realpath(web_root))
 	if not os.path.isdir(root):
 		raise ValueError(f"not a directory: {root}")
+	embedded_robotwebtools = os.path.join(root, "js", "robotwebtools")
+	robotwebtools_root = os.path.abspath(
+		os.path.realpath(os.environ.get(cfg.ENV_RWT_ASSETS_DIR, embedded_robotwebtools))
+	)
+	if not os.path.isdir(robotwebtools_root):
+		raise ValueError(f"robotwebtools assets directory not found: {robotwebtools_root}")
 
 	@asynccontextmanager
 	async def lifespan(_app: FastAPI):
+		"""应用生命周期：启动时打印 rosbridge/web_video 上游与环境一致信息，便于对照 launch 排障。"""
 		# 启动时打印一次有效上游，便于与 launch 参数对照排障
 		rb_h = os.environ.get(cfg.ENV_ROSBRIDGE_HOST, cfg.DEFAULT_ROSBRIDGE_HOST)
 		wv_h = os.environ.get(cfg.ENV_WEB_VIDEO_HOST, cfg.DEFAULT_WEB_VIDEO_HOST)
@@ -63,6 +76,7 @@ def create_app(web_root: str) -> FastAPI:
 		wv_p = os.environ.get(cfg.ENV_WEB_VIDEO, str(cfg.DEFAULT_WEB_VIDEO_PORT))
 		print(
 			f"[ivg] FastAPI static gateway root={root} "
+			f"robotwebtools_root={robotwebtools_root} "
 			f"rosbridge_upstream={rb_h}:{rb_p} "
 			f"web_video_upstream={wv_h}:{wv_p}",
 			flush=True,
@@ -76,7 +90,7 @@ def create_app(web_root: str) -> FastAPI:
 		openapi_url=None,
 		lifespan=lifespan,
 	)
-	# 供 routes 读取静态根（如 /health、runtime-config 中的 static_root 字段）
+	# 供 routes 读取静态根（如 /health、/api/v1/runtime 中的 static_root 字段）
 	app.state.static_root = root
 
 	app.add_middleware(GZipMiddleware, minimum_size=512)
@@ -87,8 +101,12 @@ def create_app(web_root: str) -> FastAPI:
 	app.include_router(http_proxy_router)
 	app.include_router(health_routes.router)
 	app.include_router(ivg_runtime_routes.router)
-	app.include_router(ivg_runtime_routes.router_v1)
 	app.include_router(robot_mesh_routes.router)
+	app.mount(
+		"/js/robotwebtools",
+		StaticFiles(directory=robotwebtools_root, html=False),
+		name="robotwebtools",
+	)
 
 	# html=True：访问目录时可解析 index.html
 	app.mount(

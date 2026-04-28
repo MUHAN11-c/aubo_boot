@@ -1,9 +1,4 @@
-/**
- * 抓取服务调用与按钮绑定：
- * - 封装 SetBool / ExecuteGraspPose / RunGripperSwap 调用
- * - 封装主控制按钮事件绑定
- */
-
+// services.js — ROS service call bindings for grasp/vacuum/gripper
 function createVisionServiceActions(opts) {
 	const options = opts || {};
 	const transport = options.transport;
@@ -12,17 +7,13 @@ function createVisionServiceActions(opts) {
 	const getSetting = typeof options.getSetting === 'function' ? options.getSetting : function empty() { return ''; };
 	const useVisualFromMode = typeof options.useVisualFromMode === 'function' ? options.useVisualFromMode : (() => true);
 	const executeSingleService = options.executeSingleService || '/execute_single_grasp';
-	/** 声明式 serviceType 映射：key=设置项 id，value=srv 类型名 */
 	const serviceTypeMap = options.serviceTypeMap || {};
-	/** 固定业务服务类型映射：key=内部动作名 */
 	const fixedServiceTypes = options.fixedServiceTypes || {};
-	/** SetBool 类服务在配置表中的统一类型（缺省回落官方 std_srvs）。 */
 	const setBoolServiceType =
 		serviceTypeMap['svc-loop-grasp-control'] ||
 		serviceTypeMap['svc-graspnet-capture'] ||
 		serviceTypeMap['svc-publish-grasps-loop'] ||
 		'std_srvs/srv/SetBool';
-
 	function callSetBool(name, data, done) {
 		const serviceName = String(name || '').trim();
 		if (!transport.isConnected()) {
@@ -50,7 +41,6 @@ function createVisionServiceActions(opts) {
 				if (typeof done === 'function') done(e);
 			});
 	}
-
 	function callExecuteGrasp(useVisual, done) {
 		if (!transport.isConnected()) {
 			log('未连接');
@@ -73,7 +63,6 @@ function createVisionServiceActions(opts) {
 				if (typeof done === 'function') done(e);
 			});
 	}
-
 	function callGripperSwap(direction) {
 		if (!transport.isConnected()) {
 			log('未连接');
@@ -87,7 +76,7 @@ function createVisionServiceActions(opts) {
 		transport
 			.callService({
 				service: svcName,
-				type: serviceTypeMap['svc-gripper-swap'] || 'demo_interface/srv/RunGripperSwap',
+				type: serviceTypeMap['svc-gripper-swap'] || 'tool_changer_interface/srv/RunGripperSwap',
 				request: { direction: direction || 'gripper0_to_gripper2' }
 			})
 			.then(r => {
@@ -97,7 +86,6 @@ function createVisionServiceActions(opts) {
 				log(`${svcName} 错误: ${e}`);
 			});
 	}
-
 	function bindControlButtons() {
 		const btnWpSingleStart = getById('btn-wp-single-start');
 		if (btnWpSingleStart) {
@@ -105,7 +93,6 @@ function createVisionServiceActions(opts) {
 				callExecuteGrasp(useVisualFromMode());
 			};
 		}
-
 		const btnWpSingleStop = getById('btn-wp-single-stop');
 		if (btnWpSingleStop) {
 			btnWpSingleStop.onclick = () => {
@@ -113,7 +100,6 @@ function createVisionServiceActions(opts) {
 				log('已停止');
 			};
 		}
-
 		const btnWpLoopStart = getById('btn-wp-loop-start');
 		if (btnWpLoopStart) {
 			btnWpLoopStart.onclick = () => {
@@ -128,7 +114,6 @@ function createVisionServiceActions(opts) {
 				}
 			};
 		}
-
 		const btnWpLoopStop = getById('btn-wp-loop-stop');
 		if (btnWpLoopStop) {
 			btnWpLoopStop.onclick = () => {
@@ -136,42 +121,36 @@ function createVisionServiceActions(opts) {
 				log('停循环');
 			};
 		}
-
 		const btnGnCapStart = getById('btn-gn-cap-start');
 		if (btnGnCapStart) {
 			btnGnCapStart.onclick = () => {
 				callSetBool(getSetting('svc-graspnet-capture'), true);
 			};
 		}
-
 		const btnGnCapStop = getById('btn-gn-cap-stop');
 		if (btnGnCapStop) {
 			btnGnCapStop.onclick = () => {
 				callSetBool(getSetting('svc-graspnet-capture'), false);
 			};
 		}
-
 		const btnGnLoopStart = getById('btn-gn-loop-start');
 		if (btnGnLoopStart) {
 			btnGnLoopStart.onclick = () => {
 				callSetBool(getSetting('svc-publish-grasps-loop'), true);
 			};
 		}
-
 		const btnGnLoopStop = getById('btn-gn-loop-stop');
 		if (btnGnLoopStop) {
 			btnGnLoopStop.onclick = () => {
 				callSetBool(getSetting('svc-publish-grasps-loop'), false);
 			};
 		}
-
 		const btnQuickSwap0 = getById('btn-quick-swap-0');
 		if (btnQuickSwap0) {
 			btnQuickSwap0.onclick = () => {
 				callGripperSwap('gripper2_to_gripper0');
 			};
 		}
-
 		const btnQuickSwap = getById('btn-quick-swap');
 		if (btnQuickSwap) {
 			btnQuickSwap.onclick = () => {
@@ -179,7 +158,6 @@ function createVisionServiceActions(opts) {
 			};
 		}
 	}
-
 	return {
 		callSetBool,
 		callExecuteGrasp,
@@ -187,5 +165,4 @@ function createVisionServiceActions(opts) {
 		bindControlButtons
 	};
 }
-
 export { createVisionServiceActions };

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 位姿对比脚本
-对比从 /demo_robot_status 主题获取的位姿和 MoveIt2 控制机械臂到位后的位姿
+对比从 /aubo_driver/robot_status 主题获取的位姿和 MoveIt2 控制机械臂到位后的位姿
 """
 
 import rclpy
@@ -40,7 +40,7 @@ class PoseComparator(Node):
         # 订阅机器人状态
         self.robot_status_sub = self.create_subscription(
             RobotStatus,
-            '/demo_robot_status',
+            '/aubo_driver/robot_status',
             self.robot_status_callback,
             10
         )
@@ -278,7 +278,7 @@ def main(args=None):
         print("  🤖 位姿对比工具")
         print("="*70)
         print("\n此工具将对比以下两个位姿：")
-        print("  1. 从 /demo_robot_status 主题获取的当前位姿")
+        print("  1. 从 /aubo_driver/robot_status 主题获取的当前位姿")
         print("  2. MoveIt2 控制机械臂到达目标位置后的位姿")
         print("\n使用方法：")
         print("  1. 确保机器人已连接并上电")
@@ -296,7 +296,7 @@ def main(args=None):
             comparator.get_logger().error('无法获取初始位姿')
             return
         
-        comparator.print_pose(pose_before, "初始位姿 (从 /demo_robot_status)")
+        comparator.print_pose(pose_before, "初始位姿 (从 /aubo_driver/robot_status)")
         
         # 提示用户移动机械臂
         print("\n" + "="*70)
@@ -314,7 +314,7 @@ def main(args=None):
             comparator.get_logger().error('无法获取目标位姿')
             return
         
-        comparator.print_pose(pose_after, "目标位姿 (从 /demo_robot_status)")
+        comparator.print_pose(pose_after, "目标位姿 (从 /aubo_driver/robot_status)")
         
         # 计算并显示位姿差异
         diff = comparator.compute_pose_difference(pose_before, pose_after)
@@ -327,7 +327,7 @@ def main(args=None):
             rclpy.spin_once(comparator, timeout_sec=0.5)
             pose_current = comparator.get_current_pose_from_status()
             if pose_current is not None:
-                comparator.print_pose(pose_current, "当前位姿 (从 /demo_robot_status)")
+                comparator.print_pose(pose_current, "当前位姿 (从 /aubo_driver/robot_status)")
                 diff2 = comparator.compute_pose_difference(pose_current, pose_after)
                 comparator.print_pose_difference(diff2)
         

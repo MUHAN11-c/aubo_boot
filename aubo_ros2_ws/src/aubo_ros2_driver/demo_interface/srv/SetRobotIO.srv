@@ -1,8 +1,8 @@
-string io_type
-int32 io_index
-float64 value
+# 设置机器人IO输出
+string io_type    # IO类型（"digital"/"analog"，区分数字量或模拟量）
+int32 io_index    # IO通道索引（从0开始）
+float64 value     # 输出值（数字量：0/1；模拟量：电压或电流值）
 ---
-bool success
-int32 error_code
-string message
-
+bool success      # 设置是否成功
+int32 error_code  # 错误码（0=成功）
+string message    # 状态消息或错误信息

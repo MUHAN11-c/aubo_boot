@@ -46,7 +46,7 @@ class HandEyeCalibrationNode(Node):
         self.declare_parameter('web_host', 'localhost')
         self.declare_parameter('web_port', 8080)
         self.declare_parameter('camera_topic', '/camera/image_raw')
-        self.declare_parameter('robot_status_topic', '/robot_status')
+        self.declare_parameter('robot_status_topic', '/aubo_driver/robot_status')
         
         self.web_host = self.get_parameter('web_host').value
         self.web_port = self.get_parameter('web_port').value
@@ -144,14 +144,14 @@ class HandEyeCalibrationNode(Node):
         from demo_interface.srv import MoveToPose
         self.move_to_pose_client = self.create_client(MoveToPose, '/move_to_pose')
         
-        # 订阅机器人状态话题（从 /demo_robot_status 获取机械臂当前位姿）
+        # 订阅机器人状态话题（从 /aubo_driver/robot_status 获取机械臂当前位姿）
         self.robot_status_subscription = self.create_subscription(
             RobotStatus,
-            '/demo_robot_status',
+            '/aubo_driver/robot_status',
             self.robot_status_callback,
             10
         )
-        self.get_logger().info('✅ 订阅机器人状态话题: /demo_robot_status')
+        self.get_logger().info('✅ 订阅机器人状态话题: /aubo_driver/robot_status')
         
         # 订阅相机状态
         self.camera_status_subscription = self.create_subscription(
@@ -5485,7 +5485,7 @@ class HandEyeCalibrationNode(Node):
             new_status.joint_position_rad = list(msg.joint_position_rad)
             new_status.joint_position_deg = list(msg.joint_position_deg)
             
-            # 拷贝cartesian_position（直接从 /demo_robot_status 获取）
+            # 拷贝cartesian_position（直接从 /aubo_driver/robot_status 获取）
             new_status.cartesian_position = Pose()
             new_status.cartesian_position.position = Point()
             new_status.cartesian_position.position.x = msg.cartesian_position.position.x

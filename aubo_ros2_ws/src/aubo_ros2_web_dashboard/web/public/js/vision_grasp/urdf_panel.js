@@ -1,13 +1,6 @@
-/**
- * 视觉抓取左栏 URDF 面板控制器：
- * - 负责独立 rosbridge 连接、3D 会话创建、ResizeObserver 自适应。
- * - 让 `vision_grasp_panel.js` 不再直接管理这部分资源生命周期。
- */
-
+// urdf_panel.js — left-panel URDF viewer lifecycle (start/stop/layout)
 import * as ROSLIB from 'roslib';
 import { IvgRos3dView3dSession } from '../view3d/session.js';
-
-/** 工厂：返回 ``{ stop, start, layout }``，管理独立 rosbridge + 3D 会话 + ResizeObserver。 */
 function createVisionUrdfPanel(opts) {
 	const options = opts || {};
 	const ports = options.ports;
@@ -16,24 +9,20 @@ function createVisionUrdfPanel(opts) {
 	let visionUrdfRos = null;
 	let visionUrdfSession = null;
 	let visionUrdfResizeObs = null;
-
-		/** 断开观察器、停止 3D、关闭 Ros 实例。 */
 		function stop() {
 			if (visionUrdfResizeObs) {
-				try { visionUrdfResizeObs.disconnect(); } catch (e) { /* ignore */ }
+				try { visionUrdfResizeObs.disconnect(); } catch (e) {  }
 				visionUrdfResizeObs = null;
 			}
 			if (visionUrdfSession) {
-				try { visionUrdfSession.stop(); } catch (e) { /* ignore */ }
+				try { visionUrdfSession.stop(); } catch (e) {  }
 				visionUrdfSession = null;
 			}
 			if (visionUrdfRos) {
-				try { visionUrdfRos.close(); } catch (e) { /* ignore */ }
+				try { visionUrdfRos.close(); } catch (e) {  }
 				visionUrdfRos = null;
 			}
 		}
-
-		/** 懒连接 rosbridge（``ports.rosbridgeWebSocketUrl()``），20s 超时。 */
 		function ensureRos() {
 			return new Promise((resolve, reject) => {
 				if (visionUrdfRos && visionUrdfRos.isConnected) {
@@ -45,10 +34,9 @@ function createVisionUrdfPanel(opts) {
 					return;
 				}
 				const url = ports.rosbridgeWebSocketUrl();
-				// 对齐 roslib-examples：通过构造参数直接发起连接。
 				const r = new ROSLIB.Ros({ url });
 				const t = setTimeout(() => {
-					try { r.close(); } catch (e1) { /* ignore */ }
+					try { r.close(); } catch (e1) {  }
 					reject(new Error('3D 连接超时'));
 				}, 20000);
 				r.on('connection', () => {
@@ -62,8 +50,6 @@ function createVisionUrdfPanel(opts) {
 				});
 			});
 		}
-
-		/** 按 #vision-urdf-host 客户端尺寸调用 viewer3d.resize。 */
 		function layout() {
 			if (!visionUrdfSession || !visionUrdfSession.viewer3d) return;
 			const host = doc.getElementById('vision-urdf-host');
@@ -73,11 +59,8 @@ function createVisionUrdfPanel(opts) {
 			try {
 				visionUrdfSession.viewer3d.resize(w, h);
 			} catch (e) {
-				/* ignore */
 			}
 		}
-
-		/** 异步启动：ensureRos → 新建 SessionCtor → start → ResizeObserver。 */
 		function start(getById) {
 			const host = doc.getElementById('vision-urdf-host');
 			if (!host || typeof SessionCtor !== 'function') return;
@@ -101,18 +84,14 @@ function createVisionUrdfPanel(opts) {
 				}
 			})();
 		}
-
 	return {
 		stop,
 		start,
 		layout
 	};
 }
-
 const IVGVisionUrdfPanel = {
 	createVisionUrdfPanel
 };
-
 globalThis.IVGVisionUrdfPanel = IVGVisionUrdfPanel;
-
 export { createVisionUrdfPanel, IVGVisionUrdfPanel };

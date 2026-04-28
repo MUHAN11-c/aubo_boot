@@ -39,7 +39,7 @@ class BatchPoseTester(Node):
         # 订阅机器人状态
         self.robot_status_sub = self.create_subscription(
             RobotStatus,
-            '/demo_robot_status',
+            '/aubo_driver/robot_status',
             self.robot_status_callback,
             10
         )

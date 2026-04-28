@@ -35,7 +35,7 @@ class AutoPoseComparator(Node):
         # 订阅机器人状态
         self.robot_status_sub = self.create_subscription(
             RobotStatus,
-            '/demo_robot_status',
+            '/aubo_driver/robot_status',
             self.robot_status_callback,
             10
         )
@@ -340,7 +340,7 @@ def main(args=None):
         print("\n此工具将自动：")
         print("  1. 使用 MoveIt2 控制机械臂移动到目标位姿")
         print("  2. 等待机械臂到位")
-        print("  3. 从 /demo_robot_status 获取实际到达的位姿")
+        print("  3. 从 /aubo_driver/robot_status 获取实际到达的位姿")
         print("  4. 对比目标位姿与实际位姿的差异")
         print("\n" + "="*70)
         
@@ -409,7 +409,7 @@ def main(args=None):
             return
         
         # 显示实际位姿
-        comparator.print_pose(actual_pose, "实际位姿 (从 /demo_robot_status)")
+        comparator.print_pose(actual_pose, "实际位姿 (从 /aubo_driver/robot_status)")
         
         # 计算并显示位姿差异
         diff = comparator.compute_pose_difference(target_pose, actual_pose)

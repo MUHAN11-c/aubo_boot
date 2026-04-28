@@ -5,7 +5,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# find dependencies
+# 查找依赖项
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
@@ -13,7 +13,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
-# Generate messages
+# 生成消息和服务接口
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/RobotStatus.msg"
   "msg/RobotIOStatus.msg"
@@ -28,7 +28,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SetRobotIO.srv"
   "srv/ReadRobotIO.srv"
   "srv/Movel.srv"
-  "srv/RunGripperSwap.srv"
   "srv/ExecuteGraspPose.srv"
   DEPENDENCIES std_msgs geometry_msgs trajectory_msgs
 )

@@ -1,9 +1,4 @@
-/**
- * 识别结果投影层控制器：
- * - 维护相机信息、抓取位姿、TF 边表。
- * - 负责 Canvas 投影绘制与结果面板标题切换。
- */
-
+// projection_overlay.js — 2D grasp pose projection overlay on camera image
 import {
 	normalizeFrameId,
 	ivgCloneTransform,
@@ -12,17 +7,14 @@ import {
 	ivgComposeTransforms,
 	ivgFindRelativeTransform
 } from '../view3d/tf_clients.js';
-
 function normalizeIvgTopic(t) {
 	const s = String(t || '').trim();
 	if (!s) return '';
 	return s.startsWith('/') ? s : `/${s}`;
 }
-
 function ivgVec3(x = 0, y = 0, z = 0) {
 	return { x, y, z };
 }
-
 function ivgVec3Add(a, b) {
 	return {
 		x: (Number(a && a.x) || 0) + (Number(b && b.x) || 0),
@@ -30,7 +22,6 @@ function ivgVec3Add(a, b) {
 		z: (Number(a && a.z) || 0) + (Number(b && b.z) || 0)
 	};
 }
-
 function ivgApplyTransformPoint(tf, point) {
 	const t = ivgCloneTransform(tf);
 	const q = ivgQuatNormalize(t.rotation);
@@ -41,13 +32,11 @@ function ivgApplyTransformPoint(tf, point) {
 	);
 	return ivgVec3Add(ivgRotateVectorByQuat(p, q), t.translation);
 }
-
 function createProjectionOverlayController(opts) {
 	const options = opts || {};
 	const $ = options.getById || (id => document.getElementById(id));
 	const defaults = options.defaults || {};
 	const getColorTopic = options.getColorTopic || (() => defaults['topic-color'] || '/camera/color/image_raw');
-
 	const state = {
 		cameraInfo: null,
 		cameraFrame: '',
@@ -55,7 +44,6 @@ function createProjectionOverlayController(opts) {
 		tfEdges: Object.create(null),
 		drawRaf: null
 	};
-
 	function buildProjectionFrameCandidates(colorTopic, cameraInfo) {
 		const out = [];
 		function push(v) {
@@ -76,13 +64,11 @@ function createProjectionOverlayController(opts) {
 		push('camera_frame');
 		return out;
 	}
-
 	function listProjectedGraspFrames() {
 		const names = Object.keys(state.tfEdges).filter(name => /^grasp_pose_\d+$/.test(name));
 		names.sort((a, b) => Number(a.replace('grasp_pose_', '')) - Number(b.replace('grasp_pose_', '')));
 		return names;
 	}
-
 	function clearCanvas() {
 		const canvas = $('result-overlay-canvas');
 		if (!canvas) return;
@@ -91,12 +77,10 @@ function createProjectionOverlayController(opts) {
 		ctx.clearRect(0, 0, canvas.width || 0, canvas.height || 0);
 		canvas.hidden = true;
 	}
-
 	function syncCanvasSize() {
 		const canvas = $('result-overlay-canvas');
 		const stack = $('result-viz-stack');
 		if (!canvas || !stack) return null;
-		/* 始终以叠放区 #result-viz-stack 为准：canvas 带 hidden 时 client 尺寸为 0，且与底图对齐必须用同一盒模型 */
 		const rect = stack.getBoundingClientRect();
 		const width = Math.max(1, Math.round(rect.width));
 		const height = Math.max(1, Math.round(rect.height));
@@ -109,7 +93,6 @@ function createProjectionOverlayController(opts) {
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		return { ctx, width, height };
 	}
-
 	function projectPointToImage(point, info, width, height) {
 		if (!info || !Array.isArray(info.k) || info.k.length < 9) return null;
 		if (!isFinite(point.x) || !isFinite(point.y) || !isFinite(point.z) || point.z <= 0.01) return null;
@@ -124,7 +107,6 @@ function createProjectionOverlayController(opts) {
 		const ih = Number(info.height) || height;
 		return { x: (u / iw) * width, y: (v / ih) * height, depth: point.z };
 	}
-
 	function drawProjectedSegment(ctx, a, b, style) {
 		if (!a || !b) return;
 		ctx.save();
@@ -146,7 +128,6 @@ function createProjectionOverlayController(opts) {
 		ctx.stroke();
 		ctx.restore();
 	}
-
 	function pathRoundedRect(ctx, x, y, w, h, r) {
 		const rr = Math.max(0, Math.min(r, Math.min(w, h) / 2));
 		ctx.beginPath();
@@ -161,7 +142,6 @@ function createProjectionOverlayController(opts) {
 		ctx.quadraticCurveTo(x, y, x + rr, y);
 		ctx.closePath();
 	}
-
 	function drawProjectionBadge(ctx, x, y, text, opts2) {
 		const paddingX = 8;
 		const boxH = 22;
@@ -180,8 +160,6 @@ function createProjectionOverlayController(opts) {
 		ctx.fillText(text, x + paddingX, y + boxH / 2);
 		ctx.restore();
 	}
-
-	/** @returns {boolean} 是否至少将原点成功投影到图像平面（用于决定是否尝试 PoseArray 等回退路径） */
 	function drawProjectedPose(ctx, width, height, poseCam, rank) {
 		const origin3 = ivgVec3(Number(poseCam.position.x) || 0, Number(poseCam.position.y) || 0, Number(poseCam.position.z) || 0);
 		const q = ivgQuatNormalize(poseCam.orientation || {});
@@ -228,7 +206,6 @@ function createProjectionOverlayController(opts) {
 		});
 		return true;
 	}
-
 	function drawOverlay() {
 		const active = $('mode-graspnet') && $('mode-graspnet').checked;
 		const resultImg = $('result-mjpeg');
@@ -296,7 +273,6 @@ function createProjectionOverlayController(opts) {
 		const canvas = $('result-overlay-canvas');
 		if (canvas) canvas.hidden = false;
 	}
-
 	function scheduleDraw() {
 		if (state.drawRaf != null) return;
 		state.drawRaf = requestAnimationFrame(() => {
@@ -304,7 +280,6 @@ function createProjectionOverlayController(opts) {
 			drawOverlay();
 		});
 	}
-
 	return {
 		resetState() {
 			state.cameraInfo = null;
@@ -348,5 +323,4 @@ function createProjectionOverlayController(opts) {
 		}
 	};
 }
-
 export { createProjectionOverlayController };

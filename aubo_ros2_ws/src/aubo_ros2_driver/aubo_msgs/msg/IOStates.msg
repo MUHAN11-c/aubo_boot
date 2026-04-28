@@ -1,3 +1,4 @@
+# 机器人IO状态集合
 Digital[] digital_in_states
 Digital[] digital_out_states
 Digital[] flag_states

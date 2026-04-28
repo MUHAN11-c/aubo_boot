@@ -1,3 +1,4 @@
+# 相机状态消息
 std_msgs/Header header
 string camera_id
 bool is_connected

@@ -1,6 +1,6 @@
-trajectory_msgs/JointTrajectory trajectory
+# 执行已规划的轨迹
+trajectory_msgs/JointTrajectory trajectory   # 要执行的关节轨迹
 ---
-bool success
-int32 error_code
-string message
-
+bool success        # 执行是否成功
+int32 error_code    # 错误码（0=成功）
+string message      # 状态消息或错误信息

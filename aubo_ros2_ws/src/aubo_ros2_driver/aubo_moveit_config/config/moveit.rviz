@@ -4,6 +4,7 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /MotionPlanning1
+        - /TF1
   - Class: rviz_common/Help
     Name: Help
   - Class: rviz_common/Views
@@ -21,11 +22,24 @@ Visualization Manager:
         Trajectory Topic: display_planned_path
       Planning Scene Topic: monitored_planning_scene
       Robot Description: robot_description
+      Planning Group: manipulator
+      Planning Attempts: 10
+      Planning Time: 5.0
+      Velocity Scaling Factor: 0.4
+      Acceleration Scaling Factor: 0.25
       Scene Geometry:
-        Scene Alpha: 1
+        Scene Alpha: 0.5
       Scene Robot:
-        Robot Alpha: 0.5
+        Robot Alpha: 1.0
       Value: true
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Value: true
+    - Class: rviz_default_plugins/Axes
+      Name: Axes
+      Length: 0.5
+      Radius: 0.02
+      Value: false
   Global Options:
     Fixed Frame: world
   Tools:

@@ -4,7 +4,7 @@ MoveIt2 位姿验证脚本
 
 从 JSON 文件读取位姿，验证：
 1. MoveIt2 机械臂运动到位的判断方法
-2. MoveIt2 计算位姿与 /demo_robot_status 获取的位姿对比
+2. MoveIt2 计算位姿与 /aubo_driver/robot_status 获取的位姿对比
 """
 
 import rclpy
@@ -48,7 +48,7 @@ class MoveItPoseValidator(Node):
         # 订阅机器人状态
         self.robot_status_sub = self.create_subscription(
             RobotStatus,
-            '/demo_robot_status',
+            '/aubo_driver/robot_status',
             self.robot_status_callback,
             10
         )
@@ -438,7 +438,7 @@ class MoveItPoseValidator(Node):
             result['error'] = '无法获取机器人控制器位姿'
             return result
         
-        self.print_pose(actual_pose, '实际到达位姿 (机器人控制器 /demo_robot_status)')
+        self.print_pose(actual_pose, '实际到达位姿 (机器人控制器 /aubo_driver/robot_status)')
         
         # 获取 MoveIt2 计算的TCP位姿（基于TF树）
         moveit2_pose = self.get_moveit2_tcp_pose()
@@ -666,7 +666,7 @@ class MoveItPoseValidator(Node):
         self.get_logger().info(f'通过率: {passed/total*100:.1f}%' if total > 0 else '通过率: 0%')
         
         self.get_logger().info(f'\n📏 位姿误差统计:')
-        self.get_logger().info(f'\n  1️⃣ 目标 vs 机器人控制器 (/demo_robot_status):')
+        self.get_logger().info(f'\n  1️⃣ 目标 vs 机器人控制器 (/aubo_driver/robot_status):')
         self.get_logger().info(f'    平均位置误差: {avg_pos:.3f} mm')
         self.get_logger().info(f'    平均姿态误差: {avg_ori:.3f}°')
         self.get_logger().info(f'    最大位置误差: {max_pos:.3f} mm')

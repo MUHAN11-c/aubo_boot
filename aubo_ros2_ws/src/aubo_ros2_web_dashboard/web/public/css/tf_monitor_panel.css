@@ -1,0 +1,77 @@
+/* tf_monitor_panel.css — TF monitor 3D view */
+.tf-monitor-wrap { max-width: min(56rem, 100%) ; margin: 0 auto ; padding-bottom: 1rem }
+.tf-monitor-toolbar { margin-bottom: 0.65rem }
+.tf-monitor-intro { margin-bottom: 0.75rem ; padding: var(--ivg-pane-pad) ; box-shadow: var(--shadow-sm) }
+.tf-monitor-intro__title {
+margin: 0 0 0.5rem;
+font-size: var(--fs-camera-section-title);
+font-weight: 700;
+color: var(--text);
+border-bottom: 2px solid var(--accent);
+padding-bottom: 0.35rem;
+}
+.tf-monitor-intro__p {
+margin: 0 0 0.5rem;
+font-size: var(--fs-ui);
+line-height: 1.55;
+color: var(--text-secondary);
+}
+.tf-monitor-intro__p:last-child { margin-bottom: 0 }
+.tf-monitor-intro__p code {
+font-size: 0.85em;
+padding: 0.08em 0.28em;
+border-radius: 4px;
+background: var(--panel-muted);
+border: 1px solid var(--border);
+}
+.tf-monitor-intro__p--muted { color: var(--muted) ; font-size: 0.8125rem }
+.tf-monitor-tree-section { padding: var(--ivg-pane-pad) ; box-shadow: var(--shadow-md) }
+.tf-monitor-tree-head {
+display: flex;
+flex-wrap: wrap;
+align-items: baseline;
+justify-content: space-between;
+gap: 0.5rem;
+margin-bottom: 0.6rem;
+}
+.tf-monitor-tree-head h2 {
+margin: 0;
+font-size: var(--fs-camera-section-title);
+font-weight: 700;
+color: var(--text);
+}
+.tf-monitor-tree-meta { font-size: 0.78rem ; color: var(--muted) ; font-variant-numeric: tabular-nums }
+.tf-monitor-tree-root {
+font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+font-size: 0.88rem;
+line-height: 1.45;
+background: var(--panel-muted);
+border: 1px solid var(--border);
+border-radius: var(--radius-sm);
+padding: 0.65rem 0.75rem;
+min-height: 8rem;
+max-height: min(70vh, 42rem);
+overflow: auto;
+}
+.tf-monitor-tree-placeholder {
+margin: 0;
+color: var(--muted);
+font-family: system-ui, sans-serif;
+font-size: var(--fs-ui);
+}
+.ivg-tf-tree { margin: 0 ; padding-left: 0 ; list-style: none }
+.ivg-tf-tree .ivg-tf-tree {
+margin: 0.15rem 0 0.15rem 1rem;
+padding-left: 0.65rem;
+border-left: 2px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+.ivg-tf-tree__item { margin: 0.2rem 0 }
+.ivg-tf-tree__frame { display: inline ; font-weight: 600 ; color: var(--code-fg) }
+.ivg-tf-tree__edge {
+color: var(--muted);
+font-weight: 500;
+font-size: 0.82em;
+margin-left: 0.35rem;
+}
+.ivg-tf-tree__multi-root > .ivg-tf-tree__item { margin-bottom: 0.65rem }
+.ivg-tf-tree__multi-root > .ivg-tf-tree__item:not(:last-child) { padding-bottom: 0.5rem ; border-bottom: 1px dashed var(--border) }

@@ -1,6 +1,8 @@
 # demo_driver
 
-机器人驱动功能包（ROS 2），提供机器人状态发布、运动控制、位姿设置、夹爪快换与 GraspNet 循环抓取等功能。
+机器人驱动功能包（ROS 2），提供机器人状态发布、运动控制、位姿设置与 GraspNet 循环抓取等功能。
+
+> **注意**：夹爪快换功能已迁移至 `tool_changer` 包（`tool_changer_interface` 接口定义）。
 
 ## 第一节：启动命令与服务测试命令
 
@@ -38,15 +40,15 @@ ros2 run demo_driver publish_grasps_client_worker_node --ros-args \
 ```
 
 ```bash
-# 终端5（可选）：夹爪快换 Worker（/run_gripper_swap）
-ros2 run demo_driver gripper_swap_worker_node
+# 终端5（可选）：夹爪快换 Worker（/run_gripper_swap），已迁移至 tool_changer 包
+ros2 launch tool_changer gripper_swap_worker.launch.py
 ```
 
 ### 2) 各服务测试命令（按当前 src 实现）
 
 ```bash
 # 先查看服务是否就绪
-ros2 service list | rg -E "/move_to_pose|/plan_trajectory|/execute_trajectory|/get_current_state|/set_speed_factor|/set_robot_pose|/run_gripper_swap|/execute_single_grasp|/loop_grasp_control|/publish_grasps_worker_loop_control"
+ros2 service list | grep -E "/move_to_pose|/plan_trajectory|/execute_trajectory|/get_current_state|/set_speed_factor|/set_robot_pose|/execute_single_grasp|/loop_grasp_control|/publish_grasps_worker_loop_control"
 ```
 
 ```bash
@@ -86,8 +88,8 @@ ros2 service call /set_robot_pose demo_interface/srv/SetRobotPose \
 ```
 
 ```bash
-# /run_gripper_swap (demo_interface/srv/RunGripperSwap)
-ros2 service call /run_gripper_swap demo_interface/srv/RunGripperSwap "{direction: 'gripper2'}"
+# /run_gripper_swap（已迁移至 tool_changer_interface，需先启动 tool_changer 节点）
+ros2 service call /run_gripper_swap tool_changer_interface/srv/RunGripperSwap "{direction: 'gripper2'}"
 ```
 
 ```bash
@@ -119,7 +121,6 @@ demo_driver/
 │   ├── moveit_gripper_io_base.h  # 基类：MoveIt + 夹爪 IO
 │   ├── publish_grasps_client_worker.h
 │   ├── publish_grasps_AB.h
-│   ├── gripper_swap_worker.h
 │   ├── set_robot_pose_server.h
 │   └── ...
 ├── src/                          # 源文件
@@ -142,14 +143,12 @@ demo_driver/
 
 | 节点 | 可执行文件 | 说明 |
 |------|------------|------|
-| robot_status_publisher | robot_status_publisher_node | 发布机器人完整状态（在线、使能、运动、关节、笛卡尔位姿） |
 | move_to_pose_server | move_to_pose_server_node | 移动到目标位姿服务（关节/笛卡尔空间） |
 | plan_trajectory_server | plan_trajectory_server_node | 轨迹规划服务（不执行） |
 | execute_trajectory_server | execute_trajectory_server_node | 执行轨迹服务 |
 | get_current_state_server | get_current_state_server_node | 获取当前状态服务 |
 | set_speed_factor_server | set_speed_factor_server_node | 设置速度因子服务 |
 | set_robot_pose_server | set_robot_pose_server_node | 设置机器人位姿服务（欧拉角/关节空间） |
-| gripper_swap_worker | gripper_swap_worker_node | 夹爪快换（gripper0 ↔ gripper2） |
 | publish_grasps_client_worker | publish_grasps_client_worker_node | GraspNet 循环抓取放置 |
 | publish_grasps_AB | publish_grasps_AB | A/B 工位交替抓取；与上节点独立（默认循环服务 `/publish_grasps_AB_loop_control`，状态 `grasp_place_status_ab`，最终位姿 `/ivg_worker_final_grasp_poses`） |
 
@@ -163,25 +162,7 @@ demo_driver/
 
 ---
 
-### 1. robot_status_publisher_node
-
-**功能**：发布机器人完整状态信息。
-
-#### 发布的话题
-
-- `/robot_status` (demo_interface/RobotStatus)
-  - **is_online**, **enable**, **in_motion**, **planning_status**
-  - **joint_position_rad/deg**, **cartesian_position**
-
-#### 参数
-
-- `publish_rate` (double, default: 10.0)
-- `base_frame` (string, default: "base_link")
-- `planning_group_name` (string, default: "manipulator_e5")
-
----
-
-### 2. move_to_pose_server_node
+### 1. move_to_pose_server_node
 
 **功能**：移动到目标位姿服务，支持关节空间和笛卡尔空间规划。
 
@@ -261,29 +242,7 @@ ros2 service call /set_robot_pose demo_interface/srv/SetRobotPose "{target_pose:
 
 ---
 
-### 8. gripper_swap_worker_node
-
-**功能**：夹爪快换，提供 `/run_gripper_swap` 服务。
-
-#### 服务
-
-- `/run_gripper_swap` (demo_interface/srv/RunGripperSwap)
-  - **Request**: direction — `"gripper2"` / `"gripper0"` / `"gripper0_to_gripper2"` / `"gripper2_to_gripper0"`
-
-#### 调用示例
-
-```bash
-# 切换到 gripper2
-ros2 service call /run_gripper_swap demo_interface/srv/RunGripperSwap "{direction: 'gripper2'}"
-
-# 原有方向仍可使用
-ros2 service call /run_gripper_swap demo_interface/srv/RunGripperSwap "{direction: 'gripper0_to_gripper2'}"
-ros2 service call /run_gripper_swap demo_interface/srv/RunGripperSwap "{direction: 'gripper2_to_gripper0'}"
-```
-
----
-
-### 9. publish_grasps_client_worker_node
+### 8. publish_grasps_client_worker_node
 
 **功能**：GraspNet 抓取放置 Worker。订阅 `grasp_poses_base`（PoseArray），循环执行：触发采集 → 等待窗口就绪 → 选优 → gripper_tip 补偿 → 抓取接近 → 抬起 → 放置 → 回安全位。
 
@@ -539,10 +498,6 @@ ros2 run demo_driver publish_grasps_client_worker_node --ros-args \
 #### 方式二：单独运行节点
 
 ```bash
-# 机器人状态
-ros2 run demo_driver robot_status_publisher_node
-ros2 topic echo /robot_status
-
 # 移动到目标位姿
 ros2 run demo_driver move_to_pose_server_node
 ros2 service call /move_to_pose demo_interface/srv/MoveToPose "{target_pose: {position: {x: 0.4, y: 0.3, z: 0.3}, orientation: {w: 1.0, x: 0.0, y: 0.0, z: 0.0}}, use_joints: false, velocity_factor: 0.5, acceleration_factor: 0.5}"
@@ -564,8 +519,8 @@ ros2 service call /set_speed_factor demo_interface/srv/SetSpeedFactor "{velocity
 # 设置机器人位姿
 ros2 run demo_driver set_robot_pose_server_node
 
-# 夹爪快换
-ros2 run demo_driver gripper_swap_worker_node
+# 夹爪快换（已迁移至 tool_changer 包）
+ros2 launch tool_changer gripper_swap_worker.launch.py
 
 # GraspNet 抓取放置
 ros2 run demo_driver publish_grasps_client_worker_node

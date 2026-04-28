@@ -253,6 +253,10 @@ namespace aubo_driver
             std::atomic<uint64_t> current_trajectory_epoch_{0};
             std::atomic<int> moveit_cb_in_flight_{0};
             std::atomic<uint64_t> moveit_cb_seq_{0};
+            // planning_status: 0=idle 1=planning 2=executing 3=error
+            // 由 trajectoryExecutionCallback (control_cmd_cb_group) 写，
+            // timerCallback (state_timer_cb_group) 读，跨 group 用 atomic 保护
+            std::atomic<int> planning_status_code_{0};
 
             ServiceInterface robot_mac_size_service_;
             std::thread* send_to_robot_thread_;

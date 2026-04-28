@@ -70,9 +70,9 @@ static void fillCartesianPoseAndRpy(demo_interface::msg::RobotStatus& msg,
     const double cosy_cosp = 1.0 - 2.0 * (y * y + z * z);
     const double yaw = std::atan2(siny_cosp, cosy_cosp);
 
-    msg.cartesian_rpy.x = roll * 180.0 / M_PI;
-    msg.cartesian_rpy.y = pitch * 180.0 / M_PI;
-    msg.cartesian_rpy.z = yaw * 180.0 / M_PI;
+    msg.cartesian_rpy.x = roll;
+    msg.cartesian_rpy.y = pitch;
+    msg.cartesian_rpy.z = yaw;
 }
 
 AuboDriver::AuboDriver(int num)
@@ -218,16 +218,23 @@ void AuboDriver::timerCallback()
                     last_diag_poll_ts = timer_now;
                     rib_buffer_size_ = rs.robot_diagnosis_info_.macTargetPosDataSize;
                 }
-                robot_status_msg_.is_online = controller_connected_flag_;
-                robot_status_msg_.enable = (real_robot_exist_ && rs.robot_diagnosis_info_.armPowerStatus != 0);
-                robot_status_msg_.in_motion = start_move_;
-                robot_status_msg_.planning_status = (emergency_stopped_ || protective_stopped_) ? "stopped" : (start_move_ ? "moving" : "idle");
             } else if(ret == aubo_robot_namespace::ErrCode_SocketDisconnect) {
                 if(!connectToRobotController())
                     RCLCPP_ERROR(this->get_logger(), "Cannot connect to the robot controller!");
             }
         }
+        // 状态字段每周期更新（50Hz），不随 do_sdk_poll 跳过
         robot_status_msg_.header.stamp = this->now();
+        robot_status_msg_.is_online = controller_connected_flag_;
+        robot_status_msg_.enable = (real_robot_exist_ && rs.robot_diagnosis_info_.armPowerStatus != 0);
+        robot_status_msg_.in_motion = start_move_;
+        // planning_status 仅反映 MoveIt2 规划状态，由 trajectory_execution_event 驱动
+        switch (planning_status_code_.load(std::memory_order_relaxed)) {
+            case 1: robot_status_msg_.planning_status = "planning"; break;
+            case 2: robot_status_msg_.planning_status = "executing"; break;
+            case 3: robot_status_msg_.planning_status = "error"; break;
+            default: robot_status_msg_.planning_status = "idle"; break;
+        }
         for(int i = 0; i < 6 && i < axis_number_; i++) {
             robot_status_msg_.joint_position_rad[i] = current_joints_[i];
             robot_status_msg_.joint_position_deg[i] = current_joints_[i] * 180.0 / M_PI;
@@ -239,7 +246,9 @@ void AuboDriver::timerCallback()
     } else {
         setCurrentPosition(target_point_);
         robot_status_msg_.is_online = false;
+        robot_status_msg_.enable = false;
         robot_status_msg_.in_motion = false;
+        robot_status_msg_.planning_status = "idle";
         robot_status_msg_.header.stamp = this->now();
         for (int i = 0; i < 6; ++i) {
             robot_status_msg_.joint_position_rad[i] = current_joints_[i];
@@ -503,9 +512,16 @@ void AuboDriver::moveItPosCallback(const trajectory_msgs::msg::JointTrajectoryPo
 
 void AuboDriver::trajectoryExecutionCallback(const std_msgs::msg::String::ConstSharedPtr msg)
 {
-    if(msg->data == "stop") {
+    if(msg->data == "planning") {
+        planning_status_code_.store(1, std::memory_order_relaxed);
+    } else if(msg->data == "executing" || msg->data == "execute") {
+        planning_status_code_.store(2, std::memory_order_relaxed);
+    } else if(msg->data == "stop" || msg->data == "cancel") {
         RCLCPP_INFO(this->get_logger(), "trajectory execution status: stop");
         normal_stopped_ = true;
+        planning_status_code_.store(0, std::memory_order_relaxed);
+    } else if(msg->data == "error" || msg->data == "in_error") {
+        planning_status_code_.store(3, std::memory_order_relaxed);
     }
 }
 

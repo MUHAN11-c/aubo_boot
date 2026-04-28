@@ -27,28 +27,6 @@ find_package(moveit_ros_planning REQUIRED)
 # Include directories
 include_directories(include)
 
-# Declare executables (server files now contain main functions)
-add_executable(robot_status_publisher_node src/robot_status_publisher.cpp)
-ament_target_dependencies(robot_status_publisher_node
-  rclcpp
-  std_msgs
-  sensor_msgs
-  geometry_msgs
-  demo_interface
-  aubo_msgs
-  tf2_ros
-  tf2_geometry_msgs
-  moveit_core
-  moveit_ros_planning_interface
-)
-
-# add_executable(robot_io_status_publisher_node src/robot_io_status_publisher.cpp)
-# ament_target_dependencies(robot_io_status_publisher_node
-#   rclcpp
-#   demo_interface
-#   aubo_msgs
-# )
-
 add_executable(move_to_pose_server_node
   src/moveit_gripper_io_base.cpp
   src/move_to_pose_server.cpp
@@ -116,22 +94,6 @@ ament_target_dependencies(set_robot_pose_server_node
   moveit_ros_planning_interface
 )
 
-# Aubo 夹爪快换 worker（提供 run_gripper_swap 服务，夹爪 IO 控制 + 更换夹爪）
-add_executable(gripper_swap_worker_node
-  src/moveit_gripper_io_base.cpp
-  src/gripper_swap_worker.cpp
-)
-ament_target_dependencies(gripper_swap_worker_node
-  rclcpp
-  geometry_msgs
-  demo_interface
-  aubo_msgs
-  moveit_msgs
-  moveit_core
-  moveit_ros_planning_interface
-  tf2
-)
-
 # GraspNet 抓取放置 worker（订阅 grasp_poses_base，循环抓取→放置→回安全位；运动逻辑自包含）
 add_executable(publish_grasps_client_worker_node
   src/publish_grasps_client_worker.cpp
@@ -184,15 +146,12 @@ ament_target_dependencies(execute_grasp_pose_worker_node
 
 # Install targets
 install(TARGETS
-  robot_status_publisher_node
-  # robot_io_status_publisher_node
   move_to_pose_server_node
   plan_trajectory_server_node
   execute_trajectory_server_node
   get_current_state_server_node
   set_speed_factor_server_node
   set_robot_pose_server_node
-  gripper_swap_worker_node
   publish_grasps_client_worker_node
   execute_grasp_pose_worker_node
   publish_grasps_AB

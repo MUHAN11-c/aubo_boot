@@ -1,10 +1,4 @@
-/**
- * 关节曲线控制器：
- * - 维护关节序列状态
- * - 绘制趋势图与图例
- * - 监听容器尺寸变化
- */
-
+// joint_chart.js — Chart.js joint-state line chart with legend
 function createJointChartController(opts) {
 	const options = opts || {};
 	const $ = options.getById || (id => document.getElementById(id));
@@ -12,16 +6,12 @@ function createJointChartController(opts) {
 	const lineColors = Array.isArray(options.lineColors) && options.lineColors.length
 		? options.lineColors.slice()
 		: ['#2563eb', '#16a34a', '#d97706', '#db2777', '#7c3aed', '#0d9488'];
-
 	let state = { names: [], series: [] };
 	let drawRaf = null;
 	let resizeObs = null;
-
 	function jointLegendEl() {
 		return document.getElementById('joint-legend');
 	}
-
-	/** 将画布逻辑尺寸限制在 .panel--chart 内，避免 flex/min-height 与测量误差导致溢出 */
 	function clampChartSizeToPanel(canvas, cssW, cssH) {
 		const panel = canvas.closest('.panel--chart');
 		if (!panel || panel.clientHeight <= 0) {
@@ -44,7 +34,6 @@ function createJointChartController(opts) {
 			h: Math.min(Math.max(72, cssH), availH)
 		};
 	}
-
 	function drawImmediate() {
 		const canvas = $('joint-chart');
 		if (!canvas || !canvas.getContext) return;
@@ -78,11 +67,9 @@ function createJointChartController(opts) {
 		ctx.strokeStyle = border;
 		ctx.lineWidth = 1;
 		ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
-
 		const series = state.series;
 		const hasData = series.some(arr => arr.length > 0);
 		if (!hasData) return;
-
 		let yMin = Infinity;
 		let yMax = -Infinity;
 		for (let j = 0; j < series.length; j++) {
@@ -102,7 +89,6 @@ function createJointChartController(opts) {
 		const yPad = (yMax - yMin) * 0.08 || 0.05;
 		yMin -= yPad;
 		yMax += yPad;
-
 		ctx.strokeStyle = border;
 		ctx.globalAlpha = 0.35;
 		ctx.beginPath();
@@ -113,7 +99,6 @@ function createJointChartController(opts) {
 		}
 		ctx.stroke();
 		ctx.globalAlpha = 1;
-
 		ctx.fillStyle = muted;
 		ctx.font = '10px ui-monospace, monospace';
 		ctx.textAlign = 'right';
@@ -123,7 +108,6 @@ function createJointChartController(opts) {
 			const gy = padT + (plotH * g) / 4;
 			ctx.fillText(v.toFixed(3), padL - 6, gy);
 		}
-
 		for (let j = 0; j < series.length; j++) {
 			const arr = series[j];
 			if (arr.length === 0) continue;
@@ -152,14 +136,12 @@ function createJointChartController(opts) {
 			}
 			ctx.stroke();
 		}
-
 		ctx.fillStyle = muted;
 		ctx.font = '10px system-ui, sans-serif';
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'top';
 		ctx.fillText('时间 →', padL + plotW / 2, H - padB + 4);
 	}
-
 	function scheduleDraw() {
 		if (drawRaf != null) return;
 		drawRaf = requestAnimationFrame(() => {
@@ -167,7 +149,6 @@ function createJointChartController(opts) {
 			drawImmediate();
 		});
 	}
-
 	function updateLegend() {
 		const leg = jointLegendEl();
 		if (!leg) return;
@@ -195,7 +176,6 @@ function createJointChartController(opts) {
 		});
 		leg.setAttribute('aria-hidden', 'false');
 	}
-
 	return {
 		reset() {
 			state = { names: [], series: [] };
@@ -248,5 +228,4 @@ function createJointChartController(opts) {
 		}
 	};
 }
-
 export { createJointChartController };

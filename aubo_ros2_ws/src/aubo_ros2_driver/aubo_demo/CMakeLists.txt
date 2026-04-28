@@ -86,19 +86,6 @@ ament_target_dependencies(read_robot_io_client
   demo_interface
 )
 
-# Topic subscriber executables
-add_executable(robot_status_subscriber src/robot_status_subscriber.cpp)
-ament_target_dependencies(robot_status_subscriber
-  rclcpp
-  demo_interface
-)
-
-add_executable(robot_io_status_subscriber src/robot_io_status_subscriber.cpp)
-ament_target_dependencies(robot_io_status_subscriber
-  rclcpp
-  demo_interface
-)
-
 # Comprehensive example
 add_executable(comprehensive_example src/comprehensive_example.cpp)
 ament_target_dependencies(comprehensive_example
@@ -120,8 +107,6 @@ install(TARGETS
   set_robot_enable_client
   set_robot_io_client
   read_robot_io_client
-  robot_status_subscriber
-  robot_io_status_subscriber
   comprehensive_example
   DESTINATION lib/${PROJECT_NAME}
 )

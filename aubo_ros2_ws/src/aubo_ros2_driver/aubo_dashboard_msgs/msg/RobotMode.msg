@@ -1,3 +1,4 @@
+# 机器人控制模式
 int8 NO_CONTROLLER=-1
 int8 DISCONNECTED=0
 int8 CONFIRM_SAFETY=1

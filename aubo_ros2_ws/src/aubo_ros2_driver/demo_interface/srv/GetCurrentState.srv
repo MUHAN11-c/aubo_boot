@@ -1,7 +1,7 @@
+# 获取机械臂当前状态
 ---
-bool success
-float64[] joint_position_rad
-geometry_msgs/Pose cartesian_position
-float64[] velocity
-string message
-
+bool success                            # 请求是否成功
+float64[] joint_position_rad            # 当前6关节角度（弧度）
+geometry_msgs/Pose cartesian_position   # 当前TCP位姿（位置 + 四元数姿态）
+float64[] velocity                      # 当前各关节速度
+string message                          # 状态消息或错误信息

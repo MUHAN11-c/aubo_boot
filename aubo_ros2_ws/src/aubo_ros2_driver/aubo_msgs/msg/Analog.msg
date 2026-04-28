@@ -1,3 +1,4 @@
+# 模拟量IO通道
 uint8 CURRENT=0
 uint8 VOLTAGE=1
 

@@ -3,18 +3,18 @@
 <package format="3">
   <name>demo_interface</name>
   <version>1.0.0</version>
-  <description>The demo_interface package for robot status messages</description>
+  <description>demo_interface 包：定义机械臂状态消息和服务接口（RobotStatus / IO状态 / 运动控制 / 抓取等）</description>
 
   <maintainer email="user@example.com">User</maintainer>
- 
+
   <license>BSD</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-  
+
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
   <depend>geometry_msgs</depend>
-  
+
   <build_depend>rosidl_default_generators</build_depend>
   <exec_depend>rosidl_default_runtime</exec_depend>
   <member_of_group>rosidl_interface_packages</member_of_group>

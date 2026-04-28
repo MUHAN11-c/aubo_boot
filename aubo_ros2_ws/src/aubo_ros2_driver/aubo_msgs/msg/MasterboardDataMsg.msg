@@ -1,4 +1,4 @@
-# This data structure contains the MasterboardData structure
+# 主控板数据消息
 # used by the Universal Robots controller
 #
 # MasterboardData is part of the data structure being send on the 

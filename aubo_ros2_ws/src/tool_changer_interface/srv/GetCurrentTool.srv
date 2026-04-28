@@ -1,0 +1,8 @@
+# 获取当前工具
+---
+bool success          # 获取成功为 true
+string tool_id        # 当前工具ID
+string tool_name      # 当前工具名称
+string tool_type      # 工具类型（gripper / suction / other）
+string tool_parameters # 工具参数（JSON 格式）
+string message        # 工具信息描述

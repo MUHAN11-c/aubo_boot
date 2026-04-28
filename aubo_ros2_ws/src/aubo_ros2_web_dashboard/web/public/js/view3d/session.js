@@ -1,21 +1,13 @@
-/**
- * 3D 会话编排层：
- * - 负责把补丁、TF、雷达、Marker、URDF 装配成一个页面可复用的 viewer 会话。
- * - 继续对外保留 `IvgRos3dView3dSession`，让 vision_grasp 无需知道内部拆分细节。
- */
-
+// session.js — IvgRos3dView3dSession: 3D viewer, TF, URDF, markers
 import * as ROSLIB from 'roslib';
 import * as ROS3D from 'ros3d';
 import { ivgRos3dEmbeddedObject3DClass, installIvgRos3dEmbeddedThreeSafeAddPatch } from './patches.js';
 import { IvgRos3dTfClient } from './tf_clients.js';
 import { removeView3dUrdfHint, showView3dUrdfHint } from './hints.js';
-
 const IVG_VIEW3D_DESKTOP_PIXEL_RATIO_MAX = 1.5; // 桌面像素比最大值
 const IVG_VIEW3D_AXES_SCALE = 0.35; // 坐标轴缩放比例
 const IVG_VIEW3D_GRID_COLOR = '#cbd5e1'; // 网格颜色
 const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
-
-	/** 单页 3D 会话：持有 ros3d Viewer、TF、雷达/Marker/URDF 引用与延迟启动定时器。 */
 	function IvgRos3dView3dSession(ros, $, opts) {
 		this.ros = ros;
 		this.$ = $;
@@ -42,20 +34,15 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 		this._urdfCameraPrimed = false;
 		this.ros3dUrdfClient = null;
 	}
-
-	/** 触控环境固定 1；桌面限制 DPR 上限以减轻 GPU 负载。 */
 	function ivgComputeViewerPixelRatio(globalObj, coarsePointer) {
 		if (coarsePointer) return 1;
 		const dpr = Number(globalObj && globalObj.devicePixelRatio) || 1;
 		return Math.max(1, Math.min(dpr, IVG_VIEW3D_DESKTOP_PIXEL_RATIO_MAX));
 	}
-
-	/** 将坐标轴辅助对象缩放到统一常量，避免默认尺寸过大遮挡场景。 */
 	function ivgApplyAxesScale(axesObj) {
 		if (!axesObj || !axesObj.scale || typeof axesObj.scale.set !== 'function') return;
 		axesObj.scale.set(IVG_VIEW3D_AXES_SCALE, IVG_VIEW3D_AXES_SCALE, IVG_VIEW3D_AXES_SCALE);
 	}
-
 	IvgRos3dView3dSession.prototype._focusViewerOnObject = function (obj3d, opts) {
 		if (!this.viewer3d || !this.viewer3d.camera || !obj3d) return;
 		const options = opts || {};
@@ -92,7 +79,6 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 			if (typeof this.viewer3d.cameraControls.update === 'function') this.viewer3d.cameraControls.update();
 		}
 	};
-
 	IvgRos3dView3dSession.prototype._defer = function (fn, delayMs) {
 		const tid = setTimeout(() => {
 			this._deferredStartTimers = this._deferredStartTimers.filter(x => x !== tid);
@@ -104,7 +90,6 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 		}, delayMs);
 		this._deferredStartTimers.push(tid);
 	};
-
 	IvgRos3dView3dSession.prototype._startMarkersStage = function (mk) {
 		if (this._markersStarted || !mk) return;
 		const OC = this._Obj3DClass || null;
@@ -134,7 +119,6 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 			}
 		}, 250);
 	};
-
 	IvgRos3dView3dSession.prototype._startUrdfStage = function ($, host, fixedFrame) {
 		if (this._urdfStarted) return;
 		const OC = this._Obj3DClass || null;
@@ -181,7 +165,6 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 					selfUrdf.ros3dUrdfRoot.updateMatrixWorld(true);
 					selfUrdf._focusViewerOnObject(selfUrdf.ros3dUrdfRoot, { distanceFactor: 2.8, minDistance: 0.48 });
 				} catch (e0) {
-					/* ignore */
 				}
 				selfUrdf._urdfCameraPrimed = true;
 				clearInterval(selfUrdf._urdfFocusTimer);
@@ -195,13 +178,11 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 					try {
 						selfUrdf._focusViewerOnObject(selfUrdf.ros3dUrdfRoot, { distanceFactor: 3, minDistance: 0.55 });
 					} catch (e1) {
-						/* ignore */
 					}
 				}
 			}
 		}, 250);
 	};
-
 	IvgRos3dView3dSession.prototype.stop = function () {
 		this._deferredStartTimers.forEach(t => clearTimeout(t));
 		this._deferredStartTimers.length = 0;
@@ -222,16 +203,15 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 				const u = this.ros3dUrdfClient.urdf;
 				if (u && typeof u.unsubscribeTf === 'function') u.unsubscribeTf();
 			} catch (eUrdf) {
-				/* ignore */
 			}
 			this.ros3dUrdfClient = null;
 		}
 		if (this.ros3dMarkerClient) {
-			try { this.ros3dMarkerClient.unsubscribe(); } catch (e0) { /* ignore */ }
+			try { this.ros3dMarkerClient.unsubscribe(); } catch (e0) {  }
 			this.ros3dMarkerClient = null;
 		}
 		if (this.ros3dLaserScan) {
-			try { this.ros3dLaserScan.unsubscribe(); } catch (e2) { /* ignore */ }
+			try { this.ros3dLaserScan.unsubscribe(); } catch (e2) {  }
 			this.ros3dLaserScan = null;
 		}
 		if (this.viewer3d) {
@@ -253,9 +233,8 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 					this.ros3dGrid = null;
 				}
 			} catch (e3a) {
-				/* ignore */
 			}
-			try { this.viewer3d.stop(); } catch (e4) { /* ignore */ }
+			try { this.viewer3d.stop(); } catch (e4) {  }
 			this.viewer3d = null;
 			this._Obj3DClass = null;
 		} else {
@@ -266,14 +245,13 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 			this._Obj3DClass = null;
 		}
 		if (this.tfClient3d) {
-			try { this.tfClient3d.dispose(); } catch (e3) { /* ignore */ }
+			try { this.tfClient3d.dispose(); } catch (e3) {  }
 			this.tfClient3d = null;
 		}
 		const host3 = this.$(this._view3dHostId);
 		removeView3dUrdfHint(host3);
 		if (host3) host3.innerHTML = '';
 	};
-
 	IvgRos3dView3dSession.prototype.start = function () {
 		const $ = this.$;
 		const ros = this.ros;
@@ -357,14 +335,11 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 			this._defer(() => this._startUrdfStage($, host, fixedFrame), urdfDelayMs);
 		}
 	};
-
 const IVGView3DSession = {
 	IvgRos3dView3dSession
 };
-
 globalThis.IVGView3DSession = IVGView3DSession;
 globalThis.IvgRos3dView3dSession = IvgRos3dView3dSession;
-
 export {
 	ivgComputeViewerPixelRatio,
 	ivgApplyAxesScale,

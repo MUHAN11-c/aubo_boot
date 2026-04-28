@@ -1,0 +1,96 @@
+<!-- tf_monitor_panel.html — TF tree monitor: 3D viewer, frame inspector -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport"
+content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+<title>TF 监控面板</title>
+<link rel="stylesheet" href="css/vision_grasp_panel.css?v=20260424_monitoring_graspnet_pose_enlarged" />
+<link rel="stylesheet" href="css/tf_monitor_panel.css?v=20260424_tf_monitor" />
+<link rel="stylesheet" href="css/ivg_site_nav.css?v=20260414_unify_proj" />
+<link rel="stylesheet" href="css/ivg_status_bar.css" />
+<script src="/js/robotwebtools/importmap.js"></script>
+</head>
+<body class="ivg-single-screen">
+<nav class="ivg-global-nav" aria-label="灵视IVG 站内导航" data-ivg-page="monitor">
+<div class="ivg-global-nav__inner">
+<div class="ivg-global-nav__start">
+<a class="ivg-global-nav__brand" href="index.html">灵视 <span>IVG</span></a>
+<ul class="ivg-global-nav__list" role="list">
+<li><a class="ivg-global-nav__link" href="index.html" data-ivg-nav="index">门户</a></li>
+<li><a class="ivg-global-nav__link" href="vision_grasp_panel.html" data-ivg-nav="vision">视觉抓取</a></li>
+<li><a class="ivg-global-nav__link" href="coffee_latte_panel.html" data-ivg-nav="latte">咖啡拉花</a></li>
+<li><a class="ivg-global-nav__link" href="tf_monitor_panel.html" data-ivg-nav="monitor">监控面板</a></li>
+        <li><a class="ivg-global-nav__link" href="settings_panel.html" data-ivg-nav="settings">设置</a></li>
+</ul>
+</div>
+<div class="ivg-global-nav__actions">
+<button type="button" class="ivg-global-nav__fs-btn" id="ivg-nav-fullscreen-btn" aria-pressed="false"
+aria-label="进入全屏" title="全屏显示页面（iPad 若无效请用 Safari 添加到主屏幕）">全屏</button>
+</div>
+</div>
+</nav>
+<main class="wrap tf-monitor-wrap">
+<div class="layout-toolbar layout-tier-1 tf-monitor-toolbar">
+<div class="toolbar-brand">
+<h1>TF 监控面板</h1>
+</div>
+<div class="toolbar-actions">
+<button type="button" class="btn-settings" id="btn-topic-settings-open" aria-haspopup="dialog"
+aria-controls="tf-topic-modal">话题设置</button>
+</div>
+</div>
+<section class="tf-monitor-intro panel" aria-label="说明">
+<h2 class="tf-monitor-intro__title">与 URDF 的对应关系</h2>
+<p class="tf-monitor-intro__p">
+<strong>TF 树</strong>里每一条边都是「父坐标系 → 子坐标系」的位姿；子帧名应对齐你在 URDF 里写的
+<code>&lt;link name="…"&gt;</code> 或关节两端的 link。若某 link 在 RViz/网页里「飘走」，多半是 TF 里缺边、父名写错或与
+<code>robot_state_publisher</code> 发布的静态树不一致。
+</p>
+<p class="tf-monitor-intro__p tf-monitor-intro__p--muted">
+本页仅订阅话题拼树，不加载 URDF；与「视觉抓取」面板共用同一套 WebSocket 连接方式。
+</p>
+</section>
+<section class="tf-monitor-tree-section panel" aria-label="TF 树">
+<div class="tf-monitor-tree-head">
+<h2>坐标系树（由 TF 消息推断）</h2>
+<span id="tf-tree-meta" class="tf-monitor-tree-meta" role="status" aria-live="polite"></span>
+</div>
+<div id="tf-tree-root" class="tf-monitor-tree-root" role="tree" aria-label="TF 父子关系">
+<p class="tf-monitor-tree-placeholder" id="tf-tree-placeholder">连接成功后等待 /tf 与 /tf_static 数据…</p>
+</div>
+</section>
+</main>
+<footer class="connection-footer" role="contentinfo" aria-label="连接状态">
+<div class="connection-footer__inner">
+<span class="connection-footer__label">连接状态</span>
+<span id="conn-status" class="status pending" role="status" aria-live="polite">正在连接…</span>
+</div>
+</footer>
+<div id="tf-topic-modal" class="topic-settings-modal" role="dialog" aria-modal="true"
+aria-labelledby="tf-topic-modal-title" aria-hidden="true" hidden>
+<div class="topic-settings-backdrop" id="tf-topic-backdrop" tabindex="-1"></div>
+<div class="topic-settings-sheet">
+<div class="topic-settings-head">
+<h2 id="tf-topic-modal-title">TF 话题</h2>
+<button type="button" class="btn-settings-close" id="btn-topic-settings-close" aria-label="关闭">×</button>
+</div>
+<div class="topic-grid topic-grid-modal">
+<label>动态 TF <input type="text" id="topic-tf" value="/tf" autocomplete="off"
+title="tf2_msgs/msg/TFMessage" /></label>
+<label>静态 TF <input type="text" id="topic-tf-static" value="/tf_static" autocomplete="off"
+title="tf2_msgs/msg/TFMessage" /></label>
+<p class="hint">保存后将断开并重新连接，并重新订阅上述话题。</p>
+</div>
+<div class="topic-settings-actions">
+<button type="button" class="ctrl" id="btn-topic-restore-defaults">恢复默认</button>
+<button type="button" class="ctrl primary" id="btn-topic-save-reconnect">保存并重新连接</button>
+</div>
+</div>
+</div>
+<script type="module" src="js/ivg_site_nav.js"></script>
+<script type="module" src="js/tf_monitor_panel.js?v=20260424_tf_monitor"></script>
+<script type="module" src="js/core/ivg_status_bar.js"></script>
+</body>
+</html>

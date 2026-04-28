@@ -1,4 +1,4 @@
-# Data structure for the realtime communications interface (aka Matlab interface)
+# 机器人实时状态消息
 # used by the Universal Robots controller
 # 
 # This data structure is send at 125 Hz on TCP port 30003

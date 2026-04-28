@@ -1,4 +1,4 @@
-# This data structure contains the RobotModeData structure
+# 机器人模式数据消息
 # used by the Universal Robots controller
 #
 # This data structure is send at 10 Hz on TCP port 30002

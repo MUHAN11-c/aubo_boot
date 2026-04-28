@@ -1,3 +1,4 @@
+# 安全模式状态
 uint8 NORMAL=1
 uint8 REDUCED=2
 uint8 PROTECTIVE_STOP=3

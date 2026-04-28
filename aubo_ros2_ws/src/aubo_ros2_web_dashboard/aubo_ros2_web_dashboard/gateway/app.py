@@ -1,117 +1,99 @@
+"""FastAPI 应用工厂 — 组装中间件、路由、静态挂载。
+
+路由注册顺序（优先级从高到低）:
+  1. /ws/rosbridge              — WebSocket 代理 → rosbridge
+  2. /api/ivg/proxy/web-video/* — HTTP 流代理 → web_video_server
+  3. /health                    — 健康检查
+  4. /api/v1/runtime            — 前端运行时配置 (BFF)
+  5. /api/ivg/robot-mesh/*      — 机器人 3D 模型文件
+  6. /js/robotwebtools/*        — RobotWebTools 静态资源
+  7. /*                         — 前端静态页面 (SPA)
 """
-FastAPI 应用工厂：``create_app(web_root)`` 返回可交给 Uvicorn 的 ASGI 应用。
+from __future__ import annotations
 
-组装顺序要点：
-  1. 先 ``include_router``（/ws、/api、/health 等显式路径）
-  2. 再 ``mount("/", StaticFiles(...))`` 作为兜底，避免静态文件抢占 API
-"""
-from __future__ import annotations #未来兼容性
+import os
+from contextlib import asynccontextmanager
 
-import os #路径操作
-from contextlib import asynccontextmanager #异步上下文管理器
-
-from fastapi import FastAPI #FastAPI框架
-from fastapi.staticfiles import StaticFiles #静态文件
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import MutableHeaders
-from starlette.middleware.gzip import GZipMiddleware #GZip中间件
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from aubo_ros2_web_dashboard.gateway import settings as cfg #配置
-from aubo_ros2_web_dashboard.gateway.routes import health as health_routes
-from aubo_ros2_web_dashboard.gateway.routes import ivg_runtime as ivg_runtime_routes
-from aubo_ros2_web_dashboard.gateway.routes import robot_mesh as robot_mesh_routes
+from aubo_ros2_web_dashboard import config as cfg
+from aubo_ros2_web_dashboard.gateway.routes import health, ivg_runtime, robot_mesh
 from aubo_ros2_web_dashboard.gateway.routes.upstream_proxy import http_proxy_router, ws_router
 
 
 class SecurityHeadersMiddleware:
-	"""
-	纯 ASGI 中间件：为 HTTP 响应补安全头。
+    """安全响应头中间件 — 所有 HTTP 响应注入 X-Content-Type-Options: nosniff。"""
 
-	避免使用 ``BaseHTTPMiddleware``：在客户端提前断开、导航取消请求等场景下，
-	``BaseHTTPMiddleware`` 可能误报 ``RuntimeError: No response returned``（Starlette #1769 类问题）。
-	"""
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
 
-	def __init__(self, app: ASGIApp) -> None:
-		"""包装内层 ASGI 应用 ``app``，在响应起始阶段注入安全相关 HTTP 头。"""
-		self.app = app
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
 
-	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-		"""ASGI 调用入口：非 HTTP 请求直通；HTTP 在 ``response.start`` 上补 ``X-Content-Type-Options`` 等。"""
-		if scope["type"] != "http":
-			await self.app(scope, receive, send)
-			return
+        async def send_with_headers(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                MutableHeaders(raw=message["headers"]).setdefault(
+                    "X-Content-Type-Options", "nosniff")
+            await send(message)
 
-		async def send_with_headers(message: Message) -> None:
-			if message["type"] == "http.response.start":
-				h = MutableHeaders(raw=message["headers"])
-				h.setdefault("X-Content-Type-Options", "nosniff")
-			await send(message)
-
-		await self.app(scope, receive, send_with_headers)
+        await self.app(scope, receive, send_with_headers)
 
 
-def create_app(web_root: str) -> FastAPI:
-	"""
-	创建并配置 FastAPI 实例：GZip、安全头、代理与健康检查路由，最后挂载 ``web_root`` 静态目录。
-	``web_root`` 须为已解析的绝对路径（与 launch 中 ``share/.../web/public`` 一致）。
-	"""
-	# 与 launch 传入的 share/.../web/public 一致；须为已解析的目录路径
-	root = os.path.abspath(os.path.realpath(web_root))
-	if not os.path.isdir(root):
-		raise ValueError(f"not a directory: {root}")
-	embedded_robotwebtools = os.path.join(root, "js", "robotwebtools")
-	robotwebtools_root = os.path.abspath(
-		os.path.realpath(os.environ.get(cfg.ENV_RWT_ASSETS_DIR, embedded_robotwebtools))
-	)
-	if not os.path.isdir(robotwebtools_root):
-		raise ValueError(f"robotwebtools assets directory not found: {robotwebtools_root}")
+def create_app(web_root: str, *, rwt_override: str | None = None) -> FastAPI:
+    """创建 FastAPI 应用。
 
-	@asynccontextmanager
-	async def lifespan(_app: FastAPI):
-		"""应用生命周期：启动时打印 rosbridge/web_video 上游与环境一致信息，便于对照 launch 排障。"""
-		# 启动时打印一次有效上游，便于与 launch 参数对照排障
-		rb_h = os.environ.get(cfg.ENV_ROSBRIDGE_HOST, cfg.DEFAULT_ROSBRIDGE_HOST)
-		wv_h = os.environ.get(cfg.ENV_WEB_VIDEO_HOST, cfg.DEFAULT_WEB_VIDEO_HOST)
-		rb_p = os.environ.get(cfg.ENV_ROSBRIDGE, str(cfg.DEFAULT_ROSBRIDGE_PORT))
-		wv_p = os.environ.get(cfg.ENV_WEB_VIDEO, str(cfg.DEFAULT_WEB_VIDEO_PORT))
-		print(
-			f"[ivg] FastAPI static gateway root={root} "
-			f"robotwebtools_root={robotwebtools_root} "
-			f"rosbridge_upstream={rb_h}:{rb_p} "
-			f"web_video_upstream={wv_h}:{wv_p}",
-			flush=True,
-		)
-		yield
+    Args:
+        web_root: 前端静态文件根目录 (share/.../web/public)
+        rwt_override: 覆盖 robotwebtools 资产目录（CLI --rwt-assets-dir）
+    """
+    root = os.path.abspath(os.path.realpath(web_root))
+    if not os.path.isdir(root):
+        raise ValueError(f"静态目录不存在: {root}")
 
-	app = FastAPI(
-		title="IVG Web Dashboard",
-		docs_url=None,
-		redoc_url=None,
-		openapi_url=None,
-		lifespan=lifespan,
-	)
-	# 供 routes 读取静态根（如 /health、/api/v1/runtime 中的 static_root 字段）
-	app.state.static_root = root
+    # RobotWebTools 资产路径：优先 CLI 覆盖 → 其次内嵌在 web/public/js/robotwebtools
+    embedded = os.path.join(root, "js", "robotwebtools")
+    rwt_root = os.path.abspath(os.path.realpath(rwt_override or embedded))
+    if not os.path.isdir(rwt_root):
+        raise ValueError(f"robotwebtools 资产目录未找到: {rwt_root}")
 
-	app.add_middleware(GZipMiddleware, minimum_size=512)
-	app.add_middleware(SecurityHeadersMiddleware)
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        """启动时打印代理目标地址，便于调试。"""
+        rb = f"{cfg.rosbridge_host()}:{cfg.rosbridge_port()}"
+        wv = f"{cfg.web_video_host()}:{cfg.web_video_port()}"
+        print(f"[ivg] 网关启动 root={root} rwt={rwt_root} "
+              f"rosbridge→{rb} web_video→{wv}", flush=True)
+        yield
 
-	# 以下顺序：更具体的路径先于 StaticFiles；ws /api/ivg 与 /health 互不冲突
-	app.include_router(ws_router)
-	app.include_router(http_proxy_router)
-	app.include_router(health_routes.router)
-	app.include_router(ivg_runtime_routes.router)
-	app.include_router(robot_mesh_routes.router)
-	app.mount(
-		"/js/robotwebtools",
-		StaticFiles(directory=robotwebtools_root, html=False),
-		name="robotwebtools",
-	)
+    # 创建应用
+    app = FastAPI(
+        title="IVG Web Dashboard",
+        docs_url=None, redoc_url=None, openapi_url=None,  # 不暴露 API 文档
+        lifespan=lifespan,
+    )
+    app.state.static_root = root
 
-	# html=True：访问目录时可解析 index.html
-	app.mount(
-		"/",
-		StaticFiles(directory=root, html=True),
-		name="static",
-	)
-	return app
+    # 中间件（后添加的先执行）
+    app.add_middleware(GZipMiddleware, minimum_size=cfg.gateway_gzip_min_size())
+    app.add_middleware(SecurityHeadersMiddleware)
+
+    # 路由注册（顺序决定优先级）
+    app.include_router(ws_router)           # WebSocket 代理
+    app.include_router(http_proxy_router)   # HTTP 视频流代理
+    app.include_router(health.router)       # /health
+    app.include_router(ivg_runtime.router)  # /api/v1/runtime
+    app.include_router(robot_mesh.router)   # /api/ivg/robot-mesh/*
+
+    # 静态文件挂载（优先级最低，作为 fallback）
+    app.mount("/js/robotwebtools",
+              StaticFiles(directory=rwt_root, html=False), name="robotwebtools")
+    app.mount("/",
+              StaticFiles(directory=root, html=True), name="static")
+
+    return app

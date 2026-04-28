@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="aubo_e5">
+  <xacro:arg name="ros2_control_hardware_type" default="mock_components"/>
+  <xacro:arg name="use_fake_hardware" default="true"/>
+
+  <!-- 基础 E5-10 机械臂 URDF（aubo_description，含末端执行器） -->
+  <xacro:include filename="$(find aubo_description)/urdf/aubo_e5_10.urdf"/>
+
+  <!-- Tool Center Point -->
+  <link name="tool_tcp">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.005"/>
+      </geometry>
+      <material name="tcp_marker">
+        <color rgba="1.0 0.0 0.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+  <joint name="wrist3_to_tcp" type="fixed">
+    <parent link="wrist3_Link"/>
+    <child link="tool_tcp"/>
+    <origin xyz="0.0 0.0 0.0235" rpy="0.0 0.0 0.0"/>
+  </joint>
+
+  <!-- Transmission -->
+  <xacro:macro name="aubo_arm_transmission" params="joint_name">
+    <transmission name="${joint_name}_trans">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${joint_name}">
+        <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+      </joint>
+      <actuator name="${joint_name}_motor">
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
+  </xacro:macro>
+
+  <xacro:aubo_arm_transmission joint_name="shoulder_joint"/>
+  <xacro:aubo_arm_transmission joint_name="upperArm_joint"/>
+  <xacro:aubo_arm_transmission joint_name="foreArm_joint"/>
+  <xacro:aubo_arm_transmission joint_name="wrist1_joint"/>
+  <xacro:aubo_arm_transmission joint_name="wrist2_joint"/>
+  <xacro:aubo_arm_transmission joint_name="wrist3_joint"/>
+
+  <!-- ros2_control 硬件接口 -->
+  <xacro:include filename="aubo_e5.ros2_control.xacro"/>
+  <xacro:aubo_ros2_control name="auboHardwareInterface" use_fake_hardware="$(arg use_fake_hardware)"/>
+</robot>

@@ -1,0 +1,1 @@
+/home/mu/IVG2.0/aubo_ros2_ws/src/vision_perception/launch/mediapipe_holistic.launch.py

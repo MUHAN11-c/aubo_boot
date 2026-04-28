@@ -1,6 +1,7 @@
-# 预处理与特征检测逻辑
+# 预处理与特征检测逻辑（Python 版本）
 
-本文档描述 `visual_pose_estimation_python` 中**预处理**（Preprocessor）和**特征检测**（FeatureExtractor）的当前逻辑与数据流。
+> 本文档描述 **`visual_pose_estimation_python`（Python 主力版本）** 中预处理和特征检测的算法逻辑与数据流。
+> C++ 旧版使用了绿色背景分割方案（与本文化石不同），C++ 版本仅保留参考，不再维护。
 
 ---
 

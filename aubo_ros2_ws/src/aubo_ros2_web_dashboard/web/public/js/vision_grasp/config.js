@@ -16,7 +16,7 @@ const VISION_SETTING_DEFS = [
 	{ id: 'svc-loop-grasp-control', category: 'service', defaultValue: '/loop_grasp_control', serviceType: 'std_srvs/srv/SetBool' },
 	{ id: 'svc-graspnet-capture', category: 'service', defaultValue: '/graspnet_capture_control', serviceType: 'std_srvs/srv/SetBool' },
 	{ id: 'svc-publish-grasps-loop', category: 'service', defaultValue: '/publish_grasps_worker_loop_control', serviceType: 'std_srvs/srv/SetBool' },
-	{ id: 'svc-gripper-swap', category: 'service', defaultValue: '/run_gripper_swap', serviceType: 'demo_interface/srv/RunGripperSwap' }
+	{ id: 'svc-gripper-swap', category: 'service', defaultValue: '/run_gripper_swap', serviceType: 'tool_changer_interface/srv/RunGripperSwap' }
 ];
 /** 固定业务服务（不在设置面板中暴露 id 编辑） */
 const VISION_FIXED_SERVICE_TYPES = {

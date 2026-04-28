@@ -1,16 +1,9 @@
-/**
- * 视觉抓取位姿卡片渲染：
- * - 仅负责将 ROS 消息映射为 HTML 片段，不触碰 DOM。
- * - 保持与旧版模板一致，供主编排脚本直接复用。
- */
-
+// pose_card.js — HTML renderers for end-effector / grasp pose cards
 import { ivgQuatNormalize } from '../view3d/tf_clients.js';
-
 function fmtPoseNum(v, digits) {
 	const n = Number(v);
 	return isFinite(n) ? n.toFixed(digits == null ? 4 : digits) : '--';
 }
-
 function numFirst(...vals) {
 	for (let i = 0; i < vals.length; i++) {
 		const n = Number(vals[i]);
@@ -18,7 +11,6 @@ function numFirst(...vals) {
 	}
 	return NaN;
 }
-
 function escapeHtml(value) {
 	return String(value == null ? '' : value)
 		.replace(/&/g, '&amp;')
@@ -27,7 +19,6 @@ function escapeHtml(value) {
 		.replace(/"/g, '&quot;')
 		.replace(/'/g, '&#39;');
 }
-
 function normalizeRobotStatusJson(raw) {
 	if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw;
 	const hasFlat =
@@ -41,7 +32,6 @@ function normalizeRobotStatusJson(raw) {
 	if (inner && typeof inner === 'object' && !Array.isArray(inner)) return inner;
 	return raw;
 }
-
 function poseToRpyDeg(pose) {
 	if (!pose || !pose.orientation) return null;
 	const q = ivgQuatNormalize({
@@ -65,7 +55,6 @@ function poseToRpyDeg(pose) {
 		yaw: radToDeg(eulerX)
 	};
 }
-
 function formatPoseBlockHtml(pose, rpyDeg) {
 	if (!pose || !pose.position || !pose.orientation) {
 		return '<div class="pose-card__empty">暂无位姿数据</div>';
@@ -107,14 +96,12 @@ function formatPoseBlockHtml(pose, rpyDeg) {
 			</section>
 		</div>`;
 }
-
 function robotPoseHtmlIsRenderable(html) {
 	return (
 		typeof html === 'string' &&
 		(html.indexOf('pose-card__body') !== -1 || html.indexOf('pose-card__body--ivg-text') !== -1)
 	);
 }
-
 function formatRobotPoseHtml(msg) {
 	msg = normalizeRobotStatusJson(msg);
 	if (!msg || typeof msg !== 'object') return '<div class="pose-card__empty">等待末端位姿…</div>';
@@ -153,7 +140,6 @@ function formatRobotPoseHtml(msg) {
 			: poseToRpyDeg(pose);
 	return formatPoseBlockHtml(pose, rpyDeg);
 }
-
 function formatFinalGraspPoseHtml(msg) {
 	if (!msg || !Array.isArray(msg.poses) || msg.poses.length === 0) {
 		return '<div class="pose-card__empty">等待 AI 抓取位姿…</div>';
@@ -161,7 +147,6 @@ function formatFinalGraspPoseHtml(msg) {
 	const pose = msg.poses[0];
 	return formatPoseBlockHtml(pose, null);
 }
-
 export {
 	escapeHtml,
 	robotPoseHtmlIsRenderable,

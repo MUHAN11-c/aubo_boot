@@ -36,18 +36,6 @@ def generate_launch_description():
         description='相机图像话题'
     )
     
-    robot_status_topic_arg = DeclareLaunchArgument(
-        'robot_status_topic',
-        default_value='/robot_status',
-        description='机器人状态话题（节点内部使用的话题名，通过remapping映射到实际话题）'
-    )
-    
-    actual_robot_status_topic_arg = DeclareLaunchArgument(
-        'actual_robot_status_topic',
-        default_value='/demo_robot_status',
-        description='实际发布的机器人状态话题名称（默认：/demo_robot_status）'
-    )
-    
     input_image_topic_arg = DeclareLaunchArgument(
         'input_image_topic',
         default_value='/camera/color/image_raw',
@@ -130,14 +118,10 @@ def generate_launch_description():
             'web_port': LaunchConfiguration('web_port'),
             'camera_topic': LaunchConfiguration('camera_topic'),
             'camera_info_topic': LaunchConfiguration('camera_info_topic'),
-            'robot_status_topic': LaunchConfiguration('robot_status_topic'),
             'depth_image_topic': LaunchConfiguration('depth_image_topic'),
             'depth_scale_unit': LaunchConfiguration('depth_scale_unit'),
         }],
-        remappings=[
-            # 将节点内部订阅的 /robot_status 映射到实际的话题 /demo_robot_status
-            ('robot_status', LaunchConfiguration('actual_robot_status_topic')),
-        ]
+        remappings=[]
     )
     
     # 手眼标定 TF 发布节点（根据标定结果发布相机与末端执行器之间的 TF 变换）
@@ -160,8 +144,6 @@ def generate_launch_description():
         web_port_arg,
         camera_topic_arg,
         camera_info_topic_arg,
-        robot_status_topic_arg,
-        actual_robot_status_topic_arg,
         input_image_topic_arg,
         depth_image_topic_arg,
         depth_scale_unit_arg,

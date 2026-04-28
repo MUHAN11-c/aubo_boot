@@ -1,4 +1,4 @@
-# This data structure contains the ToolData structure
+# 工具端数据消息
 # used by the Universal Robots controller
 
 int8 ANALOG_INPUT_RANGE_CURRENT = 0

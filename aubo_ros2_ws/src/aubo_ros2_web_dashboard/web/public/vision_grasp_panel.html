@@ -1,253 +1,236 @@
+<!-- vision_grasp_panel.html — visual grasp panel: dual camera, pose monitoring, controls -->
 <!DOCTYPE html>
-<!-- 视觉抓取面板：ivg_transport；AI 模式为相机图上的抓取位姿 2D 投影（与桌面/触控一致） -->
 <html lang="zh-CN">
-
 <head>
-	<meta charset="UTF-8" />
-	<!-- 视口基线：device-width + 安全区；interactive-widget 便于软键盘时布局与 Chrome 一致 -->
-	<meta name="viewport"
-		content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
-	<title>视觉抓取面板</title>
-	<link rel="stylesheet" href="css/vision_grasp_panel.css?v=20260424_monitoring_graspnet_pose_enlarged" />
-	<link rel="stylesheet" href="css/ivg_site_nav.css?v=20260414_unify_proj" />
-	<script src="/js/robotwebtools/importmap.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport"
+content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+<title>视觉抓取面板</title>
+<link rel="stylesheet" href="css/vision_grasp_panel.css?v=20260424_monitoring_graspnet_pose_enlarged" />
+<link rel="stylesheet" href="css/ivg_site_nav.css?v=20260414_unify_proj" />
+<link rel="stylesheet" href="css/ivg_status_bar.css" />
+<script src="/js/robotwebtools/importmap.js"></script>
 </head>
-
 <body class="ivg-single-screen">
-	<nav class="ivg-global-nav" aria-label="灵视IVG 站内导航" data-ivg-page="vision">
-		<div class="ivg-global-nav__inner">
-			<div class="ivg-global-nav__start">
-				<a class="ivg-global-nav__brand" href="index.html">灵视 <span>IVG</span></a>
-				<ul class="ivg-global-nav__list" role="list">
-					<li><a class="ivg-global-nav__link" href="index.html" data-ivg-nav="index">门户</a></li>
-					<li><a class="ivg-global-nav__link" href="vision_grasp_panel.html" data-ivg-nav="vision">视觉抓取</a>
-					</li>
-					<li><a class="ivg-global-nav__link" href="coffee_latte_panel.html" data-ivg-nav="latte">咖啡拉花</a>
-					</li>
-				</ul>
-			</div>
-			<div class="ivg-global-nav__actions">
-				<button type="button" class="ivg-global-nav__fs-btn" id="ivg-nav-fullscreen-btn" aria-pressed="false"
-					aria-label="进入全屏" title="全屏显示页面（iPad 若无效请用 Safari 添加到主屏幕）">全屏</button>
-			</div>
-		</div>
-	</nav>
-
-	<main class="wrap">
-		<!-- 第一档：标题、抓取方式、话题设置 -->
-		<div class="layout-toolbar layout-tier-1">
-			<div class="toolbar-brand">
-				<h1>视觉抓取面板</h1>
-			</div>
-			<div class="toolbar-mode" role="radiogroup" aria-label="抓取方式（影响单次与循环是否调用视觉位姿估计）">
-				<span class="mode-row-label" id="mode-group-label">抓取方式</span>
-				<div class="mode-segmented" role="presentation">
-					<label class="mode-seg">
-						<input type="radio" name="grasp-mode" id="mode-workpiece" value="workpiece" checked
-							aria-describedby="mode-group-label" />
-						<span class="mode-seg__face">工件（视觉估计）</span>
-					</label>
-					<label class="mode-seg">
-						<input type="radio" name="grasp-mode" id="mode-graspnet" value="graspnet"
-							aria-describedby="mode-group-label" />
-						<span class="mode-seg__face">AI大模型抓取</span>
-					</label>
-				</div>
-			</div>
-			<div class="toolbar-actions">
-				<button type="button" class="btn-settings" id="btn-topic-settings-open" aria-haspopup="dialog"
-					aria-controls="topic-settings-modal">话题与服务设置</button>
-			</div>
-		</div>
-
-		<!-- 主列：上为「双预览 | 抓取控制」通高，下为通栏「关节曲线与末端位姿」底边栏 -->
-		<div class="layout-vision-main">
-			<div class="layout-stack-with-control">
-				<div class="layout-stack-left">
-					<div class="layout-camera-controls layout-tier-2">
-						<section class="panel panel--camera panel--camera-hero layout-tier-2" aria-label="机械臂 URDF 模型">
-							<h2>机械臂模型</h2>
-							<div class="panel-canvas-wrap panel-canvas-wrap--urdf">
-								<div id="vision-urdf-host" class="vision-urdf-host" title="拖拽旋转视角，滚轮缩放"></div>
-							</div>
-						</section>
-
-						<section class="panel panel--camera panel--camera-result layout-tier-2" aria-label="识别结果与 AI 抓取投影">
-							<h2 id="result-panel-title">结果视图</h2>
-							<div class="panel-canvas-wrap panel-canvas-wrap--result">
-								<div id="result-workpiece-wrap" class="result-workpiece-wrap" aria-hidden="false">
-									<div class="result-viz-stack" id="result-viz-stack" title="识别结果图像">
-										<img id="result-mjpeg" alt="" class="cam-mjpeg result-cam-mjpeg" hidden />
-										<canvas id="result-overlay-canvas" class="result-overlay-canvas" hidden></canvas>
-									</div>
-								</div>
-							</div>
-						</section>
-					</div>
-				</div>
-
-				<section class="panel panel--control panel--tier-3" aria-label="抓取与工具控制">
-				<h2>抓取与工具控制</h2>
-				<div class="control-toolbar-field control-toolbar-field--mode-workpiece"
-					id="control-field-workpiece-id">
-					<h3 class="control-group-title" id="object-id-heading">目标工件编号</h3>
-					<input type="text" id="object-id" class="control-field-input" placeholder="与现场 object_id 一致"
-						aria-labelledby="object-id-heading" autocomplete="off" />
-				</div>
-
-				<div class="control-groups control-groups--tier" id="control-groups-tier">
-					<div class="control-group control-group--mode-workpiece" id="control-group-workpiece"
-						data-ivg-grasp-mode="workpiece">
-						<h3 class="control-group-title">工件抓取</h3>
-						<div class="btn-row" id="section-workpiece-btns">
-							<button type="button" class="ctrl ctrl--wide primary"
-								id="btn-wp-single-start">执行单次抓取</button>
-							<button type="button" class="ctrl danger" id="btn-wp-single-stop">停止</button>
-							<button type="button" class="ctrl primary" id="btn-wp-loop-start">启动循环</button>
-							<button type="button" class="ctrl danger" id="btn-wp-loop-stop">停循环</button>
-						</div>
-					</div>
-					<div class="control-group control-group--mode-graspnet" id="control-group-graspnet"
-						data-ivg-grasp-mode="graspnet">
-						<h3 class="control-group-title">AI大模型抓取</h3>
-						<div class="btn-row" id="section-graspnet-btns">
-							<button type="button" class="ctrl primary" id="btn-gn-cap-start">开始采集</button>
-							<button type="button" class="ctrl danger" id="btn-gn-cap-stop">停止采集</button>
-							<button type="button" class="ctrl primary" id="btn-gn-loop-start">循环抓取开</button>
-							<button type="button" class="ctrl danger" id="btn-gn-loop-stop">循环抓取关</button>
-						</div>
-					</div>
-					<div class="control-group">
-						<h3 class="control-group-title">末端夹爪快换</h3>
-						<div class="btn-row">
-							<button type="button" class="ctrl" id="btn-quick-swap-0">切换夹爪0</button>
-							<button type="button" class="ctrl" id="btn-quick-swap">切换夹爪2</button>
-						</div>
-					</div>
-				</div>
-
-				<div class="svc-log" id="svc-log" aria-live="polite"></div>
-				</section>
-			</div>
-
-			<!-- 通栏底边：关节曲线 | 位姿读数；标题条可收起 -->
-			<div class="layout-body layout-tier-4 layout-body--monitoring" id="layout-monitoring-section">
-				<button type="button" class="layout-monitoring-toggle" id="btn-monitoring-toggle"
-					aria-expanded="true" aria-controls="layout-monitoring-bundle">
-					<span class="layout-monitoring-toggle__label">关节曲线与末端位姿</span>
-					<span class="layout-monitoring-toggle__hint" aria-hidden="true">收起</span>
-					<span class="layout-monitoring-toggle__chevron" aria-hidden="true"></span>
-				</button>
-				<div class="layout-monitoring-bundle" id="layout-monitoring-bundle" aria-label="关节曲线与末端位姿">
-					<section class="panel panel--chart" aria-label="关节角曲线">
-						<h2>关节角曲线</h2>
-						<div id="joint-legend" class="legend-joint" role="list" aria-label="关节与曲线颜色"
-							aria-hidden="true">
-						</div>
-						<canvas id="joint-chart" width="640" height="240" aria-label="各关节位置随时间变化"></canvas>
-					</section>
-					<div class="layout-monitoring-pose-col" aria-label="位姿读数">
-						<div class="layout-monitoring-ee-vpe-pair" aria-label="末端与视觉位姿">
-							<section class="panel panel--status" aria-label="机械臂末端位姿">
-								<h2>机械臂末端位姿</h2>
-								<div class="pose-pre pose-card" id="pose-text" role="status" aria-live="polite"></div>
-							</section>
-							<section class="panel panel--status panel--status-mode-workpiece" id="status-panel-vpe"
-								aria-label="视觉位姿估计状态">
-								<h2>视觉位姿估计状态</h2>
-								<pre class="result-pre" id="vpe-status-text"></pre>
-							</section>
-						</div>
-						<section class="panel panel--status panel--status-mode-graspnet" id="status-panel-graspnet-poses"
-							aria-label="AI大模型最终抓取位姿">
-							<h2>AI大模型最终抓取位姿</h2>
-							<div class="result-pre pose-card" id="graspnet-result-text" role="status"
-								aria-live="polite">
-							</div>
-						</section>
-					</div>
-				</div>
-			</div>
-		</div>
-	</main>
-
-	<footer class="connection-footer" role="contentinfo" aria-label="连接状态">
-		<div class="connection-footer__inner">
-			<span class="connection-footer__label">连接状态</span>
-			<span id="conn-status" class="status pending" role="status" aria-live="polite">正在连接…</span>
-		</div>
-	</footer>
-
-	<div id="topic-settings-modal" class="topic-settings-modal" role="dialog" aria-modal="true"
-		aria-labelledby="topic-settings-title" aria-hidden="true" hidden>
-		<div class="topic-settings-backdrop" id="topic-settings-backdrop" tabindex="-1"></div>
-		<div class="topic-settings-sheet">
-			<div class="topic-settings-head">
-				<h2 id="topic-settings-title">话题与服务</h2>
-				<button type="button" class="btn-settings-close" id="btn-topic-settings-close"
-					aria-label="关闭">×</button>
-			</div>
-			<div class="topic-grid topic-grid-modal">
-				<h3 class="topic-settings-section-title">订阅话题</h3>
-				<label>彩色相机图像 <input type="text" id="topic-color" value="/camera/color/image_raw" autocomplete="off"
-						title="sensor_msgs/Image" /></label>
-				<label>识别结果图像（可空） <input type="text" id="topic-result" value=""
-						placeholder="例 /visual_pose/annotated_image" autocomplete="off"
-						title="sensor_msgs/Image" /></label>
-				<label>机械臂状态 RobotStatus <input type="text" id="topic-robot" value="/aubo_driver/robot_status"
-						autocomplete="off" title="demo_interface/msg/RobotStatus" /></label>
-				<label>关节角 JointState（曲线） <input type="text" id="topic-joints" value="/joint_states"
-						autocomplete="off" /></label>
-				<label>视觉位姿估计状态（字符串） <input type="text" id="topic-vpe-status" value="/system_status"
-						autocomplete="off" /></label>
-				<label>AI 大模型最终抓取位姿（PoseArray） <input type="text" id="topic-grasp-poses" value="/grasp_poses_base"
-						autocomplete="off" /></label>
-				<h3 class="topic-settings-section-title">TF（2D 投影坐标变换）</h3>
-				<label>动态 TF <input type="text" id="topic-tf" value="/tf" autocomplete="off"
-						title="tf2_msgs/TFMessage" /></label>
-				<label>静态 TF <input type="text" id="topic-tf-static" value="/tf_static" autocomplete="off"
-						title="tf2_msgs/TFMessage" /></label>
-				<h3 class="topic-settings-section-title">机械臂 3D（左栏 URDF）</h3>
-				<label>URDF 参数（ros3d UrdfClient，rosapi 需 node:param） <input type="text" id="urdf-param"
-						value="/robot_state_publisher:robot_description" autocomplete="off"
-						title="例 /robot_state_publisher:robot_description" /></label>
-				<label>TF 固定坐标系 <input type="text" id="tf-fixed-frame" value="base_link" autocomplete="off" /></label>
-				<h3 class="topic-settings-section-title">服务（按钮对应；与 launch remap 一致）</h3>
-				<label>工件循环抓取开关 SetBool <input type="text" id="svc-loop-grasp-control" value="/loop_grasp_control"
-						autocomplete="off" title="std_srvs/srv/SetBool" /></label>
-				<label>大模型采集开关 SetBool <input type="text" id="svc-graspnet-capture" value="/graspnet_capture_control"
-						autocomplete="off" title="std_srvs/srv/SetBool" /></label>
-				<label>大模型循环发布开关 SetBool <input type="text" id="svc-publish-grasps-loop"
-						value="/publish_grasps_worker_loop_control" autocomplete="off"
-						title="std_srvs/srv/SetBool" /></label>
-				<label>末端夹爪快换 RunGripperSwap <input type="text" id="svc-gripper-swap" value="/run_gripper_swap"
-						autocomplete="off" title="demo_interface/srv/RunGripperSwap" /></label>
-				<p class="hint">订阅类含 CameraInfo（由彩色图话题推导）、投影用 TF。服务类型固定，仅可改名称以适配 remap。</p>
-			</div>
-			<div class="topic-settings-actions">
-				<button type="button" class="ctrl" id="btn-topic-restore-defaults">恢复内置默认话题</button>
-				<button type="button" class="ctrl primary" id="btn-topic-save-reconnect">保存并重新连接</button>
-			</div>
-		</div>
-	</div>
-
-	<!-- 左栏已改为 URDF；保留隐藏占位供 AI 模式脚本引用 id -->
-	<div hidden aria-hidden="true">
-		<canvas id="cam-canvas" width="640" height="480"></canvas>
-		<img id="cam-mjpeg" alt="" class="cam-mjpeg" hidden />
-	</div>
-	<!-- ros3d 会话仅保留 URDF / TF / Marker 相关隐藏控件 -->
-	<div hidden aria-hidden="true">
-		<input type="text" id="scan3-topic" value="" autocomplete="off" />
-		<input type="text" id="marker3-topic" value="" autocomplete="off" />
-		<input type="checkbox" id="view3d-show-urdf" checked />
-		<input type="checkbox" id="view3d-show-axes" checked />
-		<input type="checkbox" id="view3d-show-grid" />
-		<input type="text" id="view3d-point-size" value="0.05" />
-	</div>
-
-	<script type="module" src="js/ivg_site_nav.js"></script>
-	<script type="module" src="js/vision_grasp_panel.js?v=20260424_conn_status_plain"></script>
+<nav class="ivg-global-nav" aria-label="灵视IVG 站内导航" data-ivg-page="vision">
+<div class="ivg-global-nav__inner">
+<div class="ivg-global-nav__start">
+<a class="ivg-global-nav__brand" href="index.html">灵视 <span>IVG</span></a>
+<ul class="ivg-global-nav__list" role="list">
+<li><a class="ivg-global-nav__link" href="index.html" data-ivg-nav="index">门户</a></li>
+<li><a class="ivg-global-nav__link" href="vision_grasp_panel.html" data-ivg-nav="vision">视觉抓取</a>
+</li>
+<li><a class="ivg-global-nav__link" href="coffee_latte_panel.html" data-ivg-nav="latte">咖啡拉花</a>
+</li>
+<li><a class="ivg-global-nav__link" href="tf_monitor_panel.html" data-ivg-nav="monitor">监控面板</a></li>
+        <li><a class="ivg-global-nav__link" href="settings_panel.html" data-ivg-nav="settings">设置</a></li>
+</ul>
+</div>
+<div class="ivg-global-nav__actions">
+<button type="button" class="ivg-global-nav__fs-btn" id="ivg-nav-fullscreen-btn" aria-pressed="false"
+aria-label="进入全屏" title="全屏显示页面（iPad 若无效请用 Safari 添加到主屏幕）">全屏</button>
+</div>
+</div>
+</nav>
+<main class="wrap">
+<div class="layout-toolbar layout-tier-1">
+<div class="toolbar-brand">
+<h1>视觉抓取面板</h1>
+</div>
+<div class="toolbar-mode" role="radiogroup" aria-label="抓取方式（影响单次与循环是否调用视觉位姿估计）">
+<span class="mode-row-label" id="mode-group-label">抓取方式</span>
+<div class="mode-segmented" role="presentation">
+<label class="mode-seg">
+<input type="radio" name="grasp-mode" id="mode-workpiece" value="workpiece" checked
+aria-describedby="mode-group-label" />
+<span class="mode-seg__face">工件（视觉估计）</span>
+</label>
+<label class="mode-seg">
+<input type="radio" name="grasp-mode" id="mode-graspnet" value="graspnet"
+aria-describedby="mode-group-label" />
+<span class="mode-seg__face">AI大模型抓取</span>
+</label>
+</div>
+</div>
+<div class="toolbar-actions">
+<a href="settings_panel.html" class="btn-settings" target="_blank">话题与服务设置</a>
+</div>
+</div>
+<div class="layout-vision-main">
+<div class="layout-stack-with-control">
+<div class="layout-stack-left">
+<div class="layout-camera-controls layout-tier-2">
+<section class="panel panel--camera panel--camera-hero layout-tier-2" aria-label="机械臂 URDF 模型">
+<h2>机械臂模型</h2>
+<div class="panel-canvas-wrap panel-canvas-wrap--urdf">
+<div id="vision-urdf-host" class="vision-urdf-host" title="拖拽旋转视角，滚轮缩放"></div>
+</div>
+</section>
+<section class="panel panel--camera panel--camera-result layout-tier-2" aria-label="识别结果与 AI 抓取投影">
+<h2 id="result-panel-title">结果视图</h2>
+<div class="panel-canvas-wrap panel-canvas-wrap--result">
+<div id="result-workpiece-wrap" class="result-workpiece-wrap" aria-hidden="false">
+<div class="result-viz-stack" id="result-viz-stack" title="识别结果图像">
+<img id="result-mjpeg" alt="" class="cam-mjpeg result-cam-mjpeg" hidden />
+<canvas id="result-overlay-canvas" class="result-overlay-canvas" hidden></canvas>
+</div>
+</div>
+</div>
+</section>
+</div>
+</div>
+<section class="panel panel--control panel--tier-3" aria-label="抓取与工具控制">
+<h2>抓取与工具控制</h2>
+<div class="control-toolbar-field control-toolbar-field--mode-workpiece"
+id="control-field-workpiece-id">
+<h3 class="control-group-title" id="object-id-heading">目标工件编号</h3>
+<input type="text" id="object-id" class="control-field-input" placeholder="与现场 object_id 一致"
+aria-labelledby="object-id-heading" autocomplete="off" />
+</div>
+<div class="control-groups control-groups--tier" id="control-groups-tier">
+<div class="control-group control-group--mode-workpiece" id="control-group-workpiece"
+data-ivg-grasp-mode="workpiece">
+<h3 class="control-group-title">工件抓取</h3>
+<div class="btn-row" id="section-workpiece-btns">
+<button type="button" class="ctrl ctrl--wide primary"
+id="btn-wp-single-start">执行单次抓取</button>
+<button type="button" class="ctrl danger" id="btn-wp-single-stop">停止</button>
+<button type="button" class="ctrl primary" id="btn-wp-loop-start">启动循环</button>
+<button type="button" class="ctrl danger" id="btn-wp-loop-stop">停循环</button>
+</div>
+</div>
+<div class="control-group control-group--mode-graspnet" id="control-group-graspnet"
+data-ivg-grasp-mode="graspnet">
+<h3 class="control-group-title">AI大模型抓取</h3>
+<div class="btn-row" id="section-graspnet-btns">
+<button type="button" class="ctrl primary" id="btn-gn-cap-start">开始采集</button>
+<button type="button" class="ctrl danger" id="btn-gn-cap-stop">停止采集</button>
+<button type="button" class="ctrl primary" id="btn-gn-loop-start">循环抓取开</button>
+<button type="button" class="ctrl danger" id="btn-gn-loop-stop">循环抓取关</button>
+</div>
+</div>
+<div class="control-group">
+<h3 class="control-group-title">末端夹爪快换</h3>
+<div class="btn-row">
+<button type="button" class="ctrl" id="btn-quick-swap-0">切换夹爪0</button>
+<button type="button" class="ctrl" id="btn-quick-swap">切换夹爪2</button>
+</div>
+</div>
+</div>
+<div class="svc-log" id="svc-log" aria-live="polite"></div>
+</section>
+</div>
+<div class="layout-body layout-tier-4 layout-body--monitoring" id="layout-monitoring-section">
+<button type="button" class="layout-monitoring-toggle" id="btn-monitoring-toggle"
+aria-expanded="true" aria-controls="layout-monitoring-bundle">
+<span class="layout-monitoring-toggle__label">关节曲线与末端位姿</span>
+<span class="layout-monitoring-toggle__hint" aria-hidden="true">收起</span>
+<span class="layout-monitoring-toggle__chevron" aria-hidden="true"></span>
+</button>
+<div class="layout-monitoring-bundle" id="layout-monitoring-bundle" aria-label="关节曲线与末端位姿">
+<section class="panel panel--chart" aria-label="关节角曲线">
+<h2>关节角曲线</h2>
+<div id="joint-legend" class="legend-joint" role="list" aria-label="关节与曲线颜色"
+aria-hidden="true">
+</div>
+<canvas id="joint-chart" width="640" height="240" aria-label="各关节位置随时间变化"></canvas>
+</section>
+<div class="layout-monitoring-pose-col" aria-label="位姿读数">
+<div class="layout-monitoring-ee-vpe-pair" aria-label="末端与视觉位姿">
+<section class="panel panel--status" aria-label="机械臂末端位姿">
+<h2>机械臂末端位姿</h2>
+<div class="pose-pre pose-card" id="pose-text" role="status" aria-live="polite"></div>
+</section>
+<section class="panel panel--status panel--status-mode-workpiece" id="status-panel-vpe"
+aria-label="视觉位姿估计状态">
+<h2>视觉位姿估计状态</h2>
+<pre class="result-pre" id="vpe-status-text"></pre>
+</section>
+</div>
+<section class="panel panel--status panel--status-mode-graspnet" id="status-panel-graspnet-poses"
+aria-label="AI大模型最终抓取位姿">
+<h2>AI大模型最终抓取位姿</h2>
+<div class="result-pre pose-card" id="graspnet-result-text" role="status"
+aria-live="polite">
+</div>
+</section>
+</div>
+</div>
+</div>
+</div>
+</main>
+<footer class="connection-footer" role="contentinfo" aria-label="连接状态">
+<div class="connection-footer__inner">
+<span class="connection-footer__label">连接状态</span>
+<span id="conn-status" class="status pending" role="status" aria-live="polite">正在连接…</span>
+</div>
+</footer>
+<div id="topic-settings-modal" class="topic-settings-modal" role="dialog" aria-modal="true"
+aria-labelledby="topic-settings-title" aria-hidden="true" hidden>
+<div class="topic-settings-backdrop" id="topic-settings-backdrop" tabindex="-1"></div>
+<div class="topic-settings-sheet">
+<div class="topic-settings-head">
+<h2 id="topic-settings-title">话题与服务</h2>
+<button type="button" class="btn-settings-close" id="btn-topic-settings-close"
+aria-label="关闭">×</button>
+</div>
+<div class="topic-grid topic-grid-modal">
+<h3 class="topic-settings-section-title">订阅话题</h3>
+<label>彩色相机图像 <input type="text" id="topic-color" value="/camera/color/image_raw" autocomplete="off"
+title="sensor_msgs/Image" /></label>
+<label>识别结果图像（可空） <input type="text" id="topic-result" value=""
+placeholder="例 /visual_pose/annotated_image" autocomplete="off"
+title="sensor_msgs/Image" /></label>
+<label>机械臂状态 RobotStatus <input type="text" id="topic-robot" value="/aubo_driver/robot_status"
+autocomplete="off" title="demo_interface/msg/RobotStatus" /></label>
+<label>关节角 JointState（曲线） <input type="text" id="topic-joints" value="/joint_states"
+autocomplete="off" /></label>
+<label>视觉位姿估计状态（字符串） <input type="text" id="topic-vpe-status" value="/system_status"
+autocomplete="off" /></label>
+<label>AI 大模型最终抓取位姿（PoseArray） <input type="text" id="topic-grasp-poses" value="/grasp_poses_base"
+autocomplete="off" /></label>
+<h3 class="topic-settings-section-title">TF（2D 投影坐标变换）</h3>
+<label>动态 TF <input type="text" id="topic-tf" value="/tf" autocomplete="off"
+title="tf2_msgs/TFMessage" /></label>
+<label>静态 TF <input type="text" id="topic-tf-static" value="/tf_static" autocomplete="off"
+title="tf2_msgs/TFMessage" /></label>
+<h3 class="topic-settings-section-title">机械臂 3D（左栏 URDF）</h3>
+<label>URDF 参数（ros3d UrdfClient，rosapi 需 node:param） <input type="text" id="urdf-param"
+value="/robot_state_publisher:robot_description" autocomplete="off"
+title="例 /robot_state_publisher:robot_description" /></label>
+<label>TF 固定坐标系 <input type="text" id="tf-fixed-frame" value="base_link" autocomplete="off" /></label>
+<h3 class="topic-settings-section-title">服务（按钮对应；与 launch remap 一致）</h3>
+<label>工件循环抓取开关 SetBool <input type="text" id="svc-loop-grasp-control" value="/loop_grasp_control"
+autocomplete="off" title="std_srvs/srv/SetBool" /></label>
+<label>大模型采集开关 SetBool <input type="text" id="svc-graspnet-capture" value="/graspnet_capture_control"
+autocomplete="off" title="std_srvs/srv/SetBool" /></label>
+<label>大模型循环发布开关 SetBool <input type="text" id="svc-publish-grasps-loop"
+value="/publish_grasps_worker_loop_control" autocomplete="off"
+title="std_srvs/srv/SetBool" /></label>
+<label>末端夹爪快换 RunGripperSwap <input type="text" id="svc-gripper-swap" value="/run_gripper_swap"
+autocomplete="off" title="tool_changer_interface/srv/RunGripperSwap" /></label>
+<p class="hint">订阅类含 CameraInfo（由彩色图话题推导）、投影用 TF。服务类型固定，仅可改名称以适配 remap。</p>
+</div>
+<div class="topic-settings-actions">
+<button type="button" class="ctrl" id="btn-topic-restore-defaults">恢复内置默认话题</button>
+<button type="button" class="ctrl primary" id="btn-topic-save-reconnect">保存并重新连接</button>
+</div>
+</div>
+</div>
+<div hidden aria-hidden="true">
+<canvas id="cam-canvas" width="640" height="480"></canvas>
+<img id="cam-mjpeg" alt="" class="cam-mjpeg" hidden />
+</div>
+<div hidden aria-hidden="true">
+<input type="text" id="scan3-topic" value="" autocomplete="off" />
+<input type="text" id="marker3-topic" value="" autocomplete="off" />
+<input type="checkbox" id="view3d-show-urdf" checked />
+<input type="checkbox" id="view3d-show-axes" checked />
+<input type="checkbox" id="view3d-show-grid" />
+<input type="text" id="view3d-point-size" value="0.05" />
+</div>
+<script type="module" src="js/ivg_site_nav.js"></script>
+<script type="module" src="js/vision_grasp_panel.js?v=20260424_conn_status_plain"></script>
+<script type="module" src="js/core/ivg_status_bar.js"></script>
 </body>
-
 </html>

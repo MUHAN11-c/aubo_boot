@@ -1,5 +1,5 @@
 """
-视频输入测试: video_publisher -> YOLO26 OBB + 实时显示
+video_publisher + YOLO track 组合启动
 """
 from launch import LaunchDescription
 from launch_ros.actions import Node
@@ -11,11 +11,11 @@ import os
 
 def generate_launch_description():
     pkg_share = get_package_share_directory('vision_perception')
-    default_video = os.path.join(pkg_share, 'resource',
-                                 'video_新手咖啡拉花练习顺序_0.mp4')
 
     video_path_arg = DeclareLaunchArgument(
-        'video_path', default_value=default_video,
+        'video_path',
+        default_value=os.path.join(pkg_share, 'resource',
+                                   'video_新手咖啡拉花练习顺序_0.mp4'),
         description='输入视频文件路径')
     output_topic_arg = DeclareLaunchArgument(
         'output_topic', default_value='/camera/color/image_raw',
@@ -24,6 +24,16 @@ def generate_launch_description():
         'fps', default_value='0.0', description='发布帧率 (0=原始帧率)')
     resize_arg = DeclareLaunchArgument(
         'resize_height', default_value='480', description='缩放高度')
+    model_path_arg = DeclareLaunchArgument(
+        'model_path',
+        default_value=os.path.join(pkg_share, 'model', 'yolo26n.pt'),
+        description='YOLO 模型权重路径')
+    device_arg = DeclareLaunchArgument(
+        'device', default_value='cuda:0',
+        description='推理设备 (cuda:0 / cpu)')
+    conf_arg = DeclareLaunchArgument(
+        'conf_threshold', default_value='0.3',
+        description='置信度阈值')
 
     video_pub = Node(
         package='vision_perception',
@@ -39,29 +49,22 @@ def generate_launch_description():
         }],
     )
 
-    yolo_obb = Node(
+    yolo_track = Node(
         package='vision_perception',
-        executable='yolo_obb_node',
-        name='yolo_obb_node',
+        executable='yolo_track_node',
+        name='yolo_track_node',
         output='screen',
         parameters=[{
             'input_topic': LaunchConfiguration('output_topic'),
-            'conf_threshold': 0.25,
-            'device': 'cpu',
-            'publish_markers': True,
+            'model_path': LaunchConfiguration('model_path'),
+            'device': LaunchConfiguration('device'),
+            'conf_threshold': LaunchConfiguration('conf_threshold'),
+            'display_result': True,
         }],
-    )
-
-    obb_view = Node(
-        package='image_view',
-        executable='image_view',
-        name='obb_view',
-        output='screen',
-        remappings=[('image', '/vision/yolo_obb/image')],
-        parameters=[{'window_name': 'YOLO26 OBB', 'autosize': True}],
     )
 
     return LaunchDescription([
         video_path_arg, output_topic_arg, fps_arg, resize_arg,
-        video_pub, yolo_obb, obb_view,
+        model_path_arg, device_arg, conf_arg,
+        video_pub, yolo_track,
     ])

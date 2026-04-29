@@ -34,6 +34,13 @@ aubo_ros2_ws/rosbags/
 *.zip
 **/src.zip
 coord_tf_output/
+*.log
+!**/tracelog.properties
+
+# 构建产物（根目录）
+build/
+install/
+log/
 
 # 系统
 .DS_Store

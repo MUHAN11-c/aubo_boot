@@ -7,7 +7,6 @@ from rclpy.node import Node
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import cv2
-import time
 
 
 class VideoPublisherNode(Node):
@@ -16,7 +15,7 @@ class VideoPublisherNode(Node):
 
         self.declare_parameter('video_path', '')
         self.declare_parameter('output_topic', '/camera/color/image_raw')
-        self.declare_parameter('fps', 30.0)
+        self.declare_parameter('fps', 0.0)
         self.declare_parameter('loop', True)
         self.declare_parameter('resize_width', 0)
         self.declare_parameter('resize_height', 480)
@@ -39,10 +38,14 @@ class VideoPublisherNode(Node):
 
         real_fps = self.cap.get(cv2.CAP_PROP_FPS)
         total_frames = self.cap.get(cv2.CAP_PROP_FRAME_COUNT)
+
+        if self.fps <= 0.0:
+            self.fps = real_fps
+
         self.get_logger().info(
             f'视频加载成功: {video_path} '
             f'(原始 {real_fps:.1f}fps, {total_frames:.0f}帧, '
-            f'发布 {self.fps}fps)'
+            f'发布 {self.fps:.1f}fps)'
         )
 
         self.bridge = CvBridge()

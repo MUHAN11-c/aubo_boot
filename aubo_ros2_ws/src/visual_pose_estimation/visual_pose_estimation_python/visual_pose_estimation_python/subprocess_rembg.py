@@ -31,17 +31,20 @@ class SubprocessRemBGProcessor:
 
     接口兼容 RemBGProcessor：
         process_roi(color_bgr, bbox) -> (full_mask, full_cutout_bgr)
+
+    参数:
+        script_path: rembg_subprocess.py 的路径，为 None 时自动解析
     """
 
-    def __init__(self, model: str = "u2net", prefer_cuda: bool = True) -> None:
+    def __init__(self, model: str = "u2net", prefer_cuda: bool = True,
+                 script_path: Optional[Path] = None) -> None:
         self.model = model
         self.prefer_cuda = prefer_cuda
         self._conda_python = os.environ.get(
             "VPE_REMBG_PYTHON",
             str(Path.home() / "miniconda3" / "envs" / "ros2_env" / "bin" / "python"),
         )
-        self._script_path = resolve_web_paths().rembg_subprocess_script
-
+        self._script_path = script_path or resolve_web_paths().rembg_subprocess_script
         self._providers: Optional[List[str]] = None
 
     @property

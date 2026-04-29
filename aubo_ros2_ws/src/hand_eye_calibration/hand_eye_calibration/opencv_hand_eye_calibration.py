@@ -18,8 +18,6 @@ import json
 import time
 import os
 from datetime import datetime
-import os
-from datetime import datetime
 
 
 def _convert_to_json_serializable(obj):

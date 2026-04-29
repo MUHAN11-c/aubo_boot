@@ -13,8 +13,8 @@ def generate_launch_description():
         description='输入图像话题'
     )
     model_path_arg = DeclareLaunchArgument(
-        'model_path', default_value='/home/mu/yolo26n-obb.pt',
-        description='YOLO26 OBB 模型权重路径'
+        'model_path', default_value='',
+        description='YOLO26 OBB 模型权重路径（留空则使用包内默认 yolo26n-obb.pt）'
     )
     conf_arg = DeclareLaunchArgument(
         'conf_threshold', default_value='0.25',

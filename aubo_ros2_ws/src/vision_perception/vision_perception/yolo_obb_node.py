@@ -28,6 +28,7 @@ class YoloOBBNode(Node):
         self.declare_parameter('iou_threshold', 0.7)
         self.declare_parameter('device', 'cuda:0')
         self.declare_parameter('publish_markers', True)
+        self.declare_parameter('display_result', True)
 
         input_topic = self.get_parameter('input_topic').value
         output_image_topic = self.get_parameter('output_image_topic').value
@@ -163,6 +164,10 @@ class YoloOBBNode(Node):
 
         if self.get_parameter('publish_markers').value and marker_array.markers:
             self.marker_publisher.publish(marker_array)
+
+        if self.get_parameter('display_result').value:
+            cv2.imshow('YOLO26 OBB', annotated)
+            cv2.waitKey(1)
 
 
 def main(args=None):

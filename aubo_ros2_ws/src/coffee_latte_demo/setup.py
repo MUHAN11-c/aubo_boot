@@ -15,8 +15,6 @@ setup(
         (f"share/{PKG}/config", glob("config/*.yaml")),
         (f"share/{PKG}/meshes/visual", glob("meshes/visual/*.stl")),
         (f"share/{PKG}/meshes/collision", glob("meshes/collision/*.stl")),
-        (f"share/{PKG}/web/public", glob("web/public/*.html")),
-        (f"share/{PKG}/web/public/css", glob("web/public/css/*.css")),
     ],
     install_requires=["setuptools"],
     zip_safe=True,

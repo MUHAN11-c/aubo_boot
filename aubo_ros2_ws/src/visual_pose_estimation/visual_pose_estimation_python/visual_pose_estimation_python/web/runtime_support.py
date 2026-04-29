@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import base64
-import io
 import math
 import os
 from functools import lru_cache
@@ -11,9 +9,9 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
-from PIL import Image
 
 from .resources import WebPaths, get_app_config, load_json_file, resolve_templates_root, resolve_web_paths
+from ...subprocess_rembg import SubprocessRemBGProcessor
 
 
 CAMERA_POSE_FIXED_ORIENTATION = {
@@ -53,91 +51,6 @@ if not REMBG_AVAILABLE:
                 REMBG_AVAILABLE = True
         except Exception:
             SUBPROCESS_REMBG_AVAILABLE = False
-
-
-class SubprocessRemBGProcessor:
-    """Use a conda environment to run rembg when current Python cannot import it."""
-
-    def __init__(self, script_path: Path, model: str = "u2net", prefer_cuda: bool = True):
-        self.model = model
-        self.prefer_cuda = prefer_cuda
-        self._conda_python = str(
-            Path(
-                os.environ.get(
-                    "VPE_REMBG_PYTHON",
-                    str(Path.home() / "miniconda3" / "envs" / "ros2_env" / "bin" / "python"),
-                )
-            ).expanduser()
-        )
-        self._script_path = script_path
-        self._providers = None
-
-    @property
-    def providers(self):
-        return self._providers
-
-    def process_roi(self, color_bgr: np.ndarray, bbox: tuple[int, int, int, int]):
-        import subprocess
-        import tempfile
-
-        x, y, w, h = bbox
-        if w <= 0 or h <= 0:
-            return None, None
-
-        img_h, img_w = color_bgr.shape[:2]
-        x0 = max(0, int(x))
-        y0 = max(0, int(y))
-        x1 = min(img_w, int(x + w))
-        y1 = min(img_h, int(y + h))
-        if x1 <= x0 or y1 <= y0:
-            return None, None
-
-        input_path = ""
-        bbox_path = ""
-        try:
-            img_pil = Image.fromarray(color_bgr[:, :, ::-1])
-            with tempfile.NamedTemporaryFile(mode="wb", suffix=".png", delete=False) as input_file:
-                img_pil.save(input_file, format="PNG")
-                input_path = input_file.name
-
-            bbox_data = {"x0": x0, "y0": y0, "x1": x1 - x0, "y1": y1 - y0}
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as bbox_file:
-                json.dump(bbox_data, bbox_file)
-                bbox_path = bbox_file.name
-
-            result = subprocess.run(
-                [self._conda_python, str(self._script_path), input_path, bbox_path, self.model],
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-            if result.returncode != 0:
-                return None, None
-
-            output = json.loads(result.stdout)
-            if not output.get("success"):
-                return None, None
-
-            self._providers = output.get("providers", ["CPUExecutionProvider"])
-
-            mask_data = base64.b64decode(output["mask_b64"])
-            mask_img = Image.open(io.BytesIO(mask_data))
-            mask = np.array(mask_img.convert("L"))
-
-            cutout_data = base64.b64decode(output["cutout_b64"])
-            cutout_img = Image.open(io.BytesIO(cutout_data))
-            cutout_rgb = np.array(cutout_img.convert("RGB"))
-            cutout_bgr = cutout_rgb[:, :, ::-1]
-            return mask, cutout_bgr
-        except Exception:
-            return None, None
-        finally:
-            for temp_path in (input_path, bbox_path):
-                if temp_path and os.path.exists(temp_path):
-                    try:
-                        os.unlink(temp_path)
-                    except Exception:
-                        pass
 
 
 _REMBG_PROCESSOR = None

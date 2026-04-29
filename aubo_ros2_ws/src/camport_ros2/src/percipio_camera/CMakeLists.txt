@@ -39,17 +39,12 @@ foreach (dep IN LISTS dependencies)
   find_package(${dep} REQUIRED)
 endforeach ()
 
-#find_package(ament_cmake REQUIRED)
-#find_package(rclcpp REQUIRED)
 find_package(pcl_conversions REQUIRED)
-#find_package(sensor_msgs REQUIRED)
-
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
-#find_package(tf2_ros REQUIRED)
-find_package(tf2_geometry_msgs  REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui photo)
 
@@ -126,15 +121,13 @@ install(TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION bin
 )
 
-file(GLOB lib_files ${CMAKE_CURRENT_SOURCE_DIR}/camport4/lib/linux/lib_${ARCH}/*) 
+file(GLOB lib_files ${CMAKE_CURRENT_SOURCE_DIR}/camport4/lib/linux/lib_${ARCH}/*)
 install(FILES ${lib_files} DESTINATION lib)
 install(DIRECTORY include/ DESTINATION include)
-install(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/)
-install(TARGETS ${PROJECT_NAME}
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
-    RUNTIME DESTINATION bin
-)
+install(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/
+    FILES_MATCHING PATTERN "*.launch.py")
+install(DIRECTORY scripts DESTINATION share/${PROJECT_NAME}/
+    FILES_MATCHING PATTERN "*.py")
 
 install(TARGETS list_devices
   DESTINATION lib/${PROJECT_NAME}/)

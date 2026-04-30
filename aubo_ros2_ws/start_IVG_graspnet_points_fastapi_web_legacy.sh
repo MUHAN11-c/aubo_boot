@@ -259,11 +259,11 @@ launch_in_terminator "Execute Grasp Worker" "$GRASP_WORKER_CMD"
 echo -e "${GREEN}  ✓ 执行抓取位姿服务节点已启动${NC}"
 sleep 2
 
-# 步骤10: 启动夹爪切换服务节点（tool_changer 包：gripper0 ↔ gripper2 双向快换）
-echo -e "${GREEN}[10/16] 启动夹爪切换服务节点（tool_changer）...${NC}"
+# 步骤10: 启动夹爪快换节点（tool_changer：gripper_swap_worker 物理运动 + scene_attach_worker 场景显示）
+echo -e "${GREEN}[10/16] 启动夹爪快换节点（tool_changer）...${NC}"
 GRIPPER_SWAP_CMD="$WS_ENV && ros2 launch tool_changer gripper_swap_worker.launch.py"
-launch_in_terminator "Gripper Swap Worker" "$GRIPPER_SWAP_CMD"
-echo -e "${GREEN}  ✓ 夹爪切换服务节点（tool_changer）已启动${NC}"
+launch_in_terminator "Tool Changer (swap + scene)" "$GRIPPER_SWAP_CMD"
+echo -e "${GREEN}  ✓ 夹爪快换节点已启动（物理运动 + PlanningScene 附着）${NC}"
 sleep 2
 
 # 步骤11: 启动咖啡拉花演示节点（coffee_latte_demo 包：DI/DO 状态发布与拉花工序控制）

@@ -12,7 +12,7 @@
 import os
 import yaml
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, TimerAction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
@@ -179,6 +179,9 @@ def launch_setup(context, *args, **kwargs):
         ],
     )
 
+    # RViz 延迟 12s 启动，等 move_group 完全就绪后再加载 MotionPlanning 面板
+    delayed_rviz_node = TimerAction(period=12.0, actions=[rviz_node])
+
     return [
         aubo_driver_ros2_node,
         aubo_robot_simulator_ros2_node,
@@ -186,7 +189,7 @@ def launch_setup(context, *args, **kwargs):
         move_to_pose_server_node,
         robot_state_publisher,
         move_group_node,
-        rviz_node,
+        delayed_rviz_node,
     ]
 
 

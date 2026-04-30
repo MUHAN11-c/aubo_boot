@@ -1,0 +1,73 @@
+# tool_changer 工具定义
+# 每个工具的 mesh 路径、dock 工位、附着偏移量和 touch links
+
+tools:
+  gripper0:
+    name: "气动夹爪 φ40"
+    type: "gripper"
+    parameters: '{"stroke":40,"force":120,"weight":0.8}'
+    mesh_visual: "package://aubo_description/meshes/visual/gripper0_link.stl"
+    mesh_collision: "package://aubo_description/meshes/collision/gripper0_link.stl"
+    dock_pose:
+      position: {x: 0.27017, y: 0.29517, z: 0.270}
+      orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+    attach_offset:
+      position: {x: 0.0, y: 0.0, z: 0.02}
+      orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+    touch_links: ["kuaihuan_Link", "camera_Link", "wrist3_Link"]
+
+  gripper1:
+    name: "电动夹爪 A"
+    type: "gripper"
+    parameters: '{"weight":1.2}'
+    mesh_visual: "package://aubo_description/meshes/visual/gripper1_link.stl"
+    mesh_collision: "package://aubo_description/meshes/collision/gripper1_link.stl"
+    dock_pose:
+      position: {x: 0.27017, y: 0.18, z: 0.270}
+      orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+    attach_offset:
+      position: {x: 0.0, y: 0.0, z: 0.02}
+      orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+    touch_links: ["kuaihuan_Link", "camera_Link", "wrist3_Link"]
+
+  gripper2:
+    name: "电动夹爪 φ60"
+    type: "gripper"
+    parameters: '{"stroke":60,"force":250,"weight":1.5}'
+    mesh_visual: "package://aubo_description/meshes/visual/gripper2_link.stl"
+    mesh_collision: "package://aubo_description/meshes/collision/gripper2_link.stl"
+    dock_pose:
+      position: {x: 0.3741, y: 0.30394, z: 0.270}
+      orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+    attach_offset:
+      position: {x: 0.0, y: 0.0, z: 0.02}
+      orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+    touch_links: ["kuaihuan_Link", "camera_Link", "wrist3_Link"]
+
+  gripper1coffeecup:
+    name: "咖啡杯工具"
+    type: "other"
+    parameters: '{"weight":0.5}'
+    mesh_visual: "package://aubo_description/meshes/visual/gripper1coffeecup_link.stl"
+    mesh_collision: "package://aubo_description/meshes/collision/gripper1coffeecup_link.stl"
+    dock_pose:
+      position: {x: 0.27017, y: 0.10, z: 0.270}
+      orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+    attach_offset:
+      position: {x: 0.0, y: 0.0, z: 0.02}
+      orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+    touch_links: ["kuaihuan_Link", "camera_Link", "wrist3_Link"]
+
+  gripper1milkcup:
+    name: "牛奶杯工具"
+    type: "other"
+    parameters: '{"weight":0.5}'
+    mesh_visual: "package://aubo_description/meshes/visual/gripper1milkcup_link.stl"
+    mesh_collision: "package://aubo_description/meshes/collision/gripper1milkcup_link.stl"
+    dock_pose:
+      position: {x: 0.27017, y: 0.02, z: 0.270}
+      orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+    attach_offset:
+      position: {x: 0.0, y: 0.0, z: 0.02}
+      orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+    touch_links: ["kuaihuan_Link", "camera_Link", "wrist3_Link"]

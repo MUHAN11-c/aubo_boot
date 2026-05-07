@@ -103,7 +103,12 @@ void JointTrajectoryController::update()
 
     if (precomputed_idx_ < precomputed_.size()) return;
 
-    static int gc=0; if (++gc<10) return; gc=0;
+    // 发完所有点后, 50ms 一次目标检查
+    static int gc=0;
+    if (++gc<10) return;
+    gc=0;
+    static int first=0;
+    if (!first) { RCLCPP_INFO(get_logger(), "Goal checking started (idx=%zu/%zu)", precomputed_idx_, precomputed_.size()); first=1; }
     double c[6];
     if (hw_->readJointState(c) && withinGoalConstraints(c, goal_target_)) {
         if (++goal_hold_count_ >= kGoalHoldRequired) {

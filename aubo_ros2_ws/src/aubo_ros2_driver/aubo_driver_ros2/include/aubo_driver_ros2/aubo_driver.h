@@ -36,9 +36,6 @@
 #include <atomic>
 #include <cstdint>
 #include <string>
-#include <fstream>
-#include <iostream>
-#include <sys/timeb.h>
 #include <queue>
 
 #include <rclcpp/rclcpp.hpp>
@@ -64,10 +61,8 @@
 
 #include "otg/otgnewslib.h"
 
-#define MINIMUM_BUFFER_SIZE 300
 #define ARM_DOF 8
 #define MAXALLOWEDDELAY 400   // 与 ROS1 一致：50*2ms=100ms 启动延迟；500Hz 专用线程下路径 B 可先于路径 A 触发
-#define server_port 8899
 #define BIG_MODULE_RATIO 2 * M_PI / 60.0 / 121
 #define SMALL_MODULE_RATIO 2 * M_PI / 60.0 / 101
 #define VMAX 3000
@@ -104,14 +99,8 @@ namespace aubo_driver
 
     struct RobotState
     {
-        aubo_robot_namespace::JointStatus joint_status_[ARM_DOF];
         aubo_robot_namespace::wayPoint_S wayPoint_;
         aubo_robot_namespace::RobotDiagnosis robot_diagnosis_info_;
-        bool IsRealRobotExist;
-        bool isRobotControllerConnected;
-        ROBOT_CONTROLLER_MODE robot_controller_;
-        aubo_robot_namespace::RobotState state_;
-        aubo_robot_namespace::RobotErrorCode code_;
     };
 
     typedef struct
@@ -144,6 +133,12 @@ namespace aubo_driver
             void getFK(const std::shared_ptr<aubo_msgs::srv::GetFK::Request> req, std::shared_ptr<aubo_msgs::srv::GetFK::Response> resp);
             void getIK(const std::shared_ptr<aubo_msgs::srv::GetIK::Request> req, std::shared_ptr<aubo_msgs::srv::GetIK::Response> resp);
 
+            rcl_interfaces::msg::SetParametersResult onParameterUpdate(
+                const std::vector<rclcpp::Parameter> &parameters);
+            static void onRobotEventCallback(
+                const aubo_robot_namespace::RobotEventInfo *eventInfo, void *arg);
+
+            static constexpr int kServerPort = 8899;
             const int UPDATE_RATE_ = 500;
             const int TIMER_SPAN_ = 50;       // 主定时器 50Hz（状态查询）
             const int PUBLISH_RATE_ = 100;    // joint_states / aubo/feedback_states 发布频率，足够高以免 MoveIt 误判
@@ -166,26 +161,26 @@ namespace aubo_driver
             std::atomic<size_t> buf_queue_size_{0};  // 与 buf_queue_.size() 同步，供 updateControlStatus 无锁读 bq（对齐 ROS1 单线程无争用）
             rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_states_pub_;
             rclcpp::Publisher<control_msgs::action::FollowJointTrajectory_Feedback>::SharedPtr joint_feedback_pub_;
-            rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr joint_target_pub_;
+            rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_target_pub_;
             rclcpp::Publisher<demo_interface::msg::RobotStatus>::SharedPtr robot_status_pub_;
             rclcpp::Subscription<trajectory_msgs::msg::JointTrajectoryPoint>::SharedPtr moveit_controller_subs_;
             rclcpp::Subscription<std_msgs::msg::String>::SharedPtr trajectory_execution_subs_;
             rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_control_subs_;
             rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr teach_subs_;
-            rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr moveAPI_subs_;
+            rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr moveAPI_subs_;
             rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr controller_switch_sub_;
             rclcpp::Publisher<demo_interface::msg::RobotIOStatus>::SharedPtr io_pub_;
 
         private:
             void trajectoryExecutionCallback(const std_msgs::msg::String::ConstSharedPtr msg);
             void robotControlCallback(const std_msgs::msg::String::ConstSharedPtr msg);
-            void AuboAPICallback(const std_msgs::msg::Float32MultiArray::ConstSharedPtr msg);
+            void AuboAPICallback(const sensor_msgs::msg::JointState::ConstSharedPtr msg);
             void teachCallback(const std_msgs::msg::Float32MultiArray::ConstSharedPtr msg);
             void timerCallback();
-            void publishJointStateAndFeedbackLoop();  // 独立线程固定 100Hz 发布 joint_states / feedback_states，避免 timer 抖动
-            void feedToRosMotionLoop();               // 独立线程 200Hz、每周期取 1 点，与插值发布率一致，避免掏空 buf_queue_ 导致机械臂缓冲见底
+            void publishJointStateAndFeedbackTick();  // ROS2 timer 100Hz 回调，替代独立线程
+            void feedToRosMotionLoop();               // 独立线程 200Hz、每周期取 1 点，与插值发布率一致
             void controllerSwitchCallback(const std_msgs::msg::Int32::ConstSharedPtr msg);
-            void publishIOMsg();
+            void publishIOMsgTick();                  // ROS2 timer 50Hz 回调，替代独立线程
             void clearBufQueue();
             std::vector<aubo_robot_namespace::wayPoint_S> tryPopWaypoint(int count);
             void publishWaypointToRobot();
@@ -213,24 +208,32 @@ namespace aubo_driver
             rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr cancle_trajectory_pub_;
             rclcpp::TimerBase::SharedPtr timer_;
             rclcpp::TimerBase::SharedPtr update_control_timer_;  // 500Hz，独立 callback group 与轨迹/50Hz 并行
+            rclcpp::TimerBase::SharedPtr io_timer_;               // 50Hz IO 状态发布，替代 publishIOMsg 线程
             rclcpp::CallbackGroup::SharedPtr trajectory_cb_group_;   // 轨迹订阅专用，与 500Hz/50Hz 不同组
             rclcpp::CallbackGroup::SharedPtr update_control_cb_group_; // 500Hz 定时器专用
             rclcpp::CallbackGroup::SharedPtr state_timer_cb_group_;    // 50Hz 状态定时器专用，避免被服务阻塞
+            rclcpp::CallbackGroup::SharedPtr joint_state_pub_cb_group_; // joint_states/feedback 100Hz 发布专用，与 SDK 阻塞调用解耦
             rclcpp::CallbackGroup::SharedPtr service_cb_group_;        // set_io/get_fk/get_ik 专用
             rclcpp::CallbackGroup::SharedPtr control_cmd_cb_group_;    // 控制命令订阅专用
             rclcpp::Service<demo_interface::srv::SetRobotIO>::SharedPtr io_srv_;
             rclcpp::Service<aubo_msgs::srv::GetFK>::SharedPtr fk_srv_;
             rclcpp::Service<aubo_msgs::srv::GetIK>::SharedPtr ik_srv_;
-            std::thread* mb_publish_thread_;
-            std::thread* joint_feedback_publish_thread_;
+            rclcpp::TimerBase::SharedPtr joint_fb_timer_;
             std::atomic<bool> publish_thread_running_{false};
             mutable std::mutex joints_mutex_;
             mutable std::mutex moveit_cb_mutex_;
             mutable std::mutex buf_queue_mutex_;      // 保护 buf_queue_（push/pop/size），与 feedToRosMotionLoop 线程共享
-            std::thread* feed_to_ros_motion_thread_{nullptr};
+            std::thread feed_to_ros_motion_thread_;
 
             double io_flag_delay_;
             std::string server_host_;
+            int expect_macsz_{400};
+            int max_cnt_per_send_{8};
+            int diag_refresh_interval_active_ms_{120};
+            int diag_refresh_interval_idle_ms_{250};
+            int feeder_count_rib_low_{3};
+            int feeder_count_rib_normal_{1};
+            int rib_low_threshold_{200};
             std::atomic<int> rib_buffer_size_;  // 控制器缓冲量，由 publishWaypointToRobot 写、updateControlStatus 读，原子避免竞态
             int control_mode_;
             int collision_class_;
@@ -250,6 +253,7 @@ namespace aubo_driver
             std::array<double, 6> joint_filter_;
             double last_time_from_start_;
             double last_received_time_from_start_{-1.0};
+            std::atomic<int64_t> last_moveit_cb_steady_ms_{0};
             std::atomic<uint64_t> current_trajectory_epoch_{0};
             std::atomic<int> moveit_cb_in_flight_{0};
             std::atomic<uint64_t> moveit_cb_seq_{0};
@@ -259,7 +263,7 @@ namespace aubo_driver
             std::atomic<int> planning_status_code_{0};
 
             ServiceInterface robot_mac_size_service_;
-            std::thread* send_to_robot_thread_;
+            std::thread send_to_robot_thread_;
             JointVelcAccParam target_joint_velc_;
             JointVelcAccParam joint_acc_;
             JointVelcAccParam last_joint_velc_;

@@ -2,9 +2,59 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="aubo_e5">
   <xacro:arg name="ros2_control_hardware_type" default="mock_components"/>
   <xacro:arg name="use_fake_hardware" default="true"/>
+  <xacro:arg name="gripper" default=""/>
 
   <!-- 基础 E5-10 机械臂 URDF（aubo_description，含末端执行器） -->
   <xacro:include filename="$(find aubo_description)/urdf/aubo_e5_10.urdf"/>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- 动态末端：通过 gripper 参数选择挂载到 kuaihuan_Link 的工具  -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <xacro:macro name="gripper_link" params="name mesh_file">
+    <link name="${name}_Link">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://aubo_description/meshes/visual/${mesh_file}"/>
+        </geometry>
+        <material name="${name}_material">
+          <color rgba="0.5 0.5 0.5 1.0"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://aubo_description/meshes/collision/${mesh_file}"/>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="kuaihuan_to_${name}" type="fixed">
+      <parent link="kuaihuan_Link"/>
+      <child link="${name}_Link"/>
+      <origin xyz="0 0 0.033" rpy="0 0 0"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- gripper0: 气动夹爪 φ40 -->
+  <xacro:if value="${'$(arg gripper)' == 'gripper0'}">
+    <xacro:gripper_link name="gripper0" mesh_file="gripper0_link.stl"/>
+  </xacro:if>
+  <!-- gripper1: 电动夹爪 A -->
+  <xacro:if value="${'$(arg gripper)' == 'gripper1'}">
+    <xacro:gripper_link name="gripper1" mesh_file="gripper1_link.stl"/>
+  </xacro:if>
+  <!-- gripper2: 电动夹爪 φ60 -->
+  <xacro:if value="${'$(arg gripper)' == 'gripper2'}">
+    <xacro:gripper_link name="gripper2" mesh_file="gripper2_link.stl"/>
+  </xacro:if>
+  <!-- gripper1coffeecup: 咖啡杯工具 -->
+  <xacro:if value="${'$(arg gripper)' == 'gripper1coffeecup'}">
+    <xacro:gripper_link name="gripper1coffeecup" mesh_file="gripper1coffeecup_link.stl"/>
+  </xacro:if>
+  <!-- gripper1milkcup: 牛奶杯工具 -->
+  <xacro:if value="${'$(arg gripper)' == 'gripper1milkcup'}">
+    <xacro:gripper_link name="gripper1milkcup" mesh_file="gripper1milkcup_link.stl"/>
+  </xacro:if>
 
   <!-- Tool Center Point -->
   <link name="tool_tcp">

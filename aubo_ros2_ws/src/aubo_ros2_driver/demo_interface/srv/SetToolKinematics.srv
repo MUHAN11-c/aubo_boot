@@ -1,0 +1,7 @@
+# 设置工具中心点 (TCP) 参数
+# 描述工具相对法兰盘中心的位置和姿态
+float64[3] position     # TCP相对法兰盘的位置 (x, y, z, 米)
+float64[4] orientation  # TCP相对法兰盘的姿态四元数 (w, x, y, z)
+---
+bool success            # 设置是否成功
+string message          # 状态消息

@@ -11,7 +11,7 @@ from typing import Optional
 import numpy as np
 
 from .resources import WebPaths, get_app_config, load_json_file, resolve_templates_root, resolve_web_paths
-from ...subprocess_rembg import SubprocessRemBGProcessor
+from ..subprocess_rembg import SubprocessRemBGProcessor
 
 
 CAMERA_POSE_FIXED_ORIENTATION = {

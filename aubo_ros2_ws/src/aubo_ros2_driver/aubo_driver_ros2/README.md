@@ -3,6 +3,17 @@
 本文档全面描述从 **MoveIt2 规划** 到 **控制真实 Aubo 机械臂** 的完整数据流、逻辑细节、调试过程中发现的所有问题与解决方法、修改原因、测试与诊断方法，以及每个修改的理论与实践依据。
 
 ---
+核心差异
+AUBO 当前	UR	Franka
+轨迹执行	自定义 Action + Python Simulator	joint_trajectory_controller	joint_trajectory_controller
+插值	Python, 200Hz, ROS 话题	C++, 500Hz, 同进程	C++, 1kHz, 同进程
+进程间通信	2 次 (话题序列化)	0 次 (同进程)	0 次
+节点数	5 个	2 个	2 个
+SDK 调用	批量 TCP 发送 (阻塞)	RTDE/UDP 非阻塞	UDP 1kHz 同步
+硬件抽象	无 (驱动直接调 SDK)	HardwareInterface	HardwareInterface
+Action 反馈	自定义 feedback_states	框架内置	框架内置
+目标容差	0.02 rad (自定义逻辑)	可配置	可配置
+AUBO 当前比主流驱动多了 Python 插值节点 + 两次话题序列化 的额外环节，这是 ROS1 架构遗留。我们的 JointTrajectoryController 已经解决了这个问题——把插值从 Python 移到 C++，但还需要去掉话题中转、接到 HardwareInterface 上。
 
 ## 一、完整数据流概览
 

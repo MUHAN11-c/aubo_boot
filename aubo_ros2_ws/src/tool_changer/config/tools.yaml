@@ -9,10 +9,10 @@ tools:
     mesh_visual: "package://aubo_description/meshes/visual/gripper0_link.stl"
     mesh_collision: "package://aubo_description/meshes/collision/gripper0_link.stl"
     dock_pose:
-      position: {x: 0.27017, y: 0.29517, z: 0.270}
+      position: {x: 2.0, y: 0.29517, z: 0.01}
       orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
     attach_offset:
-      position: {x: 0.0, y: 0.0, z: 0.02}
+      position: {x: 0.0, y: 0.0, z: 0.033}
       orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
     touch_links: ["kuaihuan_Link", "camera_Link", "wrist3_Link"]
 
@@ -23,10 +23,10 @@ tools:
     mesh_visual: "package://aubo_description/meshes/visual/gripper1_link.stl"
     mesh_collision: "package://aubo_description/meshes/collision/gripper1_link.stl"
     dock_pose:
-      position: {x: 0.27017, y: 0.18, z: 0.270}
+      position: {x: 2.0, y: 0.18, z: 0.01}
       orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
     attach_offset:
-      position: {x: 0.0, y: 0.0, z: 0.02}
+      position: {x: 0.0, y: 0.0, z: 0.033}
       orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
     touch_links: ["kuaihuan_Link", "camera_Link", "wrist3_Link"]
 
@@ -37,10 +37,10 @@ tools:
     mesh_visual: "package://aubo_description/meshes/visual/gripper2_link.stl"
     mesh_collision: "package://aubo_description/meshes/collision/gripper2_link.stl"
     dock_pose:
-      position: {x: 0.3741, y: 0.30394, z: 0.270}
+      position: {x: 2.0, y: 0.30394, z: 0.01}
       orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
     attach_offset:
-      position: {x: 0.0, y: 0.0, z: 0.02}
+      position: {x: 0.0, y: 0.0, z: 0.033}
       orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
     touch_links: ["kuaihuan_Link", "camera_Link", "wrist3_Link"]
 
@@ -51,11 +51,11 @@ tools:
     mesh_visual: "package://aubo_description/meshes/visual/gripper1coffeecup_link.stl"
     mesh_collision: "package://aubo_description/meshes/collision/gripper1coffeecup_link.stl"
     dock_pose:
-      position: {x: 0.27017, y: 0.10, z: 0.270}
+      position: {x: 2.0, y: 0.10, z: 0.01}
       orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
     attach_offset:
-      position: {x: 0.0, y: 0.0, z: 0.02}
-      orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+      position: {x: 0.0, y: 0.0, z: 0.033}
+      orientation: {x: 0.0, y: 0.0, z: 1.0, w: 0.0}
     touch_links: ["kuaihuan_Link", "camera_Link", "wrist3_Link"]
 
   gripper1milkcup:
@@ -65,9 +65,9 @@ tools:
     mesh_visual: "package://aubo_description/meshes/visual/gripper1milkcup_link.stl"
     mesh_collision: "package://aubo_description/meshes/collision/gripper1milkcup_link.stl"
     dock_pose:
-      position: {x: 0.27017, y: 0.02, z: 0.270}
+      position: {x: 2.0, y: 0.02, z: 0.01}
       orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
     attach_offset:
-      position: {x: 0.0, y: 0.0, z: 0.02}
-      orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+      position: {x: 0.0, y: 0.0, z: 0.033}
+      orientation: {x: 0.0, y: 0.0, z: -0.7071, w: 0.7071}
     touch_links: ["kuaihuan_Link", "camera_Link", "wrist3_Link"]

@@ -11,8 +11,6 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
-#include <functional>
-#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -35,12 +33,6 @@ struct CartesianSegment
   double offset;
 };
 
-/**
- * @brief 夹爪快换 Worker（物理运动 + IO）
- *
- * 只负责物理快换动作，PlanningScene 附着/脱离由 scene_attach_worker 独立管理。
- * 快换完成后发布 /tool_changer_status，scene_attach_worker 订阅后自动更新场景显示。
- */
 class GripperSwapWorker : public rclcpp::Node
 {
 public:
@@ -56,7 +48,8 @@ public:
   bool isShutdownRequested() const { return shutdown_requested_.load(); }
 
 private:
-  struct ToolInfo {
+  struct ToolInfo
+  {
     std::string id;
     std::string name;
     std::string type;
@@ -98,10 +91,7 @@ private:
   ToolInfo current_tool_;
   void publishToolStatus(bool connected);
 
-  // 服务回调
-  enum class SwapResult { Success, Failed, Busy };
-  SwapResult runSwapOperation(std::function<bool()> operation);
-
+  // 服务回调（回调组 MutuallyExclusive，回调间天然串行）
   void onChangeTool(const std::shared_ptr<tool_changer_interface::srv::ChangeTool::Request> req,
                     std::shared_ptr<tool_changer_interface::srv::ChangeTool::Response> resp);
   void onGetCurrentTool(const std::shared_ptr<tool_changer_interface::srv::GetCurrentTool::Request> req,
@@ -111,17 +101,16 @@ private:
 
   bool sleepJointCartesianSwitchDelay(const char* where);
 
-  // 成员
   std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
   rclcpp::Client<demo_interface::srv::SetRobotIO>::SharedPtr set_io_client_;
-  int32_t gripper_io_index_{7};
-  bool simulation_skip_io_{false};
+  int32_t gripper_io_index_{ 7 };
+  bool simulation_skip_io_{ false };
 
-  float joint_velocity_scaling_{0.7f};
-  float joint_acceleration_scaling_{0.3f};
-  float home_velocity_scaling_{0.7f};
-  float home_acceleration_scaling_{0.3f};
-  double joint_cartesian_switch_delay_sec_{0.05};
+  float joint_velocity_scaling_{ 0.7f };
+  float joint_acceleration_scaling_{ 0.3f };
+  float home_velocity_scaling_{ 0.7f };
+  float home_acceleration_scaling_{ 0.3f };
+  double joint_cartesian_switch_delay_sec_{ 0.05 };
 
   rclcpp::Publisher<tool_changer_interface::msg::ToolChangerStatus>::SharedPtr tool_status_pub_;
 
@@ -130,8 +119,7 @@ private:
   rclcpp::Service<tool_changer_interface::srv::ChangeTool>::SharedPtr change_tool_srv_;
   rclcpp::Service<tool_changer_interface::srv::GetCurrentTool>::SharedPtr get_tool_srv_;
 
-  std::atomic<bool> swap_in_progress_{false};
-  std::atomic<bool> shutdown_requested_{false};
+  std::atomic<bool> shutdown_requested_{ false };
 };
 
 }  // namespace tool_changer

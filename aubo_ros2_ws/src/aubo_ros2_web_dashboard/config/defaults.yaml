@@ -39,6 +39,26 @@ package:
 
 # ---- 前端设置页：话题/服务默认值（分类：公共 / 视觉抓取 / 咖啡拉花）----
 # 通过 GET /api/v1/runtime 暴露给设置页，localStorage 覆盖
+#
+# 节点依赖速查:
+#   话题发布者     → 节点名
+#   /joint_states → robot_state_publisher (标准 ROS2)
+#   /tf           → tf2_ros (标准 ROS2)
+#   /tf_static    → robot_state_publisher (标准 ROS2)
+#   /camera/color/image_raw → percipio_camera (camport_ros2)
+#   /aubo_driver/robot_status → aubo_driver_ros2 (aubo_driver_ros2.cpp)
+#   /system_status → visual_pose_estimation (ros2_communication.py)
+#   /grasp_poses_base → graspnet_demo_points_node (graspnet_ros2)
+#   /latte_di_status → latte_node (coffee_latte_demo)
+#   服务端            → 节点名
+#   /loop_grasp_control → execute_grasp_pose_worker (demo_driver)
+#   /graspnet_capture_control → graspnet_demo_points_node (graspnet_ros2)
+#   /publish_grasps_worker_loop_control → publish_grasps_client_worker (demo_driver)
+#   /run_gripper_swap → gripper_swap_worker (tool_changer)
+#   /execute_single_grasp → execute_grasp_pose_worker (demo_driver)
+#   /set_latte_do2, /set_latte_do4 → latte_node (coffee_latte_demo)
+#   /change_tool, /get_current_tool → gripper_swap_worker (tool_changer)
+#
 vision_panel:
   # -- 公共参数（视觉抓取 + 咖啡拉花共用）--
   common:

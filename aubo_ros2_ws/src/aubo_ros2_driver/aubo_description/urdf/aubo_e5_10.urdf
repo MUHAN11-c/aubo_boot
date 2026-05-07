@@ -309,9 +309,9 @@
 
   <link name="coffee_Link">
     <inertial>
-      <origin xyz="0.016170409423681 0.205992691527985 0.00200399944128038" rpy="0 0 0"/>
-      <mass value="91.2843777246585"/>
-      <inertia ixx="0.898681796834742" ixy="0.00207481321022697" ixz="-0.107493401509849" iyy="1.0150394361257" iyz="0.0238026152276541" izz="0.440905147303518"/>
+      <origin xyz="0.01588 0.20584 0.0021911" rpy="0 0 0"/>
+      <mass value="91.454"/>
+      <inertia ixx="0.89876" ixy="0.0020091" ixz="-0.10749" iyy="1.0151" iyz="0.023803" izz="0.44104"/>
     </inertial>
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -319,7 +319,7 @@
         <mesh filename="package://aubo_description/meshes/visual/coffee_link.stl"/>
       </geometry>
       <material name="">
-        <color rgba="0.427450980392157 0.247058823529412 0.356862745098039 1"/>
+        <color rgba="0.42745 0.24706 0.35686 1"/>
       </material>
     </visual>
     <collision>
@@ -331,7 +331,7 @@
   </link>
 
   <joint name="coffee_joint" type="fixed">
-    <origin xyz="-0.53995 0.20318 0.016" rpy="1.5708 0 1.5708"/>
+    <origin xyz="-0.53995 0.20318 0.046" rpy="1.5708 0 1.5708"/>
     <parent link="pedestal_Link"/>
     <child link="coffee_Link"/>
   </joint>

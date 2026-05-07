@@ -10,30 +10,21 @@
  */
 
 #include "aubo_driver_ros2/aubo_driver.h"
-#include <sys/time.h>
 #include <time.h>
 #include <stdio.h>
 #include <cstdlib>
 #include <algorithm>
 #include <chrono>
-#include <atomic>
 #include <functional>
 #include <mutex>
-#include <fstream>
 #include <cctype>
 
 namespace aubo_driver {
-
-static std::atomic<int64_t> g_last_moveit_cb_steady_ms{0};
 
 double MaxAcc[ARM_DOF] = {17.30878, 17.30878, 17.30878, 20.73676, 20.73676, 20.73676};
 double MaxVelc[ARM_DOF] = {2.596177, 2.596177, 2.596177, 3.110177, 3.110177, 3.110177};
 
 std::string AuboDriver::joint_name_[ARM_DOF] = {"shoulder_joint","upperArm_joint","foreArm_joint","wrist1_joint","wrist2_joint","wrist3_joint"};
-
-std::ofstream file;
-std::ofstream file_v;
-char *t1[128] = {0};
 
 static double time_from_start_to_sec(const builtin_interfaces::msg::Duration& t) {
     return static_cast<double>(t.sec) + 1e-9 * static_cast<double>(t.nanosec);
@@ -81,9 +72,33 @@ AuboDriver::AuboDriver(int num)
     real_robot_exist_(false), emergency_stopped_(false), protective_stopped_(false), normal_stopped_(false),
     controller_connected_flag_(false), start_move_(false), control_mode_(aubo_driver::SendTargetGoal),
     rib_buffer_size_(0), jti(ARM_DOF, 1.0/200), jto(ARM_DOF), collision_class_(6),
-    over_speed_flag_(false), last_time_from_start_(-1.0), joint_feedback_publish_thread_(nullptr)
+    over_speed_flag_(false), last_time_from_start_(-1.0)
 {
     this->declare_parameter<int>("external_axis_number", num);
+    this->declare_parameter<std::string>("server_host", "127.0.0.1");
+    this->declare_parameter<double>("motion_command_hz", 200.0);
+    this->declare_parameter<int>("buffer_size", 400);
+    this->declare_parameter<int>("expect_macsz", 400);
+    this->declare_parameter<int>("max_cnt_per_send", 8);
+    this->declare_parameter<int>("diag_refresh_interval_active_ms", 120);
+    this->declare_parameter<int>("diag_refresh_interval_idle_ms", 250);
+    this->declare_parameter<int>("feeder_count_rib_low", 3);
+    this->declare_parameter<int>("feeder_count_rib_normal", 1);
+    this->declare_parameter<int>("rib_low_threshold", 200);
+    this->declare_parameter<double>("io_delay_sec", 0.02);
+    this->add_on_set_parameters_callback(
+        std::bind(&AuboDriver::onParameterUpdate, this, std::placeholders::_1));
+
+    buffer_size_ = this->get_parameter("buffer_size").as_int();
+    expect_macsz_ = this->get_parameter("expect_macsz").as_int();
+    max_cnt_per_send_ = this->get_parameter("max_cnt_per_send").as_int();
+    diag_refresh_interval_active_ms_ = this->get_parameter("diag_refresh_interval_active_ms").as_int();
+    diag_refresh_interval_idle_ms_ = this->get_parameter("diag_refresh_interval_idle_ms").as_int();
+    feeder_count_rib_low_ = this->get_parameter("feeder_count_rib_low").as_int();
+    feeder_count_rib_normal_ = this->get_parameter("feeder_count_rib_normal").as_int();
+    rib_low_threshold_ = this->get_parameter("rib_low_threshold").as_int();
+    io_flag_delay_ = this->get_parameter("io_delay_sec").as_double();
+
     int ext = this->get_parameter("external_axis_number").as_int();
     axis_number_ = 6 + ext;
     RCLCPP_INFO(this->get_logger(), "aubo_driver/external_axis_number: %d", ext);
@@ -97,14 +112,13 @@ AuboDriver::AuboDriver(int num)
         jti.maxAcceleration[i] = AMAX * joint_ratio_[i];
         jti.maxJerk[i] = JMAX * joint_ratio_[i];
     }
-    rs.robot_controller_ = ROBOT_CONTROLLER;
     rib_status_.data.resize(3);
     waypoint_vector_.clear();
     robot_status_msg_.header.frame_id = "base_link";
 
     joint_states_pub_ = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", 3000);
     joint_feedback_pub_ = this->create_publisher<control_msgs::action::FollowJointTrajectory_Feedback>("aubo/feedback_states", 1000);
-    joint_target_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("/aubo_driver/real_pose", 500);
+    joint_target_pub_ = this->create_publisher<sensor_msgs::msg::JointState>("/aubo_driver/real_pose", 500);
     robot_status_pub_ = this->create_publisher<demo_interface::msg::RobotStatus>("/aubo_driver/robot_status", 1000);
     rib_pub_ = this->create_publisher<std_msgs::msg::Int32MultiArray>("/aubo_driver/rib_status", 1000);
     cancle_trajectory_pub_ = this->create_publisher<std_msgs::msg::UInt8>("aubo_driver/cancel_trajectory", 100);
@@ -114,7 +128,8 @@ AuboDriver::AuboDriver(int num)
     trajectory_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     update_control_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     state_timer_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-    service_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+    joint_state_pub_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+    service_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
     control_cmd_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
     io_srv_ = this->create_service<demo_interface::srv::SetRobotIO>(
@@ -149,33 +164,20 @@ AuboDriver::AuboDriver(int num)
         moveit_sub_opts);
     teach_subs_ = this->create_subscription<std_msgs::msg::Float32MultiArray>(
         "teach_cmd", 10, std::bind(&AuboDriver::teachCallback, this, std::placeholders::_1), control_sub_opts);
-    moveAPI_subs_ = this->create_subscription<std_msgs::msg::Float32MultiArray>(
+    moveAPI_subs_ = this->create_subscription<sensor_msgs::msg::JointState>(
         "moveAPI_cmd", 10, std::bind(&AuboDriver::AuboAPICallback, this, std::placeholders::_1), control_sub_opts);
     controller_switch_sub_ = this->create_subscription<std_msgs::msg::Int32>(
         "/aubo_driver/controller_switch", 10, std::bind(&AuboDriver::controllerSwitchCallback, this, std::placeholders::_1), control_sub_opts);
 
-    std::string file_name = "/tmp/aubo_driver_ros2_jointpose.csv";
-    remove(file_name.c_str());
-    file.open(file_name, std::ios::out);
-    std::string file_name_v = "/tmp/aubo_driver_ros2_jointpf.csv";
-    remove(file_name_v.c_str());
-    file_v.open(file_name_v, std::ios::out);
-
-    send_to_robot_thread_ = new std::thread(&AuboDriver::publishWaypointToRobot, this);
+    send_to_robot_thread_ = std::thread(&AuboDriver::publishWaypointToRobot, this);
 }
 
 AuboDriver::~AuboDriver()
 {
     publish_thread_running_ = false;
-    if (feed_to_ros_motion_thread_ && feed_to_ros_motion_thread_->joinable())
-        feed_to_ros_motion_thread_->join();
-    delete feed_to_ros_motion_thread_;
-    feed_to_ros_motion_thread_ = nullptr;
-    if (joint_feedback_publish_thread_ && joint_feedback_publish_thread_->joinable())
-        joint_feedback_publish_thread_->join();
-    delete joint_feedback_publish_thread_;
-    joint_feedback_publish_thread_ = nullptr;
-    if(control_option_ == aubo_driver::RosMoveIt)
+    if (send_to_robot_thread_.joinable()) send_to_robot_thread_.join();
+    if (feed_to_ros_motion_thread_.joinable()) feed_to_ros_motion_thread_.join();
+    if (control_option_ == aubo_driver::RosMoveIt)
         robot_send_service_.robotServiceLeaveTcp2CanbusMode();
     robot_send_service_.robotServiceLogout();
     robot_receive_service_.robotServiceLogout();
@@ -287,22 +289,24 @@ void AuboDriver::timerCallback()
                 std::lock_guard<std::mutex> lock(joints_mutex_);
                 memcpy(target_point_, current_joints_, sizeof(double) * axis_number_);
             }
-            auto joints = std::make_shared<std_msgs::msg::Float32MultiArray>();
-            joints->data.resize(axis_number_);
-            for(int i = 0; i < axis_number_; i++) joints->data[i] = static_cast<float>(target_point_[i]);
-            joint_target_pub_->publish(*joints);
+            auto joint_state = std::make_shared<sensor_msgs::msg::JointState>();
+            joint_state->header.stamp = this->now();
+            joint_state->name.resize(axis_number_);
+            joint_state->position.resize(axis_number_);
+            for(int i = 0; i < axis_number_; i++) {
+                joint_state->name[i] = joint_name_[i];
+                joint_state->position[i] = target_point_[i];
+            }
+            joint_target_pub_->publish(*joint_state);
         }
     }
 }
 
-void AuboDriver::publishJointStateAndFeedbackLoop()
+void AuboDriver::publishJointStateAndFeedbackTick()
 {
-    const auto period = std::chrono::milliseconds(1000 / PUBLISH_RATE_);
     static bool has_prev = false;
     static double prev_pos[ARM_DOF] = {0.0};
-    while (publish_thread_running_ && rclcpp::ok()) {
-        auto loop_start = std::chrono::steady_clock::now();
-        if (control_mode_ == aubo_driver::SendTargetGoal) {
+    if (control_mode_ == aubo_driver::SendTargetGoal) {
             int axis = 0;
             double cur[ARM_DOF], tgt[ARM_DOF];
             bool conn = false;
@@ -349,8 +353,6 @@ void AuboDriver::publishJointStateAndFeedbackLoop()
             joint_feedback.header.stamp = this->now();
             joint_feedback_pub_->publish(joint_feedback);
         }
-        std::this_thread::sleep_until(loop_start + period);
-    }
 }
 
 bool AuboDriver::roadPointCompare(double *point1, double *point2) {
@@ -418,7 +420,6 @@ bool AuboDriver::setRobotJointsByMoveIt()
                 jpt.trajectory_epoch = st.trajectory_epoch_;
                 ros_motion_queue_.enqueue(jpt);
             }
-            file << ps.joint_pos_[0] << "," << ps.joint_pos_[1] << "," << ps.joint_pos_[2] << "," << ps.joint_pos_[3] << "," << ps.joint_pos_[4] << "," << ps.joint_pos_[5] << std::endl;
         }
     }
     setTagrtPosition(ps_batch.back().joint_pos_);
@@ -459,7 +460,7 @@ void AuboDriver::moveItPosCallback(const trajectory_msgs::msg::JointTrajectoryPo
     const auto moveit_cb_t0 = std::chrono::steady_clock::now();
     const auto now_steady_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
         moveit_cb_t0.time_since_epoch()).count();
-    g_last_moveit_cb_steady_ms.store(now_steady_ms, std::memory_order_relaxed);
+    last_moveit_cb_steady_ms_.store(now_steady_ms, std::memory_order_relaxed);
     std::lock_guard<std::mutex> cb_lock(moveit_cb_mutex_);
     double jointAngle[ARM_DOF];
     for(int i = 0; i < axis_number_; i++) jointAngle[i] = msg->positions[i];
@@ -576,7 +577,7 @@ void AuboDriver::feedToRosMotionLoop()
         auto loop_start = std::chrono::steady_clock::now();
         if (start_move_) {
             const int rib = rib_buffer_size_.load();
-            const int feed_count = (rib < 200) ? 3 : 1;
+            const int feed_count = (rib < rib_low_threshold_) ? feeder_count_rib_low_ : feeder_count_rib_normal_;
             int batch = 0;
             int qsz_snapshot = static_cast<int>(ros_motion_queue_.size_approx());
             for (int i = 0; i < feed_count; i++) {
@@ -594,7 +595,7 @@ void AuboDriver::feedToRosMotionLoop()
                 }
                 const auto now_steady_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                     std::chrono::steady_clock::now().time_since_epoch()).count();
-                const int64_t last_cb_ms = g_last_moveit_cb_steady_ms.load(std::memory_order_relaxed);
+                const int64_t last_cb_ms = last_moveit_cb_steady_ms_.load(std::memory_order_relaxed);
                 const int64_t gap_since_cb_ms = (last_cb_ms > 0) ? (now_steady_ms - last_cb_ms) : -1;
                 const bool rib_low = (rib <= 5);
                 if (gap_since_cb_ms > 800 && empty_streak > 80 && rib_low) {
@@ -627,12 +628,13 @@ void AuboDriver::teachCallback(const std_msgs::msg::Float32MultiArray::ConstShar
     }
 }
 
-void AuboDriver::AuboAPICallback(const std_msgs::msg::Float32MultiArray::ConstSharedPtr msg)
+void AuboDriver::AuboAPICallback(const sensor_msgs::msg::JointState::ConstSharedPtr msg)
 {
-    if(control_mode_ != aubo_driver::SendTargetGoal || msg->data.size() < 7) return;
-    double type = msg->data[0];
-    if(type == 0) {
-        double joints[6] = {msg->data[1], msg->data[2], msg->data[3], msg->data[4], msg->data[5], msg->data[6]};
+    if(control_mode_ != aubo_driver::SendTargetGoal || msg->position.size() < 7) return;
+    double type = msg->position[0];
+    if(type == 0.0) {
+        double joints[6];
+        for (int i = 0; i < 6; i++) joints[i] = msg->position[i + 1];
         if(roadPointCompare(joints, target_point_)) {
             memcpy(target_point_, joints, sizeof(double) * axis_number_);
             if(controller_connected_flag_) {
@@ -645,7 +647,6 @@ void AuboDriver::AuboAPICallback(const std_msgs::msg::Float32MultiArray::ConstSh
 
 bool AuboDriver::connectToRobotController()
 {
-    this->declare_parameter<std::string>("server_host", "127.0.0.1");
     server_host_ = this->get_parameter("server_host").as_string();
     RCLCPP_INFO(this->get_logger(), "server_host: %s", server_host_.c_str());
 
@@ -653,20 +654,22 @@ bool AuboDriver::connectToRobotController()
     int ret1 = aubo_robot_namespace::InterfaceCallSuccCode;
     do {
         count++;
-        ret1 = robot_send_service_.robotServiceLogin(server_host_.c_str(), server_port, "aubo", "123456");
+        ret1 = robot_send_service_.robotServiceLogin(server_host_.c_str(), kServerPort, "aubo", "123456");
     } while(ret1 != aubo_robot_namespace::InterfaceCallSuccCode && count < max_link_times);
 
     if(ret1 == aubo_robot_namespace::InterfaceCallSuccCode) {
-        int ret2 = robot_receive_service_.robotServiceLogin(server_host_.c_str(), server_port, "aubo", "123456");
+        int ret2 = robot_receive_service_.robotServiceLogin(server_host_.c_str(), kServerPort, "aubo", "123456");
         controller_connected_flag_ = true;
         RCLCPP_INFO(this->get_logger(), "login success.");
+        robot_receive_service_.robotServiceRegisterRobotEventInfoCallback(
+            &AuboDriver::onRobotEventCallback, this);
         aubo_robot_namespace::wayPoint_S wp;
         robot_receive_service_.robotServiceGetCurrentWaypointInfo(wp);
         for(int i = 0; i < 6; i++) joint_filter_[i] = wp.jointpos[i];
         ret2 = robot_receive_service_.robotServiceGetIsRealRobotExist(real_robot_exist_);
         if(ret2 == aubo_robot_namespace::InterfaceCallSuccCode)
             RCLCPP_INFO(this->get_logger(), real_robot_exist_ ? "real robot exist." : "real robot does not exist.");
-        robot_mac_size_service_.robotServiceLogin(server_host_.c_str(), server_port, "aubo", "123456");
+        robot_mac_size_service_.robotServiceLogin(server_host_.c_str(), kServerPort, "aubo", "123456");
         return true;
     } else {
         controller_connected_flag_ = false;
@@ -704,10 +707,15 @@ void AuboDriver::run()
             for(int i = 0; i < 6; i++) joints[i] = rs.wayPoint_.jointpos[i];
             setCurrentPosition(joints);
             setTagrtPosition(joints);
-            auto robot_joints = std::make_shared<std_msgs::msg::Float32MultiArray>();
-            robot_joints->data.resize(axis_number_);
-            for(int i = 0; i < axis_number_; i++) robot_joints->data[i] = static_cast<float>(current_joints_[i]);
-            joint_target_pub_->publish(*robot_joints);
+            auto joint_state = std::make_shared<sensor_msgs::msg::JointState>();
+            joint_state->header.stamp = this->now();
+            joint_state->name.resize(axis_number_);
+            joint_state->position.resize(axis_number_);
+            for(int i = 0; i < axis_number_; i++) {
+                joint_state->name[i] = joint_name_[i];
+                joint_state->position[i] = current_joints_[i];
+            }
+            joint_target_pub_->publish(*joint_state);
         }
     }
     timer_ = this->create_wall_timer(
@@ -719,15 +727,24 @@ void AuboDriver::run()
         std::chrono::milliseconds(2),
         std::bind(&AuboDriver::updateControlStatus, this),
         update_control_cb_group_);
-    mb_publish_thread_ = new std::thread(&AuboDriver::publishIOMsg, this);
+    // IO 状态发布 (50Hz) 和 joint_states/feedback 发布 (100Hz) 使用 ROS2 wall timer
+    io_timer_ = this->create_wall_timer(
+        std::chrono::milliseconds(20),
+        std::bind(&AuboDriver::publishIOMsgTick, this),
+        state_timer_cb_group_);
+    joint_fb_timer_ = this->create_wall_timer(
+        std::chrono::milliseconds(1000 / PUBLISH_RATE_),
+        std::bind(&AuboDriver::publishJointStateAndFeedbackTick, this),
+        joint_state_pub_cb_group_);
     publish_thread_running_ = true;
-    feed_to_ros_motion_thread_ = new std::thread(&AuboDriver::feedToRosMotionLoop, this);
-    joint_feedback_publish_thread_ = new std::thread(&AuboDriver::publishJointStateAndFeedbackLoop, this);
+    feed_to_ros_motion_thread_ = std::thread(&AuboDriver::feedToRosMotionLoop, this);
 }
 
-void AuboDriver::publishIOMsg()
+void AuboDriver::publishIOMsgTick()
 {
-    rclcpp::Rate update_rate(50);
+    if (start_move_) {
+        return;
+    }
     const auto parse_io_pin = [](const std::string& io_name, int fallback) -> int {
         std::string digits;
         digits.reserve(io_name.size());
@@ -742,12 +759,7 @@ void AuboDriver::publishIOMsg()
         return fallback;
     };
 
-    while (rclcpp::ok()) {
-        if (start_move_) {
-            update_rate.sleep();
-            continue;
-        }
-        demo_interface::msg::RobotIOStatus io_msg;
+    demo_interface::msg::RobotIOStatus io_msg;
         io_msg.header.stamp = this->now();
         io_msg.header.frame_id = "base_link";
         io_msg.is_connected = controller_connected_flag_;
@@ -842,8 +854,6 @@ void AuboDriver::publishIOMsg()
             }
         }
         io_pub_->publish(io_msg);
-        update_rate.sleep();
-    }
 }
 
 std::vector<aubo_robot_namespace::wayPoint_S> AuboDriver::tryPopWaypoint(int count)
@@ -926,10 +936,10 @@ void AuboDriver::publishWaypointToRobot()
 {
     std::vector<aubo_robot_namespace::wayPoint_S> wayPointVector;
     int current_macsz = rib_buffer_size_.load();
-    const int expect_macsz = 400;
+    const int expect_macsz = expect_macsz_;
     // 关键修复：基础小批量发送，队列积压时自适应提速，避免长期欠供导致卡顿
     const int kBaseCntPerSend = 2;
-    const int kMaxAdaptiveCntPerSend = 8;
+    const int kMaxAdaptiveCntPerSend = max_cnt_per_send_;
     const int kMaxWaypointBatchSend = 16;
     int cnt = 0;
     auto last_diag_refresh = std::chrono::steady_clock::now() - std::chrono::milliseconds(200);
@@ -941,7 +951,7 @@ void AuboDriver::publishWaypointToRobot()
         const auto now = std::chrono::steady_clock::now();
         const auto diag_age_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_diag_refresh).count();
         // 关键修复：SDK 诊断查询本身存在 10~200ms 阻塞，发送热路径降频到 >=120ms，避免周期性卡顿
-        const int diag_refresh_interval_ms = (qsz > 0) ? 120 : 250;
+        const int diag_refresh_interval_ms = (qsz > 0) ? diag_refresh_interval_active_ms_ : diag_refresh_interval_idle_ms_;
         const bool need_diag_refresh =
             (current_macsz <= 0) ||
             (diag_age_ms >= diag_refresh_interval_ms);
@@ -1106,6 +1116,89 @@ void AuboDriver::getIK(const std::shared_ptr<aubo_msgs::srv::GetIK::Request> req
     resp->joint[3] = static_cast<float>(wayPoint.jointpos[3]);
     resp->joint[4] = static_cast<float>(wayPoint.jointpos[4]);
     resp->joint[5] = static_cast<float>(wayPoint.jointpos[5]);
+}
+
+
+void AuboDriver::onRobotEventCallback(
+    const aubo_robot_namespace::RobotEventInfo *eventInfo, void *arg)
+{
+    auto *self = static_cast<AuboDriver*>(arg);
+    if (!eventInfo) return;
+
+    switch (eventInfo->eventType) {
+    case aubo_robot_namespace::RobotEvent_socketDisconnected:
+        self->controller_connected_flag_ = false;
+        RCLCPP_ERROR(self->get_logger(), "SDK socket disconnected");
+        break;
+    case aubo_robot_namespace::RobotEvent_remoteEmergencyStop:
+        self->emergency_stopped_ = true;
+        RCLCPP_ERROR(self->get_logger(), "Remote emergency stop");
+        break;
+    case aubo_robot_namespace::RobotEvent_softEmergency:
+        self->protective_stopped_ = true;
+        RCLCPP_WARN(self->get_logger(), "Soft emergency / protective stop");
+        break;
+    case aubo_robot_namespace::RobotEvent_exitSoftEmergency:
+        self->protective_stopped_ = false;
+        RCLCPP_INFO(self->get_logger(), "Exited soft emergency");
+        break;
+    case aubo_robot_namespace::RobotEvent_armCanbusError:
+        RCLCPP_ERROR(self->get_logger(), "CAN bus error");
+        break;
+    case aubo_robot_namespace::RobotEvent_ArmPowerOff:
+        self->real_robot_exist_ = false;
+        RCLCPP_WARN(self->get_logger(), "Arm power off");
+        break;
+    case aubo_robot_namespace::RobotEvent_collision:
+        RCLCPP_ERROR(self->get_logger(), "Collision detected");
+        break;
+    case aubo_robot_namespace::RobotEvent_MacDataInterruptWarning:
+        RCLCPP_WARN_THROTTLE(self->get_logger(), *self->get_clock(), 1000,
+            "MAC data interrupt warning (RIB underflow risk)");
+        break;
+    default:
+        break;
+    }
+}
+
+rcl_interfaces::msg::SetParametersResult AuboDriver::onParameterUpdate(
+    const std::vector<rclcpp::Parameter> &parameters)
+{
+    rcl_interfaces::msg::SetParametersResult result;
+    result.successful = true;
+
+    for (const auto &p : parameters) {
+        const std::string &name = p.get_name();
+        if (name == "max_cnt_per_send") {
+            if (start_move_) {
+                result.successful = false;
+                result.reason = "Cannot change max_cnt_per_send while robot is in motion";
+                return result;
+            }
+            max_cnt_per_send_ = p.as_int();
+            RCLCPP_INFO(this->get_logger(), "max_cnt_per_send updated to %d", max_cnt_per_send_);
+        } else if (name == "diag_refresh_interval_active_ms") {
+            diag_refresh_interval_active_ms_ = p.as_int();
+        } else if (name == "diag_refresh_interval_idle_ms") {
+            diag_refresh_interval_idle_ms_ = p.as_int();
+        } else if (name == "expect_macsz") {
+            if (start_move_) {
+                result.successful = false;
+                result.reason = "Cannot change expect_macsz while robot is in motion";
+                return result;
+            }
+            expect_macsz_ = p.as_int();
+        } else if (name == "feeder_count_rib_low") {
+            feeder_count_rib_low_ = p.as_int();
+        } else if (name == "feeder_count_rib_normal") {
+            feeder_count_rib_normal_ = p.as_int();
+        } else if (name == "rib_low_threshold") {
+            rib_low_threshold_ = p.as_int();
+        } else if (name == "io_delay_sec") {
+            io_flag_delay_ = p.as_double();
+        }
+    }
+    return result;
 }
 
 }  // namespace aubo_driver

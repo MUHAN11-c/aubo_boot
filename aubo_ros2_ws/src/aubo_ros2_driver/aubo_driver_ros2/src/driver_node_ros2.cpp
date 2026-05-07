@@ -17,7 +17,6 @@ int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
     rclcpp::NodeOptions opts;
-    opts.allow_undeclared_parameters(true);
     opts.automatically_declare_parameters_from_overrides(true);
 
     auto node = std::make_shared<aubo_driver::AuboDriver>(0);
@@ -27,7 +26,9 @@ int main(int argc, char **argv)
     executor.add_node(node);
     executor.spin();
 
-    RCLCPP_WARN(node->get_logger(), "Exiting robot_driver");
+    // 异常退出: 确保 leaveTcp2Canbus + logout，否则示教器无法接管
+    RCLCPP_WARN(node->get_logger(), "Shutting down, leaving TCP2CAN mode...");
+    node.reset();  // → ~AuboDriver → leaveTcp2CanbusMode + logout
     rclcpp::shutdown();
     return 0;
 }

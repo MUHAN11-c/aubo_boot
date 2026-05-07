@@ -205,6 +205,8 @@ import {
 		ivgPorts.clearRosReconnectTimer(rosReconnect);
 		rosReconnect.attempts = 0;
 		unsubscribeAll();
+		// 先清空控制面处理器，避免 close 事件误触发重连
+		ivgTransport.clearControlJsonHandlers();
 		ivgTransport.close();
 		setConnStatus('页面后台已暂停', null);
 	}
@@ -482,6 +484,7 @@ import {
 						setConnStatus('已连接但发生通信错误，准备重连…', false);
 					}
 					if (o.op === 'close') {
+						if (pageRealtimePaused) return;
 						setConnStatus('连接已断开，准备重连…', false);
 						unsubscribeAll();
 						ivgPorts.scheduleRosReconnect(rosReconnect, connect, {

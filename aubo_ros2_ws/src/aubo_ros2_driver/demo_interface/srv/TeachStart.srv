@@ -1,0 +1,8 @@
+# 示教模式控制
+# 启动后机器人持续朝指定方向运动，直到调用TeachStop
+int32 joint            # 示教轴: 1~6=单关节示教, 7=X, 8=Y, 9=Z, 10=RX, 11=RY, 12=RZ
+bool direction         # 运动方向: true=正方向, false=反方向
+---
+bool success           # 启动是否成功
+int32 error_code       # 错误码（0=成功）
+string message         # 状态消息

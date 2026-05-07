@@ -22,6 +22,7 @@ from rclpy.node import Node
 from builtin_interfaces.msg import Duration as DurationMsg
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from std_msgs.msg import Int32MultiArray, Float32MultiArray
+from sensor_msgs.msg import JointState
 
 
 def duration_to_sec(d: DurationMsg) -> float:
@@ -154,7 +155,7 @@ class AuboRobotSimulatorNode(Node):
             10,
         )
         self.real_pose_sub = self.create_subscription(
-            Float32MultiArray,
+            JointState,
             "/aubo_driver/real_pose",
             self.real_pose_callback,
             10,
@@ -165,11 +166,11 @@ class AuboRobotSimulatorNode(Node):
         self.motion_thread.start()
         self.get_logger().info("aubo_robot_simulator_ros2 started (interpolation in ROS2)")
 
-    def real_pose_callback(self, msg: Float32MultiArray) -> None:
-        if not self.motion_ctrl.is_in_motion() and len(msg.data) >= len(self.motion_ctrl.joint_positions):
+    def real_pose_callback(self, msg: JointState) -> None:
+        if not self.motion_ctrl.is_in_motion() and len(msg.position) >= len(self.motion_ctrl.joint_positions):
             with self.motion_ctrl.lock:
-                for i in range(min(len(msg.data), len(self.motion_ctrl.joint_positions))):
-                    self.motion_ctrl.joint_positions[i] = float(msg.data[i])
+                for i in range(min(len(msg.position), len(self.motion_ctrl.joint_positions))):
+                    self.motion_ctrl.joint_positions[i] = float(msg.position[i])
 
     def rib_status_callback(self, msg: Int32MultiArray) -> None:
         if len(msg.data) >= 3:

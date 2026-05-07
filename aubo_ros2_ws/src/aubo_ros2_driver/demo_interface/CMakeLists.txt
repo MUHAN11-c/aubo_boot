@@ -29,6 +29,12 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/ReadRobotIO.srv"
   "srv/Movel.srv"
   "srv/ExecuteGraspPose.srv"
+  "srv/MoveJoint.srv"
+  "srv/MoveLine.srv"
+  "srv/TeachStart.srv"
+  "srv/SetCollisionClass.srv"
+  "srv/SetToolKinematics.srv"
+  "srv/SetToolVoltage.srv"
   DEPENDENCIES std_msgs geometry_msgs trajectory_msgs
 )
 

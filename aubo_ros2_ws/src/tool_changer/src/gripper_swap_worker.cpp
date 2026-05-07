@@ -11,8 +11,6 @@
 #include <cstdlib>
 #include <thread>
 
-#define CHECK(expr) do { if (!(expr)) return false; } while (0)
-
 using namespace std::chrono_literals;
 using namespace std::placeholders;
 
@@ -402,11 +400,19 @@ bool GripperSwapWorker::releaseGripper(
     double settle_release_sec,
     double settle_close_sec)
 {
-  CHECK(runCartesianPath(approach, joint_velocity_scaling_, joint_acceleration_scaling_));
-  CHECK(setGripperIoSafe(true));
+  auto fail = [this](const char* step) {
+    RCLCPP_ERROR(get_logger(), "releaseGripper: '%s' 失败", step);
+    return false;
+  };
+  if (!runCartesianPath(approach, joint_velocity_scaling_, joint_acceleration_scaling_))
+    return fail("approach");
+  if (!setGripperIoSafe(true))
+    return fail("setGripperIo(开)");
   std::this_thread::sleep_for(std::chrono::duration<double>(settle_release_sec));
-  CHECK(runCartesianPath(depart, joint_velocity_scaling_, joint_acceleration_scaling_));
-  CHECK(setGripperIoSafe(false));
+  if (!runCartesianPath(depart, joint_velocity_scaling_, joint_acceleration_scaling_))
+    return fail("depart");
+  if (!setGripperIoSafe(false))
+    return fail("setGripperIo(关)");
   std::this_thread::sleep_for(std::chrono::duration<double>(settle_close_sec));
   return true;
 }
@@ -416,12 +422,20 @@ bool GripperSwapWorker::pickGripper(
     const std::vector<CartesianSegment>& depart,
     double settle_lock_sec)
 {
-  CHECK(setGripperIoSafe(true));
-  CHECK(runCartesianPath(approach, joint_velocity_scaling_, joint_acceleration_scaling_));
+  auto fail = [this](const char* step) {
+    RCLCPP_ERROR(get_logger(), "pickGripper: '%s' 失败", step);
+    return false;
+  };
+  if (!setGripperIoSafe(true))
+    return fail("setGripperIo(开)");
+  if (!runCartesianPath(approach, joint_velocity_scaling_, joint_acceleration_scaling_))
+    return fail("approach");
   std::this_thread::sleep_for(std::chrono::duration<double>(settle_lock_sec));
-  CHECK(setGripperIoSafe(false));
+  if (!setGripperIoSafe(false))
+    return fail("setGripperIo(关)");
   std::this_thread::sleep_for(std::chrono::duration<double>(settle_lock_sec));
-  CHECK(runCartesianPath(depart, joint_velocity_scaling_, joint_acceleration_scaling_));
+  if (!runCartesianPath(depart, joint_velocity_scaling_, joint_acceleration_scaling_))
+    return fail("depart");
   return true;
 }
 
@@ -433,25 +447,25 @@ bool GripperSwapWorker::swapToGripper0()
 {
   RCLCPP_INFO(get_logger(), "── 放gripper2 → 取gripper0 ──");
 
-  CHECK(moveToJoints(kJoints_DockStation, joint_velocity_scaling_, joint_acceleration_scaling_));
-
-  CHECK(sleepJointCartesianSwitchDelay("放 gripper2: 关节→笛卡尔"));
-  CHECK(releaseGripper(
+  if (!moveToJoints(kJoints_DockStation, joint_velocity_scaling_, joint_acceleration_scaling_))
+    { RCLCPP_ERROR(get_logger(), "swapToGripper0: 到DockStation关节运动失败"); return false; }
+  if (!sleepJointCartesianSwitchDelay("放 gripper2: 关节→笛卡尔")) return false;
+  if (!releaseGripper(
       {{'y',  kDockSlideY},
        {'z', -(kDockDepth - kDockSeat)},
        {'y', -kDockSlideY},
        {'z', -kDockSeat}},
       {{'z',  kDockLift}},
-      kReleaseWaitSec, kLockWaitSec));
-
-  CHECK(sleepJointCartesianSwitchDelay("取 gripper0: 笛卡尔→关节"));
-  CHECK(moveToTargetXYZ(kPos_Gripper0DockX, kPos_Gripper0DockY, kPos_SafeZ,
-                        joint_velocity_scaling_, joint_acceleration_scaling_));
-
-  CHECK(sleepJointCartesianSwitchDelay("取 gripper0: 关节→笛卡尔"));
-  CHECK(pickGripper({{'z', -kDockDepth}}, {{'z', kDockLift}}, kLockWaitSec));
-
-  CHECK(sleepJointCartesianSwitchDelay("归位: 笛卡尔→关节"));
+      kReleaseWaitSec, kLockWaitSec))
+    return false;
+  if (!sleepJointCartesianSwitchDelay("取 gripper0: 笛卡尔→关节")) return false;
+  if (!moveToTargetXYZ(kPos_Gripper0DockX, kPos_Gripper0DockY, kPos_SafeZ,
+                        joint_velocity_scaling_, joint_acceleration_scaling_))
+    { RCLCPP_ERROR(get_logger(), "swapToGripper0: 到Gripper0Dock笛卡尔运动失败"); return false; }
+  if (!sleepJointCartesianSwitchDelay("取 gripper0: 关节→笛卡尔")) return false;
+  if (!pickGripper({{'z', -kDockDepth}}, {{'z', kDockLift}}, kLockWaitSec))
+    return false;
+  if (!sleepJointCartesianSwitchDelay("归位: 笛卡尔→关节")) return false;
   return moveToHome(home_velocity_scaling_, home_acceleration_scaling_);
 }
 
@@ -459,21 +473,21 @@ bool GripperSwapWorker::swapToGripper2()
 {
   RCLCPP_INFO(get_logger(), "── 放gripper0 → 取gripper2 ──");
 
-  CHECK(moveToJoints(kJoints_ReleaseGripper0, joint_velocity_scaling_, joint_acceleration_scaling_));
-
-  CHECK(sleepJointCartesianSwitchDelay("放 gripper0: 关节→笛卡尔"));
-  CHECK(releaseGripper({{'z', -kDockDepth}}, {{'z', kDockLift}}, kLockWaitSec, kLockWaitSec));
-
-  CHECK(sleepJointCartesianSwitchDelay("取 gripper2: 笛卡尔→关节"));
-  CHECK(moveToJoints(kJoints_DockStation, joint_velocity_scaling_, joint_acceleration_scaling_));
-
-  CHECK(sleepJointCartesianSwitchDelay("取 gripper2: 关节→笛卡尔"));
-  CHECK(pickGripper(
+  if (!moveToJoints(kJoints_ReleaseGripper0, joint_velocity_scaling_, joint_acceleration_scaling_))
+    { RCLCPP_ERROR(get_logger(), "swapToGripper2: 到ReleaseGripper0关节运动失败"); return false; }
+  if (!sleepJointCartesianSwitchDelay("放 gripper0: 关节→笛卡尔")) return false;
+  if (!releaseGripper({{'z', -kDockDepth}}, {{'z', kDockLift}}, kLockWaitSec, kLockWaitSec))
+    return false;
+  if (!sleepJointCartesianSwitchDelay("取 gripper2: 笛卡尔→关节")) return false;
+  if (!moveToJoints(kJoints_DockStation, joint_velocity_scaling_, joint_acceleration_scaling_))
+    { RCLCPP_ERROR(get_logger(), "swapToGripper2: 到DockStation关节运动失败"); return false; }
+  if (!sleepJointCartesianSwitchDelay("取 gripper2: 关节→笛卡尔")) return false;
+  if (!pickGripper(
       {{'z', -kDockDepth}},
       {{'z',  kDockSeat}, {'y', kDockSlideY}, {'z', kDockLift}},
-      kLockWaitSec));
-
-  CHECK(sleepJointCartesianSwitchDelay("归位: 笛卡尔→关节"));
+      kLockWaitSec))
+    return false;
+  if (!sleepJointCartesianSwitchDelay("归位: 笛卡尔→关节")) return false;
   return moveToHome(home_velocity_scaling_, home_acceleration_scaling_);
 }
 
@@ -481,16 +495,16 @@ bool GripperSwapWorker::switchToGripper2()
 {
   RCLCPP_INFO(get_logger(), "── 无工具 → gripper2 ──");
 
-  CHECK(moveToTargetXYZ(kPos_Gripper2DockX, kPos_Gripper2DockY, kPos_SafeZ,
-                        joint_velocity_scaling_, joint_acceleration_scaling_));
-
-  CHECK(sleepJointCartesianSwitchDelay("取 gripper2: 关节→笛卡尔"));
-  CHECK(pickGripper(
+  if (!moveToTargetXYZ(kPos_Gripper2DockX, kPos_Gripper2DockY, kPos_SafeZ,
+                        joint_velocity_scaling_, joint_acceleration_scaling_))
+    { RCLCPP_ERROR(get_logger(), "switchToGripper2: 到Gripper2Dock笛卡尔运动失败"); return false; }
+  if (!sleepJointCartesianSwitchDelay("取 gripper2: 关节→笛卡尔")) return false;
+  if (!pickGripper(
       {{'z', -kDockDepth}},
       {{'z',  kDockSeat}, {'y', kDockSlideY}, {'z', kDockLift}},
-      kLockWaitSec));
-
-  CHECK(sleepJointCartesianSwitchDelay("归位: 笛卡尔→关节"));
+      kLockWaitSec))
+    return false;
+  if (!sleepJointCartesianSwitchDelay("归位: 笛卡尔→关节")) return false;
   return moveToHome(home_velocity_scaling_, home_acceleration_scaling_);
 }
 
@@ -498,13 +512,13 @@ bool GripperSwapWorker::switchToGripper0()
 {
   RCLCPP_INFO(get_logger(), "── 无工具 → gripper0 ──");
 
-  CHECK(moveToTargetXYZ(kPos_Gripper0DockX, kPos_Gripper0DockY, kPos_SafeZ,
-                        joint_velocity_scaling_, joint_acceleration_scaling_));
-
-  CHECK(sleepJointCartesianSwitchDelay("取 gripper0: 关节→笛卡尔"));
-  CHECK(pickGripper({{'z', -kDockDepth}}, {{'z', kDockLift}}, kLockWaitSec));
-
-  CHECK(sleepJointCartesianSwitchDelay("归位: 笛卡尔→关节"));
+  if (!moveToTargetXYZ(kPos_Gripper0DockX, kPos_Gripper0DockY, kPos_SafeZ,
+                        joint_velocity_scaling_, joint_acceleration_scaling_))
+    { RCLCPP_ERROR(get_logger(), "switchToGripper0: 到Gripper0Dock笛卡尔运动失败"); return false; }
+  if (!sleepJointCartesianSwitchDelay("取 gripper0: 关节→笛卡尔")) return false;
+  if (!pickGripper({{'z', -kDockDepth}}, {{'z', kDockLift}}, kLockWaitSec))
+    return false;
+  if (!sleepJointCartesianSwitchDelay("归位: 笛卡尔→关节")) return false;
   return moveToHome(home_velocity_scaling_, home_acceleration_scaling_);
 }
 
@@ -552,23 +566,8 @@ bool GripperSwapWorker::changeToTool(const std::string& target_id)
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// 服务回调
+// 服务回调（回调组已 MutuallyExclusive，无需额外并发保护）
 // ═══════════════════════════════════════════════════════════════════
-
-GripperSwapWorker::SwapResult GripperSwapWorker::runSwapOperation(std::function<bool()> operation)
-{
-  bool expected = false;
-  if (!swap_in_progress_.compare_exchange_strong(expected, true))
-    return SwapResult::Busy;
-
-  bool ok = false;
-  try { ok = operation(); }
-  catch (const std::exception& e) { RCLCPP_ERROR(get_logger(), "快换异常: %s", e.what()); }
-  catch (...)                      { RCLCPP_ERROR(get_logger(), "快换异常: 未知"); }
-
-  swap_in_progress_.store(false);
-  return ok ? SwapResult::Success : SwapResult::Failed;
-}
 
 void GripperSwapWorker::onChangeTool(
     const std::shared_ptr<tool_changer_interface::srv::ChangeTool::Request> request,
@@ -576,19 +575,15 @@ void GripperSwapWorker::onChangeTool(
 {
   RCLCPP_INFO(get_logger(), "━━ /change_tool: target=%s ━━", request->tool_id.c_str());
 
-  auto result = runSwapOperation([&]() { return changeToTool(request->tool_id); });
+  bool ok = false;
+  try { ok = changeToTool(request->tool_id); }
+  catch (const std::exception& e) { RCLCPP_ERROR(get_logger(), "快换异常: %s", e.what()); }
 
-  switch (result) {
-    case SwapResult::Busy:
-      response->success = false; response->error_code = -1;
-      response->message = "快换正忙，拒绝并发"; break;
-    case SwapResult::Success:
-      response->success = true; response->error_code = 0;
-      response->message = "已切换到: " + current_tool_.id + " (" + current_tool_.name + ")"; break;
-    case SwapResult::Failed:
-      response->success = false; response->error_code = -1;
-      response->message = "切换失败: " + request->tool_id; break;
-  }
+  response->success = ok;
+  response->error_code = ok ? 0 : -1;
+  response->message = ok
+      ? "已切换到: " + current_tool_.id + " (" + current_tool_.name + ")"
+      : "切换失败: " + request->tool_id;
   RCLCPP_INFO(get_logger(), "换刀结果: %s", response->message.c_str());
 }
 
@@ -625,16 +620,12 @@ void GripperSwapWorker::onGripperSwapRequest(
     return;
   }
 
-  auto result = runSwapOperation([&]() { return changeToTool(it->second); });
+  bool ok = false;
+  try { ok = changeToTool(it->second); }
+  catch (const std::exception& e) { RCLCPP_ERROR(get_logger(), "快换异常: %s", e.what()); }
 
-  switch (result) {
-    case SwapResult::Busy:
-      response->success = false; response->message = "快换正忙，拒绝并发"; break;
-    case SwapResult::Success:
-      response->success = true; response->message = "完成: " + request->direction; break;
-    case SwapResult::Failed:
-      response->success = false; response->message = "失败: " + request->direction; break;
-  }
+  response->success = ok;
+  response->message = ok ? ("完成: " + request->direction) : ("失败: " + request->direction);
 }
 
 // ═══════════════════════════════════════════════════════════════════

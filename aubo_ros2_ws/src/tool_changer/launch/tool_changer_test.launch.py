@@ -1,7 +1,7 @@
 """
 tool_changer_test.launch.py —— 末端快换测试
 
-启动: aubo_moveit_pure_ros2 + gripper_swap_worker (URDF 动态切换)
+启动: aubo_new_driver + gripper_swap_worker (URDF 动态切换)
 
 用法:
   ros2 launch tool_changer tool_changer_test.launch.py
@@ -34,10 +34,10 @@ def generate_launch_description():
         .to_moveit_configs()
     )
 
-    # ── aubo_moveit_pure_ros2.launch.py ──
+    # ── aubo_new_driver.launch.py ──
     pure_ros2_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
-            os.path.join(pkg_share, "launch", "aubo_moveit_pure_ros2.launch.py")
+            os.path.join(pkg_share, "launch", "aubo_new_driver.launch.py")
         ]),
     )
 

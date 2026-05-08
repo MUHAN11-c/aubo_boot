@@ -137,6 +137,15 @@ private:
               robot_status_msg_.cartesian_position.orientation.x=rs_ox_;
               robot_status_msg_.cartesian_position.orientation.y=rs_oy_;
               robot_status_msg_.cartesian_position.orientation.z=rs_oz_;
+              const double w=rs_w_, x=rs_ox_, y=rs_oy_, z=rs_oz_;
+              const double sinr_cosp = 2.0*(w*x + y*z);
+              const double cosr_cosp = 1.0 - 2.0*(x*x + y*y);
+              robot_status_msg_.cartesian_rpy.x = std::atan2(sinr_cosp, cosr_cosp);
+              const double sinp = 2.0*(w*y - z*x);
+              robot_status_msg_.cartesian_rpy.y = (std::abs(sinp)>=1.0) ? std::copysign(M_PI/2.0,sinp) : std::asin(sinp);
+              const double siny_cosp = 2.0*(w*z + x*y);
+              const double cosy_cosp = 1.0 - 2.0*(y*y + z*z);
+              robot_status_msg_.cartesian_rpy.z = std::atan2(siny_cosp, cosy_cosp);
           } }
         { std::lock_guard lk(js_mux_);
           if (has_js_) for (int i=0;i<6;i++) {

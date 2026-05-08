@@ -197,9 +197,9 @@ ivg_print_access_urls() {
 }
 
 # 步骤1: 启动真实机械臂驱动
-echo -e "${GREEN}[1/16] 启动真实机械臂驱动（aubo_moveit_pure_ros2）...${NC}"
-AUBO_PURE_ROS2_CMD="$WS_ENV && ros2 launch aubo_moveit_config aubo_moveit_pure_ros2.launch.py"
-launch_in_terminator "Aubo MoveIt Pure ROS2" "$AUBO_PURE_ROS2_CMD"
+echo -e "${GREEN}[1/16] 启动真实机械臂驱动（aubo_new_driver）...${NC}"
+AUBO_PURE_ROS2_CMD="$WS_ENV && ros2 launch aubo_moveit_config aubo_new_driver.launch.py"
+launch_in_terminator "Aubo MoveIt New Driver" "$AUBO_PURE_ROS2_CMD"
 echo -e "${GREEN}  ✓ 真实机械臂驱动已启动${NC}"
 sleep 3
 

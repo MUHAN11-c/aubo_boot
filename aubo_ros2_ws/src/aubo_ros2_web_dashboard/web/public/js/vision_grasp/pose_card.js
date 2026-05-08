@@ -44,15 +44,18 @@ function poseToRpyDeg(pose) {
 	const sqy = q.y * q.y;
 	const sqz = q.z * q.z;
 	const sqw = q.w * q.w;
-	const clampY = Math.max(-1, Math.min(1, 2 * (q.x * q.z + q.y * q.w)));
-	const eulerX = Math.atan2(2 * (q.x * q.w - q.y * q.z), sqw - sqx - sqy + sqz);
-	const eulerY = Math.asin(clampY);
-	const eulerZ = Math.atan2(2 * (q.z * q.w - q.x * q.y), sqw + sqx - sqy - sqz);
+	// ZYX Euler: roll=atan2(2(wx+yz), 1-2(x²+y²))
+	const eulerX = Math.atan2(2 * (q.w * q.x + q.y * q.z), sqw + sqz - sqx - sqy);
+	// ZYX Euler: pitch=asin(2(wy-zx))
+	const sinp = 2 * (q.w * q.y - q.z * q.x);
+	const eulerY = Math.abs(sinp) >= 1 ? Math.sign(sinp) * Math.PI / 2 : Math.asin(sinp);
+	// ZYX Euler: yaw=atan2(2(wz+xy), 1-2(y²+z²))
+	const eulerZ = Math.atan2(2 * (q.w * q.z + q.x * q.y), sqw + sqx - sqy - sqz);
 	const radToDeg = rad => rad * (180 / Math.PI);
 	return {
-		roll: radToDeg(eulerZ),
+		roll: radToDeg(eulerX),
 		pitch: radToDeg(eulerY),
-		yaw: radToDeg(eulerX)
+		yaw: radToDeg(eulerZ)
 	};
 }
 function formatPoseBlockHtml(pose, rpyDeg) {
@@ -134,9 +137,10 @@ function formatRobotPoseHtml(msg) {
 	const rr = Number(rpySrc.x);
 	const rp = Number(rpySrc.y);
 	const ry = Number(rpySrc.z);
+	const radToDeg = rad => rad * (180 / Math.PI);
 	const rpyDeg =
 		[rr, rp, ry].every(v => isFinite(v))
-			? { roll: rr, pitch: rp, yaw: ry }
+			? { roll: radToDeg(rr), pitch: radToDeg(rp), yaw: radToDeg(ry) }
 			: poseToRpyDeg(pose);
 	return formatPoseBlockHtml(pose, rpyDeg);
 }

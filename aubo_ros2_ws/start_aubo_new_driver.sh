@@ -4,8 +4,9 @@ if [ -z "${BASH_VERSION:-}" ]; then exec /bin/bash "$0" "$@"; exit 1; fi
 # ═══════════════════════════════════════════════════════════════
 # IVG 完整启动 (新框架机械臂 + Vision/GraspNet/Web)
 #
-# 基于 start_IVG_graspnet_points_fastapi_web_legacy.sh
-# 机械臂部分替换为新框架: Controller + Dashboard + StateBroadcaster
+# 机械臂部分: launch 文件自动 TCP 探测机器人是否可达
+#   - 可达   → 真实硬件模式 (AUBO 自定义节点)
+#   - 不可达 → 仿真模式 (ros2_control + mock_components)
 # 其余步骤(相机/GraspNet/Web/抓取)保持不变
 # ═══════════════════════════════════════════════════════════════
 
@@ -18,7 +19,7 @@ WS="${AUBO_ROS2_WS:-${SCRIPT_DIR}}"
 ROS_DISTRO="${ROS_DISTRO_NAME:-humble}"
 AUBO_IP="${AUBO_IP:-169.254.10.98}"
 
-# Web / rosbag 等配置 (沿用 legacy 脚本)
+# Web / rosbag 配置
 WEB_HOST="${WEB_HOST:-127.0.0.1}"
 WEB_PORT="${WEB_PORT:-8088}"
 IVG_WEB_RELOAD="${IVG_WEB_RELOAD:-true}"
@@ -45,27 +46,6 @@ if [ "${IVG_STRIP_PROXY_FOR_DASH_LAUNCH}" = "true" ]; then
 else
     WEB_DASH_UNSET_PROXY="${WEB_DASH_NO_PROXY_EXPORT}"
 fi
-
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}IVG 完整启动 (新框架机械臂)${NC}"
-echo -e "${GREEN}========================================${NC}"
-echo -e "${BLUE}机器人 IP: ${AUBO_IP}${NC}"
-echo ""
-
-TERMINATOR=""
-if command -v terminator &>/dev/null; then TERMINATOR="terminator"
-elif [ -x /usr/bin/terminator ]; then TERMINATOR="/usr/bin/terminator"; fi
-if [ -z "$TERMINATOR" ]; then
-    echo -e "${RED}未找到 terminator, sudo apt install terminator${NC}"; exit 1
-fi
-
-launch() {
-    local title="$1" cmd="$2"
-    local full="cd ${WS} && ${source_env} && ${cmd}"
-    "$TERMINATOR" --new-tab --title="$title" \
-        -e "bash -c '${full}; exec bash'" &
-    sleep 0.5
-}
 
 ivg_lan_ipv4_addrs() {
     if command -v ip >/dev/null 2>&1; then
@@ -98,6 +78,56 @@ ivg_print_access_urls() {
     done
 }
 
+launch() {
+    local title="$1" cmd="$2"
+    local full="cd ${WS} && ${source_env} && ${cmd}"
+    "$TERMINATOR" --new-tab --title="$title" \
+        -e "bash -c '${full}; exec bash'" &
+    sleep 0.5
+}
+
+# ═══════════════════════════════════════════════════════════════
+# 预检
+# ═══════════════════════════════════════════════════════════════
+
+TERMINATOR=""
+if command -v terminator &>/dev/null; then TERMINATOR="terminator"
+elif [ -x /usr/bin/terminator ]; then TERMINATOR="/usr/bin/terminator"; fi
+if [ -z "$TERMINATOR" ]; then
+    echo -e "${RED}未找到 terminator, sudo apt install terminator${NC}"; exit 1
+fi
+
+# ---- 清理旧进程 ----
+echo -e "${YELLOW}清理旧进程...${NC}"
+# rosbridge / rosapi (端口冲突最常见)
+pkill -f rosbridge_websocket 2>/dev/null || true
+pkill -f rosapi_node 2>/dev/null || true
+# AUBO 旧驱动（已移除旧框架源码，保留清理以防残留进程）
+pkill -f aubo_driver_ros2 2>/dev/null || true
+pkill -f aubo_state_broadcaster 2>/dev/null || true
+pkill -f aubo_dashboard_node 2>/dev/null || true
+pkill -f joint_trajectory_controller 2>/dev/null || true
+# ros2_control 仿真残留
+pkill -f ros2_control_node 2>/dev/null || true
+pkill -f controller_manager 2>/dev/null || true
+# move_group / rviz
+pkill -f move_group 2>/dev/null || true
+pkill -f rviz2 2>/dev/null || true
+# web 网关 / rosbag
+pkill -f rosbridge_websocket 2>/dev/null || true
+pkill -f web_video_server 2>/dev/null || true
+pkill -f 'uvicorn.*8090' 2>/dev/null || true
+pkill -f ros2.bag 2>/dev/null || true
+sleep 1
+echo -e "${GREEN}  ✓ 清理完成${NC}"
+
+echo -e "${GREEN}========================================${NC}"
+echo -e "${GREEN}IVG 完整启动 (新框架机械臂)${NC}"
+echo -e "${GREEN}========================================${NC}"
+echo -e "${BLUE}机器人 IP: ${AUBO_IP}${NC}"
+echo -e "${BLUE}模式探测由 launch 文件自动完成${NC}"
+echo ""
+
 # ═══════════════════════════════════════════════════════════════
 # 构建
 # ═══════════════════════════════════════════════════════════════
@@ -110,21 +140,23 @@ if [ -x "$ROBOTWEBTOOLS_BUILD_SCRIPT" ]; then
 fi
 
 # ═══════════════════════════════════════════════════════════════
-# 新框架机械臂 (替代旧步骤 1-5)
+# [1/16] 新框架机械臂
+# launch 文件自动 TCP 探测 → 选择真实硬件 / ros2_control 仿真
 # ═══════════════════════════════════════════════════════════════
 
 echo -e "${GREEN}[1/16] 新框架机械臂 (Controller + Dashboard + StateBroadcaster + MoveIt2)...${NC}"
 launch "Aubo New Driver" "ros2 launch aubo_moveit_config aubo_new_driver.launch.py server_host:=${AUBO_IP}"
 sleep 5
-# 激活 Dashboard 生命周期
+
+# Dashboard 生命周期激活 (真实硬件模式时需要; 仿真模式 Dashboard 不存在, 激活失败自动跳过)
 ( cd "$WS" && eval "$source_env" && sleep 3 && \
-  ros2 lifecycle set /aubo_dashboard configure && \
-  ros2 lifecycle set /aubo_dashboard activate )
+  ros2 lifecycle set /aubo_dashboard configure 2>/dev/null && \
+  ros2 lifecycle set /aubo_dashboard activate 2>/dev/null ) || true
 echo -e "${GREEN}  ✓ 新框架机械臂已启动${NC}"
 sleep 3
 
 # ═══════════════════════════════════════════════════════════════
-# 以下步骤 5-16 与 legacy 脚本保持一致
+# 以下步骤 2-16 与 legacy 脚本保持一致
 # ═══════════════════════════════════════════════════════════════
 
 echo -e "${GREEN}[2/16] Demo Driver 服务...${NC}"
@@ -194,6 +226,7 @@ echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}启动完成 (新框架机械臂 + IVG 全家桶)${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
+
 echo -e "${BLUE}机械臂数据流:${NC}"
 echo -e "  MoveIt2 → Action → JointTrajectoryController → HardwareInterface → 机器人"
 echo -e "  joint_states ← StateBroadcaster (RoadPoint + JointStatus 回调)"
@@ -203,6 +236,5 @@ echo ""
 ivg_print_access_urls
 
 echo ""
-echo -e "${YELLOW}提示: Ctrl+C 各标签页停止对应节点${NC}"
-trap "echo -e '\n${YELLOW}脚本退出, 节点继续运行${NC}'; exit 0" INT
+trap 'echo -e "\n${YELLOW}脚本退出, 节点继续运行${NC}"; exit 0' INT
 while true; do sleep 1; done

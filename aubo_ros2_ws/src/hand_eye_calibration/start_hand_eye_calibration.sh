@@ -46,8 +46,8 @@ launch_in_terminator() {
     sleep 0.5
 }
 
-echo -e "${GREEN}[1/6] 启动 MoveIt（aubo_moveit_pure_ros2）...${NC}"
-launch_in_terminator "Aubo MoveIt Pure ROS2" "$WS_ENV && ros2 launch aubo_moveit_config aubo_moveit_pure_ros2.launch.py"
+echo -e "${GREEN}[1/6] 启动 MoveIt（aubo_new_driver）...${NC}"
+launch_in_terminator "Aubo MoveIt New Driver" "$WS_ENV && ros2 launch aubo_moveit_config aubo_new_driver.launch.py"
 sleep 3
 
 echo -e "${GREEN}[2/6] 启动机器人驱动服务...${NC}"

@@ -30,30 +30,6 @@ else()
   link_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/lib32)
 endif()
 
-add_executable(aubo_driver_ros2
-  src/aubo_driver_ros2.cpp
-  src/aubo_hardware_interface.cpp
-  src/joint_trajectory_controller.cpp
-  src/driver_node_ros2.cpp
-)
-target_link_libraries(aubo_driver_ros2
-  pthread
-  auborobotcontroller
-  otgLib
-  log4cplus
-  config
-)
-ament_target_dependencies(aubo_driver_ros2
-  rclcpp
-  rclcpp_action
-  sensor_msgs
-  std_msgs
-  trajectory_msgs
-  control_msgs
-  aubo_msgs
-  demo_interface
-)
-
 # Dashboard 独立可执行文件 (LifecycleNode)
 add_executable(aubo_dashboard_node
   src/aubo_dashboard_node.cpp
@@ -113,7 +89,7 @@ ament_target_dependencies(joint_trajectory_controller
   rclcpp rclcpp_action sensor_msgs control_msgs trajectory_msgs demo_interface
 )
 
-install(TARGETS aubo_driver_ros2 aubo_dashboard_node aubo_state_broadcaster
+install(TARGETS aubo_dashboard_node aubo_state_broadcaster
                aubo_callback_monitor joint_trajectory_controller
   DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY config/ DESTINATION share/${PROJECT_NAME}/config)

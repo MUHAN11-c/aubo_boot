@@ -340,3 +340,40 @@ ls /home/mu/IVG2.0/aubo_ros2_ws/src/robotwebtools/roslibjs/packages/roslib/vendo
 - 示例与 roslib import map 已完成本地化改造
 - 运行路径外链已清理（文档说明外链除外）
 
+
+完整加载链路（源码级追踪）
+
+  UrdfClient 构造函数                                              [UrdfClient.js:32-64]
+    │
+    ├─ new ROSLIB.Param({ros, name})                              ← 准备参数查询
+    │   └─ getParam.get(callback)                                 ← WebSocket 异步获取 URDF XML
+    │       │
+    │       └─ 回调: XML 到达                                     ← ── 异步分界线 ──
+    │           │
+    │           ├─ new ROSLIB.UrdfModel({string})                  ← 同步解析 XML
+    │           │
+    │           ├─ new Urdf({urdfModel, path, tfClient, ...})     [Urdf.js:28-103]
+    │           │   │                                              ← 同步遍历所有 link
+    │           │   ├─ for each link.visuals:
+    │           │   │   ├─ new MeshResource({path, resource, ...}) [MeshResource.js:24-49]
+    │           │   │   │   └─ STLLoader.load(uri, callback)      [MeshLoader.js:114-133]
+    │           │   │   │       └─ 回调: meshRes.add(mesh)        ← ── 异步: 每个 mesh 到达 ──
+    │           │   │   │
+    │           │   │   ├─ new SceneNode({frameID, pose, tfClient, object: meshRes})
+    │           │   │   │   └─ tfClient.subscribe(frameID, tfUpdate) ← 订阅 TF
+    │           │   │   │
+    │           │   │   └─ this.add(sceneNode)                    ← 同步加入 Urdf 树
+    │           │   │
+    │           │   └─ Urdf 构造完成 (所有 SceneNode 就位, mesh 还在 HTTP 下载中)
+    │           │
+    │           └─ that.rootObject.add(that.urdf)                  ← rootObject 只有 1 个 child!
+
+  场景图结构：
+  rootObject (newRoot)              ← children.length === 1
+    └── Urdf (THREE.Object3D)       ← 唯一子节点
+        ├── SceneNode (base_link)   ← visible=false, 等 TF 更新
+        │   └── MeshResource
+        │       └── THREE.Mesh      ← STL HTTP 异步加载完成后才加入
+        ├── SceneNode (shoulder_link)
+        │   └── ...
+        └── ...

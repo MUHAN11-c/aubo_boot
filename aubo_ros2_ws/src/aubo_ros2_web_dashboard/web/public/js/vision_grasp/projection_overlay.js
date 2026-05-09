@@ -7,11 +7,7 @@ import {
 	ivgComposeTransforms,
 	ivgFindRelativeTransform
 } from '../view3d/tf_clients.js';
-function normalizeIvgTopic(t) {
-	const s = String(t || '').trim();
-	if (!s) return '';
-	return s.startsWith('/') ? s : `/${s}`;
-}
+import { canonicalRosTopic } from '../core/utils.js';
 function ivgVec3(x = 0, y = 0, z = 0) {
 	return { x, y, z };
 }
@@ -53,7 +49,7 @@ function createProjectionOverlayController(opts) {
 		}
 		push(state.cameraFrame);
 		push(cameraInfo && cameraInfo.header && cameraInfo.header.frame_id);
-		const t = normalizeIvgTopic(colorTopic || defaults['topic-color']);
+		const t = canonicalRosTopic(colorTopic || defaults['topic-color']);
 		const parts = t.split('/').filter(Boolean);
 		const cameraName = parts.length > 0 ? parts[0] : 'camera';
 		push(`${cameraName}_color_optical_frame`);

@@ -269,6 +269,302 @@ aubo_driver_ros2/
 
 ---
 
+## Git 提交记录与操作过程
+
+```bash
+# 查看当前分支
+git branch                    # 确认在 dev 分支
+
+# 暂存变更
+git add aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/CMakeLists.txt
+git add aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/package.xml
+git add aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/README.md
+git add aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/include/aubo_driver_ros2/*.h
+git add aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/src/*.cpp
+git add aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/doc/*.md
+git add aubo_ros2_ws/src/aubo_ros2_driver/aubo_moveit_config/launch/aubo_new_driver.launch.py
+git add aubo_ros2_ws/src/aubo_ros2_driver/demo_interface/srv/*.srv
+git add aubo_ros2_ws/src/aubo_ros2_driver/demo_interface/CMakeLists.txt
+git add aubo_ros2_ws/start_aubo_new_driver.sh
+
+# 提交
+git commit -m "新框架驱动: JointTrajectoryController + Dashboard + StateBroadcaster
+核心改动:
+- 预计算200Hz轨迹插值 (handleAccepted)
+- 独立发送线程 (ROS1 publishWaypointToRobot移植)
+- RIB流量控制 (同连接,降频查,≥300门控,自适应批量2-8,EMA补偿)
+- SDK回调替代轮询 (RoadPoint+JointStatus 33Hz推送)
+- Dashboard LifecycleNode (20 ROS2服务)"
+
+# 远程有更新,先暂存本地未提交变更
+git stash
+
+# 拉取并变基 到最新 dev 分支
+git pull --rebase origin dev
+
+# 推送
+git push origin dev
+
+# 恢复暂存
+git stash pop
+
+# 提交历史
+git log --oneline -5
+# f854c2e52 新框架驱动: JointTrajectoryController + Dashboard + StateBroadcaster
+# 1491ffba4 Delete build directory
+# cd1c0ab3f feat: 新旧两套机械臂驱动架构并存
+```
+
+## 开发调试命令速查
+
+```bash
+# === 构建 ===
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+colcon build --packages-select aubo_driver_ros2 demo_interface aubo_moveit_config
+
+# === 启动 (新框架) ===
+ros2 launch aubo_moveit_config aubo_new_driver.launch.py server_host:=169.254.10.98
+# 或启动脚本 (含视觉/Web全家桶):
+./start_aubo_new_driver.sh
+
+# === 启动 (旧框架) ===
+ros2 launch aubo_moveit_config aubo_moveit_pure_ros2.launch.py aubo_driver_server_host:=169.254.10.98
+
+# === 单独测试新组件 ===
+ros2 run aubo_driver_ros2 aubo_dashboard_node --ros-args -p server_host:=169.254.10.98
+ros2 lifecycle set /aubo_dashboard configure
+ros2 lifecycle set /aubo_dashboard activate
+
+ros2 run aubo_driver_ros2 aubo_state_broadcaster --ros-args -p server_host:=169.254.10.98
+ros2 run aubo_driver_ros2 joint_trajectory_controller --ros-args -p server_host:=169.254.10.98
+ros2 run aubo_driver_ros2 aubo_callback_monitor --ros-args -p server_host:=169.254.10.98
+
+# === Dashboard 服务测试 ===
+ros2 service call /aubo/startup std_srvs/srv/Trigger {}
+ros2 service call /aubo/move_joint demo_interface/srv/MoveJoint "{joints: [0,-0.5,1.2,0,0.8,0], velocity: 0.8}"
+ros2 service call /aubo/get_fk aubo_msgs/srv/GetFK "{joint: [0,0,0,0,0,0]}"
+ros2 service call /aubo/set_collision_class demo_interface/srv/SetCollisionClass "{grade: 6}"
+ros2 service call /aubo/set_payload aubo_msgs/srv/SetPayload "{mass: 1.0, center_of_gravity: {x: 0.0, y: 0.0, z: 0.1}}"
+
+# === Git 操作 ===
+git add [files]
+git commit -m "message"
+git pull --rebase origin dev
+git push origin dev
+```
+
+## 开发过程关键节点
+
+| 时间 | 事件 | 结论 |
+|------|------|------|
+| 初版 | 单线程 update() 直接调 SDK | SDK 阻塞拖慢插值 → 运动慢 10 倍 |
+| v2 | 插值+发送分两线程 (队列桥接) | 队列被抽空 → RIB 断供 → 卡顿 |
+| v3 | 预计算轨迹 (handleAccepted) + sendLoop | **运动平滑** ✅ |
+| v4 | RIB 门控 + 自适应批量 | 发太快 RIB 溢出 → 速度突变断电 |
+| v5 | RIB 改回 conn_control_ (同连接) | 门控正常 ✅ |
+| v6 | 目标检查修复 + 日志 | **Goal reached ✅** |
+| v7 | 全流程成功 | Plan and Execute request complete ✅ |
+
+## 核心教训
+
+1. **RIB 必须在同一条连接上读写** — 发送用 conn_control_, 查询用 conn_status_ → RIB 不更新
+2. **预计算 + 独立发送线程** — 消除插值与发送的时序耦合
+3. **SDK 阻塞无法绕过** — 正确做法是把阻塞隔离在独立线程
+4. **5 次插值 + 200Hz 路点频率** — 机器人控制器内部插值足够平滑
+5. **回调数据优于轮询** — 33Hz 推送 + 编码器速度 + 电流温度, 30Hz 延迟更小
+
+## 动态 URDF 重载（RViz2 平滑渲染 + 碰撞模型更新）
+
+### 背景问题
+
+工具快换系统切换末端夹爪时，需要 RViz2 和 move_group 同步更新机械臂模型：
+- **RViz2** 需要重新渲染夹爪模型（平滑着色）
+- **move_group** 需要更新碰撞模型（路径规划避开夹爪）
+
+**原有问题**：
+
+| 组件 | 初始加载方式 | 动态重载机制 |
+|------|------------|---------|
+| `robot_state_publisher` | 构造函数读 `robot_description` 参数 | `parameterUpdate()` → `onParameterEvent()` → `setupURDF()` ✓ |
+| RViz2 `MotionPlanning` 插件 | `PlanningSceneDisplay::loadRobotModel()` 读一次 | **无** ✗ |
+| `move_group` | `PlanningSceneMonitor` → `RobotModelLoader` → `RDFLoader` 读一次 | **无** ✗ |
+
+**结果**：工具切换后 RViz2 和 move_group 的 RobotModel 仍为旧版（不含夹爪 link），导致：
+1. RViz2 夹爪模型不显示 → 只能用 PlanningScene `AttachedCollisionObject`（平面着色，效果差）
+2. move_group 碰撞模型不含夹爪 → 路径规划可能碰撞
+
+### 解决方案
+
+**核心思路**：复用 MoveIt2 初始加载 URDF 的完整渲染路径（Assimp 平滑着色），改为动态触发。
+
+修改 3 个包：
+
+| 包 | 修改内容 |
+|------|---------|
+| `moveit_ros_visualization` | `PlanningSceneDisplay` 新增 `/robot_description` 话题订阅，URDF 变更时自动重载 RobotModel |
+| `moveit_ros_planning_interface` | `common_objects.cpp` 新增 `clearSharedRobotModelLoader()` 清除静态缓存 |
+| `tool_changer` | `scene_attach_worker` 新增 `/robot_description` 话题发布者，直接发布 URDF |
+
+### 数据流
+
+```
+工具切换 → gripper_swap_worker
+  → /tool_changer_status
+    → scene_attach_worker.onToolStatus()
+      ├─ removeToolFromWorld()              ← PlanningScene diff (dock 显示)
+      ├─ addToolToWorldDock()               ← 旧工具放回 dock
+      └─ updateRobotDescription()
+          ├─ robot_description_pub_->publish(urdf)     ← /robot_description 话题 (NEW)
+          │   └─ RViz2 PlanningSceneDisplay.onRobotDescriptionTopic()
+          │       ├─ 首次消息记录内容，跳过（初始加载由 onEnable 完成）
+          │       ├─ 后续变更: set_parameter() + pending_urdf_ ← 绕过缓存
+          │       └─ loadRobotModel()
+          │           └─ createPlanningSceneMonitor()
+          │               └─ RobotModelLoader(Options(urdf_string, ""))
+          │                   └─ RDFLoader 直接用 URDF 字符串 → 重建 RobotModel
+          │                       └─ Assimp 平滑渲染 ✓
+          └─ param_client_->set_parameters(...)  ← robot_state_publisher
+              └─ setupURDF() → 发布新 TF (gripperX_Link) ✓
+```
+
+### 关键代码修改
+
+#### 1. `planning_scene_display.h` — 新增成员
+
+```cpp
+// /robot_description 话题订阅（动态 URDF 重载）
+rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_description_sub_;
+std::string last_loaded_urdf_;   // 去重：跳过初始消息和重复内容
+std::string pending_urdf_;       // 非空时 createPlanningSceneMonitor 直接透传 URDF 字符串
+void onRobotDescriptionTopic(const std_msgs::msg::String::ConstSharedPtr& msg);
+```
+
+#### 2. `planning_scene_display.cpp` — onInitialize() 创建订阅
+
+```cpp
+robot_description_sub_ = node_->create_subscription<std_msgs::msg::String>(
+    "/robot_description", rclcpp::QoS(1).transient_local(),
+    [this](const std_msgs::msg::String::ConstSharedPtr& msg) { onRobotDescriptionTopic(msg); });
+```
+
+#### 3. `planning_scene_display.cpp` — 回调逻辑
+
+```cpp
+void PlanningSceneDisplay::onRobotDescriptionTopic(const std_msgs::msg::String::ConstSharedPtr& msg)
+{
+  if (msg->data.empty() || msg->data == last_loaded_urdf_) return;
+
+  bool is_initial = last_loaded_urdf_.empty();
+  last_loaded_urdf_ = msg->data;
+  if (is_initial) return;  // 首次跳过（初始加载由 onEnable 完成）
+
+  node_->set_parameter(rclcpp::Parameter("robot_description", msg->data));
+  pending_urdf_ = msg->data;  // 绕过 getSharedRobotModelLoader 静态缓存
+
+  if (isEnabled())
+    addBackgroundJob([this] { loadRobotModel(); }, "loadRobotModel");
+}
+```
+
+#### 4. `planning_scene_display.cpp` — createPlanningSceneMonitor() 直接构造
+
+```cpp
+PlanningSceneMonitorPtr PlanningSceneDisplay::createPlanningSceneMonitor()
+{
+  RobotModelLoaderPtr rml;
+  if (!pending_urdf_.empty())
+  {
+    // 绕过静态缓存 + 参数读取 → URDF 字符串直达 RDFLoader
+    RobotModelLoader::Options opt(pending_urdf_, "" /* srdf */);
+    rml = std::make_shared<RobotModelLoader>(node_, opt);
+    pending_urdf_.clear();
+  }
+  else
+  {
+    rml = getSharedRobotModelLoader(node_, "robot_description");
+  }
+  return std::make_shared<PlanningSceneMonitor>(node_, rml, getNameStd() + "_psm");
+}
+```
+
+#### 5. `scene_attach_worker.cpp` — 直接发布 URDF
+
+```cpp
+// 构造函数中创建发布者
+robot_description_pub_ = create_publisher<std_msgs::msg::String>(
+    "/robot_description", rclcpp::QoS(1).transient_local());
+
+// updateRobotDescription() 中直接发布（不依赖 robot_state_publisher 重发）
+void SceneAttachWorker::updateRobotDescription(const std::string& tool_id)
+{
+  // 1. 直接发布 URDF → RViz2 立即收到并触发重载
+  auto msg = std::make_unique<std_msgs::msg::String>();
+  msg->data = urdf;
+  robot_description_pub_->publish(std::move(msg));
+
+  // 2. 设置参数 → robot_state_publisher 重载 TF
+  param_client_->set_parameters({rclcpp::Parameter("robot_description", urdf)}, ...);
+}
+```
+
+#### 6. `scene_attach_worker.cpp` — onToolStatus() 简化
+
+去掉冗余的 `AttachedCollisionObject`（产生平面着色叠加），只用 world dock CollisionObject + URDF 更新：
+
+```cpp
+void SceneAttachWorker::onToolStatus(const ToolChangerStatus& msg)
+{
+  const std::string new_tool = msg.is_connected ? msg.tool_id : "";
+  if (new_tool == current_attached_tool_) return;
+
+  // 旧工具放回 world dock, 新工具从 dock 移除
+  if (!current_attached_tool_.empty()) addToolToWorldDock(current_attached_tool_);
+  if (!new_tool.empty()) removeToolFromWorld(new_tool);
+
+  // URDF 更新 → 平滑渲染 (Assimp) + 碰撞几何 (URDF <collision>)
+  updateRobotDescription(new_tool);
+  current_attached_tool_ = new_tool;
+}
+```
+
+### 调试记录
+
+#### 问题 1: `visualization_msgs/msg/marker.hpp` 编译错误
+
+**现象**：`tool_changer` 编译失败，`scene_attach_worker.h` include 了不存在的 `visualization_msgs/msg/marker.hpp`
+
+**修复**：删除未实现的 `publishToolMarker()` 声明和对应 include
+
+#### 问题 2: `ParameterNotDeclaredException` 导致 RViz2 崩溃
+
+**现象**：`onRobotDescriptionTopic` 中 `node_->set_parameter()` 抛出异常
+
+**修复**：加 `has_parameter()` 检查 + `declare_parameter()` 兜底；增加 `is_initial` 判断避免首次消息触发重载
+
+#### 问题 3: `getSharedRobotModelLoader` 静态缓存返回旧 Loader
+
+**现象**：日志显示 `Loading robot model 'aubo_e5'`（确认重载发生），但 `gripperX_Link not found` 持续报错。新模型不含夹爪 link。
+
+**根因**：`getSharedRobotModelLoader()` 中 `weak_ptr.lock()` 返回旧 `RobotModelLoader`。旧 loader 内部存的是初始 URDF（无夹爪），`set_parameter()` 不会让它重新读取。即使 `clearRobotModel()` 销毁了 PSM，aliasing `RobotModelPtr`（来自 `getSharedRobotModel` 的 `s.models_` 缓存）仍持有 loader 的引用计数。
+
+**尝试过**：
+1. 新增 `clearSharedRobotModelLoader()` → overlay/underlay 两套 `SharedStorage` 静态变量独立副本，清除 overlay 缓存无效
+2. 直接构造 `RobotModelLoader::Options(urdf_string, srdf_string)` → URDF 字符串直达 `RDFLoader` → **成功绕过所有缓存** ✓
+
+#### 问题 4: overlay/underlay 包含路径冲突
+
+**现象**：编译 `moveit_ros_visualization` 时 `clearSharedRobotModelLoader` 符号找不到
+
+**根因**：`source` 顺序导致 underlay 的 `moveit_ros_planning_interface` include 路径优先于 overlay
+
+**修复**：`source` 顺序改为 overlay 最后（保证 `AMENT_PREFIX_PATH` 中 overlay 在最前）
+
+### 待解决
+
+- [ ] **touch_links 碰撞排除**：去掉 AttachedCollisionObject 后，夹爪与 `camera_Link`/`wrist3_Link` 的碰撞排除需要通过动态 SRDF（`robot_description_semantic`）或 PlanningScene ACM 条目实现
+- [ ] **move_group 动态重载**：`move_group` 的 `PlanningSceneMonitor` 同样不监听 `/robot_description`，需要类似修改才能更新其碰撞模型
+
 ## 参考
 
 - `doc/SDK_CONFLICT_RULES.md` — SDK 模式冲突规则详解
@@ -276,6 +572,7 @@ aubo_driver_ros2/
 - `doc/PORTING_MOTION_FIX.md` — ROS1→ROS2 移植完整记录 (13 轮调试)
 - UR ROS2 Driver: https://github.com/UniversalRobots/Universal_Robots_ROS2_Driver
 - Franka ROS2: https://github.com/frankaemika/franka_ros2
+- AUBO ROS1: https://github.com/AuboRobot/aubo_robot
 # AUBO 新框架驱动架构
 
 ## 完整控制链路

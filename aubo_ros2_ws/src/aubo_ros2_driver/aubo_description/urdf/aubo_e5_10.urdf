@@ -239,12 +239,13 @@
   <joint name="world_to_pedestal" type="fixed">
     <parent link="world"/>
     <child link="pedestal_Link"/>
-    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    <origin xyz="-0.10483 -0.10483 -0.028" rpy="0.0 0.0 0.0"/>
   </joint>
 
-  <joint name="base_joint" type="fixed">
-    <origin xyz="0.10483 0.10483 0.028" rpy="0 0 0"/>
-    <parent link="pedestal_Link"/>
+  <!-- base_link 直接挂在 world 下，与世界原点重合 -->
+  <joint name="world_to_base" type="fixed">
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+    <parent link="world"/>
     <child link="base_link"/>
   </joint>
 

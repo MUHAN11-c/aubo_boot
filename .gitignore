@@ -32,10 +32,35 @@ __pycache__/
 *.db3
 aubo_ros2_ws/rosbags/
 *.zip
+*.7z
+*.tar.xz
 **/src.zip
 coord_tf_output/
 *.log
 !**/tracelog.properties
+
+# 大文件
+*.mp4
+*.pdf
+*.dylib
+*.a
+# Python C扩展构建产物
+**/build/temp.*/
+# GraspNet 编译产物
+**/pointnet2/build/
+**/knn/build/
+# 大型 mesh 文件 (>20MB)
+aubo_ros2_ws/src/ros2_moveit2_ur5e_grasp/src/sim_models/realsense-ros/realsense2_description/meshes/l515.dae
+aubo_ros2_ws/src/ros2_moveit2_ur5e_grasp/src/sim_models/realsense-ros/realsense2_description/meshes/d415.stl
+aubo_ros2_ws/src/ros2_moveit2_ur5e_grasp/Pic
+# AUBO SDK 大文件
+aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/doc/C++.pdf
+aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/doc/SDK*/
+**/AuboSdkTests/dependents/
+# 超大视频
+aubo_ros2_ws/src/vision_perception/resource/video_*.mp4
+aubo_ros2_ws/src/coffee_latte_demo/resource/*.mp4
+aubo_ros2_ws/src/visual_pose_estimation/templates/*.7z
 
 # 构建产物（根目录）
 build/

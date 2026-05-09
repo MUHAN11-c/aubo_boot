@@ -65,7 +65,7 @@ function createVisionServiceActions(opts) {
 	}
 	function callGripperSwap(direction) {
 		if (!transport.isConnected()) {
-			log('未连接');
+			log('未连接，无法执行夹爪快换');
 			return;
 		}
 		const svcName = getSetting('svc-gripper-swap');
@@ -83,7 +83,11 @@ function createVisionServiceActions(opts) {
 				log(`${svcName} → success=${r.success} ${r.message || ''}`);
 			})
 			.catch(e => {
-				log(`${svcName} 错误: ${e}`);
+				var reason = String(e);
+				if (reason.indexOf('does not exist') !== -1) {
+					reason += ' (仿真模式下该服务由真实硬件提供，当前不可用)';
+				}
+				log(`${svcName} 错误: ${reason}`);
 			});
 	}
 	function bindControlButtons() {
@@ -157,11 +161,39 @@ function createVisionServiceActions(opts) {
 				callGripperSwap('gripper0_to_gripper2');
 			};
 		}
+		const btnDbgMoveXYZ = getById("btn-dbg-move-xyz");
+		if (btnDbgMoveXYZ) {
+			btnDbgMoveXYZ.onclick = () => { callDebugMoveXYZ(); };
+		}
 	}
+		function callDebugMoveXYZ() {
+			const x = parseFloat((getById("dbg-xyz-x") || {}).value) || 0;
+			const y = parseFloat((getById("dbg-xyz-y") || {}).value) || 0;
+			const z = parseFloat((getById("dbg-xyz-z") || {}).value) || 0;
+			const vel = parseFloat((getById("dbg-xyz-vel") || {}).value) || 0.3;
+			const acc = parseFloat((getById("dbg-xyz-acc") || {}).value) || 0.2;
+			log("Move XYZ -> (" + x.toFixed(3) + ", " + y.toFixed(3) + ", " + z.toFixed(3) + ") v=" + vel + " a=" + acc);
+			transport.callService({
+				service: "/debug/move_to_xyz",
+				type: "demo_interface/srv/MoveToPose",
+				request: {
+					target_pose: { position: { x: x, y: y, z: z }, orientation: { x: 0, y: 0, z: 0, w: 1 } },
+					target_joints: [0,0,0,0,0,0],
+					use_joints: false,
+					velocity_factor: vel,
+					acceleration_factor: acc
+				}
+			}).then(function (r) {
+				log("Move XYZ -> success=" + r.success + " " + (r.message || ""));
+			}).catch(function (e) {
+				log("Move XYZ \u9519\u8bef: " + e);
+			});
+		}
 	return {
 		callSetBool,
 		callExecuteGrasp,
 		callGripperSwap,
+			callDebugMoveXYZ,
 		bindControlButtons
 	};
 }

@@ -12,26 +12,7 @@ content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-wi
 <script src="/js/robotwebtools/importmap.js"></script>
 </head>
 <body class="ivg-single-screen">
-<nav class="ivg-global-nav" aria-label="灵视IVG 站内导航" data-ivg-page="vision">
-<div class="ivg-global-nav__inner">
-<div class="ivg-global-nav__start">
-<a class="ivg-global-nav__brand" href="index.html">灵视 <span>IVG</span></a>
-<ul class="ivg-global-nav__list" role="list">
-<li><a class="ivg-global-nav__link" href="index.html" data-ivg-nav="index">门户</a></li>
-<li><a class="ivg-global-nav__link" href="vision_grasp_panel.html" data-ivg-nav="vision">视觉抓取</a>
-</li>
-<li><a class="ivg-global-nav__link" href="coffee_latte_panel.html" data-ivg-nav="latte">咖啡拉花</a>
-</li>
-<li><a class="ivg-global-nav__link" href="tf_monitor_panel.html" data-ivg-nav="monitor">监控面板</a></li>
-        <li><a class="ivg-global-nav__link" href="settings_panel.html" data-ivg-nav="settings">设置</a></li>
-</ul>
-</div>
-<div class="ivg-global-nav__actions">
-<button type="button" class="ivg-global-nav__fs-btn" id="ivg-nav-fullscreen-btn" aria-pressed="false"
-aria-label="进入全屏" title="全屏显示页面（iPad 若无效请用 Safari 添加到主屏幕）">全屏</button>
-</div>
-</div>
-</nav>
+<ivg-site-nav page="vision"></ivg-site-nav>
 <main class="wrap">
 <div class="layout-toolbar layout-tier-1">
 <div class="toolbar-brand">
@@ -117,6 +98,17 @@ data-ivg-grasp-mode="graspnet">
 </div>
 </div>
 </div>
+	<div class="control-group">
+	<h3 class="control-group-title">调试 — 笛卡尔直线运动</h3>
+	<div style="display:flex;gap:0.3rem;align-items:center;flex-wrap:wrap;margin-bottom:0.3rem">
+	  <label style="font-size:12px">X:<input id="dbg-xyz-x" value="0.3741" step="0.01" style="width:5em;font-size:12px;margin-left:2px"></label>
+	  <label style="font-size:12px">Y:<input id="dbg-xyz-y" value="0.3039" step="0.01" style="width:5em;font-size:12px;margin-left:2px"></label>
+	  <label style="font-size:12px">Z:<input id="dbg-xyz-z" value="0.4755" step="0.01" style="width:5em;font-size:12px;margin-left:2px"></label>
+	  <label style="font-size:12px">V:<input id="dbg-xyz-vel" value="0.3" step="0.05" min="0.05" max="1.0" style="width:4em;font-size:12px;margin-left:2px"></label>
+	  <label style="font-size:12px">A:<input id="dbg-xyz-acc" value="0.2" step="0.05" min="0.05" max="1.0" style="width:4em;font-size:12px;margin-left:2px"></label>
+	</div>
+	<button type="button" class="ctrl" id="btn-dbg-move-xyz">Move XYZ</button>
+	</div>
 <div class="svc-log" id="svc-log" aria-live="polite"></div>
 </section>
 </div>

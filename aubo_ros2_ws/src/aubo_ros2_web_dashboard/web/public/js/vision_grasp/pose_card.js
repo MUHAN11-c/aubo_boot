@@ -1,5 +1,7 @@
 // pose_card.js — HTML renderers for end-effector / grasp pose cards
 import { ivgQuatNormalize } from '../view3d/tf_clients.js';
+import { escapeHtml } from '../core/utils.js';
+
 function fmtPoseNum(v, digits) {
 	const n = Number(v);
 	return isFinite(n) ? n.toFixed(digits == null ? 4 : digits) : '--';
@@ -11,14 +13,8 @@ function numFirst(...vals) {
 	}
 	return NaN;
 }
-function escapeHtml(value) {
-	return String(value == null ? '' : value)
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&#39;');
-}
+// escapeHtml 已从 utils.js 导入
+
 function normalizeRobotStatusJson(raw) {
 	if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw;
 	const hasFlat =

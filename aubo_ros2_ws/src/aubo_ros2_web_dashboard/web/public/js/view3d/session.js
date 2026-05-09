@@ -132,6 +132,7 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 			if (rawParam.includes(':')) pName = rawParam;
 			else pName = `/robot_state_publisher:${rawParam.replace(/^\/+/, '')}`;
 		}
+		this._urdfParamName = pName;
 		const meshBase = `${globalThis.location.origin}/api/ivg/robot-mesh/`;
 		showView3dUrdfHint(host, '<strong>机械臂 URDF</strong>：使用 ROS3D.UrdfClient 官方链路加载中。');
 		try {
@@ -183,6 +184,105 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 			}
 		}, 250);
 	};
+	IvgRos3dView3dSession.prototype._countMeshes = function (root) {
+		var count = 0;
+		root.traverse(function (n) { if (n.isMesh) count++; });
+		return count;
+	};
+	IvgRos3dView3dSession.prototype.reloadUrdf = function () {
+		if (!this._urdfStarted) return;
+		var self = this;
+		var OC = this._Obj3DClass || null;
+		if (!OC) return;
+		// 后台创建新模型，旧模型保持可见，避免画面闪烁
+		var newRoot = new OC();
+		var oldRoot = this.ros3dUrdfRoot;
+		var oldClient = this.ros3dUrdfClient;
+		if (this._urdfFocusTimer) {
+			clearInterval(this._urdfFocusTimer);
+			this._urdfFocusTimer = null;
+		}
+		// 统计旧模型中的 Mesh 数量作为加载完成目标
+		var targetMeshCount = this._countMeshes(oldRoot) || 6;
+		var meshBase = (typeof globalThis !== 'undefined' && globalThis.location)
+			? globalThis.location.origin + '/api/ivg/robot-mesh/'
+			: '/api/ivg/robot-mesh/';
+		var newClient = new ROS3D.UrdfClient({
+			ros: this.ros,
+			tfClient: this.tfClient3d,
+			path: meshBase,
+			rootObject: newRoot,
+			param: this._urdfParamName
+		});
+		// 递归劫持 newRoot 树中所有 Object3D.add，
+		// 每个 STL mesh 异步加载完成 → meshRes.add(mesh) → 计数
+		var meshLoaded = 0;
+		var ready = false;
+		function _wrapAdd(node) {
+			if (node.__ivgHijacked) return;
+			node.__ivgHijacked = true;
+			var orig = node.add.bind(node);
+			node.add = function (obj) {
+				var r = orig(obj);
+				if (!ready && obj && obj.traverse) {
+					obj.traverse(function (n) {
+						if (n.isMesh) meshLoaded++;
+						_wrapAdd(n);
+					});
+				}
+				if (!ready && meshLoaded >= targetMeshCount) {
+					ready = true;
+					// 先加新模型 → 再移旧模型 → 保证场景从不空白
+					if (self.viewer3d && newRoot) {
+						try { self.viewer3d.addObject(newRoot); } catch (e) {}
+					}
+					if (self.viewer3d && oldRoot) {
+						try { self.viewer3d.scene.remove(oldRoot); } catch (e) {}
+					}
+					if (oldClient) {
+						try {
+							var u = oldClient.urdf;
+							if (u && typeof u.unsubscribeTf === 'function') u.unsubscribeTf();
+						} catch (e) {}
+					}
+					self.ros3dUrdfRoot = newRoot;
+					self.ros3dUrdfClient = newClient;
+				}
+				return r;
+			};
+		}
+		// 劫持 newRoot.add → 当 UrdfClient getParam 回调触发
+		// newRoot.add(urdfObj) 时，递归劫持整棵 Urdf 子树
+		{
+			var _origNewRootAdd = newRoot.add.bind(newRoot);
+			newRoot.add = function (obj) {
+				var r = _origNewRootAdd(obj);
+				if (obj && obj.traverse) {
+					obj.traverse(function (n) { _wrapAdd(n); });
+				}
+				return r;
+			};
+		}
+		// 安全兜底: 2s 后若仍未就绪则强制 swap
+		setTimeout(function () {
+			if (!ready && self.viewer3d && newRoot) {
+				ready = true;
+				if (self.viewer3d && newRoot) {
+					try { self.viewer3d.addObject(newRoot); } catch (e) {}
+				}
+				if (self.viewer3d && oldRoot) {
+					try { self.viewer3d.scene.remove(oldRoot); } catch (e) {}
+				}
+				if (oldClient) {
+					try {
+						var u = oldClient.urdf;
+						if (u && typeof u.unsubscribeTf === 'function') u.unsubscribeTf();
+					} catch (e) {}
+				}
+				self.ros3dUrdfRoot = newRoot;
+				self.ros3dUrdfClient = newClient;
+			}
+		}, 2000);			};
 	IvgRos3dView3dSession.prototype.stop = function () {
 		this._deferredStartTimers.forEach(t => clearTimeout(t));
 		this._deferredStartTimers.length = 0;
@@ -198,20 +298,26 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 			clearInterval(this._markerFocusTimer);
 			this._markerFocusTimer = null;
 		}
+		var _rosAlive = this.ros && this.ros.isConnected;
 		if (this.ros3dUrdfClient) {
-			try {
-				const u = this.ros3dUrdfClient.urdf;
-				if (u && typeof u.unsubscribeTf === 'function') u.unsubscribeTf();
-			} catch (eUrdf) {
+			if (_rosAlive) {
+				try {
+					const u = this.ros3dUrdfClient.urdf;
+					if (u && typeof u.unsubscribeTf === 'function') u.unsubscribeTf();
+				} catch (eUrdf) {}
 			}
 			this.ros3dUrdfClient = null;
 		}
 		if (this.ros3dMarkerClient) {
-			try { this.ros3dMarkerClient.unsubscribe(); } catch (e0) {  }
+			if (_rosAlive) {
+				try { this.ros3dMarkerClient.unsubscribe(); } catch (e0) {}
+			}
 			this.ros3dMarkerClient = null;
 		}
 		if (this.ros3dLaserScan) {
-			try { this.ros3dLaserScan.unsubscribe(); } catch (e2) {  }
+			if (_rosAlive) {
+				try { this.ros3dLaserScan.unsubscribe(); } catch (e2) {}
+			}
 			this.ros3dLaserScan = null;
 		}
 		if (this.viewer3d) {
@@ -245,7 +351,9 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 			this._Obj3DClass = null;
 		}
 		if (this.tfClient3d) {
-			try { this.tfClient3d.dispose(); } catch (e3) {  }
+			if (_rosAlive) {
+				try { this.tfClient3d.dispose(); } catch (e3) {}
+			}
 			this.tfClient3d = null;
 		}
 		const host3 = this.$(this._view3dHostId);
@@ -314,6 +422,7 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 		}
 		let fixedFrame = (($('tf-fixed-frame') && $('tf-fixed-frame').value) || 'base_link').trim().replace(/^\/+/, '');
 		if (fixedFrame === '') fixedFrame = 'base_link';
+		this._fixedFrame = fixedFrame;
 		const tf3dOpts = (this.opts && this.opts.tf3d) || {};
 		this.tfClient3d = new IvgRos3dTfClient(ros, fixedFrame, tf3dOpts);
 		const pszEl = $('view3d-point-size');

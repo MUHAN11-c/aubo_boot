@@ -4,20 +4,13 @@
 import * as ROSLIB from 'roslib';
 import { loadIvgRuntime } from './core/runtime_provider.js';
 import { rosbridgeWebSocketUrlFromRuntime } from './ivg_runtime.js';
+import { canonicalRosTopic, encodeTopicQueryValue } from './core/utils.js';
 
 const g = globalThis;
 
 // ── 工具 ─────────────────────────────────────────────────────────────────────
 
-function canonicalRosTopic(t) {
-    const s = String(t || '').trim();
-    if (!s) return '';
-    return s.startsWith('/') ? s : `/${s}`;
-}
-
-function encodeTopicQueryValue(topic) {
-    return String(topic).split('/').map(seg => encodeURIComponent(seg)).join('/');
-}
+// canonicalRosTopic / encodeTopicQueryValue 已从 core/utils.js 导入
 
 // ── 传输层 ──────────────────────────────────────────────────────────────────
 
@@ -25,6 +18,7 @@ function IvgTransport() {
     this.runtime = null;          // 运行时配置 (来自 /api/v1/runtime)
     this.ros = null;              // ROSLIB.Ros 实例
     this._topicSubs = new Map();  // topic → ROSLIB.Topic
+    this._topicSpecs = new Map(); // topic → msgType (去重用)
     this._rosHandlers = [];       // 话题消息处理器
     this._controlHandlers = [];   // 控制面 JSON 处理器 (connection/error/close)
     this._connectPromise = null;  // 去重: 同一时间只有一个连接尝试
@@ -118,6 +112,8 @@ IvgTransport.prototype.connectControl = function () {
 
         try {
             if (self.ros) {
+                // 先取消所有订阅，确保 unsubscribe 消息在 socket 关闭前送达 rosbridge
+                self.unsubscribeAll();
                 try { self.ros.close(); } catch (e0) { /* ignore */ }
                 self.ros = null;
             }
@@ -126,6 +122,7 @@ IvgTransport.prototype.connectControl = function () {
 
             ros.on('connection', function () {
                 if (self.ros !== ros) return;
+                self._dispatchControlJson({ op: 'connection' });
                 finishOk();
             });
             ros.on('error', function (err) {
@@ -167,6 +164,9 @@ IvgTransport.prototype.subscribe = function (spec) {
     const msgType = String(spec.msgType || spec.msg_type || '').trim();
     if (!topicName || !msgType || !this.ros) return false;
 
+    // 已订阅相同 topic + msgType，跳过
+    if (this._topicSpecs.get(topicName) === msgType) return true;
+
     // 覆盖旧订阅
     const existing = this._topicSubs.get(topicName);
     if (existing) {
@@ -187,6 +187,8 @@ IvgTransport.prototype.subscribe = function (spec) {
     });
 
     this._topicSubs.set(topicName, topic);
+    this._topicSpecs.set(topicName, msgType);
+	console.log("[ivg_transport] subscribed:", topicName);
     return true;
 };
 
@@ -196,6 +198,7 @@ IvgTransport.prototype.unsubscribe = function (topic) {
     if (!sub) return;
     try { sub.unsubscribe(); } catch (e) { /* ignore */ }
     this._topicSubs.delete(topicName);
+    this._topicSpecs.delete(topicName);
 };
 
 IvgTransport.prototype.unsubscribeAll = function () {
@@ -203,6 +206,7 @@ IvgTransport.prototype.unsubscribeAll = function () {
         try { sub.unsubscribe(); } catch (e) { /* ignore */ }
     });
     this._topicSubs.clear();
+    this._topicSpecs.clear();
 };
 
 // ── 服务调用 ────────────────────────────────────────────────────────────────

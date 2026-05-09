@@ -14,7 +14,7 @@ find_package(aubo_msgs REQUIRED)
 find_package(moveit_core REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 find_package(moveit_msgs REQUIRED)
-find_package(geometric_shapes REQUIRED)
+find_package(resource_retriever REQUIRED)
 find_package(yaml_cpp_vendor REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 
@@ -43,7 +43,7 @@ ament_target_dependencies(scene_attach_worker_node
   rclcpp
   tool_changer_interface
   moveit_msgs
-  geometric_shapes
+  resource_retriever
   yaml_cpp_vendor
   ament_index_cpp
 )

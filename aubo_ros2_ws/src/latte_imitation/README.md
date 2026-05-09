@@ -1,166 +1,225 @@
-# latte_imitation — 拉花轨迹模仿学习仿真包
+# latte_imitation — 拉花轨迹模仿学习包
 
-从 [ridxm/latte-pour-demos](https://github.com/ridxm/latte-art-robot) 数据集提取双臂拉花轨迹，
-将 RM65 右臂（拉花臂）关节轨迹转换为 Aubo E5 可执行的 JointTrajectory，在现有仿真器中回放验证。
+从 [ridxm/latte-pour-demos](https://huggingface.co/datasets/ridxm/latte-pour-demos) 数据集提取双臂拉花末端笛卡尔轨迹，
+通过 Aubo E5 IK 转换为关节轨迹并发送到机械臂执行。
 
 ## 架构
 
 ```
-Parquet(HF) → 右臂关节角(6D) → RM65 FK(PyKDL) → 笛卡尔位姿
-    → 重定向(scale+offset) → Aubo E5 IK(DLS) → Aubo关节角
-    → JointTrajectory msg → /joint_path_command → 仿真器(quintic插值200Hz)
+原始 parquet (RM65 关节角)       笛卡尔 npz (末端位姿，预计算)
+        │                                │
+        │  [一次性: RM65 FK]               │ ← 直接加载
+        └──────────→ ────────────────────┘
+                         │
+                         ▼
+                CartesianTrajectory.load()
+                         │
+              ┌──────────┴──────────┐
+              ▼                     ▼
+     visualize (matplotlib)    ROS2 Node
+                               │
+                          debug: PoseStamped + Path
+                          action: Aubo E5 IK → JointTrajectory → Action
 ```
 
-## 数据集分析
+## 模块
 
-| 项目 | 内容 |
-|---|---|
-| 机器人 | 双臂 Realman RM65 (每臂 6 DOF + 1 夹爪 = 7D) |
-| 总维度 | 14D：左臂 dims 0-6，右臂 dims 7-13 |
-| 拉花臂 | **右臂 (dims 7-12, 6 个关节角)** — 运动方差 ≈30x 左臂 |
-| 持杯臂 | 左臂 (dims 0-6) — 基本静止，仅微动 |
-| 格式 | LeRobot v3.0 Parquet |
-| 数据量 | 40 episodes, 每集 400 帧, 20Hz, ≈20秒 |
-| 视觉 | 3 相机 (top, left_wrist, right_wrist) 640×480 |
+| 文件 | 职责 |
+|------|------|
+| `trajectory.py` | `CartesianTrajectory` 类：加载/保存 npz，统计（路径长、速度），导出 ROS2 消息 |
+| `robot_model.py` | PyKDL FK + DLS IK（action 模式用） |
+| `trajectory_publisher.py` | ROS2 节点：加载 npz → 发布位姿 → Aubo IK → Action 执行 |
+| `scripts/visualize_latte_trajectory.py` | 离线播放器：40 条轨迹叠加 + 动画回放 |
 
-### 关键发现
+## 数据文件
 
-1. **左臂基本静止**（total variance 0.0058），仅静态持杯，拉花任务本质上是单臂操作
-2. **右臂是拉花臂**（total variance 0.1707），6 个关节大幅协调运动
-3. **夹爪恒定**（右臂 dim 13 = 0.991），奶缸被固定握持
-4. **轨迹数据可直接提取** `observation.state[:, 7:13]` 得到 (T, 6) 关节角
+```
+resource/
+├── original/               ← 40 个原始 14D parquet（RM65 关节角，保留）
+├── cartesian/
+│   ├── left/               ← 40 个左臂末端笛卡尔 npz (400×3 positions + 400×4 orientations)
+│   └── right/              ← 40 个右臂末端笛卡尔 npz
+└── trajectory_overview.png ← 40 条右臂轨迹叠加图
+```
 
-## 姿态不可达问题与解决方案
-
-### 问题
-
-RM65 的末端姿态（roll=1.29, pitch=-0.75, yaw=-1.33 rad）在通过 FK→重定向→IK 后，
-Aubo E5 无法在重定向位置下复现相同的 6D 位姿（position error ~0.41m, IK 不收敛）。
-
-### 原因
-
-- RM65 和 Aubo E5 手腕结构不同（DH 参数不同）
-- 相同的笛卡尔位姿需要不同的 joint configuration，在特定位置可能超出 Aubo 关节限位
-- 这是异构机器人运动重定向的经典问题
-
-### 解决方案：位置优先（position-only）IK
-
-拉花任务的**核心是末端位置轨迹**（奶缸嘴在液面划出的图案），姿态不需要精确复制：
-
-- 从 RM65 提取末端**位置**轨迹（丢弃姿态信息）
-- 用 DLS IK 仅追踪位置（3D error），允许 IK 自由选择可达姿态
-- 结果：400/400 帧全部收敛，位置误差 < 0.1mm
-
-**这并非妥协，而是合理的工程简化** —— 拉花的图案由 XY 平面轨迹决定，
-倒奶角度可以独立设置，无需从 RM65 复制。
-
-## 模块说明
-
-### robot_model.py — PyKDL 运动学封装
-
-- 从 URDF 手动构建 `PyKDL.Chain`（遍历 revolute joint 路径）
-- FK: `ChainFkSolverPos_recursive`
-- IK: 自研 DLS（阻尼最小二乘）+ 有限差分雅可比，支持 `pos_only` 模式
-- 自适应阻尼：收敛时缩小，发散时增大
-- Temporal warm-start：每帧用上一帧的 IK 解作为初始值
-- 第一帧随机重启 20 次确保收敛
-
-### dataset_loader.py — 数据集加载
-
-- HF Hub 下载 + 本地缓存（`~/.cache/huggingface/hub/`）
-- 也支持 `load_from_local(parquet_path)` 直读本地文件（绕过 HF 下载和网络代理问题）
-- 自动提取右臂 6 关节角（dims 7:12）
-
-### retarget.py — 笛卡尔重定向
-
-- 策略：以 RM65 轨迹质心为参考 → 缩放（0.85×）→ 平移到 Aubo 工作空间中心
-- `auto_center=True` 从数据自动计算质心
-- 视觉姿态保持不变（Identity rotation offset）
-
-### trajectory_publisher.py — ROS2 主节点
-
-- **发布**: `/joint_path_command` (JointTrajectory) → 现有仿真器
-- **调试**: `~/rm65_pose`, `~/aubo_pose` (PoseStamped)
-- **参数**:
-  - `episode_idx`: 回放的 episode 编号（默认 0）
-  - `speed_scale`: 播放速度倍率（默认 1.0 = 20Hz）
-  - `local_parquet`: 本地 parquet 路径（跳过 HF 下载）
-  - `pos_only`: 仅位置 IK（默认 true，RM65 姿态在 Aubo 上不可达）
-  - `position_scale`: 重定向缩放因子（默认 [0.85, 0.85, 0.85]）
-  - `aubo_center`: Aubo 工作空间中心（默认 [0.3, 0.0, 0.6]）
+每个 npz 包含：
+- `positions` (400, 3) — 末端 XYZ 位置 (m)
+- `orientations` (400, 4) — 四元数 xyzw
+- `timestamps` (400,) — 从 0 开始，dt=0.05s
+- `dt` — 时间步长
+- `episode_idx` — episode 编号
 
 ## 使用方法
 
-### 1. 准备数据
+### 构建
 
 ```bash
-# 从 HF 下载（需要网络）
-# 自动缓存到 ~/.cache/huggingface/hub/
-
-# 或手动下载单集用于测试
-wget https://huggingface.co/datasets/ridxm/latte-pour-demos/resolve/main/data/chunk-000/episode_000000.parquet
-```
-
-### 2. 构建
-
-```bash
+# 必须在 workspace 根目录运行 colcon
 cd aubo_ros2_ws
 colcon build --packages-select latte_imitation
 source install/setup.bash
 ```
 
-### 3. 启动仿真回放
+### 离线可视化（不依赖 ROS2）
 
 ```bash
-# 从本地文件（推荐，无需网络）
-ros2 launch latte_imitation replay_trajectory.launch.py \
-    local_parquet:=./episode_000000.parquet
-
-# 从 HF 下载
-ros2 launch latte_imitation replay_trajectory.launch.py \
-    episode_idx:=0
-
-# 调参
-ros2 launch latte_imitation replay_trajectory.launch.py \
-    local_parquet:=./episode_000000.parquet \
-    speed_scale:=0.5
+cd src/latte_imitation
+python3 scripts/visualize_latte_trajectory.py                 # 右臂拉花轨迹（默认）
+python3 scripts/visualize_latte_trajectory.py --arm left      # 左臂持杯轨迹
+python3 scripts/visualize_latte_trajectory.py --speed 2.0     # 2 倍速
 ```
 
-### 4. 监控输出
+键盘：`[ ]` 切 episode | 空格 播放/暂停 | `← →` 逐帧 | `↑ ↓` 变速 | `a` 叠加 | `r` 重置
+
+### ROS2 Debug 模式（发布末端位姿）
 
 ```bash
-# 查看仿真器插值输出
-ros2 topic echo /moveItController_cmd
+ros2 launch latte_imitation replay_trajectory.launch.py
+ros2 launch latte_imitation replay_trajectory.launch.py episode_idx:=5 arm:=left
 
-# 查看 RM65 / Aubo 调试位姿
-ros2 topic echo /latte_imitation/rm65_pose
-ros2 topic echo /latte_imitation/aubo_pose
+# 查看发布的轨迹
+ros2 topic echo /latte_imitation/ee_path
 ```
 
-## 验证结果
+### ROS2 Action 模式（机械臂执行）
+
+```bash
+ros2 launch latte_imitation replay_trajectory.launch.py \
+    mode:=action episode_idx:=0 arm:=right speed_scale:=0.5
+
+# 批量执行 40 条
+for ep in $(seq 0 39); do
+    ros2 launch latte_imitation replay_trajectory.launch.py \
+        mode:=action episode_idx:=$ep speed_scale:=1.0
+    sleep 22
+done
+```
+
+### Python API
+
+```python
+from latte_imitation.trajectory import CartesianTrajectory
+
+# 加载全部 40 条
+carts = CartesianTrajectory.load_all("resource", "right")
+for ep, cart in carts.items():
+    print(f"Ep{ep}: {cart.path_length():.2f}m, {cart.num_frames} frames")
+
+# 加载单条
+cart = CartesianTrajectory.load("resource/cartesian/right/episode_000000.npz")
+print(cart.start)   # [-0.34, 0.028, 0.521]
+print(cart.end)     # [-0.34, 0.010, 0.585]
+
+# 导出 ROS2 消息
+path_msg = cart.to_ros2_path()
+pose_msg = cart.to_pose_stamped(10)
+```
+
+## 节点参数
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `episode_idx` | 0 | episode 编号 (0-39) |
+| `arm` | right | left / right |
+| `speed_scale` | 1.0 | 播放速度倍率 |
+| `mode` | debug | debug=PoseStamped+Path, action=IK+执行 |
+| `pos_only` | true | IK 仅匹配位置（忽略姿态） |
+
+## CartesianTrajectory API
+
+| 方法 | 返回值 | 说明 |
+|------|--------|------|
+| `load(path)` | `CartesianTrajectory` | 从 npz 加载单条 |
+| `load_all(dir, arm)` | `OrderedDict[int, CartesianTrajectory]` | 加载目录下全部 npz |
+| `save(path)` | — | 保存为 npz |
+| `path_length()` | float | 累计路径长 (m) |
+| `velocity_profile()` | ndarray (T-1,) | 帧间瞬时速度 (m/s) |
+| `segment(i, j)` | `CartesianTrajectory` | 切片子轨迹 |
+| `to_pose(idx)` | `Pose` | 单帧 ROS2 Pose |
+| `to_pose_stamped(idx)` | `PoseStamped` | 单帧 PoseStamped |
+| `to_ros2_path(step=5)` | `Path` | 完整 ROS2 Path |
+
+属性: `positions` (T,3), `orientations` (T,4), `timestamps` (T,), `dt`, `start`, `end`, `num_frames`
+
+## 话题
+
+| 话题 | 类型 | 说明 |
+|------|------|------|
+| `/latte_imitation/ee_pose` | PoseStamped | 当前帧末端位姿 |
+| `/latte_imitation/ee_path` | Path | 完整轨迹（每 5 帧采样） |
+| `/latte_imitation/aubo_ee_pose` | PoseStamped | IK 验证位姿（action 模式） |
+| `/latte_imitation/joint_path_command` | JointTrajectory | 关节轨迹（action 模式） |
+
+## 数据集信息
+
+- 来源：[ridxm/latte-pour-demos](https://huggingface.co/datasets/ridxm/latte-pour-demos)
+- 40 个 episode，每个 400 帧 @ 20fps（20 秒）
+- 14D 关节角：左臂 dims 0-6 + 右臂 dims 7-13 + 夹爪 dim 13
+- 右臂（拉花臂）末端路径长约 1.53m，分四阶段：进杯 → 调整 → 核心拉花 → 退杯
+
+### 14 维关节分解
+
+| 维度 | 所属 | 运动特征 |
+|------|------|---------|
+| dim 0-5 | 左臂 6 关节 | 几乎静止（持杯） |
+| dim 6 | 左臂夹爪 | 恒定 0.948 |
+| dim 7-12 | **右臂 6 关节** | **拉花运动** |
+| dim 13 | 右臂夹爪 | 恒定 0.991 |
+
+### 笛卡尔末端轨迹（右臂，RM65 FK）
+
+| 轴 | 范围 (m) | 跨度 (mm) |
+|---|---|---|
+| X | [-0.365, -0.153] | 212 |
+| Y | [-0.094, 0.028] | 121 |
+| Z | [0.173, 0.585] | 413 |
+
+- 直线位移 67mm，总路径 **1.53m**
+- 40 条轨迹帧间 std 均值仅 0.044m，高度一致
+
+## 数据流详解
+
+### 数据生成（一次性）
+
+原始 parquet 是 RM65 关节角，不可直接用于 Aubo E5。通过 RM65 FK 预计算生成笛卡尔 npz：
 
 ```
-Episode 0: 400 frames, dt=0.050s
-RM65 FK: (-0.340, 0.028, 0.521)
-Retargeting: rm65_center=[-0.242, -0.042, 0.253] -> aubo_center=[0.3, 0.0, 0.6]
-IK: 400/400 frames converged, max pos error < 0.1mm
-Simulator: "Received trajectory with 400 points"
+resource/original/ (40 个 parquet, 14D 关节角)
+    │
+    │  RM65 FK (robot_model.py)
+    ▼
+resource/cartesian/left/  (40 个 npz, 3D 位置 + 4D 姿态)
+resource/cartesian/right/ (40 个 npz)
 ```
+
+之后所有模块只加载笛卡尔 npz，不再依赖 parquet 和 RobotModel（RM65）。
+
+### 节点执行流程
+
+```
+CartesianTrajectory.load(npz)
+    │
+    ▼
+[debug] → to_ros2_path() → /latte_imitation/ee_path
+    │
+[action] → _pose_to_kdl_frame() → Aubo IK → JointTrajectory → Action
+    │
+    ├─ IK 成功帧: 正常执行
+    └─ IK 失败帧: 跳过，不包含在 JointTrajectory 中
+```
+
+### 设计决策
+
+| 决策 | 原因 |
+|------|------|
+| 只存笛卡尔 npz | 关节角跨机械臂不可复用，笛卡尔位姿是通用的 |
+| 保留原始 parquet | 可追溯数据来源，需要时可重新 FK 计算 |
+| pos_only IK | RM65 和 Aubo E5 姿态差异大，只匹配位置避免 IK 发散 |
+| 不包含 retarget | 数据集是在 cup 上方的相对运动，无需 workspace 映射 |
+| `load_all` 返回 OrderedDict | 按 episode 编号排序，遍历顺序可预测 |
 
 ## 依赖
 
-- PyKDL (python3-pykdl)
-- urdf_parser_py
-- huggingface_hub, pyarrow, pandas, numpy
-- ROS2 Humble: rclpy, trajectory_msgs, geometry_msgs, ament_index_python
-
-## 局限与改进方向
-
-1. **姿态丢抛**: 当前 position-only IK 丢弃了 RM65 的姿态信息。
-   改进方案：添加姿态重定向（axis-angle 分解 + wrist alignment）
-2. **手动重定向参数**: `position_scale` 和 `aubo_center` 需要手动调整。
-   改进方案：自动标定（通过 TCP 标定 → 工作空间映射）
-3. **仿真器仅验证运动学**: 当前仿真只验证轨迹的 joint 空间可行性。
-   改进方案：接入 MoveIt + Rviz 可视化末端轨迹
-4. **无视觉输入**: 模仿学习最终需要视觉策略。
-   改进方案：配合 vision_perception 包做视觉伺服
+- numpy, PyKDL, urdf_parser_py
+- ROS2 Humble: rclpy, trajectory_msgs, geometry_msgs, nav_msgs, control_msgs, ament_index_python
+- 可视化: matplotlib

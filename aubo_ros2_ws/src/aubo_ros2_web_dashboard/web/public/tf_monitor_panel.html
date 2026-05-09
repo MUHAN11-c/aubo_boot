@@ -5,22 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
 <title>监控面板</title>
 <link rel="stylesheet" href="css/ivg_site_nav.css?v=20260414_unify_proj" />
+<link rel="stylesheet" href="css/ivg_base.css" />
 <link rel="stylesheet" href="css/ivg_status_bar.css" />
 <script src="/js/robotwebtools/importmap.js"></script>
 <style>
-:root {
-  --bg: #0f1117; --panel-bg: #1a1d27; --border: #2a2d3a;
-  --text: #e1e4eb; --text-muted: #8890a4; --accent: #4f9cf7;
-  --green: #34d399; --yellow: #fbbf24; --red: #f87171; --orange: #fb923c;
-}
-* { box-sizing:border-box; margin:0; padding:0; }
-body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
-.wrap { max-width:1100px; margin:0 auto; padding:16px; }
-h1 { font-size:1.4rem; }
+/* page‑specific styles */
 h2 { font-size:1rem; color:var(--text-muted); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.06em; }
 .panel { background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin-bottom:16px; }
 .row { display:flex; gap:16px; flex-wrap:wrap; }
 .row > * { flex:1; min-width:280px; }
+.wrap { max-width:1100px; }
 
 /* Mode badge */
 .mode-badge { display:inline-flex; align-items:center; gap:8px; padding:6px 14px; border-radius:20px; font-size:0.9rem; font-weight:600; }
@@ -63,14 +57,6 @@ h2 { font-size:1rem; color:var(--text-muted); margin-bottom:12px; text-transform
 .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#1e3a5f; color:#fff; padding:10px 20px; border-radius:8px; font-size:0.85rem; z-index:999; opacity:0; transition:opacity 0.25s; pointer-events:none; }
 .toast.show { opacity:1; }
 
-/* Connection footer */
-.connection-footer { border-top:1px solid var(--border); padding:10px 16px; text-align:center; font-size:0.8rem; }
-.connection-footer__inner { display:flex; align-items:center; justify-content:center; gap:8px; }
-.status { padding:2px 10px; border-radius:10px; font-size:0.75rem; }
-.status.ok { background:#064e3b; color:var(--green); }
-.status.off { background:#3b1b1b; color:var(--red); }
-.status.pending { background:#2d2a14; color:var(--yellow); }
-
 /* Export section */
 .export-history { max-height:200px; overflow-y:auto; margin-top:10px; font-size:0.78rem; font-family:monospace; background:#0d0f14; border-radius:6px; padding:8px 12px; }
 .export-history .entry { padding:3px 0; border-bottom:1px solid #1a1d25; color:var(--text-muted); }
@@ -79,24 +65,7 @@ h2 { font-size:1rem; color:var(--text-muted); margin-bottom:12px; text-transform
 </head>
 <body class="ivg-single-screen">
 
-<nav class="ivg-global-nav" aria-label="灵视IVG 站内导航" data-ivg-page="monitor">
-<div class="ivg-global-nav__inner">
-<div class="ivg-global-nav__start">
-<a class="ivg-global-nav__brand" href="index.html">灵视 <span>IVG</span></a>
-<ul class="ivg-global-nav__list" role="list">
-<li><a class="ivg-global-nav__link" href="index.html" data-ivg-nav="index">门户</a></li>
-<li><a class="ivg-global-nav__link" href="vision_grasp_panel.html" data-ivg-nav="vision">视觉抓取</a></li>
-<li><a class="ivg-global-nav__link" href="coffee_latte_panel.html" data-ivg-nav="latte">咖啡拉花</a></li>
-<li><a class="ivg-global-nav__link" href="tf_monitor_panel.html" data-ivg-nav="monitor">监控面板</a></li>
-<li><a class="ivg-global-nav__link" href="settings_panel.html" data-ivg-nav="settings">设置</a></li>
-</ul>
-</div>
-<div class="ivg-global-nav__actions">
-<button type="button" class="ivg-global-nav__fs-btn" id="ivg-nav-fullscreen-btn" aria-pressed="false"
-aria-label="进入全屏" title="全屏显示页面">全屏</button>
-</div>
-</div>
-</nav>
+<ivg-site-nav page="monitor"></ivg-site-nav>
 
 <main class="wrap">
   <!-- 顶部标识 -->

@@ -12,8 +12,14 @@ setup(
         ("share/ament_index/resource_index/packages", [f"resource/{package_name}"]),
         (f"share/{package_name}", ["package.xml"]),
         (f"share/{package_name}/launch", glob("launch/*.launch.py")),
-        (f"share/{package_name}/config", glob("config/*.yaml")),
         (f"share/{package_name}/urdf", glob("urdf/*.urdf")),
+        (f"share/{package_name}/resource/original",
+         glob("resource/original/*.parquet")),
+        *[
+            (f"share/{package_name}/resource/cartesian/{arm}",
+             glob(f"resource/cartesian/{arm}/*.npz"))
+            for arm in ["left", "right"]
+        ],
     ],
     install_requires=["setuptools"],
     zip_safe=True,

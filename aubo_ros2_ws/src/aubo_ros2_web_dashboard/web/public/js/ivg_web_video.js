@@ -7,9 +7,7 @@ function hostname() {
     return (typeof window !== 'undefined' && window.location && window.location.hostname) || '127.0.0.1';
 }
 
-function encodeTopicQueryValue(topic) {
-    return String(topic).split('/').map(seg => encodeURIComponent(seg)).join('/');
-}
+import { encodeTopicQueryValue } from './core/utils.js';
 
 // ── 直连模式（旧版兼容）─────────────────────────────────────────────────────
 

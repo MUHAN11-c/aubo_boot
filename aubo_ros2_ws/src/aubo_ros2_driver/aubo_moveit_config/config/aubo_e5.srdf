@@ -43,10 +43,7 @@
     <!--END EFFECTOR: Purpose: Represent information about an end effector.-->
     <end_effector name="moveit_ee" parent_link="tool_tcp" group="endeffector"/>
     <!--VIRTUAL JOINT: Purpose: this element defines a virtual joint between a robot link and an external frame of reference (considered fixed with respect to the robot)-->
-    <!-- parent_frame 决定规划框架（planning frame），child_link 是机器人基座链接 -->
-    <!-- URDF 中定义了 world 作为根链接，base_link 是 world 的子链接 -->
-    <!-- 因此 virtual_joint 的 parent_frame 设置为 world，child_link 设置为 base_link -->
-    <!-- 这样 planning_frame 就是 world，符合 URDF 的链接层次结构 -->
+    <!-- world 通过 world_to_base(identity) 直接与 base_link 重合，planning_frame 即 base_link 原点 -->
     <virtual_joint name="fixed_base" type="fixed" parent_frame="world" child_link="base_link"/>
     <!--DISABLE COLLISIONS: By default it is assumed that any link of the robot could potentially come into collision with any other link in the robot. This tag disables collision checking between a specified pair of links. -->
     <!-- 禁用基座与机器人链接之间的碰撞检测 -->

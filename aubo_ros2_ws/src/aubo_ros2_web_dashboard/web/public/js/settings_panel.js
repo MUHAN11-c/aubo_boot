@@ -1,8 +1,9 @@
 // settings_panel — IVG 系统设置（公共参数 / 视觉抓取 / 咖啡拉花 三分类）
 // 数据流: /api/v1/runtime → 网关状态 + 配置定义 | localStorage ↔ 表单
 // 保存键名: ivg_vision_grasp_topics_v3（与视觉抓取/咖啡拉花面板共用）
+import { $, escapeHtml } from './core/utils.js';
+
 const STORAGE_KEY = 'ivg_vision_grasp_topics_v3';
-const $ = id => document.getElementById(id);
 
 // ── 配置定义（从 BFF 获取，含 label 字段）─────────────────────────────────
 let categoryDefs = { common: {}, vision: {}, latte: {} };
@@ -32,9 +33,8 @@ async function loadCategoryDefs() {
 }
 
 // ── 工具 ─────────────────────────────────────────────────────────────────
-function escapeHtml(s) {
-    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+// escapeHtml 已从 utils.js 导入
+
 function showMsg(text, ok) {
     const el = $('settings-msg');
     if (!el) return;

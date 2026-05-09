@@ -17,6 +17,7 @@
 #include <moveit_msgs/msg/planning_scene.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <shape_msgs/msg/mesh.hpp>
+#include <std_msgs/msg/string.hpp>
 #include <tool_changer_interface/msg/tool_changer_status.hpp>
 #include <tool_changer_interface/srv/change_tool.hpp>
 
@@ -41,6 +42,7 @@ public:
 private:
   struct ToolGeometry {
     shape_msgs::msg::Mesh mesh_collision;
+    std::string mesh_visual;  // MESH_RESOURCE marker 路径 (用于 RViz2 平滑渲染)
     geometry_msgs::msg::Pose dock_pose;
     geometry_msgs::msg::Pose attach_offset;
     std::vector<std::string> touch_links;
@@ -57,8 +59,15 @@ private:
   bool attachTool(const std::string& tool_id);
   bool detachTool(const std::string& tool_id);
 
+  // World dock 显示辅助方法（只改 world，不碰 AttachedCollisionObject）
+  void addToolToWorldDock(const std::string& tool_id);
+  void removeToolFromWorld(const std::string& tool_id);
+
   // /tool_changer_status 订阅回调
   void onToolStatus(const tool_changer_interface::msg::ToolChangerStatus& msg);
+
+  // robot_description 参数更新
+  void updateRobotDescription(const std::string& tool_id);
 
   // 服务回调
   void onSceneAttach(const std::shared_ptr<tool_changer_interface::srv::ChangeTool::Request> req,
@@ -73,6 +82,11 @@ private:
 
   rclcpp::Service<tool_changer_interface::srv::ChangeTool>::SharedPtr scene_attach_srv_;
   rclcpp::Service<tool_changer_interface::srv::ChangeTool>::SharedPtr scene_detach_srv_;
+
+  // robot_description 参数更新
+  std::map<std::string, std::string> urdf_cache_;
+  rclcpp::AsyncParametersClient::SharedPtr param_client_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr robot_description_pub_;
 
   std::string current_attached_tool_;
 };

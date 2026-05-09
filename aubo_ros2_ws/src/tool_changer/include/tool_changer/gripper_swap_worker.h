@@ -19,6 +19,8 @@
 #include <geometry_msgs/msg/pose.hpp>
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/string.hpp>
+#include <demo_interface/srv/move_to_pose.hpp>
 #include <tool_changer_interface/msg/tool_changer_status.hpp>
 #include <tool_changer_interface/srv/change_tool.hpp>
 #include <tool_changer_interface/srv/get_current_tool.hpp>
@@ -60,46 +62,78 @@ private:
   static const ToolInfo kToolGripper2;
   static const ToolInfo kToolNone;
 
-  // 快换原语
-  bool releaseGripper(const std::vector<CartesianSegment>& approach,
-                      const std::vector<CartesianSegment>& depart,
-                      double settle_release_sec, double settle_close_sec);
-  bool pickGripper(const std::vector<CartesianSegment>& approach,
-                   const std::vector<CartesianSegment>& depart,
-                   double settle_lock_sec);
+  // ═══════════════════════════════════════════════════════════════
+  // 轨迹原语（四类）
+  // ═══════════════════════════════════════════════════════════════
 
-  // 流程函数
+  // ── 1. 回 home ──
+  bool moveToHome(float vel, float acc);
+
+  // ── 2. 到固定点位 ──
+  bool moveToJoints(const std::array<double, 6>& joints, float vel, float acc);
+  bool moveToTargetXYZ(double x, double y, double z, float vel, float acc);
+  bool moveToDockStation();
+  bool moveToReleaseGripper0();
+  bool moveToGripper0DockAbove();
+  bool moveToGripper2DockAbove();
+
+  // ── 3. 取轨迹 ──
+  bool pickGripper0();
+  bool pickGripper2();
+
+  // ── 4. 放轨迹 ──
+  bool releaseGripper0();
+  bool releaseGripper2();
+
+  // ═══════════════════════════════════════════════════════════════
+  // 笛卡尔路径（底层）
+  // ═══════════════════════════════════════════════════════════════
+
+  bool runCartesianPath(const std::vector<CartesianSegment>& segments, float vel, float acc);
+  bool runCartesianPath(char axis, double offset, float vel, float acc);
+
+  // ═══════════════════════════════════════════════════════════════
+  // IO
+  // ═══════════════════════════════════════════════════════════════
+
+  bool setGripperIoSafe(bool open_gripper);
+  bool setGripperIo(int32_t io_index, bool high);
+
+  // ═══════════════════════════════════════════════════════════════
+  // 综合流程（由四类轨迹原语组合）
+  // ═══════════════════════════════════════════════════════════════
+
   bool swapToGripper0();
   bool swapToGripper2();
   bool switchToGripper2();
   bool switchToGripper0();
   bool changeToTool(const std::string& target_id);
 
-  // 运动原语
+  // ═══════════════════════════════════════════════════════════════
+  // 工具状态 & 辅助
+  // ═══════════════════════════════════════════════════════════════
+
   void initMoveGroup();
-  bool moveToJoints(const std::array<double, 6>& joints, float vel, float acc);
-  bool moveToHome(float vel, float acc);
-  bool moveToTargetXYZ(double x, double y, double z, float vel, float acc);
-  bool runCartesianPath(const std::vector<CartesianSegment>& segments, float vel, float acc);
-  bool runCartesianPath(char axis, double offset, float vel, float acc);
-
-  // IO
-  bool setGripperIoSafe(bool open_gripper);
-  bool setGripperIo(int32_t io_index, bool high);
-
-  // 状态
   ToolInfo current_tool_;
   void publishToolStatus(bool connected);
+  bool sleepJointCartesianSwitchDelay(const char* where);
 
-  // 服务回调（回调组 MutuallyExclusive，回调间天然串行）
+  // ═══════════════════════════════════════════════════════════════
+  // 服务回调
+  // ═══════════════════════════════════════════════════════════════
+
   void onChangeTool(const std::shared_ptr<tool_changer_interface::srv::ChangeTool::Request> req,
                     std::shared_ptr<tool_changer_interface::srv::ChangeTool::Response> resp);
   void onGetCurrentTool(const std::shared_ptr<tool_changer_interface::srv::GetCurrentTool::Request> req,
                         std::shared_ptr<tool_changer_interface::srv::GetCurrentTool::Response> resp);
   void onGripperSwapRequest(const std::shared_ptr<tool_changer_interface::srv::RunGripperSwap::Request> req,
                             std::shared_ptr<tool_changer_interface::srv::RunGripperSwap::Response> resp);
+  void onDebugMoveToXYZ(const std::shared_ptr<demo_interface::srv::MoveToPose::Request> req,
+                        std::shared_ptr<demo_interface::srv::MoveToPose::Response> resp);
 
-  bool sleepJointCartesianSwitchDelay(const char* where);
+  // ═══════════════════════════════════════════════════════════════
+  // 成员变量
+  // ═══════════════════════════════════════════════════════════════
 
   std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
   rclcpp::Client<demo_interface::srv::SetRobotIO>::SharedPtr set_io_client_;
@@ -118,6 +152,9 @@ private:
   rclcpp::Service<tool_changer_interface::srv::RunGripperSwap>::SharedPtr gripper_swap_srv_;
   rclcpp::Service<tool_changer_interface::srv::ChangeTool>::SharedPtr change_tool_srv_;
   rclcpp::Service<tool_changer_interface::srv::GetCurrentTool>::SharedPtr get_tool_srv_;
+
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr mode_sub_;
+  rclcpp::Service<demo_interface::srv::MoveToPose>::SharedPtr debug_move_xyz_srv_;
 
   std::atomic<bool> shutdown_requested_{ false };
 };

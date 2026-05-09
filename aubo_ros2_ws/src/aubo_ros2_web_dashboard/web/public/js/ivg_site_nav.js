@@ -1,159 +1,122 @@
-// ivg_site_nav.js — global nav bar with fullscreen toggle
-const q = typeof window.location.search === 'string' ? window.location.search : '';
-	const FS_TITLE_ENTER = '全屏显示页面（iPad：若无效请用 Safari 添加到主屏幕）';
-	const FS_TITLE_EXIT = '退出全屏';
-	function getFullscreenElement() {
-		return document.fullscreenElement || document.webkitFullscreenElement || null;
-	}
-	async function enterFullscreen() {
-		const el = document.documentElement;
-		if (el.requestFullscreen) {
-			await el.requestFullscreen();
-			return;
-		}
-		if (el.webkitRequestFullscreen) {
-			el.webkitRequestFullscreen();
-			return;
-		}
-		throw new Error('Fullscreen API 不可用');
-	}
-	async function exitFullscreen() {
-		if (document.exitFullscreen) {
-			await document.exitFullscreen();
-			return;
-		}
-		if (document.webkitExitFullscreen) {
-			document.webkitExitFullscreen();
-			return;
-		}
-	}
-	function syncFullscreenButton(btn) {
-		if (!btn) return;
-		const on = !!getFullscreenElement();
-		btn.classList.toggle('is-fullscreen', on);
-		btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-		btn.setAttribute('aria-label', on ? '退出全屏' : '进入全屏');
-		btn.textContent = on ? '退出全屏' : '全屏';
-		btn.title = on ? FS_TITLE_EXIT : FS_TITLE_ENTER;
-	}
-	function shouldEnableFullscreenControl() {
-		try {
-			if (window.matchMedia('(pointer: fine)').matches) return false;
-			return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-		} catch (e) {
-			return false;
-		}
-	}
-	function shouldAutoEnterFullscreenTablet() {
-		if (!shouldEnableFullscreenControl()) return false;
-		try {
-			return (
-				window.matchMedia('(orientation: landscape)').matches &&
-				window.matchMedia('(min-width: 1024px)').matches &&
-				window.matchMedia('(max-width: 1366px)').matches
-			);
-		} catch (e) {
-			return false;
-		}
-	}
-	function armFirstInteractionFullscreen(btn) {
-		const opts = { capture: true, passive: true };
-		function cleanup() {
-			document.removeEventListener('touchstart', onInteract, opts);
-			document.removeEventListener('click', onInteract, opts);
-		}
-		async function onInteract() {
-			cleanup();
-			if (getFullscreenElement()) {
-				if (btn) syncFullscreenButton(btn);
-				return;
-			}
-			try {
-				await enterFullscreen();
-			} catch (e) {
-				console.warn('[ivg_site_nav] 首次手势全屏:', e);
-			}
-			if (btn) syncFullscreenButton(btn);
-		}
-		document.addEventListener('touchstart', onInteract, opts);
-		document.addEventListener('click', onInteract, opts);
-	}
-	function initTabletAutoFullscreen(root) {
-		if (!shouldAutoEnterFullscreenTablet()) return;
-		try {
-			if (typeof navigator !== 'undefined' && navigator.standalone === true) return;
-		} catch (e) {
-		}
-		const btn = (root || document).getElementById('ivg-nav-fullscreen-btn');
-		(async () => {
-			try {
-				await enterFullscreen();
-			} catch (e) {
-			}
-			if (btn) syncFullscreenButton(btn);
-			if (!getFullscreenElement()) {
-				armFirstInteractionFullscreen(btn);
-			}
-		})();
-	}
-	function initFullscreenButton(root) {
-		const btn = (root || document).getElementById('ivg-nav-fullscreen-btn');
-		if (!btn) return;
-		if (!shouldEnableFullscreenControl()) return;
-		const sync = () => syncFullscreenButton(btn);
-		btn.addEventListener('click', () => {
-			(async () => {
-				try {
-					if (getFullscreenElement()) {
-						await exitFullscreen();
-					} else {
-						await enterFullscreen();
-					}
-				} catch (e) {
-					console.warn('[ivg_site_nav] 全屏:', e);
-				}
-				sync();
-			})();
-		});
-		document.addEventListener('fullscreenchange', sync);
-		document.addEventListener('webkitfullscreenchange', sync);
-		sync();
-	}
-	function applyQueryToInternalNavLinks(root) {
-		const base = root || document;
-		base.querySelectorAll('.ivg-global-nav a[href]').forEach(a => {
-			const h = a.getAttribute('href');
-			if (!h || h.indexOf('#') === 0) return;
-			if (/^https?:\/\//i.test(h)) return;
-			if (h.indexOf('.html') === -1) return;
-			const path = h.split('?')[0];
-			a.setAttribute('href', path + q);
-		});
-	}
-	function setActiveNav(root) {
-		const nav = (root || document).querySelector('.ivg-global-nav[data-ivg-page]');
-		if (!nav) return;
-		const page = nav.getAttribute('data-ivg-page');
-		if (!page) return;
-		nav.querySelectorAll('.ivg-global-nav__link[data-ivg-nav]').forEach(a => {
-			if (a.getAttribute('data-ivg-nav') === page) {
-				a.setAttribute('aria-current', 'page');
-				a.classList.add('is-active');
-			} else {
-				a.removeAttribute('aria-current');
-				a.classList.remove('is-active');
-			}
-		});
-	}
-	function init(root) {
-		applyQueryToInternalNavLinks(root);
-		setActiveNav(root);
-		initFullscreenButton(root);
-		initTabletAutoFullscreen(root);
-	}
-	if (document.readyState === 'loading') {
-		document.addEventListener('DOMContentLoaded', () => { init(); });
-	} else {
-		init();
-	}
-export { init };
+// ivg-site-nav Web Component — 全站统一导航栏
+// 用法: <ivg-site-nav page="monitor"></ivg-site-nav>
+
+const NAV_LINKS = [
+  { href: 'index.html',               page: 'index',    label: '门户' },
+  { href: 'vision_grasp_panel.html',  page: 'vision',   label: '视觉抓取' },
+  { href: 'coffee_latte_panel.html',  page: 'latte',    label: '咖啡拉花' },
+  { href: 'tf_monitor_panel.html',    page: 'monitor',  label: '监控面板' },
+  { href: 'log_panel.html',           page: 'log',      label: '日志' },
+  { href: 'settings_panel.html',      page: 'settings', label: '设置' },
+];
+
+const FS_TITLE_ENTER = '全屏显示页面（iPad：若无效请用 Safari 添加到主屏幕）';
+const FS_TITLE_EXIT  = '退出全屏';
+const ID_BTN = 'ivg-nav-fullscreen-btn';
+
+function hasTouch() {
+  try { return window.matchMedia('(hover: none) and (pointer: coarse)').matches; }
+  catch (_) { return false; }
+}
+
+function isTabletLandscape() {
+  try {
+    return hasTouch() && window.matchMedia('(orientation: landscape)').matches
+      && window.matchMedia('(min-width: 1024px)').matches
+      && window.matchMedia('(max-width: 1366px)').matches;
+  } catch (_) { return false; }
+}
+
+class IvgSiteNav extends HTMLElement {
+  connectedCallback() {
+    const page = this.getAttribute('page') || '';
+    const q = window.location.search || '';
+
+    const linksHtml = NAV_LINKS.map(function (l) {
+      var act = l.page === page;
+      return '<li><a class="ivg-global-nav__link' + (act ? ' is-active' : '') + '"'
+        + ' href="' + l.href + q + '" data-ivg-nav="' + l.page + '"'
+        + (act ? ' aria-current="page"' : '') + '>' + l.label + '</a></li>';
+    }).join('');
+
+    this.className = 'ivg-global-nav';
+    this.setAttribute('aria-label', '灵视IVG 站内导航');
+    this.innerHTML =
+      '<div class="ivg-global-nav__inner">'
+      + '<div class="ivg-global-nav__start">'
+      + '<a class="ivg-global-nav__brand" href="index.html' + q + '">灵视 <span>IVG</span></a>'
+      + '<ul class="ivg-global-nav__list" role="list">' + linksHtml + '</ul>'
+      + '</div>'
+      + '<div class="ivg-global-nav__actions">'
+      + '<button type="button" class="ivg-global-nav__fs-btn" id="' + ID_BTN + '"'
+      + ' aria-pressed="false" aria-label="进入全屏" title="' + FS_TITLE_ENTER + '">全屏</button>'
+      + '</div></div>';
+
+    this._initFS();
+    if (isTabletLandscape()) this._autoFS();
+  }
+
+  _fsEl() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+
+  async _enter() {
+    var el = document.documentElement;
+    if (el.requestFullscreen) { await el.requestFullscreen(); return; }
+    if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  }
+
+  async _exit() {
+    if (document.exitFullscreen) await document.exitFullscreen();
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+  }
+
+  _syncBtn() {
+    var btn = this.querySelector('#' + ID_BTN);
+    if (!btn) return;
+    var on = !!this._fsEl();
+    btn.classList.toggle('is-fullscreen', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.setAttribute('aria-label', on ? '退出全屏' : '进入全屏');
+    btn.textContent = on ? '退出全屏' : '全屏';
+    btn.title = on ? FS_TITLE_EXIT : FS_TITLE_ENTER;
+  }
+
+  _initFS() {
+    if (!hasTouch()) {
+      var act = this.querySelector('.ivg-global-nav__actions');
+      if (act) act.style.display = 'none';
+      return;
+    }
+    var self = this;
+    var btn = this.querySelector('#' + ID_BTN);
+    if (!btn) return;
+    function sync() { self._syncBtn(); }
+    btn.addEventListener('click', function () {
+      (async function () {
+        try { self._fsEl() ? await self._exit() : await self._enter(); }
+        catch (e) { console.warn('[ivg-nav] 全屏:', e); }
+        sync();
+      })();
+    });
+    document.addEventListener('fullscreenchange', sync);
+    document.addEventListener('webkitfullscreenchange', sync);
+    sync();
+  }
+
+  _autoFS() {
+    try { if (navigator.standalone === true) return; } catch (_) {}
+    var self = this;
+    function go() {
+      (async function () {
+        try { await self._enter(); } catch (_) {}
+        self._syncBtn();
+        if (!self._fsEl()) {
+          document.addEventListener('touchstart', go, { capture: true, passive: true, once: true });
+          document.addEventListener('click', go, { capture: true, passive: true, once: true });
+        }
+      })();
+    }
+    go();
+  }
+}
+
+customElements.define('ivg-site-nav', IvgSiteNav);

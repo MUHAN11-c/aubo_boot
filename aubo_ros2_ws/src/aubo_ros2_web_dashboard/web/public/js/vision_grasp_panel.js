@@ -28,6 +28,7 @@ import { createVisionServiceActions } from './vision_grasp/services.js';
 import { createVisionUiBinder } from './vision_grasp/ui_binder.js';
 import { bindVisionSubscriptions } from './vision_grasp/subscription_binder.js';
 import { createVisionModeController } from './vision_grasp/mode_controller.js';
+import { canonicalRosTopic } from './core/utils.js';
 import {
 	VISION_SETTINGS_DEFAULTS,
 	VISION_ALL_SETTING_IDS,
@@ -58,7 +59,6 @@ import {
 	const visionUrdfPanel =
 		typeof createVisionUrdfPanel === 'function'
 			? createVisionUrdfPanel({
-				ports: ivgPorts,
 				SessionCtor: IvgRos3dView3dSession,
 				documentRef: document
 			})
@@ -138,11 +138,7 @@ import {
 	 * - 订阅与服务：unsubscribeAll … callGripperSwap
 	 */
 
-	function normalizeIvgTopic(t) {
-		const s = String(t || '').trim();
-		if (!s) return '';
-		return s.startsWith('/') ? s : `/${s}`;
-	}
+	const normalizeIvgTopic = canonicalRosTopic;
 
 	function buildPageStreamId(prefix) {
 		return `${prefix}_${PAGE_STREAM_SUFFIX}`;
@@ -325,7 +321,7 @@ import {
 	}
 
 	function startVisionUrdf3d() {
-		if (visionUrdfPanel) visionUrdfPanel.start($);
+		if (visionUrdfPanel) visionUrdfPanel.start($, ivgTransport.ros);
 	}
 
 	function setResultPanelMode(mode) {
@@ -451,8 +447,15 @@ import {
 	}
 
 	function logSvc(msg) {
+		const ts = new Date().toLocaleTimeString();
 		const el = $('svc-log');
-		if (el) el.textContent = `${new Date().toLocaleTimeString()} ${msg}`;
+		if (el) el.textContent = `${ts} ${msg}`;
+		// 同步输出到浏览器控制台，方便调试
+		if (msg.indexOf('错误') !== -1 || msg.indexOf('失败') !== -1) {
+			console.warn(`[vision] ${ts} ${msg}`);
+		} else {
+			console.log(`[vision] ${ts} ${msg}`);
+		}
 	}
 
 	/** 连接 ivg_web_serve 控制面 WebSocket；成功后 startSubscriptions */
@@ -468,6 +471,7 @@ import {
 		ivgPorts.clearRosReconnectTimer(rosReconnect);
 		const myGen = ivgPorts.bumpRosReconnectGen(rosReconnect);
 		setConnStatus('正在连接…', null);
+		unsubscribeAll();
 		ivgTransport.close();
 		void (async () => {
 			try {
@@ -499,6 +503,7 @@ import {
 					}
 				});
 				setConnStatus('已连接', true);
+				console.log("[vision] rosbridge 已连接，启动订阅");
 				startSubscriptions();
 			} catch (e) {
 				if (myGen !== rosReconnect.gen) return;

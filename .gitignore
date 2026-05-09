@@ -62,6 +62,18 @@ aubo_ros2_ws/src/vision_perception/resource/video_*.mp4
 aubo_ros2_ws/src/coffee_latte_demo/resource/*.mp4
 aubo_ros2_ws/src/visual_pose_estimation/templates/*.7z
 
+# SDK 二进制库
+**/lib/lib32/*.so*
+**/lib/lib64/**/*.so*
+**/lib/lib64/**/*.bak
+aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/doc/aubo_sdk/
+
+# 大型图片
+aubo_ros2_ws/legacy/hand_eye_calibration_tool/data/**/*.bmp
+
+# 模型文件
+*.pt
+
 # 构建产物（根目录）
 build/
 install/

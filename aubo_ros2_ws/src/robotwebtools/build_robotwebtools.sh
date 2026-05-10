@@ -28,23 +28,61 @@ require_dir() {
   fi
 }
 
-# 在离线模式下准备依赖：
-# - 若本地已有 node_modules，直接复用（完全本地）。
-# - 若没有，则尝试 npm --offline（只能使用本地 npm 缓存，不访问网络）。
-# - 失败则直接退出，并提示先准备离线依赖。
+# 准备依赖：
+# 1. node_modules 不存在 → 优先联网安装，失败则尝试离线缓存
+# 2. node_modules 存在但缺关键文件 → 自动修复（联网安装缺失的依赖）
+# 3. node_modules 完整 → 跳过
 ensure_offline_dependencies() {
   local pkg_dir="$1"
   require_dir "${pkg_dir}"
 
   if [[ -d "${pkg_dir}/node_modules" ]]; then
-    echo "[信息] 检测到本地 node_modules，直接复用: ${pkg_dir}"
+    # 快速验证 node_modules 是否完整：检查 package.json 依赖对应的可执行文件
+    local bin_deps=()
+    # 从 package.json 提取 devDependencies 和 dependencies 中被 npm scripts 引用的工具
+    if [[ -f "${pkg_dir}/package.json" ]]; then
+      while IFS= read -r bin_name; do
+        bin_deps+=("$bin_name")
+      done < <(node -e "
+        try {
+          const pkg = require('${pkg_dir}/package.json');
+          const scripts = Object.values(pkg.scripts || {}).join(' ');
+          const deps = {...(pkg.devDependencies || {}), ...(pkg.dependencies || {})};
+          for (const [name, ver] of Object.entries(deps)) {
+            if (scripts.includes(name)) console.log(name)
+          }
+        } catch(e) { process.exit(1) }
+      " 2>/dev/null || true)
+    fi
+
+    local incomplete=false
+    for bin_name in "${bin_deps[@]}"; do
+      if [[ ! -f "${pkg_dir}/node_modules/.bin/${bin_name}" ]]; then
+        echo "[警告] node_modules 不完整，缺少: ${bin_name}"
+        incomplete=true
+        break
+      fi
+    done
+
+    if [[ "${incomplete}" == "false" ]]; then
+      echo "[信息] node_modules 完整，跳过安装: ${pkg_dir}"
+      return 0
+    fi
+
+    echo "[信息] node_modules 不完整，尝试联网安装缺失依赖..."
+    rm -rf "${pkg_dir}/node_modules"
+  fi
+
+  # 优先尝试联网安装，失败则回退到离线缓存
+  if npm install --no-audit --fund=false 2>&1; then
+    echo "[信息] npm 依赖安装成功"
     return 0
   fi
 
-  echo "[信息] 未找到 node_modules，尝试使用本地缓存离线安装: ${pkg_dir}"
+  echo "[信息] 联网安装失败，尝试使用本地缓存离线安装: ${pkg_dir}"
   if ! npm install --offline --no-audit --fund=false; then
-    echo "[错误] 离线依赖安装失败: ${pkg_dir}"
-    echo "[错误] 请先准备本地 npm 缓存，或预先放置 node_modules 后重试。"
+    echo "[错误] 依赖安装失败（联网和离线均失败）: ${pkg_dir}"
+    echo "[错误] 请检查网络连接或本地 npm 缓存。"
     exit 1
   fi
 }
@@ -111,17 +149,10 @@ copy_runtime_assets() {
   bash "${script_path}"
 }
 
-# npm 离线策略：
-# - OFFLINE=true：禁止 npm 走网络。
-# - PREFER_OFFLINE=true：优先使用本地缓存（与 OFFLINE 配合更稳妥）。
-# - AUDIT/FUND=false：关闭网络相关提示与检查，减少干扰。
-export NPM_CONFIG_OFFLINE=true
-export NPM_CONFIG_PREFER_OFFLINE=true
 export NPM_CONFIG_AUDIT=false
 export NPM_CONFIG_FUND=false
 
 echo "[信息] RobotWebTools 构建根目录: ${ROOT_DIR}"
-echo "[信息] 已启用离线模式: npm 不会访问网络。"
 echo "[信息] 默认执行全量构建: roslibjs + ros3djs + ros2djs"
 
 build_roslibjs

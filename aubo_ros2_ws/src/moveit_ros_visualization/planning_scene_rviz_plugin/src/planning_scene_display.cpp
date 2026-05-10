@@ -353,7 +353,9 @@ void PlanningSceneDisplay::onRobotDescriptionTopic(const std_msgs::msg::String::
   if (is_initial)
     return;
 
-  const std::string param_name = robot_description_property_->getStdString();
+  std::string param_name = robot_description_property_->getStdString();
+  if (param_name.empty())
+    param_name = "robot_description";
   if (!node_->has_parameter(param_name))
     node_->declare_parameter(param_name, msg->data);
   else
@@ -557,7 +559,10 @@ planning_scene_monitor::PlanningSceneMonitorPtr PlanningSceneDisplay::createPlan
   }
   else
   {
-    rml = moveit::planning_interface::getSharedRobotModelLoader(node_, robot_description_property_->getStdString());
+    std::string rd_param = robot_description_property_->getStdString();
+    if (rd_param.empty())
+      rd_param = "robot_description";
+    rml = moveit::planning_interface::getSharedRobotModelLoader(node_, rd_param);
   }
   return std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(node_, rml,
                                                                         getNameStd() + "_planning_scene_monitor");

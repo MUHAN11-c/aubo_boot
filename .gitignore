@@ -15,8 +15,8 @@ log/
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-*.so.*
+# .so 排除规则 — 仅排除构建产物目录，AUBO SDK 的 .so 需提交以支持新电脑编译喵~
+# install/build/log 已在上方排除，GraspNet CUDA 扩展 .so 在下方单独排除
 .pytest_cache/
 .eggs/
 *.egg-info/
@@ -68,26 +68,34 @@ coord_tf_output/
 *.ckpt
 *.onnx
 
-# 静态库
-*.a
+# 静态库 — 仅排除 SDK 自带的大 .a (libotgLib.a 等小 .a 需提交用于链接)
+aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/aubocontroller/*.a
+aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/doc/**/*.a
 
-# 动态库
+# 动态库 (macOS)
 *.dylib
 
 # Node
 node_modules/
 
-# C 扩展构建产物
+# C/CUDA 扩展构建产物
 **/build/temp.*/
 **/pointnet2/build/
 **/knn/build/
+# GraspNet CUDA 扩展预编译 .so — 平台相关，新环境需重新 pip3 install -e .
+aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/pointnet2/pointnet2/_ext*.so
+aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/knn/knn_pytorch/knn_pytorch*.so
 
-# AUBO SDK 文档与示例 (含大二进制)
+# AUBO SDK 文档与示例 (含大二进制，不参与编译)
 aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/doc/
 
-# AUBO SDK 预编译库 — 源码头保留，由 CMakeLists.txt install() 安装到 install/lib/
+# AUBO SDK 预编译库 — 32-bit 不参与编译；deps/ 含系统级 .deb 包和重复的 .so
 aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib32/
 aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/deps/
+
+# AUBO SDK .so 库 — 排除 .bak 备份文件，保留 .so 供编译链接喵~
+aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/**/*.bak
+aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/**/*.a
 
 # GraspNet 训练日志与模型
 aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/logs/

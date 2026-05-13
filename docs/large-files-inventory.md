@@ -26,20 +26,28 @@
 
 ## 2. AUBO SDK 文件
 
-| 文件 | 大小 | 路径 | 用途 |
-|------|------|------|------|
-| `libauborobotcontroller.so*` | 7.1M×4 | `aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/aubocontroller/` | AUBO SDK 64-bit 动态库 |
-| `libauborobotcontroller.a` | 15M | 同上 | AUBO SDK 静态库 |
-| `libauborobotcontroller.so*` | 12M×5 | `aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib32/` | AUBO SDK 32-bit (不参与编译) |
-| `libprotobuf.so.9.0.1` | 13M | `aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/protobuf/` | protobuf 依赖库 |
-| `liblog4cplus-1.2.so*` | ~1M | `aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/log4cplus/` | 日志依赖库 |
-| `libconfig.so*` | ~1M | `aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/config/` | 配置依赖库 |
-| `doc/aubo_sdk/` | 25M | `aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/doc/aubo_sdk/` | SDK 参考库 (不参与编译) |
-| `doc/SDK测试demo/` | ~80M | `aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/doc/SDK测试demo/` | SDK 测试 demo 与依赖 |
+### 2.1 已纳入 Git 的编译依赖 (.so)
 
-**获取方式**：SDK 库由 AUBO 原厂提供，需联系供应商获取对应版本（libauborobotcontroller.so.1.3.1）喵~
+以下 `.so` 文件已提交到 Git，新电脑 clone 后可直接编译喵~
 
-**编译时的安装**：CMakeLists.txt 的 `install(DIRECTORY ...)` 规则会在 `colcon build` 时将所需 `.so` 安装到 `install/aubo_driver_ros2/lib/`，运行时自动加载喵~
+| 文件 | 大小 | 路径 |
+|------|------|------|
+| `libauborobotcontroller.so*` (4 个版本) | 7.1M×4 | `lib/lib64/aubocontroller/` |
+| `liblog4cplus-1.2.so*` (2 个版本) | ~1M | `lib/lib64/log4cplus/` |
+| `libconfig*.so*` (4 个版本) | ~1M | `lib/lib64/config/` |
+| `libprotobuf*.so*` (3 个版本) | 13M | `lib/lib64/protobuf/` |
+| `libotgLib.a` | 767K | `lib/lib64/` |
+
+### 2.2 未纳入 Git 的大文件
+
+| 文件 | 大小 | 路径 | 用途 | 获取方式 |
+|------|------|------|------|---------|
+| `libauborobotcontroller.a` | 15M | `lib/lib64/aubocontroller/` | SDK 静态库 (不需要，.so 已足够) | 如有需要，从 AUBO SDK 包提取 |
+| `libauborobotcontroller.so*` | 12M×5 | `lib/lib32/` | SDK 32-bit (不参与编译) | 32-bit 系统才需要 |
+| `doc/aubo_sdk/` | 25M | `doc/aubo_sdk/` | SDK 参考库 (不参与编译) | AUBO 原厂 SDK 包 |
+| `doc/SDK测试demo/` | ~80M | `doc/SDK测试demo/` | SDK 测试 demo 与依赖 | AUBO 原厂 SDK 包 |
+
+> **注意**：`.bak` 备份文件和 `.a`/`.la` 静态库文件已从版本管理中排除（`.gitignore` 规则）。编译只需要 `.so` 动态库喵~
 
 ---
 

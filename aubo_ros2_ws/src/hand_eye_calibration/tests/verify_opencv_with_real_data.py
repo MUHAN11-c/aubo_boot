@@ -15,6 +15,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from hand_eye_calibration.opencv_hand_eye_calibration import OpenCVHandEyeCalibration
+from ivg_utils.math import quaternion_to_rotation_matrix as _quaternion_to_rotation_matrix
 
 np.set_printoptions(precision=6, suppress=True)
 
@@ -47,12 +48,8 @@ def pose_to_transform_matrix(x, y, z, rx, ry, rz):
 
 
 def quaternion_to_rotation_matrix(qx, qy, qz, qw):
-    """四元数转旋转矩阵"""
-    return np.array([
-        [1 - 2*(qy*qy + qz*qz),     2*(qx*qy - qw*qz),     2*(qx*qz + qw*qy)],
-        [    2*(qx*qy + qw*qz), 1 - 2*(qx*qx + qz*qz),     2*(qy*qz - qw*qx)],
-        [    2*(qx*qz - qw*qy),     2*(qy*qz + qw*qx), 1 - 2*(qx*qx + qy*qy)]
-    ])
+    """四元数转旋转矩阵（委托 ivg_utils.math）"""
+    return _quaternion_to_rotation_matrix([qx, qy, qz, qw])
 
 
 def rotation_matrix_to_quaternion(R):
@@ -349,14 +346,14 @@ def compare_with_reference(result):
 
 def main():
     """主函数"""
+    data_dir = os.environ.get('HAND_EYE_DATA_DIR',
+                              os.path.expanduser('~/.ivg/hand_eye_calibrate/collect_data'))
+
     print("="*80)
     print("使用实际数据验证OpenCV手眼标定模式")
     print("="*80)
     print(f"验证时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"数据来源: /home/mu/IVG2.0/hand_eye_calibrate/collect_data")
-    
-    # 数据路径
-    data_dir = '/home/mu/IVG2.0/hand_eye_calibrate/collect_data'
+    print(f"数据来源: {data_dir}")
     poses_file = os.path.join(data_dir, 'poses.txt')
     
     # 检查数据

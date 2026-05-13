@@ -186,7 +186,11 @@ def main():
     print("="*80)
     
     # 查找最新的误差计算文件
-    config_dir = '/home/mu/IVG2.0/aubo_ros2_ws/install/hand_eye_calibration/share/hand_eye_calibration/config'
+    try:
+        from ament_index_python import get_package_share_directory
+        config_dir = os.path.join(get_package_share_directory('hand_eye_calibration'), 'config')
+    except Exception:
+        config_dir = os.path.expanduser('~/.ivg/hand_eye_calibrate')
     error_files = glob.glob(os.path.join(config_dir, 'opencv_calib_05_error_calculation_*.json'))
     
     if not error_files:

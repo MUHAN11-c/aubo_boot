@@ -14,7 +14,6 @@ GraspNet ROS2 Demo(点云版)：
 
 # ---------- 标准库 ----------
 import os
-import sys
 import multiprocessing
 from typing import Optional, Tuple, cast
 
@@ -36,40 +35,16 @@ from std_srvs.srv import SetBool
 from tf2_ros import TransformBroadcaster, Buffer, TransformListener
 
 
-# ========== graspnet-baseline 路径与依赖（须先设置 sys.path 再导入） ==========
-def _get_graspnet_baseline_root() -> str:
-    """解析 graspnet-baseline 根目录：源码为 ../graspnet-baseline，install 为 share/graspnet_ros2/graspnet-baseline。"""
-    this_file = os.path.abspath(__file__)
-    src_root = os.path.abspath(os.path.join(os.path.dirname(this_file), '..', 'graspnet-baseline'))
-    if os.path.isdir(src_root) and os.path.isdir(os.path.join(src_root, 'models')):
-        return src_root
-    try:
-        from ament_index_python.packages import get_package_share_directory
+# ========== graspnet-baseline 依赖（pip install -e . 安装，可直接导入）==========
+import models  # noqa: F401 — 触发 models/__init__.py 的 sys.path 兼容逻辑
+import dataset  # noqa: F401
+import utils  # noqa: F401
+from models.graspnet import GraspNet, pred_decode
+from utils.collision_detector import ModelFreeCollisionDetector
+from graspnetAPI import GraspGroup
+import pointnet2._ext as _ext  # noqa: F401 — CUDA 算子 (ball_query, group_points 等)
+import knn_pytorch.knn_pytorch  # noqa: F401 — KNN CUDA 算子
 
-        install_root = os.path.join(get_package_share_directory('graspnet_ros2'), 'graspnet-baseline')
-        if os.path.isdir(install_root) and os.path.isdir(os.path.join(install_root, 'models')):
-            return install_root
-    except Exception:
-        pass
-    return src_root
-
-
-def _setup_graspnet_baseline():
-    """设置 sys.path 并导入 graspnet-baseline 依赖，返回 (ROOT_DIR, GraspNet, pred_decode, ModelFreeCollisionDetector, GraspGroup)。"""
-    root = _get_graspnet_baseline_root()
-    sys.path.insert(0, root)
-    sys.path.insert(0, os.path.join(root, 'models'))
-    sys.path.insert(0, os.path.join(root, 'dataset'))
-    sys.path.append(os.path.join(root, 'utils'))
-
-    from models.graspnet import GraspNet, pred_decode  # noqa: E402
-    from utils.collision_detector import ModelFreeCollisionDetector  # noqa: E402
-    from graspnetAPI import GraspGroup  # noqa: E402
-
-    return root, GraspNet, pred_decode, ModelFreeCollisionDetector, GraspGroup
-
-
-ROOT_DIR, GraspNet, pred_decode, ModelFreeCollisionDetector, GraspGroup = _setup_graspnet_baseline()
 
 
 # ========== 模块级：Open3D 可视化（独立进程） ==========
@@ -107,7 +82,6 @@ class GraspNetDemoPointsNode(Node):
         super().__init__('graspnet_demo_points_node')
 
         # ========== 参数 ==========
-        self.declare_parameter('baseline_dir', ROOT_DIR)
         self.declare_parameter('model_path', '')
 
         # 输入点云

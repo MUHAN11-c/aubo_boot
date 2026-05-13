@@ -1,20 +1,51 @@
 """
 demo_driver_services.launch.py — 启动 Demo Driver 服务节点
 
-这些节点依赖 move_group 提供的 action/services，需在 MoveIt2 启动后再运行。
-使用 TimerAction 延迟 15 秒启动，确保 MoveIt2 完全初始化。
+依赖 move_group 提供的 action/services，在 MoveIt2 就绪后自动启动。
+使用轮询 /joint_states 替换固定 TimerAction，避免无效等待。
 
 用法:
   ros2 launch aubo_moveit_config demo_driver_services.launch.py
 """
 
+import time
+
 from launch import LaunchDescription
-from launch.actions import TimerAction
+from launch.actions import OpaqueFunction, TimerAction
 from launch_ros.actions import Node
 from moveit_configs_utils import MoveItConfigsBuilder
 
 
-def generate_launch_description():
+
+def _wait_for_readiness(context, timeout=30.0, poll_interval=1.0):
+    """轮询 /joint_states 话题，就绪后启动 Demo Driver 节点。
+
+    启动脚本通过主动轮询控制步骤推进，此处的 TimerAction 仅作为
+    最终安全网——如果轮询超时，节点仍会启动（最坏情况延迟 10s）。
+    """
+    import subprocess
+    start = time.time()
+    ready = False
+    while time.time() - start < timeout:
+        try:
+            result = subprocess.run(
+                ["ros2", "topic", "list"],
+                capture_output=True, text=True, timeout=3,
+            )
+            if "/joint_states" in result.stdout:
+                ready = True
+                break
+        except Exception:
+            pass
+        time.sleep(poll_interval)
+
+    delay = 0.0 if ready else 10.0
+    return delay
+
+
+def _launch_setup(context, *args, **kwargs):
+    delay = _wait_for_readiness(context, timeout=30.0)
+
     moveit_config = (
         MoveItConfigsBuilder("aubo_e5", package_name="aubo_moveit_config")
         .robot_description(
@@ -31,7 +62,7 @@ def generate_launch_description():
         {"moveit_velocity_scaling_factor": 0.1},
     ]
 
-    nodes = [
+    nodes_cfg = [
         ("plan_trajectory_server_node", "plan_trajectory_server"),
         ("execute_trajectory_server_node", "execute_trajectory_server"),
         ("get_current_state_server_node", "get_current_state_server"),
@@ -40,20 +71,35 @@ def generate_launch_description():
     ]
 
     actions = []
-    for executable, name in nodes:
-        actions.append(
-            TimerAction(
-                period=15.0,
-                actions=[
-                    Node(
-                        package="demo_driver",
-                        executable=executable,
-                        name=name,
-                        output="screen",
-                        parameters=common_parameters,
-                    )
-                ],
+    for executable, name in nodes_cfg:
+        if delay > 0:
+            actions.append(
+                TimerAction(
+                    period=delay,
+                    actions=[
+                        Node(
+                            package="demo_driver",
+                            executable=executable,
+                            name=name,
+                            output="screen",
+                            parameters=common_parameters,
+                        )
+                    ],
+                )
             )
-        )
+        else:
+            actions.append(
+                Node(
+                    package="demo_driver",
+                    executable=executable,
+                    name=name,
+                    output="screen",
+                    parameters=common_parameters,
+                )
+            )
 
-    return LaunchDescription(actions)
+    return actions
+
+
+def generate_launch_description():
+    return LaunchDescription([OpaqueFunction(function=_launch_setup)])

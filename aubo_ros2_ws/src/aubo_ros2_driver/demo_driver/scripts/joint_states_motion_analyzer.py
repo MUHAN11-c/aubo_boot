@@ -61,9 +61,9 @@ class JointStatesMotionAnalyzer(Node):
     def __init__(self) -> None:
         super().__init__("joint_states_motion_analyzer")
 
-        default_csv = (
-            "/home/mu/IVG2.0/aubo_ros2_ws/src/aubo_ros2_driver/"
-            "demo_driver/scripts/joint_states_motion_latest.csv"
+        default_csv = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)),
+            "joint_states_motion_latest.csv",
         )
         self.declare_parameter("joint_state_topic", "/joint_states")
         self.declare_parameter("target_joints", [])

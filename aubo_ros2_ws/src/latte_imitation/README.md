@@ -218,8 +218,157 @@ CartesianTrajectory.load(npz)
 | 不包含 retarget | 数据集是在 cup 上方的相对运动，无需 workspace 映射 |
 | `load_all` 返回 OrderedDict | 按 episode 编号排序，遍历顺序可预测 |
 
-## 依赖
+## YOLO26 训练与推理
+
+### 环境
+
+| 项目 | 详情 |
+|------|------|
+| Ultralytics 版本 | **8.4.49**（pip 安装，`pip3 show ultralytics`） |
+| 源码参考 | `yolov26_src/` — 只作参考，实际训练推理走 pip 安装的包 |
+| 模型权重 | `yolo26n.pt` (5.3MB), `yolo26m.pt` (44.3MB), `yolo26x.pt` (113MB) |
+| 数据集 | `datasets/coco128/` (128 张, 7.5MB, 仅功能验证) |
+| GPU | RTX 3090 24GB, CUDA 13.2, PyTorch 2.12.0 |
+
+> `yolov26_src/` 是 ultralytics 官方源码副本，**未 `pip install -e .` 到环境中**。`yolov6/` 同。训练推理脚本走系统安装的 `ultralytics==8.4.49`。
+>
+> 确认当前版本：`python3 -c "import ultralytics; print(ultralytics.__version__)"` → 8.4.49
+
+### YOLO26 模型规格
+
+| 模型 | 参数量 | GFLOPs | 权重大小 | RTX 3090 推理 |
+|------|--------|--------|---------|-------------|
+| yolo26n | 2.4M | 5.4 | 5.3MB | 1.0ms |
+| yolo26m | 20.4M | 68.2 | 44.3MB | 2.9ms |
+| yolo26x | 59.0M | 209.5 | 113.2MB | 不可训练 (OOM) |
+
+核心特性：NMS-Free 端到端推理、MuSGD 优化器、移除 DFL、CPU 推理速度提升 43%。
+
+### 训练
+
+```bash
+# 基础训练（脚本自动使用包目录下的 .pt 权重）
+python3 scripts/train_yolo26.py
+
+# 完整参数示例
+python3 scripts/train_yolo26.py \
+    --model m \
+    --data datasets/coco128.yaml \
+    --epochs 300 \
+    --batch 64 \
+    --device 0 \
+    --half \
+    --project runs/yolo26 \
+    --name my_experiment
+```
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--model` | n | 模型规模 n/s/m/l/x |
+| `--data` | datasets/coco128.yaml | 数据集 yaml |
+| `--epochs` | 300 | 训练轮数 |
+| `--batch` | -1 (自动) | batch size |
+| `--imgsz` | 640 | 输入尺寸 |
+| `--device` | 0 | GPU 编号 / cpu |
+| `--half` | False | FP16 半精度 |
+| `--cache` | False | 数据集缓存到 RAM |
+| `--resume` | False | 从 checkpoint 恢复 |
+
+### 推理
+
+```bash
+# 单图推理
+python3 scripts/infer_yolo26.py --source image.jpg
+
+# 目录批量
+python3 scripts/infer_yolo26.py --source images/ --save-txt
+
+# 摄像头实时
+python3 scripts/infer_yolo26.py --source 0 --show
+
+# 指定模型和阈值
+python3 scripts/infer_yolo26.py --model m --source img.jpg --conf 0.5 --save-crop
+```
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--source` | (必填) | 图片/目录/摄像头编号 |
+| `--model` | n | 模型规模 n/s/m/l/x |
+| `--weight` | — | 自定义权重路径（覆盖 `--model`） |
+| `--conf` | 0.25 | 置信度阈值 |
+| `--iou` | 0.7 | NMS IOU 阈值 |
+| `--show` | False | 实时显示结果 |
+| `--save-txt` | False | 保存 YOLO 格式 txt |
+| `--save-crop` | False | 裁剪保存检测目标 |
+
+### GPU 训练基准（300 epochs × COCO128）
+
+#### yolo26n（轻量基线）
+
+```
+yolo train model=yolo26n.pt data=coco128.yaml epochs=300 device=0
+```
+
+| 指标 | 数值 |
+|------|------|
+| Batch size | 16 (默认) |
+| **GPU 显存** | **4.26 GB (18%)** |
+| GPU 利用率 | ~40% |
+| 训练速度 | 12-13 it/s |
+| 总训练时间 | **0.094 小时 (5.6 分钟)** |
+| 最佳 mAP50 | 0.901 |
+
+#### yolo26m（压榨 GPU）
+
+```
+yolo train model=yolo26m.pt data=coco128.yaml epochs=300 batch=64 device=0 workers=4
+```
+
+| 指标 | 数值 |
+|------|------|
+| Batch size | **64** |
+| **GPU 显存** | **17.9 GB (73%)** |
+| GPU 利用率 | **100%** |
+| GPU 功耗 | **337W / 350W** |
+| 总训练时间 | **0.249 小时 (15 分钟)** |
+| 最佳 mAP50 | 0.977 |
+
+### 性能瓶颈分析
+
+#### 1. 数据集过小
+
+COCO128 仅 128 张图，几分钟跑完，mAP 虚高无参考价值。真实训练需用完整 COCO（118K 张）或自定义工业数据集。
+
+#### 2. yolo26x 显存溢出
+
+yolo26x (59M 参数, 209 GFLOPs) 在当前环境中无法训练：
+
+| 尝试配置 | 结果 | 原因 |
+|----------|------|------|
+| batch=48, imgsz=640 | CUDA OOM | 模型 + AMP 超出 24GB |
+| batch=24 (auto-reduce) | 仍然 OOM | 同上 |
+
+RTX 3090 24GB 训练 yolo26x 的方案：`--half` (FP16)、`--cache` (缓存到 RAM)、减小 `--imgsz 480`、或多卡/云 GPU。
+
+#### 3. 僵尸进程显存泄漏
+
+OOM 崩溃后 PyTorch DataLoader worker 进程可能残留 CUDA context 占用显存：
+
+```bash
+fuser -v /dev/nvidia* | grep pt_data_worker | awk '{print $2}' | xargs kill -9
+```
+
+#### 4. 模型 vs 显存（实测）
+
+| 模型 | batch=16 显存 | 最大可用 batch | 推荐 batch |
+|------|-------------|---------------|-----------|
+| yolo26n | ~4.3 GB | ~128 | 16-64 |
+| yolo26m | ~13 GB | ~64 | 32-64 |
+| yolo26x | — | <16 (不可用) | GPU 不足 |
+
+### 依赖
 
 - numpy, PyKDL, urdf_parser_py
 - ROS2 Humble: rclpy, trajectory_msgs, geometry_msgs, nav_msgs, control_msgs, ament_index_python
 - 可视化: matplotlib
+- YOLO26: ultralytics>=8.4.0, torch>=1.8.0

@@ -1,13 +1,22 @@
+# ═══════════════════════════════════════════════════════════
+# IVG2.0 .gitignore
+# 排除构建产物、大文件、二进制、IDE 配置等喵~
+# ═══════════════════════════════════════════════════════════
+
 # ROS2 构建与安装
 aubo_ros2_ws/build/
 aubo_ros2_ws/install/
 aubo_ros2_ws/log/
+build/
+install/
+log/
 
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+*.so.*
 .pytest_cache/
 .eggs/
 *.egg-info/
@@ -26,59 +35,76 @@ __pycache__/
 .env.local
 *.local
 
-# 大文件与输出
+# ── 大文件与二进制 ──
+
+# 点云/录包/输出
 *.pcd
 *.bag
 *.db3
 aubo_ros2_ws/rosbags/
-*.zip
-*.7z
-*.tar.xz
-**/src.zip
 coord_tf_output/
 *.log
 !**/tracelog.properties
 
-# 大文件
+# 压缩包
+*.zip
+*.7z
+*.tar
+*.tar.xz
+*.tar.gz
+
+# 视频/图片
 *.mp4
 *.pdf
-*.dylib
+*.dae
+*.bmp
+*.png
+*.jpg
+*.jpeg
+
+# 模型权重
+*.pt
+*.pth
+*.ckpt
+*.onnx
+
+# 静态库
 *.a
-# Python C扩展构建产物
+
+# 动态库
+*.dylib
+
+# Node
+node_modules/
+
+# C 扩展构建产物
 **/build/temp.*/
-# GraspNet 编译产物
 **/pointnet2/build/
 **/knn/build/
-# 大型 mesh 文件 (>20MB)
+
+# AUBO SDK 文档与示例 (含大二进制)
+aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/doc/
+
+# AUBO SDK 预编译库 — 源码头保留，由 CMakeLists.txt install() 安装到 install/lib/
+aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib32/
+aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/deps/
+
+# GraspNet 训练日志与模型
+aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/logs/
+
+# YOLO 训练产物
+aubo_ros2_ws/src/latte_imitation/runs/
+
+# 遗留标定数据 (大 BMP 图片)
+aubo_ros2_ws/legacy/hand_eye_calibration_tool/data/
+
+# 特定大文件
 aubo_ros2_ws/src/ros2_moveit2_ur5e_grasp/src/sim_models/realsense-ros/realsense2_description/meshes/l515.dae
 aubo_ros2_ws/src/ros2_moveit2_ur5e_grasp/src/sim_models/realsense-ros/realsense2_description/meshes/d415.stl
 aubo_ros2_ws/src/ros2_moveit2_ur5e_grasp/Pic
-# AUBO SDK 大文件
-aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/doc/C++.pdf
-aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/doc/SDK*/
-**/AuboSdkTests/dependents/
-# 超大视频
-aubo_ros2_ws/src/vision_perception/resource/video_*.mp4
-aubo_ros2_ws/src/coffee_latte_demo/resource/*.mp4
-aubo_ros2_ws/src/visual_pose_estimation/templates/*.7z
-
-# SDK 二进制库
-**/lib/lib32/*.so*
-**/lib/lib64/**/*.so*
-**/lib/lib64/**/*.bak
-aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/doc/aubo_sdk/
-
-# 大型图片
-aubo_ros2_ws/legacy/hand_eye_calibration_tool/data/**/*.bmp
-
-# 模型文件
-*.pt
-
-# 构建产物（根目录）
-build/
-install/
-log/
+aubo_ros2_ws/src/ros_arm_tutorials/xarm_description/urdf/xarm.dae
 
 # 系统
 .DS_Store
 Thumbs.db
+aubo_ros2_ws/src/latte_imitation/yolov26_src/

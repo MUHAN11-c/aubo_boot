@@ -32,7 +32,7 @@ from statistics import mean
 from typing import Dict, List, Tuple
 
 
-DEFAULT_DIR = "/home/mu/IVG2.0/aubo_ros2_ws/src/aubo_ros2_driver/demo_driver/scripts"
+DEFAULT_DIR = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_SAMPLES = os.path.join(DEFAULT_DIR, "joint_states_motion_latest.csv")
 DEFAULT_EVENTS = os.path.join(DEFAULT_DIR, "joint_states_motion_latest_events.csv")
 DEFAULT_REPORT = os.path.join(DEFAULT_DIR, "joint_states_motion_analysis_latest.txt")

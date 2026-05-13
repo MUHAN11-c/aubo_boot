@@ -13,6 +13,7 @@ from scipy.optimize import least_squares
 import cv2
 import json
 import time
+from ivg_utils.math import quaternion_to_rotation_matrix
 
 
 class CustomHandEyeCalibration:
@@ -83,26 +84,8 @@ class CustomHandEyeCalibration:
         return True, ""
     
     def _quaternion_to_rotation_matrix(self, quat):
-        """
-        将四元数转换为旋转矩阵
-        quat: [x, y, z, w]
-        """
-        x, y, z, w = quat
-        
-        # 归一化四元数
-        norm = np.sqrt(x*x + y*y + z*z + w*w)
-        if norm < 1e-6:
-            return np.eye(3)
-        x, y, z, w = x/norm, y/norm, z/norm, w/norm
-        
-        # 构建旋转矩阵
-        R = np.array([
-            [1 - 2*(y*y + z*z),     2*(x*y - w*z),     2*(x*z + w*y)],
-            [    2*(x*y + w*z), 1 - 2*(x*x + z*z),     2*(y*z - w*x)],
-            [    2*(x*z - w*y),     2*(y*z + w*x), 1 - 2*(x*x + y*y)]
-        ])
-        
-        return R
+        """四元数转旋转矩阵（委托 ivg_utils.math）"""
+        return quaternion_to_rotation_matrix(quat)
     
     def _rotation_matrix_to_quaternion(self, R):
         """

@@ -120,7 +120,6 @@ demo_driver/
 ├── include/demo_driver/          # 头文件
 │   ├── moveit_gripper_io_base.h  # 基类：MoveIt + 夹爪 IO
 │   ├── publish_grasps_client_worker.h
-│   ├── publish_grasps_AB.h
 │   ├── set_robot_pose_server.h
 │   └── ...
 ├── src/                          # 源文件
@@ -150,7 +149,6 @@ demo_driver/
 | set_speed_factor_server | set_speed_factor_server_node | 设置速度因子服务 |
 | set_robot_pose_server | set_robot_pose_server_node | 设置机器人位姿服务（欧拉角/关节空间） |
 | publish_grasps_client_worker | publish_grasps_client_worker_node | GraspNet 循环抓取放置 |
-| publish_grasps_AB | publish_grasps_AB | A/B 工位交替抓取；与上节点独立（默认循环服务 `/publish_grasps_AB_loop_control`，状态 `grasp_place_status_ab`，最终位姿 `/ivg_worker_final_grasp_poses`） |
 
 ### 已禁用节点（CMakeLists 中注释）
 

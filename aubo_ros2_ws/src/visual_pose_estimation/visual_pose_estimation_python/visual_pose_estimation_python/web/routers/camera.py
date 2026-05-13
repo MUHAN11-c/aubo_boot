@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 from fastapi import APIRouter, Body, Depends
 
 from ..dependencies import get_native_service
@@ -13,7 +15,7 @@ router = APIRouter(prefix="/api", tags=["camera"])
 
 @router.post("/capture_image")
 def capture_image(
-    payload: dict | None = Body(default=None),
+    payload: Optional[dict] = Body(default=None),
     service: NativeWebService = Depends(get_native_service),
 ):
     return service.capture_image(payload)

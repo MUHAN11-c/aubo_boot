@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import Response
 
@@ -22,7 +24,7 @@ def save_template_pose(
 
 @router.post("/list_templates")
 def list_templates(
-    payload: dict | None = Body(default=None),
+    payload: Optional[dict] = Body(default=None),
     service: NativeWebService = Depends(get_native_service),
 ):
     return service.list_templates(payload)

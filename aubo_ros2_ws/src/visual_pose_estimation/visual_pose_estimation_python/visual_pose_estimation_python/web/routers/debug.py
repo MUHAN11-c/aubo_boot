@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 from fastapi import APIRouter, Body, Depends
 
 from ..dependencies import get_native_service
@@ -21,7 +23,7 @@ def save_debug_features(
 
 @router.post("/debug/capture")
 def debug_capture(
-    payload: dict | None = Body(default=None),
+    payload: Optional[dict] = Body(default=None),
     service: NativeWebService = Depends(get_native_service),
 ):
     return service.debug_capture(payload)

@@ -1,6 +1,13 @@
 # GraspNet Baseline
 
-**IVG2.0 仓库说明**：本目录位于 `aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/`，随 **`graspnet_ros2`** 通过 `colcon build` 安装到 `install/graspnet_ros2/share/graspnet_ros2/graspnet-baseline/`；ROS2 节点与 launch 说明见上一级 [`../README.md`](../README.md)。
+**IVG2.0 仓库说明**：本目录位于 `aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/`，随 **`graspnet_ros2`** 通过 `colcon build` 安装到 `install/graspnet_ros2/share/graspnet_ros2/graspnet-baseline/`。
+
+- **ROS2 节点与使用** → 见 [`../README.md`](../README.md)
+- **IVG 启动脚本** → `aubo_ros2_ws/start_aubo_new_driver.sh` 步骤 [8]
+- **初次安装**（pointnet2 / knn / graspnetAPI）→ 见 [`../README.md#初次安装`](../README.md#初次安装)
+
+> ⚠️ 上游 `pointnet2/setup.py` 和 `knn/setup.py` 缺少内层包目录，直接 `python setup.py install` 会失败。
+> 必须先 `mkdir -p <pkg> && touch <pkg>/__init__.py` 再 `pip3 install -e .`，详见上层 README 喵~
 
 ---
 
@@ -30,7 +37,18 @@ Baseline model for "GraspNet-1Billion: A Large-Scale Benchmark for General Objec
 - Pillow
 - tqdm
 
-## Installation
+## Installation (IVG2.0)
+
+**IVG2.0 已集成本项目，安装步骤见上层 README → [`../README.md#初次安装`](../README.md#初次安装)。**
+
+关键差异：
+- Python 依赖直接用 `pip3 install`（非 conda），已安装的包见 `pip3 list`
+- pointnet2 / knn / graspnetAPI 三步 `pip3 install -e .` 均需先创建内层包目录
+- PyTorch 动态库需 `LD_LIBRARY_PATH`（`start_aubo_new_driver.sh` 已内置）
+
+<details>
+<summary>原始上游 Installation（仅参考）</summary>
+
 Get the code.
 ```bash
 git clone https://github.com/graspnet/graspnet-baseline.git
@@ -56,6 +74,8 @@ git clone https://github.com/graspnet/graspnetAPI.git
 cd graspnetAPI
 pip install .
 ```
+
+</details>
 
 ## Tolerance Label Generation
 Tolerance labels are not included in the original dataset, and need additional generation. Make sure you have downloaded the orginal dataset from [GraspNet](https://graspnet.net/). The generation code is in [dataset/generate_tolerance_label.py](dataset/generate_tolerance_label.py). You can simply generate tolerance label by running the script: (`--dataset_root` and `--num_workers` should be specified according to your settings)

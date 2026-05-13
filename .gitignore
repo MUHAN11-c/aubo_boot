@@ -93,9 +93,10 @@ aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/doc/
 aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib32/
 aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/deps/
 
-# AUBO SDK .so 库 — 排除 .bak 备份文件，保留 .so 供编译链接喵~
+# AUBO SDK .so 库 — 排除 .bak/.a/.la 文件，保留 .so 供编译链接喵~
 aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/**/*.bak
 aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/**/*.a
+aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/**/*.la
 
 # GraspNet 训练日志与模型
 aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/logs/

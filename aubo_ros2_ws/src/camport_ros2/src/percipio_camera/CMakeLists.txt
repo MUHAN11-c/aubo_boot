@@ -47,6 +47,7 @@ find_package(nav_msgs REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui photo)
+find_package(ivg_interfaces REQUIRED)
 
 set(SOURCE_FILES
   src/percipio_camera_node_driver.cpp
@@ -131,5 +132,11 @@ install(DIRECTORY scripts DESTINATION share/${PROJECT_NAME}/
 
 install(TARGETS list_devices
   DESTINATION lib/${PROJECT_NAME}/)
+
+# camera_control_node — 从原 percipio_camera_interface 迁移而来喵~
+add_executable(camera_control_node src/camera_control_node.cpp)
+ament_target_dependencies(camera_control_node rclcpp std_msgs sensor_msgs ivg_interfaces)
+install(TARGETS camera_control_node
+  DESTINATION lib/${PROJECT_NAME})
 
 ament_package()

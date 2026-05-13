@@ -11,7 +11,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
-#include <demo_interface/srv/plan_trajectory.hpp>
+#include <ivg_interfaces/srv/plan_trajectory.hpp>
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 #include <string>
 #include <memory>
@@ -39,12 +39,12 @@ private:
     std::shared_ptr<moveit::planning_interface::PlanningSceneInterface> planning_scene_interface_;  // 规划场景接口
 
     // 服务服务器
-    rclcpp::Service<demo_interface::srv::PlanTrajectory>::SharedPtr plan_trajectory_service_;  // 规划轨迹服务
+    rclcpp::Service<ivg_interfaces::srv::PlanTrajectory>::SharedPtr plan_trajectory_service_;  // 规划轨迹服务
 
     // 服务回调函数
     void planTrajectoryCallback(
-        const std::shared_ptr<demo_interface::srv::PlanTrajectory::Request> req,
-        std::shared_ptr<demo_interface::srv::PlanTrajectory::Response> res);
+        const std::shared_ptr<ivg_interfaces::srv::PlanTrajectory::Request> req,
+        std::shared_ptr<ivg_interfaces::srv::PlanTrajectory::Response> res);
 
     // 辅助函数
     bool planTrajectory(const geometry_msgs::msg::Pose& target_pose,

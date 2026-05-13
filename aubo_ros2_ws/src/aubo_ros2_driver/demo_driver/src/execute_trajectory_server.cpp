@@ -43,7 +43,7 @@ ExecuteTrajectoryServer::ExecuteTrajectoryServer(const rclcpp::NodeOptions& opti
     this->get_parameter("planning_group_name", planning_group_name_);
     this->get_parameter("base_frame", base_frame_);
 
-    execute_trajectory_service_ = this->create_service<demo_interface::srv::ExecuteTrajectory>(
+    execute_trajectory_service_ = this->create_service<ivg_interfaces::srv::ExecuteTrajectory>(
         "/execute_trajectory",
         std::bind(&ExecuteTrajectoryServer::executeTrajectoryCallback, this, std::placeholders::_1, std::placeholders::_2));
 }
@@ -141,8 +141,8 @@ ExecuteTrajectoryServer::~ExecuteTrajectoryServer()
 }
 
 void ExecuteTrajectoryServer::executeTrajectoryCallback(
-    const std::shared_ptr<demo_interface::srv::ExecuteTrajectory::Request> req,
-    std::shared_ptr<demo_interface::srv::ExecuteTrajectory::Response> res)
+    const std::shared_ptr<ivg_interfaces::srv::ExecuteTrajectory::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::ExecuteTrajectory::Response> res)
 {
     RCLCPP_INFO(this->get_logger(), "ExecuteTrajectory request: %zu waypoints", req->trajectory.points.size());
     

@@ -19,7 +19,7 @@ MoveToPoseServer::MoveToPoseServer(const rclcpp::NodeOptions& options) : MoveitG
   declare_parameter("move_to_pose_service_name", std::string("/move_to_pose"));
   service_name_ = get_parameter("move_to_pose_service_name").as_string();
 
-  move_to_pose_service_ = create_service<demo_interface::srv::MoveToPose>(
+  move_to_pose_service_ = create_service<ivg_interfaces::srv::MoveToPose>(
       service_name_,
       std::bind(&MoveToPoseServer::onMoveToPoseRequest, this, std::placeholders::_1, std::placeholders::_2));
 
@@ -39,8 +39,8 @@ bool MoveToPoseServer::run()
 }
 
 void MoveToPoseServer::onMoveToPoseRequest(
-    const std::shared_ptr<demo_interface::srv::MoveToPose::Request> request,
-    std::shared_ptr<demo_interface::srv::MoveToPose::Response> response)
+    const std::shared_ptr<ivg_interfaces::srv::MoveToPose::Request> request,
+    std::shared_ptr<ivg_interfaces::srv::MoveToPose::Response> response)
 {
   std::lock_guard<std::mutex> lock(service_mutex_);
 

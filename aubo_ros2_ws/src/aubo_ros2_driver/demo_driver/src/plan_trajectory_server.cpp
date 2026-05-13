@@ -11,7 +11,7 @@
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <moveit_msgs/msg/move_it_error_codes.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-#include <aubo_msgs/srv/get_ik.hpp>
+#include <ivg_interfaces/srv/get_ik.hpp>
 #include <moveit/robot_state/robot_state.h>
 #include <moveit/robot_state/conversions.h>
 #include <moveit_msgs/msg/robot_trajectory.hpp>
@@ -44,7 +44,7 @@ PlanTrajectoryServer::PlanTrajectoryServer(const rclcpp::NodeOptions& options)
     this->get_parameter("base_frame", base_frame_);
 
     // 初始化服务服务器
-    plan_trajectory_service_ = this->create_service<demo_interface::srv::PlanTrajectory>(
+    plan_trajectory_service_ = this->create_service<ivg_interfaces::srv::PlanTrajectory>(
         "/plan_trajectory",
         std::bind(&PlanTrajectoryServer::planTrajectoryCallback, this, std::placeholders::_1, std::placeholders::_2));
 }
@@ -179,8 +179,8 @@ PlanTrajectoryServer::~PlanTrajectoryServer()
  * @brief 服务回调函数
  */
 void PlanTrajectoryServer::planTrajectoryCallback(
-    const std::shared_ptr<demo_interface::srv::PlanTrajectory::Request> req,
-    std::shared_ptr<demo_interface::srv::PlanTrajectory::Response> res)
+    const std::shared_ptr<ivg_interfaces::srv::PlanTrajectory::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::PlanTrajectory::Response> res)
 {
     static bool first_request = true;
     if (first_request) {
@@ -318,11 +318,11 @@ bool PlanTrajectoryServer::planTrajectory(const geometry_msgs::msg::Pose& target
             
             robot_state->copyJointGroupPositions(joint_model_group, joint_group_positions);
 
-            auto ik_client = this->create_client<aubo_msgs::srv::GetIK>("/aubo_driver/get_ik");
+            auto ik_client = this->create_client<ivg_interfaces::srv::GetIK>("/aubo_driver/get_ik");
             
             if (ik_client->wait_for_service(std::chrono::seconds(1)))
             {
-                auto request = std::make_shared<aubo_msgs::srv::GetIK::Request>();
+                auto request = std::make_shared<ivg_interfaces::srv::GetIK::Request>();
                 for (size_t i = 0; i < 6 && i < joint_group_positions.size(); ++i)
                 {
                     request->ref_joint[i] = static_cast<float>(joint_group_positions[i]);

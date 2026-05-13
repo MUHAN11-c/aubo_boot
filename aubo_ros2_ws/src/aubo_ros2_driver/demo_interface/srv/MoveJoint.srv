@@ -1,8 +1,0 @@
-# 关节空间运动 (MoveJ)
-# 机器人各关节独立运动到目标角度，路径不保证TCP直线
-float64[6] joints     # 目标6关节角度（弧度）
-float64 velocity      # 速度倍率（0.0~1.0, 默认1.0=全速）
----
-bool success          # 运动指令是否发送成功
-int32 error_code      # 错误码（0=成功）
-string message        # 状态消息

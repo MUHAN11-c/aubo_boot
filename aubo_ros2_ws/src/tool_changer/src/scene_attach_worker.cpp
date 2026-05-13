@@ -94,9 +94,9 @@ SceneAttachWorker::SceneAttachWorker(const rclcpp::NodeOptions& options)
   //   [this](const ... & msg) { onToolStatus(msg); }
   //   - [this]：捕获当前对象的 this 指针，以便在回调中访问成员函数
   //   - 收到消息后，调用 onToolStatus() 来处理状态变化
-  tool_status_sub_ = create_subscription<tool_changer_interface::msg::ToolChangerStatus>(
+  tool_status_sub_ = create_subscription<ivg_interfaces::msg::ToolChangerStatus>(
       "/tool_changer_status", 10,  // 队列深度 10
-      [this](const tool_changer_interface::msg::ToolChangerStatus& msg) { onToolStatus(msg); });
+      [this](const ivg_interfaces::msg::ToolChangerStatus& msg) { onToolStatus(msg); });
 
   // ─── 3. 创建手动附着服务 ─────────────────────────────────────────
   // 服务(Service)：ROS2 的另一种通信机制，与 Topic 的"单向推送"不同，
@@ -108,12 +108,12 @@ SceneAttachWorker::SceneAttachWorker(const rclcpp::NodeOptions& options)
   //   std::bind(&SceneAttachWorker::onSceneAttach, this, _1, _2)
   //     - std::bind 把成员函数 onSceneAttach 绑定为回调
   //     - _1, _2 是占位符，分别对应 Request 和 Response
-  scene_attach_srv_ = create_service<tool_changer_interface::srv::ChangeTool>(
+  scene_attach_srv_ = create_service<ivg_interfaces::srv::ChangeTool>(
       "/scene_attach",
       std::bind(&SceneAttachWorker::onSceneAttach, this, std::placeholders::_1, std::placeholders::_2));
 
   // /scene_detach 服务：手动让某个工具的碰撞模型脱离机械臂，回到世界 dock
-  scene_detach_srv_ = create_service<tool_changer_interface::srv::ChangeTool>(
+  scene_detach_srv_ = create_service<ivg_interfaces::srv::ChangeTool>(
       "/scene_detach",
       std::bind(&SceneAttachWorker::onSceneDetach, this, std::placeholders::_1, std::placeholders::_2));
 
@@ -481,7 +481,7 @@ void SceneAttachWorker::addAllToolsToWorld()
  *   确保任意时刻只有一个工具的碰撞模型附着在机械臂上，
  *   否则 MoveIt 会认为机械臂同时拿着两个工具，碰撞检测会出问题。
  */
-void SceneAttachWorker::onToolStatus(const tool_changer_interface::msg::ToolChangerStatus& msg)
+void SceneAttachWorker::onToolStatus(const ivg_interfaces::msg::ToolChangerStatus& msg)
 {
   const std::string new_tool = msg.is_connected ? msg.tool_id : "";
 
@@ -568,8 +568,8 @@ void SceneAttachWorker::removeToolFromWorld(const std::string& tool_id)
  *   - resp->message：成功/失败的描述信息
  */
 void SceneAttachWorker::onSceneAttach(
-    std::shared_ptr<tool_changer_interface::srv::ChangeTool::Request> req,
-    std::shared_ptr<tool_changer_interface::srv::ChangeTool::Response> resp)
+    std::shared_ptr<ivg_interfaces::srv::ChangeTool::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::ChangeTool::Response> resp)
 {
   bool found = tool_geometries_.find(req->tool_id) != tool_geometries_.end();
   if (found)
@@ -583,8 +583,8 @@ void SceneAttachWorker::onSceneAttach(
 }
 
 void SceneAttachWorker::onSceneDetach(
-    std::shared_ptr<tool_changer_interface::srv::ChangeTool::Request> req,
-    std::shared_ptr<tool_changer_interface::srv::ChangeTool::Response> resp)
+    std::shared_ptr<ivg_interfaces::srv::ChangeTool::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::ChangeTool::Response> resp)
 {
   bool found = tool_geometries_.find(req->tool_id) != tool_geometries_.end();
   if (found && current_attached_tool_ == req->tool_id)

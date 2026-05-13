@@ -62,7 +62,7 @@ static float effectiveAccelerationFactor(float velocity_factor, float accelerati
 MoveitGripperIoBase::MoveitGripperIoBase(const rclcpp::NodeOptions& options)
   : rclcpp::Node("moveit_gripper_io_base", options)
 {
-  aubo_set_io_client_ = create_client<demo_interface::srv::SetRobotIO>(kAuboSetIOService);
+  aubo_set_io_client_ = create_client<ivg_interfaces::srv::SetRobotIO>(kAuboSetIOService);
 }
 
 std::shared_ptr<MoveitGripperIoBase> MoveitGripperIoBase::create(const rclcpp::NodeOptions& options)
@@ -282,7 +282,7 @@ bool MoveitGripperIoBase::setGripperIo(int32_t io_index, bool high)
     return false;
   }
 
-  auto req = std::make_shared<demo_interface::srv::SetRobotIO::Request>();
+  auto req = std::make_shared<ivg_interfaces::srv::SetRobotIO::Request>();
   req->io_type = "digital_output";
   req->io_index = io_index;
   req->value = high ? 1.0 : 0.0;

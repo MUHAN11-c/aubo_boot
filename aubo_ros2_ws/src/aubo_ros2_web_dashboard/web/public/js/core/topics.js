@@ -2,7 +2,7 @@
 // 单一数据源，避免 topic 名/类型拼写不一致
 
 export const ROBOT_STATUS_TOPIC = '/aubo_driver/robot_status';
-export const ROBOT_STATUS_TYPE  = 'demo_interface/msg/RobotStatus';
+export const ROBOT_STATUS_TYPE  = 'ivg_interfaces/msg/RobotStatus';
 
 export const MODE_TOPIC = '/aubo/mode';
 export const MODE_TYPE  = 'std_msgs/msg/String';

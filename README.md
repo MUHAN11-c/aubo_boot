@@ -2,28 +2,148 @@
 
 基于 **ROS 2 Humble** + **MoveIt 2** 的奥博（Aubo）机械臂视觉抓取与运动规划系统，集成相机驱动、手眼标定、视觉位姿估计、GraspNet 抓取预测与 Web 前端控制。
 
+> **新机器部署请参阅 [DEPLOYMENT.md](DEPLOYMENT.md)** — 包含完整的环境搭建、依赖安装、编译构建和启动流程喵~
+
+---
+
+## 0. 硬件配置与网络信息
+
+### 0.1 硬件清单
+
+| 设备 | 型号 | 规格 | 连接方式 |
+|------|------|------|---------|
+| **机械臂** | AUBO E5 | 6-DOF, 负载 5kg, 臂展 886mm, 重复定位精度 ±0.02mm | 以太网直连 (TCP/IP) |
+| **控制器** | AUBO 控制箱 | 集成伺服驱动 + 安全模块 + IO 板 | 以太网直连 |
+| **深度相机** | Percipio FM830 | 深度 1280×960 + 彩色 1280×960, 帧率 30fps, 工作距离 0.2–2m | USB 3.0 |
+| **GPU** | NVIDIA GeForce RTX 3090 | 24GB VRAM, CUDA 12.6, 驱动 595.58.03 | PCIe 4.0 ×16 |
+| **工控机** | 组装台式机 | Ubuntu 22.04.5 LTS, Kernel 6.8.0-111, Python 3.10.12 | — |
+| **气动夹爪 40** | gripper0 | 行程 40mm, 平行开合, 气压 0.2–0.7MPa | 快换盘 + 气管 |
+| **电动夹爪 60** | gripper2 | 行程 60mm, 伺服控制, 24V DC | 快换盘 + 供电/信号 |
+| **电动夹爪 A** | gripper1 | 行程可调, 伺服控制, 24V DC | 法兰固定 (不参与快换) |
+| **快换盘** | — | 气动锁紧/释放, 定位精度 ±0.01mm | IO index 7 (硬件引脚 39) |
+
+### 0.2 网络与 IP 配置
+
+| 项目 | 地址 | 说明 |
+|------|------|------|
+| **机械臂控制器 IP** | `169.254.10.98` | 链路本地地址 (Link-Local)，控制器默认静态 IP |
+| **机械臂控制端口** | `8899` | TCP 端口，SDK 双连接 (conn_control_ + conn_status_) |
+| **工控机机械臂侧 IP** | `169.254.10.x` (自动) | 由 avahi-autoipd 或 DHCP 分配，需与控制器同子网 |
+| **工控机物理网口** | `enp4s0` / 板载网口 | 直连机械臂控制器，不经过交换机 |
+| **AUBO SDK 版本** | libauborobotcontroller.so.1.3.1 | 64-bit, 预编译，路径 `aubo_driver_ros2/lib/lib64/aubocontroller/` |
+
+**连接验证**：
+```bash
+ping 169.254.10.98                          # 链路可达
+nc -zv 169.254.10.98 8899                   # TCP 端口可达
+```
+启动脚本 `start_aubo_new_driver.sh` 在步骤 1 前自动执行 TCP 端口探测，不可达时回退到仿真模式 (mock_components/GenericSystem) 喵~
+
+### 0.3 IO 引脚完整分配
+
+机械臂控制箱提供数字量 IO（输入/输出）和模拟量 IO。ROS 2 端通过 `/aubo_driver/set_io` 服务控制输出引脚。
+
+**IO 寻址规则**：`io_type=digital_output`, `io_index + 32 → 硬件引脚编号`（逻辑引脚 6 → 硬件引脚 38）
+
+| 逻辑引脚 | 硬件引脚 | 使用节点 | 用途 | IO 语义 |
+|---------|---------|---------|------|---------|
+| **2** | 34 | LatteNode (DO2) | 打花器开关 | `true=开, false=关` |
+| **4** | 36 | LatteNode (DO4) | 咖啡机开关 | `true=开, false=关` |
+| **6** | 38 | ExecuteGraspPoseWorker | 气动夹爪 40 开/关 | `true=打开, false=闭合` |
+| **6** | 38 | PublishGraspsClientWorker | 电动夹爪 60 开/关 | `true=闭合, false=打开` ⚠️ 反相 |
+| **6** | 38 | PublishGraspsABWorker | AB 抓取夹爪开/关 | `true=闭合, false=打开` ⚠️ 反相 |
+| **7** | 39 | GripperSwapWorker | 快换盘锁紧/释放 | `true=锁紧, false=释放` |
+
+> ⚠️ **IO 语义不一致警告**：`ExecuteGraspPoseWorker`（`true=打开`）与 `PublishGraspsClientWorker`/`ABWorker`（`true=闭合`）的夹爪 IO 语义**相反**，源于气动夹爪（gripper0）与电动夹爪（gripper2）的电气接线差异。添加新 Worker 时需确认物理接线方向喵~
+
+**IO 调用示例**：
+```bash
+# 夹爪闭合 (gripper0 — 气动，true=打开)
+ros2 service call /aubo_driver/set_io ivg_interfaces/SetRobotIO \
+  "{io_type: 'digital_output', io_index: 6, value: 0.0}"
+
+# 快换盘锁紧
+ros2 service call /aubo_driver/set_io ivg_interfaces/SetRobotIO \
+  "{io_type: 'digital_output', io_index: 7, value: 1.0}"
+```
+
+### 0.4 工具端电源配置
+
+| 逻辑引脚 | 电压 | 使用工具 | 说明 |
+|---------|------|---------|------|
+| 工具端 DOUT0 (逻辑 16) | 24V | gripper2 (电动 60) | 电动夹爪供电/信号 |
+| 工具端 DOUT1 (逻辑 17) | 24V | gripper2 (电动 60) | 电动夹爪辅助信号 |
+
+工具端电压通过 AUBO 控制箱内部继电器切换（0V / 12V / 24V），由 `/aubo_driver/set_io` 的 `FUN_SET_TOOL_VOLTAGE` 功能设置喵~
+
+### 0.5 相机参数
+
+| 参数 | 值 |
+|------|-----|
+| 型号 | Percipio FM830 |
+| 深度分辨率 | 1280 × 960 @ 30fps |
+| 彩色分辨率 | 1280 × 960 @ 30fps |
+| 工作距离 | 0.2m – 2.0m |
+| 深度精度 | ±1mm @ 1m |
+| 接口 | USB 3.0 (SuperSpeed) |
+| 触发模式 | 连续模式（默认）/ 软件触发 (`/software_trigger`) |
+| 相机序列号 | `207000152740` |
+| ROS 2 命名空间 | `camera`（话题 `/camera/color/image_raw` 等） |
+| 深度缩放因子 | 0.00025 (raw uint16 × 0.25mm → 米) |
+
+**相机话题**：
+| 话题 | 类型 | QoS | 说明 |
+|------|------|-----|------|
+| `/camera/color/image_raw` | `sensor_msgs/Image` | BEST_EFFORT, depth 5 | 彩色图像 (RGB8) |
+| `/camera/depth/image_raw` | `sensor_msgs/Image` | BEST_EFFORT, depth 5 | 深度图像 (16UC1) |
+| `/camera/depth/points` | `sensor_msgs/PointCloud2` | BEST_EFFORT, depth 5 | 深度点云 |
+| `/camera/depth_registered/points` | `sensor_msgs/PointCloud2` | BEST_EFFORT, depth 5 | 彩色点云 (depth→color 对齐) |
+| `/camera/color/camera_info` | `sensor_msgs/CameraInfo` | RELIABLE, depth 1 | 彩色相机内参 |
+| `/camera/depth/camera_info` | `sensor_msgs/CameraInfo` | RELIABLE, depth 1 | 深度相机内参 |
+| `/camera_status` | `ivg_interfaces/CameraStatus` | RELIABLE, depth 10 | 相机在线状态与参数 |
+
+### 0.6 快换盘结构
+
+```
+法兰 (wrist3_Link)
+  │
+  ├── kuaihuan_Link (快换法兰, Z=+0.033m 安装面)
+  │     │
+  │     └── 快换锁止机构 (IO 7, 咬合深度 3.8mm)
+  │           │
+  │           └── 工具安装面 (attach_offset.z = 0.033m)
+  │                 │
+  │                 ├── gripper0 (气动 40, 绕 Z 旋转 0°)
+  │                 ├── gripper1 (电动 A, 绕 Z 旋转 0°)
+  │                 └── gripper2 (电动 60, 绕 Z 旋转 90°)
+  │
+  └── camera_frame (手眼标定 TF: wrist3 → camera, 静态广播)
+```
+
+快换对接工位通过 `tools.yaml` 配置，包含 dock 位置、接近/退避距离、IO 配置等喵~
+
 ---
 
 ## 1. 工作空间架构
 
 ```
 aubo_ros2_ws/src/
-├── aubo_ros2_driver/               # 机械臂驱动与运动控制（7 个子包）
+├── ivg_interfaces/                 # 统一自定义接口（17 msg + 34 srv = 51 类型）
+├── aubo_ros2_driver/               # 机械臂驱动与运动控制（5 个子包）
 ├── aubo_ros2_web_dashboard/        # 前端演示页面（FastAPI 网关 + ROSLIB.js）
 ├── robotwebtools/                  # 前端依赖库（roslibjs / ros3djs / ros2djs）
-├── camport_ros2/src/               # 知微相机驱动（3 个子包）
+├── camport_ros2/src/               # 知微相机驱动（2 个子包）
 ├── graspnet_ros2/                  # GraspNet 大模型（6-DoF 抓取预测）
 ├── hand_eye_calibration/           # 自动手眼标定（Web UI）
-├── visual_pose_estimation/         # 工件识别与抓取（2 个子包）
+├── visual_pose_estimation/         # 工件识别与抓取（1 个子包）
 ├── vision_perception/              # MediaPipe + YOLO OBB 感知
-├── tool_changer_interface/         # 快换接口定义（msg/srv）
 ├── tool_changer/                   # 夹爪快换（物理运动 + PlanningScene 附着 + URDF 更新）
 ├── coffee_latte_demo/              # 咖啡拉花演示（IO 控制 + Web 前端）
 ├── latte_imitation/                # RM65→AUBO E5 拉花轨迹模仿学习
 └── ros_arm_tutorials/              # 《ROS 机械臂开发与实践》教学代码（6 个子包）
 ```
 
-**13 个顶层功能包，23 个 ROS 2 子包。**
+**12 个顶层功能包，20 个 ROS 2 子包。**
 
 ---
 
@@ -54,12 +174,11 @@ move_group → follow_joint_trajectory (action)
 
 | 子包 | 类型 | 职责 |
 |------|------|------|
+| **ivg_interfaces** | msg/srv | 统一自定义接口包：17 msg + 34 srv = 51 类型（合并自旧 aubo_msgs/demo_interface/interface 等） |
 | **aubo_driver_ros2** | C++ | ROS2 真机驱动：JointTrajectoryController + AuboDashboardNode + AuboStateBroadcaster |
 | **aubo_moveit_config** | Python/C++ | MoveIt 配置与统一 launch（含 `aubo_new_driver.launch.py`） |
 | **demo_driver** | C++ | 应用层服务节点：move_to_pose / plan_trajectory / execute_grasp_pose / publish_grasps 等 |
-| **demo_interface** | msg/srv | demo_driver 的消息与服务接口定义 |
 | **aubo_description** | URDF/STL | 机器人模型（URDF/XACRO/mesh），含快换法兰 kuaihuan_Link |
-| **aubo_msgs** | msg/srv | Aubo 驱动消息与服务（JointTrajectoryFeedback、SetIO、GetIK 等） |
 | **aubo_dashboard_msgs** | msg/srv | Dashboard 相关 msg/srv/action |
 
 ### 2.2 前端 — `aubo_ros2_web_dashboard/` + `robotwebtools/`
@@ -73,8 +192,7 @@ move_group → follow_joint_trajectory (action)
 
 | 子包 | 类型 | 职责 |
 |------|------|------|
-| **percipio_camera** | C++ | 知微相机驱动（深度/彩色、点云、深度修复） |
-| **percipio_camera_interface** | C++ | 相机状态与控制的消息/服务接口 |
+| **percipio_camera** | C++ | 知微相机驱动（深度/彩色、点云、深度修复）+ camera_control_node |
 | **image_data_bridge** | C++ | 相机图像 → 统一 ImageData 消息格式的桥接节点 |
 
 ### 2.4 视觉与抓取
@@ -84,10 +202,9 @@ move_group → follow_joint_trajectory (action)
 | **graspnet_ros2** | Python | GraspNet 6-DoF 抓取位姿预测（含 graspnet-baseline） |
 | **hand_eye_calibration** | Python | 单目相机手眼标定（Web UI 交互式） |
 | **visual_pose_estimation_python** | Python | 工件姿态估计 + FastAPI Web（`web_ui/`） |
-| **interface** (VPE) | msg/srv | 视觉位姿估计服务与消息接口 |
 | **vision_perception** | Python | MediaPipe Holistic + YOLO OBB 人体/物体感知 |
 
-### 2.5 快换与手爪 — `tool_changer/` + `tool_changer_interface/`
+### 2.5 快换与手爪 — `tool_changer/`
 
 | 节点 | 可执行文件 | 职责 |
 |------|-----------|------|
@@ -199,7 +316,7 @@ source install/setup.bash
 
 选择性构建：
 ```bash
-colcon build --packages-select aubo_driver_ros2 demo_interface aubo_moveit_config
+colcon build --packages-select aubo_driver_ros2 ivg_interfaces aubo_moveit_config
 colcon build --packages-select tool_changer
 ```
 
@@ -211,35 +328,41 @@ ros2 launch aubo_moveit_config aubo_new_driver.launch.py server_host:=169.254.10
 # 自动 TCP 探测：可达→真实硬件，不可达→仿真模式
 ```
 
+**快速重启**（跳过编译和录包）：
+```bash
+SKIP_BUILD=1 SKIP_ROSBAG=1 ./start_aubo_new_driver.sh
+```
+
 **工具快换**（需与完整系统同时运行）：
 ```bash
 ros2 launch tool_changer gripper_swap_worker.launch.py
 ```
 
-**一键启动**（旧框架完整系统）：
+**一键启动**（全栈系统，详见 [DEPLOYMENT.md](DEPLOYMENT.md) 第 9 节）：
 ```bash
-cd aubo_ros2_ws && ./start_IVG_graspnet_points_fastapi_web_legacy.sh
+cd aubo_ros2_ws && ./start_aubo_new_driver.sh
 ```
 
-该脚本按依赖顺序启动 **16 步**完整流程：
+该脚本按依赖顺序启动完整流程（共 16 步）：
 
 | 步骤 | 内容 | 包 |
 |------|------|-----|
-| 1 | 真实机械臂驱动 + MoveIt + RViz | aubo_moveit_config |
-| 2 | demo_driver 基础服务（5 个） | demo_driver |
-| 3 | 相机节点 | percipio_camera |
-| 4 | 相机控制（软件触发） | percipio_camera_interface |
+| 0 | colcon build 全量构建 | — |
+| 1 | 机械臂核心 (Controller + Dashboard + StateBroadcaster + MoveIt2 + RViz2) | aubo_moveit_config |
+| 2 | Demo Driver 基础服务 | demo_driver |
+| 3 | 知微相机驱动 | percipio_camera |
+| 4 | 相机控制（软件触发） | percipio_camera |
 | 5 | 图像数据桥接 | image_data_bridge |
-| 6 | 手眼标定 | hand_eye_calibration |
-| 7 | 视觉姿态估计（Python） | visual_pose_estimation_python |
-| 8 | GraspNet 点云节点 | graspnet_ros2 |
-| 9 | 抓取位姿执行 Worker | demo_driver |
+| 6 | 手眼标定 Web | hand_eye_calibration |
+| 7 | 视觉姿态估计 | visual_pose_estimation_python |
+| 8 | GraspNet 点云抓取预测 | graspnet_ros2 |
+| 9 | 抓取执行 Worker | demo_driver |
 | 10 | 夹爪快换 Worker | tool_changer |
 | 11 | 咖啡拉花演示 | coffee_latte_demo |
 | 12 | GraspNet 循环抓取 Worker | demo_driver |
-| 13 | 关键服务就绪校验 | — |
-| 14 | FastAPI Web 服务 | visual_pose_estimation_python |
-| 15 | IVG Web 网关（静态站） | aubo_ros2_web_dashboard |
+| 13 | 服务就绪校验 | — |
+| 14 | VPE FastAPI Web 服务 | visual_pose_estimation_python |
+| 15 | IVG Web 网关 | aubo_ros2_web_dashboard |
 | 16 | rosbag 录制 | — |
 
 ### 5.3 访问地址
@@ -263,32 +386,31 @@ cd aubo_ros2_ws && ./start_IVG_graspnet_points_fastapi_web_legacy.sh
   └── rosbridge ← ROS 2 话题/服务
 
 aubo_ros2_web_dashboard
+  ├── ivg_interfaces (RobotStatus, ExecuteGraspPose, RunGripperSwap, ToolChangerStatus 等)
   └── rosbridge_suite, FastAPI, robot_state_publisher (TF)
 
 demo_driver
-  ├── demo_interface, aubo_msgs
-  ├── interface (VPE 服务类型)
+  ├── ivg_interfaces (MoveToPose, PlanTrajectory, ExecuteGraspPose, EstimatePose 等)
   └── moveit_core, moveit_ros_planning_interface
 
 tool_changer
-  ├── tool_changer_interface, demo_interface (SetRobotIO)
+  ├── ivg_interfaces (SetRobotIO, RunGripperSwap, ChangeTool, ToolChangerStatus)
   ├── moveit_core, moveit_ros_planning_interface
   ├── ament_index_cpp (xacro 路径解析)
   └── yaml-cpp (tools.yaml 解析)
 
 coffee_latte_demo
-  ├── demo_interface (SetRobotIO, RobotIOStatus)
+  ├── ivg_interfaces (SetRobotIO, RobotIOStatus)
   └── std_srvs
 
 graspnet_ros2
-  └── percipio_camera_interface, cv_bridge, sensor_msgs
+  └── ivg_interfaces, cv_bridge, sensor_msgs
 
 hand_eye_calibration
-  └── interface (VPE), demo_interface, percipio_camera_interface
+  └── ivg_interfaces (ImageData, RobotStatus, SoftwareTrigger, SetCameraParameters)
 
 visual_pose_estimation / _python
-  ├── interface (VPE)
-  ├── demo_interface, tool_changer_interface
+  ├── ivg_interfaces (EstimatePose, EstimatePose2D, CartesianPosition, ListTemplates)
   └── cv_bridge, FastAPI (Python)
 ```
 

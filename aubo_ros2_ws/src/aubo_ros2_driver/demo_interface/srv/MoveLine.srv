@@ -1,9 +1,0 @@
-# 笛卡尔直线运动 (MoveL)
-# TCP沿空间直线从当前点运动到目标点，姿态线性插值
-# 注意: 输入为目标关节角（SDK内部做逆解），奇异点附近可能失败
-float64[6] joints     # 目标6关节角度（弧度）
-float64 velocity      # 速度倍率（0.0~1.0, 默认1.0=全速）
----
-bool success          # 运动指令是否发送成功
-int32 error_code      # 错误码（0=成功）
-string message        # 状态消息

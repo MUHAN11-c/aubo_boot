@@ -17,7 +17,7 @@
 #include <csignal>
 #include <thread>
 #include <std_msgs/msg/string.hpp>
-#include <demo_interface/srv/move_to_pose.hpp>
+#include <ivg_interfaces/srv/move_to_pose.hpp>
 
 using namespace std::chrono_literals;
 using namespace std::placeholders;
@@ -104,28 +104,28 @@ GripperSwapWorker::GripperSwapWorker(const rclcpp::NodeOptions& options)
   joint_cartesian_switch_delay_sec_ = std::max(0.0,
       get_parameter("joint_cartesian_switch_delay_sec").as_double());
 
-  set_io_client_ = create_client<demo_interface::srv::SetRobotIO>(kSetIOService);
-  tool_status_pub_ = create_publisher<tool_changer_interface::msg::ToolChangerStatus>(
+  set_io_client_ = create_client<ivg_interfaces::srv::SetRobotIO>(kSetIOService);
+  tool_status_pub_ = create_publisher<ivg_interfaces::msg::ToolChangerStatus>(
       "/tool_changer_status", 10);
 
   service_cb_group_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
-  gripper_swap_srv_ = create_service<tool_changer_interface::srv::RunGripperSwap>(
+  gripper_swap_srv_ = create_service<ivg_interfaces::srv::RunGripperSwap>(
       "/run_gripper_swap",
       std::bind(&GripperSwapWorker::onGripperSwapRequest, this, _1, _2),
       rmw_qos_profile_services_default, service_cb_group_);
 
-  change_tool_srv_ = create_service<tool_changer_interface::srv::ChangeTool>(
+  change_tool_srv_ = create_service<ivg_interfaces::srv::ChangeTool>(
       "/change_tool",
       std::bind(&GripperSwapWorker::onChangeTool, this, _1, _2),
       rmw_qos_profile_services_default, service_cb_group_);
 
-  get_tool_srv_ = create_service<tool_changer_interface::srv::GetCurrentTool>(
+  get_tool_srv_ = create_service<ivg_interfaces::srv::GetCurrentTool>(
       "/get_current_tool",
       std::bind(&GripperSwapWorker::onGetCurrentTool, this, _1, _2),
       rmw_qos_profile_services_default, service_cb_group_);
 
-  debug_move_xyz_srv_ = create_service<demo_interface::srv::MoveToPose>(
+  debug_move_xyz_srv_ = create_service<ivg_interfaces::srv::MoveToPose>(
       "/debug/move_to_xyz",
       std::bind(&GripperSwapWorker::onDebugMoveToXYZ, this, _1, _2),
       rmw_qos_profile_services_default, service_cb_group_);
@@ -431,7 +431,7 @@ bool GripperSwapWorker::setGripperIo(int32_t io_index, bool high)
     return false;
   }
 
-  auto req = std::make_shared<demo_interface::srv::SetRobotIO::Request>();
+  auto req = std::make_shared<ivg_interfaces::srv::SetRobotIO::Request>();
   req->io_type  = "digital_output";
   req->io_index = io_index;
   req->value    = high ? 1.0 : 0.0;
@@ -456,7 +456,7 @@ bool GripperSwapWorker::setGripperIo(int32_t io_index, bool high)
 /** 发布 /tool_changer_status，scene_attach_worker 订阅后自动更新 PlanningScene */
 void GripperSwapWorker::publishToolStatus(bool connected)
 {
-  auto msg = tool_changer_interface::msg::ToolChangerStatus();
+  auto msg = ivg_interfaces::msg::ToolChangerStatus();
   msg.header.stamp    = now();
   msg.header.frame_id = "tool_changer";
   msg.tool_id         = current_tool_.id;
@@ -592,8 +592,8 @@ bool GripperSwapWorker::changeToTool(const std::string& target_id)
 
 /** /change_tool 服务回调：同步执行快换并返回结果 */
 void GripperSwapWorker::onChangeTool(
-    const std::shared_ptr<tool_changer_interface::srv::ChangeTool::Request> request,
-    std::shared_ptr<tool_changer_interface::srv::ChangeTool::Response> response)
+    const std::shared_ptr<ivg_interfaces::srv::ChangeTool::Request> request,
+    std::shared_ptr<ivg_interfaces::srv::ChangeTool::Response> response)
 {
   RCLCPP_INFO(get_logger(), "━━ /change_tool: target=%s ━━", request->tool_id.c_str());
 
@@ -609,8 +609,8 @@ void GripperSwapWorker::onChangeTool(
 
 /** /get_current_tool 服务回调：返回当前挂载的工具信息 */
 void GripperSwapWorker::onGetCurrentTool(
-    const std::shared_ptr<tool_changer_interface::srv::GetCurrentTool::Request>,
-    std::shared_ptr<tool_changer_interface::srv::GetCurrentTool::Response> response)
+    const std::shared_ptr<ivg_interfaces::srv::GetCurrentTool::Request>,
+    std::shared_ptr<ivg_interfaces::srv::GetCurrentTool::Response> response)
 {
   response->success         = true;
   response->tool_id         = current_tool_.id;
@@ -623,8 +623,8 @@ void GripperSwapWorker::onGetCurrentTool(
 
 /** /run_gripper_swap 服务回调：将 direction 映射为目标夹爪后执行切换 */
 void GripperSwapWorker::onGripperSwapRequest(
-    const std::shared_ptr<tool_changer_interface::srv::RunGripperSwap::Request> request,
-    std::shared_ptr<tool_changer_interface::srv::RunGripperSwap::Response> response)
+    const std::shared_ptr<ivg_interfaces::srv::RunGripperSwap::Request> request,
+    std::shared_ptr<ivg_interfaces::srv::RunGripperSwap::Response> response)
 {
   static const std::map<std::string, std::string> kDirToTarget = {
       {"gripper0_to_gripper2", "gripper2"},
@@ -655,8 +655,8 @@ void GripperSwapWorker::onGripperSwapRequest(
 
 /** /debug/move_to_xyz 服务回调：手动测试笛卡尔平移到指定 XYZ */
 void GripperSwapWorker::onDebugMoveToXYZ(
-    const std::shared_ptr<demo_interface::srv::MoveToPose::Request> req,
-    std::shared_ptr<demo_interface::srv::MoveToPose::Response> resp)
+    const std::shared_ptr<ivg_interfaces::srv::MoveToPose::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::MoveToPose::Response> resp)
 {
   if (!move_group_) {
     resp->success = false; resp->error_code = -1;

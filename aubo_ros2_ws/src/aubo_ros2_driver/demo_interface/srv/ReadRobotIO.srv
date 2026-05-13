@@ -1,7 +1,0 @@
-# 读取机器人IO状态
-string io_type    # IO类型（"digital"/"analog"，区分数字量或模拟量）
-int32 io_index    # IO通道索引（从0开始）
----
-bool success      # 读取是否成功
-float64 value     # 读取到的值（数字量：0/1；模拟量：电压或电流值）
-string message    # 状态消息或错误信息

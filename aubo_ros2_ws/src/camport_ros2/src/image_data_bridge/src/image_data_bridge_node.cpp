@@ -1,7 +1,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
-#include <percipio_camera_interface/msg/image_data.hpp>
-#include <percipio_camera_interface/msg/camera_status.hpp>
+#include <ivg_interfaces/msg/image_data.hpp>
+#include <ivg_interfaces/msg/camera_status.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.hpp>
 #include <opencv2/opencv.hpp>
@@ -30,11 +30,11 @@ public:
         jpeg_quality_ = this->get_parameter("jpeg_quality").as_int();
 
         // 创建发布者
-        image_data_pub_ = this->create_publisher<percipio_camera_interface::msg::ImageData>(
+        image_data_pub_ = this->create_publisher<ivg_interfaces::msg::ImageData>(
             output_topic, 10);
 
         // 创建订阅者 - 订阅相机状态
-        camera_status_sub_ = this->create_subscription<percipio_camera_interface::msg::CameraStatus>(
+        camera_status_sub_ = this->create_subscription<ivg_interfaces::msg::CameraStatus>(
             camera_status_topic, 10,
             std::bind(&ImageDataBridgeNode::cameraStatusCallback, this, std::placeholders::_1));
 
@@ -67,7 +67,7 @@ private:
     {
         try {
             // 创建ImageData消息
-            auto image_data_msg = percipio_camera_interface::msg::ImageData();
+            auto image_data_msg = ivg_interfaces::msg::ImageData();
 
             // 设置header
             image_data_msg.header = msg->header;
@@ -145,7 +145,7 @@ private:
         }
     }
 
-    void cameraStatusCallback(const percipio_camera_interface::msg::CameraStatus::SharedPtr msg)
+    void cameraStatusCallback(const ivg_interfaces::msg::CameraStatus::SharedPtr msg)
     {
         // 更新相机ID（如果状态消息中有）
         if (!msg->camera_id.empty()) {
@@ -154,10 +154,10 @@ private:
         }
     }
 
-    rclcpp::Publisher<percipio_camera_interface::msg::ImageData>::SharedPtr image_data_pub_;
+    rclcpp::Publisher<ivg_interfaces::msg::ImageData>::SharedPtr image_data_pub_;
     std::shared_ptr<image_transport::ImageTransport> it_;
     image_transport::Subscriber image_sub_;
-    rclcpp::Subscription<percipio_camera_interface::msg::CameraStatus>::SharedPtr camera_status_sub_;
+    rclcpp::Subscription<ivg_interfaces::msg::CameraStatus>::SharedPtr camera_status_sub_;
     rclcpp::TimerBase::SharedPtr init_timer_;
 
     std::string input_image_topic_;

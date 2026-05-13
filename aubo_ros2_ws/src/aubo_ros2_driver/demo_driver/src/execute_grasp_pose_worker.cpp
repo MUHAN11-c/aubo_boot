@@ -18,7 +18,7 @@
 #include <sensor_msgs/msg/image.hpp>
 
 // 引用 interface 包的服务定义
-#include <interface/srv/estimate_pose.hpp>
+#include <ivg_interfaces/srv/estimate_pose.hpp>
 
 #define CHECK(expr)                                                                                                       \
   do                                                                                                                      \
@@ -99,7 +99,7 @@ static double normalizeYawToShortEquivalent(double yaw_rad)
 // | egp_height_above           | double   | 0.1            | 抓取点上方安全高度 (m)                              |
 // | egp_joint_velocity_scaling | double   | 0.7            | 速度缩放 [0~1]：moveToHome / 抓取接近 / 抬起 / 放置笛卡尔 共用 |
 // | egp_joint_acceleration_scaling| double| 0.3            | 加速度缩放 [0~1]，同上共用                          |
-// | egp_gripper_io_index       | int      | 7              | Aubo 夹爪 IO pin 号                                  |
+// | egp_gripper_io_index       | int      | 7              | Aubo 夹爪 IO pin 号 (true=打开, 参见 ivg_utils.io.GRIPPER_OPEN) |
 // | egp_lift_offset            | double   | 0.2            | 抓取后沿 Z 轴抬起高度 (m)                            |
 // | egp_place_offset_y         | double   | -0.2           | 安全位后笛卡尔 y 偏移 (m)                           |
 // | egp_place_offset_z         | double   | -0.15          | 安全位后笛卡尔 z 偏移 (m)                           |
@@ -192,7 +192,7 @@ ExecuteGraspPoseWorker::ExecuteGraspPoseWorker(const rclcpp::NodeOptions& option
   service_cb_group_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
   // 创建服务
-  execute_single_grasp_service_ = create_service<demo_interface::srv::ExecuteGraspPose>(
+  execute_single_grasp_service_ = create_service<ivg_interfaces::srv::ExecuteGraspPose>(
       "/execute_single_grasp",
       std::bind(&ExecuteGraspPoseWorker::handleExecuteSingleGrasp, this, std::placeholders::_1, std::placeholders::_2),
       rmw_qos_profile_services_default, service_cb_group_);
@@ -204,7 +204,7 @@ ExecuteGraspPoseWorker::ExecuteGraspPoseWorker(const rclcpp::NodeOptions& option
 
   // 视觉 client 使用 Reentrant 回调组，避免服务回调内 wait_for 时与默认互斥组死锁；executor.add_node 会注册本组，勿重复 add_callback_group
   estimate_pose_client_cb_group_ = create_callback_group(rclcpp::CallbackGroupType::Reentrant);
-  estimate_pose_client_ = create_client<interface::srv::EstimatePose>(
+  estimate_pose_client_ = create_client<ivg_interfaces::srv::EstimatePose>(
       "/estimate_pose", rmw_qos_profile_services_default, estimate_pose_client_cb_group_);
 
   RCLCPP_INFO(get_logger(), "服务已创建: /execute_single_grasp, /loop_grasp_control");
@@ -516,7 +516,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   RCLCPP_INFO(get_logger(), "✓ 步骤 2 完成");
 
   RCLCPP_INFO(get_logger(), "");
-  RCLCPP_INFO(get_logger(), "► 步骤 3/9: 抓取前开夹爪 (IO=%d, 状态=true)", gripper_io_index_);
+  RCLCPP_INFO(get_logger(), "► 步骤 3/9: 抓取前开夹爪 (IO=%d, true=打开, 参见 ivg_utils.io.GRIPPER_OPEN)", gripper_io_index_);
   if (kSkipTemporaryGripperIo)
   {
     RCLCPP_WARN(get_logger(),
@@ -526,7 +526,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   }
   else
   {
-    if (!setGripperIo(gripper_io_index_, true))  // IO反转：true=打开
+    if (!setGripperIo(gripper_io_index_, true))  // true=打开 (ivg_utils.io.GRIPPER_OPEN)
     {
       RCLCPP_ERROR(get_logger(), "✗ 步骤 3 失败：抓取前开夹爪失败");
       return false;
@@ -555,7 +555,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   }
   else
   {
-    if (!setGripperIo(gripper_io_index_, false))  // IO反转：false=闭合
+    if (!setGripperIo(gripper_io_index_, false))  // false=闭合 (ivg_utils.io.GRIPPER_CLOSE)
     {
       RCLCPP_ERROR(get_logger(), "✗ 步骤 5 失败：闭夹爪失败");
       return false;
@@ -605,7 +605,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   }
   else
   {
-    if (!setGripperIo(gripper_io_index_, true))  // IO反转：true=打开
+    if (!setGripperIo(gripper_io_index_, true))  // true=打开 (ivg_utils.io.GRIPPER_OPEN)
     {
       RCLCPP_ERROR(get_logger(), "✗ 步骤 8 失败：开夹爪失败");
       return false;
@@ -656,7 +656,7 @@ bool ExecuteGraspPoseWorker::estimatePoseFromVision(const std::string& object_id
   }
   RCLCPP_INFO(get_logger(), "[estimatePoseFromVision] ✓ 服务 /estimate_pose 已连接");
 
-  auto request = std::make_shared<interface::srv::EstimatePose::Request>();
+  auto request = std::make_shared<ivg_interfaces::srv::EstimatePose::Request>();
   request->object_id = object_id;
   // image/color 留空：visual_pose_estimation_python 会 SoftwareTrigger + 临时订阅取图（单线程内需 spin_once，见 ros2_communication._capture_images_on_trigger）
   RCLCPP_INFO(get_logger(), "[estimatePoseFromVision] 发送服务请求...");
@@ -751,8 +751,8 @@ bool ExecuteGraspPoseWorker::estimatePoseFromVision(const std::string& object_id
 }
 
 void ExecuteGraspPoseWorker::handleExecuteSingleGrasp(
-    const std::shared_ptr<demo_interface::srv::ExecuteGraspPose::Request> request,
-    std::shared_ptr<demo_interface::srv::ExecuteGraspPose::Response> response)
+    const std::shared_ptr<ivg_interfaces::srv::ExecuteGraspPose::Request> request,
+    std::shared_ptr<ivg_interfaces::srv::ExecuteGraspPose::Response> response)
 {
   RCLCPP_INFO(get_logger(), "");
   RCLCPP_INFO(get_logger(), "╔════════════════════════════════════════════════════════════╗");

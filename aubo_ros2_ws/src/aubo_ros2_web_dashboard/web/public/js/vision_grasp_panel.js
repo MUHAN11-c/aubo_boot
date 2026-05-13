@@ -66,7 +66,7 @@ import {
 	/** 仅 rosbridge 订阅类话题 */
 	const TOPIC_IDS = VISION_TOPIC_IDS;
 	const TF_TOPIC_IDS = VISION_TF_TOPIC_IDS;
-	/** 按钮触发的服务名（std_srvs/SetBool 或 demo_interface 自定义） */
+	/** 按钮触发的服务名（std_srvs/SetBool 或 ivg_interfaces 自定义） */
 	const SERVICE_IDS = VISION_SERVICE_IDS;
 	/** 工件模式「执行单次抓取」固定调用的服务（不设为可选项，与后端 launch 一致） */
 	const SVC_EXECUTE_SINGLE_GRASP = '/execute_single_grasp';

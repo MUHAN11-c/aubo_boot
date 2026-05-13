@@ -61,7 +61,7 @@ AUBO 机械臂在 ROS2 Humble 下的驱动、MoveIt 配置、轨迹执行与仿�
 | **2** | 34 | LatteNode (DO2) | 打花开关 |
 | **4** | 36 | LatteNode (DO4) | 咖啡开关 |
 
-> **注意**：ExecuteGraspPoseWorker 的 IO 语义与 PublishGraspsClientWorker/ABWorker **相反**（`true=打开` vs `true=闭合`），源于气动夹爪不同工位的电气接线差异。添加新 Worker 时需确认物理接线。
+> **注意**：ExecuteGraspPoseWorker 的 IO 语义与 PublishGraspsClientWorker **相反**（`true=打开` vs `true=闭合`），源于气动夹爪不同工位的电气接线差异。添加新 Worker 时需确认物理接线。
 
 ---
 
@@ -80,6 +80,12 @@ source install/setup.bash
 ```bash
 colcon build --packages-select aubo_driver_ros2 aubo_moveit_config aubo_ros2_trajectory_action aubo_robot_simulator_ros2 demo_driver demo_interface aubo_msgs aubo_description
 ```
+
+### AUBO SDK 共享库安装
+
+`aubo_driver_ros2` 依赖预编译的 AUBO SDK 共享库 (`libauborobotcontroller.so.1` 等)。CMakeLists.txt 在 `colcon build` 时自动将其安装到 `install/aubo_driver_ros2/lib/`。运行时 `source install/setup.bash` 将路径加入 `LD_LIBRARY_PATH` 即可找到。
+
+**注意**: 首次编译或 SDK 库有更新后必须执行 `colcon build --packages-select aubo_driver_ros2`，否则驱动节点会报 `exit code 127` (library not found) 喵~
 
 ---
 

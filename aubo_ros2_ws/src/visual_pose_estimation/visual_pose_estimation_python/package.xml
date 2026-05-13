@@ -7,7 +7,6 @@
   <maintainer email="mu@example.com">mu</maintainer>
   <license>Apache-2.0</license>
 
-  <buildtool_depend>ament_python</buildtool_depend>
 
   <depend>rclpy</depend>
   <depend>ament_index_python</depend>
@@ -15,9 +14,8 @@
   <depend>geometry_msgs</depend>
   <depend>std_msgs</depend>
   <depend>cv_bridge</depend>
-  <depend>interface</depend>
-  <depend>demo_interface</depend>
-  <depend>tool_changer_interface</depend>
+  <depend>ivg_interfaces</depend>
+  <depend>ivg_utils</depend>
 
   <exec_depend>python3-opencv</exec_depend>
   <exec_depend>python3-numpy</exec_depend>

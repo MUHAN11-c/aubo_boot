@@ -180,7 +180,7 @@ static void sleepInterruptible(PublishGraspsClientWorker* worker, double seconds
 PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& options)
   : rclcpp::Node("publish_grasps_client_worker", options)
 {
-  aubo_set_io_client_ = create_client<demo_interface::srv::SetRobotIO>(kAuboSetIOService);
+  aubo_set_io_client_ = create_client<ivg_interfaces::srv::SetRobotIO>(kAuboSetIOService);
 
   // --- 声明参数（详见本文件上方参数表）---
   declare_parameter("prefer_vertical", true);
@@ -309,7 +309,7 @@ bool PublishGraspsClientWorker::setGripperIo(int32_t io_index, bool high)
     RCLCPP_ERROR(get_logger(), "[set_gripper_io] 服务 %s 不可用", kAuboSetIOService);
     return false;
   }
-  auto req = std::make_shared<demo_interface::srv::SetRobotIO::Request>();
+  auto req = std::make_shared<ivg_interfaces::srv::SetRobotIO::Request>();
   req->io_type = "digital_output";
   req->io_index = io_index;
   req->value = high ? 1.0 : 0.0;
@@ -1044,7 +1044,7 @@ bool PublishGraspsClientWorker::runOneCycle()
   RCLCPP_INFO(get_logger(), "  目标位姿 xyz=[%.3f, %.3f, %.3f]", pose_ee.position.x, pose_ee.position.y,
               pose_ee.position.z);
 
-  RCLCPP_INFO(get_logger(), "步骤 5: 抓取前开夹爪 (IO=%d)", gripper_io_index_);
+  RCLCPP_INFO(get_logger(), "步骤 5: 抓取前开夹爪 (IO=%d, false=打开, 注意与 ExecuteGraspPoseWorker 语义相反, 参见 ivg_utils.io)", gripper_io_index_);
   if (kSkipTemporaryGripperIo)
   {
     RCLCPP_WARN(get_logger(),
@@ -1070,7 +1070,7 @@ bool PublishGraspsClientWorker::runOneCycle()
     return failCycle();
   }
 
-  RCLCPP_INFO(get_logger(), "步骤 7: 闭夹爪 (IO=%d)", gripper_io_index_);
+  RCLCPP_INFO(get_logger(), "步骤 7: 闭夹爪 (IO=%d, true=闭合, 语义与开夹爪相反)", gripper_io_index_);
   if (kSkipTemporaryGripperIo)
   {
     RCLCPP_WARN(get_logger(),

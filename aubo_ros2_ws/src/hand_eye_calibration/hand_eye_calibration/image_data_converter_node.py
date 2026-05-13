@@ -9,7 +9,7 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
-from percipio_camera_interface.msg import ImageData
+from ivg_interfaces.msg import ImageData
 
 
 class ImageDataConverterNode(Node):

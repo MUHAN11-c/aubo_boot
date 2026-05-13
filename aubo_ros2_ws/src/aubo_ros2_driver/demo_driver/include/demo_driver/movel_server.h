@@ -12,7 +12,7 @@
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <moveit/moveit_cpp/moveit_cpp.h>
-#include <demo_interface/srv/movel.hpp>
+#include <ivg_interfaces/srv/movel.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 #include <moveit_msgs/msg/robot_trajectory.hpp>
 #include <moveit_msgs/msg/move_it_error_codes.hpp>
@@ -58,11 +58,11 @@ private:
   std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
   std::shared_ptr<moveit::planning_interface::PlanningSceneInterface> planning_scene_interface_;
 
-  rclcpp::Service<demo_interface::srv::Movel>::SharedPtr movel_service_;
+  rclcpp::Service<ivg_interfaces::srv::Movel>::SharedPtr movel_service_;
 
   void movelCallback(
-    const std::shared_ptr<demo_interface::srv::Movel::Request> req,
-    std::shared_ptr<demo_interface::srv::Movel::Response> res);
+    const std::shared_ptr<ivg_interfaces::srv::Movel::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::Movel::Response> res);
 
   bool movel(
     const geometry_msgs::msg::Pose& target_pose,

@@ -51,7 +51,7 @@ function createVisionServiceActions(opts) {
 		transport
 			.callService({
 				service: executeSingleService,
-				type: fixedServiceTypes['execute-single-grasp'] || 'demo_interface/srv/ExecuteGraspPose',
+				type: fixedServiceTypes['execute-single-grasp'] || 'ivg_interfaces/srv/ExecuteGraspPose',
 				request: { object_id: oid, use_visual_estimation: !!useVisual }
 			})
 			.then(r => {
@@ -76,7 +76,7 @@ function createVisionServiceActions(opts) {
 		transport
 			.callService({
 				service: svcName,
-				type: serviceTypeMap['svc-gripper-swap'] || 'tool_changer_interface/srv/RunGripperSwap',
+				type: serviceTypeMap['svc-gripper-swap'] || 'ivg_interfaces/srv/RunGripperSwap',
 				request: { direction: direction || 'gripper0_to_gripper2' }
 			})
 			.then(r => {
@@ -175,7 +175,7 @@ function createVisionServiceActions(opts) {
 			log("Move XYZ -> (" + x.toFixed(3) + ", " + y.toFixed(3) + ", " + z.toFixed(3) + ") v=" + vel + " a=" + acc);
 			transport.callService({
 				service: "/debug/move_to_xyz",
-				type: "demo_interface/srv/MoveToPose",
+				type: "ivg_interfaces/srv/MoveToPose",
 				request: {
 					target_pose: { position: { x: x, y: y, z: z }, orientation: { x: 0, y: 0, z: 0, w: 1 } },
 					target_joints: [0,0,0,0,0,0],

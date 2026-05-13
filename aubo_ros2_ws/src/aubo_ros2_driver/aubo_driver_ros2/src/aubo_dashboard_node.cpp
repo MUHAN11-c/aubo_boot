@@ -78,13 +78,13 @@ AuboDashboardNode::on_configure(const rclcpp_lifecycle::State&)
         std::bind(&AuboDashboardNode::onCollisionRecover, this, std::placeholders::_1, std::placeholders::_2));
 
     // 运动控制 (自动处理 TCP2CAN 切换)
-    srv_move_joint_ = this->create_service<demo_interface::srv::MoveJoint>(
+    srv_move_joint_ = this->create_service<ivg_interfaces::srv::MoveJoint>(
         "/aubo/move_joint",
         std::bind(&AuboDashboardNode::onMoveJoint, this, std::placeholders::_1, std::placeholders::_2));
-    srv_move_line_ = this->create_service<demo_interface::srv::MoveLine>(
+    srv_move_line_ = this->create_service<ivg_interfaces::srv::MoveLine>(
         "/aubo/move_line",
         std::bind(&AuboDashboardNode::onMoveLine, this, std::placeholders::_1, std::placeholders::_2));
-    srv_teach_start_ = this->create_service<demo_interface::srv::TeachStart>(
+    srv_teach_start_ = this->create_service<ivg_interfaces::srv::TeachStart>(
         "/aubo/teach_start",
         std::bind(&AuboDashboardNode::onTeachStart, this, std::placeholders::_1, std::placeholders::_2));
     srv_teach_stop_ = this->create_service<std_srvs::srv::Trigger>(
@@ -92,29 +92,29 @@ AuboDashboardNode::on_configure(const rclcpp_lifecycle::State&)
         std::bind(&AuboDashboardNode::onTeachStop, this, std::placeholders::_1, std::placeholders::_2));
 
     // 配置
-    srv_set_collision_class_ = this->create_service<demo_interface::srv::SetCollisionClass>(
+    srv_set_collision_class_ = this->create_service<ivg_interfaces::srv::SetCollisionClass>(
         "/aubo/set_collision_class",
         std::bind(&AuboDashboardNode::onSetCollisionClass, this, std::placeholders::_1, std::placeholders::_2));
-    srv_set_payload_ = this->create_service<aubo_msgs::srv::SetPayload>(
+    srv_set_payload_ = this->create_service<ivg_interfaces::srv::SetPayload>(
         "/aubo/set_payload",
         std::bind(&AuboDashboardNode::onSetPayload, this, std::placeholders::_1, std::placeholders::_2));
-    srv_set_tool_kinematics_ = this->create_service<demo_interface::srv::SetToolKinematics>(
+    srv_set_tool_kinematics_ = this->create_service<ivg_interfaces::srv::SetToolKinematics>(
         "/aubo/set_tool_kinematics",
         std::bind(&AuboDashboardNode::onSetToolKinematics, this, std::placeholders::_1, std::placeholders::_2));
-    srv_set_tool_voltage_ = this->create_service<demo_interface::srv::SetToolVoltage>(
+    srv_set_tool_voltage_ = this->create_service<ivg_interfaces::srv::SetToolVoltage>(
         "/aubo/set_tool_voltage",
         std::bind(&AuboDashboardNode::onSetToolVoltage, this, std::placeholders::_1, std::placeholders::_2));
 
     // IO (使用已有自定义服务)
-    srv_set_io_ = this->create_service<demo_interface::srv::SetRobotIO>(
+    srv_set_io_ = this->create_service<ivg_interfaces::srv::SetRobotIO>(
         "/aubo/set_io",
         std::bind(&AuboDashboardNode::onSetIO, this, std::placeholders::_1, std::placeholders::_2));
 
     // 运动学
-    srv_get_fk_ = this->create_service<aubo_msgs::srv::GetFK>(
+    srv_get_fk_ = this->create_service<ivg_interfaces::srv::GetFK>(
         "/aubo/get_fk",
         std::bind(&AuboDashboardNode::onGetFK, this, std::placeholders::_1, std::placeholders::_2));
-    srv_get_ik_ = this->create_service<aubo_msgs::srv::GetIK>(
+    srv_get_ik_ = this->create_service<ivg_interfaces::srv::GetIK>(
         "/aubo/get_ik",
         std::bind(&AuboDashboardNode::onGetIK, this, std::placeholders::_1, std::placeholders::_2));
 
@@ -355,8 +355,8 @@ void AuboDashboardNode::onCollisionRecover(
 // ============================================================================
 
 void AuboDashboardNode::onMoveJoint(
-    const std::shared_ptr<demo_interface::srv::MoveJoint::Request> req,
-    std::shared_ptr<demo_interface::srv::MoveJoint::Response> resp)
+    const std::shared_ptr<ivg_interfaces::srv::MoveJoint::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::MoveJoint::Response> resp)
 {
     if (!hw_ || !hw_->isConnected()) {
         resp->success = false; resp->error_code = -1;
@@ -381,8 +381,8 @@ void AuboDashboardNode::onMoveJoint(
 }
 
 void AuboDashboardNode::onMoveLine(
-    const std::shared_ptr<demo_interface::srv::MoveLine::Request> req,
-    std::shared_ptr<demo_interface::srv::MoveLine::Response> resp)
+    const std::shared_ptr<ivg_interfaces::srv::MoveLine::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::MoveLine::Response> resp)
 {
     if (!hw_ || !hw_->isConnected()) {
         resp->success = false; resp->error_code = -1;
@@ -407,8 +407,8 @@ void AuboDashboardNode::onMoveLine(
 }
 
 void AuboDashboardNode::onTeachStart(
-    const std::shared_ptr<demo_interface::srv::TeachStart::Request> req,
-    std::shared_ptr<demo_interface::srv::TeachStart::Response> resp)
+    const std::shared_ptr<ivg_interfaces::srv::TeachStart::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::TeachStart::Response> resp)
 {
     if (!hw_ || !hw_->isConnected()) {
         resp->success = false; resp->error_code = -1;
@@ -463,8 +463,8 @@ void AuboDashboardNode::onTeachStop(
 // ============================================================================
 
 void AuboDashboardNode::onSetCollisionClass(
-    const std::shared_ptr<demo_interface::srv::SetCollisionClass::Request> req,
-    std::shared_ptr<demo_interface::srv::SetCollisionClass::Response> resp)
+    const std::shared_ptr<ivg_interfaces::srv::SetCollisionClass::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::SetCollisionClass::Response> resp)
 {
     if (!hw_ || !hw_->isConnected()) {
         resp->success = false;
@@ -479,8 +479,8 @@ void AuboDashboardNode::onSetCollisionClass(
 }
 
 void AuboDashboardNode::onSetPayload(
-    const std::shared_ptr<aubo_msgs::srv::SetPayload::Request> req,
-    std::shared_ptr<aubo_msgs::srv::SetPayload::Response> resp)
+    const std::shared_ptr<ivg_interfaces::srv::SetPayload::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::SetPayload::Response> resp)
 {
     if (!hw_ || !hw_->isConnected()) {
         resp->success = false;
@@ -499,8 +499,8 @@ void AuboDashboardNode::onSetPayload(
 }
 
 void AuboDashboardNode::onSetToolKinematics(
-    const std::shared_ptr<demo_interface::srv::SetToolKinematics::Request> req,
-    std::shared_ptr<demo_interface::srv::SetToolKinematics::Response> resp)
+    const std::shared_ptr<ivg_interfaces::srv::SetToolKinematics::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::SetToolKinematics::Response> resp)
 {
     if (!hw_ || !hw_->isConnected()) {
         resp->success = false;
@@ -524,8 +524,8 @@ void AuboDashboardNode::onSetToolKinematics(
 }
 
 void AuboDashboardNode::onSetToolVoltage(
-    const std::shared_ptr<demo_interface::srv::SetToolVoltage::Request> req,
-    std::shared_ptr<demo_interface::srv::SetToolVoltage::Response> resp)
+    const std::shared_ptr<ivg_interfaces::srv::SetToolVoltage::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::SetToolVoltage::Response> resp)
 {
     if (!hw_ || !hw_->isConnected()) {
         resp->success = false;
@@ -544,8 +544,8 @@ void AuboDashboardNode::onSetToolVoltage(
 // ============================================================================
 
 void AuboDashboardNode::onSetIO(
-    const std::shared_ptr<demo_interface::srv::SetRobotIO::Request> req,
-    std::shared_ptr<demo_interface::srv::SetRobotIO::Response> resp)
+    const std::shared_ptr<ivg_interfaces::srv::SetRobotIO::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::SetRobotIO::Response> resp)
 {
     if (!hw_ || !hw_->isConnected()) {
         resp->success = false;
@@ -586,8 +586,8 @@ void AuboDashboardNode::onSetIO(
 // ============================================================================
 
 void AuboDashboardNode::onGetFK(
-    const std::shared_ptr<aubo_msgs::srv::GetFK::Request> req,
-    std::shared_ptr<aubo_msgs::srv::GetFK::Response> resp)
+    const std::shared_ptr<ivg_interfaces::srv::GetFK::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::GetFK::Response> resp)
 {
     if (!hw_ || !hw_->isConnected()) return;
     std::lock_guard<std::mutex> lock(sdk_mutex_);
@@ -608,8 +608,8 @@ void AuboDashboardNode::onGetFK(
 }
 
 void AuboDashboardNode::onGetIK(
-    const std::shared_ptr<aubo_msgs::srv::GetIK::Request> req,
-    std::shared_ptr<aubo_msgs::srv::GetIK::Response> resp)
+    const std::shared_ptr<ivg_interfaces::srv::GetIK::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::GetIK::Response> resp)
 {
     if (!hw_ || !hw_->isConnected()) return;
     std::lock_guard<std::mutex> lock(sdk_mutex_);

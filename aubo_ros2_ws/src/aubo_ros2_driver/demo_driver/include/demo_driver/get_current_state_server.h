@@ -11,8 +11,8 @@
 #include <rclcpp/rclcpp.hpp>
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
-#include <demo_interface/srv/get_current_state.hpp>
-#include <aubo_msgs/srv/get_fk.hpp>
+#include <ivg_interfaces/srv/get_current_state.hpp>
+#include <ivg_interfaces/srv/get_fk.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 #include <string>
@@ -45,18 +45,18 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_states_sub_;  // 订阅关节状态
 
     // 服务客户端
-    rclcpp::Client<aubo_msgs::srv::GetFK>::SharedPtr fk_client_;  // 正运动学计算服务客户端
+    rclcpp::Client<ivg_interfaces::srv::GetFK>::SharedPtr fk_client_;  // 正运动学计算服务客户端
 
     // 服务服务器
-    rclcpp::Service<demo_interface::srv::GetCurrentState>::SharedPtr get_current_state_service_;  // 获取当前状态服务
+    rclcpp::Service<ivg_interfaces::srv::GetCurrentState>::SharedPtr get_current_state_service_;  // 获取当前状态服务
 
     // 回调函数
     void jointStatesCallback(const sensor_msgs::msg::JointState::SharedPtr msg);  // 关节状态回调
 
     // 服务回调函数
     void getCurrentStateCallback(
-        const std::shared_ptr<demo_interface::srv::GetCurrentState::Request> req,
-        std::shared_ptr<demo_interface::srv::GetCurrentState::Response> res);
+        const std::shared_ptr<ivg_interfaces::srv::GetCurrentState::Request> req,
+        std::shared_ptr<ivg_interfaces::srv::GetCurrentState::Response> res);
 
     // 辅助函数
     bool getCurrentState(std::vector<double>& joint_position_rad,

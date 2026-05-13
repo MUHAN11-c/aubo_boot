@@ -4,22 +4,55 @@ if [ -z "${BASH_VERSION:-}" ]; then exec /bin/bash "$0" "$@"; exit 1; fi
 # ═══════════════════════════════════════════════════════════════
 # IVG 完整启动 (新框架机械臂 + Vision/GraspNet/Web)
 #
-# 机械臂部分: launch 文件自动 TCP 探测机器人是否可达
-#   - 可达   → 真实硬件模式 (AUBO 自定义节点)
-#   - 不可达 → 仿真模式 (ros2_control + mock_components)
-# 其余步骤(相机/GraspNet/Web/抓取)保持不变
+# 启动策略:
+#   - launch 文件自动 TCP 探测机器人是否可达
+#       - 可达   → 真实硬件模式
+#       - 不可达 → 仿真模式 (ros2_control + mock_components)
+#   - 主动轮询替代固定 sleep，根据实际就绪状态推进
+#   - 独立步骤组内并行启动，组间串行等待
+#
+# 路径自定位 — 脚本放在工作空间根目录即可喵~
 # ═══════════════════════════════════════════════════════════════
 
 set -e
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 
+# 退出清理（Ctrl+C / kill 时终止所有已启动的 ROS 2 进程）
+cleanup() {
+    echo -e "\n${YELLOW}正在终止所有启动的进程...${NC}"
+    pkill -f rosbridge_websocket 2>/dev/null || true
+    pkill -f rosapi_node 2>/dev/null || true
+    pkill -f aubo_driver_ros2 2>/dev/null || true
+    pkill -f aubo_state_broadcaster 2>/dev/null || true
+    pkill -f aubo_dashboard_node 2>/dev/null || true
+    pkill -f joint_trajectory_controller 2>/dev/null || true
+    pkill -f ros2_control_node 2>/dev/null || true
+    pkill -f controller_manager 2>/dev/null || true
+    pkill -f move_group 2>/dev/null || true
+    pkill -f rviz2 2>/dev/null || true
+    pkill -f web_video_server 2>/dev/null || true
+    pkill -f 'uvicorn.*8090' 2>/dev/null || true
+    pkill -f 'ros2 bag' 2>/dev/null || true
+    pkill -f 'ros2 lifecycle' 2>/dev/null || true
+    sleep 0.5
+    echo -e "${GREEN}  ✓ 清理完成${NC}"
+}
+trap cleanup INT TERM
+
+# ═══════════════════════════════════════════════════════════════
+# 路径自定位
+# ═══════════════════════════════════════════════════════════════
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WS="${AUBO_ROS2_WS:-${SCRIPT_DIR}}"
 ROS_DISTRO="${ROS_DISTRO_NAME:-humble}"
-AUBO_IP="${AUBO_IP:-169.254.10.98}"
+ROS2_SETUP="/opt/ros/${ROS_DISTRO}/setup.bash"
+WAIT_SVC="${WS}/wait_for_service.sh"
 
-# Web / rosbag 配置
+# ═══════════════════════════════════════════════════════════════
+# 用户可配环境变量
+# ═══════════════════════════════════════════════════════════════
+AUBO_IP="${AUBO_IP:-169.254.10.98}"
 WEB_HOST="${WEB_HOST:-127.0.0.1}"
 WEB_PORT="${WEB_PORT:-8088}"
 IVG_WEB_RELOAD="${IVG_WEB_RELOAD:-true}"
@@ -27,25 +60,21 @@ WEB_DASH_HOST="${WEB_DASH_HOST:-0.0.0.0}"
 WEB_DASH_PORT="${WEB_DASH_PORT:-8090}"
 ROSBRIDGE_PORT="${ROSBRIDGE_PORT:-9090}"
 IVG_STRIP_PROXY_FOR_DASH_LAUNCH="${IVG_STRIP_PROXY_FOR_DASH_LAUNCH:-true}"
-IVG_ROSBAG_DIR="${IVG_ROSBAG_DIR:-${WS}/rosbags/ivg_session}"
+IVG_ROSBAG_DIR="${IVG_ROSBAG_DIR:-rosbags/ivg_session}"
 IVG_ROSBAG_TOPICS="${IVG_ROSBAG_TOPICS:-}"
 HAND_EYE_PORT="${HAND_EYE_PORT:-8080}"
 WEB_VIDEO_PORT="${WEB_VIDEO_PORT:-8089}"
 IVG_INCLUDE_POINTCLOUD_WEB_BRIDGE="${IVG_INCLUDE_POINTCLOUD_WEB_BRIDGE:-true}"
 IVG_POINTCLOUD_WEB_MAX_POINTS="${IVG_POINTCLOUD_WEB_MAX_POINTS:-15000}"
 SKIP_RVIZ="${SKIP_RVIZ:-0}"
-ROBOTWEBTOOLS_ROOT="${ROBOTWEBTOOLS_ROOT:-${WS}/src/robotwebtools}"
-ROBOTWEBTOOLS_BUILD_SCRIPT="${ROBOTWEBTOOLS_ROOT}/build_robotwebtools.sh"
-ROBOTWEBTOOLS_ASSETS_DIR="${ROBOTWEBTOOLS_ASSETS_DIR:-${ROBOTWEBTOOLS_ROOT}/runtime_js_assets}"
+SKIP_BUILD="${SKIP_BUILD:-0}"
+SKIP_ROSBAG="${SKIP_ROSBAG:-0}"
+ROBOTWEBTOOLS_ASSETS_DIR="${ROBOTWEBTOOLS_ASSETS_DIR:-src/robotwebtools/runtime_js_assets}"
+ROBOTWEBTOOLS_BUILD_SCRIPT="${ROBOTWEBTOOLS_BUILD_SCRIPT:-src/robotwebtools/build_robotwebtools.sh}"
 
-source_env="source /opt/ros/${ROS_DISTRO}/setup.bash && source ${WS}/install/setup.bash"
-
-WEB_DASH_NO_PROXY_EXPORT='export NO_PROXY="127.0.0.1,localhost,0.0.0.0,::1${NO_PROXY:+,${NO_PROXY}}"; export no_proxy="$NO_PROXY"; '
-if [ "${IVG_STRIP_PROXY_FOR_DASH_LAUNCH}" = "true" ]; then
-    WEB_DASH_UNSET_PROXY="unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY all_proxy FTP_PROXY ftp_proxy; ${WEB_DASH_NO_PROXY_EXPORT}"
-else
-    WEB_DASH_UNSET_PROXY="${WEB_DASH_NO_PROXY_EXPORT}"
-fi
+# ═══════════════════════════════════════════════════════════════
+# 工具函数
+# ═══════════════════════════════════════════════════════════════
 
 ivg_lan_ipv4_addrs() {
     if command -v ip >/dev/null 2>&1; then
@@ -78,13 +107,43 @@ ivg_print_access_urls() {
     done
 }
 
+# active_wait: 使用 wait_for_service.sh 进行主动轮询等待
+# 如果 wait_for_service.sh 不可用，回退到固定 sleep
+active_wait() {
+    local type="$1" pattern="$2" timeout="${3:-30}" desc="${4:-$pattern}"
+    echo -e "${BLUE}  → 等待 ${desc} (超时 ${timeout}s)...${NC}"
+    if [ -x "$WAIT_SVC" ]; then
+        if "$WAIT_SVC" "$type" "$pattern" "$timeout"; then
+            echo -e "${GREEN}    ✓ ${desc} 就绪${NC}"
+            return 0
+        else
+            echo -e "${YELLOW}    ⚠ ${desc} 超时，继续...${NC}"
+            return 1
+        fi
+    else
+        echo -e "${YELLOW}    wait_for_service.sh 不可用，sleep ${timeout}s${NC}"
+        sleep "$timeout"
+        return 0
+    fi
+}
+
+# 在 terminator 新标签页中启动节点
+# 每个标签页先 cd 到工作空间根目录，再 source ROS 2 + install/setup.bash
 launch() {
     local title="$1" cmd="$2"
-    local full="cd ${WS} && ${source_env} && ${cmd}"
+    local full
+    full="export LD_LIBRARY_PATH=\"\$HOME/.local/lib/python3.10/site-packages/torch/lib:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/aubocontroller:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/log4cplus:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/config:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/protobuf:\$LD_LIBRARY_PATH\" && cd \"${WS}\" && source \"${ROS2_SETUP}\" && source install/setup.bash && ${cmd}; exec bash"
     "$TERMINATOR" --new-tab --title="$title" \
-        -e "bash -c '${full}; exec bash'" &
-    sleep 0.5
+        -e "bash -c '${full}'" &
 }
+
+# 代理处理 (本机 Web 不走代理)
+WEB_DASH_NO_PROXY_EXPORT='export NO_PROXY="127.0.0.1,localhost,0.0.0.0,::1${NO_PROXY:+,${NO_PROXY}}"; export no_proxy="$NO_PROXY"; '
+if [ "${IVG_STRIP_PROXY_FOR_DASH_LAUNCH}" = "true" ]; then
+    WEB_DASH_UNSET_PROXY="unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY all_proxy FTP_PROXY ftp_proxy; ${WEB_DASH_NO_PROXY_EXPORT}"
+else
+    WEB_DASH_UNSET_PROXY="${WEB_DASH_NO_PROXY_EXPORT}"
+fi
 
 # ═══════════════════════════════════════════════════════════════
 # 预检
@@ -97,144 +156,209 @@ if [ -z "$TERMINATOR" ]; then
     echo -e "${RED}未找到 terminator, sudo apt install terminator${NC}"; exit 1
 fi
 
-# ---- 清理旧进程 ----
+if [ ! -f "$ROS2_SETUP" ]; then
+    echo -e "${RED}未找到 ROS 2 安装: ${ROS2_SETUP}${NC}"
+    echo -e "${RED}请先安装 ROS 2 ${ROS_DISTRO}: sudo apt install ros-${ROS_DISTRO}-desktop${NC}"
+    exit 1
+fi
+
+if [ ! -f "${WS}/install/setup.bash" ]; then
+    echo -e "${YELLOW}首次运行: install/setup.bash 不存在${NC}"
+    FIRST_BUILD=1
+else
+    FIRST_BUILD=0
+fi
+
+# ═══════════════════════════════════════════════════════════════
+# 清理旧进程（首次启动前执行，与 trap 共享同一清理逻辑）
+# ═══════════════════════════════════════════════════════════════
 echo -e "${YELLOW}清理旧进程...${NC}"
-# rosbridge / rosapi (端口冲突最常见)
-pkill -f rosbridge_websocket 2>/dev/null || true
-pkill -f rosapi_node 2>/dev/null || true
-# AUBO 旧驱动（已移除旧框架源码，保留清理以防残留进程）
-pkill -f aubo_driver_ros2 2>/dev/null || true
-pkill -f aubo_state_broadcaster 2>/dev/null || true
-pkill -f aubo_dashboard_node 2>/dev/null || true
-pkill -f joint_trajectory_controller 2>/dev/null || true
-# ros2_control 仿真残留
-pkill -f ros2_control_node 2>/dev/null || true
-pkill -f controller_manager 2>/dev/null || true
-# move_group / rviz
-pkill -f move_group 2>/dev/null || true
-pkill -f rviz2 2>/dev/null || true
-# web 网关 / rosbag
-pkill -f rosbridge_websocket 2>/dev/null || true
-pkill -f web_video_server 2>/dev/null || true
-pkill -f 'uvicorn.*8090' 2>/dev/null || true
-pkill -f ros2.bag 2>/dev/null || true
-sleep 1
-echo -e "${GREEN}  ✓ 清理完成${NC}"
+cleanup
 
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}IVG 完整启动 (新框架机械臂)${NC}"
 echo -e "${GREEN}========================================${NC}"
+echo -e "${BLUE}工作空间: ${WS}${NC}"
 echo -e "${BLUE}机器人 IP: ${AUBO_IP}${NC}"
-echo -e "${BLUE}模式探测由 launch 文件自动完成${NC}"
+echo -e "${BLUE}ROS 版本: ${ROS_DISTRO}${NC}"
 echo ""
 
 # ═══════════════════════════════════════════════════════════════
-# 构建
+# [0] 构建
 # ═══════════════════════════════════════════════════════════════
-echo -e "${GREEN}[0/16] 构建...${NC}"
-( cd "$WS" && eval "$source_env" && colcon build )
-echo -e "${GREEN}  ✓ 构建完成${NC}"
-if [ -x "$ROBOTWEBTOOLS_BUILD_SCRIPT" ]; then
-    echo -e "${GREEN}  → 导出 RobotWebTools 产物${NC}"
-    ( cd "$ROBOTWEBTOOLS_ROOT" && bash "$ROBOTWEBTOOLS_BUILD_SCRIPT" )
+
+if [ "$SKIP_BUILD" = "1" ]; then
+    echo -e "${YELLOW}[0] 跳过构建 (SKIP_BUILD=1)${NC}"
+else
+    echo -e "${GREEN}[0] 构建...${NC}"
+    (
+        cd "$WS"
+        source "$ROS2_SETUP"
+        if [ "$FIRST_BUILD" = "0" ]; then
+            source install/setup.bash
+        fi
+        colcon build
+    )
+    echo -e "${GREEN}  ✓ 构建完成${NC}"
+
+    if [ -x "${WS}/${ROBOTWEBTOOLS_BUILD_SCRIPT}" ]; then
+        echo -e "${GREEN}  → 导出 RobotWebTools 产物${NC}"
+        ( cd "$WS" && bash "$ROBOTWEBTOOLS_BUILD_SCRIPT" )
+    fi
 fi
 
 # ═══════════════════════════════════════════════════════════════
-# [1/16] 新框架机械臂
-# launch 文件自动 TCP 探测 → 选择真实硬件 / ros2_control 仿真
+# [1] 机械臂核心 (MoveIt2 + Dashboard + StateBroadcaster + JTC)
 # ═══════════════════════════════════════════════════════════════
 
-echo -e "${GREEN}[1/16] 新框架机械臂 (Controller + Dashboard + StateBroadcaster + MoveIt2)...${NC}"
-launch "Aubo New Driver" "ros2 launch aubo_moveit_config aubo_new_driver.launch.py server_host:=${AUBO_IP}"
-sleep 5
+echo -e "${GREEN}[1] 机械臂核心 (Controller + Dashboard + StateBroadcaster + MoveIt2)...${NC}"
+launch "Aubo Driver" "ros2 launch aubo_moveit_config aubo_new_driver.launch.py server_host:=${AUBO_IP}"
 
-# Dashboard 生命周期激活 (真实硬件模式时需要; 仿真模式 Dashboard 不存在, 激活失败自动跳过)
-( cd "$WS" && eval "$source_env" && sleep 3 && \
-  ros2 lifecycle set /aubo_dashboard configure 2>/dev/null && \
-  ros2 lifecycle set /aubo_dashboard activate 2>/dev/null ) || true
-echo -e "${GREEN}  ✓ 新框架机械臂已启动${NC}"
-sleep 3
+# Dashboard 生命周期激活（后台轮询节点就绪后激活，不阻塞）
+(
+    cd "$WS"
+    source "$ROS2_SETUP"
+    source install/setup.bash
+    echo "[dashboard] 等待 /aubo_dashboard 节点就绪..." >&2
+    while ! ros2 node list 2>/dev/null | grep -q "/aubo_dashboard"; do
+        sleep 0.5
+    done
+    echo "[dashboard] 节点就绪，激活生命周期..." >&2
+    ros2 lifecycle set /aubo_dashboard configure 2>/dev/null || true
+    ros2 lifecycle set /aubo_dashboard activate 2>/dev/null || true
+    echo "[dashboard] 生命周期激活完成" >&2
+) &
+
+# 等待 MoveIt2 就绪（move_group 是后续所有步骤的基础依赖）
+active_wait node "/move_group" 30 "move_group"
 
 # ═══════════════════════════════════════════════════════════════
-# 以下步骤 2-16 与 legacy 脚本保持一致
+# [2] Demo Driver 服务 (依赖 move_group)
 # ═══════════════════════════════════════════════════════════════
 
-echo -e "${GREEN}[2/16] Demo Driver 服务...${NC}"
+echo -e "${GREEN}[2] Demo Driver 服务...${NC}"
 launch "Robot Driver" "ros2 launch aubo_moveit_config demo_driver_services.launch.py"
-sleep 3
+active_wait service "/execute_trajectory" 20 "execute_trajectory 服务"
 
-echo -e "${GREEN}[3/16] 相机节点...${NC}"
-launch "Percipio Camera" "ros2 launch percipio_camera percipio_camera.launch.py"
-sleep 5
+# ═══════════════════════════════════════════════════════════════
+# [15] IVG Web 网关 (提前启动 — 仅依赖 build 产物，与相机/视觉并行)
+# ═══════════════════════════════════════════════════════════════
 
-echo -e "${GREEN}[4/16] 相机控制...${NC}"
-launch "Camera Control" "ros2 launch percipio_camera_interface camera_control.launch.py"
-sleep 2
-
-echo -e "${GREEN}[5/16] 图像桥接...${NC}"
-launch "Image Bridge" "ros2 launch image_data_bridge image_data_bridge.launch.py input_image_topic:=/camera/color/image_raw"
-sleep 2
-
-echo -e "${GREEN}[6/16] 手眼标定...${NC}"
-launch "Hand Eye" "ros2 launch hand_eye_calibration hand_eye_calibration_launch.py"
-sleep 2
-
-echo -e "${GREEN}[7/16] 视觉姿态估计...${NC}"
-launch "VPE" "export PATH=\"/usr/bin:\$PATH\" && ros2 launch visual_pose_estimation_python visual_pose_estimation_python.launch.py"
-sleep 2
-
-echo -e "${GREEN}[8/16] GraspNet 点云...${NC}"
-launch "GraspNet" "ros2 launch graspnet_ros2 graspnet_demo_points_with_tf.launch.py launch_camera:=false launch_hand_eye_tf:=true"
-sleep 2
-
-echo -e "${GREEN}[9/16] 抓取 Worker...${NC}"
-launch "Grasp Worker" "ros2 launch demo_driver execute_grasp_pose_worker.launch.py"
-sleep 2
-
-echo -e "${GREEN}[10/16] 夹爪快换...${NC}"
-launch "Tool Changer" "ros2 launch tool_changer gripper_swap_worker.launch.py"
-sleep 2
-
-echo -e "${GREEN}[11/16] 咖啡拉花...${NC}"
-launch "Coffee Latte" "ros2 launch coffee_latte_demo coffee_latte_demo.launch.py"
-sleep 2
-
-echo -e "${GREEN}[12/16] FastAPI Web + IVG 网关...${NC}"
-launch "FastAPI Web" "ros2 launch visual_pose_estimation_python visual_pose_estimation_web.launch.py host:=${WEB_HOST} port:=${WEB_PORT} reload:=${IVG_WEB_RELOAD}"
-sleep 3
-
+echo -e "${GREEN}[15] IVG Web 网关...${NC}"
 WEB_DASH_PC_WEB_ARGS=""
 if [ "${IVG_INCLUDE_POINTCLOUD_WEB_BRIDGE}" = "true" ]; then
     WEB_DASH_PC_WEB_ARGS=" include_pointcloud_web_bridge:=true pointcloud_web_max_points:=${IVG_POINTCLOUD_WEB_MAX_POINTS}"
 fi
 WEB_DASH_CMD="${WEB_DASH_UNSET_PROXY}ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_host:=${WEB_DASH_HOST} web_port:=${WEB_DASH_PORT} rosbridge_port:=${ROSBRIDGE_PORT} web_video_port:=${WEB_VIDEO_PORT} robotwebtools_assets_dir:=${ROBOTWEBTOOLS_ASSETS_DIR}${WEB_DASH_PC_WEB_ARGS}"
 launch "IVG Web Dashboard" "${WEB_DASH_CMD}"
-sleep 2
 
-echo -e "${GREEN}[13/16] rosbag 录制...${NC}"
-mkdir -p "$(dirname "$IVG_ROSBAG_DIR")"
-rm -rf "$IVG_ROSBAG_DIR"
-if [ -n "$IVG_ROSBAG_TOPICS" ]; then
-    launch "ROS2 Bag" "ros2 bag record -o \"$IVG_ROSBAG_DIR\" $IVG_ROSBAG_TOPICS"
+# ═══════════════════════════════════════════════════════════════
+# [16] rosbag 录制 (提前启动 — 仅需 ROS 2 运行，尽早开始录制)
+# ═══════════════════════════════════════════════════════════════
+
+if [ "$SKIP_ROSBAG" = "1" ]; then
+    echo -e "${YELLOW}[16] 跳过 rosbag 录制 (SKIP_ROSBAG=1)${NC}"
 else
-    launch "ROS2 Bag" "ros2 bag record -o \"$IVG_ROSBAG_DIR\" -a"
+    echo -e "${GREEN}[16] rosbag 录制...${NC}"
+    mkdir -p "$(dirname "${WS}/${IVG_ROSBAG_DIR}")"
+    rm -rf "${WS}/${IVG_ROSBAG_DIR}"
+    if [ -n "$IVG_ROSBAG_TOPICS" ]; then
+        launch "ROS2 Bag" "ros2 bag record -o \"${IVG_ROSBAG_DIR}\" ${IVG_ROSBAG_TOPICS}"
+    else
+        launch "ROS2 Bag" "ros2 bag record -o \"${IVG_ROSBAG_DIR}\" -a"
+    fi
 fi
-sleep 1
+
+# ═══════════════════════════════════════════════════════════════
+# [3-5] 相机栈 (并行启动，减少串行等待)
+# ═══════════════════════════════════════════════════════════════
+
+echo -e "${GREEN}[3] 相机节点...${NC}"
+launch "Percipio Camera" "ros2 launch percipio_camera percipio_camera.launch.py"
+
+echo -e "${GREEN}[4] 相机控制...${NC}"
+launch "Camera Control" "ros2 launch percipio_camera camera_control.launch.py"
+
+echo -e "${GREEN}[5] 图像桥接...${NC}"
+launch "Image Bridge" "ros2 launch image_data_bridge image_data_bridge.launch.py input_image_topic:=/camera/color/image_raw"
+
+active_wait topic "/camera/color/image_raw" 15 "相机图像话题"
+active_wait topic "/camera_status" 10 "相机状态话题"
+
+# ═══════════════════════════════════════════════════════════════
+# [6-7] 视觉栈 (并行启动)
+# ═══════════════════════════════════════════════════════════════
+
+echo -e "${GREEN}[6] 手眼标定...${NC}"
+launch "Hand Eye" "ros2 launch hand_eye_calibration hand_eye_calibration_launch.py"
+
+echo -e "${GREEN}[7] 视觉姿态估计...${NC}"
+launch "VPE" "export PATH=\"/usr/bin:\$PATH\" && ros2 launch visual_pose_estimation_python visual_pose_estimation_python.launch.py"
+
+active_wait service "/estimate_pose" 15 "estimate_pose 服务"
+
+# ═══════════════════════════════════════════════════════════════
+# [14] FastAPI Web (提前启动 — 依赖 estimate_pose，与 GraspNet/Workers 并行)
+# ═══════════════════════════════════════════════════════════════
+
+echo -e "${GREEN}[14] FastAPI Web...${NC}"
+launch "FastAPI Web" "ros2 launch visual_pose_estimation_python visual_pose_estimation_web.launch.py host:=${WEB_HOST} port:=${WEB_PORT} reload:=${IVG_WEB_RELOAD}"
+
+# ═══════════════════════════════════════════════════════════════
+# [8] GraspNet (依赖相机点云 + 手眼标定 TF)
+# ═══════════════════════════════════════════════════════════════
+
+echo -e "${GREEN}[8] GraspNet 点云...${NC}"
+launch "GraspNet" "ros2 launch graspnet_ros2 graspnet_demo_points_with_tf.launch.py launch_camera:=false launch_hand_eye_tf:=true"
+active_wait topic "/grasp_poses_base" 20 "grasp_poses_base 话题"
+
+# ═══════════════════════════════════════════════════════════════
+# [9-12] 工位与执行 (并行启动)
+# ═══════════════════════════════════════════════════════════════
+
+echo -e "${GREEN}[9] 抓取 Worker...${NC}"
+launch "Grasp Worker" "ros2 launch demo_driver execute_grasp_pose_worker.launch.py"
+
+echo -e "${GREEN}[10] 夹爪快换...${NC}"
+launch "Tool Changer" "ros2 launch tool_changer gripper_swap_worker.launch.py"
+
+echo -e "${GREEN}[11] 咖啡拉花...${NC}"
+launch "Coffee Latte" "ros2 launch coffee_latte_demo coffee_latte_demo.launch.py"
+
+echo -e "${GREEN}[12] GraspNet 循环抓取...${NC}"
+launch "Publish Grasps" "ros2 run demo_driver publish_grasps_client_worker_node"
+
+# 等待关键服务就绪
+active_wait service "/run_gripper_swap" 10 "run_gripper_swap 服务"
+active_wait service "/change_tool" 5   "change_tool 服务"
+active_wait service "/set_latte_do2" 5 "set_latte_do2 服务"
+
+# ═══════════════════════════════════════════════════════════════
+# [13] 综合校验 (ROS 服务 + Web 健康检查)
+# ═══════════════════════════════════════════════════════════════
+
+echo -e "${GREEN}[13] 综合校验...${NC}"
+(
+    cd "$WS"
+    source "$ROS2_SETUP"
+    source install/setup.bash
+    echo -e "${BLUE}──────── 已注册服务 ────────${NC}"
+    ros2 service list | grep -E '/estimate_pose|/list_templates|/graspnet_capture_control|/publish_grasps_worker_loop_control|/loop_grasp_control|/run_gripper_swap|/set_latte_do2|/set_latte_do4|/change_tool|/get_current_tool' || true
+    echo -e "${GREEN}  ✓ 服务校验完成${NC}"
+)
+
+# 等待提前启动的 Web 服务就绪
+active_wait http "http://${WEB_HOST}:${WEB_PORT}/health" 30 "FastAPI /health"
+active_wait http "http://127.0.0.1:${WEB_DASH_PORT}/health" 20 "Web Dashboard /health"
+
+# ═══════════════════════════════════════════════════════════════
+# 完成
+# ═══════════════════════════════════════════════════════════════
 
 echo ""
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}启动完成 (新框架机械臂 + IVG 全家桶)${NC}"
+echo -e "${GREEN}  IVG 启动完成！${NC}"
 echo -e "${GREEN}========================================${NC}"
-echo ""
-
-echo -e "${BLUE}机械臂数据流:${NC}"
-echo -e "  MoveIt2 → Action → JointTrajectoryController → HardwareInterface → 机器人"
-echo -e "  joint_states ← StateBroadcaster (RoadPoint + JointStatus 回调)"
-echo -e "  SDK 全功能 ← Dashboard (20 ROS2 服务)"
-echo ""
-
 ivg_print_access_urls
-
 echo ""
-trap 'echo -e "\n${YELLOW}脚本退出, 节点继续运行${NC}"; exit 0' INT
-while true; do sleep 1; done
+echo -e "${YELLOW}提示: 在 terminator 各标签页中查看组件日志喵~${NC}"

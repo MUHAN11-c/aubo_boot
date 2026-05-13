@@ -7,8 +7,8 @@ from std_srvs.srv import SetBool
 
 # 通过 demo_interface 调用 Aubo 驱动 IO
 try:
-    from demo_interface.srv import SetRobotIO
-    from demo_interface.msg import RobotIOStatus
+    from ivg_interfaces.srv import SetRobotIO
+    from ivg_interfaces.msg import RobotIOStatus
     HAS_DRIVER_IFACE = True
 except ImportError:
     SetRobotIO = None

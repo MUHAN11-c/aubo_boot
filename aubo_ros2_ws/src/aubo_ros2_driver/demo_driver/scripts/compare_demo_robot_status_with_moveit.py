@@ -22,7 +22,7 @@ import rclpy
 from rclpy.node import Node
 
 from geometry_msgs.msg import Pose, PoseStamped
-from demo_interface.msg import RobotStatus
+from ivg_interfaces.msg import RobotStatus
 
 
 def quat_to_rpy(q):
@@ -52,14 +52,15 @@ class RobotVsMoveItPoseMonitor(Node):
         # 参数
         self.declare_parameter("robot_status_topic", "/aubo_driver/robot_status")
         self.declare_parameter("moveit_pose_topic", "/moveit2_tcp_pose")
-        self.declare_parameter(
-            "log_file",
-            "/home/mu/IVG2.0/aubo_ros2_ws/src/aubo_ros2_driver/demo_driver/scripts/robot_vs_moveit_pose.csv",
-        )
+        self.declare_parameter("log_file", "")
 
         robot_status_topic = self.get_parameter("robot_status_topic").value
         moveit_pose_topic = self.get_parameter("moveit_pose_topic").value
         self.log_file = self.get_parameter("log_file").value
+        if not self.log_file:
+            self.log_file = os.path.join(
+                os.path.dirname(os.path.realpath(__file__)), "robot_vs_moveit_pose.csv"
+            )
 
         # 确保日志目录存在
         log_dir = os.path.dirname(self.log_file)

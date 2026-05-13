@@ -1,9 +1,0 @@
-# 单轴直线运动
-geometry_msgs/Pose target_pose       # 目标位姿基线（在 move_axis 指定的轴上偏移）
-float32 velocity_factor              # 速度倍率（0.0~1.0）
-float32 acceleration_factor          # 加速度倍率（0.0~1.0）
-string move_axis                     # 运动轴，仅支持 "x" / "y" / "z"，每次调用只移动该轴
----
-bool success      # 运动是否成功
-int32 error_code  # 错误码（0=成功）
-string message    # 状态消息或错误信息

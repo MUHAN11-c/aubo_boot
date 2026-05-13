@@ -12,9 +12,9 @@ import cv2
 import numpy as np
 import rclpy
 from cv_bridge import CvBridge
-from demo_interface.srv import ExecuteGraspPose
-from tool_changer_interface.srv import RunGripperSwap
-from interface.srv import EstimatePose, EstimatePose2D, ListTemplates, StandardizeTemplate, UpdateParams
+from ivg_interfaces.srv import ExecuteGraspPose
+from ivg_interfaces.srv import RunGripperSwap
+from ivg_interfaces.srv import EstimatePose, EstimatePose2D, ListTemplates, StandardizeTemplate, UpdateParams
 from rclpy.node import Node
 from sensor_msgs.msg import Image as SensorImage
 from std_srvs.srv import SetBool
@@ -36,8 +36,8 @@ except ImportError:
     ConfigReader = None
 
 try:
-    from percipio_camera_interface.msg import ImageData
-    from percipio_camera_interface.srv import SoftwareTrigger
+    from ivg_interfaces.msg import ImageData
+    from ivg_interfaces.srv import SoftwareTrigger
 
     CAMERA_AVAILABLE = True
 except ImportError:
@@ -46,8 +46,8 @@ except ImportError:
     SoftwareTrigger = None
 
 try:
-    from demo_interface.msg import RobotStatus
-    from demo_interface.srv import MoveToPose, SetRobotIO
+    from ivg_interfaces.msg import RobotStatus
+    from ivg_interfaces.srv import MoveToPose, SetRobotIO
 
     ROBOT_AVAILABLE = True
 except ImportError:
@@ -232,7 +232,7 @@ class ROS2Node(Node):
                 return (
                     None,
                     None,
-                    "相机服务未运行，请先启动camera_control_node节点（ros2 launch percipio_camera_interface camera_control.launch.py）",
+                    "相机服务未运行，请先启动camera_control_node节点（ros2 launch percipio_camera camera_control.launch.py）",
                 )
 
             with self.image_lock:

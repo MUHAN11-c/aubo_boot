@@ -9,7 +9,7 @@
 #define DEMO_DRIVER_SET_ROBOT_ENABLE_SERVER_H_
 
 #include <rclcpp/rclcpp.hpp>
-#include <demo_interface/srv/set_robot_enable.hpp>
+#include <ivg_interfaces/srv/set_robot_enable.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <string>
@@ -35,12 +35,12 @@ private:
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr robot_control_pub_;  // 发布机器人控制命令
 
     // 服务服务器
-    rclcpp::Service<demo_interface::srv::SetRobotEnable>::SharedPtr set_robot_enable_service_;  // 设置机器人使能服务
+    rclcpp::Service<ivg_interfaces::srv::SetRobotEnable>::SharedPtr set_robot_enable_service_;  // 设置机器人使能服务
 
     // 服务回调函数
     void setRobotEnableCallback(
-        const std::shared_ptr<demo_interface::srv::SetRobotEnable::Request> req,
-        std::shared_ptr<demo_interface::srv::SetRobotEnable::Response> res);
+        const std::shared_ptr<ivg_interfaces::srv::SetRobotEnable::Request> req,
+        std::shared_ptr<ivg_interfaces::srv::SetRobotEnable::Response> res);
 
     // 辅助函数
     bool setRobotEnable(bool enable, int32_t& error_code, std::string& message);

@@ -38,16 +38,16 @@
 #include "aubo_driver_ros2/serviceinterface.h"
 
 // 自定义服务类型
-#include <demo_interface/srv/set_robot_io.hpp>
-#include <demo_interface/srv/move_joint.hpp>
-#include <demo_interface/srv/move_line.hpp>
-#include <demo_interface/srv/teach_start.hpp>
-#include <demo_interface/srv/set_collision_class.hpp>
-#include <demo_interface/srv/set_tool_kinematics.hpp>
-#include <demo_interface/srv/set_tool_voltage.hpp>
-#include <aubo_msgs/srv/get_fk.hpp>
-#include <aubo_msgs/srv/get_ik.hpp>
-#include <aubo_msgs/srv/set_payload.hpp>
+#include <ivg_interfaces/srv/set_robot_io.hpp>
+#include <ivg_interfaces/srv/move_joint.hpp>
+#include <ivg_interfaces/srv/move_line.hpp>
+#include <ivg_interfaces/srv/teach_start.hpp>
+#include <ivg_interfaces/srv/set_collision_class.hpp>
+#include <ivg_interfaces/srv/set_tool_kinematics.hpp>
+#include <ivg_interfaces/srv/set_tool_voltage.hpp>
+#include <ivg_interfaces/srv/get_fk.hpp>
+#include <ivg_interfaces/srv/get_ik.hpp>
+#include <ivg_interfaces/srv/set_payload.hpp>
 
 namespace aubo_driver {
 
@@ -120,16 +120,16 @@ private:
     // ================================================================
 
     /** 关节运动: robotServiceJointMove */
-    void onMoveJoint(const std::shared_ptr<demo_interface::srv::MoveJoint::Request> req,
-                     std::shared_ptr<demo_interface::srv::MoveJoint::Response> resp);
+    void onMoveJoint(const std::shared_ptr<ivg_interfaces::srv::MoveJoint::Request> req,
+                     std::shared_ptr<ivg_interfaces::srv::MoveJoint::Response> resp);
 
     /** 直线运动: robotServiceLineMove */
-    void onMoveLine(const std::shared_ptr<demo_interface::srv::MoveLine::Request> req,
-                    std::shared_ptr<demo_interface::srv::MoveLine::Response> resp);
+    void onMoveLine(const std::shared_ptr<ivg_interfaces::srv::MoveLine::Request> req,
+                    std::shared_ptr<ivg_interfaces::srv::MoveLine::Response> resp);
 
     /** 进入教学模式 */
-    void onTeachStart(const std::shared_ptr<demo_interface::srv::TeachStart::Request> req,
-                      std::shared_ptr<demo_interface::srv::TeachStart::Response> resp);
+    void onTeachStart(const std::shared_ptr<ivg_interfaces::srv::TeachStart::Request> req,
+                      std::shared_ptr<ivg_interfaces::srv::TeachStart::Response> resp);
 
     /** 退出教学模式 */
     void onTeachStop(const std::shared_ptr<std_srvs::srv::Trigger::Request> req,
@@ -141,40 +141,40 @@ private:
 
     /** 设置碰撞等级 */
     void onSetCollisionClass(
-        const std::shared_ptr<demo_interface::srv::SetCollisionClass::Request> req,
-        std::shared_ptr<demo_interface::srv::SetCollisionClass::Response> resp);
+        const std::shared_ptr<ivg_interfaces::srv::SetCollisionClass::Request> req,
+        std::shared_ptr<ivg_interfaces::srv::SetCollisionClass::Response> resp);
 
     /** 设置工具动力学参数 (payload) */
     void onSetPayload(
-        const std::shared_ptr<aubo_msgs::srv::SetPayload::Request> req,
-        std::shared_ptr<aubo_msgs::srv::SetPayload::Response> resp);
+        const std::shared_ptr<ivg_interfaces::srv::SetPayload::Request> req,
+        std::shared_ptr<ivg_interfaces::srv::SetPayload::Response> resp);
 
     /** 设置工具运动学参数 (TCP) */
     void onSetToolKinematics(
-        const std::shared_ptr<demo_interface::srv::SetToolKinematics::Request> req,
-        std::shared_ptr<demo_interface::srv::SetToolKinematics::Response> resp);
+        const std::shared_ptr<ivg_interfaces::srv::SetToolKinematics::Request> req,
+        std::shared_ptr<ivg_interfaces::srv::SetToolKinematics::Response> resp);
 
     /** 设置工具电源电压 */
     void onSetToolVoltage(
-        const std::shared_ptr<demo_interface::srv::SetToolVoltage::Request> req,
-        std::shared_ptr<demo_interface::srv::SetToolVoltage::Response> resp);
+        const std::shared_ptr<ivg_interfaces::srv::SetToolVoltage::Request> req,
+        std::shared_ptr<ivg_interfaces::srv::SetToolVoltage::Response> resp);
 
     // ================================================================
     // IO 控制服务
     // ================================================================
 
-    void onSetIO(const std::shared_ptr<demo_interface::srv::SetRobotIO::Request> req,
-                 std::shared_ptr<demo_interface::srv::SetRobotIO::Response> resp);
+    void onSetIO(const std::shared_ptr<ivg_interfaces::srv::SetRobotIO::Request> req,
+                 std::shared_ptr<ivg_interfaces::srv::SetRobotIO::Response> resp);
 
     // ================================================================
     // 运动学服务 (Kinematics)
     // ================================================================
 
-    void onGetFK(const std::shared_ptr<aubo_msgs::srv::GetFK::Request> req,
-                 std::shared_ptr<aubo_msgs::srv::GetFK::Response> resp);
+    void onGetFK(const std::shared_ptr<ivg_interfaces::srv::GetFK::Request> req,
+                 std::shared_ptr<ivg_interfaces::srv::GetFK::Response> resp);
 
-    void onGetIK(const std::shared_ptr<aubo_msgs::srv::GetIK::Request> req,
-                 std::shared_ptr<aubo_msgs::srv::GetIK::Response> resp);
+    void onGetIK(const std::shared_ptr<ivg_interfaces::srv::GetIK::Request> req,
+                 std::shared_ptr<ivg_interfaces::srv::GetIK::Response> resp);
 
     // ================================================================
     // 诊断服务 (Diagnostics)
@@ -221,17 +221,17 @@ private:
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr srv_stop_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr srv_fast_stop_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr srv_collision_recover_;
-    rclcpp::Service<demo_interface::srv::MoveJoint>::SharedPtr srv_move_joint_;
-    rclcpp::Service<demo_interface::srv::MoveLine>::SharedPtr srv_move_line_;
-    rclcpp::Service<demo_interface::srv::TeachStart>::SharedPtr srv_teach_start_;
+    rclcpp::Service<ivg_interfaces::srv::MoveJoint>::SharedPtr srv_move_joint_;
+    rclcpp::Service<ivg_interfaces::srv::MoveLine>::SharedPtr srv_move_line_;
+    rclcpp::Service<ivg_interfaces::srv::TeachStart>::SharedPtr srv_teach_start_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr srv_teach_stop_;
-    rclcpp::Service<demo_interface::srv::SetCollisionClass>::SharedPtr srv_set_collision_class_;
-    rclcpp::Service<aubo_msgs::srv::SetPayload>::SharedPtr srv_set_payload_;
-    rclcpp::Service<demo_interface::srv::SetToolKinematics>::SharedPtr srv_set_tool_kinematics_;
-    rclcpp::Service<demo_interface::srv::SetToolVoltage>::SharedPtr srv_set_tool_voltage_;
-    rclcpp::Service<demo_interface::srv::SetRobotIO>::SharedPtr srv_set_io_;
-    rclcpp::Service<aubo_msgs::srv::GetFK>::SharedPtr srv_get_fk_;
-    rclcpp::Service<aubo_msgs::srv::GetIK>::SharedPtr srv_get_ik_;
+    rclcpp::Service<ivg_interfaces::srv::SetCollisionClass>::SharedPtr srv_set_collision_class_;
+    rclcpp::Service<ivg_interfaces::srv::SetPayload>::SharedPtr srv_set_payload_;
+    rclcpp::Service<ivg_interfaces::srv::SetToolKinematics>::SharedPtr srv_set_tool_kinematics_;
+    rclcpp::Service<ivg_interfaces::srv::SetToolVoltage>::SharedPtr srv_set_tool_voltage_;
+    rclcpp::Service<ivg_interfaces::srv::SetRobotIO>::SharedPtr srv_set_io_;
+    rclcpp::Service<ivg_interfaces::srv::GetFK>::SharedPtr srv_get_fk_;
+    rclcpp::Service<ivg_interfaces::srv::GetIK>::SharedPtr srv_get_ik_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr srv_get_robot_info_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr srv_get_joint_status_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr srv_get_safety_config_;

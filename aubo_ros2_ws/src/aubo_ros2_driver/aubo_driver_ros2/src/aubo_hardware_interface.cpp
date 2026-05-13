@@ -264,7 +264,7 @@ bool AuboHardwareInterface::readSafetyIOStatus(
 }
 
 bool AuboHardwareInterface::readFullIOStatus(
-    demo_interface::msg::RobotIOStatus& io_msg)
+    ivg_interfaces::msg::RobotIOStatus& io_msg)
 {
     if (!connected_) return false;
 

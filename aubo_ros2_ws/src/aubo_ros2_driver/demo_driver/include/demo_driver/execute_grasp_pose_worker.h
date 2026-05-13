@@ -20,8 +20,8 @@
 #include <geometry_msgs/msg/quaternion.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <std_srvs/srv/set_bool.hpp>
-#include <demo_interface/srv/execute_grasp_pose.hpp>
-#include <interface/srv/estimate_pose.hpp>
+#include <ivg_interfaces/srv/execute_grasp_pose.hpp>
+#include <ivg_interfaces/srv/estimate_pose.hpp>
 
 namespace demo_driver
 {
@@ -98,8 +98,8 @@ private:
    * 单次抓取服务回调
    */
   void handleExecuteSingleGrasp(
-      const std::shared_ptr<demo_interface::srv::ExecuteGraspPose::Request> request,
-      std::shared_ptr<demo_interface::srv::ExecuteGraspPose::Response> response);
+      const std::shared_ptr<ivg_interfaces::srv::ExecuteGraspPose::Request> request,
+      std::shared_ptr<ivg_interfaces::srv::ExecuteGraspPose::Response> response);
 
   /**
    * 循环抓取控制服务回调
@@ -156,10 +156,10 @@ private:
   std::string object_id_;
 
   // 服务
-  rclcpp::Service<demo_interface::srv::ExecuteGraspPose>::SharedPtr execute_single_grasp_service_;
+  rclcpp::Service<ivg_interfaces::srv::ExecuteGraspPose>::SharedPtr execute_single_grasp_service_;
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr loop_grasp_control_service_;
   rclcpp::CallbackGroup::SharedPtr service_cb_group_;
-  rclcpp::Client<interface::srv::EstimatePose>::SharedPtr estimate_pose_client_;
+  rclcpp::Client<ivg_interfaces::srv::EstimatePose>::SharedPtr estimate_pose_client_;
   /** 独立 Reentrant 组：在 /execute_single_grasp 回调内 async 调用 /estimate_pose 时，响应可在另一线程完成 future */
   rclcpp::CallbackGroup::SharedPtr estimate_pose_client_cb_group_;
 

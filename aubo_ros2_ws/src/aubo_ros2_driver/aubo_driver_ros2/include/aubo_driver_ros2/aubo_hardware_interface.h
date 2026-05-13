@@ -30,7 +30,7 @@
 #include <functional>
 
 #include <rclcpp/rclcpp.hpp>
-#include <demo_interface/msg/robot_io_status.hpp>
+#include <ivg_interfaces/msg/robot_io_status.hpp>
 
 #include "aubo_driver_ros2/AuboRobotMetaType.h"
 #include "aubo_driver_ros2/serviceinterface.h"
@@ -198,7 +198,7 @@ public:
      * @param io_msg[out] 输出 IO 状态消息引用
      * @return true 读取成功
      */
-    bool readFullIOStatus(demo_interface::msg::RobotIOStatus& io_msg);
+    bool readFullIOStatus(ivg_interfaces::msg::RobotIOStatus& io_msg);
 
     /**
      * 设置接口板 IO 输出。

@@ -12,7 +12,7 @@
 #include <moveit/robot_state/robot_state.h>
 #include <moveit/robot_state/conversions.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-#include <aubo_msgs/srv/get_fk.hpp>
+#include <ivg_interfaces/srv/get_fk.hpp>
 #include <Eigen/Geometry>
 #include <cmath>
 #include <thread>
@@ -53,10 +53,10 @@ GetCurrentStateServer::GetCurrentStateServer(const rclcpp::NodeOptions& options)
         std::bind(&GetCurrentStateServer::jointStatesCallback, this, std::placeholders::_1));
 
     // 初始化服务客户端
-    fk_client_ = this->create_client<aubo_msgs::srv::GetFK>("/aubo_driver/get_fk");
+    fk_client_ = this->create_client<ivg_interfaces::srv::GetFK>("/aubo_driver/get_fk");
 
     // 初始化服务服务器
-    get_current_state_service_ = this->create_service<demo_interface::srv::GetCurrentState>(
+    get_current_state_service_ = this->create_service<ivg_interfaces::srv::GetCurrentState>(
         "/get_current_state",
         std::bind(&GetCurrentStateServer::getCurrentStateCallback, this, std::placeholders::_1, std::placeholders::_2));
 }
@@ -213,8 +213,8 @@ void GetCurrentStateServer::jointStatesCallback(const sensor_msgs::msg::JointSta
  * @brief 服务回调函数
  */
 void GetCurrentStateServer::getCurrentStateCallback(
-    const std::shared_ptr<demo_interface::srv::GetCurrentState::Request> /* req */,
-    std::shared_ptr<demo_interface::srv::GetCurrentState::Response> res)
+    const std::shared_ptr<ivg_interfaces::srv::GetCurrentState::Request> /* req */,
+    std::shared_ptr<ivg_interfaces::srv::GetCurrentState::Response> res)
 {
     RCLCPP_INFO(this->get_logger(), "GetCurrentState request");
     
@@ -416,7 +416,7 @@ bool GetCurrentStateServer::getForwardKinematics(const std::vector<double>& join
     // 尝试使用 FK 服务
     if (fk_client_->service_is_ready())
     {
-        auto request = std::make_shared<aubo_msgs::srv::GetFK::Request>();
+        auto request = std::make_shared<ivg_interfaces::srv::GetFK::Request>();
         for (size_t i = 0; i < 6 && i < joint_positions.size(); ++i)
         {
             request->joint[i] = static_cast<float>(joint_positions[i]);

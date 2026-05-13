@@ -14,13 +14,13 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPo
 from sensor_msgs.msg import Image
 from std_msgs.msg import String
 from geometry_msgs.msg import Point, Quaternion
-from interface.srv import EstimatePose, EstimatePose2D, ListTemplates, StandardizeTemplate, UpdateParams
-from interface.msg import CartesianPosition
+from ivg_interfaces.srv import EstimatePose, EstimatePose2D, ListTemplates, StandardizeTemplate, UpdateParams
+from ivg_interfaces.msg import CartesianPosition
 from cv_bridge import CvBridge
 
 # 可选导入 - 机器人接口
 try:
-    from demo_interface.msg import RobotStatus
+    from ivg_interfaces.msg import RobotStatus
     ROBOT_AVAILABLE = True
 except ImportError:
     RobotStatus = None
@@ -497,9 +497,9 @@ class ROS2Communication:
         服务不可用时返回 False，不阻断后续仅订阅等待。
         """
         try:
-            from percipio_camera_interface.srv import SoftwareTrigger
+            from ivg_interfaces.srv import SoftwareTrigger
         except ImportError:
-            self.logger.info('未安装 percipio_camera_interface，跳过 SoftwareTrigger')
+            self.logger.info('未安装 ivg_interfaces (SoftwareTrigger)，跳过软件触发')
             return False
 
         if self._sw_trigger_client is None:

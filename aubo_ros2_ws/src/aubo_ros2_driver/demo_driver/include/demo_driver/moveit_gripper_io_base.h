@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 
-#include <demo_interface/srv/set_robot_io.hpp>
+#include <ivg_interfaces/srv/set_robot_io.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <moveit/move_group_interface/move_group_interface.h>
@@ -88,7 +88,7 @@ protected:
   static const int32_t kGripperIoIndex;      /**< 夹爪 IO 默认 pin：6 */
 
 private:
-  rclcpp::Client<demo_interface::srv::SetRobotIO>::SharedPtr aubo_set_io_client_;
+  rclcpp::Client<ivg_interfaces::srv::SetRobotIO>::SharedPtr aubo_set_io_client_;
 
   static const std::array<double, 6> kHomeJointsRad1;  /**< 回零关节角 (rad) */
   static const std::string kAuboSetIOService;          /**< Aubo SetIO 服务名 */

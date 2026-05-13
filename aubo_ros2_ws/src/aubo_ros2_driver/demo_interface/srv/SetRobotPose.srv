@@ -1,9 +1,0 @@
-# 设置机器人目标位姿（直接关节控制）
-float64[6] target_pose   # 目标关节角度（use_joints=true时）或 TCP 位姿
-bool use_joints           # true=使用关节角度 / false=使用笛卡尔位姿
-bool is_radian            # 角度单位（true=弧度 / false=度），仅在 use_joints=true 时有效
-float32 velocity          # 运动速度
----
-bool success      # 设置是否成功
-int32 error_code  # 错误码（0=成功）
-string message    # 状态消息或错误信息

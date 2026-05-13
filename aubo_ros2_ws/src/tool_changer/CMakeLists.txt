@@ -8,9 +8,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(tool_changer_interface REQUIRED)
-find_package(demo_interface REQUIRED)
-find_package(aubo_msgs REQUIRED)
+find_package(ivg_interfaces REQUIRED)
 find_package(moveit_core REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 find_package(moveit_msgs REQUIRED)
@@ -27,9 +25,7 @@ add_executable(gripper_swap_worker_node
 ament_target_dependencies(gripper_swap_worker_node
   rclcpp
   geometry_msgs
-  tool_changer_interface
-  demo_interface
-  aubo_msgs
+  ivg_interfaces
   moveit_msgs
   moveit_core
   moveit_ros_planning_interface
@@ -41,7 +37,7 @@ add_executable(scene_attach_worker_node
 )
 ament_target_dependencies(scene_attach_worker_node
   rclcpp
-  tool_changer_interface
+  ivg_interfaces
   moveit_msgs
   resource_retriever
   yaml_cpp_vendor

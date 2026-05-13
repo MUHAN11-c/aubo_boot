@@ -11,7 +11,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
-#include <demo_interface/srv/set_speed_factor.hpp>
+#include <ivg_interfaces/srv/set_speed_factor.hpp>
 #include <string>
 #include <memory>
 
@@ -38,12 +38,12 @@ private:
     std::shared_ptr<moveit::planning_interface::PlanningSceneInterface> planning_scene_interface_;  // 规划场景接口
 
     // 服务服务器
-    rclcpp::Service<demo_interface::srv::SetSpeedFactor>::SharedPtr set_speed_factor_service_;  // 设置速度因子服务
+    rclcpp::Service<ivg_interfaces::srv::SetSpeedFactor>::SharedPtr set_speed_factor_service_;  // 设置速度因子服务
 
     // 服务回调函数
     void setSpeedFactorCallback(
-        const std::shared_ptr<demo_interface::srv::SetSpeedFactor::Request> req,
-        std::shared_ptr<demo_interface::srv::SetSpeedFactor::Response> res);
+        const std::shared_ptr<ivg_interfaces::srv::SetSpeedFactor::Request> req,
+        std::shared_ptr<ivg_interfaces::srv::SetSpeedFactor::Response> res);
 
     // 辅助函数
     bool setSpeedFactor(float velocity_factor, std::string& message);

@@ -520,8 +520,7 @@ Node (rclcpp)
         ├── SetSpeedFactorServer             — 服务：速度设置
         ├── SetRobotPoseServer               — 服务：位姿设置
         ├── ExecuteGraspPoseWorker           — 服务：执行抓取
-        ├── PublishGraspsClientWorker        — 服务驱动：抓取放置循环
-        └── PublishGraspsABWorker            — 话题驱动：抓取放置循环
+        └── PublishGraspsClientWorker        — 服务驱动：抓取放置循环
   ├── GripperSwapWorker (独立)              — 快换 Worker，不继承 MoveitGripperIoBase
   └── ExecuteTrajectoryServer (独立)        — Action server，直接使用 MoveIt
 
@@ -580,11 +579,11 @@ gripper2 dock: x=0.3741,  y=0.30394, z=0.270 (dock base)
 |---------|---------|--------|------|
 | 2 | 34 | LatteNode | 打花开关 |
 | 4 | 36 | LatteNode | 咖啡开关 |
-| 6 | 38 | ExecuteGraspPose / PublishGraspsClient / PublishGraspsAB | 夹爪开/关 |
+| 6 | 38 | ExecuteGraspPose / PublishGraspsClient | 夹爪开/关 |
 | 7 | 39 | GripperSwapWorker | 快换盘锁紧/释放 |
 
 **注意事项**:
-- ExecuteGraspPoseWorker 的 IO 语义与 PublishGraspsClientWorker/ABWorker **相反** (`true=打开` vs `true=闭合`)，源于气动/电动夹爪不同工位的电气接线差异
+- ExecuteGraspPoseWorker 的 IO 语义与 PublishGraspsClientWorker **相反** (`true=打开` vs `true=闭合`)，源于气动/电动夹爪不同工位的电气接线差异
 - 仿真模式通过 `simulation_skip_io=true` 或 `kSkipTemporaryGripperIo=true` 跳过 IO 调用
 
 ### 4.5 轨迹插值器设计 (五次多项式)
@@ -616,7 +615,7 @@ Y = height (上下)
 **GraspNet 180° 修正** (`kQuatZ180`):
 - 网络输出的抓取系与真实夹爪在绕接近轴（局部 Z）上常差 π (180°)
 - **修复**: 对 GraspNet 位姿在规划前右乘四元数 `(0, 0, 1, 0)`（绕 Z 轴 180° 旋转）
-- **应用范围**: C++ 端 `publish_grasps_client_worker` 和 `publish_grasps_AB`；Python 端 `grasp_motion_controller._apply_grasp_z_flip_180()`
+- **应用范围**: C++ 端 `publish_grasps_client_worker`；Python 端 `grasp_motion_controller._apply_grasp_z_flip_180()`
 - **注意**: 关节空间回退时需要取消 180° 修正，避免多转半圈。Python 端 `_pose_unflip_if_needed()` 处理此情况。
 
 **normalizeYawToPlusMinusHalfPi** (C++ 端特有):
@@ -636,7 +635,7 @@ Y = height (上下)
 - 最少入库: 3 组
 - 选优策略: 垂直度得分 (approach 与 -Z 对齐度)，取最高
 
-**C++ 版** (publish_grasps_client_worker.cpp / publish_grasps_AB.cpp):
+**C++ 版** (publish_grasps_client_worker.cpp):
 - 相同窗口策略
 - 额外: `gripper_tip → end_effector` z 轴补偿 (0.15m Python, 0.01m C++ Worker)
 

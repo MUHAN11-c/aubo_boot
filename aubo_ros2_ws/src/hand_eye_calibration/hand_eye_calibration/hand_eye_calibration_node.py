@@ -24,9 +24,11 @@ from sensor_msgs.msg import Image, CompressedImage, PointCloud2, CameraInfo
 from std_msgs.msg import Header
 from geometry_msgs.msg import Pose, Point, Quaternion
 from builtin_interfaces.msg import Time
-from demo_interface.msg import RobotStatus
-from percipio_camera_interface.msg import CameraStatus, ImageData
-from percipio_camera_interface.srv import SoftwareTrigger
+from ivg_interfaces.msg import RobotStatus
+from ivg_interfaces.msg import ImageData
+from ivg_interfaces.msg import CameraStatus
+from ivg_interfaces.srv import SoftwareTrigger
+from ivg_utils.math import quaternion_to_rotation_matrix
 import base64
 from ament_index_python.packages import get_package_share_directory
 from .camera_calibration_utils import CameraCalibrationUtils
@@ -47,9 +49,11 @@ class HandEyeCalibrationNode(Node):
         self.declare_parameter('web_port', 8080)
         self.declare_parameter('camera_topic', '/camera/image_raw')
         self.declare_parameter('robot_status_topic', '/aubo_driver/robot_status')
-        
+        self.declare_parameter('collect_data_dir', os.path.expanduser('~/.ivg/hand_eye_calibrate/collect_data'))
+
         self.web_host = self.get_parameter('web_host').value
         self.web_port = self.get_parameter('web_port').value
+        self.collect_data_dir_ = self.get_parameter('collect_data_dir').value
         
         # 数据存储
         self.current_image = None
@@ -137,11 +141,11 @@ class HandEyeCalibrationNode(Node):
         self.trigger_client = self.create_client(SoftwareTrigger, '/software_trigger')
         
         # 机器人运动控制服务客户端
-        from demo_interface.srv import SetRobotPose
+        from ivg_interfaces.srv import SetRobotPose
         self.set_robot_pose_client = self.create_client(SetRobotPose, '/set_robot_pose')
         
         # 移动到目标位姿服务客户端（用于自动标定）
-        from demo_interface.srv import MoveToPose
+        from ivg_interfaces.srv import MoveToPose
         self.move_to_pose_client = self.create_client(MoveToPose, '/move_to_pose')
         
         # 订阅机器人状态话题（从 /aubo_driver/robot_status 获取机械臂当前位姿）
@@ -1587,7 +1591,7 @@ class HandEyeCalibrationNode(Node):
                             import json as json_module
                             
                             # 在根目录创建验证数据文件夹
-                            validation_dir = os.path.join('/home/mu/IVG', 'hand_eye_calibration_validation')
+                            validation_dir = os.path.join(os.path.expanduser('~'), '.ivg', 'hand_eye_calibration_validation')
                             os.makedirs(validation_dir, exist_ok=True)
                             
                             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -1985,7 +1989,7 @@ class HandEyeCalibrationNode(Node):
                             from datetime import datetime
                             
                             # 在根目录创建验证数据文件夹
-                            validation_dir = os.path.join('/home/mu/IVG', 'hand_eye_calibration_validation')
+                            validation_dir = os.path.join(os.path.expanduser('~'), '.ivg', 'hand_eye_calibration_validation')
                             os.makedirs(validation_dir, exist_ok=True)
                             
                             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -2037,7 +2041,7 @@ class HandEyeCalibrationNode(Node):
                                 json.dump(saved_calibration_data_clean, f, indent=2, ensure_ascii=False)
                             
                             self.get_logger().info(f'✅ 标定数据已保存到: {data_file}')
-                            self.get_logger().info(f'   可用于验证脚本: /home/mu/IVG2.0/hand_eye_calibration_validation/verify_calibration.py')
+                            self.get_logger().info('   标定数据已保存，可使用验证脚本进行验证')
                             
                         except Exception as e:
                             self.get_logger().warn(f'⚠️ 保存标定数据失败: {str(e)}')
@@ -4288,7 +4292,7 @@ class HandEyeCalibrationNode(Node):
         def clear_collect_data():
             """清空collect_data目录中的图像和位姿文件"""
             try:
-                collect_data_dir = '/home/mu/IVG2.0/hand_eye_calibrate/collect_data'
+                collect_data_dir = self.collect_data_dir_
                 
                 if not os.path.exists(collect_data_dir):
                     os.makedirs(collect_data_dir, exist_ok=True)
@@ -4339,7 +4343,7 @@ class HandEyeCalibrationNode(Node):
                 if robot_pose is None:
                     return jsonify({'success': False, 'error': '机器人位姿数据缺失'})
                 
-                collect_data_dir = '/home/mu/IVG2.0/hand_eye_calibrate/collect_data'
+                collect_data_dir = self.collect_data_dir_
                 pose_dir = os.path.join(collect_data_dir, f'pose_{pose_index}')
                 os.makedirs(pose_dir, exist_ok=True)
                 
@@ -5077,7 +5081,7 @@ class HandEyeCalibrationNode(Node):
                     return jsonify({'success': False, 'error': '缺少目标位姿数据'})
                 
                 # 创建服务请求
-                from demo_interface.srv import SetRobotPose
+                from ivg_interfaces.srv import SetRobotPose
                 
                 request_msg = SetRobotPose.Request()
                 
@@ -5168,7 +5172,7 @@ class HandEyeCalibrationNode(Node):
                     return jsonify({'success': False, 'error': '缺少目标位姿数据'})
                 
                 # 创建服务请求
-                from demo_interface.srv import MoveToPose
+                from ivg_interfaces.srv import MoveToPose
                 from geometry_msgs.msg import Pose, Point, Quaternion
                 
                 request_msg = MoveToPose.Request()
@@ -5499,25 +5503,9 @@ class HandEyeCalibrationNode(Node):
         return roll, pitch, yaw
     
     def _quaternion_to_rotation_matrix(self, quat):
-        """
-        将四元数转换为旋转矩阵
-        quat: [x, y, z, w]
-        """
-        x, y, z, w = quat
-        
-        # 归一化四元数
-        norm = np.sqrt(x*x + y*y + z*z + w*w)
-        x, y, z, w = x/norm, y/norm, z/norm, w/norm
-        
-        # 构建旋转矩阵
-        R = np.array([
-            [1 - 2*(y*y + z*z),     2*(x*y - w*z),     2*(x*z + w*y)],
-            [    2*(x*y + w*z), 1 - 2*(x*x + z*z),     2*(y*z - w*x)],
-            [    2*(x*z - w*y),     2*(y*z + w*x), 1 - 2*(x*x + y*y)]
-        ])
-        
-        return R
-    
+        """四元数转旋转矩阵（委托 ivg_utils.math）"""
+        return quaternion_to_rotation_matrix(quat)
+
     def _solve_rigid_transform(self, points_source, points_target):
         """
         使用SVD方法求解刚体变换（3D点云配准）

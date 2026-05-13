@@ -18,7 +18,7 @@
 import sys
 import rclpy
 from rclpy.node import Node
-from tool_changer_interface.srv import ChangeTool, GetCurrentTool
+from ivg_interfaces.srv import ChangeTool, GetCurrentTool
 
 
 class ToolChangeTester(Node):

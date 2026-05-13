@@ -1,8 +1,0 @@
-# 规划运动轨迹
-geometry_msgs/Pose target_pose   # 目标位姿（use_joints=false时使用）
-bool use_joints                  # true=使用关节角度规划 / false=使用笛卡尔位姿规划
----
-bool success                                        # 规划是否成功
-trajectory_msgs/JointTrajectory trajectory          # 规划生成的关节轨迹
-float32 planning_time                               # 规划耗时（秒）
-string message                                      # 状态消息或错误信息

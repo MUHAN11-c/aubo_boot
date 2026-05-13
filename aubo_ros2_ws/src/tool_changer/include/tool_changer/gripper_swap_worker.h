@@ -15,16 +15,16 @@
 #include <string>
 #include <vector>
 
-#include <demo_interface/srv/set_robot_io.hpp>
+#include <ivg_interfaces/srv/set_robot_io.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
-#include <demo_interface/srv/move_to_pose.hpp>
-#include <tool_changer_interface/msg/tool_changer_status.hpp>
-#include <tool_changer_interface/srv/change_tool.hpp>
-#include <tool_changer_interface/srv/get_current_tool.hpp>
-#include <tool_changer_interface/srv/run_gripper_swap.hpp>
+#include <ivg_interfaces/srv/move_to_pose.hpp>
+#include <ivg_interfaces/msg/tool_changer_status.hpp>
+#include <ivg_interfaces/srv/change_tool.hpp>
+#include <ivg_interfaces/srv/get_current_tool.hpp>
+#include <ivg_interfaces/srv/run_gripper_swap.hpp>
 
 namespace tool_changer
 {
@@ -122,21 +122,21 @@ private:
   // 服务回调
   // ═══════════════════════════════════════════════════════════════
 
-  void onChangeTool(const std::shared_ptr<tool_changer_interface::srv::ChangeTool::Request> req,
-                    std::shared_ptr<tool_changer_interface::srv::ChangeTool::Response> resp);
-  void onGetCurrentTool(const std::shared_ptr<tool_changer_interface::srv::GetCurrentTool::Request> req,
-                        std::shared_ptr<tool_changer_interface::srv::GetCurrentTool::Response> resp);
-  void onGripperSwapRequest(const std::shared_ptr<tool_changer_interface::srv::RunGripperSwap::Request> req,
-                            std::shared_ptr<tool_changer_interface::srv::RunGripperSwap::Response> resp);
-  void onDebugMoveToXYZ(const std::shared_ptr<demo_interface::srv::MoveToPose::Request> req,
-                        std::shared_ptr<demo_interface::srv::MoveToPose::Response> resp);
+  void onChangeTool(const std::shared_ptr<ivg_interfaces::srv::ChangeTool::Request> req,
+                    std::shared_ptr<ivg_interfaces::srv::ChangeTool::Response> resp);
+  void onGetCurrentTool(const std::shared_ptr<ivg_interfaces::srv::GetCurrentTool::Request> req,
+                        std::shared_ptr<ivg_interfaces::srv::GetCurrentTool::Response> resp);
+  void onGripperSwapRequest(const std::shared_ptr<ivg_interfaces::srv::RunGripperSwap::Request> req,
+                            std::shared_ptr<ivg_interfaces::srv::RunGripperSwap::Response> resp);
+  void onDebugMoveToXYZ(const std::shared_ptr<ivg_interfaces::srv::MoveToPose::Request> req,
+                        std::shared_ptr<ivg_interfaces::srv::MoveToPose::Response> resp);
 
   // ═══════════════════════════════════════════════════════════════
   // 成员变量
   // ═══════════════════════════════════════════════════════════════
 
   std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
-  rclcpp::Client<demo_interface::srv::SetRobotIO>::SharedPtr set_io_client_;
+  rclcpp::Client<ivg_interfaces::srv::SetRobotIO>::SharedPtr set_io_client_;
   int32_t gripper_io_index_{ 7 };
   bool simulation_skip_io_{ false };
 
@@ -146,15 +146,15 @@ private:
   float home_acceleration_scaling_{ 0.3f };
   double joint_cartesian_switch_delay_sec_{ 0.05 };
 
-  rclcpp::Publisher<tool_changer_interface::msg::ToolChangerStatus>::SharedPtr tool_status_pub_;
+  rclcpp::Publisher<ivg_interfaces::msg::ToolChangerStatus>::SharedPtr tool_status_pub_;
 
   rclcpp::CallbackGroup::SharedPtr service_cb_group_;
-  rclcpp::Service<tool_changer_interface::srv::RunGripperSwap>::SharedPtr gripper_swap_srv_;
-  rclcpp::Service<tool_changer_interface::srv::ChangeTool>::SharedPtr change_tool_srv_;
-  rclcpp::Service<tool_changer_interface::srv::GetCurrentTool>::SharedPtr get_tool_srv_;
+  rclcpp::Service<ivg_interfaces::srv::RunGripperSwap>::SharedPtr gripper_swap_srv_;
+  rclcpp::Service<ivg_interfaces::srv::ChangeTool>::SharedPtr change_tool_srv_;
+  rclcpp::Service<ivg_interfaces::srv::GetCurrentTool>::SharedPtr get_tool_srv_;
 
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr mode_sub_;
-  rclcpp::Service<demo_interface::srv::MoveToPose>::SharedPtr debug_move_xyz_srv_;
+  rclcpp::Service<ivg_interfaces::srv::MoveToPose>::SharedPtr debug_move_xyz_srv_;
 
   std::atomic<bool> shutdown_requested_{ false };
 };

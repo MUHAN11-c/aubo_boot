@@ -10,7 +10,7 @@
 
 #include "demo_driver/moveit_gripper_io_base.h"
 
-#include <demo_interface/srv/move_to_pose.hpp>
+#include <ivg_interfaces/srv/move_to_pose.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 #include <array>
@@ -37,10 +37,10 @@ public:
   bool run() override;
 
 private:
-  void onMoveToPoseRequest(const std::shared_ptr<demo_interface::srv::MoveToPose::Request> request,
-                           std::shared_ptr<demo_interface::srv::MoveToPose::Response> response);
+  void onMoveToPoseRequest(const std::shared_ptr<ivg_interfaces::srv::MoveToPose::Request> request,
+                           std::shared_ptr<ivg_interfaces::srv::MoveToPose::Response> response);
 
-  rclcpp::Service<demo_interface::srv::MoveToPose>::SharedPtr move_to_pose_service_;
+  rclcpp::Service<ivg_interfaces::srv::MoveToPose>::SharedPtr move_to_pose_service_;
   std::string service_name_;
   std::mutex service_mutex_;
 };

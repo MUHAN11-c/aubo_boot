@@ -36,7 +36,7 @@ SetSpeedFactorServer::SetSpeedFactorServer(const rclcpp::NodeOptions& options)
     this->get_parameter("base_frame", base_frame_);
 
     // 初始化服务服务器
-    set_speed_factor_service_ = this->create_service<demo_interface::srv::SetSpeedFactor>(
+    set_speed_factor_service_ = this->create_service<ivg_interfaces::srv::SetSpeedFactor>(
         "/set_speed_factor",
         std::bind(&SetSpeedFactorServer::setSpeedFactorCallback, this, std::placeholders::_1, std::placeholders::_2));
 }
@@ -167,8 +167,8 @@ SetSpeedFactorServer::~SetSpeedFactorServer()
  * @brief 服务回调函数
  */
 void SetSpeedFactorServer::setSpeedFactorCallback(
-    const std::shared_ptr<demo_interface::srv::SetSpeedFactor::Request> req,
-    std::shared_ptr<demo_interface::srv::SetSpeedFactor::Response> res)
+    const std::shared_ptr<ivg_interfaces::srv::SetSpeedFactor::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::SetSpeedFactor::Response> res)
 {
     static bool first_request = true;
     if (first_request) {

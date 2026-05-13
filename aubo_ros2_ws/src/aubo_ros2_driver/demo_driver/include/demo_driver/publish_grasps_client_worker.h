@@ -18,7 +18,7 @@
 #include <vector>
 
 #include <Eigen/Core>
-#include <demo_interface/srv/set_robot_io.hpp>
+#include <ivg_interfaces/srv/set_robot_io.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 #include <geometry_msgs/msg/pose_array.hpp>
 #include <moveit/move_group_interface/move_group_interface.h>
@@ -211,7 +211,7 @@ private:
   int fail_count_{ 0 };
 
   std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
-  rclcpp::Client<demo_interface::srv::SetRobotIO>::SharedPtr aubo_set_io_client_;
+  rclcpp::Client<ivg_interfaces::srv::SetRobotIO>::SharedPtr aubo_set_io_client_;
 
   static constexpr double kZMinLimit = 0.2;
   static const int32_t kGripperIoIndex;

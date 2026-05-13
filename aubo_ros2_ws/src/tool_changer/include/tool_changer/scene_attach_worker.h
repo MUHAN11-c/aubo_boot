@@ -18,8 +18,8 @@
 #include <rclcpp/rclcpp.hpp>
 #include <shape_msgs/msg/mesh.hpp>
 #include <std_msgs/msg/string.hpp>
-#include <tool_changer_interface/msg/tool_changer_status.hpp>
-#include <tool_changer_interface/srv/change_tool.hpp>
+#include <ivg_interfaces/msg/tool_changer_status.hpp>
+#include <ivg_interfaces/srv/change_tool.hpp>
 
 namespace tool_changer
 {
@@ -64,24 +64,24 @@ private:
   void removeToolFromWorld(const std::string& tool_id);
 
   // /tool_changer_status 订阅回调
-  void onToolStatus(const tool_changer_interface::msg::ToolChangerStatus& msg);
+  void onToolStatus(const ivg_interfaces::msg::ToolChangerStatus& msg);
 
   // robot_description 参数更新
   void updateRobotDescription(const std::string& tool_id);
 
   // 服务回调
-  void onSceneAttach(const std::shared_ptr<tool_changer_interface::srv::ChangeTool::Request> req,
-                     std::shared_ptr<tool_changer_interface::srv::ChangeTool::Response> resp);
-  void onSceneDetach(const std::shared_ptr<tool_changer_interface::srv::ChangeTool::Request> req,
-                     std::shared_ptr<tool_changer_interface::srv::ChangeTool::Response> resp);
+  void onSceneAttach(const std::shared_ptr<ivg_interfaces::srv::ChangeTool::Request> req,
+                     std::shared_ptr<ivg_interfaces::srv::ChangeTool::Response> resp);
+  void onSceneDetach(const std::shared_ptr<ivg_interfaces::srv::ChangeTool::Request> req,
+                     std::shared_ptr<ivg_interfaces::srv::ChangeTool::Response> resp);
 
   // 成员
   std::map<std::string, ToolGeometry> tool_geometries_;
   rclcpp::Publisher<moveit_msgs::msg::PlanningScene>::SharedPtr planning_scene_pub_;
-  rclcpp::Subscription<tool_changer_interface::msg::ToolChangerStatus>::SharedPtr tool_status_sub_;
+  rclcpp::Subscription<ivg_interfaces::msg::ToolChangerStatus>::SharedPtr tool_status_sub_;
 
-  rclcpp::Service<tool_changer_interface::srv::ChangeTool>::SharedPtr scene_attach_srv_;
-  rclcpp::Service<tool_changer_interface::srv::ChangeTool>::SharedPtr scene_detach_srv_;
+  rclcpp::Service<ivg_interfaces::srv::ChangeTool>::SharedPtr scene_attach_srv_;
+  rclcpp::Service<ivg_interfaces::srv::ChangeTool>::SharedPtr scene_detach_srv_;
 
   // robot_description 参数更新
   std::map<std::string, std::string> urdf_cache_;

@@ -13,9 +13,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
-find_package(demo_interface REQUIRED)
-find_package(interface REQUIRED)
-find_package(aubo_msgs REQUIRED)
+find_package(ivg_interfaces REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2 REQUIRED)
@@ -34,8 +32,8 @@ add_executable(move_to_pose_server_node
 ament_target_dependencies(move_to_pose_server_node
   rclcpp
   geometry_msgs
-  demo_interface
-  aubo_msgs
+  ivg_interfaces
+  ivg_interfaces
   tf2_geometry_msgs
   moveit_core
   moveit_ros_planning_interface
@@ -46,8 +44,8 @@ ament_target_dependencies(plan_trajectory_server_node
   rclcpp
   geometry_msgs
   trajectory_msgs
-  demo_interface
-  aubo_msgs
+  ivg_interfaces
+  ivg_interfaces
   tf2_geometry_msgs
   moveit_core
   moveit_ros_planning_interface
@@ -57,7 +55,7 @@ add_executable(execute_trajectory_server_node src/execute_trajectory_server.cpp)
 ament_target_dependencies(execute_trajectory_server_node
   rclcpp
   trajectory_msgs
-  demo_interface
+  ivg_interfaces
   moveit_core
   moveit_ros_planning_interface
 )
@@ -67,8 +65,8 @@ ament_target_dependencies(get_current_state_server_node
   rclcpp
   sensor_msgs
   geometry_msgs
-  demo_interface
-  aubo_msgs
+  ivg_interfaces
+  ivg_interfaces
   tf2_geometry_msgs
   moveit_core
   moveit_ros_planning_interface
@@ -77,7 +75,7 @@ ament_target_dependencies(get_current_state_server_node
 add_executable(set_speed_factor_server_node src/set_speed_factor_server.cpp)
 ament_target_dependencies(set_speed_factor_server_node
   rclcpp
-  demo_interface
+  ivg_interfaces
   moveit_core
   moveit_ros_planning_interface
 )
@@ -86,8 +84,8 @@ add_executable(set_robot_pose_server_node src/set_robot_pose_server.cpp)
 ament_target_dependencies(set_robot_pose_server_node
   rclcpp
   geometry_msgs
-  demo_interface
-  aubo_msgs
+  ivg_interfaces
+  ivg_interfaces
   tf2
   tf2_geometry_msgs
   moveit_core
@@ -103,24 +101,8 @@ ament_target_dependencies(publish_grasps_client_worker_node
   geometry_msgs
   std_msgs
   std_srvs
-  demo_interface
-  aubo_msgs
-  moveit_msgs
-  moveit_core
-  moveit_ros_planning_interface
-)
-
-# GraspNet 抓取放置 worker（A/B 交替识别与放置，与 publish_grasps_client_worker_node 独立）
-add_executable(publish_grasps_AB
-  src/publish_grasps_AB.cpp
-)
-ament_target_dependencies(publish_grasps_AB
-  rclcpp
-  geometry_msgs
-  std_msgs
-  std_srvs
-  demo_interface
-  aubo_msgs
+  ivg_interfaces
+  ivg_interfaces
   moveit_msgs
   moveit_core
   moveit_ros_planning_interface
@@ -136,13 +118,17 @@ ament_target_dependencies(execute_grasp_pose_worker_node
   geometry_msgs
   sensor_msgs
   std_srvs
-  demo_interface
-  interface
-  aubo_msgs
+  ivg_interfaces
+  ivg_interfaces
+  ivg_interfaces
   moveit_msgs
   moveit_core
   moveit_ros_planning_interface
 )
+
+# 系统状态监控节点（发布 /system/node_status + /system/log）
+add_executable(system_monitor_node src/system_monitor_node.cpp)
+ament_target_dependencies(system_monitor_node rclcpp ivg_interfaces)
 
 # Install targets
 install(TARGETS
@@ -154,7 +140,7 @@ install(TARGETS
   set_robot_pose_server_node
   publish_grasps_client_worker_node
   execute_grasp_pose_worker_node
-  publish_grasps_AB
+  system_monitor_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

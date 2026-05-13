@@ -62,7 +62,7 @@ function createVisionUrdfPanel(opts) {
 		toolStatusSub = new ROSLIB.Topic({
 			ros: ros,
 			name: '/tool_changer_status',
-			messageType: 'tool_changer_interface/msg/ToolChangerStatus',
+			messageType: 'ivg_interfaces/msg/ToolChangerStatus',
 			throttle_rate: 500
 		});
 	toolStatusSub.subscribe(function (msg) {

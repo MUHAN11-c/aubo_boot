@@ -12,7 +12,7 @@
 #include <moveit_msgs/msg/move_it_error_codes.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2/LinearMath/Quaternion.h>
-#include <aubo_msgs/srv/get_ik.hpp>
+#include <ivg_interfaces/srv/get_ik.hpp>
 #include <moveit/robot_state/robot_state.h>
 #include <moveit/robot_state/conversions.h>
 #include <thread>
@@ -42,7 +42,7 @@ SetRobotPoseServer::SetRobotPoseServer(const rclcpp::NodeOptions& options)
     this->get_parameter("planning_group_name", planning_group_name_);
     this->get_parameter("base_frame", base_frame_);
 
-    set_robot_pose_service_ = this->create_service<demo_interface::srv::SetRobotPose>(
+    set_robot_pose_service_ = this->create_service<ivg_interfaces::srv::SetRobotPose>(
         "/set_robot_pose",
         std::bind(&SetRobotPoseServer::setRobotPoseCallback, this, std::placeholders::_1, std::placeholders::_2));
 }
@@ -142,8 +142,8 @@ SetRobotPoseServer::~SetRobotPoseServer()
 }
 
 void SetRobotPoseServer::setRobotPoseCallback(
-    const std::shared_ptr<demo_interface::srv::SetRobotPose::Request> req,
-    std::shared_ptr<demo_interface::srv::SetRobotPose::Response> res)
+    const std::shared_ptr<ivg_interfaces::srv::SetRobotPose::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::SetRobotPose::Response> res)
 {
     // 验证输入参数
     if (req->target_pose.size() != 6)
@@ -295,11 +295,11 @@ bool SetRobotPoseServer::setRobotPose(const std::array<double, 6>& target_pose,
             robot_state->copyJointGroupPositions(joint_model_group, joint_group_positions);
 
             // 尝试使用 IK 服务计算关节角度
-            auto ik_client = this->create_client<aubo_msgs::srv::GetIK>("/aubo_driver/get_ik");
+            auto ik_client = this->create_client<ivg_interfaces::srv::GetIK>("/aubo_driver/get_ik");
             
             if (ik_client->wait_for_service(std::chrono::seconds(1)))
             {
-                auto request = std::make_shared<aubo_msgs::srv::GetIK::Request>();
+                auto request = std::make_shared<ivg_interfaces::srv::GetIK::Request>();
                 for (size_t i = 0; i < 6 && i < joint_group_positions.size(); ++i)
                 {
                     request->ref_joint[i] = static_cast<float>(joint_group_positions[i]);

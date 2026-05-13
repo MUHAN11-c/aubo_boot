@@ -62,7 +62,7 @@ def generate_launch_description():
 
     # ── 动态库路径 ──────────────────────────────────────────────────────
     img_lib = os.path.join(get_package_prefix("image_transport"), "lib")
-    demo_lib = os.path.join(get_package_prefix("demo_interface"), "lib")
+    demo_lib = os.path.join(get_package_prefix("ivg_interfaces"), "lib")
     ros_lib = os.path.join(get_package_prefix("rclpy"), "lib")
     rosbridge_ld = os.pathsep.join([demo_lib, ros_lib])
     if os.environ.get("LD_LIBRARY_PATH"):

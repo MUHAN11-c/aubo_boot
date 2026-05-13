@@ -11,7 +11,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <control_msgs/action/follow_joint_trajectory.hpp>
-#include <demo_interface/msg/robot_status.hpp>
+#include <ivg_interfaces/msg/robot_status.hpp>
 #include <std_msgs/msg/int32_multi_array.hpp>
 #include <chrono>
 #include <atomic>
@@ -34,7 +34,7 @@ public:
         feedback_pub_ = this->create_publisher<
             control_msgs::action::FollowJointTrajectory_Feedback>(
             "aubo/feedback_states", 1000);
-        robot_status_pub_ = this->create_publisher<demo_interface::msg::RobotStatus>(
+        robot_status_pub_ = this->create_publisher<ivg_interfaces::msg::RobotStatus>(
             "/aubo_driver/robot_status", 1000);
         rib_pub_ = this->create_publisher<std_msgs::msg::Int32MultiArray>(
             "/aubo_driver/rib_status", 1000);
@@ -184,10 +184,10 @@ private:
 
     rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_state_pub_;
     rclcpp::Publisher<control_msgs::action::FollowJointTrajectory_Feedback>::SharedPtr feedback_pub_;
-    rclcpp::Publisher<demo_interface::msg::RobotStatus>::SharedPtr robot_status_pub_;
+    rclcpp::Publisher<ivg_interfaces::msg::RobotStatus>::SharedPtr robot_status_pub_;
     rclcpp::Publisher<std_msgs::msg::Int32MultiArray>::SharedPtr rib_pub_;
 
-    demo_interface::msg::RobotStatus robot_status_msg_;
+    ivg_interfaces::msg::RobotStatus robot_status_msg_;
     std_msgs::msg::Int32MultiArray rib_status_;
 
     // RoadPoint 快照

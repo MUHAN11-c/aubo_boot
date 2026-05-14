@@ -221,3 +221,50 @@ ROSLIB.URDF_SPHERE    → ROSLIB.UrdfType.SPHERE
 | **roslibjs** | 未为 URDF 兼容性改 TS 源码；运行时依赖其已存在的 `UrdfType`。本地化见 `README.md`（importmap、vendor）。 |
 | **ros2djs** | 当前无与本 URDF 问题相关的补丁记录。 |
 | **`ros3djs/examples/vendor/roslib.js`** | 示例内置旧版全局 roslib（含 `URDF_MESH` 等），与 **dashboard ESM 栈** 分离；排查 dashboard 时不要与 `runtime_js_assets/build/roslib/RosLib.js` 混淆。 |
+
+---
+
+## 8. roslib v2 已知移除的 API：`ServiceRequest`
+
+### 8.1 背景
+
+roslib v2 移除了 `ServiceRequest` 包装类。调用 Service 时直接传普通对象即可，不再需要 `new ROSLIB.ServiceRequest({})`。
+
+### 8.2 影响范围
+
+| 文件 | 行 | 当前代码 | 风险 |
+|------|-----|---------|------|
+| `ros3djs/src/interactivemarkers/InteractiveMarkerClient.js` | 72 | `new ROSLIB.ServiceRequest({})` | 若使用 InteractiveMarker 会抛 TypeError |
+
+### 8.3 修复方案（如需启用 InteractiveMarker）
+
+```diff
+- var request = new ROSLIB.ServiceRequest({});
++ var request = {};
+```
+
+### 8.4 当前状态
+
+IVG 项目不使用 InteractiveMarker 功能，此问题暂不影响运行。若后续需要，按 8.3 方案修复源码并重新 `npm run build` 喵~
+
+---
+
+## 9. roslib v2 API 兼容性速查表（ros3d 相关）
+
+| roslib API | v1 | v2 | 对 ros3d 的影响 |
+|-----------|-----|-----|---------------|
+| `ROSLIB.Ros` | ✅ | ✅ `export { Ros }` | 无影响 |
+| `ROSLIB.Topic` | ✅ | ✅ `export { Topic }` | 无影响 |
+| `ROSLIB.Service` | ✅ | ✅ `export { Service }` | 无影响 |
+| `ROSLIB.Param` | ✅ | ✅ `export { Param }` | 无影响 |
+| `ROSLIB.UrdfModel` | ✅ | ✅ `export { UrdfModel }` | 无影响 |
+| `ROSLIB.URDF_MESH` (3) | ✅ | ❌ 移除 | 已修：补丁① → `ROSLIB.UrdfType.MESH` |
+| `ROSLIB.ServiceRequest` | ✅ | ❌ 移除 | 见第 8 节 |
+| `ROSLIB.Pose` | ✅ | ✅ `export { Pose }` | 无影响 |
+| `ROSLIB.Transform` | ✅ | ✅ `export { Transform }` | 无影响 |
+| `ROSLIB.TFClient` | ✅ | ✅ `export { TFClient }` | 无影响 |
+| `ROSLIB.ROS2TFClient` | — | ✅ v2 新增 | 无影响 |
+
+> **设计原则**：RobotWebTools 上游多年不更新，roslib v2 的 API 变动需在本仓库自行适配。所有修改记录在此文档，补丁在源码层修复 + 重新编译，不对构建产物做二次加工喵~
+
+*最后更新: 2026-05-16*

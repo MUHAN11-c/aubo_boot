@@ -17,11 +17,11 @@
 #include <string>
 #include <vector>
 
+#include "demo_driver/robot_controller.h"
+
 #include <Eigen/Core>
-#include <ivg_interfaces/srv/set_robot_io.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 #include <geometry_msgs/msg/pose_array.hpp>
-#include <moveit/move_group_interface/move_group_interface.h>
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <std_srvs/srv/set_bool.hpp>
@@ -29,15 +29,8 @@
 namespace demo_driver
 {
 
-/** 笛卡尔路径单段：沿 axis 轴移动 offset 米（与放置多段路径一致） */
-struct CartesianSegment
-{
-  char axis;
-  double offset;
-};
-
 /**
- * @brief GraspNet 抓取放置 Worker 节点（独立 rclcpp::Node，不继承 MoveitGripperIoBase）
+ * @brief GraspNet 抓取放置 Worker 节点（组合 RobotController）
  *
  * 【对外】run / runOneCycle、窗口与采集控制、关机钩子；实现见 publish_grasps_client_worker.cpp 分部注释。
  * 【流程】滑窗选优 → tip→EEF → MoveIt（关节/命名位姿/笛卡尔）→ 夹爪 IO → B 点放置 → 回 A 点安全位（SRDF camera_pose）。
@@ -49,8 +42,6 @@ class PublishGraspsClientWorker : public rclcpp::Node
 public:
   explicit PublishGraspsClientWorker(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
   ~PublishGraspsClientWorker() = default;
-
-  static std::shared_ptr<PublishGraspsClientWorker> create(const rclcpp::NodeOptions& options);
 
   bool waitForServices(std::chrono::seconds timeout);
 
@@ -119,7 +110,9 @@ private:
   /** 工业惯例：每次规划前同步当前状态并设置速度/加速度缩放（关节与笛卡尔均适用） */
   void preparePlanningState(float velocity_factor, float acceleration_factor);
 
-  void initMoveGroup();
+  // RobotController (组合模式, 封装 MoveIt 运动 + IO)
+  std::shared_ptr<RobotController> robot_;
+
   bool setGripperIo(int32_t io_index, bool high);
   /** 移动到安全位 A 点（命名目标 camera_pose） */
   bool moveToHome(float velocity_factor, float acceleration_factor);

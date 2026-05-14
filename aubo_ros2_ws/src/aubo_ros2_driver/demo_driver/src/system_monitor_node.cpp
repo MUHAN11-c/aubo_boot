@@ -22,7 +22,7 @@ public:
 
         // 订阅关键组件状态
         robot_status_sub_ = create_subscription<ivg_interfaces::msg::RobotStatus>(
-            "/aubo_driver/robot_status", 10,
+            "/robot_status", 10,
             std::bind(&SystemMonitorNode::onRobotStatus, this, std::placeholders::_1));
 
         // 定时发布聚合状态 (1Hz)

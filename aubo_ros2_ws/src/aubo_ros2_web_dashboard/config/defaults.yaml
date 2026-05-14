@@ -46,7 +46,7 @@ package:
 #   /tf           → tf2_ros (标准 ROS2)
 #   /tf_static    → robot_state_publisher (标准 ROS2)
 #   /camera/color/image_raw → percipio_camera (camport_ros2)
-#   /aubo_driver/robot_status → aubo_driver_ros2 (aubo_driver_ros2.cpp)
+#   /robot_status → aubo_driver_ros2 (aubo_state_broadcaster.cpp)
 #   /system_status → visual_pose_estimation (ros2_communication.py)
 #   /grasp_poses_base → graspnet_demo_points_node (graspnet_ros2)
 #   /latte_di_status → latte_node (coffee_latte_demo)
@@ -73,7 +73,7 @@ vision_panel:
     topics:
       - {id: "topic-color",        default: "/camera/color/image_raw",       label: "彩色相机话题",     msg_type: "sensor_msgs/msg/Image"}
       - {id: "topic-result",       default: "",                               label: "识别结果话题",     msg_type: "sensor_msgs/msg/Image", allow_empty: true}
-      - {id: "topic-robot",        default: "/aubo_driver/robot_status",      label: "机械臂状态话题",   msg_type: "demo_interface/msg/RobotStatus"}
+      - {id: "topic-robot",        default: "/robot_status",      label: "机械臂状态话题",   msg_type: "ivg_interfaces/msg/RobotStatus"}
       - {id: "topic-vpe-status",   default: "/system_status",                 label: "VPE 状态话题",     msg_type: "std_msgs/msg/String"}
       - {id: "topic-grasp-poses",  default: "/grasp_poses_base",              label: "抓取位姿话题",     msg_type: "geometry_msgs/msg/PoseArray"}
     services:

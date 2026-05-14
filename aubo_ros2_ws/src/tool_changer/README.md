@@ -2,6 +2,41 @@
 
 gripper0 ↔ gripper2 双向自动快换，工具状态发布与查询。
 
+**架构（2026-05-14 重构）**：轨迹参数全部数据驱动，存于 `config/tools.yaml`。`gripper_swap_worker` 通过 `loadToolConfig()` 加载，`changeToTool()` 实现通用的"释放当前→取目标→回 home"流水线，不再有硬编码 per-gripper 函数。新增可快换工具只需编辑 `tools.yaml`，无需修改 C++ 代码喵~
+
+### tools.yaml 轨迹字段
+
+每个可快换工具需以下额外字段：
+
+```yaml
+tools:
+  gripper0:
+    # ... 原有字段 (mesh_visual, dock_pose, attach_offset, touch_links) ...
+    dock_approach_joints: [1.137820, 0.222690, 1.598043, -0.194970, 1.571688, 1.136957]
+    trajectory:
+      strategy: "vertical"     # "vertical" 或 "slide"
+      depth: 0.210             # 取/放下降深度 (m)
+      lift: 0.210              # 取/放抬起高度 (m)
+      settle_sec: 0.5          # IO 动作后稳定延时 (s)
+      # slide 策略额外参数:
+      # slide_y: 0.100         # Y 轴侧滑距离 (m)
+      # seat: 0.012            # 锁止机构坐入/脱扣高度 (m)
+      # release_sec: 0.3       # 释放后稳定延时 (s)
+      # lock_sec: 0.5          # 锁紧后稳定延时 (s)
+```
+
+| 字段 | 必需 | 说明 |
+|------|------|------|
+| `dock_approach_joints` | 是 | 6 关节角 (rad)，工具 dock 接近位 |
+| `trajectory.strategy` | 否 (默认 `"vertical"`) | 轨迹策略：`"vertical"`（纯 Z 轴）或 `"slide"`（Y 轴侧滑+分段 Z） |
+| `trajectory.depth` | 否 (默认 0.210) | 取/放下降深度 |
+| `trajectory.lift` | 否 (默认 0.210) | 取/放抬起高度 |
+| `trajectory.settle_sec` | 否 (默认 0.5) | vertical 策略的 IO 稳定延时 |
+| `trajectory.slide_y` | slide 必需 | Y 轴侧滑距离 |
+| `trajectory.seat` | slide 必需 | 锁止机构坐入/脱扣高度 |
+| `trajectory.release_sec` | slide 必需 | slide 放策略的释放后稳定延时 |
+| `trajectory.lock_sec` | slide 必需 | slide 放策略的锁紧后稳定延时 |
+
 ## AUBO E5 机械臂规格
 
 | 参数 | 数值 | 来源 |
@@ -261,6 +296,7 @@ gripper_swap_worker.changeToTool()
 不再使用 `PlanningScene AttachedCollisionObject`，改为仅通过 `robot_description` 参数更新 URDF：
 
 1. **碰撞由 URDF `<collision>` 原生提供**：MoveIt 从 URDF 解析碰撞几何，用 SRDF 的 ACM (Allowed Collision Matrix) 做自碰撞判断，无需 `touch_links`
+   - **ACM 配置位置**：`aubo_moveit_config/config/aubo_e5.srdf:69-89`，20 条 `<disable_collisions>` 覆盖 5 种末端工具 × 4 个末端固定链 link（`kuaihuan_Link`, `camera_Link`, `wrist3_Link`, `tool_tcp`），详见 CLAUDE.md 规则 12b 喵~
 2. **一条路径同时覆盖 RViz2 + Web**：`robot_state_publisher` 接收参数变更 → `setupURDF()` → 发布新 TF + `/robot_description` 话题 → MoveIt PlanningSceneMonitor / RViz2 RobotModel / Web ROS3D 全部自动同步
 3. **切换前清除，避免运动干涉**：`gripper_swap_worker.changeToTool()` 入口处 `publishToolStatus(false)` 触发 `updateRobotDescription()`（无工具 URDF），运动期间机械臂上无夹爪碰撞模型，规划不受干扰
 4. **无 z-fighting**：只有 URDF 唯一表示，不存在 PlanningScene 附着体与 RobotModel 重叠问题

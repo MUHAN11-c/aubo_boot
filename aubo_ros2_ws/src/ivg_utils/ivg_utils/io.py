@@ -7,7 +7,7 @@ IO_GRIPPER = 6
 IO_QUICK_SWAP = 7
 
 # Aubo 底层 IO 服务名
-IO_AUBO_SET_SERVICE = "/aubo_driver/set_io"
+IO_AUBO_SET_SERVICE = "/set_robot_io"
 
 # 逻辑语义常量（统一 IO 语义，消除 true=打开/true=闭合 的歧义）
 # ExecuteGraspPoseWorker:  true=打开, false=闭合

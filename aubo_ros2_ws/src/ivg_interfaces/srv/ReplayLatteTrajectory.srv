@@ -1,0 +1,37 @@
+# =============================================================================
+# ReplayLatteTrajectory.srv -- 调用 Latte 拉花轨迹回放服务喵~
+# 用途：通过 Episode 编号从 npz 文件加载笛卡尔轨迹，通过 MoveIt2 标准管线执行
+# 调用方：上位机任务调度节点、示教控制节点、Web Dashboard
+# 服务方：latte_imitation 的 LatteImitationNode
+# 说明：mode="debug" 只发布 PoseStamped/Path 话题，立即返回喵~
+#       mode="action" 执行 MoveIt2 标准管线：
+#         computeCartesianPath (全6-DOF IK + 内置碰撞) → /execute_trajectory action
+#       start_pose=零位姿 → 自动从 TF 获取当前 EE 位姿作为轨迹起点喵~
+#       start_pose=非零 → 手动指定轨迹起点（如相机检测到的杯子位姿）喵~
+#
+# 废弃字段 (保留兼容，不再生效):
+#   pos_only       — no-op，MoveIt2 始终全 6-DOF IK 喵~
+#   collision_check — no-op，MoveIt2 内置 avoid_collisions 喵~
+#   ik_success_count 语义改为 int(fraction * num_frames) 喵~
+#   collision_count 始终为 0 喵~
+# =============================================================================
+
+# ======================== 请求字段 ========================
+int32 episode_idx           # Episode 编号 (0-39)，指定要回放的 npz 轨迹文件喵~
+string arm                  # 机械臂标识："left"=左臂持杯, "right"=右臂拉花喵~
+float32 speed_scale         # 播放速度倍率 [0.01, 10.0] (默认 1.0)，dt / speed_scale 喵~
+string mode                 # "debug"=仅发布位姿 / "action"=MoveIt2 CartesianPath→Execute 喵~
+bool pos_only               # [废弃] IK 仅匹配位置，不再生效 (MoveIt2 始终全 6-DOF) 喵~
+geometry_msgs/Pose start_pose   # 轨迹起点位姿（相机检测到的杯子位姿）喵~
+                                # position=(0,0,0) 且 orientation=(0,0,0,1) 时自动从 TF 获取当前 EE 位姿喵~
+bool collision_check        # [废弃] 碰撞检测开关，不再生效 (MoveIt2 内置 avoid_collisions) 喵~
+
+---
+# ======================== 响应字段 ========================
+bool success                # 服务调用是否成功喵~
+string message              # 状态消息或错误描述喵~
+int32 num_frames            # 轨迹总帧数喵~
+float32 path_length         # 笛卡尔路径总长度 (米)喵~
+int32 ik_success_count      # int(fraction * num_frames) — 规划成功等效帧数（mode="debug" 时为 0）喵~
+int32 collision_count       # 始终为 0 (MoveIt2 内部处理碰撞) 喵~
+string[] collision_details  # 始终为空 (MoveIt2 内部处理碰撞) 喵~

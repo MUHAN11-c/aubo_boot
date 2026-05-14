@@ -1,6 +1,11 @@
 # IVG Web Dashboard
 
-ROS 2 机械臂视觉抓取 Web 控制面板。FastAPI 网关 + ROSLIB.js 前端，浏览器通过 WebSocket/HTTP 代理与 ROS 系统实时交互。
+ROS 2 机械臂视觉抓取 Web 控制面板。FastAPI 网关 + Vue 3 前端，浏览器通过 WebSocket/HTTP 代理与 ROS 系统实时交互。
+
+> **前端技术栈**：Vue 3.5 + TypeScript + Vite 6 + Tailwind CSS v4 + Element Plus + VueUse + Pinia
+>
+> **迁移方案**：详见 `docs/frontend-migration-plan.md`。
+> Vue 3 构建产物位于 `web/dist/`，`setup.py` 负责将其安装到 `share/<pkg>/web/dist/` 喵~
 
 ---
 

@@ -50,9 +50,9 @@ def generate_launch_description():
     ld = LaunchDescription()
 
     # ── 路径解析 ────────────────────────────────────────────────────────
-    # 网关进程的 --directory 需要具体字符串，不能用 Substitution → 用 os.path
+    # Vue 3 构建产物 (web/dist)
     pkg_share_str = get_package_share_directory("aubo_ros2_web_dashboard")
-    web_dir = os.path.join(pkg_share_str, "web", "public")
+    web_dir = os.path.join(pkg_share_str, "web", "dist")
 
     # rosbridge launch 文件路径
     rosbridge_launch = PathJoinSubstitution([
@@ -174,6 +174,8 @@ def generate_launch_description():
             "--rwt-assets-dir", lc["robotwebtools_assets_dir"],
         ],
         output="screen",
+        respawn=True,
+        respawn_delay=5.0,
     ))
 
     return ld

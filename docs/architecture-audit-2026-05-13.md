@@ -9,7 +9,7 @@
 | # | 架构决策 | 当前状态 | 评估 |
 |---|---------|---------|------|
 | 1 | Web 框架统一为 FastAPI | `hand_eye_calibration` 仍用 Flask :8080，其余已 FastAPI | ⚠️ 待迁移 |
-| 2 | 前端选 Vue 3 + TS | 当前原生 JS + Web Components，`aubo_ros2_web_dashboard/web/public/` | ❌ 未开始 |
+| 2 | 前端选 Vue 3 + TS | 当前原生 JS + Web Components，`aubo_ros2_web_dashboard/web/public/` | ✅ 方案已定 — 详见 `docs/frontend-migration-plan.md`（2026-05-15），工具链：Vite + Vue 3.5 + Tailwind CSS v4 + Element Plus + VueUse + Pinia + unplugin + vue-echarts |
 | 3 | ivg_utils 零 ROS 依赖 | **已验证** — 仅依赖 numpy，无 rclpy/sensor_msgs 导入 | ✅ 合规 |
 | 4 | 感知层包间仅通过 ROS 2 接口通信 | `graspnet_ros2` 通过 `sys.path` 导入 `graspnet-baseline` 内部模块（models/backbone等）| ⚠️ 部分违规 |
 | 5 | Web 层通过 rosbridge 桥接 | 已验证 — 网关 8090 代理 rosbridge 9090 | ✅ 合规 |

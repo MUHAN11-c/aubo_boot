@@ -147,7 +147,7 @@ async def rosbridge_websocket_proxy(websocket: WebSocket) -> None:
                         t.cancel()
                 await asyncio.gather(t1, t2, return_exceptions=True)
                 raise
-    except (OSError, Exception):
+    except Exception:
         await _close_ws(websocket)
 
 

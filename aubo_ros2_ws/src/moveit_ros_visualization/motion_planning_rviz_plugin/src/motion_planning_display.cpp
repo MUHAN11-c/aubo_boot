@@ -1133,6 +1133,8 @@ void MotionPlanningDisplay::clearRobotModel()
   kinematics_metrics_.reset();
   robot_interaction_.reset();
   dynamics_solver_.clear();
+  query_robot_start_.reset();  // 销毁旧的 RobotStateVisualization，避免其内部 rviz::Robot 持旧 link
+  query_robot_goal_.reset();   // 同上
   // ... before calling the parent's method, which finally destroys the creating RobotModelLoader.
   PlanningSceneDisplay::clearRobotModel();
 }
@@ -1155,6 +1157,19 @@ void MotionPlanningDisplay::onRobotModelLoaded()
 
   int_marker_display_->subProp("Interactive Markers Namespace")
       ->setValue(QString::fromStdString(robot_interaction_->getServerTopic()));
+  // 若 clearRobotModel 销毁了 query robot，重建之
+  if (!query_robot_start_)
+  {
+    query_robot_start_ = std::make_shared<RobotStateVisualization>(planning_scene_node_, context_, "Planning Start", robot_category_);
+    query_robot_start_->setCollisionVisible(false);
+    query_robot_start_->setVisualVisible(true);
+  }
+  if (!query_robot_goal_)
+  {
+    query_robot_goal_ = std::make_shared<RobotStateVisualization>(planning_scene_node_, context_, "Planning Goal", robot_category_);
+    query_robot_goal_->setCollisionVisible(false);
+    query_robot_goal_->setVisualVisible(true);
+  }
   query_robot_start_->load(*getRobotModel()->getURDF());
   query_robot_goal_->load(*getRobotModel()->getURDF());
 

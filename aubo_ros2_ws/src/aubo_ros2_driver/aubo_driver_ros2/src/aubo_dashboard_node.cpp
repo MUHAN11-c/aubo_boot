@@ -107,7 +107,7 @@ AuboDashboardNode::on_configure(const rclcpp_lifecycle::State&)
 
     // IO (使用已有自定义服务)
     srv_set_io_ = this->create_service<ivg_interfaces::srv::SetRobotIO>(
-        "/aubo/set_io",
+        "/set_robot_io",
         std::bind(&AuboDashboardNode::onSetIO, this, std::placeholders::_1, std::placeholders::_2));
 
     // 运动学
@@ -450,6 +450,7 @@ void AuboDashboardNode::onTeachStop(
         setFailure(resp, "Not connected");
         return;
     }
+    std::lock_guard<std::mutex> lock(sdk_mutex_);
     int ret = hw_->statusService().robotServiceTeachStop();
     if (ret == aubo_robot_namespace::InterfaceCallSuccCode) {
         setSuccess(resp, "Teach mode stopped");
@@ -532,6 +533,7 @@ void AuboDashboardNode::onSetToolVoltage(
         resp->message = "Not connected";
         return;
     }
+    std::lock_guard<std::mutex> lock(sdk_mutex_);
     auto type = static_cast<aubo_robot_namespace::ToolPowerType>(req->voltage_type);
     int ret = hw_->statusService().robotServiceSetToolPowerVoltageType(type);
     resp->success = (ret == aubo_robot_namespace::InterfaceCallSuccCode);
@@ -552,6 +554,7 @@ void AuboDashboardNode::onSetIO(
         resp->message = "Not connected";
         return;
     }
+    std::lock_guard<std::mutex> lock(sdk_mutex_);
 
     std::string io_type = req->io_type;
     std::transform(io_type.begin(), io_type.end(), io_type.begin(),

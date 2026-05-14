@@ -9,7 +9,14 @@
 | 维度 | 当前（2026.05 可用） | 目标架构（未来） |
 |------|---------------------|-----------------|
 | Web 后端 | FastAPI + Flask 并存 | FastAPI 统一 |
-| 前端 | 原生 JS + Web Components | Vue 3 + TypeScript |
+| 前端框架 | 原生 JS + Web Components (8,660行) | **Vue 3.5 + TypeScript** (Composition API + `<script setup>`) |
+| 前端构建 | importmap + 零构建 | **Vite 6** (HMR <1s，Rolldown Rust 引擎) |
+| 前端样式 | 手写 CSS 3,650 行 | **Tailwind CSS v4** (Rust 核心，Vite 插件 268ms 构建) |
+| 前端组件 | 手写 HTML + CSS | **Element Plus** (28k Stars，中文母语文档) |
+| 前端工具 | 自研 ivgPorts/ivgTransport | **VueUse** (200+ composables，Anthony Fu 创建) |
+| 前端状态 | globalThis 全局单例 | **Pinia** (Vue 官方，仅跨页面共享) |
+| 前端图表 | 手写 Canvas 2D (231行) | **vue-echarts** (可选，后续新图表用) |
+| 前端自动导入 | 手动 import | **unplugin-auto-import + unplugin-vue-components** |
 | 重复代码 | 7 处四元数转换、3 个 YOLO 副本 | 统一到 ivg_utils |
 | 单体文件 | hand_eye_calibration_node.py 5958 行 | 拆分为 6 个模块 |
 | MoveIt 2 | 本地源码复刻 | apt 标准包 |
@@ -18,7 +25,6 @@
 | 容器化 | 无 | Docker 多阶段构建（后续参考）|
 | 测试/CI | 几乎为零 | pytest + GitHub Actions（后续参考）|
 | 硬编码路径 | /home/mu/IVG2.0 | 相对路径 + ament_index |
-| 前端包管理 | importmap + 自构建 | Vite + npm |
 | ML 实验追踪 | 无 | MLflow + DVC（后续参考）|
 | VLA 基座 | 无 | OpenVLA + LeRobot（后续参考）|
 | LLM 推理 | 无 | vLLM + llama.cpp（后续参考）|
@@ -179,7 +185,7 @@
 | `execute_grasp_pose_worker` | Service: `/execute_single_grasp` | 单次抓取原语：接近→握持→抬升→放置 |
 | `publish_grasps_client_worker` | Topic: `/grasp_poses_base` (sub); Service: `/loop_grasp_control` | GraspNet 循环抓取编排 |
 | `coffee_latte_service` | Service: `/set_latte_do2`, `/set_latte_do4` | 咖啡拉花 IO 控制 |
-| `latte_trajectory_player` | Action: `/follow_joint_trajectory` | 示教轨迹回放 |
+| `latte_trajectory_player` | Action: `/execute_trajectory` (MoveIt2 标准管线) | 示教轨迹回放 |
 
 **设计决策**：
 - `execute_grasp_pose_worker` 的 Reentrant callback group 模式保留 — 已验证避免死锁
@@ -191,7 +197,7 @@
 | 组件 | 技术栈 | 职责 |
 |------|--------|------|
 | **ivg_web_gateway** | FastAPI + uvicorn + httpx + websockets | 统一入口：静态文件服务 + rosbridge WS 代理 + MJPEG 视频代理 + BFF API + 安全头 |
-| **ivg_web_frontend** | Vue 3 + TypeScript + Pinia + Vite + ROSLIB.js | 6 个面板：门户/视觉抓取/咖啡拉花/TF监控/设置/日志 |
+| **ivg_web_frontend** | Vue 3.5 + TypeScript + Vite 6 + Tailwind CSS v4 + Element Plus + VueUse + Pinia + unplugin | 6 个面板：门户/视觉抓取/咖啡拉花/TF监控/设置/日志 |
 
 **网关路由设计**：
 ```
@@ -208,31 +214,69 @@
 
 **前端架构**：
 ```
-src/
-├── main.ts                     # 入口，注册 Router + Pinia
-├── App.vue                     # 根布局 + StatusBar
-├── router/index.ts             # 6 条路由
-├── stores/
-│   ├── robot.ts                # 机器人状态（joint_states, io, tool）
-│   ├── camera.ts               # 相机状态（流 URL, 质量）
-│   └── grasp.ts                # 抓取状态（位姿列表, 循环控制）
-├── composables/
-│   ├── useRos.ts               # ROSLIB.Ros 单例 + 自动重连
-│   ├── useRosTopic.ts          # 话题订阅/取消 (类型安全泛型)
-│   └── useRosService.ts        # 服务调用 (async/await 包装)
-├── components/
-│   ├── RobotViewer.vue         # 3D 查看器（集成 ROS3D.js）
-│   ├── CameraStream.vue        # MJPEG 视频流 <img>
-│   ├── RobotStatusBar.vue      # 全局状态栏
-│   ├── GraspPanel.vue          # 抓取控制面板
-│   └── LattePanel.vue          # 咖啡拉花面板
-└── views/
-    ├── DashboardView.vue       # 门户首页
-    ├── VisionGraspView.vue     # 视觉抓取页
-    ├── CoffeeLatteView.vue     # 咖啡拉花页
-    ├── TfMonitorView.vue       # TF 监控页
-    ├── SettingsView.vue        # 设置页
-    └── LogView.vue             # 日志页
+web/
+├── index.html                     # Vite 入口 HTML
+├── vite.config.ts                 # Vite 配置 (Tailwind CSS v4 + unplugin + Vue)
+├── tailwind.config.ts             # Tailwind 主题配置
+├── tsconfig.json                  # TypeScript 配置
+├── package.json                   # npm 依赖声明
+│
+├── public/                        # 静态资源（直接复制到 dist/）
+│   └── favicon.ico
+│
+└── src/
+    ├── main.ts                    # 入口：createApp + Router + Pinia
+    ├── App.vue                    # 根布局：ivg-site-nav + RouterView + StatusBar
+    │
+    ├── types/                     # TypeScript 类型声明
+    │   ├── ros.ts                 # ROS 消息类型（51 个 ivg_interfaces）
+    │   ├── auto-imports.d.ts      # unplugin 自动生成
+    │   └── components.d.ts        # unplugin 自动生成
+    │
+    ├── composables/               # 可复用组合函数（替代 core/ 目录）
+    │   ├── useRos.ts              # ROSLIB.Ros 单例 + 自动重连（替代 ivg_transport.js）
+    │   ├── useRosTopic.ts         # 话题订阅/取消 (onMounted/onUnmounted 自动管理)
+    │   ├── useRosService.ts       # 服务调用 (async/await Promise 包装)
+    │   ├── useRuntime.ts          # BFF 运行时配置加载（替代 ivg_runtime.js）
+    │   ├── useMJPEGStream.ts      # MJPEG <img> 自动重连（替代 ivg_web_video.js）
+    │   ├── useUrdfViewer.ts       # ros3d Viewer 生命周期（替代 session.js + urdf_panel.js）
+    │   └── useToolStatus.ts       # /tool_changer_status 订阅 + UI 状态
+    │
+    ├── stores/                    # Pinia 全局状态（仅跨页面共享）
+    │   ├── ros.ts                 # ROS 连接状态 + 运行时配置
+    │   └── tool.ts                # 当前工具 ID/名称
+    │
+    ├── components/                # 可复用 Vue 组件
+    │   ├── ivg/                   # IVG 业务组件
+    │   │   ├── RobotViewer.vue    # 3D 查看器（集成 ROS3D.js + TF）
+    │   │   ├── CameraStream.vue   # MJPEG 视频流 <img>
+    │   │   ├── RobotStatusBar.vue # 底部状态栏（替代 ivg_status_bar.js）
+    │   │   ├── JointChart.vue     # 关节曲线图（vue-echarts 替代手写 Canvas）
+    │   │   ├── PoseCard.vue       # 位姿卡片（替代 pose_card.js 手写 HTML）
+    │   │   ├── ProjectionOverlay.vue  # 2D 抓取投影（Canvas 2D，框架无关保留）
+    │   │   ├── ToolSwapBar.vue    # 工具快换按钮组
+    │   │   ├── GraspControls.vue  # 抓取控制面板
+    │   │   ├── TopicSettingsModal.vue # 话题设置弹窗
+    │   │   └── SiteNav.vue        # 全局导航栏（替代 ivg_site_nav.js）
+    │   └── ui/                    # 纯 UI 封装（Element Plus 二次封装）
+    │       └── ...
+    │
+    ├── views/                     # 页面视图
+    │   ├── DashboardView.vue      # 门户首页（index.html）
+    │   ├── VisionGraspView.vue    # 视觉抓取页（vision_grasp_panel.html）
+    │   ├── CoffeeLatteView.vue    # 咖啡拉花页（coffee_latte_panel.html）
+    │   ├── TfMonitorView.vue      # TF 监控页（tf_monitor_panel.html）
+    │   ├── SettingsView.vue       # 设置页（settings_panel.html）
+    │   └── LogView.vue            # 日志页（log_panel.html）
+    │
+    ├── lib/                       # 纯逻辑/数学库（框架无关，从现有直接搬）
+    │   ├── tf_math.ts             # 四元数/变换/TF 路径（来自 tf_clients.js）
+    │   ├── projection.ts          # 2D 投影叠加逻辑（来自 projection_overlay.js）
+    │   ├── pose_card.ts           # 位姿格式化（来自 pose_card.js）
+    │   └── ros3d_patches.ts       # Three.js monkey-patch（来自 patches.js）
+    │
+    └── router/
+        └── index.ts               # Vue Router 路由表（6 条路由）
 ```
 
 ---

@@ -8,7 +8,7 @@
 #ifndef DEMO_DRIVER_EXECUTE_GRASP_POSE_WORKER_H_
 #define DEMO_DRIVER_EXECUTE_GRASP_POSE_WORKER_H_
 
-#include "demo_driver/moveit_gripper_io_base.h"
+#include "demo_driver/robot_controller.h"
 
 #include <array>
 #include <atomic>
@@ -29,23 +29,12 @@ namespace demo_driver
 /**
  * @brief 执行抓取位姿 Worker 节点（服务驱动模式）
  *
- * 继承 MoveitGripperIoBase，提供服务接口触发抓取任务。
- * 特点：
- * - 支持视觉估计或参数常量两种模式
- * - 提供单次抓取和循环抓取服务
- * - 不进行 Z 轴 180° 修正
- * - 只允许 Z 轴旋转（姿态由 Z 轴旋转角度指定）
- * - 执行流程：回安全位 -> 视觉估计(可选) -> 抓取接近 -> 闭夹爪 -> 抬起 -> 放置 -> 开夹爪 -> 回安全位
+ * 组合 RobotController，提供服务接口触发抓取任务。
  */
-class ExecuteGraspPoseWorker : public MoveitGripperIoBase
+class ExecuteGraspPoseWorker : public rclcpp::Node
 {
 public:
   explicit ExecuteGraspPoseWorker(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
-  ~ExecuteGraspPoseWorker() override;
-
-  static std::shared_ptr<ExecuteGraspPoseWorker> create(const rclcpp::NodeOptions& options);
-
-  bool run() override;
 
   /** 单次抓取放置周期，任一步失败返回 false */
   bool runOneCycle();
@@ -154,6 +143,9 @@ private:
   double grasp_z_rotation_;
   /** 工件ID（用于视觉估计） */
   std::string object_id_;
+
+  // RobotController (组合模式: MoveIt运动 + IO)
+  std::shared_ptr<RobotController> robot_;
 
   // 服务
   rclcpp::Service<ivg_interfaces::srv::ExecuteGraspPose>::SharedPtr execute_single_grasp_service_;

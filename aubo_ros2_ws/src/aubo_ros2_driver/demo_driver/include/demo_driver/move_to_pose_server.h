@@ -1,50 +1,34 @@
-/*
- * Software License Agreement (BSD License)
- *
- * Copyright (c) 2024
- * All rights reserved.
- */
-
 #ifndef DEMO_DRIVER_MOVE_TO_POSE_SERVER_H_
 #define DEMO_DRIVER_MOVE_TO_POSE_SERVER_H_
 
-#include "demo_driver/moveit_gripper_io_base.h"
-
-#include <ivg_interfaces/srv/move_to_pose.hpp>
 #include <rclcpp/rclcpp.hpp>
-
+#include <moveit/move_group_interface/move_group_interface.h>
+#include <ivg_interfaces/srv/move_to_pose.hpp>
 #include <array>
 #include <memory>
 #include <mutex>
-#include <string>
 
 namespace demo_driver
 {
 
-/**
- * @brief /move_to_pose 服务节点
- *
- * 继承 MoveitGripperIoBase，复用其 MoveGroup 初始化、位姿运动与 IO 依赖等待能力。
- * 服务模式参考 GripperSwapWorker：构造时创建服务，create() 中调用 initMoveGroup()。
- */
-class MoveToPoseServer : public MoveitGripperIoBase
+class MoveToPoseServer : public rclcpp::Node
 {
 public:
-  explicit MoveToPoseServer(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
-  ~MoveToPoseServer() override = default;
-
-  static std::shared_ptr<MoveToPoseServer> create(const rclcpp::NodeOptions& options);
-  bool run() override;
+    explicit MoveToPoseServer(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
-  void onMoveToPoseRequest(const std::shared_ptr<ivg_interfaces::srv::MoveToPose::Request> request,
-                           std::shared_ptr<ivg_interfaces::srv::MoveToPose::Response> response);
+    std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
 
-  rclcpp::Service<ivg_interfaces::srv::MoveToPose>::SharedPtr move_to_pose_service_;
-  std::string service_name_;
-  std::mutex service_mutex_;
+    rclcpp::Service<ivg_interfaces::srv::MoveToPose>::SharedPtr service_;
+    std::mutex service_mutex_;
+
+    void onMoveToPoseRequest(const std::shared_ptr<ivg_interfaces::srv::MoveToPose::Request> req,
+                             std::shared_ptr<ivg_interfaces::srv::MoveToPose::Response> res);
+
+    bool moveToJoints(const double* joints, float vel, float acc);
+    bool moveToPose(double x, double y, double z, double qx, double qy, double qz, double qw,
+                    float vel, float acc);
 };
 
 }  // namespace demo_driver
-
-#endif  // DEMO_DRIVER_MOVE_TO_POSE_SERVER_H_
+#endif

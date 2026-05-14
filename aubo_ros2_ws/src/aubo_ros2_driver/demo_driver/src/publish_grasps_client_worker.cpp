@@ -180,6 +180,8 @@ static void sleepInterruptible(PublishGraspsClientWorker* worker, double seconds
 PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& options)
   : rclcpp::Node("publish_grasps_client_worker", options)
 {
+  robot_ = std::make_shared<RobotController>(this);
+  move_group_ = robot_->moveGroup();  // 共享 RobotController 的 MoveGroupInterface
   aubo_set_io_client_ = create_client<ivg_interfaces::srv::SetRobotIO>(kAuboSetIOService);
 
   // --- 声明参数（详见本文件上方参数表）---
@@ -256,14 +258,6 @@ PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& 
       loop_control_service_name_.c_str(), auto_start_loop_ ? "true" : "false");
 }
 
-// 工厂：shared_ptr + initMoveGroup（MoveGroupInterface 依赖 shared_from_this）
-std::shared_ptr<PublishGraspsClientWorker> PublishGraspsClientWorker::create(const rclcpp::NodeOptions& options)
-{
-  auto node = std::make_shared<PublishGraspsClientWorker>(options);
-  node->initMoveGroup();
-  return node;
-}
-
 // =============================================================================
 // MoveIt 运动 + Aubo 夹爪 IO（runOneCycle 的步骤链均调用此层）
 // =============================================================================
@@ -276,14 +270,6 @@ void PublishGraspsClientWorker::preparePlanningState(float velocity_factor, floa
   move_group_->setStartStateToCurrentState();
   move_group_->setMaxVelocityScalingFactor(velocity_factor);
   move_group_->setMaxAccelerationScalingFactor(acceleration_factor);
-}
-
-void PublishGraspsClientWorker::initMoveGroup()
-{
-  move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(shared_from_this(), "manipulator");
-  move_group_->allowReplanning(true);
-  move_group_->setMaxVelocityScalingFactor(0.5);
-  move_group_->setMaxAccelerationScalingFactor(0.5);
 }
 
 bool PublishGraspsClientWorker::waitForServices(std::chrono::seconds timeout)
@@ -1000,7 +986,7 @@ bool PublishGraspsClientWorker::runOneCycle()
   if (!rclcpp::ok() || shutdown_requested_)
     return false;
   RCLCPP_INFO(get_logger(), "步骤 0: 回 A 点安全位（识别前到位，camera_pose）");
-  if (!moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
+  if (!robot_->moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "runOneCycle 步骤0 回 A 点失败，需在识别前到位");
     return failCycle();
@@ -1053,7 +1039,7 @@ bool PublishGraspsClientWorker::runOneCycle()
   }
   else
   {
-    if (!setGripperIo(gripper_io_index_, false))
+    if (!robot_->setGripper(gripper_io_index_, false))
     {
       RCLCPP_ERROR(get_logger(), "runOneCycle 步骤5 抓取前开夹爪失败");
       return failCycle();
@@ -1079,7 +1065,7 @@ bool PublishGraspsClientWorker::runOneCycle()
   }
   else
   {
-    if (!setGripperIo(gripper_io_index_, true))
+    if (!robot_->setGripper(gripper_io_index_, true))
     {
       RCLCPP_ERROR(get_logger(), "runOneCycle 步骤7 闭夹爪失败");
       return failCycle();
@@ -1087,7 +1073,7 @@ bool PublishGraspsClientWorker::runOneCycle()
   }
 
   RCLCPP_INFO(get_logger(), "步骤 8: 抬起 (z=%.2f m)", lift_offset_);
-  if (!runArcPath('z', lift_offset_, joint_velocity_scaling_, joint_acceleration_scaling_))
+  if (!robot_->moveCartesianZ(lift_offset_, joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "runOneCycle 步骤8 抬起失败");
     return failCycle();
@@ -1106,7 +1092,7 @@ bool PublishGraspsClientWorker::runOneCycle()
     return false;
   // B 点后笛卡尔微调（如沿 z）
   const std::vector<CartesianSegment> place_segments = { { 'z', place_offset_z_ } };
-  if (!runArcPathSequence(place_segments, joint_velocity_scaling_, joint_acceleration_scaling_))
+  if (!robot_->moveCartesianPath(place_segments, joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "runOneCycle 步骤9 B 点后笛卡尔微调失败");
     return failCycle();
@@ -1122,7 +1108,7 @@ bool PublishGraspsClientWorker::runOneCycle()
   }
   else
   {
-    if (!setGripperIo(gripper_io_index_, false))
+    if (!robot_->setGripper(gripper_io_index_, false))
     {
       RCLCPP_ERROR(get_logger(), "runOneCycle 步骤10 开夹爪失败");
       return failCycle();
@@ -1133,7 +1119,7 @@ bool PublishGraspsClientWorker::runOneCycle()
     return false;
 
   RCLCPP_INFO(get_logger(), "步骤 11: 回 A 点安全位（camera_pose）");
-  if (!moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
+  if (!robot_->moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "runOneCycle 步骤11 回 A 点失败");
     return failCycle();
@@ -1164,9 +1150,9 @@ void PublishGraspsClientWorker::onShutdown()
               kSkipTemporaryGripperIo ? "（仿真模式：跳过开夹爪IO）" : "、开夹爪");
   if (!kSkipTemporaryGripperIo)
   {
-    setGripperIo(gripper_io_index_, false);
+    robot_->setGripper(gripper_io_index_, false);
   }
-  moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_);
+  robot_->moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_);
 }
 
 void PublishGraspsClientWorker::requestShutdown()
@@ -1232,7 +1218,7 @@ int main(int argc, char** argv)
   rclcpp::NodeOptions options;
   options.automatically_declare_parameters_from_overrides(true);
 
-  auto node = demo_driver::PublishGraspsClientWorker::create(options);
+  auto node = std::make_shared<demo_driver::PublishGraspsClientWorker>(options);
 
   rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
   executor.add_node(node);

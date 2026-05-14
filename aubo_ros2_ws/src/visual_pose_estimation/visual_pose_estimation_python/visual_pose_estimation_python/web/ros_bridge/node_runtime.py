@@ -36,13 +36,11 @@ except ImportError:
     ConfigReader = None
 
 try:
-    from ivg_interfaces.msg import ImageData
     from ivg_interfaces.srv import SoftwareTrigger
 
     CAMERA_AVAILABLE = True
 except ImportError:
     CAMERA_AVAILABLE = False
-    ImageData = None
     SoftwareTrigger = None
 
 try:
@@ -77,22 +75,17 @@ class ROS2Node(Node):
         self.publish_grasps_loop_control_client = self.create_client(SetBool, "/publish_grasps_worker_loop_control")
         self.run_gripper_swap_client = self.create_client(RunGripperSwap, "/run_gripper_swap")
         self.write_plc_register_client = None
-        self.set_robot_io_client = self.create_client(SetRobotIO, "/aubo_driver/set_io") if ROBOT_AVAILABLE else None
+        self.set_robot_io_client = self.create_client(SetRobotIO, "/set_robot_io") if ROBOT_AVAILABLE else None
 
         self.robot_status_sub = (
-            self.create_subscription(RobotStatus, "/aubo_driver/robot_status", self.robot_status_callback, 10)
+            self.create_subscription(RobotStatus, "/robot_status", self.robot_status_callback, 10)
             if ROBOT_AVAILABLE
             else None
-        )
-        self.image_data_sub = (
-            self.create_subscription(ImageData, "/image_data", self.image_data_callback, 10) if CAMERA_AVAILABLE else None
         )
         self.depth_image_sub = None
         self.color_image_sub = None
 
         self.latest_robot_status = None
-        self.latest_image_data = None
-        self.image_received = False
         self.latest_depth_image = None
         self.latest_color_image = None
         self.depth_image_received = False
@@ -120,12 +113,6 @@ class ROS2Node(Node):
     def robot_status_callback(self, msg):
         with self.robot_status_lock:
             self.latest_robot_status = msg
-
-    def image_data_callback(self, msg):
-        with self.image_lock:
-            if hasattr(msg, "camera_id") and msg.camera_id:
-                self.latest_image_data = msg
-                self.image_received = True
 
     def depth_image_callback(self, msg):
         try:
@@ -236,8 +223,6 @@ class ROS2Node(Node):
                 )
 
             with self.image_lock:
-                self.image_received = False
-                self.latest_image_data = None
                 self.depth_image_received = False
                 self.color_image_received = False
                 self.latest_depth_image = None

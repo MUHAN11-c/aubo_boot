@@ -25,16 +25,11 @@ find_package(moveit_ros_planning REQUIRED)
 # Include directories
 include_directories(include)
 
-add_executable(move_to_pose_server_node
-  src/moveit_gripper_io_base.cpp
-  src/move_to_pose_server.cpp
-)
+add_executable(move_to_pose_server_node src/move_to_pose_server.cpp)
 ament_target_dependencies(move_to_pose_server_node
   rclcpp
   geometry_msgs
   ivg_interfaces
-  ivg_interfaces
-  tf2_geometry_msgs
   moveit_core
   moveit_ros_planning_interface
 )
@@ -94,6 +89,7 @@ ament_target_dependencies(set_robot_pose_server_node
 
 # GraspNet 抓取放置 worker（订阅 grasp_poses_base，循环抓取→放置→回安全位；运动逻辑自包含）
 add_executable(publish_grasps_client_worker_node
+  src/robot_controller.cpp
   src/publish_grasps_client_worker.cpp
 )
 ament_target_dependencies(publish_grasps_client_worker_node
@@ -110,7 +106,7 @@ ament_target_dependencies(publish_grasps_client_worker_node
 
 # 执行常量抓取位姿 worker（服务驱动模式：支持视觉估计和参数常量两种抓取模式）
 add_executable(execute_grasp_pose_worker_node
-  src/moveit_gripper_io_base.cpp
+  src/robot_controller.cpp
   src/execute_grasp_pose_worker.cpp
 )
 ament_target_dependencies(execute_grasp_pose_worker_node
@@ -130,6 +126,14 @@ ament_target_dependencies(execute_grasp_pose_worker_node
 add_executable(system_monitor_node src/system_monitor_node.cpp)
 ament_target_dependencies(system_monitor_node rclcpp ivg_interfaces)
 
+# 机器人使能服务（代理到 /aubo/startup 和 /aubo/shutdown）
+add_executable(set_robot_enable_server_node src/set_robot_enable_server.cpp)
+ament_target_dependencies(set_robot_enable_server_node rclcpp std_srvs ivg_interfaces)
+
+# IO 状态读取服务（订阅 /robot_io_status 缓存 + /read_robot_io 查询）
+add_executable(read_robot_io_server_node src/read_robot_io_server.cpp)
+ament_target_dependencies(read_robot_io_server_node rclcpp ivg_interfaces)
+
 # Install targets
 install(TARGETS
   move_to_pose_server_node
@@ -141,6 +145,8 @@ install(TARGETS
   publish_grasps_client_worker_node
   execute_grasp_pose_worker_node
   system_monitor_node
+  set_robot_enable_server_node
+  read_robot_io_server_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

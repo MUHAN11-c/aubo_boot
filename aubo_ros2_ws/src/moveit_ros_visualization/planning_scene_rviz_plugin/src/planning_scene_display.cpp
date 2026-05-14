@@ -553,7 +553,13 @@ planning_scene_monitor::PlanningSceneMonitorPtr PlanningSceneDisplay::createPlan
   robot_model_loader::RobotModelLoaderPtr rml;
   if (!pending_urdf_.empty())
   {
-    robot_model_loader::RobotModelLoader::Options opt(pending_urdf_, "" /* srdf */);
+    // Options 双参构造函数不初始化 robot_description_，导致空字符串被用作参数名
+    // → rclcpp 抛出 "parameter name must not be empty"
+    std::string rd_param = robot_description_property_->getStdString();
+    if (rd_param.empty())
+      rd_param = "robot_description";
+    robot_model_loader::RobotModelLoader::Options opt(pending_urdf_, "");
+    opt.robot_description_ = rd_param;
     rml = std::make_shared<robot_model_loader::RobotModelLoader>(node_, opt);
     pending_urdf_.clear();
   }
@@ -571,6 +577,7 @@ planning_scene_monitor::PlanningSceneMonitorPtr PlanningSceneDisplay::createPlan
 void PlanningSceneDisplay::clearRobotModel()
 {
   planning_scene_render_.reset();
+  planning_scene_robot_.reset();  // 销毁旧 RobotStateVisualization，避免 render loop 引用旧 model 的 link
   // Ensure old PSM is destroyed before we attempt to create a new one
   planning_scene_monitor_.reset();
 }
@@ -609,6 +616,16 @@ void PlanningSceneDisplay::loadRobotModel()
 // This should always run in the main GUI thread!
 void PlanningSceneDisplay::onRobotModelLoaded()
 {
+  // 若 clearRobotModel() 销毁了 planning_scene_robot_，则重建之
+  if (!planning_scene_robot_ && robot_category_)
+  {
+    planning_scene_robot_ =
+        std::make_shared<RobotStateVisualization>(planning_scene_node_, context_, "Planning Scene", robot_category_);
+    planning_scene_robot_->setVisible(true);
+    planning_scene_robot_->setVisualVisible(scene_robot_visual_enabled_property_->getBool());
+    planning_scene_robot_->setCollisionVisible(scene_robot_collision_enabled_property_->getBool());
+  }
+
   changedPlanningSceneTopic();
   planning_scene_render_ = std::make_shared<PlanningSceneRender>(planning_scene_node_, context_, planning_scene_robot_);
   planning_scene_render_->getGeometryNode()->setVisible(scene_enabled_property_->getBool());
@@ -627,6 +644,22 @@ void PlanningSceneDisplay::onRobotModelLoaded()
   scene_name_property_->blockSignals(old_state);
 
   setStatus(rviz_common::properties::StatusProperty::Ok, "PlanningScene", "Planning Scene Loaded Successfully");
+
+  // 记录当前加载的 URDF，确保后续 /robot_description 发布被识别为"变更"而非"初次"。
+  // last_loaded_urdf_ 为空时 onRobotDescriptionTopic 会将首次消息当作初始加载跳过，
+  // 但 onEnable 已经完成了初始加载，必须在此处同步。
+  if (last_loaded_urdf_.empty())
+  {
+    std::string rd_param = robot_description_property_->getStdString();
+    if (rd_param.empty())
+      rd_param = "robot_description";
+    std::string current_urdf;
+    // 大型 URDF 字符串可能超出 get_parameter 的限制，失败时用 sentinel 标记"已加载"
+    if (node_->get_parameter(rd_param, current_urdf) && !current_urdf.empty())
+      last_loaded_urdf_ = current_urdf;
+    else
+      last_loaded_urdf_ = "__loaded__";  // sentinel: 非空即表示 onEnable 已完成初始加载
+  }
 }
 
 void PlanningSceneDisplay::onNewPlanningSceneState()

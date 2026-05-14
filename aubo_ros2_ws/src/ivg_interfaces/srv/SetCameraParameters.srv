@@ -17,8 +17,8 @@ float32 gain              # 增益值，单位：dB（分贝），通常范围�
                           # 越大则在暗光下图像越亮但噪声越大喵~
 uint32 resolution_width   # 图像宽度分辨率，单位：像素（px），如 640、1280、1920 等喵~
 uint32 resolution_height  # 图像高度分辨率，单位：像素（px），必须与 width 构成有效分辨率对喵~
-int8 trigger_mode         # 触发模式：-1=连续采集（自由运行模式），0=软件触发（需 SoftwareTrigger 触发），
-                          # 1=硬件触发（外部信号触发），详见 Percipio SDK 文档喵~
+int8 trigger_mode         # 触发模式：0=连续采集（free-run），1=软件触发（需 SoftwareTrigger 触发），
+                          # 2=硬触发（硬件外部信号触发），详见 Percipio SDK 文档喵~
 
 ---
 # ======================== 响应字段 ========================

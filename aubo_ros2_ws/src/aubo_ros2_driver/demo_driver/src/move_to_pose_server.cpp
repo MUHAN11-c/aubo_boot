@@ -1,128 +1,105 @@
 /*
- * Software License Agreement (BSD License)
- *
- * Copyright (c) 2024
- * All rights reserved.
+ * /move_to_pose — 关节空间或笛卡尔空间移动到目标位姿。
+ * 直接创建 MoveGroupInterface, 不依赖 MoveitGripperIoBase。
  */
-
 #include "demo_driver/move_to_pose_server.h"
-
-#include <chrono>
 #include <rclcpp/executors/multi_threaded_executor.hpp>
-#include <thread>
+#include <moveit_msgs/msg/move_it_error_codes.hpp>
 
 namespace demo_driver
 {
 
-MoveToPoseServer::MoveToPoseServer(const rclcpp::NodeOptions& options) : MoveitGripperIoBase(options)
+static constexpr double kZMinLimit = -0.05;  // Z 轴安全下限 (m)
+
+MoveToPoseServer::MoveToPoseServer(const rclcpp::NodeOptions& options)
+    : Node("move_to_pose_server_node", options)
 {
-  declare_parameter("move_to_pose_service_name", std::string("/move_to_pose"));
-  service_name_ = get_parameter("move_to_pose_service_name").as_string();
+    move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
+        shared_from_this(), "manipulator");
+    move_group_->allowReplanning(true);
+    move_group_->setMaxVelocityScalingFactor(0.5);
+    move_group_->setMaxAccelerationScalingFactor(0.5);
 
-  move_to_pose_service_ = create_service<ivg_interfaces::srv::MoveToPose>(
-      service_name_,
-      std::bind(&MoveToPoseServer::onMoveToPoseRequest, this, std::placeholders::_1, std::placeholders::_2));
+    service_ = create_service<ivg_interfaces::srv::MoveToPose>(
+        "/move_to_pose",
+        [this](auto req, auto res) { onMoveToPoseRequest(req, res); });
 
-  RCLCPP_INFO(get_logger(), "服务 %s 已创建（继承 MoveitGripperIoBase）", service_name_.c_str());
-}
-
-std::shared_ptr<MoveToPoseServer> MoveToPoseServer::create(const rclcpp::NodeOptions& options)
-{
-  auto node = std::make_shared<MoveToPoseServer>(options);
-  node->initMoveGroup();
-  return node;
-}
-
-bool MoveToPoseServer::run()
-{
-  return true;
+    RCLCPP_INFO(get_logger(), "MoveToPoseServer ready");
 }
 
 void MoveToPoseServer::onMoveToPoseRequest(
-    const std::shared_ptr<ivg_interfaces::srv::MoveToPose::Request> request,
-    std::shared_ptr<ivg_interfaces::srv::MoveToPose::Response> response)
+    const std::shared_ptr<ivg_interfaces::srv::MoveToPose::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::MoveToPose::Response> res)
 {
-  std::lock_guard<std::mutex> lock(service_mutex_);
+    std::lock_guard<std::mutex> lock(service_mutex_);
 
-  if (!move_group_)
-  {
-    response->success = false;
-    response->error_code = -100;
-    response->message = "MoveGroup 未初始化";
-    RCLCPP_ERROR(get_logger(), "[MoveToPose] %s", response->message.c_str());
-    return;
-  }
+    if (!move_group_) {
+        res->success = false; res->error_code = -100; res->message = "not initialized"; return;
+    }
+    if (req->velocity_factor < 0.0f || req->velocity_factor > 1.0f ||
+        req->acceleration_factor < 0.0f || req->acceleration_factor > 1.0f) {
+        res->success = false; res->error_code = -1;
+        res->message = "velocity/acceleration factor must be in [0,1]"; return;
+    }
 
-  if (request->velocity_factor < 0.0f || request->velocity_factor > 1.0f ||
-      request->acceleration_factor < 0.0f || request->acceleration_factor > 1.0f)
-  {
-    response->success = false;
-    response->error_code = -1;
-    response->message = "velocity_factor 与 acceleration_factor 必须在 [0,1]";
-    RCLCPP_WARN(get_logger(), "[MoveToPose] %s", response->message.c_str());
-    return;
-  }
+    bool ok;
+    if (req->use_joints) {
+        ok = moveToJoints(req->target_joints.data(), req->velocity_factor, req->acceleration_factor);
+    } else {
+        const auto& p = req->target_pose.position;
+        const auto& q = req->target_pose.orientation;
+        ok = moveToPose(p.x, p.y, p.z, q.x, q.y, q.z, q.w, req->velocity_factor, req->acceleration_factor);
+    }
 
-  const auto& p = request->target_pose.position;
-  const auto& q = request->target_pose.orientation;
-  RCLCPP_INFO(get_logger(),
-              "[MoveToPose] 收到请求 target=[%.3f, %.3f, %.3f, %.4f, %.4f, %.4f, %.4f], use_joints=%s, vel=%.2f, acc=%.2f",
-              p.x, p.y, p.z, q.x, q.y, q.z, q.w, request->use_joints ? "true" : "false",
-              request->velocity_factor, request->acceleration_factor);
+    res->success = ok; res->error_code = ok ? 0 : -2;
+    res->message = ok ? "ok" : "move failed";
+}
 
-  bool ok = false;
-  if (request->use_joints)
-  {
-    std::array<double, 6> target_joints = { 0, 0, 0, 0, 0, 0 };
-    for (size_t i = 0; i < 6; ++i)
-      target_joints[i] = request->target_joints[i];
-    RCLCPP_INFO(get_logger(),
-                "[MoveToPose] use_joints=true，使用 target_joints=[%.4f, %.4f, %.4f, %.4f, %.4f, %.4f]",
-                target_joints[0], target_joints[1], target_joints[2],
-                target_joints[3], target_joints[4], target_joints[5]);
-    ok = moveToJoints(target_joints, request->velocity_factor, request->acceleration_factor);
-  }
-  else
-  {
-    ok = moveToPose(p.x, p.y, p.z, q.x, q.y, q.z, q.w, false, request->velocity_factor,
-                    request->acceleration_factor);
-  }
+bool MoveToPoseServer::moveToJoints(const double* joints, float vel, float acc)
+{
+    if (!move_group_) return false;
+    move_group_->setMaxVelocityScalingFactor(vel);
+    move_group_->setMaxAccelerationScalingFactor(acc);
+    move_group_->setJointValueTarget(std::vector<double>(joints, joints + 6));
 
-  response->success = ok;
-  response->error_code = ok ? 0 : -2;
-  response->message = ok ? (request->use_joints ? "moveToJoints 执行成功" : "moveToPose 执行成功")
-                         : (request->use_joints ? "moveToJoints 执行失败" : "moveToPose 执行失败");
-  if (ok)
-    RCLCPP_INFO(get_logger(), "[MoveToPose] 响应成功");
-  else
-    RCLCPP_WARN(get_logger(), "[MoveToPose] 响应失败");
+    moveit::planning_interface::MoveGroupInterface::Plan plan;
+    if (move_group_->plan(plan) != moveit::core::MoveItErrorCode::SUCCESS) return false;
+    return move_group_->execute(plan) == moveit::core::MoveItErrorCode::SUCCESS;
+}
+
+bool MoveToPoseServer::moveToPose(double x, double y, double z,
+                                  double qx, double qy, double qz, double qw,
+                                  float vel, float acc)
+{
+    if (!move_group_) return false;
+    if (z < kZMinLimit) z = kZMinLimit;  // 安全限位
+
+    move_group_->setMaxVelocityScalingFactor(vel);
+    move_group_->setMaxAccelerationScalingFactor(acc);
+
+    geometry_msgs::msg::Pose target;
+    target.position.x = x; target.position.y = y; target.position.z = z;
+    target.orientation.x = qx; target.orientation.y = qy;
+    target.orientation.z = qz; target.orientation.w = qw;
+    move_group_->setPoseTarget(target);
+
+    moveit::planning_interface::MoveGroupInterface::Plan plan;
+    if (move_group_->plan(plan) != moveit::core::MoveItErrorCode::SUCCESS) return false;
+    return move_group_->execute(plan) == moveit::core::MoveItErrorCode::SUCCESS;
 }
 
 }  // namespace demo_driver
 
 int main(int argc, char** argv)
 {
-  rclcpp::init(argc, argv);
-  rclcpp::NodeOptions options;
-  options.automatically_declare_parameters_from_overrides(true);
+    rclcpp::init(argc, argv);
+    rclcpp::NodeOptions opts; opts.automatically_declare_parameters_from_overrides(true);
+    auto node = std::make_shared<demo_driver::MoveToPoseServer>(opts);
 
-  auto node = demo_driver::MoveToPoseServer::create(options);
+    rclcpp::executors::MultiThreadedExecutor exec(rclcpp::ExecutorOptions(), 2);
+    exec.add_node(node);
+    exec.spin();
 
-  rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
-  executor.add_node(node);
-  std::thread spinner([&executor]() { executor.spin(); });
-
-  const int kServiceWaitSec = 10;
-  if (!node->waitForServices(std::chrono::seconds(kServiceWaitSec)))
-  {
     rclcpp::shutdown();
-    spinner.join();
-    return 1;
-  }
-
-  RCLCPP_INFO(node->get_logger(), "MoveToPoseServer 已就绪，调用服务 %s 触发运动",
-              node->get_parameter("move_to_pose_service_name").as_string().c_str());
-  spinner.join();
-  rclcpp::shutdown();
-  return 0;
+    return 0;
 }

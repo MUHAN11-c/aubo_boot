@@ -80,7 +80,9 @@ public:
         // 创建参数客户端 - 使用完整的节点路径
         // 相机节点在命名空间下，完整路径为 /camera_name/camera_name
         std::string camera_node_name = "/" + camera_name_ + "/" + camera_name_;
-        param_client_ = std::make_shared<rclcpp::SyncParametersClient>(this, camera_node_name);
+        param_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+        param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(
+            this, camera_node_name, rmw_qos_profile_parameters, param_cb_group_);
         
         // 序列号改为定时重试读取：避免与 percipio_camera 刚开流时的高频回调争抢同一执行器，
         // 导致 get_parameters 响应超时（camera 侧 rclcpp WARN: failed to send response ... timeout）。
@@ -127,7 +129,9 @@ private:
                 }
                 return;
             }
-            auto params = param_client_->get_parameters({"serial_number"});
+            auto params_future = param_client_->get_parameters({"serial_number"});
+            if (params_future.wait_for(std::chrono::seconds(1)) != std::future_status::ready) return;
+            auto params = params_future.get();
             if (!params.empty() && params[0].get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
                 std::string serial_number = params[0].as_string();
                 if (serial_number.length() > 2 && serial_number.front() == '"' && serial_number.back() == '"') {
@@ -297,7 +301,8 @@ private:
         
         if (has_changes) {
             try {
-                auto results = param_client_->set_parameters(parameters);
+                auto set_future = param_client_->set_parameters(parameters);
+                auto results = set_future.get();
                 bool all_success = true;
                 for (const auto& result : results) {
                     if (!result.successful) {
@@ -370,7 +375,8 @@ private:
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr device_event_sub_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr trigger_pub_;
     
-    rclcpp::SyncParametersClient::SharedPtr param_client_;
+    rclcpp::CallbackGroup::SharedPtr param_cb_group_;
+    rclcpp::AsyncParametersClient::SharedPtr param_client_;
     rclcpp::TimerBase::SharedPtr status_timer_;
     rclcpp::TimerBase::SharedPtr serial_fetch_timer_;
     bool serial_resolved_{false};

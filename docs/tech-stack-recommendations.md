@@ -18,6 +18,13 @@
 | **机器人仿真（RL研究）** | — | **MuJoCo + MJX** | 接触动力学业界最佳，MJX (JAX GPU) 70× 加速，RL 论文学术标准，DeepMind 维护 Apache 2.0 开源 | 中 | 轻量级，无需高端 GPU 喵~ |
 | **ROS 2 集成仿真** | — | **Gazebo Harmonic** | ROS 2 集成最深，最大社区和插件生态，LTS 至 2028 | 低 | 仅用于 ROS 2 集成测试喵~ |
 | **前端框架** | 原生 JS + Web Components | **Vue 3 + TypeScript** | 52.8k Stars，npm 843万周下载，开发者保留率 87%（React 75%），中国市场 ~50% 渗透率，学习曲线平缓，Pinia 状态管理 80% 采用率，Vue 3 采用率 82%，渐进式迁移友好 | 高 | 国内大厂（阿里/腾讯/百度）广泛使用，团队中文生态适配好喵~ |
+| **前端构建** | importmap + ES Modules | **Vite 6** | 尤雨溪创建，npm 周下载 2000万+，已取代 Webpack 成为 Vue 3 标准构建工具，冷启动 <1s，HMR 毫秒级 | 高 | 与 Vue 3 深度集成，Rolldown (Rust) 为未来底层引擎喵~ |
+| **前端原子 CSS** | 手写 CSS 8,660 行 | **Tailwind CSS v4** | GitHub 87k Stars，2025 年 Rust 重写核心，Vite 插件构建 268ms（反超 UnoCSS），AI 代码生成 100% 默认输出 Tailwind 类名 | 高 | Claude Code 协作核心工具，类名即样式零死代码喵~ |
+| **前端 UI 组件库** | 手写 HTML + CSS | **Element Plus** | GitHub 28k Stars，npm 月下载 119万，Vue 3 组件库第一，中文母语文档，社区最活跃 | 高 | 饿了么开源，国产最稳，备选 shadcn-vue 用于极致定制喵~ |
+| **前端工具库** | 自研 `ivgPorts`/`ivgTransport` | **VueUse** | GitHub 20k+ Stars，Anthony Fu（中国）创建，200+ composables，Vue 3 项目标配 | 高 | `useWebSocket`/`useLocalStorage`/`useResizeObserver` 直接消灭 5 个手写文件喵~ |
+| **前端自动导入** | 手动 import | **unplugin-auto-import + unplugin-vue-components** | Anthony Fu 创建，Vue 3 + Vite 标配，自动导入 Vue API / Element Plus 组件，零样板代码 | 高 | 无需手写 import { ref } from 'vue' 喵~ |
+| **前端状态管理** | globalThis 全局单例 | **Pinia** | Vue 官方状态管理，Vue 3 项目 80% 采用率，DevTools 支持，中文母语文档 | 高 | 仅用于跨页面全局状态（ROS 连接/runtime/工具ID）喵~ |
+| **前端图表** | 手写 Canvas 2D (231行) | **vue-echarts** | ECharts 64k Stars（百度 → Apache 基金会），中文文档最完善，Vue 3 官方封装，`autoresize` 自适应 | 中 | 可选 — 现有 Canvas 可用，后续新图表用 ECharts 省 10× 代码喵~ |
 | **后端框架** | FastAPI + Flask 并存 | **FastAPI 统一**（Litestar 观察） | FastAPI 92k⭐ / 450万日下载 / 38%开发者采用率 / OpenAI+Anthropic+MS+Netflix 生产使用 / AI 生态(LangChain/LlamaIndex/HF)默认后端；Flask 同步老旧应统一。Litestar (5.9k⭐) 技术更优(2×吞吐/10×省内存/团队维护/内置JWT+CSRF+限流)但生态太小，列为长期观察对象 | 中 | 先统一 Flask→FastAPI；若3年后 Litestar 达临界质量(15k+⭐)且 AI 生态跟上再评估迁移喵~ |
 | **容器化** | 无 | **Docker + Compose** | 96% 容器评估组织采用，ROS/ROS 2 官方镜像丰富，nvidia-docker GPU 透传成熟 | 高 | 单机开发/部署最优解喵~ |
 | **容器编排** | 无 | **K3s**（多机器人时） | CNCF 沙箱项目，82% 生产采用 K8s，K3s 是轻量版（~500MB，5分钟安装），适配 Jetson/ARM 边缘设备 | 低 | 集群规模 < 5 机器人用 Compose 即可喵~ |

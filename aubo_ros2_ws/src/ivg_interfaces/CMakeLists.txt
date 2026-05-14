@@ -16,7 +16,7 @@ find_package(sensor_msgs REQUIRED)
 
 # ═══════════════════════════════════════════════════════════
 # 统一接口定义 — IVG2.0 所有自定义消息、服务集中于此喵~
-# 共 17 msg + 34 srv = 51 个接口类型喵~
+# 共 17 msg + 35 srv = 52 个接口类型喵~
 # ═══════════════════════════════════════════════════════════
 
 rosidl_generate_interfaces(${PROJECT_NAME}
@@ -81,6 +81,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/RunGripperSwap.srv"
   "srv/ChangeTool.srv"
   "srv/GetCurrentTool.srv"
+
+  # ── 拉花轨迹回放服务 (来自 latte_imitation) ──
+  "srv/ReplayLatteTrajectory.srv"
 
   # ── 视觉位姿估计服务 (来自原 interface) ──
   "srv/EstimatePose.srv"

@@ -1353,15 +1353,15 @@ RViz2 Motion Planning插件主要分为以下几个部分：
 
 **RViz界面位置：** Context → Planning Group 下拉菜单
 
-**配置文件：** `config/aubo_i5.srdf`
+**配置文件：** `config/aubo_e5.srdf`
 
 **对应代码：**
 ```xml
 <group name="manipulator">
-    <chain base_link="base_link" tip_link="ee_link"/>
+    <chain base_link="base_link" tip_link="tool_tcp"/>
 </group>
 <group name="endeffector">
-    <link name="ee_link"/>
+    <link name="tool_tcp"/>
 </group>
 ```
 
@@ -1369,6 +1369,26 @@ RViz2 Motion Planning插件主要分为以下几个部分：
 - SRDF文件中定义的`<group>`标签会在Motion Planning插件的"Planning Group"下拉菜单中显示
 - 用户可以选择不同的规划组进行运动规划
 - 每个规划组定义了哪些关节参与规划
+
+#### ACM (Allowed Collision Matrix) — 末端夹爪工具碰撞豁免
+
+工具通过 `kuaihuan_Link` 挂载在 `wrist3_Link` 下。末端固定链 (`wrist3_Link → camera_Link → kuaihuan_Link → 工具 Link`) 与 `tool_tcp` 之间均属固定运动学关系，不应触发碰撞检测：
+
+```xml
+<!-- 5 种末端工具 × 4 个末端固定链 link = 20 条 -->
+<disable_collisions link1="kuaihuan_Link" link2="gripper0_Link"  reason="Adjacent"/>
+<disable_collisions link1="kuaihuan_Link" link2="gripper1_Link"  reason="Adjacent"/>
+... (共 20 条，见 aubo_e5.srdf:69-89)
+```
+
+| link1 | 5 个工具 link2 | 理由 |
+|-------|---------------|------|
+| `kuaihuan_Link` | gripper0/1/2/1coffeecup/1milkcup_Link | Adjacent（直接父子） |
+| `camera_Link` | 同上 | Adjacent（隔一层） |
+| `wrist3_Link` | 同上 | Never（隔两层） |
+| `tool_tcp` | 同上 | Never（同父分叉） |
+
+> 缺乏这些豁免会导致 MoveIt 将工具 mesh 与末端 link 的几何重叠误判为碰撞，规划失败喵~
 
 ---
 

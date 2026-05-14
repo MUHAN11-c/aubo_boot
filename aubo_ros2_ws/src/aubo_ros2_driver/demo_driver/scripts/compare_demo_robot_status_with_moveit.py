@@ -50,7 +50,7 @@ class RobotVsMoveItPoseMonitor(Node):
         super().__init__("robot_vs_moveit_pose_monitor")
 
         # 参数
-        self.declare_parameter("robot_status_topic", "/aubo_driver/robot_status")
+        self.declare_parameter("robot_status_topic", "/robot_status")
         self.declare_parameter("moveit_pose_topic", "/moveit2_tcp_pose")
         self.declare_parameter("log_file", "")
 

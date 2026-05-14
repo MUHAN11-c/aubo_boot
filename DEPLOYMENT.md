@@ -443,7 +443,17 @@ colcon build --packages-select visual_pose_estimation_python graspnet_ros2 hand_
 colcon build --packages-select aubo_ros2_web_dashboard
 ```
 
-### 8.3 RobotWebTools 前端产物
+### 8.3 Vue 3 前端构建（新）
+
+```bash
+cd /home/mu/IVG2.0/aubo_ros2_ws/src/aubo_ros2_web_dashboard/web
+npm install
+npm run build                     # 产物 → web/dist/
+```
+
+FastAPI 网关的静态文件挂载自动指向 `web/dist/`（Vite 构建产物）。
+
+### 8.4 RobotWebTools 前端产物（旧，过渡期保留）
 
 ```bash
 cd aubo_ros2_ws/src/robotwebtools
@@ -451,6 +461,8 @@ bash build_robotwebtools.sh
 ```
 
 产物输出到 `robotwebtools/runtime_js_assets/`，由 Web Dashboard 的 `robotwebtools_assets_dir` 参数引用。
+
+> **注意**: 新 Vue 3 前端通过 npm 管理 ros3d/roslib 依赖，不依赖 RobotWebTools 产物。旧版原生 JS 页面仍需要此步骤。Vue 3 迁移完成后此步骤可移除喵~
 
 ---
 
@@ -469,22 +481,16 @@ cd /home/mu/IVG2.0/aubo_ros2_ws
 
 | 步骤 | 内容 | 包 | 启动时机 |
 |------|------|-----|----------|
-| 0 | colcon build 全量构建 + RobotWebTools 前端产物 | — | 最先执行 |
+| 0 | colcon build 全量构建 | — | 最先执行 |
 | 1 | 新框架机械臂 (Controller + Dashboard + StateBroadcaster + MoveIt2) | aubo_moveit_config | 依赖步骤 0 |
-| 2 | Demo Driver 基础服务 | demo_driver | 依赖 move_group |
-| 15 | IVG Web 网关 (rosbridge + TF + 视频 + FastAPI) | aubo_ros2_web_dashboard | 仅依赖构建产物，提前启动 |
-| 16 | rosbag 录制 | — | 仅需 ROS 2 运行，提前启动 |
-| 3 | 知微相机驱动 | percipio_camera | 并行启动 |
-| 4 | 相机控制 (软件触发) | percipio_camera_interface | 并行启动 |
-| 5 | 图像数据桥接 | image_data_bridge | 并行启动 |
-| 6 | 手眼标定 Web | hand_eye_calibration | 并行启动 |
-| 7 | 视觉姿态估计 (VPE) | visual_pose_estimation_python | 并行启动 |
-| 14 | FastAPI Web | visual_pose_estimation_python | 依赖 estimate_pose 服务，提前启动 |
-| 8 | GraspNet 点云抓取预测 | graspnet_ros2 | 依赖相机 + 手眼 TF |
-| 9 | 抓取执行 Worker | demo_driver | 并行启动 |
-| 10 | 夹爪快换 Worker | tool_changer | 并行启动 |
-| 11 | 咖啡拉花演示 | coffee_latte_demo | 并行启动 |
-| 12 | GraspNet 循环抓取 | demo_driver | 并行启动 |
+| 2 | Demo Driver 基础服务 | demo_driver | 依赖 move_group (30s超时) |
+| 15 | IVG Web 网关 (rosbridge + TF + 视频 + FastAPI) | aubo_ros2_web_dashboard | 仅依赖构建产物，与[2]并行 |
+| 16 | rosbag 录制 | — | 仅需 ROS 2 运行，与[2]并行 |
+| 3-5 | 相机栈: 驱动 + 控制 + 图像桥接 | percipio_camera | 与[6][7]并行 |
+| 6-7 | 视觉栈: 手眼标定 + VPE | hand_eye_calibration + VPE | 依赖 /camera/color/image_raw |
+| 14 | FastAPI Web | visual_pose_estimation_python | 依赖 /estimate_pose，与[8]并行 |
+| 8 | GraspNet 点云抓取预测 | graspnet_ros2 | 依赖相机点云 + 手眼 TF |
+| 9-12 | Worker 组: 抓取/快换/拉花/循环 (并行) | demo_driver + tool_changer + coffee_latte | 依赖核心服务就绪 |
 | 13 | 综合校验 (ROS 服务 + Web 健康检查) | — | 最后执行 |
 
 > **设计思路**: 步骤 15 (Web Dashboard) 和步骤 16 (rosbag) 仅需构建产物 / ROS 2 运行即可启动，从原末尾位置提前到步骤 2 之后，与相机/视觉栈**并行初始化**。步骤 14 (FastAPI) 提前到步骤 7 之后。这些 Web 服务获得了更充裕的启动时间，health check 超时概率大幅降低喵~ |
@@ -522,7 +528,7 @@ ros2 lifecycle set /aubo_dashboard configure
 ros2 lifecycle set /aubo_dashboard activate
 ```
 
-启动脚本已自动处理此步骤——通过轮询 `/aubo_dashboard` 节点就绪（0.5s 间隔）后再激活，替代了旧版固定 `sleep 3` 的硬编码等待喵~
+启动脚本已自动处理此步骤——通过轮询 `/aubo_dashboard` 节点就绪（0.5s 间隔，30s 超时）后再激活，替代了旧版固定 `sleep 3` 的硬编码等待喵~
 
 ---
 

@@ -29,7 +29,7 @@ setup(
     license="BSD",
     entry_points={
         "console_scripts": [
-            "latte_imitation_node = latte_imitation.trajectory_publisher:main",
+            "latte_imitation_node = latte_imitation.trajectory_pipeline:main",
         ],
     },
 )

@@ -1,35 +1,50 @@
-# latte_imitation — 拉花轨迹模仿学习包
+# latte_imitation — 拉花轨迹模仿学习包 (MoveIt2 标准管线)
 
 从 [ridxm/latte-pour-demos](https://huggingface.co/datasets/ridxm/latte-pour-demos) 数据集提取双臂拉花末端笛卡尔轨迹，
-通过 Aubo E5 IK 转换为关节轨迹并发送到机械臂执行。
+通过 **MoveIt2 标准管线** (`computeCartesianPath` → `execute`) 规划并执行拉花动作。
 
 ## 架构
 
 ```
-原始 parquet (RM65 关节角)       笛卡尔 npz (末端位姿，预计算)
-        │                                │
-        │  [一次性: RM65 FK]               │ ← 直接加载
-        └──────────→ ────────────────────┘
+数据集 (latte-pour-demos)
+  │
+  ├─ resource/original/*.parquet   RM65 14D 关节角 (原始，保留)
+  │       │ [一次性: RM65 FK]
+  │       ▼
+  └─ resource/cartesian/{left,right}/*.npz   笛卡尔末端轨迹 (直接加载)
                          │
                          ▼
                 CartesianTrajectory.load()
                          │
               ┌──────────┴──────────┐
               ▼                     ▼
-     visualize (matplotlib)    ROS2 Node
+     visualize (matplotlib)    ROS2 Service
+     - 40条叠加动画              │
+     - 逐帧播放控制         ReplayLatteTrajectory
                                │
-                          debug: PoseStamped + Path
-                          action: Aubo E5 IK → JointTrajectory → Action
+                          ┌────┴────┐
+                     debug mode   action mode
+                     PoseStamped   │
+                     + Path        ▼
+                              5-Phase Pipeline (MoveIt2):
+                              ① 加载 npz
+                              ② start_pose 6-DOF 刚性变换 (自动获取当前 EE 位姿)
+                              ③ 发布 debug 位姿/路径
+                              ④ MoveIt2 computeCartesianPath (全6-DOF IK + 内置碰撞)
+                              ⑤ MoveIt2 /execute_trajectory action
 ```
 
 ## 模块
 
 | 文件 | 职责 |
 |------|------|
-| `trajectory.py` | `CartesianTrajectory` 类：加载/保存 npz，统计（路径长、速度），导出 ROS2 消息 |
-| `robot_model.py` | PyKDL FK + DLS IK（action 模式用） |
-| `trajectory_publisher.py` | ROS2 节点：加载 npz → 发布位姿 → Aubo IK → Action 执行 |
-| `scripts/visualize_latte_trajectory.py` | 离线播放器：40 条轨迹叠加 + 动画回放 |
+| `trajectory.py` | `CartesianTrajectory` 数据类：加载/保存 npz，统计，导出 ROS2 消息喵~ |
+| `trajectory_transform.py` | 6-DOF 刚性变换：RM65 base frame → AUBO 当前 EE 位姿 (含 orientation 旋转修复) 喵~ |
+| `trajectory_pipeline.py` | `LatteImitationNode`：服务回调 + 5 阶段 MoveIt2 管线编排喵~ |
+| `scripts/visualize_latte_trajectory.py` | 离线播放器：40 条轨迹叠加 + 动画回放喵~ |
+| `scripts/test_replay_service.py` | 交互式测试脚本：菜单选择, 无需手敲 ros2 service call 喵~ |
+
+> 已删除: `robot_model.py`, `collision_checker.py`, `action_executor.py`, `trajectory_publisher.py` — 均被 MoveIt2 标准管线替代喵~
 
 ## 数据文件
 
@@ -56,44 +71,241 @@ resource/
 ```bash
 # 必须在 workspace 根目录运行 colcon
 cd aubo_ros2_ws
-colcon build --packages-select latte_imitation
+colcon build --packages-select ivg_interfaces latte_imitation
 source install/setup.bash
 ```
 
-### 离线可视化（不依赖 ROS2）
+### 2. 一键启动 (推荐)
+
+```bash
+cd /home/mu/IVG2.0/aubo_ros2_ws
+./start_latte_test.sh                  # 自动: 构建→仿真→服务→交互菜单
+./start_latte_test.sh --skip-build     # 跳过 colcon build
+./start_latte_test.sh --real           # 真机模式 (需 AUBO IP 可达)
+```
+
+脚本流程: `colcon build` → 启动仿真 (轮询等待 controller) → 启动 latte_imitation (轮询等待服务) → 交互式测试菜单喵~
+退出时自动清理所有进程 (Ctrl+C 或菜单选 0) 喵~
+
+### 3. 手动分终端启动
+
+终端1 — 仿真:
+```bash
+cd /home/mu/IVG2.0/aubo_ros2_ws
+source /opt/ros/humble/setup.bash && source install/setup.bash
+ros2 launch aubo_moveit_config aubo_new_driver.launch.py server_host:=169.254.10.98
+```
+
+终端2 — latte_imitation:
+```bash
+cd /home/mu/IVG2.0/aubo_ros2_ws
+source /opt/ros/humble/setup.bash && source install/setup.bash
+ros2 run latte_imitation latte_imitation_node --ros-args -p mode:=debug
+```
+
+### 4. 典型使用场景
+
+#### 场景 A: 快速预览轨迹 (Debug 模式)
+
+不执行机械臂运动，只发布 PoseStamped/Path，可在 RViz2 中查看喵~
+
+```bash
+ros2 service call /latte_imitation/replay_trajectory \
+  ivg_interfaces/srv/ReplayLatteTrajectory \
+  "{episode_idx: 3, arm: 'right', speed_scale: 1.0, mode: 'debug', \
+    start_pose: {position: {x: 0, y: 0, z: 0}, orientation: {x: 0, y: 0, z: 0, w: 1}}}"
+```
+
+#### 场景 B: Action 模式 (MoveIt2 CartesianPath→Execute)
+
+自动从 TF 获取当前末端位姿作为轨迹起点，MoveIt2 全 6-DOF IK + 内置碰撞检测喵~
+
+```bash
+ros2 service call /latte_imitation/replay_trajectory \
+  ivg_interfaces/srv/ReplayLatteTrajectory \
+  "{episode_idx: 0, arm: 'right', speed_scale: 2.0, mode: 'action', \
+    start_pose: {position: {x: 0, y: 0, z: 0}, orientation: {x: 0, y: 0, z: 0, w: 1}}}"
+```
+
+响应示例：
+```
+success: True
+message: "轨迹执行成功完成"
+num_frames: 400
+path_length: 1.53
+ik_success_count: 400         # fraction * num_frames (规划成功等效帧数)
+collision_count: 0            # MoveIt2 内置处理，始终为 0
+```
+
+#### 场景 C: start_pose 覆盖 (手动指定杯子位姿)
+
+相机检测到杯子位姿 → 轨迹做 6-DOF 刚性变换对齐到杯子。不传 start_pose 时自动从 TF 获取当前 EE 位姿喵~
+
+```bash
+# 杯子在 (0.45, 0, 0.50), 杯口 Z轴朝上 (identity)
+ros2 service call /latte_imitation/replay_trajectory \
+  ivg_interfaces/srv/ReplayLatteTrajectory \
+  "{episode_idx: 0, arm: 'right', speed_scale: 1.0, mode: 'action', \
+    start_pose: {position: {x: 0.45, y: 0.0, z: 0.50}, \
+                 orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}"
+
+# 杯子绕 Z轴 90° 倾斜 (orientation: z=0.707, w=0.707)
+ros2 service call /latte_imitation/replay_trajectory \
+  ivg_interfaces/srv/ReplayLatteTrajectory \
+  "{episode_idx: 0, arm: 'right', speed_scale: 1.0, mode: 'action', \
+    start_pose: {position: {x: 0.45, y: 0.0, z: 0.50}, \
+                 orientation: {x: 0.0, y: 0.0, z: 0.707, w: 0.707}}}"
+```
+
+#### 场景 D: 批量测试全部 40 条 episode
+
+```bash
+for ep in $(seq 0 39); do
+  echo "=== Episode $ep ==="
+  ros2 service call /latte_imitation/replay_trajectory \
+    ivg_interfaces/srv/ReplayLatteTrajectory \
+    "{episode_idx: $ep, arm: 'right', speed_scale: 1.0, mode: 'action', \
+      start_pose: {position: {x: 0, y: 0, z: 0}, orientation: {x: 0, y: 0, z: 0, w: 1}}}"
+  sleep 22
+done
+```
+
+#### 场景 E: Launch 文件一键启动
+
+```bash
+# Debug 模式
+ros2 launch latte_imitation replay_trajectory.launch.py episode_idx:=5 arm:=left
+
+# Action 模式
+ros2 launch latte_imitation replay_trajectory.launch.py \
+    mode:=action episode_idx:=0 arm:=right speed_scale:=0.5
+```
+
+#### 场景 F: 离线可视化 (不依赖 ROS2)
 
 ```bash
 cd src/latte_imitation
-python3 scripts/visualize_latte_trajectory.py                 # 右臂拉花轨迹（默认）
-python3 scripts/visualize_latte_trajectory.py --arm left      # 左臂持杯轨迹
+python3 scripts/visualize_latte_trajectory.py                 # 右臂 (默认)
+python3 scripts/visualize_latte_trajectory.py --arm left      # 左臂
 python3 scripts/visualize_latte_trajectory.py --speed 2.0     # 2 倍速
 ```
-
 键盘：`[ ]` 切 episode | 空格 播放/暂停 | `← →` 逐帧 | `↑ ↓` 变速 | `a` 叠加 | `r` 重置
 
-### ROS2 Debug 模式（发布末端位姿）
+#### 场景 G: 交互式测试脚本 (推荐)
 
 ```bash
-ros2 launch latte_imitation replay_trajectory.launch.py
-ros2 launch latte_imitation replay_trajectory.launch.py episode_idx:=5 arm:=left
-
-# 查看发布的轨迹
-ros2 topic echo /latte_imitation/ee_path
+python3 src/latte_imitation/scripts/test_replay_service.py
 ```
 
-### ROS2 Action 模式（机械臂执行）
+数字菜单选择测试, 无需手敲长命令喵~
+
+```
+==============================================================
+  latte_imitation 测试菜单
+==============================================================
+  [1] Debug — 预览轨迹
+  [2] Action + 碰撞检测
+  [3] start_pose 纯平移
+  [4] start_pose 平移+旋转
+  [5] 错误处理 — 不存在 episode
+  [6] 左臂持杯轨迹
+  [7] 自定义 — 手动输入参数
+  [0] 退出
+--------------------------------------------------------------
+输入编号 (0~7):
+```
+
+输入编号 (0~7):
+```
+
+### 5. 完整测试命令 (手动)
+
+> 也可用场景 G 的交互式脚本自动生成喵~
 
 ```bash
-ros2 launch latte_imitation replay_trajectory.launch.py \
-    mode:=action episode_idx:=0 arm:=right speed_scale:=0.5
+# 前提: 终端1启动仿真, 终端2启动 latte_imitation, 终端3 source 环境后执行
 
-# 批量执行 40 条
-for ep in $(seq 0 39); do
-    ros2 launch latte_imitation replay_trajectory.launch.py \
-        mode:=action episode_idx:=$ep speed_scale:=1.0
-    sleep 22
-done
+# ── Test 1: Debug 模式 — 预览轨迹, 立即返回 ──
+ros2 service call /latte_imitation/replay_trajectory \
+  ivg_interfaces/srv/ReplayLatteTrajectory \
+  "{episode_idx: 0, arm: right, speed_scale: 1.0, mode: debug, \
+    start_pose: {position: {x: 0.0, y: 0.0, z: 0.0}, \
+                 orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}"
+# 预期: success=true, num_frames=400, path_length≈1.53
+
+# ── Test 2: Action — MoveIt2 CartesianPath→Execute (~10秒@2倍速) ──
+ros2 service call /latte_imitation/replay_trajectory \
+  ivg_interfaces/srv/ReplayLatteTrajectory \
+  "{episode_idx: 0, arm: right, speed_scale: 2.0, mode: action, \
+    start_pose: {position: {x: 0.0, y: 0.0, z: 0.0}, \
+                 orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}"
+# 预期: success=true, ik_success_count~400 (fraction*400), collision_count=0
+
+# ── Test 3: start_pose 覆盖 — 杯子在 (0.45,0,0.50), 杯口Z轴朝上 ──
+ros2 service call /latte_imitation/replay_trajectory \
+  ivg_interfaces/srv/ReplayLatteTrajectory \
+  "{episode_idx: 0, arm: right, speed_scale: 1.0, mode: action, \
+    start_pose: {position: {x: 0.45, y: 0.0, z: 0.50}, \
+                 orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}"
+# 预期: 轨迹起点=(0.45,0,0.50), 路径长度不变(刚性保距)
+
+# ── Test 4: start_pose 覆盖 — 杯子绕Z轴90°倾斜 ──
+# orientation: z=sin(45°)=0.707, w=cos(45°)=0.707
+ros2 service call /latte_imitation/replay_trajectory \
+  ivg_interfaces/srv/ReplayLatteTrajectory \
+  "{episode_idx: 0, arm: right, speed_scale: 1.0, mode: action, \
+    start_pose: {position: {x: 0.45, y: 0.0, z: 0.50}, \
+                 orientation: {x: 0.0, y: 0.0, z: 0.707, w: 0.707}}}"
+# 预期: 路径长度不变(刚性保距), orientation 被正确旋转
+
+# ── Test 5: 错误处理 — 不存在的 episode ──
+ros2 service call /latte_imitation/replay_trajectory \
+  ivg_interfaces/srv/ReplayLatteTrajectory \
+  "{episode_idx: 999, arm: right, speed_scale: 1.0, mode: debug, \
+    start_pose: {position: {x: 0.0, y: 0.0, z: 0.0}, \
+                 orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}"
+# 预期: success=false, message="episode_000999.npz ... 未找到"
+
+# ── Test 6: 左臂轨迹 — 持杯臂, 路径~0.31m ──
+ros2 service call /latte_imitation/replay_trajectory \
+  ivg_interfaces/srv/ReplayLatteTrajectory \
+  "{episode_idx: 0, arm: left, speed_scale: 1.0, mode: debug, \
+    start_pose: {position: {x: 0.0, y: 0.0, z: 0.0}, \
+                 orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}"
+# 预期: success=true, num_frames=400, path_length≈0.31 (右臂1/5)
 ```
+
+### 6. 服务参数参考
+
+#### 请求字段
+
+| 字段 | 类型 | 默认 | 说明 |
+|------|------|------|------|
+| `episode_idx` | int32 | 0 | Episode 编号 (0-39) 喵~ |
+| `arm` | string | right | "left"=左臂持杯 / "right"=右臂拉花 喵~ |
+| `speed_scale` | float32 | 1.0 | 播放速度倍率 [0.01, 10.0] 喵~ |
+| `mode` | string | debug | "debug"=仅发布位姿 / "action"=MoveIt2 CartesianPath→Execute 喵~ |
+| `start_pose` | Pose | 零位姿 | 零位姿=自动从 TF 获取当前 EE 位姿 / 非零=手动指定起点 喵~ |
+| `pos_only` | bool | — | **[废弃]** 保留兼容，不再生效 (MoveIt2 始终全 6-DOF IK) 喵~ |
+| `collision_check` | bool | — | **[废弃]** 保留兼容，不再生效 (MoveIt2 内置 avoid_collisions) 喵~ |
+
+#### 响应字段
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | bool | 调用是否成功 喵~ |
+| `message` | string | 状态消息或错误描述 喵~ |
+| `num_frames` | int32 | 轨迹总帧数 喵~ |
+| `path_length` | float32 | 笛卡尔路径总长度 (m) 喵~ |
+| `ik_success_count` | int32 | `int(fraction * num_frames)` — 规划成功等效帧数 (debug 模式为 0) 喵~ |
+| `collision_count` | int32 | 始终为 0 (MoveIt2 内部处理碰撞) 喵~ |
+| `collision_details` | string[] | 始终为空 (MoveIt2 内部处理碰撞) 喵~ |
+
+### 7. 碰撞检测
+
+MoveIt2 `computeCartesianPath` 使用 `avoid_collisions=True` 内置碰撞检测，无需手动调用 `/check_state_validity` 喵~
+
+**SRDF ACM** (Allowed Collision Matrix) 在 MoveIt2 PlanningScene 中自动生效，豁免相邻 link 对 (如 gripper→wrist3) 喵~
 
 ### Python API
 
@@ -122,8 +334,7 @@ pose_msg = cart.to_pose_stamped(10)
 | `episode_idx` | 0 | episode 编号 (0-39) |
 | `arm` | right | left / right |
 | `speed_scale` | 1.0 | 播放速度倍率 |
-| `mode` | debug | debug=PoseStamped+Path, action=IK+执行 |
-| `pos_only` | true | IK 仅匹配位置（忽略姿态） |
+| `mode` | debug | debug=PoseStamped+Path, action=MoveIt2 CartesianPath→Execute |
 
 ## CartesianTrajectory API
 
@@ -145,10 +356,16 @@ pose_msg = cart.to_pose_stamped(10)
 
 | 话题 | 类型 | 说明 |
 |------|------|------|
-| `/latte_imitation/ee_pose` | PoseStamped | 当前帧末端位姿 |
-| `/latte_imitation/ee_path` | Path | 完整轨迹（每 5 帧采样） |
-| `/latte_imitation/aubo_ee_pose` | PoseStamped | IK 验证位姿（action 模式） |
-| `/latte_imitation/joint_path_command` | JointTrajectory | 关节轨迹（action 模式） |
+| `/latte_imitation/ee_pose` | PoseStamped | 轨迹 waypoints（每 5 帧采样）|
+| `/latte_imitation/ee_path` | Path | 完整轨迹路径 |
+| `/latte_imitation/planned_ee_pose` | PoseStamped | MoveIt2 规划后 FK 验证位姿（action 模式）|
+| `/latte_imitation/planned_ee_path` | Path | MoveIt2 规划后 FK 验证路径（action 模式）|
+
+## 服务
+
+| 服务 | 类型 | 说明 |
+|------|------|------|
+| `/latte_imitation/replay_trajectory` | `ivg_interfaces/srv/ReplayLatteTrajectory` | 按需触发拉花轨迹回放喵~ |
 
 ## 数据集信息
 
@@ -194,29 +411,52 @@ resource/cartesian/right/ (40 个 npz)
 
 之后所有模块只加载笛卡尔 npz，不再依赖 parquet 和 RobotModel（RM65）。
 
-### 节点执行流程
+### 节点执行流程 (5 阶段 MoveIt2 管线)
 
 ```
-CartesianTrajectory.load(npz)
+ReplayLatteTrajectory Service Call
     │
     ▼
-[debug] → to_ros2_path() → /latte_imitation/ee_path
+Phase ①: _load_cartesian()           加载 resource/cartesian/{arm}/episode_{idx}.npz
     │
-[action] → _pose_to_kdl_frame() → Aubo IK → JointTrajectory → Action
+    ▼
+Phase ②: apply_start_pose()          6-DOF 刚性变换 (RM65→AUBO 当前 EE 位姿)
+    │                                   - is_default_pose() → 自动从 TF 获取当前 EE
+    │                                   - 否则: 使用手动指定的 start_pose
+    │                                   - R_rel = R_tgt @ R_orig^T
+    │                                   - p_new = R_rel @ (p - p0) + p_target
+    │                                   - q_new = q_rel * q_orig (orientation 也旋转)
+    ▼
+Phase ③: _publish_poses()            发布轨迹 waypoints + Path (debug 可视化)
     │
-    ├─ IK 成功帧: 正常执行
-    └─ IK 失败帧: 跳过，不包含在 JointTrajectory 中
+    ├─ mode="debug" → 返回 (不规划/不执行)
+    │
+    ▼
+Phase ④: _compute_cartesian_path()   MoveIt2 /compute_cartesian_path
+    │                                   - start_state=RobotState() (空=当前状态)
+    │                                   - max_step=0.01, jump_threshold=0.0
+    │                                   - avoid_collisions=True (内置碰撞检测)
+    │                                   - fraction<0.50 → fail
+    │                                   - 按 speed_scale 缩放 timestamps
+    ▼
+Phase ⑤: _execute_trajectory()       MoveIt2 /execute_trajectory action
+                                        阻塞等待执行完成 (或超时 120s)
 ```
 
 ### 设计决策
 
 | 决策 | 原因 |
 |------|------|
-| 只存笛卡尔 npz | 关节角跨机械臂不可复用，笛卡尔位姿是通用的 |
-| 保留原始 parquet | 可追溯数据来源，需要时可重新 FK 计算 |
-| pos_only IK | RM65 和 Aubo E5 姿态差异大，只匹配位置避免 IK 发散 |
-| 不包含 retarget | 数据集是在 cup 上方的相对运动，无需 workspace 映射 |
-| `load_all` 返回 OrderedDict | 按 episode 编号排序，遍历顺序可预测 |
+| MoveIt2 标准管线 | 统一使用 `/compute_cartesian_path` + `/execute_trajectory`，与其他节点一致喵~ |
+| 不再使用自定义 IK | MoveIt2 KDL IK 全 6-DOF 匹配，废弃 pos_only 需求喵~ |
+| TF 自动获取起点 | `lookup_transform(base_link, tool_tcp)` — 更 ROS-idiomatic 喵~ |
+| orientation 旋转修复 | `apply_start_pose()` 现在正确用 `rot_to_quat()` + `quat_multiply()` 旋转 orientation 喵~ |
+| 碰撞由 MoveIt2 内置 | `avoid_collisions=True` — 不再需要手动 `/check_state_validity`喵~ |
+| 只存笛卡尔 npz | 关节角跨机械臂不可复用，笛卡尔位姿是通用的喵~ |
+| 保留原始 parquet | 可追溯数据来源，需要时可重新 FK 计算喵~ |
+| `load_all` 返回 OrderedDict | 按 episode 编号排序，遍历顺序可预测喵~ |
+| ReentrantCallbackGroup + MultiThreadedExecutor | 服务回调中同步等待 Action，需避免 MutuallyExclusive 组死锁喵~ |
+| start_pose 6-DOF 刚性变换 | 相机检测杯子的完整位姿 (位置+朝向)，纯平移不足以对齐杯子朝向喵~ |
 
 ## YOLO26 训练与推理
 
@@ -368,7 +608,7 @@ fuser -v /dev/nvidia* | grep pt_data_worker | awk '{print $2}' | xargs kill -9
 
 ### 依赖
 
-- numpy, PyKDL, urdf_parser_py
-- ROS2 Humble: rclpy, trajectory_msgs, geometry_msgs, nav_msgs, control_msgs, ament_index_python
+- numpy, tf2_ros
+- ROS2 Humble: rclpy, trajectory_msgs, geometry_msgs, nav_msgs, moveit_msgs, ament_index_python
 - 可视化: matplotlib
 - YOLO26: ultralytics>=8.4.0, torch>=1.8.0

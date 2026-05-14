@@ -11,13 +11,13 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <ivg_interfaces/srv/set_robot_io.hpp>
+#include "demo_driver/robot_controller.h"
 #include <geometry_msgs/msg/pose.hpp>
-#include <moveit/move_group_interface/move_group_interface.h>
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <ivg_interfaces/srv/move_to_pose.hpp>
@@ -29,10 +29,42 @@
 namespace tool_changer
 {
 
-struct CartesianSegment
+using demo_driver::CartesianSegment;
+
+// ── 轨迹策略 ──
+enum class TrajectoryStrategy { kVertical, kSlide };
+
+struct VerticalStrategyParams
 {
-  char axis;
-  double offset;
+  double depth      = 0.210;
+  double lift       = 0.210;
+  double settle_sec = 0.5;
+};
+
+struct SlideStrategyParams
+{
+  double depth       = 0.210;
+  double seat        = 0.012;
+  double slide_y     = 0.100;
+  double lift        = 0.210;
+  double settle_sec  = 0.5;
+  double release_sec = 0.3;
+  double lock_sec    = 0.5;
+};
+
+// ── 从 tools.yaml 加载的运行时轨迹配置 ──
+struct ToolConfig
+{
+  std::string id;
+  std::string name;
+  std::string type;
+  std::string parameters;
+
+  TrajectoryStrategy strategy = TrajectoryStrategy::kVertical;
+  std::array<double, 6> dock_approach_joints{};
+
+  VerticalStrategyParams vertical;
+  SlideStrategyParams slide;
 };
 
 class GripperSwapWorker : public rclcpp::Node
@@ -58,13 +90,12 @@ private:
     std::string parameters;
   };
 
-  static const ToolInfo kToolGripper0;
-  static const ToolInfo kToolGripper2;
-  static const ToolInfo kToolNone;
+  // ═══════════════════════════════════════════════════════════════
+  // 轨迹原语（四类 — 已泛化为数据驱动）
+  // ═══════════════════════════════════════════════════════════════
 
-  // ═══════════════════════════════════════════════════════════════
-  // 轨迹原语（四类）
-  // ═══════════════════════════════════════════════════════════════
+  // ── 0. 配置加载 ──
+  void loadToolConfig();
 
   // ── 1. 回 home ──
   bool moveToHome(float vel, float acc);
@@ -72,18 +103,13 @@ private:
   // ── 2. 到固定点位 ──
   bool moveToJoints(const std::array<double, 6>& joints, float vel, float acc);
   bool moveToTargetXYZ(double x, double y, double z, float vel, float acc);
-  bool moveToDockStation();
-  bool moveToReleaseGripper0();
-  bool moveToGripper0DockAbove();
-  bool moveToGripper2DockAbove();
+  bool moveToDockApproach(const ToolConfig& tool);
 
-  // ── 3. 取轨迹 ──
-  bool pickGripper0();
-  bool pickGripper2();
+  // ── 3. 取轨迹（泛型，按 strategy 分发） ──
+  bool pickTool(const ToolConfig& tool);
 
-  // ── 4. 放轨迹 ──
-  bool releaseGripper0();
-  bool releaseGripper2();
+  // ── 4. 放轨迹（泛型，按 strategy 分发） ──
+  bool releaseTool(const ToolConfig& tool);
 
   // ═══════════════════════════════════════════════════════════════
   // 笛卡尔路径（底层）
@@ -100,13 +126,9 @@ private:
   bool setGripperIo(int32_t io_index, bool high);
 
   // ═══════════════════════════════════════════════════════════════
-  // 综合流程（由四类轨迹原语组合）
+  // 综合流程（数据驱动：释放当前 → 取目标 → 回 home）
   // ═══════════════════════════════════════════════════════════════
 
-  bool swapToGripper0();
-  bool swapToGripper2();
-  bool switchToGripper2();
-  bool switchToGripper0();
   bool changeToTool(const std::string& target_id);
 
   // ═══════════════════════════════════════════════════════════════
@@ -135,6 +157,9 @@ private:
   // 成员变量
   // ═══════════════════════════════════════════════════════════════
 
+  std::map<std::string, ToolConfig> tool_configs_;
+
+  std::shared_ptr<demo_driver::RobotController> robot_;
   std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
   rclcpp::Client<ivg_interfaces::srv::SetRobotIO>::SharedPtr set_io_client_;
   int32_t gripper_io_index_{ 7 };

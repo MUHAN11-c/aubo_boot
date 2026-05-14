@@ -16,11 +16,14 @@ find_package(resource_retriever REQUIRED)
 find_package(yaml_cpp_vendor REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 
-include_directories(include)
+include_directories(include
+  ${CMAKE_SOURCE_DIR}/src/aubo_ros2_driver/demo_driver/include
+)
 
-# 夹爪快换 worker（物理运动 + IO 控制）
+# 夹爪快换 worker（物理运动 + IO 控制 + RobotController）
 add_executable(gripper_swap_worker_node
   src/gripper_swap_worker.cpp
+  ${CMAKE_SOURCE_DIR}/src/aubo_ros2_driver/demo_driver/src/robot_controller.cpp
 )
 ament_target_dependencies(gripper_swap_worker_node
   rclcpp
@@ -29,6 +32,8 @@ ament_target_dependencies(gripper_swap_worker_node
   moveit_msgs
   moveit_core
   moveit_ros_planning_interface
+  yaml_cpp_vendor
+  ament_index_cpp
 )
 
 # 场景附着 worker（订阅 /tool_changer_status，更新 PlanningScene 显示）

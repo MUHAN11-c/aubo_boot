@@ -5,13 +5,15 @@
  *   RoadPointCallback (33Hz)      → joint_states, robot_status (关节角+笛卡尔位姿)
  *   JointStatusCallback (33Hz)    → aubo/feedback_states (编码器速度)
  *   readDiagnosis (50Hz 轮询)     → rib_status (RIB 缓冲量, SDK 无回调)
- *   readSafetyIOStatus (50Hz 轮询) → robot_status.enable (安全状态, 回调部分覆盖)
+ *   readSafetyIOStatus (50Hz 轮询) → robot_status.enable (is_online + 安全状态)
+ *   readFullIOStatus    (10Hz, 默认组串行化) → /robot_io_status (IO 状态持续发布)
  */
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <control_msgs/action/follow_joint_trajectory.hpp>
 #include <ivg_interfaces/msg/robot_status.hpp>
+#include <ivg_interfaces/msg/robot_io_status.hpp>
 #include <std_msgs/msg/int32_multi_array.hpp>
 #include <chrono>
 #include <atomic>
@@ -35,9 +37,11 @@ public:
             control_msgs::action::FollowJointTrajectory_Feedback>(
             "aubo/feedback_states", 1000);
         robot_status_pub_ = this->create_publisher<ivg_interfaces::msg::RobotStatus>(
-            "/aubo_driver/robot_status", 1000);
+            "/robot_status", 1000);
         rib_pub_ = this->create_publisher<std_msgs::msg::Int32MultiArray>(
             "/aubo_driver/rib_status", 1000);
+        robot_io_status_pub_ = this->create_publisher<ivg_interfaces::msg::RobotIOStatus>(
+            "/robot_io_status", 1000);
 
         robot_status_msg_.header.frame_id = "base_link";
         rib_status_.data.resize(3);
@@ -59,8 +63,13 @@ public:
             std::chrono::milliseconds(20),
             std::bind(&AuboStateBroadcaster::pollTick, this));
 
+        // ---- 10Hz IO 状态轮询 (默认回调组, 与 pollTick 串行化避免 conn_status_ 并发) ----
+        io_poll_timer_ = this->create_wall_timer(
+            std::chrono::milliseconds(100),
+            std::bind(&AuboStateBroadcaster::pollIOTick, this));
+
         RCLCPP_INFO(this->get_logger(),
-            "State broadcaster: callbacks(JointStatus+RoadPoint) + polling(RIB+IO 50Hz)");
+            "State broadcaster: callbacks+RIB(50Hz) + IO_status(10Hz)");
     }
 
 private:
@@ -113,9 +122,10 @@ private:
         }
         rib_pub_->publish(rib_status_);
 
-        // 安全 IO
+        // 安全 IO + 连接状态 → enable（三者缺一不可）
         bool e_stop=false, p_stop=false;
-        if (hw_->readSafetyIOStatus(e_stop, p_stop)) {
+        const bool online = hw_->isConnected();
+        if (online && hw_->readSafetyIOStatus(e_stop, p_stop)) {
             robot_status_msg_.enable = !e_stop && !p_stop;
         } else {
             robot_status_msg_.enable = false;
@@ -123,7 +133,7 @@ private:
 
         // 发布 robot_status (用 RoadPoint 推送的最新笛卡尔)
         robot_status_msg_.header.stamp = this->now();
-        robot_status_msg_.is_online = hw_->isConnected();
+        robot_status_msg_.is_online = online;
         robot_status_msg_.in_motion = (rib>0);
         { std::lock_guard lk(rs_mux_);
           if (has_rs_) {
@@ -179,13 +189,26 @@ private:
         }
     }
 
+    // ============================================================
+    // 10Hz IO 状态轮询 (默认回调组, 与 pollTick 串行化, SDK conn_status_ 无并发风险)
+    // ============================================================
+    void pollIOTick() {
+        ivg_interfaces::msg::RobotIOStatus io_msg;
+        io_msg.header.stamp = this->now();
+        if (hw_->readFullIOStatus(io_msg)) {
+            robot_io_status_pub_->publish(io_msg);
+        }
+    }
+
     std::shared_ptr<AuboHardwareInterface> hw_;
     rclcpp::TimerBase::SharedPtr poll_timer_;
+    rclcpp::TimerBase::SharedPtr io_poll_timer_;
 
     rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_state_pub_;
     rclcpp::Publisher<control_msgs::action::FollowJointTrajectory_Feedback>::SharedPtr feedback_pub_;
     rclcpp::Publisher<ivg_interfaces::msg::RobotStatus>::SharedPtr robot_status_pub_;
     rclcpp::Publisher<std_msgs::msg::Int32MultiArray>::SharedPtr rib_pub_;
+    rclcpp::Publisher<ivg_interfaces::msg::RobotIOStatus>::SharedPtr robot_io_status_pub_;
 
     ivg_interfaces::msg::RobotStatus robot_status_msg_;
     std_msgs::msg::Int32MultiArray rib_status_;

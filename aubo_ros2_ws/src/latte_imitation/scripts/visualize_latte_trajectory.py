@@ -1,9 +1,19 @@
 #!/usr/bin/env python3
-"""拉花轨迹播放器 — 40 条笛卡尔末端轨迹叠加 + 流畅播放（纯 Python，不依赖 ROS2）。
+"""拉花轨迹播放器 — 40 条笛卡尔末端轨迹叠加 + 流畅播放。
 
 用法:
     python3 scripts/visualize_latte_trajectory.py
     python3 scripts/visualize_latte_trajectory.py --arm left
+
+    手动指定起点 (将轨迹刚体变换到目标位姿):
+    python3 scripts/visualize_latte_trajectory.py \\
+        --start-x 0.35 --start-y -0.10 --start-z 0.52
+
+    自动从 ROS 2 TF 获取当前末端位姿作起点:
+    python3 scripts/visualize_latte_trajectory.py --from-robot
+
+    从 SRDF camera_pose 状态 FK 计算末端位姿作起点:
+    python3 scripts/visualize_latte_trajectory.py --from-camera-pose
 
 键盘:
     空格  播放/暂停
@@ -33,6 +43,8 @@ if _pkg_dir not in sys.path:
     sys.path.insert(0, _pkg_dir)
 
 from latte_imitation.trajectory import CartesianTrajectory  # noqa: E402
+from latte_imitation.trajectory_transform import apply_start_pose  # noqa: E402
+from geometry_msgs.msg import Pose, Point, Quaternion  # noqa: E402
 
 PHASES_RATIO = [
     (0.00, 0.25, "进杯", "#e74c3c"),
@@ -310,10 +322,186 @@ class LattePlayer:
         plt.show()
 
 
+def _get_camera_pose_from_srdf(srdf_path, urdf_path):
+    """从 SRDF camera_pose 状态计算末端位姿 (FK) 喵~
+
+    Returns:
+        Pose 或 None (解析/UFRD 加载失败) 喵~
+    """
+    import xml.etree.ElementTree as ET
+    try:
+        tree = ET.parse(srdf_path)
+        root = tree.getroot()
+    except Exception as e:
+        print(f"SRDF 解析失败: {e}")
+        return None
+
+    # 提取 camera_pose 关节角
+    camera_joints = {}
+    for gs in root.findall("group_state"):
+        if gs.get("name") == "camera_pose" and gs.get("group") == "manipulator":
+            for j in gs.findall("joint"):
+                camera_joints[j.get("name")] = float(j.get("value"))
+            break
+
+    if len(camera_joints) != 6:
+        print(f"SRDF camera_pose 关节角不足: {camera_joints}")
+        return None
+
+    # FK — 内联 PyKDL FK (robot_model.py 已废弃) 喵~
+    try:
+        import PyKDL
+        from urdf_parser_py.urdf import URDF
+
+        def _build_chain(urdf_p, base, tip):
+            """从 URDF 构建 PyKDL Chain (仅旋转关节) 喵~"""
+            robot = URDF.from_xml_file(urdf_p)
+            chain = PyKDL.Chain()
+            link_map = {link.name: link for link in robot.links}
+            joint_map = {joint.name: joint for joint in robot.joints}
+
+            current = tip
+            joints_rev = []
+            while current != base:
+                parent_joint = None
+                for j in robot.joints:
+                    if j.child == current:
+                        parent_joint = j
+                        break
+                if parent_joint is None:
+                    raise ValueError(f"无法从 '{current}' 追溯到 '{base}'")
+                if parent_joint.type == "revolute":
+                    joints_rev.insert(0, parent_joint)
+                current = parent_joint.parent
+
+            for j in joints_rev:
+                origin_xyz = (j.origin.xyz if j.origin and j.origin.xyz
+                              else [0.0, 0.0, 0.0])
+                origin_rpy = (j.origin.rpy if j.origin and j.origin.rpy
+                              else [0.0, 0.0, 0.0])
+                axis_xyz = (j.axis if j.axis else [0.0, 0.0, 1.0])
+                chain.addSegment(
+                    PyKDL.Segment(
+                        PyKDL.Joint(j.name, PyKDL.Joint.RotAxis),
+                        PyKDL.Frame(PyKDL.Rotation.RPY(*origin_rpy),
+                                    PyKDL.Vector(*origin_xyz)),
+                    )
+                )
+            return chain, [j.name for j in joints_rev]
+
+        chain, joint_names = _build_chain(urdf_path, "base_link", "tool_tcp")
+        q_arr = np.array([camera_joints[name] for name in joint_names])
+        q_kdl = PyKDL.JntArray(len(q_arr))
+        for i, v in enumerate(q_arr):
+            q_kdl[i] = v
+        fk_solver = PyKDL.ChainFkSolverPos_recursive(chain)
+        frame = PyKDL.Frame()
+        fk_solver.JntToCart(q_kdl, frame)
+    except Exception as e:
+        print(f"FK 计算失败: {e}")
+        return None
+
+    # PyKDL.Frame → Pose
+    rot = frame.M
+    qw = np.sqrt(max(0, 1.0 + rot[0, 0] + rot[1, 1] + rot[2, 2])) / 2.0
+    if qw > 1e-12:
+        qx = (rot[2, 1] - rot[1, 2]) / (4.0 * qw)
+        qy = (rot[0, 2] - rot[2, 0]) / (4.0 * qw)
+        qz = (rot[1, 0] - rot[0, 1]) / (4.0 * qw)
+    else:
+        qx = qy = qz = 0.0; qw = 1.0
+
+    pose = Pose(
+        position=Point(x=float(frame.p[0]), y=float(frame.p[1]), z=float(frame.p[2])),
+        orientation=Quaternion(x=float(qx), y=float(qy), z=float(qz), w=float(qw)),
+    )
+    print(f"camera_pose FK: ({pose.position.x:.4f}, {pose.position.y:.4f}, {pose.position.z:.4f})")
+    return pose
+
+
+def _get_current_pose_from_tf():
+    """通过 ROS 2 TF 查当前 tool_tcp 在 base_link 下的位姿喵~
+
+    Returns:
+        Pose 或 None (rclpy 不可用/TF 超时) 喵~
+    """
+    try:
+        import rclpy
+        from tf2_ros.buffer import Buffer
+        from tf2_ros.transform_listener import TransformListener
+    except ImportError:
+        print("rclpy/tf2_ros 不可用, 无法查询 TF")
+        return None
+
+    if not rclpy.ok():
+        rclpy.init(args=[])
+    node = rclpy.create_node("_latte_viz_tf_query")
+    try:
+        buf = Buffer(node)
+        _listener = TransformListener(buf, node)
+        # 等 2 秒让 TF buffer 填充
+        from time import sleep
+        sleep(0.5)
+        tfs = buf.lookup_transform("base_link", "tool_tcp", rclpy.time.Time(),
+                                   timeout=rclpy.duration.Duration(seconds=2.0))
+        t = tfs.transform.translation
+        r = tfs.transform.rotation
+        pose = Pose(
+            position=Point(x=t.x, y=t.y, z=t.z),
+            orientation=Quaternion(x=r.x, y=r.y, z=r.z, w=r.w),
+        )
+        print(f"TF tool_tcp: ({t.x:.4f}, {t.y:.4f}, {t.z:.4f})")
+        return pose
+    except Exception as e:
+        print(f"TF 查询失败: {e}")
+        return None
+    finally:
+        node.destroy_node()
+
+
+def _find_urdf():
+    """查找 Aubo E5 URDF 文件喵~"""
+    candidates = [
+        os.path.join(os.path.dirname(_pkg_dir), "aubo_ros2_driver",
+                     "aubo_description", "urdf", "aubo_e5_10.urdf"),
+        os.path.join(_pkg_dir, "..", "aubo_ros2_driver",
+                     "aubo_description", "urdf", "aubo_e5_10.urdf"),
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            return p
+    return None
+
+
+def _find_srdf():
+    """查找 AUBO E5 SRDF 文件喵~"""
+    candidates = [
+        os.path.join(os.path.dirname(_pkg_dir), "aubo_ros2_driver",
+                     "aubo_moveit_config", "config", "aubo_e5.srdf"),
+        os.path.join(_pkg_dir, "..", "aubo_ros2_driver",
+                     "aubo_moveit_config", "config", "aubo_e5.srdf"),
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            return p
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(description="Latte Trajectory Player")
     parser.add_argument("--arm", choices=["left", "right"], default="right")
     parser.add_argument("--speed", type=float, default=1.0)
+    parser.add_argument("--start-x", type=float, default=None, help="起点 X (m)")
+    parser.add_argument("--start-y", type=float, default=None, help="起点 Y (m)")
+    parser.add_argument("--start-z", type=float, default=None, help="起点 Z (m)")
+    parser.add_argument("--start-qx", type=float, default=0.0, help="起点 四元数 X")
+    parser.add_argument("--start-qy", type=float, default=0.0, help="起点 四元数 Y")
+    parser.add_argument("--start-qz", type=float, default=0.0, help="起点 四元数 Z")
+    parser.add_argument("--start-qw", type=float, default=1.0, help="起点 四元数 W")
+    parser.add_argument("--from-robot", action="store_true",
+                        help="从 ROS 2 TF 自动获取当前 tool_tcp 位姿作为起点")
+    parser.add_argument("--from-camera-pose", action="store_true",
+                        help="从 SRDF camera_pose 状态 FK 计算末端位姿作为起点")
     args = parser.parse_args()
 
     res_dir = os.path.join(_pkg_dir, "resource")
@@ -322,6 +510,39 @@ def main():
         print(f"错误: 未找到 {args.arm} arm 的轨迹数据")
         sys.exit(1)
     print(f"Loaded {len(carts)} episodes ({args.arm} arm)")
+
+    # ── 解析 start_pose (优先级: --from-robot > --from-camera-pose > --start-x/y/z) ──
+    start_pose = None
+    if args.from_robot:
+        start_pose = _get_current_pose_from_tf()
+        if start_pose is None:
+            print("错误: --from-robot 但无法获取 TF 位姿 (确认机械臂在运行 + tool_tcp TF 已发布)")
+            sys.exit(1)
+    elif args.from_camera_pose:
+        srdf = _find_srdf()
+        urdf = _find_urdf()
+        if srdf is None:
+            print("错误: 未找到 aubo_e5.srdf")
+            sys.exit(1)
+        if urdf is None:
+            print("错误: 未找到 aubo_e5_10.urdf")
+            sys.exit(1)
+        start_pose = _get_camera_pose_from_srdf(srdf, urdf)
+        if start_pose is None:
+            print("错误: --from-camera-pose FK 计算失败")
+            sys.exit(1)
+    elif args.start_x is not None and args.start_y is not None and args.start_z is not None:
+        start_pose = Pose(
+            position=Point(x=args.start_x, y=args.start_y, z=args.start_z),
+            orientation=Quaternion(x=args.start_qx, y=args.start_qy,
+                                   z=args.start_qz, w=args.start_qw),
+        )
+
+    if start_pose is not None:
+        for ep_id in list(carts.keys()):
+            carts[ep_id] = apply_start_pose(carts[ep_id], start_pose)
+        print(f"轨迹已变换: 起点 → ({start_pose.position.x:.3f}, "
+              f"{start_pose.position.y:.3f}, {start_pose.position.z:.3f})")
 
     label = {"left": "Left (cup)", "right": "Right (latte)"}[args.arm]
     player = LattePlayer(carts, label)

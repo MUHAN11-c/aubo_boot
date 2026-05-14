@@ -14,10 +14,11 @@ from typing import Any
 
 try:
     import yaml as _yaml
-    _HAS_YAML = True
 except ImportError:
-    import json as _json  # 回退：YAML 是 JSON 的超集，纯 JSON 也能读
-    _HAS_YAML = False
+    raise ImportError(
+        "yaml 库未安装 — IVG Web Dashboard 需要 PyYAML 解析 defaults.yaml。"
+        "  pip install pyyaml"
+    )
 
 # 源树路径: <pkg>/config/defaults.yaml
 _SRC_ROOT = Path(__file__).resolve().parent.parent
@@ -39,7 +40,7 @@ def _load_yaml() -> dict[str, Any]:
     if not _YAML_PATH.is_file():
         return {}
     raw = _YAML_PATH.read_text(encoding="utf-8")
-    d = _yaml.safe_load(raw) if _HAS_YAML else _json.loads(raw)
+    d = _yaml.safe_load(raw)
     return d if isinstance(d, dict) else {}
 
 
@@ -146,25 +147,12 @@ def proxy_video_chunk_bytes() -> int:
 # ---- 包版本 ----
 def package_version_fallback() -> str:  return str(_g("package.version_fallback", "0.4.0"))
 
-# ---- 前端设置页面话题/服务定义 ----
+# ---- BFF 配置 ─────────────────────────────────────────────────────────────────
+# GET /api/v1/runtime 返回的数据 — 前端用来自动发现 rosbridge/视频代理/话题定义
+
 def vision_panel_config() -> dict[str, Any]:
-    """返回原始嵌套结构（common/vision/latte 分类）。"""
+    """返回 vision_panel 原始嵌套结构（common/vision/latte 分类）— 供设置页渲染表单。"""
     return _cfg.get("vision_panel", {})
-
-def _flatten_categories(vp: dict) -> dict:
-    """将分类结构扁平化为旧格式 {topics, tf_topics, services, fixed_service_types}。"""
-    c = vp.get("common", {})
-    v = vp.get("vision", {})
-    return {
-        "topics": c.get("topics", []) + v.get("topics", []),
-        "tf_topics": c.get("tf_topics", []),
-        "services": v.get("services", []),
-        "fixed_service_types": v.get("fixed_service_types", {}),
-    }
-
-
-# ── 前端运行时接口 (BFF) ─────────────────────────────────────────────────────
-# GET /api/v1/runtime 返回的数据，浏览器用它发现 rosbridge/视频代理/话题定义
 
 def runtime_config_dict(static_root: str) -> dict[str, Any]:
     from importlib.metadata import version as _version
@@ -182,8 +170,7 @@ def runtime_config_dict(static_root: str) -> dict[str, Any]:
         "unified_proxy": True,
         "rosbridge_ws_path": rosbridge_ws_path(),
         "web_video_proxy_prefix": web_video_proxy_prefix(),
-        "vision_panel": _flatten_categories(vp),         # 旧格式（视觉抓取面板用）
-        "settings_categories": vp,                        # 新格式（设置页用，含 label）
+        "settings_categories": vp,                        # 设置页渲染表单的数据源（含 label）
     }
 
 

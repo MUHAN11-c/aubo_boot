@@ -288,7 +288,7 @@ class ROS2Communication:
                 try:
                     self.robot_status_subscription = self.node.create_subscription(
                         RobotStatus,
-                        '/aubo_driver/robot_status',
+                        '/robot_status',
                         self._robot_status_callback,
                         10
                     )

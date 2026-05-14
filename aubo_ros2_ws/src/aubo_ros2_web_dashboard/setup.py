@@ -12,12 +12,12 @@ from glob import glob
 from setuptools import find_packages, setup
 
 PKG = "aubo_ros2_web_dashboard"
-WEB_ROOT = os.path.join("web", "public")
-WEB_INSTALL_SUBDIR = ("web", "public")
+WEB_ROOT = os.path.join("web", "dist")
+WEB_INSTALL_SUBDIR = ("web", "dist")
 
 
 def _web_data_files():
-    """递归收集 web/public 下所有文件，映射到 share/<pkg>/web/public/ 目录。"""
+    """递归收集 web/dist 下所有文件，映射到 share/<pkg>/web/dist/ 目录。"""
     by_dest = defaultdict(list)
     for root, _, files in os.walk(WEB_ROOT):
         for name in files:

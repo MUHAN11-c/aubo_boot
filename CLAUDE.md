@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Domain docs
 
-多上下文布局 — 根目录 `CONTEXT-MAP.md` 指向各上下文 `CONTEXT.md`。详见 `docs/agents/domain.md`。
+多上下文布局 — 根目录 `CONTEXT-MAP.md` 指向各上下文文档（USAGE / DEPLOYMENT / architecture / PROCESS-FLOW 等）。详见 `docs/agents/domain.md`。
 
 ## ROS 2 参数隔离（重要！）
 
@@ -43,7 +43,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 cd /home/mu/IVG2.0/aubo_ros2_ws
 source /opt/ros/humble/setup.bash
-source ~/ws_moveit/install/setup.bash   # MoveIt 2 独立工作空间（如有）
 colcon build
 source install/setup.bash
 ```
@@ -90,14 +89,28 @@ colcon build --packages-select tool_changer
 
 10. **`AsyncParametersClient` 不可在构造函数中创建**：同理，需要 `shared_from_this()`。改为在首次 `onToolStatus()` 回调中按需创建喵~
 
-11. **工具切换前必须清除碰撞模型**：`gripper_swap_worker.changeToTool()` 入口处调用 `publishToolStatus(false)`，让 `scene_attach_worker` 立即脱离 PlanningScene 附着体 + 更新 URDF 为无工具版本。
+11. **工具切换通过动态 URDF 切换实现**：`gripper_swap_worker.changeToTool()` 入口处调用 `publishToolStatus(false)` → `scene_attach_worker` 通过 PlanningScene diff 将旧工具放回 world dock；运动完成后 `publishToolStatus(true)` → `updateRobotDescription(new_tool)` 发布新 URDF + 设置 `robot_state_publisher` 参数。
 
-    **PlanningScene diff 机制**：所有的 attach/detach 通过发布 `moveit_msgs::msg::PlanningScene` diff（`is_diff=true`）到 `/planning_scene` 话题实现。attach 一次 diff 中需两条操作——
+    **URDF 仅在 attach 新工具时更新**（detach 时跳过），避免 rapid URDF 切换导致 RViz2 竞争。碰撞模型清理由 PlanningScene diff (`addToolToWorldDock`) 处理。
+
+    **`moveit_ros_visualization` 本地补丁**（MoveIt2 Humble 的运行时 URDF 切换 bug）——
+    (a) `planning_scene_display.cpp:createPlanningSceneMonitor`：`Options` 双参构造不初始化 `robot_description_` → "parameter name must not be empty"
+    (b) `planning_scene_display.cpp:clearRobotModel` + `motion_planning_display.cpp:clearRobotModel`：不重置 `planning_scene_robot_` / `query_robot_start_` / `query_robot_goal_` → 渲染循环 `rviz::Robot` 持旧 link → "Link not found"
+
+    **PlanningScene diff 机制**：attach 一次 diff 中需两条操作——
     (a) `world.collision_objects` 添加一条 `REMOVE`（同 id），(b) `robot_state.attached_collision_objects` 添加一条 `ADD`（指定 `link_name` + `touch_links` + `object.operation=ADD`）。
     detach 是逆向操作。`robot_state.is_diff=true` 必须设置。`touch_links` 用于声明该附着对象允许与哪些 link 碰撞（如夹爪手指）喵~
    > 参考：[Planning Scene ROS API](https://moveit.picknik.ai/humble/doc/examples/planning_scene_ros_api/planning_scene_ros_api_tutorial.html)
 
 12. **`tools.yaml` 的 `attach_offset` 与 `aubo_e5.urdf.xacro` 的 `gripper_link` origin 必须严格对齐**：位姿不一致会导致 Web/RViz2 中模型位置与物理安装位置出现偏差喵~
+
+12b. **SRDF ACM (Allowed Collision Matrix) — 末端夹爪工具碰撞豁免**（`aubo_e5.srdf:69-89`）：
+    - 5 种可更换末端工具（gripper0/1/2/1coffeecup/1milkcup）× 4 个末端固定链 link（`kuaihuan_Link`, `camera_Link`, `wrist3_Link`, `tool_tcp`）= 20 条 `disable_collisions`
+    - `kuaihuan_Link` ↔ 工具 Link：**Adjacent**（直接父子固定关节）
+    - `camera_Link` ↔ 工具 Link：**Adjacent**（隔一层固定关节）
+    - `wrist3_Link` ↔ 工具 Link：**Never**（隔两层固定关节）
+    - `tool_tcp` ↔ 工具 Link：**Never**（同父 `wrist3_Link` 分叉的两支，固定偏移）
+    - 缺乏这些豁免会导致 MoveIt 将工具 mesh 与末端 link 的几何重叠误判为碰撞，规划失败喵~
 
 13. **MoveGroupInterface 关键行为**：
     - `move()` 是阻塞的，内部 `plan()` + `execute()` 串行执行，需 async spinner 才能正常完成（它等待 action feedback/result）
@@ -156,6 +169,7 @@ colcon build --packages-select tool_changer
     > 目的：让任何后来者（包括未来的自己）无需重复调研，直接通过文档就能了解整个过程的完整上下文喵~
 
 21. **每次问题和代码修改后都要更新相关联的文档和代码注释**：任何代码变更（bug 修复、新功能、重构、配置修改）完成后，必须同步更新与之关联的所有文档，包括但不限于：
+    - **`aubo_ros2_ws/CHANGELOG.md`**：工作空间级版本变更日志 — 所有代码修改必须在 `[Unreleased]` 节按 Added/Changed/Deprecated/Removed/Fixed 分类记录喵~
     - 包级 `README.md`：接口说明、参数列表、使用方法、引脚映射等喵~
     - 项目级 `README.md`：架构图、启动流程、依赖关系等喵~
     - `CLAUDE.md`：新发现的关键规则、踩坑记录、API 行为细节、常见报错速查表等喵~
@@ -175,11 +189,19 @@ colcon build --packages-select tool_changer
     - 如果编译依赖的源码/库不在本地，应先用包管理器或 `git clone` 获取到本地再引用喵~
     > 理由：外部链接可能失效、版本可能与当前编译环境不一致；本地文件永远与当前构建产物同步。真实文件是唯一数据源，软链接只是别名，引用真实文件确保路径稳定喵~
 
-25. **所有自定义 ROS 2 接口统一在 `ivg_interfaces` 包**：2026-05-13 将原 5 个散落的接口包（`aubo_msgs`、`demo_interface`、`percipio_camera_interface`、`tool_changer_interface`、`interface`）合并为单一 `src/ivg_interfaces/`。共 17 msg + 34 srv = 51 个接口类型。旧包已加 `COLCON_IGNORE` 废弃。
+25. **所有自定义 ROS 2 接口统一在 `ivg_interfaces` 包**：2026-05-13 将原 5 个散落的接口包（`aubo_msgs`、`demo_interface`、`percipio_camera_interface`、`tool_changer_interface`、`interface`）合并为单一 `src/ivg_interfaces/`。共 17 msg + 35 srv = 52 个接口类型。旧包已加 `COLCON_IGNORE` 废弃。
     - **C++ 用法**：`#include <ivg_interfaces/msg/robot_status.hpp>`，类型为 `ivg_interfaces::msg::RobotStatus`，`find_package(ivg_interfaces REQUIRED)` + `<depend>ivg_interfaces</depend>`
     - **Python 用法**：`from ivg_interfaces.msg import RobotStatus`，`from ivg_interfaces.srv import MoveToPose`
     - **JS rosbridge 用法**：`msgType: 'ivg_interfaces/msg/RobotStatus'`，`serviceType: 'ivg_interfaces/srv/ExecuteGraspPose'`
     - 修改接口定义时只需编辑 `src/ivg_interfaces/msg/` 或 `srv/` 下的文件，re-build 后所有依赖包自动更新喵~
+
+26. **`gripper_swap_worker` 数据驱动架构（2026-05-14 重构）**：轨迹参数全部从 `config/tools.yaml` 加载，不再硬编码 per-gripper 函数。
+    - **新增工具只需编辑 YAML**：在 `tools.yaml` 中为目标工具添加 `dock_approach_joints`（6 关节角）+ `trajectory`（strategy+参数）两个字段，无需修改 C++ 代码喵~
+    - **两种轨迹策略**：`"vertical"`（纯 Z 轴升降，gripper0）和 `"slide"`（Y 轴侧滑+分段 Z 轴，gripper2）。如需新策略，在 `TrajectoryStrategy` enum + `pickTool()`/`releaseTool()` 中添加即可喵~
+    - **`changeToTool()` 无硬编码分支**：通用流水线 = 查 YAML 配置 → publishToolStatus(false) 清碰撞 → releaseTool(current) → pickTool(target) → moveToHome() → publishToolStatus(true)。任意工具组合走同一逻辑喵~
+    - **`onGripperSwapRequest()` 通用方向解析**：`"X_to_Y"` → 取 `_to_` 后的 `"Y"` 作为 target_id，不再维护硬编码映射表喵~
+    - 关键文件：`src/tool_changer/src/gripper_swap_worker.cpp` (loadToolConfig/pickTool/releaseTool/changeToTool)、`config/tools.yaml` (dock_approach_joints + trajectory 字段) 喵~
+    - YAML 加载使用 `yaml-cpp` + `ament_index_cpp::get_package_share_directory()`，与 `scene_attach_worker` 一致的加载模式喵~
 
 ## 常见报错速查
 
@@ -196,8 +218,11 @@ colcon build --packages-select tool_changer
 | `deadlock` / 服务调用永不返回 | 回调组配置错误 | 服务回调和 client 是否共享 MutuallyExclusive 组 |
 | `TypeError: types.UnionType` | FastAPI 路由用了 `dict \| None` 语法，pydantic 1.x 不支持 | 改为 `Optional[dict]`（`from typing import Optional`） |
 | `ModuleNotFoundError: No module named 'httpx'` | Web Dashboard 网关依赖未 pip 安装 | `pip3 install httpx websockets` |
-| FastAPI `/health` 超时 | uvicorn 进程启动阶段崩溃 / 代理干扰 | 查看 terminator 标签页日志; `curl --noproxy '*'` |
+| FastAPI `/health` 超时 | (1) `setup.py` 未安装 `web/dist/` → 目录不存在 → `ValueError` 崩溃 (2) 代理干扰 | (1) `ls install/aubo_ros2_web_dashboard/share/aubo_ros2_web_dashboard/web/dist/` 确认目录存在; (2) `curl --noproxy '*'` |
+| Dashboard 生命周期未激活 | 启动脚本 `local tick=0` 在子 shell `(...)` 中非法 (`local` 仅函数内可用)，`set -e` 下静默退出 | 检查 terminator 标签页是否有 `[dashboard] ✓ 生命周期激活完成` 日志 |
+| Web Dashboard gateway 崩溃不重启 | `ExecuteProcess` 无 `respawn` → 进程退出后永久不可用 | `web_dashboard.launch.py:176` 检查 `respawn=True` 是否已配置 |
 | `error while loading shared libraries: libauborobotcontroller.so.1` / exit code 127 | AUBO SDK .so 未安装到 `install/` 或未在 `LD_LIBRARY_PATH` | `colcon build --packages-select aubo_driver_ros2`（CMakeLists.txt 已含 install 规则） |
+| `Subscription to deprecated ~/state topic` | `ros2 bag record -a` 订阅了弃用 topic；或其他节点订阅了 `~/state`（非 `~/controller_state`） | `ros2 topic info -v /joint_trajectory_controller/state` 确认订阅者；rosbag 场景已在 `start_aubo_new_driver.sh` 中加 `-x '/state$'` 排除 |
 
 ## 官方文档与源码仓库
 
@@ -242,11 +267,26 @@ colcon build --packages-select tool_changer
 
 | 目录 | 状态 | 说明 |
 |------|------|------|
-| `aubo_ros2_ws/src/ros_arm_tutorials/` | `COLCON_IGNORE` — 不参与编译 | xArm 教学示例（非 Aubo），仅作参考喵~ |
-| `aubo_ros2_ws/legacy/` | `COLCON_IGNORE` — 不参与编译 | 旧版 URDF、视觉姿态估计（C++）等历史代码喵~ |
-| `aubo_ros2_ws/src/moveit_ros_planning/` | 本地复刻 | MoveIt2 Humble 源码副本，可能有本地补丁，需调查后决定是否移除喵~ |
-| `aubo_ros2_ws/src/moveit_ros_planning_interface/` | 本地复刻 | MoveIt2 Humble 源码副本喵~ |
-| `aubo_ros2_ws/src/moveit_ros_visualization/` | 本地复刻 | MoveIt2 Humble 源码副本喵~ |
+| `aubo_ros2_ws/src/moveit_ros_planning/` | `COLCON_IGNORE` — 不参与编译 | 审计确认无本地补丁 (2026-05-15) |
+| `aubo_ros2_ws/src/moveit_ros_planning_interface/` | `COLCON_IGNORE` — 不参与编译 | 审计确认无本地补丁 (2026-05-15) |
+| `aubo_ros2_ws/src/moveit_ros_visualization/` | 本地复刻 | **有本地补丁**：`planning_scene_display.cpp` + `motion_planning_display.cpp` 修复 MoveIt2 Humble 运行时 URDF 切换 bug喵~ |
+| `aubo_ros2_ws/src/camport_ros2/src/image_data_bridge/` | 已删除 (2026-05-14) | 功能由 `hand_eye_calibration/image_data_converter_node` 替代（`start_aubo_new_driver.sh` 中设 `enable_image_data_converter:=true`）喵~ |
+
+
+
+27. **latte_imitation MoveIt2 标准管线（2026-05-14 重构）**：废弃自定义 PyKDL DLS IK，全部走 MoveIt2 标准 API 喵~
+    - **笛卡尔规划**: `/compute_cartesian_path` — MoveIt2 KDL IK 全 6-DOF，`avoid_collisions=True` 内置碰撞检测喵~
+    - **轨迹执行**: `/execute_trajectory` action — MoveIt2 标准 action（非直接 FollowJointTrajectory）喵~
+    - **起点自动检测**: 通过 TF `lookup_transform(base_link, tool_tcp)` 获取当前末端位姿，`apply_start_pose()` 自动对齐喵~
+    - **Fraction 处理**: ≥0.95 直接执行；0.50~0.95 retry with `avoid_collisions=False`；<0.50 失败喵~
+    - **旧字段兼容**: `pos_only` 和 `collision_check` 在服务接口中保留但不再生效（no-op），`ik_success_count` 语义改为 `int(fraction * num_frames)`喵~
+    - `computeCartesianPath` 参数: `max_step=0.01`, `jump_threshold=0.0`, `start_state=RobotState()`(空=当前状态)喵~
+    - `ReentrantCallbackGroup` + `MultiThreadedExecutor(4)` 防死锁（服务回调中同步等待 action result）喵~
+    > 参考：[MoveGroupInterface API](https://moveit.picknik.ai/humble/api/html/classmoveit_1_1planning__interface_1_1MoveGroupInterface.html) | [GetCartesianPath.srv](http://docs.ros.org/en/api/moveit_msgs/html/srv/GetCartesianPath.html)
+
+28. **已删除模块**: `robot_model.py`(PyKDL FK+IK)、`collision_checker.py`(/check_state_validity)、`action_executor.py`(FollowJointTrajectory)、`trajectory_publisher.py`(旧8阶段管线)。
+    新模块 `trajectory_pipeline.py` 实现 5 阶段管线：Load → Transform+AutoPose → Debug → computeCartesianPath → execute 喵~
+    - `trajectory_transform.py` 修复了 orientation 旋转 bug：`apply_start_pose()` 现在用 `rot_to_quat()` + `quat_multiply()` 正确旋转 orientation，不再只复制不旋转喵~
 
 ## 共享工具包
 
@@ -256,3 +296,23 @@ colcon build --packages-select tool_changer
 - `ivg_utils.io` — IO 引脚定义（`IO_GRIPPER=6`, `IO_QUICK_SWAP=7`）
 
 新增数学工具应优先添加到 `ivg_utils.math` 而非在各包中重复实现喵~
+
+## Web 前端技术栈（2026-05-15 决策）
+
+前端从原生 JS + Web Components 渐进式迁移到 Vue 3，详见 `docs/frontend-migration-plan.md` 喵~
+
+| 工具 | 量化依据 |
+|------|---------|
+| **Vite 6** | 尤雨溪创建，npm 周下载 2000万+，Vue 3 标准构建工具 |
+| **Vue 3.5** | Composition API + `<script setup>`，开发者保留率 87%，中国市场 ~50% |
+| **TypeScript 5** | ivg_interfaces 52 个接口需类型覆盖，写代码时发现拼写错误 |
+| **Tailwind CSS v4** | 87k Stars，2025 Rust 重写核心，构建 268ms 反超 UnoCSS，AI 代码生成 100% 兼容 |
+| **Element Plus** | 28k Stars，119万/月 npm 下载，Vue 3 最广泛 UI 组件库，中文母语 |
+| **VueUse** | 20k+ Stars，Anthony Fu（中国）创建，200+ composables，`useWebSocket`/`useLocalStorage` 等一行替代手写文件 |
+| **Pinia** | Vue 官方状态管理，80% 采用率，仅用于跨页面全局状态（ROS 连接/runtime/工具ID） |
+| **vue-echarts** | 64k Stars（百度→Apache），中文文档最完善，Vue 3 官方封装 |
+| **unplugin-auto-import** | Anthony Fu 创建，自动导入 Vue API / Element Plus 组件，零样板代码 |
+
+**关键架构不变**：rosbridge WebSocket 协议、roslib/ros3d API、FastAPI 网关路由、MJPEG 视频代理。仅前端封装从构造函数 → composables 模式喵~
+
+**现有代码保留**：`tf_clients.js`（四元数数学）、`patches.js`（Three.js monkey-patch）、`projection_overlay.js`（Canvas 2D 投影）转为 `src/lib/` 下纯 TypeScript 模块，框架无关可直接搬喵~

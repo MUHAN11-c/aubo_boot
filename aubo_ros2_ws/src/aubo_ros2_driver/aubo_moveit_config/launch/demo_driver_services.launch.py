@@ -68,6 +68,8 @@ def _launch_setup(context, *args, **kwargs):
         ("get_current_state_server_node", "get_current_state_server"),
         ("set_speed_factor_server_node", "set_speed_factor_server"),
         ("set_robot_pose_server_node", "set_robot_pose_server"),
+        ("set_robot_enable_server_node", "set_robot_enable_server"),
+        ("read_robot_io_server_node", "read_robot_io_server"),
     ]
 
     actions = []

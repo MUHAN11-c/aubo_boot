@@ -15,6 +15,13 @@ tools:
       position: {x: 0.0, y: 0.0, z: 0.033}
       orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
     touch_links: ["kuaihuan_Link", "camera_Link", "wrist3_Link"]
+    dock_approach_joints: [1.137820, 0.222690, 1.598043, -0.194970, 1.571688, 1.136957]
+    dock_above: {x: 0.27017, y: 0.29517, z: 0.4755}
+    trajectory:
+      strategy: "vertical"
+      depth: 0.210
+      lift: 0.210
+      settle_sec: 0.5
 
   gripper1:
     name: "电动夹爪 A"
@@ -43,6 +50,17 @@ tools:
       position: {x: 0.0, y: 0.0, z: 0.033}
       orientation: {x: 0.0, y: 0.0, z: 0.7071, w: 0.7071}
     touch_links: ["kuaihuan_Link", "camera_Link", "wrist3_Link"]
+    dock_approach_joints: [0.936893, 0.016616, 1.419053, -0.167867, 1.571655, 0.935894]
+    dock_above: {x: 0.3741, y: 0.30394, z: 0.4755}
+    trajectory:
+      strategy: "slide"
+      depth: 0.210
+      lift: 0.210
+      slide_y: 0.100
+      seat: 0.012
+      settle_sec: 0.5
+      release_sec: 0.3
+      lock_sec: 0.5
 
   gripper1coffeecup:
     name: "咖啡杯工具"

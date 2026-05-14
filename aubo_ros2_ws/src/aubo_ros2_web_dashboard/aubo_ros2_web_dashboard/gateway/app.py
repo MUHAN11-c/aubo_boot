@@ -56,18 +56,17 @@ def create_app(web_root: str, *, rwt_override: str | None = None) -> FastAPI:
     if not os.path.isdir(root):
         raise ValueError(f"静态目录不存在: {root}")
 
-    # RobotWebTools 资产路径：优先 CLI 覆盖 → 其次内嵌在 web/public/js/robotwebtools
+    # RobotWebTools 资产路径（Vue 3 通过 npm 管理 roslib/ros3d，此目录可选）
     embedded = os.path.join(root, "js", "robotwebtools")
     rwt_root = os.path.abspath(os.path.realpath(rwt_override or embedded))
-    if not os.path.isdir(rwt_root):
-        raise ValueError(f"robotwebtools 资产目录未找到: {rwt_root}")
+    rwt_available = os.path.isdir(rwt_root)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         """启动时打印代理目标地址，便于调试。"""
         rb = f"{cfg.rosbridge_host()}:{cfg.rosbridge_port()}"
         wv = f"{cfg.web_video_host()}:{cfg.web_video_port()}"
-        print(f"[ivg] 网关启动 root={root} rwt={rwt_root} "
+        print(f"[ivg] 网关启动 root={root} rwt={rwt_root if rwt_available else '(无)'} "
               f"rosbridge→{rb} web_video→{wv}", flush=True)
         yield
 
@@ -87,13 +86,30 @@ def create_app(web_root: str, *, rwt_override: str | None = None) -> FastAPI:
     app.include_router(ws_router)           # WebSocket 代理
     app.include_router(http_proxy_router)   # HTTP 视频流代理
     app.include_router(health.router)       # /health
-    app.include_router(ivg_runtime.router)  # /api/v1/runtime
+    app.include_router(ivg_runtime.router)  # /api/v1/runtime + /api/v1/settings
     app.include_router(robot_mesh.router)   # /api/ivg/robot-mesh/*
 
-    # 静态文件挂载（优先级最低，作为 fallback）
-    app.mount("/js/robotwebtools",
-              StaticFiles(directory=rwt_root, html=False), name="robotwebtools")
-    app.mount("/",
-              StaticFiles(directory=root, html=True), name="static")
+    # 静态文件挂载
+    if rwt_available:
+        app.mount("/js/robotwebtools",
+                  StaticFiles(directory=rwt_root, html=False), name="robotwebtools")
+
+    # SPA fallback: 所有未匹配路径返回 index.html (Vue Router createWebHistory 模式)
+    from fastapi.responses import FileResponse
+    index_html = os.path.join(root, "index.html")
+
+    @app.get("/{full_path:path}")
+    async def spa_fallback(full_path: str):
+        # /api/, /ws/, /health 已经由上方路由处理，此处仅处理 SPA 页面路由
+        if os.path.isfile(index_html):
+            return FileResponse(index_html)
+        return {"detail": "index.html not found"}
+
+    # 根路径也走 SPA
+    @app.get("/")
+    async def root_fallback():
+        if os.path.isfile(index_html):
+            return FileResponse(index_html)
+        return {"detail": "index.html not found"}
 
     return app

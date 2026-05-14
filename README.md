@@ -139,7 +139,7 @@ aubo_ros2_ws/src/
 ├── vision_perception/              # MediaPipe + YOLO OBB 感知
 ├── tool_changer/                   # 夹爪快换（物理运动 + PlanningScene 附着 + URDF 更新）
 ├── coffee_latte_demo/              # 咖啡拉花演示（IO 控制 + Web 前端）
-├── latte_imitation/                # RM65→AUBO E5 拉花轨迹模仿学习
+├── latte_imitation/                # RM65→AUBO E5 拉花轨迹模仿学习 (MoveIt2 标准管线)
 └── ros_arm_tutorials/              # 《ROS 机械臂开发与实践》教学代码（6 个子包）
 ```
 
@@ -220,7 +220,7 @@ move_group → follow_joint_trajectory (action)
 | 包 | 类型 | 职责 |
 |----|------|------|
 | **coffee_latte_demo** | Python | 咖啡拉花演示：IO 控制节点（DO2/DO4）、Web 前端面板、工具网格 |
-| **latte_imitation** | Python | RM65 数据集 → AUBO E5 IK 重定向 → 轨迹发布（模仿学习） |
+| **latte_imitation** | Python | RM65 数据集 → MoveIt2 computeCartesianPath + execute 管线（模仿学习） |
 
 ---
 

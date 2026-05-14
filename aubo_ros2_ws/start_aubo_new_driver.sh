@@ -35,6 +35,7 @@ cleanup() {
     pkill -f 'uvicorn.*8090' 2>/dev/null || true
     pkill -f 'ros2 bag' 2>/dev/null || true
     pkill -f 'ros2 lifecycle' 2>/dev/null || true
+    pkill -f 'latte_imitation' 2>/dev/null || true
     sleep 0.5
     echo -e "${GREEN}  ✓ 清理完成${NC}"
 }
@@ -64,9 +65,6 @@ IVG_ROSBAG_DIR="${IVG_ROSBAG_DIR:-rosbags/ivg_session}"
 IVG_ROSBAG_TOPICS="${IVG_ROSBAG_TOPICS:-}"
 HAND_EYE_PORT="${HAND_EYE_PORT:-8080}"
 WEB_VIDEO_PORT="${WEB_VIDEO_PORT:-8089}"
-IVG_INCLUDE_POINTCLOUD_WEB_BRIDGE="${IVG_INCLUDE_POINTCLOUD_WEB_BRIDGE:-true}"
-IVG_POINTCLOUD_WEB_MAX_POINTS="${IVG_POINTCLOUD_WEB_MAX_POINTS:-15000}"
-SKIP_RVIZ="${SKIP_RVIZ:-0}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
 SKIP_ROSBAG="${SKIP_ROSBAG:-0}"
 ROBOTWEBTOOLS_ASSETS_DIR="${ROBOTWEBTOOLS_ASSETS_DIR:-src/robotwebtools/runtime_js_assets}"
@@ -214,19 +212,24 @@ fi
 echo -e "${GREEN}[1] 机械臂核心 (Controller + Dashboard + StateBroadcaster + MoveIt2)...${NC}"
 launch "Aubo Driver" "ros2 launch aubo_moveit_config aubo_new_driver.launch.py server_host:=${AUBO_IP}"
 
-# Dashboard 生命周期激活（后台轮询节点就绪后激活，不阻塞）
+# Dashboard 生命周期激活（后台轮询，30s 超时）
 (
     cd "$WS"
     source "$ROS2_SETUP"
     source install/setup.bash
-    echo "[dashboard] 等待 /aubo_dashboard 节点就绪..." >&2
+    echo "[dashboard] 等待 /aubo_dashboard 节点就绪 (超时 30s)..." >&2
+    tick=0
     while ! ros2 node list 2>/dev/null | grep -q "/aubo_dashboard"; do
-        sleep 0.5
+        sleep 0.5; tick=$((tick + 1))
+        if [ "$tick" -ge 60 ]; then
+            echo "[dashboard] ⚠ 超时 — /aubo_dashboard 未就绪，跳过生命周期激活" >&2
+            exit 0
+        fi
     done
-    echo "[dashboard] 节点就绪，激活生命周期..." >&2
+    echo "[dashboard] ✓ 节点就绪，激活生命周期..." >&2
     ros2 lifecycle set /aubo_dashboard configure 2>/dev/null || true
     ros2 lifecycle set /aubo_dashboard activate 2>/dev/null || true
-    echo "[dashboard] 生命周期激活完成" >&2
+    echo "[dashboard] ✓ 生命周期激活完成" >&2
 ) &
 
 # 等待 MoveIt2 就绪（move_group 是后续所有步骤的基础依赖）
@@ -245,11 +248,7 @@ active_wait service "/execute_trajectory" 20 "execute_trajectory 服务"
 # ═══════════════════════════════════════════════════════════════
 
 echo -e "${GREEN}[15] IVG Web 网关...${NC}"
-WEB_DASH_PC_WEB_ARGS=""
-if [ "${IVG_INCLUDE_POINTCLOUD_WEB_BRIDGE}" = "true" ]; then
-    WEB_DASH_PC_WEB_ARGS=" include_pointcloud_web_bridge:=true pointcloud_web_max_points:=${IVG_POINTCLOUD_WEB_MAX_POINTS}"
-fi
-WEB_DASH_CMD="${WEB_DASH_UNSET_PROXY}ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_host:=${WEB_DASH_HOST} web_port:=${WEB_DASH_PORT} rosbridge_port:=${ROSBRIDGE_PORT} web_video_port:=${WEB_VIDEO_PORT} robotwebtools_assets_dir:=${ROBOTWEBTOOLS_ASSETS_DIR}${WEB_DASH_PC_WEB_ARGS}"
+WEB_DASH_CMD="${WEB_DASH_UNSET_PROXY}ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_host:=${WEB_DASH_HOST} web_port:=${WEB_DASH_PORT} rosbridge_port:=${ROSBRIDGE_PORT} web_video_port:=${WEB_VIDEO_PORT} robotwebtools_assets_dir:=${ROBOTWEBTOOLS_ASSETS_DIR}"
 launch "IVG Web Dashboard" "${WEB_DASH_CMD}"
 
 # ═══════════════════════════════════════════════════════════════
@@ -265,7 +264,7 @@ else
     if [ -n "$IVG_ROSBAG_TOPICS" ]; then
         launch "ROS2 Bag" "ros2 bag record -o \"${IVG_ROSBAG_DIR}\" ${IVG_ROSBAG_TOPICS}"
     else
-        launch "ROS2 Bag" "ros2 bag record -o \"${IVG_ROSBAG_DIR}\" -a"
+        launch "ROS2 Bag" "ros2 bag record -o \"${IVG_ROSBAG_DIR}\" -a -x '/state$'"
     fi
 fi
 
@@ -279,9 +278,6 @@ launch "Percipio Camera" "ros2 launch percipio_camera percipio_camera.launch.py"
 echo -e "${GREEN}[4] 相机控制...${NC}"
 launch "Camera Control" "ros2 launch percipio_camera camera_control.launch.py"
 
-echo -e "${GREEN}[5] 图像桥接...${NC}"
-launch "Image Bridge" "ros2 launch image_data_bridge image_data_bridge.launch.py input_image_topic:=/camera/color/image_raw"
-
 active_wait topic "/camera/color/image_raw" 15 "相机图像话题"
 active_wait topic "/camera_status" 10 "相机状态话题"
 
@@ -290,7 +286,7 @@ active_wait topic "/camera_status" 10 "相机状态话题"
 # ═══════════════════════════════════════════════════════════════
 
 echo -e "${GREEN}[6] 手眼标定...${NC}"
-launch "Hand Eye" "ros2 launch hand_eye_calibration hand_eye_calibration_launch.py"
+launch "Hand Eye" "ros2 launch hand_eye_calibration hand_eye_calibration_launch.py enable_image_data_converter:=true"
 
 echo -e "${GREEN}[7] 视觉姿态估计...${NC}"
 launch "VPE" "export PATH=\"/usr/bin:\$PATH\" && ros2 launch visual_pose_estimation_python visual_pose_estimation_python.launch.py"
@@ -322,7 +318,7 @@ launch "Grasp Worker" "ros2 launch demo_driver execute_grasp_pose_worker.launch.
 echo -e "${GREEN}[10] 夹爪快换...${NC}"
 launch "Tool Changer" "ros2 launch tool_changer gripper_swap_worker.launch.py"
 
-echo -e "${GREEN}[11] 咖啡拉花...${NC}"
+echo -e "${GREEN}[11] 咖啡拉花 (MoveIt2 新管线)...${NC}"
 launch "Coffee Latte" "ros2 launch coffee_latte_demo coffee_latte_demo.launch.py"
 
 echo -e "${GREEN}[12] GraspNet 循环抓取...${NC}"

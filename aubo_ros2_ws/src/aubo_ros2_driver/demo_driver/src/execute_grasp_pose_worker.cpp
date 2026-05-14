@@ -109,8 +109,9 @@ static double normalizeYawToShortEquivalent(double yaw_rad)
 // ============================================================================
 
 ExecuteGraspPoseWorker::ExecuteGraspPoseWorker(const rclcpp::NodeOptions& options)
-  : MoveitGripperIoBase(options)
+  : Node("execute_grasp_pose_worker_node", options)
 {
+  robot_ = std::make_shared<RobotController>(this);
   // launch 已通过 automatically_declare_parameters_from_overrides 注入 egp_* 时不再 declare，避免重复声明
   if (!has_parameter("egp_grasp_position"))
     declare_parameter("egp_grasp_position", std::vector<double>({ 0.41176897287368774, 0.18364354968070984, 0.2553410828113556 }));
@@ -127,7 +128,7 @@ ExecuteGraspPoseWorker::ExecuteGraspPoseWorker(const rclcpp::NodeOptions& option
   if (!has_parameter("egp_joint_acceleration_scaling"))
     declare_parameter("egp_joint_acceleration_scaling", 0.3);
   if (!has_parameter("egp_gripper_io_index"))
-    declare_parameter("egp_gripper_io_index", kGripperIoIndex);
+    declare_parameter("egp_gripper_io_index", 6);
   if (!has_parameter("egp_lift_offset"))
     declare_parameter("egp_lift_offset", 0.2);
   if (!has_parameter("egp_place_offset_y"))
@@ -208,13 +209,6 @@ ExecuteGraspPoseWorker::ExecuteGraspPoseWorker(const rclcpp::NodeOptions& option
       "/estimate_pose", rmw_qos_profile_services_default, estimate_pose_client_cb_group_);
 
   RCLCPP_INFO(get_logger(), "服务已创建: /execute_single_grasp, /loop_grasp_control");
-}
-
-std::shared_ptr<ExecuteGraspPoseWorker> ExecuteGraspPoseWorker::create(const rclcpp::NodeOptions& options)
-{
-  auto node = std::make_shared<ExecuteGraspPoseWorker>(options);
-  node->initMoveGroup();
-  return node;
 }
 
 ExecuteGraspPoseWorker::~ExecuteGraspPoseWorker()
@@ -304,13 +298,7 @@ geometry_msgs::msg::Quaternion ExecuteGraspPoseWorker::createOrientationFromZRot
 bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& pose_ee, double height_above,
                                                float vel, float acc)
 {
-  if (!move_group_)
-  {
-    RCLCPP_ERROR(get_logger(), "[runGraspApproach] MoveGroup 未初始化");
-    return false;
-  }
-
-  const std::string eef_link = move_group_->getEndEffectorLink();
+  const std::string eef_link = robot_->getEndEffectorLink();
   if (eef_link.empty())
   {
     RCLCPP_ERROR(get_logger(), "[runGraspApproach] 无法获取末端 link");
@@ -334,11 +322,11 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
   // 路点 当前→X→Y→抬升→姿态→下降，一条笛卡尔轨迹一次 execute。
   for (int attempt = 1; attempt <= kArcPathMaxRetries; ++attempt)
   {
-    move_group_->setStartStateToCurrentState();
-    move_group_->setMaxVelocityScalingFactor(vel);
-    move_group_->setMaxAccelerationScalingFactor(acc);
+    robot_->moveGroup()->setStartStateToCurrentState();
+    robot_->setVelocityScaling(vel);
+    robot_->setAccelerationScaling(acc);
 
-    geometry_msgs::msg::Pose current_pose = move_group_->getCurrentPose(eef_link).pose;
+    geometry_msgs::msg::Pose current_pose = robot_->getCurrentPose();
 
     if (attempt == 1)
     {
@@ -417,7 +405,7 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
     waypoints.push_back(p_down);
 
     moveit_msgs::msg::RobotTrajectory trajectory;
-    const double fraction = move_group_->computeCartesianPath(waypoints, kCartesianEefStep, kCartesianJumpThreshold,
+    const double fraction = robot_->moveGroup()->computeCartesianPath(waypoints
                                                               trajectory);
     const size_t num_points = trajectory.joint_trajectory.points.size();
 
@@ -446,7 +434,7 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
 
     moveit::planning_interface::MoveGroupInterface::Plan plan;
     plan.trajectory_ = trajectory;
-    const auto exec_ok = move_group_->execute(plan);
+    const auto exec_ok = robot_->moveGroup()->execute(plan);
     if (exec_ok != moveit::core::MoveItErrorCode::SUCCESS)
     {
       RCLCPP_ERROR(get_logger(), "[runGraspApproach] 执行失败，错误码=%d；%.3f s 后重试", exec_ok.val,
@@ -479,7 +467,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   RCLCPP_INFO(get_logger(), "└────────────────────────────────────────────────────────────┘");
 
   RCLCPP_INFO(get_logger(), "► 步骤 0/8: 回安全位");
-  if (!moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
+  if (!robot_->moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "✗ 步骤 0 失败：回安全位失败");
     return false;
@@ -526,7 +514,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   }
   else
   {
-    if (!setGripperIo(gripper_io_index_, true))  // true=打开 (ivg_utils.io.GRIPPER_OPEN)
+    if (!robot_->setGripper(gripper_io_index_, true))  // true=打开 (ivg_utils.io.GRIPPER_OPEN)
     {
       RCLCPP_ERROR(get_logger(), "✗ 步骤 3 失败：抓取前开夹爪失败");
       return false;
@@ -555,7 +543,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   }
   else
   {
-    if (!setGripperIo(gripper_io_index_, false))  // false=闭合 (ivg_utils.io.GRIPPER_CLOSE)
+    if (!robot_->setGripper(gripper_io_index_, false))  // false=闭合 (ivg_utils.io.GRIPPER_CLOSE)
     {
       RCLCPP_ERROR(get_logger(), "✗ 步骤 5 失败：闭夹爪失败");
       return false;
@@ -565,7 +553,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
 
   RCLCPP_INFO(get_logger(), "");
   RCLCPP_INFO(get_logger(), "► 步骤 6/9: 抬起 (z=%.2f m)", lift_offset_);
-  if (!runArcPath('z', lift_offset_, joint_velocity_scaling_, joint_acceleration_scaling_))
+  if (!robot_->moveCartesianZ(lift_offset_, joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "✗ 步骤 6 失败：抬起失败");
     return false;
@@ -575,7 +563,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   RCLCPP_INFO(get_logger(), "");
   RCLCPP_INFO(get_logger(), "► 步骤 7/9: 移动到放置位 (安全位 + y/x/z 偏移)");
   CHECK(sleepJointCartesianSwitchDelay("步骤 7 前（笛卡尔→关节）"));
-  if (!moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
+  if (!robot_->moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "✗ 步骤 7 失败：回安全位失败");
     return false;
@@ -587,7 +575,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
     { 'z', place_offset_z_ },
   };
   RCLCPP_INFO(get_logger(), "  执行偏移：y=%.2f, x=-0.2, z=%.2f", place_offset_y_, place_offset_z_);
-  if (!runArcPathSequence(place_segments, joint_velocity_scaling_, joint_acceleration_scaling_))
+  if (!robot_->moveCartesianPath(place_segments, joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "✗ 步骤 7 失败：放置位多段笛卡尔失败");
     return false;
@@ -605,7 +593,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   }
   else
   {
-    if (!setGripperIo(gripper_io_index_, true))  // true=打开 (ivg_utils.io.GRIPPER_OPEN)
+    if (!robot_->setGripper(gripper_io_index_, true))  // true=打开 (ivg_utils.io.GRIPPER_OPEN)
     {
       RCLCPP_ERROR(get_logger(), "✗ 步骤 8 失败：开夹爪失败");
       return false;
@@ -616,7 +604,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   RCLCPP_INFO(get_logger(), "");
   RCLCPP_INFO(get_logger(), "► 步骤 9/9: 回安全位");
   CHECK(sleepJointCartesianSwitchDelay("步骤 9 前（笛卡尔→关节）"));
-  if (!moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
+  if (!robot_->moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "✗ 步骤 9 失败：回安全位失败");
     return false;
@@ -1023,15 +1011,6 @@ void ExecuteGraspPoseWorker::loopGraspThread()
 // 主执行流程
 // ============================================================================
 
-bool ExecuteGraspPoseWorker::run()
-{
-  RCLCPP_INFO(get_logger(), "ExecuteGraspPoseWorker 等待服务调用...");
-  
-  // 服务驱动模式：不自动执行，等待服务调用
-  // 返回 true 表示节点正常运行，实际的抓取逻辑由服务回调触发
-  return true;
-}
-
 }  // namespace demo_driver
 
 // ============================================================================
@@ -1044,31 +1023,17 @@ int main(int argc, char** argv)
   rclcpp::NodeOptions options;
   options.automatically_declare_parameters_from_overrides(true);
 
-  auto node = demo_driver::ExecuteGraspPoseWorker::create(options);
+  auto node = std::make_shared<demo_driver::ExecuteGraspPoseWorker>(options);
 
   rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
-  // add_node 会注册节点上全部 callback group（含 estimate_pose 的 Reentrant 组），勿再 add_callback_group 同一组
   executor.add_node(node);
-
-  std::thread spinner([&executor]() { executor.spin(); });
 
   demo_driver::g_worker_for_signal = node.get();
   std::signal(SIGINT, demo_driver::sigintHandler);
   std::signal(SIGTERM, demo_driver::sigintHandler);
 
-  const int kServiceWaitSec = 10;
-  if (!node->waitForServices(std::chrono::seconds(kServiceWaitSec)))
-  {
-    rclcpp::shutdown();
-    spinner.join();
-    return 1;
-  }
-
-  RCLCPP_INFO(node->get_logger(), "ExecuteGraspPoseWorker 就绪，等待服务调用 (/execute_single_grasp, /loop_grasp_control)");
-  node->run();
-
-  // 保持节点运行，等待 Ctrl+C 信号
-  spinner.join();
+  RCLCPP_INFO(node->get_logger(), "ExecuteGraspPoseWorker 就绪, 等待服务调用");
+  executor.spin();
 
   demo_driver::g_worker_for_signal = nullptr;
   return 0;

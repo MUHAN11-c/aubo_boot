@@ -180,8 +180,9 @@ static void sleepInterruptible(PublishGraspsClientWorker* worker, double seconds
 PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& options)
   : rclcpp::Node("publish_grasps_client_worker", options)
 {
+  // RobotController 构造安全（只存指针），init() 延后到 main
   robot_ = std::make_shared<RobotController>(this);
-  move_group_ = robot_->moveGroup();  // 共享 RobotController 的 MoveGroupInterface
+  move_group_ = nullptr;
   aubo_set_io_client_ = create_client<ivg_interfaces::srv::SetRobotIO>(kAuboSetIOService);
 
   // --- 声明参数（详见本文件上方参数表）---
@@ -256,6 +257,12 @@ PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& 
       get_logger(), "订阅抓取位姿: %s, 窗口大小=%zu, 最少%zu组后选优, 触发服务=%s, 循环控制服务=%s, auto_start_loop=%s",
       grasp_poses_topic_.c_str(), grasp_window_size_, min_groups_before_pick_, grasp_capture_service_name_.c_str(),
       loop_control_service_name_.c_str(), auto_start_loop_ ? "true" : "false");
+}
+
+void PublishGraspsClientWorker::initRobot()
+{
+  robot_->init();
+  move_group_ = robot_->moveGroup();
 }
 
 // =============================================================================
@@ -941,6 +948,7 @@ void PublishGraspsClientWorker::logCurrentEefPoseAndJoints(const char* stage_lab
 // → 8 抬起 → 9 B 点（关节+可选笛卡尔）→ 10 开爪 → 11 回 A 点
 bool PublishGraspsClientWorker::runOneCycle()
 {
+  if (!robot_ || !move_group_) return false;
   struct CycleProgressGuard
   {
     explicit CycleProgressGuard(std::atomic<bool>& in_progress) : in_progress_(in_progress)
@@ -1219,6 +1227,7 @@ int main(int argc, char** argv)
   options.automatically_declare_parameters_from_overrides(true);
 
   auto node = std::make_shared<demo_driver::PublishGraspsClientWorker>(options);
+  node->initRobot();
 
   rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
   executor.add_node(node);

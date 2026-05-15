@@ -73,16 +73,16 @@ vision_panel:
     topics:
       - {id: "topic-color",        default: "/camera/color/image_raw",       label: "彩色相机话题",     msg_type: "sensor_msgs/msg/Image"}
       - {id: "topic-result",       default: "",                               label: "识别结果话题",     msg_type: "sensor_msgs/msg/Image", allow_empty: true}
-      - {id: "topic-robot",        default: "/robot_status",      label: "机械臂状态话题",   msg_type: "ivg_interfaces/msg/RobotStatus"}
+      - {id: "topic-robot",        default: "/aubo_driver/robot_status",      label: "机械臂状态话题",   msg_type: "ivg_interfaces/msg/RobotStatus"}
       - {id: "topic-vpe-status",   default: "/system_status",                 label: "VPE 状态话题",     msg_type: "std_msgs/msg/String"}
       - {id: "topic-grasp-poses",  default: "/grasp_poses_base",              label: "抓取位姿话题",     msg_type: "geometry_msgs/msg/PoseArray"}
     services:
       - {id: "svc-loop-grasp-control",   default: "/loop_grasp_control",                label: "循环抓取控制",     srv_type: "std_srvs/srv/SetBool"}
       - {id: "svc-graspnet-capture",     default: "/graspnet_capture_control",          label: "GraspNet 采集控制", srv_type: "std_srvs/srv/SetBool"}
       - {id: "svc-publish-grasps-loop",  default: "/publish_grasps_worker_loop_control", label: "发布抓取循环控制", srv_type: "std_srvs/srv/SetBool"}
-      - {id: "svc-gripper-swap",         default: "/run_gripper_swap",                  label: "夹爪快换",         srv_type: "tool_changer_interface/srv/RunGripperSwap"}
+      - {id: "svc-gripper-swap",         default: "/run_gripper_swap",                  label: "夹爪快换",         srv_type: "ivg_interfaces/srv/RunGripperSwap"}
     fixed_service_types:
-      execute-single-grasp: "demo_interface/srv/ExecuteGraspPose"
+      execute-single-grasp: "ivg_interfaces/srv/ExecuteGraspPose"
 
   # -- 咖啡拉花 --
   latte:

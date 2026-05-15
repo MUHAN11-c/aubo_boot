@@ -1,39 +1,49 @@
 #!/usr/bin/env python3
 """
-latte_imitation 交互式测试脚本 — 菜单选择, 无需手敲长命令喵~
+latte_imitation 文本测试脚本 — 无 GUI 环境时的备用方案喵~
 
 用法:
   cd /home/mu/IVG2.0/aubo_ros2_ws
   source /opt/ros/humble/setup.bash
   source install/setup.bash
   python3 src/latte_imitation/scripts/test_replay_service.py
+
+推荐使用可视化面板: latte_debug_panel.py (PySide6 3D + 欧拉角控制) 喵~
 """
 
 import subprocess
 import sys
+import os as _os
+import yaml as _yaml
+_sys_path = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+if _sys_path not in sys.path:
+    sys.path.insert(0, _sys_path)
+from latte_imitation.trajectory_transform import euler_deg_to_quat
+
+# 上次使用的旋转角度 (方便反复调) 喵~
+_last_rpy = {"roll": 0.0, "pitch": 0.0, "yaw": 0.0}
 
 # ── 命令构建 ──────────────────────────────────────────────────
 
-def build_yaml(ep, arm, spd, mode, col_str, px, py, pz, qz, qw):
-    """用普通字符串拼接构建 YAML, 避开 f-string 的花括号转义地狱喵~"""
-    return (
-        "{"
-        f"episode_idx: {ep}, "
-        f"arm: {arm}, "
-        f"speed_scale: {spd}, "
-        f"mode: {mode}, "
-        f"collision_check: {col_str}, "
-        "start_pose: {"
-        f"position: {{x: {px}, y: {py}, z: {pz}}}, "
-        f"orientation: {{x: 0.0, y: 0.0, z: {qz}, w: {qw}}}"
-        "}"
-        "}"
-    )
+def build_yaml(ep, arm, spd, mode, col_str, px, py, pz, qx, qy, qz, qw):
+    """用 yaml.dump 安全构建 YAML，避免字符串拼接注入风险喵~"""
+    data = {
+        "episode_idx": int(ep),
+        "arm": str(arm),
+        "speed_scale": float(spd),
+        "mode": str(mode),
+        "collision_check": bool(col_str),
+        "start_pose": {
+            "position": {"x": float(px), "y": float(py), "z": float(pz)},
+            "orientation": {"x": float(qx), "y": float(qy), "z": float(qz), "w": float(qw)},
+        },
+    }
+    return _yaml.dump(data, default_flow_style=True, sort_keys=False).strip().replace("\n", "")
 
 
-def _cmd(ep, arm, spd, mode, col, px, py, pz, qz, qw):
+def _cmd(ep, arm, spd, mode, col, px, py, pz, qx, qy, qz, qw):
     """构建 ros2 service call 命令喵~"""
-    yaml = build_yaml(ep, arm, spd, mode, col, px, py, pz, qz, qw)
+    yaml = build_yaml(ep, arm, spd, mode, col, px, py, pz, qx, qy, qz, qw)
     return (
         "ros2 service call /latte_imitation/replay_trajectory "
         "ivg_interfaces/srv/ReplayLatteTrajectory "
@@ -44,62 +54,70 @@ def _cmd(ep, arm, spd, mode, col, px, py, pz, qz, qw):
 # ── 测试用例定义 ────────────────────────────────────────────────
 
 
-# 测试 1~6 的默认参数: (ep, arm, spd, mode, col, px, py, pz, qz, qw)
+# 默认参数: (ep, arm, spd, mode, col, px, py, pz, qx, qy, qz, qw)
 _T = lambda *a: _cmd(*a)
 
 TESTS = [
     {
         "id": 1,
-        "name": "Debug — 预览轨迹",
-        "desc": "加载 episode 0 右臂, 发布 PoseStamped+Path, 不驱动机器人",
+        "name": "Debug — 预览轨迹 (当前 EE, 不旋转)",
+        "desc": "position=零→TF查EE / orientation=identity→纯平移, 只发布话题",
         "cmd": _T("0", "right", "1.0", "debug", "false",
-                  "0.0", "0.0", "0.0", "0.0", "1.0"),
+                  "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "1.0"),
         "expect": "success=true, num_frames=400, path_length~1.53",
     },
     {
         "id": 2,
-        "name": "Action + 碰撞检测",
-        "desc": "完整管线: IK→碰撞→JointTrajectory→机械臂执行 (2倍速, ~10秒)",
+        "name": "Action — 完整管线 (当前 EE, 不旋转, 2倍速)",
+        "desc": "computeCartesianPath→execute, 轨迹保持原始朝向",
         "cmd": _T("0", "right", "2.0", "action", "true",
-                  "0.0", "0.0", "0.0", "0.0", "1.0"),
-        "expect": "success=true, ik_success_count~400 (fraction*400), collision_count=0 (MoveIt2 内置)",
+                  "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "1.0"),
+        "expect": "success=true, ik_success_count≥380, collision_count=0",
     },
     {
         "id": 3,
-        "name": "start_pose 纯平移",
-        "desc": "杯子在 camera_pose (0.45,0,0.50), 杯口Z轴朝上 (远离底座防碰撞)",
+        "name": "旋转 Z+90° (位置=当前EE, yaw=90°)",
+        "desc": "position=零→TF / orientation=euler(0,0,90°), 轨迹绕Z轴旋转",
         "cmd": _T("0", "right", "1.0", "action", "true",
-                  "0.45", "0.0", "0.50", "0.0", "1.0"),
-        "expect": "success=true, 轨迹起点=杯子上方45cm, 整条轨迹高于桌面",
+                  "0.0", "0.0", "0.0", "0.0", "0.0", "0.707", "0.707"),
+        "expect": "success=true, 轨迹绕EE位置旋转90°, 运动方向改变",
     },
     {
         "id": 4,
-        "name": "start_pose 平移+旋转",
-        "desc": "杯子在 camera_pose, 绕Z轴90° (杯口朝向变了) (z=0.707,w=0.707)",
+        "name": "旋转 Z+180° (位置=当前EE, yaw=180°)",
+        "desc": "position=零→TF / orientation=euler(0,0,180°), 轨迹完全翻转",
         "cmd": _T("0", "right", "1.0", "action", "true",
-                  "0.45", "0.0", "0.50", "0.707", "0.707"),
-        "expect": "success=true, 路径长度不变(刚性保距), 碰撞结果可能不同",
+                  "0.0", "0.0", "0.0", "0.0", "0.0", "1.0", "0.0"),
+        "expect": "success=true, 轨迹绕EE位置翻转, X/Y方向反转",
     },
     {
         "id": 5,
-        "name": "错误处理 — 不存在 episode",
-        "desc": "请求 episode=999, 验证错误信息",
-        "cmd": _T("999", "right", "1.0", "debug", "false",
-                  "0.0", "0.0", "0.0", "0.0", "1.0"),
-        "expect": 'success=false, message="episode_000999.npz ... 未找到"',
+        "name": "指定位置+旋转 (杯子位姿)",
+        "desc": "position=(0.45,0,0.50)+yaw=90°, 杯子位姿全指定",
+        "cmd": _T("0", "right", "1.0", "action", "true",
+                  "0.45", "0.0", "0.50", "0.0", "0.0", "0.707", "0.707"),
+        "expect": "success=true, 起点=(0.45,0,0.50), 路径长度不变",
     },
     {
         "id": 6,
-        "name": "左臂持杯轨迹",
-        "desc": "arm='left', 几乎静止, 路径~0.31m (右臂的1/5)",
-        "cmd": _T("0", "left", "1.0", "debug", "false",
-                  "0.0", "0.0", "0.0", "0.0", "1.0"),
-        "expect": "success=true, num_frames=400, path_length~0.31",
+        "name": "错误处理 — 不存在 episode",
+        "desc": "请求 episode=999, 验证错误信息",
+        "cmd": _T("999", "right", "1.0", "debug", "false",
+                  "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "1.0"),
+        "expect": 'success=false, message="episode_000999.npz ... 未找到"',
     },
     {
         "id": 7,
-        "name": "自定义 — 手动输入参数",
-        "desc": "逐项输入 episode/arm/speed/mode/collision/start_pose",
+        "name": "左臂持杯轨迹",
+        "desc": "arm='left', 几乎静止, 路径~0.31m (右臂的1/5)",
+        "cmd": _T("0", "left", "1.0", "debug", "false",
+                  "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "1.0"),
+        "expect": "success=true, num_frames=400, path_length~0.31",
+    },
+    {
+        "id": 8,
+        "name": "自定义 — 欧拉角控制旋转",
+        "desc": "逐项输入 episode/arm/speed/mode/pos/(roll,pitch,yaw)°, 记住上次值",
         "interactive": True,
     },
 ]
@@ -130,21 +148,32 @@ def run_cmd(cmd: str) -> int:
 
 
 def run_interactive():
-    """自定义 episode 测试喵~"""
+    """自定义参数 — 欧拉角控制旋转, 记住上次值方便反复调喵~"""
+    global _last_rpy
     try:
-        ep   = input("  episode_idx (0~39, 默认 0): ").strip() or "0"
-        arm  = input("  arm (right/left, 默认 right): ").strip() or "right"
-        spd  = input("  speed_scale (默认 1.0): ").strip() or "1.0"
-        mode = input("  mode (debug/action, 默认 action): ").strip() or "action"
-        col  = input("  collision_check (y/n, 默认 y): ").strip().lower()
-        col_str = "true" if col in ("y", "yes", "") else "false"
-        px = input("  start_pose.x (默认 0.0): ").strip() or "0.0"
-        py = input("  start_pose.y (默认 0.0): ").strip() or "0.0"
-        pz = input("  start_pose.z (默认 0.0): ").strip() or "0.0"
-        qz = input("  orientation.z (0=直立, 0.707=90°, 默认 0): ").strip() or "0.0"
-        qw = input("  orientation.w (默认 1.0): ").strip() or "1.0"
+        ep   = input(f"  episode_idx (0~39, 默认 0): ").strip() or "0"
+        arm  = input(f"  arm (right/left, 默认 right): ").strip() or "right"
+        spd  = input(f"  speed_scale (默认 1.0): ").strip() or "1.0"
+        mode = input(f"  mode (debug/action, 默认 action): ").strip() or "action"
+        print("  collision_check [已废弃, 跳过]")
+        col_str = "true"
+        px = input(f"  position.x (0=自动TF, 默认 0): ").strip() or "0.0"
+        py = input(f"  position.y (0=自动TF, 默认 0): ").strip() or "0.0"
+        pz = input(f"  position.z (0=自动TF, 默认 0): ").strip() or "0.0"
+        print("  --- 欧拉角旋转 (度) 上次: roll={:.0f} pitch={:.0f} yaw={:.0f} ---".format(
+            _last_rpy["roll"], _last_rpy["pitch"], _last_rpy["yaw"]))
+        r = input(f"  roll  / X轴 (默认 {_last_rpy['roll']:.0f}): ").strip()
+        p = input(f"  pitch / Y轴 (默认 {_last_rpy['pitch']:.0f}): ").strip()
+        y = input(f"  yaw   / Z轴 (默认 {_last_rpy['yaw']:.0f}): ").strip()
+        roll  = float(r) if r else _last_rpy["roll"]
+        pitch = float(p) if p else _last_rpy["pitch"]
+        yaw   = float(y) if y else _last_rpy["yaw"]
+        _last_rpy = {"roll": roll, "pitch": pitch, "yaw": yaw}
 
-        yaml = build_yaml(ep, arm, spd, mode, col_str, px, py, pz, qz, qw)
+        q = euler_deg_to_quat(roll, pitch, yaw)
+        print(f"  → 四元数 (xyzw): [{q[0]:.4f}, {q[1]:.4f}, {q[2]:.4f}, {q[3]:.4f}]")
+
+        yaml = build_yaml(ep, arm, spd, mode, col_str, px, py, pz, q[0], q[1], q[2], q[3])
         cmd = (
             "ros2 service call /latte_imitation/replay_trajectory "
             "ivg_interfaces/srv/ReplayLatteTrajectory "
@@ -153,6 +182,8 @@ def run_interactive():
         run_cmd(cmd)
     except (KeyboardInterrupt, EOFError):
         print()
+    except ValueError as e:
+        print(f"\033[1;31m输入错误: {e}\033[0m")
 
 
 # ── 主循环 ──────────────────────────────────────────────────────
@@ -164,7 +195,7 @@ def main():
     while True:
         print_menu()
         try:
-            choice = input("\n输入编号 (0~7): ").strip()
+            choice = input("\n输入编号 (0~8): ").strip()
         except (KeyboardInterrupt, EOFError):
             print("\n退出喵~")
             break
@@ -173,7 +204,7 @@ def main():
             print("退出喵~")
             break
 
-        if choice == "7":
+        if choice == "8":
             run_interactive()
             continue
 
@@ -181,7 +212,7 @@ def main():
             idx = int(choice)
             test = next((t for t in TESTS if t["id"] == idx), None)
         except ValueError:
-            print("\033[1;31m无效输入, 请输入数字 0~7\033[0m")
+            print("\033[1;31m无效输入, 请输入数字 0~8\033[0m")
             continue
 
         if test is None:

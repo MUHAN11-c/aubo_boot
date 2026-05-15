@@ -13,16 +13,31 @@ namespace demo_driver
 {
 
 RobotController::RobotController(rclcpp::Node* owner, const std::string& planning_group)
-    : node_(owner)
+    : node_(owner), planning_group_(planning_group)
 {
-    move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
-        owner->shared_from_this(), planning_group);
-    move_group_->allowReplanning(true);
-    move_group_->setMaxVelocityScalingFactor(0.5);
-    move_group_->setMaxAccelerationScalingFactor(0.5);
-    eef_link_ = move_group_->getEndEffectorLink();
+    // 两阶段初始化: 构造只存指针，init() 才建 MoveGroupInterface。
+    // MoveGroupInterface 构造需要 owner->shared_from_this()，
+    // 但 enable_shared_from_this 的 weak_ptr 在 shared_ptr 构造完成后才初始化。
+    move_group_ = nullptr;
+}
 
-    io_client_ = owner->create_client<ivg_interfaces::srv::SetRobotIO>("/set_robot_io");
+bool RobotController::init()
+{
+    if (move_group_) return true;  // 已初始化
+    if (!node_) return false;
+    try {
+        move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
+            node_->shared_from_this(), planning_group_);
+        move_group_->allowReplanning(true);
+        move_group_->setMaxVelocityScalingFactor(0.5);
+        move_group_->setMaxAccelerationScalingFactor(0.5);
+        eef_link_ = move_group_->getEndEffectorLink();
+
+        io_client_ = node_->create_client<ivg_interfaces::srv::SetRobotIO>("/set_robot_io");
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 // =====================================================================
@@ -32,6 +47,7 @@ RobotController::RobotController(rclcpp::Node* owner, const std::string& plannin
 bool RobotController::moveToHome(float vel, float acc)
 {
     if (!move_group_) return false;
+    move_group_->setStartStateToCurrentState();
     setVelocityScaling(vel);
     setAccelerationScaling(acc);
     move_group_->setNamedTarget("camera_pose");
@@ -41,6 +57,7 @@ bool RobotController::moveToHome(float vel, float acc)
 bool RobotController::moveToJoints(const std::array<double, 6>& joints, float vel, float acc)
 {
     if (!move_group_) return false;
+    move_group_->setStartStateToCurrentState();
     setVelocityScaling(vel);
     setAccelerationScaling(acc);
     move_group_->setJointValueTarget(std::vector<double>(joints.begin(), joints.end()));
@@ -118,7 +135,7 @@ bool RobotController::setQuickSwap(int pin, bool lock)
 
 geometry_msgs::msg::Pose RobotController::getCurrentPose()
 {
-    return move_group_->getCurrentPose(eef_link_);
+    return move_group_->getCurrentPose(eef_link_).pose;
 }
 
 std::vector<double> RobotController::getCurrentJoints()
@@ -144,7 +161,7 @@ void RobotController::setAccelerationScaling(float a) { move_group_->setMaxAccel
 
 geometry_msgs::msg::Pose RobotController::currentPoseInternal()
 {
-    return move_group_->getCurrentPose(eef_link_);
+    return move_group_->getCurrentPose(eef_link_).pose;
 }
 
 }  // namespace demo_driver

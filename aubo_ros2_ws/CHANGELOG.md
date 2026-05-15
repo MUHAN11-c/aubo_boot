@@ -18,6 +18,164 @@
 
 ## [Unreleased]
 
+### Changed
+- **latte_imitation**: 全面代码优化 — 消除重复代码、将硬编码常量改为 ROS 2 参数、修复 YAML 注入风险、清理死代码喵~
+  - 新建 `tf_utils.py` 共享 TF 查询模块（消除 `trajectory_pipeline.py`、`visualize_latte_trajectory.py`、`latte_debug_panel.py` 三处重复 TF 查询逻辑）喵~
+  - `trajectory_pipeline.py`: 12 个硬编码常量 → `declare_parameter()` ROS 2 参数，支持运行时/YAML/launch 文件配置喵~
+  - `trajectory_pipeline.py`: 删除 `_publish_planned_path()` stub 死代码及两个未使用的发布者 (`planned_ee_pose`/`planned_ee_path`) 喵~
+  - `test_replay_service.py` / `latte_debug_panel.py`: YAML 字符串拼接 → `yaml.dump()` 消除注入风险喵~
+  - `visualize_latte_trajectory.py`: 硬编码 URDF/SRDF 跨包路径 → `ament_index_python.get_package_share_directory()` 喵~
+  - `visualize_latte_trajectory.py`: 内联 PyKDL 四元数提取 → `rot_to_quat()` 标准函数喵~
+  - `latte_debug_panel.py`: 内联手动旋转矩阵 → `apply_start_pose()` 标准库函数喵~
+  - `latte_debug_panel.py`: 内联 TF 节点管理 → `TfQueryNode` 持久查询类喵~
+  - `latte_debug_panel.py`: 删除 `_do_execute()` 底部 `_poll` 未定义变量导致的冗余 QTimer 创建喵~
+  - `infer_yolo26.py`: PEP 604 `str | None` → `Optional[str]` 兼容 Python 3.8/3.9 喵~
+  - `__init__.py`: 填充公共 API `__all__`，支持 `from latte_imitation import CartesianTrajectory` 简洁导入喵~
+  - `package.xml`: 新增 `python3-yaml` 运行时依赖喵~
+  - `launch/replay_trajectory.launch.py`: 暴露全部 16 个 ROS 2 参数喵~
+  - `README.md`: 更新模块表、参数表、话题表、Python API 示例喵~
+
+### Removed
+
+### Fixed
+
+### Added
+
+#### scene_attach_worker 用 AttachedCollisionObject 修复 move_group 碰撞感知 (2026-05-15)
+
+**背景**：之前将 world dock 碰撞对象全部移除，认为动态 URDF `<collision>` 已足够覆盖碰撞。但经深入分析 MoveIt 2 Humble 源码后发现：`move_group` 的 `PlanningSceneMonitor` 不订阅 `/robot_description` topic，`RobotModelLoader` 构造函数只读取一次 `robot_description` 参数后永不重载（`RDFLoader` 的 `SynchronizedStringParameter` 基础设施存在但回调链在 `RobotModelLoader` 处断裂）。因此 `scene_attach_worker` 通过 `updateRobotDescription()` 发布的新 URDF 只能被 RViz2（有本地补丁）和 `robot_state_publisher` 感知，**`move_group` 内部 RobotModel 永远是启动时的旧版本**，不含工具碰撞几何喵~
+
+**解决方案**：使用 `AttachedCollisionObject` + `/planning_scene` diff 方式，无需修改 `move_group` 内部代码喵~
+
+两层协作机制：
+1. **`/planning_scene` diff** (`AttachedCollisionObject`) — 网格数据直接附着到 `kuaihuan_Link`，`move_group` 的 `PlanningSceneMonitor` 原生订阅此 topic，碰撞感知生效喵~
+2. **URDF `<collision>`** — RViz 视觉渲染 + `robot_state_publisher` TF 树重建（`updateRobotDescription()` 不变）喵~
+
+**修改内容**（恢复此前移除的 mesh 加载与 scene 发布逻辑，并精简为只发 AttachedCollisionObject）：
+- `scene_attach_worker.h`: 恢复 `ToolGeometry` struct、`planning_scene_pub_`、`loadToolConfig()`、`loadMesh()`、`attachToolToScene()`、`detachToolFromScene()` 声明
+- `scene_attach_worker.cpp`: 恢复 `loadMesh()`（~100行 STL 解析）、`loadToolConfig()`（从 YAML 加载网格与偏移）、新增 `attachToolToScene()`/`detachToolFromScene()`（`AttachedCollisionObject` ADD/REMOVE diff）
+- `CMakeLists.txt`: 添加 `moveit_msgs`、`shape_msgs`、`std_msgs`、`resource_retriever` 编译依赖
+- `package.xml`: 添加 `moveit_msgs`、`resource_retriever`、`shape_msgs`、`std_msgs` 依赖声明
+- `onToolStatus()`: 脱离时 `detachToolFromScene()` → 附着时 `attachToolToScene()` → 最后 `updateRobotDescription()`（URDF 同时更新）
+
+**与旧 world dock 方案的区别**：
+- 不使用 `world.collision_objects`（不再向 /planning_scene 添加静态 dock 物体）
+- 不使用 `AttachedCollisionObject` 的 `object.pose`（网格偏移直接写入 `mesh_poses[0]`，`attach_offset.orientation` 从 YAML 加载）
+- 不保留未附着工具的碰撞对象 — 只管理已附着到机械臂上的工具喵~
+
+> 参考：MoveIt 2 Humble 源码分析 — `RobotModelLoader::configure()`（`robot_model_loader.cpp:104-117`）、`SynchronizedStringParameter`（`rdf_loader/synchronized_string_parameter.cpp`）、`PlanningSceneMonitor::newPlanningSceneMessage()`（`planning_scene_monitor.cpp:677-757`，处理 AttachedCollisionObject diff）喵~
+
+#### SRDF ACM 添加 tool_tcp ↔ 末端固定链碰撞豁免 + 修复 tool_tcp/wrist3 关系 (2026-05-15)
+
+**根因**：`tool_tcp` 和 `camera_Link` / `kuaihuan_Link` / `wrist3_Link` 都从 `wrist3_Link` 通过不同固定关节分叉，物理几何在 Z 方向重叠喵~
+
+```
+wrist3_Link (revolute)
+  ├── tool_tcp       (fixed, xyz=(0,0,0.0235))  ← 分叉 A
+  └── camera_Link    (fixed, xyz=(0,0,0.020))   ← 分叉 B
+       └── kuaihuan_Link (fixed, xyz=(0,0,0.0215))
+            └── gripperX_Link (fixed, xyz=(0,0,0.033))
+```
+
+`tool_tcp` mesh 和 `kuaihuan_Link` mesh / `camera_Link` mesh 的包围盒在 MoveIt 碰撞检测引擎中重叠 → RViz2 渲染红色碰撞（伪阳性）喵~
+
+**修复**（`aubo_e5.srdf`）：
+- `tool_tcp` ↔ `wrist3_Link`：`Adjacent` → **`Never`**（同父分叉固定子链，Z 方向重叠不可避）
+- `tool_tcp` ↔ `camera_Link`：**新增 `Never`**（之前缺失，camera_Link 只有 visual+collision mesh，与 tool_tcp 重叠）
+- `tool_tcp` ↔ `kuaihuan_Link`：**新增 `Never`**（之前缺失，kuaihuan_Link 同样有 physical collision mesh）
+- 同时 `publish_robot_description_semantic: True` 确保 move_group 将更新后的 SRDF 发布给 RViz2 喵~
+
+**RViz2 更换末端时的卡顿**是预期行为：`moveit_ros_visualization` 本地补丁需销毁旧的 `planning_scene_robot_` + `planning_scene_monitor_` 并重建 RobotModel，这个 `clearRobotModel()` → `loadRobotModel()` 过程约 50-100ms。不可消除但 ACM 修复可确保重载后不再显示红色碰撞喵~
+
+#### Web Dashboard 3D 模型不显示 + 页面布局修复 (2026-05-15)
+
+**根因**：`Robot3dViewer` 容器使用 `h-full`（100% of auto = 0），Three.js canvas 被渲染到高度为 0 的 div 中不可见。`VisionGraspView` 根元素 `overflow-y-scroll` 产生双滚动条并破坏子容器高度计算喵~
+
+**修复**：
+- `Robot3dViewer.vue` 模板：外层 div `min-h-[360px] h-full` → `h-[400px]`，内层 hostRef div `h-full` → `h-[400px]`，给 Three.js canvas 显式高度喵~
+- `VisionGraspView.vue`：移除根 div 的 `overflow-y-scroll`，消除双滚动条并恢复正常布局喵~
+- `SceneManager.ts`：`PerspectiveCamera` 中 `w / h` → `w / Math.max(1, h)` 防止除零喵~
+
+**RViz2 碰撞警告说明**：`Link 'gripperX_Link' is not known to URDF. Cannot disable/enable collisions.` 是预期行为——SRDF ACM 预先列出全部 5 种末端工具的碰撞豁免，但当前 URDF 只含一种。MoveIt 规划不受影响喵~ URDF 热切换时的短暂卡顿因 `moveit_ros_visualization` 本地补丁的 `clearRobotModel` + 重建 RobotModel 是必要的喵~
+
+#### Web Dashboard 新框架 UI 对齐旧框架功能 (2026-05-15)
+
+基于旧框架（Git 历史 commit `24f4bdfee`）逐页面对比修复新 Vue 3 框架中所有缺失的 UI 元素和行为偏差喵~
+
+**P0 修复 — 功能缺失**:
+- `defaults.yaml`: 修复 `topic-robot` 默认值 `/robot_status` → `/aubo_driver/robot_status`（与旧版 `config.js` 和新 `constants/ros.ts` 对齐）喵~
+- `CoffeeLatteView.vue`: 添加机械臂 URDF 3D 模型、关节曲线图、末端位姿面板、底部连接状态栏、话题设置入口、监控区折叠按钮（旧版 `coffee_latte_panel.html` 有这些元素）喵~
+- `VisionGraspView.vue`: 添加工件模式"停止"按钮（`btn-wp-single-stop`，旧版 `services.js:100-106` 调用 `SetBool(false)` 停止循环）喵~
+
+**P1 修复 — 行为偏差**:
+- `VisionGraspView.vue`: 末端位姿添加 `robotPoseCache` 缓存（数据空时不闪回默认值，旧版 `vision_grasp_panel.js:239`），添加 `ivg_display` 字段回退显示（旧版 `pose_card.js:128`）喵~
+- `VisionGraspView.vue`: AI 抓取位姿改为富文本 HTML 格式化（`formatPoseBlockHtml` 生成双 section：位姿 + 四元数，对齐旧版 `pose_card.js:77-96`）喵~
+- `VisionGraspView.vue`: AI 模式同时刷新左栏相机快照和结果图（旧版 `vision_grasp_panel.js:380-391` 两幅图都更新）喵~
+- `VisionGraspView.vue`: 连接状态栏显示重连倒计时文本（`c.message` 而非固定字符串）喵~
+- `CoffeeLatteView.vue`: DO 开关改为纯前端切换（不强制调用后端服务，与旧版 `coffee_latte_io.js:4` 注释一致）喵~
+
+**P2 修复 — 子功能**:
+- `LogView.vue`: 添加页面生命周期事件（`visibilitychange`/`beforeunload`/`pagehide`，旧版 `log_panel.js:205-216`）喵~
+- `base.css`: 新增 `pose_card` 内联样式类（`pose-card__body`/`pose-card__pill` 等）供 `v-html` 渲染使用喵~
+- `Robot3dViewer.vue`: 删除重复的 `onUnmounted` 块喵~
+
+**对比方法论**: 从 Git 提取旧框架全部 43 个源文件（commit `24f4bdfee`），逐个与新 Vue 3 文件进行结构级比对，确保不漏掉任何功能喵~
+
+#### 3D 查看器响应式修复 + robotwebtools 清理 + C++/Python 依赖修复 (2026-05-15)
+
+**前端**:
+- **3D 模型卡在"等待连接"**: `Robot3dViewer.vue` 中 `sceneMgr` 是普通 `let`，非响应式 → 模板永不更新。改为 `shallowRef<SceneManager | null>(null)` 喵~
+- **roslib `Ros` 对象私有字段冲突**: npm `roslib` 的 `isConnected` getter 读私有字段 `#e`，Vue Proxy 拦截报 `Cannot read from private field`。`rosInstance` 改为普通变量脱离响应式系统喵~
+- **`unsubscribeAll` CLOSING 警告**: 断连时跳过网络消息，只清空本地 Map。注意 Vite 增量构建缓存可能导致修改不生效，需 `rm -rf dist/ .vite/` 强制重建喵~
+- **`connectPromise` 泄漏**: 成功后未清空 → 重连直接返回旧 Promise → 重连失效。`finally` 块保证清理喵~
+- **`robotwebtools/` 整体删除**: npm `roslib` 已替代本地构建。清理启动脚本和 launch 文件中的 `ROBOTWEBTOOLS_*` 变量和 `_find_rwt_assets()` 喵~
+
+**C++ 运动控制与 IO**:
+- **`bad_weak_ptr` 崩溃**: `RobotController` 构造函数中 `owner->shared_from_this()` → 3 个 Worker 节点启动崩溃。改为两阶段初始化（参考 MoveIt2 官方 `MoveGroupInterface(shared_ptr<Node>)` 签名）：构造函数只存指针，`init()` 创建 `MoveGroupInterface` 喵~
+- **`publish_grasps_client_worker` 同类崩溃**: 延后 `RobotController` 初始化到 `make_shared` 之后喵~
+- **`moveCartesianPath` API 迁移**: 6 处旧式调用 `('z', val, v, a)` → 新 API `({{'z', val}}, v, a)` 喵~
+- **`setGripper` API 迁移**: 8 处 `setGripper(bool)` → `setGripperIoSafe(bool)` 喵~
+- **`getCurrentPose` 返回类型**: `PoseStamped` → `.pose` 提取 `Pose` 喵~
+- **`moveToHome` 一致性**: 补充 `setStartStateToCurrentState()` 喵~
+- **`UrdfParser` axis 解析**: `||` 吞掉合法 0 值 → 改用 `isFinite()` 检查喵~
+- **`TfUpdater` 关节旋转**: `rotateOnWorldAxis` → `rotateOnAxis`（局部轴），关节轴从 URDF 传递到更新函数喵~
+- **析构函数声明缺失**: `ExecuteGraspPoseWorker` 头文件缺少 `~ExecuteGraspPoseWorker() override` 声明喵~
+- **`auto` lambda 模板推导失败**: 5 个 server 文件中 `create_service` 的 `[](auto req, auto res)` → 显式类型；`set_parameters` 回调同理喵~
+- **`computeCartesianPath` 参数缺失**: 补上 `kCartesianEefStep, kCartesianJumpThreshold` 喵~
+
+**启动脚本**:
+- **`set -e` 杀死脚本**: 11 处 `active_wait` 超时返回 1 → `set -e` 立即退出 → 后续终端标签未创建。全部加 `|| true` 喵~
+- **所有终端清除代理**: `launch()` 函数统一 `unset http_proxy https_proxy ...`，不再仅 Web 网关喵~
+- **URL 更新**: `vision_grasp_panel.html` → `/vision`，`coffee_latte_panel.html` → `/latte`（Vue 3 SPA 路由）喵~
+
+**Python 依赖**:
+- **NumPy 2.x 不兼容**: `cv2`/`cv_bridge` 编译时用 NumPy 1.x；`transforms3d` 用 `np.float` 已删除 → `numpy==1.23.5` 喵~
+- **matplotlib 版本冲突**: 系统 `mpl_toolkits` vs 用户 pip `matplotlib` → 卸载 pip 版使用系统版喵~
+- **useRos 自动重连**: 新增指数退避自动重连（12 次，1s→30s），`visibilitychange` 后台暂停/恢复，`online` 事件即时重连，`pagehide` 清理连接。与旧框架 `ivgPorts.scheduleRosReconnect` 逻辑一致喵~
+- **ToolSwapBar 服务调用修复**: 使用 `/run_gripper_swap` 服务 + `direction` 参数（`current_to_target`），替代错误的 `/change_tool` + `tool_id`喵~
+- **camera_info 动态推导**: `buildCameraInfoTopic()` 从 color 话题名自动推导 camera_info 话题名，不再硬编码喵~
+- **AI 模式快照回退**: snapshot URL 加载失败时自动回退到 MJPEG 流，与旧框架 `setAiColorSnapshotImg` fallback 逻辑一致喵~
+- **App.vue 全局 ROS 连接**: 应用根组件挂载时自动建立 rosbridge 连接，确保直接访问 `/latte`、`/monitor` 等子页面也能正常连接，不再依赖先访问 `/vision` 喵~
+- **移除死代码**: `useRosService` 删除未使用的 `getCurrentTool` 函数；`VisionGraspView` 修复重复 `useRos()` 调用喵~
+
+### Changed
+
+#### Vue 3 前端功能补全 — 替代 ros3djs/ros2djs 为 Three.js 原生实现 (2026-05-15)
+- **robotwebtools**: 删除 ros3djs/ros2djs 目录（过于陈旧），保留 roslibjs 本地构建。构建脚本 `build_robotwebtools.sh` / `copy_runtime_js_assets.sh` / `runtime_js_assets/importmap.js` 同步更新为仅 roslibjs 喵~
+- **前端依赖**: npm 安装 `three` + `@types/three`（Three.js 3D 引擎）、`roslib`（roslibjs npm 包替代本地 vendor）、`@types/node`（构建时类型支持）喵~
+- **3D 机械臂查看器**: 新建 `three_urdf/SceneManager.ts`（场景/相机/OrbitControls）、`UrdfParser.ts`（URDF XML 解析）、`UrdfModel.ts`（URDF→Three.js Object3D 树 + STL 加载）、`TfUpdater.ts`（TF+joint_states→关节更新）。集成在 `Robot3dViewer.vue` 组件中，支持拖拽旋转/缩放、工具快换时无闪烁 reload、自动 camera focus 喵~
+- **关节角曲线图**: 新建 `useJointChart.ts` composable — Canvas 2D 折线图，6 关节 × 280 采样点，Y 轴自适应、图例、ResizeObserver 响应。与旧框架逻辑完全一致喵~
+- **抓取位姿投影叠加层**: 新建 `useProjectionOverlay.ts` composable — Canvas 2D 在相机图像上叠加绘制夹爪形状（手指/腕部/标签），复用已有 `tf_math.ts` TF 数学库。与旧框架逻辑完全一致喵~
+- **VisionGraspView 完整重写**: 左栏 3D 模型 + 相机画面（含投影叠加层），右栏抓取控制 + 工具快换 + 调试 XYZ 移动 + 服务日志，底部可折叠监控区（关节曲线 + 末端位姿 + VPE/AI 状态）。AI 模式自动使用 snapshot 替代 MJPEG 流，收到抓取位姿后防抖 400ms 刷新喵~
+- **useRos 增强**: 新增 `onLog` 事件钩子（subscribe/unsubscribe/service_call/service_result/service_error），LogView 改用此钩子替代 `globalThis.ivgTransport` 轮询喵~
+- **useMJPEGStream 增强**: 新增 `cameraSnapshotUrl()` 方法，支持 JPEG 快照 URL 构建（AI 模式用）喵~
+- **vite.config.ts / tsconfig.json**: roslib 别名指向 npm 包，移除 ros3d 别名。tsconfig.node.json 添加 `skipLibCheck` 喵~
+
+### Removed
+- **robotwebtools/ros3djs/** — 删除整个 ros3djs 源码和构建产物，前端改由 Three.js 原生实现 3D 渲染喵~
+- **robotwebtools/ros2djs/** — 删除整个 ros2djs 源码和构建产物，未使用的 2D 地图功能喵~
+- **web/src/lib/ros3d_patches.ts** — 删除，patch 仅用于已移除的 ros3djs 喵~
+
 ### Added
 
 #### 补齐 3 个缺失的运行时接口 (2026-05-14)

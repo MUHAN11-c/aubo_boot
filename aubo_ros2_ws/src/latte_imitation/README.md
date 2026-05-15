@@ -41,8 +41,10 @@
 | `trajectory.py` | `CartesianTrajectory` 数据类：加载/保存 npz，统计，导出 ROS2 消息喵~ |
 | `trajectory_transform.py` | 6-DOF 刚性变换：RM65 base frame → AUBO 当前 EE 位姿 (含 orientation 旋转修复) 喵~ |
 | `trajectory_pipeline.py` | `LatteImitationNode`：服务回调 + 5 阶段 MoveIt2 管线编排喵~ |
+| `tf_utils.py` | 共享 TF 查询工具：`get_current_ee_pose()` (ROS 节点模式) / `get_ee_pose_from_tf()` (脚本模式) / `TfQueryNode` (GUI 持久模式) 喵~ |
 | `scripts/visualize_latte_trajectory.py` | 离线播放器：40 条轨迹叠加 + 动画回放喵~ |
 | `scripts/test_replay_service.py` | 交互式测试脚本：菜单选择, 无需手敲 ros2 service call 喵~ |
+| `scripts/latte_debug_panel.py` | PySide6 可视化调试面板：3D 预览 + 欧拉角控制 + 一键执行喵~ |
 
 > 已删除: `robot_model.py`, `collision_checker.py`, `action_executor.py`, `trajectory_publisher.py` — 均被 MoveIt2 标准管线替代喵~
 
@@ -188,6 +190,16 @@ cd src/latte_imitation
 python3 scripts/visualize_latte_trajectory.py                 # 右臂 (默认)
 python3 scripts/visualize_latte_trajectory.py --arm left      # 左臂
 python3 scripts/visualize_latte_trajectory.py --speed 2.0     # 2 倍速
+
+# 手动指定起点 (刚性变换到目标位姿)
+python3 scripts/visualize_latte_trajectory.py \
+    --start-x 0.35 --start-y -0.10 --start-z 0.52
+
+# 自动从 ROS 2 TF 获取当前末端位姿作为起点 (需机械臂运行中)
+python3 scripts/visualize_latte_trajectory.py --from-robot
+
+# 从 SRDF camera_pose 状态计算 FK 末端位姿作为起点
+python3 scripts/visualize_latte_trajectory.py --from-camera-pose
 ```
 键盘：`[ ]` 切 episode | 空格 播放/暂停 | `← →` 逐帧 | `↑ ↓` 变速 | `a` 叠加 | `r` 重置
 
@@ -212,10 +224,6 @@ python3 src/latte_imitation/scripts/test_replay_service.py
   [7] 自定义 — 手动输入参数
   [0] 退出
 --------------------------------------------------------------
-输入编号 (0~7):
-```
-
-输入编号 (0~7):
 ```
 
 ### 5. 完整测试命令 (手动)
@@ -310,7 +318,9 @@ MoveIt2 `computeCartesianPath` 使用 `avoid_collisions=True` 内置碰撞检测
 ### Python API
 
 ```python
-from latte_imitation.trajectory import CartesianTrajectory
+from latte_imitation import CartesianTrajectory, apply_start_pose
+from latte_imitation import get_current_ee_pose, get_ee_pose_from_tf, TfQueryNode
+from latte_imitation import quat_to_rot, rot_to_quat, quat_multiply, euler_deg_to_quat
 
 # 加载全部 40 条
 carts = CartesianTrajectory.load_all("resource", "right")
@@ -325,6 +335,13 @@ print(cart.end)     # [-0.34, 0.010, 0.585]
 # 导出 ROS2 消息
 path_msg = cart.to_ros2_path()
 pose_msg = cart.to_pose_stamped(10)
+
+# TF 查询 — 三种模式
+pose_tf = get_current_ee_pose(node)          # ROS 节点内使用
+pose_script = get_ee_pose_from_tf()          # 独立脚本使用
+tf_gui = TfQueryNode()                       # GUI 持久查询
+pose = tf_gui.get_pose(timeout=1.5)
+tf_gui.shutdown()
 ```
 
 ## 节点参数
@@ -335,6 +352,19 @@ pose_msg = cart.to_pose_stamped(10)
 | `arm` | right | left / right |
 | `speed_scale` | 1.0 | 播放速度倍率 |
 | `mode` | debug | debug=PoseStamped+Path, action=MoveIt2 CartesianPath→Execute |
+| `planning_group` | manipulator | MoveIt2 规划组名 |
+| `base_frame` | base_link | TF 基准坐标系 |
+| `ee_link` | tool_tcp | 末端执行器 link |
+| `cartesian_max_step` | 0.01 | 笛卡尔路径插值步长 (m) |
+| `cartesian_jump_threshold` | 0.0 | 跳变检测阈值 (0=禁用) |
+| `fraction_acceptable` | 0.95 | 直接通过的 fraction 阈值 |
+| `fraction_min_executable` | 0.50 | 最小可执行的 fraction 阈值 |
+| `waypoint_sample_step` | 4 | waypoint 采样间隔 (帧) |
+| `service_timeout` | 15.0 | 服务发现超时 (秒) |
+| `cartesian_timeout` | 60.0 | 笛卡尔规划超时 (秒) |
+| `execution_timeout` | 120.0 | 轨迹执行超时 (秒) |
+| `tf_retry_count` | 20 | TF 查询重试次数 |
+| `tf_retry_interval` | 0.03 | TF 重试间隔 (秒) |
 
 ## CartesianTrajectory API
 
@@ -356,10 +386,8 @@ pose_msg = cart.to_pose_stamped(10)
 
 | 话题 | 类型 | 说明 |
 |------|------|------|
-| `/latte_imitation/ee_pose` | PoseStamped | 轨迹 waypoints（每 5 帧采样）|
-| `/latte_imitation/ee_path` | Path | 完整轨迹路径 |
-| `/latte_imitation/planned_ee_pose` | PoseStamped | MoveIt2 规划后 FK 验证位姿（action 模式）|
-| `/latte_imitation/planned_ee_path` | Path | MoveIt2 规划后 FK 验证路径（action 模式）|
+| `/latte_imitation/ee_pose` | PoseStamped | 轨迹 waypoints（每 5 帧采样，debug+action 模式均发布）|
+| `/latte_imitation/ee_path` | Path | 完整轨迹路径（debug+action 模式均发布）|
 
 ## 服务
 
@@ -411,36 +439,55 @@ resource/cartesian/right/ (40 个 npz)
 
 之后所有模块只加载笛卡尔 npz，不再依赖 parquet 和 RobotModel（RM65）。
 
-### 节点执行流程 (5 阶段 MoveIt2 管线)
+### 节点执行流程
 
+> 权威全流程文档以 `latte_imitation/trajectory_pipeline.py` 文件头 docstring 为准，以下为概要喵~
+
+**入口** (3 种触发方式):
+| 入口 | 触发方 | 说明 |
+|------|--------|------|
+| ROS 2 Service | 外部节点 / Web Dashboard | `~/replay_trajectory` (ivg_interfaces/srv/ReplayLatteTrajectory) |
+| Launch 参数 | 节点启动时自动 | `_delayed_start()` 2 秒 timer 执行默认 episode (向后兼容) |
+| 交互菜单 | 开发者 | `test_replay_service.py` 封装 ros2 service call |
+
+**编排层 — `_execute_pipeline()`** (trajectory_pipeline.py:214):
 ```
-ReplayLatteTrajectory Service Call
-    │
-    ▼
+并发锁 self._executing=True → _pipeline() → finally: self._executing=False
+```
+同一时刻仅允许一条管线运行，重复请求直接返回 "已有轨迹正在执行" 喵~
+
+**5 阶段管线 — `_pipeline()`** (trajectory_pipeline.py:228):
+```
 Phase ①: _load_cartesian()           加载 resource/cartesian/{arm}/episode_{idx}.npz
-    │
+    │                                  失败 → (success=false, "未找到")
     ▼
 Phase ②: apply_start_pose()          6-DOF 刚性变换 (RM65→AUBO 当前 EE 位姿)
-    │                                   - is_default_pose() → 自动从 TF 获取当前 EE
-    │                                   - 否则: 使用手动指定的 start_pose
+    │                                   - is_default_pose() → TF 自动获取当前 EE
+    │                                     (20 次重试 × 30ms, 失败 → "无法获取末端位姿")
+    │                                   - 否则: 手动指定 start_pose (相机检测杯子位姿)
     │                                   - R_rel = R_tgt @ R_orig^T
     │                                   - p_new = R_rel @ (p - p0) + p_target
     │                                   - q_new = q_rel * q_orig (orientation 也旋转)
     ▼
 Phase ③: _publish_poses()            发布轨迹 waypoints + Path (debug 可视化)
     │
-    ├─ mode="debug" → 返回 (不规划/不执行)
+    ├─ mode="debug" → return (success=true, 跳过规划/执行)
     │
     ▼
 Phase ④: _compute_cartesian_path()   MoveIt2 /compute_cartesian_path
     │                                   - start_state=RobotState() (空=当前状态)
     │                                   - max_step=0.01, jump_threshold=0.0
     │                                   - avoid_collisions=True (内置碰撞检测)
+    │                                   - fraction≥0.95 → 直接进入 Phase ⑤
+    │                                   - 0.50≤fraction<0.95 → retry with avoid_collisions=False
+    │                                     (取两者中 fraction 较大者)
     │                                   - fraction<0.50 → fail
-    │                                   - 按 speed_scale 缩放 timestamps
+    │                                   - 成功 → 按 speed_scale 缩放 timestamps
     ▼
 Phase ⑤: _execute_trajectory()       MoveIt2 /execute_trajectory action
-                                        阻塞等待执行完成 (或超时 120s)
+                                        - send_goal_async → wait_for_accept → wait_for_result
+                                        - 超时: send_goal 5s, 执行 120s
+                                        - 成功判定: error_code.val == 1
 ```
 
 ### 设计决策

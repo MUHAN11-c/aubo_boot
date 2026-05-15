@@ -53,10 +53,12 @@
     <disable_collisions link1="base_link" link2="upperArm_Link" reason="Never"/>
     <disable_collisions link1="tool_tcp" link2="wrist1_Link" reason="Never"/>
     <disable_collisions link1="tool_tcp" link2="wrist2_Link" reason="Never"/>
-    <disable_collisions link1="tool_tcp" link2="wrist3_Link" reason="Adjacent"/>
+    <disable_collisions link1="tool_tcp" link2="wrist3_Link" reason="Never"/>
     <!-- 禁用末端执行器与手腕之间的碰撞检测 -->
     <disable_collisions link1="wrist3_Link" link2="camera_Link" reason="Adjacent"/>
     <disable_collisions link1="wrist3_Link" link2="kuaihuan_Link" reason="Never"/>
+    <disable_collisions link1="tool_tcp" link2="camera_Link" reason="Never"/>
+    <disable_collisions link1="tool_tcp" link2="kuaihuan_Link" reason="Never"/>
     <disable_collisions link1="foreArm_Link" link2="upperArm_Link" reason="Adjacent"/>
     <disable_collisions link1="foreArm_Link" link2="wrist1_Link" reason="Adjacent"/>
     <disable_collisions link1="shoulder_Link" link2="upperArm_Link" reason="Adjacent"/>

@@ -112,6 +112,7 @@ ExecuteGraspPoseWorker::ExecuteGraspPoseWorker(const rclcpp::NodeOptions& option
   : Node("execute_grasp_pose_worker_node", options)
 {
   robot_ = std::make_shared<RobotController>(this);
+
   // launch 已通过 automatically_declare_parameters_from_overrides 注入 egp_* 时不再 declare，避免重复声明
   if (!has_parameter("egp_grasp_position"))
     declare_parameter("egp_grasp_position", std::vector<double>({ 0.41176897287368774, 0.18364354968070984, 0.2553410828113556 }));
@@ -221,6 +222,11 @@ ExecuteGraspPoseWorker::~ExecuteGraspPoseWorker()
   }
 }
 
+void ExecuteGraspPoseWorker::initRobot()
+{
+  robot_->init();
+}
+
 bool ExecuteGraspPoseWorker::sleepJointCartesianSwitchDelay(const char* where)
 {
   if (joint_cartesian_switch_delay_sec_ <= 0.0)
@@ -298,6 +304,7 @@ geometry_msgs::msg::Quaternion ExecuteGraspPoseWorker::createOrientationFromZRot
 bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& pose_ee, double height_above,
                                                float vel, float acc)
 {
+  if (!robot_) return false;
   const std::string eef_link = robot_->getEndEffectorLink();
   if (eef_link.empty())
   {
@@ -405,8 +412,8 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
     waypoints.push_back(p_down);
 
     moveit_msgs::msg::RobotTrajectory trajectory;
-    const double fraction = robot_->moveGroup()->computeCartesianPath(waypoints
-                                                              trajectory);
+    const double fraction = robot_->moveGroup()->computeCartesianPath(waypoints, kCartesianEefStep,
+                                                              kCartesianJumpThreshold, trajectory);
     const size_t num_points = trajectory.joint_trajectory.points.size();
 
     RCLCPP_INFO(get_logger(), "[runGraspApproach] 抓取接近笛卡尔: fraction=%.2f%%, 点数=%zu (尝试 %d/%d)",
@@ -458,6 +465,7 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
 
 bool ExecuteGraspPoseWorker::runOneCycle()
 {
+  if (!robot_) return false;
   if (!rclcpp::ok())
     return false;
 
@@ -1032,6 +1040,7 @@ int main(int argc, char** argv)
   std::signal(SIGINT, demo_driver::sigintHandler);
   std::signal(SIGTERM, demo_driver::sigintHandler);
 
+  node->initRobot();
   RCLCPP_INFO(node->get_logger(), "ExecuteGraspPoseWorker 就绪, 等待服务调用");
   executor.spin();
 

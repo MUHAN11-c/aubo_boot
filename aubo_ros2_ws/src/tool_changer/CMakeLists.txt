@@ -12,18 +12,20 @@ find_package(ivg_interfaces REQUIRED)
 find_package(moveit_core REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 find_package(moveit_msgs REQUIRED)
-find_package(resource_retriever REQUIRED)
 find_package(yaml_cpp_vendor REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 
+# RobotController 来自 aubo_ros2_driver 包 — colcon workspace 中所有包是 src/ 下的同级目录
+set(AUBO_DRIVER_DIR ${CMAKE_SOURCE_DIR}/../aubo_ros2_driver)
+
 include_directories(include
-  ${CMAKE_SOURCE_DIR}/src/aubo_ros2_driver/demo_driver/include
+  ${AUBO_DRIVER_DIR}/demo_driver/include
 )
 
 # 夹爪快换 worker（物理运动 + IO 控制 + RobotController）
 add_executable(gripper_swap_worker_node
   src/gripper_swap_worker.cpp
-  ${CMAKE_SOURCE_DIR}/src/aubo_ros2_driver/demo_driver/src/robot_controller.cpp
+  ${AUBO_DRIVER_DIR}/demo_driver/src/robot_controller.cpp
 )
 ament_target_dependencies(gripper_swap_worker_node
   rclcpp
@@ -42,12 +44,17 @@ add_executable(scene_attach_worker_node
 )
 ament_target_dependencies(scene_attach_worker_node
   rclcpp
+  geometry_msgs
   ivg_interfaces
   moveit_msgs
-  resource_retriever
+  shape_msgs
+  std_msgs
   yaml_cpp_vendor
   ament_index_cpp
 )
+# resource_retriever 用于 loadMesh 加载 STL 碰撞网格
+find_package(resource_retriever REQUIRED)
+target_link_libraries(scene_attach_worker_node resource_retriever::resource_retriever)
 
 install(TARGETS
   gripper_swap_worker_node

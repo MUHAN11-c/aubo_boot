@@ -35,6 +35,8 @@ class ExecuteGraspPoseWorker : public rclcpp::Node
 {
 public:
   explicit ExecuteGraspPoseWorker(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
+  ~ExecuteGraspPoseWorker() override;
+  void initRobot();
 
   /** 单次抓取放置周期，任一步失败返回 false */
   bool runOneCycle();

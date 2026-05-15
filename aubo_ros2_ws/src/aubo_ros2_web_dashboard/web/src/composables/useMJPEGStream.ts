@@ -44,5 +44,28 @@ export function useMJPEGStream(topic: string | Ref<string>) {
     return `${location.origin}${pre}/stream?topic=${encodeTopicQueryValue(topicVal.value)}&type=mjpeg&client_id=${encodeURIComponent(sid)}&quality=${quality}`
   }
 
-  return { cameraStreamUrl }
+  /**
+   * 构建 JPEG 快照 URL（AI 模式用，避免 MJPEG 流卡顿）
+   * @param streamId  流 ID
+   * @param quality   JPEG 质量 1-100，默认 85
+   */
+  function cameraSnapshotUrl(streamId?: string, quality = 85): string {
+    const rt = config.value ?? {}
+    const sid = streamId || topicVal.value.replace(/\//g, '_').replace(/^_/, '') || 'cam'
+
+    if (rt.camera_stream_path) {
+      let rel = String(rt.camera_stream_path).trim()
+      if (/\/stream(\?|$)/i.test(rel)) rel = rel.replace(/\/stream(\?|$)/i, '/snapshot$1')
+      const base = `${location.origin}${rel.startsWith('/') ? rel : `/${rel}`}`
+      const q = new URLSearchParams({ topic: topicVal.value, stream_id: sid })
+      q.set('quality', String(quality))
+      return `${base}?${q}`
+    }
+
+    const proxy = rt.web_video_proxy_prefix || '/api/ivg/proxy/web-video'
+    const pre = proxy.endsWith('/') ? proxy.slice(0, -1) : proxy
+    return `${location.origin}${pre}/snapshot?topic=${encodeTopicQueryValue(topicVal.value)}&type=jpeg&client_id=${encodeURIComponent(sid)}&quality=${quality}`
+  }
+
+  return { cameraStreamUrl, cameraSnapshotUrl }
 }

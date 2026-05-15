@@ -10,7 +10,6 @@
 
 #include <map>
 #include <memory>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -26,11 +25,17 @@ namespace tool_changer
 {
 
 /**
- * @brief 订阅 /tool_changer_status，管理 PlanningScene world dock 碰撞对象 + 动态 URDF 切换。
+ * @brief 订阅 /tool_changer_status，通过 AttachedCollisionObject 让 move_group 感知工具碰撞。
  *
- * 碰撞几何由 URDF <collision> 负责。工具切换时发布新 URDF 到 /robot_description
- * 并设置 robot_state_publisher 参数触发 TF 树重建。
- * World dock 碰撞对象用于防止机械臂与停靠工具碰撞。
+ * 碰撞由两层协同提供：
+ *   1. URDF <collision> — RViz 视觉渲染 + robot_state_publisher TF（由 updateRobotDescription 管理）
+ *   2. AttachedCollisionObject (/planning_scene diff) — move_group 感知碰撞、用于规划避障
+ *
+ * 工具切换时：
+ *   附着：发送 AttachedCollisionObject ADD（网格附着到 kuaihuan_Link）+ 更新 URDF
+ *   脱离：发送 AttachedCollisionObject REMOVE + 更新空工具 URDF
+ *
+ * 不再使用 world dock 碰撞对象，只关注已附着的工具。
  */
 class SceneAttachWorker : public rclcpp::Node
 {
@@ -39,26 +44,25 @@ public:
   ~SceneAttachWorker() override = default;
 
 private:
-  struct ToolGeometry
-  {
+  struct ToolGeometry {
     shape_msgs::msg::Mesh mesh_collision;
-    geometry_msgs::msg::Pose dock_pose;
+    geometry_msgs::msg::Pose attach_offset;  // 工具相对 kuaihuan_Link 的偏移
+    std::vector<std::string> touch_links;    // 附着时豁免碰撞的 link 列表
   };
 
-  // 配置 & 初始化
+  // 配置加载
   void loadToolConfig();
   shape_msgs::msg::Mesh loadMesh(const std::string& resource_path);
-  void addAllToolsToWorld();
-
-  // World dock 操作
-  void addToolToWorldDock(const std::string& tool_id);
-  void removeToolFromWorld(const std::string& tool_id);
 
   // /tool_changer_status 回调
   void onToolStatus(const ivg_interfaces::msg::ToolChangerStatus& msg);
 
-  // robot_description 更新（URDF 缓存 → /robot_description topic + robot_state_publisher 参数）
+  // robot_description 更新（URDF 缓存 → topic + robot_state_publisher 参数）
   void updateRobotDescription(const std::string& tool_id);
+
+  // AttachedCollisionObject 管理（/planning_scene diff）
+  void attachToolToScene(const std::string& tool_id);
+  void detachToolFromScene(const std::string& tool_id);
 
   // 服务回调
   void onSceneAttach(const std::shared_ptr<ivg_interfaces::srv::ChangeTool::Request> req,
@@ -81,7 +85,6 @@ private:
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr robot_description_pub_;
 
   std::string current_attached_tool_;
-  std::set<std::string> tools_in_world_;  // 当前在 world dock 中的工具 ID 集合
 };
 
 }  // namespace tool_changer

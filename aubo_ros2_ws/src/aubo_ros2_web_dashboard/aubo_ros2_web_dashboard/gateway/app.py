@@ -89,7 +89,12 @@ def create_app(web_root: str, *, rwt_override: str | None = None) -> FastAPI:
     app.include_router(ivg_runtime.router)  # /api/v1/runtime + /api/v1/settings
     app.include_router(robot_mesh.router)   # /api/ivg/robot-mesh/*
 
-    # 静态文件挂载
+    # 静态文件挂载 — Vite 构建产物 (JS/CSS 在 /assets/ 下)
+    asset_dir = os.path.join(root, "assets")
+    if os.path.isdir(asset_dir):
+        app.mount("/assets",
+                  StaticFiles(directory=asset_dir, html=False), name="assets")
+
     if rwt_available:
         app.mount("/js/robotwebtools",
                   StaticFiles(directory=rwt_root, html=False), name="robotwebtools")

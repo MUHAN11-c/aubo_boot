@@ -75,8 +75,10 @@ struct SpinnerJoinGuard
 GripperSwapWorker::GripperSwapWorker(const rclcpp::NodeOptions& options)
   : rclcpp::Node("gripper_swap_worker", options)
 {
+  // RobotController 构造安全（只存指针），move_group_ 由 robot_->init() 延后创建
   robot_ = std::make_shared<demo_driver::RobotController>(this);
-  move_group_ = robot_->moveGroup();  // 共享 RobotController 的 MoveGroupInterface
+  move_group_ = nullptr;
+
   set_io_client_ = create_client<ivg_interfaces::srv::SetRobotIO>(kSetIOService);
 
   declare_parameter("joint_velocity_scaling", 0.7);
@@ -143,10 +145,12 @@ GripperSwapWorker::GripperSwapWorker(const rclcpp::NodeOptions& options)
   publishToolStatus(false);
 }
 
-/** 工厂：构造节点并初始化 MoveGroup */
+/** 工厂：构造节点并两阶段初始化 RobotController */
 std::shared_ptr<GripperSwapWorker> GripperSwapWorker::create(const rclcpp::NodeOptions& options)
 {
   auto node = std::make_shared<GripperSwapWorker>(options);
+  node->robot_->init();
+  node->move_group_ = node->robot_->moveGroup();
   return node;
 }
 
@@ -164,44 +168,30 @@ bool GripperSwapWorker::waitForServices(std::chrono::seconds timeout)
 // 轨迹原语 1 — 回 home
 // ═══════════════════════════════════════════════════════════════════
 
-/** 关节空间运动到命名目标 camera_pose */
+/** 关节空间运动到命名目标 camera_pose — 委托 RobotController */
 bool GripperSwapWorker::moveToHome(float vel, float acc)
 {
-  if (!move_group_) return false;
-  move_group_->setStartStateToCurrentState();
-  move_group_->setMaxVelocityScalingFactor(vel);
-  move_group_->setMaxAccelerationScalingFactor(acc);
-  move_group_->setNamedTarget("camera_pose");
-  return move_group_->move() == moveit::core::MoveItErrorCode::SUCCESS;
+  if (!robot_) return false;
+  return robot_->moveToHome(vel, acc);
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // 轨迹原语 2 — 到固定点位
 // ═══════════════════════════════════════════════════════════════════
 
-/** 关节空间运动到指定 6 轴关节角 (rad) */
+/** 关节空间运动到指定 6 轴关节角 (rad) — 委托 RobotController */
 bool GripperSwapWorker::moveToJoints(const std::array<double, 6>& joints, float vel, float acc)
 {
-  if (!move_group_) return false;
-  move_group_->setStartStateToCurrentState();
-  move_group_->setMaxVelocityScalingFactor(vel);
-  move_group_->setMaxAccelerationScalingFactor(acc);
-  move_group_->setJointValueTarget(std::vector<double>(joints.begin(), joints.end()));
-
-  moveit::planning_interface::MoveGroupInterface::Plan plan;
-  if (move_group_->plan(plan) != moveit::core::MoveItErrorCode::SUCCESS) {
-    RCLCPP_ERROR(get_logger(), "[moveToJoints] 规划失败");
-    return false;
-  }
-  return move_group_->execute(plan) == moveit::core::MoveItErrorCode::SUCCESS;
+  if (!robot_) return false;
+  return robot_->moveToJoints(joints, vel, acc);
 }
 
 /** 笛卡尔直线平移到目标 XYZ，姿态保持不变 */
 bool GripperSwapWorker::moveToTargetXYZ(double target_x, double target_y, double target_z,
                                          float vel, float acc)
 {
-  const std::string eef_link = move_group_->getEndEffectorLink();
-  const auto current_pose = move_group_->getCurrentPose(eef_link).pose;
+  if (!robot_) return false;
+  const auto current_pose = robot_->getCurrentPose();
 
   std::vector<CartesianSegment> segments;
   constexpr double kMinDeltaM = 1e-9;
@@ -220,6 +210,7 @@ bool GripperSwapWorker::moveToTargetXYZ(double target_x, double target_y, double
 /** 关节空间运动到工具 dock 接近位（关节角来自 tools.yaml） */
 bool GripperSwapWorker::moveToDockApproach(const ToolConfig& tool)
 {
+  if (!robot_) return false;
   return robot_->moveToJoints(tool.dock_approach_joints,
                       joint_velocity_scaling_, joint_acceleration_scaling_);
 }
@@ -230,25 +221,26 @@ bool GripperSwapWorker::moveToDockApproach(const ToolConfig& tool)
 
 bool GripperSwapWorker::pickTool(const ToolConfig& tool)
 {
+  if (!robot_) return false;
   if (tool.strategy == TrajectoryStrategy::kSlide)
   {
     const auto& p = tool.slide;
-    if (!robot_->setGripper(true)) return false;
-    if (!robot_->moveCartesianPath('z', -p.depth, joint_velocity_scaling_, joint_acceleration_scaling_)) return false;
+    if (!setGripperIoSafe(true)) return false;
+    if (!robot_->moveCartesianPath({{'z', -p.depth}}, joint_velocity_scaling_, joint_acceleration_scaling_)) return false;
     std::this_thread::sleep_for(std::chrono::duration<double>(p.settle_sec));
-    if (!robot_->setGripper(false)) return false;
+    if (!setGripperIoSafe(false)) return false;
     std::this_thread::sleep_for(std::chrono::duration<double>(p.settle_sec));
     return robot_->moveCartesianPath({{'z', p.seat}, {'y', p.slide_y}, {'z', p.lift}},
                             joint_velocity_scaling_, joint_acceleration_scaling_);
   }
   // vertical (default)
   const auto& p = tool.vertical;
-  if (!robot_->setGripper(true)) return false;
-  if (!robot_->moveCartesianPath('z', -p.depth, joint_velocity_scaling_, joint_acceleration_scaling_)) return false;
+  if (!setGripperIoSafe(true)) return false;
+  if (!robot_->moveCartesianPath({{'z', -p.depth}}, joint_velocity_scaling_, joint_acceleration_scaling_)) return false;
   std::this_thread::sleep_for(std::chrono::duration<double>(p.settle_sec));
-  if (!robot_->setGripper(false)) return false;
+  if (!setGripperIoSafe(false)) return false;
   std::this_thread::sleep_for(std::chrono::duration<double>(p.settle_sec));
-  return robot_->moveCartesianPath('z', p.lift, joint_velocity_scaling_, joint_acceleration_scaling_);
+  return robot_->moveCartesianPath({{'z', p.lift}}, joint_velocity_scaling_, joint_acceleration_scaling_);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -257,6 +249,7 @@ bool GripperSwapWorker::pickTool(const ToolConfig& tool)
 
 bool GripperSwapWorker::releaseTool(const ToolConfig& tool)
 {
+  if (!robot_) return false;
   if (tool.strategy == TrajectoryStrategy::kSlide)
   {
     const auto& p = tool.slide;
@@ -265,20 +258,20 @@ bool GripperSwapWorker::releaseTool(const ToolConfig& tool)
                            {'y', -p.slide_y},
                            {'z', -p.seat}},
                           joint_velocity_scaling_, joint_acceleration_scaling_)) return false;
-    if (!robot_->setGripper(true)) return false;
+    if (!setGripperIoSafe(true)) return false;
     std::this_thread::sleep_for(std::chrono::duration<double>(p.release_sec));
-    if (!robot_->moveCartesianPath('z', p.lift, joint_velocity_scaling_, joint_acceleration_scaling_)) return false;
-    if (!robot_->setGripper(false)) return false;
+    if (!robot_->moveCartesianPath({{'z', p.lift}}, joint_velocity_scaling_, joint_acceleration_scaling_)) return false;
+    if (!setGripperIoSafe(false)) return false;
     std::this_thread::sleep_for(std::chrono::duration<double>(p.lock_sec));
     return true;
   }
   // vertical (default)
   const auto& p = tool.vertical;
-  if (!robot_->moveCartesianPath('z', -p.depth, joint_velocity_scaling_, joint_acceleration_scaling_)) return false;
-  if (!robot_->setGripper(true)) return false;
+  if (!robot_->moveCartesianPath({{'z', -p.depth}}, joint_velocity_scaling_, joint_acceleration_scaling_)) return false;
+  if (!setGripperIoSafe(true)) return false;
   std::this_thread::sleep_for(std::chrono::duration<double>(p.settle_sec));
-  if (!robot_->moveCartesianPath('z', p.lift, joint_velocity_scaling_, joint_acceleration_scaling_)) return false;
-  if (!robot_->setGripper(false)) return false;
+  if (!robot_->moveCartesianPath({{'z', p.lift}}, joint_velocity_scaling_, joint_acceleration_scaling_)) return false;
+  if (!setGripperIoSafe(false)) return false;
   std::this_thread::sleep_for(std::chrono::duration<double>(p.settle_sec));
   return true;
 }
@@ -345,9 +338,10 @@ bool GripperSwapWorker::runCartesianPath(const std::vector<CartesianSegment>& se
 // IO
 // ═══════════════════════════════════════════════════════════════════
 
-/** 设置快换 IO：仿真模式跳过，真实模式委托 setGripperIo */
+/** 设置快换 IO：仿真模式跳过，真实模式委托 RobotController */
 bool GripperSwapWorker::setGripperIoSafe(bool open_gripper)
 {
+  if (!robot_) return false;
   if (simulation_skip_io_) {
     RCLCPP_INFO(get_logger(), "[仿真] 跳过 IO(%d, %s)", gripper_io_index_,
                 open_gripper ? "开" : "关");

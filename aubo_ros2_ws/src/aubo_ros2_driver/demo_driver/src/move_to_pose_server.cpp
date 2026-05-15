@@ -22,7 +22,10 @@ MoveToPoseServer::MoveToPoseServer(const rclcpp::NodeOptions& options)
 
     service_ = create_service<ivg_interfaces::srv::MoveToPose>(
         "/move_to_pose",
-        [this](auto req, auto res) { onMoveToPoseRequest(req, res); });
+        [this](const std::shared_ptr<ivg_interfaces::srv::MoveToPose::Request> req,
+               std::shared_ptr<ivg_interfaces::srv::MoveToPose::Response> res) {
+          onMoveToPoseRequest(req, res);
+        });
 
     RCLCPP_INFO(get_logger(), "MoveToPoseServer ready");
 }

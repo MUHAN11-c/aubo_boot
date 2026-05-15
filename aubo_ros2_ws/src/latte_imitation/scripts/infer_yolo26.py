@@ -20,7 +20,7 @@ if _PKG_DIR not in sys.path:
     sys.path.insert(0, _PKG_DIR)
 
 
-def get_weight_path(model_size: str, custom_weight: str | None) -> str:
+def get_weight_path(model_size: str, custom_weight: str = None) -> str:
     """获取模型权重路径。"""
     if custom_weight:
         if os.path.exists(custom_weight):

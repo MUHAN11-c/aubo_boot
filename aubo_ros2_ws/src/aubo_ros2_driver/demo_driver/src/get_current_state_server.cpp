@@ -22,7 +22,9 @@ GetCurrentStateServer::GetCurrentStateServer(const rclcpp::NodeOptions& options)
 
     joint_states_sub_ = create_subscription<sensor_msgs::msg::JointState>(
         "joint_states", 10,
-        [this](auto msg) { current_joint_states_ = *msg; joint_states_received_ = true; });
+        [this](const std::shared_ptr<sensor_msgs::msg::JointState> msg) {
+          current_joint_states_ = *msg; joint_states_received_ = true;
+        });
 
     client_cb_group_ = create_callback_group(rclcpp::CallbackGroupType::Reentrant);
     fk_client_ = create_client<ivg_interfaces::srv::GetFK>(
@@ -35,7 +37,10 @@ GetCurrentStateServer::GetCurrentStateServer(const rclcpp::NodeOptions& options)
 
     service_ = create_service<ivg_interfaces::srv::GetCurrentState>(
         "/get_current_state",
-        [this](auto /*req*/, auto res) { getCurrentStateCallback(res); });
+        [this](const std::shared_ptr<ivg_interfaces::srv::GetCurrentState::Request> /*req*/,
+               std::shared_ptr<ivg_interfaces::srv::GetCurrentState::Response> res) {
+          getCurrentStateCallback(res);
+        });
 
     RCLCPP_INFO(get_logger(), "GetCurrentStateServer ready");
 }

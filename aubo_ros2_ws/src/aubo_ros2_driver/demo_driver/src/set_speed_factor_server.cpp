@@ -24,7 +24,10 @@ SetSpeedFactorServer::SetSpeedFactorServer(const rclcpp::NodeOptions& options)
 
     service_ = create_service<ivg_interfaces::srv::SetSpeedFactor>(
         "/set_speed_factor",
-        [this](auto req, auto res) { setSpeedFactorCallback(req, res); });
+        [this](const std::shared_ptr<ivg_interfaces::srv::SetSpeedFactor::Request> req,
+               std::shared_ptr<ivg_interfaces::srv::SetSpeedFactor::Response> res) {
+          setSpeedFactorCallback(req, res);
+        });
 
     // Reentrant 组, 避免 set_parameters 阻塞死锁
     param_cb_group_ = create_callback_group(rclcpp::CallbackGroupType::Reentrant);
@@ -60,9 +63,11 @@ bool SetSpeedFactorServer::setSpeedFactor(float v, std::string& msg)
 
         std::vector<rclcpp::Parameter> params{rclcpp::Parameter("moveit_velocity_scaling_factor", v)};
         if (plan_traj_client_->wait_for_service(std::chrono::seconds(1)))
-            plan_traj_client_->set_parameters(params, [](auto){});
+            plan_traj_client_->set_parameters(params,
+                [](std::shared_future<std::vector<rcl_interfaces::msg::SetParametersResult>>){});
         if (exec_traj_client_->wait_for_service(std::chrono::seconds(1)))
-            exec_traj_client_->set_parameters(params, [](auto){});
+            exec_traj_client_->set_parameters(params,
+                [](std::shared_future<std::vector<rcl_interfaces::msg::SetParametersResult>>){});
 
         msg = "velocity_factor=" + std::to_string(v);
         return true;

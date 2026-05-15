@@ -14,7 +14,7 @@ const emit = defineEmits<{ log: [msg: string] }>()
 function log(msg: string) { emit('log', msg) }
 
 const { isConnected, subscribe, onRosJson, onControlJson } = useRos()
-const { changeTool } = useRosService()
+const { runGripperSwap } = useRosService()
 
 /** 当前工具状态 */
 const currentToolId = ref('')
@@ -31,10 +31,13 @@ onControlJson((c) => { if (c.op === 'connection') setup() })
 watch(isConnected, v => { if (v) setup() })
 if (isConnected()) setup()
 
-/** 执行工具快换 */
-async function doChange(toolId: string) {
-  log(`快换 → ${toolId}…`)
-  try { const r = await changeTool(toolId); log(r.success ? `✓ ${r.message || '成功'}` : `✗ ${r.message || '失败'}`) }
+/** 执行工具快换 (方向格式: "current_to_target") */
+async function doChange(targetId: string) {
+  const cur = currentToolId.value || 'gripper0'
+  if (cur === targetId) return
+  const direction = `${cur}_to_${targetId}`
+  log(`快换 ${direction}…`)
+  try { const r = await runGripperSwap(direction); log(r.success ? `✓ ${r.message || '成功'}` : `✗ ${r.message || '失败'}`) }
   catch (e: any) { log(`✗ 错误: ${e}`) }
 }
 </script>

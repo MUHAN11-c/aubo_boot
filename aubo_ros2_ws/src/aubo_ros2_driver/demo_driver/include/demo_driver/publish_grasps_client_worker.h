@@ -42,6 +42,7 @@ class PublishGraspsClientWorker : public rclcpp::Node
 public:
   explicit PublishGraspsClientWorker(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
   ~PublishGraspsClientWorker() = default;
+  void initRobot();
 
   bool waitForServices(std::chrono::seconds timeout);
 

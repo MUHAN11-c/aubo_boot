@@ -32,20 +32,6 @@ if _pkg_root not in sys.path:
 from aubo_ros2_web_dashboard import config as cfg  # noqa: E402
 
 
-def _find_rwt_assets() -> str:
-    """按 YAML 候选目录查找 robotwebtools 资产路径（源树 + 安装后）。"""
-    this_dir = os.path.dirname(os.path.realpath(__file__))
-    pkg_share = get_package_share_directory("aubo_ros2_web_dashboard")
-    candidates = []
-    for d in cfg.robotwebtools_search_dirs():
-        candidates.append(os.path.abspath(os.path.join(this_dir, "..", "..", str(d))))
-        candidates.append(os.path.abspath(os.path.join(pkg_share, "..", "..", "..", "..", str(d))))
-    for c in candidates:
-        if os.path.isdir(c):
-            return c
-    return candidates[0] if candidates else ""
-
-
 def generate_launch_description():
     ld = LaunchDescription()
 
@@ -68,8 +54,6 @@ def generate_launch_description():
     if os.environ.get("LD_LIBRARY_PATH"):
         rosbridge_ld = rosbridge_ld + os.pathsep + os.environ["LD_LIBRARY_PATH"]
     web_video_ld = os.pathsep.join([img_lib, rosbridge_ld])
-
-    rwt_assets = _find_rwt_assets()
 
     # ── 声明启动参数（默认值全部来自 YAML）─────────────────────────────
     ld.add_action(DeclareLaunchArgument("web_host",
@@ -102,10 +86,6 @@ def generate_launch_description():
     ld.add_action(DeclareLaunchArgument("web_video_port",
         default_value=str(cfg.web_video_port()),
         description="web_video 上游端口"))
-    ld.add_action(DeclareLaunchArgument("robotwebtools_assets_dir",
-        default_value=rwt_assets,
-        description="RobotWebTools 资产目录"))
-
     # 收集 LaunchConfiguration 引用
     lc = {
         "web_host":              LaunchConfiguration("web_host"),
@@ -118,7 +98,6 @@ def generate_launch_description():
         "include_web_video_server":      LaunchConfiguration("include_web_video_server"),
         "web_video_host":        LaunchConfiguration("web_video_host"),
         "web_video_port":        LaunchConfiguration("web_video_port"),
-        "robotwebtools_assets_dir": LaunchConfiguration("robotwebtools_assets_dir"),
     }
 
     # ── LD_LIBRARY_PATH ──────────────────────────────────────────────────
@@ -171,7 +150,6 @@ def generate_launch_description():
             "--rosbridge-port", lc["rosbridge_port"],
             "--web-video-host", lc["web_video_host"],
             "--web-video-port", lc["web_video_port"],
-            "--rwt-assets-dir", lc["robotwebtools_assets_dir"],
         ],
         output="screen",
         respawn=True,

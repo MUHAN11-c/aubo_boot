@@ -34,7 +34,10 @@ PlanTrajectoryServer::PlanTrajectoryServer(const rclcpp::NodeOptions& options)
 
     service_ = create_service<ivg_interfaces::srv::PlanTrajectory>(
         "/plan_trajectory",
-        [this](auto req, auto res) { planTrajectoryCallback(req, res); });
+        [this](const std::shared_ptr<ivg_interfaces::srv::PlanTrajectory::Request> req,
+               std::shared_ptr<ivg_interfaces::srv::PlanTrajectory::Response> res) {
+          planTrajectoryCallback(req, res);
+        });
 
     RCLCPP_INFO(get_logger(), "PlanTrajectoryServer ready, end_effector=%s", end_effector_link_.c_str());
 }

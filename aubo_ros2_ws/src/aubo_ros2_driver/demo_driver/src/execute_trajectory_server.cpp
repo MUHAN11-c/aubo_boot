@@ -24,7 +24,10 @@ ExecuteTrajectoryServer::ExecuteTrajectoryServer(const rclcpp::NodeOptions& opti
 
     service_ = create_service<ivg_interfaces::srv::ExecuteTrajectory>(
         "/execute_trajectory",
-        [this](auto req, auto res) { executeTrajectoryCallback(req, res); });
+        [this](const std::shared_ptr<ivg_interfaces::srv::ExecuteTrajectory::Request> req,
+               std::shared_ptr<ivg_interfaces::srv::ExecuteTrajectory::Response> res) {
+          executeTrajectoryCallback(req, res);
+        });
 
     RCLCPP_INFO(get_logger(), "ExecuteTrajectoryServer ready");
 }

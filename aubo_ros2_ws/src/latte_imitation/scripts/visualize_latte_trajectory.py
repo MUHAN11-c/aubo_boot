@@ -44,6 +44,7 @@ if _pkg_dir not in sys.path:
 
 from latte_imitation.trajectory import CartesianTrajectory  # noqa: E402
 from latte_imitation.trajectory_transform import apply_start_pose  # noqa: E402
+from latte_imitation.tf_utils import get_ee_pose_from_tf, tf_to_pose  # noqa: E402
 from geometry_msgs.msg import Pose, Point, Quaternion  # noqa: E402
 
 PHASES_RATIO = [
@@ -401,19 +402,16 @@ def _get_camera_pose_from_srdf(srdf_path, urdf_path):
         print(f"FK 计算失败: {e}")
         return None
 
-    # PyKDL.Frame → Pose
+    # PyKDL.Frame → Pose (使用标准 rot_to_quat)
     rot = frame.M
-    qw = np.sqrt(max(0, 1.0 + rot[0, 0] + rot[1, 1] + rot[2, 2])) / 2.0
-    if qw > 1e-12:
-        qx = (rot[2, 1] - rot[1, 2]) / (4.0 * qw)
-        qy = (rot[0, 2] - rot[2, 0]) / (4.0 * qw)
-        qz = (rot[1, 0] - rot[0, 1]) / (4.0 * qw)
-    else:
-        qx = qy = qz = 0.0; qw = 1.0
-
+    R = np.array([[rot[0,0], rot[0,1], rot[0,2]],
+                   [rot[1,0], rot[1,1], rot[1,2]],
+                   [rot[2,0], rot[2,1], rot[2,2]]])
+    from latte_imitation.trajectory_transform import rot_to_quat
+    q = rot_to_quat(R)
     pose = Pose(
         position=Point(x=float(frame.p[0]), y=float(frame.p[1]), z=float(frame.p[2])),
-        orientation=Quaternion(x=float(qx), y=float(qy), z=float(qz), w=float(qw)),
+        orientation=Quaternion(x=float(q[0]), y=float(q[1]), z=float(q[2]), w=float(q[3])),
     )
     print(f"camera_pose FK: ({pose.position.x:.4f}, {pose.position.y:.4f}, {pose.position.z:.4f})")
     return pose
@@ -427,40 +425,23 @@ def _get_current_pose_from_tf():
     """
     try:
         import rclpy
-        from tf2_ros.buffer import Buffer
-        from tf2_ros.transform_listener import TransformListener
     except ImportError:
-        print("rclpy/tf2_ros 不可用, 无法查询 TF")
+        print("rclpy 不可用, 无法查询 TF")
         return None
-
-    if not rclpy.ok():
-        rclpy.init(args=[])
-    node = rclpy.create_node("_latte_viz_tf_query")
-    try:
-        buf = Buffer(node)
-        _listener = TransformListener(buf, node)
-        # 等 2 秒让 TF buffer 填充
-        from time import sleep
-        sleep(0.5)
-        tfs = buf.lookup_transform("base_link", "tool_tcp", rclpy.time.Time(),
-                                   timeout=rclpy.duration.Duration(seconds=2.0))
-        t = tfs.transform.translation
-        r = tfs.transform.rotation
-        pose = Pose(
-            position=Point(x=t.x, y=t.y, z=t.z),
-            orientation=Quaternion(x=r.x, y=r.y, z=r.z, w=r.w),
-        )
-        print(f"TF tool_tcp: ({t.x:.4f}, {t.y:.4f}, {t.z:.4f})")
-        return pose
-    except Exception as e:
-        print(f"TF 查询失败: {e}")
-        return None
-    finally:
-        node.destroy_node()
+    return get_ee_pose_from_tf()
 
 
 def _find_urdf():
-    """查找 Aubo E5 URDF 文件喵~"""
+    """查找 Aubo E5 URDF 文件 (使用 ament_index，独立于工作区结构) 喵~"""
+    try:
+        from ament_index_python.packages import get_package_share_directory
+        pkg_share = get_package_share_directory("aubo_ros2_driver")
+        urdf_path = os.path.join(pkg_share, "aubo_description", "urdf", "aubo_e5_10.urdf")
+        if os.path.exists(urdf_path):
+            return urdf_path
+    except Exception:
+        pass
+    # Fallback: 相对路径搜索
     candidates = [
         os.path.join(os.path.dirname(_pkg_dir), "aubo_ros2_driver",
                      "aubo_description", "urdf", "aubo_e5_10.urdf"),
@@ -474,7 +455,16 @@ def _find_urdf():
 
 
 def _find_srdf():
-    """查找 AUBO E5 SRDF 文件喵~"""
+    """查找 AUBO E5 SRDF 文件 (使用 ament_index，独立于工作区结构) 喵~"""
+    try:
+        from ament_index_python.packages import get_package_share_directory
+        pkg_share = get_package_share_directory("aubo_ros2_driver")
+        srdf_path = os.path.join(pkg_share, "aubo_moveit_config", "config", "aubo_e5.srdf")
+        if os.path.exists(srdf_path):
+            return srdf_path
+    except Exception:
+        pass
+    # Fallback: 相对路径搜索
     candidates = [
         os.path.join(os.path.dirname(_pkg_dir), "aubo_ros2_driver",
                      "aubo_moveit_config", "config", "aubo_e5.srdf"),

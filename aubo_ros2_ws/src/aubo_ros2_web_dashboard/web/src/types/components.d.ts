@@ -15,6 +15,7 @@ declare module 'vue' {
     ElTag: typeof import('element-plus/es')['ElTag']
     GraspControls: typeof import('./../components/grasp/GraspControls.vue')['default']
     PoseCard: typeof import('./../components/grasp/PoseCard.vue')['default']
+    Robot3dViewer: typeof import('./../components/ivg/Robot3dViewer.vue')['default']
     RobotStatusBar: typeof import('./../components/ivg/RobotStatusBar.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

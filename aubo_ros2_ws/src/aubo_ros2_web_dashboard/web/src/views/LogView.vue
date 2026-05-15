@@ -7,10 +7,12 @@
  * 功能:
  *   - console 拦截 (log/warn/error/info/debug → 日志流)
  *   - 全局错误捕获 (window.onerror + unhandledrejection)
- *   - Transport 钩子 (rosbridge 连接/订阅/服务调用事件)
+ *   - Transport 钩子 (rosbridge 连接/订阅/服务调用事件 — 通过 useRos.onLog)
  *   - 过滤搜索 (文本 + 来源级别)
  *   - 暂停/恢复/清空/导出 TXT
  */
+import { useRos } from '@/composables/useRos'
+
 const MAX_ENTRIES = 800; const MAX_DOM = 400
 
 interface LogEntry { ts: string; level: string; source: string; msg: string }
@@ -35,15 +37,41 @@ const displayedLogs = computed(() => { let arr = logs.value.length > MAX_DOM ? l
 
 watch(displayedLogs, () => { if (autoScroll.value) nextTick(() => { const el = container.value; if (el) el.scrollTop = el.scrollHeight }) })
 
-/** 拦截浏览器 console 输出到日志流 */
 onMounted(() => {
-  (['log', 'warn', 'error', 'info', 'debug'] as const).forEach(level => { const orig = (console as any)[level]; (console as any)[level] = (...args: any[]) => { addLog(level, 'console', args.map((a: any) => a instanceof Error ? a.message : typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')); orig.apply(console, args) } })
+  // 拦截 console
+  (['log', 'warn', 'error', 'info', 'debug'] as const).forEach(level => {
+    const orig = (console as any)[level]
+    ;(console as any)[level] = (...args: any[]) => {
+      addLog(level, 'console', args.map((a: any) => a instanceof Error ? a.message : typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '))
+      orig.apply(console, args)
+    }
+  })
   window.addEventListener('error', e => addLog('error', 'global', e.message || 'Unknown error'))
   window.addEventListener('unhandledrejection', e => addLog('error', 'promise', (e.reason?.message) || String(e.reason)))
-  addLog('info', 'log_panel', '日志面板已就绪')
 
-  // Transport 钩子 (轮询全局 ivgTransport)
-  const hookTimer = setInterval(() => { const t = (globalThis as any).ivgTransport; if (!t || t._logPanelHooked) return; t._logPanelHooked = true; clearInterval(hookTimer); const origCtrl = t.onControlJson.bind(t); t.onControlJson = (fn: any) => origCtrl((ctrl: any) => { if (ctrl?.op === 'connection') addLog('transport', 'rosbridge', 'WebSocket 已连接'); if (ctrl?.op === 'close') addLog('transport', 'rosbridge', '连接关闭'); if (ctrl?.op === 'error') addLog('error', 'rosbridge', '错误: ' + (ctrl.message || '')); fn(ctrl) }); const origSub = t.subscribe.bind(t); t.subscribe = (spec: any) => { const ok = origSub(spec); if (spec.topic) addLog('transport', 'subscribe', `${ok ? '✓' : '✗'} ${spec.topic}`); return ok }; const origSvc = t.callService.bind(t); t.callService = (spec: any) => { const start = performance.now(); return origSvc(spec).then((r: any) => { addLog(r?.success !== false ? 'service' : 'service_err', 'service', `${r?.success !== false ? '✓' : '✗'} ${spec.service} (${(performance.now() - start).toFixed(0)}ms)`); return r }).catch((e: any) => { addLog('error', 'service_err', `✗ ${spec.service} ${String(e)}`); throw e }) } }, 300)
+  // 页面生命周期事件（与旧版 log_panel.js:205-216 对齐）
+  document.addEventListener('visibilitychange', () => {
+    addLog('lifecycle', 'lifecycle', document.hidden ? '页面隐藏 (后台)' : '页面可见 (前台)')
+  })
+  window.addEventListener('beforeunload', () => addLog('lifecycle', 'lifecycle', '页面即将关闭'))
+  window.addEventListener('pagehide', () => addLog('lifecycle', 'lifecycle', '页面已隐藏'))
+
+  addLog('info', 'log_panel', '日志面板已就绪 — 等待事件…')
+  addLog('lifecycle', 'lifecycle', '页面加载完成')
+
+  // Transport 钩子 (通过 useRos.onLog + onControlJson)
+  const { onLog, onControlJson } = useRos()
+  onLog(event => {
+    if (event.type === 'subscribe') addLog('transport', 'subscribe', `✓ ${event.detail || ''}`)
+    if (event.type === 'unsubscribe') addLog('transport', 'unsubscribe', event.detail || '')
+    if (event.type === 'service_result') addLog('transport', 'service', event.detail || '')
+    if (event.type === 'service_error') addLog('error', 'service_err', event.detail || '')
+  })
+  onControlJson((ctrl: any) => {
+    if (ctrl?.op === 'connection') addLog('transport', 'rosbridge', 'WebSocket 已连接')
+    if (ctrl?.op === 'close') addLog('transport', 'rosbridge', '连接关闭')
+    if (ctrl?.op === 'error') addLog('error', 'rosbridge', '错误: ' + (ctrl.message || ''))
+  })
 })
 
 function exportLogs() { const text = logs.value.map(e => `${e.ts} [${e.source}] ${e.level.toUpperCase()}  ${e.msg}`).join('\n'); const b = new Blob([text], { type: 'text/plain' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `ivg_log_${new Date().toISOString().slice(0, 10)}.txt`; a.click() }

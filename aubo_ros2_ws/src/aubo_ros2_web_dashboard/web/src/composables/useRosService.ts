@@ -41,19 +41,9 @@ export function useRosService() {
     })
   }
 
-  /** 工具快换 — ivg_interfaces/ChangeTool */
-  async function changeTool(toolId: string) {
-    return call('/change_tool', 'ivg_interfaces/srv/ChangeTool', { tool_id: toolId })
-  }
-
   /** 夹爪快换 (方向) — ivg_interfaces/RunGripperSwap */
   async function runGripperSwap(direction: string) {
     return call('/run_gripper_swap', 'ivg_interfaces/srv/RunGripperSwap', { direction })
-  }
-
-  /** 获取当前工具 */
-  async function getCurrentTool() {
-    return call('/get_current_tool', 'ivg_interfaces/srv/GetCurrentTool')
   }
 
   /** 咖啡拉花 DO 开关 — std_srvs/SetBool */
@@ -78,7 +68,7 @@ export function useRosService() {
 
   return {
     calling: readonly(calling), lastResult: readonly(lastResult), lastError: readonly(lastError),
-    call, callSetBool, executeGrasp, changeTool, runGripperSwap, getCurrentTool,
+    call, callSetBool, executeGrasp, runGripperSwap,
     setLatteDo, setLoopGraspControl, setGraspnetCapture, setPublishGraspsLoop,
   }
 }

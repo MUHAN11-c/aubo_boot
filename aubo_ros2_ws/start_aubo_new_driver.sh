@@ -60,15 +60,12 @@ IVG_WEB_RELOAD="${IVG_WEB_RELOAD:-true}"
 WEB_DASH_HOST="${WEB_DASH_HOST:-0.0.0.0}"
 WEB_DASH_PORT="${WEB_DASH_PORT:-8090}"
 ROSBRIDGE_PORT="${ROSBRIDGE_PORT:-9090}"
-IVG_STRIP_PROXY_FOR_DASH_LAUNCH="${IVG_STRIP_PROXY_FOR_DASH_LAUNCH:-true}"
 IVG_ROSBAG_DIR="${IVG_ROSBAG_DIR:-rosbags/ivg_session}"
 IVG_ROSBAG_TOPICS="${IVG_ROSBAG_TOPICS:-}"
 HAND_EYE_PORT="${HAND_EYE_PORT:-8080}"
 WEB_VIDEO_PORT="${WEB_VIDEO_PORT:-8089}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
 SKIP_ROSBAG="${SKIP_ROSBAG:-0}"
-ROBOTWEBTOOLS_ASSETS_DIR="${ROBOTWEBTOOLS_ASSETS_DIR:-src/robotwebtools/runtime_js_assets}"
-ROBOTWEBTOOLS_BUILD_SCRIPT="${ROBOTWEBTOOLS_BUILD_SCRIPT:-src/robotwebtools/build_robotwebtools.sh}"
 
 # ═══════════════════════════════════════════════════════════════
 # 工具函数
@@ -92,16 +89,26 @@ ivg_web_dash_url() {
 ivg_print_access_urls() {
     local lh="127.0.0.1"
     echo ""; echo -e "${BLUE}──────── 本机浏览器 ────────${NC}"
+    # 代理警告 — WebSocket 连接走代理会导致 rosbridge 连接失败
+    local proxy_warn=""
+    [ -n "${http_proxy:-}${HTTP_PROXY:-}" ] && proxy_warn="1"
+    if [ -n "$proxy_warn" ]; then
+        echo -e "${YELLOW}⚠ 检测到系统代理 (http_proxy/HTTP_PROXY)，WebSocket 可能被拦截！${NC}"
+        echo -e "${YELLOW}  请确保浏览器对 127.0.0.1 / localhost 绕过代理，否则页面无法连接 rosbridge。${NC}"
+        echo -e "${YELLOW}  Chrome: 设置→系统→打开代理设置→绕过本地地址 或 启动加 --no-proxy-server${NC}"
+        echo -e "${YELLOW}  当前代理: http_proxy=${http_proxy:-${HTTP_PROXY:-未设置}}${NC}"
+        echo ""
+    fi
     echo -e "${GREEN}手眼标定:     http://${lh}:${HAND_EYE_PORT}/${NC}"
     echo -e "${GREEN}VPE FastAPI:  http://${lh}:${WEB_PORT}/${NC}"
-    echo -e "${GREEN}IVG 门户:     $(ivg_web_dash_url "$lh" "index.html")${NC}"
-    echo -e "${GREEN}视觉抓取:     $(ivg_web_dash_url "$lh" "vision_grasp_panel.html")${NC}"
-    echo -e "${GREEN}咖啡拉花:     $(ivg_web_dash_url "$lh" "coffee_latte_panel.html")${NC}"
+    echo -e "${GREEN}IVG 门户:     $(ivg_web_dash_url "$lh" "")${NC}"
+    echo -e "${GREEN}视觉抓取:     $(ivg_web_dash_url "$lh" "vision")${NC}"
+    echo -e "${GREEN}咖啡拉花:     $(ivg_web_dash_url "$lh" "latte")${NC}"
     echo ""
     local -a lan_ips=()
     mapfile -t lan_ips < <(ivg_lan_ipv4_addrs)
     for ip in "${lan_ips[@]}"; do
-        echo -e "${GREEN}  [${ip}] 门户: $(ivg_web_dash_url "$ip" "index.html")${NC}"
+        echo -e "${GREEN}  [${ip}] 门户: $(ivg_web_dash_url "$ip" "")${NC}"
     done
 }
 
@@ -130,18 +137,14 @@ active_wait() {
 launch() {
     local title="$1" cmd="$2"
     local full
-    full="export LD_LIBRARY_PATH=\"\$HOME/.local/lib/python3.10/site-packages/torch/lib:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/aubocontroller:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/log4cplus:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/config:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/protobuf:\$LD_LIBRARY_PATH\" && cd \"${WS}\" && source \"${ROS2_SETUP}\" && source install/setup.bash && ${cmd}; exec bash"
+    full=""
+    # 清除代理 — 所有 ROS 2 节点和 WebSocket 均为本地通信，走代理反而阻断连接
+    full+="unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY all_proxy FTP_PROXY ftp_proxy; "
+    full+="export NO_PROXY=\"127.0.0.1,localhost,0.0.0.0,::1\${NO_PROXY:+, \${NO_PROXY}}\"; export no_proxy=\"\$NO_PROXY\"; "
+    full+="export LD_LIBRARY_PATH=\"\$HOME/.local/lib/python3.10/site-packages/torch/lib:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/aubocontroller:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/log4cplus:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/config:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/protobuf:\$LD_LIBRARY_PATH\" && cd \"${WS}\" && source \"${ROS2_SETUP}\" && source install/setup.bash && ${cmd}; exec bash"
     "$TERMINATOR" --new-tab --title="$title" \
         -e "bash -c '${full}'" &
 }
-
-# 代理处理 (本机 Web 不走代理)
-WEB_DASH_NO_PROXY_EXPORT='export NO_PROXY="127.0.0.1,localhost,0.0.0.0,::1${NO_PROXY:+,${NO_PROXY}}"; export no_proxy="$NO_PROXY"; '
-if [ "${IVG_STRIP_PROXY_FOR_DASH_LAUNCH}" = "true" ]; then
-    WEB_DASH_UNSET_PROXY="unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY all_proxy FTP_PROXY ftp_proxy; ${WEB_DASH_NO_PROXY_EXPORT}"
-else
-    WEB_DASH_UNSET_PROXY="${WEB_DASH_NO_PROXY_EXPORT}"
-fi
 
 # ═══════════════════════════════════════════════════════════════
 # 预检
@@ -198,11 +201,6 @@ else
         colcon build
     )
     echo -e "${GREEN}  ✓ 构建完成${NC}"
-
-    if [ -x "${WS}/${ROBOTWEBTOOLS_BUILD_SCRIPT}" ]; then
-        echo -e "${GREEN}  → 导出 RobotWebTools 产物${NC}"
-        ( cd "$WS" && bash "$ROBOTWEBTOOLS_BUILD_SCRIPT" )
-    fi
 fi
 
 # ═══════════════════════════════════════════════════════════════
@@ -233,7 +231,7 @@ launch "Aubo Driver" "ros2 launch aubo_moveit_config aubo_new_driver.launch.py s
 ) &
 
 # 等待 MoveIt2 就绪（move_group 是后续所有步骤的基础依赖）
-active_wait node "/move_group" 30 "move_group"
+active_wait node "/move_group" 30 "move_group" || true
 
 # ═══════════════════════════════════════════════════════════════
 # [2] Demo Driver 服务 (依赖 move_group)
@@ -241,14 +239,14 @@ active_wait node "/move_group" 30 "move_group"
 
 echo -e "${GREEN}[2] Demo Driver 服务...${NC}"
 launch "Robot Driver" "ros2 launch aubo_moveit_config demo_driver_services.launch.py"
-active_wait service "/execute_trajectory" 20 "execute_trajectory 服务"
+active_wait service "/execute_trajectory" 20 "execute_trajectory 服务" || true
 
 # ═══════════════════════════════════════════════════════════════
 # [15] IVG Web 网关 (提前启动 — 仅依赖 build 产物，与相机/视觉并行)
 # ═══════════════════════════════════════════════════════════════
 
 echo -e "${GREEN}[15] IVG Web 网关...${NC}"
-WEB_DASH_CMD="${WEB_DASH_UNSET_PROXY}ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_host:=${WEB_DASH_HOST} web_port:=${WEB_DASH_PORT} rosbridge_port:=${ROSBRIDGE_PORT} web_video_port:=${WEB_VIDEO_PORT} robotwebtools_assets_dir:=${ROBOTWEBTOOLS_ASSETS_DIR}"
+WEB_DASH_CMD="ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_host:=${WEB_DASH_HOST} web_port:=${WEB_DASH_PORT} rosbridge_port:=${ROSBRIDGE_PORT} web_video_port:=${WEB_VIDEO_PORT}"
 launch "IVG Web Dashboard" "${WEB_DASH_CMD}"
 
 # ═══════════════════════════════════════════════════════════════
@@ -278,8 +276,8 @@ launch "Percipio Camera" "ros2 launch percipio_camera percipio_camera.launch.py"
 echo -e "${GREEN}[4] 相机控制...${NC}"
 launch "Camera Control" "ros2 launch percipio_camera camera_control.launch.py"
 
-active_wait topic "/camera/color/image_raw" 15 "相机图像话题"
-active_wait topic "/camera_status" 10 "相机状态话题"
+active_wait topic "/camera/color/image_raw" 15 "相机图像话题" || true
+active_wait topic "/camera_status" 10 "相机状态话题" || true
 
 # ═══════════════════════════════════════════════════════════════
 # [6-7] 视觉栈 (并行启动)
@@ -291,7 +289,7 @@ launch "Hand Eye" "ros2 launch hand_eye_calibration hand_eye_calibration_launch.
 echo -e "${GREEN}[7] 视觉姿态估计...${NC}"
 launch "VPE" "export PATH=\"/usr/bin:\$PATH\" && ros2 launch visual_pose_estimation_python visual_pose_estimation_python.launch.py"
 
-active_wait service "/estimate_pose" 15 "estimate_pose 服务"
+active_wait service "/estimate_pose" 15 "estimate_pose 服务" || true
 
 # ═══════════════════════════════════════════════════════════════
 # [14] FastAPI Web (提前启动 — 依赖 estimate_pose，与 GraspNet/Workers 并行)
@@ -306,7 +304,7 @@ launch "FastAPI Web" "ros2 launch visual_pose_estimation_python visual_pose_esti
 
 echo -e "${GREEN}[8] GraspNet 点云...${NC}"
 launch "GraspNet" "ros2 launch graspnet_ros2 graspnet_demo_points_with_tf.launch.py launch_camera:=false launch_hand_eye_tf:=true"
-active_wait topic "/grasp_poses_base" 20 "grasp_poses_base 话题"
+active_wait topic "/grasp_poses_base" 20 "grasp_poses_base 话题" || true
 
 # ═══════════════════════════════════════════════════════════════
 # [9-12] 工位与执行 (并行启动)
@@ -325,9 +323,9 @@ echo -e "${GREEN}[12] GraspNet 循环抓取...${NC}"
 launch "Publish Grasps" "ros2 run demo_driver publish_grasps_client_worker_node"
 
 # 等待关键服务就绪
-active_wait service "/run_gripper_swap" 10 "run_gripper_swap 服务"
-active_wait service "/change_tool" 5   "change_tool 服务"
-active_wait service "/set_latte_do2" 5 "set_latte_do2 服务"
+active_wait service "/run_gripper_swap" 10 "run_gripper_swap 服务" || true
+active_wait service "/change_tool" 15  "change_tool 服务" || true
+active_wait service "/set_latte_do2" 5 "set_latte_do2 服务" || true
 
 # ═══════════════════════════════════════════════════════════════
 # [13] 综合校验 (ROS 服务 + Web 健康检查)
@@ -344,8 +342,8 @@ echo -e "${GREEN}[13] 综合校验...${NC}"
 )
 
 # 等待提前启动的 Web 服务就绪
-active_wait http "http://${WEB_HOST}:${WEB_PORT}/health" 30 "FastAPI /health"
-active_wait http "http://127.0.0.1:${WEB_DASH_PORT}/health" 20 "Web Dashboard /health"
+active_wait http "http://${WEB_HOST}:${WEB_PORT}/health" 30 "FastAPI /health" || true
+active_wait http "http://127.0.0.1:${WEB_DASH_PORT}/health" 20 "Web Dashboard /health" || true
 
 # ═══════════════════════════════════════════════════════════════
 # 完成

@@ -12,7 +12,17 @@
  *   - 顶部: SiteNav (h-12 = 3rem)
  *   - 中间: RouterView (min-height = 100vh - 8rem, 留出上下空间)
  *   - 底部: RobotStatusBar (h-8 = 2rem, fixed)
+ *
+ * 全局 ROS 连接: App 挂载时自动建立 rosbridge 连接（单例共享），
+ * 所有子页面通过 useRos() 共享同一条连接。
  */
+import { useRos } from '@/composables/useRos'
+
+const { connect, isConnected } = useRos()
+
+onMounted(() => {
+  if (!isConnected()) connect().catch(() => { /* 首次连接失败由 useRos 内部自动重连 */ })
+})
 </script>
 
 <template>

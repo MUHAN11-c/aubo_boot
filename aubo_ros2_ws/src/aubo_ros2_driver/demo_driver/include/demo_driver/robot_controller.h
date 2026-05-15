@@ -31,6 +31,9 @@ public:
     explicit RobotController(rclcpp::Node* owner,
                              const std::string& planning_group = "manipulator");
 
+    /** 两阶段初始化: 构造后必须调用 init() 才能使用运动/IO 功能 */
+    bool init();
+
     // ── 运动 ──
     bool moveToHome(float vel = 0.5f, float acc = 0.5f);
     bool moveToJoints(const std::array<double, 6>& joints, float vel, float acc);
@@ -60,6 +63,7 @@ public:
 
 private:
     rclcpp::Node* node_;
+    std::string planning_group_;
     std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
     rclcpp::Client<ivg_interfaces::srv::SetRobotIO>::SharedPtr io_client_;
     std::string eef_link_;

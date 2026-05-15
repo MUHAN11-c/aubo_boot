@@ -38,22 +38,23 @@ from geometry_msgs.msg import Pose
 from .trajectory import CartesianTrajectory
 
 
-def is_default_pose(pose: Pose) -> bool:
-    """判断 Pose 是否为 ROS2 默认值 (未显式设置 start_pose) 喵~
-
-    ROS2 service call 未填 start_pose 字段时，所有数值默认为 0，
-    orientation.w 默认为 1.0 (identity quaternion) 喵~
-
-    Returns:
-        True 如果 pose 是所有字段为默认零/identity 喵~
-    """
+def is_default_position(pose: Pose) -> bool:
+    """position 三字段全零 → 自动从 TF 获取位置喵~"""
     return (abs(pose.position.x) < 1e-9 and
             abs(pose.position.y) < 1e-9 and
-            abs(pose.position.z) < 1e-9 and
-            abs(pose.orientation.x) < 1e-9 and
+            abs(pose.position.z) < 1e-9)
+
+
+def is_default_orientation(pose: Pose) -> bool:
+    """orientation=(0,0,0,1) → 不旋转轨迹朝向 (纯平移) 喵~"""
+    return (abs(pose.orientation.x) < 1e-9 and
             abs(pose.orientation.y) < 1e-9 and
             abs(pose.orientation.z) < 1e-9 and
             abs(pose.orientation.w - 1.0) < 1e-9)
+
+
+# 向后兼容别名喵~
+is_default_pose = lambda pose: is_default_position(pose) and is_default_orientation(pose)
 
 
 def quat_to_rot(q):
@@ -118,54 +119,69 @@ def quat_multiply(q1, q2):
     ])
 
 
-def apply_start_pose(cart: CartesianTrajectory, start_pose: Pose) -> CartesianTrajectory:
-    """将轨迹做 6-DOF 刚性变换，使第一帧对齐到相机检测的杯子位姿喵~
+def euler_deg_to_quat(roll_deg: float, pitch_deg: float, yaw_deg: float) -> np.ndarray:
+    """欧拉角(度) → 四元数 [x, y, z, w] (Hamilton, 内旋 ZYX = 外旋 XYZ) 喵~
+
+    Args:
+        roll_deg:  绕 X 轴旋转角度 (度)
+        pitch_deg: 绕 Y 轴旋转角度 (度)
+        yaw_deg:   绕 Z 轴旋转角度 (度)
+
+    Returns:
+        np.ndarray [x, y, z, w] 四元数喵~
+    """
+    roll, pitch, yaw = np.radians([roll_deg, pitch_deg, yaw_deg])
+    cr, sr = np.cos(roll * 0.5), np.sin(roll * 0.5)
+    cp, sp = np.cos(pitch * 0.5), np.sin(pitch * 0.5)
+    cy, sy = np.cos(yaw * 0.5), np.sin(yaw * 0.5)
+    return np.array([
+        sr * cp * cy - cr * sp * sy,   # x
+        cr * sp * cy + sr * cp * sy,   # y
+        cr * cp * sy - sr * sp * cy,   # z
+        cr * cp * cy + sr * sp * sy,   # w
+    ])
+
+
+def apply_start_pose(cart: CartesianTrajectory, start_pose: Pose,
+                     rotate_orientation: bool = True) -> CartesianTrajectory:
+    """将轨迹做刚性变换，使第一帧对齐到目标位姿喵~
 
     变换步骤:
-      1. 以第一帧位置 p0 为旋转中心 (杯子上方) 喵~
-      2. 计算 R_rel = R_target @ R_orig^T (原始姿态 → 目标姿态的相对旋转) 喵~
+      1. 以第一帧位置 p0 为旋转中心喵~
+      2. rotate_orientation=True:  R_rel = R_target @ R_orig^T (原始→目标相对旋转) 喵~
+         rotate_orientation=False: R_rel = I (纯平移，不旋转轨迹朝向) 喵~
       3. 对所有轨迹点: p_new = R_rel @ (p - p0) + p_target 喵~
 
     Args:
         cart: 原始 CartesianTrajectory (RM65 base frame, episode_*.npz) 喵~
-        start_pose: 目标起点位姿 (AUBO base frame, 相机检测到的杯子位姿) 喵~
-                    position: 杯子在世界坐标系中的位置喵~
-                    orientation: 杯子的朝向 (四元数 xyzw) 喵~
+        start_pose: 目标起点位姿 (AUBO base frame) 喵~
+        rotate_orientation: True=全6-DOF变换 (orientation对齐) / False=纯平移 喵~
 
     Returns:
         变换后的 CartesianTrajectory，路径长度不变 (刚性变换保距) 喵~
-
-    Example:
-        # 杯子在 (0.3, 0.0, 0.5)，杯口朝前 (identity)
-        apply_start_pose(cart, Pose(position=(0.3, 0, 0.5), orientation=(0,0,0,1)))
-
-        # 杯子倾斜 180° (绕 Z 轴翻转)
-        apply_start_pose(cart, Pose(position=(0.3, 0, 0.5), orientation=(0,0,1,0)))
     """
     p0 = cart.positions[0].copy()
     p_target = np.array([start_pose.position.x,
                          start_pose.position.y,
                          start_pose.position.z])
 
-    # 原始第一帧姿态 — trajectory 数据中可能无 orientation (纯位置轨迹) 喵~
-    q_orig = (cart.orientations[0] if cart.orientations is not None
-              else np.array([0., 0., 0., 1.]))
-    q_tgt = np.array([start_pose.orientation.x, start_pose.orientation.y,
-                      start_pose.orientation.z, start_pose.orientation.w])
+    if rotate_orientation:
+        q_orig = (cart.orientations[0] if cart.orientations is not None
+                  else np.array([0., 0., 0., 1.]))
+        q_tgt = np.array([start_pose.orientation.x, start_pose.orientation.y,
+                          start_pose.orientation.z, start_pose.orientation.w])
+        R_rel = quat_to_rot(q_tgt) @ quat_to_rot(q_orig).T
+    else:
+        # 纯平移: 不做朝向旋转, 保持原始轨迹的运动方向喵~
+        R_rel = np.eye(3)
 
-    R_orig = quat_to_rot(q_orig)
-    R_tgt = quat_to_rot(q_tgt)
-    R_rel = R_tgt @ R_orig.T  # 相对旋转: 原始姿态 → 目标姿态喵~
-
-    # 变换所有轨迹点: 先绕杯子中心旋转，再平移到杯子位置喵~
     new_positions = np.array([R_rel @ (p - p0) + p_target for p in cart.positions])
 
-    # 旋转 orientation: q_new = q_rel * q_orig (Hamilton 乘积) 喵~
-    if cart.orientations is not None:
-        q_rel = rot_to_quat(R_rel)
+    if cart.orientations is not None and rotate_orientation:
+        q_rel = rot_to_quat(R_rel) if rotate_orientation else np.array([0., 0., 0., 1.])
         new_orientations = np.array([quat_multiply(q_rel, q) for q in cart.orientations])
     else:
-        new_orientations = None
+        new_orientations = None if cart.orientations is None else cart.orientations.copy()
 
     return CartesianTrajectory(
         positions=new_positions,

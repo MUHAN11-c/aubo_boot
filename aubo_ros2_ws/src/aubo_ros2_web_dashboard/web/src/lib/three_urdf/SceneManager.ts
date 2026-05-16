@@ -17,6 +17,7 @@ const AXES_SCALE = 0.35
 const GRID_COLOR = '#cbd5e1'
 const GRID_CELLS = 10
 const DESKTOP_PIXEL_RATIO_MAX = 1.5
+const ROS_UP = new THREE.Vector3(0, 0, 1)
 
 export class SceneManager {
   scene: THREE.Scene
@@ -40,7 +41,9 @@ export class SceneManager {
     const w = host.clientWidth || 400
     const h = Math.max(240, host.clientHeight || Math.round(w * 0.72))
     this.camera = new THREE.PerspectiveCamera(45, w / Math.max(1, h), 0.1, 100)
-    this.camera.position.set(3, 3, 3)
+    // ROS/RViz 使用 Z-up，Three.js 默认 Y-up；viewer 侧改为 Z-up，避免旋转 TF/URDF 数据喵~
+    this.camera.up.copy(ROS_UP)
+    this.camera.position.set(3, -3, 2.2)
 
     // 渲染器
     this.renderer = new THREE.WebGLRenderer({ antialias: !this._isCoarsePointer() })
@@ -51,13 +54,16 @@ export class SceneManager {
     // OrbitControls
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
     this.controls.zoomSpeed = 0.5
+    this.controls.target.set(0, 0, 0)
     this.controls.update()
 
     // 网格
     this._grid = new THREE.GridHelper(GRID_CELLS, GRID_CELLS, GRID_COLOR, GRID_COLOR)
+    // GridHelper 默认是 XZ 平面（Y-up 地面），这里旋到 ROS 的 XY 平面（Z-up 地面）喵~
+    this._grid.rotation.x = Math.PI / 2
     this.scene.add(this._grid)
 
-    // 坐标轴
+    // 坐标轴：Three.js AxesHelper 默认配色为 X=红、Y=绿、Z=蓝喵~
     this._axes = new THREE.AxesHelper(AXES_SCALE)
     this.scene.add(this._axes)
 
@@ -110,7 +116,8 @@ export class SceneManager {
     const distFactor = opts?.distanceFactor ?? 2.8
     const minDist = opts?.minDistance ?? 0.48
     const dist = Math.max(minDist, radius * distFactor)
-    this.camera.position.set(center.x + dist, center.y + dist * 0.72, center.z + Math.max(dist * 0.52, radius * 1.8))
+    this.camera.up.copy(ROS_UP)
+    this.camera.position.set(center.x + dist, center.y - dist * 0.72, center.z + Math.max(dist * 0.52, radius * 1.8))
     this.camera.lookAt(center)
     this.controls.target.copy(center)
     this.controls.update()

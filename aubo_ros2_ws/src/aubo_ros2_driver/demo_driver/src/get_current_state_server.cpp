@@ -30,17 +30,20 @@ GetCurrentStateServer::GetCurrentStateServer(const rclcpp::NodeOptions& options)
     fk_client_ = create_client<ivg_interfaces::srv::GetFK>(
         "/aubo_driver/get_fk", rmw_qos_profile_services_default, client_cb_group_);
 
-    move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
-        shared_from_this(), planning_group_name_);
-    move_group_->setPoseReferenceFrame(base_frame_);
-    end_effector_link_ = move_group_->getEndEffectorLink();
-
     service_ = create_service<ivg_interfaces::srv::GetCurrentState>(
         "/get_current_state",
         [this](const std::shared_ptr<ivg_interfaces::srv::GetCurrentState::Request> /*req*/,
                std::shared_ptr<ivg_interfaces::srv::GetCurrentState::Response> res) {
           getCurrentStateCallback(res);
         });
+}
+
+void GetCurrentStateServer::init()
+{
+    move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
+        shared_from_this(), planning_group_name_);
+    move_group_->setPoseReferenceFrame(base_frame_);
+    end_effector_link_ = move_group_->getEndEffectorLink();
 
     RCLCPP_INFO(get_logger(), "GetCurrentStateServer ready");
 }
@@ -141,6 +144,7 @@ int main(int argc, char** argv)
     rclcpp::init(argc, argv);
     rclcpp::NodeOptions opts; opts.automatically_declare_parameters_from_overrides(true);
     auto node = std::make_shared<demo_driver::GetCurrentStateServer>(opts);
+    node->init();
 
     rclcpp::executors::MultiThreadedExecutor exec(rclcpp::ExecutorOptions(), 2);
     exec.add_node(node);

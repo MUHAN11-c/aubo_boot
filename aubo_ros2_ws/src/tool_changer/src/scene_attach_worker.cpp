@@ -1,14 +1,12 @@
 /**
  * @file scene_attach_worker.cpp
- * @brief 通过 AttachedCollisionObject + 动态 URDF 管理工具碰撞。
+ * @brief 通过 AttachedCollisionObject 管理 MoveIt 规划场景中的已连接工具碰撞喵~
  *
- * 两层协作：
- *   1. AttachedCollisionObject (/planning_scene diff) — move_group 感知碰撞、用于规划避障
- *   2. URDF <collision> — RViz 视觉渲染 + robot_state_publisher TF
- *
- * 工具切换时：
- *   脱离：REMOVE AttachedCollisionObject + 更新空工具 URDF
- *   附着：ADD AttachedCollisionObject（网格附着到 kuaihuan_Link）+ 更新含工具 URDF
+ * 发布两类增量消息（均为 QoS depth=10 + transient_local）喵~
+ *   - `/attached_collision_object` — ADD / REMOVE `AttachedCollisionObject`（附着到 kuaihuan_Link）喵~
+ *   - `/planning_scene`（is_diff=true）— `world.collision_objects` REMOVE `attached_tool_<id>`，
+ *     清除 detach 后可能残留在 world 中的同名对象，避免误判碰撞喵~
+ * 工具相对法兰位姿来自 `tools.yaml::attach_offset`，本节点不发布 `/robot_description`、不改 URDF 喵~
  */
 
 #include "tool_changer/scene_attach_worker.h"
@@ -17,37 +15,13 @@
 #include <resource_retriever/retriever.hpp>
 #include <yaml-cpp/yaml.h>
 
-#include <cstdio>
+#include <chrono>
 #include <cstring>
 #include <map>
-#include <sstream>
 #include <tuple>
 
 namespace tool_changer
 {
-
-// ═══════════════════════════════════════════════════════════════════════
-// 工具函数
-// ═══════════════════════════════════════════════════════════════════════
-
-namespace
-{
-
-/// 调用 xacro 生成 URDF 字符串；失败返回空
-std::string runXacro(const std::string& xacro_path, const std::string& extra_args)
-{
-  std::ostringstream cmd;
-  cmd << "xacro " << xacro_path << " " << extra_args << " 2>/dev/null";
-  FILE* pipe = popen(cmd.str().c_str(), "r");
-  if (!pipe) return {};
-  std::string out;
-  char buf[4096];
-  while (fgets(buf, sizeof(buf), pipe)) out += buf;
-  pclose(pipe);
-  return out;
-}
-
-}  // namespace
 
 // ═══════════════════════════════════════════════════════════════════════
 // 构造函数
@@ -59,9 +33,8 @@ SceneAttachWorker::SceneAttachWorker(const rclcpp::NodeOptions& options)
   // ── Publisher ──────────────────────────────────────────────────────
   planning_scene_pub_ = create_publisher<moveit_msgs::msg::PlanningScene>(
       "/planning_scene", rclcpp::QoS(10).transient_local());
-
-  robot_description_pub_ = create_publisher<std_msgs::msg::String>(
-      "/robot_description", rclcpp::QoS(1).transient_local());
+  attached_object_pub_ = create_publisher<moveit_msgs::msg::AttachedCollisionObject>(
+      "/attached_collision_object", rclcpp::QoS(10).transient_local());
 
   // ── Subscription ───────────────────────────────────────────────────
   tool_status_sub_ = create_subscription<ivg_interfaces::msg::ToolChangerStatus>(
@@ -78,26 +51,9 @@ SceneAttachWorker::SceneAttachWorker(const rclcpp::NodeOptions& options)
   // ── 加载工具配置 ──────────────────────────────────────────────────
   loadToolConfig();
 
-  // ── 预生成 URDF 缓存 ──────────────────────────────────────────────
-  param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, "robot_state_publisher");
-
-  const std::string xacro_path =
-    ament_index_cpp::get_package_share_directory("aubo_moveit_config") +
-    "/config/aubo_e5.urdf.xacro";
-
-  for (const auto& [tid, geom] : tool_geometries_)
-  {
-    std::string urdf = runXacro(xacro_path, "gripper:=" + tid + " use_fake_hardware:=true");
-    if (!urdf.empty()) {
-      urdf_cache_[tid] = urdf;
-      RCLCPP_INFO(get_logger(), "URDF 缓存: %s (%zu bytes)", tid.c_str(), urdf.size());
-    }
-  }
-  // 无工具 URDF
-  std::string empty_urdf = runXacro(xacro_path, "use_fake_hardware:=true");
-  if (!empty_urdf.empty()) urdf_cache_[""] = empty_urdf;
-
-  RCLCPP_INFO(get_logger(), "就绪 | %zu 工具 | 监听 /tool_changer_status | /scene_attach /scene_detach",
+  RCLCPP_INFO(get_logger(),
+              "就绪 | %zu 工具 | /attached_collision_object(ACO) + /planning_scene(world REMOVE) | "
+              "sub /tool_changer_status | srv /scene_attach /scene_detach",
               tool_geometries_.size());
 }
 
@@ -282,14 +238,11 @@ void SceneAttachWorker::onToolStatus(const ivg_interfaces::msg::ToolChangerStatu
   if (!new_tool.empty())
     attachToolToScene(new_tool);
 
-  // 更新 URDF（仅在附着新工具时）
-  updateRobotDescription(new_tool);
-
   current_attached_tool_ = new_tool;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// AttachedCollisionObject 管理
+// MoveIt：`/attached_collision_object`（ACO）+ `/planning_scene`（world REMOVE 清残留）
 // ═══════════════════════════════════════════════════════════════════════
 
 void SceneAttachWorker::attachToolToScene(const std::string& tool_id)
@@ -299,29 +252,29 @@ void SceneAttachWorker::attachToolToScene(const std::string& tool_id)
     RCLCPP_WARN(get_logger(), "attachTool: 未知工具 %s", tool_id.c_str());
     return;
   }
-
-  moveit_msgs::msg::PlanningScene scene;
-  scene.is_diff = true;
-  scene.robot_state.is_diff = true;
+  removeWorldToolObject(tool_id);  // ADD 前先清 world，避免同名 attached_tool_* 重复喵~
 
   auto att = moveit_msgs::msg::AttachedCollisionObject{};
   att.object.id = "attached_tool_" + tool_id;
+  att.object.header.frame_id = "kuaihuan_Link";
   att.object.operation = moveit_msgs::msg::CollisionObject::ADD;
+  att.object.pose = it->second.attach_offset;
   att.link_name = "kuaihuan_Link";
   att.touch_links = it->second.touch_links;
 
   att.object.meshes.push_back(it->second.mesh_collision);
   auto mesh_pose = geometry_msgs::msg::Pose{};
-  mesh_pose.position.x = 0.0;
-  mesh_pose.position.y = 0.0;
-  mesh_pose.position.z = 0.0;
-  mesh_pose.orientation = it->second.attach_offset.orientation;
+  mesh_pose.orientation.w = 1.0;
   att.object.mesh_poses.push_back(mesh_pose);
 
-  scene.robot_state.attached_collision_objects.push_back(att);
-
-  planning_scene_pub_->publish(scene);
-  RCLCPP_INFO(get_logger(), "AttachedCollisionObject ADD: %s → kuaihuan_Link", tool_id.c_str());
+  attached_object_pub_->publish(att);
+  removeWorldToolObject(tool_id);  // 附着前后各清一次，避免 world 里留有陈旧 attached_tool_* 副本喵~
+  RCLCPP_INFO(get_logger(),
+              "AttachedCollisionObject ADD: %s → kuaihuan_Link | offset xyz=(%.4f, %.4f, %.4f)",
+              tool_id.c_str(),
+              it->second.attach_offset.position.x,
+              it->second.attach_offset.position.y,
+              it->second.attach_offset.position.z);
 }
 
 void SceneAttachWorker::detachToolFromScene(const std::string& tool_id)
@@ -329,19 +282,28 @@ void SceneAttachWorker::detachToolFromScene(const std::string& tool_id)
   auto it = tool_geometries_.find(tool_id);
   if (it == tool_geometries_.end()) return;
 
-  moveit_msgs::msg::PlanningScene scene;
-  scene.is_diff = true;
-  scene.robot_state.is_diff = true;
-
   auto att = moveit_msgs::msg::AttachedCollisionObject{};
   att.object.id = "attached_tool_" + tool_id;
   att.object.operation = moveit_msgs::msg::CollisionObject::REMOVE;
   att.link_name = "kuaihuan_Link";
 
-  scene.robot_state.attached_collision_objects.push_back(att);
+  attached_object_pub_->publish(att);
+  removeWorldToolObject(tool_id);  // detach 后 MoveIt 可能把对象放回 world，必须 REMOVE 以免挡笛卡尔路径喵~
+  RCLCPP_INFO(get_logger(), "AttachedCollisionObject REMOVE: %s", tool_id.c_str());
+}
+
+void SceneAttachWorker::removeWorldToolObject(const std::string& tool_id)
+{
+  // 仅发送 world 增量 REMOVE，不把 ACO 塞进 PlanningScene 消息（ACO 走专用 topic）喵~
+  moveit_msgs::msg::PlanningScene scene;
+  scene.is_diff = true;
+
+  auto obj = moveit_msgs::msg::CollisionObject{};
+  obj.id = "attached_tool_" + tool_id;
+  obj.operation = moveit_msgs::msg::CollisionObject::REMOVE;
+  scene.world.collision_objects.push_back(obj);
 
   planning_scene_pub_->publish(scene);
-  RCLCPP_INFO(get_logger(), "AttachedCollisionObject REMOVE: %s", tool_id.c_str());
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -358,7 +320,6 @@ void SceneAttachWorker::onSceneAttach(
       detachToolFromScene(current_attached_tool_);
     attachToolToScene(req->tool_id);
     current_attached_tool_ = req->tool_id;
-    updateRobotDescription(req->tool_id);
   }
   resp->success = found;
   resp->message = found ? ("附着: " + req->tool_id) : ("未知工具: " + req->tool_id);
@@ -372,48 +333,9 @@ void SceneAttachWorker::onSceneDetach(
   if (found && current_attached_tool_ == req->tool_id) {
     detachToolFromScene(req->tool_id);
     current_attached_tool_.clear();
-    updateRobotDescription("");
   }
   resp->success = found;
   resp->message = found ? ("脱离: " + req->tool_id) : ("未知工具: " + req->tool_id);
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// robot_description 更新
-// ═══════════════════════════════════════════════════════════════════════
-
-void SceneAttachWorker::updateRobotDescription(const std::string& tool_id)
-{
-  auto it = urdf_cache_.find(tool_id);
-  if (it == urdf_cache_.end()) {
-    RCLCPP_WARN(get_logger(), "URDF 缓存未命中: %s", tool_id.c_str());
-    return;
-  }
-  const auto& urdf = it->second;
-  if (urdf.empty()) return;
-
-  // 发布到 /robot_description → RViz2 重载
-  auto msg = std::make_unique<std_msgs::msg::String>();
-  msg->data = urdf;
-  robot_description_pub_->publish(std::move(msg));
-
-  // 设置 robot_state_publisher 参数 → TF 树重建
-  if (!param_client_->wait_for_service(std::chrono::seconds(2))) {
-    RCLCPP_ERROR(get_logger(), "robot_state_publisher 不可达");
-    return;
-  }
-  param_client_->set_parameters(
-    {rclcpp::Parameter("robot_description", urdf)},
-    [this, tool_id](std::shared_future<std::vector<rcl_interfaces::msg::SetParametersResult>> future) {
-      try {
-        auto results = future.get();
-        bool ok = !results.empty() && results[0].successful;
-        RCLCPP_INFO(get_logger(), "robot_description 更新: %s → %s",
-                    ok ? "OK" : "FAIL", tool_id.c_str());
-      } catch (...) {
-        RCLCPP_ERROR(get_logger(), "robot_description 更新异常");
-      }
-    });
 }
 
 }  // namespace tool_changer

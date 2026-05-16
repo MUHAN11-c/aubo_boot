@@ -10,7 +10,12 @@
  *   - 支持 rosbridge WebSocket (通过回调注入)
  */
 import * as THREE from 'three'
-import { normalizeFrameId, ivgCloneTransform } from '@/lib/tf_math'
+import {
+  normalizeFrameId,
+  ivgCloneTransform,
+  ivgFindRelativeTransform,
+  type Transform,
+} from '@/lib/tf_math'
 
 interface TfEdge {
   parent: string
@@ -72,36 +77,43 @@ export class TfUpdater {
     const tf = normalizeFrameId(targetFrame)
     const bf = normalizeFrameId(baseFrame)
     if (!tf || !bf) return null
-
-    // 构建从 target 到 base 的 TF 链
-    const chain: Array<{ frame: string; edge: TfEdge }> = []
-    let cur = tf
-    const seen = new Set<string>()
-    for (let i = 0; i < 256; i++) {
-      if (cur === bf) break
-      const edge = this._edges.get(cur)
-      if (!edge || seen.has(cur)) break
-      seen.add(cur)
-      chain.push({ frame: cur, edge })
-      cur = edge.parent
-    }
-
-    if (chain.length === 0 && tf === bf) {
+    if (tf === bf) {
       return { translation: new THREE.Vector3(0, 0, 0), rotation: new THREE.Quaternion(0, 0, 0, 1) }
     }
-
-    // 合成变换（从 target 回溯到 base）
-    const translation = new THREE.Vector3(0, 0, 0)
-    const rotation = new THREE.Quaternion(0, 0, 0, 1)
-    for (const item of chain) {
-      const e = item.edge
-      const q = new THREE.Quaternion(e.rotation.x, e.rotation.y, e.rotation.z, e.rotation.w)
-      const t = new THREE.Vector3(e.translation.x, e.translation.y, e.translation.z)
-      // 先旋转再平移
-      translation.add(t.applyQuaternion(rotation))
-      rotation.multiply(q)
+    const edges: Record<string, { parent: string; transform: Transform }> = {}
+    for (const [child, edge] of this._edges) {
+      edges[child] = {
+        parent: edge.parent,
+        transform: {
+          translation: edge.translation,
+          rotation: edge.rotation,
+        },
+      }
     }
-    return { translation, rotation }
+    const tfBaseToTarget = ivgFindRelativeTransform(bf, tf, edges)
+    if (!tfBaseToTarget) return null
+    return {
+      translation: new THREE.Vector3(
+        tfBaseToTarget.translation.x,
+        tfBaseToTarget.translation.y,
+        tfBaseToTarget.translation.z
+      ),
+      rotation: new THREE.Quaternion(
+        tfBaseToTarget.rotation.x,
+        tfBaseToTarget.rotation.y,
+        tfBaseToTarget.rotation.z,
+        tfBaseToTarget.rotation.w
+      ).normalize(),
+    }
+  }
+
+  /** 按 fixedFrame→link TF 更新单个 link，等价旧版 ROS3D TF following 喵~ */
+  updateLinkTransform(obj: THREE.Object3D, linkName: string, fixedFrame: string): boolean {
+    const tf = this.getTransform(linkName, fixedFrame)
+    if (!tf) return false
+    obj.position.copy(tf.translation)
+    obj.quaternion.copy(tf.rotation)
+    return true
   }
 
   /**

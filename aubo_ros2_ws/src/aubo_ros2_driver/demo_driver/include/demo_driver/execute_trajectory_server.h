@@ -16,6 +16,8 @@ class ExecuteTrajectoryServer : public rclcpp::Node
 public:
     explicit ExecuteTrajectoryServer(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
+    void init();
+
 private:
     std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
 

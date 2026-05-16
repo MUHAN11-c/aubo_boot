@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""最小化测试：用简单盒子测试 attach 到 kuaihuan_Link"""
+"""独立脚本：直接向 /planning_scene 发 diff（与 scene_attach_worker 生产路径不同）。
+
+生产环境工具附着请使用节点 scene_attach_worker（/attached_collision_object + world REMOVE）
+或服务 /scene_attach、话题 /tool_changer_status喵~
+"""
 import time
 import rclpy
 from rclpy.node import Node

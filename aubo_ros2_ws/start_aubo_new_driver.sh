@@ -62,9 +62,10 @@ WEB_DASH_PORT="${WEB_DASH_PORT:-8090}"
 ROSBRIDGE_PORT="${ROSBRIDGE_PORT:-9090}"
 IVG_ROSBAG_DIR="${IVG_ROSBAG_DIR:-rosbags/ivg_session}"
 IVG_ROSBAG_TOPICS="${IVG_ROSBAG_TOPICS:-}"
-HAND_EYE_PORT="${HAND_EYE_PORT:-8080}"
+HAND_EYE_PORT="${HAND_EYE_PORT:-8070}"
 WEB_VIDEO_PORT="${WEB_VIDEO_PORT:-8089}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
+SKIP_WEB_BUILD="${SKIP_WEB_BUILD:-0}"
 SKIP_ROSBAG="${SKIP_ROSBAG:-0}"
 
 # ═══════════════════════════════════════════════════════════════
@@ -194,6 +195,26 @@ else
     echo -e "${GREEN}[0] 构建...${NC}"
     (
         cd "$WS"
+        WEB_DASH_WEB_DIR="${WS}/src/aubo_ros2_web_dashboard/web"
+        if [ "$SKIP_WEB_BUILD" = "1" ]; then
+            echo -e "${YELLOW}  → 跳过 Web Dashboard 前端构建 (SKIP_WEB_BUILD=1)${NC}"
+        elif [ -f "${WEB_DASH_WEB_DIR}/package.json" ]; then
+            echo -e "${BLUE}  → 构建 Web Dashboard Vue 3 前端...${NC}"
+            if ! command -v npm >/dev/null 2>&1; then
+                echo -e "${RED}npm 未安装，无法构建 Web Dashboard 前端。请先安装 Node.js/npm 或设置 SKIP_WEB_BUILD=1${NC}"
+                exit 1
+            fi
+            cd "$WEB_DASH_WEB_DIR"
+            if [ ! -d "node_modules" ]; then
+                echo -e "${BLUE}    → node_modules 不存在，执行 npm ci...${NC}"
+                npm ci
+            fi
+            rm -rf dist .vite
+            npm run build
+            cd "$WS"
+        else
+            echo -e "${YELLOW}  ⚠ 未找到 Web Dashboard package.json，跳过前端构建${NC}"
+        fi
         source "$ROS2_SETUP"
         if [ "$FIRST_BUILD" = "0" ]; then
             source install/setup.bash
@@ -284,7 +305,7 @@ active_wait topic "/camera_status" 10 "相机状态话题" || true
 # ═══════════════════════════════════════════════════════════════
 
 echo -e "${GREEN}[6] 手眼标定...${NC}"
-launch "Hand Eye" "ros2 launch hand_eye_calibration hand_eye_calibration_launch.py enable_image_data_converter:=true"
+launch "Hand Eye" "ros2 launch hand_eye_calibration hand_eye_calibration_launch.py enable_image_data_converter:=true web_port:=${HAND_EYE_PORT}"
 
 echo -e "${GREEN}[7] 视觉姿态估计...${NC}"
 launch "VPE" "export PATH=\"/usr/bin:\$PATH\" && ros2 launch visual_pose_estimation_python visual_pose_estimation_python.launch.py"

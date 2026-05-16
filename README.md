@@ -209,7 +209,7 @@ move_group → follow_joint_trajectory (action)
 | 节点 | 可执行文件 | 职责 |
 |------|-----------|------|
 | **gripper_swap_worker** | `gripper_swap_worker_node` | 物理快换：MoveGroupInterface 运动规划 + IO 控制（四类轨迹原语） |
-| **scene_attach_worker** | `scene_attach_worker_node` | 虚拟更新：PlanningScene 附着 + `robot_description` 参数实时更新（三节点同步） |
+| **scene_attach_worker** | `scene_attach_worker_node` | MoveIt：`/attached_collision_object` 附着工具碰撞；`/planning_scene` world REMOVE 清理 detach 残留；**不**改 `robot_description` |
 
 服务：`/run_gripper_swap`、`/change_tool`、`/get_current_tool`、`/scene_attach`、`/scene_detach`
 
@@ -270,13 +270,12 @@ move_group → follow_joint_trajectory (action)
   └── /loop_grasp_control ← 前端 → 循环抓取控制
 
 快换管理 (tool_changer)
-  gripper_swap_worker: 物理快换运动 + IO 控制
-    ├─ publishToolStatus(false) ← 切换前清除（避免碰撞干扰）
-    ├─ 执行切换运动（moveToJoints + CartesianPath + IO）
-    └─ publishToolStatus("gripperX") ← 切换后发布
-         └→ scene_attach_worker
-              ├─ PlanningScene 附着（RViz2 Scene Robot 实时显示）
-              └─ URDF 参数更新 → robot_state_publisher/rviz2/move_group → Web 前端
+  gripper_swap_worker: 物理快换运动 + IO（`/set_robot_io`）
+    ├─ `changeToTool`：`/scene_detach` → `releaseTool` → `publishToolStatus(false)` → `pickTool` → `publishToolStatus(true)` → `moveToHome`
+    └→ scene_attach_worker（订阅 `/tool_changer_status`）
+          ├─ `/attached_collision_object`：ACO ADD/REMOVE
+          └─ `/planning_scene`：world REMOVE `attached_tool_<id>`（无 dock 静态障碍物 ADD）
+  Web：`Robot3dViewer` 仅根据 `/tool_changer_status` + TF + `attach_offset` 显示工具 STL（不等后端改 URDF）
 
 咖啡拉花 (coffee_latte_demo)
   ├── /set_latte_do2 ← 前端 → /aubo_driver/set_io(io_index=2)

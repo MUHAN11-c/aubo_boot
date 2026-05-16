@@ -10,7 +10,7 @@ fi
 # 在 start_IVG_graspnet_points_fastapi.sh 基础上增加：tool_changer 快换管理 + coffee_latte_demo 咖啡拉花 + rosbridge + tf2_web_republisher + web_video_server + FastAPI 静态网关（8090）
 # Dashboard 直接消费 src/robotwebtools/runtime_js_assets（由 build_robotwebtools.sh 自动汇总生成）。
 # 端口：WEB_DASH_PORT=8090 网关（静态页 + 同源 /ws/rosbridge + /api/ivg/proxy/web-video）；WEB_VIDEO_PORT=8089（仅网关本机连上游 MJPEG）；
-#       ROSBRIDGE_PORT=9090（仅网关本机连上游 rosbridge）；VPE FastAPI WEB_PORT=8088；HAND_EYE_PORT=8080。
+#       ROSBRIDGE_PORT=9090（仅网关本机连上游 rosbridge）；VPE FastAPI WEB_PORT=8088；HAND_EYE_PORT=8070。
 # 使用 terminator 创建分屏终端
 
 set -e
@@ -47,7 +47,7 @@ IVG_STRIP_PROXY_FOR_DASH_LAUNCH="${IVG_STRIP_PROXY_FOR_DASH_LAUNCH:-true}"
 IVG_ROSBAG_DIR="${IVG_ROSBAG_DIR:-${AUBO_ROS2_WS}/rosbags/ivg_session}"
 IVG_ROSBAG_TOPICS="${IVG_ROSBAG_TOPICS:-}"
 # 手眼 Web 端口（仅用于结束时的链接提示；实际以 hand_eye launch 为准）
-HAND_EYE_PORT="${HAND_EYE_PORT:-8080}"
+HAND_EYE_PORT="${HAND_EYE_PORT:-8070}"
 # web_video_server（MJPEG），默认 8089，避免与手眼 8080、静态站 8090、FastAPI 8088 冲突
 WEB_VIDEO_PORT="${WEB_VIDEO_PORT:-8089}"
 # 网页 3D 瘦点云：与 web_dashboard 同进程启动 ivg_pointcloud_web_throttle（/points -> /points_web）

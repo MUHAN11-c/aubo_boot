@@ -1,7 +1,8 @@
 /*
- * /plan_trajectory — 规划从当前位姿到目标的关节轨迹。构造函数内完成初始化。
+ * /plan_trajectory — 规划从当前位姿到目标的关节轨迹。
  * use_joints=true → IK 服务 → setJointValueTarget → plan
  * use_joints=false → setPoseTarget → plan
+ * MoveGroupInterface 在 init() 中创建（避免构造函数内 shared_from_this 导致 bad_weak_ptr）喵~
  */
 #include "demo_driver/plan_trajectory_server.h"
 #include <rclcpp/rclcpp.hpp>
@@ -22,12 +23,6 @@ PlanTrajectoryServer::PlanTrajectoryServer(const rclcpp::NodeOptions& options)
     planning_group_name_ = get_parameter("planning_group_name").as_string();
     base_frame_          = get_parameter("base_frame").as_string();
 
-    move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
-        shared_from_this(), planning_group_name_);
-    move_group_->setPoseReferenceFrame(base_frame_);
-    move_group_->setPlanningTime(10.0);
-    end_effector_link_ = move_group_->getEndEffectorLink();
-
     client_cb_group_ = create_callback_group(rclcpp::CallbackGroupType::Reentrant);
     ik_client_ = create_client<ivg_interfaces::srv::GetIK>(
         "/aubo_driver/get_ik", rmw_qos_profile_services_default, client_cb_group_);
@@ -38,6 +33,15 @@ PlanTrajectoryServer::PlanTrajectoryServer(const rclcpp::NodeOptions& options)
                std::shared_ptr<ivg_interfaces::srv::PlanTrajectory::Response> res) {
           planTrajectoryCallback(req, res);
         });
+}
+
+void PlanTrajectoryServer::init()
+{
+    move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
+        shared_from_this(), planning_group_name_);
+    move_group_->setPoseReferenceFrame(base_frame_);
+    move_group_->setPlanningTime(10.0);
+    end_effector_link_ = move_group_->getEndEffectorLink();
 
     RCLCPP_INFO(get_logger(), "PlanTrajectoryServer ready, end_effector=%s", end_effector_link_.c_str());
 }
@@ -151,6 +155,7 @@ int main(int argc, char** argv)
     rclcpp::init(argc, argv);
     rclcpp::NodeOptions opts; opts.automatically_declare_parameters_from_overrides(true);
     auto node = std::make_shared<demo_driver::PlanTrajectoryServer>(opts);
+    node->init();
 
     rclcpp::executors::MultiThreadedExecutor exec(rclcpp::ExecutorOptions(), 2);
     exec.add_node(node);

@@ -52,11 +52,12 @@ function readAll(): Record<string, string> { return { ...formValues.value } }
 
 async function handleSave() {
   const values = readAll(); try { localStorage.setItem(STORAGE_KEY, JSON.stringify(values)) } catch { /* */ }
+  window.dispatchEvent(new Event('ivg-dashboard-settings-changed'))
   try { const r = await fetch('/api/v1/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values), credentials: 'same-origin' }); showMsg(r.ok ? '已保存到 YAML 配置（重启网关后仍有效）。' : '已保存到浏览器本地（网关不可达，未写入 YAML）。', r.ok) }
   catch { showMsg('已保存到浏览器本地（网关不可达）。', false) }
 }
 function handleReset() { formValues.value = {}; showMsg('已恢复默认值，请点击保存以持久化。', false) }
-function handleClear() { try { localStorage.removeItem(STORAGE_KEY) } catch { /* */ }; formValues.value = {}; showMsg('已清除。', true) }
+function handleClear() { try { localStorage.removeItem(STORAGE_KEY) } catch { /* */ }; formValues.value = {}; window.dispatchEvent(new Event('ivg-dashboard-settings-changed')); showMsg('已清除。', true) }
 function handleExport() { const json = JSON.stringify(readAll(), null, 2); const b = new Blob([json], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `ivg_settings_${new Date().toISOString().slice(0, 10)}.json`; a.click(); URL.revokeObjectURL(a.href); showMsg('已导出。', true) }
 function handleImport() { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json'; inp.onchange = () => { const f = inp.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => { try { const obj = JSON.parse(r.result as string); if (!obj || typeof obj !== 'object') throw new Error('格式错误'); formValues.value = obj; showMsg(`已导入 ${Object.keys(obj).length} 项，请点击保存。`, false) } catch (e: any) { showMsg('导入失败: ' + e.message, false) } }; r.readAsText(f) }; inp.click() }
 

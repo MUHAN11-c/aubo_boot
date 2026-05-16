@@ -39,3 +39,11 @@ export const TOOL_CHANGER_STATUS_TYPE  = 'ivg_interfaces/msg/ToolChangerStatus'
 /** DI 反馈 (JSON/CSV 格式字符串) — latte_node 发布 */
 export const LATTE_DI_STATUS_TOPIC = '/latte_di_status'
 export const LATTE_DI_STATUS_TYPE  = 'std_msgs/msg/String'
+
+// ═══════════════════════ 并排 Web 服务端口（与 start_aubo_new_driver.sh 默认一致）════════════════════════
+
+/** 视觉位姿 FastAPI — WEB_PORT 默认 */
+export const VPE_WEB_PORT = 8088
+
+/** 手眼标定 Flask — HAND_EYE_PORT 默认 */
+export const HAND_EYE_WEB_PORT = 8070

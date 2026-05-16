@@ -2,6 +2,7 @@
  * RobotController — 组合模式封装 MoveIt 运动 + Aubo IO。
  * 消除 gripper_swap / execute_grasp / publish_grasps 三处的重复代码。
  * IO 语义统一: setGripper(pin, open=true) 打开夹爪。
+ * moveCartesianPath：单次 computeCartesianPath(..., avoid_collisions=true) + 执行喵~
  */
 #include "demo_driver/robot_controller.h"
 #include <moveit_msgs/msg/move_it_error_codes.hpp>
@@ -51,7 +52,8 @@ bool RobotController::moveToHome(float vel, float acc)
     setVelocityScaling(vel);
     setAccelerationScaling(acc);
     move_group_->setNamedTarget("camera_pose");
-    return move_group_->move() == moveit::core::MoveItErrorCode::SUCCESS;
+    const auto result = move_group_->move();
+    return result == moveit::core::MoveItErrorCode::SUCCESS;
 }
 
 bool RobotController::moveToJoints(const std::array<double, 6>& joints, float vel, float acc)
@@ -62,8 +64,10 @@ bool RobotController::moveToJoints(const std::array<double, 6>& joints, float ve
     setAccelerationScaling(acc);
     move_group_->setJointValueTarget(std::vector<double>(joints.begin(), joints.end()));
     moveit::planning_interface::MoveGroupInterface::Plan plan;
-    if (move_group_->plan(plan) != moveit::core::MoveItErrorCode::SUCCESS) return false;
-    return move_group_->execute(plan) == moveit::core::MoveItErrorCode::SUCCESS;
+    const auto plan_result = move_group_->plan(plan);
+    if (plan_result != moveit::core::MoveItErrorCode::SUCCESS) return false;
+    const auto execute_result = move_group_->execute(plan);
+    return execute_result == moveit::core::MoveItErrorCode::SUCCESS;
 }
 
 bool RobotController::moveCartesianZ(double offset_m, float vel, float acc)
@@ -95,7 +99,9 @@ bool RobotController::moveCartesianPath(const std::vector<CartesianSegment>& seg
 
     for (int attempt = 0; attempt < max_retries_; ++attempt) {
         moveit_msgs::msg::RobotTrajectory traj;
-        double fraction = move_group_->computeCartesianPath(waypoints, eef_step_, 0.0, traj);
+        moveit_msgs::msg::MoveItErrorCodes error_code;
+        double fraction =
+            move_group_->computeCartesianPath(waypoints, eef_step_, 0.0, traj, true, &error_code);
         if (fraction < 0.99) {
             if (attempt < max_retries_ - 1)
                 std::this_thread::sleep_for(std::chrono::duration<double>(retry_wait_sec_));

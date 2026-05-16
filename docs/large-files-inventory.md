@@ -16,11 +16,11 @@
 | `yolo26n.pt` | 5.3M | `aubo_ros2_ws/src/vision_perception/` | YOLOv26 小模型（感知检测） |
 | `yolo26n-obb.pt` | 5.7M | `aubo_ros2_ws/src/vision_perception/` | YOLOv26 OBB 旋转框模型 |
 | `best.pt / last.pt` | 43M×2 | `aubo_ros2_ws/src/latte_imitation/runs/` | YOLO 训练产物 |
-| `checkpoint-rs.tar` | 12M | `aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/logs/log_kn/` | GraspNet 训练检查点 |
+| `checkpoint-rs.tar` | 12M | `aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/logs/log_kn/` | GraspNet 运行必需检查点（已纳入 Git） |
 
 **获取方式**：
 - YOLO 模型：运行 `yolo predict` 或从 Ultralytics 自动下载
-- GraspNet checkpoint：需从原始训练环境导出
+- GraspNet checkpoint：`checkpoint-rs.tar` 已从历史提交恢复并通过 `.gitignore` 反向规则纳入 Git，clone 后应直接存在
 
 ---
 
@@ -99,6 +99,6 @@
 
 - [ ] AUBO SDK `libauborobotcontroller.so.1.3.1` 及其依赖 `.so` 放在 `lib/lib64/{aubocontroller,log4cplus,config,protobuf}/`
 - [ ] YOLO 模型权重放在工作空间根目录（`yolo26n.pt`, `yolo26n-obb.pt`）
-- [ ] GraspNet 模型 checkpoint 放在 `graspnet-baseline/logs/log_kn/`
+- [ ] GraspNet 模型 checkpoint `checkpoint-rs.tar` 随 Git clone 位于 `graspnet-baseline/logs/log_kn/`
 - [ ] 视频/模板资源按需从备份恢复
 - [ ] GraspNet CUDA 扩展重新编译（`pip3 install -e .`）

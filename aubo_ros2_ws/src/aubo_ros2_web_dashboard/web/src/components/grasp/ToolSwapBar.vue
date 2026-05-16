@@ -7,6 +7,8 @@
  */
 import { useRos } from '@/composables/useRos'
 import { useRosService } from '@/composables/useRosService'
+import { useDashboardSettings } from '@/composables/useDashboardSettings'
+import { canonicalRosTopic } from '@/lib/utils'
 import { TOOL_CHANGER_STATUS_TOPIC, TOOL_CHANGER_STATUS_TYPE } from '@/constants/ros'
 import { TOOL_LIST } from '@/constants/grasp'
 
@@ -14,21 +16,26 @@ const emit = defineEmits<{ log: [msg: string] }>()
 function log(msg: string) { emit('log', msg) }
 
 const { isConnected, subscribe, onRosJson, onControlJson } = useRos()
-const { runGripperSwap } = useRosService()
+const { call } = useRosService()
+const settings = useDashboardSettings()
+const toolStatusTopic = computed(() => settings.rosName('topic-tool-status', TOOL_CHANGER_STATUS_TOPIC))
+const gripperSwapService = computed(() => settings.rosName('svc-gripper-swap', '/run_gripper_swap'))
 
 /** 当前工具状态 */
 const currentToolId = ref('')
 const currentToolName = ref('')
 
 // 监听工具状态变化
-onRosJson(TOOL_CHANGER_STATUS_TOPIC, (msg: any) => {
+onRosJson(null, (msg: any, topic: string) => {
+  if (canonicalRosTopic(topic) !== canonicalRosTopic(toolStatusTopic.value)) return
   if (msg?.tool_id) { currentToolId.value = msg.tool_id; currentToolName.value = msg.tool_name || msg.tool_id }
 })
 
 // 连接后订阅
-function setup() { if (isConnected()) subscribe(TOOL_CHANGER_STATUS_TOPIC, TOOL_CHANGER_STATUS_TYPE) }
+function setup() { if (isConnected()) subscribe(toolStatusTopic.value, settings.topicType('topic-tool-status', TOOL_CHANGER_STATUS_TYPE)) }
 onControlJson((c) => { if (c.op === 'connection') setup() })
 watch(isConnected, v => { if (v) setup() })
+watch(() => settings.version.value, () => { if (isConnected()) setup() })
 if (isConnected()) setup()
 
 /** 执行工具快换 (方向格式: "current_to_target") */
@@ -37,7 +44,10 @@ async function doChange(targetId: string) {
   if (cur === targetId) return
   const direction = `${cur}_to_${targetId}`
   log(`快换 ${direction}…`)
-  try { const r = await runGripperSwap(direction); log(r.success ? `✓ ${r.message || '成功'}` : `✗ ${r.message || '失败'}`) }
+  try {
+    const r = await call(gripperSwapService.value, settings.serviceType('svc-gripper-swap', 'ivg_interfaces/srv/RunGripperSwap'), { direction })
+    log(r.success ? `✓ ${r.message || '成功'}` : `✗ ${r.message || '失败'}`)
+  }
   catch (e: any) { log(`✗ 错误: ${e}`) }
 }
 </script>

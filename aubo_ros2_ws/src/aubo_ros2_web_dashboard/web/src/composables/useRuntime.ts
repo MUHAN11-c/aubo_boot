@@ -20,6 +20,7 @@ interface RuntimeConfig {
   web_video_proxy_prefix?: string
   camera_stream_path?: string
   ivg_ws_control?: string
+  settings_categories?: Record<string, unknown>
 }
 
 let cached: RuntimeConfig | null = null

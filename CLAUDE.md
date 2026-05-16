@@ -87,30 +87,21 @@ colcon build --packages-select tool_changer
 9. **`shared_from_this()` 不能在 Node 构造函数中调用**：C++ 标准规定 `shared_from_this()` 必须在对象已被 `std::shared_ptr` 管理后才能调用（`enable_shared_from_this` 的 `weak_ptr` 在 `shared_ptr` 构造完成后才初始化）。ROS 2 Node 构造函数内部尚未就绪，会抛出 `std::bad_weak_ptr`。解决方案：(1) 用 wall timer 延后初始化，(2) 外部 `init()` 方法，(3) 组合模式（不继承 Node，将 Node 作成员变量）喵~
    > 参考：[Stack Overflow](https://stackoverflow.com/questions/73188194/using-shared-from-this-goes-to-bad-weak-ptrros2) | [Robotics Stack Exchange](https://robotics.stackexchange.com/questions/107443/)
 
-10. **`AsyncParametersClient` 不可在构造函数中创建**：同理，需要 `shared_from_this()`。改为在首次 `onToolStatus()` 回调中按需创建喵~
+10. **`AsyncParametersClient` 不可在构造函数中创建**：同理，需要 `shared_from_this()`。延后到外部 `init()`、timer，或依赖节点就绪后的回调中按需创建喵~
 
-11. **工具切换通过 AttachedCollisionObject + 动态 URDF 双层协作**：`gripper_swap_worker.changeToTool()` 入口处调用 `publishToolStatus(false)` → `scene_attach_worker` 发送 PlanningScene diff（REMOVE 旧工具 AttachedCollisionObject）+ 更新空工具 URDF；运动完成后 `publishToolStatus(true)` → 发送 ADD AttachedCollisionObject + 更新新工具 URDF + 设置 `robot_state_publisher` 参数。
-
- **碰撞由两层协作提供**：
- - `AttachedCollisionObject`（`/planning_scene` diff，网格附着到 `kuaihuan_Link`）→ `move_group` 原生订阅此 topic，用于规划避障
- - URDF `<collision>`（`updateRobotDescription()`）→ RViz2 视觉渲染 + `robot_state_publisher` TF 树重建
- - **`move_group` 不重载 URDF**：`PlanningSceneMonitor` 的 `RobotModelLoader` 只在构造函数读取一次 `robot_description` 参数，`RDFLoader` 的 `SynchronizedStringParameter` 回调链未连接到上层。因此仅靠动态 URDF 无法让 `move_group` 感知工具碰撞，必须配合 `AttachedCollisionObject` diff 喵~
-
- **碰撞对象机制**（2026-05-15）：仅管理已附着工具的碰撞。`scene_attach_worker` 发送 `AttachedCollisionObject` diff（ADD/REMOVE）到 `/planning_scene` topic，网格附着到 `kuaihuan_Link`。未附着工具不保留碰撞对象喵~ 不使用 world dock 碰撞对象喵~
-
- 关键文件: `src/tool_changer/src/scene_attach_worker.cpp` (~220行, 已从 410行精简), `config/tools.yaml`, `config/aubo_e5.urdf.xacro`喵~
-
-    **`moveit_ros_visualization` 本地补丁**（MoveIt2 Humble 的运行时 URDF 切换 bug）——
-    (a) `planning_scene_display.cpp:createPlanningSceneMonitor`：`Options` 双参构造不初始化 `robot_description_` → "parameter name must not be empty"
-    (b) `planning_scene_display.cpp:clearRobotModel` + `motion_planning_display.cpp:clearRobotModel`：不重置 `planning_scene_robot_` / `query_robot_start_` / `query_robot_goal_` → 渲染循环 `rviz::Robot` 持旧 link → "Link not found"
-
-    **双层碰撞机制**（2026-05-15 更新）：
-    - `AttachedCollisionObject` — 网格数据通过 `/planning_scene` diff 附着到 `kuaihuan_Link`，`move_group` 的 `PlanningSceneMonitor` 原生监听此 topic，用于规划避障
-    - URDF `<collision>` — 视觉渲染 + `robot_state_publisher` TF 更新（`updateRobotDescription()` 保持不变）
-    - 不再使用 `world.collision_objects`（不管理 dock 上的未附着工具）喵~
+11. **工具切换碰撞：`AttachedCollisionObject` + world 残留清理（2026-05-16）**：`scene_attach_worker` **不向** `/planning_scene` 嵌入 ACO diff，而是向 **`/attached_collision_object`** 发布 ADD/REMOVE；并向 **`/planning_scene`** 发布 **仅含 `world.collision_objects` REMOVE** 的增量 diff（清除 detach 后残留的 `attached_tool_<tool_id>`）。不再发布 `/robot_description`、不再设置 `robot_state_publisher` 参数、不再调用 xacro 动态生成 URDF 喵~
+ - 附着时：`AttachedCollisionObject.link_name = "kuaihuan_Link"`，`object.header.frame_id = "kuaihuan_Link"`，`object.pose = tools.yaml.attach_offset`，`mesh_poses[0]` 保持单位位姿；这是 Git 历史 `748c7bb3d` 中末端工具相对快换法兰的正确语义喵~
+ - 脱离时：先发 `/attached_collision_object` REMOVE，再发 `/planning_scene` diff 将同名 `attached_tool_<tool_id>` 从 **world** 一并 REMOVE（detach 可能把对象放回 world，不清理会导致与 `kuaihuan_Link` 误判碰撞）；**不**添加未附着工具的 dock world 静态网格喵~
+ - 工具相对末端的位置关系只看 `tools.yaml` 的 `attach_offset`，与动态 URDF 无关；`scene_attach_worker` 不负责 Web/RViz RobotModel 工具显示，只负责 MoveIt PlanningScene 碰撞附着喵~
+ - `gripper_swap_worker` 必须在物理取放完成的瞬间更新 `/tool_changer_status`：`releaseTool(current)` 成功后清空 `current_tool_` 并发布 `is_connected=false`，`pickTool(target)` 成功后写入目标工具并发布 `is_connected=true`，不要在切换一开始就提前清除状态，也不要等回 home 后才附着新工具喵~
+ - 为避免附着碰撞体阻挡放工具入 dock，`gripper_swap_worker` 在 `releaseTool(current)` 的放置笛卡尔路径前可直接调用 `/scene_detach(current)` 只移除 PlanningScene 碰撞体；这不等同于发布 `/tool_changer_status is_connected=false`，Web/物理状态仍必须等 IO 释放成功后再更新喵~
+ - Web Dashboard 的 `Robot3dViewer` 必须根据 `/tool_changer_status` 动态更新末端工具显示：`is_connected=false` 移除工具模型，`is_connected=true` 按 `tool_id` 加载对应 STL，并用 `kuaihuan_Link` 的 TF 叠加 `tools.yaml.attach_offset` 定位；不要再等待后端动态修改 `robot_description` 喵~
+ - 所有工具的 `touch_links` 必须包含 `kuaihuan_Link`、`camera_Link`、`wrist3_Link`、`tool_tcp`，否则 AttachedCollisionObject 与末端固定链或 TCP 虚拟 link 的预期重叠可能在取放 dock 附近触发自碰撞，导致 `releaseTool()` / `pickTool()` 的笛卡尔路径失败喵~
+ - `move_group` 的 `PlanningSceneMonitor` 同时监听 `/attached_collision_object` 与 `/planning_scene`；末端工具碰撞几何以 ACO 为主，world REMOVE 用于消除 detach 残留喵~
+ - 关键文件：`src/tool_changer/src/scene_attach_worker.cpp`、`src/tool_changer/include/tool_changer/scene_attach_worker.h`、`src/tool_changer/config/tools.yaml` 喵~
    > 参考：[Planning Scene ROS API](https://moveit.picknik.ai/humble/doc/examples/planning_scene_ros_api/planning_scene_ros_api_tutorial.html)
 
-12. **`tools.yaml` 的 `attach_offset` 与 `aubo_e5.urdf.xacro` 的 `gripper_link` origin 必须严格对齐**：位姿不一致会导致 Web/RViz2 中模型位置与物理安装位置出现偏差喵~
+12. **`tools.yaml` 的 `attach_offset` 是末端工具附着位姿的唯一数据源**：`attach_offset` 表示工具 mesh 原点在 `kuaihuan_Link` 坐标系中的位姿，直接写入 `AttachedCollisionObject.object.pose`，不要再把它拆到 `mesh_poses` 或动态 URDF origin 中喵~
 
 12b. **SRDF ACM (Allowed Collision Matrix) — 末端夹爪工具碰撞豁免**（`aubo_e5.srdf:69-91`）：
  - 5 种可更换末端工具（gripper0/1/2/1coffeecup/1milkcup）× 4 个末端固定链 link（`kuaihuan_Link`, `camera_Link`, `wrist3_Link`, `tool_tcp`）= 20 条 `disable_collisions`
@@ -392,3 +383,16 @@ colcon build --packages-select tool_changer
  - `SceneManager` 构造函数中 `PerspectiveCamera` 的 aspect 计算 `w / h` 需防除零：`w / Math.max(1, h)`喵~
  - `VisionGraspView` / `CoffeeLatteView` 根 div 不能用 `overflow-y-scroll`，否则浏览器双滚动条 + 子容器高度计算异常喵~
  - RViz2 的 `Link 'gripperX_Link' is not known to URDF` 碰撞豁免警告是预期行为：SRDF ACM 预先列出全部 5 种末端工具的豁免，但当前 URDF 只含一种，MoveIt 规划不受影响喵~
+
+42. **Web Dashboard 设置链路必须贯通运行页（2026-05-16）**：Vue 3 迁移后的运行页必须通过 `useDashboardSettings.ts` 读取 `/api/v1/runtime` 的 `settings_categories` 与 `localStorage` 键 `ivg_vision_grasp_topics_v3`，不能只用 `constants/ros.ts` 硬编码话题/服务名喵~
+ - 旧版 `getSetting()` 语义对应新接口：`settings.rosName(id, fallback)` 读取 ROS 话题/服务名，`settings.raw(id, fallback)` 读取非 ROS 名称（如 `tf-fixed-frame`），`settings.serviceType(id, fallback)` 读取服务类型喵~
+ - `urdf-param` 使用旧版兼容的 `/<node_full_name>:<parameter_name>` 格式，默认 `/robot_state_publisher:robot_description`，`Robot3dViewer` 需解析为 `/<node_full_name>/get_parameters` + `names=[parameter_name]` 喵~
+ - `useRos.onRosJson()`、`onControlJson()`、`onLog()` 会在 Vue effect scope 内自动 `onScopeDispose()`，组件内注册回调时不需要手写清理，但异步/非 setup 场景仍应保存返回的 disposer 喵~
+ - `Robot3dViewer.reloadUrdf()` 需要先添加新模型再移除旧模型，并处理 `UrdfModel` 同步 ready 回调，避免工具热重载闪空或访问未初始化变量喵~
+ - 旧版 `ROS3D.UrdfClient` 不是用 `/joint_states` 在浏览器内重算整条 URDF 关节链，而是通过 `ROS2TFClient` 订阅 `fixedFrame -> link` TF 后直接驱动每个 link 的 Object3D 位姿。Vue 3 版 `Robot3dViewer` 必须保持这个行为：`UrdfModel` 扁平化 link 到 root，`TfUpdater.updateLinkTransform()` 用 `ivgFindRelativeTransform(fixedFrame, link)` 写入 link pose，避免本地 URDF 关节链与 TF 重复叠加喵~
+ - Web 3D 坐标系必须保持 ROS/RViz 的 Z-up 语义。Three.js 默认 `Camera.up=(0,1,0)` 且 `GridHelper` 在 XZ 平面，会让 ROS Z-up 模型看起来像倒在地上；`SceneManager` 应设置相机 `up=(0,0,1)`，将 `GridHelper` 旋到 XY 平面，并用 X=红、Y=绿、Z=蓝图例提示用户喵~
+ - 旧版单屏布局靠 `body.ivg-single-screen`、全宽 `.wrap`、`layout-camera-controls`、右侧控制列约 `--vision-control-col-pct: 22`、大量 `min-height:0/overflow:hidden` 来减少滚动条。Vue 3 版用 `.ivg-run-page` 触发运行页专用锁高链路，不能全局锁死普通页面；断点要按旧版 `max-width:920px` 语义处理，`921px` 起才进入主区/相机区双列喵~
+ - iPad/触摸适配必须保留旧版 viewport 与安全区语义：`web/index.html` 的 viewport 包含 `interactive-widget=resizes-content`，底部 fixed 状态栏高度包含 `env(safe-area-inset-bottom)`，导航链接/按钮触摸高度不少于 44px，手机 `<768px` 放行整页纵向滚动喵~
+ - 框架迁移必须视为行为保持迁移：旧版导航全屏按钮、设置页新标签打开、咖啡 DO 纯前端切换、DI 顺序（DI2→DI4→DI3）、结果图空配置时保持空白等细节都不能因为 Vue 重写而变化喵~
+ - Web Dashboard 的最终验证以 `aubo_ros2_ws/start_aubo_new_driver.sh` 为入口，脚本构建阶段必须先执行 Vue 3 `npm run build` 生成最新 `web/dist/`，再执行 `colcon build` 安装静态产物，启动 `web_dashboard.launch.py`、等待 `/health` 后，再验证 `/api/v1/runtime`、`/vision`、`/latte` 与 ROS 实时话题喵~
+ - `SKIP_BUILD=1` 会跳过前端和 colcon 全部构建；仅确认 `web/dist/` 已最新时才可单独设置 `SKIP_WEB_BUILD=1` 跳过 Vue 3 构建喵~

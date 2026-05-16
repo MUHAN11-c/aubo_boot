@@ -814,7 +814,7 @@ percipio_camera
 percipio_camera → /camera/color/image_raw
   → image_data_bridge → /image_data (ImageData)
   → hand_eye_calibration_node
-    → Flask Web :8080 → YAML calibration result
+    → Flask Web :8070 → YAML calibration result
     → hand_eye_calibration_tf_publisher → Static TF (ee_link→camera_link)
 ```
 
@@ -1764,27 +1764,29 @@ collision_object_publisher.publish(wall)
 
 ---
 
-## 25. 工具快换 (tool_changer) — PlanningScene 附着方案
+## 25. 工具快换 (tool_changer) — AttachedCollisionObject + world 清理
 
 ### 25.1 架构总览
 
-两个独立 C++ 节点协作：
+两个独立 C++ 节点协作（接口均在 **`ivg_interfaces`**）喵~
 
 ```
-gripper_swap_worker_node          scene_attach_worker_node
-(物理运动 + IO)                   (PlanningScene 附着显示)
+gripper_swap_worker_node              scene_attach_worker_node
+(物理运动 + IO，RobotController)        (MoveIt 规划场景：附着 / 清残留)
 
-releaseGripper / pickGripper         
-       ↓                            订阅 /tool_changer_status
-changeToTool 成功                       ↓
-       ↓                          onToolStatus()
-publishToolStatus ──────────→     detachTool(旧) + attachTool(新)
-       ↓                              ↓
-/tool_changer_status              /planning_scene → move_group → RViz
+changeToTool
+  ├─ /scene_detach (ChangeTool)  ─────→ detachToolFromScene
+  │                                        ├─ pub /attached_collision_object REMOVE
+  │                                        └─ pub /planning_scene world REMOVE
+  ├─ releaseTool → publishToolStatus(false)
+  ├─ pickTool    → publishToolStatus(true) ─→ onToolStatus()
+  │                                        ├─ detach 旧 + attach 新（/attached_collision_object）
+  │                                        └─ world REMOVE attached_tool_<id>（/planning_scene）
+  └─ moveToHome
 ```
 
-- **gripper_swap_worker_node**: 物理快换（关节/笛卡尔运动 + IO 释放/锁紧），完成后发布 `/tool_changer_status`
-- **scene_attach_worker_node**: 订阅 `/tool_changer_status`，自动更新 PlanningScene（attach/detach CollisionObject）
+- **gripper_swap_worker_node**：`aubo_ros2_ws/src/tool_changer/src/gripper_swap_worker.cpp` — 数据驱动 `changeToTool()`，快换 IO 经 `RobotController::setGripper` → `/set_robot_io`喵~  
+- **scene_attach_worker_node**：`aubo_ros2_ws/src/tool_changer/src/scene_attach_worker.cpp` — 订阅 `/tool_changer_status`；**不**发布 `/robot_description`、**不**写 `robot_state_publisher` 参数喵~  
 
 ### 25.2 启动
 
@@ -1813,50 +1815,49 @@ ros2 run tool_changer scene_attach_worker_node &
 
 | 服务 | 类型 | 说明 |
 |------|------|------|
-| `/run_gripper_swap` | RunGripperSwap | 前端调用，direction: `gripper0_to_gripper2` / `gripper2_to_gripper0` / `gripper2` |
-| `/change_tool` | ChangeTool | 按 tool_id 切换（物理运动 + 自动更新场景） |
-| `/get_current_tool` | GetCurrentTool | 查询当前工具 |
-| `/scene_attach` | ChangeTool | 手动附着工具到 PlanningScene（不运动） |
-| `/scene_detach` | ChangeTool | 手动脱离工具（不运动） |
+| `/run_gripper_swap` | `ivg_interfaces/srv/RunGripperSwap` | 前端调用，direction: `gripper0_to_gripper2` / `gripper2_to_gripper0` / `gripper2` |
+| `/change_tool` | `ivg_interfaces/srv/ChangeTool` | 按 tool_id 切换（物理运动 + 状态话题驱动 scene_attach） |
+| `/get_current_tool` | `ivg_interfaces/srv/GetCurrentTool` | 查询当前工具 |
+| `/scene_attach` | `ivg_interfaces/srv/ChangeTool` | 手动附着工具碰撞到 PlanningScene（不运动） |
+| `/scene_detach` | `ivg_interfaces/srv/ChangeTool` | 手动脱离（不运动） |
 
-### 25.5 快换动作时序 (swapToGripper2: gripper0 → gripper2)
+### 25.5 快换动作时序（数据驱动 `changeToTool`，示意）
 
 ```
-1. moveToJoints(kJoints_ReleaseGripper0)   — 关节运动到 gripper0 释放工位
-2. sleepJointCartesianSwitchDelay
-3. releaseGripper: Z下降 → 开IO释放 → Z抬离 → 关IO锁机构
-4. moveToJoints(kJoints_DockStation)       — 关节运动到 gripper2 dock
-5. pickGripper: 开IO → Z下降 → 关IO锁定 → Z微升 → Y滑出 → Z抬离
-6. moveToHome("camera_pose")               — 回到安全位
-7. publishToolStatus(true, "gripper2")     — 触发 scene_attach_worker 更新场景
-   → scene_attach_worker: detachTool("gripper0") + attachTool("gripper2")
+1. moveToDockApproach(current)
+2. /scene_detach(current)              — 提前卸碰撞，避免 release 笛卡尔路径被挡
+3. releaseTool(current)               — 数据驱动 vertical/slide
+4. publishToolStatus(false)           — 仅 release 成功后
+5. moveToDockApproach(target)
+6. pickTool(target)
+7. publishToolStatus(true)            — pick 成功后立即（scene_attach_worker 附着新工具）
+8. moveToHome()
 ```
 
 ### 25.6 手动测试命令
 
 ```bash
 source /opt/ros/humble/setup.bash
-source /home/mu/IVG2.0/aubo_ros2_ws/install/setup.bash
+source install/setup.bash   # 在 aubo_ros2_ws 目录下
 
 # 查询当前工具
-ros2 service call /get_current_tool tool_changer_interface/srv/GetCurrentTool "{}"
+ros2 service call /get_current_tool ivg_interfaces/srv/GetCurrentTool "{}"
 
 # 仅测试场景附着（不需要机械臂运动）
-ros2 service call /scene_attach tool_changer_interface/srv/ChangeTool "{tool_id: gripper2}"
-ros2 service call /scene_detach tool_changer_interface/srv/ChangeTool "{tool_id: gripper2}"
+ros2 service call /scene_attach ivg_interfaces/srv/ChangeTool "{tool_id: gripper2}"
+ros2 service call /scene_detach ivg_interfaces/srv/ChangeTool "{tool_id: gripper2}"
 
 # 模拟工具状态变更（测试 scene_attach_worker 自动响应）
-ros2 topic pub -1 /tool_changer_status tool_changer_interface/msg/ToolChangerStatus \
+ros2 topic pub -1 /tool_changer_status ivg_interfaces/msg/ToolChangerStatus \
   "{tool_id: 'gripper0', tool_name: '气动夹爪', tool_type: 'gripper', is_connected: true, tool_parameters: '{}'}"
 
-ros2 topic pub -1 /tool_changer_status tool_changer_interface/msg/ToolChangerStatus \
+ros2 topic pub -1 /tool_changer_status ivg_interfaces/msg/ToolChangerStatus \
   "{tool_id: 'gripper2', tool_name: '电动夹爪', tool_type: 'gripper', is_connected: true, tool_parameters: '{}'}"
 
 # 完整快换（需要 move_group 在运行）
-ros2 service call /change_tool tool_changer_interface/srv/ChangeTool "{tool_id: gripper0}"
+ros2 service call /change_tool ivg_interfaces/srv/ChangeTool "{tool_id: gripper0}"
 
-# 方向型快换（前端使用的接口）
-ros2 service call /run_gripper_swap tool_changer_interface/srv/RunGripperSwap \
+ros2 service call /run_gripper_swap ivg_interfaces/srv/RunGripperSwap \
   "{direction: gripper0_to_gripper2}"
 ```
 

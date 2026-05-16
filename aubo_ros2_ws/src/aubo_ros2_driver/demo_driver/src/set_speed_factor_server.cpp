@@ -1,6 +1,6 @@
 /*
  * /set_speed_factor — 设置 MoveIt 速度缩放因子, 同步到关联节点。
- * 构造函数内创建 MoveGroupInterface + AsyncParametersClient, 无需外部 initialize。
+ * MoveGroupInterface 与 AsyncParametersClient 在 init() 中创建（避免构造函数内 shared_from_this）喵~
  */
 #include "demo_driver/set_speed_factor_server.h"
 #include <rclcpp/rclcpp.hpp>
@@ -18,10 +18,6 @@ SetSpeedFactorServer::SetSpeedFactorServer(const rclcpp::NodeOptions& options)
     planning_group_name_ = get_parameter("planning_group_name").as_string();
     base_frame_          = get_parameter("base_frame").as_string();
 
-    move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
-        shared_from_this(), planning_group_name_);
-    move_group_->setPoseReferenceFrame(base_frame_);
-
     service_ = create_service<ivg_interfaces::srv::SetSpeedFactor>(
         "/set_speed_factor",
         [this](const std::shared_ptr<ivg_interfaces::srv::SetSpeedFactor::Request> req,
@@ -29,8 +25,15 @@ SetSpeedFactorServer::SetSpeedFactorServer(const rclcpp::NodeOptions& options)
           setSpeedFactorCallback(req, res);
         });
 
-    // Reentrant 组, 避免 set_parameters 阻塞死锁
     param_cb_group_ = create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+}
+
+void SetSpeedFactorServer::init()
+{
+    move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
+        shared_from_this(), planning_group_name_);
+    move_group_->setPoseReferenceFrame(base_frame_);
+
     plan_traj_client_ = std::make_shared<rclcpp::AsyncParametersClient>(
         shared_from_this(), "plan_trajectory_server");
     exec_traj_client_ = std::make_shared<rclcpp::AsyncParametersClient>(
@@ -85,6 +88,7 @@ int main(int argc, char** argv)
     rclcpp::executors::MultiThreadedExecutor exec(rclcpp::ExecutorOptions(), 2);
     rclcpp::NodeOptions opts; opts.automatically_declare_parameters_from_overrides(true);
     auto node = std::make_shared<demo_driver::SetSpeedFactorServer>(opts);
+    node->init();
     exec.add_node(node);
     exec.spin();
     rclcpp::shutdown();

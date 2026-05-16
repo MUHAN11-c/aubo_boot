@@ -1,5 +1,6 @@
 /*
- * /execute_trajectory — 执行预规划轨迹。构造函数内创建 MoveGroupInterface。
+ * /execute_trajectory — 执行预规划轨迹。
+ * MoveGroupInterface 在 init() 中创建喵~
  */
 #include "demo_driver/execute_trajectory_server.h"
 #include <rclcpp/rclcpp.hpp>
@@ -18,16 +19,19 @@ ExecuteTrajectoryServer::ExecuteTrajectoryServer(const rclcpp::NodeOptions& opti
     planning_group_name_ = get_parameter("planning_group_name").as_string();
     base_frame_          = get_parameter("base_frame").as_string();
 
-    move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
-        shared_from_this(), planning_group_name_);
-    move_group_->setPoseReferenceFrame(base_frame_);
-
     service_ = create_service<ivg_interfaces::srv::ExecuteTrajectory>(
         "/execute_trajectory",
         [this](const std::shared_ptr<ivg_interfaces::srv::ExecuteTrajectory::Request> req,
                std::shared_ptr<ivg_interfaces::srv::ExecuteTrajectory::Response> res) {
           executeTrajectoryCallback(req, res);
         });
+}
+
+void ExecuteTrajectoryServer::init()
+{
+    move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
+        shared_from_this(), planning_group_name_);
+    move_group_->setPoseReferenceFrame(base_frame_);
 
     RCLCPP_INFO(get_logger(), "ExecuteTrajectoryServer ready");
 }
@@ -89,6 +93,7 @@ int main(int argc, char** argv)
     rclcpp::init(argc, argv);
     rclcpp::NodeOptions opts; opts.automatically_declare_parameters_from_overrides(true);
     auto node = std::make_shared<demo_driver::ExecuteTrajectoryServer>(opts);
+    node->init();
 
     rclcpp::executors::MultiThreadedExecutor exec(rclcpp::ExecutorOptions(), 2);
     exec.add_node(node);

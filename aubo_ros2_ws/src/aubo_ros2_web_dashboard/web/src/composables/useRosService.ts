@@ -11,9 +11,11 @@
  *   const result = await executeGrasp('obj_1', true)
  */
 import { useRos } from './useRos'
+import { useDashboardSettings } from './useDashboardSettings'
 
 export function useRosService() {
   const { callService } = useRos()
+  const settings = useDashboardSettings()
 
   const calling = ref(false)
   const lastResult = ref<any>(null)
@@ -36,34 +38,34 @@ export function useRosService() {
 
   /** 执行单次抓取 (工件/AI 模式) — ivg_interfaces/ExecuteGraspPose */
   async function executeGrasp(objectId: string, useVisual: boolean) {
-    return call('/execute_single_grasp', 'ivg_interfaces/srv/ExecuteGraspPose', {
+    return call('/execute_single_grasp', settings.serviceType('execute-single-grasp', 'ivg_interfaces/srv/ExecuteGraspPose'), {
       object_id: objectId, use_visual_estimation: useVisual,
     })
   }
 
   /** 夹爪快换 (方向) — ivg_interfaces/RunGripperSwap */
   async function runGripperSwap(direction: string) {
-    return call('/run_gripper_swap', 'ivg_interfaces/srv/RunGripperSwap', { direction })
+    return call(settings.rosName('svc-gripper-swap', '/run_gripper_swap'), settings.serviceType('svc-gripper-swap', 'ivg_interfaces/srv/RunGripperSwap'), { direction })
   }
 
   /** 咖啡拉花 DO 开关 — std_srvs/SetBool */
   async function setLatteDo(doId: 2 | 4, on: boolean) {
-    return call(`/set_latte_do${doId}`, 'std_srvs/srv/SetBool', { data: on })
+    return call(settings.rosName(`svc-latte-do${doId}`, `/set_latte_do${doId}`), 'std_srvs/srv/SetBool', { data: on })
   }
 
   /** 循环抓取控制 */
   async function setLoopGraspControl(on: boolean) {
-    return call('/loop_grasp_control', 'std_srvs/srv/SetBool', { data: on })
+    return call(settings.rosName('svc-loop-grasp-control', '/loop_grasp_control'), 'std_srvs/srv/SetBool', { data: on })
   }
 
   /** GraspNet 采集控制 */
   async function setGraspnetCapture(on: boolean) {
-    return call('/graspnet_capture_control', 'std_srvs/srv/SetBool', { data: on })
+    return call(settings.rosName('svc-graspnet-capture', '/graspnet_capture_control'), 'std_srvs/srv/SetBool', { data: on })
   }
 
   /** GraspNet 循环发布控制 */
   async function setPublishGraspsLoop(on: boolean) {
-    return call('/publish_grasps_worker_loop_control', 'std_srvs/srv/SetBool', { data: on })
+    return call(settings.rosName('svc-publish-grasps-loop', '/publish_grasps_worker_loop_control'), 'std_srvs/srv/SetBool', { data: on })
   }
 
   return {

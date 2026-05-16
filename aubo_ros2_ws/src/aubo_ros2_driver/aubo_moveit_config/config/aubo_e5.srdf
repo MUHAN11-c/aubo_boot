@@ -69,7 +69,7 @@
     <!-- 末端执行器（快换盘为末端的固定链） -->
     <disable_collisions link1="camera_Link" link2="kuaihuan_Link" reason="Adjacent"/>
     <!-- 末端夹爪工具：kuaihuan_Link 下挂载的可更换末端 -->
-    <disable_collisions link1="kuaihuan_Link" link2="gripper0_Link" reason="Adjacent"/>
+    <!-- <disable_collisions link1="kuaihuan_Link" link2="gripper0_Link" reason="Adjacent"/>
     <disable_collisions link1="kuaihuan_Link" link2="gripper1_Link" reason="Adjacent"/>
     <disable_collisions link1="kuaihuan_Link" link2="gripper2_Link" reason="Adjacent"/>
     <disable_collisions link1="kuaihuan_Link" link2="gripper1coffeecup_Link" reason="Adjacent"/>
@@ -88,7 +88,7 @@
     <disable_collisions link1="tool_tcp" link2="gripper1_Link" reason="Never"/>
     <disable_collisions link1="tool_tcp" link2="gripper2_Link" reason="Never"/>
     <disable_collisions link1="tool_tcp" link2="gripper1coffeecup_Link" reason="Never"/>
-    <disable_collisions link1="tool_tcp" link2="gripper1milkcup_Link" reason="Never"/>
+    <disable_collisions link1="tool_tcp" link2="gripper1milkcup_Link" reason="Never"/> -->
     <!-- 咖啡机总装模型：pedestal 与其固定子链接 -->
     <disable_collisions link1="pedestal_Link" link2="cup0_Link" reason="Adjacent"/>
     <disable_collisions link1="pedestal_Link" link2="lizhu_Link" reason="Adjacent"/>

@@ -247,11 +247,32 @@ export class UrdfModel {
   isReady(): boolean { return this._ready }
 
   /**
+   * 旧版 ROS3D.UrdfClient 由 TF 客户端驱动每个 link 的世界位姿喵~
+   * 这里将 link 扁平挂到 root 下，避免 URDF 本地关节链与 TF 位姿重复叠加喵~
+   */
+  flattenLinksToRoot(): void {
+    for (const [name, obj] of this.links) {
+      if (name.endsWith('_joint')) continue
+      this.root.add(obj.object)
+      obj.object.position.set(0, 0, 0)
+      obj.object.quaternion.set(0, 0, 0, 1)
+      obj.object.scale.set(1, 1, 1)
+    }
+  }
+
+  /**
    * 获取指定 link（或 joint transform）的 Object3D
    * 用于 TfUpdater 更新关节角度
    */
   getLinkObject(name: string): LinkObject | undefined {
     return this.links.get(name)
+  }
+
+  /** 获取所有 URDF link 对象（不含 joint transform group）喵~ */
+  getLinkObjects(): LinkObject[] {
+    return [...this.links.entries()]
+      .filter(([name]) => !name.endsWith('_joint'))
+      .map(([, obj]) => obj)
   }
 
   /** 获取所有可动关节（revolute/continuous/prismatic），含 URDF 关节轴 */

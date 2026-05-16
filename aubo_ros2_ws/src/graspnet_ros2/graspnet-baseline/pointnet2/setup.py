@@ -31,7 +31,7 @@ setup(
             name='pointnet2._ext',
             sources=_ext_sources,
             extra_compile_args={
-                "cxx": ["-O2", "-I{}".format("{}/{}/include".format(ROOT, _ext_src_root))],
+                "cxx": ["-O2", "-fPIC", "-I{}".format("{}/{}/include".format(ROOT, _ext_src_root))],
                 "nvcc": ["-O2", "-I{}".format("{}/{}/include".format(ROOT, _ext_src_root))],
             },
         )

@@ -158,9 +158,9 @@
 | `set_speed_factor_server` | Service: `/set_speed_factor` | 速度比例调整 |
 | `set_robot_pose_server` | Service: `/move_to_pose` | 点到点运动 |
 | `gripper_swap_worker` | Service: `/change_tool`, `/run_gripper_swap`, `/get_current_tool` | 物理快换 + IO 控制 |
-| `scene_attach_worker` | Topic: `/planning_scene` (diff); Param: `/robot_description` | PlanningScene 同步 + URDF 更新 |
+| `scene_attach_worker` | Topic: `/attached_collision_object`；Topic: `/planning_scene`（仅 world REMOVE diff） | 已连接工具的 MoveIt 碰撞附着 + 清理 detach 残留（不改 URDF） |
 
-**接口统一化**：当前 `demo_interface` 和 `tool_changer_interface` 有职责重叠（都定义 IO/运动消息），重构后合并为一个统一的 `ivg_service_interfaces` 包，包含所有应用层接口定义。
+**接口统一化**：自定义 ROS 2 接口已合并为 **`ivg_interfaces`**（原散落接口包已 `COLCON_IGNORE`）；仍以 README/architecture 中具体节点为准喵~
 
 ### Layer 4：感知
 

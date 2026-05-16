@@ -22,7 +22,7 @@
 │  ├─ /api/grasp/* 抓取控制 REST API                                       │
 │  └─ /ws          位姿估计 WebSocket                                      │
 ├──────────────────────────────────────────────────────────────────────────┤
-│  hand_eye_calibration (Flask Web :8080)                                   │
+│  hand_eye_calibration (Flask Web :8070)                                   │
 │  └─ Web GUI: 手眼标定流程 (采集→标定→验证)                                │
 └──────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -101,7 +101,7 @@
 │                            │   trigger, /set_     │                       │
 │                            │   robot_pose,        │                       │
 │                            │   /move_to_pose      │                       │
-│                            │ Web: Flask :8080     │                       │
+│                            │ Web: Flask :8070     │                       │
 │                            └─────────────────────┘                       │
 └──────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -547,14 +547,14 @@
 | **Client** | `/move_to_pose` | `ivg_interfaces/MoveToPose` | 标定流程中自动移动机器人 |
 | **Publish** | `ee_link → camera_link` | 静态 TF (TransformStamped) | 发布标定结果 (hand_eye_tf_publisher 子节点) |
 | **Param** | `web_host` | string | Flask 监听地址 (默认 localhost) |
-| **Param** | `web_port` | int | Flask 端口 (默认 8080) |
+| **Param** | `web_port` | int | Flask 端口 (默认 8070，与 `HAND_EYE_PORT` 一致) |
 | **Param** | `depth_scale_unit` | float | 深度缩放因子 = 0.00025 (raw×scale=m) |
 
 **标定方法** (Flask API `/api/hand_eye/calibrate`):
 - **custom**: SVD 初始估计 + scipy.optimize.least_squares (Levenberg-Marquardt) 非线性优化 (XY+Z 约束)
 - **opencv**: cv2.calibrateHandEye() 标准算法 (TSAI/PARK/HORAUD/ANDREFF/DANIILIDIS)
 
-**Web 界面**: Flask HTTP (默认 `http://localhost:8080`)，提供图像预览→采集位姿→标定计算→结果验证的可视化流程。
+**Web 界面**: Flask HTTP (默认 `http://localhost:8070`)，提供图像预览→采集位姿→标定计算→结果验证的可视化流程。
 
 ---
 
@@ -631,7 +631,7 @@
 | 服务 | 端口 | 说明 |
 |------|------|------|
 | `visual_pose_estimation_web` | 8088 | 视觉位姿 FastAPI (独立节点) |
-| `hand_eye_calibration` | 8080 | 手眼标定 Flask Web (独立节点) |
+| `hand_eye_calibration` | 8070 | 手眼标定 Flask Web (独立节点) |
 
 **关键 YAML 配置** (`config/defaults.yaml`): gateway.port=8090, rosbridge.port=9090, web_video.port=8089
 
@@ -723,7 +723,7 @@
 | 3 | `percipio_camera.launch.py` | 相机驱动 (depth_registration 开启) | `/camera/color/image_raw`, `/camera/depth/image_raw`, `/camera/depth_registered/points` (GraspNet 用), `/camera/depth/points`, `/camera/*/camera_info` |
 | 4 | `camera_control.launch.py` | 相机控制接口 | `/software_trigger`, `/camera_status` |
 | 5 | `image_data_bridge.launch.py` | Image→ImageData 格式转换 | Sub: `/camera/color/image_raw`, Pub: `/image_data` (percipio ImageData), 供 hand_eye/位姿估计 使用 |
-| 6 | `hand_eye_calibration_launch.py` | 手眼标定 Flask Web :8080 | Sub: `/image_data`+`/camera/depth/*`+`/aubo_driver/robot_status`, Client: `/software_trigger`+`/set_robot_pose`+`/move_to_pose`, HTTP API: `/api/hand_eye/calibrate`(custom/opencv) |
+| 6 | `hand_eye_calibration_launch.py` | 手眼标定 Flask Web :8070 | Sub: `/image_data`+`/camera/depth/*`+`/aubo_driver/robot_status`, Client: `/software_trigger`+`/set_robot_pose`+`/move_to_pose`, HTTP API: `/api/hand_eye/calibrate`(custom/opencv) |
 | 7 | `visual_pose_estimation_python.launch.py` | 位姿估计节点 | `/estimate_pose`, `/list_templates`, `/system_status` |
 | 14 | `visual_pose_estimation_web.launch.py` | 位姿 FastAPI :8088 (提前启动) | REST API + WebSocket + `/health` |
 | 8 | `graspnet_demo_points_with_tf.launch.py` | GraspNet 点云→6DOF 抓取生成 | Sub: `/camera/depth_registered/points`, Pub: `grasp_markers` (MarkerArray) + `grasp_poses_base` (PoseArray in base_link), TF: `camera_frame→grasp_pose_i`, Srv: `/graspnet_capture_control` |

@@ -29,6 +29,21 @@ pip3 install torch torchvision open3d scipy Pillow numpy trimesh
 
 GraspNet 依赖 4 个独立的 pip 包，源码均在 `graspnet-baseline/` 下，均**不是 ROS 包**，需分别 `pip install -e .` 喵~
 
+推荐在新电脑克隆项目后直接执行安装脚本；脚本会用自身目录定位 `graspnet-baseline`，可从任意目录运行喵~
+
+```bash
+cd aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline
+./install_graspnet_deps.sh --clean --install-common-deps
+```
+
+若只想重编本仓库内的 editable 包与 CUDA 扩展，不改动已有 Python 通用依赖，可省略 `--install-common-deps` 喵~
+
+```bash
+./install_graspnet_deps.sh --clean
+```
+
+脚本内部执行的等价手工步骤如下，供排查时对照喵~
+
 ```bash
 GRASPNET_BASELINE="$(pwd)/graspnet-baseline"
 
@@ -59,6 +74,14 @@ pip3 install -e .
 >
 > `graspnet-baseline/setup.py` 为 IVG2.0 自建（上游无此文件），`models/__init__.py` 自动处理
 > 上游代码的绝对导入兼容性问题，节点侧无需 `sys.path.insert` 喵~
+>
+> `pointnet2/setup.py` 的普通 C++ 编译参数必须只使用 GCC/Clang 可识别的参数；`-Xcompiler`
+> 是 NVCC 专用参数，放入 `extra_compile_args["cxx"]` 会导致 `c++: error: unrecognized
+> command-line option '-Xcompiler'`，最终没有生成 `pointnet2._ext` 喵~
+>
+> `install_graspnet_deps.sh` 会检查 `python3`、`pip`、`c++`、`ninja`、`nvcc`、`torch`、`torch.cuda.is_available()`、
+> `pointnet2/setup.py`、`knn/setup.py`、`graspnetAPI/setup.py` 等前置条件；无显示 GPU 编译时需显式设置
+> `TORCH_CUDA_ARCH_LIST`，例如 `TORCH_CUDA_ARCH_LIST="8.9" ./install_graspnet_deps.sh --clean` 喵~
 
 ### 3. 验证导入链
 

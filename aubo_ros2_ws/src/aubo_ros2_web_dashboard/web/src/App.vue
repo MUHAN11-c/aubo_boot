@@ -27,7 +27,7 @@ onMounted(() => {
 
 <template>
   <SiteNav />
-  <main class="min-h-[calc(100vh-8rem)]">
+  <main class="flex-1 min-h-0 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] overflow-x-hidden">
     <RouterView />
   </main>
   <RobotStatusBar />

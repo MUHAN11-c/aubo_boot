@@ -7,6 +7,8 @@ ROS 2 机械臂视觉抓取 Web 控制面板。FastAPI 网关 + Vue 3 前端，�
 > **迁移方案**：详见 `docs/frontend-migration-plan.md`。
 > Vue 3 构建产物位于 `web/dist/`，`setup.py` 负责将其安装到 `share/<pkg>/web/dist/` 喵~
 
+> **当前行为（2026-05-16）**：Vue 3 页面通过 `useDashboardSettings.ts` 统一读取 `/api/v1/runtime` 中的 `settings_categories` 与浏览器 `localStorage` 键 `ivg_vision_grasp_topics_v3`。视觉抓取、咖啡拉花、工具快换、状态栏和 3D URDF 查看器不再直接依赖散落硬编码的话题/服务名喵~
+
 ---
 
 ## 1. 架构总览
@@ -25,13 +27,13 @@ ROS 2 Launch
         ├── /health                     → 健康检查
         └── /*                          → 前端静态页面 (SPA)
 
-浏览器 (vision_grasp_panel.html)
-  ├── [1] runtime_provider.js  → GET /api/v1/runtime → __IVG_RUNTIME
-  ├── [2] ivg_runtime.js       → URL 构建 + 断线重连状态机
-  ├── [3] ivg_transport.js     → ROSLIB.Ros 封装 (订阅/服务/摄像头)
-  ├── [4] config.js            → 话题/服务默认值（优先 BFF 回退硬编码）
-  ├── [5] subscription_binder.js → 按模式订阅 ROS 话题
-  └── [6] vision_grasp_panel.js  → 主编排器：连接→订阅→UI更新→重连
+浏览器 (Vue 3 SPA)
+  ├── [1] useRuntime.ts            → GET /api/v1/runtime
+  ├── [2] useDashboardSettings.ts  → runtime YAML 默认值 + localStorage 覆盖
+  ├── [3] useRos.ts                → ROSLIB.Ros 单例封装 (订阅/服务/重连)
+  ├── [4] useMJPEGStream.ts        → 摄像头流/快照 URL
+  ├── [5] Robot3dViewer.vue        → URDF 参数 + /tf + /joint_states + 工具重载
+  └── [6] Views                    → 视觉抓取/咖啡拉花/监控/日志/设置
 ```
 
 ---
@@ -59,6 +61,24 @@ settings_panel.html (浏览器设置页)
 3. **新增话题/服务/参数时**：先在 `config/defaults.yaml` 的 `vision_panel.{common,vision,latte}` 段添加定义（含 `id`, `default`, `label`, `msg_type`/`srv_type`），设置页会自动渲染输入框。前端面板通过 `/api/v1/runtime` 获取默认值。
 
 4. **前端面板的「话题与服务设置」按钮**：统一链接到 `settings_panel.html`（新标签页打开），不再使用各面板独立的设置弹窗。
+
+5. **运行页读取顺序**：`useDashboardSettings.ts` 先加载 YAML/runtime 默认值，再合并 `localStorage` 覆盖。旧版 `getSetting()` 的语义由 `settings.rosName(id, fallback)`、`settings.raw(id, fallback)`、`settings.serviceType(id, fallback)` 替代喵~
+
+6. **URDF 参数格式**：`urdf-param` 使用旧版兼容的 `/<node_full_name>:<parameter_name>` 语法，默认 `/robot_state_publisher:robot_description`。裸参数名会回退到 `/robot_state_publisher/<get_parameters>` 服务读取喵~
+
+7. **URDF/TF 显示语义**：旧版 `ROS3D.UrdfClient` 的模型位置关系由 `ROS2TFClient` 按 `fixedFrame -> link` TF 直接驱动，URDF 只提供 link 与 mesh。Vue 3 版 `Robot3dViewer` 必须保持同一语义：不要把本地 URDF 关节链与 TF 位姿叠加，否则会出现工具、相机、末端 link 位置关系错误喵~
+
+8. **末端工具显示语义**：后端 `scene_attach_worker` 只更新 MoveIt 碰撞（`/attached_collision_object` + 必要时 `/planning_scene` world REMOVE），不动态修改 `robot_description`。Web 端 `Robot3dViewer` 必须订阅 `/tool_changer_status`，在 `is_connected=false` 时移除工具显示模型，在 `is_connected=true` 时按 `tool_id` 加载对应 STL，并用 `kuaihuan_Link TF + tools.yaml.attach_offset` 定位喵~
+
+9. **3D 坐标系语义**：ROS/RViz 约定 Z 轴向上，Three.js 默认 Y 轴向上。`SceneManager` 必须在 viewer 层设置相机 `up=(0,0,1)` 并将网格放到 ROS XY 地面平面，不能旋转 TF/URDF 数据本身；页面图例固定为 X=红、Y=绿、Z=蓝喵~
+
+10. **单屏布局语义**：旧版运行页以 `body.ivg-single-screen` 为核心，目标是全宽紧凑排布并尽量避免双滚动条。Vue 3 版运行页使用 `.ivg-run-page` 限定锁高链路：桌面/平板 `>=768px` 锁在 `100svh` 内，手机 `<768px` 放行整页纵向滚动；主区与相机区按旧版 `920px` 断点语义，在 `921px` 起才进入双列喵~
+
+11. **iPad/触摸适配语义**：入口 viewport 必须包含 `viewport-fit=cover, interactive-widget=resizes-content`，底部固定状态栏必须预留 `env(safe-area-inset-bottom)`，导航链接和全屏按钮触摸高度不少于 44px，避免 iPad 10 与触摸屏上出现遮挡或难点击喵~
+
+12. **最终验收入口**：修改 Web Dashboard 后，最终测试必须通过工作空间根目录的 `start_aubo_new_driver.sh` 启动整套系统。该脚本会先执行 `npm run build` 生成 Vue 3 `web/dist/`，再执行 `colcon build` 让 `setup.py` 安装最新静态产物，最后访问脚本打印的 `IVG 门户`、`视觉抓取` 和 `咖啡拉花` 地址验证喵~
+
+13. **前端构建跳过开关**：仅在确认 `web/dist/` 已是最新产物时，才可设置 `SKIP_WEB_BUILD=1` 跳过 Vue 3 构建。`SKIP_BUILD=1` 会跳过前端与 colcon 全部构建喵~
 
 ---
 

@@ -25,6 +25,7 @@ struct CartesianSegment {
  * 消除 gripper_swap / execute_grasp / publish_grasps 三处的重复代码。
  *
  * IO 语义统一: setGripper(pin, open) — open=true 打开夹爪。
+ * 笛卡尔路径委托 MoveGroupInterface::computeCartesianPath，默认开启碰撞检测喵~
  */
 class RobotController {
 public:

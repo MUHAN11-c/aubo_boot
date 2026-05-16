@@ -18,6 +18,9 @@ class PlanTrajectoryServer : public rclcpp::Node
 public:
     explicit PlanTrajectoryServer(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
+    /** MoveGroupInterface 依赖 Node 已被 shared_ptr 持有，不得在构造函数内 shared_from_this() 喵~ */
+    void init();
+
 private:
     std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
 

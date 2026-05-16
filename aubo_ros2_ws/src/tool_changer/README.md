@@ -84,22 +84,22 @@ world → pedestal_Link → base_link
 | 属性 | 值 |
 |------|-----|
 | 功能 | 夹爪快换 Worker：gripper0 ↔ gripper2 双向自动快换 |
-| 依赖 | tool_changer_interface, demo_interface (SetRobotIO), moveit |
+| 依赖 | ivg_interfaces, moveit |
 | 多线程 | MultiThreadedExecutor(2)：回调线程执行快换，spin 线程处理 MoveIt/IO 响应 |
 
 ### 服务
 
 | 服务名 | 类型 | 说明 |
 |--------|------|------|
-| `/run_gripper_swap` | tool_changer_interface/srv/RunGripperSwap | 执行快换，direction: `gripper0_to_gripper2` / `gripper2_to_gripper0` / `gripper2` |
-| `/change_tool` | tool_changer_interface/srv/ChangeTool | 按 tool_id 切换工具 |
-| `/get_current_tool` | tool_changer_interface/srv/GetCurrentTool | 查询当前工具状态 |
+| `/run_gripper_swap` | ivg_interfaces/srv/RunGripperSwap | 执行快换，direction: `gripper0_to_gripper2` / `gripper2_to_gripper0` / `gripper2` |
+| `/change_tool` | ivg_interfaces/srv/ChangeTool | 按 tool_id 切换工具 |
+| `/get_current_tool` | ivg_interfaces/srv/GetCurrentTool | 查询当前工具状态 |
 
 ### 话题
 
 | 话题名 | 类型 | 说明 |
 |--------|------|------|
-| `/tool_changer_status` | tool_changer_interface/msg/ToolChangerStatus | 快换盘状态（工具 ID / 名称 / 类型 / 连接状态） |
+| `/tool_changer_status` | ivg_interfaces/msg/ToolChangerStatus | 快换盘状态（工具 ID / 名称 / 类型 / 连接状态） |
 
 ### 参数
 
@@ -116,28 +116,28 @@ world → pedestal_Link → base_link
 
 | 属性 | 值 |
 |------|-----|
-| 功能 | 1) PlanningScene 工具碰撞模型附着显示 2) robot_description 实时更新 (Web 前端模型同步) |
-| 依赖 | tool_changer_interface, moveit_msgs, yaml-cpp, aubo_moveit_config (xacro) |
+| 功能 | PlanningScene 已附着工具碰撞模型 ADD/REMOVE |
+| 依赖 | ivg_interfaces, moveit_msgs, yaml-cpp, resource_retriever |
 
 #### 服务
 
 | 服务名 | 类型 | 说明 |
 |--------|------|------|
-| `/scene_attach` | tool_changer_interface/srv/ChangeTool | 手动附着：工具碰撞网格 → kuaihuan_Link |
-| `/scene_detach` | tool_changer_interface/srv/ChangeTool | 手动脱离：工具碰撞网格 → world dock |
+| `/scene_attach` | ivg_interfaces/srv/ChangeTool | 手动附着：工具碰撞网格 → kuaihuan_Link |
+| `/scene_detach` | ivg_interfaces/srv/ChangeTool | 手动脱离：移除已附着工具碰撞网格 |
 
 #### 话题 (发布)
 
 | 话题名 | 类型 | QoS | 说明 |
 |--------|------|-----|------|
-| `/planning_scene` | moveit_msgs/msg/PlanningScene | transient_local(10) | 增量更新：AttachedCollisionObject 附着/脱离 |
-| `/robot_description` | std_msgs/msg/String | transient_local(10) | 含当前末端工具的完整 URDF (xacro 实时渲染) |
+| `/attached_collision_object` | moveit_msgs/msg/AttachedCollisionObject | transient_local(10) | ADD/REMOVE：工具网格附着于 `kuaihuan_Link`（与源码 `create_publisher` QoS 一致）喵~ |
+| `/planning_scene` | moveit_msgs/msg/PlanningScene | transient_local(10) | `is_diff=true`：**仅** `world.collision_objects` REMOVE `attached_tool_<id>`（清除 detach 残留）喵~ |
 
 #### 话题 (订阅)
 
 | 话题名 | 类型 | 说明 |
 |--------|------|------|
-| `/tool_changer_status` | tool_changer_interface/msg/ToolChangerStatus | 物理快换状态变化 → 自动触发场景更新 + URDF 更新 |
+| `/tool_changer_status` | ivg_interfaces/msg/ToolChangerStatus | 物理快换状态变化 → 自动触发 AttachedCollisionObject ADD/REMOVE |
 
 ## 话题/服务完整索引
 
@@ -146,8 +146,8 @@ world → pedestal_Link → base_link
 | 话题 | 类型 | 发布者 | QoS | 说明 |
 |------|------|--------|-----|------|
 | `/tool_changer_status` | `ToolChangerStatus` | gripper_swap_worker | default | 工具状态: `tool_id` (当前工具ID/空), `tool_name` (中文名), `tool_type` (gripper/other), `is_connected` (是否已连接) |
-| `/planning_scene` | `PlanningScene` | scene_attach_worker | transient_local(10) | 增量场景更新: `world.collision_objects` (dock 位姿), `robot_state.attached_collision_objects` (kuaihuan_Link 附着) |
-| `/robot_description` | `String` | scene_attach_worker | transient_local(10) | 含当前末端工具的完整 URDF 字符串 (xacro 实时渲染)，供 robot_state_publisher + Web 前端加载 |
+| `/attached_collision_object` | `AttachedCollisionObject` | scene_attach_worker | transient_local(10) | `attached_tool_<id>` 附着/移除 `kuaihuan_Link`喵~ |
+| `/planning_scene` | `PlanningScene` | scene_attach_worker | transient_local(10) | world REMOVE：`attached_tool_<id>`喵~ |
 
 ### 服务
 
@@ -157,7 +157,7 @@ world → pedestal_Link → base_link
 | `/run_gripper_swap` | `RunGripperSwap` | gripper_swap_worker | 按方向快换: `gripper0_to_gripper2` / `gripper2_to_gripper0` / `gripper2` |
 | `/get_current_tool` | `GetCurrentTool` | gripper_swap_worker | 查询当前工具: 返回 tool_id/tool_name/tool_type/is_connected |
 | `/scene_attach` | `ChangeTool` | scene_attach_worker | 手动附着碰撞网格到 kuaihuan_Link (5 种末端均支持) |
-| `/scene_detach` | `ChangeTool` | scene_attach_worker | 手动脱离碰撞网格回 world dock |
+| `/scene_detach` | `ChangeTool` | scene_attach_worker | 手动移除已附着碰撞网格 |
 
 ### IO 控制
 
@@ -167,7 +167,7 @@ world → pedestal_Link → base_link
 
 ### 消息定义
 
-`ToolChangerStatus` (tool_changer_interface/msg/ToolChangerStatus):
+`ToolChangerStatus` (ivg_interfaces/msg/ToolChangerStatus):
 ```
 string tool_id       # 工具 ID (gripper0/gripper1/gripper2/gripper1coffeecup/gripper1milkcup)
 string tool_name     # 中文名称
@@ -175,7 +175,7 @@ string tool_type     # 类型 (gripper/other)
 bool is_connected    # 是否已连接到快换盘
 ```
 
-`ChangeTool` (tool_changer_interface/srv/ChangeTool):
+`ChangeTool` (ivg_interfaces/srv/ChangeTool):
 ```
 # Request
 string tool_id
@@ -186,7 +186,7 @@ int32 error_code
 string message
 ```
 
-`RunGripperSwap` (tool_changer_interface/srv/RunGripperSwap):
+`RunGripperSwap` (ivg_interfaces/srv/RunGripperSwap):
 ```
 # Request
 string direction   # gripper0_to_gripper2 / gripper2_to_gripper0 / gripper2
@@ -212,34 +212,34 @@ ros2 run tool_changer scene_attach_worker_node
 
 ```bash
 # 查看当前工具
-ros2 service call /get_current_tool tool_changer_interface/srv/GetCurrentTool
+ros2 service call /get_current_tool ivg_interfaces/srv/GetCurrentTool
 
 # 切换工具
-ros2 service call /change_tool tool_changer_interface/srv/ChangeTool "{tool_id: gripper2}"
-ros2 service call /change_tool tool_changer_interface/srv/ChangeTool "{tool_id: gripper0}"
+ros2 service call /change_tool ivg_interfaces/srv/ChangeTool "{tool_id: gripper2}"
+ros2 service call /change_tool ivg_interfaces/srv/ChangeTool "{tool_id: gripper0}"
 
 # 按方向快换
-ros2 service call /run_gripper_swap tool_changer_interface/srv/RunGripperSwap "{direction: gripper2}"
-ros2 service call /run_gripper_swap tool_changer_interface/srv/RunGripperSwap "{direction: gripper0_to_gripper2}"
-ros2 service call /run_gripper_swap tool_changer_interface/srv/RunGripperSwap "{direction: gripper2_to_gripper0}"
+ros2 service call /run_gripper_swap ivg_interfaces/srv/RunGripperSwap "{direction: gripper2}"
+ros2 service call /run_gripper_swap ivg_interfaces/srv/RunGripperSwap "{direction: gripper0_to_gripper2}"
+ros2 service call /run_gripper_swap ivg_interfaces/srv/RunGripperSwap "{direction: gripper2_to_gripper0}"
 ```
 
 ### 场景附着（5 种末端全部支持）
 
 ```bash
 # 附着到机械臂
-ros2 service call /scene_attach tool_changer_interface/srv/ChangeTool "{tool_id: gripper0}"
-ros2 service call /scene_attach tool_changer_interface/srv/ChangeTool "{tool_id: gripper1}"
-ros2 service call /scene_attach tool_changer_interface/srv/ChangeTool "{tool_id: gripper2}"
-ros2 service call /scene_attach tool_changer_interface/srv/ChangeTool "{tool_id: gripper1coffeecup}"
-ros2 service call /scene_attach tool_changer_interface/srv/ChangeTool "{tool_id: gripper1milkcup}"
+ros2 service call /scene_attach ivg_interfaces/srv/ChangeTool "{tool_id: gripper0}"
+ros2 service call /scene_attach ivg_interfaces/srv/ChangeTool "{tool_id: gripper1}"
+ros2 service call /scene_attach ivg_interfaces/srv/ChangeTool "{tool_id: gripper2}"
+ros2 service call /scene_attach ivg_interfaces/srv/ChangeTool "{tool_id: gripper1coffeecup}"
+ros2 service call /scene_attach ivg_interfaces/srv/ChangeTool "{tool_id: gripper1milkcup}"
 
-# 脱离，回到 dock
-ros2 service call /scene_detach tool_changer_interface/srv/ChangeTool "{tool_id: gripper0}"
-ros2 service call /scene_detach tool_changer_interface/srv/ChangeTool "{tool_id: gripper1}"
-ros2 service call /scene_detach tool_changer_interface/srv/ChangeTool "{tool_id: gripper2}"
-ros2 service call /scene_detach tool_changer_interface/srv/ChangeTool "{tool_id: gripper1coffeecup}"
-ros2 service call /scene_detach tool_changer_interface/srv/ChangeTool "{tool_id: gripper1milkcup}"
+# 脱离，移除已附着碰撞网格
+ros2 service call /scene_detach ivg_interfaces/srv/ChangeTool "{tool_id: gripper0}"
+ros2 service call /scene_detach ivg_interfaces/srv/ChangeTool "{tool_id: gripper1}"
+ros2 service call /scene_detach ivg_interfaces/srv/ChangeTool "{tool_id: gripper2}"
+ros2 service call /scene_detach ivg_interfaces/srv/ChangeTool "{tool_id: gripper1coffeecup}"
+ros2 service call /scene_detach ivg_interfaces/srv/ChangeTool "{tool_id: gripper1milkcup}"
 ```
 
 ### 监控
@@ -248,65 +248,43 @@ ros2 service call /scene_detach tool_changer_interface/srv/ChangeTool "{tool_id:
 # 工具状态
 ros2 topic echo /tool_changer_status
 
-# 场景更新
+# 场景 / 附着对象（调试）
+ros2 topic echo /attached_collision_object
 ros2 topic echo /planning_scene
-
-# URDF 更新 (含当前工具)
-ros2 topic echo /robot_description
 ```
 
-## 数据流：工具切换 → 纯 URDF 多端同步
+## 数据流：工具切换 → MoveIt 附着碰撞
+
+源码：`gripper_swap_worker.cpp::changeToTool()`、`scene_attach_worker.cpp::onToolStatus()`喵~
 
 ```
-gripper_swap_worker.changeToTool()
+gripper_swap_worker.changeToTool(target)
   │
-  ├── 1. publishToolStatus(false)          ← 切换前清除状态（避免附着碰撞干扰运动）
-  │
-  ├── 2. 执行物理快换（运动 + IO）
-  │
-  └── 3. publishToolStatus("gripper0")     ← 切换完成后发布新状态
-          │
-          └→ scene_attach_worker.onToolStatus()
-                ├── addToWorldDock(旧工具)    ← PlanningScene: dock 恢复障碍物
-                ├── removeFromWorldDock(新工具) ← PlanningScene: dock 移除障碍物
-                │
-                └── updateRobotDescription()
-                      ├── xacro 渲染含工具的完整 URDF
-                      ├── publish /robot_description topic
-                      └── set_parameters /robot_state_publisher
-                            │
-                            ├→ robot_state_publisher.onParameterEvent()
-                            │     └→ setupURDF(新 URDF)
-                            │           ├→ 发布 gripper0_Link TF 帧
-                            │           └→ publish /robot_description topic
-                            │
-                            ├→ MoveIt PlanningSceneMonitor
-                            │     └→ 订阅 /robot_description topic
-                            │     └→ reloadRobotModel()  ← 碰撞模型从 URDF <collision> 原生获取
-                            │
-                            ├→ RViz2 RobotModel
-                            │     └→ 参数变更 / 话题更新 → 重建显示模型
-                            │
-                            └→ Web Frontend (rosbridge)
-                                  └→ get_param robot_description → ROS3D.UrdfClient
+  ├── （若有当前工具）moveToDockApproach(current) → /scene_detach(current)
+  │       └── scene_attach_worker：ACO REMOVE + world REMOVE attached_tool_<current>
+  ├── releaseTool(current) → publishToolStatus(false)
+  │       └── scene_attach_worker：无附着（is_connected=false）
+  ├── moveToDockApproach(target) → pickTool(target)
+  ├── publishToolStatus(true)   ← pick 成功后立即发布（不等 moveToHome）
+  │       └── scene_attach_worker.onToolStatus()
+  │             ├── detachToolFromScene(旧 id)  — /attached_collision_object REMOVE + world REMOVE
+  │             └── attachToolToScene(新 id) — /attached_collision_object ADD（附着前后各做一次 world REMOVE 以防陈旧副本）
+  └── moveToHome()
 ```
 
-**核心设计决策 — 纯 URDF 方案**：
+**核心设计决策（与源码一致）**：
 
-不再使用 `PlanningScene AttachedCollisionObject`，改为仅通过 `robot_description` 参数更新 URDF：
+1. **ACO 走 `/attached_collision_object`**：`move_group` 的 `PlanningSceneMonitor` 订阅该话题应用附着几何（启动日志含 *Listening to '/attached_collision_object'*）喵~  
+2. **detach 残留走 `/planning_scene`**：仅发布 `world.collision_objects` 的 REMOVE（`attached_tool_<id>`），避免对象落在 world 中与 `kuaihuan_Link` 误判碰撞喵~  
+3. **不管理 dock world 静态网格**：不向场景 ADD dock 碰撞体；未连接工具无 PlanningScene 碰撞喵~  
+4. **位姿只看 `attach_offset`**：`object.pose = tools.yaml.attach_offset`，`mesh_poses[0]` 为单位姿态，`link_name`/`header.frame_id`=`kuaihuan_Link`喵~  
+5. **与 URDF/Web 显示解耦**：本节点不改 `robot_description`；Web `Robot3dViewer` 用 `/tool_changer_status` + TF + `attach_offset` 显示工具 STL喵~  
+6. **QoS**：两处 publisher 均为 `QoS(10).transient_local()`，与 `PlanningSceneMonitor` 默认 transient_local 订阅相容喵~  
 
-1. **碰撞由 URDF `<collision>` 原生提供**：MoveIt 从 URDF 解析碰撞几何，用 SRDF 的 ACM (Allowed Collision Matrix) 做自碰撞判断，无需 `touch_links`
-   - **ACM 配置位置**：`aubo_moveit_config/config/aubo_e5.srdf:69-89`，20 条 `<disable_collisions>` 覆盖 5 种末端工具 × 4 个末端固定链 link（`kuaihuan_Link`, `camera_Link`, `wrist3_Link`, `tool_tcp`），详见 CLAUDE.md 规则 12b 喵~
-2. **一条路径同时覆盖 RViz2 + Web**：`robot_state_publisher` 接收参数变更 → `setupURDF()` → 发布新 TF + `/robot_description` 话题 → MoveIt PlanningSceneMonitor / RViz2 RobotModel / Web ROS3D 全部自动同步
-3. **切换前清除，避免运动干涉**：`gripper_swap_worker.changeToTool()` 入口处 `publishToolStatus(false)` 触发 `updateRobotDescription()`（无工具 URDF），运动期间机械臂上无夹爪碰撞模型，规划不受干扰
-4. **无 z-fighting**：只有 URDF 唯一表示，不存在 PlanningScene 附着体与 RobotModel 重叠问题
+- **历史依据**：Git `748c7bb3d` 的 `aco.object.pose = attach_offset` + identity `mesh_pose`喵~  
+- **末端自碰撞豁免**：`touch_links` 须含 `kuaihuan_Link`、`camera_Link`、`wrist3_Link`、`tool_tcp`（详见 SRDF ACM，`CLAUDE.md` 规则 12b）喵~  
 
-- **位姿一致**：`aubo_e5.urdf.xacro` 中 `kuaihuan_to_${name}` 的 origin 与 `tools.yaml` 中各工具的 `attach_offset` 严格对齐（gripper0/1/2: z=0.033, rpy=0; coffeecup: ry=π; milkcup: ry=-π/2）
-- **transient_local QoS**：保证重启后的 Web Dashboard / MoveIt 订阅者能收到最新的场景状态和 URDF
-
-## 话题/服务完整索引
-
-### 末端工具 attach_offset 计算
+## 末端工具 attach_offset 计算
 
 ### 背景
 
@@ -391,94 +369,15 @@ kuaihuan mesh Z 范围:
 
 ---
 
-## 场景更新双路径架构 & 实战排错记录
+## 历史实现对照
 
-### 背景：模型不更新的排错
+Git 历史 `748c7bb3d` 中的 `scene_attach_worker` 已经证明了末端工具附着的正确位姿语义：`AttachedCollisionObject.object.pose` 表示工具 mesh 原点在 `kuaihuan_Link` 坐标系下的位姿，`mesh_poses[0]` 只保留单位位姿喵~
 
-**现象**：工具快换完成后，RViz2 和 Web 前端均不显示新工具模型。
+当前实现保留 `748c7bb3d` 的附着语义，同时：**不再**维护动态 URDF、**不再**向 PlanningScene 添加 dock 静态 world 网格；并通过 `/planning_scene` world REMOVE 清理 detach 后残留的 `attached_tool_<id>`喵~
 
-**排查过程**：第一阶段 `scene_attach_worker_node` 直接 SIGSEGV (exit code -11)，第二阶段 `bad_weak_ptr` 崩溃，第三阶段节点正常运行但模型仍不更新。最终发现是架构设计问题。
+需要避免的旧路径：
 
-### Bug #1: SIGSEGV — 空指针解引用
-
-**根因**：构造函数中 `updateRobotDescription()` 先于 `AsyncParametersClient` 创建被调用，内部访问未初始化的成员指针。
-
-```cpp
-// 错误顺序
-updateRobotDescription();                          // 内部调用 robot_state_params_client_->wait_for_service()
-robot_state_params_client_ = make_shared<...>();   // 太晚了！已崩溃
-```
-
-GDB 栈帧确认：
-```
-#0  rclcpp::AsyncParametersClient::wait_for_service_nanoseconds()
-#2  tool_changer::SceneAttachWorker::updateRobotDescription()
-#3  tool_changer::SceneAttachWorker::SceneAttachWorker()  ← 构造函数
-```
-
-**修复**：不要在构造函数中调用 `updateRobotDescription()`——初始 URDF 已由 `robot_state_publisher` 在系统启动时发布，无需 scene_attach_worker 再发一次。
-
-### Bug #2: bad_weak_ptr — 构造函数中调用 shared_from_this()
-
-**根因**：`rclcpp::AsyncParametersClient` 构造函数需要 `Node::SharedPtr`，但 ROS 2 的 `enable_shared_from_this` 机制在构造函数**内**尚未就绪。虽然 `make_shared` 已分配控制块，但 `rclcpp::Node` 的 `shared_from_this()` 走 `NodeBaseInterface` 路径，在构造阶段仍会抛出 `std::bad_weak_ptr`。
-
-**修复**：延迟初始化——在 `onToolStatus()` 回调中（此时节点已由 `rclcpp::spin` 管理）首次调用时按需创建 `AsyncParametersClient`。
-
-### Bug #3: robot_state_publisher 不订阅 /robot_description 话题
-
-**调查过程**：查阅 [ROS 2 Humble `robot_state_publisher` 源码](https://github.com/ros/robot_state_publisher/blob/humble/src/robot_state_publisher.cpp)：
-
-```cpp
-// 关键发现：robot_state_publisher 没有 /robot_description topic subscriber！
-// 它只在 startup 时通过 declare_parameter 读取，运行时通过 /parameter_events 监听变更
-void RobotStatePublisher::onParameterEvent(...)
-{
-    if (event->node != this->get_fully_qualified_name()) return;  // 只处理本节点参数变更
-    // ...
-    setupURDF(new_urdf);  // 重新解析 URDF → 发布新 TF 帧
-}
-```
-
-`setupURDF()` 校验逻辑 (`parameterUpdate`):
-1. URDF 非空 → 否则拒绝 `"Empty URDF is not allowed"`
-2. `urdf::Model::initString()` + `kdl_parser::treeFromUrdfModel()` 解析成功 → 否则拒绝
-
-**结论**：**发布 `/robot_description` 话题无法让 `robot_state_publisher` 更新 TF！** 必须通过 `set_parameters` 设置 `robot_description` 参数 → 触发 `onParameterEvent` → `setupURDF()`。
-
-### Bug #4: ROS 2 参数隔离 — 每个节点独立副本
-
-**背景知识**：ROS 2 **没有全局参数服务器**（与 ROS 1 的 `rosparam` 不同）。`launch` 文件中 `parameters=[robot_description]` 会把参数**分别写入每个节点的私有存储**：
-
-```python
-rsp_node       = Node(... parameters=[robot_description])  # robot_state_publisher 自己的副本
-move_group_node = Node(... parameters=[robot_description]) # move_group 自己的副本
-rviz_node      = Node(... parameters=[robot_description])  # rviz2 自己的副本
-```
-
-修改 `/robot_state_publisher` 的参数**不会影响** `/move_group` 和 `/rviz2`。
-
-| 节点 | 用途 | 不更新后果 |
-|------|------|-----------|
-| `/robot_state_publisher` | 建 KDL 树 → 发布 TF 帧 | 不发布 `gripper0_Link` TF |
-| `/move_group` | 建 RobotModel → 碰撞检测 + 规划 | MoveIt 不把夹爪纳入碰撞模型 |
-| `/rviz2` | 建视觉模型 → 渲染 RobotModel | 即使有 TF 也不知 gripper mesh 长什么样 |
-
-### 最终架构：纯 URDF 方案
-
-经实测验证，运行时更新 `robot_description` 参数 → `robot_state_publisher.onParameterEvent()` → `setupURDF()` → 发布 `/robot_description` 话题 → MoveIt `PlanningSceneMonitor` 自动 `reloadRobotModel()` 整个链路正常工作。因此不需要双路径，只用 URDF 一条路同时搞定碰撞、RViz2 显示、Web 显示。
-
-**碰撞安全**：`gripper_swap_worker.changeToTool()` **入口处**发布空工具状态 → `scene_attach_worker` 立即更新 URDF 为无工具版本 → 后续切换运动中机械臂上无夹爪碰撞体 → 不会发生自碰撞干涉。
-
-### RViz2 显示
-
-只用 `RobotModel` 显示即可（URDF 路径自动更新），不再有 PlanningScene 附着体 → **无 z-fighting**。
-
-### 关键实现细节
-
-1. **`setupURDF()` 会重新发布 `/robot_description` 话题**：`robot_state_publisher` 收到参数变更后会调用 `setupURDF()`，后者内部 `description_pub_->publish()` 把新 URDF 重新发到话题（供 MoveIt 的 PlanningSceneMonitor 等订阅者读取）。
-
-2. **`AsyncParametersClient` 延迟初始化**：`updateRobotDescription()` 在 `onToolStatus` 回调中首次被调用时创建，此时节点已由 `rclcpp::spin` 管理，`shared_from_this()` 正常工作。构造函数中不调用。
-
-3. **xacro 渲染的一致性**：`scene_attach_worker` 调用 xacro 的路径必须与主 launch 中 `MoveItConfigsBuilder.robot_description()` 生成的是同一个 `.xacro` 文件，确保基础 URDF 结构一致（只是多了 `gripper:=` 参数）。
-
-4. **仅更新 `robot_state_publisher` 参数**：`setupURDF()` 内部会重新发布 `/robot_description` 话题，MoveIt 订阅此话题自动更新模型，无需逐节点设置参数。
+- 不要在 `scene_attach_worker` 中调用 xacro 或缓存 URDF 喵~
+- 不要发布 `/robot_description` 喵~
+- 不要通过 `AsyncParametersClient` 设置 `robot_state_publisher.robot_description` 喵~
+- 不要把 `attach_offset.position` 丢掉，也不要只把 orientation 写到 `mesh_poses[0]` 喵~

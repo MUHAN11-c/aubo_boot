@@ -18,6 +18,8 @@ class GetCurrentStateServer : public rclcpp::Node
 public:
     explicit GetCurrentStateServer(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
+    void init();
+
 private:
     // 数据源
     rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_states_sub_;

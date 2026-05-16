@@ -7,6 +7,7 @@
  * AI 模式:  采集开关 + 循环发布 + 抓取位姿显示
  */
 import { useRosService } from '@/composables/useRosService'
+import { useDashboardSettings } from '@/composables/useDashboardSettings'
 
 const props = defineProps<{
   mode: 'workpiece' | 'graspnet'
@@ -19,7 +20,11 @@ const emit = defineEmits<{
   log: [msg: string]
 }>()
 
-const { executeGrasp, callSetBool } = useRosService()
+const { call, callSetBool } = useRosService()
+const settings = useDashboardSettings()
+const loopGraspService = computed(() => settings.rosName('svc-loop-grasp-control', '/loop_grasp_control'))
+const graspnetCaptureService = computed(() => settings.rosName('svc-graspnet-capture', '/graspnet_capture_control'))
+const publishGraspsLoopService = computed(() => settings.rosName('svc-publish-grasps-loop', '/publish_grasps_worker_loop_control'))
 
 function log(msg: string) { emit('log', msg) }
 
@@ -27,25 +32,28 @@ function log(msg: string) { emit('log', msg) }
 
 async function doSingleGrasp() {
   log('执行单次抓取…')
-  try { const r = await executeGrasp(props.objectId, true); log(`✓ ${r.success ? '成功' : '失败'} ${r.message || ''}`) }
+  try {
+    const r = await call('/execute_single_grasp', settings.serviceType('execute-single-grasp', 'ivg_interfaces/srv/ExecuteGraspPose'), { object_id: props.objectId, use_visual_estimation: true })
+    log(`✓ ${r.success ? '成功' : '失败'} ${r.message || ''}`)
+  }
   catch (e: any) { log(`✗ 错误: ${e}`) }
 }
 
 async function doLoopGrasp(start: boolean) {
   log(start ? '启动循环抓取…' : '停止循环')
-  try { await callSetBool('/loop_grasp_control', start); log(start ? '✓ 循环已启动' : '✓ 已停止') }
+  try { await callSetBool(loopGraspService.value, start); log(start ? '✓ 循环已启动' : '✓ 已停止') }
   catch (e: any) { log(`✗ 错误: ${e}`) }
 }
 
 // ── AI 模式操作 ──
 
 async function doCapture(start: boolean) {
-  try { await callSetBool('/graspnet_capture_control', start); log(start ? '✓ 采集开始' : '✓ 采集停止') }
+  try { await callSetBool(graspnetCaptureService.value, start); log(start ? '✓ 采集开始' : '✓ 采集停止') }
   catch (e: any) { log(`✗ 错误: ${e}`) }
 }
 
 async function doGraspnetLoop(start: boolean) {
-  try { await callSetBool('/publish_grasps_worker_loop_control', start); log(start ? '✓ 循环开启' : '✓ 循环关闭') }
+  try { await callSetBool(publishGraspsLoopService.value, start); log(start ? '✓ 循环开启' : '✓ 循环关闭') }
   catch (e: any) { log(`✗ 错误: ${e}`) }
 }
 </script>

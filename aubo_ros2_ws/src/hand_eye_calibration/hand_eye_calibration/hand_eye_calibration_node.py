@@ -15,6 +15,8 @@ import threading
 import os
 import json
 import time
+import errno
+import socket
 import cv2
 import numpy as np
 from cv_bridge import CvBridge
@@ -46,7 +48,8 @@ class HandEyeCalibrationNode(Node):
         
         # 初始化参数
         self.declare_parameter('web_host', 'localhost')
-        self.declare_parameter('web_port', 8080)
+        # 默认 8070：避免与常见 HTTP 服务/VPE(8088)/MJPEG(8089)/门户(8090) 抢 8080 喵~
+        self.declare_parameter('web_port', 8070)
         self.declare_parameter('camera_topic', '/camera/image_raw')
         self.declare_parameter('robot_status_topic', '/aubo_driver/robot_status')
         self.declare_parameter('collect_data_dir', os.path.expanduser('~/.ivg/hand_eye_calibrate/collect_data'))
@@ -217,14 +220,23 @@ class HandEyeCalibrationNode(Node):
         # 注册路由
         self._register_routes()
         
-        # 启动Web服务器
-        self.web_thread = threading.Thread(
-            target=self._run_web_server,
-            daemon=True
-        )
-        self.web_thread.start()
-        
-        self.get_logger().info(f'手眼标定Web界面已启动: http://{self.web_host}:{self.web_port}')
+        # 启动 Web 服务器（端口被占用时不启动线程，ROS 订阅仍可用）喵~
+        self.web_thread = None
+        if not self._is_tcp_port_available(self.web_host, int(self.web_port)):
+            self.get_logger().error(
+                f'❌ Web 端口 {self.web_port} 已被占用，无法启动手眼标定 Flask 服务喵~ '
+                f'请结束占用进程或 launch 时指定其它端口，例如 web_port:=8081 喵~ '
+                f'（start_aubo_new_driver.sh 可用环境变量 HAND_EYE_PORT）喵~'
+            )
+        else:
+            self.web_thread = threading.Thread(
+                target=self._run_web_server,
+                daemon=True
+            )
+            self.web_thread.start()
+            self.get_logger().info(
+                f'手眼标定 Web 界面监听: http://{self.web_host}:{self.web_port} 喵~'
+            )
     
     def _get_template_folder(self):
         """获取模板文件夹路径"""
@@ -5339,14 +5351,37 @@ class HandEyeCalibrationNode(Node):
         self.get_logger().warning(f'⚠️ 等待机器人到位超时 ({max_wait_time}秒)')
         return False
     
+    def _is_tcp_port_available(self, host: str, port: int) -> bool:
+        """探测本机 TCP 端口是否当前可绑定（与 Flask 监听 IPv4 行为一致）喵~"""
+        bind_host = host
+        if host in ('localhost',):
+            bind_host = '127.0.0.1'
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.bind((bind_host, int(port)))
+            return True
+        except OSError:
+            return False
+
     def _run_web_server(self):
         """运行Web服务器"""
-        self.app.run(
-            host=self.web_host,
-            port=self.web_port,
-            debug=False,
-            threaded=True
-        )
+        try:
+            self.app.run(
+                host=self.web_host,
+                port=int(self.web_port),
+                debug=False,
+                threaded=True,
+                use_reloader=False,
+            )
+        except OSError as e:
+            if e.errno == errno.EADDRINUSE:
+                self.get_logger().error(
+                    f'❌ Web 绑定失败：端口 {self.web_port} 已被占用（EADDRINUSE）喵~ '
+                    f'请改用其它 web_port 或释放该端口喵~'
+                )
+            else:
+                self.get_logger().error(f'❌ Web 服务器启动失败: {e} 喵~')
     
     def image_callback(self, msg):
         """图像回调函数 - 处理ImageData消息"""

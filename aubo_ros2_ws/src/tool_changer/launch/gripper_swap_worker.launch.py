@@ -1,3 +1,5 @@
+"""生产默认：同时启动 gripper_swap_worker + scene_attach_worker（ACO + world 清理）喵~"""
+
 from launch import LaunchDescription
 from launch_ros.actions import Node
 

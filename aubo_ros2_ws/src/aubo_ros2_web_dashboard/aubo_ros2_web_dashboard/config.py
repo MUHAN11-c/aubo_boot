@@ -14,11 +14,10 @@ from typing import Any
 
 try:
     import yaml as _yaml
+    _HAS_YAML = True
 except ImportError:
-    raise ImportError(
-        "yaml 库未安装 — IVG Web Dashboard 需要 PyYAML 解析 defaults.yaml。"
-        "  pip install pyyaml"
-    )
+    _yaml = None
+    _HAS_YAML = False
 
 # 源树路径: <pkg>/config/defaults.yaml
 _SRC_ROOT = Path(__file__).resolve().parent.parent
@@ -40,6 +39,8 @@ def _load_yaml() -> dict[str, Any]:
     if not _YAML_PATH.is_file():
         return {}
     raw = _YAML_PATH.read_text(encoding="utf-8")
+    if not _HAS_YAML or _yaml is None:
+        return {}
     d = _yaml.safe_load(raw)
     return d if isinstance(d, dict) else {}
 
@@ -183,7 +184,7 @@ def save_settings_to_yaml(settings: dict[str, Any]) -> bool:
     保留 label/msg_type/srv_type 等元数据不变。
     同时更新内存 _cfg 使修改即时生效。
     """
-    if not _YAML_PATH.is_file():
+    if not _YAML_PATH.is_file() or not _HAS_YAML or _yaml is None:
         return False
 
     full = _load_yaml()
@@ -204,11 +205,8 @@ def save_settings_to_yaml(settings: dict[str, Any]) -> bool:
     # 写回文件
     try:
         raw = _YAML_PATH.read_text(encoding="utf-8")
-        if _HAS_YAML:
-            _yaml.safe_dump(full, _YAML_PATH.open("w", encoding="utf-8"),
-                           allow_unicode=True, default_flow_style=False, sort_keys=False)
-        else:
-            _YAML_PATH.write_text(_json.dumps(full, indent=2, ensure_ascii=False), encoding="utf-8")
+        _yaml.safe_dump(full, _YAML_PATH.open("w", encoding="utf-8"),
+                        allow_unicode=True, default_flow_style=False, sort_keys=False)
     except Exception:
         return False
 

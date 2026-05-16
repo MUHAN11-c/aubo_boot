@@ -109,7 +109,7 @@ private:
   bool pickTool(const ToolConfig& tool);
 
   // ── 4. 放轨迹（泛型，按 strategy 分发） ──
-  bool releaseTool(const ToolConfig& tool);
+  bool releaseTool(const ToolConfig& tool, bool* tool_released = nullptr);
 
   // ═══════════════════════════════════════════════════════════════
   // 笛卡尔路径（底层）
@@ -124,6 +124,7 @@ private:
 
   bool setGripperIoSafe(bool open_gripper);
   bool setGripperIo(int32_t io_index, bool high);
+  bool updateSceneAttachment(const std::string& tool_id, bool attached);
 
   // ═══════════════════════════════════════════════════════════════
   // 综合流程（数据驱动：释放当前 → 取目标 → 回 home）
@@ -162,6 +163,8 @@ private:
   std::shared_ptr<demo_driver::RobotController> robot_;
   std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
   rclcpp::Client<ivg_interfaces::srv::SetRobotIO>::SharedPtr set_io_client_;
+  rclcpp::Client<ivg_interfaces::srv::ChangeTool>::SharedPtr scene_attach_client_;
+  rclcpp::Client<ivg_interfaces::srv::ChangeTool>::SharedPtr scene_detach_client_;
   int32_t gripper_io_index_{ 7 };
   bool simulation_skip_io_{ false };
 

@@ -14,10 +14,10 @@
 #include <vector>
 
 #include <geometry_msgs/msg/pose.hpp>
+#include <moveit_msgs/msg/attached_collision_object.hpp>
 #include <moveit_msgs/msg/planning_scene.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <shape_msgs/msg/mesh.hpp>
-#include <std_msgs/msg/string.hpp>
 #include <ivg_interfaces/msg/tool_changer_status.hpp>
 #include <ivg_interfaces/srv/change_tool.hpp>
 
@@ -25,17 +25,12 @@ namespace tool_changer
 {
 
 /**
- * @brief 订阅 /tool_changer_status，通过 AttachedCollisionObject 让 move_group 感知工具碰撞。
+ * @brief 订阅 /tool_changer_status（及 /scene_attach、/scene_detach），同步 MoveIt 中「已连接工具」的碰撞几何喵~
  *
- * 碰撞由两层协同提供：
- *   1. URDF <collision> — RViz 视觉渲染 + robot_state_publisher TF（由 updateRobotDescription 管理）
- *   2. AttachedCollisionObject (/planning_scene diff) — move_group 感知碰撞、用于规划避障
- *
- * 工具切换时：
- *   附着：发送 AttachedCollisionObject ADD（网格附着到 kuaihuan_Link）+ 更新 URDF
- *   脱离：发送 AttachedCollisionObject REMOVE + 更新空工具 URDF
- *
- * 不再使用 world dock 碰撞对象，只关注已附着的工具。
+ * - **`/attached_collision_object`**：发布 ADD/REMOVE `AttachedCollisionObject`（附着到 `kuaihuan_Link`）喵~
+ * - **`/planning_scene`（is_diff）**：仅推送 `world.collision_objects` 中对 `attached_tool_<id>` 的 REMOVE，
+ *   清除 detach 后可能残留在 world 中的同名对象，避免误判碰撞喵~
+ * - **不**发布 `/robot_description`、不改 URDF；工具相对法兰位姿来自 `tools.yaml::attach_offset`喵~
  */
 class SceneAttachWorker : public rclcpp::Node
 {
@@ -57,12 +52,11 @@ private:
   // /tool_changer_status 回调
   void onToolStatus(const ivg_interfaces::msg::ToolChangerStatus& msg);
 
-  // robot_description 更新（URDF 缓存 → topic + robot_state_publisher 参数）
-  void updateRobotDescription(const std::string& tool_id);
-
-  // AttachedCollisionObject 管理（/planning_scene diff）
+  // MoveIt：ACO（/attached_collision_object）+ world REMOVE（/planning_scene）
   void attachToolToScene(const std::string& tool_id);
   void detachToolFromScene(const std::string& tool_id);
+  /** detach/attach 后清除 world 中残留的 attached_tool_<tool_id>（PlanningScene diff）喵~ */
+  void removeWorldToolObject(const std::string& tool_id);
 
   // 服务回调
   void onSceneAttach(const std::shared_ptr<ivg_interfaces::srv::ChangeTool::Request> req,
@@ -74,15 +68,11 @@ private:
 
   std::map<std::string, ToolGeometry> tool_geometries_;
   rclcpp::Publisher<moveit_msgs::msg::PlanningScene>::SharedPtr planning_scene_pub_;
+  rclcpp::Publisher<moveit_msgs::msg::AttachedCollisionObject>::SharedPtr attached_object_pub_;
   rclcpp::Subscription<ivg_interfaces::msg::ToolChangerStatus>::SharedPtr tool_status_sub_;
 
   rclcpp::Service<ivg_interfaces::srv::ChangeTool>::SharedPtr scene_attach_srv_;
   rclcpp::Service<ivg_interfaces::srv::ChangeTool>::SharedPtr scene_detach_srv_;
-
-  // URDF 缓存 & 发布
-  std::map<std::string, std::string> urdf_cache_;
-  rclcpp::AsyncParametersClient::SharedPtr param_client_;
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr robot_description_pub_;
 
   std::string current_attached_tool_;
 };

@@ -29,8 +29,10 @@ import { useMJPEGStream } from '@/composables/useMJPEGStream'
 import { useJointChart } from '@/composables/useJointChart'
 import { useProjectionOverlay } from '@/composables/useProjectionOverlay'
 import { useRosService } from '@/composables/useRosService'
+import { useDashboardSettings } from '@/composables/useDashboardSettings'
 import { ivgQuatNormalize } from '@/lib/tf_math'
 import type { Quat } from '@/lib/tf_math'
+import { canonicalRosTopic } from '@/lib/utils'
 import Robot3dViewer from '@/components/ivg/Robot3dViewer.vue'
 import ToolSwapBar from '@/components/grasp/ToolSwapBar.vue'
 import {
@@ -41,6 +43,25 @@ import {
 
 const { isConnected, connect, subscribe, unsubscribeAll, onRosJson, onControlJson, callService } = useRos()
 const { callSetBool } = useRosService()
+const settings = useDashboardSettings()
+
+const robotStatusTopic = computed(() => settings.rosName('topic-robot', ROBOT_STATUS_TOPIC))
+const jointStatesTopic = computed(() => settings.rosName('topic-joints', JOINT_STATES_TOPIC))
+const tfTopic = computed(() => settings.rosName('topic-tf', TF_TOPIC))
+const tfStaticTopic = computed(() => settings.rosName('topic-tf-static', TF_STATIC_TOPIC))
+const vpeStatusTopic = computed(() => settings.rosName('topic-vpe-status', '/system_status'))
+const graspPosesTopic = computed(() => settings.rosName('topic-grasp-poses', '/grasp_poses_base'))
+const resultTopic = computed(() => settings.optionalRosName('topic-result', ''))
+const toolStatusTopic = computed(() => settings.rosName('topic-tool-status', '/tool_changer_status'))
+const urdfParam = computed(() => settings.raw('urdf-param', '/robot_state_publisher:robot_description'))
+const fixedFrame = computed(() => settings.raw('tf-fixed-frame', 'base_link'))
+const loopGraspService = computed(() => settings.rosName('svc-loop-grasp-control', '/loop_grasp_control'))
+const graspnetCaptureService = computed(() => settings.rosName('svc-graspnet-capture', '/graspnet_capture_control'))
+const publishGraspsLoopService = computed(() => settings.rosName('svc-publish-grasps-loop', '/publish_grasps_worker_loop_control'))
+
+function sameTopic(topic: string, expected: string): boolean {
+  return canonicalRosTopic(topic) === canonicalRosTopic(expected)
+}
 
 // ═══════════════════════ 抓取模式 ═══════════════════════
 
@@ -79,8 +100,9 @@ const graspPoseRaw = ref<any>(null)
 
 // ═══════════════════════ 相机 ═══════════════════════
 
-const colorTopic = ref('/camera/color/image_raw')
+const colorTopic = computed(() => settings.rosName('topic-color', '/camera/color/image_raw'))
 const { cameraStreamUrl, cameraSnapshotUrl } = useMJPEGStream(colorTopic)
+const { cameraStreamUrl: resultStreamUrl } = useMJPEGStream(resultTopic)
 
 /** 从 color 话题动态推导 camera_info 话题名 */
 function buildCameraInfoTopic(topic: string): string {
@@ -113,9 +135,6 @@ function formatPoseBlockHtml(poseXyz: { x: string; y: string; z: string }, quat:
 <div class="pose-card__quad"><div class="pose-card__pill"><span>X</span><span>${quat.qx}</span></div><div class="pose-card__pill"><span>Y</span><span>${quat.qy}</span></div><div class="pose-card__pill"><span>Z</span><span>${quat.qz}</span></div><div class="pose-card__pill"><span>W</span><span>${quat.qw}</span></div></div>
 </section></div>`
 }
-
-// 识别结果图像话题（可选，旧版 topic-result）
-const resultTopic = ref('')
 
 /** 防抖刷新 AI 模式相机快照（snapshot 失败时回退到 MJPEG 流） */
 let graspSnapTimer: ReturnType<typeof setTimeout> | null = null
@@ -187,7 +206,8 @@ function log(msg: string): void {
 // ═══════════════════════ 话题消息处理 ═══════════════════════
 
 // 机器人状态 → 解析末端位姿（含 robotPoseCache + ivg_display 回退）
-onRosJson(ROBOT_STATUS_TOPIC, (msg: any) => {
+onRosJson(null, (msg: any, topic: string) => {
+  if (!sameTopic(topic, robotStatusTopic.value)) return
   if (!msg) return
 
   // ivg_display 回退（旧版 pose_card.js:128）
@@ -245,7 +265,8 @@ onRosJson(ROBOT_STATUS_TOPIC, (msg: any) => {
 })
 
 // 关节状态 → 曲线图 + 数值
-onRosJson(JOINT_STATES_TOPIC, (msg: any) => {
+onRosJson(null, (msg: any, topic: string) => {
+  if (!sameTopic(topic, jointStatesTopic.value)) return
   if (!msg) return
   const names: string[] = msg.name ?? []
   const pos: number[] = msg.position ?? []
@@ -255,12 +276,13 @@ onRosJson(JOINT_STATES_TOPIC, (msg: any) => {
 })
 
 // TF → 投影叠加 + 3D 更新
-const handleTf = (msg: any) => ingestTfMessage(msg)
-onRosJson(TF_TOPIC, handleTf)
-onRosJson(TF_STATIC_TOPIC, handleTf)
+onRosJson(null, (msg: any, topic: string) => {
+  if (sameTopic(topic, tfTopic.value) || sameTopic(topic, tfStaticTopic.value)) ingestTfMessage(msg)
+})
 
 // VPE 状态（工件模式）
-onRosJson('/system_status', (msg: any) => {
+onRosJson(null, (msg: any, topic: string) => {
+  if (!sameTopic(topic, vpeStatusTopic.value)) return
   vpeStatus.value = msg?.data ? String(msg.data) : ''
 })
 
@@ -272,7 +294,8 @@ onRosJson(null, (msg, topic) => {
 })
 
 // AI 抓取位姿 → 投影 + 快照 + 格式化 HTML
-onRosJson('/grasp_poses_base', (msg: any) => {
+onRosJson(null, (msg: any, topic: string) => {
+  if (!sameTopic(topic, graspPosesTopic.value)) return
   graspPoseRaw.value = msg
   setGraspMsg(msg)
   scheduleGraspSnapshotRefresh()
@@ -305,13 +328,13 @@ onControlJson((c) => {
 
 function setupSubs(): void {
   if (!isConnected()) return
-  subscribe(ROBOT_STATUS_TOPIC, ROBOT_STATUS_TYPE, 50)
-  subscribe(JOINT_STATES_TOPIC, JOINT_STATES_TYPE, 30)
-  subscribe(TF_TOPIC, TF_TYPE, 30)
-  subscribe(TF_STATIC_TOPIC, TF_TYPE, 1)
-  subscribe('/system_status', 'std_msgs/msg/String', 10)
+  subscribe(robotStatusTopic.value, settings.topicType('topic-robot', ROBOT_STATUS_TYPE), 50)
+  subscribe(jointStatesTopic.value, settings.topicType('topic-joints', JOINT_STATES_TYPE), 30)
+  subscribe(tfTopic.value, settings.topicType('topic-tf', TF_TYPE), 30)
+  subscribe(tfStaticTopic.value, settings.topicType('topic-tf-static', TF_TYPE), 1)
+  subscribe(vpeStatusTopic.value, settings.topicType('topic-vpe-status', 'std_msgs/msg/String'), 10)
   subscribe(buildCameraInfoTopic(colorTopic.value), 'sensor_msgs/msg/CameraInfo', 5)
-  subscribe('/grasp_poses_base', 'geometry_msgs/msg/PoseArray', 15)
+  subscribe(graspPosesTopic.value, settings.topicType('topic-grasp-poses', 'geometry_msgs/msg/PoseArray'), 15)
 }
 
 function resetAll(): void {
@@ -330,7 +353,7 @@ async function doSingleGrasp(): Promise<void> {
   log('执行单次抓取…')
   try {
     const useVisual = graspMode.value === 'workpiece'
-    const r: any = await callService('/execute_single_grasp', 'ivg_interfaces/srv/ExecuteGraspPose', {
+    const r: any = await callService('/execute_single_grasp', settings.serviceType('execute-single-grasp', 'ivg_interfaces/srv/ExecuteGraspPose'), {
       object_id: objectId.value, use_visual_estimation: useVisual,
     })
     log(`✓ ${r?.success ? '成功' : '失败'} ${r?.message || ''}`)
@@ -339,26 +362,26 @@ async function doSingleGrasp(): Promise<void> {
 
 /** 工件模式: 停止循环 */
 async function doStop(): Promise<void> {
-  try { await callSetBool('/loop_grasp_control', false); log('已停止') }
+  try { await callSetBool(loopGraspService.value, false); log('已停止') }
   catch (e: any) { log(`✗ 错误: ${e}`) }
 }
 
 /** 工件模式: 启动循环 */
 async function doLoopGrasp(start: boolean): Promise<void> {
   log(start ? '启动循环抓取…' : '停止循环')
-  try { await callSetBool('/loop_grasp_control', start); log(start ? '✓ 循环已启动' : '✓ 已停止') }
+  try { await callSetBool(loopGraspService.value, start); log(start ? '✓ 循环已启动' : '✓ 已停止') }
   catch (e: any) { log(`✗ 错误: ${e}`) }
 }
 
 /** AI 模式: 采集开关 */
 async function doCapture(start: boolean): Promise<void> {
-  try { await callSetBool('/graspnet_capture_control', start); log(start ? '✓ 采集开始' : '✓ 采集停止') }
+  try { await callSetBool(graspnetCaptureService.value, start); log(start ? '✓ 采集开始' : '✓ 采集停止') }
   catch (e: any) { log(`✗ 错误: ${e}`) }
 }
 
 /** AI 模式: 循环抓取开关 */
 async function doGraspnetLoop(start: boolean): Promise<void> {
-  try { await callSetBool('/publish_grasps_worker_loop_control', start); log(start ? '✓ 循环开启' : '✓ 循环关闭') }
+  try { await callSetBool(publishGraspsLoopService.value, start); log(start ? '✓ 循环开启' : '✓ 循环关闭') }
   catch (e: any) { log(`✗ 错误: ${e}`) }
 }
 
@@ -386,8 +409,11 @@ async function doDebugMoveXyz(): Promise<void> {
 // 页面加载后自动连接（仅当未连接时，避免关闭已有连接）
 onMounted(() => {
   observeJointChart()
+  settings.loadSettings().then(() => { if (isConnected()) setupSubs() }).catch(() => {})
   if (!isConnected()) connect().catch(() => {})
 })
+
+watch(() => settings.version.value, () => { if (isConnected()) setupSubs() })
 
 // 模式切换时同步投影
 watch(graspMode, () => {
@@ -399,9 +425,9 @@ watch(graspMode, () => {
 </script>
 
 <template>
-  <div class="max-w-7xl mx-auto px-4 py-4">
+  <div class="ivg-run-page w-full max-w-none px-2 sm:px-3 py-2 overflow-x-hidden">
     <!-- ═══ 顶部工具栏 ═══ -->
-    <div class="flex items-center justify-between mb-4 bg-white rounded-lg border border-slate-200 px-4 py-2">
+    <div class="ivg-topbar flex items-center justify-between mb-2 bg-white rounded-lg border border-slate-200 px-3 py-2">
       <div class="flex items-center gap-3">
         <h1 class="text-lg font-bold text-slate-900">视觉抓取面板</h1>
         <el-radio-group v-model="graspMode" size="small">
@@ -410,7 +436,7 @@ watch(graspMode, () => {
         </el-radio-group>
       </div>
       <div class="flex items-center gap-2">
-        <RouterLink to="/settings" class="text-xs text-blue-500 hover:text-blue-600 no-underline">话题与服务设置</RouterLink>
+        <a href="/settings" target="_blank" rel="noopener" class="text-xs text-blue-500 hover:text-blue-600 no-underline">话题与服务设置</a>
         <span class="text-xs" :class="connOk ? 'text-green-600' : connStatus === '正在连接…' ? 'text-slate-400' : 'text-red-500'">
           {{ connStatus }}
         </span>
@@ -418,52 +444,47 @@ watch(graspMode, () => {
     </div>
 
     <!-- ═══ 主内容区: 左(3D+相机) / 右(控制面板) ═══ -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <!-- 左栏: 3D 模型 + 相机画面 -->
-      <div class="lg:col-span-2 space-y-4">
+    <div class="ivg-main-grid grid grid-cols-1 min-[921px]:grid-cols-[minmax(0,1fr)_minmax(15rem,22vw)] gap-2 min-h-0">
+      <!-- 左栏: 3D 模型 + 结果视图（旧版同排双面板） -->
+      <div class="ivg-visual-grid min-w-0 grid grid-cols-1 min-[921px]:grid-cols-2 gap-2 content-start">
         <!-- 机械臂 3D 模型 -->
         <section class="bg-white rounded-lg border border-slate-200 overflow-hidden" aria-label="机械臂 URDF 模型">
           <h2 class="text-xs font-bold text-slate-500 uppercase px-3 pt-3 pb-1">机械臂模型</h2>
           <Robot3dViewer
-            urdf-param="/robot_state_publisher:robot_description"
-            fixed-frame="base_link"
-            tool-status-topic="/tool_changer_status"
-            class="w-full h-[400px]"
+            :urdf-param="urdfParam"
+            :fixed-frame="fixedFrame"
+            :tool-status-topic="toolStatusTopic"
+              class="w-full"
           />
         </section>
 
         <!-- 结果视图（相机画面 + 投影叠加层） -->
-        <section class="bg-white rounded-lg border border-slate-200 p-3" aria-label="识别结果视图">
+        <section class="bg-white rounded-lg border border-slate-200 p-3 min-w-0 overflow-hidden" aria-label="识别结果视图">
           <h2 class="text-xs font-bold text-slate-500 uppercase mb-2">
             {{ graspMode === 'graspnet' ? 'AI 抓取位姿投影视图' : '识别结果图像' }}
           </h2>
           <div v-show="graspMode === 'workpiece'" class="w-full">
             <img
               v-if="isConnected() && resultTopic"
-              :src="cameraStreamUrl()"
-              class="w-full rounded max-h-[400px] object-contain bg-slate-100"
+              :src="resultStreamUrl()"
+              class="w-full h-[clamp(260px,36vh,400px)] rounded object-cover bg-slate-100"
               alt="识别结果图像"
             />
-            <img
-              v-else-if="isConnected()"
-              :src="cameraStreamUrl()"
-              class="w-full rounded max-h-[400px] object-contain bg-slate-100"
-              alt="相机实时画面"
-            />
+            <div v-else-if="isConnected()" class="w-full h-[clamp(260px,36vh,400px)] bg-slate-50 rounded" aria-hidden="true" />
             <div v-else class="w-full h-[300px] flex items-center justify-center text-slate-400 text-sm bg-slate-50 rounded">
               等待 rosbridge 连接…
             </div>
           </div>
           <div v-show="graspMode === 'graspnet'" class="w-full">
-            <div ref="projStackRef" class="relative w-full rounded overflow-hidden bg-slate-100" style="min-height: 300px">
+            <div ref="projStackRef" class="relative w-full h-[clamp(260px,36vh,400px)] rounded overflow-hidden bg-slate-100">
               <img
                 v-if="isConnected()"
                 id="result-mjpeg-img"
                 :src="cameraStreamUrl()"
-                class="w-full max-h-[400px] object-contain"
+                class="w-full h-full object-cover"
                 alt="AI 抓取投影底图"
               />
-              <div v-else class="w-full h-[300px] flex items-center justify-center text-slate-400 text-sm">
+              <div v-else class="w-full h-full flex items-center justify-center text-slate-400 text-sm">
                 等待 rosbridge 连接…
               </div>
               <canvas
@@ -478,7 +499,7 @@ watch(graspMode, () => {
       </div>
 
       <!-- 右栏: 控制面板 -->
-      <div class="space-y-4">
+      <div class="min-w-0 space-y-2">
         <!-- 工件编号输入（仅工件模式） -->
         <div v-show="graspMode === 'workpiece'" class="bg-white rounded-lg border border-slate-200 p-4">
           <label class="text-xs text-slate-500" for="object-id">目标工件编号</label>
@@ -542,7 +563,7 @@ watch(graspMode, () => {
     </div>
 
     <!-- ═══ 底部: 关节曲线与末端位姿（可折叠） ═══ -->
-    <div class="mt-4" :class="{ 'is-monitoring-collapsed': monitoringCollapsed }">
+    <div class="mt-2" :class="{ 'is-monitoring-collapsed': monitoringCollapsed }">
       <!-- 折叠/展开按钮 -->
       <button
         class="w-full flex items-center justify-between bg-white rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
@@ -555,12 +576,12 @@ watch(graspMode, () => {
       </button>
 
       <!-- 监控内容 -->
-      <div v-show="!monitoringCollapsed" id="monitoring-bundle" class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-3">
+      <div v-show="!monitoringCollapsed" id="monitoring-bundle" class="ivg-monitoring-grid grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
         <!-- 关节角曲线 -->
         <div class="bg-slate-900 rounded-lg border border-slate-700 p-3">
           <h2 class="text-xs font-bold text-slate-400 uppercase mb-2">关节角曲线</h2>
           <div ref="chartLegendRef" class="flex flex-wrap gap-2 mb-2" role="list" aria-label="关节与曲线颜色" />
-          <canvas ref="chartCanvasRef" width="640" height="240" class="w-full" aria-label="各关节位置随时间变化" />
+          <canvas ref="chartCanvasRef" width="640" height="220" class="w-full" aria-label="各关节位置随时间变化" />
         </div>
 
         <!-- 位姿读数 -->
@@ -602,7 +623,7 @@ watch(graspMode, () => {
     </div>
 
     <!-- ═══ 底部连接状态栏 ═══ -->
-    <footer class="mt-4 bg-white rounded-lg border border-slate-200 px-4 py-2 flex items-center gap-2 text-xs" role="contentinfo" aria-label="连接状态">
+    <footer class="mt-2 bg-white rounded-lg border border-slate-200 px-3 py-1.5 flex items-center gap-2 text-xs" role="contentinfo" aria-label="连接状态">
       <span class="text-slate-400">连接状态</span>
       <span :class="connOk ? 'text-green-600' : connStatus === '正在连接…' ? 'text-slate-400' : 'text-red-500'">
         {{ connStatus }}

@@ -26,8 +26,8 @@ def generate_launch_description():
     
     web_port_arg = DeclareLaunchArgument(
         'web_port',
-        default_value='8080',
-        description='Web服务器端口'
+        default_value='8070',
+        description='Web服务器端口（默认 8070，避免与其它服务抢 8080）'
     )
     
     camera_topic_arg = DeclareLaunchArgument(

@@ -64,6 +64,9 @@ vision_panel:
   common:
     topics:
       - {id: "topic-joints",       default: "/joint_states",                  label: "关节状态话题",     msg_type: "sensor_msgs/msg/JointState"}
+      - {id: "topic-tool-status",  default: "/tool_changer_status",           label: "工具快换状态话题", msg_type: "ivg_interfaces/msg/ToolChangerStatus"}
+      - {id: "urdf-param",         default: "/robot_state_publisher:robot_description", label: "URDF 参数 (node:param)", allow_empty: false}
+      - {id: "tf-fixed-frame",     default: "base_link",                      label: "3D 固定坐标系",    allow_empty: false}
     tf_topics:
       - {id: "topic-tf",           default: "/tf",                            label: "TF 动态变换",      msg_type: "tf2_msgs/msg/TFMessage"}
       - {id: "topic-tf-static",    default: "/tf_static",                     label: "TF 静态变换",      msg_type: "tf2_msgs/msg/TFMessage"}

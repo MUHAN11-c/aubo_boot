@@ -156,7 +156,7 @@
 | [11] | `coffee_latte_demo.launch.py` | `/set_latte_do2`, `/set_latte_do4` |
 | [12] | `publish_grasps_client_worker_node` (ros2 run) | `/publish_grasps_worker_loop_control` |
 
-**工具快换链路**: `/change_tool → gripper_swap_worker → /aubo/driver/set_io → 清除碰撞 → dock 运动 → 拾取 → scene_attach_worker → /planning_scene diff`
+**工具快换链路**: `/change_tool` → `gripper_swap_worker` → `/set_robot_io`（快换 IO）→ `moveToDockApproach` → **`/scene_detach`（提前卸碰撞）** → `releaseTool` → `pickTool` → **`/tool_changer_status` → `scene_attach_worker`**（`/attached_collision_object` + `/planning_scene` world REMOVE）→ `moveToHome`
 
 **等待**: `/run_gripper_swap` (10s), `/change_tool` (5s), `/set_latte_do2` (5s)
 
@@ -238,25 +238,29 @@ socket.create_connection((server_host, 8899), timeout=2.0)
 
 ## 六、工具快换完整链路
 
-**代码位置**: `tool_changer/src/gripper_swap_worker.cpp`
+**代码位置**: `aubo_ros2_ws/src/tool_changer/src/gripper_swap_worker.cpp`（`changeToTool`）喵~
 
 ```
 /change_tool srv (tool_id)
   │
   ▼
 gripper_swap_worker::changeToTool(target)
-  ├── 1. publishToolStatus(false)         → scene_attach_worker 脱离当前工具
-  ├── 2. pickTool(tool_id, mode='pick')  → 笛卡尔运动到 dock 位
-  │      ├─ vertical 策略 (gripper0): 纯 Z 轴升降
-  │      └─ slide 策略 (gripper2): Y 轴滑入 + 分段 Z 轴
-  ├── 3. set_io(QUICK_SWAP=7, true)       → 锁紧/松开快换机构
-  ├── 4. publishToolStatus(true, tool_id) → scene_attach_worker 附着新工具
-  └── 5. moveToHome()                    → 返回安全位
+  ├── （若有当前工具）moveToDockApproach(current)
+  ├── updateSceneAttachment(current.id, false)  → 服务 /scene_detach
+  ├── releaseTool(current)  （笛卡尔 + IO）
+  ├── publishToolStatus(false)   ← 仅 release 成功后：清空 current_tool_
+  ├── moveToDockApproach(target)
+  ├── pickTool(target)
+  ├── publishToolStatus(true)    ← pick 成功后立即发布（写入 target，不等 home）
+  │       └→ scene_attach_worker.onToolStatus()
+  │             /attached_collision_object: detach 旧 + attach 新
+  │             /planning_scene: world REMOVE attached_tool_<id>（清除残留）
+  └── moveToHome()
 ```
 
-**配置来源**: `tool_changer/config/tools.yaml` — 每种工具的 `dock_approach_joints` 和 `trajectory` 策略
+**配置来源**: `aubo_ros2_ws/src/tool_changer/config/tools.yaml` — 每种工具的 `dock_approach_joints` 和 `trajectory` 策略喵~
 
-**PlanningScene 同步**: `scene_attach_worker` 通过发布 `moveit_msgs/PlanningScene` diff (`is_diff=true`) 到 `/planning_scene` 实现工具网格的 attach/detach，使用 `AttachedCollisionObject` 管理碰撞几何喵~
+**PlanningScene 同步**（`aubo_ros2_ws/src/tool_changer/src/scene_attach_worker.cpp`）：工具网格 **ADD/REMOVE** 经 **`/attached_collision_object`**；detach 后可能残留在 **world** 的同名 `attached_tool_<id>` 经 **`/planning_scene`** 增量 diff（`world.collision_objects` REMOVE）清除喵~
 
 ---
 

@@ -264,14 +264,18 @@ export function useRos() {
   function onRosJson(topic: string | null, fn: (msg: any, t: string) => void) {
     const entry: RosHandler = { topic, fn }
     rosHandlers.push(entry)
-    return () => { const i = rosHandlers.indexOf(entry); if (i >= 0) rosHandlers.splice(i, 1) }
+    const dispose = () => { const i = rosHandlers.indexOf(entry); if (i >= 0) rosHandlers.splice(i, 1) }
+    if (getCurrentScope()) onScopeDispose(dispose)
+    return dispose
   }
 
   function clearRosHandlers() { rosHandlers.length = 0 }
 
   function onControlJson(fn: ControlHandler) {
     controlHandlers.push(fn)
-    return () => { const i = controlHandlers.indexOf(fn); if (i >= 0) controlHandlers.splice(i, 1) }
+    const dispose = () => { const i = controlHandlers.indexOf(fn); if (i >= 0) controlHandlers.splice(i, 1) }
+    if (getCurrentScope()) onScopeDispose(dispose)
+    return dispose
   }
 
   function clearControlHandlers() { controlHandlers.length = 0 }
@@ -299,6 +303,11 @@ export function useRos() {
     callService,
     onRosJson, clearRosHandlers,
     onControlJson, clearControlHandlers,
-    onLog: (fn: LogHandler) => { logHandlers.push(fn); return () => { const i = logHandlers.indexOf(fn); if (i >= 0) logHandlers.splice(i, 1) } },
+    onLog: (fn: LogHandler) => {
+      logHandlers.push(fn)
+      const dispose = () => { const i = logHandlers.indexOf(fn); if (i >= 0) logHandlers.splice(i, 1) }
+      if (getCurrentScope()) onScopeDispose(dispose)
+      return dispose
+    },
   }
 }

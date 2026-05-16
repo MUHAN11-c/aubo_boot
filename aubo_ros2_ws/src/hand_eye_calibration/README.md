@@ -39,8 +39,8 @@
 # 安装Python依赖
 pip3 install flask flask-cors opencv-python numpy
 
-# 或使用系统包管理器
-sudo apt-get install python3-flask python3-opencv python3-numpy
+# 或使用系统包管理器（与 package.xml 中 exec_depend 一致，rosdep 可解析）
+sudo apt-get install python3-flask python3-flask-cors python3-opencv python3-numpy
 ```
 
 ## 编译
@@ -65,7 +65,7 @@ ros2 launch hand_eye_calibration hand_eye_calibration_launch.py
 ```bash
 ros2 launch hand_eye_calibration hand_eye_calibration_launch.py \
     web_host:=0.0.0.0 \
-    web_port:=8080 \
+    web_port:=8070 \
     camera_topic:=/camera/image_raw \
     robot_status_topic:=/robot_status
 ```
@@ -85,7 +85,7 @@ ros2 run hand_eye_calibration hand_eye_calibration_node
 
 2. **打开Web界面**
    
-   在浏览器中访问：`http://localhost:8080`
+   在浏览器中访问：`http://localhost:8070`
    
    如果在远程机器上运行，请使用机器的IP地址。
 
@@ -129,7 +129,7 @@ ros2 run hand_eye_calibration hand_eye_calibration_node
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | web_host | string | 0.0.0.0 | Web服务器监听地址 |
-| web_port | int | 8080 | Web服务器端口 |
+| web_port | int | 8070 | Web服务器端口（默认与 IVG 脚本 HAND_EYE_PORT 一致，避免占用 8080） |
 | camera_topic | string | /camera/image_raw | 相机图像话题 |
 | robot_status_topic | string | /robot_status | 机器人状态话题 |
 

@@ -35,7 +35,10 @@ constexpr double kCartInitWaitSec   = 0.2;
 constexpr double kCartEefStep       = 0.01;
 constexpr double kCartJumpThreshold = 0.0;
 constexpr const char* kSetIOService = "/set_robot_io";
+constexpr const char* kSceneAttachService = "/scene_attach";
+constexpr const char* kSceneDetachService = "/scene_detach";
 constexpr int    kIOTimeoutSec      = 60;
+constexpr int    kSceneTimeoutSec   = 5;
 
 }  // namespace
 
@@ -80,6 +83,8 @@ GripperSwapWorker::GripperSwapWorker(const rclcpp::NodeOptions& options)
   move_group_ = nullptr;
 
   set_io_client_ = create_client<ivg_interfaces::srv::SetRobotIO>(kSetIOService);
+  scene_attach_client_ = create_client<ivg_interfaces::srv::ChangeTool>(kSceneAttachService);
+  scene_detach_client_ = create_client<ivg_interfaces::srv::ChangeTool>(kSceneDetachService);
 
   declare_parameter("joint_velocity_scaling", 0.7);
   declare_parameter("joint_acceleration_scaling", 0.3);
@@ -247,8 +252,9 @@ bool GripperSwapWorker::pickTool(const ToolConfig& tool)
 // 轨迹原语 4 — 放轨迹（泛型，按 strategy 分发）
 // ═══════════════════════════════════════════════════════════════════
 
-bool GripperSwapWorker::releaseTool(const ToolConfig& tool)
+bool GripperSwapWorker::releaseTool(const ToolConfig& tool, bool* tool_released)
 {
+  if (tool_released) *tool_released = false;
   if (!robot_) return false;
   if (tool.strategy == TrajectoryStrategy::kSlide)
   {
@@ -259,6 +265,7 @@ bool GripperSwapWorker::releaseTool(const ToolConfig& tool)
                            {'z', -p.seat}},
                           joint_velocity_scaling_, joint_acceleration_scaling_)) return false;
     if (!setGripperIoSafe(true)) return false;
+    if (tool_released) *tool_released = true;
     std::this_thread::sleep_for(std::chrono::duration<double>(p.release_sec));
     if (!robot_->moveCartesianPath({{'z', p.lift}}, joint_velocity_scaling_, joint_acceleration_scaling_)) return false;
     if (!setGripperIoSafe(false)) return false;
@@ -269,6 +276,7 @@ bool GripperSwapWorker::releaseTool(const ToolConfig& tool)
   const auto& p = tool.vertical;
   if (!robot_->moveCartesianPath({{'z', -p.depth}}, joint_velocity_scaling_, joint_acceleration_scaling_)) return false;
   if (!setGripperIoSafe(true)) return false;
+  if (tool_released) *tool_released = true;
   std::this_thread::sleep_for(std::chrono::duration<double>(p.settle_sec));
   if (!robot_->moveCartesianPath({{'z', p.lift}}, joint_velocity_scaling_, joint_acceleration_scaling_)) return false;
   if (!setGripperIoSafe(false)) return false;
@@ -303,7 +311,8 @@ bool GripperSwapWorker::runCartesianPath(const std::vector<CartesianSegment>& se
     move_group_->setMaxAccelerationScalingFactor(acc);
 
     const std::string eef_link = move_group_->getEndEffectorLink();
-    geometry_msgs::msg::Pose waypoint = move_group_->getCurrentPose(eef_link).pose;
+    const auto current_pose = move_group_->getCurrentPose(eef_link);
+    geometry_msgs::msg::Pose waypoint = current_pose.pose;
     std::vector<geometry_msgs::msg::Pose> waypoints = { waypoint };
 
     for (const auto& seg : segments)
@@ -376,11 +385,39 @@ bool GripperSwapWorker::setGripperIo(int32_t io_index, bool high)
   return true;
 }
 
+bool GripperSwapWorker::updateSceneAttachment(const std::string& tool_id, bool attached)
+{
+  // 委托 scene_attach_worker：ACO 走 /attached_collision_object，detach 顺带 /planning_scene world REMOVE喵~
+  auto client = attached ? scene_attach_client_ : scene_detach_client_;
+  const char* service_name = attached ? kSceneAttachService : kSceneDetachService;
+  if (!client->wait_for_service(std::chrono::seconds(kSceneTimeoutSec))) {
+    RCLCPP_ERROR(get_logger(), "%s 服务未就绪，无法%s %s 的规划场景碰撞",
+                 service_name, attached ? "附着" : "移除", tool_id.c_str());
+    return false;
+  }
+
+  auto req = std::make_shared<ivg_interfaces::srv::ChangeTool::Request>();
+  req->tool_id = tool_id;
+  auto future = client->async_send_request(req);
+  if (future.wait_for(std::chrono::seconds(kSceneTimeoutSec)) != std::future_status::ready) {
+    RCLCPP_ERROR(get_logger(), "%s 调用超时: %s", service_name, tool_id.c_str());
+    return false;
+  }
+  auto res = future.get();
+  if (!res->success) {
+    RCLCPP_ERROR(get_logger(), "%s 调用失败: %s", service_name, res->message.c_str());
+    return false;
+  }
+  RCLCPP_INFO(get_logger(), "规划场景碰撞%s: %s",
+              attached ? "附着" : "移除", tool_id.c_str());
+  return true;
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // 工具状态
 // ═══════════════════════════════════════════════════════════════════
 
-/** 发布 /tool_changer_status，scene_attach_worker 订阅后自动更新 PlanningScene */
+/** 发布 /tool_changer_status；scene_attach_worker 订阅后同步 ACO +（必要时）world REMOVE喵~ */
 void GripperSwapWorker::publishToolStatus(bool connected)
 {
   auto msg = ivg_interfaces::msg::ToolChangerStatus();
@@ -509,10 +546,7 @@ bool GripperSwapWorker::changeToTool(const std::string& target_id)
     return true;
   }
 
-  // 1. 清除碰撞模型（CLAUDE.md 第 11 条）
-  publishToolStatus(false);
-
-  // 2. 释放当前工具
+  // 1. 释放当前工具喵~
   if (!current_tool_.id.empty()) {
     auto current_it = tool_configs_.find(current_tool_.id);
     if (current_it == tool_configs_.end()) {
@@ -526,14 +560,26 @@ bool GripperSwapWorker::changeToTool(const std::string& target_id)
       return false;
     }
     if (!sleepJointCartesianSwitchDelay("释放: J→C")) return false;
-    if (!releaseTool(current)) {
+    if (!updateSceneAttachment(current.id, false)) {
+      RCLCPP_ERROR(get_logger(), "释放 %s: 提前移除规划场景碰撞失败", current.id.c_str());
+      return false;
+    }
+    bool tool_released = false;
+    if (!releaseTool(current, &tool_released)) {
+      if (!tool_released) {
+        // 工具仍物理连接时恢复碰撞体，避免规划场景长期漏掉当前工具喵~
+        (void)updateSceneAttachment(current.id, true);
+      }
       RCLCPP_ERROR(get_logger(), "释放 %s 失败", current.id.c_str());
       return false;
     }
+    // releaseTool 完成时工具已物理放下，立即更新为空工具状态喵~
+    current_tool_ = ToolInfo{};
+    publishToolStatus(false);
     if (!sleepJointCartesianSwitchDelay("释放→取: C→J")) return false;
   }
 
-  // 3. 取目标工具
+  // 2. 取目标工具喵~
   if (!moveToDockApproach(target)) {
     RCLCPP_ERROR(get_logger(), "取 %s: dock approach 失败", target.id.c_str());
     return false;
@@ -544,14 +590,14 @@ bool GripperSwapWorker::changeToTool(const std::string& target_id)
     return false;
   }
 
-  // pickTool 完成时夹爪已物理锁紧，立即更新状态（不等 home）
+  // pickTool 完成时夹爪已物理锁紧，立即更新状态（不等 home）喵~
   current_tool_.id         = target.id;
   current_tool_.name       = target.name;
   current_tool_.type       = target.type;
   current_tool_.parameters = target.parameters;
   publishToolStatus(true);
 
-  // 4. 回 home
+  // 3. 回 home 喵~
   if (!sleepJointCartesianSwitchDelay("归位: C→J")) return false;
   if (!robot_->moveToHome(home_velocity_scaling_, home_acceleration_scaling_)) {
     RCLCPP_ERROR(get_logger(), "归位失败");

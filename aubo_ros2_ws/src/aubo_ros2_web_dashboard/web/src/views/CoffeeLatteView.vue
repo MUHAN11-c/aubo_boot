@@ -14,11 +14,12 @@
  *
  * 数据流:
  *   DI: rosbridge ← /latte_di_status (JSON/CSV) → parseDi → 信号灯状态
- *   DO: 点击开关 → setLatteDo(id, on) → /set_latte_doX 服务
+ *   DO: 点击开关 → 纯前端切换 UI 状态（与旧版 coffee_latte_io.js 一致）喵~
  */
 import { useRos } from '@/composables/useRos'
-import { useRosService } from '@/composables/useRosService'
 import { useJointChart } from '@/composables/useJointChart'
+import { useDashboardSettings } from '@/composables/useDashboardSettings'
+import { canonicalRosTopic } from '@/lib/utils'
 import Robot3dViewer from '@/components/ivg/Robot3dViewer.vue'
 import {
   LATTE_DI_STATUS_TOPIC, LATTE_DI_STATUS_TYPE,
@@ -28,7 +29,19 @@ import {
 } from '@/constants/ros'
 
 const { isConnected, subscribe, onRosJson, onControlJson } = useRos()
-const { setLatteDo } = useRosService()
+const settings = useDashboardSettings()
+
+const latteDiTopic = computed(() => settings.rosName('latte-di-topic', LATTE_DI_STATUS_TOPIC))
+const robotStatusTopic = computed(() => settings.rosName('topic-robot', ROBOT_STATUS_TOPIC))
+const jointStatesTopic = computed(() => settings.rosName('topic-joints', JOINT_STATES_TOPIC))
+const tfTopic = computed(() => settings.rosName('topic-tf', TF_TOPIC))
+const tfStaticTopic = computed(() => settings.rosName('topic-tf-static', TF_STATIC_TOPIC))
+const toolStatusTopic = computed(() => settings.rosName('topic-tool-status', '/tool_changer_status'))
+const urdfParam = computed(() => settings.raw('urdf-param', '/robot_state_publisher:robot_description'))
+const fixedFrame = computed(() => settings.raw('tf-fixed-frame', 'base_link'))
+function sameTopic(topic: string, expected: string): boolean {
+  return canonicalRosTopic(topic) === canonicalRosTopic(expected)
+}
 
 // ═══════════════════════ 连接状态 ═══════════════════════
 
@@ -58,10 +71,8 @@ function parseDi(msg: any) {
 
 const do2On = ref(false); const do4On = ref(false)
 
-async function toggleDo(id: 2 | 4) {
-  const cur = id === 2 ? do2On.value : do4On.value
-  try { await setLatteDo(id, !cur); if (id === 2) do2On.value = !cur; else do4On.value = !cur }
-  catch { /* 纯前端切换，与旧版行为一致 */ }
+function toggleDo(_id: 2 | 4, _next: boolean) {
+  // 旧版 coffee_latte_io.js 明确为纯前端切换，不调用后端服务喵~
 }
 
 // ═══════════════════════ 末端位姿 ═══════════════════════
@@ -96,9 +107,12 @@ function toggleMonitoring(): void {
 
 // ═══════════════════════ 消息处理 ═══════════════════════
 
-onRosJson(LATTE_DI_STATUS_TOPIC, parseDi)
+onRosJson(null, (msg: any, topic: string) => {
+  if (sameTopic(topic, latteDiTopic.value)) parseDi(msg)
+})
 
-onRosJson(ROBOT_STATUS_TOPIC, (msg: any) => {
+onRosJson(null, (msg: any, topic: string) => {
+  if (!sameTopic(topic, robotStatusTopic.value)) return
   if (!msg) return
   const p = msg.cartesian_position_xyz || {}
   const o = msg.cartesian_position?.orientation || {}
@@ -129,7 +143,8 @@ onRosJson(ROBOT_STATUS_TOPIC, (msg: any) => {
   }
 })
 
-onRosJson(JOINT_STATES_TOPIC, (msg: any) => {
+onRosJson(null, (msg: any, topic: string) => {
+  if (!sameTopic(topic, jointStatesTopic.value)) return
   if (!msg) return
   pushJointSample(msg.name ?? [], msg.position ?? [])
 })
@@ -138,11 +153,11 @@ onRosJson(JOINT_STATES_TOPIC, (msg: any) => {
 
 function setupSubs() {
   if (!isConnected()) return
-  subscribe(LATTE_DI_STATUS_TOPIC, LATTE_DI_STATUS_TYPE, 10)
-  subscribe(ROBOT_STATUS_TOPIC, ROBOT_STATUS_TYPE, 10)
-  subscribe(JOINT_STATES_TOPIC, JOINT_STATES_TYPE, 30)
-  subscribe(TF_TOPIC, TF_TYPE, 30)
-  subscribe(TF_STATIC_TOPIC, TF_TYPE, 1)
+  subscribe(latteDiTopic.value, settings.topicType('latte-di-topic', LATTE_DI_STATUS_TYPE), 10)
+  subscribe(robotStatusTopic.value, settings.topicType('topic-robot', ROBOT_STATUS_TYPE), 10)
+  subscribe(jointStatesTopic.value, settings.topicType('topic-joints', JOINT_STATES_TYPE), 30)
+  subscribe(tfTopic.value, settings.topicType('topic-tf', TF_TYPE), 30)
+  subscribe(tfStaticTopic.value, settings.topicType('topic-tf-static', TF_TYPE), 1)
 }
 
 onControlJson((c) => { if (c.op === 'connection') setupSubs() })
@@ -151,19 +166,22 @@ if (isConnected()) setupSubs()
 
 onMounted(() => {
   observeJointChart()
+  settings.loadSettings().then(() => { if (isConnected()) setupSubs() }).catch(() => {})
 })
+
+watch(() => settings.version.value, () => { if (isConnected()) setupSubs() })
 </script>
 
 <template>
-  <div class="max-w-7xl mx-auto px-4 py-4">
+  <div class="ivg-run-page w-full max-w-none px-2 sm:px-3 py-2 overflow-x-hidden">
     <!-- ═══ 顶部工具栏 ═══ -->
-    <div class="flex items-center justify-between mb-4 bg-white rounded-lg border border-slate-200 px-4 py-2">
+    <div class="ivg-topbar flex items-center justify-between mb-2 bg-white rounded-lg border border-slate-200 px-3 py-2">
       <div class="flex items-center gap-3">
         <h1 class="text-lg font-bold text-slate-900">机械臂咖啡拉花</h1>
         <el-tag size="small" type="warning" round>演示</el-tag>
       </div>
       <div class="flex items-center gap-2">
-        <RouterLink to="/settings" class="text-xs text-blue-500 hover:text-blue-600 no-underline">话题与服务设置</RouterLink>
+        <a href="/settings" target="_blank" rel="noopener" class="text-xs text-blue-500 hover:text-blue-600 no-underline">话题与服务设置</a>
         <span class="text-xs" :class="connOk ? 'text-green-600' : connStatus === '正在连接…' ? 'text-slate-400' : 'text-red-500'">
           {{ connStatus }}
         </span>
@@ -171,17 +189,17 @@ onMounted(() => {
     </div>
 
     <!-- ═══ 主内容区: 左(3D+流程) / 右(IO控制) ═══ -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div class="ivg-main-grid grid grid-cols-1 min-[921px]:grid-cols-[minmax(0,1fr)_minmax(15rem,22vw)] gap-2 min-h-0">
       <!-- 左栏: 3D 模型 + 流程示意 -->
-      <div class="lg:col-span-2 space-y-4">
+      <div class="ivg-visual-grid min-w-0 grid grid-cols-1 min-[921px]:grid-cols-2 gap-2 content-start">
         <!-- 机械臂 3D 模型 -->
         <section class="bg-white rounded-lg border border-slate-200 overflow-hidden" aria-label="机械臂 URDF 模型">
           <h2 class="text-xs font-bold text-slate-500 uppercase px-3 pt-3 pb-1">机械臂模型</h2>
           <Robot3dViewer
-            urdf-param="/robot_state_publisher:robot_description"
-            fixed-frame="base_link"
-            tool-status-topic="/tool_changer_status"
-            class="w-full h-[400px]"
+            :urdf-param="urdfParam"
+            :fixed-frame="fixedFrame"
+            :tool-status-topic="toolStatusTopic"
+            class="w-full"
           />
         </section>
 
@@ -200,25 +218,26 @@ onMounted(() => {
       </div>
 
       <!-- 右栏: IO 控制 -->
-      <div class="space-y-4">
+      <div class="min-w-0 space-y-2">
         <!-- 工序开关 DO -->
         <div class="bg-white rounded-lg border border-slate-200 p-4">
-          <h2 class="text-sm font-bold text-slate-700 mb-3">工序开关 (DO)</h2>
-          <p class="text-xs text-slate-400 mb-3">工序开关 (DO) 与连接日志；反馈信号灯 (DI) 见底部监控区。</p>
+          <h2 class="text-sm font-bold text-slate-700 mb-3">拉花工序与 IO</h2>
+          <p class="text-xs text-slate-400 mb-3">工序开关（DO）与连接日志；反馈信号灯（DI）见底部监控区。</p>
+          <h3 class="text-xs font-bold text-slate-500 uppercase mb-3">工序开关（DO）</h3>
           <div class="space-y-3">
             <div class="flex items-center justify-between">
               <div>
                 <span class="text-sm font-medium text-slate-700">咖啡开关</span>
                 <el-tag size="small" class="ml-2">DO4</el-tag>
               </div>
-              <el-switch v-model="do4On" @change="toggleDo(4)" />
+                <el-switch v-model="do4On" @change="(v) => toggleDo(4, Boolean(v))" />
             </div>
             <div class="flex items-center justify-between">
               <div>
                 <span class="text-sm font-medium text-slate-700">打花开关</span>
                 <el-tag size="small" class="ml-2">DO2</el-tag>
               </div>
-              <el-switch v-model="do2On" @change="toggleDo(2)" />
+                <el-switch v-model="do2On" @change="(v) => toggleDo(2, Boolean(v))" />
             </div>
           </div>
         </div>
@@ -226,7 +245,7 @@ onMounted(() => {
     </div>
 
     <!-- ═══ 底部: 关节曲线与末端位姿（可折叠） ═══ -->
-    <div class="mt-4" :class="{ 'is-monitoring-collapsed': monitoringCollapsed }">
+    <div class="mt-2" :class="{ 'is-monitoring-collapsed': monitoringCollapsed }">
       <!-- 折叠/展开按钮 -->
       <button
         class="w-full flex items-center justify-between bg-white rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
@@ -239,12 +258,12 @@ onMounted(() => {
       </button>
 
       <!-- 监控内容 -->
-      <div v-show="!monitoringCollapsed" id="monitoring-bundle" class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-3">
+      <div v-show="!monitoringCollapsed" id="monitoring-bundle" class="ivg-monitoring-grid grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
         <!-- 关节角曲线 -->
         <div class="bg-slate-900 rounded-lg border border-slate-700 p-3">
           <h2 class="text-xs font-bold text-slate-400 uppercase mb-2">关节角曲线</h2>
           <div ref="chartLegendRef" class="flex flex-wrap gap-2 mb-2" role="list" aria-label="关节与曲线颜色" />
-          <canvas ref="chartCanvasRef" width="640" height="240" class="w-full" aria-label="各关节位置随时间变化" />
+          <canvas ref="chartCanvasRef" width="640" height="220" class="w-full" aria-label="各关节位置随时间变化" />
         </div>
 
         <!-- 位姿读数 + DI 反馈灯 -->
@@ -268,7 +287,7 @@ onMounted(() => {
 
           <!-- 反馈信号灯 DI -->
           <div class="bg-white rounded-lg border border-slate-200 p-4">
-            <h2 class="text-sm font-bold text-slate-500 uppercase mb-3">反馈信号灯 (DI)</h2>
+            <h2 class="text-sm font-bold text-slate-500 uppercase mb-3">反馈信号灯（DI）</h2>
             <div class="space-y-3">
               <div class="flex items-center gap-3">
                 <span class="w-3 h-3 rounded-full transition-colors" :class="di2 ? 'bg-green-500 shadow-[0_0_6px] shadow-green-500' : 'bg-slate-300'" />
@@ -276,14 +295,14 @@ onMounted(() => {
                 <el-tag size="small">DI2</el-tag>
               </div>
               <div class="flex items-center gap-3">
-                <span class="w-3 h-3 rounded-full transition-colors" :class="di3 ? 'bg-green-500 shadow-[0_0_6px] shadow-green-500' : 'bg-slate-300'" />
-                <span class="text-sm text-slate-600">打花反馈</span>
-                <el-tag size="small">DI3</el-tag>
-              </div>
-              <div class="flex items-center gap-3">
                 <span class="w-3 h-3 rounded-full transition-colors" :class="di4 ? 'bg-amber-500 shadow-[0_0_6px] shadow-amber-500' : 'bg-slate-300'" />
                 <span class="text-sm text-slate-600">警告反馈</span>
                 <el-tag size="small">DI4</el-tag>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="w-3 h-3 rounded-full transition-colors" :class="di3 ? 'bg-green-500 shadow-[0_0_6px] shadow-green-500' : 'bg-slate-300'" />
+                <span class="text-sm text-slate-600">打花反馈</span>
+                <el-tag size="small">DI3</el-tag>
               </div>
             </div>
           </div>
@@ -292,7 +311,7 @@ onMounted(() => {
     </div>
 
     <!-- ═══ 底部连接状态栏 ═══ -->
-    <footer class="mt-4 bg-white rounded-lg border border-slate-200 px-4 py-2 flex items-center gap-2 text-xs" role="contentinfo" aria-label="连接状态">
+    <footer class="mt-2 bg-white rounded-lg border border-slate-200 px-3 py-1.5 flex items-center gap-2 text-xs" role="contentinfo" aria-label="连接状态">
       <span class="text-slate-400">连接状态</span>
       <span :class="connOk ? 'text-green-600' : connStatus === '正在连接…' ? 'text-slate-400' : 'text-red-500'">
         {{ connStatus }}

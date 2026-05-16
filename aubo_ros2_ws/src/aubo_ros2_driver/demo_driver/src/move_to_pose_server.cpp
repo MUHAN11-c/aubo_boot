@@ -1,6 +1,6 @@
 /*
  * /move_to_pose — 关节空间或笛卡尔空间移动到目标位姿。
- * 直接创建 MoveGroupInterface, 不依赖 MoveitGripperIoBase。
+ * MoveGroupInterface 在 init() 中创建喵~
  */
 #include "demo_driver/move_to_pose_server.h"
 #include <rclcpp/executors/multi_threaded_executor.hpp>
@@ -14,18 +14,21 @@ static constexpr double kZMinLimit = -0.05;  // Z 轴安全下限 (m)
 MoveToPoseServer::MoveToPoseServer(const rclcpp::NodeOptions& options)
     : Node("move_to_pose_server_node", options)
 {
-    move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
-        shared_from_this(), "manipulator");
-    move_group_->allowReplanning(true);
-    move_group_->setMaxVelocityScalingFactor(0.5);
-    move_group_->setMaxAccelerationScalingFactor(0.5);
-
     service_ = create_service<ivg_interfaces::srv::MoveToPose>(
         "/move_to_pose",
         [this](const std::shared_ptr<ivg_interfaces::srv::MoveToPose::Request> req,
                std::shared_ptr<ivg_interfaces::srv::MoveToPose::Response> res) {
           onMoveToPoseRequest(req, res);
         });
+}
+
+void MoveToPoseServer::init()
+{
+    move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
+        shared_from_this(), "manipulator");
+    move_group_->allowReplanning(true);
+    move_group_->setMaxVelocityScalingFactor(0.5);
+    move_group_->setMaxAccelerationScalingFactor(0.5);
 
     RCLCPP_INFO(get_logger(), "MoveToPoseServer ready");
 }
@@ -98,6 +101,7 @@ int main(int argc, char** argv)
     rclcpp::init(argc, argv);
     rclcpp::NodeOptions opts; opts.automatically_declare_parameters_from_overrides(true);
     auto node = std::make_shared<demo_driver::MoveToPoseServer>(opts);
+    node->init();
 
     rclcpp::executors::MultiThreadedExecutor exec(rclcpp::ExecutorOptions(), 2);
     exec.add_node(node);

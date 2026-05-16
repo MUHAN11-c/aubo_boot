@@ -12,9 +12,15 @@
  *   - 快照记录 / JSON 导出 / 复制
  */
 import { useRos } from '@/composables/useRos'
+import { useDashboardSettings } from '@/composables/useDashboardSettings'
+import { canonicalRosTopic } from '@/lib/utils'
 import { ROBOT_STATUS_TOPIC, ROBOT_STATUS_TYPE, MODE_TOPIC, MODE_TYPE, TF_TOPIC, TF_STATIC_TOPIC, TF_TYPE } from '@/constants/ros'
 
 const { isConnected, subscribe, onRosJson, onControlJson } = useRos()
+const settings = useDashboardSettings()
+const robotStatusTopic = computed(() => settings.rosName('topic-robot', ROBOT_STATUS_TOPIC))
+const tfTopic = computed(() => settings.rosName('topic-tf', TF_TOPIC))
+const tfStaticTopic = computed(() => settings.rosName('topic-tf-static', TF_STATIC_TOPIC))
 
 /** AUBO E5 关节名 (固定顺序) */
 const JOINT_NAMES = ['shoulder_joint', 'upperArm_joint', 'foreArm_joint', 'wrist1_joint', 'wrist2_joint', 'wrist3_joint']
@@ -42,7 +48,8 @@ onRosJson(MODE_TOPIC, (msg: any) => {
   mode.value = raw === 'simulation' ? 'simulation' : raw === 'real' ? 'real' : 'unknown'
 })
 
-onRosJson(ROBOT_STATUS_TOPIC, (msg: any) => {
+onRosJson(null, (msg: any, topic: string) => {
+  if (canonicalRosTopic(topic) !== canonicalRosTopic(robotStatusTopic.value)) return
   if (!msg) return; latestMsg.value = msg
   statusOk.is_online = !!msg.is_online; statusOk.enable = !!msg.enable; statusOk.in_motion = !!msg.in_motion
   statusOk.planning_status = msg.planning_status ?? '—'
@@ -60,11 +67,12 @@ onRosJson(ROBOT_STATUS_TOPIC, (msg: any) => {
 
 function setupSubs() {
   if (!isConnected()) return
-  subscribe(ROBOT_STATUS_TOPIC, ROBOT_STATUS_TYPE, 10); subscribe(MODE_TOPIC, MODE_TYPE, 1)
-  subscribe(TF_TOPIC, TF_TYPE, 30); subscribe(TF_STATIC_TOPIC, TF_TYPE, 1)
+  subscribe(robotStatusTopic.value, settings.topicType('topic-robot', ROBOT_STATUS_TYPE), 10); subscribe(MODE_TOPIC, MODE_TYPE, 1)
+  subscribe(tfTopic.value, settings.topicType('topic-tf', TF_TYPE), 30); subscribe(tfStaticTopic.value, settings.topicType('topic-tf-static', TF_TYPE), 1)
 }
 onControlJson((c) => { if (c.op === 'connection') setupSubs() })
 watch(isConnected, v => { if (v) setupSubs() }); if (isConnected()) setupSubs()
+watch(() => settings.version.value, () => { if (isConnected()) setupSubs() })
 
 // ═══════════════════════ 快照操作 ═══════════════════════
 

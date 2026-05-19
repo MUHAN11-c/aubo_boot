@@ -135,6 +135,15 @@ private:
         robot_status_msg_.header.stamp = this->now();
         robot_status_msg_.is_online = online;
         robot_status_msg_.in_motion = (rib>0);
+        // planning_status 基于 RIB + 在线状态近似推导
+        // 精确的 "planning"/"executing" 区分需要订阅 MoveIt action feedback (TODO)
+        if (!online) {
+            robot_status_msg_.planning_status = "idle";
+        } else if (rib > 0) {
+            robot_status_msg_.planning_status = "executing";
+        } else {
+            robot_status_msg_.planning_status = "idle";
+        }
         { std::lock_guard lk(rs_mux_);
           if (has_rs_) {
               robot_status_msg_.cartesian_position_xyz.x=rs_x_;

@@ -22,8 +22,8 @@ import { SceneManager } from '@/lib/three_urdf/SceneManager'
 import { parseUrdf } from '@/lib/three_urdf/UrdfParser'
 import { UrdfModel } from '@/lib/three_urdf/UrdfModel'
 import { TfUpdater } from '@/lib/three_urdf/TfUpdater'
-import { useRos } from '@/composables/useRos'
-import { useDashboardSettings } from '@/composables/useDashboardSettings'
+import { useRos } from '@/composables/ros/useRos'
+import { useDashboardSettings } from '@/composables/settings/useDashboardSettings'
 import * as THREE from 'three'
 import { STLLoader } from 'three/addons/loaders/STLLoader.js'
 
@@ -31,10 +31,17 @@ const props = withDefaults(defineProps<{
   urdfParam?: string
   fixedFrame?: string
   toolStatusTopic?: string
+  trajectoryOverlay?: {
+    tcp_path: { x: number; y: number; z: number }[]
+    spout_path: { x: number; y: number; z: number }[]
+    cup_pose: { x: number; y: number; z: number }
+    workspace_bounds: { x_min: number; x_max: number; y_min: number; y_max: number; z_min: number; z_max: number }
+  } | null
 }>(), {
   urdfParam: '/robot_state_publisher:robot_description',
   fixedFrame: 'base_link',
   toolStatusTopic: '/tool_changer_status',
+  trajectoryOverlay: null,
 })
 
 const emit = defineEmits<{ ready: []; error: [msg: string] }>()
@@ -42,7 +49,7 @@ const emit = defineEmits<{ ready: []; error: [msg: string] }>()
 const hostRef = ref<HTMLElement | null>(null)
 const hintRef = ref<HTMLElement | null>(null)
 
-const { subscribe, onRosJson, onControlJson, isConnected, callService } = useRos()
+const { subscribe, unsubscribe, onRosJson, onControlJson, isConnected, callService } = useRos()
 const settings = useDashboardSettings()
 
 // sceneMgr 必须用 shallowRef — 模板 v-if 依赖响应式追踪。
@@ -53,40 +60,72 @@ let tfUpdater: TfUpdater | null = null
 let currentToolId: string | null = null
 let toolModel: { id: string; root: THREE.Group; offsetPos: THREE.Vector3; offsetQuat: THREE.Quaternion } | null = null
 let toolModelLoadSeq = 0
-let linkUpdateTimer: ReturnType<typeof setInterval> | null = null
+let linkUpdateRafId: number | null = null
+let lastLinkUpdateMs = 0
 let urdfFocusTimer: ReturnType<typeof setInterval> | null = null
 let urdfCameraPrimed = false
 let initAttempted = false
+/** 异步初始化代数 — stop() 递增使在途 async 操作失效，防止竞态条件喵~ */
+let initGen = 0
 
 const MESH_BASE = `${location.origin}/api/ivg/robot-mesh/`
 const tfTopic = computed(() => settings.rosName('topic-tf', '/tf'))
 const tfStaticTopic = computed(() => settings.rosName('topic-tf-static', '/tf_static'))
 const jointStatesTopic = computed(() => settings.rosName('topic-joints', '/joint_states'))
 
-const TOOL_MODELS: Record<string, {
-  mesh: string
-  offset: { position: [number, number, number]; orientation: [number, number, number, number] }
-}> = {
+// ── 工具几何数据（动态从 BFF /api/v1/tool-geometries 获取，消除与 tools.yaml 的 DRY 违规）──
+
+interface ToolGeometry {
+  name: string
+  type: string
+  mesh_url: string
+  attach_offset: {
+    position: [number, number, number]
+    orientation: [number, number, number, number]
+  }
+}
+
+const toolGeometries = ref<Record<string, ToolGeometry>>({})
+
+/** 硬编码回退数据（BFF 不可用时使用，与 tools.yaml 当前内容一致）喵~ */
+const TOOL_GEOMETRIES_FALLBACK: Record<string, ToolGeometry> = {
   gripper0: {
-    mesh: `${MESH_BASE}aubo_description/meshes/visual/gripper0_link.stl`,
-    offset: { position: [0, 0, 0.033], orientation: [0, 0, 0, 1] },
+    name: '气动夹爪 φ40', type: 'gripper',
+    mesh_url: `${MESH_BASE}aubo_description/meshes/visual/gripper0_link.stl`,
+    attach_offset: { position: [0, 0, 0.033], orientation: [0, 0, 0, 1] },
   },
   gripper1: {
-    mesh: `${MESH_BASE}aubo_description/meshes/visual/gripper1_link.stl`,
-    offset: { position: [0, 0, 0.033], orientation: [0, 0, 0, 1] },
+    name: '电动夹爪 A', type: 'gripper',
+    mesh_url: `${MESH_BASE}aubo_description/meshes/visual/gripper1_link.stl`,
+    attach_offset: { position: [0, 0, 0.033], orientation: [0, 0, 0, 1] },
   },
   gripper2: {
-    mesh: `${MESH_BASE}aubo_description/meshes/visual/gripper2_link.stl`,
-    offset: { position: [0, 0, 0.033], orientation: [0, 0, 0.7071, 0.7071] },
+    name: '电动夹爪 φ60', type: 'gripper',
+    mesh_url: `${MESH_BASE}aubo_description/meshes/visual/gripper2_link.stl`,
+    attach_offset: { position: [0, 0, 0.033], orientation: [0, 0, 0.7071, 0.7071] },
   },
   gripper1coffeecup: {
-    mesh: `${MESH_BASE}aubo_description/meshes/visual/gripper1coffeecup_link.stl`,
-    offset: { position: [0, 0, 0.033], orientation: [0, 0, 1, 0] },
+    name: '咖啡杯工具', type: 'other',
+    mesh_url: `${MESH_BASE}aubo_description/meshes/visual/gripper1coffeecup_link.stl`,
+    attach_offset: { position: [0, 0, 0.033], orientation: [0, 0, 1, 0] },
   },
   gripper1milkcup: {
-    mesh: `${MESH_BASE}aubo_description/meshes/visual/gripper1milkcup_link.stl`,
-    offset: { position: [0, 0, 0.033], orientation: [0, 0, -0.7071, 0.7071] },
+    name: '牛奶杯工具', type: 'other',
+    mesh_url: `${MESH_BASE}aubo_description/meshes/visual/gripper1milkcup_link.stl`,
+    attach_offset: { position: [0, 0, 0.033], orientation: [0, 0, -0.7071, 0.7071] },
   },
+}
+
+async function fetchToolGeometries(): Promise<void> {
+  try {
+    const resp = await fetch('/api/v1/tool-geometries')
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+    const data = await resp.json()
+    toolGeometries.value = data as Record<string, ToolGeometry>
+  } catch (e) {
+    console.warn('[Robot3dViewer] 无法获取工具几何数据，使用回退值:', e)
+    toolGeometries.value = TOOL_GEOMETRIES_FALLBACK
+  }
 }
 
 function showHint(html: string): void {
@@ -188,7 +227,7 @@ function removeToolModel(): void {
 }
 
 function loadToolMesh(toolId: string): void {
-  const spec = TOOL_MODELS[toolId]
+  const spec = toolGeometries.value[toolId]
   if (!spec || !sceneMgr.value) {
     removeToolModel()
     return
@@ -197,7 +236,7 @@ function loadToolMesh(toolId: string): void {
 
   const seq = ++toolModelLoadSeq
   const loader = new STLLoader()
-  loader.load(spec.mesh, (geometry) => {
+  loader.load(spec.mesh_url, (geometry) => {
     if (seq !== toolModelLoadSeq || !sceneMgr.value) return
     geometry.computeVertexNormals()
     removeToolModel()
@@ -208,8 +247,8 @@ function loadToolMesh(toolId: string): void {
       new THREE.MeshPhongMaterial({ color: 0xb8c2cc, shininess: 30 })
     )
     root.add(mesh)
-    const [x, y, z] = spec.offset.position
-    const [qx, qy, qz, qw] = spec.offset.orientation
+    const [x, y, z] = spec.attach_offset.position
+    const [qx, qy, qz, qw] = spec.attach_offset.orientation
     toolModel = {
       id: toolId,
       root,
@@ -232,17 +271,109 @@ function updateToolModelTransform(): void {
   toolModel.root.quaternion.copy(baseToMount.rotation).multiply(toolModel.offsetQuat)
 }
 
+// ── 轨迹叠加层 (拉花轨迹预览) ──
+
+let trajOverlayGroup: THREE.Group | null = null
+
+/** 清除旧的轨迹叠加层 喵~ */
+function clearTrajectoryOverlay(): void {
+  if (trajOverlayGroup && sceneMgr.value) {
+    sceneMgr.value.removeObject(trajOverlayGroup)
+  }
+  trajOverlayGroup = null
+}
+
+/** 渲染轨迹叠加层到场景 喵~ */
+function renderTrajectoryOverlay(data: NonNullable<typeof props.trajectoryOverlay>): void {
+  if (!sceneMgr.value) return
+  clearTrajectoryOverlay()
+
+  const group = new THREE.Group()
+  group.name = 'latte_trajectory_overlay'
+
+  // TCP 路径 — 绿色实线
+  if (data.tcp_path?.length > 1) {
+    const pts = data.tcp_path.map(p => new THREE.Vector3(p.x, p.y, p.z))
+    const geom = new THREE.BufferGeometry().setFromPoints(pts)
+    const line = new THREE.Line(geom, new THREE.LineBasicMaterial({ color: 0x22c55e, linewidth: 2 })) // green-500
+    line.name = 'tcp_path'
+    group.add(line)
+  }
+
+  // 壶嘴路径 — 蓝色实线
+  if (data.spout_path?.length > 1) {
+    const pts = data.spout_path.map(p => new THREE.Vector3(p.x, p.y, p.z))
+    const geom = new THREE.BufferGeometry().setFromPoints(pts)
+    const line = new THREE.Line(geom, new THREE.LineBasicMaterial({ color: 0x3b82f6, linewidth: 2 })) // blue-500
+    line.name = 'spout_path'
+    group.add(line)
+  }
+
+  // 杯子位姿 — 黄色坐标轴 + 小方块
+  if (data.cup_pose) {
+    const { x, y, z } = data.cup_pose
+    const axes = new THREE.AxesHelper(0.08)
+    axes.position.set(x, y, z)
+    axes.name = 'cup_axes'
+    group.add(axes)
+
+    const cube = new THREE.Mesh(
+      new THREE.BoxGeometry(0.04, 0.04, 0.04),
+      new THREE.MeshBasicMaterial({ color: 0xeab308 }) // yellow-500
+    )
+    cube.position.set(x, y, z)
+    cube.name = 'cup_cube'
+    group.add(cube)
+  }
+
+  // 工作空间安全边界 — 红色半透明线框
+  if (data.workspace_bounds) {
+    const b = data.workspace_bounds
+    const sx = b.x_max - b.x_min; const sy = b.y_max - b.y_min; const sz = b.z_max - b.z_min
+    const cx = (b.x_max + b.x_min) / 2; const cy = (b.y_max + b.y_min) / 2; const cz = (b.z_max + b.z_min) / 2
+    const boxGeom = new THREE.BoxGeometry(sx, sy, sz)
+    const edges = new THREE.EdgesGeometry(boxGeom)
+    const wireframe = new THREE.LineSegments(
+      edges,
+      new THREE.LineBasicMaterial({ color: 0xef4444 }) // red-500
+    )
+    wireframe.position.set(cx, cy, cz)
+    wireframe.name = 'workspace_bounds'
+    group.add(wireframe)
+  }
+
+  sceneMgr.value.addObject(group)
+  trajOverlayGroup = group
+}
+
+// 监听 trajectoryOverlay prop 变化
+watch(() => props.trajectoryOverlay, (data) => {
+  if (data && sceneMgr.value) {
+    nextTick(() => renderTrajectoryOverlay(data))
+  } else if (!data) {
+    clearTrajectoryOverlay()
+  }
+}, { deep: true })
+
 // ── TF link 更新 ──
 
 function startLinkUpdateLoop(): void {
-  if (linkUpdateTimer) clearInterval(linkUpdateTimer)
-  linkUpdateTimer = setInterval(() => {
-    if (!urdfModel || !tfUpdater) return
-    for (const link of urdfModel.getLinkObjects()) {
-      tfUpdater.updateLinkTransform(link.object, link.name, props.fixedFrame)
+  if (linkUpdateRafId) cancelAnimationFrame(linkUpdateRafId)
+  const MIN_INTERVAL_MS = 30  // ~33Hz, 与 /tf 话题发布频率匹配
+  function tick(nowMs: number) {
+    if (nowMs - lastLinkUpdateMs >= MIN_INTERVAL_MS) {
+      lastLinkUpdateMs = nowMs
+      if (urdfModel && tfUpdater) {
+        for (const link of urdfModel.getLinkObjects()) {
+          tfUpdater.updateLinkTransform(link.object, link.name, props.fixedFrame)
+        }
+        updateToolModelTransform()
+      }
     }
-    updateToolModelTransform()
-  }, 30) // ~30 Hz 更新
+    linkUpdateRafId = requestAnimationFrame(tick)
+  }
+  lastLinkUpdateMs = performance.now()
+  linkUpdateRafId = requestAnimationFrame(tick)
 }
 
 // ── URDF camera focus 定时器 ──
@@ -287,18 +418,23 @@ async function init(): Promise<void> {
   subscribe(tfStaticTopic.value, settings.topicType('topic-tf-static', 'tf2_msgs/msg/TFMessage'), 1)
   subscribe(jointStatesTopic.value, settings.topicType('topic-joints', 'sensor_msgs/msg/JointState'), 30)
 
-  // TF 消息处理
-  onRosJson(null, (msg: any, topic: string) => {
-    if (sameTopic(topic, tfTopic.value) || sameTopic(topic, tfStaticTopic.value)) tfUpdater?.ingestTfMessage(msg)
-    // joint_states 保留订阅用于与旧监控链路一致；3D link 位姿以 TF 为唯一来源喵~
-    if (sameTopic(topic, jointStatesTopic.value)) tfUpdater?.ingestJointStates(msg)
-  })
+  // TF 消息处理 — 使用目标话题名替代 null 通配，避免每条消息触发过滤喵~
+  const handleTf = (msg: any) => tfUpdater?.ingestTfMessage(msg)
+  const handleJointStates = (msg: any) => tfUpdater?.ingestJointStates(msg)
+  onRosJson(tfTopic.value, handleTf)
+  onRosJson(tfStaticTopic.value, handleTf)
+  onRosJson(jointStatesTopic.value, handleJointStates)
+
+  const curGen = initGen  // 记录当前代数，await 后检查是否已卸载/重挂载喵~
+
+  // 获取工具几何数据（在工具状态订阅之前，避免竞态）喵~
+  await fetchToolGeometries()
+  if (curGen !== initGen) return  // 组件在 await 期间已卸载或重挂载，丢弃本次初始化喵~
 
   // 工具状态监听 → 快换时 reload
   if (props.toolStatusTopic) {
     subscribe(props.toolStatusTopic, settings.topicType('topic-tool-status', 'ivg_interfaces/msg/ToolChangerStatus'), 2)
-    onRosJson(null, (msg: any, topic: string) => {
-      if (!sameTopic(topic, props.toolStatusTopic)) return
+    onRosJson(props.toolStatusTopic, (msg: any) => {
       const newId = msg?.is_connected ? String(msg?.tool_id || '') : ''
       if (newId === currentToolId) return
       currentToolId = newId
@@ -311,9 +447,11 @@ async function init(): Promise<void> {
   try {
     showHint('<strong>加载机械臂 URDF 模型...</strong>')
     const urdfXml = await loadUrdfParam()
+    if (curGen !== initGen) return  // await 期间场景可能已 dispose 喵~
     buildModel(urdfXml)
     showHint('')
   } catch (e: any) {
+    if (curGen !== initGen) return  // 场景已 dispose，无需报错喵~
     const msg = `机械臂加载失败：${String(e.message || e)}。请检查参数 ${props.urdfParam} 与固定坐标系 ${props.fixedFrame}。`
     showHint(`<strong style="color:red">${msg}</strong>`)
     emit('error', msg)
@@ -321,9 +459,19 @@ async function init(): Promise<void> {
 }
 
 function stop(): void {
-  if (linkUpdateTimer) { clearInterval(linkUpdateTimer); linkUpdateTimer = null }
+  // 递增代数使所有在途 async init() 操作失效，防止操作已 dispose 的场景喵~
+  initGen++
+  if (linkUpdateRafId) { cancelAnimationFrame(linkUpdateRafId); linkUpdateRafId = null }
   if (urdfFocusTimer) { clearInterval(urdfFocusTimer); urdfFocusTimer = null }
+  clearTrajectoryOverlay()
   removeToolModel()
+  // 取消 ROS 话题订阅 — 未取消会导致 rosbridge 持续推送，浪费带宽喵~
+  unsubscribe(tfTopic.value)
+  unsubscribe(tfStaticTopic.value)
+  unsubscribe(jointStatesTopic.value)
+  if (props.toolStatusTopic) unsubscribe(props.toolStatusTopic)
+  // 清理 TF 缓存，避免下一实例继承旧的 TF 树状态喵~
+  tfUpdater?.clear()
   if (sceneMgr.value) { sceneMgr.value.stop(); sceneMgr.value = null }
   urdfModel = null
   tfUpdater = null

@@ -1563,6 +1563,7 @@ class ROS2Communication:
         dtheta_rad: Optional[float],
         match_confidence: Optional[float] = None,
     ) -> Optional[object]:
+        pose_estimate_start = time.time()  # 记录开始时间喵~
         result = self.pose_estimator.estimate_pose(
             feature,
             best_template,

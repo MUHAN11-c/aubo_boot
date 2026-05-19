@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 
 import httpx
 import websockets
@@ -84,7 +85,11 @@ async def rosbridge_websocket_proxy(websocket: WebSocket) -> None:
 
     建立两条 asyncio Task 分别处理上下游方向，
     任一方向断开即取消另一方向并清理资源。
+
+    roslib 2.x 通过代理时首次连接可能立即断开 (内部探测/握手),
+    第二次连接稳定。日志已抑制快速断开场景以避免误导喵~
     """
+    t0 = time.monotonic()
     await websocket.accept()
     target = _rosbridge_upstream_url()
 
@@ -147,7 +152,18 @@ async def rosbridge_websocket_proxy(websocket: WebSocket) -> None:
                         t.cancel()
                 await asyncio.gather(t1, t2, return_exceptions=True)
                 raise
+    except (websockets.exceptions.ConnectionClosed, websockets.exceptions.InvalidURI,
+            websockets.exceptions.InvalidHandshake, ConnectionRefusedError, OSError):
+        # 上游连接失败 — 关闭客户端连接
+        await _close_ws(websocket)
     except Exception:
+        elapsed = time.monotonic() - t0
+        if elapsed < 0.5:
+            # roslib 探测连接 (首次连接 < 500ms 断开是正常行为, 抑制日志) 喵~
+            pass
+        else:
+            import traceback
+            traceback.print_exc()
         await _close_ws(websocket)
 
 
@@ -210,7 +226,7 @@ async def web_video_http_proxy(
                     yield chunk
         except asyncio.CancelledError:
             raise
-        except (httpx.TimeoutException, httpx.RequestError):
+        except (httpx.TimeoutException, httpx.RequestError, httpx.ReadError):
             return
         finally:
             await _aclose_httpx(resp_ref, client_ref)

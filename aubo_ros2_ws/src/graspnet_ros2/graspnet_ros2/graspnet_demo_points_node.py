@@ -42,8 +42,16 @@ import utils  # noqa: F401
 from models.graspnet import GraspNet, pred_decode
 from utils.collision_detector import ModelFreeCollisionDetector
 from graspnetAPI import GraspGroup
-import pointnet2._ext as _ext  # noqa: F401 — CUDA 算子 (ball_query, group_points 等)
-import knn_pytorch.knn_pytorch  # noqa: F401 — KNN CUDA 算子
+try:
+    import pointnet2._ext as _ext  # noqa: F401 — CUDA 算子 (ball_query, group_points 等)
+    import knn_pytorch.knn_pytorch  # noqa: F401 — KNN CUDA 算子
+except ImportError as e:
+    raise ImportError(
+        f"CUDA 算子导入失败: {e}。请确保已安装 pointnet2 和 knn_pytorch CUDA 扩展：\n"
+        "  cd graspnet-baseline/pointnet2 && python setup.py install\n"
+        "  cd graspnet-baseline/knn && python setup.py install\n"
+        "或使用 CPU 模式（需修改配置 --gpu -1）喵~"
+    ) from e
 
 
 

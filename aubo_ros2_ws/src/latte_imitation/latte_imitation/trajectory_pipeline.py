@@ -1,74 +1,51 @@
 """
-Latte Imitation 主节点 — MoveIt2 标准管线喵~
+Latte Imitation 主节点 — MoveIt2 6 阶段管线 + RViz2 Preview 喵~
 
 === 完整流程 ===
 
 入口 (3 种触发方式):
-  A. ROS 2 Service  /latte_imitation/replay_trajectory  (外部调用)
-  B. Launch 参数    启动时自动执行默认 episode           (向后兼容)
-  C. test_replay_service.py 交互菜单                    (开发调试)
+  A. ROS 2 Service  ~/replay_trajectory (外部调用)
+  B. Launch 参数    启动时自动执行默认 episode (向后兼容)
+  C. test_latte_pour.py 交互菜单 (开发调试)
 
 ═══════════════════════════════════════════════════════════════
-A/B → _execute_pipeline()                   ← 编排器 + 并发锁
-        │  self._executing=True  ←── 防重入互斥
-        │
-        ▼
-      _pipeline()                            ← 5 阶段管线
-        │
-        ├─ Phase ① _load_cartesian()
-        │     npz 文件路径:  resource/cartesian/{arm}/episode_{idx:06d}.npz
-        │     返回:  CartesianTrajectory (400 帧 × 7D [xyz+qxyzw])
-        │     失败 → (success=false, "episode_xxx.npz 未找到")
-        │
-        ├─ Phase ② apply_start_pose()
-        │     is_default_pose(start_pose)?
-        │       YES → _get_current_ee_pose()  TF lookup(base_link→tool_tcp)
-        │              重试 20 次 × 30ms, 失败 → "无法获取当前末端位姿"
-        │       NO  → 使用手动指定的 start_pose (如相机检测杯子位姿)
-        │     变换:  R_rel = R_tgt @ R_orig^T, p_new = R_rel @ (p-p0) + p_target
-        │            q_new = q_rel * q_orig (Hamilton 乘积)
-        │     特性:  刚性保距 (path_length 不变), 旋转中心 = 第一帧位置
-        │
-        ├─ Phase ③ _publish_poses()
-        │     ~/ee_pose ← 每 5 帧采样 PoseStamped
-        │     ~/ee_path ← 完整轨迹 Path (step=5)
-        │     mode="debug" → return (success=true, 跳过规划/执行)
-        │
-        ├─ Phase ④ _compute_cartesian_path()
-        │     服务:  /compute_cartesian_path (MoveIt2)
-        │     参数:  max_step=0.01, jump_threshold=0.0
-        │            start_state=RobotState() 空=当前状态
-        │            avoid_collisions=True 内置碰撞检测
-        │     fraction 三级处理:
-        │       ≥0.95  → 直接进入 Phase ⑤
-        │       0.50~  → retry with avoid_collisions=False (取较大 fraction)
-        │       <0.50  → fail
-        │     成功 → 按 speed_scale 缩放 trajectory timestamps
-        │     超时 → CARTESIAN_TIMEOUT=30s
-        │
-        └─ Phase ⑤ _execute_trajectory()
-             Action:  /execute_trajectory (MoveIt2)
-             流程:   send_goal_async → wait_for_accept → wait_for_result
-             超时:   send_goal 5s, 执行 120s
-             成功:   error_code.val == 1 (MoveIt2 SUCCESS)
-             返回:   ik_success_count = int(fraction × num_frames)
+_pipeline() 6 阶段:
+
+  ① Load  — 从 npz 加载轨迹
+  ② Retarget  — SE(3) 重定目标 (SPOT + Isaac Teleop)
+  ③ Preview  — 发布 RViz2 markers (mode="preview" 在此返回)
+  ④ Safety  — 工作空间边界检查
+  ⑤ Plan  — MoveIt2 computeCartesianPath
+  ⑥ Execute  — MoveIt2 executeTrajectory
+
+═══════════════════════════════════════════════════════════════
+Preview 模式 (mode="preview"):
+
+  发布以下话题到 RViz2:
+    ~/preview/tcp_path         nav_msgs/Path        绿色 TCP 轨迹
+    ~/preview/tcp_waypoints    geometry_msgs/PoseArray 方向箭头 (每5帧)
+    ~/preview/spout_path       visualization_msgs/Marker 蓝色 spout 线
+    ~/preview/cup_pose         visualization_msgs/Marker 黄色杯子方块
+    ~/preview/workspace_bounds visualization_msgs/Marker 红色安全框
 
 ═══════════════════════════════════════════════════════════════
 并发模型:
   Executor:    MultiThreadedExecutor(4)
-  Callback:    ReentrantCallbackGroup (服务回调 + MoveIt client 共享)
-  防重入:      self._executing 布尔锁 (同一时刻仅一条管线运行)
+  Callback:    ReentrantCallbackGroup (防死锁 — CLAUDE.md 规则 #14)
+  防重入:      self._executing 布尔锁
 
-外部依赖:
-  MoveIt2:     /compute_cartesian_path (service, timeout 15s 发现 + 30s 执行)
-               /execute_trajectory (action, timeout 5s 发现 + 120s 执行)
-  TF:          base_link → tool_tcp (用于自动确定轨迹起点)
-  ivg_interfaces: ReplayLatteTrajectory.srv (52 接口之一)
+MoveIt2 参数 (CartesianInterpolator 源码审计):
+  max_step=0.01          → 覆盖帧间位移 ~3.8mm
+  jump_threshold=0.0     → 禁用相对跳变 (L227: factor > 0.0 才启用)
+  revolute_jump_threshold=0.0  → 禁用绝对跳变 (L230)
+  avoid_collisions=True  → 内置碰撞检测
 
-辅助模块:
-  trajectory.py             CartesianTrajectory: npz I/O + ROS2 导出
-  trajectory_transform.py   apply_start_pose(): 6-DOF 刚性变换 + 四元数工具
-  tf_utils.py               共享 TF 查询 (消除重复) 喵~
+═══════════════════════════════════════════════════════════════
+理论依据:
+  SPOT (arXiv:2411.00965): Object-centric SE(3) trajectory
+  Isaac Teleop: Se3RelRetargeter delta 语义
+  SO(3) Action Repr. (Savva 2025): Hamilton 四元数约定
+  SVRC: Object-relative Cartesian → Very High generalization
 """
 
 import os
@@ -79,25 +56,31 @@ from rclpy.node import Node
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.action import ActionClient
-from geometry_msgs.msg import Pose, PoseStamped
+from geometry_msgs.msg import Pose, PoseStamped, Point, PoseArray
 from nav_msgs.msg import Path as RosPath
+from visualization_msgs.msg import Marker
 from moveit_msgs.srv import GetCartesianPath
 from moveit_msgs.action import ExecuteTrajectory
 from moveit_msgs.msg import Constraints, RobotState, RobotTrajectory
-from std_msgs.msg import Header
+from std_msgs.msg import Header, ColorRGBA
 from ament_index_python.packages import get_package_share_directory
 from ivg_interfaces.srv import ReplayLatteTrajectory
 
 from .trajectory import CartesianTrajectory
-from .trajectory_transform import apply_start_pose
-from .trajectory_transform import is_default_position, is_default_orientation
+from .trajectory_transform import (
+    retarget_trajectory,
+    is_default_position,
+    is_default_orientation,
+)
+from .config_loader import load_tool_offset, load_workspace_safety
 from .tf_utils import get_current_ee_pose
+
 
 # ═══════════════════════════════════════════════════════════════════
 # 辅助函数
 # ═══════════════════════════════════════════════════════════════════
 
-def _cartesian_resource_dir():
+def _cartesian_resource_dir() -> str:
     try:
         share = get_package_share_directory("latte_imitation")
         return os.path.join(share, "resource", "cartesian")
@@ -106,8 +89,7 @@ def _cartesian_resource_dir():
         return os.path.join(pkg_dir, "resource", "cartesian")
 
 
-def _get_or_create_client(node, attr, create_fn):
-    """缓存 client 在 node 属性上 (来自 grasp_motion_controller.py 模式) 喵~"""
+def _get_or_create_client(node, attr: str, create_fn):
     client = getattr(node, attr, None)
     if client is None:
         client = create_fn()
@@ -120,11 +102,16 @@ def _get_or_create_client(node, attr, create_fn):
 # ═══════════════════════════════════════════════════════════════════
 
 class LatteImitationNode(Node):
-    """拉花轨迹回放节点 — MoveIt2 标准管线喵~
+    """拉花轨迹回放节点 — 6 阶段 MoveIt2 管线 + RViz2 Preview 喵~
 
     话题 (发布):
-      ~/ee_pose           PoseStamped   轨迹 waypoints (每5帧采样，debug+action 均发布)
-      ~/ee_path           Path          轨迹完整路径 (debug+action 均发布)
+      ~/preview/tcp_path        Path       TCP 轨迹 (preview 模式)
+      ~/preview/tcp_waypoints   PoseArray  TCP 关键姿态 (preview 模式)
+      ~/preview/spout_path      Marker     Spout 轨迹 (preview 模式)
+      ~/preview/cup_pose        Marker     杯子位置 (preview 模式)
+      ~/preview/workspace_bounds Marker    工作空间安全框 (preview 模式)
+      ~/ee_pose                 PoseStamped 末端位姿 (debug 模式)
+      ~/ee_path                 Path       轨迹路径 (debug 模式)
 
     服务:
       ~/replay_trajectory  ivg_interfaces/srv/ReplayLatteTrajectory
@@ -137,9 +124,8 @@ class LatteImitationNode(Node):
         self.declare_parameter("episode_idx", 0)
         self.declare_parameter("arm", "right")
         self.declare_parameter("speed_scale", 1.0)
-        self.declare_parameter("mode", "debug")
+        self.declare_parameter("mode", "preview")
 
-        # 管线参数 (可通过 launch / YAML 覆盖) 喵~
         self.declare_parameter("planning_group", "manipulator")
         self.declare_parameter("base_frame", "base_link")
         self.declare_parameter("ee_link", "tool_tcp")
@@ -159,11 +145,18 @@ class LatteImitationNode(Node):
         self._speed_scale = self.get_parameter("speed_scale").value
         self._mode = self.get_parameter("mode").value
 
-        # ── 发布者 ────────────────────────────────────────
+        # ── Debug 发布者 ──────────────────────────────────
         self._ee_pose_pub = self.create_publisher(PoseStamped, "~/ee_pose", 10)
         self._ee_path_pub = self.create_publisher(RosPath, "~/ee_path", 10)
 
-        # ── TF 监听 (单例, 缓存) ──────────────────────────
+        # ── Preview 发布者 (RViz2 markers) ──────────────
+        self._preview_tcp_path_pub = self.create_publisher(RosPath, "~/preview/tcp_path", 10)
+        self._preview_tcp_poses_pub = self.create_publisher(PoseArray, "~/preview/tcp_waypoints", 10)
+        self._preview_spout_pub = self.create_publisher(Marker, "~/preview/spout_path", 10)
+        self._preview_cup_pub = self.create_publisher(Marker, "~/preview/cup_pose", 10)
+        self._preview_workspace_pub = self.create_publisher(Marker, "~/preview/workspace_bounds", 10)
+
+        # ── TF 监听 ────────────────────────────────────────
         from tf2_ros import Buffer, TransformListener
         self._tf_buffer = Buffer()
         self._tf_listener = TransformListener(self._tf_buffer, self)
@@ -172,40 +165,30 @@ class LatteImitationNode(Node):
         self._cartesian_client = None
         self._execute_client = None
 
-        # ── ReplayLatteTrajectory 服务 ─────────────────────
+        # ── 服务 ───────────────────────────────────────────
         self._cb_group = ReentrantCallbackGroup()
         self._replay_srv = self.create_service(
             ReplayLatteTrajectory, "~/replay_trajectory",
             self._replay_service_callback, callback_group=self._cb_group,
         )
-        self.get_logger().info("服务就绪: ~/replay_trajectory")
+        self.get_logger().info("服务就绪: ~/replay_trajectory (preview/debug/action)")
 
         # ── 并发防护 + 向后兼容 ──────────────────────────
         self._executing = False
         self._init_timer = self.create_timer(4.0, self._delayed_start)
 
     # ═══════════════════════════════════════════════════════════════
-    # TF — 当前末端位姿 (委托给共享 tf_utils 模块)
+    # TF
     # ═══════════════════════════════════════════════════════════════
 
     def _get_current_ee_pose(self):
-        """通过 TF 获取当前末端执行器位姿 (base_link → tool_tcp) 喵~
-
-        Returns:
-            geometry_msgs/Pose 或 None (TF 不可达)
-        """
-        pose = get_current_ee_pose(
-            self,
-            base_frame=self.get_parameter("base_frame").value,
-            ee_link=self.get_parameter("ee_link").value,
-            retry_count=self.get_parameter("tf_retry_count").value,
-            retry_interval=self.get_parameter("tf_retry_interval").value,
-        )
+        base_frame = self.get_parameter("base_frame").value
+        ee_link = self.get_parameter("ee_link").value
+        tc = self.get_parameter("tf_retry_count").value
+        ti = self.get_parameter("tf_retry_interval").value
+        pose = get_current_ee_pose(self, base_frame, ee_link, tc, ti)
         if pose is None:
-            self.get_logger().warn(
-                f"TF 暂不可达: {self.get_parameter('base_frame').value} "
-                f"→ {self.get_parameter('ee_link').value}"
-            )
+            self.get_logger().warn(f"TF 不可达: {base_frame} → {ee_link}")
         return pose
 
     # ═══════════════════════════════════════════════════════════════
@@ -213,15 +196,25 @@ class LatteImitationNode(Node):
     # ═══════════════════════════════════════════════════════════════
 
     def _replay_service_callback(self, request, response):
+        pattern = getattr(request, 'pattern_type', '') or ''
         self.get_logger().info(
-            f"Service: episode={request.episode_idx}, arm={request.arm}, "
-            f"speed={request.speed_scale}, mode={request.mode}"
+            f"Service: ep={request.episode_idx}, pattern='{pattern}', arm={request.arm}, "
+            f"mode={request.mode}, rpy=({request.roll_deg:.0f},{request.pitch_deg:.0f},{request.yaw_deg:.0f})"
         )
         speed = request.speed_scale if request.speed_scale > 1e-6 else 1.0
         result = self._execute_pipeline(
-            episode_idx=request.episode_idx, arm=request.arm,
-            speed_scale=speed, mode=request.mode,
+            episode_idx=request.episode_idx,
+            arm=request.arm,
+            speed_scale=speed,
+            mode=request.mode,
             start_pose=request.start_pose if hasattr(request, 'start_pose') else None,
+            rpy_user=(request.roll_deg, request.pitch_deg, request.yaw_deg),
+            tool_offset_id=request.tool_offset_id if request.tool_offset_id else "default",
+            pattern_type=pattern,
+            pattern_image_path=getattr(request, 'pattern_image_path', '') or '',
+            tulip_layers=getattr(request, 'tulip_layers', 3),
+            cup_params=self._extract_cup_params(request),
+            pour_params=self._extract_pour_params(request),
         )
         response.success = result["success"]
         response.message = result["message"]
@@ -232,26 +225,57 @@ class LatteImitationNode(Node):
         response.collision_details = result["collision_details"]
         return response
 
+    @staticmethod
+    def _extract_cup_params(request) -> dict:
+        return {
+            "center_x": getattr(request, 'cup_center_x', 0.0) or 0.0,
+            "center_y": getattr(request, 'cup_center_y', 0.0) or 0.0,
+            "surface_z": getattr(request, 'cup_surface_z', 0.15) or 0.15,
+            "radius": getattr(request, 'cup_radius', 0.04) or 0.04,
+        }
+
+    @staticmethod
+    def _extract_pour_params(request) -> dict:
+        return {
+            "mix_height_offset": getattr(request, 'pour_mix_height_offset', 0.076) or 0.076,
+            "draw_height_offset": getattr(request, 'pour_draw_height_offset', 0.006) or 0.006,
+            "finish_height_offset": getattr(request, 'pour_finish_height_offset', 0.076) or 0.076,
+            "wiggle_amplitude": getattr(request, 'pour_wiggle_amplitude', 0.006) or 0.006,
+            "wiggle_frequency": getattr(request, 'pour_wiggle_frequency', 5.0) or 5.0,
+            "max_velocity": getattr(request, 'pour_max_velocity', 0.05) or 0.05,
+            "max_acceleration": getattr(request, 'pour_max_acceleration', 0.1) or 0.1,
+            "max_jerk": getattr(request, 'pour_max_jerk', 0.5) or 0.5,
+            "enable_anti_sloshing": getattr(request, 'enable_anti_sloshing', True),
+        }
+
     # ═══════════════════════════════════════════════════════════════
     # 管线编排
     # ═══════════════════════════════════════════════════════════════
 
     def _execute_pipeline(self, episode_idx, arm, speed_scale, mode,
-                            start_pose=None):
+                           start_pose=None, rpy_user=(0.0, 0.0, 0.0),
+                           tool_offset_id="default",
+                           pattern_type="", pattern_image_path="",
+                           tulip_layers=3, cup_params=None, pour_params=None):
         if self._executing:
             return self._empty_result(False, "已有轨迹正在执行，请稍后喵~")
         self._executing = True
         try:
             return self._pipeline(episode_idx, arm, speed_scale, mode,
-                                  start_pose)
+                                  start_pose, rpy_user, tool_offset_id,
+                                  pattern_type, pattern_image_path,
+                                  tulip_layers, cup_params, pour_params)
         except Exception as e:
             self.get_logger().error(f"执行异常: {e}")
             return self._empty_result(False, str(e))
         finally:
             self._executing = False
 
-    def _pipeline(self, episode_idx, arm, speed_scale, mode, start_pose):
-        """5 阶段 MoveIt2 管线喵~"""
+    def _pipeline(self, episode_idx, arm, speed_scale, mode, start_pose,
+                   rpy_user, tool_offset_id,
+                   pattern_type="", pattern_image_path="",
+                   tulip_layers=3, cup_params=None, pour_params=None):
+        """6 阶段 MoveIt2 管线 (支持录制回放 + 参数化生成) 喵~"""
         base_frame = self.get_parameter("base_frame").value
         planning_group = self.get_parameter("planning_group").value
         ee_link = self.get_parameter("ee_link").value
@@ -259,18 +283,25 @@ class LatteImitationNode(Node):
         fraction_ok = self.get_parameter("fraction_acceptable").value
         fraction_min = self.get_parameter("fraction_min_executable").value
 
-        # Phase 1: 加载轨迹
-        cart = self._load_cartesian(episode_idx, arm)
+        # ═══ Phase ①: Load / Generate ═══
+        cart = self._load_or_generate(
+            episode_idx, arm, pattern_type, pattern_image_path,
+            tulip_layers, cup_params, pour_params)
         if cart is None:
+            if pattern_type:
+                return self._empty_result(False,
+                    f"参数化生成失败: pattern_type='{pattern_type}'")
             return self._empty_result(False,
                 f"episode_{episode_idx:06d}.npz (arm='{arm}') 未找到")
 
-        # Phase 2: Transform — 位置/朝向独立处理喵~
+        # ═══ Phase ②: Retarget ═══
         if start_pose is None:
             start_pose = Pose()
 
         use_tf_position = is_default_position(start_pose)
-        rotate = not is_default_orientation(start_pose)
+        rotate = not is_default_orientation(start_pose) or any(
+            abs(r) > 1e-9 for r in rpy_user
+        )
 
         if use_tf_position:
             current_pose = self._get_current_ee_pose()
@@ -278,14 +309,17 @@ class LatteImitationNode(Node):
                 return self._empty_result(False,
                     "无法获取当前末端位姿 (TF base_link → tool_tcp)")
             target = current_pose
+            if rotate:
+                target.orientation = start_pose.orientation
             pos_src = "TF"
         else:
             target = start_pose
             pos_src = "手动"
 
-        cart = apply_start_pose(cart, target, rotate_orientation=rotate)
+        cart = retarget_trajectory(cart, target, rpy_user=rpy_user,
+                                   absolute_orientation=False)
         self.get_logger().info(
-            f"轨迹已变换 (位置={pos_src}, 旋转={'是' if rotate else '否'}): "
+            f"轨迹已变换 (位置={pos_src}, rpy={rpy_user}): "
             f"({target.position.x:.3f}, {target.position.y:.3f}, {target.position.z:.3f})"
         )
 
@@ -293,28 +327,46 @@ class LatteImitationNode(Node):
         path_len = cart.path_length()
         dt = cart.dt / max(speed_scale, 0.01)
         self.get_logger().info(
-            f"Ep{episode_idx} ({arm}): {num_frames}frames, {path_len:.2f}m, "
-            f"dt={dt:.3f}s"
+            f"Ep{episode_idx} ({arm}): {num_frames}frames, {path_len:.2f}m, dt={dt:.3f}s"
         )
 
-        # Phase 3: 发布 debug 话题
+        # ═══ Phase ③: Preview (RViz2 markers) ═══
+        tool_offset = load_tool_offset(tool_offset_id)
+        workspace = load_workspace_safety()
+        self._publish_preview_markers(cart, target, tool_offset, workspace)
         self._publish_poses(self._ee_pose_pub, cart)
-        self._ee_path_pub.publish(cart.to_ros2_path())
+
+        if mode in ("preview", "debug"):
+            return self._result(True,
+                f"{mode}: {num_frames} 帧, {path_len:.2f}m, "
+                f"rpy=({rpy_user[0]:.0f},{rpy_user[1]:.0f},{rpy_user[2]:.0f})",
+                num_frames, path_len, 0, 0, [])
 
         if mode != "action":
-            return self._result(True, f"Debug: {num_frames} 帧, {path_len:.2f}m",
-                                num_frames, path_len, 0, 0, [])
+            return self._result(True,
+                f"mode='{mode}' (未规划/执行)", num_frames, path_len, 0, 0, [])
 
-        # Phase 4: MoveIt2 笛卡尔路径规划
+        # ═══ Phase ④: Safety Check ═══
+        if workspace.safety_policy != "ignore":
+            is_safe, msg, _ = cart.check_workspace_bounds(
+                x_range=(workspace.x_min, workspace.x_max),
+                y_range=(workspace.y_min, workspace.y_max),
+                z_range=(workspace.z_min, workspace.z_max),
+            )
+            if not is_safe:
+                if workspace.safety_policy == "warn_and_block":
+                    return self._empty_result(False, f"Safety: {msg}", num_frames, path_len)
+                else:
+                    self.get_logger().warn(f"Safety: {msg}")
+
+        # ═══ Phase ⑤: Cartesian Plan ═══
         waypoints = [cart.to_pose(i) for i in range(0, num_frames, step)]
-        # 确保最后一帧在 waypoints 中 (避免 fraction < 1.0 误判)
         if (num_frames - 1) % step != 0:
             waypoints.append(cart.to_pose(num_frames - 1))
         self.get_logger().info(
-            f"Phase ④: {len(waypoints)} waypoints ({num_frames} 帧→{len(waypoints)} 采样点)..."
+            f"Phase ⑤: {len(waypoints)} waypoints..."
         )
-        resp = self._compute_cartesian_path(waypoints, planning_group, ee_link,
-                                            base_frame)
+        resp = self._compute_cartesian_path(waypoints, planning_group, ee_link, base_frame)
         if resp is None:
             return self._empty_result(False, "computeCartesianPath 服务不可达",
                                       num_frames, path_len)
@@ -340,9 +392,7 @@ class LatteImitationNode(Node):
             if resp2 is not None and resp2.fraction > fraction:
                 resp = resp2
                 fraction = resp2.fraction
-                self.get_logger().info(
-                    f"无碰撞重试: {fraction*100:.1f}%"
-                )
+                self.get_logger().info(f"无碰撞重试: {fraction*100:.1f}%")
 
         # 按 speed_scale 缩放时间戳
         trajectory = resp.solution
@@ -351,19 +401,167 @@ class LatteImitationNode(Node):
             pt.time_from_start.sec = int(t)
             pt.time_from_start.nanosec = int((t - int(t)) * 1e9)
 
-        # Phase 5: MoveIt2 执行
+        # ═══ Phase ⑥: Execute ═══
         ok, msg = self._execute_trajectory(trajectory)
         ik_count = int(fraction * num_frames)
-
         return self._result(ok, msg, num_frames, path_len, ik_count, 0, [])
 
     # ═══════════════════════════════════════════════════════════════
-    # MoveIt2 Cartesian Path 规划
+    # Phase ①: Load
+    # ═══════════════════════════════════════════════════════════════
+
+    def _load_or_generate(self, episode_idx, arm, pattern_type, pattern_image_path,
+                           tulip_layers, cup_params, pour_params):
+        """Phase ①: 录制回放 或 参数化生成 → CartesianTrajectory 喵~"""
+        if pattern_type:
+            # 模式 B: 参数化生成
+            try:
+                from latte_imitation.latte_art import (
+                    LatteArtTrajectory, CupConfig, PourConfig,
+                    compose_full_trajectory, apply_anti_sloshing,
+                    parametric_to_cartesian,
+                )
+            except ImportError as e:
+                self.get_logger().error(f"latte_art 模块不可用: {e}")
+                return None
+
+            cup = cup_params or {}
+            pour = pour_params or {}
+            cup_cfg = CupConfig(
+                center_x=cup.get("center_x", 0.0),
+                center_y=cup.get("center_y", 0.0),
+                surface_z=cup.get("surface_z", 0.15),
+                radius=cup.get("radius", 0.04),
+            )
+            pour_cfg = PourConfig(
+                mix_height_offset=pour.get("mix_height_offset", 0.076),
+                draw_height_offset=pour.get("draw_height_offset", 0.006),
+                finish_height_offset=pour.get("finish_height_offset", 0.076),
+                wiggle_amplitude=pour.get("wiggle_amplitude", 0.006),
+                wiggle_frequency=pour.get("wiggle_frequency", 5.0),
+                max_velocity=pour.get("max_velocity", 0.05),
+                max_acceleration=pour.get("max_acceleration", 0.1),
+                max_jerk=pour.get("max_jerk", 0.5),
+            )
+
+            gen = LatteArtTrajectory(cup_cfg, pour_cfg)
+            try:
+                if pattern_type == "tulip":
+                    xyz = gen.tulip(layers=max(1, tulip_layers))
+                elif pattern_type == "custom":
+                    if not pattern_image_path:
+                        self.get_logger().error("custom 模式需要 pattern_image_path")
+                        return None
+                    xyz = gen.from_image(pattern_image_path)
+                else:
+                    xyz = getattr(gen, pattern_type)()
+            except Exception as e:
+                self.get_logger().error(f"轨迹生成失败 ({pattern_type}): {e}")
+                return None
+
+            xyz = compose_full_trajectory(xyz, cup_cfg, pour_cfg)
+            if pour.get("enable_anti_sloshing", True):
+                xyz = apply_anti_sloshing(xyz, pour_cfg)
+
+            cart = parametric_to_cartesian(xyz)
+            self.get_logger().info(
+                f"参数化生成: pattern={pattern_type} frames={cart.num_frames} "
+                f"path={cart.path_length():.3f}m"
+            )
+            return cart
+        else:
+            # 模式 A: 录制回放
+            return self._load_cartesian(episode_idx, arm)
+
+    def _load_cartesian(self, episode_idx=None, arm=None):
+        ep = episode_idx if episode_idx is not None else self._episode_idx
+        ar = arm if arm is not None else self._arm
+        path = os.path.join(_cartesian_resource_dir(), ar, f"episode_{ep:06d}.npz")
+        if not os.path.exists(path):
+            self.get_logger().error(f"未找到: {path}")
+            return None
+        return CartesianTrajectory.load(path)
+
+    # ═══════════════════════════════════════════════════════════════
+    # Phase ③: Preview — RViz2 Markers
+    # ═══════════════════════════════════════════════════════════════
+
+    def _publish_preview_markers(self, cart, cup_pose, tool_offset, workspace):
+        """发布所有 RViz2 preview markers 喵~"""
+        now = self.get_clock().now().to_msg()
+
+        # ── TCP Path (绿色) ──
+        tcp_path = cart.to_ros2_path(step=2, stamp=now)
+        self._preview_tcp_path_pub.publish(tcp_path)
+
+        # ── TCP Waypoints (每 5 帧, 带朝向箭头) ──
+        pa = PoseArray()
+        pa.header = Header(frame_id=cart.frame_id, stamp=now)
+        for i in range(0, cart.num_frames, 5):
+            pa.poses.append(cart.to_pose(i))
+        self._preview_tcp_poses_pub.publish(pa)
+
+        # ── Spout Path (蓝色虚线) ──
+        spout_marker = Marker()
+        spout_marker.header = Header(frame_id=cart.frame_id, stamp=now)
+        spout_marker.ns = "latte_preview"
+        spout_marker.id = 0
+        spout_marker.type = Marker.LINE_STRIP
+        spout_marker.action = Marker.ADD
+        spout_marker.scale.x = 0.003
+        spout_marker.color = ColorRGBA(r=0.2, g=0.5, b=1.0, a=0.8)
+        dx, dy, dz = tool_offset.pos
+        for i in range(0, cart.num_frames, 2):
+            p = cart.positions[i]
+            spout_marker.points.append(Point(x=p[0]+dx, y=p[1]+dy, z=p[2]+dz))
+        self._preview_spout_pub.publish(spout_marker)
+
+        # ── Cup Pose (黄色方块) ──
+        cup_marker = Marker()
+        cup_marker.header = Header(frame_id=cart.frame_id, stamp=now)
+        cup_marker.ns = "latte_preview"
+        cup_marker.id = 1
+        cup_marker.type = Marker.CUBE
+        cup_marker.action = Marker.ADD
+        cup_marker.pose = cup_pose
+        cup_marker.scale.x = 0.06; cup_marker.scale.y = 0.06; cup_marker.scale.z = 0.06
+        cup_marker.color = ColorRGBA(r=1.0, g=1.0, b=0.0, a=0.5)
+        self._preview_cup_pub.publish(cup_marker)
+
+        # ── Workspace Bounds (红色线框) ──
+        ws_marker = Marker()
+        ws_marker.header = Header(frame_id="base_link", stamp=now)
+        ws_marker.ns = "latte_preview"
+        ws_marker.id = 2
+        ws_marker.type = Marker.LINE_LIST
+        ws_marker.action = Marker.ADD
+        ws_marker.scale.x = 0.003
+        ws_marker.color = ColorRGBA(r=1.0, g=0.2, b=0.2, a=0.6)
+        x0, x1 = workspace.x_min, workspace.x_max
+        y0, y1 = workspace.y_min, workspace.y_max
+        z0, z1 = workspace.z_min, workspace.z_max
+        corners = [
+            (x0,y0,z0),(x1,y0,z0), (x1,y0,z0),(x1,y1,z0),
+            (x1,y1,z0),(x0,y1,z0), (x0,y1,z0),(x0,y0,z0),  # 底面
+            (x0,y0,z1),(x1,y0,z1), (x1,y0,z1),(x1,y1,z1),
+            (x1,y1,z1),(x0,y1,z1), (x0,y1,z1),(x0,y0,z1),  # 顶面
+            (x0,y0,z0),(x0,y0,z1), (x1,y0,z0),(x1,y0,z1),
+            (x1,y1,z0),(x1,y1,z1), (x0,y1,z0),(x0,y1,z1),  # 竖边
+        ]
+        for c in corners:
+            ws_marker.points.append(Point(x=c[0], y=c[1], z=c[2]))
+        self._preview_workspace_pub.publish(ws_marker)
+
+        self.get_logger().info(
+            "Preview: TCP path + waypoints + spout + cup + workspace bounds → RViz2"
+        )
+
+    # ═══════════════════════════════════════════════════════════════
+    # Phase ⑤: MoveIt2 Cartesian Path
     # ═══════════════════════════════════════════════════════════════
 
     def _compute_cartesian_path(self, waypoints, planning_group, ee_link,
                                  base_frame, avoid_collisions=True):
-        """调用 /compute_cartesian_path 服务喵~"""
         service_timeout = self.get_parameter("service_timeout").value
         cartesian_timeout = self.get_parameter("cartesian_timeout").value
         max_step = self.get_parameter("cartesian_max_step").value
@@ -405,22 +603,18 @@ class LatteImitationNode(Node):
         try:
             result = future.result()
             self.get_logger().info(
-                f"computeCartesianPath 完成: {elapsed:.1f}s, "
-                f"fraction={result.fraction*100:.1f}%"
+                f"computeCartesianPath 完成: {elapsed:.1f}s, fraction={result.fraction*100:.1f}%"
             )
             return result
         except Exception as e:
-            self.get_logger().error(
-                f"computeCartesianPath 异常 ({elapsed:.1f}s): {e}"
-            )
+            self.get_logger().error(f"computeCartesianPath 异常 ({elapsed:.1f}s): {e}")
             return None
 
     # ═══════════════════════════════════════════════════════════════
-    # MoveIt2 轨迹执行
+    # Phase ⑥: Execute
     # ═══════════════════════════════════════════════════════════════
 
     def _execute_trajectory(self, trajectory: RobotTrajectory):
-        """通过 /execute_trajectory action 执行 MoveIt 规划的轨迹喵~"""
         execution_timeout = self.get_parameter("execution_timeout").value
 
         action_client = _get_or_create_client(
@@ -450,8 +644,7 @@ class LatteImitationNode(Node):
 
         self.get_logger().info("Goal 已接受，等待执行完成...")
         result_future = goal_handle.get_result_async()
-        rclpy.spin_until_future_complete(self, result_future,
-                                         timeout_sec=execution_timeout)
+        rclpy.spin_until_future_complete(self, result_future, timeout_sec=execution_timeout)
         if not result_future.done():
             return False, f"轨迹执行超时 ({execution_timeout}s)"
 
@@ -460,35 +653,19 @@ class LatteImitationNode(Node):
         except Exception as e:
             return False, f"获取 Action 结果异常: {e}"
 
-        # MoveIt2 ExecuteTrajectory: error_code.val == 1 = SUCCESS
         if error_code.val == 1:
             return True, "轨迹执行成功完成"
         else:
             return False, f"轨迹执行失败: error_code={error_code.val}"
 
     # ═══════════════════════════════════════════════════════════════
-    # 调试发布
+    # 辅助
     # ═══════════════════════════════════════════════════════════════
 
     @staticmethod
     def _publish_poses(pub, cart, step=5):
-        now = rclpy.clock.Clock().now().to_msg()
         for i in range(0, cart.num_frames, step):
-            pub.publish(cart.to_pose_stamped(i, stamp=now))
-
-    # ═══════════════════════════════════════════════════════════════
-    # 辅助
-    # ═══════════════════════════════════════════════════════════════
-
-    def _load_cartesian(self, episode_idx=None, arm=None):
-        ep = episode_idx if episode_idx is not None else self._episode_idx
-        ar = arm if arm is not None else self._arm
-        path = os.path.join(_cartesian_resource_dir(), ar,
-                           f"episode_{ep:06d}.npz")
-        if not os.path.exists(path):
-            self.get_logger().error(f"未找到: {path}")
-            return None
-        return CartesianTrajectory.load(path)
+            pub.publish(cart.to_pose_stamped(i))
 
     @staticmethod
     def _empty_result(success, message, num_frames=0, path_length=0.0,

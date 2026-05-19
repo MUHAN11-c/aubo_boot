@@ -11,4 +11,6 @@ float32[6] joint      # 6个关节的角度值，单位：弧度（rad），取�
 ---
 # 响应 —— 输出TCP在笛卡尔空间中的位姿
 float32[3] pos        # TCP位置坐标 (x, y, z)，单位：米（m），相对于机器人基坐标系喵~
-float32[4] ori        # TCP姿态四元数 (w, x, y, z)，归一化四元数，w为实部喵~
+float32[4] ori        # TCP姿态四元数 (w, x, y, z)，归一化四元数，w为实部
+                      # 此顺序直接透传 AUBO SDK Ori 结构体 ({w,x,y,z})，与 ROS
+                      # geometry_msgs/Quaternion 数组表示 (x,y,z,w) 不同喵~

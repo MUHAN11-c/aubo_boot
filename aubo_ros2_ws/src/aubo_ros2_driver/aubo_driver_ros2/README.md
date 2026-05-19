@@ -56,7 +56,7 @@ joint_trajectory_controller:
 |------|------|------|--------|
 | `/joint_states` | `sensor_msgs/JointState` | 发布 | state_broadcaster |
 | `/aubo/feedback_states` | `FollowJointTrajectory_Feedback` | 发布 | state_broadcaster |
-| `/aubo_driver/robot_status` | `RobotStatus` | 发布 | state_broadcaster |
+| `/robot_status` | `RobotStatus` | 发布 | state_broadcaster |
 | `/aubo_driver/rib_status` | `Int32MultiArray` | 发布 | state_broadcaster |
 | `/aubo/startup` | `std_srvs/Trigger` | 服务 | dashboard |
 | `/aubo/shutdown` | `std_srvs/Trigger` | 服务 | dashboard |

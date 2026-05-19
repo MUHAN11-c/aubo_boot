@@ -23,6 +23,8 @@ tools:
       lift: 0.210
       settle_sec: 0.5
 
+  # 电动夹爪 A — dock_approach_joints 待 IK 验证（复用了 gripper0 参考值）。
+  # 启动机械臂后运行 scripts/compute_dock_ik.py 自动求解关节角喵~
   gripper1:
     name: "电动夹爪 A"
     type: "gripper"
@@ -36,6 +38,13 @@ tools:
       position: {x: 0.0, y: 0.0, z: 0.033}
       orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
     touch_links: ["kuaihuan_Link", "camera_Link", "wrist3_Link", "tool_tcp"]
+    dock_above: {x: 0.16517, y: 0.29517, z: 0.4755}
+    dock_approach_joints: [1.137820, 0.222690, 1.598043, -0.194970, 1.571688, 1.136957]
+    trajectory:
+      strategy: "vertical"
+      depth: 0.210
+      lift: 0.210
+      settle_sec: 0.5
 
   gripper2:
     name: "电动夹爪 φ60"
@@ -62,6 +71,7 @@ tools:
       release_sec: 0.3
       lock_sec: 0.5
 
+  # 咖啡杯/牛奶杯 —— 仅用于仿真场景（末端工具几何展示 + 碰撞调试），不参与真机物理快换喵~
   gripper1coffeecup:
     name: "咖啡杯工具"
     type: "other"

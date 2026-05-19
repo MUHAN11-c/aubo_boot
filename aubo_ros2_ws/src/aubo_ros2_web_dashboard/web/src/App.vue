@@ -16,7 +16,7 @@
  * 全局 ROS 连接: App 挂载时自动建立 rosbridge 连接（单例共享），
  * 所有子页面通过 useRos() 共享同一条连接。
  */
-import { useRos } from '@/composables/useRos'
+import { useRos } from '@/composables/ros/useRos'
 
 const { connect, isConnected } = useRos()
 

@@ -5,12 +5,18 @@
   2. /api/ivg/proxy/web-video/* — HTTP 流代理 → web_video_server
   3. /health                    — 健康检查
   4. /api/v1/runtime            — 前端运行时配置 (BFF)
-  5. /api/ivg/robot-mesh/*      — 机器人 3D 模型文件
-  6. /js/robotwebtools/*        — RobotWebTools 静态资源
-  7. /*                         — 前端静态页面 (SPA)
+  5. /api/v1/tool-geometries     — 工具几何数据 (BFF, 与 tools.yaml 同步)
+  6. /api/ivg/robot-mesh/*      — 机器人 3D 模型文件
+  7. /js/robotwebtools/*        — RobotWebTools 静态资源
+  8. /*                         — 前端静态页面 (SPA)
+
+BFF 纯 HTTP 设计:
+  零 ROS 依赖 — 不初始化 rclpy, 不查询 TF, 不 import ROS 模块。
+  start_pose 由前端通过 rosbridge 获取后传入, BFF 仅做纯数学轨迹生成喵~
 """
 from __future__ import annotations
 
+import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -21,8 +27,10 @@ from starlette.middleware.gzip import GZipMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from aubo_ros2_web_dashboard import config as cfg
-from aubo_ros2_web_dashboard.gateway.routes import health, ivg_runtime, robot_mesh
+from aubo_ros2_web_dashboard.gateway.routes import health, ivg_runtime, robot_mesh, tool_geometries, latte_trajectory_preview
 from aubo_ros2_web_dashboard.gateway.routes.upstream_proxy import http_proxy_router, ws_router
+
+_logger = logging.getLogger("gateway.app")
 
 
 class SecurityHeadersMiddleware:
@@ -69,6 +77,7 @@ def create_app(web_root: str, *, rwt_override: str | None = None) -> FastAPI:
         print(f"[ivg] 网关启动 root={root} rwt={rwt_root if rwt_available else '(无)'} "
               f"rosbridge→{rb} web_video→{wv}", flush=True)
         yield
+        # 无需清理 (BFF 零 ROS 依赖) 喵~
 
     # 创建应用
     app = FastAPI(
@@ -87,6 +96,8 @@ def create_app(web_root: str, *, rwt_override: str | None = None) -> FastAPI:
     app.include_router(http_proxy_router)   # HTTP 视频流代理
     app.include_router(health.router)       # /health
     app.include_router(ivg_runtime.router)  # /api/v1/runtime + /api/v1/settings
+    app.include_router(tool_geometries.router)  # /api/v1/tool-geometries
+    app.include_router(latte_trajectory_preview.router)  # /api/v1/latte/trajectory/*
     app.include_router(robot_mesh.router)   # /api/ivg/robot-mesh/*
 
     # 静态文件挂载 — Vite 构建产物 (JS/CSS 在 /assets/ 下)

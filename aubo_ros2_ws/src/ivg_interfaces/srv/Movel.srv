@@ -1,5 +1,10 @@
 # =============================================================================
-# Movel.srv — 单轴直线运动服务
+# Movel.srv — 单轴直线运动服务 (已废弃 — @deprecated)
+#
+# 替代方案: 直接使用 MoveGroupInterface::computeCartesianPath()（MoveIt2 标准 API）。
+# latte_imitation 等模块已全部迁移至 MoveIt2 标准管线。
+# 此服务的 C++ 实现 (MovelServer) 无 .cpp 文件，保留接口定义仅用于向前兼容。
+#
 # 用途：在笛卡尔空间中沿指定坐标轴方向进行直线运动（仅移动 x/y/z 中的单一轴向）喵~
 # 调用方：示教控制节点、手动微调节点、对位调整节点
 # 服务方：demo_interface 的 robot_move_group_interface 节点

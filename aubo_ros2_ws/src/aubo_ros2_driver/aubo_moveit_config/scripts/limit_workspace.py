@@ -68,12 +68,12 @@ class WorkspaceLimiter(Node):
         # 如果提供了参数则使用，否则使用默认值
         if workspace_limits is None:
             self.workspace_limits = {
-                'x_min': -0.8,   # X轴最小边界
-                'x_max': 0.8,    # X轴最大边界
-                'y_min': -0.8,   # Y轴最小边界
-                'y_max': 0.8,    # Y轴最大边界
-                'z_min': 0.0,    # Z轴最小边界（地面）
-                'z_max': 1.2,    # Z轴最大边界
+                'x_min': -0.87,  # X轴最小边界 (AUBO E5 工作半径 886.5mm)
+                'x_max': 0.87,   # X轴最大边界
+                'y_min': -0.87,  # Y轴最小边界
+                'y_max': 0.87,   # Y轴最大边界
+                'z_min': -0.85,  # Z轴最小边界 (机械臂可向下伸展)
+                'z_max': 1.10,   # Z轴最大边界 (机械臂可向上伸展)
                 'wall_thickness': 0.05  # 墙的厚度（米）
             }
         else:
@@ -540,9 +540,9 @@ def main(args=None):
     if cmd_args.remove:
         rclpy.init(args=args)
         node = WorkspaceLimiter(workspace_limits={
-            'x_min': -0.8, 'x_max': 0.8,
-            'y_min': -0.8, 'y_max': 0.8,
-            'z_min': 0.0, 'z_max': 1.2,
+            'x_min': -0.87, 'x_max': 0.87,
+            'y_min': -0.87, 'y_max': 0.87,
+            'z_min': -0.85, 'z_max': 1.10,
             'wall_thickness': 0.05
         })
         print("\n正在移除工作空间边界墙...")
@@ -567,12 +567,12 @@ def main(args=None):
     
     # 默认限制值
     default_limits = {
-        'x_min': -0.8,
-        'x_max': 0.8,
-        'y_min': -0.8,
-        'y_max': 0.8,
-        'z_min': 0.0,
-        'z_max': 1.2,
+        'x_min': -0.87,
+        'x_max': 0.87,
+        'y_min': -0.87,
+        'y_max': 0.87,
+        'z_min': -0.85,
+        'z_max': 1.10,
         'wall_thickness': 0.05,
         'enabled_walls': {
             'left': True,

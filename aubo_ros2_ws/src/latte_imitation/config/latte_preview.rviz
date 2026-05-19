@@ -1,0 +1,74 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    # ── AUBO E5 机械臂模型 (已有) ──
+    - Class: rviz_default_plugins/RobotModel
+      Name: RobotModel
+      Description Source: Topic
+      Description Topic:
+        Depth: 1
+        Durability Policy: Transient Local
+        Reliability Policy: Reliable
+      Enabled: true
+      Visual Enabled: true
+    # ── TF (实时关节状态) ──
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: true
+      Marker Scale: 0.3
+    # ── TCP 轨迹 (绿色 Path) ──
+    - Class: rviz_default_plugins/Path
+      Name: TCP Path
+      Topic:
+        Depth: 1
+        Reliability Policy: Reliable
+      Value: /latte_imitation/preview/tcp_path
+      Color: 0.0; 1.0; 0.0
+      Enabled: true
+    # ── TCP Waypoints (PoseArray, 方向箭头) ──
+    - Class: rviz_default_plugins/PoseArray
+      Name: TCP Waypoints
+      Topic:
+        Depth: 1
+        Reliability Policy: Reliable
+      Value: /latte_imitation/preview/tcp_waypoints
+      Color: 0.4; 0.8; 0.4
+      Enabled: true
+    # ── Spout 轨迹 (蓝色 Marker LINE_STRIP) ──
+    - Class: rviz_default_plugins/Marker
+      Name: Spout Path
+      Topic:
+        Depth: 1
+        Reliability Policy: Reliable
+      Value: /latte_imitation/preview/spout_path
+      Enabled: true
+    # ── 杯子位置 (黄色 Marker CUBE) ──
+    - Class: rviz_default_plugins/Marker
+      Name: Cup Pose
+      Topic:
+        Depth: 1
+        Reliability Policy: Reliable
+      Value: /latte_imitation/preview/cup_pose
+      Enabled: true
+    # ── 工作空间边界 (红色 Marker LINE_LIST) ──
+    - Class: rviz_default_plugins/Marker
+      Name: Workspace Bounds
+      Topic:
+        Depth: 1
+        Reliability Policy: Reliable
+      Value: /latte_imitation/preview/workspace_bounds
+      Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: base_link
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 2.0
+      Pitch: 0.5
+      Yaw: 0.5

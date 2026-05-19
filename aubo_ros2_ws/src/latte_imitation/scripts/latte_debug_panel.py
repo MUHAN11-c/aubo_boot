@@ -68,7 +68,6 @@ def call_replay_service(episode_idx, arm, speed_scale, mode,
         },
     }
     yaml_str = _yaml.dump(data, default_flow_style=True, sort_keys=False).strip().replace("\n", "")
-    yaml_str = _yaml.dump(data, default_flow_style=True, sort_keys=False).strip().replace("\n", "")
     cmd = (
         "ros2 service call /latte_imitation/replay_trajectory "
         "ivg_interfaces/srv/ReplayLatteTrajectory "

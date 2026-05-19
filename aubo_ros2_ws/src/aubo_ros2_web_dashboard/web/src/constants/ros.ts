@@ -10,7 +10,7 @@
 // ═══════════════════════ 机械臂状态 ═══════════════════════
 
 /** 机械臂综合状态 (在线/使能/运动/规划) — aubo_state_broadcaster 发布 */
-export const ROBOT_STATUS_TOPIC = '/aubo_driver/robot_status'
+export const ROBOT_STATUS_TOPIC = '/robot_status'
 export const ROBOT_STATUS_TYPE  = 'ivg_interfaces/msg/RobotStatus'
 
 /** 驱动模式 (real/simulation) — aubo_mode 节点发布，transient_local QoS */

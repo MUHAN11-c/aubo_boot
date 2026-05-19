@@ -3,15 +3,15 @@
 <package format="3">
   <name>latte_imitation</name>
   <version>0.1.0</version>
-  <description>从 latte-pour-demos 数据集提取拉花轨迹，重定向到 Aubo E5 仿真回放</description>
+  <description>拉花轨迹模仿学习 — RM65 轨迹数据集 → AUBO E5 重定目标执行 (SPOT + Isaac Teleop + MoveIt2)</description>
   <maintainer email="user@example.com">User</maintainer>
   <license>BSD</license>
-
 
   <exec_depend>rclpy</exec_depend>
   <exec_depend>trajectory_msgs</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>std_msgs</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
   <exec_depend>moveit_msgs</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
   <exec_depend>nav_msgs</exec_depend>

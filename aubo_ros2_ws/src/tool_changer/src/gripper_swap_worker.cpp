@@ -86,13 +86,23 @@ GripperSwapWorker::GripperSwapWorker(const rclcpp::NodeOptions& options)
   scene_attach_client_ = create_client<ivg_interfaces::srv::ChangeTool>(kSceneAttachService);
   scene_detach_client_ = create_client<ivg_interfaces::srv::ChangeTool>(kSceneDetachService);
 
-  declare_parameter("joint_velocity_scaling", 0.7);
-  declare_parameter("joint_acceleration_scaling", 0.3);
-  declare_parameter("home_velocity_scaling", 0.7);
-  declare_parameter("home_acceleration_scaling", 0.3);
-  declare_parameter("gripper_io_index", 7);
-  declare_parameter("joint_cartesian_switch_delay_sec", 0.05);
-  declare_parameter("simulation_skip_io", false);
+  // launch 可能通过 automatically_declare_parameters_from_overrides 注入参数，用 has_parameter() 守卫避免重复声明喵~
+  if (!has_parameter("joint_velocity_scaling"))
+    declare_parameter("joint_velocity_scaling", 0.7);
+  if (!has_parameter("joint_acceleration_scaling"))
+    declare_parameter("joint_acceleration_scaling", 0.3);
+  if (!has_parameter("home_velocity_scaling"))
+    declare_parameter("home_velocity_scaling", 0.7);
+  if (!has_parameter("home_acceleration_scaling"))
+    declare_parameter("home_acceleration_scaling", 0.3);
+  if (!has_parameter("gripper_io_index"))
+    declare_parameter("gripper_io_index", 7);
+  if (!has_parameter("joint_cartesian_switch_delay_sec"))
+    declare_parameter("joint_cartesian_switch_delay_sec", 0.05);
+  if (!has_parameter("simulation_skip_io"))
+    declare_parameter("simulation_skip_io", false);
+  if (!has_parameter("initial_tool_id"))
+    declare_parameter("initial_tool_id", "");
 
   joint_velocity_scaling_     = static_cast<float>(get_parameter("joint_velocity_scaling").as_double());
   joint_acceleration_scaling_ = static_cast<float>(get_parameter("joint_acceleration_scaling").as_double());
@@ -140,6 +150,23 @@ GripperSwapWorker::GripperSwapWorker(const rclcpp::NodeOptions& options)
 
   loadToolConfig();
 
+  // 检查是否配置了初始工具（因为末端夹爪类型没有硬件反馈）喵~
+  std::string initial_tool_id = get_parameter("initial_tool_id").as_string();
+  if (!initial_tool_id.empty()) {
+    auto it = tool_configs_.find(initial_tool_id);
+    if (it != tool_configs_.end()) {
+      current_tool_.id         = it->second.id;
+      current_tool_.name       = it->second.name;
+      current_tool_.type       = it->second.type;
+      current_tool_.parameters = it->second.parameters;
+      RCLCPP_INFO(get_logger(), "启动时设定初始工具: %s (%s)",
+                  current_tool_.id.c_str(), current_tool_.name.c_str());
+    } else {
+      RCLCPP_WARN(get_logger(), "initial_tool_id '%s' 不在 tools.yaml 中，将以无工具状态启动",
+                  initial_tool_id.c_str());
+    }
+  }
+
   RCLCPP_INFO(get_logger(),
       "就绪 | vel=%.2f acc=%.2f home_vel=%.2f home_acc=%.2f delay=%.3f io=%d sim=%s tools=%zu",
       joint_velocity_scaling_, joint_acceleration_scaling_,
@@ -147,7 +174,12 @@ GripperSwapWorker::GripperSwapWorker(const rclcpp::NodeOptions& options)
       joint_cartesian_switch_delay_sec_, gripper_io_index_,
       simulation_skip_io_ ? "true" : "false", tool_configs_.size());
 
-  publishToolStatus(false);
+  // 周期性发布 /tool_changer_status（默认 VOLATILE QoS 不保留历史，后连接的前端需定时推送）喵~
+  // 首次立即发布，之后每 5 秒重发，确保后连接的 rosbridge 订阅者最多等 5 秒获知状态喵~
+  publishToolStatus(!current_tool_.id.empty());
+  status_timer_ = create_wall_timer(
+      std::chrono::seconds(5),
+      [this]() { publishToolStatus(!current_tool_.id.empty()); });
 }
 
 /** 工厂：构造节点并两阶段初始化 RobotController */

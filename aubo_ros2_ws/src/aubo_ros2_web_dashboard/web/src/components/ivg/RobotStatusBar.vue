@@ -15,8 +15,8 @@
  *
  * 外观: 固定在页面底部，半透明背景，使用 Element Plus el-tag
  */
-import { useRos } from '@/composables/useRos'
-import { useDashboardSettings } from '@/composables/useDashboardSettings'
+import { useRos } from '@/composables/ros/useRos'
+import { useDashboardSettings } from '@/composables/settings/useDashboardSettings'
 import { canonicalRosTopic } from '@/lib/utils'
 import { ROBOT_STATUS_TOPIC, ROBOT_STATUS_TYPE, MODE_TOPIC, MODE_TYPE } from '@/constants/ros'
 

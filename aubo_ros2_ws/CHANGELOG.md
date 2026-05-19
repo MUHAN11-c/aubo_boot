@@ -19,6 +19,13 @@
 ## [Unreleased]
 
 ### Changed
+- **latte_imitation**: 完整重写 v3.0 — 从零重新设计全部模块（基于 SPOT/Isaac Teleop/SVRC/SO(3) Action Repr/FluidLab 等 10 篇文献 + 8 项源码审计）。新增 SE(3) 重定目标管线、3 轴 RPY 可调、RViz2 Preview 可视化模式、交互式 shell 控制面板。详见 `src/latte_imitation/DESIGN.md` 喵~
+- **start_latte_test.sh**: 重写 v3.0 — 适配 6 阶段管线 + RViz2 Preview 模式。5 个 terminator 标签页: [Sim] + [Latte Node] (默认 preview) + [Preview Panel] (test_latte_pour.py) + [RViz2] (latte_preview.rviz) + [Cmd Ref] (v3.0 新字段命令速查)。默认 mode=preview 可在 RViz2 中即时预览轨迹喵~
+- **tool_changer**: `gripper_swap_worker` 添加周期性 `/tool_changer_status` 发布定时器（5 秒间隔），解决 VOLATILE QoS 下后连接的前端永远收不到初始状态的问题；首次发布在构造函数中立即执行，之后每 5 秒重发喵~
+- **aubo_ros2_web_dashboard**: 消除工具几何数据 DRY 违规 — 新增 BFF 端点 `/api/v1/tool-geometries`，从 `tool_changer` 包的 `tools.yaml` 读取工具定义并返回前端；`Robot3dViewer.vue` 从动态 API 获取工具数据替代硬编码 `TOOL_MODELS`，BFF 不可用时自动回退到硬编码数据喵~
+  - `gateway/routes/tool_geometries.py`: 新增路由，读取 `tool_changer` 包的 `tools.yaml`，将 `package://` URI 转换为 `/api/ivg/robot-mesh/` 代理 URL，返回前端期望的 JSON 格式；附带与 `tools.yaml` 同步的硬编码回退喵~
+  - `gateway/app.py`: 注册 `tool_geometries.router`，在 `ivg_runtime` 之后、`robot_mesh` 之前喵~
+  - `Robot3dViewer.vue`: 移除硬编码 `TOOL_MODELS` 常量；新增 `ToolGeometry` 接口、`toolGeometries` ref、`fetchToolGeometries()` 异步获取函数；`loadToolMesh()` 改为从 `toolGeometries` ref 读取；`init()` 中在工具状态订阅前调用 `fetchToolGeometries()` 避免竞态喵~
 - **latte_imitation**: 全面代码优化 — 消除重复代码、将硬编码常量改为 ROS 2 参数、修复 YAML 注入风险、清理死代码喵~
   - 新建 `tf_utils.py` 共享 TF 查询模块（消除 `trajectory_pipeline.py`、`visualize_latte_trajectory.py`、`latte_debug_panel.py` 三处重复 TF 查询逻辑）喵~
   - `trajectory_pipeline.py`: 12 个硬编码常量 → `declare_parameter()` ROS 2 参数，支持运行时/YAML/launch 文件配置喵~
@@ -39,6 +46,12 @@
 ### Removed
 
 ### Fixed
+- **aubo_ros2_web_dashboard**: `ToolSwapBar.vue` 末端夹爪无硬件反馈场景的完整解决方案喵~
+  - 根因：`/tool_changer_status` 使用 VOLATILE QoS + 构造函数一次性发布 → 后连接的前端永远收不到状态 → `isToolConnected=false` → 所有按钮 disabled → 死锁喵~
+  - 新增三重状态获取机制：(1) 连接时调用 `/get_current_tool` 服务立即获取，(2) 订阅 `/tool_changer_status` 话题，（后端新增 5 秒周期性发布确保后连接者能收到），(3) 若以上均返回 `is_connected=false`，显示**手动工具选择器**让用户指定当前物理安装的工具喵~
+  - 手动选择器：用户选择 gripper0/gripper2/无工具 → 持久化到 localStorage (`ivg_tool_manual_id`) → 后端真实状态到达时自动覆盖喵~
+  - `doChange()` 智能方向构建：有当前工具时 `direction = "current_to_target"`（含 release），无工具时 `direction = targetId`（仅 pick，后端 `changeToTool` 跳过 release 步骤）喵~
+  - 按钮 disabled 条件改为 `isWaitingForStatus`（等待中禁用），非等待状态且非当前工具的按钮始终可用喵~
 - **demo_driver**: `plan_trajectory_server_node`、`get_current_state_server_node`、`execute_trajectory_server_node`、`set_speed_factor_server_node`、`move_to_pose_server_node` 在构造函数内通过 `shared_from_this()` 构造 `MoveGroupInterface` / `AsyncParametersClient` 会抛出 `std::bad_weak_ptr`；改为 `std::make_shared` 返回后调用 `init()` 完成 MoveIt 与参数客户端初始化喵~
 - **tool_changer**: `scene_attach_worker` 通过 `/attached_collision_object` 管理已连接工具的 `AttachedCollisionObject`，并用 `/planning_scene` world diff 清理 detach 残留；彻底移除动态 URDF / `robot_description` 更新链路喵~
   - 删除 `robot_description` topic 发布、`AsyncParametersClient` 参数设置、xacro 渲染和 URDF 缓存，避免该节点再影响 `robot_state_publisher` 或 Web/RViz RobotModel 喵~
@@ -76,6 +89,12 @@
   - `web/index.html` viewport 补回旧版 `interactive-widget=resizes-content`，`RobotStatusBar` 补 `safe-area-inset-bottom` 高度和横向滚动，`SiteNav` 补触摸设备 44px 点击高度喵~
   - `start_aubo_new_driver.sh` 构建阶段新增 Vue 3 前端 `npm run build`，确保 `colcon build` 安装到 `share/aubo_ros2_web_dashboard/web/dist/` 的是最新页面产物喵~
   - 最终验收入口明确为 `aubo_ros2_ws/start_aubo_new_driver.sh` 启动整套系统后的 Web/ROS 端到端验证喵~
+- **aubo_ros2_web_dashboard**: 修复导航栏切换导致 3D URDF 模型加载异常的问题（4 项根因）喵~
+  - `SceneManager.stop()` 新增 `renderer.forceContextLoss()` + `renderer.domElement.remove()` — Three.js `r184` `dispose()` 不释放 WebGL 上下文，SPA 路由切换反复创建/销毁 WebGL 上下文 → 浏览器限制 ~16 个 → 3D 视图空白喵~
+  - `Robot3dViewer.stop()` 新增 `unsubscribe()` 取消 4 个 rosbridge 话题订阅 (`/tf` `/tf_static` `/joint_states` `/tool_changer_status`) — 组件卸载后残留订阅占用带宽 + 阻止 rosbridge GC 喵~
+  - `Robot3dViewer.init()` 新增 `initGen` 代数计数器 — async `init()` 在 `await` 后检查，若组件期间已卸载/重挂载则丢弃结果，防止操作已 dispose 场景或注册永不清理 handler 喵~
+  - `CoffeeLatteView` 删除无 handler 的 `/tf` `/tf_static` 订阅及未使用的 import/computed — Robot3dViewer 已自管订阅，无需父 View 兜底喵~
+  - `Robot3dViewer` 中 `onRosJson()` 从 catch-all (`topic: null`) 改为目标话题名精确匹配，减少每条消息触发不必要的字符串过滤喵~
 
 ### Added
 - **graspnet_ros2**: 新增 `graspnet-baseline/install_graspnet_deps.sh`，用于新电脑克隆项目后按相对路径检测环境、编译安装 `graspnet-baseline`、`pointnet2`、`knn` 与 `graspnetAPI` 喵~

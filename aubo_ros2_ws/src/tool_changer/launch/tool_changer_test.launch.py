@@ -54,6 +54,7 @@ def generate_launch_description():
                 "joint_acceleration_scaling": 1.0,
                 "home_velocity_scaling": 1.0,
                 "home_acceleration_scaling": 1.0,
+                "initial_tool_id": "gripper0",
             },
         ],
     )

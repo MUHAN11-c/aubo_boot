@@ -21,7 +21,7 @@ export interface VisionSettingDef {
 export const VISION_SETTING_DEFS: VisionSettingDef[] = [
   { id: 'topic-color', category: 'topic', defaultValue: '/camera/color/image_raw', msgType: 'sensor_msgs/msg/Image' },
   { id: 'topic-result', category: 'topic', defaultValue: '', allowEmpty: true, msgType: 'sensor_msgs/msg/Image' },
-  { id: 'topic-robot', category: 'topic', defaultValue: '/aubo_driver/robot_status', msgType: 'ivg_interfaces/msg/RobotStatus' },
+  { id: 'topic-robot', category: 'topic', defaultValue: '/robot_status', msgType: 'ivg_interfaces/msg/RobotStatus' },
   { id: 'topic-joints', category: 'topic', defaultValue: '/joint_states', msgType: 'sensor_msgs/msg/JointState' },
   { id: 'topic-tool-status', category: 'topic', defaultValue: '/tool_changer_status', msgType: 'ivg_interfaces/msg/ToolChangerStatus' },
   { id: 'urdf-param', category: 'topic', defaultValue: '/robot_state_publisher:robot_description' },

@@ -1,0 +1,45 @@
+# =============================================================================
+# workspace_safety.yaml — AUBO E5 工作空间安全边界
+# =============================================================================
+#
+# 修正记录 (2026-05-19):
+#   旧值 X[-0.7,0.7] Y[-0.35,0.35] Z[0.0,0.7] 严重低估了 AUBO E5 的实际可达范围。
+#   经 URDF 审计 + 官方规格书对照后更正为实际机械可达边界喵~
+#
+# AUBO E5 官方规格:
+#   工作半径 (Working Radius): 886.5mm — 来源: AUBO Robotics Catalog 2025
+#   臂展 (Arm Span):          1008mm  — 同上
+#   关节限位:                 全部 ±175° (±3.0543 rad) 喵~
+#
+# URDF DH 链审计 (aubo_e5_10.urdf L50-211):
+#   J1(shoulder)  origin=(0, 0, 0.122)     — base_link → shoulder, Z=0.122m
+#   J2(upperArm)  origin=(0, 0.1215, 0)    — shoulder offset 0.1215m
+#   J3(foreArm)   origin=(0.408, 0, 0)     — upper arm 长 0.408m
+#   J4(wrist1)    origin=(0.376, 0, 0)     — fore arm 长 0.376m
+#   J5(wrist2)    origin=(0, 0.1025, 0)
+#   J6(wrist3)    origin=(0, -0.094, 0)
+#   tool_tcp      origin=(0, 0, 0.0235)    — wrist3 → TCP
+#
+#   总链长 ≈ 1.126m, 工作半径 ≈ 0.886m (AUBO 官方)
+#   Z 轴可达范围:
+#     Max Z = 0.122 + 0.408 + 0.376 + ... ≈ 1.13m (臂完全向上伸展)
+#     Min Z = 0.122 - 0.408 - 0.376 - ... ≈ -0.88m (臂完全向下伸展)
+#
+# 坐标系: base_link = world (URDF identity fixed joint: world_to_base)
+#   与 REP-103 一致: X 前 Y 左 Z 上
+# =============================================================================
+
+# ── 工作空间边界 (米, base_link/world 坐标系) ──
+# 基于 AUBO E5 官方工作半径 886.5mm, 留 ~2% 安全裕度喵~
+x_min: -0.87
+x_max:  0.87
+y_min: -0.87
+y_max:  0.87
+z_min: -0.85
+z_max:  1.10
+
+# ── 安全策略 ──
+#   "warn_and_block": mode="action" 时超出边界 → 阻止执行并报错
+#   "warn_only":      超出边界 → 仅警告日志, 不阻止
+#   "ignore":         不检查边界
+safety_policy: "warn_and_block"

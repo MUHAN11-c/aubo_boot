@@ -11,7 +11,7 @@
  *   - 过滤搜索 (文本 + 来源级别)
  *   - 暂停/恢复/清空/导出 TXT
  */
-import { useRos } from '@/composables/useRos'
+import { useRos } from '@/composables/ros/useRos'
 
 const MAX_ENTRIES = 800; const MAX_DOM = 400
 

@@ -6,8 +6,8 @@
  * 工件模式: 单次抓取 + 循环抓取 + 工件编号输入
  * AI 模式:  采集开关 + 循环发布 + 抓取位姿显示
  */
-import { useRosService } from '@/composables/useRosService'
-import { useDashboardSettings } from '@/composables/useDashboardSettings'
+import { useRosService } from '@/composables/ros/useRosService'
+import { useDashboardSettings } from '@/composables/settings/useDashboardSettings'
 
 const props = defineProps<{
   mode: 'workpiece' | 'graspnet'
@@ -25,6 +25,7 @@ const settings = useDashboardSettings()
 const loopGraspService = computed(() => settings.rosName('svc-loop-grasp-control', '/loop_grasp_control'))
 const graspnetCaptureService = computed(() => settings.rosName('svc-graspnet-capture', '/graspnet_capture_control'))
 const publishGraspsLoopService = computed(() => settings.rosName('svc-publish-grasps-loop', '/publish_grasps_worker_loop_control'))
+const executeGraspService = computed(() => settings.rosName('svc-execute-single-grasp', '/execute_single_grasp'))
 
 function log(msg: string) { emit('log', msg) }
 
@@ -33,7 +34,7 @@ function log(msg: string) { emit('log', msg) }
 async function doSingleGrasp() {
   log('执行单次抓取…')
   try {
-    const r = await call('/execute_single_grasp', settings.serviceType('execute-single-grasp', 'ivg_interfaces/srv/ExecuteGraspPose'), { object_id: props.objectId, use_visual_estimation: true })
+    const r = await call(executeGraspService.value, settings.serviceType('svc-execute-single-grasp', 'ivg_interfaces/srv/ExecuteGraspPose'), { object_id: props.objectId, use_visual_estimation: true })
     log(`✓ ${r.success ? '成功' : '失败'} ${r.message || ''}`)
   }
   catch (e: any) { log(`✗ 错误: ${e}`) }

@@ -337,8 +337,11 @@ launch "Grasp Worker" "ros2 launch demo_driver execute_grasp_pose_worker.launch.
 echo -e "${GREEN}[10] 夹爪快换...${NC}"
 launch "Tool Changer" "ros2 launch tool_changer gripper_swap_worker.launch.py"
 
-echo -e "${GREEN}[11] 咖啡拉花 (MoveIt2 新管线)...${NC}"
+echo -e "${GREEN}[11] 咖啡拉花 (DO 开关)...${NC}"
 launch "Coffee Latte" "ros2 launch coffee_latte_demo coffee_latte_demo.launch.py"
+
+echo -e "${GREEN}[11b] 拉花轨迹回放 (MoveIt2 标准管线)...${NC}"
+launch "Latte Imitation" "ros2 launch latte_imitation start_latte_pour.launch.py"
 
 echo -e "${GREEN}[12] GraspNet 循环抓取...${NC}"
 launch "Publish Grasps" "ros2 run demo_driver publish_grasps_client_worker_node"
@@ -347,6 +350,7 @@ launch "Publish Grasps" "ros2 run demo_driver publish_grasps_client_worker_node"
 active_wait service "/run_gripper_swap" 10 "run_gripper_swap 服务" || true
 active_wait service "/change_tool" 15  "change_tool 服务" || true
 active_wait service "/set_latte_do2" 5 "set_latte_do2 服务" || true
+active_wait service "/latte_imitation/replay_trajectory" 20 "latte_imitation/replay_trajectory 服务" || true
 
 # ═══════════════════════════════════════════════════════════════
 # [13] 综合校验 (ROS 服务 + Web 健康检查)
@@ -358,7 +362,7 @@ echo -e "${GREEN}[13] 综合校验...${NC}"
     source "$ROS2_SETUP"
     source install/setup.bash
     echo -e "${BLUE}──────── 已注册服务 ────────${NC}"
-    ros2 service list | grep -E '/estimate_pose|/list_templates|/graspnet_capture_control|/publish_grasps_worker_loop_control|/loop_grasp_control|/run_gripper_swap|/set_latte_do2|/set_latte_do4|/change_tool|/get_current_tool' || true
+    ros2 service list | grep -E '/estimate_pose|/list_templates|/graspnet_capture_control|/publish_grasps_worker_loop_control|/loop_grasp_control|/run_gripper_swap|/set_latte_do2|/set_latte_do4|/change_tool|/get_current_tool|/latte_imitation/replay_trajectory' || true
     echo -e "${GREEN}  ✓ 服务校验完成${NC}"
 )
 

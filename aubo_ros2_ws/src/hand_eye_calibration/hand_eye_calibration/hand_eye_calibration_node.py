@@ -51,7 +51,7 @@ class HandEyeCalibrationNode(Node):
         # 默认 8070：避免与常见 HTTP 服务/VPE(8088)/MJPEG(8089)/门户(8090) 抢 8080 喵~
         self.declare_parameter('web_port', 8070)
         self.declare_parameter('camera_topic', '/camera/image_raw')
-        self.declare_parameter('robot_status_topic', '/aubo_driver/robot_status')
+        self.declare_parameter('robot_status_topic', '/robot_status')
         self.declare_parameter('collect_data_dir', os.path.expanduser('~/.ivg/hand_eye_calibrate/collect_data'))
 
         self.web_host = self.get_parameter('web_host').value
@@ -151,14 +151,14 @@ class HandEyeCalibrationNode(Node):
         from ivg_interfaces.srv import MoveToPose
         self.move_to_pose_client = self.create_client(MoveToPose, '/move_to_pose')
         
-        # 订阅机器人状态话题（从 /aubo_driver/robot_status 获取机械臂当前位姿）
+        # 订阅机器人状态话题（从 /robot_status 获取机械臂当前位姿）
         self.robot_status_subscription = self.create_subscription(
             RobotStatus,
-            '/aubo_driver/robot_status',
+            '/robot_status',
             self.robot_status_callback,
             10
         )
-        self.get_logger().info('✅ 订阅机器人状态话题: /aubo_driver/robot_status')
+        self.get_logger().info('✅ 订阅机器人状态话题: /robot_status')
         
         # 订阅相机状态
         self.camera_status_subscription = self.create_subscription(

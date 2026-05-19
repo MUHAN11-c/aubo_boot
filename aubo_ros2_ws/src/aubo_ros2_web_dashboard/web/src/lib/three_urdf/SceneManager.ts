@@ -127,8 +127,15 @@ export class SceneManager {
     if (this._animId) cancelAnimationFrame(this._animId)
     if (this._resizeObs) { this._resizeObs.disconnect(); this._resizeObs = null }
     this.controls.dispose()
+    // 先强制丢失 WebGL 上下文（释放 GPU 资源），再 dispose Three.js 内部资源喵~
+    // 仅 dispose() 不释放 WebGL 上下文，浏览器限制 ~16 个上下文，SPA 路由切换易超限喵~
+    // 参考: three.js r168 WebGLRenderer 源码 — dispose() 不调用 loseContext()
+    this.renderer.forceContextLoss()
     this.renderer.dispose()
-    this._host.innerHTML = ''
+    // 明确移除 canvas DOM 元素，让浏览器彻底回收 WebGL 上下文喵~
+    if (this.renderer.domElement.parentNode) {
+      this.renderer.domElement.parentNode.removeChild(this.renderer.domElement)
+    }
   }
 
   private _isCoarsePointer(): boolean {

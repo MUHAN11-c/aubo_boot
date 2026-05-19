@@ -204,16 +204,15 @@ SKIP_ROSBAG=1 ./start_aubo_new_driver.sh
 
 ## 七、常见问题
 
+详细排查指南见 [DEPLOYMENT.md §13](../DEPLOYMENT.md#13-常见问题排查)。以下为日常高频问题速查：
+
 | 问题 | 解决 |
 |------|------|
 | 启动脚本卡在 `[1]` | 机械臂未开机或 IP 不可达。检查 `ping 169.254.10.98`，或重启进入仿真模式 |
-| Web 页面打不开 | 检查防火墙。`curl http://127.0.0.1:8090/health` 应返回 `{"status":"ok"}` |
+| Web 页面打不开 | `curl http://127.0.0.1:8090/health` 应返回 `{"status":"ok"}` |
 | 相机画面黑屏 | 相机掉线。检查 USB 连接，`ros2 topic hz /camera/color/image_raw` |
-| 抓取失败「planning failed」 | 目标超出工作空间或碰撞。检查 `ros2 service call /get_planning_scene` |
-| 夹爪不动作 | IO 服务未就绪或仿真模式。检查 `ros2 service list \| grep set_io` |
-| 工具快换卡住 | 工具未在 dock 位。先手动移动到安全位置：`ros2 service call /move_to_pose ...` |
+| 抓取失败 | 目标超出工作空间或碰撞。检查 `ros2 service call /get_planning_scene` |
 | 连接状态「已断开」 | rosbridge 崩溃或网络中断。等待自动重连（最多 12 次），或刷新页面 |
-| terminator 未安装 | `sudo apt install terminator` |
 
 ---
 

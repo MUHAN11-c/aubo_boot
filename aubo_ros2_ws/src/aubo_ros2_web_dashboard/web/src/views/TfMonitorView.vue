@@ -11,8 +11,8 @@
  *   - 关节角表 (6 关节 × 度/弧度)
  *   - 快照记录 / JSON 导出 / 复制
  */
-import { useRos } from '@/composables/useRos'
-import { useDashboardSettings } from '@/composables/useDashboardSettings'
+import { useRos } from '@/composables/ros/useRos'
+import { useDashboardSettings } from '@/composables/settings/useDashboardSettings'
 import { canonicalRosTopic } from '@/lib/utils'
 import { ROBOT_STATUS_TOPIC, ROBOT_STATUS_TYPE, MODE_TOPIC, MODE_TYPE, TF_TOPIC, TF_STATIC_TOPIC, TF_TYPE } from '@/constants/ros'
 

@@ -39,7 +39,13 @@ enum class MovelErrorCode : int32_t
 };
 
 /**
- * @brief 笛卡尔直线运动服务服务器类
+ * @brief 笛卡尔直线运动服务服务器类 (已废弃 — @deprecated)
+ *
+ * 替代方案: 直接使用 MoveGroupInterface::computeCartesianPath()（MoveIt2 标准 API）。
+ * latte_imitation 等模块已全部迁移至 MoveIt2 标准管线，此服务无实现且无调用方。
+ *
+ * 保留头文件仅用于 ivg_interfaces 接口兼容性说明。
+ *
  * 与 RViz2 中勾选「使用笛卡尔空间规划执行」行为一致，通过 move_group 的 GetCartesianPath 服务计算直线路径并执行
  */
 class MovelServer : public rclcpp::Node

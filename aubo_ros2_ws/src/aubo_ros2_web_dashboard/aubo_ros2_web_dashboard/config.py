@@ -202,11 +202,18 @@ def save_settings_to_yaml(settings: dict[str, Any]) -> bool:
                 if isinstance(item, dict) and item.get("id") in settings:
                     item["default"] = settings[item["id"]]
 
-    # 写回文件
+    # 写回文件（tempfile + os.replace 原子写入，避免崩溃时配置丢失）
     try:
-        raw = _YAML_PATH.read_text(encoding="utf-8")
-        _yaml.safe_dump(full, _YAML_PATH.open("w", encoding="utf-8"),
-                        allow_unicode=True, default_flow_style=False, sort_keys=False)
+        import tempfile
+        fd, tmp = tempfile.mkstemp(dir=_YAML_PATH.parent, suffix=".yaml")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                _yaml.safe_dump(full, f,
+                                allow_unicode=True, default_flow_style=False, sort_keys=False)
+            os.replace(tmp, str(_YAML_PATH))
+        except Exception:
+            os.unlink(tmp)
+            raise
     except Exception:
         return False
 

@@ -9,7 +9,9 @@
 # 请求 —— 输入目标位姿 + 参考关节角
 float32[6] ref_joint  # 参考关节角度，单位：弧度（rad），用于在多 IK 解中选择最接近当前关节状态的一个喵~
 float32[3] pos        # 目标TCP位置坐标 (x, y, z)，单位：米（m），相对于机器人基坐标系喵~
-float32[4] ori        # 目标TCP姿态四元数 (w, x, y, z)，归一化四元数喵~
+float32[4] ori        # 目标TCP姿态四元数 (w, x, y, z)，归一化四元数
+                      # 此顺序对应 AUBO SDK Ori 结构体 ({w,x,y,z})，与 ROS
+                      # geometry_msgs/Quaternion 数组表示 (x,y,z,w) 不同喵~
 
 ---
 # 响应 —— 输出求解得到的6个关节角度

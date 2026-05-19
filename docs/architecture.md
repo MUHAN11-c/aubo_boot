@@ -441,3 +441,42 @@ gripper_swap_worker
 | 12 | **仿真栈：Isaac Sim + MuJoCo**（后续参考）| Isaac Sim (GPU 万倍并行/视觉 RL) + MuJoCo (接触动力学最佳/RL 学术标准) + Gazebo Harmonic (ROS 2 集成最深) |
 | 13 | **Docker Compose 三套 profile**（后续参考）| `dev`（源码热重载）、`sim`（仿真）、`prod`（真机）一套配置管理 |
 | 14 | **VLA 选型：OpenVLA + LeRobot + StarVLA**（后续参考）| OpenVLA (MIT 完全开源/多工作基座) + LeRobot (24k Stars/ICLR 2026/200万+轨迹) + StarVLA (统一实验平台/8+ Benchmark) |
+
+---
+
+## 七、审计追踪（2026-05-13）
+
+> 基于 `docs/architecture.md` 决策逐条对照审查。已解决问题标记 ✅，待解决问题保留追踪。
+
+| # | 架构决策 | 审查结果 | 状态 |
+|---|---------|---------|------|
+| 1 | Web 框架统一为 FastAPI | `hand_eye_calibration` 仍用 Flask :8080 | ⚠️ 待迁移 |
+| 2 | 前端选 Vue 3 + TS | 方案已定，迁移完成 → `docs/frontend-migration-plan.md` | ✅ 已完成 |
+| 3 | ivg_utils 零 ROS 依赖 | 已验证 — 仅依赖 numpy | ✅ 合规 |
+| 4 | 感知层包间仅通过 ROS 2 接口通信 | graspnet_ros2 通过 sys.path 导入内部模块 | ⚠️ 部分违规 |
+| 5 | Web 层通过 rosbridge 桥接 | 已验证 | ✅ 合规 |
+| 6 | 保留 SDK 双连接架构 | `conn_control_` + `conn_status_` 不变 | ✅ 合规 |
+| 7 | 移除 MoveIt 2 本地源码复刻 | 确认 `moveit_ros_planning/`、`moveit_ros_planning_interface/` 无本地补丁已 COLCON_IGNORE；`moveit_ros_visualization/` 有本地补丁（URDF 切换 bug 修复）→ 保留 | ✅ 已处理 |
+| 8 | IO 引脚语义统一为命名常量 | `ivg_utils/io.py` 已定义但各 worker 仍用硬编码数字 | ⚠️ 定义完毕，未全面使用 |
+| 9 | GraspNet sys.path → 标准依赖 | pointnet2/knn/graspnetAPI 已 pip install；models/utils 仍 sys.path | ⚠️ 部分完成 |
+| 10-14 | Python/ROS/仿真/Docker/VLA 升级 | 均为后续参考，当前 Humble + 3.10 稳定 | ⏳ 远期 |
+
+### 硬编码路径清单（运行时关键）
+
+| 文件 | 路径 | 建议替代方案 |
+|------|------|------------|
+| graspnet_ros2 启动脚本 | `/home/mu/IVG2.0/...` | `ament_index_cpp::get_package_share_directory()` |
+| 多个 Python 脚本 | `/home/mu/IVG2.0/...` | `get_package_share_directory()` + 相对路径 |
+
+### Python 后端框架深度对比（附录）
+
+| 维度 | FastAPI | Litestar |
+|------|---------|----------|
+| GitHub Stars | **92k** | 5.9k |
+| PyPI 日下载 | **450万** | 增长中 |
+| 维护模式 | ⚠️ 单人 | ✅ 团队 |
+| 吞吐量 (1000并发) | 2,488 req/s | **4,743 req/s** |
+| 内存 (100路由) | 116 MB | **57 MB** |
+| JWT/CSRF/限流 | ❌ 第三方 | ✅ 内置 |
+
+> **结论**：FastAPI 保持（AI 生态绑定 + 现有代码），Litestar 列为长期观察（3 年内达 15k+ Stars 可评估迁移）。Flask → FastAPI 统一为近期目标喵~

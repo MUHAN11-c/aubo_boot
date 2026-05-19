@@ -24,12 +24,12 @@
  *   - ivg_display 回退: RobotStatus.ivg_display 字段优先显示
  *   - 工件模式"停止"按钮: 调 SetBool(false) 停止循环
  */
-import { useRos } from '@/composables/useRos'
-import { useMJPEGStream } from '@/composables/useMJPEGStream'
-import { useJointChart } from '@/composables/useJointChart'
-import { useProjectionOverlay } from '@/composables/useProjectionOverlay'
-import { useRosService } from '@/composables/useRosService'
-import { useDashboardSettings } from '@/composables/useDashboardSettings'
+import { useRos } from '@/composables/ros/useRos'
+import { useMJPEGStream } from '@/composables/api/useMJPEGStream'
+import { useJointChart } from '@/composables/viz/useJointChart'
+import { useProjectionOverlay } from '@/composables/viz/useProjectionOverlay'
+import { useRosService } from '@/composables/ros/useRosService'
+import { useDashboardSettings } from '@/composables/settings/useDashboardSettings'
 import { ivgQuatNormalize } from '@/lib/tf_math'
 import type { Quat } from '@/lib/tf_math'
 import { canonicalRosTopic } from '@/lib/utils'
@@ -58,6 +58,8 @@ const fixedFrame = computed(() => settings.raw('tf-fixed-frame', 'base_link'))
 const loopGraspService = computed(() => settings.rosName('svc-loop-grasp-control', '/loop_grasp_control'))
 const graspnetCaptureService = computed(() => settings.rosName('svc-graspnet-capture', '/graspnet_capture_control'))
 const publishGraspsLoopService = computed(() => settings.rosName('svc-publish-grasps-loop', '/publish_grasps_worker_loop_control'))
+const executeGraspService = computed(() => settings.rosName('svc-execute-single-grasp', '/execute_single_grasp'))
+const debugMoveService = computed(() => settings.rosName('svc-debug-move-to-xyz', '/debug/move_to_xyz'))
 
 function sameTopic(topic: string, expected: string): boolean {
   return canonicalRosTopic(topic) === canonicalRosTopic(expected)
@@ -353,7 +355,7 @@ async function doSingleGrasp(): Promise<void> {
   log('执行单次抓取…')
   try {
     const useVisual = graspMode.value === 'workpiece'
-    const r: any = await callService('/execute_single_grasp', settings.serviceType('execute-single-grasp', 'ivg_interfaces/srv/ExecuteGraspPose'), {
+    const r: any = await callService(executeGraspService.value, settings.serviceType('svc-execute-single-grasp', 'ivg_interfaces/srv/ExecuteGraspPose'), {
       object_id: objectId.value, use_visual_estimation: useVisual,
     })
     log(`✓ ${r?.success ? '成功' : '失败'} ${r?.message || ''}`)
@@ -393,7 +395,7 @@ async function doDebugMoveXyz(): Promise<void> {
   const { x, y, z, vel, acc } = dbgXyz
   log(`Move XYZ → (${x.toFixed(3)}, ${y.toFixed(3)}, ${z.toFixed(3)}) v=${vel} a=${acc}`)
   try {
-    const r: any = await callService('/debug/move_to_xyz', 'ivg_interfaces/srv/MoveToPose', {
+    const r: any = await callService(debugMoveService.value, settings.serviceType('svc-debug-move-to-xyz', 'ivg_interfaces/srv/MoveToPose'), {
       target_pose: { position: { x, y, z }, orientation: { x: 0, y: 0, z: 0, w: 1 } },
       target_joints: [0, 0, 0, 0, 0, 0],
       use_joints: false,

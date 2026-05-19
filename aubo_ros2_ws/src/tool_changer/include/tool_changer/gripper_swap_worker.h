@@ -175,6 +175,7 @@ private:
   double joint_cartesian_switch_delay_sec_{ 0.05 };
 
   rclcpp::Publisher<ivg_interfaces::msg::ToolChangerStatus>::SharedPtr tool_status_pub_;
+  rclcpp::TimerBase::SharedPtr status_timer_;  // 周期性发布 /tool_changer_status，确保后连接订阅者能收到喵~
 
   rclcpp::CallbackGroup::SharedPtr service_cb_group_;
   rclcpp::Service<ivg_interfaces::srv::RunGripperSwap>::SharedPtr gripper_swap_srv_;

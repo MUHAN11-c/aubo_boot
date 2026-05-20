@@ -10,7 +10,7 @@ import { DEFAULT_EPISODE, MAX_EPISODE, DEFAULT_RPY, DEFAULT_SPEED_SCALE,
 
 export function useLatteSession() {
   // ── 轨迹源 ──
-  const patternType = ref('')
+  const patternType = ref('heart')
   const episodeIdx = ref(DEFAULT_EPISODE)
   const tulipLayers = ref(3)
 
@@ -38,11 +38,11 @@ export function useLatteSession() {
   const rpyYaw = ref(DEFAULT_RPY.yaw)
   const speedScale = ref(DEFAULT_SPEED_SCALE)
   const toolId = ref(DEFAULT_TOOL_ID)
-  const execMode = ref<'preview' | 'action'>('preview')
 
   // ── 结果 ──
   const message = ref('')
-  const result = ref<any>(null)
+  const result = ref<any>(null)          // 预览结果 (含 3D 叠加数据) 喵~
+  const execResult = ref<any>(null)      // 执行结果 (不覆盖预览) 喵~
 
   // ── RPY localStorage ──
   try {
@@ -110,8 +110,8 @@ export function useLatteSession() {
     pourMixHeight, pourDrawHeight, pourFinishHeight,
     pourWiggleAmp, pourWiggleFreq,
     pourMaxVel, pourMaxAcc, pourMaxJerk, pourAntiSlosh, pourAdvancedOpen,
-    rpyRoll, rpyPitch, rpyYaw, speedScale, toolId, execMode,
-    message, result,
+    rpyRoll, rpyPitch, rpyYaw, speedScale, toolId,
+    message, result, execResult,
     saveRpy, buildRequest,
   }
 }

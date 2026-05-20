@@ -16,7 +16,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 const AXES_SCALE = 0.35
 const GRID_COLOR = '#cbd5e1'
 const GRID_CELLS = 10
-const DESKTOP_PIXEL_RATIO_MAX = 1.5
+const DESKTOP_PIXEL_RATIO_MAX = 2.0
 const ROS_UP = new THREE.Vector3(0, 0, 1)
 
 export class SceneManager {
@@ -35,7 +35,7 @@ export class SceneManager {
 
     // 场景
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color('#ffffff')
+    this.scene.background = new THREE.Color('#303030')  // RViz2 默认背景色 (48,48,48) 喵~
 
     // 相机
     const w = host.clientWidth || 400
@@ -45,10 +45,15 @@ export class SceneManager {
     this.camera.up.copy(ROS_UP)
     this.camera.position.set(3, -3, 2.2)
 
-    // 渲染器
+    // 渲染器 — PBR + sRGB 管线，对齐 RViz2 OGRE 渲染质量喵~
     this.renderer = new THREE.WebGLRenderer({ antialias: !this._isCoarsePointer() })
     this.renderer.setSize(w, h)
     this.renderer.setPixelRatio(this._computePixelRatio())
+    this.renderer.shadowMap.enabled = true
+    this.renderer.shadowMap.type = THREE.PCFShadowMap
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping
+    this.renderer.toneMappingExposure = 1.0
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace
     host.appendChild(this.renderer.domElement)
 
     // OrbitControls
@@ -67,12 +72,28 @@ export class SceneManager {
     this._axes = new THREE.AxesHelper(AXES_SCALE)
     this.scene.add(this._axes)
 
-    // 灯光
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6)
+    // 灯光 — 模拟 RViz2 OGRE 多方向光喵~
+    // 环境光：对齐 DAE <ambient> 0.41，确保 PBR 暗面不融入深灰背景
+    const ambient = new THREE.AmbientLight(0xffffff, 0.45)
     this.scene.add(ambient)
-    const directional = new THREE.DirectionalLight(0xffffff, 0.5)
-    directional.position.set(1, 2, 1)
-    this.scene.add(directional)
+    // 半球光：天空/地面颜色变化，增加立体感
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.15)
+    this.scene.add(hemi)
+    // 主方向光：模拟 RViz2 默认主光源
+    const key = new THREE.DirectionalLight(0xffffff, 1.2)
+    key.position.set(1, 2, 1)
+    key.castShadow = true
+    key.shadow.mapSize.width = 1024
+    key.shadow.mapSize.height = 1024
+    key.shadow.camera.near = 0.1
+    key.shadow.camera.far = 30
+    key.shadow.camera.left = -8; key.shadow.camera.right = 8
+    key.shadow.camera.top = 8; key.shadow.camera.bottom = -8
+    this.scene.add(key)
+    // 补光：从相反方向打淡光，减少过黑阴影
+    const fill = new THREE.DirectionalLight(0xffffff, 0.4)
+    fill.position.set(-1, 0.5, -0.5)
+    this.scene.add(fill)
 
     // Resize
     this._resizeObs = new ResizeObserver(() => this._onResize())

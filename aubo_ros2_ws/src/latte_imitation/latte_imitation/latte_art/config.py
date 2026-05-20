@@ -34,7 +34,7 @@ class PourConfig:
 
     # ── 摆动参数 ──
     wiggle_amplitude: float = 0.006      # 摆动振幅 6mm (参考: 手腕微动→奶液钟摆)
-    wiggle_frequency: float = 5.0        # 摆动频率 5Hz (参考: 3-6Hz)
+    wiggle_frequency: float = 2.4        # 摆动频率 2.4Hz (40条心形数据速度域FFT中位数标定, IQR 1.2-5.1Hz) 喵~
 
     # ── 速度约束 (抗晃荡) ──
     max_velocity: float = 0.05           # 最大速度 5cm/s

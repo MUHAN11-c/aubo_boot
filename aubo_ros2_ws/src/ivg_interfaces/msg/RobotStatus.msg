@@ -2,7 +2,7 @@
 #
 # 用途：将 AUBO 机械臂的在线/使能/运动状态、关节角度、TCP 位姿等信息聚合为单一消息，
 #       供前端 Web Dashboard、demo_interface 和监控节点一站式获取机器人完整状态喵~
-# 发布者：demo_interface 节点的状态聚合发布线程（~30Hz），从多个底层消息合并而来喵~
+# 发布者：aubo_state_broadcaster 节点 (~50Hz), 从 SDK 状态查询聚合而来喵~
 # 订阅者：Web Dashboard 前端（websocket gateway）、monitoring dashboard、rosbag 记录喵~
 #
 

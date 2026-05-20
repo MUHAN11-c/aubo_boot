@@ -12,9 +12,8 @@
 |------|------|------|------|
 | `yolo26x.pt` | 114M | `aubo_ros2_ws/src/latte_imitation/` | YOLOv26 超大模型（拉花模仿学习） |
 | `yolo26m.pt` | 43M | `aubo_ros2_ws/src/latte_imitation/` | YOLOv26 中模型（拉花模仿学习） |
-| `yolo26n.pt` | 5.3M | `aubo_ros2_ws/src/latte_imitation/` | YOLOv26 小模型（拉花模仿学习） |
-| `yolo26n.pt` | 5.3M | `aubo_ros2_ws/src/vision_perception/` | YOLOv26 小模型（感知检测） |
-| `yolo26n-obb.pt` | 5.7M | `aubo_ros2_ws/src/vision_perception/` | YOLOv26 OBB 旋转框模型 |
+| `yolo26n.pt` | 5.3M | `aubo_ros2_ws/src/latte_imitation/` | YOLOv26 小模型（拉花模仿学习）|
+| `yolo26n-obb.pt` | 5.7M | `aubo_ros2_ws/src/latte_imitation/` | YOLOv26 OBB 旋转框模型 |
 | `best.pt / last.pt` | 43M×2 | `aubo_ros2_ws/src/latte_imitation/runs/` | YOLO 训练产物 |
 | `checkpoint-rs.tar` | 12M | `aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/logs/log_kn/` | GraspNet 运行必需检查点（已纳入 Git） |
 
@@ -66,7 +65,7 @@
 | 文件 | 大小 | 路径 | 用途 |
 |------|------|------|------|
 | `d822ee8ef5...mp4` | 68M | `aubo_ros2_ws/src/coffee_latte_demo/resource/` | 咖啡拉花演示视频 |
-| `video_新手咖啡拉花练习顺序_0.mp4` | 31M | `aubo_ros2_ws/src/vision_perception/resource/` | 感知训练视频 |
+| `video_新手咖啡拉花练习顺序_0.mp4` | 31M | ⚠ 目录不存在 | 感知训练视频 (已移除) |
 | `3211242785.7z` | 28M | `aubo_ros2_ws/src/visual_pose_estimation/templates/` | 视觉模板压缩包 |
 
 **获取方式**：

@@ -11,7 +11,12 @@
  */
 import * as THREE from 'three'
 import { STLLoader } from 'three/addons/loaders/STLLoader.js'
+import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js'
 import type { UrdfRobot, UrdfJoint, UrdfLink, UrdfVisual } from './UrdfParser'
+
+// CAD 导出 DAE 材质阈值：低于此值视为 CAD 占位符，使用合理默认值替换喵~
+const DAE_SPECULAR_EPSILON = 0.001
+const DAE_SHININESS_MIN = 2
 
 export interface LinkObject {
   name: string
@@ -42,6 +47,7 @@ export class UrdfModel {
 
   private _build(robot: UrdfRobot): void {
     this._building = true
+    console.log('[UrdfModel] _build 开始, links:', robot.links.length, 'joints:', robot.joints.length)
     // 先为每个 link 创建一个 Group
     const linkGroups = new Map<string, THREE.Group>()
     for (const link of robot.links) {
@@ -140,7 +146,7 @@ export class UrdfModel {
     }
 
     this._building = false
-    // 所有同步 mesh（DAE box 占位）和 hierarchy 都已完成，检查异步 mesh 是否就绪
+    // 同步 geometry (box/cylinder/sphere) 和 hierarchy 已完成，检查异步 mesh (DAE/STL) 是否就绪喵~
     this._tryFinish()
   }
 
@@ -153,8 +159,12 @@ export class UrdfModel {
 
     const mat = visual.material
     const color = mat?.color
+    // MeshPhongMaterial — 对齐 RViz2 OGRE Phong 着色模型喵~
+    // ColladaLoader 从 DAE <phong> 创建同类型材质，RViz2 也是 Phong，保持一致喵~
     const meshMat = new THREE.MeshPhongMaterial({
       color: color ? new THREE.Color(color.r, color.g, color.b) : 0xcccccc,
+      specular: 0x111111,
+      shininess: 30,
       transparent: color ? color.a < 1 : false,
       opacity: color?.a ?? 1.0,
       flatShading: false,
@@ -164,19 +174,28 @@ export class UrdfModel {
       this._meshLoadCount++
       const filename = visual.geometry.mesh.filename
       const scale = visual.geometry.mesh.scale || [1, 1, 1]
+      const matColorHex = meshMat.color.getHexString()
+      console.log('[UrdfModel] _loadVisual mesh:', filename, '| color: #' + matColorHex, '| type:', meshMat.type, '| transparent:', meshMat.transparent, '| opacity:', meshMat.opacity)
 
       if (filename.endsWith('.dae')) {
-        // DAE/Collada 无法直接通过 STLLoader 加载，但 collision 目录下有同名的 .stl 文件
-        // 将 visual/linkX.dae → collision/linkX.stl 作为降级加载
-        const stlFilename = filename.replace(/visual\//, 'collision/').replace(/\.dae$/i, '.stl')
-        this._loadStl(stlFilename, meshMat, scale, (mesh) => {
-          group.add(mesh)
+        // ColladaLoader 加载 DAE，保留 DAE 材质属性，仅覆盖 diffuse 颜色为 URDF 颜色喵~
+        this._loadDae(filename, color, scale, (daeGroup) => {
+          group.add(daeGroup)
           this._meshDoneCount++
           this._checkReady()
           onObj(group)
         }, () => {
-          // STL 降级也失败 → 微型 box 占位
-          this._loadFallbackBox(group, meshMat, scale, () => { this._meshDoneCount++; this._checkReady(); onObj(group) })
+          // DAE 加载失败，回退到 collision STL 喵~
+          const stlFilename = filename.replace(/visual\//, 'collision/').replace(/\.dae$/i, '.stl')
+          console.warn('[UrdfModel] DAE FAIL, 回退 STL:', stlFilename)
+          this._loadStl(stlFilename, meshMat, scale, (mesh) => {
+            group.add(mesh)
+            this._meshDoneCount++
+            this._checkReady()
+            onObj(group)
+          }, () => {
+            this._loadFallbackBox(group, meshMat, scale, () => { this._meshDoneCount++; this._checkReady(); onObj(group) })
+          })
         })
       } else {
         this._loadStl(filename, meshMat, scale, (mesh) => {
@@ -215,11 +234,79 @@ export class UrdfModel {
       geometry.computeVertexNormals()
       const mesh = new THREE.Mesh(geometry, material)
       mesh.scale.set(scale[0] || 1, scale[1] || 1, scale[2] || 1)
+      console.log('[UrdfModel] STL OK:', url, '| verts:', geometry.attributes?.position?.count, '| color:#' + (material as any).color?.getHexString?.() || '?')
       onOk(mesh)
     }, undefined, () => {
-      console.warn('[UrdfModel] STL load failed:', url)
+      console.warn('[UrdfModel] STL FAIL:', url)
       onErr()
     })
+  }
+
+  private _loadDae(
+    url: string,
+    urdfColor: { r: number; g: number; b: number; a: number } | undefined,
+    scale: number[],
+    onOk: (group: THREE.Group) => void,
+    onErr: () => void,
+  ): void {
+    const loader = new ColladaLoader()
+    loader.load(url, (collada) => {
+      if (!collada?.scene) { onErr(); return }
+      const daeScene = collada.scene
+
+      // ColladaLoader 始终应用 -PI/2 X 旋转换 Z-up→Y-up。本场景用 ROS Z-up，需反转喵~
+      const wrapper = new THREE.Group()
+      wrapper.name = `dae_wrapper_${url.split('/').pop() || 'unknown'}`
+      wrapper.rotation.set(Math.PI / 2, 0, 0)
+
+      // 遍历所有 mesh，修复材质喵~
+      daeScene.traverse((child) => {
+        if (!(child instanceof THREE.Mesh)) return
+        const materials = Array.isArray(child.material) ? child.material : [child.material]
+        for (const mat of materials) {
+          if (!(mat instanceof THREE.MeshPhongMaterial)) continue
+          // 覆盖 diffuse 颜色为 URDF 颜色（URDF 是权威数据源）喵~
+          if (urdfColor) {
+            mat.color.setRGB(urdfColor.r, urdfColor.g, urdfColor.b, THREE.SRGBColorSpace)
+          }
+          // CAD 导出默认 specular=0 和 shininess=1 → 用合理 PBR 默认值替换喵~
+          if (mat.specular) {
+            const s = mat.specular
+            if (s.r < DAE_SPECULAR_EPSILON && s.g < DAE_SPECULAR_EPSILON && s.b < DAE_SPECULAR_EPSILON) {
+              mat.specular.set(0x111111)
+            }
+          }
+          if (mat.shininess < DAE_SHININESS_MIN) {
+            mat.shininess = 30
+          }
+          mat.needsUpdate = true
+        }
+      })
+
+      // 应用 URDF mesh scale
+      wrapper.scale.set(scale[0] || 1, scale[1] || 1, scale[2] || 1)
+      wrapper.add(daeScene)
+
+      const vCount = this._countVertices(daeScene)
+      const hexColor = urdfColor
+        ? new THREE.Color(urdfColor.r, urdfColor.g, urdfColor.b).getHexString()
+        : '?'
+      console.log('[UrdfModel] DAE OK:', url, '| verts:', vCount, '| color:#' + hexColor)
+      onOk(wrapper)
+    }, undefined, (err) => {
+      console.warn('[UrdfModel] DAE FAIL:', url, err)
+      onErr()
+    })
+  }
+
+  private _countVertices(obj: THREE.Object3D): number {
+    let count = 0
+    obj.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.geometry) {
+        count += child.geometry.attributes?.position?.count || 0
+      }
+    })
+    return count
   }
 
   private _loadFallbackBox(group: THREE.Group, material: THREE.Material, scale: number[], done: () => void): void {
@@ -241,6 +328,7 @@ export class UrdfModel {
     if (this._building) return
     if (this._meshDoneCount < this._meshLoadCount) return
     this._ready = true
+    console.log('[UrdfModel] ✅ 全部 mesh 加载完成 (', this._meshDoneCount, '/', this._meshLoadCount, '), root children:', this.root.children.length)
     this._onReady?.()
   }
 

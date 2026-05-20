@@ -2,6 +2,11 @@
 
 基于 **ROS 2 Humble** 的奥博（Aubo）机械臂系统，涵盖：MoveIt 2 运动规划、真机驱动、知微（Percipio）相机、手眼标定、视觉位姿估计（C++/Python + FastAPI Web）、GraspNet 点云抓取、YOLO OBB 感知、工具快换、咖啡拉花演示、ROS2 基础教程。
 
+> **零基础入门**（2026-05-20）：
+> - 学前知识：[docs/ZERO-BASIS-PREREQUISITES.md](docs/ZERO-BASIS-PREREQUISITES.md) — 分阶段核心内容与官方资料
+> - 完整复刻：[docs/ZERO-BASIS-REPLICATION.md](docs/ZERO-BASIS-REPLICATION.md) — 从零环境到全栈验收的 8 阶段步骤
+> - 运维部署：[DEPLOYMENT.md](../DEPLOYMENT.md) — 权威依赖版本与命令
+
 当前 `src/` 下共 **27** 个 ROS 2 功能包。
 
 ---

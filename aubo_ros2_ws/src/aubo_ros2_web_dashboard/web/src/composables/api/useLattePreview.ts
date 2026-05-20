@@ -77,7 +77,6 @@ export interface LattePreviewResponse {
 export function useLattePreview() {
   const loading = ref(false)
   const error = ref<string | null>(null)
-  const lastData = ref<LattePreviewResponse | null>(null)
 
   /** 调用 BFF 获取轨迹预览数据 喵~ */
   async function preview(params: LattePreviewParams): Promise<LattePreviewResponse> {
@@ -131,9 +130,7 @@ export function useLattePreview() {
         const text = await resp.text().catch(() => '')
         throw new Error(`BFF ${resp.status}: ${text || resp.statusText}`)
       }
-      const data: LattePreviewResponse = await resp.json()
-      lastData.value = data
-      return data
+      return await resp.json()
     } catch (e: any) {
       const msg = String(e?.message ?? e)
       error.value = msg
@@ -147,6 +144,5 @@ export function useLattePreview() {
     preview,
     loading: readonly(loading),
     error: readonly(error),
-    lastData: readonly(lastData),
   }
 }

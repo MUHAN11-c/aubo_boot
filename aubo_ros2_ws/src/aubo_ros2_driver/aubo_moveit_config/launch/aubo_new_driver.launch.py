@@ -203,6 +203,7 @@ def launch_setup(context, *args, **kwargs):
             executable="aubo_dashboard_node",
             name="aubo_dashboard",
             output="screen",
+            respawn=True, respawn_delay=5.0,
             parameters=[{"server_host": server_host, "server_port": 8899,
                          "collision_class": 6}],
         )
@@ -212,6 +213,7 @@ def launch_setup(context, *args, **kwargs):
             executable="aubo_state_broadcaster",
             name="aubo_state_broadcaster",
             output="screen",
+            respawn=True, respawn_delay=3.0,
             parameters=[{"server_host": server_host, "server_port": 8899}],
         )
 
@@ -220,6 +222,7 @@ def launch_setup(context, *args, **kwargs):
             executable="joint_trajectory_controller",
             name="joint_trajectory_controller",
             output="screen",
+            respawn=True, respawn_delay=3.0,
             parameters=[{"server_host": server_host, "server_port": 8899}],
         )
 

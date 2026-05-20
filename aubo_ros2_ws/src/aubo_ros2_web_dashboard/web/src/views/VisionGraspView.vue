@@ -69,6 +69,8 @@ function sameTopic(topic: string, expected: string): boolean {
 
 const graspMode = ref<'workpiece' | 'graspnet'>('workpiece')
 const objectId = ref('')
+const camMjpegImgRef = ref<HTMLImageElement | null>(null)
+const resultMjpegImgRef = ref<HTMLImageElement | null>(null)
 
 // ═══════════════════════ 连接状态 ═══════════════════════
 
@@ -86,8 +88,7 @@ const robotPose = reactive({
 /** 缓存上次有效位姿 HTML，数据空时不闪回默认值（与旧版 robotPoseCache 行为一致） */
 const robotPoseCache = ref('')
 
-/** ivg_display 字段回退显示 */
-const ivgDisplay = ref('')
+// ivg_display 字段已从 RobotStatus.msg 移除 (2026-05-20), 前端不再使用 喵~
 
 // ═══════════════════════ 关节角 ═══════════════════════
 
@@ -147,7 +148,7 @@ function scheduleGraspSnapshotRefresh(): void {
     const ts = Date.now()
 
     // 左栏相机快照（旧版 cam-mjpeg，用于底部投影底图）
-    const camImg = document.getElementById('cam-mjpeg-img') as HTMLImageElement | null
+    const camImg = camMjpegImgRef.value
     if (camImg) {
       const url = cameraSnapshotUrl(`vision_color_grasp_${ts}`)
       const fallbackUrl = cameraStreamUrl()
@@ -157,7 +158,7 @@ function scheduleGraspSnapshotRefresh(): void {
     }
 
     // 结果图快照（投影叠加底图）
-    const resultImg = document.getElementById('result-mjpeg-img') as HTMLImageElement | null
+    const resultImg = resultMjpegImgRef.value
     if (resultImg && !resultImg.hidden) {
       const url = cameraSnapshotUrl(`vision_projection_grasp_${ts}`)
       const fallbackUrl = cameraStreamUrl()
@@ -212,12 +213,7 @@ onRosJson(null, (msg: any, topic: string) => {
   if (!sameTopic(topic, robotStatusTopic.value)) return
   if (!msg) return
 
-  // ivg_display 回退（旧版 pose_card.js:128）
-  if (msg.ivg_display != null && String(msg.ivg_display).trim()) {
-    ivgDisplay.value = String(msg.ivg_display).trim()
-  } else {
-    ivgDisplay.value = ''
-  }
+  // ivg_display 字段已在 RobotStatus.msg 中移除 喵~
 
   const p = msg.cartesian_position_xyz || {}
   const o = msg.cartesian_position?.orientation || {}
@@ -345,7 +341,6 @@ function resetAll(): void {
   graspPoseHtml.value = ''
   graspPoseRaw.value = null
   vpeStatus.value = ''
-  ivgDisplay.value = ''
 }
 
 // ═══════════════════════ 抓取操作 ═══════════════════════
@@ -481,7 +476,7 @@ watch(graspMode, () => {
             <div ref="projStackRef" class="relative w-full h-[clamp(260px,36vh,400px)] rounded overflow-hidden bg-slate-100">
               <img
                 v-if="isConnected()"
-                id="result-mjpeg-img"
+                ref="resultMjpegImgRef"
                 :src="cameraStreamUrl()"
                 class="w-full h-full object-cover"
                 alt="AI 抓取投影底图"
@@ -591,9 +586,8 @@ watch(graspMode, () => {
           <!-- 机械臂末端位姿 -->
           <div class="bg-white rounded-lg border border-slate-200 p-4">
             <h2 class="text-sm font-bold text-slate-500 uppercase mb-3">机械臂末端位姿</h2>
-            <!-- 位姿 HTML 显示（优先缓存，其次实时，最后 ivg_display） -->
+            <!-- 位姿 HTML 显示 (ivg_display 字段已从 RobotStatus.msg 移除) -->
             <div v-if="robotPoseCache" class="text-xs" v-html="robotPoseCache" />
-            <div v-else-if="ivgDisplay" class="text-xs text-slate-600 whitespace-pre-wrap">{{ ivgDisplay }}</div>
             <div v-else class="grid grid-cols-4 gap-2 text-xs">
               <div><span class="text-slate-400">X</span><br/><span class="font-mono">{{ robotPose.x }}</span></div>
               <div><span class="text-slate-400">Y</span><br/><span class="font-mono">{{ robotPose.y }}</span></div>
@@ -634,7 +628,7 @@ watch(graspMode, () => {
 
     <!-- 隐藏的 AI 模式左栏底图（旧版 cam-mjpeg，用于快照） -->
     <div hidden aria-hidden="true">
-      <img id="cam-mjpeg-img" alt="" />
+      <img ref="camMjpegImgRef" alt="" />
     </div>
   </div>
 </template>

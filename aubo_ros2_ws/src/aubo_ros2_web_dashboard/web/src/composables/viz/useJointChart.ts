@@ -21,11 +21,28 @@ const BG_COLOR = '#0f172a'
 const BORDER_COLOR = '#334155'
 const MUTED_COLOR = '#94a3b8'
 
+/** O(1) 环形缓冲区, 替代 Array.shift() 喵~ */
+class RingBuf {
+  private buf: number[]
+  private head = 0
+  private len = 0
+  constructor(private cap: number) { this.buf = new Array(cap) }
+  push(v: number): void {
+    this.buf[(this.head + this.len) % this.cap] = v
+    if (this.len < this.cap) this.len++
+    else this.head = (this.head + 1) % this.cap
+  }
+  get length(): number { return this.len }
+  at(i: number): number { return this.buf[(this.head + i) % this.cap] }
+  *[Symbol.iterator]() { for (let i = 0; i < this.len; i++) yield this.at(i) }
+  // for-of 遍历 (draw 中用 arr.length + arr[t] 模式, RingBuf.length + RingBuf.at() 替代) 喵~
+}
+
 export function useJointChart() {
   const canvasRef = ref<HTMLCanvasElement | null>(null)
   const legendRef = ref<HTMLElement | null>(null)
 
-  let state = { names: [] as string[], series: [] as number[][] }
+  let state = { names: [] as string[], series: [] as RingBuf[] }
   let drawRaf: number | null = null
   let resizeObs: ResizeObserver | null = null
 
@@ -98,8 +115,8 @@ export function useJointChart() {
       if (arr.length === 0) continue
       const color = LINE_COLORS[j % LINE_COLORS.length]
 
-      if (arr.length === 1 && isFinite(arr[0])) {
-        const yNorm = (arr[0] - yMin) / (yMax - yMin)
+      if (arr.length === 1 && isFinite(arr.at(0))) {
+        const yNorm = (arr.at(0) - yMin) / (yMax - yMin)
         const y = PAD.T + plotH * (1 - yNorm)
         ctx.fillStyle = color
         ctx.beginPath(); ctx.arc(PAD.L + plotW / 2, y, 3.5, 0, Math.PI * 2); ctx.fill()
@@ -113,7 +130,7 @@ export function useJointChart() {
       ctx.beginPath()
       for (let t = 0; t < arr.length; t++) {
         const x = PAD.L + (t / denom) * plotW
-        const yNorm = (arr[t] - yMin) / (yMax - yMin)
+        const yNorm = (arr.at(t) - yMin) / (yMax - yMin)
         const y = PAD.T + plotH * (1 - yNorm)
         if (t === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
       }
@@ -174,14 +191,12 @@ export function useJointChart() {
     const keyOld = state.names.join('\0')
     if (state.series.length !== n || keyNew !== keyOld) {
       state.names = normNames.slice()
-      state.series = Array.from({ length: n }, () => [])
+      state.series = Array.from({ length: n }, () => new RingBuf(MAX_SAMPLES))
     }
     for (let i = 0; i < n; i++) {
       const v = Number(positions[i])
       if (!isFinite(v)) continue
-      const row = state.series[i]
-      row.push(v)
-      while (row.length > MAX_SAMPLES) row.shift()
+      state.series[i].push(v)
     }
     updateLegend()
     scheduleDraw()

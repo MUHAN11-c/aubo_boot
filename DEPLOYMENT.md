@@ -2,6 +2,8 @@
 
 本文档记录 IVG2.0 系统在新机器上的完整部署过程，涵盖环境准备、依赖安装、代码获取、编译构建、配置调优和启动验证。
 
+> **零基础读者**：建议配合 [aubo_ros2_ws/docs/ZERO-BASIS-PREREQUISITES.md](aubo_ros2_ws/docs/ZERO-BASIS-PREREQUISITES.md)（学前知识）与 [aubo_ros2_ws/docs/ZERO-BASIS-REPLICATION.md](aubo_ros2_ws/docs/ZERO-BASIS-REPLICATION.md)（分阶段复刻与验收清单）阅读；本文档侧重权威版本号与命令细节。
+
 ---
 
 ## 1. 环境概览
@@ -416,7 +418,7 @@ export WEB_DASH_PORT=9090
 ### 8.1 完整构建
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd /home/mu/aubo_boot/aubo_ros2_ws
 source /opt/ros/humble/setup.bash
 colcon build
 source install/setup.bash
@@ -446,14 +448,14 @@ colcon build --packages-select aubo_ros2_web_dashboard
 ### 8.3 Vue 3 前端构建（新）
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws/src/aubo_ros2_web_dashboard/web
+cd /home/mu/aubo_boot/aubo_ros2_ws/src/aubo_ros2_web_dashboard/web
 npm install
 npm run build                     # 产物 → web/dist/
 ```
 
 FastAPI 网关的静态文件挂载自动指向 `web/dist/`（Vite 构建产物）。
 
-### 8.4 RobotWebTools 前端产物（旧，过渡期保留）
+### 8.4 RobotWebTools 前端产物（⚠ 已废弃 — Vue 3 迁移完成, 此步骤不再需要）
 
 ```bash
 cd aubo_ros2_ws/src/robotwebtools
@@ -462,7 +464,7 @@ bash build_robotwebtools.sh
 
 产物输出到 `robotwebtools/runtime_js_assets/`，由 Web Dashboard 的 `robotwebtools_assets_dir` 参数引用。
 
-> **注意**: 新 Vue 3 前端通过 npm 管理 ros3d/roslib 依赖，不依赖 RobotWebTools 产物。旧版原生 JS 页面仍需要此步骤。Vue 3 迁移完成后此步骤可移除喵~
+> **注意**: Vue 3 迁移已于 2026-05-20 完成，不再需要 RobotWebTools 产物。此步骤可跳过喵~
 
 ---
 
@@ -473,7 +475,7 @@ bash build_robotwebtools.sh
 **新框架机械臂 + 全栈**:
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd /home/mu/aubo_boot/aubo_ros2_ws
 ./start_aubo_new_driver.sh
 ```
 

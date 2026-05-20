@@ -132,11 +132,6 @@ function showHint(html: string): void {
   if (hintRef.value) hintRef.value.innerHTML = html
 }
 
-function sameTopic(topic: string, expected: string): boolean {
-  const norm = (v: string) => String(v || '').trim().replace(/^\/+/, '')
-  return norm(topic) === norm(expected)
-}
-
 // ── URDF 加载 ──
 
 async function loadUrdfParam(): Promise<string> {
@@ -147,7 +142,9 @@ async function loadUrdfParam(): Promise<string> {
     { names: [spec.parameter] }
   )
   if (result?.values?.length > 0 && result.values[0]?.string_value) {
-    return result.values[0].string_value
+    const urdf = result.values[0].string_value
+    console.log('[Robot3dViewer] URDF 获取成功, 大小:', urdf.length, 'bytes, 前100字符:', urdf.substring(0, 100))
+    return urdf
   }
   throw new Error(`URDF 参数为空`)
 }
@@ -166,6 +163,7 @@ function parseUrdfParam(raw?: string): { node: string; parameter: string } {
 
 function buildModel(urdfXml: string): void {
   if (!sceneMgr.value) return
+  console.log('[Robot3dViewer] buildModel 开始, URDF 大小:', urdfXml.length)
 
   // 移除旧模型
   if (urdfModel) {
@@ -177,10 +175,12 @@ function buildModel(urdfXml: string): void {
   let model: UrdfModel | null = null
   let readyBeforeAssign = false
   const commitModel = (nextModel: UrdfModel) => {
+    console.log('[Robot3dViewer] commitModel: 添加到场景, links:', nextModel.links.size, 'root children:', nextModel.root.children.length)
     urdfModel = nextModel
     sceneMgr.value?.addObject(nextModel.root)
     urdfCameraPrimed = false
     nextModel.flattenLinksToRoot()
+    console.log('[Robot3dViewer]  flattenLinksToRoot 完成, scene children:', sceneMgr.value?.scene.children.length)
     startUrdfFocusTimer()
     startLinkUpdateLoop()
     emit('ready')
@@ -244,7 +244,8 @@ function loadToolMesh(toolId: string): void {
     root.name = `web_tool_${toolId}`
     const mesh = new THREE.Mesh(
       geometry,
-      new THREE.MeshPhongMaterial({ color: 0xb8c2cc, shininess: 30 })
+      // MeshPhongMaterial — 对齐 RViz2 OGRE Phong 着色模型喵~
+      new THREE.MeshPhongMaterial({ color: 0xb8c2cc, specular: 0x111111, shininess: 30 })
     )
     root.add(mesh)
     const [x, y, z] = spec.attach_offset.position
@@ -275,10 +276,17 @@ function updateToolModelTransform(): void {
 
 let trajOverlayGroup: THREE.Group | null = null
 
-/** 清除旧的轨迹叠加层 喵~ */
+/** 清除旧的轨迹叠加层 (含 GPU 资源释放) 喵~ */
 function clearTrajectoryOverlay(): void {
-  if (trajOverlayGroup && sceneMgr.value) {
-    sceneMgr.value.removeObject(trajOverlayGroup)
+  if (trajOverlayGroup) {
+    trajOverlayGroup.traverse((child) => {
+      if (child instanceof THREE.Mesh || child instanceof THREE.Line || child instanceof THREE.LineSegments) {
+        child.geometry?.dispose()
+        if (Array.isArray(child.material)) child.material.forEach(m => m.dispose())
+        else child.material?.dispose()
+      }
+    })
+    if (sceneMgr.value) sceneMgr.value.removeObject(trajOverlayGroup)
   }
   trajOverlayGroup = null
 }
@@ -346,14 +354,21 @@ function renderTrajectoryOverlay(data: NonNullable<typeof props.trajectoryOverla
   trajOverlayGroup = group
 }
 
-// 监听 trajectoryOverlay prop 变化
+// 监听 trajectoryOverlay prop 变化 (整体替换,无需 deep) 喵~
+const _pendingOverlay = ref<any>(null)
 watch(() => props.trajectoryOverlay, (data) => {
-  if (data && sceneMgr.value) {
-    nextTick(() => renderTrajectoryOverlay(data))
-  } else if (!data) {
-    clearTrajectoryOverlay()
+  if (!data) { clearTrajectoryOverlay(); _pendingOverlay.value = null; return }
+  if (!sceneMgr.value) { _pendingOverlay.value = data; return }
+  renderTrajectoryOverlay(data)
+  _pendingOverlay.value = null
+})
+// sceneMgr 就绪后渲染缓存的 overlay 喵~
+watch(sceneMgr, (sm) => {
+  if (sm && _pendingOverlay.value) {
+    renderTrajectoryOverlay(_pendingOverlay.value)
+    _pendingOverlay.value = null
   }
-}, { deep: true })
+})
 
 // ── TF link 更新 ──
 
@@ -414,13 +429,22 @@ async function init(): Promise<void> {
   tfUpdater = new TfUpdater()
 
   // 订阅 TF
+  console.log('[Robot3dViewer] 订阅 TF:', tfTopic.value, tfStaticTopic.value, jointStatesTopic.value)
   subscribe(tfTopic.value, settings.topicType('topic-tf', 'tf2_msgs/msg/TFMessage'), 30)
   subscribe(tfStaticTopic.value, settings.topicType('topic-tf-static', 'tf2_msgs/msg/TFMessage'), 1)
   subscribe(jointStatesTopic.value, settings.topicType('topic-joints', 'sensor_msgs/msg/JointState'), 30)
 
   // TF 消息处理 — 使用目标话题名替代 null 通配，避免每条消息触发过滤喵~
-  const handleTf = (msg: any) => tfUpdater?.ingestTfMessage(msg)
-  const handleJointStates = (msg: any) => tfUpdater?.ingestJointStates(msg)
+  let tfFirst = true
+  const handleTf = (msg: any) => {
+    if (tfFirst) { console.log('[Robot3dViewer] 首次收到 /tf 消息, transforms:', msg?.transforms?.length || 0); tfFirst = false }
+    tfUpdater?.ingestTfMessage(msg)
+  }
+  let jsFirst = true
+  const handleJointStates = (msg: any) => {
+    if (jsFirst) { console.log('[Robot3dViewer] 首次收到 /joint_states 消息, names:', msg?.name); jsFirst = false }
+    tfUpdater?.ingestJointStates(msg)
+  }
   onRosJson(tfTopic.value, handleTf)
   onRosJson(tfStaticTopic.value, handleTf)
   onRosJson(jointStatesTopic.value, handleJointStates)

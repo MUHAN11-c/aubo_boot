@@ -101,14 +101,14 @@ void JointTrajectoryController::update()
     if (++sc>=50) { sc=0; bool e,p; hw_->readSafetyIOStatus(e,p);
         if(e||p){ RCLCPP_ERROR(get_logger(),"ESTOP"); abortActiveGoal(); return; } }
 
-    if (precomputed_idx_ < precomputed_.size()) return;
+    if (precomputed_idx_.load() < precomputed_.size()) return;
 
     // 发完所有点后, 50ms 一次目标检查
     static int gc=0;
     if (++gc<10) return;
     gc=0;
     static int first=0;
-    if (!first) { RCLCPP_INFO(get_logger(), "Goal checking started (idx=%zu/%zu)", precomputed_idx_, precomputed_.size()); first=1; }
+    if (!first) { RCLCPP_INFO(get_logger(), "Goal checking started (idx=%zu/%zu)", precomputed_idx_.load(), precomputed_.size()); first=1; }
     double c[6];
     if (hw_->readJointState(c) && withinGoalConstraints(c, goal_target_)) {
         if (++goal_hold_count_ >= kGoalHoldRequired) {
@@ -130,7 +130,7 @@ void JointTrajectoryController::sendLoop()
     RCLCPP_INFO(rclcpp::get_logger("sendLoop"), "sendLoop started");
 
     while (send_running_ && rclcpp::ok()) {
-        size_t avail = (precomputed_idx_<precomputed_.size()) ? precomputed_.size()-precomputed_idx_ : 0;
+        size_t idx = precomputed_idx_.load(); size_t avail = (idx < precomputed_.size()) ? precomputed_.size() - idx : 0;
 
         // RIB (ROS1: 降频查, RIB≤0 立即查)
         auto now=steady_clock::now();
@@ -156,7 +156,7 @@ void JointTrajectoryController::sendLoop()
         size_t n = std::min(avail, (size_t)need);
 
         if (n>0) {
-            std::vector<aubo_robot_namespace::wayPoint_S> batch(precomputed_.begin()+precomputed_idx_, precomputed_.begin()+precomputed_idx_+n);
+            auto idx = precomputed_idx_.load(); std::vector<aubo_robot_namespace::wayPoint_S> batch(precomputed_.begin()+idx, precomputed_.begin()+idx+n);
             auto t0=steady_clock::now();
             if (hw_->writeTrajectoryPoints(batch)) {
                 auto el = duration_cast<microseconds>(steady_clock::now()-t0);
@@ -164,7 +164,7 @@ void JointTrajectoryController::sendLoop()
                 ema = (ema<=0) ? ms : (0.9*ema + 0.1*ms);
                 ok++; precomputed_idx_+=n;
                 if (ok<=5 || ok%50==0)
-                    RCLCPP_INFO(rclcpp::get_logger("sendLoop"), "send #%d (%zu pts, RIB=%d, idx=%zu/%zu, ema=%.1fms)", ok, n, rib, precomputed_idx_, precomputed_.size(), ema);
+                    RCLCPP_INFO(rclcpp::get_logger("sendLoop"), "send #%d (%zu pts, RIB=%d, idx=%zu/%zu, ema=%.1fms)", ok, n, rib, precomputed_idx_.load(), precomputed_.size(), ema);
             } else {
                 fail++; if (fail<=3) RCLCPP_WARN(rclcpp::get_logger("sendLoop"), "send FAIL #%d", fail);
             }

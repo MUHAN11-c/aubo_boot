@@ -16,6 +16,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 多上下文布局 — 根目录 `CONTEXT-MAP.md` 指向各上下文文档（USAGE / DEPLOYMENT / architecture / PROCESS-FLOW 等）。详见 `docs/agents/domain.md`。
 
+### 零基础文档（2026-05-20）
+
+| 文档 | 路径 | 内容 |
+|------|------|------|
+| 前置知识学习 | `aubo_ros2_ws/docs/ZERO-BASIS-PREREQUISITES.md` | 9 阶段学习路径：Linux→ROS2→MoveIt→视觉→Web→GPU→本项目领域 |
+| 完整复刻 | `aubo_ros2_ws/docs/ZERO-BASIS-REPLICATION.md` | 8 阶段部署：系统→ROS→依赖→代码→colcon→GraspNet→Vue→硬件→验收 |
+
+依据：`DEPLOYMENT.md`、`VERSIONS.md`、`docs/architecture.md`、`docs/PROCESS-FLOW.md`、`start_aubo_new_driver.sh` 及包级 README 喵~
+
 ## ROS 2 参数隔离（重要！）
 
 **ROS 2 没有全局参数服务器**（与 ROS 1 `rosparam` 完全不同）。每个节点各自维护独立的参数副本，通过 services 对外暴露：
@@ -41,7 +50,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **必须在 `aubo_ros2_ws/` 目录下编译。**
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd /home/mu/aubo_boot/aubo_ros2_ws
 source /opt/ros/humble/setup.bash
 colcon build
 source install/setup.bash
@@ -235,6 +244,30 @@ FastAPI 路由参数用 `dict | None` 等 PEP 604 语法时，pydantic 1.8.x 会
 - 工具几何数据：前端从 BFF `/api/v1/tool-geometries` 动态获取，数据源统一为 `tools.yaml`
 - 前端话题/服务名大部分通过 `useDashboardSettings.ts` 读取，少数（如 `'/execute_single_grasp'`、`'/debug/move_to_xyz'`）仍硬编码，待统一喵~
 
+### 28. Three.js 3D 渲染 Phong 管线（2026-05-20）
+
+前端 3D 渲染使用 **MeshPhongMaterial**，保持与 RViz2 OGRE Phong 一致的着色模型喵~
+
+**核心原则：ColladaLoader 从 DAE `<phong>` 创建 MeshPhongMaterial → 仅覆盖 `.color`（diffuse）为 URDF 颜色，保留 DAE 的 specular/shininess/emissive**喵~
+
+| 配置 | 值 | 文件 |
+|------|-----|------|
+| 材质 | `MeshPhongMaterial`, specular=0x111111, shininess=30 | `UrdfModel.ts:158-165` |
+| DAE 加载 | `fetch` + `ColladaLoader.parse()`，XML 预除 `<up_axis>Z_UP` | `UrdfModel.ts:172-190, 242-275` |
+| DAE 材质策略 | **不替换材质**，仅 `mat.color.copy(urdfColor)` 覆盖 diffuse | `UrdfModel.ts:260-265` |
+| 背景色 | `#303030` (RViz2 默认 48,48,48) | `SceneManager.ts:38` |
+| Tone Mapping | `ACESFilmicToneMapping`, exposure=1.0 | `SceneManager.ts:54-56` |
+| 色彩空间 | `SRGBColorSpace` | `SceneManager.ts:56` |
+| 阴影 | `PCFShadowMap` 1024px | `SceneManager.ts:52-53, 83-91` |
+| 灯光 | 环境光 0.45 + 半球光 0.15 + 主方向光 1.2 + 补光 0.4 | `SceneManager.ts:77-96` |
+| Pixel Ratio | 桌面上限 2.0 | `SceneManager.ts:19` |
+
+**为何不用 PBR（MeshStandardMaterial）**:
+- RViz2 使用 OGRE Phong 着色模型喵~
+- ColladaLoader 从 DAE `<phong>` 自动创建 MeshPhongMaterial 喵~
+- 若替换为 MeshStandardMaterial，着色模型完全不同，视觉效果必然不一致喵~
+- 保持 Phong → 前端与 RViz2 共用相同的着色模型，仅 diffuse 颜色被 URDF 覆盖喵~
+
 ## 常见报错速查
 
 | 报错关键词 | 可能原因 | 优先检查 |
@@ -378,3 +411,107 @@ FastAPI 路由参数用 `dict | None` 等 PEP 604 语法时，pydantic 1.8.x 会
 ## Python 依赖兼容性
 
 稳定组合：`numpy==1.23.5` + `opencv-python==4.9.0` + 系统 `matplotlib`。NumPy 2.x 不兼容 opencv-python，`transforms3d` 依赖已删除的 `np.float`喵~
+
+## 软件架构规则（2026-05-20 审计确定）
+
+### 核心原则: ROS 为机器人核心后端
+
+```
+前端 (Vue3)             → 纯显示层
+BFF (FastAPI)           → 静态文件 + WebSocket代理 + 视频代理 (不做业务逻辑)
+ROS 2 Nodes             → 机器人核心 (参数/服务/话题/动作)
+AUBO SDK                → 硬件通信层
+```
+
+### 通信协议: rosbridge JSON Protocol v2.1.0
+
+**所有前后端 ROS 交互必须通过 rosbridge WebSocket**，协议操作:
+
+| 操作 | rosbridge op | 用途 |
+|------|-------------|------|
+| 订阅话题 | `subscribe` | 接收 `/joint_states`, `/tf`, `/robot_status` 等实时数据 |
+| 调用服务 | `call_service` | 调用 `/replay_trajectory`, `/run_gripper_swap` 等 ROS 服务 |
+| 设置参数 | `call_service` → `/node/set_parameters` | 触发 ROS 节点 `onParamChange` 回调 |
+| 长时任务 | `send_action_goal` | 调用 `/execute_trajectory` Action |
+
+**禁止**: 前端直接 `import latte_imitation`、BFF 内 `import rclpy`、前端持有 TF 树做计算
+
+### 参数事件回调模式 (ROS 2 标准)
+
+```python
+# 节点声明参数 + 注册回调
+self.declare_parameter("speed_scale", 1.0)
+self.add_on_set_parameters_callback(self._on_param_change)
+
+def _on_param_change(self, params):
+    for p in params:
+        if p.name == "speed_scale":
+            if not (0.01 <= p.value <= 10.0):
+                return SetParametersResult(successful=False, reason="...")
+            self._speed_scale = p.value
+    return SetParametersResult(successful=True)
+```
+
+外部通过 rosbridge 调用 `/node/set_parameters` → 回调自动触发 → 验证 → 更新内部状态
+
+### 各层职责边界
+
+| 层 | 可以 | 禁止 |
+|----|------|------|
+| Vue3 前端 | UI渲染、用户交互、3D可视化、rosbridge订阅/调用 | 轨迹计算、TF树维护、ROS服务直接调用 |
+| FastAPI BFF | 静态文件、WS代理、视频代理 | 轨迹生成、rclpy初始化、TF查询、业务逻辑 |
+| ROS 节点 | 轨迹生成/执行、MoveIt2规划、SDK通信、参数回调 | UI逻辑、HTTP服务 |
+
+### 参考项目
+
+- [rosbridge_suite v2.1.0](https://github.com/RobotWebTools/rosbridge_suite) — JSON WebSocket ↔ ROS 协议桥接
+- [BotBrain](https://github.com/botbotrobotics/BotBrain) — Next.js + ROS2, rosbridge 直连, Docker Compose
+- [ROSA (NASA JPL)](https://github.com/nasa-jpl/rosa) — LangChain Agent 工具模式, LLM→ROS2
+- [Foxglove SDK](https://github.com/foxglove/foxglove-sdk) — WebSocket 自定义协议 (已归档,架构参考)
+
+### 数据流: 预览 vs 执行
+
+```
+预览 (非ROS): 前端 → BFF(HTTP) → ROS /replay_trajectory(mode="preview") → JSON → 3D渲染
+执行 (ROS):  前端 → rosbridge → ROS /replay_trajectory(mode="action") → MoveIt2 → 机器人
+BFF 只做静态文件/WS代理/视频代理 — 所有业务逻辑在 ROS 节点
+
+### 生产安全规则 (2026-05-20 审计)
+
+**启动恢复**: 关键节点必须配置 `respawn=True, respawn_delay=5.0`:
+- `aubo_dashboard_node` (生命周期节点, 20个服务)
+- `aubo_state_broadcaster` (所有话题的数据源)
+- `joint_trajectory_controller` (轨迹执行 Action Server)
+- `move_group` (MoveIt2 核心)
+- `web_dashboard` FastAPI 网关 (已配置 ✅)
+
+**输入验证**: 所有 ROS 服务回调必须验证输入范围:
+- 关节位置: 在 URDF joint_limits 范围内
+- 有效负载: 0 ≤ mass ≤ 5.0 kg
+- IO 索引: 0 ≤ index ≤ 15
+- 速度倍率: 0.01 ≤ scale ≤ 10.0
+- 笛卡尔位置: 在工作空间边界内
+
+**认证/安全** (生产部署前必须):
+- HTTP 状态更改端点添加 API Key/Bearer Token 认证
+- CORS `allow_origins` 限制为特定来源 (禁止 `*`)
+- 设置唯一 `ROS_DOMAIN_ID` 隔离 DDS 网络
+- 生产环境启用 SROS2 安全 enclaves
+
+**已知安全问题** (内网部署可接受, 公网不可):
+- 无 CSRF 保护
+- WebSocket 消息无大小限制
+- 健康端点暴露内部文件路径
+- VPE `subprocess_rembg.py` 环境变量路径可控
+
+**接口一致性** (2026-05-20 审计):
+- `RobotStatus.msg` 中 `ivg_display` 字段不存在于定义, 前端已移除引用
+- `ChangeTool.srv` 的 `error_code` 在失败路径未赋值 (保持默认0)
+- `MovelServer` 有头文件无 .cpp 实现 — 保留接口定义仅供向前兼容
+- `.msg` 注释中发布频率与实现不符: RobotStatus 注释说 30Hz 实际 50Hz; ToolChangerStatus 注释说 10Hz 实际 0.2Hz
+
+**参考**:
+- [OWASP Top 10 (2021)](https://owasp.org/www-project-top-ten/)
+- [ROS 2 Security](https://design.ros2.org/articles/ros2_security.html)
+- [REP-2006: ROS 2 Vulnerability Disclosure](https://www.ros.org/reps/rep-2006.html)
+```

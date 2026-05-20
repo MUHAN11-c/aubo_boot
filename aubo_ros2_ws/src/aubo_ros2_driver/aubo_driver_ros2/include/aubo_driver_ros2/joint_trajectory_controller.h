@@ -218,7 +218,7 @@ private:
     std::thread send_thread_;
     std::atomic<bool> send_running_{false};
     std::vector<aubo_robot_namespace::wayPoint_S> precomputed_;
-    size_t precomputed_idx_{0};
+    std::atomic<size_t> precomputed_idx_{0};  // atomic: update()和sendLoop()线程共享 喵~
     trajectory_msgs::msg::JointTrajectory goal_target_;
 
     // 上一段终点 (用于 C1 连续性)

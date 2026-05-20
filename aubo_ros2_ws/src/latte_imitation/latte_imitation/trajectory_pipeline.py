@@ -56,6 +56,7 @@ from rclpy.node import Node
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.action import ActionClient
+from rcl_interfaces.msg import SetParametersResult
 from geometry_msgs.msg import Pose, PoseStamped, Point, PoseArray
 from nav_msgs.msg import Path as RosPath
 from visualization_msgs.msg import Marker
@@ -71,6 +72,7 @@ from .trajectory_transform import (
     retarget_trajectory,
     is_default_position,
     is_default_orientation,
+    quat_to_rot,
 )
 from .config_loader import load_tool_offset, load_workspace_safety
 from .tf_utils import get_current_ee_pose
@@ -139,6 +141,7 @@ class LatteImitationNode(Node):
         self.declare_parameter("execution_timeout", 120.0)
         self.declare_parameter("tf_retry_count", 20)
         self.declare_parameter("tf_retry_interval", 0.03)
+        self.declare_parameter("auto_execute", False)  # 启动自动执行: 默认关闭 喵~
 
         self._episode_idx = self.get_parameter("episode_idx").value
         self._arm = self.get_parameter("arm").value
@@ -173,9 +176,42 @@ class LatteImitationNode(Node):
         )
         self.get_logger().info("服务就绪: ~/replay_trajectory (preview/debug/action)")
 
+        # ── 参数变更回调 ──────────────────────────────────
+        self.add_on_set_parameters_callback(self._on_param_change)
+        self.get_logger().info("参数回调已注册 (speed_scale/mode/waypoint_sample_step/cartesian_max_step)")
+
         # ── 并发防护 + 向后兼容 ──────────────────────────
         self._executing = False
         self._init_timer = self.create_timer(4.0, self._delayed_start)
+
+    # ═══════════════════════════════════════════════════════════════
+    # 参数变更回调 (外部通过 rosbridge /latte_imitation/set_parameters 触发) 喵~
+    # ═══════════════════════════════════════════════════════════════
+
+    def _on_param_change(self, params):
+        result = SetParametersResult()
+        result.successful = True
+        for p in params:
+            if p.name == "speed_scale":
+                if not (0.01 <= p.value <= 10.0):
+                    result.successful = False
+                    result.reason = "speed_scale must be in [0.01, 10.0]"
+                    return result
+                self._speed_scale = p.value
+                self.get_logger().info(f"参数更新: speed_scale={p.value}")
+            elif p.name == "mode":
+                if p.value not in ("preview", "debug", "action"):
+                    result.successful = False
+                    result.reason = "mode must be one of: preview, debug, action"
+                    return result
+                self._mode = p.value
+                self.get_logger().info(f"参数更新: mode={p.value}")
+            elif p.name in ("cartesian_max_step", "fraction_acceptable", "fraction_min_executable",
+                           "waypoint_sample_step", "auto_execute", "execution_timeout",
+                           "tf_retry_count", "tf_retry_interval", "episode_idx", "arm"):
+                # 数值参数: 在下次服务调用时通过 get_parameter 读取 喵~
+                self.get_logger().info(f"参数更新: {p.name}={p.value}")
+        return result
 
     # ═══════════════════════════════════════════════════════════════
     # TF
@@ -227,24 +263,26 @@ class LatteImitationNode(Node):
 
     @staticmethod
     def _extract_cup_params(request) -> dict:
+        # getattr 已提供默认值, 不用 or (会静默覆盖显式零值) 喵~
         return {
-            "center_x": getattr(request, 'cup_center_x', 0.0) or 0.0,
-            "center_y": getattr(request, 'cup_center_y', 0.0) or 0.0,
-            "surface_z": getattr(request, 'cup_surface_z', 0.15) or 0.15,
-            "radius": getattr(request, 'cup_radius', 0.04) or 0.04,
+            "center_x": getattr(request, 'cup_center_x', 0.0),
+            "center_y": getattr(request, 'cup_center_y', 0.0),
+            "surface_z": getattr(request, 'cup_surface_z', 0.15),
+            "radius": getattr(request, 'cup_radius', 0.04),
         }
 
     @staticmethod
     def _extract_pour_params(request) -> dict:
+        # getattr 已提供默认值, 不用 or (会静默覆盖显式零值) 喵~
         return {
-            "mix_height_offset": getattr(request, 'pour_mix_height_offset', 0.076) or 0.076,
-            "draw_height_offset": getattr(request, 'pour_draw_height_offset', 0.006) or 0.006,
-            "finish_height_offset": getattr(request, 'pour_finish_height_offset', 0.076) or 0.076,
-            "wiggle_amplitude": getattr(request, 'pour_wiggle_amplitude', 0.006) or 0.006,
-            "wiggle_frequency": getattr(request, 'pour_wiggle_frequency', 5.0) or 5.0,
-            "max_velocity": getattr(request, 'pour_max_velocity', 0.05) or 0.05,
-            "max_acceleration": getattr(request, 'pour_max_acceleration', 0.1) or 0.1,
-            "max_jerk": getattr(request, 'pour_max_jerk', 0.5) or 0.5,
+            "mix_height_offset": getattr(request, 'pour_mix_height_offset', 0.076),
+            "draw_height_offset": getattr(request, 'pour_draw_height_offset', 0.006),
+            "finish_height_offset": getattr(request, 'pour_finish_height_offset', 0.076),
+            "wiggle_amplitude": getattr(request, 'pour_wiggle_amplitude', 0.006),
+            "wiggle_frequency": getattr(request, 'pour_wiggle_frequency', 5.0),
+            "max_velocity": getattr(request, 'pour_max_velocity', 0.05),
+            "max_acceleration": getattr(request, 'pour_max_acceleration', 0.1),
+            "max_jerk": getattr(request, 'pour_max_jerk', 0.5),
             "enable_anti_sloshing": getattr(request, 'enable_anti_sloshing', True),
         }
 
@@ -266,7 +304,7 @@ class LatteImitationNode(Node):
                                   pattern_type, pattern_image_path,
                                   tulip_layers, cup_params, pour_params)
         except Exception as e:
-            self.get_logger().error(f"执行异常: {e}")
+            self.get_logger().exception(f"执行异常: {e}")
             return self._empty_result(False, str(e))
         finally:
             self._executing = False
@@ -318,6 +356,13 @@ class LatteImitationNode(Node):
 
         cart = retarget_trajectory(cart, target, rpy_user=rpy_user,
                                    absolute_orientation=False)
+        # 叠加杯子 XY 偏移: 轨迹在原点生成, retarget 后移到杯位置 喵~
+        if cup_params:
+            cx = cup_params.get("center_x", 0.0)
+            cy = cup_params.get("center_y", 0.0)
+            if cx or cy:
+                cart.positions[:, 0] += cx
+                cart.positions[:, 1] += cy
         self.get_logger().info(
             f"轨迹已变换 (位置={pos_src}, rpy={rpy_user}): "
             f"({target.position.x:.3f}, {target.position.y:.3f}, {target.position.z:.3f})"
@@ -343,8 +388,8 @@ class LatteImitationNode(Node):
                 num_frames, path_len, 0, 0, [])
 
         if mode != "action":
-            return self._result(True,
-                f"mode='{mode}' (未规划/执行)", num_frames, path_len, 0, 0, [])
+            return self._result(False,
+                f"未知 mode='{mode}' (支持: preview/debug/action)", num_frames, path_len, 0, 0, [])
 
         # ═══ Phase ④: Safety Check ═══
         if workspace.safety_policy != "ignore":
@@ -413,6 +458,9 @@ class LatteImitationNode(Node):
     def _load_or_generate(self, episode_idx, arm, pattern_type, pattern_image_path,
                            tulip_layers, cup_params, pour_params):
         """Phase ①: 录制回放 或 参数化生成 → CartesianTrajectory 喵~"""
+        if pattern_type in ("heart_dmp", "heart_ensemble", "heart_promp"):
+            # 模式 C: 学习到的心形 (DMP 或 Ensemble 中位数聚合)
+            return self._load_learned_heart(pattern_type, episode_idx, arm, cup_params, pour_params)
         if pattern_type:
             # 模式 B: 参数化生成
             try:
@@ -473,6 +521,125 @@ class LatteImitationNode(Node):
             # 模式 A: 录制回放
             return self._load_cartesian(episode_idx, arm)
 
+    def _load_learned_heart(self, pattern_type, episode_idx, arm, cup_params, pour_params):
+        """Phase ①-C: 学习到的心形 — DMP 生成 或 Ensemble 中位数聚合 喵~"""
+        import numpy as np
+        heart_dir = os.path.join(os.path.dirname(_cartesian_resource_dir()), "heart")
+
+        if pattern_type == "heart_ensemble":
+            # Ensemble 中位数聚合 (TOP5 成形段)
+            path = os.path.join(heart_dir, "heart_ensemble_forming.npz")
+            if not os.path.exists(path):
+                self.get_logger().error(f"未找到 ensemble 模型: {path}")
+                return None
+            data = np.load(path)
+            xyz = data["positions"]
+            self.get_logger().info(
+                f"heart_ensemble: {len(xyz)} 帧, 路径长 "
+                f"{np.sum(np.linalg.norm(np.diff(xyz, axis=0), axis=1)):.3f}m"
+            )
+
+        elif pattern_type == "heart_dmp":
+            # DMP 生成 (适合单调运动, 不推荐心形摆动)
+            path = os.path.join(heart_dir, "heart_dmp_model.npz")
+            if not os.path.exists(path):
+                self.get_logger().error(f"未找到 DMP 模型: {path}")
+                return None
+            try:
+                from latte_imitation.dmp_learner import DMP3D
+            except ImportError:
+                self.get_logger().error("dmp_learner 模块不可用")
+                return None
+            dmp = DMP3D.load(path)
+            data = np.load(path, allow_pickle=True)
+            xyz_core = dmp.generate(tau=dmp.tau, T=120)
+            if "trend_start" in data and "trend_end" in data:
+                t_start = data["trend_start"]
+                t_end = data["trend_end"]
+                T_out = len(xyz_core)
+                trend = np.linspace(0, 1, T_out)[:, np.newaxis] * (t_end - t_start) + t_start
+                xyz = xyz_core + trend
+            else:
+                xyz = xyz_core
+            self.get_logger().info(
+                f"heart_dmp: {len(xyz)} 帧, 路径长 "
+                f"{np.sum(np.linalg.norm(np.diff(xyz, axis=0), axis=1)):.3f}m"
+            )
+
+        elif pattern_type == "heart_promp":
+            # ProMP 生成 (时序基函数, 完美捕获摆动模式, RMSE ~1.6mm)
+            path = os.path.join(heart_dir, "heart_dmp_model.npz")  # 复用同名文件
+            if not os.path.exists(path):
+                self.get_logger().error(f"未找到 ProMP 模型: {path}")
+                return None
+            data = np.load(path, allow_pickle=True)
+            method = str(data.get("method", "dmp"))
+            if method != "promp":
+                self.get_logger().warn(
+                    f"模型方法是 '{method}', 非 'promp', 但强制用 ProMP 加载..."
+                )
+            try:
+                from latte_imitation.promp_learner import ProMP3D
+            except ImportError:
+                self.get_logger().error("promp_learner 模块不可用")
+                return None
+            promp = ProMP3D.load(path)
+            xyz_core = promp.generate(T=120)
+            if "trend_start" in data and "trend_end" in data:
+                t_start = data["trend_start"]
+                t_end = data["trend_end"]
+                T_out = len(xyz_core)
+                trend = np.linspace(0, 1, T_out)[:, np.newaxis] * (t_end - t_start) + t_start
+                xyz = xyz_core + trend
+            else:
+                xyz = xyz_core
+            self.get_logger().info(
+                f"heart_promp: {len(xyz)} 帧, 路径长 "
+                f"{np.sum(np.linalg.norm(np.diff(xyz, axis=0), axis=1)):.3f}m"
+            )
+        else:
+            return None
+
+        # 后处理: compose + anti_sloshing + bridge
+        try:
+            from latte_imitation.latte_art import (
+                CupConfig, PourConfig, compose_full_trajectory,
+                apply_anti_sloshing, parametric_to_cartesian,
+            )
+        except ImportError as e:
+            self.get_logger().error(f"latte_art 不可用: {e}")
+            return None
+
+        cup = cup_params or {}
+        pour = pour_params or {}
+        cup_cfg = CupConfig(
+            center_x=cup.get("center_x", 0.0),
+            center_y=cup.get("center_y", 0.0),
+            surface_z=cup.get("surface_z", 0.15),
+            radius=cup.get("radius", 0.04),
+        )
+        pour_cfg = PourConfig(
+            mix_height_offset=pour.get("mix_height_offset", 0.076),
+            draw_height_offset=pour.get("draw_height_offset", 0.006),
+            finish_height_offset=pour.get("finish_height_offset", 0.076),
+            wiggle_amplitude=pour.get("wiggle_amplitude", 0.006),
+            wiggle_frequency=pour.get("wiggle_frequency", 2.4),
+            max_velocity=pour.get("max_velocity", 0.05),
+            max_acceleration=pour.get("max_acceleration", 0.1),
+            max_jerk=pour.get("max_jerk", 0.5),
+        )
+
+        xyz = compose_full_trajectory(xyz, cup_cfg, pour_cfg)
+        if pour.get("enable_anti_sloshing", True):
+            xyz = apply_anti_sloshing(xyz, pour_cfg)
+
+        cart = parametric_to_cartesian(xyz)
+        self.get_logger().info(
+            f"学习心形: {pattern_type}, {cart.num_frames} 帧, "
+            f"路径长 {cart.path_length():.3f}m"
+        )
+        return cart
+
     def _load_cartesian(self, episode_idx=None, arm=None):
         ep = episode_idx if episode_idx is not None else self._episode_idx
         ar = arm if arm is not None else self._arm
@@ -511,9 +678,16 @@ class LatteImitationNode(Node):
         spout_marker.scale.x = 0.003
         spout_marker.color = ColorRGBA(r=0.2, g=0.5, b=1.0, a=0.8)
         dx, dy, dz = tool_offset.pos
+        offset = (dx, dy, dz)
         for i in range(0, cart.num_frames, 2):
             p = cart.positions[i]
-            spout_marker.points.append(Point(x=p[0]+dx, y=p[1]+dy, z=p[2]+dz))
+            # 应用 TCP 旋转矩阵到工具偏移 (与 BFF _compute_spout_path 一致) 喵~
+            if cart.orientations is not None and i < len(cart.orientations):
+                R = quat_to_rot(cart.orientations[i])
+            else:
+                R = __import__('numpy').eye(3)
+            ps = p + R @ offset
+            spout_marker.points.append(Point(x=float(ps[0]), y=float(ps[1]), z=float(ps[2])))
         self._preview_spout_pub.publish(spout_marker)
 
         # ── Cup Pose (黄色方块) ──
@@ -692,20 +866,21 @@ class LatteImitationNode(Node):
 
     def _delayed_start(self):
         self._init_timer.cancel()
+        if not self.get_parameter("auto_execute").value:
+            self.get_logger().info("auto_execute=false, 跳过启动自动执行 喵~")
+            return
         for attempt in range(5):
             result = self._run_impl()
             if result["success"]:
+                self.get_logger().info(f"启动执行成功 (第 {attempt+1} 次)")
                 return
             msg = result["message"]
-            if "无法获取当前末端" in msg or "不可达" in msg:
-                self.get_logger().warn(
-                    f"启动执行第 {attempt+1}/5 次: {msg}, 1s 后重试..."
-                )
-                if attempt < 4:
-                    time.sleep(1.0)
-            else:
-                self.get_logger().warn(f"启动执行失败: {msg}")
-                return
+            # 启动阶段 TF/joint_states 可能未就绪, 重试所有失败 喵~
+            self.get_logger().warn(
+                f"启动执行第 {attempt+1}/5 次失败: {msg}, 1s 后重试..."
+            )
+            if attempt < 4:
+                time.sleep(1.0)
         self.get_logger().warn("启动执行: 5 次重试均失败, 放弃 (服务仍可正常调用)")
 
     def _run_impl(self):

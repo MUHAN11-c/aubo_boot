@@ -40,30 +40,28 @@ class LatteArtTrajectory:
         sway_end = int(num_points * 0.70)
         lift_end = int(num_points * 0.85)
 
+        # 轨迹在 (0,0) 原点生成, cup_center 由外部在 retarget 后叠加 喵~
+        r = cup.radius
         surf = cup.surface_z
-        x = np.full(num_points, cup.center_x)
-        y = np.full(num_points, cup.center_y + cup.radius * 0.3)
+        x = np.full(num_points, 0.0)
+        y = np.full(num_points, r * 0.3)
         z = np.full(num_points, pour.mix_z(surf))
 
         # 成形微摆阶段: 固定中心点, 轻微左右摆动形成圆形
         t_sway = np.linspace(0, 2 * np.pi * 3, sway_end - mix_end)
-        x[mix_end:sway_end] = cup.center_x + pour.wiggle_amplitude * 0.3 * np.sin(t_sway)
-        y[mix_end:sway_end] = cup.center_y + cup.radius * 0.15
+        x[mix_end:sway_end] = pour.wiggle_amplitude * 0.3 * np.sin(t_sway)
+        y[mix_end:sway_end] = r * 0.15
         z[mix_end:sway_end] = pour.draw_z(surf)
 
         # 竖直抬起阶段 (关键: 抬升产生吸力, 圆形顶部形成弧线)
         z[sway_end:lift_end] = np.linspace(pour.draw_z(surf), pour.finish_z(surf),
                                             lift_end - sway_end)
-        x[sway_end:lift_end] = cup.center_x
-        y[sway_end:lift_end] = cup.center_y + cup.radius * 0.15
+        x[sway_end:lift_end] = 0.0
+        y[sway_end:lift_end] = r * 0.15
 
         # 划穿收尾
-        x[lift_end:] = cup.center_x
-        y[lift_end:] = np.linspace(
-            cup.center_y + cup.radius * 0.15,
-            cup.center_y - cup.radius * 0.2,
-            num_points - lift_end,
-        )
+
+        y[lift_end:] = np.linspace(r * 0.15, -r * 0.2, num_points - lift_end)
         z[lift_end:] = pour.finish_z(surf)
 
         return np.column_stack([x, y, z])

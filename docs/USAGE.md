@@ -27,7 +27,7 @@ Web Dashboard (:8090)   ──→  浏览器操作入口
 ### 2.1 一键启动
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd /home/mu/aubo_boot/aubo_ros2_ws
 ./start_aubo_new_driver.sh
 ```
 
@@ -99,17 +99,18 @@ pkill -f 'ros2 bag'
 手眼标定:     http://127.0.0.1:8080/
 VPE FastAPI:  http://127.0.0.1:8088/
 IVG 门户:     http://127.0.0.1:8090/
-视觉抓取:     http://127.0.0.1:8090/vision_grasp_panel.html
-咖啡拉花:     http://127.0.0.1:8090/coffee_latte_panel.html
+视觉抓取:     http://127.0.0.1:8090/vision
+咖啡拉花:     http://127.0.0.1:8090/latte
 ```
 
 | URL | 功能 |
 |-----|------|
 | `:8090/` | **IVG 门户** — 导航入口，所有功能的起点 |
-| `:8090/vision_grasp_panel.html` | **视觉抓取面板** — 相机画面 + 抓取控制 + 关节曲线 + 末端位姿 |
-| `:8090/coffee_latte_panel.html` | **咖啡拉花面板** — DO/DI 控制 + 工序流程 |
-| `:8090/tf_monitor_panel.html` | **TF 监控面板** — 3D 机械臂模型 + 坐标系可视化 |
-| `:8090/settings_panel.html` | **设置面板** — 话题名/服务名配置 |
+| `:8090/vision` | **视觉抓取面板** — 相机画面 + 抓取控制 + 关节曲线 + 末端位姿 |
+| `:8090/latte` | **咖啡拉花面板** — DO/DI 控制 + 工序流程 |
+| `:8090/monitor` | **TF 监控面板** — 3D 机械臂模型 + 坐标系可视化 |
+| `:8090/log` | **日志面板** — 系统日志实时查看 |
+| `:8090/settings` | **设置面板** — 话题名/服务名配置 |
 | `:8080/` | **手眼标定** — 相机-机械臂标定工具 |
 | `:8088/` | **VPE Web** — 视觉位姿估计模板管理 |
 
@@ -120,7 +121,7 @@ IVG 门户:     http://127.0.0.1:8090/
 ### 4.1 视觉抓取（工件模式）
 
 1. 将工件放置在相机视野内
-2. 打开浏览器 `:8090/vision_grasp_panel.html`
+2. 打开浏览器 `:8090/vision`
 3. 确认连接状态为「已连接」
 4. 确认相机画面正常（左栏 3D 模型 + 右栏相机图）
 5. 选择「工件（视觉估计）」模式
@@ -147,7 +148,7 @@ IVG 门户:     http://127.0.0.1:8090/
 
 ### 4.4 咖啡拉花
 
-1. 打开 `:8090/coffee_latte_panel.html`
+1. 打开 `:8090/latte`
 2. 使用右侧「工序开关」控制 DO2（打花）/ DO4（咖啡）
 3. 底部 DI 反馈灯显示设备状态（咖啡反馈 / 打花反馈 / 警告）
 
@@ -184,7 +185,7 @@ IVG 门户:     http://127.0.0.1:8090/
 ### 手动回放
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd /home/mu/aubo_boot/aubo_ros2_ws
 source install/setup.bash
 
 # 列出录制的话题

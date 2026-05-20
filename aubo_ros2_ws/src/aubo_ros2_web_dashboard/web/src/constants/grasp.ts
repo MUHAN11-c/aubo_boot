@@ -34,11 +34,16 @@ export const VISION_SETTING_DEFS: VisionSettingDef[] = [
   { id: 'svc-graspnet-capture', category: 'service', defaultValue: '/graspnet_capture_control', serviceType: 'std_srvs/srv/SetBool' },
   { id: 'svc-publish-grasps-loop', category: 'service', defaultValue: '/publish_grasps_worker_loop_control', serviceType: 'std_srvs/srv/SetBool' },
   { id: 'svc-gripper-swap', category: 'service', defaultValue: '/run_gripper_swap', serviceType: 'ivg_interfaces/srv/RunGripperSwap' },
+  // ── 咖啡拉花 ──
+  { id: 'latte-di-topic', category: 'topic', defaultValue: '/latte_di_status', msgType: 'std_msgs/msg/String' },
+  { id: 'svc-latte-do2', category: 'service', defaultValue: '/set_latte_do2', serviceType: 'std_srvs/srv/SetBool' },
+  { id: 'svc-latte-do4', category: 'service', defaultValue: '/set_latte_do4', serviceType: 'std_srvs/srv/SetBool' },
 ]
 
 /** 固定服务类型 — 不在设置面板暴露的服务 */
 export const FIXED_SERVICE_TYPES: Record<string, string> = {
   'execute-single-grasp': 'ivg_interfaces/srv/ExecuteGraspPose',
+  'svc-latte-replay': 'ivg_interfaces/srv/ReplayLatteTrajectory',
 }
 
 // ═══════════════════════ 快换工具列表 ═══════════════════════
@@ -46,6 +51,7 @@ export const FIXED_SERVICE_TYPES: Record<string, string> = {
 /** 可用快换工具 — 与 tools.yaml 保持同步 */
 export const TOOL_LIST = [
   { id: 'gripper0', label: '夹爪0 φ40' },
+  { id: 'gripper1', label: '夹爪1 φ50' },
   { id: 'gripper2', label: '夹爪2 φ60' },
 ]
 

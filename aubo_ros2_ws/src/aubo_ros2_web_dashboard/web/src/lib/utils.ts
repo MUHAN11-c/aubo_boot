@@ -22,3 +22,13 @@ export function canonicalRosTopic(t: string): string {
 export function encodeTopicQueryValue(topic: string): string {
   return String(topic).split('/').map(seg => encodeURIComponent(seg)).join('/')
 }
+
+/** 比较两个 ROS 话题名是否等价 (忽略前导/差异) 喵~ */
+export function sameRosTopic(a: string, b: string): boolean {
+  return canonicalRosTopic(a) === canonicalRosTopic(b)
+}
+
+/** 从 input 事件提取 number 值 喵~ */
+export function inputNumberValue(e: Event): number {
+  return Number((e.target as HTMLInputElement).value)
+}

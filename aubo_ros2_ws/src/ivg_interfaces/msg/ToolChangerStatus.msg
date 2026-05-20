@@ -2,7 +2,7 @@
 #
 # 用途：提供 AUBO 快换盘（Quick Tool Changer）的当前状态，包括已安装的工具标识、
 #       锁定状态和工具参数等，用于工具管理流程（切换/安装/卸载）的决策依据喵~
-# 发布者：tool_changer_interface 节点（~10Hz），每次 SDK IO 轮询后检测快换盘状态变化并发布喵~
+# 发布者：gripper_swap_worker 节点 (0.2Hz, 每5秒), 首次立即发布后定时重发喵~
 # 订阅者：gripper_swap_worker（工具切换流程）、monitoring dashboard、Web Dashboard 工具面板喵~
 #
 

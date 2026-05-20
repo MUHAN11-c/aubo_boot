@@ -1,0 +1,94 @@
+!!python/object/apply:collections.OrderedDict
+- - - meta
+    - !!python/object/apply:collections.OrderedDict
+      - - - description
+          - 从笛卡尔轨迹示教数据标定的心形 PourConfig 参数
+        - - source
+          - resource/cartesian/right/
+        - - n_episodes
+          - 40
+        - - episode_indices
+          - - 0
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
+            - 8
+            - 9
+            - 10
+            - 11
+            - 12
+            - 13
+            - 14
+            - 15
+            - 16
+            - 17
+            - 18
+            - 19
+            - 20
+            - 21
+            - 22
+            - 23
+            - 24
+            - 25
+            - 26
+            - 27
+            - 28
+            - 29
+            - 30
+            - 31
+            - 32
+            - 33
+            - 34
+            - 35
+            - 36
+            - 37
+            - 38
+            - 39
+        - - generated_by
+          - scripts/calibrate_heart_params.py
+  - - pour_config
+    - !!python/object/apply:collections.OrderedDict
+      - - - wiggle_amplitude_m
+          - 0.006
+        - - wiggle_amplitude_effective_mm
+          - 1.72
+        - - wiggle_scale_factor
+          - 0.3
+        - - wiggle_frequency_hz
+          - 2.4
+        - - wiggle_frequency_mean_hz
+          - 3.3
+        - - wiggle_frequency_range_hz
+          - - 0.7
+            - 8.8
+        - - mix_height_offset_cm
+          - 34.0
+        - - draw_height_offset_cm
+          - 0.6
+        - - finish_height_offset_cm
+          - 29.2
+        - - max_velocity_ms
+          - 0.05
+        - - max_acceleration_ms2
+          - 0.1
+        - - max_jerk_ms3
+          - 0.5
+  - - heart_phases
+    - !!python/object/apply:collections.OrderedDict
+      - - - mix_ratio
+          - 0.5
+        - - sway_ratio
+          - 0.08
+        - - lift_ratio
+          - 0.42
+  - - ensemble
+    - method: none
+  - - notes
+    - - wiggle_amplitude 保持 0.006m, *0.3 缩放不变 (数据验证有效振幅 ~1.7mm)
+      - wiggle_frequency 实测中位数 2.4Hz, 范围 [0.7246376811594203, 8.758169934640524]
+      - Z 高度偏移通过 SE(3) retarget 自动适配 AUBO E5 工作空间
+      - 阶段比例各 episode 差异显著, heart() 固定比例仅为简化模型

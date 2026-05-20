@@ -26,7 +26,7 @@ if _pkg_dir not in sys.path:
 
 from latte_imitation.trajectory import CartesianTrajectory
 from latte_imitation.trajectory_transform import (
-    euler_deg_to_quat, apply_start_pose, quat_to_rot,
+    euler_deg_to_quat, retarget_trajectory, quat_to_rot,
 )
 from latte_imitation.tf_utils import TfQueryNode
 from geometry_msgs.msg import Pose, Point, Quaternion
@@ -478,7 +478,7 @@ class LatteDebugPanel(QMainWindow):
             orientation=Quaternion(x=float(q_rot[0]), y=float(q_rot[1]),
                                     z=float(q_rot[2]), w=float(q_rot[3])),
         )
-        transformed = apply_start_pose(cart, target_pose, rotate_orientation=True)
+        transformed = retarget_trajectory(cart, target_pose)
         rotated = transformed.positions
 
         # ── 绘制 ──

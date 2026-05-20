@@ -4,8 +4,16 @@
   ① 录制回放 (pattern_type="") — 加载 npz 文件, 现有逻辑
   ② 参数化生成 (pattern_type="heart"|"rosetta"|"tulip"|"swan") — latte_art 共享库生成
 
-BFF 纯 HTTP 设计: 零 ROS 依赖, start_pose 由前端传入喵~
+BFF 纯 HTTP 设计: 不查 TF/不初始化 rclpy, start_pose 由前端传入喵~
+
+⚠ 迁移计划 (2026-05-20):
+  目标: BFF 不再直接 import latte_imitation, 改为通过 rosbridge 调 ROS 服务
+  当前: BFF 直接 import latte_imitation 做轨迹生成+retargeting
+  阻塞: ReplayLatteTrajectory.srv 响应缺少 tcp_path/spout_path/cup_pose/workspace_bounds 字段
+  方案: 增补 .srv 字段 → 重建 ivg_interfaces → ROS mode="preview" 返回完整轨迹 JSON
+  迁移后: 删除本文件, 前端通过 rosbridge call_service 获取轨迹数据
 """
+from __future__ import annotations
 from __future__ import annotations
 
 import logging
@@ -99,7 +107,7 @@ def _check_latte_available() -> bool:
     global _latte_available
     if _latte_available is None:
         try:
-            from ament_index_python.packages import get_package_share_directory  # noqa: F401
+            import latte_imitation  # noqa: F401
             _latte_available = True
         except ImportError:
             logger.warning("latte_imitation 不可用, 预览端点将返回 503")
@@ -115,28 +123,27 @@ def _get_cartesian_resource_dir() -> str:
 
 
 def _build_start_pose(req: LattePreviewRequest) -> "Pose":
-    """构建起点位姿: 前端传入 → 直接用, 前端未传 → 默认原点 喵~
+    """构建起点位姿: 前端必须传入有效位姿, 否则拒绝请求 喵~
 
     BFF 零 ROS 依赖 — 不查 TF, 不 import rclpy 喵~
     """
     from geometry_msgs.msg import Pose, Point, Quaternion
 
-    if req.start_pose is not None:
-        sp = req.start_pose
-        is_zero = (abs(sp.x) < 1e-9 and abs(sp.y) < 1e-9 and abs(sp.z) < 1e-9
-                   and abs(sp.qx) < 1e-9 and abs(sp.qy) < 1e-9
-                   and abs(sp.qz) < 1e-9 and abs(sp.qw - 1.0) < 1e-9)
-        if not is_zero:
-            logger.info(f"使用前端传入起点: ({sp.x:.3f},{sp.y:.3f},{sp.z:.3f})")
-            return Pose(
-                position=Point(x=sp.x, y=sp.y, z=sp.z),
-                orientation=Quaternion(x=sp.qx, y=sp.qy, z=sp.qz, w=sp.qw),
-            )
+    if req.start_pose is None:
+        raise HTTPException(status_code=400, detail="缺少 start_pose (机械臂当前末端位姿)")
 
-    # 回退: 原点 (BFF 不查 TF)
-    logger.info("start_pose 不可用, 使用默认原点 (0,0,0)")
-    return Pose(position=Point(x=0.0, y=0.0, z=0.0),
-               orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0))
+    sp = req.start_pose
+    is_zero = (abs(sp.x) < 1e-9 and abs(sp.y) < 1e-9 and abs(sp.z) < 1e-9
+               and abs(sp.qx) < 1e-9 and abs(sp.qy) < 1e-9
+               and abs(sp.qz) < 1e-9 and abs(sp.qw - 1.0) < 1e-9)
+    if is_zero:
+        raise HTTPException(status_code=400, detail="start_pose 为零点位姿, 请确认机械臂位姿数据已就绪")
+
+    logger.info(f"使用前端传入起点: ({sp.x:.3f},{sp.y:.3f},{sp.z:.3f})")
+    return Pose(
+        position=Point(x=sp.x, y=sp.y, z=sp.z),
+        orientation=Quaternion(x=sp.qx, y=sp.qy, z=sp.qz, w=sp.qw),
+    )
 
 
 def _pose_to_dict(pose: "Pose") -> dict[str, float]:
@@ -201,10 +208,13 @@ async def latte_trajectory_preview(req: LattePreviewRequest):
                            detail="pattern_type 必须为 ''/'heart'/'rosetta'/'tulip'/'swan'/'custom'")
     if req.arm not in ("left", "right"):
         raise HTTPException(status_code=422, detail="arm 必须为 'left' 或 'right'")
-    if not (0 <= req.episode_idx <= 39):
-        raise HTTPException(status_code=422, detail="episode_idx 必须在 [0, 39]")
+    # preview 模式只算几何, speed_scale 会在 ROS 执行时生效 喵~
     if not (0.01 <= req.speed_scale <= 10.0):
         raise HTTPException(status_code=422, detail="speed_scale 必须在 [0.01, 10.0]")
+
+    # episode_idx 仅在录制回放模式 (pattern_type="") 下需要校验 喵~
+    if not req.pattern_type and not (0 <= req.episode_idx <= 39):
+        raise HTTPException(status_code=422, detail="episode_idx 必须在 [0, 39]")
 
     if not _check_latte_available():
         raise HTTPException(status_code=503, detail="latte_imitation 包不可用")
@@ -294,6 +304,10 @@ async def latte_trajectory_preview(req: LattePreviewRequest):
 
     try:
         transformed = retarget_trajectory(cart, start_pose, rpy_user=rpy_user)
+        # 叠加杯子 XY 偏移: 轨迹在原点生成, retarget 后移到杯位置 喵~
+        if req.cup_center_x or req.cup_center_y:
+            transformed.positions[:, 0] += req.cup_center_x
+            transformed.positions[:, 1] += req.cup_center_y
     except Exception as e:
         logger.exception("retarget_trajectory 失败")
         raise HTTPException(status_code=500, detail=f"轨迹变换失败: {e}")
@@ -324,6 +338,8 @@ async def latte_trajectory_preview(req: LattePreviewRequest):
         f"frames={transformed.num_frames} path={transformed.path_length():.2f}m safe={is_safe}"
     )
 
+    # 注: success 在此指 "轨迹在工作空间内" (is_safe)
+    # 与 ROS 端 ReplayLatteTrajectory.success ("无错误") 语义不同 喵~
     return LattePreviewResponse(
         success=is_safe,
         num_frames=transformed.num_frames,

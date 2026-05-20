@@ -20,6 +20,8 @@
 | [architecture.md](./docs/architecture.md) | 架构师/开发者 | 6 层架构蓝图、组件职责、数据流、技术栈总表、设计决策、审计追踪 |
 | [PROCESS-FLOW.md](./docs/PROCESS-FLOW.md) | 开发者/调试者 | 16 步启动流程时序、每步详细说明、感知管道、工具快换链路、调试命令 |
 | [frontend-migration-plan.md](./docs/frontend-migration-plan.md) | 前端开发者 | Vue 3 迁移方案、技术栈、代码映射、4 阶段计划、npm 依赖清单 |
+| [ZERO-BASIS-PREREQUISITES.md](./aubo_ros2_ws/docs/ZERO-BASIS-PREREQUISITES.md) | 零基础学习者 | 分阶段前置知识：Linux/ROS2/MoveIt/视觉/Web/GPU + 官方资料索引 |
+| [ZERO-BASIS-REPLICATION.md](./aubo_ros2_ws/docs/ZERO-BASIS-REPLICATION.md) | 零基础部署者 | 从零复刻 8 阶段：环境→编译→GraspNet→前端→硬件→分步验收 |
 
 ### 项目参考
 
@@ -37,7 +39,8 @@
 ─────────────────────────────────────────────
 启动系统                          → docs/USAGE.md §二
 排查启动失败                      → docs/PROCESS-FLOW.md §八
-在新机器上部署                    → DEPLOYMENT.md
+在新机器上部署                    → DEPLOYMENT.md（或零基础: aubo_ros2_ws/docs/ZERO-BASIS-REPLICATION.md）
+从零学习本项目技术栈              → aubo_ros2_ws/docs/ZERO-BASIS-PREREQUISITES.md
 理解系统架构                      → docs/architecture.md
 追踪一条抓取请求的完整链路         → docs/PROCESS-FLOW.md §五
 修改前端代码                      → docs/frontend-migration-plan.md

@@ -91,17 +91,15 @@ def compose_full_trajectory(pattern_traj: np.ndarray,
     """
     surf = cup.surface_z
 
-    # 融合阶段: 杯中心高位缓慢注入
-    mix_traj = np.tile([cup.center_x, cup.center_y, pour.mix_z(surf)],
-                       (num_mix, 1))
+    # 融合阶段: 原点高位缓慢注入 (cup_center 由外部叠加) 喵~
+    mix_traj = np.tile([0.0, 0.0, pour.mix_z(surf)], (num_mix, 1))
     mix_traj[:, 0] += 0.002 * np.sin(np.linspace(0, 2 * np.pi, num_mix))
     mix_traj[:, 1] += 0.002 * np.cos(np.linspace(0, 2 * np.pi, num_mix))
 
-    # 收尾阶段: 上提拉线
+    # 收尾阶段: 上提拉线 (原点, cup_center 由外部叠加) 喵~
     finish_traj = np.column_stack([
-        np.full(num_finish, cup.center_x),
-        np.linspace(pattern_traj[-1, 1], cup.center_y - cup.radius * 0.2,
-                   num_finish),
+        np.zeros(num_finish),
+        np.linspace(pattern_traj[-1, 1], -cup.radius * 0.2, num_finish),
         np.linspace(pour.draw_z(surf), pour.finish_z(surf), num_finish),
     ])
 

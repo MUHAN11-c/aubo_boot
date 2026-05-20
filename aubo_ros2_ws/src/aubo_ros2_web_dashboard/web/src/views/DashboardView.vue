@@ -58,8 +58,8 @@ const hostname = window.location.hostname || '127.0.0.1'
         </ul>
         <div class="flex gap-2 flex-wrap">
           <RouterLink to="/vision" class="inline-flex items-center px-4 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-md hover:bg-blue-700 transition-colors no-underline">视觉抓取面板</RouterLink>
-          <a :href="`http://${hostname}:${VPE_WEB_PORT}/`" target="_blank" rel="noopener" class="inline-flex items-center px-4 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-md hover:bg-blue-700 transition-colors no-underline">打开视觉位姿网页</a>
-          <a :href="`http://${hostname}:${HAND_EYE_WEB_PORT}/`" target="_blank" rel="noopener" class="inline-flex items-center px-4 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-50 transition-colors no-underline">打开手眼标定网页</a>
+          <a :href="`//${hostname}:${VPE_WEB_PORT}/`" target="_blank" rel="noopener" class="inline-flex items-center px-4 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-md hover:bg-blue-700 transition-colors no-underline">打开视觉位姿网页</a>
+          <a :href="`//${hostname}:${HAND_EYE_WEB_PORT}/`" target="_blank" rel="noopener" class="inline-flex items-center px-4 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-50 transition-colors no-underline">打开手眼标定网页</a>
         </div>
       </section>
 

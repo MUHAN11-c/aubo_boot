@@ -49,15 +49,12 @@ export const DEFAULT_WORKSPACE = {
 // ═══════════════════════ 图案类型 ═══════════════════════
 
 export const PATTERN_TYPES = [
-  { value: '', label: '录制回放 (Episode)' },
   { value: 'heart', label: '心形 (Heart)' },
-  { value: 'rosetta', label: '树叶 (Rosetta)' },
-  { value: 'tulip', label: '郁金香 (Tulip)' },
-  { value: 'swan', label: '天鹅 (Swan)' },
 ]
 
 // ═══════════════════════ 杯子参数默认值 ═══════════════════════
 
+// 杯子偏移 (相对 EE): 默认 (0,0) = 倒奶位置在 EE 正下方 喵~
 export const DEFAULT_CUP = {
   centerX: 0.0,
   centerY: 0.0,

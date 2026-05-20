@@ -37,17 +37,22 @@ const displayedLogs = computed(() => { let arr = logs.value.length > MAX_DOM ? l
 
 watch(displayedLogs, () => { if (autoScroll.value) nextTick(() => { const el = container.value; if (el) el.scrollTop = el.scrollHeight }) })
 
+// 保存原始 console 函数, 卸载时恢复 喵~
+const _origConsole: Record<string, (...a: any[]) => void> = {}
+const _onGlobalError = (e: ErrorEvent) => addLog('error', 'global', e.message || 'Unknown error')
+const _onUnhandledRejection = (e: PromiseRejectionEvent) => addLog('error', 'promise', (e.reason?.message) || String(e.reason))
+
 onMounted(() => {
   // 拦截 console
   (['log', 'warn', 'error', 'info', 'debug'] as const).forEach(level => {
-    const orig = (console as any)[level]
+    _origConsole[level] = (console as any)[level]
     ;(console as any)[level] = (...args: any[]) => {
       addLog(level, 'console', args.map((a: any) => a instanceof Error ? a.message : typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '))
-      orig.apply(console, args)
+      _origConsole[level].apply(console, args)
     }
   })
-  window.addEventListener('error', e => addLog('error', 'global', e.message || 'Unknown error'))
-  window.addEventListener('unhandledrejection', e => addLog('error', 'promise', (e.reason?.message) || String(e.reason)))
+  window.addEventListener('error', _onGlobalError)
+  window.addEventListener('unhandledrejection', _onUnhandledRejection)
 
   // 页面生命周期事件（与旧版 log_panel.js:205-216 对齐）
   document.addEventListener('visibilitychange', () => {
@@ -72,6 +77,13 @@ onMounted(() => {
     if (ctrl?.op === 'close') addLog('transport', 'rosbridge', '连接关闭')
     if (ctrl?.op === 'error') addLog('error', 'rosbridge', '错误: ' + (ctrl.message || ''))
   })
+})
+onUnmounted(() => {
+  for (const [level, orig] of Object.entries(_origConsole)) {
+    (console as any)[level] = orig
+  }
+  window.removeEventListener('error', _onGlobalError)
+  window.removeEventListener('unhandledrejection', _onUnhandledRejection)
 })
 
 function exportLogs() { const text = logs.value.map(e => `${e.ts} [${e.source}] ${e.level.toUpperCase()}  ${e.msg}`).join('\n'); const b = new Blob([text], { type: 'text/plain' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `ivg_log_${new Date().toISOString().slice(0, 10)}.txt`; a.click() }

@@ -172,5 +172,13 @@ export function parseUrdf(xml: string, meshBase: string): UrdfRobot {
     joints.push({ name, type, parent, child, origin, axis, limits })
   })
 
-  return { name: robotName, links, joints, materials, linkMap }
+  const robot: UrdfRobot = { name: robotName, links, joints, materials, linkMap }
+  // ── 调试日志喵~ ──
+  console.log('[URDF] 解析完成:', robotName, '| links:', links.length, '| joints:', joints.length, '| materials:', materials.size)
+  for (const l of links) {
+    const m = l.visual?.geometry?.mesh
+    const c = l.visual?.material?.color
+    if (m) console.log('[URDF]  link:', l.name, '| mesh:', m.filename, '| color:', c ? `rgba(${c.r},${c.g},${c.b},${c.a})` : '(无)')
+  }
+  return robot
 }

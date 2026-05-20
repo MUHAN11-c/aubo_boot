@@ -3,6 +3,8 @@
 基于 **ROS 2 Humble** + **MoveIt 2** 的奥博（Aubo）机械臂视觉抓取与运动规划系统，集成相机驱动、手眼标定、视觉位姿估计、GraspNet 抓取预测与 Web 前端控制。
 
 > **新机器部署请参阅 [DEPLOYMENT.md](DEPLOYMENT.md)** — 包含完整的环境搭建、依赖安装、编译构建和启动流程喵~
+>
+> **零基础复刻**：[学前知识](aubo_ros2_ws/docs/ZERO-BASIS-PREREQUISITES.md) + [分步复刻](aubo_ros2_ws/docs/ZERO-BASIS-REPLICATION.md)（基于 DEPLOYMENT / PROCESS-FLOW / VERSIONS 等整理）
 
 ---
 
@@ -156,7 +158,7 @@ aubo_ros2_ws/src/
 | 节点 | 职责 |
 |------|------|
 | **JointTrajectoryController** | C++ 预计算插值 + 独立发送线程 + RIB 流控 → `AuboHardwareInterface` |
-| **AuboStateBroadcaster** | 回调驱动的状态广播，200Hz 发布 `joint_states` |
+| **AuboStateBroadcaster** | 回调驱动的状态广播，~50Hz 发布 `joint_states` |
 | **AuboDashboardNode** | LifecycleNode，提供 20 个 ROS2 服务（IK/FK/IO 等 SDK 全功能） |
 
 核心文件：`aubo_driver_ros2/include/aubo_driver_ros2/joint_trajectory_controller.h`、`aubo_hardware_interface.h`、`aubo_dashboard_node.h`
@@ -306,7 +308,7 @@ move_group → follow_joint_trajectory (action)
 ### 5.1 构建
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd /home/mu/aubo_boot/aubo_ros2_ws
 source /opt/ros/humble/setup.bash
 source ~/ws_moveit/install/setup.bash   # MoveIt 2 工作空间（如有）
 colcon build
@@ -455,7 +457,7 @@ visual_pose_estimation / _python
 ## 9. Git 仓库
 
 ```bash
-cd /home/mu/IVG2.0
+cd /home/mu/aubo_boot
 git remote -v                                    # https://github.com/MUHAN11-c/aubo_boot
 
 git add -A

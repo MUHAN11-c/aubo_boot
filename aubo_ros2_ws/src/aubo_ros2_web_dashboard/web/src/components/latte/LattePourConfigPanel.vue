@@ -31,33 +31,33 @@ function num(e: Event) { return Number((e.target as HTMLInputElement).value) }
     </button>
     <div v-show="advancedOpen" class="grid grid-cols-2 gap-2 p-2 bg-slate-50 rounded border border-slate-100">
       <div>
-        <label class="text-[11px] text-slate-400">融合高度 (m)</label>
-        <input :value="mixHeight" type="number" step="0.001" class="w-full text-xs border border-slate-200 rounded px-1 py-0.5 mt-0.5"
+        <label for="pour-mix-height" class="text-[11px] text-slate-400">融合高度 (m)</label>
+        <input id="pour-mix-height" :value="mixHeight" type="number" step="0.001" min="0.0" max="0.2" class="w-full text-xs border border-slate-200 rounded px-1 py-0.5 mt-0.5"
                @input="emit('update:mixHeight', num($event))" />
       </div>
       <div>
-        <label class="text-[11px] text-slate-400">成形高度 (m)</label>
-        <input :value="drawHeight" type="number" step="0.001" class="w-full text-xs border border-slate-200 rounded px-1 py-0.5 mt-0.5"
+        <label for="pour-draw-height" class="text-[11px] text-slate-400">成形高度 (m)</label>
+        <input id="pour-draw-height" :value="drawHeight" type="number" step="0.001" min="0.0" max="0.2" class="w-full text-xs border border-slate-200 rounded px-1 py-0.5 mt-0.5"
                @input="emit('update:drawHeight', num($event))" />
       </div>
       <div>
-        <label class="text-[11px] text-slate-400">收尾高度 (m)</label>
-        <input :value="finishHeight" type="number" step="0.001" class="w-full text-xs border border-slate-200 rounded px-1 py-0.5 mt-0.5"
+        <label for="pour-finish-height" class="text-[11px] text-slate-400">收尾高度 (m)</label>
+        <input id="pour-finish-height" :value="finishHeight" type="number" step="0.001" min="0.0" max="0.2" class="w-full text-xs border border-slate-200 rounded px-1 py-0.5 mt-0.5"
                @input="emit('update:finishHeight', num($event))" />
       </div>
       <div>
-        <label class="text-[11px] text-slate-400">摆动振幅 (m)</label>
-        <input :value="wiggleAmp" type="number" step="0.001" class="w-full text-xs border border-slate-200 rounded px-1 py-0.5 mt-0.5"
+        <label for="pour-wiggle-amp" class="text-[11px] text-slate-400">摆动振幅 (m)</label>
+        <input id="pour-wiggle-amp" :value="wiggleAmp" type="number" step="0.001" min="0.0" max="0.05" class="w-full text-xs border border-slate-200 rounded px-1 py-0.5 mt-0.5"
                @input="emit('update:wiggleAmp', num($event))" />
       </div>
       <div>
-        <label class="text-[11px] text-slate-400">摆动频率 (Hz)</label>
-        <input :value="wiggleFreq" type="number" step="0.5" class="w-full text-xs border border-slate-200 rounded px-1 py-0.5 mt-0.5"
+        <label for="pour-wiggle-freq" class="text-[11px] text-slate-400">摆动频率 (Hz)</label>
+        <input id="pour-wiggle-freq" :value="wiggleFreq" type="number" step="0.5" min="0.5" max="20" class="w-full text-xs border border-slate-200 rounded px-1 py-0.5 mt-0.5"
                @input="emit('update:wiggleFreq', num($event))" />
       </div>
       <div class="flex items-center gap-2">
-        <label class="text-[11px] text-slate-400">抗晃荡</label>
-        <input type="checkbox" :checked="antiSlosh" @change="emit('update:antiSlosh', ($event.target as HTMLInputElement).checked)" />
+        <label for="pour-anti-slosh" class="text-[11px] text-slate-400">抗晃荡</label>
+        <input id="pour-anti-slosh" type="checkbox" :checked="antiSlosh" @change="emit('update:antiSlosh', ($event.target as HTMLInputElement).checked)" />
       </div>
     </div>
   </div>

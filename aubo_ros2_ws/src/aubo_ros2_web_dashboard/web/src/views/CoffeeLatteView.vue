@@ -16,7 +16,8 @@ import type { LattePreviewResponse, LatteStartPose } from '@/composables/api/use
 import { useJointChart } from '@/composables/viz/useJointChart'
 import { useDashboardSettings } from '@/composables/settings/useDashboardSettings'
 import { useLatteSession } from '@/composables/latte/useLatteSession'
-import { canonicalRosTopic } from '@/lib/utils'
+import { sameRosTopic } from '@/lib/utils'
+import { normalizeFrameId, ivgFindRelativeTransform, type Transform, type Vec3 } from '@/lib/tf_math'
 import Robot3dViewer from '@/components/ivg/Robot3dViewer.vue'
 import LattePatternSelector from '@/components/latte/LattePatternSelector.vue'
 import LatteCupConfigPanel from '@/components/latte/LatteCupConfigPanel.vue'
@@ -33,7 +34,7 @@ import {
 const { preview: previewLatte, loading: latteLoading } = useLattePreview()
 const { execute: executeLatte, executing: latteExecuting } = useLatteExecution()
 const { setLatteDo } = useRosService()
-const { isConnected, connect, subscribe, onRosJson, onControlJson } = useRos()
+const { isConnected, connected, connect, subscribe, unsubscribe, onRosJson, onControlJson } = useRos()
 const settings = useDashboardSettings()
 const sess = useLatteSession()
 
@@ -44,17 +45,16 @@ const jointStatesTopic = computed(() => settings.rosName('topic-joints', JOINT_S
 const toolStatusTopic = computed(() => settings.rosName('topic-tool-status', '/tool_changer_status'))
 const urdfParam = computed(() => settings.raw('urdf-param', '/robot_state_publisher:robot_description'))
 const fixedFrame = computed(() => settings.raw('tf-fixed-frame', 'base_link'))
-function sameTopic(topic: string, expected: string): boolean {
-  return canonicalRosTopic(topic) === canonicalRosTopic(expected)
-}
+// sameRosTopic 来自 @/lib/utils 喵~
 
 // ═══════════════════════ 连接状态 ═══════════════════════
-const connStatus = ref('正在连接…')
-const connOk = ref(false)
+// connOk 直接使用模块级 connected ref (useRos 唯一真相源)，避免组件挂载时 WebSocket 已连接而错过 'connection' 事件喵~
+const connOk = connected
+const connStatus = ref(connected.value ? '已连接' : '正在连接…')
 onControlJson((c) => {
-  if (c.op === 'connection') { connStatus.value = '已连接'; connOk.value = true }
-  if (c.op === 'close') { connStatus.value = '已断开，重连中…'; connOk.value = false }
-  if (c.op === 'error') { connStatus.value = '通信错误'; connOk.value = false }
+  if (c.op === 'connection') { connStatus.value = '已连接' }
+  if (c.op === 'close') { connStatus.value = '已断开，重连中…' }
+  if (c.op === 'error') { connStatus.value = '通信错误' }
 })
 
 // ═══════════════════════ DI 信号灯 ═══════════════════════
@@ -69,16 +69,42 @@ function parseDi(msg: any) {
 
 // ═══════════════════════ DO 开关 ═══════════════════════
 const do2On = ref(false); const do4On = ref(false)
+watch(do2On, async (v) => {
+  try { await setLatteDo(2, v) }
+  catch (e) { do2On.value = !v; sess.message.value = `DO2 控制失败: ${e}` }
+})
+watch(do4On, async (v) => {
+  try { await setLatteDo(4, v) }
+  catch (e) { do4On.value = !v; sess.message.value = `DO4 控制失败: ${e}` }
+})
 
-// ═══════════════════════ 末端位姿 ═══════════════════════
+// ═══════════════════════ 末端位姿 (TF 为主, /robot_status 为辅) ═══════════════════════
+// TF 是真机和仿真都工作的最可靠数据源 喵~
+interface TfEdge { parent: string; transform: Transform }
+const _tfEdges: Record<string, TfEdge> = {}
+
 const robotPose = reactive({
   x: '—', y: '—', z: '—', qx: '—', qy: '—', qz: '—', qw: '—',
   roll: '—', pitch: '—', yaw: '—',
 })
-const robotPoseReady = computed(() => robotPose.x !== '—' && robotPose.qx !== '—')
+
+/** 从 TF 树计算 base_link→tool_tcp 位姿 */
+function getEePoseFromTf(): Transform | null {
+  return ivgFindRelativeTransform('tool_tcp', 'base_link', _tfEdges)
+}
 
 function getStartPose(): LatteStartPose | undefined {
-  if (!robotPoseReady.value) return undefined
+  // 优先从 TF 获取 (真机/仿真都可用) 喵~
+  const tfPose = getEePoseFromTf()
+  if (tfPose) {
+    const { translation: t, rotation: q } = tfPose
+    if (isFinite(t.x) && isFinite(t.y) && isFinite(t.z) &&
+        isFinite(q.x) && isFinite(q.y) && isFinite(q.z) && isFinite(q.w)) {
+      return { x: t.x, y: t.y, z: t.z, qx: q.x, qy: q.y, qz: q.z, qw: q.w }
+    }
+  }
+  // 回退: /robot_status (真机模式)
+  if (robotPose.x === '—') return undefined
   const x = parseFloat(robotPose.x); const y = parseFloat(robotPose.y); const z = parseFloat(robotPose.z)
   if (!isFinite(x) || !isFinite(y) || !isFinite(z)) return undefined
   const qx = parseFloat(robotPose.qx); const qy = parseFloat(robotPose.qy)
@@ -86,6 +112,12 @@ function getStartPose(): LatteStartPose | undefined {
   if (!isFinite(qx) || !isFinite(qy) || !isFinite(qz) || !isFinite(qw)) return undefined
   return { x, y, z, qx, qy, qz, qw }
 }
+
+const robotPoseReady = computed(() => getEePoseFromTf() !== null || robotPose.x !== '—')
+
+// 预览时冻结 start_pose, 执行时复用 喵~
+const frozenStartPose = ref<LatteStartPose | null>(null)
+const poseWarning = ref('')
 
 // ═══════════════════════ 关节曲线 ═══════════════════════
 const { canvasRef: chartCanvasRef, legendRef: chartLegendRef, pushSample: pushJointSample, reset: resetJointChart, observeResize: observeJointChart } = useJointChart()
@@ -101,11 +133,26 @@ function toggleMonitoring() {
 }
 
 // ═══════════════════════ 消息处理 ═══════════════════════
+// TF: 构建边表用于 EE 位姿查询 (真机/仿真均可用) 喵~
 onRosJson(null, (msg: any, topic: string) => {
-  if (sameTopic(topic, latteDiTopic.value)) parseDi(msg)
+  if (!sameRosTopic(topic, '/tf') && !sameRosTopic(topic, '/tf_static')) return
+  for (const t of msg?.transforms ?? []) {
+    const child = normalizeFrameId(t.child_frame_id)
+    if (!child) continue
+    _tfEdges[child] = {
+      parent: normalizeFrameId(t.header?.frame_id ?? ''),
+      transform: {
+        translation: { x: t.transform?.translation?.x ?? 0, y: t.transform?.translation?.y ?? 0, z: t.transform?.translation?.z ?? 0 },
+        rotation: { x: t.transform?.rotation?.x ?? 0, y: t.transform?.rotation?.y ?? 0, z: t.transform?.rotation?.z ?? 0, w: t.transform?.rotation?.w ?? 1 },
+      },
+    }
+  }
 })
 onRosJson(null, (msg: any, topic: string) => {
-  if (!sameTopic(topic, robotStatusTopic.value)) return
+  if (sameRosTopic(topic, latteDiTopic.value)) parseDi(msg)
+})
+onRosJson(null, (msg: any, topic: string) => {
+  if (!sameRosTopic(topic, robotStatusTopic.value)) return
   if (!msg) return
   const p = msg.cartesian_position_xyz || {}
   const o = msg.cartesian_position?.orientation || {}
@@ -120,36 +167,58 @@ onRosJson(null, (msg: any, topic: string) => {
   }
 })
 onRosJson(null, (msg: any, topic: string) => {
-  if (!sameTopic(topic, jointStatesTopic.value)) return
+  if (!sameRosTopic(topic, jointStatesTopic.value)) return
   if (!msg) return
   pushJointSample(msg.name ?? [], msg.position ?? [])
 })
 
-// ═══════════════════════ 订阅 ═══════════════════════
+// ═══════════════════════ 订阅 (长连接, 只订阅一次, 不反复取消/重订) 喵~
+const _subbedTopics = new Set<string>()
+let _subsDone = false
 function setupSubs() {
-  if (!isConnected()) return
-  subscribe(latteDiTopic.value, settings.topicType('latte-di-topic', LATTE_DI_STATUS_TYPE), 10)
-  subscribe(robotStatusTopic.value, settings.topicType('topic-robot', ROBOT_STATUS_TYPE), 10)
-  subscribe(jointStatesTopic.value, settings.topicType('topic-joints', JOINT_STATES_TYPE), 30)
+  if (!isConnected() || _subsDone) return
+  _subsDone = true
+  const topics = [
+    [latteDiTopic.value, settings.topicType('latte-di-topic', LATTE_DI_STATUS_TYPE), 10],
+    [robotStatusTopic.value, settings.topicType('topic-robot', ROBOT_STATUS_TYPE), 10],
+    [jointStatesTopic.value, settings.topicType('topic-joints', JOINT_STATES_TYPE), 30],
+    ['/tf', 'tf2_msgs/msg/TFMessage', 0],
+    ['/tf_static', 'tf2_msgs/msg/TFMessage', 0],
+  ] as const
+  for (const [t, type, hz] of topics) {
+    subscribe(t, type, hz)
+    _subbedTopics.add(t)
+  }
 }
+onUnmounted(() => { for (const t of _subbedTopics) { unsubscribe(t) }; _subbedTopics.clear() })
+
+// 连接成功 → 订阅 (仅首次) 喵~
+onMounted(() => {
+  observeJointChart()
+  settings.loadSettings().catch(() => {})
+  if (!isConnected()) connect().catch(() => {})
+})
 onControlJson((c) => { if (c.op === 'connection') setupSubs() })
 watch(isConnected, v => { if (v) setupSubs() })
 if (isConnected()) setupSubs()
-onMounted(() => {
-  observeJointChart()
-  settings.loadSettings().then(() => { if (isConnected()) setupSubs() }).catch(() => {})
-  if (!isConnected()) connect().catch(() => {})
+// 设置变更时重新订阅 (话题名可能变了) 喵~
+watch(() => settings.version.value, () => {
+  if (!isConnected()) return
+  for (const t of _subbedTopics) { unsubscribe(t) }
+  _subbedTopics.clear()
+  _subsDone = false
+  setupSubs()
 })
-watch(() => settings.version.value, () => { if (isConnected()) setupSubs() })
 
 // ═══════════════════════ 预览 ═══════════════════════
 async function runLattePreview() {
-  sess.message.value = ''
-  sess.result.value = null
+  if (!robotPoseReady.value) { sess.message.value = '等待机械臂位姿数据…'; return }
+  sess.message.value = ''; sess.result.value = null; sess.execResult.value = null; poseWarning.value = ''
   sess.saveRpy()
   try {
-    const req = sess.buildRequest('preview', getStartPose())
-    req.mode = undefined  // BFF preview doesn't use mode field
+    // 冻结当前 start_pose, 执行时复用喵~
+    frozenStartPose.value = getStartPose() ?? null
+    const req = sess.buildRequest('preview', frozenStartPose.value ?? undefined)
     const data = await previewLatte(req as any)
     sess.result.value = data
     sess.message.value = data.message || 'OK'
@@ -160,11 +229,22 @@ async function runLattePreview() {
 
 // ═══════════════════════ 执行 ═══════════════════════
 async function runLatteAction() {
+  if (!robotPoseReady.value) { sess.message.value = '等待机械臂位姿数据…'; return }
+  if (!frozenStartPose.value) { sess.message.value = '请先预览轨迹再执行'; return }
+  // 检测机器人是否移动过喵~
+  const cur = getStartPose()
+  if (cur) {
+    const dx = cur.x - frozenStartPose.value.x; const dy = cur.y - frozenStartPose.value.y; const dz = cur.z - frozenStartPose.value.z
+    const dist = Math.sqrt(dx*dx + dy*dy + dz*dz)
+    if (dist > 0.01) poseWarning.value = `⚠ 机器人已移动 ${(dist*1000).toFixed(0)}mm, 预览和执行轨迹可能不一致`
+  }
   sess.message.value = '执行中…'
   try {
-    const req = sess.buildRequest('action', getStartPose())
+    const req = sess.buildRequest('action', frozenStartPose.value)
     const result = await executeLatte(req as any)
     sess.message.value = result.message || '执行完成'
+    // 执行结果不覆盖预览的 3D 叠加数据喵~
+    sess.execResult.value = result
   } catch (e: any) {
     sess.message.value = `执行失败: ${String(e?.message ?? e)}`
   }
@@ -284,6 +364,9 @@ const isGenerated = computed(() => sess.patternType.value !== '')
             @update:speed-scale="sess.speedScale.value = $event"
             @save-rpy="sess.saveRpy()"
           />
+
+          <!-- 位姿移动警告 -->
+          <div v-if="poseWarning" class="text-xs p-1.5 mb-1 rounded bg-amber-50 text-amber-700">{{ poseWarning }}</div>
 
           <!-- 预览/执行按钮 + 结果 -->
           <LatteControls

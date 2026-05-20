@@ -178,7 +178,7 @@ socket.create_connection((server_host, 8899), timeout=2.0)
   ├─ TCP 可达 → MODE = "real"
   │   └─ 启动 aubo_driver_ros2 C++ 节点
   │       ├── aubo_dashboard (LifecycleNode, :8899)
-  │       ├── aubo_state_broadcaster (200Hz 回调)
+  │       ├── aubo_state_broadcaster (~50Hz 回调)
   │       └── joint_trajectory_controller (TCP2CAN 轨迹流)
   │
   └─ TCP 不可达 → MODE = "simulation"

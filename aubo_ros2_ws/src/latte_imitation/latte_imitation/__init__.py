@@ -44,6 +44,7 @@ from .config_loader import (
     WorkspaceSafetyConfig,
 )
 from .tf_utils import get_current_ee_pose, get_ee_pose_from_tf, TfQueryNode
+from .dmp_learner import DMP, DMP3D
 
 __all__ = [
     "CartesianTrajectory",

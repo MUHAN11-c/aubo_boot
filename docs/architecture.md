@@ -136,7 +136,7 @@
 | 节点 | 技术栈 | 对外接口 | 职责 |
 |------|--------|---------|------|
 | `joint_trajectory_controller` | C++ / AUBO SDK | Action: `/follow_joint_trajectory` | 五次多项式插值，TCP2CAN 流式发送 |
-| `aubo_state_broadcaster` | C++ / AUBO SDK | Topic: `/joint_states` (200Hz), `/io_states`, `/robot_status` | SDK 回调驱动状态发布 |
+| `aubo_state_broadcaster` | C++ / AUBO SDK | Topic: `/joint_states` (~50Hz), `/io_states`, `/robot_status` | SDK 回调驱动状态发布 |
 | `aubo_dashboard` | C++ / LifecycleNode | 18+ Service: IK/FK/IO/Move | 机械臂基础能力封装 |
 | `percipio_camera` | C++ | Topic: `/camera/*/image_raw`, `/camera/*/points` | 知微 FM830 深度相机驱动 |
 
@@ -252,10 +252,8 @@ web/
     │   │   ├── CameraStream.vue   # MJPEG 视频流 <img>
     │   │   ├── RobotStatusBar.vue # 底部状态栏（替代 ivg_status_bar.js）
     │   │   ├── JointChart.vue     # 关节曲线图（vue-echarts 替代手写 Canvas）
-    │   │   ├── PoseCard.vue       # 位姿卡片（替代 pose_card.js 手写 HTML）
     │   │   ├── ProjectionOverlay.vue  # 2D 抓取投影（Canvas 2D，框架无关保留）
     │   │   ├── ToolSwapBar.vue    # 工具快换按钮组
-    │   │   ├── GraspControls.vue  # 抓取控制面板
     │   │   ├── TopicSettingsModal.vue # 话题设置弹窗
     │   │   └── SiteNav.vue        # 全局导航栏（替代 ivg_site_nav.js）
     │   └── ui/                    # 纯 UI 封装（Element Plus 二次封装）

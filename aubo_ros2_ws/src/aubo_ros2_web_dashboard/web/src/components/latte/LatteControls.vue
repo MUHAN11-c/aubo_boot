@@ -24,12 +24,13 @@ const emit = defineEmits<{
   <div class="flex gap-2 mb-2">
     <el-button size="small" :loading="previewLoading" @click="emit('preview')">预览</el-button>
     <el-button size="small" type="warning" :loading="execExecuting"
-               :disabled="!rosConnected" @click="emit('execute')">执行</el-button>
+               :disabled="!rosConnected" :title="!rosConnected ? '请先连接 ROS (检查 rosbridge 状态)' : ''"
+               @click="emit('execute')">执行</el-button>
   </div>
 
   <!-- 消息 -->
-  <div v-if="message" class="text-xs p-2 rounded mb-1"
-       :class="success !== false ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'">
+  <div v-if="message" role="alert" class="text-xs p-2 rounded mb-1"
+       :class="success === true ? 'bg-green-50 text-green-700' : success === false ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-600'">
     {{ message }}
   </div>
 

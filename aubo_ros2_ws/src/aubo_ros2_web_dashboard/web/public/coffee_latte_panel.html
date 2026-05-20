@@ -40,19 +40,72 @@ DI 反馈灯在底部监控区；DO2 / DO4 开关在右侧（工序逻辑待接�
 </div>
 </div>
 </section>
-<section class="panel panel--camera panel--camera-result layout-tier-2" aria-label="咖啡流程与状态示意">
-<h2 id="latte-flow-panel-title">咖啡流程示意</h2>
-<div class="panel-canvas-wrap panel-canvas-wrap--result">
-<div class="latte-flow-viz" aria-label="流程占位区">
-<ol class="latte-flow-steps">
-<li><span class="latte-flow-steps__idx">1</span> 出杯 / 定位</li>
-<li><span class="latte-flow-steps__idx">2</span> 萃取与奶泡</li>
-<li><span class="latte-flow-steps__idx">3</span> 拉花执行</li>
-</ol>
-<p class="latte-flow-note">右侧 IO 状态接入后，可在此叠加图文或相机画面。</p>
-</div>
-</div>
-</section>
+	<section class="panel panel--camera panel--camera-result layout-tier-2" aria-label="拉花参数控制">
+	<h2 id="latte-flow-panel-title">拉花参数控制</h2>
+	<div class="panel-canvas-wrap panel-canvas-wrap--result">
+	<!-- ── 图案选择 ── -->
+	<div class="latte-ctrl-group">
+	<h3 class="latte-ctrl-title">拉花图案</h3>
+	<div id="latte-pattern-cards" class="latte-pattern-cards" role="radiogroup" aria-label="拉花图案选择"></div>
+	</div>
+	<!-- ── Episode 选择 (录制回放模式) ── -->
+	<div class="latte-ctrl-group" id="latte-episode-row">
+	<h3 class="latte-ctrl-title">录制回放</h3>
+	<label class="latte-cfg-row"><span class="latte-cfg-label">Episode 编号</span><input id="latte-episode" type="number" value="0" min="0" max="39" step="1" class="latte-num-inp" /></label>
+	</div>
+	<!-- ── 杯子配置 ── -->
+	<div class="latte-ctrl-group">
+	<h3 class="latte-ctrl-title">杯子参数</h3>
+	<div class="latte-cfg-grid">
+	<label class="latte-cfg-row"><span class="latte-cfg-label">中心 X (m)</span><input id="latte-cupX" type="number" value="0.0" step="0.01" class="latte-num-inp" /></label>
+	<label class="latte-cfg-row"><span class="latte-cfg-label">中心 Y (m)</span><input id="latte-cupY" type="number" value="0.0" step="0.01" class="latte-num-inp" /></label>
+	<label class="latte-cfg-row"><span class="latte-cfg-label">液面 Z (m)</span><input id="latte-cupZ" type="number" value="0.15" step="0.001" class="latte-num-inp" /></label>
+	<label class="latte-cfg-row"><span class="latte-cfg-label">半径 (m)</span><input id="latte-cupR" type="number" value="0.04" step="0.001" class="latte-num-inp" /></label>
+	<label class="latte-cfg-row"><span class="latte-cfg-label">郁金香层数</span><input id="latte-tulip-layers" type="number" value="3" min="2" max="6" step="1" class="latte-num-inp" /></label>
+	</div>
+	</div>
+	<!-- ── 倾倒参数 ── -->
+	<div class="latte-ctrl-group">
+	<h3 class="latte-ctrl-title">倾倒参数</h3>
+	<div class="latte-cfg-grid">
+	<label class="latte-cfg-row"><span class="latte-cfg-label">混合高度偏移 (m)</span><input id="latte-mixH" type="range" value="0.076" min="0.01" max="0.15" step="0.001" class="latte-range" /><span class="latte-range-val" id="latte-mixH_val">0.076</span></label>
+	<label class="latte-cfg-row"><span class="latte-cfg-label">绘制高度偏移 (m)</span><input id="latte-drawH" type="range" value="0.006" min="0.001" max="0.03" step="0.001" class="latte-range" /><span class="latte-range-val" id="latte-drawH_val">0.006</span></label>
+	<label class="latte-cfg-row"><span class="latte-cfg-label">完成高度偏移 (m)</span><input id="latte-finishH" type="range" value="0.076" min="0.01" max="0.15" step="0.001" class="latte-range" /><span class="latte-range-val" id="latte-finishH_val">0.076</span></label>
+	<label class="latte-cfg-row"><span class="latte-cfg-label">摆动振幅 (m)</span><input id="latte-wiggleAmp" type="range" value="0.006" min="0.001" max="0.02" step="0.001" class="latte-range" /><span class="latte-range-val" id="latte-wiggleAmp_val">0.006</span></label>
+	<label class="latte-cfg-row"><span class="latte-cfg-label">摆动频率 (Hz)</span><input id="latte-wiggleFreq" type="range" value="5.0" min="1.0" max="15.0" step="0.5" class="latte-range" /><span class="latte-range-val" id="latte-wiggleFreq_val">5.0</span></label>
+	<label class="latte-cfg-row"><span class="latte-cfg-label">防晃</span><input id="latte-antiSlosh" type="checkbox" checked class="latte-chk" /></label>
+	</div>
+	</div>
+	<!-- ── 运动约束 ── -->
+	<div class="latte-ctrl-group">
+	<h3 class="latte-ctrl-title">运动约束</h3>
+	<div class="latte-cfg-grid">
+	<label class="latte-cfg-row"><span class="latte-cfg-label">最大速度 (m/s)</span><input id="latte-maxVel" type="range" value="0.05" min="0.01" max="0.3" step="0.01" class="latte-range" /><span class="latte-range-val" id="latte-maxVel_val">0.05</span></label>
+	<label class="latte-cfg-row"><span class="latte-cfg-label">最大加速度 (m/s²)</span><input id="latte-maxAcc" type="range" value="0.1" min="0.01" max="1.0" step="0.01" class="latte-range" /><span class="latte-range-val" id="latte-maxAcc_val">0.1</span></label>
+	<label class="latte-cfg-row"><span class="latte-cfg-label">最大加加速度 (m/s³)</span><input id="latte-maxJerk" type="range" value="0.5" min="0.1" max="5.0" step="0.1" class="latte-range" /><span class="latte-range-val" id="latte-maxJerk_val">0.5</span></label>
+	</div>
+	</div>
+	<!-- ── RPY 变换 ── -->
+	<div class="latte-ctrl-group">
+	<h3 class="latte-ctrl-title">轨迹变换 (RPY °)</h3>
+	<div class="latte-cfg-grid">
+	<label class="latte-cfg-row"><span class="latte-cfg-label">Roll (°)</span><input id="latte-roll" type="number" value="0" step="1" class="latte-num-inp" /></label>
+	<label class="latte-cfg-row"><span class="latte-cfg-label">Pitch (°)</span><input id="latte-pitch" type="number" value="0" step="1" class="latte-num-inp" /></label>
+	<label class="latte-cfg-row"><span class="latte-cfg-label">Yaw (°)</span><input id="latte-yaw" type="number" value="0" step="1" class="latte-num-inp" /></label>
+	<label class="latte-cfg-row"><span class="latte-cfg-label">速度倍率</span><input id="latte-speedScale" type="number" value="1.0" min="0.01" max="10.0" step="0.1" class="latte-num-inp" /></label>
+	</div>
+	</div>
+	<!-- ── 执行按钮 ── -->
+	<div class="latte-ctrl-group latte-exec-row">
+	<button type="button" id="latte-btn-preview" class="latte-btn latte-btn--preview">预览</button>
+	<button type="button" id="latte-btn-execute" class="latte-btn latte-btn--execute">执行</button>
+	<button type="button" id="latte-btn-stop" class="latte-btn latte-btn--stop">停止</button>
+	<button type="button" id="latte-btn-home" class="latte-btn latte-btn--home">回原点</button>
+	</div>
+	<!-- ── 消息 ── -->
+	<div id="latte-message" class="latte-msg" style="display:none"></div>
+	</div>
+	</section>
 </div>
 </div>
 <section class="panel panel--control panel--tier-3 panel--latte-io" aria-label="咖啡拉花 IO 与工序">
@@ -211,6 +264,7 @@ autocomplete="off" />
 <script type="module" src="js/ivg_site_nav.js"></script>
 <script type="module" src="js/vision_grasp_panel.js?v=20260424_conn_status_plain"></script>
 <script type="module" src="js/coffee_latte_io.js"></script>
+	<script type="module" src="js/latte/latte_controls.js"></script>
 <script type="module" src="js/core/ivg_status_bar.js"></script>
 </body>
 </html>

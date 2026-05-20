@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - develop
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  ci:
+    name: ${{ matrix.ros_distro }} (node ${{ matrix.node_version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ros_distro:
+          - noetic
+          - humble
+          # Temporarily disabled until next rosbridge release is synced
+          # - jazzy
+          # - kilted
+        node_version: [20, 22, 24]
+    env:
+      ROS_DISTRO: ${{ matrix.ros_distro }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          cache: npm
+          node-version: ${{ matrix.node_version }}
+
+      - name: Install Node.js dependencies
+        run: npm ci
+
+      - name: Build JavaScript library
+        run: npm run build --workspaces --if-present
+
+      - name: Run tests
+        run: npm test --workspaces --if-present
+
+  docs:
+    uses: ./.github/workflows/docs.yml
+    secrets: inherit
+    with:
+      deploy: false

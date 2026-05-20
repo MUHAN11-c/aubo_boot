@@ -102,14 +102,14 @@ ivg_print_access_urls() {
     fi
     echo -e "${GREEN}手眼标定:     http://${lh}:${HAND_EYE_PORT}/${NC}"
     echo -e "${GREEN}VPE FastAPI:  http://${lh}:${WEB_PORT}/${NC}"
-    echo -e "${GREEN}IVG 门户:     $(ivg_web_dash_url "$lh" "")${NC}"
-    echo -e "${GREEN}视觉抓取:     $(ivg_web_dash_url "$lh" "vision")${NC}"
-    echo -e "${GREEN}咖啡拉花:     $(ivg_web_dash_url "$lh" "latte")${NC}"
+    echo -e "${GREEN}IVG 门户:     $(ivg_web_dash_url "$lh" "index.html")${NC}"
+    echo -e "${GREEN}视觉抓取:     $(ivg_web_dash_url "$lh" "vision_grasp_panel.html")${NC}"
+    echo -e "${GREEN}咖啡拉花:     $(ivg_web_dash_url "$lh" "coffee_latte_panel.html")${NC}"
     echo ""
     local -a lan_ips=()
     mapfile -t lan_ips < <(ivg_lan_ipv4_addrs)
     for ip in "${lan_ips[@]}"; do
-        echo -e "${GREEN}  [${ip}] 门户: $(ivg_web_dash_url "$ip" "")${NC}"
+        echo -e "${GREEN}  [${ip}] 门户: $(ivg_web_dash_url "$ip" "index.html")${NC}"
     done
 }
 
@@ -192,33 +192,14 @@ echo ""
 if [ "$SKIP_BUILD" = "1" ]; then
     echo -e "${YELLOW}[0] 跳过构建 (SKIP_BUILD=1)${NC}"
 else
-    echo -e "${GREEN}[0] 构建...${NC}"
+    echo -e "${GREEN}[0] 构建 (colcon)...${NC}"
     (
         cd "$WS"
-        WEB_DASH_WEB_DIR="${WS}/src/aubo_ros2_web_dashboard/web"
-        if [ "$SKIP_WEB_BUILD" = "1" ]; then
-            echo -e "${YELLOW}  → 跳过 Web Dashboard 前端构建 (SKIP_WEB_BUILD=1)${NC}"
-        elif [ -f "${WEB_DASH_WEB_DIR}/package.json" ]; then
-            echo -e "${BLUE}  → 构建 Web Dashboard Vue 3 前端...${NC}"
-            if ! command -v npm >/dev/null 2>&1; then
-                echo -e "${RED}npm 未安装，无法构建 Web Dashboard 前端。请先安装 Node.js/npm 或设置 SKIP_WEB_BUILD=1${NC}"
-                exit 1
-            fi
-            cd "$WEB_DASH_WEB_DIR"
-            if [ ! -d "node_modules" ]; then
-                echo -e "${BLUE}    → node_modules 不存在，执行 npm ci...${NC}"
-                npm ci
-            fi
-            rm -rf dist .vite
-            npm run build
-            cd "$WS"
-        else
-            echo -e "${YELLOW}  ⚠ 未找到 Web Dashboard package.json，跳过前端构建${NC}"
-        fi
         source "$ROS2_SETUP"
         if [ "$FIRST_BUILD" = "0" ]; then
             source install/setup.bash
         fi
+        # Web Dashboard 使用纯 HTML/JS (web/public/)，无需 npm 构建喵~
         colcon build
     )
     echo -e "${GREEN}  ✓ 构建完成${NC}"

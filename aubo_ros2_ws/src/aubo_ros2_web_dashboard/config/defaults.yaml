@@ -8,6 +8,10 @@ gateway:
   port: 8090                # uvicorn 监听端口
   gzip_min_size: 512        # GZip 压缩阈值（字节）
 
+# ---- 日志 ----
+logging:
+  level: "INFO"             # Python logging 级别 (DEBUG/INFO/WARNING/ERROR)
+
 # ---- rosbridge 上游 (Tornado WebSocket) ----
 rosbridge:
   host: "127.0.0.1"

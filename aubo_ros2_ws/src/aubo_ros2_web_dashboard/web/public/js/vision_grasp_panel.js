@@ -28,7 +28,9 @@ import { createVisionServiceActions } from './vision_grasp/services.js';
 import { createVisionUiBinder } from './vision_grasp/ui_binder.js';
 import { bindVisionSubscriptions } from './vision_grasp/subscription_binder.js';
 import { createVisionModeController } from './vision_grasp/mode_controller.js';
-import { canonicalRosTopic } from './core/utils.js';
+import { canonicalRosTopic, rosMsgArrayField } from './core/utils.js';
+import { logBus } from './core/log-bus.js';
+import { createMonitoringCollapse } from './components/monitoring-collapse.js';
 import {
 	VISION_SETTINGS_DEFAULTS,
 	VISION_ALL_SETTING_IDS,
@@ -74,9 +76,6 @@ import {
 	const SETTINGS_DEFAULTS = VISION_SETTINGS_DEFAULTS;
 	/** v3：含 TF 与按钮服务名；v2 仅订阅话题 */
 	const TOPIC_STORAGE_KEY = 'ivg_vision_grasp_topics_v3';
-	const MONITORING_COLLAPSED_KEY = 'ivg_vision_monitoring_collapsed';
-	let monitoringBundleMinRaf = 0;
-	let monitoringPoseResizeObserver = null;
 	let pageRealtimePaused = false;
 	/** AI/GraspNet：左图与投影底图用单帧 JPEG；抓取话题到达后防抖再各刷一帧，避免 MJPEG 卡顿 */
 	let graspColorSnapTimer = null;
@@ -97,6 +96,9 @@ import {
 		maxSamples: 280,
 		lineColors: ['#2563eb', '#16a34a', '#d97706', '#db2777', '#7c3aed', '#0d9488']
 	});
+	/** 监控区折叠组件（共享，替代原来 ~80 行重复代码）喵~ */
+	const monitoringCollapse = createMonitoringCollapse({ getById: $, jointChart });
+
 	const serviceActions = createVisionServiceActions({
 		transport: ivgTransport,
 		log: logSvc,
@@ -211,28 +213,6 @@ import {
 		if (!pageRealtimePaused) return;
 		pageRealtimePaused = false;
 		connect();
-	}
-
-	/**
-	 * JointState 等：rosbridge / 部分序列化为普通数组，也可能为 { data: [...] } 或类数组。
-	 * @param {object} msg
-	 * @param {string} key
-	 * @returns {unknown[]}
-	 */
-	function rosMsgArrayField(msg, key) {
-		if (!msg || typeof msg !== 'object') return [];
-		const v = msg[key];
-		if (v == null) return [];
-		if (Array.isArray(v)) return v;
-		if (typeof v === 'object' && Array.isArray(v.data)) return v.data;
-		if (typeof v === 'object' && typeof v.length === 'number') {
-			try {
-				return Array.prototype.slice.call(v);
-			} catch (e) {
-				return [];
-			}
-		}
-		return [];
 	}
 
 	/** 上一次成功渲染的末端位姿 HTML（静止或单帧缺字段时沿用，避免闪回「等待数据」） */
@@ -450,12 +430,15 @@ import {
 		const ts = new Date().toLocaleTimeString();
 		const el = $('svc-log');
 		if (el) el.textContent = `${ts} ${msg}`;
-		// 同步输出到浏览器控制台，方便调试
-		if (msg.indexOf('错误') !== -1 || msg.indexOf('失败') !== -1) {
-			console.warn(`[vision] ${ts} ${msg}`);
-		} else {
-			console.log(`[vision] ${ts} ${msg}`);
-		}
+			// 转发到统一日志总线喵~
+			const isErr = msg.indexOf('错误') !== -1 || msg.indexOf('失败') !== -1;
+			logBus.addLog(isErr ? 'error' : 'info', 'service', msg);
+			// 同步输出到浏览器控制台，方便调试
+			if (isErr) {
+				console.warn(`[vision] ${ts} ${msg}`);
+			} else {
+				console.log(`[vision] ${ts} ${msg}`);
+			}
 	}
 
 	/** 连接 ivg_web_serve 控制面 WebSocket；成功后 startSubscriptions */
@@ -529,90 +512,8 @@ import {
 		modeController.syncModeUi();
 	}
 
-	function scheduleSyncMonitoringBundleMinHeight() {
-		if (monitoringBundleMinRaf) return;
-		monitoringBundleMinRaf = requestAnimationFrame(() => {
-			monitoringBundleMinRaf = 0;
-			syncMonitoringBundleMinHeight();
-		});
-	}
-
-	/**
-	 * 写入 --ivg-monitoring-bundle-min-px（右列位姿卡 scrollHeight），供底边栏最小高度使用。
-	 * 与 PC / iPad 无关：是否采用该变量仅由 vision_grasp_panel.css 的 @media 决定，避免 JS 按视口分叉。
-	 */
-	function syncMonitoringBundleMinHeight() {
-		const section = document.getElementById('layout-monitoring-section');
-		const bundle = document.getElementById('layout-monitoring-bundle');
-		const poseCol = bundle && bundle.querySelector('.layout-monitoring-pose-col');
-		if (!bundle || !poseCol) return;
-
-		if (!section || section.classList.contains('is-monitoring-collapsed')) {
-			bundle.style.removeProperty('--ivg-monitoring-bundle-min-px');
-			return;
-		}
-
-		const intrinsic = Math.ceil(poseCol.scrollHeight);
-		const floorPx = 260;
-		bundle.style.setProperty('--ivg-monitoring-bundle-min-px', `${Math.max(floorPx, intrinsic)}px`);
-	}
-
-	function bindMonitoringBundleMinHeightSync() {
-		const bundle = document.getElementById('layout-monitoring-bundle');
-		const poseCol = bundle && bundle.querySelector('.layout-monitoring-pose-col');
-		if (!poseCol) return;
-
-		if (typeof ResizeObserver !== 'undefined') {
-			if (monitoringPoseResizeObserver) monitoringPoseResizeObserver.disconnect();
-			monitoringPoseResizeObserver = new ResizeObserver(() => scheduleSyncMonitoringBundleMinHeight());
-			monitoringPoseResizeObserver.observe(poseCol);
-		}
-		window.addEventListener('resize', scheduleSyncMonitoringBundleMinHeight);
-		if (document.fonts && typeof document.fonts.ready !== 'undefined' && document.fonts.ready.then) {
-			void document.fonts.ready.then(() => scheduleSyncMonitoringBundleMinHeight());
-		}
-	}
-
-	function bindMonitoringSectionCollapse() {
-		const section = document.getElementById('layout-monitoring-section');
-		const btn = document.getElementById('btn-monitoring-toggle');
-		if (!section || !btn) return;
-
-		function applyCollapsed(collapsed) {
-			section.classList.toggle('is-monitoring-collapsed', collapsed);
-			btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-			const hint = btn.querySelector('.layout-monitoring-toggle__hint');
-			if (hint) hint.textContent = collapsed ? '展开' : '收起';
-			try {
-				localStorage.setItem(MONITORING_COLLAPSED_KEY, collapsed ? '1' : '0');
-			} catch (_) {
-				/* ignore quota / private mode */
-			}
-			if (!collapsed) {
-				requestAnimationFrame(() => {
-					jointChart.observeResize();
-					window.dispatchEvent(new Event('resize'));
-					scheduleSyncMonitoringBundleMinHeight();
-					requestAnimationFrame(() => scheduleSyncMonitoringBundleMinHeight());
-				});
-			} else {
-				const bundleEl = document.getElementById('layout-monitoring-bundle');
-				if (bundleEl) bundleEl.style.removeProperty('--ivg-monitoring-bundle-min-px');
-			}
-		}
-
-		let initialCollapsed = false;
-		try {
-			initialCollapsed = localStorage.getItem(MONITORING_COLLAPSED_KEY) === '1';
-		} catch (_) {
-			/* use expanded */
-		}
-		applyCollapsed(initialCollapsed);
-
-		btn.addEventListener('click', () => {
-			applyCollapsed(!section.classList.contains('is-monitoring-collapsed'));
-		});
-	}
+	// 监控区折叠/展开 → 改用共享组件 monitoring-collapse.js 喵~
+	// scheduleSyncMonitoringBundleMinHeight 已委托给 monitoringCollapse.scheduleSyncMinHeight()
 
 	document.addEventListener('DOMContentLoaded', () => {
 		void (async () => {
@@ -620,10 +521,9 @@ import {
 			loadTopicsFromStorage();
 
 			jointChart.observeResize();
-			bindMonitoringSectionCollapse();
-			bindMonitoringBundleMinHeightSync();
-			scheduleSyncMonitoringBundleMinHeight();
-			requestAnimationFrame(() => scheduleSyncMonitoringBundleMinHeight());
+			monitoringCollapse.bindEvents();
+			monitoringCollapse.scheduleSyncMinHeight();
+			requestAnimationFrame(() => monitoringCollapse.scheduleSyncMinHeight());
 			window.addEventListener('resize', scheduleProjectionDraw);
 			uiBinder.bindResultImageLoad();
 			document.addEventListener('visibilitychange', () => {

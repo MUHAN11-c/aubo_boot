@@ -1,4 +1,4 @@
-// patches.js — ros3d Object3D polyfill + Three.js safe-add patch
+// patches.js — ros3d Object3D polyfill + Three.js safe-add patch + 材质升级喵~
 const ivgObject3dAddPatchedPrototypes =
 		typeof WeakSet !== 'undefined' ? new WeakSet() : null;
 	function installIvgThreeSafeAddPatchOnPrototype(object3dPrototype) {
@@ -20,10 +20,29 @@ const ivgObject3dAddPatchedPrototypes =
 							for (let mi = 0; mi < materials.length; mi++) {
 								const mat = materials[mi];
 								if (!mat) continue;
+								// 修复 opacity=0 的透明网格 → 恢复不透明
 								if (mat.transparent === true && typeof mat.opacity === 'number' && mat.opacity === 0) {
 									mat.opacity = 1;
 									mat.transparent = false;
 									mat.needsUpdate = true;
+								}
+								// MeshBasicMaterial → MeshPhongMaterial 升级
+								// ros3djs 默认给无 <material> 的 STL 网格用 MeshBasicMaterial(0x999999)
+								// 这种材质完全不受光照影响 → 平面灰色无立体感
+								// 升级为 MeshPhongMaterial 对齐 RViz2 的 OGRE Phong 渲染喵~
+								if (mat.isMeshBasicMaterial && !mat.__ivgUpgraded) {
+									mat.__ivgUpgraded = true;
+									try {
+										node.material = new THREE.MeshPhongMaterial({
+											color: mat.color,
+											specular: 0x222222,
+											shininess: 40,
+											opacity: mat.opacity,
+											transparent: mat.transparent,
+											side: mat.side,
+										});
+										if (typeof mat.dispose === 'function') mat.dispose();
+									} catch (e) { /* 材质升级失败则保持原状 */ }
 								}
 							}
 						});

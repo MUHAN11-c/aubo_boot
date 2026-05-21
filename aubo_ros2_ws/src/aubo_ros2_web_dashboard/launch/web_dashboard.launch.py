@@ -36,9 +36,9 @@ def generate_launch_description():
     ld = LaunchDescription()
 
     # ── 路径解析 ────────────────────────────────────────────────────────
-    # Vue 3 构建产物 (web/dist)
+    # 纯 HTML/JS MPA 静态文件 (web/public)
     pkg_share_str = get_package_share_directory("aubo_ros2_web_dashboard")
-    web_dir = os.path.join(pkg_share_str, "web", "dist")
+    web_dir = os.path.join(pkg_share_str, "web", "public")
 
     # rosbridge launch 文件路径
     rosbridge_launch = PathJoinSubstitution([

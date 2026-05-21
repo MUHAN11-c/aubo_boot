@@ -29,3 +29,16 @@ export function encodeTopicQueryValue(topic) {
     return encodeURIComponent(seg);
   }).join('/');
 }
+
+/** 从 ROS 消息中提取数组字段 (兼容 Array / {data:[]} / array-like) 喵~ */
+export function rosMsgArrayField(msg, key) {
+  if (!msg || typeof msg !== 'object') return [];
+  const v = msg[key];
+  if (v == null) return [];
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'object' && Array.isArray(v.data)) return v.data;
+  if (typeof v === 'object' && typeof v.length === 'number') {
+    try { return Array.prototype.slice.call(v); } catch (e) { return []; }
+  }
+  return [];
+}

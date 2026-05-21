@@ -65,7 +65,6 @@ IVG_ROSBAG_TOPICS="${IVG_ROSBAG_TOPICS:-}"
 HAND_EYE_PORT="${HAND_EYE_PORT:-8070}"
 WEB_VIDEO_PORT="${WEB_VIDEO_PORT:-8089}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
-SKIP_WEB_BUILD="${SKIP_WEB_BUILD:-0}"
 SKIP_ROSBAG="${SKIP_ROSBAG:-0}"
 
 # ═══════════════════════════════════════════════════════════════
@@ -142,7 +141,10 @@ launch() {
     # 清除代理 — 所有 ROS 2 节点和 WebSocket 均为本地通信，走代理反而阻断连接
     full+="unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY all_proxy FTP_PROXY ftp_proxy; "
     full+="export NO_PROXY=\"127.0.0.1,localhost,0.0.0.0,::1\${NO_PROXY:+, \${NO_PROXY}}\"; export no_proxy=\"\$NO_PROXY\"; "
-    full+="export LD_LIBRARY_PATH=\"\$HOME/.local/lib/python3.10/site-packages/torch/lib:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/aubocontroller:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/log4cplus:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/config:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/protobuf:\$LD_LIBRARY_PATH\" && cd \"${WS}\" && source \"${ROS2_SETUP}\" && source install/setup.bash && ${cmd}; exec bash"
+    # PyTorch 绑定的 CUDA 库（需优先于系统 CUDA，避免版本冲突）
+    local nvidia_libs
+    nvidia_libs=$(echo "$HOME"/.local/lib/python3.10/site-packages/nvidia/*/lib | tr ' ' ':')
+    full+="export LD_LIBRARY_PATH=\"\$HOME/.local/lib/python3.10/site-packages/torch/lib:${nvidia_libs}:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/aubocontroller:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/log4cplus:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/config:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/protobuf:\$LD_LIBRARY_PATH\" && cd \"${WS}\" && source \"${ROS2_SETUP}\" && source install/setup.bash && ${cmd}; exec bash"
     "$TERMINATOR" --new-tab --title="$title" \
         -e "bash -c '${full}'" &
 }

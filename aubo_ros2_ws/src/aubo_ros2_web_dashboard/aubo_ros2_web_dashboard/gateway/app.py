@@ -8,7 +8,7 @@
   5. /api/v1/tool-geometries     — 工具几何数据 (BFF, 与 tools.yaml 同步)
   6. /api/ivg/robot-mesh/*      — 机器人 3D 模型文件
   7. /js/robotwebtools/*        — RobotWebTools 静态资源
-  8. /*                         — 前端静态页面 (SPA)
+  8. /*                         — MPA 静态文件 (纯 HTML/JS, 零构建)
 
 BFF 纯 HTTP 设计:
   零 ROS 依赖 — 不初始化 rclpy, 不查询 TF, 不 import ROS 模块。
@@ -64,7 +64,7 @@ def create_app(web_root: str, *, rwt_override: str | None = None) -> FastAPI:
     if not os.path.isdir(root):
         raise ValueError(f"静态目录不存在: {root}")
 
-    # RobotWebTools 资产路径（Vue 3 通过 npm 管理 roslib/ros3d，此目录可选）
+    # RobotWebTools 资产路径 — 通过 importmap 为 MPA 页面提供 ros3d/roslib/three.js 喵~
     embedded = os.path.join(root, "js", "robotwebtools")
     rwt_root = os.path.abspath(os.path.realpath(rwt_override or embedded))
     rwt_available = os.path.isdir(rwt_root)
@@ -76,6 +76,8 @@ def create_app(web_root: str, *, rwt_override: str | None = None) -> FastAPI:
         wv = f"{cfg.web_video_host()}:{cfg.web_video_port()}"
         print(f"[ivg] 网关启动 root={root} rwt={rwt_root if rwt_available else '(无)'} "
               f"rosbridge→{rb} web_video→{wv}", flush=True)
+        _logger.info("网关启动 root=%s rwt=%s rosbridge→%s web_video→%s",
+                     root, rwt_root if rwt_available else '(无)', rb, wv)
         yield
         # 无需清理 (BFF 零 ROS 依赖) 喵~
 
@@ -100,32 +102,15 @@ def create_app(web_root: str, *, rwt_override: str | None = None) -> FastAPI:
     app.include_router(latte_trajectory_preview.router)  # /api/v1/latte/trajectory/*
     app.include_router(robot_mesh.router)   # /api/ivg/robot-mesh/*
 
-    # 静态文件挂载 — Vite 构建产物 (JS/CSS 在 /assets/ 下)
-    asset_dir = os.path.join(root, "assets")
-    if os.path.isdir(asset_dir):
-        app.mount("/assets",
-                  StaticFiles(directory=asset_dir, html=False), name="assets")
-
+    # RobotWebTools 资产 — importmap + ros3d/roslib/three.js 模块（优先级高于根挂载）
     if rwt_available:
         app.mount("/js/robotwebtools",
                   StaticFiles(directory=rwt_root, html=False), name="robotwebtools")
 
-    # SPA fallback: 所有未匹配路径返回 index.html (Vue Router createWebHistory 模式)
-    from fastapi.responses import FileResponse
-    index_html = os.path.join(root, "index.html")
-
-    @app.get("/{full_path:path}")
-    async def spa_fallback(full_path: str):
-        # /api/, /ws/, /health 已经由上方路由处理，此处仅处理 SPA 页面路由
-        if os.path.isfile(index_html):
-            return FileResponse(index_html)
-        return {"detail": "index.html not found"}
-
-    # 根路径也走 SPA
-    @app.get("/")
-    async def root_fallback():
-        if os.path.isfile(index_html):
-            return FileResponse(index_html)
-        return {"detail": "index.html not found"}
+    # MPA 静态文件服务 — 直接提供 web/public/ 下所有 HTML/CSS/JS 文件喵~
+    # html=True 使 / 自动解析为 index.html，其他路径按文件名直接提供
+    # API 路由（上面注册的）优先级高于此挂载，不会被拦截
+    if os.path.isdir(root):
+        app.mount("/", StaticFiles(directory=root, html=True), name="public")
 
     return app

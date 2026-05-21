@@ -19,7 +19,11 @@ import websockets
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
 from starlette.responses import JSONResponse, StreamingResponse
 
+import logging
+
 from aubo_ros2_web_dashboard import config as cfg
+
+_logger = logging.getLogger("gateway.proxy")
 
 # 路由定义
 ws_router = APIRouter(tags=["proxy"])
@@ -162,8 +166,7 @@ async def rosbridge_websocket_proxy(websocket: WebSocket) -> None:
             # roslib 探测连接 (首次连接 < 500ms 断开是正常行为, 抑制日志) 喵~
             pass
         else:
-            import traceback
-            traceback.print_exc()
+            _logger.warning("rosbridge 代理异常 (%.1fs)", elapsed, exc_info=True)
         await _close_ws(websocket)
 
 

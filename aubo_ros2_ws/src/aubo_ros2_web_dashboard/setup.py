@@ -12,18 +12,41 @@ from glob import glob
 from setuptools import find_packages, setup
 
 PKG = "aubo_ros2_web_dashboard"
-WEB_ROOT = os.path.join("web", "dist")
-WEB_INSTALL_SUBDIR = ("web", "dist")
+WEB_ROOT = os.path.join("web", "public")
+WEB_INSTALL_SUBDIR = ("web", "public")
 
 
 def _web_data_files():
-    """递归收集 web/dist 下所有文件，映射到 share/<pkg>/web/dist/ 目录。"""
+    """递归收集 web/public 下所有文件，映射到 share/<pkg>/web/public/ 目录。"""
     by_dest = defaultdict(list)
     for root, _, files in os.walk(WEB_ROOT):
         for name in files:
             src = os.path.join(root, name)
             rel = os.path.relpath(src, WEB_ROOT)
             dest = os.path.join("share", PKG, *WEB_INSTALL_SUBDIR, os.path.dirname(rel))
+            by_dest[dest].append(src)
+    return sorted(by_dest.items())
+
+
+def _robotwebtools_data_files():
+    """部署 RobotWebTools runtime JS 资产到 web/public/js/robotwebtools/。
+
+    源目录: ../robotwebtools/runtime_js_assets/
+    目标:    share/<pkg>/web/public/js/robotwebtools/
+
+    colcon build 时自动执行。若源目录不存在则优雅降级（空列表）。
+    开发阶段也可手动创建符号链接:
+      ln -s ../../../robotwebtools/runtime_js_assets web/public/js/robotwebtools
+    """
+    rwt_src = os.path.join(os.path.dirname(__file__), "..", "robotwebtools", "runtime_js_assets")
+    if not os.path.isdir(rwt_src):
+        return []
+    by_dest = defaultdict(list)
+    for root, _, files in os.walk(rwt_src):
+        for name in files:
+            src = os.path.join(root, name)
+            rel = os.path.relpath(src, rwt_src)
+            dest = os.path.join("share", PKG, "web", "public", "js", "robotwebtools", os.path.dirname(rel))
             by_dest[dest].append(src)
     return sorted(by_dest.items())
 
@@ -39,7 +62,7 @@ setup(
         (f"share/{PKG}/launch", glob("launch/*.py")),
         (f"share/{PKG}/config", glob("config/*.yaml")),
         (f"share/{PKG}/docs", glob("docs/*.md")),
-    ] + _web_data_files(),
+    ] + _web_data_files() + _robotwebtools_data_files(),
     install_requires=[
         "setuptools",
         "fastapi>=0.100.0",

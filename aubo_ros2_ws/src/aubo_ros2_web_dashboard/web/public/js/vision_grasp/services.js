@@ -1,4 +1,6 @@
 // services.js — ROS service call bindings for grasp/vacuum/gripper
+import { logBus } from '../core/log-bus.js';
+
 function createVisionServiceActions(opts) {
 	const options = opts || {};
 	const transport = options.transport;
@@ -26,6 +28,7 @@ function createVisionServiceActions(opts) {
 			if (typeof done === 'function') done(new Error('empty_service_name'));
 			return;
 		}
+		logBus.addLog('info', 'service', '开始: ' + serviceName, { phase: 'start', service: serviceName });
 		transport
 			.callService({
 				service: serviceName,
@@ -34,10 +37,12 @@ function createVisionServiceActions(opts) {
 			})
 			.then(r => {
 				log(`${serviceName} → success=${r.success} ${r.message || ''}`);
+				logBus.addLog('info', 'service', '✓ ' + serviceName + ' → success=' + r.success, { phase: 'completed', service: serviceName, success: r.success });
 				if (typeof done === 'function') done(null, r);
 			})
 			.catch(e => {
 				log(`${serviceName} 错误: ${e}`);
+				logBus.addLog('error', 'service', '✗ ' + serviceName + ' 错误: ' + e, { phase: 'failed', service: serviceName, error: String(e) });
 				if (typeof done === 'function') done(e);
 			});
 	}
@@ -48,6 +53,7 @@ function createVisionServiceActions(opts) {
 			return;
 		}
 		const oid = (getById('object-id') && getById('object-id').value.trim()) || '';
+		logBus.addLog('info', 'service', '开始: ' + executeSingleService + ' (' + (useVisual ? '视觉模式' : '固定模式') + ')', { phase: 'start', service: executeSingleService, use_visual: !!useVisual });
 		transport
 			.callService({
 				service: executeSingleService,
@@ -56,10 +62,12 @@ function createVisionServiceActions(opts) {
 			})
 			.then(r => {
 				log(`${executeSingleService} → success=${r.success} ${r.message || ''}`);
+				logBus.addLog('info', 'service', '✓ ' + executeSingleService + ' → success=' + r.success, { phase: 'completed', service: executeSingleService, success: r.success });
 				if (typeof done === 'function') done(null, r);
 			})
 			.catch(e => {
 				log(`${executeSingleService} 错误: ${e}`);
+				logBus.addLog('error', 'service', '✗ ' + executeSingleService + ' 错误: ' + e, { phase: 'failed', service: executeSingleService, error: String(e) });
 				if (typeof done === 'function') done(e);
 			});
 	}
@@ -73,6 +81,7 @@ function createVisionServiceActions(opts) {
 			log('服务名为空，无法调用夹爪快换');
 			return;
 		}
+		logBus.addLog('info', 'service', '开始: ' + svcName + ' (' + direction + ')', { phase: 'start', service: svcName, direction });
 		transport
 			.callService({
 				service: svcName,
@@ -81,6 +90,7 @@ function createVisionServiceActions(opts) {
 			})
 			.then(r => {
 				log(`${svcName} → success=${r.success} ${r.message || ''}`);
+				logBus.addLog('info', 'service', '✓ ' + svcName + ' → success=' + r.success, { phase: 'completed', service: svcName, success: r.success });
 			})
 			.catch(e => {
 				var reason = String(e);
@@ -88,18 +98,21 @@ function createVisionServiceActions(opts) {
 					reason += ' (仿真模式下该服务由真实硬件提供，当前不可用)';
 				}
 				log(`${svcName} 错误: ${reason}`);
+				logBus.addLog('error', 'service', '✗ ' + svcName + ' 错误: ' + reason, { phase: 'failed', service: svcName, error: reason });
 			});
 	}
 	function bindControlButtons() {
 		const btnWpSingleStart = getById('btn-wp-single-start');
 		if (btnWpSingleStart) {
 			btnWpSingleStart.onclick = () => {
+				logBus.addLog('info', 'service', '按钮点击: 执行单次抓取');
 				callExecuteGrasp(useVisualFromMode());
 			};
 		}
 		const btnWpSingleStop = getById('btn-wp-single-stop');
 		if (btnWpSingleStop) {
 			btnWpSingleStop.onclick = () => {
+				logBus.addLog('info', 'service', '按钮点击: 停止单次抓取');
 				callSetBool(getSetting('svc-loop-grasp-control'), false);
 				log('已停止');
 			};
@@ -107,6 +120,7 @@ function createVisionServiceActions(opts) {
 		const btnWpLoopStart = getById('btn-wp-loop-start');
 		if (btnWpLoopStart) {
 			btnWpLoopStart.onclick = () => {
+				logBus.addLog('info', 'service', '按钮点击: 循环抓取启动');
 				if (useVisualFromMode()) {
 					callSetBool(getSetting('svc-loop-grasp-control'), true);
 					log('循环：后端视觉');
@@ -121,6 +135,7 @@ function createVisionServiceActions(opts) {
 		const btnWpLoopStop = getById('btn-wp-loop-stop');
 		if (btnWpLoopStop) {
 			btnWpLoopStop.onclick = () => {
+				logBus.addLog('info', 'service', '按钮点击: 循环抓取停止');
 				callSetBool(getSetting('svc-loop-grasp-control'), false);
 				log('停循环');
 			};
@@ -128,42 +143,51 @@ function createVisionServiceActions(opts) {
 		const btnGnCapStart = getById('btn-gn-cap-start');
 		if (btnGnCapStart) {
 			btnGnCapStart.onclick = () => {
+				logBus.addLog('info', 'service', '按钮点击: GraspNet 采集启动');
 				callSetBool(getSetting('svc-graspnet-capture'), true);
 			};
 		}
 		const btnGnCapStop = getById('btn-gn-cap-stop');
 		if (btnGnCapStop) {
 			btnGnCapStop.onclick = () => {
+				logBus.addLog('info', 'service', '按钮点击: GraspNet 采集停止');
 				callSetBool(getSetting('svc-graspnet-capture'), false);
 			};
 		}
 		const btnGnLoopStart = getById('btn-gn-loop-start');
 		if (btnGnLoopStart) {
 			btnGnLoopStart.onclick = () => {
+				logBus.addLog('info', 'service', '按钮点击: GraspNet 循环启动');
 				callSetBool(getSetting('svc-publish-grasps-loop'), true);
 			};
 		}
 		const btnGnLoopStop = getById('btn-gn-loop-stop');
 		if (btnGnLoopStop) {
 			btnGnLoopStop.onclick = () => {
+				logBus.addLog('info', 'service', '按钮点击: GraspNet 循环停止');
 				callSetBool(getSetting('svc-publish-grasps-loop'), false);
 			};
 		}
 		const btnQuickSwap0 = getById('btn-quick-swap-0');
 		if (btnQuickSwap0) {
 			btnQuickSwap0.onclick = () => {
+				logBus.addLog('info', 'service', '按钮点击: 快换 gripper2→gripper0');
 				callGripperSwap('gripper2_to_gripper0');
 			};
 		}
 		const btnQuickSwap = getById('btn-quick-swap');
 		if (btnQuickSwap) {
 			btnQuickSwap.onclick = () => {
+				logBus.addLog('info', 'service', '按钮点击: 快换 gripper0→gripper2');
 				callGripperSwap('gripper0_to_gripper2');
 			};
 		}
 		const btnDbgMoveXYZ = getById("btn-dbg-move-xyz");
 		if (btnDbgMoveXYZ) {
-			btnDbgMoveXYZ.onclick = () => { callDebugMoveXYZ(); };
+			btnDbgMoveXYZ.onclick = () => {
+				logBus.addLog('info', 'service', '按钮点击: Debug Move XYZ');
+				callDebugMoveXYZ();
+			};
 		}
 	}
 		function callDebugMoveXYZ() {
@@ -173,6 +197,7 @@ function createVisionServiceActions(opts) {
 			const vel = parseFloat((getById("dbg-xyz-vel") || {}).value) || 0.3;
 			const acc = parseFloat((getById("dbg-xyz-acc") || {}).value) || 0.2;
 			log("Move XYZ -> (" + x.toFixed(3) + ", " + y.toFixed(3) + ", " + z.toFixed(3) + ") v=" + vel + " a=" + acc);
+			logBus.addLog('info', 'service', '\u5f00\u59cb: /debug/move_to_xyz (' + x.toFixed(3) + ', ' + y.toFixed(3) + ', ' + z.toFixed(3) + ')', { phase: 'start', service: '/debug/move_to_xyz' });
 			transport.callService({
 				service: "/debug/move_to_xyz",
 				type: "demo_interface/srv/MoveToPose",
@@ -185,8 +210,10 @@ function createVisionServiceActions(opts) {
 				}
 			}).then(function (r) {
 				log("Move XYZ -> success=" + r.success + " " + (r.message || ""));
+				logBus.addLog('info', 'service', '\u2713 /debug/move_to_xyz \u2192 success=' + r.success, { phase: 'completed', service: '/debug/move_to_xyz', success: r.success });
 			}).catch(function (e) {
 				log("Move XYZ \u9519\u8bef: " + e);
+				logBus.addLog('error', 'service', '\u2717 /debug/move_to_xyz \u9519\u8bef: ' + e, { phase: 'failed', service: '/debug/move_to_xyz', error: String(e) });
 			});
 		}
 	return {

@@ -41,7 +41,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **必须在 `aubo_ros2_ws/` 目录下编译。**
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd /home/wjz/aubo_boot/aubo_ros2_ws
 source /opt/ros/humble/setup.bash
 colcon build
 source install/setup.bash
@@ -54,6 +54,27 @@ colcon build --packages-select aubo_driver_ros2 tool_changer latte_imitation
 ```
 
 `start_aubo_new_driver.sh` 启动时会自动执行 `colcon build`，日常开发中修改代码后手动运行上述命令即可喵~
+
+### 启动脚本环境变量
+
+```bash
+# 跳过编译（代码未修改时加快启动）
+SKIP_BUILD=1 ./start_aubo_new_driver.sh
+
+# 跳过 rosbag 录制
+SKIP_ROSBAG=1 ./start_aubo_new_driver.sh
+
+# 跳过 RViz2
+SKIP_RVIZ=1 ./start_aubo_new_driver.sh
+
+# 自定义机械臂 IP
+AUBO_IP=192.168.1.100 ./start_aubo_new_driver.sh
+
+# 自定义 Web 端口
+WEB_DASH_PORT=9000 ./start_aubo_new_driver.sh
+```
+
+脚本自动检测机械臂是否在线（TCP 端口探测），不可达时回退到仿真模式 (`mock_components/GenericSystem`)。退出时自动清理所有子进程（`cleanup()` trap）喵~
 
 ## 重要注意事项
 
@@ -210,30 +231,128 @@ FastAPI 路由参数用 `dict | None` 等 PEP 604 语法时，pydantic 1.8.x 会
 
 ## 前端开发速查
 
-前端从原生 JS 迁移到 Vue 3 + TypeScript + Vite 6。核心架构：rosbridge WebSocket 协议、roslib npm 包、Three.js 原生 3D、FastAPI 网关。
+**当前架构**: 纯 HTML/JS MPA（零构建），ES modules + importmap 加载 ros3djs/roslib/three.js，FastAPI BFF 网关。
 
-> **完整前端迁移文档**：`docs/frontend-migration-plan.md` 喵~
+```
+web/public/                    # 静态文件根目录
+├── index.html                 # MPA 首页
+├── vision_grasp_panel.html    # 视觉抓取
+├── coffee_latte_panel.html    # 咖啡拉花
+├── log_panel.html             # 日志面板
+├── settings_panel.html        # 话题/服务设置
+├── tf_monitor_panel.html      # TF 监控
+├── css/                       # 样式
+└── js/
+    ├── core/                  # 基础设施层
+    │   ├── log-bus.js         # LogEventBus 单例 + IndexedDB + BroadcastChannel
+    │   ├── log-ros-bridge.js  # ROS→日志桥接 (/rosout + service 钩子 + topic 摘要)
+    │   ├── ros.js             # RosManager 单例 (连接/订阅/服务调用/重连)
+    │   ├── ros_connector.js   # 共享 rosbridge 连接生命周期 (vision_grasp + tf_monitor 共用)
+    │   ├── utils.js           # $(id), escapeHtml, canonicalRosTopic, rosMsgArrayField
+    │   ├── lifecycle.js       # 页面生命周期 (init/pause/resume/cleanup)
+    │   ├── settings.js        # 话题/服务设置管理
+    │   ├── dom_cache.js       # document.getElementById 缓存
+    │   ├── tf-math.js         # 四元数/RPY 转换
+    │   ├── topics.js          # 共享 ROS topic 名/类型常量 (单一数据源)
+    │   ├── runtime_provider.js # 从 BFF GET /api/v1/runtime 获取运行时配置
+    │   └── ivg_status_bar.js  # 状态栏 Web Component
+    ├── components/            # 可复用 UI 组件
+    │   ├── pose-card.js       # 位姿 HTML 格式化 (合并自两份旧文件)
+    │   ├── joint-chart.js     # Canvas 2D 关节角曲线 (合并自两份旧文件)
+    │   └── monitoring-collapse.js  # 监控区折叠/展开 (消除 vision_grasp 和 latte 重复代码)
+    ├── vision_grasp/          # 视觉抓取子模块
+    │   ├── config.js, services.js, ui_binder.js, mode_controller.js
+    │   ├── subscription_binder.js, projection_overlay.js
+    │   ├── urdf_panel.js, ui_settings.js
+    │   ├── pose_card.js       # → re-export components/pose-card.js
+    │   └── joint_chart.js     # → re-export components/joint-chart.js
+    ├── latte/                 # 咖啡拉花子模块
+    │   ├── main.js            # 入口: 连接 + 3D + 关节图 + 订阅
+    │   ├── latte_controls.js  # 参数控制 + 预览/执行 + 全链路日志
+    │   ├── execute.js         # 轨迹执行 ROS 服务调用 (带进度心跳)
+    │   └── preview.js         # BFF 预览 API
+    ├── view3d/                # 3D 渲染 (ros3djs + Three.js)
+    │   ├── session.js         # SceneManager — URDF 模型加载 + 渲染
+    │   ├── urdf-viewer.js     # createUrdfViewer() 工厂函数
+    │   ├── tf_clients.js      # TF2Client 封装 (ros3djs)
+    │   ├── patches.js         # ros3djs Three.js 兼容补丁
+    │   └── hints.js           # 坐标轴/网格 helper
+    ├── ivg_transport.js       # WebSocket 传输层 + rosbridge 协议
+    ├── ivg_runtime.js         # 运行时配置 (rosbridge 端口/web_video 端口等)
+    ├── ivg_site_nav.js        # 顶部导航栏 Web Component
+    ├── ivg_web_video.js       # 相机视频流 (web_video_server MJPEG)
+    ├── coffee_latte_io.js     # 拉花 DI 反馈灯 + DO 开关 (绑定 ROS 服务)
+    ├── vision_grasp_panel.js  # 视觉抓取页面主逻辑
+    ├── tf_monitor_panel.js    # TF 监控页面主逻辑
+    ├── log_panel.js           # 日志面板页面主逻辑
+    └── settings_panel.js      # 设置面板页面主逻辑
+```
+
+### 日志系统架构
+
+```
+                    ┌──────────────────────────────────┐
+                    │     LogEventBus (每页单例)         │
+                    │  addLog(level,source,msg,meta)     │
+                    │  ← IndexedDB 持久化 (5K 环形缓冲)    │
+                    │  ← BroadcastChannel 跨页面实时同步    │
+                    └──────────┬───────────────────────┘
+                               │
+        ┌──────────────────────┼──────────────────────────┐
+        │                      │                          │
+   [浏览器事件]           [ROS 消息]                [用户操作]
+   console拦截            /rosout 订阅              按钮点击 →
+   window.onerror         所有 service 响应         参数变更 →
+   ros.js 生命周期         topic 摘要               执行阶段 →
+   Promise rejection      (mode/tool/status)        DI/DO 变化 →
+```
+
+**日志分类 (source categories)**：
+
+| Category | 来源 | 说明 |
+|----------|------|------|
+| `console` | console.log/warn/error/info/debug | 应用代码直接打印 |
+| `error` | window.onerror / unhandledrejection | 未捕获错误 |
+| `rosbridge` | WebSocket 连接/关闭/错误 | 传输层事件 |
+| `topic` | ROS topic 数据到达 | 模式/状态变更 + 高频摘要 |
+| `service` | ROS service 调用 | 开始→进行中(心跳)→✓完成/✗失败 |
+| `rosout` | `/rosout` 转发 | ROS 2 节点日志 (带 node/function/line) |
+| `lifecycle` | 页面可见性/关闭 | 页面生命周期 |
+| `ros_manager` | ros.js 内部事件 | 连接/重连/暂停 |
+| `system` | 系统级事件 | 桥接就绪/面板启动/恢复历史 |
+
+**执行状态机**：所有长耗时 ROS 服务调用走 `IDLE → STARTING → IN_PROGRESS(每 5s 心跳) → COMPLETED/FAILED`。
 
 **关键踩坑速记**：
 
 | 陷阱 | 修复 | 详见 |
 |------|------|------|
-| Vue 3 `shallowRef` 中访问 JS 私有字段 `#e` → TypeError | `Ros` 对象移出响应式系统，连接状态用独立 ref | `docs/frontend-migration-plan.md#34` |
-| Vite 增量构建缓存旧模块 | `rm -rf dist/ .vite/` 强制全量重建 | `docs/frontend-migration-plan.md#33` |
-| Three.js Canvas 容器 `h-full` 在无显式高度父级中 = 0 | 用固定 `h-[400px]` + 防除零 aspect | `docs/frontend-migration-plan.md#41` |
-| `connectPromise` 失败路径未清空 → 重连失效 | `finally { connectPromise = null }` | `docs/frontend-migration-plan.md#35` |
-| WebSocket 被系统代理拦截 | 启动脚本 `unset http_proxy` + 前端走网关代理 | `docs/frontend-migration-plan.md#37` |
-| `let sceneMgr = null` 非响应式 → 模板不更新 | 必须用 `shallowRef()` 包装 Three.js 对象 | `docs/frontend-migration-plan.md#32` |
-| VisionGraspView/CoffeeLatteView 路由切换不清理订阅 | ✅ 已修复 (2026-05-18): `Robot3dViewer.stop()` 调用 `unsubscribe()` 清理 rosbridge 订阅 + `initGen` 代数计数器防止 async 竞态 | `Robot3dViewer.vue:462-475` 喵~ |
-| WebGL 上下文泄露 SPA 路由切换 3D 空白 | ✅ 已修复 (2026-05-18): `SceneManager.stop()` 新增 `forceContextLoss()` + `renderer.domElement.remove()` | Three.js `r184` `dispose()` 不释放 GL 上下文，浏览器限制 ~16 个喵~ |
-| Pinia store 已注册但目录为空 | `main.ts` 中 `createPinia()` 已注册，但 `src/stores/` 无任何 store 文件 | 若不需要可移除注册喵~ |
-| `/execute_single_grasp` 等少数服务名硬编码 | 建议改为 `settings.rosName()` 动态获取，与现有架构一致 | 审查发现 2026-05-18 喵~ |
+| `log-ros-bridge.js` 未被任何页面 import → `/rosout` 从不订阅 | 5 个 HTML 页面全部加 `<script type="module" src="js/core/log-ros-bridge.js">` | 本次会话 (2026-05-22) |
+| 桥接只检测 `globalThis.ivgTransport` 但该变量从未被设置 | 同时检测 `globalThis.__rosManager._transport`（ros.js 设置的全局引用） | `log-ros-bridge.js:_getTransport()` |
+| ES module 单例 per-page → 日志面板看不到其他页面日志 | `log-bus.js` 新增 `BroadcastChannel('ivg_log_bus')` + `_ingestRemote()` | `log-bus.js` |
+| `escapeHtml` 在合并 pose_card.js 时丢失导出 → latte 页面报 SyntaxError | 别名导入后原名导出: `import { escapeHtml as _escapeHtml } from ...; export { _escapeHtml as escapeHtml }` | `components/pose-card.js` |
+| 监控区折叠逻辑在 vision_grasp_panel.js 和 latte/main.js 各有一份 ~80 行重复 | 提取到 `components/monitoring-collapse.js` 共享组件 | 两文件各删 ~80 行 |
+| `rosMsgArrayField` 在 vision_grasp 和 latte 中重复定义 | 提取到 `core/utils.js` | 删除两处重复 |
+| Three.js r184 `dispose()` 不释放 GL 上下文 | `forceContextLoss()` + `renderer.domElement.remove()` | `view3d/session.js` |
+| WebSocket 被系统代理拦截 | 启动脚本 `unset http_proxy` + 浏览器对 localhost 绕过代理 | `start_aubo_new_driver.sh` |
+| DO2/DO4 按钮只做纯 UI toggle，不调后端 | 接入 ROS 服务 `/set_latte_do2` / `/set_latte_do4` (std_srvs/SetBool) | `coffee_latte_io.js` |
+
+**传输层两种访问方式**：
+
+| 页面类型 | 使用方式 | 全局引用 |
+|---------|---------|---------|
+| vision_grasp | 直接 `import { ivgTransport }` | 无全局引用 |
+| latte / 其他 | `import { ros } from './core/ros.js'` (RosManager 单例) | `globalThis.__rosManager` |
+
+`ros.js` 内部持有 `this._transport = ivgTransport`，所有操作最终都走同一传输层。`log-ros-bridge.js` 通过 `_getTransport()` 兼容两种方式喵~
 
 **接口速记**：
 
 - 工具快换服务：`/run_gripper_swap` (ivg_interfaces/srv/RunGripperSwap)，方向格式 `"current_id_to_target_id"`
 - 工具几何数据：前端从 BFF `/api/v1/tool-geometries` 动态获取，数据源统一为 `tools.yaml`
-- 前端话题/服务名大部分通过 `useDashboardSettings.ts` 读取，少数（如 `'/execute_single_grasp'`、`'/debug/move_to_xyz'`）仍硬编码，待统一喵~
+- 拉花执行：`/latte_imitation/replay_trajectory` (ivg_interfaces/srv/ReplayLatteTrajectory)
+- DO 控制：`/set_latte_do2`、`/set_latte_do4` (std_srvs/srv/SetBool)
+- 话题/服务名在前端通过 `localStorage` 覆盖，默认值见 `config/defaults.yaml` 喵~
 
 ## 常见报错速查
 
@@ -259,6 +378,9 @@ FastAPI 路由参数用 `dict | None` 等 PEP 604 语法时，pydantic 1.8.x 会
 | GripperSwapWorker 死锁/service 超时 | callback group 是 MutuallyExclusive（非 Reentrant），与文档描述不一致 | `MultiThreadedExecutor(2)` 提供足够并发，当前无死锁风险喵~ |
 | `error while loading shared libraries: libauborobotcontroller.so.1` | AUBO SDK .so 未安装 | `colcon build --packages-select aubo_driver_ros2` |
 | `Subscription to deprecated ~/state topic` | rosbag 或节点订阅了弃用 topic | `ros2 topic info -v /joint_trajectory_controller/state` |
+| 前端日志面板无 ROS 2 日志 | `log-ros-bridge.js` 未被 import 或传输层检测失败 | 检查 HTML 中是否有 `<script type="module" src="js/core/log-ros-bridge.js">`；检查 `globalThis.__rosManager` |
+| 前端日志面板看不到其他页面日志 | 跨页面隔离 — 旧版无 BroadcastChannel | 确认 `log-bus.js` 已更新含 `BroadcastChannel('ivg_log_bus')` |
+| `SyntaxError: does not provide an export named 'escapeHtml'` | 合并 pose_card.js 时丢失导出 | 确认 `components/pose-card.js` 有 `export { _escapeHtml as escapeHtml }` |
 
 ## 官方文档与源码仓库
 
@@ -349,19 +471,21 @@ FastAPI 路由参数用 `dict | None` 等 PEP 604 语法时，pydantic 1.8.x 会
 
 ### 27. 前端 3D 模型导航切换修复（2026-05-18）
 
+> **注意**：以下修复应用于当时的 Vue 3 SPA（`SceneManager.ts`/`Robot3dViewer.vue` 等已随 commit `5995fcbce` 回退）。当前纯 HTML/JS MPA 中等效机制在 `view3d/session.js` 和 `view3d/urdf-viewer.js` 中。保留此条目供后续若再次迁移 SPA 时参考喵~
+
 **4 个根因 + 修复**：
 
-| 根因 | 修复位置 | 方案 |
-|------|---------|------|
-| WebGL 上下文泄露 — Three.js `r184` `dispose()` 不释放 GL 上下文，SPA 路由切换反复创建 → 浏览器 ~16 限制 → 空白 | `SceneManager.ts:133-138` | `forceContextLoss()` + `renderer.domElement.remove()` |
-| Robot3dViewer 卸载不取消 rosbridge 订阅 — 残留 4 个话题占用带宽 | `Robot3dViewer.vue:469-473` | `stop()` 中 `unsubscribe()` 清理 `/tf` `/tf_static` `/joint_states` `/tool_changer_status` |
-| async `init()` 竞态 — `await` 期间组件若卸载，后续代码操作已 dispose 场景或注册永不清理 handler | `Robot3dViewer.vue:69,428-454` | `initGen` 代数计数器，`stop()` 递增使在途 async 失效 |
-| CoffeeLatteView 订阅 `/tf` `/tf_static` 但无 handler — 隐藏耦合（已删除） | `CoffeeLatteView.vue:164-168` | Robot3dViewer 自管订阅，View 层无需兜底 |
+| 根因 | 原 SPA 修复位置 | MPA 等效文件 | 方案 |
+|------|---------|------|------|
+| WebGL 上下文泄露 — Three.js `r184` `dispose()` 不释放 GL 上下文 | `SceneManager.ts:133-138` | `view3d/session.js` | `forceContextLoss()` + `renderer.domElement.remove()` |
+| 组件卸载不取消 rosbridge 订阅 — 残留话题占用带宽 | `Robot3dViewer.vue:469-473` | `view3d/urdf-viewer.js` stop() | `stop()` 中清理话题订阅 |
+| async `init()` 竞态 — `await` 期间组件若卸载 | `Robot3dViewer.vue:69` | `latte/main.js` cleanup() | 生命周期钩子 + `urdfViewer` null 检查 |
+| 父 View 与子组件重复订阅同一话题 | `CoffeeLatteView.vue:164-168` | 各页面独立订阅 | 各组件自管订阅，不依赖父级 |
 
 **设计原则**：
-- 各组件独立订阅所需话题（符合 ROS 2 节点隔离模型），`useRos.topicSpecs` 去重防止 rosbridge 重复订阅喵~
-- Robot3dViewer 自给自足 — 不依赖父 View 为其订阅 TF 话题喵~
-- `onRosJson()` 优先使用目标话题名而非 `null` 通配，减少无谓的消息过滤喵~
+- 各组件独立订阅所需话题（符合 ROS 2 节点隔离模型）喵~
+- 3D 查看器自给自足 — 不依赖父级为其订阅 TF 话题喵~
+- 优先使用目标话题名而非 `null` 通配，减少无谓的消息过滤喵~
 
 ## latte_imitation 拉花轨迹重定目标包
 

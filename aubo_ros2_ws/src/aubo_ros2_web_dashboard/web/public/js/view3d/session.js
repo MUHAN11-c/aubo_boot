@@ -400,7 +400,8 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 			width: w,
 			height: h,
 			antialias: !coarsePointer,
-			background: '#ffffff',
+			background: '#1a1a2e',
+				intensity: 0.85,
 			cameraPose: { x: 3, y: 3, z: 3 },
 			cameraZoomSpeed: 0.5
 		});

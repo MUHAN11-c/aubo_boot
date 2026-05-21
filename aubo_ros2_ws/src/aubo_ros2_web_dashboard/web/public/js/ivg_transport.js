@@ -192,18 +192,31 @@ IvgTransport.prototype.subscribe = function (spec) {
     return true;
 };
 
+/** 检查 WebSocket 是否仍处于 OPEN 状态，避免在 CLOSING/CLOSED 时发送消息刷屏喵~ */
+IvgTransport.prototype._isSocketOpen = function () {
+    try {
+        const s = this.ros && this.ros.socket;
+        return s && s.readyState === 1; // WebSocket.OPEN
+    } catch (_) { return false; }
+};
+
 IvgTransport.prototype.unsubscribe = function (topic) {
     const topicName = canonicalRosTopic(topic);
     const sub = this._topicSubs.get(topicName);
     if (!sub) return;
-    try { sub.unsubscribe(); } catch (e) { /* ignore */ }
+    if (this._isSocketOpen()) {
+        try { sub.unsubscribe(); } catch (e) { /* ignore */ }
+    }
     this._topicSubs.delete(topicName);
     this._topicSpecs.delete(topicName);
 };
 
 IvgTransport.prototype.unsubscribeAll = function () {
+    const open = this._isSocketOpen();
     this._topicSubs.forEach(sub => {
-        try { sub.unsubscribe(); } catch (e) { /* ignore */ }
+        if (open) {
+            try { sub.unsubscribe(); } catch (e) { /* ignore */ }
+        }
     });
     this._topicSubs.clear();
     this._topicSpecs.clear();

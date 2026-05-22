@@ -161,7 +161,7 @@ function _hookTopicData(transport) {
         }
 
         // 高频话题：累计统计
-        if (tname === '/aubo_driver/robot_status' || tname === '/joint_states' || tname === '/grasp_poses_base') {
+        if (tname === '/robot_status' || tname === '/joint_states' || tname === '/grasp_poses_base') {
             if (!_topicStats[tname]) {
                 _topicStats[tname] = { count: 0, lastSummary: 0 };
             }

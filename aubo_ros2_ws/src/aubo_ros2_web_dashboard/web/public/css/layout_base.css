@@ -1,0 +1,103 @@
+/* layout_base.css — 全站共享布局基类（需先加载 tokens.css） */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Noto Sans CJK SC", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", system-ui, -apple-system, sans-serif;
+  background:
+    radial-gradient(circle, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-color: var(--bg);
+  background-position: 10px 10px;
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c5cdd9; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* 焦点环 */
+:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.5);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* 选中 */
+::selection { background: rgba(37, 99, 235, 0.15); color: var(--text); }
+
+/* 入场动画 */
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 面板基类 */
+.panel {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
+  transition: border-color 0.2s ease, box-shadow 0.25s ease, border-left-color 0.2s ease;
+}
+.panel:hover {
+  border-color: #d1d6df;
+  border-left-color: var(--accent-hover);
+  box-shadow: var(--shadow-md);
+}
+
+/* 状态徽章 */
+.status {
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.status.ok      { background: #d1fae5; color: #065f46; }
+.status.off     { background: #fee2e2; color: #b91c1c; }
+.status.pending { background: #fef3c7; color: #92400e; }
+
+/* 等宽字体 code */
+code {
+  font-family: "Noto Sans Mono", "DejaVu Sans Mono", ui-monospace, Consolas, monospace;
+  font-size: 0.84em;
+  background: var(--bg-muted);
+  padding: 0.12rem 0.35rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+/* 按钮基类 */
+.btn {
+  padding: 0.38rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+.btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+}

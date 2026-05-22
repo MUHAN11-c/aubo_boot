@@ -10,6 +10,9 @@
 import * as ROSLIB from 'roslib';
 import { IvgRos3dView3dSession } from './session.js';
 
+// localStorage 键
+var LS_KEY = 'ivg_last_tool_id';
+
 export function createUrdfViewer(opts = {}) {
     const ros = opts.ros;
     const $ = opts.getById || (id => document.getElementById(id));
@@ -20,6 +23,8 @@ export function createUrdfViewer(opts = {}) {
     let _session = null;
     let _resizeObs = null;
     let _toolStatusSub = null;
+    let _currentToolId = '';
+    let _initialized = false;
 
     function _layout() {
         if (!_session || !_session.viewer3d) return;
@@ -54,26 +59,43 @@ export function createUrdfViewer(opts = {}) {
                 _resizeObs.observe(host);
             }
 
-            // 工具切换时自动重载 URDF
-            let currentToolId = null;
+            // 初始状态：优先 localStorage（ROS 状态有最多 5s 延迟）喵~
+            var stored = '';
+            try { stored = localStorage.getItem(LS_KEY) || ''; } catch (e) {}
+            if (stored) {
+                _currentToolId = stored;
+                _initialized = true;
+            }
+
+            // 订阅工具状态 → tool_id 变化 → reloadUrdf 显示新夹爪喵~
             _toolStatusSub = new ROSLIB.Topic({
                 ros,
                 name: '/tool_changer_status',
-                messageType: 'tool_changer_interface/msg/ToolChangerStatus',
+                messageType: 'ivg_interfaces/msg/ToolChangerStatus',
                 throttle_rate: 500,
             });
             _toolStatusSub.subscribe(msg => {
-                const newId = msg && msg.tool_id;
-                if (!newId) return;
-                if (currentToolId === null) {
-                    currentToolId = newId;
-                } else if (newId !== currentToolId) {
-                    currentToolId = newId;
+                if (!msg) return;
+                var newId = String(msg.tool_id || '');
+                var connected = msg.is_connected !== false;
+
+                if (!_initialized) {
+                    // 首条消息：以 ROS 真实状态为准喵~
+                    _initialized = true;
+                    _currentToolId = newId;
+                    try { localStorage.setItem(LS_KEY, newId); } catch (e) {}
+                    return;
+                }
+
+                if (connected && newId !== _currentToolId) {
+                    _currentToolId = newId;
+                    try { localStorage.setItem(LS_KEY, newId); } catch (e) {}
+                    // 延迟等后端 URDF 参数生效后重载喵~
                     setTimeout(() => {
                         if (_session && typeof _session.reloadUrdf === 'function') {
                             _session.reloadUrdf();
                         }
-                    }, 200);
+                    }, 500);
                 }
             });
         } catch (e) {
@@ -94,11 +116,28 @@ export function createUrdfViewer(opts = {}) {
             try { _session.stop(); } catch (e) { /* */ }
             _session = null;
         }
+        _currentToolId = '';
+        _initialized = false;
     }
 
     function getSession() {
         return _session;
     }
 
-    return { start, stop, layout: _layout, getSession };
+    function getCurrentToolId() {
+        return _currentToolId;
+    }
+
+    function addTrajectoryLine(waypoints, color, linewidth) {
+        if (_session && typeof _session.addTrajectoryLine === 'function') {
+            _session.addTrajectoryLine(waypoints, color, linewidth);
+        }
+    }
+    function clearTrajectoryLines() {
+        if (_session && typeof _session.clearTrajectoryLines === 'function') {
+            _session.clearTrajectoryLines();
+        }
+    }
+
+    return { start, stop, layout: _layout, getSession, getCurrentToolId, addTrajectoryLine, clearTrajectoryLines };
 }

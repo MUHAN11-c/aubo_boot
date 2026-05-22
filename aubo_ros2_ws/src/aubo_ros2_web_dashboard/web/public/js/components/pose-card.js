@@ -17,7 +17,7 @@ export { _escapeHtml as escapeHtml };
 
 function fmtPoseNum(v, digits) {
     const n = Number(v);
-    return isFinite(n) ? n.toFixed(digits == null ? 4 : digits) : '--';
+    return (isFinite(n) ? n : 0).toFixed(digits == null ? 3 : digits);
 }
 
 function numFirst(...vals) {
@@ -56,7 +56,12 @@ function poseOriToRpyDeg(pose) {
 /** 将 pose 对象格式化为富 HTML 卡片 喵~ */
 function formatPoseBlockHtml(pose, rpyDeg) {
     if (!pose || !pose.position || !pose.orientation) {
-        return '<div class="pose-card__empty">暂无位姿数据</div>';
+        // 无数据时渲染全零位姿
+        pose = {
+            position: { x: 0, y: 0, z: 0 },
+            orientation: { x: 0, y: 0, z: 0, w: 1 }
+        };
+        rpyDeg = { roll: 0, pitch: 0, yaw: 0 };
     }
     const rpy = rpyDeg || poseOriToRpyDeg(pose);
     const px = fmtPoseNum(pose.position.x, 4);
@@ -132,7 +137,7 @@ export function formatRobotPoseHtml(input) {
 
     // 原始 ROS 消息 (vision_grasp 用法)
     const msg = normalizeRobotStatusJson(input);
-    if (!msg || typeof msg !== 'object') return '<div class="pose-card__empty">等待末端位姿...</div>';
+    if (!msg || typeof msg !== 'object') return formatPoseBlockHtml(null, null);
 
     const cp = msg.cartesian_position || {};
     const cpos = cp.position || {};

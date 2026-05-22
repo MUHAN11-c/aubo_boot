@@ -5,8 +5,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
 <title>日志面板</title>
-<link rel="stylesheet" href="css/ivg_site_nav.css?v=20260414_unify_proj" />
-<link rel="stylesheet" href="css/ivg_base.css" />
+<link rel="stylesheet" href="css/tokens.css" />
+<link rel="stylesheet" href="css/layout_base.css" />
+<link rel="stylesheet" href="css/ivg_site_nav.css?v=20260522_unify_design" />
 <link rel="stylesheet" href="css/ivg_status_bar.css" />
 <script src="/js/robotwebtools/importmap.js"></script>
 <style>
@@ -18,19 +19,19 @@
   padding:10px 0; border-bottom:1px solid var(--border); margin-bottom:8px;
 }
 .log-ctrl {
-  padding:5px 12px; border-radius:6px; border:1px solid var(--border);
+  padding:5px 12px; border-radius:7px; border:1px solid var(--border);
   background:var(--panel-bg); color:var(--text-muted); font-size:0.8rem;
   cursor:pointer; font-weight:500; transition: all 0.15s;
 }
 .log-ctrl:hover { border-color:var(--accent); color:var(--text); }
-.log-ctrl--active { background:#1e3a5f; color:var(--accent); border-color:var(--accent); }
+.log-ctrl--active { background:#eef2ff; color:#2563eb; border-color:#2563eb; }
 .log-ctrl--off { opacity:0.35; }
 .log-ctrl--clear { border-color:var(--red); color:var(--red); }
-.log-ctrl--clear:hover { background:#3b1b1b; }
+.log-ctrl--clear:hover { background:#fef2f2; }
 .log-ctrl__sep { width:1px; height:20px; background:var(--border); margin:0 4px; }
 
 .log-search {
-  padding:5px 10px; border-radius:6px; border:1px solid var(--border);
+  padding:5px 10px; border-radius:7px; border:1px solid var(--border);
   background:var(--panel-bg); color:var(--text); font-size:0.8rem;
   font-family:inherit; min-width:140px; outline:none;
   transition:border-color 0.15s;
@@ -40,14 +41,15 @@
 
 /* ── 日志行 ──────────────────────────────────────────────── */
 .log-view {
-  background:#0d0f14; border:1px solid var(--border); border-radius:8px;
-  height:calc(100vh - 220px); overflow-y:auto; font-family:"JetBrains Mono","Cascadia Code",monospace;
-  font-size:0.8rem; padding:8px 0;
+  background:#f8f9fb; border:1px solid var(--border); border-radius:8px;
+  height:calc(100vh - 220px); overflow-y:auto; font-family:"Noto Sans Mono","DejaVu Sans Mono",ui-monospace,Consolas,monospace;
+  font-size:0.8rem; padding:8px 0; transition:border-color 0.2s ease;
 }
 .log-line {
-  display:flex; gap:10px; padding:2px 16px; line-height:1.5; border-bottom:1px solid #11131a;
+  display:flex; gap:10px; padding:2px 16px; line-height:1.5; border-bottom:1px solid #f0f1f4;
+  transition:background 0.15s ease;
 }
-.log-line:hover { background:#13151d; }
+.log-line:hover { background:#f5f6f8; }
 .log-ts { color:var(--text-muted); flex-shrink:0; opacity:0.7; }
 .log-src { flex-shrink:0; min-width:80px; font-weight:600; }
 .log-msg { word-break:break-all; flex:1; }
@@ -59,8 +61,8 @@
 .log-line--debug .log-src { color:var(--orange); }
 .log-line--transport .log-src { color:var(--green); }
 
-.log-line--warn  { background:rgba(251,191,36,0.04); }
-.log-line--error { background:rgba(248,113,113,0.06); }
+.log-line--warn  { background:rgba(234,179,8,0.04); }
+.log-line--error { background:rgba(239,68,68,0.06); }
 
 </style>
 </head>
@@ -98,12 +100,6 @@
   <div class="log-view" id="log-lines" role="log" aria-live="polite" aria-label="日志输出"></div>
 </main>
 
-<footer class="connection-footer" role="contentinfo" aria-label="连接状态">
-<div class="connection-footer__inner">
-<span class="connection-footer__label">连接状态</span>
-<span id="conn-status" class="status pending" role="status" aria-live="polite">独立面板（无需连接）</span>
-</div>
-</footer>
 
 <script type="module" src="js/core/log-ros-bridge.js"></script>
 	<script type="module" src="js/ivg_site_nav.js"></script>

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<link rel="icon" href="data:," />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+<title>调试面板</title>
+<link rel="stylesheet" href="css/tokens.css" />
+<link rel="stylesheet" href="css/layout_base.css" />
+<link rel="stylesheet" href="css/ivg_site_nav.css" />
+<link rel="stylesheet" href="css/ivg_status_bar.css" />
+<script src="/js/robotwebtools/importmap.js"></script>
+<style>
+  /* debug_panel page-specific styles */
+  body {
+    margin: 0; font-size: 14px;
+    min-height: 100vh; display: flex; flex-direction: column;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  body.ivg-single-screen { overflow: hidden; height: 100vh; max-height: 100vh; }
+
+  .wrap {
+    flex: 1; padding: 0.5rem 1rem 0;
+    max-width: 1200px; margin: 0 auto; width: 100%;
+    animation: page-in 0.4s ease both;
+  }
+
+  .debug-toolbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem;
+    padding: 0.6rem 0.85rem; margin-bottom: 0.5rem;
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  }
+  .debug-toolbar h1 { font-size: 1.15rem; margin: 0; font-weight: 700; }
+  .debug-toolbar .hint { font-size: 0.78rem; color: var(--text-muted); }
+
+  .debug-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;
+  }
+  .debug-panel {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent); border-radius: var(--radius);
+    padding: 0.75rem 1rem; box-shadow: var(--shadow-sm);
+  }
+  .debug-panel h2 {
+    margin: 0 0 0.5rem; font-size: 0.78rem; font-weight: 700;
+    color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em;
+    padding-bottom: 0.3rem; border-bottom: 2px solid var(--accent);
+  }
+
+  .debug-param-row {
+    display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.35rem;
+  }
+  .debug-param-row label {
+    font-size: 0.75rem; font-weight: 600; color: var(--text-muted); min-width: 1.2rem;
+  }
+  .debug-param-row input {
+    width: 5.5rem; padding: 0.3rem 0.4rem;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 0.8rem; font-family: ui-monospace, monospace;
+    background: var(--bg-elevated); color: var(--text);
+    transition: border-color 0.15s;
+  }
+  .debug-param-row input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .debug-param-row input.wide { width: 100%; flex: 1; }
+
+  .debug-joint-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.25rem 0.5rem;
+  }
+  .debug-joint-grid label { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); }
+  .debug-joint-grid input { width: 100%; box-sizing: border-box; }
+
+  .debug-btn-row { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; }
+  .debug-btn {
+    padding: 0.35rem 0.85rem; font-size: 0.78rem; font-weight: 600; font-family: inherit;
+    border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--bg-elevated); color: var(--text); cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, transform 0.15s;
+  }
+  .debug-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); transform: translateY(-1px); }
+  .debug-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .debug-btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .debug-btn--primary:hover:not(:disabled) { background: var(--accent-hover); }
+  .debug-btn--danger { color: var(--err); border-color: #fecaca; }
+  .debug-btn--danger:hover:not(:disabled) { background: #fef2f2; }
+
+  .debug-log {
+    margin-top: 0.4rem; padding: 0.4rem 0.55rem;
+    background: var(--bg-muted); border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 0.75rem; color: var(--text-secondary);
+    min-height: 2.5rem; max-height: 8rem; overflow-y: auto;
+    line-height: 1.45; white-space: pre-wrap; word-break: break-all;
+  }
+
+  @media (max-width: 768px) {
+    .debug-grid { grid-template-columns: 1fr; }
+    .debug-joint-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body class="ivg-single-screen">
+<ivg-site-nav page="debug"></ivg-site-nav>
+
+<main class="wrap">
+  <div class="debug-toolbar">
+    <h1>调试面板</h1>
+    <span class="hint">笛卡尔直线运动 · 关节空间运动 · 服务调用 · 话题发布</span>
+  </div>
+
+  <div class="debug-grid">
+    <!-- 笛卡尔直线运动 -->
+    <div class="debug-panel" id="debug-cartesian">
+      <h2>笛卡尔直线运动</h2>
+      <div class="debug-param-row">
+        <label>X</label><input id="dbg-xyz-x" value="0.3741" step="0.01">
+        <label>Y</label><input id="dbg-xyz-y" value="0.3039" step="0.01">
+        <label>Z</label><input id="dbg-xyz-z" value="0.4755" step="0.01">
+      </div>
+      <div class="debug-param-row">
+        <label>V</label><input id="dbg-xyz-vel" value="0.3" step="0.05" min="0.05" max="1.0" style="width:4.5rem;">
+        <label>A</label><input id="dbg-xyz-acc" value="0.2" step="0.05" min="0.05" max="1.0" style="width:4.5rem;">
+      </div>
+      <div class="debug-btn-row">
+        <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-move-xyz">Move XYZ</button>
+        <button type="button" class="debug-btn debug-btn--danger" id="btn-dbg-stop-xyz">停止</button>
+      </div>
+      <div class="debug-log" id="debug-log-cartesian" aria-live="polite"></div>
+    </div>
+
+    <!-- 关节空间运动 -->
+    <div class="debug-panel" id="debug-joint">
+      <h2>关节空间运动</h2>
+      <div class="debug-joint-grid">
+        <label>J1<input id="dbg-j1" value="0" step="0.01"></label>
+        <label>J2<input id="dbg-j2" value="0" step="0.01"></label>
+        <label>J3<input id="dbg-j3" value="0" step="0.01"></label>
+        <label>J4<input id="dbg-j4" value="0" step="0.01"></label>
+        <label>J5<input id="dbg-j5" value="0" step="0.01"></label>
+        <label>J6<input id="dbg-j6" value="0" step="0.01"></label>
+      </div>
+      <div class="debug-param-row" style="margin-top:0.35rem;">
+        <label>V</label><input id="dbg-jnt-vel" value="0.3" step="0.05" style="width:4.5rem;">
+        <label>A</label><input id="dbg-jnt-acc" value="0.2" step="0.05" style="width:4.5rem;">
+      </div>
+      <div class="debug-btn-row">
+        <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-move-joints">Move Joints</button>
+        <button type="button" class="debug-btn" id="btn-dbg-read-joints">读取当前位置</button>
+      </div>
+      <div class="debug-log" id="debug-log-joint" aria-live="polite"></div>
+    </div>
+
+    <!-- 服务调用测试 -->
+    <div class="debug-panel" id="debug-service">
+      <h2>服务调用测试</h2>
+      <div class="debug-param-row">
+        <label style="min-width:3rem;">服务名</label>
+        <input id="dbg-svc-name" class="wide" value="/run_gripper_swap" placeholder="输入服务名">
+      </div>
+      <div class="debug-param-row">
+        <label style="min-width:3rem;">参数</label>
+        <input id="dbg-svc-args" class="wide" value='{"direction": "gripper0_to_gripper1"}' placeholder='JSON 参数'>
+      </div>
+      <div class="debug-btn-row">
+        <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-call-svc">调用服务</button>
+      </div>
+      <div class="debug-log" id="debug-log-service" aria-live="polite"></div>
+    </div>
+
+    <!-- 话题发布测试 -->
+    <div class="debug-panel" id="debug-topic">
+      <h2>话题发布测试</h2>
+      <div class="debug-param-row">
+        <label style="min-width:3rem;">话题名</label>
+        <input id="dbg-pub-topic" class="wide" value="/test_topic" placeholder="输入话题名">
+      </div>
+      <div class="debug-param-row">
+        <label style="min-width:3rem;">消息</label>
+        <input id="dbg-pub-msg" class="wide" value='{"data": "hello"}' placeholder="JSON 消息">
+      </div>
+      <div class="debug-btn-row">
+        <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-publish">发布消息</button>
+      </div>
+      <div class="debug-log" id="debug-log-topic" aria-live="polite"></div>
+    </div>
+  </div>
+</main>
+
+<script type="module" src="js/core/log-ros-bridge.js"></script>
+<script type="module" src="js/ivg_site_nav.js"></script>
+<script type="module" src="js/debug_panel.js"></script>
+<script type="module" src="js/core/ivg_status_bar.js"></script>
+</body>
+</html>

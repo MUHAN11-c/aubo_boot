@@ -515,6 +515,101 @@ import {
 	// 监控区折叠/展开 → 改用共享组件 monitoring-collapse.js 喵~
 	// scheduleSyncMonitoringBundleMinHeight 已委托给 monitoringCollapse.scheduleSyncMinHeight()
 
+	// ═══════════════════════════════════════════════════════════════
+	// 夹爪快换状态桥接 — UI 状态栏 + 按钮状态 + localStorage + init-tool-select
+	// ═══════════════════════════════════════════════════════════════
+	const LS_TOOL_KEY = 'ivg_last_tool_id';
+	const TOOL_NAMES = { gripper0: '气动夹爪 φ40', gripper1: '电动夹爪 A', gripper2: '电动夹爪 φ60' };
+	var _toolSwapping = false;
+
+	function _updateToolStatusUI(toolId, connected) {
+		var led = $('tool-status-led');
+		var label = $('tool-status-label');
+		var params = $('tool-status-params');
+		var name = TOOL_NAMES[toolId] || toolId || '';
+
+		if (led) {
+			led.classList.remove('connected', 'loading');
+			if (_toolSwapping) led.classList.add('loading');
+			else if (connected) led.classList.add('connected');
+		}
+		if (label) label.textContent = _toolSwapping ? ('切换中: ' + (name || toolId || '...')) : (name || toolId || '未安装工具');
+		if (params) params.textContent = toolId || '';
+	}
+
+	function _updateGripperButtons(currentId, swapping) {
+		var btns = document.querySelectorAll('.gripper-btn');
+		btns.forEach(function (btn) {
+			var tool = btn.getAttribute('data-tool');
+			btn.classList.remove('active', 'swapping');
+			btn.disabled = false;
+			if (swapping && tool === swapping) { btn.classList.add('swapping'); btn.disabled = true; }
+			else if (!swapping && currentId && tool === currentId) { btn.classList.add('active'); btn.disabled = true; }
+		});
+	}
+
+	function _onToolStatusMsg(msg) {
+		if (!msg) return;
+		var toolId = String(msg.tool_id || '');
+		var connected = msg.is_connected !== false;
+		if (typeof serviceActions.setCurrentToolId === 'function') serviceActions.setCurrentToolId(toolId);
+		try { localStorage.setItem(LS_TOOL_KEY, toolId); } catch (e) {}
+		_toolSwapping = false;
+		_updateToolStatusUI(toolId, connected);
+		_updateGripperButtons(toolId, null);
+		var sel = $('init-tool-select');
+		if (sel) { try { sel.value = toolId || ''; } catch (e) {} }
+	}
+
+	function _initToolStatusBridge() {
+		// 初始值：localStorage → UI 占位
+		var stored = '';
+		try { stored = localStorage.getItem(LS_TOOL_KEY) || ''; } catch (e) {}
+		if (stored) {
+			_updateToolStatusUI(stored, false);
+			_updateGripperButtons(stored, null);
+			if (typeof serviceActions.setCurrentToolId === 'function') serviceActions.setCurrentToolId(stored);
+			var si = $('init-tool-select');
+			if (si) { try { si.value = stored; } catch (e) {} }
+		}
+		// init-tool-select → localStorage
+		var sel = $('init-tool-select');
+		if (sel) {
+			sel.addEventListener('change', function () {
+				var v = sel.value || '';
+				try { localStorage.setItem(LS_TOOL_KEY, v); } catch (e) {}
+				if (typeof serviceActions.setCurrentToolId === 'function') serviceActions.setCurrentToolId(v);
+				_updateToolStatusUI(v, false);
+				_updateGripperButtons(v, null);
+			});
+		}
+		// 按钮点击 → swapping 状态
+		var swapRow = document.getElementById('gripper-swap-btns');
+		if (swapRow) {
+			swapRow.addEventListener('click', function (e) {
+				var btn = e.target.closest('.gripper-btn');
+				if (!btn || btn.disabled) return;
+				var targetId = btn.getAttribute('data-tool');
+				if (!targetId) return;
+				_toolSwapping = true;
+				_updateToolStatusUI(targetId, false);
+				_updateGripperButtons('', targetId);
+			}, true);
+		}
+		// 订阅 /tool_changer_status
+		function _subscribeToolStatus() {
+			if (!ivgTransport || !ivgTransport.isConnected()) {
+				setTimeout(_subscribeToolStatus, 1000);
+				return;
+			}
+			try {
+				ivgTransport.subscribe({ topic: '/tool_changer_status', msgType: 'ivg_interfaces/msg/ToolChangerStatus', maxHz: 5 });
+				ivgTransport.onRosJson('/tool_changer_status', _onToolStatusMsg);
+			} catch (e) { console.warn('[vision_grasp] /tool_changer_status 订阅失败:', e); }
+		}
+		setTimeout(_subscribeToolStatus, 2000);
+	}
+
 	document.addEventListener('DOMContentLoaded', () => {
 		void (async () => {
 			await ivgPorts.loadRuntime();
@@ -539,6 +634,9 @@ import {
 
 			// --- 抓取区服务按钮 ---
 			serviceActions.bindControlButtons();
+
+			// --- 夹爪状态桥接 ---
+			_initToolStatusBridge();
 
 			uiBinder.bindTopicSettingsUi();
 

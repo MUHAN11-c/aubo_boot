@@ -283,13 +283,22 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 				self.ros3dUrdfClient = newClient;
 			}
 		}, 2000);			};
-	IvgRos3dView3dSession.prototype.stop = function () {
+IvgRos3dView3dSession.prototype.stop = function () {
 		this._deferredStartTimers.forEach(t => clearTimeout(t));
 		this._deferredStartTimers.length = 0;
 		this._markersStarted = false;
 		this._urdfStarted = false;
 		this._markerCameraPrimed = false;
 		this._urdfCameraPrimed = false;
+		// 清理工具 mesh
+		if (this._toolMeshTimer) {
+			clearInterval(this._toolMeshTimer);
+			this._toolMeshTimer = null;
+		}
+		if (this._toolMeshData && this._toolMeshData.meshGroup) {
+			try { this.viewer3d.scene.remove(this._toolMeshData.meshGroup); } catch (e) { /* */ }
+		}
+		this._toolMeshData = null;
 		if (this._urdfFocusTimer) {
 			clearInterval(this._urdfFocusTimer);
 			this._urdfFocusTimer = null;
@@ -359,6 +368,34 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 		const host3 = this.$(this._view3dHostId);
 		removeView3dUrdfHint(host3);
 		if (host3) host3.innerHTML = '';
+		this.clearTrajectoryLines();
+	};
+	IvgRos3dView3dSession.prototype.addTrajectoryLine = function (waypoints, color, linewidth) {
+		if (!this.viewer3d || !this.viewer3d.scene || !waypoints || waypoints.length < 2) return;
+		var THREE = globalThis.THREE;
+		if (!THREE) return;
+		if (!this._trajectoryLines) this._trajectoryLines = [];
+		var pts = waypoints.map(function (wp) {
+			var pos = wp.position || wp;
+			return new THREE.Vector3(pos.x || 0, pos.y || 0, pos.z || 0);
+		});
+		var geom = new THREE.BufferGeometry().setFromPoints(pts);
+		var hex = typeof color === 'string' ? parseInt(color.replace('#', ''), 16) : (color || 0xff6b6b);
+		var mat = new THREE.LineBasicMaterial({ color: hex, linewidth: linewidth || 2 });
+		var line = new THREE.Line(geom, mat);
+		this.viewer3d.addObject(line);
+		this._trajectoryLines.push(line);
+	};
+	IvgRos3dView3dSession.prototype.clearTrajectoryLines = function () {
+		if (!this._trajectoryLines || !this.viewer3d) return;
+		var lines = this._trajectoryLines;
+		this._trajectoryLines = [];
+		for (var i = 0; i < lines.length; i++) {
+			var line = lines[i];
+			try { this.viewer3d.scene.remove(line); } catch (e) { /* */ }
+			if (line.geometry) try { line.geometry.dispose(); } catch (e) { /* */ }
+			if (line.material) try { line.material.dispose(); } catch (e) { /* */ }
+		}
 	};
 	IvgRos3dView3dSession.prototype.start = function () {
 		const $ = this.$;
@@ -400,7 +437,7 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 			width: w,
 			height: h,
 			antialias: !coarsePointer,
-			background: '#1a1a2e',
+			background: '#ffffff',
 				intensity: 0.85,
 			cameraPose: { x: 3, y: 3, z: 3 },
 			cameraZoomSpeed: 0.5

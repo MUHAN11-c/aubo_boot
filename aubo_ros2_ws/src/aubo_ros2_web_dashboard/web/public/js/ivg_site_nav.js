@@ -6,6 +6,7 @@ const NAV_LINKS = [
   { href: 'vision_grasp_panel.html',  page: 'vision',   label: '视觉抓取' },
   { href: 'coffee_latte_panel.html',  page: 'latte',    label: '咖啡拉花' },
   { href: 'tf_monitor_panel.html',    page: 'monitor',  label: '监控面板' },
+  { href: 'debug_panel.html',         page: 'debug',    label: '调试' },
   { href: 'log_panel.html',           page: 'log',      label: '日志' },
   { href: 'settings_panel.html',      page: 'settings', label: '设置' },
 ];

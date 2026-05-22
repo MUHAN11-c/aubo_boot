@@ -43,14 +43,14 @@ function setupSubscriptions() {
     if (!ros.isConnected) return;
 
     // 机械臂状态 → 位姿显示 + 状态栏
-    ros.subscribe('/aubo_driver/robot_status', 'demo_interface/msg/RobotStatus', (msg) => {
-        if (!msg || !msg.ee_pose) return;
-        const ee = msg.ee_pose;
+    ros.subscribe('/robot_status', 'ivg_interfaces/msg/RobotStatus', (msg) => {
+        if (!msg || !msg.cartesian_position) return;
+        const cp = msg.cartesian_position;
         // 缓存末端位姿供拉花预览使用
         window.__ivgLastEEPose = {
-            x: ee.position?.x || 0, y: ee.position?.y || 0, z: ee.position?.z || 0,
-            qx: ee.orientation?.x || 0, qy: ee.orientation?.y || 0,
-            qz: ee.orientation?.z || 0, qw: ee.orientation?.w || 1,
+            x: cp.position?.x || 0, y: cp.position?.y || 0, z: cp.position?.z || 0,
+            qx: cp.orientation?.x || 0, qy: cp.orientation?.y || 0,
+            qz: cp.orientation?.z || 0, qw: cp.orientation?.w || 1,
         };
 
         const poseEl = $('pose-text');
@@ -125,11 +125,29 @@ async function init() {
     // 7. 初始化拉花参数控制 (复用现有 latte_controls.js)
     initLatteControls();
 
+    // 8. 3D 预览轨迹渲染监听
+    setupLattePreviewListener();
+
     logBus.addLog('info', 'lifecycle', '咖啡拉花面板就绪');
 }
 
+function setupLattePreviewListener() {
+    document.addEventListener('latte:preview-ready', (e) => {
+        const d = e.detail;
+        if (!d || !d.waypoints || d.waypoints.length === 0) {
+            logBus.addLog('warn', 'view3d', '预览: waypoints 为空');
+            return;
+        }
+        if (urdfViewer && typeof urdfViewer.clearTrajectoryLines === 'function') {
+            urdfViewer.clearTrajectoryLines();
+            urdfViewer.addTrajectoryLine(d.waypoints, '#ff6b6b', 2);
+            logBus.addLog('info', 'view3d', '3D 轨迹已渲染: ' + d.waypoints.length + ' 个 waypoint');
+        }
+    });
+}
+
 function cleanup() {
-    if (urdfViewer) { urdfViewer.stop(); urdfViewer = null; }
+    if (urdfViewer) { if (urdfViewer.clearTrajectoryLines) urdfViewer.clearTrajectoryLines(); urdfViewer.stop(); urdfViewer = null; }
     if (jointChart) { jointChart.reset(); jointChart = null; }
     if (monitoringCollapse) { monitoringCollapse.destroy(); monitoringCollapse = null; }
     ros.disconnect();

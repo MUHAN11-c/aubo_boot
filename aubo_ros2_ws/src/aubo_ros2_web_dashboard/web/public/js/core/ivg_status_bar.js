@@ -1,14 +1,14 @@
-// ivg_status_bar — 底部机械臂状态栏
-// 订阅 /aubo_driver/robot_status + /aubo/mode，显示在线/使能/运动/规划/模式
+// ivg_status_bar — 底部状态栏
+// ROS 连接(WebSocket) + /robot_status + /aubo/mode
 import { ivgTransport } from '../ivg_transport.js';
 import { ROBOT_STATUS_TOPIC, ROBOT_STATUS_TYPE, MODE_TOPIC, MODE_TYPE } from './topics.js';
 
 const TAG = '[ivg_status_bar]';
 
 const STATUS_BAR_ID = 'ivg-status-bar';
-// ROBOT_STATUS_TOPIC/ROBOT_STATUS_TYPE/MODE_TOPIC/MODE_TYPE 已从 topics.js 导入
 
 const LABELS = {
+  ros_connected: 'ROS',
   is_online: '在线',
   enable: '使能',
   in_motion: '运动',
@@ -17,6 +17,7 @@ const LABELS = {
 };
 
 const VALUE_MAP = {
+  ros_connected: v => (v ? '已连接' : '已断开'),
   is_online: v => (v ? '在线' : '离线'),
   enable: v => (v ? '已使能' : '未使能'),
   in_motion: v => (v ? '运动中' : '静止'),
@@ -34,6 +35,7 @@ const VALUE_MAP = {
 };
 
 const DOT_CLASS = {
+  ros_connected: v => (v ? 'ivg-status-bar__dot--on' : 'ivg-status-bar__dot--err'),
   is_online: v => (v ? 'ivg-status-bar__dot--on' : 'ivg-status-bar__dot--off'),
   enable: v => (v ? 'ivg-status-bar__dot--on' : 'ivg-status-bar__dot--off'),
   in_motion: v => (v ? 'ivg-status-bar__dot--warn' : 'ivg-status-bar__dot--off'),
@@ -50,7 +52,7 @@ const DOT_CLASS = {
   },
 };
 
-const ITEM_ORDER = ['is_online', 'enable', 'in_motion', 'planning_status', 'driver_mode'];
+const ITEM_ORDER = ['ros_connected', 'is_online', 'enable', 'in_motion', 'planning_status', 'driver_mode'];
 
 function buildBar() {
   const bar = document.createElement('div');
@@ -64,6 +66,9 @@ function buildBar() {
   for (const key of ITEM_ORDER) {
     const item = document.createElement('div');
     item.className = 'ivg-status-bar__item';
+    if (key === 'ros_connected') {
+      item.classList.add('ivg-status-bar__item--ros');
+    }
     item.dataset.key = key;
 
     const dot = document.createElement('span');
@@ -108,6 +113,23 @@ function updateBar(msg) {
 }
 
 var _lastKnownMode = '';
+
+function updateRosConnection(connected) {
+  const bar = document.getElementById(STATUS_BAR_ID);
+  if (!bar) return;
+  const item = bar.querySelector('[data-key="ros_connected"]');
+  if (!item) return;
+  const dot = item.querySelector('.ivg-status-bar__dot');
+  const val = item.querySelector('.ivg-status-bar__value');
+  if (dot) {
+    dot.className = 'ivg-status-bar__dot ' + DOT_CLASS.ros_connected(connected);
+  }
+  if (val) {
+    val.textContent = VALUE_MAP.ros_connected(connected);
+  }
+  // 设置初始状态后也尝试更新 ROS topic 订阅
+  if (connected) ensureStatus();
+}
 
 function updateDriverMode(raw) {
   const bar = document.getElementById(STATUS_BAR_ID);
@@ -183,15 +205,23 @@ function ensureStatus() {
 
 function init() {
   mountBar();
-  ensureStatus();
 
-  // 重连后 rosbridge 侧订阅已清空，需要重新注册 handler + subscribe
+  // 监听 rosbridge WebSocket 连接状态更新 ROS 连接指示
+  var _rosConnected = !!(ivgTransport.ros && ivgTransport.ros.isConnected);
+  updateRosConnection(_rosConnected);
+
+  // 传输层连接/断开回调
   ivgTransport.onControlJson(function (ctrl) {
     if (ctrl && ctrl.op === 'connection') {
+      var connected = !!(ctrl.connected || (ivgTransport.ros && ivgTransport.ros.isConnected));
+      updateRosConnection(connected);
       _statusSetupDone = false;
-      ensureStatus();
+      if (connected) ensureStatus();
     }
   });
+
+  // 初始化时检测一次连接
+  ensureStatus();
 }
 
 // DOM ready 后初始化

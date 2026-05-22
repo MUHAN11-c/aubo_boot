@@ -1,21 +1,16 @@
-// joint-chart.js — Canvas 2D 关节角曲线组件（可复用，零外部依赖）
-// 从 vision_grasp/joint_chart.js 提取，供 vision-grasp / latte 等各页共用喵~
-//
+// joint-chart.js — 关节角实时监测曲线（轻量 Canvas 2D，零外部依赖）
 // 用法:
 //   import { createJointChartController } from '../components/joint-chart.js';
 //   const chart = createJointChartController({ getById: $, maxSamples: 280 });
 //   chart.pushSample(jointNames, positions);
-//   chart.observeResize();
-//   chart.reset();
 
 function createJointChartController(opts) {
     const options = opts || {};
     const $ = options.getById || (id => document.getElementById(id));
-    const maxSamples = Number(options.maxSamples) > 0 ? Number(options.maxSamples) : 280;
-    const lineColors = Array.isArray(options.lineColors) && options.lineColors.length
+    const maxSamples = Math.max(60, Number(options.maxSamples) || 280);
+    const lineColors = (Array.isArray(options.lineColors) && options.lineColors.length)
         ? options.lineColors.slice()
         : ['#2563eb', '#16a34a', '#d97706', '#db2777', '#7c3aed', '#0d9488'];
-    // 可自定义 canvas ID 和 legend ID
     const canvasId = options.canvasId || 'joint-chart';
     const legendId = options.legendId || 'joint-legend';
 
@@ -23,154 +18,172 @@ function createJointChartController(opts) {
     let drawRaf = null;
     let resizeObs = null;
 
-    function jointLegendEl() {
-        return document.getElementById(legendId);
+    function canvasEl() { return $(canvasId); }
+    function legendEl() { return document.getElementById(legendId); }
+
+    // ── CSS 变量缓存 ──────────────────────────────────────
+    let cssCache = null;
+    let cssCacheTs = 0;
+    function cssVars() {
+        const now = Date.now();
+        if (cssCache && now - cssCacheTs < 3000) return cssCache;
+        const s = getComputedStyle(document.documentElement);
+        cssCache = {
+            bg:       s.getPropertyValue('--chart-bg').trim()      || '#ffffff',
+            grid:     s.getPropertyValue('--chart-grid').trim()    || '#e5e7eb',
+            axis:     s.getPropertyValue('--chart-axis').trim()    || '#d1d5db',
+            text:     s.getPropertyValue('--chart-text').trim()    || '#9ca3af',
+            textBold: s.getPropertyValue('--chart-text-bold').trim() || '#6b7280',
+        };
+        cssCacheTs = now;
+        return cssCache;
     }
 
-    function clampChartSizeToPanel(canvas, cssW, cssH) {
+    // ── 自适应面板高度 ────────────────────────────────────
+    function fitCanvas(canvas) {
+        const rect = canvas.getBoundingClientRect();
+        let w = Math.max(300, Math.floor(rect.width) || 640);
+        let h = Math.max(180, Math.floor(rect.height) || 240);
         const panel = canvas.closest('.panel--chart');
-        if (!panel || panel.clientHeight <= 0) return { w: cssW, h: cssH };
-        const pad = getComputedStyle(panel);
-        const pl = parseFloat(pad.paddingLeft) || 0;
-        const pr = parseFloat(pad.paddingRight) || 0;
-        const pt = parseFloat(pad.paddingTop) || 0;
-        const pb = parseFloat(pad.paddingBottom) || 0;
-        let usedY = pt + pb;
-        const h2 = panel.querySelector(':scope > h2');
-        const leg = panel.querySelector(':scope > .legend-joint');
-        if (h2) usedY += h2.offsetHeight;
-        if (leg) usedY += leg.offsetHeight;
-        const availH = Math.max(72, Math.floor(panel.clientHeight - usedY));
-        const availW = Math.max(200, Math.floor(panel.clientWidth - pl - pr));
-        return { w: Math.min(Math.max(200, cssW), availW), h: Math.min(Math.max(72, cssH), availH) };
+        if (panel && panel.clientHeight > 0) {
+            const ps = getComputedStyle(panel);
+            w = Math.max(280, Math.floor(panel.clientWidth
+                - (parseFloat(ps.paddingLeft) || 0)
+                - (parseFloat(ps.paddingRight) || 0)));
+            let used = (parseFloat(ps.paddingTop) || 0) + (parseFloat(ps.paddingBottom) || 0);
+            const h2 = panel.querySelector(':scope > h2');
+            const leg = panel.querySelector(':scope > .legend-joint');
+            if (h2) used += h2.offsetHeight + 4;
+            if (leg) used += leg.offsetHeight + 4;
+            h = Math.max(140, Math.floor(panel.clientHeight - used));
+        }
+        const dpr = Math.min(typeof devicePixelRatio !== 'undefined' ? devicePixelRatio : 1, 2);
+        canvas.style.width  = `${w}px`;
+        canvas.style.height = `${h}px`;
+        canvas.width  = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        return { w, h, dpr };
     }
 
-    function drawImmediate() {
-        const canvas = $(canvasId);
-        if (!canvas || !canvas.getContext) return;
+    // ── 绘制 ──────────────────────────────────────────────
+    function draw() {
+        const canvas = canvasEl();
+        if (!canvas) return;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
-        const rect = canvas.getBoundingClientRect();
-        let cssW = Math.max(200, Math.floor(rect.width) || 640);
-        let cssH = Math.max(160, Math.floor(rect.height) || 240);
-        const capped = clampChartSizeToPanel(canvas, cssW, cssH);
-        cssW = capped.w;
-        cssH = capped.h;
-        const dpr = typeof window !== 'undefined' && window.devicePixelRatio ? window.devicePixelRatio : 1;
-        canvas.style.width = `${cssW}px`;
-        canvas.style.height = `${cssH}px`;
-        canvas.width = Math.floor(cssW * dpr);
-        canvas.height = Math.floor(cssH * dpr);
+
+        const { w, h, dpr } = fitCanvas(canvas);
+        const vars = cssVars();
+        const pad = { t: 16, r: 12, b: 24, l: 50 };
+        const pw = w - pad.l - pad.r;
+        const ph = h - pad.t - pad.b;
+        if (pw <= 0 || ph <= 0) return;
+
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        const W = cssW, H = cssH;
-        const padL = 44, padR = 8, padT = 10, padB = 22;
-        const plotW = W - padL - padR, plotH = H - padT - padB;
 
-        const style = getComputedStyle(document.documentElement);
-        const bg = style.getPropertyValue('--graph-bg').trim() || '#0f172a';
-        const border = style.getPropertyValue('--border').trim() || '#334155';
-        const muted = style.getPropertyValue('--text-muted').trim() || '#94a3b8';
+        // 背景
+        ctx.fillStyle = vars.bg;
+        ctx.fillRect(0, 0, w, h);
 
-        ctx.fillStyle = bg;
-        ctx.fillRect(0, 0, W, H);
-        ctx.strokeStyle = border;
+        // 边框
+        ctx.strokeStyle = vars.axis;
         ctx.lineWidth = 1;
-        ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
+        ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
 
         const series = state.series;
-        const hasData = series.some(arr => arr.length > 0);
-        if (!hasData) return;
+        if (!series.some(a => a.length > 0)) {
+            ctx.fillStyle = vars.text;
+            ctx.font = '12px ui-monospace, monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('-- 等待关节数据 --', w / 2, h / 2);
+            return;
+        }
 
+        // Y 范围
         let yMin = Infinity, yMax = -Infinity;
-        for (let j = 0; j < series.length; j++) {
-            for (let t = 0; t < series[j].length; t++) {
-                const y = series[j][t];
-                if (typeof y === 'number' && isFinite(y)) {
-                    if (y < yMin) yMin = y;
-                    if (y > yMax) yMax = y;
+        for (const arr of series) {
+            for (const v of arr) {
+                if (typeof v === 'number' && isFinite(v)) {
+                    if (v < yMin) yMin = v; if (v > yMax) yMax = v;
                 }
             }
         }
         if (!isFinite(yMin) || !isFinite(yMax)) return;
         if (yMin === yMax) { yMin -= 1; yMax += 1; }
-        const yPad = (yMax - yMin) * 0.08 || 0.05;
+        const yPad = Math.max((yMax - yMin) * 0.08, 0.05);
         yMin -= yPad; yMax += yPad;
+        const yr = yMax - yMin;
 
-        // 网格线
-        ctx.strokeStyle = border;
-        ctx.globalAlpha = 0.35;
-        ctx.beginPath();
-        for (let g = 0; g <= 4; g++) {
-            const gy = padT + (plotH * g) / 4;
-            ctx.moveTo(padL, gy);
-            ctx.lineTo(padL + plotW, gy);
+        const xPos = (t, len) => pad.l + (t / Math.max(1, len - 1)) * pw;
+        const yPos = (v)    => pad.t + ph * (1 - (v - yMin) / yr);
+
+        // 水平网格
+        ctx.strokeStyle = vars.grid;
+        ctx.lineWidth = 0.5;
+        const rows = 4;
+        for (let i = 0; i <= rows; i++) {
+            const y = pad.t + (ph * i) / rows;
+            ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + pw, y); ctx.stroke();
         }
-        ctx.stroke();
-        ctx.globalAlpha = 1;
 
-        // Y 轴标签
-        ctx.fillStyle = muted;
+        // Y 轴刻度
+        ctx.fillStyle = vars.text;
         ctx.font = '10px ui-monospace, monospace';
         ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
-        for (let g = 0; g <= 4; g++) {
-            const v = yMax - ((yMax - yMin) * g) / 4;
-            const gy = padT + (plotH * g) / 4;
-            ctx.fillText(v.toFixed(3), padL - 6, gy);
+        for (let i = 0; i <= rows; i++) {
+            ctx.fillText((yMax - (yr * i) / rows).toFixed(2), pad.l - 6, pad.t + (ph * i) / rows);
         }
 
-        // 曲线
+        // 裁剪
+        ctx.save();
+        ctx.beginPath(); ctx.rect(pad.l, pad.t, pw, ph); ctx.clip();
+
+        // 折线
         for (let j = 0; j < series.length; j++) {
             const arr = series[j];
-            if (arr.length === 0) continue;
-            const color = lineColors[j % lineColors.length];
-            if (arr.length === 1 && isFinite(arr[0])) {
-                const yNorm = (arr[0] - yMin) / (yMax - yMin);
-                ctx.fillStyle = color;
-                ctx.beginPath();
-                ctx.arc(padL + plotW / 2, padT + plotH * (1 - yNorm), 3.5, 0, Math.PI * 2);
-                ctx.fill();
-                continue;
-            }
             if (arr.length < 2) continue;
-            const denom = Math.max(1, arr.length - 1);
+            const color = lineColors[j % lineColors.length];
+            const len = arr.length;
             ctx.strokeStyle = color;
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = 1.6;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
             ctx.beginPath();
-            for (let t = 0; t < arr.length; t++) {
-                const x = padL + (t / denom) * plotW;
-                const yNorm = (arr[t] - yMin) / (yMax - yMin);
-                const y = padT + plotH * (1 - yNorm);
-                if (t === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            for (let t = 0; t < len; t++) {
+                const x = xPos(t, len), y = yPos(arr[t]);
+                t === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
             }
             ctx.stroke();
         }
 
-        ctx.fillStyle = muted;
-        ctx.font = '10px system-ui, sans-serif';
+        ctx.restore();
+
+        // X 轴标签
+        ctx.fillStyle = vars.text;
+        ctx.font = '10px ui-monospace, monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.fillText('时间 →', padL + plotW / 2, H - padB + 4);
+        ctx.fillText('samples', pad.l + pw / 2, h - pad.b + 6);
     }
 
     function scheduleDraw() {
         if (drawRaf != null) return;
-        drawRaf = requestAnimationFrame(() => { drawRaf = null; drawImmediate(); });
+        drawRaf = requestAnimationFrame(() => { drawRaf = null; draw(); });
     }
 
+    // ── Legend ─────────────────────────────────────────────
     function updateLegend() {
-        const leg = jointLegendEl();
+        const leg = legendEl();
         if (!leg) return;
         leg.replaceChildren();
         if (!state.names.length) { leg.setAttribute('aria-hidden', 'true'); return; }
         state.names.forEach((n, i) => {
             const row = document.createElement('span');
             row.className = 'legend-j';
-            row.setAttribute('role', 'listitem');
             const sw = document.createElement('span');
             sw.className = 'legend-j-swatch';
             sw.style.background = lineColors[i % lineColors.length];
-            sw.setAttribute('aria-hidden', 'true');
             const lab = document.createElement('span');
             lab.className = 'legend-j-name';
             lab.textContent = n;
@@ -180,22 +193,22 @@ function createJointChartController(opts) {
         leg.setAttribute('aria-hidden', 'false');
     }
 
+    // ── API ───────────────────────────────────────────────
     return {
         reset() {
             state = { names: [], series: [] };
             if (drawRaf != null) { cancelAnimationFrame(drawRaf); drawRaf = null; }
-            const leg = jointLegendEl();
+            const leg = legendEl();
             if (leg) { leg.replaceChildren(); leg.setAttribute('aria-hidden', 'true'); }
-            drawImmediate();
+            draw();
         },
+
         pushSample(rawNames, positions) {
             const n = Math.max(rawNames.length, positions.length);
             if (n === 0) return;
             const normNames = rawNames.map((rn, i) =>
                 rn != null && rn !== '' ? String(rn) : `joint_${i}`);
-            const keyNew = normNames.join('\0');
-            const keyOld = state.names.join('\0');
-            if (state.series.length !== n || keyNew !== keyOld) {
+            if (state.series.length !== n || state.names.join('\0') !== normNames.join('\0')) {
                 state.names = normNames.slice();
                 state.series = Array.from({ length: n }, () => []);
             }
@@ -209,16 +222,18 @@ function createJointChartController(opts) {
             updateLegend();
             scheduleDraw();
         },
+
         observeResize() {
-            const jc = $(canvasId);
-            if (!jc) return;
-            if (typeof ResizeObserver !== 'undefined' && jc.parentElement) {
+            const canvas = canvasEl();
+            if (!canvas) return;
+            if (typeof ResizeObserver !== 'undefined' && canvas.parentElement) {
                 if (resizeObs) resizeObs.disconnect();
                 resizeObs = new ResizeObserver(() => scheduleDraw());
-                resizeObs.observe(jc.parentElement);
+                resizeObs.observe(canvas.parentElement);
             }
             scheduleDraw();
         },
+
         getState() { return state; },
     };
 }

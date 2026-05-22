@@ -1,8 +1,8 @@
 // latte_controls.js — 拉花参数控制: 图案选择 + 杯子配置 + 倾倒参数 + 预览/执行
 // 依赖: ros.js (RosManager 单例), logBus (日志总线), fetch API
 // 链路:
-//   预览: fetch → POST /api/v1/latte/trajectory/preview → JSON waypoints
-//   执行: rosbridge → /latte_imitation/replay_trajectory service (ivg_interfaces/srv/ReplayLatteTrajectory)
+//   预览: rosbridge → /latte_imitation/replay_trajectory service (mode="preview")
+//   执行: rosbridge → /latte_imitation/replay_trajectory service (mode="action")
 
 import { ros } from '../core/ros.js';
 import { logBus } from '../core/log-bus.js';
@@ -10,7 +10,6 @@ import { logBus } from '../core/log-bus.js';
 const TAG = '[latte_ctrl]';
 
 // ── 常量 (与 latte.ts 对齐) ──
-const LATTE_PREVIEW_API = '/api/v1/latte/trajectory/preview';
 const LATTE_RPY_STORAGE_KEY = 'ivg_latte_rpy_v1';
 const LATTE_SESSION_STORAGE_KEY = 'ivg_latte_session_v1';
 const DEFAULT_SVC = '/latte_imitation/replay_trajectory';
@@ -33,6 +32,7 @@ const DEFAULTS = {
     antiSlosh: true,
     roll: 0, pitch: 0, yaw: 0,
     speedScale: 1.0, toolId: 'default', arm: 'right',
+    dx: 0.0, dy: 0.0, dz: 0.0, waypointStep: 5,
 };
 
 // ── 状态 ──
@@ -46,10 +46,12 @@ let _state = {
     maxVel: DEFAULTS.maxVel, maxAcc: DEFAULTS.maxAcc, maxJerk: DEFAULTS.maxJerk,
     antiSlosh: DEFAULTS.antiSlosh,
     roll: DEFAULTS.roll, pitch: DEFAULTS.pitch, yaw: DEFAULTS.yaw,
-    speedScale: DEFAULTS.speedScale, toolId: DEFAULTS.toolId,
+    speedScale: DEFAULTS.speedScale, toolId: DEFAULTS.toolId, arm: DEFAULTS.arm,
+    dx: DEFAULTS.dx, dy: DEFAULTS.dy, dz: DEFAULTS.dz,
+    waypointStep: DEFAULTS.waypointStep,
     previewLoading: false, execExecuting: false,
     message: '', success: null, // null=info, true=ok, false=err
-    lastPreview: null, // { tcp_path, spout_path, cup_pose, workspace_bounds }
+    lastPreviewWaypoints: null,
 };
 
 // 执行进度心跳
@@ -70,7 +72,7 @@ function _loadSession() {
 
 function _saveSession() {
     try {
-        const { previewLoading, execExecuting, message, success, lastPreview, ...s } = _state;
+        const { previewLoading, execExecuting, message, success, lastPreviewWaypoints, ...s } = _state;
         localStorage.setItem(LATTE_SESSION_STORAGE_KEY, JSON.stringify(s));
     } catch (_) { /* */ }
 }
@@ -101,6 +103,8 @@ function _buildRequest(mode) {
         speed_scale: _state.speedScale, mode,
         roll_deg: _state.roll, pitch_deg: _state.pitch, yaw_deg: _state.yaw,
         tool_offset_id: _state.toolId,
+        translation_x: _state.dx, translation_y: _state.dy, translation_z: _state.dz,
+        waypoint_sample_step: _state.waypointStep,
     };
     if (_state.patternType) {
         req.pattern_type = _state.patternType;
@@ -116,7 +120,12 @@ function _buildRequest(mode) {
     }
     // 尝试获取当前 EE 位姿
     const pose = _getCurrentEEPose();
-    if (pose) req.start_pose = pose;
+    if (pose) {
+        req.start_pose = {
+            position: {x: pose.x, y: pose.y, z: pose.z},
+            orientation: {x: pose.qx, y: pose.qy, z: pose.qz, w: pose.qw},
+        };
+    }
     return req;
 }
 
@@ -147,7 +156,7 @@ function _stopProgressHeartbeat() {
 
 // ── API 调用 ──
 async function _preview() {
-    logBus.addLog('info', 'service', '预览开始: ' + _logPatternLabel(), {
+    logBus.addLog('info', 'service', '预览开始: ' + _logPatternLabel() + ' (ROS service)', {
         phase: 'start', pattern: _state.patternType, episode: _state.episodeIdx,
     });
 
@@ -156,27 +165,31 @@ async function _preview() {
 
     try {
         const req = _buildRequest('preview');
-        const resp = await fetch(LATTE_PREVIEW_API, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(req),
-        });
-        if (!resp.ok) throw new Error('BFF ' + resp.status + ': ' + (await resp.text().catch(() => '')));
-        const data = await resp.json();
-        _state.lastPreview = data;
-        _state.message = data.message || '轨迹生成成功: ' + data.num_frames + ' 帧, ' + (data.path_length?.toFixed(2) ?? '?') + 'm';
-        _state.success = data.success !== false;
-
+        const result = await ros.callService(DEFAULT_SVC, DEFAULT_SVC_TYPE, req, 60000);
         const ms = (performance.now() - t0).toFixed(0);
-        logBus.addLog('info', 'service', '预览 ✓ 完成: ' + data.num_frames + ' 帧, ' + (data.path_length?.toFixed(2) ?? '?') + 'm (' + ms + 'ms)', {
-            phase: 'completed', num_frames: data.num_frames, path_length: data.path_length, duration_ms: parseInt(ms),
+
+        _state.lastPreviewWaypoints = result?.waypoints || [];
+        _state.message = result?.message || '预览完成: ' + (result?.num_frames || '?') + ' 帧, ' + ((result?.path_length)?.toFixed(2) ?? '?') + 'm';
+        _state.success = result?.success !== false;
+
+        logBus.addLog('info', 'service', '预览 ✓ 完成 (' + ms + 'ms): ' + (result?.num_frames || '?') + ' 帧', {
+            phase: 'completed', num_frames: result?.num_frames, path_length: result?.path_length, duration_ms: parseInt(ms),
         });
 
-        // 触发 3D 预览叠加
-        if (data.tcp_path) _emitPreviewOverlay(data);
+        // 触发 3D 轨迹渲染
+        document.dispatchEvent(new CustomEvent('latte:preview-ready', {
+            detail: {
+                waypoints: _state.lastPreviewWaypoints,
+                num_frames: result?.num_frames,
+                path_length: result?.path_length,
+                success: _state.success,
+                message: _state.message,
+            },
+        }));
     } catch (e) {
         _state.message = '预览失败: ' + String(e.message || e);
         _state.success = false;
+        _state.lastPreviewWaypoints = [];
 
         logBus.addLog('error', 'service', '预览 ✗ 失败: ' + String(e.message || e), {
             phase: 'failed', error: String(e.message || e),
@@ -205,12 +218,13 @@ async function _execute() {
         _stopProgressHeartbeat();
 
         const ms = (performance.now() - t0).toFixed(0);
-        _state.message = result?.message ?? (result?.success !== false ? '执行完成' : '执行失败');
-        _state.success = result?.success ?? true;
+        const ok = result?.success !== false;
+        _state.message = result?.message || (ok ? '执行完成' : '执行失败');
+        _state.success = ok;
 
-        logBus.addLog('info', 'service', '执行 ✓ 完成 (' + ms + 'ms)', {
+        logBus.addLog(ok ? 'info' : 'warn', 'service', '执行 ' + (ok ? '✓' : '✗') + ' (' + ms + 'ms)', {
             phase: 'completed', service: svc, duration_ms: parseInt(ms),
-            success: _state.success, response_message: result?.message || '',
+            success: ok, response_message: result?.message || '',
         });
     } catch (e) {
         _stopProgressHeartbeat();
@@ -245,12 +259,6 @@ function _home() {
     _state.success = null;
     _render();
 }
-
-// ── 事件触发 ──
-const _listeners = { previewData: [], execState: [] };
-function on(evt, fn) { if (_listeners[evt]) _listeners[evt].push(fn); }
-function _emit(evt, data) { if (_listeners[evt]) _listeners[evt].forEach(fn => fn(data)); }
-function _emitPreviewOverlay(data) { _emit('previewData', { tcp_path: data.tcp_path, spout_path: data.spout_path, cup_pose: data.cup_pose, workspace_bounds: data.workspace_bounds }); }
 
 // ── UI 渲染 ──
 
@@ -309,6 +317,14 @@ function _render() {
     });
     const ssEl = document.getElementById('latte-speedScale');
     if (ssEl) ssEl.value = s.speedScale;
+
+    // 平移偏移
+    ['dx','dy','dz'].forEach(k => {
+        const el = document.getElementById('latte-' + k);
+        if (el) el.value = s[k];
+    });
+    const wsEl2 = document.getElementById('latte-waypointStep');
+    if (wsEl2) wsEl2.value = s.waypointStep;
 
     // 按钮状态
     const btnP = document.getElementById('latte-btn-preview');
@@ -381,6 +397,15 @@ function _bindEvents() {
     // 速度倍率
     const ssEl = document.getElementById('latte-speedScale');
     if (ssEl) ssEl.addEventListener('input', () => { _state.speedScale = parseFloat(ssEl.value) || 1.0; _saveSession(); });
+    // 平移偏移
+    ['dx','dy','dz'].forEach(k => _bindNumberInput(k, k, _saveSession));
+    // 采样步长
+    const wsEl2 = document.getElementById('latte-waypointStep');
+    if (wsEl2) wsEl2.addEventListener('input', () => {
+        const v = parseInt(wsEl2.value) || 5;
+        _state.waypointStep = Math.max(1, Math.min(20, v));
+        _saveSession();
+    });
     // 按钮
     const btnP = document.getElementById('latte-btn-preview');
     if (btnP) btnP.addEventListener('click', () => {
@@ -412,5 +437,5 @@ export function initLatteControls() {
 
     logBus.addLog('info', 'system', '拉花参数控制就绪 pattern=' + (_state.patternType || '(episode)') +
         ' cup=(' + _state.cupX + ',' + _state.cupY + ',' + _state.cupZ + ')');
-    return { getState: () => _state, on, preview: _preview, execute: _execute };
+    return { getState: () => _state, preview: _preview, execute: _execute };
 }

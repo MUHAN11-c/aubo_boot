@@ -7,9 +7,10 @@
 <meta name="viewport"
 content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
 <title>咖啡拉花面板</title>
-<link rel="stylesheet" href="css/vision_grasp_panel.css?v=20260424_monitoring_graspnet_pose_enlarged" />
-<link rel="stylesheet" href="css/coffee_latte_panel.css?v=20260424_latte_pose_larger" />
-<link rel="stylesheet" href="css/ivg_site_nav.css?v=20260414_unify_proj" />
+<link rel="stylesheet" href="css/tokens.css" />
+<link rel="stylesheet" href="css/layout_base.css" />
+<link rel="stylesheet" href="css/coffee_latte_panel.css?v=20260522_unify_design" />
+<link rel="stylesheet" href="css/ivg_site_nav.css?v=20260522_unify_design" />
 <link rel="stylesheet" href="css/ivg_status_bar.css" />
 <script src="/js/robotwebtools/importmap.js"></script>
 </head>
@@ -41,7 +42,7 @@ DI 反馈灯在底部监控区；DO2 / DO4 开关在右侧（工序逻辑待接�
 </div>
 </div>
 </section>
-	<section class="panel panel--camera panel--camera-result layout-tier-2" aria-label="拉花参数控制">
+	<section class="panel panel--camera panel--camera-result layout-tier-2 latte-result-panel" aria-label="拉花参数控制">
 	<h2 id="latte-flow-panel-title">拉花参数控制</h2>
 	<div class="panel-canvas-wrap panel-canvas-wrap--result">
 	<!-- ── 图案选择 ── -->
@@ -94,6 +95,22 @@ DI 反馈灯在底部监控区；DO2 / DO4 开关在右侧（工序逻辑待接�
 	<label class="latte-cfg-row"><span class="latte-cfg-label">Pitch (°)</span><input id="latte-pitch" type="number" value="0" step="1" class="latte-num-inp" /></label>
 	<label class="latte-cfg-row"><span class="latte-cfg-label">Yaw (°)</span><input id="latte-yaw" type="number" value="0" step="1" class="latte-num-inp" /></label>
 	<label class="latte-cfg-row"><span class="latte-cfg-label">速度倍率</span><input id="latte-speedScale" type="number" value="1.0" min="0.01" max="10.0" step="0.1" class="latte-num-inp" /></label>
+	</div>
+	</div>
+	<!-- ── 平移偏移 ── -->
+	<div class="latte-ctrl-group">
+	<h3 class="latte-ctrl-title">轨迹偏移 (平移)</h3>
+	<div class="latte-cfg-grid">
+	<label class="latte-cfg-row"><span class="latte-cfg-label">ΔX (m)</span><input id="latte-dx" type="number" value="0.0" step="0.001" class="latte-num-inp" /></label>
+	<label class="latte-cfg-row"><span class="latte-cfg-label">ΔY (m)</span><input id="latte-dy" type="number" value="0.0" step="0.001" class="latte-num-inp" /></label>
+	<label class="latte-cfg-row"><span class="latte-cfg-label">ΔZ (m)</span><input id="latte-dz" type="number" value="0.0" step="0.001" class="latte-num-inp" /></label>
+	</div>
+	</div>
+	<!-- ── 预览采样 ── -->
+	<div class="latte-ctrl-group">
+	<h3 class="latte-ctrl-title">预览采样</h3>
+	<div class="latte-cfg-grid">
+	<label class="latte-cfg-row"><span class="latte-cfg-label">采样步长</span><input id="latte-waypointStep" type="number" value="5" min="1" max="20" step="1" class="latte-num-inp" /></label>
 	</div>
 	</div>
 	<!-- ── 执行按钮 ── -->
@@ -154,8 +171,7 @@ aria-controls="layout-monitoring-bundle">
 <div class="layout-monitoring-ee-vpe-pair" aria-label="末端位姿与 DI 反馈">
 <section class="panel panel--status" aria-label="机械臂末端位姿">
 <h2>机械臂末端位姿</h2>
-<div class="pose-pre pose-card" id="pose-text" role="status" aria-live="polite">— 未连接 —
-</div>
+<div class="pose-pre pose-card" id="pose-text" role="status" aria-live="polite"></div>
 </section>
 <section class="panel panel--status panel--latte-di-monitoring" aria-label="反馈信号灯（DI）">
 <h2>反馈信号灯（DI）</h2>
@@ -192,12 +208,6 @@ aria-hidden="true"></span>
 </div>
 </div>
 </main>
-<footer class="connection-footer" role="contentinfo" aria-label="连接状态">
-<div class="connection-footer__inner">
-<span class="connection-footer__label">连接状态</span>
-<span id="conn-status" class="status pending" role="status" aria-live="polite">正在连接…</span>
-</div>
-</footer>
 <div id="topic-settings-modal" class="topic-settings-modal" role="dialog" aria-modal="true"
 aria-labelledby="topic-settings-title" aria-hidden="true" hidden>
 <div class="topic-settings-backdrop" id="topic-settings-backdrop" tabindex="-1"></div>
@@ -209,8 +219,8 @@ aria-label="关闭">×</button>
 </div>
 <div class="topic-grid topic-grid-modal">
 <h3 class="topic-settings-section-title">订阅话题（示例名，可改）</h3>
-<label>机械臂状态 RobotStatus <input type="text" id="topic-robot" value="/aubo_driver/robot_status"
-autocomplete="off" title="demo_interface/msg/RobotStatus" /></label>
+<label>机械臂状态 RobotStatus <input type="text" id="topic-robot" value="/robot_status"
+autocomplete="off" title="ivg_interfaces/msg/RobotStatus" /></label>
 <label>关节角 JointState（曲线） <input type="text" id="topic-joints" value="/joint_states"
 autocomplete="off" /></label>
 <h3 class="topic-settings-section-title">TF / URDF（与视觉面板一致时可复用）</h3>

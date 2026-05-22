@@ -72,7 +72,7 @@ function updateStatusSummary(msg) {
   var planLabel = '规划', planOn = true;
   if (msg.planning_status === 'error') { planLabel = '规划:错误'; planOn = false; }
   else if (msg.planning_status === 'idle') planLabel = '规划:空闲';
-  else planLabel = '规划:' + (msg.planning_status || '—');
+  else planLabel = '规划:' + (msg.planning_status || '0.000');
 
   el.innerHTML = chips.map(function (c) {
     return '<span class="status-chip ' + (c.on ? 'on' : 'off') + '">' + c.label + ': ' + (c.on ? '✓' : '✗') + '</span>';
@@ -87,16 +87,16 @@ function updatePose(msg) {
 
   function setVal(id, val) { var el = $(id); if (el) el.textContent = val; }
 
-  setVal('pose-x',   pos.x != null ? pos.x.toFixed(4) : '—');
-  setVal('pose-y',   pos.y != null ? pos.y.toFixed(4) : '—');
-  setVal('pose-z',   pos.z != null ? pos.z.toFixed(4) : '—');
-  setVal('pose-qx',  ori.x != null ? ori.x.toFixed(4) : '—');
-  setVal('pose-qy',  ori.y != null ? ori.y.toFixed(4) : '—');
-  setVal('pose-qz',  ori.z != null ? ori.z.toFixed(4) : '—');
-  setVal('pose-qw',  ori.w != null ? ori.w.toFixed(4) : '—');
-  setVal('pose-roll',  rpy.x != null ? (rpy.x * 180 / Math.PI).toFixed(1) + '°' : '—');
-  setVal('pose-pitch', rpy.y != null ? (rpy.y * 180 / Math.PI).toFixed(1) + '°' : '—');
-  setVal('pose-yaw',   rpy.z != null ? (rpy.z * 180 / Math.PI).toFixed(1) + '°' : '—');
+  setVal('pose-x',   pos.x != null ? pos.x.toFixed(3) : '0.000');
+  setVal('pose-y',   pos.y != null ? pos.y.toFixed(3) : '0.000');
+  setVal('pose-z',   pos.z != null ? pos.z.toFixed(3) : '0.000');
+  setVal('pose-qx',  ori.x != null ? ori.x.toFixed(3) : '0.000');
+  setVal('pose-qy',  ori.y != null ? ori.y.toFixed(3) : '0.000');
+  setVal('pose-qz',  ori.z != null ? ori.z.toFixed(3) : '0.000');
+  setVal('pose-qw',  ori.w != null ? ori.w.toFixed(3) : '0.000');
+  setVal('pose-roll',  rpy.x != null ? (rpy.x * 180 / Math.PI).toFixed(1) + '°' : '0.0°');
+  setVal('pose-pitch', rpy.y != null ? (rpy.y * 180 / Math.PI).toFixed(1) + '°' : '0.0°');
+  setVal('pose-yaw',   rpy.z != null ? (rpy.z * 180 / Math.PI).toFixed(1) + '°' : '0.0°');
 }
 
 // ── 关节角 ───────────────────────────────────────────────────────
@@ -106,8 +106,8 @@ function buildJointRows(msg) {
   var html = '';
   for (var i = 0; i < JOINT_NAMES.length; i++) {
     html += '<tr><td>' + JOINT_NAMES[i] + '</td><td>'
-      + (degs[i] != null ? degs[i].toFixed(3) : '—') + '°</td><td>'
-      + (rads[i] != null ? rads[i].toFixed(6) : '—') + '</td></tr>';
+      + (degs[i] != null ? degs[i].toFixed(3) : '0.000') + '°</td><td>'
+      + (rads[i] != null ? rads[i].toFixed(3) : '0.000') + '</td></tr>';
   }
   return html;
 }

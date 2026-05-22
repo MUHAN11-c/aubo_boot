@@ -71,26 +71,32 @@ function createVisionServiceActions(opts) {
 				if (typeof done === 'function') done(e);
 			});
 	}
-	function callGripperSwap(direction) {
+	var _currentToolId = '';
+	function callGripperSwap(targetId, done) {
 		if (!transport.isConnected()) {
 			log('未连接，无法执行夹爪快换');
+			if (typeof done === 'function') done(new Error('未连接'));
 			return;
 		}
 		const svcName = getSetting('svc-gripper-swap');
 		if (!String(svcName || '').trim()) {
 			log('服务名为空，无法调用夹爪快换');
+			if (typeof done === 'function') done(new Error('empty_service_name'));
 			return;
 		}
-		logBus.addLog('info', 'service', '开始: ' + svcName + ' (' + direction + ')', { phase: 'start', service: svcName, direction });
+		// direction: 空状态→直接目标ID；有工具→"current_to_target"
+		var direction = _currentToolId ? (_currentToolId + '_to_' + targetId) : targetId;
+		logBus.addLog('info', 'service', '开始: ' + svcName + ' (' + direction + ')', { phase: 'start', service: svcName, direction: direction });
 		transport
 			.callService({
 				service: svcName,
-				type: serviceTypeMap['svc-gripper-swap'] || 'tool_changer_interface/srv/RunGripperSwap',
-				request: { direction: direction || 'gripper0_to_gripper2' }
+				type: serviceTypeMap['svc-gripper-swap'] || 'ivg_interfaces/srv/RunGripperSwap',
+				request: { direction: direction }
 			})
 			.then(r => {
 				log(`${svcName} → success=${r.success} ${r.message || ''}`);
 				logBus.addLog('info', 'service', '✓ ' + svcName + ' → success=' + r.success, { phase: 'completed', service: svcName, success: r.success });
+				if (typeof done === 'function') done(null, r);
 			})
 			.catch(e => {
 				var reason = String(e);
@@ -99,7 +105,11 @@ function createVisionServiceActions(opts) {
 				}
 				log(`${svcName} 错误: ${reason}`);
 				logBus.addLog('error', 'service', '✗ ' + svcName + ' 错误: ' + reason, { phase: 'failed', service: svcName, error: reason });
+				if (typeof done === 'function') done(e);
 			});
+	}
+	function setCurrentToolId(toolId) {
+		_currentToolId = String(toolId || '');
 	}
 	function bindControlButtons() {
 		const btnWpSingleStart = getById('btn-wp-single-start');
@@ -171,15 +181,22 @@ function createVisionServiceActions(opts) {
 		const btnQuickSwap0 = getById('btn-quick-swap-0');
 		if (btnQuickSwap0) {
 			btnQuickSwap0.onclick = () => {
-				logBus.addLog('info', 'service', '按钮点击: 快换 gripper2→gripper0');
-				callGripperSwap('gripper2_to_gripper0');
+				logBus.addLog('info', 'service', '按钮点击: 快换 → gripper0');
+				callGripperSwap('gripper0');
 			};
 		}
-		const btnQuickSwap = getById('btn-quick-swap');
-		if (btnQuickSwap) {
-			btnQuickSwap.onclick = () => {
-				logBus.addLog('info', 'service', '按钮点击: 快换 gripper0→gripper2');
-				callGripperSwap('gripper0_to_gripper2');
+		const btnQuickSwap1 = getById('btn-quick-swap-1');
+		if (btnQuickSwap1) {
+			btnQuickSwap1.onclick = () => {
+				logBus.addLog('info', 'service', '按钮点击: 快换 → gripper1');
+				callGripperSwap('gripper1');
+			};
+		}
+		const btnQuickSwap2 = getById('btn-quick-swap-2');
+		if (btnQuickSwap2) {
+			btnQuickSwap2.onclick = () => {
+				logBus.addLog('info', 'service', '按钮点击: 快换 → gripper2');
+				callGripperSwap('gripper2');
 			};
 		}
 		const btnDbgMoveXYZ = getById("btn-dbg-move-xyz");
@@ -220,6 +237,7 @@ function createVisionServiceActions(opts) {
 		callSetBool,
 		callExecuteGrasp,
 		callGripperSwap,
+		setCurrentToolId,
 			callDebugMoveXYZ,
 		bindControlButtons
 	};

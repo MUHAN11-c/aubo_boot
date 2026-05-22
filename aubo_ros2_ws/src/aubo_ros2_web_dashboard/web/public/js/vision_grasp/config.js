@@ -7,7 +7,7 @@
 const VISION_SETTING_DEFS = [
 	{ id: 'topic-color', category: 'topic', defaultValue: '/camera/color/image_raw', msgType: 'sensor_msgs/msg/Image' },
 	{ id: 'topic-result', category: 'topic', defaultValue: '', allowEmpty: true, msgType: 'sensor_msgs/msg/Image' },
-	{ id: 'topic-robot', category: 'topic', defaultValue: '/aubo_driver/robot_status', msgType: 'demo_interface/msg/RobotStatus' },
+	{ id: 'topic-robot', category: 'topic', defaultValue: '/robot_status', msgType: 'ivg_interfaces/msg/RobotStatus' },
 	{ id: 'topic-joints', category: 'topic', defaultValue: '/joint_states', msgType: 'sensor_msgs/msg/JointState' },
 	{ id: 'topic-vpe-status', category: 'topic', defaultValue: '/system_status', msgType: 'std_msgs/msg/String' },
 	{ id: 'topic-grasp-poses', category: 'topic', defaultValue: '/grasp_poses_base', msgType: 'geometry_msgs/msg/PoseArray' },
@@ -16,7 +16,8 @@ const VISION_SETTING_DEFS = [
 	{ id: 'svc-loop-grasp-control', category: 'service', defaultValue: '/loop_grasp_control', serviceType: 'std_srvs/srv/SetBool' },
 	{ id: 'svc-graspnet-capture', category: 'service', defaultValue: '/graspnet_capture_control', serviceType: 'std_srvs/srv/SetBool' },
 	{ id: 'svc-publish-grasps-loop', category: 'service', defaultValue: '/publish_grasps_worker_loop_control', serviceType: 'std_srvs/srv/SetBool' },
-	{ id: 'svc-gripper-swap', category: 'service', defaultValue: '/run_gripper_swap', serviceType: 'tool_changer_interface/srv/RunGripperSwap' }
+	{ id: 'svc-gripper-swap', category: 'service', defaultValue: '/run_gripper_swap', serviceType: 'ivg_interfaces/srv/RunGripperSwap' },
+	{ id: 'topic-tool-changer-status', category: 'topic', defaultValue: '/tool_changer_status', msgType: 'ivg_interfaces/msg/ToolChangerStatus' }
 ];
 /** 固定业务服务（不在设置面板中暴露 id 编辑） */
 const VISION_FIXED_SERVICE_TYPES = {

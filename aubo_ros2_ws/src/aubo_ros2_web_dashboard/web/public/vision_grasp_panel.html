@@ -7,8 +7,10 @@
 <meta name="viewport"
 content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
 <title>视觉抓取面板</title>
-<link rel="stylesheet" href="css/vision_grasp_panel.css?v=20260424_monitoring_graspnet_pose_enlarged" />
-<link rel="stylesheet" href="css/ivg_site_nav.css?v=20260414_unify_proj" />
+<link rel="stylesheet" href="css/tokens.css" />
+<link rel="stylesheet" href="css/layout_base.css" />
+<link rel="stylesheet" href="css/vision_grasp_panel.css?v=20260522_unify_design" />
+<link rel="stylesheet" href="css/ivg_site_nav.css?v=20260522_unify_design" />
 <link rel="stylesheet" href="css/ivg_status_bar.css" />
 <script src="/js/robotwebtools/importmap.js"></script>
 </head>
@@ -91,25 +93,28 @@ data-ivg-grasp-mode="graspnet">
 <button type="button" class="ctrl danger" id="btn-gn-loop-stop">循环抓取关</button>
 </div>
 </div>
-<div class="control-group">
+<div class="control-group" id="gripper-swap-group">
 <h3 class="control-group-title">末端夹爪快换</h3>
-<div class="btn-row">
-<button type="button" class="ctrl" id="btn-quick-swap-0">切换夹爪0</button>
-<button type="button" class="ctrl" id="btn-quick-swap">切换夹爪2</button>
+<!-- 当前工具状态指示器 -->
+<div class="tool-status-bar" id="tool-status-bar">
+<span class="tool-status-led" id="tool-status-led" aria-label="工具连接状态"></span>
+<span class="tool-status-label" id="tool-status-label">检测中...</span>
+<span class="tool-status-params" id="tool-status-params"></span>
+</div>
+<!-- 3 夹爪切换按钮 -->
+<div class="btn-row gripper-swap-row" id="gripper-swap-btns">
+<button type="button" class="ctrl gripper-btn" id="btn-quick-swap-0" data-tool="gripper0">
+<span class="gripper-btn-icon">&#9670;</span> 夹爪0
+</button>
+<button type="button" class="ctrl gripper-btn" id="btn-quick-swap-1" data-tool="gripper1">
+<span class="gripper-btn-icon">&#9670;</span> 夹爪1
+</button>
+<button type="button" class="ctrl gripper-btn" id="btn-quick-swap-2" data-tool="gripper2">
+<span class="gripper-btn-icon">&#9670;</span> 夹爪2
+</button>
 </div>
 </div>
 </div>
-	<div class="control-group">
-	<h3 class="control-group-title">调试 — 笛卡尔直线运动</h3>
-	<div style="display:flex;gap:0.3rem;align-items:center;flex-wrap:wrap;margin-bottom:0.3rem">
-	  <label style="font-size:12px">X:<input id="dbg-xyz-x" value="0.3741" step="0.01" style="width:5em;font-size:12px;margin-left:2px"></label>
-	  <label style="font-size:12px">Y:<input id="dbg-xyz-y" value="0.3039" step="0.01" style="width:5em;font-size:12px;margin-left:2px"></label>
-	  <label style="font-size:12px">Z:<input id="dbg-xyz-z" value="0.4755" step="0.01" style="width:5em;font-size:12px;margin-left:2px"></label>
-	  <label style="font-size:12px">V:<input id="dbg-xyz-vel" value="0.3" step="0.05" min="0.05" max="1.0" style="width:4em;font-size:12px;margin-left:2px"></label>
-	  <label style="font-size:12px">A:<input id="dbg-xyz-acc" value="0.2" step="0.05" min="0.05" max="1.0" style="width:4em;font-size:12px;margin-left:2px"></label>
-	</div>
-	<button type="button" class="ctrl" id="btn-dbg-move-xyz">Move XYZ</button>
-	</div>
 <div class="svc-log" id="svc-log" aria-live="polite"></div>
 </section>
 </div>
@@ -152,12 +157,6 @@ aria-live="polite">
 </div>
 </div>
 </main>
-<footer class="connection-footer" role="contentinfo" aria-label="连接状态">
-<div class="connection-footer__inner">
-<span class="connection-footer__label">连接状态</span>
-<span id="conn-status" class="status pending" role="status" aria-live="polite">正在连接…</span>
-</div>
-</footer>
 <div id="topic-settings-modal" class="topic-settings-modal" role="dialog" aria-modal="true"
 aria-labelledby="topic-settings-title" aria-hidden="true" hidden>
 <div class="topic-settings-backdrop" id="topic-settings-backdrop" tabindex="-1"></div>
@@ -174,8 +173,8 @@ title="sensor_msgs/Image" /></label>
 <label>识别结果图像（可空） <input type="text" id="topic-result" value=""
 placeholder="例 /visual_pose/annotated_image" autocomplete="off"
 title="sensor_msgs/Image" /></label>
-<label>机械臂状态 RobotStatus <input type="text" id="topic-robot" value="/aubo_driver/robot_status"
-autocomplete="off" title="demo_interface/msg/RobotStatus" /></label>
+<label>机械臂状态 RobotStatus <input type="text" id="topic-robot" value="/robot_status"
+autocomplete="off" title="ivg_interfaces/msg/RobotStatus" /></label>
 <label>关节角 JointState（曲线） <input type="text" id="topic-joints" value="/joint_states"
 autocomplete="off" /></label>
 <label>视觉位姿估计状态（字符串） <input type="text" id="topic-vpe-status" value="/system_status"
@@ -201,7 +200,15 @@ autocomplete="off" title="std_srvs/srv/SetBool" /></label>
 value="/publish_grasps_worker_loop_control" autocomplete="off"
 title="std_srvs/srv/SetBool" /></label>
 <label>末端夹爪快换 RunGripperSwap <input type="text" id="svc-gripper-swap" value="/run_gripper_swap"
-autocomplete="off" title="tool_changer_interface/srv/RunGripperSwap" /></label>
+autocomplete="off" title="ivg_interfaces/srv/RunGripperSwap" /></label>
+<label>初始夹爪
+<select id="init-tool-select">
+<option value="">无工具</option>
+<option value="gripper0">夹爪0 — 气动 φ40</option>
+<option value="gripper1">夹爪1 — 电动 A</option>
+<option value="gripper2">夹爪2 — 电动 φ60</option>
+</select>
+</label>
 <p class="hint">订阅类含 CameraInfo（由彩色图话题推导）、投影用 TF。服务类型固定，仅可改名称以适配 remap。</p>
 </div>
 <div class="topic-settings-actions">

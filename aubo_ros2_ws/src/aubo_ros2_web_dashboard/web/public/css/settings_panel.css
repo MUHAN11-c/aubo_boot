@@ -1,28 +1,26 @@
-/* settings_panel — IVG 设置页（紧凑版：公共参数/视觉抓取/咖啡拉花 三分类标签） */
-:root {
-    --bg: #f6f8fc; --panel: #ffffff; --border: #d8dee8;
-    --text: #1e293b; --muted: #64748b; --accent: #2563eb;
-    --accent-hover: #1d4ed8; --radius: 8px; --radius-sm: 6px;
-}
-* { box-sizing: border-box; }
+/* settings_panel — IVG 设置页（需先加载 tokens.css + layout_base.css） */
 body {
-    margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    font-size: 14px; color: var(--text); background: var(--bg);
-    min-height: 100vh; -webkit-font-smoothing: antialiased;
+    margin: 0; font-size: 14px; color: var(--text);
+    min-height: 100vh;
+}
+@keyframes settings-enter {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 .settings-main {
     max-width: 100%; margin: 0 auto;
     padding: 0.8rem 1.2rem 1.5rem;
+    animation: settings-enter 0.4s cubic-bezier(0.22,0.61,0.36,1) both;
 }
 .settings-main h1 { margin: 0; font-size: 1.2rem; font-weight: 700; display: inline; }
 .settings-subtitle {
-    display: inline; margin: 0 0 0 0.5rem; color: var(--muted); font-size: 0.75rem;
+    display: inline; margin: 0 0 0 0.5rem; color: var(--text-muted); font-size: 0.75rem;
 }
 
 /* 网关卡片 — 单行紧凑 */
 .gateway-card {
     padding: 0.35rem 0.7rem; margin: 0.5rem 0 0.4rem;
-    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm);
     display: flex; align-items: center; flex-wrap: wrap; gap: 0.25rem 1rem;
 }
 .gw-row { display: contents; }
@@ -31,7 +29,7 @@ body {
 .gw-status.ok { color: #15803d; }
 .gw-status.err { color: #b91c1c; }
 .gw-info {
-    display: flex; flex-wrap: wrap; gap: 0.15rem 1rem; font-size: 0.72rem; color: var(--muted);
+    display: flex; flex-wrap: wrap; gap: 0.15rem 1rem; font-size: 0.72rem; color: var(--text-muted);
 }
 .gw-info code { font-size: 0.85em; background: #f1f5f9; padding: 0.04rem 0.25rem; border-radius: 3px; }
 
@@ -42,11 +40,11 @@ body {
 }
 .settings-tab {
     padding: 0.35rem 0.9rem; font-size: 0.8rem; font-weight: 600; font-family: inherit;
-    border: none; background: transparent; color: var(--muted); cursor: pointer;
+    border: none; background: transparent; color: var(--text-muted); cursor: pointer;
     border-bottom: 2px solid transparent; margin-bottom: -2px;
-    transition: color 0.15s, border-color 0.15s;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
-.settings-tab:hover { color: var(--text); }
+.settings-tab:hover { color: var(--text); background: var(--accent-soft, rgba(37,99,235,0.07)); }
 .settings-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
 /* 标签内容 */
@@ -56,7 +54,7 @@ body {
 /* 设置段 */
 .settings-section { margin-bottom: 0.5rem; }
 .settings-section h3 {
-    margin: 0 0 0.35rem; font-size: 0.75rem; font-weight: 700; color: var(--muted);
+    margin: 0 0 0.35rem; font-size: 0.75rem; font-weight: 700; color: var(--text-muted);
     text-transform: uppercase; letter-spacing: 0.04em;
     padding-bottom: 0.2rem; border-bottom: 1px solid var(--border);
 }
@@ -69,7 +67,7 @@ body {
     display: flex; flex-direction: row; align-items: center; gap: 0.35rem;
 }
 .settings-item label {
-    font-size: 0.68rem; font-weight: 600; color: var(--muted);
+    font-size: 0.68rem; font-weight: 600; color: var(--text-muted);
     text-transform: uppercase; letter-spacing: 0.02em;
     white-space: nowrap; min-width: 6.5rem;
 }
@@ -77,13 +75,13 @@ body {
     flex: 1; min-width: 0;
     padding: 0.32rem 0.45rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
     font-size: 0.8rem; font-family: ui-monospace, Consolas, monospace;
-    background: var(--panel); color: var(--text); transition: border-color 0.15s;
+    background: var(--bg-elevated); color: var(--text); transition: border-color 0.15s;
 }
 .settings-item input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(37,99,235,0.1); }
 .settings-item input::placeholder { color: #94a3b8; }
 
 /* 已修改标记 */
-.settings-item.changed input { border-color: #f59e0b; background: #fffbeb; }
+.settings-item.changed input { border-color: #f59e0b; background: #fefce8; }
 .changed-badge {
     display: inline-block; font-size: 0.55rem; font-weight: 700; color: #b45309;
     background: #fef3c7; padding: 0.04rem 0.25rem; border-radius: 3px; margin-left: 0.2rem;
@@ -95,12 +93,12 @@ body {
 .btn {
     padding: 0.38rem 0.75rem; font-size: 0.78rem; font-weight: 600; font-family: inherit;
     border: 1px solid var(--border); border-radius: var(--radius-sm);
-    background: var(--panel); color: var(--text); cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
+    background: var(--bg-elevated); color: var(--text); cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, transform 0.15s;
 }
-.btn:hover { border-color: var(--accent); background: rgba(37,99,235,0.06); }
+.btn:hover { border-color: var(--accent); background: rgba(37,99,235,0.06); transform: translateY(-1px); }
 .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: var(--shadow-sm, 0 1px 3px rgba(15,23,42,0.04)); }
 .settings-msg { margin-top: 0.4rem; font-size: 0.75rem; font-weight: 500; }
 .settings-msg.ok { color: #15803d; }
 .settings-msg.err { color: #b45309; }

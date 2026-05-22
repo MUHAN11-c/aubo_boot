@@ -93,7 +93,11 @@ async function toggleDo(name) {
     const pressed = btn.getAttribute('aria-pressed') === 'true';
     const next = !pressed;
 
-    // 先打日志
+    // 乐观更新: 先切换 UI
+    btn.setAttribute('aria-pressed', next ? 'true' : 'false');
+    btn.textContent = next ? '开' : '关';
+    btn.classList.toggle('is-on', next);
+
     logBus.addLog('info', 'service', 'DO 开关: ' + info.label + ' → ' + (next ? 'ON' : 'OFF'), {
         do: name, service: info.svc, target: next,
     });
@@ -101,18 +105,28 @@ async function toggleDo(name) {
     // 调用 ROS 服务
     try {
         const result = await ros.callService(info.svc, 'std_srvs/srv/SetBool', { data: next }, 10000);
-        logBus.addLog('info', 'service', '✓ ' + info.svc + ' → success=' + result.success, {
-            service: info.svc, success: result.success, message: result.message,
-        });
-        // 成功后更新 UI
-        btn.setAttribute('aria-pressed', next ? 'true' : 'false');
-        btn.textContent = next ? '开' : '关';
-        btn.classList.toggle('is-on', next);
+        if (result.success === false) {
+            _rollbackDoUI(btn, pressed);
+            logBus.addLog('warn', 'service', info.svc + ' 返回 success=false, UI 已回滚', {
+                service: info.svc,
+            });
+        } else {
+            logBus.addLog('info', 'service', '✓ ' + info.svc + ' → success=' + result.success, {
+                service: info.svc, success: result.success, message: result.message,
+            });
+        }
     } catch (e) {
-        logBus.addLog('error', 'service', '✗ ' + info.svc + ' 失败: ' + String(e), {
+        _rollbackDoUI(btn, pressed);
+        logBus.addLog('error', 'service', '✗ ' + info.svc + ' 失败: ' + String(e) + ', UI 已回滚', {
             service: info.svc, error: String(e),
         });
     }
+}
+
+function _rollbackDoUI(btn, prev) {
+    btn.setAttribute('aria-pressed', prev ? 'true' : 'false');
+    btn.textContent = prev ? '开' : '关';
+    btn.classList.toggle('is-on', prev);
 }
 
 // ── 订阅 ───────────────────────────────────────────────────────────────────

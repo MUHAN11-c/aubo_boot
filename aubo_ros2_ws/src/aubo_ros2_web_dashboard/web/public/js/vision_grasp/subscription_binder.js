@@ -100,7 +100,7 @@ function bindVisionSubscriptions(opts) {
 				el.innerHTML = html;
 			}
 		});
-		transport.subscribe({ topic: robotTopic, msgType: topicTypeMap['topic-robot'] || 'demo_interface/msg/RobotStatus', maxHz: 50 });
+		transport.subscribe({ topic: robotTopic, msgType: topicTypeMap['topic-robot'] || 'ivg_interfaces/msg/RobotStatus', maxHz: 50 });
 		subs.robot = true;
 	} else {
 		subs.robot = null;

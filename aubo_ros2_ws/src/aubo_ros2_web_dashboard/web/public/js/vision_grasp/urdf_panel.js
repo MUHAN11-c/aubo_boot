@@ -10,6 +10,9 @@ function createVisionUrdfPanel(opts) {
 	var visionUrdfSession = null;
 	var visionUrdfResizeObs = null;
 	var toolStatusSub = null;
+	var _currentToolId = '';
+	var _initialized = false;
+	var LS_KEY = 'ivg_last_tool_id';
 
 	function stop() {
 		if (toolStatusSub) {
@@ -24,6 +27,8 @@ function createVisionUrdfPanel(opts) {
 			try { visionUrdfSession.stop(); } catch (e) {}
 			visionUrdfSession = null;
 		}
+		_currentToolId = '';
+		_initialized = false;
 		// ros 连接由 ivgTransport 统一管理，此处不关闭
 	}
 
@@ -57,29 +62,45 @@ function createVisionUrdfPanel(opts) {
 			visionUrdfResizeObs = new ResizeObserver(function () { layout(); });
 			visionUrdfResizeObs.observe(host);
 		}
-		// 订阅工具状态 → tool_id 变化 → 重载 URDF 显示新夹爪
-		var currentToolId = null;
+
+		// 初始状态：优先 localStorage（ROS 状态有最多 5s 延迟）喵~
+		var stored = '';
+		try { stored = localStorage.getItem(LS_KEY) || ''; } catch (e) {}
+		if (stored) {
+			_currentToolId = stored;
+			_initialized = true;
+		}
+
+		// 订阅工具状态 → tool_id 变化 → reloadUrdf 显示新夹爪喵~
 		toolStatusSub = new ROSLIB.Topic({
 			ros: ros,
 			name: '/tool_changer_status',
-			messageType: 'tool_changer_interface/msg/ToolChangerStatus',
+			messageType: 'ivg_interfaces/msg/ToolChangerStatus',
 			throttle_rate: 500
 		});
 	toolStatusSub.subscribe(function (msg) {
-		var newId = msg && msg.tool_id;
-		if (!newId) return;
-		if (currentToolId === null) {
-			// 首条消息：记录当前 tool_id，不触发重载
-			currentToolId = newId;
-		} else if (newId !== currentToolId) {
-			// tool_id 变化 → 重载 URDF 显示新夹爪
-			currentToolId = newId;
+		if (!msg) return;
+		var newId = String(msg.tool_id || '');
+		var connected = msg.is_connected !== false;
+
+		if (!_initialized) {
+			// 首条消息：以 ROS 真实状态为准喵~
+			_initialized = true;
+			_currentToolId = newId;
+			try { localStorage.setItem(LS_KEY, newId); } catch (e) {}
+			return;
+		}
+
+		if (connected && newId !== _currentToolId) {
+			_currentToolId = newId;
+			try { localStorage.setItem(LS_KEY, newId); } catch (e) {}
+			// 延迟等后端 URDF 参数生效后重载喵~
 			setTimeout(function () {
 				if (visionUrdfSession &&
 				    typeof visionUrdfSession.reloadUrdf === 'function') {
 					visionUrdfSession.reloadUrdf();
 				}
-			}, 200);
+			}, 500);
 		}
 	});
 		} catch (e) {

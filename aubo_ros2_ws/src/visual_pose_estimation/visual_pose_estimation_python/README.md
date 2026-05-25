@@ -98,7 +98,7 @@ ros2 launch visual_pose_estimation_python visual_pose_estimation_web.launch.py
 #### 4. 启动完整系统
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd ~/aubo_boot/aubo_ros2_ws
 bash start_IVG_graspnet_points_fastapi.sh
 ```
 

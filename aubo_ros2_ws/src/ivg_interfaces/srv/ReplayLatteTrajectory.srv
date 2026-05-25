@@ -64,6 +64,14 @@ float32 roll_deg 0.0         # 绕 X 轴旋转角度 (度), Isaac Teleop 语义 
 float32 pitch_deg 0.0        # 绕 Y 轴旋转角度 (度) 喵~
 float32 yaw_deg 0.0          # 绕 Z 轴旋转角度 (度) 喵~
 
+# ======================== 平移微调 (叠加在 TF 位置上) ========================
+float32 translation_x 0.0    # 平移偏移 X (m), 叠加在 TF 位置上喵~
+float32 translation_y 0.0    # 平移偏移 Y (m) 喵~
+float32 translation_z 0.0    # 平移偏移 Z (m) 喵~
+
+# ======================== Waypoint 采样 ========================
+int32 waypoint_sample_step 5 # response 中 waypoints 的采样步长, 默认 5 喵~
+
 string tool_offset_id "default"  # config/tool_offset.yaml 中的工具 ID 喵~
 
 geometry_msgs/Pose start_pose   # 轨迹起点位姿 (前端传入或 TF 自动获取) 喵~
@@ -81,3 +89,4 @@ float32 path_length          # 笛卡尔路径总长度 (米)喵~
 int32 ik_success_count       # 规划成功等效帧数 (debug/preview 模式为 0) 喵~
 int32 collision_count        # 始终为 0 (MoveIt2 内部处理碰撞) 喵~
 string[] collision_details   # 始终为空 喵~
+geometry_msgs/Pose[] waypoints  # 重定目标后的采样 waypoints (preview/debug 模式返回) 喵~

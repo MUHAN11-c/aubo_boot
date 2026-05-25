@@ -10,7 +10,7 @@ function createJointChartController(opts) {
     const maxSamples = Math.max(60, Number(options.maxSamples) || 280);
     const lineColors = (Array.isArray(options.lineColors) && options.lineColors.length)
         ? options.lineColors.slice()
-        : ['#2563eb', '#16a34a', '#d97706', '#db2777', '#7c3aed', '#0d9488'];
+        : ['#4f6f8a', '#16a34a', '#d97706', '#db2777', '#7c3aed', '#0d9488'];
     const canvasId = options.canvasId || 'joint-chart';
     const legendId = options.legendId || 'joint-legend';
 
@@ -29,11 +29,11 @@ function createJointChartController(opts) {
         if (cssCache && now - cssCacheTs < 3000) return cssCache;
         const s = getComputedStyle(document.documentElement);
         cssCache = {
-            bg:       s.getPropertyValue('--chart-bg').trim()      || '#ffffff',
-            grid:     s.getPropertyValue('--chart-grid').trim()    || '#e5e7eb',
-            axis:     s.getPropertyValue('--chart-axis').trim()    || '#d1d5db',
-            text:     s.getPropertyValue('--chart-text').trim()    || '#9ca3af',
-            textBold: s.getPropertyValue('--chart-text-bold').trim() || '#6b7280',
+            bg:       s.getPropertyValue('--chart-bg').trim()      || '#f5f3f0',
+            grid:     s.getPropertyValue('--chart-grid').trim()    || '#e8e4de',
+            axis:     s.getPropertyValue('--chart-axis').trim()    || '#d5d0c8',
+            text:     s.getPropertyValue('--chart-text').trim()    || '#8c857b',
+            textBold: s.getPropertyValue('--chart-text-bold').trim() || '#5d564e',
         };
         cssCacheTs = now;
         return cssCache;

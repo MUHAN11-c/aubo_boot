@@ -1,13 +1,12 @@
 # IVG Web Dashboard
 
-ROS 2 机械臂视觉抓取 Web 控制面板。FastAPI 网关 + Vue 3 前端，浏览器通过 WebSocket/HTTP 代理与 ROS 系统实时交互。
+ROS 2 机械臂视觉抓取 Web 控制面板。FastAPI 网关 + 纯 HTML/JS MPA 前端，浏览器通过 WebSocket/HTTP 代理与 ROS 系统实时交互。
 
-> **前端技术栈**：Vue 3.5 + TypeScript + Vite 6 + Tailwind CSS v4 + Element Plus + VueUse + Pinia
+> **前端技术栈**：纯 HTML/JS MPA（零构建），ES modules + importmap 加载 ros3djs/roslib/three.js，FastAPI BFF 网关喵~
 >
-> **迁移方案**：详见 `docs/frontend-migration-plan.md`。
-> Vue 3 构建产物位于 `web/dist/`，`setup.py` 负责将其安装到 `share/<pkg>/web/dist/` 喵~
-
-> **当前行为（2026-05-16）**：Vue 3 页面通过 `useDashboardSettings.ts` 统一读取 `/api/v1/runtime` 中的 `settings_categories` 与浏览器 `localStorage` 键 `ivg_vision_grasp_topics_v3`。视觉抓取、咖啡拉花、工具快换、状态栏和 3D URDF 查看器不再直接依赖散落硬编码的话题/服务名喵~
+> **当前架构（2026-05-25）**：前端 5 个独立 HTML 页面（index/vision_grasp/coffee_latte/log/settings/tf_monitor），通过 `js/core/` 共享基础设施层（ros.js/ros_connector.js/log-bus.js/log-ros-bridge.js/lifecycle.js/utils.js/settings.js），子模块代码按功能域组织在 `js/vision_grasp/`、`js/latte/`、`js/view3d/`、`js/components/` 下喵~
+>
+> 话题/服务名通过 `localStorage` 覆盖 `config/defaults.yaml` 默认值，前端运行时从 BFF `GET /api/v1/runtime` 获取配置喵~
 
 ---
 
@@ -18,6 +17,8 @@ ROS 2 Launch
   ├── rosbridge (Tornado :9090)         ← ROS 消息总线 WebSocket 桥
   ├── tf2_web_republisher               ← TF 坐标变换 Web 发布
   ├── web_video_server (:8089)          ← 摄像头 MJPEG/快照 HTTP 服务
+  ├── GripperSwapWorker                 ← 工具快换服务端 (/run_gripper_swap, /get_current_tool)
+  │     └── /tool_changer_status        ← 定期发布当前工具状态 (每 5s)
   └── FastAPI 网关 (:8090)              ← 统一入口（代理 + 静态文件）
         │
         ├── /ws/rosbridge               → rosbridge 双向 WebSocket 代理
@@ -25,15 +26,17 @@ ROS 2 Launch
         ├── /api/v1/runtime             → 前端 BFF 配置接口
         ├── /api/ivg/robot-mesh/*       → 机器人 3D 模型文件服务
         ├── /health                     → 健康检查
-        └── /*                          → 前端静态页面 (SPA)
+        └── /*                          → 前端静态页面 (MPA)
 
-浏览器 (Vue 3 SPA)
-  ├── [1] useRuntime.ts            → GET /api/v1/runtime
-  ├── [2] useDashboardSettings.ts  → runtime YAML 默认值 + localStorage 覆盖
-  ├── [3] useRos.ts                → ROSLIB.Ros 单例封装 (订阅/服务/重连)
-  ├── [4] useMJPEGStream.ts        → 摄像头流/快照 URL
-  ├── [5] Robot3dViewer.vue        → URDF 参数 + /tf + /joint_states + 工具重载
-  └── [6] Views                    → 视觉抓取/咖啡拉花/监控/日志/设置
+浏览器 (纯 HTML/JS MPA)
+  ├── [1] runtime_provider.js      → GET /api/v1/runtime → globalThis.__IVG_RUNTIME
+  ├── [2] core/settings.js         → localStorage 覆盖话题/服务名
+  ├── [3] core/ros.js              → ROSLIB.Ros 单例封装 (订阅/服务/重连)
+  ├── [4] ivg_web_video.js         → 摄像头 MJPEG 流/快照 URL
+  ├── [5] view3d/session.js        → URDF 参数 + /tf + /joint_states + 工具几何
+  ├── [6] 5 个 HTML 页面           → 视觉抓取/咖啡拉花/日志/设置/TF监控
+  ├── [7] core/log-bus.js          → 统一日志总线 (IndexedDB + BroadcastChannel)
+  └── [8] core/log-ros-bridge.js   → ROS→日志桥接 (/rosout + service 钩子)
 ```
 
 ---
@@ -189,6 +192,12 @@ vision_grasp_panel.html 加载以下 ES 模块:
 │  vision_grasp/services.js         │                                    │
 │    └── createVisionServiceActions(opts) → {                             │
 │          bindControlButtons()     绑定按钮点击 → callService()          │
+│          callGripperSwap(tId)     夹爪快换服务调用                       │
+│          callGetCurrentTool(done) 查询后端当前工具                       │
+│          setCurrentToolId(id)     设置当前工具 ID (内部状态)             │
+│          getCurrentToolId()→str   获取当前工具 ID                        │
+│          isSwapInFlight()→bool    快换是否进行中                          │
+│          onGripperSwapDone(fn)    注册快换完成回调                       │
 │        }                        调用 ivgTransport.callService()         │
 │                                    ↑                                     │
 │  vision_grasp/ui_settings.js      │                                    │
@@ -281,10 +290,13 @@ vision_grasp_panel.html 加载以下 ES 模块:
 │    7. document 'visibilitychange' → suspendRealtime/resumeRealtime      │
 │    8. uiBinder.bindModeSwitches()      → ui_binder.js                   │
 │    9. syncModeUi()                     → mode_controller.js             │
-│   10. serviceActions.bindControlButtons() → services.js                 │
-│   11. uiBinder.bindTopicSettingsUi()    → ui_binder.js                  │
-│   12. wireOnlineRosReconnect()          → ivg_runtime.js                │
-│   13. connect()   ─────────────────────────────────────┐                │
+│   10. serviceActions.bindControlButtons() → services.js (含快换按钮)    │
+│   11. setupVisionLogDisplay()          → #svc-log 结构化日志框          │
+│   12. serviceActions.onGripperSwapDone() → 注册快换完成回调              │
+│   13. _initToolStatusBridge()          → 三层工具状态初始化              │
+│   14. uiBinder.bindTopicSettingsUi()    → ui_binder.js                  │
+│   15. wireOnlineRosReconnect()          → ivg_runtime.js                │
+│   16. connect()   ─────────────────────────────────────┐                │
 │                                                        ↓                │
 │  connect() 内部流程:                                                  │
 │    ivgTransport.loadRuntime()        异步 BFF                          │
@@ -304,6 +316,7 @@ vision_grasp_panel.html 加载以下 ES 模块:
 │        ├── transport.subscribe(cameraInfoTopic) → 相机内参│           │
 │        ├── transport.subscribe(tfTopic)     → TF 变换     │           │
 │        └── transport.subscribe(tfStaticTopic) → TF 静态   │           │
+│    re-subscribe /tool_changer_status → _onToolStatusMsg (重连时)      │
 │                                                                        │
 │  tf_monitor_panel.js    — TF 监控面板 (独立页面)                      │
 │    使用 ivgPorts + ivgTransport + view3d/session.js                   │
@@ -447,6 +460,12 @@ vision_grasp_panel.html 加载以下 ES 模块:
 | | `controller.observeResize()` | `→ void` | 监听容器尺寸变化 |
 | `services.js` | `createVisionServiceActions(opts)` | `opts → actions` | 服务调用绑定工厂 |
 | | `actions.bindControlButtons()` | `→ void` | 绑定按钮点击事件 |
+| | `actions.callGripperSwap(targetId, done)` | `str, fn → void` | 夹爪快换服务调用 |
+| | `actions.callGetCurrentTool(done)` | `fn → void` | 查询后端当前工具 |
+| | `actions.setCurrentToolId(id)` | `str → void` | 设置内部工具 ID |
+| | `actions.getCurrentToolId()` | `→ str` | 获取内部工具 ID |
+| | `actions.isSwapInFlight()` | `→ bool` | 快换是否进行中 |
+| | `actions.onGripperSwapDone(fn)` | `fn → void` | 注册快换完成回调 |
 | `ui_settings.js` | `createVisionSettingsController(opts)` | `opts → ctrl` | 设置控制器工厂 |
 | | `ctrl.applyDefaultsToDom()` | `→ void` | 写默认值到 DOM |
 | | `ctrl.readFromDom()` | `→ dict` | 读当前值 |
@@ -519,6 +538,13 @@ vision_grasp_panel.html 加载以下 ES 模块:
 | | `pageShouldPauseRealtime()` | `→ bool` | 页面是否隐藏 |
 | | `bindMonitoringSectionCollapse()` | `→ void` | 底栏折叠交互 |
 | | `syncMonitoringBundleMinHeight()` | `→ void` | 位姿列高度自适应 |
+| | `_initToolStatusBridge()` | `→ void` | 夹爪工具状态桥接入口 (三层初始化) |
+| | `_onToolStatusMsg(msg)` | `msg → void` | /tool_changer_status 消息处理 |
+| | `_updateToolStatusUI(id, connected)` | `str,bool → void` | 更新工具状态 LED/标签/参数 |
+| | `_updateGripperButtons(curId, swapping)` | `str,str\|null → void` | 更新夹爪按钮 active/swapping 状态 |
+| | `_callGetCurrentToolAndSubscribe()` | `→ void` | 调用 /get_current_tool + 订阅 topic |
+| | `_finalizeInit()` | `→ void` | 标记工具初始化完成 |
+| | `_hideInitBanner()` / `_showInitBanner()` | `→ void` | 隐藏/显示手动选择面板 |
 
 ### 4.11 ROS 2 Launch
 
@@ -658,6 +684,39 @@ ROS 摄像头话题 (/camera/color/image_raw)
             → <img src="…"> (带防抖刷新)
 ```
 
+### 5.5 工具状态初始化时序
+
+```
+页面加载 (vision_grasp_panel.html)
+  │
+  ├── t=0: _initToolStatusBridge()
+  │     ├── 第 1 层: localStorage.getItem('ivg_last_tool_id') → UI 占位
+  │     │     若有值 → setCurrentToolId(stored), UI 显示 (灰色 LED)
+  │     │     若无值 → 不设置
+  │     ├── 绑定 #init-tool-select change 事件 → localStorage + UI 更新
+  │     ├── 绑定 .gripper-btn 点击事件 (capture) → _toolSwapping
+  │     ├── 绑定 .tool-init-btn 点击事件 → localStorage + 隐藏 banner
+  │     └── _callGetCurrentToolAndSubscribe()
+  │
+  ├── t~0.5s: _subscribeToolStatus()
+  │     └── transport.subscribe('/tool_changer_status')
+  │         + transport.onRosJson('/tool_changer_status', _onToolStatusMsg)
+  │
+  ├── t~0-3s: /get_current_tool 服务调用
+  │     ├── 成功且 tool_id 非空 → 覆盖 localStorage, 绿灯, 隐藏 banner
+  │     └── 失败或空 → 不影响第 1 层状态
+  │
+  ├── t~5s: 首个 /tool_changer_status 消息到达 (后端周期性发布)
+  │     ├── hasTool=true → 信任硬件, 更新全部, 隐藏 banner
+  │     └── hasTool=false → 保留用户设置, 不改变 localStorage/select
+  │
+  └── t~8s: _initTimer 超时
+        ├── getCurrentToolId() 有值 → _finalizeInit(), 结束
+        └── getCurrentToolId() 为空 → _showInitBanner()
+              └── 用户手动选择工具 → 隐藏 banner + UI 更新
+                    └── 后续 /tool_changer_status 空消息不覆盖 (保护机制)
+```
+
 ---
 
 ## 6. 文件依赖矩阵
@@ -748,3 +807,138 @@ vision_grasp_panel.js  ← 所有以上模块
 | `vision_panel.tf_topics` | 2 项 | TF 话题默认值 |
 | `vision_panel.services` | 4 项 | 服务默认值 |
 | `vision_panel.fixed_service_types` | 1 项 | 固定服务类型 |
+
+---
+
+## 8. 夹爪/工具状态管理系统
+
+### 8.1 数据源层次
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                    工具状态数据来源                                │
+│                                                                   │
+│  后端 (GripperSwapWorker)                                        │
+│  ├── /get_current_tool 服务  → 返回 current_tool_ (单次查询)      │
+│  ├── /tool_changer_status 话题 → 定期发布 (每 5s + 状态变更时)    │
+│  └── /run_gripper_swap 服务   → 执行物理快换 + 更新 current_tool_ │
+│                                                                   │
+│  前端 (vision_grasp_panel.js)                                    │
+│  ├── localStorage key: ivg_last_tool_id  → 跨会话持久化           │
+│  ├── #init-tool-select <select>          → 下拉框手动选择         │
+│  └── .tool-init-btn / .gripper-btn       → 按钮手动选择/快换      │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### 8.2 三层初始化策略
+
+页面加载时按以下顺序确定当前工具：
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ 第 1 层: localStorage → 即时 UI 占位                               │
+│   _initToolStatusBridge() → localStorage.getItem('ivg_last_tool_id')│
+│   立即写入 UI (灰色 LED, 标记为手动设定)                             │
+│                                                                     │
+│ 第 2 层: /get_current_tool → 后端查询 (3s 超时)                     │
+│   _callGetCurrentToolAndSubscribe() → callGetCurrentTool()           │
+│   成功且 tool_id 非空 → 覆盖 localStorage, 绿灯, 隐藏 init banner   │
+│   失败或空 tool_id → 不改变第 1 层状态                               │
+│                                                                     │
+│ 第 3 层: /tool_changer_status 订阅 → 实时更新                       │
+│   0.5s 后建立订阅, _onToolStatusMsg 处理每条消息                     │
+│   8s 总超时后仍未检测到工具 → 显示手动选择面板 (#tool-init-banner)   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 8.3 /tool_changer_status 消息处理规则
+
+`_onToolStatusMsg(msg)` 的核心决策逻辑：
+
+| 后端消息 | 行为 | 理由 |
+|----------|------|------|
+| `connected=true, tool_id` 非空 | 信任硬件：更新 localStorage、下拉框、currentToolId、状态 UI | 真机硬件是唯一权威数据源 |
+| `connected=false` 或 `tool_id=""` | **不覆盖**用户手动设置：保留 localStorage/select/currentToolId，状态 UI 用有效工具 ID | 仿真模式后端无工具信息，不应冲掉用户选择 |
+
+```
+_onToolStatusMsg(msg) 决策树:
+
+msg 到达
+  │
+  ├─ tool_id 非空 && connected=true (hasTool=true)
+  │     → setCurrentToolId(toolId)           // 更新内部状态
+  │     → localStorage.setItem(key, toolId)  // 持久化
+  │     → sel.value = toolId                 // 更新下拉框
+  │     → _updateToolStatusUI(toolId, true)  // 绿色 LED + 工具名
+  │     → _updateGripperButtons(toolId)      // 高亮对应按钮
+  │     → _hideInitBanner()                  // 隐藏手动选择面板
+  │
+  └─ tool_id 为空 或 connected=false (hasTool=false)
+        → effectiveId = getCurrentToolId()   // 保留用户手动设置
+        → _updateToolStatusUI(effectiveId, !!effectiveId)
+        → _updateGripperButtons(effectiveId)
+        → 不改变 localStorage / select / currentToolId
+```
+
+### 8.4 仿真模式 vs 真机模式
+
+| 维度 | 真机模式 | 仿真模式 |
+|------|---------|---------|
+| 后端 `GripperSwapWorker` | 运行，连接真实 SDK | 运行，`simulation_skip_io_=true` |
+| `initial_tool_id` 参数 | 从 launch 参数传入 (物理工具已安装) | 通常为空 (无物理工具) |
+| `/tool_changer_status` 消息 | `tool_id="gripper0"`, `connected=true` | `tool_id=""`, `connected=false` |
+| `/get_current_tool` 返回 | `tool_id` 非空 | `tool_id=""`, `is_connected=false` |
+| 前端行为 | 自动识别工具，init banner 不显示 | 8s 后显示手动选择面板 |
+| 用户选择后 | 后端确认 → 覆盖用户选择 (信任硬件) | 后端持续发空消息 → 保留用户选择 |
+
+### 8.5 手动工具设置保护机制
+
+**问题**：仿真模式下后端每 5s 发布空 `/tool_changer_status`，会冲掉用户手动选择的工具。
+
+**保护规则** (2026-05-25 修复)：
+1. `localStorage` 和 `<select>` 仅在 `hasTool=true` 时写入 — 空消息不覆盖
+2. `setCurrentToolId()` 仅在 `hasTool=true` 时调用 — 内部状态不丢失
+3. `_updateToolStatusUI()` 使用 `effectiveId`（后端有工具用后端，否则用用户设置）
+4. `_updateGripperButtons()` 使用 `effectiveId` — 按钮高亮不丢失
+
+### 8.6 夹爪快换调用链
+
+```
+用户点击 .gripper-btn (id="btn-quick-swap-0/1/2")
+  │
+  ├── [capture] #gripper-swap-btns 事件委托
+  │     ├── 同工具? → return (跳过)
+  │     ├── isSwapInFlight() → return (防重入)
+  │     ├── _toolSwapping = true
+  │     └── _updateGripperButtons(currentId, targetId)  // swapping 动画
+  │
+  └── [bubble] btnQuickSwapX.onclick
+        └── callGripperSwap(targetId)
+              ├── 防重入: _swapInFlight 检查
+              ├── direction = _currentToolId
+              │       ? (_currentToolId + '_to_' + targetId)
+              │       : targetId
+              ├── transport.callService('/run_gripper_swap', {direction})
+              │     ├── .then(r) → _finishSwap(null)
+              │     │     └── onGripperSwapDone 回调:
+              │     │           _toolSwapping = false
+              │     │           _updateToolStatusUI(getCurrentToolId())
+              │     │           _updateGripperButtons(getCurrentToolId())
+              │     └── .catch(e) → _finishSwap(e)
+              └── 后端 changeToTool(targetId):
+                    1. releaseTool(current_tool) → publishToolStatus(false)
+                    2. pickTool(target_tool)     → publishToolStatus(true)
+```
+
+### 8.7 相关文件速查
+
+| 文件 | 角色 |
+|------|------|
+| `vision_grasp_panel.js:599-817` | 工具状态桥接 (_initToolStatusBridge, _onToolStatusMsg 等) |
+| `vision_grasp/services.js:74-148` | 夹爪服务封装 (callGripperSwap, getCurrentToolId 等) |
+| `vision_grasp_panel.html:120-148` | 工具状态栏 + 初始化面板 + 快换按钮 HTML |
+| `vision_grasp/config.js:20` | `/tool_changer_status` 话题默认配置 |
+| `core/topics.js:13` | `TOOL_CHANGER_STATUS_TOPIC` 常量 |
+| 后端 `gripper_swap_worker.cpp:116-117` | `/tool_changer_status` 发布者 (每 5s) |
+| 后端 `gripper_swap_worker.cpp:131-134` | `/get_current_tool` 服务回调 |
+| 后端 `gripper_swap_worker.cpp:121-124` | `/run_gripper_swap` 服务回调 → changeToTool() |

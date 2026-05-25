@@ -179,7 +179,7 @@ export function formatRobotPoseHtml(input) {
 /** 格式化 AI 大模型最终抓取位姿 (PoseArray 首元素) 喵~ */
 export function formatFinalGraspPoseHtml(msg) {
     if (!msg || !Array.isArray(msg.poses) || msg.poses.length === 0) {
-        return '<div class="pose-card__empty">等待 AI 抓取位姿...</div>';
+        return formatPoseBlockHtml(null, null);
     }
     const pose = msg.poses[0];
     return formatPoseBlockHtml(pose, null);

@@ -1,34 +1,13 @@
-/* ivg_base.css -- 全站共享基础: 白色主题 + 可见纹理 */
-
-:root {
-  --bg: #fafbfc;
-  --panel-bg: #ffffff;
-  --border: #e2e6ed;
-  --border-accent: #2563eb;
-  --text: #171b23;
-  --text-muted: #8b95a6;
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-soft: rgba(37,99,235,0.06);
-  --green: #16a34a;
-  --yellow: #d97706;
-  --red: #dc2626;
-  --orange: #ea580c;
-  --shadow-sm: 0 1px 2px rgba(15,23,42,0.06);
-  --shadow-md: 0 4px 12px rgba(15,23,42,0.08);
-  --shadow-lg: 0 12px 40px rgba(15,23,42,0.12);
-  --radius-sm: 7px;
-  --radius: 10px;
-}
+/* ivg_base.css — 全站共享基础样式（设计令牌见 tokens.css） */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   font-family: "Noto Sans CJK SC", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", "WenQuanYi Micro Hei", system-ui, -apple-system, sans-serif;
   background:
-    radial-gradient(circle, rgba(15,23,42,0.04) 1px, transparent 1px);
+    radial-gradient(circle, rgba(15, 16, 18, 0.03) 1px, transparent 1px);
   background-size: 20px 20px;
-  background-color: #fafbfc;
+  background-color: var(--bg);
   background-position: 10px 10px;
   color: var(--text);
   min-height: 100vh;
@@ -53,7 +32,7 @@ h1 { font-size: 1.4rem; letter-spacing: -0.02em; font-weight: 700; }
   padding: 10px 16px;
   text-align: center;
   font-size: 0.8rem;
-  background: #fff;
+  background: var(--bg-elevated);
 }
 .connection-footer__inner {
   display: flex;
@@ -82,10 +61,10 @@ h1 { font-size: 1.4rem; letter-spacing: -0.02em; font-weight: 700; }
 
 /* ---- 焦点环 ---- */
 :focus-visible {
-  outline: 2px solid rgba(37,99,235,0.5);
+  outline: 2px solid var(--accent-soft);
   outline-offset: 2px;
   border-radius: 3px;
 }
 
 /* ---- 选中 ---- */
-::selection { background: rgba(37,99,235,0.15); color: var(--text); }
+::selection { background: var(--accent-soft); color: var(--text); }

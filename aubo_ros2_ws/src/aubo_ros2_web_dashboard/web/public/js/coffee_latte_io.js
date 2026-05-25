@@ -9,7 +9,7 @@ import { logBus } from './core/log-bus.js';
 const TAG = '[latte_io]';
 
 // 话题名（可从 settings localStorage 覆盖）喵~
-const STORAGE_KEY = 'ivg_vision_grasp_topics_v3';
+const STORAGE_KEY = 'ivg_latte_settings_v1';
 
 function getSetting(key, fallback) {
     try {
@@ -72,7 +72,7 @@ function _updateDi(name, on) {
         logBus.addLog('info', 'topic', 'DI 反馈: ' + DI_LABELS[name] + '=' + (on ? 'ON' : 'OFF'), {
             di: name,
             state: on ? 'on' : 'off',
-        });
+        }, 'latte');
     }
 }
 
@@ -100,7 +100,7 @@ async function toggleDo(name) {
 
     logBus.addLog('info', 'service', 'DO 开关: ' + info.label + ' → ' + (next ? 'ON' : 'OFF'), {
         do: name, service: info.svc, target: next,
-    });
+    }, 'latte');
 
     // 调用 ROS 服务
     try {
@@ -109,17 +109,17 @@ async function toggleDo(name) {
             _rollbackDoUI(btn, pressed);
             logBus.addLog('warn', 'service', info.svc + ' 返回 success=false, UI 已回滚', {
                 service: info.svc,
-            });
+            }, 'latte');
         } else {
             logBus.addLog('info', 'service', '✓ ' + info.svc + ' → success=' + result.success, {
                 service: info.svc, success: result.success, message: result.message,
-            });
+            }, 'latte');
         }
     } catch (e) {
         _rollbackDoUI(btn, pressed);
         logBus.addLog('error', 'service', '✗ ' + info.svc + ' 失败: ' + String(e) + ', UI 已回滚', {
             service: info.svc, error: String(e),
-        });
+        }, 'latte');
     }
 }
 
@@ -138,13 +138,13 @@ function subscribeDi() {
         parseDiMessage(msg);
     });
 
-    logBus.addLog('info', 'topic', '已订阅 DI 状态: ' + topic, { topic });
+    logBus.addLog('info', 'topic', '已订阅 DI 状态: ' + topic, { topic }, 'latte');
 }
 
 // ── 入口 ───────────────────────────────────────────────────────────────────
 
 (function init() {
-    logBus.addLog('info', 'system', '咖啡拉花 IO 初始化中...');
+    logBus.addLog('info', 'system', '咖啡拉花 IO 初始化中...', {}, 'latte');
 
     // DO 按钮：调用 ROS 服务
     const do2 = document.getElementById('latte-do2-toggle');
@@ -152,20 +152,29 @@ function subscribeDi() {
     if (do2) do2.addEventListener('click', () => toggleDo('do2'));
     if (do4) do4.addEventListener('click', () => toggleDo('do4'));
 
-    // DI 订阅：等 ros.js 连接就绪后订阅
-    // 由于 ros.js 在 latte/main.js 中连接，这里先轮询等待
-    (function waitForRos() {
-        let ticks = 0;
-        const timer = setInterval(() => {
-            if (ros.isConnected) {
-                clearInterval(timer);
-                subscribeDi();
-                logBus.addLog('info', 'system', '咖啡拉花 IO 就绪 (DI 订阅 + DO 服务)');
-            }
-            if (++ticks > 120) {
-                clearInterval(timer);
-                logBus.addLog('warn', 'system', '咖啡拉花 IO: ros.js 连接超时，DI 未订阅');
-            }
-        }, 500);
-    })();
+    // DI 订阅：事件驱动，等待 main.js 的 latte:ros-ready 信号喵~
+    function trySubscribeDi() {
+        if (ros.isConnected) {
+            subscribeDi();
+            logBus.addLog('info', 'system', '咖啡拉花 IO 就绪 (DI 订阅 + DO 服务)', {}, 'latte');
+            return true;
+        }
+        return false;
+    }
+
+    // 快速路径：已连接则立即订阅
+    trySubscribeDi();
+
+    // 持久监听：每次 setupSubscriptions() 重新派发 latte:ros-ready 时自动重订阅喵~
+    // ivgTransport.subscribe 内置去重，重复调用无副作用
+    window.addEventListener('latte:ros-ready', () => {
+        trySubscribeDi();
+    });
+
+    // 安全兜底：10s 超时提示 (不影响后续 latte:ros-ready 重订阅)
+    setTimeout(() => {
+        if (!ros.isConnected) {
+            logBus.addLog('warn', 'system', '咖啡拉花 IO: ros.js 连接超时（10s），DI 未订阅，将继续等待 latte:ros-ready', {}, 'latte');
+        }
+    }, 10000);
 })();

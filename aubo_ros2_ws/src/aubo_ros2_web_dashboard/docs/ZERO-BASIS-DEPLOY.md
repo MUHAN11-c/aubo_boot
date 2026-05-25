@@ -110,7 +110,7 @@ cd IVG2.0/aubo_ros2_ws
 ### 第 8 步：编译 ROS 2 工作空间（首次）
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd ~/aubo_boot/aubo_ros2_ws
 source /opt/ros/humble/setup.bash
 colcon build --packages-select ivg_interfaces
 source install/setup.bash
@@ -122,7 +122,7 @@ colcon build
 ### 第 9 步：构建 Vue 3 前端
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws/src/aubo_ros2_web_dashboard/web
+cd ~/aubo_boot/aubo_ros2_ws/src/aubo_ros2_web_dashboard/web
 npm install     # 下载前端依赖（首次需要 1-2 分钟）
 npm run build   # 打包前端 → web/dist/
 ```
@@ -132,7 +132,7 @@ npm run build   # 打包前端 → web/dist/
 ### 第 10 步：验证构建产物
 
 ```bash
-ls /home/mu/IVG2.0/aubo_ros2_ws/src/aubo_ros2_web_dashboard/web/dist/
+ls ~/aubo_boot/aubo_ros2_ws/src/aubo_ros2_web_dashboard/web/dist/
 # 应该看到: index.html, assets/ 目录
 ```
 
@@ -143,13 +143,13 @@ ls /home/mu/IVG2.0/aubo_ros2_ws/src/aubo_ros2_web_dashboard/web/dist/
 ### 方式 A：独立启动 Web 网关（想只测试前端）
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd ~/aubo_boot/aubo_ros2_ws
 source /opt/ros/humble/setup.bash
 source install/setup.bash
 
 python3 -m aubo_ros2_web_dashboard.fastapi_static_gateway \
   8090 \
-  -d /home/mu/IVG2.0/aubo_ros2_ws/src/aubo_ros2_web_dashboard/web/dist
+  -d ~/aubo_boot/aubo_ros2_ws/src/aubo_ros2_web_dashboard/web/dist
 
 # 浏览器打开 http://localhost:8090
 ```
@@ -159,7 +159,7 @@ python3 -m aubo_ros2_web_dashboard.fastapi_static_gateway \
 ### 方式 B：完整启动（含 rosbridge，需要完整 ROS 2 环境）
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd ~/aubo_boot/aubo_ros2_ws
 source /opt/ros/humble/setup.bash
 source install/setup.bash
 
@@ -171,7 +171,7 @@ ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py
 ### 方式 C：在 ROS 2 大系统里启动
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd ~/aubo_boot/aubo_ros2_ws
 ./start_aubo_new_driver.sh
 ```
 
@@ -185,7 +185,7 @@ cd /home/mu/IVG2.0/aubo_ros2_ws
 
 ```bash
 # 修改 Python 代码后
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd ~/aubo_boot/aubo_ros2_ws
 source /opt/ros/humble/setup.bash
 source install/setup.bash
 colcon build --packages-select aubo_ros2_web_dashboard
@@ -196,7 +196,7 @@ colcon build --packages-select aubo_ros2_web_dashboard
 
 ```bash
 # 开发模式 — 热更新，保存代码浏览器自动刷新
-cd /home/mu/IVG2.0/aubo_ros2_ws/src/aubo_ros2_web_dashboard/web
+cd ~/aubo_boot/aubo_ros2_ws/src/aubo_ros2_web_dashboard/web
 npm run dev
 # 浏览器打开 http://localhost:5173
 ```
@@ -206,7 +206,7 @@ npm run dev
 ### 前端修改后的生产构建
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws/src/aubo_ros2_web_dashboard/web
+cd ~/aubo_boot/aubo_ros2_ws/src/aubo_ros2_web_dashboard/web
 npm run build      # 重新打包 → web/dist/
 ```
 

@@ -41,7 +41,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **必须在 `aubo_ros2_ws/` 目录下编译。**
 
 ```bash
-cd /home/wjz/aubo_boot/aubo_ros2_ws
+cd /home/mu/aubo_boot/aubo_ros2_ws
 source /opt/ros/humble/setup.bash
 colcon build
 source install/setup.bash
@@ -54,6 +54,35 @@ colcon build --packages-select aubo_driver_ros2 tool_changer latte_imitation
 ```
 
 `start_aubo_new_driver.sh` 启动时会自动执行 `colcon build`，日常开发中修改代码后手动运行上述命令即可喵~
+
+**首次部署依赖安装**：
+
+```bash
+# ROS 2 包依赖（从包声明的 package.xml 自动安装）
+cd /home/mu/aubo_boot/aubo_ros2_ws
+rosdep install --from-paths src --ignore-src -r -y
+
+# Python 运行依赖（非 colcon 管理）
+pip3 install httpx websockets numpy==1.23.5 opencv-python==4.9.0
+```
+
+**运行测试**：
+
+```bash
+# 运行所有包的测试
+colcon test
+
+# 运行指定包的测试
+colcon test --packages-select latte_imitation graspnet_ros2
+
+# 查看测试结果
+colcon test-result --all
+
+# 查看详细输出
+colcon test --event-handlers console_direct+
+```
+
+测试目录在各包的 `test/` 下，使用 `ament_cmake_pytest` (Python) 或 `ament_cmake_gtest` (C++) 喵~
 
 ### 启动脚本环境变量
 
@@ -76,11 +105,47 @@ WEB_DASH_PORT=9000 ./start_aubo_new_driver.sh
 
 脚本自动检测机械臂是否在线（TCP 端口探测），不可达时回退到仿真模式 (`mock_components/GenericSystem`)。退出时自动清理所有子进程（`cleanup()` trap）喵~
 
+其他辅助脚本：
+- `start_latte_test.sh` — 单独启动 latte_imitation 轨迹重放节点（无需完整机械臂驱动）
+- `wait_for_service.sh <service_name>` — 轮询等待 ROS 2 service 就绪，用于脚本中的同步点
+
+### 仿真模式服务可用性
+
+`start_aubo_new_driver.sh` 在机械臂不可达时自动回退到仿真模式 (`mock_components/GenericSystem`)。此时 `aubo_dashboard_node` (LifecycleNode) 不启动，其 `/aubo/*` 服务全部不可用。`demo_driver` 节点不受影响喵~：
+
+| 服务 | 仿真 | 真机 | 原因 |
+|------|------|------|------|
+| `/set_speed_factor` | ✅ 正常 | ✅ 正常 | demo_driver + MoveIt move_group_，不依赖 SDK |
+| `/set_robot_enable` | ⚠️ success=false | ✅ 正常 | demo_driver 转发到 `/aubo/startup`，dashboard 不存在 |
+| `/get_current_state` | ⚠️ success=false | ✅ 正常 | 内部调用 `/aubo_driver/get_fk` client，无 server |
+| `/read_robot_io` | ⚠️ 无数据 | ✅ 正常 | 依赖 `/robot_io_status` 话题 |
+| `/move_to_pose` | ❌ 阻塞 | ✅ 正常 | MoveIt `plan()+execute()`，CurrentStateMonitor 超时 (单线程 Executor) |
+| `/aubo_driver/get_fk`、`/aubo_driver/get_ik`、`/aubo_driver/set_io` | ❌ 无 server | ✅ 正常 | 仅 `aubo_dashboard_node` 提供 (仿真不启动) |
+| `/aubo/stop`、`/aubo/move_joint` 等 15+ | ❌ 无 server | ✅ 正常 | 仅 `aubo_dashboard_node` (LifecycleNode) 提供喵~ |
+
+> 前端调试面板 `callService()` 带 timeoutMs 超时保护，仿真下不会永久阻塞喵~
+
+### `demo_driver` 与 `aubo_dashboard_node` 服务命名空间
+
+| 服务 | 提供者 | 仿真可用 |
+|------|--------|---------|
+| `/set_speed_factor` | demo_driver (SetSpeedFactorServer) | ✅ |
+| `/set_robot_enable` | demo_driver (SetRobotEnableServer) → 调用 `/aubo/startup` | ⚠️ success=false |
+| `/move_to_pose` | demo_driver (MoveToPoseServer) → SDK moveJ/moveL | ❌ |
+| `/get_current_state` | demo_driver (GetCurrentStateServer) → 内部 client `/aubo_driver/get_fk` | ⚠️ |
+| `/read_robot_io` | demo_driver (ReadRobotIOServer) | ⚠️ |
+| `/set_robot_pose` | demo_driver (SetRobotPoseServer) → 内部 client `/aubo_driver/get_ik` | ❌ |
+| `/plan_trajectory` | demo_driver (PlanTrajectoryServer) | ❌ |
+| `/execute_trajectory` | demo_driver (ExecuteTrajectoryServer) | ❌ |
+| `/aubo/get_fk`、`/aubo/get_ik`、`/aubo/set_io` 等 20 个 | aubo_dashboard_node (LifecycleNode) | ❌ 仿真不启动 |
+
+> demo_driver 内 `get_current_state_server`、`plan_trajectory_server`、`set_robot_pose_server` 均创建到 `/aubo_driver/*` 的 **client**（非 server）。真机下 aubo_dashboard_node 提供 `/aubo/*` 服务端，两者之间服务名不一致依赖 remap 或实际部署配置对齐喵~
+
 ## 重要注意事项
 
 ### 0. 行为准则
 
-1. **所有回复必须使用中文，每句末尾加"喵~"**，代码注释也不例外喵~
+1. **所有回复必须使用中文**
 2. **修改前必须阅读源码和官方文档**，不允许凭经验和注释猜测。分析问题必须追溯到完整调用链：入口 → 中间层 → 底层库/API 的实际行为。对于 ROS 2 / MoveIt / AUBO SDK 等关键依赖，优先查阅官方源码仓库而非二手博客喵~
 3. **每次对话后将理论依据、参考文献、链接、实现细节记录到 CLAUDE.md 或相关文档**，让后来者无需重复调研喵~
 4. **每次代码修改后必须同步更新关联文档**（CHANGELOG.md、包级 README、CLAUDE.md），不更新的文档比没有文档更危险喵~
@@ -94,6 +159,10 @@ SDK 是同步阻塞的（TCP 通信，单次调用 2-225ms），不能放在 ROS
 - `conn_status_` — 普通模式，状态查询 + IO 读写 + 事件回调。TCP2CAN 连接的状态查询缓存可能过时喵~
 - SDK 回调运行在 SDK 内部线程上，回调内不能调用 SDK API，只能做 atomic 写入 + 日志输出喵~
 - Dashboard 服务使用 `IsBolck=false` 避免长时间占用 TCP 连接；`sdk_mutex_` 串行化所有 SDK 调用喵~
+- `aubo_state_broadcaster` 实际发布频率约 50Hz（受 SDK RIB 轮询 `readDiagnosisInfo()` 阻塞限制），非标称 200Hz 喵~
+- `JointTrajectoryController::sendLoop` 默认 4ms 间隔 (250Hz) 发送点位，RIB 积压时缩至 1ms，超时放弃当前点 (TCP2CAN 流控)喵~
+- `aubo_dashboard_node` (LifecycleNode) 在 `on_configure` 创建 20 个 ROS 2 service + 双 TCP 连接，`Inactive` 状态下 service 调用直接失败喵~
+- `aubo_callback_monitor`：RIB 周期性查询 + 事件回调分发，回调运行在 SDK 内部线程喵~
 
 > 详见：`aubo_ros2_driver/README.md` 喵~
 
@@ -131,7 +200,8 @@ C++ 标准规定 `enable_shared_from_this` 的 `weak_ptr` 在 `shared_ptr` 构�
 - `scene_attach_worker` 通过 `/attached_collision_object` 发布 ADD/REMOVE（非 `/planning_scene` ACO diff）；向 `/planning_scene` 仅发 world REMOVE 清除 detach 残留
 - 工具附着位姿唯一数据源：`tools.yaml.attach_offset`，直接写入 `AttachedCollisionObject.object.pose`
 - `gripper_swap_worker` 在物理取放完成瞬间更新 `/tool_changer_status`，不要在切换一开始就清除状态
-- SRDF ACM 需豁免 5 种工具 × 4 个末端 link（kuaihuan/camera/wrist3/tool_tcp）+ 3 条固定链内部豁免，否则 MoveIt 误判碰撞
+- SRDF ACM 需豁免 5 种工具 × 4 个末端 link（kuaihuan/camera/wrist3/tool_tcp）+ 3 条固定链内部豁免，否则 MoveIt 误判碰撞喵~
+- `aubo_e5.srdf:72-91` 中 ACM 条目当前被全部注释，运行时通过 `scene_attach_worker` 的 ACO `touch_links` 动态豁免碰撞喵~
 
 > 详见：`docs/PROCESS-FLOW.md`、`aubo_ros2_ws/src/aubo_e5_moveit_config/config/aubo_e5.srdf:69-91`、`src/tool_changer/config/tools.yaml` 喵~
 
@@ -213,6 +283,11 @@ FastAPI 路由参数用 `dict | None` 等 PEP 604 语法时，pydantic 1.8.x 会
 
 轨迹参数全部从 `config/tools.yaml` 加载，不再硬编码 per-gripper 函数。新增工具只需编辑 YAML（`dock_approach_joints` + `trajectory` 字段），无需修改 C++ 代码。两种轨迹策略：`"vertical"`（纯 Z 轴升降）和 `"slide"`（Y 轴侧滑）。`changeToTool()` 通用流水线走同一逻辑喵~
 
+- `gripper0` ✅ vertical 策略，已验证关节角喵~
+- `gripper1` ⚠️ `dock_approach_joints` 复用 gripper0 参考值，待真机 IK 验证喵~
+- `gripper2` ✅ slide 策略喵~
+- `gripper1coffeecup` / `gripper1milkcup` ⏭️ 仅仿真：无 `dock_approach_joints` + `trajectory`，仅用于 3D 展示和碰撞调试喵~
+
 > 详见：`src/tool_changer/config/tools.yaml`、`src/tool_changer/src/gripper_swap_worker.cpp` 喵~
 
 ### 21. latte_imitation MoveIt2 管线
@@ -222,6 +297,14 @@ FastAPI 路由参数用 `dict | None` 等 PEP 604 语法时，pydantic 1.8.x 会
 - `/execute_trajectory` action — MoveIt2 标准 action
 - Fraction 处理：≥0.95 直接执行，0.50~0.95 retry with `avoid_collisions=False`，<0.50 失败
 - 参数: `max_step=0.01`, `jump_threshold=0.0`, `ReentrantCallbackGroup` + `MultiThreadedExecutor(4)` 防死锁
+
+**SE(3) 重定目标核心**：
+- `CartesianTrajectory` (positions/orientations/timestamps) — 纯 numpy，无 ROS 依赖
+- `retarget_trajectory()` Option B (Se3RelRetargeter): `R_rel = R(rpy_user) @ R(q_cup)`, `p_new = R_rel @ (p - p0) + p_cup`
+- 四元数约定：Hamilton (xyzw)，`euler_deg_to_quat()` 内旋 ZYX = 外旋 XYZ
+- `check_workspace_bounds()` — `base_link` = `world`，基于 AUBO E5 工作半径 886.5mm
+- Preview 模式发布 5 个 RViz2 markers (Path/PoseArray/LINE_STRIP/CUBE/LINE_LIST)
+- `MultiThreadedExecutor(4)` + `ReentrantCallbackGroup`，`self._executing` 防重入
 
 > 详见：`aubo_ros2_ws/src/latte_imitation/DESIGN.md` 喵~
 
@@ -240,6 +323,7 @@ web/public/                    # 静态文件根目录
 ├── coffee_latte_panel.html    # 咖啡拉花
 ├── log_panel.html             # 日志面板
 ├── settings_panel.html        # 话题/服务设置
+├── debug_panel.html            # 调试面板 (状态/运动/IO/IK/FK/话题/服务)
 ├── tf_monitor_panel.html      # TF 监控
 ├── css/                       # 样式
 └── js/
@@ -285,7 +369,8 @@ web/public/                    # 静态文件根目录
     ├── vision_grasp_panel.js  # 视觉抓取页面主逻辑
     ├── tf_monitor_panel.js    # TF 监控页面主逻辑
     ├── log_panel.js           # 日志面板页面主逻辑
-    └── settings_panel.js      # 设置面板页面主逻辑
+    ├── settings_panel.js      # 设置面板页面主逻辑
+    └── debug_panel.js          # 调试面板主逻辑 (状态/运动/IO/IK/FK)
 ```
 
 ### 日志系统架构
@@ -323,25 +408,21 @@ web/public/                    # 静态文件根目录
 
 **执行状态机**：所有长耗时 ROS 服务调用走 `IDLE → STARTING → IN_PROGRESS(每 5s 心跳) → COMPLETED/FAILED`。
 
-**关键踩坑速记**：
+**关键踩坑速记**（保留可能复现的架构性陷阱）：
 
 | 陷阱 | 修复 | 详见 |
 |------|------|------|
-| `log-ros-bridge.js` 未被任何页面 import → `/rosout` 从不订阅 | 5 个 HTML 页面全部加 `<script type="module" src="js/core/log-ros-bridge.js">` | 本次会话 (2026-05-22) |
-| 桥接只检测 `globalThis.ivgTransport` 但该变量从未被设置 | 同时检测 `globalThis.__rosManager._transport`（ros.js 设置的全局引用） | `log-ros-bridge.js:_getTransport()` |
-| ES module 单例 per-page → 日志面板看不到其他页面日志 | `log-bus.js` 新增 `BroadcastChannel('ivg_log_bus')` + `_ingestRemote()` | `log-bus.js` |
-| `escapeHtml` 在合并 pose_card.js 时丢失导出 → latte 页面报 SyntaxError | 别名导入后原名导出: `import { escapeHtml as _escapeHtml } from ...; export { _escapeHtml as escapeHtml }` | `components/pose-card.js` |
-| 监控区折叠逻辑在 vision_grasp_panel.js 和 latte/main.js 各有一份 ~80 行重复 | 提取到 `components/monitoring-collapse.js` 共享组件 | 两文件各删 ~80 行 |
-| `rosMsgArrayField` 在 vision_grasp 和 latte 中重复定义 | 提取到 `core/utils.js` | 删除两处重复 |
+| 新增 HTML 页面忘记 import `log-ros-bridge.js` → `/rosout` 不订阅 | 每个 HTML 页面加 `<script type="module" src="js/core/log-ros-bridge.js">` | `log-ros-bridge.js` |
+| ES module 单例 per-page → 日志面板看不到其他页面日志 | `log-bus.js` 使用 `BroadcastChannel('ivg_log_bus')` 跨页面同步 | `log-bus.js` |
 | Three.js r184 `dispose()` 不释放 GL 上下文 | `forceContextLoss()` + `renderer.domElement.remove()` | `view3d/session.js` |
-| WebSocket 被系统代理拦截 | 启动脚本 `unset http_proxy` + 浏览器对 localhost 绕过代理 | `start_aubo_new_driver.sh` |
-| DO2/DO4 按钮只做纯 UI toggle，不调后端 | 接入 ROS 服务 `/set_latte_do2` / `/set_latte_do4` (std_srvs/SetBool) | `coffee_latte_io.js` |
+| WebSocket 被系统代理拦截 | 启动脚本 `unset http_proxy`；浏览器对 localhost 绕过代理 | `start_aubo_new_driver.sh` |
+| `/aubo_driver/get_fk` 等 SDK 服务在仿真下挂死 | 前端 `callService` 带 timeoutMs 超时保护 | `debug_panel.js` |
 
 **传输层两种访问方式**：
 
 | 页面类型 | 使用方式 | 全局引用 |
 |---------|---------|---------|
-| vision_grasp | 直接 `import { ivgTransport }` | 无全局引用 |
+| vision_grasp / debug | 直接 `import { ivgTransport }` | `globalThis.ivgTransport` |
 | latte / 其他 | `import { ros } from './core/ros.js'` (RosManager 单例) | `globalThis.__rosManager` |
 
 `ros.js` 内部持有 `this._transport = ivgTransport`，所有操作最终都走同一传输层。`log-ros-bridge.js` 通过 `_getTransport()` 兼容两种方式喵~
@@ -350,9 +431,11 @@ web/public/                    # 静态文件根目录
 
 - 工具快换服务：`/run_gripper_swap` (ivg_interfaces/srv/RunGripperSwap)，方向格式 `"current_id_to_target_id"`
 - 工具几何数据：前端从 BFF `/api/v1/tool-geometries` 动态获取，数据源统一为 `tools.yaml`
-- 拉花执行：`/latte_imitation/replay_trajectory` (ivg_interfaces/srv/ReplayLatteTrajectory)
+- 拉花执行：`/latte_imitation/replay_trajectory` (ivg_interfaces/srv/ReplayLatteTrajectory)，mode=`"preview"|"debug"|"action"`
+- URDF 显示切换：`/set_display_tool` (ivg_interfaces/srv/ChangeTool) — 仅仿真显示，不触发物理快换
 - DO 控制：`/set_latte_do2`、`/set_latte_do4` (std_srvs/srv/SetBool)
 - 话题/服务名在前端通过 `localStorage` 覆盖，默认值见 `config/defaults.yaml` 喵~
+- `ivg_transport.js` 提供 `publish({topic, type, msg})` 方法，用于调试面板话题发布喵~
 
 ## 常见报错速查
 
@@ -374,6 +457,8 @@ web/public/                    # 静态文件根目录
 | Dashboard 生命周期未激活 | `aubo_dashboard` 节点未就绪或 Lifecycle 状态机转换失败 | 检查 terminator 标签页日志；`ros2 lifecycle list /aubo_dashboard` |
 | Web Dashboard gateway 崩溃不重启 | ✅ 已修复 (2026-05-18): `web_dashboard.launch.py:155-156` 添加 `respawn=True, respawn_delay=5.0` | — |
 | VPE 姿态估计失败 `NameError: pose_estimate_start` | `ros2_communication.py:1578` 使用未定义变量 | 添加 `pose_estimate_start = time.time()` 喵~ |
+| VPE pydantic TypeError | `native_api.py`/`resources.py` 使用了 `dict \| None` PEP 604 语法 | 改为 `Optional[dict]` / `Union[dict, None]` |
+| GraspNet 节点无法启动 | CUDA 扩展 (pointnet2/knn) 未安装 | `pip install` 对应的 CUDA 扩展，详见错误消息中的 setup.py 路径 |
 | tools.yaml 工具快换失败 (gripper1/coffeecup/milkcup) | `tools.yaml` 中这三个工具缺少 `dock_approach_joints` + `trajectory` 字段 | 补充 YAML 配置或确认这些工具不需要快换喵~ |
 | GripperSwapWorker 死锁/service 超时 | callback group 是 MutuallyExclusive（非 Reentrant），与文档描述不一致 | `MultiThreadedExecutor(2)` 提供足够并发，当前无死锁风险喵~ |
 | `error while loading shared libraries: libauborobotcontroller.so.1` | AUBO SDK .so 未安装 | `colcon build --packages-select aubo_driver_ros2` |
@@ -439,65 +524,6 @@ web/public/                    # 静态文件根目录
 | `aubo_ros2_ws/src/moveit_ros_planning_interface/` | `COLCON_IGNORE` | 无本地补丁 (2026-05-15) |
 | `aubo_ros2_ws/src/moveit_ros_visualization/` | 本地复刻 | **有本地补丁**：URDF 切换 bug 修复 |
 | `aubo_ros2_ws/src/camport_ros2/src/image_data_bridge/` | 已删除 (2026-05-14) | 由 `hand_eye_calibration/image_data_converter_node` 替代 |
-
-## 审查新增发现（2026-05-18 架构审查）
-
-### 23. AUBO SDK 驱动层关键实现细节
-
-- `aubo_state_broadcaster` 实际发布频率约 50Hz（受 `client.getJointStatus()` 阻塞时间限制），非文档标注的 200Hz 喵~
-- `JointTrajectoryController` 的 `sendLoop` 实现精细的 TCP2CAN 流量控制：固定 5ms 间隔发送，超时后放弃当前点喵~
-- `aubo_dashboard_node` (LifecycleNode) 在 `on_configure` 创建 20 个 ROS 2 service + 建立双 TCP 连接；`Inactive` 状态下 service 调用直接失败（ROS 2 Lifecycle 标准行为）喵~
-- `sigHandler` 中通过全局指针 `g_node` 访问 Dashboard，析构时可能存在悬空指针风险喵~
-- `aubo_callback_monitor` 用于 RIB 周期性查询 + 事件回调分发，回调运行在 SDK 内部线程上喵~
-
-### 24. VPE 视觉姿态估计运行时 Bug
-
-- **严重 Bug**: `ros2_communication.py:1578` 中 `_estimate_pose_for_feature()` 使用未定义变量 `pose_estimate_start`，每次调用必抛 `NameError`，导致姿态估计失败喵~
-- `native_api.py:44,141` 和 `resources.py:139` 中存在 `dict[str, Any] | None` PEP 604 语法，pydantic 1.x 可能不兼容喵~
-- `graspnet_demo_points_node.py:45-46` CUDA 算子导入无 try/except，若 CUDA 扩展未安装则节点无法启动喵~
-- `hand_eye_calibration` 仍使用 Flask（非 FastAPI），与架构目标不一致；主节点是约 5881 行的单体类喵~
-
-### 25. tools.yaml 配置状态（2026-05-18 审查）
-
-- `gripper0` ✅ 完整：vertical 策略 + 已验证关节角喵~
-- `gripper1` ⚠️ 待验证：`dock_approach_joints` 复用了 gripper0 参考值（待启动机械臂后运行 `scripts/compute_dock_ik.py` 通过 GetIK 服务求解）喵~
-- `gripper2` ✅ 完整：slide 策略喵~
-- `gripper1coffeecup` / `gripper1milkcup` ⏭️ 仅仿真：无 `dock_approach_joints` + `trajectory`（`loadToolConfig()` 会跳过），仅用于末端工具几何展示和碰撞调试，不参与真机物理快换喵~
-
-### 26. SRDF ACM 条目全部被注释
-
-- `aubo_e5.srdf:72-91` 中 5 种工具 × 4 个末端 link 的碰撞豁免条目被全部注释喵~
-- 运行时通过 `scene_attach_worker` 的 ACO `touch_links` 动态豁免碰撞，功能不受影响；但如果采用 SRDF 静态豁免方案，需取消这些注释喵~
-
-### 27. 前端 3D 模型导航切换修复（2026-05-18）
-
-> **注意**：以下修复应用于当时的 Vue 3 SPA（`SceneManager.ts`/`Robot3dViewer.vue` 等已随 commit `5995fcbce` 回退）。当前纯 HTML/JS MPA 中等效机制在 `view3d/session.js` 和 `view3d/urdf-viewer.js` 中。保留此条目供后续若再次迁移 SPA 时参考喵~
-
-**4 个根因 + 修复**：
-
-| 根因 | 原 SPA 修复位置 | MPA 等效文件 | 方案 |
-|------|---------|------|------|
-| WebGL 上下文泄露 — Three.js `r184` `dispose()` 不释放 GL 上下文 | `SceneManager.ts:133-138` | `view3d/session.js` | `forceContextLoss()` + `renderer.domElement.remove()` |
-| 组件卸载不取消 rosbridge 订阅 — 残留话题占用带宽 | `Robot3dViewer.vue:469-473` | `view3d/urdf-viewer.js` stop() | `stop()` 中清理话题订阅 |
-| async `init()` 竞态 — `await` 期间组件若卸载 | `Robot3dViewer.vue:69` | `latte/main.js` cleanup() | 生命周期钩子 + `urdfViewer` null 检查 |
-| 父 View 与子组件重复订阅同一话题 | `CoffeeLatteView.vue:164-168` | 各页面独立订阅 | 各组件自管订阅，不依赖父级 |
-
-**设计原则**：
-- 各组件独立订阅所需话题（符合 ROS 2 节点隔离模型）喵~
-- 3D 查看器自给自足 — 不依赖父级为其订阅 TF 话题喵~
-- 优先使用目标话题名而非 `null` 通配，减少无谓的消息过滤喵~
-
-## latte_imitation 拉花轨迹重定目标包
-
-27. **latte_imitation SE(3) 重定目标理论**：基于 SPOT (Object-centric) + Isaac Teleop (Se3RelRetargeter) + SVRC + SO(3) Action Repr. 等 10 篇文献喵~
- - **核心数据结构**: `CartesianTrajectory` (positions/ orientations/ timestamps)，纯 numpy，无 ROS 依赖喵~
- - **核心变换**: `retarget_trajectory()` — Option B (默认, Se3RelRetargeter 语义): `R_rel = R(rpy_user) @ R(q_cup)`, `p_new = R_rel @ (p - p0) + p_cup`, `q_new = q_rel * q_orig` (Hamilton) 喵~
- - **四元数约定**: Hamilton (xyzw)，`euler_deg_to_quat()` 内旋 ZYX = 外旋 XYZ，与 tf2::Quaternion::setRPY() 完全一致喵~
- - **MoveIt2 参数**: `max_step=0.01`, `jump_threshold=0.0`, `revolute_jump_threshold=0.0`, `prismatic_jump_threshold=0.0` — 审计自 `cartesian_interpolator.cpp` L53/L227/L230 喵~
- - **工作空间安全**: `check_workspace_bounds()` — `base_link` = `world` (URDF identity fixed joint)，边界基于 AUBO E5 官方工作半径 886.5mm + URDF DH 链审计，详见 `workspace_safety.yaml` 喵~
- - **Preview 模式**: `mode="preview"` 发布 5 个 RViz2 markers: Path (TCP 轨迹)、PoseArray (方向箭头)、Marker LINE_STRIP (spout 轨迹)、Marker CUBE (杯子位置)、Marker LINE_LIST (工作空间框) 喵~
- - **并发模型**: `MultiThreadedExecutor(4)` + `ReentrantCallbackGroup`，`self._executing` 防重入锁喵~
- - 详见 `aubo_ros2_ws/src/latte_imitation/DESIGN.md` 喵~
 
 ## Python 依赖兼容性
 

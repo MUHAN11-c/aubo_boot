@@ -10,4 +10,5 @@ install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY scripts DESTINATION share/${PROJECT_NAME}
   USE_SOURCE_PERMISSIONS)
 install(PROGRAMS scripts/aubo_mode.py DESTINATION lib/${PROJECT_NAME})
+install(PROGRAMS scripts/simulation_state_publisher.py DESTINATION lib/${PROJECT_NAME})
 install(FILES .setup_assistant DESTINATION share/${PROJECT_NAME})

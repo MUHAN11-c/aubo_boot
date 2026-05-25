@@ -5,7 +5,7 @@ from rclpy.node import Node
 from std_msgs.msg import String
 from std_srvs.srv import SetBool
 
-# 通过 demo_interface 调用 Aubo 驱动 IO
+# 通过 ivg_interfaces 调用 Aubo 驱动 IO
 try:
     from ivg_interfaces.srv import SetRobotIO
     from ivg_interfaces.msg import RobotIOStatus
@@ -36,7 +36,7 @@ class LatteNode(Node):
         else:
             self.set_io_client = None
             self.io_states_sub = None
-            self.get_logger().warn('未找到 demo_interface，IO 控制仅在内存中生效')
+            self.get_logger().warn('未找到 ivg_interfaces，IO 控制仅在内存中生效')
 
         self.timer = self.create_timer(5.0, self.publish_status)
         self.get_logger().info('咖啡拉花演示节点已就绪')

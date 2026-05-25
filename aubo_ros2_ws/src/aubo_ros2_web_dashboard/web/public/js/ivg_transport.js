@@ -266,6 +266,32 @@ IvgTransport.prototype.callService = function (spec) {
     });
 };
 
+	// ── 话题发布 ────────────────────────────────────────────────────────────────
+
+	IvgTransport.prototype.publish = function (spec) {
+	    if (!this.ros || !this._isSocketOpen()) return Promise.reject(new Error('not_connected'));
+
+	    const topicName = canonicalRosTopic(spec.topic);
+	    const msgType = String(spec.type || spec.msgType || '').trim();
+	    if (!topicName || !msgType) return Promise.reject(new Error('invalid_publish_spec'));
+
+	    return new Promise((resolve, reject) => {
+	        try {
+	            const topic = new ROSLIB.Topic({
+	                ros: this.ros,
+	                name: topicName,
+	                messageType: msgType,
+	            });
+	            const payload = spec.msg && typeof spec.msg === 'object' ? spec.msg : {};
+	            const msg = new ROSLIB.Message(payload);
+	            topic.publish(msg);
+	            resolve();
+	        } catch (e) {
+	            reject(e);
+	        }
+	    });
+	};
+
 // ── 消息分发 ────────────────────────────────────────────────────────────────
 
 IvgTransport.prototype._dispatchRos = function (topic, payload) {

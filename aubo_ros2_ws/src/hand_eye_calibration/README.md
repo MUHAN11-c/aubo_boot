@@ -46,7 +46,7 @@ sudo apt-get install python3-flask python3-flask-cors python3-opencv python3-num
 ## 编译
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd ~/aubo_boot/aubo_ros2_ws
 colcon build --packages-select hand_eye_calibration
 source install/setup.bash
 ```
@@ -56,7 +56,7 @@ source install/setup.bash
 ### 方式1：使用launch文件启动（推荐）
 
 ```bash
-source /home/mu/IVG2.0/aubo_ros2_ws/install/setup.bash
+source ~/aubo_boot/aubo_ros2_ws/install/setup.bash
 ros2 launch hand_eye_calibration hand_eye_calibration_launch.py
 ```
 
@@ -205,6 +205,17 @@ hand_eye_calibration/
 ├── package.xml / setup.py / setup.cfg
 └── start_hand_eye_calibration.sh  # 可选一键启动脚本
 ```
+
+## 依赖
+
+- ROS 2: rclpy, cv_bridge, sensor_msgs, geometry_msgs, tf2_ros, image_transport
+- ivg_interfaces (ImageData, RobotStatus, SoftwareTrigger, SetCameraParameters)
+- Python: OpenCV (core, imgproc, highgui, photo), numpy, Flask, flask-cors
+
+## 参考
+
+- 主节点源码: `hand_eye_calibration/hand_eye_calibration_node.py` (~5980 行)
+- OpenCV 标定模块: `hand_eye_calibration/opencv_hand_eye_calibration.py`
 
 ## 文档精简说明
 

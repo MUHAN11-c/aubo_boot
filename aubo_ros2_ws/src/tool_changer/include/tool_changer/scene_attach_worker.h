@@ -18,6 +18,7 @@
 #include <moveit_msgs/msg/planning_scene.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <shape_msgs/msg/mesh.hpp>
+#include <std_msgs/msg/string.hpp>
 #include <ivg_interfaces/msg/tool_changer_status.hpp>
 #include <ivg_interfaces/srv/change_tool.hpp>
 
@@ -30,7 +31,7 @@ namespace tool_changer
  * - **`/attached_collision_object`**：发布 ADD/REMOVE `AttachedCollisionObject`（附着到 `kuaihuan_Link`）喵~
  * - **`/planning_scene`（is_diff）**：仅推送 `world.collision_objects` 中对 `attached_tool_<id>` 的 REMOVE，
  *   清除 detach 后可能残留在 world 中的同名对象，避免误判碰撞喵~
- * - **不**发布 `/robot_description`、不改 URDF；工具相对法兰位姿来自 `tools.yaml::attach_offset`喵~
+ * - **发布 `/robot_description`**：工具切换时推送对应 URDF（TRANSIENT_LOCAL），前端 3D 视图自动重载喵~
  */
 class SceneAttachWorker : public rclcpp::Node
 {
@@ -52,6 +53,9 @@ private:
   // /tool_changer_status 回调
   void onToolStatus(const ivg_interfaces::msg::ToolChangerStatus& msg);
 
+  // robot_description 参数更新（前端 3D URDF 重载）喵~
+  void updateRobotDescription(const std::string& tool_id);
+
   // MoveIt：ACO（/attached_collision_object）+ world REMOVE（/planning_scene）
   void attachToolToScene(const std::string& tool_id);
   void detachToolFromScene(const std::string& tool_id);
@@ -63,6 +67,8 @@ private:
                      std::shared_ptr<ivg_interfaces::srv::ChangeTool::Response> resp);
   void onSceneDetach(const std::shared_ptr<ivg_interfaces::srv::ChangeTool::Request> req,
                      std::shared_ptr<ivg_interfaces::srv::ChangeTool::Response> resp);
+  void onSetDisplayTool(const std::shared_ptr<ivg_interfaces::srv::ChangeTool::Request> req,
+                        std::shared_ptr<ivg_interfaces::srv::ChangeTool::Response> resp);
 
   // ── 成员 ──
 
@@ -73,6 +79,12 @@ private:
 
   rclcpp::Service<ivg_interfaces::srv::ChangeTool>::SharedPtr scene_attach_srv_;
   rclcpp::Service<ivg_interfaces::srv::ChangeTool>::SharedPtr scene_detach_srv_;
+  rclcpp::Service<ivg_interfaces::srv::ChangeTool>::SharedPtr display_tool_srv_;
+
+  // robot_description 动态发布（前端 3D URDF 重载）
+  std::map<std::string, std::string> urdf_cache_;
+  rclcpp::AsyncParametersClient::SharedPtr param_client_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr robot_description_pub_;
 
   std::string current_attached_tool_;
 };

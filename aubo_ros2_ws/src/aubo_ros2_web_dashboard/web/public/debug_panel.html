@@ -9,158 +9,268 @@
 <link rel="stylesheet" href="css/layout_base.css" />
 <link rel="stylesheet" href="css/ivg_site_nav.css" />
 <link rel="stylesheet" href="css/ivg_status_bar.css" />
+<link rel="stylesheet" href="css/debug_panel.css" />
 <script src="/js/robotwebtools/importmap.js"></script>
-<style>
-  /* debug_panel page-specific styles */
-  body {
-    margin: 0; font-size: 14px;
-    min-height: 100vh; display: flex; flex-direction: column;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-  body.ivg-single-screen { overflow: hidden; height: 100vh; max-height: 100vh; }
-
-  .wrap {
-    flex: 1; padding: 0.5rem 1rem 0;
-    max-width: 1200px; margin: 0 auto; width: 100%;
-    animation: page-in 0.4s ease both;
-  }
-
-  .debug-toolbar {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem;
-    padding: 0.6rem 0.85rem; margin-bottom: 0.5rem;
-    background: var(--bg-elevated); border: 1px solid var(--border);
-    border-radius: var(--radius); box-shadow: var(--shadow-sm);
-  }
-  .debug-toolbar h1 { font-size: 1.15rem; margin: 0; font-weight: 700; }
-  .debug-toolbar .hint { font-size: 0.78rem; color: var(--text-muted); }
-
-  .debug-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;
-  }
-  .debug-panel {
-    background: var(--bg-elevated); border: 1px solid var(--border);
-    border-left: 3px solid var(--accent); border-radius: var(--radius);
-    padding: 0.75rem 1rem; box-shadow: var(--shadow-sm);
-  }
-  .debug-panel h2 {
-    margin: 0 0 0.5rem; font-size: 0.78rem; font-weight: 700;
-    color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em;
-    padding-bottom: 0.3rem; border-bottom: 2px solid var(--accent);
-  }
-
-  .debug-param-row {
-    display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.35rem;
-  }
-  .debug-param-row label {
-    font-size: 0.75rem; font-weight: 600; color: var(--text-muted); min-width: 1.2rem;
-  }
-  .debug-param-row input {
-    width: 5.5rem; padding: 0.3rem 0.4rem;
-    border: 1px solid var(--border); border-radius: var(--radius-sm);
-    font-size: 0.8rem; font-family: ui-monospace, monospace;
-    background: var(--bg-elevated); color: var(--text);
-    transition: border-color 0.15s;
-  }
-  .debug-param-row input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
-  .debug-param-row input.wide { width: 100%; flex: 1; }
-
-  .debug-joint-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.25rem 0.5rem;
-  }
-  .debug-joint-grid label { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); }
-  .debug-joint-grid input { width: 100%; box-sizing: border-box; }
-
-  .debug-btn-row { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; }
-  .debug-btn {
-    padding: 0.35rem 0.85rem; font-size: 0.78rem; font-weight: 600; font-family: inherit;
-    border-radius: var(--radius-sm); border: 1px solid var(--border);
-    background: var(--bg-elevated); color: var(--text); cursor: pointer;
-    transition: border-color 0.15s, background 0.15s, transform 0.15s;
-  }
-  .debug-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); transform: translateY(-1px); }
-  .debug-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .debug-btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .debug-btn--primary:hover:not(:disabled) { background: var(--accent-hover); }
-  .debug-btn--danger { color: var(--err); border-color: #fecaca; }
-  .debug-btn--danger:hover:not(:disabled) { background: #fef2f2; }
-
-  .debug-log {
-    margin-top: 0.4rem; padding: 0.4rem 0.55rem;
-    background: var(--bg-muted); border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-    font-size: 0.75rem; color: var(--text-secondary);
-    min-height: 2.5rem; max-height: 8rem; overflow-y: auto;
-    line-height: 1.45; white-space: pre-wrap; word-break: break-all;
-  }
-
-  @media (max-width: 768px) {
-    .debug-grid { grid-template-columns: 1fr; }
-    .debug-joint-grid { grid-template-columns: repeat(2, 1fr); }
-  }
-</style>
 </head>
 <body class="ivg-single-screen">
 <ivg-site-nav page="debug"></ivg-site-nav>
 
-<main class="wrap">
+<main class="debug-wrap">
   <div class="debug-toolbar">
     <h1>调试面板</h1>
-    <span class="hint">笛卡尔直线运动 · 关节空间运动 · 服务调用 · 话题发布</span>
+    <span class="hint">状态监控 · 运动控制 · IO · IK/FK · 话题/服务</span>
+    <span class="conn-status offline" id="dbg-conn-status">● 未连接</span>
+  </div>
+
+  <!-- 机器人实时状态栏 -->
+  <div class="debug-status-bar" id="dbg-status-bar">
+    <div class="status-group">
+      <span class="status-label">在线</span><span class="status-dot gray" id="dbg-dot-online"></span>
+      <span class="status-value" id="dbg-val-online">--</span>
+    </div>
+    <div class="status-group">
+      <span class="status-label">使能</span><span class="status-dot gray" id="dbg-dot-enable"></span>
+      <span class="status-value" id="dbg-val-enable">--</span>
+    </div>
+    <div class="status-group">
+      <span class="status-label">运动中</span><span class="status-dot gray" id="dbg-dot-motion"></span>
+      <span class="status-value" id="dbg-val-motion">--</span>
+    </div>
+    <div class="status-group">
+      <span class="status-label">规划</span><span class="status-value" id="dbg-val-planning">--</span>
+    </div>
+    <div class="pose-group">
+      <span class="pose-item">TCP: <span id="dbg-val-tcp">---</span></span>
+    </div>
   </div>
 
   <div class="debug-grid">
-    <!-- 笛卡尔直线运动 -->
-    <div class="debug-panel" id="debug-cartesian">
-      <h2>笛卡尔直线运动</h2>
-      <div class="debug-param-row">
-        <label>X</label><input id="dbg-xyz-x" value="0.3741" step="0.01">
-        <label>Y</label><input id="dbg-xyz-y" value="0.3039" step="0.01">
-        <label>Z</label><input id="dbg-xyz-z" value="0.4755" step="0.01">
+    <!-- 快速控制 -->
+    <div class="debug-card warn-card" id="debug-quick-ctrl">
+      <h2>快速控制</h2>
+      <div class="debug-btn-row" style="margin-top:0;">
+        <button type="button" class="debug-btn debug-btn--ok" id="btn-dbg-enable">使能</button>
+        <button type="button" class="debug-btn debug-btn--danger" id="btn-dbg-disable">去使能</button>
+        <button type="button" class="debug-btn" id="btn-dbg-stop">停止</button>
+        <button type="button" class="debug-btn debug-btn--sm" id="btn-dbg-collision-recover">碰撞恢复</button>
       </div>
-      <div class="debug-param-row">
-        <label>V</label><input id="dbg-xyz-vel" value="0.3" step="0.05" min="0.05" max="1.0" style="width:4.5rem;">
-        <label>A</label><input id="dbg-xyz-acc" value="0.2" step="0.05" min="0.05" max="1.0" style="width:4.5rem;">
+      <div class="debug-slider">
+        <label style="font-size:0.72rem;font-weight:600;color:var(--text-muted);">速度</label>
+        <input type="range" id="dbg-speed-slider" min="5" max="100" value="30" step="5">
+        <span class="slider-val" id="dbg-speed-val">30%</span>
+        <button type="button" class="debug-btn debug-btn--sm" id="btn-dbg-set-speed">应用</button>
+      </div>
+      <div class="debug-log" id="debug-log-quick" aria-live="polite"></div>
+    </div>
+
+    <!-- 笛卡尔直线运动 -->
+    <div class="debug-card highlight" id="debug-cartesian">
+      <h2>笛卡尔直线运动</h2>
+      <div class="debug-row">
+        <label>X</label><input class="debug-input w5" id="dbg-xyz-x" value="0.3741" step="0.01">
+        <label>Y</label><input class="debug-input w5" id="dbg-xyz-y" value="0.3039" step="0.01">
+        <label>Z</label><input class="debug-input w5" id="dbg-xyz-z" value="0.4755" step="0.01">
+      </div>
+      <div class="debug-row">
+        <label>QX</label><input class="debug-input w5" id="dbg-xyz-qx" value="0.0" step="0.01">
+        <label>QY</label><input class="debug-input w5" id="dbg-xyz-qy" value="0.0" step="0.01">
+        <label>QZ</label><input class="debug-input w5" id="dbg-xyz-qz" value="0.0" step="0.01">
+        <label>QW</label><input class="debug-input w5" id="dbg-xyz-qw" value="1.0" step="0.01">
+      </div>
+      <div class="debug-row">
+        <label>V</label><input class="debug-input w4" id="dbg-xyz-vel" value="0.3" step="0.05" min="0.05" max="1.0">
+        <label>A</label><input class="debug-input w4" id="dbg-xyz-acc" value="0.2" step="0.05" min="0.05" max="1.0">
       </div>
       <div class="debug-btn-row">
-        <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-move-xyz">Move XYZ</button>
-        <button type="button" class="debug-btn debug-btn--danger" id="btn-dbg-stop-xyz">停止</button>
+        <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-move-xyz">MoveL 直线</button>
+        <button type="button" class="debug-btn" id="btn-dbg-read-xyz">读取当前位姿</button>
       </div>
       <div class="debug-log" id="debug-log-cartesian" aria-live="polite"></div>
     </div>
 
     <!-- 关节空间运动 -->
-    <div class="debug-panel" id="debug-joint">
-      <h2>关节空间运动</h2>
+    <div class="debug-card highlight" id="debug-joint">
+      <h2>关节空间运动 (MoveJ)</h2>
       <div class="debug-joint-grid">
-        <label>J1<input id="dbg-j1" value="0" step="0.01"></label>
-        <label>J2<input id="dbg-j2" value="0" step="0.01"></label>
-        <label>J3<input id="dbg-j3" value="0" step="0.01"></label>
-        <label>J4<input id="dbg-j4" value="0" step="0.01"></label>
-        <label>J5<input id="dbg-j5" value="0" step="0.01"></label>
-        <label>J6<input id="dbg-j6" value="0" step="0.01"></label>
+        <label>J1<input class="debug-input" id="dbg-j1" value="0" step="0.01"></label>
+        <label>J2<input class="debug-input" id="dbg-j2" value="0" step="0.01"></label>
+        <label>J3<input class="debug-input" id="dbg-j3" value="0" step="0.01"></label>
+        <label>J4<input class="debug-input" id="dbg-j4" value="0" step="0.01"></label>
+        <label>J5<input class="debug-input" id="dbg-j5" value="0" step="0.01"></label>
+        <label>J6<input class="debug-input" id="dbg-j6" value="0" step="0.01"></label>
       </div>
-      <div class="debug-param-row" style="margin-top:0.35rem;">
-        <label>V</label><input id="dbg-jnt-vel" value="0.3" step="0.05" style="width:4.5rem;">
-        <label>A</label><input id="dbg-jnt-acc" value="0.2" step="0.05" style="width:4.5rem;">
+      <div class="debug-row" style="margin-top:0.3rem;">
+        <label>速度</label><input class="debug-input w4" id="dbg-jnt-vel" value="0.3" step="0.05">
       </div>
       <div class="debug-btn-row">
-        <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-move-joints">Move Joints</button>
-        <button type="button" class="debug-btn" id="btn-dbg-read-joints">读取当前位置</button>
+        <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-move-joints">MoveJ 运动</button>
+        <button type="button" class="debug-btn" id="btn-dbg-read-joints">读取当前关节</button>
       </div>
       <div class="debug-log" id="debug-log-joint" aria-live="polite"></div>
     </div>
 
-    <!-- 服务调用测试 -->
-    <div class="debug-panel" id="debug-service">
-      <h2>服务调用测试</h2>
-      <div class="debug-param-row">
-        <label style="min-width:3rem;">服务名</label>
-        <input id="dbg-svc-name" class="wide" value="/run_gripper_swap" placeholder="输入服务名">
+    <!-- IO 控制 -->
+    <div class="debug-card highlight" id="debug-io">
+      <h2>IO 控制</h2>
+      <div class="debug-tabs" id="io-tabs">
+        <button class="debug-tab active" data-tab="io-read">读取</button>
+        <button class="debug-tab" data-tab="io-write">DO 输出</button>
+        <button class="debug-tab" data-tab="io-tool">工具电压</button>
       </div>
-      <div class="debug-param-row">
-        <label style="min-width:3rem;">参数</label>
-        <input id="dbg-svc-args" class="wide" value='{"direction": "gripper0_to_gripper1"}' placeholder='JSON 参数'>
+      <!-- 读取面板 -->
+      <div class="debug-tab-panel" id="io-panel-read">
+        <div class="debug-row">
+          <label class="wide-label">类型</label>
+          <select class="debug-select" id="dbg-io-read-type">
+            <option value="digital">数字量 DI</option>
+            <option value="analog">模拟量 AI</option>
+          </select>
+          <label>引脚</label><input class="debug-input w4" id="dbg-io-read-pin" value="0" type="number" min="0" max="17">
+        </div>
+        <div class="debug-btn-row">
+          <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-read-io">读取 IO</button>
+        </div>
+        <div class="debug-log" id="debug-log-io-read" aria-live="polite"></div>
+      </div>
+      <!-- DO 输出面板 -->
+      <div class="debug-tab-panel" id="io-panel-write" style="display:none;">
+        <div class="debug-row">
+          <label class="wide-label">引脚</label>
+          <select class="debug-select" id="dbg-io-write-pin">
+            <option value="0">DO0 (控制柜)</option><option value="1">DO1 (控制柜)</option>
+            <option value="2">DO2 (控制柜)</option><option value="3">DO3 (控制柜)</option>
+            <option value="16">TDO0 (工具端)</option><option value="17">TDO1 (工具端)</option>
+          </select>
+          <label>值</label>
+          <select class="debug-select" id="dbg-io-write-val">
+            <option value="1">ON (高电平)</option><option value="0">OFF (低电平)</option>
+          </select>
+        </div>
+        <div class="debug-btn-row">
+          <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-write-io">设置 DO</button>
+        </div>
+        <div class="debug-log" id="debug-log-io-write" aria-live="polite"></div>
+      </div>
+      <!-- 工具电压面板 -->
+      <div class="debug-tab-panel" id="io-panel-tool" style="display:none;">
+        <div class="debug-row">
+          <label class="wide-label">电压</label>
+          <select class="debug-select" id="dbg-tool-voltage">
+            <option value="0">0V (关闭)</option><option value="1">12V</option><option value="2" selected>24V</option>
+          </select>
+        </div>
+        <div class="debug-btn-row">
+          <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-set-tool-voltage">设置工具电压</button>
+        </div>
+        <div class="debug-log" id="debug-log-tool-voltage" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <!-- IK/FK 计算器 -->
+    <div class="debug-card highlight" id="debug-ikfk">
+      <h2>运动学计算 (IK / FK)</h2>
+      <div class="debug-tabs" id="ikfk-tabs">
+        <button class="debug-tab active" data-tab="ikfk-fk">正运动学 FK</button>
+        <button class="debug-tab" data-tab="ikfk-ik">逆运动学 IK</button>
+      </div>
+      <!-- FK 面板 -->
+      <div class="debug-tab-panel" id="ikfk-panel-fk">
+        <div class="debug-joint-grid">
+          <label>J1(rad)<input class="debug-input" id="dbg-fk-j1" value="0" step="0.01"></label>
+          <label>J2(rad)<input class="debug-input" id="dbg-fk-j2" value="0" step="0.01"></label>
+          <label>J3(rad)<input class="debug-input" id="dbg-fk-j3" value="0" step="0.01"></label>
+          <label>J4(rad)<input class="debug-input" id="dbg-fk-j4" value="0" step="0.01"></label>
+          <label>J5(rad)<input class="debug-input" id="dbg-fk-j5" value="0" step="0.01"></label>
+          <label>J6(rad)<input class="debug-input" id="dbg-fk-j6" value="0" step="0.01"></label>
+        </div>
+        <div class="debug-btn-row">
+          <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-calc-fk">计算 FK</button>
+          <button type="button" class="debug-btn" id="btn-dbg-fk-from-current">从当前关节填入</button>
+        </div>
+        <div class="debug-log" id="debug-log-fk" aria-live="polite"></div>
+      </div>
+      <!-- IK 面板 -->
+      <div class="debug-tab-panel" id="ikfk-panel-ik" style="display:none;">
+        <div class="debug-row">
+          <label>X</label><input class="debug-input w5" id="dbg-ik-x" value="0.3" step="0.01">
+          <label>Y</label><input class="debug-input w5" id="dbg-ik-y" value="0.3" step="0.01">
+          <label>Z</label><input class="debug-input w5" id="dbg-ik-z" value="0.4" step="0.01">
+        </div>
+        <div class="debug-row">
+          <label>QW</label><input class="debug-input w5" id="dbg-ik-qw" value="1.0" step="0.01">
+          <label>QX</label><input class="debug-input w5" id="dbg-ik-qx" value="0.0" step="0.01">
+          <label>QY</label><input class="debug-input w5" id="dbg-ik-qy" value="0.0" step="0.01">
+          <label>QZ</label><input class="debug-input w5" id="dbg-ik-qz" value="0.0" step="0.01">
+        </div>
+        <div class="debug-row">
+          <span style="font-size:0.68rem;color:var(--text-muted);">参考关节角 (从当前关节填入，用于多解择优)</span>
+        </div>
+        <div class="debug-joint-grid" style="margin-top:0.2rem;">
+          <label>rJ1<input class="debug-input" id="dbg-ik-rj1" value="0" step="0.01"></label>
+          <label>rJ2<input class="debug-input" id="dbg-ik-rj2" value="0" step="0.01"></label>
+          <label>rJ3<input class="debug-input" id="dbg-ik-rj3" value="0" step="0.01"></label>
+          <label>rJ4<input class="debug-input" id="dbg-ik-rj4" value="0" step="0.01"></label>
+          <label>rJ5<input class="debug-input" id="dbg-ik-rj5" value="0" step="0.01"></label>
+          <label>rJ6<input class="debug-input" id="dbg-ik-rj6" value="0" step="0.01"></label>
+        </div>
+        <div class="debug-btn-row">
+          <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-calc-ik">计算 IK</button>
+          <button type="button" class="debug-btn" id="btn-dbg-ik-ref-from-current">从当前关节填入参考</button>
+        </div>
+        <div class="debug-log" id="debug-log-ik" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <!-- 话题监控 -->
+    <div class="debug-card ok-card" id="debug-topic-monitor">
+      <h2>话题监控</h2>
+      <div class="debug-row">
+        <label class="wide-label">话题</label>
+        <input class="debug-input w100" id="dbg-sub-topic" value="/robot_status" placeholder="/robot_status">
+      </div>
+      <div class="debug-row">
+        <label class="wide-label">类型</label>
+        <input class="debug-input w100" id="dbg-sub-type" value="ivg_interfaces/msg/RobotStatus" placeholder="ivg_interfaces/msg/RobotStatus">
+      </div>
+      <div class="debug-btn-row">
+        <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-sub-start">订阅</button>
+        <button type="button" class="debug-btn debug-btn--danger" id="btn-dbg-sub-stop">取消</button>
+        <span style="font-size:0.7rem;color:var(--text-muted);margin-left:0.5rem;" id="dbg-sub-count">消息: 0</span>
+      </div>
+      <div class="debug-log large" id="debug-log-topic-monitor" aria-live="polite">
+        <div class="debug-empty">点击"订阅"开始接收话题消息</div>
+      </div>
+    </div>
+
+    <!-- 服务调用测试 -->
+    <div class="debug-card highlight" id="debug-service">
+      <h2>服务调用</h2>
+      <div class="debug-row">
+        <label class="wide-label">预设</label>
+        <select class="debug-select" id="dbg-svc-preset">
+          <option value="">-- 自定义 --</option>
+          <option value="/get_current_state|ivg_interfaces/srv/GetCurrentState|{}">GetCurrentState</option>
+          <option value="/set_robot_enable|ivg_interfaces/srv/SetRobotEnable|{"enable":true}">SetRobotEnable</option>
+          <option value="/set_speed_factor|ivg_interfaces/srv/SetSpeedFactor|{"velocity_factor":0.5}">SetSpeedFactor</option>
+          <option value="/read_robot_io|ivg_interfaces/srv/ReadRobotIO|{"io_type":"digital","io_index":0}">ReadRobotIO</option>
+          <option value="/aubo_driver/get_fk|ivg_interfaces/srv/GetFK|{"joint":[0,0,0,0,0,0]}">GetFK</option>
+          <option value="/aubo_driver/get_ik|ivg_interfaces/srv/GetIK|{"ref_joint":[0,0,0,0,0,0],"pos":[0.3,0.3,0.4],"ori":[1,0,0,0]}">GetIK</option>
+          <option value="/aubo/stop|std_srvs/srv/Trigger|{}">Stop (Trigger)</option>
+          <option value="/plan_trajectory|ivg_interfaces/srv/PlanTrajectory|{"target_pose":{"position":{"x":0.3741,"y":0.3039,"z":0.4755},"orientation":{"x":0,"y":0,"z":0,"w":1}},"use_joints":false}">PlanTrajectory</option>
+          <option value="/latte_imitation/replay_trajectory|ivg_interfaces/srv/ReplayLatteTrajectory|{"mode":"preview"}">ReplayLatteTrajectory</option>
+        </select>
+      </div>
+      <div class="debug-row">
+        <label class="wide-label">服务</label>
+        <input class="debug-input w100" id="dbg-svc-name" value="/get_current_state" placeholder="/get_current_state">
+      </div>
+      <div class="debug-row">
+        <label class="wide-label">类型</label>
+        <input class="debug-input w100" id="dbg-svc-type" value="ivg_interfaces/srv/GetCurrentState" placeholder="ivg_interfaces/srv/GetCurrentState">
+      </div>
+      <div class="debug-row">
+        <label class="wide-label">参数</label>
+        <input class="debug-input w100" id="dbg-svc-args" value="{}" placeholder='{"enable": true}'>
       </div>
       <div class="debug-btn-row">
         <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-call-svc">调用服务</button>
@@ -169,15 +279,19 @@
     </div>
 
     <!-- 话题发布测试 -->
-    <div class="debug-panel" id="debug-topic">
-      <h2>话题发布测试</h2>
-      <div class="debug-param-row">
-        <label style="min-width:3rem;">话题名</label>
-        <input id="dbg-pub-topic" class="wide" value="/test_topic" placeholder="输入话题名">
+    <div class="debug-card highlight" id="debug-topic">
+      <h2>话题发布</h2>
+      <div class="debug-row">
+        <label class="wide-label">话题</label>
+        <input class="debug-input w100" id="dbg-pub-topic" value="/test_topic" placeholder="/test_topic">
       </div>
-      <div class="debug-param-row">
-        <label style="min-width:3rem;">消息</label>
-        <input id="dbg-pub-msg" class="wide" value='{"data": "hello"}' placeholder="JSON 消息">
+      <div class="debug-row">
+        <label class="wide-label">类型</label>
+        <input class="debug-input w100" id="dbg-pub-type" value="std_msgs/msg/String" placeholder="std_msgs/msg/String">
+      </div>
+      <div class="debug-row">
+        <label class="wide-label">消息</label>
+        <input class="debug-input w100" id="dbg-pub-msg" value='{"data": "hello"}' placeholder='JSON 消息'>
       </div>
       <div class="debug-btn-row">
         <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-publish">发布消息</button>

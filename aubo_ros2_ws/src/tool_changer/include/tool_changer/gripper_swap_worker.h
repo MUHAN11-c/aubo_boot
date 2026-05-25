@@ -63,6 +63,10 @@ struct ToolConfig
   TrajectoryStrategy strategy = TrajectoryStrategy::kVertical;
   std::array<double, 6> dock_approach_joints{};
 
+  // 笛卡尔直线接近（dock_above 的 XYZ，姿态保持当前值）— 关节角缺失时的替代方案喵~
+  bool has_dock_approach_xyz = false;
+  std::array<double, 3> dock_approach_xyz{};
+
   VerticalStrategyParams vertical;
   SlideStrategyParams slide;
 };

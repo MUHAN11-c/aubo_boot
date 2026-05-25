@@ -43,7 +43,7 @@ if _pkg_dir not in sys.path:
     sys.path.insert(0, _pkg_dir)
 
 from latte_imitation.trajectory import CartesianTrajectory  # noqa: E402
-from latte_imitation.trajectory_transform import apply_start_pose  # noqa: E402
+from latte_imitation.trajectory_transform import retarget_trajectory  # noqa: E402
 from latte_imitation.tf_utils import get_ee_pose_from_tf, tf_to_pose  # noqa: E402
 from geometry_msgs.msg import Pose, Point, Quaternion  # noqa: E402
 
@@ -530,7 +530,7 @@ def main():
 
     if start_pose is not None:
         for ep_id in list(carts.keys()):
-            carts[ep_id] = apply_start_pose(carts[ep_id], start_pose)
+            carts[ep_id] = retarget_trajectory(carts[ep_id], start_pose)
         print(f"轨迹已变换: 起点 → ({start_pose.position.x:.3f}, "
               f"{start_pose.position.y:.3f}, {start_pose.position.z:.3f})")
 

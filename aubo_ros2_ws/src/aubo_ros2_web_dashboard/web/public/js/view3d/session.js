@@ -373,33 +373,67 @@ IvgRos3dView3dSession.prototype.stop = function () {
 	IvgRos3dView3dSession.prototype.addTrajectoryLine = function (waypoints, color, linewidth) {
 		if (!this.viewer3d || !this.viewer3d.scene || !waypoints || waypoints.length < 2) return;
 		var THREE = globalThis.THREE;
-		if (!THREE) return;
+		if (!THREE) { console.warn('[ivg/view3d] addTrajectoryLine skipped: globalThis.THREE not available'); return; }
 		if (!this._trajectoryLines) this._trajectoryLines = [];
+		var hex = typeof color === 'string' ? parseInt(color.replace('#', ''), 16) : (color || 0xff6b6b);
 		var pts = waypoints.map(function (wp) {
 			var pos = wp.position || wp;
 			return new THREE.Vector3(pos.x || 0, pos.y || 0, pos.z || 0);
 		});
-		var geom = new THREE.BufferGeometry().setFromPoints(pts);
-		var hex = typeof color === 'string' ? parseInt(color.replace('#', ''), 16) : (color || 0xff6b6b);
-		var mat = new THREE.LineBasicMaterial({ color: hex, linewidth: linewidth || 2 });
-		var line = new THREE.Line(geom, mat);
+
+		// 主轨迹线: 始终可见 (depthTest=false, 比 URDF 模型更上层) 喵~
+		var lineGeom = new THREE.BufferGeometry().setFromPoints(pts);
+		var lineMat = new THREE.LineBasicMaterial({
+			color: hex,
+			linewidth: linewidth || 2,
+			depthTest: false,
+			depthWrite: false,
+		});
+		var line = new THREE.Line(lineGeom, lineMat);
+		line.renderOrder = 1;
 		this.viewer3d.addObject(line);
 		this._trajectoryLines.push(line);
+
+		// 采样点球体: WebGL lineWidth 被大多数 GPU 限制为 1px,
+		// 用小球体标记 waypoint 位置提高可见度 喵~
+		var STEP = Math.max(1, Math.floor(pts.length / 40));
+		var dotGeom = new THREE.SphereGeometry(0.002, 4, 4);
+		var dotMat = new THREE.MeshBasicMaterial({ color: hex, depthTest: false, depthWrite: false });
+		for (var i = 0; i < pts.length; i += STEP) {
+			var dot = new THREE.Mesh(dotGeom, dotMat);
+			dot.position.copy(pts[i]);
+			dot.renderOrder = 2;
+			this.viewer3d.addObject(dot);
+			this._trajectoryLines.push(dot);
+		}
+		// 起点/终点用大球标记
+		var markerGeom = new THREE.SphereGeometry(0.005, 8, 8);
+		var startDot = new THREE.Mesh(markerGeom, new THREE.MeshBasicMaterial({ color: 0x00ff00, depthTest: false, depthWrite: false }));
+		startDot.position.copy(pts[0]);
+		startDot.renderOrder = 3;
+		this.viewer3d.addObject(startDot);
+		this._trajectoryLines.push(startDot);
+		var endDot = new THREE.Mesh(markerGeom, new THREE.MeshBasicMaterial({ color: 0xff0000, depthTest: false, depthWrite: false }));
+		endDot.position.copy(pts[pts.length - 1]);
+		endDot.renderOrder = 3;
+		this.viewer3d.addObject(endDot);
+		this._trajectoryLines.push(endDot);
 	};
 	IvgRos3dView3dSession.prototype.clearTrajectoryLines = function () {
 		if (!this._trajectoryLines || !this.viewer3d) return;
 		var lines = this._trajectoryLines;
 		this._trajectoryLines = [];
 		for (var i = 0; i < lines.length; i++) {
-			var line = lines[i];
-			try { this.viewer3d.scene.remove(line); } catch (e) { /* */ }
-			if (line.geometry) try { line.geometry.dispose(); } catch (e) { /* */ }
-			if (line.material) try { line.material.dispose(); } catch (e) { /* */ }
+			var obj = lines[i];
+			try { this.viewer3d.scene.remove(obj); } catch (e) { /* */ }
+			if (obj.geometry) try { obj.geometry.dispose(); } catch (e) { /* */ }
+			if (obj.material) try { obj.material.dispose(); } catch (e) { /* */ }
 		}
 	};
 	IvgRos3dView3dSession.prototype.start = function () {
 		const $ = this.$;
 		const ros = this.ros;
+		const opts = this.opts;
 		const sn = (($('scan3-topic') && $('scan3-topic').value) || '').trim();
 		const mk = (($('marker3-topic') && $('marker3-topic').value) || '').trim();
 		const urdfEl = $('view3d-show-urdf');
@@ -437,8 +471,8 @@ IvgRos3dView3dSession.prototype.stop = function () {
 			width: w,
 			height: h,
 			antialias: !coarsePointer,
-			background: '#ffffff',
-				intensity: 0.85,
+			background: (opts && opts.background) || '#f5f3f0',
+				intensity: (opts && opts.intensity != null) ? opts.intensity : 0.85,
 			cameraPose: { x: 3, y: 3, z: 3 },
 			cameraZoomSpeed: 0.5
 		});
@@ -454,7 +488,7 @@ IvgRos3dView3dSession.prototype.stop = function () {
 			ivgApplyAxesScale(this.ros3dAxes);
 			this.viewer3d.addObject(this.ros3dAxes);
 		}
-		if (!grEl || grEl.checked) {
+var gridEnabled = (opts && opts.gridEnabled !== undefined) ? opts.gridEnabled : (!grEl || grEl.checked); if (gridEnabled) {
 			this.ros3dGrid = new ROS3D.Grid({ num_cells: IVG_VIEW3D_GRID_CELLS, cellSize: 1, color: IVG_VIEW3D_GRID_COLOR });
 			this.viewer3d.addObject(this.ros3dGrid);
 		}

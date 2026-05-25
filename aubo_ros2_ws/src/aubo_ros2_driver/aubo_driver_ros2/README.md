@@ -89,16 +89,21 @@ joint_trajectory_controller:
 | `motion_command_hz` | `200.0` | 插值频率 |
 | `collision_class` | `6` | 碰撞等级 |
 
-## 自定义 srv (demo_interface)
+## 构建
 
-| srv | 请求 |
-|-----|------|
-| `MoveJoint.srv` | `float64[6] joints, float64 velocity` |
-| `MoveLine.srv` | `float64[6] joints, float64 velocity` |
-| `TeachStart.srv` | `int32 joint, bool direction` |
-| `SetCollisionClass.srv` | `int32 grade` |
-| `SetToolKinematics.srv` | `float64[3] position, float64[4] orientation` |
-| `SetToolVoltage.srv` | `int32 voltage_type` |
+```bash
+cd ~/aubo_boot/aubo_ros2_ws
+source /opt/ros/humble/setup.bash
+colcon build --packages-select aubo_driver_ros2
+source install/setup.bash
+```
+
+## 依赖
+
+- ROS 2: rclcpp, sensor_msgs, std_msgs, std_srvs, geometry_msgs, tf2_ros
+- ivg_interfaces (GetFK, GetIK, SetRobotIO, MoveJoint, MoveLine, etc.)
+- AUBO SDK: libauborobotcontroller.so (预编译，位于 `lib/lib64/aubocontroller/`)
+- lifecycle_msgs (AuboDashboardNode LifecycleNode)
 
 ## 文档
 

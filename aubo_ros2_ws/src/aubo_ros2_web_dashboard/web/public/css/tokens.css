@@ -1,23 +1,23 @@
-/* tokens.css — 全站唯一设计令牌源 */
+/* tokens.css — 全站唯一设计令牌源（暖灰蓝统一基调） */
 :root {
   /* 背景 */
-  --bg: #fafbfc;
+  --bg: #fafaf8;
   --bg-elevated: #ffffff;
-  --bg-muted: #f5f6f8;
+  --bg-muted: #f5f3f0;
 
   /* 边框 */
-  --border: #e2e6ed;
-  --border-strong: #d1d6df;
+  --border: #e8e4de;
+  --border-strong: #d5d0c8;
 
   /* 文字 */
-  --text: #171b23;
-  --text-secondary: #4b5565;
-  --text-muted: #8b95a6;
+  --text: #1a1816;
+  --text-secondary: #5d564e;
+  --text-muted: #8c857b;
 
-  /* 主题色 */
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-soft: rgba(37, 99, 235, 0.07);
+  /* 主题色 — 暖灰蓝 */
+  --accent: #4f6f8a;
+  --accent-hover: #3d5a73;
+  --accent-soft: rgba(79, 111, 138, 0.08);
 
   /* 语义色 */
   --ok: #16a34a;
@@ -26,18 +26,29 @@
   --orange: #ea580c;
 
   /* 阴影 */
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 6px 20px rgba(15, 23, 42, 0.09);
-  --shadow-lg: 0 16px 48px rgba(15, 23, 42, 0.13);
+  --shadow-sm: 0 1px 3px rgba(15, 16, 18, 0.05);
+  --shadow-md: 0 6px 20px rgba(15, 16, 18, 0.07);
+  --shadow-lg: 0 16px 48px rgba(15, 16, 18, 0.1);
 
   /* 圆角 */
   --radius-sm: 7px;
   --radius: 10px;
 
   /* 可视化背景 */
-  --viz-bg: #ffffff;
+  --viz-bg: #f5f3f0;
 
   /* 咖啡拉花主题 */
   --latte-accent: #7c4a2a;
   --latte-accent-soft: rgba(124, 74, 42, 0.12);
+  --latte-warm: #b45309;
+  --latte-cream: #fef7ed;
+  --latte-froth: #faf5ee;
+  --latte-espresso: #3b1f0b;
+  --latte-cinnamon: #d97706;
+  --latte-cardamom: #8b5e3c;
+  --latte-gold: #c8873b;
+  --latte-surface: #fdfaf5;
+  --latte-border: rgba(139, 94, 60, 0.18);
+  --latte-shadow: 0 2px 12px rgba(60, 30, 10, 0.07);
+  --latte-glow: 0 0 0 3px rgba(180, 83, 9, 0.15);
 }

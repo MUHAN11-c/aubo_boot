@@ -10,7 +10,7 @@
 
 ```bash
 # 统一环境（每个终端都先执行）
-cd ~/IVG2.0/aubo_ros2_ws
+cd ~/aubo_boot/aubo_ros2_ws
 source /opt/ros/humble/setup.bash
 source install/setup.bash
 ```
@@ -52,50 +52,50 @@ ros2 service list | grep -E "/move_to_pose|/plan_trajectory|/execute_trajectory|
 ```
 
 ```bash
-# /move_to_pose (demo_interface/srv/MoveToPose)
-ros2 service call /move_to_pose demo_interface/srv/MoveToPose \
+# /move_to_pose (ivg_interfaces/srv/MoveToPose)
+ros2 service call /move_to_pose ivg_interfaces/srv/MoveToPose \
 "{target_pose: {position: {x: 0.40, y: 0.00, z: 0.30}, orientation: {x: 0.0, y: 1.0, z: 0.0, w: 0.0}}, target_joints: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], use_joints: false, velocity_factor: 0.3, acceleration_factor: 0.2}"
 ```
 
 ```bash
-# /plan_trajectory (demo_interface/srv/PlanTrajectory)
-ros2 service call /plan_trajectory demo_interface/srv/PlanTrajectory \
+# /plan_trajectory (ivg_interfaces/srv/PlanTrajectory)
+ros2 service call /plan_trajectory ivg_interfaces/srv/PlanTrajectory \
 "{target_pose: {position: {x: 0.40, y: 0.00, z: 0.30}, orientation: {x: 0.0, y: 1.0, z: 0.0, w: 0.0}}, use_joints: false}"
 ```
 
 ```bash
-# /execute_trajectory (demo_interface/srv/ExecuteTrajectory)
+# /execute_trajectory (ivg_interfaces/srv/ExecuteTrajectory)
 # 建议：将 /plan_trajectory 返回的 trajectory 原样填入后再执行
-ros2 service call /execute_trajectory demo_interface/srv/ExecuteTrajectory \
+ros2 service call /execute_trajectory ivg_interfaces/srv/ExecuteTrajectory \
 "{trajectory: {joint_names: [], points: []}}"
 ```
 
 ```bash
-# /get_current_state (demo_interface/srv/GetCurrentState)
-ros2 service call /get_current_state demo_interface/srv/GetCurrentState "{}"
+# /get_current_state (ivg_interfaces/srv/GetCurrentState)
+ros2 service call /get_current_state ivg_interfaces/srv/GetCurrentState "{}"
 ```
 
 ```bash
-# /set_speed_factor (demo_interface/srv/SetSpeedFactor)
-ros2 service call /set_speed_factor demo_interface/srv/SetSpeedFactor "{velocity_factor: 0.5}"
+# /set_speed_factor (ivg_interfaces/srv/SetSpeedFactor)
+ros2 service call /set_speed_factor ivg_interfaces/srv/SetSpeedFactor "{velocity_factor: 0.5}"
 ```
 
 ```bash
-# /set_robot_pose (demo_interface/srv/SetRobotPose)
+# /set_robot_pose (ivg_interfaces/srv/SetRobotPose)
 # target_pose 含义: [x, y, z, roll, pitch, yaw]
-ros2 service call /set_robot_pose demo_interface/srv/SetRobotPose \
+ros2 service call /set_robot_pose ivg_interfaces/srv/SetRobotPose \
 "{target_pose: [0.40, 0.00, 0.30, 3.14159, 0.0, 1.5708], use_joints: false, is_radian: true, velocity: 0.3}"
 ```
 
 ```bash
-# /run_gripper_swap（已迁移至 tool_changer_interface，需先启动 tool_changer 节点）
-ros2 service call /run_gripper_swap tool_changer_interface/srv/RunGripperSwap "{direction: 'gripper2'}"
+# /run_gripper_swap（已迁移至 tool_changer，需先启动 tool_changer 节点）
+ros2 service call /run_gripper_swap ivg_interfaces/srv/RunGripperSwap "{direction: 'gripper0_to_gripper2'}"
 ```
 
 ```bash
-# /execute_single_grasp (demo_interface/srv/ExecuteGraspPose)
-# use_visual_estimation=true 时会调用 /estimate_pose（interface/srv/EstimatePose）
-ros2 service call /execute_single_grasp demo_interface/srv/ExecuteGraspPose \
+# /execute_single_grasp (ivg_interfaces/srv/ExecuteGraspPose)
+# use_visual_estimation=true 时会调用 /estimate_pose（ivg_interfaces/srv/EstimatePose）
+ros2 service call /execute_single_grasp ivg_interfaces/srv/ExecuteGraspPose \
 "{object_id: '3211242785', use_visual_estimation: true}"
 ```
 
@@ -130,8 +130,7 @@ demo_driver/
 
 ## 依赖
 
-- `demo_interface`: 消息和服务定义包
-- `aubo_msgs`: Aubo 机器人消息包
+- `ivg_interfaces`: 统一消息和服务定义包 (已替代旧 aubo_msgs)
 - `moveit_core`, `moveit_ros_planning_interface`: MoveIt 2
 - `geometry_msgs`, `sensor_msgs`, `trajectory_msgs`, `std_msgs`
 - `tf2`, `tf2_ros`, `tf2_geometry_msgs`
@@ -150,13 +149,16 @@ demo_driver/
 | set_robot_pose_server | set_robot_pose_server_node | 设置机器人位姿服务（欧拉角/关节空间） |
 | publish_grasps_client_worker | publish_grasps_client_worker_node | GraspNet 循环抓取放置 |
 
-### 已禁用节点（CMakeLists 中注释）
+### 已启用但未列详细说明
 
-- `robot_io_status_publisher_node`
-- `set_robot_enable_server_node`
-- `set_robot_io_server_node`
-- `read_robot_io_server_node`
-- `movel_server_node`
+- `set_robot_enable_server_node` — `/set_robot_enable` 服务
+- `read_robot_io_server_node` — `/read_robot_io` 服务
+
+### 已禁用/未构建节点
+
+- `robot_io_status_publisher_node` — 未加入 CMakeLists
+- `set_robot_io_server_node` — 未加入 CMakeLists
+- `movel_server_node` — 未加入 CMakeLists
 
 ---
 
@@ -166,7 +168,7 @@ demo_driver/
 
 #### 服务
 
-- `/move_to_pose` (demo_interface/MoveToPose)
+- `/move_to_pose` (ivg_interfaces/MoveToPose)
   - **Request**: target_pose, use_joints, velocity_factor, acceleration_factor
   - **Response**: success, error_code, message
 
@@ -178,7 +180,7 @@ demo_driver/
 
 #### 服务
 
-- `/plan_trajectory` (demo_interface/PlanTrajectory)
+- `/plan_trajectory` (ivg_interfaces/PlanTrajectory)
   - **Request**: target_pose, use_joints
   - **Response**: success, trajectory, planning_time, message
 
@@ -190,7 +192,7 @@ demo_driver/
 
 #### 服务
 
-- `/execute_trajectory` (demo_interface/ExecuteTrajectory)
+- `/execute_trajectory` (ivg_interfaces/ExecuteTrajectory)
   - **Request**: trajectory
   - **Response**: success, error_code, message
 
@@ -202,7 +204,7 @@ demo_driver/
 
 #### 服务
 
-- `/get_current_state` (demo_interface/GetCurrentState)
+- `/get_current_state` (ivg_interfaces/GetCurrentState)
   - **Response**: joint_position_rad, cartesian_position, velocity
 
 ---
@@ -213,7 +215,7 @@ demo_driver/
 
 #### 服务
 
-- `/set_speed_factor` (demo_interface/SetSpeedFactor)
+- `/set_speed_factor` (ivg_interfaces/SetSpeedFactor)
   - **Request**: velocity_factor (0.0–1.0)
 
 ---
@@ -224,7 +226,7 @@ demo_driver/
 
 #### 服务
 
-- `/set_robot_pose` (demo_interface/SetRobotPose)
+- `/set_robot_pose` (ivg_interfaces/SetRobotPose)
   - **Request**: target_pose[6], use_joints, is_radian, velocity
   - **Response**: success, error_code, message
 
@@ -232,10 +234,10 @@ demo_driver/
 
 ```bash
 # 欧拉角模式（弧度）
-ros2 service call /set_robot_pose demo_interface/srv/SetRobotPose "{target_pose: [0.4, 0.0, 0.3, 0.0, 1.57, 0.0], use_joints: false, is_radian: true, velocity: 0.5}"
+ros2 service call /set_robot_pose ivg_interfaces/srv/SetRobotPose "{target_pose: [0.4, 0.0, 0.3, 0.0, 1.57, 0.0], use_joints: false, is_radian: true, velocity: 0.5}"
 
 # 关节空间模式
-ros2 service call /set_robot_pose demo_interface/srv/SetRobotPose "{target_pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], use_joints: true, is_radian: true, velocity: 0.3}"
+ros2 service call /set_robot_pose ivg_interfaces/srv/SetRobotPose "{target_pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], use_joints: true, is_radian: true, velocity: 0.3}"
 ```
 
 ---
@@ -498,7 +500,7 @@ ros2 run demo_driver publish_grasps_client_worker_node --ros-args \
 ```bash
 # 移动到目标位姿
 ros2 run demo_driver move_to_pose_server_node
-ros2 service call /move_to_pose demo_interface/srv/MoveToPose "{target_pose: {position: {x: 0.4, y: 0.3, z: 0.3}, orientation: {w: 1.0, x: 0.0, y: 0.0, z: 0.0}}, use_joints: false, velocity_factor: 0.5, acceleration_factor: 0.5}"
+ros2 service call /move_to_pose ivg_interfaces/srv/MoveToPose "{target_pose: {position: {x: 0.4, y: 0.3, z: 0.3}, orientation: {w: 1.0, x: 0.0, y: 0.0, z: 0.0}}, use_joints: false, velocity_factor: 0.5, acceleration_factor: 0.5}"
 
 # 规划轨迹
 ros2 run demo_driver plan_trajectory_server_node
@@ -508,11 +510,11 @@ ros2 run demo_driver execute_trajectory_server_node
 
 # 获取当前状态
 ros2 run demo_driver get_current_state_server_node
-ros2 service call /get_current_state demo_interface/srv/GetCurrentState
+ros2 service call /get_current_state ivg_interfaces/srv/GetCurrentState
 
 # 设置速度因子
 ros2 run demo_driver set_speed_factor_server_node
-ros2 service call /set_speed_factor demo_interface/srv/SetSpeedFactor "{velocity_factor: 0.5}"
+ros2 service call /set_speed_factor ivg_interfaces/srv/SetSpeedFactor "{velocity_factor: 0.5}"
 
 # 设置机器人位姿
 ros2 run demo_driver set_robot_pose_server_node
@@ -537,7 +539,7 @@ ros2 run demo_driver publish_grasps_client_worker_node
 ```bash
 cd <你的_ws>
 source /opt/ros/humble/setup.bash
-colcon build --packages-select demo_interface demo_driver
+colcon build --packages-select ivg_interfaces demo_driver
 source install/setup.bash
 ```
 
@@ -552,7 +554,7 @@ ros2 launch demo_driver execute_grasp_pose_worker.launch.py
 **1. 单次抓取（使用参数常量）**
 
 ```bash
-ros2 service call /execute_single_grasp demo_interface/srv/ExecuteGraspPose "{object_id: 'test_object', use_visual_estimation: false}"
+ros2 service call /execute_single_grasp ivg_interfaces/srv/ExecuteGraspPose "{object_id: 'test_object', use_visual_estimation: false}"
 ```
 
 **2. 单次抓取（使用视觉估计）**
@@ -560,7 +562,7 @@ ros2 service call /execute_single_grasp demo_interface/srv/ExecuteGraspPose "{ob
 确保 `/estimate_pose` 服务正在运行，然后：
 
 ```bash
-ros2 service call /execute_single_grasp demo_interface/srv/ExecuteGraspPose "{object_id: 'default', use_visual_estimation: true}"
+ros2 service call /execute_single_grasp ivg_interfaces/srv/ExecuteGraspPose "{object_id: 'default', use_visual_estimation: true}"
 ```
 
 **3. 启动 / 停止循环抓取**
@@ -588,7 +590,7 @@ ros2 service call /loop_grasp_control std_srvs/srv/SetBool "{data: false}"
 const executeSingleGraspService = new ROSLIB.Service({
   ros: ros,
   name: '/execute_single_grasp',
-  serviceType: 'demo_interface/srv/ExecuteGraspPose'
+  serviceType: 'ivg_interfaces/srv/ExecuteGraspPose'
 });
 executeSingleGraspService.callService(
   new ROSLIB.ServiceRequest({ object_id: 'default', use_visual_estimation: true }),

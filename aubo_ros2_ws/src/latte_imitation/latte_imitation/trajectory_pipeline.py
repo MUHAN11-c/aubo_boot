@@ -49,6 +49,7 @@ MoveIt2 参数 (CartesianInterpolator 源码审计):
 """
 
 import os
+import threading
 import time
 
 import rclpy
@@ -174,7 +175,7 @@ class LatteImitationNode(Node):
         self.get_logger().info("服务就绪: ~/replay_trajectory (preview/debug/action)")
 
         # ── 并发防护 + 向后兼容 ──────────────────────────
-        self._executing = False
+        self._exec_lock = threading.Lock()
         self._init_timer = self.create_timer(4.0, self._delayed_start)
 
     # ═══════════════════════════════════════════════════════════════
@@ -210,6 +211,12 @@ class LatteImitationNode(Node):
             start_pose=request.start_pose if hasattr(request, 'start_pose') else None,
             rpy_user=(request.roll_deg, request.pitch_deg, request.yaw_deg),
             tool_offset_id=request.tool_offset_id if request.tool_offset_id else "default",
+            translation_offset=(
+                getattr(request, 'translation_x', 0.0) or 0.0,
+                getattr(request, 'translation_y', 0.0) or 0.0,
+                getattr(request, 'translation_z', 0.0) or 0.0,
+            ),
+            waypoint_sample_step=getattr(request, 'waypoint_sample_step', 5) or 5,
             pattern_type=pattern,
             pattern_image_path=getattr(request, 'pattern_image_path', '') or '',
             tulip_layers=getattr(request, 'tulip_layers', 3),
@@ -223,6 +230,7 @@ class LatteImitationNode(Node):
         response.ik_success_count = result["ik_success_count"]
         response.collision_count = result["collision_count"]
         response.collision_details = result["collision_details"]
+        response.waypoints = result.get("waypoints", []) or []
         return response
 
     @staticmethod
@@ -256,30 +264,35 @@ class LatteImitationNode(Node):
                            start_pose=None, rpy_user=(0.0, 0.0, 0.0),
                            tool_offset_id="default",
                            pattern_type="", pattern_image_path="",
-                           tulip_layers=3, cup_params=None, pour_params=None):
-        if self._executing:
+                           tulip_layers=3, cup_params=None, pour_params=None,
+                           translation_offset=(0.0, 0.0, 0.0),
+                           waypoint_sample_step=5):
+        if not self._exec_lock.acquire(blocking=False):
             return self._empty_result(False, "已有轨迹正在执行，请稍后喵~")
-        self._executing = True
         try:
             return self._pipeline(episode_idx, arm, speed_scale, mode,
                                   start_pose, rpy_user, tool_offset_id,
                                   pattern_type, pattern_image_path,
-                                  tulip_layers, cup_params, pour_params)
+                                  tulip_layers, cup_params, pour_params,
+                                  translation_offset=translation_offset,
+                                  waypoint_sample_step=waypoint_sample_step)
         except Exception as e:
             self.get_logger().error(f"执行异常: {e}")
             return self._empty_result(False, str(e))
         finally:
-            self._executing = False
+            self._exec_lock.release()
 
     def _pipeline(self, episode_idx, arm, speed_scale, mode, start_pose,
                    rpy_user, tool_offset_id,
                    pattern_type="", pattern_image_path="",
-                   tulip_layers=3, cup_params=None, pour_params=None):
+                   tulip_layers=3, cup_params=None, pour_params=None,
+                   translation_offset=(0.0, 0.0, 0.0),
+                   waypoint_sample_step=5):
         """6 阶段 MoveIt2 管线 (支持录制回放 + 参数化生成) 喵~"""
         base_frame = self.get_parameter("base_frame").value
         planning_group = self.get_parameter("planning_group").value
         ee_link = self.get_parameter("ee_link").value
-        step = self.get_parameter("waypoint_sample_step").value
+        step = waypoint_sample_step
         fraction_ok = self.get_parameter("fraction_acceptable").value
         fraction_min = self.get_parameter("fraction_min_executable").value
 
@@ -303,21 +316,36 @@ class LatteImitationNode(Node):
             abs(r) > 1e-9 for r in rpy_user
         )
 
+        tf_warning = False
         if use_tf_position:
             current_pose = self._get_current_ee_pose()
             if current_pose is None:
-                return self._empty_result(False,
-                    "无法获取当前末端位姿 (TF base_link → tool_tcp)")
-            target = current_pose
-            if rotate:
-                target.orientation = start_pose.orientation
-            pos_src = "TF"
+                if mode in ("preview", "debug"):
+                    self.get_logger().warn(
+                        "TF 不可达, preview/debug 模式使用原点 (0,0,0) 作为起点"
+                    )
+                    target = Pose()
+                    target.position.x = 0.0
+                    target.position.y = 0.0
+                    target.position.z = 0.0
+                    target.orientation.w = 1.0
+                    pos_src = "原点(TF不可达)"
+                    tf_warning = True
+                else:
+                    return self._empty_result(False,
+                        "无法获取当前末端位姿 (TF base_link → tool_tcp)")
+            else:
+                target = current_pose
+                if rotate:
+                    target.orientation = start_pose.orientation
+                pos_src = "TF"
         else:
             target = start_pose
             pos_src = "手动"
 
         cart = retarget_trajectory(cart, target, rpy_user=rpy_user,
-                                   absolute_orientation=False)
+                                   absolute_orientation=False,
+                                   translation_offset=translation_offset)
         self.get_logger().info(
             f"轨迹已变换 (位置={pos_src}, rpy={rpy_user}): "
             f"({target.position.x:.3f}, {target.position.y:.3f}, {target.position.z:.3f})"
@@ -336,28 +364,42 @@ class LatteImitationNode(Node):
         self._publish_preview_markers(cart, target, tool_offset, workspace)
         self._publish_poses(self._ee_pose_pub, cart)
 
-        if mode in ("preview", "debug"):
-            return self._result(True,
-                f"{mode}: {num_frames} 帧, {path_len:.2f}m, "
-                f"rpy=({rpy_user[0]:.0f},{rpy_user[1]:.0f},{rpy_user[2]:.0f})",
-                num_frames, path_len, 0, 0, [])
+        # 采样 waypoints 用于前端 3D 渲染
+        sample_step = max(1, step)
+        sampled_poses = []
+        for i in range(0, num_frames, sample_step):
+            sampled_poses.append(cart.to_pose(i))
+        if (num_frames - 1) % sample_step != 0:
+            sampled_poses.append(cart.to_pose(num_frames - 1))
 
-        if mode != "action":
-            return self._result(True,
-                f"mode='{mode}' (未规划/执行)", num_frames, path_len, 0, 0, [])
-
-        # ═══ Phase ④: Safety Check ═══
+        # ═══ Phase ④: Safety Check (所有模式都检查, preview/debug 仅报告) ═══
+        safety_violation = ""
         if workspace.safety_policy != "ignore":
-            is_safe, msg, _ = cart.check_workspace_bounds(
+            is_safe, safety_msg, _ = cart.check_workspace_bounds(
                 x_range=(workspace.x_min, workspace.x_max),
                 y_range=(workspace.y_min, workspace.y_max),
                 z_range=(workspace.z_min, workspace.z_max),
             )
             if not is_safe:
-                if workspace.safety_policy == "warn_and_block":
-                    return self._empty_result(False, f"Safety: {msg}", num_frames, path_len)
+                safety_violation = safety_msg
+                if mode == "action" and workspace.safety_policy == "warn_and_block":
+                    return self._empty_result(False, f"Safety: {safety_msg}", num_frames, path_len)
                 else:
-                    self.get_logger().warn(f"Safety: {msg}")
+                    self.get_logger().warn(f"Safety (non-blocking): {safety_msg}")
+
+        if mode in ("preview", "debug"):
+            msg = (f"{mode}: {num_frames} 帧, {path_len:.2f}m, "
+                   f"rpy=({rpy_user[0]:.0f},{rpy_user[1]:.0f},{rpy_user[2]:.0f})")
+            if tf_warning:
+                msg += " | 警告: 使用原点(0,0,0)作为起点, TF不可达"
+            if safety_violation:
+                msg += f" | 安全警告: {safety_violation}"
+            return self._result(True, msg, num_frames, path_len, 0, 0, [],
+                                waypoints=sampled_poses)
+
+        if mode != "action":
+            return self._result(True,
+                f"mode='{mode}' (未规划/执行)", num_frames, path_len, 0, 0, [])
 
         # ═══ Phase ⑤: Cartesian Plan ═══
         waypoints = [cart.to_pose(i) for i in range(0, num_frames, step)]
@@ -383,16 +425,9 @@ class LatteImitationNode(Node):
                 num_frames, path_len)
 
         if fraction < fraction_ok:
-            self.get_logger().warn(
-                f"轨迹不完整 ({fraction*100:.1f}%), 尝试关闭碰撞检测重试..."
-            )
-            resp2 = self._compute_cartesian_path(waypoints, planning_group,
-                                                 ee_link, base_frame,
-                                                 avoid_collisions=False)
-            if resp2 is not None and resp2.fraction > fraction:
-                resp = resp2
-                fraction = resp2.fraction
-                self.get_logger().info(f"无碰撞重试: {fraction*100:.1f}%")
+            return self._empty_result(False,
+                f"笛卡尔规划不完整 ({fraction*100:.0f}% < {fraction_ok*100:.0f}%), 不执行",
+                num_frames, path_len)
 
         # 按 speed_scale 缩放时间戳
         trajectory = resp.solution
@@ -677,13 +712,14 @@ class LatteImitationNode(Node):
 
     @staticmethod
     def _result(success, message, num_frames, path_length, ik_ok,
-                col_count, col_details):
+                col_count, col_details, waypoints=None):
         return {
             "success": success, "message": message,
             "num_frames": num_frames, "path_length": path_length,
             "ik_success_count": ik_ok,
             "collision_count": col_count,
             "collision_details": col_details or [],
+            "waypoints": waypoints or [],
         }
 
     # ═══════════════════════════════════════════════════════════════

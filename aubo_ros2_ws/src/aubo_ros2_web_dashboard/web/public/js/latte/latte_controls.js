@@ -52,6 +52,7 @@ let _state = {
     previewLoading: false, execExecuting: false,
     message: '', success: null, // null=info, true=ok, false=err
     lastPreviewWaypoints: null,
+    livePreview: true,
 };
 
 // 执行进度心跳
@@ -130,6 +131,7 @@ function _buildRequest(mode) {
 }
 
 function _getCurrentEEPose() {
+    if (!window.__ivgPoseReady) return null;
     try {
         const p = window.__ivgLastEEPose;
         if (p && typeof p.x === 'number') return { x: p.x, y: p.y, z: p.z, qx: p.qx, qy: p.qy, qz: p.qz, qw: p.qw };
@@ -145,7 +147,7 @@ function _startProgressHeartbeat(label) {
         const elapsed = ((Date.now() - _execStartTime) / 1000).toFixed(0);
         logBus.addLog('info', 'service', '执行中: ' + label + ' (已等待 ' + elapsed + 's...)', {
             phase: 'in_progress', elapsed_s: parseInt(elapsed),
-        });
+        }, 'latte');
     }, 5000);
 }
 
@@ -154,27 +156,43 @@ function _stopProgressHeartbeat() {
     _execStartTime = 0;
 }
 
+// ── 防抖预览 ──
+let _debounceTimer = null;
+function _debouncedPreview(delayMs = 300) {
+    if (_debounceTimer) clearTimeout(_debounceTimer);
+    _debounceTimer = setTimeout(() => {
+        _debounceTimer = null;
+        if (_state.livePreview && !_state.previewLoading && !_state.execExecuting) {
+            _preview();
+        }
+    }, delayMs);
+}
+
 // ── API 调用 ──
 async function _preview() {
     logBus.addLog('info', 'service', '预览开始: ' + _logPatternLabel() + ' (ROS service)', {
         phase: 'start', pattern: _state.patternType, episode: _state.episodeIdx,
-    });
+    }, 'latte');
 
     _state.previewLoading = true; _render();
     const t0 = performance.now();
 
     try {
         const req = _buildRequest('preview');
-        const result = await ros.callService(DEFAULT_SVC, DEFAULT_SVC_TYPE, req, 60000);
+        const result = await ros.callService(DEFAULT_SVC, DEFAULT_SVC_TYPE, req, 15000);
         const ms = (performance.now() - t0).toFixed(0);
 
         _state.lastPreviewWaypoints = result?.waypoints || [];
+        const wpCount = _state.lastPreviewWaypoints.length;
         _state.message = result?.message || '预览完成: ' + (result?.num_frames || '?') + ' 帧, ' + ((result?.path_length)?.toFixed(2) ?? '?') + 'm';
         _state.success = result?.success !== false;
+        if (wpCount === 0 && _state.success) {
+            _state.message += ' (轨迹坐标为空，无3D渲染)';
+        }
 
         logBus.addLog('info', 'service', '预览 ✓ 完成 (' + ms + 'ms): ' + (result?.num_frames || '?') + ' 帧', {
             phase: 'completed', num_frames: result?.num_frames, path_length: result?.path_length, duration_ms: parseInt(ms),
-        });
+        }, 'latte');
 
         // 触发 3D 轨迹渲染
         document.dispatchEvent(new CustomEvent('latte:preview-ready', {
@@ -193,7 +211,7 @@ async function _preview() {
 
         logBus.addLog('error', 'service', '预览 ✗ 失败: ' + String(e.message || e), {
             phase: 'failed', error: String(e.message || e),
-        });
+        }, 'latte');
     } finally {
         _state.previewLoading = false; _render();
     }
@@ -207,14 +225,14 @@ async function _execute() {
     logBus.addLog('info', 'service', '执行开始: ' + label + ' → ' + svc, {
         phase: 'start', service: svc, pattern: _state.patternType,
         request_summary: _logRequestSummary(req),
-    });
+    }, 'latte');
 
     _state.execExecuting = true; _render();
     _startProgressHeartbeat(label);
     const t0 = performance.now();
 
     try {
-        const result = await ros.callService(svc, DEFAULT_SVC_TYPE, req, 120000);
+        const result = await ros.callService(svc, DEFAULT_SVC_TYPE, req, 60000);
         _stopProgressHeartbeat();
 
         const ms = (performance.now() - t0).toFixed(0);
@@ -225,7 +243,7 @@ async function _execute() {
         logBus.addLog(ok ? 'info' : 'warn', 'service', '执行 ' + (ok ? '✓' : '✗') + ' (' + ms + 'ms)', {
             phase: 'completed', service: svc, duration_ms: parseInt(ms),
             success: ok, response_message: result?.message || '',
-        });
+        }, 'latte');
     } catch (e) {
         _stopProgressHeartbeat();
         _state.message = '执行失败: ' + String(e.message || e);
@@ -234,7 +252,7 @@ async function _execute() {
         const ms = (performance.now() - t0).toFixed(0);
         logBus.addLog('error', 'service', '执行 ✗ 失败 (' + ms + 'ms): ' + String(e.message || e), {
             phase: 'failed', service: svc, duration_ms: parseInt(ms), error: String(e.message || e),
-        });
+        }, 'latte');
     } finally {
         _state.execExecuting = false; _render();
     }
@@ -243,7 +261,7 @@ async function _execute() {
 function _stop() {
     logBus.addLog('info', 'service', '停止请求: ' + DEFAULT_SVC + ' (后端未提供取消接口，此按钮暂不可用)', {
         phase: 'stop', service: DEFAULT_SVC, available: false,
-    });
+    }, 'latte');
     _stopProgressHeartbeat();
     _state.message = '停止: 后端未提供轨迹取消接口，按钮暂不可用';
     _state.success = null;
@@ -254,7 +272,7 @@ function _stop() {
 function _home() {
     logBus.addLog('info', 'service', '回原点: 服务未实现（需 ROS /home 或 /move_to_joints 服务）', {
         phase: 'home', available: false,
-    });
+    }, 'latte');
     _state.message = '回原点: 服务未实现（需 ROS /home 或 /move_to_joints 服务）';
     _state.success = null;
     _render();
@@ -277,11 +295,11 @@ function _render() {
                 _state.patternType = card.dataset.pattern;
                 logBus.addLog('info', 'service', '图案切换: ' + (_logPatternLabelFor(old)) + ' → ' + _logPatternLabel(), {
                     from: old, to: _state.patternType,
-                });
+                }, 'latte');
                 // 切换 episode 输入显示
                 const epRow = document.getElementById('latte-episode-row');
                 if (epRow) epRow.style.display = _state.patternType ? 'none' : 'flex';
-                _saveSession(); _render();
+                _saveSession(); _render(); _debouncedPreview();
             });
         });
     }
@@ -326,11 +344,28 @@ function _render() {
     const wsEl2 = document.getElementById('latte-waypointStep');
     if (wsEl2) wsEl2.value = s.waypointStep;
 
-    // 按钮状态
+    // 实时预览开关
+    const lpEl = document.getElementById('latte-live-preview');
+    if (lpEl) lpEl.checked = s.livePreview;
+
+    // 按钮状态 (预览/执行互斥，防止同时发起两个服务调用) 喵~
+    const poseReady = window.__ivgPoseReady === true;
+    const busy = s.previewLoading || s.execExecuting;
     const btnP = document.getElementById('latte-btn-preview');
-    if (btnP) { btnP.disabled = s.previewLoading; btnP.textContent = s.previewLoading ? '预览中…' : '预览'; }
+    if (btnP) {
+        if (!poseReady && !busy) {
+            btnP.disabled = true;
+            btnP.textContent = '等待末端位姿...';
+        } else {
+            btnP.disabled = busy;
+            btnP.textContent = s.previewLoading ? '预览中…' : (s.execExecuting ? '执行中…' : '预览');
+        }
+    }
     const btnE = document.getElementById('latte-btn-execute');
-    if (btnE) { btnE.disabled = s.execExecuting; btnE.textContent = s.execExecuting ? '执行中…' : '执行'; }
+    if (btnE) {
+        btnE.disabled = busy;
+        btnE.textContent = s.execExecuting ? '执行中…' : (s.previewLoading ? '预览中…' : '执行');
+    }
 
     // 消息
     const msg = document.getElementById('latte-message');
@@ -354,10 +389,11 @@ function _bindNumberInput(id, key, saveFn) {
         const old = _state[key];
         _state[key] = parseFloat(el.value) || 0;
         if (saveFn) saveFn();
+        _debouncedPreview();
         if (old !== _state[key]) {
             logBus.addLog('debug', 'service', '参数变更: ' + id + ' ' + old + ' → ' + _state[key], {
                 key, from: old, to: _state[key],
-            });
+            }, 'latte');
         }
     });
 }
@@ -368,18 +404,18 @@ function _bindEvents() {
     const epEl = document.getElementById('latte-episode');
     if (epEl) epEl.addEventListener('input', () => {
         const old = _state.episodeIdx;
-        _state.episodeIdx = parseInt(epEl.value) || 0; _saveSession();
+        _state.episodeIdx = parseInt(epEl.value) || 0; _saveSession(); _debouncedPreview();
         if (old !== _state.episodeIdx) {
-            logBus.addLog('debug', 'service', '参数变更: episode ' + old + ' → ' + _state.episodeIdx, { key: 'episode', from: old, to: _state.episodeIdx });
+            logBus.addLog('debug', 'service', '参数变更: episode ' + old + ' → ' + _state.episodeIdx, { key: 'episode', from: old, to: _state.episodeIdx }, 'latte');
         }
     });
     // Tulip layers
     const tlEl = document.getElementById('latte-tulip-layers');
     if (tlEl) tlEl.addEventListener('input', () => {
         const old = _state.tulipLayers;
-        _state.tulipLayers = parseInt(tlEl.value) || 3; _saveSession();
+        _state.tulipLayers = parseInt(tlEl.value) || 3; _saveSession(); _debouncedPreview();
         if (old !== _state.tulipLayers) {
-            logBus.addLog('debug', 'service', '参数变更: tulipLayers ' + old + ' → ' + _state.tulipLayers, { key: 'tulipLayers', from: old, to: _state.tulipLayers });
+            logBus.addLog('debug', 'service', '参数变更: tulipLayers ' + old + ' → ' + _state.tulipLayers, { key: 'tulipLayers', from: old, to: _state.tulipLayers }, 'latte');
         }
     });
     // 杯子
@@ -389,14 +425,14 @@ function _bindEvents() {
     // 防晃
     const asEl = document.getElementById('latte-antiSlosh');
     if (asEl) asEl.addEventListener('change', () => {
-        _state.antiSlosh = asEl.checked; _saveSession();
-        logBus.addLog('debug', 'service', '参数变更: antiSlosh → ' + _state.antiSlosh, { key: 'antiSlosh', to: _state.antiSlosh });
+        _state.antiSlosh = asEl.checked; _saveSession(); _debouncedPreview();
+        logBus.addLog('debug', 'service', '参数变更: antiSlosh → ' + _state.antiSlosh, { key: 'antiSlosh', to: _state.antiSlosh }, 'latte');
     });
     // 变换
     ['roll','pitch','yaw'].forEach(k => _bindNumberInput(k, k, _saveRpy));
     // 速度倍率
     const ssEl = document.getElementById('latte-speedScale');
-    if (ssEl) ssEl.addEventListener('input', () => { _state.speedScale = parseFloat(ssEl.value) || 1.0; _saveSession(); });
+    if (ssEl) ssEl.addEventListener('input', () => { _state.speedScale = parseFloat(ssEl.value) || 1.0; _saveSession(); _debouncedPreview(); });
     // 平移偏移
     ['dx','dy','dz'].forEach(k => _bindNumberInput(k, k, _saveSession));
     // 采样步长
@@ -404,29 +440,44 @@ function _bindEvents() {
     if (wsEl2) wsEl2.addEventListener('input', () => {
         const v = parseInt(wsEl2.value) || 5;
         _state.waypointStep = Math.max(1, Math.min(20, v));
-        _saveSession();
+        _saveSession(); _debouncedPreview();
     });
+    // 实时预览开关
+    const lpEl = document.getElementById('latte-live-preview');
+    if (lpEl) lpEl.addEventListener('change', () => {
+        _state.livePreview = lpEl.checked;
+        _saveSession();
+        logBus.addLog('info', 'service', '实时预览: ' + (_state.livePreview ? '开启' : '关闭'), {
+            key: 'livePreview', to: _state.livePreview,
+        }, 'latte');
+        if (_state.livePreview) _debouncedPreview(150); // 开启时立即触发一次预览
+    });
+
     // 按钮
     const btnP = document.getElementById('latte-btn-preview');
     if (btnP) btnP.addEventListener('click', () => {
-        logBus.addLog('info', 'service', '按钮点击: 预览 ' + _logPatternLabel());
+        if (_debounceTimer) { clearTimeout(_debounceTimer); _debounceTimer = null; }
+        logBus.addLog('info', 'service', '按钮点击: 预览 ' + _logPatternLabel(), {}, 'latte');
         _preview();
     });
     const btnE = document.getElementById('latte-btn-execute');
     if (btnE) btnE.addEventListener('click', () => {
-        logBus.addLog('info', 'service', '按钮点击: 执行 ' + _logPatternLabel());
+        logBus.addLog('info', 'service', '按钮点击: 执行 ' + _logPatternLabel(), {}, 'latte');
         _execute();
     });
     const btnS = document.getElementById('latte-btn-stop');
     if (btnS) btnS.addEventListener('click', () => {
-        logBus.addLog('info', 'service', '按钮点击: 停止');
+        logBus.addLog('info', 'service', '按钮点击: 停止', {}, 'latte');
         _stop();
     });
     const btnH = document.getElementById('latte-btn-home');
     if (btnH) btnH.addEventListener('click', () => {
-        logBus.addLog('info', 'service', '按钮点击: 回原点');
+        logBus.addLog('info', 'service', '按钮点击: 回原点', {}, 'latte');
         _home();
     });
+
+    // 位姿就绪时刷新按钮状态
+    document.addEventListener('latte:pose-ready', () => { _render(); });
 }
 
 // ── 入口 ──
@@ -436,6 +487,12 @@ export function initLatteControls() {
     _bindEvents();
 
     logBus.addLog('info', 'system', '拉花参数控制就绪 pattern=' + (_state.patternType || '(episode)') +
-        ' cup=(' + _state.cupX + ',' + _state.cupY + ',' + _state.cupZ + ')');
-    return { getState: () => _state, preview: _preview, execute: _execute };
+        ' cup=(' + _state.cupX + ',' + _state.cupY + ',' + _state.cupZ + ')', {}, 'latte');
+    return {
+        getState: () => _state, preview: _preview, execute: _execute,
+        cleanup: () => {
+            if (_debounceTimer) { clearTimeout(_debounceTimer); _debounceTimer = null; }
+            _stopProgressHeartbeat();
+        },
+    };
 }

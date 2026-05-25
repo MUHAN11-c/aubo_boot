@@ -28,7 +28,7 @@ function _getTransport() {
 
 // ── 去重：相同消息 N 秒内不重复记录 ──────────────────────────────────────
 const _dedup = {};  // { key: timestamp }
-const DEDUP_WINDOW_MS = 5000;
+const DEDUP_WINDOW_MS = 10000;
 
 function _shouldLog(key) {
     const now = Date.now();
@@ -167,10 +167,10 @@ function _hookTopicData(transport) {
             }
             _topicStats[tname].count++;
             const now = Date.now();
-            if (now - _topicStats[tname].lastSummary > 5000) {
+            if (now - _topicStats[tname].lastSummary > 30000) {
                 _topicStats[tname].lastSummary = now;
                 logBus.addLog('debug', 'topic',
-                    tname + ': ' + _topicStats[tname].count + ' 条消息/5s', { topic: tname });
+                    tname + ': ' + _topicStats[tname].count + ' 条消息/30s', { topic: tname });
                 _topicStats[tname].count = 0;
             }
             return;

@@ -18,6 +18,16 @@
   display:flex; align-items:center; gap:8px; flex-wrap:wrap;
   padding:10px 0; border-bottom:1px solid var(--border); margin-bottom:8px;
 }
+.log-toolbar--features {
+  border-bottom:1px solid var(--border); padding-top:4px; padding-bottom:10px;
+}
+.log-toolbar--level {
+  border-bottom:1px solid var(--border); padding-top:4px; padding-bottom:6px;
+}
+.log-feature-label {
+  font-size:0.78rem; color:var(--text-muted); font-weight:600;
+  margin-right:2px; flex-shrink:0;
+}
 .log-ctrl {
   padding:5px 12px; border-radius:7px; border:1px solid var(--border);
   background:var(--panel-bg); color:var(--text-muted); font-size:0.8rem;
@@ -42,7 +52,7 @@
 /* ── 日志行 ──────────────────────────────────────────────── */
 .log-view {
   background:#f8f9fb; border:1px solid var(--border); border-radius:8px;
-  height:calc(100vh - 220px); overflow-y:auto; font-family:"Noto Sans Mono","DejaVu Sans Mono",ui-monospace,Consolas,monospace;
+  height:calc(100vh - 340px); overflow-y:auto; font-family:"Noto Sans Mono","DejaVu Sans Mono",ui-monospace,Consolas,monospace;
   font-size:0.8rem; padding:8px 0; transition:border-color 0.2s ease;
 }
 .log-line {
@@ -52,7 +62,24 @@
 .log-line:hover { background:#f5f6f8; }
 .log-ts { color:var(--text-muted); flex-shrink:0; opacity:0.7; }
 .log-src { flex-shrink:0; min-width:80px; font-weight:600; }
+.log-feat {
+  flex-shrink:0; padding:0 6px; border-radius:4px; font-size:0.72rem;
+  border:1px solid; font-weight:500; line-height:1.4;
+}
 .log-msg { word-break:break-all; flex:1; }
+
+/* 折叠计数徽章 */
+.log-rate-badge {
+  flex-shrink:0; padding:0 5px; border-radius:3px; font-size:0.68rem;
+  background:#fef2f2; color:var(--red); font-weight:700; line-height:1.5;
+  border:1px solid #fecaca;
+}
+.log-line--folded {
+  background:rgba(239,68,68,0.03);
+}
+.log-line--folded .log-msg {
+  color:var(--text-muted); font-style:italic;
+}
 
 .log-line--log  .log-src { color:var(--text-muted); }
 .log-line--info .log-src { color:var(--accent); }
@@ -64,6 +91,13 @@
 .log-line--warn  { background:rgba(234,179,8,0.04); }
 .log-line--error { background:rgba(239,68,68,0.06); }
 
+/* ── 暂停按钮未读标记 ────────────────────────────────────── */
+#log-btn-pause[data-unread]::after {
+  content: attr(data-unread);
+  display:inline-block; margin-left:4px; padding:0 5px; border-radius:9px;
+  background:var(--red); color:#fff; font-size:0.65rem; font-weight:700;
+  line-height:1.4; min-width:16px; text-align:center;
+}
 </style>
 </head>
 <body class="ivg-single-screen">
@@ -76,7 +110,7 @@
     <span id="log-count" style="font-size:0.78rem;color:var(--text-muted);">0 条</span>
   </div>
 
-  <!-- 控制栏 -->
+  <!-- 控制栏: 操作 + 搜索 + 技术来源过滤 -->
   <div class="log-toolbar" id="log-toolbar">
     <button class="log-ctrl log-ctrl--clear" id="log-btn-clear" title="清空全部日志">✕ 清空</button>
     <button class="log-ctrl" id="log-btn-pause" title="暂停/恢复日志收集">⏸ 暂停</button>
@@ -96,6 +130,14 @@
     <button class="log-ctrl" id="log-btn-lifecycle" title="过滤页面生命周期事件">lifecycle</button>
   </div>
 
+  <!-- 等级 + 调试模式 -->
+  <div class="log-toolbar log-toolbar--level" id="log-level-toolbar"></div>
+
+  <!-- 功能标签过滤 -->
+  <div class="log-toolbar log-toolbar--features" id="log-feature-toolbar">
+    <span class="log-feature-label">功能:</span>
+  </div>
+
   <!-- 日志视图 -->
   <div class="log-view" id="log-lines" role="log" aria-live="polite" aria-label="日志输出"></div>
 </main>
@@ -103,6 +145,6 @@
 
 <script type="module" src="js/core/log-ros-bridge.js"></script>
 	<script type="module" src="js/ivg_site_nav.js"></script>
-<script type="module" src="js/log_panel.js?v=20260522_logbus"></script>
+<script type="module" src="js/log_panel.js?v=20260525_v3"></script>
 </body>
 </html>

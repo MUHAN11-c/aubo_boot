@@ -244,10 +244,16 @@ bool GripperSwapWorker::moveToTargetXYZ(double target_x, double target_y, double
   return robot_->moveCartesianPath(segments, vel, acc);
 }
 
-/** 关节空间运动到工具 dock 接近位（关节角来自 tools.yaml） */
+/** 运动到工具 dock 接近位（关节角优先，否则笛卡尔直线） */
 bool GripperSwapWorker::moveToDockApproach(const ToolConfig& tool)
 {
   if (!robot_) return false;
+  if (tool.has_dock_approach_xyz) {
+    return moveToTargetXYZ(tool.dock_approach_xyz[0],
+                           tool.dock_approach_xyz[1],
+                           tool.dock_approach_xyz[2],
+                           joint_velocity_scaling_, joint_acceleration_scaling_);
+  }
   return robot_->moveToJoints(tool.dock_approach_joints,
                       joint_velocity_scaling_, joint_acceleration_scaling_);
 }
@@ -518,13 +524,18 @@ void GripperSwapWorker::loadToolConfig()
     cfg.type       = t["type"].as<std::string>("");
     cfg.parameters = t["parameters"].as<std::string>("");
 
-    // dock_approach_joints
+    // dock_approach_joints（优先）或 dock_above XYZ 笛卡尔直线（回退）
     if (t["dock_approach_joints"] && t["dock_approach_joints"].size() == 6) {
       for (int i = 0; i < 6; ++i)
         cfg.dock_approach_joints[i] = t["dock_approach_joints"][i].as<double>();
+    } else if (t["dock_above"] && t["dock_above"].size() == 3) {
+      cfg.has_dock_approach_xyz = true;
+      cfg.dock_approach_xyz[0] = t["dock_above"]["x"].as<double>();
+      cfg.dock_approach_xyz[1] = t["dock_above"]["y"].as<double>();
+      cfg.dock_approach_xyz[2] = t["dock_above"]["z"].as<double>();
     } else {
-      RCLCPP_WARN(get_logger(), "工具 %s: 缺少 dock_approach_joints (需要 6 个关节角)", tid.c_str());
-      continue;  // 没有关节角则无法执行快换，跳过
+      RCLCPP_WARN(get_logger(), "工具 %s: 缺少 dock_approach_joints (6关节角) 或 dock_above (XYZ坐标)", tid.c_str());
+      continue;
     }
 
     // trajectory strategy + params
@@ -548,12 +559,19 @@ void GripperSwapWorker::loadToolConfig()
     }
 
     tool_configs_[tid] = cfg;
-    RCLCPP_INFO(get_logger(), "工具轨迹: %s strategy=%s joints=[%.3f,%.3f,%.3f,%.3f,%.3f,%.3f]",
-      tid.c_str(),
-      (cfg.strategy == TrajectoryStrategy::kSlide) ? "slide" : "vertical",
-      cfg.dock_approach_joints[0], cfg.dock_approach_joints[1],
-      cfg.dock_approach_joints[2], cfg.dock_approach_joints[3],
-      cfg.dock_approach_joints[4], cfg.dock_approach_joints[5]);
+    if (cfg.has_dock_approach_xyz) {
+      RCLCPP_INFO(get_logger(), "工具轨迹: %s strategy=%s dock_above=[%.3f,%.3f,%.3f] (笛卡尔直线)",
+        tid.c_str(),
+        (cfg.strategy == TrajectoryStrategy::kSlide) ? "slide" : "vertical",
+        cfg.dock_approach_xyz[0], cfg.dock_approach_xyz[1], cfg.dock_approach_xyz[2]);
+    } else {
+      RCLCPP_INFO(get_logger(), "工具轨迹: %s strategy=%s joints=[%.3f,%.3f,%.3f,%.3f,%.3f,%.3f]",
+        tid.c_str(),
+        (cfg.strategy == TrajectoryStrategy::kSlide) ? "slide" : "vertical",
+        cfg.dock_approach_joints[0], cfg.dock_approach_joints[1],
+        cfg.dock_approach_joints[2], cfg.dock_approach_joints[3],
+        cfg.dock_approach_joints[4], cfg.dock_approach_joints[5]);
+    }
   }
   RCLCPP_INFO(get_logger(), "共加载 %zu 个工具轨迹配置", tool_configs_.size());
 }
@@ -596,18 +614,22 @@ bool GripperSwapWorker::changeToTool(const std::string& target_id)
       RCLCPP_ERROR(get_logger(), "释放 %s: 提前移除规划场景碰撞失败", current.id.c_str());
       return false;
     }
+    // 立即清除 current_tool_ 并发布空状态，防止周期性定时器（5s）在
+    // releaseTool 执行期间发布旧工具 ID，导致 scene_attach_worker 重新附着已脱离的 ACO
+    current_tool_ = ToolInfo{};
+    publishToolStatus(false);
+
     bool tool_released = false;
     if (!releaseTool(current, &tool_released)) {
       if (!tool_released) {
-        // 工具仍物理连接时恢复碰撞体，避免规划场景长期漏掉当前工具喵~
+        // 工具仍物理连接时恢复状态和碰撞体喵~
+        current_tool_ = {current.id, current.name, current.type, current.parameters};
+        publishToolStatus(true);
         (void)updateSceneAttachment(current.id, true);
       }
       RCLCPP_ERROR(get_logger(), "释放 %s 失败", current.id.c_str());
       return false;
     }
-    // releaseTool 完成时工具已物理放下，立即更新为空工具状态喵~
-    current_tool_ = ToolInfo{};
-    publishToolStatus(false);
     if (!sleepJointCartesianSwitchDelay("释放→取: C→J")) return false;
   }
 
@@ -679,16 +701,19 @@ void GripperSwapWorker::onGripperSwapRequest(
     const std::shared_ptr<ivg_interfaces::srv::RunGripperSwap::Request> request,
     std::shared_ptr<ivg_interfaces::srv::RunGripperSwap::Response> response)
 {
-  // 通用解析: "gripper0_to_gripper2" → "gripper2", "gripper2" → "gripper2"
-  std::string target_id;
+  // 通用解析: "gripper0_to_gripper2" → source=gripper0, target=gripper2
+  //           "gripper2"           → target=gripper2 (无源工具)
+  std::string source_id, target_id;
   auto pos = request->direction.find("_to_");
-  if (pos != std::string::npos)
+  if (pos != std::string::npos) {
+    source_id = request->direction.substr(0, pos);
     target_id = request->direction.substr(pos + 4);
-  else
+  } else {
     target_id = request->direction;
+  }
 
-  RCLCPP_INFO(get_logger(), "━━ run_gripper_swap: direction=%s → target=%s ━━",
-              request->direction.c_str(), target_id.c_str());
+  RCLCPP_INFO(get_logger(), "━━ run_gripper_swap: direction=%s source=%s target=%s ━━",
+              request->direction.c_str(), source_id.c_str(), target_id.c_str());
 
   if (tool_configs_.find(target_id) == tool_configs_.end()) {
     response->success = false;
@@ -696,9 +721,36 @@ void GripperSwapWorker::onGripperSwapRequest(
     return;
   }
 
+  // 检查源工具合法性 ("_to_" 格式中包含源工具时)
+  if (!source_id.empty() && tool_configs_.find(source_id) == tool_configs_.end()) {
+    response->success = false;
+    response->message = "未知源工具: " + source_id;
+    return;
+  }
+
+  // 后端无当前工具但请求指定了源工具 → 用源工具填充 current_tool_,
+  // 确保 changeToTool 能正确执行释放步骤喵~
+  // (仿真模式下用户手动选择工具, 后端 current_tool_ 为空, 必须从 direction 获知源工具)
+  const bool fill_source = current_tool_.id.empty() && !source_id.empty();
+  if (fill_source) {
+    const auto& src = tool_configs_[source_id];
+    current_tool_.id         = src.id;
+    current_tool_.name       = src.name;
+    current_tool_.type       = src.type;
+    current_tool_.parameters = src.parameters;
+    RCLCPP_INFO(get_logger(), "[swap] 从 direction 填充源工具: %s", source_id.c_str());
+    publishToolStatus(true);
+  }
+
   bool ok = false;
   try { ok = changeToTool(target_id); }
   catch (const std::exception& e) { RCLCPP_ERROR(get_logger(), "异常: %s", e.what()); }
+
+  // 从 direction 填充的源工具且 changeToTool 失败 → 回退 current_tool_
+  if (!ok && fill_source) {
+    current_tool_ = ToolInfo{};
+    publishToolStatus(false);
+  }
 
   response->success = ok;
   response->message = ok ? ("完成: " + request->direction) : ("失败: " + request->direction);

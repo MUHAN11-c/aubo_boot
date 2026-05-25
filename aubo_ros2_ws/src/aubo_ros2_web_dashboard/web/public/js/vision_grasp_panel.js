@@ -424,21 +424,94 @@ import {
 			robotPoseCache,
 			topicTypeMap: VISION_TOPIC_TYPE_MAP
 		});
+		// 重新订阅 /tool_changer_status（unsubscribeAll 清除了初始订阅，必须重建）喵~
+		_toolSubDone = true;  // 接管订阅，阻止旧重试循环
+		try {
+			ivgTransport.subscribe({ topic: '/tool_changer_status', msgType: 'ivg_interfaces/msg/ToolChangerStatus', maxHz: 5 });
+			ivgTransport.onRosJson('/tool_changer_status', _onToolStatusMsg);
+		} catch (_e) { console.warn('[vision_grasp] /tool_changer_status 重订阅失败:', _e); }
 	}
 
 	function logSvc(msg) {
+		// 转发到统一日志总线，由 setupVisionLogDisplay() 渲染到 #svc-log
 		const ts = new Date().toLocaleTimeString();
-		const el = $('svc-log');
-		if (el) el.textContent = `${ts} ${msg}`;
-			// 转发到统一日志总线喵~
-			const isErr = msg.indexOf('错误') !== -1 || msg.indexOf('失败') !== -1;
-			logBus.addLog(isErr ? 'error' : 'info', 'service', msg);
-			// 同步输出到浏览器控制台，方便调试
-			if (isErr) {
-				console.warn(`[vision] ${ts} ${msg}`);
-			} else {
-				console.log(`[vision] ${ts} ${msg}`);
+		const isErr = msg.indexOf('错误') !== -1 || msg.indexOf('失败') !== -1;
+		logBus.addLog(isErr ? 'error' : 'info', 'service', msg, { module: 'vision_grasp' }, 'vision_grasp');
+		if (isErr) console.warn(`[vision] ${ts} ${msg}`);
+		else console.log(`[vision] ${ts} ${msg}`);
+	}
+
+	// ── 视觉抓取操作日志显示 ──────────────────────────────────────────────────
+	function setupVisionLogDisplay() {
+		const host = $('svc-log');
+		if (!host) return;
+
+		// 把纯 div 改造为结构化日志框（不改 HTML 布局）
+		host.innerHTML = '';
+		host.className = 'svc-log svc-log--structured';
+
+		const head = document.createElement('div');
+		head.className = 'svc-log__head';
+		head.innerHTML = '<span class="svc-log__title">操作日志</span>';
+
+		const clearBtn = document.createElement('button');
+		clearBtn.type = 'button';
+		clearBtn.className = 'svc-log__clear';
+		clearBtn.textContent = '清空';
+		head.appendChild(clearBtn);
+
+		const body = document.createElement('div');
+		body.className = 'svc-log__body';
+
+		host.appendChild(head);
+		host.appendChild(body);
+
+		const MAX_LINES = 150;
+
+		function _timeStr() {
+			return new Date().toLocaleTimeString('zh-CN', { hour12: false });
+		}
+
+		function _phaseBadge(phase) {
+			if (!phase) return '';
+			var label = phase === 'in_progress' ? '进行中' :
+			            phase === 'completed' ? '完成' :
+			            phase === 'failed' ? '失败' : phase === 'start' ? '开始' :
+			            phase === 'blocked' ? '阻塞' : phase === 'skipped' ? '跳过' :
+			            phase === 'stop' ? '停止' : phase === 'home' ? '归零' : '';
+			return '<span class="svc-log-line__phase svc-log-line__phase--' + phase + '">' + (label || phase) + '</span>';
+		}
+
+		logBus.onLog(function (entry) {
+			if (!entry || !entry.meta || entry.meta.module !== 'vision_grasp') return;
+
+			var line = document.createElement('div');
+			var levelCls = '';
+			if (entry.level === 'error') levelCls = ' svc-log-line--error';
+			else if (entry.level === 'warn') levelCls = ' svc-log-line--warn';
+			if (entry.meta && entry.meta.success === true) levelCls += ' svc-log-line--ok';
+			if (entry.meta && entry.meta.success === false) levelCls += ' svc-log-line--error';
+
+			line.className = 'svc-log-line' + levelCls;
+
+			var timeHtml = '<span class="svc-log-line__time">' + _timeStr() + '</span>';
+			var badgeHtml = _phaseBadge(entry.meta?.phase);
+			var msgHtml = '<span class="svc-log-line__msg">' +
+				(entry.msg || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+				'</span>';
+
+			line.innerHTML = timeHtml + badgeHtml + msgHtml;
+			body.appendChild(line);
+
+			while (body.children.length > MAX_LINES) {
+				body.removeChild(body.firstChild);
 			}
+			body.scrollTop = body.scrollHeight;
+		});
+
+		clearBtn.onclick = function () {
+			body.innerHTML = '';
+		};
 	}
 
 	/** 连接 ivg_web_serve 控制面 WebSocket；成功后 startSubscriptions */
@@ -516,11 +589,35 @@ import {
 	// scheduleSyncMonitoringBundleMinHeight 已委托给 monitoringCollapse.scheduleSyncMinHeight()
 
 	// ═══════════════════════════════════════════════════════════════
-	// 夹爪快换状态桥接 — UI 状态栏 + 按钮状态 + localStorage + init-tool-select
+	// 夹爪快换状态桥接 — UI 状态栏 + 按钮状态 + 初始化面板 + localStorage
+	// 三层初始化策略:
+	//   1. localStorage → 立即占位 UI
+	//   2. /get_current_tool (3s 超时) → 查询后端当前工具
+	//   3. /tool_changer_status 订阅 → 实时更新
+	//   4. 8s 后仍未检测到 → 显示手动选择面板
 	// ═══════════════════════════════════════════════════════════════
 	const LS_TOOL_KEY = 'ivg_last_tool_id';
 	const TOOL_NAMES = { gripper0: '气动夹爪 φ40', gripper1: '电动夹爪 A', gripper2: '电动夹爪 φ60' };
 	var _toolSwapping = false;
+	var _initDone = false;    // 初始化是否已结束（收到 topic 或超时后置 true）
+	var _initTimer = null;    // 8s 超时定时器
+	var _toolSubDone = false; // 防 _subscribeToolStatus 与 startSubscriptions 重复订阅
+
+	function _hideInitBanner() {
+		var banner = $('tool-init-banner');
+		if (banner) banner.hidden = true;
+	}
+
+	function _showInitBanner() {
+		if (_initDone) return;
+		var banner = $('tool-init-banner');
+		if (banner) banner.hidden = false;
+	}
+
+	function _finalizeInit() {
+		_initDone = true;
+		if (_initTimer) { clearTimeout(_initTimer); _initTimer = null; }
+	}
 
 	function _updateToolStatusUI(toolId, connected) {
 		var led = $('tool-status-led');
@@ -543,8 +640,16 @@ import {
 			var tool = btn.getAttribute('data-tool');
 			btn.classList.remove('active', 'swapping');
 			btn.disabled = false;
-			if (swapping && tool === swapping) { btn.classList.add('swapping'); btn.disabled = true; }
-			else if (!swapping && currentId && tool === currentId) { btn.classList.add('active'); btn.disabled = true; }
+			if (swapping && tool === swapping) {
+				// 目标工具 → swapping 动画 + 禁用
+				btn.classList.add('swapping'); btn.disabled = true;
+			} else if (swapping && currentId && tool === currentId) {
+				// 源工具 → 保持 active 标记 + 禁用（防止误点击）
+				btn.classList.add('active'); btn.disabled = true;
+			} else if (!swapping && currentId && tool === currentId) {
+				// 正常状态 → active + 禁用
+				btn.classList.add('active'); btn.disabled = true;
+			}
 		});
 	}
 
@@ -552,17 +657,93 @@ import {
 		if (!msg) return;
 		var toolId = String(msg.tool_id || '');
 		var connected = msg.is_connected !== false;
-		if (typeof serviceActions.setCurrentToolId === 'function') serviceActions.setCurrentToolId(toolId);
-		try { localStorage.setItem(LS_TOOL_KEY, toolId); } catch (e) {}
-		_toolSwapping = false;
-		_updateToolStatusUI(toolId, connected);
-		_updateGripperButtons(toolId, null);
-		var sel = $('init-tool-select');
-		if (sel) { try { sel.value = toolId || ''; } catch (e) {} }
+		var hasTool = connected && toolId;
+		// 后端确认有工具 → 信任硬件，更新 localStorage 和下拉框
+		// 后端无工具 → 保留用户手动设置，不覆盖 localStorage 喵~
+		if (hasTool) {
+			if (typeof serviceActions.setCurrentToolId === 'function') serviceActions.setCurrentToolId(toolId);
+			try { localStorage.setItem(LS_TOOL_KEY, toolId); } catch (e) {}
+			var sel = $('init-tool-select');
+			if (sel) { try { sel.value = toolId; } catch (e) {} }
+		}
+		// 有效工具 ID：后端有工具 → 信任硬件，否则保留用户手动设置喵~
+		var effectiveId = hasTool ? toolId : (
+			typeof serviceActions.getCurrentToolId === 'function' ? serviceActions.getCurrentToolId() : ''
+		);
+		// 快换进行中时不重置 _toolSwapping（防止中间态"无工具"消息打断 UI）喵~
+		var inFlight = typeof serviceActions.isSwapInFlight === 'function' && serviceActions.isSwapInFlight();
+		if (!inFlight) { _toolSwapping = false; }
+		// 用有效工具更新全部 UI，避免后端空消息冲掉用户手动设置喵~
+		_updateToolStatusUI(effectiveId, hasTool ? connected : !!effectiveId);
+		_updateGripperButtons(effectiveId, null);
+		// 后端确认工具已连接 → 隐藏初始化面板 + 清除手动设定标记
+		if (hasTool) {
+			_finalizeInit();
+			_hideInitBanner();
+			var hint = $('tool-init-hint');
+			if (hint) hint.hidden = true;
+		}
+	}
+
+	function _callGetCurrentToolAndSubscribe() {
+		// 调用 /get_current_tool（3s 超时）
+		if (typeof serviceActions.callGetCurrentTool === 'function') {
+			var getToolCalled = false;
+			var timeoutId = setTimeout(function () {
+				if (getToolCalled) return;
+				getToolCalled = true;
+			}, 3000);
+			serviceActions.callGetCurrentTool(function (err, r) {
+				if (getToolCalled) return;
+				getToolCalled = true;
+				clearTimeout(timeoutId);
+				if (!err && r && r.success && r.tool_id && r.is_connected) {
+					var toolId = String(r.tool_id);
+					try { localStorage.setItem(LS_TOOL_KEY, toolId); } catch (e) {}
+					if (typeof serviceActions.setCurrentToolId === 'function') serviceActions.setCurrentToolId(toolId);
+					_updateToolStatusUI(toolId, true);
+					_updateGripperButtons(toolId, null);
+					var sel = $('init-tool-select');
+					if (sel) { try { sel.value = toolId; } catch (e) {} }
+					var hint3 = $('tool-init-hint');
+					if (hint3) hint3.hidden = true;
+					_finalizeInit();
+					_hideInitBanner();
+				}
+			});
+		}
+
+		// 订阅 /tool_changer_status（仅初始化阶段；重连时由 startSubscriptions 负责）
+		function _subscribeToolStatus() {
+			if (_toolSubDone) return;  // startSubscriptions 已接管
+			if (!ivgTransport || !ivgTransport.isConnected()) {
+				setTimeout(_subscribeToolStatus, 1000);
+				return;
+			}
+			_toolSubDone = true;
+			try {
+				ivgTransport.subscribe({ topic: '/tool_changer_status', msgType: 'ivg_interfaces/msg/ToolChangerStatus', maxHz: 5 });
+				ivgTransport.onRosJson('/tool_changer_status', _onToolStatusMsg);
+			} catch (e) { console.warn('[vision_grasp] /tool_changer_status 订阅失败:', e); }
+		}
+		setTimeout(_subscribeToolStatus, 500);
+
+		// 8s 总超时 → 仍未检测到已连接工具则显示手动选择面板
+		_initTimer = setTimeout(function () {
+			if (_initDone) return;
+			var currentId = '';
+			if (typeof serviceActions.getCurrentToolId === 'function') currentId = serviceActions.getCurrentToolId();
+			if (currentId) {
+				_finalizeInit();
+				return;
+			}
+			_finalizeInit();
+			_showInitBanner();
+		}, 8000);
 	}
 
 	function _initToolStatusBridge() {
-		// 初始值：localStorage → UI 占位
+		// 第一步：localStorage → UI 占位（标记为手动设定）
 		var stored = '';
 		try { stored = localStorage.getItem(LS_TOOL_KEY) || ''; } catch (e) {}
 		if (stored) {
@@ -571,8 +752,11 @@ import {
 			if (typeof serviceActions.setCurrentToolId === 'function') serviceActions.setCurrentToolId(stored);
 			var si = $('init-tool-select');
 			if (si) { try { si.value = stored; } catch (e) {} }
+			var hint = $('tool-init-hint');
+			if (hint) hint.hidden = false;
 		}
-		// init-tool-select → localStorage
+
+		// init-tool-select → localStorage（可见配置，手动设定）
 		var sel = $('init-tool-select');
 		if (sel) {
 			sel.addEventListener('change', function () {
@@ -581,9 +765,13 @@ import {
 				if (typeof serviceActions.setCurrentToolId === 'function') serviceActions.setCurrentToolId(v);
 				_updateToolStatusUI(v, false);
 				_updateGripperButtons(v, null);
+				// 标记为手动设定
+				var hint = $('tool-init-hint');
+				if (hint) hint.hidden = false;
 			});
 		}
-		// 按钮点击 → swapping 状态
+
+		// 按钮点击 → swapping 状态（源工具保持 active+禁用，目标显示 swapping）
 		var swapRow = document.getElementById('gripper-swap-btns');
 		if (swapRow) {
 			swapRow.addEventListener('click', function (e) {
@@ -591,23 +779,42 @@ import {
 				if (!btn || btn.disabled) return;
 				var targetId = btn.getAttribute('data-tool');
 				if (!targetId) return;
+				// 防重入检查
+				if (typeof serviceActions.isSwapInFlight === 'function' && serviceActions.isSwapInFlight()) {
+					logBus.addLog('warn', 'service', '快换进行中，忽略重复点击', { module: 'vision_grasp' }, 'vision_grasp');
+					return;
+				}
+				// 同工具跳过
+				var currentId = typeof serviceActions.getCurrentToolId === 'function' ? serviceActions.getCurrentToolId() : '';
+				if (currentId === targetId) return;
 				_toolSwapping = true;
 				_updateToolStatusUI(targetId, false);
-				_updateGripperButtons('', targetId);
+				_updateGripperButtons(currentId, targetId);  // currentId=源工具保持禁用
 			}, true);
 		}
-		// 订阅 /tool_changer_status
-		function _subscribeToolStatus() {
-			if (!ivgTransport || !ivgTransport.isConnected()) {
-				setTimeout(_subscribeToolStatus, 1000);
-				return;
-			}
-			try {
-				ivgTransport.subscribe({ topic: '/tool_changer_status', msgType: 'ivg_interfaces/msg/ToolChangerStatus', maxHz: 5 });
-				ivgTransport.onRosJson('/tool_changer_status', _onToolStatusMsg);
-			} catch (e) { console.warn('[vision_grasp] /tool_changer_status 订阅失败:', e); }
+
+		// 手动初始化面板按钮 → localStorage + UI 更新 + 隐藏面板
+		var initActions = $('tool-init-actions');
+		if (initActions) {
+			initActions.addEventListener('click', function (e) {
+				var btn = e.target.closest('.tool-init-btn');
+				if (!btn) return;
+				var toolId = btn.getAttribute('data-init-tool') || '';
+				try { localStorage.setItem(LS_TOOL_KEY, toolId); } catch (e) {}
+				if (typeof serviceActions.setCurrentToolId === 'function') serviceActions.setCurrentToolId(toolId);
+				_updateToolStatusUI(toolId, false);
+				_updateGripperButtons(toolId || '', null);
+				var si = $('init-tool-select');
+				if (si) { try { si.value = toolId || ''; } catch (e) {} }
+				var hint2 = $('tool-init-hint');
+				if (hint2) hint2.hidden = false;
+				_hideInitBanner();
+				logBus.addLog('info', 'system', '手动选择初始工具: ' + (toolId || '无工具'), { module: 'vision_grasp',  source: 'gripper_init', tool_id: toolId }, 'vision_grasp');
+			});
 		}
-		setTimeout(_subscribeToolStatus, 2000);
+
+		// 启动三层初始化
+		_callGetCurrentToolAndSubscribe();
 	}
 
 	document.addEventListener('DOMContentLoaded', () => {
@@ -634,6 +841,19 @@ import {
 
 			// --- 抓取区服务按钮 ---
 			serviceActions.bindControlButtons();
+
+			// --- 操作日志显示 ---
+			setupVisionLogDisplay();
+
+			// --- 夹爪 swap 完成回调（服务响应后立即重置 UI，不等 topic） ---
+			if (typeof serviceActions.onGripperSwapDone === 'function') {
+				serviceActions.onGripperSwapDone(function (_err) {
+					_toolSwapping = false;
+					var curId = typeof serviceActions.getCurrentToolId === 'function' ? serviceActions.getCurrentToolId() : '';
+					_updateToolStatusUI(curId, false);
+					_updateGripperButtons(curId, null);
+				});
+			}
 
 			// --- 夹爪状态桥接 ---
 			_initToolStatusBridge();

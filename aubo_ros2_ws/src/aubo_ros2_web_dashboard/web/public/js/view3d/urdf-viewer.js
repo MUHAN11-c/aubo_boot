@@ -45,10 +45,12 @@ export function createUrdfViewer(opts = {}) {
         stop();
 
         try {
+            const viewerOpts = opts.viewerOpts || {};
             _session = new IvgRos3dView3dSession(ros, $, {
                 view3dHostId: hostId,
                 viewerInnerId: innerId,
                 forceUrdfOnly,
+                ...viewerOpts,
             });
             _session.start();
 

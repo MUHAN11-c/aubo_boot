@@ -382,3 +382,25 @@ Git 历史 `748c7bb3d` 中的 `scene_attach_worker` 已经证明了末端工具�
 - 不要发布 `/robot_description` 喵~
 - 不要通过 `AsyncParametersClient` 设置 `robot_state_publisher.robot_description` 喵~
 - 不要把 `attach_offset.position` 丢掉，也不要只把 orientation 写到 `mesh_poses[0]` 喵~
+
+## 构建
+
+```bash
+cd ~/aubo_boot/aubo_ros2_ws
+source /opt/ros/humble/setup.bash
+colcon build --packages-select tool_changer
+source install/setup.bash
+```
+
+## 依赖
+
+- ROS 2: rclcpp, moveit_core, moveit_ros_planning_interface, geometry_msgs, shape_msgs
+- ivg_interfaces (ChangeTool, RunGripperSwap, SetRobotIO, ToolChangerStatus)
+- ament_index_cpp (xacro 路径解析)
+- yaml-cpp (tools.yaml 解析)
+
+## 参考
+
+- 工具配置: `config/tools.yaml`
+- 碰撞豁免: `aubo_ros2_ws/src/aubo_e5_moveit_config/config/aubo_e5.srdf:69-91`
+- CLAUDE.md §8 工具切换碰撞与 ACO 架构, §20 工具切换数据驱动架构

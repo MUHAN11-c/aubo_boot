@@ -36,7 +36,7 @@
 ## 构建
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd ~/aubo_boot/aubo_ros2_ws
 source /opt/ros/humble/setup.bash
 
 # 主力版本（Python）

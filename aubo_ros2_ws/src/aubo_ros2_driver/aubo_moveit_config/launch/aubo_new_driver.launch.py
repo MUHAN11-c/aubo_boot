@@ -184,15 +184,57 @@ def launch_setup(context, *args, **kwargs):
             )],
         )
 
-        return [
+        sim_state_publisher = TimerAction(
+            period=5.0,
+            actions=[Node(
+                package="aubo_moveit_config",
+                executable="simulation_state_publisher.py",
+                name="simulation_state_publisher",
+                output="screen",
+            )],
+        )
+
+        # latte_imitation 拉花预览节点（仿真模式自动启动，等待 move_group 就绪）喵~
+        latte_node = None
+        try:
+            latte_pkg = get_package_share_directory("latte_imitation")
+            latte_node = TimerAction(
+                period=8.0,
+                actions=[Node(
+                    package="latte_imitation",
+                    executable="latte_imitation_node",
+                    name="latte_imitation",
+                    output="screen",
+                    parameters=[{
+                        "episode_idx": 0, "arm": "right", "speed_scale": 1.0,
+                        "mode": "preview",
+                        "planning_group": "manipulator",
+                        "base_frame": "base_link", "ee_link": "tool_tcp",
+                        "cartesian_max_step": 0.01, "cartesian_jump_threshold": 0.0,
+                        "fraction_acceptable": 0.95, "fraction_min_executable": 0.50,
+                        "waypoint_sample_step": 4,
+                        "service_timeout": 15.0, "cartesian_timeout": 60.0,
+                        "execution_timeout": 120.0,
+                        "tf_retry_count": 20, "tf_retry_interval": 0.03,
+                    }],
+                )],
+            )
+        except Exception:
+            print("[WARN] latte_imitation 包未安装，跳过拉花节点喵~", file=sys.stderr)
+
+        nodes = [
             ros2_control_node,
             joint_state_broadcaster_spawner,
             joint_trajectory_controller_spawner,
             aubo_mode_node,
             rsp_node,
             move_group_node,
+            sim_state_publisher,
             delayed_rviz,
         ]
+        if latte_node is not None:
+            nodes.append(latte_node)
+        return nodes
     else:
         # ============================================================
         # 真实硬件模式: AUBO 自定义驱动节点

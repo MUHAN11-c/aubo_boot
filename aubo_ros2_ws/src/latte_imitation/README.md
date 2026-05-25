@@ -80,7 +80,7 @@ source install/setup.bash
 ### 2. 一键启动 (推荐)
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd ~/aubo_boot/aubo_ros2_ws
 ./start_latte_test.sh                  # 自动: 构建→仿真→服务→交互菜单
 ./start_latte_test.sh --skip-build     # 跳过 colcon build
 ./start_latte_test.sh --real           # 真机模式 (需 AUBO IP 可达)
@@ -93,14 +93,14 @@ cd /home/mu/IVG2.0/aubo_ros2_ws
 
 终端1 — 仿真:
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd ~/aubo_boot/aubo_ros2_ws
 source /opt/ros/humble/setup.bash && source install/setup.bash
 ros2 launch aubo_moveit_config aubo_new_driver.launch.py server_host:=169.254.10.98
 ```
 
 终端2 — latte_imitation:
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd ~/aubo_boot/aubo_ros2_ws
 source /opt/ros/humble/setup.bash && source install/setup.bash
 ros2 run latte_imitation latte_imitation_node --ros-args -p mode:=debug
 ```
@@ -659,3 +659,10 @@ fuser -v /dev/nvidia* | grep pt_data_worker | awk '{print $2}' | xargs kill -9
 - ROS2 Humble: rclpy, trajectory_msgs, geometry_msgs, nav_msgs, moveit_msgs, ament_index_python
 - 可视化: matplotlib
 - YOLO26: ultralytics>=8.4.0, torch>=1.8.0
+
+## 参考
+
+- 设计文档: `DESIGN.md`
+- SE(3) 重定目标理论: CLAUDE.md §21 latte_imitation
+- 工作空间安全: `config/workspace_safety.yaml`
+- 轨迹数据: `resource/` 目录

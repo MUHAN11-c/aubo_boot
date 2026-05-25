@@ -6,7 +6,8 @@
  *   - `/attached_collision_object` — ADD / REMOVE `AttachedCollisionObject`（附着到 kuaihuan_Link）喵~
  *   - `/planning_scene`（is_diff=true）— `world.collision_objects` REMOVE `attached_tool_<id>`，
  *     清除 detach 后可能残留在 world 中的同名对象，避免误判碰撞喵~
- * 工具相对法兰位姿来自 `tools.yaml::attach_offset`，本节点不发布 `/robot_description`、不改 URDF 喵~
+ * 工具相对法兰位姿来自 `tools.yaml::attach_offset`喵~
+ * 工具切换时发布对应 URDF 到 `/robot_description`，前端 3D 视图自动重载喵~
  */
 
 #include "tool_changer/scene_attach_worker.h"
@@ -16,8 +17,10 @@
 #include <yaml-cpp/yaml.h>
 
 #include <chrono>
+#include <cstdio>
 #include <cstring>
 #include <map>
+#include <sstream>
 #include <tuple>
 
 namespace tool_changer
@@ -47,13 +50,56 @@ SceneAttachWorker::SceneAttachWorker(const rclcpp::NodeOptions& options)
       "/scene_attach", std::bind(&SceneAttachWorker::onSceneAttach, this, _1, _2));
   scene_detach_srv_ = create_service<ivg_interfaces::srv::ChangeTool>(
       "/scene_detach", std::bind(&SceneAttachWorker::onSceneDetach, this, _1, _2));
+  display_tool_srv_ = create_service<ivg_interfaces::srv::ChangeTool>(
+      "/set_display_tool", std::bind(&SceneAttachWorker::onSetDisplayTool, this, _1, _2));
 
   // ── 加载工具配置 ──────────────────────────────────────────────────
   loadToolConfig();
 
+  // ── 预生成每个工具的 URDF 并缓存（前端 3D reloadUrdf 依赖）喵~
+  param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, "robot_state_publisher");
+  const std::string xacro_path =
+    ament_index_cpp::get_package_share_directory("aubo_moveit_config") +
+    "/config/aubo_e5.urdf.xacro";
+  for (const auto& [tid, geom] : tool_geometries_)
+  {
+    std::ostringstream cmd;
+    cmd << "xacro " << xacro_path << " gripper:=" << tid
+        << " use_fake_hardware:=true 2>&1";
+    FILE* pipe = popen(cmd.str().c_str(), "r");
+    if (!pipe) { RCLCPP_ERROR(get_logger(), "xacro popen 失败: %s", tid.c_str()); continue; }
+    std::string urdf;
+    char buf[4096];
+    while (fgets(buf, sizeof(buf), pipe)) urdf += buf;
+    int rc = pclose(pipe);
+    if (!urdf.empty()) {
+      urdf_cache_[tid] = urdf;
+      RCLCPP_INFO(get_logger(), "URDF 缓存: %s (%zu bytes)", tid.c_str(), urdf.size());
+    } else {
+      RCLCPP_ERROR(get_logger(), "xacro 输出为空: %s (exit=%d, 请检查 ROS 环境)", tid.c_str(), rc);
+    }
+  }
+  // 默认 URDF (无夹爪) 喵~
+  {
+    std::ostringstream cmd;
+    cmd << "xacro " << xacro_path << " use_fake_hardware:=true 2>&1";
+    FILE* pipe = popen(cmd.str().c_str(), "r");
+    if (pipe) {
+      std::string urdf;
+      char buf[4096];
+      while (fgets(buf, sizeof(buf), pipe)) urdf += buf;
+      pclose(pipe);
+      if (!urdf.empty()) urdf_cache_[""] = urdf;
+    }
+  }
+
+  // 发布 /robot_description（供前端 3D ros3djs UrdfClient 动态重载）喵~
+  robot_description_pub_ = create_publisher<std_msgs::msg::String>(
+      "/robot_description", rclcpp::QoS(1).transient_local());
+
   RCLCPP_INFO(get_logger(),
-              "就绪 | %zu 工具 | /attached_collision_object(ACO) + /planning_scene(world REMOVE) | "
-              "sub /tool_changer_status | srv /scene_attach /scene_detach",
+              "就绪 | %zu 工具 | ACO + /robot_description(URDF) | "
+              "sub /tool_changer_status | srv /scene_attach /scene_detach /set_display_tool",
               tool_geometries_.size());
 }
 
@@ -269,6 +315,7 @@ void SceneAttachWorker::attachToolToScene(const std::string& tool_id)
 
   attached_object_pub_->publish(att);
   removeWorldToolObject(tool_id);  // 附着前后各清一次，避免 world 里留有陈旧 attached_tool_* 副本喵~
+  updateRobotDescription(tool_id);  // 发布对应 URDF → 前端 3D reloadUrdf 喵~
   RCLCPP_INFO(get_logger(),
               "AttachedCollisionObject ADD: %s → kuaihuan_Link | offset xyz=(%.4f, %.4f, %.4f)",
               tool_id.c_str(),
@@ -289,6 +336,7 @@ void SceneAttachWorker::detachToolFromScene(const std::string& tool_id)
 
   attached_object_pub_->publish(att);
   removeWorldToolObject(tool_id);  // detach 后 MoveIt 可能把对象放回 world，必须 REMOVE 以免挡笛卡尔路径喵~
+  updateRobotDescription("");  // 恢复默认 URDF（无夹爪）→ 前端 3D reloadUrdf 喵~
   RCLCPP_INFO(get_logger(), "AttachedCollisionObject REMOVE: %s", tool_id.c_str());
 }
 
@@ -336,6 +384,56 @@ void SceneAttachWorker::onSceneDetach(
   }
   resp->success = found;
   resp->message = found ? ("脱离: " + req->tool_id) : ("未知工具: " + req->tool_id);
+}
+
+void SceneAttachWorker::onSetDisplayTool(
+    std::shared_ptr<ivg_interfaces::srv::ChangeTool::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::ChangeTool::Response> resp)
+{
+  // 仅发布/更新 URDF 到 /robot_description，不修改 MoveIt 碰撞场景喵~
+  bool found = urdf_cache_.find(req->tool_id) != urdf_cache_.end();
+  if (found) {
+    updateRobotDescription(req->tool_id);
+    RCLCPP_INFO(get_logger(), "显示工具 URDF: %s", req->tool_id.c_str());
+  } else {
+    RCLCPP_WARN(get_logger(), "显示工具 URDF 失败, 缓存未命中: %s", req->tool_id.c_str());
+  }
+  resp->success = found;
+  resp->message = found
+    ? ("URDF 已更新为: " + req->tool_id)
+    : ("未知工具 ID（URDF 缓存未命中）: " + req->tool_id);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// robot_description 参数更新（前端 3D URDF 重载）喵~
+// ═══════════════════════════════════════════════════════════════════════
+
+void SceneAttachWorker::updateRobotDescription(const std::string& tool_id)
+{
+  auto it = urdf_cache_.find(tool_id);
+  if (it == urdf_cache_.end()) {
+    RCLCPP_WARN(get_logger(), "URDF 缓存未命中: '%s'", tool_id.c_str());
+    return;
+  }
+
+  // 1. 发布到 /robot_description 话题（TRANSIENT_LOCAL → latched，新订阅者立即可得）喵~
+  auto msg = std_msgs::msg::String();
+  msg.data = it->second;
+  robot_description_pub_->publish(msg);
+  RCLCPP_INFO(get_logger(), "URDF 已发布到 /robot_description: %s (%zu bytes)",
+              tool_id.empty() ? "(default)" : tool_id.c_str(), it->second.size());
+
+  // 2. 更新 robot_state_publisher 节点的 robot_description 参数
+  //    这是触发 TF 树重建的关键步骤喵~
+  if (!param_client_->wait_for_service(std::chrono::seconds(1))) {
+    RCLCPP_WARN(get_logger(), "robot_state_publisher 参数服务未就绪，跳过 set_parameters");
+    return;
+  }
+  auto result = param_client_->set_parameters(
+      {rclcpp::Parameter("robot_description", it->second)});
+  if (result.valid()) {
+    RCLCPP_INFO(get_logger(), "robot_state_publisher robot_description 参数已更新");
+  }
 }
 
 }  // namespace tool_changer

@@ -66,30 +66,22 @@ ros2 run coffee_latte_demo latte_node
 
 前端面板由 `aubo_ros2_web_dashboard` 的 FastAPI 网关统一 serve，本包保留 canonical 副本。`latte_io.js` 模块在页面加载时自动初始化 IO 绑定。
 
+## 构建
 
+```bash
+cd aubo_ros2_ws
+source /opt/ros/humble/setup.bash
+colcon build --packages-select coffee_latte_demo
+```
 
-牛奶杯子放置位置
----
-header:
-  stamp:
-    sec: 1778045928
-    nanosec: 422361381
-  frame_id: ''
-name:
-- shoulder_joint
-- upperArm_joint
-- foreArm_joint
-- wrist1_joint
-- wrist2_joint
-- wrist3_joint
-position:
-- -2.148547635694115
-- -0.28870303110108714
-- 1.7914299219356202
-- -0.07232546632929636
-- 0.9749064587674912
-- 1.18188634962707
-velocity: []
-effort: []
----
+## 依赖
+
+- ROS 2: rclpy, std_msgs, std_srvs
+- ivg_interfaces (SetRobotIO, RobotIOStatus)
+- aubo_driver_ros2 (IO 硬件抽象)
+
+## 参考
+
+- 前端面板: `web/public/coffee_latte_panel.html`
+- CLAUDE.md §19 `ivg_interfaces` 统一接口包
 

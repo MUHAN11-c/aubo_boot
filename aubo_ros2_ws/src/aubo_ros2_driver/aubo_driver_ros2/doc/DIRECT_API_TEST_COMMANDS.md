@@ -5,7 +5,7 @@
 ## 1. 编译与启动
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd ~/aubo_boot/aubo_ros2_ws
 colcon build --packages-select aubo_driver_ros2
 source install/setup.bash
 ```

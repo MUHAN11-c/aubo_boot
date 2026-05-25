@@ -44,7 +44,7 @@ body {
     border-bottom: 2px solid transparent; margin-bottom: -2px;
     transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
-.settings-tab:hover { color: var(--text); background: var(--accent-soft, rgba(37,99,235,0.07)); }
+.settings-tab:hover { color: var(--text); background: var(--accent-soft, rgba(79,111,138,0.08)); }
 .settings-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
 /* 标签内容 */
@@ -77,7 +77,7 @@ body {
     font-size: 0.8rem; font-family: ui-monospace, Consolas, monospace;
     background: var(--bg-elevated); color: var(--text); transition: border-color 0.15s;
 }
-.settings-item input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(37,99,235,0.1); }
+.settings-item input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 .settings-item input::placeholder { color: #94a3b8; }
 
 /* 已修改标记 */
@@ -96,7 +96,7 @@ body {
     background: var(--bg-elevated); color: var(--text); cursor: pointer;
     transition: border-color 0.15s, background 0.15s, transform 0.15s;
 }
-.btn:hover { border-color: var(--accent); background: rgba(37,99,235,0.06); transform: translateY(-1px); }
+.btn:hover { border-color: var(--accent); background: var(--accent-soft); transform: translateY(-1px); }
 .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: var(--shadow-sm, 0 1px 3px rgba(15,23,42,0.04)); }
 .settings-msg { margin-top: 0.4rem; font-size: 0.75rem; font-weight: 500; }

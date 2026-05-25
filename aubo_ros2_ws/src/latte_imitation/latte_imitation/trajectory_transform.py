@@ -276,11 +276,12 @@ def retarget_trajectory(
     start_pose: Pose,
     rpy_user: tuple[float, float, float] = (0.0, 0.0, 0.0),
     absolute_orientation: bool = False,
+    translation_offset: tuple[float, float, float] = (0.0, 0.0, 0.0),
 ) -> CartesianTrajectory:
     """SE(3) 重定目标: RM65 base frame → AUBO base frame 喵~
 
     变换公式:
-        p_new[i] = R_rel @ (p_orig[i] - p_orig[0]) + p_target
+        p_new[i] = R_rel @ (p_orig[i] - p_orig[0]) + p_target + translation_offset
         q_new[i] = q_rel * q_orig[i]  (Hamilton 乘积)
 
     特性:
@@ -299,6 +300,7 @@ def retarget_trajectory(
         rpy_user:            (roll_deg, pitch_deg, yaw_deg) 用户可调旋转 喵~
         absolute_orientation: False=相对叠加 (默认, 保留倾斜) /
                              True=绝对目标朝向 (Frame0 = rpy_user*q_cup) 喵~
+        translation_offset:  (dx, dy, dz) 平移偏移 (m), 叠加在 target 位置上 喵~
 
     Returns:
         变换后的 CartesianTrajectory (AUBO base frame) 喵~
@@ -333,9 +335,10 @@ def retarget_trajectory(
     else:
         R_rel = np.eye(3)
 
-    # 位置变换: p_new = R_rel @ (p - p0) + p_target
+    # 位置变换: p_new = R_rel @ (p - p0) + p_target + translation_offset
+    translation = np.array(translation_offset, dtype=float)
     new_positions = np.array([
-        R_rel @ (p - p0) + p_target for p in cart.positions
+        R_rel @ (p - p0) + p_target + translation for p in cart.positions
     ])
 
     # 朝向变换: q_new = q_rel * q_orig (Hamilton 乘积)

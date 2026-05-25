@@ -195,6 +195,12 @@ body.ivg-single-screen {
   background: var(--bg-elevated); text-align: right; font-family: monospace;
 }
 .latte-num-inp:focus { border-color: var(--accent); outline: none; }
+.latte-select {
+  width: auto; padding: 0.12rem 0.22rem; font-size: 0.7rem;
+  border: 1px solid var(--border); border-radius: 4px;
+  background: var(--bg-elevated); color: var(--text); font-family: monospace;
+}
+.latte-select:focus { border-color: var(--accent); outline: none; }
 .latte-range { flex: 1 1 auto; min-width: 2.5rem; accent-color: var(--latte-accent); }
 .latte-range-val { font-size: 0.65rem; font-family: monospace; color: var(--text-muted); min-width: 2.2rem; text-align: right; }
 .latte-chk { width: 0.9rem; height: 0.9rem; accent-color: var(--latte-accent); }
@@ -272,7 +278,7 @@ body.ivg-single-screen {
   gap: 0.22rem 0; align-content: stretch; align-items: stretch;
   width: 100%; max-width: none;
   border-top: 1px solid var(--border); padding-top: 0.22rem; margin-top: 0;
-  flex-shrink: 1; overflow: hidden;
+  flex-shrink: 0; overflow: hidden;
 }
 .layout-body--monitoring.is-monitoring-collapsed {
   grid-template-rows: auto 0fr;
@@ -300,7 +306,7 @@ body.ivg-single-screen {
   grid-template-columns: minmax(0, 1fr) minmax(170px, 210px);
   grid-template-rows: minmax(0, 1fr);
   gap: 0.22rem 0.3rem;
-  align-items: stretch; min-height: 0; flex: 1 1 0; overflow: hidden; min-width: 0;
+  align-items: stretch; min-height: var(--ivg-monitoring-bundle-min-px, 0); flex: 1 1 0; overflow: hidden; min-width: 0;
 }
 .layout-monitoring-bundle > .panel--chart { grid-column: 1; grid-row: 1; }
 .layout-monitoring-pose-col {
@@ -361,11 +367,11 @@ body.ivg-single-screen {
 
 /* DI 反馈灯 */
 .panel--latte-di-monitoring {
-  background: var(--bg-muted); border: 1px solid rgba(37, 99, 235, 0.12);
+  background: var(--bg-muted); border: 1px solid var(--latte-border);
   box-shadow: var(--shadow-sm);
 }
 .panel--latte-di-monitoring > h2 {
-  border-bottom-color: rgba(37, 99, 235, 0.3); color: var(--text);
+  border-bottom-color: var(--latte-border); color: var(--text);
 }
 .latte-io-lights--monitoring {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -396,7 +402,7 @@ body.ivg-single-screen {
 .latte-io-light__tag {
   display: inline-block; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.06em;
   color: var(--accent); background: var(--accent-soft);
-  border: 1px solid rgba(37, 99, 235, 0.22); border-radius: 4px;
+  border: 1px solid var(--latte-border); border-radius: 4px;
   padding: 0.06rem 0.28rem;
 }
 
@@ -424,4 +430,287 @@ body.ivg-single-screen {
 @media (hover: none) and (pointer: coarse), (max-width: 1024px) {
   .btn-settings { min-height: 44px; }
   .latte-btn { min-height: 40px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   拉花参数面板视觉增强 — 手作烘焙主题
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── 面板基底暖化 ── */
+.latte-result-panel {
+  background: var(--latte-surface) !important;
+  border-left-color: var(--latte-cardamom) !important;
+}
+.latte-result-panel > h2 {
+  color: var(--latte-espresso) !important;
+  border-bottom-color: var(--latte-cardamom) !important;
+  background: var(--latte-surface) !important;
+}
+
+/* ── 参数分组卡片 ── */
+.latte-ctrl-group {
+  background: var(--bg-elevated);
+  border: 1px solid var(--latte-border);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.55rem;
+  margin-bottom: 0.4rem;
+  box-shadow: var(--latte-shadow);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.latte-ctrl-group:hover {
+  border-color: rgba(139, 94, 60, 0.35);
+  box-shadow: 0 4px 20px rgba(60, 30, 10, 0.09);
+}
+.latte-ctrl-title {
+  color: var(--latte-espresso) !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.3rem !important;
+  padding-bottom: 0.18rem !important;
+  border-bottom: 2px solid var(--latte-border) !important;
+}
+
+/* ── 自定义 range slider ── */
+input[type="range"].latte-range {
+  -webkit-appearance: none; appearance: none;
+  height: 6px; border-radius: 3px;
+  background: linear-gradient(to right, var(--latte-cream), var(--latte-cardamom));
+  border: 1px solid var(--latte-border); outline: none; cursor: pointer;
+  transition: background 0.2s;
+}
+input[type="range"].latte-range:focus-visible {
+  box-shadow: var(--latte-glow);
+}
+input[type="range"].latte-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--latte-accent);
+  border: 2px solid #fff; box-shadow: 0 1px 4px rgba(60, 30, 10, 0.25);
+  cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
+}
+input[type="range"].latte-range::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(60, 30, 10, 0.35);
+}
+input[type="range"].latte-range::-moz-range-thumb {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--latte-accent);
+  border: 2px solid #fff; box-shadow: 0 1px 4px rgba(60, 30, 10, 0.25);
+  cursor: pointer;
+}
+
+/* ── 图案卡片视觉增强 ── */
+.latte-pattern-cards { gap: 0.3rem; }
+.latte-pattern-card {
+  position: relative; overflow: hidden;
+  padding: 0.32rem 0.6rem; font-size: 0.7rem; font-weight: 600;
+  border: 1.5px solid var(--latte-border); border-radius: 8px;
+  background: var(--bg-elevated); color: var(--latte-cardamom);
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.latte-pattern-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(180, 83, 9, 0.04), rgba(139, 94, 60, 0.06));
+  opacity: 0; transition: opacity 0.25s;
+}
+.latte-pattern-card:hover {
+  border-color: var(--latte-warm);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(60, 30, 10, 0.1);
+}
+.latte-pattern-card:hover::before { opacity: 1; }
+.latte-pattern-card--sel {
+  border-color: var(--latte-accent) !important;
+  background: linear-gradient(135deg, #fef7ed 0%, #fdf5e8 100%) !important;
+  color: var(--latte-espresso) !important;
+  box-shadow: 0 2px 10px rgba(124, 74, 42, 0.12), inset 0 1px 0 rgba(255,255,255,0.7);
+  font-weight: 700;
+}
+.latte-pattern-card--sel::before { opacity: 1; }
+
+/* 图案卡片上方图案标识符（伪元素替代 SVG 图标） */
+.latte-pattern-card::after {
+  display: block; text-align: center; font-size: 0.9rem;
+  line-height: 1; margin-bottom: 0.15rem; opacity: 0.55;
+  transition: opacity 0.25s;
+}
+.latte-pattern-card--sel::after { opacity: 0.85; }
+.latte-pattern-card[data-pattern="heart"]::after { content: '🤍'; }
+.latte-pattern-card[data-pattern="rosetta"]::after { content: '🌿'; }
+.latte-pattern-card[data-pattern="tulip"]::after { content: '🌷'; }
+.latte-pattern-card[data-pattern="swan"]::after { content: '🦢'; }
+.latte-pattern-card[data-pattern=""]::after { content: '📼'; }
+
+/* ── number 输入框暖化 ── */
+.latte-num-inp {
+  border-color: var(--latte-border) !important;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.latte-num-inp:focus {
+  border-color: var(--latte-gold) !important;
+  box-shadow: var(--latte-glow);
+}
+
+
+/* ── 数字输入行 ── */
+.latte-cfg-row { gap: 0.3rem; }
+.latte-cfg-label {
+  color: var(--latte-cardamom) !important; font-weight: 500;
+}
+.latte-range-val {
+  color: var(--latte-accent) !important; font-weight: 600;
+}
+
+/* ── 执行按钮暖化 ── */
+.latte-btn {
+  border-radius: 6px; font-weight: 600; letter-spacing: 0.02em;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.latte-btn--preview {
+  background: var(--latte-froth) !important;
+  border-color: var(--latte-border) !important;
+  color: var(--latte-cardamom) !important;
+}
+.latte-btn--preview:hover:not(:disabled) {
+  background: var(--latte-cream) !important;
+  border-color: var(--latte-gold) !important;
+  transform: translateY(-1px);
+  box-shadow: var(--latte-shadow);
+}
+.latte-btn--execute {
+  background: var(--latte-accent) !important;
+  border-color: var(--latte-accent) !important;
+  box-shadow: 0 2px 6px rgba(124, 74, 42, 0.2);
+}
+.latte-btn--execute:hover:not(:disabled) {
+  background: var(--latte-espresso) !important;
+  border-color: var(--latte-espresso) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(60, 30, 10, 0.3);
+}
+.latte-btn--stop:hover:not(:disabled) { transform: translateY(-1px); }
+.latte-btn--home:hover:not(:disabled) {
+  background: var(--bg-elevated) !important;
+  border-color: var(--latte-cardamom) !important;
+  transform: translateY(-1px);
+}
+
+/* ── 消息条 ── */
+.latte-msg {
+  border-radius: 7px; font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.latte-msg--ok {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  border-color: #86efac;
+}
+.latte-msg--err {
+  background: linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%);
+  border-color: #fca5a5;
+}
+
+/* ── IO 面板暖化 ── */
+.panel--latte-io {
+  border-left-color: var(--latte-cardamom) !important;
+}
+.latte-io-toggle[aria-pressed="true"] {
+  background: var(--latte-accent) !important;
+  border-color: var(--latte-accent) !important;
+}
+.latte-io-light {
+  border-top-color: var(--latte-cardamom) !important;
+}
+
+/* ── 动画 ── */
+@keyframes latte-pulse {
+  0%, 100% { box-shadow: 0 2px 10px rgba(124, 74, 42, 0.12); }
+  50% { box-shadow: 0 2px 18px rgba(124, 74, 42, 0.22); }
+}
+.latte-exec-row { border-top-color: var(--latte-border) !important; }
+
+/* ── 拉花操作日志 ── */
+.latte-log-box {
+  flex: 1 1 0; min-height: 0;
+  display: flex; flex-direction: column;
+  margin-top: 0.4rem; border: 1px solid var(--latte-border);
+  border-radius: var(--radius-sm); overflow: hidden;
+  background: var(--bg-elevated);
+}
+.latte-log-box__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.22rem 0.45rem;
+  background: var(--latte-froth); border-bottom: 1px solid var(--latte-border);
+}
+.latte-log-box__title {
+  font-size: 0.68rem; font-weight: 700; color: var(--latte-espresso);
+  letter-spacing: 0.03em; text-transform: uppercase;
+}
+.latte-log-box__clear {
+  padding: 0.1rem 0.35rem; font-size: 0.62rem; font-family: inherit;
+  border: 1px solid var(--latte-border); border-radius: 4px;
+  background: var(--bg-elevated); color: var(--text-muted); cursor: pointer;
+  transition: all 0.15s;
+}
+.latte-log-box__clear:hover { border-color: var(--err); color: var(--err); }
+.latte-log-box__body {
+  flex: 1 1 0; max-height: none; overflow-y: auto;
+  padding: 0.2rem 0.35rem;
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-size: 0.65rem; line-height: 1.55;
+}
+.latte-log-box__body:empty::after {
+  content: '暂无操作日志'; display: block; text-align: center;
+  color: var(--text-muted); opacity: 0.5; padding: 0.5rem 0;
+}
+.latte-log-line {
+  padding: 0.1rem 0; border-bottom: 1px solid rgba(139, 94, 60, 0.06);
+  display: flex; gap: 0.3rem; align-items: baseline;
+  animation: logSlideIn 0.2s ease-out;
+}
+@keyframes logSlideIn {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.latte-log-line__time {
+  color: var(--text-muted); flex-shrink: 0; font-size: 0.6rem;
+}
+.latte-log-line__msg { flex: 1; min-width: 0; word-break: break-word; }
+.latte-log-line--info .latte-log-line__msg { color: var(--text-secondary); }
+.latte-log-line--error .latte-log-line__msg { color: var(--err); font-weight: 600; }
+.latte-log-line--warn .latte-log-line__msg { color: var(--warn); }
+.latte-log-line--ok .latte-log-line__msg { color: var(--ok); }
+.latte-log-line__phase {
+  flex-shrink: 0; font-size: 0.58rem; font-weight: 600;
+  padding: 0.04rem 0.22rem; border-radius: 3px;
+}
+.latte-log-line__phase--start { background: #eff6ff; color: var(--accent); }
+.latte-log-line__phase--completed { background: #f0fdf4; color: #16a34a; }
+.latte-log-line__phase--failed { background: #fef2f2; color: #dc2626; }
+.latte-log-line__phase--in_progress { background: #fffbeb; color: #d97706; }
+
+/* ── 图案选择卡片 ── */
+.latte-pattern-cards {
+  display: flex; flex-wrap: wrap; gap: 0.35rem;
+}
+.latte-pattern-card {
+  padding: 0.28rem 0.65rem; border: 1px solid #d1d5db;
+  border-radius: 6px; background: #fff; cursor: pointer;
+  font-size: 0.78rem; color: #374151; transition: all 0.15s;
+}
+.latte-pattern-card:hover { border-color: var(--accent); color: var(--accent); }
+.latte-pattern-card--sel {
+  border-color: var(--accent); background: #eff6ff;
+  color: var(--accent); font-weight: 600;
+}
+
+/* ── 控制区描述文字 ── */
+.latte-ctrl-desc {
+  margin: 0 0 0.35rem; font-size: 0.72rem; color: #6b7280;
+  line-height: 1.4;
+}
+
+/* ── 实时预览提示 ── */
+.latte-cfg-hint {
+  font-size: 0.7rem; color: #9ca3af; margin-left: 0.35rem;
 }

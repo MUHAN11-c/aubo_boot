@@ -33,7 +33,7 @@ ros-${ROS_DISTRO}-diagnostic-msgs
 ## 构建
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd ~/aubo_boot/aubo_ros2_ws
 source /opt/ros/humble/setup.bash
 colcon build --packages-select percipio_camera percipio_camera_interface image_data_bridge \
   --cmake-args -DCMAKE_BUILD_TYPE=Release
@@ -65,18 +65,9 @@ ros2 launch percipio_camera percipio_camera.launch.py
 
 调试时可使用 `ros2 topic list`、`ros2 service list`、`rviz2` 订阅上述话题。
 
----
+> 注意: `percipio_camera` 已改为直接用 `rclcpp::Publisher<Image>` 发布图像（非 image_transport），不再自动生成 compressed/compressedDepth 等派生话题。如需压缩图可单独起 `image_transport republish` 节点喵~。
 
-*Percipio SDK 与 CMake 中 OpenCV 组件（如 `photo`、`highgui`）需与 `percipio_camera` 的 `CMakeLists.txt` 一致，否则可能出现链接或运行时符号错误。*
-原因说明
-日志里的 CompressedPublisher 和 compressed_depth_image_transport 来自 image_transport::create_publisher()：会在同一节点上为每个 */image_raw 自动挂 彩色压缩、深度压缩 等插件。Percipio 同时发 彩色 rgb8 和 深度 16UC1 时，ROS2 里经常出现 插件串流/格式错配（深度压缩收到 rgb8、彩色压缩又去处理 16UC1），于是刷屏报错。这与 camport_ros2 / percipio_camera 使用 image_transport 发布多路图像是同一类问题。
+## 参考
 
-修改说明（本地工作区）
-在 percipio_camera 中已改为使用普通 rclcpp::Publisher<sensor_msgs::msg::Image> 发布 color/depth/.../image_raw，不再经过 image_transport 插件链，因此不会再拉起上述 CompressedPublisher / compressed_depth。
-
-percipio_camera_node.h：image_transport::Publisher → rclcpp::Publisher<Image>::SharedPtr，去掉无用 include。
-percipio_camera_node.cpp：create_publisher<Image>(...)；get_subscription_count()；publish(*image_msg)（与当前 cv_bridge 返回的 shared_ptr 一致）。
-CMakeLists.txt：去掉对 image_transport、image_publisher 的依赖（本包内已无引用）。
-代价：节点不再自动提供 .../image_raw/compressed、.../compressedDepth 等派生话题；rosbridge / RWT / 订阅 image_raw 的节点不受影响。若你以后必须用网络压缩图，可单独起 image_transport republish 节点，只接在需要的话题上。
-
-已在本机执行 colcon build --packages-select percipio_camera 通过。
+- 各子包详细文档见 `src/` 下对应的 `README.md`
+- 相机型号与参数: `README.md` §0.5

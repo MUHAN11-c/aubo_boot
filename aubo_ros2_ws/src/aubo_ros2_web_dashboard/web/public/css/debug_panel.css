@@ -1,0 +1,235 @@
+/* debug_panel.css — 调试面板样式 */
+
+/* ── 布局容器 ──────────────────────────────────────────────────────────────── */
+
+.debug-wrap {
+  flex: 1; padding: 0.5rem 1rem 1rem;
+  max-width: 1400px; margin: 0 auto; width: 100%;
+}
+
+.debug-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem;
+  padding: 0.55rem 0.85rem; margin-bottom: 0.5rem;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm);
+}
+.debug-toolbar h1 { font-size: 1.1rem; margin: 0; font-weight: 700; }
+.debug-toolbar .hint { font-size: 0.75rem; color: var(--text-muted); }
+.debug-toolbar .conn-status { margin-left: auto; font-size: 0.75rem; font-weight: 600; }
+.debug-toolbar .conn-status.online { color: var(--ok); }
+.debug-toolbar .conn-status.offline { color: var(--err); }
+
+/* ── 状态栏 ───────────────────────────────────────────────────────────────── */
+
+.debug-status-bar {
+  display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; align-items: center;
+  padding: 0.5rem 0.85rem; margin-bottom: 0.5rem;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  font-size: 0.78rem; font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+.debug-status-bar .status-group {
+  display: flex; align-items: center; gap: 0.35rem;
+}
+.debug-status-bar .status-label { color: var(--text-muted); font-weight: 600; }
+.debug-status-bar .status-value { color: var(--text); }
+.debug-status-bar .status-dot {
+  width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0;
+}
+.debug-status-bar .status-dot.green { background: var(--ok); box-shadow: 0 0 4px rgba(22,163,74,0.4); }
+.debug-status-bar .status-dot.red { background: var(--err); box-shadow: 0 0 4px rgba(220,38,38,0.4); }
+.debug-status-bar .status-dot.yellow { background: var(--warn); box-shadow: 0 0 4px rgba(217,119,6,0.4); }
+.debug-status-bar .status-dot.gray { background: var(--text-muted); }
+
+.debug-status-bar .pose-group {
+  margin-left: auto; display: flex; gap: 1rem; align-items: center;
+}
+.debug-status-bar .pose-item { color: var(--text-secondary); }
+.debug-status-bar .pose-item span { color: var(--text); font-weight: 600; }
+
+/* ── 网格 ─────────────────────────────────────────────────────────────────── */
+
+.debug-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;
+}
+.debug-grid .span-2 { grid-column: 1 / -1; }
+
+/* ── 面板卡片 ─────────────────────────────────────────────────────────────── */
+
+.debug-card {
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 0.65rem 0.85rem;
+  box-shadow: var(--shadow-sm);
+}
+.debug-card.highlight { border-left: 3px solid var(--accent); }
+.debug-card.warn-card { border-left: 3px solid var(--warn); }
+.debug-card.ok-card { border-left: 3px solid var(--ok); }
+
+.debug-card h2 {
+  margin: 0 0 0.45rem; font-size: 0.75rem; font-weight: 700;
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em;
+  padding-bottom: 0.3rem; border-bottom: 2px solid var(--accent);
+  display: flex; align-items: center; gap: 0.4rem;
+}
+.debug-card h2 .card-icon { font-size: 0.85rem; }
+.debug-card.warn-card h2 { border-bottom-color: var(--warn); }
+.debug-card.ok-card h2 { border-bottom-color: var(--ok); }
+
+/* ── 参数行 ───────────────────────────────────────────────────────────────── */
+
+.debug-row {
+  display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.3rem;
+}
+.debug-row label {
+  font-size: 0.72rem; font-weight: 600; color: var(--text-muted);
+  min-width: 1rem; white-space: nowrap;
+}
+.debug-row label.wide-label { min-width: 2.8rem; }
+
+.debug-input {
+  padding: 0.28rem 0.4rem;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 0.78rem; font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  background: var(--bg-elevated); color: var(--text);
+  transition: border-color 0.15s;
+}
+.debug-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.debug-input.w100 { width: 100%; flex: 1; min-width: 0; }
+.debug-input.w4 { width: 4rem; }
+.debug-input.w5 { width: 5rem; }
+.debug-input.w6 { width: 6rem; }
+
+.debug-select {
+  padding: 0.28rem 0.35rem; font-size: 0.76rem; font-family: inherit;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-elevated); color: var(--text); cursor: pointer;
+}
+.debug-select:focus { outline: none; border-color: var(--accent); }
+
+/* ── 关节网格 ─────────────────────────────────────────────────────────────── */
+
+.debug-joint-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.2rem 0.4rem;
+}
+.debug-joint-grid.col2 { grid-template-columns: repeat(2, 1fr); }
+.debug-joint-grid label { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); }
+.debug-joint-grid input { width: 100%; box-sizing: border-box; }
+
+/* ── 按钮 ─────────────────────────────────────────────────────────────────── */
+
+.debug-btn-row { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.45rem; }
+
+.debug-btn {
+  padding: 0.3rem 0.75rem; font-size: 0.75rem; font-weight: 600; font-family: inherit;
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--bg-elevated); color: var(--text); cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+.debug-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
+.debug-btn:active:not(:disabled) { transform: scale(0.97); }
+.debug-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.debug-btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.debug-btn--primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+.debug-btn--ok { background: var(--ok); color: #fff; border-color: var(--ok); }
+.debug-btn--ok:hover:not(:disabled) { background: #15803d; }
+
+.debug-btn--warn { color: var(--warn); border-color: var(--warn); }
+.debug-btn--warn:hover:not(:disabled) { background: rgba(217,119,6,0.08); }
+
+.debug-btn--danger { color: var(--err); border-color: #fecaca; }
+.debug-btn--danger:hover:not(:disabled) { background: #fef2f2; }
+
+.debug-btn--sm { padding: 0.2rem 0.5rem; font-size: 0.7rem; }
+
+/* ── 实时数据展示 ─────────────────────────────────────────────────────────── */
+
+.debug-live-data {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.3rem 0.5rem; font-size: 0.72rem; font-family: ui-monospace, monospace;
+}
+.debug-live-data .live-item { display: flex; gap: 0.3rem; align-items: baseline; }
+.debug-live-data .live-key { color: var(--text-muted); white-space: nowrap; }
+.debug-live-data .live-val { color: var(--text); font-weight: 600; }
+
+/* ── 日志区域 ─────────────────────────────────────────────────────────────── */
+
+.debug-log {
+  margin-top: 0.35rem; padding: 0.35rem 0.5rem;
+  background: var(--bg-muted); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.72rem; color: var(--text-secondary);
+  min-height: 2.2rem; max-height: 7rem; overflow-y: auto;
+  line-height: 1.4; white-space: pre-wrap; word-break: break-all;
+}
+.debug-log.large { min-height: 8rem; max-height: 20rem; }
+
+.debug-log .log-ok { color: var(--ok); }
+.debug-log .log-err { color: var(--err); }
+.debug-log .log-warn { color: var(--warn); }
+.debug-log .log-time { color: var(--text-muted); font-size: 0.7rem; }
+
+/* ── 滑动条 ───────────────────────────────────────────────────────────────── */
+
+.debug-slider {
+  display: flex; align-items: center; gap: 0.5rem; margin: 0.3rem 0;
+}
+.debug-slider input[type="range"] {
+  flex: 1; accent-color: var(--accent); height: 6px;
+}
+.debug-slider .slider-val {
+  font-size: 0.78rem; font-weight: 700; font-family: ui-monospace, monospace;
+  min-width: 2.8rem; text-align: right; color: var(--text);
+}
+
+/* ── 选项卡 ───────────────────────────────────────────────────────────────── */
+
+.debug-tabs {
+  display: flex; gap: 0; margin-bottom: 0.4rem;
+  border-bottom: 2px solid var(--border);
+}
+.debug-tab {
+  padding: 0.25rem 0.7rem; font-size: 0.73rem; font-weight: 600; font-family: inherit;
+  border: none; border-bottom: 2px solid transparent; margin-bottom: -2px;
+  background: transparent; color: var(--text-muted); cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.debug-tab:hover { color: var(--text); }
+.debug-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── 状态指示灯 (大号) ───────────────────────────────────────────────────── */
+
+.debug-led {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.15rem 0.5rem; border-radius: 99px;
+  font-size: 0.72rem; font-weight: 700;
+}
+.debug-led.on { background: #dcfce7; color: #166534; }
+.debug-led.off { background: #fef2f2; color: #991b1b; }
+.debug-led.idle { background: #f0f9ff; color: #075985; }
+
+/* ── 空状态 ───────────────────────────────────────────────────────────────── */
+
+.debug-empty {
+  color: var(--text-muted); font-size: 0.75rem; font-style: italic;
+  padding: 0.5rem; text-align: center;
+}
+
+/* ── 响应式 ───────────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .debug-grid { grid-template-columns: 1fr; }
+  .debug-grid .span-2 { grid-column: 1; }
+  .debug-joint-grid { grid-template-columns: repeat(2, 1fr); }
+  .debug-status-bar { flex-direction: column; align-items: flex-start; }
+  .debug-status-bar .pose-group { margin-left: 0; }
+}
+
+@media (max-width: 500px) {
+  .debug-wrap { padding: 0.3rem 0.5rem 0.5rem; }
+  .debug-joint-grid { grid-template-columns: 1fr 1fr; }
+  .debug-live-data { grid-template-columns: 1fr 1fr; }
+}

@@ -20,7 +20,7 @@ export function createMonitoringCollapse(opts) {
     const sectionId = options.sectionId || DEFAULT_SECTION_ID;
     const bundleId = options.bundleId || DEFAULT_BUNDLE_ID;
     const toggleBtnId = options.toggleBtnId || DEFAULT_TOGGLE_ID;
-    const floorPx = options.floorPx || 260;  // 位姿列最小高度
+    const floorPx = options.floorPx || 200;  // 位姿列最小高度
 
     let _minHeightRaf = 0;
     let _resizeObserver = null;

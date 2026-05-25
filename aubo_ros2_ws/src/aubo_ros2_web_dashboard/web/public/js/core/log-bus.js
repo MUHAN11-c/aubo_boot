@@ -2,14 +2,40 @@
 // 所有模块通过此单例写入日志，替代分散的 console/__ivgLog/ros._log 喵~
 //
 // 用法:
-//   import { logBus } from '../core/log-bus.js';
+//   import { logBus, LOG_LEVELS } from '../core/log-bus.js';
 //   logBus.addLog('info', 'ros_manager', 'rosbridge connected');
-//   logBus.onLog((entry) => { renderLine(entry); });
+//   logBus.addLog('info', 'service', '执行完成', {}, 'latte');
+//   logBus.setLevel(LOG_LEVELS.debug);  // 调试模式
 //
-// 参考: 12-Factor App (日志作为事件流) + Grafana Loki (标签化过滤)
-// 跨页面: BroadcastChannel API — 日志面板可实时看到其他页面的日志喵~
+// 维度说明:
+//   source  = 技术来源 (谁产生的): console / rosbridge / topic / service / rosout / lifecycle / ros_manager / system
+//   feature = 功能归属 (属于哪个功能): latte / vision_grasp / tool_change / io_control / view3d / settings
+//   source 和 feature 正交 — 同一 service 调用可能属于 latte 或 vision_grasp 喵~
+//
+// 频率控制:
+//   topic  source → 5s 窗口内同消息折叠, 窗口到期输出 "[重复N次]" 摘要
+//   rosout source → 3s 窗口按 (node, message) 去重
+//   service 等 → 不节流, 全量保留
+//   调试模式 → 关闭所有节流, 全量输出
+//
+// 参考: Grafana Loki 标签体系 (Stream labels + Structured Metadata)
+//       + OpenTelemetry BatchLogRecordProcessor (缓冲-批量导出)
+//       + Loki 三级采样策略 (ERROR 100% / WARN 节流 / INFO+DEBUG 折叠)
 
-// ── 分类定义（颜色 + 标签）─────────────────────────────────────────────────
+// ── 日志等级 ——————————————————————————————————————————————————————
+const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3, silent: 4 };
+const LOG_LEVEL_NAMES = ['debug', 'info', 'warn', 'error', 'silent'];
+
+// ── 频率控制配置 ——————————————————————————————————————————————————
+// windowMs: 时间窗口 (0=不限流)
+// keyFields: 哪些字段参与去重 key 计算 (默认: source, feature, level, msg)
+const RATE_PROFILES = {
+    topic:     { windowMs: 5000,  keyFields: ['source', 'feature', 'level', 'msg'] },
+    rosout:    { windowMs: 3000,  keyFields: ['source', 'feature', 'level', 'node', 'msg'] },
+    // service / lifecycle / console 等不限流
+};
+
+// ── 技术来源分类 ——————————————————————————————————————————————————
 const CATEGORIES = {
     console:    { color: 'var(--text-muted)', label: 'console' },
     error:      { color: 'var(--red)',        label: 'error' },
@@ -22,14 +48,30 @@ const CATEGORIES = {
     system:     { color: 'var(--orange)',     label: 'system' },
 };
 
-// ── IndexedDB 持久化 ─────────────────────────────────────────────────────
+// ── 功能模块标签 ——————————————————————————————————————————————————
+const FEATURES = {
+    latte:          { color: '#a78bfa', label: '☕ 拉花' },
+    vision_grasp:   { color: '#34d399', label: '👁 视觉抓取' },
+    tool_change:    { color: '#fbbf24', label: '🔧 快换' },
+    io_control:     { color: '#f472b6', label: '⚡ IO' },
+    view3d:         { color: '#38bdf8', label: '🎨 3D' },
+    settings:       { color: '#a3a3a3', label: '⚙ 设置' },
+};
+
+// ── IndexedDB 持久化 ——————————————————————————————————————————————
 const DB_NAME = 'ivg_logs';
 const DB_VERSION = 1;
 const STORE_NAME = 'entries';
 const MAX_PERSISTED = 5000;
 
 let _db = null;
-let _pendingWrites = 0;  // 追踪待写入数量，用于 pagehide flush
+let _pendingWrites = 0;
+
+// 批量写入缓冲
+let _writeBuffer = [];
+const WRITE_BATCH_SIZE = 50;      // 每 50 条或 2s flush 一次
+let _writeTimer = null;
+const WRITE_FLUSH_MS = 2000;
 
 function _openDB() {
     if (_db) return Promise.resolve(_db);
@@ -43,12 +85,24 @@ function _openDB() {
     });
 }
 
-async function _persistOne(entry) {
-    _pendingWrites++;
+function _scheduleFlush() {
+    if (_writeTimer) return;
+    _writeTimer = setTimeout(() => _flushBuffer(), WRITE_FLUSH_MS);
+}
+
+async function _flushBuffer() {
+    _writeTimer = null;
+    if (_writeBuffer.length === 0) return;
+    const batch = _writeBuffer;
+    _writeBuffer = [];
+    _pendingWrites += batch.length;
+
     try {
         const db = await _openDB();
         const tx = db.transaction(STORE_NAME, 'readwrite');
-        tx.objectStore(STORE_NAME).add(entry);
+        for (const entry of batch) {
+            tx.objectStore(STORE_NAME).add(entry);
+        }
         // 环形缓冲: 超出上限删最旧
         const countReq = tx.objectStore(STORE_NAME).count();
         countReq.onsuccess = () => {
@@ -71,10 +125,19 @@ async function _persistOne(entry) {
             tx.onerror = () => reject(tx.error);
         });
     } catch (_) { /* IndexedDB 不可达则静默降级 */ }
-    finally { _pendingWrites--; }
+    finally { _pendingWrites -= batch.length; }
 }
 
-// ── BroadcastChannel 跨页面同步 ──────────────────────────────────────────
+function _bufferWrite(entry) {
+    _writeBuffer.push(entry);
+    if (_writeBuffer.length >= WRITE_BATCH_SIZE) {
+        _flushBuffer();
+    } else {
+        _scheduleFlush();
+    }
+}
+
+// ── BroadcastChannel 跨页面同步 ——————————————————————————————————
 const CHANNEL_NAME = 'ivg_log_bus';
 let _bc = null;
 try {
@@ -83,12 +146,98 @@ try {
     }
 } catch (_) { /* 浏览器不支持则降级 */ }
 
-// ── LogEventBus 类 ────────────────────────────────────────────────────────
+// BroadcastChannel 节流: 每个 (source, msgKey) 最多每秒广播一次
+const _bcThrottle = {};
+const BC_THROTTLE_MS = 1000;
+
+function _shouldBroadcast(entry) {
+    // 非 info/warn/error 不广播 (debug/topic 摘要不跨页面)
+    if (entry.level === 'debug') return false;
+    const key = entry.source + ':' + (entry.feature || '') + ':' + entry.msg.slice(0, 60);
+    const now = Date.now();
+    const last = _bcThrottle[key] || 0;
+    if (now - last < BC_THROTTLE_MS) return false;
+    _bcThrottle[key] = now;
+    return true;
+}
+
+// ── 频率折叠引擎 ——————————————————————————————————————————————————
+const _rateTrackers = {};  // { key: { count, firstTs, lastTs } }
+
+function _computeRateKey(entry, profile) {
+    const fields = profile.keyFields;
+    const parts = fields.map(f => {
+        if (f === 'node' && entry.meta && entry.meta.node) return entry.meta.node;
+        return String(entry[f] || '');
+    });
+    return parts.join('\x00');
+}
+
+function _applyRateLimit(entry) {
+    const profile = RATE_PROFILES[entry.source];
+    if (!profile || profile.windowMs <= 0) return entry; // 不限流
+
+    const key = _computeRateKey(entry, profile);
+    const now = Date.now();
+    const tracker = _rateTrackers[key];
+
+    if (!tracker) {
+        // 首次出现: 记录并放行
+        _rateTrackers[key] = { count: 1, firstTs: now, lastTs: now };
+        return entry;
+    }
+
+    tracker.count++;
+    tracker.lastTs = now;
+
+    if (now - tracker.firstTs >= profile.windowMs) {
+        // 窗口到期: 排放折叠摘要, 重置
+        const count = tracker.count;
+        const summaryEntry = {
+            ts: _timestamp(),
+            level: entry.level,
+            source: entry.source,
+            feature: entry.feature || '',
+            msg: '[' + count + '次] ' + entry.msg,
+            meta: Object.assign({}, entry.meta || {}, { _rateCount: count }),
+        };
+        _rateTrackers[key] = { count: 1, firstTs: now, lastTs: now };
+        return summaryEntry;
+    }
+
+    // 窗口内重复: 抑制
+    return null;
+}
+
+// ── 清理过期 tracker (每 60s 扫描一次) ——————————————————————————
+let _trackerCleanupTimer = null;
+function _scheduleTrackerCleanup() {
+    if (_trackerCleanupTimer) return;
+    _trackerCleanupTimer = setInterval(() => {
+        const now = Date.now();
+        const maxAge = 30000; // 30s 无活动则清理
+        for (const [key, t] of Object.entries(_rateTrackers)) {
+            if (now - t.lastTs > maxAge) {
+                delete _rateTrackers[key];
+            }
+        }
+        // 清理 BC 节流
+        for (const [key, ts] of Object.entries(_bcThrottle)) {
+            if (now - ts > maxAge) {
+                delete _bcThrottle[key];
+            }
+        }
+    }, 60000);
+}
+
+// ── LogEventBus 类 ———————————————————————————————————————————————
 class LogEventBus {
     constructor() {
         this._entries = [];
         this._handlers = new Set();
-        this._maxMemory = 2000;  // 内存上限
+        this._maxMemory = 2000;
+        this._globalLevel = LOG_LEVELS.info;  // 默认: info 及以上
+        this._debugMode = false;              // 调试模式: 关闭所有节流
 
         // 监听其他页面的日志
         if (_bc) {
@@ -99,66 +248,110 @@ class LogEventBus {
             };
         }
 
-        // 页面关闭前尽力刷入 IndexedDB
+        // 页面关闭前刷写缓冲
         if (typeof window !== 'undefined') {
             window.addEventListener('pagehide', () => {
-                // 不阻塞页面关闭，尽力而为
+                if (_writeTimer) clearTimeout(_writeTimer);
+                _flushBuffer();
             });
+            window.addEventListener('beforeunload', () => {
+                if (_writeTimer) clearTimeout(_writeTimer);
+                _flushBuffer();
+            });
+        }
+
+        _scheduleTrackerCleanup();
+    }
+
+    // ── 日志等级 ——————————————————————————————————————————————
+
+    setLevel(level) {
+        if (level >= LOG_LEVELS.silent || level < 0) {
+            this._globalLevel = LOG_LEVELS.info;
+        } else {
+            this._globalLevel = level;
         }
     }
 
-    // ── 写入 ──────────────────────────────────────────────────────────
+    getLevel() { return this._globalLevel; }
+    getLevelName() { return LOG_LEVEL_NAMES[this._globalLevel] || 'info'; }
 
-    addLog(level, source, msg, meta = {}) {
+    setDebugMode(on) {
+        this._debugMode = !!on;
+    }
+
+    isDebugMode() { return this._debugMode; }
+
+    // ── 写入 ——————————————————————————————————————————————————
+
+    addLog(level, source, msg, meta = {}, feature = '') {
+        // 1. 全局等级门控
+        const lv = LOG_LEVELS[level];
+        if (lv === undefined) return;  // 无效等级
+        if (lv < this._globalLevel) return;  // 低于阈值, 丢弃
+
+        // 2. 构建条目
         const entry = {
             ts: _timestamp(),
             level,
             source,
             msg: String(msg == null ? '' : msg),
-            meta,
+            meta: meta || {},
+            feature: String(feature || ''),
         };
-        this._entries.push(entry);
-        while (this._entries.length > this._maxMemory) this._entries.shift();
 
-        // 通知本地监听器
-        for (const fn of this._handlers) {
-            try { fn(entry); } catch (_) { /* */ }
+        // 3. 频率控制 (调试模式下跳过)
+        let finalEntry = entry;
+        if (!this._debugMode) {
+            finalEntry = _applyRateLimit(entry);
+            if (!finalEntry) return;  // 被抑制
         }
 
-        // 异步持久化（不阻塞当前调用）
-        _persistOne(entry);
+        // 4. 存入内存
+        this._entries.push(finalEntry);
+        while (this._entries.length > this._maxMemory) this._entries.shift();
 
-        // 广播到其他页面（日志面板可实时看到）
-        if (_bc) {
-            try { _bc.postMessage({ type: 'log', entry }); } catch (_) { /* */ }
+        // 5. 通知本地监听器
+        for (const fn of this._handlers) {
+            try { fn(finalEntry); } catch (_) { /* */ }
+        }
+
+        // 6. 批量持久化 (非 debug 条目)
+        if (finalEntry.level !== 'debug') {
+            _bufferWrite(finalEntry);
+        }
+
+        // 7. 跨页面广播 (节流)
+        if (_bc && _shouldBroadcast(finalEntry)) {
+            try { _bc.postMessage({ type: 'log', entry: finalEntry }); } catch (_) { /* */ }
         }
     }
 
-    // ── 远程摄入（来自其他页面的日志，不写 IndexedDB 避免重复）─────
+    // ── 远程摄入 ——————————————————————————————————————————————
 
     _ingestRemote(entry) {
         if (!entry || !entry.ts) return;
         this._entries.push(entry);
         while (this._entries.length > this._maxMemory) this._entries.shift();
 
-        // 通知本地监听器（日志面板 DOM 渲染等）
         for (const fn of this._handlers) {
             try { fn(entry); } catch (_) { /* */ }
         }
     }
 
-    // ── 监听 ──────────────────────────────────────────────────────────
+    // ── 监听 ——————————————————————————————————————————————————
 
     onLog(fn) { this._handlers.add(fn); }
     offLog(fn) { this._handlers.delete(fn); }
 
-    // ── 查询 ──────────────────────────────────────────────────────────
+    // ── 查询 ——————————————————————————————————————————————————
 
     getLogs(opts = {}) {
-        const { level, source, search, since, limit } = opts;
+        const { level, source, feature, search, since, limit } = opts;
         let result = this._entries;
         if (level)   result = result.filter(e => e.level === level);
         if (source)  result = result.filter(e => e.source === source);
+        if (feature) result = result.filter(e => e.feature === feature);
         if (search) {
             const q = String(search).toLowerCase();
             result = result.filter(e => e.msg.toLowerCase().includes(q));
@@ -172,31 +365,36 @@ class LogEventBus {
 
     clear() {
         this._entries.length = 0;
-        // 通知监听器清空
         for (const fn of this._handlers) {
             try { fn(null); } catch (_) { /* */ }
         }
-        // 清空 IndexedDB
         _openDB().then(db => {
             db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).clear();
         }).catch(() => {});
-        // 通知其他页面清空
         if (_bc) {
             try { _bc.postMessage({ type: 'clear' }); } catch (_) { /* */ }
         }
     }
 
     export() {
-        return this._entries.map(e =>
-            `${e.ts} [${e.source}] ${e.level.toUpperCase()}  ${e.msg}`
-        ).join('\n');
+        return this._entries.map(e => {
+            const featTag = e.feature ? ' [' + e.feature + ']' : '';
+            const rateTag = (e.meta && e.meta._rateCount) ? ' [x' + e.meta._rateCount + ']' : '';
+            return `${e.ts} [${e.source}]${featTag}${rateTag} ${e.level.toUpperCase()}  ${e.msg}`;
+        }).join('\n');
     }
 
     getCategories() { return CATEGORIES; }
+    getFeatures()  { return FEATURES; }
+    getRateProfiles() { return RATE_PROFILES; }
 
-    // ── 恢复历史日志 ──────────────────────────────────────────────────
+    // ── 恢复历史日志 ——————————————————————————————————————————
 
     async restore(limit = 500) {
+        // 先刷写缓冲区
+        if (_writeTimer) { clearTimeout(_writeTimer); _writeTimer = null; }
+        await _flushBuffer();
+
         try {
             const db = await _openDB();
             return new Promise(resolve => {
@@ -206,8 +404,10 @@ class LogEventBus {
                     const all = req.result || [];
                     const recent = all.slice(-limit);
                     for (const e of recent) {
-                        // 检查去重：不重复添加已存在的条目
-                        const dup = this._entries.some(x => x.ts === e.ts && x.msg === e.msg && x.source === e.source);
+                        // 去重检查
+                        const dup = this._entries.some(
+                            x => x.ts === e.ts && x.msg === e.msg && x.source === e.source
+                        );
                         if (!dup) {
                             this._entries.push(e);
                             for (const fn of this._handlers) {
@@ -222,12 +422,13 @@ class LogEventBus {
         } catch (_) { return 0; }
     }
 
-    // ── 待写入数量 (调试用) ──────────────────────────────────────────
+    // ── 调试 ——————————————————————————————————————————————————
 
-    pendingWrites() { return _pendingWrites; }
+    pendingWrites() { return _pendingWrites + _writeBuffer.length; }
+    rateTrackerCount() { return Object.keys(_rateTrackers).length; }
 }
 
-// ── 时间戳 ────────────────────────────────────────────────────────────────
+// ── 时间戳 ————————————————————————————————————————————————————————
 function _timestamp() {
     const d = new Date();
     const h = String(d.getHours()).padStart(2, '0');
@@ -237,12 +438,14 @@ function _timestamp() {
     return `${h}:${m}:${s}.${ms}`;
 }
 
-// ── 模块级单例 ────────────────────────────────────────────────────────────
+// ── 模块级单例 ————————————————————————————————————————————————————
 const logBus = new LogEventBus();
 
 // 向后兼容: window.__ivgLog 仍可用
 if (typeof window !== 'undefined') {
-    window.__ivgLog = logBus.addLog.bind(logBus);
+    window.__ivgLog = function (level, source, msg, meta, feature) {
+        logBus.addLog(level, source, msg, meta, feature);
+    };
 }
 
-export { logBus, CATEGORIES };
+export { logBus, CATEGORIES, FEATURES, LOG_LEVELS, RATE_PROFILES };

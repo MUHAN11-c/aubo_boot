@@ -78,8 +78,16 @@ function bindVisionSubscriptions(opts) {
 
 	const poseEl = $('pose-text');
 	if (poseEl && robotTopic) {
-		poseEl.innerHTML = `<div class="pose-card__empty">已订阅 ${escapeHtml(robotTopic)}，等待 RobotStatus…（若持续无数值请检查驱动发布与话题名）</div>`;
+		poseEl.innerHTML = formatRobotPoseHtml({ x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 });
 	}
+
+	// 视觉位姿估计状态初始默认值
+	const vpeEl = $('vpe-status-text');
+	if (vpeEl) vpeEl.textContent = '0';
+
+	// AI 抓取位姿初始默认值
+	const graspEl = $('graspnet-result-text');
+	if (graspEl) graspEl.innerHTML = formatFinalGraspPoseHtml({ poses: [] });
 
 	if (robotTopic) {
 		transport.onRosJson(robotTopic, m => {
@@ -120,7 +128,7 @@ function bindVisionSubscriptions(opts) {
 		transport.onRosJson(statusTopic, m => {
 			const el = $('vpe-status-text');
 			if (el) {
-				el.textContent = m && m.ivg_display != null ? String(m.ivg_display) : (m && m.data) ? String(m.data) : '';
+				el.textContent = m && m.ivg_display != null ? String(m.ivg_display) : (m && m.data != null) ? String(m.data) : '0';
 			}
 		});
 		transport.subscribe({ topic: statusTopic, msgType: topicTypeMap['topic-vpe-status'] || 'std_msgs/msg/String', maxHz: 10 });

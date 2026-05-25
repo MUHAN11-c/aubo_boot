@@ -23,13 +23,13 @@ body {
 
 /* 焦点环 */
 :focus-visible {
-  outline: 2px solid rgba(37, 99, 235, 0.5);
+  outline: 2px solid var(--accent-soft);
   outline-offset: 2px;
   border-radius: 3px;
 }
 
 /* 选中 */
-::selection { background: rgba(37, 99, 235, 0.15); color: var(--text); }
+::selection { background: var(--accent-soft); color: var(--text); }
 
 /* 入场动画 */
 @keyframes page-in {

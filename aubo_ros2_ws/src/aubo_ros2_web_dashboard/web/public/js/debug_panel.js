@@ -1,164 +1,602 @@
-// debug_panel.js — 调试面板：笛卡尔直线/关节运动/服务调用/话题发布
+// debug_panel.js — 调试面板：状态监控 · 运动控制 · IO · IK/FK · 话题/服务
 import { ivgTransport } from './ivg_transport.js';
 
 const TAG = '[debug_panel]';
 
 function $(id) { return document.getElementById(id); }
 
+// ── 工具函数 ─────────────────────────────────────────────────────────────────
+
+function ts() { return new Date().toLocaleTimeString('zh-CN', { hour12: false }); }
+
 function log(id, msg) {
   const el = $(id);
   if (!el) return;
-  var line = '> [' + new Date().toLocaleTimeString() + '] ' + msg;
-  el.textContent = line + '\n' + (el.textContent || '');
-  // keep last 20 lines
-  var lines = el.textContent.split('\n');
-  if (lines.length > 20) el.textContent = lines.slice(0, 20).join('\n');
+  const line = '<span class="log-time">[' + ts() + ']</span> ' + msg;
+  el.innerHTML = '<div>' + line + '</div>' + el.innerHTML;
+  // keep last 30 lines
+  while (el.children.length > 30) el.removeChild(el.lastChild);
 }
 
-function logError(id, msg) {
-  var el = $(id);
+function logOk(id, msg) {
+  const el = $(id);
   if (!el) return;
-  el.innerHTML = '<span style="color:#dc2626">> [' + new Date().toLocaleTimeString() + '] ' + msg + '</span>\n' + (el.innerHTML || '');
+  el.innerHTML = '<div><span class="log-time">[' + ts() + ']</span> <span class="log-ok">' + msg + '</span></div>' + el.innerHTML;
+  while (el.children.length > 30) el.removeChild(el.lastChild);
 }
 
-// ===== Cartesian Line Motion =====
-function setupCartesian() {
-  var btnMove = $('btn-dbg-move-xyz');
-  var btnStop = $('btn-dbg-stop-xyz');
-  if (!btnMove || !btnStop) return;
+function logErr(id, msg) {
+  const el = $(id);
+  if (!el) return;
+  el.innerHTML = '<div><span class="log-time">[' + ts() + ']</span> <span class="log-err">' + msg + '</span></div>' + el.innerHTML;
+  while (el.children.length > 30) el.removeChild(el.lastChild);
+}
 
-  btnMove.addEventListener('click', function () {
+function logWarn(id, msg) {
+  const el = $(id);
+  if (!el) return;
+  el.innerHTML = '<div><span class="log-time">[' + ts() + ']</span> <span class="log-warn">' + msg + '</span></div>' + el.innerHTML;
+  while (el.children.length > 30) el.removeChild(el.lastChild);
+}
+
+function fmtPose(pos, ori) {
+  if (!pos) return '---';
+  return 'X:' + (pos.x || 0).toFixed(4) + ' Y:' + (pos.y || 0).toFixed(4) + ' Z:' + (pos.z || 0).toFixed(4);
+}
+
+function setStatusDot(elId, val) {
+  const el = $(elId);
+  if (!el) return;
+  el.classList.remove('green', 'red', 'yellow', 'gray');
+  el.classList.add(val ? 'green' : 'red');
+}
+
+function updateConnStatus(connected) {
+  const el = $('dbg-conn-status');
+  if (!el) return;
+  el.textContent = connected ? '● 已连接' : '● 未连接';
+  el.className = 'conn-status ' + (connected ? 'online' : 'offline');
+}
+
+function callSvc(service, type, request, timeoutMs) {
+  if (!service || !type) return Promise.reject(new Error('服务名和类型不能为空'));
+  return ivgTransport.callService({
+    service: service,
+    type: type,
+    request: request || {},
+    timeoutMs: timeoutMs || 15000,
+  });
+}
+
+// ── 机器人状态监控 ───────────────────────────────────────────────────────────
+
+let _latestRobotStatus = null;
+let _robotStatusRetries = 0;
+let _robotStatusSubscribed = false;
+
+function setupRobotStatus() {
+  if (!ivgTransport.isConnected()) {
+    _robotStatusRetries++;
+    if (_robotStatusRetries > 30) {
+      console.warn(TAG, 'setupRobotStatus 重试超限 (30次), 放弃订阅 /robot_status');
+      return;
+    }
+    setTimeout(setupRobotStatus, 500);
+    return;
+  }
+
+  _robotStatusRetries = 0;
+
+  // 防止 onRosJson 重复注册
+  if (!_robotStatusSubscribed) {
+    _robotStatusSubscribed = true;
+    ivgTransport.onRosJson('/robot_status', function (msg) {
+      _latestRobotStatus = msg;
+      updateStatusBar(msg);
+    });
+  }
+
+  ivgTransport.subscribe({
+    topic: '/robot_status',
+    msgType: 'ivg_interfaces/msg/RobotStatus',
+    maxHz: 10,
+  });
+
+  log('debug-log-quick', '已订阅 /robot_status (10Hz)');
+}
+
+function updateStatusBar(msg) {
+  // online dot
+  setStatusDot('dbg-dot-online', msg.is_online);
+  $('dbg-val-online').textContent = msg.is_online ? '在线' : '离线';
+
+  // enable dot
+  setStatusDot('dbg-dot-enable', msg.enable);
+  $('dbg-val-enable').textContent = msg.enable ? '已使能' : '未使能';
+
+  // motion dot
+  const motionEl = $('dbg-dot-motion');
+  if (motionEl) {
+    motionEl.classList.remove('green', 'red', 'yellow', 'gray');
+    motionEl.classList.add(msg.in_motion ? 'yellow' : 'gray');
+  }
+  $('dbg-val-motion').textContent = msg.in_motion ? '运动中' : '静止';
+
+  // planning
+  $('dbg-val-planning').textContent = msg.planning_status || '--';
+
+  // TCP pose
+  if (msg.cartesian_position && msg.cartesian_position.position) {
+    $('dbg-val-tcp').textContent = fmtPose(msg.cartesian_position.position, msg.cartesian_position.orientation);
+  }
+}
+
+// ── 快速控制 ─────────────────────────────────────────────────────────────────
+
+function setupQuickControls() {
+  // 使能
+  $('btn-dbg-enable').addEventListener('click', function () {
+    log('debug-log-quick', '发送使能请求...');
+    callSvc('/set_robot_enable', 'ivg_interfaces/srv/SetRobotEnable', { enable: true })
+      .then(function (r) { logOk('debug-log-quick', '使能 OK: ' + (r.message || '')); })
+      .catch(function (e) { logErr('debug-log-quick', '使能失败: ' + (e.message || e)); });
+  });
+
+  // 去使能
+  $('btn-dbg-disable').addEventListener('click', function () {
+    log('debug-log-quick', '发送去使能请求...');
+    callSvc('/set_robot_enable', 'ivg_interfaces/srv/SetRobotEnable', { enable: false })
+      .then(function (r) { logOk('debug-log-quick', '去使能 OK: ' + (r.message || '')); })
+      .catch(function (e) { logErr('debug-log-quick', '去使能失败: ' + (e.message || e)); });
+  });
+
+  // 停止
+  $('btn-dbg-stop').addEventListener('click', function () {
+    log('debug-log-quick', '发送停止请求...');
+    callSvc('/aubo/stop', 'std_srvs/srv/Trigger', {}, 5000)
+      .then(function (r) { logOk('debug-log-quick', '停止 OK'); })
+      .catch(function (e) { logWarn('debug-log-quick', '停止失败: ' + (e.message || e)); });
+  });
+
+  // 碰撞恢复
+  $('btn-dbg-collision-recover').addEventListener('click', function () {
+    log('debug-log-quick', '碰撞恢复...');
+    callSvc('/aubo/collision_recover', 'std_srvs/srv/Trigger', {}, 5000)
+      .then(function (r) { logOk('debug-log-quick', '碰撞恢复 OK'); })
+      .catch(function (e) { logErr('debug-log-quick', '碰撞恢复失败: ' + (e.message || e)); });
+  });
+
+  // 速度滑动条
+  var slider = $('dbg-speed-slider');
+  var valEl = $('dbg-speed-val');
+  slider.addEventListener('input', function () {
+    valEl.textContent = slider.value + '%';
+  });
+
+  $('btn-dbg-set-speed').addEventListener('click', function () {
+    var frac = parseInt(slider.value) / 100;
+    log('debug-log-quick', '设置速度倍率: ' + frac.toFixed(2));
+    callSvc('/set_speed_factor', 'ivg_interfaces/srv/SetSpeedFactor', { velocity_factor: frac })
+      .then(function (r) { logOk('debug-log-quick', '速度已设为 ' + (frac * 100).toFixed(0) + '%'); })
+      .catch(function (e) { logErr('debug-log-quick', '设置速度失败: ' + (e.message || e)); });
+  });
+}
+
+// ── 笛卡尔直线运动 ───────────────────────────────────────────────────────────
+
+function setupCartesian() {
+  $('btn-dbg-move-xyz').addEventListener('click', function () {
     var x = parseFloat($('dbg-xyz-x').value) || 0;
     var y = parseFloat($('dbg-xyz-y').value) || 0;
     var z = parseFloat($('dbg-xyz-z').value) || 0;
+    var qx = parseFloat($('dbg-xyz-qx').value) || 0;
+    var qy = parseFloat($('dbg-xyz-qy').value) || 0;
+    var qz = parseFloat($('dbg-xyz-qz').value) || 0;
+    var qw = parseFloat($('dbg-xyz-qw').value) || 1;
     var vel = parseFloat($('dbg-xyz-vel').value) || 0.3;
     var acc = parseFloat($('dbg-xyz-acc').value) || 0.2;
 
-    log('debug-log-cartesian', 'MoveXYZ(x=' + x.toFixed(4) + ', y=' + y.toFixed(4) + ', z=' + z.toFixed(4) + ', vel=' + vel + ', acc=' + acc + ')');
+    var req = {
+      target_pose: {
+        position: { x: x, y: y, z: z },
+        orientation: { x: qx, y: qy, z: qz, w: qw },
+      },
+      target_joints: [0, 0, 0, 0, 0, 0],
+      use_joints: false,
+      velocity_factor: vel,
+      acceleration_factor: acc,
+    };
 
-    ivgTransport.callService({
-      service: '/move_to_pose',
-      args: { x: x, y: y, z: z, vel: vel, acc: acc }
-    }).then(function (resp) {
-      log('debug-log-cartesian', 'OK: ' + JSON.stringify(resp));
-    }).catch(function (err) {
-      logError('debug-log-cartesian', 'FAIL: ' + (err.message || err));
-    });
+    log('debug-log-cartesian', 'MoveL(' + x.toFixed(4) + ', ' + y.toFixed(4) + ', ' + z.toFixed(4) + ') v=' + vel + ' a=' + acc);
+    callSvc('/move_to_pose', 'ivg_interfaces/srv/MoveToPose', req, 30000)
+      .then(function (r) { logOk('debug-log-cartesian', 'OK: ' + JSON.stringify(r)); })
+      .catch(function (e) { logErr('debug-log-cartesian', 'FAIL: ' + (e.message || e)); });
   });
 
-  btnStop.addEventListener('click', function () {
-    log('debug-log-cartesian', 'STOP 请求');
-    ivgTransport.callService({
-      service: '/stop_motion',
-    }).catch(function () {});
+  // 从 robot_status 读取当前位置填入 XYZ
+  $('btn-dbg-read-xyz').addEventListener('click', function () {
+    if (!_latestRobotStatus || !_latestRobotStatus.cartesian_position) {
+      logWarn('debug-log-cartesian', '尚未收到 /robot_status，无法读取位姿');
+      return;
+    }
+    var cp = _latestRobotStatus.cartesian_position;
+    var pos = cp.position;
+    var ori = cp.orientation;
+    $('dbg-xyz-x').value = (pos.x || 0).toFixed(4);
+    $('dbg-xyz-y').value = (pos.y || 0).toFixed(4);
+    $('dbg-xyz-z').value = (pos.z || 0).toFixed(4);
+    if (ori) {
+      $('dbg-xyz-qx').value = (ori.x || 0).toFixed(4);
+      $('dbg-xyz-qy').value = (ori.y || 0).toFixed(4);
+      $('dbg-xyz-qz').value = (ori.z || 0).toFixed(4);
+      $('dbg-xyz-qw').value = (ori.w || 1).toFixed(4);
+    }
+    logOk('debug-log-cartesian', '已从 /robot_status 读取当前位姿');
   });
 }
 
-// ===== Joint Space Motion =====
-function setupJointMotion() {
-  var btnMove = $('btn-dbg-move-joints');
-  var btnRead = $('btn-dbg-read-joints');
-  if (!btnMove) return;
+// ── 关节空间运动 ─────────────────────────────────────────────────────────────
 
-  btnMove.addEventListener('click', function () {
+function setupJointMotion() {
+  $('btn-dbg-move-joints').addEventListener('click', function () {
     var joints = [];
     for (var i = 1; i <= 6; i++) {
       joints.push(parseFloat($('dbg-j' + i).value) || 0);
     }
     var vel = parseFloat($('dbg-jnt-vel').value) || 0.3;
-    var acc = parseFloat($('dbg-jnt-acc').value) || 0.2;
 
-    log('debug-log-joint', 'MoveJoints([' + joints.map(function(v){return v.toFixed(4);}).join(', ') + '], vel=' + vel + ', acc=' + acc + ')');
+    // 使用 /move_to_pose (use_joints=true) — demo_driver 通用，仿真/真机均可用喵~
+    var req = {
+      target_pose: {
+        position: { x: 0, y: 0, z: 0 },
+        orientation: { x: 0, y: 0, z: 0, w: 1 },
+      },
+      target_joints: joints,
+      use_joints: true,
+      velocity_factor: vel,
+      acceleration_factor: 0.2,
+    };
 
-    ivgTransport.callService({
-      service: '/move_to_joint',
-      args: { positions: joints, vel: vel, acc: acc }
-    }).then(function (resp) {
-      log('debug-log-joint', 'OK: ' + JSON.stringify(resp));
-    }).catch(function (err) {
-      logError('debug-log-joint', 'FAIL: ' + (err.message || err));
+    log('debug-log-joint', 'MoveJ([' + joints.map(function (v) { return v.toFixed(4); }).join(', ') + ']) v=' + vel);
+    callSvc('/move_to_pose', 'ivg_interfaces/srv/MoveToPose', req, 30000)
+      .then(function (r) { logOk('debug-log-joint', 'OK: ' + JSON.stringify(r)); })
+      .catch(function (e) { logErr('debug-log-joint', 'FAIL: ' + (e.message || e)); });
+  });
+
+  $('btn-dbg-read-joints').addEventListener('click', function () {
+    if (!_latestRobotStatus || !_latestRobotStatus.joint_position_deg) {
+      // fallback: try service call
+      log('debug-log-joint', '通过服务读取当前关节角...');
+      callSvc('/get_current_state', 'ivg_interfaces/srv/GetCurrentState', {}, 5000)
+        .then(function (r) {
+          var pos = r.joint_position_rad || [];
+          for (var i = 0; i < Math.min(6, pos.length); i++) {
+            var inp = $('dbg-j' + (i + 1));
+            if (inp) inp.value = pos[i].toFixed(4);
+          }
+          logOk('debug-log-joint', '当前关节角(rad): [' + pos.map(function (v) { return v.toFixed(4); }).join(', ') + ']');
+        })
+        .catch(function (e) { logErr('debug-log-joint', '读取失败: ' + (e.message || e)); });
+      return;
+    }
+    var degs = _latestRobotStatus.joint_position_deg;
+    // robot_status gives degrees, but joint motion uses radians
+    var rads = _latestRobotStatus.joint_position_rad;
+    for (var i = 0; i < Math.min(6, (rads || degs).length); i++) {
+      var inp = $('dbg-j' + (i + 1));
+      if (inp) inp.value = (rads ? rads[i] : degs[i] * Math.PI / 180).toFixed(4);
+    }
+    logOk('debug-log-joint', '已从 /robot_status 读取当前关节角');
+  });
+}
+
+// ── IO 控制 ──────────────────────────────────────────────────────────────────
+
+function setupIOControl() {
+  // Tab 切换
+  var tabs = document.querySelectorAll('#io-tabs .debug-tab');
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      tabs.forEach(function (t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      var panelName = tab.getAttribute('data-tab');
+      document.getElementById('io-panel-read').style.display = panelName === 'io-read' ? '' : 'none';
+      document.getElementById('io-panel-write').style.display = panelName === 'io-write' ? '' : 'none';
+      document.getElementById('io-panel-tool').style.display = panelName === 'io-tool' ? '' : 'none';
     });
   });
 
-  if (btnRead) {
-    btnRead.addEventListener('click', function () {
-      log('debug-log-joint', '读取当前关节角...');
-      ivgTransport.callService({
-        service: '/get_current_joints',
-      }).then(function (resp) {
-        var positions = resp.values || resp.positions || [];
-        for (var i = 0; i < Math.min(6, positions.length); i++) {
-          var inp = $('dbg-j' + (i + 1));
-          if (inp) inp.value = positions[i].toFixed(4);
-        }
-        log('debug-log-joint', '当前关节角: [' + positions.map(function(v){return v.toFixed(4);}).join(', ') + ']');
-      }).catch(function (err) {
-        logError('debug-log-joint', '读取失败: ' + (err.message || err));
-      });
-    });
-  }
+  // 读取 IO
+  $('btn-dbg-read-io').addEventListener('click', function () {
+    var ioType = $('dbg-io-read-type').value;
+    var pin = parseInt($('dbg-io-read-pin').value) || 0;
+    log('debug-log-io-read', '读取 ' + ioType + ' IO pin=' + pin);
+    callSvc('/read_robot_io', 'ivg_interfaces/srv/ReadRobotIO', { io_type: ioType, io_index: pin })
+      .then(function (r) {
+        logOk('debug-log-io-read', ioType + ' pin=' + pin + ' value=' + r.value + ' (' + (r.message || '') + ')');
+      })
+      .catch(function (e) { logErr('debug-log-io-read', '读取失败: ' + (e.message || e)); });
+  });
+
+  // 设置 DO
+  $('btn-dbg-write-io').addEventListener('click', function () {
+    var pin = parseInt($('dbg-io-write-pin').value) || 0;
+    var val = parseInt($('dbg-io-write-val').value) || 0;
+    log('debug-log-io-write', '设置 DO pin=' + pin + ' val=' + val);
+    callSvc('/aubo_driver/set_io', 'ivg_interfaces/srv/SetRobotIO', { io_type: 'digital_output', io_index: pin, value: val })
+      .then(function (r) {
+        logOk('debug-log-io-write', 'DO pin=' + pin + ' → ' + (val ? 'ON' : 'OFF') + ' OK');
+      })
+      .catch(function (e) { logErr('debug-log-io-write', '设置失败: ' + (e.message || e)); });
+  });
+
+  // 设置工具电压
+  $('btn-dbg-set-tool-voltage').addEventListener('click', function () {
+    var vtype = parseInt($('dbg-tool-voltage').value) || 0;
+    var vlabel = {0: '0V', 1: '12V', 2: '24V'}[vtype] || (vtype + 'V');
+    log('debug-log-tool-voltage', '设置工具电压: ' + vlabel);
+    callSvc('/aubo/set_tool_voltage', 'ivg_interfaces/srv/SetToolVoltage', { voltage_type: vtype })
+      .then(function (r) { logOk('debug-log-tool-voltage', '工具电压设为 ' + vlabel + ' OK'); })
+      .catch(function (e) { logErr('debug-log-tool-voltage', '设置失败: ' + (e.message || e)); });
+  });
 }
 
-// ===== Service Call Test =====
-function setupServiceCall() {
-  var btn = $('btn-dbg-call-svc');
-  if (!btn) return;
+// ── IK/FK 计算器 ─────────────────────────────────────────────────────────────
 
-  btn.addEventListener('click', function () {
+function setupIKFK() {
+  // Tab 切换
+  var tabs = document.querySelectorAll('#ikfk-tabs .debug-tab');
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      tabs.forEach(function (t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      var panelName = tab.getAttribute('data-tab');
+      document.getElementById('ikfk-panel-fk').style.display = panelName === 'ikfk-fk' ? '' : 'none';
+      document.getElementById('ikfk-panel-ik').style.display = panelName === 'ikfk-ik' ? '' : 'none';
+    });
+  });
+
+  // FK 计算
+  $('btn-dbg-calc-fk').addEventListener('click', function () {
+    var joints = [];
+    for (var i = 1; i <= 6; i++) {
+      joints.push(parseFloat($('dbg-fk-j' + i).value) || 0);
+    }
+    log('debug-log-fk', 'FK([' + joints.map(function (v) { return v.toFixed(4); }).join(', ') + '])');
+    callSvc('/aubo_driver/get_fk', 'ivg_interfaces/srv/GetFK', { joint: joints })
+      .then(function (r) {
+        var pos = r.pos || [];
+        var ori = r.ori || [];  // AUBO SDK: (w,x,y,z)
+        var result = 'pos=[' + pos.map(function (v) { return v.toFixed(6); }).join(', ') + '] '
+          + 'ori(wxyz)=[' + ori.map(function (v) { return v.toFixed(6); }).join(', ') + ']';
+        logOk('debug-log-fk', result);
+      })
+      .catch(function (e) { logErr('debug-log-fk', 'FK失败: ' + (e.message || e)); });
+  });
+
+  // FK 从当前关节填入
+  $('btn-dbg-fk-from-current').addEventListener('click', function () {
+    var rads = _latestRobotStatus ? _latestRobotStatus.joint_position_rad : null;
+    if (!rads || rads.length < 6) {
+      logWarn('debug-log-fk', '尚未收到 /robot_status，无法获取当前关节');
+      return;
+    }
+    for (var i = 0; i < 6; i++) {
+      var inp = $('dbg-fk-j' + (i + 1));
+      if (inp) inp.value = rads[i].toFixed(4);
+    }
+    logOk('debug-log-fk', '已从 /robot_status 填入当前关节角');
+  });
+
+  // IK 计算
+  $('btn-dbg-calc-ik').addEventListener('click', function () {
+    var refJoints = [];
+    for (var i = 1; i <= 6; i++) {
+      refJoints.push(parseFloat($('dbg-ik-rj' + i).value) || 0);
+    }
+    var x = parseFloat($('dbg-ik-x').value) || 0;
+    var y = parseFloat($('dbg-ik-y').value) || 0;
+    var z = parseFloat($('dbg-ik-z').value) || 0;
+    var qw = parseFloat($('dbg-ik-qw').value) || 1;
+    var qx = parseFloat($('dbg-ik-qx').value) || 0;
+    var qy = parseFloat($('dbg-ik-qy').value) || 0;
+    var qz = parseFloat($('dbg-ik-qz').value) || 0;
+
+    var req = {
+      ref_joint: refJoints,
+      pos: [x, y, z],
+      ori: [qw, qx, qy, qz],  // AUBO SDK: (w,x,y,z)
+    };
+
+    log('debug-log-ik', 'IK(pos=[' + x + ',' + y + ',' + z + '] ori(wxyz)=[' + qw + ',' + qx + ',' + qy + ',' + qz + '])');
+    callSvc('/aubo_driver/get_ik', 'ivg_interfaces/srv/GetIK', req)
+      .then(function (r) {
+        var joints = r.joint || [];
+        if (joints.length >= 6) {
+          logOk('debug-log-ik', 'IK解(rad): [' + joints.map(function (v) { return v.toFixed(6); }).join(', ') + ']');
+        } else {
+          logWarn('debug-log-ik', 'IK返回结果不足6个关节');
+        }
+      })
+      .catch(function (e) { logErr('debug-log-ik', 'IK失败: ' + (e.message || e)); });
+  });
+
+  // IK 从当前关节填入参考
+  $('btn-dbg-ik-ref-from-current').addEventListener('click', function () {
+    var rads = _latestRobotStatus ? _latestRobotStatus.joint_position_rad : null;
+    if (!rads || rads.length < 6) {
+      logWarn('debug-log-ik', '尚未收到 /robot_status，无法获取当前关节');
+      return;
+    }
+    for (var i = 0; i < 6; i++) {
+      var inp = $('dbg-ik-rj' + (i + 1));
+      if (inp) inp.value = rads[i].toFixed(4);
+    }
+    logOk('debug-log-ik', '已从 /robot_status 填入参考关节角');
+  });
+}
+
+// ── 话题监控 ─────────────────────────────────────────────────────────────────
+
+let _monitorHandlerId = null;
+let _monitorTopic = null;
+let _monitorCount = 0;
+
+function setupTopicMonitor() {
+  $('btn-dbg-sub-start').addEventListener('click', function () {
+    var topic = ($('dbg-sub-topic').value || '').trim();
+    var type = ($('dbg-sub-type').value || '').trim();
+    if (!topic || !type) {
+      logErr('debug-log-topic-monitor', '请输入话题名和消息类型');
+      return;
+    }
+
+    // 取消旧订阅
+    if (_monitorHandlerId !== null) {
+      ivgTransport._rosHandlers = ivgTransport._rosHandlers.filter(function (h) { return h._monitor !== true; });
+      ivgTransport.unsubscribe(_monitorTopic);
+    }
+
+    _monitorTopic = topic;
+    _monitorCount = 0;
+    $('dbg-sub-count').textContent = '消息: 0';
+
+    var handler = function (msg) {
+      _monitorCount++;
+      $('dbg-sub-count').textContent = '消息: ' + _monitorCount;
+      var el = $('debug-log-topic-monitor');
+      if (!el) return;
+      // 移除空状态提示
+      var empty = el.querySelector('.debug-empty');
+      if (empty) empty.remove();
+      var jsonStr = JSON.stringify(msg, null, 2);
+      var line = '<div><span class="log-time">[' + ts() + ']</span> <pre style="margin:0;font-size:0.7rem;white-space:pre-wrap;">' + escapeHtml(jsonStr) + '</pre></div>';
+      el.innerHTML = line + el.innerHTML;
+      while (el.children.length > 100) el.removeChild(el.lastChild);
+    };
+    handler._monitor = true;
+    _monitorHandlerId = handler;
+
+    ivgTransport.onRosJson(topic, handler);
+    ivgTransport.subscribe({ topic: topic, msgType: type, maxHz: 5 });
+    logOk('debug-log-topic-monitor', '已订阅: ' + topic + ' (' + type + ')');
+  });
+
+  $('btn-dbg-sub-stop').addEventListener('click', function () {
+    if (_monitorTopic) {
+      ivgTransport._rosHandlers = ivgTransport._rosHandlers.filter(function (h) { return h._monitor !== true; });
+      ivgTransport.unsubscribe(_monitorTopic);
+      logWarn('debug-log-topic-monitor', '已取消订阅: ' + _monitorTopic);
+    }
+    _monitorHandlerId = null;
+    _monitorTopic = null;
+    _monitorCount = 0;
+    $('dbg-sub-count').textContent = '消息: 0';
+  });
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ── 服务调用测试 ─────────────────────────────────────────────────────────────
+
+function setupServiceCall() {
+  // 预设选择
+  $('dbg-svc-preset').addEventListener('change', function () {
+    var val = this.value;
+    if (!val) return;
+    var parts = val.split('|');
+    if (parts.length >= 3) {
+      $('dbg-svc-name').value = parts[0];
+      $('dbg-svc-type').value = parts[1];
+      $('dbg-svc-args').value = parts[2];
+    }
+  });
+
+  $('btn-dbg-call-svc').addEventListener('click', function () {
     var svc = ($('dbg-svc-name').value || '').trim();
+    var type = ($('dbg-svc-type').value || '').trim();
     var argsStr = ($('dbg-svc-args').value || '{}').trim();
-    if (!svc) { logError('debug-log-service', '请输入服务名'); return; }
+
+    if (!svc || !type) { logErr('debug-log-service', '请输入服务名和类型'); return; }
 
     var args;
     try { args = JSON.parse(argsStr); }
-    catch (e) { logError('debug-log-service', 'JSON 解析错误: ' + e.message); return; }
+    catch (e) { logErr('debug-log-service', 'JSON 解析错误: ' + e.message); return; }
 
-    log('debug-log-service', 'call ' + svc + ' ' + JSON.stringify(args));
-
-    ivgTransport.callService({
-      service: svc,
-      args: args
-    }).then(function (resp) {
-      log('debug-log-service', 'OK: ' + JSON.stringify(resp));
-    }).catch(function (err) {
-      logError('debug-log-service', 'FAIL: ' + (err.message || err));
-    });
+    log('debug-log-service', 'call ' + svc + ' (' + type + ') ' + JSON.stringify(args));
+    callSvc(svc, type, args, 15000)
+      .then(function (r) { logOk('debug-log-service', svc + ' OK: ' + JSON.stringify(r, null, 2)); })
+      .catch(function (e) { logErr('debug-log-service', svc + ' FAIL: ' + (e.message || e)); });
   });
 }
 
-// ===== Topic Publish Test =====
-function setupTopicPublish() {
-  var btn = $('btn-dbg-publish');
-  if (!btn) return;
+// ── 话题发布测试 ─────────────────────────────────────────────────────────────
 
-  btn.addEventListener('click', function () {
+function setupTopicPublish() {
+  $('btn-dbg-publish').addEventListener('click', function () {
     var topic = ($('dbg-pub-topic').value || '').trim();
+    var type = ($('dbg-pub-type').value || '').trim();
     var msgStr = ($('dbg-pub-msg').value || '{}').trim();
-    if (!topic) { logError('debug-log-topic', '请输入话题名'); return; }
+
+    if (!topic || !type) { logErr('debug-log-topic', '请输入话题名和消息类型'); return; }
 
     var msg;
     try { msg = JSON.parse(msgStr); }
-    catch (e) { logError('debug-log-topic', 'JSON 解析错误: ' + e.message); return; }
+    catch (e) { logErr('debug-log-topic', 'JSON 解析错误: ' + e.message); return; }
 
-    log('debug-log-topic', 'publish ' + topic + ' ' + JSON.stringify(msg));
-
-    ivgTransport.publish({
-      topic: topic,
-      msg: msg
-    }).then(function () {
-      log('debug-log-topic', 'OK → 已发布');
-    }).catch(function (err) {
-      logError('debug-log-topic', 'FAIL: ' + (err.message || err));
-    });
+    log('debug-log-topic', 'publish ' + topic + ' (' + type + ') ' + JSON.stringify(msg));
+    ivgTransport.publish({ topic: topic, type: type, msg: msg })
+      .then(function () { logOk('debug-log-topic', 'OK → 已发布到 ' + topic); })
+      .catch(function (e) { logErr('debug-log-topic', 'FAIL: ' + (e.message || e)); });
   });
 }
 
-// ===== Init =====
-function init() {
+// ── 初始化 ───────────────────────────────────────────────────────────────────
+
+async function init() {
+  console.log(TAG, '初始化...');
+
+  // 1. 加载运行时 & 连接
+  try {
+    await ivgTransport.loadRuntime();
+    await ivgTransport.connectControl();
+    updateConnStatus(true);
+    console.log(TAG, 'rosbridge 已连接');
+
+    // 连接断开监听
+    ivgTransport.onControlJson(function (obj) {
+      if (obj.op === 'close') {
+        updateConnStatus(false);
+        console.log(TAG, 'rosbridge 断开');
+      } else if (obj.op === 'connection') {
+        updateConnStatus(true);
+        setupRobotStatus();
+      }
+    });
+  } catch (e) {
+    console.error(TAG, '连接失败:', e);
+    updateConnStatus(false);
+    logErr('debug-log-quick', 'rosbridge 连接失败: ' + (e.message || e));
+    // 继续初始化，允许离线查看页面
+  }
+
+  // 2. 机器人状态监控
+  if (ivgTransport.isConnected()) {
+    setupRobotStatus();
+  }
+
+  // 3. 各功能模块
+  setupQuickControls();
   setupCartesian();
   setupJointMotion();
+  setupIOControl();
+  setupIKFK();
+  setupTopicMonitor();
   setupServiceCall();
   setupTopicPublish();
+
   console.log(TAG, '初始化完成');
 }
 

@@ -221,6 +221,18 @@ graspnet_ros2/
 └── setup.cfg
 ```
 
+## 依赖
+
+- ROS 2: rclpy, cv_bridge, sensor_msgs, ivg_interfaces
+- Python: torch, open3d, scipy, numpy, Pillow
+- graspnet-baseline (内含 pointnet2, knn_pytorch CUDA 扩展)
+
+## 参考
+
+- graspnet-baseline 文档: `graspnet-baseline/README.md`
+- 数据集使用: `graspnet-baseline/doc/数据集使用步骤.md`
+- 自定义推理: `graspnet-baseline/doc/自定义数据推理.md`
+
 ## 许可证
 
 MIT License。graspnet-baseline 代码和模型版权归 MVIG, SJTU graspnet 团队所有，免费用于非商业用途喵~

@@ -44,6 +44,15 @@ class PourConfig:
     # ── 工具姿态 ──
     pour_pitch_deg: float = 45.0         # 倒奶俯仰角 (度), 奶缸前倾
 
+    # ── 朝向剖面参数 (NEW) ──
+    mix_pitch_start_deg: float = 45.0     # 融合起始 pitch (度)
+    mix_pitch_end_deg: float = 30.0       # 融合结束 pitch (度)
+    draw_pitch_base_deg: float = 30.0     # 成形基础 pitch (度)
+    draw_pitch_variation_deg: float = 3.0 # 成形 pitch 微变幅度 (度)
+    finish_pitch_start_deg: float = 30.0  # 收尾起始 pitch (度)
+    finish_pitch_end_deg: float = 60.0    # 收尾结束 pitch (度)
+    pour_roll_deg: float = 0.0            # 全程 roll (度, 始终 0)
+
     def mix_z(self, surface_z: float = 0.15) -> float:
         return surface_z + self.mix_height_offset
 

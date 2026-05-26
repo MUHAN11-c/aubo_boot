@@ -24,6 +24,11 @@
     cart = parametric_to_cartesian(smooth)
 """
 
+from .orientation_profile import (
+    compute_pitch_profile,
+    assemble_cartesian_with_orientation,
+)
+
 from .config import CupConfig, PourConfig
 from .generator import LatteArtTrajectory
 from .anti_sloshing import (

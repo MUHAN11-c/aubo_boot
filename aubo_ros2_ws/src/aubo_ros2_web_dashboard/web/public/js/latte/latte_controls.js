@@ -25,9 +25,9 @@ const PATTERN_TYPES = [
 
 const DEFAULTS = {
     episode: 0, maxEpisode: 39,
-    cupX: -0.630,   // lizhu_Link X in base_link (from URDF aubo_e5_base.urdf)
-    cupY: -0.368,   // lizhu_Link Y in base_link
-    cupZ: 0.04,     // 液面 Z = lizhu 顶(-0.022) + 杯高, 需真机微调
+    cupX: -0.630,   // 首次默认, 启动后从 ROS2 lizhu_link.x 参数自动获取
+    cupY: -0.368,   // 首次默认, 启动后从 ROS2 lizhu_link.y 参数自动获取
+    cupZ: 0.04,     // 液面 Z, 需真机微调
     cupR: 0.04,
     mixH: 0.076, drawH: 0.006, finishH: 0.076,
     wiggleAmp: 0.006, wiggleFreq: 5.0,
@@ -505,11 +505,130 @@ function _bindEvents() {
     document.addEventListener('latte:pose-ready', () => { _render(); });
 }
 
+// ── ROS2 参数同步 ──
+async function _syncParamsFromRos2() {
+    const paramMap = {
+        'lizhu_link.x': 'cupX', 'lizhu_link.y': 'cupY',
+        'lizhu_link.z': 'cupZ',
+    };
+    let updated = false;
+    for (const [paramName, stateKey] of Object.entries(paramMap)) {
+        try {
+            const result = await ros.callService(
+                '/rosapi/get_param', 'rosapi/GetParam',
+                { name: '/latte_imitation/' + paramName }, 3000
+            );
+            if (result && typeof result.value === 'number') {
+                const oldVal = _state[stateKey];
+                _state[stateKey] = parseFloat(result.value.toFixed(4));
+                if (Math.abs(_state[stateKey] - oldVal) > 0.0001) {
+                    updated = true;
+                    logBus.addLog('info', 'service',
+                        'ROS2 参数同步: ' + paramName + ' = ' + _state[stateKey],
+                        { param: paramName, value: _state[stateKey] }, 'latte');
+                }
+            }
+        } catch (_) { /* rosapi 不可用则保持默认值 */ }
+    }
+    if (updated) { _render(); _debouncedPreview(); }
+}
+
+// ── 参考位姿设置 ──
+const REF_POSE_LINKS = [
+    { key: 'coffee_link', label: 'coffee_Link (取咖啡杯)' },
+    { key: 'lizhu_link', label: 'lizhu_Link (放咖啡杯)' },
+    { key: 'cup0_link', label: 'cup0_Link (取牛奶杯)' },
+    { key: 'reference_pose', label: '参考位姿 (杯口朝上)' },
+];
+const REF_AXES = [
+    { key: 'x', label: 'X', step: 0.001 },
+    { key: 'y', label: 'Y', step: 0.001 },
+    { key: 'z', label: 'Z', step: 0.001 },
+    { key: 'roll', label: 'R°', step: 0.1 },
+    { key: 'pitch', label: 'P°', step: 0.1 },
+    { key: 'yaw', label: 'Y°', step: 0.1 },
+];
+
+function _renderSettingsGrid() {
+    const grid = document.getElementById('latte-settings-grid');
+    if (!grid) return;
+    grid.innerHTML = REF_POSE_LINKS.map(link => {
+        const rows = REF_AXES.map(ax => {
+            const paramName = link.key + '.' + ax.key;
+            return '<label class="latte-cfg-row"><span>' + link.label + ' ' + ax.label + '</span>'
+                + '<input type="number" class="latte-num-inp latte-settings-inp"'
+                + ' data-param="' + paramName + '" step="' + ax.step + '" />'
+                + '</label>';
+        }).join('');
+        return '<div class="latte-settings-link-group"><h4>' + link.label + '</h4><div class="latte-cfg-grid latte-cfg-grid--3col">' + rows + '</div></div>';
+    }).join('');
+
+    // 绑定事件
+    grid.querySelectorAll('.latte-settings-inp').forEach(inp => {
+        inp.addEventListener('change', async () => {
+            const paramName = inp.dataset.param;
+            const value = parseFloat(inp.value);
+            if (isNaN(value)) return;
+            try {
+                await ros.callService('/rosapi/set_param', 'rosapi/SetParam', {
+                    name: '/latte_imitation/' + paramName, value: String(value),
+                }, 3000);
+                logBus.addLog('info', 'service', 'ROS2 参数更新: ' + paramName + ' = ' + value,
+                    { param: paramName, value: value }, 'latte');
+                // 同步更新前端状态
+                if (paramName === 'lizhu_link.x') _state.cupX = value;
+                if (paramName === 'lizhu_link.y') _state.cupY = value;
+                if (paramName === 'lizhu_link.z') _state.cupZ = value;
+                _saveSession(); _debouncedPreview();
+            } catch (e) {
+                logBus.addLog('warn', 'service', 'ROS2 参数设置失败: ' + paramName,
+                    { error: String(e.message || e) }, 'latte');
+            }
+        });
+    });
+
+    document.getElementById('latte-settings-refresh')?.addEventListener('click', () => {
+        _syncParamsFromRos2().then(() => _fillSettingsInputs());
+    });
+}
+
+async function _fillSettingsInputs() {
+    const grids = document.querySelectorAll('.latte-settings-inp');
+    for (const inp of grids) {
+        const paramName = inp.dataset.param;
+        try {
+            const result = await ros.callService(
+                '/rosapi/get_param', 'rosapi/GetParam',
+                { name: '/latte_imitation/' + paramName }, 3000
+            );
+            if (result && typeof result.value !== 'undefined') {
+                inp.value = typeof result.value === 'number'
+                    ? parseFloat(result.value.toFixed(4)) : result.value;
+            }
+        } catch (_) { /* */ }
+    }
+}
+
+function _bindSettingsToggle() {
+    const btn = document.getElementById('latte-settings-toggle');
+    const body = document.getElementById('latte-settings-body');
+    if (!btn || !body) return;
+    btn.addEventListener('click', () => {
+        const expanded = btn.getAttribute('aria-expanded') === 'true';
+        btn.setAttribute('aria-expanded', !expanded);
+        body.style.display = expanded ? 'none' : 'block';
+        if (!expanded) { _fillSettingsInputs(); }
+    });
+}
+
 // ── 入口 ──
 export function initLatteControls() {
     _loadSession();
     _render();
     _bindEvents();
+    _bindSettingsToggle();
+    _renderSettingsGrid();
+    _syncParamsFromRos2().then(() => _fillSettingsInputs());
 
     logBus.addLog('info', 'system', '拉花参数控制就绪 pattern=' + (_state.patternType || '(episode)') +
         ' cup=(' + _state.cupX + ',' + _state.cupY + ',' + _state.cupZ + ')', {}, 'latte');

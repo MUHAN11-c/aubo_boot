@@ -187,6 +187,18 @@
 											class="latte-num-inp" /></label>
 								</div>
 							</div>
+							<!-- ── 参考位姿设置 (可折叠, ROS2参数) ── -->
+							<div class="latte-ctrl-group">
+								<button type="button" class="latte-settings-toggle" id="latte-settings-toggle" aria-expanded="false" aria-controls="latte-settings-body">
+									<span>参考位姿设置 (ROS2 参数)</span>
+									<span class="latte-settings-chevron" aria-hidden="true"></span>
+								</button>
+								<div class="latte-settings-body" id="latte-settings-body" style="display:none">
+									<p class="latte-ctrl-desc">URDF 参考位姿: coffee_Link/lizhu_Link/cup0_Link/reference_pose。XY 用于轨迹定位, Z 需真机微调。</p>
+									<div class="latte-settings-grid" id="latte-settings-grid"></div>
+									<button type="button" class="latte-btn latte-btn--small" id="latte-settings-refresh">从 ROS2 刷新</button>
+								</div>
+							</div>
 							<!-- ── 执行按钮 ── -->
 							<div class="latte-ctrl-group latte-exec-row">
 								<button type="button" id="latte-btn-preview"

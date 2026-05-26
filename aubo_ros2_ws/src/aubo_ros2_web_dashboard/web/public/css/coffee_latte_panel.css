@@ -756,3 +756,19 @@ input[type="range"].latte-range::-moz-range-thumb {
 #latte-cup-group, #latte-pour-group, #latte-vel-group {
   margin-bottom: 12px;
 }
+
+/* ── 参考位姿设置 ── */
+.latte-settings-toggle {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: none; border: 1px solid #e5e7eb; border-radius: 6px;
+  padding: 8px 12px; cursor: pointer; font-size: 13px; color: #374151;
+  text-align: left; transition: border-color 0.2s;
+}
+.latte-settings-toggle:hover { border-color: #4a90d9; }
+.latte-settings-chevron::after { content: '▼'; font-size: 10px; }
+.latte-settings-toggle[aria-expanded="true"] .latte-settings-chevron::after { content: '▲'; }
+.latte-settings-body { padding: 10px 0; }
+.latte-settings-link-group { margin-bottom: 10px; }
+.latte-settings-link-group h4 { font-size: 12px; color: #6b7280; margin: 0 0 4px 0; }
+.latte-settings-inp { width: 100%; box-sizing: border-box; }
+.latte-btn--small { font-size: 12px; padding: 4px 12px; }

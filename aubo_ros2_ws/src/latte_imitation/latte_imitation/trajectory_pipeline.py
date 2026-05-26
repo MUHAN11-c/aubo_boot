@@ -82,6 +82,36 @@ from .tf_utils import get_current_ee_pose
 # 辅助函数
 # ═══════════════════════════════════════════════════════════════════
 
+def _load_latte_positions_defaults() -> dict:
+    """从 YAML 加载参考位姿默认值, 返回 declare_parameter 用的 {key: default} 字典喵~"""
+    import yaml, os
+    defaults = {}
+    yaml_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "config", "latte_positions.yaml",
+    )
+    try:
+        with open(yaml_path) as f:
+            data = yaml.safe_load(f)
+        for link_name, pose in data.items():
+            for axis in ("x", "y", "z", "roll", "pitch", "yaw"):
+                key = f"{link_name}.{axis}"
+                defaults[key] = float(pose.get(axis, 0.0))
+    except Exception:
+        # YAML 不可用时用硬编码 fallback
+        defaults = {
+            "coffee_link.x": -0.645, "coffee_link.y": 0.098, "coffee_link.z": 0.05,
+            "coffee_link.roll": 0.0, "coffee_link.pitch": 0.0, "coffee_link.yaw": 0.0,
+            "lizhu_link.x": -0.630, "lizhu_link.y": -0.368, "lizhu_link.z": 0.04,
+            "lizhu_link.roll": 0.0, "lizhu_link.pitch": 0.0, "lizhu_link.yaw": 0.0,
+            "cup0_link.x": -0.528, "cup0_link.y": -0.198, "cup0_link.z": 0.05,
+            "cup0_link.roll": 0.0, "cup0_link.pitch": 0.0, "cup0_link.yaw": 0.0,
+            "reference_pose.x": -0.419, "reference_pose.y": -0.400, "reference_pose.z": 0.246,
+            "reference_pose.roll": -23.5, "reference_pose.pitch": 88.1, "reference_pose.yaw": 76.0,
+        }
+    return defaults
+
+
 def _cartesian_resource_dir() -> str:
     try:
         share = get_package_share_directory("latte_imitation")
@@ -141,6 +171,12 @@ class LatteImitationNode(Node):
         self.declare_parameter("execution_timeout", 120.0)
         self.declare_parameter("tf_retry_count", 20)
         self.declare_parameter("tf_retry_interval", 0.03)
+
+        # ── 参考位姿参数 (从 YAML 加载默认值) ──
+        _pos = _load_latte_positions_defaults()
+        for key, default in _pos.items():
+            self.declare_parameter(key, default)
+            setattr(self, f"_{key}", self.get_parameter(key).value)
 
         self._episode_idx = self.get_parameter("episode_idx").value
         self._arm = self.get_parameter("arm").value
@@ -337,10 +373,13 @@ class LatteImitationNode(Node):
         tf_warning = False
         if pattern_type and cup_params:
             # 参数化模式: retarget 目标 = 杯子位姿
+            # XY 以 ROS2 lizhu_link 参数为权威来源, Z 从前端传入
+            lizhu_x = float(self.get_parameter("lizhu_link.x").value)
+            lizhu_y = float(self.get_parameter("lizhu_link.y").value)
             target = Pose()
-            target.position.x = cup_params.get("center_x", 0.0)
-            target.position.y = cup_params.get("center_y", 0.0)
-            target.position.z = cup_params.get("surface_z", 0.15)
+            target.position.x = lizhu_x
+            target.position.y = lizhu_y
+            target.position.z = float(cup_params.get("surface_z", 0.15))
             target.orientation.x = 0.0
             target.orientation.y = 0.0
             target.orientation.z = 0.0

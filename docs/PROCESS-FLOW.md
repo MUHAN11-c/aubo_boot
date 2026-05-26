@@ -153,7 +153,7 @@
 |------|--------|---------|
 | [9] | `execute_grasp_pose_worker.launch.py` | `/execute_single_grasp`, `/loop_grasp_control` |
 | [10] | `gripper_swap_worker.launch.py` | `/change_tool`, `/run_gripper_swap`, `/get_current_tool` |
-| [11] | `coffee_latte_demo.launch.py` | `/set_latte_do2`, `/set_latte_do4` |
+| [11] | `latte_io.launch.py` | `/set_latte_do2`, `/set_latte_do4` |
 | [12] | `publish_grasps_client_worker_node` (ros2 run) | `/publish_grasps_worker_loop_control` |
 
 **工具快换链路**: `/change_tool` → `gripper_swap_worker` → `/set_robot_io`（快换 IO）→ `moveToDockApproach` → **`/scene_detach`（提前卸碰撞）** → `releaseTool` → `pickTool` → **`/tool_changer_status` → `scene_attach_worker`**（`/attached_collision_object` + `/planning_scene` world REMOVE）→ `moveToHome`

@@ -21,6 +21,7 @@ export function createMonitoringCollapse(opts) {
     const bundleId = options.bundleId || DEFAULT_BUNDLE_ID;
     const toggleBtnId = options.toggleBtnId || DEFAULT_TOGGLE_ID;
     const floorPx = options.floorPx || 200;  // 位姿列最小高度
+    const maxPx = options.maxPx || 0;        // 位姿列最大高度（0=不限制），防止滚动高度反馈循环喵~
 
     let _minHeightRaf = 0;
     let _resizeObserver = null;
@@ -47,10 +48,15 @@ export function createMonitoringCollapse(opts) {
         if (!bundle || !col) return;
         if (!section || section.classList.contains('is-monitoring-collapsed')) {
             bundle.style.removeProperty('--ivg-monitoring-bundle-min-px');
+            bundle.style.maxHeight = '';
             return;
         }
         const intrinsic = Math.ceil(col.scrollHeight);
-        bundle.style.setProperty('--ivg-monitoring-bundle-min-px', `${Math.max(floorPx, intrinsic)}px`);
+        const clamped = maxPx > 0 ? Math.min(maxPx, Math.max(floorPx, intrinsic)) : Math.max(floorPx, intrinsic);
+        bundle.style.setProperty('--ivg-monitoring-bundle-min-px', `${clamped}px`);
+        if (maxPx > 0) {
+            bundle.style.maxHeight = `${maxPx}px`;
+        }
     }
 
     function applyCollapsed(collapsed) {
@@ -75,7 +81,10 @@ export function createMonitoringCollapse(opts) {
             });
         } else {
             const b = bundleEl();
-            if (b) b.style.removeProperty('--ivg-monitoring-bundle-min-px');
+            if (b) {
+                b.style.removeProperty('--ivg-monitoring-bundle-min-px');
+                b.style.maxHeight = '';
+            }
         }
     }
 

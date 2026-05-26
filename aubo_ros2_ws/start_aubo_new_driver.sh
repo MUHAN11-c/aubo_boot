@@ -321,7 +321,7 @@ echo -e "${GREEN}[10] 夹爪快换...${NC}"
 launch "Tool Changer" "ros2 launch tool_changer gripper_swap_worker.launch.py"
 
 echo -e "${GREEN}[11] 咖啡拉花 (DO 开关)...${NC}"
-launch "Coffee Latte" "ros2 launch coffee_latte_demo coffee_latte_demo.launch.py"
+launch "Coffee Latte" "ros2 launch latte_imitation latte_io.launch.py"
 
 echo -e "${GREEN}[11b] 拉花轨迹回放 (MoveIt2 标准管线)...${NC}"
 launch "Latte Imitation" "ros2 launch latte_imitation start_latte_pour.launch.py"

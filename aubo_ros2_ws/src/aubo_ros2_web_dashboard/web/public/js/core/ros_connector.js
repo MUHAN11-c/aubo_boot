@@ -19,6 +19,7 @@ export function createRosConnector(opts) {
   const options = opts || {};
   const ports   = options.ivgPorts   || ivgPorts;
   const transport = options.ivgTransport || ivgTransport;
+  const owner   = options.owner || 'ros_connector';
   const reconnectMax = options.reconnectMax || DEFAULT_RECONNECT_MAX;
   const setConnStatus = typeof options.setConnStatus === 'function'
     ? options.setConnStatus
@@ -31,7 +32,7 @@ export function createRosConnector(opts) {
     if (typeof options.onUnsubscribeAll === 'function') {
       options.onUnsubscribeAll();
     }
-    transport.clearRosHandlers();
+    transport.clearRosHandlersByOwner(owner);
     transport.unsubscribeAll();
   }
 
@@ -73,7 +74,7 @@ export function createRosConnector(opts) {
         rosReconnect.attempts = 0;
         ports.clearRosReconnectTimer(rosReconnect);
 
-        transport.clearControlJsonHandlers();
+        transport.clearControlHandlersByOwner(owner);
         transport.onControlJson(function (ctrl) {
           if (!ctrl || typeof ctrl !== 'object') return;
           if (ctrl.op === 'error') {
@@ -84,7 +85,7 @@ export function createRosConnector(opts) {
             _unsubscribeAll();
             _scheduleReconnect();
           }
-        });
+        }, owner);
 
         setConnStatus('已连接', true);
 

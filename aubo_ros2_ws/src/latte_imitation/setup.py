@@ -35,6 +35,7 @@ setup(
     entry_points={
         "console_scripts": [
             "latte_imitation_node = latte_imitation.trajectory_pipeline:main",
+            "latte_io_node = latte_imitation.latte_io_node:main",
         ],
     },
 )

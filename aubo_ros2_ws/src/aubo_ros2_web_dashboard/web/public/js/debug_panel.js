@@ -1,5 +1,6 @@
 // debug_panel.js — 调试面板：状态监控 · 运动控制 · IO · IK/FK · 话题/服务
 import { ivgTransport } from './ivg_transport.js';
+import { loadRecords } from './core/record_store.js';
 
 const TAG = '[debug_panel]';
 
@@ -93,7 +94,7 @@ function setupRobotStatus() {
     ivgTransport.onRosJson('/robot_status', function (msg) {
       _latestRobotStatus = msg;
       updateStatusBar(msg);
-    });
+    }, 'debug_panel');
   }
 
   ivgTransport.subscribe({
@@ -453,7 +454,6 @@ function setupTopicMonitor() {
 
     // 取消旧订阅
     if (_monitorHandlerId !== null) {
-      ivgTransport._rosHandlers = ivgTransport._rosHandlers.filter(function (h) { return h._monitor !== true; });
       ivgTransport.unsubscribe(_monitorTopic);
     }
 
@@ -474,17 +474,19 @@ function setupTopicMonitor() {
       el.innerHTML = line + el.innerHTML;
       while (el.children.length > 100) el.removeChild(el.lastChild);
     };
-    handler._monitor = true;
     _monitorHandlerId = handler;
 
-    ivgTransport.onRosJson(topic, handler);
+    // 清除旧监控 handler 并重新注册 /robot_status + 新监控 handler
+    ivgTransport.clearRosHandlersByOwner('debug_panel');
+    _robotStatusSubscribed = false;
+    setupRobotStatus();
+    ivgTransport.onRosJson(topic, handler, 'debug_panel');
     ivgTransport.subscribe({ topic: topic, msgType: type, maxHz: 5 });
     logOk('debug-log-topic-monitor', '已订阅: ' + topic + ' (' + type + ')');
   });
 
   $('btn-dbg-sub-stop').addEventListener('click', function () {
     if (_monitorTopic) {
-      ivgTransport._rosHandlers = ivgTransport._rosHandlers.filter(function (h) { return h._monitor !== true; });
       ivgTransport.unsubscribe(_monitorTopic);
       logWarn('debug-log-topic-monitor', '已取消订阅: ' + _monitorTopic);
     }
@@ -492,6 +494,10 @@ function setupTopicMonitor() {
     _monitorTopic = null;
     _monitorCount = 0;
     $('dbg-sub-count').textContent = '消息: 0';
+    // 重新注册 /robot_status handler（清除监控 handler 后）喵~
+    ivgTransport.clearRosHandlersByOwner('debug_panel');
+    _robotStatusSubscribed = false;
+    setupRobotStatus();
   });
 }
 
@@ -553,6 +559,115 @@ function setupTopicPublish() {
   });
 }
 
+// ── 记录快照加载 ─────────────────────────────────────────────────────────────
+
+let _cachedRecords = [];
+
+function refreshRecordSelect() {
+  var sel = $('dbg-record-select');
+  if (!sel) return;
+  _cachedRecords = loadRecords();
+  var curVal = sel.value;
+  sel.innerHTML = '<option value="">-- 请选择记录 --</option>';
+  if (_cachedRecords.length === 0) {
+    sel.innerHTML += '<option value="" disabled>-- 暂无记录 --</option>';
+  } else {
+    _cachedRecords.forEach(function (r, i) {
+      var name = r.name || ('快照 #' + (i + 1));
+      var t = (r.timestamp || '').replace('T', ' ').slice(0, 16);
+      var opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = name + ' (' + t + ')';
+      sel.appendChild(opt);
+    });
+  }
+  // 恢复先前选中项
+  if (curVal && parseInt(curVal) < _cachedRecords.length) {
+    sel.value = curVal;
+  }
+  onSelectRecord();
+}
+
+function onSelectRecord() {
+  var sel = $('dbg-record-select');
+  var detail = $('dbg-record-detail');
+  var btnJ = $('btn-dbg-load-joints');
+  var btnP = $('btn-dbg-load-pose');
+  if (!sel) return;
+
+  var idx = parseInt(sel.value);
+  if (isNaN(idx) || idx < 0 || idx >= _cachedRecords.length) {
+    if (detail) detail.innerHTML = '<span class="debug-empty">选择记录查看详情</span>';
+    if (btnJ) btnJ.disabled = true;
+    if (btnP) btnP.disabled = true;
+    return;
+  }
+
+  var r = _cachedRecords[idx];
+  if (btnJ) btnJ.disabled = false;
+  if (btnP) btnP.disabled = false;
+
+  if (!detail) return;
+  var rads = (r.joints || []).map(function (j) { return j.position_rad != null ? j.position_rad.toFixed(4) : '--'; });
+  var pos = r.end_effector && r.end_effector.position_m ? r.end_effector.position_m : {};
+  var rpy = r.end_effector && r.end_effector.euler_rpy_deg ? r.end_effector.euler_rpy_deg : {};
+
+  detail.innerHTML =
+    '<div class="live-item"><span class="live-key">模式</span><span class="live-val">' + (r.mode || 'unknown') + '</span></div>'
+    + '<div class="live-item"><span class="live-key">关节(rad)</span><span class="live-val">' + rads.join(', ') + '</span></div>'
+    + '<div class="live-item"><span class="live-key">XYZ(m)</span><span class="live-val">X:' + ((pos.x != null ? pos.x : 0).toFixed(3)) + ' Y:' + ((pos.y != null ? pos.y : 0).toFixed(3)) + ' Z:' + ((pos.z != null ? pos.z : 0).toFixed(3)) + '</span></div>'
+    + '<div class="live-item"><span class="live-key">RPY(°)</span><span class="live-val">R:' + ((rpy.roll != null ? rpy.roll : 0).toFixed(1)) + ' P:' + ((rpy.pitch != null ? rpy.pitch : 0).toFixed(1)) + ' Y:' + ((rpy.yaw != null ? rpy.yaw : 0).toFixed(1)) + '</span></div>';
+}
+
+function onLoadJoints() {
+  var sel = $('dbg-record-select');
+  if (!sel) return;
+  var idx = parseInt(sel.value);
+  if (isNaN(idx) || idx < 0 || idx >= _cachedRecords.length) {
+    logWarn('debug-log-record', '请先选择一条记录');
+    return;
+  }
+  var r = _cachedRecords[idx];
+  for (var i = 0; i < 6; i++) {
+    var inp = $('dbg-j' + (i + 1));
+    if (inp && r.joints[i] && r.joints[i].position_rad != null) {
+      inp.value = r.joints[i].position_rad.toFixed(4);
+    }
+  }
+  logOk('debug-log-record', '已加载关节角');
+}
+
+function onLoadPose() {
+  var sel = $('dbg-record-select');
+  if (!sel) return;
+  var idx = parseInt(sel.value);
+  if (isNaN(idx) || idx < 0 || idx >= _cachedRecords.length) {
+    logWarn('debug-log-record', '请先选择一条记录');
+    return;
+  }
+  var r = _cachedRecords[idx];
+  var pos = r.end_effector && r.end_effector.position_m ? r.end_effector.position_m : {};
+  var ori = r.end_effector && r.end_effector.orientation_quaternion ? r.end_effector.orientation_quaternion : {};
+  $('dbg-xyz-x').value = pos.x != null ? pos.x.toFixed(4) : '0.0000';
+  $('dbg-xyz-y').value = pos.y != null ? pos.y.toFixed(4) : '0.0000';
+  $('dbg-xyz-z').value = pos.z != null ? pos.z.toFixed(4) : '0.0000';
+  $('dbg-xyz-qx').value = ori.x != null ? ori.x.toFixed(4) : '0.0000';
+  $('dbg-xyz-qy').value = ori.y != null ? ori.y.toFixed(4) : '0.0000';
+  $('dbg-xyz-qz').value = ori.z != null ? ori.z.toFixed(4) : '0.0000';
+  $('dbg-xyz-qw').value = ori.w != null ? ori.w.toFixed(4) : '1.0000';
+  logOk('debug-log-record', '已加载位姿');
+}
+
+function setupRecordLoader() {
+  refreshRecordSelect();
+  $('dbg-record-select').addEventListener('change', onSelectRecord);
+  $('btn-dbg-load-joints').addEventListener('click', onLoadJoints);
+  $('btn-dbg-load-pose').addEventListener('click', onLoadPose);
+  window.addEventListener('storage', function (e) {
+    if (e.key === 'ivg_monitor_records') refreshRecordSelect();
+  });
+}
+
 // ── 初始化 ───────────────────────────────────────────────────────────────────
 
 async function init() {
@@ -574,7 +689,7 @@ async function init() {
         updateConnStatus(true);
         setupRobotStatus();
       }
-    });
+    }, 'debug_panel');
   } catch (e) {
     console.error(TAG, '连接失败:', e);
     updateConnStatus(false);
@@ -596,6 +711,7 @@ async function init() {
   setupTopicMonitor();
   setupServiceCall();
   setupTopicPublish();
+  setupRecordLoader();
 
   console.log(TAG, '初始化完成');
 }

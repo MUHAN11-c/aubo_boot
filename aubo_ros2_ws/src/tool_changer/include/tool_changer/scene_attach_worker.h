@@ -54,7 +54,9 @@ private:
   void onToolStatus(const ivg_interfaces::msg::ToolChangerStatus& msg);
 
   // robot_description 参数更新（前端 3D URDF 重载）喵~
-  void updateRobotDescription(const std::string& tool_id);
+  // sync=true: 同步等待 set_parameters 结果并验证（/set_display_tool 使用）
+  // sync=false: 异步 set_parameters + 回调日志（/scene_attach 等内部路径，避免阻塞）喵~
+  void updateRobotDescription(const std::string& tool_id, bool sync = false);
 
   // MoveIt：ACO（/attached_collision_object）+ world REMOVE（/planning_scene）
   void attachToolToScene(const std::string& tool_id);
@@ -81,12 +83,14 @@ private:
   rclcpp::Service<ivg_interfaces::srv::ChangeTool>::SharedPtr scene_detach_srv_;
   rclcpp::Service<ivg_interfaces::srv::ChangeTool>::SharedPtr display_tool_srv_;
 
-  // robot_description 动态发布（前端 3D URDF 重载）
+  // robot_description 动态发布（前端 3D + RViz2 URDF 重载）
   std::map<std::string, std::string> urdf_cache_;
+  rclcpp::CallbackGroup::SharedPtr param_cb_group_;         // 独立回调组，避免 set_parameters 死锁
   rclcpp::AsyncParametersClient::SharedPtr param_client_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr robot_description_pub_;
 
-  std::string current_attached_tool_;
+  std::string current_attached_tool_;   // 物理快换当前工具（/tool_changer_status 驱动）
+  std::string current_display_tool_;    // 前端 URDF 显示夹爪选择（/set_display_tool 驱动）
 };
 
 }  // namespace tool_changer

@@ -16,6 +16,7 @@
  */
 import { ivgPorts } from './ivg_runtime.js';
 import { ivgTransport } from './ivg_transport.js';
+import { ros } from './core/ros.js';
 import * as ROSLIB from 'roslib';
 import * as ROS3D from 'ros3d';
 import { createDomCache } from './core/dom_cache.js';
@@ -52,9 +53,6 @@ import {
 	if (!ROSLIB || !ROS3D || !IvgRos3dView3dSession) {
 		throw new Error('vision_grasp_panel.js requires ROSLIB/ROS3D and IvgRos3dView3dSession');
 	}
-	const rosReconnect = ivgPorts.createRosReconnectState();
-	const ROS_RECONNECT_MAX = 12;
-	let connectInFlight = false;
 	const PAGE_STREAM_SUFFIX = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 	const subs = {};
 	/** 左栏 URDF：独立 3D 会话控制器，避免与控制面 WS 生命周期互相干扰。 */
@@ -200,18 +198,15 @@ import {
 	function suspendRealtimeForBackground() {
 		if (pageRealtimePaused) return;
 		pageRealtimePaused = true;
-		ivgPorts.clearRosReconnectTimer(rosReconnect);
-		rosReconnect.attempts = 0;
 		unsubscribeAll();
-		// 先清空控制面处理器，避免 close 事件误触发重连
-		ivgTransport.clearControlJsonHandlers();
-		ivgTransport.close();
+		ros.pause();
 		setConnStatus('页面后台已暂停', null);
 	}
 
 	function resumeRealtimeFromForeground() {
 		if (!pageRealtimePaused) return;
 		pageRealtimePaused = false;
+		ros.resume();
 		connect();
 	}
 
@@ -380,15 +375,17 @@ import {
 		}, GRASP_COLOR_SNAP_DEBOUNCE_MS);
 	}
 
-	function unsubscribeAll() {
+	function unsubscribeAll(skipTopicUnsub) {
 		stopVisionUrdf3d();
 		if (graspColorSnapTimer) {
 			clearTimeout(graspColorSnapTimer);
 			graspColorSnapTimer = null;
 		}
 		robotPoseCache.value = '';
-		ivgTransport.clearRosHandlers();
-		ivgTransport.unsubscribeAll();
+		ivgTransport.clearRosHandlersByOwner('vision_grasp');
+		if (!skipTopicUnsub) {
+			ivgTransport.unsubscribeAll();
+		}
 		Object.keys(subs).forEach(k => {
 			subs[k] = null;
 		});
@@ -397,9 +394,10 @@ import {
 		resetJointChart();
 	}
 
-	/** 按输入框话题名建立全部订阅；connect 成功时调用 */
+	/** 按输入框话题名建立全部订阅；connect 成功时调用。
+	 *  跳过 topic 级 unsubscribeAll，避免销毁状态栏等系统组件的订阅喵~ */
 	function startSubscriptions() {
-		unsubscribeAll();
+		unsubscribeAll(true);
 		if (!ivgTransport.isConnected() || pageRealtimePaused || pageShouldPauseRealtime()) return;
 		bindVisionSubscriptions({
 			transport: ivgTransport,
@@ -428,7 +426,7 @@ import {
 		_toolSubDone = true;  // 接管订阅，阻止旧重试循环
 		try {
 			ivgTransport.subscribe({ topic: '/tool_changer_status', msgType: 'ivg_interfaces/msg/ToolChangerStatus', maxHz: 5 });
-			ivgTransport.onRosJson('/tool_changer_status', _onToolStatusMsg);
+			ivgTransport.onRosJson('/tool_changer_status', _onToolStatusMsg, 'vision_grasp');
 		} catch (_e) { console.warn('[vision_grasp] /tool_changer_status 重订阅失败:', _e); }
 	}
 
@@ -514,70 +512,15 @@ import {
 		};
 	}
 
-	/** 连接 ivg_web_serve 控制面 WebSocket；成功后 startSubscriptions */
+	/** 连接/重连 — 统一委托 ros.js 喵~ */
 	function connect() {
-		if (connectInFlight) return;
 		if (pageShouldPauseRealtime()) {
 			pageRealtimePaused = true;
 			setConnStatus('页面后台已暂停', null);
 			return;
 		}
-		connectInFlight = true;
 		pageRealtimePaused = false;
-		ivgPorts.clearRosReconnectTimer(rosReconnect);
-		const myGen = ivgPorts.bumpRosReconnectGen(rosReconnect);
-		setConnStatus('正在连接…', null);
-		unsubscribeAll();
-		ivgTransport.close();
-		void (async () => {
-			try {
-				await ivgTransport.loadRuntime();
-				await ivgTransport.connectControl();
-				if (myGen !== rosReconnect.gen) return;
-				rosReconnect.attempts = 0;
-				ivgPorts.clearRosReconnectTimer(rosReconnect);
-				ivgTransport.clearControlJsonHandlers();
-				ivgTransport.onControlJson(o => {
-					if (!o || typeof o !== 'object') return;
-					if (o.op === 'error') {
-						logSvc(o.message != null ? String(o.message) : '通信错误');
-						setConnStatus('已连接但发生通信错误，准备重连…', false);
-					}
-					if (o.op === 'close') {
-						if (pageRealtimePaused) return;
-						setConnStatus('连接已断开，准备重连…', false);
-						unsubscribeAll();
-						ivgPorts.scheduleRosReconnect(rosReconnect, connect, {
-							maxAttempts: ROS_RECONNECT_MAX,
-							onSchedule(delayMs, attempt, max) {
-								setConnStatus(`已断开：${Math.round(delayMs / 1000)}s 后自动重连（${attempt}/${max}）`, false);
-							},
-							onExhausted() {
-								setConnStatus('已断开（已达自动重连上限，请刷新页面）', false);
-							}
-						});
-					}
-				});
-				setConnStatus('已连接', true);
-				console.log("[vision] rosbridge 已连接，启动订阅");
-				startSubscriptions();
-			} catch (e) {
-				if (myGen !== rosReconnect.gen) return;
-				setConnStatus('连接错误', false);
-				unsubscribeAll();
-				ivgPorts.scheduleRosReconnect(rosReconnect, connect, {
-					maxAttempts: ROS_RECONNECT_MAX,
-					onSchedule(delayMs, attempt, max) {
-						setConnStatus(`已断开：${Math.round(delayMs / 1000)}s 后自动重连（${attempt}/${max}）`, false);
-					},
-					onExhausted() {
-						setConnStatus('已断开（已达自动重连上限，请刷新页面）', false);
-					}
-				});
-			} finally {
-				connectInFlight = false;
-			}
-		})();
+		ros.connect();
 	}
 
 	/** 按抓取方式切换：控制区 + 右侧状态（VPE / GraspNet 候选二选一）；末端位姿与夹爪快换始终显示 */
@@ -723,7 +666,7 @@ import {
 			_toolSubDone = true;
 			try {
 				ivgTransport.subscribe({ topic: '/tool_changer_status', msgType: 'ivg_interfaces/msg/ToolChangerStatus', maxHz: 5 });
-				ivgTransport.onRosJson('/tool_changer_status', _onToolStatusMsg);
+				ivgTransport.onRosJson('/tool_changer_status', _onToolStatusMsg, 'vision_grasp');
 			} catch (e) { console.warn('[vision_grasp] /tool_changer_status 订阅失败:', e); }
 		}
 		setTimeout(_subscribeToolStatus, 500);
@@ -860,7 +803,14 @@ import {
 
 			uiBinder.bindTopicSettingsUi();
 
-			ivgPorts.wireOnlineRosReconnect(rosReconnect, connect);
+			// 统一使用 ros.js 管理连接生命周期喵~
+			ros.onStatusChange(setConnStatus);
+			ros.onConnected(function () {
+				console.log("[vision] rosbridge 已连接，启动订阅");
+				startSubscriptions();
+			});
+			ros.onCleanup(function () { unsubscribeAll(); });
+			ros.wireOnlineReconnect();
 			connect();
 		})();
 	});

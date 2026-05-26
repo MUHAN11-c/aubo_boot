@@ -221,6 +221,24 @@
       </div>
     </div>
 
+    <!-- 记录快照 -->
+    <div class="debug-card ok-card" id="debug-record-loader">
+      <h2>记录快照</h2>
+      <div class="debug-row">
+        <select class="debug-select" id="dbg-record-select" style="width:100%;">
+          <option value="">-- 请选择记录 --</option>
+        </select>
+      </div>
+      <div class="debug-live-data" id="dbg-record-detail" style="margin-top:0.3rem;">
+        <span class="debug-empty">选择记录查看详情</span>
+      </div>
+      <div class="debug-btn-row">
+        <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-load-joints" disabled>加载关节角到 MoveJ</button>
+        <button type="button" class="debug-btn" id="btn-dbg-load-pose" disabled>加载位姿到 MoveL</button>
+      </div>
+      <div class="debug-log" id="debug-log-record" aria-live="polite"></div>
+    </div>
+
     <!-- 话题监控 -->
     <div class="debug-card ok-card" id="debug-topic-monitor">
       <h2>话题监控</h2>

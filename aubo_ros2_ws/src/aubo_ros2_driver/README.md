@@ -32,7 +32,7 @@ MoveIt2 → FollowJointTrajectory Action
 | 工具 ID | 类型 | 所属包 | 用途 |
 |---------|------|--------|------|
 | **gripper0** | 气动夹爪 φ40 | tool_changer | 工件抓取，通过快换对接 |
-| **gripper1** | 电动夹爪 A | coffee_latte_demo | 咖啡拉花载体，不参与快换 |
+| **gripper1** | 电动夹爪 A | latte_imitation | 咖啡拉花载体，不参与快换 |
 | **gripper2** | 电动夹爪 φ60 | tool_changer | AI 抓取，通过快换对接 |
 
 ### IO 引脚分配

@@ -138,7 +138,7 @@ aubo_ros2_ws/src/
 ├── visual_pose_estimation/         # 工件识别与抓取（1 个子包）
 ├── vision_perception/              # MediaPipe + YOLO OBB 感知
 ├── tool_changer/                   # 夹爪快换（物理运动 + PlanningScene 附着 + URDF 更新）
-├── coffee_latte_demo/              # 咖啡拉花演示（IO 控制 + Web 前端）
+├── coffee_latte_demo/              # 咖啡拉花 IO 控制（已合并到 latte_imitation，废弃）
 ├── latte_imitation/                # RM65→AUBO E5 拉花轨迹模仿学习 (MoveIt2 标准管线)
 └── ros_arm_tutorials/              # 《ROS 机械臂开发与实践》教学代码（6 个子包）
 ```
@@ -215,12 +215,11 @@ move_group → follow_joint_trajectory (action)
 
 详见 `tool_changer/README.md` — 含完整排错记录和架构设计文档。
 
-### 2.6 咖啡拉花 — `coffee_latte_demo/` + `latte_imitation/`
+### 2.6 咖啡拉花 — `latte_imitation/`（IO 控制 + 轨迹回放）
 
 | 包 | 类型 | 职责 |
 |----|------|------|
-| **coffee_latte_demo** | Python | 咖啡拉花演示：IO 控制节点（DO2/DO4）、Web 前端面板、工具网格 |
-| **latte_imitation** | Python | RM65 数据集 → MoveIt2 computeCartesianPath + execute 管线（模仿学习） |
+| **latte_imitation** | Python | 咖啡拉花：IO 控制节点（DO2/DO4）+ 轨迹回放（RM65 数据集 → MoveIt2 管线） |
 
 ---
 
@@ -231,10 +230,10 @@ move_group → follow_joint_trajectory (action)
 | 工具 ID | 类型 | 所属包 | 用途 | 绕 Z 旋转 | attach_offset.z |
 |---------|------|--------|------|----------|----------------|
 | **gripper0** | 气动夹爪 φ40 | tool_changer | 工件抓取（visual_pose_estimation） | 0° | 0.033m |
-| **gripper1** | 电动夹爪 A | coffee_latte_demo | 咖啡拉花载体 | 0° | 0.033m |
+| **gripper1** | 电动夹爪 A | latte_imitation | 咖啡拉花载体 | 0° | 0.033m |
 | **gripper2** | 电动夹爪 φ60 | tool_changer | AI 抓取（graspnet_ros2） | 90° | 0.033m |
-| **gripper1coffeecup** | 咖啡杯工具 | coffee_latte_demo | 拉花用咖啡杯 | 180° | 0.033m |
-| **gripper1milkcup** | 牛奶杯工具 | coffee_latte_demo | 拉花用牛奶杯 | -90° | 0.033m |
+| **gripper1coffeecup** | 咖啡杯工具 | latte_imitation | 拉花用咖啡杯 | 180° | 0.033m |
+| **gripper1milkcup** | 牛奶杯工具 | latte_imitation | 拉花用牛奶杯 | -90° | 0.033m |
 
 > 安装面：`kuaihuan_Link` Z=+0.033m。工具 mesh 原点（安装面）与法兰安装面对齐，快换锁止机构咬合 3.8mm。详见 `tool_changer/README.md` 第 4 节。
 
@@ -277,7 +276,7 @@ move_group → follow_joint_trajectory (action)
           └─ `/planning_scene`：world REMOVE `attached_tool_<id>`（无 dock 静态障碍物 ADD）
   Web：`Robot3dViewer` 仅根据 `/tool_changer_status` + TF + `attach_offset` 显示工具 STL（不等后端改 URDF）
 
-咖啡拉花 (coffee_latte_demo)
+咖啡拉花 (latte_imitation/latte_io)
   ├── /set_latte_do2 ← 前端 → /aubo_driver/set_io(io_index=2)
   ├── /set_latte_do4 ← 前端 → /aubo_driver/set_io(io_index=4)
   └── /latte_di_status → 前端 ← /aubo_driver/io_states
@@ -357,7 +356,7 @@ cd aubo_ros2_ws && ./start_aubo_new_driver.sh
 | 8 | GraspNet 点云抓取预测 | graspnet_ros2 |
 | 9 | 抓取执行 Worker | demo_driver |
 | 10 | 夹爪快换 Worker | tool_changer |
-| 11 | 咖啡拉花演示 | coffee_latte_demo |
+| 11 | 咖啡拉花 IO | latte_imitation |
 | 12 | GraspNet 循环抓取 Worker | demo_driver |
 | 13 | 服务就绪校验 | — |
 | 14 | VPE FastAPI Web 服务 | visual_pose_estimation_python |
@@ -398,7 +397,7 @@ tool_changer
   ├── ament_index_cpp (xacro 路径解析)
   └── yaml-cpp (tools.yaml 解析)
 
-coffee_latte_demo
+latte_imitation (latte_io)
   ├── ivg_interfaces (SetRobotIO, RobotIOStatus)
   └── std_srvs
 

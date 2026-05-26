@@ -74,7 +74,7 @@ function _subscribeRosout(transport) {
                 line: msg.line || 0,
                 rosLevel: msg.level,
             });
-        });
+        }, 'log_bridge');
         logBus.addLog('info', 'system', '/rosout 订阅已建立，ROS 2 节点日志将在此显示');
     } catch (e) {
         logBus.addLog('warn', 'system', '/rosout 订阅失败: ' + (e.message || e));
@@ -175,7 +175,7 @@ function _hookTopicData(transport) {
             }
             return;
         }
-    });
+    }, 'log_bridge');
 
     logBus.addLog('info', 'system', '话题摘要钩子已注册（/aubo/mode, /system_status, /tool_changer_status 等）');
 }

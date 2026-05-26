@@ -1,0 +1,322 @@
+<h2>布局预览 v2 — 模型/图像区域最大化</h2>
+<p class="subtitle">URDF 模型 + 相机画面占主体 · 控制面板窄侧栏 · 监控区底部</p>
+
+<style>
+  .preview-frame {
+    border: 1px solid #d1d6df; border-radius: 8px; overflow: hidden;
+    margin-top: 12px; background: #fafbfc;
+    font-family: "Noto Sans SC", system-ui, sans-serif; font-size: 11px;
+  }
+  .preview-nav {
+    background: #fff; border-bottom: 2px solid #2563eb;
+    padding: 7px 14px; display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.06);
+  }
+  .preview-nav-brand { font-weight: 700; font-size: 13px; }
+  .preview-nav-brand span { color: #2563eb; }
+  .preview-nav-links { display: flex; gap: 6px; font-size: 11px; color: #8b95a6; }
+  .preview-nav-links span { padding: 3px 8px; border-radius: 4px; }
+  .preview-nav-links span.active { background: #2563eb; color: #fff; }
+  .preview-body {
+    padding: 6px 10px 0;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .preview-toolbar {
+    background: #fff; border: 1px solid #e2e6ed; border-radius: 8px;
+    padding: 7px 12px; display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+  }
+  .preview-toolbar h1 { font-size: 13px; margin: 0; font-weight: 700; }
+
+  /* 主要内容区: 模型+画面(宽) | 控制面板(窄) */
+  .preview-main {
+    display: grid; grid-template-columns: 1fr 260px;
+    gap: 6px; flex: 1; min-height: 0;
+  }
+  /* 左栏: 上下两个可视化面板 */
+  .preview-viz-col {
+    display: grid; grid-template-rows: 1fr 1fr; gap: 5px; min-height: 0;
+  }
+  .preview-viz-panel {
+    background: #fff; border: 1px solid #e2e6ed; border-left: 3px solid #2563eb;
+    border-radius: 8px; padding: 6px 8px; display: flex; flex-direction: column;
+  }
+  .preview-viz-panel h3 {
+    margin: 0 0 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: #8b95a6; padding-bottom: 3px; border-bottom: 2px solid #2563eb; flex-shrink: 0;
+  }
+  .preview-viz-panel .viz-area {
+    flex: 1; min-height: 100px; background: #f1f3f7; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    color: #8b95a6; font-size: 11px; border: 1px dashed #d1d6df;
+  }
+  /* 右栏: 控制面板 */
+  .preview-ctrl-panel {
+    background: #fff; border: 1px solid #e2e6ed; border-left: 3px solid #2563eb;
+    border-radius: 8px; padding: 6px 8px; display: flex; flex-direction: column; gap: 5px;
+    overflow-y: auto;
+  }
+  .preview-ctrl-panel h3 {
+    margin: 0; font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: #8b95a6; padding-bottom: 3px; border-bottom: 2px solid #2563eb; flex-shrink: 0;
+  }
+  .ctrl-group { font-size: 10px; }
+  .ctrl-group h4 { font-size: 9px; color: #4b5565; margin: 4px 0 2px; }
+  .ctrl-row { display: flex; justify-content: space-between; align-items: center; padding: 1px 0; }
+  .ctrl-row label { color: #8b95a6; font-size: 9px; }
+  .ctrl-row input { width: 60px; border: 1px solid #e2e6ed; border-radius: 3px; padding: 2px 4px; font-size: 9px; text-align: right; }
+  .ctrl-btn {
+    padding: 3px 0; border-radius: 4px; border: 1px solid #e2e6ed; font-size: 10px;
+    background: #fff; text-align: center; margin: 2px 0; cursor: default;
+  }
+  .ctrl-btn.go { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .ctrl-btn.latte-go { background: #7c4a2a; color: #fff; border-color: #7c4a2a; }
+  .ctrl-btn.stop { color: #dc2626; border-color: #fecaca; }
+
+  /* 底部监控区 */
+  .preview-monitoring {
+    background: #fff; border: 1px solid #e2e6ed; border-radius: 8px;
+    padding: 6px 8px; flex-shrink: 0;
+  }
+  .preview-monitoring h3 { font-size: 10px; margin: 0 0 4px; color: #4b5565; }
+  .preview-monitoring-grid {
+    display: grid; grid-template-columns: 1fr 200px; gap: 5px;
+  }
+  .preview-monitoring-chart {
+    background: #f5f6f8; border: 1px solid #e2e6ed; border-radius: 4px;
+    height: 65px; display: flex; align-items: center; justify-content: center;
+    color: #8b95a6; font-size: 10px;
+  }
+  .preview-monitoring-side {
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .preview-monitoring-side > div {
+    background: #f5f6f8; border: 1px solid #e2e6ed; border-radius: 4px;
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    color: #8b95a6; font-size: 9px; padding: 4px;
+  }
+  .preview-status-bar {
+    background: #fff; border-top: 1px solid #e2e6ed;
+    padding: 3px 10px; display: flex; gap: 16px; font-size: 10px; color: #4b5565;
+    margin: 0 -10px; margin-top: 5px;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 3px; }
+  .dot.green { background: #16a34a; } .dot.gray { background: #a0a8b8; } .dot.yellow { background: #d97706; }
+  .preview-note {
+    margin-top: 4px; font-size: 10px; color: #16a34a; padding: 4px 8px;
+    background: #f0fdf4; border-radius: 4px; border: 1px solid #bbf7d0;
+  }
+  .preview-compare {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    margin-top: 12px; font-size: 10px; color: #8b95a6;
+  }
+  .preview-compare > div { text-align: center; }
+  .preview-compare .old { color: #dc2626; }
+  .preview-compare .new { color: #16a34a; }
+</style>
+
+<div class="section" style="margin-bottom:12px;">
+  <h3>vision_grasp_panel — 新布局</h3>
+  <p class="subtitle">模型 + 结果视图占 ~70% 宽度 · 控制面板窄栏 (~260px)</p>
+</div>
+
+<div class="preview-frame">
+  <div class="preview-nav">
+    <div class="preview-nav-brand">灵视 <span>IVG</span></div>
+    <div class="preview-nav-links">
+      <span>门户</span><span class="active">视觉抓取</span><span>咖啡拉花</span><span>监控</span><span>日志</span><span>设置</span>
+    </div>
+  </div>
+  <div class="preview-body">
+    <div class="preview-toolbar">
+      <h1>视觉抓取面板</h1>
+      <span style="font-size:9px;color:#8b95a6;">抓取方式：</span>
+      <span style="background:#2563eb;color:#fff;padding:2px 8px;border-radius:12px;font-size:9px;">工件（视觉估计）</span>
+      <span style="background:#f5f6f8;padding:2px 8px;border-radius:12px;font-size:9px;border:1px solid #e2e6ed;">AI大模型抓取</span>
+      <span style="flex:1;"></span>
+      <span style="font-size:9px;color:#8b95a6;">话题与服务设置</span>
+    </div>
+    <div class="preview-main">
+      <div class="preview-viz-col">
+        <div class="preview-viz-panel">
+          <h3>机械臂模型</h3>
+          <div class="viz-area">3D URDF 视图 (ros3djs) — 拖拽旋转 · 滚轮缩放</div>
+        </div>
+        <div class="preview-viz-panel">
+          <h3>结果视图</h3>
+          <div class="viz-area">相机画面 (MJPEG) + 抓取位姿叠加</div>
+        </div>
+      </div>
+      <div class="preview-ctrl-panel">
+        <h3>抓取与工具控制</h3>
+        <div class="ctrl-group">
+          <h4>目标工件编号</h4>
+          <input style="width:100%;box-sizing:border-box;" placeholder="与现场 object_id 一致">
+        </div>
+        <div class="ctrl-group">
+          <h4>工件抓取</h4>
+          <div class="ctrl-btn go">执行单次抓取</div>
+          <div class="ctrl-btn stop">停止</div>
+          <div class="ctrl-btn go">启动循环</div>
+          <div class="ctrl-btn stop">停循环</div>
+        </div>
+        <div class="ctrl-group">
+          <h4>AI大模型抓取</h4>
+          <div class="ctrl-btn go">开始采集</div>
+          <div class="ctrl-btn stop">停止采集</div>
+          <div class="ctrl-btn go">循环抓取开</div>
+          <div class="ctrl-btn stop">循环抓取关</div>
+        </div>
+        <div class="ctrl-group">
+          <h4>末端夹爪快换</h4>
+          <div style="display:flex;gap:3px;">
+            <div class="ctrl-btn" style="flex:1;">夹爪0</div>
+            <div class="ctrl-btn" style="flex:1;">夹爪1</div>
+            <div class="ctrl-btn" style="flex:1;">夹爪2</div>
+          </div>
+        </div>
+        <div class="ctrl-group">
+          <h4>调试 — 笛卡尔直线</h4>
+          <div class="ctrl-row"><label>X</label><input value="0.3741"><label>Y</label><input value="0.3039"></div>
+          <div class="ctrl-row"><label>Z</label><input value="0.4755"><label>V</label><input value="0.3"></div>
+          <div class="ctrl-btn">Move XYZ</div>
+        </div>
+      </div>
+    </div>
+    <div class="preview-monitoring">
+      <h3>关节曲线与末端位姿 <span style="font-size:8px;color:#8b95a6;">▼ 收起</span></h3>
+      <div class="preview-monitoring-grid">
+        <div class="preview-monitoring-chart">6-DOF 关节角实时曲线 (Canvas 2D)</div>
+        <div class="preview-monitoring-side">
+          <div>机械臂末端位姿</div>
+          <div>视觉位姿估计状态</div>
+        </div>
+      </div>
+    </div>
+    <div class="preview-status-bar">
+      <span><span class="dot green"></span>在线</span>
+      <span><span class="dot green"></span>已使能</span>
+      <span><span class="dot gray"></span>静止</span>
+      <span><span class="dot green"></span>空闲</span>
+      <span style="margin-left:auto;"><span class="dot yellow"></span>仿真</span>
+    </div>
+  </div>
+</div>
+<div class="preview-note">✅ 模型 + 相机占 ~70% 宽度 · 控制面板固定 260px 窄栏 · 无 connection-footer</div>
+
+<div class="section" style="margin-top:20px;margin-bottom:12px;">
+  <h3>coffee_latte_panel — 新布局</h3>
+  <p class="subtitle">模型占 ~70% · 拉花参数控制窄栏 · IO + 监控区底部</p>
+</div>
+
+<div class="preview-frame">
+  <div class="preview-nav">
+    <div class="preview-nav-brand">灵视 <span>IVG</span></div>
+    <div class="preview-nav-links">
+      <span>门户</span><span>视觉抓取</span><span class="active">咖啡拉花</span><span>监控</span><span>日志</span><span>设置</span>
+    </div>
+  </div>
+  <div class="preview-body">
+    <div class="preview-toolbar">
+      <h1>机械臂咖啡拉花</h1>
+      <span style="font-size:9px;color:#8b95a6;">现场 IO · 工序开关右侧</span>
+      <span style="flex:1;"></span>
+      <span style="font-size:9px;color:#8b95a6;">话题与服务设置</span>
+    </div>
+    <div class="preview-main">
+      <div class="preview-viz-col" style="grid-template-rows:1fr;">
+        <div class="preview-viz-panel">
+          <h3>机械臂模型</h3>
+          <div class="viz-area">3D URDF 视图 (ros3djs) — 拖拽旋转 · 滚轮缩放</div>
+        </div>
+      </div>
+      <div class="preview-ctrl-panel">
+        <h3>拉花参数控制</h3>
+        <div class="ctrl-group">
+          <h4>拉花图案</h4>
+          <div style="display:flex;gap:3px;flex-wrap:wrap;">
+            <span style="background:#7c4a2a;color:#fff;padding:2px 6px;border-radius:4px;font-size:9px;">♥ 爱心</span>
+            <span style="background:#f5f6f8;padding:2px 6px;border-radius:4px;font-size:9px;border:1px solid #e2e6ed;">🌿 叶子</span>
+            <span style="background:#f5f6f8;padding:2px 6px;border-radius:4px;font-size:9px;border:1px solid #e2e6ed;">🌷 郁金香</span>
+          </div>
+        </div>
+        <div class="ctrl-group">
+          <h4>杯子参数</h4>
+          <div class="ctrl-row"><label>中心X</label><input value="0.0"><label>中心Y</label><input value="0.0"></div>
+          <div class="ctrl-row"><label>液面Z</label><input value="0.15"><label>半径</label><input value="0.04"></div>
+        </div>
+        <div class="ctrl-group">
+          <h4>倾倒参数</h4>
+          <div class="ctrl-row"><label>混合高度</label><input value="0.076"></div>
+          <div class="ctrl-row"><label>绘制高度</label><input value="0.006"></div>
+          <div class="ctrl-row"><label>摆动振幅</label><input value="0.006"></div>
+          <div class="ctrl-row"><label>摆动频率</label><input value="5.0 Hz"></div>
+        </div>
+        <div class="ctrl-group">
+          <h4>运动约束</h4>
+          <div class="ctrl-row"><label>最大速度</label><input value="0.05"></div>
+          <div class="ctrl-row"><label>最大加速度</label><input value="0.1"></div>
+        </div>
+        <div class="ctrl-group">
+          <h4>轨迹变换 (RPY°)</h4>
+          <div class="ctrl-row"><label>Roll</label><input value="0"><label>Pitch</label><input value="0"><label>Yaw</label><input value="0"></div>
+        </div>
+        <div class="ctrl-group">
+          <h4>轨迹偏移</h4>
+          <div class="ctrl-row"><label>ΔX</label><input value="0"><label>ΔY</label><input value="0"><label>ΔZ</label><input value="0"></div>
+        </div>
+        <div style="display:flex;gap:3px;margin-top:4px;flex-wrap:wrap;">
+          <div class="ctrl-btn" style="flex:1;">预览</div>
+          <div class="ctrl-btn latte-go" style="flex:1;">执行</div>
+          <div class="ctrl-btn stop" style="flex:1;">停止</div>
+          <div class="ctrl-btn" style="flex:1;">回原点</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 260px;gap:6px;">
+      <div class="preview-monitoring" style="margin-top:0;">
+        <h3>关节曲线与末端位姿 <span style="font-size:8px;color:#8b95a6;">▼ 收起</span></h3>
+        <div class="preview-monitoring-grid" style="grid-template-columns:1fr 200px;">
+          <div class="preview-monitoring-chart">6-DOF 关节角实时曲线 (Canvas 2D)</div>
+          <div class="preview-monitoring-side">
+            <div>机械臂末端位姿</div>
+            <div style="background:rgba(37,99,235,0.04);border-color:rgba(37,99,235,0.15);">DI 反馈灯: DI2 DI3 DI4</div>
+          </div>
+        </div>
+      </div>
+      <div class="preview-ctrl-panel">
+        <h3>拉花工序与 IO</h3>
+        <div class="ctrl-group">
+          <h4>工序开关（DO）</h4>
+          <div class="ctrl-row"><label>咖啡开关 DO4</label><span style="font-size:9px;">关</span></div>
+          <div class="ctrl-row"><label>打花开关 DO2</label><span style="font-size:9px;">关</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="preview-status-bar">
+      <span><span class="dot green"></span>在线</span>
+      <span><span class="dot green"></span>已使能</span>
+      <span><span class="dot gray"></span>静止</span>
+      <span><span class="dot green"></span>空闲</span>
+      <span style="margin-left:auto;"><span class="dot yellow"></span>仿真</span>
+    </div>
+  </div>
+</div>
+<div class="preview-note">✅ latte 独立 CSS · 模型独占左栏 (~70%) · IO 面板在监控区旁 · 无 vision_grasp 依赖</div>
+
+<div class="section" style="margin-top:16px;">
+  <h3>布局比例对比</h3>
+  <div class="preview-compare">
+    <div>
+      <strong>旧布局</strong><br>
+      <span class="old">模型 50% | 控制 50%</span><br>
+      <span class="old">相机面板受 aspect-ratio 锁定</span><br>
+      <span class="old">connection-footer 占底部空间</span>
+    </div>
+    <div>
+      <strong>新布局</strong><br>
+      <span class="new">模型+画面 ~70% | 控制 ~260px</span><br>
+      <span class="new">可视化区域用 flex:1 撑满</span><br>
+      <span class="new">底部只有 ivg-status-bar</span>
+    </div>
+  </div>
+</div>

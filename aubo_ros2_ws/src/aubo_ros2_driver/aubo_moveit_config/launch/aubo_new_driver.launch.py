@@ -194,11 +194,11 @@ def launch_setup(context, *args, **kwargs):
             )],
         )
 
-        # latte_imitation 拉花预览节点（仿真模式自动启动，等待 move_group 就绪）喵~
-        latte_node = None
+        # latte_imitation 轨迹回放节点（仿真模式自动启动，等待 move_group 就绪）喵~
+        latte_imitation_node = None
         try:
             latte_pkg = get_package_share_directory("latte_imitation")
-            latte_node = TimerAction(
+            latte_imitation_node = TimerAction(
                 period=8.0,
                 actions=[Node(
                     package="latte_imitation",
@@ -232,8 +232,8 @@ def launch_setup(context, *args, **kwargs):
             sim_state_publisher,
             delayed_rviz,
         ]
-        if latte_node is not None:
-            nodes.append(latte_node)
+        if latte_imitation_node is not None:
+            nodes.append(latte_imitation_node)
         return nodes
     else:
         # ============================================================

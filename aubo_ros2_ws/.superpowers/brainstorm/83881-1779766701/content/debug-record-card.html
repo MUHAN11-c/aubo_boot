@@ -1,0 +1,111 @@
+<h2>调试面板 — 新增"记录快照"卡片</h2>
+<p class="subtitle">在关节空间运动 (MoveJ) 卡片右侧新增记录加载卡片，选择已保存的快照自动填入关节角或位姿</p>
+
+<div class="split">
+
+<!-- ========== 记录卡片 ========== -->
+<div class="mockup" style="flex:1;">
+  <div class="mockup-header">新增卡片: 记录快照</div>
+  <div class="mockup-body" style="padding:14px;">
+    <div style="margin-bottom:10px;">
+      <label style="font-size:0.72rem;font-weight:600;color:var(--text-muted);">选择记录</label>
+      <select style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-top:4px;">
+        <option value="">-- 请选择 --</option>
+        <option value="0">☕ 咖啡拉花位 — 2026-05-26 14:30</option>
+        <option value="1">🏠 初始位置 — 2026-05-26 14:30</option>
+        <option value="2" selected>📦 抓取预备位 — 2026-05-26 14:30</option>
+      </select>
+    </div>
+
+    <!-- 选中记录详情预览 -->
+    <div style="background:#f8f9fb;border-radius:7px;padding:10px 12px;margin-bottom:12px;font-size:0.72rem;">
+      <div style="color:var(--text-muted);margin-bottom:6px;">记录详情</div>
+      <div style="font-family:monospace;">
+        <div style="color:#065f46;">real · 仿真模式</div>
+        <div style="margin-top:4px;">
+          <span style="color:var(--text-muted);">位姿:</span>
+          X:0.374 Y:0.304 Z:0.476
+        </div>
+        <div style="margin-top:2px;">
+          <span style="color:var(--text-muted);">关节(rad):</span>
+          0.00, -0.26, 1.83, 0.00, 1.57, 0.00
+        </div>
+      </div>
+    </div>
+
+    <!-- 两个操作按钮 -->
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <button style="width:100%;padding:8px;border:1px solid #2563eb;border-radius:6px;background:#eef2ff;color:#2563eb;font-size:0.8rem;font-weight:500;cursor:pointer;">
+        📐 加载关节角到 MoveJ
+      </button>
+      <button style="width:100%;padding:8px;border:1px solid #2563eb;border-radius:6px;background:#eef2ff;color:#2563eb;font-size:0.8rem;font-weight:500;cursor:pointer;">
+        📍 加载位姿到 MoveL
+      </button>
+    </div>
+
+    <div style="margin-top:10px;padding:8px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:5px;font-size:0.7rem;color:#166534;">
+      ✅ 已加载关节角到 J1-J6 输入框
+    </div>
+  </div>
+</div>
+
+<!-- ========== 上下文示意 ========== -->
+<div class="mockup" style="flex:0.8;">
+  <div class="mockup-header">调试面板布局（局部）</div>
+  <div class="mockup-body" style="padding:10px;font-size:0.7rem;">
+    <div style="border:1px dashed #c7d2fe;border-radius:6px;padding:8px;margin-bottom:8px;background:#fafafe;">
+      <strong>关节空间运动 (MoveJ)</strong>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-top:4px;">
+        <span>J1: <input value="0.0000" style="width:60px;font-size:0.7rem;" readonly></span>
+        <span>J2: <input value="-0.2618" style="width:60px;font-size:0.7rem;" readonly></span>
+        <span>J3: <input value="1.8326" style="width:60px;font-size:0.7rem;" readonly></span>
+        <span>J4: <input value="0.0000" style="width:60px;font-size:0.7rem;" readonly></span>
+        <span>J5: <input value="1.5708" style="width:60px;font-size:0.7rem;" readonly></span>
+        <span>J6: <input value="0.0000" style="width:60px;font-size:0.7rem;" readonly></span>
+      </div>
+      <div style="margin-top:6px;color:#166534;">← 从"抓取预备位"自动填入</div>
+    </div>
+    <div style="border:1px dashed #c7d2fe;border-radius:6px;padding:8px;background:#fafafe;">
+      <strong>笛卡尔直线运动 (MoveL)</strong>
+      <div style="margin-top:4px;">
+        XYZ: <input value="0.3741" style="width:50px;font-size:0.7rem;" readonly>
+        <input value="0.3039" style="width:50px;font-size:0.7rem;" readonly>
+        <input value="0.4755" style="width:50px;font-size:0.7rem;" readonly>
+      </div>
+      <div style="margin-top:2px;">
+        Quat: <input value="0.0000" style="width:50px;font-size:0.7rem;" readonly>
+        <input value="0.0000" style="width:50px;font-size:0.7rem;" readonly>
+        <input value="0.0000" style="width:50px;font-size:0.7rem;" readonly>
+        <input value="1.0000" style="width:50px;font-size:0.7rem;" readonly>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="section" style="margin-top:20px;">
+  <h3>关键行为</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+    <tr style="border-bottom:1px solid #e5e7eb;">
+      <th style="text-align:left;padding:8px 0;color:var(--text-muted);">操作</th>
+      <th style="text-align:left;padding:8px 0;color:var(--text-muted);">效果</th>
+    </tr>
+    <tr style="border-bottom:1px solid #f0f1f4;">
+      <td style="padding:6px 0;">选择下拉列表中的记录</td>
+      <td style="padding:6px 0;">预览区显示关节角 + 位姿摘要</td>
+    </tr>
+    <tr style="border-bottom:1px solid #f0f1f4;">
+      <td style="padding:6px 0;">点击「加载关节角」</td>
+      <td style="padding:6px 0;">J1-J6 输入框填入 position_rad 值；显示绿色确认提示</td>
+    </tr>
+    <tr style="border-bottom:1px solid #f0f1f4;">
+      <td style="padding:6px 0;">点击「加载位姿」</td>
+      <td style="padding:6px 0;">XYZ + QX/QY/QZ/QW 输入框填入对应值</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 0;">监控页面新增/删除记录</td>
+      <td style="padding:6px 0;">调试页面监听 <code>storage</code> 事件自动刷新下拉列表</td>
+    </tr>
+  </table>
+</div>

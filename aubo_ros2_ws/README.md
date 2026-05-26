@@ -1,6 +1,6 @@
 # IVG2.0 — 奥博机械臂 ROS2 Humble 全栈系统参考手册
 
-基于 **ROS 2 Humble** 的奥博（Aubo）机械臂系统，涵盖：MoveIt 2 运动规划、真机驱动、知微（Percipio）相机、手眼标定、视觉位姿估计（C++/Python + FastAPI Web）、GraspNet 点云抓取、YOLO OBB 感知、工具快换、咖啡拉花演示、ROS2 基础教程。
+基于 **ROS 2 Humble** 的奥博（Aubo）机械臂系统，涵盖：MoveIt 2 运动规划、真机驱动、知微（Percipio）相机、手眼标定、视觉位姿估计（C++/Python + FastAPI Web）、GraspNet 点云抓取、YOLO OBB 感知、工具快换、拉花 IO + 轨迹回放、ROS2 基础教程。
 
 当前 `src/` 下共 **27** 个 ROS 2 功能包。
 
@@ -53,10 +53,10 @@
 │  └─────────────────────┘  └──────────────────────┘                       │
 │                                                                          │
 │  ┌─────────────────────┐  ┌──────────────────────┐                       │
-│  │ coffee_latte_demo   │  │ vision_perception     │                      │
-│  │ (咖啡拉花 IO 控制)    │  │ (YOLO OBB 感知)       │                      │
+│  │ latte_imitation     │  │ vision_perception     │                      │
+│  │ (拉花 IO + 轨迹回放)  │  │ (YOLO OBB 感知)       │                      │
 │  │                     │  │                      │                       │
-│  │ Node: latte_node    │  │ Nodes:               │                       │
+│  │ Node: latte_io      │  │ Nodes:               │                       │
 │  │ Services:           │  │ yolo_obb_node        │                       │
 │  │ /set_latte_do2      │  │ yolo_track_node      │                       │
 │  │ /set_latte_do4      │  │ video_publisher_node │                       │
@@ -225,7 +225,7 @@
           │              │                    │
           │     ┌────────┼────────────────────┼───────────────┐
           │     ▼        ▼                    ▼               ▼
-          │  tool_changer    coffee_latte_demo    execute_grasp   PublishGrasps
+          │  tool_changer    latte_imitation     execute_grasp   PublishGrasps
           │  /run_gripper_   /set_latte_do2/do4  _pose_worker    Client
           │  swap            /latte_di_status     (IO index 6)    (IO index 6)
           │  (IO index 7)
@@ -375,11 +375,11 @@
 
 **快换流程**: 关节空间移动 → 笛卡尔对接/脱开 → IO 控制锁紧/释放 → 场景物体 attach/detach → 回 Home
 
-#### 2.2.3 coffee_latte_demo — 咖啡拉花 IO 控制
+#### 2.2.3 latte_imitation — 咖啡拉花 IO 控制 + 轨迹回放
 
-**功能**: 通过 Aubo 驱动控制咖啡机和打花器的开关 IO，配合 Web 面板实现可视化控制。
+**功能**: 通过 Aubo 驱动控制咖啡机和打花器的开关 IO，配合 Web 面板实现可视化控制；集成轨迹学习与重放 (ProMP + MoveIt2)。
 
-**Node: latte_node**
+**Node: latte_io (IO 控制) + latte_imitation (轨迹回放)**
 
 | 接口类型 | 名称 | 类型 | 说明 |
 |---------|------|------|------|
@@ -699,7 +699,7 @@
 | 14 | **graspnet_ros2** | graspnet_ros2/ | ament_python | GraspNet 点云抓取 |
 | 15 | **vision_perception** | vision_perception/ | ament_python | YOLO OBB 旋转框感知 |
 | 16 | **tool_changer** | tool_changer/ | ament_cmake | 夹爪快换 Worker |
-| 17 | **coffee_latte_demo** | coffee_latte_demo/ | ament_python | 咖啡拉花 IO 控制 |
+| 17 | **latte_imitation** | latte_imitation/ | ament_python | 咖啡拉花 IO 控制 + 轨迹回放 |
 | 18 | **aubo_ros2_web_dashboard** | aubo_ros2_web_dashboard/ | ament_python | Web 控制面板 |
 | 19 | **base_demo** | ros_arm_tutorials/ | ament_cmake | ROS2 基础教程 |
 | 20 | **advance_demo** | ros_arm_tutorials/ | ament_cmake | ROS2 进阶教程 |
@@ -729,7 +729,7 @@
 | 8 | `graspnet_demo_points_with_tf.launch.py` | GraspNet 点云→6DOF 抓取生成 | Sub: `/camera/depth_registered/points`, Pub: `grasp_markers` (MarkerArray) + `grasp_poses_base` (PoseArray in base_link), TF: `camera_frame→grasp_pose_i`, Srv: `/graspnet_capture_control` |
 | 9 | `execute_grasp_pose_worker.launch.py` | 抓取执行 Worker | `/execute_single_grasp`, `/loop_grasp_control` |
 | 10 | `gripper_swap_worker.launch.py` | 工具快换 Worker | `/run_gripper_swap`, `/tool_changer_status`, `/change_tool`, `/get_current_tool` |
-| 11 | `coffee_latte_demo.launch.py` | 咖啡拉花演示 | `/set_latte_do2`, `/set_latte_do4` |
+| 11 | `latte_io.launch.py` | 咖啡拉花 IO | `/set_latte_do2`, `/set_latte_do4` |
 | 12 | `publish_grasps_client_worker_node` | GraspNet 循环抓取 | `/publish_grasps_worker_loop_control`, `/graspnet_capture_control` |
 | 13 | 服务自检 + Web 健康检查 | 验证关键服务 + Web 就绪 | `ros2 service list` + `curl /health` |
 
@@ -807,7 +807,7 @@ colcon build --packages-select vision_perception visual_pose_estimation_python
 | 工具 ID | 类型 | 管理包 | 用途 | 对接方式 |
 |---------|------|--------|------|---------|
 | **gripper0** | 气动夹爪 φ40 | tool_changer | 工件抓取 (visual_pose_estimation) | 自动快换对接 |
-| **gripper1** | 电动夹爪 A | coffee_latte_demo | 咖啡拉花 (coffee_cup / milk_cup) | 不参与快换 |
+| **gripper1** | 电动夹爪 A | latte_imitation | 咖啡拉花 (coffee_cup / milk_cup) | 不参与快换 |
 | **gripper2** | 电动夹爪 φ60 | tool_changer | AI 抓取 (graspnet_ros2) | 自动快换对接 |
 
 **快换流程**: gripper0 ↔ gripper2 双向自动切换:
@@ -831,8 +831,8 @@ colcon build --packages-select vision_perception visual_pose_estimation_python
         ┌──────────────────────┼──────────────────────┐
         ▼                      ▼                      ▼
 ┌──────────────┐  ┌───────────────────┐  ┌───────────────────┐
-│ demo_driver  │  │ tool_changer      │  │ coffee_latte_demo │
-│ (运动/抓取)   │  │ (快换)            │  │ (IO 控制)          │
+│ demo_driver  │  │ tool_changer      │  │ latte_imitation   │
+│ (运动/抓取)   │  │ (快换)            │  │ (IO + 轨迹回放)    │
 ├──────────────┤  ├───────────────────┤  ├───────────────────┤
 │ dep:         │  │ dep:              │  │ dep:              │
 │ demo_interface│ │ tool_changer_if   │  │ demo_interface    │

@@ -654,7 +654,7 @@ Y = height (上下)
 | `visual_pose_estimation` | Python | 视觉位姿估计 (VPE) + Web 服务 |
 | `hand_eye_calibration` | Python | 手眼标定 (custom + OpenCV 算法) |
 | `tool_changer` | C++ | 夹爪快换 Worker + 场景测试 |
-| `coffee_latte_demo` | Python | 咖啡拉花 IO 演示 |
+| `latte_imitation` | Python | 咖啡拉花 IO 控制 + 轨迹回放 |
 | `vision_perception` | Python | YOLO 目标检测/跟踪 |
 | `aubo_ros2_web_dashboard` | Python | Web 仪表盘 (FastAPI 静态网关) |
 | `ros_arm_tutorials` | C++/Python | ROS2 入门教程 (base/advance/xarm) |

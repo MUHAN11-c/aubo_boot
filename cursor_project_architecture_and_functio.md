@@ -96,10 +96,10 @@ Now let me also look at some Vue 3 frontend files directly, the tool changer cod
 I've now launched 7 parallel subagents to cover all major subsystems. Let me also check some additional things directly while waiting:
 
 1. The `start_aubo_new_driver.sh` script itself for potential issues
-2. The `latte_imitation` package 
-3. The `coffee_latte_demo` package
+2. The `latte_imitation` package (trajectory replay + IO control)
+3. The `latte_io` node (IO control, formerly `coffee_latte_demo`)
 
-Let me wait for the subagents to complete before doing more. Actually, let me also directly check the `latte_imitation` and `coffee_latte_demo` packages while I wait.
+Let me wait for the subagents to complete before doing more. Actually, let me also directly check the `latte_imitation` packages while I wait.
 </details>
 
 在等待子审查结果的同时，让我直接检查一些我注意到的问题。
@@ -150,7 +150,7 @@ I can see some important issues now. Let me analyze what I've found so far:
 
 3. **All nodes share `moveit_velocity_scaling_factor: 0.1`** — a very conservative speed factor
 
-### `coffee_latte_demo.launch.py`:
+### `latte_io.launch.py` (formerly `coffee_latte_demo.launch.py`):
 - Simple, just launches one node. Looks clean.
 
 Now let me also look at a couple more key files I haven't checked yet. But first let me check the latch_imitation trajectory pipeline.
@@ -940,7 +940,7 @@ def generate_launch_description():
 | 21 | `graspnet_ros2/graspnet-baseline/launch/demo_rviz2.launch.py` | `LaunchDescription`, `DeclareLaunchArgument, ExecuteProcess, SetEnvironmentVariable`, `IfCondition`, `LaunchConfiguration, PathJoinSubstitution`, `Node`, `FindPackageShare`, `os` |
 | 22 | `visual_pose_estimation/visual_pose_estimation_python/launch/visual_pose_estimation_web.launch.py` | `LaunchDescription`, `DeclareLaunchArgument, OpaqueFunction`, `LaunchConfiguration`, `Node` |
 | 23 | `visual_pose_estimation/visual_pose_estimation_python/launch/visual_pose_estimation_python.launch.py` | `os`, `LaunchDescription`, `DeclareLaunchArgument`, `LaunchConfiguration`, `Node`, `get_package_share_directory` |
-| 24 | `coffee_latte_demo/launch/coffee_latte_demo.launch.py` | `LaunchDescription`, `Node` |
+| 24 | `latte_imitation/launch/latte_io.launch.py` (原 coffee_latte_demo) | `LaunchDescription`, `Node` |
 | 25 | `aubo_ros2_web_dashboard/launch/web_dashboard.launch.py` | `os, sys`, `get_package_prefix, get_package_share_directory`, `LaunchDescription`, `DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, SetEnvironmentVariable`, `IfCondition`, `FrontendLaunchDescriptionSource`, `LaunchConfiguration, PathJoinSubstitution`, `Node`, `ParameterValue`, `FindPackageShare` |
 | 26 | `camport_ros2/src/percipio_camera/launch/cam_base_cfg.launch.py` | `LaunchDescription`, `GroupAction`, `PushRosNamespace`, `DeclareLaunchArgument`, `ComposableNode`, `LaunchConfiguration`, `ComposableNodeContainer` |
 | 27 | `camport_ros2/src/percipio_camera/launch/camera_control.launch.py` | `LaunchDescription`, `DeclareLaunchArgument`, `LaunchConfiguration`, `Node` |

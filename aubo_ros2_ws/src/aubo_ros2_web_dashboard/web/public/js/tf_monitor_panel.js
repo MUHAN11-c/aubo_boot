@@ -1,7 +1,8 @@
 // tf_monitor_panel.js — 监控面板：仿真/真实识别、末端位姿、关节角复制、数据导出
-import { $ } from './core/utils.js';
+import { $, escapeHtml } from './core/utils.js';
+import { loadRecords, saveRecords, clearRecords } from './core/record_store.js';
 import { ROBOT_STATUS_TOPIC, ROBOT_STATUS_TYPE, MODE_TOPIC, MODE_TYPE } from './core/topics.js';
-import { createRosConnector } from './core/ros_connector.js';
+import { ros } from './core/ros.js';
 import { ivgTransport } from './ivg_transport.js';
 import { ivgPorts } from './ivg_runtime.js';
 
@@ -13,7 +14,7 @@ var JOINT_NAMES = [
 ];
 
 var latestMsg = null;
-var records = [];
+var records = loadRecords();
 var isSimulation = null;
 
 var toastTimer = 0;
@@ -42,7 +43,7 @@ function detectMode() {
     else if (raw === 'real') isSimulation = false;
     else isSimulation = null;
     updateModeBadge();
-  });
+  }, 'tf_monitor');
 }
 
 function updateModeBadge() {
@@ -182,17 +183,90 @@ function updateHistoryUI() {
     histEl.innerHTML = '<span style="color:var(--text-muted);">暂无记录，点击「记录当前快照」开始。</span>';
     return;
   }
-  histEl.innerHTML = records.slice(-20).map(function (r, i) {
-    var t = r.timestamp.replace('T', ' ').slice(0, 19);
-    return '<div class="entry">#' + (records.length - records.slice(-20).length + i + 1) + ' ' + t + ' — ' + r.mode + '</div>';
+  var recent = records.slice(-20);
+  var offset = records.length - recent.length;
+  histEl.innerHTML = recent.map(function (r, i) {
+    var idx = offset + i;
+    var t = (r.timestamp || '').replace('T', ' ').slice(0, 19);
+    var name = r.name || ('快照 #' + (idx + 1));
+    return '<div class="entry">'
+      + '<div class="entry-name-row">'
+      + '<span class="record-name" data-idx="' + idx + '" title="点击编辑名称">' + escapeHtml(name) + '</span>'
+      + '<button class="record-delete-btn" data-idx="' + idx + '" title="删除此记录">✕</button>'
+      + '</div>'
+      + '<div class="entry-info">#' + (idx + 1) + ' ' + t + ' — ' + (r.mode || 'unknown') + '</div>'
+      + '</div>';
   }).join('');
+
+  histEl.querySelectorAll('.record-name').forEach(function (el) {
+    el.addEventListener('click', function () { onRenameRecord(parseInt(el.dataset.idx)); });
+  });
+  histEl.querySelectorAll('.record-delete-btn').forEach(function (el) {
+    el.addEventListener('click', function () { onDeleteRecord(parseInt(el.dataset.idx)); });
+  });
+}
+
+function onRenameRecord(index) {
+  var r = records[index];
+  if (!r) return;
+  var oldName = r.name || ('快照 #' + (index + 1));
+  var nameEl = document.querySelector('.record-name[data-idx="' + index + '"]');
+  if (!nameEl) return;
+
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'record-name-edit';
+  input.value = oldName;
+  input.maxLength = 60;
+
+  function commit() {
+    var newName = input.value.trim();
+    if (!newName) newName = '快照 #' + (index + 1);
+    records[index].name = newName;
+    saveRecords(records);
+    updateHistoryUI();
+    showToast('已重命名为: ' + newName);
+  }
+
+  function cancel() {
+    updateHistoryUI();
+  }
+
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+  });
+  input.addEventListener('blur', function () {
+    if (document.body.contains(input)) commit();
+  });
+
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
+}
+
+function onDeleteRecord(index) {
+  if (index < 0 || index >= records.length) return;
+  var name = records[index].name || ('快照 #' + (index + 1));
+  if (!confirm('删除记录「' + name + '」？')) return;
+  records.splice(index, 1);
+  saveRecords(records);
+  updateHistoryUI();
+  showToast('已删除: ' + name);
 }
 
 function onRecordSnapshot() {
   if (!latestMsg) { showToast('暂无数据可记录'); return; }
-  records.push(buildSnapshot(latestMsg));
+  var snap = buildSnapshot(latestMsg);
+  snap.name = '快照 #' + (records.length + 1);
+  records.push(snap);
+  if (!saveRecords(records)) {
+    records.pop();
+    showToast('存储空间不足，请清理旧记录');
+    return;
+  }
   updateHistoryUI();
-  showToast('已记录当前快照');
+  showToast('已记录: ' + snap.name);
 }
 
 function onExportJson() {
@@ -223,7 +297,10 @@ function onExportXml() {
 }
 
 function onClearHistory() {
+  if (records.length === 0) { showToast('无记录可清空'); return; }
+  if (!confirm('确定清空全部 ' + records.length + ' 条记录？此操作不可恢复。')) return;
   records.length = 0;
+  clearRecords();
   updateHistoryUI();
   showToast('记录已清空');
 }
@@ -239,20 +316,17 @@ function onRobotStatus(msg) {
 
 // ── 订阅 ─────────────────────────────────────────────────────────
 function subscribeStatus() {
-  ivgTransport.clearRosHandlers();
-  ivgTransport.unsubscribeAll();
-  ivgTransport.onRosJson(ROBOT_STATUS_TOPIC, onRobotStatus);
+  ivgTransport.clearRosHandlersByOwner('tf_monitor');
+  ivgTransport.onRosJson(ROBOT_STATUS_TOPIC, onRobotStatus, 'tf_monitor');
   var ok = ivgTransport.subscribe({ topic: ROBOT_STATUS_TOPIC, msgType: ROBOT_STATUS_TYPE, maxHz: 10 });
   console.log(TAG, ok ? '已订阅 ' + ROBOT_STATUS_TOPIC : '订阅失败');
 }
 
-// ── 连接 (ros_connector) ─────────────────────────────────────────
-var rosConnector = createRosConnector({
-  setConnStatus: setConnStatus,
-  onConnected: function () {
-    subscribeStatus();
-    setTimeout(detectMode, 500);
-  },
+// ── 连接 (统一使用 ros.js) ──────────────────────────────────────
+ros.onStatusChange(setConnStatus);
+ros.onConnected(function () {
+  subscribeStatus();
+  setTimeout(detectMode, 500);
 });
 
 // ── 按钮绑定 ─────────────────────────────────────────────────────
@@ -262,10 +336,7 @@ function bindButtons() {
   $('btn-record-snapshot') && $('btn-record-snapshot').addEventListener('click', onRecordSnapshot);
   $('btn-export-json') && $('btn-export-json').addEventListener('click', onExportJson);
   $('btn-export-xml') && $('btn-export-xml').addEventListener('click', onExportXml);
-  $('btn-clear-history') && $('btn-clear-history').addEventListener('click', function () {
-    if (records.length === 0) { showToast('无记录可清空'); return; }
-    if (confirm('确定清空全部记录？')) onClearHistory();
-  });
+  $('btn-clear-history') && $('btn-clear-history').addEventListener('click', onClearHistory);
 }
 
 // ── 入口 ─────────────────────────────────────────────────────────
@@ -273,7 +344,7 @@ document.addEventListener('DOMContentLoaded', function () {
   (async function () {
     await ivgPorts.loadRuntime();
     bindButtons();
-    rosConnector.wireOnlineReconnect();
-    rosConnector.connect();
+    ros.wireOnlineReconnect();
+    ros.connect();
   })();
 });

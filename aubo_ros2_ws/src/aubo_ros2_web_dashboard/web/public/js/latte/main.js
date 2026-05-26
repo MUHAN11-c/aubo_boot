@@ -110,11 +110,24 @@ async function init() {
     // 1. 加载运行时配置
     await loadIvgRuntime();
 
-    // 2. 连接 rosbridge
+    // 2. 尽早初始化 DOM 组件（与 vision_grasp 对齐，在慢速网络连接之前）喵~
+    jointChart = createJointChartController({
+        getById: $,
+        maxSamples: 280,
+        lineColors: ['#2563eb', '#16a34a', '#d97706', '#db2777', '#7c3aed', '#0d9488'],
+    });
+    jointChart.observeResize();
+
+    monitoringCollapse = createMonitoringCollapse({ getById: $, jointChart, maxPx: 200 });
+    monitoringCollapse.bindEvents();
+    monitoringCollapse.scheduleSyncMinHeight();
+    requestAnimationFrame(() => monitoringCollapse.scheduleSyncMinHeight());
+
+    // 3. 连接 rosbridge（慢速网络操作）
     const url = rosbridgeWebSocketUrlFromRuntime(globalThis.__IVG_RUNTIME);
     await ros.connect(url);
 
-    // 3. 启动 3D 查看器
+    // 4. 启动 3D 查看器（依赖 ros._transport）
     urdfViewer = createUrdfViewer({
         ros: ros._transport?.ros,
         getById: $,
@@ -128,33 +141,19 @@ async function init() {
     });
     urdfViewer.start();
 
-    // 4. 创建关节图
-    jointChart = createJointChartController({
-        getById: $,
-        maxSamples: 280,
-        lineColors: ['#2563eb', '#16a34a', '#d97706', '#db2777', '#7c3aed', '#0d9488'],
-    });
-    jointChart.observeResize();
-
-    // 5. 创建监控区折叠组件（共享，消除重复代码）喵~
-    monitoringCollapse = createMonitoringCollapse({ getById: $, jointChart });
-    monitoringCollapse.bindEvents();
-    monitoringCollapse.scheduleSyncMinHeight();
-    requestAnimationFrame(() => monitoringCollapse.scheduleSyncMinHeight());
-
-    // 6. 建立话题订阅
+    // 5. 建立话题订阅
     setupSubscriptions();
 
-    // 7. 初始化拉花参数控制 (复用现有 latte_controls.js)
+    // 6. 初始化拉花参数控制 (复用现有 latte_controls.js)
     latteControls = initLatteControls();
 
-    // 8. 3D 预览轨迹渲染监听
+    // 7. 3D 预览轨迹渲染监听
     setupLattePreviewListener();
 
-    // 9. 操作日志显示
+    // 8. 操作日志显示
     setupLatteLogDisplay();
 
-    // 10. URDF 显示夹爪下拉框（仅仿真，不影响快换）喵~
+    // 9. URDF 显示夹爪下拉框（仅仿真，不影响快换）喵~
     setupDisplayToolSelect();
 
     logBus.addLog('info', 'lifecycle', '咖啡拉花面板就绪', {}, 'latte');

@@ -19,8 +19,8 @@ function IvgTransport() {
     this.ros = null;              // ROSLIB.Ros 实例
     this._topicSubs = new Map();  // topic → ROSLIB.Topic
     this._topicSpecs = new Map(); // topic → msgType (去重用)
-    this._rosHandlers = [];       // 话题消息处理器
-    this._controlHandlers = [];   // 控制面 JSON 处理器 (connection/error/close)
+    this._rosHandlers = new Map();    // owner → Set<{topic, fn}> 话题消息处理器
+    this._controlHandlers = new Map(); // owner → Set<Function> 控制面 JSON 处理器
     this._connectPromise = null;  // 去重: 同一时间只有一个连接尝试
 }
 
@@ -153,8 +153,8 @@ IvgTransport.prototype.close = function () {
     this._connectPromise = null;
     try { if (this.ros) this.ros.close(); } catch (e) { /* ignore */ }
     this.ros = null;
-    this.clearRosHandlers();
-    this.clearControlJsonHandlers();
+    // 处理器不清除：各消费者（状态栏等）的处理器所有权独立于连接生命周期，
+    // 通过 clearRosHandlersByOwner / clearControlHandlersByOwner 各自管理喵~
 };
 
 // ── 话题订阅 ────────────────────────────────────────────────────────────────
@@ -296,37 +296,60 @@ IvgTransport.prototype.callService = function (spec) {
 
 IvgTransport.prototype._dispatchRos = function (topic, payload) {
     const ct = canonicalRosTopic(topic);
-    for (let i = 0; i < this._rosHandlers.length; i++) {
-        const h = this._rosHandlers[i];
-        const match = h.topic == null || h.topic === topic || canonicalRosTopic(h.topic) === ct;
-        if (match) {
-            try { h.fn(payload, topic); } catch (e) { /* ignore */ }
+    for (const handlerSet of this._rosHandlers.values()) {
+        for (const h of handlerSet) {
+            const match = h.topic == null || h.topic === topic || canonicalRosTopic(h.topic) === ct;
+            if (match) {
+                try { h.fn(payload, topic); } catch (e) { /* ignore */ }
+            }
         }
     }
 };
 
 IvgTransport.prototype._dispatchControlJson = function (obj) {
-    for (let i = 0; i < this._controlHandlers.length; i++) {
-        try { this._controlHandlers[i](obj); } catch (e) { /* ignore */ }
+    for (const handlerSet of this._controlHandlers.values()) {
+        for (const fn of handlerSet) {
+            try { fn(obj); } catch (e) { /* ignore */ }
+        }
     }
 };
 
 // ── 处理器注册 ──────────────────────────────────────────────────────────────
 
-IvgTransport.prototype.onRosJson = function (topicFilter, fn) {
-    this._rosHandlers.push({ topic: topicFilter, fn: fn });
+/** 注册话题消息处理器。owner 用于按所有者清除，默认 'default' 向后兼容喵~ */
+IvgTransport.prototype.onRosJson = function (topicFilter, fn, owner) {
+    const o = owner || 'default';
+    if (!this._rosHandlers.has(o)) {
+        this._rosHandlers.set(o, new Set());
+    }
+    this._rosHandlers.get(o).add({ topic: topicFilter, fn: fn });
 };
 
 IvgTransport.prototype.clearRosHandlers = function () {
-    this._rosHandlers.length = 0;
+    this._rosHandlers.clear();
 };
 
-IvgTransport.prototype.onControlJson = function (fn) {
-    this._controlHandlers.push(fn);
+/** 只清除指定所有者的 ros 处理器喵~ */
+IvgTransport.prototype.clearRosHandlersByOwner = function (owner) {
+    this._rosHandlers.delete(owner || 'default');
+};
+
+/** 注册控制面 JSON 处理器。owner 用于按所有者清除喵~ */
+IvgTransport.prototype.onControlJson = function (fn, owner) {
+    const o = owner || 'default';
+    if (!this._controlHandlers.has(o)) {
+        this._controlHandlers.set(o, new Set());
+    }
+    this._controlHandlers.get(o).add(fn);
 };
 
 IvgTransport.prototype.clearControlJsonHandlers = function () {
-    this._controlHandlers.length = 0;
+    this._controlHandlers.clear();
+};
+
+/** 只清除指定所有者的 control 处理器喵~ */
+IvgTransport.prototype.clearControlHandlersByOwner = function (owner) {
+    this._controlHandlers.delete(owner || 'default');
 };
 
 // ── 全局单例 ────────────────────────────────────────────────────────────────

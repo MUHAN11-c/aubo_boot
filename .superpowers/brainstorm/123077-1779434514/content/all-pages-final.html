@@ -1,0 +1,396 @@
+<h2>全部 7 页面最终预览 — 新增调试面板</h2>
+<p class="subtitle">vision_grasp 去掉笛卡尔直线 · 新建 debug_panel.html · 导航栏增加"调试"入口</p>
+
+<style>
+  .page-preview {
+    border: 1px solid #d1d6df; border-radius: 8px; overflow: hidden;
+    margin: 10px 0; background: #fafbfc;
+    font-family: "Noto Sans SC", system-ui, sans-serif; font-size: 11px;
+  }
+  .pp-nav {
+    background: #fff; border-bottom: 2px solid #2563eb;
+    padding: 5px 14px; display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.06);
+  }
+  .pp-nav-brand { font-weight: 700; font-size: 12px; }
+  .pp-nav-brand span { color: #2563eb; }
+  .pp-nav-links { display: flex; gap: 3px; font-size: 10px; color: #8b95a6; }
+  .pp-nav-links span { padding: 2px 5px; border-radius: 4px; }
+  .pp-nav-links span.act { background: #2563eb; color: #fff; }
+  .pp-body { padding: 5px 8px 0; display: flex; flex-direction: column; gap: 4px; }
+  .pp-toolbar {
+    background: #fff; border: 1px solid #e2e6ed; border-radius: 8px;
+    padding: 5px 10px; display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  }
+  .pp-toolbar h1 { font-size: 12px; margin: 0; font-weight: 700; }
+  .pp-main { display: grid; grid-template-columns: 1fr 250px; gap: 4px; flex: 1; min-height: 0; }
+  .pp-viz-row { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; min-height: 0; }
+  .pp-panel {
+    background: #fff; border: 1px solid #e2e6ed; border-left: 3px solid #2563eb;
+    border-radius: 8px; padding: 5px 7px; display: flex; flex-direction: column;
+  }
+  .pp-panel h3 {
+    margin: 0 0 3px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: #8b95a6; padding-bottom: 2px; border-bottom: 2px solid #2563eb; flex-shrink: 0;
+  }
+  .pp-viz { flex: 1; min-height: 110px; background: #f1f3f7; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #8b95a6; font-size: 10px; border: 1px dashed #d1d6df; }
+  .pp-ctrl {
+    background: #fff; border: 1px solid #e2e6ed; border-left: 3px solid #2563eb;
+    border-radius: 8px; padding: 5px 7px; display: flex; flex-direction: column; gap: 3px; overflow-y: auto;
+  }
+  .pp-ctrl h3 { margin: 0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.06em; color: #8b95a6; padding-bottom: 2px; border-bottom: 2px solid #2563eb; }
+  .pp-ctrl-group { font-size: 9px; }
+  .pp-ctrl-group h4 { font-size: 8px; color: #4b5565; margin: 3px 0 2px; }
+  .pp-row { display: flex; justify-content: space-between; align-items: center; padding: 1px 0; gap: 3px; }
+  .pp-row label { color: #8b95a6; font-size: 8px; }
+  .pp-row input { width: 50px; border: 1px solid #e2e6ed; border-radius: 3px; padding: 2px 3px; font-size: 8px; text-align: right; }
+  .pp-btn {
+    padding: 2px 0; border-radius: 4px; border: 1px solid #e2e6ed; font-size: 8px;
+    background: #fff; text-align: center; margin: 1px 0; cursor: default;
+  }
+  .pp-btn.go { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .pp-btn.latte { background: #7c4a2a; color: #fff; border-color: #7c4a2a; }
+  .pp-btn.stop { color: #dc2626; border-color: #fecaca; }
+  .pp-btn.active-tool { background: rgba(21,128,61,0.08); border-color: rgba(21,128,61,0.35); color: #16a34a; }
+  .pp-mon {
+    background: #fff; border: 1px solid #e2e6ed; border-radius: 8px;
+    padding: 5px 7px; flex-shrink: 0;
+  }
+  .pp-mon h3 { font-size: 9px; margin: 0 0 3px; color: #4b5565; }
+  .pp-mon-grid { display: grid; grid-template-columns: 1fr 180px; gap: 4px; }
+  .pp-mon-chart { background: #f5f6f8; border: 1px solid #e2e6ed; border-radius: 4px; height: 50px; display: flex; align-items: center; justify-content: center; color: #8b95a6; font-size: 9px; }
+  .pp-mon-side { display: flex; flex-direction: column; gap: 2px; }
+  .pp-mon-side > div { background: #f5f6f8; border: 1px solid #e2e6ed; border-radius: 4px; flex: 1; display: flex; align-items: center; justify-content: center; color: #8b95a6; font-size: 8px; padding: 2px; }
+  .pp-sb {
+    background: #fff; border-top: 1px solid #e2e6ed;
+    padding: 3px 8px; display: flex; gap: 14px; font-size: 9px; color: #4b5565;
+    margin: 0 -8px; margin-top: 4px;
+  }
+  .pp-sb-item { display: inline-flex; align-items: center; gap: 3px; }
+  .pp-sb-item.ros { background: rgba(37,99,235,0.04); padding: 2px 7px; border-radius: 12px; border: 1px solid rgba(37,99,235,0.12); }
+  .dot { width: 5px; height: 5px; border-radius: 50%; display: inline-block; }
+  .dot.g { background: #16a34a; } .dot.o { background: #a0a8b8; } .dot.y { background: #d97706; }
+  .pp-tool-status {
+    display: flex; align-items: center; gap: 6px; padding: 4px 6px;
+    background: #f5f6f8; border-radius: 5px; border: 1px solid #e2e6ed; margin-bottom: 3px;
+  }
+  .pp-tool-led { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: #16a34a; box-shadow: 0 0 5px rgba(21,128,61,0.4); }
+  .pp-init-tool { display: flex; align-items: center; gap: 4px; font-size: 8px; margin-top: 2px; }
+  .pp-init-tool label { color: #8b95a6; white-space: nowrap; }
+  .pp-init-tool select { font-size: 8px; padding: 2px 4px; border: 1px solid #e2e6ed; border-radius: 3px; background: #fff; color: #4b5565; font-family: inherit; }
+  .pp-note { margin-top: 3px; font-size: 8px; color: #16a34a; padding: 2px 6px; background: #f0fdf4; border-radius: 3px; border: 1px solid #bbf7d0; }
+  .pp-page-label { font-size: 10px; color: #2563eb; font-weight: 700; margin: 14px 0 2px; }
+  .pp-page-label:first-child { margin-top: 0; }
+
+  /* index compact */
+  .pp-hero-compact {
+    text-align: center; padding: 1rem 12px 0.8rem;
+    border-bottom: 2px solid #2563eb;
+    background: linear-gradient(180deg, rgba(37,99,235,0.03) 0%, transparent 100%);
+  }
+  .pp-hero-compact h1 { font-size: 1.3rem; margin: 0 0 0.2rem; font-weight: 800; }
+  .pp-hero-compact .lead { color: #8b95a6; font-size: 0.82rem; margin: 0 auto; max-width: 34rem; }
+  .pp-hero-compact .chips { display: flex; gap: 4px; justify-content: center; margin: 0.5rem 0; }
+  .pp-hero-compact .chip { font-size: 0.65rem; font-weight: 700; color: #2563eb; background: rgba(37,99,235,0.06); border: 1px solid rgba(37,99,235,0.18); padding: 0.15rem 0.5rem; border-radius: 999px; }
+  .pp-hero-compact .cta-row { display: flex; gap: 6px; justify-content: center; margin-top: 0.6rem; }
+  .pp-hero-cta-btn { display: inline-flex; align-items: center; padding: 0.4rem 1rem; font-size: 0.8rem; font-weight: 700; border-radius: 8px; background: #2563eb; color: #fff; box-shadow: 0 2px 6px rgba(37,99,235,0.3); }
+  .pp-sections-compact { padding: 0.6rem 1rem 0.4rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .pp-card-sm { background: #fff; border: 1px solid #e2e6ed; border-left: 3px solid #2563eb; border-radius: 8px; padding: 0.6rem 0.8rem; }
+  .pp-card-sm h2 { font-size: 0.85rem; margin: 0 0 0.25rem; font-weight: 700; }
+  .pp-card-sm p { font-size: 0.72rem; color: #8b95a6; margin: 0 0 0.35rem; line-height: 1.4; }
+  .pp-card-sm .links { display: flex; gap: 4px; flex-wrap: wrap; }
+  .pp-card-sm .link { display: inline-block; padding: 0.25rem 0.6rem; font-size: 0.7rem; font-weight: 600; border-radius: 5px; background: #2563eb; color: #fff; }
+  .pp-card-sm .link.outline { background: #fff; color: #2563eb; border: 1px solid #e2e6ed; }
+  .pp-footer-sm { text-align: center; padding: 0.5rem; font-size: 0.68rem; color: #8b95a6; border-top: 1px solid #e2e6ed; background: #f5f6f8; }
+  .badge-demo { display: inline-block; font-size: 0.6rem; font-weight: 700; color: #b45309; background: #fef3c7; padding: 0.1rem 0.35rem; border-radius: 4px; margin-left: 4px; }
+
+  /* debug page */
+  .pp-debug-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  }
+  .pp-debug-panel {
+    background: #fff; border: 1px solid #e2e6ed; border-left: 3px solid #2563eb;
+    border-radius: 8px; padding: 8px 12px;
+  }
+  .pp-debug-panel h2 { font-size: 11px; margin: 0 0 6px; color: #4b5565; padding-bottom: 4px; border-bottom: 2px solid #2563eb; }
+  .pp-debug-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+  .pp-debug-row label { font-size: 8px; color: #8b95a6; min-width: 16px; }
+  .pp-debug-row input { width: 64px; padding: 3px 5px; border: 1px solid #e2e6ed; border-radius: 4px; font-size: 9px; font-family: monospace; }
+  .pp-debug-inputs { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .pp-debug-code {
+    background: #f8f9fb; border: 1px solid #e2e6ed; border-radius: 6px;
+    padding: 6px 10px; font-family: monospace; font-size: 9px; color: #8b95a6;
+    min-height: 40px; margin-top: 4px;
+  }
+
+  /* log */
+  .pp-log-bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 6px 0; border-bottom: 1px solid #e2e6ed; margin-bottom: 4px; }
+  .pp-log-chip { padding: 3px 8px; border-radius: 5px; border: 1px solid #e2e6ed; font-size: 8px; background: #fff; color: #8b95a6; }
+  .pp-log-chip.act { background: #eef2ff; color: #2563eb; border-color: #2563eb; }
+  .pp-log-search { padding: 3px 8px; border-radius: 5px; border: 1px solid #e2e6ed; font-size: 9px; }
+  .pp-log-lines { background: #f8f9fb; border: 1px solid #e2e6ed; border-radius: 6px; height: 100px; padding: 4px 8px; font-family: monospace; font-size: 9px; color: #8b95a6; overflow-y: auto; }
+  .pp-log-line { display: flex; gap: 8px; padding: 1px 0; border-bottom: 1px solid #f0f1f4; }
+
+  /* settings */
+  .pp-settings-main { padding: 8px 12px; }
+  .pp-settings-tabs { display: flex; border-bottom: 2px solid #e2e6ed; margin-bottom: 6px; }
+  .pp-settings-tab { padding: 4px 10px; font-size: 9px; font-weight: 600; color: #8b95a6; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+  .pp-settings-tab.act { color: #2563eb; border-bottom-color: #2563eb; }
+  .pp-settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 8px; }
+  .pp-settings-item { display: flex; align-items: center; gap: 4px; font-size: 9px; }
+  .pp-settings-item label { color: #8b95a6; font-size: 8px; white-space: nowrap; min-width: 70px; }
+  .pp-settings-item input { flex: 1; padding: 3px 5px; border: 1px solid #e2e6ed; border-radius: 4px; font-size: 9px; font-family: monospace; }
+  .pp-settings-actions { display: flex; gap: 4px; margin-top: 8px; }
+
+  /* tf monitor */
+  .pp-tf-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pp-tf-panel { background: #fff; border: 1px solid #e2e6ed; border-radius: 8px; padding: 10px 14px; }
+  .pp-tf-panel h2 { font-size: 10px; color: #8b95a6; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 6px; }
+  .pp-tf-data { font-family: monospace; font-size: 9px; color: #4b5565; }
+  .pp-tf-data td { padding: 2px 8px 2px 0; }
+  .pp-tf-chip { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 8px; font-weight: 500; margin-right: 6px; }
+  .pp-tf-chip.on { background: #d1fae5; color: #065f46; }
+  .pp-tf-history { background: #f8f9fb; border-radius: 6px; height: 60px; padding: 4px 8px; font-family: monospace; font-size: 9px; color: #8b95a6; border: 1px solid #e2e6ed; margin-top: 6px; }
+
+  .highlight-new { border: 2px solid #16a34a; border-radius: 6px; position: relative; margin: 4px 0; }
+  .highlight-new::before { content: "NEW"; position: absolute; top: -8px; left: 8px; background: #d1fae5; color: #065f46; font-size: 7px; font-weight: 700; padding: 1px 5px; border-radius: 3px; z-index: 1; }
+</style>
+
+<div class="pp-page-label">1. index.html — 门户首页 (紧凑版 · 导航新增"调试")</div>
+<div class="page-preview">
+  <div class="pp-nav">
+    <div class="pp-nav-brand">灵视 <span>IVG</span></div>
+    <div class="pp-nav-links">
+      <span class="act">门户</span><span>视觉抓取</span><span>咖啡拉花</span><span>监控</span><span>调试</span><span>日志</span><span>设置</span>
+    </div>
+  </div>
+  <div class="pp-hero-compact">
+    <p style="font-size:0.65rem;color:#2563eb;font-weight:700;letter-spacing:0.08em;margin:0 0 0.15rem;">灵视 IVG</p>
+    <h1>机械臂操作门户</h1>
+    <p class="lead">用浏览器即可查看相机、抓取演示与运行数据。无需安装软件。</p>
+    <div class="chips"><span class="chip">浏览器即用</span><span class="chip">机械臂与相机</span><span class="chip">灵视IVG</span></div>
+    <div class="cta-row"><span class="pp-hero-cta-btn">视觉抓取面板</span><span class="pp-hero-cta-btn">咖啡拉花</span></div>
+  </div>
+  <div class="pp-sections-compact">
+    <div class="pp-card-sm"><h2>视觉抓取</h2><p>实时查看相机画面，配合机械臂完成抓取演示。</p><div class="links"><span class="link">视觉抓取面板</span><span class="link">视觉位姿</span><span class="link outline">手眼标定</span></div></div>
+    <div class="pp-card-sm"><h2>咖啡拉花 <span class="badge-demo">演示</span></h2><p>面向咖啡拉花场景的界面与流程示意。</p><div class="links"><span class="link">打开咖啡拉花面板</span></div></div>
+  </div>
+  <div class="pp-footer-sm">灵视 IVG · 机械臂操作门户</div>
+  <div class="pp-sb"><span class="pp-sb-item ros"><span class="dot g"></span>ROS 已连接</span><span class="pp-sb-item"><span class="dot g"></span>在线</span><span class="pp-sb-item"><span class="dot g"></span>已使能</span><span class="pp-sb-item"><span class="dot o"></span>静止</span><span class="pp-sb-item"><span class="dot g"></span>空闲</span><span style="flex:1;"></span><span class="pp-sb-item"><span class="dot y"></span>仿真</span></div>
+</div>
+<div class="pp-note">✅ 导航栏新增"调试"入口 · index 紧凑布局 · 6项状态栏</div>
+
+<div class="pp-page-label">2. vision_grasp_panel.html — 视觉抓取面板 (去掉笛卡尔直线)</div>
+<div class="page-preview">
+  <div class="pp-nav"><div class="pp-nav-brand">灵视 <span>IVG</span></div><div class="pp-nav-links"><span>门户</span><span class="act">视觉抓取</span><span>咖啡拉花</span><span>监控</span><span>调试</span><span>日志</span><span>设置</span></div></div>
+  <div class="pp-body">
+    <div class="pp-toolbar"><h1>视觉抓取面板</h1><span style="background:#2563eb;color:#fff;padding:2px 8px;border-radius:10px;font-size:8px;">工件（视觉估计）</span><span style="background:#f5f6f8;padding:2px 8px;border-radius:10px;font-size:8px;border:1px solid #e2e6ed;">AI大模型抓取</span><span style="flex:1;"></span><span style="font-size:8px;color:#8b95a6;">设置</span></div>
+    <div class="pp-main">
+      <div class="pp-viz-row">
+        <div class="pp-panel"><h3>机械臂模型</h3><div class="pp-viz">3D URDF — 拖拽旋转 · 滚轮缩放</div></div>
+        <div class="pp-panel"><h3>结果视图</h3><div class="pp-viz">相机 MJPEG + 抓取位姿叠加</div></div>
+      </div>
+      <div class="pp-ctrl">
+        <h3>抓取与工具控制</h3>
+        <div class="pp-tool-status"><span class="pp-tool-led"></span><span style="font-weight:600;font-size:8px;">夹爪0 — 气动 φ40</span><span style="font-size:7px;color:#8b95a6;margin-left:auto;">已连接</span></div>
+        <div class="pp-ctrl-group"><h4>目标工件编号</h4><input style="width:100%;box-sizing:border-box;padding:2px 4px;border:1px solid #e2e6ed;border-radius:3px;font-size:8px;" placeholder="object_id"></div>
+        <div class="pp-ctrl-group"><h4>工件抓取</h4><div class="pp-btn go">执行单次抓取</div><div class="pp-btn stop">停止</div><div class="pp-btn go">启动循环</div><div class="pp-btn stop">停循环</div></div>
+        <div class="pp-ctrl-group"><h4>AI大模型抓取</h4><div class="pp-btn go">开始采集</div><div class="pp-btn stop">停止采集</div><div class="pp-btn go">循环抓取开</div><div class="pp-btn stop">循环抓取关</div></div>
+        <div class="pp-ctrl-group">
+          <h4>末端夹爪快换</h4>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;"><div class="pp-btn active-tool">&#9670; 夹爪0</div><div class="pp-btn">&#9670; 夹爪1</div><div class="pp-btn">&#9670; 夹爪2</div></div>
+          <div class="pp-init-tool"><label>初始夹爪:</label><select><option value="">无工具</option><option value="gripper0" selected>夹爪0 — 气动 φ40</option><option value="gripper1">夹爪1 — 电动 A</option><option value="gripper2">夹爪2 — 电动 φ60</option></select></div>
+        </div>
+        <!-- 笛卡尔直线调试已移除 → debug_panel.html -->
+      </div>
+    </div>
+    <div class="pp-mon"><h3>关节曲线与末端位姿 ▼</h3><div class="pp-mon-grid"><div class="pp-mon-chart">6-DOF 关节角曲线</div><div class="pp-mon-side"><div>末端位姿</div><div>视觉位姿估计</div></div></div></div>
+    <div class="pp-sb"><span class="pp-sb-item ros"><span class="dot g"></span>ROS 已连接</span><span class="pp-sb-item"><span class="dot g"></span>在线</span><span class="pp-sb-item"><span class="dot g"></span>已使能</span><span class="pp-sb-item"><span class="dot o"></span>静止</span><span class="pp-sb-item"><span class="dot g"></span>空闲</span><span style="flex:1;"></span><span class="pp-sb-item"><span class="dot y"></span>仿真</span></div>
+  </div>
+</div>
+<div class="pp-note">✅ 笛卡尔直线调试已移出 · 控制面板更干净 · 调试功能独立成页</div>
+
+<div class="pp-page-label">3. coffee_latte_panel.html — 咖啡拉花面板</div>
+<div class="page-preview">
+  <div class="pp-nav"><div class="pp-nav-brand">灵视 <span>IVG</span></div><div class="pp-nav-links"><span>门户</span><span>视觉抓取</span><span class="act">咖啡拉花</span><span>监控</span><span>调试</span><span>日志</span><span>设置</span></div></div>
+  <div class="pp-body">
+    <div class="pp-toolbar"><h1>机械臂咖啡拉花</h1><span style="font-size:8px;color:#8b95a6;">现场 IO</span><span style="flex:1;"></span><span style="font-size:8px;color:#8b95a6;">设置</span></div>
+    <div class="pp-main">
+      <div class="pp-viz-row">
+        <div class="pp-panel"><h3>机械臂模型</h3><div class="pp-viz">3D URDF</div></div>
+        <div class="pp-panel"><h3>拉花参数设置</h3>
+          <div style="flex:1;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:2px 5px;">
+            <div class="pp-ctrl-group"><h4>图案</h4><div style="display:flex;gap:2px;"><span style="background:#7c4a2a;color:#fff;padding:1px 5px;border-radius:3px;font-size:7px;">♥ 爱心</span><span style="background:#f5f6f8;padding:1px 5px;border-radius:3px;font-size:7px;border:1px solid #e2e6ed;">🌿 叶子</span></div></div>
+            <div class="pp-ctrl-group"><h4>杯子</h4><div class="pp-row"><label>X</label><input value="0"><label>Y</label><input value="0"><label>Z</label><input value="0.15"></div></div>
+            <div class="pp-ctrl-group"><h4>倾倒</h4><div class="pp-row"><label>混合</label><span style="font-size:7px;">0.076m</span><label>绘制</label><span style="font-size:7px;">0.006m</span></div></div>
+            <div class="pp-ctrl-group"><h4>运动</h4><div class="pp-row"><label>速度</label><span style="font-size:7px;">0.05</span><label>加速度</label><span style="font-size:7px;">0.1</span></div></div>
+            <div class="pp-ctrl-group"><h4>RPY°</h4><div class="pp-row"><label>R</label><input value="0"><label>P</label><input value="0"><label>Y</label><input value="0"></div></div>
+            <div class="pp-ctrl-group"><h4>偏移</h4><div class="pp-row"><label>ΔX</label><input value="0"><label>ΔY</label><input value="0"><label>ΔZ</label><input value="0"></div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-top:3px;"><div class="pp-btn">预览</div><div class="pp-btn latte">执行</div><div class="pp-btn stop">停止</div><div class="pp-btn">回原点</div></div>
+        </div>
+      </div>
+      <div class="pp-ctrl"><h3>工序与 IO</h3><div class="pp-ctrl-group"><h4>工序开关（DO）</h4><div style="background:#f5f6f8;border:1px solid #e2e6ed;border-radius:4px;padding:3px 6px;margin:2px 0;font-size:8px;"><div class="pp-row"><label>咖啡开关</label><span style="color:#8b95a6;">DO4 · 关</span></div></div><div style="background:#f5f6f8;border:1px solid #e2e6ed;border-radius:4px;padding:3px 6px;margin:2px 0;font-size:8px;"><div class="pp-row"><label>打花开关</label><span style="color:#8b95a6;">DO2 · 关</span></div></div></div></div>
+    </div>
+    <div class="pp-mon"><h3>关节曲线与末端位姿 ▼</h3><div class="pp-mon-grid"><div class="pp-mon-chart">6-DOF 关节角曲线</div><div class="pp-mon-side"><div>末端位姿</div><div style="background:rgba(37,99,235,0.04);">DI 反馈灯</div></div></div></div>
+    <div class="pp-sb"><span class="pp-sb-item ros"><span class="dot g"></span>ROS 已连接</span><span class="pp-sb-item"><span class="dot g"></span>在线</span><span class="pp-sb-item"><span class="dot g"></span>已使能</span><span class="pp-sb-item"><span class="dot o"></span>静止</span><span class="pp-sb-item"><span class="dot g"></span>空闲</span><span style="flex:1;"></span><span class="pp-sb-item"><span class="dot y"></span>仿真</span></div>
+  </div>
+</div>
+<div class="pp-note">✅ 独立 CSS · 模型||参数横向 · 6项状态栏</div>
+
+<div class="pp-page-label highlight-new" style="padding:8px 12px;">
+  <b>4. debug_panel.html — 调试面板 (NEW)</b>
+  <span style="font-size:9px;color:#8b95a6;margin-left:8px;">从 vision_grasp 迁出的笛卡尔直线 + 扩展调试功能</span>
+</div>
+<div class="page-preview" style="border-color:#16a34a;">
+  <div class="pp-nav"><div class="pp-nav-brand">灵视 <span>IVG</span></div><div class="pp-nav-links"><span>门户</span><span>视觉抓取</span><span>咖啡拉花</span><span>监控</span><span class="act">调试</span><span>日志</span><span>设置</span></div></div>
+  <div class="pp-body">
+    <div class="pp-toolbar"><h1>调试面板</h1><span style="font-size:8px;color:#8b95a6;">笛卡尔直线运动 · 关节控制 · 服务调试</span></div>
+    <div class="pp-debug-grid">
+      <div class="pp-debug-panel">
+        <h2>笛卡尔直线运动</h2>
+        <div class="pp-debug-row">
+          <div class="pp-debug-inputs">
+            <label>X (m)</label><input value="0.3741" step="0.01">
+            <label>Y (m)</label><input value="0.3039" step="0.01">
+            <label>Z (m)</label><input value="0.4755" step="0.01">
+          </div>
+        </div>
+        <div class="pp-debug-row" style="margin-top:4px;">
+          <div class="pp-debug-inputs">
+            <label>速度</label><input value="0.3" step="0.05" style="width:52px;">
+            <label>加速度</label><input value="0.2" step="0.05" style="width:52px;">
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px;">
+          <span class="pp-btn go" style="padding:4px 14px;">Move XYZ</span>
+          <span class="pp-btn stop" style="padding:4px 14px;">停止</span>
+        </div>
+        <div class="pp-debug-code">> MoveXYZ(x=0.3741, y=0.3039, z=0.4755, vel=0.3, acc=0.2)
+> [14:32:15] planning... fraction=1.0
+> [14:32:18] execution complete</div>
+      </div>
+      <div class="pp-debug-panel">
+        <h2>关节空间运动</h2>
+        <div class="pp-debug-row">
+          <div style="display:grid;grid-template-columns:auto auto;gap:3px 8px;">
+            <label style="font-size:8px;">J1</label><input value="0" style="width:56px;">
+            <label style="font-size:8px;">J2</label><input value="0" style="width:56px;">
+            <label style="font-size:8px;">J3</label><input value="0" style="width:56px;">
+            <label style="font-size:8px;">J4</label><input value="0" style="width:56px;">
+            <label style="font-size:8px;">J5</label><input value="0" style="width:56px;">
+            <label style="font-size:8px;">J6</label><input value="0" style="width:56px;">
+          </div>
+        </div>
+        <div class="pp-debug-row" style="margin-top:4px;">
+          <div class="pp-debug-inputs">
+            <label>速度</label><input value="0.3" style="width:52px;">
+            <label>加速度</label><input value="0.2" style="width:52px;">
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px;">
+          <span class="pp-btn go" style="padding:4px 14px;">Move Joints</span>
+          <span class="pp-btn" style="padding:4px 14px;">读取当前位置</span>
+        </div>
+        <div class="pp-debug-code">> 当前关节角 (deg): [10.5, -25.3, 45.7, -20.1, 30.2, 5.8]</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">
+      <div class="pp-debug-panel">
+        <h2>服务调用测试</h2>
+        <div class="pp-debug-row"><label style="min-width:40px;">服务名</label><input style="width:100%;flex:1;" value="/run_gripper_swap" placeholder="输入服务名"></div>
+        <div class="pp-debug-row" style="margin-top:4px;"><label style="min-width:40px;">参数</label><input style="width:100%;flex:1;" value='{"direction": "gripper0_to_gripper1"}' placeholder="JSON 参数"></div>
+        <div style="display:flex;gap:6px;margin-top:6px;"><span class="pp-btn go" style="padding:4px 14px;">调用服务</span></div>
+        <div class="pp-debug-code">> call /run_gripper_swap {"direction":"gripper0_to_gripper1"}
+> [14:33:01] success: true</div>
+      </div>
+      <div class="pp-debug-panel">
+        <h2>话题发布测试</h2>
+        <div class="pp-debug-row"><label style="min-width:40px;">话题名</label><input style="width:100%;flex:1;" value="/test_topic" placeholder="输入话题名"></div>
+        <div class="pp-debug-row" style="margin-top:4px;"><label style="min-width:40px;">消息</label><input style="width:100%;flex:1;" value='{"data": "hello"}' placeholder="JSON 消息"></div>
+        <div style="display:flex;gap:6px;margin-top:6px;"><span class="pp-btn go" style="padding:4px 14px;">发布消息</span></div>
+        <div class="pp-debug-code">> publish /test_topic {"data":"hello"} → OK</div>
+      </div>
+    </div>
+    <div class="pp-sb"><span class="pp-sb-item ros"><span class="dot g"></span>ROS 已连接</span><span class="pp-sb-item"><span class="dot g"></span>在线</span><span class="pp-sb-item"><span class="dot g"></span>已使能</span><span class="pp-sb-item"><span class="dot o"></span>静止</span><span class="pp-sb-item"><span class="dot g"></span>空闲</span><span style="flex:1;"></span><span class="pp-sb-item"><span class="dot y"></span>仿真</span></div>
+  </div>
+</div>
+<div class="pp-note">✅ 新页面：笛卡尔直线 + 关节运动 + 服务调用 + 话题发布 · 调试功能集中管理</div>
+
+<div class="pp-page-label">5. log_panel.html — 日志面板</div>
+<div class="page-preview">
+  <div class="pp-nav"><div class="pp-nav-brand">灵视 <span>IVG</span></div><div class="pp-nav-links"><span>门户</span><span>视觉抓取</span><span>咖啡拉花</span><span>监控</span><span>调试</span><span class="act">日志</span><span>设置</span></div></div>
+  <div class="pp-body">
+    <div class="pp-toolbar"><h1>日志面板</h1><span style="font-size:8px;color:#8b95a6;">1,247 条</span></div>
+    <div class="pp-log-bar">
+      <span class="pp-log-chip" style="color:#dc2626;border-color:#fecaca;">✕ 清空</span><span class="pp-log-chip">⏸ 暂停</span><span class="pp-log-chip act">⏹ 自动滚动</span><span class="pp-log-chip">⬇ 导出</span>
+      <span style="width:1px;height:14px;background:#e2e6ed;"></span>
+      <input class="pp-log-search" placeholder="搜索…">
+      <span style="width:1px;height:14px;background:#e2e6ed;"></span>
+      <span class="pp-log-chip act">log</span><span class="pp-log-chip">info</span><span class="pp-log-chip">warn</span><span class="pp-log-chip">error</span>
+    </div>
+    <div class="pp-log-lines">
+      <div class="pp-log-line"><span style="color:#8b95a6;">14:32:01</span><span style="color:#2563eb;">info</span><span>rosbridge 已连接</span></div>
+      <div class="pp-log-line"><span style="color:#8b95a6;">14:32:02</span><span style="color:#16a34a;">transport</span><span>订阅 /joint_states</span></div>
+      <div class="pp-log-line"><span style="color:#8b95a6;">14:32:05</span><span style="color:#d97706;">warn</span><span>关节 3 接近限位</span></div>
+      <div class="pp-log-line"><span style="color:#8b95a6;">14:32:08</span><span style="color:#dc2626;">error</span><span>服务超时</span></div>
+    </div>
+    <div style="padding:4px 0;font-size:8px;color:#8b95a6;text-align:center;">独立面板（无需连接）</div>
+  </div>
+</div>
+<div class="pp-note">✅ 无 connection-footer</div>
+
+<div class="pp-page-label">6. settings_panel.html — 设置面板</div>
+<div class="page-preview">
+  <div class="pp-nav"><div class="pp-nav-brand">灵视 <span>IVG</span></div><div class="pp-nav-links"><span>门户</span><span>视觉抓取</span><span>咖啡拉花</span><span>监控</span><span>调试</span><span>日志</span><span class="act">设置</span></div></div>
+  <div class="pp-settings-main">
+    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;"><h1 style="font-size:14px;margin:0;">IVG 系统设置</h1><span style="font-size:8px;color:#8b95a6;">配置修改后保存即生效</span></div>
+    <div style="background:#fff;border:1px solid #e2e6ed;border-radius:6px;padding:4px 8px;margin-bottom:6px;display:flex;gap:16px;font-size:8px;"><span style="font-weight:600;">网关</span><span style="color:#16a34a;">● 已连接</span><span style="color:#8b95a6;">localhost:8000 | rosbridge:9090</span></div>
+    <div class="pp-settings-tabs"><span class="pp-settings-tab act">公共参数</span><span class="pp-settings-tab">视觉抓取</span><span class="pp-settings-tab">咖啡拉花</span></div>
+    <div class="pp-settings-grid">
+      <div class="pp-settings-item"><label>彩色相机</label><input value="/camera/color/image_raw"></div>
+      <div class="pp-settings-item"><label>识别结果</label><input placeholder="/visual_pose/annotated_image"></div>
+      <div class="pp-settings-item"><label>机械臂状态</label><input value="/aubo_driver/robot_status"></div>
+      <div class="pp-settings-item"><label>关节角</label><input value="/joint_states"></div>
+      <div class="pp-settings-item"><label>URDF 参数</label><input value="/robot_state_publisher:robot_description"></div>
+      <div class="pp-settings-item"><label>TF 固定坐标系</label><input value="base_link"></div>
+    </div>
+    <div class="pp-settings-actions"><span class="pp-btn go" style="padding:4px 10px;">保存设置</span><span class="pp-btn" style="padding:4px 10px;">恢复默认</span><span class="pp-btn" style="padding:4px 10px;">清除存储</span><span style="width:8px;"></span><span class="pp-btn" style="padding:4px 10px;">导出 JSON</span><span class="pp-btn" style="padding:4px 10px;">导入 JSON</span></div>
+    <p style="font-size:8px;color:#16a34a;margin-top:4px;">✅ 设置已保存</p>
+  </div>
+</div>
+<div class="pp-note">✅ 删 :root · 加载 tokens.css</div>
+
+<div class="pp-page-label">7. tf_monitor_panel.html — 监控面板</div>
+<div class="page-preview">
+  <div class="pp-nav"><div class="pp-nav-brand">灵视 <span>IVG</span></div><div class="pp-nav-links"><span>门户</span><span>视觉抓取</span><span>咖啡拉花</span><span class="act">监控</span><span>调试</span><span>日志</span><span>设置</span></div></div>
+  <div class="pp-body">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;"><h1 style="font-size:13px;margin:0;">监控面板</h1><span style="background:#eef2ff;color:#2563eb;padding:3px 10px;border-radius:12px;font-size:8px;font-weight:600;border:1px solid #c7d2fe;"><span class="dot" style="background:#2563eb;width:6px;height:6px;display:inline-block;border-radius:50%;margin-right:4px;"></span>仿真</span></div>
+    <div style="background:#fff;border:1px solid #e2e6ed;border-radius:8px;padding:6px 10px;margin-bottom:4px;display:flex;gap:10px;"><span class="pp-tf-chip on">在线</span><span class="pp-tf-chip on">已使能</span><span style="font-size:8px;padding:2px 8px;border-radius:10px;background:#fee2e2;color:#b91c1c;">运动: 否</span><span style="font-size:8px;padding:2px 8px;border-radius:10px;background:#d1fae5;color:#065f46;">规划: 空闲</span></div>
+    <div class="pp-tf-row">
+      <div class="pp-tf-panel"><h2>末端位姿 (TCP)</h2><table class="pp-tf-data"><tr><td style="color:#8b95a6;">X</td><td>0.3741</td><td style="color:#8b95a6;">QX</td><td>0.0025</td></tr><tr><td style="color:#8b95a6;">Y</td><td>0.3039</td><td style="color:#8b95a6;">QY</td><td>0.0018</td></tr><tr><td style="color:#8b95a6;">Z</td><td>0.4755</td><td style="color:#8b95a6;">QZ</td><td>0.9832</td></tr><tr><td></td><td></td><td style="color:#8b95a6;">QW</td><td>0.1821</td></tr></table></div>
+      <div class="pp-tf-panel"><h2>关节角度</h2><table class="pp-tf-data" style="width:100%;"><tr style="color:#8b95a6;font-size:8px;"><td>关节</td><td>度</td><td>弧度</td></tr><tr><td>joint_1</td><td>10.5°</td><td>0.183</td></tr><tr><td>joint_2</td><td>-25.3°</td><td>-0.441</td></tr><tr><td>joint_3</td><td>45.7°</td><td>0.798</td></tr></table><div style="display:flex;gap:4px;margin-top:6px;"><span class="pp-btn go" style="padding:3px 8px;">复制 group_state</span><span class="pp-btn" style="padding:3px 8px;">复制 JSON</span></div></div>
+    </div>
+    <div style="background:#fff;border:1px solid #e2e6ed;border-radius:8px;padding:8px 10px;margin-top:4px;"><h2 style="font-size:9px;color:#8b95a6;text-transform:uppercase;margin:0 0 4px;">数据记录与导出</h2><div style="display:flex;gap:4px;font-size:8px;"><span class="pp-btn go" style="padding:3px 8px;">记录快照</span><span class="pp-btn" style="padding:3px 8px;">导出 JSON</span><span class="pp-btn" style="padding:3px 8px;">导出 XML</span><span class="pp-btn stop" style="padding:3px 8px;">清空记录</span></div><div style="font-size:8px;color:#8b95a6;margin-top:3px;">已记录: 3 条</div><div class="pp-tf-history">[14:30] snap_001.json · [14:31] snap_002.json</div></div>
+    <div class="pp-sb"><span class="pp-sb-item ros"><span class="dot g"></span>ROS 已连接</span><span class="pp-sb-item"><span class="dot g"></span>在线</span><span class="pp-sb-item"><span class="dot g"></span>已使能</span><span class="pp-sb-item"><span class="dot o"></span>静止</span><span class="pp-sb-item"><span class="dot g"></span>空闲</span><span style="flex:1;"></span><span class="pp-sb-item"><span class="dot y"></span>仿真</span></div>
+  </div>
+</div>
+<div class="pp-note">✅ 删 connection-footer · 6项状态栏</div>
+
+<div style="margin-top:16px;padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:10px;">
+  <b style="color:#166534;font-size:12px;">最终实施清单 (7页面 + 导航更新)</b>
+  <table style="width:100%;margin-top:8px;font-size:9px;border-collapse:collapse;">
+    <tr style="background:rgba(255,255,255,0.5);"><td style="padding:3px 8px;font-weight:700;">新建</td><td style="padding:3px 8px;font-family:monospace;">css/tokens.css</td><td style="padding:3px 8px;">统一 :root 变量</td></tr>
+    <tr><td style="padding:3px 8px;font-weight:700;">新建</td><td style="padding:3px 8px;font-family:monospace;">css/layout_base.css</td><td style="padding:3px 8px;">共享布局基类</td></tr>
+    <tr style="background:rgba(255,255,255,0.5);"><td style="padding:3px 8px;font-weight:700;color:#16a34a;">新建</td><td style="padding:3px 8px;font-family:monospace;color:#16a34a;">debug_panel.html</td><td style="padding:3px 8px;">调试面板（笛卡尔+关节+服务+话题）</td></tr>
+    <tr style="background:rgba(255,255,255,0.5);"><td style="padding:3px 8px;font-weight:700;color:#16a34a;">新建</td><td style="padding:3px 8px;font-family:monospace;color:#16a34a;">js/debug_panel.js</td><td style="padding:3px 8px;">调试面板逻辑</td></tr>
+    <tr><td style="padding:3px 8px;font-weight:700;">重写</td><td style="padding:3px 8px;font-family:monospace;">css/coffee_latte_panel.css</td><td style="padding:3px 8px;">独立完整样式</td></tr>
+    <tr style="background:rgba(255,255,255,0.5);"><td style="padding:3px 8px;font-weight:700;">精简</td><td style="padding:3px 8px;font-family:monospace;">css/vision_grasp_panel.css</td><td style="padding:3px 8px;">删 :root/笛卡尔调试/connection-footer</td></tr>
+    <tr><td style="padding:3px 8px;font-weight:700;">精简</td><td style="padding:3px 8px;font-family:monospace;">css/home.css</td><td style="padding:3px 8px;">删 :root/body基类 · 紧凑化</td></tr>
+    <tr><td style="padding:3px 8px;font-weight:700;">精简</td><td style="padding:3px 8px;font-family:monospace;">css/settings_panel.css</td><td style="padding:3px 8px;">删 :root</td></tr>
+    <tr style="background:rgba(255,255,255,0.5);"><td style="padding:3px 8px;font-weight:700;">修改</td><td style="padding:3px 8px;font-family:monospace;">css/ivg_status_bar.css</td><td style="padding:3px 8px;">适配 6 项 + ROS 连接</td></tr>
+    <tr><td style="padding:3px 8px;font-weight:700;">修改</td><td style="padding:3px 8px;font-family:monospace;">js/core/ivg_status_bar.js</td><td style="padding:3px 8px;">新增 ros_connected</td></tr>
+    <tr style="background:rgba(255,255,255,0.5);"><td style="padding:3px 8px;font-weight:700;">修改</td><td style="padding:3px 8px;font-family:monospace;">js/ivg_site_nav.js</td><td style="padding:3px 8px;">导航新增"调试"入口</td></tr>
+    <tr><td style="padding:3px 8px;font-weight:700;">修改</td><td style="padding:3px 8px;font-family:monospace;">*.html (7个)</td><td style="padding:3px 8px;">更新 CSS 引用 · 删 connection-footer</td></tr>
+  </table>
+</div>

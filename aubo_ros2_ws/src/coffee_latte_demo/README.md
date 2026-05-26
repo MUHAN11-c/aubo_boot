@@ -1,4 +1,9 @@
-# coffee_latte_demo — 咖啡拉花演示
+# coffee_latte_demo — 咖啡拉花演示（已废弃）
+
+> **此包已合并到 [`latte_imitation`](../latte_imitation/)**（2026-05-26）。
+> IO 控制节点 → `latte_imitation/latte_imitation/latte_io_node.py`
+> Launch 文件 → `latte_imitation/launch/latte_io.launch.py`
+> 此目录已 `COLCON_IGNORE`，不再参与编译。
 
 自包含的咖啡拉花演示包：ROS2 IO 控制节点（对接 Aubo 驱动硬件 IO）、Web 前端面板、工具网格文件。
 

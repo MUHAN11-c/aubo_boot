@@ -116,7 +116,7 @@
 | `src/aubo_ros2_driver` | aubo_driver_ros2 + demo_driver | ament_cmake |
 | `src/aubo_ros2_web_dashboard` | aubo_ros2_web_dashboard | ament_python + Vue 3 |
 | `src/tool_changer` | tool_changer | ament_cmake |
-| `src/coffee_latte_demo` | coffee_latte_demo | ament_cmake |
+| `src/coffee_latte_demo` | latte_imitation (已合并) | ament_python (废弃) |
 | `src/graspnet_ros2` | graspnet_ros2 | ament_python |
 | `src/hand_eye_calibration` | hand_eye_calibration | ament_python |
 | `src/latte_imitation` | latte_imitation | ament_python |

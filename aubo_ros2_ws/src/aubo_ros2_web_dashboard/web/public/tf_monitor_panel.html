@@ -61,9 +61,16 @@ h2 { font-size:1rem; color:var(--text-muted); margin-bottom:12px; text-transform
 .toast.show { opacity:1; }
 
 /* Export section */
-.export-history { max-height:200px; overflow-y:auto; margin-top:10px; font-size:0.78rem; font-family:monospace; background:#f8f9fb; border-radius:7px; padding:8px 12px; }
-.export-history .entry { padding:3px 0; border-bottom:1px solid #f0f1f4; color:var(--text-muted); }
+.export-history { max-height:260px; overflow-y:auto; margin-top:10px; font-size:0.78rem; font-family:monospace; background:#f8f9fb; border-radius:7px; padding:8px 12px; }
+.export-history .entry { padding:4px 0; border-bottom:1px solid #f0f1f4; }
 .export-history .entry:last-child { border:none; }
+.entry-name-row { display:flex; align-items:center; gap:6px; }
+.record-name { color:#2563eb; font-weight:500; cursor:pointer; user-select:none; }
+.record-name:hover { text-decoration:underline; }
+.record-name-edit { font-size:0.78rem; padding:1px 6px; border:1px solid #2563eb; border-radius:3px; outline:none; background:#eef2ff; color:var(--text); font-family:inherit; min-width:80px; }
+.entry-info { color:var(--text-muted); font-size:0.72rem; padding-left:0; }
+.record-delete-btn { font-size:0.7rem; padding:0 6px; border:1px solid transparent; border-radius:4px; background:transparent; color:#ef4444; cursor:pointer; line-height:1.4; opacity:0.5; transition:opacity 0.15s,border-color 0.15s; }
+.record-delete-btn:hover { opacity:1; border-color:#fecaca; background:#fef2f2; }
 </style>
 </head>
 <body class="ivg-single-screen">

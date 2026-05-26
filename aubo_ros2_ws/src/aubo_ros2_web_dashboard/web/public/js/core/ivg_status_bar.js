@@ -127,7 +127,6 @@ function updateRosConnection(connected) {
   if (val) {
     val.textContent = VALUE_MAP.ros_connected(connected);
   }
-  // 设置初始状态后也尝试更新 ROS topic 订阅
   if (connected) ensureStatus();
 }
 
@@ -141,7 +140,6 @@ function updateDriverMode(raw) {
 
   if (mode && mode !== _lastKnownMode) {
     _lastKnownMode = mode;
-    // 同步到全局 transport，供 services 等模块读取
     if (ivgTransport) { ivgTransport._driverMode = mode; }
     console.log(TAG, '驱动模式 =', mode,
       mode === 'real' ? '(真实硬件)' : '(仿真模式)');
@@ -174,6 +172,20 @@ function mountBar() {
   document.body.classList.add('has-ivg-status-bar');
 }
 
+var _statusSetupDone = false;
+var _rosHandlersRegistered = false;
+
+// 命名的 ros 消息处理器，通过 owner='status_bar' 注册，不受其他 owner 清除影响喵~
+function _onRobotStatus(msg) { updateBar(msg); }
+function _onDriverMode(msg) { updateDriverMode(msg); }
+
+function _registerRosHandlers() {
+  if (_rosHandlersRegistered) return;
+  ivgTransport.onRosJson(ROBOT_STATUS_TOPIC, _onRobotStatus, 'status_bar');
+  ivgTransport.onRosJson(MODE_TOPIC, _onDriverMode, 'status_bar');
+  _rosHandlersRegistered = true;
+}
+
 function subscribeStatus() {
   ivgTransport.subscribe({
     topic: ROBOT_STATUS_TOPIC,
@@ -187,11 +199,8 @@ function subscribeStatus() {
   });
 }
 
-var _statusSetupDone = false;
-
 function setupStatus() {
-  ivgTransport.onRosJson(ROBOT_STATUS_TOPIC, function (msg) { updateBar(msg); });
-  ivgTransport.onRosJson(MODE_TOPIC, function (msg) { updateDriverMode(msg); });
+  _registerRosHandlers();
   subscribeStatus();
   _statusSetupDone = true;
 }
@@ -206,21 +215,19 @@ function ensureStatus() {
 function init() {
   mountBar();
 
-  // 监听 rosbridge WebSocket 连接状态更新 ROS 连接指示
   var _rosConnected = !!(ivgTransport.ros && ivgTransport.ros.isConnected);
   updateRosConnection(_rosConnected);
 
-  // 传输层连接/断开回调
-  ivgTransport.onControlJson(function (ctrl) {
+  function _onControl(ctrl) {
     if (ctrl && ctrl.op === 'connection') {
       var connected = !!(ctrl.connected || (ivgTransport.ros && ivgTransport.ros.isConnected));
       updateRosConnection(connected);
       _statusSetupDone = false;
       if (connected) ensureStatus();
     }
-  });
+  }
+  ivgTransport.onControlJson(_onControl, 'status_bar');
 
-  // 初始化时检测一次连接
   ensureStatus();
 }
 

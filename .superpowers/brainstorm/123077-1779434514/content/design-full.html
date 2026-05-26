@@ -1,0 +1,73 @@
+<h2>完整设计方案</h2>
+<p class="subtitle">tokens.css + layout_base.css 共享层，vision / latte 各自独立</p>
+
+<div class="section">
+  <h3>文件变更清单</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:11px;">
+    <thead><tr style="background:#f5f6f8;"><th style="text-align:left;padding:5px 8px;">操作</th><th style="text-align:left;padding:5px 8px;">文件</th><th style="text-align:left;padding:5px 8px;">说明</th></tr></thead>
+    <tbody>
+      <tr style="background:#d1fae5;"><td style="padding:4px 8px;font-weight:700;color:#065f46;">新建</td><td style="padding:4px 8px;font-family:monospace;">css/tokens.css</td><td style="padding:4px 8px;">统一 :root 变量 (~40行)</td></tr>
+      <tr style="background:#d1fae5;"><td style="padding:4px 8px;font-weight:700;color:#065f46;">新建</td><td style="padding:4px 8px;font-family:monospace;">css/layout_base.css</td><td style="padding:4px 8px;">共享布局基类 (~120行): body/panel/grid/按钮/滚动条/焦点环/动画</td></tr>
+      <tr style="background:#fef3c7;"><td style="padding:4px 8px;font-weight:700;color:#92400e;">重写</td><td style="padding:4px 8px;font-family:monospace;">css/coffee_latte_panel.css</td><td style="padding:4px 8px;">不再依赖 vision_grasp，独立完整 (~300行)</td></tr>
+      <tr style="background:#eef2ff;"><td style="padding:4px 8px;font-weight:700;color:#3730a3;">精简</td><td style="padding:4px 8px;font-family:monospace;">css/vision_grasp_panel.css</td><td style="padding:4px 8px;">删 :root + 重复基类，只留 vision 特有样式</td></tr>
+      <tr style="background:#eef2ff;"><td style="padding:4px 8px;font-weight:700;color:#3730a3;">精简</td><td style="padding:4px 8px;font-family:monospace;">css/home.css</td><td style="padding:4px 8px;">删 :root，删 body 基类</td></tr>
+      <tr style="background:#eef2ff;"><td style="padding:4px 8px;font-weight:700;color:#3730a3;">精简</td><td style="padding:4px 8px;font-family:monospace;">css/settings_panel.css</td><td style="padding:4px 8px;">删 :root</td></tr>
+      <tr style="background:#f1f5f9;"><td style="padding:4px 8px;">不变</td><td style="padding:4px 8px;font-family:monospace;">css/ivg_site_nav.css</td><td style="padding:4px 8px;">nav 样式不变</td></tr>
+      <tr style="background:#f1f5f9;"><td style="padding:4px 8px;">不变</td><td style="padding:4px 8px;font-family:monospace;">css/ivg_status_bar.css</td><td style="padding:4px 8px;">status bar 样式不变（移除 :root 引用改为 tokens）</td></tr>
+      <tr style="background:#fee2e2;"><td style="padding:4px 8px;font-weight:700;color:#991b1b;">修改</td><td style="padding:4px 8px;font-family:monospace;">*.html (6个)</td><td style="padding:4px 8px;">更新 CSS 引用，删 connection-footer</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h3>layout_base.css 包含的共享样式</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:12px;line-height:1.8;">
+      <ul style="list-style:none;padding:0;">
+        <li style="padding:3px 0;"><span style="color:#2563eb;">✓</span> box-sizing: border-box 全局重置</li>
+        <li style="padding:3px 0;"><span style="color:#2563eb;">✓</span> body 基础: font-family, 背景纹理, antialiased, min-height</li>
+        <li style="padding:3px 0;"><span style="color:#2563eb;">✓</span> 滚动条样式 (webkit-scrollbar)</li>
+        <li style="padding:3px 0;"><span style="color:#2563eb;">✓</span> 焦点环 (:focus-visible)</li>
+        <li style="padding:3px 0;"><span style="color:#2563eb;">✓</span> 选中色 (::selection)</li>
+        <li style="padding:3px 0;"><span style="color:#2563eb;">✓</span> 入场动画 (@keyframes page-in)</li>
+        <li style="padding:3px 0;"><span style="color:#2563eb;">✓</span> 面板基类 .panel: 白色背景 + 左边框色条 + 圆角 + 阴影 + hover 效果</li>
+        <li style="padding:3px 0;"><span style="color:#2563eb;">✓</span> 状态徽章 .status (ok/off/pending)</li>
+        <li style="padding:3px 0;"><span style="color:#2563eb;">✓</span> 按钮基类 .btn</li>
+        <li style="padding:3px 0;"><span style="color:#2563eb;">✓</span> 等宽字体 code 样式</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>布局修复要点</h3>
+  <div class="mockup">
+    <div class="mockup-header">每个问题的修复方案</div>
+    <div class="mockup-body" style="font-size:12px;">
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead><tr style="background:#f5f6f8;"><th style="text-align:left;padding:5px 8px;">问题</th><th style="text-align:left;padding:5px 8px;">修复</th></tr></thead>
+        <tbody>
+          <tr><td style="padding:4px 8px;">底部 connection-footer 遮挡</td><td style="padding:4px 8px;color:#16a34a;">从 vision/latte HTML 中删除 connection-footer，状态信息由 ivg-status-bar 提供</td></tr>
+          <tr><td style="padding:4px 8px;">监控区被截断</td><td style="padding:4px 8px;color:#16a34a;">单屏模式下 body padding-bottom 统一由 has-ivg-status-bar 控制，layout_base.css 建立明确的优先级</td></tr>
+          <tr><td style="padding:4px 8px;">顶部导航不可见</td><td style="padding:4px 8px;color:#16a34a;">ivg-global-nav 加不透明背景色 fallback（非 blur 环境），确保 z-index 不被覆盖</td></tr>
+          <tr><td style="padding:4px 8px;">vision/latte CSS 混用</td><td style="padding:4px 8px;color:#16a34a;">coffee_latte_panel.html 不再加载 vision_grasp_panel.css，各自独立加载所需样式</td></tr>
+          <tr><td style="padding:4px 8px;">:root 碎片化</td><td style="padding:4px 8px;color:#16a34a;">所有页面加载 tokens.css，删除其余文件中的 :root</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>各页面 CSS 加载顺序（重构后）</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:11px;line-height:1.9;">
+      <b>index.html:</b> <span style="font-family:monospace;">tokens.css → layout_base.css → home.css → nav.css → status_bar.css</span><br>
+      <b>vision_grasp_panel.html:</b> <span style="font-family:monospace;">tokens.css → layout_base.css → vision_grasp_panel.css → nav.css → status_bar.css</span><br>
+      <b>coffee_latte_panel.html:</b> <span style="font-family:monospace;">tokens.css → layout_base.css → coffee_latte_panel.css → nav.css → status_bar.css</span><br>
+      <b>log_panel.html:</b> <span style="font-family:monospace;">tokens.css → layout_base.css → nav.css → status_bar.css</span><br>
+      <b>settings_panel.html:</b> <span style="font-family:monospace;">tokens.css → layout_base.css → settings_panel.css → nav.css → status_bar.css</span><br>
+      <b>tf_monitor_panel.html:</b> <span style="font-family:monospace;">tokens.css → layout_base.css → nav.css → status_bar.css</span>
+    </div>
+  </div>
+</div>

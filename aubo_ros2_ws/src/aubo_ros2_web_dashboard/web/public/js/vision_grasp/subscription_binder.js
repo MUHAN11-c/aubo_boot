@@ -8,6 +8,7 @@
 function bindVisionSubscriptions(opts) {
 	const options = opts || {};
 	const transport = options.transport;
+	const owner = options.owner || 'vision_grasp';
 	const $ = options.getById || (id => document.getElementById(id));
 	const subs = options.subs || {};
 	const defaults = options.defaults || {};
@@ -107,7 +108,7 @@ function bindVisionSubscriptions(opts) {
 			} else {
 				el.innerHTML = html;
 			}
-		});
+		}, owner);
 		transport.subscribe({ topic: robotTopic, msgType: topicTypeMap['topic-robot'] || 'ivg_interfaces/msg/RobotStatus', maxHz: 50 });
 		subs.robot = true;
 	} else {
@@ -117,7 +118,7 @@ function bindVisionSubscriptions(opts) {
 	if (jointTopic) {
 		transport.onRosJson(jointTopic, m => {
 			pushJointStateSample(m);
-		});
+		}, owner);
 		transport.subscribe({ topic: jointTopic, msgType: topicTypeMap['topic-joints'] || 'sensor_msgs/msg/JointState', maxHz: 30 });
 		subs.joints = true;
 	} else {
@@ -130,7 +131,7 @@ function bindVisionSubscriptions(opts) {
 			if (el) {
 				el.textContent = m && m.ivg_display != null ? String(m.ivg_display) : (m && m.data != null) ? String(m.data) : '0';
 			}
-		});
+		}, owner);
 		transport.subscribe({ topic: statusTopic, msgType: topicTypeMap['topic-vpe-status'] || 'std_msgs/msg/String', maxHz: 10 });
 		subs.vpe = true;
 	} else {
@@ -143,7 +144,7 @@ function bindVisionSubscriptions(opts) {
 			if (el) el.innerHTML = formatFinalGraspPoseHtml(m);
 			if (projectionOverlay) projectionOverlay.setGraspMsg(m);
 			scheduleGraspColorSnapshotRefresh();
-		});
+		}, owner);
 		transport.subscribe({ topic: graspTopic, msgType: topicTypeMap['topic-grasp-poses'] || 'geometry_msgs/msg/PoseArray', maxHz: 15 });
 		subs.grasp = true;
 	} else {
@@ -153,7 +154,7 @@ function bindVisionSubscriptions(opts) {
 	if (cameraInfoTopic) {
 		transport.onRosJson(cameraInfoTopic, m => {
 			if (projectionOverlay) projectionOverlay.setCameraInfo(m);
-		});
+		}, owner);
 		transport.subscribe({ topic: cameraInfoTopic, msgType: 'sensor_msgs/msg/CameraInfo', maxHz: 5 });
 		subs.cameraInfo = true;
 	} else {
@@ -164,11 +165,11 @@ function bindVisionSubscriptions(opts) {
 		if (projectionOverlay) projectionOverlay.ingestTfMessage(msg);
 	}
 	if (tfTopic) {
-		transport.onRosJson(tfTopic, handleTfMessage);
+		transport.onRosJson(tfTopic, handleTfMessage, owner);
 		transport.subscribe({ topic: tfTopic, msgType: topicTypeMap['topic-tf'] || 'tf2_msgs/msg/TFMessage', maxHz: 30 });
 	}
 	if (tfStaticTopic) {
-		transport.onRosJson(tfStaticTopic, handleTfMessage);
+		transport.onRosJson(tfStaticTopic, handleTfMessage, owner);
 		transport.subscribe({ topic: tfStaticTopic, msgType: topicTypeMap['topic-tf-static'] || 'tf2_msgs/msg/TFMessage', maxHz: 1 });
 	}
 	subs.tf = !!(tfTopic || tfStaticTopic);

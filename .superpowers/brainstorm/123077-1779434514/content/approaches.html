@@ -1,0 +1,45 @@
+<h2>两种重构方案</h2>
+<p class="subtitle">目标：无遮挡 + 统一主题 + vision/latte CSS 分离</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>最小分离修复</h3>
+      <p>不改架构，只修问题点。给 latte 复制一份独立的基础样式（从 vision_grasp 中剥离约 300 行布局代码），删除 connection-footer，修 z-index 冲突。</p>
+      <div class="pros-cons" style="margin-top:10px;">
+        <div class="pros"><h4>优点</h4><ul><li>改动量小（~200 行变更）</li><li>风险低</li><li>快速见效</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>两份重复的布局代码（vision + latte 各一份）</li><li>设计令牌仍然碎片化（5 个 :root 各自定义）</li><li>后续改主题需要改多处</li></ul></div>
+      </div>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>提取共享层 + 页面独立</h3>
+      <p>新建 2 个共享文件（tokens.css + layout-base.css），vision 和 latte 各自独立加载，无交叉依赖。共享层只放变量和布局基类。</p>
+      <div class="pros-cons" style="margin-top:10px;">
+        <div class="pros"><h4>优点</h4><ul><li>单一数据源：所有颜色/间距/阴影在一处定义</li><li>vision 和 latte 完全独立，各自只加载需要的样式</li><li>后续改主题只改一个文件</li><li>总 CSS 量减少（消除重复定义）</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>改动量中等（~500 行变更，涉及 6 个 HTML + 5 个 CSS）</li><li>需要仔细验证每个页面</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px;">
+  <h3>方案 B 的文件结构预览</h3>
+  <div class="mockup">
+    <div class="mockup-header">重构后 CSS 文件关系</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:12px;line-height:1.8;">
+      css/<br>
+      ├── <span style="color:#2563eb;font-weight:700;">tokens.css</span>          ← 新建：所有 :root 变量统一<br>
+      ├── <span style="color:#2563eb;font-weight:700;">layout_base.css</span>      ← 新建：body/panel/grid/toolbar/按钮基类<br>
+      ├── home.css               ← 精简：删 :root，只留 hero/card/footer<br>
+      ├── vision_grasp_panel.css ← 精简：删 :root+重复布局，只留 vision 特有<br>
+      ├── coffee_latte_panel.css ← 重写：不再 import vision_grasp，独立完整<br>
+      ├── settings_panel.css     ← 精简：删 :root<br>
+      ├── ivg_site_nav.css       ← 不变<br>
+      └── ivg_status_bar.css     ← 不变<br>
+    </div>
+  </div>
+</div>

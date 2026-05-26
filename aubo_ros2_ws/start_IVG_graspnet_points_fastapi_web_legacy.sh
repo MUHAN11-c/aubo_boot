@@ -6,8 +6,8 @@ if [ -z "${BASH_VERSION:-}" ]; then
     exit 1
 fi
 
-# IVG 完整启动脚本（GraspNet Points + FastAPI Web + aubo_ros2_web_dashboard + tool_changer + coffee_latte_demo）
-# 在 start_IVG_graspnet_points_fastapi.sh 基础上增加：tool_changer 快换管理 + coffee_latte_demo 咖啡拉花 + rosbridge + tf2_web_republisher + web_video_server + FastAPI 静态网关（8090）
+# IVG 完整启动脚本（GraspNet Points + FastAPI Web + aubo_ros2_web_dashboard + tool_changer + latte_imitation/latte_io）
+# 在 start_IVG_graspnet_points_fastapi.sh 基础上增加：tool_changer 快换管理 + latte_io 咖啡拉花 + rosbridge + tf2_web_republisher + web_video_server + FastAPI 静态网关（8090）
 # Dashboard 直接消费 src/robotwebtools/runtime_js_assets（由 build_robotwebtools.sh 自动汇总生成）。
 # 端口：WEB_DASH_PORT=8090 网关（静态页 + 同源 /ws/rosbridge + /api/ivg/proxy/web-video）；WEB_VIDEO_PORT=8089（仅网关本机连上游 MJPEG）；
 #       ROSBRIDGE_PORT=9090（仅网关本机连上游 rosbridge）；VPE FastAPI WEB_PORT=8088；HAND_EYE_PORT=8070。
@@ -266,11 +266,11 @@ launch_in_terminator "Tool Changer (swap + scene)" "$GRIPPER_SWAP_CMD"
 echo -e "${GREEN}  ✓ 夹爪快换节点已启动（物理运动 + PlanningScene 附着）${NC}"
 sleep 2
 
-# 步骤11: 启动咖啡拉花演示节点（coffee_latte_demo 包：DI/DO 状态发布与拉花工序控制）
-echo -e "${GREEN}[11/16] 启动咖啡拉花演示节点（coffee_latte_demo）...${NC}"
-COFFEE_LATTE_CMD="$WS_ENV && ros2 launch coffee_latte_demo coffee_latte_demo.launch.py"
-launch_in_terminator "Coffee Latte Demo" "$COFFEE_LATTE_CMD"
-echo -e "${GREEN}  ✓ 咖啡拉花演示节点已启动${NC}"
+# 步骤11: 启动咖啡拉花 IO 节点（latte_imitation 包: latte_io）
+echo -e "${GREEN}[11/16] 启动咖啡拉花 IO 节点（latte_io）...${NC}"
+COFFEE_LATTE_CMD="$WS_ENV && ros2 launch latte_imitation latte_io.launch.py"
+launch_in_terminator "Coffee Latte IO" "$COFFEE_LATTE_CMD"
+echo -e "${GREEN}  ✓ 咖啡拉花 IO 节点已启动${NC}"
 sleep 2
 
 # 步骤12: 启动 GraspNet 循环抓取 Worker
@@ -362,7 +362,7 @@ echo "  pkill -f 'visual_pose_estimation_python.launch.py'"
 echo "  pkill -f 'graspnet_demo_points_with_tf.launch.py'"
 echo "  pkill -f 'execute_grasp_pose_worker.launch.py'"
 echo "  pkill -f 'gripper_swap_worker.launch.py'"
-echo "  pkill -f 'coffee_latte_demo.launch.py'"
+echo "  pkill -f 'latte_io.launch.py'"
 echo "  pkill -f 'publish_grasps_client_worker_node'"
 echo "  pkill -f 'visual_pose_estimation_web.launch.py'"
 echo "  pkill -f 'visual_pose_estimation_web'"

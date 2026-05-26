@@ -57,7 +57,16 @@ SceneAttachWorker::SceneAttachWorker(const rclcpp::NodeOptions& options)
   loadToolConfig();
 
   // ── 预生成每个工具的 URDF 并缓存（前端 3D reloadUrdf 依赖）喵~
-  param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, "robot_state_publisher");
+  //     使用独立回调组，避免 set_parameters 与 onSetDisplayTool 死锁喵~
+  param_cb_group_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(
+      get_node_base_interface(),
+      get_node_topics_interface(),
+      get_node_graph_interface(),
+      get_node_services_interface(),
+      "robot_state_publisher",
+      rmw_qos_profile_parameters,
+      param_cb_group_);
   const std::string xacro_path =
     ament_index_cpp::get_package_share_directory("aubo_moveit_config") +
     "/config/aubo_e5.urdf.xacro";
@@ -390,25 +399,62 @@ void SceneAttachWorker::onSetDisplayTool(
     std::shared_ptr<ivg_interfaces::srv::ChangeTool::Request> req,
     std::shared_ptr<ivg_interfaces::srv::ChangeTool::Response> resp)
 {
-  // 仅发布/更新 URDF 到 /robot_description，不修改 MoveIt 碰撞场景喵~
+  // 双重更新：URDF (/robot_description → 前端 ros3djs + RViz2 RobotModel)
+  //           + ACO  (/attached_collision_object → RViz2 PlanningScene 显示)
+  // 不修改 current_attached_tool_（物理快换状态独立于显示）喵~
   bool found = urdf_cache_.find(req->tool_id) != urdf_cache_.end();
   if (found) {
-    updateRobotDescription(req->tool_id);
-    RCLCPP_INFO(get_logger(), "显示工具 URDF: %s", req->tool_id.c_str());
+    // 1. 脱离旧显示工具的 ACO（仅当不与物理快换工具冲突时才移除）喵~
+    if (!current_display_tool_.empty() && current_display_tool_ != current_attached_tool_) {
+      auto att = moveit_msgs::msg::AttachedCollisionObject{};
+      att.object.id = "attached_tool_" + current_display_tool_;
+      att.object.operation = moveit_msgs::msg::CollisionObject::REMOVE;
+      att.link_name = "kuaihuan_Link";
+      attached_object_pub_->publish(att);
+      removeWorldToolObject(current_display_tool_);
+    }
+
+    // 2. 附着新显示工具的 ACO（仅当不与物理快换工具重复时才添加，
+    //    物理快换路径已发布其 ACO，无需重复）喵~
+    if (!req->tool_id.empty() && req->tool_id != current_attached_tool_) {
+      auto it = tool_geometries_.find(req->tool_id);
+      if (it != tool_geometries_.end()) {
+        removeWorldToolObject(req->tool_id);
+        auto att = moveit_msgs::msg::AttachedCollisionObject{};
+        att.object.id = "attached_tool_" + req->tool_id;
+        att.object.header.frame_id = "kuaihuan_Link";
+        att.object.operation = moveit_msgs::msg::CollisionObject::ADD;
+        att.object.pose = it->second.attach_offset;
+        att.link_name = "kuaihuan_Link";
+        att.touch_links = it->second.touch_links;
+        att.object.meshes.push_back(it->second.mesh_collision);
+        auto mesh_pose = geometry_msgs::msg::Pose{};
+        mesh_pose.orientation.w = 1.0;
+        att.object.mesh_poses.push_back(mesh_pose);
+        attached_object_pub_->publish(att);
+        removeWorldToolObject(req->tool_id);
+      }
+    }
+
+    // 3. 更新 URDF（sync=true: 同步验证 set_parameters，确保 RViz2 TF 重建）喵~
+    updateRobotDescription(req->tool_id, true);
+
+    current_display_tool_ = req->tool_id;
+    RCLCPP_INFO(get_logger(), "显示工具: %s (URDF + ACO)", req->tool_id.empty() ? "(无工具)" : req->tool_id.c_str());
   } else {
-    RCLCPP_WARN(get_logger(), "显示工具 URDF 失败, 缓存未命中: %s", req->tool_id.c_str());
+    RCLCPP_WARN(get_logger(), "显示工具失败, URDF 缓存未命中: %s", req->tool_id.c_str());
   }
   resp->success = found;
   resp->message = found
-    ? ("URDF 已更新为: " + req->tool_id)
-    : ("未知工具 ID（URDF 缓存未命中）: " + req->tool_id);
+    ? ("已更新: " + (req->tool_id.empty() ? std::string("(无工具)") : req->tool_id))
+    : ("未知工具 ID: " + req->tool_id);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
 // robot_description 参数更新（前端 3D URDF 重载）喵~
 // ═══════════════════════════════════════════════════════════════════════
 
-void SceneAttachWorker::updateRobotDescription(const std::string& tool_id)
+void SceneAttachWorker::updateRobotDescription(const std::string& tool_id, bool sync)
 {
   auto it = urdf_cache_.find(tool_id);
   if (it == urdf_cache_.end()) {
@@ -424,15 +470,45 @@ void SceneAttachWorker::updateRobotDescription(const std::string& tool_id)
               tool_id.empty() ? "(default)" : tool_id.c_str(), it->second.size());
 
   // 2. 更新 robot_state_publisher 节点的 robot_description 参数
-  //    这是触发 TF 树重建的关键步骤喵~
+  //    这是触发 TF 树重建的关键步骤（robot_state_publisher 通过 /parameter_events 异步
+  //    收到变更后才调用 setupURDF() + publishFixedTransforms()）喵~
   if (!param_client_->wait_for_service(std::chrono::seconds(1))) {
     RCLCPP_WARN(get_logger(), "robot_state_publisher 参数服务未就绪，跳过 set_parameters");
     return;
   }
-  auto result = param_client_->set_parameters(
-      {rclcpp::Parameter("robot_description", it->second)});
-  if (result.valid()) {
-    RCLCPP_INFO(get_logger(), "robot_state_publisher robot_description 参数已更新");
+
+  if (sync) {
+    // 同步模式：等待结果并验证（/set_display_tool 使用，确保 RViz2 TF 更新）喵~
+    auto future = param_client_->set_parameters(
+        {rclcpp::Parameter("robot_description", it->second)});
+    auto status = future.wait_for(std::chrono::seconds(5));
+    if (status != std::future_status::ready) {
+      RCLCPP_ERROR(get_logger(), "robot_state_publisher set_parameters 超时 (5s)");
+      return;
+    }
+    auto results = future.get();
+    bool all_ok = true;
+    for (const auto& r : results) {
+      if (!r.successful) {
+        RCLCPP_ERROR(get_logger(), "robot_state_publisher set_parameters 失败: %s", r.reason.c_str());
+        all_ok = false;
+      }
+    }
+    if (all_ok) {
+      RCLCPP_INFO(get_logger(), "robot_state_publisher robot_description 参数已更新");
+    }
+  } else {
+    // 异步模式：通过回调记录结果，不阻塞调用者（/scene_attach 等内部路径）喵~
+    param_client_->set_parameters(
+        {rclcpp::Parameter("robot_description", it->second)},
+        [this](std::shared_future<std::vector<rcl_interfaces::msg::SetParametersResult>> future) {
+          auto results = future.get();
+          for (const auto& r : results) {
+            if (!r.successful) {
+              RCLCPP_ERROR(get_logger(), "robot_state_publisher set_parameters 失败: %s", r.reason.c_str());
+            }
+          }
+        });
   }
 }
 
@@ -445,7 +521,12 @@ void SceneAttachWorker::updateRobotDescription(const std::string& tool_id)
 int main(int argc, char** argv)
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<tool_changer::SceneAttachWorker>(rclcpp::NodeOptions()));
+  auto node = std::make_shared<tool_changer::SceneAttachWorker>(rclcpp::NodeOptions());
+  // MultiThreadedExecutor: 默认回调组 + param_cb_group_ 可并发处理，
+  // 避免 onSetDisplayTool 内 set_parameters future.wait_for() 死锁喵~
+  rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
+  executor.add_node(node);
+  executor.spin();
   rclcpp::shutdown();
   return 0;
 }

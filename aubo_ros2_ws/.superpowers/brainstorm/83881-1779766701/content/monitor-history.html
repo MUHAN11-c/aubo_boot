@@ -1,0 +1,75 @@
+<h2>监控页面 — 记录列表：Before vs After</h2>
+<p class="subtitle">当前只有时间戳和序号，改造后支持点击名称内联编辑 + 单条删除</p>
+
+<div class="split">
+
+<!-- ========== BEFORE ========== -->
+<div class="mockup">
+  <div class="mockup-header">❌ 当前 — 无名称、无删除</div>
+  <div class="mockup-body" style="font-family:monospace;font-size:0.78rem;color:var(--text-muted);padding:12px;">
+    <div style="margin-bottom:4px;">已记录: 3 条</div>
+    <div style="padding:6px 0;border-bottom:1px solid #eee;">
+      #1 2026-05-26 14:30:01 — real
+    </div>
+    <div style="padding:6px 0;border-bottom:1px solid #eee;">
+      #2 2026-05-26 14:30:15 — real
+    </div>
+    <div style="padding:6px 0;">
+      #3 2026-05-26 14:30:22 — real
+    </div>
+  </div>
+  <div style="padding:8px 12px;font-size:0.72rem;color:var(--red);margin-top:8px;">
+    ⚠️ 问题: 只有序号和时间戳，无法区分记录用途；刷新页面数据丢失
+  </div>
+</div>
+
+<!-- ========== AFTER ========== -->
+<div class="mockup">
+  <div class="mockup-header">✅ 改造后 — 可命名、可删除、持久化</div>
+  <div class="mockup-body" style="font-family:monospace;font-size:0.78rem;padding:12px;">
+    <div style="margin-bottom:6px;color:var(--text-muted);">已记录: 3 条</div>
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f0f1f4;">
+      <span style="cursor:pointer;color:#2563eb;font-weight:500;min-width:80px;" title="点击编辑名称">☕ 咖啡拉花位</span>
+      <span style="color:#999;flex:1;">#1 2026-05-26 14:30 — real</span>
+      <button style="font-size:0.7rem;padding:2px 8px;border:1px solid #e5e7eb;border-radius:4px;background:#fff;color:#ef4444;cursor:pointer;" title="删除">✕</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f0f1f4;">
+      <span style="cursor:pointer;color:#2563eb;font-weight:500;min-width:80px;" title="点击编辑名称">🏠 初始位置</span>
+      <span style="color:#999;flex:1;">#2 2026-05-26 14:30 — real</span>
+      <button style="font-size:0.7rem;padding:2px 8px;border:1px solid #e5e7eb;border-radius:4px;background:#fff;color:#ef4444;cursor:pointer;" title="删除">✕</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 0;">
+      <!-- 正在编辑的状态 -->
+      <input value="抓取预备位" style="font-size:0.78rem;padding:2px 6px;border:1px solid #2563eb;border-radius:3px;outline:none;min-width:80px;background:#eef2ff;" autofocus>
+      <span style="color:#999;flex:1;">#3 2026-05-26 14:30 — real</span>
+      <button style="font-size:0.7rem;padding:2px 8px;border:1px solid #e5e7eb;border-radius:4px;background:#fff;color:#ef4444;cursor:pointer;" title="删除">✕</button>
+    </div>
+  </div>
+  <div style="padding:8px 12px;font-size:0.72rem;color:#16a34a;margin-top:8px;">
+    ✅ 改进: 点击名称即可重命名；每条可单独删除；localStorage 持久化刷新不丢
+  </div>
+</div>
+
+</div>
+
+<div class="section" style="margin-top:24px;">
+  <h3>交互说明</h3>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>重命名操作</h4>
+      <ul>
+        <li>点击名称 → 变为输入框，自动 focus</li>
+        <li>回车 / 失焦 → 保存新名称</li>
+        <li>Escape → 取消编辑，恢复原名</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>删除操作</h4>
+      <ul>
+        <li>点击 ✕ 按钮</li>
+        <li>弹出 confirm("删除记录「xxx」？")</li>
+        <li>确认后删除并自动保存到 localStorage</li>
+      </ul>
+    </div>
+  </div>
+</div>

@@ -564,7 +564,7 @@ pkill -f 'hand_eye_calibration'
 pkill -f 'visual_pose_estimation'
 pkill -f 'graspnet_ros2'
 pkill -f 'gripper_swap_worker'
-pkill -f 'coffee_latte_demo'
+pkill -f 'latte_io'
 pkill -f 'web_dashboard'
 pkill -f 'ros2 bag record'
 pkill -f move_group

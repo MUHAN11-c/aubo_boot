@@ -361,3 +361,107 @@ def retarget_trajectory(
         episode_idx=cart.episode_idx,
         frame_id=cart.frame_id,
     )
+
+
+# ═══════════════════════════════════════════════════════════════════
+# SE(3) 分离式重定目标 — 位置完整 R, 朝向仅 yaw
+# ═══════════════════════════════════════════════════════════════════
+
+def extract_yaw_from_rotation(R: np.ndarray) -> float:
+    """从 3×3 旋转矩阵提取绕 Z 轴的旋转角 (yaw) 喵~
+
+    数学推导 (内旋 ZYX = 外旋 XYZ):
+      R = R_z(yaw) @ R_y(pitch) @ R_x(roll)
+      R[1,0] = sin(yaw)·cos(pitch)
+      R[0,0] = cos(yaw)·cos(pitch)
+      → atan2(R[1,0], R[0,0]) = yaw  (当 cos(pitch) ≠ 0)
+
+    对拉花任务 pitch ∈ [25°, 60°] → cos(pitch) ≠ 0 → 无 gimbal lock 喵~
+
+    参考: ROS 2 tf2/LinearMath/Matrix3x3.h:getEulerYPR()
+    """
+    yaw = np.arctan2(R[1, 0], R[0, 0])
+    return float(np.degrees(yaw))
+
+
+def retarget_with_orientation_constraint(
+    cart: CartesianTrajectory,
+    start_pose: Pose,
+    rpy_user: tuple[float, float, float] = (0.0, 0.0, 0.0),
+    translation_offset: tuple[float, float, float] = (0.0, 0.0, 0.0),
+) -> CartesianTrajectory:
+    """SE(3) 分离式重定目标 — 位置用完整 R_rel, 朝向仅用 yaw 分量 喵~
+
+    为什么分离:
+      - 位置需要完整 R_rel 来正确放置图案在杯子坐标系
+      - 朝向只需要 yaw 分量来对齐杯子方向
+      - pitch (倾倒角度) 是拉花技能核心, 已编码在轨迹自身朝向剖面中
+      - roll 始终为 0 (侧倾会导致液体洒出)
+
+    变换公式:
+      位置: p_new[i] = R_rel @ (p[i] - p[0]) + p_target + translation_offset
+      朝向: q_new[i] = q_yaw_only ⊗ q_orig[i]
+
+    Args:
+        cart:                原始 CartesianTrajectory (canonical frame)
+        start_pose:          目标位姿 (杯子在 base_link 中的位姿)
+        rpy_user:            (roll_deg, pitch_deg, yaw_deg) 用户可调角度
+        translation_offset:  (dx, dy, dz) 平移偏移 (m)
+
+    Returns:
+        变换后的 CartesianTrajectory
+    """
+    p0 = cart.positions[0].copy()
+    p_target = np.array([
+        start_pose.position.x,
+        start_pose.position.y,
+        start_pose.position.z,
+    ])
+    q_cup = np.array([
+        start_pose.orientation.x,
+        start_pose.orientation.y,
+        start_pose.orientation.z,
+        start_pose.orientation.w,
+    ])
+
+    # 检查是否需要旋转
+    all_zero_rpy = all(abs(r) < 1e-9 for r in rpy_user)
+    is_identity_cup = (
+        abs(q_cup[0]) < 1e-9 and abs(q_cup[1]) < 1e-9
+        and abs(q_cup[2]) < 1e-9 and abs(q_cup[3] - 1.0) < 1e-9
+    )
+
+    if all_zero_rpy and is_identity_cup:
+        R_rel = np.eye(3)
+        yaw_rel_deg = 0.0
+    else:
+        R_rel = compute_rotation_matrix(rpy_user, q_cup)
+        yaw_rel_deg = extract_yaw_from_rotation(R_rel)
+
+    # ── 位置变换: 完整 R_rel ──
+    translation = np.array(translation_offset, dtype=float)
+    new_positions = np.array([
+        R_rel @ (p - p0) + p_target + translation
+        for p in cart.positions
+    ])
+
+    # ── 朝向变换: 仅 yaw 分量 ──
+    if cart.orientations is not None and abs(yaw_rel_deg) > 1e-9:
+        q_yaw = euler_deg_to_quat(0.0, 0.0, yaw_rel_deg)
+        new_orientations = np.array([
+            quat_multiply(q_yaw, q) for q in cart.orientations
+        ])
+    else:
+        new_orientations = (
+            None if cart.orientations is None
+            else cart.orientations.copy()
+        )
+
+    return CartesianTrajectory(
+        positions=new_positions,
+        orientations=new_orientations,
+        timestamps=cart.timestamps.copy(),
+        dt=cart.dt,
+        episode_idx=cart.episode_idx,
+        frame_id=cart.frame_id,
+    )

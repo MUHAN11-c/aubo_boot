@@ -70,6 +70,7 @@ from ivg_interfaces.srv import ReplayLatteTrajectory
 from .trajectory import CartesianTrajectory
 from .trajectory_transform import (
     retarget_trajectory,
+    retarget_with_orientation_constraint,
     is_default_position,
     is_default_orientation,
 )
@@ -307,45 +308,86 @@ class LatteImitationNode(Node):
             return self._empty_result(False,
                 f"episode_{episode_idx:06d}.npz (arm='{arm}') 未找到")
 
-        # ═══ Phase ②: Retarget ═══
+        # ═══ Phase ②: OrientProfile (参数化模式 — 动态朝向剖面) ═══
+        if pattern_type and cup_params:
+            from latte_imitation.latte_art.orientation_profile import compute_pitch_profile
+            from latte_imitation.latte_art.bridge import parametric_to_cartesian as _make_cart
+
+            total_frames = cart.num_frames
+            # 阶段帧数与 compose_full_trajectory 一致: 融合 50 帧, 收尾 30 帧
+            num_mix = 50
+            mix_end = num_mix
+            draw_end = max(mix_end + 1, total_frames - 30)
+
+            pitch_profile = compute_pitch_profile(total_frames, mix_end, draw_end)
+            cart = _make_cart(
+                cart.positions,
+                roll_deg=0.0, yaw_deg=0.0, dt=cart.dt,
+                pitch_profile=pitch_profile,
+            )
+            self.get_logger().info(
+                f"动态朝向剖面: pitch {pitch_profile[0]:.0f}°→"
+                f"{pitch_profile[mix_end]:.0f}°→{pitch_profile[-1]:.0f}°"
+            )
+
+        # ═══ Phase ③: Retarget ═══
         if start_pose is None:
             start_pose = Pose()
 
-        use_tf_position = is_default_position(start_pose)
-        rotate = not is_default_orientation(start_pose) or any(
-            abs(r) > 1e-9 for r in rpy_user
-        )
-
         tf_warning = False
-        if use_tf_position:
-            current_pose = self._get_current_ee_pose()
-            if current_pose is None:
-                if mode in ("preview", "debug"):
-                    self.get_logger().warn(
-                        "TF 不可达, preview/debug 模式使用原点 (0,0,0) 作为起点"
-                    )
-                    target = Pose()
-                    target.position.x = 0.0
-                    target.position.y = 0.0
-                    target.position.z = 0.0
-                    target.orientation.w = 1.0
-                    pos_src = "原点(TF不可达)"
-                    tf_warning = True
-                else:
-                    return self._empty_result(False,
-                        "无法获取当前末端位姿 (TF base_link → tool_tcp)")
-            else:
-                target = current_pose
-                if rotate:
-                    target.orientation = start_pose.orientation
-                pos_src = "TF"
-        else:
-            target = start_pose
-            pos_src = "手动"
+        if pattern_type and cup_params:
+            # 参数化模式: retarget 目标 = 杯子位姿
+            target = Pose()
+            target.position.x = cup_params.get("center_x", 0.0)
+            target.position.y = cup_params.get("center_y", 0.0)
+            target.position.z = cup_params.get("surface_z", 0.15)
+            target.orientation.x = 0.0
+            target.orientation.y = 0.0
+            target.orientation.z = 0.0
+            target.orientation.w = 1.0
+            pos_src = "杯子坐标"
 
-        cart = retarget_trajectory(cart, target, rpy_user=rpy_user,
-                                   absolute_orientation=False,
-                                   translation_offset=translation_offset)
+            cart = retarget_with_orientation_constraint(
+                cart, target,
+                rpy_user=rpy_user,
+                translation_offset=translation_offset,
+            )
+        else:
+            # 录制回放模式: 保持现有 TF 逻辑
+            use_tf_position = is_default_position(start_pose)
+            if use_tf_position:
+                current_pose = self._get_current_ee_pose()
+                if current_pose is None:
+                    if mode in ("preview", "debug"):
+                        self.get_logger().warn(
+                            "TF 不可达, preview/debug 模式使用原点 (0,0,0) 作为起点"
+                        )
+                        target = Pose()
+                        target.position.x = 0.0
+                        target.position.y = 0.0
+                        target.position.z = 0.0
+                        target.orientation.w = 1.0
+                        pos_src = "原点(TF不可达)"
+                        tf_warning = True
+                    else:
+                        return self._empty_result(False,
+                            "无法获取当前末端位姿 (TF base_link → tool_tcp)")
+                else:
+                    target = current_pose
+                    rotate = not is_default_orientation(start_pose) or any(
+                        abs(r) > 1e-9 for r in rpy_user
+                    )
+                    if rotate:
+                        target.orientation = start_pose.orientation
+                    pos_src = "TF"
+            else:
+                target = start_pose
+                pos_src = "手动"
+
+            cart = retarget_trajectory(cart, target, rpy_user=rpy_user,
+                                       absolute_orientation=False,
+                                       translation_offset=translation_offset)
+
         self.get_logger().info(
             f"轨迹已变换 (位置={pos_src}, rpy={rpy_user}): "
             f"({target.position.x:.3f}, {target.position.y:.3f}, {target.position.z:.3f})"

@@ -1,0 +1,47 @@
+# latte_positions.yaml — 拉花工作流程参考位姿
+#
+# 所有位姿在 base_link 坐标系中喵~
+# 来源:
+#   coffee_Link/lizhu_Link/cup0_Link: URDF aubo_e5_base.urdf 固定 joint 偏移
+#     pedestal_Link 在 base_link: (-0.105, -0.105, -0.028)
+#     coffee_joint: (-0.540, 0.203, 0.046) in pedestal → (-0.645, 0.098, 0.018) in base_link
+#     lizhu_joint:  (-0.525, -0.263, 0.006) in pedestal → (-0.630, -0.368, -0.022) in base_link
+#     cup0_joint:   (-0.423, -0.093, -0.012) in pedestal → (-0.528, -0.198, -0.040) in base_link
+#   reference_pose: ivg_monitor_2026-05-26.json 末端位姿 (杯口 Z 轴朝上)
+# =============================================================================
+
+# ── coffee_Link: 咖啡机出杯位置 (取咖啡杯) ──
+coffee_link:
+  x: -0.645
+  y: 0.098
+  z: 0.05    # Z 需真机微调 (咖啡机出杯高度)
+  roll: 0.0
+  pitch: 0.0
+  yaw: 0.0
+
+# ── lizhu_Link: 立柱位置 (放咖啡杯, 拉花目标) ──
+lizhu_link:
+  x: -0.630
+  y: -0.368
+  z: 0.04    # 液面 Z = lizhu 顶(-0.022) + 杯高 + 液面距杯口, 需真机微调
+  roll: 0.0
+  pitch: 0.0
+  yaw: 0.0
+
+# ── cup0_Link: 牛奶杯/拉花壶位置 (取牛奶杯) ──
+cup0_link:
+  x: -0.528
+  y: -0.198
+  z: 0.05    # Z 需真机微调 (牛奶杯高度)
+  roll: 0.0
+  pitch: 0.0
+  yaw: 0.0
+
+# ── reference_pose: 杯口朝上安全中转位姿 ──
+reference_pose:
+  x: -0.419
+  y: -0.400
+  z: 0.246
+  roll: -23.5
+  pitch: 88.1
+  yaw: 76.0

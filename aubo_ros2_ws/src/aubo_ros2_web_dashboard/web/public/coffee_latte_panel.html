@@ -10,7 +10,7 @@
 	<title>咖啡拉花面板</title>
 	<link rel="stylesheet" href="css/tokens.css" />
 	<link rel="stylesheet" href="css/layout_base.css" />
-	<link rel="stylesheet" href="css/coffee_latte_panel.css?v=20260522_unify_design" />
+	<link rel="stylesheet" href="css/coffee_latte_panel.css?v=20260526_monitoring_fix" />
 	<link rel="stylesheet" href="css/ivg_site_nav.css?v=20260522_unify_design" />
 	<link rel="stylesheet" href="css/ivg_status_bar.css" />
 	<script src="/js/robotwebtools/libs/three.js"></script>
@@ -60,10 +60,68 @@
 										id="latte-episode" type="number" value="0" min="0" max="39" step="1"
 										class="latte-num-inp" /></label>
 							</div>
+							<!-- ── 杯子配置 (参数化模式) ── -->
+							<div class="latte-ctrl-group" id="latte-cup-group" style="display:none">
+								<h3 class="latte-ctrl-title">杯子配置 (base_link 坐标系)</h3>
+								<p class="latte-ctrl-desc">杯子在底座坐标系中的位置。XY 默认使用 lizhu_Link 位置，可在设置面板调整。</p>
+								<div class="latte-cfg-grid latte-cfg-grid--4col">
+									<label class="latte-cfg-row"><span class="latte-cfg-label">液面 Z (m)</span><input
+											id="latte-cupZ" type="number" value="0.04" min="-0.5" max="1.0" step="0.001"
+											class="latte-num-inp" /></label>
+									<label class="latte-cfg-row"><span class="latte-cfg-label">杯半径 (mm)</span><input
+											id="latte-cupR" type="number" value="40" min="20" max="80" step="1"
+											class="latte-num-inp" /></label>
+								</div>
+							</div>
+							<!-- ── 倾倒工艺参数 (参数化模式) ── -->
+							<div class="latte-ctrl-group" id="latte-pour-group" style="display:none">
+								<h3 class="latte-ctrl-title">倾倒工艺参数</h3>
+								<p class="latte-ctrl-desc">三阶段高度基于 Sunergos 视频参数，摆幅/频率基于 latteartguide.com</p>
+								<div class="latte-cfg-grid latte-cfg-grid--3col">
+									<label class="latte-cfg-row"><span class="latte-cfg-label">融合高度 (mm)</span>
+										<input id="latte-mixH" type="range" min="40" max="120" value="76" step="1" />
+										<span id="latte-mixH_val" class="latte-cfg-val">76</span></label>
+									<label class="latte-cfg-row"><span class="latte-cfg-label">成形高度 (mm)</span>
+										<input id="latte-drawH" type="range" min="2" max="20" value="6" step="1" />
+										<span id="latte-drawH_val" class="latte-cfg-val">6</span></label>
+									<label class="latte-cfg-row"><span class="latte-cfg-label">收尾高度 (mm)</span>
+										<input id="latte-finishH" type="range" min="40" max="120" value="76" step="1" />
+										<span id="latte-finishH_val" class="latte-cfg-val">76</span></label>
+									<label class="latte-cfg-row"><span class="latte-cfg-label">摆动振幅 (mm)</span>
+										<input id="latte-wiggleAmp" type="range" min="1" max="15" value="6" step="0.5" />
+										<span id="latte-wiggleAmp_val" class="latte-cfg-val">6</span></label>
+									<label class="latte-cfg-row"><span class="latte-cfg-label">摆动频率 (Hz)</span>
+										<input id="latte-wiggleFreq" type="range" min="1" max="10" value="5" step="0.5" />
+										<span id="latte-wiggleFreq_val" class="latte-cfg-val">5</span></label>
+									<label class="latte-cfg-row" id="latte-tulip-row" style="display:none">
+										<span class="latte-cfg-label">郁金香层数</span>
+										<input id="latte-tulip-layers" type="number" value="3" min="1" max="6" step="1" class="latte-num-inp" /></label>
+								</div>
+							</div>
+							<!-- ── 速度约束 (参数化模式) ── -->
+							<div class="latte-ctrl-group" id="latte-vel-group" style="display:none">
+								<h3 class="latte-ctrl-title">速度约束 (抗晃荡)</h3>
+								<p class="latte-ctrl-desc">S 曲线速度剖面参数，基于 Di Leva 2023 抗晃荡约束</p>
+								<div class="latte-cfg-grid latte-cfg-grid--3col">
+									<label class="latte-cfg-row"><span class="latte-cfg-label">Vmax (m/s)</span>
+										<input id="latte-maxVel" type="range" min="0.01" max="0.2" value="0.05" step="0.01" />
+										<span id="latte-maxVel_val" class="latte-cfg-val">0.05</span></label>
+									<label class="latte-cfg-row"><span class="latte-cfg-label">Amax (m/s²)</span>
+										<input id="latte-maxAcc" type="range" min="0.05" max="0.5" value="0.1" step="0.01" />
+										<span id="latte-maxAcc_val" class="latte-cfg-val">0.1</span></label>
+									<label class="latte-cfg-row"><span class="latte-cfg-label">Jmax (m/s³)</span>
+										<input id="latte-maxJerk" type="range" min="0.1" max="2.0" value="0.5" step="0.1" />
+										<span id="latte-maxJerk_val" class="latte-cfg-val">0.5</span></label>
+								</div>
+								<label class="latte-cfg-row"><span class="latte-cfg-label">抗晃荡</span>
+									<input id="latte-antiSlosh" type="checkbox" checked />
+									<span class="latte-cfg-hint">S 曲线速度剖面，防止奶泡晃动</span>
+								</label>
+							</div>
 							<!-- ── RPY 变换 ── -->
 							<div class="latte-ctrl-group">
-								<h3 class="latte-ctrl-title">轨迹相对末端旋转 (°)</h3>
-									<p class="latte-ctrl-desc">轨迹绕机械臂末端 (tool_tcp) 旋转，正值为逆时针</p>
+								<h3 class="latte-ctrl-title">进杯角度与图案微调 (°)</h3>
+									<p class="latte-ctrl-desc">Yaw: 进杯方向 (绕重力轴旋转, 影响轨迹位置和倾倒方向)。Roll/Pitch: 图案倾斜微调 (仅影响位置, 不改变奶缸倾倒)</p>
 								<div class="latte-cfg-grid">
 									<label class="latte-cfg-row"><span class="latte-cfg-label">Roll (°)</span><input
 											id="latte-roll" type="number" value="0" step="1"
@@ -86,13 +144,13 @@
 								<div class="latte-cfg-grid">
 									<label class="latte-cfg-row"><span class="latte-cfg-label">ΔX (m)</span><input
 											id="latte-dx" type="number" value="0.0" step="0.001"
-											class="latte-num-inp" /></label>
+											class="latte-num-inp" /><span id="latte-dx_val" class="latte-cfg-val">0 mm</span></label>
 									<label class="latte-cfg-row"><span class="latte-cfg-label">ΔY (m)</span><input
 											id="latte-dy" type="number" value="0.0" step="0.001"
-											class="latte-num-inp" /></label>
+											class="latte-num-inp" /><span id="latte-dy_val" class="latte-cfg-val">0 mm</span></label>
 									<label class="latte-cfg-row"><span class="latte-cfg-label">ΔZ (m)</span><input
 											id="latte-dz" type="number" value="0.0" step="0.001"
-											class="latte-num-inp" /></label>
+											class="latte-num-inp" /><span id="latte-dz_val" class="latte-cfg-val">0 mm</span></label>
 								</div>
 							</div>
 							<!-- ── 实时预览 ── -->
@@ -105,9 +163,9 @@
 									</label>
 								</div>
 								<!-- ── 预览采样 ── -->
-							<!-- ── URDF 显示夹爪（仅仿真, 不影响真机快换）喵~ ── -->
+							<!-- ── URDF 显示夹爪（仿真 + RViz2, 不影响真机快换）喵~ ── -->
 							<div class="latte-ctrl-group">
-								<h3 class="latte-ctrl-title">URDF 显示夹爪（仿真）</h3>
+								<h3 class="latte-ctrl-title">URDF 显示夹爪（仿真 + RViz2）</h3>
 								<div class="latte-cfg-grid">
 									<label class="latte-cfg-row"><span class="latte-cfg-label">夹爪类型</span>
 										<select id="latte-display-tool" class="latte-select">

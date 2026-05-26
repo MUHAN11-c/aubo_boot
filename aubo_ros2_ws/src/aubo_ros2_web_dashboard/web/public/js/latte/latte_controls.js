@@ -25,7 +25,10 @@ const PATTERN_TYPES = [
 
 const DEFAULTS = {
     episode: 0, maxEpisode: 39,
-    cupX: 0.0, cupY: 0.0, cupZ: 0.15, cupR: 0.04,
+    cupX: -0.630,   // lizhu_Link X in base_link (from URDF aubo_e5_base.urdf)
+    cupY: -0.368,   // lizhu_Link Y in base_link
+    cupZ: 0.04,     // 液面 Z = lizhu 顶(-0.022) + 杯高, 需真机微调
+    cupR: 0.04,
     mixH: 0.076, drawH: 0.006, finishH: 0.076,
     wiggleAmp: 0.006, wiggleFreq: 5.0,
     maxVel: 0.05, maxAcc: 0.1, maxJerk: 0.5,
@@ -158,7 +161,7 @@ function _stopProgressHeartbeat() {
 
 // ── 防抖预览 ──
 let _debounceTimer = null;
-function _debouncedPreview(delayMs = 300) {
+function _debouncedPreview(delayMs = 200) {
     if (_debounceTimer) clearTimeout(_debounceTimer);
     _debounceTimer = setTimeout(() => {
         _debounceTimer = null;
@@ -184,7 +187,13 @@ async function _preview() {
 
         _state.lastPreviewWaypoints = result?.waypoints || [];
         const wpCount = _state.lastPreviewWaypoints.length;
-        _state.message = result?.message || '预览完成: ' + (result?.num_frames || '?') + ' 帧, ' + ((result?.path_length)?.toFixed(2) ?? '?') + 'm';
+        // 构建平移偏移尾部（非零时显示）喵~
+        const tx = _state.dx, ty = _state.dy, tz = _state.dz;
+        const hasTrans = Math.abs(tx) > 0.0005 || Math.abs(ty) > 0.0005 || Math.abs(tz) > 0.0005;
+        const transTail = hasTrans
+            ? ' Δ(' + tx.toFixed(3) + ',' + ty.toFixed(3) + ',' + tz.toFixed(3) + ')'
+            : '';
+        _state.message = result?.message || '预览完成: ' + (result?.num_frames || '?') + ' 帧, ' + ((result?.path_length)?.toFixed(2) ?? '?') + 'm' + transTail;
         _state.success = result?.success !== false;
         if (wpCount === 0 && _state.success) {
             _state.message += ' (轨迹坐标为空，无3D渲染)';
@@ -278,10 +287,32 @@ function _home() {
     _render();
 }
 
+// ── 辅助: 安全设置 input.value, 跳过当前聚焦的输入框避免打断编辑喵~
+function _safeSetInput(id, value) {
+    const el = document.getElementById(id);
+    if (el && document.activeElement !== el) {
+        el.value = value;
+    }
+}
+
 // ── UI 渲染 ──
 
 function _render() {
     const s = _state;
+    // ── 条件显示: 参数化模式 vs 录制回放 ──
+    const isParametric = !!s.patternType;
+    const cupGroup = document.getElementById('latte-cup-group');
+    const pourGroup = document.getElementById('latte-pour-group');
+    const velGroup = document.getElementById('latte-vel-group');
+    const epRow = document.getElementById('latte-episode-row');
+    const tulipRow = document.getElementById('latte-tulip-row');
+
+    if (cupGroup) cupGroup.style.display = isParametric ? 'block' : 'none';
+    if (pourGroup) pourGroup.style.display = isParametric ? 'block' : 'none';
+    if (velGroup) velGroup.style.display = isParametric ? 'block' : 'none';
+    if (epRow) epRow.style.display = isParametric ? 'none' : 'flex';
+    if (tulipRow) tulipRow.style.display = (s.patternType === 'tulip') ? 'flex' : 'none';
+
     // 图案选择卡片
     const pc = document.getElementById('latte-pattern-cards');
     if (pc) {
@@ -305,23 +336,19 @@ function _render() {
     }
 
     // episode
-    const epInp = document.getElementById('latte-episode');
-    if (epInp) epInp.value = s.episodeIdx;
+    _safeSetInput('latte-episode', s.episodeIdx);
 
     // tulip layers
-    const tlInp = document.getElementById('latte-tulip-layers');
-    if (tlInp) tlInp.value = s.tulipLayers;
+    _safeSetInput('latte-tulip-layers', s.tulipLayers);
 
     // 杯子
     ['cupX','cupY','cupZ','cupR'].forEach(k => {
-        const el = document.getElementById('latte-' + k);
-        if (el) el.value = s[k];
+        _safeSetInput('latte-' + k, s[k]);
     });
 
-    // 倾倒参数
+    // 倾倒参数 (带实时值显示 #latte-xxx_val)
     ['mixH','drawH','finishH','wiggleAmp','wiggleFreq','maxVel','maxAcc','maxJerk'].forEach(k => {
-        const el = document.getElementById('latte-' + k);
-        if (el) el.value = s[k];
+        _safeSetInput('latte-' + k, s[k]);
         const ve = document.getElementById('latte-' + k + '_val');
         if (ve) ve.textContent = s[k];
     });
@@ -330,19 +357,17 @@ function _render() {
 
     // 变换
     ['roll','pitch','yaw'].forEach(k => {
-        const el = document.getElementById('latte-' + k);
-        if (el) el.value = s[k];
+        _safeSetInput('latte-' + k, s[k]);
     });
-    const ssEl = document.getElementById('latte-speedScale');
-    if (ssEl) ssEl.value = s.speedScale;
+    _safeSetInput('latte-speedScale', s.speedScale);
 
-    // 平移偏移
+    // 平移偏移 (带实时值显示 #latte-xxx_val)
     ['dx','dy','dz'].forEach(k => {
-        const el = document.getElementById('latte-' + k);
-        if (el) el.value = s[k];
+        _safeSetInput('latte-' + k, s[k]);
+        const ve = document.getElementById('latte-' + k + '_val');
+        if (ve) ve.textContent = (s[k] * 1000).toFixed(0) + ' mm';
     });
-    const wsEl2 = document.getElementById('latte-waypointStep');
-    if (wsEl2) wsEl2.value = s.waypointStep;
+    _safeSetInput('latte-waypointStep', s.waypointStep);
 
     // 实时预览开关
     const lpEl = document.getElementById('latte-live-preview');

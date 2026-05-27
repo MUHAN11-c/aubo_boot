@@ -359,11 +359,11 @@ class CartesianTrajectory:
         p = self.positions[first_bad]
         violations = []
         if not x_ok[first_bad]:
-            violations.append(f"X={p[0]:.3f} ∉ [{x_range[0]:.1f}, {x_range[1]:.1f}]")
+            violations.append(f"X={p[0]:.3f} ∉ [{x_range[0]:.3f}, {x_range[1]:.3f}]")
         if not y_ok[first_bad]:
-            violations.append(f"Y={p[1]:.3f} ∉ [{y_range[0]:.1f}, {y_range[1]:.1f}]")
+            violations.append(f"Y={p[1]:.3f} ∉ [{y_range[0]:.3f}, {y_range[1]:.3f}]")
         if not z_ok[first_bad]:
-            violations.append(f"Z={p[2]:.3f} ∉ [{z_range[0]:.1f}, {z_range[1]:.1f}]")
+            violations.append(f"Z={p[2]:.3f} ∉ [{z_range[0]:.3f}, {z_range[1]:.3f}]")
         msg = f"Frame {first_bad}/{self.num_frames}: " + ", ".join(violations)
         return False, msg, first_bad
 

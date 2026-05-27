@@ -1,6 +1,12 @@
 # 单臂 AUBO E5 咖啡拉花轨迹执行 — 实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **状态: ✅ 全部完成 (2026-05-27)**
+> 集成测试验证: 5 种模式 (heart/rosetta/tulip/swan/recorded) 全部 success=True
+> 动态朝向剖面: pitch 45°→30°→60° 正确
+> SE(3) 分离式 retarget: 位置=杯子坐标, 朝向仅 yaw 正确
+> 向后兼容: 录制回放模式正常
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 实现单臂 AUBO E5 拉花轨迹的动态朝向剖面 + SE(3) 分离式重定目标 + 前端参数面板补全
 
@@ -46,7 +52,7 @@ web/public/
 
 **背景:** 四个参考位姿 (coffee_Link, lizhu_Link, cup0_Link, reference_pose) 作为 ROS2 参数默认值，从 URDF TF 链计算 + JSON 参考位姿。来源: URDF `aubo_e5_base.urdf` 中 pedestal_Link 到各 link 的固定 joint 偏移，以及 `ivg_monitor_2026-05-26.json` 中的末端位姿。
 
-- [ ] **Step 1: 创建 YAML 文件**
+- [x] **Step 1: 创建 YAML 文件**
 
 ```bash
 cat > /home/mu/aubo_boot/aubo_ros2_ws/src/latte_imitation/config/latte_positions.yaml << 'YAMLEOF'
@@ -100,7 +106,7 @@ reference_pose:
 YAMLEOF
 ```
 
-- [ ] **Step 2: 验证 YAML 可解析**
+- [x] **Step 2: 验证 YAML 可解析**
 
 ```bash
 cd /home/mu/aubo_boot/aubo_ros2_ws
@@ -116,7 +122,7 @@ for k, v in data.items():
 
 Expected output: 4 组位姿打印，数值与 YAML 一致
 
-- [ ] **Step 3: 验证 YAML 中的位置与 URDF 计算一致**
+- [x] **Step 3: 验证 YAML 中的位置与 URDF 计算一致**
 
 ```bash
 python3 -c "
@@ -150,7 +156,7 @@ print('All assertions passed')
 
 Expected: `All assertions passed`
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 cd /home/mu/aubo_boot
@@ -173,7 +179,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 
 **背景:** 当前 `bridge.py:parametric_to_cartesian()` 所有帧固定 pitch=45°。需改为三阶段动态 pitch：融合 45°→30°，成形 30°±3°，收尾 30°→60°。roll=0（无侧倾），yaw=0（canonical frame，后续 retarget 统一变换）。
 
-- [ ] **Step 1: 写测试脚本 — 验证 pitch 剖面形状**
+- [x] **Step 1: 写测试脚本 — 验证 pitch 剖面形状**
 
 ```bash
 cat > /tmp/test_pitch_profile.py << 'PYEOF'
@@ -254,7 +260,7 @@ if __name__ == '__main__':
 PYEOF
 ```
 
-- [ ] **Step 2: 运行测试 — 预期全部 FAIL (模块不存在)**
+- [x] **Step 2: 运行测试 — 预期全部 FAIL (模块不存在)**
 
 ```bash
 cd /home/mu/aubo_boot/aubo_ros2_ws
@@ -264,7 +270,7 @@ python3 /tmp/test_pitch_profile.py
 
 Expected: `ModuleNotFoundError: No module named 'latte_art.orientation_profile'`
 
-- [ ] **Step 3: 实现 `orientation_profile.py`**
+- [x] **Step 3: 实现 `orientation_profile.py`**
 
 ```bash
 cat > /home/mu/aubo_boot/aubo_ros2_ws/src/latte_imitation/latte_imitation/latte_art/orientation_profile.py << 'PYEOF'
@@ -363,7 +369,7 @@ def assemble_cartesian_with_orientation(
 PYEOF
 ```
 
-- [ ] **Step 4: 运行测试 — 验证 PASS**
+- [x] **Step 4: 运行测试 — 验证 PASS**
 
 ```bash
 cd /home/mu/aubo_boot/aubo_ros2_ws
@@ -374,7 +380,7 @@ PYTHONPATH="src/latte_imitation:$PYTHONPATH" python3 /tmp/test_pitch_profile.py
 
 Expected: `All tests passed!`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /home/mu/aubo_boot
@@ -397,7 +403,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 
 **背景:** `PourConfig` 已有倾倒工艺参数，需新增朝向剖面参数字段供 `orientation_profile.py` 使用。添加字段但不改变现有 dataclass 的向后兼容性（全部有默认值）。
 
-- [ ] **Step 1: 修改 PourConfig**
+- [x] **Step 1: 修改 PourConfig**
 
 在现有 `PourConfig` dataclass 末尾 (第 54 行 `finish_z` 方法之后) 添加字段:
 
@@ -412,7 +418,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
     pour_roll_deg: float = 0.0            # 全程 roll (度, 始终 0)
 ```
 
-- [ ] **Step 2: 验证 dataclass 实例化不报错**
+- [x] **Step 2: 验证 dataclass 实例化不报错**
 
 ```bash
 cd /home/mu/aubo_boot/aubo_ros2_ws
@@ -432,7 +438,7 @@ print('PASS')
 
 Expected: `PASS`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd /home/mu/aubo_boot
@@ -454,7 +460,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 
 **背景:** `parametric_to_cartesian()` 当前用固定 quat (默认 45° pitch) 给所有帧。改为调用 `assemble_cartesian_with_orientation()` 生成动态朝向。
 
-- [ ] **Step 1: 修改 `parametric_to_cartesian()` 函数**
+- [x] **Step 1: 修改 `parametric_to_cartesian()` 函数**
 
 替换 `bridge.py` 中函数体:
 
@@ -512,7 +518,7 @@ def parametric_to_cartesian(
     )
 ```
 
-- [ ] **Step 2: 验证向后兼容性和新功能**
+- [x] **Step 2: 验证向后兼容性和新功能**
 
 ```bash
 cd /home/mu/aubo_boot/aubo_ros2_ws
@@ -550,7 +556,7 @@ except (ValueError, IndexError):
 
 Expected: 三项全部 PASS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd /home/mu/aubo_boot
@@ -571,7 +577,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 **Files:**
 - Modify: `aubo_ros2_ws/src/latte_imitation/latte_imitation/latte_art/__init__.py`
 
-- [ ] **Step 1: 添加导出**
+- [x] **Step 1: 添加导出**
 
 在现有 `__init__.py` 中添加:
 
@@ -588,7 +594,7 @@ __all__ = [
 ]
 ```
 
-- [ ] **Step 2: 验证导入**
+- [x] **Step 2: 验证导入**
 
 ```bash
 cd /home/mu/aubo_boot/aubo_ros2_ws
@@ -603,7 +609,7 @@ print('Import OK')
 
 Expected: `Import OK`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd /home/mu/aubo_boot
@@ -626,7 +632,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 
 数学依据: `yaw = atan2(R[1,0], R[0,0])`，来源 `tf2/LinearMath/Matrix3x3.h:getEulerYPR()`
 
-- [ ] **Step 1: 写测试脚本**
+- [x] **Step 1: 写测试脚本**
 
 ```bash
 cat > /tmp/test_separated_retarget.py << 'PYEOF'
@@ -747,7 +753,7 @@ if __name__ == '__main__':
 PYEOF
 ```
 
-- [ ] **Step 2: 运行测试 — 预期 FAIL (函数不存在)**
+- [x] **Step 2: 运行测试 — 预期 FAIL (函数不存在)**
 
 ```bash
 cd /home/mu/aubo_boot/aubo_ros2_ws
@@ -758,7 +764,7 @@ python3 /tmp/test_separated_retarget.py
 
 Expected: `AttributeError: module 'trajectory_transform' has no attribute 'extract_yaw_from_rotation'`
 
-- [ ] **Step 3: 实现两个新函数**
+- [x] **Step 3: 实现两个新函数**
 
 在 `trajectory_transform.py` 文件末尾 (第 363 行 `retarget_trajectory()` 的 return 之后) 添加:
 
@@ -867,7 +873,7 @@ def retarget_with_orientation_constraint(
     )
 ```
 
-- [ ] **Step 4: 运行测试 — 验证 PASS**
+- [x] **Step 4: 运行测试 — 验证 PASS**
 
 ```bash
 cd /home/mu/aubo_boot/aubo_ros2_ws
@@ -877,7 +883,7 @@ python3 /tmp/test_separated_retarget.py
 
 Expected: 6 项全部 PASS, `All tests passed!`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /home/mu/aubo_boot
@@ -904,7 +910,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 - Phase ① 中 `_load_or_generate()` 传递 `pitch_profile`
 - 调用 `orchestration_profile.compute_pitch_profile()` 并在 `parametric_to_cartesian()` 中传入
 
-- [ ] **Step 1: 修改 `_pipeline()` Phase ① — 生成时传入 pitch_profile**
+- [x] **Step 1: 修改 `_pipeline()` Phase ① — 生成时传入 pitch_profile**
 
 在 `_load_or_generate()` 调用之后，`_pipeline()` Phase ② 之前添加朝向剖面生成:
 
@@ -962,7 +968,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
             )
 ```
 
-- [ ] **Step 2: 修改 `_pipeline()` Phase ②/④ — retarget 调用**
+- [x] **Step 2: 修改 `_pipeline()` Phase ②/④ — retarget 调用**
 
 替换第 310-352 行的 retarget 部分:
 
@@ -1032,7 +1038,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
         )
 ```
 
-- [ ] **Step 3: 更新 import 行**
+- [x] **Step 3: 更新 import 行**
 
 在文件顶部 import 添加新函数:
 
@@ -1045,7 +1051,7 @@ from .trajectory_transform import (
 )
 ```
 
-- [ ] **Step 4: 编译验证**
+- [x] **Step 4: 编译验证**
 
 ```bash
 cd /home/mu/aubo_boot/aubo_ros2_ws
@@ -1055,7 +1061,7 @@ colcon build --packages-select latte_imitation
 
 Expected: `Summary: 1 package finished` — 编译成功，无错误
 
-- [ ] **Step 5: 启动仿真验证 — 参数化心形预览**
+- [x] **Step 5: 启动仿真验证 — 参数化心形预览**
 
 ```bash
 cd /home/mu/aubo_boot/aubo_ros2_ws
@@ -1096,7 +1102,7 @@ kill $LATTE_PID 2>/dev/null
 
 Expected: response 中 `success: true`, `num_frames` > 0, `message` 包含 "preview"
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd /home/mu/aubo_boot
@@ -1119,7 +1125,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 
 **背景:** `latte_controls.js` 引用的 `latte-cupX`, `latte-mixH`, `latte-wiggleAmp` 等 DOM ID 在 HTML 中不存在。需新增三组配置区域。
 
-- [ ] **Step 1: 在 HTML 中"轨迹图案"卡片之后、"RPY变换"之前插入新 DOM**
+- [x] **Step 1: 在 HTML 中"轨迹图案"卡片之后、"RPY变换"之前插入新 DOM**
 
 在 `<!-- ── Episode 选择 ──>` 和 `<!-- ── RPY 变换 ──>` 之间插入:
 
@@ -1184,7 +1190,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 </div>
 ```
 
-- [ ] **Step 2: 更新 RPY 区域说明文字**
+- [x] **Step 2: 更新 RPY 区域说明文字**
 
 将现有 RPY 区域的 `<p class="latte-ctrl-desc">轨迹绕机械臂末端 (tool_tcp) 旋转...</p>` 替换为:
 
@@ -1192,7 +1198,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 <p class="latte-ctrl-desc">Yaw: 进杯方向 (绕重力轴旋转, 影响轨迹位置和倾倒方向)。Roll/Pitch: 图案倾斜微调 (仅影响位置, 不改变奶缸倾倒)</p>
 ```
 
-- [ ] **Step 3: 验证 HTML 语法**
+- [x] **Step 3: 验证 HTML 语法**
 
 ```bash
 python3 -c "
@@ -1207,7 +1213,7 @@ print('HTML syntax OK')
 "
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 cd /home/mu/aubo_boot
@@ -1230,7 +1236,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 **Files:**
 - Modify: `aubo_ros2_ws/src/aubo_ros2_web_dashboard/web/public/css/coffee_latte_panel.css`
 
-- [ ] **Step 1: 追加 CSS 样式**
+- [x] **Step 1: 追加 CSS 样式**
 
 在 CSS 文件末尾追加:
 
@@ -1283,7 +1289,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 cd /home/mu/aubo_boot
@@ -1300,7 +1306,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 **Files:**
 - Modify: `aubo_ros2_ws/src/aubo_ros2_web_dashboard/web/public/js/latte/latte_controls.js`
 
-- [ ] **Step 1: 更新 DEFAULTS — 杯子 XY 来自 lizhu_Link, Z 来自 URDF 计算**
+- [x] **Step 1: 更新 DEFAULTS — 杯子 XY 来自 lizhu_Link, Z 来自 URDF 计算**
 
 将 DEFAULTS 中的 cupX/cupY/cupZ 改为 lizhu_Link 计算值:
 
@@ -1315,7 +1321,7 @@ const DEFAULTS = {
 };
 ```
 
-- [ ] **Step 2: 在 `_render()` 中添加条件显示逻辑**
+- [x] **Step 2: 在 `_render()` 中添加条件显示逻辑**
 
 在 `_render()` 函数中添加 (约第 298 行 `const s = _state` 之后):
 
@@ -1335,7 +1341,7 @@ const DEFAULTS = {
     if (tulipRow) tulipRow.style.display = (s.patternType === 'tulip') ? 'flex' : 'none';
 ```
 
-- [ ] **Step 3: 更新 `_buildRequest()` — 参数化模式下传入 cup 参数**
+- [x] **Step 3: 更新 `_buildRequest()` — 参数化模式下传入 cup 参数**
 
 确保 `_buildRequest()` 在 patternType 非空时传入 `cup_center_x/y` 和 `cup_surface_z`:
 
@@ -1351,14 +1357,14 @@ const DEFAULTS = {
     }
 ```
 
-- [ ] **Step 4: 验证 JS 语法**
+- [x] **Step 4: 验证 JS 语法**
 
 ```bash
 cd /home/mu/aubo_boot/aubo_ros2_ws/src/aubo_ros2_web_dashboard/web/public/js/latte
 node --check latte_controls.js 2>&1 || echo "Syntax check completed (warnings OK)"
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /home/mu/aubo_boot
@@ -1376,7 +1382,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 
 ### Task 11: 端到端集成测试
 
-- [ ] **Step 1: 完整编译**
+- [x] **Step 1: 完整编译**
 
 ```bash
 cd /home/mu/aubo_boot/aubo_ros2_ws
@@ -1386,7 +1392,7 @@ colcon build --packages-select latte_imitation
 
 Expected: `Summary: 1 package finished [XX.Xs]` — 编译成功
 
-- [ ] **Step 2: 启动仿真环境并测试 service 调用**
+- [x] **Step 2: 启动仿真环境并测试 service 调用**
 
 ```bash
 cd /home/mu/aubo_boot/aubo_ros2_ws
@@ -1435,7 +1441,7 @@ kill $LATTE_PID 2>/dev/null
 
 Expected: 三次调用均返回 `success: true`, `num_frames` > 0
 
-- [ ] **Step 3: 验证 pitch 剖面日志输出**
+- [x] **Step 3: 验证 pitch 剖面日志输出**
 
 ```bash
 # 检查 ROS 日志中是否有 "动态朝向剖面" 关键字
@@ -1444,7 +1450,7 @@ grep -r "动态朝向剖面\|pitch_profile\|pitch " ~/.ros/log/latest/ 2>/dev/nu
 
 Expected: 有 "动态朝向剖面: pitch XX°→XX°→XX°" 日志
 
-- [ ] **Step 4: Commit (如有微调)**
+- [x] **Step 4: Commit (如有微调)**
 
 ```bash
 cd /home/mu/aubo_boot

@@ -70,6 +70,20 @@ bool RobotController::moveToJoints(const std::array<double, 6>& joints, float ve
     return execute_result == moveit::core::MoveItErrorCode::SUCCESS;
 }
 
+bool RobotController::moveToPose(const geometry_msgs::msg::Pose& target,
+                                 float vel, float acc)
+{
+    if (!move_group_) return false;
+    move_group_->setStartStateToCurrentState();
+    setVelocityScaling(vel);
+    setAccelerationScaling(acc);
+    move_group_->setPoseTarget(target);
+    moveit::planning_interface::MoveGroupInterface::Plan plan;
+    if (move_group_->plan(plan) != moveit::core::MoveItErrorCode::SUCCESS)
+        return false;
+    return move_group_->execute(plan) == moveit::core::MoveItErrorCode::SUCCESS;
+}
+
 bool RobotController::moveCartesianZ(double offset_m, float vel, float acc)
 {
     return moveCartesianPath({{'z', offset_m}}, vel, acc);
@@ -112,6 +126,40 @@ bool RobotController::moveCartesianPath(const std::vector<CartesianSegment>& seg
         return move_group_->execute(plan) == moveit::core::MoveItErrorCode::SUCCESS;
     }
     return false;
+}
+
+bool RobotController::moveCartesianStraight(const geometry_msgs::msg::Pose& target,
+                                            float vel, float acc)
+{
+    if (!move_group_) return false;
+    setVelocityScaling(vel);
+    setAccelerationScaling(acc);
+
+    // 保存当前步长, 用 2mm 密化 waypoint 保证空间直线精度
+    double saved_step = eef_step_;
+    eef_step_ = 0.002;
+
+    std::vector<geometry_msgs::msg::Pose> waypoints{target};
+
+    bool success = false;
+    for (int attempt = 0; attempt < max_retries_; ++attempt) {
+        moveit_msgs::msg::RobotTrajectory traj;
+        moveit_msgs::msg::MoveItErrorCodes error_code;
+        double fraction =
+            move_group_->computeCartesianPath(waypoints, eef_step_, 0.0, traj, true, &error_code);
+        if (fraction < 0.99) {
+            if (attempt < max_retries_ - 1)
+                std::this_thread::sleep_for(std::chrono::duration<double>(retry_wait_sec_));
+            continue;
+        }
+        moveit::planning_interface::MoveGroupInterface::Plan plan;
+        plan.trajectory_ = traj;
+        success = (move_group_->execute(plan) == moveit::core::MoveItErrorCode::SUCCESS);
+        break;
+    }
+
+    eef_step_ = saved_step;
+    return success;
 }
 
 // =====================================================================

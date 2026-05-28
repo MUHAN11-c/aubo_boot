@@ -1,7 +1,0 @@
-# 咖啡拉花 — 默认话题/服务配置
-latte:
-  topics:
-    - {id: "latte-di-topic",     default: "/latte_di_status",              label: "DI 输入话题",      msg_type: "std_msgs/msg/String"}
-  services:
-    - {id: "svc-latte-do2",      default: "/set_latte_do2",                label: "DO2 开关",         srv_type: "std_srvs/srv/SetBool"}
-    - {id: "svc-latte-do4",      default: "/set_latte_do4",                label: "DO4 开关",         srv_type: "std_srvs/srv/SetBool"}

@@ -1,15 +1,15 @@
 /*
- * /move_to_pose — 关节空间或笛卡尔空间移动到目标位姿。
- * MoveGroupInterface 在 init() 中创建喵~
+ * /move_to_pose — 委托 RobotController。
+ *   use_joints=true  → moveToJoints (setJointValueTarget → plan → execute)
+ *   use_joints=false → computeCartesianPath (直线约束) → execute 喵~
  */
 #include "demo_driver/move_to_pose_server.h"
+#include "demo_driver/robot_controller.h"
 #include <rclcpp/executors/multi_threaded_executor.hpp>
 #include <moveit_msgs/msg/move_it_error_codes.hpp>
 
 namespace demo_driver
 {
-
-static constexpr double kZMinLimit = -0.05;  // Z 轴安全下限 (m)
 
 MoveToPoseServer::MoveToPoseServer(const rclcpp::NodeOptions& options)
     : Node("move_to_pose_server_node", options)
@@ -24,13 +24,12 @@ MoveToPoseServer::MoveToPoseServer(const rclcpp::NodeOptions& options)
 
 void MoveToPoseServer::init()
 {
-    move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
-        shared_from_this(), "manipulator");
-    move_group_->allowReplanning(true);
-    move_group_->setMaxVelocityScalingFactor(0.5);
-    move_group_->setMaxAccelerationScalingFactor(0.5);
-
-    RCLCPP_INFO(get_logger(), "MoveToPoseServer ready");
+    robot_controller_ = std::make_unique<RobotController>(this, "manipulator");
+    if (!robot_controller_->init()) {
+        RCLCPP_ERROR(get_logger(), "RobotController init failed");
+        return;
+    }
+    RCLCPP_INFO(get_logger(), "MoveToPoseServer ready (via RobotController)");
 }
 
 void MoveToPoseServer::onMoveToPoseRequest(
@@ -39,7 +38,7 @@ void MoveToPoseServer::onMoveToPoseRequest(
 {
     std::lock_guard<std::mutex> lock(service_mutex_);
 
-    if (!move_group_) {
+    if (!robot_controller_) {
         res->success = false; res->error_code = -100; res->message = "not initialized"; return;
     }
     if (req->velocity_factor < 0.0f || req->velocity_factor > 1.0f ||
@@ -50,48 +49,40 @@ void MoveToPoseServer::onMoveToPoseRequest(
 
     bool ok;
     if (req->use_joints) {
-        ok = moveToJoints(req->target_joints.data(), req->velocity_factor, req->acceleration_factor);
+        std::array<double, 6> joints;
+        std::copy_n(req->target_joints.begin(), 6, joints.begin());
+        ok = robot_controller_->moveToJoints(joints, req->velocity_factor, req->acceleration_factor);
     } else {
-        const auto& p = req->target_pose.position;
-        const auto& q = req->target_pose.orientation;
-        ok = moveToPose(p.x, p.y, p.z, q.x, q.y, q.z, q.w, req->velocity_factor, req->acceleration_factor);
+        // 笛卡尔直线: computeCartesianPath 保证 TCP 直线约束
+        geometry_msgs::msg::Pose target;
+        target.position    = req->target_pose.position;
+        target.orientation = req->target_pose.orientation;
+
+        auto mg = robot_controller_->moveGroup();
+        if (!mg) {
+            res->success = false; res->error_code = -100; res->message = "move_group not ready"; return;
+        }
+
+        robot_controller_->setVelocityScaling(req->velocity_factor);
+        robot_controller_->setAccelerationScaling(req->acceleration_factor);
+
+        auto start = robot_controller_->getCurrentPose();
+        std::vector<geometry_msgs::msg::Pose> waypoints = {start, target};
+
+        moveit_msgs::msg::RobotTrajectory traj;
+        double fraction = mg->computeCartesianPath(waypoints, 0.015, 0.0, traj);
+        if (fraction < 0.99) {
+            res->success = false; res->error_code = -2;
+            res->message = "cartesian path fraction=" + std::to_string(fraction); return;
+        }
+
+        moveit::planning_interface::MoveGroupInterface::Plan plan;
+        plan.trajectory_ = traj;
+        ok = mg->execute(plan) == moveit::core::MoveItErrorCode::SUCCESS;
     }
 
     res->success = ok; res->error_code = ok ? 0 : -2;
     res->message = ok ? "ok" : "move failed";
-}
-
-bool MoveToPoseServer::moveToJoints(const double* joints, float vel, float acc)
-{
-    if (!move_group_) return false;
-    move_group_->setMaxVelocityScalingFactor(vel);
-    move_group_->setMaxAccelerationScalingFactor(acc);
-    move_group_->setJointValueTarget(std::vector<double>(joints, joints + 6));
-
-    moveit::planning_interface::MoveGroupInterface::Plan plan;
-    if (move_group_->plan(plan) != moveit::core::MoveItErrorCode::SUCCESS) return false;
-    return move_group_->execute(plan) == moveit::core::MoveItErrorCode::SUCCESS;
-}
-
-bool MoveToPoseServer::moveToPose(double x, double y, double z,
-                                  double qx, double qy, double qz, double qw,
-                                  float vel, float acc)
-{
-    if (!move_group_) return false;
-    if (z < kZMinLimit) z = kZMinLimit;  // 安全限位
-
-    move_group_->setMaxVelocityScalingFactor(vel);
-    move_group_->setMaxAccelerationScalingFactor(acc);
-
-    geometry_msgs::msg::Pose target;
-    target.position.x = x; target.position.y = y; target.position.z = z;
-    target.orientation.x = qx; target.orientation.y = qy;
-    target.orientation.z = qz; target.orientation.w = qw;
-    move_group_->setPoseTarget(target);
-
-    moveit::planning_interface::MoveGroupInterface::Plan plan;
-    if (move_group_->plan(plan) != moveit::core::MoveItErrorCode::SUCCESS) return false;
-    return move_group_->execute(plan) == moveit::core::MoveItErrorCode::SUCCESS;
 }
 
 }  // namespace demo_driver

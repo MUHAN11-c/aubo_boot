@@ -18,8 +18,10 @@ namespace demo_driver
 PlanTrajectoryServer::PlanTrajectoryServer(const rclcpp::NodeOptions& options)
     : Node("plan_trajectory_server_node", options)
 {
-    declare_parameter("planning_group_name", "manipulator");
-    declare_parameter("base_frame", "base_link");
+    if (!has_parameter("planning_group_name"))
+        declare_parameter("planning_group_name", "manipulator");
+    if (!has_parameter("base_frame"))
+        declare_parameter("base_frame", "base_link");
     planning_group_name_ = get_parameter("planning_group_name").as_string();
     base_frame_          = get_parameter("base_frame").as_string();
 
@@ -130,7 +132,7 @@ bool PlanTrajectoryServer::planTrajectory(const geometry_msgs::msg::Pose& target
         planning_time = std::chrono::duration<float>(
             std::chrono::high_resolution_clock::now() - t0).count();
 
-        if (result != moveit::planning_interface::MoveItErrorCode::SUCCESS) {
+        if (result != moveit::core::MoveItErrorCode::SUCCESS) {
             message = "planning failed, error_code=" + std::to_string(result.val);
             return false;
         }

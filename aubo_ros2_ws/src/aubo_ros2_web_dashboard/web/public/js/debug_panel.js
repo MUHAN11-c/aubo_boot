@@ -1,6 +1,7 @@
 // debug_panel.js — 调试面板：状态监控 · 运动控制 · IO · IK/FK · 话题/服务
 import { ivgTransport } from './ivg_transport.js';
-import { loadRecords } from './core/record_store.js';
+import { loadRecords, saveRecords } from './core/record_store.js';
+import { quatToRpyDeg, rpyDegToQuat } from './core/tf-math.js';
 
 const TAG = '[debug_panel]';
 
@@ -185,6 +186,34 @@ function setupQuickControls() {
 
 // ── 笛卡尔直线运动 ───────────────────────────────────────────────────────────
 
+// RPY(deg) → 四元数，同步输入框
+function _rpyToQuatInputs() {
+  var r = parseFloat($('dbg-xyz-r').value) || 0;
+  var p = parseFloat($('dbg-xyz-p').value) || 0;
+  var y = parseFloat($('dbg-xyz-yaw').value) || 0;
+  var q = rpyDegToQuat(r, p, y);
+  $('dbg-xyz-qx').value = q.x.toFixed(6);
+  $('dbg-xyz-qy').value = q.y.toFixed(6);
+  $('dbg-xyz-qz').value = q.z.toFixed(6);
+  $('dbg-xyz-qw').value = q.w.toFixed(6);
+}
+
+// 四元数 → RPY(deg)，同步输入框
+function _quatToRpyInputs() {
+  var q = {
+    x: parseFloat($('dbg-xyz-qx').value) || 0,
+    y: parseFloat($('dbg-xyz-qy').value) || 0,
+    z: parseFloat($('dbg-xyz-qz').value) || 0,
+    w: parseFloat($('dbg-xyz-qw').value) || 1,
+  };
+  var rpy = quatToRpyDeg(q);
+  $('dbg-xyz-r').value = rpy.roll.toFixed(2);
+  $('dbg-xyz-p').value = rpy.pitch.toFixed(2);
+  $('dbg-xyz-yaw').value = rpy.yaw.toFixed(2);
+}
+
+var _rpySyncing = false;  // 防递归
+
 function setupCartesian() {
   $('btn-dbg-move-xyz').addEventListener('click', function () {
     var x = parseFloat($('dbg-xyz-x').value) || 0;
@@ -210,8 +239,28 @@ function setupCartesian() {
 
     log('debug-log-cartesian', 'MoveL(' + x.toFixed(4) + ', ' + y.toFixed(4) + ', ' + z.toFixed(4) + ') v=' + vel + ' a=' + acc);
     callSvc('/move_to_pose', 'ivg_interfaces/srv/MoveToPose', req, 30000)
-      .then(function (r) { logOk('debug-log-cartesian', 'OK: ' + JSON.stringify(r)); })
+      .then(function (r) { logOk('debug-log-cartesian', 'OK: ' + (r.message || '')); })
       .catch(function (e) { logErr('debug-log-cartesian', 'FAIL: ' + (e.message || e)); });
+  });
+
+  // RPY 输入 → 自动更新四元数
+  ['dbg-xyz-r', 'dbg-xyz-p', 'dbg-xyz-yaw'].forEach(function (id) {
+    $(id).addEventListener('input', function () {
+      if (_rpySyncing) return;
+      _rpySyncing = true;
+      _rpyToQuatInputs();
+      _rpySyncing = false;
+    });
+  });
+
+  // 四元数输入 → 自动更新 RPY
+  ['dbg-xyz-qx', 'dbg-xyz-qy', 'dbg-xyz-qz', 'dbg-xyz-qw'].forEach(function (id) {
+    $(id).addEventListener('input', function () {
+      if (_rpySyncing) return;
+      _rpySyncing = true;
+      _quatToRpyInputs();
+      _rpySyncing = false;
+    });
   });
 
   // 从 robot_status 读取当前位置填入 XYZ
@@ -227,10 +276,13 @@ function setupCartesian() {
     $('dbg-xyz-y').value = (pos.y || 0).toFixed(4);
     $('dbg-xyz-z').value = (pos.z || 0).toFixed(4);
     if (ori) {
+      _rpySyncing = true;
       $('dbg-xyz-qx').value = (ori.x || 0).toFixed(4);
       $('dbg-xyz-qy').value = (ori.y || 0).toFixed(4);
       $('dbg-xyz-qz').value = (ori.z || 0).toFixed(4);
       $('dbg-xyz-qw').value = (ori.w || 1).toFixed(4);
+      _quatToRpyInputs();
+      _rpySyncing = false;
     }
     logOk('debug-log-cartesian', '已从 /robot_status 读取当前位姿');
   });
@@ -246,7 +298,7 @@ function setupJointMotion() {
     }
     var vel = parseFloat($('dbg-jnt-vel').value) || 0.3;
 
-    // 使用 /move_to_pose (use_joints=true) — demo_driver 通用，仿真/真机均可用喵~
+    // /move_to_pose 内部委托 RobotController::moveToJoints (setJointValueTarget → plan → execute)
     var req = {
       target_pose: {
         position: { x: 0, y: 0, z: 0 },
@@ -260,7 +312,7 @@ function setupJointMotion() {
 
     log('debug-log-joint', 'MoveJ([' + joints.map(function (v) { return v.toFixed(4); }).join(', ') + ']) v=' + vel);
     callSvc('/move_to_pose', 'ivg_interfaces/srv/MoveToPose', req, 30000)
-      .then(function (r) { logOk('debug-log-joint', 'OK: ' + JSON.stringify(r)); })
+      .then(function (r) { logOk('debug-log-joint', 'OK: ' + (r.message || '')); })
       .catch(function (e) { logErr('debug-log-joint', 'FAIL: ' + (e.message || e)); });
   });
 
@@ -655,7 +707,83 @@ function onLoadPose() {
   $('dbg-xyz-qy').value = ori.y != null ? ori.y.toFixed(4) : '0.0000';
   $('dbg-xyz-qz').value = ori.z != null ? ori.z.toFixed(4) : '0.0000';
   $('dbg-xyz-qw').value = ori.w != null ? ori.w.toFixed(4) : '1.0000';
+  _quatToRpyInputs();
   logOk('debug-log-record', '已加载位姿');
+}
+
+// 将 waypoint 数组规范化为 record 格式并写入 store，返回导入条数
+function _normalizeAndSave(data, baseName) {
+  var records = loadRecords();
+  var added = 0;
+  data.forEach(function (wp) {
+    var record = {
+      name: wp.name || (baseName + ' #' + (records.length + added + 1)),
+      timestamp: wp.timestamp || new Date().toISOString(),
+      mode: wp.mode || 'unknown',
+      joints: (wp.joints || []).map(function (j) {
+        return { name: j.name || '', position_rad: j.position_rad || 0, position_deg: j.position_deg || 0 };
+      }),
+      end_effector: wp.end_effector || {
+        position_m: { x: 0, y: 0, z: 0 },
+        orientation_quaternion: { x: 0, y: 0, z: 0, w: 1 },
+        euler_rpy_deg: { roll: 0, pitch: 0, yaw: 0 },
+      },
+    };
+    records.push(record);
+    added++;
+  });
+  return { ok: saveRecords(records), added: added };
+}
+
+function importJsonFile(file) {
+  var reader = new FileReader();
+  reader.onload = function (e) {
+    var data;
+    try { data = JSON.parse(e.target.result); }
+    catch (err) { logErr('debug-log-record', 'JSON 解析失败: ' + err.message); return; }
+
+    if (!Array.isArray(data)) {
+      logErr('debug-log-record', 'JSON 格式错误: 期望顶层为数组');
+      return;
+    }
+
+    var result = _normalizeAndSave(data, '导入');
+    if (result.ok) {
+      logOk('debug-log-record', '已导入 ' + result.added + ' 条记录');
+      refreshRecordSelect();
+    } else {
+      logErr('debug-log-record', '保存失败 (localStorage 可能已满)');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function pasteJsonText() {
+  var textarea = $('dbg-paste-textarea');
+  if (!textarea) return;
+  var raw = (textarea.value || '').trim();
+  if (!raw) { logWarn('debug-log-record', '请先粘贴 JSON 内容'); return; }
+
+  var data;
+  try { data = JSON.parse(raw); }
+  catch (err) { logErr('debug-log-record', 'JSON 解析失败: ' + err.message); return; }
+
+  // 统一为数组格式
+  var items = Array.isArray(data) ? data : [data];
+
+  var result = _normalizeAndSave(items, '粘贴');
+  if (result.ok) {
+    logOk('debug-log-record', '已解析并导入 ' + result.added + ' 条记录');
+    refreshRecordSelect();
+    // 选中第一条新导入的记录
+    var sel = $('dbg-record-select');
+    if (sel && _cachedRecords.length >= result.added) {
+      sel.value = String(_cachedRecords.length - result.added);
+      onSelectRecord();
+    }
+  } else {
+    logErr('debug-log-record', '保存失败 (localStorage 可能已满)');
+  }
 }
 
 function setupRecordLoader() {
@@ -663,6 +791,86 @@ function setupRecordLoader() {
   $('dbg-record-select').addEventListener('change', onSelectRecord);
   $('btn-dbg-load-joints').addEventListener('click', onLoadJoints);
   $('btn-dbg-load-pose').addEventListener('click', onLoadPose);
+
+  // ── 位姿导入（顶部工具栏 + 记录卡底部）────────────────────────────────
+
+  // 顶部 toolbar 版本
+  var fileInputTop = $('dbg-import-file-input-top');
+  if (fileInputTop) {
+    $('btn-dbg-import-json-top').addEventListener('click', function () { fileInputTop.click(); });
+    fileInputTop.addEventListener('change', function () {
+      if (fileInputTop.files && fileInputTop.files.length > 0) {
+        log('debug-log-record', '正在导入: ' + fileInputTop.files[0].name + ' ...');
+        importJsonFile(fileInputTop.files[0]);
+        fileInputTop.value = '';
+      }
+    });
+  }
+
+  var pasteAreaTop = $('dbg-paste-area-top');
+  if (pasteAreaTop) {
+    $('btn-dbg-toggle-paste-top').addEventListener('click', function () {
+      var show = pasteAreaTop.style.display === 'none';
+      pasteAreaTop.style.display = show ? '' : 'none';
+      this.textContent = show ? '收起粘贴' : '粘贴 JSON';
+      if (show) $('dbg-paste-textarea-top').focus();
+    });
+    $('btn-dbg-paste-parse-top').addEventListener('click', function () {
+      // 临时替换 textarea 引用，复用 pasteJsonText
+      var origTextarea = $('dbg-paste-textarea');
+      var topTextarea = $('dbg-paste-textarea-top');
+      // 直接读取顶部 textarea 的值来复用解析逻辑
+      var raw = (topTextarea.value || '').trim();
+      if (!raw) { logWarn('debug-log-record', '请先粘贴 JSON 内容'); return; }
+      var data;
+      try { data = JSON.parse(raw); }
+      catch (err) { logErr('debug-log-record', 'JSON 解析失败: ' + err.message); return; }
+      var items = Array.isArray(data) ? data : [data];
+      var result = _normalizeAndSave(items, '粘贴');
+      if (result.ok) {
+        logOk('debug-log-record', '已解析并导入 ' + result.added + ' 条记录');
+        refreshRecordSelect();
+        var sel = $('dbg-record-select');
+        if (sel && _cachedRecords.length >= result.added) {
+          sel.value = String(_cachedRecords.length - result.added);
+          onSelectRecord();
+        }
+      } else {
+        logErr('debug-log-record', '保存失败 (localStorage 可能已满)');
+      }
+    });
+    $('btn-dbg-paste-clear-top').addEventListener('click', function () {
+      $('dbg-paste-textarea-top').value = '';
+      log('debug-log-record', '已清空粘贴内容');
+    });
+  }
+
+  // 记录卡底部版本
+  var fileInput = $('dbg-import-file-input');
+  $('btn-dbg-import-json').addEventListener('click', function () {
+    fileInput.click();
+  });
+  fileInput.addEventListener('change', function () {
+    if (fileInput.files && fileInput.files.length > 0) {
+      log('debug-log-record', '正在导入: ' + fileInput.files[0].name + ' ...');
+      importJsonFile(fileInput.files[0]);
+      fileInput.value = '';  // 允许重复导入同一文件
+    }
+  });
+
+  var pasteArea = $('dbg-paste-area');
+  $('btn-dbg-toggle-paste').addEventListener('click', function () {
+    var show = pasteArea.style.display === 'none';
+    pasteArea.style.display = show ? '' : 'none';
+    this.textContent = show ? '收起粘贴' : '粘贴 JSON';
+    if (show) $('dbg-paste-textarea').focus();
+  });
+  $('btn-dbg-paste-parse').addEventListener('click', pasteJsonText);
+  $('btn-dbg-paste-clear').addEventListener('click', function () {
+    $('dbg-paste-textarea').value = '';
+    log('debug-log-record', '已清空粘贴内容');
+  });
+
   window.addEventListener('storage', function (e) {
     if (e.key === 'ivg_monitor_records') refreshRecordSelect();
   });

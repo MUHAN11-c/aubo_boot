@@ -10,7 +10,7 @@
 #include <rclcpp/executors/multi_threaded_executor.hpp>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <moveit_msgs/msg/move_it_error_codes.hpp>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <tf2/LinearMath/Quaternion.h>
 #include <ivg_interfaces/srv/get_ik.hpp>
 #include <moveit/robot_state/robot_state.h>
@@ -45,6 +45,11 @@ SetRobotPoseServer::SetRobotPoseServer(const rclcpp::NodeOptions& options)
     set_robot_pose_service_ = this->create_service<ivg_interfaces::srv::SetRobotPose>(
         "/set_robot_pose",
         std::bind(&SetRobotPoseServer::setRobotPoseCallback, this, std::placeholders::_1, std::placeholders::_2));
+
+    // IK client 使用独立 Reentrant 回调组，防止 service 回调内调用 IK 时死锁
+    ik_client_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+    ik_client_ = this->create_client<ivg_interfaces::srv::GetIK>(
+        "/aubo_driver/get_ik", rmw_qos_profile_services_default, ik_client_cb_group_);
 }
 
 bool SetRobotPoseServer::wait_for_robot_description(int timeout_seconds)
@@ -294,10 +299,8 @@ bool SetRobotPoseServer::setRobotPose(const std::array<double, 6>& target_pose,
             
             robot_state->copyJointGroupPositions(joint_model_group, joint_group_positions);
 
-            // 尝试使用 IK 服务计算关节角度
-            auto ik_client = this->create_client<ivg_interfaces::srv::GetIK>("/aubo_driver/get_ik");
-            
-            if (ik_client->wait_for_service(std::chrono::seconds(1)))
+            // 尝试使用 IK 服务计算关节角度 (预创建的 client, 独立 Reentrant 回调组)
+            if (ik_client_->wait_for_service(std::chrono::seconds(1)))
             {
                 auto request = std::make_shared<ivg_interfaces::srv::GetIK::Request>();
                 for (size_t i = 0; i < 6 && i < joint_group_positions.size(); ++i)
@@ -316,9 +319,8 @@ bool SetRobotPoseServer::setRobotPose(const std::array<double, 6>& target_pose,
                 request->ori[2] = target_pose_msg.orientation.y;
                 request->ori[3] = target_pose_msg.orientation.z;
 
-                auto result = ik_client->async_send_request(request);
-                if (rclcpp::spin_until_future_complete(this->shared_from_this(), result) == 
-                    rclcpp::FutureReturnCode::SUCCESS)
+                auto result = ik_client_->async_send_request(request);
+                if (result.wait_for(std::chrono::seconds(2)) == std::future_status::ready)
                 {
                     auto response = result.get();
                     if (response->joint.size() >= 6)
@@ -361,9 +363,9 @@ bool SetRobotPoseServer::setRobotPose(const std::array<double, 6>& target_pose,
 
         // 规划并执行
         moveit::planning_interface::MoveGroupInterface::Plan my_plan;
-        moveit::planning_interface::MoveItErrorCode plan_result = move_group_->plan(my_plan);
+        moveit::core::MoveItErrorCode plan_result = move_group_->plan(my_plan);
 
-        if (plan_result != moveit::planning_interface::MoveItErrorCode::SUCCESS)
+        if (plan_result != moveit::core::MoveItErrorCode::SUCCESS)
         {
             error_code = static_cast<int32_t>(plan_result.val);
             message = "Planning failed with error code: " + std::to_string(plan_result.val);
@@ -373,9 +375,9 @@ bool SetRobotPoseServer::setRobotPose(const std::array<double, 6>& target_pose,
         RCLCPP_INFO(this->get_logger(), "SetRobotPose: Executing trajectory with %zu waypoints", 
                    my_plan.trajectory_.joint_trajectory.points.size());
         
-        moveit::planning_interface::MoveItErrorCode execute_result = move_group_->execute(my_plan);
+        moveit::core::MoveItErrorCode execute_result = move_group_->execute(my_plan);
 
-        if (execute_result != moveit::planning_interface::MoveItErrorCode::SUCCESS)
+        if (execute_result != moveit::core::MoveItErrorCode::SUCCESS)
         {
             error_code = static_cast<int32_t>(execute_result.val);
             message = "Execution failed with error code: " + std::to_string(execute_result.val);

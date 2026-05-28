@@ -128,7 +128,7 @@ def launch_setup(context, *args, **kwargs):
             {"publish_robot_description": True},
             {"planning_scene_monitor_options": {
                 "joint_state_topic": "/joint_states",
-                "wait_for_initial_state_timeout": 10.0,
+                "wait_for_initial_state_timeout": 30.0,
             }},
         ],
     )
@@ -196,8 +196,32 @@ def launch_setup(context, *args, **kwargs):
 
         # latte_imitation 轨迹回放节点（仿真模式自动启动，等待 move_group 就绪）喵~
         latte_imitation_node = None
+        latte_cartesian_planner_node = None
         try:
             latte_pkg = get_package_share_directory("latte_imitation")
+
+            # C++ Cartesian planner (先启动，确保服务早于 Python 节点就绪)
+            try:
+                get_package_share_directory("latte_cartesian_planner")
+                latte_cartesian_planner_node = TimerAction(
+                    period=6.0,
+                    actions=[Node(
+                        package="latte_cartesian_planner",
+                        executable="cartesian_planner_node",
+                        name="latte_cartesian_planner",
+                        output="screen",
+                        parameters=[
+                            robot_description,
+                            moveit_config.robot_description_semantic,
+                            moveit_config.robot_description_kinematics,
+                            {"planning_group": "manipulator",
+                             "base_frame": "base_link"},
+                        ],
+                    )],
+                )
+            except Exception:
+                print("[WARN] latte_cartesian_planner 包未安装，跳过 C++ planner 喵~", file=sys.stderr)
+
             latte_imitation_node = TimerAction(
                 period=8.0,
                 actions=[Node(
@@ -232,9 +256,12 @@ def launch_setup(context, *args, **kwargs):
             sim_state_publisher,
             delayed_rviz,
         ]
+        if latte_cartesian_planner_node is not None:
+            nodes.append(latte_cartesian_planner_node)
         if latte_imitation_node is not None:
             nodes.append(latte_imitation_node)
-        return nodes
+
+            return nodes
     else:
         # ============================================================
         # 真实硬件模式: AUBO 自定义驱动节点

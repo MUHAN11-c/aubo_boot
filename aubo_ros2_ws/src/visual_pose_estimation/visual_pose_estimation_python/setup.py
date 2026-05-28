@@ -54,7 +54,7 @@ setup(
     maintainer_email="mu@example.com",
     description="Python implementation of visual pose estimation for ROS2",
     license="Apache-2.0",
-    tests_require=["pytest"],
+    extras_require={"test": ["pytest"]},
     entry_points={
         "console_scripts": [
             "visual_pose_estimation_node = visual_pose_estimation_python.main:main",

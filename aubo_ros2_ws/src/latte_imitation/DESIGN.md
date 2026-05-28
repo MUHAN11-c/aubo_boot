@@ -1,6 +1,7 @@
-# Latte Imitation 轨迹重定目标方案 v3.0
+# 咖啡拉花系统完整设计方案 v3.1
 
 > 基于 10 篇学术文献、ROS 2 官方标准审计、AUBO SDK 源码分析的完整设计方案
+> 涵盖: 输入输出接口 / 5 阶段管线 / SE(3) 重定目标 / C++ Plan+Execute / 部署拓扑
 
 ---
 
@@ -230,58 +231,324 @@ wrist3_Link
 
 ---
 
-## 4. 架构设计
+## 4. 系统架构
 
-### 4.1 模块分工
+### 4.1 系统概览
 
 ```
-latte_imitation/
-├── config/
-│   ├── tool_offset.yaml          # 拉花壶偏移 (文档+可视化)
-│   ├── workspace_safety.yaml     # 工作空间安全边界
-│   └── latte_preview.rviz        # RViz2 预览配置
-├── latte_imitation/
-│   ├── trajectory.py             # 数据结构 + IO + 统计 + 采样 + 安全校验
-│   ├── trajectory_transform.py   # SE(3) 数学 + 重定目标 + 3 轴 RPY
-│   ├── config_loader.py          # YAML 配置加载
-│   ├── trajectory_pipeline.py    # 6 阶段管线 + RViz2 Preview markers
-│   └── tf_utils.py              # TF 查询工具
-├── launch/start_latte_pour.launch.py
-├── scripts/test_latte_pour.py    # 交互式 shell 控制面板
-└── resource/cartesian/{left,right}/*.npz
+                         ┌──────────────────────────────────────────┐
+  轨迹源                  │        LatteImitationNode (Python)       │         C++ Planner           执行
+  ┌──────────┐           │         5 阶段管线                        │    ┌──────────────────┐    ┌──────────┐
+  │ 录制回放  │──→ ① Load │  ② SE(3) Retarget                       │    │ cartesian_planner │    │ AUBO E5  │
+  │  (npz)   │           │  ③ Preview (RViz2)   ④ Safety Check      │──→ │ computeCartesian  │──→ │ 机械臂   │
+  ├──────────┤           │  ⑤ Plan+Execute ─────────────────────────│    │ Path + execute    │    │ (真机/   │
+  │ 参数化生成│──→ ① Gen  │                                         │    └──────────────────┘    │  仿真)   │
+  │(latte_art)│          └──────────────────────────────────────────┘                            └──────────┘
+  └──────────┘                │                   ▲
+                              │ RViz2 (5 topics)  │ ROS2 Service
+                              ▼                   │
+                         RViz2 可视化          前端 / BFF / CLI
 ```
 
-### 4.2 6 阶段管线数据流
+### 4.2 模块分工
 
-```mermaid
-flowchart LR
-    S1["① Load<br/>CartesianTrajectory.load()"] --> S2["② Retarget<br/>retarget_trajectory()<br/>SE(3) + RPY + Option B"]
-    S2 --> S3["③ Preview<br/>Publish RViz2 markers<br/>TCP Path + Spout + Cup + Bounds"]
-    S3 --> S4["④ Safety Check<br/>check_workspace_bounds()"]
-    S4 -->|"preview/debug → return"| DONE["Response"]
-    S4 -->|"action"| S5["⑤ CartesianPlan<br/>MoveIt2 /compute_cartesian_path"]
-    S5 --> S6["⑥ Execute<br/>MoveIt2 /execute_trajectory"]
+```
+项目根/
+├── latte_imitation/                          # Python 管线包
+│   ├── config/
+│   │   ├── tool_offset.yaml                 # 拉花壶偏移 (文档+可视化)
+│   │   ├── workspace_safety.yaml            # 工作空间安全边界
+│   │   ├── latte_positions.yaml             # URDF 参考位姿默认值
+│   │   └── latte_preview.rviz               # RViz2 预览配置
+│   ├── latte_imitation/
+│   │   ├── trajectory.py                    # CartesianTrajectory: IO/统计/采样/安全校验
+│   │   ├── trajectory_transform.py          # SE(3) 重定目标 + 3 轴 RPY + 分离式朝向约束
+│   │   ├── trajectory_pipeline.py           # LatteImitationNode: 5 阶段管线 + RViz2 Preview
+│   │   ├── tf_utils.py                      # TF 查询工具 (base_link → tool_tcp)
+│   │   ├── config_loader.py                 # YAML 配置加载
+│   │   └── latte_art/                       # 参数化图案生成 (纯 Python, 无 ROS 依赖)
+│   │       ├── __init__.py                  # LatteArtTrajectory, CupConfig, PourConfig
+│   │       ├── patterns.py                  # heart/rosetta/tulip/swan/from_image
+│   │       ├── compose.py                   # compose_full_trajectory (融合+成形+收尾)
+│   │       ├── anti_sloshing.py             # 抗晃荡速度剖面
+│   │       ├── orientation_profile.py       # 3 阶段动态 pitch 剖面
+│   │       └── bridge.py                    # parametric_to_cartesian 桥接
+│   ├── launch/
+│   │   ├── start_latte_pour.launch.py       # 完整启动 (Python + C++ planner)
+│   │   └── replay_trajectory.launch.py      # 仅轨迹回放
+│   ├── scripts/test_latte_pour.py           # 交互式 shell 控制面板
+│   └── resource/cartesian/{left,right}/*.npz # 录制轨迹数据
+│
+├── latte_cartesian_planner/                  # C++ MoveIt2 Plan+Execute 节点
+│   ├── include/latte_cartesian_planner/
+│   │   └── cartesian_planner_node.hpp
+│   ├── src/
+│   │   ├── cartesian_planner_node.cpp       # 服务实现: planAndExecute + retry
+│   │   └── cartesian_planner_main.cpp       # main: init + MultiThreadedExecutor(2)
+│   ├── launch/cartesian_planner.launch.py
+│   └── CMakeLists.txt
+│
+└── ivg_interfaces/                           # 统一接口包
+    └── srv/
+        ├── ReplayLatteTrajectory.srv         # Python 管线入口服务
+        └── LatteCartesianPlan.srv            # C++ Plan+Execute 服务
 ```
 
-### 4.3 RViz2 Preview 显示
+### 4.3 5 阶段管线数据流
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                        _pipeline() 5 阶段                                 │
+│                                                                           │
+│  ReplayLatteTrajectory 请求                                                │
+│    │                                                                      │
+│    ▼                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────┐    │
+│  │ ① Load / Generate                                                 │    │
+│  │   录制回放: CartesianTrajectory.load(npz)                          │    │
+│  │   参数化:   LatteArtTrajectory → compose → anti_sloshing           │    │
+│  │   输出:     CartesianTrajectory (positions/orientations/dt)        │    │
+│  └──────────────────────────────────────────────────────────────────┘    │
+│    │                                                                      │
+│    ▼                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────┐    │
+│  │ ② OrientProfile (仅参数化模式)                                     │    │
+│  │   3 阶段动态 pitch 剖面: 融合 45°→30° / 成形 30°±3° / 收尾 30°→60°│    │
+│  │   bridge.parametric_to_cartesian() 注入朝向                        │    │
+│  └──────────────────────────────────────────────────────────────────┘    │
+│    │                                                                      │
+│    ▼                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────┐    │
+│  │ ③ Retarget (SE(3) 重定目标)                                       │    │
+│  │                                                                   │    │
+│  │   录制回放:                                                        │    │
+│  │     start_pose=全零 → TF 自动获取当前 EE 位姿                      │    │
+│  │     start_pose≠全零 → 手动指定                                     │    │
+│  │     retarget_trajectory(cart, target, rpy_user)                   │    │
+│  │     R_rel = R(rpy_user), p_new = R_rel @ (p-p0) + p_target        │    │
+│  │                                                                   │    │
+│  │   参数化模式 (有 cup_params):                                       │    │
+│  │     目标 = ROS2 参数 lizhu_link.{x,y} + surface_z                 │    │
+│  │     retarget_with_orientation_constraint()                        │    │
+│  │     位置: 完整 R_rel, 朝向: 仅 yaw (保留 pitch 技能)              │    │
+│  └──────────────────────────────────────────────────────────────────┘    │
+│    │                                                                      │
+│    ▼                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────┐    │
+│  │ ③ Preview (RViz2 markers)          ← mode="preview"/"debug" 返回  │    │
+│  │   发布 5 个话题 → RViz2 可视化 (详见 4.4)                           │    │
+│  └──────────────────────────────────────────────────────────────────┘    │
+│    │                                                                      │
+│    ▼                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────┐    │
+│  │ ④ Safety Check                                                    │    │
+│  │   check_workspace_bounds() 基于 AUBO E5 工作半径 886.5mm           │    │
+│  │   策略: warn_and_block (action模式阻断) / warn_only / ignore       │    │
+│  └──────────────────────────────────────────────────────────────────┘    │
+│    │                                                                      │
+│    ▼                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────┐    │
+│  │ ⑤ Plan + Execute (C++ /latte/plan_and_execute)                    │    │
+│  │                                                                   │    │
+│  │  请求: waypoints, max_step=0.01, jump_threshold=0.0,               │    │
+│  │        avoid_collisions=True, velocity/accel_scaling,              │    │
+│  │        fraction_threshold=0.95, dt                                 │    │
+│  │                                                                   │    │
+│  │  C++ 内部:                                                        │    │
+│  │    computeCartesianPath → fraction                                │    │
+│  │    if fraction < threshold: retry with avoid_collisions=false     │    │
+│  │    scaleTrajectoryTiming (if dt > 0)                              │    │
+│  │    execute → MoveItErrorCode                                       │    │
+│  │                                                                   │    │
+│  │  响应: success, fraction, trajectory_points, error_code_val       │    │
+│  └──────────────────────────────────────────────────────────────────┘    │
+│    │                                                                      │
+│    ▼                                                                      │
+│  ReplayLatteTrajectory 响应                                               │
+│  {success, message, num_frames, path_length, ik_success_count,            │
+│   collision_count, collision_details, waypoints}                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### 4.4 RViz2 Preview 显示
 
 | Display | Topic | 内容 |
 |---------|-------|------|
-| Path | `/latte_imitation/preview/tcp_path` | 绿色 TCP 轨迹 |
-| PoseArray | `/latte_imitation/preview/tcp_waypoints` | 方向箭头 (每5帧) |
-| Marker (LINE_STRIP) | `/latte_imitation/preview/spout_path` | 蓝色壶嘴轨迹 |
-| Marker (CUBE) | `/latte_imitation/preview/cup_pose` | 黄色杯子方块 |
-| Marker (LINE_LIST) | `/latte_imitation/preview/workspace_bounds` | 红色安全框 |
+| **EE 轨迹 (C++)** | `/rviz_visual_tools` | 绿色 EE 末端轨迹线 + 球点 (moveit_visual_tools 发布) |
+| Marker (LINE_STRIP) | `~/preview/spout_path` | 蓝色壶嘴轨迹 |
+| Marker (CUBE) | `~/preview/cup_pose` | 黄色杯子方块 |
+| Marker (LINE_LIST) | `~/preview/workspace_bounds` | 红色安全框 |
 
-### 4.4 并发模型
+### 4.5 并发模型
 
-- **Executor**: `MultiThreadedExecutor(4)`
-- **Callback Group**: `ReentrantCallbackGroup` (防死锁 — 规则 #14)
-- **防重入**: `self._executing` 布尔锁
+**Python 端** (`LatteImitationNode`):
+
+| 组件 | 配置 | 说明 |
+|------|------|------|
+| Executor | `MultiThreadedExecutor(4)` | 4 线程处理回调 |
+| Service CB Group | `ReentrantCallbackGroup` | 允许 service 回调内嵌套 `spin_until_future_complete` |
+| 防重入 | `threading.Lock _exec_lock` | `_execute_pipeline()` 入口 acquire(blocking=False) |
+| TF | `tf2_ros.Buffer` + `TransformListener` | 默认回调组 |
+
+**C++ 端** (`CartesianPlannerNode`):
+
+| 组件 | 配置 | 说明 |
+|------|------|------|
+| Executor | `MultiThreadedExecutor(2)` | 2 线程 |
+| Service CB Group | 默认 `MutuallyExclusive` | 单线程串行化, 配合 `service_mutex_` |
+| MoveGroupInterface | `allowReplanning(true)` | 内部 action client 走 executor 线程 |
+
+**Python → C++ 死锁分析**:
+
+```
+LatteImitationNode (ReentrantCallbackGroup)
+  _replay_service_callback()
+    └─ _execute_pipeline() → _pipeline() → _plan_and_execute()
+         └─ spin_until_future_complete(future, 60s)  ← Reentrant, 其他线程可处理
+              → /latte/plan_and_execute response callback ← 同 Reentrant 组, 可并发
+```
+**结论**: Reentrant + MultiThreadedExecutor(4) 保证了嵌套 service 调用不产生死锁喵~
 
 ---
 
-## 5. 参考文献
+## 5. Service 接口规范
+
+### 5.1 `ReplayLatteTrajectory.srv` — 管线入口服务
+
+**提供者**: `LatteImitationNode` (Python)
+**服务名**: `~/replay_trajectory`
+
+```
+═══════════════ 请求 ═══════════════
+轨迹源 (二选一):
+  int32   episode_idx         # 录制回放: npz 编号
+  string  pattern_type        # 参数化: "heart"|"rosetta"|"tulip"|"swan"|"custom"
+  string  pattern_image_path  # custom 模式图片路径
+  int32   tulip_layers 3      # 郁金香层数
+
+杯子参数:
+  float32 cup_center_x/y      # 杯口中心 (m, base_link)
+  float32 cup_surface_z 0.15  # 液面高度 (m)
+  float32 cup_radius 0.04     # 杯口半径 (m)
+
+倾倒参数:
+  float32 pour_mix_height_offset 0.076    # 融合阶段高度偏移
+  float32 pour_draw_height_offset 0.006   # 成形阶段高度偏移
+  float32 pour_finish_height_offset 0.076 # 收尾阶段高度偏移
+  float32 pour_wiggle_amplitude 0.006     # 摆动振幅 (m)
+  float32 pour_wiggle_frequency 5.0       # 摆动频率 (Hz)
+  float32 pour_max_velocity 0.05          # 最大速度 (m/s)
+  float32 pour_max_acceleration 0.1       # 最大加速度
+  float32 pour_max_jerk 0.5               # 最大加加速度
+  bool    enable_anti_sloshing true       # 抗晃荡开关
+
+重定目标:
+  float32 roll_deg/pitch_deg/yaw_deg 0.0  # 全局旋转 (度, Isaac Teleop 语义)
+  float32 translation_x/y/z 0.0           # 平移微调 (m)
+  geometry_msgs/Pose start_pose           # 全零→TF自动获取, 非零→手动指定
+  string   tool_offset_id "default"       # 工具偏移 ID
+
+执行控制:
+  string  mode "preview"          # "preview"|"debug"|"action"
+  float32 speed_scale 1.0         # 速度倍率 [0.01, 10.0]
+  string  arm "right"             # "right"=拉花臂 / "left"=持杯臂
+  int32   waypoint_sample_step 5  # 响应采样步长
+
+═══════════════ 响应 ═══════════════
+  bool    success                # 整体成功/失败
+  string  message                # 状态消息 (含 fraction%、traj_pts 等)
+  int32   num_frames             # 轨迹总帧数
+  float32 path_length            # 笛卡尔路径总长度 (m)
+  int32   ik_success_count       # int(fraction * num_frames)
+  int32   collision_count        # 始终为 0 (MoveIt2 内部处理)
+  string[] collision_details     # 始终为空
+  geometry_msgs/Pose[] waypoints # 采样后的重定目标 waypoints (preview/debug)
+```
+
+### 5.2 `LatteCartesianPlan.srv` — Plan+Execute 服务
+
+**提供者**: `CartesianPlannerNode` (C++)
+**服务名**: `/latte/plan_and_execute`
+
+```
+═══════════════ 请求 ═══════════════
+  geometry_msgs/Pose[] waypoints       # EE 笛卡尔 waypoints
+  float64 max_step 0.01                # 笛卡尔插值步长 (m)
+  float64 jump_threshold 0.0           # 跳变检测阈值 (0.0=禁用)
+  bool    avoid_collisions true        # 启用碰撞检测
+  float64 velocity_scaling 0.5         # 速度缩放 (0, 1]
+  float64 acceleration_scaling 0.5     # 加速度缩放 (0, 1]
+  float64 fraction_threshold 0.95      # 最小可执行 fraction
+  float64 dt 0.0                       # 轨迹时间步长 (0.0=使用 MoveIt 默认)
+
+═══════════════ 响应 ═══════════════
+  bool    success                      # plan+execute 均成功时 true
+  string  message                      # 状态消息
+  float64 fraction                     # 笛卡尔路径 fraction [0, 1]
+  int32   trajectory_points            # 关节轨迹点数量
+  int32   error_code_val               # MoveItErrorCode.val (0=SUCCESS)
+```
+
+**C++ 内部行为**:
+
+1. `computeCartesianPath(waypoints, max_step, jump_threshold, trajectory, avoid_collisions)` → fraction
+2. 若 `fraction < threshold`: 以 `avoid_collisions=false` 重试 (碰撞绕过)
+3. 若 `dt > 0`: `scaleTrajectoryTiming(trajectory, dt)` — 均匀时间戳
+4. `execute(trajectory)` → MoveItErrorCode
+
+---
+
+## 6. 部署拓扑
+
+### 6.1 启动方式
+
+| 方式 | 命令 | 场景 |
+|------|------|------|
+| 完整仿真 | `./start_aubo_new_driver.sh` | 一键启动全部 (move_group + ros2_control + planner + latte) |
+| 独立测试 | `./start_latte_test.sh` | 5 终端布局 (仿真 + latte + 面板 + RViz2 + 命令) |
+| 手动 launch | `ros2 launch latte_imitation start_latte_pour.launch.py` | 仅启动 latte 相关节点 |
+| C++ 单独 | `ros2 launch latte_cartesian_planner cartesian_planner.launch.py` | 仅 C++ planner |
+
+### 6.2 节点启动顺序与依赖
+
+```
+仿真模式 (start_aubo_new_driver.sh):
+
+  t=0s    ros2_control_node + controller_manager
+  t=4s    joint_state_broadcaster + joint_trajectory_controller (spawner)
+  t=5s    simulation_state_publisher
+  t=6s    latte_cartesian_planner (C++)     ← 早于 Python, 确保服务先就绪
+  t=8s    latte_imitation (Python)
+  t=12s   RViz2
+
+真机模式:
+  dashboard_node → state_broadcaster → controller_node
+  move_group + rsp
+  (latte 节点通过 start_latte_test.sh 单独启动)
+```
+
+### 6.3 服务就绪检测
+
+```bash
+# start_aubo_new_driver.sh / start_latte_test.sh 中的等待序列:
+wait /move_group node     (30s timeout)
+wait /execute_trajectory  (60s timeout)
+wait /latte/plan_and_execute (20s timeout)  ← C++ planner
+wait /latte_imitation/replay_trajectory (20s timeout)  ← Python pipeline
+```
+
+### 6.4 仿真 vs 真机可用性
+
+| 服务 | 仿真 | 真机 |
+|------|------|------|
+| `/latte/plan_and_execute` | ✅ move_group + C++ planner | ✅ move_group + C++ planner |
+| `/latte_imitation/replay_trajectory` | ✅ Python node, mode="preview" 安全 | ✅ 完整管线 |
+| `/compute_cartesian_path` (MoveIt2) | ✅ move_group 提供 | ✅ move_group 提供 |
+| `/execute_trajectory` (action) | ✅ move_group 提供 | ✅ move_group 提供 |
+
+---
+
+## 7. 参考文献
 
 | # | 文献 | 链接 | 本项目应用 |
 |---|------|------|-----------|
@@ -298,7 +565,7 @@ flowchart LR
 
 ---
 
-## 6. 验证清单
+## 8. 验证清单
 
 ### 6.1 单元验证
 
@@ -334,4 +601,5 @@ flowchart LR
 
 ---
 
-*方案版本: v3.0 | 日期: 2026-05-18 | 基于 10 篇参考文献 + 8 项源码审计*
+**方案版本: v3.1 | 日期: 2026-05-28 | 基于 10 篇参考文献 + 8 项源码审计**
+**更新: C++ Plan+Execute 架构 / Service 接口规范 / 部署拓扑 / 5 阶段管线**

@@ -38,8 +38,11 @@ public:
     // ── 运动 ──
     bool moveToHome(float vel = 0.5f, float acc = 0.5f);
     bool moveToJoints(const std::array<double, 6>& joints, float vel, float acc);
+    bool moveToPose(const geometry_msgs::msg::Pose& target, float vel, float acc);
+    bool moveToPosition(double x, double y, double z, float vel, float acc);
     bool moveCartesianZ(double offset_m, float vel, float acc);
     bool moveCartesianPath(const std::vector<CartesianSegment>& segments, float vel, float acc);
+    bool moveCartesianStraight(const geometry_msgs::msg::Pose& target, float vel, float acc);
 
     // ── IO ──
     bool setGripper(int pin, bool open);    // open=true 打开

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.10)
 project(demo_driver)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -25,7 +25,10 @@ find_package(moveit_ros_planning REQUIRED)
 # Include directories
 include_directories(include)
 
-add_executable(move_to_pose_server_node src/move_to_pose_server.cpp)
+add_executable(move_to_pose_server_node
+  src/robot_controller.cpp
+  src/move_to_pose_server.cpp
+)
 ament_target_dependencies(move_to_pose_server_node
   rclcpp
   geometry_msgs
@@ -126,6 +129,16 @@ ament_target_dependencies(execute_grasp_pose_worker_node
 add_executable(system_monitor_node src/system_monitor_node.cpp)
 ament_target_dependencies(system_monitor_node rclcpp ivg_interfaces)
 
+# 拉花工作流编排节点（7 步取放+打奶泡+调用拉花服务）
+add_executable(latte_workflow_node
+  src/robot_controller.cpp
+  src/latte_workflow_node.cpp
+)
+ament_target_dependencies(latte_workflow_node
+  rclcpp geometry_msgs ivg_interfaces tf2
+  moveit_core moveit_ros_planning_interface
+)
+
 # 机器人使能服务（代理到 /aubo/startup 和 /aubo/shutdown）
 add_executable(set_robot_enable_server_node src/set_robot_enable_server.cpp)
 ament_target_dependencies(set_robot_enable_server_node rclcpp std_srvs ivg_interfaces)
@@ -145,6 +158,7 @@ install(TARGETS
   publish_grasps_client_worker_node
   execute_grasp_pose_worker_node
   system_monitor_node
+  latte_workflow_node
   set_robot_enable_server_node
   read_robot_io_server_node
   DESTINATION lib/${PROJECT_NAME}

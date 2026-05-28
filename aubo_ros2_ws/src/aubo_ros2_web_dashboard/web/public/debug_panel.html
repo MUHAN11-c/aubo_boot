@@ -44,6 +44,25 @@
     </div>
   </div>
 
+  <!-- 位姿导入工具栏 -->
+  <div class="debug-card" style="background:var(--accent-soft);border:2px solid var(--accent);margin-bottom:0.6rem;">
+    <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;">
+      <span style="font-weight:700;color:var(--accent);white-space:nowrap;">位姿导入</span>
+      <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-import-json-top">
+        <span style="font-weight:700;">导入 JSON 文件</span>
+      </button>
+      <button type="button" class="debug-btn" id="btn-dbg-toggle-paste-top">粘贴 JSON</button>
+      <input type="file" id="dbg-import-file-input-top" accept=".json" style="display:none;">
+    </div>
+    <div id="dbg-paste-area-top" style="display:none;margin-top:0.4rem;">
+      <textarea id="dbg-paste-textarea-top" class="debug-input" style="width:100%;height:90px;font-size:0.68rem;font-family:monospace;resize:vertical;" placeholder="在此粘贴从监控面板复制的 JSON..."></textarea>
+      <div class="debug-btn-row" style="margin-top:0.3rem;">
+        <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-paste-parse-top">解析并导入</button>
+        <button type="button" class="debug-btn debug-btn--sm" id="btn-dbg-paste-clear-top">清空</button>
+      </div>
+    </div>
+  </div>
+
   <div class="debug-grid">
     <!-- 快速控制 -->
     <div class="debug-card warn-card" id="debug-quick-ctrl">
@@ -76,6 +95,12 @@
         <label>QY</label><input class="debug-input w5" id="dbg-xyz-qy" value="0.0" step="0.01">
         <label>QZ</label><input class="debug-input w5" id="dbg-xyz-qz" value="0.0" step="0.01">
         <label>QW</label><input class="debug-input w5" id="dbg-xyz-qw" value="1.0" step="0.01">
+      </div>
+      <div class="debug-row">
+        <label>R(°)</label><input class="debug-input w5" id="dbg-xyz-r" value="0.0" step="0.5">
+        <label>P(°)</label><input class="debug-input w5" id="dbg-xyz-p" value="0.0" step="0.5">
+        <label>Y(°)</label><input class="debug-input w5" id="dbg-xyz-yaw" value="0.0" step="0.5">
+        <span class="debug-unit-hint" style="font-size:0.65rem;color:var(--text-muted);">RPY 欧拉角 (deg)</span>
       </div>
       <div class="debug-row">
         <label>V</label><input class="debug-input w4" id="dbg-xyz-vel" value="0.3" step="0.05" min="0.05" max="1.0">
@@ -235,6 +260,16 @@
       <div class="debug-btn-row">
         <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-load-joints" disabled>加载关节角到 MoveJ</button>
         <button type="button" class="debug-btn" id="btn-dbg-load-pose" disabled>加载位姿到 MoveL</button>
+        <button type="button" class="debug-btn" id="btn-dbg-import-json">导入 JSON</button>
+        <button type="button" class="debug-btn" id="btn-dbg-toggle-paste">粘贴 JSON</button>
+        <input type="file" id="dbg-import-file-input" accept=".json" style="display:none;">
+      </div>
+      <div id="dbg-paste-area" style="display:none; margin-top:0.3rem;">
+        <textarea id="dbg-paste-textarea" class="debug-input" style="width:100%;height:100px;font-size:0.68rem;font-family:monospace;resize:vertical;" placeholder="在此粘贴从监控面板复制的 JSON..."></textarea>
+        <div class="debug-btn-row" style="margin-top:0.3rem;">
+          <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-paste-parse">解析并导入</button>
+          <button type="button" class="debug-btn debug-btn--sm" id="btn-dbg-paste-clear">清空</button>
+        </div>
       </div>
       <div class="debug-log" id="debug-log-record" aria-live="polite"></div>
     </div>

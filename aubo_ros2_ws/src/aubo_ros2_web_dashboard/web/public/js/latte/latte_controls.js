@@ -516,7 +516,7 @@ async function _syncParamsFromRos2() {
         try {
             const result = await ros.callService(
                 '/rosapi/get_param', 'rosapi/GetParam',
-                { name: '/latte_imitation/' + paramName }, 3000
+                { name: 'latte_imitation:' + paramName }, 3000
             );
             if (result && typeof result.value === 'number') {
                 const oldVal = _state[stateKey];
@@ -571,7 +571,7 @@ function _renderSettingsGrid() {
             if (isNaN(value)) return;
             try {
                 await ros.callService('/rosapi/set_param', 'rosapi/SetParam', {
-                    name: '/latte_imitation/' + paramName, value: String(value),
+                    name: 'latte_imitation:' + paramName, value: String(value),
                 }, 3000);
                 logBus.addLog('info', 'service', 'ROS2 参数更新: ' + paramName + ' = ' + value,
                     { param: paramName, value: value }, 'latte');
@@ -599,7 +599,7 @@ async function _fillSettingsInputs() {
         try {
             const result = await ros.callService(
                 '/rosapi/get_param', 'rosapi/GetParam',
-                { name: '/latte_imitation/' + paramName }, 3000
+                { name: 'latte_imitation:' + paramName }, 3000
             );
             if (result && typeof result.value !== 'undefined') {
                 inp.value = typeof result.value === 'number'

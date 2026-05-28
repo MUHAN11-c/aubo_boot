@@ -469,7 +469,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   if (!rclcpp::ok())
     return false;
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "┌────────────────────────────────────────────────────────────┐");
   RCLCPP_INFO(get_logger(), "│                   开始抓取周期 (runOneCycle)              │");
   RCLCPP_INFO(get_logger(), "└────────────────────────────────────────────────────────────┘");
@@ -485,7 +485,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   if (!rclcpp::ok())
     return false;
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "► 步骤 1/8: 构建抓取位姿");
   geometry_msgs::msg::Pose grasp_pose;
   grasp_pose.position.x = grasp_position_[0];
@@ -500,7 +500,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   RCLCPP_INFO(get_logger(), "  Z轴旋转: %.4f rad (%.2f°)", grasp_z_rotation_, grasp_z_rotation_ * 180.0 / M_PI);
   RCLCPP_INFO(get_logger(), "✓ 步骤 1 完成");
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "► 步骤 2/8: gripper_tip 变换为 end_effector 目标");
   Eigen::Matrix4d T_local = buildGraspToEndEffectorTransform();
   geometry_msgs::msg::Pose pose_ee = applyTransformationToPose(grasp_pose, T_local);
@@ -511,7 +511,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
               pose_ee.orientation.z, pose_ee.orientation.w);
   RCLCPP_INFO(get_logger(), "✓ 步骤 2 完成");
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "► 步骤 3/9: 抓取前开夹爪 (IO=%d, true=打开, 参见 ivg_utils.io.GRIPPER_OPEN)", gripper_io_index_);
   if (kSkipTemporaryGripperIo)
   {
@@ -530,7 +530,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
     RCLCPP_INFO(get_logger(), "✓ 步骤 3 完成");
   }
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "► 步骤 4/9: 抓取接近 (多段笛卡尔路径)");
   CHECK(sleepJointCartesianSwitchDelay("步骤 4 前（关节→笛卡尔）"));
   if (!runGraspApproach(pose_ee, height_above_, joint_velocity_scaling_, joint_acceleration_scaling_))
@@ -540,7 +540,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   }
   RCLCPP_INFO(get_logger(), "✓ 步骤 4 完成");
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "► 步骤 5/9: 闭夹爪 (IO=%d, 状态=false)", gripper_io_index_);
   if (kSkipTemporaryGripperIo)
   {
@@ -559,7 +559,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
     RCLCPP_INFO(get_logger(), "✓ 步骤 5 完成");
   }
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "► 步骤 6/9: 抬起 (z=%.2f m)", lift_offset_);
   if (!robot_->moveCartesianZ(lift_offset_, joint_velocity_scaling_, joint_acceleration_scaling_))
   {
@@ -568,7 +568,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   }
   RCLCPP_INFO(get_logger(), "✓ 步骤 6 完成");
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "► 步骤 7/9: 移动到放置位 (安全位 + y/x/z 偏移)");
   CHECK(sleepJointCartesianSwitchDelay("步骤 7 前（笛卡尔→关节）"));
   if (!robot_->moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
@@ -590,7 +590,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   }
   RCLCPP_INFO(get_logger(), "✓ 步骤 7 完成");
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "► 步骤 8/9: 开夹爪 (IO=%d, 状态=true)", gripper_io_index_);
   if (kSkipTemporaryGripperIo)
   {
@@ -609,7 +609,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
     RCLCPP_INFO(get_logger(), "✓ 步骤 8 完成");
   }
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "► 步骤 9/9: 回安全位");
   CHECK(sleepJointCartesianSwitchDelay("步骤 9 前（笛卡尔→关节）"));
   if (!robot_->moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
@@ -619,11 +619,11 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   }
   RCLCPP_INFO(get_logger(), "✓ 步骤 9 完成");
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "┌────────────────────────────────────────────────────────────┐");
   RCLCPP_INFO(get_logger(), "│             ✓ 抓取周期成功完成 (9/9 步骤)                │");
   RCLCPP_INFO(get_logger(), "└────────────────────────────────────────────────────────────┘");
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
 
   return true;
 }
@@ -750,7 +750,7 @@ void ExecuteGraspPoseWorker::handleExecuteSingleGrasp(
     const std::shared_ptr<ivg_interfaces::srv::ExecuteGraspPose::Request> request,
     std::shared_ptr<ivg_interfaces::srv::ExecuteGraspPose::Response> response)
 {
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "╔════════════════════════════════════════════════════════════╗");
   RCLCPP_INFO(get_logger(), "║        [单次抓取服务] 收到新的抓取请求                    ║");
   RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
@@ -845,7 +845,7 @@ void ExecuteGraspPoseWorker::handleExecuteSingleGrasp(
   }
   
   RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
 }
 
 void ExecuteGraspPoseWorker::handleLoopGraspControl(
@@ -854,7 +854,7 @@ void ExecuteGraspPoseWorker::handleLoopGraspControl(
 {
   const std::string action = request->data ? "启动" : "停止";
   
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "╔════════════════════════════════════════════════════════════╗");
   RCLCPP_INFO(get_logger(), "║        [循环抓取控制] 收到%s请求                          ║", action.c_str());
   RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
@@ -868,7 +868,7 @@ void ExecuteGraspPoseWorker::handleLoopGraspControl(
       response->message = "循环抓取已在运行中";
       RCLCPP_WARN(get_logger(), "[handleLoopGraspControl] ⚠ %s", response->message.c_str());
       RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
-      RCLCPP_INFO(get_logger(), "");
+      RCLCPP_INFO(get_logger(), " ");
       return;
     }
 
@@ -887,7 +887,7 @@ void ExecuteGraspPoseWorker::handleLoopGraspControl(
       response->message = "循环抓取未在运行";
       RCLCPP_WARN(get_logger(), "[handleLoopGraspControl] ⚠ %s", response->message.c_str());
       RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
-      RCLCPP_INFO(get_logger(), "");
+      RCLCPP_INFO(get_logger(), " ");
       return;
     }
 
@@ -900,7 +900,7 @@ void ExecuteGraspPoseWorker::handleLoopGraspControl(
   }
   
   RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
 }
 
 void ExecuteGraspPoseWorker::startLoopGrasp()
@@ -931,7 +931,7 @@ void ExecuteGraspPoseWorker::stopLoopGrasp()
 
 void ExecuteGraspPoseWorker::loopGraspThread()
 {
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "╔════════════════════════════════════════════════════════════╗");
   RCLCPP_INFO(get_logger(), "║           [循环抓取线程] 已启动                           ║");
   RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
@@ -952,7 +952,7 @@ void ExecuteGraspPoseWorker::loopGraspThread()
   {
     cycle_in_progress_ = true;
     cycle_count++;
-    RCLCPP_INFO(get_logger(), "");
+    RCLCPP_INFO(get_logger(), " ");
     RCLCPP_INFO(get_logger(), "╔════════════════════════════════════════════════════════════╗");
     RCLCPP_INFO(get_logger(), "║           循环抓取 - 第 %3d 次循环                        ║", cycle_count);
     RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
@@ -1012,7 +1012,7 @@ void ExecuteGraspPoseWorker::loopGraspThread()
   RCLCPP_INFO(get_logger(), "╔════════════════════════════════════════════════════════════╗");
   RCLCPP_INFO(get_logger(), "║      [循环抓取线程] 已退出 (共完成 %3d 次循环)           ║", cycle_count);
   RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
 }
 
 // ============================================================================

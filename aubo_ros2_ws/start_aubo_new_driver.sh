@@ -36,6 +36,8 @@ cleanup() {
     pkill -f 'ros2 bag' 2>/dev/null || true
     pkill -f 'ros2 lifecycle' 2>/dev/null || true
     pkill -f 'latte_imitation' 2>/dev/null || true
+    pkill -f 'latte_cartesian_planner' 2>/dev/null || true
+    pkill -f 'latte_workflow_node' 2>/dev/null || true
     sleep 0.5
     echo -e "${GREEN}  ✓ 清理完成${NC}"
 }
@@ -326,6 +328,9 @@ launch "Coffee Latte" "ros2 launch latte_imitation latte_io.launch.py"
 echo -e "${GREEN}[11b] 拉花轨迹回放 (MoveIt2 标准管线)...${NC}"
 launch "Latte Imitation" "ros2 launch latte_imitation start_latte_pour.launch.py"
 
+echo -e "${GREEN}[11c] 拉花工作流编排...${NC}"
+launch "Latte Workflow" "ros2 launch aubo_moveit_config latte_workflow.launch.py"
+
 echo -e "${GREEN}[12] GraspNet 循环抓取...${NC}"
 launch "Publish Grasps" "ros2 run demo_driver publish_grasps_client_worker_node"
 
@@ -333,7 +338,7 @@ launch "Publish Grasps" "ros2 run demo_driver publish_grasps_client_worker_node"
 active_wait service "/run_gripper_swap" 10 "run_gripper_swap 服务" || true
 active_wait service "/change_tool" 15  "change_tool 服务" || true
 active_wait service "/set_latte_do2" 5 "set_latte_do2 服务" || true
-active_wait service "/latte_imitation/replay_trajectory" 20 "latte_imitation/replay_trajectory 服务" || true
+active_wait service "/latte/run_workflow" 30 "latte/run_workflow 服务" || true
 
 # ═══════════════════════════════════════════════════════════════
 # [13] 综合校验 (ROS 服务 + Web 健康检查)
@@ -345,7 +350,7 @@ echo -e "${GREEN}[13] 综合校验...${NC}"
     source "$ROS2_SETUP"
     source install/setup.bash
     echo -e "${BLUE}──────── 已注册服务 ────────${NC}"
-    ros2 service list | grep -E '/estimate_pose|/list_templates|/graspnet_capture_control|/publish_grasps_worker_loop_control|/loop_grasp_control|/run_gripper_swap|/set_latte_do2|/set_latte_do4|/change_tool|/get_current_tool|/latte_imitation/replay_trajectory' || true
+    ros2 service list | grep -E '/estimate_pose|/list_templates|/graspnet_capture_control|/publish_grasps_worker_loop_control|/loop_grasp_control|/run_gripper_swap|/set_latte_do2|/set_latte_do4|/change_tool|/get_current_tool|/latte/run_workflow' || true
     echo -e "${GREEN}  ✓ 服务校验完成${NC}"
 )
 

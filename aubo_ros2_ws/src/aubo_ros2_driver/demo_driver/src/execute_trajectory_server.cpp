@@ -14,8 +14,10 @@ namespace demo_driver
 ExecuteTrajectoryServer::ExecuteTrajectoryServer(const rclcpp::NodeOptions& options)
     : Node("execute_trajectory_server_node", options)
 {
-    declare_parameter("planning_group_name", "manipulator");
-    declare_parameter("base_frame", "base_link");
+    if (!has_parameter("planning_group_name"))
+        declare_parameter("planning_group_name", "manipulator");
+    if (!has_parameter("base_frame"))
+        declare_parameter("base_frame", "base_link");
     planning_group_name_ = get_parameter("planning_group_name").as_string();
     base_frame_          = get_parameter("base_frame").as_string();
 
@@ -68,9 +70,9 @@ bool ExecuteTrajectoryServer::executeTrajectory(
             move_group_->setMaxVelocityScalingFactor(
                 get_parameter("moveit_velocity_scaling_factor").as_double());
 
-        moveit::planning_interface::MoveItErrorCode result = move_group_->execute(plan);
+        moveit::core::MoveItErrorCode result = move_group_->execute(plan);
 
-        if (result != moveit::planning_interface::MoveItErrorCode::SUCCESS) {
+        if (result != moveit::core::MoveItErrorCode::SUCCESS) {
             error_code = static_cast<int32_t>(result.val);
             message = "execute failed, error_code=" + std::to_string(result.val);
             return false;

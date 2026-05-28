@@ -1,0 +1,20 @@
+# =============================================================================
+# RunLatteWorkflow.srv — 触发 7 步咖啡拉花工作流喵~
+# 调用方: 前端/BFF (所有位置参数通过 ROS2 Parameter Server 提前设置)
+# 服务方: latte_workflow_node (demo_driver 包)
+#
+# 7 步工作流:
+#   ① 取咖啡杯   coffee_link   Cartesian Z 接近 + 抓取 + 退
+#   ② 放咖啡杯   lizhu_link    保持朝向 + Cartesian Z 接近 + 放
+#   ③ 取牛奶杯   cup0_link     Cartesian Z 接近 + 抓取 + 退
+#   ④ 打奶泡     nozzle_link   Cartesian 斜线靠近 + 离开
+#   ⑤ 转腕对轴   reference_pose 杯口对齐 Z 轴防倾倒
+#   ⑥ 接近柱子   lizhu_link    保持朝向 + Cartesian 平移
+#   ⑦ 拉花       /latte/replay_trajectory (mode="action")
+#
+# ════════════════════ 请求 ════════════════════
+# (空 — 所有位置/朝向参数通过 ROS2 Parameter Server lwf_* 提前设置)
+---
+# ════════════════════ 响应 ════════════════════
+bool success
+string message   # 成功="All 7 steps completed" / 失败="Step N failed: <reason>"

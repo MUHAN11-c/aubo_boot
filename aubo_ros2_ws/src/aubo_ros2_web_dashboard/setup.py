@@ -76,7 +76,7 @@ setup(
     maintainer_email="maintainer@example.com",
     description="IVG Web Dashboard: FastAPI gateway + ROSLIB.js frontend for ROS 2 robot control",
     license="Apache-2.0",
-    tests_require=["pytest"],
+    extras_require={"test": ["pytest"]},
     entry_points={
         "console_scripts": [
             "ivg_fastapi_static_gateway = aubo_ros2_web_dashboard.fastapi_static_gateway:main",

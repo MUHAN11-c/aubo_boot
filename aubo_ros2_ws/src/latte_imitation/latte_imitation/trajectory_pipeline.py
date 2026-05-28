@@ -9,21 +9,19 @@ Latte Imitation 主节点 — MoveIt2 6 阶段管线 + RViz2 Preview 喵~
   C. test_latte_pour.py 交互菜单 (开发调试)
 
 ═══════════════════════════════════════════════════════════════
-_pipeline() 6 阶段:
+_pipeline() 5 阶段:
 
   ① Load  — 从 npz 加载轨迹
   ② Retarget  — SE(3) 重定目标 (SPOT + Isaac Teleop)
   ③ Preview  — 发布 RViz2 markers (mode="preview" 在此返回)
   ④ Safety  — 工作空间边界检查
-  ⑤ Plan  — MoveIt2 computeCartesianPath
-  ⑥ Execute  — MoveIt2 executeTrajectory
+  ⑤ Plan+Execute  — 调用 C++latte_cartesian_planner /latte/plan_and_execute 服务
 
 ═══════════════════════════════════════════════════════════════
 Preview 模式 (mode="preview"):
 
-  发布以下话题到 RViz2:
-    ~/preview/tcp_path         nav_msgs/Path        绿色 TCP 轨迹
-    ~/preview/tcp_waypoints    geometry_msgs/PoseArray 方向箭头 (每5帧)
+  EE 轨迹线由 C++ moveit_visual_tools 发布 (action 模式, plan+execute 成功后)
+  Python 发布以下话题到 RViz2:
     ~/preview/spout_path       visualization_msgs/Marker 蓝色 spout 线
     ~/preview/cup_pose         visualization_msgs/Marker 黄色杯子方块
     ~/preview/workspace_bounds visualization_msgs/Marker 红色安全框
@@ -57,7 +55,7 @@ from rclpy.node import Node
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.action import ActionClient
-from geometry_msgs.msg import Pose, PoseStamped, Point, PoseArray
+from geometry_msgs.msg import Pose, PoseStamped, Point
 from nav_msgs.msg import Path as RosPath
 from visualization_msgs.msg import Marker
 from moveit_msgs.srv import GetCartesianPath
@@ -65,7 +63,7 @@ from moveit_msgs.action import ExecuteTrajectory
 from moveit_msgs.msg import Constraints, RobotState, RobotTrajectory
 from std_msgs.msg import Header, ColorRGBA
 from ament_index_python.packages import get_package_share_directory
-from ivg_interfaces.srv import ReplayLatteTrajectory
+from ivg_interfaces.srv import ReplayLatteTrajectory, LatteCartesianPlan
 
 from .trajectory import CartesianTrajectory
 from .trajectory_transform import (
@@ -134,11 +132,10 @@ def _get_or_create_client(node, attr: str, create_fn):
 # ═══════════════════════════════════════════════════════════════════
 
 class LatteImitationNode(Node):
-    """拉花轨迹回放节点 — 6 阶段 MoveIt2 管线 + RViz2 Preview 喵~
+    """拉花轨迹回放节点 — 5 阶段 MoveIt2 管线 + RViz2 Preview 喵~
 
+    EE 轨迹线由 C++ latte_cartesian_planner (moveit_visual_tools) 发布
     话题 (发布):
-      ~/preview/tcp_path        Path       TCP 轨迹 (preview 模式)
-      ~/preview/tcp_waypoints   PoseArray  TCP 关键姿态 (preview 模式)
       ~/preview/spout_path      Marker     Spout 轨迹 (preview 模式)
       ~/preview/cup_pose        Marker     杯子位置 (preview 模式)
       ~/preview/workspace_bounds Marker    工作空间安全框 (preview 模式)
@@ -188,8 +185,7 @@ class LatteImitationNode(Node):
         self._ee_path_pub = self.create_publisher(RosPath, "~/ee_path", 10)
 
         # ── Preview 发布者 (RViz2 markers) ──────────────
-        self._preview_tcp_path_pub = self.create_publisher(RosPath, "~/preview/tcp_path", 10)
-        self._preview_tcp_poses_pub = self.create_publisher(PoseArray, "~/preview/tcp_waypoints", 10)
+        # EE 轨迹线由 C++ latte_cartesian_planner (moveit_visual_tools) 发布
         self._preview_spout_pub = self.create_publisher(Marker, "~/preview/spout_path", 10)
         self._preview_cup_pub = self.create_publisher(Marker, "~/preview/cup_pose", 10)
         self._preview_workspace_pub = self.create_publisher(Marker, "~/preview/workspace_bounds", 10)
@@ -325,13 +321,8 @@ class LatteImitationNode(Node):
                    tulip_layers=3, cup_params=None, pour_params=None,
                    translation_offset=(0.0, 0.0, 0.0),
                    waypoint_sample_step=5):
-        """6 阶段 MoveIt2 管线 (支持录制回放 + 参数化生成) 喵~"""
-        base_frame = self.get_parameter("base_frame").value
-        planning_group = self.get_parameter("planning_group").value
-        ee_link = self.get_parameter("ee_link").value
+        """5 阶段管线 (C++ latte_cartesian_planner 负责 Plan+Execute) 喵~"""
         step = waypoint_sample_step
-        fraction_ok = self.get_parameter("fraction_acceptable").value
-        fraction_min = self.get_parameter("fraction_min_executable").value
 
         # ═══ Phase ①: Load / Generate ═══
         cart = self._load_or_generate(
@@ -482,45 +473,30 @@ class LatteImitationNode(Node):
             return self._result(True,
                 f"mode='{mode}' (未规划/执行)", num_frames, path_len, 0, 0, [])
 
-        # ═══ Phase ⑤: Cartesian Plan ═══
+        # ═══ Phase ⑤: Plan + Execute (via C++ latte_cartesian_planner) ═══
         waypoints = [cart.to_pose(i) for i in range(0, num_frames, step)]
         if (num_frames - 1) % step != 0:
             waypoints.append(cart.to_pose(num_frames - 1))
         self.get_logger().info(
-            f"Phase ⑤: {len(waypoints)} waypoints..."
+            f"Phase ⑤: {len(waypoints)} waypoints via /latte/plan_and_execute..."
         )
-        resp = self._compute_cartesian_path(waypoints, planning_group, ee_link, base_frame)
+
+        resp, err_msg = self._plan_and_execute(waypoints, dt)
         if resp is None:
-            return self._empty_result(False, "computeCartesianPath 服务不可达",
+            return self._empty_result(False, f"plan_and_execute 失败: {err_msg}",
                                       num_frames, path_len)
-
-        fraction = resp.fraction
-        planned_points = len(resp.solution.joint_trajectory.points)
-        self.get_logger().info(
-            f"Cartesian path: {fraction*100:.1f}%, {planned_points} joint points"
-        )
-
-        if fraction < fraction_min:
+        if not resp.success:
             return self._empty_result(False,
-                f"笛卡尔规划失败 ({fraction*100:.0f}% < {fraction_min*100:.0f}%)",
+                f"plan_and_execute 返回错误: {resp.message} "
+                f"(fraction={resp.fraction*100:.0f}%, traj_pts={resp.trajectory_points})",
                 num_frames, path_len)
 
-        if fraction < fraction_ok:
-            return self._empty_result(False,
-                f"笛卡尔规划不完整 ({fraction*100:.0f}% < {fraction_ok*100:.0f}%), 不执行",
-                num_frames, path_len)
-
-        # 按 speed_scale 缩放时间戳
-        trajectory = resp.solution
-        for i, pt in enumerate(trajectory.joint_trajectory.points):
-            t = i * dt
-            pt.time_from_start.sec = int(t)
-            pt.time_from_start.nanosec = int((t - int(t)) * 1e9)
-
-        # ═══ Phase ⑥: Execute ═══
-        ok, msg = self._execute_trajectory(trajectory)
-        ik_count = int(fraction * num_frames)
-        return self._result(ok, msg, num_frames, path_len, ik_count, 0, [])
+        ik_count = int(resp.fraction * num_frames)
+        return self._result(True,
+            f"拉花完成: fraction={resp.fraction*100:.0f}%, "
+            f"{resp.trajectory_points} joint points, "
+            f"error_code={resp.error_code_val}",
+            num_frames, path_len, ik_count, 0, [])
 
     # ═══════════════════════════════════════════════════════════════
     # Phase ①: Load
@@ -603,19 +579,8 @@ class LatteImitationNode(Node):
     # ═══════════════════════════════════════════════════════════════
 
     def _publish_preview_markers(self, cart, cup_pose, tool_offset, workspace):
-        """发布所有 RViz2 preview markers 喵~"""
+        """发布 RViz2 preview markers (EE 轨迹线由 C++ moveit_visual_tools 发布) 喵~"""
         now = self.get_clock().now().to_msg()
-
-        # ── TCP Path (绿色) ──
-        tcp_path = cart.to_ros2_path(step=2, stamp=now)
-        self._preview_tcp_path_pub.publish(tcp_path)
-
-        # ── TCP Waypoints (每 5 帧, 带朝向箭头) ──
-        pa = PoseArray()
-        pa.header = Header(frame_id=cart.frame_id, stamp=now)
-        for i in range(0, cart.num_frames, 5):
-            pa.poses.append(cart.to_pose(i))
-        self._preview_tcp_poses_pub.publish(pa)
 
         # ── Spout Path (蓝色虚线) ──
         spout_marker = Marker()
@@ -669,11 +634,58 @@ class LatteImitationNode(Node):
         self._preview_workspace_pub.publish(ws_marker)
 
         self.get_logger().info(
-            "Preview: TCP path + waypoints + spout + cup + workspace bounds → RViz2"
+            "Preview: EE轨迹(C++) + spout + cup + workspace bounds → RViz2"
         )
 
     # ═══════════════════════════════════════════════════════════════
-    # Phase ⑤: MoveIt2 Cartesian Path
+    # Phase ⑤: Plan + Execute (via C++ latte_cartesian_planner)
+    # ═══════════════════════════════════════════════════════════════
+
+    def _plan_and_execute(self, waypoints, dt):
+        max_step = self.get_parameter("cartesian_max_step").value
+        jump_threshold = self.get_parameter("cartesian_jump_threshold").value
+        fraction_ok = self.get_parameter("fraction_acceptable").value
+        speed_scale = max(self.get_parameter("speed_scale").value, 0.01)
+
+        client = _get_or_create_client(
+            self, '_cartesian_planner_client',
+            lambda: self.create_client(LatteCartesianPlan, "/latte/plan_and_execute",
+                                       callback_group=self._cb_group),
+        )
+        service_timeout = self.get_parameter("service_timeout").value
+        if not client.wait_for_service(timeout_sec=service_timeout):
+            return None, "/latte/plan_and_execute 不可达"
+
+        req = LatteCartesianPlan.Request()
+        req.waypoints = waypoints
+        req.max_step = max_step
+        req.jump_threshold = jump_threshold
+        req.avoid_collisions = True
+        req.velocity_scaling = speed_scale
+        req.acceleration_scaling = speed_scale
+        req.fraction_threshold = fraction_ok
+        req.dt = dt
+
+        t0 = time.perf_counter()
+        future = client.call_async(req)
+        rclpy.spin_until_future_complete(self, future, timeout_sec=60.0)
+        elapsed = time.perf_counter() - t0
+
+        if not future.done():
+            return None, f"plan_and_execute 超时 ({elapsed:.1f}s > 60s)"
+
+        try:
+            result = future.result()
+            self.get_logger().info(
+                f"plan_and_execute: {elapsed:.1f}s, fraction={result.fraction*100:.1f}%, "
+                f"success={result.success}, traj_pts={result.trajectory_points}"
+            )
+            return result, ""
+        except Exception as e:
+            return None, f"plan_and_execute 异常 ({elapsed:.1f}s): {e}"
+
+    # ═══════════════════════════════════════════════════════════════
+    # DEPRECATED: 旧 MoveIt2 直接调用 (已迁移到 C++ latte_cartesian_planner)
     # ═══════════════════════════════════════════════════════════════
 
     def _compute_cartesian_path(self, waypoints, planning_group, ee_link,
@@ -727,7 +739,7 @@ class LatteImitationNode(Node):
             return None
 
     # ═══════════════════════════════════════════════════════════════
-    # Phase ⑥: Execute
+    # DEPRECATED: Phase ⑥ Execute (已迁移到 C++)
     # ═══════════════════════════════════════════════════════════════
 
     def _execute_trajectory(self, trajectory: RobotTrajectory):

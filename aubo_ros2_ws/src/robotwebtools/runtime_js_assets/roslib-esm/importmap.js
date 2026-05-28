@@ -20,11 +20,11 @@
       "eventemitter3": "https://unpkg.com/eventemitter3@5.0.4/index.mjs",
       "fast-png": "https://unpkg.com/fast-png@8.0.0/lib/index.js",
       "uuid": "https://unpkg.com/uuid@13.0.2/dist/index.js",
-      "ws": "https://unpkg.com/ws@8.20.1/browser.js"
+      "ws": "https://unpkg.com/ws@8.21.0/browser.js"
     },
     "https://unpkg.com/": {
       "@cto.af/wtf8": "https://unpkg.com/@cto.af/wtf8@0.0.5/lib/index.js",
-      "fflate": "https://unpkg.com/fflate@0.8.2/esm/browser.js",
+      "fflate": "https://unpkg.com/fflate@0.8.3/esm/browser.js",
       "iobuffer": "https://unpkg.com/iobuffer@6.0.1/lib/iobuffer.js"
     }
   }

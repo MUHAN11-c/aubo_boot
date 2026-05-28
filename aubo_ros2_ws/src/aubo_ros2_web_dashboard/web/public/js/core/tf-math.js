@@ -161,3 +161,25 @@ export function quatToRpyDeg(q) {
         yaw: yaw * rad2deg,
     };
 }
+
+// ── RPY (弧度) → 四元数 ─────────────────────────────────────────────────────
+
+export function rpyToQuat(roll, pitch, yaw) {
+    const cr = Math.cos(roll * 0.5);
+    const sr = Math.sin(roll * 0.5);
+    const cp = Math.cos(pitch * 0.5);
+    const sp = Math.sin(pitch * 0.5);
+    const cy = Math.cos(yaw * 0.5);
+    const sy = Math.sin(yaw * 0.5);
+    return {
+        x: sr * cp * cy - cr * sp * sy,
+        y: cr * sp * cy + sr * cp * sy,
+        z: cr * cp * sy - sr * sp * cy,
+        w: cr * cp * cy + sr * sp * sy,
+    };
+}
+
+export function rpyDegToQuat(rollDeg, pitchDeg, yawDeg) {
+    const d2r = Math.PI / 180;
+    return rpyToQuat(rollDeg * d2r, pitchDeg * d2r, yawDeg * d2r);
+}

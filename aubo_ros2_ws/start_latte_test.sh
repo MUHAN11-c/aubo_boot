@@ -3,7 +3,7 @@
 if [ -z "${BASH_VERSION:-}" ]; then exec /bin/bash "$0" "$@"; exit 1; fi
 
 # ═══════════════════════════════════════════════════════════════
-# latte_imitation 一键测试启动脚本 v3.0 (MoveIt2 6 阶段管线)
+# latte_imitation 一键测试启动脚本 v3.0 (MoveIt2 5 阶段管线)
 #
 # 参考 start_aubo_new_driver.sh 的多终端架构:
 #   终端1 = 仿真环境 (move_group + ros2_control)
@@ -12,9 +12,9 @@ if [ -z "${BASH_VERSION:-}" ]; then exec /bin/bash "$0" "$@"; exit 1; fi
 #   终端4 = RViz2 可视化 (加载 latte_preview.rviz)
 #   终端5 = 快捷命令速查
 #
-# 管线: _execute_pipeline → _pipeline (6 阶段)
+# 管线: _execute_pipeline → _pipeline (5 阶段)
 #   ① Load npz → ② SE(3) Retarget → ③ Preview (RViz2 markers)
-#   ④ Safety Check → ⑤ computeCartesianPath → ⑥ executeTrajectory
+#   ④ Safety Check → ⑤+⑥ Plan+Execute (C++ /latte/plan_and_execute)
 # 轨迹起点: 自动从 TF (base_link→tool_tcp) 获取当前 EE 位姿
 #
 # 用法:
@@ -74,7 +74,7 @@ Preview 模式说明:
 
 管线流程 (trajectory_pipeline.py v3.0):
   ① Load npz  → ② SE(3) Retarget → ③ Preview (RViz2 markers)
-  ④ Safety Check → ⑤ computeCartesianPath → ⑥ executeTrajectory
+  ④ Safety Check → ⑤+⑥ Plan+Execute (C++ /latte/plan_and_execute)
 
 理论依据:
   SPOT (arXiv:2411.00965): Object-centric SE(3) 轨迹
@@ -91,6 +91,7 @@ done
 cleanup() {
     echo -e "\n${YELLOW}终止所有进程...${NC}"
     pkill -f "latte_imitation"       2>/dev/null || true
+    pkill -f "latte_cartesian_planner" 2>/dev/null || true
     pkill -f "latte_debug_panel"     2>/dev/null || true
     pkill -f "test_latte_pour"       2>/dev/null || true
     pkill -f "test_replay_service"   2>/dev/null || true
@@ -147,7 +148,7 @@ cleanup
 
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}latte_imitation 测试启动 v3.0${NC}"
-echo -e "${GREEN}  (6 阶段管线 + RViz2 Preview)${NC}"
+echo -e "${GREEN}  (5 阶段管线 + RViz2 Preview)${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo -e "${BLUE}工作空间:   ${WS}${NC}"
 echo -e "${BLUE}机器人IP:   ${AUBO_IP}${NC}"
@@ -166,7 +167,7 @@ else
         cd "$WS"
         source "$ROS2_SETUP"
         if [ -f "$WS_SETUP" ]; then source "$WS_SETUP"; fi
-        colcon build --packages-select ivg_interfaces latte_imitation
+        colcon build --packages-select ivg_interfaces latte_cartesian_planner latte_imitation
     )
     echo -e "${GREEN}  ✓ 构建完成${NC}"
 fi
@@ -200,13 +201,13 @@ while [ "$TICK" -lt 120 ]; do
     fi
 done
 
-# 等待 /compute_cartesian_path 服务
-echo -e "${BLUE}  → 等待 /compute_cartesian_path 服务 (超时 30s)...${NC}"
+# 等待 /latte/plan_and_execute 服务 (C++ 节点)
+echo -e "${BLUE}  → 等待 /latte/plan_and_execute 服务 (超时 30s)...${NC}"
 TICK=0
 while [ "$TICK" -lt 60 ]; do
     sleep 0.5; TICK=$((TICK + 1))
-    if ros2 service list 2>/dev/null | grep -q "/compute_cartesian_path"; then
-        echo -e "${GREEN}    ✓ /compute_cartesian_path 就绪 (${TICK}x0.5s)${NC}"
+    if ros2 service list 2>/dev/null | grep -q "/latte/plan_and_execute"; then
+        echo -e "${GREEN}    ✓ /latte/plan_and_execute 就绪 (${TICK}x0.5s)${NC}"
         break
     fi
 done
@@ -260,7 +261,7 @@ fi
 echo -e "${GREEN}[5] 终端5 — 快捷命令速查...${NC}"
 launch "Cmd Ref" "cat << 'CMDS'
 ═══════════════════════════════════════════════════════════════
-  latte_imitation v3.0 命令速查 (6 阶段管线 + RViz2 Preview)
+  latte_imitation v3.0 命令速查 (5 阶段管线 + RViz2 Preview)
 ═══════════════════════════════════════════════════════════════
 
 === Preview 模式 (RViz2 可视化, 不规划/执行) ===
@@ -351,7 +352,7 @@ ik_success_count = int(fraction * num_frames)
 collision_count = 0, collision_details = []
 
 ═══════════════════════════════════════════════════════════════
-  6 阶段管线 (trajectory_pipeline.py v3.0)
+  5 阶段管线 (trajectory_pipeline.py v3.0)
 ═══════════════════════════════════════════════════════════════
 _execute_pipeline (加锁)
   └─ _pipeline:
@@ -359,8 +360,7 @@ _execute_pipeline (加锁)
       ② retarget_trajectory()     SE(3) 重定目标 + RPY
       ③ _publish_preview()       RViz2 markers (mode=preview 返回)
       ④ check_workspace_bounds() 工作空间安全检查
-      ⑤ _compute_cartesian_path() MoveIt2 笛卡尔规划
-      ⑥ _execute_trajectory()    MoveIt2 轨迹执行
+      ⑤+⑥ /latte/plan_and_execute  C++ MoveIt2 规划+执行
 
 ═══════════════════════════════════════════════════════════════
   理论依据
@@ -395,8 +395,7 @@ echo -e "  2. 按 [p] 刷新 → ${CYAN}RViz2 即时更新轨迹预览${NC}"
 echo -e "  3. 满意后按 [e] → 输入 yes → ${CYAN}真机执行${NC}"
 echo ""
 echo -e "${YELLOW}RViz2 Display 提示 (已预配置):${NC}"
-echo -e "  Path (绿)     → /latte_imitation/preview/tcp_path"
-echo -e "  PoseArray (绿) → /latte_imitation/preview/tcp_waypoints"
+echo -e "  MarkerArray (绿) → /rviz_visual_tools  (EE 轨迹线, C++ moveit_visual_tools)"
 echo -e "  Marker (蓝)    → /latte_imitation/preview/spout_path"
 echo -e "  Marker (黄)    → /latte_imitation/preview/cup_pose"
 echo -e "  Marker (红)    → /latte_imitation/preview/workspace_bounds"

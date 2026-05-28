@@ -65,6 +65,7 @@ def _launch_setup(context, *args, **kwargs):
     nodes_cfg = [
         ("plan_trajectory_server_node", "plan_trajectory_server"),
         ("execute_trajectory_server_node", "execute_trajectory_server"),
+        ("move_to_pose_server_node", "move_to_pose_server"),
         ("get_current_state_server_node", "get_current_state_server"),
         ("set_speed_factor_server_node", "set_speed_factor_server"),
         ("set_robot_pose_server_node", "set_robot_pose_server"),

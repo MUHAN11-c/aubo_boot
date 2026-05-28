@@ -36,6 +36,16 @@ def generate_launch_description():
         DeclareLaunchArgument("tf_retry_count", default_value="20"),
         DeclareLaunchArgument("tf_retry_interval", default_value="0.03"),
         Node(
+            package="latte_cartesian_planner",
+            executable="cartesian_planner_node",
+            name="latte_cartesian_planner",
+            output="screen",
+            parameters=[{
+                "planning_group": LaunchConfiguration("planning_group"),
+                "base_frame": LaunchConfiguration("base_frame"),
+            }],
+        ),
+        Node(
             package="latte_imitation",
             executable="latte_imitation_node",
             name="latte_imitation",

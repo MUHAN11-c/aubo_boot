@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 project(ivg_interfaces)
 
 if(NOT CMAKE_CXX_STANDARD)
@@ -84,6 +84,12 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 
   # ── 拉花轨迹回放服务 (来自 latte_imitation) ──
   "srv/ReplayLatteTrajectory.srv"
+
+  # ── 拉花笛卡尔规划+执行服务 (来自 latte_cartesian_planner) ──
+  "srv/LatteCartesianPlan.srv"
+
+  # ── 拉花工作流编排服务 (来自 demo_driver latte_workflow_node) ──
+  "srv/RunLatteWorkflow.srv"
 
   # ── 视觉位姿估计服务 (来自原 interface) ──
   "srv/EstimatePose.srv"

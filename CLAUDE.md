@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ROS 2 通用知识 → 技能引用
+
+ROS 2 通用概念（话题/服务/参数/动作/插件/launch/生命周期/执行器/QoS/TF2/MoveIt2/ros2_control/nav2）已提取到 **ros2-development** 技能。遇到通用 ROS 2 问题时优先加载该技能，本文件仅保留项目特定知识（AUBO SDK、工具切换、前端架构等）喵~
+
 ## Agent skills
 
 ### Issue tracker
@@ -16,21 +20,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 多上下文布局 — 根目录 `CONTEXT-MAP.md` 指向各上下文文档（USAGE / DEPLOYMENT / architecture / PROCESS-FLOW 等）。详见 `docs/agents/domain.md`。
 
-## ROS 2 参数隔离（重要！）
+## ROS 2 参数须知（项目特定）
 
-**ROS 2 没有全局参数服务器**（与 ROS 1 `rosparam` 完全不同）。每个节点各自维护独立的参数副本，通过 services 对外暴露：
+`robot_state_publisher` 不订阅 `/robot_description` 话题，只通过 `/parameter_events` 监听自身参数变更。**本项目必须用 `AsyncParametersClient::set_parameters()` 而非 `publish()` 来触发 `setupURDF()` 重建 TF 树** 喵~
 
-- `get_parameters(names)` — 读取参数值
-- `set_parameters(values)` — 逐参数验证并设置，任一个失败不影响其他的已生效
-- `set_parameters_atomically(values)` — 原子设置，任一失败则全部回滚
-- `list_parameters(prefixes)` — 列出参数名
-- `describe_parameters(names)` — 查询参数类型
-
-**正确做法**：用 `AsyncParametersClient::set_parameters()` 设置其他节点参数。YAML 参数文件需用 `/<node_full_name>/ros__parameters` 架构对参数归属节点进行限定喵~
-
-`robot_state_publisher` 不订阅 `/robot_description` 话题，只通过 `/parameter_events` 监听自身参数变更。必须用 `set_parameters()` 而非 `publish()` 来触发 `setupURDF()` 重建 TF 树。`/robot_description` 话题使用了 `TRANSIENT_LOCAL` QoS（latched），订阅者必须配置匹配的 QoS 才能收到消息喵~
-
-> 参考：[ROS 2 Parameters Design](https://design.ros2.org/articles/ros_parameters.html) | [REP-0110](https://www.ros.org/reps/rep-0110.html) | [robot_state_publisher 源码](https://github.com/ros/robot_state_publisher)
+> ROS 2 参数通用机制见 ros2-development 技能喵~
 
 ## 调试原则
 
@@ -50,7 +44,7 @@ source install/setup.bash
 选择性构建（修改后只需编译相关包，无需全量构建）：
 
 ```bash
-colcon build --packages-select aubo_driver_ros2 tool_changer latte_imitation
+colcon build --packages-select aubo_driver_ros2 tool_changer latte_imitation latte_cartesian_planner
 ```
 
 `start_aubo_new_driver.sh` 启动时会自动执行 `colcon build`，日常开发中修改代码后手动运行上述命令即可喵~
@@ -178,23 +172,22 @@ SDK 是同步阻塞的（TCP 通信，单次调用 2-225ms），不能放在 ROS
 
 所有 GraspNet 消费者通过 `applyGraspZFlip180()` 自动修正预测位姿的 Z 轴喵~
 
-### 5. MoveIt CurrentStateMonitor 回调竞争
+### 5. ROS 2 / MoveIt 2 通用知识 → 技能
 
-`CurrentStateMonitor::waitForCurrentRobotState()` 超过 1 秒未收到 `/joint_states` 则报 `Failed to fetch current robot state`。**根因是单线程 Executor 中长耗时操作阻塞了 `jointStateCallback`**。解决方案：使用 `MultiThreadedExecutor`，或将长耗时服务放入独立 callback group 喵~
+以下通用概念已提取到 ros2-development 技能，此处仅保留项目特定配置喵~：
 
-> 参考：[moveit2 Issue #2645](https://github.com/moveit/moveit2/issues/2645) | [About Executors](https://docs.ros.org/en/humble/Concepts/Intermediate/About-Executors.html)
+- **CurrentStateMonitor 超时** — 本项目 MoveGroup 节点用 `MultiThreadedExecutor` 防阻塞
+- **`shared_from_this()` / `AsyncParametersClient`** — 不能在构造函数中使用，延后到外部 `init()` 或 wall timer
+- **Callback Group 死锁** — 本项目 `gripper_swap_worker`（MutuallyExclusive + MultiThreadedExecutor(2)）、`execute_grasp_pose_worker`（Reentrant 组）
+- **QoS 配置** — `/joint_states` (depth 3000, RELIABLE, 100Hz), `moveItController_cmd` (BEST_EFFORT, depth 20000), `/robot_description` (TRANSIENT_LOCAL, depth 1)
+- **MoveGroupInterface** — `kCartesianEefStep = 0.015`；`jump_threshold = 0.0` 禁用跳变检测
+- **Launch OpaqueFunction** — `aubo_new_driver.launch.py` 的 TCP 探测在 launch 解析阶段执行，决策结果（真机/仿真）启动后不再重新评估
+- **`declare_parameter()` 冲突** — launch 用了 `automatically_declare_parameters_from_overrides(true)` 时需 `has_parameter()` 前置检查
+- **LifecycleNode** — `aubo_dashboard_node` 在 `on_configure` 创建 20 个 ROS 2 service，`Inactive` 状态下 service 调用直接失败
 
-### 6. `shared_from_this()` 不能在构造函数中调用
+> 通用 API 用法、代码示例、设计模式见 ros2-development 技能喵~
 
-C++ 标准规定 `enable_shared_from_this` 的 `weak_ptr` 在 `shared_ptr` 构造完成后才初始化。解决方案：(1) wall timer 延后初始化，(2) 外部 `init()` 方法，(3) 组合模式（不继承 Node）喵~
-
-> 参考：[Stack Overflow](https://stackoverflow.com/questions/73188194/using-shared-from-this-goes-to-bad-weak-ptrros2)
-
-### 7. `AsyncParametersClient` 不可在构造函数中创建
-
-同理需要 `shared_from_this()`，延后到外部 `init()`、timer 中按需创建喵~
-
-### 8. 工具切换碰撞与 ACO 架构
+### 6. 工具切换碰撞与 ACO 架构
 
 核心要点：
 - `scene_attach_worker` 通过 `/attached_collision_object` 发布 ADD/REMOVE（非 `/planning_scene` ACO diff）；向 `/planning_scene` 仅发 world REMOVE 清除 detach 残留
@@ -205,73 +198,21 @@ C++ 标准规定 `enable_shared_from_this` 的 `weak_ptr` 在 `shared_ptr` 构�
 
 > 详见：`docs/PROCESS-FLOW.md`、`aubo_ros2_ws/src/aubo_e5_moveit_config/config/aubo_e5.srdf:69-91`、`src/tool_changer/config/tools.yaml` 喵~
 
-### 9. MoveGroupInterface 关键行为
-
-- `computeCartesianPath()` 返回值是 **fraction**（0.0~1.0），**必须检查 fraction 再执行**
-- `move()` 是阻塞的，需 async spinner 才能正常完成
-- `jump_threshold`：0.0 禁用跳变检测。本项目 `kCartesianEefStep = 0.015`（15mm）
-- `allowReplanning(true)` 可能导致运动中轨迹突变，工具切换流程中用 `publishToolStatus(false)` 防止
-- `setMaxVelocityScalingFactor()` / `setMaxAccelerationScalingFactor()`：值域 (0, 1]
-
-> 参考：[MoveGroupInterface API](https://moveit.picknik.ai/humble/api/html/classmoveit_1_1planning__interface_1_1MoveGroupInterface.html) | [CartesianInterpolator](https://moveit.picknik.ai/humble/api/html/classmoveit_1_1core_1_1CartesianInterpolator.html)
-
-### 10. ROS 2 Callback Group 死锁规则
-
-- 每个节点默认有一个 `MutuallyExclusive` callback group
-- **死锁场景**：在 MutuallyExclusive 组回调中同步调用 `async_send_request` + `future.wait_for()` → done-callback 继承同一组锁 → 永久阻塞
-- **正确配置**：服务回调和 client 放入不同 MutuallyExclusive 组，或共享 Reentrant 组。项目中 `gripper_swap_worker`（MutuallyExclusive + MultiThreadedExecutor(2)）和 `execute_grasp_pose_worker`（Reentrant 组）遵循此规则
-- `CallbackGroup::SharedPtr` 必须保持存活，否则 executor 不会调度该组回调喵~
-
-> 参考：[Using Callback Groups](https://docs.ros.org/en/humble/How-To-Guides/Using-callback-groups.html)
-
-### 11. ROS 2 QoS 兼容性规则
-
-- `RELIABLE` 发布者不能兼容 `BEST_EFFORT` 订阅者；`TRANSIENT_LOCAL` 发布者不能兼容 `VOLATILE` 订阅者
-- 本项目关键 QoS：`/joint_states` (depth 3000, RELIABLE, 100Hz)，`moveItController_cmd` (BEST_EFFORT, depth 20000)，`/robot_description` (TRANSIENT_LOCAL, depth 1, latched)
-- `/robot_description` 订阅者必须用 `rclcpp::QoS(1).transient_local().reliable()` 才能收到消息
-
-> 参考：[About QoS Settings](https://docs.ros.org/en/humble/Concepts/Intermediate/About-Quality-of-Service-Settings.html) | [REP-2003](https://www.ros.org/reps/rep-2003.html) | `docs/ros2-reps/rep-2003-qos-sensor-map.md`
-
-### 12. LifecycleNode 状态机
-
-4 个主状态：`Unconfigured` → `Inactive` → `Active` → `Finalized`。持久化资源在 `on_configure` 创建，`on_activate` 轻量级，`onError` 必须全面清理。`Inactive` 状态下 service 调用直接失败喵~
-
-> 参考：[Lifecycle Node Design](https://design.ros2.org/articles/node_lifecycle.html) | [REP-0125](https://www.ros.org/reps/rep-0125.html)
-
-### 13. Launch OpaqueFunction 在解析时执行
-
-`aubo_new_driver.launch.py` 的 TCP 探测发生在 launch 解析阶段，决策结果（真机/仿真）启动后不再重新评估。机械臂启动后断连不会自动回退仿真喵~
-
-### 14. `declare_parameter()` 冲突
-
-当 launch 使用 `automatically_declare_parameters_from_overrides(true)` 时，构造函数内需用 `has_parameter()` 前置检查：
-```cpp
-if (!this->has_parameter("egp_xxx")) {
-    this->declare_parameter("egp_xxx", default_value);
-}
-```
-
-### 15. `computeCartesianPath` 跳变检测
-
-相对模式：`|Δjoint_i| < jump_threshold × mean(|Δjoint|)`。`jump_threshold = 0.0` 禁用。MoveIt 2 底层支持绝对阈值（弧度/米），但 `MoveGroupInterface` 仅暴露相对因子参数喵~
-
-> 参考：[CartesianInterpolator](https://moveit.picknik.ai/humble/api/html/classmoveit_1_1core_1_1CartesianInterpolator.html)
-
-### 16. pydantic 1.x 不兼容 `X | Y` 语法
+### 7. pydantic 1.x 不兼容 `X | Y` 语法
 
 FastAPI 路由参数用 `dict | None` 等 PEP 604 语法时，pydantic 1.8.x 会抛 `TypeError`。必须用 `typing.Optional[dict]` / `typing.Union[X, Y]`。本项目 `visual_pose_estimation_python/web/routers/` 下已修复喵~
 
 > 参考：[FastAPI PR #7350](https://github.com/tiangolo/fastapi/issues/7350)
 
-### 17. Web Dashboard 网关依赖
+### 8. Web Dashboard 网关依赖
 
 `httpx` 和 `websockets` 不由 colcon 管理，新环境需手动 `pip3 install httpx websockets`喵~
 
-### 18. 本地路径引用原则
+### 9. 本地路径引用原则
 
 文档中引用编译文件（源码/头文件/库）必须用本地真实路径。真实文件是唯一数据源，软链接只是别名。外部链接可能失效喵~
 
-### 19. `ivg_interfaces` 统一接口包
+### 10. `ivg_interfaces` 统一接口包
 
 所有自定义 ROS 2 接口统一在 `src/ivg_interfaces/`（17 msg + 35 srv = 52 个）。旧包（`aubo_msgs`/`demo_interface`/`tool_changer_interface` 等）已 `COLCON_IGNORE` 废弃喵~
 
@@ -279,7 +220,7 @@ FastAPI 路由参数用 `dict | None` 等 PEP 604 语法时，pydantic 1.8.x 会
 - Python：`from ivg_interfaces.msg import RobotStatus`
 - JS：`msgType: 'ivg_interfaces/msg/RobotStatus'`
 
-### 20. 工具切换数据驱动架构
+### 11. 工具切换数据驱动架构
 
 轨迹参数全部从 `config/tools.yaml` 加载，不再硬编码 per-gripper 函数。新增工具只需编辑 YAML（`dock_approach_joints` + `trajectory` 字段），无需修改 C++ 代码。两种轨迹策略：`"vertical"`（纯 Z 轴升降）和 `"slide"`（Y 轴侧滑）。`changeToTool()` 通用流水线走同一逻辑喵~
 
@@ -290,25 +231,60 @@ FastAPI 路由参数用 `dict | None` 等 PEP 604 语法时，pydantic 1.8.x 会
 
 > 详见：`src/tool_changer/config/tools.yaml`、`src/tool_changer/src/gripper_swap_worker.cpp` 喵~
 
-### 21. latte_imitation MoveIt2 管线
+### 12. latte_imitation 轨迹管线
 
-废弃自定义 PyKDL DLS IK，全部走 MoveIt2 标准 API：
-- `/compute_cartesian_path` — KDL IK 全 6-DOF，`avoid_collisions=True`
-- `/execute_trajectory` action — MoveIt2 标准 action
-- Fraction 处理：≥0.95 直接执行，0.50~0.95 retry with `avoid_collisions=False`，<0.50 失败
-- 参数: `max_step=0.01`, `jump_threshold=0.0`, `ReentrantCallbackGroup` + `MultiThreadedExecutor(4)` 防死锁
+**Python 端** (`LatteImitationNode`, 7 阶段):
+
+| Phase | 名称 | 说明 |
+|-------|------|------|
+| ① | Load/Generate | 录制回放 (npz) 或参数化生成 (latte_art) |
+| ② | OrientProfile | 参数化模式动态 pitch 剖面 (融合 45°→30° / 成形 30°±3° / 收尾 30°→60°) |
+| ③ | Retarget | SE(3) 重定目标 (SPOT + Isaac Teleop) |
+| ④ | Preview | RViz2 markers (TCP 路径/waypoints/spout/cup/workspace) |
+| ⑤ | Safety | 工作空间边界检查 (warn_and_block / warn_only / ignore) |
+| ⑥+⑦ | Plan+Execute | 委托 C++ `latte_cartesian_planner` 节点 |
+
+**C++ 端** (`latte_cartesian_planner`):
+- 服务: `/latte/plan_and_execute` (ivg_interfaces/srv/LatteCartesianPlan)
+- 内部调用 MoveIt2 `computeCartesianPath` + `executeTrajectory` action
+- Fraction 阈值由 `fraction_threshold` 参数控制，失败时自动 retry (`avoid_collisions=False`)
+- velocity_scaling / acceleration_scaling 硬编码 0.5 (待改为参数)
 
 **SE(3) 重定目标核心**：
 - `CartesianTrajectory` (positions/orientations/timestamps) — 纯 numpy，无 ROS 依赖
 - `retarget_trajectory()` Option B (Se3RelRetargeter): `R_rel = R(rpy_user) @ R(q_cup)`, `p_new = R_rel @ (p - p0) + p_cup`
+- `retarget_with_orientation_constraint()` 分离式: 位置用完整 `R_rel`，朝向仅用 yaw (保留 pitch 技能)
 - 四元数约定：Hamilton (xyzw)，`euler_deg_to_quat()` 内旋 ZYX = 外旋 XYZ
 - `check_workspace_bounds()` — `base_link` = `world`，基于 AUBO E5 工作半径 886.5mm
 - Preview 模式发布 5 个 RViz2 markers (Path/PoseArray/LINE_STRIP/CUBE/LINE_LIST)
-- `MultiThreadedExecutor(4)` + `ReentrantCallbackGroup`，`self._executing` 防重入
+- `MultiThreadedExecutor(4)` + `ReentrantCallbackGroup`，`self._exec_lock` 防重入
 
-> 详见：`aubo_ros2_ws/src/latte_imitation/DESIGN.md` 喵~
+**latte_art 子包** (纯 Python，无 ROS 依赖):
+- `LatteArtTrajectory` — 参数化图案生成 (heart/rosetta/tulip/swan/from_image)
+- `PourConfig` / `CupConfig` — 倾倒参数 + 杯子参数 dataclass
+- `compose_full_trajectory` — 融合+成形+收尾三阶段拼接
+- `apply_anti_sloshing` — 抗晃荡速度剖面 (梯形速度剖面 + CubicSpline 重参数化)
+- `orientation_profile` — 动态 pitch 剖面 (三阶段)，`bridge.py` 桥接到 `CartesianTrajectory`
 
-### 22. 共享工具包 `ivg_utils`
+> 详见：`aubo_ros2_ws/src/latte_imitation/DESIGN.md`、`aubo_ros2_ws/src/latte_cartesian_planner/` 喵~
+
+**已知问题 (2026-05-28 审查)**:
+- `latte_io_node.py:60` — `_call_set_io()` 在 service 回调内用 `spin_until_future_complete()`，与 IO client 同在一个 `MutuallyExclusiveCallbackGroup`，可能导致死锁。应改为 `ReentrantCallbackGroup` 喵~
+- `trajectory_pipeline.py:198-199` — `_cartesian_client` / `_execute_client` 已废弃但未清理喵~
+- `trajectory_pipeline.py:687-688` — `velocity_scaling` / `acceleration_scaling` 硬编码 0.5，应改为 ROS 2 参数喵~
+- `trajectory_pipeline.py:85-87` — `_load_latte_positions_defaults()` 用 `__file__` 相对路径，非 symlink 安装时会找不到 YAML，应改用 `get_package_share_directory` 喵~
+- `latte_art/__pycache__/` 被提交到 git，应加入 `.gitignore` 喵~
+
+### 13. latte_cartesian_planner (C++)
+
+C++ MoveIt2 规划+执行节点，替代原先 Python 端的两步调用 (`compute_cartesian_path` → `execute_trajectory` action) 喵~：
+- 服务: `/latte/plan_and_execute` (ivg_interfaces/srv/LatteCartesianPlan)
+- 输入: waypoints、max_step、jump_threshold、avoid_collisions、velocity/acceleration_scaling、fraction_threshold、dt
+- 内部: MoveIt2 C++ API (`computeCartesianPath` → `executeTrajectory` action)
+- 支持 fraction 不达标时自动 retry (`avoid_collisions=False`)
+- 返回: success、fraction、trajectory_points、message
+
+### 14. 共享工具包 `ivg_utils`
 
 `aubo_ros2_ws/src/ivg_utils/` — `ivg_utils.math`（四元数/旋转矩阵/欧拉角）、`ivg_utils.io`（`IO_GRIPPER=6`, `IO_QUICK_SWAP=7`）。新增数学工具优先加到此包喵~
 
@@ -461,60 +437,22 @@ web/public/                    # 静态文件根目录
 | GraspNet 节点无法启动 | CUDA 扩展 (pointnet2/knn) 未安装 | `pip install` 对应的 CUDA 扩展，详见错误消息中的 setup.py 路径 |
 | tools.yaml 工具快换失败 (gripper1/coffeecup/milkcup) | `tools.yaml` 中这三个工具缺少 `dock_approach_joints` + `trajectory` 字段 | 补充 YAML 配置或确认这些工具不需要快换喵~ |
 | GripperSwapWorker 死锁/service 超时 | callback group 是 MutuallyExclusive（非 Reentrant），与文档描述不一致 | `MultiThreadedExecutor(2)` 提供足够并发，当前无死锁风险喵~ |
+| `/latte/plan_and_execute` 不可达 | `latte_cartesian_planner` C++ 节点未启动 | 检查 launch 文件中是否包含该节点；检查 `ros2 service list \| grep latte` |
+| latte_io `set_do2`/`set_do4` 超时/无响应 | `_call_set_io()` 在 service 回调中用 `spin_until_future_complete()`，与 IO client 同在一个 MutuallyExclusive 组导致死锁 | 将 IO client 改为 `ReentrantCallbackGroup` 喵~ |
+| latte_imitation `fraction_min` 参数无效 | 重构后 fraction 校验逻辑移至 C++ 端，Python 端该参数已废弃但未清理 | 清理 `fraction_min` 死代码或改为传递给 C++ 服务喵~ |
+| YAML 配置找不到 (`latte_positions.yaml`) | `_load_latte_positions_defaults()` 用 `__file__` 相对路径，非 symlink 安装时路径错误 | 改用 `ament_index_python.get_package_share_directory` 喵~ |
+| `__pycache__` 被 git 跟踪 | `.gitignore` 未排除 `__pycache__/` | 添加 `__pycache__/` 到 `.gitignore` 喵~ |
 | `error while loading shared libraries: libauborobotcontroller.so.1` | AUBO SDK .so 未安装 | `colcon build --packages-select aubo_driver_ros2` |
 | `Subscription to deprecated ~/state topic` | rosbag 或节点订阅了弃用 topic | `ros2 topic info -v /joint_trajectory_controller/state` |
 | 前端日志面板无 ROS 2 日志 | `log-ros-bridge.js` 未被 import 或传输层检测失败 | 检查 HTML 中是否有 `<script type="module" src="js/core/log-ros-bridge.js">`；检查 `globalThis.__rosManager` |
 | 前端日志面板看不到其他页面日志 | 跨页面隔离 — 旧版无 BroadcastChannel | 确认 `log-bus.js` 已更新含 `BroadcastChannel('ivg_log_bus')` |
 | `SyntaxError: does not provide an export named 'escapeHtml'` | 合并 pose_card.js 时丢失导出 | 确认 `components/pose-card.js` 有 `export { _escapeHtml as escapeHtml }` |
 
-## 官方文档与源码仓库
+## 外部文档
 
-### ROS 2
+ROS 2 / MoveIt 2 / ros2_control 官方文档链接见 ros2-development 技能（SKILL.md 末尾 External Resources 章节）喵~
 
-| 资源 | 链接 |
-|------|------|
-| ROS 2 Humble 官方文档 | https://docs.ros.org/en/humble/ |
-| ROS 2 参数机制设计 | https://design.ros2.org/articles/ros_parameters.html |
-| LifecycleNode 状态机设计 | https://design.ros2.org/articles/node_lifecycle.html |
-| Callback Groups 官方指南 | https://docs.ros.org/en/humble/How-To-Guides/Using-callback-groups.html |
-| Executor 机制 | https://docs.ros.org/en/humble/Concepts/Intermediate/About-Executors.html |
-| QoS 策略与兼容性 | https://docs.ros.org/en/humble/Concepts/Intermediate/About-Quality-of-Service-Settings.html |
-| robot_state_publisher 源码 | https://github.com/ros/robot_state_publisher |
-| rclcpp 源码 (humble) | https://github.com/ros2/rclcpp/tree/humble |
-| ROS 2 设计文档总览 | https://design.ros2.org/ |
-
-### ROS 2 REP 标准（本地副本见 `docs/ros2-reps/`）
-
-| REP | 标题 | 状态 | 本地摘要 |
-|-----|------|------|---------|
-| [REP-2000](https://www.ros.org/reps/rep-2000.html) | Releases and Target Platforms | Active | [Humble 平台 + Tier](docs/ros2-reps/rep-2000-releases-and-target-platforms.md) |
-| [REP-2001](https://www.ros.org/reps/rep-2001.html) | ROS 2 Variants | Active | [ros_base/desktop 构成](docs/ros2-reps/rep-2001-variants.md) |
-| [REP-2003](https://www.ros.org/reps/rep-2003.html) | Sensor Data and Map QoS | Draft | [传感器/地图 QoS 标准](docs/ros2-reps/rep-2003-qos-sensor-map.md) |
-| [REP-2004](https://www.ros.org/reps/rep-2004.html) | Package Quality Categories | Active | [质量等级 L1-L5](docs/ros2-reps/rep-2004-package-quality-categories.md) |
-| [REP-2005](https://www.ros.org/reps/rep-2005.html) | ROS 2 Common Packages | Active | [核心包列表](docs/ros2-reps/rep-2005-common-packages.md) |
-| [REP-2007](https://www.ros.org/reps/rep-2007.html) | Type Adaptation Feature | Final | [rclcpp 类型适配](docs/ros2-reps/rep-2007-type-adaptation.md) |
-
-核心设计 REP：`docs/ros2-reps/INDEX.md` （REP-0110 Parameters / REP-0125 Lifecycle / REP-0127 URDF 等）喵~
-
-### MoveIt 2
-
-| 资源 | 链接 |
-|------|------|
-| MoveIt 2 Humble 官方文档 | https://moveit.picknik.ai/humble/index.html |
-| MoveIt 2 源码 (humble) | https://github.com/moveit/moveit2/tree/humble |
-| MoveGroupInterface C++ API | https://moveit.picknik.ai/humble/api/html/classmoveit_1_1planning__interface_1_1MoveGroupInterface.html |
-| CartesianInterpolator API | https://moveit.picknik.ai/humble/api/html/classmoveit_1_1core_1_1CartesianInterpolator.html |
-| GetCartesianPath 服务定义 | http://docs.ros.org/en/api/moveit_msgs/html/srv/GetCartesianPath.html |
-| Planning Scene ROS API | https://moveit.picknik.ai/humble/doc/examples/planning_scene_ros_api/planning_scene_ros_api_tutorial.html |
-
-### ros2_control
-
-| 资源 | 链接 |
-|------|------|
-| ros2_control 官方文档 | https://control.ros.org/humble/index.html |
-| ros2_controllers 文档 | https://control.ros.org/humble/doc/ros2_controllers/doc/controllers_index.html |
-| joint_trajectory_controller | https://control.ros.org/humble/doc/ros2_controllers/joint_trajectory_controller/doc/userdoc.html |
-| controller_manager | https://control.ros.org/humble/doc/ros2_control/controller_manager/doc/userdoc.html |
+本地 REP 摘要：`docs/ros2-reps/INDEX.md`（REP-0110 Parameters / REP-0125 Lifecycle / REP-0127 URDF / REP-2000~2007 等）喵~
 
 ## 遗留/废弃目录
 

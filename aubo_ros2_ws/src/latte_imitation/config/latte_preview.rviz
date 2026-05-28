@@ -22,22 +22,13 @@ Visualization Manager:
       Enabled: true
       Marker Scale: 0.3
     # ── TCP 轨迹 (绿色 Path) ──
-    - Class: rviz_default_plugins/Path
-      Name: TCP Path
+    # ── EE 轨迹线 (C++ moveit_visual_tools 发布到 /rviz_visual_tools) ──
+    - Class: rviz_default_plugins/MarkerArray
+      Name: EE Trajectory (C++)
       Topic:
         Depth: 1
         Reliability Policy: Reliable
-      Value: /latte_imitation/preview/tcp_path
-      Color: 0.0; 1.0; 0.0
-      Enabled: true
-    # ── TCP Waypoints (PoseArray, 方向箭头) ──
-    - Class: rviz_default_plugins/PoseArray
-      Name: TCP Waypoints
-      Topic:
-        Depth: 1
-        Reliability Policy: Reliable
-      Value: /latte_imitation/preview/tcp_waypoints
-      Color: 0.4; 0.8; 0.4
+      Value: /rviz_visual_tools
       Enabled: true
     # ── Spout 轨迹 (蓝色 Marker LINE_STRIP) ──
     - Class: rviz_default_plugins/Marker

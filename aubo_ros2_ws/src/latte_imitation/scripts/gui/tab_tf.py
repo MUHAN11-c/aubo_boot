@@ -49,7 +49,7 @@ class TabTF(QWidget):
         from latte_imitation.trajectory_transform import retarget_trajectory
         from latte_imitation.trajectory import CartesianTrajectory
         from latte_imitation.latte_art.bridge import euler_deg_to_quat
-        Tf=len(form_raw);quat=euler_deg_to_quat(0,45,0)
+        Tf=len(form_raw);quat=euler_deg_to_quat(45,0,0)
         cart=CartesianTrajectory(positions=form_raw.astype(np.float32),orientations=np.tile(quat.astype(np.float32),(Tf,1)),timestamps=np.arange(Tf,dtype=np.float32)*DT,dt=DT,episode_idx=-1,frame_id="base_link")
         self.retargeted_traj=retarget_trajectory(cart,self.tf_pose).positions
     def draw(self,orig_traj):

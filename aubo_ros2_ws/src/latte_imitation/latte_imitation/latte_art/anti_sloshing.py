@@ -6,7 +6,7 @@
 
 import numpy as np
 from scipy.interpolate import CubicSpline
-from typing import List, Optional
+from typing import List
 
 from .config import CupConfig, PourConfig
 
@@ -109,25 +109,22 @@ def compose_full_trajectory(pattern_traj: np.ndarray,
 
 
 def to_moveit_waypoints(traj_xyz: np.ndarray,
-                         roll: float = 0.0,
-                         pitch: Optional[float] = None,
+                         roll: float = 45.0,
+                         pitch: float = 0.0,
                          yaw: float = 0.0) -> List[List[float]]:
     """将 XYZ 轨迹转换为带姿态的 MoveIt2 路点 (含四元数) 喵~
 
-    姿态: 奶缸以固定角度倾斜 (默认 45°) 进行倒奶喵~
+    姿态: 奶缸以固定角度倾斜 (默认 roll=45°, X 轴倾倒) 进行倒奶喵~
 
     Args:
         traj_xyz: (T, 3) XYZ 轨迹
-        roll: 绕 X 轴角度 (度)
-        pitch: 绕 Y 轴角度 (度), 默认 45° (奶缸前倾)
+        roll: 绕 X 轴角度 (度), 默认 45° (奶缸倾倒方向)
+        pitch: 绕 Y 轴角度 (度), 默认 0°
         yaw: 绕 Z 轴角度 (度)
 
     Returns:
         [[x, y, z, qx, qy, qz, qw], ...]
     """
-    if pitch is None:
-        pitch = 45.0
-
     from scipy.spatial.transform import Rotation
     quat = Rotation.from_euler('xyz', [np.radians(roll),
                                         np.radians(pitch),

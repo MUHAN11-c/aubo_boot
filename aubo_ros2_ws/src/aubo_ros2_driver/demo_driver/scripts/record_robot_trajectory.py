@@ -26,6 +26,7 @@ if os.path.exists(_cjk_font_path):
 import numpy as np
 import rclpy
 from ivg_interfaces.msg import RobotStatus
+from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from rclpy.node import Node
 
 
@@ -96,9 +97,14 @@ class TrajectoryRecorder(Node):
         ax_rpy = fig.add_subplot(gs[1, 1])
         ax_joint = fig.add_subplot(gs[1, 2])
 
-        # 3D 轨迹
+        # --- 3D 轨迹 (Line3DCollection 高性能渲染) ---
         ax_3d.set_xlabel("X (m)"); ax_3d.set_ylabel("Y (m)"); ax_3d.set_zlabel("Z (m)")
         ax_3d.set_title("TCP 3D Trajectory (实时)")
+        trail = Line3DCollection([], cmap=plt.cm.viridis, linewidth=1.0)
+        ax_3d.add_collection(trail)
+        start_pt = ax_3d.scatter([], [], [], c="lime", s=60, edgecolors="k", zorder=5, label="Start")
+        now_pt = ax_3d.scatter([], [], [], c="red", s=80, edgecolors="k", zorder=5, label="Now")
+        ax_3d.legend()
 
         # 信息面板
         ax_info.axis("off")
@@ -128,8 +134,6 @@ class TrajectoryRecorder(Node):
         ax_joint.legend(ncol=3, fontsize=7, loc="upper right")
 
         plt.tight_layout(pad=2)
-
-        # 首次绘制空视图
         fig.canvas.draw()
         fig.canvas.flush_events()
 
@@ -139,63 +143,52 @@ class TrajectoryRecorder(Node):
                 n = len(arr["t"])
                 t = arr["t"]
 
-                # --- 3D 轨迹 ---
-                ax_3d.cla()
-                ax_3d.set_xlabel("X (m)"); ax_3d.set_ylabel("Y (m)"); ax_3d.set_zlabel("Z (m)")
-                ax_3d.set_title("TCP 3D Trajectory (实时)")
-                # 绘制渐变色轨迹线（越近越暖）
-                colors = plt.cm.viridis(np.linspace(0, 1, n))
-                for i in range(n - 1):
-                    ax_3d.plot(arr["x"][i:i+2], arr["y"][i:i+2], arr["z"][i:i+2],
-                              color=colors[i], linewidth=1.0)
-                ax_3d.scatter(*[arr["x"][0]], *[arr["y"][0]], *[arr["z"][0]],
-                             c="lime", s=60, edgecolors="k", zorder=5, label="Start")
-                ax_3d.scatter(*[arr["x"][-1]], *[arr["y"][-1]], *[arr["z"][-1]],
-                             c="red", s=80, edgecolors="k", zorder=5, label="Now")
-                ax_3d.legend()
+                # --- 3D 轨迹 (增量更新, 不 cla) ---
+                if n >= 2:
+                    pts = np.column_stack([arr["x"], arr["y"], arr["z"]])
+                    segs = np.stack([pts[:-1], pts[1:]], axis=1)  # (n-1, 2, 3)
+                    trail.set_segments(segs)
+                    trail.set_array(np.linspace(0, 1, n - 1))
+                start_pt._offsets3d = (arr["x"][:1], arr["y"][:1], arr["z"][:1])
+                now_pt._offsets3d = (arr["x"][-1:], arr["y"][-1:], arr["z"][-1:])
+                ax_3d.relim(); ax_3d.autoscale_view()
 
                 # --- 信息面板 ---
                 dur = t[-1]
-                freq = n / dur if dur > 0 else 0
                 dx = arr["x"][-1] - arr["x"][0]
                 dy = arr["y"][-1] - arr["y"][0]
                 dz = arr["z"][-1] - arr["z"][0]
-                dist = np.sqrt(dx**2 + dy**2 + dz**2)
                 info_text.set_text(
                     f"点位: {n}\n"
-                    f"时长: {dur:.1f}s  频率: {freq:.1f}Hz\n"
+                    f"时长: {dur:.1f}s  频率: {n/dur:.1f}Hz\n"
                     f"当前位置:\n"
                     f"  X={arr['x'][-1]:.4f}  Y={arr['y'][-1]:.4f}  Z={arr['z'][-1]:.4f} m\n"
-                    f"  Roll={np.rad2deg(arr['roll'][-1]):.2f}°  Pitch={np.rad2deg(arr['pitch'][-1]):.2f}°  Yaw={np.rad2deg(arr['yaw'][-1]):.2f}°\n"
-                    f"  J1={arr['j1'][-1]:.2f}°  J2={arr['j2'][-1]:.2f}°  J3={arr['j3'][-1]:.2f}°\n"
-                    f"  J4={arr['j4'][-1]:.2f}°  J5={arr['j5'][-1]:.2f}°  J6={arr['j6'][-1]:.2f}°\n"
-                    f"行程: {dist:.3f}m  (ΔX={dx:+.3f} ΔY={dy:+.3f} ΔZ={dz:+.3f})"
+                    f"  Roll={np.rad2deg(arr['roll'][-1]):.2f}°  "
+                    f"Pitch={np.rad2deg(arr['pitch'][-1]):.2f}°  "
+                    f"Yaw={np.rad2deg(arr['yaw'][-1]):.2f}°\n"
+                    f"  J1={arr['j1'][-1]:.2f}°  J2={arr['j2'][-1]:.2f}°  "
+                    f"J3={arr['j3'][-1]:.2f}°  J4={arr['j4'][-1]:.2f}°  "
+                    f"J5={arr['j5'][-1]:.2f}°  J6={arr['j6'][-1]:.2f}°\n"
+                    f"行程: {np.sqrt(dx**2+dy**2+dz**2):.3f}m  "
+                    f"(ΔX={dx:+.3f} ΔY={dy:+.3f} ΔZ={dz:+.3f})"
                 )
 
-                # --- XYZ 时序 ---
-                line_x.set_data(t, arr["x"])
-                line_y.set_data(t, arr["y"])
-                line_z.set_data(t, arr["z"])
+                # --- XYZ / RPY / 关节时序 (set_data 增量更新) ---
+                line_x.set_data(t, arr["x"]); line_y.set_data(t, arr["y"]); line_z.set_data(t, arr["z"])
                 ax_xyz.relim(); ax_xyz.autoscale_view()
-
-                # --- RPY 时序 ---
                 line_roll.set_data(t, np.rad2deg(arr["roll"]))
                 line_pitch.set_data(t, np.rad2deg(arr["pitch"]))
                 line_yaw.set_data(t, np.rad2deg(arr["yaw"]))
                 ax_rpy.relim(); ax_rpy.autoscale_view()
-
-                # --- 关节时序 ---
                 for i in range(6):
                     joint_lines[i].set_data(t, arr[f"j{i+1}"])
                 ax_joint.relim(); ax_joint.autoscale_view()
 
-                try:
-                    fig.canvas.draw()
-                    fig.canvas.flush_events()
-                except Exception:
-                    break  # 窗口被关闭
-
-            time.sleep(0.2)  # 5Hz 刷新
+            # plt.pause 内部 draw + flush_events + GUI 事件循环，比分开写更高效
+            try:
+                plt.pause(0.08)  # ~12Hz
+            except Exception:
+                break
 
         plt.close("all")
 

@@ -55,7 +55,7 @@ def _launch_setup(context, *args, **kwargs):
             moveit_config.robot_description,
             moveit_config.robot_description_semantic,
             moveit_config.robot_description_kinematics,
-            {"lwf_execute_latte": False},
+            {"lwf_execute_latte": True},
         ],
     )
 

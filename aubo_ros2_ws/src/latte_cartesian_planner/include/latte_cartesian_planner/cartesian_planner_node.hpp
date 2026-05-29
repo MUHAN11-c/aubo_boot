@@ -6,7 +6,10 @@
 #include <moveit_visual_tools/moveit_visual_tools.h>
 #include <ivg_interfaces/srv/latte_cartesian_plan.hpp>
 #include <geometry_msgs/msg/pose.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
 #include <moveit_msgs/msg/move_it_error_codes.hpp>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 #include <mutex>
 #include <memory>
 #include <string>
@@ -27,10 +30,13 @@ private:
   std::string ee_link_;
 
   rclcpp::Service<ivg_interfaces::srv::LatteCartesianPlan>::SharedPtr service_;
+  rclcpp::CallbackGroup::SharedPtr service_cb_group_;
   std::mutex service_mutex_;
 
   std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
   std::shared_ptr<moveit_visual_tools::MoveItVisualTools> visual_tools_;
+  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
   void planAndExecuteCallback(
       const std::shared_ptr<ivg_interfaces::srv::LatteCartesianPlan::Request> req,

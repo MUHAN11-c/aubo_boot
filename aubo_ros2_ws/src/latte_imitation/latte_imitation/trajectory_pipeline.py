@@ -336,8 +336,9 @@ class LatteImitationNode(Node):
                 f"episode_{episode_idx:06d}.npz (arm='{arm}') 未找到")
 
         # ═══ Phase ②: OrientProfile (参数化模式 — 动态朝向剖面) ═══
+        roll_profile = None  # 保存供 Phase ③ 使用
         if pattern_type and cup_params:
-            from latte_imitation.latte_art.orientation_profile import compute_pitch_profile
+            from latte_imitation.latte_art.orientation_profile import compute_roll_profile
             from latte_imitation.latte_art.bridge import parametric_to_cartesian as _make_cart
 
             total_frames = cart.num_frames
@@ -346,15 +347,15 @@ class LatteImitationNode(Node):
             mix_end = num_mix
             draw_end = max(mix_end + 1, total_frames - 30)
 
-            pitch_profile = compute_pitch_profile(total_frames, mix_end, draw_end)
+            roll_profile = compute_roll_profile(total_frames, mix_end, draw_end)
             cart = _make_cart(
                 cart.positions,
-                roll_deg=0.0, yaw_deg=0.0, dt=cart.dt,
-                pitch_profile=pitch_profile,
+                pitch_deg=0.0, yaw_deg=0.0, dt=cart.dt,
+                roll_profile=roll_profile,
             )
             self.get_logger().info(
-                f"动态朝向剖面: pitch {pitch_profile[0]:.0f}°→"
-                f"{pitch_profile[mix_end]:.0f}°→{pitch_profile[-1]:.0f}°"
+                f"动态朝向剖面: roll {roll_profile[0]:.0f}°→"
+                f"{roll_profile[mix_end]:.0f}°→{roll_profile[-1]:.0f}°"
             )
 
         # ═══ Phase ③: Retarget ═══
@@ -362,25 +363,63 @@ class LatteImitationNode(Node):
             start_pose = Pose()
 
         tf_warning = False
-        if pattern_type and cup_params:
-            # 参数化模式: retarget 目标 = 杯子位姿
-            # XY 以 ROS2 lizhu_link 参数为权威来源, Z 从前端传入
+        if pattern_type and cup_params and roll_profile is not None:
+            # 参数化模式: 位置 retarget 到杯子, 朝向以当前 TCP 姿态为基准叠加 roll 增量
+            import numpy as np
+            from latte_imitation.trajectory_transform import quat_multiply, euler_deg_to_quat
+
+            # 获取机器人当前姿态作为朝向基准
+            current_pose = self._get_current_ee_pose()
+            if current_pose is None:
+                if mode in ("preview", "debug"):
+                    self.get_logger().warn("TF 不可达, preview/debug 使用单位朝向")
+                    current_pose = Pose()
+                    current_pose.orientation.w = 1.0
+                else:
+                    return self._empty_result(False,
+                        "参数化模式需要 TF 获取当前末端位姿作为朝向基准")
+
+            # 杯子位置
             lizhu_x = float(self.get_parameter("lizhu_link.x").value)
             lizhu_y = float(self.get_parameter("lizhu_link.y").value)
-            target = Pose()
-            target.position.x = lizhu_x
-            target.position.y = lizhu_y
-            target.position.z = float(cup_params.get("surface_z", 0.15))
-            target.orientation.x = 0.0
-            target.orientation.y = 0.0
-            target.orientation.z = 0.0
-            target.orientation.w = 1.0
-            pos_src = "杯子坐标"
+            surface_z = float(cup_params.get("surface_z", 0.15))
 
-            cart = retarget_with_orientation_constraint(
-                cart, target,
-                rpy_user=rpy_user,
-                translation_offset=translation_offset,
+            # 位置: 从 canonical 杯面坐标系平移到真实杯面坐标
+            # generator 创建的坐标: X/Y=0 在杯中心, Z=surface_z 在液面
+            # 平移 offset = 真实杯位 - canonical 杯位 (X/Y 由 lizhu_link 决定, Z 不变)
+            canonical_cup = np.array([
+                float(cup_params.get("center_x", 0.0)),
+                float(cup_params.get("center_y", 0.0)),
+                float(cup_params.get("surface_z", 0.15)),
+            ])
+            real_cup = np.array([lizhu_x, lizhu_y, surface_z])
+            offset = real_cup - canonical_cup
+            new_positions = np.array([p + offset for p in cart.positions])
+
+            # 朝向: 以当前 TCP 姿态为基准, 叠加 roll 增量 (X 轴 = 倾倒方向)
+            current_q = np.array([current_pose.orientation.x, current_pose.orientation.y,
+                                  current_pose.orientation.z, current_pose.orientation.w])
+            base_roll = float(roll_profile[0])  # 45°
+            new_orientations = np.zeros((cart.num_frames, 4), dtype=np.float32)
+            for i in range(cart.num_frames):
+                roll_delta = float(roll_profile[i]) - base_roll
+                q_delta = euler_deg_to_quat(roll_delta, 0.0, 0.0)
+                new_orientations[i] = quat_multiply(current_q, q_delta).astype(np.float32)
+
+            from latte_imitation.trajectory import CartesianTrajectory
+            cart = CartesianTrajectory(
+                positions=new_positions,
+                orientations=new_orientations,
+                timestamps=cart.timestamps.copy(),
+                dt=cart.dt,
+                episode_idx=cart.episode_idx,
+                frame_id=cart.frame_id,
+            )
+            target = current_pose  # 用于日志
+            pos_src = "TF+杯子坐标"
+            self.get_logger().info(
+                f"参数化 retarget: 位置→杯子({lizhu_x:.3f} {lizhu_y:.3f} {surface_z:.3f}), "
+                f"朝向基准=TCP当前姿态, roll增量范围=[{roll_profile[0]:.0f}°..{roll_profile[-1]:.0f}°]"
             )
         else:
             # 录制回放模式: 保持现有 TF 逻辑
@@ -477,8 +516,23 @@ class LatteImitationNode(Node):
         waypoints = [cart.to_pose(i) for i in range(0, num_frames, step)]
         if (num_frames - 1) % step != 0:
             waypoints.append(cart.to_pose(num_frames - 1))
+
         self.get_logger().info(
-            f"Phase ⑤: {len(waypoints)} waypoints via /latte/plan_and_execute..."
+            f"Phase ⑤: {len(waypoints)} waypoints via /latte/plan_and_execute "
+            f"(采样步长={step}, 总帧数={num_frames})"
+        )
+        # 打印首尾 waypoints 用于调试起点对齐
+        wp0 = waypoints[0]
+        wp1 = waypoints[-1]
+        self.get_logger().info(
+            f"  wp0: pos({wp0.position.x:.4f} {wp0.position.y:.4f} {wp0.position.z:.4f}) "
+            f"orient({wp0.orientation.x:.4f} {wp0.orientation.y:.4f} "
+            f"{wp0.orientation.z:.4f} {wp0.orientation.w:.4f})"
+        )
+        self.get_logger().info(
+            f"  wp[-1]: pos({wp1.position.x:.4f} {wp1.position.y:.4f} {wp1.position.z:.4f}) "
+            f"orient({wp1.orientation.x:.4f} {wp1.orientation.y:.4f} "
+            f"{wp1.orientation.z:.4f} {wp1.orientation.w:.4f})"
         )
 
         resp, err_msg = self._plan_and_execute(waypoints, dt)

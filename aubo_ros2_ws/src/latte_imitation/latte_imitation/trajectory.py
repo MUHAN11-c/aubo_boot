@@ -133,7 +133,7 @@ class CartesianTrajectory:
         if orientations is None:
             # 默认奶缸前倾 45° 姿态
             from .trajectory_transform import euler_deg_to_quat
-            q = euler_deg_to_quat(0.0, 45.0, 0.0)
+            q = euler_deg_to_quat(45.0, 0.0, 0.0)
             orientations = np.tile(q.astype(np.float32), (T, 1))
         timestamps = np.arange(T, dtype=np.float32) * dt
         return cls(

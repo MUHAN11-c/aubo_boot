@@ -395,8 +395,8 @@ def retarget_with_orientation_constraint(
     为什么分离:
       - 位置需要完整 R_rel 来正确放置图案在杯子坐标系
       - 朝向只需要 yaw 分量来对齐杯子方向
-      - pitch (倾倒角度) 是拉花技能核心, 已编码在轨迹自身朝向剖面中
-      - roll 始终为 0 (侧倾会导致液体洒出)
+      - roll (倾倒角度) 是拉花技能核心, 已编码在轨迹自身朝向剖面中
+      - pitch 始终为 0 (侧倾会导致液体洒出)
 
     变换公式:
       位置: p_new[i] = R_rel @ (p[i] - p[0]) + p_target + translation_offset

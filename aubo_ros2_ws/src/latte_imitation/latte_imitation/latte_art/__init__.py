@@ -25,7 +25,7 @@
 """
 
 from .orientation_profile import (
-    compute_pitch_profile,
+    compute_roll_profile,
     assemble_cartesian_with_orientation,
 )
 

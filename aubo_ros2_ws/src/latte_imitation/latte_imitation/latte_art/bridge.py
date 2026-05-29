@@ -29,29 +29,29 @@ def euler_deg_to_quat(roll_deg: float, pitch_deg: float,
 
 def parametric_to_cartesian(
     xyz: np.ndarray,
-    roll_deg: float = 0.0,
-    pitch_deg: float = 45.0,
+    roll_deg: float = 45.0,
+    pitch_deg: float = 0.0,
     yaw_deg: float = 0.0,
     dt: float = 0.05,
     episode_idx: int = -1,
     frame_id: str = "base_link",
-    pitch_profile: "np.ndarray | None" = None,
+    roll_profile: "np.ndarray | None" = None,
 ) -> "CartesianTrajectory":
     """将参数化 XYZ 轨迹转换为 CartesianTrajectory 对象喵~
 
     支持两种模式:
-      - pitch_profile 不为 None: 使用动态朝向剖面 (推荐, 三阶段 pitch)
-      - pitch_profile 为 None: 所有帧使用固定 pitch_deg (向后兼容)
+      - roll_profile 不为 None: 使用动态朝向剖面 (推荐, 三阶段 roll)
+      - roll_profile 为 None: 所有帧使用固定 roll_deg (向后兼容)
 
     Args:
         xyz: (T, 3) XYZ 位置轨迹
-        roll_deg: 绕 X 轴旋转 (度)
-        pitch_deg: 绕 Y 轴旋转 (度), 默认 45°, 仅在 pitch_profile=None 时生效
+        roll_deg: 绕 X 轴旋转 (度), 默认 45° (奶缸倾倒方向), 仅在 roll_profile=None 时生效
+        pitch_deg: 绕 Y 轴旋转 (度), 默认 0°
         yaw_deg: 绕 Z 轴旋转 (度)
         dt: 时间步长 (s)
         episode_idx: -1 = 生成轨迹
         frame_id: 坐标系 ID
-        pitch_profile: (T,) float array — 每帧 pitch 角 (度), None=固定
+        roll_profile: (T,) float array — 每帧 roll 角 (度), None=固定
 
     Returns:
         CartesianTrajectory
@@ -60,18 +60,18 @@ def parametric_to_cartesian(
         assemble_cartesian_with_orientation,
     )
 
-    if pitch_profile is not None:
+    if roll_profile is not None:
         # 动态朝向剖面
         return assemble_cartesian_with_orientation(
-            xyz, pitch_profile, roll_deg=roll_deg, yaw_deg=yaw_deg,
+            xyz, roll_profile, pitch_deg=pitch_deg, yaw_deg=yaw_deg,
             dt=dt, episode_idx=episode_idx, frame_id=frame_id,
         )
 
-    # 向后兼容: 固定 pitch (旧行为)
+    # 向后兼容: 固定 roll (旧行为)
     from latte_imitation.trajectory import CartesianTrajectory
 
     T = len(xyz)
-    quat = euler_deg_to_quat(roll_deg, pitch_deg, yaw_deg)
+    quat = euler_deg_to_quat(roll_deg, 0.0, yaw_deg)
     orientations = np.tile(quat.astype(np.float32), (T, 1))
     timestamps = np.arange(T, dtype=np.float32) * dt
 

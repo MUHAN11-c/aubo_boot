@@ -42,16 +42,16 @@ class PourConfig:
     max_jerk: float = 0.5                # 最大加加速度 (jerk)
 
     # ── 工具姿态 ──
-    pour_pitch_deg: float = 45.0         # 倒奶俯仰角 (度), 奶缸前倾
+    pour_roll_deg: float = 45.0          # 倾倒横滚角 (度), 奶缸绕 X 轴前倾
 
     # ── 朝向剖面参数 (NEW) ──
-    mix_pitch_start_deg: float = 45.0     # 融合起始 pitch (度)
-    mix_pitch_end_deg: float = 30.0       # 融合结束 pitch (度)
-    draw_pitch_base_deg: float = 30.0     # 成形基础 pitch (度)
-    draw_pitch_variation_deg: float = 3.0 # 成形 pitch 微变幅度 (度)
-    finish_pitch_start_deg: float = 30.0  # 收尾起始 pitch (度)
-    finish_pitch_end_deg: float = 60.0    # 收尾结束 pitch (度)
-    pour_roll_deg: float = 0.0            # 全程 roll (度, 始终 0)
+    mix_roll_start_deg: float = 45.0      # 融合起始 roll (度)
+    mix_roll_end_deg: float = 30.0        # 融合结束 roll (度)
+    draw_roll_base_deg: float = 30.0      # 成形基础 roll (度)
+    draw_roll_variation_deg: float = 3.0  # 成形 roll 微变幅度 (度)
+    finish_roll_start_deg: float = 30.0   # 收尾起始 roll (度)
+    finish_roll_end_deg: float = 60.0     # 收尾结束 roll (度)
+    pour_pitch_deg: float = 0.0           # 全程 pitch (度, 始终 0)
 
     def mix_z(self, surface_z: float = 0.15) -> float:
         return surface_z + self.mix_height_offset

@@ -22,7 +22,7 @@ LatteWorkflowNode::LatteWorkflowNode(const rclcpp::NodeOptions& options)
             1.2586091933562182     // wrist3_joint
         });
 
-    // ── 放咖啡杯 预教关节角 (来源: coffee_approach_pose.json 2026-05-29) ──
+    // ── 放咖啡杯 预教关节角 ──
     if (!has_parameter("lwf_place_coffee_joints"))
         declare_parameter("lwf_place_coffee_joints", std::vector<double>{
             0.27419108480660237,    // shoulder_joint    (15.71°)
@@ -95,7 +95,7 @@ bool LatteWorkflowNode::init()
         return false;
     }
     latte_client_ = create_client<ivg_interfaces::srv::ReplayLatteTrajectory>(
-        "/latte/replay_trajectory", rmw_qos_profile_services_default, cb_group_);
+        "/latte_imitation/replay_trajectory");
     RCLCPP_INFO(get_logger(), "LatteWorkflowNode 就绪");
     return true;
 }
@@ -129,7 +129,8 @@ void LatteWorkflowNode::readParameters()
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Service 回调 — 5 步咖啡拉花工作流 (step0 保留未启用)
-//   [1/5] 取牛奶杯 → [2/5] 打奶泡 → [3/5] 转腕朝上→放置咖啡杯 → [4/5] 嘴口倾倒 → [5/5] 拉花执行
+//   [1/5] 取牛奶杯 → [2/5] 打奶泡 → [3/5] 转腕朝上→放置咖啡杯 → [4/5] 嘴口X轴前倾45° → [5/5] 拉花执行
+//   step4 提供 45° 倾倒基准, step5 轨迹 roll 剖面 ±15° 在此基准上叠加
 // ═════════════════════════════════════════════════════════════════════════════
 
 void LatteWorkflowNode::handleRunWorkflow(
@@ -148,6 +149,7 @@ void LatteWorkflowNode::handleRunWorkflow(
     if (!rclcpp::ok())           { res->success = false; res->message = "ROS 已关闭"; return; }
     if (!step3_reorient())       { res->success = false; res->message = "[步骤3/5] 失败: 转腕朝上";      return; }
     if (!rclcpp::ok())           { res->success = false; res->message = "ROS 已关闭"; return; }
+    // step4: X轴前倾45° — 从水平状态倾斜到倒奶起始角, 为 step5 轨迹 roll 剖面提供正确基准
     if (!step4_pour())           { res->success = false; res->message = "[步骤4/5] 失败: 嘴口倾倒";      return; }
     if (!rclcpp::ok())           { res->success = false; res->message = "ROS 已关闭"; return; }
     if (!step5_executeLatte())   { res->success = false; res->message = "[步骤5/5] 失败: 拉花执行";      return; }
@@ -288,7 +290,7 @@ bool LatteWorkflowNode::step3_reorient()
 
     // 3a — 笛卡尔 slerp: 从当前位姿到转腕朝上位姿, 保证最短旋转路径
     auto target_pose = robot_->jointsToPose(params_.rotate_up_joints);
-    RCLCPP_INFO(get_logger(), "[步骤3/5] 3a 转腕朝上  笛卡尔 -> (%.3f %.3f %.3f)",
+    RCLCPP_INFO(get_logger(), "[步骤3/5] 3a 转腕朝上 笛卡尔 -> (%.3f %.3f %.3f)",
                 target_pose.position.x, target_pose.position.y, target_pose.position.z);
     bool ok = false;
     for (int r = 0; r < 3; ++r) {
@@ -313,7 +315,7 @@ bool LatteWorkflowNode::step3_reorient()
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 步骤4/5: 嘴口倾倒 — 位置不变, 笛卡尔 X 轴旋转 45° 倾倒牛奶
+// step4: 嘴口倾倒 — X 轴前倾 45°, 为 step5 轨迹 roll 剖面提供正确倾倒基准
 // ═════════════════════════════════════════════════════════════════════════════
 
 bool LatteWorkflowNode::step4_pour()
@@ -321,14 +323,14 @@ bool LatteWorkflowNode::step4_pour()
     const float vel = static_cast<float>(params_.vel);
     const float acc = static_cast<float>(params_.acc);
 
-    // 从当前位置, 绕 X 轴旋转 45° (slerp 保证最短旋转路径)
+    // 绕全局 X 轴前倾 45° (左乘 = 全局旋转, pitch从89°→46°即奶缸前倾)
     auto pour_pose = robot_->getCurrentPose();
-    double half_angle = 45.0 * M_PI / 360.0;  // 22.5° half-angle
-    double qx = std::sin(half_angle);          // X 轴旋转四元数
+    double half_angle = 45.0 * M_PI / 360.0;
+    double qx = std::sin(half_angle);
     double qw = std::cos(half_angle);
-    // q_new = q_rot_x * q_current
     double cx = pour_pose.orientation.x, cy = pour_pose.orientation.y;
     double cz = pour_pose.orientation.z, cw = pour_pose.orientation.w;
+    // q_new = q_rot_x * q_current (左乘, 全局 X 轴)
     pour_pose.orientation.x = qx * cw + qw * cx;
     pour_pose.orientation.y = qw * cy - qx * cz;
     pour_pose.orientation.z = qx * cy + qw * cz;
@@ -347,7 +349,7 @@ bool LatteWorkflowNode::step4_pour()
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 步骤5/5: 拉花执行 — 调用 /latte/replay_trajectory 轨迹服务
+// step5: 拉花执行 — 在 step4 X轴45° 基准上, 轨迹 roll 剖面 ±15° 完成倾倒
 // ═════════════════════════════════════════════════════════════════════════════
 
 bool LatteWorkflowNode::step5_executeLatte()

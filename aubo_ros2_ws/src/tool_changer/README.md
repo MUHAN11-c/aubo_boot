@@ -94,6 +94,7 @@ world → pedestal_Link → base_link
 | `/run_gripper_swap` | ivg_interfaces/srv/RunGripperSwap | 执行快换，direction: `gripper0_to_gripper2` / `gripper2_to_gripper0` / `gripper2` |
 | `/change_tool` | ivg_interfaces/srv/ChangeTool | 按 tool_id 切换工具 |
 | `/get_current_tool` | ivg_interfaces/srv/GetCurrentTool | 查询当前工具状态 |
+| `/debug/move_to_xyz` | ivg_interfaces/srv/MoveToPose | 调试用笛卡尔 XYZ 运动测试 (仅调试) |
 
 ### 话题
 
@@ -111,6 +112,7 @@ world → pedestal_Link → base_link
 | `home_acceleration_scaling` | 0.3 | 回安全位加速度缩放 |
 | `gripper_io_index` | 7 | 快换 IO pin 号 |
 | `joint_cartesian_switch_delay_sec` | 0.05 | 关节↔笛卡尔切换延时 |
+| `kCartEefStep` | 0.01 | 笛卡尔路径规划步长 (源码常量，非 ROS 参数) |
 | `initial_tool_id` | `""` (空) | 启动时预设的末端工具 ID（如 `gripper0`/`gripper2`）。设为空字符串表示以无工具状态启动喵~ |
 
 ### scene_attach_worker_node

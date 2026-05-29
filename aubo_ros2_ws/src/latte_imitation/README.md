@@ -1,5 +1,7 @@
 # latte_imitation — 拉花轨迹模仿学习包 (MoveIt2 标准管线)
 
+> **状态**: 过渡期 — 核心轨迹重放功能已被 `latte_workflow_node` (C++ 工作流) 的笛卡尔运动替代。本包保留编译（无 `COLCON_IGNORE`），`latte_io_node.py` 继续提供 `/set_latte_do2`、`/set_latte_do4` IO 服务，`latte_art/` 子模块（generator/bridge/anti_sloshing/config/orientation_profile）保留供后续参考喵~
+
 从 [ridxm/latte-pour-demos](https://huggingface.co/datasets/ridxm/latte-pour-demos) 数据集提取双臂拉花末端笛卡尔轨迹，
 通过 **MoveIt2 标准管线** (`computeCartesianPath` → `execute`) 规划并执行拉花动作。
 

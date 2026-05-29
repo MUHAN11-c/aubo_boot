@@ -4,7 +4,7 @@ ROS 2 机械臂视觉抓取 Web 控制面板。FastAPI 网关 + 纯 HTML/JS MPA 
 
 > **前端技术栈**：纯 HTML/JS MPA（零构建），ES modules + importmap 加载 ros3djs/roslib/three.js，FastAPI BFF 网关喵~
 >
-> **当前架构（2026-05-25）**：前端 5 个独立 HTML 页面（index/vision_grasp/coffee_latte/log/settings/tf_monitor），通过 `js/core/` 共享基础设施层（ros.js/ros_connector.js/log-bus.js/log-ros-bridge.js/lifecycle.js/utils.js/settings.js），子模块代码按功能域组织在 `js/vision_grasp/`、`js/latte/`、`js/view3d/`、`js/components/` 下喵~
+> **当前架构（2026-05-25）**：前端 7 个独立 HTML 页面（index/vision_grasp/coffee_latte/log/settings/debug/tf_monitor），通过 `js/core/` 共享基础设施层（ros.js/ros_connector.js/log-bus.js/log-ros-bridge.js/lifecycle.js/utils.js/settings.js），子模块代码按功能域组织在 `js/vision_grasp/`、`js/latte/`、`js/view3d/`、`js/components/` 下喵~
 >
 > 话题/服务名通过 `localStorage` 覆盖 `config/defaults.yaml` 默认值，前端运行时从 BFF `GET /api/v1/runtime` 获取配置喵~
 

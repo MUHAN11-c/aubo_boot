@@ -8,6 +8,7 @@
 #include <moveit_msgs/msg/move_it_error_codes.hpp>
 #include <geometry_msgs/msg/pose.h>
 #include <chrono>
+#include <cmath>
 #include <thread>
 
 namespace demo_driver
@@ -135,11 +136,13 @@ bool RobotController::moveCartesianStraight(const geometry_msgs::msg::Pose& targ
     setVelocityScaling(vel);
     setAccelerationScaling(acc);
 
-    // 保存当前步长, 用 2mm 密化 waypoint 保证空间直线精度
     double saved_step = eef_step_;
     eef_step_ = 0.002;
 
-    std::vector<geometry_msgs::msg::Pose> waypoints{target};
+    // 手动生成 slerp waypoints, 保证最短旋转路径
+    auto start = move_group_->getCurrentPose(eef_link_).pose;
+    int steps = 20;  // 2cm 步长 ≈ 最差 0.1m 路径 → 5 waypoints; 20 足够密
+    auto waypoints = interpolateCartesian(start, target, steps);
 
     bool success = false;
     for (int attempt = 0; attempt < max_retries_; ++attempt) {
@@ -148,6 +151,9 @@ bool RobotController::moveCartesianStraight(const geometry_msgs::msg::Pose& targ
         double fraction =
             move_group_->computeCartesianPath(waypoints, eef_step_, 0.0, traj, true, &error_code);
         if (fraction < 0.99) {
+            RCLCPP_WARN(node_->get_logger(),
+                "CartesianStraight 规划 fraction=%.3f (第%d/%d次), 重试...",
+                fraction, attempt + 1, max_retries_);
             if (attempt < max_retries_ - 1)
                 std::this_thread::sleep_for(std::chrono::duration<double>(retry_wait_sec_));
             continue;
@@ -155,11 +161,81 @@ bool RobotController::moveCartesianStraight(const geometry_msgs::msg::Pose& targ
         moveit::planning_interface::MoveGroupInterface::Plan plan;
         plan.trajectory_ = traj;
         success = (move_group_->execute(plan) == moveit::core::MoveItErrorCode::SUCCESS);
-        break;
+        if (success) break;
+        RCLCPP_WARN(node_->get_logger(),
+            "CartesianStraight 执行失败 (第%d/%d次), 重试...",
+            attempt + 1, max_retries_);
+        if (attempt < max_retries_ - 1)
+            std::this_thread::sleep_for(std::chrono::duration<double>(retry_wait_sec_));
     }
 
     eef_step_ = saved_step;
     return success;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// slerp: 四元数球面最短路径插值
+// ═══════════════════════════════════════════════════════════════════════════
+
+geometry_msgs::msg::Quaternion RobotController::slerp(
+    const geometry_msgs::msg::Quaternion& q0,
+    const geometry_msgs::msg::Quaternion& q1, double t)
+{
+    // 点积 → cos(θ)
+    double dot = q0.w * q1.w + q0.x * q1.x + q0.y * q1.y + q0.z * q1.z;
+
+    // q 和 -q 表示同一旋转, 选同号半球保证最短路径
+    geometry_msgs::msg::Quaternion q1f = q1;
+    if (dot < 0.0) {
+        dot = -dot;
+        q1f.w = -q1f.w; q1f.x = -q1f.x; q1f.y = -q1f.y; q1f.z = -q1f.z;
+    }
+
+    // 夹角极小 → 线性插值避免除零
+    const double eps = 0.9995;
+    geometry_msgs::msg::Quaternion r;
+    if (dot > eps) {
+        double s = 1.0 - t;
+        r.w = s * q0.w + t * q1f.w;
+        r.x = s * q0.x + t * q1f.x;
+        r.y = s * q0.y + t * q1f.y;
+        r.z = s * q0.z + t * q1f.z;
+        // 归一化
+        double n = std::sqrt(r.w*r.w + r.x*r.x + r.y*r.y + r.z*r.z);
+        r.w /= n; r.x /= n; r.y /= n; r.z /= n;
+        return r;
+    }
+
+    double theta = std::acos(dot);
+    double sin_theta = std::sin(theta);
+    double s0 = std::sin((1.0 - t) * theta) / sin_theta;
+    double s1 = std::sin(t * theta) / sin_theta;
+    r.w = s0 * q0.w + s1 * q1f.w;
+    r.x = s0 * q0.x + s1 * q1f.x;
+    r.y = s0 * q0.y + s1 * q1f.y;
+    r.z = s0 * q0.z + s1 * q1f.z;
+    return r;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// interpolateCartesian: 位置线性 + 朝向 slerp 生成 waypoints
+// ═══════════════════════════════════════════════════════════════════════════
+
+std::vector<geometry_msgs::msg::Pose> RobotController::interpolateCartesian(
+    const geometry_msgs::msg::Pose& from,
+    const geometry_msgs::msg::Pose& to, int steps)
+{
+    std::vector<geometry_msgs::msg::Pose> waypoints;
+    for (int i = 1; i <= steps; ++i) {
+        double t = static_cast<double>(i) / steps;
+        geometry_msgs::msg::Pose p;
+        p.position.x = from.position.x + t * (to.position.x - from.position.x);
+        p.position.y = from.position.y + t * (to.position.y - from.position.y);
+        p.position.z = from.position.z + t * (to.position.z - from.position.z);
+        p.orientation = slerp(from.orientation, to.orientation, t);
+        waypoints.push_back(p);
+    }
+    return waypoints;
 }
 
 // =====================================================================
@@ -199,6 +275,26 @@ std::vector<double> RobotController::getCurrentJoints()
         move_group_->getCurrentState()->getRobotModel()->getJointModelGroup(
             move_group_->getName()), jv);
     return jv;
+}
+
+geometry_msgs::msg::Pose RobotController::jointsToPose(const std::array<double, 6>& joints)
+{
+    auto robot_model = move_group_->getRobotModel();
+    auto jmg = robot_model->getJointModelGroup(move_group_->getName());
+    moveit::core::RobotState state(robot_model);
+    state.setJointGroupPositions(jmg, std::vector<double>(joints.begin(), joints.end()));
+    state.update();
+    const auto& t = state.getGlobalLinkTransform(eef_link_);
+    geometry_msgs::msg::Pose p;
+    p.position.x = t.translation().x();
+    p.position.y = t.translation().y();
+    p.position.z = t.translation().z();
+    Eigen::Quaterniond q(t.rotation());
+    p.orientation.x = q.x();
+    p.orientation.y = q.y();
+    p.orientation.z = q.z();
+    p.orientation.w = q.w();
+    return p;
 }
 
 std::string RobotController::getEndEffectorLink() const

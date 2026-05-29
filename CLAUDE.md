@@ -231,60 +231,66 @@ FastAPI 路由参数用 `dict | None` 等 PEP 604 语法时，pydantic 1.8.x 会
 
 > 详见：`src/tool_changer/config/tools.yaml`、`src/tool_changer/src/gripper_swap_worker.cpp` 喵~
 
-### 12. latte_imitation 轨迹管线
+### 12. latte_workflow_node (C++ 工作流编排)
 
-**Python 端** (`LatteImitationNode`, 7 阶段):
+5 步咖啡拉花工作流编排节点，位于 `demo_driver` 包。服务 `/latte/run_workflow` (ivg_interfaces/srv/RunLatteWorkflow)。
 
-| Phase | 名称 | 说明 |
-|-------|------|------|
-| ① | Load/Generate | 录制回放 (npz) 或参数化生成 (latte_art) |
-| ② | OrientProfile | 参数化模式动态 pitch 剖面 (融合 45°→30° / 成形 30°±3° / 收尾 30°→60°) |
-| ③ | Retarget | SE(3) 重定目标 (SPOT + Isaac Teleop) |
-| ④ | Preview | RViz2 markers (TCP 路径/waypoints/spout/cup/workspace) |
-| ⑤ | Safety | 工作空间边界检查 (warn_and_block / warn_only / ignore) |
-| ⑥+⑦ | Plan+Execute | 委托 C++ `latte_cartesian_planner` 节点 |
+> step1-4 激活，step0（取放咖啡杯）和 step5（拉花执行）保留未启用。**倾倒方向: X 轴旋转 = 牛奶杯倾倒方向**，默认拉花图案 `pattern_type="heart"` 喵~
 
-**C++ 端** (`latte_cartesian_planner`):
-- 服务: `/latte/plan_and_execute` (ivg_interfaces/srv/LatteCartesianPlan)
-- 内部调用 MoveIt2 `computeCartesianPath` + `executeTrajectory` action
-- Fraction 阈值由 `fraction_threshold` 参数控制，失败时自动 retry (`avoid_collisions=False`)
-- velocity_scaling / acceleration_scaling 硬编码 0.5 (待改为参数)
+| 步骤 | 函数 | 运动 | 说明 | 状态 |
+|------|------|------|------|------|
+| 0 | `step0_pickCoffee` | `moveToJoints` | 取咖啡杯 | ⏸️ |
+| 0 | `step0_placeCoffee` | `moveToJoints` | 放咖啡杯 | ⏸️ |
+| 1 | `step1_pickMilk` | `moveToJoints` | 取牛奶杯 → 抓取 (不退避) | ✅ |
+| 2 | `step2_approachNozzle` | 笛卡尔来回×2 | 去喷嘴 → 2s打奶泡 → 回 → Z退避 | ✅ |
+| 3a | `step3_reorient` | 笛卡尔 slerp | 转腕朝上: FK rotate_up_joints | ✅ |
+| 3b | `step3_reorient` | 笛卡尔 slerp | 放置咖啡杯: FK place_coffee_joints | ✅ |
+| 4 | `step4_pour` | 笛卡尔 slerp | **嘴口倾倒: X轴旋转45° 倾倒牛奶** | ✅ |
+| 5 | `step5_executeLatte` | service call | 拉花执行: `/latte/replay_trajectory` | ⏸️ |
 
-**SE(3) 重定目标核心**：
-- `CartesianTrajectory` (positions/orientations/timestamps) — 纯 numpy，无 ROS 依赖
-- `retarget_trajectory()` Option B (Se3RelRetargeter): `R_rel = R(rpy_user) @ R(q_cup)`, `p_new = R_rel @ (p - p0) + p_cup`
-- `retarget_with_orientation_constraint()` 分离式: 位置用完整 `R_rel`，朝向仅用 yaw (保留 pitch 技能)
-- 四元数约定：Hamilton (xyzw)，`euler_deg_to_quat()` 内旋 ZYX = 外旋 XYZ
-- `check_workspace_bounds()` — `base_link` = `world`，基于 AUBO E5 工作半径 886.5mm
-- Preview 模式发布 5 个 RViz2 markers (Path/PoseArray/LINE_STRIP/CUBE/LINE_LIST)
-- `MultiThreadedExecutor(4)` + `ReentrantCallbackGroup`，`self._exec_lock` 防重入
+**启动**: `ros2 launch aubo_moveit_config latte_workflow.launch.py`
+**测试**: `ros2 service call /latte/run_workflow ivg_interfaces/srv/RunLatteWorkflow "{}"`
 
-**latte_art 子包** (纯 Python，无 ROS 依赖):
-- `LatteArtTrajectory` — 参数化图案生成 (heart/rosetta/tulip/swan/from_image)
-- `PourConfig` / `CupConfig` — 倾倒参数 + 杯子参数 dataclass
-- `compose_full_trajectory` — 融合+成形+收尾三阶段拼接
-- `apply_anti_sloshing` — 抗晃荡速度剖面 (梯形速度剖面 + CubicSpline 重参数化)
-- `orientation_profile` — 动态 pitch 剖面 (三阶段)，`bridge.py` 桥接到 `CartesianTrajectory`
+**参数**: 所有参数使用 `lwf_` 前缀，每次 service 回调前 `readParameters()` 实时刷新。笛卡尔失败自动重试 (底层5次×步级3次=最多15次)。默认 `lwf_pattern_type="heart"` 喵~
 
-> 详见：`aubo_ros2_ws/src/latte_imitation/DESIGN.md`、`aubo_ros2_ws/src/latte_cartesian_planner/` 喵~
+> 详见：`aubo_ros2_ws/src/aubo_ros2_driver/demo_driver/README.md` 喵~
 
-**已知问题 (2026-05-28 审查)**:
-- `latte_io_node.py:60` — `_call_set_io()` 在 service 回调内用 `spin_until_future_complete()`，与 IO client 同在一个 `MutuallyExclusiveCallbackGroup`，可能导致死锁。应改为 `ReentrantCallbackGroup` 喵~
-- `trajectory_pipeline.py:198-199` — `_cartesian_client` / `_execute_client` 已废弃但未清理喵~
-- `trajectory_pipeline.py:687-688` — `velocity_scaling` / `acceleration_scaling` 硬编码 0.5，应改为 ROS 2 参数喵~
-- `trajectory_pipeline.py:85-87` — `_load_latte_positions_defaults()` 用 `__file__` 相对路径，非 symlink 安装时会找不到 YAML，应改用 `get_package_share_directory` 喵~
-- `latte_art/__pycache__/` 被提交到 git，应加入 `.gitignore` 喵~
+### 13. RobotController — 笛卡尔 slerp 运动
 
-### 13. latte_cartesian_planner (C++)
+`demo_driver/robot_controller.h` 中的组合模式运动封装。
 
-C++ MoveIt2 规划+执行节点，替代原先 Python 端的两步调用 (`compute_cartesian_path` → `execute_trajectory` action) 喵~：
-- 服务: `/latte/plan_and_execute` (ivg_interfaces/srv/LatteCartesianPlan)
-- 输入: waypoints、max_step、jump_threshold、avoid_collisions、velocity/acceleration_scaling、fraction_threshold、dt
-- 内部: MoveIt2 C++ API (`computeCartesianPath` → `executeTrajectory` action)
-- 支持 fraction 不达标时自动 retry (`avoid_collisions=False`)
-- 返回: success、fraction、trajectory_points、message
+**核心接口 `moveCartesianStraight(target, vel, acc)`**:
+```
+起点 = getCurrentPose()
+waypoints = interpolateCartesian(起点, 目标, steps=20)  // 20步 slerp
+for retry in 0..5:
+    fraction = computeCartesianPath(waypoints, eef_step=0.002, avoid_collisions=true)
+    if fraction < 0.99: continue
+    execute(traj)
+    if success: break
+```
 
-### 14. 共享工具包 `ivg_utils`
+**slerp 数学**: 四元数 S³ 球面最短路径 (测地线)，关键细节:
+- `dot < 0` → 翻转 q1 到同号半球 (保证最短弧)
+- `dot > 0.9995` → 线性插值 + 归一化 (避免除零)
+- 默认 20 步 waypoints 密化，喂给 `computeCartesianPath` 做 IK
+
+**其他工具**:
+- `slerp(q0, q1, t)` — 静态四元数 slerp，可供外部调用
+- `interpolateCartesian(from, to, steps)` — 位置线性 + 朝向 slerp 生成 waypoints
+- `jointsToPose(joints)` — FK 将关节角转为 TCP 位姿 (RobotState::setJointGroupPositions + getGlobalLinkTransform)
+- `moveToJoints(joints, vel, acc)` — 关节空间 plan()+execute() (注意: 大角度旋转可能绕远路)
+- `setGripper(pin, open)` — open=true 打开夹爪
+
+### 14. latte_imitation (Python, 已废弃)
+
+Python 端原轨迹管线，由 `latte_workflow_node` (C++ 工作流) + `latte_cartesian_planner` (C++ 规划执行) 替代喵~
+
+### 15. latte_cartesian_planner (C++, 已废弃)
+
+C++ MoveIt2 规划+执行节点，由 `latte_workflow_node` 内嵌的 `moveCartesianStraight` 替代喵~
+
+### 16. 共享工具包 `ivg_utils`
 
 `aubo_ros2_ws/src/ivg_utils/` — `ivg_utils.math`（四元数/旋转矩阵/欧拉角）、`ivg_utils.io`（`IO_GRIPPER=6`, `IO_QUICK_SWAP=7`）。新增数学工具优先加到此包喵~
 
@@ -437,11 +443,10 @@ web/public/                    # 静态文件根目录
 | GraspNet 节点无法启动 | CUDA 扩展 (pointnet2/knn) 未安装 | `pip install` 对应的 CUDA 扩展，详见错误消息中的 setup.py 路径 |
 | tools.yaml 工具快换失败 (gripper1/coffeecup/milkcup) | `tools.yaml` 中这三个工具缺少 `dock_approach_joints` + `trajectory` 字段 | 补充 YAML 配置或确认这些工具不需要快换喵~ |
 | GripperSwapWorker 死锁/service 超时 | callback group 是 MutuallyExclusive（非 Reentrant），与文档描述不一致 | `MultiThreadedExecutor(2)` 提供足够并发，当前无死锁风险喵~ |
-| `/latte/plan_and_execute` 不可达 | `latte_cartesian_planner` C++ 节点未启动 | 检查 launch 文件中是否包含该节点；检查 `ros2 service list \| grep latte` |
-| latte_io `set_do2`/`set_do4` 超时/无响应 | `_call_set_io()` 在 service 回调中用 `spin_until_future_complete()`，与 IO client 同在一个 MutuallyExclusive 组导致死锁 | 将 IO client 改为 `ReentrantCallbackGroup` 喵~ |
-| latte_imitation `fraction_min` 参数无效 | 重构后 fraction 校验逻辑移至 C++ 端，Python 端该参数已废弃但未清理 | 清理 `fraction_min` 死代码或改为传递给 C++ 服务喵~ |
-| YAML 配置找不到 (`latte_positions.yaml`) | `_load_latte_positions_defaults()` 用 `__file__` 相对路径，非 symlink 安装时路径错误 | 改用 `ament_index_python.get_package_share_directory` 喵~ |
-| `__pycache__` 被 git 跟踪 | `.gitignore` 未排除 `__pycache__/` | 添加 `__pycache__/` 到 `.gitignore` 喵~ |
+| `/latte/run_workflow` 不可达 | `latte_workflow_node` 未启动 | 检查 `ros2 service list \| grep latte`; `ros2 launch aubo_moveit_config latte_workflow.launch.py` |
+| `/latte/plan_and_execute` 不可达 | (已废弃) `latte_cartesian_planner` 未启动，现由 latte_workflow_node 内嵌笛卡尔替代 | 如有旧脚本引用此服务需更新为 `/latte/run_workflow` |
+| 笛卡尔直线 fraction < 0.99 | `moveCartesianStraight` 自动重试 (底层5次+步级3次)，连续失败说明目标不可达或碰撞 | 检查目标位姿是否在工作空间内；检查 avoid_collisions 状态 |
+| 步骤5a 笛卡尔直线失败 | `jointsToPose` FK 结果与当前位置差距过大 | 添加 `lwf_transition_joints` 过渡位姿或在 step4 后调低 retract_height |
 | `error while loading shared libraries: libauborobotcontroller.so.1` | AUBO SDK .so 未安装 | `colcon build --packages-select aubo_driver_ros2` |
 | `Subscription to deprecated ~/state topic` | rosbag 或节点订阅了弃用 topic | `ros2 topic info -v /joint_trajectory_controller/state` |
 | 前端日志面板无 ROS 2 日志 | `log-ros-bridge.js` 未被 import 或传输层检测失败 | 检查 HTML 中是否有 `<script type="module" src="js/core/log-ros-bridge.js">`；检查 `globalThis.__rosManager` |

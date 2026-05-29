@@ -27,7 +27,7 @@ Web Dashboard (:8090)   ──→  浏览器操作入口
 ### 2.1 一键启动
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd /home/mu/aubo_boot/aubo_ros2_ws
 ./start_aubo_new_driver.sh
 ```
 
@@ -67,7 +67,7 @@ WEB_DASH_PORT=9000 ./start_aubo_new_driver.sh
 | `WEB_DASH_PORT` | `8090` | Dashboard 网关端口 |
 | `ROSBRIDGE_PORT` | `9090` | rosbridge WebSocket 端口 |
 | `WEB_VIDEO_PORT` | `8089` | 相机 MJPEG 视频端口 |
-| `HAND_EYE_PORT` | `8080` | 手眼标定 Web 端口 |
+| `HAND_EYE_PORT` | `8070` | 手眼标定 Web 端口 |
 | `IVG_ROSBAG_DIR` | `rosbags/ivg_session` | 数据录制目录 |
 | `SKIP_BUILD` | `0` | 跳过 colcon build |
 | `SKIP_ROSBAG` | `0` | 跳过 rosbag 录制 |
@@ -96,7 +96,7 @@ pkill -f 'ros2 bag'
 
 ```
 ──────── 本机浏览器 ────────
-手眼标定:     http://127.0.0.1:8080/
+手眼标定:     http://127.0.0.1:8070/
 VPE FastAPI:  http://127.0.0.1:8088/
 IVG 门户:     http://127.0.0.1:8090/
 视觉抓取:     http://127.0.0.1:8090/vision_grasp_panel.html
@@ -110,7 +110,7 @@ IVG 门户:     http://127.0.0.1:8090/
 | `:8090/coffee_latte_panel.html` | **咖啡拉花面板** — DO/DI 控制 + 工序流程 |
 | `:8090/tf_monitor_panel.html` | **TF 监控面板** — 3D 机械臂模型 + 坐标系可视化 |
 | `:8090/settings_panel.html` | **设置面板** — 话题名/服务名配置 |
-| `:8080/` | **手眼标定** — 相机-机械臂标定工具 |
+| `:8070/` | **手眼标定** — 相机-机械臂标定工具 |
 | `:8088/` | **VPE Web** — 视觉位姿估计模板管理 |
 
 ---
@@ -184,7 +184,7 @@ IVG 门户:     http://127.0.0.1:8090/
 ### 手动回放
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd /home/mu/aubo_boot/aubo_ros2_ws
 source install/setup.bash
 
 # 列出录制的话题
@@ -216,4 +216,4 @@ SKIP_ROSBAG=1 ./start_aubo_new_driver.sh
 
 ---
 
-*最后更新: 2026-05-15*
+*最后更新: 2026-05-29*

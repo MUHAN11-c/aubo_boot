@@ -279,7 +279,7 @@
     <child link="cup0_Link"/>
   </joint>
 
-  <!-- lizhu_Link 暂时注释
+
   <link name="lizhu_Link">
     <inertial>
       <origin xyz="0.012277 0.082104 1.7053E-05" rpy="0 0 0"/>
@@ -304,11 +304,11 @@
   </link>
 
   <joint name="lizhu_joint" type="fixed">
-    <origin xyz="-0.525 -0.2625 0.006" rpy="1.5708 0 1.5708"/>
+    <origin xyz="-0.630 -0.3675 0.006" rpy="1.5708 0 1.5708"/>
     <parent link="pedestal_Link"/>
     <child link="lizhu_Link"/>
   </joint>
-  -->
+
 
   <link name="coffee_Link">
     <inertial>

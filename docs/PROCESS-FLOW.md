@@ -126,7 +126,7 @@
 
 ### [6][7][14] 视觉栈
 
-**手眼标定 [6]**: 订阅 `/camera/color/image_raw` + `/camera/color/camera_info`, 发布 TF `base_link→camera_link`。Web 服务在 `:8080`。
+**手眼标定 [6]**: 订阅 `/camera/color/image_raw` + `/camera/color/camera_info`, 发布 TF `base_link→camera_link`。Web 服务在 `:8070`。
 
 **VPE [7]**: 订阅彩色+深度图像，提供 `/estimate_pose` 服务 (ivg_interfaces/EstimatePose)。
 
@@ -316,4 +316,4 @@ curl http://127.0.0.1:8088/health
 
 ---
 
-*最后更新: 2026-05-15 | 基于 `start_aubo_new_driver.sh` v2.0 + 全部 launch 文件源码分析*
+*最后更新: 2026-05-29 | 基于 `start_aubo_new_driver.sh` v2.0 + 全部 launch 文件源码分析*

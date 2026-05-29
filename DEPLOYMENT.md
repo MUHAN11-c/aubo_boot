@@ -337,8 +337,8 @@ LD_LIBRARY_PATH=$HOME/.local/lib/python3.10/site-packages/torch/lib:$LD_LIBRARY_
 
 ```bash
 cd /home/mu
-git clone https://github.com/MUHAN11-c/aubo_boot.git IVG2.0
-cd IVG2.0
+git clone https://github.com/MUHAN11-c/aubo_boot.git aubo_boot
+cd aubo_boot
 git checkout dev
 ```
 
@@ -369,7 +369,7 @@ nc -zv 169.254.10.98 8899
 
 ### 6.2 代理配置
 
-本机 Web 服务 (127.0.0.1:8090/8088/8080/8089/9090) 不应走 HTTP 代理。启动脚本已处理:
+本机 Web 服务 (127.0.0.1:8090/8088/8070/8089/9090) 不应走 HTTP 代理。启动脚本已处理:
 
 ```bash
 # 启动时自动 unset 代理变量 + 设置 NO_PROXY
@@ -394,7 +394,7 @@ export NO_PROXY="127.0.0.1,localhost,0.0.0.0,::1"
 | `WEB_DASH_PORT` | `8090` | Web 网关端口 |
 | `ROSBRIDGE_PORT` | `9090` | rosbridge WebSocket 端口 |
 | `WEB_VIDEO_PORT` | `8089` | MJPEG 视频流端口 |
-| `HAND_EYE_PORT` | `8080` | 手眼标定 Web 端口 |
+| `HAND_EYE_PORT` | `8070` | 手眼标定 Web 端口 |
 | `IVG_WEB_RELOAD` | `true` | FastAPI 热重载 |
 | `IVG_ROSBAG_DIR` | `rosbags/ivg_session` | rosbag 保存目录 |
 | `SKIP_RVIZ` | `0` | 设为 1 跳过 RViz2 启动 |
@@ -416,7 +416,7 @@ export WEB_DASH_PORT=9090
 ### 8.1 完整构建
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd /home/mu/aubo_boot/aubo_ros2_ws
 source /opt/ros/humble/setup.bash
 colcon build
 source install/setup.bash
@@ -428,7 +428,7 @@ source install/setup.bash
 
 ```bash
 # 机械臂驱动相关
-colcon build --packages-select aubo_driver_ros2 demo_interface aubo_moveit_config
+colcon build --packages-select aubo_driver_ros2 ivg_interfaces aubo_moveit_config
 
 # 工具快换
 colcon build --packages-select tool_changer
@@ -446,7 +446,7 @@ colcon build --packages-select aubo_ros2_web_dashboard
 ### 8.3 Vue 3 前端构建（新）
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws/src/aubo_ros2_web_dashboard/web
+cd /home/mu/aubo_boot/aubo_ros2_ws/src/aubo_ros2_web_dashboard/web
 npm install
 npm run build                     # 产物 → web/dist/
 ```
@@ -473,7 +473,7 @@ bash build_robotwebtools.sh
 **新框架机械臂 + 全栈**:
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd /home/mu/aubo_boot/aubo_ros2_ws
 ./start_aubo_new_driver.sh
 ```
 
@@ -542,7 +542,7 @@ ros2 lifecycle set /aubo_dashboard activate
 | TF 监控面板 | `http://127.0.0.1:8090/tf_monitor_panel.html` |
 | 设置面板 | `http://127.0.0.1:8090/settings_panel.html` |
 | VPE FastAPI | `http://127.0.0.1:8088/` |
-| 手眼标定 Web | `http://127.0.0.1:8080/` |
+| 手眼标定 Web | `http://127.0.0.1:8070/` |
 
 ### 局域网设备访问
 
@@ -644,12 +644,12 @@ curl --noproxy '*' -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8090/index
 |------|------|------|
 | 8090 | IVG Web 网关 (FastAPI) | 静态页 + rosbridge WS 代理 + MJPEG 代理 |
 | 8088 | VPE FastAPI | 视觉位姿估计 REST API |
-| 8080 | 手眼标定 Flask | 手眼标定 Web UI |
+| 8070 | 手眼标定 Flask | 手眼标定 Web UI |
 | 8089 | web_video_server | MJPEG 相机视频流 (仅本机网关内部使用) |
 | 9090 | rosbridge WebSocket | 浏览器 ↔ ROS 2 桥接 (仅本机网关内部使用) |
 | 8899 | AUBO 控制器 | 机械臂 TCP 控制端口 |
 
 ---
 
-*最后更新: 2026-05-13 (Web 依赖补充 + 启动流程优化 + pydantic 兼容性) *
+*最后更新: 2026-05-29 (路径/端口修正 + 包名更新) *
 *维护者: muhan11, wangxiaoyun@iscas.ac.cn*

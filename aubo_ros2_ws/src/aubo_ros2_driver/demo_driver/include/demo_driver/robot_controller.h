@@ -44,6 +44,16 @@ public:
     bool moveCartesianPath(const std::vector<CartesianSegment>& segments, float vel, float acc);
     bool moveCartesianStraight(const geometry_msgs::msg::Pose& target, float vel, float acc);
 
+    // ── 笛卡尔 slerp 工具 ──
+    /// 四元数球面最短路径插值, t∈[0,1]
+    static geometry_msgs::msg::Quaternion slerp(
+        const geometry_msgs::msg::Quaternion& q0,
+        const geometry_msgs::msg::Quaternion& q1, double t);
+    /// 生成 from→to 的笛卡尔 waypoints (位置线性 + 朝向 slerp)
+    static std::vector<geometry_msgs::msg::Pose> interpolateCartesian(
+        const geometry_msgs::msg::Pose& from,
+        const geometry_msgs::msg::Pose& to, int steps);
+
     // ── IO ──
     bool setGripper(int pin, bool open);    // open=true 打开
     bool setQuickSwap(int pin, bool lock);  // lock=true 锁紧
@@ -51,6 +61,7 @@ public:
     // ── 查询 ──
     geometry_msgs::msg::Pose getCurrentPose();
     std::vector<double> getCurrentJoints();
+    geometry_msgs::msg::Pose jointsToPose(const std::array<double, 6>& joints);
     std::string getEndEffectorLink() const;
 
     // ── 配置 ──
@@ -75,7 +86,7 @@ private:
     // 可配置参数
     double eef_step_{0.015};
     double z_min_limit_{0.2};
-    int max_retries_{3};
+    int max_retries_{5};
     double retry_wait_sec_{0.5};
 
     geometry_msgs::msg::Pose currentPoseInternal();

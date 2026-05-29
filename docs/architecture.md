@@ -9,16 +9,16 @@
 | 维度 | 当前（2026.05 可用） | 目标架构（未来） |
 |------|---------------------|-----------------|
 | Web 后端 | FastAPI + Flask 并存 | FastAPI 统一 |
-| 前端框架 | 原生 JS + Web Components (8,660行) | **Vue 3.5 + TypeScript** (Composition API + `<script setup>`) |
+| 前端框架 | 原生 JS + Web Components (~9,300行) — Vue 3 迁移计划中，当前仍为 MPA 零构建 | **Vue 3.5 + TypeScript** (Composition API + `<script setup>`) |
 | 前端构建 | importmap + 零构建 | **Vite 6** (HMR <1s，Rolldown Rust 引擎) |
-| 前端样式 | 手写 CSS 3,650 行 | **Tailwind CSS v4** (Rust 核心，Vite 插件 268ms 构建) |
+| 前端样式 | 手写 CSS ~2,600 行 | **Tailwind CSS v4** (Rust 核心，Vite 插件 268ms 构建) |
 | 前端组件 | 手写 HTML + CSS | **Element Plus** (28k Stars，中文母语文档) |
 | 前端工具 | 自研 ivgPorts/ivgTransport | **VueUse** (200+ composables，Anthony Fu 创建) |
 | 前端状态 | globalThis 全局单例 | **Pinia** (Vue 官方，仅跨页面共享) |
 | 前端图表 | 手写 Canvas 2D (231行) | **vue-echarts** (可选，后续新图表用) |
 | 前端自动导入 | 手动 import | **unplugin-auto-import + unplugin-vue-components** |
 | 重复代码 | 7 处四元数转换、3 个 YOLO 副本 | 统一到 ivg_utils |
-| 单体文件 | hand_eye_calibration_node.py 5958 行 | 拆分为 6 个模块 |
+| 单体文件 | hand_eye_calibration_node.py ~6000 行 | 拆分为 6 个模块 |
 | MoveIt 2 | 本地源码复刻 | apt 标准包 |
 | 包命名 | demo_*, interface 不一致 | ivg_* 统一前缀 |
 | 部署 | 手动 apt/pip 安装 | Docker Compose（后续参考）|
@@ -174,7 +174,7 @@
 
 **关键重构**：
 - YOLO 三个节点提取共享基类 `YoloBaseNode`（模型加载、CV Bridge、结果发布）
-- VPE 的 `ros2_communication.py` 拆分为采集/预处理/特征提取/模板匹配/标定加载 5 个独立模块
+- VPE 的 `ros2_communication.py` (~2500 行) 拆分为采集/预处理/特征提取/模板匹配/标定加载 5 个独立模块
 - 手眼标定的 Flask → FastAPI，分离 ROS 节点与 Web 服务
 - 所有 `_quaternion_to_rotation_matrix` 私有副本 → 统一调用 `ivg_utils.math`
 
@@ -189,8 +189,8 @@
 
 **设计决策**：
 - `execute_grasp_pose_worker` 的 Reentrant callback group 模式保留 — 已验证避免死锁
-- `publish_grasps_client_worker` 和 `publish_grasps_AB.cpp` 合并 — 消除 80% 代码重复
-- IO 引脚语义不一致（`true=打开` vs `true=闭合`）统一为 `ivg_utils.robot_constants` 中的命名常量
+- `publish_grasps_client_worker` C++ 版本和 Python 版本功能合并 — 消除重复代码
+- IO 引脚语义不一致（`true=打开` vs `true=闭合`）统一为 `ivg_utils.robot` 中的命名常量
 
 ### Layer 6：Web & UI
 
@@ -202,13 +202,13 @@
 **网关路由设计**：
 ```
 网关 (0.0.0.0:8090)
-├── /index.html                        → 静态文件 (Vue 3 SPA)
-├── /assets/*                          → 打包资源 (Vite 产物)
+├── /index.html                        → 静态文件 (MPA 零构建，7 个 HTML 页面)
 ├── /ws/rosbridge                      → WebSocket 代理 → 127.0.0.1:9090 (rosbridge)
 ├── /api/ivg/proxy/web-video/*        → HTTP 代理 → 127.0.0.1:8089 (web_video_server)
-├── /api/ivg/proxy/calibration/*      → HTTP 代理 → 127.0.0.1:8091 (手眼标定 FastAPI)
-├── /api/v1/runtime                    → BFF: 运行时配置
-├── /api/v1/settings                   → BFF: 设置读写
+├── /api/ivg/robot-mesh/*             → 机器人 3D 模型文件 (aubo_description mesh)
+├── /api/v1/runtime                    → BFF GET: 运行时配置
+├── /api/v1/settings                   → BFF POST: 设置写入 (仅 POST，无 GET)
+├── /api/v1/tool-geometries            → BFF GET: 工具几何数据 (数据源 tools.yaml)
 └── /health                            → 健康检查
 ```
 
@@ -450,14 +450,14 @@ gripper_swap_worker
 
 | # | 架构决策 | 审查结果 | 状态 |
 |---|---------|---------|------|
-| 1 | Web 框架统一为 FastAPI | `hand_eye_calibration` 仍用 Flask :8080 | ⚠️ 待迁移 |
+| 1 | Web 框架统一为 FastAPI | `hand_eye_calibration` 仍用 Flask (:8070)，未迁移 | ⚠️ 待迁移 |
 | 2 | 前端选 Vue 3 + TS | 方案已定，迁移完成 → `docs/frontend-migration-plan.md` | ✅ 已完成 |
 | 3 | ivg_utils 零 ROS 依赖 | 已验证 — 仅依赖 numpy | ✅ 合规 |
 | 4 | 感知层包间仅通过 ROS 2 接口通信 | graspnet_ros2 通过 sys.path 导入内部模块 | ⚠️ 部分违规 |
 | 5 | Web 层通过 rosbridge 桥接 | 已验证 | ✅ 合规 |
 | 6 | 保留 SDK 双连接架构 | `conn_control_` + `conn_status_` 不变 | ✅ 合规 |
 | 7 | 移除 MoveIt 2 本地源码复刻 | 确认 `moveit_ros_planning/`、`moveit_ros_planning_interface/` 无本地补丁已 COLCON_IGNORE；`moveit_ros_visualization/` 有本地补丁（URDF 切换 bug 修复）→ 保留 | ✅ 已处理 |
-| 8 | IO 引脚语义统一为命名常量 | `ivg_utils/io.py` 已定义但各 worker 仍用硬编码数字 | ⚠️ 定义完毕，未全面使用 |
+| 8 | IO 引脚语义统一为命名常量 | `ivg_utils/io.py` 和 `ivg_utils/robot.py` 已定义但各 worker 仍用硬编码数字 | ⚠️ 定义完毕，未全面使用 |
 | 9 | GraspNet sys.path → 标准依赖 | pointnet2/knn/graspnetAPI 已 pip install；models/utils 仍 sys.path | ⚠️ 部分完成 |
 | 10-14 | Python/ROS/仿真/Docker/VLA 升级 | 均为后续参考，当前 Humble + 3.10 稳定 | ⏳ 远期 |
 
@@ -465,8 +465,8 @@ gripper_swap_worker
 
 | 文件 | 路径 | 建议替代方案 |
 |------|------|------------|
-| graspnet_ros2 启动脚本 | `/home/mu/IVG2.0/...` | `ament_index_cpp::get_package_share_directory()` |
-| 多个 Python 脚本 | `/home/mu/IVG2.0/...` | `get_package_share_directory()` + 相对路径 |
+| graspnet_ros2 启动脚本 | `/home/mu/aubo_boot/...` | `ament_index_cpp::get_package_share_directory()` |
+| 多个 Python 脚本 | `/home/mu/aubo_boot/...` | `get_package_share_directory()` + 相对路径 |
 
 ### Python 后端框架深度对比（附录）
 

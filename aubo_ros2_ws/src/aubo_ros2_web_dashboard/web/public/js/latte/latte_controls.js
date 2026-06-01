@@ -1,8 +1,8 @@
 // latte_controls.js — 拉花参数控制: 图案选择 + 杯子配置 + 倾倒参数 + 预览/执行
 // 依赖: ros.js (RosManager 单例), logBus (日志总线), fetch API
 // 链路:
-//   预览: rosbridge → /latte_imitation/replay_trajectory service (mode="preview")
-//   执行: rosbridge → /latte_imitation/replay_trajectory service (mode="action")
+//   预览/执行: rosbridge → /latte/run_workflow service (latte_backend)
+//   latte_imitation 已废弃 (COLCON_IGNORE), 由 latte_backend 替代
 
 import { ros } from '../core/ros.js';
 import { logBus } from '../core/log-bus.js';
@@ -12,8 +12,8 @@ const TAG = '[latte_ctrl]';
 // ── 常量 (与 latte.ts 对齐) ──
 const LATTE_RPY_STORAGE_KEY = 'ivg_latte_rpy_v1';
 const LATTE_SESSION_STORAGE_KEY = 'ivg_latte_session_v1';
-const DEFAULT_SVC = '/latte_imitation/replay_trajectory';
-const DEFAULT_SVC_TYPE = 'ivg_interfaces/srv/ReplayLatteTrajectory';
+const DEFAULT_SVC = '/latte/run_workflow';
+const DEFAULT_SVC_TYPE = 'ivg_interfaces/srv/RunLatteWorkflow';
 
 const PATTERN_TYPES = [
     { value: '', label: '录制回放 (Episode)' },

@@ -2,6 +2,7 @@
 // 使用主 ivgTransport.ros 连接，不创建独立 WebSocket
 import * as ROSLIB from 'roslib';
 import { IvgRos3dView3dSession } from '../view3d/session.js';
+import { logBus } from '../core/log-bus.js';
 
 function createVisionUrdfPanel(opts) {
 	var options = opts || {};
@@ -46,7 +47,7 @@ function createVisionUrdfPanel(opts) {
 		var host = doc.getElementById('vision-urdf-host');
 		if (!host || typeof SessionCtor !== 'function') return;
 		if (!ros || !ros.isConnected) {
-			console.warn('[urdf_panel] ros 未连接，跳过 3D 启动');
+			logBus.addLog('warn', 'view3d', 'ros 未连接，跳过 3D 启动');
 			return;
 		}
 		stop();
@@ -104,7 +105,7 @@ function createVisionUrdfPanel(opts) {
 		}
 	});
 		} catch (e) {
-			console.warn('[ivg/vision] 左栏 URDF 3D 未启动:', e);
+			logBus.addLog('warn', 'view3d', '左栏 URDF 3D 未启动: ' + (e.message || e));
 		}
 	}
 

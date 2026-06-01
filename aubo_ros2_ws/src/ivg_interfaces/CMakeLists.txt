@@ -82,13 +82,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/ChangeTool.srv"
   "srv/GetCurrentTool.srv"
 
-  # ── 拉花轨迹回放服务 (来自 latte_imitation) ──
-  "srv/ReplayLatteTrajectory.srv"
-
-  # ── 拉花笛卡尔规划+执行服务 (来自 latte_cartesian_planner) ──
-  "srv/LatteCartesianPlan.srv"
-
-  # ── 拉花工作流编排服务 (来自 demo_driver latte_workflow_node) ──
+  # ── 拉花工作流编排服务 (来自 latte_backend) ──
   "srv/RunLatteWorkflow.srv"
 
   # ── 视觉位姿估计服务 (来自原 interface) ──

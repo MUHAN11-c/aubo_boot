@@ -315,7 +315,7 @@ body.ivg-single-screen {
   transform: rotate(45deg); margin-top: -0.2rem; transition: transform 0.15s ease;
 }
 .is-monitoring-collapsed .layout-monitoring-toggle__chevron { transform: rotate(-135deg); margin-top: 0.12rem; }
-.is-monitoring-collapsed .layout-monitoring-bundle { display: none !important; }
+/* 折叠由 grid-template-rows: auto 0fr 实现，无需 display:none */
 
 .layout-monitoring-bundle {
   display: grid;

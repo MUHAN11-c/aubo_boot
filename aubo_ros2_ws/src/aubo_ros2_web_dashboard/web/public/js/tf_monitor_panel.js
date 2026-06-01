@@ -2,6 +2,7 @@
 import { $, escapeHtml } from './core/utils.js';
 import { loadRecords, saveRecords, clearRecords } from './core/record_store.js';
 import { ROBOT_STATUS_TOPIC, ROBOT_STATUS_TYPE, MODE_TOPIC, MODE_TYPE } from './core/topics.js';
+import { logBus } from './core/log-bus.js';
 import { ros } from './core/ros.js';
 import { ivgTransport } from './ivg_transport.js';
 import { ivgPorts } from './ivg_runtime.js';
@@ -319,7 +320,7 @@ function subscribeStatus() {
   ivgTransport.clearRosHandlersByOwner('tf_monitor');
   ivgTransport.onRosJson(ROBOT_STATUS_TOPIC, onRobotStatus, 'tf_monitor');
   var ok = ivgTransport.subscribe({ topic: ROBOT_STATUS_TOPIC, msgType: ROBOT_STATUS_TYPE, maxHz: 10 });
-  console.log(TAG, ok ? '已订阅 ' + ROBOT_STATUS_TOPIC : '订阅失败');
+  logBus.addLog(ok ? 'info' : 'error', 'topic', (ok ? '已订阅 ' : '订阅失败') + ROBOT_STATUS_TOPIC);
 }
 
 // ── 连接 (统一使用 ros.js) ──────────────────────────────────────

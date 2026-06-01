@@ -42,7 +42,7 @@ enum class MovelErrorCode : int32_t
  * @brief 笛卡尔直线运动服务服务器类 (已废弃 — @deprecated)
  *
  * 替代方案: 直接使用 MoveGroupInterface::computeCartesianPath()（MoveIt2 标准 API）。
- * latte_imitation 等模块已全部迁移至 MoveIt2 标准管线，此服务无实现且无调用方。
+ * 拉花模块已迁移至 latte_backend (MoveIt2 标准管线)，此服务无实现且无调用方。
  *
  * 保留头文件仅用于 ivg_interfaces 接口兼容性说明。
  *

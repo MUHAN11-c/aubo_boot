@@ -22,132 +22,115 @@ find_package(moveit_ros_planning_interface REQUIRED)
 find_package(moveit_common REQUIRED)
 find_package(moveit_msgs REQUIRED)
 find_package(moveit_ros_planning REQUIRED)
+
 # Include directories
 include_directories(include)
 
-add_executable(move_to_pose_server_node
+# ═══════════════════════════════════════════════════════════════════════════
+# robot_controller 共享库 — MoveIt 运动 + IO 控制基础设施
+# ═══════════════════════════════════════════════════════════════════════════
+
+add_library(robot_controller SHARED
   src/robot_controller.cpp
-  src/move_to_pose_server.cpp
 )
-ament_target_dependencies(move_to_pose_server_node
+target_include_directories(robot_controller PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+ament_target_dependencies(robot_controller
   rclcpp
   geometry_msgs
   ivg_interfaces
+  tf2
   moveit_core
   moveit_ros_planning_interface
+)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 可执行节点
+# ═══════════════════════════════════════════════════════════════════════════
+
+add_executable(move_to_pose_server_node src/move_to_pose_server.cpp)
+target_link_libraries(move_to_pose_server_node robot_controller)
+ament_target_dependencies(move_to_pose_server_node
+  rclcpp geometry_msgs ivg_interfaces
+  moveit_core moveit_ros_planning_interface
 )
 
 add_executable(plan_trajectory_server_node src/plan_trajectory_server.cpp)
 ament_target_dependencies(plan_trajectory_server_node
-  rclcpp
-  geometry_msgs
-  trajectory_msgs
-  ivg_interfaces
-  ivg_interfaces
-  tf2_geometry_msgs
-  moveit_core
-  moveit_ros_planning_interface
+  rclcpp geometry_msgs trajectory_msgs
+  ivg_interfaces tf2_geometry_msgs
+  moveit_core moveit_ros_planning_interface
 )
 
 add_executable(execute_trajectory_server_node src/execute_trajectory_server.cpp)
 ament_target_dependencies(execute_trajectory_server_node
-  rclcpp
-  trajectory_msgs
-  ivg_interfaces
-  moveit_core
-  moveit_ros_planning_interface
+  rclcpp trajectory_msgs ivg_interfaces
+  moveit_core moveit_ros_planning_interface
 )
 
 add_executable(get_current_state_server_node src/get_current_state_server.cpp)
 ament_target_dependencies(get_current_state_server_node
-  rclcpp
-  sensor_msgs
-  geometry_msgs
-  ivg_interfaces
-  ivg_interfaces
-  tf2_geometry_msgs
-  moveit_core
-  moveit_ros_planning_interface
+  rclcpp sensor_msgs geometry_msgs
+  ivg_interfaces tf2_geometry_msgs
+  moveit_core moveit_ros_planning_interface
 )
 
 add_executable(set_speed_factor_server_node src/set_speed_factor_server.cpp)
 ament_target_dependencies(set_speed_factor_server_node
-  rclcpp
-  ivg_interfaces
-  moveit_core
-  moveit_ros_planning_interface
+  rclcpp ivg_interfaces
+  moveit_core moveit_ros_planning_interface
 )
 
 add_executable(set_robot_pose_server_node src/set_robot_pose_server.cpp)
 ament_target_dependencies(set_robot_pose_server_node
-  rclcpp
-  geometry_msgs
-  ivg_interfaces
-  ivg_interfaces
-  tf2
-  tf2_geometry_msgs
-  moveit_core
-  moveit_ros_planning_interface
-)
-
-# GraspNet 抓取放置 worker（订阅 grasp_poses_base，循环抓取→放置→回安全位；运动逻辑自包含）
-add_executable(publish_grasps_client_worker_node
-  src/robot_controller.cpp
-  src/publish_grasps_client_worker.cpp
-)
-ament_target_dependencies(publish_grasps_client_worker_node
-  rclcpp
-  geometry_msgs
-  std_msgs
-  std_srvs
-  ivg_interfaces
-  ivg_interfaces
-  moveit_msgs
-  moveit_core
-  moveit_ros_planning_interface
-)
-
-# 执行常量抓取位姿 worker（服务驱动模式：支持视觉估计和参数常量两种抓取模式）
-add_executable(execute_grasp_pose_worker_node
-  src/robot_controller.cpp
-  src/execute_grasp_pose_worker.cpp
-)
-ament_target_dependencies(execute_grasp_pose_worker_node
-  rclcpp
-  geometry_msgs
-  sensor_msgs
-  std_srvs
-  ivg_interfaces
-  ivg_interfaces
-  ivg_interfaces
-  moveit_msgs
-  moveit_core
-  moveit_ros_planning_interface
-)
-
-# 系统状态监控节点（发布 /system/node_status + /system/log）
-add_executable(system_monitor_node src/system_monitor_node.cpp)
-ament_target_dependencies(system_monitor_node rclcpp ivg_interfaces)
-
-# 拉花工作流编排节点（7 步取放+打奶泡+调用拉花服务）
-add_executable(latte_workflow_node
-  src/robot_controller.cpp
-  src/latte_workflow_node.cpp
-)
-ament_target_dependencies(latte_workflow_node
-  rclcpp geometry_msgs ivg_interfaces tf2
+  rclcpp geometry_msgs ivg_interfaces
+  tf2 tf2_geometry_msgs
   moveit_core moveit_ros_planning_interface
 )
 
-# 机器人使能服务（代理到 /aubo/startup 和 /aubo/shutdown）
+# GraspNet 抓取放置 worker
+add_executable(publish_grasps_client_worker_node src/publish_grasps_client_worker.cpp)
+target_link_libraries(publish_grasps_client_worker_node robot_controller)
+ament_target_dependencies(publish_grasps_client_worker_node
+  rclcpp geometry_msgs std_msgs std_srvs
+  ivg_interfaces moveit_msgs
+  moveit_core moveit_ros_planning_interface
+)
+
+# 执行常量抓取位姿 worker
+add_executable(execute_grasp_pose_worker_node src/execute_grasp_pose_worker.cpp)
+target_link_libraries(execute_grasp_pose_worker_node robot_controller)
+ament_target_dependencies(execute_grasp_pose_worker_node
+  rclcpp geometry_msgs sensor_msgs std_srvs
+  ivg_interfaces moveit_msgs
+  moveit_core moveit_ros_planning_interface
+)
+
+# 系统状态监控节点
+add_executable(system_monitor_node src/system_monitor_node.cpp)
+ament_target_dependencies(system_monitor_node rclcpp ivg_interfaces)
+
+# 机器人使能服务
 add_executable(set_robot_enable_server_node src/set_robot_enable_server.cpp)
 ament_target_dependencies(set_robot_enable_server_node rclcpp std_srvs ivg_interfaces)
 
-# IO 状态读取服务（订阅 /robot_io_status 缓存 + /read_robot_io 查询）
+# IO 状态读取服务
 add_executable(read_robot_io_server_node src/read_robot_io_server.cpp)
 ament_target_dependencies(read_robot_io_server_node rclcpp ivg_interfaces)
 
-# Install targets
+# ═══════════════════════════════════════════════════════════════════════════
+# 安装
+# ═══════════════════════════════════════════════════════════════════════════
+
+install(TARGETS robot_controller
+  EXPORT ${PROJECT_NAME}Targets
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
 install(TARGETS
   move_to_pose_server_node
   plan_trajectory_server_node
@@ -158,7 +141,6 @@ install(TARGETS
   publish_grasps_client_worker_node
   execute_grasp_pose_worker_node
   system_monitor_node
-  latte_workflow_node
   set_robot_enable_server_node
   read_robot_io_server_node
   DESTINATION lib/${PROJECT_NAME}
@@ -178,6 +160,22 @@ install(PROGRAMS
   scripts/test_ros2_communication.py
   scripts/run_tracetools_analysis.sh
   DESTINATION lib/${PROJECT_NAME}
+)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 导出 — 供下游包 (latte_backend) 使用
+# ═══════════════════════════════════════════════════════════════════════════
+
+ament_export_include_directories(include)
+ament_export_libraries(robot_controller)
+ament_export_targets(${PROJECT_NAME}Targets)
+ament_export_dependencies(
+  rclcpp
+  geometry_msgs
+  ivg_interfaces
+  tf2
+  moveit_core
+  moveit_ros_planning_interface
 )
 
 if(BUILD_TESTING)

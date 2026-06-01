@@ -44,7 +44,7 @@ source install/setup.bash
 选择性构建（修改后只需编译相关包，无需全量构建）：
 
 ```bash
-colcon build --packages-select aubo_driver_ros2 tool_changer latte_imitation latte_cartesian_planner
+colcon build --packages-select aubo_driver_ros2 tool_changer latte_backend
 ```
 
 `start_aubo_new_driver.sh` 启动时会自动执行 `colcon build`，日常开发中修改代码后手动运行上述命令即可喵~
@@ -57,6 +57,7 @@ cd /home/mu/aubo_boot/aubo_ros2_ws
 rosdep install --from-paths src --ignore-src -r -y
 
 # Python 运行依赖（非 colcon 管理）
+# numpy: BFF 网关 (trajectories.py NPZ 加载) + 录制脚本 (record_robot_trajectory.py)
 pip3 install httpx websockets numpy==1.23.5 opencv-python==4.9.0
 ```
 
@@ -67,7 +68,7 @@ pip3 install httpx websockets numpy==1.23.5 opencv-python==4.9.0
 colcon test
 
 # 运行指定包的测试
-colcon test --packages-select latte_imitation graspnet_ros2
+colcon test --packages-select latte_backend graspnet_ros2
 
 # 查看测试结果
 colcon test-result --all
@@ -100,7 +101,7 @@ WEB_DASH_PORT=9000 ./start_aubo_new_driver.sh
 脚本自动检测机械臂是否在线（TCP 端口探测），不可达时回退到仿真模式 (`mock_components/GenericSystem`)。退出时自动清理所有子进程（`cleanup()` trap）喵~
 
 其他辅助脚本：
-- `start_latte_test.sh` — 单独启动 latte_imitation 轨迹重放节点（无需完整机械臂驱动）
+- `start_latte_test.sh` — 单独启动 latte_backend 拉花工作流节点（无需完整机械臂驱动）
 - `wait_for_service.sh <service_name>` — 轮询等待 ROS 2 service 就绪，用于脚本中的同步点
 
 ### 仿真模式服务可用性
@@ -231,11 +232,11 @@ FastAPI 路由参数用 `dict | None` 等 PEP 604 语法时，pydantic 1.8.x 会
 
 > 详见：`src/tool_changer/config/tools.yaml`、`src/tool_changer/src/gripper_swap_worker.cpp` 喵~
 
-### 12. latte_workflow_node (C++ 工作流编排)
+### 12. latte_backend (C++ 拉花后端)
 
-5 步咖啡拉花工作流编排节点，位于 `demo_driver` 包。服务 `/latte/run_workflow` (ivg_interfaces/srv/RunLatteWorkflow)。
+5 步咖啡拉花工作流编排节点，独立功能包 `latte_backend`。依赖 `demo_driver` (RobotController)。服务 `/latte/run_workflow` (ivg_interfaces/srv/RunLatteWorkflow)。
 
-> step1-4 激活，step0（取放咖啡杯）和 step5（拉花执行）保留未启用。**倾倒方向: X 轴旋转 = 牛奶杯倾倒方向**，默认拉花图案 `pattern_type="heart"` 喵~
+> step1-5 全部激活，step0（取放咖啡杯）保留未启用。**坐标系: 世界X轴=倾倒倾角轴, 世界Y轴=划穿方向, 世界Z轴=高度**。step4 绕世界X轴前倾45°提供倾倒基准，step5 心形轨迹参数基于 Barista Hustle MSLA 权威资料喵~
 
 | 步骤 | 函数 | 运动 | 说明 | 状态 |
 |------|------|------|------|------|
@@ -245,15 +246,24 @@ FastAPI 路由参数用 `dict | None` 等 PEP 604 语法时，pydantic 1.8.x 会
 | 2 | `step2_approachNozzle` | 笛卡尔来回×2 | 去喷嘴 → 2s打奶泡 → 回 → Z退避 | ✅ |
 | 3a | `step3_reorient` | 笛卡尔 slerp | 转腕朝上: FK rotate_up_joints | ✅ |
 | 3b | `step3_reorient` | 笛卡尔 slerp | 放置咖啡杯: FK place_coffee_joints | ✅ |
-| 4 | `step4_pour` | 笛卡尔 slerp | **嘴口倾倒: X轴旋转45° 倾倒牛奶** | ✅ |
-| 5 | `step5_executeLatte` | service call | 拉花执行: `/latte/replay_trajectory` | ⏸️ |
+| 4 | `step4_pour` | 笛卡尔 slerp | 绕世界X轴前倾45° (倾倒基准) | ✅ |
+| 5 | `step5_executeLatte` | 笛卡尔分段 | **心形拉花: 融合画圈→成形注入→划穿收尾** | ✅ |
 
-**启动**: `ros2 launch aubo_moveit_config latte_workflow.launch.py`
+**step5 心形轨迹分段** (基于 Barista Hustle MSLA):
+
+| 子阶段 | 高度 | 倾角 (绕世界X轴) | 运动 |
+|--------|------|-----------------|------|
+| [5a] 融合画圈 | 80mm | 45° | r=10mm ×2圈, ~10ml/s 细流穿透 crema |
+| [5b] 成形注入 | 5mm | 60°→45° 动态渐变 | 壶嘴定点, ~20ml/s 高流量泡沫浮面扩散白圆 |
+| [5c] 划穿收尾 | 80mm | 50° | 世界Y轴推进 15mm, 细流穿过圆心产生尖部 |
+
+**启动**: `ros2 launch latte_backend latte_workflow.launch.py`
 **测试**: `ros2 service call /latte/run_workflow ivg_interfaces/srv/RunLatteWorkflow "{}"`
+**单独测试拉花轨迹**: `./start_latte_test.sh`
 
-**参数**: 所有参数使用 `lwf_` 前缀，每次 service 回调前 `readParameters()` 实时刷新。笛卡尔失败自动重试 (底层5次×步级3次=最多15次)。默认 `lwf_pattern_type="heart"` 喵~
+**参数**: 所有参数使用 `lwf_` 前缀，每次 service 回调前 `readParameters()` 实时刷新。笛卡尔失败自动重试 (底层5次×步级3次=最多15次)。默认 `lwf_pattern_type="heart"`。心形轨迹参数见 `lwf_heart_*` 系列（详见 latte_backend/README.md）喵~
 
-> 详见：`aubo_ros2_ws/src/aubo_ros2_driver/demo_driver/README.md` 喵~
+> 详见：`aubo_ros2_ws/src/aubo_ros2_driver/latte_backend/README.md` 喵~
 
 ### 13. RobotController — 笛卡尔 slerp 运动
 
@@ -282,17 +292,68 @@ for retry in 0..5:
 - `moveToJoints(joints, vel, acc)` — 关节空间 plan()+execute() (注意: 大角度旋转可能绕远路)
 - `setGripper(pin, open)` — open=true 打开夹爪
 
-### 14. latte_imitation (Python, 已废弃)
+### 14. latte_imitation (已删除)
 
-Python 端原轨迹管线，由 `latte_workflow_node` (C++ 工作流) + `latte_cartesian_planner` (C++ 规划执行) 替代喵~
+Python 端原轨迹管线，已由 `latte_backend` (C++ 工作流) 完全替代。代码已删除，git 历史可追溯喵~
 
-### 15. latte_cartesian_planner (C++, 已废弃)
+### 15. latte_cartesian_planner (已删除)
 
-C++ MoveIt2 规划+执行节点，由 `latte_workflow_node` 内嵌的 `moveCartesianStraight` 替代喵~
+C++ MoveIt2 规划+执行节点，已由 `latte_backend` 内嵌的 `moveCartesianStraight` 完全替代。代码已删除，git 历史可追溯喵~
 
 ### 16. 共享工具包 `ivg_utils`
 
 `aubo_ros2_ws/src/ivg_utils/` — `ivg_utils.math`（四元数/旋转矩阵/欧拉角）、`ivg_utils.io`（`IO_GRIPPER=6`, `IO_QUICK_SWAP=7`）。新增数学工具优先加到此包喵~
+
+### 17. 轨迹录制与回放系统
+
+**录制**: `demo_driver/scripts/record_robot_trajectory.py` (ROS 2 节点) → 保存到 `~/robot_trajectories/<YYYYMMDD_HHMMSS>/` (NPZ+CSV)。
+
+- 订阅 `/robot_status` (ivg_interfaces/msg/RobotStatus)，每 0.5s 控制台摘要
+- 拉花段自动标记: ROS service `~/start_latte_record` / `~/stop_latte_record` (std_srvs/Trigger)，由 `latte_workflow_node` step5 调用
+- `trajectory_full.npz` 存全部数据，`trajectory_latte_N.npz` 存每段拉花
+- 每 10s 自动保存；退出时 (SIGINT/SIGTERM/SIGHUP + atexit) 最终保存
+- 使用 `MultiThreadedExecutor`，spin 线程和录制主循环分离
+
+**BFF API**: `gateway/routes/trajectories.py` → `APIRouter(prefix="/api/v1/trajectories")`。
+
+| 端点 | 说明 |
+|------|------|
+| `GET /api/v1/trajectories` | 列出所有录制 (时间倒序, 含点数/时长/拉花段数/XYZ范围) |
+| `GET /api/v1/trajectories/{ts}/full` | 完整轨迹 JSON (自动降采样 >5000 点) |
+| `GET /api/v1/trajectories/{ts}/latte/{n}` | 拉花段 n 的 JSON (n 从 1 开始) |
+
+> **安全**: `np.load(allow_pickle=False)` — 轨迹数据全为 float 数组，禁止 pickle 反序列化 [NumPy 安全文档](https://numpy.org/doc/stable/reference/generated/numpy.load.html)。时间戳格式校验 `^\d{8}_\d{6}$` 防目录穿越。数组长度不一致时返回 HTTP 500 而非静默通过喵~
+
+**前端**: 集成在 `tf_monitor_panel.html` 监控面板中。
+
+| 文件 | 说明 |
+|------|------|
+| `js/view3d/trajectory_standalone.js` | 纯 Three.js 3D 查看器 (IIFE, 无模块依赖) |
+| `js/trajectory_history.js` | 数据加载 + Canvas 时序图 + 3D 协调 (IIFE, 无模块依赖) |
+
+> **关键约束**: 这两个脚本必须用普通 `<script>` 标签加载（**非** `type="module"`），因为它们依赖 `window.THREE`（由 robotwebtools 的 three.js UMD 构建设置）。importmap 页面只能有一个，trajectory 脚本不可走 ES module 系统喵~
+
+**坐标映射**: ROS (X-fwd, Y-left, Z-up) → Three.js (X-right, Y-up, Z-toward)。`trajectory_standalone.js:_rosToThree(x,y,z)` 执行 `new Vector3(x, z, y)` — **data.z 映射到 Three.js Y 轴（高度）**。直接在 Three.js 中绘制 `new Vector3(x, y, z)` 会让轨迹延伸到屏幕深度轴而非高度轴喵~
+
+**3D 特性**: 发光轨迹（辉光线 + 核心线双层）、雷达基环（脉冲动画）、粒子拖尾 (AdditiveBlending)、扫描平面、暗角+扫描线 CSS 叠加喵~
+
+**布局**: 全视口 Grid 布局 (`ivg-single-screen` 模式), 3D 视图 `flex:1` 自动填充剩余高度。图表默认折叠 (`<details>`), toggle 事件触发重绘喵~
+
+### 18. BFF 网关路由注册顺序
+
+`gateway/app.py` 中路由按优先级从高到低注册（后注册的优先级低）：
+
+1. `/ws/rosbridge` — WebSocket 代理
+2. `/api/ivg/proxy/web-video/*` — 视频流代理
+3. `/health` — 健康检查
+4. `/api/v1/runtime` — 前端运行时配置
+5. `/api/v1/tool-geometries` — 工具几何数据
+6. `/api/v1/trajectories` — 轨迹数据 ★
+7. `/api/ivg/robot-mesh/*` — 机器人 3D 模型
+8. `/js/robotwebtools/*` — RobotWebTools 静态资源
+9. `/*` — MPA 静态文件 (最后挂载, 优先级最低)
+
+> BFF 路由必须在 `StaticFiles` 挂载前注册，否则会被 `/*` 通配拦截。路由依赖 `numpy`（NPZ 加载），新环境需 `pip3 install numpy`喵~
 
 ## 前端开发速查
 
@@ -342,7 +403,9 @@ web/public/                    # 静态文件根目录
     │   ├── urdf-viewer.js     # createUrdfViewer() 工厂函数
     │   ├── tf_clients.js      # TF2Client 封装 (ros3djs)
     │   ├── patches.js         # ros3djs Three.js 兼容补丁
-    │   └── hints.js           # 坐标轴/网格 helper
+    │   ├── hints.js           # 坐标轴/网格 helper
+    │   └── trajectory_standalone.js  # 轨迹 3D 回放 (纯 Three.js, 无 ROS 依赖)
+    ├── trajectory_history.js  # 轨迹数据加载 + Canvas 时序图
     ├── ivg_transport.js       # WebSocket 传输层 + rosbridge 协议
     ├── ivg_runtime.js         # 运行时配置 (rosbridge 端口/web_video 端口等)
     ├── ivg_site_nav.js        # 顶部导航栏 Web Component
@@ -413,7 +476,7 @@ web/public/                    # 静态文件根目录
 
 - 工具快换服务：`/run_gripper_swap` (ivg_interfaces/srv/RunGripperSwap)，方向格式 `"current_id_to_target_id"`
 - 工具几何数据：前端从 BFF `/api/v1/tool-geometries` 动态获取，数据源统一为 `tools.yaml`
-- 拉花执行：`/latte_imitation/replay_trajectory` (ivg_interfaces/srv/ReplayLatteTrajectory)，mode=`"preview"|"debug"|"action"`
+- 拉花执行：`/latte/run_workflow` (ivg_interfaces/srv/RunLatteWorkflow)，来自 latte_backend
 - URDF 显示切换：`/set_display_tool` (ivg_interfaces/srv/ChangeTool) — 仅仿真显示，不触发物理快换
 - DO 控制：`/set_latte_do2`、`/set_latte_do4` (std_srvs/srv/SetBool)
 - 话题/服务名在前端通过 `localStorage` 覆盖，默认值见 `config/defaults.yaml` 喵~
@@ -444,14 +507,19 @@ web/public/                    # 静态文件根目录
 | tools.yaml 工具快换失败 (gripper1/coffeecup/milkcup) | `tools.yaml` 中这三个工具缺少 `dock_approach_joints` + `trajectory` 字段 | 补充 YAML 配置或确认这些工具不需要快换喵~ |
 | GripperSwapWorker 死锁/service 超时 | callback group 是 MutuallyExclusive（非 Reentrant），与文档描述不一致 | `MultiThreadedExecutor(2)` 提供足够并发，当前无死锁风险喵~ |
 | `/latte/run_workflow` 不可达 | `latte_workflow_node` 未启动 | 检查 `ros2 service list \| grep latte`; `ros2 launch aubo_moveit_config latte_workflow.launch.py` |
-| `/latte/plan_and_execute` 不可达 | (已废弃) `latte_cartesian_planner` 未启动，现由 latte_workflow_node 内嵌笛卡尔替代 | 如有旧脚本引用此服务需更新为 `/latte/run_workflow` |
+| `/latte/plan_and_execute` 不可达 | (已删除) `latte_cartesian_planner` 已删除，由 latte_backend 内嵌笛卡尔替代 | 更新为 `/latte/run_workflow` |
 | 笛卡尔直线 fraction < 0.99 | `moveCartesianStraight` 自动重试 (底层5次+步级3次)，连续失败说明目标不可达或碰撞 | 检查目标位姿是否在工作空间内；检查 avoid_collisions 状态 |
-| 步骤5a 笛卡尔直线失败 | `jointsToPose` FK 结果与当前位置差距过大 | 添加 `lwf_transition_joints` 过渡位姿或在 step4 后调低 retract_height |
+| 步骤5 笛卡尔直线失败 | `jointsToPose` FK 结果与当前位置差距过大 | 添加 `lwf_transition_joints` 过渡位姿或在 step4 后调低 retract_height |
+| 成形阶段倾角渐变 IK 失败 | 动态 roll 导致每点姿态不同, IK 求解困难 | 设置 `lwf_heart_roll_draw_dynamic:=false` 回退到固定倾角 |
 | `error while loading shared libraries: libauborobotcontroller.so.1` | AUBO SDK .so 未安装 | `colcon build --packages-select aubo_driver_ros2` |
 | `Subscription to deprecated ~/state topic` | rosbag 或节点订阅了弃用 topic | `ros2 topic info -v /joint_trajectory_controller/state` |
 | 前端日志面板无 ROS 2 日志 | `log-ros-bridge.js` 未被 import 或传输层检测失败 | 检查 HTML 中是否有 `<script type="module" src="js/core/log-ros-bridge.js">`；检查 `globalThis.__rosManager` |
 | 前端日志面板看不到其他页面日志 | 跨页面隔离 — 旧版无 BroadcastChannel | 确认 `log-bus.js` 已更新含 `BroadcastChannel('ivg_log_bus')` |
 | `SyntaxError: does not provide an export named 'escapeHtml'` | 合并 pose_card.js 时丢失导出 | 确认 `components/pose-card.js` 有 `export { _escapeHtml as escapeHtml }` |
+| 3D 轨迹显示在 Z 轴而非 Y 轴 (高度) | ROS (Z-up) 坐标直接赋给 Three.js (Y-up), 未做映射 | `trajectory_standalone.js:_rosToThree()` 执行 `new Vector3(x, z, y)` |
+| 轨迹回放下拉列表为空 | BFF 未重启 或 importmap 冲突 | 重启 BFF; 确认 trajectory 脚本是普通 `<script>` 非 `type="module"` |
+| `THREE is not defined` (trajectory 页面) | robotwebtools importmap.js 已动态注入 importmap, 第二个 importmap 被忽略 | trajectory 脚本用普通 `<script>` 标签, THREE 由 robotwebtools UMD 构建提供 |
+| `np.load` 报 `ValueError: Object arrays cannot be loaded when allow_pickle=False` | 旧版录制脚本生成了含 pickle 对象的 NPZ | 用新版录制脚本重新录制; BFF 安全策略不允许 pickle |
 
 ## 外部文档
 

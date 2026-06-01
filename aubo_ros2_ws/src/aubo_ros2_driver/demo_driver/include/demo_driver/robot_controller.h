@@ -43,6 +43,10 @@ public:
     bool moveCartesianZ(double offset_m, float vel, float acc);
     bool moveCartesianPath(const std::vector<CartesianSegment>& segments, float vel, float acc);
     bool moveCartesianStraight(const geometry_msgs::msg::Pose& target, float vel, float acc);
+    /// 批量笛卡尔路径规划+执行, waypoints 为完整路径点序列
+    /// 内部调用 computeCartesianPath, fraction >= 0.95 则 execute
+    bool executeCartesianPath(const std::vector<geometry_msgs::msg::Pose>& waypoints,
+                              float vel, float acc);
 
     // ── 笛卡尔 slerp 工具 ──
     /// 四元数球面最短路径插值, t∈[0,1]
@@ -86,8 +90,8 @@ private:
     // 可配置参数
     double eef_step_{0.015};
     double z_min_limit_{0.2};
-    int max_retries_{5};
-    double retry_wait_sec_{0.5};
+    int max_retries_{3};
+    double retry_wait_sec_{0.1};
 
     geometry_msgs::msg::Pose currentPoseInternal();
 };

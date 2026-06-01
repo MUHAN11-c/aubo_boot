@@ -194,57 +194,9 @@ def launch_setup(context, *args, **kwargs):
             )],
         )
 
-        # latte_imitation 轨迹回放节点（仿真模式自动启动，等待 move_group 就绪）喵~
-        latte_imitation_node = None
-        latte_cartesian_planner_node = None
-        try:
-            latte_pkg = get_package_share_directory("latte_imitation")
-
-            # C++ Cartesian planner (先启动，确保服务早于 Python 节点就绪)
-            try:
-                get_package_share_directory("latte_cartesian_planner")
-                latte_cartesian_planner_node = TimerAction(
-                    period=6.0,
-                    actions=[Node(
-                        package="latte_cartesian_planner",
-                        executable="cartesian_planner_node",
-                        name="latte_cartesian_planner",
-                        output="screen",
-                        parameters=[
-                            robot_description,
-                            moveit_config.robot_description_semantic,
-                            moveit_config.robot_description_kinematics,
-                            {"planning_group": "manipulator",
-                             "base_frame": "base_link"},
-                        ],
-                    )],
-                )
-            except Exception:
-                print("[WARN] latte_cartesian_planner 包未安装，跳过 C++ planner 喵~", file=sys.stderr)
-
-            latte_imitation_node = TimerAction(
-                period=8.0,
-                actions=[Node(
-                    package="latte_imitation",
-                    executable="latte_imitation_node",
-                    name="latte_imitation",
-                    output="screen",
-                    parameters=[{
-                        "episode_idx": 0, "arm": "right", "speed_scale": 1.0,
-                        "mode": "preview",
-                        "planning_group": "manipulator",
-                        "base_frame": "base_link", "ee_link": "tool_tcp",
-                        "cartesian_max_step": 0.01, "cartesian_jump_threshold": 0.0,
-                        "fraction_acceptable": 0.95, "fraction_min_executable": 0.50,
-                        "waypoint_sample_step": 4,
-                        "service_timeout": 15.0, "cartesian_timeout": 60.0,
-                        "execution_timeout": 120.0,
-                        "tf_retry_count": 20, "tf_retry_interval": 0.03,
-                    }],
-                )],
-            )
-        except Exception:
-            print("[WARN] latte_imitation 包未安装，跳过拉花节点喵~", file=sys.stderr)
+        # latte_imitation / latte_cartesian_planner 已删除
+        # 拉花后端统一到 latte_backend 包, 独立启动:
+        #   ros2 launch latte_backend latte_workflow.launch.py 喵~
 
         nodes = [
             ros2_control_node,
@@ -256,10 +208,6 @@ def launch_setup(context, *args, **kwargs):
             sim_state_publisher,
             delayed_rviz,
         ]
-        if latte_cartesian_planner_node is not None:
-            nodes.append(latte_cartesian_planner_node)
-        if latte_imitation_node is not None:
-            nodes.append(latte_imitation_node)
 
             return nodes
     else:

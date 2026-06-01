@@ -94,7 +94,7 @@ class IvgSiteNav extends HTMLElement {
     btn.addEventListener('click', function () {
       (async function () {
         try { self._fsEl() ? await self._exit() : await self._enter(); }
-        catch (e) { console.warn('[ivg-nav] 全屏:', e); }
+        catch (e) { /* 全屏API在某些浏览器不支持 */ }
         sync();
       })();
     });

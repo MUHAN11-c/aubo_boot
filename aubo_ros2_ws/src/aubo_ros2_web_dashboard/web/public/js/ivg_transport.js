@@ -5,6 +5,7 @@ import * as ROSLIB from 'roslib';
 import { loadIvgRuntime } from './core/runtime_provider.js';
 import { rosbridgeWebSocketUrlFromRuntime } from './ivg_runtime.js';
 import { canonicalRosTopic, encodeTopicQueryValue } from './core/utils.js';
+import { logBus } from './core/log-bus.js';
 
 const g = globalThis;
 
@@ -188,7 +189,7 @@ IvgTransport.prototype.subscribe = function (spec) {
 
     this._topicSubs.set(topicName, topic);
     this._topicSpecs.set(topicName, msgType);
-	console.log("[ivg_transport] subscribed:", topicName);
+	logBus.addLog('debug', 'topic', 'subscribed: ' + topicName);
     return true;
 };
 

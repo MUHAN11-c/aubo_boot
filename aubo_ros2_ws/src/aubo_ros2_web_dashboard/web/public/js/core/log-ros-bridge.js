@@ -3,28 +3,11 @@
 //
 // 用法: 只需 import 一次（副作用模块），自动检测传输层并注册钩子
 //   import './core/log-ros-bridge.js';
-//
-// 兼容两种传输层访问方式:
-//   - ros.js (RosManager 单例, globalThis.__rosManager._transport) — latte 页面
-//   - ivgTransport (直接导入, globalThis.ivgTransport) — vision_grasp 页面
 
 import { logBus } from './log-bus.js';
+import { ivgTransport } from '../ivg_transport.js';
 
 const TAG = '[log-ros-bridge]';
-
-// ── 传输层检测: 同时支持 ros.js 和 ivgTransport ──────────────────────────
-
-function _getTransport() {
-    // 优先从 ros.js 单例取（latte/main.js 页面）
-    if (globalThis.__rosManager && globalThis.__rosManager._transport) {
-        return globalThis.__rosManager._transport;
-    }
-    // 回退：直接检测全局 ivgTransport 引用（vision_grasp 页面，如果有设置的话）
-    if (globalThis.ivgTransport) {
-        return globalThis.ivgTransport;
-    }
-    return null;
-}
 
 // ── 去重：相同消息 N 秒内不重复记录 ──────────────────────────────────────
 const _dedup = {};  // { key: timestamp }
@@ -42,11 +25,10 @@ function _shouldLog(key) {
 function _waitForTransport(cb) {
     let ticks = 0;
     const timer = setInterval(() => {
-        const t = _getTransport();
-        if (t && t.ros && t.isConnected()) {
+        if (ivgTransport.ros && ivgTransport.isConnected()) {
             clearInterval(timer);
             logBus.addLog('info', 'system', 'ROS 日志桥接: 传输层已就绪，注册 /rosout + service 钩子');
-            cb(t);
+            cb(ivgTransport);
             return;
         }
         if (++ticks > 120) {  // 60s 超时

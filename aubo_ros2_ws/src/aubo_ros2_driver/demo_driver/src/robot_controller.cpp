@@ -141,7 +141,7 @@ bool RobotController::moveCartesianStraight(const geometry_msgs::msg::Pose& targ
 
     // 手动生成 slerp waypoints, 保证最短旋转路径
     auto start = move_group_->getCurrentPose(eef_link_).pose;
-    int steps = 20;  // 2cm 步长 ≈ 最差 0.1m 路径 → 5 waypoints; 20 足够密
+    int steps = 20;  // SLERP waypoints 数量: 保证姿态过渡平滑
     auto waypoints = interpolateCartesian(start, target, steps);
 
     bool success = false;
@@ -171,6 +171,50 @@ bool RobotController::moveCartesianStraight(const geometry_msgs::msg::Pose& targ
 
     eef_step_ = saved_step;
     return success;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// executeCartesianPath: 批量笛卡尔路径规划+执行
+// ═══════════════════════════════════════════════════════════════════════════
+
+bool RobotController::executeCartesianPath(
+    const std::vector<geometry_msgs::msg::Pose>& waypoints,
+    float vel, float acc)
+{
+    if (!move_group_ || waypoints.empty()) return false;
+    setVelocityScaling(vel);
+    setAccelerationScaling(acc);
+
+    // 与 moveCartesianStraight 一致: 设为 0.002 防止 MoveIt2 跳过密集 waypoints
+    double saved_step = eef_step_;
+    eef_step_ = 0.002;
+
+    for (int attempt = 0; attempt < max_retries_; ++attempt) {
+        moveit_msgs::msg::RobotTrajectory traj;
+        moveit_msgs::msg::MoveItErrorCodes error_code;
+        double fraction =
+            move_group_->computeCartesianPath(waypoints, eef_step_, 0.0, traj, true, &error_code);
+        if (fraction < 0.95) {
+            RCLCPP_WARN(node_->get_logger(),
+                "executeCartesianPath 规划 fraction=%.3f (第%d/%d次), 重试...",
+                fraction, attempt + 1, max_retries_);
+            if (attempt < max_retries_ - 1)
+                std::this_thread::sleep_for(std::chrono::duration<double>(retry_wait_sec_));
+            continue;
+        }
+        moveit::planning_interface::MoveGroupInterface::Plan plan;
+        plan.trajectory_ = traj;
+        bool ok = (move_group_->execute(plan) == moveit::core::MoveItErrorCode::SUCCESS);
+        if (ok) { eef_step_ = saved_step; return true; }
+        RCLCPP_WARN(node_->get_logger(),
+            "executeCartesianPath 执行失败 (第%d/%d次), 重试...",
+            attempt + 1, max_retries_);
+        if (attempt < max_retries_ - 1)
+            std::this_thread::sleep_for(std::chrono::duration<double>(retry_wait_sec_));
+    }
+
+    eef_step_ = saved_step;
+    return false;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -244,6 +288,7 @@ std::vector<geometry_msgs::msg::Pose> RobotController::interpolateCartesian(
 
 bool RobotController::setGripper(int pin, bool open)
 {
+    if (!io_client_) { RCLCPP_WARN(node_->get_logger(), "setGripper: io_client_ 未初始化"); return false; }
     if (!io_client_->wait_for_service(std::chrono::seconds(3))) return false;
     auto req = std::make_shared<ivg_interfaces::srv::SetRobotIO::Request>();
     req->io_type  = "digital_output";
@@ -265,11 +310,13 @@ bool RobotController::setQuickSwap(int pin, bool lock)
 
 geometry_msgs::msg::Pose RobotController::getCurrentPose()
 {
+    if (!move_group_) { RCLCPP_WARN(node_->get_logger(), "getCurrentPose: move_group_ 未初始化"); return geometry_msgs::msg::Pose(); }
     return move_group_->getCurrentPose(eef_link_).pose;
 }
 
 std::vector<double> RobotController::getCurrentJoints()
 {
+    if (!move_group_) { RCLCPP_WARN(node_->get_logger(), "getCurrentJoints: move_group_ 未初始化"); return {}; }
     std::vector<double> jv;
     move_group_->getCurrentState()->copyJointGroupPositions(
         move_group_->getCurrentState()->getRobotModel()->getJointModelGroup(
@@ -279,6 +326,7 @@ std::vector<double> RobotController::getCurrentJoints()
 
 geometry_msgs::msg::Pose RobotController::jointsToPose(const std::array<double, 6>& joints)
 {
+    if (!move_group_) { RCLCPP_WARN(node_->get_logger(), "jointsToPose: move_group_ 未初始化"); return geometry_msgs::msg::Pose(); }
     auto robot_model = move_group_->getRobotModel();
     auto jmg = robot_model->getJointModelGroup(move_group_->getName());
     moveit::core::RobotState state(robot_model);
@@ -306,11 +354,12 @@ std::string RobotController::getEndEffectorLink() const
 // 配置
 // =====================================================================
 
-void RobotController::setVelocityScaling(float v) { move_group_->setMaxVelocityScalingFactor(v); }
-void RobotController::setAccelerationScaling(float a) { move_group_->setMaxAccelerationScalingFactor(a); }
+void RobotController::setVelocityScaling(float v) { if (move_group_) move_group_->setMaxVelocityScalingFactor(v); }
+void RobotController::setAccelerationScaling(float a) { if (move_group_) move_group_->setMaxAccelerationScalingFactor(a); }
 
 geometry_msgs::msg::Pose RobotController::currentPoseInternal()
 {
+    if (!move_group_) return geometry_msgs::msg::Pose();
     return move_group_->getCurrentPose(eef_link_).pose;
 }
 

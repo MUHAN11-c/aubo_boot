@@ -24,7 +24,7 @@ import { IvgRos3dView3dSession } from './view3d/session.js';
 import { createVisionSettingsController } from './vision_grasp/ui_settings.js';
 import { createVisionUrdfPanel } from './vision_grasp/urdf_panel.js';
 import { createProjectionOverlayController } from './vision_grasp/projection_overlay.js';
-import { createJointChartController } from './vision_grasp/joint_chart.js';
+import { createJointChartController } from './components/joint-chart.js';
 import { createVisionServiceActions } from './vision_grasp/services.js';
 import { createVisionUiBinder } from './vision_grasp/ui_binder.js';
 import { bindVisionSubscriptions } from './vision_grasp/subscription_binder.js';
@@ -47,7 +47,7 @@ import {
 	robotPoseHtmlIsRenderable,
 	formatRobotPoseHtml,
 	formatFinalGraspPoseHtml
-} from './vision_grasp/pose_card.js';
+} from './components/pose-card.js';
 
 (() => {
 	if (!ROSLIB || !ROS3D || !IvgRos3dView3dSession) {
@@ -427,7 +427,7 @@ import {
 		try {
 			ivgTransport.subscribe({ topic: '/tool_changer_status', msgType: 'ivg_interfaces/msg/ToolChangerStatus', maxHz: 5 });
 			ivgTransport.onRosJson('/tool_changer_status', _onToolStatusMsg, 'vision_grasp');
-		} catch (_e) { console.warn('[vision_grasp] /tool_changer_status 重订阅失败:', _e); }
+		} catch (_e) { logBus.addLog('warn', 'topic', '/tool_changer_status 重订阅失败: ' + (_e.message || _e)); }
 	}
 
 	function logSvc(msg) {
@@ -435,8 +435,6 @@ import {
 		const ts = new Date().toLocaleTimeString();
 		const isErr = msg.indexOf('错误') !== -1 || msg.indexOf('失败') !== -1;
 		logBus.addLog(isErr ? 'error' : 'info', 'service', msg, { module: 'vision_grasp' }, 'vision_grasp');
-		if (isErr) console.warn(`[vision] ${ts} ${msg}`);
-		else console.log(`[vision] ${ts} ${msg}`);
 	}
 
 	// ── 视觉抓取操作日志显示 ──────────────────────────────────────────────────
@@ -667,7 +665,7 @@ import {
 			try {
 				ivgTransport.subscribe({ topic: '/tool_changer_status', msgType: 'ivg_interfaces/msg/ToolChangerStatus', maxHz: 5 });
 				ivgTransport.onRosJson('/tool_changer_status', _onToolStatusMsg, 'vision_grasp');
-			} catch (e) { console.warn('[vision_grasp] /tool_changer_status 订阅失败:', e); }
+			} catch (e) { logBus.addLog('warn', 'topic', '/tool_changer_status 订阅失败: ' + (e.message || e)); }
 		}
 		setTimeout(_subscribeToolStatus, 500);
 
@@ -806,7 +804,7 @@ import {
 			// 统一使用 ros.js 管理连接生命周期喵~
 			ros.onStatusChange(setConnStatus);
 			ros.onConnected(function () {
-				console.log("[vision] rosbridge 已连接，启动订阅");
+				logBus.addLog('info', 'rosbridge', 'rosbridge 已连接，启动订阅');
 				startSubscriptions();
 			});
 			ros.onCleanup(function () { unsubscribeAll(); });

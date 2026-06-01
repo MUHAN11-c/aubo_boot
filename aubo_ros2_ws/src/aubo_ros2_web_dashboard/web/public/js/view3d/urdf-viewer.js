@@ -9,6 +9,7 @@
 
 import * as ROSLIB from 'roslib';
 import { IvgRos3dView3dSession } from './session.js';
+import { logBus } from '../core/log-bus.js';
 
 // localStorage 键
 var LS_KEY = 'ivg_last_tool_id';
@@ -39,7 +40,7 @@ export function createUrdfViewer(opts = {}) {
         const host = $(hostId);
         if (!host) return;
         if (!ros || !ros.isConnected) {
-            console.warn('[urdf-viewer] ros 未连接，跳过 3D 启动喵~');
+            logBus.addLog('warn', 'view3d', '[urdf-viewer] ros 未连接，跳过 3D 启动喵~');
             return;
         }
         stop();
@@ -101,7 +102,7 @@ export function createUrdfViewer(opts = {}) {
                 }
             });
         } catch (e) {
-            console.warn('[urdf-viewer] 3D 查看器启动失败:', e);
+            logBus.addLog('warn', 'view3d', 'URDF 3D 查看器启动失败: ' + (e.message || e));
         }
     }
 

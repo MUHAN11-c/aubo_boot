@@ -53,14 +53,14 @@ package:
 #   /robot_status → aubo_driver_ros2 (aubo_state_broadcaster.cpp)
 #   /system_status → visual_pose_estimation (ros2_communication.py)
 #   /grasp_poses_base → graspnet_demo_points_node (graspnet_ros2)
-#   /latte_di_status → latte_io_node (latte_imitation)
+#   /latte_di_status → latte_io_node
 #   服务端            → 节点名
 #   /loop_grasp_control → execute_grasp_pose_worker (demo_driver)
 #   /graspnet_capture_control → graspnet_demo_points_node (graspnet_ros2)
 #   /publish_grasps_worker_loop_control → publish_grasps_client_worker (demo_driver)
 #   /run_gripper_swap → gripper_swap_worker (tool_changer)
 #   /execute_single_grasp → execute_grasp_pose_worker (demo_driver)
-#   /set_latte_do2, /set_latte_do4 → latte_io_node (latte_imitation)
+#   /set_latte_do2, /set_latte_do4 → latte_io_node
 #   /change_tool, /get_current_tool → gripper_swap_worker (tool_changer)
 #
 vision_panel:
@@ -100,7 +100,7 @@ vision_panel:
     services:
       - {id: "svc-latte-do2",      default: "/set_latte_do2",                label: "DO2 开关",         srv_type: "std_srvs/srv/SetBool"}
       - {id: "svc-latte-do4",      default: "/set_latte_do4",                label: "DO4 开关",         srv_type: "std_srvs/srv/SetBool"}
-      - {id: "svc-latte-replay",   default: "/latte_imitation/replay_trajectory", label: "轨迹回放",     srv_type: "ivg_interfaces/srv/ReplayLatteTrajectory"}
+      - {id: "svc-latte-workflow", default: "/latte/run_workflow",            label: "拉花工作流",     srv_type: "ivg_interfaces/srv/RunLatteWorkflow"}
 
 # ---- RobotWebTools 前端库 ----
 robotwebtools:

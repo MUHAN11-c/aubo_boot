@@ -21,6 +21,32 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC
 # 退出清理（Ctrl+C / kill 时终止所有已启动的 ROS 2 进程）
 cleanup() {
     echo -e "\n${YELLOW}正在终止所有启动的进程...${NC}"
+
+    # rosbag2 优先优雅停止 — 先发 SIGINT 触发 metadata.yaml 写出, 等 2s
+    if pgrep -f 'ros2 bag' >/dev/null 2>&1; then
+        echo -e "${BLUE}  → 停止 rosbag2 录制 (SIGINT)...${NC}"
+        pkill -INT -f 'ros2 bag' 2>/dev/null || true
+        # 等待 rosbag2 写 metadata.yaml + 关闭 db3
+        for _ in $(seq 1 20); do
+            pgrep -f 'ros2 bag' >/dev/null 2>&1 || break
+            sleep 0.2
+        done
+        # 如果还没死, 强制 SIGTERM
+        pkill -TERM -f 'ros2 bag' 2>/dev/null || true
+    fi
+
+    # 轨迹录制器 — 先发 SIGINT 触发 save_data()
+    if pgrep -f 'record_robot_trajectory' >/dev/null 2>&1; then
+        echo -e "${BLUE}  → 停止轨迹录制器 (SIGINT)...${NC}"
+        pkill -INT -f 'record_robot_trajectory' 2>/dev/null || true
+        for _ in $(seq 1 10); do
+            pgrep -f 'record_robot_trajectory' >/dev/null 2>&1 || break
+            sleep 0.2
+        done
+        pkill -TERM -f 'record_robot_trajectory' 2>/dev/null || true
+    fi
+
+    # 其余进程
     pkill -f rosbridge_websocket 2>/dev/null || true
     pkill -f rosapi_node 2>/dev/null || true
     pkill -f aubo_driver_ros2 2>/dev/null || true
@@ -33,7 +59,6 @@ cleanup() {
     pkill -f rviz2 2>/dev/null || true
     pkill -f web_video_server 2>/dev/null || true
     pkill -f 'uvicorn.*8090' 2>/dev/null || true
-    pkill -f 'ros2 bag' 2>/dev/null || true
     pkill -f 'ros2 lifecycle' 2>/dev/null || true
     pkill -f 'latte_imitation' 2>/dev/null || true
     pkill -f 'latte_cartesian_planner' 2>/dev/null || true
@@ -41,7 +66,7 @@ cleanup() {
     sleep 0.5
     echo -e "${GREEN}  ✓ 清理完成${NC}"
 }
-trap cleanup INT TERM
+trap cleanup INT TERM HUP
 
 # ═══════════════════════════════════════════════════════════════
 # 路径自定位
@@ -144,8 +169,17 @@ launch() {
     full+="unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY all_proxy FTP_PROXY ftp_proxy; "
     full+="export NO_PROXY=\"127.0.0.1,localhost,0.0.0.0,::1\${NO_PROXY:+, \${NO_PROXY}}\"; export no_proxy=\"\$NO_PROXY\"; "
     # PyTorch 绑定的 CUDA 库（需优先于系统 CUDA，避免版本冲突）
-    local nvidia_libs
-    nvidia_libs=$(echo "$HOME"/.local/lib/python3.10/site-packages/nvidia/*/lib | tr ' ' ':')
+    local nvidia_libs=""
+    local nvidia_glob="${HOME}/.local/lib/python3.10/site-packages/nvidia/*/lib"
+    # 仅在 glob 匹配到实际目录时才展开 (shopt -s nullglob 在函数内安全)
+    local nullglob_was
+    nullglob_was=$(shopt nullglob | awk '{print $2}')
+    shopt -s nullglob
+    local -a _nvidia_dirs=(${nvidia_glob})
+    if [ "$nullglob_was" = "off" ]; then shopt -u nullglob; fi
+    if [ ${#_nvidia_dirs[@]} -gt 0 ]; then
+        nvidia_libs=$(printf '%s:' "${_nvidia_dirs[@]}" | sed 's/:$//')
+    fi
     full+="export LD_LIBRARY_PATH=\"\$HOME/.local/lib/python3.10/site-packages/torch/lib:${nvidia_libs}:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/aubocontroller:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/log4cplus:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/config:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/protobuf:\$LD_LIBRARY_PATH\" && cd \"${WS}\" && source \"${ROS2_SETUP}\" && source install/setup.bash && ${cmd}; exec bash"
     "$TERMINATOR" --new-tab --title="$title" \
         -e "bash -c '${full}'" &
@@ -266,9 +300,10 @@ else
     mkdir -p "$(dirname "${WS}/${IVG_ROSBAG_DIR}")"
     rm -rf "${WS}/${IVG_ROSBAG_DIR}"
     if [ -n "$IVG_ROSBAG_TOPICS" ]; then
-        launch "ROS2 Bag" "ros2 bag record -o \"${IVG_ROSBAG_DIR}\" ${IVG_ROSBAG_TOPICS}"
+        launch "ROS2 Bag" "ros2 bag record -o \"${IVG_ROSBAG_DIR}\" --storage-preset-profile resilient ${IVG_ROSBAG_TOPICS}"
     else
-        launch "ROS2 Bag" "ros2 bag record -o \"${IVG_ROSBAG_DIR}\" -a -x '/state$'"
+        # -a 全录, 排除 /state 结尾话题; resilient 模式定期刷 metadata 防丢
+        launch "ROS2 Bag" "ros2 bag record -o \"${IVG_ROSBAG_DIR}\" --storage-preset-profile resilient -a -x '/state$'"
     fi
 fi
 
@@ -330,6 +365,9 @@ launch "Latte Imitation" "ros2 launch latte_imitation start_latte_pour.launch.py
 
 echo -e "${GREEN}[11c] 拉花工作流编排...${NC}"
 launch "Latte Workflow" "ros2 launch aubo_moveit_config latte_workflow.launch.py"
+
+echo -e "${GREEN}[11d] 轨迹实时录制...${NC}"
+launch "Trajectory Recorder" "python3 ${WS}/src/aubo_ros2_driver/demo_driver/scripts/record_robot_trajectory.py"
 
 echo -e "${GREEN}[12] GraspNet 循环抓取...${NC}"
 launch "Publish Grasps" "ros2 run demo_driver publish_grasps_client_worker_node"

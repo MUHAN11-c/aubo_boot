@@ -2,6 +2,7 @@
 // ROS 连接(WebSocket) + /robot_status + /aubo/mode
 import { ivgTransport } from '../ivg_transport.js';
 import { ROBOT_STATUS_TOPIC, ROBOT_STATUS_TYPE, MODE_TOPIC, MODE_TYPE } from './topics.js';
+import { logBus } from './log-bus.js';
 
 const TAG = '[ivg_status_bar]';
 
@@ -141,8 +142,8 @@ function updateDriverMode(raw) {
   if (mode && mode !== _lastKnownMode) {
     _lastKnownMode = mode;
     if (ivgTransport) { ivgTransport._driverMode = mode; }
-    console.log(TAG, '驱动模式 =', mode,
-      mode === 'real' ? '(真实硬件)' : '(仿真模式)');
+    logBus.addLog('info', 'system', '驱动模式 = ' + mode
+      + (mode === 'real' ? ' (真实硬件)' : ' (仿真模式)'));
   }
 
   const item = bar.querySelector('[data-key="driver_mode"]');

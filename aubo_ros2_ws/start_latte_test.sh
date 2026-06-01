@@ -3,24 +3,18 @@
 if [ -z "${BASH_VERSION:-}" ]; then exec /bin/bash "$0" "$@"; exit 1; fi
 
 # ═══════════════════════════════════════════════════════════════
-# latte_imitation 一键测试启动脚本 v3.0 (MoveIt2 5 阶段管线)
+# latte_backend 一键测试启动脚本 v4.0 (C++ 5 步工作流)
 #
-# 参考 start_aubo_new_driver.sh 的多终端架构:
-#   终端1 = 仿真环境 (move_group + ros2_control)
-#   终端2 = latte_imitation 节点 (默认 preview 模式)
-#   终端3 = 交互式预览/测试面板 (test_latte_pour.py)
-#   终端4 = RViz2 可视化 (加载 latte_preview.rviz)
-#   终端5 = 快捷命令速查
+# latte_imitation (Python) + latte_cartesian_planner 已删除
+# 替代: latte_backend — 独立 C++ 包, 依赖 demo_driver::robot_controller
 #
-# 管线: _execute_pipeline → _pipeline (5 阶段)
-#   ① Load npz → ② SE(3) Retarget → ③ Preview (RViz2 markers)
-#   ④ Safety Check → ⑤+⑥ Plan+Execute (C++ /latte/plan_and_execute)
-# 轨迹起点: 自动从 TF (base_link→tool_tcp) 获取当前 EE 位姿
+# 终端1 = 仿真环境 (move_group + ros2_control)
+# 终端2 = latte_backend 工作流节点
+# 终端3 = 命令速查
 #
 # 用法:
 #   ./start_latte_test.sh                  # 默认仿真模式
 #   ./start_latte_test.sh --skip-build     # 跳过构建
-#   ./start_latte_test.sh --real           # 真机模式 (需 AUBO IP 可达)
 #   ./start_latte_test.sh --help           # 查看帮助
 # ═══════════════════════════════════════════════════════════════
 
@@ -29,58 +23,29 @@ set -e
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 BLUE='\033[0;34m'; CYAN='\033[0;36m'; NC='\033[0m'
 
-# ── 默认配置 ──────────────────────────────────────────────────
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WS="${SCRIPT_DIR}"
 ROS2_SETUP="/opt/ros/humble/setup.bash"
-AUBO_IP="169.254.10.98"
 SKIP_BUILD=0
-REAL_MODE=0
-
-# ── 启动变量 (可通过 launch 文件覆盖) ──
-EPISODE_IDX="${EPISODE_IDX:-0}"
-ARM="${ARM:-right}"
-MODE="${MODE:-preview}"                          # preview | debug | action
-SPEED_SCALE="${SPEED_SCALE:-1.0}"
 
 for arg in "$@"; do
     case "$arg" in
         --skip-build) SKIP_BUILD=1 ;;
-        --real)       REAL_MODE=1 ;;
-        --action)     MODE="action" ;;
         --help|-h)
             cat << 'HELP'
 用法: ./start_latte_test.sh [选项]
 
 选项:
   --skip-build    跳过 colcon build
-  --real          真机模式 (需 AUBO IP 可达)
-  --action        直接进入 action 模式 (真机执行)
   --help          显示此帮助
 
-5 个 terminator 标签页:
+3 个 terminator 标签页:
   [Sim]           仿真环境 (move_group + ros2_control)
-  [Latte Node]    latte_imitation 节点 (默认 preview 模式)
-  [Preview Panel] 交互式预览/测试面板 (test_latte_pour.py)
-  [RViz2]         RViz2 可视化 (加载 latte_preview.rviz)
-  [Cmd Ref]       手动命令速查 (可直接复制执行)
+  [Latte Backend] latte_backend 工作流节点
+  [Cmd Ref]       手动命令速查
 
-Preview 模式说明:
-  - 节点启动后自动发布 RViz2 markers: TCP 轨迹 (绿色)
-    方向箭头 (绿)、spout 轨迹 (蓝)、杯子位置 (黄)、安全框 (红)
-  - 在 [Preview Panel] 中调整 RPY 参数后按 [p] 刷新
-  - 满意后按 [e] 进入 action 模式真机执行
-
-管线流程 (trajectory_pipeline.py v3.0):
-  ① Load npz  → ② SE(3) Retarget → ③ Preview (RViz2 markers)
-  ④ Safety Check → ⑤+⑥ Plan+Execute (C++ /latte/plan_and_execute)
-
-理论依据:
-  SPOT (arXiv:2411.00965): Object-centric SE(3) 轨迹
-  Isaac Teleop: Se3RelRetargeter delta 语义
-  SO(3) Action Repr. (Savva 2025): Hamilton 四元数约定
-  SVRC: Object-relative Cartesian → Very High generalization
+启动后执行工作流:
+  ros2 service call /latte/run_workflow ivg_interfaces/srv/RunLatteWorkflow "{}"
 HELP
             exit 0 ;;
     esac
@@ -90,18 +55,14 @@ done
 
 cleanup() {
     echo -e "\n${YELLOW}终止所有进程...${NC}"
-    pkill -f "latte_imitation"       2>/dev/null || true
-    pkill -f "latte_cartesian_planner" 2>/dev/null || true
-    pkill -f "latte_debug_panel"     2>/dev/null || true
-    pkill -f "test_latte_pour"       2>/dev/null || true
-    pkill -f "test_replay_service"   2>/dev/null || true
-    pkill -f "rviz2"                 2>/dev/null || true
-    pkill -f "move_group"            2>/dev/null || true
-    pkill -f "ros2_control_node"     2>/dev/null || true
-    pkill -f "controller_manager"    2>/dev/null || true
-    pkill -f "robot_state_publisher" 2>/dev/null || true
-    pkill -f "aubo_mode"             2>/dev/null || true
-    pkill -f "spawner"               2>/dev/null || true
+    pkill -f "latte_workflow_node"    2>/dev/null || true
+    pkill -f "rviz2"                  2>/dev/null || true
+    pkill -f "move_group"             2>/dev/null || true
+    pkill -f "ros2_control_node"      2>/dev/null || true
+    pkill -f "controller_manager"     2>/dev/null || true
+    pkill -f "robot_state_publisher"  2>/dev/null || true
+    pkill -f "aubo_mode"              2>/dev/null || true
+    pkill -f "spawner"                2>/dev/null || true
     pkill -f "joint_state_broadcaster" 2>/dev/null || true
     sleep 0.5
     echo -e "${GREEN}  ✓ 清理完成${NC}"
@@ -126,12 +87,6 @@ if [ ! -f "$WS_SETUP" ] && [ "$SKIP_BUILD" = "1" ]; then
     echo -e "${RED}install/setup.bash 不存在, 不能跳过构建${NC}"; exit 1
 fi
 
-LAUNCH_FILE="${WS}/src/latte_imitation/launch/start_latte_pour.launch.py"
-PANEL_SCRIPT="${WS}/src/latte_imitation/scripts/test_latte_pour.py"
-RVIZ_CONFIG="${WS}/src/latte_imitation/config/latte_preview.rviz"
-
-# ── terminator 标签页启动函数 ─────────────────────────────────
-
 launch() {
     local title="$1" cmd="$2"
     local full
@@ -147,18 +102,11 @@ launch() {
 cleanup
 
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}latte_imitation 测试启动 v3.0${NC}"
-echo -e "${GREEN}  (5 阶段管线 + RViz2 Preview)${NC}"
+echo -e "${GREEN}latte_backend 测试启动 v4.0${NC}"
+echo -e "${GREEN}  (C++ 5 步拉花工作流)${NC}"
 echo -e "${GREEN}========================================${NC}"
-echo -e "${BLUE}工作空间:   ${WS}${NC}"
-echo -e "${BLUE}机器人IP:   ${AUBO_IP}${NC}"
-echo -e "${BLUE}Episode:    ${EPISODE_IDX}   arm: ${ARM}   mode: ${MODE}   speed: ${SPEED_SCALE}x${NC}"
-echo ""
 
-# ═══════════════════════════════════════════════════════════════
 # [0] 构建
-# ═══════════════════════════════════════════════════════════════
-
 if [ "$SKIP_BUILD" = "1" ]; then
     echo -e "${YELLOW}[0] 跳过构建 (--skip-build)${NC}"
 else
@@ -167,209 +115,91 @@ else
         cd "$WS"
         source "$ROS2_SETUP"
         if [ -f "$WS_SETUP" ]; then source "$WS_SETUP"; fi
-        colcon build --packages-select ivg_interfaces latte_cartesian_planner latte_imitation
+        colcon build --packages-select demo_driver latte_backend
     )
     echo -e "${GREEN}  ✓ 构建完成${NC}"
 fi
 
-# ═══════════════════════════════════════════════════════════════
 # [1] 终端1 — 仿真环境
-# ═══════════════════════════════════════════════════════════════
-
 echo -e "${GREEN}[1] 终端1 — 仿真环境...${NC}"
-launch "Sim" "ros2 launch aubo_moveit_config aubo_new_driver.launch.py server_host:=${AUBO_IP}"
+launch "Sim" "ros2 launch aubo_moveit_config aubo_new_driver.launch.py use_fake_hardware:=true"
 
-# 等待 move_group 就绪
-echo -e "${BLUE}  → 等待 /move_group 节点 (超时 30s)...${NC}"
+echo -e "${BLUE}  → 等待 /joint_states (超时 30s)...${NC}"
 TICK=0
 while [ "$TICK" -lt 60 ]; do
     sleep 0.5; TICK=$((TICK + 1))
-    if ros2 node list 2>/dev/null | grep -q "/move_group"; then
-        echo -e "${GREEN}    ✓ /move_group 就绪 (${TICK}x0.5s)${NC}"
+    if ros2 topic list 2>/dev/null | grep -q "/joint_states"; then
+        echo -e "${GREEN}    ✓ /joint_states 就绪 (${TICK}x0.5s)${NC}"
         break
     fi
 done
 
-# 等待 /execute_trajectory action
-echo -e "${BLUE}  → 等待 /execute_trajectory action (超时 60s)...${NC}"
+# [2] 终端2 — latte_backend 工作流节点
+echo -e "${GREEN}[2] 终端2 — latte_backend 工作流节点...${NC}"
+launch "Latte Backend" "ros2 launch latte_backend latte_workflow.launch.py"
+
+echo -e "${BLUE}  → 等待 /latte/run_workflow 服务 (超时 60s)...${NC}"
 TICK=0
 while [ "$TICK" -lt 120 ]; do
     sleep 0.5; TICK=$((TICK + 1))
-    if ros2 action list 2>/dev/null | grep -q "/execute_trajectory"; then
-        echo -e "${GREEN}    ✓ /execute_trajectory 就绪 (${TICK}x0.5s)${NC}"
+    if ros2 service list 2>/dev/null | grep -q "/latte/run_workflow"; then
+        echo -e "${GREEN}    ✓ /latte/run_workflow 就绪 (${TICK}x0.5s)${NC}"
         break
     fi
 done
 
-# 等待 /latte/plan_and_execute 服务 (C++ 节点)
-echo -e "${BLUE}  → 等待 /latte/plan_and_execute 服务 (超时 30s)...${NC}"
-TICK=0
-while [ "$TICK" -lt 60 ]; do
-    sleep 0.5; TICK=$((TICK + 1))
-    if ros2 service list 2>/dev/null | grep -q "/latte/plan_and_execute"; then
-        echo -e "${GREEN}    ✓ /latte/plan_and_execute 就绪 (${TICK}x0.5s)${NC}"
-        break
-    fi
-done
-
-# ═══════════════════════════════════════════════════════════════
-# [2] 终端2 — latte_imitation 节点 (preview 模式)
-# ═══════════════════════════════════════════════════════════════
-
-echo -e "${GREEN}[2] 终端2 — latte_imitation 节点 (mode=${MODE})...${NC}"
-launch "Latte Node" "ros2 launch latte_imitation start_latte_pour.launch.py \
-    episode_idx:=${EPISODE_IDX} arm:=${ARM} mode:=${MODE} speed_scale:=${SPEED_SCALE}"
-
-# 等待服务就绪
-echo -e "${BLUE}  → 等待 /latte_imitation/replay_trajectory 服务 (超时 15s)...${NC}"
-TICK=0
-while [ "$TICK" -lt 30 ]; do
-    sleep 0.5; TICK=$((TICK + 1))
-    if ros2 service list 2>/dev/null | grep -q "replay_trajectory"; then
-        echo -e "${GREEN}    ✓ 服务就绪 (${TICK}x0.5s)${NC}"
-        break
-    fi
-done
-
-# ═══════════════════════════════════════════════════════════════
-# [3] 终端3 — 交互式预览/测试面板
-# ═══════════════════════════════════════════════════════════════
-
-echo -e "${GREEN}[3] 终端3 — 交互式预览/测试面板...${NC}"
-if [ -f "$PANEL_SCRIPT" ]; then
-    launch "Preview Panel" "python3 ${PANEL_SCRIPT}"
-else
-    echo -e "${RED}  ✗ ${PANEL_SCRIPT} 不存在${NC}"
-fi
-
-# ═══════════════════════════════════════════════════════════════
-# [4] 终端4 — RViz2 可视化 (加载 latte_preview.rviz)
-# ═══════════════════════════════════════════════════════════════
-
-echo -e "${GREEN}[4] 终端4 — RViz2 可视化...${NC}"
-if [ -f "$RVIZ_CONFIG" ]; then
-    launch "RViz2" "rviz2 -d ${RVIZ_CONFIG}"
-else
-    echo -e "${YELLOW}  ⚠ latte_preview.rviz 不存在, 启动默认 RViz2${NC}"
-    launch "RViz2" "rviz2"
-fi
-
-# ═══════════════════════════════════════════════════════════════
-# [5] 终端5 — 手动命令速查 (v3.0 新字段)
-# ═══════════════════════════════════════════════════════════════
-
-echo -e "${GREEN}[5] 终端5 — 快捷命令速查...${NC}"
+# [3] 终端3 — 命令速查
+echo -e "${GREEN}[3] 终端3 — 命令速查...${NC}"
 launch "Cmd Ref" "cat << 'CMDS'
 ═══════════════════════════════════════════════════════════════
-  latte_imitation v3.0 命令速查 (5 阶段管线 + RViz2 Preview)
+  latte_backend v4.0 — C++ 5 步咖啡拉花工作流
 ═══════════════════════════════════════════════════════════════
 
-=== Preview 模式 (RViz2 可视化, 不规划/执行) ===
-ros2 service call /latte_imitation/replay_trajectory \\
-  ivg_interfaces/srv/ReplayLatteTrajectory \\
-  \"{episode_idx: 0, arm: right, speed_scale: 1.0, mode: preview,
-    roll_deg: 0.0, pitch_deg: 0.0, yaw_deg: 0.0,
-    tool_offset_id: default,
-    start_pose: {position: {x: 0.0, y: 0.0, z: 0.0},
-                 orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}\"
+=== 执行完整 5 步工作流 ===
+ros2 service call /latte/run_workflow ivg_interfaces/srv/RunLatteWorkflow \"{}\"
 
-=== Action 模式 (完整管线, 真机执行, 2倍速) ===
-ros2 service call /latte_imitation/replay_trajectory \\
-  ivg_interfaces/srv/ReplayLatteTrajectory \\
-  \"{episode_idx: 0, arm: right, speed_scale: 2.0, mode: action,
-    roll_deg: 0.0, pitch_deg: 0.0, yaw_deg: 0.0,
-    tool_offset_id: default,
-    start_pose: {position: {x: 0.0, y: 0.0, z: 0.0},
-                 orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}\"
+=== 仅执行 step5 拉花轨迹 (手动完成 step1-4 后) ===
+ros2 service call /latte/run_workflow ivg_interfaces/srv/RunLatteWorkflow \"{data: ''}\"
 
-=== Preview + Yaw 90° 旋转 ===
-ros2 service call /latte_imitation/replay_trajectory \\
-  ivg_interfaces/srv/ReplayLatteTrajectory \\
-  \"{episode_idx: 0, arm: right, speed_scale: 1.0, mode: preview,
-    roll_deg: 0.0, pitch_deg: 0.0, yaw_deg: 90.0,
-    tool_offset_id: default,
-    start_pose: {position: {x: 0.0, y: 0.0, z: 0.0},
-                 orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}\"
+=== 跳过 step5 拉花执行 ===
+ros2 param set /latte_workflow_node lwf_execute_latte false
 
-=== Preview + Roll 前倾 10° ===
-ros2 service call /latte_imitation/replay_trajectory \\
-  ivg_interfaces/srv/ReplayLatteTrajectory \\
-  \"{episode_idx: 0, arm: right, speed_scale: 1.0, mode: preview,
-    roll_deg: 10.0, pitch_deg: 0.0, yaw_deg: 0.0,
-    tool_offset_id: default,
-    start_pose: {position: {x: 0.0, y: 0.0, z: 0.0},
-                 orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}\"
+=== 切换拉花图案 ===
+ros2 param set /latte_workflow_node lwf_pattern_type heart
 
-=== 指定杯子位置 (position 非零) ===
-ros2 service call /latte_imitation/replay_trajectory \\
-  ivg_interfaces/srv/ReplayLatteTrajectory \\
-  \"{episode_idx: 0, arm: right, speed_scale: 1.0, mode: preview,
-    roll_deg: 0.0, pitch_deg: 0.0, yaw_deg: 0.0,
-    tool_offset_id: default,
-    start_pose: {position: {x: 0.45, y: 0.0, z: 0.50},
-                 orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}\"
+=== 调整拉花速度 ===
+ros2 param set /latte_workflow_node lwf_heart_velocity 0.3
 
-=== 错误处理 — 不存在 episode ===
-ros2 service call /latte_imitation/replay_trajectory \\
-  ivg_interfaces/srv/ReplayLatteTrajectory \\
-  \"{episode_idx: 999, arm: right, speed_scale: 1.0, mode: preview,
-    roll_deg: 0.0, pitch_deg: 0.0, yaw_deg: 0.0,
-    tool_offset_id: default,
-    start_pose: {position: {x: 0.0, y: 0.0, z: 0.0},
-                 orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}\"
-# 预期: success=false, message=episode_000999.npz ... 未找到
+=== 禁用动态 Roll 渐变 (IK 失败时回退) ===
+ros2 param set /latte_workflow_node lwf_heart_roll_draw_dynamic false
 
-=== 左臂持杯轨迹 ===
-ros2 service call /latte_imitation/replay_trajectory \\
-  ivg_interfaces/srv/ReplayLatteTrajectory \\
-  \"{episode_idx: 0, arm: left, speed_scale: 1.0, mode: preview,
-    roll_deg: 0.0, pitch_deg: 0.0, yaw_deg: 0.0,
-    tool_offset_id: default,
-    start_pose: {position: {x: 0.0, y: 0.0, z: 0.0},
-                 orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}\"
-# 预期: success=true, num_frames=400, path_length~0.31
+=== 查看所有拉花参数 ===
+ros2 param dump /latte_workflow_node | grep lwf
 
 ═══════════════════════════════════════════════════════════════
-  请求字段说明 (v3.0 新增字段标 ★)
+  5 步工作流 (handleRunWorkflow)
 ═══════════════════════════════════════════════════════════════
-episode_idx    0~39               Episode 编号
-arm            right=拉花臂 left=持杯臂
-speed_scale    0.01~10.0          播放速度倍率
-mode           preview/debug/action  (preview=RViz2可视化)
-★ roll_deg     绕 X 轴旋转角度 (度, 默认 0)
-★ pitch_deg    绕 Y 轴旋转角度 (度, 默认 0)
-★ yaw_deg      绕 Z 轴旋转角度 (度, 默认 0)
-★ tool_offset_id 工具偏移ID (config/tool_offset.yaml, 默认 default)
-start_pose:
-  position     0,0,0→TF自动获取   非零→指定杯子位置
-  orientation  0,0,0,1→纯平移    非identity→叠加旋转
+[1/5] 取牛奶杯 → moveToJoints 预教位姿 → 抓取
+[2/5] 打奶泡   → 笛卡尔直线去/回喷嘴 → 等待2s
+[3/5] 转腕朝上 → 笛卡尔 slerp (FK rotate_up_joints)
+      放置咖啡杯 → 笛卡尔 slerp (FK place_coffee_joints)
+[4/5] 嘴口倾倒 → 绕世界X轴前倾45° (倾倒基准)
+[5/5] 心形拉花 → 融合画圈→成形注入→划穿收尾
 
 ═══════════════════════════════════════════════════════════════
-  响应字段
+  坐标系 (世界坐标系, base_link)
 ═══════════════════════════════════════════════════════════════
-success / message / num_frames / path_length
-ik_success_count = int(fraction * num_frames)
-collision_count = 0, collision_details = []
+X 轴 (前) → 倾倒倾角轴 (绕此轴旋转 = 奶缸前倾/后仰)
+Y 轴 (左) → 划穿方向轴
+Z 轴 (上) → 高度轴 (液面上方距离)
 
 ═══════════════════════════════════════════════════════════════
-  5 阶段管线 (trajectory_pipeline.py v3.0)
+  心形轨迹分段 (step5, 基于 Barista Hustle MSLA)
 ═══════════════════════════════════════════════════════════════
-_execute_pipeline (加锁)
-  └─ _pipeline:
-      ① _load_cartesian()        加载 npz 文件
-      ② retarget_trajectory()     SE(3) 重定目标 + RPY
-      ③ _publish_preview()       RViz2 markers (mode=preview 返回)
-      ④ check_workspace_bounds() 工作空间安全检查
-      ⑤+⑥ /latte/plan_and_execute  C++ MoveIt2 规划+执行
+[5a] 融合画圈  Z=80mm roll=45°      r=10mm ×2圈 (25%)
+[5b] 成形注入  Z=5mm  roll=60°→45°  定点不动 (55%)
+[5c] 划穿收尾  Z=80mm roll=50°      Y轴推进15mm (20%)
 
-═══════════════════════════════════════════════════════════════
-  理论依据
-═══════════════════════════════════════════════════════════════
-SPOT (arXiv:2411.00965):           Object-centric SE(3) 轨迹
-Isaac Teleop (NVIDIA):             Se3RelRetargeter delta 语义
-SO(3) Action Repr. (Savva 2025):   Hamilton 四元数约定
-SVRC:                              Object-relative > absolute
-FluidLab (ICLR 2023):              可微物理拉花仿真
 CMDS
 echo '按 Ctrl+C 或直接关终端退出喵~'"
 
@@ -379,28 +209,17 @@ echo '按 Ctrl+C 或直接关终端退出喵~'"
 
 echo ""
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}  latte_imitation v3.0 测试环境就绪${NC}"
+echo -e "${GREEN}  latte_backend v4.0 测试环境就绪${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
-echo -e "${YELLOW}5 个 terminator 标签页:${NC}"
-echo -e "  ${CYAN}[Sim]${NC}           仿真环境 (move_group + ros2_control)"
-echo -e "  ${CYAN}[Latte Node]${NC}    latte_imitation 节点 (mode=${MODE})"
-echo -e "  ${CYAN}[Preview Panel]${NC} 交互式预览/测试面板 (test_latte_pour.py)"
-echo -e "  ${CYAN}[RViz2]${NC}         RViz2 可视化 (latte_preview.rviz)"
-echo -e "  ${CYAN}[Cmd Ref]${NC}       手动命令速查"
+echo -e "${YELLOW}3 个 terminator 标签页:${NC}"
+echo -e "  ${CYAN}[Sim]${NC}            仿真环境 (move_group + ros2_control)"
+echo -e "  ${CYAN}[Latte Backend]${NC}  latte_backend 工作流节点"
+echo -e "  ${CYAN}[Cmd Ref]${NC}        手动命令速查"
 echo ""
-echo -e "${YELLOW}Preview 使用流程:${NC}"
-echo -e "  1. 在 [Preview Panel] 中调整 RPY 角度"
-echo -e "  2. 按 [p] 刷新 → ${CYAN}RViz2 即时更新轨迹预览${NC}"
-echo -e "  3. 满意后按 [e] → 输入 yes → ${CYAN}真机执行${NC}"
-echo ""
-echo -e "${YELLOW}RViz2 Display 提示 (已预配置):${NC}"
-echo -e "  MarkerArray (绿) → /rviz_visual_tools  (EE 轨迹线, C++ moveit_visual_tools)"
-echo -e "  Marker (蓝)    → /latte_imitation/preview/spout_path"
-echo -e "  Marker (黄)    → /latte_imitation/preview/cup_pose"
-echo -e "  Marker (红)    → /latte_imitation/preview/workspace_bounds"
+echo -e "${YELLOW}执行工作流:${NC}"
+echo -e "  ros2 service call /latte/run_workflow ivg_interfaces/srv/RunLatteWorkflow \"{}\""
 echo ""
 echo -e "${YELLOW}Ctrl+C 或直接关闭 terminator → 自动清理所有进程喵~${NC}"
 
-# 阻塞主进程, 等待用户 Ctrl+C
 wait

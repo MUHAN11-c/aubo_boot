@@ -1,4 +1,5 @@
 // patches.js — ros3d Object3D polyfill + Three.js safe-add patch + 材质升级喵~
+import { logBus } from '../core/log-bus.js';
 const ivgObject3dAddPatchedPrototypes =
 		typeof WeakSet !== 'undefined' ? new WeakSet() : null;
 	function installIvgThreeSafeAddPatchOnPrototype(object3dPrototype) {
@@ -69,7 +70,7 @@ const ivgObject3dAddPatchedPrototypes =
 		const object3dPrototype = Object.getPrototypeOf(Object.getPrototypeOf(scene));
 		if (!object3dPrototype || typeof object3dPrototype.add !== 'function') {
 			try {
-				console.warn('[ivg/three] 无法从内嵌 Viewer.scene 解析 Object3D.prototype，跳过 safe-add');
+				logBus.addLog('warn', 'view3d', '无法解析 Object3D.prototype，跳过 safe-add');
 			} catch (e) {
 			}
 			return;

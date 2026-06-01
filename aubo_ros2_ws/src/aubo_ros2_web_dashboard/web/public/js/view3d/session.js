@@ -1,6 +1,7 @@
 // session.js — IvgRos3dView3dSession: 3D viewer, TF, URDF, markers
 import * as ROSLIB from 'roslib';
 import * as ROS3D from 'ros3d';
+import { logBus } from '../core/log-bus.js';
 import { ivgRos3dEmbeddedObject3DClass, installIvgRos3dEmbeddedThreeSafeAddPatch } from './patches.js';
 import { IvgRos3dTfClient } from './tf_clients.js';
 import { removeView3dUrdfHint, showView3dUrdfHint } from './hints.js';
@@ -85,7 +86,7 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 			try {
 				fn();
 			} catch (e) {
-				console.error('[ivg/view3d] deferred stage failed:', e);
+				logBus.addLog('error', 'view3d', 'deferred stage failed: ' + (e.message || e));
 			}
 		}, delayMs);
 		this._deferredStartTimers.push(tid);
@@ -144,7 +145,7 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 				param: pName
 			});
 		} catch (err0) {
-			console.error('URDF:', err0);
+			logBus.addLog('error', 'view3d', 'URDF 加载失败: ' + (err0.message || err0));
 			showView3dUrdfHint(
 				host,
 				`<strong>机械臂加载失败</strong>：${String(err0)}。请检查参数 <code>${pName}</code>、TF 固定坐标 <code>${fixedFrame}</code> 与网格资源路径。`
@@ -373,7 +374,7 @@ IvgRos3dView3dSession.prototype.stop = function () {
 	IvgRos3dView3dSession.prototype.addTrajectoryLine = function (waypoints, color, linewidth) {
 		if (!this.viewer3d || !this.viewer3d.scene || !waypoints || waypoints.length < 2) return;
 		var THREE = globalThis.THREE;
-		if (!THREE) { console.warn('[ivg/view3d] addTrajectoryLine skipped: globalThis.THREE not available'); return; }
+		if (!THREE) { logBus.addLog('warn', 'view3d', 'addTrajectoryLine skipped: THREE not available'); return; }
 		if (!this._trajectoryLines) this._trajectoryLines = [];
 		var hex = typeof color === 'string' ? parseInt(color.replace('#', ''), 16) : (color || 0xff6b6b);
 		var pts = waypoints.map(function (wp) {

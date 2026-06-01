@@ -1,6 +1,16 @@
 #!/usr/bin/env python3
-"""订阅 /robot_status 话题，实时 3D 显示 + 记录轨迹喵~"""
+"""轨迹录制喵~
 
+用法: python3 record_robot_trajectory.py
+
+  - 订阅 /robot_status, 记录全部数据
+  - 控制台实时摘要 (每 0.5s)
+  - 拉花段标记: ROS service ~/start_latte_record / ~/stop_latte_record
+  - 退出时自动保存到 ~/robot_trajectories/<时间戳>/
+  - 查看数据: 浏览器打开 Web Dashboard → 轨迹回放页面
+"""
+
+import atexit
 import os
 import signal
 import sys
@@ -8,31 +18,22 @@ import threading
 import time
 from datetime import datetime
 
-import matplotlib
-matplotlib.use("TkAgg")  # 交互式后端
-import matplotlib.font_manager as fm
-import matplotlib.pyplot as plt
-
-# 注册中文字体，避免 CJK 字符缺失警告
-_cjk_font_path = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
-if os.path.exists(_cjk_font_path):
-    fm.fontManager.addfont(_cjk_font_path)
-    _cjk_name = fm.FontProperties(fname=_cjk_font_path).get_name()
-    matplotlib.rcParams["font.sans-serif"] = [_cjk_name, "DejaVu Sans"]
-    matplotlib.rcParams["axes.unicode_minus"] = False
-    # 清除字体缓存，确保新注册字体被使用
-    fm._load_fontmanager(try_read_cache=False)
-
 import numpy as np
 import rclpy
 from ivg_interfaces.msg import RobotStatus
-from mpl_toolkits.mplot3d.art3d import Line3DCollection
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
+from std_srvs.srv import Trigger
 
+
+# ═══════════════════════════════════════════════════════════════════
+# TrajectoryRecorder — 纯录制节点 (无 GUI)
+# ═══════════════════════════════════════════════════════════════════
 
 class TrajectoryRecorder(Node):
-    def __init__(self, output_dir: str = ""):
+    def __init__(self, shutdown_evt: threading.Event, output_dir: str = ""):
         super().__init__("trajectory_recorder")
+        self._shutdown = shutdown_evt
         self.sub = self.create_subscription(
             RobotStatus, "/robot_status", self._cb, 10
         )
@@ -40,20 +41,52 @@ class TrajectoryRecorder(Node):
         self._records: list[dict] = []
         self._start_time = time.time()
 
+        # 拉花段: [(start_idx, end_idx), ...]  None=尚未停止
+        self._latte_segments: list[list] = []
+        self._latte_recording = False
+
+        # ROS service
+        self._srv_start = self.create_service(
+            Trigger, "~/start_latte_record", self._on_start_latte)
+        self._srv_stop = self.create_service(
+            Trigger, "~/stop_latte_record", self._on_stop_latte)
+
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         self._output_dir = output_dir or os.path.join(
             os.path.expanduser("~"), "robot_trajectories", ts
         )
         os.makedirs(self._output_dir, exist_ok=True)
         self.get_logger().info(f"输出目录: {self._output_dir}")
+        self._saved = False
 
-        self._plot_running = threading.Event()
-        self._plot_running.set()
-        self._plot_thread = threading.Thread(
-            target=self._plot_loop, daemon=True
-        )
-        self._plot_thread.start()
-        self.get_logger().info("实时 3D 显示已启动，按 Ctrl+C 停止录制喵~")
+    # ── ROS service 回调 ───────────────────────────────────────────
+
+    def _on_start_latte(self, req, rsp):
+        with self._lock:
+            if not self._latte_recording:
+                self._latte_recording = True
+                self._latte_segments.append([len(self._records), None])
+                self.get_logger().info(
+                    f"🏁 拉花 #{len(self._latte_segments)} 开始 "
+                    f"(idx={self._latte_segments[-1][0]}) 喵~")
+            rsp.success = True
+            rsp.message = f"started segment {len(self._latte_segments)}"
+        return rsp
+
+    def _on_stop_latte(self, req, rsp):
+        with self._lock:
+            if self._latte_recording and self._latte_segments:
+                seg = self._latte_segments[-1]
+                seg[1] = len(self._records)
+                self._latte_recording = False
+                n = seg[1] - seg[0]
+                self.get_logger().info(
+                    f"🏁 拉花 #{len(self._latte_segments)} 停止 (共 {n} 点) 喵~")
+            rsp.success = True
+            rsp.message = "stopped"
+        return rsp
+
+    # ── 数据回调 ───────────────────────────────────────────────────
 
     def _cb(self, msg: RobotStatus):
         elapsed = time.time() - self._start_time
@@ -76,185 +109,196 @@ class TrajectoryRecorder(Node):
         with self._lock:
             self._records.append(rec)
 
-    def _get_arrays(self):
-        with self._lock:
-            if len(self._records) == 0:
-                return None
-            keys = ["t", "x", "y", "z", "roll", "pitch", "yaw"] + [f"j{i}" for i in range(1, 7)]
-            return {k: np.array([r[k] for r in self._records]) for k in keys}
-
-    def _plot_loop(self):
-        plt.ion()
-        fig = plt.figure(figsize=(16, 9))
-        fig.canvas.manager.set_window_title("Robot Trajectory — 实时")
-
-        # 布局：左侧大 3D 视图，右侧信息面板
-        gs = fig.add_gridspec(2, 3, width_ratios=[2, 1, 1], height_ratios=[2, 1])
-
-        ax_3d = fig.add_subplot(gs[0, 0], projection="3d")
-        ax_info = fig.add_subplot(gs[0, 1:])
-        ax_xyz = fig.add_subplot(gs[1, 0])
-        ax_rpy = fig.add_subplot(gs[1, 1])
-        ax_joint = fig.add_subplot(gs[1, 2])
-
-        # --- 3D 轨迹 (Line3DCollection 高性能渲染) ---
-        ax_3d.set_xlabel("X (m)"); ax_3d.set_ylabel("Y (m)"); ax_3d.set_zlabel("Z (m)")
-        ax_3d.set_title("TCP 3D Trajectory (实时)")
-        trail = Line3DCollection([], cmap=plt.cm.viridis, linewidth=1.0)
-        ax_3d.add_collection(trail)
-        start_pt = ax_3d.scatter([], [], [], c="lime", s=60, edgecolors="k", zorder=5, label="Start")
-        now_pt = ax_3d.scatter([], [], [], c="red", s=80, edgecolors="k", zorder=5, label="Now")
-        ax_3d.legend()
-
-        # 信息面板
-        ax_info.axis("off")
-        info_text = ax_info.text(0.05, 0.95, "", transform=ax_info.transAxes,
-                                  fontsize=10, verticalalignment="top")
-
-        # XYZ 时序
-        ax_xyz.set_xlabel("Time (s)"); ax_xyz.set_ylabel("Position (m)")
-        ax_xyz.set_title("TCP Position"); ax_xyz.grid(True, alpha=0.3)
-        line_x, = ax_xyz.plot([], [], label="X", linewidth=0.8)
-        line_y, = ax_xyz.plot([], [], label="Y", linewidth=0.8)
-        line_z, = ax_xyz.plot([], [], label="Z", linewidth=0.8)
-        ax_xyz.legend(loc="upper right")
-
-        # RPY 时序
-        ax_rpy.set_xlabel("Time (s)"); ax_rpy.set_ylabel("Angle (deg)")
-        ax_rpy.set_title("TCP Orientation"); ax_rpy.grid(True, alpha=0.3)
-        line_roll, = ax_rpy.plot([], [], label="Roll", linewidth=0.8)
-        line_pitch, = ax_rpy.plot([], [], label="Pitch", linewidth=0.8)
-        line_yaw, = ax_rpy.plot([], [], label="Yaw", linewidth=0.8)
-        ax_rpy.legend(loc="upper right")
-
-        # 关节角度时序
-        ax_joint.set_xlabel("Time (s)"); ax_joint.set_ylabel("Angle (deg)")
-        ax_joint.set_title("Joint Angles"); ax_joint.grid(True, alpha=0.3)
-        joint_lines = [ax_joint.plot([], [], label=f"J{i+1}", linewidth=0.8)[0] for i in range(6)]
-        ax_joint.legend(ncol=3, fontsize=7, loc="upper right")
-
-        plt.tight_layout(pad=2)
-        fig.canvas.draw()
-        fig.canvas.flush_events()
-
-        while self._plot_running.is_set():
-            arr = self._get_arrays()
-            if arr is not None and len(arr["t"]) > 0:
-                n = len(arr["t"])
-                t = arr["t"]
-
-                # --- 3D 轨迹 (增量更新, 不 cla) ---
-                if n >= 2:
-                    pts = np.column_stack([arr["x"], arr["y"], arr["z"]])
-                    segs = np.stack([pts[:-1], pts[1:]], axis=1)  # (n-1, 2, 3)
-                    trail.set_segments(segs)
-                    trail.set_array(np.linspace(0, 1, n - 1))
-                start_pt._offsets3d = (arr["x"][:1], arr["y"][:1], arr["z"][:1])
-                now_pt._offsets3d = (arr["x"][-1:], arr["y"][-1:], arr["z"][-1:])
-                ax_3d.relim(); ax_3d.autoscale_view()
-
-                # --- 信息面板 ---
-                dur = t[-1]
-                dx = arr["x"][-1] - arr["x"][0]
-                dy = arr["y"][-1] - arr["y"][0]
-                dz = arr["z"][-1] - arr["z"][0]
-                info_text.set_text(
-                    f"点位: {n}\n"
-                    f"时长: {dur:.1f}s  频率: {n/dur:.1f}Hz\n"
-                    f"当前位置:\n"
-                    f"  X={arr['x'][-1]:.4f}  Y={arr['y'][-1]:.4f}  Z={arr['z'][-1]:.4f} m\n"
-                    f"  Roll={np.rad2deg(arr['roll'][-1]):.2f}°  "
-                    f"Pitch={np.rad2deg(arr['pitch'][-1]):.2f}°  "
-                    f"Yaw={np.rad2deg(arr['yaw'][-1]):.2f}°\n"
-                    f"  J1={arr['j1'][-1]:.2f}°  J2={arr['j2'][-1]:.2f}°  "
-                    f"J3={arr['j3'][-1]:.2f}°  J4={arr['j4'][-1]:.2f}°  "
-                    f"J5={arr['j5'][-1]:.2f}°  J6={arr['j6'][-1]:.2f}°\n"
-                    f"行程: {np.sqrt(dx**2+dy**2+dz**2):.3f}m  "
-                    f"(ΔX={dx:+.3f} ΔY={dy:+.3f} ΔZ={dz:+.3f})"
-                )
-
-                # --- XYZ / RPY / 关节时序 (set_data 增量更新) ---
-                line_x.set_data(t, arr["x"]); line_y.set_data(t, arr["y"]); line_z.set_data(t, arr["z"])
-                ax_xyz.relim(); ax_xyz.autoscale_view()
-                line_roll.set_data(t, np.rad2deg(arr["roll"]))
-                line_pitch.set_data(t, np.rad2deg(arr["pitch"]))
-                line_yaw.set_data(t, np.rad2deg(arr["yaw"]))
-                ax_rpy.relim(); ax_rpy.autoscale_view()
-                for i in range(6):
-                    joint_lines[i].set_data(t, arr[f"j{i+1}"])
-                ax_joint.relim(); ax_joint.autoscale_view()
-
-            # plt.pause 内部 draw + flush_events + GUI 事件循环，比分开写更高效
-            try:
-                plt.pause(0.08)  # ~12Hz
-            except Exception:
-                break
-
-        plt.close("all")
-
-    def stop_plot(self):
-        self._plot_running.clear()
-        if self._plot_thread.is_alive():
-            self._plot_thread.join(timeout=2)
+    # ── 数据保存 ───────────────────────────────────────────────────
 
     def save_data(self):
-        n = len(self._records)
-        if n == 0:
+        if self._saved:
+            return
+        self._saved = True
+        with self._lock:
+            full = list(self._records)
+            segments = []
+            for s, e in self._latte_segments:
+                end = e if e is not None else len(full)
+                if end - s >= 2:
+                    segments.append((s, end))
+
+        if len(full) == 0:
             self.get_logger().warn("没有录到数据喵~")
             return
 
-        arr = {k: np.array([r[k] for r in self._records]) for k in self._records[0]}
+        self._save_array(full, "full")
+        for i, (s, e) in enumerate(segments):
+            self._save_array(full[s:e], f"latte_{i+1}")
 
-        # NPZ
-        npz_path = os.path.join(self._output_dir, "trajectory.npz")
+        self.get_logger().info(f"全部保存到: {self._output_dir} 喵~")
+
+    def _save_array(self, records: list[dict], tag: str):
+        n = len(records)
+        if n == 0:
+            return
+        arr = {k: np.array([r[k] for r in records]) for k in records[0]}
+
+        npz_path = os.path.join(self._output_dir, f"trajectory_{tag}.npz")
         np.savez(npz_path, **arr)
-        self.get_logger().info(f"数据已保存: {npz_path} ({n} 条记录)")
+        self.get_logger().info(f"NPZ: {npz_path} ({n} 条)")
 
-        # CSV
-        csv_path = os.path.join(self._output_dir, "trajectory.csv")
+        csv_path = os.path.join(self._output_dir, f"trajectory_{tag}.csv")
         header = ",".join(arr.keys())
         data = np.column_stack([arr[k] for k in arr])
         np.savetxt(csv_path, data, delimiter=",", header=header, comments="")
-        self.get_logger().info(f"CSV 已保存: {csv_path}")
+        self.get_logger().info(f"CSV: {csv_path}")
 
-        # 统计
-        dur = arr["t"][-1]
-        dx = arr["x"][-1] - arr["x"][0]
-        dy = arr["y"][-1] - arr["y"][0]
-        dz = arr["z"][-1] - arr["z"][0]
+        dur = arr["t"][-1] - arr["t"][0]
         self.get_logger().info(
-            f"录制时长: {dur:.1f}s, 点位: {n}, 频率: {n/dur:.1f}Hz, "
-            f"行程: ({dx:+.3f}, {dy:+.3f}, {dz:+.3f})m"
-        )
+            f"[{tag}] 时长:{dur:.1f}s 点位:{n} 频率:{n/dur:.1f}Hz")
 
+    def auto_save(self):
+        """定期自动保存完整数据"""
+        with self._lock:
+            if len(self._records) == 0:
+                return
+            full = list(self._records)
+        try:
+            arr = {k: np.array([r[k] for r in full]) for k in full[0]}
+            np.savez(os.path.join(self._output_dir, "trajectory_full.npz"), **arr)
+        except Exception:
+            pass
+
+    # ── 录制主循环 (纯控制台, 无 GUI) ──────────────────────────────
+
+    def run_record(self):
+        self.get_logger().info("录制中 — Ctrl+C 停止并保存喵~")
+        last_autosave = time.time()
+        was_latte = False
+        while not self._shutdown.is_set():
+            time.sleep(0.5)
+
+            # ── 锁内快照数据 (记录引用是 append-only, 索引访问安全但需在锁内完成) ──
+            with self._lock:
+                n = len(self._records)
+                if n == 0:
+                    continue
+                is_latte = self._latte_recording
+                segments_info = [(s, e) for s, e in self._latte_segments]
+                rec = self._records[-1]
+                prev = self._records[-2] if n >= 2 else None
+                seg_start_rec = None
+                if is_latte and segments_info:
+                    seg = segments_info[-1]
+                    seg_start_rec = self._records[seg[0]]
+                # 拉花段汇总用
+                seg_summary = None
+                if was_latte and segments_info:
+                    seg = segments_info[-1]
+                    end_idx = seg[1] if seg[1] is not None else n
+                    if end_idx - seg[0] > 0:
+                        seg_summary = (
+                            seg[0], end_idx,
+                            self._records[seg[0]],
+                            self._records[end_idx - 1]
+                        )
+            # ── 锁外: 控制台 I/O + 计算 (不访问 self._records) ──
+
+            if is_latte and seg_start_rec is not None:
+                latte_idx = n - seg[0]
+                latte_t = rec["t"] - seg_start_rec["t"]
+                # 瞬时速度
+                speed = 0.0
+                if prev is not None:
+                    dt = rec["t"] - prev["t"]
+                    if dt > 0:
+                        dx = rec["x"] - prev["x"]
+                        dy = rec["y"] - prev["y"]
+                        dz = rec["z"] - prev["z"]
+                        speed = np.sqrt(dx*dx + dy*dy + dz*dz) / dt
+                roll_d = np.rad2deg(rec["roll"])
+                pitch_d = np.rad2deg(rec["pitch"])
+                yaw_d = np.rad2deg(rec["yaw"])
+                print(
+                    f"\r[拉花 #{len(segments_info)} #{latte_idx:4d} t={latte_t:6.2f}s] "
+                    f"X={rec['x']:8.4f} Y={rec['y']:8.4f} Z={rec['z']:7.4f} | "
+                    f"R={roll_d:6.1f}° P={pitch_d:5.1f}° Y={yaw_d:6.1f}° | "
+                    f"v={speed:.3f}m/s  ",
+                    end="", flush=True)
+                was_latte = True
+            else:
+                seg_hint = f" 已录{len(segments_info)}段" if segments_info else ""
+                print(
+                    f"\r[录制中] 点位:{n:5d}  t={rec['t']:6.1f}s  "
+                    f"X={rec['x']:7.3f} Y={rec['y']:7.3f} Z={rec['z']:6.3f}{seg_hint}  ",
+                    end="", flush=True)
+
+                # 拉花段结束汇总
+                if seg_summary is not None:
+                    s_idx, e_idx, p_start, p_end = seg_summary
+                    latte_n = e_idx - s_idx
+                    ddx = p_end["x"] - p_start["x"]
+                    ddy = p_end["y"] - p_start["y"]
+                    ddz = p_end["z"] - p_start["z"]
+                    latte_dur = p_end["t"] - p_start["t"]
+                    print(
+                        f"\n── 拉花 #{len(segments_info)} 汇总: "
+                        f"{latte_n}点 {latte_dur:.1f}s "
+                        f"Δ=({ddx:+.3f},{ddy:+.3f},{ddz:+.3f})m ──")
+                was_latte = False
+
+            # ── 自动保存 ──
+            if time.time() - last_autosave > 10:
+                self.auto_save()
+                last_autosave = time.time()
+
+        print()  # 换行
+
+
+# ═══════════════════════════════════════════════════════════════════
+# main
+# ═══════════════════════════════════════════════════════════════════
 
 def main():
+    # ── 录制模式 ──
     rclpy.init()
-    node = TrajectoryRecorder()
+    shutdown_evt = threading.Event()
+    node = TrajectoryRecorder(shutdown_evt, "")
 
-    shutdown_flag = threading.Event()
+    executor = MultiThreadedExecutor()
+    executor.add_node(node)
 
-    def shutdown(sig=None, frame=None):
-        if shutdown_flag.is_set():
-            return
-        shutdown_flag.set()
-        if rclpy.ok():
-            node.get_logger().info("正在停止...")
-            node.stop_plot()
+    def spin():
+        while rclpy.ok() and not shutdown_evt.is_set():
+            executor.spin_once(timeout_sec=0.05)
+
+    spin_thread = threading.Thread(target=spin, daemon=True, name="ros-spin")
+    spin_thread.start()
+
+    def on_signal(sig, frame):
+        shutdown_evt.set()
+    signal.signal(signal.SIGINT, on_signal)
+    signal.signal(signal.SIGTERM, on_signal)
+    signal.signal(signal.SIGHUP, on_signal)
+
+    def _atexit_save():
+        try:
             node.save_data()
-            node.destroy_node()
-        sys.exit(0)
-
-    signal.signal(signal.SIGINT, shutdown)
-    signal.signal(signal.SIGTERM, shutdown)
+        except Exception:
+            pass
+    atexit.register(_atexit_save)
 
     try:
-        while rclpy.ok() and not shutdown_flag.is_set():
-            rclpy.spin_once(node, timeout_sec=0.05)
-    except KeyboardInterrupt:
-        pass
+        node.run_record()
     finally:
-        shutdown()
+        shutdown_evt.set()
+        node.get_logger().info("正在保存数据...")
+        try:
+            node.save_data()
+        except Exception as e:
+            node.get_logger().error(f"保存数据失败: {e}")
+        try:
+            node.destroy_node()
+        finally:
+            rclpy.shutdown()
+        print("\n轨迹录制已停止喵~")
+        print(f"浏览器查看: Web Dashboard → 轨迹回放")
 
 
 if __name__ == "__main__":

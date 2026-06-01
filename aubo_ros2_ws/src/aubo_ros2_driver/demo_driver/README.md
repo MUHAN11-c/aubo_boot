@@ -662,60 +662,10 @@ for retry in 0..5:
 
 ---
 
-## LatteWorkflowNode — 咖啡拉花 7 步工作流
+## LatteWorkflowNode → 已移至 latte_backend 包
 
-**Service**: `/latte/run_workflow` (ivg_interfaces/srv/RunLatteWorkflow)
-
-### 工作流步骤
-
-> **当前状态**: `handleRunWorkflow()` 仅激活步骤 3、4、5a。步骤 1、2、5b、6、7 代码完整但已注释（保留给后续多杯方案和完整拉花流程）；步骤 5t 参数已声明但未调用喵~
-
-| 步骤 | 日志标签 | 运动方式 | 说明 | 状态 |
-|------|---------|---------|------|------|
-| 1 | `[步骤1/7] 取咖啡杯` | `moveToJoints` | 关节到预教位姿 → 抓取 → Z退避 | ⏸️ 已注释 |
-| 2 | `[步骤2/7] 放咖啡杯` | `moveToJoints` | 关节到预教位姿 → 释放 → Z退避 | ⏸️ 已注释 |
-| 3 | `[步骤3/7] 取牛奶杯` | `moveToJoints` | 关节到预教位姿 → 抓取 (不退避) | ✅ 激活 |
-| 4 | `[步骤4/7] 打奶泡` | `moveCartesianStraight` ×2 | 空间直线去喷嘴 → 等待2s → 直线回 → Z退避 | ✅ 激活 |
-| 5t | `[步骤5t/7] 过渡位姿` | `moveToJoints` | (可选) 打奶泡退避→转腕朝上安全中间点 | ⏸️ 未调用 |
-| 5a | `[步骤5a/7] 转腕朝上` | `moveCartesianStraight` | 笛卡尔 slerp 到转腕朝上位姿 (防倾翻) | ✅ 激活 |
-| 5b | `[步骤5b/7] 笛卡尔平移` | `moveCartesianStraight` | 笛卡尔平移至放置咖啡杯位置 | ⏸️ 已注释 |
-| 6 | `[步骤6/7] 嘴口倾倒` | `moveCartesianStraight` | 位置不变仅手腕旋转 (纯 slerp) | ⏸️ 已注释 |
-| 7 | `[步骤7/7] 拉花执行` | ros2 service call | 调用 `/latte/replay_trajectory` | ⏸️ 已注释 |
-
-### 启动
-
-```bash
-ros2 launch aubo_moveit_config latte_workflow.launch.py
-```
-
-### 测试命令
-
-```bash
-ros2 service call /latte/run_workflow ivg_interfaces/srv/RunLatteWorkflow "{}"
-```
-
-### 参数 (lwf_ 前缀)
-
-所有参数通过 ROS 2 Parameter Server 管理，每次 service 调用前实时刷新。
-
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `lwf_coffee_joints` | double[6] | 取咖啡杯预教关节角 |
-| `lwf_place_coffee_joints` | double[6] | 放咖啡杯预教关节角 |
-| `lwf_pick_milk_joints` | double[6] | 取牛奶杯预教关节角 |
-| `lwf_nozzle_joints` | double[6] | 打奶泡喷嘴预教关节角 |
-| `lwf_rotate_up_joints` | double[6] | 转腕朝上关节角 (FK→位姿后用笛卡尔直线) |
-| `lwf_transition_joints` | double[6] | (可选) 步骤4→5a 过渡关节角 |
-| `lwf_velocity` | double | 速度因子 [0,1]，默认 0.3 |
-| `lwf_acceleration` | double | 加速度因子 [0,1]，默认 0.2 |
-| `lwf_retract_height` | double | Z退避高度 (m)，默认 0.10 |
-| `lwf_gripper_pin` | int | 夹爪 IO pin，默认 6 |
-| `lwf_execute_latte` | bool | false 时跳过步骤7，默认 true |
-
-### 仿真容错
-
-- IO 操作 (夹爪) 失败时仅打印 WARN 日志，继续执行
-- 笛卡尔直线失败自动重试: 底层 5 次 × 步级 3 次 = 最多 15 次
+咖啡拉花工作流已独立为 `latte_backend` 功能包（依赖 `demo_driver::robot_controller` 共享库）。
+详见 `aubo_ros2_ws/src/aubo_ros2_driver/latte_backend/README.md` 喵~
 
 ---
 

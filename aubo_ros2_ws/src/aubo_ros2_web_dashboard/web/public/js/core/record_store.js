@@ -16,7 +16,7 @@ export function loadRecords() {
 
 export function saveRecords(arr) {
   try { localStorage.setItem(KEY, JSON.stringify(arr)); return true; }
-  catch (e) { console.warn('[record_store]', e); return false; }
+  catch (e) { return false; }
 }
 
 export function clearRecords() { localStorage.removeItem(KEY); }

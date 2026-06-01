@@ -2,44 +2,32 @@
 import { ivgTransport } from './ivg_transport.js';
 import { loadRecords, saveRecords } from './core/record_store.js';
 import { quatToRpyDeg, rpyDegToQuat } from './core/tf-math.js';
+import { $, escapeHtml } from './core/utils.js';
+import { logBus } from './core/log-bus.js';
 
 const TAG = '[debug_panel]';
-
-function $(id) { return document.getElementById(id); }
 
 // ── 工具函数 ─────────────────────────────────────────────────────────────────
 
 function ts() { return new Date().toLocaleTimeString('zh-CN', { hour12: false }); }
 
-function log(id, msg) {
+const _LOG_CSS = { info: '', ok: 'log-ok', err: 'log-err', warn: 'log-warn' };
+
+function _logLine(id, cssClass, msg) {
   const el = $(id);
   if (!el) return;
-  const line = '<span class="log-time">[' + ts() + ']</span> ' + msg;
-  el.innerHTML = '<div>' + line + '</div>' + el.innerHTML;
-  // keep last 30 lines
+  const spanCls = cssClass ? ' class="' + cssClass + '"' : '';
+  const div = document.createElement('div');
+  div.innerHTML = '<span class="log-time">[' + ts() + ']</span> <span' + spanCls + '></span>';
+  div.querySelector(spanCls ? 'span.' + cssClass : 'span:last-child').textContent = msg;
+  el.insertBefore(div, el.firstChild);
   while (el.children.length > 30) el.removeChild(el.lastChild);
 }
 
-function logOk(id, msg) {
-  const el = $(id);
-  if (!el) return;
-  el.innerHTML = '<div><span class="log-time">[' + ts() + ']</span> <span class="log-ok">' + msg + '</span></div>' + el.innerHTML;
-  while (el.children.length > 30) el.removeChild(el.lastChild);
-}
-
-function logErr(id, msg) {
-  const el = $(id);
-  if (!el) return;
-  el.innerHTML = '<div><span class="log-time">[' + ts() + ']</span> <span class="log-err">' + msg + '</span></div>' + el.innerHTML;
-  while (el.children.length > 30) el.removeChild(el.lastChild);
-}
-
-function logWarn(id, msg) {
-  const el = $(id);
-  if (!el) return;
-  el.innerHTML = '<div><span class="log-time">[' + ts() + ']</span> <span class="log-warn">' + msg + '</span></div>' + el.innerHTML;
-  while (el.children.length > 30) el.removeChild(el.lastChild);
-}
+function log(id, msg)   { _logLine(id, '', msg); }
+function logOk(id, msg)  { _logLine(id, 'log-ok', msg); }
+function logErr(id, msg) { _logLine(id, 'log-err', msg); }
+function logWarn(id, msg){ _logLine(id, 'log-warn', msg); }
 
 function fmtPose(pos, ori) {
   if (!pos) return '---';
@@ -80,7 +68,7 @@ function setupRobotStatus() {
   if (!ivgTransport.isConnected()) {
     _robotStatusRetries++;
     if (_robotStatusRetries > 30) {
-      console.warn(TAG, 'setupRobotStatus 重试超限 (30次), 放弃订阅 /robot_status');
+      logBus.addLog('warn', 'system', 'setupRobotStatus 重试超限 (30次), 放弃订阅 /robot_status');
       return;
     }
     setTimeout(setupRobotStatus, 500);
@@ -553,10 +541,6 @@ function setupTopicMonitor() {
   });
 }
 
-function escapeHtml(str) {
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
 // ── 服务调用测试 ─────────────────────────────────────────────────────────────
 
 function setupServiceCall() {
@@ -879,27 +863,27 @@ function setupRecordLoader() {
 // ── 初始化 ───────────────────────────────────────────────────────────────────
 
 async function init() {
-  console.log(TAG, '初始化...');
+  logBus.addLog('info', 'lifecycle', '调试面板初始化中...');
 
   // 1. 加载运行时 & 连接
   try {
     await ivgTransport.loadRuntime();
     await ivgTransport.connectControl();
     updateConnStatus(true);
-    console.log(TAG, 'rosbridge 已连接');
+    logBus.addLog('info', 'rosbridge', 'rosbridge 已连接 (调试面板)');
 
     // 连接断开监听
     ivgTransport.onControlJson(function (obj) {
       if (obj.op === 'close') {
         updateConnStatus(false);
-        console.log(TAG, 'rosbridge 断开');
+        logBus.addLog('warn', 'rosbridge', 'rosbridge 断开 (调试面板)');
       } else if (obj.op === 'connection') {
         updateConnStatus(true);
         setupRobotStatus();
       }
     }, 'debug_panel');
   } catch (e) {
-    console.error(TAG, '连接失败:', e);
+    logBus.addLog('error', 'rosbridge', '连接失败 (调试面板): ' + (e.message || e));
     updateConnStatus(false);
     logErr('debug-log-quick', 'rosbridge 连接失败: ' + (e.message || e));
     // 继续初始化，允许离线查看页面
@@ -921,7 +905,7 @@ async function init() {
   setupTopicPublish();
   setupRecordLoader();
 
-  console.log(TAG, '初始化完成');
+  logBus.addLog('info', 'lifecycle', '调试面板初始化完成');
 }
 
 if (document.readyState === 'loading') {

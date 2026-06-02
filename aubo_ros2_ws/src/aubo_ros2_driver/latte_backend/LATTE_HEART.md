@@ -249,12 +249,14 @@ step5_executeLatte():
 | `lwf_heart_total_points` | int | 200 | 总路点数 | 25%+55%+20% 分配 |
 | `lwf_heart_velocity` | double | 0.5 | 速度缩放因子 | 约 4–5s 类人节奏 |
 | `lwf_heart_roll_mix` | double | 45.0 | 融合绝对倾角 (°) | 细流 ~10ml/s |
-| `lwf_heart_roll_draw` | double | 60.0 | 成形绝对倾角 (°) | ~20ml/s 高流量 |
+| `lwf_heart_roll_draw` | double | 60.0 | 成形绝对倾角 (°) — ⚠️ 兼容别名 | ~20ml/s 高流量。仅当 `roll_draw_dynamic=false` 时使用此值。动态模式下实际使用 `roll_draw_start/end` 这对参数，修改 `roll_draw` 不会自动同步到 `roll_draw_start` 喵~ |
 | `lwf_heart_roll_draw_start` | double | 60.0 | 成形起始倾角 (°) | 高流量建立白圆底 |
 | `lwf_heart_roll_draw_end` | double | 45.0 | 成形结束倾角 (°) | 降低流量防溢出 |
 | `lwf_heart_roll_finish` | double | 50.0 | 收尾绝对倾角 (°) | 中速细流 |
 | `lwf_heart_roll_draw_dynamic` | bool | true | 成形是否渐变 | 模拟人类回正 |
 | `lwf_heart_verbose` | bool | true | 打印阶段详情 | 调试用 |
+
+> **注**: 收尾阶段（划穿）复用 `mix_height` (80mm) 作为工作高度。MSLA 推荐收尾高度 5-8cm，略低于融合高度 (7-10cm)。当前实现使用 80mm 作为安全简化。若瞄准精度需要独立调节，可增加 `finish_height` 参数喵~
 
 ---
 

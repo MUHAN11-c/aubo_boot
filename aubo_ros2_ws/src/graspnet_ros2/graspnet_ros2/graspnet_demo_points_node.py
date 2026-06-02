@@ -154,6 +154,7 @@ class GraspNetDemoPointsNode(Node):
 
         # ========== 状态缓存（服务回调与发布使用） ==========
         self._latest_pc_msg: Optional[PointCloud2] = None
+        self._latest_pc_stamp = self.get_clock().now().to_msg()
         self.processed_gg: Optional[GraspGroup] = None
         self.cloud_o3d: Optional[o3d.geometry.PointCloud] = None
         self.processed_frame_id: str = ''
@@ -318,6 +319,7 @@ class GraspNetDemoPointsNode(Node):
     # ========== 流水线入口：点云 → 抓取结果 ==========
     def _compute_grasps(self, pc_msg: PointCloud2):
         """数据准备 → 网络推理 → 碰撞检测 → NMS/排序 → 写缓存，可选 Open3D 可视化。"""
+        self._latest_pc_stamp = pc_msg.header.stamp
         end_points, cloud, frame_id = self._get_and_process_data(pc_msg)
         gg = self._get_grasps(end_points)
         gg = self._collision_detection(gg, np.asarray(cloud.points))
@@ -350,7 +352,7 @@ class GraspNetDemoPointsNode(Node):
         delete_marker = Marker()
         delete_marker.action = Marker.DELETEALL
         delete_marker.header.frame_id = self.processed_frame_id
-        delete_marker.header.stamp = self.get_clock().now().to_msg()
+        delete_marker.header.stamp = self._latest_pc_stamp
         self.marker_pub.publish(MarkerArray(markers=[delete_marker]))
 
         # 简单颜色映射（与 demo 节点风格类似）
@@ -359,7 +361,7 @@ class GraspNetDemoPointsNode(Node):
             return (1.0 - s, s, 0.0, 1.0)
 
         marker_array = MarkerArray()
-        stamp = self.get_clock().now().to_msg()
+        stamp = self._latest_pc_stamp
         marker_id = 0
 
         # 逐个抓取发布 4 个圆柱 marker（直接复用 graspnet_demo_node.py 的“夹爪=4段圆柱”思路）

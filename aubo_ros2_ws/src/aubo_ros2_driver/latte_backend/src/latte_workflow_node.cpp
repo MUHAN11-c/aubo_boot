@@ -1,6 +1,8 @@
 #include "latte_backend/latte_workflow_node.h"
+#include "latte_backend/latte_trajectory.h"
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <sstream>
 
@@ -97,6 +99,15 @@ LatteWorkflowNode::LatteWorkflowNode(const rclcpp::NodeOptions& options)
     if (!has_parameter("lwf_heart_roll_draw_end"))     declare_parameter("lwf_heart_roll_draw_end", 45.0);
     if (!has_parameter("lwf_heart_roll_draw_dynamic")) declare_parameter("lwf_heart_roll_draw_dynamic", true);
 
+    // ── 纸杯位置 + 工具偏移 (2026-06-02 标定) ──
+    if (!has_parameter("lwf_cup_x"))              declare_parameter("lwf_cup_x", -0.630);
+    if (!has_parameter("lwf_cup_y"))              declare_parameter("lwf_cup_y", -0.308);
+    if (!has_parameter("lwf_cup_z"))              declare_parameter("lwf_cup_z", 0.198);
+    if (!has_parameter("lwf_spout_offset_x"))     declare_parameter("lwf_spout_offset_x", -0.038);
+    if (!has_parameter("lwf_spout_offset_y"))     declare_parameter("lwf_spout_offset_y", 0.095);
+    if (!has_parameter("lwf_spout_offset_z"))     declare_parameter("lwf_spout_offset_z", 0.212);
+    if (!has_parameter("lwf_debug_verbose"))      declare_parameter("lwf_debug_verbose", true);
+
     // ── Service 创建 ──
     cb_group_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     srv_ = create_service<ivg_interfaces::srv::RunLatteWorkflow>(
@@ -174,6 +185,15 @@ void LatteWorkflowNode::readParameters()
     params_.heart.roll_draw_start  = get_parameter("lwf_heart_roll_draw_start").as_double();
     params_.heart.roll_draw_end    = get_parameter("lwf_heart_roll_draw_end").as_double();
     params_.heart.roll_draw_dynamic = get_parameter("lwf_heart_roll_draw_dynamic").as_bool();
+
+    // 纸杯位置 + 工具偏移
+    params_.spout_offset_x = get_parameter("lwf_spout_offset_x").as_double();
+    params_.spout_offset_y = get_parameter("lwf_spout_offset_y").as_double();
+    params_.spout_offset_z = get_parameter("lwf_spout_offset_z").as_double();
+    params_.cup_x = get_parameter("lwf_cup_x").as_double();
+    params_.cup_y = get_parameter("lwf_cup_y").as_double();
+    params_.cup_z = get_parameter("lwf_cup_z").as_double();
+    params_.debug_verbose = get_parameter("lwf_debug_verbose").as_bool();
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -201,8 +221,8 @@ void LatteWorkflowNode::handleRunWorkflow(
     if (!step3_reorient())       { res->success = false; res->message = "[步骤3/5] 失败: 转腕朝上";      return; }
     if (!rclcpp::ok())           { res->success = false; res->message = "ROS 已关闭"; return; }
     // step4: X轴前倾45° — 从水平状态倾斜到倒奶起始角, 为 step5 轨迹 roll 剖面提供正确基准
-    if (!step4_pour())           { res->success = false; res->message = "[步骤4/5] 失败: 嘴口倾倒";      return; }
-    if (!rclcpp::ok())           { res->success = false; res->message = "ROS 已关闭"; return; }
+    // if (!step4_pour())           { res->success = false; res->message = "[步骤4/5] 失败: 嘴口倾倒";      return; }
+    // if (!rclcpp::ok())           { res->success = false; res->message = "ROS 已关闭"; return; }
     if (!step5_executeLatte())   { res->success = false; res->message = "[步骤5/5] 失败: 拉花执行";      return; }
 
     res->success = true;
@@ -399,8 +419,61 @@ geometry_msgs::msg::Quaternion quat_mul(
 }  // namespace
 
 // ═════════════════════════════════════════════════════════════════════════════
-// step4: 嘴口倾倒 — 绕世界 X 轴前倾 45°, 为 step5 轨迹 roll 剖面提供倾倒基准
-//   世界 X 轴 = 倾倒倾角轴, 左乘 q_rot_x * q_current (全局旋转)
+// 调试辅助: 四元数 → RPY(度) + 位姿格式化
+// ═════════════════════════════════════════════════════════════════════════════
+
+std::string quatToRPYStr(const geometry_msgs::msg::Quaternion& q)
+{
+    double sinr = 2.0 * (q.w * q.x + q.y * q.z);
+    double cosr = 1.0 - 2.0 * (q.x * q.x + q.y * q.y);
+    double roll = std::atan2(sinr, cosr);
+
+    double sinp = 2.0 * (q.w * q.y - q.z * q.x);
+    double pitch;
+    if (std::fabs(sinp) >= 1.0)
+        pitch = std::copysign(M_PI / 2.0, sinp);
+    else
+        pitch = std::asin(sinp);
+
+    double siny = 2.0 * (q.w * q.z + q.x * q.y);
+    double cosy = 1.0 - 2.0 * (q.y * q.y + q.z * q.z);
+    double yaw = std::atan2(siny, cosy);
+
+    char buf[64];
+    snprintf(buf, sizeof(buf), "RPY(%.1f° %.1f° %.1f°)",
+             roll * 180.0 / M_PI, pitch * 180.0 / M_PI, yaw * 180.0 / M_PI);
+    return std::string(buf);
+}
+
+std::string poseToStr(const geometry_msgs::msg::Pose& p)
+{
+    char buf[128];
+    snprintf(buf, sizeof(buf), "xyz(%.4f %.4f %.4f) %s",
+             p.position.x, p.position.y, p.position.z,
+             quatToRPYStr(p.orientation).c_str());
+    return std::string(buf);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// step4: 嘴口倾倒 — 绕世界 X 轴前倾 45°, 为 step5 轨迹 roll 剖面提供倾倒基准喵~
+//
+// MSLA 依据: MSLA 4.04 (倾角-流量关系) — 45° 对应 ~10ml/s 细流
+//            MSLA 4.02 (Pin-Drop Technique) — 细流穿透 crema 沉底, 不扰动表面
+//
+// 为何选 45° (而非 30° 或 60°):
+//   45° 是"最小有效倾角" — 恰好足够让牛奶克服表面张力流出奶缸嘴,
+//   同时保持低流量 (~10ml/s), 适合高位 Pin-Drop 融合阶段。
+//   30°: 流量太低, 牛奶可能滴落而非连续流束
+//   60°: 流量太高 (~20ml/s), 高位注入会飞溅破坏 crema
+//
+// 数学操作:
+//   quat_mul(q_rot, current_ori) = 全局坐标系左乘
+//   即: 绕 base_link 的 X 轴旋转 TCP, 非 TCP body-fixed 旋转
+//   效果: pitch 从 ~89° (水平) → ~44° (前倾 45°), 奶缸嘴指向下方
+//
+// step4 之后: TCP 位姿中 orientation 已包含 45° X 轴旋转
+//   step5 中 makeStagePose/generateHeartStageWaypoints 通过
+//   rel_roll = roll_deg - 45° 计算增量, 防止双叠旋转
 // ═════════════════════════════════════════════════════════════════════════════
 
 bool LatteWorkflowNode::step4_pour()
@@ -425,159 +498,38 @@ bool LatteWorkflowNode::step4_pour()
     return true;
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// makeStagePose: 构建目标姿态 (moveCartesianStraight 过渡用)
-//   在 origin 基础上叠加: Z 偏移 (世界Z) + 绕世界X轴旋转 + Y 偏移 (世界Y)
-//   roll_deg 为绝对倾角, 自动减去 step4 已提供的 45° 基准避免双叠
-//   rel_roll = roll_deg - 45°  (融合0° 成形起始+15° 成形结束0° 收尾+5°)
-// ═════════════════════════════════════════════════════════════════════════════
-
-geometry_msgs::msg::Pose LatteWorkflowNode::makeStagePose(
-    const geometry_msgs::msg::Pose& origin,
-    double z_offset, double roll_deg, double sway_y_offset)
-{
-    geometry_msgs::msg::Pose p;
-    p.position.x = origin.position.x;
-    p.position.y = origin.position.y + sway_y_offset;
-    p.position.z = origin.position.z + z_offset;
-
-    double rel_roll = roll_deg - 45.0;  // step4 X轴45° = baseline
-    auto q_roll = quat_from_x_rotation(rel_roll);
-    p.orientation = quat_mul(q_roll, origin.orientation);
-    return p;
-}
 
 // ═════════════════════════════════════════════════════════════════════════════
-// generateHeartStageWaypoints: 生成单阶段 waypoints (世界坐标系)
-//   stage=1 融合画圈 (固定 Roll)  stage=2 成形定点注入 (支持动态 Roll 渐变)
-//   stage=4 划穿收尾 (固定 Roll)
-//   阶段分配: 25% + 55% + 20% = 100% (基于 Barista Hustle MSLA 推荐)
-// ═════════════════════════════════════════════════════════════════════════════
-
-std::vector<geometry_msgs::msg::Pose> LatteWorkflowNode::generateHeartStageWaypoints(
-    const geometry_msgs::msg::Pose& origin,
-    const HeartParams& hp,
-    double fixed_z,
-    double fixed_roll_deg,
-    int stage)
-{
-    const double origin_x = origin.position.x;
-    const double sway_y   = origin.position.y + hp.sway_offset_y;
-
-    // 统一朝向: 减去 step4 已提供的 45° 基准
-    // 成形阶段若启用动态 Roll, 逐点在循环内计算 (非预计算)
-    bool dynamic = (stage == 2 && hp.roll_draw_dynamic);
-    geometry_msgs::msg::Quaternion fixed_ori;
-    if (!dynamic) {
-        if (stage == 2 && hp.verbose) {
-            RCLCPP_WARN(rclcpp::get_logger("latte_workflow_node"),
-                "阶段2-成形注入: roll_draw_dynamic=false, 所有 waypoints 位置+朝向完全相同, "
-                "executeCartesianPath 将产生零长度轨迹, 成形阶段不会产生任何运动喵~");
-        }
-        double rel_roll = fixed_roll_deg - 45.0;
-        auto q_roll = quat_from_x_rotation(rel_roll);
-        fixed_ori = quat_mul(q_roll, origin.orientation);
-    }
-
-    int N = 0;
-    if (stage == 1)      N = static_cast<int>(hp.total_points * 0.25);  // 融合 25%
-    else if (stage == 2) N = static_cast<int>(hp.total_points * 0.55);  // 成形 55%
-    else                 N = static_cast<int>(hp.total_points * 0.20);  // 收尾 20%
-    if (N < 1) N = 1;
-
-    auto calc_progress = [](int i, int n) -> double {
-        return n > 1 ? static_cast<double>(i) / (n - 1) : 0.0;
-    };
-
-    std::vector<geometry_msgs::msg::Pose> waypoints;
-    waypoints.reserve(N);
-
-    double total_len = 0.0;
-    double prev_x = origin_x, prev_y = sway_y, prev_z = fixed_z;
-
-    for (int i = 0; i < N; ++i) {
-        geometry_msgs::msg::Pose p;
-        double progress = calc_progress(i, N);
-
-        if (stage == 1) {
-            // 融合画圈 — r=10mm, 2圈 (Barista Hustle MSLA: ~1cm 硬币大小)
-            double angle = 2.0 * M_PI * hp.mix_circles * progress;
-            p.position.x = origin_x + hp.mix_circle_r * std::cos(angle);
-            p.position.y = sway_y + hp.mix_circle_r * std::sin(angle);
-        } else if (stage == 2) {
-            // 成形定点注入 — 心形 = 僧帽白圆 + 中轴划穿, NO WIGGLE
-            // Barista Hustle B1 5.04-5.05: 壶嘴杯中心固定不动
-            // 白色圆形由流速加速 (倾角60°→45°渐变) 自然扩散, 非奶缸移动
-            p.position.x = origin_x;   // X 中心固定
-            p.position.y = sway_y;     // Y 固定不动, 圆形靠流速扩散
-        } else {
-            // 划穿收尾 — 中轴穿透 (<1s thin stream cut-through)
-            // Barista Hustle: 沿世界Y轴穿过圆心, 产生心形尖部
-            p.position.x = origin_x;
-            p.position.y = sway_y + progress * hp.push_y;  // sway_y → sway_y+push_y
-        }
-
-        p.position.z = fixed_z;
-
-        if (!dynamic) {
-            p.orientation = fixed_ori;
-        } else {
-            // 动态 Roll 渐变: roll_draw_start → roll_draw_end 线性插值
-            double dy_roll = hp.roll_draw_start + progress * (hp.roll_draw_end - hp.roll_draw_start);
-            double rel_dyn = dy_roll - 45.0;
-            auto q_dyn = quat_from_x_rotation(rel_dyn);
-            p.orientation = quat_mul(q_dyn, origin.orientation);
-        }
-
-        double dx = p.position.x - prev_x;
-        double dy = p.position.y - prev_y;
-        double dz = p.position.z - prev_z;
-        total_len += std::sqrt(dx*dx + dy*dy + dz*dz);
-        prev_x = p.position.x; prev_y = p.position.y; prev_z = p.position.z;
-
-        waypoints.push_back(p);
-    }
-
-    if (hp.verbose) {
-        const char* name = (stage == 1) ? "阶段1-融合画圈" :
-                           (stage == 2) ? "阶段2-成形注入" : "阶段4-划穿收尾";
-        char buf[256];
-        std::snprintf(buf, sizeof(buf),
-            "Z=%.0fmm roll=%.0f° N=%d 总长=%.1fmm",
-            fixed_z * 1000, fixed_roll_deg, N, total_len * 1000);
-        if (stage == 1) {
-            std::snprintf(buf, sizeof(buf),
-                "%s  r=%.0fmm ×%.1f圈  总长=%.1fmm",
-                name, hp.mix_circle_r * 1000, hp.mix_circles, total_len * 1000);
-        } else if (stage == 2) {
-            if (dynamic) {
-                std::snprintf(buf, sizeof(buf),
-                    "%s  定点注入 roll=%.0f°→%.0f°  总长=%.1fmm",
-                    name, hp.roll_draw_start, hp.roll_draw_end, total_len * 1000);
-            } else {
-                std::snprintf(buf, sizeof(buf),
-                    "%s  定点注入 roll=%.0f°  总长=%.1fmm",
-                    name, fixed_roll_deg, total_len * 1000);
-            }
-        } else {
-            std::snprintf(buf, sizeof(buf),
-                "%s  Y_push=%.1fmm  总长=%.1fmm",
-                name, hp.push_y * 1000, total_len * 1000);
-        }
-        RCLCPP_INFO(get_logger(), "%s", buf);
-    }
-
-    return waypoints;
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-// step5: 心形拉花 — 分段执行 (moveCartesianStraight 过渡 + executeCartesianPath 执行)
-//   [5a] 移动到融合位姿 (Z=mix, roll=45°)          → 画圈 r=10mm ×2圈
-//   [5b] 移动到成形位姿 (Z=draw, roll=60°→45°渐变)  → 定点注入
-//   [5c] 移动到收尾位姿 (Z=mix, roll=50°)            → 中轴划穿 15mm
-//   坐标系: 世界X=倾角轴 Y=划穿方向 Z=高度
-//   姿态过渡统一用 moveCartesianStraight (slerp保证姿态精度),
-//   XY 运动用 executeCartesianPath (waypoints 内姿态恒定或渐变, IK 稳定)
+// step5: 心形拉花 (Heart Latte Art) — 三段式笛卡尔轨迹执行
+//
+// 架构总览:
+//
+//   step4 (45° 基准) ─────┐
+//                         ▼
+//   spout_origin = cup_mouth (纸杯杯口)  ◄── 奶缸嘴坐标系
+//   tool_world  = rotate(spout_offset, tcp_ori)
+//   tcp_pose    = spout_pose - tool_world  (发送 MoveIt 前转换)
+//       │
+//       ├── [5a] spout@Z=cup_z+80mm roll=45° → 画 r=10mm 圆 ×2 圈 (25%)
+//       │       高位 Pin-Drop, ~10ml/s 细流穿透 crema 建立白圆基底
+//       │
+//       ├── [5b] spout@Z=cup_z+5mm roll=60°→45° → 壶嘴定点注入 (55%)
+//       │       低位, ~20→10ml/s, 奶泡浮面自然扩散白圆
+//       │
+//       └── [5c] spout@Z=cup_z+80mm roll=50° → Y轴推进 15mm (20%)
+//               ~15ml/s 中速细流划穿圆心产生心形尖部
+//
+// 关键设计决策:
+//   1. 阶段间过渡用 moveCartesianStraight (slerp 保证姿态平滑过渡),
+//      阶段内部连续运动用 executeCartesianPath (waypoints 离散点)
+//   2. 所有 roll 为绝对倾角, step4 已禁用, 从水平(0°)直接起算
+//   3. 轨迹录制回调 bracketing: step5 开始/结束分别通知 trajectory_recorder
+//   4. 阶段编号跳过 3: 预留用于 Heart-in-Heart / Tulip 第二层花瓣
+//
+// MSLA 权威依据:
+//   [5a] 融合: MSLA 5.02 + 4.02 (Pin-Drop) + 4.04 (倾角-流量)
+//   [5b] 成形: MSLA 5.04 + 4.04 (线宽∝√流量) + B1 5.04-5.05 (壶嘴定点)
+//   [5c] 收尾: MSLA 5.02-5.05 (划穿) + "The Off Switch"
 // ═════════════════════════════════════════════════════════════════════════════
 
 bool LatteWorkflowNode::step5_executeLatte()
@@ -589,97 +541,98 @@ bool LatteWorkflowNode::step5_executeLatte()
 
     const float vel = static_cast<float>(params_.heart.velocity);
     const float acc = static_cast<float>(params_.acc);
-    const auto& hp = params_.heart;
 
-    // 通知 trajectory_recorder 开始拉花录制
     if (recorder_start_cli_->wait_for_service(std::chrono::milliseconds(50))) {
         recorder_start_cli_->async_send_request(
             std::make_shared<std_srvs::srv::Trigger::Request>());
         RCLCPP_INFO(get_logger(), "[步骤5/5] 已通知 trajectory_recorder 开始录制");
     }
 
-    auto origin = robot_->getCurrentPose();
+    // tool_tcp 末端坐标系 — 不切换 spout_marker (MoveIt IK 可能不处理固定偏移)
+    // 轨迹在 spout 坐标生成, 通过 gen.spoutToTcp() 转为 tool_tcp 坐标后执行
+
+    LatteTrajectoryParams tp;
+    tp.cup_x = params_.cup_x; tp.cup_y = params_.cup_y; tp.cup_z = params_.cup_z;
+    tp.spout_offset_x = params_.spout_offset_x;
+    tp.spout_offset_y = params_.spout_offset_y;
+    tp.spout_offset_z = params_.spout_offset_z;
+    tp.heart = params_.heart;
+    tp.tcp_orientation = robot_->getCurrentPose().orientation;
+
+    LatteTrajectoryGenerator gen(tp);
+
     RCLCPP_INFO(get_logger(),
-        "[步骤5/5] 心形轨迹分段执行 原点=(%.3f, %.3f, %.3f) vel=%.3f",
-        origin.position.x, origin.position.y, origin.position.z, vel);
+        "[步骤5] ┌─ 杯口(%.4f,%.4f,%.4f)  spout偏移(%.3f,%.3f,%.3f)  eef=tool_tcp",
+        tp.cup_x, tp.cup_y, tp.cup_z,
+        tp.spout_offset_x, tp.spout_offset_y, tp.spout_offset_z);
+    auto cur = robot_->getCurrentPose();
+    RCLCPP_INFO(get_logger(),
+        "[步骤5] └─ 当前TCP位姿: %s", poseToStr(cur).c_str());
 
-    bool ok = true;
+    auto exec_stage = [&](const StagePlan& sp) -> bool {
+        // spout → TCP 坐标转换 (MoveIt 用 tool_tcp EE 执行)
+        StagePlan tcp = gen.spoutToTcp(sp);
+        char label = "0abcd"[std::min(tcp.stage_id, 4)];
+        auto t0 = std::chrono::steady_clock::now();
 
-    // ── [5a] 阶段1: 融合画圈 (Z=mix=80mm, roll=mix=45°) ──
-    {
-        auto pose_1 = makeStagePose(origin, hp.mix_height, hp.roll_mix, hp.sway_offset_y);
-        RCLCPP_INFO(get_logger(), "[5a] 移动到融合位姿 Z=%.0fmm roll=%.0f°",
-                    hp.mix_height * 1000, hp.roll_mix);
-        if (!robot_->moveCartesianStraight(pose_1, vel, acc)) {
-            RCLCPP_ERROR(get_logger(), "[5a] moveCartesianStraight 失败");
-            ok = false;
+        if (params_.debug_verbose) {
+            auto cp = robot_->getCurrentPose();
+            RCLCPP_INFO(get_logger(), "[5%c] ┌────────────────────────────────────────", label);
+            RCLCPP_INFO(get_logger(), "[5%c] │ %s START", label, tcp.name);
+            RCLCPP_INFO(get_logger(), "[5%c] │   当前TCP: %s", label, poseToStr(cp).c_str());
+            RCLCPP_INFO(get_logger(), "[5%c] │   过渡TCP: %s", label, poseToStr(tcp.transition_target).c_str());
         }
-        if (ok) {
-            auto wps = generateHeartStageWaypoints(origin, hp,
-                origin.position.z + hp.mix_height, hp.roll_mix, 1);
-            RCLCPP_INFO(get_logger(), "[5a] 画圈 %zu 点", wps.size());
-            if (!robot_->executeCartesianPath(wps, vel, acc)) {
-                RCLCPP_ERROR(get_logger(), "[5a] executeCartesianPath 失败");
-                ok = false;
+
+        if (params_.debug_verbose && !tcp.waypoints.empty()) {
+            size_t n = tcp.waypoints.size();
+            RCLCPP_INFO(get_logger(), "[5%c] │   路点[0/%zu]: %s", label, n-1, poseToStr(tcp.waypoints.front()).c_str());
+            if (n > 2)
+                RCLCPP_INFO(get_logger(), "[5%c] │   路点[%zu/%zu]: %s", label, n/2, n-1, poseToStr(tcp.waypoints[n/2]).c_str());
+            RCLCPP_INFO(get_logger(), "[5%c] │   路点[%zu/%zu]: %s", label, n-1, n-1, poseToStr(tcp.waypoints.back()).c_str());
+        }
+
+        RCLCPP_INFO(get_logger(), "[5%c] │   moveCartesianStraight → 过渡...", label);
+        if (!robot_->moveCartesianStraight(tcp.transition_target, vel, acc)) {
+            RCLCPP_ERROR(get_logger(), "[5%c] └─ ✗ 过渡失败", label);
+            return false;
+        }
+        if (!tcp.waypoints.empty()) {
+            RCLCPP_INFO(get_logger(), "[5%c] │   executeCartesianPath → %zu点...", label, tcp.waypoints.size());
+            if (!robot_->executeCartesianPath(tcp.waypoints, vel, acc)) {
+                RCLCPP_ERROR(get_logger(), "[5%c] └─ ✗ 轨迹执行失败", label);
+                return false;
             }
         }
-    }
 
-    // ── [5b] 阶段2: 成形注入 (Z=draw=5mm, roll=60°→45° 渐变) ──
-    if (ok && rclcpp::ok()) {
-        auto pose_2 = makeStagePose(origin, hp.draw_height, hp.roll_draw_start, hp.sway_offset_y);
-        RCLCPP_INFO(get_logger(), "[5b] 移动到成形位姿 Z=%.0fmm roll=%.0f°",
-                    hp.draw_height * 1000, hp.roll_draw_start);
-        // 从 mix 降到 draw 高度 + 同时改变 roll (slerp 保证正确)
-        if (!robot_->moveCartesianStraight(pose_2, vel, acc)) {
-            RCLCPP_ERROR(get_logger(), "[5b] moveCartesianStraight 失败");
-            ok = false;
+        auto t1 = std::chrono::steady_clock::now();
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+        if (params_.debug_verbose) {
+            auto ap = robot_->getCurrentPose();
+            RCLCPP_INFO(get_logger(), "[5%c] │   到达TCP: %s", label, poseToStr(ap).c_str());
         }
-        if (ok) {
-            auto wps = generateHeartStageWaypoints(origin, hp,
-                origin.position.z + hp.draw_height, hp.roll_draw_start, 2);
-            RCLCPP_INFO(get_logger(), "[5b] 定点注入 %zu 点", wps.size());
-            if (!robot_->executeCartesianPath(wps, vel, acc)) {
-                RCLCPP_ERROR(get_logger(), "[5b] executeCartesianPath 失败");
-                ok = false;
-            }
-        }
-    }
+        RCLCPP_INFO(get_logger(), "[5%c] └─ ✓ %s 完成 (%ldms)", label, tcp.name, ms);
+        return true;
+    };
 
-    // ── [5c] 阶段4: 划穿收尾 (Z=mix=80mm, roll=finish=50°) ──
-    if (ok && rclcpp::ok()) {
-        auto pose_4 = makeStagePose(origin, hp.mix_height, hp.roll_finish, hp.sway_offset_y);
-        RCLCPP_INFO(get_logger(), "[5c] 移动到收尾位姿 Z=%.0fmm roll=%.0f°",
-                    hp.mix_height * 1000, hp.roll_finish);
-        // 从 draw 升回 mix 高度 + 同时改变 roll (slerp 保证正确)
-        if (!robot_->moveCartesianStraight(pose_4, vel, acc)) {
-            RCLCPP_ERROR(get_logger(), "[5c] moveCartesianStraight 失败");
-            ok = false;
-        }
-        if (ok) {
-            auto wps = generateHeartStageWaypoints(origin, hp,
-                origin.position.z + hp.mix_height, hp.roll_finish, 4);
-            RCLCPP_INFO(get_logger(), "[5c] 划穿 %zu 点", wps.size());
-            if (!robot_->executeCartesianPath(wps, vel, acc)) {
-                RCLCPP_ERROR(get_logger(), "[5c] executeCartesianPath 失败");
-                ok = false;
-            }
-        }
-    }
+    bool ok = exec_stage(gen.stageApproach())
+           && rclcpp::ok()
+           && exec_stage(gen.stageMix())
+           && rclcpp::ok()
+           && exec_stage(gen.stageDraw())
+           && rclcpp::ok()
+           && exec_stage(gen.stageFinish())
+           && rclcpp::ok()
+           && exec_stage(gen.stageHome());
 
-    // 通知 trajectory_recorder 停止拉花录制
+
     if (recorder_stop_cli_->wait_for_service(std::chrono::milliseconds(50))) {
         recorder_stop_cli_->async_send_request(
             std::make_shared<std_srvs::srv::Trigger::Request>());
         RCLCPP_INFO(get_logger(), "[步骤5/5] 已通知 trajectory_recorder 停止录制");
     }
 
-    if (ok) {
-        RCLCPP_INFO(get_logger(), "[步骤5/5] 完成 (3段共 %s)",
-                    hp.verbose ? "融合+成形+收尾" : "");
-    } else {
-        RCLCPP_ERROR(get_logger(), "[步骤5/5] 失败");
-    }
+    if (ok) RCLCPP_INFO(get_logger(), "[步骤5/5] ✓ 全部完成 (3段)");
+    else    RCLCPP_ERROR(get_logger(), "[步骤5/5] ✗ 失败");
     return ok;
 }
 

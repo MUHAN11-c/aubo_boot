@@ -280,8 +280,7 @@
   </joint>
 
 
-  <!-- lizhu_Link 暂时注释 (专注调试拉花轨迹) -->
-  <!--
+  <!-- lizhu_Link — 咖啡杯立柱底座喵~ -->
   <link name="lizhu_Link">
     <inertial>
       <origin xyz="0.012277 0.082104 1.7053E-05" rpy="0 0 0"/>
@@ -310,7 +309,36 @@
     <parent link="pedestal_Link"/>
     <child link="lizhu_Link"/>
   </joint>
-  -->
+
+  <!-- 一次性纸杯 (360ml): 上口Ø80mm 下底Ø56mm 高92mm, 置于 lizhu 立柱位置喵~ -->
+  <link name="paper_cup_Link">
+    <inertial>
+      <origin xyz="0 0 0.046" rpy="0 0 0"/>
+      <mass value="0.01"/>
+      <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/visual/paper_cup.stl"/>
+      </geometry>
+      <material name="paper_cup_mat">
+        <color rgba="1.0 0.98 0.94 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/collision/paper_cup.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="paper_cup_joint" type="fixed">
+    <origin xyz="-0.630 -0.3075 0.106" rpy="0 0 0"/>
+    <parent link="pedestal_Link"/>
+    <child link="paper_cup_Link"/>
+  </joint>
 
   <link name="coffee_Link">
     <inertial>

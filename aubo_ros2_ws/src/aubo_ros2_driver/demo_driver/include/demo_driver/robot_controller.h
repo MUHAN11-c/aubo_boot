@@ -67,6 +67,7 @@ public:
     std::vector<double> getCurrentJoints();
     geometry_msgs::msg::Pose jointsToPose(const std::array<double, 6>& joints);
     std::string getEndEffectorLink() const;
+    void setEndEffectorLink(const std::string& link);
 
     // ── 配置 ──
     void setVelocityScaling(float v);

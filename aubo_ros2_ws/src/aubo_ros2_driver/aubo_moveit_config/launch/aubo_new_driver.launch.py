@@ -20,7 +20,6 @@ AUBO 新框架驱动 launch —— 纯新架构 (不依赖旧 driver/simulator/t
 
 import os
 import socket
-import yaml
 import sys
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction, TimerAction
@@ -209,7 +208,7 @@ def launch_setup(context, *args, **kwargs):
             delayed_rviz,
         ]
 
-            return nodes
+        return nodes
     else:
         # ============================================================
         # 真实硬件模式: AUBO 自定义驱动节点

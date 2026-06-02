@@ -27,7 +27,7 @@ from starlette.middleware.gzip import GZipMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from aubo_ros2_web_dashboard import config as cfg
-from aubo_ros2_web_dashboard.gateway.routes import health, ivg_runtime, robot_mesh, tool_geometries, trajectories
+from aubo_ros2_web_dashboard.gateway.routes import health, ivg_runtime, robot_mesh, tool_geometries
 from aubo_ros2_web_dashboard.gateway.routes.upstream_proxy import http_proxy_router, ws_router
 
 _logger = logging.getLogger("gateway.app")
@@ -100,7 +100,6 @@ def create_app(web_root: str, *, rwt_override: str | None = None) -> FastAPI:
     app.include_router(ivg_runtime.router)  # /api/v1/runtime + /api/v1/settings
     app.include_router(tool_geometries.router)  # /api/v1/tool-geometries
     app.include_router(robot_mesh.router)   # /api/ivg/robot-mesh/*
-    app.include_router(trajectories.router)  # /api/v1/trajectories
 
     # RobotWebTools 资产 — importmap + ros3d/roslib/three.js 模块（优先级高于根挂载）
     if rwt_available:

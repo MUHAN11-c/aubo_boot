@@ -24,6 +24,15 @@ def main() -> None:
         host=args.host,
         port=args.port,
         reload=args.reload,
+        reload_excludes=[
+            "build/**",
+            "install/**",
+            "log/**",
+            "rosbags/**",
+            "**/__pycache__/*",
+            "*.pyc",
+        ] if args.reload else None,
+        reload_includes=["*.py", "*.yaml", "*.yml", "*.json"] if args.reload else None,
     )
 
 

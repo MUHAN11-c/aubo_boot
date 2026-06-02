@@ -1,20 +1,23 @@
 # =============================================================================
-# RunLatteWorkflow.srv — 触发 7 步咖啡拉花工作流喵~
-# 调用方: 前端/BFF (所有位置参数通过 ROS2 Parameter Server 提前设置)
-# 服务方: latte_workflow_node (demo_driver 包)
+# RunLatteWorkflow.srv — 触发 5 步咖啡拉花工作流喵~
+# 调用方: 前端/BFF (所有位置/朝向参数通过 ROS2 Parameter Server lwf_* 提前设置)
+# 服务方: latte_workflow_node (latte_backend 包)
 #
-# 7 步工作流:
-#   ① 取咖啡杯   coffee_link   Cartesian Z 接近 + 抓取 + 退
-#   ② 放咖啡杯   lizhu_link    保持朝向 + Cartesian Z 接近 + 放
-#   ③ 取牛奶杯   cup0_link     Cartesian Z 接近 + 抓取 + 退
-#   ④ 打奶泡     nozzle_link   Cartesian 斜线靠近 + 离开
-#   ⑤ 转腕对轴   reference_pose 杯口对齐 Z 轴防倾倒
-#   ⑥ 接近柱子   lizhu_link    保持朝向 + Cartesian 平移
-#   ⑦ 拉花       /latte/replay_trajectory (mode="action")
+# 5 步工作流:
+#   [1/5] 取牛奶杯 — moveToJoints 关节运动到预教位姿 → 抓取
+#   [2/5] 打奶泡   — 笛卡尔 slerp 去喷嘴 → 2s 蒸汽 → 笛卡尔 slerp 回 → Z 退避
+#   [3/5] 转腕朝上 — 笛卡尔 slerp 到杯口朝上位姿 → 笛卡尔平移至放置位
+#   [4/5] 嘴口倾倒 — 绕世界 X 轴前倾 45°, 为 step5 轨迹提供倾倒基准
+#   [5/5] 心形拉花 — 三段式笛卡尔轨迹: [5a]融合画圈 [5b]成形注入 [5c]划穿收尾
+#   (step0: 取放咖啡杯 — 代码保留未启用, 多杯方案时取消注释)
+#
+# 坐标系: 世界X=倾倒倾角轴  世界Y=划穿方向轴  世界Z=高度轴
+# step4 提供 45° 基准倾角, step5 各阶段 Roll 绝对倾角: 融合45° 成形60°→45° 收尾50°
+# 权威参考: Barista Hustle MSLA (Milk Science & Latte Art) Ch.4-5
 #
 # ════════════════════ 请求 ════════════════════
 # (空 — 所有位置/朝向参数通过 ROS2 Parameter Server lwf_* 提前设置)
 ---
 # ════════════════════ 响应 ════════════════════
 bool success
-string message   # 成功="All 7 steps completed" / 失败="Step N failed: <reason>"
+string message   # 成功="All 5 steps completed" / 失败="Step N failed: <reason>"

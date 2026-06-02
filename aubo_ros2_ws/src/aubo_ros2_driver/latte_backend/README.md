@@ -22,8 +22,8 @@ step4 提供 45° 基准倾角（绕 X 轴），step5 各阶段在此基准上�
 
 | 步骤 | 函数 | 运动 | 说明 | 状态 |
 |------|------|------|------|------|
-| 0 | `step0_pickCoffee` | `moveToJoints` | 取咖啡杯 | ⏸️ |
-| 0 | `step0_placeCoffee` | `moveToJoints` | 放咖啡杯 | ⏸️ |
+| 0 | `step0_pickCoffee` | `moveToJoints` | 取咖啡杯 (保留未启用, 多杯方案时可激活) | ⏸️ |
+| 0 | `step0_placeCoffee` | `moveToJoints` | 放咖啡杯 (保留未启用, 多杯方案时可激活) | ⏸️ |
 | 1 | `step1_pickMilk` | `moveToJoints` | 取牛奶杯 → 抓取 (不退避) | ✅ |
 | 2 | `step2_approachNozzle` | 笛卡尔来回×2 | 去喷嘴 → 2s打奶泡 → 回 → Z退避 | ✅ |
 | 3a | `step3_reorient` | 笛卡尔 slerp | 转腕朝上: FK rotate_up_joints | ✅ |

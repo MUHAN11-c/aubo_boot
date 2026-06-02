@@ -303,7 +303,7 @@ else
         launch "ROS2 Bag" "ros2 bag record -o \"${IVG_ROSBAG_DIR}\" --storage-preset-profile resilient ${IVG_ROSBAG_TOPICS}"
     else
         # -a 全录, 排除 /state 结尾话题; resilient 模式定期刷 metadata 防丢
-        launch "ROS2 Bag" "ros2 bag record -o \"${IVG_ROSBAG_DIR}\" --storage-preset-profile resilient -a -x '/state$'"
+        launch "ROS2 Bag" "ros2 bag record -o \"${IVG_ROSBAG_DIR}\" --storage-preset-profile resilient -a -x /state\$"
     fi
 fi
 
@@ -357,14 +357,8 @@ launch "Grasp Worker" "ros2 launch demo_driver execute_grasp_pose_worker.launch.
 echo -e "${GREEN}[10] 夹爪快换...${NC}"
 launch "Tool Changer" "ros2 launch tool_changer gripper_swap_worker.launch.py"
 
-echo -e "${GREEN}[11] 咖啡拉花 (DO 开关)...${NC}"
-launch "Coffee Latte" "ros2 launch latte_imitation latte_io.launch.py"
-
-echo -e "${GREEN}[11b] 拉花轨迹回放 (MoveIt2 标准管线)...${NC}"
-launch "Latte Imitation" "ros2 launch latte_imitation start_latte_pour.launch.py"
-
-echo -e "${GREEN}[11c] 拉花工作流编排...${NC}"
-launch "Latte Workflow" "ros2 launch aubo_moveit_config latte_workflow.launch.py"
+echo -e "${GREEN}[11] 咖啡拉花工作流编排...${NC}"
+launch "Latte Workflow" "ros2 launch latte_backend latte_workflow.launch.py"
 
 echo -e "${GREEN}[11d] 轨迹实时录制...${NC}"
 launch "Trajectory Recorder" "python3 ${WS}/src/aubo_ros2_driver/demo_driver/scripts/record_robot_trajectory.py"
@@ -375,7 +369,6 @@ launch "Publish Grasps" "ros2 run demo_driver publish_grasps_client_worker_node"
 # 等待关键服务就绪
 active_wait service "/run_gripper_swap" 10 "run_gripper_swap 服务" || true
 active_wait service "/change_tool" 15  "change_tool 服务" || true
-active_wait service "/set_latte_do2" 5 "set_latte_do2 服务" || true
 active_wait service "/latte/run_workflow" 30 "latte/run_workflow 服务" || true
 
 # ═══════════════════════════════════════════════════════════════
@@ -388,7 +381,7 @@ echo -e "${GREEN}[13] 综合校验...${NC}"
     source "$ROS2_SETUP"
     source install/setup.bash
     echo -e "${BLUE}──────── 已注册服务 ────────${NC}"
-    ros2 service list | grep -E '/estimate_pose|/list_templates|/graspnet_capture_control|/publish_grasps_worker_loop_control|/loop_grasp_control|/run_gripper_swap|/set_latte_do2|/set_latte_do4|/change_tool|/get_current_tool|/latte/run_workflow' || true
+    ros2 service list | grep -E '/estimate_pose|/list_templates|/graspnet_capture_control|/publish_grasps_worker_loop_control|/loop_grasp_control|/run_gripper_swap|/change_tool|/get_current_tool|/latte/run_workflow' || true
     echo -e "${GREEN}  ✓ 服务校验完成${NC}"
 )
 

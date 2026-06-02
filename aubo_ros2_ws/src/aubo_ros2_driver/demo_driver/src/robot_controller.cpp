@@ -350,6 +350,12 @@ std::string RobotController::getEndEffectorLink() const
     return eef_link_;
 }
 
+void RobotController::setEndEffectorLink(const std::string& link)
+{
+    eef_link_ = link;
+    move_group_->setEndEffectorLink(link);
+}
+
 // =====================================================================
 // 配置
 // =====================================================================

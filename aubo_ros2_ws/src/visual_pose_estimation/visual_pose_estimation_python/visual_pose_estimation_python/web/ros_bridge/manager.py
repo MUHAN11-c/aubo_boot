@@ -139,6 +139,12 @@ class RosBridgeManager:
                 self._module.rclpy.spin_once(self._node, timeout_sec=0.1)
             except Exception:
                 LOGGER.exception("ROS2 spin loop error")
+                # context 可能已被 shutdown（如 uvicorn reload），检查后退出
+                try:
+                    if self._module is None or not self._module.rclpy.ok():
+                        break
+                except Exception:
+                    break
                 time.sleep(0.2)
 
     def _load_bridge_module(self) -> ModuleType:

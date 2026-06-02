@@ -18,6 +18,7 @@ find_package(demo_driver REQUIRED)
 # ── latte_workflow_node: 拉花工作流编排 + 心形轨迹生成 ──
 add_executable(latte_workflow_node
   src/latte_workflow_node.cpp
+  src/latte_trajectory.cpp
 )
 
 target_include_directories(latte_workflow_node PUBLIC
@@ -48,6 +49,10 @@ install(DIRECTORY include/
 
 install(DIRECTORY launch/
   DESTINATION share/${PROJECT_NAME}/launch
+)
+
+install(PROGRAMS scripts/spout_calibrator.py
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 ament_package()

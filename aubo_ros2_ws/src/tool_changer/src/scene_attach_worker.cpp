@@ -481,7 +481,7 @@ void SceneAttachWorker::updateRobotDescription(const std::string& tool_id, bool 
     // 同步模式：等待结果并验证（/set_display_tool 使用，确保 RViz2 TF 更新）喵~
     auto future = param_client_->set_parameters(
         {rclcpp::Parameter("robot_description", it->second)});
-    auto status = future.wait_for(std::chrono::seconds(5));
+    auto status = future.wait_for(std::chrono::seconds(2));
     if (status != std::future_status::ready) {
       RCLCPP_ERROR(get_logger(), "robot_state_publisher set_parameters 超时 (5s)");
       return;

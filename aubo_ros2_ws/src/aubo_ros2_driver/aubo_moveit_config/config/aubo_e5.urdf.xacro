@@ -65,7 +65,7 @@
                         ry="${-pi/2}"/>
   </xacro:if>
 
-  <!-- Tool Center Point -->
+  <!-- Tool Center Point (红色, r=5mm) -->
   <link name="tool_tcp">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -81,6 +81,14 @@
     <parent link="wrist3_Link"/>
     <child link="tool_tcp"/>
     <origin xyz="0.0 0.0 0.0235" rpy="0.0 0.0 0.0"/>
+  </joint>
+
+  <!-- 奶缸嘴 (spout tip) — 末端工具坐标系, 标定值: TCP→spout = (-38,95,212)mm 喵~ -->
+  <link name="spout_marker"/>
+  <joint name="tcp_to_spout" type="fixed">
+    <parent link="tool_tcp"/>
+    <child link="spout_marker"/>
+    <origin xyz="-0.038 0.095 0.212" rpy="0 0 0"/>
   </joint>
 
   <!-- Transmission -->

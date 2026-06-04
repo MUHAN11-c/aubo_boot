@@ -707,8 +707,21 @@ class NativeWebService:
             "use_rembg": "use_rembg",
         }
         target_key = key_map.get(normalized_key, normalized_key)
+        # 1. 更新 web 进程内 config 单例 (debug_get_images 即时生效)
+        from visual_pose_estimation_python.config import update_section
+        update_section("preprocessor", {target_key: value})
+        if target_key in ("component_min_area", "component_max_area",
+                          "component_min_aspect_ratio", "component_max_aspect_ratio",
+                          "component_min_width", "component_min_height"):
+            update_section("feature_extractor", {target_key: value})
+        if target_key == "use_rembg":
+            update_section("rembg", {"enabled": value})
+        # 2. 保存到磁盘 (持久化)
         node.params_manager.update(target_key, value)
-        node.notify_params_updated()
+        node.params_manager.save()
+        # 3. 通知 ROS 进程 (跨进程通过 params_json 传递)
+        all_params = node.params_manager.get_all()
+        node.notify_params_updated(params=all_params)
         return {"success": True}
 
     def debug_get_params(self) -> dict[str, Any]:
@@ -722,7 +735,8 @@ class NativeWebService:
         if not success:
             raise HTTPException(status_code=500, detail="保存配置文件失败")
         node.config_reader.load_debug_thresholds()
-        node.notify_params_updated()
+        all_params = node.params_manager.get_all()
+        node.notify_params_updated(params=all_params)
         return {
             "success": True,
             "message": f"阈值已保存到配置文件: {node.params_manager.config_path} 并同步到算法模块",

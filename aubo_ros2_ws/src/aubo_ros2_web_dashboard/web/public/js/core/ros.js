@@ -21,6 +21,11 @@ import {
 } from '../ivg_runtime.js';
 import { canonicalRosTopic } from './utils.js';
 import { logBus } from './log-bus.js';
+import { rosDataStore } from '../entities/ros_data_store.js';
+import { serviceStore } from '../entities/service_store.js';
+import { connectionStore } from '../entities/connection_store.js';
+
+const g = globalThis;
 
 const ROS_RECONNECT_MAX = 12;
 
@@ -42,7 +47,7 @@ class RosManager {
         this._onReconnecting = null;    // (delayMs, attempt, max) => {}
         this._onCleanup = null;         // () => {} 重连前页面级清理
 
-        // 传输层事件 → 内部分发
+        // 传输层事件 → 内部分发 (rosbridge JSON, fallback 路径)
         this._transport.onRosJson(null, (msg, topic) => {
             this._dispatchRos(topic, msg);
         }, 'ros_manager');
@@ -81,13 +86,27 @@ class RosManager {
         if (this._onStatusChange) this._onStatusChange('正在连接…', null);
 
         try {
-            const wsUrl = url || rosbridgeWebSocketUrl();
-            await this._transport.loadRuntime();
-            await this._transport.connectControl();
+            // 动态加载 TransportHub (统一传输调度, 事件驱动)
+            let hub = g.__transportHub;
+            if (!hub) {
+                try {
+                    const mod = await import('../transport/hub.js');
+                    hub = mod.transportHub;
+                } catch (e) {
+                    this._log('warn', 'TransportHub 加载失败: ' + (e.message || e));
+                }
+            }
+            // TransportHub.init() 管理所有适配器连接 (首次连接 + 重连均走此路径)
+            if (hub) {
+                await hub.init();
+            } else {
+                throw new Error('TransportHub not available');
+            }
+
             this._reconnect.attempts = 0;
             clearRosReconnectTimer(this._reconnect);
 
-            // 连接成功 → 监听后续断线事件
+            // 监听 ivgTransport 断线事件 (rosbridge 底层关闭)
             this._transport.clearControlHandlersByOwner('ros_manager');
             this._transport.onControlJson((o) => {
                 if (!o || typeof o !== 'object') return;
@@ -97,15 +116,20 @@ class RosManager {
                 }
                 if (o.op === 'close') {
                     if (this._paused) return;
-                    this._log('transport', 'rosbridge closed, scheduling reconnect...');
+                    this._log('transport', 'transport closed, scheduling reconnect...');
                     this._scheduleReconnect();
                 }
             }, 'ros_manager');
 
+            // 监听 TransportHub 桥接变更 (foxglove 断线等场景)
+            if (hub) {
+                this._wireHubBridgeChange(hub);
+            }
+
             if (this._onStatusChange) this._onStatusChange('已连接', true);
             if (this._onConnected) this._onConnected();
 
-            this._log('transport', 'rosbridge connected');
+            this._log('transport', 'connected via TransportHub');
             return true;
         } catch (e) {
             this._log('error', 'connect failed: ' + (e.message || e));
@@ -115,6 +139,29 @@ class RosManager {
         } finally {
             this._connectInFlight = false;
         }
+    }
+
+    /** 监听 TransportHub bridgechange → 活跃桥接丢失时触发重连 */
+    _wireHubBridgeChange(hub) {
+        if (hub._rosManagerBridgeWired) return;
+        hub._rosManagerBridgeWired = true;
+
+        hub.addEventListener('bridgechange', (e) => {
+            connectionStore.setActiveBridge(e.detail.active);
+            if (!e.detail.active && !this._paused) {
+                this._log('transport', 'all bridges disconnected, scheduling reconnect...');
+                this._scheduleReconnect();
+            }
+        });
+
+        hub.addEventListener('modechange', (e) => {
+            connectionStore.setBridgeMode(e.detail.mode);
+            connectionStore.setActiveBridge(e.detail.active);
+        });
+
+        hub.addEventListener('stats', () => {
+            connectionStore.setBridgeStats(hub.getStats());
+        });
     }
 
     disconnect() {
@@ -127,8 +174,17 @@ class RosManager {
 
     subscribe(topic, msgType, callback) {
         const name = canonicalRosTopic(topic);
-        // 注册处理器 (传输层自动去重 subscribe)
         this._rosHandlers.push({ topic: name, fn: callback });
+
+        // TransportHub 可用时委托 (自适应路由: foxglove CDR / rosbridge JSON)
+        const hub = g.__transportHub;
+        if (hub && hub.initialized) {
+            return hub.subscribe(name, msgType, function(typedMsg) {
+                // 同步到 RosDataStore (SWR 缓存)
+                rosDataStore.set(name, typedMsg.data, typedMsg.bridge || 'unknown');
+                try { callback(typedMsg.data); } catch (_) {}
+            });
+        }
         return this._transport.subscribe({ topic: name, msgType });
     }
 
@@ -146,12 +202,21 @@ class RosManager {
     // ── 服务调用 ────────────────────────────────────────────────────────────
 
     async callService(service, type, request, timeoutMs = 60000) {
-        return this._transport.callService({
-            service,
-            type,
-            request,
-            timeoutMs,
-        });
+        timeoutMs = timeoutMs || 60000;
+        // ServiceStore 注入执行器 (首次调用时)
+        if (!serviceStore._executor) {
+            const self = this;
+            serviceStore.setExecutor(function(name, svcType, svcReq, timeout) {
+                const hub = g.__transportHub;
+                if (hub && hub.initialized) {
+                    return hub.callService(name, svcType, svcReq, timeout);
+                }
+                return self._transport.callService({
+                    service: name, type: svcType, request: svcReq, timeoutMs: timeout,
+                });
+            });
+        }
+        return serviceStore.callService(service, type, request, timeoutMs);
     }
 
     // ── 事件系统 ────────────────────────────────────────────────────────────

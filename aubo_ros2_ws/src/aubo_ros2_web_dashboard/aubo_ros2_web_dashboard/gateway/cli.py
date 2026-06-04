@@ -37,6 +37,19 @@ def _add_args(p: argparse.ArgumentParser) -> None:
     g.add_argument("--rosbridge-close-timeout", type=int,
                    default=cfg.rosbridge_close_timeout())
 
+    # foxglove_bridge 上游连接参数
+    f = p.add_argument_group("foxglove_bridge 上游")
+    f.add_argument("--foxglove-bridge-host", default=cfg.foxglove_bridge_host())
+    f.add_argument("--foxglove-bridge-port", type=int, default=cfg.foxglove_bridge_port())
+    f.add_argument("--foxglove-bridge-max-msg-bytes", type=int,
+                   default=cfg.foxglove_bridge_max_message_bytes())
+    f.add_argument("--foxglove-bridge-ping-interval", type=int,
+                   default=cfg.foxglove_bridge_ping_interval())
+    f.add_argument("--foxglove-bridge-ping-timeout", type=int,
+                   default=cfg.foxglove_bridge_ping_timeout())
+    f.add_argument("--foxglove-bridge-close-timeout", type=int,
+                   default=cfg.foxglove_bridge_close_timeout())
+
     # web_video 上游连接参数
     w = p.add_argument_group("web_video 上游")
     w.add_argument("--web-video-host", default=cfg.web_video_host())

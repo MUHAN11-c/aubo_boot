@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import json
 import math
 import threading
 import time
@@ -304,12 +305,17 @@ class ROS2Node(Node):
             self.get_logger().error(traceback.format_exc())
             return None, None, f"相机触发异常: {exc}"
 
-    def notify_params_updated(self):
+    def notify_params_updated(self, params=None):
+        """通知 ROS 端 /update_params 服务同步参数。
+
+        Args:
+            params: 可选的参数字典，直接传递给 ROS 节点（避免跨进程单例不可见）
+        """
         try:
             if self.update_params_client.wait_for_service(timeout_sec=0.5):
                 request = UpdateParams.Request()
                 request.section = "all"
-                request.params_json = ""
+                request.params_json = json.dumps(params) if params else ""
                 future = self.update_params_client.call_async(request)
                 self._spin_future(future, timeout_sec=1.0)
         except Exception:

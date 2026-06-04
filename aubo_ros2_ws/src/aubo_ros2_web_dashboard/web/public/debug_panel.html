@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="css/ivg_site_nav.css" />
 <link rel="stylesheet" href="css/ivg_status_bar.css" />
 <link rel="stylesheet" href="css/debug_panel.css" />
+<script src="/js/robotwebtools/libs/three.js"></script>
 <script src="/js/robotwebtools/importmap.js"></script>
 </head>
 <body class="ivg-single-screen">
@@ -331,6 +332,28 @@
       <div class="debug-log" id="debug-log-service" aria-live="polite"></div>
     </div>
 
+    <!-- 点云 3D 查看 (foxglove_bridge) -->
+    <div class="debug-card highlight" id="debug-pointcloud" style="grid-column:span 2;">
+      <h2>点云 3D 查看 <span style="font-size:0.65rem;color:var(--text-muted);font-weight:400;">(foxglove_bridge CDR 二进制)</span></h2>
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;flex-wrap:wrap;">
+        <label style="font-size:0.72rem;">话题</label>
+        <input class="debug-input" id="dbg-pc-topic" value="/camera/depth/color/points" style="width:220px;" placeholder="/camera/depth/color/points">
+        <label style="font-size:0.72rem;">最大点数</label>
+        <input class="debug-input w5" id="dbg-pc-maxpts" value="300000" type="number" min="1000" max="1000000" step="10000">
+        <label style="font-size:0.72rem;">点大小</label>
+        <input class="debug-input w4" id="dbg-pc-ptsize" value="3" type="number" min="1" max="20" step="0.5">
+        <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-pc-start">连接</button>
+        <button type="button" class="debug-btn debug-btn--danger" id="btn-dbg-pc-stop">断开</button>
+        <span style="font-size:0.7rem;color:var(--text-muted);" id="dbg-pc-info">未连接</span>
+      </div>
+      <div id="dbg-pointcloud-viewport" style="width:100%;height:420px;background:#1a1a2e;border-radius:8px;position:relative;overflow:hidden;cursor:grab;">
+        <div id="dbg-pc-overlay" style="position:absolute;top:8px;left:12px;font-size:0.65rem;color:#888;pointer-events:none;z-index:2;">
+          拖拽旋转 | 滚轮缩放 | 右键平移
+        </div>
+      </div>
+      <div class="debug-log" id="debug-log-pointcloud" aria-live="polite" style="margin-top:0.3rem;"></div>
+    </div>
+
     <!-- 话题发布测试 -->
     <div class="debug-card highlight" id="debug-topic">
       <h2>话题发布</h2>
@@ -355,6 +378,7 @@
 </main>
 
 <script type="module" src="js/core/log-ros-bridge.js"></script>
+<script type="module" src="js/core/foxglove_transport.js"></script>
 <script type="module" src="js/ivg_site_nav.js"></script>
 <script type="module" src="js/debug_panel.js"></script>
 <script type="module" src="js/core/ivg_status_bar.js"></script>

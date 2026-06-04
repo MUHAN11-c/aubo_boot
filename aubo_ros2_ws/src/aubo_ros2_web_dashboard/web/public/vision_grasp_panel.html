@@ -13,6 +13,7 @@
 	<link rel="stylesheet" href="css/vision_grasp_panel.css?v=20260522_unify_design" />
 	<link rel="stylesheet" href="css/ivg_site_nav.css?v=20260522_unify_design" />
 	<link rel="stylesheet" href="css/ivg_status_bar.css" />
+	<script src="/js/robotwebtools/libs/three.js"></script>
 	<script src="/js/robotwebtools/importmap.js"></script>
 </head>
 
@@ -247,7 +248,8 @@
 	</div>
 	<div hidden aria-hidden="true">
 		<input type="text" id="scan3-topic" value="" autocomplete="off" />
-		<input type="text" id="marker3-topic" value="" autocomplete="off" />
+		<input type="text" id="marker3-topic" value="/grasp_markers" autocomplete="off" />
+		<input type="text" id="pointcloud-topic" value="/camera/depth_registered/points" autocomplete="off" />
 		<input type="checkbox" id="view3d-show-urdf" checked />
 		<input type="checkbox" id="view3d-show-axes" checked />
 		<input type="checkbox" id="view3d-show-grid" />

@@ -4,6 +4,7 @@ import { loadRecords, saveRecords } from './core/record_store.js';
 import { quatToRpyDeg, rpyDegToQuat } from './core/tf-math.js';
 import { $, escapeHtml } from './core/utils.js';
 import { logBus } from './core/log-bus.js';
+import { createPointCloudViewer } from './view3d/pointcloud_viewer.js';
 
 const TAG = '[debug_panel]';
 
@@ -905,7 +906,262 @@ async function init() {
   setupTopicPublish();
   setupRecordLoader();
 
+  // 4. 点云 3D 查看 (foxglove_bridge)
+  setupPointCloudViewer();
+
   logBus.addLog('info', 'lifecycle', '调试面板初始化完成');
+}
+
+
+// ── 内嵌最小 OrbitController (离线可用, 零依赖) ──────────────────────────
+
+function _createOrbitController(camera, domElement) {
+  const target = new THREE.Vector3();
+  const spherical = new THREE.Spherical();
+  const panStart = new THREE.Vector2();
+  let state = 0; // 0=none, 1=rotate, 2=pan
+  let lastX = 0, lastY = 0;
+  let rotateSpeed = 0.005, zoomSpeed = 0.08, panSpeed = 0.01;
+  let minDist = 0.1, maxDist = 50;
+
+  // 从当前相机位置计算球坐标
+  spherical.setFromVector3(camera.position.clone().sub(target));
+  camera.lookAt(target);
+
+  function onMouseDown(e) {
+    lastX = e.clientX; lastY = e.clientY;
+    if (e.button === 0) state = 1;       // 左键: 旋转
+    else if (e.button === 2) state = 2;  // 右键: 平移
+  }
+
+  function onMouseMove(e) {
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+
+    if (state === 1) {
+      spherical.theta -= dx * rotateSpeed;
+      spherical.phi -= dy * rotateSpeed;
+      spherical.phi = Math.max(0.01, Math.min(Math.PI - 0.01, spherical.phi));
+    } else if (state === 2) {
+      const panX = -dx * panSpeed * spherical.radius * 0.5;
+      const panY = dy * panSpeed * spherical.radius * 0.5;
+      const right = new THREE.Vector3();
+      const up = new THREE.Vector3(0, 1, 0);
+      right.crossVectors(camera.getWorldDirection(), up).normalize();
+      target.add(right.multiplyScalar(panX));
+      target.add(up.clone().multiplyScalar(panY));
+    }
+    _applySpherical();
+  }
+
+  function onMouseUp() { state = 0; }
+
+  function onWheel(e) {
+    spherical.radius *= (1 + (e.deltaY > 0 ? 0.05 : -0.05) * zoomSpeed);
+    spherical.radius = Math.max(minDist, Math.min(maxDist, spherical.radius));
+    _applySpherical();
+    e.preventDefault();
+  }
+
+  function onContextMenu(e) { e.preventDefault(); }
+
+  function _applySpherical() {
+    camera.position.copy(target).add(
+      new THREE.Vector3().setFromSpherical(spherical));
+    camera.lookAt(target);
+  }
+
+  domElement.addEventListener('mousedown', onMouseDown);
+  domElement.addEventListener('mousemove', onMouseMove);
+  domElement.addEventListener('mouseup', onMouseUp);
+  domElement.addEventListener('mouseleave', onMouseUp);
+  domElement.addEventListener('wheel', onWheel, { passive: false });
+  domElement.addEventListener('contextmenu', onContextMenu);
+
+  return {
+    update() {},  // 内嵌实现无需每帧 update
+    setTarget(x, y, z) { target.set(x, y, z); _applySpherical(); },
+    dispose() {
+      domElement.removeEventListener('mousedown', onMouseDown);
+      domElement.removeEventListener('mousemove', onMouseMove);
+      domElement.removeEventListener('mouseup', onMouseUp);
+      domElement.removeEventListener('mouseleave', onMouseUp);
+      domElement.removeEventListener('wheel', onWheel);
+      domElement.removeEventListener('contextmenu', onContextMenu);
+    },
+  };
+}
+
+
+// ── 点云 3D 查看 (foxglove_bridge CDR 二进制, 原生 Three.js) ──────────────────
+
+let _pcv = null;           // point cloud viewer 实例
+let _pcRenderer = null;    // Three.js WebGLRenderer
+let _pcScene = null;       // THREE.Scene
+let _pcCamera = null;      // THREE.PerspectiveCamera
+let _pcControls = null;    // OrbitControls
+let _pcAnimId = null;      // requestAnimationFrame id
+
+function setupPointCloudViewer() {
+  const THREE = globalThis.THREE;
+  if (!THREE) {
+    logWarn('debug-log-pointcloud', 'THREE 未加载, 点云功能不可用');
+    return;
+  }
+
+  const vp = $('dbg-pointcloud-viewport');
+  if (!vp) return;
+
+  // ── 创建 Three.js 场景 ──
+  _pcScene = new THREE.Scene();
+  _pcScene.background = new THREE.Color(0x1a1a2e);
+
+  // 相机
+  const w = vp.clientWidth || 640;
+  const h = vp.clientHeight || 420;
+  _pcCamera = new THREE.PerspectiveCamera(55, w / h, 0.01, 50);
+  _pcCamera.position.set(1.5, 1.0, 2.0);
+  _pcCamera.lookAt(0, 0, 0.5);
+
+  // 渲染器
+  _pcRenderer = new THREE.WebGLRenderer({ antialias: true });
+  _pcRenderer.setSize(w, h);
+  _pcRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  _pcRenderer.shadowMap.enabled = false;
+  vp.appendChild(_pcRenderer.domElement);
+
+  // ── 内嵌 OrbitController (不依赖外部库) ──
+  _pcControls = _createOrbitController(_pcCamera, _pcRenderer.domElement);
+  _pcControls.setTarget(0, 0, 0.5);
+
+  // 光照
+  _pcScene.add(new THREE.AmbientLight(0x404060, 1.8));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+  dir.position.set(0.5, 1, 0.8);
+  _pcScene.add(dir);
+
+  // 网格地面
+  const grid = new THREE.GridHelper(3, 20, 0x334455, 0x1a1a2e);
+  _pcScene.add(grid);
+
+  // 坐标轴
+  const axLen = 0.2;
+  const axR = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(axLen, 0, 0)]),
+    new THREE.LineBasicMaterial({ color: 0xff3333 }));
+  const axG = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, axLen, 0)]),
+    new THREE.LineBasicMaterial({ color: 0x33ff33 }));
+  const axB = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, axLen)]),
+    new THREE.LineBasicMaterial({ color: 0x3388ff }));
+  _pcScene.add(axR); _pcScene.add(axG); _pcScene.add(axB);
+
+  // 渲染循环
+  function animate() {
+    _pcAnimId = requestAnimationFrame(animate);
+    if (_pcControls) _pcControls.update();
+    if (_pcRenderer && _pcScene && _pcCamera) {
+      _pcRenderer.render(_pcScene, _pcCamera);
+    }
+  }
+  animate();
+
+  // 窗口大小调整
+  function onResize() {
+    if (!_pcRenderer || !_pcCamera || !vp) return;
+    const rw = vp.clientWidth || 640;
+    const rh = vp.clientHeight || 420;
+    _pcRenderer.setSize(rw, rh);
+    _pcCamera.aspect = rw / rh;
+    _pcCamera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', onResize);
+
+  // ── 按钮事件 ──
+  const btnStart = $('btn-dbg-pc-start');
+  const btnStop = $('btn-dbg-pc-stop');
+  const topicInput = $('dbg-pc-topic');
+  const maxPtsInput = $('dbg-pc-maxpts');
+  const ptSizeInput = $('dbg-pc-ptsize');
+  const infoEl = $('dbg-pc-info');
+
+  function updateInfo(text, cssClass) {
+    if (!infoEl) return;
+    infoEl.textContent = text;
+    infoEl.style.color = cssClass === 'ok' ? '#4ade80' :
+                         cssClass === 'err' ? '#f87171' :
+                         cssClass === 'warn' ? '#fbbf24' : '#888';
+  }
+
+  btnStart.addEventListener('click', () => {
+    if (_pcv) {
+      _pcv.stop();
+      _pcv.dispose();
+      _pcv = null;
+    }
+    const topic = (topicInput && topicInput.value) || '/camera/depth/color/points';
+    const maxPts = parseInt((maxPtsInput && maxPtsInput.value) || '300000', 10);
+    const ptSize = parseFloat((ptSizeInput && ptSizeInput.value) || '3') * 0.001;
+
+    try {
+      _pcv = createPointCloudViewer({
+        scene: _pcScene,
+        topic: topic,
+        maxPoints: maxPts,
+        pointSize: ptSize,
+      });
+      _pcv.start();
+      updateInfo('连接中...', 'warn');
+      log('debug-log-pointcloud', '点云连接中 → ' + topic);
+
+      // 定期更新连接状态
+      const checkInterval = setInterval(() => {
+        if (!_pcv) { clearInterval(checkInterval); return; }
+        if (_pcv.isConnected) {
+          updateInfo('已连接 | 点数: ' + _pcv.pointCount, 'ok');
+          clearInterval(checkInterval);
+        }
+      }, 500);
+      setTimeout(() => { clearInterval(checkInterval); }, 15000);
+
+    } catch (e) {
+      updateInfo('错误: ' + (e.message || e), 'err');
+      logErr('debug-log-pointcloud', '点云创建失败: ' + (e.message || e));
+    }
+  });
+
+  btnStop.addEventListener('click', () => {
+    if (_pcv) {
+      _pcv.stop();
+      _pcv.dispose();
+      _pcv = null;
+    }
+    updateInfo('已断开', '');
+    log('debug-log-pointcloud', '点云已断开');
+  });
+
+  // 清理
+  const origCleanup = globalThis._debugPanelCleanup;
+  globalThis._debugPanelCleanup = () => {
+    if (_pcv) { _pcv.stop(); _pcv.dispose(); _pcv = null; }
+    if (_pcAnimId) { cancelAnimationFrame(_pcAnimId); _pcAnimId = null; }
+    if (_pcControls) { _pcControls.dispose(); _pcControls = null; }
+    window.removeEventListener('resize', onResize);
+    if (_pcRenderer) {
+      _pcRenderer.dispose();
+      if (_pcRenderer.domElement && _pcRenderer.domElement.parentNode) {
+        _pcRenderer.domElement.parentNode.removeChild(_pcRenderer.domElement);
+      }
+      _pcRenderer = null;
+    }
+    _pcScene = null;
+    _pcCamera = null;
+    if (typeof origCleanup === 'function') origCleanup();
+  };
+
+  updateInfo('未连接', '');
+  log('debug-log-pointcloud', '点云查看器就绪, 点击"连接"开始');
 }
 
 if (document.readyState === 'loading') {

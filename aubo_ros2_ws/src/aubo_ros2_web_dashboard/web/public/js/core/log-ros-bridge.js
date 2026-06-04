@@ -181,3 +181,67 @@ _waitForTransport(function (transport) {
     _hookTopicData(transport);
     logBus.addLog('info', 'system', 'ROS 日志桥接完全就绪 (rosout + service + topic 摘要)');
 });
+
+// ── Foxglove 双传输路径兼容 (TransportHub 事件驱动) ──────────────────────
+// 监听 TransportHub 'message' 事件 (零轮询, 零延迟)
+function _wireFoxgloveLog() {
+    const hub = globalThis.__transportHub;
+    if (!hub || hub._logBridgeWired) return;
+    hub._logBridgeWired = true;
+    hub.addEventListener('message', (e) => {
+        if (e.detail && e.detail.bridge === 'foxglove') {
+            try { _hookTopicDataHandler(e.detail.data, e.detail.topic); } catch (_) {}
+        }
+    });
+}
+// 立即尝试 + 延迟重试 (hub 可能尚未加载)
+_wireFoxgloveLog();
+setTimeout(_wireFoxgloveLog, 1000);
+setTimeout(_wireFoxgloveLog, 3000);
+
+// 提取 topic 处理逻辑为独立函数 (供 foxglove 路径复用)
+function _hookTopicDataHandler(msg, topic) {
+    if (!topic) return;
+    const tname = String(topic);
+
+    if (tname === '/rosout') return;
+
+    if (tname === '/aubo/mode' && msg && msg.data) {
+        const mode = String(msg.data);
+        if (_shouldLog('mode:' + mode)) {
+            logBus.addLog('info', 'topic', '驱动模式: ' + mode, { topic: tname, mode, bridge: 'foxglove' });
+        }
+        return;
+    }
+
+    if (tname === '/system_status' && msg && msg.data) {
+        const status = String(msg.data);
+        if (_shouldLog('sys_status:' + status)) {
+            logBus.addLog('info', 'topic', '系统状态: ' + status, { topic: tname, status });
+        }
+        return;
+    }
+
+    if (tname === '/tool_changer_status' && msg && msg.tool_id) {
+        const toolId = String(msg.tool_id);
+        if (_shouldLog('tool:' + toolId)) {
+            logBus.addLog('info', 'topic', '工具快换状态变更: ' + toolId, { topic: tname, tool_id: toolId, bridge: 'foxglove' });
+        }
+        return;
+    }
+
+    if (tname === '/robot_status' || tname === '/joint_states' || tname === '/grasp_poses_base') {
+        if (!_topicStats[tname]) {
+            _topicStats[tname] = { count: 0, lastSummary: 0 };
+        }
+        _topicStats[tname].count++;
+        const now = Date.now();
+        if (now - _topicStats[tname].lastSummary > 30000) {
+            _topicStats[tname].lastSummary = now;
+            logBus.addLog('debug', 'topic',
+                tname + ': ' + _topicStats[tname].count + ' 条消息/30s [foxglove]', { topic: tname });
+            _topicStats[tname].count = 0;
+        }
+        return;
+    }
+}

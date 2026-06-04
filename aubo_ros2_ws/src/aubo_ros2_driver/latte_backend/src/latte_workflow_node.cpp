@@ -129,11 +129,6 @@ bool LatteWorkflowNode::init()
         return false;
     }
 
-    recorder_start_cli_ = create_client<std_srvs::srv::Trigger>(
-        "/trajectory_recorder/start_latte_record");
-    recorder_stop_cli_ = create_client<std_srvs::srv::Trigger>(
-        "/trajectory_recorder/stop_latte_record");
-
     RCLCPP_INFO(get_logger(), "LatteWorkflowNode 就绪");
     return true;
 }
@@ -523,8 +518,7 @@ bool LatteWorkflowNode::step4_pour()
 //   1. 阶段间过渡用 moveCartesianStraight (slerp 保证姿态平滑过渡),
 //      阶段内部连续运动用 executeCartesianPath (waypoints 离散点)
 //   2. 所有 roll 为绝对倾角, step4 已禁用, 从水平(0°)直接起算
-//   3. 轨迹录制回调 bracketing: step5 开始/结束分别通知 trajectory_recorder
-//   4. 阶段编号跳过 3: 预留用于 Heart-in-Heart / Tulip 第二层花瓣
+//   3. 阶段编号跳过 3: 预留用于 Heart-in-Heart / Tulip 第二层花瓣
 //
 // MSLA 权威依据:
 //   [5a] 融合: MSLA 5.02 + 4.02 (Pin-Drop) + 4.04 (倾角-流量)
@@ -541,12 +535,6 @@ bool LatteWorkflowNode::step5_executeLatte()
 
     const float vel = static_cast<float>(params_.heart.velocity);
     const float acc = static_cast<float>(params_.acc);
-
-    if (recorder_start_cli_->wait_for_service(std::chrono::milliseconds(50))) {
-        recorder_start_cli_->async_send_request(
-            std::make_shared<std_srvs::srv::Trigger::Request>());
-        RCLCPP_INFO(get_logger(), "[步骤5/5] 已通知 trajectory_recorder 开始录制");
-    }
 
     // tool_tcp 末端坐标系 — 不切换 spout_marker (MoveIt IK 可能不处理固定偏移)
     // 轨迹在 spout 坐标生成, 通过 gen.spoutToTcp() 转为 tool_tcp 坐标后执行
@@ -624,12 +612,6 @@ bool LatteWorkflowNode::step5_executeLatte()
            && rclcpp::ok()
            && exec_stage(gen.stageHome());
 
-
-    if (recorder_stop_cli_->wait_for_service(std::chrono::milliseconds(50))) {
-        recorder_stop_cli_->async_send_request(
-            std::make_shared<std_srvs::srv::Trigger::Request>());
-        RCLCPP_INFO(get_logger(), "[步骤5/5] 已通知 trajectory_recorder 停止录制");
-    }
 
     if (ok) RCLCPP_INFO(get_logger(), "[步骤5/5] ✓ 全部完成 (3段)");
     else    RCLCPP_ERROR(get_logger(), "[步骤5/5] ✗ 失败");

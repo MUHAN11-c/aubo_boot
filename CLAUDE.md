@@ -57,7 +57,7 @@ cd /home/mu/aubo_boot/aubo_ros2_ws
 rosdep install --from-paths src --ignore-src -r -y
 
 # Python 运行依赖（非 colcon 管理）
-# numpy: BFF 网关 (trajectories.py NPZ 加载) + 录制脚本 (record_robot_trajectory.py)
+# numpy: VPE 姿态估计 + graspnet 点云处理
 pip3 install httpx websockets numpy==1.23.5 opencv-python==4.9.0
 ```
 
@@ -304,40 +304,7 @@ C++ MoveIt2 规划+执行节点，已由 `latte_backend` 内嵌的 `moveCartesia
 
 `aubo_ros2_ws/src/ivg_utils/` — `ivg_utils.math`（四元数/旋转矩阵/欧拉角）、`ivg_utils.io`（`IO_GRIPPER=6`, `IO_QUICK_SWAP=7`）。新增数学工具优先加到此包喵~
 
-### 17. 轨迹录制与回放系统
-
-**录制**: `demo_driver/scripts/record_robot_trajectory.py` (ROS 2 节点) → 保存到 `~/robot_trajectories/<YYYYMMDD_HHMMSS>/` (NPZ+CSV)。
-
-- 订阅 `/robot_status` (ivg_interfaces/msg/RobotStatus)，每 0.5s 控制台摘要
-- 拉花段自动标记: ROS service `~/start_latte_record` / `~/stop_latte_record` (std_srvs/Trigger)，由 `latte_workflow_node` step5 调用
-- `trajectory_full.npz` 存全部数据，`trajectory_latte_N.npz` 存每段拉花
-- 每 10s 自动保存；退出时 (SIGINT/SIGTERM/SIGHUP + atexit) 最终保存
-- 使用 `MultiThreadedExecutor`，spin 线程和录制主循环分离
-
-**BFF API**: `gateway/routes/trajectories.py` → `APIRouter(prefix="/api/v1/trajectories")`。
-
-| 端点 | 说明 |
-|------|------|
-| `GET /api/v1/trajectories` | 列出所有录制 (时间倒序, 含点数/时长/拉花段数/XYZ范围) |
-| `GET /api/v1/trajectories/{ts}/full` | 完整轨迹 JSON (自动降采样 >5000 点) |
-| `GET /api/v1/trajectories/{ts}/latte/{n}` | 拉花段 n 的 JSON (n 从 1 开始) |
-
-> **安全**: `np.load(allow_pickle=False)` — 轨迹数据全为 float 数组，禁止 pickle 反序列化 [NumPy 安全文档](https://numpy.org/doc/stable/reference/generated/numpy.load.html)。时间戳格式校验 `^\d{8}_\d{6}$` 防目录穿越。数组长度不一致时返回 HTTP 500 而非静默通过喵~
-
-**前端**: 集成在 `tf_monitor_panel.html` 监控面板中。
-
-| 文件 | 说明 |
-|------|------|
-| `js/view3d/trajectory_standalone.js` | 纯 Three.js 3D 查看器 (IIFE, 无模块依赖) |
-| `js/trajectory_history.js` | 数据加载 + Canvas 时序图 + 3D 协调 (IIFE, 无模块依赖) |
-
-> **关键约束**: 这两个脚本必须用普通 `<script>` 标签加载（**非** `type="module"`），因为它们依赖 `window.THREE`（由 robotwebtools 的 three.js UMD 构建设置）。importmap 页面只能有一个，trajectory 脚本不可走 ES module 系统喵~
-
-**坐标映射**: ROS (X-fwd, Y-left, Z-up) → Three.js (X-right, Y-up, Z-toward)。`trajectory_standalone.js:_rosToThree(x,y,z)` 执行 `new Vector3(x, z, y)` — **data.z 映射到 Three.js Y 轴（高度）**。直接在 Three.js 中绘制 `new Vector3(x, y, z)` 会让轨迹延伸到屏幕深度轴而非高度轴喵~
-
-**3D 特性**: 发光轨迹（辉光线 + 核心线双层）、雷达基环（脉冲动画）、粒子拖尾 (AdditiveBlending)、扫描平面、暗角+扫描线 CSS 叠加喵~
-
-**布局**: 全视口 Grid 布局 (`ivg-single-screen` 模式), 3D 视图 `flex:1` 自动填充剩余高度。图表默认折叠 (`<details>`), toggle 事件触发重绘喵~
+### 17. 工具切换数据驱动架构（已上移合并到第 11 节）
 
 ### 18. BFF 网关路由注册顺序
 
@@ -348,12 +315,11 @@ C++ MoveIt2 规划+执行节点，已由 `latte_backend` 内嵌的 `moveCartesia
 3. `/health` — 健康检查
 4. `/api/v1/runtime` — 前端运行时配置
 5. `/api/v1/tool-geometries` — 工具几何数据
-6. `/api/v1/trajectories` — 轨迹数据 ★
-7. `/api/ivg/robot-mesh/*` — 机器人 3D 模型
+6. `/api/ivg/robot-mesh/*` — 机器人 3D 模型
 8. `/js/robotwebtools/*` — RobotWebTools 静态资源
 9. `/*` — MPA 静态文件 (最后挂载, 优先级最低)
 
-> BFF 路由必须在 `StaticFiles` 挂载前注册，否则会被 `/*` 通配拦截。路由依赖 `numpy`（NPZ 加载），新环境需 `pip3 install numpy`喵~
+> BFF 路由必须在 `StaticFiles` 挂载前注册，否则会被 `/*` 通配拦截喵~
 
 ## 前端开发速查
 
@@ -404,8 +370,6 @@ web/public/                    # 静态文件根目录
     │   ├── tf_clients.js      # TF2Client 封装 (ros3djs)
     │   ├── patches.js         # ros3djs Three.js 兼容补丁
     │   ├── hints.js           # 坐标轴/网格 helper
-    │   └── trajectory_standalone.js  # 轨迹 3D 回放 (纯 Three.js, 无 ROS 依赖)
-    ├── trajectory_history.js  # 轨迹数据加载 + Canvas 时序图
     ├── ivg_transport.js       # WebSocket 传输层 + rosbridge 协议
     ├── ivg_runtime.js         # 运行时配置 (rosbridge 端口/web_video 端口等)
     ├── ivg_site_nav.js        # 顶部导航栏 Web Component
@@ -516,10 +480,6 @@ web/public/                    # 静态文件根目录
 | 前端日志面板无 ROS 2 日志 | `log-ros-bridge.js` 未被 import 或传输层检测失败 | 检查 HTML 中是否有 `<script type="module" src="js/core/log-ros-bridge.js">`；检查 `globalThis.__rosManager` |
 | 前端日志面板看不到其他页面日志 | 跨页面隔离 — 旧版无 BroadcastChannel | 确认 `log-bus.js` 已更新含 `BroadcastChannel('ivg_log_bus')` |
 | `SyntaxError: does not provide an export named 'escapeHtml'` | 合并 pose_card.js 时丢失导出 | 确认 `components/pose-card.js` 有 `export { _escapeHtml as escapeHtml }` |
-| 3D 轨迹显示在 Z 轴而非 Y 轴 (高度) | ROS (Z-up) 坐标直接赋给 Three.js (Y-up), 未做映射 | `trajectory_standalone.js:_rosToThree()` 执行 `new Vector3(x, z, y)` |
-| 轨迹回放下拉列表为空 | BFF 未重启 或 importmap 冲突 | 重启 BFF; 确认 trajectory 脚本是普通 `<script>` 非 `type="module"` |
-| `THREE is not defined` (trajectory 页面) | robotwebtools importmap.js 已动态注入 importmap, 第二个 importmap 被忽略 | trajectory 脚本用普通 `<script>` 标签, THREE 由 robotwebtools UMD 构建提供 |
-| `np.load` 报 `ValueError: Object arrays cannot be loaded when allow_pickle=False` | 旧版录制脚本生成了含 pickle 对象的 NPZ | 用新版录制脚本重新录制; BFF 安全策略不允许 pickle |
 
 ## 外部文档
 

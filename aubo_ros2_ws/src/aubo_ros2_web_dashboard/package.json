@@ -9,12 +9,19 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "build:vendor": "node scripts/build_vendor.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "vitest": "^4.1.7"
+  },
+  "dependencies": {
+    "@foxglove/cdr": "^3.5.1",
+    "@foxglove/rosmsg": "^5.0.5",
+    "@foxglove/rosmsg2-serialization": "^3.1.2",
+    "esbuild": "^0.28.0"
   }
 }

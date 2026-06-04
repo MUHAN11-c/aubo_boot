@@ -45,6 +45,13 @@ function rosbridgeWebSocketUrl() {
     return rosbridgeWebSocketUrlFromRuntime(g.__IVG_RUNTIME);
 }
 
+function foxgloveWebSocketUrl() {
+    const rt = g.__IVG_RUNTIME || {};
+    const path = rt.foxglove_ws_path || '/ws/foxglove';
+    const proto = g.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${proto}//${g.location.host}${path}`;
+}
+
 function webVideoProxyOriginPrefix() {
     const rt = g.__IVG_RUNTIME || {};
     const pre = rt.camera_stream_path || rt.web_video_proxy_prefix || '/api/ivg/proxy/web-video';
@@ -162,6 +169,7 @@ export {
     webVideoPort as webVideo,
     rosbridgeWebSocketUrlFromRuntime,
     rosbridgeWebSocketUrl,
+    foxgloveWebSocketUrl,
     webVideoProxyOriginPrefix,
     createRosReconnectState,
     clearRosReconnectTimer,

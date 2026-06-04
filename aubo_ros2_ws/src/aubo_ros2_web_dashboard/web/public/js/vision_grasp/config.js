@@ -21,7 +21,7 @@ const VISION_SETTING_DEFS = [
 ];
 /** 固定业务服务（不在设置面板中暴露 id 编辑） */
 const VISION_FIXED_SERVICE_TYPES = {
-	'execute-single-grasp': 'demo_interface/srv/ExecuteGraspPose'
+	'execute-single-grasp': 'ivg_interfaces/srv/ExecuteGraspPose'
 };
 
 function buildSettingsDefaults(defs) {

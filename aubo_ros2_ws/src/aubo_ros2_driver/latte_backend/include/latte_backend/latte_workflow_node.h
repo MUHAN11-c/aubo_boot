@@ -8,7 +8,6 @@
 #include <vector>
 #include <geometry_msgs/msg/pose.hpp>
 #include <geometry_msgs/msg/quaternion.hpp>
-#include <std_srvs/srv/trigger.hpp>
 
 #include "demo_driver/robot_controller.h"
 #include <ivg_interfaces/srv/run_latte_workflow.hpp>
@@ -118,8 +117,6 @@ private:
     // ── 成员 ──
     std::shared_ptr<RobotController> robot_;
     rclcpp::Service<ivg_interfaces::srv::RunLatteWorkflow>::SharedPtr srv_;
-    rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr recorder_start_cli_;
-    rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr recorder_stop_cli_;
     rclcpp::CallbackGroup::SharedPtr cb_group_;
     std::mutex mtx_;
 

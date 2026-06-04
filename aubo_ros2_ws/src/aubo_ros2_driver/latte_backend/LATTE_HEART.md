@@ -224,14 +224,12 @@ roll = roll_finish (固定 50°)
 ```
 step5_executeLatte():
   1. 获取当前 TCP 位姿作为 origin
-  2. 通知 trajectory_recorder 开始录制 (ROS service)
-  3. [5a] makeStagePose(origin, mix_height, 45°, offset_y) → moveCartesianStraight 到位
+  2. [5a] makeStagePose(origin, mix_height, 45°, offset_y) → moveCartesianStraight 到位
           generateHeartStageWaypoints(origin, hp, z, 45°, stage=1) → executeCartesianPath 画圈
-  4. [5b] makeStagePose(origin, draw_height, 60°, offset_y) → moveCartesianStraight (降高度+倾角)
+  3. [5b] makeStagePose(origin, draw_height, 60°, offset_y) → moveCartesianStraight (降高度+倾角)
           generateHeartStageWaypoints(origin, hp, z, 60°, stage=2) → executeCartesianPath 定点注入
-  5. [5c] makeStagePose(origin, mix_height, 50°, offset_y) → moveCartesianStraight (升高度+倾角)
+  4. [5c] makeStagePose(origin, mix_height, 50°, offset_y) → moveCartesianStraight (升高度+倾角)
           generateHeartStageWaypoints(origin, hp, z, 50°, stage=4) → executeCartesianPath 划穿
-  6. 通知 trajectory_recorder 停止录制
 ```
 
 每段先用 `moveCartesianStraight()` (笛卡尔 slerp 过渡) 到达阶段起始位姿，再用 `executeCartesianPath()` 执行阶段内离散路点。

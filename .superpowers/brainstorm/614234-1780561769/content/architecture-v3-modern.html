@@ -1,0 +1,308 @@
+<h2>Bridge 架构 v3.1 — 模式锁定 + 全链路可观测</h2>
+<p class="subtitle">核心原则: <b>模式决定通道，禁止静默回退</b> | 参考: Clean Architecture + FSD + Ports & Adapters + 响应式流</p>
+
+<div class="mockup" style="margin-bottom:20px">
+  <div class="mockup-header">六层架构 + 模式锁定路由 (无自动回退)</div>
+  <div class="mockup-body" style="padding:10px;font-family:monospace;font-size:9px;line-height:1.2;background:#fff">
+<pre style="margin:0;white-space:pre-wrap;color:#333">
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│  <b>app/ (应用入口)</b>                                                                     │
+│  ┌──────────────────────────────────────────────────────────────────────────────────┐ │
+│  │ importmap │ 全局 Provider 初始化 │ BridgeMode 选择: AUTO / FOXGLOVE / ROSBRIDGE   │ │
+│  │ 启动: TransportHub.registerAll() + RosManager.init({mode})                        │ │
+│  └──────────────────────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────────────┘
+                                           │
+                              ┌────────────┼────────────┐
+                              ▼            ▼            ▼
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│  <b>pages/ (页面层)</b>                                                                     │
+│  debug_panel │ vision_grasp_panel │ coffee_latte_panel │ log_panel │ tf_monitor      │
+│  <b>pages 只能 import widgets + features + entities + shared</b>                          │
+└──────────────────────────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│  <b>widgets/ (组合组件层)</b>                                                               │
+│  ivg_status_bar │ pose-card │ joint-chart │ monitoring-collapse                       │
+│  <b>widgets 只能 import features + entities + shared</b>                                │
+└──────────────────────────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│  <b>features/ (业务功能层)</b>                                                              │
+│  vision_grasp/ │ latte/ │ view3d/                                                     │
+│  <b>features 只能 import entities + shared</b>                                          │
+└──────────────────────────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│  <b>entities/ (领域实体 + 状态管理)</b>                                                       │
+│                                                                                      │
+│  <b>领域模型</b>              <b>Store (EventTarget subclass)</b>                            │
+│  ┌───────────────┐    ┌──────────────────────┐ ┌───────────────────┐                 │
+│  │JointState     │    │ConnectionStore       │ │RosDataStore       │                 │
+│  │RobotStatus    │    │getState()/subscribe()│ │get(topic)/        │                 │
+│  │ToolChanger    │    │模式: BehaviorSubject │ │subscribe(fn)      │                 │
+│  │GraspPose      │    │connect/disconnect    │ │模式: SWR cache    │                 │
+│  └───────────────┘    └──────────────────────┘ └───────────────────┘                 │
+│                       ┌──────────────────────┐ ┌───────────────────┐                 │
+│                       │ServiceStore          │ │UIStateStore       │                 │
+│                       │callService(svc,args) │ │localStorage sync  │                 │
+│                       │状态机: IDLE→COMPLETE │ │set(key,val)       │                 │
+│                       └──────────────────────┘ └───────────────────┘                 │
+│  <b>entities 只能 import shared</b>                                                     │
+└──────────────────────────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│  <b>shared/ (共享基础层 — 不包含业务逻辑)</b>                                                  │
+│                                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────────────────┐   │
+│  │ <b>api/ (统一通信入口)</b>                                                          │   │
+│  │ ┌──────────────────┐   RosManager 单例, 唯一对外通信接口                         │   │
+│  │ │RosManager (ros.js)│   connect/disconnect/pause/resume                        │   │
+│  │ └────────┬─────────┘   subscribe/publish/callService                           │   │
+│  └──────────┼────────────────────────────────────────────────────────────────────┘   │
+│             │                                                                        │
+│  ┌──────────┼────────────────────────────────────────────────────────────────────┐   │
+│  │ <b>transport/ (通信调度 — 模式锁定, 禁止静默回退)</b>                                   │   │
+│  │ ┌──────────┴──────────────────────────────────────────────────────────┐       │   │
+│  │ │ TransportHub (extends EventTarget)                                   │       │   │
+│  │ │                                                                      │       │   │
+│  │ │ <b>★ 核心变更: 模式决定通道, 不再有自动回退 ★</b>                            │       │   │
+│  │ │                                                                      │       │   │
+│  │ │ ┌──────────────────────────────────────────────────────────────┐    │       │   │
+│  │ │ │ BridgeMode 路由规则 (严格执行, 无例外)                         │    │       │   │
+│  │ │ │                                                              │    │       │   │
+│  │ │ │  FOXGLOVE  → FoxgloveAdapter  ONLY  (失败→报错, 不回退)      │    │       │   │
+│  │ │ │  ROSBRIDGE → RosbridgeAdapter ONLY  (失败→报错, 不回退)      │    │       │   │
+│  │ │ │  AUTO      → FoxgloveAdapter 优先, 不可用时降级 ROSBRIDGE    │    │       │   │
+│  │ │ │              (降级时 dispatchEvent 'bridge:degraded' + 日志)  │    │       │   │
+│  │ │ └──────────────────────────────────────────────────────────────┘    │       │   │
+│  │ │                                                                      │       │   │
+│  │ │ ┌─────────────┐ ┌──────────────┐ ┌─────────────┐ ┌──────────────┐  │       │   │
+│  │ │ │TopicRouter  │ │ServiceRouter │ │PublishRouter│ │SubRegistry   │  │       │   │
+│  │ │ │per-topic    │ │模式锁定      │ │模式锁定     │ │先建后拆      │  │       │   │
+│  │ │ │路由决策     │ │FOX→Fox ONLY  │ │FOX→Fox ONLY │ │零丢消息迁移  │  │       │   │
+│  │ │ │(记录每topic │ │ROS→Ros ONLY  │ │ROS→Ros ONLY │ │              │  │       │   │
+│  │ │ │ 所用bridge) │ │AUTO→降级     │ │AUTO→降级    │ │              │  │       │   │
+│  │ │ └─────────────┘ └──────────────┘ └─────────────┘ └──────────────┘  │       │   │
+│  │ │                                                                      │       │   │
+│  │ │ ┌──────────────────────────────────────────────────────────────┐    │       │   │
+│  │ │ │ <b>BridgeLogger (★ 新增 — 全链路可观测)</b>                       │    │       │   │
+│  │ │ │                                                              │    │       │   │
+│  │ │ │ 每条话题订阅/发布/服务调用记录:                                 │    │       │   │
+│  │ │ │   { ts, direction:'sub'|'pub'|'svc', topic, msgType,        │    │       │   │
+│  │ │ │     bridge:'foxglove'|'rosbridge', mode, bytes, latencyMs }  │    │       │   │
+│  │ │ │                                                              │    │       │   │
+│  │ │ │ dispatchEvent 'bridge:traffic' → LogEventBus → 日志面板渲染   │    │       │   │
+│  │ │ │ 统计面板: 累计 msgs/bytes per bridge, 当前活跃 subscriptions  │    │       │   │
+│  │ │ └──────────────────────────────────────────────────────────────┘    │       │   │
+│  │ └──────┬───────────────────────────────┬──────────────────────────────┘       │   │
+│  │        ▼                               ▼                                      │   │
+│  │ ┌──────────────────────┐  ┌──────────────────────────────────────┐            │   │
+│  │ │RosbridgeAdapter      │  │FoxgloveAdapter ★ (主通道)            │            │   │
+│  │ │适配器: JSON透传       │  │适配器: CDR→TypedMessage              │            │   │
+│  │ │兼容性保留             │  │clientPublish+services+graph+params  │            │   │
+│  │ │                      │  │                                      │            │   │
+│  │ │<b>仅 ROSBRIDGE/AUTO   │  │<b>仅 FOXGLOVE/AUTO 模式激活</b>         │            │   │
+│  │ │ 模式激活</b>             │  │                                      │            │   │
+│  │ └──────────┬───────────┘  └──────────────┬───────────────────────┘            │   │
+│  │            ▼                             ▼                                    │   │
+│  │ ┌──────────────────────┐  ┌──────────────────────────────────────┐            │   │
+│  │ │IvgTransport          │  │FoxgloveClient                        │            │   │
+│  │ │(ROSLIB.Ros)          │  │(原生WebSocket foxglove.sdk.v1)       │            │   │
+│  │ │<b>仅被Adapter调用</b>     │  │JSON控制帧+CDR数据帧+channel注册表    │            │   │
+│  │ └──────────────────────┘  └──────────────────────────────────────┘            │   │
+│  └───────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────────────────┐   │
+│  │ <b>lib/ (通用工具 — 纯函数, 零副作用)</b>                                          │   │
+│  │ utils.js │ tf-math.js │ topics.js │ lifecycle.js │                             │   │
+│  │ log-bus.js │ runtime_provider.js │ ivg_runtime.js │                           │   │
+│  └──────────────────────────────────────────────────────────────────────────────┘   │
+│  <b>shared 不依赖任何上层</b>                                                           │
+└──────────────────────────────────────────────────────────────────────────────────────┘
+</pre>
+  </div>
+</div>
+
+<h3>核心设计决策: 模式锁定 vs 自动回退</h3>
+
+<div style="overflow-x:auto;margin-bottom:20px">
+<table style="width:100%;border-collapse:collapse;font-size:10px">
+<tr style="background:#f0f0f0">
+<th style="padding:5px;text-align:left;border:1px solid #ddd;width:15%">场景</th>
+<th style="padding:5px;text-align:left;border:1px solid #ddd;width:15%">模式</th>
+<th style="padding:5px;text-align:left;border:1px solid #ddd;width:35%">行为</th>
+<th style="padding:5px;text-align:left;border:1px solid #ddd;width:35%">日志输出</th>
+</tr>
+<tr>
+<td style="padding:5px;border:1px solid #ddd">订阅 /joint_states</td>
+<td style="padding:5px;border:1px solid #ddd"><b>FOXGLOVE</b></td>
+<td style="padding:5px;border:1px solid #ddd">FoxgloveAdapter.subscribe() → CDR channel 订阅<br>如果 foxglove_bridge 不可达 → <b>报错, 不回退 rosbridge</b></td>
+<td style="padding:5px;border:1px solid #ddd"><code>[bridge:foxglove] sub /joint_states (sensor_msgs/JointState) ✓ ch=3</code></td>
+</tr>
+<tr style="background:#fafafa">
+<td style="padding:5px;border:1px solid #ddd">订阅 /joint_states</td>
+<td style="padding:5px;border:1px solid #ddd"><b>ROSBRIDGE</b></td>
+<td style="padding:5px;border:1px solid #ddd">RosbridgeAdapter.subscribe() → JSON subscribe<br>如果 rosbridge 不可达 → <b>报错, 不回退 foxglove</b></td>
+<td style="padding:5px;border:1px solid #ddd"><code>[bridge:rosbridge] sub /joint_states (sensor_msgs/JointState) ✓</code></td>
+</tr>
+<tr>
+<td style="padding:5px;border:1px solid #ddd">订阅 /joint_states (foxglove 不可达)</td>
+<td style="padding:5px;border:1px solid #ddd"><b>FOXGLOVE</b></td>
+<td style="padding:5px;border:1px solid #ddd">FoxgloveAdapter 连接失败<br>→ TransportHub dispatchEvent <b>'bridge:error'</b><br>→ RosDataStore 标记 topic stale<br>→ UI 显示错误状态</td>
+<td style="padding:5px;border:1px solid #ddd"><code style="color:#c00">[bridge:foxglove] sub /joint_states ✗ FAILED: foxglove_bridge unreachable</code></td>
+</tr>
+<tr style="background:#fafafa">
+<td style="padding:5px;border:1px solid #ddd">调用 /latte/run_workflow</td>
+<td style="padding:5px;border:1px solid #ddd"><b>FOXGLOVE</b></td>
+<td style="padding:5px;border:1px solid #ddd">FoxgloveAdapter.callService() → CDR service call<br>如果 schema 缺失 → <b>报错, 不回退</b></td>
+<td style="padding:5px;border:1px solid #ddd"><code style="color:#c00">[bridge:foxglove] svc /latte/run_workflow ✗ FAILED: service not advertised by foxglove_bridge</code></td>
+</tr>
+<tr>
+<td style="padding:5px;border:1px solid #ddd">AUTO 模式降级</td>
+<td style="padding:5px;border:1px solid #ddd"><b>AUTO</b></td>
+<td style="padding:5px;border:1px solid #ddd">FoxgloveAdapter 优先, 不可用时<b>显式降级</b>到 rosbridge<br>dispatchEvent 'bridge:degraded' 通知 UI</td>
+<td style="padding:5px;border:1px solid #ddd"><code style="color:#e90">[bridge:auto] foxglove unreachable → DEGRADED to rosbridge</code><br><code>[bridge:rosbridge] sub /joint_states ✓</code></td>
+</tr>
+</table>
+</div>
+
+<h3>BridgeLogger — 全链路可观测 (★ 新增)</h3>
+
+<div class="mockup" style="margin-bottom:20px">
+  <div class="mockup-header">每条数据的 bridge 归属可追溯, 问题可排查</div>
+  <div class="mockup-body" style="padding:10px;font-family:monospace;font-size:9.5px;line-height:1.3;background:#fff">
+<pre style="margin:0;white-space:pre-wrap;color:#333">
+<b>BridgeLogger 设计:</b>
+
+  class BridgeLogger extends EventTarget {
+    _records = []                    // 环形缓冲 最近 2000 条
+    _stats  = {                      // 累计统计 per bridge
+      foxglove:  { subs:0, pubs:0, svcs:0, bytes:0, msgs:0, errors:0 },
+      rosbridge: { subs:0, pubs:0, svcs:0, bytes:0, msgs:0, errors:0 }
+    }
+
+    log(entry)                       // 记录单条 → dispatchEvent 'bridge:traffic'
+    getStats()                       // 返回累计统计
+    getActiveSubs()                  // 当前活跃订阅 + 各自使用的 bridge
+    getRecords({bridge, direction})  // 按条件过滤历史记录
+  }
+
+<b>日志记录格式:</b>
+
+  {
+    ts: 1717500000000,               // epoch ms
+    direction: 'sub',                // 'sub' | 'pub' | 'svc'
+    topic: '/joint_states',
+    msgType: 'sensor_msgs/JointState',
+    bridge: 'foxglove',              // 实际使用的 bridge
+    mode: 'FOXGLOVE',                // 当前模式
+    bytes: 1234,                     // 消息大小 (CDR 或 JSON)
+    latencyMs: 2.3,                  // 解码延迟
+    status: 'ok'                     // 'ok' | 'error' | 'degraded'
+  }
+
+<b>日志流向 (3 条输出路径):</b>
+
+  BridgeLogger.dispatchEvent('bridge:traffic')
+       │
+       ├──→ LogEventBus.addLog('bridge', ...) → IndexedDB 持久化 + BroadcastChannel 跨页同步
+       │
+       ├──→ ivg_status_bar 实时指示器: 🟢 Foxglove 3.2MB/s | 45 subs | 0 errors
+       │
+       └──→ 调试面板 "Bridge 流量" 标签页: 按 bridge/direction 过滤, 实时滚动
+
+<b>状态栏实时展示:</b>
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │ 🟢 Foxglove | subs:45 pubs:2 svcs:3 | ↓3.2MB/s ↑12KB/s     │
+  │ ⚪ Rosbridge (standby)                                      │
+  │ Mode: FOXGLOVE [▾]       Errors: 0    Uptime: 2h34m        │
+  └─────────────────────────────────────────────────────────────┘
+
+<b>错误状态展示 (Foxglove 模式 + Foxglove 不可达):</b>
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │ 🔴 Foxglove | CONNECTION REFUSED                           │
+  │ ⚪ Rosbridge (standby — 模式锁定, 不会自动切换)              │
+  │ Mode: FOXGLOVE [▾]       Errors: 3    Last: ws://...:8765  │
+  └─────────────────────────────────────────────────────────────┘
+</pre>
+  </div>
+</div>
+
+<h3>响应式数据流管道 (模式锁定版)</h3>
+
+<div class="mockup" style="margin-bottom:20px">
+  <div class="mockup-header">WebSocket → CDR Decode → TypedMessage → Store Cache → dispatch event → UI Render</div>
+  <div class="mockup-body" style="padding:10px;font-family:monospace;font-size:9.5px;line-height:1.3;background:#fff">
+<pre style="margin:0;white-space:pre-wrap;color:#333">
+<b>完整数据流路径 (FOXGLOVE 模式):</b>
+
+  ROS2 Node → foxglove_bridge (CDR) → FoxgloveClient → FoxgloveAdapter (MessageReader)
+       → TypedMessage → BridgeLogger.log({bridge:'foxglove', ...})  ← ★ 每条消息记录
+       → TransportHub (dispatchEvent 'message')
+       → RosManager._dispatchRos → RosDataStore.set(topic, data)
+       → RosDataStore.dispatchEvent('data:/joint_states')
+       → [joint-chart Canvas2D 重绘] [debug_panel 状态栏] [其他订阅者]
+
+<b>错误路径 (FOXGLOVE 模式 + Foxglove 不可达):</b>
+
+  RosManager.init({mode:'FOXGLOVE'})
+       → TransportHub.setMode('FOXGLOVE')
+       → FoxgloveAdapter.connect('ws://...:8765')
+       → WebSocket error: Connection refused
+       → FoxgloveAdapter dispatchEvent 'status:error'
+       → BridgeLogger.log({bridge:'foxglove', status:'error', ...})
+       → TransportHub 不切换适配器, 不复用 RosbridgeAdapter  ← ★ 不回退
+       → dispatchEvent 'bridge:error' → UI 红色指示器
+       → 后续 subscribe/publish/callService 全部在 FoxgloveAdapter 上失败
+         (明确报错, 问题可定位)
+
+<b>Service 调用状态机 (模式锁定):</b>
+
+  ServiceStore.callService(name, type, request, timeout)
+       → RosManager.callService()
+       → TransportHub.callService()
+       → BridgeMode === FOXGLOVE
+            → FoxgloveAdapter.callService() ONLY
+            → 成功 → BridgeLogger.log({bridge:'foxglove', status:'ok'})
+            → 失败 → BridgeLogger.log({bridge:'foxglove', status:'error'})
+                   → ServiceStore → FAILED + dispatchEvent('service:error')
+                   → <b>不回退 rosbridge</b>  ← ★
+       → BridgeMode === ROSBRIDGE
+            → RosbridgeAdapter.callService() ONLY
+            → 同上, 失败直接报错
+       → BridgeMode === AUTO
+            → FoxgloveAdapter 优先
+            → 不可用 → BridgeLogger.log({..., status:'degraded'})
+            → RosbridgeAdapter 降级
+</pre>
+  </div>
+</div>
+
+<div class="pros-cons" style="margin-top:20px">
+<div class="pros">
+<h4>v3.1 相比 v3 的核心变更</h4>
+<ul>
+  <li><b>★ 模式锁定, 禁止静默回退</b> — FOXGLOVE/ROSBRIDGE 模式各自锁定通道, 失败直接报错, 不回退</li>
+  <li><b>★ AUTO 模式显式降级</b> — 仅 AUTO 模式允许降级, 降级时 dispatchEvent 'bridge:degraded' 明确通知</li>
+  <li><b>★ BridgeLogger 全链路可观测</b> — 每条 sub/pub/svc 记录 {topic, bridge, mode, bytes, status}, 可追溯到具体 bridge</li>
+  <li><b>★ 错误可定位</b> — 模式锁定意味着: 选了 foxglove 但没数据 → 一定是 foxglove 的问题, 不用排查 rosbridge</li>
+  <li><b>ServiceRouter/PublishRouter 不再自动回退</b> — 模式决定通道, 路由逻辑大幅简化</li>
+</ul>
+</div>
+<div class="cons">
+<h4>FAQ</h4>
+<ul>
+  <li><b>Q: rosbridge 还保留吗?</b> 保留, 作为独立模式 (BridgeMode.ROSBRIDGE), 用户可手动切换, 但不会自动回退</li>
+  <li><b>Q: AUTO 模式什么时候降级?</b> FoxgloveClient 连接失败 (3次重试后) → 降级 rosbridge, 并 dispatchEvent 通知 UI</li>
+  <li><b>Q: 降级后 foxglove 恢复了会切回去吗?</b> 会, AUTO 模式下 FoxgloveAdapter 健康检查恢复后自动切回, 同样 dispatchEvent 通知</li>
+  <li><b>Q: BridgeLogger 日志存多久?</b> 环形缓冲 2000 条 (内存) + 通过 LogEventBus → IndexedDB 持久化 (5K 环形缓冲)</li>
+</ul>
+</div>
+</div>

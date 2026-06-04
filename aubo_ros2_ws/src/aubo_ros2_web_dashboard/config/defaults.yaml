@@ -22,6 +22,16 @@ rosbridge:
   ping_timeout: 60                   # 心跳超时（秒）
   close_timeout: 10                  # 关闭超时（秒）
 
+# ---- foxglove_bridge 上游 (C++ 高性能 WebSocket, CDR 二进制, 点云/图像专用) ----
+foxglove_bridge:
+  host: "127.0.0.1"
+  port: 8765
+  ws_path: "/ws/foxglove"           # 网关对外暴露的 WebSocket 路径
+  max_message_bytes: 134217728      # 单帧最大字节 (128 MiB, PointCloud2 需要)
+  ping_interval: 20                 # 心跳间隔（秒）
+  ping_timeout: 60                  # 心跳超时（秒）
+  close_timeout: 10                 # 关闭超时（秒）
+
 # ---- web_video_server 上游 (MJPEG/快照 HTTP) ----
 web_video:
   host: "127.0.0.1"

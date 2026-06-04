@@ -116,20 +116,6 @@ class ROS2Communication:
         self.robot_status_lock = threading.Lock()  # 线程锁，保护机器人状态访问
         
 
-    def _log_kv(self, level: str, event: str, **data) -> None:
-        """统一结构化日志输出（避免散落的print/写文件）。"""
-        try:
-            payload = {"event": event, **data}
-            msg = json.dumps(payload, ensure_ascii=False, default=str)
-        except Exception:
-            msg = f"{event} {data}"
-        log_fn = getattr(self.logger, level, None)
-        if callable(log_fn):
-            log_fn(msg)
-        else:
-            # 兜底：使用info
-            self.logger.info(msg)
-
     def initialize(
         self,
         config_reader: ConfigReader,
@@ -897,15 +883,17 @@ class ROS2Communication:
             if not components:
                 self.logger.warning('未检测到工件')
                 response.success_num = 0
+                response.message = '未检测到工件，请检查深度阈值和工件摆放位置'
                 return response
-            
+
             # 3. 特征提取
             features = self._extract_features(components, preprocessed_color)
             if not features:
                 self.logger.warning('未提取到有效特征')
                 response.success_num = 0
+                response.message = '未提取到有效特征，请调整连通域筛选参数'
                 return response
-            
+
             # 4. 加载模板库
             if not self._ensure_template_library_loaded(request.object_id, response):
                 return response
@@ -1269,17 +1257,19 @@ class ROS2Communication:
             if not template_dir.exists():
                 self.logger.error(f'模板目录不存在: {template_dir}')
                 response.success_num = 0
+                response.message = f'模板目录不存在: {template_dir}'
                 return False
-            
+
             success = self.pose_estimator.load_template_library(
                 str(template_dir),
                 self.camera_matrix if self.camera_matrix is not None else np.eye(3),
                 self.T_E_C if self.T_E_C is not None else np.eye(4)
             )
-            
+
             if not success:
                 self.logger.error(f'模板加载失败')
                 response.success_num = 0
+                response.message = f'模板库加载失败: {template_dir}'
                 return False
             
             self.logger.info(f'模板加载完成: {len(self.pose_estimator.templates)}个模板')
@@ -1532,7 +1522,23 @@ class ROS2Communication:
                         self.logger.info(f'从模板加载相机位姿: {best_template.id}')
         except Exception as e:
             self.logger.warning(f'加载模板相机位姿失败: {e}')
-        
+
+        # [VPE_VERIFY] 相机位姿日志
+        R_c = T_B_C[:3, :3]
+        self.logger.info(f'[VPE_VERIFY] _load_camera_pose:')
+        self.logger.info(f'[VPE_VERIFY]   T_B_C(当前) pos=[{T_B_C[0,3]:.4f},{T_B_C[1,3]:.4f},{T_B_C[2,3]:.4f}]')
+        self.logger.info(f'[VPE_VERIFY]   T_B_C R_col0=[{R_c[0,0]:.6f},{R_c[1,0]:.6f},{R_c[2,0]:.6f}] (相机X)')
+        self.logger.info(f'[VPE_VERIFY]   T_B_C R_col1=[{R_c[0,1]:.6f},{R_c[1,1]:.6f},{R_c[2,1]:.6f}] (相机Y)')
+        self.logger.info(f'[VPE_VERIFY]   T_B_C R_col2=[{R_c[0,2]:.6f},{R_c[1,2]:.6f},{R_c[2,2]:.6f}] (相机Z)')
+        self.logger.info(f'[VPE_VERIFY]   cos(φ)_cur=|R[2,2]|={abs(R_c[2,2]):.6f} tilt={np.degrees(np.arccos(abs(R_c[2,2]))):.2f}°')
+        self.logger.info(f'[VPE_VERIFY]   T_E_C有效={self.T_E_C is not None and not np.allclose(self.T_E_C,np.eye(4))}')
+        if T_B_C_template is not None:
+            R_t = T_B_C_template[:3,:3]
+            self.logger.info(f'[VPE_VERIFY]   T_B_C_template R_col2=[{R_t[0,2]:.6f},{R_t[1,2]:.6f},{R_t[2,2]:.6f}]')
+            self.logger.info(f'[VPE_VERIFY]   cos(φ)_tpl=|R_tpl[2,2]|={abs(R_t[2,2]):.6f}')
+        else:
+            self.logger.info(f'[VPE_VERIFY]   T_B_C_template=None (将使用T_B_C复制)')
+
         return T_B_C, T_B_C_template
     
     def _calculate_angle_difference(
@@ -1901,7 +1907,18 @@ class ROS2Communication:
         try:
             section = request.section
             self.logger.info(f'收到参数更新请求: section={section}')
-            
+
+            # 如果请求中携带了参数字典（来自 Web 节点的跨进程同步），直接应用到本进程单例
+            if request.params_json:
+                try:
+                    direct_params = json.loads(request.params_json)
+                    from .config import update_section
+                    for key, value in direct_params.items():
+                        update_section("preprocessor", {key: value})
+                    self.logger.info(f'从 params_json 应用了 {len(direct_params)} 个参数')
+                except Exception as e:
+                    self.logger.warning(f'解析 params_json 失败: {e}')
+
             # 统一使用config_reader重新加载阈值参数
             debug_thresholds = self.config_reader.load_debug_thresholds()
             

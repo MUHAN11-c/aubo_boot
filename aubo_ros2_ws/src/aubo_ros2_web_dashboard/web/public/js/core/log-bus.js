@@ -45,6 +45,7 @@ const CATEGORIES = {
     rosout:     { color: '#f59e0b',           label: 'rosout' },
     lifecycle:  { color: 'var(--yellow)',     label: 'lifecycle' },
     ros_manager:{ color: 'var(--accent)',     label: 'ros manager' },
+    bridge:     { color: '#818cf8',           label: 'bridge' },
     system:     { color: 'var(--orange)',     label: 'system' },
 };
 
@@ -298,6 +299,7 @@ class LogEventBus {
             msg: String(msg == null ? '' : msg),
             meta: meta || {},
             feature: String(feature || ''),
+            sessionId: _sessionId,
         };
 
         // 3. 频率控制 (调试模式下跳过)
@@ -438,8 +440,25 @@ function _timestamp() {
     return `${h}:${m}:${s}.${ms}`;
 }
 
+// ── 会话 ID (跨页面日志关联) ——————————————————————————————————————
+function _initSessionId() {
+    try {
+        let sid = sessionStorage.getItem('ivg_session_id');
+        if (!sid) {
+            sid = 's' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+            sessionStorage.setItem('ivg_session_id', sid);
+        }
+        return sid;
+    } catch (_) { return null; }
+}
+const _sessionId = _initSessionId();
+
 // ── 模块级单例 ————————————————————————————————————————————————————
 const logBus = new LogEventBus();
+
+// 暴露实例到 globalThis (BridgeLogger 引用，避免循环 import)
+const g = globalThis;
+g.__logBus = logBus;
 
 // 向后兼容: window.__ivgLog 仍可用
 if (typeof window !== 'undefined') {

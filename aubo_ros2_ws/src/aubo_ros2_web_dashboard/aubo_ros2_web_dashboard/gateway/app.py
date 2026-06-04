@@ -73,11 +73,12 @@ def create_app(web_root: str, *, rwt_override: str | None = None) -> FastAPI:
     async def lifespan(_app: FastAPI):
         """启动时打印代理目标地址，便于调试。"""
         rb = f"{cfg.rosbridge_host()}:{cfg.rosbridge_port()}"
+        fb = f"{cfg.foxglove_bridge_host()}:{cfg.foxglove_bridge_port()}"
         wv = f"{cfg.web_video_host()}:{cfg.web_video_port()}"
         print(f"[ivg] 网关启动 root={root} rwt={rwt_root if rwt_available else '(无)'} "
-              f"rosbridge→{rb} web_video→{wv}", flush=True)
-        _logger.info("网关启动 root=%s rwt=%s rosbridge→%s web_video→%s",
-                     root, rwt_root if rwt_available else '(无)', rb, wv)
+              f"rosbridge→{rb} foxglove→{fb} web_video→{wv}", flush=True)
+        _logger.info("网关启动 root=%s rwt=%s rosbridge→%s foxglove→%s web_video→%s",
+                     root, rwt_root if rwt_available else '(无)', rb, fb, wv)
         yield
         # 无需清理 (BFF 零 ROS 依赖) 喵~
 

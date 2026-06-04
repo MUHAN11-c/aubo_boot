@@ -86,6 +86,9 @@ def generate_launch_description():
     ld.add_action(DeclareLaunchArgument("web_video_port",
         default_value=str(cfg.web_video_port()),
         description="web_video 上游端口"))
+    ld.add_action(DeclareLaunchArgument("foxglove_bridge_port",
+        default_value=str(cfg.foxglove_bridge_port()),
+        description="foxglove_bridge 监听端口"))
     # 收集 LaunchConfiguration 引用
     lc = {
         "web_host":              LaunchConfiguration("web_host"),
@@ -98,12 +101,13 @@ def generate_launch_description():
         "include_web_video_server":      LaunchConfiguration("include_web_video_server"),
         "web_video_host":        LaunchConfiguration("web_video_host"),
         "web_video_port":        LaunchConfiguration("web_video_port"),
+        "foxglove_bridge_port":   LaunchConfiguration("foxglove_bridge_port"),
     }
 
     # ── LD_LIBRARY_PATH ──────────────────────────────────────────────────
     ld.add_action(SetEnvironmentVariable("LD_LIBRARY_PATH", rosbridge_ld))
 
-    # ── 1. rosbridge (Tornado WebSocket) ─────────────────────────────────
+    # ── 1. rosbridge (Tornado WebSocket) — 与 foxglove_bridge 并存, ROS3D/URDF 渲染兼容通道 ──
     ld.add_action(IncludeLaunchDescription(
         FrontendLaunchDescriptionSource(rosbridge_launch),
         launch_arguments={
@@ -138,6 +142,21 @@ def generate_launch_description():
         }],
     ))
 
+    # ── 3a. foxglove_bridge (C++ 高性能 WebSocket, CDR 二进制, 点云专用) ─
+    ld.add_action(Node(
+        package="foxglove_bridge",
+        executable="foxglove_bridge",
+        name="foxglove_bridge",
+        output="screen",
+        parameters=[{
+            "port": ParameterValue(lc["foxglove_bridge_port"], value_type=int),
+            "address": "0.0.0.0",
+            "sysinfo": True,
+            "sysinfo_topic": "/foxglove_bridge/sysinfo",
+            "sysinfo_refresh_interval": 500,
+        }],
+    ))
+
     # ── 4. FastAPI 网关 — 所有配置通过 CLI 参数传递 ────────────────────
     ld.add_action(ExecuteProcess(
         cmd=[
@@ -150,6 +169,7 @@ def generate_launch_description():
             "--rosbridge-port", lc["rosbridge_port"],
             "--web-video-host", lc["web_video_host"],
             "--web-video-port", lc["web_video_port"],
+            "--foxglove-bridge-port", lc["foxglove_bridge_port"],
         ],
         output="screen",
         respawn=True,

@@ -260,6 +260,13 @@ class PoseEstimator:
                     T_C_template_B = np.linalg.inv(T_B_C_template)
                     # T_C_E_grasp = T_C_template_B * T_B_E_grasp
                     template_item.T_C_E_grasp = T_C_template_B @ T_B_E_grasp
+                    # [VPE_VERIFY] 模板加载日志
+                    self.logger.info(f'[VPE_VERIFY] 加载模板 {pose_dir.name}:')
+                    self.logger.info(f'[VPE_VERIFY]   T_B_E_camera_pos=[{T_B_E_camera[0,3]:.4f},{T_B_E_camera[1,3]:.4f},{T_B_E_camera[2,3]:.4f}]')
+                    self.logger.info(f'[VPE_VERIFY]   T_B_C_template[2,2]={T_B_C_template[2,2]:.6f}')
+                    self.logger.info(f'[VPE_VERIFY]   T_C_E_grasp_trans=[{template_item.T_C_E_grasp[0,3]:.4f},{template_item.T_C_E_grasp[1,3]:.4f},{template_item.T_C_E_grasp[2,3]:.4f}]')
+                    self.logger.info(f'[VPE_VERIFY]   T_B_E_grasp_trans=[{T_B_E_grasp[0,3]:.4f},{T_B_E_grasp[1,3]:.4f},{T_B_E_grasp[2,3]:.4f}]')
+                    self.logger.info(f'[VPE_VERIFY]   T_E_C[2,2]={T_E_C[2,2]:.6f} (单位矩阵={np.allclose(T_E_C,np.eye(4))})')
                 else:
                     # 如果没有相机位姿，直接使用T_B_E（但这不是正确的，会警告）
                     template_item.T_C_E_grasp = T_B_E_grasp
@@ -1015,19 +1022,55 @@ class PoseEstimator:
         
         result = PoseEstimationResult()
         result.template_id = best_template.id
-        
+
         # 获取相机内参
         fx = camera_matrix[0, 0]
         fy = camera_matrix[1, 1]
         cx = camera_matrix[0, 2]
         cy = camera_matrix[1, 2]
+
+        # ========== [VPE_VERIFY] 步骤0: 输入数据 ==========
+        s = fy / fx
+        R_cur = T_B_C[:3, :3]
+        R_tpl = T_B_C_template[:3, :3] if T_B_C_template is not None else R_cur
+        self.logger.info(f'[VPE_VERIFY] === estimate_pose 输入 ===')
+        self.logger.info(f'[VPE_VERIFY] template_id={best_template.id}')
+        self.logger.info(f'[VPE_VERIFY] camera: fx={fx:.3f} fy={fy:.3f} cx={cx:.3f} cy={cy:.3f} s=fy/fx={s:.6f}')
+        self.logger.info(f'[VPE_VERIFY] T_B_C(pos)=[{T_B_C[0,3]:.4f},{T_B_C[1,3]:.4f},{T_B_C[2,3]:.4f}]')
+        self.logger.info(f'[VPE_VERIFY] T_B_C(R_col0)=[{R_cur[0,0]:.6f},{R_cur[1,0]:.6f},{R_cur[2,0]:.6f}] (相机X)')
+        self.logger.info(f'[VPE_VERIFY] T_B_C(R_col1)=[{R_cur[0,1]:.6f},{R_cur[1,1]:.6f},{R_cur[2,1]:.6f}] (相机Y)')
+        self.logger.info(f'[VPE_VERIFY] T_B_C(R_col2)=[{R_cur[0,2]:.6f},{R_cur[1,2]:.6f},{R_cur[2,2]:.6f}] (相机Z)')
+        cos_phi_cur = abs(R_cur[2,2])
+        self.logger.info(f'[VPE_VERIFY] cos(φ)_current=|R_B_C[2,2]|={cos_phi_cur:.6f} camera_tilt_deg={np.degrees(np.arccos(cos_phi_cur)):.2f}')
+        if T_B_C_template is not None:
+            cos_phi_tpl = abs(R_tpl[2,2])
+            self.logger.info(f'[VPE_VERIFY] cos(φ)_template=|R_tpl[2,2]|={cos_phi_tpl:.6f} template_tilt_deg={np.degrees(np.arccos(cos_phi_tpl)):.2f}')
+
         # 计算2D对齐角度差
+        template_angle = best_template.feature.standardized_angle if best_template.feature else 0.0
+        target_angle = target_feature.standardized_angle
         if dtheta_rad is not None:
             dtheta = dtheta_rad
         else:
-            template_angle = best_template.feature.standardized_angle if best_template.feature else 0.0
-            target_angle = target_feature.standardized_angle
             dtheta = target_angle - template_angle
+
+        self.logger.info(f'[VPE_VERIFY] 角度: template_2D={np.degrees(template_angle):.4f}° target_2D={np.degrees(target_angle):.4f}°')
+        self.logger.info(f'[VPE_VERIFY] dtheta_2D(代码使用)={np.degrees(dtheta):.4f}° ({dtheta:.6f}rad) 来源: {"暴力匹配" if dtheta_rad is not None else "特征角度差"}')
+
+        # === [VPE_VERIFY] 2D→3D 角度修正计算 ===
+        def _vpe_to_3d_angle(a_2d, R):
+            sa, ca = np.sin(a_2d), np.cos(a_2d)
+            num = s*ca*R[0,1] - sa*R[0,0]
+            den = sa*R[1,0] - s*ca*R[1,1]
+            return np.arctan2(num, den)
+
+        theta_t_3d = _vpe_to_3d_angle(template_angle, R_tpl)
+        theta_c_3d = _vpe_to_3d_angle(target_angle, R_cur)
+        dtheta_3d_correct = np.arctan2(np.sin(theta_c_3d - theta_t_3d), np.cos(theta_c_3d - theta_t_3d))
+        self.logger.info(f'[VPE_VERIFY] 2D→3D修正: θ_template_3D={np.degrees(theta_t_3d):.4f}° θ_target_3D={np.degrees(theta_c_3d):.4f}°')
+        self.logger.info(f'[VPE_VERIFY] θ_diff_3D(正确)={np.degrees(dtheta_3d_correct):.4f}°')
+        dtheta_err = np.degrees(np.arctan2(np.sin(dtheta-dtheta_3d_correct), np.cos(dtheta-dtheta_3d_correct)))
+        self.logger.info(f'[VPE_VERIFY] 角度误差(2D-3D)={dtheta_err:.4f}° sign_match={"✓" if np.sign(dtheta)==np.sign(dtheta_3d_correct) else "✗方向相反!"}')
 
         # 获取模板抓取姿态（已经是T_C_E_grasp，相机坐标系到末端执行器）
         T_C_E_grasp_template = best_template.T_C_E_grasp.copy()
@@ -1136,6 +1179,14 @@ class PoseEstimator:
             [sin_dtheta, cos_dtheta, 0],
             [0, 0, 1]
         ])
+
+        # [VPE_VERIFY] 构建修正版旋转矩阵（使用3D角差）
+        cos_dc, sin_dc = np.cos(dtheta_3d_correct), np.sin(dtheta_3d_correct)
+        R_z_correct = np.array([
+            [cos_dc, -sin_dc, 0],
+            [sin_dc, cos_dc, 0],
+            [0, 0, 1]
+        ])
         
         # 计算模板中心与抓取位置的偏差（在基座坐标系中，只取XY）
         template_grasp_offset_xy = np.array([offset_template_base[0], offset_template_base[1], 0.0])
@@ -1158,6 +1209,12 @@ class PoseEstimator:
         target_grasp_pos_base = target_center_base_pos + rotated_intermediate_offset
         target_grasp_pos_base[2] = template_grasp_pos[2]  # Z使用模板的Z
         
+        # [VPE_VERIFY] 计算修正版旋转偏移用于对比
+        rotated_offset_correct = R_z_correct @ np.array([offset_template_base[0], offset_template_base[1], 0.0])
+        target_grasp_pos_correct = target_center_base_pos.copy()
+        target_grasp_pos_correct[:2] += rotated_offset_correct[:2]
+        target_grasp_pos_correct[2] = template_grasp_pos[2]
+
         # 计算抓取姿态的旋转
         R_template_grasp = T_B_E_grasp_template[:3, :3]
         R_target_grasp = R_z_base @ R_template_grasp
@@ -1179,6 +1236,21 @@ class PoseEstimator:
         self.logger.info(f'  抓取位置(基座系): ({target_grasp_pos_base[0]:.4f}, {target_grasp_pos_base[1]:.4f}, {target_grasp_pos_base[2]:.4f})m')
         self.logger.info(f'  抓取姿态(RPY): ({np.degrees(roll):.2f}°, {np.degrees(pitch):.2f}°, {np.degrees(yaw):.2f}°)')
         self.logger.info('========================================')
+
+        # [VPE_VERIFY] Buggy vs Correct 完整对比
+        R_target_grasp_correct = R_z_correct @ R_template_grasp
+        pos_err = np.linalg.norm(target_grasp_pos_base - target_grasp_pos_correct) * 1000.0
+        R_err_mat = R_target_grasp_correct.T @ R_target_grasp
+        rot_err = np.degrees(np.arccos(np.clip((np.trace(R_err_mat)-1)/2, -1, 1)))
+        self.logger.info(f'[VPE_VERIFY] ====== 抓取位姿对比 ======')
+        self.logger.info(f'[VPE_VERIFY] dθ(代码2D)={np.degrees(dtheta):.4f}° dθ(修正3D)={np.degrees(dtheta_3d_correct):.4f}°')
+        self.logger.info(f'[VPE_VERIFY] R_z(代码)@offset=[{rotated_intermediate_offset[0]*1000:.2f},{rotated_intermediate_offset[1]*1000:.2f}]mm')
+        self.logger.info(f'[VPE_VERIFY] R_z(修正)@offset=[{rotated_offset_correct[0]*1000:.2f},{rotated_offset_correct[1]*1000:.2f}]mm')
+        self.logger.info(f'[VPE_VERIFY] offset(基座): dx={offset_template_base[0]*1000:.2f}mm dy={offset_template_base[1]*1000:.2f}mm dz={offset_template_base[2]*1000:.2f}mm')
+        self.logger.info(f'[VPE_VERIFY] grasp_pos(代码): [{target_grasp_pos_base[0]:.6f},{target_grasp_pos_base[1]:.6f},{target_grasp_pos_base[2]:.6f}]m')
+        self.logger.info(f'[VPE_VERIFY] grasp_pos(修正): [{target_grasp_pos_correct[0]:.6f},{target_grasp_pos_correct[1]:.6f},{target_grasp_pos_correct[2]:.6f}]m')
+        self.logger.info(f'[VPE_VERIFY] 位置偏差: {pos_err:.2f}mm  旋转偏差: {rot_err:.2f}°')
+        self.logger.info(f'[VPE_VERIFY] 深度: z_grasp={z_template_camera:.4f}m z_target={target_center_z_camera:.4f}m z_template_ctr={template_center_z_camera:.4f}m')
         
         # 计算准备姿态（如果有）
         target_prep_pos_base = None  # 初始化变量，用于最终汇总
@@ -1211,6 +1283,20 @@ class PoseEstimator:
             self.logger.info('[准备姿态输出]')
             self.logger.info(f'  准备位置(基座系): ({target_prep_pos_base[0]:.4f}, {target_prep_pos_base[1]:.4f}, {target_prep_pos_base[2]:.4f})m')
             self.logger.info(f'  准备姿态(RPY): ({np.degrees(prep_roll):.2f}°, {np.degrees(prep_pitch):.2f}°, {np.degrees(prep_yaw):.2f}°)')
+
+            # [VPE_VERIFY] 准备姿态 Buggy vs Correct 对比
+            rotated_prep_offset_correct = R_z_correct @ np.array([offset_prep_base[0], offset_prep_base[1], 0.0])
+            target_prep_pos_correct = target_center_base_pos.copy()
+            target_prep_pos_correct[:2] += rotated_prep_offset_correct[:2]
+            target_prep_pos_correct[2] = prep_pos_template[2]
+            R_target_prep_correct = R_z_correct @ R_template_prep
+            prep_pos_err = np.linalg.norm(target_prep_pos_base - target_prep_pos_correct) * 1000.0
+            R_prep_err_mat = R_target_prep_correct.T @ R_target_prep
+            prep_rot_err = np.degrees(np.arccos(np.clip((np.trace(R_prep_err_mat)-1)/2, -1, 1)))
+            self.logger.info(f'[VPE_VERIFY] ====== 准备位姿对比 ======')
+            self.logger.info(f'[VPE_VERIFY] prep_pos(代码): [{target_prep_pos_base[0]:.6f},{target_prep_pos_base[1]:.6f},{target_prep_pos_base[2]:.6f}]m')
+            self.logger.info(f'[VPE_VERIFY] prep_pos(修正): [{target_prep_pos_correct[0]:.6f},{target_prep_pos_correct[1]:.6f},{target_prep_pos_correct[2]:.6f}]m')
+            self.logger.info(f'[VPE_VERIFY] 准备位置偏差: {prep_pos_err:.2f}mm  旋转偏差: {prep_rot_err:.2f}°')
         else:
             result.T_B_E_prep = np.eye(4)
         

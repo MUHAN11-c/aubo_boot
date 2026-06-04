@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USD Viewer</title>
+    <style>
+        * { margin: 0; padding: 0; }
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: transparent;
+            pointer-events: none;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+            background: transparent;
+            pointer-events: all;
+        }
+    </style>
+</head>
+<body>
+    <iframe id="usd-frame" src="/usd-viewer/usd.html"></iframe>
+    <script>
+        // Simple message forwarding
+        const iframe = document.getElementById('usd-frame');
+        window.addEventListener('message', (e) => {
+            if (e.source === iframe.contentWindow) {
+                parent.postMessage(e.data, '*');
+            } else if (e.source === parent) {
+                iframe.contentWindow.postMessage(e.data, '*');
+            }
+        });
+    </script>
+</body>
+</html>
+

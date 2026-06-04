@@ -43,6 +43,11 @@ def _rosbridge_upstream_url() -> str:
     return f"ws://{cfg.rosbridge_host()}:{cfg.rosbridge_port()}/"
 
 
+def _foxglove_bridge_upstream_url() -> str:
+    """foxglove_bridge 上游 WebSocket 地址。"""
+    return f"ws://{cfg.foxglove_bridge_host()}:{cfg.foxglove_bridge_port()}/"
+
+
 def _web_video_upstream_base() -> str:
     """web_video_server 上游 HTTP 基地址。"""
     return f"http://{cfg.web_video_host()}:{cfg.web_video_port()}"
@@ -77,6 +82,14 @@ async def _close_ws(ws) -> None:
         await ws.close()
     except Exception:
         pass
+
+
+def _parse_subprotocols(websocket: WebSocket) -> list[str]:
+    """从客户端 WebSocket 握手中提取请求的子协议列表。"""
+    raw = websocket.headers.get("sec-websocket-protocol", "")
+    if not raw:
+        return []
+    return [p.strip() for p in raw.split(",") if p.strip()]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -167,6 +180,97 @@ async def rosbridge_websocket_proxy(websocket: WebSocket) -> None:
             pass
         else:
             _logger.warning("rosbridge 代理异常 (%.1fs)", elapsed, exc_info=True)
+        await _close_ws(websocket)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# WebSocket 代理: /ws/foxglove
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@ws_router.websocket("/ws/foxglove")
+async def foxglove_bridge_websocket_proxy(websocket: WebSocket) -> None:
+    """浏览器 WebSocket ↔ foxglove_bridge 双向代理（CDR 二进制，点云/高频话题专用）。
+
+    与 rosbridge 代理逻辑相同，但连接 foxglove_bridge 上游，
+    使用更大的 max_size 以容纳 PointCloud2 等大消息。
+    转发客户端请求的 foxglove.sdk.v1 子协议到上游喵~
+    """
+    t0 = time.monotonic()
+
+    # 提取客户端请求的子协议, 转发到 foxglove_bridge
+    client_subprotocols = _parse_subprotocols(websocket)
+    fox_sub = [p for p in client_subprotocols if p == "foxglove.sdk.v1"]
+    accepted_sub = fox_sub[0] if fox_sub else None
+
+    await websocket.accept(subprotocol=accepted_sub)
+    target = _foxglove_bridge_upstream_url()
+
+    try:
+        async with websockets.connect(
+            target,
+            max_size=cfg.foxglove_bridge_max_message_bytes(),
+            ping_interval=cfg.foxglove_bridge_ping_interval(),
+            ping_timeout=cfg.foxglove_bridge_ping_timeout(),
+            close_timeout=cfg.foxglove_bridge_close_timeout(),
+            subprotocols=[accepted_sub] if accepted_sub else None,
+        ) as upstream:
+
+            async def client_to_upstream():
+                try:
+                    while True:
+                        try:
+                            msg = await websocket.receive()
+                        except WebSocketDisconnect:
+                            return
+                        if msg["type"] == "websocket.disconnect":
+                            return
+                        if msg["type"] != "websocket.receive":
+                            continue
+                        if msg.get("text") is not None:
+                            await upstream.send(msg["text"])
+                        elif msg.get("bytes") is not None:
+                            await upstream.send(msg["bytes"])
+                finally:
+                    await _close_ws(upstream)
+
+            async def upstream_to_client():
+                try:
+                    async for message in upstream:
+                        try:
+                            if isinstance(message, str):
+                                await websocket.send_text(message)
+                            else:
+                                await websocket.send_bytes(message)
+                        except (WebSocketDisconnect, RuntimeError, OSError):
+                            return
+                except websockets.exceptions.ConnectionClosed:
+                    return
+                finally:
+                    await _close_ws(websocket)
+
+            t1 = asyncio.create_task(client_to_upstream())
+            t2 = asyncio.create_task(upstream_to_client())
+            try:
+                _, pending = await asyncio.wait(
+                    {t1, t2}, return_when=asyncio.FIRST_COMPLETED)
+                for t in pending:
+                    t.cancel()
+                await asyncio.gather(t1, t2, return_exceptions=True)
+            except asyncio.CancelledError:
+                for t in (t1, t2):
+                    if not t.done():
+                        t.cancel()
+                await asyncio.gather(t1, t2, return_exceptions=True)
+                raise
+    except (websockets.exceptions.ConnectionClosed, websockets.exceptions.InvalidURI,
+            websockets.exceptions.InvalidHandshake, ConnectionRefusedError, OSError):
+        await _close_ws(websocket)
+    except Exception:
+        elapsed = time.monotonic() - t0
+        if elapsed < 0.5:
+            pass
+        else:
+            _logger.warning("foxglove_bridge 代理异常 (%.1fs)", elapsed, exc_info=True)
         await _close_ws(websocket)
 
 

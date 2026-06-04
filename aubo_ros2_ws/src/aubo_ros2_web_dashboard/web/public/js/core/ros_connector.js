@@ -1,4 +1,16 @@
-// core/ros_connector.js — 共享 rosbridge 连接生命周期管理
+// ⚠️ DEPRECATED (2026-06-04): 请使用 RosManager (core/ros.js) + TransportHub 替代。
+// 此文件绕过 TransportHub 直接操作 ivgTransport，Bridge 模式切换后订阅不会迁移。
+// 迁移:
+//   旧: import { createRosConnector } from './core/ros_connector.js';
+//       const rc = createRosConnector({ setConnStatus, onConnected });
+//       rc.connect();
+//   新: import { ros } from './core/ros.js';
+//       ros.onStatusChange(setConnStatus);
+//       ros.onConnected(onConnected);
+//       await ros.connect();
+// 此文件将在后续版本删除。
+//
+// core/ros_connector.js — 共享 rosbridge 连接生命周期管理 (DEPRECATED)
 // 封装 connect/重连/状态展示逻辑，vision_grasp_panel 和 tf_monitor_panel 共用
 //
 // 用法:

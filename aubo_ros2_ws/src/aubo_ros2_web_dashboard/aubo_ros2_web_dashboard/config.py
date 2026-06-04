@@ -59,6 +59,12 @@ _CLI_MAP: dict[str, str] = {
     "rosbridge_ping_interval":     "rosbridge.ping_interval",
     "rosbridge_ping_timeout":      "rosbridge.ping_timeout",
     "rosbridge_close_timeout":     "rosbridge.close_timeout",
+    "foxglove_bridge_host":              "foxglove_bridge.host",
+    "foxglove_bridge_port":              "foxglove_bridge.port",
+    "foxglove_bridge_max_msg_bytes":     "foxglove_bridge.max_message_bytes",
+    "foxglove_bridge_ping_interval":     "foxglove_bridge.ping_interval",
+    "foxglove_bridge_ping_timeout":      "foxglove_bridge.ping_timeout",
+    "foxglove_bridge_close_timeout":     "foxglove_bridge.close_timeout",
     "web_video_host":              "web_video.host",
     "web_video_port":              "web_video.port",
     "proxy_video_connect_timeout": "proxy.video_connect_timeout",
@@ -127,6 +133,15 @@ def rosbridge_ping_interval() -> int:   return int(_g("rosbridge.ping_interval",
 def rosbridge_ping_timeout() -> int:    return int(_g("rosbridge.ping_timeout", 60))
 def rosbridge_close_timeout() -> int:   return int(_g("rosbridge.close_timeout", 10))
 
+# ---- foxglove_bridge ----
+def foxglove_bridge_host() -> str:            return str(_g("foxglove_bridge.host", "127.0.0.1"))
+def foxglove_bridge_port() -> int:            return int(_g("foxglove_bridge.port", 8765))
+def foxglove_bridge_ws_path() -> str:         return str(_g("foxglove_bridge.ws_path", "/ws/foxglove"))
+def foxglove_bridge_max_message_bytes() -> int: return int(_g("foxglove_bridge.max_message_bytes", 134217728))
+def foxglove_bridge_ping_interval() -> int:   return int(_g("foxglove_bridge.ping_interval", 20))
+def foxglove_bridge_ping_timeout() -> int:    return int(_g("foxglove_bridge.ping_timeout", 60))
+def foxglove_bridge_close_timeout() -> int:   return int(_g("foxglove_bridge.close_timeout", 10))
+
 # ---- web_video ----
 def web_video_host() -> str:            return str(_g("web_video.host", "127.0.0.1"))
 def web_video_port() -> int:            return int(_g("web_video.port", 8089))
@@ -166,10 +181,12 @@ def runtime_config_dict(static_root: str) -> dict[str, Any]:
         "package": "aubo_ros2_web_dashboard",
         "version": pkg_ver,
         "rosbridge_port": rosbridge_port(),
+        "foxglove_bridge_port": foxglove_bridge_port(),
         "web_video_port": web_video_port(),
         "static_root": static_root,
         "unified_proxy": True,
         "rosbridge_ws_path": rosbridge_ws_path(),
+        "foxglove_ws_path": foxglove_bridge_ws_path(),
         "web_video_proxy_prefix": web_video_proxy_prefix(),
         "settings_categories": vp,                        # 设置页渲染表单的数据源（含 label）
     }

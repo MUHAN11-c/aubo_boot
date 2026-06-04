@@ -57,7 +57,7 @@ function createVisionServiceActions(opts) {
 		transport
 			.callService({
 				service: executeSingleService,
-				type: fixedServiceTypes['execute-single-grasp'] || 'demo_interface/srv/ExecuteGraspPose',
+				type: fixedServiceTypes['execute-single-grasp'] || 'ivg_interfaces/srv/ExecuteGraspPose',
 				request: { object_id: oid, use_visual_estimation: !!useVisual }
 			})
 			.then(r => {

@@ -99,3 +99,64 @@ body.has-ivg-status-bar {
     padding-bottom: calc(2.8rem + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* ── Bridge 选择器 ────────────────────────────────────────────────────── */
+
+.ivg-bridge-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--accent-soft);
+  padding: 0.1rem 0.4rem 0.1rem 0.5rem;
+  border-radius: 14px;
+  border: 1px solid rgba(79, 111, 138, 0.15);
+}
+
+.ivg-bridge-selector__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.25s;
+}
+.ivg-bridge-selector__dot--foxglove { background: #16a34a; box-shadow: 0 0 4px rgba(22,163,74,0.5); }
+.ivg-bridge-selector__dot--rosbridge { background: #6366f1; }
+.ivg-bridge-selector__dot--off { background: #a0a8b8; }
+
+.ivg-bridge-selector__label {
+  color: var(--sb-muted);
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.ivg-bridge-selector__select {
+  background: transparent;
+  border: none;
+  color: var(--sb-text);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0.1rem 0.2rem;
+  border-radius: 4px;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.ivg-bridge-selector__select:focus {
+  background: rgba(79, 111, 138, 0.08);
+}
+
+/* ── Foxglove 统计 ─────────────────────────────────────────────────────── */
+
+.ivg-bridge-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ivg-bridge-stats__item {
+  color: var(--sb-muted);
+  font-size: 11px;
+  font-weight: 500;
+}

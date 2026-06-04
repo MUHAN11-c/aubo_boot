@@ -35,20 +35,10 @@ cleanup() {
         pkill -TERM -f 'ros2 bag' 2>/dev/null || true
     fi
 
-    # 轨迹录制器 — 先发 SIGINT 触发 save_data()
-    if pgrep -f 'record_robot_trajectory' >/dev/null 2>&1; then
-        echo -e "${BLUE}  → 停止轨迹录制器 (SIGINT)...${NC}"
-        pkill -INT -f 'record_robot_trajectory' 2>/dev/null || true
-        for _ in $(seq 1 10); do
-            pgrep -f 'record_robot_trajectory' >/dev/null 2>&1 || break
-            sleep 0.2
-        done
-        pkill -TERM -f 'record_robot_trajectory' 2>/dev/null || true
-    fi
-
     # 其余进程
     pkill -f rosbridge_websocket 2>/dev/null || true
     pkill -f rosapi_node 2>/dev/null || true
+    pkill -f foxglove_bridge 2>/dev/null || true
     pkill -f aubo_driver_ros2 2>/dev/null || true
     pkill -f aubo_state_broadcaster 2>/dev/null || true
     pkill -f aubo_dashboard_node 2>/dev/null || true
@@ -87,6 +77,7 @@ IVG_WEB_RELOAD="${IVG_WEB_RELOAD:-true}"
 WEB_DASH_HOST="${WEB_DASH_HOST:-0.0.0.0}"
 WEB_DASH_PORT="${WEB_DASH_PORT:-8090}"
 ROSBRIDGE_PORT="${ROSBRIDGE_PORT:-9090}"
+FOXGLOVE_BRIDGE_PORT="${FOXGLOVE_BRIDGE_PORT:-8765}"
 IVG_ROSBAG_DIR="${IVG_ROSBAG_DIR:-rosbags/ivg_session}"
 IVG_ROSBAG_TOPICS="${IVG_ROSBAG_TOPICS:-}"
 HAND_EYE_PORT="${HAND_EYE_PORT:-8070}"
@@ -286,7 +277,7 @@ active_wait service "/execute_trajectory" 20 "execute_trajectory 服务" || true
 # ═══════════════════════════════════════════════════════════════
 
 echo -e "${GREEN}[15] IVG Web 网关...${NC}"
-WEB_DASH_CMD="ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_host:=${WEB_DASH_HOST} web_port:=${WEB_DASH_PORT} rosbridge_port:=${ROSBRIDGE_PORT} web_video_port:=${WEB_VIDEO_PORT}"
+WEB_DASH_CMD="ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_host:=${WEB_DASH_HOST} web_port:=${WEB_DASH_PORT} rosbridge_port:=${ROSBRIDGE_PORT} foxglove_bridge_port:=${FOXGLOVE_BRIDGE_PORT} web_video_port:=${WEB_VIDEO_PORT}"
 launch "IVG Web Dashboard" "${WEB_DASH_CMD}"
 
 # ═══════════════════════════════════════════════════════════════
@@ -359,9 +350,6 @@ launch "Tool Changer" "ros2 launch tool_changer gripper_swap_worker.launch.py"
 
 echo -e "${GREEN}[11] 咖啡拉花工作流编排...${NC}"
 launch "Latte Workflow" "ros2 launch latte_backend latte_workflow.launch.py"
-
-echo -e "${GREEN}[11d] 轨迹实时录制...${NC}"
-launch "Trajectory Recorder" "python3 ${WS}/src/aubo_ros2_driver/demo_driver/scripts/record_robot_trajectory.py"
 
 echo -e "${GREEN}[12] GraspNet 循环抓取...${NC}"
 launch "Publish Grasps" "ros2 run demo_driver publish_grasps_client_worker_node"

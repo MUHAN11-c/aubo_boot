@@ -98,6 +98,8 @@ class RosManager {
             }
             // TransportHub.init() 管理所有适配器连接 (首次连接 + 重连均走此路径)
             if (hub) {
+                // 在 init() 前注册 bridgechange 监听, 防止 _reconcile() 事件丢失
+                this._wireHubBridgeChange(hub);
                 await hub.init();
             } else {
                 throw new Error('TransportHub not available');
@@ -121,9 +123,13 @@ class RosManager {
                 }
             }, 'ros_manager');
 
-            // 监听 TransportHub 桥接变更 (foxglove 断线等场景)
-            if (hub) {
-                this._wireHubBridgeChange(hub);
+            // hub.init() 后检查: 若 rosbridge 未连接则触发重连
+            if (hub && !hub.activeId) {
+                this._log('warn', 'hub.init() 完成但无活跃桥接 (rosbridge 未连接), 启动重连');
+                if (this._onStatusChange) this._onStatusChange('rosbridge 未连接，准备重连…', false);
+                this._connectInFlight = false;
+                this._scheduleReconnect();
+                return false;
             }
 
             if (this._onStatusChange) this._onStatusChange('已连接', true);

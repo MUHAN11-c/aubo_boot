@@ -344,3 +344,5 @@ async def web_video_http_proxy(
         headers=out_h,
         media_type=resp.headers.get("content-type"),
     )
+
+http_proxy_router = APIRouter()

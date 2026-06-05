@@ -59,7 +59,7 @@
 							<div class="panel-canvas-wrap panel-canvas-wrap--result">
 								<div id="result-workpiece-wrap" class="result-workpiece-wrap" aria-hidden="false">
 									<div class="result-viz-stack" id="result-viz-stack" title="识别结果图像">
-										<img id="result-mjpeg" alt="" class="cam-mjpeg result-cam-mjpeg" hidden />
+										<canvas id="result-foxglove-canvas" class="cam-mjpeg result-cam-mjpeg"></canvas>
 										<canvas id="result-overlay-canvas" class="result-overlay-canvas"
 											hidden></canvas>
 									</div>
@@ -244,7 +244,7 @@
 	</div>
 	<div hidden aria-hidden="true">
 		<canvas id="cam-canvas" width="640" height="480"></canvas>
-		<img id="cam-mjpeg" alt="" class="cam-mjpeg" hidden />
+		<canvas id="cam-foxglove-canvas" class="cam-mjpeg" hidden></canvas>
 	</div>
 	<div hidden aria-hidden="true">
 		<input type="text" id="scan3-topic" value="" autocomplete="off" />

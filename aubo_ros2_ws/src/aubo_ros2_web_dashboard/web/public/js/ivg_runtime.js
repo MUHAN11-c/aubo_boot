@@ -1,6 +1,6 @@
 // ivg_runtime — 运行时配置、WebSocket URL、断线重连状态机
 // 依赖: runtime_provider.js 获取的 __IVG_RUNTIME 全局配置
-// 对外: ivgPorts 对象（loadRuntime, rosbridge, webVideo, 重连方法）
+// 对外: ivgPorts 对象（loadRuntime, rosbridge, 重连方法）
 import { loadIvgRuntime } from './core/runtime_provider.js';
 
 const g = globalThis;
@@ -52,24 +52,11 @@ function foxgloveWebSocketUrl() {
     return `${proto}//${g.location.host}${path}`;
 }
 
-function webVideoProxyOriginPrefix() {
-    const rt = g.__IVG_RUNTIME || {};
-    const pre = rt.camera_stream_path || rt.web_video_proxy_prefix || '/api/ivg/proxy/web-video';
-    return `${g.location.origin}${pre}`;
-}
 
 // ── 端口获取（优先级: URL参数 > 运行时配置 > 默认值）────────────────────
 
 function rosbridgePort() {
     return fromQuery('rosbridge_port') || fromRuntime('rosbridge_port') || 9090;
-}
-
-function webVideoPort(inputEl) {
-    if (inputEl && inputEl.value) {
-        const pv = parsePort(String(inputEl.value).replace(/[^\d]/g, ''));
-        if (pv) return pv;
-    }
-    return fromQuery('web_video_port') || fromRuntime('web_video_port');
 }
 
 // ── 断线重连状态机 ───────────────────────────────────────────────────────────
@@ -151,9 +138,7 @@ function wireOnlineRosReconnect(state, connectFn) {
 const ivgPorts = {
     loadRuntime,
     rosbridge: rosbridgePort,
-    webVideo: webVideoPort,
     rosbridgeWebSocketUrl,
-    webVideoProxyOriginPrefix,
     createRosReconnectState,
     clearRosReconnectTimer,
     bumpRosReconnectGen,
@@ -166,11 +151,9 @@ export {
     loadRuntime,
     parsePort,
     rosbridgePort as rosbridge,
-    webVideoPort as webVideo,
     rosbridgeWebSocketUrlFromRuntime,
     rosbridgeWebSocketUrl,
     foxgloveWebSocketUrl,
-    webVideoProxyOriginPrefix,
     createRosReconnectState,
     clearRosReconnectTimer,
     bumpRosReconnectGen,

@@ -2,7 +2,7 @@
 
 路由注册顺序（优先级从高到低）:
   1. /ws/rosbridge              — WebSocket 代理 → rosbridge
-  2. /api/ivg/proxy/web-video/* — HTTP 流代理 → web_video_server
+  2. /ws/foxglove — WebSocket 代理 → foxglove_bridge
   3. /health                    — 健康检查
   4. /api/v1/runtime            — 前端运行时配置 (BFF)
   5. /api/v1/tool-geometries     — 工具几何数据 (BFF, 与 tools.yaml 同步)
@@ -74,11 +74,10 @@ def create_app(web_root: str, *, rwt_override: str | None = None) -> FastAPI:
         """启动时打印代理目标地址，便于调试。"""
         rb = f"{cfg.rosbridge_host()}:{cfg.rosbridge_port()}"
         fb = f"{cfg.foxglove_bridge_host()}:{cfg.foxglove_bridge_port()}"
-        wv = f"{cfg.web_video_host()}:{cfg.web_video_port()}"
         print(f"[ivg] 网关启动 root={root} rwt={rwt_root if rwt_available else '(无)'} "
-              f"rosbridge→{rb} foxglove→{fb} web_video→{wv}", flush=True)
-        _logger.info("网关启动 root=%s rwt=%s rosbridge→%s foxglove→%s web_video→%s",
-                     root, rwt_root if rwt_available else '(无)', rb, fb, wv)
+              f"rosbridge→{rb} foxglove→{fb}", flush=True)
+        _logger.info("网关启动 root=%s rwt=%s rosbridge→%s foxglove→%s",
+                     root, rwt_root if rwt_available else '(无)', rb, fb)
         yield
         # 无需清理 (BFF 零 ROS 依赖) 喵~
 

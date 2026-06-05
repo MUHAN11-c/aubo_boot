@@ -47,7 +47,6 @@ cleanup() {
     pkill -f controller_manager 2>/dev/null || true
     pkill -f move_group 2>/dev/null || true
     pkill -f rviz2 2>/dev/null || true
-    pkill -f web_video_server 2>/dev/null || true
     pkill -f 'uvicorn.*8090' 2>/dev/null || true
     pkill -f 'ros2 lifecycle' 2>/dev/null || true
     pkill -f 'latte_imitation' 2>/dev/null || true
@@ -81,7 +80,6 @@ FOXGLOVE_BRIDGE_PORT="${FOXGLOVE_BRIDGE_PORT:-8765}"
 IVG_ROSBAG_DIR="${IVG_ROSBAG_DIR:-rosbags/ivg_session}"
 IVG_ROSBAG_TOPICS="${IVG_ROSBAG_TOPICS:-}"
 HAND_EYE_PORT="${HAND_EYE_PORT:-8070}"
-WEB_VIDEO_PORT="${WEB_VIDEO_PORT:-8089}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
 SKIP_ROSBAG="${SKIP_ROSBAG:-0}"
 
@@ -277,7 +275,7 @@ active_wait service "/execute_trajectory" 20 "execute_trajectory 服务" || true
 # ═══════════════════════════════════════════════════════════════
 
 echo -e "${GREEN}[15] IVG Web 网关...${NC}"
-WEB_DASH_CMD="ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_host:=${WEB_DASH_HOST} web_port:=${WEB_DASH_PORT} rosbridge_port:=${ROSBRIDGE_PORT} foxglove_bridge_port:=${FOXGLOVE_BRIDGE_PORT} web_video_port:=${WEB_VIDEO_PORT}"
+WEB_DASH_CMD="ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_host:=${WEB_DASH_HOST} web_port:=${WEB_DASH_PORT} rosbridge_port:=${ROSBRIDGE_PORT} foxglove_bridge_port:=${FOXGLOVE_BRIDGE_PORT}"
 launch "IVG Web Dashboard" "${WEB_DASH_CMD}"
 
 # ═══════════════════════════════════════════════════════════════

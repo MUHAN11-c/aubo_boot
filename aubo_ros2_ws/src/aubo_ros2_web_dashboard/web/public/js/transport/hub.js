@@ -34,7 +34,7 @@ class TransportHub extends EventTarget {
   constructor() {
     super();
     this._adapters = new Map();          // id → MessageAdapter
-    this._mode = BridgeMode.AUTO;
+    this._mode = BridgeMode.ROSBRIDGE;  // 临时简化: 非点云数据全部走 rosbridge
     this._activeId = null;
     this._router = topicRouter;
     this._subRegistry = new SubRegistry();
@@ -119,11 +119,7 @@ class TransportHub extends EventTarget {
 
     // 首次初始化: 并行连接所有已注册适配器
     this._initPromise = (async () => {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored && Object.values(BridgeMode).includes(stored)) {
-        hub._mode = stored;
-      }
-
+      // (临时简化: 不再从 localStorage 恢复 bridge 模式, 固定 rosbridge)
       const results = await Promise.allSettled(
         Array.from(hub._adapters.values()).map(a => hub._tryConnect(a))
       );

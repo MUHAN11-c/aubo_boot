@@ -67,10 +67,7 @@ function buildBar() {
   bar.id = STATUS_BAR_ID;
   bar.className = 'ivg-status-bar';
 
-  // ── Bridge 选择器 (最左侧) ──
-  const bridgeSel = buildBridgeSelector();
-  bar.appendChild(bridgeSel);
-  bar.appendChild(document.createTextNode(' '));
+  // (临时简化: Bridge 选择器已移除)
 
   const spacer = document.createElement('div');
   spacer.className = 'ivg-status-bar__spacer';
@@ -110,82 +107,9 @@ function buildBar() {
 
 // ── Bridge 选择器 ───────────────────────────────────────────────────────────
 
-function buildBridgeSelector() {
-  const container = document.createElement('div');
-  container.className = 'ivg-bridge-selector';
+function buildBridgeSelector() { /* 临时简化: Bridge 选择器已移除, 所有非点云数据固定走 rosbridge */ }
 
-  const label = document.createElement('span');
-  label.className = 'ivg-bridge-selector__label';
-  label.textContent = 'Bridge';
-
-  const select = document.createElement('select');
-  select.className = 'ivg-bridge-selector__select';
-  select.id = 'ivg-bridge-select';
-
-  const options = [
-    { value: 'auto', label: 'Auto' },
-    { value: 'foxglove', label: 'Foxglove' },
-    { value: 'rosbridge', label: 'Rosbridge' },
-  ];
-  for (const opt of options) {
-    const el = document.createElement('option');
-    el.value = opt.value;
-    el.textContent = opt.label;
-    select.appendChild(el);
-  }
-
-  // 连接状态点
-  const dot = document.createElement('span');
-  dot.className = 'ivg-bridge-selector__dot ivg-bridge-selector__dot--off';
-  dot.id = 'ivg-bridge-dot';
-
-  container.appendChild(dot);
-  container.appendChild(label);
-  container.appendChild(select);
-
-  // 事件: mode 切换 → TransportHub.setMode() (统一入口)
-  select.addEventListener('change', () => {
-    const mode = select.value;
-    const hub = g.__transportHub;
-    if (hub) {
-      hub.setMode(mode);
-    } else {
-      localStorage.setItem('ivg_bridge_mode', mode);
-    }
-  });
-
-  return container;
-}
-
-function updateBridgeDot() {
-  var dot = document.getElementById('ivg-bridge-dot');
-  if (!dot) return;
-  var hub = g.__transportHub;
-  var activeId = hub ? hub.activeId : null;
-  var mode = hub ? hub.mode : 'auto';
-
-  dot.className = 'ivg-bridge-selector__dot';
-
-  // 错误: 模式锁定但 bridge 不可达
-  if ((mode === 'foxglove' && !activeId) || (mode === 'rosbridge' && !activeId)) {
-    dot.classList.add('ivg-bridge-selector__dot--err');
-    dot.title = mode + ' mode — bridge unreachable (locked, no fallback)';
-    return;
-  }
-
-  if (activeId === 'foxglove') {
-    dot.classList.add('ivg-bridge-selector__dot--foxglove');
-  } else if (activeId === 'rosbridge') {
-    if (mode === 'auto') {
-      dot.classList.add('ivg-bridge-selector__dot--degraded');
-      dot.title = 'AUTO degraded to rosbridge (foxglove unreachable)';
-    } else {
-      dot.classList.add('ivg-bridge-selector__dot--rosbridge');
-    }
-  } else {
-    dot.classList.add('ivg-bridge-selector__dot--off');
-  }
-}
+function updateBridgeDot() { /* 临时简化: Bridge 选择器已移除 */ }
 
 // ── Foxglove 统计 ───────────────────────────────────────────────────────────
 
@@ -239,7 +163,6 @@ var _bridgeStatsTimer = null;
 function startBridgeStatsTimer() {
   if (_bridgeStatsTimer) return;
   _bridgeStatsTimer = setInterval(() => {
-    updateBridgeDot();
     updateFoxgloveStats();
   }, 2000);
 }
@@ -368,11 +291,7 @@ function ensureStatus() {
 function init() {
   mountBar();
 
-  // Bridge 选择器默认值
-  var storedMode = localStorage.getItem('ivg_bridge_mode');
-  if (!storedMode) storedMode = 'auto';
-  var sel = document.getElementById('ivg-bridge-select');
-  if (sel) sel.value = storedMode;
+  // (临时简化: Bridge 选择器已移除, 固定 rosbridge)
 
   var _rosConnected = !!(ivgTransport.ros && ivgTransport.ros.isConnected);
   updateRosConnection(_rosConnected);
@@ -400,18 +319,10 @@ function _bindHubEvents() {
   if (!hub || hub._statusBarBound) return;
   hub._statusBarBound = true;
 
-  // modechange: 用户/系统切换 Bridge 模式
-  hub.addEventListener('modechange', function(e) {
-    var sel = document.getElementById('ivg-bridge-select');
-    if (sel && sel.value !== e.detail.mode) sel.value = e.detail.mode;
-    updateBridgeDot();
-    updateFoxgloveStats();
-    updateRosConnection(true);
-  });
+  // (临时简化: modechange 不再触发, 模式固定 rosbridge)
 
-  // bridgechange: 实际活跃桥接变更 (自动回退等)
+  // bridgechange: 实际活跃桥接变更
   hub.addEventListener('bridgechange', function() {
-    updateBridgeDot();
     updateFoxgloveStats();
   });
 
@@ -420,32 +331,9 @@ function _bindHubEvents() {
     updateFoxgloveStats();
   });
 
-  // bridgedegraded: AUTO 模式降级到 rosbridge
-  hub.addEventListener('bridgedegraded', function(e) {
-    updateBridgeDot();
-    updateFoxgloveStats();
-    logBus.addLog('warn', 'bridge',
-      'AUTO mode degraded to rosbridge (foxglove unreachable)', e.detail, 'bridge');
-  });
-
-  // bridgerestored: foxglove 恢复
-  hub.addEventListener('bridgerestored', function() {
-    updateBridgeDot();
-    updateFoxgloveStats();
-    logBus.addLog('info', 'bridge',
-      'AUTO mode restored to foxglove', {}, 'bridge');
-  });
-
-  // bridgeerror: 模式锁定但 bridge 不可达
-  hub.addEventListener('bridgeerror', function(e) {
-    updateBridgeDot();
-    logBus.addLog('error', 'bridge',
-      'Bridge error (mode: ' + (e.detail && e.detail.mode) + '): ' + (e.detail && e.detail.error),
-      e.detail, 'bridge');
-  });
+  // (临时简化: AUTO 模式专属事件不再触发, 模式固定 rosbridge)
 
   // 初始状态
-  updateBridgeDot();
   updateFoxgloveStats();
 }
 

@@ -142,13 +142,7 @@ def foxglove_bridge_ping_interval() -> int:   return int(_g("foxglove_bridge.pin
 def foxglove_bridge_ping_timeout() -> int:    return int(_g("foxglove_bridge.ping_timeout", 60))
 def foxglove_bridge_close_timeout() -> int:   return int(_g("foxglove_bridge.close_timeout", 10))
 
-# ---- web_video ----
-def web_video_host() -> str:            return str(_g("web_video.host", "127.0.0.1"))
-def web_video_port() -> int:            return int(_g("web_video.port", 8089))
-def web_video_listen_address() -> str:  return str(_g("web_video.listen_address", "0.0.0.0"))
-def web_video_server_threads() -> int:  return int(_g("web_video.server_threads", 4))
-def web_video_ros_threads() -> int:     return int(_g("web_video.ros_threads", 2))
-def web_video_proxy_prefix() -> str:    return str(_g("web_video.proxy_path_prefix", "/api/ivg/proxy/web-video"))
+
 
 # ---- 代理调优 ----
 def proxy_video_connect_timeout() -> float: return float(_g("proxy.video_connect_timeout", 15))
@@ -182,12 +176,10 @@ def runtime_config_dict(static_root: str) -> dict[str, Any]:
         "version": pkg_ver,
         "rosbridge_port": rosbridge_port(),
         "foxglove_bridge_port": foxglove_bridge_port(),
-        "web_video_port": web_video_port(),
         "static_root": static_root,
         "unified_proxy": True,
         "rosbridge_ws_path": rosbridge_ws_path(),
         "foxglove_ws_path": foxglove_bridge_ws_path(),
-        "web_video_proxy_prefix": web_video_proxy_prefix(),
         "settings_categories": vp,                        # 设置页渲染表单的数据源（含 label）
     }
 

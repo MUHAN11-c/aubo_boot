@@ -3,7 +3,7 @@
 启动流程:
   1. rosbridge (Tornado WebSocket) ← ROS 消息总线桥
   2. tf2_web_republisher           ← TF 坐标 Web 发布
-  3. web_video_server              ← 摄像头 MJPEG/快照 HTTP
+  3. foxglove_bridge               ← CDR 二进制 WebSocket (点云/图像)
   4. FastAPI 网关 (uvicorn)        ← 统一入口：代理 + 静态文件
 
 参考: MoveIt2 demo.launch.py / rosbridge 官方 launch 模式
@@ -47,13 +47,11 @@ def generate_launch_description():
     ])
 
     # ── 动态库路径 ──────────────────────────────────────────────────────
-    img_lib = os.path.join(get_package_prefix("image_transport"), "lib")
     demo_lib = os.path.join(get_package_prefix("ivg_interfaces"), "lib")
     ros_lib = os.path.join(get_package_prefix("rclpy"), "lib")
     rosbridge_ld = os.pathsep.join([demo_lib, ros_lib])
     if os.environ.get("LD_LIBRARY_PATH"):
         rosbridge_ld = rosbridge_ld + os.pathsep + os.environ["LD_LIBRARY_PATH"]
-    web_video_ld = os.pathsep.join([img_lib, rosbridge_ld])
 
     # ── 声明启动参数（默认值全部来自 YAML）─────────────────────────────
     ld.add_action(DeclareLaunchArgument("web_host",
@@ -77,15 +75,6 @@ def generate_launch_description():
     ld.add_action(DeclareLaunchArgument("rosbridge_actions_new_thread",
         default_value="true",
         description="Action 目标使用新线程"))
-    ld.add_action(DeclareLaunchArgument("include_web_video_server",
-        default_value="true",
-        description="是否启动 web_video_server"))
-    ld.add_action(DeclareLaunchArgument("web_video_host",
-        default_value=cfg.web_video_host(),
-        description="web_video 上游主机"))
-    ld.add_action(DeclareLaunchArgument("web_video_port",
-        default_value=str(cfg.web_video_port()),
-        description="web_video 上游端口"))
     ld.add_action(DeclareLaunchArgument("foxglove_bridge_port",
         default_value=str(cfg.foxglove_bridge_port()),
         description="foxglove_bridge 监听端口"))
@@ -98,9 +87,6 @@ def generate_launch_description():
         "rosbridge_max_msg_size": LaunchConfiguration("rosbridge_max_msg_size"),
         "rosbridge_services_new_thread": LaunchConfiguration("rosbridge_services_new_thread"),
         "rosbridge_actions_new_thread":  LaunchConfiguration("rosbridge_actions_new_thread"),
-        "include_web_video_server":      LaunchConfiguration("include_web_video_server"),
-        "web_video_host":        LaunchConfiguration("web_video_host"),
-        "web_video_port":        LaunchConfiguration("web_video_port"),
         "foxglove_bridge_port":   LaunchConfiguration("foxglove_bridge_port"),
     }
 
@@ -124,22 +110,6 @@ def generate_launch_description():
         executable="tf2_web_republisher_node",
         name="tf2_web_republisher",
         output="screen",
-    ))
-
-    # ── 3. web_video_server ─────────────────────────────────────────────
-    ld.add_action(Node(
-        package="web_video_server",
-        executable="web_video_server",
-        name="web_video_server",
-        output="screen",
-        condition=IfCondition(lc["include_web_video_server"]),
-        additional_env={"LD_LIBRARY_PATH": web_video_ld},
-        parameters=[{
-            "port": ParameterValue(lc["web_video_port"], value_type=int),
-            "address": cfg.web_video_listen_address(),
-            "server_threads": cfg.web_video_server_threads(),
-            "ros_threads": cfg.web_video_ros_threads(),
-        }],
     ))
 
     # ── 3a. foxglove_bridge (C++ 高性能 WebSocket, CDR 二进制, 点云专用) ─
@@ -167,8 +137,6 @@ def generate_launch_description():
             "--directory", web_dir,
             "--rosbridge-host", lc["rosbridge_host"],
             "--rosbridge-port", lc["rosbridge_port"],
-            "--web-video-host", lc["web_video_host"],
-            "--web-video-port", lc["web_video_port"],
             "--foxglove-bridge-port", lc["foxglove_bridge_port"],
         ],
         output="screen",

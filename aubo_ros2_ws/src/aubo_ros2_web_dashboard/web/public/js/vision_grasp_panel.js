@@ -30,6 +30,7 @@ import { createVisionUiBinder } from './vision_grasp/ui_binder.js';
 import { bindVisionSubscriptions } from './vision_grasp/subscription_binder.js';
 import { createVisionModeController } from './vision_grasp/mode_controller.js';
 import { canonicalRosTopic, rosMsgArrayField } from './core/utils.js';
+import { createFoxgloveImageRenderer } from './view3d/foxglove_image.js';
 import { logBus } from './core/log-bus.js';
 import { createMonitoringCollapse } from './components/monitoring-collapse.js';
 import {
@@ -97,6 +98,13 @@ import {
 	/** 监控区折叠组件（共享，替代原来 ~80 行重复代码）喵~ */
 	const monitoringCollapse = createMonitoringCollapse({ getById: $, jointChart });
 
+	// Foxglove CDR 图像渲染 (替代 web_video_server HTTP MJPEG)
+	var foxgloveColorImage = createFoxgloveImageRenderer({
+		canvasId: 'result-foxglove-canvas',
+		topic: SETTINGS_DEFAULTS['topic-color'],
+		onFrame: function(_canvas, w, h) { scheduleProjectionDraw(); }
+	});
+
 	const serviceActions = createVisionServiceActions({
 		transport: ivgTransport,
 		log: logSvc,
@@ -123,8 +131,7 @@ import {
 	const modeController = createVisionModeController({
 		getById: $,
 		setResultPanelMode,
-		isConnected: () => ivgTransport.isConnected(),
-		startSubscriptions
+		scheduleProjectionDraw
 	});
 
 	/*
@@ -376,6 +383,7 @@ import {
 	}
 
 	function unsubscribeAll(skipTopicUnsub) {
+		if (foxgloveColorImage) foxgloveColorImage.stop();
 		stopVisionUrdf3d();
 		if (graspColorSnapTimer) {
 			clearTimeout(graspColorSnapTimer);
@@ -399,6 +407,7 @@ import {
 	function startSubscriptions() {
 		unsubscribeAll(true);
 		if (!ivgTransport.isConnected() || pageRealtimePaused || pageShouldPauseRealtime()) return;
+		if (foxgloveColorImage && !foxgloveColorImage.isActive) foxgloveColorImage.start();
 		bindVisionSubscriptions({
 			transport: ivgTransport,
 			getById: $,
@@ -512,12 +521,7 @@ import {
 
 	/** 连接/重连 — 统一委托 ros.js 喵~ */
 	function connect() {
-		if (pageShouldPauseRealtime()) {
-			pageRealtimePaused = true;
-			setConnStatus('页面后台已暂停', null);
-			return;
-		}
-		pageRealtimePaused = false;
+		pageRealtimePaused = pageShouldPauseRealtime();
 		ros.connect();
 	}
 

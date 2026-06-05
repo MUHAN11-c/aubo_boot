@@ -50,11 +50,6 @@ def _add_args(p: argparse.ArgumentParser) -> None:
     f.add_argument("--foxglove-bridge-close-timeout", type=int,
                    default=cfg.foxglove_bridge_close_timeout())
 
-    # web_video 上游连接参数
-    w = p.add_argument_group("web_video 上游")
-    w.add_argument("--web-video-host", default=cfg.web_video_host())
-    w.add_argument("--web-video-port", type=int, default=cfg.web_video_port())
-
     # 代理调优
     x = p.add_argument_group("代理调优")
     x.add_argument("--proxy-video-connect-timeout", type=float,

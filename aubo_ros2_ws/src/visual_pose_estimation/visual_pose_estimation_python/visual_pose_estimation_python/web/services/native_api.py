@@ -558,8 +558,42 @@ class NativeWebService:
             depth_image = node.latest_depth_image.copy()
             color_image = node.latest_color_image.copy()
 
-        params = node.config_reader.load_debug_thresholds()
-        if node.preprocessor:
+        def _encode_image(img):
+            if img is None:
+                return None
+            ok, buffer = cv2.imencode(".jpg", img)
+            if not ok:
+                return None
+            return "data:image/jpeg;base64," + base64.b64encode(buffer).decode("utf-8")
+
+        raw_depth_b64 = _encode_image(depth_image)
+        raw_color_b64 = _encode_image(color_image)
+
+        algorithm_available = (
+            node.config_reader is not None
+            and node.preprocessor is not None
+            and node.feature_extractor is not None
+        )
+        if not algorithm_available:
+            return {
+                "success": True,
+                "has_images": True,
+                "depth_image": raw_depth_b64,
+                "color_image": raw_color_b64,
+                "binary_image": None,
+                "preprocessed_image": None,
+                "stats": {},
+                "features": [],
+                "algorithm_info": {"source": "raw_only", "note": "算法模块未初始化，仅显示原始图像"},
+            }
+
+        try:
+            params = node.config_reader.load_debug_thresholds()
+        except Exception:
+            LOGGER.exception("加载调试阈值失败")
+            params = {}
+
+        try:
             node.preprocessor.set_parameters(
                 {
                     "binary_threshold_min": params.get("binary_threshold_min"),
@@ -576,7 +610,6 @@ class NativeWebService:
                     "smooth_edges_blur_sigma": params.get("smooth_edges_blur_sigma", 0),
                 }
             )
-        if node.feature_extractor:
             node.feature_extractor.set_parameters(
                 {
                     "component_min_area": params.get("component_min_area"),
@@ -587,6 +620,8 @@ class NativeWebService:
                     "component_min_height": params.get("component_min_height"),
                 }
             )
+        except Exception:
+            LOGGER.exception("设置算法参数失败")
 
         if depth_image.shape[:2] != color_image.shape[:2]:
             color_image = cv2.resize(color_image, (depth_image.shape[1], depth_image.shape[0]))
@@ -594,24 +629,29 @@ class NativeWebService:
         binary_threshold_min = int(params.get("binary_threshold_min", 0))
         binary_threshold_max = int(params.get("binary_threshold_max", 65535))
 
-        if node.preprocessor is None:
-            raise HTTPException(status_code=500, detail="算法模块未初始化")
-
-        components, preprocessed_color = node.preprocessor.preprocess(
-            depth_image, color_image, binary_threshold_min, binary_threshold_max
-        )
-        features_objs = node.feature_extractor.extract_features(components, preprocessed_color)
+        processing_error = None
+        components = []
         features = []
-        for feat in features_objs:
-            features.append(
-                {
-                    "workpiece_center": list(feat.workpiece_center),
-                    "workpiece_radius": float(feat.workpiece_radius),
-                    "valve_center": list(feat.valve_center),
-                    "valve_radius": float(feat.valve_radius),
-                    "angle_deg": float(feat.standardized_angle_deg),
-                }
+        preprocessed_color = None
+
+        try:
+            components, preprocessed_color = node.preprocessor.preprocess(
+                depth_image, color_image, binary_threshold_min, binary_threshold_max
             )
+            features_objs = node.feature_extractor.extract_features(components, preprocessed_color)
+            for feat in features_objs:
+                features.append(
+                    {
+                        "workpiece_center": list(feat.workpiece_center),
+                        "workpiece_radius": float(feat.workpiece_radius),
+                        "valve_center": list(feat.valve_center),
+                        "valve_radius": float(feat.valve_radius),
+                        "angle_deg": float(feat.standardized_angle_deg),
+                    }
+                )
+        except Exception:
+            LOGGER.exception("算法处理失败")
+            processing_error = "算法处理失败，显示原始图像"
 
         use_rembg = bool(params.get("use_rembg", False)) and params.get("use_rembg") != 0
         if use_rembg and REMBG_AVAILABLE and preprocessed_color is not None:
@@ -648,42 +688,39 @@ class NativeWebService:
             except Exception:
                 LOGGER.exception("Rembg处理失败")
 
-        visualizer = DebugVisualizer()
-        debug_panel = visualizer.create_debug_panel(
-            depth_image,
-            color_image,
-            components,
-            features,
-            binary_threshold_min,
-            binary_threshold_max,
-            preprocessed_color,
-        )
-
-        def encode_image(img):
-            if img is None:
-                return None
-            ok, buffer = cv2.imencode(".jpg", img)
-            if not ok:
-                return None
-            return "data:image/jpeg;base64," + base64.b64encode(buffer).decode("utf-8")
+        debug_panel = {}
+        try:
+            visualizer = DebugVisualizer()
+            debug_panel = visualizer.create_debug_panel(
+                depth_image,
+                color_image,
+                components,
+                features,
+                binary_threshold_min,
+                binary_threshold_max,
+                preprocessed_color,
+            )
+        except Exception:
+            LOGGER.exception("Debug可视化生成失败")
 
         return {
             "success": True,
             "has_images": True,
-            "depth_image": encode_image(debug_panel.get("depth_display")),
-            "color_image": encode_image(debug_panel.get("color_display")),
-            "binary_image": encode_image(debug_panel.get("binary_display")),
-            "preprocessed_image": encode_image(debug_panel.get("preprocessed_display")),
+            "depth_image": _encode_image(debug_panel.get("depth_display")) or raw_depth_b64,
+            "color_image": _encode_image(debug_panel.get("color_display")) or raw_color_b64,
+            "binary_image": _encode_image(debug_panel.get("binary_display")),
+            "preprocessed_image": _encode_image(debug_panel.get("preprocessed_display")),
             "stats": {
                 "component_count": len(components),
                 "feature_count": len(features),
-                "algorithm_source": "algorithm_module",
+                "algorithm_source": "algorithm_module" if not processing_error else "raw_fallback",
             },
             "features": features,
+            "processing_error": processing_error,
             "algorithm_info": {
-                "source": "algorithm_module",
-                "params_applied": "Debug参数已直接应用到算法",
-                "note": "此预览使用与 /estimate_pose 完全相同的算法流程",
+                "source": "algorithm_module" if not processing_error else "raw_fallback",
+                "params_applied": "Debug参数已直接应用到算法" if not processing_error else None,
+                "note": "此预览使用与 /estimate_pose 完全相同的算法流程" if not processing_error else processing_error,
             },
         }
 

@@ -32,14 +32,6 @@ foxglove_bridge:
   ping_timeout: 60                  # 心跳超时（秒）
   close_timeout: 10                 # 关闭超时（秒）
 
-# ---- web_video_server 上游 (MJPEG/快照 HTTP) ----
-web_video:
-  host: "127.0.0.1"
-  port: 8089
-  listen_address: "0.0.0.0"         # web_video_server 节点监听地址
-  server_threads: 4
-  ros_threads: 2
-  proxy_path_prefix: "/api/ivg/proxy/web-video"  # 网关代理前缀
 
 # ---- HTTP 代理调优 ----
 proxy:

@@ -109,9 +109,13 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 		this._deferredStartTimers.push(tid);
 	};
 	IvgRos3dView3dSession.prototype._startMarkersStage = function (mk) {
-		if (this._markersStarted || !mk) return;
+		console.log('[marker] _startMarkersStage: mk=', mk, '_markersStarted=', this._markersStarted, 'OC=', !!this._Obj3DClass);
+		if (this._markersStarted || !mk) {
+			console.log('[marker] SKIP: started=' + this._markersStarted + ' mk=' + mk);
+			return;
+		}
 		const OC = this._Obj3DClass || null;
-		if (!OC) return;
+		if (!OC) { console.log('[marker] SKIP: no Obj3DClass'); return; }
 		this._markersStarted = true;
 		this.ros3dMarkerRoot = new OC();
 		this.viewer3d.addObject(this.ros3dMarkerRoot);
@@ -127,6 +131,22 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 		};
 		if (MarkerCtor === ROS3D.MarkerClient) markerOpts.lifetime = 0;
 		this.ros3dMarkerClient = new MarkerCtor(markerOpts);
+			console.log('[marker] client created: ', MarkerCtor === ROS3D.MarkerArrayClient ? 'MarkerArrayClient' : 'MarkerClient', 'topic=', mk, 'rosConnected=', !!(this.ros && this.ros.isConnected), 'tfClient=', !!this.tfClient3d);
+			// 追踪 marker 消息
+			var self = this;
+			var markerMsgCount = 0;
+			var lastMarkerLog = 0;
+			this._markerSub = this.ros3dMarkerClient.rootObject;
+			// 监听 scene 子对象变化来推断 marker 是否到达
+			var checkMarker = setInterval(function() {
+				if (!self.ros3dMarkerRoot) { clearInterval(checkMarker); return; }
+				var n = self.ros3dMarkerRoot.children ? self.ros3dMarkerRoot.children.length : 0;
+				if (n > 0 && Date.now() - lastMarkerLog > 2000) {
+					lastMarkerLog = Date.now();
+					console.log('[marker] children in root: ', n);
+				}
+			}, 1000);
+		console.log('[marker] client created: ', MarkerCtor === ROS3D.MarkerArrayClient ? 'MarkerArrayClient' : 'MarkerClient', 'topic=', mk, 'rosConnected=', !!(this.ros && this.ros.isConnected), 'tfClient=', !!this.tfClient3d);
 		this._markerFocusTimer = setInterval(() => {
 			if (!this.ros3dMarkerRoot) return;
 			if (this.ros3dMarkerRoot.children && this.ros3dMarkerRoot.children.length > 0 && !this._markerCameraPrimed) {
@@ -533,6 +553,7 @@ IvgRos3dView3dSession.prototype.stop = function () {
 		const opts = this.opts;
 		const sn = (($('scan3-topic') && $('scan3-topic').value) || '').trim();
 		const mk = (($('marker3-topic') && $('marker3-topic').value) || '').trim();
+		console.log('[marker] session.start: mk=', JSON.stringify(mk), 'rosConnected=', !!(ros && ros.isConnected), 'forceUrdfOnly=', !!(opts && opts.forceUrdfOnly), 'MarkerArrayClient=', typeof ROS3D.MarkerArrayClient, 'MarkerClient=', typeof ROS3D.MarkerClient);
 		const urdfEl = $('view3d-show-urdf');
 		const wantUrdf = this.opts && this.opts.forceUrdfOnly ? true : (!urdfEl || urdfEl.checked);
 		if (!sn && !mk && !wantUrdf) {
@@ -610,7 +631,7 @@ var gridEnabled = (opts && opts.gridEnabled !== undefined) ? opts.gridEnabled : 
 		const pc = (($('pointcloud-topic') && $('pointcloud-topic').value) || '').trim();
 		console.log('[session] pointcloud-topic =', JSON.stringify(pc), 'forceUrdfOnly:', this.opts && this.opts.forceUrdfOnly);
 		if (pc) this._defer(() => this._startPointCloudStage(pc), 600);
-		if (mk) this._defer(() => this._startMarkersStage(mk), 1200);
+		if (mk) this._defer(function() { console.log('[marker] deferred 1200ms fired'); this._startMarkersStage(mk); }.bind(this), 1200);
 		if (wantUrdf && typeof ROS3D.UrdfClient === 'function') {
 			const urdfDelayMs = this.opts && this.opts.forceUrdfOnly ? 0 : 3500;
 			this._defer(() => this._startUrdfStage($, host, fixedFrame), urdfDelayMs);

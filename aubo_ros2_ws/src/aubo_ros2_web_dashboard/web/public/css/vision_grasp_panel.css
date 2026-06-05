@@ -234,7 +234,7 @@ body.ivg-single-screen .layout-toolbar.layout-tier-1 {
   overflow: hidden;
   aspect-ratio: var(--camera-aspect-ratio);
 }
-.panel--camera-hero canvas, .panel--camera-result canvas:not(.result-overlay-canvas),
+.panel--camera-hero canvas:not(.result-cam-mjpeg), .panel--camera-result canvas:not(.result-overlay-canvas):not(.result-cam-mjpeg),
 .panel--camera-hero .cam-mjpeg {
   position: absolute; left: 0; top: 0;
   width: 100% !important; height: 100% !important;
@@ -257,11 +257,11 @@ body.ivg-single-screen .layout-toolbar.layout-tier-1 {
 .result-viz-stack .cam-mjpeg {
   display: block;
   width: 100%; height: auto;
-  max-width: 100%;
-  aspect-ratio: 4 / 3;
+  max-width: 100%; max-height: 100%;
   object-fit: contain;
   background: var(--canvas-bg);
   z-index: 0;
+  image-rendering: auto;
 }
 .result-overlay-canvas {
   position: absolute;

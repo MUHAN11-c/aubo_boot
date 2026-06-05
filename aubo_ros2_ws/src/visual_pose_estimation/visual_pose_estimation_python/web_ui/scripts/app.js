@@ -2971,25 +2971,36 @@ function debugCaptureImage() {
             camera_id: cameraId
         })
     })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.detail || `HTTP ${response.status}`);
+                }).catch(err => {
+                    if (err instanceof Error && err.message) throw err;
+                    throw new Error(`HTTP ${response.status}`);
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 addLogEntry('success', '图像采集成功');
-                // 立即刷新显示
                 debugRefreshImages();
-                // 启动自动刷新
                 startDebugAutoRefresh();
             } else {
-                // 采集失败：停止自动刷新，避免一直刷“等待图像”
                 stopDebugAutoRefresh();
-                addLogEntry('error', `图像采集失败: ${data.error}`);
-                alert(`图像采集失败: ${data.error}`);
+                const errMsg = data.error || '未知错误';
+                addLogEntry('error', `图像采集失败: ${errMsg}`);
+                showDebugWaitingState(`采集失败: ${errMsg}`);
+                alert(`图像采集失败: ${errMsg}`);
             }
         })
         .catch(error => {
             stopDebugAutoRefresh();
-            addLogEntry('error', `图像采集异常: ${error.message}`);
-            alert(`图像采集异常: ${error.message}`);
+            const errMsg = error.message || '网络错误';
+            addLogEntry('error', `图像采集异常: ${errMsg}`);
+            showDebugWaitingState(`采集异常: ${errMsg}`);
+            alert(`图像采集异常: ${errMsg}`);
         });
 }
 
@@ -3011,74 +3022,96 @@ function debugRefreshImages() {
             'Content-Type': 'application/json',
         }
     })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success && data.has_images) {
-                // 更新图像
                 updateDebugImage('depth', data.depth_image, data.stats);
                 updateDebugImage('color', data.color_image);
                 updateDebugImage('binary', data.binary_image, data.stats);
                 updateDebugImage('preprocessed', data.preprocessed_image, data.features);
+
+                if (data.processing_error) {
+                    addLogEntry('warning', 'Debug: ' + data.processing_error);
+                }
             } else if (!data.has_images) {
                 const waitMessage = data && data.message ? String(data.message) : '等待图像...';
-                // 显示等待状态
-                ['depth', 'color', 'binary', 'preprocessed'].forEach(type => {
-                    const content = document.getElementById(`${type}-image-content`);
-                    const stats = document.getElementById(`${type}-stats`);
-                    if (content) {
-                        content.innerHTML = `
-                        <div class="debug-image-placeholder">
-                            <div class="placeholder-content">
-                                <div class="placeholder-icon">📷</div>
-                                <div class="placeholder-text">等待图像...</div>
-                                <div class="placeholder-subtext">${waitMessage}</div>
-                            </div>
-                        </div>
-                    `;
-                    }
-                    if (stats) {
-                        stats.textContent = waitMessage;
-                    }
-                });
+                showDebugWaitingState(waitMessage);
             }
         })
         .catch(error => {
             console.error('刷新图像失败:', error);
+            showDebugWaitingState('服务异常: ' + error.message);
         })
         .finally(() => {
             debugState.isRefreshing = false;
         });
 }
 
+function showDebugWaitingState(message) {
+    ['depth', 'color', 'binary', 'preprocessed'].forEach(type => {
+        const content = document.getElementById(`${type}-image-content`);
+        const stats = document.getElementById(`${type}-stats`);
+        if (content) {
+            content.innerHTML = `
+            <div class="debug-image-placeholder">
+                <div class="placeholder-content">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-text">等待图像...</div>
+                    <div class="placeholder-subtext">${message}</div>
+                </div>
+            </div>
+        `;
+        }
+        if (stats) {
+            stats.textContent = message;
+        }
+    });
+}
+
 function updateDebugImage(type, imageBase64, stats) {
     const content = document.getElementById(`${type}-image-content`);
     const statsElement = document.getElementById(`${type}-stats`);
 
-    if (content && imageBase64) {
-        content.innerHTML = '';
-        const img = document.createElement('img');
-        img.src = imageBase64;
-        content.appendChild(img);
-        // 根据图像尺寸优化显示（Debug区域使用较小的padding）
-        optimizeImageDisplay(img, content, { padding: 10 });
+    if (content) {
+        if (imageBase64) {
+            content.innerHTML = '';
+            const img = document.createElement('img');
+            img.src = imageBase64;
+            content.appendChild(img);
+            optimizeImageDisplay(img, content, { padding: 10 });
+        } else {
+            // 图像不可用（算法模块未初始化等）
+            content.innerHTML = `
+            <div class="debug-image-placeholder">
+                <div class="placeholder-content">
+                    <div class="placeholder-icon">⚠️</div>
+                    <div class="placeholder-text">无法生成</div>
+                    <div class="placeholder-subtext">算法模块不可用</div>
+                </div>
+            </div>
+            `;
+        }
     }
 
     let statsText = '';
     if (statsElement && stats) {
-        let statsText = '';
-        if (type === 'binary' && stats) {
-            statsText = `轮廓: ${stats.filtered_contours}/${stats.total_contours} | 像素: ${stats.in_range_pixels}`;
-        } else if (type === 'depth' && stats) {
+        if (type === 'depth' && stats != null) {
             statsText = `深度范围: ${stats.min_depth || 0} - ${stats.max_depth || 0}`;
         }
         if (statsText) {
             statsElement.textContent = statsText;
         }
     }
-    // 对于 color/preprocessed：即使传了 stats（例如 features），也可能没有可显示的 statsText。
-    // 只要当前有图且没有生成 statsText，就清空初始的“等待图像...”
     if (statsElement && imageBase64 && !statsText) {
         statsElement.textContent = '';
+    }
+    if (statsElement && !imageBase64) {
+        statsElement.textContent = '不可用';
     }
 }
 

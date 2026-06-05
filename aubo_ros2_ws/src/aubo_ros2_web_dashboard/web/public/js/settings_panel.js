@@ -19,9 +19,7 @@ async function loadCategoryDefs() {
         $('gw-info').innerHTML = [
             ['版本', data.version],
             ['rosbridge 端口', data.rosbridge_port],
-            ['web_video 端口', data.web_video_port],
             ['WS 路径', data.rosbridge_ws_path],
-            ['代理前缀', data.web_video_proxy_prefix],
         ].map(([k, v]) => `<span>${k}: <code>${v != null ? v : '—'}</code></span>`).join('');
 
         $('gw-status').textContent = '已连接';

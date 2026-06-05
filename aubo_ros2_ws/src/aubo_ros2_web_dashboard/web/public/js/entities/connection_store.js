@@ -15,7 +15,7 @@ function ConnectionStore() {
     this._state = {
         connectionStatus: 'disconnected',
         activeBridge: null,
-        bridgeMode: 'auto',
+        bridgeMode: 'rosbridge',  // 临时简化: 固定 rosbridge
         bridgeStats: {},
         reconnectAttempts: 0,
         connectedAt: null,

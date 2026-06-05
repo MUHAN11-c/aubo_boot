@@ -371,9 +371,9 @@ web/public/                    # 静态文件根目录
     │   ├── patches.js         # ros3djs Three.js 兼容补丁
     │   ├── hints.js           # 坐标轴/网格 helper
     ├── ivg_transport.js       # WebSocket 传输层 + rosbridge 协议
-    ├── ivg_runtime.js         # 运行时配置 (rosbridge 端口/web_video 端口等)
+    ├── ivg_runtime.js         # 运行时配置 (rosbridge 端口等)
     ├── ivg_site_nav.js        # 顶部导航栏 Web Component
-    ├── ivg_web_video.js       # 相机视频流 (web_video_server MJPEG)
+    ├── foxglove_image.js      # Foxglove CDR 图像解码渲染 (替代 MJPEG)
     ├── coffee_latte_io.js     # 拉花 DI 反馈灯 + DO 开关 (绑定 ROS 服务)
     ├── vision_grasp_panel.js  # 视觉抓取页面主逻辑
     ├── tf_monitor_panel.js    # TF 监控页面主逻辑

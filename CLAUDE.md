@@ -58,7 +58,8 @@ rosdep install --from-paths src --ignore-src -r -y
 
 # Python 运行依赖（非 colcon 管理）
 # numpy: VPE 姿态估计 + graspnet 点云处理
-pip3 install httpx websockets numpy==1.23.5 opencv-python==4.9.0
+# scipy>=1.10: Rotation.as_quat() 关键字参数支持（scipy<1.10 的 Cython 扩展不支持 kwargs）
+pip3 install httpx websockets numpy==1.23.5 opencv-python==4.9.0 'scipy>=1.10'
 ```
 
 **运行测试**：
@@ -321,6 +322,28 @@ C++ MoveIt2 规划+执行节点，已由 `latte_backend` 内嵌的 `moveCartesia
 
 > BFF 路由必须在 `StaticFiles` 挂载前注册，否则会被 `/*` 通配拦截喵~
 
+### 19. foxglove_bridge 独立终端 + `bad optional access` 修复 (2026-06-09)
+
+**背景**：foxglove_bridge v3.3.0 在轮询 ROS graph 时，遇到 action 隐式反馈话题 `/aubo/feedback_states`（类型 `control_msgs/action/FollowJointTrajectory_Feedback`）。该类型嵌套在 `FollowJointTrajectory.idl` 内部，没有独立 `.idl` 文件，`rosgraphPollThread` 中 `std::optional::value()` 抛出 `std::bad_optional_access`，导致轮询线程持续崩溃，**无法发现 foxglove_bridge 启动后新出现的话题（如相机点云、RGB 图像）**。
+
+**修复方案**：
+
+1. **foxglove_bridge 从 `web_dashboard.launch.py` 中分离**：原来作为内嵌 Node 与 rosbridge 同终端启动，改为 `start_aubo_new_driver.sh` 中 [2.5] 步骤独立 terminator 标签页。
+2. **`topic_whitelist` 过滤**：排除 `/aubo/feedback_states` 话题。正则 `^(?!/aubo/feedback_states$).*$`（负向前瞻匹配除该话题外的所有）。
+3. **YAML params 文件**：写在 `config/foxglove_bridge_params.yaml`，通过 `--ros-args --params-file` 加载，**避开 `launch()` 函数 `bash -c '${full}'` 的 Shell 转义问题**（`$`/`"`/`!` 等特殊字符在双层 bash 嵌套中难以正确转义）。
+
+**关键踩坑**：`launch()` 函数将命令嵌入 `bash --norc -c '${full}'` 单引号内，内层 bash 仍会解析 `"..."` 中的 `$`。曾尝试直接传 `topic_whitelist:=["regex"]`，因转义链复杂导致 foxglove_bridge 启动失败。最终用 `--params-file` 加载 YAML 彻底避开。
+
+**相关文件**：
+- `start_aubo_new_driver.sh`：[2.5] 步骤 + `cleanup()` 中 `fuser -k` 端口清理
+- `web_dashboard.launch.py`：移除 foxglove_bridge Node，保留 `foxglove_bridge_port` 参数
+- `config/foxglove_bridge_params.yaml`：`/foxglove_bridge/ros__parameters/topic_whitelist`
+
+**验证结果**（2026-06-09 笔记本部署）：
+- 40 个 channel 全部注册（含 `/camera/color/image_raw`、`/camera/depth_registered/points`）
+- `bad_optional_access` 错误 = 0
+- `/aubo/feedback_states` 已过滤喵~
+
 ## 前端开发速查
 
 **当前架构**: 纯 HTML/JS MPA（零构建），ES modules + importmap 加载 ros3djs/roslib/three.js，FastAPI BFF 网关。
@@ -480,6 +503,9 @@ web/public/                    # 静态文件根目录
 | 前端日志面板无 ROS 2 日志 | `log-ros-bridge.js` 未被 import 或传输层检测失败 | 检查 HTML 中是否有 `<script type="module" src="js/core/log-ros-bridge.js">`；检查 `globalThis.__rosManager` |
 | 前端日志面板看不到其他页面日志 | 跨页面隔离 — 旧版无 BroadcastChannel | 确认 `log-bus.js` 已更新含 `BroadcastChannel('ivg_log_bus')` |
 | `SyntaxError: does not provide an export named 'escapeHtml'` | 合并 pose_card.js 时丢失导出 | 确认 `components/pose-card.js` 有 `export { _escapeHtml as escapeHtml }` |
+| Percipio 相机 `Open device fail : -1005` 每 3 秒重试 | 多网卡主机上 WiFi 的 `169.254.0.0/16` link-local 路由干扰 SDK 的 `TYOpenDevice` 设备 ID 查找机制（GVCP 单播本身可达） | ✅ 已修复 (2026-06-09): `device_open()` 增加 `TYOpenDeviceWithIP` 回退。详见 `aubo_ros2_ws/src/camport_ros2/README.md` 喵~ |
+| Percipio 相机 SDK 输出 `Invalid device info!` + `WriteReg 0x00000a00 failed` + `errno 89` | `TYOpenDevice` 内部 GVCP 控制通道握手失败（GevHeartbeatTimeout 寄存器写入失败），但设备发现和 UDP 单播可达 → 说明是 SDK 查找机制与路由表冲突 | 同上：自动回退到 `TYOpenDeviceWithIP` 直连 IP 喵~ |
+| foxglove_bridge `bad optional access` in `rosgraphPollThread` + 前端无点云/RGB | `/aubo/feedback_states` 类型 `control_msgs/action/FollowJointTrajectory_Feedback` 无独立 `.idl` 文件，`std::optional::value()` 抛异常 → 轮询线程崩溃 → 无法发现相机话题 | ✅ 已修复 (2026-06-09): `topic_whitelist` 排除该话题，YAML params 文件加载。详见 CLAUDE.md 第 19 节喵~ |
 
 ## 外部文档
 

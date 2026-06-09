@@ -3,8 +3,8 @@
 启动流程:
   1. rosbridge (Tornado WebSocket) ← ROS 消息总线桥
   2. tf2_web_republisher           ← TF 坐标 Web 发布
-  3. foxglove_bridge               ← CDR 二进制 WebSocket (点云/图像)
-  4. FastAPI 网关 (uvicorn)        ← 统一入口：代理 + 静态文件
+  3. FastAPI 网关 (uvicorn)        ← 统一入口：代理 + 静态文件
+  注: foxglove_bridge 已独立启动 — 见 start_aubo_new_driver.sh 喵~
 
 参考: MoveIt2 demo.launch.py / rosbridge 官方 launch 模式
 
@@ -17,11 +17,9 @@ from ament_index_python.packages import get_package_prefix, get_package_share_di
 from launch import LaunchDescription
 from launch.actions import (DeclareLaunchArgument, ExecuteProcess,
                              IncludeLaunchDescription, SetEnvironmentVariable)
-from launch.conditions import IfCondition
 from launch.launch_description_sources import FrontendLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
-from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 # 确保能 import 本包的 config 模块
@@ -112,20 +110,7 @@ def generate_launch_description():
         output="screen",
     ))
 
-    # ── 3a. foxglove_bridge (C++ 高性能 WebSocket, CDR 二进制, 点云专用) ─
-    ld.add_action(Node(
-        package="foxglove_bridge",
-        executable="foxglove_bridge",
-        name="foxglove_bridge",
-        output="screen",
-        parameters=[{
-            "port": ParameterValue(lc["foxglove_bridge_port"], value_type=int),
-            "address": "0.0.0.0",
-            "sysinfo": True,
-            "sysinfo_topic": "/foxglove_bridge/sysinfo",
-            "sysinfo_refresh_interval": 500,
-        }],
-    ))
+    # ── 3. foxglove_bridge 已独立启动 — 见 start_aubo_new_driver.sh 中的 [2.5] 步骤喵~
 
     # ── 4. FastAPI 网关 — 所有配置通过 CLI 参数传递 ────────────────────
     ld.add_action(ExecuteProcess(

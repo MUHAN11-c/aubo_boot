@@ -39,6 +39,12 @@ cleanup() {
     pkill -f rosbridge_websocket 2>/dev/null || true
     pkill -f rosapi_node 2>/dev/null || true
     pkill -f foxglove_bridge 2>/dev/null || true
+    # 确保 foxglove_bridge 端口释放喵~
+    if [ -n "${FOXGLOVE_BRIDGE_PORT:-}" ]; then
+        fuser -k "${FOXGLOVE_BRIDGE_PORT}/tcp" 2>/dev/null || true
+    else
+        fuser -k 8765/tcp 2>/dev/null || true
+    fi
     pkill -f aubo_driver_ros2 2>/dev/null || true
     pkill -f aubo_state_broadcaster 2>/dev/null || true
     pkill -f aubo_dashboard_node 2>/dev/null || true
@@ -170,8 +176,9 @@ launch() {
         nvidia_libs=$(printf '%s:' "${_nvidia_dirs[@]}" | sed 's/:$//')
     fi
     full+="export LD_LIBRARY_PATH=\"\$HOME/.local/lib/python3.10/site-packages/torch/lib:${nvidia_libs}:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/aubocontroller:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/log4cplus:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/config:${WS}/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/protobuf:\$LD_LIBRARY_PATH\" && cd \"${WS}\" && source \"${ROS2_SETUP}\" && source install/setup.bash && ${cmd}; exec bash"
+    # 使用 --norc 避免 .bashrc 中其他 workspace (ws_moveit2) 的 setup.bash 覆盖 AMENT_PREFIX_PATH 喵~
     "$TERMINATOR" --new-tab --title="$title" \
-        -e "bash -c '${full}'" &
+        -e "bash --norc -c '${full}'" &
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -269,6 +276,17 @@ active_wait node "/move_group" 30 "move_group" || true
 echo -e "${GREEN}[2] Demo Driver 服务...${NC}"
 launch "Robot Driver" "ros2 launch aubo_moveit_config demo_driver_services.launch.py"
 active_wait service "/execute_trajectory" 20 "execute_trajectory 服务" || true
+
+# ═══════════════════════════════════════════════════════════════
+# [2.5] foxglove_bridge (独立终端 — CDR 二进制 WebSocket, 点云/图像高性能通道)
+# ═══════════════════════════════════════════════════════════════
+
+echo -e "${GREEN}[2.5] foxglove_bridge (独立终端)...${NC}"
+# 排除 /aubo/feedback_states (action 隐式话题, 无独立 .idl, 会导致 rosgraphPollThread
+# 触发 bad optional access 崩溃, 进而无法发现后续新话题如点云) 喵~
+# params 通过 YAML 文件加载, 避开 launch() 函数的 Shell 转义问题喵~
+FOXGLOVE_PARAMS="${WS}/install/aubo_ros2_web_dashboard/share/aubo_ros2_web_dashboard/config/foxglove_bridge_params.yaml"
+launch "Foxglove Bridge" "ros2 run foxglove_bridge foxglove_bridge --ros-args -p port:=${FOXGLOVE_BRIDGE_PORT} --params-file ${FOXGLOVE_PARAMS}"
 
 # ═══════════════════════════════════════════════════════════════
 # [15] IVG Web 网关 (提前启动 — 仅依赖 build 产物，与相机/视觉并行)

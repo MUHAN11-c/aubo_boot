@@ -15,6 +15,7 @@ function createFoxgloveImageRenderer(opts) {
 
 	var _subCancel = null;
 	var _active = false;
+	var _listeningForFox = false;
 	var _canvas = null;
 	var _ctx = null;
 	var _tempBuf = null;
@@ -143,6 +144,18 @@ function createFoxgloveImageRenderer(opts) {
 			console.warn('[foxglove-image] foxglove adapter not available, retry in 1s');
 			_active = false;
 			setTimeout(function() { start(); }, 1000);
+			// 也监听 foxglove 就绪事件，快速唤醒喵~
+			if (hub && !_listeningForFox) {
+				_listeningForFox = true;
+				hub.addEventListener('ready', function _onFoxReady(e) {
+					var list = e.detail && e.detail.connected;
+					if (list && list.indexOf('foxglove') >= 0) {
+						hub.removeEventListener('ready', _onFoxReady);
+						_listeningForFox = false;
+						start();
+					}
+				});
+			}
 			return;
 		}
 

@@ -74,11 +74,12 @@ public:
 
 private:
     // ============================================================
-    // JointStatus 回调 (SDK 内部线程) — 编码器速度
+    // JointStatus 回调 (SDK 内部线程) — 编码器速度 + 跟踪误差
     // ============================================================
     void onJointData(const AuboHardwareInterface::JointFull& d) {
         std::lock_guard lk(fb_mux_);
         for (int i=0;i<6;i++) fb_pos_[i]=d.pos[i];
+        for (int i=0;i<6;i++) fb_tgt_pos_[i]=d.tgt_pos[i];  // 目标位置 (jointTagPosJ)
         // 电机 RPM → 关节 rad/s
         for (int i=0;i<6;i++) fb_vel_[i]=d.vel[i]*kV2R[i];
         has_fb_=true;
@@ -183,7 +184,7 @@ private:
             joint_state_pub_->publish(*js);
         }
 
-        // 发布 feedback_states (用 JointStatus 编码器速度)
+        // 发布 feedback_states (用 JointStatus: 实际+目标+误差)
         {
             auto fb=std::make_shared<
                 control_msgs::action::FollowJointTrajectory_Feedback>();
@@ -193,6 +194,11 @@ private:
               if (has_fb_) {
                   fb->actual.positions.assign(fb_pos_,fb_pos_+6);
                   fb->actual.velocities.assign(fb_vel_,fb_vel_+6);
+                  fb->desired.positions.assign(fb_tgt_pos_,fb_tgt_pos_+6);
+                  // 跟踪误差 = desired - actual (rad)
+                  double errors[6];
+                  for (int i=0;i<6;i++) errors[i]=fb_tgt_pos_[i]-fb_pos_[i];
+                  fb->error.positions.assign(errors,errors+6);
               } }
             feedback_pub_->publish(*fb);
         }
@@ -226,7 +232,7 @@ private:
     double js_pos_[6]{}; bool has_js_{false}; std::mutex js_mux_;
     double rs_x_{},rs_y_{},rs_z_{},rs_w_{1},rs_ox_{},rs_oy_{},rs_oz_{}; bool has_rs_{false}; std::mutex rs_mux_;
     // JointStatus 快照
-    double fb_pos_[6]{}, fb_vel_[6]{}; bool has_fb_{false}; std::mutex fb_mux_;
+    double fb_pos_[6]{}, fb_tgt_pos_[6]{}, fb_vel_[6]{}; bool has_fb_{false}; std::mutex fb_mux_;
 
     static constexpr double kV2R[6] = {
         (2.0*M_PI/60.0)/121.0, (2.0*M_PI/60.0)/121.0, (2.0*M_PI/60.0)/121.0,

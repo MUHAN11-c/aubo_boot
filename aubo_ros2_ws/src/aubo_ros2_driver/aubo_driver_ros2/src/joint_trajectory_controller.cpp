@@ -134,7 +134,7 @@ void JointTrajectoryController::sendLoop()
 
         // RIB (ROS1: 降频查, RIB≤0 立即查)
         auto now=steady_clock::now();
-        int diag_iv = (avail>0) ? 120 : 250;
+        int diag_iv = (avail>0) ? 0 : 250;
         if (rib<=0 || duration_cast<milliseconds>(now-last_diag).count()>=diag_iv) {
             int r; if (hw_->readDiagnosis(r)) { rib=r; last_diag=now; }
         }

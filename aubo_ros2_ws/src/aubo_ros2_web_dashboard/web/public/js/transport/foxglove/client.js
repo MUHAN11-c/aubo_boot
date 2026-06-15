@@ -259,6 +259,7 @@ class FoxgloveClient {
         const payload = new Uint8Array(buf.buffer, buf.byteOffset + 13, buf.length - 13);
 
         const sub = this._subscriptions.get(subId);
+	        if (sub) { if (!sub._logCount) sub._logCount = 0; sub._logCount++; if (sub._logCount <= 2) console.log("[foxglove-bin]", sub.topic, "#"+sub._logCount, "len="+payload.byteLength); }
         if (sub && sub.callback) {
           try { sub.callback(payload, { subId, channelId: sub.channelId, topic: sub.topic, tsMs }); } catch (_) {}
         }

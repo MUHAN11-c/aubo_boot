@@ -150,7 +150,10 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 		this._markerFocusTimer = setInterval(() => {
 			if (!this.ros3dMarkerRoot) return;
 			if (this.ros3dMarkerRoot.children && this.ros3dMarkerRoot.children.length > 0 && !this._markerCameraPrimed) {
-				this._focusViewerOnObject(this.ros3dMarkerRoot, { distanceFactor: 3.2, minDistance: 0.72 });
+				// 仅当 URDF 未加载时才聚焦 marker；否则保持 URDF 视角不变喵~
+				if (!this._urdfCameraPrimed) {
+					this._focusViewerOnObject(this.ros3dMarkerRoot, { distanceFactor: 4.5, minDistance: 1.2 });
+				}
 				this._markerCameraPrimed = true;
 				clearInterval(this._markerFocusTimer);
 				this._markerFocusTimer = null;
@@ -217,7 +220,13 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 				self._pcSubCancel = (result && typeof result.cancel === 'function') ? result.cancel : null;
 				console.log('[session] pointcloud subscribed via foxglove CDR, topic:', pcTopic);
 			} else {
-				console.warn('[session] foxglove adapter not available');
+				// foxglove 尚未就绪 → 1s 后重试（连接建立通常 < 2s）
+				console.warn('[session] foxglove adapter not available, retry in 1s');
+				clearTimeout(self._pcRetryTimer);
+				self._pcRetryTimer = setTimeout(function() {
+					self._pcViewer = null;  // 重置才能重新进入
+					self._startPointCloudStage(pcTopic);
+				}, 1000);
 			}
 		} catch (e) {
 			console.error('[session] pointcloud_viewer failed:', e.message || e, e.stack);
@@ -428,6 +437,11 @@ IvgRos3dView3dSession.prototype.stop = function () {
 				}
 			} catch (e) {}
 			this._pcViewer = null;
+		}
+		// 点云重试定时器清理
+		if (this._pcRetryTimer) {
+			clearTimeout(this._pcRetryTimer);
+			this._pcRetryTimer = null;
 		}
 		// 点云订阅由 TransportHub 管理，stop() 时 unsubscribe
 		if (this._pcSubCancel) {

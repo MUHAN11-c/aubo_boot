@@ -88,6 +88,9 @@ IVG_ROSBAG_TOPICS="${IVG_ROSBAG_TOPICS:-}"
 HAND_EYE_PORT="${HAND_EYE_PORT:-8070}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
 SKIP_ROSBAG="${SKIP_ROSBAG:-0}"
+# GraspNet 抓取运动参数 — 加速度是短距离笛卡尔运动的瓶颈喵~
+IVG_GRASP_VEL="${IVG_GRASP_VEL:-0.85}"
+IVG_GRASP_ACC="${IVG_GRASP_ACC:-0.5}"
 
 # ═══════════════════════════════════════════════════════════════
 # 工具函数
@@ -126,12 +129,17 @@ ivg_print_access_urls() {
     echo -e "${GREEN}IVG 门户:     $(ivg_web_dash_url "$lh" "index.html")${NC}"
     echo -e "${GREEN}视觉抓取:     $(ivg_web_dash_url "$lh" "vision_grasp_panel.html")${NC}"
     echo -e "${GREEN}咖啡拉花:     $(ivg_web_dash_url "$lh" "coffee_latte_panel.html")${NC}"
-    echo ""
     local -a lan_ips=()
     mapfile -t lan_ips < <(ivg_lan_ipv4_addrs)
-    for ip in "${lan_ips[@]}"; do
-        echo -e "${GREEN}  [${ip}] 门户: $(ivg_web_dash_url "$ip" "index.html")${NC}"
-    done
+    if [ "${#lan_ips[@]}" -gt 0 ]; then
+        echo ""; echo -e "${BLUE}──────── 📱 移动端 / 局域网访问 ────────${NC}"
+        for ip in "${lan_ips[@]}"; do
+            echo -e "${GREEN}IVG 门户:     $(ivg_web_dash_url "$ip" "index.html")${NC}"
+            echo -e "${GREEN}视觉抓取:     $(ivg_web_dash_url "$ip" "vision_grasp_panel.html")${NC}"
+            echo -e "${GREEN}咖啡拉花:     $(ivg_web_dash_url "$ip" "coffee_latte_panel.html")${NC}"
+        done
+    fi
+    echo ""
 }
 
 # active_wait: 使用 wait_for_service.sh 进行主动轮询等待
@@ -297,22 +305,36 @@ WEB_DASH_CMD="ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py web_ho
 launch "IVG Web Dashboard" "${WEB_DASH_CMD}"
 
 # ═══════════════════════════════════════════════════════════════
-# [16] rosbag 录制 (提前启动 — 仅需 ROS 2 运行，尽早开始录制)
-# ═══════════════════════════════════════════════════════════════
+## [16] rosbag 录制
+## 默认排除图像/点云数据（占总数据量 98%+），避免磁盘爆满喵~
+## 如需录制完整数据: IVG_ROSBAG_FULL=1 ./start_aubo_new_driver.sh
+## 如需自定义话题列表: IVG_ROSBAG_TOPICS="-t /tf -t /joint_states ..." ./start_aubo_new_driver.sh
+## ═══════════════════════════════════════════════════════════════
 
-if [ "$SKIP_ROSBAG" = "1" ]; then
-    echo -e "${YELLOW}[16] 跳过 rosbag 录制 (SKIP_ROSBAG=1)${NC}"
-else
-    echo -e "${GREEN}[16] rosbag 录制...${NC}"
-    mkdir -p "$(dirname "${WS}/${IVG_ROSBAG_DIR}")"
-    rm -rf "${WS}/${IVG_ROSBAG_DIR}"
-    if [ -n "$IVG_ROSBAG_TOPICS" ]; then
-        launch "ROS2 Bag" "ros2 bag record -o \"${IVG_ROSBAG_DIR}\" --storage-preset-profile resilient ${IVG_ROSBAG_TOPICS}"
-    else
-        # -a 全录, 排除 /state 结尾话题; resilient 模式定期刷 metadata 防丢
-        launch "ROS2 Bag" "ros2 bag record -o \"${IVG_ROSBAG_DIR}\" --storage-preset-profile resilient -a -x /state\$"
-    fi
-fi
+# if [ "$SKIP_ROSBAG" = "1" ]; then
+#    echo -e "${YELLOW}[16] 跳过 rosbag 录制 (SKIP_ROSBAG=1)${NC}"
+# else
+#    echo -e "${GREEN}[16] rosbag 录制...${NC}"
+#    mkdir -p "$(dirname "${WS}/${IVG_ROSBAG_DIR}")"
+#    rm -rf "${WS}/${IVG_ROSBAG_DIR}"
+#    if [ -n "$IVG_ROSBAG_TOPICS" ]; then
+#        # 自定义话题列表（优先级最高）
+#        launch "ROS2 Bag" "ros2 bag record -o \"${IVG_ROSBAG_DIR}\" --storage-preset-profile resilient ${IVG_ROSBAG_TOPICS}"
+#    elif [ "${IVG_ROSBAG_FULL:-0}" = "1" ]; then
+#        # 全量录制（含图像和点云），仅排除 /state 结尾话题
+#        launch "ROS2 Bag" "ros2 bag record -o \"${IVG_ROSBAG_DIR}\" --storage-preset-profile resilient -a -x '/state\$'"
+#    else
+#        # 默认：录制全部但排除图像和点云（减少 ~98% 磁盘占用）
+#        launch "ROS2 Bag" "ros2 bag record -o \"${IVG_ROSBAG_DIR}\" --storage-preset-profile resilient -a \
+#            -x '/camera/depth_registered/points' \
+#            -x '/image_data' \
+#            -x '/camera/color/image_raw' \
+#            -x '/camera/depth/image_raw' \
+#            -x '/camera/depth/camera_info' \
+#            -x '/camera/color/camera_info' \
+#            -x '/state\$'"
+#    fi
+# fi
 
 # ═══════════════════════════════════════════════════════════════
 # [3-5] 相机栈 (并行启动，减少串行等待)
@@ -359,7 +381,7 @@ active_wait topic "/grasp_poses_base" 20 "grasp_poses_base 话题" || true
 # ═══════════════════════════════════════════════════════════════
 
 echo -e "${GREEN}[9] 抓取 Worker...${NC}"
-launch "Grasp Worker" "ros2 launch demo_driver execute_grasp_pose_worker.launch.py"
+launch "Grasp Worker" "ros2 launch demo_driver execute_grasp_pose_worker.launch.py egp_joint_velocity_scaling:=${IVG_GRASP_VEL} egp_joint_acceleration_scaling:=${IVG_GRASP_ACC}"
 
 echo -e "${GREEN}[10] 夹爪快换...${NC}"
 launch "Tool Changer" "ros2 launch tool_changer gripper_swap_worker.launch.py"
@@ -368,7 +390,7 @@ echo -e "${GREEN}[11] 咖啡拉花工作流编排...${NC}"
 launch "Latte Workflow" "ros2 launch latte_backend latte_workflow.launch.py"
 
 echo -e "${GREEN}[12] GraspNet 循环抓取...${NC}"
-launch "Publish Grasps" "ros2 run demo_driver publish_grasps_client_worker_node"
+launch "Publish Grasps" "ros2 run demo_driver publish_grasps_client_worker_node --ros-args -p joint_acceleration_scaling:=0.3"
 
 # 等待关键服务就绪
 active_wait service "/run_gripper_swap" 10 "run_gripper_swap 服务" || true

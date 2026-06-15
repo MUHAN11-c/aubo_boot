@@ -71,3 +71,81 @@ ros2 launch percipio_camera percipio_camera.launch.py
 
 - 各子包详细文档见 `src/` 下对应的 `README.md`
 - 相机型号与参数: `README.md` §0.5
+
+---
+
+## 故障排查
+
+### `Open device fail : -1005` (TY_STATUS_DEVICE_ERROR) 无限重试
+
+**现象**：
+
+```
+[ERROR] [percipio_device]: Open device fail : -1005
+(每 3 秒重复，永不成功)
+```
+
+SDK 内部日志可能伴随：
+```
+Invalid device info!
+WriteReg 0x00000a00 0x00000000 failed
+Exception occurred while closing device: Destination address required, Error code: 89
+```
+
+**根因**：
+
+多网卡主机上，Linux 内核为所有 UP 状态的接口自动创建 `169.254.0.0/16` link-local 路由（APIPA/Zeroconf）。当 WiFi 和以太网同时启用时，SDK 的 `TYOpenDevice()` 基于设备 ID 的内部查找机制会被此路由干扰，导致 GVCP 控制通道握手失败（`GevHeartbeatTimeout` 寄存器 `0x0A00` 写入失败）。
+
+注意以下各项均**正常**，不要被误导：
+- `ping 169.254.10.110` ✅（ICMP 可达）
+- `TYUpdateInterfaceList()` / `TYGetDeviceList()` ✅（UDP 广播发现正常）
+- 手动 GVCP 单播发包 ✅（Python UDP socket 能收到 ACK）
+
+**修复（已实施，2026-06-09）**：
+
+在 `percipio_device.cpp:device_open()` 中增加回退逻辑：
+
+```cpp
+// 1. 优先尝试 TYOpenDevice (设备 ID 方式)
+status = TYOpenDevice(hIface, deviceId, &handle);
+
+// 2. 失败时回退到 TYOpenDeviceWithIP (IP 直连)
+if (status != TY_STATUS_OK && deviceIP && deviceIP[0] != '\0') {
+    RCLCPP_WARN_STREAM(..., "falling back to TYOpenDeviceWithIP(" << deviceIP << ")");
+    status = TYOpenDeviceWithIP(hIface, deviceIP, &handle);
+}
+```
+
+改动涉及三个文件：
+| 文件 | 改动 |
+|------|------|
+| `include/percipio_device.h` | `PercipioDevice` 构造函数和 `device_open()` 增加 `deviceIP` 参数；新增 `strDeviceIP` 成员 |
+| `src/percipio_device.cpp` | `device_open()` 增加 `TYOpenDeviceWithIP` 回退逻辑；`Reconnect()` 传递 IP 参数 |
+| `src/percipio_camera_node_driver.cpp` | `initializeDevice()` 从 `TY_DEVICE_BASE_INFO.netInfo.ip` 传入相机 IP |
+
+**依据**：Percipio SDK 文档 (`TYApi.h:542`) 明确说明：
+> "If there is a routing connection between your host and the camera, you can try to open the camera with TYOpenDeviceWithIP."
+
+**临时手动排查命令**：
+
+```bash
+# 检查是否有 WiFi 上的 169.254 路由
+ip route show | grep "169.254"
+
+# 直接测试 GVCP 单播连通性（若 ACK 可达说明网络层正常）
+python3 -c "
+import socket
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.settimeout(2)
+s.bind(('169.254.10.11', 0))
+s.sendto(b'\x42\x01\x00\x02\x00\x00\x00\x08', ('169.254.10.110', 3956))
+try:
+    data, addr = s.recvfrom(1024)
+    print(f'ACK: {len(data)} bytes from {addr}')
+except socket.timeout:
+    print('TIMEOUT: GVCP 不可达')
+"
+
+# 临时绕过（删除 WiFi link-local 路由，重启后恢复）
+sudo ip route del 169.254.0.0/16 dev wlo1
+```

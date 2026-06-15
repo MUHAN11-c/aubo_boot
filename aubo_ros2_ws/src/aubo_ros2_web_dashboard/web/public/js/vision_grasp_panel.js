@@ -352,24 +352,8 @@ import {
 	}
 
 	function refreshAiGraspnetColorImages(reason) {
-		const graspnetMode = !!($('mode-graspnet') && $('mode-graspnet').checked);
-		if (!graspnetMode) return;
-		const colorTopic = ($('topic-color') && $('topic-color').value.trim()) || SETTINGS_DEFAULTS['topic-color'];
-		const snapFn =
-			typeof ivgTransport.cameraSnapshotUrl === 'function'
-				? (topic, sid) => ivgTransport.cameraSnapshotUrl(topic, sid)
-				: (topic, sid) => ivgTransport.cameraStreamUrl(topic, sid);
-		const ts = Date.now();
-		const camMjpeg = $('cam-mjpeg');
-		const sidCam = `${buildPageStreamId('vision_color')}_${reason}_${ts}`;
-		const sidProj = `${buildPageStreamId('vision_projection')}_${reason}_${ts}`;
-		if (camMjpeg && !camMjpeg.hidden) {
-			setAiColorSnapshotImg(camMjpeg, snapFn(colorTopic, sidCam), colorTopic, buildPageStreamId('vision_color'));
-		}
-		const resultImageEl = $('result-mjpeg');
-		if (resultImageEl && !resultImageEl.hidden) {
-			setAiColorSnapshotImg(resultImageEl, snapFn(colorTopic, sidProj), colorTopic, buildPageStreamId('vision_projection'));
-		}
+		// 彩色图像已迁移到 foxglove CDR (foxglove_image.js)，实时推送无需手动快照刷新喵~
+		// 旧 MJPEG 快照逻辑 (cameraSnapshotUrl/cameraStreamUrl) 已在 ivg_transport.js 迁移中移除
 	}
 
 	function scheduleGraspColorSnapshotRefresh() {

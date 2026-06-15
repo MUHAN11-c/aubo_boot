@@ -118,7 +118,7 @@ class PercipioCameraNode;
 class PercipioDevice
 {
     public:
-        PercipioDevice(const char* faceId, const char* deviceId);
+        PercipioDevice(const char* faceId, const char* deviceId, const char* deviceIP = nullptr);
         ~PercipioDevice();
 
         void set_workmode(percipio_dev_workmode mode) { workmode = mode; }
@@ -205,6 +205,7 @@ class PercipioDevice
         bool reconnect = false;
         std::string strFaceId;
         std::string strDeviceId;
+        std::string strDeviceIP;
         std::vector<percipio_stream_property> m_streams;
 
         PercipioVideoMode mVideoMode;
@@ -261,7 +262,7 @@ class PercipioDevice
         std::vector<unsigned char> frameBuffer[2];
         void frameDataReceive();
 
-        TY_STATUS device_open(const char* faceId, const char* deviceId);
+        TY_STATUS device_open(const char* faceId, const char* deviceId, const char* deviceIP = nullptr);
 
         bool resolveStreamResolution(const std::string& resolution_, int& width, int& height);
         std::string parseStreamFormat(const std::string& format);

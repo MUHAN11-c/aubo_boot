@@ -505,7 +505,22 @@ web/public/                    # 静态文件根目录
 | `SyntaxError: does not provide an export named 'escapeHtml'` | 合并 pose_card.js 时丢失导出 | 确认 `components/pose-card.js` 有 `export { _escapeHtml as escapeHtml }` |
 | Percipio 相机 `Open device fail : -1005` 每 3 秒重试 | 多网卡主机上 WiFi 的 `169.254.0.0/16` link-local 路由干扰 SDK 的 `TYOpenDevice` 设备 ID 查找机制（GVCP 单播本身可达） | ✅ 已修复 (2026-06-09): `device_open()` 增加 `TYOpenDeviceWithIP` 回退。详见 `aubo_ros2_ws/src/camport_ros2/README.md` 喵~ |
 | Percipio 相机 SDK 输出 `Invalid device info!` + `WriteReg 0x00000a00 failed` + `errno 89` | `TYOpenDevice` 内部 GVCP 控制通道握手失败（GevHeartbeatTimeout 寄存器写入失败），但设备发现和 UDP 单播可达 → 说明是 SDK 查找机制与路由表冲突 | 同上：自动回退到 `TYOpenDeviceWithIP` 直连 IP 喵~ |
+| RIB 过冲 (sendLoop 灌爆) | 控制器 RIB > 400, 峰值可达 1158, 导致控制器丢点/轨迹失真 | `joint_trajectory_controller.cpp:137`: `diag_iv=120`→`0` (消除 120ms 观测盲区), 详见 `doc/PORTING_MOTION_FIX.md` 第 13 节 Fix14 喵~ |
+| `/aubo/feedback_states` 缺少 desired/error 字段 | `AuboStateBroadcaster::onJointData()` 丢弃了 SDK 推送的 `jointTagPosJ` | ✅ 已修复 (2026-06-10): `aubo_state_broadcaster.cpp` 补全 `desired.positions` + `error.positions` 字段 喵~ |
 | foxglove_bridge `bad optional access` in `rosgraphPollThread` + 前端无点云/RGB | `/aubo/feedback_states` 类型 `control_msgs/action/FollowJointTrajectory_Feedback` 无独立 `.idl` 文件，`std::optional::value()` 抛异常 → 轮询线程崩溃 → 无法发现相机话题 | ✅ 已修复 (2026-06-09): `topic_whitelist` 排除该话题，YAML params 文件加载。详见 CLAUDE.md 第 19 节喵~ |
+
+### 20. RIB 过冲与关节跟踪误差 (2026-06-10)
+
+**关键发现**：驱动器层面的关节跟踪误差非常小 (< 0.008 rad / 0.46°)，AUBO 驱动器内部 PID 闭环工作正常。真正的问题是 `JointTrajectoryController::sendLoop()` 的 RIB 查询间隔 (120ms) 远大于发送周期 (~7ms)，导致门控使用的本地 `rib` 变量在 120ms 盲区内完全过期，RIB 峰值冲到 1158（容量仅 400），控制器被迫丢弃路点。
+
+**反馈数据**：SDK 的 `JointStatusCallback` (33Hz) 同时推送实际位置 (`jointPosJ`) 和目标位置 (`jointTagPosJ`)，差值即为驱动器层面的跟踪误差。此前 `AuboStateBroadcaster` 丢弃了目标位置数据，现已补全喵~
+
+**修复**：
+- `joint_trajectory_controller.cpp:137`: `diag_iv = (avail>0) ? 120 : 250` → `diag_iv = (avail>0) ? 0 : 250`
+- `aubo_state_broadcaster.cpp`: `onJointData()` 保存 `fb_tgt_pos_[]`；`pollTick()` 填充 `desired.positions` + `error.positions`
+- 详见：`aubo_driver_ros2/doc/PORTING_MOTION_FIX.md` 第 13 节 喵~
+
+> **重要**：AUBO 关节驱动器自带位置闭环 PID，上位机不需要再加 PID 层（会导致双闭环耦合振荡）。正确的分层是：上位机负责轨迹规划+速率控制，控制器负责 RIB 缓冲+CAN 转发，驱动器负责位置/速度/电流闭环喵~
 
 ## 外部文档
 

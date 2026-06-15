@@ -429,4 +429,79 @@ while(rclcpp::ok()) {
 
 ---
 
-*文档版本：与当前 `aubo_driver_ros2` 及 `aubo_robot_simulator_ros2` 代码一致。RIB 按需刷新、feed_count 按 rib 调节、max_cnt_per_send=8。若后续修改线程、缓冲或送点逻辑，请同步更新本文档。*
+*文档版本：更新于 2026-06-10，包含 Fix14 (RIB 过冲) 及 feedback_states 字段补全。若后续修改线程、缓冲或送点逻辑，请同步更新本文档。*
+
+---
+
+## 十三、Fix14: RIB 过冲（2026-06-10，基于 rosbag 实测）
+
+### 13.1 现象与数据
+
+**Rosbag 实测**（31分钟会话，18,856 条时间对齐的 RIB+feedback 样本）：
+
+```
+RIB 最大值: 1158 (容量 400, 溢出 2.9 倍)
+RIB > 400 占比: 26.1%
+单轨迹 RIB 峰值均值: 807
+```
+
+**跟踪误差**（基于 JointStatus callback 的 jointTagPosJ - jointPosJ）：
+
+```
+驱动器层面最大跟踪误差: 0.008 rad (0.46°) ← 正常，驱动器 PID 工作良好
+```
+
+结论：**问题不在驱动器跟踪，而在 sendLoop 把 RIB 灌爆导致控制器丢点。**
+
+### 13.2 根因：120ms RIB 查询盲区
+
+旧架构的 `publishWaypointToRobot` 每轮循环都实时查询 RIB（Fix12 恢复的 ROS1 行为）。新框架 `JointTrajectoryController::sendLoop()` 引入了 120ms 降频查询：
+
+```cpp
+int diag_iv = (avail>0) ? 120 : 250;  // 有数据时 120ms 才查一次
+```
+
+`sendLoop` 每轮约 7ms，120ms 盲区内可执行 ~17 轮，每轮发送 8 点 = 48 RIB 槽。盲区内净灌入 ~672 槽，远超门控阈值 300。
+
+**执行时序**：
+
+```
+轮1:  查询RIB=0 → 发8点 → RIB(真实)=48
+轮2:  查询RIB=48 → 发8点 → RIB(真实)=96
+轮3:  rib(本地)=48, 不查询 ← 从这里开始 rib 过期
+──────────────── 盲区 120ms, 17轮 ────────────────
+轮20: 查询RIB → 已冲到 968! 门控终于触发
+       门控释放时 RIB≈296
+轮21: rib=296, 不查询, 不门控(296<300) ← 立刻又进盲区
+       17轮后: RIB = 296+672 = 968 (稳定振荡峰值)
+       叠加 TCP 延迟抖动 → 1158
+```
+
+**根本矛盾**：`rib>=300` 门控用的是**本地过期变量**。真实 RIB 冲到 800+，但本地 `rib` 是 120ms 前的 48，门控完全失效。
+
+### 13.3 修复
+
+```diff
+- int diag_iv = (avail>0) ? 120 : 250;
++ int diag_iv = (avail>0) ? 0 : 250;
+```
+
+`diag_iv=0` 使 `duration >= 0` 恒为 true，配合已有的 `rib<=0` 条件，实现**有数据时每轮都查**。空闲时保持 250ms 低频。
+
+**效果**：门控在 RIB 刚过 300 时立即触发，峰值从 1158 降至 ~350。
+
+### 13.4 伴随修复：feedback_states 补全 desired/error 字段
+
+**问题**：`AuboStateBroadcaster::onJointData()` 收到 `JointStatusCallback` 推送时，只保存了 `jointPosJ`（实际），丢弃了 `jointTagPosJ`（目标），导致 `/aubo/feedback_states` 的 `desired.positions` 和 `error.positions` 永远为空。
+
+**修复**（`aubo_state_broadcaster.cpp`）：
+1. `onJointData()` 新增保存 `fb_tgt_pos_[i] = d.tgt_pos[i]`
+2. 成员变量新增 `fb_tgt_pos_[6]{}`
+3. `pollTick()` 发布时计算 `error = tgt_pos - pos` 并填充 `desired` 和 `error`
+
+### 13.5 关键经验
+
+1. **降频查询不能用于门控判断**：门控依赖实时数据，用降频缓存值等于自废武功
+2. **新框架背离了 Fix12 的核心原则**：Fix12 结论是"完全恢复 ROS1 实时 RIB 查询"，新框架的 120ms 降频重新引入了已修复的问题
+3. **每轮查 RIB 的代价可接受**：TCP 查询 ~2ms，在 ~7ms 发送周期中占比 < 30%
+4. **硬件反馈数据不要丢弃**：SDK 推送的 `jointTagPosJ` 是免费的跟踪误差数据源

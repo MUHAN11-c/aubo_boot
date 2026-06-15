@@ -98,6 +98,24 @@ colcon build --packages-select aubo_driver_ros2
 source install/setup.bash
 ```
 
+## 已知问题与修复 (2026-06-10)
+
+### RIB 过冲 (Fix14)
+
+**现象**：`sendLoop` 在轨迹执行期间 RIB 峰值可达 1158 (容量仅 400)，导致控制器丢点、实际执行轨迹与规划轨迹不一致。
+
+**根因**：`diag_iv=120ms` 的 RIB 查询间隔远大于 `sendLoop` 的发送周期 (~7ms)，本地 `rib` 变量在 120ms 盲区内完全过期，门控 `rib>=300` 失效。
+
+**修复**：`joint_trajectory_controller.cpp:137` — `diag_iv` 从 `120` 改为 `0`，有数据待发时每轮都查 RIB。
+
+### feedback_states 补全
+
+**问题**：`/aubo/feedback_states` 中 `desired.positions` 和 `error.positions` 永远为空。SDK `JointStatusCallback` 同时推送了 `jointTagPosJ`(目标) 和 `jointPosJ`(实际)，但 `AuboStateBroadcaster` 丢弃了目标位置数据。
+
+**修复**：`aubo_state_broadcaster.cpp` — 保存 `fb_tgt_pos_[]`，发布时填充 `desired.positions` + 计算 `error = tgt_pos - pos`。
+
+> 详见 `doc/PORTING_MOTION_FIX.md` 第 13 节 Fix14。
+
 ## 依赖
 
 - ROS 2: rclcpp, sensor_msgs, std_msgs, std_srvs, geometry_msgs, tf2_ros

@@ -32,7 +32,7 @@ setup(
             sources=_ext_sources,
             extra_compile_args={
                 "cxx": ["-O2", "-fPIC", "-I{}".format("{}/{}/include".format(ROOT, _ext_src_root))],
-                "nvcc": ["-O2", "-I{}".format("{}/{}/include".format(ROOT, _ext_src_root))],
+                "nvcc": ["-O2", "-Xcompiler", "-fPIC", "-I{}".format("{}/{}/include".format(ROOT, _ext_src_root))],
             },
         )
     ],

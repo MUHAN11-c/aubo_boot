@@ -36,12 +36,12 @@ from tf2_ros import TransformBroadcaster, Buffer, TransformListener
 
 
 # ========== graspnet-baseline 依赖（pip install -e . 安装，可直接导入）==========
+from graspnetAPI import GraspGroup
 import models  # noqa: F401 — 触发 models/__init__.py 的 sys.path 兼容逻辑
 import dataset  # noqa: F401
 import utils  # noqa: F401
 from models.graspnet import GraspNet, pred_decode
 from utils.collision_detector import ModelFreeCollisionDetector
-from graspnetAPI import GraspGroup
 try:
     import pointnet2._ext as _ext  # noqa: F401 — CUDA 算子 (ball_query, group_points 等)
     import knn_pytorch.knn_pytorch  # noqa: F401 — KNN CUDA 算子

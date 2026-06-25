@@ -202,11 +202,11 @@ if [[ "${SKIP_CUDA_EXT}" != "1" ]]; then
 
   if [[ "${SKIP_POINTNET}" == "0" ]]; then
     log "编译安装 pointnet2 CUDA 扩展 (MAX_JOBS=${MAX_JOBS})"
-    "${PIP_CMD[@]}" install -e "${SCRIPT_DIR}/pointnet2"
+    "${PIP_CMD[@]}" install --no-build-isolation -e "${SCRIPT_DIR}/pointnet2" --config-settings editable_mode=compat
   fi
   if [[ "${SKIP_KNN}" == "0" ]]; then
     log "编译安装 knn 扩展 (MAX_JOBS=${MAX_JOBS})"
-    "${PIP_CMD[@]}" install -e "${SCRIPT_DIR}/knn"
+    "${PIP_CMD[@]}" install --no-build-isolation -e "${SCRIPT_DIR}/knn" --config-settings editable_mode=compat
   fi
 else
   warn "跳过 CUDA 扩展编译 (--skip-cuda-ext)，运行时需已有 .so"

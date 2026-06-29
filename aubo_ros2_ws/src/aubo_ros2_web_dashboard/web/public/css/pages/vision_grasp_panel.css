@@ -1,4 +1,6 @@
 /* vision_grasp_panel.css — 视觉抓取面板（需先加载 tokens.css + layout_base.css） */
+@layer pages {
+
 /* ===== vision 专用令牌 ===== */
 :root {
   --canvas-bg: #f5f3f0;
@@ -13,22 +15,10 @@
   --chart-text-bold: #5d564e;
   --danger-muted: #dc2626;
   --row-hover: var(--accent-soft);
-  --fs-body: 15px;
-  --fs-panel-title: 0.8125rem;
   --fs-camera-section-title: clamp(1rem, 2.4vw, 1.1875rem);
   --fs-control-group: 0.75rem;
-  --fs-ui: 0.875rem;
   --cam-preview-max-w: 100%;
   --cam-split-max-w: min(100%, 50vw);
-  --vision-control-col-pct: 22;
-  --ivg-side-col-min: min(32vw, 14rem);
-  --ivg-monitoring-pose-col-min: min(34vw, 12rem);
-  --ivg-gap-xs: 0.22rem;
-  --ivg-gap-sm: 0.28rem;
-  --ivg-gap: 0.35rem;
-  --ivg-gap-md: 0.45rem;
-  --ivg-pane-pad: 0.5rem 0.65rem;
-  --ivg-pane-pad-tight: 0.38rem 0.5rem;
 }
 
 /* 面板入场动画 */
@@ -43,108 +33,6 @@ body.ivg-single-screen .layout-vision-main {
   flex: 1 1 0; min-height: 0;
 }
 .layout-body--monitoring { animation: panel-enter 0.4s 0.12s cubic-bezier(0.22,0.61,0.36,1) both; }
-
-/* ===== reset & body ===== */
-html {
-  -webkit-font-smoothing: antialiased;
-  height: 100%;
-  -webkit-text-size-adjust: 100%;
-}
-body {
-  margin: 0;
-  font-family: "Noto Sans CJK SC", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", system-ui, -apple-system, sans-serif;
-  font-size: var(--fs-body);
-  line-height: 1.55;
-  color: var(--text);
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: 100vw;
-  overflow-x: hidden;
-  background:
-    radial-gradient(circle, rgba(15,23,42,0.04) 1px, transparent 1px);
-  background-size: 20px 20px;
-  background-color: var(--bg);
-  background-position: 10px 10px;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-/* ===== 单屏模式 ===== */
-html:has(body.ivg-single-screen) { height: 100%; max-height: 100vh; overflow: hidden; }
-@supports (height: 100svh) { html:has(body.ivg-single-screen) { max-height: 100svh; } }
-
-body.ivg-single-screen {
-  min-height: 0; overflow: hidden; padding-bottom: 0;
-  height: 100vh; max-height: 100vh;
-}
-@supports (height: 100svh) { body.ivg-single-screen { height: 100svh; max-height: 100svh; } }
-
-/* ===== 主容器 ===== */
-.wrap {
-  flex: 1 0 auto;
-  width: 100%;
-  max-width: none;
-  margin: 0 auto;
-  padding: 0.5rem max(1.1rem, env(safe-area-inset-left, 0px)) max(1.25rem, env(safe-area-inset-bottom, 0px)) max(1.1rem, env(safe-area-inset-right, 0px));
-}
-body.ivg-single-screen .wrap {
-  flex: 1 1 0; min-height: 0; overflow: hidden;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--ivg-gap-sm);
-  align-content: stretch;
-  padding-top: var(--ivg-gap-sm); padding-bottom: 0;
-  padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
-  padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
-}
-body.ivg-single-screen .wrap > * { min-width: 0; min-height: 0; }
-
-/* ===== 工具栏 ===== */
-.layout-toolbar {
-  display: flex; flex-wrap: wrap; align-items: center;
-  gap: 0.75rem 1.25rem;
-  margin-bottom: 1rem;
-  padding: 0.85rem 1rem;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
-}
-body.ivg-single-screen .layout-toolbar.layout-tier-1 {
-  padding: var(--ivg-pane-pad);
-  gap: 0.5rem 0.85rem;
-  margin-bottom: 0;
-}
-
-.toolbar-brand { flex: 1 1 200px; min-width: 0; }
-.toolbar-brand h1 {
-  margin: 0; font-size: 1.35rem; font-weight: 700;
-  letter-spacing: -0.02em; color: var(--text); line-height: 1.2;
-}
-.toolbar-mode {
-  display: flex; flex-wrap: wrap; align-items: center;
-  gap: 0.5rem 0.85rem;
-  flex: 2 1 320px; padding: 0.35rem 0;
-  border-left: 1px solid var(--border);
-  padding-left: 1rem; margin-left: 0.25rem;
-}
-.toolbar-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-.btn-settings {
-  padding: 0.4rem 0.75rem; font-size: var(--fs-ui); font-weight: 500; font-family: inherit;
-  border-radius: var(--radius-sm); border: 1px solid var(--border);
-  background: var(--bg-elevated); color: var(--accent); cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, color 0.15s;
-}
-.btn-settings:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-hover); }
-.btn-settings:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-.mode-row-label {
-  font-size: var(--fs-ui); font-weight: 600; letter-spacing: 0.05em;
-  text-transform: uppercase; color: var(--text-muted); white-space: nowrap;
-}
 
 /* 分段模式切换 */
 .mode-segmented {
@@ -171,38 +59,6 @@ body.ivg-single-screen .layout-toolbar.layout-tier-1 {
 .mode-seg:hover input:not(:checked) + .mode-seg__face { color: var(--text); background: rgba(255, 255, 255, 0.65); }
 .mode-seg input:focus-visible + .mode-seg__face { outline: 2px solid var(--accent); outline-offset: 2px; }
 .mode-seg input:checked + .mode-seg__face { background: var(--accent); color: #fff; box-shadow: 0 1px 3px rgba(79, 111, 138, 0.35); }
-
-/* ===== 主内容: 模型||结果 (横向) | 控制 (侧栏) ===== */
-.layout-stack-with-control {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
-  gap: 0.35rem 0.45rem;
-  min-height: 0; min-width: 0;
-  align-self: stretch; align-items: stretch;
-  flex: 1 1 0;
-}
-.layout-stack-left { display: grid; grid-template-rows: minmax(0, 1fr); min-height: 0; min-width: 0; align-self: stretch; }
-
-/* 模型和结果横向并排 */
-.layout-camera-controls {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.45rem 0.65rem;
-  min-height: 0; align-items: stretch;
-}
-
-/* ===== 面板 ===== */
-.panel {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-  border-radius: var(--radius);
-  padding: 0.85rem 1rem;
-  box-shadow: var(--shadow-sm);
-  min-width: 0;
-  transition: border-color 0.2s ease, box-shadow 0.25s ease, border-left-color 0.2s ease;
-}
-.panel:hover { border-color: #d1d6df; border-left-color: var(--accent-hover); box-shadow: var(--shadow-md); }
 
 .panel--camera-hero, .panel--camera-result {
   margin-bottom: 0;
@@ -287,7 +143,6 @@ body.ivg-single-screen .layout-toolbar.layout-tier-1 {
 }
 
 /* 结果叠加 */
-.result-viz-stack { position: relative; display: block; width: 100%; height: 100%; line-height: 0; }
 .result-overlay-canvas {
   position: absolute; inset: 0; width: 100%; height: 100%;
   max-width: 100%; max-height: 100%; object-fit: fill;
@@ -748,3 +603,5 @@ button.ctrl.tool-init-btn--none:hover {
   button.ctrl { min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { button.ctrl:active, .btn-top:active { transform: none; } }
+
+}

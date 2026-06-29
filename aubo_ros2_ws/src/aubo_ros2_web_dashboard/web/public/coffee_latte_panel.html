@@ -10,30 +10,17 @@
 	<title>咖啡拉花面板</title>
 	<link rel="stylesheet" href="css/tokens.css" />
 	<link rel="stylesheet" href="css/layout_base.css" />
-	<link rel="stylesheet" href="css/coffee_latte_panel.css?v=20260526_monitoring_fix" />
-	<link rel="stylesheet" href="css/ivg_site_nav.css?v=20260522_unify_design" />
-	<link rel="stylesheet" href="css/ivg_status_bar.css" />
+	<link rel="stylesheet" href="css/components/app_shell.css" />
+<link rel="stylesheet" href="css/pages/coffee_latte_panel.css" />
+<link rel="stylesheet" href="css/components/ivg_site_nav.css" />
+<link rel="stylesheet" href="css/components/ivg_status_bar.css" />
 	<script src="/js/robotwebtools/libs/three.js"></script>
 	<script src="/js/robotwebtools/importmap.js"></script>
 </head>
 
 <body class="ivg-single-screen">
 	<ivg-site-nav page="latte"></ivg-site-nav>
-	<main class="wrap">
-		<div class="layout-toolbar layout-tier-1">
-			<div class="toolbar-brand">
-				<h1>机械臂咖啡拉花</h1>
-			</div>
-			<div class="toolbar-mode latte-toolbar-hint" role="region" aria-label="面板说明">
-				<span class="mode-row-label" id="latte-mode-label">现场 IO</span>
-				<div class="latte-toolbar-hint__text" aria-describedby="latte-mode-label">
-					DI 反馈灯在底部监控区；DO2 / DO4 开关在右侧（工序逻辑待接入）。机械臂模型、关节曲线与末端位姿与「视觉抓取」面板相同。
-				</div>
-			</div>
-			<div class="toolbar-actions">
-				<button type="button" class="btn-settings" id="btn-topic-settings-open">话题设置</button>
-			</div>
-		</div>
+	<main class="wrap latte-wrap">
 		<div class="layout-vision-main">
 			<div class="layout-stack-with-control">
 				<div class="layout-stack-left">

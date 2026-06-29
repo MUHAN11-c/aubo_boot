@@ -7,9 +7,10 @@
 <title>调试面板</title>
 <link rel="stylesheet" href="css/tokens.css" />
 <link rel="stylesheet" href="css/layout_base.css" />
-<link rel="stylesheet" href="css/ivg_site_nav.css" />
-<link rel="stylesheet" href="css/ivg_status_bar.css" />
-<link rel="stylesheet" href="css/debug_panel.css" />
+<link rel="stylesheet" href="css/components/app_shell.css" />
+<link rel="stylesheet" href="css/pages/debug_panel.css" />
+<link rel="stylesheet" href="css/components/ivg_site_nav.css" />
+<link rel="stylesheet" href="css/components/ivg_status_bar.css" />
 <script src="/js/robotwebtools/libs/three.js"></script>
 <script src="/js/robotwebtools/importmap.js"></script>
 </head>
@@ -20,44 +21,21 @@
   <div class="debug-toolbar">
     <h1>调试面板</h1>
     <span class="hint">状态监控 · 运动控制 · IO · IK/FK · 话题/服务</span>
-    <span class="conn-status offline" id="dbg-conn-status">● 未连接</span>
-  </div>
-
-  <!-- 机器人实时状态栏 -->
-  <div class="debug-status-bar" id="dbg-status-bar">
-    <div class="status-group">
-      <span class="status-label">在线</span><span class="status-dot gray" id="dbg-dot-online"></span>
-      <span class="status-value" id="dbg-val-online">--</span>
-    </div>
-    <div class="status-group">
-      <span class="status-label">使能</span><span class="status-dot gray" id="dbg-dot-enable"></span>
-      <span class="status-value" id="dbg-val-enable">--</span>
-    </div>
-    <div class="status-group">
-      <span class="status-label">运动中</span><span class="status-dot gray" id="dbg-dot-motion"></span>
-      <span class="status-value" id="dbg-val-motion">--</span>
-    </div>
-    <div class="status-group">
-      <span class="status-label">规划</span><span class="status-value" id="dbg-val-planning">--</span>
-    </div>
-    <div class="pose-group">
-      <span class="pose-item">TCP: <span id="dbg-val-tcp">---</span></span>
-    </div>
   </div>
 
   <!-- 位姿导入工具栏 -->
-  <div class="debug-card" style="background:var(--accent-soft);border:2px solid var(--accent);margin-bottom:0.6rem;">
-    <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;">
-      <span style="font-weight:700;color:var(--accent);white-space:nowrap;">位姿导入</span>
+  <div class="debug-card debug-import-card">
+    <div class="debug-import-row">
+      <span class="debug-import-title">位姿导入</span>
       <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-import-json-top">
-        <span style="font-weight:700;">导入 JSON 文件</span>
+        <span class="debug-strong">导入 JSON 文件</span>
       </button>
       <button type="button" class="debug-btn" id="btn-dbg-toggle-paste-top">粘贴 JSON</button>
       <input type="file" id="dbg-import-file-input-top" accept=".json" style="display:none;">
     </div>
     <div id="dbg-paste-area-top" style="display:none;margin-top:0.4rem;">
-      <textarea id="dbg-paste-textarea-top" class="debug-input" style="width:100%;height:90px;font-size:0.68rem;font-family:monospace;resize:vertical;" placeholder="在此粘贴从监控面板复制的 JSON..."></textarea>
-      <div class="debug-btn-row" style="margin-top:0.3rem;">
+      <textarea id="dbg-paste-textarea-top" class="debug-input debug-paste-textarea debug-paste-textarea--sm" placeholder="在此粘贴从监控面板复制的 JSON..."></textarea>
+      <div class="debug-btn-row debug-btn-row--compact">
         <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-paste-parse-top">解析并导入</button>
         <button type="button" class="debug-btn debug-btn--sm" id="btn-dbg-paste-clear-top">清空</button>
       </div>
@@ -68,14 +46,14 @@
     <!-- 快速控制 -->
     <div class="debug-card warn-card" id="debug-quick-ctrl">
       <h2>快速控制</h2>
-      <div class="debug-btn-row" style="margin-top:0;">
+      <div class="debug-btn-row debug-btn-row--flush">
         <button type="button" class="debug-btn debug-btn--ok" id="btn-dbg-enable">使能</button>
         <button type="button" class="debug-btn debug-btn--danger" id="btn-dbg-disable">去使能</button>
         <button type="button" class="debug-btn" id="btn-dbg-stop">停止</button>
         <button type="button" class="debug-btn debug-btn--sm" id="btn-dbg-collision-recover">碰撞恢复</button>
       </div>
       <div class="debug-slider">
-        <label style="font-size:0.72rem;font-weight:600;color:var(--text-muted);">速度</label>
+        <label class="debug-inline-label">速度</label>
         <input type="range" id="dbg-speed-slider" min="5" max="100" value="30" step="5">
         <span class="slider-val" id="dbg-speed-val">30%</span>
         <button type="button" class="debug-btn debug-btn--sm" id="btn-dbg-set-speed">应用</button>
@@ -101,7 +79,7 @@
         <label>R(°)</label><input class="debug-input w5" id="dbg-xyz-r" value="0.0" step="0.5">
         <label>P(°)</label><input class="debug-input w5" id="dbg-xyz-p" value="0.0" step="0.5">
         <label>Y(°)</label><input class="debug-input w5" id="dbg-xyz-yaw" value="0.0" step="0.5">
-        <span class="debug-unit-hint" style="font-size:0.65rem;color:var(--text-muted);">RPY 欧拉角 (deg)</span>
+        <span class="debug-unit-hint">RPY 欧拉角 (deg)</span>
       </div>
       <div class="debug-row">
         <label>V</label><input class="debug-input w4" id="dbg-xyz-vel" value="0.3" step="0.05" min="0.05" max="1.0">
@@ -125,7 +103,7 @@
         <label>J5<input class="debug-input" id="dbg-j5" value="0" step="0.01"></label>
         <label>J6<input class="debug-input" id="dbg-j6" value="0" step="0.01"></label>
       </div>
-      <div class="debug-row" style="margin-top:0.3rem;">
+      <div class="debug-row debug-row--spaced">
         <label>速度</label><input class="debug-input w4" id="dbg-jnt-vel" value="0.3" step="0.05">
       </div>
       <div class="debug-btn-row">
@@ -229,9 +207,9 @@
           <label>QZ</label><input class="debug-input w5" id="dbg-ik-qz" value="0.0" step="0.01">
         </div>
         <div class="debug-row">
-          <span style="font-size:0.68rem;color:var(--text-muted);">参考关节角 (从当前关节填入，用于多解择优)</span>
+          <span class="debug-muted-note">参考关节角 (从当前关节填入，用于多解择优)</span>
         </div>
-        <div class="debug-joint-grid" style="margin-top:0.2rem;">
+        <div class="debug-joint-grid debug-joint-grid--spaced">
           <label>rJ1<input class="debug-input" id="dbg-ik-rj1" value="0" step="0.01"></label>
           <label>rJ2<input class="debug-input" id="dbg-ik-rj2" value="0" step="0.01"></label>
           <label>rJ3<input class="debug-input" id="dbg-ik-rj3" value="0" step="0.01"></label>
@@ -251,11 +229,11 @@
     <div class="debug-card ok-card" id="debug-record-loader">
       <h2>记录快照</h2>
       <div class="debug-row">
-        <select class="debug-select" id="dbg-record-select" style="width:100%;">
+        <select class="debug-select debug-select--full" id="dbg-record-select">
           <option value="">-- 请选择记录 --</option>
         </select>
       </div>
-      <div class="debug-live-data" id="dbg-record-detail" style="margin-top:0.3rem;">
+      <div class="debug-live-data debug-live-data--spaced" id="dbg-record-detail">
         <span class="debug-empty">选择记录查看详情</span>
       </div>
       <div class="debug-btn-row">
@@ -266,8 +244,8 @@
         <input type="file" id="dbg-import-file-input" accept=".json" style="display:none;">
       </div>
       <div id="dbg-paste-area" style="display:none; margin-top:0.3rem;">
-        <textarea id="dbg-paste-textarea" class="debug-input" style="width:100%;height:100px;font-size:0.68rem;font-family:monospace;resize:vertical;" placeholder="在此粘贴从监控面板复制的 JSON..."></textarea>
-        <div class="debug-btn-row" style="margin-top:0.3rem;">
+        <textarea id="dbg-paste-textarea" class="debug-input debug-paste-textarea" placeholder="在此粘贴从监控面板复制的 JSON..."></textarea>
+        <div class="debug-btn-row debug-btn-row--compact">
           <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-paste-parse">解析并导入</button>
           <button type="button" class="debug-btn debug-btn--sm" id="btn-dbg-paste-clear">清空</button>
         </div>
@@ -289,7 +267,7 @@
       <div class="debug-btn-row">
         <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-sub-start">订阅</button>
         <button type="button" class="debug-btn debug-btn--danger" id="btn-dbg-sub-stop">取消</button>
-        <span style="font-size:0.7rem;color:var(--text-muted);margin-left:0.5rem;" id="dbg-sub-count">消息: 0</span>
+        <span class="debug-sub-count" id="dbg-sub-count">消息: 0</span>
       </div>
       <div class="debug-log large" id="debug-log-topic-monitor" aria-live="polite">
         <div class="debug-empty">点击"订阅"开始接收话题消息</div>
@@ -333,25 +311,25 @@
     </div>
 
     <!-- 点云 3D 查看 (foxglove_bridge) -->
-    <div class="debug-card highlight" id="debug-pointcloud" style="grid-column:span 2;">
-      <h2>点云 3D 查看 <span style="font-size:0.65rem;color:var(--text-muted);font-weight:400;">(foxglove_bridge CDR 二进制)</span></h2>
-      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;flex-wrap:wrap;">
-        <label style="font-size:0.72rem;">话题</label>
-        <input class="debug-input" id="dbg-pc-topic" value="/camera/depth/color/points" style="width:220px;" placeholder="/camera/depth/color/points">
-        <label style="font-size:0.72rem;">最大点数</label>
+    <div class="debug-card highlight debug-card--span-2" id="debug-pointcloud">
+      <h2>点云 3D 查看 <span class="debug-heading-note">(foxglove_bridge CDR 二进制)</span></h2>
+      <div class="debug-pointcloud-toolbar">
+        <label class="debug-inline-label">话题</label>
+        <input class="debug-input debug-input--topic" id="dbg-pc-topic" value="/camera/depth/color/points" placeholder="/camera/depth/color/points">
+        <label class="debug-inline-label">最大点数</label>
         <input class="debug-input w5" id="dbg-pc-maxpts" value="300000" type="number" min="1000" max="1000000" step="10000">
-        <label style="font-size:0.72rem;">点大小</label>
+        <label class="debug-inline-label">点大小</label>
         <input class="debug-input w4" id="dbg-pc-ptsize" value="3" type="number" min="1" max="20" step="0.5">
         <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-pc-start">连接</button>
         <button type="button" class="debug-btn debug-btn--danger" id="btn-dbg-pc-stop">断开</button>
-        <span style="font-size:0.7rem;color:var(--text-muted);" id="dbg-pc-info">未连接</span>
+        <span class="debug-muted-note" id="dbg-pc-info">未连接</span>
       </div>
-      <div id="dbg-pointcloud-viewport" style="width:100%;height:420px;background:#1a1a2e;border-radius:8px;position:relative;overflow:hidden;cursor:grab;">
-        <div id="dbg-pc-overlay" style="position:absolute;top:8px;left:12px;font-size:0.65rem;color:#888;pointer-events:none;z-index:2;">
+      <div id="dbg-pointcloud-viewport" class="debug-pointcloud-viewport">
+        <div id="dbg-pc-overlay" class="debug-pointcloud-overlay">
           拖拽旋转 | 滚轮缩放 | 右键平移
         </div>
       </div>
-      <div class="debug-log" id="debug-log-pointcloud" aria-live="polite" style="margin-top:0.3rem;"></div>
+      <div class="debug-log debug-log--spaced" id="debug-log-pointcloud" aria-live="polite"></div>
     </div>
 
     <!-- 话题发布测试 -->

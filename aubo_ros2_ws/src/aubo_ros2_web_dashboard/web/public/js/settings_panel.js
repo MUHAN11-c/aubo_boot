@@ -15,18 +15,27 @@ async function loadCategoryDefs() {
         const data = await r.json();
         if (data.settings_categories) categoryDefs = data.settings_categories;
 
-        // 网关信息
-        $('gw-info').innerHTML = [
-            ['版本', data.version],
-            ['rosbridge 端口', data.rosbridge_port],
-            ['WS 路径', data.rosbridge_ws_path],
-        ].map(([k, v]) => `<span>${k}: <code>${v != null ? v : '—'}</code></span>`).join('');
+        // 网关信息 — 若 DOM 不存在则静默跳过
+        const gwInfo = $('gw-info');
+        if (gwInfo) {
+            gwInfo.innerHTML = [
+                ['版本', data.version],
+                ['rosbridge 端口', data.rosbridge_port],
+                ['WS 路径', data.rosbridge_ws_path],
+            ].map(([k, v]) => `<span>${k}: <code>${v != null ? v : '—'}</code></span>`).join('');
+        }
 
-        $('gw-status').textContent = '已连接';
-        $('gw-status').className = 'gw-status ok';
+        const gwStatus = $('gw-status');
+        if (gwStatus) {
+            gwStatus.textContent = '已连接';
+            gwStatus.className = 'gw-status ok';
+        }
     } catch (e) {
-        $('gw-status').textContent = '不可达';
-        $('gw-status').className = 'gw-status err';
+        const gwStatus = $('gw-status');
+        if (gwStatus) {
+            gwStatus.textContent = '不可达';
+            gwStatus.className = 'gw-status err';
+        }
     }
 }
 

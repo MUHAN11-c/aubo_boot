@@ -7,107 +7,20 @@
 <title>日志面板</title>
 <link rel="stylesheet" href="css/tokens.css" />
 <link rel="stylesheet" href="css/layout_base.css" />
-<link rel="stylesheet" href="css/ivg_site_nav.css?v=20260522_unify_design" />
-<link rel="stylesheet" href="css/ivg_status_bar.css" />
+<link rel="stylesheet" href="css/components/app_shell.css" />
+<link rel="stylesheet" href="css/pages/log_panel.css" />
+<link rel="stylesheet" href="css/components/ivg_site_nav.css" />
+<link rel="stylesheet" href="css/components/ivg_status_bar.css" />
 <script src="/js/robotwebtools/importmap.js"></script>
-<style>
-/* page‑specific styles */
-
-/* ── 控制栏 ──────────────────────────────────────────────── */
-.log-toolbar {
-  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
-  padding:10px 0; border-bottom:1px solid var(--border); margin-bottom:8px;
-}
-.log-toolbar--features {
-  border-bottom:1px solid var(--border); padding-top:4px; padding-bottom:10px;
-}
-.log-toolbar--level {
-  border-bottom:1px solid var(--border); padding-top:4px; padding-bottom:6px;
-}
-.log-feature-label {
-  font-size:0.78rem; color:var(--text-muted); font-weight:600;
-  margin-right:2px; flex-shrink:0;
-}
-.log-ctrl {
-  padding:5px 12px; border-radius:7px; border:1px solid var(--border);
-  background:var(--panel-bg); color:var(--text-muted); font-size:0.8rem;
-  cursor:pointer; font-weight:500; transition: all 0.15s;
-}
-.log-ctrl:hover { border-color:var(--accent); color:var(--text); }
-.log-ctrl--active { background:#eef2ff; color:#2563eb; border-color:#2563eb; }
-.log-ctrl--off { opacity:0.35; }
-.log-ctrl--clear { border-color:var(--red); color:var(--red); }
-.log-ctrl--clear:hover { background:#fef2f2; }
-.log-ctrl__sep { width:1px; height:20px; background:var(--border); margin:0 4px; }
-
-.log-search {
-  padding:5px 10px; border-radius:7px; border:1px solid var(--border);
-  background:var(--panel-bg); color:var(--text); font-size:0.8rem;
-  font-family:inherit; min-width:140px; outline:none;
-  transition:border-color 0.15s;
-}
-.log-search:focus { border-color:var(--accent); }
-.log-search::placeholder { color:var(--text-muted); }
-
-/* ── 日志行 ──────────────────────────────────────────────── */
-.log-view {
-  background:#f8f9fb; border:1px solid var(--border); border-radius:8px;
-  height:calc(100vh - 340px); overflow-y:auto; font-family:"Noto Sans Mono","DejaVu Sans Mono",ui-monospace,Consolas,monospace;
-  font-size:0.8rem; padding:8px 0; transition:border-color 0.2s ease;
-}
-.log-line {
-  display:flex; gap:10px; padding:2px 16px; line-height:1.5; border-bottom:1px solid #f0f1f4;
-  transition:background 0.15s ease;
-}
-.log-line:hover { background:#f5f6f8; }
-.log-ts { color:var(--text-muted); flex-shrink:0; opacity:0.7; }
-.log-src { flex-shrink:0; min-width:80px; font-weight:600; }
-.log-feat {
-  flex-shrink:0; padding:0 6px; border-radius:4px; font-size:0.72rem;
-  border:1px solid; font-weight:500; line-height:1.4;
-}
-.log-msg { word-break:break-all; flex:1; }
-
-/* 折叠计数徽章 */
-.log-rate-badge {
-  flex-shrink:0; padding:0 5px; border-radius:3px; font-size:0.68rem;
-  background:#fef2f2; color:var(--red); font-weight:700; line-height:1.5;
-  border:1px solid #fecaca;
-}
-.log-line--folded {
-  background:rgba(239,68,68,0.03);
-}
-.log-line--folded .log-msg {
-  color:var(--text-muted); font-style:italic;
-}
-
-.log-line--log  .log-src { color:var(--text-muted); }
-.log-line--info .log-src { color:var(--accent); }
-.log-line--warn .log-src { color:var(--yellow); }
-.log-line--error .log-src { color:var(--red); }
-.log-line--debug .log-src { color:var(--orange); }
-.log-line--transport .log-src { color:var(--green); }
-
-.log-line--warn  { background:rgba(234,179,8,0.04); }
-.log-line--error { background:rgba(239,68,68,0.06); }
-
-/* ── 暂停按钮未读标记 ────────────────────────────────────── */
-#log-btn-pause[data-unread]::after {
-  content: attr(data-unread);
-  display:inline-block; margin-left:4px; padding:0 5px; border-radius:9px;
-  background:var(--red); color:#fff; font-size:0.65rem; font-weight:700;
-  line-height:1.4; min-width:16px; text-align:center;
-}
-</style>
 </head>
 <body class="ivg-single-screen">
 
 <ivg-site-nav page="log"></ivg-site-nav>
 
-<main class="wrap">
-  <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px;">
-    <h1 style="margin:0;">日志面板</h1>
-    <span id="log-count" style="font-size:0.78rem;color:var(--text-muted);">0 条</span>
+<main class="wrap log-wrap">
+  <div class="page-heading log-heading">
+    <h1>日志面板</h1>
+    <span id="log-count" class="log-count">0 条</span>
   </div>
 
   <!-- 控制栏: 操作 + 搜索 + 技术来源过滤 -->

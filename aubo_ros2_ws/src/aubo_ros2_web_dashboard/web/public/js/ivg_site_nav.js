@@ -3,6 +3,7 @@
 
 const NAV_LINKS = [
   { href: 'index.html',               page: 'index',    label: '门户' },
+  { href: 'robot_arm_panel.html',     page: 'robot-arm', label: '机械臂上位机' },
   { href: 'vision_grasp_panel.html',  page: 'vision',   label: '视觉抓取' },
   { href: 'coffee_latte_panel.html',  page: 'latte',    label: '咖啡拉花' },
   { href: 'tf_monitor_panel.html',    page: 'monitor',  label: '监控面板' },

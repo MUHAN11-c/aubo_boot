@@ -4,9 +4,11 @@ ROS 2 机械臂视觉抓取 Web 控制面板。FastAPI 网关 + 纯 HTML/JS MPA 
 
 > **前端技术栈**：纯 HTML/JS MPA（零构建），ES modules + importmap 加载 ros3djs/roslib/three.js，FastAPI BFF 网关喵~
 >
-> **当前架构（2026-05-25）**：前端 7 个独立 HTML 页面（index/vision_grasp/coffee_latte/log/settings/debug/tf_monitor），通过 `js/core/` 共享基础设施层（ros.js/ros_connector.js/log-bus.js/log-ros-bridge.js/lifecycle.js/utils.js/settings.js），子模块代码按功能域组织在 `js/vision_grasp/`、`js/latte/`、`js/view3d/`、`js/components/` 下喵~
+> **当前架构（2026-06-29）**：前端 8 个独立 HTML 页面（index/robot_arm/vision_grasp/coffee_latte/log/settings/debug/tf_monitor），通过 `js/core/` 共享基础设施层（ros.js/ros_connector.js/log-bus.js/log-ros-bridge.js/lifecycle.js/utils.js/settings.js），子模块代码按功能域组织在 `js/vision_grasp/`、`js/latte/`、`js/view3d/`、`js/components/` 下喵~
 >
 > 话题/服务名通过 `localStorage` 覆盖 `config/defaults.yaml` 默认值，前端运行时从 BFF `GET /api/v1/runtime` 获取配置喵~
+
+> **CSS 视觉层（2026-06-29）**：纯 CSS 按 MDN cascade layers 思路分层：`tokens → base → shell → components → pages → utilities`。`tokens.css` 统一色调、语义色、兼容别名和运行页面布局变量；`layout_base.css` 负责 reset、基础按钮/面板；`css/components/app_shell.css` 负责公共版心、单屏布局、toolbar、监控区折叠网格；页面 CSS 只保留页面特有覆盖。当前阶段只做 HTML/CSS 可视化优化，不修改 `web/public/js/` 逻辑喵~
 
 ---
 
@@ -34,7 +36,7 @@ ROS 2 Launch
   ├── [3] core/ros.js              → ROSLIB.Ros 单例封装 (订阅/服务/重连)
   ├── [4] ivg_web_video.js         → 摄像头 MJPEG 流/快照 URL
   ├── [5] view3d/session.js        → URDF 参数 + /tf + /joint_states + 工具几何
-  ├── [6] 5 个 HTML 页面           → 视觉抓取/咖啡拉花/日志/设置/TF监控
+  ├── [6] 8 个 HTML 页面           → 门户/机械臂上位机/视觉抓取/咖啡拉花/日志/设置/调试/TF监控
   ├── [7] core/log-bus.js          → 统一日志总线 (IndexedDB + BroadcastChannel)
   └── [8] core/log-ros-bridge.js   → ROS→日志桥接 (/rosout + service 钩子)
 ```

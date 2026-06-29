@@ -1,0 +1,893 @@
+/**
+ * robot_arm_panel.css — 机械臂上位机页面
+ *
+ * 结构、选择器、布局 完全参考 ReBot Arm B601-DM 仿真器 (rebot-sim.css)
+ * 仅将所有颜色替换为项目暖灰蓝主题令牌 (tokens.css)
+ *
+ * 设计风格：轻主题 · 毛玻璃 HUD · 响应式布局
+ * 布局结构：左侧 3D 视口（flex:1） + 右侧控制面板（360px 固定宽度）
+ * 移动端（≤860px）：上下堆叠布局，视口 62vh，面板自适应高度
+ */
+
+@layer pages {
+
+/* ====================================================================
+ *  主布局：CSS Grid 双栏（视口 + 控制面板）
+ * ==================================================================== */
+
+html:has(body.ivg-single-screen) {
+  background: var(--bg);
+}
+
+body.ivg-single-screen {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 6%, rgba(var(--accent-rgb), 0.08), transparent 28rem),
+    linear-gradient(135deg, #f4f7f8, #fafaf8 48%, #f0f3f5);
+  min-height: 0;
+  height: 100vh;
+  max-height: 100vh;
+}
+
+@supports (height: 100svh) {
+  body.ivg-single-screen {
+    height: 100svh;
+    max-height: 100svh;
+  }
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  height: 100vh;
+  height: calc(100vh - 3.2rem);
+  height: calc(100svh - 3.2rem);
+}
+
+/* ====================================================================
+ *  左侧：3D 视口区域
+ * ==================================================================== */
+
+.viewport {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(var(--accent-rgb), 0.06), transparent 22rem),
+    linear-gradient(180deg, rgba(var(--accent-rgb), 0.04), transparent),
+    var(--surface-robot);
+}
+
+/* CSS 机械臂视口容器 */
+.scene-host {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ---- 网格地面 ---- */
+.robot-grid-floor {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: -18%;
+  height: 46%;
+  background:
+    linear-gradient(var(--line-robot) 1px, transparent 1px),
+    radial-gradient(ellipse at center, rgba(var(--accent-rgb), 0.1), transparent 62%);
+  background-size: 100% 24px, auto;
+  transform: perspective(620px) rotateX(62deg);
+  transform-origin: center bottom;
+  border-top: 1px solid var(--line-robot-strong);
+  opacity: 0.55;
+}
+
+/* ---- 机械臂部件（CSS 构建） ---- */
+.robot-base,
+.robot-link,
+.robot-joint,
+.robot-tool {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: center;
+  filter: drop-shadow(0 18px 32px rgba(15, 23, 42, 0.12));
+}
+
+.robot-base {
+  width: 8.8rem;
+  height: 2.2rem;
+  margin-left: -4.4rem;
+  margin-top: 9.4rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #e8ecef, #9aacb5);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 0 48px rgba(var(--accent-rgb), 0.12);
+}
+
+.robot-link {
+  width: 2.1rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #eef4f6, #8ea0aa 52%, #f0f6f8);
+}
+
+.robot-link--shoulder {
+  height: 12rem;
+  margin-left: -1.05rem;
+  margin-top: -2.2rem;
+  transform: rotate(-22deg);
+}
+
+.robot-link--upper {
+  height: 10.5rem;
+  margin-left: 3.8rem;
+  margin-top: -8.8rem;
+  transform: rotate(53deg);
+}
+
+.robot-link--forearm {
+  height: 8.4rem;
+  margin-left: 8.2rem;
+  margin-top: -10.7rem;
+  transform: rotate(-58deg);
+}
+
+.robot-joint {
+  width: 3.8rem;
+  height: 3.8rem;
+  margin-left: -1.9rem;
+  margin-top: -1.9rem;
+  border-radius: 50%;
+  border: 0.55rem solid #d5dfe4;
+  background: radial-gradient(circle, #4a6373 0 34%, #94a8b2 36% 100%);
+  box-shadow: 0 0 0 0.28rem rgba(var(--accent-rgb), 0.1), 0 0 22px rgba(var(--accent-rgb), 0.18);
+}
+
+.robot-joint--shoulder { transform: translate(-2.15rem, 7.9rem); }
+.robot-joint--elbow    { transform: translate(6.8rem, -3.35rem); }
+.robot-joint--wrist    { transform: translate(11.25rem, -7.1rem); width: 3rem; height: 3rem; margin-left: -1.5rem; margin-top: -1.5rem; }
+
+.robot-tool {
+  width: 4.8rem;
+  height: 1.2rem;
+  margin-left: 12.5rem;
+  margin-top: -7.7rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #e89a3c, #f4c97a);
+  box-shadow: 0 0 20px rgba(232, 154, 60, 0.3);
+}
+
+/* 可达范围环 */
+.robot-reach-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border: 1px dashed var(--line-robot);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.robot-reach-ring--near { width: 18rem; height: 18rem; }
+.robot-reach-ring--far  { width: 30rem; height: 30rem; opacity: 0.6; }
+
+/* ====================================================================
+ *  HUD 叠加层（毛玻璃效果卡片）
+ *  对应 ReBot .hud — 半透明深色背景 → 半透明白色毛玻璃
+ * ==================================================================== */
+
+.hud {
+  position: absolute;
+  z-index: 4;
+  border: 1px solid var(--line-robot);
+  background: var(--surface-glass-strong);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--glow-robot);
+}
+
+/* ---- 顶部 HUD：标题栏 + 状态 ---- */
+.top-hud {
+  top: 18px;
+  left: 18px;
+  right: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 8px;
+}
+
+/* 小标题/分类标签（对应 ReBot .eyebrow） */
+.eyebrow {
+  margin: 0 0 5px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+/* 标题层级（对应 ReBot h1/h2/h3） */
+h1, h2, h3 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+h1 { font-size: 22px; line-height: 1.15; color: var(--text); }
+h2 { font-size: 20px; color: var(--text); }
+h3 { font-size: 14px; color: var(--text); }
+
+/* ---- 状态指示器（对应 ReBot .status-pill） ---- */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 86px;
+  justify-content: center;
+  padding: 8px 10px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: rgba(var(--accent-rgb), 0.06);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.status-pill.ready {
+  color: var(--accent);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--warn);
+  box-shadow: 0 0 12px rgba(217, 119, 6, 0.6);
+}
+
+.status-pill.ready .status-dot {
+  background: var(--ok);
+  box-shadow: 0 0 12px rgba(22, 163, 74, 0.7);
+}
+
+/* ---- 底部左侧：TCP 位置 HUD ---- */
+.pose-hud {
+  left: 18px;
+  bottom: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  max-width: min(640px, calc(100vw - 420px));
+  padding: 12px 14px;
+  border-radius: 8px;
+}
+
+.pose-hud div {
+  display: grid;
+  gap: 3px;
+}
+
+.pose-hud span,
+.legend-hud {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.pose-hud strong {
+  font-size: 13px;
+  font-family: "Noto Sans Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+  color: var(--text);
+}
+
+/* ---- 底部右侧：坐标系图例 HUD ---- */
+.legend-hud {
+  right: 18px;
+  bottom: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+/* ---- ROS 坐标轴颜色指示点（对应 ReBot .axis） ---- */
+.axis {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 999px;
+}
+
+.axis.x { background: var(--err); }    /* ROS +X 前方 · 红 */
+.axis.y { background: var(--ok); }     /* ROS +Y 左侧 · 绿 */
+.axis.z { background: #3b82f6; }       /* ROS +Z 上方 · 蓝 */
+
+/* ====================================================================
+ *  右侧：控制面板
+ *  对应 ReBot .control-panel — #151716 → var(--bg)
+ * ==================================================================== */
+
+.control-panel {
+  height: 100%;
+  overflow: auto;
+  padding: 18px;
+  border-left: 1px solid var(--border);
+  background: var(--bg);
+}
+
+/* ---- 面板标题栏与功能区块 ---- */
+.panel-title,
+.section {
+  border: 1px solid var(--line-robot);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, var(--surface-panel-strong), var(--surface-panel)),
+    var(--surface-glass);
+  box-shadow: var(--shadow-sm);
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* 各区块间距 */
+.section {
+  margin-top: 12px;
+  padding: 14px;
+}
+
+/* ---- 面板标题/区块内部标题重设 ---- */
+.panel-title h2,
+.section h3 {
+  color: var(--text);
+}
+
+.section h3 {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* ====================================================================
+ *  按钮系统
+ *  对应 ReBot button 样式 — dark surface → light glass
+ * ==================================================================== */
+
+.button-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+button {
+  min-height: 38px;
+  border: 1px solid var(--line-robot);
+  border-radius: 7px;
+  color: var(--text);
+  background: linear-gradient(180deg, var(--surface-glass-strong), var(--surface-glass));
+  cursor: default;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  transition: border-color 0.16s ease, transform 0.16s ease, background 0.16s ease;
+}
+
+button:not([disabled]):hover {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.1), rgba(var(--accent-rgb), 0.05));
+}
+
+button:not([disabled]):active {
+  transform: translateY(1px);
+}
+
+button[disabled] {
+  opacity: 0.55;
+}
+
+.icon-btn {
+  width: 38px;
+  min-height: 38px;
+  font-size: 18px;
+}
+
+.primary-btn {
+  width: 100%;
+  margin-top: 12px;
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+.primary-btn:not([disabled]):hover {
+  background: var(--accent-hover);
+}
+
+.secondary-btn {
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* ====================================================================
+ *  关节控制
+ *  对应 ReBot .joint-list / .joint-control / .joint-head / .joint-value
+ * ==================================================================== */
+
+.joint-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.joint-control {
+  display: grid;
+  gap: 8px;
+}
+
+.joint-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.joint-head strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.joint-value {
+  font-family: "Noto Sans Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* ---- 夹爪读数面板 ---- */
+.gripper-readout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-robot);
+  border-radius: 7px;
+  background: var(--surface-glass);
+}
+
+.gripper-readout span { color: var(--text-muted); font-size: 13px; }
+
+.gripper-readout strong {
+  color: var(--accent);
+  font-family: "Noto Sans Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+  font-size: 13px;
+}
+
+/* ====================================================================
+ *  表单控件
+ * ==================================================================== */
+
+/* ---- 范围滑块（对应 ReBot input[type="range"]） ---- */
+input[type="range"] {
+  width: 100%;
+  height: 5px;
+  appearance: none;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(220, 38, 38, 0.55), rgba(217, 119, 6, 0.55), rgba(62, 90, 115, 0.55));
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  width: 17px;
+  height: 17px;
+  appearance: none;
+  border: 2px solid var(--accent-strong);
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* ---- 开关行（checkbox + 标签） ---- */
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.switch-row input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--accent);
+}
+
+/* ---- 输入字段行（标签 + 输入框/下拉框） ---- */
+.field-row {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.field-row input {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line-robot);
+  border-radius: 7px;
+  color: var(--text);
+  background: var(--surface-glass);
+  outline: none;
+  font-family: "Noto Sans Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.field-row input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.1);
+}
+
+.field-row select {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line-robot);
+  border-radius: 7px;
+  color: var(--text);
+  background: var(--surface-glass);
+  outline: none;
+}
+
+/* ====================================================================
+ *  状态指示器（Mini Pill）
+ *  对应 ReBot .mini-pill
+ * ==================================================================== */
+
+.mini-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  min-height: 26px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: rgba(var(--accent-rgb), 0.06);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mini-pill.online {               /* 在线/仿真 */
+  color: var(--ok);
+  background: rgba(22, 163, 74, 0.1);
+}
+
+.mini-pill.offline {              /* 离线 */
+  color: var(--err);
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.mini-pill.warn {                 /* 警告/连接中 */
+  color: var(--warn);
+  background: rgba(217, 119, 6, 0.1);
+}
+
+/* ====================================================================
+ *  ROS 桥接区块专用样式
+ * ==================================================================== */
+
+.ros-section .button-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* ---- ROS 反馈差值条 + 示教状态通用样式 ---- */
+.ros-feedback,
+.teach-status {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line-robot);
+  border-radius: 7px;
+  background: var(--surface-glass);
+}
+
+.ros-feedback {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.ros-feedback strong {
+  color: var(--text);
+  text-align: right;
+  font-family: "Noto Sans Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+}
+
+/* ---- ROS 消息条 ---- */
+.ros-message {
+  min-height: 34px;
+  margin: 10px 0 0;
+  padding: 9px 10px;
+  border: 1px solid var(--line-robot);
+  border-radius: 7px;
+  color: var(--text-muted);
+  background: var(--surface-glass);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* ====================================================================
+ *  诊断面板
+ * ==================================================================== */
+
+/* 诊断项 2×2 网格 */
+.diag-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.diag-item {
+  min-height: 58px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 9px 10px;
+  border: 1px solid var(--line-robot);
+  border-radius: 7px;
+  background: var(--surface-glass);
+}
+
+.diag-item span,
+.pose-grid label {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.diag-item strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+/* 诊断状态着色 */
+.diag-item.ok strong { color: var(--ok); }
+.diag-item.warn strong { color: var(--warn); }
+.diag-item.bad strong { color: var(--err); }
+
+/* ====================================================================
+ *  Pose 目标输入
+ * ==================================================================== */
+
+.pose-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pose-grid label {
+  display: grid;
+  gap: 6px;
+}
+
+.pose-grid input {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 9px;
+  border: 1px solid var(--line-robot);
+  border-radius: 7px;
+  color: var(--text);
+  background: var(--surface-glass);
+  outline: none;
+  font-family: "Noto Sans Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.pose-grid input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.1);
+}
+
+/* ====================================================================
+ *  命令框与日志面板
+ * ==================================================================== */
+
+.command-box,
+.ros-log {
+  width: 100%;
+  margin: 12px 0 0;
+  padding: 10px;
+  border: 1px solid var(--line-robot);
+  border-radius: 7px;
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  font: 11px/1.45 "Noto Sans Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+  white-space: pre-wrap;
+  overflow: auto;
+}
+
+.command-box { max-height: 220px; }
+
+.ros-log { height: 180px; }
+
+/* 日志行：时间戳 + 内容 */
+.ros-log-line {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line-robot);
+}
+
+.ros-log-line time { color: var(--text-muted); }
+
+/* 日志级别着色 */
+.ros-log-line.info span { color: var(--text-secondary); }
+.ros-log-line.ok span { color: var(--ok); }
+.ros-log-line.warn span { color: var(--warn); }
+.ros-log-line.error span { color: var(--err); }
+
+/* ====================================================================
+ *  示教区块
+ * ==================================================================== */
+
+.teach-buttons {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.teach-status {
+  min-height: 44px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.teach-export {
+  width: 100%;
+  min-height: 104px;
+  margin-top: 10px;
+  padding: 9px 10px;
+  resize: vertical;
+  border: 1px solid var(--line-robot);
+  border-radius: 7px;
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  font: 12px/1.45 "Noto Sans Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+}
+
+/* ====================================================================
+ *  机械臂信息（定义列表）
+ * ==================================================================== */
+
+.metrics dl {
+  display: grid;
+  gap: 9px;
+  margin: 12px 0 0;
+}
+
+.metrics div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line-robot);
+}
+
+.metrics dt, .metrics dd {
+  margin: 0;
+  font-size: 13px;
+}
+
+.metrics dt { color: var(--text-muted); }
+.metrics dd { color: var(--text); text-align: right; }
+
+/* ====================================================================
+ *  响应式布局：移动端（≤860px）
+ *
+ *  变化：
+ *  - 双栏 → 上下堆叠
+ *  - 视口固定 62vh 高度
+ *  - 面板取消左侧边框，改为顶部边框
+ *  - HUD 元素缩小边距，标题缩小字号
+ * ==================================================================== */
+
+@media (max-width: 860px) {
+  body.ivg-single-screen {
+    overflow: auto;
+    height: auto;
+    max-height: none;
+  }
+
+  html:has(body.ivg-single-screen) {
+    max-height: none;
+    overflow: auto;
+  }
+
+  .app-shell {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .viewport {
+    height: 62vh;
+    min-height: 420px;
+  }
+
+  .control-panel {
+    height: auto;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .top-hud {
+    align-items: flex-start;
+  }
+
+  h1 { font-size: 18px; }
+
+  .pose-hud,
+  .legend-hud {
+    left: 12px;
+    right: 12px;
+    max-width: none;
+  }
+
+  .pose-hud {
+    grid-template-columns: 1fr;
+    bottom: 76px;
+  }
+}
+
+/* 触摸设备适配 */
+@media (hover: none) and (pointer: coarse), (max-width: 1024px) {
+  button,
+  .primary-btn,
+  .secondary-btn {
+    min-height: 44px;
+  }
+
+  .switch-row {
+    min-height: 44px;
+  }
+
+  .field-row input,
+  .field-row select,
+  .pose-grid input {
+    min-height: 44px;
+  }
+
+  .icon-btn {
+    width: 44px;
+    min-height: 44px;
+  }
+}
+
+}

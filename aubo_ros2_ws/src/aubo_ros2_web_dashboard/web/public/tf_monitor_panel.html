@@ -7,98 +7,23 @@
 <title>监控面板</title>
 <link rel="stylesheet" href="css/tokens.css" />
 <link rel="stylesheet" href="css/layout_base.css" />
-<link rel="stylesheet" href="css/ivg_site_nav.css?v=20260522_unify_design" />
-<link rel="stylesheet" href="css/ivg_status_bar.css" />
+<link rel="stylesheet" href="css/components/app_shell.css" />
+<link rel="stylesheet" href="css/pages/tf_monitor_panel.css" />
+<link rel="stylesheet" href="css/components/ivg_site_nav.css" />
+<link rel="stylesheet" href="css/components/ivg_status_bar.css" />
 <script src="/js/robotwebtools/importmap.js"></script>
-<style>
-/* page‑specific styles */
-h2 { font-size:1rem; color:var(--text-muted); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.06em; }
-.panel { background:var(--panel-bg); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin-bottom:16px; }
-.row { display:flex; gap:16px; flex-wrap:wrap; }
-.row > * { flex:1; min-width:280px; }
-.wrap { max-width:1100px; }
-
-/* Mode badge */
-.mode-badge { display:inline-flex; align-items:center; gap:8px; padding:6px 14px; border-radius:20px; font-size:0.9rem; font-weight:600; }
-.mode-badge.real { background:#d1fae5; color:#065f46; border:1px solid #a7f3d0; }
-.mode-badge.sim  { background:#eef2ff; color:#2563eb; border:1px solid #c7d2fe; }
-.mode-badge.unknown { background:#fef3c7; color:#b45309; border:1px solid #fde68a; }
-.mode-dot { width:8px; height:8px; border-radius:50%; }
-.mode-badge.real .mode-dot { background:#22c55e; box-shadow:0 0 6px rgba(34,197,94,0.4); }
-.mode-badge.sim  .mode-dot { background:var(--accent); box-shadow:0 0 6px rgba(37,99,235,0.4); }
-.mode-badge.unknown .mode-dot { background:#eab308; box-shadow:0 0 6px rgba(234,179,8,0.4); }
-
-/* Status summary */
-.status-summary { display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
-.status-chip { padding:4px 10px; border-radius:14px; font-size:0.78rem; font-weight:500; }
-.status-chip.on  { background:#d1fae5; color:#065f46; }
-.status-chip.off { background:#fee2e2; color:#b91c1c; }
-
-/* Pose table */
-.pose-table { width:100%; border-collapse:collapse; font-size:0.9rem; }
-.pose-table td { padding:5px 0; }
-.pose-table td:first-child { color:var(--text-muted); width:90px; }
-.pose-table td:last-child { font-family:"Noto Sans Mono","DejaVu Sans Mono",ui-monospace,Consolas,monospace; }
-
-/* Joint table */
-.joint-table { width:100%; border-collapse:collapse; font-size:0.9rem; }
-.joint-table th { text-align:left; color:var(--text-muted); font-weight:500; padding:4px 0; border-bottom:1px solid var(--border); font-size:0.8rem; }
-.joint-table td { padding:6px 0; border-bottom:1px solid var(--border); }
-.joint-table td:last-child, .joint-table td:nth-child(3) { font-family:"Noto Sans Mono","DejaVu Sans Mono",ui-monospace,Consolas,monospace; }
-
-/* Buttons */
-.btn { padding:8px 18px; border-radius:7px; border:1px solid var(--border); cursor:pointer; font-size:0.85rem; font-weight:500; transition:background 0.15s ease,border-color 0.15s ease,opacity 0.15s; }
-.btn:hover { background:var(--accent-soft); border-color:var(--accent); }
-.btn:active { opacity:0.7; }
-.btn-primary { background:var(--accent); color:#fff; border-color:var(--accent); }
-.btn-primary:hover { background:var(--accent-hover); }
-.btn-outline { background:transparent; border:1px solid var(--border); color:var(--text); }
-.btn-success { background:#d1fae5; color:#065f46; }
-.btn-group { display:flex; gap:8px; flex-wrap:wrap; }
-
-/* Toast */
-.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#1e293b; color:#fff; padding:10px 20px; border-radius:10px; font-size:0.85rem; z-index:999; opacity:0; transition:opacity 0.25s; pointer-events:none; }
-.toast.show { opacity:1; }
-
-/* Export section */
-.export-history { max-height:260px; overflow-y:auto; margin-top:10px; font-size:0.78rem; font-family:monospace; background:#f8f9fb; border-radius:7px; padding:8px 12px; }
-.export-history .entry { padding:4px 0; border-bottom:1px solid #f0f1f4; }
-.export-history .entry:last-child { border:none; }
-.entry-name-row { display:flex; align-items:center; gap:6px; }
-.record-name { color:#2563eb; font-weight:500; cursor:pointer; user-select:none; }
-.record-name:hover { text-decoration:underline; }
-.record-name-edit { font-size:0.78rem; padding:1px 6px; border:1px solid #2563eb; border-radius:3px; outline:none; background:#eef2ff; color:var(--text); font-family:inherit; min-width:80px; }
-.entry-info { color:var(--text-muted); font-size:0.72rem; padding-left:0; }
-.record-delete-btn { font-size:0.7rem; padding:0 6px; border:1px solid transparent; border-radius:4px; background:transparent; color:#ef4444; cursor:pointer; line-height:1.4; opacity:0.5; transition:opacity 0.15s,border-color 0.15s; }
-.record-delete-btn:hover { opacity:1; border-color:#fecaca; background:#fef2f2; }
-</style>
 </head>
 <body class="ivg-single-screen">
 
 <ivg-site-nav page="monitor"></ivg-site-nav>
 
-<main class="wrap">
-  <!-- 顶部标识 -->
-  <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-    <h1 style="margin:0;">监控面板</h1>
-    <span id="mode-badge" class="mode-badge unknown"><span class="mode-dot"></span>检测中…</span>
-  </div>
-
-  <!-- 状态概览 -->
-  <div class="panel">
-    <div class="status-summary" id="status-summary">
-      <span class="status-chip off">在线: —</span>
-      <span class="status-chip off">使能: —</span>
-      <span class="status-chip off">运动: —</span>
-      <span class="status-chip off">规划: —</span>
-    </div>
-  </div>
+<main class="wrap monitor-wrap">
 
   <!-- 末端位姿 + 关节角 两栏 -->
-  <div class="row">
+  <div class="monitor-row">
     <!-- 末端位姿 -->
-    <div class="panel">
-      <h2>末端位姿 (TCP)</h2>
+    <div class="panel monitor-panel">
+      <h2 class="monitor-panel-title">末端位姿 (TCP)</h2>
       <table class="pose-table">
         <tbody>
           <tr><td>X</td><td id="pose-x">—</td></tr>
@@ -108,7 +33,7 @@ h2 { font-size:1rem; color:var(--text-muted); margin-bottom:12px; text-transform
           <tr><td>QY</td><td id="pose-qy">—</td></tr>
           <tr><td>QZ</td><td id="pose-qz">—</td></tr>
           <tr><td>QW</td><td id="pose-qw">—</td></tr>
-          <tr style="border-top:1px solid var(--border);"><td>Roll</td><td id="pose-roll">—</td></tr>
+          <tr class="pose-table__divider"><td>Roll</td><td id="pose-roll">—</td></tr>
           <tr><td>Pitch</td><td id="pose-pitch">—</td></tr>
           <tr><td>Yaw</td><td id="pose-yaw">—</td></tr>
         </tbody>
@@ -116,8 +41,8 @@ h2 { font-size:1rem; color:var(--text-muted); margin-bottom:12px; text-transform
     </div>
 
     <!-- 关节角 -->
-    <div class="panel">
-      <h2>关节角度</h2>
+    <div class="panel monitor-panel">
+      <h2 class="monitor-panel-title">关节角度</h2>
       <table class="joint-table">
         <thead>
           <tr><th>关节</th><th>角度 (度)</th><th>角度 (弧度)</th></tr>
@@ -125,7 +50,7 @@ h2 { font-size:1rem; color:var(--text-muted); margin-bottom:12px; text-transform
         <tbody id="joint-tbody">
         </tbody>
       </table>
-      <div class="btn-group" style="margin-top:12px;">
+      <div class="btn-group btn-group--top">
         <button class="btn btn-primary" id="btn-copy-group-state">复制为 group_state 格式</button>
         <button class="btn btn-outline" id="btn-copy-json">复制 JSON</button>
       </div>
@@ -133,17 +58,17 @@ h2 { font-size:1rem; color:var(--text-muted); margin-bottom:12px; text-transform
   </div>
 
   <!-- 数据导出 -->
-  <div class="panel">
-    <h2>数据记录与导出</h2>
-    <div class="btn-group" style="margin-bottom:10px;">
+  <div class="panel monitor-panel">
+    <h2 class="monitor-panel-title">数据记录与导出</h2>
+    <div class="btn-group btn-group--bottom">
       <button class="btn btn-primary" id="btn-record-snapshot">记录当前快照</button>
       <button class="btn btn-outline" id="btn-export-json">导出全部记录 (JSON)</button>
       <button class="btn btn-outline" id="btn-export-xml">导出全部记录 (XML)</button>
-      <button class="btn btn-outline" id="btn-clear-history" style="color:var(--red);">清空记录</button>
+      <button class="btn btn-outline btn-danger-text" id="btn-clear-history">清空记录</button>
     </div>
-    <div id="record-count" style="font-size:0.78rem;color:var(--text-muted);margin-bottom:6px;">已记录: 0 条</div>
+    <div id="record-count" class="record-count">已记录: 0 条</div>
     <div class="export-history" id="export-history">
-      <span style="color:var(--text-muted);">暂无记录，点击「记录当前快照」开始。</span>
+      <span class="monitor-muted">暂无记录，点击「记录当前快照」开始。</span>
     </div>
   </div>
 </main>

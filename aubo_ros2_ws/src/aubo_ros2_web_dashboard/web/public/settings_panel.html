@@ -1,3 +1,4 @@
+<!-- settings_panel.html — IVG 系统设置 -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -7,32 +8,38 @@
 <title>IVG 设置</title>
 <link rel="stylesheet" href="css/tokens.css" />
 <link rel="stylesheet" href="css/layout_base.css" />
-<link rel="stylesheet" href="css/ivg_site_nav.css?v=20260522_unify_design" />
-<link rel="stylesheet" href="css/settings_panel.css" />
-<link rel="stylesheet" href="css/ivg_status_bar.css" />
+<link rel="stylesheet" href="css/components/app_shell.css" />
+<link rel="stylesheet" href="css/pages/settings_panel.css" />
+<link rel="stylesheet" href="css/components/ivg_site_nav.css" />
+<link rel="stylesheet" href="css/components/ivg_status_bar.css" />
 <script src="/js/robotwebtools/importmap.js"></script>
 </head>
 <body>
 <ivg-site-nav page="settings"></ivg-site-nav>
 
 <main class="settings-main">
-  <h1>IVG 系统设置</h1>
-  <p class="settings-subtitle">配置修改后保存即生效（浏览器本地存储）。<a href="" id="refresh-link">刷新面板</a>以加载新配置。</p>
-
-  <!-- 网关状态 -->
-  <section class="settings-card gateway-card">
-    <div class="gw-row">
-      <span class="gw-label">网关</span>
-      <span class="gw-status" id="gw-status">检测中…</span>
+  <!-- 页头：标题 -->
+  <div class="settings-head">
+    <div>
+      <p class="eyebrow-label">System Configuration</p>
+      <h1>IVG 系统设置</h1>
     </div>
-    <div class="gw-info" id="gw-info"></div>
-  </section>
+  </div>
 
   <!-- 分类标签 -->
   <nav class="settings-tabs" id="settings-tabs">
-    <button class="settings-tab active" data-tab="common">公共参数</button>
-    <button class="settings-tab" data-tab="vision">视觉抓取</button>
-    <button class="settings-tab" data-tab="latte">咖啡拉花</button>
+    <button class="settings-tab active" data-tab="common">
+      <span class="settings-tab__icon">⚙</span>
+      <span>公共参数</span>
+    </button>
+    <button class="settings-tab" data-tab="vision">
+      <span class="settings-tab__icon">◎</span>
+      <span>视觉抓取</span>
+    </button>
+    <button class="settings-tab" data-tab="latte">
+      <span class="settings-tab__icon">☕</span>
+      <span>咖啡拉花</span>
+    </button>
   </nav>
 
   <!-- 分类内容 -->
@@ -55,8 +62,8 @@
     <button type="button" class="btn" id="btn-reset">恢复默认</button>
     <button type="button" class="btn" id="btn-clear">清除存储</button>
     <span class="actions-sep"></span>
-    <button type="button" class="btn" id="btn-export">导出 JSON</button>
-    <button type="button" class="btn" id="btn-import">导入 JSON</button>
+    <button type="button" class="btn btn-outline" id="btn-export">导出 JSON</button>
+    <button type="button" class="btn btn-outline" id="btn-import">导入 JSON</button>
   </div>
   <p class="settings-msg" id="settings-msg"></p>
 </main>

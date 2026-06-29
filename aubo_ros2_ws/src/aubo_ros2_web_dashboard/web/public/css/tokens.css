@@ -1,9 +1,13 @@
-/* tokens.css — 全站唯一设计令牌源（暖灰蓝统一基调） */
+/* tokens.css — 全站唯一设计令牌源（工业机器人暖灰蓝基调） */
+@layer tokens, base, shell, components, pages, utilities;
+
+@layer tokens {
 :root {
   /* 背景 */
   --bg: #fafaf8;
   --bg-elevated: #ffffff;
   --bg-muted: #f5f3f0;
+  --bg-console: #eef3f5;
 
   /* 边框 */
   --border: #e8e4de;
@@ -16,8 +20,11 @@
 
   /* 主题色 — 暖灰蓝 */
   --accent: #3e5a73;  /* WCAG AA 4.5:1 on #ffffff */
+  --accent-rgb: 62, 90, 115;
   --accent-hover: #3d5a73;
   --accent-soft: rgba(79, 111, 138, 0.08);
+  --accent-strong: #24394d;
+  --accent-line: rgba(62, 90, 115, 0.18);
 
   /* 语义色 */
   --ok: #16a34a;
@@ -25,14 +32,62 @@
   --err: #dc2626;
   --orange: #ea580c;
 
+  /* 旧页面兼容别名 */
+  --panel: var(--bg-elevated);
+  --panel-bg: var(--bg-elevated);
+  --muted: var(--text-muted);
+  --red: var(--err);
+  --yellow: var(--warn);
+  --green: var(--ok);
+
   /* 阴影 */
   --shadow-sm: 0 1px 3px rgba(15, 16, 18, 0.05);
   --shadow-md: 0 6px 20px rgba(15, 16, 18, 0.07);
   --shadow-lg: 0 16px 48px rgba(15, 16, 18, 0.1);
 
+  /* 工业控制台表面 */
+  --surface-glass: rgba(255, 255, 255, 0.82);
+  --surface-glass-strong: rgba(255, 255, 255, 0.92);
+  --surface-panel: rgba(255, 255, 255, 0.76);
+  --surface-panel-strong: rgba(255, 255, 255, 0.94);
+  --surface-robot: #f4f7f8;
+  --surface-robot-dark: #17212b;
+  --line-robot: rgba(62, 90, 115, 0.16);
+  --line-robot-strong: rgba(62, 90, 115, 0.28);
+  --glow-robot: 0 0 0 1px rgba(62, 90, 115, 0.08), 0 18px 48px rgba(15, 23, 42, 0.08);
+  --glow-robot-strong: 0 0 0 1px rgba(62, 90, 115, 0.12), 0 22px 60px rgba(15, 23, 42, 0.13);
+  --scanline: linear-gradient(90deg, transparent, rgba(62, 90, 115, 0.18), transparent);
+  --soft-grain:
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.34) 0 1px, transparent 1.2px),
+    radial-gradient(circle at 72% 64%, rgba(62, 90, 115, 0.055) 0 1px, transparent 1.4px);
+  --stage-lines:
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent),
+    linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  --status-glow-ok: 0 0 0 4px rgba(22, 163, 74, 0.12), 0 0 14px rgba(22, 163, 74, 0.42);
+  --status-glow-warn: 0 0 0 4px rgba(217, 119, 6, 0.12), 0 0 14px rgba(217, 119, 6, 0.42);
+  --status-glow-err: 0 0 0 4px rgba(220, 38, 38, 0.12), 0 0 14px rgba(220, 38, 38, 0.4);
+
   /* 圆角 */
   --radius-sm: 7px;
   --radius: 10px;
+  --radius-lg: 16px;
+
+  /* 尺寸 */
+  --page-pad-x: max(1.1rem, env(safe-area-inset-left, 0px));
+  --page-pad-y: 0.75rem;
+  --touch-target: 44px;
+  --fs-body: 15px;
+  --fs-ui: 0.875rem;
+  --fs-panel-title: 0.8125rem;
+  --vision-control-col-pct: 22;
+  --ivg-side-col-min: min(32vw, 14rem);
+  --ivg-monitoring-pose-col-min: min(34vw, 12rem);
+  --ivg-gap-xs: 0.22rem;
+  --ivg-gap-sm: 0.28rem;
+  --ivg-gap: 0.35rem;
+  --ivg-gap-md: 0.45rem;
+  --ivg-pane-pad: 0.5rem 0.65rem;
+  --ivg-pane-pad-tight: 0.38rem 0.5rem;
 
   /* 可视化背景 */
   --viz-bg: #f5f3f0;
@@ -51,4 +106,5 @@
   --latte-border: rgba(139, 94, 60, 0.18);
   --latte-shadow: 0 2px 12px rgba(60, 30, 10, 0.07);
   --latte-glow: 0 0 0 3px rgba(180, 83, 9, 0.15);
+}
 }

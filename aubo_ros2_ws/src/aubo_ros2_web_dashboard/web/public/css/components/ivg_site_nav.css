@@ -145,32 +145,6 @@ color: #fff;
 color: #fff;
 background: var(--accent-hover, #3d5a73);
 }
-.ivg-page-nav {
-display: flex;
-flex-wrap: wrap;
-align-items: center;
-gap: 0.2rem 0.35rem;
-padding: 0.4rem max(1.1rem, env(safe-area-inset-left, 0px)) 0.4rem max(1.1rem, env(safe-area-inset-right, 0px));
-background: var(--panel-muted, #f5f6f8);
-border-bottom: 1px solid var(--border, #e2e6ed);
-font-size: 12px;
-}
-.ivg-page-nav a {
-color: var(--muted, #8b95a6);
-text-decoration: none;
-font-weight: 500;
-padding: 0.2rem 0.35rem;
-border-radius: 4px;
-}
-.ivg-page-nav a:hover {
-color: var(--accent, #4f6f8a);
-background: var(--accent-soft, rgba(79, 111, 138, 0.1));
-}
-.ivg-page-nav__sep {
-color: var(--border-strong, #d1d6df);
-user-select: none;
-margin: 0 0.1rem;
-}
 @media (hover: none) and (pointer: coarse), (max-width: 1024px) {
 .ivg-global-nav__brand {
 display: inline-flex;
@@ -182,12 +156,6 @@ display: inline-flex;
 align-items: center;
 min-height: 44px;
 padding: 0.35rem 0.85rem;
-}
-.ivg-page-nav a {
-display: inline-flex;
-align-items: center;
-min-height: 44px;
-padding: 0.25rem 0.5rem;
 }
 .ivg-global-nav__fs-btn {
 min-height: 44px;

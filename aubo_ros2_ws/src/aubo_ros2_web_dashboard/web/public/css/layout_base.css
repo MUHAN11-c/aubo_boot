@@ -1,16 +1,22 @@
 /* layout_base.css — 全站共享布局基类（需先加载 tokens.css） */
 
+@layer base {
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   font-family: "Noto Sans CJK SC", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", system-ui, -apple-system, sans-serif;
   background:
-    radial-gradient(circle, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
-  background-size: 20px 20px;
+    radial-gradient(circle at 12% -8%, rgba(var(--accent-rgb), 0.16), transparent 30rem),
+    radial-gradient(circle at 88% 4%, rgba(23, 33, 43, 0.08), transparent 32rem),
+    linear-gradient(135deg, rgba(var(--accent-rgb), 0.06), transparent 34%),
+    var(--soft-grain);
+  background-size: auto, auto, auto, 34px 34px, 46px 46px;
   background-color: var(--bg);
   background-position: 10px 10px;
   color: var(--text);
   min-height: 100vh;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -39,19 +45,38 @@ body {
 
 /* 面板基类 */
 .panel {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  position: relative;
+  container-type: inline-size;
+  background:
+    linear-gradient(180deg, var(--surface-panel-strong), var(--surface-panel)),
+    var(--surface-glass);
+  border: 1px solid var(--line-robot);
   border-left: 3px solid var(--accent);
   border-radius: var(--radius);
   padding: 0.85rem 1rem;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--glow-robot);
   min-width: 0;
-  transition: border-color 0.2s ease, box-shadow 0.25s ease, border-left-color 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.25s ease, border-left-color 0.2s ease, transform 0.2s ease;
+  backdrop-filter: blur(16px);
 }
 .panel:hover {
-  border-color: #d1d6df;
+  border-color: var(--line-robot-strong);
   border-left-color: var(--accent-hover);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--glow-robot-strong);
+}
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: var(--scanline);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* 面板变体：无左侧 accent 色条 */
+.panel--flat {
+  border-left: 1px solid var(--line-robot);
 }
 
 /* 状态徽章 */
@@ -77,20 +102,25 @@ code {
 
 /* 按钮基类 */
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
   padding: 0.38rem 0.75rem;
   font-size: 0.78rem;
   font-weight: 600;
   font-family: inherit;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-robot);
   border-radius: var(--radius-sm);
-  background: var(--bg-elevated);
+  background: linear-gradient(180deg, var(--surface-glass-strong), var(--surface-glass));
   color: var(--text);
   cursor: pointer;
+  text-decoration: none;
   transition: border-color 0.15s, background 0.15s, transform 0.15s;
 }
 .btn:hover {
   border-color: var(--accent);
-  background: var(--accent-soft);
+  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.12), rgba(var(--accent-rgb), 0.06));
   transform: translateY(-1px);
 }
 .btn-primary {
@@ -100,4 +130,20 @@ code {
 }
 .btn-primary:hover {
   background: var(--accent-hover);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
 }

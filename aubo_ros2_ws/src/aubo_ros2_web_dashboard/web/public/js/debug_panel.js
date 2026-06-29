@@ -42,6 +42,11 @@ function setStatusDot(elId, val) {
   el.classList.add(val ? 'green' : 'red');
 }
 
+function setTextIfPresent(elId, text) {
+  const el = $(elId);
+  if (el) el.textContent = text;
+}
+
 function updateConnStatus(connected) {
   const el = $('dbg-conn-status');
   if (!el) return;
@@ -99,11 +104,11 @@ function setupRobotStatus() {
 function updateStatusBar(msg) {
   // online dot
   setStatusDot('dbg-dot-online', msg.is_online);
-  $('dbg-val-online').textContent = msg.is_online ? '在线' : '离线';
+  setTextIfPresent('dbg-val-online', msg.is_online ? '在线' : '离线');
 
   // enable dot
   setStatusDot('dbg-dot-enable', msg.enable);
-  $('dbg-val-enable').textContent = msg.enable ? '已使能' : '未使能';
+  setTextIfPresent('dbg-val-enable', msg.enable ? '已使能' : '未使能');
 
   // motion dot
   const motionEl = $('dbg-dot-motion');
@@ -111,14 +116,14 @@ function updateStatusBar(msg) {
     motionEl.classList.remove('green', 'red', 'yellow', 'gray');
     motionEl.classList.add(msg.in_motion ? 'yellow' : 'gray');
   }
-  $('dbg-val-motion').textContent = msg.in_motion ? '运动中' : '静止';
+  setTextIfPresent('dbg-val-motion', msg.in_motion ? '运动中' : '静止');
 
   // planning
-  $('dbg-val-planning').textContent = msg.planning_status || '--';
+  setTextIfPresent('dbg-val-planning', msg.planning_status || '--');
 
   // TCP pose
   if (msg.cartesian_position && msg.cartesian_position.position) {
-    $('dbg-val-tcp').textContent = fmtPose(msg.cartesian_position.position, msg.cartesian_position.orientation);
+    setTextIfPresent('dbg-val-tcp', fmtPose(msg.cartesian_position.position, msg.cartesian_position.orientation));
   }
 }
 

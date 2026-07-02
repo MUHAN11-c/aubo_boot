@@ -140,26 +140,32 @@ TY_CAMERA_INTRINSIC image_intrinsic::data()
 }
 
 //percipio camera 初始化，打开相机,配置参数,使能数据流
-PercipioDevice::PercipioDevice(const char* faceId, const char* deviceId)
+PercipioDevice::PercipioDevice(const char* faceId, const char* deviceId, const char* deviceIP)
     : alive(false),
       hIface(nullptr),
       handle(nullptr)
 {
-    TY_STATUS status = device_open(faceId, deviceId);
-    if(TY_STATUS_OK == status) {
-        strFaceId = faceId;
-        strDeviceId = deviceId;
+    strFaceId = faceId;
+    strDeviceId = deviceId;
+    if (deviceIP && deviceIP[0] != '\0') {
+        strDeviceIP = deviceIP;
+    }
+
+    TY_STATUS status = device_open(faceId, deviceId, deviceIP);
+    if(TY_STATUS_OK != status) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE),
+            "Failed to open device (status=" << status << "), will retry in startDevice loop");
     }
 
     DepthDomainTimeFilterMgrPtr = std::make_unique<DepthTimeDomainMgr>(m_depth_time_domain_frame_num);
 }
 
-//设备离校重连
+//设备离线重连
 //此功能只有在开启设备自动重连 且相机发生事实离线问题时会被主动调用，
 TY_STATUS  PercipioDevice::Reconnect()
 {
-    TY_STATUS status = device_open(strFaceId.c_str(), strDeviceId.c_str());
-    if(TY_STATUS_OK != status) 
+    TY_STATUS status = device_open(strFaceId.c_str(), strDeviceId.c_str(), strDeviceIP.c_str());
+    if(TY_STATUS_OK != status)
         return status;
 
     device_ros_event.eventId = (TY_EVENT)TY_EVENT_DEVICE_CONNECT;
@@ -170,7 +176,7 @@ TY_STATUS  PercipioDevice::Reconnect()
     return TY_STATUS_OK;
 }
 
-TY_STATUS PercipioDevice::device_open(const char* faceId, const char* deviceId)
+TY_STATUS PercipioDevice::device_open(const char* faceId, const char* deviceId, const char* deviceIP)
 {
     TY_STATUS status;
     status = TYOpenInterface(faceId, &hIface);
@@ -178,11 +184,39 @@ TY_STATUS PercipioDevice::device_open(const char* faceId, const char* deviceId)
         RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Open interface fail : " << status);
         return status;
     }
-  
+
+    // 优先尝试 TYOpenDevice (设备 ID 方式)
     status = TYOpenDevice(hIface, deviceId, &handle);
+
+    // 如果设备 ID 方式失败且有 IP 地址，回退到 TYOpenDeviceWithIP (IP 直连)
+    // 依据: SDK 文档建议当主机和相机之间存在路由连接时使用 TYOpenDeviceWithIP
+    // 场景: 多网卡主机上 WiFi 接口有 169.254.0.0/16 link-local 路由时，
+    //       TYOpenDevice 通过设备 ID 查找可能失败，但 IP 直连可以正常工作喵~
+    if(status != TY_STATUS_OK && deviceIP && deviceIP[0] != '\0') {
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE),
+            "TYOpenDevice failed (status=" << status << "), falling back to TYOpenDeviceWithIP(" << deviceIP << ")");
+        TYCloseInterface(hIface);
+        hIface = nullptr;
+
+        // 重新打开接口后使用 IP 直连
+        status = TYOpenInterface(faceId, &hIface);
+        if(status != TY_STATUS_OK) {
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE),
+                "Open interface fail on retry : " << status);
+            return status;
+        }
+
+        status = TYOpenDeviceWithIP(hIface, deviceIP, &handle);
+        if(status == TY_STATUS_OK) {
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE),
+                "TYOpenDeviceWithIP succeeded! Device opened via IP: " << deviceIP);
+        }
+    }
+
     if(status != TY_STATUS_OK) {
         RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Open device fail : " << status);
         TYCloseInterface(hIface);
+        hIface = nullptr;
         return status;
     }
 

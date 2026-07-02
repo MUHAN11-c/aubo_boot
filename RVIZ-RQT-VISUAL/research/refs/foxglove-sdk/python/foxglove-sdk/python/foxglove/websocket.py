@@ -1,0 +1,215 @@
+from __future__ import annotations
+
+from typing import Optional, Protocol
+
+from . import (
+    AnyInnerParameterValue,
+    AnyNativeParameterValue,
+    AnyParameterValue,
+    AssetHandler,
+    ConnectionGraph,
+    MessageSchema,
+    Parameter,
+    ParameterType,
+    ParameterValue,
+    Service,
+    ServiceHandler,
+    ServiceRequest,
+    ServiceSchema,
+    StatusLevel,
+)
+from ._foxglove_py.websocket import (
+    Capability,
+    ChannelView,
+    Client,
+    ClientChannel,
+    PlaybackCommand,
+    PlaybackControlRequest,
+    PlaybackState,
+    PlaybackStatus,
+    WebSocketServer,
+)
+
+
+class ServerListener(Protocol):
+    """
+    A mechanism to register callbacks for handling client message events.
+    """
+
+    def on_subscribe(self, client: Client, channel: ChannelView) -> None:
+        """
+        Called by the server when a client subscribes to a channel.
+
+        :param client: The client (id) that sent the message.
+        :param channel: The channel (id, topic) that the message was sent on.
+        """
+        return None
+
+    def on_unsubscribe(self, client: Client, channel: ChannelView) -> None:
+        """
+        Called by the server when a client unsubscribes from a channel or disconnects.
+        Also called when a subscribed channel is removed from the server.
+
+        :param client: The client (id) that sent the message.
+        :param channel: The channel (id, topic) that the message was sent on.
+        """
+        return None
+
+    def on_client_advertise(self, client: Client, channel: ClientChannel) -> None:
+        """
+        Called by the server when a client advertises a channel.
+
+        :param client: The client (id) that sent the message.
+        :param channel: The client channel that is being advertised.
+        """
+        return None
+
+    def on_client_unadvertise(self, client: Client, client_channel_id: int) -> None:
+        """
+        Called by the server when a client unadvertises a channel.
+
+        :param client: The client (id) that is unadvertising the channel.
+        :param client_channel_id: The client channel ID that is being unadvertised.
+        """
+        return None
+
+    def on_message_data(
+        self, client: Client, client_channel_id: int, data: bytes
+    ) -> None:
+        """
+        Called by the server when a message is received from a client.
+
+        :param client: The client (id) that sent the message.
+        :param client_channel_id: The client channel ID that the message was sent on.
+        :param data: The message data.
+        """
+        return None
+
+    def on_get_parameters(
+        self,
+        client: Client,
+        param_names: list[str],
+        request_id: str | None = None,
+    ) -> list[Parameter]:
+        """
+        Called by the server when a client requests parameters.
+
+        Requires :py:data:`Capability.Parameters`.
+
+        :param client: The client (id) that sent the message.
+        :param param_names: The names of the parameters to get.
+        :param request_id: An optional request ID.
+        """
+        return []
+
+    def on_set_parameters(
+        self,
+        client: Client,
+        parameters: list[Parameter],
+        request_id: str | None = None,
+    ) -> list[Parameter]:
+        """
+        Called by the server when a client sets parameters.
+        Note that only `parameters` which have changed are included in the callback, but the return
+        value must include all parameters. If a parameter that is unset is included in the return
+        value, it will not be published to clients.
+
+        Requires :py:data:`Capability.Parameters`.
+
+        :param client: The client (id) that sent the message.
+        :param parameters: The parameters to set.
+        :param request_id: An optional request ID.
+        """
+        return parameters
+
+    def on_parameters_subscribe(
+        self,
+        param_names: list[str],
+    ) -> None:
+        """
+        Called by the server when a client subscribes to one or more parameters for the first time.
+
+        Requires :py:data:`Capability.Parameters`.
+
+        :param param_names: The names of the parameters to subscribe to.
+        """
+        return None
+
+    def on_parameters_unsubscribe(
+        self,
+        param_names: list[str],
+    ) -> None:
+        """
+        Called by the server when the last client subscription to one or more parameters has been
+        removed.
+
+        Requires :py:data:`Capability.Parameters`.
+
+        :param param_names: The names of the parameters to unsubscribe from.
+        """
+        return None
+
+    def on_connection_graph_subscribe(self) -> None:
+        """
+        Called by the server when the first client subscribes to the connection graph.
+
+        Requires :py:data:`Capability.ConnectionGraph`.
+
+        .. warning::
+            Do not call :py:meth:`~foxglove.websocket.WebSocketServer.publish_connection_graph`
+            from within this callback; doing so will deadlock.
+        """
+        return None
+
+    def on_connection_graph_unsubscribe(self) -> None:
+        """
+        Called by the server when the last client unsubscribes from the connection graph.
+
+        Requires :py:data:`Capability.ConnectionGraph`.
+
+        .. warning::
+            Do not call :py:meth:`~foxglove.websocket.WebSocketServer.publish_connection_graph`
+            from within this callback; doing so will deadlock.
+        """
+        return None
+
+    def on_playback_control_request(
+        self, playback_control_request: PlaybackControlRequest
+    ) -> Optional[PlaybackState]:
+        """
+        Called by the server when it receives an updated player state from the client.
+
+        Requires :py:data:`Capability.PlaybackControl`.
+
+        :meta private:
+        :param playback_control_request: The playback control request sent from the client
+        """
+        return None
+
+
+__all__ = [
+    "AnyInnerParameterValue",
+    "AnyNativeParameterValue",
+    "AnyParameterValue",
+    "AssetHandler",
+    "Capability",
+    "ChannelView",
+    "Client",
+    "ClientChannel",
+    "ConnectionGraph",
+    "MessageSchema",
+    "Parameter",
+    "ParameterType",
+    "ParameterValue",
+    "PlaybackCommand",
+    "PlaybackControlRequest",
+    "PlaybackState",
+    "PlaybackStatus",
+    "ServerListener",
+    "Service",
+    "ServiceHandler",
+    "ServiceRequest",
+    "ServiceSchema",
+    "StatusLevel",
+    "WebSocketServer",
+]

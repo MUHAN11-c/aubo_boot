@@ -1,0 +1,62 @@
+<h2>设计第一部分：统一设计令牌 tokens.css</h2>
+<p class="subtitle">所有页面的单一数据源。合并 5 个 :root 定义，统一变量命名。</p>
+
+<div class="mockup">
+  <div class="mockup-header">tokens.css 内容 (~50 行)</div>
+  <div class="mockup-body">
+    <pre style="font-size:11px;line-height:1.6;background:#f8f9fb;padding:16px;border-radius:8px;overflow-x:auto;font-family:monospace;"><span style="color:#8b95a6;">/* tokens.css — 全站唯一设计令牌源 */</span>
+:root {
+  <span style="color:#8b95a6;">/* 背景 */</span>
+  --bg: #fafbfc;
+  --bg-elevated: #ffffff;
+  --bg-muted: #f5f6f8;
+
+  <span style="color:#8b95a6;">/* 边框 */</span>
+  --border: #e2e6ed;
+  --border-strong: #d1d6df;
+
+  <span style="color:#8b95a6;">/* 文字 */</span>
+  --text: #171b23;
+  --text-secondary: #4b5565;
+  --text-muted: #8b95a6;
+
+  <span style="color:#8b95a6;">/* 主题色 */</span>
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-soft: rgba(37,99,235,0.07);
+
+  <span style="color:#8b95a6;">/* 语义色 */</span>
+  --ok: #16a34a;
+  --warn: #d97706;
+  --err: #dc2626;
+  --orange: #ea580c;
+
+  <span style="color:#8b95a6;">/* 阴影 */</span>
+  --shadow-sm: 0 1px 3px rgba(15,23,42,0.06);
+  --shadow-md: 0 6px 20px rgba(15,23,42,0.09);
+  --shadow-lg: 0 16px 48px rgba(15,23,42,0.13);
+
+  <span style="color:#8b95a6;">/* 圆角 */</span>
+  --radius-sm: 7px;
+  --radius: 10px;
+
+  <span style="color:#8b95a6;">/* 咖啡拉花主题 */</span>
+  --latte-accent: #7c4a2a;
+  --latte-accent-soft: rgba(124,74,42,0.12);
+}</pre>
+  </div>
+</div>
+
+<div class="section">
+  <h3>命名统一对照</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:11px;">
+    <thead><tr style="background:#f5f6f8;"><th style="text-align:left;padding:5px 8px;">旧 (混乱)</th><th style="text-align:left;padding:5px 8px;">新 (统一)</th><th style="text-align:left;padding:5px 8px;">影响文件</th></tr></thead>
+    <tbody>
+      <tr><td style="padding:4px 8px;font-family:monospace;">--panel-bg (ivg_base)</td><td style="padding:4px 8px;font-family:monospace;color:#2563eb;">--bg-elevated</td><td style="padding:4px 8px;font-size:10px;">ivg_base.css → 删 :root</td></tr>
+      <tr><td style="padding:4px 8px;font-family:monospace;">--panel (home/settings)</td><td style="padding:4px 8px;font-family:monospace;color:#2563eb;">--bg-elevated</td><td style="padding:4px 8px;font-size:10px;">home.css, settings_panel.css</td></tr>
+      <tr><td style="padding:4px 8px;font-family:monospace;">--panel-muted (home/vision)</td><td style="padding:4px 8px;font-family:monospace;color:#2563eb;">--bg-muted</td><td style="padding:4px 8px;font-size:10px;">home.css, vision_grasp_panel.css</td></tr>
+      <tr><td style="padding:4px 8px;font-family:monospace;">--muted (home/vision/settings)</td><td style="padding:4px 8px;font-family:monospace;color:#2563eb;">--text-muted</td><td style="padding:4px 8px;font-size:10px;">3 个文件</td></tr>
+      <tr><td style="padding:4px 8px;font-family:monospace;">--text-muted (ivg_base)</td><td style="padding:4px 8px;font-family:monospace;color:#2563eb;">--text-muted ✅</td><td style="padding:4px 8px;font-size:10px;">保持不变</td></tr>
+    </tbody>
+  </table>
+</div>

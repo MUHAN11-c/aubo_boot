@@ -1,0 +1,87 @@
+cmake_minimum_required(VERSION 3.10)
+project(tool_changer)
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(ivg_interfaces REQUIRED)
+find_package(moveit_core REQUIRED)
+find_package(moveit_ros_planning_interface REQUIRED)
+find_package(moveit_msgs REQUIRED)
+find_package(yaml_cpp_vendor REQUIRED)
+find_package(ament_index_cpp REQUIRED)
+
+# RobotController 来自 aubo_ros2_driver 包 — colcon workspace 中所有包是 src/ 下的同级目录
+set(AUBO_DRIVER_DIR ${CMAKE_SOURCE_DIR}/../aubo_ros2_driver)
+
+include_directories(include
+  ${AUBO_DRIVER_DIR}/demo_driver/include
+)
+
+# 夹爪快换 worker（物理运动 + IO 控制 + RobotController）
+add_executable(gripper_swap_worker_node
+  src/gripper_swap_worker.cpp
+  ${AUBO_DRIVER_DIR}/demo_driver/src/robot_controller.cpp
+)
+ament_target_dependencies(gripper_swap_worker_node
+  rclcpp
+  geometry_msgs
+  ivg_interfaces
+  moveit_msgs
+  moveit_core
+  moveit_ros_planning_interface
+  yaml_cpp_vendor
+  ament_index_cpp
+)
+
+# 场景附着 worker（订阅 /tool_changer_status，更新 PlanningScene 显示）
+add_executable(scene_attach_worker_node
+  src/scene_attach_worker.cpp
+)
+ament_target_dependencies(scene_attach_worker_node
+  rclcpp
+  geometry_msgs
+  ivg_interfaces
+  moveit_msgs
+  shape_msgs
+  std_msgs
+  yaml_cpp_vendor
+  ament_index_cpp
+)
+# resource_retriever 用于 loadMesh 加载 STL 碰撞网格
+find_package(resource_retriever REQUIRED)
+target_link_libraries(scene_attach_worker_node resource_retriever::resource_retriever)
+
+install(TARGETS
+  gripper_swap_worker_node
+  scene_attach_worker_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY include/
+  DESTINATION include
+)
+
+
+install(DIRECTORY launch/
+  DESTINATION share/${PROJECT_NAME}/launch
+)
+
+install(DIRECTORY urdf/
+  DESTINATION share/${PROJECT_NAME}/urdf
+)
+
+install(DIRECTORY config/
+  DESTINATION share/${PROJECT_NAME}/config
+)
+
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+  ament_lint_auto_find_test_dependencies()
+endif()
+
+ament_package()

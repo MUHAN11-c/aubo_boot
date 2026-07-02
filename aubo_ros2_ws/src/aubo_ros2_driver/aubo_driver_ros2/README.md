@@ -1,360 +1,176 @@
-# aubo_driver_ros2：MoveIt2 到真实机械臂控制完整流程与修复总结
+# aubo_driver_ros2
 
-本文档全面描述从 **MoveIt2 规划** 到 **控制真实 Aubo 机械臂** 的完整数据流、逻辑细节、调试过程中发现的所有问题与解决方法、修改原因、测试与诊断方法，以及每个修改的理论与实践依据。
+AUBO 协作机械臂 ROS2 Humble 驱动包。
 
----
+## 架构
 
-## 一、完整数据流概览
+两套并存，通过启动脚本选择:
+
+| 架构 | 启动 | 轨迹插值 | 关节状态 | SDK 功能 |
+|------|------|---------|---------|---------|
+| 旧框架 | `start_IVG_...legacy.sh` | Python simulator | 轮询 getCurrentWaypointInfo | 部分 |
+| **新框架** | `start_aubo_new_driver.sh` | **C++ 预计算** | **SDK 回调推送** | **Dashboard 20服务** |
+
+### 新框架控制链路
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│ 1. MoveIt2 规划层                                                                 │
-│    - MoveGroupInterface::plan() 规划轨迹                                          │
-│    - MoveGroupInterface::execute() 转为 FollowJointTrajectory Action Goal          │
-└──────────────────────────────────────────┬──────────────────────────────────────┘
-                                          ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│ 2. aubo_ros2_trajectory_action                                                   │
-│    - handleGoal/handleAccept: 接受 Goal 后一次性发布完整 JointTrajectory           │
-│    - 发布到 joint_path_command (trajectory_msgs/JointTrajectory)                  │
-│    - 订阅 aubo/feedback_states 等待执行反馈；watchDog 2s 无反馈则 abort               │
-└──────────────────────────────────────────┬──────────────────────────────────────┘
-                                          ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│ 3. aubo_robot_simulator_ros2 (Python)                                            │
-│    - 订阅 joint_path_command                                                      │
-│    - 5 次多项式插值，200Hz 固定节拍（5ms）发布 JointTrajectoryPoint                  │
-│    - Wall-clock 累积误差补偿，保证发布间隔均匀                                      │
-│    - 发布到 moveItController_cmd (trajectory_msgs/JointTrajectoryPoint)           │
-│    - 可选：订阅 /aubo_driver/rib_status 做背压节流                                  │
-└──────────────────────────────────────────┬──────────────────────────────────────┘
-                                          ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│ 4. aubo_driver_ros2 (C++)                                                        │
-│    moveItPosCallback: 订阅 moveItController_cmd → buf_queue_ (mutex)               │
-│    feedToRosMotionLoop 线程 (200Hz/5ms): buf_queue_ → ros_motion_queue_           │
-│       - rib<200 时每周期喂 3 点，否则 1 点                                         │
-│    publishWaypointToRobot 线程:                                                  │
-│       - 按需刷新 RIB（diag 间隔 rib<200 时 20ms，否则 100ms）；max_cnt_per_send=8    │
-│       - rib<200 且队列非空时 1ms 睡眠，否则 4ms                                     │
-│       - tryPopWaypoint → robotServiceSetRobotPosData2Canbus                       │
-└──────────────────────────────────────────┬──────────────────────────────────────┘
-                                          ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│ 5. 机器人控制器                                                                   │
-│    - RIB 缓冲 400 点，按 6 关节/点消费                                             │
-│    - 执行关节轨迹，发布 joint_states / aubo/feedback_states                        │
-└─────────────────────────────────────────────────────────────────────────────────┘
+MoveIt2 → FollowJointTrajectory Action
+  → joint_trajectory_controller
+    ├─ handleAccepted: 预计算 200Hz 插值
+    ├─ sendLoop: ROS1 风格自适应批量发送
+    └─ update: 安全检查 + 目标容差
+
+并行:
+  aubo_state_broadcaster → joint_states (RoadPoint+JointStatus 回调)
+  aubo_dashboard_node    → 20 ROS2 服务
 ```
 
-### 1.1 话题与消息类型
-
-| 话题 | 类型 | 方向 | 说明 |
-|------|------|------|------|
-| `follow_joint_trajectory` | action | MoveIt → trajectory_action | FollowJointTrajectory Goal |
-| `joint_path_command` | JointTrajectory | trajectory_action → simulator | 完整轨迹 |
-| `moveItController_cmd` | JointTrajectoryPoint | simulator → driver | 200Hz 插值点 |
-| `aubo/feedback_states` | FollowJointTrajectory_Feedback | 控制器 → driver → trajectory_action | 执行反馈 |
-| `joint_states` | JointState | driver | 当前关节角 |
-| `/aubo_driver/rib_status` | Int32MultiArray | driver | data[0]=buf_queue_.size() |
-| `/aubo_driver/real_pose` | Float32MultiArray | driver | 真实位姿 |
-
-### 1.2 驱动内部关键数据结构
-
-| 名称 | 类型 | 含义 | 写入 | 读取 |
-|------|------|------|------|------|
-| `buf_queue_` | `std::queue<PlanningState>` | 来自插值节点的轨迹点 | moveItPosCallback | feedToRosMotionLoop |
-| `ros_motion_queue_` | `ReaderWriterQueue` | 待送机的关节点（无锁） | setRobotJointsByMoveIt | tryPopWaypoint |
-| `rib_buffer_size_` | `std::atomic<int>` | 控制器 RIB 缓冲量 | publishWaypointToRobot、timerCallback | feedToRosMotionLoop |
-| `start_move_` | `bool` | 运动标志 | updateControlStatus、feedToRosMotionLoop | feedToRosMotionLoop |
-| `buffer_size_` | `int` (400) | 预缓冲阈值 | 构造函数 | moveItPosCallback |
-
----
-
-## 二、问题现象与根因定位（基于 debug 日志）
-
-### 2.1 问题现象总结
-
-| 现象 | 描述 | 主观/客观判定 |
-|------|------|----------------|
-| 连续卡顿 | 运动“一顿一顿”，可闻机械/电气噪音 | 与 ROS1 对比；轨迹执行时间明显变长 |
-| 突然加速 | 某时刻机械臂明显突然变快 | time_diff 过小或超速检测触发 |
-| 末端抖动 | 末端小幅高频晃动，无卡顿噪音 | 关节反馈曲线有小幅振荡 |
-| 偶发卡顿 | 大部分平滑，偶发短暂停顿 | RIB 或 ros_motion_queue_ 曾耗尽 |
-| 单条轨迹内停顿 | 同一条轨迹执行中数秒级停顿 | 两次 SetRobotPosData2Canbus 间隔 2～4s |
-| MoveIt 报 -4 | execute() 返回 CONTROL_FAILED | action 被 abort |
-| MoveIt 报 -6 | execute() 返回 TIMED_OUT | 超时或二次 goal |
-
-### 2.2 根因与日志判定依据
-
-调试时使用 NDJSON 写入 `.cursor/debug-*.log`，下列字段用于判定根因：
-
-| 根因 | 日志 message | 关键 data 字段 | 判定逻辑 |
-|------|--------------|----------------|----------|
-| 取点间隔抖动 | feeder_stats | interval_ms, ros_motion_queue_sz, buf_queue_sz | interval_ms > 10ms ⇒ 取点与主线程竞争 |
-| RIB 缓存过时 | feeder_stats | rib_buffer_size, cached_rib, current_macsz | 运动中 cached_rib 大但 RIB 已耗尽 ⇒ 缓存滞后 |
-| publisher 吞吐不足 | tcp_send_stats | send_avg_ms, count, rmq_sz | 送点速率 < 200 pts/s 且 RIB 下降 ⇒ 吞吐不足 |
-| TCP 延迟尖峰 | tcp_send_stats | send_max_ms | send_max_ms > 50ms ⇒ 单次 TCP 阻塞 |
-| RIB 初始过冲 | tcp_send_stats | current_macsz | RIB > 400 ⇒ 缓存 0 时大量送点 |
-| start_move_ 误关 | ros_motion_queue_starvation | starvation_count, buf_queue_sz | buf_queue_sz > 0 却 starvation ⇒ feeder 已停 |
-| 数据竞争 | 代码审查 | — | timerCallback 与 publishWaypointToRobot 同时写 robot_diagnosis_info_ |
-
-### 2.3 关键指标与阈值
-
-| 指标 | 正常范围 | 异常判定 |
-|------|----------|----------|
-| 取点间隔 | ~2ms (500Hz) | 12～80ms 尖峰 |
-| 插值发布间隔 | ~5ms (200Hz) | max > 20ms 或 4s 级尖峰 |
-| RIB | 几十～400 | 长期 0 或个位数 |
-| buffer_size_ | 400 (ROS1 一致) | 5、60 等过小值 |
-| TCP 送点 | 平均 ms～十数 ms | 尖峰 > 50ms |
-
----
-
-## 三、问题与解决方法详表
-
-### 3.1 连续卡顿与卡顿噪音（Fix1）
-
-**根因**：`setRobotJointsByMoveIt()` 与主线程 `spin_some()` 同线程执行。回调密集时主线程被占用，取点间隔出现 12～80ms 尖峰（理想 ~2ms），导致控制器执行不连续。
-
-**依据**：debug 日志中 `interval_ms` 多次 > 10ms；对比 ROS1 单线程下取点节奏稳定。
-
-**解决**：
-- 新增独立线程 `feedToRosMotionLoop`（200Hz，5ms 周期）
-- `buf_queue_` 使用 `buf_queue_mutex_` 保护
-- `rib_buffer_size_` 改为 `std::atomic<int>`
-
-**修改文件**：`aubo_driver_ros2.cpp`，`aubo_driver.h`
-
----
-
-### 3.2 插值发布不均匀（Fix2）
-
-**根因**：Python 插值使用浮点步数，`n_steps` 在 19/20 之间抖动；无 wall-clock 补偿，累积误差导致发布间隔漂移。
-
-**依据**：motion_log 中 segment 间 ts 间隔不均匀；理论 5ms 与实际 perf_counter 差增大。
-
-**解决**：
-- `n_steps = max(1, round(T / update_duration_sec))` 整数步数
-- 每 segment 记录 `_timing_wall_start`，每步 `_wait = _step_idx * update_duration_sec - (perf_counter - _timing_wall_start)`，sleep(_wait) 补偿
-
-**修改文件**：`aubo_robot_simulator_ros2/aubo_robot_simulator_node.py`
-
----
-
-### 3.3 start_move_ 误关（Fix3、Fix9）
-
-**根因**：`buf_queue_` 短暂为空即关闭 `start_move_`，导致 feeder 停止、ros_motion_queue 断供。
-
-**依据**：`buf_queue_sz > 0` 却出现 `ros_motion_queue_starvation`；`start_move_` 在轨迹未结束时变 false。
-
-**解决**：
-- 路径 B 条件改为 `buf_queue_` 与 `ros_motion_queue_` 双空才关
-- 超时：`empty_streak > 500`（500×5ms ≈ 2.5s）才关闭 `start_move_`
-
-**修改文件**：`aubo_driver_ros2.cpp` feedToRosMotionLoop
-
----
-
-### 3.4 buffer_size_ 过小（Fix4、Fix7、Fix10）
-
-**根因**：曾将 `buffer_size_` 设为 5、60 等，预缓冲不足，`start_move_` 频繁切换。
-
-**依据**：start_move_ 与 rib 日志显示频繁开关；RIB 易耗尽。
-
-**解决**：`buffer_size_ = 400`，与 ROS1 一致，提供约 10s 缓冲深度。
-
-**修改文件**：`aubo_driver_ros2.cpp` 构造函数
-
----
-
-### 3.5 RIB 缓存过时与数据竞争（Fix8、Fix12）
-
-**根因**：
-1. 用 50Hz timerCallback 更新 `rib_buffer_size_`，publisher 使用缓存做流控，实际 RIB 已耗尽却误判为“已满”
-2. `rs.robot_diagnosis_info_` 被 timerCallback 与 publishWaypointToRobot 并发读写，无保护
-
-**依据**：运动中 `cached_rib` 大但 RIB 实际耗尽；对比 ROS1 在 publishWaypointToRobot 热循环内实时查 RIB。
-
-**解决**（当前实现）：
-- 在 `publishWaypointToRobot` 内**按需刷新** RIB：`need_diag_refresh = (current_macsz <= 0) || (diag_age_ms >= diag_refresh_interval_ms)`，RIB≤0 或距上次查询超时则调用 `robotServiceGetRobotDiagnosisInfo`
-- `diag_refresh_interval_ms`：RIB<200 且队列非空时为 20ms，否则 100ms
-- 使用局部变量 `pub_diag`，不再共享 `rs.robot_diagnosis_info_`
-
-**修改文件**：`aubo_driver_ros2.cpp` publishWaypointToRobot
-
----
-
-### 3.6 单条轨迹内异常停顿（Fix13）
-
-**根因**：
-1. RIB=0 时 sleep 10ms，多轮叠加导致送机间隔达数秒
-2. feedToRosMotionLoop 每 5ms 仅取 1～2 点，送机线程在 RIB=0 时一次可送 ~66 批点，瞬间抽空 `ros_motion_queue_`，补点需数百次 5ms，形成长 gap
-
-**依据**：driver 侧记录两次 SetRobotPosData2Canbus 墙钟间隔 2～4s 且 rib=0；simulator 段间间隔 <1ms，排除插值侧。
-
-**解决**（当前实现）：
-- RIB=0 时 `sleep_for(1ms)` ✓
-- feedToRosMotionLoop：`feed_count = (rib < 200) ? 3 : 1`，每周期 for 循环取 1～3 点（非 batch<150 上限）
-
-**修改文件**：`aubo_driver_ros2.cpp` publishWaypointToRobot、feedToRosMotionLoop
-
----
-
-### 3.7 ROS1 与 ROS2 启动延迟差异（路径 A/B）
-
-**现象**：同一 buffer_size_=400，ROS1 约 100ms 开动，纯 ROS2 约 2s。
-
-**根因**：
-- 路径 A：`buf_queue_.size() > 400` 时置位，401 点 @ 200Hz ≈ 2s
-- 路径 B：`data_count_ == MAXALLOWEDDELAY`（400）且 `bq >= 50` 时置位
-- ROS2 多线程下路径 B 的 50 次与数据到达错位，路径 B 未先触发
-
-**解决**：
-- `data_count_` 改为 `std::atomic<int>`
-- moveItPosCallback 首点入队时 `data_count_.store(0)`
-- updateControlStatus 移到 driver 节点的 500Hz wall timer，由 driver executor 执行
-
-**修改文件**：`aubo_driver_ros2.cpp`，`aubo_driver.h`，driver_node_ros2
-
----
-
-### 3.8 MoveIt 错误码 -4 / -6（move_to_pose 等）
-
-**-4 (CONTROL_FAILED)**：FollowJointTrajectory action 被 abort。
-
-| abort reason | 含义 | 排查方向 |
-|--------------|------|----------|
-| client_cancel | MoveIt 或客户端主动 cancel | 起点校验超容差；执行超时 |
-| watchdog_no_feedback_2s | 2s 内无 aubo/feedback_states | 反馈话题/桥接 |
-| trajectory_execution_event_stop | 收到 stop 事件 | 谁在发 trajectory_execution_event |
-| new_goal_received | 新 goal 到达时旧 goal 未完成 | 重复/并发请求 |
-
-**-6 (TIMED_OUT)**：允许时间内未收到 SUCCESS，MoveIt 主动取消。常见诱因：**同一次操作触发了两次 ExecuteTrajectory**，第二个 goal 一直未完成。
-
-**诊断**：查看 aubo_ros2_trajectory_action 日志中的 `abort, reason=XXX`。
-
----
-
-### 3.9 偶发大抖动修复（Fix14，基于运行日志验证）
-
-**现象**：整体运动平滑，但偶发一次明显大抖动（>200ms 发送延迟导致 RIB 排空）。
-
-**根因**（通过 NDJSON 日志验证）：
-1. **diag 刷新 100ms 过稀**：低 RIB 阶段 rib 估算严重偏高（如估算 132 vs 实际 12），误判缓冲充足而未积极补点；SDK 出现 ~215ms 固有延迟时，真实 rib 仅 ~48，不足以扛过延迟。
-2. **feedToRosMotionLoop 吞吐瓶颈**：200Hz 每周期喂 1 点，与机器人消耗率相等，净填充率≈0，rib 长期在 6～48 振荡，无法爬升到 200+ 安全水位。
-
-**解决**：
-- **自适应 diag 刷新**：`rib < 200 && ros_q > 0` 时 `diag_refresh_interval_ms = 20`，否则 100ms；保证低水位时估算准确。
-- **自适应多点喂入**：`rib < 200` 时 `feed_count = 3`（每 5ms 喂 3 点，供给 600Hz），否则 1；净填充 +400/sec，~500ms 内 rib 可爬到 200+。
-- **自适应睡眠**（已有）：`rib < 200 && ros_q > 0` 时 1ms，否则 4ms。
-
-**修改文件**：`aubo_driver_ros2.cpp`（publishWaypointToRobot、feedToRosMotionLoop）
-
----
-
-## 四、如何编写调试代码判断问题
-
-### 4.1 日志约定
-
-- **格式**：NDJSON，每行一条 JSON
-- **路径**：如 `/home/mu/IVG2.0/.cursor/debug-<session>.log`
-- **字段**：`timestamp`、`message`、`data`（对象）
-
-### 4.2 C++ 驱动打点位置
-
-| 位置 | 目的 |
-|------|------|
-| feedToRosMotionLoop 循环内 | feeder_stats：interval_ms, buf_queue_sz, rib, start_move_ |
-| publishWaypointToRobot 内 | tcp_send_stats：send_ms, current_macsz, batch |
-| RIB 不足且 ros_motion_queue_ 为空 | ros_motion_queue_starvation |
-
-### 4.3 Python 插值打点位置
-
-| 位置 | 目的 |
-|------|------|
-| _publish_cmd 内 | publish_interval_stats：min/max/avg_ms |
-| _move_to throttle 分支 | throttle_event |
-| _motion_worker segment 结束 | segment_timing |
-
-### 4.4 示例代码（C++）
-
-```cpp
-if (dbg_count % 1000 == 0) {
-    size_t rmq = ros_motion_queue_.size_approx();
-    size_t bq = 0;
-    { std::lock_guard<std::mutex> lk(buf_queue_mutex_); bq = buf_queue_.size(); }
-    auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count();
-    char buf[512];
-    snprintf(buf, sizeof(buf),
-        "{\"timestamp\":%lld,\"message\":\"feeder_stats\",\"data\":{"
-        "\"ros_motion_queue_sz\":%zu,\"buf_queue_sz\":%zu,\"rib\":%d}}\n",
-        (long long)ts, rmq, bq, (int)rib_buffer_size_.load());
-    FILE* f = fopen("/home/mu/IVG2.0/.cursor/debug.log", "a");
-    if (f) { fputs(buf, f); fclose(f); }
-}
+## 可执行文件
+
+| 可执行文件 | 节点名 | 功能 |
+|-----------|--------|------|
+| `aubo_driver_ros2` | `aubo_driver` | 旧驱动 (兼容) |
+| `joint_trajectory_controller` | `joint_trajectory_controller` | FollowJointTrajectory Action + 预计算 + 发送 |
+| `aubo_dashboard_node` | `aubo_dashboard` | LifecycleNode, 20 服务 |
+| `aubo_state_broadcaster` | `aubo_state_broadcaster` | 回调驱动状态广播 |
+| `aubo_callback_monitor` | `aubo_callback_monitor` | 调试: 回调 vs 轮询对比 |
+
+## MoveIt2 集成
+
+启动:
+```bash
+ros2 launch aubo_moveit_config aubo_new_driver.launch.py server_host:=169.254.10.98
 ```
 
-### 4.5 注意事项
+控制器配置 (`config/moveit_controllers.yaml`):
+```yaml
+controller_names: [joint_trajectory_controller]
+joint_trajectory_controller:
+  action_ns: follow_joint_trajectory
+  type: FollowJointTrajectory
+```
 
-- 仅追加（append），不截断
-- 控制频率（如每 200～1000 次一条）
-- C++ 中先持锁读变量，释放锁后再写文件
-- 用 `#region agent log` 包裹便于移除
+## 话题/服务
 
----
+| 名称 | 类型 | 方向 | 发布者 |
+|------|------|------|--------|
+| `/joint_states` | `sensor_msgs/JointState` | 发布 | state_broadcaster |
+| `/aubo/feedback_states` | `FollowJointTrajectory_Feedback` | 发布 | state_broadcaster |
+| `/robot_status` | `RobotStatus` | 发布 | state_broadcaster |
+| `/aubo_driver/rib_status` | `Int32MultiArray` | 发布 | state_broadcaster |
+| `/aubo/startup` | `std_srvs/Trigger` | 服务 | dashboard |
+| `/aubo/shutdown` | `std_srvs/Trigger` | 服务 | dashboard |
+| `/aubo/brake_release` | `std_srvs/Trigger` | 服务 | dashboard |
+| `/aubo/stop` | `std_srvs/Trigger` | 服务 | dashboard |
+| `/aubo/fast_stop` | `std_srvs/Trigger` | 服务 | dashboard |
+| `/aubo/collision_recover` | `std_srvs/Trigger` | 服务 | dashboard |
+| `/aubo/move_joint` | `MoveJoint` | 服务 | dashboard |
+| `/aubo/move_line` | `MoveLine` | 服务 | dashboard |
+| `/aubo/teach_start` | `TeachStart` | 服务 | dashboard |
+| `/aubo/teach_stop` | `std_srvs/Trigger` | 服务 | dashboard |
+| `/aubo/set_collision_class` | `SetCollisionClass` | 服务 | dashboard |
+| `/aubo/set_payload` | `SetPayload` | 服务 | dashboard |
+| `/aubo/set_tool_kinematics` | `SetToolKinematics` | 服务 | dashboard |
+| `/aubo/set_tool_voltage` | `SetToolVoltage` | 服务 | dashboard |
+| `/aubo/set_io` | `SetRobotIO` | 服务 | dashboard |
+| `/aubo/get_fk` | `GetFK` | 服务 | dashboard |
+| `/aubo/get_ik` | `GetIK` | 服务 | dashboard |
+| `/aubo/get_robot_info` | `std_srvs/Trigger` | 服务 | dashboard |
+| `/aubo/get_joint_status` | `std_srvs/Trigger` | 服务 | dashboard |
+| `/aubo/get_safety_config` | `std_srvs/Trigger` | 服务 | dashboard |
+| `/joint_trajectory_controller/follow_joint_trajectory` | `FollowJointTrajectory` | **Action** | controller |
 
-## 五、迭代修复历程总表
+## 参数
 
-| 迭代 | 主要修改 | 结果 |
-|------|----------|------|
-| Fix1 | 分离 feedToRosMotionLoop 线程 + buf_queue_mutex_ + rib_buffer_size_ atomic | 连续卡顿消除 |
-| Fix2 | 整数步数 + wall-clock 补偿 | 插值间隔稳定 |
-| Fix3 | start_move_=false 条件改为双空 | 减少误关 |
-| Fix4 | buffer_size_=5 | 严重抖动（回退）|
-| Fix5 | 移除 setRobotJointsByMoveIt 中 start_move_=false | start_move_ 稳定 |
-| Fix6 | RIB 查询 100ms + publisher 2ms | RIB 先冲后空（回退）|
-| Fix7 | buffer_size_=60 + 三重条件 | RIB 查询阻塞（回退）|
-| Fix8 | RIB 缓存 50Hz + publisher 2ms | RIB 耗尽（回退）|
-| Fix9 | 批量排空 + 1s 超时 | 数据流通 |
-| Fix10 | buffer_size_=200 | 仍偶发卡顿 |
-| Fix11 | local_sent + min_batch=5 | RIB 过冲缓解 |
-| Fix12 | 实时/按需 RIB 查询 + buffer_size_=400 + 4ms + 局部 pub_diag | 连续/偶发卡顿解决 |
-| Fix13 | RIB=0 时 1ms sleep + feed_count 按 rib 调节（rib<200 时 3 次） | 单条轨迹内停顿消除 |
-| Fix14 | diag 刷新 20/100ms 自适应 + feed_count 1～3 + 1/4ms 睡眠 | 偶发大抖动消除 |
-
----
-
-## 六、线程架构
-
-| 线程 | 频率 | 职责 |
+| 参数 | 默认 | 说明 |
 |------|------|------|
-| 主线程 / driver 主循环 | — | spin_some、updateControlStatus（由 timer 触发）|
-| feedToRosMotionLoop | 200Hz (5ms) | buf_queue_ → ros_motion_queue_ |
-| publishWaypointToRobot | ~250Hz (4ms) | 按需刷新 RIB（RIB≤0 或 diag_age≥20/100ms）；RIB<200 时循环末 1ms |
-| timerCallback | 50Hz | 状态查询、robot_status/rib_status 发布 |
-| publishJointStateAndFeedbackLoop | 50Hz | joint_states、feedback_states |
+| `server_host` | `169.254.10.98` | 机器人控制器 IP |
+| `server_port` | `8899` | 控制器端口 |
+| `motion_command_hz` | `200.0` | 插值频率 |
+| `collision_class` | `6` | 碰撞等级 |
 
----
+## 构建
 
-## 七、关键经验
+```bash
+cd ~/aubo_boot/aubo_ros2_ws
+source /opt/ros/humble/setup.bash
+colcon build --packages-select aubo_driver_ros2
+source install/setup.bash
+```
 
-1. **勿“优化”已验证的硬件协议设计**：ROS1 在热循环内实时查 RIB 看似低效，但保证流控准确；缓存引入滞后。
-2. **预缓冲与 ROS1 一致**：`buffer_size_=400`。
-3. **数据竞争即使“看似只读”也有害**：用局部变量避免多线程写共享结构。
-4. **feeder 批量排空且单周期有上限**：避免补点过慢或单周期过长。
-5. **start_move_ 关闭需容忍度**：短暂空队列不代表运动结束。
-6. **RIB=0 时不宜长 sleep**：10ms 会叠加成数秒，改为 1ms。
+## 已知问题与修复 (2026-06-10)
 
----
+### RIB 过冲 (Fix14)
 
-## 八、相关文档
+**现象**：`sendLoop` 在轨迹执行期间 RIB 峰值可达 1158 (容量仅 400)，导致控制器丢点、实际执行轨迹与规划轨迹不一致。
 
-- `doc/PORTING_MOTION_FIX.md`：移植与运动修复详细说明
-- `../demo_driver/docs/MOVE_TO_POSE_AND_ERROR_MINUS4_ANALYSIS.md`：move_to_pose 与 -4/-6 分析
-- `../../../docs/motion_jitter_analysis.md`：抖动/卡顿分析（工作区根 docs）
+**根因**：`diag_iv=120ms` 的 RIB 查询间隔远大于 `sendLoop` 的发送周期 (~7ms)，本地 `rib` 变量在 120ms 盲区内完全过期，门控 `rib>=300` 失效。
 
----
+**修复**：`joint_trajectory_controller.cpp:137` — `diag_iv` 从 `120` 改为 `0`，有数据待发时每轮都查 RIB。
 
-*文档版本：与当前代码一致。publishWaypointToRobot 使用按需 RIB 刷新（diag_refresh_interval 20/100ms 自适应）、1/4ms 自适应睡眠；feedToRosMotionLoop 使用 feed_count 1～3（rib<200 时 3）；max_cnt_per_send=8。调试埋点已移除。*
+### feedback_states 补全
+
+**问题**：`/aubo/feedback_states` 中 `desired.positions` 和 `error.positions` 永远为空。SDK `JointStatusCallback` 同时推送了 `jointTagPosJ`(目标) 和 `jointPosJ`(实际)，但 `AuboStateBroadcaster` 丢弃了目标位置数据。
+
+**修复**：`aubo_state_broadcaster.cpp` — 保存 `fb_tgt_pos_[]`，发布时填充 `desired.positions` + 计算 `error = tgt_pos - pos`。
+
+> 详见 `doc/移植修复记录.md` 第 13 节 Fix14。
+
+> 详见 [MoveIt2集成指南.md](doc/MoveIt2集成指南.md) — MoveIt2 完整接入方案与 JTC 改造计划
+
+## AUBO SDK 版本
+
+当前驱动使用的 SDK 版本及参考 SDK 对比：
+
+| 项目 | 当前使用 | 参考 SDK |
+|------|---------|----------|
+| **路径** | `lib/lib64/aubocontroller/` | `doc/references/aubo_sdk/` |
+| **库名** | `libauborobotcontroller.so.1.3.1` | `libaubo_sdk.so.2.5.3` |
+| **SDK 大版本** | v1.x | v2.x（兼容 v1.x 协议） |
+| **RobotType** | 8 种（i5~i10S） | 18 种（**超集**：含全部 8 种旧型号，值 0~7 与 v1.x 完全相同） |
+| **编译时间** | 旧版 | 2025-12-05 |
+| **API 规模** | ~80 个方法 | ~150+ 个方法（**超集**：含所有 v1.x 方法 + 力控/传送带跟踪/焊缝跟踪等） |
+| **验证状态** | ✅ 真机验证通过 | ⚠️ 协议层已验证兼容，未在本机机械臂上实测 |
+
+### 通信协议兼容性验证（确定结论）
+
+通过对比两个 SDK 的导出符号（`nm -D`），确认以下事实：
+
+| 对比项 | v1.3.1 (libauborobotcontroller) | v2.5.3 (libaubo_sdk) | 结论 |
+|--------|------|------|------|
+| **ProtoRequestLogin** | `aubo::robot::communication::ProtoRequestLogin` | `aubo::robot::communication::ProtoRequestLogin` | ✅ 完全相同 |
+| **RobotCommunicationClient** | 相同方法签名、相同 buffer 常量 | 相同方法签名、相同 buffer 常量 | ✅ 逐符号一致 |
+| **TCP 帧格式** | 4B SOF + 4B LEN + 4B CRC + 4B END | 4B SOF + 4B LEN + 4B CRC + 4B END | ✅ 完全相同 |
+| **RobotType 枚举值** | 0=I5, 1=I7, 2=I10_12, 3=I3S, 4=I3, 5=I5S, 6=I5L, 7=I10S | **0~7 值与 v1.x 完全相同**，8~20 为新增 | ✅ 旧型号值保持不变 |
+| **Protobuf 命名空间** | `aubo::robot::communication` + `aubo::robot::common` | `aubo::robot::communication` + `aubo::robot::common` | ✅ 完全相同 |
+
+> **确定结论**：v2.5.3 与 v1.3.1 的**通信协议层 100% 兼容**。两个 SDK 发送完全相同的 protobuf 消息（`ProtoRequestLogin`/`JointVersion`/`ProtoJointStatus` 等）通过完全相同的 TCP 帧格式，机械臂控制器**无法区分**客户端使用的是哪个 SDK 版本。v2.5.3 可以连接旧机械臂，不存在协议被拒的风险。
+
+### 为什么不替换
+
+虽然协议兼容，但**不建议替换**，原因如下：
+
+1. **零收益**：当前驱动只使用了 `ServiceInterface` 的基础运动 API（`robotServiceLogin`、`robotServiceJointMove`、`robotServiceRobotFk` 等），这些 API 在两个 SDK 中完全一致。v2.5.3 新增的力控/传送带跟踪/焊缝跟踪等功能，当前驱动代码完全不使用
+2. **改造成本高**：
+   - 库名不同：`-lauborobotcontroller` → `-laubo_sdk`（CMakeLists.txt 需改）
+   - 头文件路径不同：v2.5.3 有 30 个头文件，当前驱动只 include 了 3 个
+   - 头文件命名空间可能有细微差异（v1.3.1 的 `AuboRobotMetaType.h` 用了 `extern "C"` 包裹，v2.5.3 没有）
+3. **编译风险**：libaubo_sdk.so.2.5.3 链接 protobuf 3.6.1，当前驱动环境是 protobuf 9.0.1，可能存在 protobuf ABI 不兼容
+4. **维护成本**：v1.3.1 已验证稳定，换成 v2.5.3 后如果出现问题需要重新排查
+
+> **总结**：参考 SDK v2.5.3 适合作为 API 参考文档查阅（了解 AUBO SDK 的完整能力面），不适合作为本机旧机械臂驱动的 SDK 替换。如果真的想用新 SDK 的新功能（力控等），需要在备用机械臂上完成连通性验证后再做迁移喵~
+
+## 依赖
+
+- ROS 2: rclcpp, sensor_msgs, std_msgs, std_srvs, geometry_msgs, tf2_ros
+- ivg_interfaces (GetFK, GetIK, SetRobotIO, MoveJoint, MoveLine, etc.)
+- AUBO SDK: `libauborobotcontroller.so` v1.3.1（预编译，位于 `lib/lib64/aubocontroller/`）
+- lifecycle_msgs (AuboDashboardNode LifecycleNode)
+
+## 文档
+
+- `doc/架构设计.md` — 架构 + 新旧对比 + 实测数据
+- `doc/AUBO驱动参考手册.md` — SDK 完整参考
+- `doc/SDK冲突规则.md` — SDK 冲突规则
+- `doc/移植修复记录.md` — ROS1→ROS2 移植记录
+- `doc/references/aubo_sdk/` — AUBO SDK v2.5.3 参考（升级候选，**不可直接替换当前驱动**）

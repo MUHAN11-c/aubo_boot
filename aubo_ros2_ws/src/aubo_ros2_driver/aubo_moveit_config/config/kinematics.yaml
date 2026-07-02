@@ -1,4 +1,12 @@
 manipulator:
+  # 分段执行已解决姿态问题, 换回 KDL 恢复步骤3速度
   kinematics_solver: kdl_kinematics_plugin/KDLKinematicsPlugin
   kinematics_solver_search_resolution: 0.005
   kinematics_solver_timeout: 0.005
+
+  # pick_ik (备用): 如需姿态精度, 取消注释下面并注释 KDL
+  # kinematics_solver: pick_ik/PickIkPlugin
+  # kinematics_solver_timeout: 0.05
+  # mode: local
+  # rotation_scale: 1.0
+  # minimal_displacement_weight: 0.001

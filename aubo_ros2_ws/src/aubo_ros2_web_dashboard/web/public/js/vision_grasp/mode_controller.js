@@ -1,17 +1,10 @@
-/**
- * 抓取模式控制器：
- * - 同步工件/大模型模式的区块显隐
- * - 同步结果面板模式
- * - 在已连接时触发订阅重建
- */
-
+// mode_controller.js — workpiece/graspnet mode toggle UI sync
+// 模式切换只更新 UI + 触发投影刷新，不重新订阅 — 订阅与模式无关，避免 auto-activate 清空数据喵~
 function createVisionModeController(opts) {
 	const options = opts || {};
 	const getById = options.getById || (id => document.getElementById(id));
 	const setResultPanelMode = typeof options.setResultPanelMode === 'function' ? options.setResultPanelMode : function noop() {};
-	const isConnected = typeof options.isConnected === 'function' ? options.isConnected : (() => false);
-	const startSubscriptions = typeof options.startSubscriptions === 'function' ? options.startSubscriptions : function noop2() {};
-
+	const scheduleProjectionDraw = typeof options.scheduleProjectionDraw === 'function' ? options.scheduleProjectionDraw : null;
 	function syncModeUi() {
 		const workpieceMode = !!(getById('mode-workpiece') && getById('mode-workpiece').checked);
 		const graspnetMode = !!(getById('mode-graspnet') && getById('mode-graspnet').checked);
@@ -41,12 +34,12 @@ function createVisionModeController(opts) {
 			stGn.setAttribute('aria-hidden', graspnetMode ? 'false' : 'true');
 		}
 		setResultPanelMode(graspnetMode ? 'graspnet' : 'workpiece');
-		if (isConnected()) startSubscriptions();
+		// 不再调用 startSubscriptions() — topic 订阅与模式无关 (grasp/TF/cameraInfo 始终活跃)
+		// 仅需触发投影重绘，数据已由初始订阅持续采集，不再清空重建喵~
+		if (graspnetMode && scheduleProjectionDraw) scheduleProjectionDraw();
 	}
-
 	return {
 		syncModeUi
 	};
 }
-
 export { createVisionModeController };

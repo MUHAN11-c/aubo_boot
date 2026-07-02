@@ -1,40 +1,26 @@
+<!-- vision_grasp_panel.html — 视觉抓取面板：URDF 模型、结果视图、监控与控制 -->
 <!DOCTYPE html>
-<!-- 视觉抓取面板：ivg_transport；AI 模式为相机图上的抓取位姿 2D 投影（与桌面/触控一致） -->
 <html lang="zh-CN">
 
 <head>
+	<link rel="icon" href="data:," />
 	<meta charset="UTF-8" />
-	<!-- 视口基线：device-width + 安全区；interactive-widget 便于软键盘时布局与 Chrome 一致 -->
 	<meta name="viewport"
 		content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
 	<title>视觉抓取面板</title>
-	<link rel="stylesheet" href="css/vision_grasp_panel.css?v=20260424_monitoring_graspnet_pose_enlarged" />
-	<link rel="stylesheet" href="css/ivg_site_nav.css?v=20260414_unify_proj" />
+	<link rel="stylesheet" href="css/tokens.css" />
+	<link rel="stylesheet" href="css/layout_base.css" />
+	<link rel="stylesheet" href="css/components/app_shell.css" />
+<link rel="stylesheet" href="css/pages/vision_grasp_panel.css" />
+<link rel="stylesheet" href="css/components/ivg_site_nav.css" />
+<link rel="stylesheet" href="css/components/ivg_status_bar.css" />
 	<script src="/js/robotwebtools/importmap.js"></script>
+	<script src="/js/robotwebtools/libs/three.js"></script>
 </head>
 
 <body class="ivg-single-screen">
-	<nav class="ivg-global-nav" aria-label="灵视IVG 站内导航" data-ivg-page="vision">
-		<div class="ivg-global-nav__inner">
-			<div class="ivg-global-nav__start">
-				<a class="ivg-global-nav__brand" href="index.html">灵视 <span>IVG</span></a>
-				<ul class="ivg-global-nav__list" role="list">
-					<li><a class="ivg-global-nav__link" href="index.html" data-ivg-nav="index">门户</a></li>
-					<li><a class="ivg-global-nav__link" href="vision_grasp_panel.html" data-ivg-nav="vision">视觉抓取</a>
-					</li>
-					<li><a class="ivg-global-nav__link" href="coffee_latte_panel.html" data-ivg-nav="latte">咖啡拉花</a>
-					</li>
-				</ul>
-			</div>
-			<div class="ivg-global-nav__actions">
-				<button type="button" class="ivg-global-nav__fs-btn" id="ivg-nav-fullscreen-btn" aria-pressed="false"
-					aria-label="进入全屏" title="全屏显示页面（iPad 若无效请用 Safari 添加到主屏幕）">全屏</button>
-			</div>
-		</div>
-	</nav>
-
+	<ivg-site-nav page="vision"></ivg-site-nav>
 	<main class="wrap">
-		<!-- 第一档：标题、抓取方式、话题设置 -->
 		<div class="layout-toolbar layout-tier-1">
 			<div class="toolbar-brand">
 				<h1>视觉抓取面板</h1>
@@ -55,12 +41,9 @@
 				</div>
 			</div>
 			<div class="toolbar-actions">
-				<button type="button" class="btn-settings" id="btn-topic-settings-open" aria-haspopup="dialog"
-					aria-controls="topic-settings-modal">话题与服务设置</button>
+				<a href="settings_panel.html" class="btn-settings" target="_blank">话题与服务设置</a>
 			</div>
 		</div>
-
-		<!-- 主列：上为「双预览 | 抓取控制」通高，下为通栏「关节曲线与末端位姿」底边栏 -->
 		<div class="layout-vision-main">
 			<div class="layout-stack-with-control">
 				<div class="layout-stack-left">
@@ -71,69 +54,108 @@
 								<div id="vision-urdf-host" class="vision-urdf-host" title="拖拽旋转视角，滚轮缩放"></div>
 							</div>
 						</section>
-
-						<section class="panel panel--camera panel--camera-result layout-tier-2" aria-label="识别结果与 AI 抓取投影">
+						<section class="panel panel--camera panel--camera-result layout-tier-2"
+							aria-label="识别结果与 AI 抓取投影">
 							<h2 id="result-panel-title">结果视图</h2>
 							<div class="panel-canvas-wrap panel-canvas-wrap--result">
 								<div id="result-workpiece-wrap" class="result-workpiece-wrap" aria-hidden="false">
 									<div class="result-viz-stack" id="result-viz-stack" title="识别结果图像">
-										<img id="result-mjpeg" alt="" class="cam-mjpeg result-cam-mjpeg" hidden />
-										<canvas id="result-overlay-canvas" class="result-overlay-canvas" hidden></canvas>
+										<canvas id="result-foxglove-canvas" class="cam-mjpeg result-cam-mjpeg"></canvas>
+										<canvas id="result-overlay-canvas" class="result-overlay-canvas"
+											hidden></canvas>
 									</div>
 								</div>
 							</div>
 						</section>
 					</div>
 				</div>
-
 				<section class="panel panel--control panel--tier-3" aria-label="抓取与工具控制">
-				<h2>抓取与工具控制</h2>
-				<div class="control-toolbar-field control-toolbar-field--mode-workpiece"
-					id="control-field-workpiece-id">
-					<h3 class="control-group-title" id="object-id-heading">目标工件编号</h3>
-					<input type="text" id="object-id" class="control-field-input" placeholder="与现场 object_id 一致"
-						aria-labelledby="object-id-heading" autocomplete="off" />
-				</div>
-
-				<div class="control-groups control-groups--tier" id="control-groups-tier">
-					<div class="control-group control-group--mode-workpiece" id="control-group-workpiece"
-						data-ivg-grasp-mode="workpiece">
-						<h3 class="control-group-title">工件抓取</h3>
-						<div class="btn-row" id="section-workpiece-btns">
-							<button type="button" class="ctrl ctrl--wide primary"
-								id="btn-wp-single-start">执行单次抓取</button>
-							<button type="button" class="ctrl danger" id="btn-wp-single-stop">停止</button>
-							<button type="button" class="ctrl primary" id="btn-wp-loop-start">启动循环</button>
-							<button type="button" class="ctrl danger" id="btn-wp-loop-stop">停循环</button>
+					<h2>抓取与工具控制</h2>
+					<div class="control-toolbar-field control-toolbar-field--mode-workpiece"
+						id="control-field-workpiece-id">
+						<h3 class="control-group-title" id="object-id-heading">目标工件编号</h3>
+						<input type="text" id="object-id" class="control-field-input" placeholder="与现场 object_id 一致"
+							aria-labelledby="object-id-heading" autocomplete="off" />
+					</div>
+					<div class="control-groups control-groups--tier" id="control-groups-tier">
+						<div class="control-group control-group--mode-workpiece" id="control-group-workpiece"
+							data-ivg-grasp-mode="workpiece">
+							<h3 class="control-group-title">工件抓取</h3>
+							<div class="btn-row" id="section-workpiece-btns">
+								<button type="button" class="ctrl ctrl--wide primary"
+									id="btn-wp-single-start">执行单次抓取</button>
+								<button type="button" class="ctrl danger" id="btn-wp-single-stop">停止</button>
+								<button type="button" class="ctrl primary" id="btn-wp-loop-start">启动循环</button>
+								<button type="button" class="ctrl danger" id="btn-wp-loop-stop">停循环</button>
+							</div>
+						</div>
+						<div class="control-group control-group--mode-graspnet" id="control-group-graspnet"
+							data-ivg-grasp-mode="graspnet">
+							<h3 class="control-group-title">AI大模型抓取</h3>
+							<div class="btn-row" id="section-graspnet-btns">
+								<button type="button" class="ctrl primary" id="btn-gn-cap-start">开始采集</button>
+								<button type="button" class="ctrl danger" id="btn-gn-cap-stop">停止采集</button>
+								<button type="button" class="ctrl primary" id="btn-gn-loop-start">循环抓取开</button>
+								<button type="button" class="ctrl danger" id="btn-gn-loop-stop">循环抓取关</button>
+							</div>
+						</div>
+						<div class="control-group" id="gripper-swap-group">
+							<h3 class="control-group-title">末端夹爪快换</h3>
+							<!-- 当前工具状态指示器 -->
+							<div class="tool-status-bar" id="tool-status-bar">
+								<span class="tool-status-led" id="tool-status-led" aria-label="工具连接状态"></span>
+								<span class="tool-status-label" id="tool-status-label">检测中...</span>
+								<span class="tool-status-params" id="tool-status-params"></span>
+							</div>
+							<!-- 初始工具配置（可见选择器） -->
+							<div class="tool-init-config" id="tool-init-config">
+								<label class="tool-init-config__label" for="init-tool-select">初始工具</label>
+								<select id="init-tool-select" class="tool-init-config__select">
+									<option value="">无工具</option>
+									<option value="gripper0">夹爪0 — 气动 φ40</option>
+									<option value="gripper1">夹爪1 — 电动 A</option>
+									<option value="gripper2">夹爪2 — 电动 φ60</option>
+								</select>
+								<span class="tool-init-config__hint" id="tool-init-hint" hidden>手动设定</span>
+							</div>
+							<!-- 初始化手动选择面板（未检测到工具时显示） -->
+							<div class="tool-init-banner" id="tool-init-banner" hidden>
+								<div class="tool-init-banner__inner">
+									<span class="tool-init-banner__icon" aria-hidden="true">&#9888;</span>
+									<div class="tool-init-banner__body">
+										<p class="tool-init-banner__text">未检测到已安装的末端工具（末端夹爪类型无硬件反馈）。请手动选择当前末端实际安装的工具喵~</p>
+										<div class="tool-init-banner__actions" id="tool-init-actions">
+											<button type="button" class="ctrl tool-init-btn" data-init-tool="gripper0">夹爪0 — 气动 φ40</button>
+											<button type="button" class="ctrl tool-init-btn" data-init-tool="gripper1">夹爪1 — 电动 A</button>
+											<button type="button" class="ctrl tool-init-btn" data-init-tool="gripper2">夹爪2 — 电动 φ60</button>
+											<button type="button" class="ctrl tool-init-btn tool-init-btn--none" data-init-tool="">无工具</button>
+										</div>
+									</div>
+								</div>
+							</div>
+							<!-- 3 夹爪切换按钮 -->
+							<div class="btn-row gripper-swap-row" id="gripper-swap-btns">
+								<button type="button" class="ctrl gripper-btn" id="btn-quick-swap-0"
+									data-tool="gripper0">
+									<span class="gripper-btn-icon">&#9670;</span> 夹爪0
+								</button>
+								<button type="button" class="ctrl gripper-btn" id="btn-quick-swap-1"
+									data-tool="gripper1">
+									<span class="gripper-btn-icon">&#9670;</span> 夹爪1
+								</button>
+								<button type="button" class="ctrl gripper-btn" id="btn-quick-swap-2"
+									data-tool="gripper2">
+									<span class="gripper-btn-icon">&#9670;</span> 夹爪2
+								</button>
+							</div>
 						</div>
 					</div>
-					<div class="control-group control-group--mode-graspnet" id="control-group-graspnet"
-						data-ivg-grasp-mode="graspnet">
-						<h3 class="control-group-title">AI大模型抓取</h3>
-						<div class="btn-row" id="section-graspnet-btns">
-							<button type="button" class="ctrl primary" id="btn-gn-cap-start">开始采集</button>
-							<button type="button" class="ctrl danger" id="btn-gn-cap-stop">停止采集</button>
-							<button type="button" class="ctrl primary" id="btn-gn-loop-start">循环抓取开</button>
-							<button type="button" class="ctrl danger" id="btn-gn-loop-stop">循环抓取关</button>
-						</div>
-					</div>
-					<div class="control-group">
-						<h3 class="control-group-title">末端夹爪快换</h3>
-						<div class="btn-row">
-							<button type="button" class="ctrl" id="btn-quick-swap-0">切换夹爪0</button>
-							<button type="button" class="ctrl" id="btn-quick-swap">切换夹爪2</button>
-						</div>
-					</div>
-				</div>
-
-				<div class="svc-log" id="svc-log" aria-live="polite"></div>
+					<div class="svc-log" id="svc-log" aria-live="polite"></div>
 				</section>
 			</div>
-
-			<!-- 通栏底边：关节曲线 | 位姿读数；标题条可收起 -->
 			<div class="layout-body layout-tier-4 layout-body--monitoring" id="layout-monitoring-section">
-				<button type="button" class="layout-monitoring-toggle" id="btn-monitoring-toggle"
-					aria-expanded="true" aria-controls="layout-monitoring-bundle">
+				<button type="button" class="layout-monitoring-toggle" id="btn-monitoring-toggle" aria-expanded="true"
+					aria-controls="layout-monitoring-bundle">
 					<span class="layout-monitoring-toggle__label">关节曲线与末端位姿</span>
 					<span class="layout-monitoring-toggle__hint" aria-hidden="true">收起</span>
 					<span class="layout-monitoring-toggle__chevron" aria-hidden="true"></span>
@@ -141,8 +163,7 @@
 				<div class="layout-monitoring-bundle" id="layout-monitoring-bundle" aria-label="关节曲线与末端位姿">
 					<section class="panel panel--chart" aria-label="关节角曲线">
 						<h2>关节角曲线</h2>
-						<div id="joint-legend" class="legend-joint" role="list" aria-label="关节与曲线颜色"
-							aria-hidden="true">
+						<div id="joint-legend" class="legend-joint" role="list" aria-label="关节与曲线颜色" aria-hidden="true">
 						</div>
 						<canvas id="joint-chart" width="640" height="240" aria-label="各关节位置随时间变化"></canvas>
 					</section>
@@ -158,8 +179,8 @@
 								<pre class="result-pre" id="vpe-status-text"></pre>
 							</section>
 						</div>
-						<section class="panel panel--status panel--status-mode-graspnet" id="status-panel-graspnet-poses"
-							aria-label="AI大模型最终抓取位姿">
+						<section class="panel panel--status panel--status-mode-graspnet"
+							id="status-panel-graspnet-poses" aria-label="AI大模型最终抓取位姿">
 							<h2>AI大模型最终抓取位姿</h2>
 							<div class="result-pre pose-card" id="graspnet-result-text" role="status"
 								aria-live="polite">
@@ -170,14 +191,6 @@
 			</div>
 		</div>
 	</main>
-
-	<footer class="connection-footer" role="contentinfo" aria-label="连接状态">
-		<div class="connection-footer__inner">
-			<span class="connection-footer__label">连接状态</span>
-			<span id="conn-status" class="status pending" role="status" aria-live="polite">正在连接…</span>
-		</div>
-	</footer>
-
 	<div id="topic-settings-modal" class="topic-settings-modal" role="dialog" aria-modal="true"
 		aria-labelledby="topic-settings-title" aria-hidden="true" hidden>
 		<div class="topic-settings-backdrop" id="topic-settings-backdrop" tabindex="-1"></div>
@@ -194,8 +207,8 @@
 				<label>识别结果图像（可空） <input type="text" id="topic-result" value=""
 						placeholder="例 /visual_pose/annotated_image" autocomplete="off"
 						title="sensor_msgs/Image" /></label>
-				<label>机械臂状态 RobotStatus <input type="text" id="topic-robot" value="/aubo_driver/robot_status"
-						autocomplete="off" title="demo_interface/msg/RobotStatus" /></label>
+				<label>机械臂状态 RobotStatus <input type="text" id="topic-robot" value="/robot_status" autocomplete="off"
+						title="ivg_interfaces/msg/RobotStatus" /></label>
 				<label>关节角 JointState（曲线） <input type="text" id="topic-joints" value="/joint_states"
 						autocomplete="off" /></label>
 				<label>视觉位姿估计状态（字符串） <input type="text" id="topic-vpe-status" value="/system_status"
@@ -221,7 +234,7 @@
 						value="/publish_grasps_worker_loop_control" autocomplete="off"
 						title="std_srvs/srv/SetBool" /></label>
 				<label>末端夹爪快换 RunGripperSwap <input type="text" id="svc-gripper-swap" value="/run_gripper_swap"
-						autocomplete="off" title="demo_interface/srv/RunGripperSwap" /></label>
+						autocomplete="off" title="ivg_interfaces/srv/RunGripperSwap" /></label>
 				<p class="hint">订阅类含 CameraInfo（由彩色图话题推导）、投影用 TF。服务类型固定，仅可改名称以适配 remap。</p>
 			</div>
 			<div class="topic-settings-actions">
@@ -230,24 +243,23 @@
 			</div>
 		</div>
 	</div>
-
-	<!-- 左栏已改为 URDF；保留隐藏占位供 AI 模式脚本引用 id -->
 	<div hidden aria-hidden="true">
 		<canvas id="cam-canvas" width="640" height="480"></canvas>
-		<img id="cam-mjpeg" alt="" class="cam-mjpeg" hidden />
+		<canvas id="cam-foxglove-canvas" class="cam-mjpeg" hidden></canvas>
 	</div>
-	<!-- ros3d 会话仅保留 URDF / TF / Marker 相关隐藏控件 -->
 	<div hidden aria-hidden="true">
 		<input type="text" id="scan3-topic" value="" autocomplete="off" />
-		<input type="text" id="marker3-topic" value="" autocomplete="off" />
+		<input type="text" id="marker3-topic" value="/grasp_markers" autocomplete="off" />
+		<input type="text" id="pointcloud-topic" value="/camera/depth_registered/points" autocomplete="off" />
 		<input type="checkbox" id="view3d-show-urdf" checked />
 		<input type="checkbox" id="view3d-show-axes" checked />
 		<input type="checkbox" id="view3d-show-grid" />
 		<input type="text" id="view3d-point-size" value="0.05" />
 	</div>
-
+	<script type="module" src="js/core/log-ros-bridge.js"></script>
 	<script type="module" src="js/ivg_site_nav.js"></script>
 	<script type="module" src="js/vision_grasp_panel.js?v=20260424_conn_status_plain"></script>
+	<script type="module" src="js/core/ivg_status_bar.js"></script>
 </body>
 
 </html>

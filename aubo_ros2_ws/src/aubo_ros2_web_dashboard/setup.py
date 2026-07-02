@@ -1,73 +1,85 @@
+"""ament_python 安装配置。
+
+遵循 ROS 2 ament_python 规范：
+  - data_files 安装到 share/<pkg>/ 下
+  - console_scripts 注册 CLI 入口
+  - install_requires 声明 Python 依赖
 """
-ament_python 包定义（目录与 ``ros2 pkg create --build-type ament_python`` 对齐）：
+import os
+from collections import defaultdict
+from glob import glob
 
-- ``resource/<pkg>/``：ament 索引标记
-- ``<pkg>/``：可导入的 Python 包（网关代码）
-- ``launch/``：ROS 2 Launch 描述
-- ``tests/``：pytest（``colcon test`` / ``pytest``）
-- ``web/public/``：静态资源，安装到 ``share/<pkg>/web/public/``
-- ``docs/``：架构与维护用 Markdown（可选安装到 share）
-"""
-import os #路径操作
-from collections import defaultdict #字典操作
-from glob import glob #文件操作
+from setuptools import find_packages, setup
 
-from setuptools import find_packages, setup #包管理
-
-# 与 package.xml <name>、resource/ 下标记文件名一致
-PKG = 'aubo_ros2_web_dashboard'
-# 静态站点源目录（相对「含本 setup.py 的包根」）；安装目标为 share/<PKG>/web/public/
-# （与 launch 中 get_package_share_directory(...) + web/public 一致）。仅当 setuptools/colcon
-# 在该包根为当前工作目录执行时，os.walk(WEB_ROOT) 才能找到文件；独立脚本勿照搬此相对路径。
-WEB_ROOT = os.path.join('web', 'public')
-WEB_INSTALL_SUBDIR = ('web', 'public')
+PKG = "aubo_ros2_web_dashboard"
+WEB_ROOT = os.path.join("web", "public")
+WEB_INSTALL_SUBDIR = ("web", "public")
 
 
-def web_data_files():
-	"""遍历 web/public，生成 data_files 列表，保留子目录结构（js/css/vendor 等）。"""
-	by_dest = defaultdict(list)
-	for root, _, files in os.walk(WEB_ROOT):
-		for name in files:
-			src = os.path.join(root, name)
-			rel = os.path.relpath(src, WEB_ROOT)
-			dest_dir = os.path.join('share', PKG, *WEB_INSTALL_SUBDIR, os.path.dirname(rel))
-			by_dest[dest_dir].append(src)
-	return sorted(by_dest.items())
+def _web_data_files():
+    """递归收集 web/public 下所有文件，映射到 share/<pkg>/web/public/ 目录。"""
+    by_dest = defaultdict(list)
+    for root, _, files in os.walk(WEB_ROOT):
+        for name in files:
+            src = os.path.join(root, name)
+            rel = os.path.relpath(src, WEB_ROOT)
+            dest = os.path.join("share", PKG, *WEB_INSTALL_SUBDIR, os.path.dirname(rel))
+            by_dest[dest].append(src)
+    return sorted(by_dest.items())
+
+
+def _robotwebtools_data_files():
+    """部署 RobotWebTools runtime JS 资产到 web/public/js/robotwebtools/。
+
+    源目录: ../robotwebtools/runtime_js_assets/
+    目标:    share/<pkg>/web/public/js/robotwebtools/
+
+    colcon build 时自动执行。若源目录不存在则优雅降级（空列表）。
+    开发阶段也可手动创建符号链接:
+      ln -s ../../../robotwebtools/runtime_js_assets web/public/js/robotwebtools
+    """
+    rwt_src = os.path.join(os.path.dirname(__file__), "..", "robotwebtools", "runtime_js_assets")
+    if not os.path.isdir(rwt_src):
+        return []
+    by_dest = defaultdict(list)
+    for root, _, files in os.walk(rwt_src):
+        for name in files:
+            src = os.path.join(root, name)
+            rel = os.path.relpath(src, rwt_src)
+            dest = os.path.join("share", PKG, "web", "public", "js", "robotwebtools", os.path.dirname(rel))
+            by_dest[dest].append(src)
+    return sorted(by_dest.items())
 
 
 setup(
-	name=PKG,
-	# 与 package.xml <version> 对齐
-	version='0.4.0',
-	# 含 aubo_ros2_web_dashboard.gateway 等子包；不把顶层 tests/ 当作 Python 包收录
-	packages=find_packages(where='.', include=['aubo_ros2_web_dashboard*']),
-	data_files=[
-		# ament 索引：标记本包已安装
-		('share/ament_index/resource_index/packages', [f'resource/{PKG}']),
-		(f'share/{PKG}', ['package.xml']),
-		(f'share/{PKG}/launch', glob('launch/*.py')),
-		(f'share/{PKG}/docs', glob('docs/*.md')),
-	]
-	+ web_data_files(),
-	# ROS 侧依赖见 package.xml；此处为 pip 侧（FastAPI 网关进程）
-	install_requires=[
-		'setuptools',
-		'fastapi>=0.100.0',
-		'uvicorn[standard]>=0.22.0',
-		'httpx>=0.25.0',
-		'websockets>=12.0',
-	],
-	zip_safe=True,
-	maintainer='IVG',
-	maintainer_email='maintainer@example.com',
-	description='IVG web dashboard: rosbridge + FastAPI static gateway for web/public (RobotWebTools / roslibjs)',
-	license='Apache-2.0',
-	# 与 pytest.ini（testpaths=tests）配合；官方示例多用 extras_require['test']，此处沿用 tests_require
-	tests_require=['pytest'],
-	entry_points={
-		# 实际安装路径由 setup.cfg 的 install_scripts 指向 lib/<pkg>/
-		'console_scripts': [
-			'ivg_fastapi_static_gateway = aubo_ros2_web_dashboard.fastapi_static_gateway:main',
-		],
-	},
+    name=PKG,
+    version="0.4.0",
+    packages=find_packages(where=".", include=["aubo_ros2_web_dashboard*"]),
+    python_requires=">=3.10",
+    data_files=[
+        ("share/ament_index/resource_index/packages", [f"resource/{PKG}"]),
+        (f"share/{PKG}", ["package.xml"]),
+        (f"share/{PKG}/launch", glob("launch/*.py")),
+        (f"share/{PKG}/config", glob("config/*.yaml")),
+        (f"share/{PKG}/docs", glob("docs/*.md")),
+    ] + _web_data_files() + _robotwebtools_data_files(),
+    install_requires=[
+        "setuptools",
+        "fastapi>=0.100.0",
+        "uvicorn[standard]>=0.22.0",
+        "httpx>=0.25.0",
+        "websockets>=12.0",
+        "pyyaml>=6.0",
+    ],
+    zip_safe=False,
+    maintainer="IVG",
+    maintainer_email="maintainer@example.com",
+    description="IVG Web Dashboard: FastAPI gateway + ROSLIB.js frontend for ROS 2 robot control",
+    license="Apache-2.0",
+    extras_require={"test": ["pytest"]},
+    entry_points={
+        "console_scripts": [
+            "ivg_fastapi_static_gateway = aubo_ros2_web_dashboard.fastapi_static_gateway:main",
+        ],
+    },
 )

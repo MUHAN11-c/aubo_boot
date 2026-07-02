@@ -180,32 +180,58 @@ static void sleepInterruptible(PublishGraspsClientWorker* worker, double seconds
 PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& options)
   : rclcpp::Node("publish_grasps_client_worker", options)
 {
-  aubo_set_io_client_ = create_client<demo_interface::srv::SetRobotIO>(kAuboSetIOService);
+  // RobotController 构造安全（只存指针），init() 延后到 main
+  robot_ = std::make_shared<RobotController>(this);
+  move_group_ = nullptr;
+  aubo_set_io_client_ = create_client<ivg_interfaces::srv::SetRobotIO>(kAuboSetIOService);
 
-  // --- 声明参数（详见本文件上方参数表）---
-  declare_parameter("prefer_vertical", true);
-  declare_parameter("grasp_z_offset", 0.15);
-  declare_parameter("height_above", 0.1);
-  declare_parameter("joint_velocity_scaling", 0.7f);
-  declare_parameter("joint_acceleration_scaling", 0.3f);
-  declare_parameter("grasp_poses_topic", std::string("grasp_poses_base"));
-  declare_parameter("grasp_capture_service_name", std::string("/graspnet_capture_control"));
-  declare_parameter("grasp_capture_service_timeout_sec", 2.0);
-  declare_parameter("loop_control_service_name", std::string("/publish_grasps_worker_loop_control"));
-  declare_parameter("auto_start_loop", false);
-  declare_parameter("wait_poses_timeout_sec", 5.0);
-  declare_parameter("grasp_window_size", 5);
-  declare_parameter("min_groups_before_pick", 3);
-  declare_parameter("gripper_io_index", kGripperIoIndex);
-  declare_parameter("lift_offset", 0.2);
-  declare_parameter("place_offset_y", -0.2);
-  declare_parameter("place_offset_z", -0.15);
-  declare_parameter("joint_cartesian_switch_delay_sec", 0.2);
-  declare_parameter("cycle_delay_sec", 1.0);
-  declare_parameter("fail_retry_delay_sec", 1.0);
-  declare_parameter("max_cycles", -1);
-  declare_parameter("status_topic", std::string("grasp_place_status"));
-  declare_parameter("cartesian_max_points", 50);
+  // --- 声明参数（通过 has_parameter() 守卫避免与 automatically_declare_parameters_from_overrides 冲突）---
+  if (!has_parameter("prefer_vertical"))
+    declare_parameter("prefer_vertical", true);
+  if (!has_parameter("grasp_z_offset"))
+    declare_parameter("grasp_z_offset", 0.15);
+  if (!has_parameter("height_above"))
+    declare_parameter("height_above", 0.1);
+  if (!has_parameter("joint_velocity_scaling"))
+    declare_parameter("joint_velocity_scaling", 0.7f);
+  if (!has_parameter("joint_acceleration_scaling"))
+    declare_parameter("joint_acceleration_scaling", 0.3f);
+  if (!has_parameter("grasp_poses_topic"))
+    declare_parameter("grasp_poses_topic", std::string("grasp_poses_base"));
+  if (!has_parameter("grasp_capture_service_name"))
+    declare_parameter("grasp_capture_service_name", std::string("/graspnet_capture_control"));
+  if (!has_parameter("grasp_capture_service_timeout_sec"))
+    declare_parameter("grasp_capture_service_timeout_sec", 2.0);
+  if (!has_parameter("loop_control_service_name"))
+    declare_parameter("loop_control_service_name", std::string("/publish_grasps_worker_loop_control"));
+  if (!has_parameter("auto_start_loop"))
+    declare_parameter("auto_start_loop", false);
+  if (!has_parameter("wait_poses_timeout_sec"))
+    declare_parameter("wait_poses_timeout_sec", 5.0);
+  if (!has_parameter("grasp_window_size"))
+    declare_parameter("grasp_window_size", 5);
+  if (!has_parameter("min_groups_before_pick"))
+    declare_parameter("min_groups_before_pick", 3);
+  if (!has_parameter("gripper_io_index"))
+    declare_parameter("gripper_io_index", kGripperIoIndex);
+  if (!has_parameter("lift_offset"))
+    declare_parameter("lift_offset", 0.2);
+  if (!has_parameter("place_offset_y"))
+    declare_parameter("place_offset_y", -0.2);
+  if (!has_parameter("place_offset_z"))
+    declare_parameter("place_offset_z", -0.15);
+  if (!has_parameter("joint_cartesian_switch_delay_sec"))
+    declare_parameter("joint_cartesian_switch_delay_sec", 0.2);
+  if (!has_parameter("cycle_delay_sec"))
+    declare_parameter("cycle_delay_sec", 1.0);
+  if (!has_parameter("fail_retry_delay_sec"))
+    declare_parameter("fail_retry_delay_sec", 1.0);
+  if (!has_parameter("max_cycles"))
+    declare_parameter("max_cycles", -1);
+  if (!has_parameter("status_topic"))
+    declare_parameter("status_topic", std::string("grasp_place_status"));
+  if (!has_parameter("cartesian_max_points"))
+    declare_parameter("cartesian_max_points", 50);
 
   // --- 读入成员（与 declare 顺序对应）---
   prefer_vertical_ = get_parameter("prefer_vertical").as_bool();
@@ -256,12 +282,10 @@ PublishGraspsClientWorker::PublishGraspsClientWorker(const rclcpp::NodeOptions& 
       loop_control_service_name_.c_str(), auto_start_loop_ ? "true" : "false");
 }
 
-// 工厂：shared_ptr + initMoveGroup（MoveGroupInterface 依赖 shared_from_this）
-std::shared_ptr<PublishGraspsClientWorker> PublishGraspsClientWorker::create(const rclcpp::NodeOptions& options)
+void PublishGraspsClientWorker::initRobot()
 {
-  auto node = std::make_shared<PublishGraspsClientWorker>(options);
-  node->initMoveGroup();
-  return node;
+  robot_->init();
+  move_group_ = robot_->moveGroup();
 }
 
 // =============================================================================
@@ -276,14 +300,6 @@ void PublishGraspsClientWorker::preparePlanningState(float velocity_factor, floa
   move_group_->setStartStateToCurrentState();
   move_group_->setMaxVelocityScalingFactor(velocity_factor);
   move_group_->setMaxAccelerationScalingFactor(acceleration_factor);
-}
-
-void PublishGraspsClientWorker::initMoveGroup()
-{
-  move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(shared_from_this(), "manipulator");
-  move_group_->allowReplanning(true);
-  move_group_->setMaxVelocityScalingFactor(0.5);
-  move_group_->setMaxAccelerationScalingFactor(0.5);
 }
 
 bool PublishGraspsClientWorker::waitForServices(std::chrono::seconds timeout)
@@ -309,7 +325,7 @@ bool PublishGraspsClientWorker::setGripperIo(int32_t io_index, bool high)
     RCLCPP_ERROR(get_logger(), "[set_gripper_io] 服务 %s 不可用", kAuboSetIOService);
     return false;
   }
-  auto req = std::make_shared<demo_interface::srv::SetRobotIO::Request>();
+  auto req = std::make_shared<ivg_interfaces::srv::SetRobotIO::Request>();
   req->io_type = "digital_output";
   req->io_index = io_index;
   req->value = high ? 1.0 : 0.0;
@@ -955,6 +971,7 @@ void PublishGraspsClientWorker::logCurrentEefPoseAndJoints(const char* stage_lab
 // → 8 抬起 → 9 B 点（关节+可选笛卡尔）→ 10 开爪 → 11 回 A 点
 bool PublishGraspsClientWorker::runOneCycle()
 {
+  if (!robot_ || !move_group_) return false;
   struct CycleProgressGuard
   {
     explicit CycleProgressGuard(std::atomic<bool>& in_progress) : in_progress_(in_progress)
@@ -1000,7 +1017,7 @@ bool PublishGraspsClientWorker::runOneCycle()
   if (!rclcpp::ok() || shutdown_requested_)
     return false;
   RCLCPP_INFO(get_logger(), "步骤 0: 回 A 点安全位（识别前到位，camera_pose）");
-  if (!moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
+  if (!robot_->moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "runOneCycle 步骤0 回 A 点失败，需在识别前到位");
     return failCycle();
@@ -1044,7 +1061,7 @@ bool PublishGraspsClientWorker::runOneCycle()
   RCLCPP_INFO(get_logger(), "  目标位姿 xyz=[%.3f, %.3f, %.3f]", pose_ee.position.x, pose_ee.position.y,
               pose_ee.position.z);
 
-  RCLCPP_INFO(get_logger(), "步骤 5: 抓取前开夹爪 (IO=%d)", gripper_io_index_);
+  RCLCPP_INFO(get_logger(), "步骤 5: 抓取前开夹爪 (IO=%d, false=打开, 注意与 ExecuteGraspPoseWorker 语义相反, 参见 ivg_utils.io)", gripper_io_index_);
   if (kSkipTemporaryGripperIo)
   {
     RCLCPP_WARN(get_logger(),
@@ -1053,7 +1070,7 @@ bool PublishGraspsClientWorker::runOneCycle()
   }
   else
   {
-    if (!setGripperIo(gripper_io_index_, false))
+    if (!robot_->setGripper(gripper_io_index_, false))
     {
       RCLCPP_ERROR(get_logger(), "runOneCycle 步骤5 抓取前开夹爪失败");
       return failCycle();
@@ -1070,7 +1087,7 @@ bool PublishGraspsClientWorker::runOneCycle()
     return failCycle();
   }
 
-  RCLCPP_INFO(get_logger(), "步骤 7: 闭夹爪 (IO=%d)", gripper_io_index_);
+  RCLCPP_INFO(get_logger(), "步骤 7: 闭夹爪 (IO=%d, true=闭合, 语义与开夹爪相反)", gripper_io_index_);
   if (kSkipTemporaryGripperIo)
   {
     RCLCPP_WARN(get_logger(),
@@ -1079,7 +1096,7 @@ bool PublishGraspsClientWorker::runOneCycle()
   }
   else
   {
-    if (!setGripperIo(gripper_io_index_, true))
+    if (!robot_->setGripper(gripper_io_index_, true))
     {
       RCLCPP_ERROR(get_logger(), "runOneCycle 步骤7 闭夹爪失败");
       return failCycle();
@@ -1087,7 +1104,7 @@ bool PublishGraspsClientWorker::runOneCycle()
   }
 
   RCLCPP_INFO(get_logger(), "步骤 8: 抬起 (z=%.2f m)", lift_offset_);
-  if (!runArcPath('z', lift_offset_, joint_velocity_scaling_, joint_acceleration_scaling_))
+  if (!robot_->moveCartesianZ(lift_offset_, joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "runOneCycle 步骤8 抬起失败");
     return failCycle();
@@ -1106,7 +1123,7 @@ bool PublishGraspsClientWorker::runOneCycle()
     return false;
   // B 点后笛卡尔微调（如沿 z）
   const std::vector<CartesianSegment> place_segments = { { 'z', place_offset_z_ } };
-  if (!runArcPathSequence(place_segments, joint_velocity_scaling_, joint_acceleration_scaling_))
+  if (!robot_->moveCartesianPath(place_segments, joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "runOneCycle 步骤9 B 点后笛卡尔微调失败");
     return failCycle();
@@ -1122,7 +1139,7 @@ bool PublishGraspsClientWorker::runOneCycle()
   }
   else
   {
-    if (!setGripperIo(gripper_io_index_, false))
+    if (!robot_->setGripper(gripper_io_index_, false))
     {
       RCLCPP_ERROR(get_logger(), "runOneCycle 步骤10 开夹爪失败");
       return failCycle();
@@ -1133,7 +1150,7 @@ bool PublishGraspsClientWorker::runOneCycle()
     return false;
 
   RCLCPP_INFO(get_logger(), "步骤 11: 回 A 点安全位（camera_pose）");
-  if (!moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
+  if (!robot_->moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "runOneCycle 步骤11 回 A 点失败");
     return failCycle();
@@ -1164,9 +1181,9 @@ void PublishGraspsClientWorker::onShutdown()
               kSkipTemporaryGripperIo ? "（仿真模式：跳过开夹爪IO）" : "、开夹爪");
   if (!kSkipTemporaryGripperIo)
   {
-    setGripperIo(gripper_io_index_, false);
+    robot_->setGripper(gripper_io_index_, false);
   }
-  moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_);
+  robot_->moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_);
 }
 
 void PublishGraspsClientWorker::requestShutdown()
@@ -1232,7 +1249,8 @@ int main(int argc, char** argv)
   rclcpp::NodeOptions options;
   options.automatically_declare_parameters_from_overrides(true);
 
-  auto node = demo_driver::PublishGraspsClientWorker::create(options);
+  auto node = std::make_shared<demo_driver::PublishGraspsClientWorker>(options);
+  node->initRobot();
 
   rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
   executor.add_node(node);

@@ -26,7 +26,7 @@ setup(
     maintainer_email='developer@example.com',
     description='单目相机手眼标定工具',
     license='MIT',
-    tests_require=['pytest'],
+    extras_require={'test': ['pytest']},
     entry_points={
         'console_scripts': [
             'hand_eye_calibration_node = hand_eye_calibration.hand_eye_calibration_node:main',

@@ -11,7 +11,8 @@
 #include <rclcpp/rclcpp.hpp>
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
-#include <demo_interface/srv/set_robot_pose.hpp>
+#include <ivg_interfaces/srv/set_robot_pose.hpp>
+#include <ivg_interfaces/srv/get_ik.hpp>
 #include <string>
 #include <memory>
 #include <array>
@@ -39,12 +40,16 @@ private:
     std::shared_ptr<moveit::planning_interface::PlanningSceneInterface> planning_scene_interface_;  // 规划场景接口
 
     // 服务服务器
-    rclcpp::Service<demo_interface::srv::SetRobotPose>::SharedPtr set_robot_pose_service_;  // 设置机器人位姿服务
+    rclcpp::Service<ivg_interfaces::srv::SetRobotPose>::SharedPtr set_robot_pose_service_;  // 设置机器人位姿服务
+
+    // IK 客户端 (预创建, 独立 Reentrant 组 — 防止 service 回调内调用 IK 时死锁)
+    rclcpp::CallbackGroup::SharedPtr ik_client_cb_group_;
+    rclcpp::Client<ivg_interfaces::srv::GetIK>::SharedPtr ik_client_;
 
     // 服务回调函数
     void setRobotPoseCallback(
-        const std::shared_ptr<demo_interface::srv::SetRobotPose::Request> req,
-        std::shared_ptr<demo_interface::srv::SetRobotPose::Response> res);
+        const std::shared_ptr<ivg_interfaces::srv::SetRobotPose::Request> req,
+        std::shared_ptr<ivg_interfaces::srv::SetRobotPose::Response> res);
 
     // 辅助函数
     bool setRobotPose(const std::array<double, 6>& target_pose, 

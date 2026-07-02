@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 project(percipio_camera)
 
 set(CMAKE_CXX_STANDARD 14)
@@ -39,19 +39,15 @@ foreach (dep IN LISTS dependencies)
   find_package(${dep} REQUIRED)
 endforeach ()
 
-#find_package(ament_cmake REQUIRED)
-#find_package(rclcpp REQUIRED)
 find_package(pcl_conversions REQUIRED)
-#find_package(sensor_msgs REQUIRED)
-
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
-#find_package(tf2_ros REQUIRED)
-find_package(tf2_geometry_msgs  REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui photo)
+find_package(ivg_interfaces REQUIRED)
 
 set(SOURCE_FILES
   src/percipio_camera_node_driver.cpp
@@ -126,17 +122,21 @@ install(TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION bin
 )
 
-file(GLOB lib_files ${CMAKE_CURRENT_SOURCE_DIR}/camport4/lib/linux/lib_${ARCH}/*) 
+file(GLOB lib_files ${CMAKE_CURRENT_SOURCE_DIR}/camport4/lib/linux/lib_${ARCH}/*)
 install(FILES ${lib_files} DESTINATION lib)
 install(DIRECTORY include/ DESTINATION include)
-install(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/)
-install(TARGETS ${PROJECT_NAME}
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
-    RUNTIME DESTINATION bin
-)
+install(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/
+    FILES_MATCHING PATTERN "*.launch.py")
+install(DIRECTORY scripts DESTINATION share/${PROJECT_NAME}/
+    FILES_MATCHING PATTERN "*.py")
 
 install(TARGETS list_devices
   DESTINATION lib/${PROJECT_NAME}/)
+
+# camera_control_node — 从原 percipio_camera_interface 迁移而来喵~
+add_executable(camera_control_node src/camera_control_node.cpp)
+ament_target_dependencies(camera_control_node rclcpp std_msgs sensor_msgs ivg_interfaces)
+install(TARGETS camera_control_node
+  DESTINATION lib/${PROJECT_NAME})
 
 ament_package()

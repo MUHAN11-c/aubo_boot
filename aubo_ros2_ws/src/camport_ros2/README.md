@@ -33,7 +33,7 @@ ros-${ROS_DISTRO}-diagnostic-msgs
 ## 构建
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd ~/aubo_boot/aubo_ros2_ws
 source /opt/ros/humble/setup.bash
 colcon build --packages-select percipio_camera percipio_camera_interface image_data_bridge \
   --cmake-args -DCMAKE_BUILD_TYPE=Release
@@ -65,18 +65,87 @@ ros2 launch percipio_camera percipio_camera.launch.py
 
 调试时可使用 `ros2 topic list`、`ros2 service list`、`rviz2` 订阅上述话题。
 
+> 注意: `percipio_camera` 已改为直接用 `rclcpp::Publisher<Image>` 发布图像（非 image_transport），不再自动生成 compressed/compressedDepth 等派生话题。如需压缩图可单独起 `image_transport republish` 节点喵~。
+
+## 参考
+
+- 各子包详细文档见 `src/` 下对应的 `README.md`
+- 相机型号与参数: `README.md` §0.5
+
 ---
 
-*Percipio SDK 与 CMake 中 OpenCV 组件（如 `photo`、`highgui`）需与 `percipio_camera` 的 `CMakeLists.txt` 一致，否则可能出现链接或运行时符号错误。*
-原因说明
-日志里的 CompressedPublisher 和 compressed_depth_image_transport 来自 image_transport::create_publisher()：会在同一节点上为每个 */image_raw 自动挂 彩色压缩、深度压缩 等插件。Percipio 同时发 彩色 rgb8 和 深度 16UC1 时，ROS2 里经常出现 插件串流/格式错配（深度压缩收到 rgb8、彩色压缩又去处理 16UC1），于是刷屏报错。这与 camport_ros2 / percipio_camera 使用 image_transport 发布多路图像是同一类问题。
+## 故障排查
 
-修改说明（本地工作区）
-在 percipio_camera 中已改为使用普通 rclcpp::Publisher<sensor_msgs::msg::Image> 发布 color/depth/.../image_raw，不再经过 image_transport 插件链，因此不会再拉起上述 CompressedPublisher / compressed_depth。
+### `Open device fail : -1005` (TY_STATUS_DEVICE_ERROR) 无限重试
 
-percipio_camera_node.h：image_transport::Publisher → rclcpp::Publisher<Image>::SharedPtr，去掉无用 include。
-percipio_camera_node.cpp：create_publisher<Image>(...)；get_subscription_count()；publish(*image_msg)（与当前 cv_bridge 返回的 shared_ptr 一致）。
-CMakeLists.txt：去掉对 image_transport、image_publisher 的依赖（本包内已无引用）。
-代价：节点不再自动提供 .../image_raw/compressed、.../compressedDepth 等派生话题；rosbridge / RWT / 订阅 image_raw 的节点不受影响。若你以后必须用网络压缩图，可单独起 image_transport republish 节点，只接在需要的话题上。
+**现象**：
 
-已在本机执行 colcon build --packages-select percipio_camera 通过。
+```
+[ERROR] [percipio_device]: Open device fail : -1005
+(每 3 秒重复，永不成功)
+```
+
+SDK 内部日志可能伴随：
+```
+Invalid device info!
+WriteReg 0x00000a00 0x00000000 failed
+Exception occurred while closing device: Destination address required, Error code: 89
+```
+
+**根因**：
+
+多网卡主机上，Linux 内核为所有 UP 状态的接口自动创建 `169.254.0.0/16` link-local 路由（APIPA/Zeroconf）。当 WiFi 和以太网同时启用时，SDK 的 `TYOpenDevice()` 基于设备 ID 的内部查找机制会被此路由干扰，导致 GVCP 控制通道握手失败（`GevHeartbeatTimeout` 寄存器 `0x0A00` 写入失败）。
+
+注意以下各项均**正常**，不要被误导：
+- `ping 169.254.10.110` ✅（ICMP 可达）
+- `TYUpdateInterfaceList()` / `TYGetDeviceList()` ✅（UDP 广播发现正常）
+- 手动 GVCP 单播发包 ✅（Python UDP socket 能收到 ACK）
+
+**修复（已实施，2026-06-09）**：
+
+在 `percipio_device.cpp:device_open()` 中增加回退逻辑：
+
+```cpp
+// 1. 优先尝试 TYOpenDevice (设备 ID 方式)
+status = TYOpenDevice(hIface, deviceId, &handle);
+
+// 2. 失败时回退到 TYOpenDeviceWithIP (IP 直连)
+if (status != TY_STATUS_OK && deviceIP && deviceIP[0] != '\0') {
+    RCLCPP_WARN_STREAM(..., "falling back to TYOpenDeviceWithIP(" << deviceIP << ")");
+    status = TYOpenDeviceWithIP(hIface, deviceIP, &handle);
+}
+```
+
+改动涉及三个文件：
+| 文件 | 改动 |
+|------|------|
+| `include/percipio_device.h` | `PercipioDevice` 构造函数和 `device_open()` 增加 `deviceIP` 参数；新增 `strDeviceIP` 成员 |
+| `src/percipio_device.cpp` | `device_open()` 增加 `TYOpenDeviceWithIP` 回退逻辑；`Reconnect()` 传递 IP 参数 |
+| `src/percipio_camera_node_driver.cpp` | `initializeDevice()` 从 `TY_DEVICE_BASE_INFO.netInfo.ip` 传入相机 IP |
+
+**依据**：Percipio SDK 文档 (`TYApi.h:542`) 明确说明：
+> "If there is a routing connection between your host and the camera, you can try to open the camera with TYOpenDeviceWithIP."
+
+**临时手动排查命令**：
+
+```bash
+# 检查是否有 WiFi 上的 169.254 路由
+ip route show | grep "169.254"
+
+# 直接测试 GVCP 单播连通性（若 ACK 可达说明网络层正常）
+python3 -c "
+import socket
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.settimeout(2)
+s.bind(('169.254.10.11', 0))
+s.sendto(b'\x42\x01\x00\x02\x00\x00\x00\x08', ('169.254.10.110', 3956))
+try:
+    data, addr = s.recvfrom(1024)
+    print(f'ACK: {len(data)} bytes from {addr}')
+except socket.timeout:
+    print('TIMEOUT: GVCP 不可达')
+"
+
+# 临时绕过（删除 WiFi link-local 路由，重启后恢复）
+sudo ip route del 169.254.0.0/16 dev wlo1
+```

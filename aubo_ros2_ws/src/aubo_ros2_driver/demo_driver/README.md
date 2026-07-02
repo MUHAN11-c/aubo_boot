@@ -1,6 +1,8 @@
 # demo_driver
 
-机器人驱动功能包（ROS 2），提供机器人状态发布、运动控制、位姿设置、夹爪快换与 GraspNet 循环抓取等功能。
+机器人驱动功能包（ROS 2），提供机器人状态发布、运动控制、位姿设置与 GraspNet 循环抓取等功能。
+
+> **注意**：夹爪快换功能已迁移至 `tool_changer` 包（`tool_changer_interface` 接口定义）。
 
 ## 第一节：启动命令与服务测试命令
 
@@ -8,7 +10,7 @@
 
 ```bash
 # 统一环境（每个终端都先执行）
-cd ~/IVG2.0/aubo_ros2_ws
+cd ~/aubo_boot/aubo_ros2_ws
 source /opt/ros/humble/setup.bash
 source install/setup.bash
 ```
@@ -38,62 +40,62 @@ ros2 run demo_driver publish_grasps_client_worker_node --ros-args \
 ```
 
 ```bash
-# 终端5（可选）：夹爪快换 Worker（/run_gripper_swap）
-ros2 run demo_driver gripper_swap_worker_node
+# 终端5（可选）：夹爪快换 Worker（/run_gripper_swap），已迁移至 tool_changer 包
+ros2 launch tool_changer gripper_swap_worker.launch.py
 ```
 
 ### 2) 各服务测试命令（按当前 src 实现）
 
 ```bash
 # 先查看服务是否就绪
-ros2 service list | rg -E "/move_to_pose|/plan_trajectory|/execute_trajectory|/get_current_state|/set_speed_factor|/set_robot_pose|/run_gripper_swap|/execute_single_grasp|/loop_grasp_control|/publish_grasps_worker_loop_control"
+ros2 service list | grep -E "/move_to_pose|/plan_trajectory|/execute_trajectory|/get_current_state|/set_speed_factor|/set_robot_pose|/execute_single_grasp|/loop_grasp_control|/publish_grasps_worker_loop_control"
 ```
 
 ```bash
-# /move_to_pose (demo_interface/srv/MoveToPose)
-ros2 service call /move_to_pose demo_interface/srv/MoveToPose \
+# /move_to_pose (ivg_interfaces/srv/MoveToPose)
+ros2 service call /move_to_pose ivg_interfaces/srv/MoveToPose \
 "{target_pose: {position: {x: 0.40, y: 0.00, z: 0.30}, orientation: {x: 0.0, y: 1.0, z: 0.0, w: 0.0}}, target_joints: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], use_joints: false, velocity_factor: 0.3, acceleration_factor: 0.2}"
 ```
 
 ```bash
-# /plan_trajectory (demo_interface/srv/PlanTrajectory)
-ros2 service call /plan_trajectory demo_interface/srv/PlanTrajectory \
+# /plan_trajectory (ivg_interfaces/srv/PlanTrajectory)
+ros2 service call /plan_trajectory ivg_interfaces/srv/PlanTrajectory \
 "{target_pose: {position: {x: 0.40, y: 0.00, z: 0.30}, orientation: {x: 0.0, y: 1.0, z: 0.0, w: 0.0}}, use_joints: false}"
 ```
 
 ```bash
-# /execute_trajectory (demo_interface/srv/ExecuteTrajectory)
+# /execute_trajectory (ivg_interfaces/srv/ExecuteTrajectory)
 # 建议：将 /plan_trajectory 返回的 trajectory 原样填入后再执行
-ros2 service call /execute_trajectory demo_interface/srv/ExecuteTrajectory \
+ros2 service call /execute_trajectory ivg_interfaces/srv/ExecuteTrajectory \
 "{trajectory: {joint_names: [], points: []}}"
 ```
 
 ```bash
-# /get_current_state (demo_interface/srv/GetCurrentState)
-ros2 service call /get_current_state demo_interface/srv/GetCurrentState "{}"
+# /get_current_state (ivg_interfaces/srv/GetCurrentState)
+ros2 service call /get_current_state ivg_interfaces/srv/GetCurrentState "{}"
 ```
 
 ```bash
-# /set_speed_factor (demo_interface/srv/SetSpeedFactor)
-ros2 service call /set_speed_factor demo_interface/srv/SetSpeedFactor "{velocity_factor: 0.5}"
+# /set_speed_factor (ivg_interfaces/srv/SetSpeedFactor)
+ros2 service call /set_speed_factor ivg_interfaces/srv/SetSpeedFactor "{velocity_factor: 0.5}"
 ```
 
 ```bash
-# /set_robot_pose (demo_interface/srv/SetRobotPose)
+# /set_robot_pose (ivg_interfaces/srv/SetRobotPose)
 # target_pose 含义: [x, y, z, roll, pitch, yaw]
-ros2 service call /set_robot_pose demo_interface/srv/SetRobotPose \
+ros2 service call /set_robot_pose ivg_interfaces/srv/SetRobotPose \
 "{target_pose: [0.40, 0.00, 0.30, 3.14159, 0.0, 1.5708], use_joints: false, is_radian: true, velocity: 0.3}"
 ```
 
 ```bash
-# /run_gripper_swap (demo_interface/srv/RunGripperSwap)
-ros2 service call /run_gripper_swap demo_interface/srv/RunGripperSwap "{direction: 'gripper2'}"
+# /run_gripper_swap（已迁移至 tool_changer，需先启动 tool_changer 节点）
+ros2 service call /run_gripper_swap ivg_interfaces/srv/RunGripperSwap "{direction: 'gripper0_to_gripper2'}"
 ```
 
 ```bash
-# /execute_single_grasp (demo_interface/srv/ExecuteGraspPose)
-# use_visual_estimation=true 时会调用 /estimate_pose（interface/srv/EstimatePose）
-ros2 service call /execute_single_grasp demo_interface/srv/ExecuteGraspPose \
+# /execute_single_grasp (ivg_interfaces/srv/ExecuteGraspPose)
+# use_visual_estimation=true 时会调用 /estimate_pose（ivg_interfaces/srv/EstimatePose）
+ros2 service call /execute_single_grasp ivg_interfaces/srv/ExecuteGraspPose \
 "{object_id: '3211242785', use_visual_estimation: true}"
 ```
 
@@ -118,8 +120,6 @@ demo_driver/
 ├── include/demo_driver/          # 头文件
 │   ├── moveit_gripper_io_base.h  # 基类：MoveIt + 夹爪 IO
 │   ├── publish_grasps_client_worker.h
-│   ├── publish_grasps_AB.h
-│   ├── gripper_swap_worker.h
 │   ├── set_robot_pose_server.h
 │   └── ...
 ├── src/                          # 源文件
@@ -130,8 +130,7 @@ demo_driver/
 
 ## 依赖
 
-- `demo_interface`: 消息和服务定义包
-- `aubo_msgs`: Aubo 机器人消息包
+- `ivg_interfaces`: 统一消息和服务定义包 (已替代旧 aubo_msgs)
 - `moveit_core`, `moveit_ros_planning_interface`: MoveIt 2
 - `geometry_msgs`, `sensor_msgs`, `trajectory_msgs`, `std_msgs`
 - `tf2`, `tf2_ros`, `tf2_geometry_msgs`
@@ -142,52 +141,34 @@ demo_driver/
 
 | 节点 | 可执行文件 | 说明 |
 |------|------------|------|
-| robot_status_publisher | robot_status_publisher_node | 发布机器人完整状态（在线、使能、运动、关节、笛卡尔位姿） |
 | move_to_pose_server | move_to_pose_server_node | 移动到目标位姿服务（关节/笛卡尔空间） |
 | plan_trajectory_server | plan_trajectory_server_node | 轨迹规划服务（不执行） |
 | execute_trajectory_server | execute_trajectory_server_node | 执行轨迹服务 |
 | get_current_state_server | get_current_state_server_node | 获取当前状态服务 |
 | set_speed_factor_server | set_speed_factor_server_node | 设置速度因子服务 |
 | set_robot_pose_server | set_robot_pose_server_node | 设置机器人位姿服务（欧拉角/关节空间） |
-| gripper_swap_worker | gripper_swap_worker_node | 夹爪快换（gripper0 ↔ gripper2） |
 | publish_grasps_client_worker | publish_grasps_client_worker_node | GraspNet 循环抓取放置 |
-| publish_grasps_AB | publish_grasps_AB | A/B 工位交替抓取；与上节点独立（默认循环服务 `/publish_grasps_AB_loop_control`，状态 `grasp_place_status_ab`，最终位姿 `/ivg_worker_final_grasp_poses`） |
 
-### 已禁用节点（CMakeLists 中注释）
+### 已启用但未列详细说明
 
-- `robot_io_status_publisher_node`
-- `set_robot_enable_server_node`
-- `set_robot_io_server_node`
-- `read_robot_io_server_node`
-- `movel_server_node`
+- `set_robot_enable_server_node` — `/set_robot_enable` 服务
+- `read_robot_io_server_node` — `/read_robot_io` 服务
 
----
+### 已禁用/未构建节点
 
-### 1. robot_status_publisher_node
-
-**功能**：发布机器人完整状态信息。
-
-#### 发布的话题
-
-- `/robot_status` (demo_interface/RobotStatus)
-  - **is_online**, **enable**, **in_motion**, **planning_status**
-  - **joint_position_rad/deg**, **cartesian_position**
-
-#### 参数
-
-- `publish_rate` (double, default: 10.0)
-- `base_frame` (string, default: "base_link")
-- `planning_group_name` (string, default: "manipulator_e5")
+- `robot_io_status_publisher_node` — 未加入 CMakeLists
+- `set_robot_io_server_node` — 未加入 CMakeLists
+- `movel_server_node` — 未加入 CMakeLists
 
 ---
 
-### 2. move_to_pose_server_node
+### 1. move_to_pose_server_node
 
 **功能**：移动到目标位姿服务，支持关节空间和笛卡尔空间规划。
 
 #### 服务
 
-- `/move_to_pose` (demo_interface/MoveToPose)
+- `/move_to_pose` (ivg_interfaces/MoveToPose)
   - **Request**: target_pose, use_joints, velocity_factor, acceleration_factor
   - **Response**: success, error_code, message
 
@@ -199,7 +180,7 @@ demo_driver/
 
 #### 服务
 
-- `/plan_trajectory` (demo_interface/PlanTrajectory)
+- `/plan_trajectory` (ivg_interfaces/PlanTrajectory)
   - **Request**: target_pose, use_joints
   - **Response**: success, trajectory, planning_time, message
 
@@ -211,7 +192,7 @@ demo_driver/
 
 #### 服务
 
-- `/execute_trajectory` (demo_interface/ExecuteTrajectory)
+- `/execute_trajectory` (ivg_interfaces/ExecuteTrajectory)
   - **Request**: trajectory
   - **Response**: success, error_code, message
 
@@ -223,7 +204,7 @@ demo_driver/
 
 #### 服务
 
-- `/get_current_state` (demo_interface/GetCurrentState)
+- `/get_current_state` (ivg_interfaces/GetCurrentState)
   - **Response**: joint_position_rad, cartesian_position, velocity
 
 ---
@@ -234,7 +215,7 @@ demo_driver/
 
 #### 服务
 
-- `/set_speed_factor` (demo_interface/SetSpeedFactor)
+- `/set_speed_factor` (ivg_interfaces/SetSpeedFactor)
   - **Request**: velocity_factor (0.0–1.0)
 
 ---
@@ -245,7 +226,7 @@ demo_driver/
 
 #### 服务
 
-- `/set_robot_pose` (demo_interface/SetRobotPose)
+- `/set_robot_pose` (ivg_interfaces/SetRobotPose)
   - **Request**: target_pose[6], use_joints, is_radian, velocity
   - **Response**: success, error_code, message
 
@@ -253,37 +234,15 @@ demo_driver/
 
 ```bash
 # 欧拉角模式（弧度）
-ros2 service call /set_robot_pose demo_interface/srv/SetRobotPose "{target_pose: [0.4, 0.0, 0.3, 0.0, 1.57, 0.0], use_joints: false, is_radian: true, velocity: 0.5}"
+ros2 service call /set_robot_pose ivg_interfaces/srv/SetRobotPose "{target_pose: [0.4, 0.0, 0.3, 0.0, 1.57, 0.0], use_joints: false, is_radian: true, velocity: 0.5}"
 
 # 关节空间模式
-ros2 service call /set_robot_pose demo_interface/srv/SetRobotPose "{target_pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], use_joints: true, is_radian: true, velocity: 0.3}"
+ros2 service call /set_robot_pose ivg_interfaces/srv/SetRobotPose "{target_pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], use_joints: true, is_radian: true, velocity: 0.3}"
 ```
 
 ---
 
-### 8. gripper_swap_worker_node
-
-**功能**：夹爪快换，提供 `/run_gripper_swap` 服务。
-
-#### 服务
-
-- `/run_gripper_swap` (demo_interface/srv/RunGripperSwap)
-  - **Request**: direction — `"gripper2"` / `"gripper0"` / `"gripper0_to_gripper2"` / `"gripper2_to_gripper0"`
-
-#### 调用示例
-
-```bash
-# 切换到 gripper2
-ros2 service call /run_gripper_swap demo_interface/srv/RunGripperSwap "{direction: 'gripper2'}"
-
-# 原有方向仍可使用
-ros2 service call /run_gripper_swap demo_interface/srv/RunGripperSwap "{direction: 'gripper0_to_gripper2'}"
-ros2 service call /run_gripper_swap demo_interface/srv/RunGripperSwap "{direction: 'gripper2_to_gripper0'}"
-```
-
----
-
-### 9. publish_grasps_client_worker_node
+### 8. publish_grasps_client_worker_node
 
 **功能**：GraspNet 抓取放置 Worker。订阅 `grasp_poses_base`（PoseArray），循环执行：触发采集 → 等待窗口就绪 → 选优 → gripper_tip 补偿 → 抓取接近 → 抬起 → 放置 → 回安全位。
 
@@ -539,13 +498,9 @@ ros2 run demo_driver publish_grasps_client_worker_node --ros-args \
 #### 方式二：单独运行节点
 
 ```bash
-# 机器人状态
-ros2 run demo_driver robot_status_publisher_node
-ros2 topic echo /robot_status
-
 # 移动到目标位姿
 ros2 run demo_driver move_to_pose_server_node
-ros2 service call /move_to_pose demo_interface/srv/MoveToPose "{target_pose: {position: {x: 0.4, y: 0.3, z: 0.3}, orientation: {w: 1.0, x: 0.0, y: 0.0, z: 0.0}}, use_joints: false, velocity_factor: 0.5, acceleration_factor: 0.5}"
+ros2 service call /move_to_pose ivg_interfaces/srv/MoveToPose "{target_pose: {position: {x: 0.4, y: 0.3, z: 0.3}, orientation: {w: 1.0, x: 0.0, y: 0.0, z: 0.0}}, use_joints: false, velocity_factor: 0.5, acceleration_factor: 0.5}"
 
 # 规划轨迹
 ros2 run demo_driver plan_trajectory_server_node
@@ -555,17 +510,17 @@ ros2 run demo_driver execute_trajectory_server_node
 
 # 获取当前状态
 ros2 run demo_driver get_current_state_server_node
-ros2 service call /get_current_state demo_interface/srv/GetCurrentState
+ros2 service call /get_current_state ivg_interfaces/srv/GetCurrentState
 
 # 设置速度因子
 ros2 run demo_driver set_speed_factor_server_node
-ros2 service call /set_speed_factor demo_interface/srv/SetSpeedFactor "{velocity_factor: 0.5}"
+ros2 service call /set_speed_factor ivg_interfaces/srv/SetSpeedFactor "{velocity_factor: 0.5}"
 
 # 设置机器人位姿
 ros2 run demo_driver set_robot_pose_server_node
 
-# 夹爪快换
-ros2 run demo_driver gripper_swap_worker_node
+# 夹爪快换（已迁移至 tool_changer 包）
+ros2 launch tool_changer gripper_swap_worker.launch.py
 
 # GraspNet 抓取放置
 ros2 run demo_driver publish_grasps_client_worker_node
@@ -584,7 +539,7 @@ ros2 run demo_driver publish_grasps_client_worker_node
 ```bash
 cd <你的_ws>
 source /opt/ros/humble/setup.bash
-colcon build --packages-select demo_interface demo_driver
+colcon build --packages-select ivg_interfaces demo_driver
 source install/setup.bash
 ```
 
@@ -599,7 +554,7 @@ ros2 launch demo_driver execute_grasp_pose_worker.launch.py
 **1. 单次抓取（使用参数常量）**
 
 ```bash
-ros2 service call /execute_single_grasp demo_interface/srv/ExecuteGraspPose "{object_id: 'test_object', use_visual_estimation: false}"
+ros2 service call /execute_single_grasp ivg_interfaces/srv/ExecuteGraspPose "{object_id: 'test_object', use_visual_estimation: false}"
 ```
 
 **2. 单次抓取（使用视觉估计）**
@@ -607,7 +562,7 @@ ros2 service call /execute_single_grasp demo_interface/srv/ExecuteGraspPose "{ob
 确保 `/estimate_pose` 服务正在运行，然后：
 
 ```bash
-ros2 service call /execute_single_grasp demo_interface/srv/ExecuteGraspPose "{object_id: 'default', use_visual_estimation: true}"
+ros2 service call /execute_single_grasp ivg_interfaces/srv/ExecuteGraspPose "{object_id: 'default', use_visual_estimation: true}"
 ```
 
 **3. 启动 / 停止循环抓取**
@@ -635,7 +590,7 @@ ros2 service call /loop_grasp_control std_srvs/srv/SetBool "{data: false}"
 const executeSingleGraspService = new ROSLIB.Service({
   ros: ros,
   name: '/execute_single_grasp',
-  serviceType: 'demo_interface/srv/ExecuteGraspPose'
+  serviceType: 'ivg_interfaces/srv/ExecuteGraspPose'
 });
 executeSingleGraspService.callService(
   new ROSLIB.ServiceRequest({ object_id: 'default', use_visual_estimation: true }),
@@ -659,6 +614,58 @@ ros2 run rqt_console rqt_console
 - 服务不可用：检查 `ros2 node list` / `ros2 service list | grep grasp`
 - 视觉失败：确认 `/estimate_pose` 已注册
 - 循环无法启动：查看是否已有循环在运行（日志会提示）
+
+---
+
+## RobotController — 运动 + IO 封装
+
+组合模式封装 MoveIt 运动控制与 Aubo IO，供 Worker 节点复用。
+
+### 运动 API
+
+| 方法 | 说明 |
+|------|------|
+| `moveToJoints(joints, vel, acc)` | 关节空间 plan+execute |
+| `moveToPose(target, vel, acc)` | 位姿目标 plan+execute (IK) |
+| `moveCartesianZ(offset, vel, acc)` | 笛卡尔 Z 轴升降 |
+| `moveCartesianPath(segments, vel, acc)` | 笛卡尔分段 X/Y/Z (旧接口) |
+| `moveCartesianStraight(target, vel, acc)` | **笛卡尔空间直线** (核心接口) |
+
+### 笛卡尔 slerp 工具
+
+| 方法 | 说明 |
+|------|------|
+| `slerp(q0, q1, t)` | 四元数球面最短路径插值，自动选同号半球 |
+| `interpolateCartesian(from, to, steps)` | 位置线性 + 朝向 slerp 生成 N 个 waypoints |
+| `jointsToPose(joints)` | 正运动学 (FK): 关节角 → TCP 位姿 |
+
+### moveCartesianStraight 内部实现
+
+```
+起点 = getCurrentPose()
+waypoints = interpolateCartesian(起点, 目标, steps=20)  // 20步 slerp
+for retry in 0..5:
+    fraction = computeCartesianPath(waypoints, eef_step=0.002)
+    if fraction < 0.99: continue
+    execute(traj)
+    if success: break
+```
+
+`slerp` 保证朝向走 S³ 球面最短弧，避免关节空间规划中杯子倾翻问题。
+
+### IO API
+
+| 方法 | 说明 |
+|------|------|
+| `setGripper(pin, open)` | `open=true` 打开夹爪 |
+| `setQuickSwap(pin, lock)` | `lock=true` 锁紧快换 |
+
+---
+
+## LatteWorkflowNode → 已移至 latte_backend 包
+
+咖啡拉花工作流已独立为 `latte_backend` 功能包（依赖 `demo_driver::robot_controller` 共享库）。
+详见 `aubo_ros2_ws/src/aubo_ros2_driver/latte_backend/README.md` 喵~
 
 ---
 

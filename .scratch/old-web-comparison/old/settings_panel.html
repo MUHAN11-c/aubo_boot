@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>IVG 设置</title>
+<link rel="stylesheet" href="css/ivg_site_nav.css" />
+<link rel="stylesheet" href="css/settings_panel.css" />
+<link rel="stylesheet" href="css/ivg_status_bar.css" />
+<script src="/js/robotwebtools/importmap.js"></script>
+</head>
+<body>
+<ivg-site-nav page="settings"></ivg-site-nav>
+
+<main class="settings-main">
+  <h1>IVG 系统设置</h1>
+  <p class="settings-subtitle">配置修改后保存即生效（浏览器本地存储）。<a href="" id="refresh-link">刷新面板</a>以加载新配置。</p>
+
+  <!-- 网关状态 -->
+  <section class="settings-card gateway-card">
+    <div class="gw-row">
+      <span class="gw-label">网关</span>
+      <span class="gw-status" id="gw-status">检测中…</span>
+    </div>
+    <div class="gw-info" id="gw-info"></div>
+  </section>
+
+  <!-- 分类标签 -->
+  <nav class="settings-tabs" id="settings-tabs">
+    <button class="settings-tab active" data-tab="common">公共参数</button>
+    <button class="settings-tab" data-tab="vision">视觉抓取</button>
+    <button class="settings-tab" data-tab="latte">咖啡拉花</button>
+  </nav>
+
+  <!-- 分类内容 -->
+  <div class="tab-content active" id="tab-common">
+    <div class="settings-section" id="common-topics"></div>
+    <div class="settings-section" id="common-tf"></div>
+  </div>
+  <div class="tab-content" id="tab-vision">
+    <div class="settings-section" id="vision-topics"></div>
+    <div class="settings-section" id="vision-services"></div>
+  </div>
+  <div class="tab-content" id="tab-latte">
+    <div class="settings-section" id="latte-topics"></div>
+    <div class="settings-section" id="latte-services"></div>
+  </div>
+
+  <!-- 操作 -->
+  <div class="settings-actions">
+    <button type="button" class="btn btn-primary" id="btn-save">保存设置</button>
+    <button type="button" class="btn" id="btn-reset">恢复默认</button>
+    <button type="button" class="btn" id="btn-clear">清除存储</button>
+    <span class="actions-sep"></span>
+    <button type="button" class="btn" id="btn-export">导出 JSON</button>
+    <button type="button" class="btn" id="btn-import">导入 JSON</button>
+  </div>
+  <p class="settings-msg" id="settings-msg"></p>
+</main>
+
+<script type="module" src="js/ivg_site_nav.js"></script>
+<script type="module" src="js/settings_panel.js"></script>
+<script type="module" src="js/core/ivg_status_bar.js"></script>
+</body>
+</html>

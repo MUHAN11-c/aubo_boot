@@ -1,0 +1,27 @@
+{
+  "name": "aubo_ros2_web_dashboard",
+  "version": "1.0.0",
+  "description": "ROS 2 机械臂视觉抓取 Web 控制面板。FastAPI 网关 + 纯 HTML/JS MPA 前端，浏览器通过 WebSocket/HTTP 代理与 ROS 系统实时交互。",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build:vendor": "node scripts/build_vendor.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "vitest": "^4.1.7"
+  },
+  "dependencies": {
+    "@foxglove/cdr": "^3.5.1",
+    "@foxglove/rosmsg": "^5.0.5",
+    "@foxglove/rosmsg2-serialization": "^3.1.2",
+    "esbuild": "^0.28.0"
+  }
+}

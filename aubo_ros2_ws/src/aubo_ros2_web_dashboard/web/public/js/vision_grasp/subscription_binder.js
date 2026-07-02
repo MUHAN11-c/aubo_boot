@@ -8,6 +8,7 @@
 function bindVisionSubscriptions(opts) {
 	const options = opts || {};
 	const transport = options.transport;
+	const owner = options.owner || 'vision_grasp';
 	const $ = options.getById || (id => document.getElementById(id));
 	const subs = options.subs || {};
 	const defaults = options.defaults || {};
@@ -78,8 +79,16 @@ function bindVisionSubscriptions(opts) {
 
 	const poseEl = $('pose-text');
 	if (poseEl && robotTopic) {
-		poseEl.innerHTML = `<div class="pose-card__empty">已订阅 ${escapeHtml(robotTopic)}，等待 RobotStatus…（若持续无数值请检查驱动发布与话题名）</div>`;
+		poseEl.innerHTML = formatRobotPoseHtml({ x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 });
 	}
+
+	// 视觉位姿估计状态初始默认值
+	const vpeEl = $('vpe-status-text');
+	if (vpeEl) vpeEl.textContent = '0';
+
+	// AI 抓取位姿初始默认值
+	const graspEl = $('graspnet-result-text');
+	if (graspEl) graspEl.innerHTML = formatFinalGraspPoseHtml({ poses: [] });
 
 	if (robotTopic) {
 		transport.onRosJson(robotTopic, m => {
@@ -99,8 +108,8 @@ function bindVisionSubscriptions(opts) {
 			} else {
 				el.innerHTML = html;
 			}
-		});
-		transport.subscribe({ topic: robotTopic, msgType: topicTypeMap['topic-robot'] || 'demo_interface/msg/RobotStatus', maxHz: 50 });
+		}, owner);
+		transport.subscribe({ topic: robotTopic, msgType: topicTypeMap['topic-robot'] || 'ivg_interfaces/msg/RobotStatus', maxHz: 50 });
 		subs.robot = true;
 	} else {
 		subs.robot = null;
@@ -109,7 +118,7 @@ function bindVisionSubscriptions(opts) {
 	if (jointTopic) {
 		transport.onRosJson(jointTopic, m => {
 			pushJointStateSample(m);
-		});
+		}, owner);
 		transport.subscribe({ topic: jointTopic, msgType: topicTypeMap['topic-joints'] || 'sensor_msgs/msg/JointState', maxHz: 30 });
 		subs.joints = true;
 	} else {
@@ -120,9 +129,9 @@ function bindVisionSubscriptions(opts) {
 		transport.onRosJson(statusTopic, m => {
 			const el = $('vpe-status-text');
 			if (el) {
-				el.textContent = m && m.ivg_display != null ? String(m.ivg_display) : (m && m.data) ? String(m.data) : '';
+				el.textContent = m && m.ivg_display != null ? String(m.ivg_display) : (m && m.data != null) ? String(m.data) : '0';
 			}
-		});
+		}, owner);
 		transport.subscribe({ topic: statusTopic, msgType: topicTypeMap['topic-vpe-status'] || 'std_msgs/msg/String', maxHz: 10 });
 		subs.vpe = true;
 	} else {
@@ -135,7 +144,7 @@ function bindVisionSubscriptions(opts) {
 			if (el) el.innerHTML = formatFinalGraspPoseHtml(m);
 			if (projectionOverlay) projectionOverlay.setGraspMsg(m);
 			scheduleGraspColorSnapshotRefresh();
-		});
+		}, owner);
 		transport.subscribe({ topic: graspTopic, msgType: topicTypeMap['topic-grasp-poses'] || 'geometry_msgs/msg/PoseArray', maxHz: 15 });
 		subs.grasp = true;
 	} else {
@@ -145,7 +154,7 @@ function bindVisionSubscriptions(opts) {
 	if (cameraInfoTopic) {
 		transport.onRosJson(cameraInfoTopic, m => {
 			if (projectionOverlay) projectionOverlay.setCameraInfo(m);
-		});
+		}, owner);
 		transport.subscribe({ topic: cameraInfoTopic, msgType: 'sensor_msgs/msg/CameraInfo', maxHz: 5 });
 		subs.cameraInfo = true;
 	} else {
@@ -156,11 +165,11 @@ function bindVisionSubscriptions(opts) {
 		if (projectionOverlay) projectionOverlay.ingestTfMessage(msg);
 	}
 	if (tfTopic) {
-		transport.onRosJson(tfTopic, handleTfMessage);
+		transport.onRosJson(tfTopic, handleTfMessage, owner);
 		transport.subscribe({ topic: tfTopic, msgType: topicTypeMap['topic-tf'] || 'tf2_msgs/msg/TFMessage', maxHz: 30 });
 	}
 	if (tfStaticTopic) {
-		transport.onRosJson(tfStaticTopic, handleTfMessage);
+		transport.onRosJson(tfStaticTopic, handleTfMessage, owner);
 		transport.subscribe({ topic: tfStaticTopic, msgType: topicTypeMap['topic-tf-static'] || 'tf2_msgs/msg/TFMessage', maxHz: 1 });
 	}
 	subs.tf = !!(tfTopic || tfStaticTopic);

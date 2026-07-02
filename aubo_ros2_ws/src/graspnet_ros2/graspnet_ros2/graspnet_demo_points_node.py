@@ -14,7 +14,6 @@ GraspNet ROS2 Demo(点云版)：
 
 # ---------- 标准库 ----------
 import os
-import sys
 import multiprocessing
 from typing import Optional, Tuple, cast
 
@@ -36,40 +35,24 @@ from std_srvs.srv import SetBool
 from tf2_ros import TransformBroadcaster, Buffer, TransformListener
 
 
-# ========== graspnet-baseline 路径与依赖（须先设置 sys.path 再导入） ==========
-def _get_graspnet_baseline_root() -> str:
-    """解析 graspnet-baseline 根目录：源码为 ../graspnet-baseline，install 为 share/graspnet_ros2/graspnet-baseline。"""
-    this_file = os.path.abspath(__file__)
-    src_root = os.path.abspath(os.path.join(os.path.dirname(this_file), '..', 'graspnet-baseline'))
-    if os.path.isdir(src_root) and os.path.isdir(os.path.join(src_root, 'models')):
-        return src_root
-    try:
-        from ament_index_python.packages import get_package_share_directory
+# ========== graspnet-baseline 依赖（pip install -e . 安装，可直接导入）==========
+from graspnetAPI import GraspGroup
+import models  # noqa: F401 — 触发 models/__init__.py 的 sys.path 兼容逻辑
+import dataset  # noqa: F401
+import utils  # noqa: F401
+from models.graspnet import GraspNet, pred_decode
+from utils.collision_detector import ModelFreeCollisionDetector
+try:
+    import pointnet2._ext as _ext  # noqa: F401 — CUDA 算子 (ball_query, group_points 等)
+    import knn_pytorch.knn_pytorch  # noqa: F401 — KNN CUDA 算子
+except ImportError as e:
+    raise ImportError(
+        f"CUDA 算子导入失败: {e}。请确保已安装 pointnet2 和 knn_pytorch CUDA 扩展：\n"
+        "  cd graspnet-baseline/pointnet2 && python setup.py install\n"
+        "  cd graspnet-baseline/knn && python setup.py install\n"
+        "或使用 CPU 模式（需修改配置 --gpu -1）喵~"
+    ) from e
 
-        install_root = os.path.join(get_package_share_directory('graspnet_ros2'), 'graspnet-baseline')
-        if os.path.isdir(install_root) and os.path.isdir(os.path.join(install_root, 'models')):
-            return install_root
-    except Exception:
-        pass
-    return src_root
-
-
-def _setup_graspnet_baseline():
-    """设置 sys.path 并导入 graspnet-baseline 依赖，返回 (ROOT_DIR, GraspNet, pred_decode, ModelFreeCollisionDetector, GraspGroup)。"""
-    root = _get_graspnet_baseline_root()
-    sys.path.insert(0, root)
-    sys.path.insert(0, os.path.join(root, 'models'))
-    sys.path.insert(0, os.path.join(root, 'dataset'))
-    sys.path.append(os.path.join(root, 'utils'))
-
-    from models.graspnet import GraspNet, pred_decode  # noqa: E402
-    from utils.collision_detector import ModelFreeCollisionDetector  # noqa: E402
-    from graspnetAPI import GraspGroup  # noqa: E402
-
-    return root, GraspNet, pred_decode, ModelFreeCollisionDetector, GraspGroup
-
-
-ROOT_DIR, GraspNet, pred_decode, ModelFreeCollisionDetector, GraspGroup = _setup_graspnet_baseline()
 
 
 # ========== 模块级：Open3D 可视化（独立进程） ==========
@@ -107,7 +90,6 @@ class GraspNetDemoPointsNode(Node):
         super().__init__('graspnet_demo_points_node')
 
         # ========== 参数 ==========
-        self.declare_parameter('baseline_dir', ROOT_DIR)
         self.declare_parameter('model_path', '')
 
         # 输入点云
@@ -172,6 +154,7 @@ class GraspNetDemoPointsNode(Node):
 
         # ========== 状态缓存（服务回调与发布使用） ==========
         self._latest_pc_msg: Optional[PointCloud2] = None
+        self._latest_pc_stamp = self.get_clock().now().to_msg()
         self.processed_gg: Optional[GraspGroup] = None
         self.cloud_o3d: Optional[o3d.geometry.PointCloud] = None
         self.processed_frame_id: str = ''
@@ -336,6 +319,7 @@ class GraspNetDemoPointsNode(Node):
     # ========== 流水线入口：点云 → 抓取结果 ==========
     def _compute_grasps(self, pc_msg: PointCloud2):
         """数据准备 → 网络推理 → 碰撞检测 → NMS/排序 → 写缓存，可选 Open3D 可视化。"""
+        self._latest_pc_stamp = pc_msg.header.stamp
         end_points, cloud, frame_id = self._get_and_process_data(pc_msg)
         gg = self._get_grasps(end_points)
         gg = self._collision_detection(gg, np.asarray(cloud.points))
@@ -368,7 +352,7 @@ class GraspNetDemoPointsNode(Node):
         delete_marker = Marker()
         delete_marker.action = Marker.DELETEALL
         delete_marker.header.frame_id = self.processed_frame_id
-        delete_marker.header.stamp = self.get_clock().now().to_msg()
+        delete_marker.header.stamp = self._latest_pc_stamp
         self.marker_pub.publish(MarkerArray(markers=[delete_marker]))
 
         # 简单颜色映射（与 demo 节点风格类似）
@@ -377,7 +361,7 @@ class GraspNetDemoPointsNode(Node):
             return (1.0 - s, s, 0.0, 1.0)
 
         marker_array = MarkerArray()
-        stamp = self.get_clock().now().to_msg()
+        stamp = self._latest_pc_stamp
         marker_id = 0
 
         # 逐个抓取发布 4 个圆柱 marker（直接复用 graspnet_demo_node.py 的“夹爪=4段圆柱”思路）

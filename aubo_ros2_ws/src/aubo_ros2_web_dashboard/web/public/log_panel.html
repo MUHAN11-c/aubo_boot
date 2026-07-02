@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<link rel="icon" href="data:," />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+<title>日志面板</title>
+<link rel="stylesheet" href="css/tokens.css" />
+<link rel="stylesheet" href="css/layout_base.css" />
+<link rel="stylesheet" href="css/components/app_shell.css" />
+<link rel="stylesheet" href="css/pages/log_panel.css" />
+<link rel="stylesheet" href="css/components/ivg_site_nav.css" />
+<link rel="stylesheet" href="css/components/ivg_status_bar.css" />
+<script src="/js/robotwebtools/importmap.js"></script>
+</head>
+<body class="ivg-single-screen">
+
+<ivg-site-nav page="log"></ivg-site-nav>
+
+<main class="wrap log-wrap">
+  <div class="page-heading log-heading">
+    <h1>日志面板</h1>
+    <span id="log-count" class="log-count">0 条</span>
+  </div>
+
+  <!-- 控制栏: 操作 + 搜索 + 技术来源过滤 -->
+  <div class="log-toolbar" id="log-toolbar">
+    <button class="log-ctrl log-ctrl--clear" id="log-btn-clear" title="清空全部日志">✕ 清空</button>
+    <button class="log-ctrl" id="log-btn-pause" title="暂停/恢复日志收集">⏸ 暂停</button>
+    <button class="log-ctrl" id="log-btn-scroll" title="自动/手动滚动">⏹ 自动滚动</button>
+    <button class="log-ctrl" id="log-btn-export" title="导出日志为文本文件">⬇ 导出</button>
+    <span class="log-ctrl__sep"></span>
+    <input type="text" class="log-search" id="log-filter-input" placeholder="搜索…" title="按关键字过滤日志行" />
+    <span class="log-ctrl__sep"></span>
+    <button class="log-ctrl" id="log-btn-log" title="过滤 console.log">log</button>
+    <button class="log-ctrl" id="log-btn-info" title="过滤 console.info">info</button>
+    <button class="log-ctrl" id="log-btn-debug" title="过滤 console.debug">debug</button>
+    <button class="log-ctrl" id="log-btn-warn" title="过滤 console.warn">warn</button>
+    <button class="log-ctrl" id="log-btn-error" title="过滤 console.error">error</button>
+    <button class="log-ctrl" id="log-btn-transport" title="过滤 Transport 连接/订阅事件">transport</button>
+    <button class="log-ctrl" id="log-btn-service" title="过滤服务调用事件">service</button>
+    <button class="log-ctrl" id="log-btn-mode" title="过滤驱动模式变更">mode</button>
+    <button class="log-ctrl" id="log-btn-lifecycle" title="过滤页面生命周期事件">lifecycle</button>
+  </div>
+
+  <!-- 等级 + 调试模式 -->
+  <div class="log-toolbar log-toolbar--level" id="log-level-toolbar"></div>
+
+  <!-- 功能标签过滤 -->
+  <div class="log-toolbar log-toolbar--features" id="log-feature-toolbar">
+    <span class="log-feature-label">功能:</span>
+  </div>
+
+  <!-- 日志视图 -->
+  <div class="log-view" id="log-lines" role="log" aria-live="polite" aria-label="日志输出"></div>
+</main>
+
+
+<script type="module" src="js/core/log-ros-bridge.js"></script>
+	<script type="module" src="js/ivg_site_nav.js"></script>
+<script type="module" src="js/log_panel.js?v=20260525_v3"></script>
+<script type="module" src="js/core/ivg_status_bar.js"></script>
+</body>
+</html>

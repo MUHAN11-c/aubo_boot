@@ -2,7 +2,7 @@
 
 import rclpy
 from rclpy.node import Node
-from demo_interface.srv import GetCurrentState, MoveToPose, PlanTrajectory, ExecuteTrajectory, SetSpeedFactor
+from ivg_interfaces.srv import GetCurrentState, MoveToPose, PlanTrajectory, ExecuteTrajectory, SetSpeedFactor
 from geometry_msgs.msg import Pose, Point, Quaternion
 import time
 import sys

@@ -1,201 +1,124 @@
-/**
- * 全站导航：为 .ivg-global-nav 内相对路径 .html 链接附加当前页 search（继承 ?rosbridge_port= 等）；
- * 根据 data-ivg-page 标记当前页链接 aria-current / .is-active（index / vision / latte）。
- * 全屏：仅非电脑端（无 pointer: fine 的触控环境）；电脑鼠标环境不显示全屏、不自动全屏。
- * 平板横屏可尝试自动全屏；Safari 无手势时首次触摸/点击再请求。主屏幕 Web App 不重复请求。
- */
+// ivg-site-nav Web Component — 全站统一导航栏
+// 用法: <ivg-site-nav page="monitor"></ivg-site-nav>
 
-	const q = typeof window.location.search === 'string' ? window.location.search : '';
+const NAV_LINKS = [
+  { href: 'index.html',               page: 'index',    label: '门户' },
+  { href: 'robot_arm_panel.html',     page: 'robot-arm', label: '机械臂上位机' },
+  { href: 'vision_grasp_panel.html',  page: 'vision',   label: '视觉抓取' },
+  { href: 'coffee_latte_panel.html',  page: 'latte',    label: '咖啡拉花' },
+  { href: 'tf_monitor_panel.html',    page: 'monitor',  label: '监控面板' },
+  { href: 'debug_panel.html',         page: 'debug',    label: '调试' },
+  { href: 'log_panel.html',           page: 'log',      label: '日志' },
+  { href: 'settings_panel.html',      page: 'settings', label: '设置' },
+];
 
-	const FS_TITLE_ENTER = '全屏显示页面（iPad：若无效请用 Safari 添加到主屏幕）';
-	const FS_TITLE_EXIT = '退出全屏';
+const FS_TITLE_ENTER = '全屏显示页面（iPad：若无效请用 Safari 添加到主屏幕）';
+const FS_TITLE_EXIT  = '退出全屏';
+const ID_BTN = 'ivg-nav-fullscreen-btn';
 
-	/** 当前全屏元素（标准 API 与 webkit 前缀兼容）。 */
-	function getFullscreenElement() {
-		return document.fullscreenElement || document.webkitFullscreenElement || null;
-	}
+function hasTouch() {
+  try { return window.matchMedia('(hover: none) and (pointer: coarse)').matches; }
+  catch (_) { return false; }
+}
 
-	/** 请求 ``documentElement`` 进入全屏（含 Safari webkit 分支）。 */
-	async function enterFullscreen() {
-		const el = document.documentElement;
-		if (el.requestFullscreen) {
-			await el.requestFullscreen();
-			return;
-		}
-		if (el.webkitRequestFullscreen) {
-			el.webkitRequestFullscreen();
-			return;
-		}
-		throw new Error('Fullscreen API 不可用');
-	}
+function isTabletLandscape() {
+  try {
+    return hasTouch() && window.matchMedia('(orientation: landscape)').matches
+      && window.matchMedia('(min-width: 1024px)').matches
+      && window.matchMedia('(max-width: 1366px)').matches;
+  } catch (_) { return false; }
+}
 
-	/** 退出文档全屏（含 webkit）。 */
-	async function exitFullscreen() {
-		if (document.exitFullscreen) {
-			await document.exitFullscreen();
-			return;
-		}
-		if (document.webkitExitFullscreen) {
-			document.webkitExitFullscreen();
-			return;
-		}
-	}
+class IvgSiteNav extends HTMLElement {
+  connectedCallback() {
+    const page = this.getAttribute('page') || '';
+    const q = window.location.search || '';
 
-	/** 根据是否全屏更新导航栏全屏按钮的样式、aria 与文案。 */
-	function syncFullscreenButton(btn) {
-		if (!btn) return;
-		const on = !!getFullscreenElement();
-		btn.classList.toggle('is-fullscreen', on);
-		btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-		btn.setAttribute('aria-label', on ? '退出全屏' : '进入全屏');
-		btn.textContent = on ? '退出全屏' : '全屏';
-		btn.title = on ? FS_TITLE_EXIT : FS_TITLE_ENTER;
-	}
+    const linksHtml = NAV_LINKS.map(function (l) {
+      var act = l.page === page;
+      return '<li><a class="ivg-global-nav__link' + (act ? ' is-active' : '') + '"'
+        + ' href="' + l.href + q + '" data-ivg-nav="' + l.page + '"'
+        + (act ? ' aria-current="page"' : '') + '>' + l.label + '</a></li>';
+    }).join('');
 
-	/** 是否在 UI 中启用全屏：精细指针（鼠标）环境为 false，触控粗指针为 true。 */
-	function shouldEnableFullscreenControl() {
-		try {
-			/* 存在精细指针（典型为鼠标）即视为电脑端，不提供全屏 */
-			if (window.matchMedia('(pointer: fine)').matches) return false;
-			return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-		} catch (e) {
-			return false;
-		}
-	}
+    this.className = 'ivg-global-nav';
+    this.setAttribute('aria-label', '灵视IVG 站内导航');
+    this.innerHTML =
+      '<div class="ivg-global-nav__inner">'
+      + '<div class="ivg-global-nav__start">'
+      + '<a class="ivg-global-nav__brand" href="index.html' + q + '">灵视 <span>IVG</span></a>'
+      + '<ul class="ivg-global-nav__list" role="list">' + linksHtml + '</ul>'
+      + '</div>'
+      + '<div class="ivg-global-nav__actions">'
+      + '<button type="button" class="ivg-global-nav__fs-btn" id="' + ID_BTN + '"'
+      + ' aria-pressed="false" aria-label="进入全屏" title="' + FS_TITLE_ENTER + '">全屏</button>'
+      + '</div></div>';
 
-	/** 仅 iPad 10 类横屏：与布局媒体一致，竖屏手机不自动全屏 */
-	function shouldAutoEnterFullscreenTablet() {
-		if (!shouldEnableFullscreenControl()) return false;
-		try {
-			return (
-				window.matchMedia('(orientation: landscape)').matches &&
-				window.matchMedia('(min-width: 1024px)').matches &&
-				window.matchMedia('(max-width: 1366px)').matches
-			);
-		} catch (e) {
-			return false;
-		}
-	}
+    this._initFS();
+    if (isTabletLandscape()) this._autoFS();
+  }
 
-	/** Safari 等需用户手势：首次 touch/click 后再尝试进入全屏并同步按钮。 */
-	function armFirstInteractionFullscreen(btn) {
-		const opts = { capture: true, passive: true };
-		function cleanup() {
-			document.removeEventListener('touchstart', onInteract, opts);
-			document.removeEventListener('click', onInteract, opts);
-		}
-		async function onInteract() {
-			cleanup();
-			if (getFullscreenElement()) {
-				if (btn) syncFullscreenButton(btn);
-				return;
-			}
-			try {
-				await enterFullscreen();
-			} catch (e) {
-				console.warn('[ivg_site_nav] 首次手势全屏:', e);
-			}
-			if (btn) syncFullscreenButton(btn);
-		}
-		document.addEventListener('touchstart', onInteract, opts);
-		document.addEventListener('click', onInteract, opts);
-	}
+  _fsEl() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
 
-	/** 平板横屏时尝试自动全屏；失败则挂首次交互全屏；主屏幕 Web App 跳过。 */
-	function initTabletAutoFullscreen(root) {
-		if (!shouldAutoEnterFullscreenTablet()) return;
+  async _enter() {
+    var el = document.documentElement;
+    if (el.requestFullscreen) { await el.requestFullscreen(); return; }
+    if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  }
 
-		try {
-			if (typeof navigator !== 'undefined' && navigator.standalone === true) return;
-		} catch (e) {
-			/* ignore */
-		}
+  async _exit() {
+    if (document.exitFullscreen) await document.exitFullscreen();
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+  }
 
-		const btn = (root || document).getElementById('ivg-nav-fullscreen-btn');
+  _syncBtn() {
+    var btn = this.querySelector('#' + ID_BTN);
+    if (!btn) return;
+    var on = !!this._fsEl();
+    btn.classList.toggle('is-fullscreen', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.setAttribute('aria-label', on ? '退出全屏' : '进入全屏');
+    btn.textContent = on ? '退出全屏' : '全屏';
+    btn.title = on ? FS_TITLE_EXIT : FS_TITLE_ENTER;
+  }
 
-		(async () => {
-			try {
-				await enterFullscreen();
-			} catch (e) {
-				/* Safari 常因缺少用户手势拒绝，改由首次触摸/点击触发 */
-			}
-			if (btn) syncFullscreenButton(btn);
-			if (!getFullscreenElement()) {
-				armFirstInteractionFullscreen(btn);
-			}
-		})();
-	}
+  _initFS() {
+    if (!hasTouch()) {
+      var act = this.querySelector('.ivg-global-nav__actions');
+      if (act) act.style.display = 'none';
+      return;
+    }
+    var self = this;
+    var btn = this.querySelector('#' + ID_BTN);
+    if (!btn) return;
+    function sync() { self._syncBtn(); }
+    btn.addEventListener('click', function () {
+      (async function () {
+        try { self._fsEl() ? await self._exit() : await self._enter(); }
+        catch (e) { /* 全屏API在某些浏览器不支持 */ }
+        sync();
+      })();
+    });
+    document.addEventListener('fullscreenchange', sync);
+    document.addEventListener('webkitfullscreenchange', sync);
+    sync();
+  }
 
-	/** 绑定全屏按钮点击与 ``fullscreenchange`` 事件（仅触控环境显示逻辑由 CSS/上文决定）。 */
-	function initFullscreenButton(root) {
-		const btn = (root || document).getElementById('ivg-nav-fullscreen-btn');
-		if (!btn) return;
-		if (!shouldEnableFullscreenControl()) return;
+  _autoFS() {
+    try { if (navigator.standalone === true) return; } catch (_) {}
+    var self = this;
+    function go() {
+      (async function () {
+        try { await self._enter(); } catch (_) {}
+        self._syncBtn();
+        if (!self._fsEl()) {
+          document.addEventListener('touchstart', go, { capture: true, passive: true, once: true });
+          document.addEventListener('click', go, { capture: true, passive: true, once: true });
+        }
+      })();
+    }
+    go();
+  }
+}
 
-		const sync = () => syncFullscreenButton(btn);
-
-		btn.addEventListener('click', () => {
-			(async () => {
-				try {
-					if (getFullscreenElement()) {
-						await exitFullscreen();
-					} else {
-						await enterFullscreen();
-					}
-				} catch (e) {
-					console.warn('[ivg_site_nav] 全屏:', e);
-				}
-				sync();
-			})();
-		});
-
-		document.addEventListener('fullscreenchange', sync);
-		document.addEventListener('webkitfullscreenchange', sync);
-		sync();
-	}
-
-	/** 为站内 ``.html`` 相对链接追加当前页 ``location.search``，继承 rosbridge 等查询参数。 */
-	function applyQueryToInternalNavLinks(root) {
-		const base = root || document;
-		base.querySelectorAll('.ivg-global-nav a[href]').forEach(a => {
-			const h = a.getAttribute('href');
-			if (!h || h.indexOf('#') === 0) return;
-			if (/^https?:\/\//i.test(h)) return;
-			if (h.indexOf('.html') === -1) return;
-			const path = h.split('?')[0];
-			a.setAttribute('href', path + q);
-		});
-	}
-
-	/** 依 ``data-ivg-page`` 高亮当前页导航链接（``aria-current`` / ``is-active``）。 */
-	function setActiveNav(root) {
-		const nav = (root || document).querySelector('.ivg-global-nav[data-ivg-page]');
-		if (!nav) return;
-		const page = nav.getAttribute('data-ivg-page');
-		if (!page) return;
-		nav.querySelectorAll('.ivg-global-nav__link[data-ivg-nav]').forEach(a => {
-			if (a.getAttribute('data-ivg-nav') === page) {
-				a.setAttribute('aria-current', 'page');
-				a.classList.add('is-active');
-			} else {
-				a.removeAttribute('aria-current');
-				a.classList.remove('is-active');
-			}
-		});
-	}
-
-	/** 导航初始化入口：链接查询串、当前页标记、全屏控件与平板自动全屏。 */
-	function init(root) {
-		applyQueryToInternalNavLinks(root);
-		setActiveNav(root);
-		initFullscreenButton(root);
-		initTabletAutoFullscreen(root);
-	}
-
-	if (document.readyState === 'loading') {
-		document.addEventListener('DOMContentLoaded', () => { init(); });
-	} else {
-		init();
-	}
-
-export { init };
+customElements.define('ivg-site-nav', IvgSiteNav);

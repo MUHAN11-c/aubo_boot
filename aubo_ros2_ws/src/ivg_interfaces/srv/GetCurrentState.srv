@@ -1,0 +1,21 @@
+# =============================================================================
+# GetCurrentState.srv — 获取机械臂当前状态服务
+# 用途：获取机器人当前各关节角度、TCP 位姿及关节速度等运行状态信息喵~
+# 调用方：Web Dashboard 节点、上位机控制节点、状态显示节点
+# 服务方：demo_interface 的 robot_move_group_interface 节点
+# 说明：数据来源于 MoveIt 的 planning_scene_monitor 中的 CurrentStateMonitor，
+#       通过订阅 /joint_states 话题获取最新状态喵~
+#       无请求字段（纯读取服务）喵~
+# =============================================================================
+
+# ======================== 请求字段 ========================
+# （无请求字段）
+
+---
+# ======================== 响应字段 ========================
+bool success                        # 请求是否成功：true=成功获取到机器人状态，false=获取失败喵~
+float64[] joint_position_rad        # 当前6个关节角度，单位：弧度（rad），顺序：joint_1 ~ joint_6喵~
+geometry_msgs/Pose cartesian_position  # 当前 TCP 在基坐标系下的位姿（位置+四元数姿态），
+                                       # 位置单位：米（m），姿态为归一化四元数喵~
+float64[] velocity                  # 当前各关节速度，单位：弧度/秒（rad/s），顺序同 joint_position_rad喵~
+string message                      # 状态消息或错误信息喵~

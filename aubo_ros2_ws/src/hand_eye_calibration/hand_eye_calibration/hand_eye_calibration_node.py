@@ -15,6 +15,8 @@ import threading
 import os
 import json
 import time
+import errno
+import socket
 import cv2
 import numpy as np
 from cv_bridge import CvBridge
@@ -24,9 +26,11 @@ from sensor_msgs.msg import Image, CompressedImage, PointCloud2, CameraInfo
 from std_msgs.msg import Header
 from geometry_msgs.msg import Pose, Point, Quaternion
 from builtin_interfaces.msg import Time
-from demo_interface.msg import RobotStatus
-from percipio_camera_interface.msg import CameraStatus, ImageData
-from percipio_camera_interface.srv import SoftwareTrigger
+from ivg_interfaces.msg import RobotStatus
+from ivg_interfaces.msg import ImageData
+from ivg_interfaces.msg import CameraStatus
+from ivg_interfaces.srv import SoftwareTrigger
+from ivg_utils.math import quaternion_to_rotation_matrix
 import base64
 from ament_index_python.packages import get_package_share_directory
 from .camera_calibration_utils import CameraCalibrationUtils
@@ -44,12 +48,15 @@ class HandEyeCalibrationNode(Node):
         
         # 初始化参数
         self.declare_parameter('web_host', 'localhost')
-        self.declare_parameter('web_port', 8080)
+        # 默认 8070：避免与常见 HTTP 服务/VPE(8088)/MJPEG(8089)/门户(8090) 抢 8080 喵~
+        self.declare_parameter('web_port', 8070)
         self.declare_parameter('camera_topic', '/camera/image_raw')
         self.declare_parameter('robot_status_topic', '/robot_status')
-        
+        self.declare_parameter('collect_data_dir', os.path.expanduser('~/.ivg/hand_eye_calibrate/collect_data'))
+
         self.web_host = self.get_parameter('web_host').value
         self.web_port = self.get_parameter('web_port').value
+        self.collect_data_dir_ = self.get_parameter('collect_data_dir').value
         
         # 数据存储
         self.current_image = None
@@ -137,21 +144,21 @@ class HandEyeCalibrationNode(Node):
         self.trigger_client = self.create_client(SoftwareTrigger, '/software_trigger')
         
         # 机器人运动控制服务客户端
-        from demo_interface.srv import SetRobotPose
+        from ivg_interfaces.srv import SetRobotPose
         self.set_robot_pose_client = self.create_client(SetRobotPose, '/set_robot_pose')
         
         # 移动到目标位姿服务客户端（用于自动标定）
-        from demo_interface.srv import MoveToPose
+        from ivg_interfaces.srv import MoveToPose
         self.move_to_pose_client = self.create_client(MoveToPose, '/move_to_pose')
         
-        # 订阅机器人状态话题（从 /demo_robot_status 获取机械臂当前位姿）
+        # 订阅机器人状态话题（从 /robot_status 获取机械臂当前位姿）
         self.robot_status_subscription = self.create_subscription(
             RobotStatus,
-            '/demo_robot_status',
+            '/robot_status',
             self.robot_status_callback,
             10
         )
-        self.get_logger().info('✅ 订阅机器人状态话题: /demo_robot_status')
+        self.get_logger().info('✅ 订阅机器人状态话题: /robot_status')
         
         # 订阅相机状态
         self.camera_status_subscription = self.create_subscription(
@@ -213,14 +220,23 @@ class HandEyeCalibrationNode(Node):
         # 注册路由
         self._register_routes()
         
-        # 启动Web服务器
-        self.web_thread = threading.Thread(
-            target=self._run_web_server,
-            daemon=True
-        )
-        self.web_thread.start()
-        
-        self.get_logger().info(f'手眼标定Web界面已启动: http://{self.web_host}:{self.web_port}')
+        # 启动 Web 服务器（端口被占用时不启动线程，ROS 订阅仍可用）喵~
+        self.web_thread = None
+        if not self._is_tcp_port_available(self.web_host, int(self.web_port)):
+            self.get_logger().error(
+                f'❌ Web 端口 {self.web_port} 已被占用，无法启动手眼标定 Flask 服务喵~ '
+                f'请结束占用进程或 launch 时指定其它端口，例如 web_port:=8081 喵~ '
+                f'（start_aubo_new_driver.sh 可用环境变量 HAND_EYE_PORT）喵~'
+            )
+        else:
+            self.web_thread = threading.Thread(
+                target=self._run_web_server,
+                daemon=True
+            )
+            self.web_thread.start()
+            self.get_logger().info(
+                f'手眼标定 Web 界面监听: http://{self.web_host}:{self.web_port} 喵~'
+            )
     
     def _get_template_folder(self):
         """获取模板文件夹路径"""
@@ -1587,7 +1603,7 @@ class HandEyeCalibrationNode(Node):
                             import json as json_module
                             
                             # 在根目录创建验证数据文件夹
-                            validation_dir = os.path.join('/home/mu/IVG', 'hand_eye_calibration_validation')
+                            validation_dir = os.path.join(os.path.expanduser('~'), '.ivg', 'hand_eye_calibration_validation')
                             os.makedirs(validation_dir, exist_ok=True)
                             
                             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -1985,7 +2001,7 @@ class HandEyeCalibrationNode(Node):
                             from datetime import datetime
                             
                             # 在根目录创建验证数据文件夹
-                            validation_dir = os.path.join('/home/mu/IVG', 'hand_eye_calibration_validation')
+                            validation_dir = os.path.join(os.path.expanduser('~'), '.ivg', 'hand_eye_calibration_validation')
                             os.makedirs(validation_dir, exist_ok=True)
                             
                             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -2037,7 +2053,7 @@ class HandEyeCalibrationNode(Node):
                                 json.dump(saved_calibration_data_clean, f, indent=2, ensure_ascii=False)
                             
                             self.get_logger().info(f'✅ 标定数据已保存到: {data_file}')
-                            self.get_logger().info(f'   可用于验证脚本: /home/mu/IVG2.0/hand_eye_calibration_validation/verify_calibration.py')
+                            self.get_logger().info('   标定数据已保存，可使用验证脚本进行验证')
                             
                         except Exception as e:
                             self.get_logger().warn(f'⚠️ 保存标定数据失败: {str(e)}')
@@ -3356,99 +3372,6 @@ class HandEyeCalibrationNode(Node):
                     for m in small_motions[:5]:
                         self.get_logger().warning(f'     运动对#{m["motion_pair_idx"]}: 平移={m["robot_translation_m"]*1000:.2f}mm, 旋转={m["robot_rotation_deg"]:.2f}°')
                 
-                """
-                # 详细记录所有输入数据，特别是tvecs的Z值，用于分析Z值误差的来源
-                all_robot_t = [t.flatten().tolist() for t in t_gripper2base]
-                all_robot_t_norms = [float(np.linalg.norm(t)) for t in t_gripper2base]
-                all_tvecs = [t.flatten().tolist() for t in tvecs]
-                all_tvec_norms = [float(np.linalg.norm(t)) for t in tvecs]
-                all_tvec_z = [float(t[2, 0]) for t in tvecs]
-                
-                # 检查机器人位姿和标定板位姿的对应关系
-                # 计算每个姿态对中，机器人位姿和标定板位姿的Z值差异
-                pose_pairs_analysis = []
-                for i in range(len(t_gripper2base)):
-                    robot_t = t_gripper2base[i]
-                    tvec = tvecs[i]
-                    robot_z = float(robot_t[2, 0])
-                    board_z = float(tvec[2, 0])
-                    z_diff = abs(robot_z - board_z)
-                    pose_pairs_analysis.append({
-                        'pose_idx': i + 1,
-                        'robot_z_m': robot_z,
-                        'robot_z_mm': robot_z * 1000.0,
-                        'board_z_m': board_z,
-                        'board_z_mm': board_z * 1000.0,
-                        'z_diff_m': z_diff,
-                        'z_diff_mm': z_diff * 1000.0,
-                        'z_diff_ratio': z_diff / board_z if board_z > 1e-6 else 9999.0
-                    })
-                
-                # 计算输入数据的统计信息
-                robot_t_stats = {
-                    'min_norm': float(np.min(all_robot_t_norms)),
-                    'max_norm': float(np.max(all_robot_t_norms)),
-                    'mean_norm': float(np.mean(all_robot_t_norms)),
-                    'std_norm': float(np.std(all_robot_t_norms)),
-                    'all_norms': all_robot_t_norms
-                }
-                tvec_stats = {
-                    'min_norm': float(np.min(all_tvec_norms)),
-                    'max_norm': float(np.max(all_tvec_norms)),
-                    'mean_norm': float(np.mean(all_tvec_norms)),
-                    'std_norm': float(np.std(all_tvec_norms)),
-                    'all_norms': all_tvec_norms
-                }
-                tvec_z_stats = {
-                    'min': float(np.min(all_tvec_z)),
-                    'max': float(np.max(all_tvec_z)),
-                    'mean': float(np.mean(all_tvec_z)),
-                    'std': float(np.std(all_tvec_z)),
-                    'median': float(np.median(all_tvec_z)),
-                    'all_values': all_tvec_z
-                }
-                
-                log_entry_z_tracking_before = {
-                    'sessionId': 'debug-session',
-                    'runId': 'opencv-full-pipeline',
-                    'hypothesisId': 'Z_TRACK1',
-                    'location': 'hand_eye_calibration_node.py:_solve_opencv_hand_eye',
-                    'message': '[Z值追踪] OpenCV调用前的输入数据详细分析',
-                    'data': {
-                        'num_poses': len(R_gripper2base),
-                        'robot_t_statistics_m': robot_t_stats,
-                        'tvec_statistics_m': tvec_stats,
-                        'tvec_z_statistics_m': tvec_z_stats,
-                        'tvec_z_statistics_mm': {
-                            'min': tvec_z_stats['min'] * 1000.0,
-                            'max': tvec_z_stats['max'] * 1000.0,
-                            'mean': tvec_z_stats['mean'] * 1000.0,
-                            'std': tvec_z_stats['std'] * 1000.0,
-                            'median': tvec_z_stats['median'] * 1000.0,
-                            'all_values_mm': [z * 1000.0 for z in all_tvec_z]
-                        },
-                        'pose_pairs_analysis': pose_pairs_analysis,
-                        'robot_board_z_correlation': {
-                            'robot_z_mean_m': float(np.mean([p['robot_z_m'] for p in pose_pairs_analysis])),
-                            'robot_z_mean_mm': float(np.mean([p['robot_z_mm'] for p in pose_pairs_analysis])),
-                            'board_z_mean_m': float(np.mean([p['board_z_m'] for p in pose_pairs_analysis])),
-                            'board_z_mean_mm': float(np.mean([p['board_z_mm'] for p in pose_pairs_analysis])),
-                            'z_diff_mean_m': float(np.mean([p['z_diff_m'] for p in pose_pairs_analysis])),
-                            'z_diff_mean_mm': float(np.mean([p['z_diff_mm'] for p in pose_pairs_analysis])),
-                            'z_diff_max_mm': float(np.max([p['z_diff_mm'] for p in pose_pairs_analysis])),
-                            'z_diff_min_mm': float(np.min([p['z_diff_mm'] for p in pose_pairs_analysis]))
-                        },
-                        'expected_tvec_z_range_m': [0.3, 0.8],  # 正常范围300-800mm
-                        'expected_tvec_z_range_mm': [300.0, 800.0],
-                        'sample_robot_t_m': all_robot_t[0] if len(all_robot_t) > 0 else None,
-                        'sample_tvec_m': all_tvecs[0] if len(all_tvecs) > 0 else None,
-                        'sample_tvec_z_m': all_tvec_z[0] if len(all_tvec_z) > 0 else None,
-                        'sample_tvec_z_mm': all_tvec_z[0] * 1000.0 if len(all_tvec_z) > 0 else None
-                    },
-                    'timestamp': int(time.time() * 1000)
-                }
-                log_entry_clean = _convert_to_json_serializable(log_entry_z_tracking_before)
-                """
                 
                 R_cam2gripper, t_cam2gripper = cv2.calibrateHandEye(
                     R_gripper2base, t_gripper2base,  # 单位：米
@@ -4381,7 +4304,7 @@ class HandEyeCalibrationNode(Node):
         def clear_collect_data():
             """清空collect_data目录中的图像和位姿文件"""
             try:
-                collect_data_dir = '/home/mu/IVG2.0/hand_eye_calibrate/collect_data'
+                collect_data_dir = self.collect_data_dir_
                 
                 if not os.path.exists(collect_data_dir):
                     os.makedirs(collect_data_dir, exist_ok=True)
@@ -4432,7 +4355,7 @@ class HandEyeCalibrationNode(Node):
                 if robot_pose is None:
                     return jsonify({'success': False, 'error': '机器人位姿数据缺失'})
                 
-                collect_data_dir = '/home/mu/IVG2.0/hand_eye_calibrate/collect_data'
+                collect_data_dir = self.collect_data_dir_
                 pose_dir = os.path.join(collect_data_dir, f'pose_{pose_index}')
                 os.makedirs(pose_dir, exist_ok=True)
                 
@@ -5170,7 +5093,7 @@ class HandEyeCalibrationNode(Node):
                     return jsonify({'success': False, 'error': '缺少目标位姿数据'})
                 
                 # 创建服务请求
-                from demo_interface.srv import SetRobotPose
+                from ivg_interfaces.srv import SetRobotPose
                 
                 request_msg = SetRobotPose.Request()
                 
@@ -5261,7 +5184,7 @@ class HandEyeCalibrationNode(Node):
                     return jsonify({'success': False, 'error': '缺少目标位姿数据'})
                 
                 # 创建服务请求
-                from demo_interface.srv import MoveToPose
+                from ivg_interfaces.srv import MoveToPose
                 from geometry_msgs.msg import Pose, Point, Quaternion
                 
                 request_msg = MoveToPose.Request()
@@ -5428,14 +5351,37 @@ class HandEyeCalibrationNode(Node):
         self.get_logger().warning(f'⚠️ 等待机器人到位超时 ({max_wait_time}秒)')
         return False
     
+    def _is_tcp_port_available(self, host: str, port: int) -> bool:
+        """探测本机 TCP 端口是否当前可绑定（与 Flask 监听 IPv4 行为一致）喵~"""
+        bind_host = host
+        if host in ('localhost',):
+            bind_host = '127.0.0.1'
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.bind((bind_host, int(port)))
+            return True
+        except OSError:
+            return False
+
     def _run_web_server(self):
         """运行Web服务器"""
-        self.app.run(
-            host=self.web_host,
-            port=self.web_port,
-            debug=False,
-            threaded=True
-        )
+        try:
+            self.app.run(
+                host=self.web_host,
+                port=int(self.web_port),
+                debug=False,
+                threaded=True,
+                use_reloader=False,
+            )
+        except OSError as e:
+            if e.errno == errno.EADDRINUSE:
+                self.get_logger().error(
+                    f'❌ Web 绑定失败：端口 {self.web_port} 已被占用（EADDRINUSE）喵~ '
+                    f'请改用其它 web_port 或释放该端口喵~'
+                )
+            else:
+                self.get_logger().error(f'❌ Web 服务器启动失败: {e} 喵~')
     
     def image_callback(self, msg):
         """图像回调函数 - 处理ImageData消息"""
@@ -5485,7 +5431,7 @@ class HandEyeCalibrationNode(Node):
             new_status.joint_position_rad = list(msg.joint_position_rad)
             new_status.joint_position_deg = list(msg.joint_position_deg)
             
-            # 拷贝cartesian_position（直接从 /demo_robot_status 获取）
+            # 拷贝cartesian_position（直接从 /aubo_driver/robot_status 获取）
             new_status.cartesian_position = Pose()
             new_status.cartesian_position.position = Point()
             new_status.cartesian_position.position.x = msg.cartesian_position.position.x
@@ -5592,25 +5538,9 @@ class HandEyeCalibrationNode(Node):
         return roll, pitch, yaw
     
     def _quaternion_to_rotation_matrix(self, quat):
-        """
-        将四元数转换为旋转矩阵
-        quat: [x, y, z, w]
-        """
-        x, y, z, w = quat
-        
-        # 归一化四元数
-        norm = np.sqrt(x*x + y*y + z*z + w*w)
-        x, y, z, w = x/norm, y/norm, z/norm, w/norm
-        
-        # 构建旋转矩阵
-        R = np.array([
-            [1 - 2*(y*y + z*z),     2*(x*y - w*z),     2*(x*z + w*y)],
-            [    2*(x*y + w*z), 1 - 2*(x*x + z*z),     2*(y*z - w*x)],
-            [    2*(x*z - w*y),     2*(y*z + w*x), 1 - 2*(x*x + y*y)]
-        ])
-        
-        return R
-    
+        """四元数转旋转矩阵（委托 ivg_utils.math）"""
+        return quaternion_to_rotation_matrix(quat)
+
     def _solve_rigid_transform(self, points_source, points_target):
         """
         使用SVD方法求解刚体变换（3D点云配准）

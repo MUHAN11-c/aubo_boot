@@ -39,14 +39,14 @@
 # 安装Python依赖
 pip3 install flask flask-cors opencv-python numpy
 
-# 或使用系统包管理器
-sudo apt-get install python3-flask python3-opencv python3-numpy
+# 或使用系统包管理器（与 package.xml 中 exec_depend 一致，rosdep 可解析）
+sudo apt-get install python3-flask python3-flask-cors python3-opencv python3-numpy
 ```
 
 ## 编译
 
 ```bash
-cd /home/mu/IVG2.0/aubo_ros2_ws
+cd ~/aubo_boot/aubo_ros2_ws
 colcon build --packages-select hand_eye_calibration
 source install/setup.bash
 ```
@@ -56,7 +56,7 @@ source install/setup.bash
 ### 方式1：使用launch文件启动（推荐）
 
 ```bash
-source /home/mu/IVG2.0/aubo_ros2_ws/install/setup.bash
+source ~/aubo_boot/aubo_ros2_ws/install/setup.bash
 ros2 launch hand_eye_calibration hand_eye_calibration_launch.py
 ```
 
@@ -65,7 +65,7 @@ ros2 launch hand_eye_calibration hand_eye_calibration_launch.py
 ```bash
 ros2 launch hand_eye_calibration hand_eye_calibration_launch.py \
     web_host:=0.0.0.0 \
-    web_port:=8080 \
+    web_port:=8070 \
     camera_topic:=/camera/image_raw \
     robot_status_topic:=/robot_status
 ```
@@ -85,7 +85,7 @@ ros2 run hand_eye_calibration hand_eye_calibration_node
 
 2. **打开Web界面**
    
-   在浏览器中访问：`http://localhost:8080`
+   在浏览器中访问：`http://localhost:8070`
    
    如果在远程机器上运行，请使用机器的IP地址。
 
@@ -129,7 +129,7 @@ ros2 run hand_eye_calibration hand_eye_calibration_node
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | web_host | string | 0.0.0.0 | Web服务器监听地址 |
-| web_port | int | 8080 | Web服务器端口 |
+| web_port | int | 8070 | Web服务器端口（默认与 IVG 脚本 HAND_EYE_PORT 一致，避免占用 8080） |
 | camera_topic | string | /camera/image_raw | 相机图像话题 |
 | robot_status_topic | string | /robot_status | 机器人状态话题 |
 
@@ -205,6 +205,17 @@ hand_eye_calibration/
 ├── package.xml / setup.py / setup.cfg
 └── start_hand_eye_calibration.sh  # 可选一键启动脚本
 ```
+
+## 依赖
+
+- ROS 2: rclpy, cv_bridge, sensor_msgs, geometry_msgs, tf2_ros, image_transport
+- ivg_interfaces (ImageData, RobotStatus, SoftwareTrigger, SetCameraParameters)
+- Python: OpenCV (core, imgproc, highgui, photo), numpy, Flask, flask-cors
+
+## 参考
+
+- 主节点源码: `hand_eye_calibration/hand_eye_calibration_node.py` (~5980 行)
+- OpenCV 标定模块: `hand_eye_calibration/opencv_hand_eye_calibration.py`
 
 ## 文档精简说明
 

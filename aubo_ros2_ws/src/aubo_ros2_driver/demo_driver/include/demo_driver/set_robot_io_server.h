@@ -9,8 +9,8 @@
 #define DEMO_DRIVER_SET_ROBOT_IO_SERVER_H_
 
 #include <rclcpp/rclcpp.hpp>
-#include <demo_interface/srv/set_robot_io.hpp>
-#include <aubo_msgs/srv/set_io.hpp>
+#include <ivg_interfaces/srv/set_robot_io.hpp>
+#include <ivg_interfaces/srv/set_io.hpp>
 #include <string>
 #include <memory>
 
@@ -31,15 +31,15 @@ public:
 
 private:
     // 服务客户端
-    rclcpp::Client<aubo_msgs::srv::SetIO>::SharedPtr aubo_set_io_client_;  // aubo_driver的IO设置服务客户端
+    rclcpp::Client<ivg_interfaces::srv::SetIO>::SharedPtr aubo_set_io_client_;  // aubo_driver的IO设置服务客户端
 
     // 服务服务器
-    rclcpp::Service<demo_interface::srv::SetRobotIO>::SharedPtr set_robot_io_service_;  // 设置机器人IO服务
+    rclcpp::Service<ivg_interfaces::srv::SetRobotIO>::SharedPtr set_robot_io_service_;  // 设置机器人IO服务
 
     // 服务回调函数
     void setRobotIOCallback(
-        const std::shared_ptr<demo_interface::srv::SetRobotIO::Request> req,
-        std::shared_ptr<demo_interface::srv::SetRobotIO::Response> res);
+        const std::shared_ptr<ivg_interfaces::srv::SetRobotIO::Request> req,
+        std::shared_ptr<ivg_interfaces::srv::SetRobotIO::Response> res);
 
     // 辅助函数
     bool setRobotIO(const std::string& io_type,

@@ -1,0 +1,117 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="aubo_e5">
+  <xacro:arg name="ros2_control_hardware_type" default="mock_components"/>
+  <xacro:arg name="use_fake_hardware" default="true"/>
+  <xacro:arg name="gripper" default=""/>
+
+  <!-- 基础 E5-10 机械臂 URDF（aubo_description，含末端执行器） -->
+  <xacro:include filename="$(find aubo_description)/urdf/aubo_e5_10.urdf"/>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- 动态末端：通过 gripper 参数选择挂载到 kuaihuan_Link 的工具  -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!--
+    gripper_link 宏: 在 kuaihuan_Link 下挂载末端工具。
+    origin 必须与 tools.yaml 中 attach_offset 一致:
+      gripper0/1:                   pos(0,0,0.033) rpy(0,0,0)
+      gripper2 (z=0.7071,w=0.7071): pos(0,0,0.033) rpy(0,0,π/2) → 90° z
+      gripper1coffeecup (z=1,w=0):  pos(0,0,0.033) rpy(0,0,π)    → 180° z
+      gripper1milkcup (z=-.7071,.7071): pos(0,0,0.033) rpy(0,0,-π/2) → -90° z
+  -->
+  <xacro:macro name="gripper_link"
+               params="name mesh_file
+                       ox:=0 oy:=0 oz:=0.033
+                       rr:=0 rp:=0 ry:=0">
+    <link name="${name}_Link">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://aubo_description/meshes/visual/${mesh_file}"/>
+        </geometry>
+        <material name="${name}_material">
+          <color rgba="0.5 0.5 0.5 1.0"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://aubo_description/meshes/collision/${mesh_file}"/>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="kuaihuan_to_${name}" type="fixed">
+      <parent link="kuaihuan_Link"/>
+      <child link="${name}_Link"/>
+      <origin xyz="${ox} ${oy} ${oz}" rpy="${rr} ${rp} ${ry}"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:if value="${'$(arg gripper)' == 'gripper0'}">
+    <xacro:gripper_link name="gripper0" mesh_file="gripper0_link.stl"/>
+  </xacro:if>
+  <xacro:if value="${'$(arg gripper)' == 'gripper1'}">
+    <xacro:gripper_link name="gripper1" mesh_file="gripper1_link.stl"/>
+  </xacro:if>
+  <xacro:if value="${'$(arg gripper)' == 'gripper2'}">
+    <xacro:gripper_link name="gripper2" mesh_file="gripper2_link.stl"
+                        ry="${pi/2}"/>
+  </xacro:if>
+  <xacro:if value="${'$(arg gripper)' == 'gripper1coffeecup'}">
+    <xacro:gripper_link name="gripper1coffeecup" mesh_file="gripper1coffeecup_link.stl"
+                        ry="${pi}"/>
+  </xacro:if>
+  <xacro:if value="${'$(arg gripper)' == 'gripper1milkcup'}">
+    <xacro:gripper_link name="gripper1milkcup" mesh_file="gripper1milkcup_link.stl"
+                        ry="${-pi/2}"/>
+  </xacro:if>
+
+  <!-- Tool Center Point (红色, r=5mm) -->
+  <link name="tool_tcp">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.005"/>
+      </geometry>
+      <material name="tcp_marker">
+        <color rgba="1.0 0.0 0.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+  <joint name="wrist3_to_tcp" type="fixed">
+    <parent link="wrist3_Link"/>
+    <child link="tool_tcp"/>
+    <origin xyz="0.0 0.0 0.0235" rpy="0.0 0.0 0.0"/>
+  </joint>
+
+  <!-- 奶缸嘴 (spout tip) — 末端工具坐标系, 标定值: TCP→spout = (-38,95,212)mm 喵~ -->
+  <link name="spout_marker"/>
+  <joint name="tcp_to_spout" type="fixed">
+    <parent link="tool_tcp"/>
+    <child link="spout_marker"/>
+    <origin xyz="-0.038 0.095 0.212" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Transmission -->
+  <xacro:macro name="aubo_arm_transmission" params="joint_name">
+    <transmission name="${joint_name}_trans">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${joint_name}">
+        <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+      </joint>
+      <actuator name="${joint_name}_motor">
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
+  </xacro:macro>
+
+  <xacro:aubo_arm_transmission joint_name="shoulder_joint"/>
+  <xacro:aubo_arm_transmission joint_name="upperArm_joint"/>
+  <xacro:aubo_arm_transmission joint_name="foreArm_joint"/>
+  <xacro:aubo_arm_transmission joint_name="wrist1_joint"/>
+  <xacro:aubo_arm_transmission joint_name="wrist2_joint"/>
+  <xacro:aubo_arm_transmission joint_name="wrist3_joint"/>
+
+  <!-- ros2_control 硬件接口 -->
+  <xacro:include filename="aubo_e5.ros2_control.xacro"/>
+  <xacro:aubo_ros2_control name="auboHardwareInterface" use_fake_hardware="$(arg use_fake_hardware)"/>
+</robot>

@@ -1,0 +1,296 @@
+{
+  "exportedAt": "2026-06-09T09:26:10.235Z",
+  "connection": {
+    "op": "serverInfo",
+    "name": "",
+    "capabilities": [
+      "clientPublish",
+      "connectionGraph",
+      "parameters",
+      "parametersSubscribe",
+      "assets"
+    ],
+    "supportedEncodings": [
+      "cdr",
+      "json"
+    ],
+    "metadata": {
+      "ROS_DISTRO": "humble",
+      "fg-library": "foxglove-sdk-cpp/v0.23.0"
+    },
+    "sessionId": "1780996839383",
+    "connectedAt": "2026-06-09T09:25:50.214Z"
+  },
+  "summary": {
+    "totalChannels": 11,
+    "totalServices": 0,
+    "totalMessages": 144,
+    "totalServiceCalls": 0,
+    "totalParameterOps": 0,
+    "totalConnectionGraphUpdates": 1,
+    "totalCdrBytes": 39008,
+    "totalJsonBytes": 59510,
+    "overallSavePercent": 34.5,
+    "bandwidthRawCount": 144
+  },
+  "channels": [
+    {
+      "id": 5,
+      "topic": "/parameter_events",
+      "encoding": "cdr",
+      "schemaName": "rcl_interfaces/msg/ParameterEvent",
+      "schemaEncoding": "ros2msg",
+      "schema": "# This message contains a parameter event.\n# Because the parameter event was an atomic update, a specific parameter name\n# can only be in one of the three sets.\n\n# The time stamp when this parameter event occurred.\nbuiltin_interfaces/Time stamp\n\n# Fully qualified ROS path to node.\nstring node\n\n# New parameters that have been set for this node.\nParameter[] new_parameters\n\n# Parameters that have been changed during this event.\nParameter[] changed_parameters\n\n# Parameters that have been deleted during this event.\nParameter[] deleted_parameters\n\n================================================================================\nMSG: builtin_interfaces/Time\n# This message communicates ROS Time defined here:\n# https://design.ros2.org/articles/clock_and_time.html\n\n# The seconds component, valid over all int32 values.\nint32 sec\n\n# The nanoseconds component, valid in the range [0, 1e9), to be added to the seconds component.\n# e.g.\n# The time -1.7 seconds is represented as {sec: -2, nanosec: 3e8}\n# The time 1.7 seconds is represented as {sec: 1, nanosec: 7e8}\nuint32 nanosec\n\n================================================================================\nMSG: rcl_interfaces/Parameter\n# This is the message to communicate a parameter. It is an open struct with an enum in\n# the descriptor to select which value is active.\n\n# The full name of the parameter.\nstring name\n\n# The parameter's value which can be one of several types, see\n# `ParameterValue.msg` and `ParameterType.msg`.\nParameterValue value\n\n================================================================================\nMSG: rcl_interfaces/ParameterValue\n# Used to determine which of the next *_value fields are set.\n# ParameterType.PARAMETER_NOT_SET indicates that the parameter was not set\n# (if gotten) or is uninitialized.\n# Values are enumerated in `ParameterType.msg`.\n\n# The type of this parameter, which corresponds to the appropriate field below.\nuint8 type\n\n# \"Variant\" style storage of the parameter value. Only the value corresponding\n# the type field will have valid information.\n\n# Boolean value, can be either true or false.\nbool bool_value\n\n# Integer value ranging from -9,223,372,036,854,775,808 to\n# 9,223,372,036,854,775,807.\nint64 integer_value\n\n# A double precision floating point value following IEEE 754.\nfloat64 double_value\n\n# A textual value with no practical length limit.\nstring string_value\n\n# An array of bytes, used for non-textual information.\nbyte[] byte_array_value\n\n# An array of boolean values.\nbool[] bool_array_value\n\n# An array of 64-bit integer values.\nint64[] integer_array_value\n\n# An array of 64-bit floating point values.\nfloat64[] double_array_value\n\n# An array of string values.\nstring[] string_array_value\n",
+      "discoveredAt": 2
+    },
+    {
+      "id": 11,
+      "topic": "/aubo/feedback_states",
+      "encoding": "",
+      "schemaName": "",
+      "schema": "",
+      "discoveredAt": 3
+    },
+    {
+      "id": 3,
+      "topic": "/robot_description_semantic",
+      "encoding": "cdr",
+      "schemaName": "std_msgs/msg/String",
+      "schemaEncoding": "ros2msg",
+      "schema": "# This was originally provided as an example message.\n# It is deprecated as of Foxy\n# It is recommended to create your own semantically meaningful message.\n# However if you would like to continue using this please use the equivalent in example_msgs.\n\nstring data\n",
+      "discoveredAt": 3
+    },
+    {
+      "id": 4,
+      "topic": "/robot_description",
+      "encoding": "cdr",
+      "schemaName": "std_msgs/msg/String",
+      "schemaEncoding": "ros2msg",
+      "schema": "# This was originally provided as an example message.\n# It is deprecated as of Foxy\n# It is recommended to create your own semantically meaningful message.\n# However if you would like to continue using this please use the equivalent in example_msgs.\n\nstring data\n",
+      "discoveredAt": 3
+    },
+    {
+      "id": 6,
+      "topic": "/joint_states",
+      "encoding": "cdr",
+      "schemaName": "sensor_msgs/msg/JointState",
+      "schemaEncoding": "ros2msg",
+      "schema": "# This is a message that holds data to describe the state of a set of torque controlled joints.\n#\n# The state of each joint (revolute or prismatic) is defined by:\n#  * the position of the joint (rad or m),\n#  * the velocity of the joint (rad/s or m/s) and\n#  * the effort that is applied in the joint (Nm or N).\n#\n# Each joint is uniquely identified by its name\n# The header specifies the time at which the joint states were recorded. All the joint states\n# in one message have to be recorded at the same time.\n#\n# This message consists of a multiple arrays, one for each part of the joint state.\n# The goal is to make each of the fields optional. When e.g. your joints have no\n# effort associated with them, you can leave the effort array empty.\n#\n# All arrays in this message should have the same size, or be empty.\n# This is the only way to uniquely associate the joint name with the correct\n# states.\n\nstd_msgs/Header header\n\nstring[] name\nfloat64[] position\nfloat64[] velocity\nfloat64[] effort\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n\n================================================================================\nMSG: builtin_interfaces/Time\n# This message communicates ROS Time defined here:\n# https://design.ros2.org/articles/clock_and_time.html\n\n# The seconds component, valid over all int32 values.\nint32 sec\n\n# The nanoseconds component, valid in the range [0, 1e9), to be added to the seconds component.\n# e.g.\n# The time -1.7 seconds is represented as {sec: -2, nanosec: 3e8}\n# The time 1.7 seconds is represented as {sec: 1, nanosec: 7e8}\nuint32 nanosec\n",
+      "discoveredAt": 3
+    },
+    {
+      "id": 10,
+      "topic": "/rosout",
+      "encoding": "cdr",
+      "schemaName": "rcl_interfaces/msg/Log",
+      "schemaEncoding": "ros2msg",
+      "schema": "##\n## Severity level constants\n## \n## These logging levels follow the Python Standard\n## https://docs.python.org/3/library/logging.html#logging-levels\n## And are implemented in rcutils as well\n## https://github.com/ros2/rcutils/blob/35f29850064e0c33a4063cbc947ebbfeada11dba/include/rcutils/logging.h#L164-L172\n## This leaves space for other standard logging levels to be inserted in the middle in the future,\n## as well as custom user defined levels.\n## Since there are several other logging enumeration standard for different implementations,\n## other logging implementations may need to provide level mappings to match their internal implementations.\n##\n\n# Debug is for pedantic information, which is useful when debugging issues.\nbyte DEBUG=10\n\n# Info is the standard informational level and is used to report expected\n# information.\nbyte INFO=20\n\n# Warning is for information that may potentially cause issues or possibly unexpected\n# behavior.\nbyte WARN=30\n\n# Error is for information that this node cannot resolve.\nbyte ERROR=40\n\n# Information about a impending node shutdown.\nbyte FATAL=50\n\n##\n## Fields\n##\n\n# Timestamp when this message was generated by the node.\nbuiltin_interfaces/Time stamp\n\n# Corresponding log level, see above definitions.\nuint8 level\n\n# The name representing the logger this message came from.\nstring name\n\n# The full log message.\nstring msg\n\n# The file the message came from.\nstring file\n\n# The function the message came from.\nstring function\n\n# The line in the file the message came from.\nuint32 line\n\n================================================================================\nMSG: builtin_interfaces/Time\n# This message communicates ROS Time defined here:\n# https://design.ros2.org/articles/clock_and_time.html\n\n# The seconds component, valid over all int32 values.\nint32 sec\n\n# The nanoseconds component, valid in the range [0, 1e9), to be added to the seconds component.\n# e.g.\n# The time -1.7 seconds is represented as {sec: -2, nanosec: 3e8}\n# The time 1.7 seconds is represented as {sec: 1, nanosec: 7e8}\nuint32 nanosec\n",
+      "discoveredAt": 3
+    },
+    {
+      "id": 7,
+      "topic": "/tf_static",
+      "encoding": "cdr",
+      "schemaName": "tf2_msgs/msg/TFMessage",
+      "schemaEncoding": "ros2msg",
+      "schema": "geometry_msgs/TransformStamped[] transforms\n\n================================================================================\nMSG: geometry_msgs/TransformStamped\n# This expresses a transform from coordinate frame header.frame_id\n# to the coordinate frame child_frame_id at the time of header.stamp\n#\n# This message is mostly used by the\n# <a href=\"https://index.ros.org/p/tf2/\">tf2</a> package.\n# See its documentation for more information.\n#\n# The child_frame_id is necessary in addition to the frame_id\n# in the Header to communicate the full reference for the transform\n# in a self contained message.\n\n# The frame id in the header is used as the reference frame of this transform.\nstd_msgs/Header header\n\n# The frame id of the child frame to which this transform points.\nstring child_frame_id\n\n# Translation and rotation in 3-dimensions of child_frame_id from header.frame_id.\nTransform transform\n\n================================================================================\nMSG: geometry_msgs/Transform\n# This represents the transform between two coordinate frames in free space.\n\nVector3 translation\nQuaternion rotation\n\n================================================================================\nMSG: geometry_msgs/Quaternion\n# This represents an orientation in free space in quaternion form.\n\nfloat64 x 0\nfloat64 y 0\nfloat64 z 0\nfloat64 w 1\n\n================================================================================\nMSG: geometry_msgs/Vector3\n# This represents a vector in free space.\n\n# This is semantically different than a point.\n# A vector is always anchored at the origin.\n# When a transform is applied to a vector, only the rotational component is applied.\n\nfloat64 x\nfloat64 y\nfloat64 z\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n\n================================================================================\nMSG: builtin_interfaces/Time\n# This message communicates ROS Time defined here:\n# https://design.ros2.org/articles/clock_and_time.html\n\n# The seconds component, valid over all int32 values.\nint32 sec\n\n# The nanoseconds component, valid in the range [0, 1e9), to be added to the seconds component.\n# e.g.\n# The time -1.7 seconds is represented as {sec: -2, nanosec: 3e8}\n# The time 1.7 seconds is represented as {sec: 1, nanosec: 7e8}\nuint32 nanosec\n",
+      "discoveredAt": 3
+    },
+    {
+      "id": 2,
+      "topic": "/tf",
+      "encoding": "cdr",
+      "schemaName": "tf2_msgs/msg/TFMessage",
+      "schemaEncoding": "ros2msg",
+      "schema": "geometry_msgs/TransformStamped[] transforms\n\n================================================================================\nMSG: geometry_msgs/TransformStamped\n# This expresses a transform from coordinate frame header.frame_id\n# to the coordinate frame child_frame_id at the time of header.stamp\n#\n# This message is mostly used by the\n# <a href=\"https://index.ros.org/p/tf2/\">tf2</a> package.\n# See its documentation for more information.\n#\n# The child_frame_id is necessary in addition to the frame_id\n# in the Header to communicate the full reference for the transform\n# in a self contained message.\n\n# The frame id in the header is used as the reference frame of this transform.\nstd_msgs/Header header\n\n# The frame id of the child frame to which this transform points.\nstring child_frame_id\n\n# Translation and rotation in 3-dimensions of child_frame_id from header.frame_id.\nTransform transform\n\n================================================================================\nMSG: geometry_msgs/Transform\n# This represents the transform between two coordinate frames in free space.\n\nVector3 translation\nQuaternion rotation\n\n================================================================================\nMSG: geometry_msgs/Quaternion\n# This represents an orientation in free space in quaternion form.\n\nfloat64 x 0\nfloat64 y 0\nfloat64 z 0\nfloat64 w 1\n\n================================================================================\nMSG: geometry_msgs/Vector3\n# This represents a vector in free space.\n\n# This is semantically different than a point.\n# A vector is always anchored at the origin.\n# When a transform is applied to a vector, only the rotational component is applied.\n\nfloat64 x\nfloat64 y\nfloat64 z\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n\n================================================================================\nMSG: builtin_interfaces/Time\n# This message communicates ROS Time defined here:\n# https://design.ros2.org/articles/clock_and_time.html\n\n# The seconds component, valid over all int32 values.\nint32 sec\n\n# The nanoseconds component, valid in the range [0, 1e9), to be added to the seconds component.\n# e.g.\n# The time -1.7 seconds is represented as {sec: -2, nanosec: 3e8}\n# The time 1.7 seconds is represented as {sec: 1, nanosec: 7e8}\nuint32 nanosec\n",
+      "discoveredAt": 3
+    },
+    {
+      "id": 9,
+      "topic": "/aubo/mode",
+      "encoding": "cdr",
+      "schemaName": "std_msgs/msg/String",
+      "schemaEncoding": "ros2msg",
+      "schema": "# This was originally provided as an example message.\n# It is deprecated as of Foxy\n# It is recommended to create your own semantically meaningful message.\n# However if you would like to continue using this please use the equivalent in example_msgs.\n\nstring data\n",
+      "discoveredAt": 3
+    },
+    {
+      "id": 8,
+      "topic": "/aubo_dashboard/transition_event",
+      "encoding": "cdr",
+      "schemaName": "lifecycle_msgs/msg/TransitionEvent",
+      "schemaEncoding": "ros2msg",
+      "schema": "# The time point at which this event occurred.\nuint64 timestamp\n\n# The id and label of this transition event.\nTransition transition\n\n# The starting state from which this event transitioned.\nState start_state\n\n# The end state of this transition event.\nState goal_state\n\n================================================================================\nMSG: lifecycle_msgs/State\n# Primary state definitions as depicted in:\n# http://design.ros2.org/articles/node_lifecycle.html\n\n# These are the primary states. State changes can only be requested when the\n# node is in one of these states.\n\n# Indicates state has not yet been set.\nuint8 PRIMARY_STATE_UNKNOWN = 0\n\n# This is the life cycle state the node is in immediately after being\n# instantiated.\nuint8 PRIMARY_STATE_UNCONFIGURED = 1\n\n# This state represents a node that is not currently performing any processing.\nuint8 PRIMARY_STATE_INACTIVE = 2\n\n# This is the main state of the node's life cycle. While in this state, the node\n# performs any processing, responds to service requests, reads and processes\n# data, produces output, etc.\nuint8 PRIMARY_STATE_ACTIVE = 3\n\n# The finalized state is the state in which the node ends immediately before\n# being destroyed.\nuint8 PRIMARY_STATE_FINALIZED = 4\n\n# Temporary intermediate states. When a transition is requested, the node\n# changes its state into one of these states.\n\n# In this transition state the node's onConfigure callback will be called to\n# allow the node to load its configuration and conduct any required setup.\nuint8 TRANSITION_STATE_CONFIGURING = 10\n\n# In this transition state the node's callback onCleanup will be called to clear\n# all state and return the node to a functionally equivalent state as when\n# first created.\nuint8 TRANSITION_STATE_CLEANINGUP = 11\n\n# In this transition state the callback onShutdown will be executed to do any\n# cleanup necessary before destruction.\nuint8 TRANSITION_STATE_SHUTTINGDOWN = 12\n\n# In this transition state the callback onActivate will be executed to do any\n# final preparations to start executing.\nuint8 TRANSITION_STATE_ACTIVATING = 13\n\n# In this transition state the callback onDeactivate will be executed to do any\n# cleanup to start executing, and reverse the onActivate changes.\nuint8 TRANSITION_STATE_DEACTIVATING = 14\n\n# This transition state is where any error may be cleaned up.\nuint8 TRANSITION_STATE_ERRORPROCESSING = 15\n\n# The state id value from the above definitions.\nuint8 id\n\n# A text label of the state.\nstring label\n\n================================================================================\nMSG: lifecycle_msgs/Transition\n# Default values for transitions as described in:\n# http://design.ros2.org/articles/node_lifecycle.html\n\n# Reserved [0-9], publicly available transitions.\n# When a node is in one of these primary states, these transitions can be\n# invoked.\n\n# This transition will instantiate the node, but will not run any code beyond\n# the constructor.\nuint8 TRANSITION_CREATE = 0\n\n# The node's onConfigure callback will be called to allow the node to load its\n# configuration and conduct any required setup.\nuint8 TRANSITION_CONFIGURE = 1\n\n# The node's callback onCleanup will be called in this transition to allow the\n# node to load its configuration and conduct any required setup.\nuint8 TRANSITION_CLEANUP = 2\n\n# The node's callback onActivate will be executed to do any final preparations\n# to start executing.\nuint8 TRANSITION_ACTIVATE = 3\n\n# The node's callback onDeactivate will be executed to do any cleanup to start\n# executing, and reverse the onActivate changes.\nuint8 TRANSITION_DEACTIVATE = 4\n\n# This signals shutdown during an unconfigured state, the node's callback\n# onShutdown will be executed to do any cleanup necessary before destruction.\nuint8 TRANSITION_UNCONFIGURED_SHUTDOWN  = 5\n\n# This signals shutdown during an inactive state, the node's callback onShutdown\n# will be executed to do any cleanup necessary before destruction.\nuint8 TRANSITION_INACTIVE_SHUTDOWN = 6\n\n# This signals shutdown during an active state, the node's callback onShutdown\n# will be executed to do any cleanup necessary before destruction.\nuint8 TRANSITION_ACTIVE_SHUTDOWN = 7\n\n# This transition will simply cause the deallocation of the node.\nuint8 TRANSITION_DESTROY = 8\n\n# Reserved [10-69], private transitions\n# These transitions are not publicly available and cannot be invoked by a user.\n# The following transitions are implicitly invoked based on the callback\n# feedback of the intermediate transition states.\nuint8 TRANSITION_ON_CONFIGURE_SUCCESS = 10\nuint8 TRANSITION_ON_CONFIGURE_FAILURE = 11\nuint8 TRANSITION_ON_CONFIGURE_ERROR = 12\n\nuint8 TRANSITION_ON_CLEANUP_SUCCESS = 20\nuint8 TRANSITION_ON_CLEANUP_FAILURE = 21\nuint8 TRANSITION_ON_CLEANUP_ERROR = 22\n\nuint8 TRANSITION_ON_ACTIVATE_SUCCESS = 30\nuint8 TRANSITION_ON_ACTIVATE_FAILURE = 31\nuint8 TRANSITION_ON_ACTIVATE_ERROR = 32\n\nuint8 TRANSITION_ON_DEACTIVATE_SUCCESS = 40\nuint8 TRANSITION_ON_DEACTIVATE_FAILURE = 41\nuint8 TRANSITION_ON_DEACTIVATE_ERROR = 42\n\nuint8 TRANSITION_ON_SHUTDOWN_SUCCESS = 50\nuint8 TRANSITION_ON_SHUTDOWN_FAILURE = 51\nuint8 TRANSITION_ON_SHUTDOWN_ERROR = 52\n\nuint8 TRANSITION_ON_ERROR_SUCCESS = 60\nuint8 TRANSITION_ON_ERROR_FAILURE = 61\nuint8 TRANSITION_ON_ERROR_ERROR = 62\n\n# Reserved [90-99]. Transition callback success values.\n# These return values ought to be set as a return value for each callback.\n# Depending on which return value, the transition will be executed correctly or\n# fallback/error callbacks will be triggered.\n\n# The transition callback successfully performed its required functionality.\nuint8 TRANSITION_CALLBACK_SUCCESS = 97\n\n# The transition callback failed to perform its required functionality.\nuint8 TRANSITION_CALLBACK_FAILURE = 98\n\n# The transition callback encountered an error that requires special cleanup, if\n# possible.\nuint8 TRANSITION_CALLBACK_ERROR = 99\n\n##\n## Fields\n##\n\n# The transition id from above definitions.\nuint8 id\n\n# A text label of the transition.\nstring label\n",
+      "discoveredAt": 3
+    },
+    {
+      "id": 1,
+      "topic": "/foxglove_bridge/sysinfo",
+      "encoding": "json",
+      "schemaName": "foxglove.SystemInfo",
+      "schemaEncoding": "jsonschema",
+      "schema": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"title\": \"SystemInfo\",\n  \"description\": \"A snapshot of process and system statistics published on the /sysinfo topic.\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"process_memory\": {\n      \"type\": \"number\",\n      \"description\": \"Resident memory used by the SDK process, in bytes.\"\n    },\n    \"process_virtual_memory\": {\n      \"type\": \"number\",\n      \"description\": \"Virtual memory used by the SDK process, in bytes.\"\n    },\n    \"process_cpu_percent\": {\n      \"type\": \"number\",\n      \"description\": \"CPU usage for the SDK process, as a percent of total system CPU capacity (0.0 to 100.0). 100.0 means the process is using all logical CPUs at full utilization.\"\n    },\n    \"process_cpu_cores\": {\n      \"type\": \"number\",\n      \"description\": \"CPU usage for the SDK process, expressed in core-equivalents (0.0 to num_cpus). 1.0 means a single logical CPU is fully utilized.\"\n    },\n    \"total_cpu_percent\": {\n      \"type\": \"number\",\n      \"description\": \"Total CPU usage across all logical CPUs on the system, as a percent (0.0 to 100.0).\"\n    },\n    \"total_cpu_cores\": {\n      \"type\": \"number\",\n      \"description\": \"Total CPU usage across the system, expressed in core-equivalents (0.0 to num_cpus). 1.0 means one logical CPU's worth of work is being done.\"\n    },\n    \"num_cpus\": {\n      \"type\": \"integer\",\n      \"minimum\": 0,\n      \"description\": \"Number of logical CPUs on the system.\"\n    },\n    \"total_memory\": {\n      \"type\": \"number\",\n      \"description\": \"Total physical memory on the system, in bytes.\"\n    },\n    \"used_memory\": {\n      \"type\": \"number\",\n      \"description\": \"Used physical memory on the system, in bytes.\"\n    },\n    \"total_swap\": {\n      \"type\": \"number\",\n      \"description\": \"Total swap space on the system, in bytes.\"\n    },\n    \"used_swap\": {\n      \"type\": \"number\",\n      \"description\": \"Used swap space on the system, in bytes.\"\n    },\n    \"kernel_version\": {\n      \"type\": \"string\",\n      \"description\": \"Kernel version string, or empty if unavailable on this platform.\"\n    },\n    \"os_version\": {\n      \"type\": \"string\",\n      \"description\": \"OS version string, or empty if unavailable on this platform.\"\n    }\n  }\n}",
+      "discoveredAt": 3
+    }
+  ],
+  "services": [],
+  "bandwidthByType": [
+    {
+      "type": "sensor_msgs/msg/JointState",
+      "topics": [
+        "/joint_states"
+      ],
+      "sampleCount": 104,
+      "cdrAvgBytes": 204,
+      "jsonAvgBytes": 358,
+      "savePercent": 43,
+      "cdrMinBytes": 204,
+      "cdrMaxBytes": 204,
+      "jsonMinBytes": 356,
+      "jsonMaxBytes": 358,
+      "cdrTotalBytes": 21216,
+      "jsonTotalBytes": 37223
+    },
+    {
+      "type": "std_msgs/msg/String",
+      "topics": [
+        "/robot_description_semantic",
+        "/aubo/mode"
+      ],
+      "sampleCount": 3,
+      "cdrAvgBytes": 3529,
+      "jsonAvgBytes": 3635,
+      "savePercent": 2.9,
+      "cdrMinBytes": 16,
+      "cdrMaxBytes": 10528,
+      "jsonMinBytes": 15,
+      "jsonMaxBytes": 10844,
+      "cdrTotalBytes": 10588,
+      "jsonTotalBytes": 10905
+    },
+    {
+      "type": "rcl_interfaces/msg/Log",
+      "topics": [
+        "/rosout"
+      ],
+      "sampleCount": 34,
+      "cdrAvgBytes": 176,
+      "jsonAvgBytes": 246,
+      "savePercent": 28.7,
+      "cdrMinBytes": 152,
+      "cdrMaxBytes": 232,
+      "jsonMinBytes": 221,
+      "jsonMaxBytes": 304,
+      "cdrTotalBytes": 5968,
+      "jsonTotalBytes": 8368
+    },
+    {
+      "type": "tf2_msgs/msg/TFMessage",
+      "topics": [
+        "/tf_static"
+      ],
+      "sampleCount": 3,
+      "cdrAvgBytes": 412,
+      "jsonAvgBytes": 1005,
+      "savePercent": 59,
+      "cdrMinBytes": 108,
+      "cdrMaxBytes": 1020,
+      "jsonMinBytes": 289,
+      "jsonMaxBytes": 2374,
+      "cdrTotalBytes": 1236,
+      "jsonTotalBytes": 3014
+    }
+  ],
+  "topicStats": [
+    {
+      "topic": "/joint_states",
+      "type": "sensor_msgs/msg/JointState",
+      "messageCount": 104,
+      "cdrAvgBytes": 204,
+      "jsonAvgBytes": 358,
+      "cdrTotalBytes": 21216,
+      "jsonTotalBytes": 37223,
+      "savePercent": 43
+    },
+    {
+      "topic": "/rosout",
+      "type": "rcl_interfaces/msg/Log",
+      "messageCount": 34,
+      "cdrAvgBytes": 176,
+      "jsonAvgBytes": 246,
+      "cdrTotalBytes": 5968,
+      "jsonTotalBytes": 8368,
+      "savePercent": 28.7
+    },
+    {
+      "topic": "/tf_static",
+      "type": "tf2_msgs/msg/TFMessage",
+      "messageCount": 3,
+      "cdrAvgBytes": 412,
+      "jsonAvgBytes": 1005,
+      "cdrTotalBytes": 1236,
+      "jsonTotalBytes": 3014,
+      "savePercent": 59
+    },
+    {
+      "topic": "/robot_description_semantic",
+      "type": "std_msgs/msg/String",
+      "messageCount": 2,
+      "cdrAvgBytes": 5286,
+      "jsonAvgBytes": 5445,
+      "cdrTotalBytes": 10572,
+      "jsonTotalBytes": 10890,
+      "savePercent": 2.9
+    },
+    {
+      "topic": "/aubo/mode",
+      "type": "std_msgs/msg/String",
+      "messageCount": 1,
+      "cdrAvgBytes": 16,
+      "jsonAvgBytes": 15,
+      "cdrTotalBytes": 16,
+      "jsonTotalBytes": 15,
+      "savePercent": -6.7
+    }
+  ],
+  "serviceCalls": [],
+  "parameterOps": [],
+  "connectionGraphUpdates": [
+    {
+      "ts": 3,
+      "publishedTopics": [],
+      "subscribedTopics": [],
+      "removedTopics": [],
+      "raw": {
+        "op": "connectionGraphUpdate",
+        "publishedTopics": [],
+        "subscribedTopics": [],
+        "advertisedServices": [],
+        "removedTopics": [],
+        "removedServices": []
+      }
+    }
+  ],
+  "messageSummary": [
+    {
+      "topic": "/joint_states",
+      "count": 104
+    },
+    {
+      "topic": "/rosout",
+      "count": 34
+    },
+    {
+      "topic": "/tf_static",
+      "count": 3
+    },
+    {
+      "topic": "/robot_description_semantic",
+      "count": 2
+    },
+    {
+      "topic": "/aubo/mode",
+      "count": 1
+    }
+  ]
+}

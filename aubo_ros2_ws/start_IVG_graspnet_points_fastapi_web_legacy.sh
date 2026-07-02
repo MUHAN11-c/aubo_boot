@@ -6,11 +6,11 @@ if [ -z "${BASH_VERSION:-}" ]; then
     exit 1
 fi
 
-# IVG 完整启动脚本（GraspNet Points + FastAPI Web + aubo_ros2_web_dashboard）
-# 在 start_IVG_graspnet_points_fastapi.sh 基础上增加：rosbridge + tf2_web_republisher + web_video_server + FastAPI 静态网关（8090）
+# IVG 完整启动脚本（GraspNet Points + FastAPI Web + aubo_ros2_web_dashboard + tool_changer + latte_imitation/latte_io）
+# 在 start_IVG_graspnet_points_fastapi.sh 基础上增加：tool_changer 快换管理 + latte_io 咖啡拉花 + rosbridge + tf2_web_republisher + web_video_server + FastAPI 静态网关（8090）
 # Dashboard 直接消费 src/robotwebtools/runtime_js_assets（由 build_robotwebtools.sh 自动汇总生成）。
 # 端口：WEB_DASH_PORT=8090 网关（静态页 + 同源 /ws/rosbridge + /api/ivg/proxy/web-video）；WEB_VIDEO_PORT=8089（仅网关本机连上游 MJPEG）；
-#       ROSBRIDGE_PORT=9090（仅网关本机连上游 rosbridge）；VPE FastAPI WEB_PORT=8088；HAND_EYE_PORT=8080。
+#       ROSBRIDGE_PORT=9090（仅网关本机连上游 rosbridge）；VPE FastAPI WEB_PORT=8088；HAND_EYE_PORT=8070。
 # 使用 terminator 创建分屏终端
 
 set -e
@@ -40,14 +40,14 @@ WEB_URL="http://${WEB_HOST}:${WEB_PORT}"
 WEB_DASH_HOST="${WEB_DASH_HOST:-0.0.0.0}"
 WEB_DASH_PORT="${WEB_DASH_PORT:-8090}"
 ROSBRIDGE_PORT="${ROSBRIDGE_PORT:-9090}"
-# 步骤 14 本地 Web（8090/8089/9090 等）是否清除系统代理。默认 true。
+# 步骤 15 本地 Web（8090/8089/9090 等）是否清除系统代理。默认 true。
 # 若设为 false：仅追加 NO_PROXY，不 unset（仍可能被部分工具误走代理）；本机访问异常时请改回 true 或见文末代理提示。
 IVG_STRIP_PROXY_FOR_DASH_LAUNCH="${IVG_STRIP_PROXY_FOR_DASH_LAUNCH:-true}"
-# 步骤15 rosbag：输出目录；启动前会 rm -rf 实现覆盖。话题默认为 -a 全部；可设 IVG_ROSBAG_TOPICS="/t1 /t2"
+# 步骤16 rosbag：输出目录；启动前会 rm -rf 实现覆盖。话题默认为 -a 全部；可设 IVG_ROSBAG_TOPICS="/t1 /t2"
 IVG_ROSBAG_DIR="${IVG_ROSBAG_DIR:-${AUBO_ROS2_WS}/rosbags/ivg_session}"
 IVG_ROSBAG_TOPICS="${IVG_ROSBAG_TOPICS:-}"
 # 手眼 Web 端口（仅用于结束时的链接提示；实际以 hand_eye launch 为准）
-HAND_EYE_PORT="${HAND_EYE_PORT:-8080}"
+HAND_EYE_PORT="${HAND_EYE_PORT:-8070}"
 # web_video_server（MJPEG），默认 8089，避免与手眼 8080、静态站 8090、FastAPI 8088 冲突
 WEB_VIDEO_PORT="${WEB_VIDEO_PORT:-8089}"
 # 网页 3D 瘦点云：与 web_dashboard 同进程启动 ivg_pointcloud_web_throttle（/points -> /points_web）
@@ -83,7 +83,7 @@ echo -e "${BLUE}每个节点在独立的标签页中运行，可直接查看日�
 echo ""
 
 # 预先构建工作空间一次，后续各步骤仅 source
-echo -e "${GREEN}[0/15] 构建工作空间...${NC}"
+echo -e "${GREEN}[0/16] 构建工作空间...${NC}"
 (
     cd "$AUBO_ROS2_WS" && \
     $ROS2_BASE_ENV && \
@@ -148,6 +148,7 @@ ivg_print_access_urls() {
     echo -e "${GREEN}  门户首页:         $(ivg_web_dash_url "$lh" "index.html")${NC}"
     echo -e "${GREEN}  视觉抓取面板:     $(ivg_web_dash_url "$lh" "vision_grasp_panel.html")${NC}"
     echo -e "${GREEN}  咖啡拉花面板:     $(ivg_web_dash_url "$lh" "coffee_latte_panel.html")${NC}"
+    echo -e "${GREEN}  TF 监控面板:      $(ivg_web_dash_url "$lh" "tf_monitor_panel.html")${NC}"
     if [ "${IVG_INCLUDE_POINTCLOUD_WEB_BRIDGE}" = "true" ]; then
         echo -e "${GREEN}  3D 瘦点云话题:    /camera/depth_registered/points_web${NC}"
     fi
@@ -173,6 +174,7 @@ ivg_print_access_urls() {
         echo -e "${GREEN}  [${ip}] 门户:          $(ivg_web_dash_url "$ip" "index.html")${NC}"
         echo -e "${GREEN}  [${ip}] 视觉抓取:      $(ivg_web_dash_url "$ip" "vision_grasp_panel.html")${NC}"
         echo -e "${GREEN}  [${ip}] 咖啡拉花:      $(ivg_web_dash_url "$ip" "coffee_latte_panel.html")${NC}"
+        echo -e "${GREEN}  [${ip}] TF 监控:       $(ivg_web_dash_url "$ip" "tf_monitor_panel.html")${NC}"
         echo -e "${GREEN}  [${ip}] IVG 网关:       http://${ip}:${WEB_DASH_PORT}/（含 WS/视频代理）${NC}"
     done
 
@@ -195,98 +197,105 @@ ivg_print_access_urls() {
 }
 
 # 步骤1: 启动真实机械臂驱动
-echo -e "${GREEN}[1/15] 启动真实机械臂驱动（aubo_moveit_pure_ros2）...${NC}"
-AUBO_PURE_ROS2_CMD="$WS_ENV && ros2 launch aubo_moveit_config aubo_moveit_pure_ros2.launch.py"
-launch_in_terminator "Aubo MoveIt Pure ROS2" "$AUBO_PURE_ROS2_CMD"
+echo -e "${GREEN}[1/16] 启动真实机械臂驱动（aubo_new_driver）...${NC}"
+AUBO_PURE_ROS2_CMD="$WS_ENV && ros2 launch aubo_moveit_config aubo_new_driver.launch.py"
+launch_in_terminator "Aubo MoveIt New Driver" "$AUBO_PURE_ROS2_CMD"
 echo -e "${GREEN}  ✓ 真实机械臂驱动已启动${NC}"
 sleep 3
 
 # 步骤2: 启动机器人驱动服务
-echo -e "${GREEN}[2/15] 启动机器人驱动服务...${NC}"
+echo -e "${GREEN}[2/16] 启动机器人驱动服务...${NC}"
 DRIVER_CMD="$WS_ENV && ros2 launch aubo_moveit_config demo_driver_services.launch.py"
 launch_in_terminator "Robot Driver" "$DRIVER_CMD"
 echo -e "${GREEN}  ✓ 机器人驱动服务已启动${NC}"
 sleep 3
 
 # 步骤3: 启动相机节点
-echo -e "${GREEN}[3/15] 启动相机节点...${NC}"
+echo -e "${GREEN}[3/16] 启动相机节点...${NC}"
 CAMERA_CMD="$WS_ENV && ros2 launch percipio_camera percipio_camera.launch.py"
 launch_in_terminator "Percipio Camera" "$CAMERA_CMD"
 echo -e "${GREEN}  ✓ 相机节点已启动${NC}"
 sleep 5
 
 # 步骤4: 启动相机控制节点
-echo -e "${GREEN}[4/15] 启动相机控制节点...${NC}"
+echo -e "${GREEN}[4/16] 启动相机控制节点...${NC}"
 CAMERA_CONTROL_CMD="$WS_ENV && ros2 launch percipio_camera_interface camera_control.launch.py"
 launch_in_terminator "Camera Control" "$CAMERA_CONTROL_CMD"
 echo -e "${GREEN}  ✓ 相机控制节点已启动${NC}"
 sleep 2
 
 # 步骤5: 启动图像数据桥接节点
-echo -e "${GREEN}[5/15] 启动图像数据桥接节点...${NC}"
+echo -e "${GREEN}[5/16] 启动图像数据桥接节点...${NC}"
 IMAGE_BRIDGE_CMD="$WS_ENV && ros2 launch image_data_bridge image_data_bridge.launch.py input_image_topic:=/camera/color/image_raw"
 launch_in_terminator "Image Data Bridge" "$IMAGE_BRIDGE_CMD"
 echo -e "${GREEN}  ✓ 图像数据桥接节点已启动${NC}"
 sleep 2
 
 # 步骤6: 启动手眼标定节点
-echo -e "${GREEN}[6/15] 启动手眼标定节点...${NC}"
+echo -e "${GREEN}[6/16] 启动手眼标定节点...${NC}"
 HAND_EYE_CMD="$WS_ENV && ros2 launch hand_eye_calibration hand_eye_calibration_launch.py"
 launch_in_terminator "Hand Eye Calibration" "$HAND_EYE_CMD"
 echo -e "${GREEN}  ✓ 手眼标定节点已启动${NC}"
 sleep 2
 
 # 步骤7: 启动视觉姿态估计算法节点
-echo -e "${GREEN}[7/15] 启动视觉姿态估计算法节点...${NC}"
+echo -e "${GREEN}[7/16] 启动视觉姿态估计算法节点...${NC}"
 VPE_CMD="$WS_ENV && export PATH=\"/usr/bin:\$PATH\" && ros2 launch visual_pose_estimation_python visual_pose_estimation_python.launch.py"
 launch_in_terminator "Visual Pose Estimation" "$VPE_CMD"
 echo -e "${GREEN}  ✓ 视觉姿态估计算法节点已启动${NC}"
 sleep 2
 
 # 步骤8: 启动 GraspNet 点云节点
-echo -e "${GREEN}[8/15] 启动 GraspNet 点云节点（with_tf）...${NC}"
+echo -e "${GREEN}[8/16] 启动 GraspNet 点云节点（with_tf）...${NC}"
 GRASPNET_WITH_TF_CMD="$WS_ENV && ros2 launch graspnet_ros2 graspnet_demo_points_with_tf.launch.py launch_camera:=false launch_hand_eye_tf:=true"
 launch_in_terminator "GraspNet Points With TF" "$GRASPNET_WITH_TF_CMD"
 echo -e "${GREEN}  ✓ GraspNet 点云节点已启动${NC}"
 sleep 2
 
 # 步骤9: 启动执行抓取位姿服务节点
-echo -e "${GREEN}[9/15] 启动执行抓取位姿服务节点...${NC}"
+echo -e "${GREEN}[9/16] 启动执行抓取位姿服务节点...${NC}"
 GRASP_WORKER_CMD="$WS_ENV && ros2 launch demo_driver execute_grasp_pose_worker.launch.py"
 launch_in_terminator "Execute Grasp Worker" "$GRASP_WORKER_CMD"
 echo -e "${GREEN}  ✓ 执行抓取位姿服务节点已启动${NC}"
 sleep 2
 
-# 步骤10: 启动夹爪切换服务节点
-echo -e "${GREEN}[10/15] 启动夹爪切换服务节点...${NC}"
-GRIPPER_SWAP_CMD="$WS_ENV && ros2 run demo_driver gripper_swap_worker_node"
-launch_in_terminator "Gripper Swap Worker" "$GRIPPER_SWAP_CMD"
-echo -e "${GREEN}  ✓ 夹爪切换服务节点已启动${NC}"
+# 步骤10: 启动夹爪快换节点（tool_changer：gripper_swap_worker 物理运动 + scene_attach_worker 场景显示）
+echo -e "${GREEN}[10/16] 启动夹爪快换节点（tool_changer）...${NC}"
+GRIPPER_SWAP_CMD="$WS_ENV && ros2 launch tool_changer gripper_swap_worker.launch.py"
+launch_in_terminator "Tool Changer (swap + scene)" "$GRIPPER_SWAP_CMD"
+echo -e "${GREEN}  ✓ 夹爪快换节点已启动（物理运动 + PlanningScene 附着）${NC}"
 sleep 2
 
-# 步骤11: 启动 GraspNet 循环抓取 Worker
-echo -e "${GREEN}[11/15] 启动 GraspNet 循环抓取 Worker...${NC}"
+# 步骤11: 启动咖啡拉花 IO 节点（latte_imitation 包: latte_io）
+echo -e "${GREEN}[11/16] 启动咖啡拉花 IO 节点（latte_io）...${NC}"
+COFFEE_LATTE_CMD="$WS_ENV && ros2 launch latte_imitation latte_io.launch.py"
+launch_in_terminator "Coffee Latte IO" "$COFFEE_LATTE_CMD"
+echo -e "${GREEN}  ✓ 咖啡拉花 IO 节点已启动${NC}"
+sleep 2
+
+# 步骤12: 启动 GraspNet 循环抓取 Worker
+echo -e "${GREEN}[12/16] 启动 GraspNet 循环抓取 Worker...${NC}"
 PUBLISH_GRASPS_WORKER_CMD="$WS_ENV && ros2 run demo_driver publish_grasps_client_worker_node"
 launch_in_terminator "Publish Grasps Worker" "$PUBLISH_GRASPS_WORKER_CMD"
 echo -e "${GREEN}  ✓ GraspNet 循环抓取 Worker 已启动${NC}"
 sleep 2
 
-# 步骤12: 校验关键服务是否已就绪
-echo -e "${GREEN}[12/15] 校验关键服务...${NC}"
-SERVICE_CHECK_CMD="$WS_ENV && ros2 service list | rg '/estimate_pose|/list_templates|/graspnet_capture_control|/publish_grasps_worker_loop_control|/loop_grasp_control|/run_gripper_swap' || true"
+# 步骤13: 校验关键服务是否已就绪
+echo -e "${GREEN}[13/16] 校验关键服务...${NC}"
+SERVICE_CHECK_CMD="$WS_ENV && ros2 service list | grep -E '/estimate_pose|/list_templates|/graspnet_capture_control|/publish_grasps_worker_loop_control|/loop_grasp_control|/run_gripper_swap|/set_latte_do2|/set_latte_do4|/change_tool|/get_current_tool' || true"
 launch_in_terminator "Service Check" "$SERVICE_CHECK_CMD"
 echo -e "${GREEN}  ✓ 关键服务校验标签页已启动${NC}"
 sleep 1
 
-# 步骤13: 启动 FastAPI Web 服务
-echo -e "${GREEN}[13/15] 启动 FastAPI Web 服务...${NC}"
+# 步骤14: 启动 FastAPI Web 服务
+echo -e "${GREEN}[14/16] 启动 FastAPI Web 服务...${NC}"
 FASTAPI_WEB_CMD="$WS_ENV && ros2 launch visual_pose_estimation_python visual_pose_estimation_web.launch.py host:=${WEB_HOST} port:=${WEB_PORT} reload:=${IVG_WEB_RELOAD}"
 launch_in_terminator "Visual Pose Web FastAPI" "$FASTAPI_WEB_CMD"
 echo -e "${GREEN}  ✓ FastAPI Web 服务已启动${NC}"
 sleep 3
 
-# 步骤14: aubo_ros2_web_dashboard（FastAPI 网关：静态页 + 同源 WS/视频代理 → 本机 rosbridge / web_video）
-echo -e "${GREEN}[14/15] 启动灵视 IVG 网关（HTTP ${WEB_DASH_HOST}:${WEB_DASH_PORT} → 上游 rosbridge ${ROSBRIDGE_PORT}、web_video ${WEB_VIDEO_PORT}；RobotWebTools=${ROBOTWEBTOOLS_ASSETS_DIR}）...${NC}"
+# 步骤15: aubo_ros2_web_dashboard（FastAPI 网关：静态页 + 同源 WS/视频代理 → 本机 rosbridge / web_video）
+echo -e "${GREEN}[15/16] 启动灵视 IVG 网关（HTTP ${WEB_DASH_HOST}:${WEB_DASH_PORT} → 上游 rosbridge ${ROSBRIDGE_PORT}、web_video ${WEB_VIDEO_PORT}；RobotWebTools=${ROBOTWEBTOOLS_ASSETS_DIR}）...${NC}"
 WEB_DASH_PC_WEB_ARGS=""
 if [ "${IVG_INCLUDE_POINTCLOUD_WEB_BRIDGE}" = "true" ]; then
     WEB_DASH_PC_WEB_ARGS=" include_pointcloud_web_bridge:=true pointcloud_web_max_points:=${IVG_POINTCLOUD_WEB_MAX_POINTS}"
@@ -299,8 +308,8 @@ launch_in_terminator "IVG Web Dashboard (gateway)" "$WEB_DASH_CMD"
 echo -e "${GREEN}  ✓ IVG Web 网关已启动${NC}"
 sleep 2
 
-# 步骤15: rosbag 录制（删除已有同名目录后重新录，实现覆盖）
-echo -e "${GREEN}[15/15] rosbag 录制数据（覆盖: ${IVG_ROSBAG_DIR}）...${NC}"
+# 步骤16: rosbag 录制（删除已有同名目录后重新录，实现覆盖）
+echo -e "${GREEN}[16/16] rosbag 录制数据（覆盖: ${IVG_ROSBAG_DIR}）...${NC}"
 mkdir -p "$(dirname "$IVG_ROSBAG_DIR")"
 rm -rf "$IVG_ROSBAG_DIR"
 if [ -n "$IVG_ROSBAG_TOPICS" ]; then
@@ -352,7 +361,8 @@ echo "  pkill -f 'hand_eye_calibration_launch.py'"
 echo "  pkill -f 'visual_pose_estimation_python.launch.py'"
 echo "  pkill -f 'graspnet_demo_points_with_tf.launch.py'"
 echo "  pkill -f 'execute_grasp_pose_worker.launch.py'"
-echo "  pkill -f 'gripper_swap_worker_node'"
+echo "  pkill -f 'gripper_swap_worker.launch.py'"
+echo "  pkill -f 'latte_io.launch.py'"
 echo "  pkill -f 'publish_grasps_client_worker_node'"
 echo "  pkill -f 'visual_pose_estimation_web.launch.py'"
 echo "  pkill -f 'visual_pose_estimation_web'"

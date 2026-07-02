@@ -1,0 +1,250 @@
+<h2>重构后布局预览 — vision_grasp_panel / coffee_latte_panel</h2>
+<p class="subtitle">静态结构展示 · 不包含实际功能 · 点击选项切换页面</p>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="vision" onclick="showPreview('vision'); toggleSelect(this);" id="opt-vision">
+    <div class="letter">A</div>
+    <div class="content"><h3>视觉抓取面板</h3><p>双相机 + 控制面板 + 监控区</p></div>
+  </div>
+  <div class="option" data-choice="latte" onclick="showPreview('latte'); toggleSelect(this);" id="opt-latte">
+    <div class="letter">B</div>
+    <div class="content"><h3>咖啡拉花面板</h3><p>参数控制 + IO + 监控区</p></div>
+  </div>
+</div>
+
+<style>
+  .preview-frame {
+    border: 1px solid #d1d6df; border-radius: 8px; overflow: hidden;
+    margin-top: 16px; background: #fafbfc;
+    font-family: "Noto Sans SC", system-ui, sans-serif;
+    font-size: 12px;
+  }
+  .preview-nav {
+    background: #fff; border-bottom: 2px solid #2563eb;
+    padding: 8px 14px; display: flex; align-items: center; gap: 14px;
+    position: sticky; top: 0; z-index: 10;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.06);
+  }
+  .preview-nav-brand { font-weight: 700; font-size: 13px; }
+  .preview-nav-brand span { color: #2563eb; }
+  .preview-nav-links { display: flex; gap: 6px; font-size: 11px; color: #8b95a6; }
+  .preview-nav-links span { padding: 3px 8px; border-radius: 4px; }
+  .preview-nav-links span.active { background: #2563eb; color: #fff; }
+  .preview-body {
+    padding: 8px 12px 0;
+    min-height: 340px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .preview-toolbar {
+    background: #fff; border: 1px solid #e2e6ed; border-radius: 8px;
+    padding: 8px 12px; display: flex; align-items: center; gap: 12px;
+  }
+  .preview-toolbar h1 { font-size: 14px; margin: 0; }
+  .preview-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 6px; flex: 1; min-height: 200px;
+  }
+  .preview-panel {
+    background: #fff; border: 1px solid #e2e6ed; border-left: 3px solid #2563eb;
+    border-radius: 8px; padding: 8px 10px; box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+  }
+  .preview-panel h3 {
+    margin: 0 0 6px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: #8b95a6; padding-bottom: 4px; border-bottom: 2px solid #2563eb;
+  }
+  .preview-panel-content {
+    background: #f5f6f8; border: 1px dashed #e2e6ed; border-radius: 4px;
+    min-height: 60px; display: flex; align-items: center; justify-content: center;
+    color: #8b95a6; font-size: 10px;
+  }
+  .preview-monitoring {
+    background: #fff; border: 1px solid #e2e6ed; border-radius: 8px;
+    padding: 8px 10px; margin-top: 4px;
+  }
+  .preview-monitoring h3 { font-size: 11px; margin: 0 0 6px; color: #4b5565; }
+  .preview-monitoring-grid {
+    display: grid; grid-template-columns: 1fr 200px; gap: 6px;
+  }
+  .preview-monitoring-chart {
+    background: #f5f6f8; border: 1px solid #e2e6ed; border-radius: 4px;
+    height: 80px; display: flex; align-items: center; justify-content: center;
+    color: #8b95a6; font-size: 10px;
+  }
+  .preview-monitoring-side {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .preview-monitoring-side > div {
+    background: #f5f6f8; border: 1px solid #e2e6ed; border-radius: 4px;
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    color: #8b95a6; font-size: 9px;
+  }
+  .preview-status-bar {
+    background: #fff; border-top: 1px solid #e2e6ed;
+    padding: 4px 12px; display: flex; gap: 18px; font-size: 10px; color: #4b5565;
+    margin: 0 -12px; margin-top: 6px;
+  }
+  .preview-status-bar .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+  .dot.green { background: #16a34a; } .dot.gray { background: #a0a8b8; } .dot.yellow { background: #d97706; }
+
+  .latte-params { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 8px; font-size: 10px; }
+  .latte-params label { color: #8b95a6; }
+  .latte-params input { width: 100%; border: 1px solid #e2e6ed; border-radius: 3px; padding: 2px 4px; font-size: 10px; }
+  .latte-btns { display: flex; gap: 4px; margin-top: 6px; }
+  .latte-btn { padding: 3px 10px; border-radius: 4px; border: 1px solid #e2e6ed; font-size: 10px; background: #fff; }
+  .latte-btn.go { background: #7c4a2a; color: #fff; border-color: #7c4a2a; }
+
+  .preview-no-footer {
+    display: none;
+  }
+  .preview-note {
+    margin-top: 6px; font-size: 10px; color: #16a34a; padding: 4px 8px;
+    background: #f0fdf4; border-radius: 4px; border: 1px solid #bbf7d0;
+  }
+</style>
+
+<div id="preview-vision" class="preview-frame" style="display:block;">
+  <div class="preview-nav">
+    <div class="preview-nav-brand">灵视 <span>IVG</span></div>
+    <div class="preview-nav-links">
+      <span>门户</span><span class="active">视觉抓取</span><span>咖啡拉花</span><span>监控</span><span>日志</span><span>设置</span>
+    </div>
+  </div>
+  <div class="preview-body">
+    <div class="preview-toolbar">
+      <h1>视觉抓取面板</h1>
+      <span style="font-size:10px;color:#8b95a6;">抓取方式：</span>
+      <span style="background:#2563eb;color:#fff;padding:3px 8px;border-radius:12px;font-size:10px;">工件</span>
+      <span style="background:#f5f6f8;padding:3px 8px;border-radius:12px;font-size:10px;border:1px solid #e2e6ed;">AI大模型</span>
+    </div>
+    <div class="preview-grid">
+      <div class="preview-panel">
+        <h3>机械臂模型</h3>
+        <div class="preview-panel-content" style="height:100px;">3D URDF 视图</div>
+      </div>
+      <div class="preview-panel">
+        <h3>结果视图</h3>
+        <div class="preview-panel-content" style="height:100px;">相机画面</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 240px;gap:6px;">
+      <div class="preview-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="preview-panel">
+          <h3>工件抓取</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;">
+            <div class="latte-btn" style="background:#2563eb;color:#fff;text-align:center;">执行单次</div>
+            <div class="latte-btn" style="color:#dc2626;border-color:#fecaca;text-align:center;">停止</div>
+          </div>
+        </div>
+        <div class="preview-panel">
+          <h3>夹爪快换</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;">
+            <div class="latte-btn" style="text-align:center;">夹爪0</div>
+            <div class="latte-btn" style="text-align:center;">夹爪1</div>
+            <div class="latte-btn" style="text-align:center;">夹爪2</div>
+          </div>
+        </div>
+      </div>
+      <div class="preview-panel">
+        <h3>控制</h3>
+        <div class="preview-panel-content" style="height:80px;">调试 XYZ · 笛卡尔直线</div>
+      </div>
+    </div>
+    <div class="preview-monitoring">
+      <h3>关节曲线与末端位姿 <span style="font-size:9px;color:#8b95a6;">▼ 收起</span></h3>
+      <div class="preview-monitoring-grid">
+        <div class="preview-monitoring-chart">6 关节角曲线 (Canvas)</div>
+        <div class="preview-monitoring-side">
+          <div>机械臂末端位姿</div>
+          <div>视觉位姿估计</div>
+        </div>
+      </div>
+    </div>
+    <div class="preview-status-bar">
+      <span><span class="dot green"></span>在线</span>
+      <span><span class="dot green"></span>已使能</span>
+      <span><span class="dot gray"></span>静止</span>
+      <span><span class="dot green"></span>空闲</span>
+      <span><span class="dot yellow"></span>仿真</span>
+    </div>
+  </div>
+  <div class="preview-note">✅ connection-footer 已移除，状态由底部 ivg-status-bar 提供 · 无重叠</div>
+</div>
+
+<div id="preview-latte" class="preview-frame" style="display:none;">
+  <div class="preview-nav">
+    <div class="preview-nav-brand">灵视 <span>IVG</span></div>
+    <div class="preview-nav-links">
+      <span>门户</span><span>视觉抓取</span><span class="active">咖啡拉花</span><span>监控</span><span>日志</span><span>设置</span>
+    </div>
+  </div>
+  <div class="preview-body">
+    <div class="preview-toolbar">
+      <h1>机械臂咖啡拉花</h1>
+      <span style="font-size:10px;color:#8b95a6;">现场 IO · DI 反馈灯在底部监控区</span>
+    </div>
+    <div class="preview-grid">
+      <div class="preview-panel">
+        <h3>机械臂模型</h3>
+        <div class="preview-panel-content" style="height:100px;">3D URDF 视图</div>
+      </div>
+      <div class="preview-panel">
+        <h3>拉花参数控制</h3>
+        <div class="latte-params">
+          <label>图案</label><span style="font-size:10px;">♥ 爱心</span>
+          <label>中心X</label><input value="0.0">
+          <label>中心Y</label><input value="0.0">
+          <label>液面Z</label><input value="0.15">
+          <label>半径</label><input value="0.04">
+          <label>绘制高度</label><span style="font-size:10px;">0.006m</span>
+          <label>最大速度</label><span style="font-size:10px;">0.05 m/s</span>
+        </div>
+        <div class="latte-btns">
+          <div class="latte-btn">预览</div>
+          <div class="latte-btn go">执行</div>
+          <div class="latte-btn" style="color:#dc2626;">停止</div>
+          <div class="latte-btn">回原点</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 240px;gap:6px;">
+      <div class="preview-panel">
+        <h3>拉花工序与 IO</h3>
+        <div style="display:flex;gap:12px;font-size:10px;">
+          <div style="background:#f5f6f8;border:1px solid #e2e6ed;border-radius:6px;padding:4px 10px;display:flex;justify-content:space-between;gap:16px;flex:1;">
+            <span>咖啡开关 <span style="color:#8b95a6;">DO4</span></span><span style="color:#8b95a6;">关</span>
+          </div>
+          <div style="background:#f5f6f8;border:1px solid #e2e6ed;border-radius:6px;padding:4px 10px;display:flex;justify-content:space-between;gap:16px;flex:1;">
+            <span>打花开关 <span style="color:#8b95a6;">DO2</span></span><span style="color:#8b95a6;">关</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="preview-monitoring">
+      <h3>关节曲线与末端位姿 <span style="font-size:9px;color:#8b95a6;">▼ 收起</span></h3>
+      <div class="preview-monitoring-grid">
+        <div class="preview-monitoring-chart">6 关节角曲线 (Canvas)</div>
+        <div class="preview-monitoring-side">
+          <div>机械臂末端位姿</div>
+          <div style="background:rgba(37,99,235,0.04);border-color:rgba(37,99,235,0.15);">反馈信号灯 DI2/DI3/DI4</div>
+        </div>
+      </div>
+    </div>
+    <div class="preview-status-bar">
+      <span><span class="dot green"></span>在线</span>
+      <span><span class="dot green"></span>已使能</span>
+      <span><span class="dot gray"></span>静止</span>
+      <span><span class="dot green"></span>空闲</span>
+      <span><span class="dot yellow"></span>仿真</span>
+    </div>
+  </div>
+  <div class="preview-note">✅ 独立 CSS · 不加载 vision_grasp_panel.css · connection-footer 已移除 · 无重叠</div>
+</div>
+
+<script>
+function showPreview(page) {
+  document.getElementById('preview-vision').style.display = page === 'vision' ? 'block' : 'none';
+  document.getElementById('preview-latte').style.display = page === 'latte' ? 'block' : 'none';
+  document.getElementById('opt-vision').classList.toggle('selected', page === 'vision');
+  document.getElementById('opt-latte').classList.toggle('selected', page === 'latte');
+}
+</script>

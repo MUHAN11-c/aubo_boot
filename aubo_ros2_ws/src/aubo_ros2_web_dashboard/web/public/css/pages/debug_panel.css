@@ -1,0 +1,310 @@
+/* debug_panel.css — 调试面板样式 */
+
+@layer pages {
+
+/* ── 布局容器 ──────────────────────────────────────────────────────────────── */
+
+.debug-wrap {
+  flex: 1; padding: 0.5rem 1rem 1rem;
+  margin: 0 auto; width: 100%;
+  min-height: 0;
+  overflow: auto;
+}
+
+body.ivg-single-screen .debug-wrap {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+}
+
+.debug-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem;
+  padding: 0.55rem 0.85rem; margin-bottom: 0.5rem;
+  background: linear-gradient(180deg, var(--surface-glass-strong), var(--surface-glass));
+  border: 1px solid var(--line-robot);
+  border-radius: var(--radius); box-shadow: var(--glow-robot);
+  backdrop-filter: blur(14px);
+}
+.debug-toolbar h1 { font-size: 1.1rem; margin: 0; font-weight: 700; }
+.debug-toolbar .hint { font-size: 0.75rem; color: var(--text-muted); }
+
+/* ── 网格 ─────────────────────────────────────────────────────────────────── */
+
+.debug-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;
+}
+.debug-grid .span-2 { grid-column: 1 / -1; }
+
+/* ── 面板卡片 ─────────────────────────────────────────────────────────────── */
+
+.debug-card {
+  position: relative;
+  background:
+    linear-gradient(180deg, var(--surface-panel-strong), var(--surface-panel)),
+    var(--surface-glass);
+  border: 1px solid var(--line-robot);
+  border-radius: var(--radius); padding: 0.65rem 0.85rem;
+  box-shadow: var(--glow-robot);
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+}
+.debug-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: var(--scanline);
+  opacity: 0.55;
+  pointer-events: none;
+}
+.debug-card.highlight { border-left: 3px solid var(--accent); }
+.debug-card.warn-card { border-left: 3px solid var(--warn); }
+.debug-card.ok-card { border-left: 3px solid var(--ok); }
+.debug-card--span-2 { grid-column: span 2; }
+.debug-import-card {
+  background: var(--accent-soft);
+  border: 2px solid var(--accent);
+  margin-bottom: 0.6rem;
+}
+.debug-import-row {
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+}
+.debug-import-title,
+.debug-strong { font-weight: 700; }
+.debug-import-title { color: var(--accent); white-space: nowrap; }
+
+.debug-card h2 {
+  margin: 0 0 0.45rem; font-size: 0.75rem; font-weight: 700;
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em;
+  padding-bottom: 0.3rem; border-bottom: 2px solid var(--accent);
+  display: flex; align-items: center; gap: 0.4rem;
+}
+.debug-card h2 .card-icon { font-size: 0.85rem; }
+.debug-card.warn-card h2 { border-bottom-color: var(--warn); }
+.debug-card.ok-card h2 { border-bottom-color: var(--ok); }
+
+/* ── 参数行 ───────────────────────────────────────────────────────────────── */
+
+.debug-row {
+  display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.3rem;
+}
+.debug-row--spaced { margin-top: 0.3rem; }
+.debug-row label {
+  font-size: 0.72rem; font-weight: 600; color: var(--text-muted);
+  min-width: 1rem; white-space: nowrap;
+}
+.debug-row label.wide-label { min-width: 2.8rem; }
+
+.debug-input {
+  padding: 0.28rem 0.4rem;
+  border: 1px solid var(--line-robot); border-radius: var(--radius-sm);
+  font-size: 0.78rem; font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  background: rgba(255,255,255,0.78); color: var(--text);
+  transition: border-color 0.15s;
+}
+.debug-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.debug-input.w100 { width: 100%; flex: 1; min-width: 0; }
+.debug-input.w4 { width: 4rem; }
+.debug-input.w5 { width: 5rem; }
+.debug-input.w6 { width: 6rem; }
+.debug-input--topic { width: 220px; }
+.debug-paste-textarea {
+  width: 100%;
+  height: 100px;
+  font-size: 0.68rem;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  resize: vertical;
+}
+.debug-paste-textarea--sm { height: 90px; }
+
+.debug-select {
+  padding: 0.28rem 0.35rem; font-size: 0.76rem; font-family: inherit;
+  border: 1px solid var(--line-robot); border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.78); color: var(--text); cursor: pointer;
+}
+.debug-select:focus { outline: none; border-color: var(--accent); }
+.debug-select--full { width: 100%; }
+
+/* ── 关节网格 ─────────────────────────────────────────────────────────────── */
+
+.debug-joint-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.2rem 0.4rem;
+}
+.debug-joint-grid.col2 { grid-template-columns: repeat(2, 1fr); }
+.debug-joint-grid label { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); }
+.debug-joint-grid input { width: 100%; box-sizing: border-box; }
+.debug-joint-grid--spaced { margin-top: 0.2rem; }
+
+/* ── 按钮 ─────────────────────────────────────────────────────────────────── */
+
+.debug-btn-row { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.45rem; }
+.debug-btn-row--flush { margin-top: 0; }
+.debug-btn-row--compact { margin-top: 0.3rem; }
+
+.debug-btn {
+  padding: 0.3rem 0.75rem; font-size: 0.75rem; font-weight: 600; font-family: inherit;
+  border-radius: var(--radius-sm); border: 1px solid var(--line-robot);
+  background: linear-gradient(180deg, var(--surface-glass-strong), var(--surface-glass));
+  color: var(--text); cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+.debug-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.12), rgba(var(--accent-rgb), 0.06));
+}
+.debug-btn:active:not(:disabled) { transform: scale(0.97); }
+.debug-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.debug-btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.debug-btn--primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+.debug-btn--ok { background: var(--ok); color: #fff; border-color: var(--ok); }
+.debug-btn--ok:hover:not(:disabled) { background: #15803d; }
+
+.debug-btn--warn { color: var(--warn); border-color: var(--warn); }
+.debug-btn--warn:hover:not(:disabled) { background: rgba(217,119,6,0.08); }
+
+.debug-btn--danger { color: var(--err); border-color: #fecaca; }
+.debug-btn--danger:hover:not(:disabled) { background: #fef2f2; }
+
+.debug-btn--sm { padding: 0.2rem 0.5rem; font-size: 0.7rem; }
+
+/* ── 实时数据展示 ─────────────────────────────────────────────────────────── */
+
+.debug-live-data {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.3rem 0.5rem; font-size: 0.72rem; font-family: ui-monospace, monospace;
+}
+.debug-live-data .live-item { display: flex; gap: 0.3rem; align-items: baseline; }
+.debug-live-data .live-key { color: var(--text-muted); white-space: nowrap; }
+.debug-live-data .live-val { color: var(--text); font-weight: 600; }
+.debug-live-data--spaced { margin-top: 0.3rem; }
+
+/* ── 日志区域 ─────────────────────────────────────────────────────────────── */
+
+.debug-log {
+  margin-top: 0.35rem; padding: 0.35rem 0.5rem;
+  background:
+    linear-gradient(180deg, rgba(244,247,248,0.88), rgba(238,243,245,0.96)),
+    var(--soft-grain);
+  background-size: auto, 36px 36px, 52px 52px;
+  border: 1px solid var(--line-robot);
+  border-radius: var(--radius-sm);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.72rem; color: var(--text-secondary);
+  min-height: 2.2rem; max-height: 7rem; overflow-y: auto;
+  line-height: 1.4; white-space: pre-wrap; word-break: break-all;
+}
+.debug-log.large { min-height: 8rem; max-height: 20rem; }
+
+.debug-log .log-ok { color: var(--ok); }
+.debug-log .log-err { color: var(--err); }
+.debug-log .log-warn { color: var(--warn); }
+.debug-log .log-time { color: var(--text-muted); font-size: 0.7rem; }
+.debug-log--spaced { margin-top: 0.3rem; }
+
+.debug-inline-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.debug-muted-note,
+.debug-unit-hint,
+.debug-heading-note {
+  color: var(--text-muted);
+}
+.debug-muted-note { font-size: 0.68rem; }
+.debug-unit-hint { font-size: 0.65rem; }
+.debug-heading-note { font-size: 0.65rem; font-weight: 400; }
+.debug-sub-count {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-left: 0.5rem;
+}
+.debug-pointcloud-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+  flex-wrap: wrap;
+}
+.debug-pointcloud-viewport {
+  width: 100%;
+  height: 420px;
+  background: var(--surface-robot-dark);
+  border-radius: var(--radius);
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+}
+.debug-pointcloud-overlay {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.58);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── 滑动条 ───────────────────────────────────────────────────────────────── */
+
+.debug-slider {
+  display: flex; align-items: center; gap: 0.5rem; margin: 0.3rem 0;
+}
+.debug-slider input[type="range"] {
+  flex: 1; accent-color: var(--accent); height: 6px;
+}
+.debug-slider .slider-val {
+  font-size: 0.78rem; font-weight: 700; font-family: ui-monospace, monospace;
+  min-width: 2.8rem; text-align: right; color: var(--text);
+}
+
+/* ── 选项卡 ───────────────────────────────────────────────────────────────── */
+
+.debug-tabs {
+  display: flex; gap: 0; margin-bottom: 0.4rem;
+  border-bottom: 2px solid var(--border);
+}
+.debug-tab {
+  padding: 0.25rem 0.7rem; font-size: 0.73rem; font-weight: 600; font-family: inherit;
+  border: none; border-bottom: 2px solid transparent; margin-bottom: -2px;
+  background: transparent; color: var(--text-muted); cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.debug-tab:hover { color: var(--text); }
+.debug-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── 状态指示灯 (大号) ───────────────────────────────────────────────────── */
+
+.debug-led {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.15rem 0.5rem; border-radius: 99px;
+  font-size: 0.72rem; font-weight: 700;
+}
+.debug-led.on { background: #dcfce7; color: #166534; }
+.debug-led.off { background: #fef2f2; color: #991b1b; }
+.debug-led.idle { background: #f0f9ff; color: #075985; }
+
+/* ── 空状态 ───────────────────────────────────────────────────────────────── */
+
+.debug-empty {
+  color: var(--text-muted); font-size: 0.75rem; font-style: italic;
+  padding: 0.5rem; text-align: center;
+}
+
+/* ── 响应式 ───────────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .debug-grid { grid-template-columns: 1fr; }
+  .debug-grid .span-2 { grid-column: 1; }
+  .debug-card--span-2 { grid-column: 1; }
+  .debug-joint-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 500px) {
+  .debug-wrap { padding: 0.3rem 0.5rem 0.5rem; }
+  .debug-joint-grid { grid-template-columns: 1fr 1fr; }
+  .debug-live-data { grid-template-columns: 1fr 1fr; }
+}
+
+}

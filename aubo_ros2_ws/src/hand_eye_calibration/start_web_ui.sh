@@ -29,9 +29,9 @@ source install/setup.bash
 echo "✅ 环境加载完成"
 echo ""
 
-# 检查8080端口是否被占用
-if netstat -tlnp 2>/dev/null | grep -q ":8080 " || ss -tlnp 2>/dev/null | grep -q ":8080 "; then
-    echo "⚠️  警告：8080端口已被占用"
+# 检查手眼标定默认端口是否被占用（与 launch / HAND_EYE_PORT 默认 8070 一致）
+if netstat -tlnp 2>/dev/null | grep -q ":8070 " || ss -tlnp 2>/dev/null | grep -q ":8070 "; then
+    echo "⚠️  警告：8070 端口已被占用"
     echo "   正在停止旧进程..."
     pkill -f hand_eye_calibration_node
     sleep 2

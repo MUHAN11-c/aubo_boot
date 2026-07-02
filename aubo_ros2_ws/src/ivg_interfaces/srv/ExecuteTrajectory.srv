@@ -1,0 +1,18 @@
+# =============================================================================
+# ExecuteTrajectory.srv — 执行已规划轨迹服务
+# 用途：将 PlanTrajectory 规划生成的关节轨迹下发至机器人控制器执行喵~
+# 调用方：视觉抓取节点、工件放置节点、示教控制节点
+# 服务方：demo_interface 的 robot_move_group_interface 节点（JointTrajectoryController Action Client）
+# 说明：接收 trajectory_msgs/JointTrajectory 格式的轨迹，通过 Action 接口发送给 JointTrajectoryController 执行喵~
+#       执行过程中可通过 MoveIt 的 allowReplanning 机制处理场景变化喵~
+# =============================================================================
+
+# ======================== 请求字段 ========================
+trajectory_msgs/JointTrajectory trajectory  # 要执行的关节空间轨迹，包含关节名称列表和位置/速度/加速度时间点喵~
+                                            # 通常由 PlanTrajectory.srv 或 computeCartesianPath() 生成喵~
+
+---
+# ======================== 响应字段 ========================
+bool success        # 执行是否成功：true=轨迹执行完毕，false=执行失败或中途停止喵~
+int32 error_code    # 错误码：0=成功，非零=具体错误类型喵~
+string message      # 状态消息或错误信息，包含执行结果描述喵~

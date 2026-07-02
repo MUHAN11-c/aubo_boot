@@ -1,0 +1,271 @@
+import { CdrReader } from "./CdrReader";
+import { CdrWriter } from "./CdrWriter";
+import { EncapsulationKind } from "./EncapsulationKind";
+
+const tf2_msg__TFMessage =
+  "0001000001000000cce0d158f08cf9060a000000626173655f6c696e6b000000060000007261646172000000ae47e17a14ae0e4000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f03f";
+const textEncoder = new TextEncoder();
+
+function writeExampleMessage(writer: CdrWriter) {
+  // geometry_msgs/TransformStamped[] transforms
+  writer.sequenceLength(1);
+  // std_msgs/Header header
+  // time stamp
+  writer.uint32(1490149580); // uint32 sec
+  writer.uint32(117017840); // uint32 nsec
+  writer.string("base_link"); // string frame_id
+  writer.string("radar"); // string child_frame_id
+  // geometry_msgs/Transform transform
+  // geometry_msgs/Vector3 translation
+  writer.float64(3.835); // float64 x
+  writer.float64(0); // float64 y
+  writer.float64(0); // float64 z
+  // geometry_msgs/Quaternion rotation
+  writer.float64(0); // float64 x
+  writer.float64(0); // float64 y
+  writer.float64(0); // float64 z
+  writer.float64(1); // float64 w
+}
+
+function toHex(data: Uint8Array): string {
+  return Buffer.from(data).toString("hex");
+}
+
+function decimalToHex(value: number): string {
+  return value.toString(16).padStart(2, "0");
+}
+
+const CDR2EncapsulationKinds = new Set<EncapsulationKind>([
+  EncapsulationKind.CDR2_BE,
+  EncapsulationKind.CDR2_LE,
+  EncapsulationKind.PL_CDR2_BE,
+  EncapsulationKind.PL_CDR2_LE,
+  EncapsulationKind.DELIMITED_CDR2_BE,
+  EncapsulationKind.DELIMITED_CDR2_LE,
+  EncapsulationKind.RTPS_CDR2_BE,
+  EncapsulationKind.RTPS_CDR2_LE,
+  EncapsulationKind.RTPS_PL_CDR2_BE,
+  EncapsulationKind.RTPS_PL_CDR2_LE,
+  EncapsulationKind.RTPS_DELIMITED_CDR2_BE,
+  EncapsulationKind.RTPS_DELIMITED_CDR2_LE,
+]);
+const AllCdrWriterKinds: (keyof typeof EncapsulationKind)[] = enumKeys(EncapsulationKind);
+
+describe("CdrWriter", () => {
+  it("serializes an example message with internal preallocation", () => {
+    // Example tf2_msgs/TFMessage
+    for (const writer of [
+      new CdrWriter({ size: 100 }),
+      new CdrWriter({ size: 100, kind: EncapsulationKind.CDR2_LE }),
+    ]) {
+      // Set the EncapsulationKind in the test data to match the writer
+      const tf2Msg = `00${decimalToHex(writer.kind)}${tf2_msg__TFMessage.substring(4)}`;
+      writeExampleMessage(writer);
+      expect(writer.size).toEqual(100);
+      expect(toHex(writer.data)).toEqual(tf2Msg);
+    }
+  });
+
+  it("serializes an example message with external preallocation", () => {
+    // Example tf2_msgs/TFMessage
+    for (const writer of [
+      new CdrWriter({ buffer: new ArrayBuffer(100) }),
+      new CdrWriter({ buffer: new ArrayBuffer(100), kind: EncapsulationKind.CDR2_LE }),
+    ]) {
+      // Set the EncapsulationKind in the test data to match the writer
+      const tf2Msg = `00${decimalToHex(writer.kind)}${tf2_msg__TFMessage.substring(4)}`;
+      writeExampleMessage(writer);
+      expect(writer.size).toEqual(100);
+      expect(toHex(writer.data)).toEqual(tf2Msg);
+    }
+  });
+
+  it("serializes an example message with no preallocation", () => {
+    // Example tf2_msgs/TFMessage
+    const writer = new CdrWriter();
+    writeExampleMessage(writer);
+    expect(writer.size).toEqual(100);
+    expect(toHex(writer.data)).toEqual(tf2_msg__TFMessage);
+  });
+
+  it("serializes string lengths using UTF-8 byte count plus null terminator", () => {
+    const writer = new CdrWriter();
+    // "é" has a JavaScript string length of 1 but encodes to 2 UTF-8 bytes.
+    // CDR string lengths include the null terminator, so the serialized length is 3.
+    writer.string("é");
+
+    expect(toHex(writer.data)).toEqual("0001000003000000c3a900");
+    expect(writer.size).toEqual(11);
+
+    const reader = new CdrReader(writer.data);
+    expect(reader.string()).toEqual("é");
+    expect(reader.decodedBytes).toEqual(writer.size);
+  });
+
+  it("serializes UTF-8 string bytes when the length is written separately", () => {
+    const writer = new CdrWriter();
+    // Covers callers that write a surrounding header/length before the string bytes.
+    writer.sequenceLength(3);
+    writer.string("é", false);
+
+    expect(toHex(writer.data)).toEqual("0001000003000000c3a900");
+    expect(writer.size).toEqual(11);
+
+    const reader = new CdrReader(writer.data);
+    expect(reader.string()).toEqual("é");
+    expect(reader.decodedBytes).toEqual(writer.size);
+  });
+
+  it.each([
+    "abc",
+    "béta",
+    "\u007f",
+    "\u0080",
+    "\u07ff",
+    "\u0800",
+    "\ud800", // lone high surrogate
+    "\ud800x", // lone high surrogate
+    "x\udc00", // lone low surrogate
+    "\ud800\udc00", // surrogate pair, equivalent to "\u{10000}"
+    "\u{10ffff}",
+  ])("serializes string lengths that match TextEncoder byte counts", (value) => {
+    const encoded = textEncoder.encode(value);
+    const writer = new CdrWriter();
+    writer.string(value);
+
+    const data = writer.data;
+    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+    expect(view.getUint32(4, true)).toEqual(encoded.byteLength + 1);
+    expect(Array.from(data.slice(8, 8 + encoded.byteLength))).toEqual(Array.from(encoded));
+    expect(data[8 + encoded.byteLength]).toEqual(0);
+  });
+
+  it.each(AllCdrWriterKinds)("round trips all data types: {kind: %s}", (kindKey) => {
+    const writer = new CdrWriter({ kind: EncapsulationKind[kindKey] });
+    writer.int8(-1);
+    writer.uint8(2);
+    writer.int16(-300);
+    writer.uint16(400);
+    writer.int32(-500_000);
+    writer.uint32(600_000);
+    writer.int64(-7_000_000_001n);
+    writer.uint64(8_000_000_003n);
+    writer.uint16BE(0x1234);
+    writer.uint32BE(0x12345678);
+    writer.uint64BE(0x123456789abcdef0n);
+    writer.float32(-9.14);
+    writer.float64(1.7976931348623e100);
+    writer.string("abc");
+    writer.sequenceLength(42);
+    const data = writer.data;
+    expect(data.byteLength).toEqual(CDR2EncapsulationKinds.has(writer.kind) ? 76 : 80);
+
+    const reader = new CdrReader(data);
+    expect(reader.int8()).toEqual(-1);
+    expect(reader.uint8()).toEqual(2);
+    expect(reader.int16()).toEqual(-300);
+    expect(reader.uint16()).toEqual(400);
+    expect(reader.int32()).toEqual(-500_000);
+    expect(reader.uint32()).toEqual(600_000);
+    expect(reader.int64()).toEqual(-7_000_000_001n);
+    expect(reader.uint64()).toEqual(8_000_000_003n);
+    expect(reader.uint16BE()).toEqual(0x1234);
+    expect(reader.uint32BE()).toEqual(0x12345678);
+    expect(reader.uint64BE()).toEqual(0x123456789abcdef0n);
+    expect(reader.float32()).toBeCloseTo(-9.14);
+    expect(reader.float64()).toBeCloseTo(1.7976931348623e100);
+    expect(reader.string()).toEqual("abc");
+    expect(reader.sequenceLength()).toEqual(42);
+  });
+
+  it.each(AllCdrWriterKinds)("round trips all array types: {kind: %s}", (kindKey) => {
+    const writer = new CdrWriter({ kind: EncapsulationKind[kindKey] });
+
+    writer.int8Array([-128, 127, 3], true);
+    writer.uint8Array([0, 255, 3], true);
+    writer.int16Array([-32768, 32767, -3], true);
+    writer.uint16Array([0, 65535, 3], true);
+    writer.int32Array([-2147483648, 2147483647, 3], true);
+    writer.uint32Array([0, 4294967295, 3], true);
+    writer.int64Array([-9223372036854775808n, 9223372036854775807n, 3n], true);
+    writer.uint64Array([0n, 18446744073709551615n, 3n], true);
+
+    const reader = new CdrReader(writer.data);
+    expect(Array.from(reader.int8Array().values())).toEqual([-128, 127, 3]);
+    expect(Array.from(reader.uint8Array().values())).toEqual([0, 255, 3]);
+    expect(Array.from(reader.int16Array().values())).toEqual([-32768, 32767, -3]);
+    expect(Array.from(reader.uint16Array().values())).toEqual([0, 65535, 3]);
+    expect(Array.from(reader.int32Array().values())).toEqual([-2147483648, 2147483647, 3]);
+    expect(Array.from(reader.uint32Array().values())).toEqual([0, 4294967295, 3]);
+    expect(Array.from(reader.int64Array().values())).toEqual([-9223372036854775808n, 9223372036854775807n, 3n]); // prettier-ignore
+    expect(Array.from(reader.uint64Array().values())).toEqual([0n, 18446744073709551615n, 3n]);
+  });
+
+  it("writes parameter lists", () => {
+    const writer = new CdrWriter({ kind: EncapsulationKind.PL_CDR_LE });
+    writer.uint8(0x42);
+    expect(toHex(writer.data)).toEqual("0003000042");
+  });
+
+  it("writes all EncapsulationKind values", () => {
+    for (const key of enumKeys(EncapsulationKind)) {
+      const kind = EncapsulationKind[key];
+      const writer = new CdrWriter({ kind });
+      writer.uint8(0x42);
+      expect(toHex(writer.data)).toEqual(`00${decimalToHex(kind)}000042`);
+    }
+  });
+
+  it("aligns cdr1", () => {
+    const writer = new CdrWriter();
+    writer.align(0);
+    expect(toHex(writer.data)).toEqual("00010000");
+    writer.align(8);
+    expect(toHex(writer.data)).toEqual("00010000");
+    writer.uint8(1); // one byte
+    writer.align(8); // seven bytes of padding
+    writer.uint32(2); // four bytes
+    writer.align(4); // no-op, already aligned
+    expect(toHex(writer.data)).toEqual("00010000010000000000000002000000");
+  });
+
+  it("aligns cdr2", () => {
+    const writer = new CdrWriter({ kind: EncapsulationKind.RTPS_PL_CDR2_LE });
+    writer.align(0);
+    expect(toHex(writer.data)).toEqual("000b0000");
+    writer.align(4);
+    expect(toHex(writer.data)).toEqual("000b0000");
+    writer.uint8(1); // one byte
+    writer.align(4); // three bytes of padding
+    writer.uint32(2); // four bytes
+    writer.align(4); // no-op, already aligned
+    expect(toHex(writer.data)).toEqual("000b00000100000002000000");
+  });
+  it("aligns 8 byte values in xcdr PL_CDR without emheader using padding", () => {
+    const writer = new CdrWriter({ kind: EncapsulationKind.PL_CDR_LE }); // origin=  4
+    writer.uint32(1);
+    writer.uint64(0x0fn);
+    //prettier-ignore
+    expect(toHex(writer.data)).toEqual(
+      "00030000" +  // header 
+      "01000000" +  // uint32
+      "00000000" + // padding
+      "0f00000000000000" //uint64
+    );
+  });
+  it("emHeaders resets origin for 8 byte value alignment", () => {
+    const writer = new CdrWriter({ kind: EncapsulationKind.PL_CDR_LE }); // origin=  4
+    writer.emHeader(true, 5, 8);
+    writer.uint64(0x0fn);
+    //prettier-ignore
+    expect(toHex(writer.data)).toEqual(
+      "00030000" +  // header 
+      "05400800" +  // uint32
+      "0f00000000000000" //uint64
+    );
+  });
+});
+
+function enumKeys<O extends Record<string, unknown>, K extends keyof O = keyof O>(obj: O): K[] {
+  return Object.keys(obj).filter((k) => Number.isNaN(+k)) as K[];
+}

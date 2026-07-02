@@ -46,8 +46,8 @@ launch_in_terminator() {
     sleep 0.5
 }
 
-echo -e "${GREEN}[1/6] 启动 MoveIt（aubo_moveit_pure_ros2）...${NC}"
-launch_in_terminator "Aubo MoveIt Pure ROS2" "$WS_ENV && ros2 launch aubo_moveit_config aubo_moveit_pure_ros2.launch.py"
+echo -e "${GREEN}[1/6] 启动 MoveIt（aubo_new_driver）...${NC}"
+launch_in_terminator "Aubo MoveIt New Driver" "$WS_ENV && ros2 launch aubo_moveit_config aubo_new_driver.launch.py"
 sleep 3
 
 echo -e "${GREEN}[2/6] 启动机器人驱动服务...${NC}"
@@ -74,7 +74,7 @@ echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}所有节点已启动完成${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
-echo -e "${BLUE}Web 界面（若已配置）: http://localhost:8080${NC}"
+echo -e "${BLUE}Web 界面（若已配置）: http://localhost:8070${NC}"
 echo -e "${YELLOW}停止示例: pkill -f 'aubo_moveit_pure_ros2'; pkill -f 'demo_driver_services'; pkill -f 'percipio_camera'; pkill -f 'camera_control'; pkill -f 'image_data_bridge'; pkill -f 'hand_eye_calibration'${NC}"
 echo ""
 echo -e "${BLUE}按 Ctrl+C 退出本脚本（不停止已启动节点）${NC}"

@@ -18,7 +18,7 @@
 #include <sensor_msgs/msg/image.hpp>
 
 // 引用 interface 包的服务定义
-#include <interface/srv/estimate_pose.hpp>
+#include <ivg_interfaces/srv/estimate_pose.hpp>
 
 #define CHECK(expr)                                                                                                       \
   do                                                                                                                      \
@@ -99,7 +99,7 @@ static double normalizeYawToShortEquivalent(double yaw_rad)
 // | egp_height_above           | double   | 0.1            | 抓取点上方安全高度 (m)                              |
 // | egp_joint_velocity_scaling | double   | 0.7            | 速度缩放 [0~1]：moveToHome / 抓取接近 / 抬起 / 放置笛卡尔 共用 |
 // | egp_joint_acceleration_scaling| double| 0.3            | 加速度缩放 [0~1]，同上共用                          |
-// | egp_gripper_io_index       | int      | 7              | Aubo 夹爪 IO pin 号                                  |
+// | egp_gripper_io_index       | int      | 7              | Aubo 夹爪 IO pin 号 (true=打开, 参见 ivg_utils.io.GRIPPER_OPEN) |
 // | egp_lift_offset            | double   | 0.2            | 抓取后沿 Z 轴抬起高度 (m)                            |
 // | egp_place_offset_y         | double   | -0.2           | 安全位后笛卡尔 y 偏移 (m)                           |
 // | egp_place_offset_z         | double   | -0.15          | 安全位后笛卡尔 z 偏移 (m)                           |
@@ -109,8 +109,10 @@ static double normalizeYawToShortEquivalent(double yaw_rad)
 // ============================================================================
 
 ExecuteGraspPoseWorker::ExecuteGraspPoseWorker(const rclcpp::NodeOptions& options)
-  : MoveitGripperIoBase(options)
+  : Node("execute_grasp_pose_worker_node", options)
 {
+  robot_ = std::make_shared<RobotController>(this);
+
   // launch 已通过 automatically_declare_parameters_from_overrides 注入 egp_* 时不再 declare，避免重复声明
   if (!has_parameter("egp_grasp_position"))
     declare_parameter("egp_grasp_position", std::vector<double>({ 0.41176897287368774, 0.18364354968070984, 0.2553410828113556 }));
@@ -127,7 +129,7 @@ ExecuteGraspPoseWorker::ExecuteGraspPoseWorker(const rclcpp::NodeOptions& option
   if (!has_parameter("egp_joint_acceleration_scaling"))
     declare_parameter("egp_joint_acceleration_scaling", 0.3);
   if (!has_parameter("egp_gripper_io_index"))
-    declare_parameter("egp_gripper_io_index", kGripperIoIndex);
+    declare_parameter("egp_gripper_io_index", 6);
   if (!has_parameter("egp_lift_offset"))
     declare_parameter("egp_lift_offset", 0.2);
   if (!has_parameter("egp_place_offset_y"))
@@ -192,7 +194,7 @@ ExecuteGraspPoseWorker::ExecuteGraspPoseWorker(const rclcpp::NodeOptions& option
   service_cb_group_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
   // 创建服务
-  execute_single_grasp_service_ = create_service<demo_interface::srv::ExecuteGraspPose>(
+  execute_single_grasp_service_ = create_service<ivg_interfaces::srv::ExecuteGraspPose>(
       "/execute_single_grasp",
       std::bind(&ExecuteGraspPoseWorker::handleExecuteSingleGrasp, this, std::placeholders::_1, std::placeholders::_2),
       rmw_qos_profile_services_default, service_cb_group_);
@@ -204,17 +206,10 @@ ExecuteGraspPoseWorker::ExecuteGraspPoseWorker(const rclcpp::NodeOptions& option
 
   // 视觉 client 使用 Reentrant 回调组，避免服务回调内 wait_for 时与默认互斥组死锁；executor.add_node 会注册本组，勿重复 add_callback_group
   estimate_pose_client_cb_group_ = create_callback_group(rclcpp::CallbackGroupType::Reentrant);
-  estimate_pose_client_ = create_client<interface::srv::EstimatePose>(
+  estimate_pose_client_ = create_client<ivg_interfaces::srv::EstimatePose>(
       "/estimate_pose", rmw_qos_profile_services_default, estimate_pose_client_cb_group_);
 
   RCLCPP_INFO(get_logger(), "服务已创建: /execute_single_grasp, /loop_grasp_control");
-}
-
-std::shared_ptr<ExecuteGraspPoseWorker> ExecuteGraspPoseWorker::create(const rclcpp::NodeOptions& options)
-{
-  auto node = std::make_shared<ExecuteGraspPoseWorker>(options);
-  node->initMoveGroup();
-  return node;
 }
 
 ExecuteGraspPoseWorker::~ExecuteGraspPoseWorker()
@@ -225,6 +220,11 @@ ExecuteGraspPoseWorker::~ExecuteGraspPoseWorker()
   {
     loop_thread_.join();
   }
+}
+
+void ExecuteGraspPoseWorker::initRobot()
+{
+  robot_->init();
 }
 
 bool ExecuteGraspPoseWorker::sleepJointCartesianSwitchDelay(const char* where)
@@ -304,13 +304,8 @@ geometry_msgs::msg::Quaternion ExecuteGraspPoseWorker::createOrientationFromZRot
 bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& pose_ee, double height_above,
                                                float vel, float acc)
 {
-  if (!move_group_)
-  {
-    RCLCPP_ERROR(get_logger(), "[runGraspApproach] MoveGroup 未初始化");
-    return false;
-  }
-
-  const std::string eef_link = move_group_->getEndEffectorLink();
+  if (!robot_) return false;
+  const std::string eef_link = robot_->getEndEffectorLink();
   if (eef_link.empty())
   {
     RCLCPP_ERROR(get_logger(), "[runGraspApproach] 无法获取末端 link");
@@ -334,11 +329,11 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
   // 路点 当前→X→Y→抬升→姿态→下降，一条笛卡尔轨迹一次 execute。
   for (int attempt = 1; attempt <= kArcPathMaxRetries; ++attempt)
   {
-    move_group_->setStartStateToCurrentState();
-    move_group_->setMaxVelocityScalingFactor(vel);
-    move_group_->setMaxAccelerationScalingFactor(acc);
+    robot_->moveGroup()->setStartStateToCurrentState();
+    robot_->setVelocityScaling(vel);
+    robot_->setAccelerationScaling(acc);
 
-    geometry_msgs::msg::Pose current_pose = move_group_->getCurrentPose(eef_link).pose;
+    geometry_msgs::msg::Pose current_pose = robot_->getCurrentPose();
 
     if (attempt == 1)
     {
@@ -417,8 +412,8 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
     waypoints.push_back(p_down);
 
     moveit_msgs::msg::RobotTrajectory trajectory;
-    const double fraction = move_group_->computeCartesianPath(waypoints, kCartesianEefStep, kCartesianJumpThreshold,
-                                                              trajectory);
+    const double fraction = robot_->moveGroup()->computeCartesianPath(waypoints, kCartesianEefStep,
+                                                              kCartesianJumpThreshold, trajectory);
     const size_t num_points = trajectory.joint_trajectory.points.size();
 
     RCLCPP_INFO(get_logger(), "[runGraspApproach] 抓取接近笛卡尔: fraction=%.2f%%, 点数=%zu (尝试 %d/%d)",
@@ -446,7 +441,7 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
 
     moveit::planning_interface::MoveGroupInterface::Plan plan;
     plan.trajectory_ = trajectory;
-    const auto exec_ok = move_group_->execute(plan);
+    const auto exec_ok = robot_->moveGroup()->execute(plan);
     if (exec_ok != moveit::core::MoveItErrorCode::SUCCESS)
     {
       RCLCPP_ERROR(get_logger(), "[runGraspApproach] 执行失败，错误码=%d；%.3f s 后重试", exec_ok.val,
@@ -470,16 +465,17 @@ bool ExecuteGraspPoseWorker::runGraspApproach(const geometry_msgs::msg::Pose& po
 
 bool ExecuteGraspPoseWorker::runOneCycle()
 {
+  if (!robot_) return false;
   if (!rclcpp::ok())
     return false;
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "┌────────────────────────────────────────────────────────────┐");
   RCLCPP_INFO(get_logger(), "│                   开始抓取周期 (runOneCycle)              │");
   RCLCPP_INFO(get_logger(), "└────────────────────────────────────────────────────────────┘");
 
   RCLCPP_INFO(get_logger(), "► 步骤 0/8: 回安全位");
-  if (!moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
+  if (!robot_->moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "✗ 步骤 0 失败：回安全位失败");
     return false;
@@ -489,7 +485,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   if (!rclcpp::ok())
     return false;
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "► 步骤 1/8: 构建抓取位姿");
   geometry_msgs::msg::Pose grasp_pose;
   grasp_pose.position.x = grasp_position_[0];
@@ -504,7 +500,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   RCLCPP_INFO(get_logger(), "  Z轴旋转: %.4f rad (%.2f°)", grasp_z_rotation_, grasp_z_rotation_ * 180.0 / M_PI);
   RCLCPP_INFO(get_logger(), "✓ 步骤 1 完成");
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "► 步骤 2/8: gripper_tip 变换为 end_effector 目标");
   Eigen::Matrix4d T_local = buildGraspToEndEffectorTransform();
   geometry_msgs::msg::Pose pose_ee = applyTransformationToPose(grasp_pose, T_local);
@@ -515,8 +511,8 @@ bool ExecuteGraspPoseWorker::runOneCycle()
               pose_ee.orientation.z, pose_ee.orientation.w);
   RCLCPP_INFO(get_logger(), "✓ 步骤 2 完成");
 
-  RCLCPP_INFO(get_logger(), "");
-  RCLCPP_INFO(get_logger(), "► 步骤 3/9: 抓取前开夹爪 (IO=%d, 状态=true)", gripper_io_index_);
+  RCLCPP_INFO(get_logger(), " ");
+  RCLCPP_INFO(get_logger(), "► 步骤 3/9: 抓取前开夹爪 (IO=%d, true=打开, 参见 ivg_utils.io.GRIPPER_OPEN)", gripper_io_index_);
   if (kSkipTemporaryGripperIo)
   {
     RCLCPP_WARN(get_logger(),
@@ -526,7 +522,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   }
   else
   {
-    if (!setGripperIo(gripper_io_index_, true))  // IO反转：true=打开
+    if (!robot_->setGripper(gripper_io_index_, true))  // true=打开 (ivg_utils.io.GRIPPER_OPEN)
     {
       RCLCPP_ERROR(get_logger(), "✗ 步骤 3 失败：抓取前开夹爪失败");
       return false;
@@ -534,7 +530,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
     RCLCPP_INFO(get_logger(), "✓ 步骤 3 完成");
   }
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "► 步骤 4/9: 抓取接近 (多段笛卡尔路径)");
   CHECK(sleepJointCartesianSwitchDelay("步骤 4 前（关节→笛卡尔）"));
   if (!runGraspApproach(pose_ee, height_above_, joint_velocity_scaling_, joint_acceleration_scaling_))
@@ -544,7 +540,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   }
   RCLCPP_INFO(get_logger(), "✓ 步骤 4 完成");
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "► 步骤 5/9: 闭夹爪 (IO=%d, 状态=false)", gripper_io_index_);
   if (kSkipTemporaryGripperIo)
   {
@@ -555,7 +551,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   }
   else
   {
-    if (!setGripperIo(gripper_io_index_, false))  // IO反转：false=闭合
+    if (!robot_->setGripper(gripper_io_index_, false))  // false=闭合 (ivg_utils.io.GRIPPER_CLOSE)
     {
       RCLCPP_ERROR(get_logger(), "✗ 步骤 5 失败：闭夹爪失败");
       return false;
@@ -563,19 +559,19 @@ bool ExecuteGraspPoseWorker::runOneCycle()
     RCLCPP_INFO(get_logger(), "✓ 步骤 5 完成");
   }
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "► 步骤 6/9: 抬起 (z=%.2f m)", lift_offset_);
-  if (!runArcPath('z', lift_offset_, joint_velocity_scaling_, joint_acceleration_scaling_))
+  if (!robot_->moveCartesianZ(lift_offset_, joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "✗ 步骤 6 失败：抬起失败");
     return false;
   }
   RCLCPP_INFO(get_logger(), "✓ 步骤 6 完成");
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "► 步骤 7/9: 移动到放置位 (安全位 + y/x/z 偏移)");
   CHECK(sleepJointCartesianSwitchDelay("步骤 7 前（笛卡尔→关节）"));
-  if (!moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
+  if (!robot_->moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "✗ 步骤 7 失败：回安全位失败");
     return false;
@@ -587,14 +583,14 @@ bool ExecuteGraspPoseWorker::runOneCycle()
     { 'z', place_offset_z_ },
   };
   RCLCPP_INFO(get_logger(), "  执行偏移：y=%.2f, x=-0.2, z=%.2f", place_offset_y_, place_offset_z_);
-  if (!runArcPathSequence(place_segments, joint_velocity_scaling_, joint_acceleration_scaling_))
+  if (!robot_->moveCartesianPath(place_segments, joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "✗ 步骤 7 失败：放置位多段笛卡尔失败");
     return false;
   }
   RCLCPP_INFO(get_logger(), "✓ 步骤 7 完成");
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "► 步骤 8/9: 开夹爪 (IO=%d, 状态=true)", gripper_io_index_);
   if (kSkipTemporaryGripperIo)
   {
@@ -605,7 +601,7 @@ bool ExecuteGraspPoseWorker::runOneCycle()
   }
   else
   {
-    if (!setGripperIo(gripper_io_index_, true))  // IO反转：true=打开
+    if (!robot_->setGripper(gripper_io_index_, true))  // true=打开 (ivg_utils.io.GRIPPER_OPEN)
     {
       RCLCPP_ERROR(get_logger(), "✗ 步骤 8 失败：开夹爪失败");
       return false;
@@ -613,21 +609,21 @@ bool ExecuteGraspPoseWorker::runOneCycle()
     RCLCPP_INFO(get_logger(), "✓ 步骤 8 完成");
   }
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "► 步骤 9/9: 回安全位");
   CHECK(sleepJointCartesianSwitchDelay("步骤 9 前（笛卡尔→关节）"));
-  if (!moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
+  if (!robot_->moveToHome(joint_velocity_scaling_, joint_acceleration_scaling_))
   {
     RCLCPP_ERROR(get_logger(), "✗ 步骤 9 失败：回安全位失败");
     return false;
   }
   RCLCPP_INFO(get_logger(), "✓ 步骤 9 完成");
 
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "┌────────────────────────────────────────────────────────────┐");
   RCLCPP_INFO(get_logger(), "│             ✓ 抓取周期成功完成 (9/9 步骤)                │");
   RCLCPP_INFO(get_logger(), "└────────────────────────────────────────────────────────────┘");
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
 
   return true;
 }
@@ -656,7 +652,7 @@ bool ExecuteGraspPoseWorker::estimatePoseFromVision(const std::string& object_id
   }
   RCLCPP_INFO(get_logger(), "[estimatePoseFromVision] ✓ 服务 /estimate_pose 已连接");
 
-  auto request = std::make_shared<interface::srv::EstimatePose::Request>();
+  auto request = std::make_shared<ivg_interfaces::srv::EstimatePose::Request>();
   request->object_id = object_id;
   // image/color 留空：visual_pose_estimation_python 会 SoftwareTrigger + 临时订阅取图（单线程内需 spin_once，见 ros2_communication._capture_images_on_trigger）
   RCLCPP_INFO(get_logger(), "[estimatePoseFromVision] 发送服务请求...");
@@ -751,10 +747,10 @@ bool ExecuteGraspPoseWorker::estimatePoseFromVision(const std::string& object_id
 }
 
 void ExecuteGraspPoseWorker::handleExecuteSingleGrasp(
-    const std::shared_ptr<demo_interface::srv::ExecuteGraspPose::Request> request,
-    std::shared_ptr<demo_interface::srv::ExecuteGraspPose::Response> response)
+    const std::shared_ptr<ivg_interfaces::srv::ExecuteGraspPose::Request> request,
+    std::shared_ptr<ivg_interfaces::srv::ExecuteGraspPose::Response> response)
 {
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "╔════════════════════════════════════════════════════════════╗");
   RCLCPP_INFO(get_logger(), "║        [单次抓取服务] 收到新的抓取请求                    ║");
   RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
@@ -849,7 +845,7 @@ void ExecuteGraspPoseWorker::handleExecuteSingleGrasp(
   }
   
   RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
 }
 
 void ExecuteGraspPoseWorker::handleLoopGraspControl(
@@ -858,7 +854,7 @@ void ExecuteGraspPoseWorker::handleLoopGraspControl(
 {
   const std::string action = request->data ? "启动" : "停止";
   
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "╔════════════════════════════════════════════════════════════╗");
   RCLCPP_INFO(get_logger(), "║        [循环抓取控制] 收到%s请求                          ║", action.c_str());
   RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
@@ -872,7 +868,7 @@ void ExecuteGraspPoseWorker::handleLoopGraspControl(
       response->message = "循环抓取已在运行中";
       RCLCPP_WARN(get_logger(), "[handleLoopGraspControl] ⚠ %s", response->message.c_str());
       RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
-      RCLCPP_INFO(get_logger(), "");
+      RCLCPP_INFO(get_logger(), " ");
       return;
     }
 
@@ -891,7 +887,7 @@ void ExecuteGraspPoseWorker::handleLoopGraspControl(
       response->message = "循环抓取未在运行";
       RCLCPP_WARN(get_logger(), "[handleLoopGraspControl] ⚠ %s", response->message.c_str());
       RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
-      RCLCPP_INFO(get_logger(), "");
+      RCLCPP_INFO(get_logger(), " ");
       return;
     }
 
@@ -904,7 +900,7 @@ void ExecuteGraspPoseWorker::handleLoopGraspControl(
   }
   
   RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
 }
 
 void ExecuteGraspPoseWorker::startLoopGrasp()
@@ -935,7 +931,7 @@ void ExecuteGraspPoseWorker::stopLoopGrasp()
 
 void ExecuteGraspPoseWorker::loopGraspThread()
 {
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
   RCLCPP_INFO(get_logger(), "╔════════════════════════════════════════════════════════════╗");
   RCLCPP_INFO(get_logger(), "║           [循环抓取线程] 已启动                           ║");
   RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
@@ -956,7 +952,7 @@ void ExecuteGraspPoseWorker::loopGraspThread()
   {
     cycle_in_progress_ = true;
     cycle_count++;
-    RCLCPP_INFO(get_logger(), "");
+    RCLCPP_INFO(get_logger(), " ");
     RCLCPP_INFO(get_logger(), "╔════════════════════════════════════════════════════════════╗");
     RCLCPP_INFO(get_logger(), "║           循环抓取 - 第 %3d 次循环                        ║", cycle_count);
     RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
@@ -1016,21 +1012,12 @@ void ExecuteGraspPoseWorker::loopGraspThread()
   RCLCPP_INFO(get_logger(), "╔════════════════════════════════════════════════════════════╗");
   RCLCPP_INFO(get_logger(), "║      [循环抓取线程] 已退出 (共完成 %3d 次循环)           ║", cycle_count);
   RCLCPP_INFO(get_logger(), "╚════════════════════════════════════════════════════════════╝");
-  RCLCPP_INFO(get_logger(), "");
+  RCLCPP_INFO(get_logger(), " ");
 }
 
 // ============================================================================
 // 主执行流程
 // ============================================================================
-
-bool ExecuteGraspPoseWorker::run()
-{
-  RCLCPP_INFO(get_logger(), "ExecuteGraspPoseWorker 等待服务调用...");
-  
-  // 服务驱动模式：不自动执行，等待服务调用
-  // 返回 true 表示节点正常运行，实际的抓取逻辑由服务回调触发
-  return true;
-}
 
 }  // namespace demo_driver
 
@@ -1044,31 +1031,18 @@ int main(int argc, char** argv)
   rclcpp::NodeOptions options;
   options.automatically_declare_parameters_from_overrides(true);
 
-  auto node = demo_driver::ExecuteGraspPoseWorker::create(options);
+  auto node = std::make_shared<demo_driver::ExecuteGraspPoseWorker>(options);
 
   rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
-  // add_node 会注册节点上全部 callback group（含 estimate_pose 的 Reentrant 组），勿再 add_callback_group 同一组
   executor.add_node(node);
-
-  std::thread spinner([&executor]() { executor.spin(); });
 
   demo_driver::g_worker_for_signal = node.get();
   std::signal(SIGINT, demo_driver::sigintHandler);
   std::signal(SIGTERM, demo_driver::sigintHandler);
 
-  const int kServiceWaitSec = 10;
-  if (!node->waitForServices(std::chrono::seconds(kServiceWaitSec)))
-  {
-    rclcpp::shutdown();
-    spinner.join();
-    return 1;
-  }
-
-  RCLCPP_INFO(node->get_logger(), "ExecuteGraspPoseWorker 就绪，等待服务调用 (/execute_single_grasp, /loop_grasp_control)");
-  node->run();
-
-  // 保持节点运行，等待 Ctrl+C 信号
-  spinner.join();
+  node->initRobot();
+  RCLCPP_INFO(node->get_logger(), "ExecuteGraspPoseWorker 就绪, 等待服务调用");
+  executor.spin();
 
   demo_driver::g_worker_for_signal = nullptr;
   return 0;

@@ -1,0 +1,23 @@
+# =============================================================================
+# PlanTrajectory.srv — 规划运动轨迹服务
+# 用途：使用 MoveIt 运动学规划器生成从当前位姿到目标位姿的关节空间轨迹喵~
+# 调用方：视觉抓取节点、工件放置节点、示教控制节点
+# 服务方：demo_interface 的 robot_move_group_interface 节点
+# 说明：只规划不执行，生成的 trajectory 可后续通过 ExecuteTrajectory.srv 执行喵~
+#       use_joints=true 时 target_pose 被忽略，由设置好关节值的 MoveGroupInterface 使用 last_set_target 规划喵~
+#       建议先设置关节目标再调用规划，或使用 MoveToPose 一站式完成喵~
+# =============================================================================
+
+# ======================== 请求字段 ========================
+geometry_msgs/Pose target_pose  # 目标 TCP 位姿（位置+四元数），仅在 use_joints=false 时使用喵~
+                                # 位置单位：米（m），姿态为归一化四元数喵~
+bool use_joints                 # true=使用关节角度规划（需预先设置目标关节值），
+                                # false=使用 target_pose 进行笛卡尔目标规划喵~
+
+---
+# ======================== 响应字段 ========================
+bool success                                         # 规划是否成功：true=找到可行轨迹，false=规划失败（目标不可达/碰撞/IK无解等）喵~
+trajectory_msgs/JointTrajectory trajectory           # 规划生成的关节空间轨迹，包含关节名称列表、位置/速度/加速度时间序列喵~
+                                                     # 可通过 ExecuteTrajectory.srv 下发执行喵~
+float32 planning_time                                # 规划耗时，单位：秒（s），包含 IK 求解和碰撞检测时间喵~
+string message                                       # 状态消息或错误信息，规划失败时包含失败原因描述喵~

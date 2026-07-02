@@ -1,13 +1,22 @@
+# ═══════════════════════════════════════════════════════════
+# IVG2.0 .gitignore
+# 排除构建产物、大文件、二进制、IDE 配置等喵~
+# ═══════════════════════════════════════════════════════════
+
 # ROS2 构建与安装
 aubo_ros2_ws/build/
 aubo_ros2_ws/install/
 aubo_ros2_ws/log/
+build/
+install/
+log/
 
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
+# .so 排除规则 — 仅排除构建产物目录，AUBO SDK 的 .so 需提交以支持新电脑编译喵~
+# install/build/log 已在上方排除，GraspNet CUDA 扩展 .so 在下方单独排除
 .pytest_cache/
 .eggs/
 *.egg-info/
@@ -26,15 +35,89 @@ __pycache__/
 .env.local
 *.local
 
-# 大文件与输出
+# ── 大文件与二进制 ──
+
+# 点云/录包/输出
 *.pcd
 *.bag
 *.db3
 aubo_ros2_ws/rosbags/
-*.zip
-**/src.zip
 coord_tf_output/
+*.log
+!**/tracelog.properties
+
+# 压缩包
+*.zip
+*.7z
+*.tar
+*.tar.xz
+*.tar.gz
+
+# 视频/图片
+*.mp4
+*.pdf
+*.dae
+*.bmp
+*.png
+*.jpg
+*.jpeg
+
+# 模型权重
+# *.pt
+# *.pth
+# *.ckpt
+# *.onnx
+
+# 静态库 — 仅排除 SDK 自带的大 .a (libotgLib.a 等小 .a 需提交用于链接)
+aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/aubocontroller/*.a
+aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/doc/**/*.a
+
+# 动态库 (macOS)
+*.dylib
+
+# Node
+node_modules/
+
+# C/CUDA 扩展构建产物
+**/build/temp.*/
+**/pointnet2/build/
+**/knn/build/
+# GraspNet CUDA 扩展预编译 .so — 平台相关，新环境需重新 pip3 install -e .
+aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/pointnet2/pointnet2/_ext*.so
+aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/knn/knn_pytorch/knn_pytorch*.so
+
+# AUBO SDK 文档与示例 (含大二进制，不参与编译)
+aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/doc/
+
+# AUBO SDK 预编译库 — 32-bit 不参与编译；deps/ 含系统级 .deb 包和重复的 .so
+aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib32/
+aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/deps/
+
+# AUBO SDK .so 库 — 排除 .bak/.a/.la 文件，保留 .so 供编译链接喵~
+aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/**/*.bak
+aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/**/*.a
+aubo_ros2_ws/src/aubo_ros2_driver/aubo_driver_ros2/lib/lib64/**/*.la
+
+# GraspNet 训练日志与模型
+aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/logs/
+!aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/logs/
+!aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/logs/log_kn/
+!aubo_ros2_ws/src/graspnet_ros2/graspnet-baseline/logs/log_kn/checkpoint-rs.tar
+
+# YOLO 训练产物
+aubo_ros2_ws/src/latte_imitation/runs/
+
+# 遗留标定数据 (大 BMP 图片)
+aubo_ros2_ws/legacy/hand_eye_calibration_tool/data/
+
+# 特定大文件
+aubo_ros2_ws/src/ros2_moveit2_ur5e_grasp/src/sim_models/realsense-ros/realsense2_description/meshes/l515.dae
+aubo_ros2_ws/src/ros2_moveit2_ur5e_grasp/src/sim_models/realsense-ros/realsense2_description/meshes/d415.stl
+aubo_ros2_ws/src/ros2_moveit2_ur5e_grasp/Pic
+aubo_ros2_ws/src/ros_arm_tutorials/xarm_description/urdf/xarm.dae
 
 # 系统
 .DS_Store
 Thumbs.db
+aubo_ros2_ws/src/latte_imitation/yolov26_src/
+aubo_ros2_ws/src/ros_arm_tutorials/

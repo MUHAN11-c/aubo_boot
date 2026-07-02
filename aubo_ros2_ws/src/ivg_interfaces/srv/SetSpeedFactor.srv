@@ -1,0 +1,18 @@
+# =============================================================================
+# SetSpeedFactor.srv — 设置速度倍率服务
+# 用途：设置机器人轨迹执行时的全局速度缩放比例喵~
+# 调用方：Web Dashboard 节点、速率切换节点、安全监控节点
+# 服务方：demo_interface 的 robot_move_group_interface 节点（MoveIt MoveGroupInterface）
+# 说明：与 SetSpeedSliderFraction.srv（示教模式速度）不同，此服务影响的是通过 MoveIt
+#       MoveGroupInterface::setMaxVelocityScalingFactor() 执行的轨迹速度喵~
+#       该倍率作用于 joint_limits.yaml 中 max_velocity 定义的最大速度值喵~
+# =============================================================================
+
+# ======================== 请求字段 ========================
+float32 velocity_factor  # 速度倍率，范围：(0.0, 1.0]，0=回退到 joint_limits.yaml 默认值，
+                         # 0.5=50%最大速度，>1 截断为 1.0，单位：无量纲喵~
+
+---
+# ======================== 响应字段 ========================
+bool success    # 设置是否成功：true=设置成功，false=设置失败喵~
+string message  # 状态消息或错误信息喵~

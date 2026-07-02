@@ -1,0 +1,431 @@
+<?xml version="1.0"?>
+<robot name="aubo_e5_10">
+  <!-- ===== 机械臂本体 (6-DOF) ===== -->
+  <link name="base_link">
+    <inertial>
+      <origin xyz="-1.4795E-13 0.0015384 0.020951" rpy="0 0 0"/>
+      <mass value="0.83419"/>
+      <inertia ixx="0.0014414" ixy="7.8809E-15" ixz="8.5328E-16" iyy="0.0013542" iyz="-1.4364E-05" izz="0.0024659"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/visual/link0.dae"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.82 0.82 0.82 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/collision/link0.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="shoulder_Link">
+    <inertial>
+      <origin xyz="0 0.0038 0.0006" rpy="0 0 0"/>
+      <mass value="5.05"/>
+      <inertia ixx="0.0148" ixy="0" ixz="0" iyy="0.0143" iyz="0" izz="0.0095"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/visual/link1.dae"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.82 0.82 0.82 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/collision/link1.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="shoulder_joint" type="revolute">
+    <origin xyz="0 0 0.122" rpy="0 0 3.1415926535897932384626433832795"/>
+    <parent link="base_link"/>
+    <child link="shoulder_Link"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.054326190990076759616458844855" upper="3.054326190990076759616458844855" effort="133" start_stop="207" velocity="2.5964"/>
+  </joint>
+
+  <link name="upperArm_Link">
+    <inertial>
+      <origin xyz="0.2040 0 0.0196" rpy="0 0 0"/>
+      <mass value="11.28"/>
+      <inertia ixx="0.0305" ixy="0" ixz="0" iyy="0.4505" iyz="0" izz="0.4400"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/visual/link2.dae"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.82 0.82 0.82 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/collision/link2.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="upperArm_joint" type="revolute">
+    <origin xyz="0 0.1215 0" rpy="-1.5707963267948966192313216916398 -1.5707963267948966192313216916398 0"/>
+    <parent link="shoulder_Link"/>
+    <child link="upperArm_Link"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.054326190990076759616458844855" upper="3.054326190990076759616458844855" effort="133" start_stop="207" velocity="2.5964"/>
+  </joint>
+
+  <link name="foreArm_Link">
+    <inertial>
+      <origin xyz="0.2699 0 0.0992" rpy="0 0 0"/>
+      <mass value="2.88"/>
+      <inertia ixx="0.0033" ixy="0" ixz="0" iyy="0.0575" iyz="0" izz="0.0565"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/visual/link3.dae"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.82 0.82 0.82 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/collision/link3.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="foreArm_joint" type="revolute">
+    <origin xyz="0.408 0 0" rpy="-3.1415926535897932384626433832795 0 0"/>
+    <parent link="upperArm_Link"/>
+    <child link="foreArm_Link"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.054326190990076759616458844855" upper="3.054326190990076759616458844855" effort="133" start_stop="207" velocity="2.5964"/>
+  </joint>
+
+  <link name="wrist1_Link">
+    <inertial>
+      <origin xyz="0 -0.0997 -0.0780" rpy="0 0 0"/>
+      <mass value="1.62"/>
+      <inertia ixx="0.0023" ixy="0" ixz="0" iyy="0.0013" iyz="0" izz="0.0022"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/visual/link4.dae"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.82 0.82 0.82 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/collision/link4.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="wrist1_joint" type="revolute">
+    <origin xyz="0.376 0 0" rpy="3.1415926535897932384626433832795 0 1.5707963267948966192313216916398"/>
+    <parent link="foreArm_Link"/>
+    <child link="wrist1_Link"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.054326190990076759616458844855" upper="3.054326190990076759616458844855" effort="13.5" start_stop="34" velocity="3.1105"/>
+  </joint>
+
+  <link name="wrist2_Link">
+    <inertial>
+      <origin xyz="0 -0.0028 -0.0030" rpy="0 0 0"/>
+      <mass value="1.62"/>
+      <inertia ixx="0.0023" ixy="0" ixz="0" iyy="0.0013" iyz="0" izz="0.0022"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/visual/link5.dae"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.82 0.82 0.82 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/collision/link5.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="wrist2_joint" type="revolute">
+    <origin xyz="0 0.1025 0" rpy="-1.5707963267948966192313216916398 0 0"/>
+    <parent link="wrist1_Link"/>
+    <child link="wrist2_Link"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.054326190990076759616458844855" upper="3.054326190990076759616458844855" effort="13.5" start_stop="34" velocity="3.1105"/>
+  </joint>
+
+  <link name="wrist3_Link">
+    <inertial>
+      <origin xyz="0 0 -0.0442" rpy="0 0 0"/>
+      <mass value="0.5"/>
+      <inertia ixx="0.00139395" ixy="0" ixz="0" iyy="0.00139882" iyz="0" izz="0.00224092"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/visual/link6.dae"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.82 0.82 0.82 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/collision/link6.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="wrist3_joint" type="revolute">
+    <origin xyz="0 -0.094 0" rpy="1.5707963267948966192313216916398 0 1.7907E-15"/>
+    <parent link="wrist2_Link"/>
+    <child link="wrist3_Link"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.054326190990076759616458844855" upper="3.054326190990076759616458844855" effort="13.5" start_stop="34" velocity="3.1105"/>
+  </joint>
+
+  <link name="world"/>
+
+  <!-- ===== 底座（咖啡机总装模型 pedestal_Link） ===== -->
+  <link name="pedestal_Link">
+    <inertial>
+      <origin xyz="0.0024005 -0.14873 -0.0020194" rpy="0 0 0"/>
+      <mass value="180.93"/>
+      <inertia ixx="10.702" ixy="6.7618E-17" ixz="3.0187E-14" iyy="41.01" iyz="1.466E-07" izz="32.457"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/visual/pedestal_link.stl"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.82 0.82 0.82 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/collision/pedestal_link.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="world_to_pedestal" type="fixed">
+    <parent link="world"/>
+    <child link="pedestal_Link"/>
+    <origin xyz="-0.10483 -0.10483 -0.028" rpy="0.0 0.0 0.0"/>
+  </joint>
+
+  <!-- base_link 直接挂在 world 下，与世界原点重合 -->
+  <joint name="world_to_base" type="fixed">
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+    <parent link="world"/>
+    <child link="base_link"/>
+  </joint>
+
+  <!-- ===== 咖啡机总装模型配件 ===== -->
+  <link name="cup0_Link">
+    <inertial>
+      <origin xyz="0.0459046653140415 0.0335578409178754 0.00298286778797363" rpy="0 0 0"/>
+      <mass value="1.42763211505643"/>
+      <inertia ixx="0.00133864759857838" ixy="-0.000153798571779387" ixz="-3.31742934007893E-05" iyy="0.00208448111254178" iyz="-3.67284842420613E-05" izz="0.0011896985575748"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/visual/cup0_link.stl"/>
+      </geometry>
+      <material name="">
+        <color rgba="1 1 0 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/collision/cup0_link.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="cup0_joint" type="fixed">
+    <origin xyz="-0.4225 -0.0925 -0.012" rpy="1.5708 0 1.5708"/>
+    <parent link="pedestal_Link"/>
+    <child link="cup0_Link"/>
+  </joint>
+
+
+  <!-- lizhu_Link — 咖啡杯立柱底座喵~ -->
+  <link name="lizhu_Link">
+    <inertial>
+      <origin xyz="0.012277 0.082104 1.7053E-05" rpy="0 0 0"/>
+      <mass value="0.86598"/>
+      <inertia ixx="0.0014347" ixy="1.5778E-05" ixz="1.1895E-08" iyy="0.00066764" iyz="3.1238E-05" izz="0.0012088"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/visual/lizhu_link.stl"/>
+      </geometry>
+      <material name="">
+        <color rgba="1 1 0 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/collision/lizhu_link.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="lizhu_joint" type="fixed">
+    <origin xyz="-0.630 -0.3675 0.006" rpy="1.5708 0 1.5708"/>
+    <parent link="pedestal_Link"/>
+    <child link="lizhu_Link"/>
+  </joint>
+
+  <!-- 一次性纸杯 (360ml): 上口Ø80mm 下底Ø56mm 高92mm, 置于 lizhu 立柱位置喵~ -->
+  <link name="paper_cup_Link">
+    <inertial>
+      <origin xyz="0 0 0.046" rpy="0 0 0"/>
+      <mass value="0.01"/>
+      <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/visual/paper_cup.stl"/>
+      </geometry>
+      <material name="paper_cup_mat">
+        <color rgba="1.0 0.98 0.94 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/collision/paper_cup.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="paper_cup_joint" type="fixed">
+    <origin xyz="-0.630 -0.3075 0.106" rpy="0 0 0"/>
+    <parent link="pedestal_Link"/>
+    <child link="paper_cup_Link"/>
+  </joint>
+
+  <link name="coffee_Link">
+    <inertial>
+      <origin xyz="0.01588 0.20584 0.0021911" rpy="0 0 0"/>
+      <mass value="91.454"/>
+      <inertia ixx="0.89876" ixy="0.0020091" ixz="-0.10749" iyy="1.0151" iyz="0.023803" izz="0.44104"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/visual/coffee_link.stl"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.42745 0.24706 0.35686 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/collision/coffee_link.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="coffee_joint" type="fixed">
+    <origin xyz="-0.53995 0.20318 0.046" rpy="1.5708 0 1.5708"/>
+    <parent link="pedestal_Link"/>
+    <child link="coffee_Link"/>
+  </joint>
+
+  <!-- ===== 末端执行器: 相机 ===== -->
+  <link name="camera_Link">
+    <inertial>
+      <origin xyz="-0.0005963 0.085972 -0.026401" rpy="0 0 0"/>
+      <mass value="0.72743"/>
+      <inertia ixx="0.00064649" ixy="2.7688E-06" ixz="-2.0272E-05" iyy="0.0013072" iyz="8.2399E-05" izz="0.0014971"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/visual/camera_link.stl"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.82 0.82 0.82 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/collision/camera_link.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="camera_joint" type="fixed">
+    <origin xyz="0.0 0.0 0.020" rpy="0.0 0.0 0.0"/>
+    <parent link="wrist3_Link"/>
+    <child link="camera_Link"/>
+  </joint>
+
+  <!-- ===== 末端执行器: 快换法兰 ===== -->
+  <link name="kuaihuan_Link">
+    <inertial>
+      <origin xyz="-0.00074639 7.4616E-05 0.0097884" rpy="0 0 0"/>
+      <mass value="0.21939"/>
+      <inertia ixx="6.3771E-05" ixy="4.2875E-07" ixz="-1.7848E-07" iyy="6.9403E-05" iyz="-4.5085E-07" izz="0.0001149"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/visual/kuaihuan_link.stl"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.82 0.82 0.82 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://aubo_description/meshes/collision/kuaihuan_link.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="kuaihuan_joint" type="fixed">
+    <origin xyz="0 0 0.0215" rpy="0 0 3.1416"/>
+    <parent link="camera_Link"/>
+    <child link="kuaihuan_Link"/>
+  </joint>
+</robot>

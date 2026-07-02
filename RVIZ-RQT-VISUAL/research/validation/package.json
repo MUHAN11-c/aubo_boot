@@ -1,0 +1,20 @@
+{
+  "name": "foxglove-bridge-validation",
+  "version": "1.0.0",
+  "description": "foxglove_bridge 真实数据验证测试套件",
+  "type": "module",
+  "scripts": {
+    "test": "node test_all.mjs",
+    "validate": "node test_all.mjs"
+  },
+  "keywords": ["foxglove", "ros2", "cdr", "validation"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@foxglove/cdr": "^3.5.1",
+    "@foxglove/rosmsg": "^5.0.5",
+    "@foxglove/rosmsg2-serialization": "^3.1.2",
+    "@foxglove/ws-protocol": "^0.8.0",
+    "ws": "^8.21.0"
+  }
+}

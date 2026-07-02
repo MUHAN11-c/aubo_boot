@@ -1932,7 +1932,7 @@ function zt(n) {
 function Ht(n) {
   return n.nodeType === 1;
 }
-function mr(n) {
+function dr(n) {
   let t = null;
   for (const s of n.childNodes)
     if (Ht(s)) {
@@ -1957,13 +1957,13 @@ function mr(n) {
       return console.warn(`Unknown geometry type ${t.nodeName}`), null;
   }
 }
-class dr {
+class mr {
   constructor({ xml: t }) {
     this.origin = new pt(), this.geometry = null, this.material = null, this.name = t.getAttribute(H.Name);
     const u = t.getElementsByTagName(H.Origin);
     u[0] && (this.origin = zt(u[0]));
     const s = t.getElementsByTagName(H.Geometry);
-    s[0] && (this.geometry = mr(s[0]));
+    s[0] && (this.geometry = dr(s[0]));
     const c = t.getElementsByTagName(H.Material);
     c[0] && (this.material = new Vt({
       xml: c[0]
@@ -1976,7 +1976,7 @@ class Er {
     const u = t.getElementsByTagName(H.Visuals);
     for (const s of u)
       this.visuals.push(
-        new dr({
+        new mr({
           xml: s
         })
       );
@@ -1991,9 +1991,9 @@ function st() {
       return W.find.call(M, q);
     for (var ue = 0; ue < M.length; ue++)
       if (u(M, ue)) {
-        var me = M[ue];
-        if (q.call(void 0, me, ue, M))
-          return me;
+        var de = M[ue];
+        if (q.call(void 0, de, ue, M))
+          return de;
       }
   }
   function t(M, q) {
@@ -2158,7 +2158,7 @@ function st() {
   return ae.assign = s, ae.find = n, ae.freeze = t, ae.HTML_BOOLEAN_ATTRIBUTES = c, ae.HTML_RAW_TEXT_ELEMENTS = f, ae.HTML_VOID_ELEMENTS = h, ae.hasDefaultHTMLNamespace = B, ae.hasOwn = u, ae.isHTMLBooleanAttribute = o, ae.isHTMLRawTextElement = g, ae.isHTMLEscapableRawTextElement = D, ae.isHTMLMimeType = p, ae.isHTMLVoidElement = C, ae.isValidMimeType = X, ae.MIME_TYPE = k, ae.NAMESPACE = te, ae;
 }
 var it = {}, yt;
-function dt() {
+function mt() {
   if (yt) return it;
   yt = 1;
   var n = st();
@@ -2344,11 +2344,11 @@ function Yt() {
   t && (C = c("[", u(C), "\\u{10000}-\\u{10FFFF}", "]"));
   var f = /[\x20\x09\x0D\x0A]/, g = u(f), D = c(f, "+"), p = c(f, "*"), B = /[:_a-zA-Z\xC0-\xD6\xD8-\xF6\xF8-\u02FF\u0370-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD]/;
   t && (B = c("[", u(B), "\\u{10000}-\\u{10FFFF}", "]"));
-  var k = u(B), Y = c("[", k, u(/[-.0-9\xB7]/), u(/[\u0300-\u036F\u203F-\u2040]/), "]"), X = c(B, Y, "*"), te = c(Y, "+"), M = c("&", X, ";"), q = o(/&#[0-9]+;|&#x[0-9a-fA-F]+;/), W = o(M, "|", q), ue = c("%", X, ";"), me = o(
+  var k = u(B), Y = c("[", k, u(/[-.0-9\xB7]/), u(/[\u0300-\u036F\u203F-\u2040]/), "]"), X = c(B, Y, "*"), te = c(Y, "+"), M = c("&", X, ";"), q = o(/&#[0-9]+;|&#x[0-9a-fA-F]+;/), W = o(M, "|", q), ue = c("%", X, ";"), de = o(
     c('"', o(/[^%&"]/, "|", ue, "|", W), "*", '"'),
     "|",
     c("'", o(/[^%&']/, "|", ue, "|", W), "*", "'")
-  ), d = o('"', o(/[^<&"]/, "|", W), "*", '"', "|", "'", o(/[^<&']/, "|", W), "*", "'"), _ = s(B, ":"), x = s(Y, ":"), U = c(_, x, "*"), $ = c(U, o(":", U), "?"), J = c("^", $, "$"), Ne = c("(", $, ")"), Z = o(/"[^"]*"|'[^']*'/), we = c(/^<\?/, "(", X, ")", o(D, "(", C, "*?)"), "?", /\?>/), l = /[\x20\x0D\x0Aa-zA-Z0-9-'()+,./:=?;!*#@$_%]/, A = o('"', l, '*"', "|", "'", s(l, "'"), "*'"), b = "<!--", v = "-->", y = c(b, o(s(C, "-"), "|", c("-", s(C, "-"))), "*", v), E = "#PCDATA", S = o(
+  ), m = o('"', o(/[^<&"]/, "|", W), "*", '"', "|", "'", o(/[^<&']/, "|", W), "*", "'"), _ = s(B, ":"), x = s(Y, ":"), U = c(_, x, "*"), $ = c(U, o(":", U), "?"), J = c("^", $, "$"), Ne = c("(", $, ")"), Z = o(/"[^"]*"|'[^']*'/), we = c(/^<\?/, "(", X, ")", o(D, "(", C, "*?)"), "?", /\?>/), l = /[\x20\x0D\x0Aa-zA-Z0-9-'()+,./:=?;!*#@$_%]/, A = o('"', l, '*"', "|", "'", s(l, "'"), "*'"), b = "<!--", v = "-->", y = c(b, o(s(C, "-"), "|", c("-", s(C, "-"))), "*", v), E = "#PCDATA", S = o(
     c(/\(/, p, E, o(p, /\|/, p, $), "*", p, /\)\*/),
     "|",
     c(/\(/, p, E, p, /\)/)
@@ -2356,21 +2356,21 @@ function Yt() {
     /\([^>]+\)/,
     V
     /*regg(choice, '|', seq), _children_quantity*/
-  ), T = o("EMPTY", "|", "ANY", "|", S, "|", O), w = "<!ELEMENT", I = c(w, D, o($, "|", ue), D, o(T, "|", ue), p, ">"), P = c("NOTATION", D, /\(/, p, X, o(p, /\|/, p, X), "*", p, /\)/), oe = c(/\(/, p, te, o(p, /\|/, p, te), "*", p, /\)/), Te = o(P, "|", oe), Ee = o(/CDATA|ID|IDREF|IDREFS|ENTITY|ENTITIES|NMTOKEN|NMTOKENS/, "|", Te), ie = o(/#REQUIRED|#IMPLIED/, "|", o(o("#FIXED", D), "?", d)), R = o(D, X, D, Ee, D, ie), Fe = "<!ATTLIST", ye = c(Fe, D, X, R, "*", p, ">"), ce = "about:legacy-compat", Le = o('"' + ce + '"', "|", "'" + ce + "'"), _e = "SYSTEM", Ce = "PUBLIC", Re = o(o(_e, D, Z), "|", o(Ce, D, A, D, Z)), Ue = c(
+  ), T = o("EMPTY", "|", "ANY", "|", S, "|", O), w = "<!ELEMENT", I = c(w, D, o($, "|", ue), D, o(T, "|", ue), p, ">"), P = c("NOTATION", D, /\(/, p, X, o(p, /\|/, p, X), "*", p, /\)/), oe = c(/\(/, p, te, o(p, /\|/, p, te), "*", p, /\)/), Te = o(P, "|", oe), Ee = o(/CDATA|ID|IDREF|IDREFS|ENTITY|ENTITIES|NMTOKEN|NMTOKENS/, "|", Te), ie = o(/#REQUIRED|#IMPLIED/, "|", o(o("#FIXED", D), "?", m)), R = o(D, X, D, Ee, D, ie), Fe = "<!ATTLIST", ye = c(Fe, D, X, R, "*", p, ">"), ce = "about:legacy-compat", Le = o('"' + ce + '"', "|", "'" + ce + "'"), _e = "SYSTEM", Ce = "PUBLIC", Re = o(o(_e, D, Z), "|", o(Ce, D, A, D, Z)), Ue = c(
     "^",
     o(
       o(_e, D, "(?<SystemLiteralOnly>", Z, ")"),
       "|",
       o(Ce, D, "(?<PubidLiteral>", A, ")", D, "(?<SystemLiteral>", Z, ")")
     )
-  ), qe = o(D, "NDATA", D, X), Ae = o(me, "|", o(Re, qe, "?")), j = "<!ENTITY", Pe = c(j, D, X, D, Ae, p, ">"), ne = o(me, "|", Re), Ge = c(j, D, "%", D, X, D, ne, p, ">"), at = o(Pe, "|", Ge), Ve = c(Ce, D, A), ze = c("<!NOTATION", D, X, D, o(Re, "|", Ve), p, ">"), F = c(p, "=", p), Q = /1[.]\d+/, De = c(D, "version", F, o("'", Q, "'", "|", '"', Q, '"')), ge = /[A-Za-z][-A-Za-z0-9._]*/, He = o(D, "encoding", F, o('"', ge, '"', "|", "'", ge, "'")), Je = o(D, "standalone", F, o("'", o("yes", "|", "no"), "'", "|", '"', o("yes", "|", "no"), '"')), Ze = c(/^<\?xml/, De, He, "?", Je, "?", p, /\?>/), Ke = "<!DOCTYPE", ot = "<![CDATA[", ct = "]]>", et = /<!\[CDATA\[/, Ye = /\]\]>/, tt = c(C, "*?", Ye), mt = c(et, tt);
-  return L.chars = u, L.chars_without = s, L.detectUnicodeSupport = n, L.reg = c, L.regg = o, L.ABOUT_LEGACY_COMPAT = ce, L.ABOUT_LEGACY_COMPAT_SystemLiteral = Le, L.AttlistDecl = ye, L.CDATA_START = ot, L.CDATA_END = ct, L.CDSect = mt, L.Char = C, L.Comment = y, L.COMMENT_START = b, L.COMMENT_END = v, L.DOCTYPE_DECL_START = Ke, L.elementdecl = I, L.EntityDecl = at, L.EntityValue = me, L.ExternalID = Re, L.ExternalID_match = Ue, L.Name = X, L.NotationDecl = ze, L.Reference = W, L.PEReference = ue, L.PI = we, L.PUBLIC = Ce, L.PubidLiteral = A, L.QName = $, L.QName_exact = J, L.QName_group = Ne, L.S = D, L.SChar_s = g, L.S_OPT = p, L.SYSTEM = _e, L.SystemLiteral = Z, L.UNICODE_REPLACEMENT_CHARACTER = h, L.UNICODE_SUPPORT = t, L.XMLDecl = Ze, L;
+  ), qe = o(D, "NDATA", D, X), Ae = o(de, "|", o(Re, qe, "?")), j = "<!ENTITY", Pe = c(j, D, X, D, Ae, p, ">"), ne = o(de, "|", Re), Ge = c(j, D, "%", D, X, D, ne, p, ">"), at = o(Pe, "|", Ge), Ve = c(Ce, D, A), ze = c("<!NOTATION", D, X, D, o(Re, "|", Ve), p, ">"), F = c(p, "=", p), Q = /1[.]\d+/, De = c(D, "version", F, o("'", Q, "'", "|", '"', Q, '"')), ge = /[A-Za-z][-A-Za-z0-9._]*/, He = o(D, "encoding", F, o('"', ge, '"', "|", "'", ge, "'")), Je = o(D, "standalone", F, o("'", o("yes", "|", "no"), "'", "|", '"', o("yes", "|", "no"), '"')), Ze = c(/^<\?xml/, De, He, "?", Je, "?", p, /\?>/), Ke = "<!DOCTYPE", ot = "<![CDATA[", ct = "]]>", et = /<!\[CDATA\[/, Ye = /\]\]>/, tt = c(C, "*?", Ye), dt = c(et, tt);
+  return L.chars = u, L.chars_without = s, L.detectUnicodeSupport = n, L.reg = c, L.regg = o, L.ABOUT_LEGACY_COMPAT = ce, L.ABOUT_LEGACY_COMPAT_SystemLiteral = Le, L.AttlistDecl = ye, L.CDATA_START = ot, L.CDATA_END = ct, L.CDSect = dt, L.Char = C, L.Comment = y, L.COMMENT_START = b, L.COMMENT_END = v, L.DOCTYPE_DECL_START = Ke, L.elementdecl = I, L.EntityDecl = at, L.EntityValue = de, L.ExternalID = Re, L.ExternalID_match = Ue, L.Name = X, L.NotationDecl = ze, L.Reference = W, L.PEReference = ue, L.PI = we, L.PUBLIC = Ce, L.PubidLiteral = A, L.QName = $, L.QName_exact = J, L.QName_group = Ne, L.S = D, L.SChar_s = g, L.S_OPT = p, L.SYSTEM = _e, L.SystemLiteral = Z, L.UNICODE_REPLACEMENT_CHARACTER = h, L.UNICODE_SUPPORT = t, L.XMLDecl = Ze, L;
 }
 var St;
 function Xt() {
   if (St) return K;
   St = 1;
-  var n = st(), t = n.find, u = n.hasDefaultHTMLNamespace, s = n.hasOwn, c = n.isHTMLMimeType, o = n.isHTMLRawTextElement, h = n.isHTMLVoidElement, C = n.MIME_TYPE, f = n.NAMESPACE, g = /* @__PURE__ */ Symbol(), D = dt(), p = D.DOMException, B = D.DOMExceptionName, k = Yt();
+  var n = st(), t = n.find, u = n.hasDefaultHTMLNamespace, s = n.hasOwn, c = n.isHTMLMimeType, o = n.isHTMLRawTextElement, h = n.isHTMLVoidElement, C = n.MIME_TYPE, f = n.NAMESPACE, g = /* @__PURE__ */ Symbol(), D = mt(), p = D.DOMException, B = D.DOMExceptionName, k = Yt();
   function Y(e) {
     if (e !== g)
       throw new TypeError("Illegal constructor");
@@ -2398,12 +2398,12 @@ function Xt() {
     if (!k.QName_exact.test(e))
       throw new p(p.INVALID_CHARACTER_ERR, 'invalid character in qualified name "' + e + '"');
   }
-  function me(e, r) {
+  function de(e, r) {
     ue(r), e = e || null;
     var i = null, a = r;
     if (r.indexOf(":") >= 0) {
-      var m = r.split(":");
-      i = m[0], a = m[1];
+      var d = r.split(":");
+      i = d[0], a = d[1];
     }
     if (i !== null && e === null)
       throw new p(p.NAMESPACE_ERR, "prefix is non-null and namespace is null");
@@ -2421,7 +2421,7 @@ function Xt() {
       );
     return [e, i, a];
   }
-  function d(e, r) {
+  function m(e, r) {
     for (var i in e)
       s(e, i) && (r[i] = e[i]);
   }
@@ -2430,7 +2430,7 @@ function Xt() {
     if (!(i instanceof r)) {
       let a = function() {
       };
-      a.prototype = r.prototype, a = new a(), d(i, a), e.prototype = i = a;
+      a.prototype = r.prototype, a = new a(), m(i, a), e.prototype = i = a;
     }
     i.constructor != e && (typeof e != "function" && console.error("unknown Class:" + e), i.constructor = e);
   }
@@ -2543,7 +2543,7 @@ function Xt() {
       if (Ct(e, "length", i.length), !e.$$length || i.length < e.$$length)
         for (var a = i.length; a in e; a++)
           s(e, a) && delete e[a];
-      d(i, e), e._inc = r;
+      m(i, e), e._inc = r;
     }
   }
   w.prototype.item = function(e) {
@@ -2561,16 +2561,16 @@ function Xt() {
   function Te(e, r, i, a) {
     if (a ? r[oe(r, a)] = i : (r[r.length] = i, r.length++), e) {
       i.ownerElement = e;
-      var m = e.ownerDocument;
-      m && (a && _e(m, e, a), Le(m, e, i));
+      var d = e.ownerDocument;
+      d && (a && _e(d, e, a), Le(d, e, i));
     }
   }
   function Ee(e, r, i) {
     var a = oe(r, i);
     if (a >= 0) {
-      for (var m = r.length - 1; a <= m; )
+      for (var d = r.length - 1; a <= d; )
         r[a] = r[++a];
-      if (r.length = m, e) {
+      if (r.length = d, e) {
         var N = e.ownerDocument;
         N && _e(N, e, i), i.ownerElement = null;
       }
@@ -2810,12 +2810,12 @@ function Xt() {
     createDocument: function(e, r, i) {
       var a = C.XML_APPLICATION;
       e === f.HTML ? a = C.XML_XHTML_APPLICATION : e === f.SVG && (a = C.XML_SVG_IMAGE);
-      var m = new ce(g, { contentType: a });
-      if (m.implementation = this, m.childNodes = new T(), m.doctype = i || null, i && m.appendChild(i), r) {
-        var N = m.createElementNS(e, r);
-        m.appendChild(N);
+      var d = new ce(g, { contentType: a });
+      if (d.implementation = this, d.childNodes = new T(), d.doctype = i || null, i && d.appendChild(i), r) {
+        var N = d.createElementNS(e, r);
+        d.appendChild(N);
       }
-      return m;
+      return d;
     },
     /**
      * Creates an empty DocumentType node. Entity declarations and notations are not made
@@ -2864,8 +2864,8 @@ function Xt() {
      */
     createDocumentType: function(e, r, i, a) {
       ue(e);
-      var m = new Ke(g);
-      return m.name = e, m.nodeName = e, m.publicId = r || "", m.systemId = i || "", m.internalSubset = a || "", m.childNodes = new T(), m;
+      var d = new Ke(g);
+      return d.name = e, d.nodeName = e, d.publicId = r || "", d.systemId = i || "", d.internalSubset = a || "", d.childNodes = new T(), d;
     },
     /**
      * Returns an HTML document, that might already have a basic DOM structure.
@@ -2892,8 +2892,8 @@ function Xt() {
         r.appendChild(i);
         var a = r.createElement("head");
         if (i.appendChild(a), typeof e == "string") {
-          var m = r.createElement("title");
-          m.appendChild(r.createTextNode(e)), a.appendChild(m);
+          var d = r.createElement("title");
+          d.appendChild(r.createTextNode(e)), a.appendChild(d);
         }
         i.appendChild(r.createElement("body"));
       }
@@ -3317,30 +3317,30 @@ function Xt() {
      */
     compareDocumentPosition: function(e) {
       if (this === e) return 0;
-      var r = e, i = this, a = null, m = null;
-      if (r instanceof De && (a = r, r = a.ownerElement), i instanceof De && (m = i, i = m.ownerElement, a && r && i === r))
+      var r = e, i = this, a = null, d = null;
+      if (r instanceof De && (a = r, r = a.ownerElement), i instanceof De && (d = i, i = d.ownerElement, a && r && i === r))
         for (var N = 0, z; z = i.attributes[N]; N++) {
           if (z === a)
             return S.DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC + S.DOCUMENT_POSITION_PRECEDING;
-          if (z === m)
+          if (z === d)
             return S.DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC + S.DOCUMENT_POSITION_FOLLOWING;
         }
       if (!r || !i || i.ownerDocument !== r.ownerDocument)
         return S.DOCUMENT_POSITION_DISCONNECTED + S.DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC + (O(i.ownerDocument) > O(r.ownerDocument) ? S.DOCUMENT_POSITION_FOLLOWING : S.DOCUMENT_POSITION_PRECEDING);
-      if (m && r === i)
+      if (d && r === i)
         return S.DOCUMENT_POSITION_CONTAINS + S.DOCUMENT_POSITION_PRECEDING;
       if (a && r === i)
         return S.DOCUMENT_POSITION_CONTAINED_BY + S.DOCUMENT_POSITION_FOLLOWING;
       for (var se = [], he = r.parentNode; he; ) {
-        if (!m && he === i)
+        if (!d && he === i)
           return S.DOCUMENT_POSITION_CONTAINED_BY + S.DOCUMENT_POSITION_FOLLOWING;
         se.push(he), he = he.parentNode;
       }
       se.reverse();
-      for (var ve = [], de = i.parentNode; de; ) {
-        if (!a && de === r)
+      for (var ve = [], me = i.parentNode; me; ) {
+        if (!a && me === r)
           return S.DOCUMENT_POSITION_CONTAINS + S.DOCUMENT_POSITION_PRECEDING;
-        ve.push(de), de = de.parentNode;
+        ve.push(me), me = me.parentNode;
       }
       ve.reverse();
       var Xe = V(se, ve);
@@ -3357,7 +3357,7 @@ function Xt() {
   function Fe(e) {
     return e == "<" && "&lt;" || e == ">" && "&gt;" || e == "&" && "&amp;" || e == '"' && "&quot;" || "&#" + e.charCodeAt() + ";";
   }
-  d(x, R), d(x, R.prototype), d(S, R), d(S, R.prototype);
+  m(x, R), m(x, R.prototype), m(S, R), m(S, R.prototype);
   function ye(e, r) {
     if (r(e))
       return !0;
@@ -3379,8 +3379,8 @@ function Xt() {
   }
   function _e(e, r, i, a) {
     e && e._inc++;
-    var m = i.namespaceURI;
-    m === f.XMLNS && delete r._nsMap[i.prefix ? i.localName : ""];
+    var d = i.namespaceURI;
+    d === f.XMLNS && delete r._nsMap[i.prefix ? i.localName : ""];
   }
   function Ce(e, r, i) {
     if (e && e._inc) {
@@ -3389,8 +3389,8 @@ function Xt() {
       if (i && !i.nextSibling)
         a[a.length++] = i;
       else {
-        for (var m = r.firstChild, N = 0; m; )
-          a[N++] = m, m = m.nextSibling;
+        for (var d = r.firstChild, N = 0; d; )
+          a[N++] = d, d = d.nextSibling;
         a.length = N, delete a[a.length];
       }
     }
@@ -3430,8 +3430,8 @@ function Xt() {
     }
     if (t(i, a))
       return !1;
-    var m = t(i, Ae);
-    return !(r && m && i.indexOf(m) > i.indexOf(r));
+    var d = t(i, Ae);
+    return !(r && d && i.indexOf(d) > i.indexOf(r));
   }
   function at(e, r, i) {
     if (!Ue(e))
@@ -3452,10 +3452,10 @@ function Xt() {
       );
   }
   function Ve(e, r, i) {
-    var a = e.childNodes || [], m = r.childNodes || [];
+    var a = e.childNodes || [], d = r.childNodes || [];
     if (r.nodeType === R.DOCUMENT_FRAGMENT_NODE) {
-      var N = m.filter(j);
-      if (N.length > 1 || t(m, Pe))
+      var N = d.filter(j);
+      if (N.length > 1 || t(d, Pe))
         throw new p(p.HIERARCHY_REQUEST_ERR, "More than one element or text in fragment");
       if (N.length === 1 && !ne(e, i))
         throw new p(p.HIERARCHY_REQUEST_ERR, "Element in fragment can not be inserted before doctype");
@@ -3473,10 +3473,10 @@ function Xt() {
     }
   }
   function ze(e, r, i) {
-    var a = e.childNodes || [], m = r.childNodes || [];
+    var a = e.childNodes || [], d = r.childNodes || [];
     if (r.nodeType === R.DOCUMENT_FRAGMENT_NODE) {
-      var N = m.filter(j);
-      if (N.length > 1 || t(m, Pe))
+      var N = d.filter(j);
+      if (N.length > 1 || t(d, Pe))
         throw new p(p.HIERARCHY_REQUEST_ERR, "More than one element or text in fragment");
       if (N.length === 1 && !Ge(e, i))
         throw new p(p.HIERARCHY_REQUEST_ERR, "Element in fragment can not be inserted before doctype");
@@ -3495,8 +3495,8 @@ function Xt() {
   }
   function F(e, r, i, a) {
     at(e, r, i), e.nodeType === R.DOCUMENT_NODE && (a || Ve)(e, r, i);
-    var m = r.parentNode;
-    if (m && m.removeChild(r), r.nodeType === y) {
+    var d = r.parentNode;
+    if (d && d.removeChild(r), r.nodeType === y) {
       var N = r.firstChild;
       if (N == null)
         return r;
@@ -3676,8 +3676,8 @@ function Xt() {
      * @returns {Element}
      */
     createElementNS: function(e, r) {
-      var i = me(e, r), a = new Q(g), m = a.attributes = new P();
-      return a.childNodes = new T(), a.ownerDocument = this, a.nodeName = r, a.tagName = r, a.namespaceURI = i[0], a.prefix = i[1], a.localName = i[2], m._ownerElement = a, a;
+      var i = de(e, r), a = new Q(g), d = a.attributes = new P();
+      return a.childNodes = new T(), a.ownerDocument = this, a.nodeName = r, a.tagName = r, a.namespaceURI = i[0], a.prefix = i[1], a.localName = i[2], d._ownerElement = a, a;
     },
     // Introduced in DOM Level 2:
     /**
@@ -3686,7 +3686,7 @@ function Xt() {
      * @returns {Attr}
      */
     createAttributeNS: function(e, r) {
-      var i = me(e, r), a = new De(g);
+      var i = de(e, r), a = new De(g);
       return a.ownerDocument = this, a.childNodes = new T(), a.nodeName = r, a.name = r, a.specified = !0, a.namespaceURI = i[0], a.prefix = i[1], a.localName = i[2], a;
     }
   }, _(ce, R);
@@ -3789,7 +3789,7 @@ function Xt() {
      * @see https://dom.spec.whatwg.org/#dom-element-setattributens
      */
     setAttributeNS: function(e, r, i) {
-      var a = me(e, r), m = a[2], N = this.getAttributeNodeNS(e, m);
+      var a = de(e, r), d = a[2], N = this.getAttributeNodeNS(e, d);
       N ? N.value = N.nodeValue = "" + i : (N = this.ownerDocument.createAttributeNS(e, r), N.value = N.nodeValue = "" + i, this.setAttributeNode(N));
     },
     getAttributeNodeNS: function(e, r) {
@@ -3817,16 +3817,16 @@ function Xt() {
       var r = q(e);
       return new w(this, function(i) {
         var a = [];
-        return r.length > 0 && ye(i, function(m) {
-          if (m !== i && m.nodeType === U) {
-            var N = m.getAttribute("class");
+        return r.length > 0 && ye(i, function(d) {
+          if (d !== i && d.nodeType === U) {
+            var N = d.getAttribute("class");
             if (N) {
               var z = e === N;
               if (!z) {
                 var se = q(N);
                 z = r.every(W(se));
               }
-              z && a.push(m);
+              z && a.push(d);
             }
           }
         }), a;
@@ -3859,23 +3859,23 @@ function Xt() {
     getElementsByTagName: function(e) {
       var r = (this.nodeType === b ? this : this.ownerDocument).type === "html", i = e.toLowerCase();
       return new w(this, function(a) {
-        var m = [];
+        var d = [];
         return ye(a, function(N) {
           if (!(N === a || N.nodeType !== U))
             if (e === "*")
-              m.push(N);
+              d.push(N);
             else {
               var z = N.getQualifiedName(), se = r && N.namespaceURI === f.HTML ? i : e;
-              z === se && m.push(N);
+              z === se && d.push(N);
             }
-        }), m;
+        }), d;
       });
     },
     getElementsByTagNameNS: function(e, r) {
       return new w(this, function(i) {
         var a = [];
-        return ye(i, function(m) {
-          m !== i && m.nodeType === U && (e === "*" || m.namespaceURI === e) && (r === "*" || m.localName == r) && a.push(m);
+        return ye(i, function(d) {
+          d !== i && d.nodeType === U && (e === "*" || d.namespaceURI === e) && (r === "*" || d.localName == r) && a.push(d);
         }), a;
       });
     }
@@ -3902,8 +3902,8 @@ function Xt() {
       this.replaceData(e, r, "");
     },
     replaceData: function(e, r, i) {
-      var a = this.data.substring(0, e), m = this.data.substring(e + r);
-      i = a + i + m, this.nodeValue = this.data = i, this.length = i.length;
+      var a = this.data.substring(0, e), d = this.data.substring(e + r);
+      i = a + i + d, this.nodeValue = this.data = i, this.length = i.length;
     }
   }, _(ge, R);
   function He(e) {
@@ -3957,31 +3957,31 @@ function Xt() {
     Y(e);
   }
   tt.prototype.nodeType = l, _(tt, ge);
-  function mt() {
+  function dt() {
   }
-  mt.prototype.serializeToString = function(e, r) {
+  dt.prototype.serializeToString = function(e, r) {
     return ee.call(e, r);
   }, R.prototype.toString = ee;
   function ee(e) {
-    var r = [], i = this.nodeType === b && this.documentElement || this, a = i.prefix, m = i.namespaceURI;
-    if (m && a == null) {
-      var a = i.lookupPrefix(m);
+    var r = [], i = this.nodeType === b && this.documentElement || this, a = i.prefix, d = i.namespaceURI;
+    if (d && a == null) {
+      var a = i.lookupPrefix(d);
       if (a == null)
         var N = [
-          { namespace: m, prefix: null }
+          { namespace: d, prefix: null }
           //{namespace:uri,prefix:''}
         ];
     }
     return Ie(this, r, e, N), r.join("");
   }
   function le(e, r, i) {
-    var a = e.prefix || "", m = e.namespaceURI;
-    if (!m || a === "xml" && m === f.XML || m === f.XMLNS)
+    var a = e.prefix || "", d = e.namespaceURI;
+    if (!d || a === "xml" && d === f.XML || d === f.XMLNS)
       return !1;
     for (var N = i.length; N--; ) {
       var z = i[N];
       if (z.prefix === a)
-        return z.namespace !== m;
+        return z.namespace !== d;
     }
     return !0;
   }
@@ -3990,7 +3990,7 @@ function Xt() {
   }
   function Ie(e, r, i, a) {
     a || (a = []);
-    var m = e.nodeType === b ? e : e.ownerDocument, N = m.type === "html";
+    var d = e.nodeType === b ? e : e.ownerDocument, N = d.type === "html";
     if (i)
       if (e = i(e), e) {
         if (typeof e == "string") {
@@ -4003,20 +4003,20 @@ function Xt() {
       case U:
         var z = e.attributes, se = z.length, pe = e.firstChild, he = e.tagName, ve = he;
         if (!N && !e.prefix && e.namespaceURI) {
-          for (var de, Xe = 0; Xe < z.length; Xe++)
+          for (var me, Xe = 0; Xe < z.length; Xe++)
             if (z.item(Xe).name === "xmlns") {
-              de = z.item(Xe).value;
+              me = z.item(Xe).value;
               break;
             }
-          if (!de)
+          if (!me)
             for (var xe = a.length - 1; xe >= 0; xe--) {
               var be = a[xe];
               if (be.prefix === "" && be.namespace === e.namespaceURI) {
-                de = be.namespace;
+                me = be.namespace;
                 break;
               }
             }
-          if (de !== e.namespaceURI)
+          if (me !== e.namespaceURI)
             for (var xe = a.length - 1; xe >= 0; xe--) {
               var be = a[xe];
               if (be.namespace === e.namespaceURI) {
@@ -4102,16 +4102,16 @@ function Xt() {
         break;
     }
     if (a || (a = r.cloneNode(!1)), a.ownerDocument = e, a.parentNode = null, i)
-      for (var m = r.firstChild; m; )
-        a.appendChild(Tt(e, m, i)), m = m.nextSibling;
+      for (var d = r.firstChild; d; )
+        a.appendChild(Tt(e, d, i)), d = d.nextSibling;
     return a;
   }
   function Et(e, r, i) {
     var a = new r.constructor(g);
-    for (var m in r)
-      if (s(r, m)) {
-        var N = r[m];
-        typeof N != "object" && N != a[m] && (a[m] = N);
+    for (var d in r)
+      if (s(r, d)) {
+        var N = r[d];
+        typeof N != "object" && N != a[d] && (a[d] = N);
       }
     switch (r.childNodes && (a.childNodes = new T()), a.ownerDocument = e, a.nodeType) {
       case U:
@@ -4124,8 +4124,8 @@ function Xt() {
         i = !0;
     }
     if (i)
-      for (var de = r.firstChild; de; )
-        a.appendChild(Et(e, de, i)), de = de.nextSibling;
+      for (var me = r.firstChild; me; )
+        a.appendChild(Et(e, me, i)), me = me.nextSibling;
     return a;
   }
   function Ct(e, r, i) {
@@ -4171,7 +4171,7 @@ function Xt() {
     }
   } catch {
   }
-  return K._updateLiveList = I, K.Attr = De, K.CDATASection = Ze, K.CharacterData = ge, K.Comment = Je, K.Document = ce, K.DocumentFragment = Ye, K.DocumentType = Ke, K.DOMImplementation = ie, K.Element = Q, K.Entity = ct, K.EntityReference = et, K.LiveNodeList = w, K.NamedNodeMap = P, K.Node = R, K.NodeList = T, K.Notation = ot, K.Text = He, K.ProcessingInstruction = tt, K.XMLSerializer = mt, K;
+  return K._updateLiveList = I, K.Attr = De, K.CDATASection = Ze, K.CharacterData = ge, K.Comment = Je, K.Document = ce, K.DocumentFragment = Ye, K.DocumentType = Ke, K.DOMImplementation = ie, K.Element = Q, K.Entity = ct, K.EntityReference = et, K.LiveNodeList = w, K.NamedNodeMap = P, K.Node = R, K.NodeList = T, K.Notation = ot, K.Text = He, K.ProcessingInstruction = tt, K.XMLSerializer = dt, K;
 }
 var We = {}, gt = {}, Ot;
 function Dr() {
@@ -6317,7 +6317,7 @@ var ht = {}, Rt;
 function gr() {
   if (Rt) return ht;
   Rt = 1;
-  var n = st(), t = Yt(), u = dt(), s = n.isHTMLEscapableRawTextElement, c = n.isHTMLMimeType, o = n.isHTMLRawTextElement, h = n.hasOwn, C = n.NAMESPACE, f = u.ParseError, g = u.DOMException, D = 0, p = 1, B = 2, k = 3, Y = 4, X = 5, te = 6, M = 7;
+  var n = st(), t = Yt(), u = mt(), s = n.isHTMLEscapableRawTextElement, c = n.isHTMLMimeType, o = n.isHTMLRawTextElement, h = n.hasOwn, C = n.NAMESPACE, f = u.ParseError, g = u.DOMException, D = 0, p = 1, B = 2, k = 3, Y = 4, X = 5, te = 6, M = 7;
   function q() {
   }
   q.prototype = {
@@ -6411,11 +6411,11 @@ function gr() {
             break;
           default:
             P && oe(R);
-            var j = new we(), Pe = Te[Te.length - 1].currentNSMap, ne = d(l, R, j, Pe, V, y, E), Ge = j.length;
+            var j = new we(), Pe = Te[Te.length - 1].currentNSMap, ne = m(l, R, j, Pe, V, y, E), Ge = j.length;
             if (j.closed || (E && n.isHTMLVoidElement(j.tagName) ? j.closed = !0 : Ee.push(j.tagName)), P && Ge) {
-              for (var at = me(P, {}), Ve = 0; Ve < Ge; Ve++) {
+              for (var at = de(P, {}), Ve = 0; Ve < Ge; Ve++) {
                 var ze = j[Ve];
-                oe(ze.offset), ze.locator = me(P, {});
+                oe(ze.offset), ze.locator = de(P, {});
               }
               v.locator = at, _(j, v, Pe) && Te.push(j), v.locator = P;
             } else
@@ -6432,10 +6432,10 @@ function gr() {
       ne > ie ? ie = ne : O(Math.max(R, ie) + 1);
     }
   }
-  function me(l, A) {
+  function de(l, A) {
     return A.lineNumber = l.lineNumber, A.columnNumber = l.columnNumber, A;
   }
-  function d(l, A, b, v, y, E, S) {
+  function m(l, A, b, v, y, E, S) {
     function V(oe, Te, Ee) {
       if (h(b.attributeNames, oe))
         return E.fatalError("Attribute " + oe + " redefined");
@@ -6784,18 +6784,18 @@ var Mt;
 function Ar() {
   if (Mt) return We;
   Mt = 1;
-  var n = st(), t = Xt(), u = dt(), s = Dr(), c = gr(), o = t.DOMImplementation, h = n.hasDefaultHTMLNamespace, C = n.isHTMLMimeType, f = n.isValidMimeType, g = n.MIME_TYPE, D = n.NAMESPACE, p = u.ParseError, B = c.XMLReader;
-  function k(d) {
-    return d.replace(/\r[\n\u0085]/g, `
+  var n = st(), t = Xt(), u = mt(), s = Dr(), c = gr(), o = t.DOMImplementation, h = n.hasDefaultHTMLNamespace, C = n.isHTMLMimeType, f = n.isValidMimeType, g = n.MIME_TYPE, D = n.NAMESPACE, p = u.ParseError, B = c.XMLReader;
+  function k(m) {
+    return m.replace(/\r[\n\u0085]/g, `
 `).replace(/[\r\u0085\u2028\u2029]/g, `
 `);
   }
-  function Y(d) {
-    if (d = d || {}, d.locator === void 0 && (d.locator = !0), this.assign = d.assign || n.assign, this.domHandler = d.domHandler || X, this.onError = d.onError || d.errorHandler, d.errorHandler && typeof d.errorHandler != "function")
+  function Y(m) {
+    if (m = m || {}, m.locator === void 0 && (m.locator = !0), this.assign = m.assign || n.assign, this.domHandler = m.domHandler || X, this.onError = m.onError || m.errorHandler, m.errorHandler && typeof m.errorHandler != "function")
       throw new TypeError("errorHandler object is no longer supported, switch to onError!");
-    d.errorHandler && d.errorHandler("warning", "The `errorHandler` option has been deprecated, use `onError` instead!", this), this.normalizeLineEndings = d.normalizeLineEndings || k, this.locator = !!d.locator, this.xmlns = this.assign(/* @__PURE__ */ Object.create(null), d.xmlns);
+    m.errorHandler && m.errorHandler("warning", "The `errorHandler` option has been deprecated, use `onError` instead!", this), this.normalizeLineEndings = m.normalizeLineEndings || k, this.locator = !!m.locator, this.xmlns = this.assign(/* @__PURE__ */ Object.create(null), m.xmlns);
   }
-  Y.prototype.parseFromString = function(d, _) {
+  Y.prototype.parseFromString = function(m, _) {
     if (!f(_))
       throw new TypeError('DOMParser.parseFromString: the provided mimeType "' + _ + '" is not valid.');
     var x = this.assign(/* @__PURE__ */ Object.create(null), this.xmlns), U = s.XML_ENTITIES, $ = x[""] || null;
@@ -6809,14 +6809,14 @@ function Ar() {
     var Z = new B();
     Z.errorHandler = J, Z.domBuilder = J;
     var we = !n.isHTMLMimeType(_);
-    return we && typeof d != "string" && Z.errorHandler.fatalError("source is not a string"), Z.parse(this.normalizeLineEndings(String(d)), x, U), J.doc.documentElement || Z.errorHandler.fatalError("missing root element"), J.doc;
+    return we && typeof m != "string" && Z.errorHandler.fatalError("source is not a string"), Z.parse(this.normalizeLineEndings(String(m)), x, U), J.doc.documentElement || Z.errorHandler.fatalError("missing root element"), J.doc;
   };
-  function X(d) {
-    var _ = d || {};
+  function X(m) {
+    var _ = m || {};
     this.mimeType = _.mimeType || g.XML_APPLICATION, this.defaultNamespace = _.defaultNamespace || null, this.cdata = !1, this.currentElement = void 0, this.doc = void 0, this.locator = void 0, this.onError = _.onError;
   }
-  function te(d, _) {
-    _.lineNumber = d.lineNumber, _.columnNumber = d.columnNumber;
+  function te(m, _) {
+    _.lineNumber = m.lineNumber, _.columnNumber = m.columnNumber;
   }
   X.prototype = {
     /**
@@ -6828,40 +6828,40 @@ function Ar() {
      * @see http://www.saxproject.org/apidoc/org/xml/sax/ContentHandler.html
      */
     startDocument: function() {
-      var d = new o();
-      this.doc = C(this.mimeType) ? d.createHTMLDocument(!1) : d.createDocument(this.defaultNamespace, "");
+      var m = new o();
+      this.doc = C(this.mimeType) ? m.createHTMLDocument(!1) : m.createDocument(this.defaultNamespace, "");
     },
-    startElement: function(d, _, x, U) {
-      var $ = this.doc, J = $.createElementNS(d, x || _), Ne = U.length;
+    startElement: function(m, _, x, U) {
+      var $ = this.doc, J = $.createElementNS(m, x || _), Ne = U.length;
       W(this, J), this.currentElement = J, this.locator && te(this.locator, J);
       for (var Z = 0; Z < Ne; Z++) {
-        var d = U.getURI(Z), we = U.getValue(Z), x = U.getQName(Z), l = $.createAttributeNS(d, x);
+        var m = U.getURI(Z), we = U.getValue(Z), x = U.getQName(Z), l = $.createAttributeNS(m, x);
         this.locator && te(U.getLocator(Z), l), l.value = l.nodeValue = we, J.setAttributeNode(l);
       }
     },
-    endElement: function(d, _, x) {
+    endElement: function(m, _, x) {
       this.currentElement = this.currentElement.parentNode;
     },
-    startPrefixMapping: function(d, _) {
+    startPrefixMapping: function(m, _) {
     },
-    endPrefixMapping: function(d) {
+    endPrefixMapping: function(m) {
     },
-    processingInstruction: function(d, _) {
-      var x = this.doc.createProcessingInstruction(d, _);
+    processingInstruction: function(m, _) {
+      var x = this.doc.createProcessingInstruction(m, _);
       this.locator && te(this.locator, x), W(this, x);
     },
-    ignorableWhitespace: function(d, _, x) {
+    ignorableWhitespace: function(m, _, x) {
     },
-    characters: function(d, _, x) {
-      if (d = q.apply(this, arguments), d) {
+    characters: function(m, _, x) {
+      if (m = q.apply(this, arguments), m) {
         if (this.cdata)
-          var U = this.doc.createCDATASection(d);
+          var U = this.doc.createCDATASection(m);
         else
-          var U = this.doc.createTextNode(d);
-        this.currentElement ? this.currentElement.appendChild(U) : /^\s*$/.test(d) && this.doc.appendChild(U), this.locator && te(this.locator, U);
+          var U = this.doc.createTextNode(m);
+        this.currentElement ? this.currentElement.appendChild(U) : /^\s*$/.test(m) && this.doc.appendChild(U), this.locator && te(this.locator, U);
       }
     },
-    skippedEntity: function(d) {
+    skippedEntity: function(m) {
     },
     endDocument: function() {
       this.doc.normalize();
@@ -6872,13 +6872,13 @@ function Ar() {
      *
      * @param {Locator} locator
      */
-    setDocumentLocator: function(d) {
-      d && (d.lineNumber = 0), this.locator = d;
+    setDocumentLocator: function(m) {
+      m && (m.lineNumber = 0), this.locator = m;
     },
     //LexicalHandler
-    comment: function(d, _, x) {
-      d = q.apply(this, arguments);
-      var U = this.doc.createComment(d);
+    comment: function(m, _, x) {
+      m = q.apply(this, arguments);
+      var U = this.doc.createComment(m);
       this.locator && te(this.locator, U), W(this, U);
     },
     startCDATA: function() {
@@ -6887,31 +6887,31 @@ function Ar() {
     endCDATA: function() {
       this.cdata = !1;
     },
-    startDTD: function(d, _, x, U) {
+    startDTD: function(m, _, x, U) {
       var $ = this.doc.implementation;
       if ($ && $.createDocumentType) {
-        var J = $.createDocumentType(d, _, x, U);
+        var J = $.createDocumentType(m, _, x, U);
         this.locator && te(this.locator, J), W(this, J), this.doc.doctype = J;
       }
     },
-    reportError: function(d, _) {
+    reportError: function(m, _) {
       if (typeof this.onError == "function")
         try {
-          this.onError(d, _, this);
+          this.onError(m, _, this);
         } catch (x) {
-          throw new p("Reporting " + d + ' "' + _ + '" caused ' + x, this.locator);
+          throw new p("Reporting " + m + ' "' + _ + '" caused ' + x, this.locator);
         }
       else
-        console.error("[xmldom " + d + "]	" + _, M(this.locator));
+        console.error("[xmldom " + m + "]	" + _, M(this.locator));
     },
     /**
      * @see http://www.saxproject.org/apidoc/org/xml/sax/ErrorHandler.html
      */
-    warning: function(d) {
-      this.reportError("warning", d);
+    warning: function(m) {
+      this.reportError("warning", m);
     },
-    error: function(d) {
-      this.reportError("error", d);
+    error: function(m) {
+      this.reportError("error", m);
     },
     /**
      * This function reports a fatal error and throws a ParseError.
@@ -6923,36 +6923,36 @@ function Ar() {
      * @throws {ParseError}
      * Always throws a ParseError with the provided message.
      */
-    fatalError: function(d) {
-      throw this.reportError("fatalError", d), new p(d, this.locator);
+    fatalError: function(m) {
+      throw this.reportError("fatalError", m), new p(m, this.locator);
     }
   };
-  function M(d) {
-    if (d)
+  function M(m) {
+    if (m)
       return `
-@#[line:` + d.lineNumber + ",col:" + d.columnNumber + "]";
+@#[line:` + m.lineNumber + ",col:" + m.columnNumber + "]";
   }
-  function q(d, _, x) {
-    return typeof d == "string" ? d.substr(_, x) : d.length >= _ + x || _ ? new java.lang.String(d, _, x) + "" : d;
+  function q(m, _, x) {
+    return typeof m == "string" ? m.substr(_, x) : m.length >= _ + x || _ ? new java.lang.String(m, _, x) + "" : m;
   }
   "endDTD,startEntity,endEntity,attributeDecl,elementDecl,externalEntityDecl,internalEntityDecl,resolveEntity,getExternalSubset,notationDecl,unparsedEntityDecl".replace(
     /\w+/g,
-    function(d) {
-      X.prototype[d] = function() {
+    function(m) {
+      X.prototype[m] = function() {
         return null;
       };
     }
   );
-  function W(d, _) {
-    d.currentElement ? d.currentElement.appendChild(_) : d.doc.appendChild(_);
+  function W(m, _) {
+    m.currentElement ? m.currentElement.appendChild(_) : m.doc.appendChild(_);
   }
-  function ue(d) {
-    if (d === "error") throw "onErrorStopParsing";
+  function ue(m) {
+    if (m === "error") throw "onErrorStopParsing";
   }
-  function me() {
+  function de() {
     throw "onWarningStopParsing";
   }
-  return We.__DOMHandler = X, We.DOMParser = Y, We.normalizeLineEndings = k, We.onErrorStopParsing = ue, We.onWarningStopParsing = me, We;
+  return We.__DOMHandler = X, We.DOMParser = Y, We.normalizeLineEndings = k, We.onErrorStopParsing = ue, We.onWarningStopParsing = de, We;
 }
 var It;
 function vr() {
@@ -6960,7 +6960,7 @@ function vr() {
   It = 1;
   var n = st();
   G.assign = n.assign, G.hasDefaultHTMLNamespace = n.hasDefaultHTMLNamespace, G.isHTMLMimeType = n.isHTMLMimeType, G.isValidMimeType = n.isValidMimeType, G.MIME_TYPE = n.MIME_TYPE, G.NAMESPACE = n.NAMESPACE;
-  var t = dt();
+  var t = mt();
   G.DOMException = t.DOMException, G.DOMExceptionName = t.DOMExceptionName, G.ExceptionCode = t.ExceptionCode, G.ParseError = t.ParseError;
   var u = Xt();
   G.Attr = u.Attr, G.CDATASection = u.CDATASection, G.CharacterData = u.CharacterData, G.Comment = u.Comment, G.Document = u.Document, G.DocumentFragment = u.DocumentFragment, G.DocumentType = u.DocumentType, G.DOMImplementation = u.DOMImplementation, G.Element = u.Element, G.Entity = u.Entity, G.EntityReference = u.EntityReference, G.LiveNodeList = u.LiveNodeList, G.NamedNodeMap = u.NamedNodeMap, G.Node = u.Node, G.NodeList = u.NodeList, G.Notation = u.Notation, G.ProcessingInstruction = u.ProcessingInstruction, G.Text = u.Text, G.XMLSerializer = u.XMLSerializer;
@@ -7048,7 +7048,7 @@ class qr {
         }
   }
 }
-const Gr = "2.1.0";
+const Gr = void 0;
 export {
   Pr as AbstractTransport,
   nr as Action,
@@ -7078,7 +7078,7 @@ export {
   qr as UrdfModel,
   fr as UrdfSphere,
   ft as UrdfType,
-  dr as UrdfVisual,
+  mr as UrdfVisual,
   Oe as Vector3,
   ur as WebSocketTransportFactory,
   Ht as isElement,

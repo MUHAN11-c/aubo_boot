@@ -1,0 +1,22 @@
+# =============================================================================
+# GetCurrentTool.srv — 获取当前工具信息服务
+# 用途：查询机器人末端当前安装的工具信息，返回工具 ID、名称、类型和参数喵~
+# 调用方：Web Dashboard 状态显示节点、上位机任务调度节点、场景管理节点
+# 服务方：tool_changer_interface 的 gripper_swap_worker 节点
+# 说明：无请求字段（纯查询服务），返回当前存储在 gripper_swap_worker 中的工具状态喵~
+#       tool_type 可用于区分不同类型的末端执行器以便选择合适的控制策略喵~
+#       tool_parameters 包含工具特定的配置参数（如夹爪行程/力、吸盘直径等），以 JSON 格式返回喵~
+# =============================================================================
+
+# ======================== 请求字段 ========================
+# （无请求字段）
+
+---
+# ======================== 响应字段 ========================
+bool success          # 获取是否成功：true=成功获取到当前工具信息，false=获取失败喵~
+string tool_id        # 当前工具 ID，如 "gripper0", "gripper2", "suction", "none"（无工具）喵~
+string tool_name      # 当前工具名称，如 "Robotiq_2F_85", "OnRobot_RG6", "Suction_Cup"喵~
+string tool_type      # 工具类型，取值范围："gripper"（夹爪）、"suction"（吸盘）、"other"（其他）喵~
+string tool_parameters # 工具参数，JSON 格式字符串，包含工具特定的配置参数喵~
+                      # 如 {"max_force": 100, "stroke": 85, "speed": 20} 等喵~
+string message        # 工具信息描述，如当前是否安装正常、上次切换时间等附加信息喵~

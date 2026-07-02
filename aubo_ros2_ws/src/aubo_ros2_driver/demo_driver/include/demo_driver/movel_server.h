@@ -12,7 +12,7 @@
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <moveit/moveit_cpp/moveit_cpp.h>
-#include <demo_interface/srv/movel.hpp>
+#include <ivg_interfaces/srv/movel.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 #include <moveit_msgs/msg/robot_trajectory.hpp>
 #include <moveit_msgs/msg/move_it_error_codes.hpp>
@@ -39,7 +39,13 @@ enum class MovelErrorCode : int32_t
 };
 
 /**
- * @brief 笛卡尔直线运动服务服务器类
+ * @brief 笛卡尔直线运动服务服务器类 (已废弃 — @deprecated)
+ *
+ * 替代方案: 直接使用 MoveGroupInterface::computeCartesianPath()（MoveIt2 标准 API）。
+ * 拉花模块已迁移至 latte_backend (MoveIt2 标准管线)，此服务无实现且无调用方。
+ *
+ * 保留头文件仅用于 ivg_interfaces 接口兼容性说明。
+ *
  * 与 RViz2 中勾选「使用笛卡尔空间规划执行」行为一致，通过 move_group 的 GetCartesianPath 服务计算直线路径并执行
  */
 class MovelServer : public rclcpp::Node
@@ -58,11 +64,11 @@ private:
   std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
   std::shared_ptr<moveit::planning_interface::PlanningSceneInterface> planning_scene_interface_;
 
-  rclcpp::Service<demo_interface::srv::Movel>::SharedPtr movel_service_;
+  rclcpp::Service<ivg_interfaces::srv::Movel>::SharedPtr movel_service_;
 
   void movelCallback(
-    const std::shared_ptr<demo_interface::srv::Movel::Request> req,
-    std::shared_ptr<demo_interface::srv::Movel::Response> res);
+    const std::shared_ptr<ivg_interfaces::srv::Movel::Request> req,
+    std::shared_ptr<ivg_interfaces::srv::Movel::Response> res);
 
   bool movel(
     const geometry_msgs::msg::Pose& target_pose,

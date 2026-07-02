@@ -1,0 +1,51 @@
+{
+  "name": "foxglove-sdk",
+  "private": true,
+  "packageManager": "yarn@4.12.0",
+  "resolutions": {
+    "minimatch": "^10.2.3",
+    "serialize-javascript": "^7.0.5"
+  },
+  "workspaces": [
+    "typescript/*",
+    "playground",
+    "python/foxglove-sdk/notebook-frontend"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "bump-sdk-version": "ts-node ./scripts/bumpSdkVersion.ts",
+    "clean": "ts-node ./scripts/generate.ts --clean",
+    "generate": "ts-node ./scripts/generate.ts",
+    "lint:ci": "eslint .",
+    "lint": "eslint --fix .",
+    "run-python-sdk-examples": "ts-node ./scripts/runPythonSdkExamples.ts --install-sdk-from-path",
+    "start-netem": "ts-node ./scripts/startNetem.ts",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@foxglove/eslint-plugin": "2.1.0",
+    "@foxglove/omgidl-parser": "^0.2.0",
+    "@foxglove/rosmsg": "^5.0.0",
+    "@foxglove/tsconfig": "2.0.0",
+    "@types/glob": "^8.1.0",
+    "@types/jest": "30.0.0",
+    "@types/node": "22.13.0",
+    "@types/semver": "^7",
+    "ajv": "^8.12.0",
+    "commander": "^10.0.0",
+    "eslint": "9.34.0",
+    "glob": "^10.5.0",
+    "globals": "^15.14.0",
+    "jest": "30.2.0",
+    "prettier": "^3.6.2",
+    "prettier-plugin-toml": "^2.0.1",
+    "protobufjs": "^7.5.6",
+    "rimraf": "^6.0.1",
+    "semver": "^7.7.1",
+    "smol-toml": "^1.4.1",
+    "ts-jest": "29.4.4",
+    "ts-node": "^10.9.2",
+    "typescript": "5.9.2",
+    "typescript-eslint": "^8.42.0"
+  }
+}

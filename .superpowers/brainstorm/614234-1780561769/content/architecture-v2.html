@@ -1,0 +1,268 @@
+<h2>Bridge 架构分层设计 v2 -- 六层架构 + 状态管理</h2>
+<p class="subtitle">参考 Foxglove Studio Provider 模式 + SWR/WebSocket 桥接 + Feature-Sliced Design 分层理念</p>
+
+<div class="mockup" style="margin-bottom:20px">
+  <div class="mockup-header">目标六层架构总览</div>
+  <div class="mockup-body" style="padding:12px;font-family:monospace;font-size:10.5px;line-height:1.3;background:#fff">
+<pre style="margin:0;white-space:pre-wrap;color:#333">
+┌──────────────────────────────────────────────────────────────┐
+│  Layer 5: 渲染 / 视图层 (View Layer)                        │
+│                                                              │
+│  页面 (HTML)         组件 (Web Components)    3D 渲染器       │
+│  ┌──────────────┐   ┌──────────────────┐   ┌──────────────┐ │
+│  │debug_panel   │   │ivg_status_bar    │   │URDF Viewer   │ │
+│  │vision_grasp  │   │pose-card         │   │PointCloud    │ │
+│  │coffee_latte  │   │joint-chart       │   │LaserScan     │ │
+│  │log_panel     │   │monitoring-coll.  │   │MarkerArray   │ │
+│  │tf_monitor    │   │bridge-selector   │   │Path          │ │
+│  │settings      │   │                    │   │               │ │
+│  └──────┬───────┘   └────────┬─────────┘   └──────┬───────┘ │
+│         │                    │                     │         │
+└─────────┼────────────────────┼─────────────────────┼─────────┘
+          │                    │                     │
+          └────────────────────┼─────────────────────┘
+                               │ subscribe(stateEvent) + dispatch(action)
+                               ▼
+┌──────────────────────────────────────────────────────────────┐
+│  Layer 4: 状态管理层 (State Management Layer)                 │
+│                                                              │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  ConnectionStore             RosDataStore             │  │
+│  │  ┌─────────────────────┐   ┌──────────────────────┐  │  │
+│  │  │ connectionStatus    │   │ 数据缓存 Map(topic→v) │  │  │
+│  │  │ activeBridge        │   │  SWR TTL 30s          │  │  │
+│  │  │ bridgeMode          │   │  LRU cap 200 topics   │  │  │
+│  │  │ bridgeStats         │   │                       │  │  │
+│  │  │ reconnectState      │   │ /joint_states         │  │  │
+│  │  │                     │   │ /robot_status         │  │  │
+│  │  │ setMode(mode)       │   │ /tool_changer_status  │  │  │
+│  │  │ connect()           │   │ /tf                   │  │  │
+│  │  │ disconnect()        │   │ /dynamic_joint_states │  │  │
+│  │  └─────────────────────┘   │ /grasp_poses_base     │  │  │
+│  │                             │ /camera/.../points    │  │  │
+│  │  ServiceStore               │ /camera/.../image_raw │  │  │
+│  │  ┌─────────────────────┐   └──────────────────────┘  │  │
+│  │  │ pendingCalls        │                              │  │
+│  │  │ lastResult          │   UIStateStore               │  │
+│  │  │ callHistory         │   ┌──────────────────────┐  │  │
+│  │  │                     │   │ selectedTopics       │  │  │
+│  │  │ callService(svc)    │   │ settings (ptSize,..) │  │  │
+│  │  └─────────────────────┘   │ panelLayout          │  │  │
+│  │                             │ bridgeMode (localSt.)│  │  │
+│  │  Events:                    └──────────────────────┘  │  │
+│  │  'connectionchange'         Events:                   │  │
+│  │  'modechange'               'data:<topic>'            │  │
+│  │  'statsupdate'              'stale:<topic>'           │  │
+│  │  'service:start/complete'   'uisettings:change'       │  │
+│  └───────────────────────────────────────────────────────┘  │
+│  实现: vanilla JS EventTarget subclass + Map + Set           │
+│  参考: Pinia Store 模式 (RVIZ-RQT-VISUAL) / Zustand API     │
+└──────────┬───────────────────────────────────────────────────┘
+           │ 依赖 RosManager 数据通道
+           ▼
+┌──────────────────────────────────────────────────────────────┐
+│  Layer 3: 统一 API 抽象层 (Unified API Layer)                │
+│                                                              │
+│  RosManager (ros.js) -- 模块级单例，唯一对外入口               │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ connect(url)        disconnect()      pause/resume   │   │
+│  │ subscribe(t,m,c)    publish(t,m,d)    callService()  │   │
+│  │ onStatusChange(cb)  onConnected(cb)   wireOnlineRec. │   │
+│  │                                                       │   │
+│  │ 内部委派 → TransportHub (单一调度入口, 无 fallback)     │   │
+│  │ 重连状态机 → 指数退避 2s→4s→8s...max 30s (最多12次)    │   │
+│  └──────────────────────────────────────────────────────┘   │
+└──────────┬───────────────────────────────────────────────────┘
+           │
+           ▼
+┌──────────────────────────────────────────────────────────────┐
+│  Layer 2: 调度 / 通信路由层 (Orchestration Layer)             │
+│                                                              │
+│  TransportHub (hub.js) -- 单一调度中心, extends EventTarget  │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ register(adapter)        setMode(mode)              │   │
+│  │   → 自动_ reconcile()    → SubRegistry.migrateAll() │   │
+│  │                                                      │   │
+│  │ TopicRouter: per-topic 路由 (LARGE_MSG→Fox, 未覆盖→Ros)│   │
+│  │ ServiceRouter: Foxglove 优先 + Rosbridge 自动回退     │   │
+│  │ PublishRouter: Foxglove CDR 优先, Rosbridge JSON 回退 │   │
+│  │ SubRegistry: 订阅迁移 "先建后拆" 零丢消息             │   │
+│  │ StatsCollector: 适配器级统计 channels/bytes/latency   │   │
+│  │                                                      │   │
+│  │ Events: 'modechange' 'bridgechange' 'stats' 'ready'  │   │
+│  └──────────────────────────────────────────────────────┘   │
+└──────────┬───────────────────────┬───────────────────────────┘
+           │                       │
+           ▼                       ▼
+┌─────────────────────┐  ┌──────────────────────────┐
+│  Layer 1: 适配器    │  │  Layer 1: 适配器          │
+│ RosbridgeAdapter    │  │ FoxgloveAdapter ★ 主通道  │
+│ (兼容回退)           │  │                          │
+│                     │  │ implements MessageAdapter │
+│ implements:         │  │                          │
+│ MessageAdapter      │  │ CDR decode → TypedMessage │
+│                     │  │ MessageReader cache (topic)│
+│ JSON 消息透传        │  │ clientPublish + services  │
+│ bridge='rosbridge'  │  │ connectionGraph + params  │
+│                     │  │ bridge='foxglove'         │
+│ 输出 → TypedMessage  │  │ 输出 → TypedMessage       │
+└──────┬──────────────┘  └─────┬────────────────────┘
+       │                       │
+       ▼                       ▼
+┌─────────────────────┐  ┌──────────────────────────┐
+│  Layer 0: 传输层    │  │  Layer 0: 传输层          │
+│ IvgTransport        │  │ FoxgloveClient            │
+│ (ROSLIB.Ros 包装)    │  │                          │
+│                     │  │ WebSocket (原生)           │
+│ rosbridge JSON      │  │ foxglove.sdk.v1 子协议    │
+│ (仅 RosbridgeAdapter │  │ JSON控制帧 + CDR数据帧    │
+│  调用, UI 不直连)    │  │ channel 注册表            │
+│                     │  │ 200ms重试补发 pending sub  │
+└─────────────────────┘  └──────────────────────────┘
+</pre>
+  </div>
+</div>
+
+<h3>状态管理层 -- 四大 Store 职责矩阵</h3>
+
+<div style="overflow-x:auto;margin-bottom:20px">
+<table style="width:100%;border-collapse:collapse;font-size:11px">
+<tr style="background:#f0f0f0">
+<th style="padding:5px;text-align:left;border:1px solid #ddd;width:14%">Store</th>
+<th style="padding:5px;text-align:left;border:1px solid #ddd;width:20%">职责</th>
+<th style="padding:5px;text-align:left;border:1px solid #ddd;width:30%">数据字段</th>
+<th style="padding:5px;text-align:left;border:1px solid #ddd;width:22%">事件</th>
+<th style="padding:5px;text-align:left;border:1px solid #ddd;width:14%">参考模式</th>
+</tr>
+<tr>
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top"><b>ConnectionStore</b></td>
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top">连接生命周期<br>Bridge 模式切换<br>重连状态</td>
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top">
+  connectionStatus: disconnected/connecting/connected/error<br>
+  activeBridge: foxglove|rosbridge|null<br>
+  bridgeMode: auto|foxglove|rosbridge<br>
+  bridgeStats: {channels,services,bytes,msgs}<br>
+  reconnectAttempts, connectedAt
+</td>
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top">
+  connectionchange<br>
+  modechange<br>
+  statsupdate
+</td>
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top">Pinia<br>useConnectionStore<br>(RVIZ-RQT-VISUAL)</td>
+</tr>
+<tr style="background:#fafafa">
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top"><b>RosDataStore</b></td>
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top">ROS 数据缓存 (SWR)<br>高频话题节流<br>最新值快照</td>
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top">
+  缓存 Map(topic → {data, ts, bridge}):<br>
+  /joint_states, /robot_status, /tf,<br>
+  /dynamic_joint_states, /grasp_poses_base,<br>
+  /image_data, /camera/*/points<br>
+  LRU cap: 200, TTL: 30s
+</td>
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top">
+  data:/topicName<br>
+  stale:/topicName
+</td>
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top">SWR stale-while-revalidate<br>Zustand subscribe()<br>Foxglove Provider</td>
+</tr>
+<tr>
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top"><b>ServiceStore</b></td>
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top">服务调用状态机<br>超时/心跳<br>执行跟踪</td>
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top">
+  pendingCalls: Map(callId→{svc,status,startAt,heartbeat})<br>
+  lastResult: Map(service→{data,ts})<br>
+  callHistory: [{service,status,durationMs}]
+</td>
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top">
+  service:start<br>
+  service:progress<br>
+  service:complete<br>
+  service:error
+</td>
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top">Redux async thunk<br>RTK Query mutation</td>
+</tr>
+<tr style="background:#fafafa">
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top"><b>UIStateStore</b></td>
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top">UI 状态持久化<br>localStorage 同步</td>
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top">
+  selectedTopics: string[]<br>
+  settings: {pointSize,fpsTarget,...}<br>
+  panelLayout: {collapsed,width}<br>
+  bridgeMode (localStorage sync)
+</td>
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top">
+  uisettings:change
+</td>
+<td style="padding:5px;border:1px solid #ddd;vertical-align:top">localStorage<br>BroadcastChannel</td>
+</tr>
+</table>
+</div>
+
+<h3>关键数据流示例</h3>
+
+<div class="mockup" style="margin-bottom:20px">
+  <div class="mockup-header">订阅数据流 (Foxglove 主通道 CDR)</div>
+  <div class="mockup-body" style="padding:10px;font-family:monospace;font-size:10.5px;line-height:1.3;background:#fff">
+<pre style="margin:0;white-space:pre-wrap;color:#333">
+Component              RosDataStore               RosManager            TransportHub          FoxgloveAdapter
+─────────              ────────────               ──────────            ────────────          ──────────────
+│ store.subscribe(        │                          │                     │                      │
+│  'data:/joint_states',  │                          │                     │                      │
+│  callback)              │                          │                     │                      │
+│────────────────────────▶│                          │                     │                      │
+│                         │ ros.subscribe(            │                     │                      │
+│                         │  '/joint_states', ...)    │                     │                      │
+│                         │─────────────────────────▶│                     │                      │
+│                         │                          │ hub.subscribe()     │                      │
+│                         │                          │────────────────────▶│                      │
+│                         │                          │                     │ TopicRouter → fox    │
+│                         │                          │                     │─────────────────────▶│
+│                         │                          │                     │                      │ subscribe(ch,t,cb)
+│                         │                          │                     │◀─────────────────────│ TypedMessage
+│                         │                          │◀────────────────────│                      │
+│                         │◀──callback(data)─────────│                     │                      │
+│                         │ set('/joint_states',data)│                     │                      │
+│                         │ dispatch('data:/joint_states')                 │                      │
+│◀──callback(data)────────│                          │                     │                      │
+│ → Three.js 更新渲染     │                          │                     │                      │
+
+
+<b>服务调用流 (Foxglove 优先 + Rosbridge 自动回退):</b>
+
+  Component → ServiceStore.callService() → RosManager.callService()
+                                              │
+                                              ▼
+                                        TransportHub
+                                              │
+                                    ┌─────────┴─────────┐
+                                    ▼                   ▼ (失败时回退)
+                              FoxgloveAdapter    RosbridgeAdapter
+                              (CDR payload)      (JSON args)
+</pre>
+  </div>
+</div>
+
+<div class="pros-cons" style="margin-top:20px">
+<div class="pros">
+<h4>相比当前架构的核心改进</h4>
+<ul>
+  <li><b>+状态管理层</b> — ConnectionStore + RosDataStore + ServiceStore + UIStateStore 四大 Store</li>
+  <li><b>SWR 缓存</b> — 每个 topic 缓存最新值 (LRU + TTL)，消费端无需管理订阅生命周期</li>
+  <li><b>服务级智能回退</b> — Foxglove CDR 优先, schema缺失/服务不可达时自动回退 rosbridge JSON</li>
+  <li><b>发布路由</b> — Foxglove clientPublish CDR 优先, rosbridge JSON 回退</li>
+  <li><b>消息分发去重</b> — RosbridgeAdapter 不再通过 ivgTransport 的 handler registry 重复分发</li>
+  <li><b>ros_connector.js 废弃</b> — 全部页面统一走 RosManager → TransportHub</li>
+</ul>
+</div>
+<div class="cons">
+<h4>需注意的约束</h4>
+<ul>
+  <li><b>纯 HTML/JS MPA</b> — 不能引入 Vue/Pinia/React/Zustand, Store 用 vanilla JS EventTarget 实现</li>
+  <li><b>渐进迁移</b> — 旧 API (ivgTransport 直连) 保留 deprecation warning, 逐步切换</li>
+  <li><b>BroadcastChannel</b> — 跨标签页状态同步需保留 (log-bus.js 已有机制)</li>
+  <li><b>全局单例 vs 页面级实例</b> — RosManager/RosDataStore 模块级单例, UIStateStore 页面级</li>
+</ul>
+</div>
+</div>

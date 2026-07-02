@@ -7,7 +7,6 @@
   <maintainer email="developer@example.com">Developer</maintainer>
   <license>MIT</license>
 
-  <buildtool_depend>ament_python</buildtool_depend>
 
   <!-- ROS2 依赖 -->
   <depend>rclpy</depend>
@@ -16,14 +15,14 @@
   <depend>sensor_msgs_py</depend>
   <depend>geometry_msgs</depend>
   <depend>cv_bridge</depend>
-  <depend>interface</depend>
-  <depend>demo_interface</depend>
-  <depend>percipio_camera_interface</depend>
+  <depend>ivg_interfaces</depend>
+  <depend>ivg_utils</depend>
 
   <!-- Python 依赖 -->
   <exec_depend>python3-opencv</exec_depend>
   <exec_depend>python3-numpy</exec_depend>
   <exec_depend>python3-flask</exec_depend>
+  <exec_depend>python3-flask-cors</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

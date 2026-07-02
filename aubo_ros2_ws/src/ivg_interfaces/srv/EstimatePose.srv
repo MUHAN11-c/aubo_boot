@@ -1,0 +1,40 @@
+# =============================================================================
+# EstimatePose.srv — 3D 姿态估计服务
+# 用途：对输入深度图像（+可选彩色图像）进行物体 3D 姿态估计，返回检测到的物体位姿、
+#       抓取/放置位置等完整信息喵~
+# 调用方：上位机任务调度节点、视觉抓取节点
+# 服务方：visual_pose_estimation 的 pose_estimation_server 节点
+# 说明：这是视觉引导抓取的核心服务，通过 GraspNet / 模板匹配等算法估计目标物体的 6D 位姿喵~
+#       支持多物体检测，返回每个检测结果的位置、置信度和对应的抓取/放置位姿喵~
+#       注意：所有返回的抓取位置坐标经过了 GraspNet Z 轴 180° 翻转修正（applyGraspZFlip180）喵~
+#       参考资料：CLAUDE.md 第 7 条（GraspNet Z 轴 180° 翻转）喵~
+# =============================================================================
+
+# ======================== 请求字段 ========================
+sensor_msgs/Image image         # 输入深度图像（必要），用于 3D 点云生成和物体位姿估计喵~
+                                # 编码类型通常为 "16UC1" 或 "32FC1"，单位：毫米（mm）喵~
+sensor_msgs/Image color_image   # 输入彩色图像（可选），用于特征检测和可视化叠加喵~
+                                # 编码类型通常为 "rgb8" 或 "bgr8"喵~
+string object_id                # 目标工件 ID，用于指定要识别的物体类型和对应的模板库喵~
+                                # 如 "coffee_cup", "milk_box" 等，需与模板库中的 ID 一致喵~
+
+---
+# ======================== 响应字段 ========================
+int32 success_num                          # 成功检测到的物体数量，0=未检测到任何目标喵~
+float64[] confidence                       # 每个检测结果的置信度，范围：[0, 1.0]，
+                                           # 值越接近 1.0 表示匹配越可靠喵~
+geometry_msgs/Point[] position             # 每个检测结果在图像坐标系中的 2D 中心点 (x, y, z)，
+                                           # 单位：像素（px），z 值为深度（mm）喵~
+ivg_interfaces/CartesianPosition[] preparation_position  # 每个检测结果对应的接近位置（笛卡尔坐标），
+                                                        # 即抓取前 TCP 应到达的准备位置（沿抓取方向偏移一定距离）喵~
+ivg_interfaces/CartesianPosition[] grab_position          # 每个检测结果对应的抓取位置（笛卡尔坐标），
+                                                        # TCP 在此位置闭合夹爪拾取物体喵~
+ivg_interfaces/CartesianPosition[] preplace_position      # 每个检测结果对应的预放置位置（笛卡尔坐标），
+                                                        # 即放置前 TCP 应到达的准备位置喵~
+ivg_interfaces/CartesianPosition[] place_position         # 每个检测结果对应的放置位置（笛卡尔坐标），
+                                                        # TCP 在此位置释放物体喵~
+string[] matched_pose_ids               # 每个检测结果对应的匹配模板姿态 ID，
+                                        # 如 "pose_1", "pose_2"，用于追溯匹配到的模板姿态喵~
+sensor_msgs/Image[] pose_image          # 每个检测结果对应的姿态可视化图像（彩色图 + 绘制的检测框/坐标系），
+                                        # 用于调试和显示喵~
+float32 processing_time_sec              # 姿态估计处理总耗时，单位：秒（s），包含预处理+特征提取+匹配时间喵~

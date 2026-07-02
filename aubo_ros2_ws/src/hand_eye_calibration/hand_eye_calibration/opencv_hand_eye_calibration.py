@@ -18,8 +18,7 @@ import json
 import time
 import os
 from datetime import datetime
-import os
-from datetime import datetime
+from ivg_utils.math import quaternion_to_rotation_matrix
 
 
 def _convert_to_json_serializable(obj):
@@ -93,26 +92,8 @@ class OpenCVHandEyeCalibration:
             print(f'[{level.upper()}] {prefix} {message}')
     
     def _quaternion_to_rotation_matrix(self, quat):
-        """
-        将四元数转换为旋转矩阵
-        quat: [x, y, z, w]
-        """
-        x, y, z, w = quat
-        
-        # 归一化四元数
-        norm = np.sqrt(x*x + y*y + z*z + w*w)
-        if norm < 1e-6:
-            return np.eye(3)
-        x, y, z, w = x/norm, y/norm, z/norm, w/norm
-        
-        # 构建旋转矩阵
-        R = np.array([
-            [1 - 2*(y*y + z*z),     2*(x*y - w*z),     2*(x*z + w*y)],
-            [    2*(x*y + w*z), 1 - 2*(x*x + z*z),     2*(y*z - w*x)],
-            [    2*(x*z - w*y),     2*(y*z + w*x), 1 - 2*(x*x + y*y)]
-        ])
-        
-        return R
+        """四元数转旋转矩阵（委托 ivg_utils.math）"""
+        return quaternion_to_rotation_matrix(quat)
     
     def _pose_to_transform_matrix(self, position, orientation_quat):
         """将位置和四元数组合成4x4齐次变换矩阵"""

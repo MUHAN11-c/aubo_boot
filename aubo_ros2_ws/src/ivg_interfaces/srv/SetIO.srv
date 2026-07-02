@@ -1,0 +1,63 @@
+# =============================================================================
+# SetIO.srv — 设置 I/O 输出服务（数字量/模拟量/工具电压）
+# 用途：设置机器人数字量输出（DIO）、模拟量输出（AIO）、标志位（Flag）或工具端供电电压喵~
+# 调用方：上位机控制节点、夹爪控制节点、Web Dashboard
+# 服务方：aubo_driver_ros2 的 robot_move_group_interface 节点（SDK setIO 封装）
+# 说明：通过 fun 字段区分操作类型，不同类型的组合约束详见下方常量定义喵~
+# =============================================================================
+
+# ======================== 常量定义 ========================
+
+# --- 引脚号映射 (pin) ---
+# 模拟量输出引脚
+int8 PIN_AOUT0 = 0    # 模拟量输出通道 0，范围 0~10V（或 0~20mA，视硬件配置而定）喵~
+int8 PIN_AOUT1 = 1    # 模拟量输出通道 1喵~
+
+# 数字量输出引脚（控制柜端）
+int8 PIN_DOUT0 = 0    # 控制柜数字输出端口 0喵~
+int8 PIN_DOUT1 = 1    # 控制柜数字输出端口 1喵~
+int8 PIN_DOUT2 = 2    # 控制柜数字输出端口 2喵~
+int8 PIN_DOUT3 = 3    # 控制柜数字输出端口 3喵~
+int8 PIN_DOUT4 = 4    # 控制柜数字输出端口 4喵~
+int8 PIN_DOUT5 = 5    # 控制柜数字输出端口 5喵~
+int8 PIN_DOUT6 = 6    # 控制柜数字输出端口 6喵~
+int8 PIN_DOUT7 = 7    # 控制柜数字输出端口 7喵~
+
+# 可配置输出引脚（可通过跳线或软件配置为数字/模拟）
+int8 PIN_CONF_OUT0 = 8   # 可配置输出端口 0喵~
+int8 PIN_CONF_OUT1 = 9   # 可配置输出端口 1喵~
+int8 PIN_CONF_OUT2 = 10  # 可配置输出端口 2喵~
+int8 PIN_CONF_OUT3 = 11  # 可配置输出端口 3喵~
+int8 PIN_CONF_OUT4 = 12  # 可配置输出端口 4喵~
+int8 PIN_CONF_OUT5 = 13  # 可配置输出端口 5喵~
+int8 PIN_CONF_OUT6 = 14  # 可配置输出端口 6喵~
+int8 PIN_CONF_OUT7 = 15  # 可配置输出端口 7喵~
+
+# 工具端数字量输出引脚
+int8 PIN_TOOL_DOUT0 = 16  # 工具端数字输出 0（通常用于气动夹爪或吸盘电磁阀控制）喵~
+int8 PIN_TOOL_DOUT1 = 17  # 工具端数字输出 1喵~
+
+# --- 功能码定义 (fun) ---
+# fun 字段的取值，决定服务行为喵~
+int8 FUN_SET_DIGITAL_OUT = 1    # 设置数字量输出：pin 指定 DIO/Conf/ToolDO 引脚，state 取值 STATE_ON(1)/STATE_OFF(0)喵~
+int8 FUN_SET_FLAG = 2           # 设置标志位：pin 指定标志位索引，state 取值 STATE_ON(1)/STATE_OFF(0)喵~
+int8 FUN_SET_ANALOG_OUT = 3     # 设置模拟量输出：pin 指定 AIO 引脚，state 为模拟量值（0~10 表示电压，单位 V）喵~
+int8 FUN_SET_TOOL_VOLTAGE = 4   # 设置工具端电压：pin 忽略，state 使用 STATE_TOOL_VOLTAGE_* 常量喵~
+
+# --- 数字量/标志位状态定义 (state) ---
+int8 STATE_OFF = 0              # 数字量输出低电平 / 标志位清除喵~
+int8 STATE_ON = 1               # 数字量输出高电平 / 标志位置位喵~
+
+# --- 工具电压值定义 (state, 配合 FUN_SET_TOOL_VOLTAGE) ---
+int8 STATE_TOOL_VOLTAGE_0V = 0   # 工具端供电 0V（关闭输出）喵~
+int8 STATE_TOOL_VOLTAGE_12V = 12 # 工具端供电 12V（适用大多数夹爪/传感器）喵~
+int8 STATE_TOOL_VOLTAGE_24V = 24 # 工具端供电 24V（适用气动阀岛/大功率工具）喵~
+
+# ======================== 请求字段 ========================
+int8 fun      # 功能码：FUN_SET_DIGITAL_OUT / FUN_SET_FLAG / FUN_SET_ANALOG_OUT / FUN_SET_TOOL_VOLTAGE喵~
+int8 pin      # 目标引脚号：使用 PIN_* 常量定义的值喵~
+float32 state  # 目标状态值：对于数字量为 0/1，对于模拟量为电压值（0~10V），对于工具电压使用 STATE_TOOL_VOLTAGE_*喵~
+
+---
+# ======================== 响应字段 ========================
+bool success  # 操作是否成功：true=成功，false=失败（请查看 SDK/ROS 日志获取详细原因）喵~

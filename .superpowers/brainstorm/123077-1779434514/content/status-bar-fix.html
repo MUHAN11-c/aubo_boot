@@ -1,0 +1,112 @@
+<h2>底部状态栏修正 — 加入 ROS 连接状态</h2>
+<p class="subtitle">原有 5 项 + 新增 ROS 连接 = 6 项 · rosbridge WebSocket 状态实时显示</p>
+
+<style>
+  .sb-preview {
+    background: #fff; border: 1px solid #e2e6ed; border-radius: 8px; padding: 8px 14px;
+    font-family: "Noto Sans SC", system-ui, sans-serif; font-size: 12px;
+  }
+  .sb-row {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.8rem;
+  }
+  .sb-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .sb-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .sb-dot.g { background: #16a34a; box-shadow: 0 0 5px rgba(21,128,61,0.4); }
+  .sb-dot.o { background: #a0a8b8; }
+  .sb-dot.y { background: #d97706; box-shadow: 0 0 5px rgba(180,83,9,0.4); }
+  .sb-dot.r { background: #dc2626; box-shadow: 0 0 5px rgba(220,38,38,0.4); }
+  .sb-label { color: #8b95a6; font-weight: 500; font-size: 0.78rem; }
+  .sb-val { color: #171b23; font-weight: 600; font-size: 0.78rem; }
+  .sb-val.real { color: #16a34a; font-weight: 700; }
+  .sb-val.sim { color: #d97706; font-weight: 700; }
+  .sb-spacer { flex: 1; }
+
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .compare h3 { font-size: 12px; margin: 0 0 8px; }
+</style>
+
+<div class="compare">
+  <div>
+    <h3 style="color:#dc2626;">旧状态栏 (5项)</h3>
+    <div class="sb-preview">
+      <div class="sb-row">
+        <div class="sb-item"><span class="sb-dot g"></span><span class="sb-label">在线</span><span class="sb-val">在线</span></div>
+        <div class="sb-item"><span class="sb-dot g"></span><span class="sb-label">使能</span><span class="sb-val">已使能</span></div>
+        <div class="sb-item"><span class="sb-dot o"></span><span class="sb-label">运动</span><span class="sb-val">静止</span></div>
+        <div class="sb-item"><span class="sb-dot g"></span><span class="sb-label">规划</span><span class="sb-val">空闲</span></div>
+        <span class="sb-spacer"></span>
+        <div class="sb-item"><span class="sb-dot y"></span><span class="sb-label">模式</span><span class="sb-val sim">仿真</span></div>
+      </div>
+    </div>
+  </div>
+  <div>
+    <h3 style="color:#16a34a;">新状态栏 (6项) — 新增 ROS 连接</h3>
+    <div class="sb-preview" style="border-left: 3px solid #2563eb;">
+      <div class="sb-row">
+        <div class="sb-item" style="background:rgba(37,99,235,0.04);padding:3px 8px;border-radius:14px;border:1px solid rgba(37,99,235,0.12);">
+          <span class="sb-dot g"></span>
+          <span class="sb-label">ROS</span>
+          <span class="sb-val real">已连接</span>
+        </div>
+        <div class="sb-item"><span class="sb-dot g"></span><span class="sb-label">在线</span><span class="sb-val">在线</span></div>
+        <div class="sb-item"><span class="sb-dot g"></span><span class="sb-label">使能</span><span class="sb-val">已使能</span></div>
+        <div class="sb-item"><span class="sb-dot o"></span><span class="sb-label">运动</span><span class="sb-val">静止</span></div>
+        <div class="sb-item"><span class="sb-dot g"></span><span class="sb-label">规划</span><span class="sb-val">空闲</span></div>
+        <span class="sb-spacer"></span>
+        <div class="sb-item"><span class="sb-dot y"></span><span class="sb-label">模式</span><span class="sb-val sim">仿真</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px;">
+  <h3>ROS 连接三种状态</h3>
+  <div class="sb-preview" style="display:flex;flex-direction:column;gap:12px;">
+    <div class="sb-row">
+      <div class="sb-item" style="min-width:200px;">
+        <span class="sb-dot g"></span>
+        <span class="sb-label">ROS</span>
+        <span class="sb-val real">已连接</span>
+      </div>
+      <span style="font-size:10px;color:#8b95a6;">rosbridge WebSocket 已建立，话题订阅正常</span>
+    </div>
+    <div class="sb-row">
+      <div class="sb-item" style="min-width:200px;">
+        <span class="sb-dot y"></span>
+        <span class="sb-label">ROS</span>
+        <span class="sb-val" style="color:#d97706;">连接中…</span>
+      </div>
+      <span style="font-size:10px;color:#8b95a6;">WebSocket 正在重连（断线自动重连中）</span>
+    </div>
+    <div class="sb-row">
+      <div class="sb-item" style="min-width:200px;">
+        <span class="sb-dot r"></span>
+        <span class="sb-label">ROS</span>
+        <span class="sb-val" style="color:#dc2626;">已断开</span>
+      </div>
+      <span style="font-size:10px;color:#8b95a6;">WebSocket 关闭，rosbridge 不可用</span>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px;">
+  <h3>数据来源</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:11px;">
+    <thead><tr style="background:#f5f6f8;"><th style="text-align:left;padding:5px 8px;">状态项</th><th style="text-align:left;padding:5px 8px;">数据源</th><th style="text-align:left;padding:5px 8px;">说明</th></tr></thead>
+    <tbody>
+      <tr style="background:#eef2ff;"><td style="padding:4px 8px;font-weight:600;">ROS</td><td style="padding:4px 8px;font-family:monospace;">ivgTransport 连接事件</td><td style="padding:4px 8px;">新增：监听 WebSocket open/close/error</td></tr>
+      <tr><td style="padding:4px 8px;">在线</td><td style="padding:4px 8px;font-family:monospace;">/aubo_driver/robot_status.is_online</td><td style="padding:4px 8px;">SDK 是否与机械臂建立 TCP 连接</td></tr>
+      <tr><td style="padding:4px 8px;">使能</td><td style="padding:4px 8px;font-family:monospace;">/aubo_driver/robot_status.enable</td><td style="padding:4px 8px;">机械臂是否上使能</td></tr>
+      <tr><td style="padding:4px 8px;">运动</td><td style="padding:4px 8px;font-family:monospace;">/aubo_driver/robot_status.in_motion</td><td style="padding:4px 8px;">机械臂是否在运动中</td></tr>
+      <tr><td style="padding:4px 8px;">规划</td><td style="padding:4px 8px;font-family:monospace;">/aubo_driver/robot_status.planning_status</td><td style="padding:4px 8px;">MoveIt 规划状态</td></tr>
+      <tr><td style="padding:4px 8px;">模式</td><td style="padding:4px 8px;font-family:monospace;">/aubo/mode</td><td style="padding:4px 8px;">真实/仿真</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div style="margin-top:16px;padding:10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:10px;">
+  <b style="color:#166534;">ivg_status_bar.js 改动</b><br>
+  <span style="font-family:monospace;font-size:9px;">
+  ITEM_ORDER 新增 'ros_connected' → buildBar() 自动渲染 → 监听 ivgTransport 控制事件更新 dot/val
+  </span>
+</div>

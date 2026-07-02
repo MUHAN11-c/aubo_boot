@@ -1,0 +1,149 @@
+<h2>Bridge 架构分层设计 v2 — 目标架构</h2>
+<p class="subtitle">Foxglove CDR 为主通道，rosbridge JSON 为兼容回退，TransportHub 为单一入口</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">当前架构 (问题)</div>
+    <div class="mockup-body" style="padding:12px;font-family:monospace;font-size:11px;line-height:1.4;background:#fff">
+<pre style="margin:0;white-space:pre-wrap;color:#333">
+┌─────────────────────────────────┐
+│     UI (多个页面各自接入)       │
+│ debug │ vision │ latte │ bar   │
+└──┬────┬──────┬────────┬────────┘
+   │    │      │        │
+   ▼    ▼      ▼        ▼
+┌────────┐ ┌──────────┐ ┌───────┐
+│ros_    │ │ros.js    │ │status │
+│conn.   │ │Transport │ │_bar   │
+│ ✗直连  │ │Hub fallbk│ │✓Hub   │
+└───┬────┘ └──┬───────┘ └──┬────┘
+    │         │            │
+    │    ┌────┘       ┌────┘
+    ▼    ▼            ▼
+┌──────────────┐  ┌──────────────┐
+│ivgTransport  │  │TransportHub  │
+│(直接操作)    │  │(setMode等)   │
+└──────────────┘  └──┬───────┬───┘
+                      │       │
+              ┌───────┘       └──────┐
+              ▼                      ▼
+      ┌──────────────┐      ┌──────────────┐
+      │RosbridgeAdap│      │FoxgloveAdap  │
+      └──────┬───────┘      └──────┬───────┘
+             │                     │
+             ▼                     ▼
+      ┌──────────────┐      ┌──────────────┐
+      │ivgTransport  │      │FoxgloveClient│
+      │(rosbridge)   │      │(foxglove.sdk)│
+      └──────────────┘      └──────────────┘
+
+❌ 多条绕过Hub的路径
+❌ ros_connector 直接操作
+❌ 切换模式后部分订阅不迁移
+</pre>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">目标架构 (分层清晰)</div>
+    <div class="mockup-body" style="padding:12px;font-family:monospace;font-size:11px;line-height:1.4;background:#fff">
+<pre style="margin:0;white-space:pre-wrap;color:#333">
+┌─────────────────────────────────────┐
+│ Layer 4: 渲染 / 业务                │
+│ 所有页面统一走 RosManager (ros.js)  │
+│ debug │ vision │ latte │ status_bar│
+└──────────────┬──────────────────────┘
+               │ 唯一入口
+               ▼
+┌─────────────────────────────────────┐
+│ Layer 3: 统一 API 抽象层            │
+│ RosManager (ros.js)                 │
+│ • 连接生命周期                      │
+│ • 重连状态机                        │
+│ • subscribe/publish/callService     │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│ Layer 2: 调度 / 通信路由层          │
+│ TransportHub (单一调度中心)          │
+│ • 适配器注册 & 健康检查              │
+│ • 模式切换 & 订阅迁移 (FIFO)        │
+│ • TopicRouter + ServiceRouter      │
+│ • 事件广播 (modechange/bridgechg)   │
+└──────┬──────────────────┬───────────┘
+       │                  │
+       ▼                  ▼
+┌─────────────┐   ┌──────────────┐
+│ Layer 1:    │   │ Layer 1:     │
+│ 适配器抽象  │   │ 适配器抽象   │
+│ RosbridgeAd │   │ FoxgloveAd   │
+│ (兼容回退)  │   │ (主通道)     │
+│→统一TypedMsg│   │→统一TypedMsg│
+└──────┬──────┘   └──────┬───────┘
+       │                 │
+       ▼                 ▼
+┌─────────────┐   ┌──────────────┐
+│ Layer 0:    │   │ Layer 0:     │
+│ 原始传输层  │   │ 原始传输层   │
+│ ROSLIB.Ros  │   │ WebSocket    │
+│ (JSON)      │   │ (CDR binary) │
+└─────────────┘   └──────────────┘
+
+✅ 所有消费者统一走 RosManager
+✅ TransportHub 是唯一调度入口
+✅ ros_connector 迁移至 RosManager
+✅ 切换模式后所有订阅完整迁移
+</pre>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:24px">五层架构职责矩阵</h3>
+
+<div style="overflow-x:auto">
+<table style="width:100%;border-collapse:collapse;font-size:12px">
+<tr style="background:#f0f0f0">
+<th style="padding:6px;text-align:left;border:1px solid #ddd;width:10%">层</th>
+<th style="padding:6px;text-align:left;border:1px solid #ddd;width:18%">模块</th>
+<th style="padding:6px;text-align:left;border:1px solid #ddd;width:32%">职责</th>
+<th style="padding:6px;text-align:left;border:1px solid #ddd;width:20%">依赖</th>
+<th style="padding:6px;text-align:left;border:1px solid #ddd;width:20%">对外接口</th>
+</tr>
+<tr>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top"><b>L4 渲染/业务</b></td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">各页面 + 组件<br>3D渲染 + UI交互</td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">URDF/点云/激光可视化<br>调试面板、抓取/拉花控制<br>日志面板、状态栏展示</td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">→ L3 RosManager</td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">—</td>
+</tr>
+<tr style="background:#fafafa">
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top"><b>L3 统一API</b></td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">RosManager<br>(ros.js)</td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">连接生命周期管理<br>回调注册 & 内部分发<br>页面 pause/resume<br>指数退避重连状态机</td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">→ L2 TransportHub</td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">connect/disconnect<br>subscribe/unsubscribe<br>publish<br>callService<br>onStatusChange/onConnected</td>
+</tr>
+<tr>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top"><b>L2 通信路由</b></td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">TransportHub<br>TopicRouter<br>ServiceRouter<br>SubRegistry</td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">适配器注册/健康检查<br>BridgeMode 切换+迁移<br>话题/服务/消息级路由<br>EventTarget 事件广播</td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">→ L1 MessageAdapter</td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">register/unregister<br>setMode (auto/foxglove/rosbridge)<br>subscribe/publish/callService<br>getStats</td>
+</tr>
+<tr style="background:#fafafa">
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top"><b>L1 适配器</b></td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">FoxgloveAdapter<br>RosbridgeAdapter<br>(implements MessageAdapter)</td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">协议转换 CDR↔JSON<br>消息编解码 (MessageReader/Writer)<br>统一 TypedMessage 格式输出<br>能力声明 (capabilities)</td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">→ L0 FoxgloveClient<br>→ L0 IvgTransport</td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">MessageAdapter 接口<br>connect/disconnect<br>subscribe/unsubscribe<br>publish/callService<br>onMessage/onStatusChange</td>
+</tr>
+<tr>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top"><b>L0 传输</b></td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">FoxgloveClient<br>IvgTransport</td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">WebSocket 连接管理<br>二进制帧解析 (CDR opcode)<br>JSON 控制帧处理<br>CDR 底层编解码</td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">—</td>
+<td style="padding:6px;border:1px solid #ddd;vertical-align:top">connect/disconnect<br>subscribe/unsubscribe<br>publish (JSON/CDR)<br>callService</td>
+</tr>
+</table>
+</div>

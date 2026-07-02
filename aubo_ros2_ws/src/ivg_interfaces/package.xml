@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>ivg_interfaces</name>
+  <version>1.0.0</version>
+  <description>
+    IVG2.0 统一自定义接口包 — 集中管理项目中所有自定义 ROS 2 消息、服务定义喵~
+    涵盖：机械臂驱动状态、运动控制、IO 操作、相机控制、工具快换、
+    视觉位姿估计、GraspNet 抓取、系统监控等完整接口集合喵~
+  </description>
+  <maintainer email="wangxiaoyun@iscas.ac.cn">muhan11</maintainer>
+  <license>Apache License 2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>rosidl_default_generators</buildtool_depend>
+
+  <!-- ROS 2 标准依赖 -->
+  <depend>builtin_interfaces</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>trajectory_msgs</depend>
+  <depend>sensor_msgs</depend>
+
+  <exec_depend>rosidl_default_runtime</exec_depend>
+
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

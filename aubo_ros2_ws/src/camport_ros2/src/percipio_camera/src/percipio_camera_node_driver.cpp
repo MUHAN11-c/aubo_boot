@@ -89,7 +89,7 @@ void PercipioCameraNodeDriver::onCameraEventCallback(PercipioDevice* Handle, TY_
 }
 
 bool PercipioCameraNodeDriver::initializeDevice(const TY_DEVICE_BASE_INFO& device) {
-    percipio_device = std::make_shared<PercipioDevice>(device.iface.id, device.id);
+    percipio_device = std::make_shared<PercipioDevice>(device.iface.id, device.id, device.netInfo.ip);
     if(!percipio_device->isAlive()) 
         return false;
 

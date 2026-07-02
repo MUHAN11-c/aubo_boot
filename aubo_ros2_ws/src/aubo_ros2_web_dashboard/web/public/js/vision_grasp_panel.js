@@ -16,6 +16,7 @@
  */
 import { ivgPorts } from './ivg_runtime.js';
 import { ivgTransport } from './ivg_transport.js';
+import { ros } from './core/ros.js';
 import * as ROSLIB from 'roslib';
 import * as ROS3D from 'ros3d';
 import { createDomCache } from './core/dom_cache.js';
@@ -23,11 +24,15 @@ import { IvgRos3dView3dSession } from './view3d/session.js';
 import { createVisionSettingsController } from './vision_grasp/ui_settings.js';
 import { createVisionUrdfPanel } from './vision_grasp/urdf_panel.js';
 import { createProjectionOverlayController } from './vision_grasp/projection_overlay.js';
-import { createJointChartController } from './vision_grasp/joint_chart.js';
+import { createJointChartController } from './components/joint-chart.js';
 import { createVisionServiceActions } from './vision_grasp/services.js';
 import { createVisionUiBinder } from './vision_grasp/ui_binder.js';
 import { bindVisionSubscriptions } from './vision_grasp/subscription_binder.js';
 import { createVisionModeController } from './vision_grasp/mode_controller.js';
+import { canonicalRosTopic, rosMsgArrayField } from './core/utils.js';
+import { createFoxgloveImageRenderer } from './view3d/foxglove_image.js';
+import { logBus } from './core/log-bus.js';
+import { createMonitoringCollapse } from './components/monitoring-collapse.js';
 import {
 	VISION_SETTINGS_DEFAULTS,
 	VISION_ALL_SETTING_IDS,
@@ -43,22 +48,18 @@ import {
 	robotPoseHtmlIsRenderable,
 	formatRobotPoseHtml,
 	formatFinalGraspPoseHtml
-} from './vision_grasp/pose_card.js';
+} from './components/pose-card.js';
 
 (() => {
 	if (!ROSLIB || !ROS3D || !IvgRos3dView3dSession) {
 		throw new Error('vision_grasp_panel.js requires ROSLIB/ROS3D and IvgRos3dView3dSession');
 	}
-	const rosReconnect = ivgPorts.createRosReconnectState();
-	const ROS_RECONNECT_MAX = 12;
-	let connectInFlight = false;
 	const PAGE_STREAM_SUFFIX = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 	const subs = {};
 	/** 左栏 URDF：独立 3D 会话控制器，避免与控制面 WS 生命周期互相干扰。 */
 	const visionUrdfPanel =
 		typeof createVisionUrdfPanel === 'function'
 			? createVisionUrdfPanel({
-				ports: ivgPorts,
 				SessionCtor: IvgRos3dView3dSession,
 				documentRef: document
 			})
@@ -74,9 +75,6 @@ import {
 	const SETTINGS_DEFAULTS = VISION_SETTINGS_DEFAULTS;
 	/** v3：含 TF 与按钮服务名；v2 仅订阅话题 */
 	const TOPIC_STORAGE_KEY = 'ivg_vision_grasp_topics_v3';
-	const MONITORING_COLLAPSED_KEY = 'ivg_vision_monitoring_collapsed';
-	let monitoringBundleMinRaf = 0;
-	let monitoringPoseResizeObserver = null;
 	let pageRealtimePaused = false;
 	/** AI/GraspNet：左图与投影底图用单帧 JPEG；抓取话题到达后防抖再各刷一帧，避免 MJPEG 卡顿 */
 	let graspColorSnapTimer = null;
@@ -97,6 +95,16 @@ import {
 		maxSamples: 280,
 		lineColors: ['#2563eb', '#16a34a', '#d97706', '#db2777', '#7c3aed', '#0d9488']
 	});
+	/** 监控区折叠组件（共享，替代原来 ~80 行重复代码）喵~ */
+	const monitoringCollapse = createMonitoringCollapse({ getById: $, jointChart });
+
+	// Foxglove CDR 图像渲染 (替代 web_video_server HTTP MJPEG)
+	var foxgloveColorImage = createFoxgloveImageRenderer({
+		canvasId: 'result-foxglove-canvas',
+		topic: SETTINGS_DEFAULTS['topic-color'],
+		onFrame: function(_canvas, w, h) { scheduleProjectionDraw(); }
+	});
+
 	const serviceActions = createVisionServiceActions({
 		transport: ivgTransport,
 		log: logSvc,
@@ -123,8 +131,7 @@ import {
 	const modeController = createVisionModeController({
 		getById: $,
 		setResultPanelMode,
-		isConnected: () => ivgTransport.isConnected(),
-		startSubscriptions
+		scheduleProjectionDraw
 	});
 
 	/*
@@ -138,11 +145,7 @@ import {
 	 * - 订阅与服务：unsubscribeAll … callGripperSwap
 	 */
 
-	function normalizeIvgTopic(t) {
-		const s = String(t || '').trim();
-		if (!s) return '';
-		return s.startsWith('/') ? s : `/${s}`;
-	}
+	const normalizeIvgTopic = canonicalRosTopic;
 
 	function buildPageStreamId(prefix) {
 		return `${prefix}_${PAGE_STREAM_SUFFIX}`;
@@ -202,39 +205,16 @@ import {
 	function suspendRealtimeForBackground() {
 		if (pageRealtimePaused) return;
 		pageRealtimePaused = true;
-		ivgPorts.clearRosReconnectTimer(rosReconnect);
-		rosReconnect.attempts = 0;
 		unsubscribeAll();
-		ivgTransport.close();
+		ros.pause();
 		setConnStatus('页面后台已暂停', null);
 	}
 
 	function resumeRealtimeFromForeground() {
 		if (!pageRealtimePaused) return;
 		pageRealtimePaused = false;
+		ros.resume();
 		connect();
-	}
-
-	/**
-	 * JointState 等：rosbridge / 部分序列化为普通数组，也可能为 { data: [...] } 或类数组。
-	 * @param {object} msg
-	 * @param {string} key
-	 * @returns {unknown[]}
-	 */
-	function rosMsgArrayField(msg, key) {
-		if (!msg || typeof msg !== 'object') return [];
-		const v = msg[key];
-		if (v == null) return [];
-		if (Array.isArray(v)) return v;
-		if (typeof v === 'object' && Array.isArray(v.data)) return v.data;
-		if (typeof v === 'object' && typeof v.length === 'number') {
-			try {
-				return Array.prototype.slice.call(v);
-			} catch (e) {
-				return [];
-			}
-		}
-		return [];
 	}
 
 	/** 上一次成功渲染的末端位姿 HTML（静止或单帧缺字段时沿用，避免闪回「等待数据」） */
@@ -323,7 +303,7 @@ import {
 	}
 
 	function startVisionUrdf3d() {
-		if (visionUrdfPanel) visionUrdfPanel.start($);
+		if (visionUrdfPanel) visionUrdfPanel.start($, ivgTransport.ros);
 	}
 
 	function setResultPanelMode(mode) {
@@ -372,24 +352,8 @@ import {
 	}
 
 	function refreshAiGraspnetColorImages(reason) {
-		const graspnetMode = !!($('mode-graspnet') && $('mode-graspnet').checked);
-		if (!graspnetMode) return;
-		const colorTopic = ($('topic-color') && $('topic-color').value.trim()) || SETTINGS_DEFAULTS['topic-color'];
-		const snapFn =
-			typeof ivgTransport.cameraSnapshotUrl === 'function'
-				? (topic, sid) => ivgTransport.cameraSnapshotUrl(topic, sid)
-				: (topic, sid) => ivgTransport.cameraStreamUrl(topic, sid);
-		const ts = Date.now();
-		const camMjpeg = $('cam-mjpeg');
-		const sidCam = `${buildPageStreamId('vision_color')}_${reason}_${ts}`;
-		const sidProj = `${buildPageStreamId('vision_projection')}_${reason}_${ts}`;
-		if (camMjpeg && !camMjpeg.hidden) {
-			setAiColorSnapshotImg(camMjpeg, snapFn(colorTopic, sidCam), colorTopic, buildPageStreamId('vision_color'));
-		}
-		const resultImageEl = $('result-mjpeg');
-		if (resultImageEl && !resultImageEl.hidden) {
-			setAiColorSnapshotImg(resultImageEl, snapFn(colorTopic, sidProj), colorTopic, buildPageStreamId('vision_projection'));
-		}
+		// 彩色图像已迁移到 foxglove CDR (foxglove_image.js)，实时推送无需手动快照刷新喵~
+		// 旧 MJPEG 快照逻辑 (cameraSnapshotUrl/cameraStreamUrl) 已在 ivg_transport.js 迁移中移除
 	}
 
 	function scheduleGraspColorSnapshotRefresh() {
@@ -402,15 +366,18 @@ import {
 		}, GRASP_COLOR_SNAP_DEBOUNCE_MS);
 	}
 
-	function unsubscribeAll() {
+	function unsubscribeAll(skipTopicUnsub) {
+		if (foxgloveColorImage) foxgloveColorImage.stop();
 		stopVisionUrdf3d();
 		if (graspColorSnapTimer) {
 			clearTimeout(graspColorSnapTimer);
 			graspColorSnapTimer = null;
 		}
 		robotPoseCache.value = '';
-		ivgTransport.clearRosHandlers();
-		ivgTransport.unsubscribeAll();
+		ivgTransport.clearRosHandlersByOwner('vision_grasp');
+		if (!skipTopicUnsub) {
+			ivgTransport.unsubscribeAll();
+		}
 		Object.keys(subs).forEach(k => {
 			subs[k] = null;
 		});
@@ -419,10 +386,12 @@ import {
 		resetJointChart();
 	}
 
-	/** 按输入框话题名建立全部订阅；connect 成功时调用 */
+	/** 按输入框话题名建立全部订阅；connect 成功时调用。
+	 *  跳过 topic 级 unsubscribeAll，避免销毁状态栏等系统组件的订阅喵~ */
 	function startSubscriptions() {
-		unsubscribeAll();
+		unsubscribeAll(true);
 		if (!ivgTransport.isConnected() || pageRealtimePaused || pageShouldPauseRealtime()) return;
+		if (foxgloveColorImage && !foxgloveColorImage.isActive) foxgloveColorImage.start();
 		bindVisionSubscriptions({
 			transport: ivgTransport,
 			getById: $,
@@ -446,74 +415,98 @@ import {
 			robotPoseCache,
 			topicTypeMap: VISION_TOPIC_TYPE_MAP
 		});
+		// 重新订阅 /tool_changer_status（unsubscribeAll 清除了初始订阅，必须重建）喵~
+		_toolSubDone = true;  // 接管订阅，阻止旧重试循环
+		try {
+			ivgTransport.subscribe({ topic: '/tool_changer_status', msgType: 'ivg_interfaces/msg/ToolChangerStatus', maxHz: 5 });
+			ivgTransport.onRosJson('/tool_changer_status', _onToolStatusMsg, 'vision_grasp');
+		} catch (_e) { logBus.addLog('warn', 'topic', '/tool_changer_status 重订阅失败: ' + (_e.message || _e)); }
 	}
 
 	function logSvc(msg) {
-		const el = $('svc-log');
-		if (el) el.textContent = `${new Date().toLocaleTimeString()} ${msg}`;
+		// 转发到统一日志总线，由 setupVisionLogDisplay() 渲染到 #svc-log
+		const ts = new Date().toLocaleTimeString();
+		const isErr = msg.indexOf('错误') !== -1 || msg.indexOf('失败') !== -1;
+		logBus.addLog(isErr ? 'error' : 'info', 'service', msg, { module: 'vision_grasp' }, 'vision_grasp');
 	}
 
-	/** 连接 ivg_web_serve 控制面 WebSocket；成功后 startSubscriptions */
-	function connect() {
-		if (connectInFlight) return;
-		if (pageShouldPauseRealtime()) {
-			pageRealtimePaused = true;
-			setConnStatus('页面后台已暂停', null);
-			return;
+	// ── 视觉抓取操作日志显示 ──────────────────────────────────────────────────
+	function setupVisionLogDisplay() {
+		const host = $('svc-log');
+		if (!host) return;
+
+		// 把纯 div 改造为结构化日志框（不改 HTML 布局）
+		host.innerHTML = '';
+		host.className = 'svc-log svc-log--structured';
+
+		const head = document.createElement('div');
+		head.className = 'svc-log__head';
+		head.innerHTML = '<span class="svc-log__title">操作日志</span>';
+
+		const clearBtn = document.createElement('button');
+		clearBtn.type = 'button';
+		clearBtn.className = 'svc-log__clear';
+		clearBtn.textContent = '清空';
+		head.appendChild(clearBtn);
+
+		const body = document.createElement('div');
+		body.className = 'svc-log__body';
+
+		host.appendChild(head);
+		host.appendChild(body);
+
+		const MAX_LINES = 150;
+
+		function _timeStr() {
+			return new Date().toLocaleTimeString('zh-CN', { hour12: false });
 		}
-		connectInFlight = true;
-		pageRealtimePaused = false;
-		ivgPorts.clearRosReconnectTimer(rosReconnect);
-		const myGen = ivgPorts.bumpRosReconnectGen(rosReconnect);
-		setConnStatus('正在连接…', null);
-		ivgTransport.close();
-		void (async () => {
-			try {
-				await ivgTransport.loadRuntime();
-				await ivgTransport.connectControl();
-				if (myGen !== rosReconnect.gen) return;
-				rosReconnect.attempts = 0;
-				ivgPorts.clearRosReconnectTimer(rosReconnect);
-				ivgTransport.clearControlJsonHandlers();
-				ivgTransport.onControlJson(o => {
-					if (!o || typeof o !== 'object') return;
-					if (o.op === 'error') {
-						logSvc(o.message != null ? String(o.message) : '通信错误');
-						setConnStatus('已连接但发生通信错误，准备重连…', false);
-					}
-					if (o.op === 'close') {
-						setConnStatus('连接已断开，准备重连…', false);
-						unsubscribeAll();
-						ivgPorts.scheduleRosReconnect(rosReconnect, connect, {
-							maxAttempts: ROS_RECONNECT_MAX,
-							onSchedule(delayMs, attempt, max) {
-								setConnStatus(`已断开：${Math.round(delayMs / 1000)}s 后自动重连（${attempt}/${max}）`, false);
-							},
-							onExhausted() {
-								setConnStatus('已断开（已达自动重连上限，请刷新页面）', false);
-							}
-						});
-					}
-				});
-				setConnStatus('已连接', true);
-				startSubscriptions();
-			} catch (e) {
-				if (myGen !== rosReconnect.gen) return;
-				setConnStatus('连接错误', false);
-				unsubscribeAll();
-				ivgPorts.scheduleRosReconnect(rosReconnect, connect, {
-					maxAttempts: ROS_RECONNECT_MAX,
-					onSchedule(delayMs, attempt, max) {
-						setConnStatus(`已断开：${Math.round(delayMs / 1000)}s 后自动重连（${attempt}/${max}）`, false);
-					},
-					onExhausted() {
-						setConnStatus('已断开（已达自动重连上限，请刷新页面）', false);
-					}
-				});
-			} finally {
-				connectInFlight = false;
+
+		function _phaseBadge(phase) {
+			if (!phase) return '';
+			var label = phase === 'in_progress' ? '进行中' :
+			            phase === 'completed' ? '完成' :
+			            phase === 'failed' ? '失败' : phase === 'start' ? '开始' :
+			            phase === 'blocked' ? '阻塞' : phase === 'skipped' ? '跳过' :
+			            phase === 'stop' ? '停止' : phase === 'home' ? '归零' : '';
+			return '<span class="svc-log-line__phase svc-log-line__phase--' + phase + '">' + (label || phase) + '</span>';
+		}
+
+		logBus.onLog(function (entry) {
+			if (!entry || !entry.meta || entry.meta.module !== 'vision_grasp') return;
+
+			var line = document.createElement('div');
+			var levelCls = '';
+			if (entry.level === 'error') levelCls = ' svc-log-line--error';
+			else if (entry.level === 'warn') levelCls = ' svc-log-line--warn';
+			if (entry.meta && entry.meta.success === true) levelCls += ' svc-log-line--ok';
+			if (entry.meta && entry.meta.success === false) levelCls += ' svc-log-line--error';
+
+			line.className = 'svc-log-line' + levelCls;
+
+			var timeHtml = '<span class="svc-log-line__time">' + _timeStr() + '</span>';
+			var badgeHtml = _phaseBadge(entry.meta?.phase);
+			var msgHtml = '<span class="svc-log-line__msg">' +
+				(entry.msg || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+				'</span>';
+
+			line.innerHTML = timeHtml + badgeHtml + msgHtml;
+			body.appendChild(line);
+
+			while (body.children.length > MAX_LINES) {
+				body.removeChild(body.firstChild);
 			}
-		})();
+			body.scrollTop = body.scrollHeight;
+		});
+
+		clearBtn.onclick = function () {
+			body.innerHTML = '';
+		};
+	}
+
+	/** 连接/重连 — 统一委托 ros.js 喵~ */
+	function connect() {
+		pageRealtimePaused = pageShouldPauseRealtime();
+		ros.connect();
 	}
 
 	/** 按抓取方式切换：控制区 + 右侧状态（VPE / GraspNet 候选二选一）；末端位姿与夹爪快换始终显示 */
@@ -521,89 +514,236 @@ import {
 		modeController.syncModeUi();
 	}
 
-	function scheduleSyncMonitoringBundleMinHeight() {
-		if (monitoringBundleMinRaf) return;
-		monitoringBundleMinRaf = requestAnimationFrame(() => {
-			monitoringBundleMinRaf = 0;
-			syncMonitoringBundleMinHeight();
+	// 监控区折叠/展开 → 改用共享组件 monitoring-collapse.js 喵~
+	// scheduleSyncMonitoringBundleMinHeight 已委托给 monitoringCollapse.scheduleSyncMinHeight()
+
+	// ═══════════════════════════════════════════════════════════════
+	// 夹爪快换状态桥接 — UI 状态栏 + 按钮状态 + 初始化面板 + localStorage
+	// 三层初始化策略:
+	//   1. localStorage → 立即占位 UI
+	//   2. /get_current_tool (3s 超时) → 查询后端当前工具
+	//   3. /tool_changer_status 订阅 → 实时更新
+	//   4. 8s 后仍未检测到 → 显示手动选择面板
+	// ═══════════════════════════════════════════════════════════════
+	const LS_TOOL_KEY = 'ivg_last_tool_id';
+	const TOOL_NAMES = { gripper0: '气动夹爪 φ40', gripper1: '电动夹爪 A', gripper2: '电动夹爪 φ60' };
+	var _toolSwapping = false;
+	var _initDone = false;    // 初始化是否已结束（收到 topic 或超时后置 true）
+	var _initTimer = null;    // 8s 超时定时器
+	var _toolSubDone = false; // 防 _subscribeToolStatus 与 startSubscriptions 重复订阅
+
+	function _hideInitBanner() {
+		var banner = $('tool-init-banner');
+		if (banner) banner.hidden = true;
+	}
+
+	function _showInitBanner() {
+		if (_initDone) return;
+		var banner = $('tool-init-banner');
+		if (banner) banner.hidden = false;
+	}
+
+	function _finalizeInit() {
+		_initDone = true;
+		if (_initTimer) { clearTimeout(_initTimer); _initTimer = null; }
+	}
+
+	function _updateToolStatusUI(toolId, connected) {
+		var led = $('tool-status-led');
+		var label = $('tool-status-label');
+		var params = $('tool-status-params');
+		var name = TOOL_NAMES[toolId] || toolId || '';
+
+		if (led) {
+			led.classList.remove('connected', 'loading');
+			if (_toolSwapping) led.classList.add('loading');
+			else if (connected) led.classList.add('connected');
+		}
+		if (label) label.textContent = _toolSwapping ? ('切换中: ' + (name || toolId || '...')) : (name || toolId || '未安装工具');
+		if (params) params.textContent = toolId || '';
+	}
+
+	function _updateGripperButtons(currentId, swapping) {
+		var btns = document.querySelectorAll('.gripper-btn');
+		btns.forEach(function (btn) {
+			var tool = btn.getAttribute('data-tool');
+			btn.classList.remove('active', 'swapping');
+			btn.disabled = false;
+			if (swapping && tool === swapping) {
+				// 目标工具 → swapping 动画 + 禁用
+				btn.classList.add('swapping'); btn.disabled = true;
+			} else if (swapping && currentId && tool === currentId) {
+				// 源工具 → 保持 active 标记 + 禁用（防止误点击）
+				btn.classList.add('active'); btn.disabled = true;
+			} else if (!swapping && currentId && tool === currentId) {
+				// 正常状态 → active + 禁用
+				btn.classList.add('active'); btn.disabled = true;
+			}
 		});
 	}
 
-	/**
-	 * 写入 --ivg-monitoring-bundle-min-px（右列位姿卡 scrollHeight），供底边栏最小高度使用。
-	 * 与 PC / iPad 无关：是否采用该变量仅由 vision_grasp_panel.css 的 @media 决定，避免 JS 按视口分叉。
-	 */
-	function syncMonitoringBundleMinHeight() {
-		const section = document.getElementById('layout-monitoring-section');
-		const bundle = document.getElementById('layout-monitoring-bundle');
-		const poseCol = bundle && bundle.querySelector('.layout-monitoring-pose-col');
-		if (!bundle || !poseCol) return;
-
-		if (!section || section.classList.contains('is-monitoring-collapsed')) {
-			bundle.style.removeProperty('--ivg-monitoring-bundle-min-px');
-			return;
+	function _onToolStatusMsg(msg) {
+		if (!msg) return;
+		var toolId = String(msg.tool_id || '');
+		var connected = msg.is_connected !== false;
+		var hasTool = connected && toolId;
+		// 后端确认有工具 → 信任硬件，更新 localStorage 和下拉框
+		// 后端无工具 → 保留用户手动设置，不覆盖 localStorage 喵~
+		if (hasTool) {
+			if (typeof serviceActions.setCurrentToolId === 'function') serviceActions.setCurrentToolId(toolId);
+			try { localStorage.setItem(LS_TOOL_KEY, toolId); } catch (e) {}
+			var sel = $('init-tool-select');
+			if (sel) { try { sel.value = toolId; } catch (e) {} }
 		}
-
-		const intrinsic = Math.ceil(poseCol.scrollHeight);
-		const floorPx = 260;
-		bundle.style.setProperty('--ivg-monitoring-bundle-min-px', `${Math.max(floorPx, intrinsic)}px`);
-	}
-
-	function bindMonitoringBundleMinHeightSync() {
-		const bundle = document.getElementById('layout-monitoring-bundle');
-		const poseCol = bundle && bundle.querySelector('.layout-monitoring-pose-col');
-		if (!poseCol) return;
-
-		if (typeof ResizeObserver !== 'undefined') {
-			if (monitoringPoseResizeObserver) monitoringPoseResizeObserver.disconnect();
-			monitoringPoseResizeObserver = new ResizeObserver(() => scheduleSyncMonitoringBundleMinHeight());
-			monitoringPoseResizeObserver.observe(poseCol);
-		}
-		window.addEventListener('resize', scheduleSyncMonitoringBundleMinHeight);
-		if (document.fonts && typeof document.fonts.ready !== 'undefined' && document.fonts.ready.then) {
-			void document.fonts.ready.then(() => scheduleSyncMonitoringBundleMinHeight());
+		// 有效工具 ID：后端有工具 → 信任硬件，否则保留用户手动设置喵~
+		var effectiveId = hasTool ? toolId : (
+			typeof serviceActions.getCurrentToolId === 'function' ? serviceActions.getCurrentToolId() : ''
+		);
+		// 快换进行中时不重置 _toolSwapping（防止中间态"无工具"消息打断 UI）喵~
+		var inFlight = typeof serviceActions.isSwapInFlight === 'function' && serviceActions.isSwapInFlight();
+		if (!inFlight) { _toolSwapping = false; }
+		// 用有效工具更新全部 UI，避免后端空消息冲掉用户手动设置喵~
+		_updateToolStatusUI(effectiveId, hasTool ? connected : !!effectiveId);
+		_updateGripperButtons(effectiveId, null);
+		// 后端确认工具已连接 → 隐藏初始化面板 + 清除手动设定标记
+		if (hasTool) {
+			_finalizeInit();
+			_hideInitBanner();
+			var hint = $('tool-init-hint');
+			if (hint) hint.hidden = true;
 		}
 	}
 
-	function bindMonitoringSectionCollapse() {
-		const section = document.getElementById('layout-monitoring-section');
-		const btn = document.getElementById('btn-monitoring-toggle');
-		if (!section || !btn) return;
+	function _callGetCurrentToolAndSubscribe() {
+		// 调用 /get_current_tool（3s 超时）
+		if (typeof serviceActions.callGetCurrentTool === 'function') {
+			var getToolCalled = false;
+			var timeoutId = setTimeout(function () {
+				if (getToolCalled) return;
+				getToolCalled = true;
+			}, 3000);
+			serviceActions.callGetCurrentTool(function (err, r) {
+				if (getToolCalled) return;
+				getToolCalled = true;
+				clearTimeout(timeoutId);
+				if (!err && r && r.success && r.tool_id && r.is_connected) {
+					var toolId = String(r.tool_id);
+					try { localStorage.setItem(LS_TOOL_KEY, toolId); } catch (e) {}
+					if (typeof serviceActions.setCurrentToolId === 'function') serviceActions.setCurrentToolId(toolId);
+					_updateToolStatusUI(toolId, true);
+					_updateGripperButtons(toolId, null);
+					var sel = $('init-tool-select');
+					if (sel) { try { sel.value = toolId; } catch (e) {} }
+					var hint3 = $('tool-init-hint');
+					if (hint3) hint3.hidden = true;
+					_finalizeInit();
+					_hideInitBanner();
+				}
+			});
+		}
 
-		function applyCollapsed(collapsed) {
-			section.classList.toggle('is-monitoring-collapsed', collapsed);
-			btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-			const hint = btn.querySelector('.layout-monitoring-toggle__hint');
-			if (hint) hint.textContent = collapsed ? '展开' : '收起';
+		// 订阅 /tool_changer_status（仅初始化阶段；重连时由 startSubscriptions 负责）
+		function _subscribeToolStatus() {
+			if (_toolSubDone) return;  // startSubscriptions 已接管
+			if (!ivgTransport || !ivgTransport.isConnected()) {
+				setTimeout(_subscribeToolStatus, 1000);
+				return;
+			}
+			_toolSubDone = true;
 			try {
-				localStorage.setItem(MONITORING_COLLAPSED_KEY, collapsed ? '1' : '0');
-			} catch (_) {
-				/* ignore quota / private mode */
+				ivgTransport.subscribe({ topic: '/tool_changer_status', msgType: 'ivg_interfaces/msg/ToolChangerStatus', maxHz: 5 });
+				ivgTransport.onRosJson('/tool_changer_status', _onToolStatusMsg, 'vision_grasp');
+			} catch (e) { logBus.addLog('warn', 'topic', '/tool_changer_status 订阅失败: ' + (e.message || e)); }
+		}
+		setTimeout(_subscribeToolStatus, 500);
+
+		// 8s 总超时 → 仍未检测到已连接工具则显示手动选择面板
+		_initTimer = setTimeout(function () {
+			if (_initDone) return;
+			var currentId = '';
+			if (typeof serviceActions.getCurrentToolId === 'function') currentId = serviceActions.getCurrentToolId();
+			if (currentId) {
+				_finalizeInit();
+				return;
 			}
-			if (!collapsed) {
-				requestAnimationFrame(() => {
-					jointChart.observeResize();
-					window.dispatchEvent(new Event('resize'));
-					scheduleSyncMonitoringBundleMinHeight();
-					requestAnimationFrame(() => scheduleSyncMonitoringBundleMinHeight());
-				});
-			} else {
-				const bundleEl = document.getElementById('layout-monitoring-bundle');
-				if (bundleEl) bundleEl.style.removeProperty('--ivg-monitoring-bundle-min-px');
-			}
+			_finalizeInit();
+			_showInitBanner();
+		}, 8000);
+	}
+
+	function _initToolStatusBridge() {
+		// 第一步：localStorage → UI 占位（标记为手动设定）
+		var stored = '';
+		try { stored = localStorage.getItem(LS_TOOL_KEY) || ''; } catch (e) {}
+		if (stored) {
+			_updateToolStatusUI(stored, false);
+			_updateGripperButtons(stored, null);
+			if (typeof serviceActions.setCurrentToolId === 'function') serviceActions.setCurrentToolId(stored);
+			var si = $('init-tool-select');
+			if (si) { try { si.value = stored; } catch (e) {} }
+			var hint = $('tool-init-hint');
+			if (hint) hint.hidden = false;
 		}
 
-		let initialCollapsed = false;
-		try {
-			initialCollapsed = localStorage.getItem(MONITORING_COLLAPSED_KEY) === '1';
-		} catch (_) {
-			/* use expanded */
+		// init-tool-select → localStorage（可见配置，手动设定）
+		var sel = $('init-tool-select');
+		if (sel) {
+			sel.addEventListener('change', function () {
+				var v = sel.value || '';
+				try { localStorage.setItem(LS_TOOL_KEY, v); } catch (e) {}
+				if (typeof serviceActions.setCurrentToolId === 'function') serviceActions.setCurrentToolId(v);
+				_updateToolStatusUI(v, false);
+				_updateGripperButtons(v, null);
+				// 标记为手动设定
+				var hint = $('tool-init-hint');
+				if (hint) hint.hidden = false;
+			});
 		}
-		applyCollapsed(initialCollapsed);
 
-		btn.addEventListener('click', () => {
-			applyCollapsed(!section.classList.contains('is-monitoring-collapsed'));
-		});
+		// 按钮点击 → swapping 状态（源工具保持 active+禁用，目标显示 swapping）
+		var swapRow = document.getElementById('gripper-swap-btns');
+		if (swapRow) {
+			swapRow.addEventListener('click', function (e) {
+				var btn = e.target.closest('.gripper-btn');
+				if (!btn || btn.disabled) return;
+				var targetId = btn.getAttribute('data-tool');
+				if (!targetId) return;
+				// 防重入检查
+				if (typeof serviceActions.isSwapInFlight === 'function' && serviceActions.isSwapInFlight()) {
+					logBus.addLog('warn', 'service', '快换进行中，忽略重复点击', { module: 'vision_grasp' }, 'vision_grasp');
+					return;
+				}
+				// 同工具跳过
+				var currentId = typeof serviceActions.getCurrentToolId === 'function' ? serviceActions.getCurrentToolId() : '';
+				if (currentId === targetId) return;
+				_toolSwapping = true;
+				_updateToolStatusUI(targetId, false);
+				_updateGripperButtons(currentId, targetId);  // currentId=源工具保持禁用
+			}, true);
+		}
+
+		// 手动初始化面板按钮 → localStorage + UI 更新 + 隐藏面板
+		var initActions = $('tool-init-actions');
+		if (initActions) {
+			initActions.addEventListener('click', function (e) {
+				var btn = e.target.closest('.tool-init-btn');
+				if (!btn) return;
+				var toolId = btn.getAttribute('data-init-tool') || '';
+				try { localStorage.setItem(LS_TOOL_KEY, toolId); } catch (e) {}
+				if (typeof serviceActions.setCurrentToolId === 'function') serviceActions.setCurrentToolId(toolId);
+				_updateToolStatusUI(toolId, false);
+				_updateGripperButtons(toolId || '', null);
+				var si = $('init-tool-select');
+				if (si) { try { si.value = toolId || ''; } catch (e) {} }
+				var hint2 = $('tool-init-hint');
+				if (hint2) hint2.hidden = false;
+				_hideInitBanner();
+				logBus.addLog('info', 'system', '手动选择初始工具: ' + (toolId || '无工具'), { module: 'vision_grasp',  source: 'gripper_init', tool_id: toolId }, 'vision_grasp');
+			});
+		}
+
+		// 启动三层初始化
+		_callGetCurrentToolAndSubscribe();
 	}
 
 	document.addEventListener('DOMContentLoaded', () => {
@@ -612,10 +752,9 @@ import {
 			loadTopicsFromStorage();
 
 			jointChart.observeResize();
-			bindMonitoringSectionCollapse();
-			bindMonitoringBundleMinHeightSync();
-			scheduleSyncMonitoringBundleMinHeight();
-			requestAnimationFrame(() => scheduleSyncMonitoringBundleMinHeight());
+			monitoringCollapse.bindEvents();
+			monitoringCollapse.scheduleSyncMinHeight();
+			requestAnimationFrame(() => monitoringCollapse.scheduleSyncMinHeight());
 			window.addEventListener('resize', scheduleProjectionDraw);
 			uiBinder.bindResultImageLoad();
 			document.addEventListener('visibilitychange', () => {
@@ -632,9 +771,32 @@ import {
 			// --- 抓取区服务按钮 ---
 			serviceActions.bindControlButtons();
 
+			// --- 操作日志显示 ---
+			setupVisionLogDisplay();
+
+			// --- 夹爪 swap 完成回调（服务响应后立即重置 UI，不等 topic） ---
+			if (typeof serviceActions.onGripperSwapDone === 'function') {
+				serviceActions.onGripperSwapDone(function (_err) {
+					_toolSwapping = false;
+					var curId = typeof serviceActions.getCurrentToolId === 'function' ? serviceActions.getCurrentToolId() : '';
+					_updateToolStatusUI(curId, false);
+					_updateGripperButtons(curId, null);
+				});
+			}
+
+			// --- 夹爪状态桥接 ---
+			_initToolStatusBridge();
+
 			uiBinder.bindTopicSettingsUi();
 
-			ivgPorts.wireOnlineRosReconnect(rosReconnect, connect);
+			// 统一使用 ros.js 管理连接生命周期喵~
+			ros.onStatusChange(setConnStatus);
+			ros.onConnected(function () {
+				logBus.addLog('info', 'rosbridge', 'rosbridge 已连接，启动订阅');
+				startSubscriptions();
+			});
+			ros.onCleanup(function () { unsubscribeAll(); });
+			ros.wireOnlineReconnect();
 			connect();
 		})();
 	});

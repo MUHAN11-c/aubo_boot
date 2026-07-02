@@ -1,21 +1,28 @@
-/**
- * 3D 会话编排层：
- * - 负责把补丁、TF、雷达、Marker、URDF 装配成一个页面可复用的 viewer 会话。
- * - 继续对外保留 `IvgRos3dView3dSession`，让 vision_grasp 无需知道内部拆分细节。
- */
-
+// session.js — IvgRos3dView3dSession: 3D viewer, TF, URDF, markers
 import * as ROSLIB from 'roslib';
 import * as ROS3D from 'ros3d';
+import { logBus } from '../core/log-bus.js';
 import { ivgRos3dEmbeddedObject3DClass, installIvgRos3dEmbeddedThreeSafeAddPatch } from './patches.js';
 import { IvgRos3dTfClient } from './tf_clients.js';
 import { removeView3dUrdfHint, showView3dUrdfHint } from './hints.js';
+
+// RGB packed float → {r,g,b} (0-1), 复用 TypedArray 避免 per-point 分配
+var _rgbF32 = new Float32Array(1);
+var _rgbU32 = new Uint32Array(_rgbF32.buffer);
+function _unpackRgbColor(floatVal) {
+  _rgbF32[0] = floatVal;
+  var packed = _rgbU32[0];
+  return {
+    r: (packed & 0xFF) / 255,
+    g: ((packed >> 8) & 0xFF) / 255,
+    b: ((packed >> 16) & 0xFF) / 255,
+  };
+}
 
 const IVG_VIEW3D_DESKTOP_PIXEL_RATIO_MAX = 1.5; // 桌面像素比最大值
 const IVG_VIEW3D_AXES_SCALE = 0.35; // 坐标轴缩放比例
 const IVG_VIEW3D_GRID_COLOR = '#cbd5e1'; // 网格颜色
 const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
-
-	/** 单页 3D 会话：持有 ros3d Viewer、TF、雷达/Marker/URDF 引用与延迟启动定时器。 */
 	function IvgRos3dView3dSession(ros, $, opts) {
 		this.ros = ros;
 		this.$ = $;
@@ -29,6 +36,9 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 		this.ros3dLaserScan = null;
 		this.ros3dMarkerClient = null;
 		this.ros3dMarkerRoot = null;
+		this._pcViewer = null;
+		this._pcSubCancel = null;
+		this._pcTfSubscribed = false;
 		this.ros3dAxes = null;
 		this.ros3dGrid = null;
 		this.ros3dUrdfRoot = null;
@@ -42,20 +52,15 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 		this._urdfCameraPrimed = false;
 		this.ros3dUrdfClient = null;
 	}
-
-	/** 触控环境固定 1；桌面限制 DPR 上限以减轻 GPU 负载。 */
 	function ivgComputeViewerPixelRatio(globalObj, coarsePointer) {
 		if (coarsePointer) return 1;
 		const dpr = Number(globalObj && globalObj.devicePixelRatio) || 1;
 		return Math.max(1, Math.min(dpr, IVG_VIEW3D_DESKTOP_PIXEL_RATIO_MAX));
 	}
-
-	/** 将坐标轴辅助对象缩放到统一常量，避免默认尺寸过大遮挡场景。 */
 	function ivgApplyAxesScale(axesObj) {
 		if (!axesObj || !axesObj.scale || typeof axesObj.scale.set !== 'function') return;
 		axesObj.scale.set(IVG_VIEW3D_AXES_SCALE, IVG_VIEW3D_AXES_SCALE, IVG_VIEW3D_AXES_SCALE);
 	}
-
 	IvgRos3dView3dSession.prototype._focusViewerOnObject = function (obj3d, opts) {
 		if (!this.viewer3d || !this.viewer3d.camera || !obj3d) return;
 		const options = opts || {};
@@ -92,23 +97,25 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 			if (typeof this.viewer3d.cameraControls.update === 'function') this.viewer3d.cameraControls.update();
 		}
 	};
-
 	IvgRos3dView3dSession.prototype._defer = function (fn, delayMs) {
 		const tid = setTimeout(() => {
 			this._deferredStartTimers = this._deferredStartTimers.filter(x => x !== tid);
 			try {
 				fn();
 			} catch (e) {
-				console.error('[ivg/view3d] deferred stage failed:', e);
+				logBus.addLog('error', 'view3d', 'deferred stage failed: ' + (e.message || e));
 			}
 		}, delayMs);
 		this._deferredStartTimers.push(tid);
 	};
-
 	IvgRos3dView3dSession.prototype._startMarkersStage = function (mk) {
-		if (this._markersStarted || !mk) return;
+		console.log('[marker] _startMarkersStage: mk=', mk, '_markersStarted=', this._markersStarted, 'OC=', !!this._Obj3DClass);
+		if (this._markersStarted || !mk) {
+			console.log('[marker] SKIP: started=' + this._markersStarted + ' mk=' + mk);
+			return;
+		}
 		const OC = this._Obj3DClass || null;
-		if (!OC) return;
+		if (!OC) { console.log('[marker] SKIP: no Obj3DClass'); return; }
 		this._markersStarted = true;
 		this.ros3dMarkerRoot = new OC();
 		this.viewer3d.addObject(this.ros3dMarkerRoot);
@@ -124,17 +131,107 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 		};
 		if (MarkerCtor === ROS3D.MarkerClient) markerOpts.lifetime = 0;
 		this.ros3dMarkerClient = new MarkerCtor(markerOpts);
+			console.log('[marker] client created: ', MarkerCtor === ROS3D.MarkerArrayClient ? 'MarkerArrayClient' : 'MarkerClient', 'topic=', mk, 'rosConnected=', !!(this.ros && this.ros.isConnected), 'tfClient=', !!this.tfClient3d);
+			// 追踪 marker 消息
+			var self = this;
+			var markerMsgCount = 0;
+			var lastMarkerLog = 0;
+			this._markerSub = this.ros3dMarkerClient.rootObject;
+			// 监听 scene 子对象变化来推断 marker 是否到达
+			var checkMarker = setInterval(function() {
+				if (!self.ros3dMarkerRoot) { clearInterval(checkMarker); return; }
+				var n = self.ros3dMarkerRoot.children ? self.ros3dMarkerRoot.children.length : 0;
+				if (n > 0 && Date.now() - lastMarkerLog > 2000) {
+					lastMarkerLog = Date.now();
+					console.log('[marker] children in root: ', n);
+				}
+			}, 1000);
+		console.log('[marker] client created: ', MarkerCtor === ROS3D.MarkerArrayClient ? 'MarkerArrayClient' : 'MarkerClient', 'topic=', mk, 'rosConnected=', !!(this.ros && this.ros.isConnected), 'tfClient=', !!this.tfClient3d);
 		this._markerFocusTimer = setInterval(() => {
 			if (!this.ros3dMarkerRoot) return;
 			if (this.ros3dMarkerRoot.children && this.ros3dMarkerRoot.children.length > 0 && !this._markerCameraPrimed) {
-				this._focusViewerOnObject(this.ros3dMarkerRoot, { distanceFactor: 3.2, minDistance: 0.72 });
+				// 仅当 URDF 未加载时才聚焦 marker；否则保持 URDF 视角不变喵~
+				if (!this._urdfCameraPrimed) {
+					this._focusViewerOnObject(this.ros3dMarkerRoot, { distanceFactor: 4.5, minDistance: 1.2 });
+				}
 				this._markerCameraPrimed = true;
 				clearInterval(this._markerFocusTimer);
 				this._markerFocusTimer = null;
 			}
 		}, 250);
 	};
+	IvgRos3dView3dSession.prototype._startPointCloudStage = function (pcTopic) {
+		if (this._pcViewer || !pcTopic) return;
+		var self = this;
+		try {
+			// 使用 ros3djs ROS3D.Points (内置正确的 PointsMaterial.vertexColors 管线)
+			var ros3dPoints = new ROS3D.Points({
+				tfClient: this.tfClient3d,
+				rootObject: this.viewer3d.scene,
+				max_pts: 300000,
+				material: { size: 0.006, sizeAttenuation: true, depthTest: true, depthWrite: true },
+				colorsrc: 'rgb',
+			});
+			this._pcViewer = ros3dPoints;
+			var setupDone = false;
 
+			// 点云始终走 foxglove CDR, 绕过 TopicRouter 模式路由
+			var hub = globalThis.__transportHub;
+			var foxAdapter = hub && hub._adapters && hub._adapters.get('foxglove');
+			if (foxAdapter && foxAdapter.isConnected) {
+				var result = foxAdapter.subscribe(pcTopic, 'sensor_msgs/msg/PointCloud2', function(typedMsg) {
+					try {
+						var pc2 = typedMsg.data;
+						if (!pc2 || !pc2.data) return;
+
+						// 首次: 初始化 ros3dPoints (创建 SceneNode + TF 订阅 + geometry)
+						if (!setupDone) {
+							setupDone = true;
+							ros3dPoints.colormap = _unpackRgbColor;
+							ros3dPoints.setup(pc2.header.frame_id, pc2.point_step, pc2.fields);
+						}
+
+						// 解码点云数据 → ros3dPoints 的 position/color buffer
+						var n = Math.min(pc2.height * pc2.width, ros3dPoints.max_pts);
+						var rawData = pc2.data;
+						var pointStep = pc2.point_step;
+						var littleEndian = !pc2.is_bigendian;
+						var xOff = ros3dPoints.fields.x.offset;
+						var yOff = ros3dPoints.fields.y.offset;
+						var zOff = ros3dPoints.fields.z.offset;
+
+						var dv = new DataView(rawData.buffer, rawData.byteOffset, rawData.byteLength);
+						var base, color;
+						for (var i = 0; i < n; i++) {
+							base = i * pointStep;
+							ros3dPoints.positions.array[3*i    ] = dv.getFloat32(base + xOff, littleEndian);
+							ros3dPoints.positions.array[3*i + 1] = dv.getFloat32(base + yOff, littleEndian);
+							ros3dPoints.positions.array[3*i + 2] = dv.getFloat32(base + zOff, littleEndian);
+							if (ros3dPoints.colors) {
+								color = ros3dPoints.colormap(ros3dPoints.getColor(dv, base, littleEndian));
+								ros3dPoints.colors.array[3*i    ] = color.r;
+								ros3dPoints.colors.array[3*i + 1] = color.g;
+								ros3dPoints.colors.array[3*i + 2] = color.b;
+							}
+						}
+						ros3dPoints.update(n);
+					} catch (_) {}
+				});
+				self._pcSubCancel = (result && typeof result.cancel === 'function') ? result.cancel : null;
+				console.log('[session] pointcloud subscribed via foxglove CDR, topic:', pcTopic);
+			} else {
+				// foxglove 尚未就绪 → 1s 后重试（连接建立通常 < 2s）
+				console.warn('[session] foxglove adapter not available, retry in 1s');
+				clearTimeout(self._pcRetryTimer);
+				self._pcRetryTimer = setTimeout(function() {
+					self._pcViewer = null;  // 重置才能重新进入
+					self._startPointCloudStage(pcTopic);
+				}, 1000);
+			}
+		} catch (e) {
+			console.error('[session] pointcloud_viewer failed:', e.message || e, e.stack);
+		}
+	};
 	IvgRos3dView3dSession.prototype._startUrdfStage = function ($, host, fixedFrame) {
 		if (this._urdfStarted) return;
 		const OC = this._Obj3DClass || null;
@@ -148,6 +245,7 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 			if (rawParam.includes(':')) pName = rawParam;
 			else pName = `/robot_state_publisher:${rawParam.replace(/^\/+/, '')}`;
 		}
+		this._urdfParamName = pName;
 		const meshBase = `${globalThis.location.origin}/api/ivg/robot-mesh/`;
 		showView3dUrdfHint(host, '<strong>机械臂 URDF</strong>：使用 ROS3D.UrdfClient 官方链路加载中。');
 		try {
@@ -159,7 +257,7 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 				param: pName
 			});
 		} catch (err0) {
-			console.error('URDF:', err0);
+			logBus.addLog('error', 'view3d', 'URDF 加载失败: ' + (err0.message || err0));
 			showView3dUrdfHint(
 				host,
 				`<strong>机械臂加载失败</strong>：${String(err0)}。请检查参数 <code>${pName}</code>、TF 固定坐标 <code>${fixedFrame}</code> 与网格资源路径。`
@@ -181,7 +279,6 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 					selfUrdf.ros3dUrdfRoot.updateMatrixWorld(true);
 					selfUrdf._focusViewerOnObject(selfUrdf.ros3dUrdfRoot, { distanceFactor: 2.8, minDistance: 0.48 });
 				} catch (e0) {
-					/* ignore */
 				}
 				selfUrdf._urdfCameraPrimed = true;
 				clearInterval(selfUrdf._urdfFocusTimer);
@@ -195,20 +292,126 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 					try {
 						selfUrdf._focusViewerOnObject(selfUrdf.ros3dUrdfRoot, { distanceFactor: 3, minDistance: 0.55 });
 					} catch (e1) {
-						/* ignore */
 					}
 				}
 			}
 		}, 250);
 	};
-
-	IvgRos3dView3dSession.prototype.stop = function () {
+	IvgRos3dView3dSession.prototype._countMeshes = function (root) {
+		var count = 0;
+		root.traverse(function (n) { if (n.isMesh) count++; });
+		return count;
+	};
+	IvgRos3dView3dSession.prototype.reloadUrdf = function () {
+		if (!this._urdfStarted) return;
+		var self = this;
+		var OC = this._Obj3DClass || null;
+		if (!OC) return;
+		// 后台创建新模型，旧模型保持可见，避免画面闪烁
+		var newRoot = new OC();
+		var oldRoot = this.ros3dUrdfRoot;
+		var oldClient = this.ros3dUrdfClient;
+		if (this._urdfFocusTimer) {
+			clearInterval(this._urdfFocusTimer);
+			this._urdfFocusTimer = null;
+		}
+		// 统计旧模型中的 Mesh 数量作为加载完成目标
+		var targetMeshCount = this._countMeshes(oldRoot) || 6;
+		var meshBase = (typeof globalThis !== 'undefined' && globalThis.location)
+			? globalThis.location.origin + '/api/ivg/robot-mesh/'
+			: '/api/ivg/robot-mesh/';
+		var newClient = new ROS3D.UrdfClient({
+			ros: this.ros,
+			tfClient: this.tfClient3d,
+			path: meshBase,
+			rootObject: newRoot,
+			param: this._urdfParamName
+		});
+		// 递归劫持 newRoot 树中所有 Object3D.add，
+		// 每个 STL mesh 异步加载完成 → meshRes.add(mesh) → 计数
+		var meshLoaded = 0;
+		var ready = false;
+		function _wrapAdd(node) {
+			if (node.__ivgHijacked) return;
+			node.__ivgHijacked = true;
+			var orig = node.add.bind(node);
+			node.add = function (obj) {
+				var r = orig(obj);
+				if (!ready && obj && obj.traverse) {
+					obj.traverse(function (n) {
+						if (n.isMesh) meshLoaded++;
+						_wrapAdd(n);
+					});
+				}
+				if (!ready && meshLoaded >= targetMeshCount) {
+					ready = true;
+					// 先加新模型 → 再移旧模型 → 保证场景从不空白
+					if (self.viewer3d && newRoot) {
+						try { self.viewer3d.addObject(newRoot); } catch (e) {}
+					}
+					if (self.viewer3d && oldRoot) {
+						try { self.viewer3d.scene.remove(oldRoot); } catch (e) {}
+					}
+					if (oldClient) {
+						try {
+							var u = oldClient.urdf;
+							if (u && typeof u.unsubscribeTf === 'function') u.unsubscribeTf();
+						} catch (e) {}
+					}
+					self.ros3dUrdfRoot = newRoot;
+					self.ros3dUrdfClient = newClient;
+				}
+				return r;
+			};
+		}
+		// 劫持 newRoot.add → 当 UrdfClient getParam 回调触发
+		// newRoot.add(urdfObj) 时，递归劫持整棵 Urdf 子树
+		{
+			var _origNewRootAdd = newRoot.add.bind(newRoot);
+			newRoot.add = function (obj) {
+				var r = _origNewRootAdd(obj);
+				if (obj && obj.traverse) {
+					obj.traverse(function (n) { _wrapAdd(n); });
+				}
+				return r;
+			};
+		}
+		// 安全兜底: 2s 后若仍未就绪则强制 swap
+		setTimeout(function () {
+			if (!ready && self.viewer3d && newRoot) {
+				ready = true;
+				if (self.viewer3d && newRoot) {
+					try { self.viewer3d.addObject(newRoot); } catch (e) {}
+				}
+				if (self.viewer3d && oldRoot) {
+					try { self.viewer3d.scene.remove(oldRoot); } catch (e) {}
+				}
+				if (oldClient) {
+					try {
+						var u = oldClient.urdf;
+						if (u && typeof u.unsubscribeTf === 'function') u.unsubscribeTf();
+					} catch (e) {}
+				}
+				self.ros3dUrdfRoot = newRoot;
+				self.ros3dUrdfClient = newClient;
+			}
+		}, 2000);			};
+IvgRos3dView3dSession.prototype.stop = function () {
 		this._deferredStartTimers.forEach(t => clearTimeout(t));
 		this._deferredStartTimers.length = 0;
 		this._markersStarted = false;
 		this._urdfStarted = false;
 		this._markerCameraPrimed = false;
 		this._urdfCameraPrimed = false;
+		// 清理工具 mesh
+		if (this._toolMeshTimer) {
+			clearInterval(this._toolMeshTimer);
+			this._toolMeshTimer = null;
+		}
+		if (this._toolMeshData && this._toolMeshData.meshGroup) {
+			try { this.viewer3d.scene.remove(this._toolMeshData.meshGroup); } catch (e) { /* */ }
+		}
+		this._toolMeshData = null;
 		if (this._urdfFocusTimer) {
 			clearInterval(this._urdfFocusTimer);
 			this._urdfFocusTimer = null;
@@ -217,21 +420,44 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 			clearInterval(this._markerFocusTimer);
 			this._markerFocusTimer = null;
 		}
+		var _rosAlive = this.ros && this.ros.isConnected;
 		if (this.ros3dUrdfClient) {
-			try {
-				const u = this.ros3dUrdfClient.urdf;
-				if (u && typeof u.unsubscribeTf === 'function') u.unsubscribeTf();
-			} catch (eUrdf) {
-				/* ignore */
+			if (_rosAlive) {
+				try {
+					const u = this.ros3dUrdfClient.urdf;
+					if (u && typeof u.unsubscribeTf === 'function') u.unsubscribeTf();
+				} catch (eUrdf) {}
 			}
 			this.ros3dUrdfClient = null;
 		}
+		if (this._pcViewer) {
+			try {
+				if (this._pcViewer.sn && typeof this._pcViewer.sn.unsubscribeTf === 'function') {
+					this._pcViewer.sn.unsubscribeTf();
+				}
+			} catch (e) {}
+			this._pcViewer = null;
+		}
+		// 点云重试定时器清理
+		if (this._pcRetryTimer) {
+			clearTimeout(this._pcRetryTimer);
+			this._pcRetryTimer = null;
+		}
+		// 点云订阅由 TransportHub 管理，stop() 时 unsubscribe
+		if (this._pcSubCancel) {
+			try { this._pcSubCancel(); } catch (e) {}
+			this._pcSubCancel = null;
+		}
 		if (this.ros3dMarkerClient) {
-			try { this.ros3dMarkerClient.unsubscribe(); } catch (e0) { /* ignore */ }
+			if (_rosAlive) {
+				try { this.ros3dMarkerClient.unsubscribe(); } catch (e0) {}
+			}
 			this.ros3dMarkerClient = null;
 		}
 		if (this.ros3dLaserScan) {
-			try { this.ros3dLaserScan.unsubscribe(); } catch (e2) { /* ignore */ }
+			if (_rosAlive) {
+				try { this.ros3dLaserScan.unsubscribe(); } catch (e2) {}
+			}
 			this.ros3dLaserScan = null;
 		}
 		if (this.viewer3d) {
@@ -253,9 +479,8 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 					this.ros3dGrid = null;
 				}
 			} catch (e3a) {
-				/* ignore */
 			}
-			try { this.viewer3d.stop(); } catch (e4) { /* ignore */ }
+			try { this.viewer3d.stop(); } catch (e4) {  }
 			this.viewer3d = null;
 			this._Obj3DClass = null;
 		} else {
@@ -266,19 +491,83 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 			this._Obj3DClass = null;
 		}
 		if (this.tfClient3d) {
-			try { this.tfClient3d.dispose(); } catch (e3) { /* ignore */ }
+			if (_rosAlive) {
+				try { this.tfClient3d.dispose(); } catch (e3) {}
+			}
 			this.tfClient3d = null;
 		}
 		const host3 = this.$(this._view3dHostId);
 		removeView3dUrdfHint(host3);
 		if (host3) host3.innerHTML = '';
+		this.clearTrajectoryLines();
 	};
+	IvgRos3dView3dSession.prototype.addTrajectoryLine = function (waypoints, color, linewidth) {
+		if (!this.viewer3d || !this.viewer3d.scene || !waypoints || waypoints.length < 2) return;
+		var THREE = globalThis.THREE;
+		if (!THREE) { logBus.addLog('warn', 'view3d', 'addTrajectoryLine skipped: THREE not available'); return; }
+		if (!this._trajectoryLines) this._trajectoryLines = [];
+		var hex = typeof color === 'string' ? parseInt(color.replace('#', ''), 16) : (color || 0xff6b6b);
+		var pts = waypoints.map(function (wp) {
+			var pos = wp.position || wp;
+			return new THREE.Vector3(pos.x || 0, pos.y || 0, pos.z || 0);
+		});
 
+		// 主轨迹线: 始终可见 (depthTest=false, 比 URDF 模型更上层) 喵~
+		var lineGeom = new THREE.BufferGeometry().setFromPoints(pts);
+		var lineMat = new THREE.LineBasicMaterial({
+			color: hex,
+			linewidth: linewidth || 2,
+			depthTest: false,
+			depthWrite: false,
+		});
+		var line = new THREE.Line(lineGeom, lineMat);
+		line.renderOrder = 1;
+		this.viewer3d.addObject(line);
+		this._trajectoryLines.push(line);
+
+		// 采样点球体: WebGL lineWidth 被大多数 GPU 限制为 1px,
+		// 用小球体标记 waypoint 位置提高可见度 喵~
+		var STEP = Math.max(1, Math.floor(pts.length / 40));
+		var dotGeom = new THREE.SphereGeometry(0.002, 4, 4);
+		var dotMat = new THREE.MeshBasicMaterial({ color: hex, depthTest: false, depthWrite: false });
+		for (var i = 0; i < pts.length; i += STEP) {
+			var dot = new THREE.Mesh(dotGeom, dotMat);
+			dot.position.copy(pts[i]);
+			dot.renderOrder = 2;
+			this.viewer3d.addObject(dot);
+			this._trajectoryLines.push(dot);
+		}
+		// 起点/终点用大球标记
+		var markerGeom = new THREE.SphereGeometry(0.005, 8, 8);
+		var startDot = new THREE.Mesh(markerGeom, new THREE.MeshBasicMaterial({ color: 0x00ff00, depthTest: false, depthWrite: false }));
+		startDot.position.copy(pts[0]);
+		startDot.renderOrder = 3;
+		this.viewer3d.addObject(startDot);
+		this._trajectoryLines.push(startDot);
+		var endDot = new THREE.Mesh(markerGeom, new THREE.MeshBasicMaterial({ color: 0xff0000, depthTest: false, depthWrite: false }));
+		endDot.position.copy(pts[pts.length - 1]);
+		endDot.renderOrder = 3;
+		this.viewer3d.addObject(endDot);
+		this._trajectoryLines.push(endDot);
+	};
+	IvgRos3dView3dSession.prototype.clearTrajectoryLines = function () {
+		if (!this._trajectoryLines || !this.viewer3d) return;
+		var lines = this._trajectoryLines;
+		this._trajectoryLines = [];
+		for (var i = 0; i < lines.length; i++) {
+			var obj = lines[i];
+			try { this.viewer3d.scene.remove(obj); } catch (e) { /* */ }
+			if (obj.geometry) try { obj.geometry.dispose(); } catch (e) { /* */ }
+			if (obj.material) try { obj.material.dispose(); } catch (e) { /* */ }
+		}
+	};
 	IvgRos3dView3dSession.prototype.start = function () {
 		const $ = this.$;
 		const ros = this.ros;
+		const opts = this.opts;
 		const sn = (($('scan3-topic') && $('scan3-topic').value) || '').trim();
 		const mk = (($('marker3-topic') && $('marker3-topic').value) || '').trim();
+		console.log('[marker] session.start: mk=', JSON.stringify(mk), 'rosConnected=', !!(ros && ros.isConnected), 'forceUrdfOnly=', !!(opts && opts.forceUrdfOnly), 'MarkerArrayClient=', typeof ROS3D.MarkerArrayClient, 'MarkerClient=', typeof ROS3D.MarkerClient);
 		const urdfEl = $('view3d-show-urdf');
 		const wantUrdf = this.opts && this.opts.forceUrdfOnly ? true : (!urdfEl || urdfEl.checked);
 		if (!sn && !mk && !wantUrdf) {
@@ -314,7 +603,8 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 			width: w,
 			height: h,
 			antialias: !coarsePointer,
-			background: '#ffffff',
+			background: (opts && opts.background) || '#f5f3f0',
+				intensity: (opts && opts.intensity != null) ? opts.intensity : 0.85,
 			cameraPose: { x: 3, y: 3, z: 3 },
 			cameraZoomSpeed: 0.5
 		});
@@ -330,12 +620,13 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 			ivgApplyAxesScale(this.ros3dAxes);
 			this.viewer3d.addObject(this.ros3dAxes);
 		}
-		if (!grEl || grEl.checked) {
+var gridEnabled = (opts && opts.gridEnabled !== undefined) ? opts.gridEnabled : (!grEl || grEl.checked); if (gridEnabled) {
 			this.ros3dGrid = new ROS3D.Grid({ num_cells: IVG_VIEW3D_GRID_CELLS, cellSize: 1, color: IVG_VIEW3D_GRID_COLOR });
 			this.viewer3d.addObject(this.ros3dGrid);
 		}
 		let fixedFrame = (($('tf-fixed-frame') && $('tf-fixed-frame').value) || 'base_link').trim().replace(/^\/+/, '');
 		if (fixedFrame === '') fixedFrame = 'base_link';
+		this._fixedFrame = fixedFrame;
 		const tf3dOpts = (this.opts && this.opts.tf3d) || {};
 		this.tfClient3d = new IvgRos3dTfClient(ros, fixedFrame, tf3dOpts);
 		const pszEl = $('view3d-point-size');
@@ -351,20 +642,20 @@ const IVG_VIEW3D_GRID_CELLS = 10; // 网格单元格数
 				material: { size: Math.max(0.01, ptSize * 0.85), color: 0xff4444 }
 			});
 		}
-		if (mk) this._defer(() => this._startMarkersStage(mk), 1200);
+		const pc = (($('pointcloud-topic') && $('pointcloud-topic').value) || '').trim();
+		console.log('[session] pointcloud-topic =', JSON.stringify(pc), 'forceUrdfOnly:', this.opts && this.opts.forceUrdfOnly);
+		if (pc) this._defer(() => this._startPointCloudStage(pc), 600);
+		if (mk) this._defer(function() { console.log('[marker] deferred 1200ms fired'); this._startMarkersStage(mk); }.bind(this), 1200);
 		if (wantUrdf && typeof ROS3D.UrdfClient === 'function') {
 			const urdfDelayMs = this.opts && this.opts.forceUrdfOnly ? 0 : 3500;
 			this._defer(() => this._startUrdfStage($, host, fixedFrame), urdfDelayMs);
 		}
 	};
-
 const IVGView3DSession = {
 	IvgRos3dView3dSession
 };
-
 globalThis.IVGView3DSession = IVGView3DSession;
 globalThis.IvgRos3dView3dSession = IvgRos3dView3dSession;
-
 export {
 	ivgComputeViewerPixelRatio,
 	ivgApplyAxesScale,

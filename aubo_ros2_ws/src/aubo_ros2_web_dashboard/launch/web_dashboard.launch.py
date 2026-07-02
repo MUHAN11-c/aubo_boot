@@ -1,187 +1,132 @@
+"""IVG Web Dashboard — ROS 2 启动文件。
+
+启动流程:
+  1. rosbridge (Tornado WebSocket) ← ROS 消息总线桥
+  2. tf2_web_republisher           ← TF 坐标 Web 发布
+  3. FastAPI 网关 (uvicorn)        ← 统一入口：代理 + 静态文件
+  注: foxglove_bridge 已独立启动 — 见 start_aubo_new_driver.sh 喵~
+
+参考: MoveIt2 demo.launch.py / rosbridge 官方 launch 模式
+
+配置流: config/defaults.yaml → launch args 覆盖 → CLI 参数 → 网关进程
 """
-启动 IVG Web 栈，通信栈为 RobotWebTools **rosbridge_suite**（默认 **统一代理**，非「浏览器直连 rosbridge」）：
-
-  IncludeLaunchDescription(rosbridge_server/rosbridge_websocket_launch.xml)
-    → 本机 Tornado WebSocket（rosbridge + rosapi）；浏览器侧默认经 FastAPI **同源** ``/ws/rosbridge`` 转发到 ``rosbridge_host:rosbridge_port``（与 ``IVG_ROSBRIDGE_*`` 一致）。
-  tf2_web_republisher → 网页 TF。
-  web_video_server（可选）→ 本机 MJPEG/snapshot；浏览器侧默认经 **同源** ``/api/ivg/proxy/web-video/…`` 转发（``IVG_WEB_VIDEO_*`` 指网关访问上游的地址）。
-  FastAPI + Uvicorn 子进程：``--directory`` 指向已安装的 ``share/.../web/public``，提供静态页、``GET /health``、``GET /api/v1/runtime``。
-
-参数：默认打开「服务 / 动作在新线程执行」，并提高 max_message_size。
-参见 https://github.com/RobotWebTools/rosbridge_suite
-"""
-
 import os
+import sys
 
-from ament_index_python.packages import get_package_prefix
-from ament_index_python.packages import get_package_share_directory  # 获取包的共享目录
-from launch import LaunchDescription #启动文件
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, SetEnvironmentVariable #启动动作
-from launch.conditions import IfCondition  # 启动条件
-from launch.launch_description_sources import FrontendLaunchDescriptionSource #启动描述源
-from launch.substitutions import LaunchConfiguration #启动配置
-from launch_ros.actions import Node #启动节点
+from ament_index_python.packages import get_package_prefix, get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import (DeclareLaunchArgument, ExecuteProcess,
+                             IncludeLaunchDescription, SetEnvironmentVariable)
+from launch.launch_description_sources import FrontendLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.actions import Node
+from launch_ros.substitutions import FindPackageShare
+
+# 确保能 import 本包的 config 模块
+_pkg_root = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+if _pkg_root not in sys.path:
+    sys.path.insert(0, _pkg_root)
+
+from aubo_ros2_web_dashboard import config as cfg  # noqa: E402
 
 
 def generate_launch_description():
-    """
-    组装 IVG Web 栈 LaunchDescription：rosbridge、tf2_web_republisher、可选 web_video_server、
-    FastAPI 静态网关子进程；并向网关子进程注入 ``IVG_ROSBRIDGE_*`` / ``IVG_WEB_VIDEO_*``。
-    """
-    # image_transport 的 Raw 插件在 libimage_transport_plugins.so（位于 /opt/ros/.../lib，而非仅 x86_64-linux-gnu 子目录）。
-    _img_transport_lib = os.path.join(get_package_prefix('image_transport'), 'lib')
-    # 已安装 share 目录（含 web 资源）
-    pkg_share = get_package_share_directory('aubo_ros2_web_dashboard')
-    web_dir = os.path.join(pkg_share, 'web', 'public')
-    # rosbridge 订阅 demo_interface/msg/RobotStatus 时需 dlopen libdemo_interface__rosidl_typesupport_c.so；
-    # 若仅 source 了 overlay 但子进程未继承完整 LD_LIBRARY_PATH，会报
-    # ``Could not import 'rosidl_typesupport_c' for package 'demo_interface'``，前端末端位姿永远无 JSON。
-    _demo_interface_lib = os.path.join(get_package_prefix('demo_interface'), 'lib')
-    _ros_base_lib = os.path.join(get_package_prefix('rclpy'), 'lib')
-    _rosbridge_ld = os.pathsep.join([_demo_interface_lib, _ros_base_lib])
-    if os.environ.get('LD_LIBRARY_PATH'):
-        _rosbridge_ld = _rosbridge_ld + os.pathsep + os.environ['LD_LIBRARY_PATH']
-    # web_video Node 使用 additional_env 覆盖 LD_LIBRARY_PATH，需显式带上 image_transport 与上述路径。
-    _web_video_ld = _img_transport_lib + os.pathsep + _rosbridge_ld
-    rosbridge_xml = os.path.join(
-        get_package_share_directory('rosbridge_server'),
-        'launch',
-        'rosbridge_websocket_launch.xml',
-    )
+    ld = LaunchDescription()
 
-    web_host = LaunchConfiguration('web_host')  # FastAPI 静态网关绑定地址
-    web_port = LaunchConfiguration('web_port')  # 静态网关端口，如 8090
-    rosbridge_host = LaunchConfiguration('rosbridge_host')  # 网关转发 rosbridge 时的上游地址
-    rosbridge_port = LaunchConfiguration('rosbridge_port')  # 与前端 ?rosbridge_port= 一致
-    rosbridge_max_message_size = LaunchConfiguration('rosbridge_max_message_size')
-    rosbridge_call_services_in_new_thread = LaunchConfiguration('rosbridge_call_services_in_new_thread')
-    rosbridge_send_action_goals_in_new_thread = LaunchConfiguration(
-        'rosbridge_send_action_goals_in_new_thread'
-    )
-    include_web_video = LaunchConfiguration('include_web_video_server')
-    web_video_host = LaunchConfiguration('web_video_host')
-    web_video_port = LaunchConfiguration('web_video_port')
-    this_dir = os.path.dirname(os.path.realpath(__file__))
-    robotwebtools_assets_candidates = [
-        os.path.abspath(
-            os.path.join(this_dir, '..', '..', 'robotwebtools', 'runtime_js_assets')
-        ),
-        os.path.abspath(
-            os.path.join(pkg_share, '..', '..', '..', '..', 'src', 'robotwebtools', 'runtime_js_assets')
-        ),
-        os.path.abspath(
-            os.path.join(this_dir, '..', '..', 'robotwebtools', 'browser_dist')
-        ),
-        os.path.abspath(
-            os.path.join(pkg_share, '..', '..', '..', '..', 'src', 'robotwebtools', 'browser_dist')
-        ),
-    ]
-    robotwebtools_assets_default = robotwebtools_assets_candidates[0]
-    for candidate in robotwebtools_assets_candidates:
-        if os.path.isdir(candidate):
-            robotwebtools_assets_default = candidate
-            break
-    robotwebtools_assets_dir = LaunchConfiguration('robotwebtools_assets_dir')
+    # ── 路径解析 ────────────────────────────────────────────────────────
+    # 纯 HTML/JS MPA 静态文件 (web/public)
+    pkg_share_str = get_package_share_directory("aubo_ros2_web_dashboard")
+    web_dir = os.path.join(pkg_share_str, "web", "public")
 
-    return LaunchDescription(
-        [
-            DeclareLaunchArgument('web_host', default_value='0.0.0.0'),
-            DeclareLaunchArgument('web_port', default_value='8090'),
-            DeclareLaunchArgument(
-                'rosbridge_host',
-                default_value='127.0.0.1',
-                description='IVG_ROSBRIDGE_HOST：FastAPI 统一代理转发 rosbridge 时的上游主机',
-            ),
-            DeclareLaunchArgument('rosbridge_port', default_value='9090'),
-            DeclareLaunchArgument(
-                'rosbridge_max_message_size',
-                default_value='67108864',
-                description='rosbridge max JSON frame size (bytes); 大点云 JSON/CBOR 单帧；默认 64MiB',
-            ),
-            DeclareLaunchArgument(
-                'rosbridge_call_services_in_new_thread',
-                default_value='true',
-                description='rosbridge: avoid blocking websocket on long service calls',
-            ),
-            DeclareLaunchArgument(
-                'rosbridge_send_action_goals_in_new_thread',
-                default_value='true',
-                description='rosbridge: avoid blocking websocket on action goals',
-            ),
-            DeclareLaunchArgument(
-                'include_web_video_server',
-                default_value='true',
-                description='若 true 则启动 web_video_server（需已安装 ros-humble-web-video-server）',
-            ),
-            DeclareLaunchArgument(
-                'web_video_host',
-                default_value='127.0.0.1',
-                description='IVG_WEB_VIDEO_HOST：网关转发 web_video 时的上游主机',
-            ),
-            DeclareLaunchArgument(
-                'web_video_port',
-                default_value='8089',
-                description='web_video_server HTTP 端口（默认 8089，避免与 IVG 手眼 Web 常用 8080 冲突）',
-            ),
-            DeclareLaunchArgument(
-                'robotwebtools_assets_dir',
-                default_value=robotwebtools_assets_default,
-                description='IVG_ROBOTWEBTOOLS_ASSETS_DIR：RobotWebTools 资产目录（优先 src/robotwebtools/runtime_js_assets）',
-            ),
-            SetEnvironmentVariable(name='LD_LIBRARY_PATH', value=_rosbridge_ld),
-            IncludeLaunchDescription(
-                FrontendLaunchDescriptionSource(rosbridge_xml),
-                launch_arguments={
-                    'port': rosbridge_port,
-                    'max_message_size': rosbridge_max_message_size,
-                    'call_services_in_new_thread': rosbridge_call_services_in_new_thread,
-                    'send_action_goals_in_new_thread': rosbridge_send_action_goals_in_new_thread,
-                }.items(),
-            ),
-            Node(
-                package='tf2_web_republisher',
-                executable='tf2_web_republisher_node',
-                name='tf2_web_republisher',
-                output='screen',
-            ),
-            # 需已安装 image_transport（及常见 plugins）；否则日志会出现
-            # ``Unable to load plugin for transport 'image_transport/raw_sub'``，快照/MJPEG异常。
-            Node(
-                package='web_video_server',
-                executable='web_video_server',
-                name='web_video_server',
-                output='screen',
-                condition=IfCondition(include_web_video),
-                additional_env={'LD_LIBRARY_PATH': _web_video_ld},
-                parameters=[
-                    {
-                        'port': web_video_port,
-                        'address': '0.0.0.0',
-                        'server_threads': 4,
-                        'ros_threads': 2,
-                    }
-                ],
-            ),
-            ExecuteProcess(
-                cmd=[
-                    'python3',
-                    '-m',
-                    'aubo_ros2_web_dashboard.fastapi_static_gateway',
-                    web_port,
-                    '--bind',
-                    web_host,
-                    '--directory',
-                    web_dir,
-                ],
-                additional_env={
-                    # 与 launch 参数一致，供 /api/v1/runtime 与上游代理使用
-                    'IVG_ROSBRIDGE_HOST': rosbridge_host,
-                    'IVG_ROSBRIDGE_PORT': rosbridge_port,
-                    'IVG_WEB_VIDEO_HOST': web_video_host,
-                    'IVG_WEB_VIDEO_PORT': web_video_port,
-                    'IVG_ROBOTWEBTOOLS_ASSETS_DIR': robotwebtools_assets_dir,
-                },
-                output='screen',
-            ),
-        ]
-    )
+    # rosbridge launch 文件路径
+    rosbridge_launch = PathJoinSubstitution([
+        FindPackageShare("rosbridge_server"),
+        "launch", "rosbridge_websocket_launch.xml",
+    ])
+
+    # ── 动态库路径 ──────────────────────────────────────────────────────
+    demo_lib = os.path.join(get_package_prefix("ivg_interfaces"), "lib")
+    ros_lib = os.path.join(get_package_prefix("rclpy"), "lib")
+    rosbridge_ld = os.pathsep.join([demo_lib, ros_lib])
+    if os.environ.get("LD_LIBRARY_PATH"):
+        rosbridge_ld = rosbridge_ld + os.pathsep + os.environ["LD_LIBRARY_PATH"]
+
+    # ── 声明启动参数（默认值全部来自 YAML）─────────────────────────────
+    ld.add_action(DeclareLaunchArgument("web_host",
+        default_value=cfg.gateway_bind(),
+        description="网关监听地址"))
+    ld.add_action(DeclareLaunchArgument("web_port",
+        default_value=str(cfg.gateway_port()),
+        description="网关监听端口"))
+    ld.add_action(DeclareLaunchArgument("rosbridge_host",
+        default_value=cfg.rosbridge_host(),
+        description="rosbridge 上游主机"))
+    ld.add_action(DeclareLaunchArgument("rosbridge_port",
+        default_value=str(cfg.rosbridge_port()),
+        description="rosbridge 上游端口"))
+    ld.add_action(DeclareLaunchArgument("rosbridge_max_msg_size",
+        default_value=str(cfg.rosbridge_max_message_bytes()),
+        description="rosbridge 最大消息字节"))
+    ld.add_action(DeclareLaunchArgument("rosbridge_services_new_thread",
+        default_value="true",
+        description="服务调用使用新线程"))
+    ld.add_action(DeclareLaunchArgument("rosbridge_actions_new_thread",
+        default_value="true",
+        description="Action 目标使用新线程"))
+    ld.add_action(DeclareLaunchArgument("foxglove_bridge_port",
+        default_value=str(cfg.foxglove_bridge_port()),
+        description="foxglove_bridge 监听端口"))
+    # 收集 LaunchConfiguration 引用
+    lc = {
+        "web_host":              LaunchConfiguration("web_host"),
+        "web_port":              LaunchConfiguration("web_port"),
+        "rosbridge_host":        LaunchConfiguration("rosbridge_host"),
+        "rosbridge_port":        LaunchConfiguration("rosbridge_port"),
+        "rosbridge_max_msg_size": LaunchConfiguration("rosbridge_max_msg_size"),
+        "rosbridge_services_new_thread": LaunchConfiguration("rosbridge_services_new_thread"),
+        "rosbridge_actions_new_thread":  LaunchConfiguration("rosbridge_actions_new_thread"),
+        "foxglove_bridge_port":   LaunchConfiguration("foxglove_bridge_port"),
+    }
+
+    # ── LD_LIBRARY_PATH ──────────────────────────────────────────────────
+    ld.add_action(SetEnvironmentVariable("LD_LIBRARY_PATH", rosbridge_ld))
+
+    # ── 1. rosbridge (Tornado WebSocket) — 与 foxglove_bridge 并存, ROS3D/URDF 渲染兼容通道 ──
+    ld.add_action(IncludeLaunchDescription(
+        FrontendLaunchDescriptionSource(rosbridge_launch),
+        launch_arguments={
+            "port": lc["rosbridge_port"],
+            "max_message_size": lc["rosbridge_max_msg_size"],
+            "call_services_in_new_thread": lc["rosbridge_services_new_thread"],
+            "send_action_goals_in_new_thread": lc["rosbridge_actions_new_thread"],
+        }.items(),
+    ))
+
+    # ── 2. TF Web 重发布 ────────────────────────────────────────────────
+    ld.add_action(Node(
+        package="tf2_web_republisher",
+        executable="tf2_web_republisher_node",
+        name="tf2_web_republisher",
+        output="screen",
+    ))
+
+    # ── 3. foxglove_bridge 已独立启动 — 见 start_aubo_new_driver.sh 中的 [2.5] 步骤喵~
+
+    # ── 4. FastAPI 网关 — 所有配置通过 CLI 参数传递 ────────────────────
+    ld.add_action(ExecuteProcess(
+        cmd=[
+            "python3", "-m",
+            "aubo_ros2_web_dashboard.fastapi_static_gateway",
+            lc["web_port"],
+            "--bind", lc["web_host"],
+            "--directory", web_dir,
+            "--rosbridge-host", lc["rosbridge_host"],
+            "--rosbridge-port", lc["rosbridge_port"],
+            "--foxglove-bridge-port", lc["foxglove_bridge_port"],
+        ],
+        output="screen",
+        respawn=True,
+        respawn_delay=5.0,
+    ))
+
+    return ld

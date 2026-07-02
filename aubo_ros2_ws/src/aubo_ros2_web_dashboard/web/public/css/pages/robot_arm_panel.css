@@ -52,9 +52,9 @@ body.ivg-single-screen {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 48%, rgba(var(--accent-rgb), 0.06), transparent 22rem),
-    linear-gradient(180deg, rgba(var(--accent-rgb), 0.04), transparent),
-    var(--surface-robot);
+    radial-gradient(circle at 50% 48%, rgba(var(--accent-rgb), 0.14), transparent 24rem),
+    linear-gradient(180deg, rgba(255,255,255,0.02), transparent),
+    #17212b;
 }
 
 /* CSS 机械臂视口容器 */
@@ -74,13 +74,13 @@ body.ivg-single-screen {
   bottom: -18%;
   height: 46%;
   background:
-    linear-gradient(var(--line-robot) 1px, transparent 1px),
-    radial-gradient(ellipse at center, rgba(var(--accent-rgb), 0.1), transparent 62%);
+    linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px),
+    radial-gradient(ellipse at center, rgba(var(--accent-rgb), 0.2), transparent 62%);
   background-size: 100% 24px, auto;
   transform: perspective(620px) rotateX(62deg);
   transform-origin: center bottom;
-  border-top: 1px solid var(--line-robot-strong);
-  opacity: 0.55;
+  border-top: 1px solid rgba(255,255,255,0.14);
+  opacity: 0.5;
 }
 
 /* ---- 机械臂部件（CSS 构建） ---- */
@@ -92,7 +92,7 @@ body.ivg-single-screen {
   left: 50%;
   top: 50%;
   transform-origin: center;
-  filter: drop-shadow(0 18px 32px rgba(15, 23, 42, 0.12));
+  filter: drop-shadow(0 18px 32px rgba(0, 0, 0, 0.35));
 }
 
 .robot-base {
@@ -162,13 +162,13 @@ body.ivg-single-screen {
   position: absolute;
   left: 50%;
   top: 50%;
-  border: 1px dashed var(--line-robot);
+  border: 1px dashed rgba(255,255,255,0.15);
   border-radius: 50%;
   transform: translate(-50%, -50%);
 }
 
 .robot-reach-ring--near { width: 18rem; height: 18rem; }
-.robot-reach-ring--far  { width: 30rem; height: 30rem; opacity: 0.6; }
+.robot-reach-ring--far  { width: 30rem; height: 30rem; opacity: 0.55; }
 
 /* ====================================================================
  *  HUD 叠加层（毛玻璃效果卡片）

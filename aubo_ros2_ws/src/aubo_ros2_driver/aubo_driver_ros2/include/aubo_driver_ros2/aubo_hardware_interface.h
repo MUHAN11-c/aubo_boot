@@ -109,6 +109,20 @@ public:
     /** 查询是否处于 TCP2CAN 透传模式 */
     bool isInTcp2CanMode() const { return tcp2can_mode_; }
 
+    /**
+     * 停止机器人运动 —— 立即停止 RIB 缓冲中的路点执行。
+     *
+     * 在 conn_control_ (TCP2CAN 连接) 上调用:
+     *   1. 主路径: rootServiceRobotMoveControl(RobotMoveStop) → 丢弃 RIB 残留
+     *   2. 备用:   robotMoveFastStop() → 硬件急停
+     *
+     * 调用时机: handleCancel() 时、deactivate() 时、紧急停止时
+     * 线程安全: 可在 action 回调线程或主线程调用
+     *
+     * @return true 停止成功
+     */
+    bool stopMotion();
+
     // ========================================================================
     // 实时路径接口 —— 由控制循环线程调用 (read/write 热路径)
     // ========================================================================

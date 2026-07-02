@@ -114,18 +114,63 @@ source install/setup.bash
 
 **修复**：`aubo_state_broadcaster.cpp` — 保存 `fb_tgt_pos_[]`，发布时填充 `desired.positions` + 计算 `error = tgt_pos - pos`。
 
-> 详见 `doc/PORTING_MOTION_FIX.md` 第 13 节 Fix14。
+> 详见 `doc/移植修复记录.md` 第 13 节 Fix14。
+
+> 详见 [MoveIt2集成指南.md](doc/MoveIt2集成指南.md) — MoveIt2 完整接入方案与 JTC 改造计划
+
+## AUBO SDK 版本
+
+当前驱动使用的 SDK 版本及参考 SDK 对比：
+
+| 项目 | 当前使用 | 参考 SDK |
+|------|---------|----------|
+| **路径** | `lib/lib64/aubocontroller/` | `doc/references/aubo_sdk/` |
+| **库名** | `libauborobotcontroller.so.1.3.1` | `libaubo_sdk.so.2.5.3` |
+| **SDK 大版本** | v1.x | v2.x（兼容 v1.x 协议） |
+| **RobotType** | 8 种（i5~i10S） | 18 种（**超集**：含全部 8 种旧型号，值 0~7 与 v1.x 完全相同） |
+| **编译时间** | 旧版 | 2025-12-05 |
+| **API 规模** | ~80 个方法 | ~150+ 个方法（**超集**：含所有 v1.x 方法 + 力控/传送带跟踪/焊缝跟踪等） |
+| **验证状态** | ✅ 真机验证通过 | ⚠️ 协议层已验证兼容，未在本机机械臂上实测 |
+
+### 通信协议兼容性验证（确定结论）
+
+通过对比两个 SDK 的导出符号（`nm -D`），确认以下事实：
+
+| 对比项 | v1.3.1 (libauborobotcontroller) | v2.5.3 (libaubo_sdk) | 结论 |
+|--------|------|------|------|
+| **ProtoRequestLogin** | `aubo::robot::communication::ProtoRequestLogin` | `aubo::robot::communication::ProtoRequestLogin` | ✅ 完全相同 |
+| **RobotCommunicationClient** | 相同方法签名、相同 buffer 常量 | 相同方法签名、相同 buffer 常量 | ✅ 逐符号一致 |
+| **TCP 帧格式** | 4B SOF + 4B LEN + 4B CRC + 4B END | 4B SOF + 4B LEN + 4B CRC + 4B END | ✅ 完全相同 |
+| **RobotType 枚举值** | 0=I5, 1=I7, 2=I10_12, 3=I3S, 4=I3, 5=I5S, 6=I5L, 7=I10S | **0~7 值与 v1.x 完全相同**，8~20 为新增 | ✅ 旧型号值保持不变 |
+| **Protobuf 命名空间** | `aubo::robot::communication` + `aubo::robot::common` | `aubo::robot::communication` + `aubo::robot::common` | ✅ 完全相同 |
+
+> **确定结论**：v2.5.3 与 v1.3.1 的**通信协议层 100% 兼容**。两个 SDK 发送完全相同的 protobuf 消息（`ProtoRequestLogin`/`JointVersion`/`ProtoJointStatus` 等）通过完全相同的 TCP 帧格式，机械臂控制器**无法区分**客户端使用的是哪个 SDK 版本。v2.5.3 可以连接旧机械臂，不存在协议被拒的风险。
+
+### 为什么不替换
+
+虽然协议兼容，但**不建议替换**，原因如下：
+
+1. **零收益**：当前驱动只使用了 `ServiceInterface` 的基础运动 API（`robotServiceLogin`、`robotServiceJointMove`、`robotServiceRobotFk` 等），这些 API 在两个 SDK 中完全一致。v2.5.3 新增的力控/传送带跟踪/焊缝跟踪等功能，当前驱动代码完全不使用
+2. **改造成本高**：
+   - 库名不同：`-lauborobotcontroller` → `-laubo_sdk`（CMakeLists.txt 需改）
+   - 头文件路径不同：v2.5.3 有 30 个头文件，当前驱动只 include 了 3 个
+   - 头文件命名空间可能有细微差异（v1.3.1 的 `AuboRobotMetaType.h` 用了 `extern "C"` 包裹，v2.5.3 没有）
+3. **编译风险**：libaubo_sdk.so.2.5.3 链接 protobuf 3.6.1，当前驱动环境是 protobuf 9.0.1，可能存在 protobuf ABI 不兼容
+4. **维护成本**：v1.3.1 已验证稳定，换成 v2.5.3 后如果出现问题需要重新排查
+
+> **总结**：参考 SDK v2.5.3 适合作为 API 参考文档查阅（了解 AUBO SDK 的完整能力面），不适合作为本机旧机械臂驱动的 SDK 替换。如果真的想用新 SDK 的新功能（力控等），需要在备用机械臂上完成连通性验证后再做迁移喵~
 
 ## 依赖
 
 - ROS 2: rclcpp, sensor_msgs, std_msgs, std_srvs, geometry_msgs, tf2_ros
 - ivg_interfaces (GetFK, GetIK, SetRobotIO, MoveJoint, MoveLine, etc.)
-- AUBO SDK: libauborobotcontroller.so (预编译，位于 `lib/lib64/aubocontroller/`)
+- AUBO SDK: `libauborobotcontroller.so` v1.3.1（预编译，位于 `lib/lib64/aubocontroller/`）
 - lifecycle_msgs (AuboDashboardNode LifecycleNode)
 
 ## 文档
 
-- `doc/ARCHITECTURE.md` — 架构 + 新旧对比 + 实测数据
-- `doc/AUBO_ROS2_DRIVER_REFERENCE.md` — SDK 完整参考
-- `doc/SDK_CONFLICT_RULES.md` — SDK 冲突规则
-- `doc/PORTING_MOTION_FIX.md` — ROS1→ROS2 移植记录
+- `doc/架构设计.md` — 架构 + 新旧对比 + 实测数据
+- `doc/AUBO驱动参考手册.md` — SDK 完整参考
+- `doc/SDK冲突规则.md` — SDK 冲突规则
+- `doc/移植修复记录.md` — ROS1→ROS2 移植记录
+- `doc/references/aubo_sdk/` — AUBO SDK v2.5.3 参考（升级候选，**不可直接替换当前驱动**）

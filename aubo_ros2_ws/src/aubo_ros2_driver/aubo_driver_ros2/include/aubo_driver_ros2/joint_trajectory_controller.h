@@ -2,13 +2,22 @@
  * Software License Agreement (BSD License)
  * Copyright (c) 2017-2018, AUBO Robotics
  *
- * ROS2 轨迹控制器 —— 借鉴 ros2_control joint_trajectory_controller 设计。
+ * ROS2 轨迹控制器 —— 对齐 ros2_control joint_trajectory_controller 标准。
+ *
+ * 改造版本 (2026-06-30): PR1+PR2+PR3 全部落地
+ *   - PR1 安全与生命周期: stopMotion/stopAndClear, handleCancel 硬件停止,
+ *     deactivate SDK stop + abort (对齐标准 JTC PR #1517), sendLoop 互斥锁,
+ *     has_active_goal_ atomic, 死代码清理
+ *   - PR2 抢占与过渡: blendToFirstPoint (C² quintic smoothstep),
+ *     handleAccepted 抢占 (canceled) + 过渡点
+ *   - PR3 容差与错误码: readGoalTolerances (per-joint), 6 种 error_code,
+ *     withinGoalConstraints per-joint 容差
  *
  * 职责:
- *   1. 接收 FollowJointTrajectory Action 目标
+ *   1. 接收 FollowJointTrajectory Action 目标 (5 项验证: 非空/关节名/字段维度/时间戳/过期)
  *   2. 使用 5 次多项式插值生成 200Hz 轨迹点流
  *   3. 通过 HardwareInterface::writeTrajectoryPoints() 下发给机器人
- *   4. 目标容差检查和 Action 状态机管理
+ *   4. 目标容差检查 (per-joint goal_tolerances_) 和 Action 状态机管理
  *
  * SDK 模式冲突规则 (重要):
  *   - 本控制器工作在 TCP2CAN 模式下 (conn_control_ 处于透传模式)
@@ -17,16 +26,17 @@
  *   - Dashboard 节点的运动服务在调用前会检查 TCP2CAN 状态并自动切换
  *   - conn_status_ (普通模式) 的状态查询/IO/事件回调不受 TCP2CAN 状态影响
  *
- * 线程模型:
- *   - Action 回调: MultiThreadedExecutor 线程池 (互斥回调组)
- *   - update() 控制循环: ROS2 wall timer, 200Hz (独立回调组)
- *   - 与 HardwareInterface 的交互: write() 在主循环中, read() 按需
+ * 线程模型 (4 线程安全):
+ *   - sendLoop 线程: 轨迹发送 (precomputed_mutex_ 保护 batch 提取)
+ *   - Action 回调线程: Goal/Cancel/Accept (precomputed_mutex_ 保护 precomputed_ 写入)
+ *   - update() 定时器线程: 安全检查 + 到位判断 (precomputed_mutex_ 保护 idx 读取)
+ *   - 主线程: deactivate() (precomputed_mutex_ 保护清空)
  *
  * 使用方式:
  *   1. 构造时传入 AuboHardwareInterface 引用 (必须先 init + enterTcp2CanbusMode)
  *   2. 调用 configure() 创建 Action 服务器和定时器
  *   3. 由 Executor 驱动 —— 无需手动 spin
- *   4. 停用时调用 deactivate() 取消当前目标
+ *   4. 停用时调用 deactivate() 取消当前目标 (SDK stop + abort)
  */
 
 #ifndef AUBO_DRIVER_ROS2_JOINT_TRAJECTORY_CONTROLLER_H_
@@ -48,8 +58,69 @@
 
 #include "aubo_driver_ros2/aubo_hardware_interface.h"
 #include "aubo_driver_ros2/readerwriterqueue.h"
+#include <cstring>
+#include <cstdio>
 
 namespace aubo_driver {
+
+/**
+ * 延迟统计器 —— 用于测量 SDK TCP 调用的延迟分布。
+ *
+ * 使用场景:
+ *   - 在 sendLoop 中对 readDiagnosis() 和 writeTrajectoryPoints() 分别计时
+ *   - 每条轨迹结束时通过 TRAJ_DONE 输出完整的延迟分布报告
+ *
+ * 内存开销: ~100 bytes (10 个 uint64 bucket + 4 个统计值)，零堆分配。
+ * 时间开销: 每次 record() 约 ~10 次浮点比较 + 1 次整数自增，< 100ns。
+ */
+struct LatencyTracker {
+    uint64_t buckets[10]{};   // 延迟分布直方图 (ms)
+    double min_ms = 1e9;
+    double max_ms = 0;
+    double sum_ms = 0;
+    uint64_t count = 0;
+    uint64_t spike_count = 0;   // 超过 50ms 的尖峰次数
+
+    void record(double ms) {
+        if (ms < min_ms) min_ms = ms;
+        if (ms > max_ms) max_ms = ms;
+        sum_ms += ms;
+        count++;
+        if (ms > 50.0) spike_count++;
+
+        // bucket 边界: <0.5, 0.5-1, 1-2, 2-5, 5-10, 10-20, 20-50, 50-100, 100-200, 200+
+        if      (ms < 0.5)  buckets[0]++;
+        else if (ms < 1.0)  buckets[1]++;
+        else if (ms < 2.0)  buckets[2]++;
+        else if (ms < 5.0)  buckets[3]++;
+        else if (ms < 10.0) buckets[4]++;
+        else if (ms < 20.0) buckets[5]++;
+        else if (ms < 50.0) buckets[6]++;
+        else if (ms < 100.0) buckets[7]++;
+        else if (ms < 200.0) buckets[8]++;
+        else                 buckets[9]++;
+    }
+
+    void reset() {
+        std::memset(buckets, 0, sizeof(buckets));
+        min_ms = 1e9; max_ms = 0; sum_ms = 0; count = 0; spike_count = 0;
+    }
+
+    /**
+     * 生成可读的报告字符串 ("READ_DIAG: n=341 min=1.2 avg=3.5 max=152.3 ...").
+     * 调用者负责用 RCLCPP_INFO 等输出。
+     */
+    std::string report(const char* label) const {
+        char buf[512];
+        snprintf(buf, sizeof(buf),
+            "%s: n=%lu min=%.1f avg=%.1f max=%.1f ms spikes=%lu | "
+            "<0.5:%lu 0.5-1:%lu 1-2:%lu 2-5:%lu 5-10:%lu 10-20:%lu 20-50:%lu 50-100:%lu 100-200:%lu >200:%lu",
+            label, count, min_ms, count > 0 ? sum_ms / count : 0.0, max_ms, spike_count,
+            buckets[0], buckets[1], buckets[2], buckets[3], buckets[4],
+            buckets[5], buckets[6], buckets[7], buckets[8], buckets[9]);
+        return std::string(buf);
+    }
+};
 
 /**
  * 关节轨迹控制器 —— 5 次多项式插值 + FollowJointTrajectory Action。
@@ -177,7 +248,13 @@ private:
         const trajectory_msgs::msg::JointTrajectory& traj) const;
 
     /** 取消当前活跃目标 (停止轨迹流) */
-    void abortActiveGoal();
+    void abortActiveGoal(int error_code = control_msgs::action::FollowJointTrajectory::Result::INVALID_GOAL);
+
+    /** 统一停止入口: 清空预计算 + SDK stop，不设置 send_running_=false */
+    void stopAndClear();
+
+    /** 从 action goal 解析 per-joint 容差和 goal_time_tolerance */
+    void readGoalTolerances(const std::shared_ptr<const FollowJointTrajectory::Goal>& goal);
 
     /** 重映射轨迹关节名称到控制器期望的顺序 */
     trajectory_msgs::msg::JointTrajectory remapJointNames(
@@ -206,12 +283,7 @@ private:
 
     // Action 状态
     std::shared_ptr<GoalHandle> active_goal_;
-    bool has_active_goal_{false};
-
-    // 当前轨迹缓存
-    trajectory_msgs::msg::JointTrajectory current_traj_;
-    size_t current_point_index_{0};
-    double trajectory_start_time_{0.0};  // 当前轨迹段起始墙钟时间
+    std::atomic<bool> has_active_goal_{false};
 
     // 发送线程
     void sendLoop();
@@ -219,23 +291,35 @@ private:
     std::atomic<bool> send_running_{false};
     std::vector<aubo_robot_namespace::wayPoint_S> precomputed_;
     size_t precomputed_idx_{0};
+    std::mutex precomputed_mutex_;  // 保护 precomputed_[] / precomputed_idx_ 跨线程访问
     trajectory_msgs::msg::JointTrajectory goal_target_;
 
-    // 上一段终点 (用于 C1 连续性)
-    trajectory_msgs::msg::JointTrajectoryPoint last_goal_point_;
-    bool has_last_goal_{false};
+    // 目标点和容差
+    trajectory_msgs::msg::JointTrajectoryPoint goal_target_point_;
+    double goal_tolerances_[6]{};       // per-joint 目标容差 (rad)
+    double goal_time_tolerance_{0.0};   // goal 中指定的额外等待时间 (s)
+    rclcpp::Time goal_hold_start_;      // 轨迹结束时刻 (用于 goal_time_tolerance 计时)
+    double stopped_velocity_tolerance_{0.01};  // 判定静止的速度阈值 (rad/s)
+    bool goal_first_check_pending_{false}; // 首次到位检查标记 (GOAL_FIRST_CHECK 诊断)
 
-    // 容差参数
-    double goal_tolerance_{0.02};        // rad, 与 ROS2 trajectory_action 一致
+    // Cancel/Preempt 结果延迟执行
+    // handleCancel/handleAccepted 中不能直接调用 gh->canceled(), 因为此时 goal state
+    // 仍为 EXECUTING。rclcpp 在 handleCancel 返回 ACCEPT 后才将状态转为 CANCELING。
+    // 通过 pending 标志 + update() 线程(200Hz) 延迟到下一个事件循环周期执行。
+    bool pending_cancel_flag_{false};
+    std::shared_ptr<GoalHandle> pending_cancel_gh_;
+    std::shared_ptr<FollowJointTrajectory::Result> pending_cancel_result_;
+
+    double goal_tolerance_{0.02};        // rad, 默认容差 (被 goal_tolerances_ 覆盖)
     int goal_hold_count_{0};            // 连续容差满足计数
     static constexpr int kGoalHoldRequired = 5;  // 需要连续 5 帧
 
     // 节拍控制 (壁钟时序补偿)
     double update_period_{0.005};       // 200Hz = 5ms
-    double wall_clock_start_{0.0};      // 当前轨迹段起始 perf_counter
 
-    // 发布器
-    rclcpp::Publisher<control_msgs::action::FollowJointTrajectory_Feedback>::SharedPtr feedback_pub_;
+    // SDK TCP 延迟测量 (诊断专用, 仅在 sendLoop 线程访问, 无需锁)
+    LatencyTracker read_latency_;       // readDiagnosis() 的 TCP 延迟分布
+    LatencyTracker send_latency_;       // writeTrajectoryPoints() 的 TCP 延迟分布
 };
 
 }  // namespace aubo_driver

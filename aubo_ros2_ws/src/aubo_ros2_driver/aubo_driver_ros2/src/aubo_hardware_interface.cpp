@@ -116,6 +116,40 @@ bool AuboHardwareInterface::leaveTcp2CanbusMode()
     return false;
 }
 
+bool AuboHardwareInterface::stopMotion()
+{
+    if (!connected_ || !tcp2can_mode_) return false;
+
+    // 主路径: RobotMoveStop 丢弃 RIB (SDK冲突规则 关闭流程第1步)
+    int ret = conn_control_.rootServiceRobotMoveControl(
+        aubo_robot_namespace::RobotMoveStop);
+
+    // 超时重试: TCP 可能在轨迹刚结束时拥塞，等 20ms 重试
+    if (ret == aubo_robot_namespace::ErrCode_RequestTimeout) {
+        RCLCPP_WARN(rclcpp::get_logger("aubo_hw"),
+            "RobotMoveStop timeout (ret=%d), retrying after 20ms", ret);
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        ret = conn_control_.rootServiceRobotMoveControl(
+            aubo_robot_namespace::RobotMoveStop);
+    }
+
+    // 备用: robotMoveFastStop 硬件急停
+    if (ret != aubo_robot_namespace::InterfaceCallSuccCode) {
+        RCLCPP_WARN(rclcpp::get_logger("aubo_hw"),
+            "RobotMoveStop failed (ret=%d), trying robotMoveFastStop", ret);
+        ret = conn_control_.robotMoveFastStop();
+    }
+
+    if (ret == aubo_robot_namespace::InterfaceCallSuccCode) {
+        RCLCPP_INFO(rclcpp::get_logger("aubo_hw"), "Motion stopped");
+        return true;
+    }
+
+    RCLCPP_ERROR(rclcpp::get_logger("aubo_hw"),
+        "stopMotion failed (ret=%d)", ret);
+    return false;
+}
+
 void AuboHardwareInterface::shutdown()
 {
     connected_ = false;
@@ -188,6 +222,13 @@ bool AuboHardwareInterface::readDiagnosis(int& rib_buffer_size)
 
     if (ret == aubo_robot_namespace::InterfaceCallSuccCode) {
         rib_buffer_size = diag.macTargetPosDataSize;
+        // 首次查询时输出 RIB 总容量
+        static bool capacity_logged = false;
+        if (!capacity_logged && diag.macTargetPosBufferSize > 0) {
+            capacity_logged = true;
+            RCLCPP_INFO(rclcpp::get_logger("aubo_hw"),
+                "RIB total capacity: macTargetPosBufferSize=%d slots", diag.macTargetPosBufferSize);
+        }
         return true;
     }
     return false;

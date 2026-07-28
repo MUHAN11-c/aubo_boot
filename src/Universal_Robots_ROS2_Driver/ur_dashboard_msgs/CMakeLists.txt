@@ -1,0 +1,62 @@
+cmake_minimum_required(VERSION 3.5)
+project(ur_dashboard_msgs)
+
+find_package(ament_cmake REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(action_msgs REQUIRED)
+find_package(builtin_interfaces REQUIRED)
+
+set(msg_files
+  msg/ProgramInformation.msg
+  msg/ProgramState.msg
+  msg/RobotMode.msg
+  msg/SafetyMode.msg
+  msg/OperationalMode.msg
+  msg/UserRole.msg
+  msg/VersionInformation.msg
+  msg/SafetyStatus.msg
+)
+
+set(srv_files
+  srv/AddToLog.srv
+  srv/DownloadProgram.srv
+  srv/GetLoadedProgram.srv
+  srv/GetPrograms.srv
+  srv/GetProgramState.srv
+  srv/GetRobotMode.srv
+  srv/GetSafetyMode.srv
+  srv/IsProgramRunning.srv
+  srv/IsProgramSaved.srv
+  srv/Load.srv
+  srv/Popup.srv
+  srv/RawRequest.srv
+  srv/IsInRemoteControl.srv
+  srv/UploadProgram.srv
+  srv/GetPolyScopeVersion.srv
+  srv/GetSerialNumber.srv
+  srv/GetUserRole.srv
+  srv/SetUserRole.srv
+  srv/SetOperationalMode.srv
+  srv/GetOperationalMode.srv
+  srv/GetRobotModel.srv
+  srv/GetSafetyStatus.srv
+  srv/GenerateFlightReport.srv
+  srv/GenerateSupportFile.srv
+)
+
+set(action_files
+  action/SetMode.action
+)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  ${msg_files}
+  ${srv_files}
+  ${action_files}
+  DEPENDENCIES
+    action_msgs
+    builtin_interfaces
+)
+
+ament_export_dependencies(rosidl_default_runtime)
+
+ament_package()

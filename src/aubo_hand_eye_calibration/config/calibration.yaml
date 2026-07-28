@@ -1,0 +1,32 @@
+/**:
+  ros__parameters:
+    base_frame: base_link
+    wrist_frame: wrist3_Link
+    camera_root_frame: camera_link
+    camera_optical_frame: camera_color_optical_frame
+    move_group: manipulator_e5
+    image_topic: /camera/color/image_raw
+    camera_info_topic: /camera/color/camera_info
+    # 棋盘格标定板: 内角点列数/行数, 格宽(实测!)
+    board_columns: 11
+    board_rows: 8
+    board_square_size_m: 0.020
+    frames_per_pose: 5
+    min_samples: 12
+    joint_velocity_threshold: 0.01
+    settle_duration_s: 0.5
+    sample_timeout_s: 4.0
+    velocity_scaling: 0.15
+    acceleration_scaling: 0.15
+    planning_attempts: 5
+    planning_time_s: 5.0
+    position_tolerance_m: 0.001
+    orientation_tolerance_rad: 0.01
+    stable_timeout_s: 10.0
+    # 质量门
+    max_reprojection_rms_px: 1.0
+    max_translation_rms_m: 0.003
+    max_rotation_rms_deg: 0.5
+    min_rotation_span_deg: 20.0
+    # 求解方法: auto|tsai|park|horaud|andreff|daniilidis (goal 未指定时生效)
+    solver_method: auto

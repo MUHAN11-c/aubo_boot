@@ -1,0 +1,23 @@
+<library path="aubo_e5_controllers">
+  <class name="aubo_e5_controllers/AuboPassthroughTrajectoryController"
+         type="aubo_e5_controllers::AuboPassthroughTrajectoryController"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>
+      FollowJointTrajectory action server that forwards a whole trajectory
+      (remapped to the authoritative joint order, optionally preceded by a C2
+      smoothstep blend segment) point-by-point to the hardware via the
+      trajectory_passthrough GPIO command interfaces, and reports the result
+      only after a goal-hold position/velocity check (aubo_boot semantics).
+    </description>
+  </class>
+  <class name="aubo_e5_controllers/AuboIOController"
+         type="aubo_e5_controllers::AuboIOController"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Publishes board/tool IO states (aubo_msgs/IOState), robot status
+      (aubo_msgs/RobotStatus) and RIB status (std_msgs/Int32MultiArray) from
+      the aubo_io GPIO state interfaces, and offers a ~/set_io service
+      (aubo_msgs/SetIO) with async-success confirmation.
+    </description>
+  </class>
+</library>

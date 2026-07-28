@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>aubo_e5_controllers</name>
+  <version>0.1.0</version>
+  <description>
+    Locally rewritten ros2_control controller plugins for the AUBO E5 driver:
+    AuboPassthroughTrajectoryController (whole-trajectory passthrough over the
+    trajectory_passthrough GPIO contract) and AuboIOController (board/tool IO,
+    robot status and RIB status). Written after the Universal Robots
+    ur_controllers sources (Jazzy), with ur_msgs replaced by aubo_msgs/std_msgs
+    and behavior semantics aligned with the field-tested aubo_boot driver.
+  </description>
+  <maintainer email="wjz@example.com">wjz</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>controller_interface</depend>
+  <depend>hardware_interface</depend>
+  <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
+  <depend>realtime_tools</depend>
+  <depend>control_msgs</depend>
+  <depend>trajectory_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>diagnostic_msgs</depend>
+  <depend>aubo_msgs</depend>
+  <depend>generate_parameter_library</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

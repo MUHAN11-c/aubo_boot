@@ -1,0 +1,23 @@
+# Run the configured eye-in-hand calibration sequence.
+bool plan_only
+bool return_to_start
+# 求解方法: auto|tsai|park|horaud|andreff|daniilidis, 空串 = 服务端 solver_method 参数 (默认 auto)
+string method
+---
+bool success
+string message
+string candidate_id
+geometry_msgs/Transform wrist_to_camera_optical
+uint32 accepted_samples
+uint32 rejected_samples
+float64 translation_rms_m
+float64 rotation_rms_deg
+float64 reprojection_rms_px
+string result_file
+---
+string stage
+string detail
+uint32 pose_index
+uint32 pose_count
+uint32 accepted_samples
+float32 progress

@@ -1,0 +1,238 @@
+<?xml version="1.0"?>
+<!--
+  ros2_control macro for the AUBO E5 (legacy SDK, TCP2CAN streaming).
+  Modeled on ur_robot_driver/urdf/ur.ros2_control.xacro (interface layout style only).
+  Hardware parameters carry the configurable values from the project plan
+  ("B table"); defaults follow the field-tested aubo_boot driver.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="aubo_e5_ros2_control" params="
+    name
+    hardware_mode:=mock
+    robot_ip:=169.254.10.98
+    server_port:=8899
+    sdk_username:=aubo
+    sdk_password:=123456
+    send_period_ms:=4
+    rib_target:=400
+    rib_slowdown_1:=300
+    rib_slowdown_2:=350
+    batch_min:=2
+    batch_max:=8
+    ema_alpha:=0.1
+    ema_boost_ms:='10,14,20'
+    stop_retry_ms:=20
+    prefill_points:=0
+    force_start_delay_ms:=0
+    speed_guard_enabled:=false
+    max_joint_velocity:='2.596177,2.596177,2.596177,3.110177,3.110177,3.110177'
+    max_joint_acceleration:='17.30878,17.30878,17.30878,20.73676,20.73676,20.73676'
+    point_spacing_s:=0.005
+    same_point_eps:=0.00015
+    dedup_threshold:=0.000001
+    state_timeout_ms:=200
+    auto_power_on:=false">
+
+    <ros2_control name="${name}" type="system">
+      <hardware>
+        <xacro:if value="${hardware_mode == 'mock'}">
+          <plugin>mock_components/GenericSystem</plugin>
+        </xacro:if>
+        <xacro:if value="${hardware_mode == 'sim'}">
+          <plugin>aubo_e5_hardware/AuboE5SimHardware</plugin>
+        </xacro:if>
+        <xacro:if value="${hardware_mode == 'real'}">
+          <plugin>aubo_e5_hardware/AuboE5Hardware</plugin>
+          <param name="robot_ip">${robot_ip}</param>
+          <param name="server_port">${server_port}</param>
+          <param name="sdk_username">${sdk_username}</param>
+          <param name="sdk_password">${sdk_password}</param>
+          <param name="send_period_ms">${send_period_ms}</param>
+          <param name="rib_target">${rib_target}</param>
+          <param name="rib_slowdown_1">${rib_slowdown_1}</param>
+          <param name="rib_slowdown_2">${rib_slowdown_2}</param>
+          <param name="batch_min">${batch_min}</param>
+          <param name="batch_max">${batch_max}</param>
+          <param name="ema_alpha">${ema_alpha}</param>
+          <param name="ema_boost_ms">${ema_boost_ms}</param>
+          <param name="stop_retry_ms">${stop_retry_ms}</param>
+          <param name="prefill_points">${prefill_points}</param>
+          <param name="force_start_delay_ms">${force_start_delay_ms}</param>
+          <param name="speed_guard_enabled">${speed_guard_enabled}</param>
+          <param name="max_joint_velocity">${max_joint_velocity}</param>
+          <param name="max_joint_acceleration">${max_joint_acceleration}</param>
+          <param name="point_spacing_s">${point_spacing_s}</param>
+          <param name="same_point_eps">${same_point_eps}</param>
+          <param name="dedup_threshold">${dedup_threshold}</param>
+          <param name="state_timeout_ms">${state_timeout_ms}</param>
+          <param name="auto_power_on">${auto_power_on}</param>
+        </xacro:if>
+      </hardware>
+
+      <joint name="shoulder_joint">
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+      <joint name="upperArm_joint">
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+      <joint name="foreArm_joint">
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+      <joint name="wrist1_joint">
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+      <joint name="wrist2_joint">
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+      <joint name="wrist3_joint">
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+
+      <!-- Whole-trajectory transfer contract (UR passthrough naming, self-implemented) -->
+      <gpio name="trajectory_passthrough">
+        <command_interface name="setpoint_positions_0"/>
+        <command_interface name="setpoint_positions_1"/>
+        <command_interface name="setpoint_positions_2"/>
+        <command_interface name="setpoint_positions_3"/>
+        <command_interface name="setpoint_positions_4"/>
+        <command_interface name="setpoint_positions_5"/>
+        <command_interface name="setpoint_velocities_0"/>
+        <command_interface name="setpoint_velocities_1"/>
+        <command_interface name="setpoint_velocities_2"/>
+        <command_interface name="setpoint_velocities_3"/>
+        <command_interface name="setpoint_velocities_4"/>
+        <command_interface name="setpoint_velocities_5"/>
+        <command_interface name="setpoint_accelerations_0"/>
+        <command_interface name="setpoint_accelerations_1"/>
+        <command_interface name="setpoint_accelerations_2"/>
+        <command_interface name="setpoint_accelerations_3"/>
+        <command_interface name="setpoint_accelerations_4"/>
+        <command_interface name="setpoint_accelerations_5"/>
+        <command_interface name="transfer_state"/>
+        <command_interface name="time_from_start"/>
+        <command_interface name="abort"/>
+        <command_interface name="trajectory_size"/>
+      </gpio>
+
+      <!-- Speed scaling feedback (constant 1.0; no execution-time scaling) -->
+      <gpio name="speed_scaling">
+        <state_interface name="speed_scaling_factor">
+          <param name="initial_value">1.0</param>
+        </state_interface>
+      </gpio>
+
+      <!-- Board/tool IO + safety + status. Commands use NaN as "no request". -->
+      <gpio name="aubo_io">
+        <command_interface name="do_0"/>
+        <command_interface name="do_1"/>
+        <command_interface name="do_2"/>
+        <command_interface name="do_3"/>
+        <command_interface name="do_4"/>
+        <command_interface name="do_5"/>
+        <command_interface name="do_6"/>
+        <command_interface name="do_7"/>
+        <command_interface name="do_8"/>
+        <command_interface name="do_9"/>
+        <command_interface name="do_10"/>
+        <command_interface name="do_11"/>
+        <command_interface name="do_12"/>
+        <command_interface name="do_13"/>
+        <command_interface name="do_14"/>
+        <command_interface name="do_15"/>
+        <command_interface name="ao_0"/>
+        <command_interface name="ao_1"/>
+        <command_interface name="ao_2"/>
+        <command_interface name="ao_3"/>
+        <command_interface name="tool_do_0"/>
+        <command_interface name="tool_do_1"/>
+        <command_interface name="tool_ao_0"/>
+        <command_interface name="tool_ao_1"/>
+        <command_interface name="set_io_async_success"/>
+
+        <state_interface name="di_0"/>
+        <state_interface name="di_1"/>
+        <state_interface name="di_2"/>
+        <state_interface name="di_3"/>
+        <state_interface name="di_4"/>
+        <state_interface name="di_5"/>
+        <state_interface name="di_6"/>
+        <state_interface name="di_7"/>
+        <state_interface name="di_8"/>
+        <state_interface name="di_9"/>
+        <state_interface name="di_10"/>
+        <state_interface name="di_11"/>
+        <state_interface name="di_12"/>
+        <state_interface name="di_13"/>
+        <state_interface name="di_14"/>
+        <state_interface name="di_15"/>
+        <state_interface name="ai_0"/>
+        <state_interface name="ai_1"/>
+        <state_interface name="ai_2"/>
+        <state_interface name="ai_3"/>
+        <state_interface name="tool_di_0"/>
+        <state_interface name="tool_di_1"/>
+        <state_interface name="tool_ai_0"/>
+        <state_interface name="tool_ai_1"/>
+        <state_interface name="estop"/>
+        <state_interface name="protective_stop"/>
+        <state_interface name="power_on"/>
+        <state_interface name="collision"/>
+        <state_interface name="in_motion"/>
+        <state_interface name="rib_level"/>
+        <state_interface name="joint_error_0"/>
+        <state_interface name="joint_error_1"/>
+        <state_interface name="joint_error_2"/>
+        <state_interface name="joint_error_3"/>
+        <state_interface name="joint_error_4"/>
+        <state_interface name="joint_error_5"/>
+        <!-- Feedback enrichment: full SDK JointStatus fields + send-pipeline metrics.
+             Names/order must match export_state_interfaces() in both hardware plugins. -->
+        <state_interface name="tag_pos_0"/>
+        <state_interface name="tag_pos_1"/>
+        <state_interface name="tag_pos_2"/>
+        <state_interface name="tag_pos_3"/>
+        <state_interface name="tag_pos_4"/>
+        <state_interface name="tag_pos_5"/>
+        <state_interface name="tag_vel_0"/>
+        <state_interface name="tag_vel_1"/>
+        <state_interface name="tag_vel_2"/>
+        <state_interface name="tag_vel_3"/>
+        <state_interface name="tag_vel_4"/>
+        <state_interface name="tag_vel_5"/>
+        <state_interface name="joint_current_0"/>
+        <state_interface name="joint_current_1"/>
+        <state_interface name="joint_current_2"/>
+        <state_interface name="joint_current_3"/>
+        <state_interface name="joint_current_4"/>
+        <state_interface name="joint_current_5"/>
+        <state_interface name="joint_temp_0"/>
+        <state_interface name="joint_temp_1"/>
+        <state_interface name="joint_temp_2"/>
+        <state_interface name="joint_temp_3"/>
+        <state_interface name="joint_temp_4"/>
+        <state_interface name="joint_temp_5"/>
+        <state_interface name="send_queue_points"/>
+        <state_interface name="send_rate_pps"/>
+        <!-- Event/health reporting: last SDK RobotEventInfo (type/code) + health_ raw value.
+             event_type uses -1 as the "no event yet" sentinel (0 would alias
+             armCanbusError); consumers must not publish pseudo events while
+             type < 0. Appended at the tail; keep in sync with both hardware plugins. -->
+        <state_interface name="event_type"/>
+        <state_interface name="event_code"/>
+        <state_interface name="health"/>
+      </gpio>
+    </ros2_control>
+  </xacro:macro>
+</robot>

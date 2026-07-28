@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<robot name="aubo_e5" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- Keep the vendor arm definition isolated from workcell accessories. -->
+  <xacro:include filename="aubo_e5.urdf"/>
+  <xacro:include filename="components/table.xacro"/>
+  <xacro:include filename="components/camera.xacro"/>
+  <xacro:include filename="components/quick_changer.xacro"/>
+  <xacro:include filename="aubo_e5.ros2_control.xacro"/>
+
+  <xacro:arg name="include_table" default="true"/>
+  <xacro:arg name="include_camera" default="true"/>
+  <xacro:arg name="include_quick_changer" default="true"/>
+  <!-- hardware_mode: mock (GenericSystem + JTC) | sim (AuboE5SimHardware + passthrough) | real (AuboE5Hardware) -->
+  <xacro:arg name="hardware_mode" default="mock"/>
+  <xacro:arg name="robot_ip" default="169.254.10.98"/>
+
+  <xacro:aubo_e5_ros2_control
+    name="AuboE5System"
+    hardware_mode="$(arg hardware_mode)"
+    robot_ip="$(arg robot_ip)"/>
+
+  <xacro:if value="$(arg include_table)">
+    <xacro:aubo_e5_table parent="world"/>
+  </xacro:if>
+  <xacro:if value="$(arg include_camera)">
+    <xacro:aubo_e5_camera parent="wrist3_Link"/>
+    <xacro:if value="$(arg include_quick_changer)">
+      <xacro:aubo_e5_quick_changer parent="camera_body_link"/>
+    </xacro:if>
+  </xacro:if>
+</robot>

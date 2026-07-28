@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.22)
+project(aubo_e5_bringup)
+find_package(ament_cmake REQUIRED)
+install(DIRECTORY launch config DESTINATION share/${PROJECT_NAME})
+install(PROGRAMS scripts/named_pose_controller.py scripts/realtime_preflight.sh scripts/configure_realtime.sh DESTINATION lib/${PROJECT_NAME})
+ament_package()

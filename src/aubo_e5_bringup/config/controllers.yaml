@@ -1,0 +1,36 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 200
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+    aubo_passthrough_trajectory_controller:
+      type: aubo_e5_controllers/AuboPassthroughTrajectoryController
+    aubo_io_controller:
+      type: aubo_e5_controllers/AuboIOController
+    joint_trajectory_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+aubo_passthrough_trajectory_controller:
+  ros__parameters:
+    joints: [shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint]
+    state_interfaces: [position, velocity]
+    tf_prefix: ""
+    speed_scaling_interface_name: "speed_scaling/speed_scaling_factor"
+    # Blueprint (aubo_boot) defaults — confirm on the real E5 before tuning
+    goal_tolerance_rad: 0.02
+    goal_vel_tolerance: 0.01
+    goal_hold_frames: 5
+    goal_check_ms: 50
+    goal_time: 0.0
+    blend_threshold_rad: 0.01
+    blend_steps: 30
+
+aubo_io_controller:
+  ros__parameters:
+    check_io_successfull_retries: 10
+
+joint_trajectory_controller:
+  ros__parameters:
+    joints: [shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint]
+    command_interfaces: [position]
+    state_interfaces: [position, velocity]

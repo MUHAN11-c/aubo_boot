@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>aubo_dashboard</name>
+  <version>0.1.0</version>
+  <description>Independent service node for slow AUBO E5 controller operations (startup/shutdown/brake/stop/FK/IK/payload). Non-motion services only.</description>
+  <maintainer email="aubo_e5@example.com">aubo_e5</maintainer>
+  <license>BSD-3-Clause</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>rclcpp</depend>
+  <depend>std_srvs</depend>
+  <depend>aubo_msgs</depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>

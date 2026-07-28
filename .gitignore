@@ -1,0 +1,29 @@
+# ROS 2 构建产物
+build/
+install/
+log/
+
+# Python 环境（本机 venv，不随仓库分发）
+aubo_py3.12/
+**/.venv-yolo/
+__pycache__/
+*.py[cod]
+
+# 厂商原始资料（体积大，本地保留）
+SDK资料/
+src.tar.xz
+
+# 工具/测试运行输出
+diagnostics/build/
+diagnostics/results/
+src/percipio_camera/depth_eval_out/
+
+# IDE 与工具缓存
+.vscode/
+.serena/
+.playwright-mcp/
+.patch_probe
+
+# 系统
+.DS_Store
+Thumbs.db

@@ -1,0 +1,73 @@
+---
+aubo_passthrough_trajectory_controller:
+  joints: {
+    type: string_array,
+    default_value: [],
+    description: "权威关节顺序（SDK 数组 0..5）。传入的 goal 按关节名重排到该顺序；含未知关节或缺关节的 goal 会被拒绝。",
+    read_only: true,
+    validation: {
+      unique<>: null,
+    }
+  }
+  state_interfaces: {
+    type: string_array,
+    default_value: ["position", "velocity"],
+    description: "硬件为所有关节提供的状态接口。",
+    read_only: true,
+    validation: {
+      unique<>: null,
+      subset_of<>: [["position", "velocity", "acceleration"]],
+    }
+  }
+  tf_prefix: {
+    type: string,
+    default_value: "",
+    description: "对应机械臂的 urdf 前缀。注意：当前 aubo_description 的 xacro 未提供 prefix 机制，接口名固定无前缀；非空前缀会导致接口找不到（on_configure 会 WARN 提示）。"
+  }
+  speed_scaling_interface_name: {
+    type: string,
+    default_value: "speed_scaling/speed_scaling_factor",
+    description: "速度缩放（speed scaling）接口的完整限定名"
+  }
+  goal_tolerance_rad: {
+    type: double,
+    default_value: 0.02,
+    description: "goal_hold 检查的默认单关节位置容差 [rad]（aubo_boot 默认值；goal 自带容差可覆盖）。",
+    validation: { gt_eq<>: [0.0] }
+  }
+  goal_vel_tolerance: {
+    type: double,
+    default_value: 0.01,
+    description: "goal_hold 检查的默认单关节绝对速度容差 [rad/s]（aubo_boot 默认值；goal 自带容差可覆盖）。",
+    validation: { gt_eq<>: [0.0] }
+  }
+  goal_hold_frames: {
+    type: int,
+    default_value: 5,
+    description: "action 回报成功前必须连续通过的 goal 检查次数（aubo_boot kGoalHoldRequired）。",
+    validation: { gt_eq<>: [1] }
+  }
+  goal_check_ms: {
+    type: int,
+    default_value: 50,
+    description: "硬件上报 DONE 后 goal_hold 检查的周期 [ms]（aubo_boot：每 50ms 检查一次）。",
+    validation: { gt<>: [0] }
+  }
+  goal_time: {
+    type: double,
+    default_value: 0.0,
+    description: "轨迹时长之外允许到达目标的额外时间 [s]；0.0 表示禁用超时。goal 中的 goal_time_tolerance 大于 0 时覆盖本参数。",
+    validation: { gt_eq<>: [0.0] }
+  }
+  blend_threshold_rad: {
+    type: double,
+    default_value: 0.01,
+    description: "任一关节的首轨迹点与当前位置偏差超过该值 [rad] 时，在轨迹前补融合段（aubo_boot blendToFirstPoint）。",
+    validation: { gt_eq<>: [0.0] }
+  }
+  blend_steps: {
+    type: int,
+    default_value: 30,
+    description: "融合时前置的 5ms C2-smoothstep 融合点个数（aubo_boot：30 步 = 150ms）。",
+    validation: { gt_eq<>: [0] }
+  }

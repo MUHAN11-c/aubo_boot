@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>aubo_e5_bringup</name>
+  <version>0.1.0</version>
+  <description>Mock and guarded real-hardware bringup for AUBO E5.</description>
+  <maintainer email="aubo@todo.todo">AUBO E5 maintainers</maintainer>
+  <license>BSD-3-Clause</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <exec_depend>aubo_description</exec_depend>
+  <exec_depend>aubo_e5_hardware</exec_depend>
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>joint_state_broadcaster</exec_depend>
+  <exec_depend>joint_trajectory_controller</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>ros2_control</exec_depend>
+  <exec_depend>ros2_controllers</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>control_msgs</exec_depend>
+  <exec_depend>moveit_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>trajectory_msgs</exec_depend>
+  <exec_depend>aubo_e5_moveit_config</exec_depend>
+  <exec_depend>aubo_hand_eye_calibration</exec_depend>
+  <exec_depend>percipio_camera</exec_depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>

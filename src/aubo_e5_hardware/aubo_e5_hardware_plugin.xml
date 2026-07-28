@@ -1,0 +1,23 @@
+<library path="aubo_e5_hardware">
+  <class name="aubo_e5_hardware/AuboE5Hardware"
+         type="aubo_e5_hardware::AuboE5Hardware"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>
+      ros2_control hardware interface for the AUBO E5 6-DOF arm.
+      Two SDK ServiceInterface connections: conn_control_ (TCP2CAN streaming,
+      RIB flow control, send thread only) and conn_status_ (status push
+      callbacks, safety IO, board/tool IO, stop primitives, IO async thread
+      only).
+    </description>
+  </class>
+  <class name="aubo_e5_hardware/AuboE5SimHardware"
+         type="aubo_e5_hardware::AuboE5SimHardware"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Controller-board simulator for the AUBO E5 passthrough pipeline (ursim
+      equivalent): same interface contract, transfer state machine, quintic
+      resampling and a virtual interface board consuming one 5 ms point per
+      cycle. No SDK, no real arm required.
+    </description>
+  </class>
+</library>

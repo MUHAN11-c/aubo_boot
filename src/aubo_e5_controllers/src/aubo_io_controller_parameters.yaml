@@ -1,0 +1,19 @@
+---
+aubo_io_controller:
+  tf_prefix: {
+    type: string,
+    default_value: "",
+    description: "对应机械臂的 urdf 前缀。注意：当前 aubo_description 的 xacro 未提供 prefix 机制，接口名固定无前缀；非空前缀会导致接口找不到（on_configure 会 WARN 提示）。"
+  }
+  joints: {
+    type: string_array,
+    default_value: ["shoulder_joint", "upperArm_joint", "foreArm_joint", "wrist1_joint", "wrist2_joint", "wrist3_joint"],
+    description: "关节名列表（权威顺序），用于认领 position/velocity 状态接口以计算 ~/joint_status 的 following_error。",
+    read_only: true
+  }
+  check_io_successfull_retries: {
+    type: int,
+    default_value: 10,
+    description: "检查所选 IO 是否设置成功的重试次数（每次 50ms，即等待 set_io_async_success 离开 NaN 等待态）。",
+    validation: { gt_eq<>: [0] }
+  }

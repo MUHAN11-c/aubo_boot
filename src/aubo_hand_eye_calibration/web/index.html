@@ -1,0 +1,1052 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AUBO E5 · 手眼标定台</title>
+<style>
+:root{
+  --bg:#f3f5f9; --card:#ffffff; --ink:#1c2333; --ink2:#5a6478; --ink3:#9aa3b5;
+  --line:#e5e8f0; --line2:#eef0f6;
+  --brand:#3b5bdb; --brand-soft:#edf0fd; --brand-ink:#2f4bc0;
+  --ok:#2f9e44; --ok-soft:#e6f6ea;
+  --warn:#e8590c; --warn-soft:#fdf0e5;
+  --bad:#e03131; --bad-soft:#fdeaea;
+  --mono:"SF Mono","Cascadia Code","JetBrains Mono",Consolas,"Courier New",monospace;
+  --sans:"Avenir Next","Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --shadow:0 1px 2px rgba(28,35,51,.04),0 8px 24px rgba(28,35,51,.06);
+  --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--sans);color:var(--ink);background:var(--bg);
+  background-image:
+    linear-gradient(var(--line2) 1px,transparent 1px),
+    linear-gradient(90deg,var(--line2) 1px,transparent 1px);
+  background-size:28px 28px;
+  min-height:100vh;
+}
+.wrap{max-width:1840px;margin:0 auto;padding:18px 22px 60px}
+
+/* ── 顶栏 ─────────────────────────── */
+.topbar{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:12px 18px;box-shadow:var(--shadow);margin-bottom:16px;
+}
+.logo{
+  width:34px;height:34px;border-radius:9px;background:var(--brand-soft);
+  display:grid;place-items:center;flex:none;
+}
+.logo svg{display:block}
+.title{font-size:17px;font-weight:700;letter-spacing:.2px}
+.title small{display:block;font-size:11.5px;font-weight:500;color:var(--ink3);letter-spacing:.4px;margin-top:1px}
+.topbar .spacer{flex:1}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+  padding:4px 11px;border-radius:999px;border:1px solid var(--line);color:var(--ink2);
+  background:#fbfcfe;white-space:nowrap;
+}
+.chip .dot{width:7px;height:7px;border-radius:50%;background:var(--ink3);flex:none}
+.chip.on{color:var(--ok);border-color:#cdebD5;background:var(--ok-soft)}
+.chip.on .dot{background:var(--ok);animation:breath 2s infinite}
+.chip.off{color:var(--bad);border-color:#f6cfcf;background:var(--bad-soft)}
+.chip.off .dot{background:var(--bad)}
+.chip.blue{color:var(--brand-ink);border-color:#d3dcf9;background:var(--brand-soft)}
+@keyframes breath{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ── 布局: 三列 (相机+过程 / 机器人 / 流程+结果+求解), 窄屏回退单列 ── */
+.grid{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,4fr) minmax(0,5fr);gap:16px;align-items:start}
+@media(max-width:1400px){.grid{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:16px 18px;
+}
+.card-h{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.card-h h2{font-size:13.5px;font-weight:700;color:var(--ink2);letter-spacing:.5px;text-transform:none}
+.card-h .spacer{flex:1}
+.ticks{width:5px;height:14px;border-radius:2px;background:var(--brand);flex:none}
+
+/* ── 预览 ─────────────────────────── */
+.preview-box{position:relative;border-radius:10px;overflow:hidden;background:#0d1117;line-height:0}
+.preview-box img{width:100%;max-height:560px;object-fit:contain;display:block}
+.moving-flag{
+  position:absolute;top:10px;left:10px;display:none;align-items:center;gap:6px;
+  background:rgba(224,49,49,.92);color:#fff;font-size:12px;font-weight:700;
+  padding:5px 12px;border-radius:999px;line-height:1.2;letter-spacing:.5px;
+}
+.moving-flag.show{display:inline-flex;animation:breath 1.4s infinite}
+.preview-meta{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+
+/* ── 步骤条 ───────────────────────── */
+.steps{display:flex;align-items:flex-start;margin:4px 0 2px}
+.step{flex:1;text-align:center;position:relative;padding-top:2px}
+.step::before{
+  content:"";position:absolute;top:11px;left:-50%;width:100%;height:2px;background:var(--line);
+}
+.step:first-child::before{display:none}
+.step .knob{
+  width:22px;height:22px;border-radius:50%;margin:0 auto 5px;position:relative;z-index:1;
+  background:#fff;border:2px solid var(--line);display:grid;place-items:center;
+  font-size:11px;font-weight:700;color:var(--ink3);transition:all .25s;
+}
+.step .lbl{font-size:11.5px;color:var(--ink3);font-weight:600}
+.step.done .knob{background:var(--ok);border-color:var(--ok);color:#fff}
+.step.done .lbl{color:var(--ok)}
+.step.done::before{background:var(--ok)}
+.step.active .knob{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:0 0 0 4px var(--brand-soft)}
+.step.active .lbl{color:var(--brand-ink);font-weight:700}
+.step.fail .knob{background:var(--bad);border-color:var(--bad);color:#fff}
+.step.fail .lbl{color:var(--bad)}
+
+/* ── 向导区 ───────────────────────── */
+.guide{display:flex;gap:16px;align-items:center;margin-top:14px}
+.ring{flex:none;position:relative;width:86px;height:86px}
+.ring svg{transform:rotate(-90deg)}
+.ring .pct{
+  position:absolute;inset:0;display:grid;place-items:center;
+  font-family:var(--mono);font-size:19px;font-weight:700;color:var(--ink);
+}
+.ring .pct small{font-size:10px;color:var(--ink3);font-weight:500;display:block;text-align:center}
+.guide-text{min-width:0}
+.stage-name{font-size:19px;font-weight:800;letter-spacing:.3px}
+.stage-name .en{font-family:var(--mono);font-size:11px;color:var(--ink3);font-weight:500;margin-left:8px}
+.guide-line{font-size:13px;color:var(--ink2);margin-top:4px;line-height:1.55}
+.guide-act{font-size:12.5px;color:var(--brand-ink);margin-top:5px;font-weight:600;line-height:1.5}
+.guide-act::before{content:"▸ "}
+
+/* ── 按钮与算法下拉 ────────────────── */
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
+button{
+  border:1px solid transparent;border-radius:9px;padding:9px 16px;font-size:13.5px;font-weight:700;
+  font-family:var(--sans);cursor:pointer;transition:all .15s;letter-spacing:.3px;
+}
+button:disabled{opacity:.38;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+button:not(:disabled):hover{transform:translateY(-1px)}
+button:not(:disabled):active{transform:translateY(0)}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:0 2px 8px rgba(59,91,219,.3)}
+.btn-danger{background:var(--bad);color:#fff}
+.btn-ok{background:var(--ok);color:#fff}
+.btn-ghost{background:#fff;border-color:var(--line);color:var(--ink2)}
+.pulse:not(:disabled){animation:pulse 1.8s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(59,91,219,.35)}50%{box-shadow:0 0 0 6px rgba(59,91,219,0)}}
+.method-sel{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink2);font-weight:600}
+.method-sel select{
+  border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px;
+  font-family:var(--sans);background:#fff;color:var(--ink);cursor:pointer;
+}
+.safety{
+  margin-top:12px;font-size:12px;color:var(--warn);background:var(--warn-soft);
+  border:1px solid #f8dcc3;border-radius:8px;padding:8px 12px;line-height:1.5;
+}
+
+/* ── 位姿矩阵 ─────────────────────── */
+.pose-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:8px}
+.pose-t{
+  border:1.5px solid var(--line);border-radius:9px;padding:7px 4px 6px;text-align:center;
+  background:#fbfcfe;cursor:default;transition:transform .12s;position:relative;
+}
+.pose-t:hover{transform:translateY(-2px)}
+.pose-t.clickable{cursor:pointer}
+.pose-t.expanded{outline:2px solid var(--brand);outline-offset:1px}
+.pose-t .no{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink3)}
+.pose-t .st{font-size:10px;color:var(--ink3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pose-t.planned{border-color:#c6d2f7;background:var(--brand-soft)}
+.pose-t.planned .no{color:var(--brand-ink)}
+.pose-t.working{border-color:#f3d2ae;background:var(--warn-soft)}
+.pose-t.working .no{color:var(--warn)}
+.pose-t.sampled{border-color:#bfe6c8;background:var(--ok-soft)}
+.pose-t.sampled .no{color:var(--ok)}
+.pose-t.failed{border-color:#f3bcbc;background:var(--bad-soft)}
+.pose-t.failed .no{color:var(--bad)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:11.5px;color:var(--ink2)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+/* ── 指标卡 ───────────────────────── */
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:10px}
+.metric{
+  border:1px solid var(--line);border-radius:10px;padding:10px 12px 9px;background:#fbfcfe;
+}
+.metric .k{font-size:11px;color:var(--ink3);font-weight:600;letter-spacing:.3px}
+.metric .v{font-family:var(--mono);font-size:17px;font-weight:700;margin-top:3px;color:var(--ink)}
+.metric .v small{font-size:10.5px;color:var(--ink3);font-weight:500}
+.metric .gate{font-size:10.5px;margin-top:3px;color:var(--ink3);font-family:var(--mono)}
+.metric.ok{background:var(--ok-soft);border-color:#c9e9d1}
+.metric.ok .v{color:var(--ok)}
+.metric.bad{background:var(--bad-soft);border-color:#f3c5c5}
+.metric.bad .v{color:var(--bad)}
+.result-head{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.verdict{font-size:15px;font-weight:800}
+.verdict.ok{color:var(--ok)}.verdict.bad{color:var(--bad)}
+.method-tag{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink3)}
+
+/* ── 外参 ─────────────────────────── */
+.extr{
+  margin-top:12px;border:1px dashed var(--line);border-radius:10px;padding:10px 14px;
+  font-family:var(--mono);font-size:12.5px;line-height:1.8;color:var(--ink2);background:#fcfdff;
+}
+.extr b{color:var(--ink)}
+.diff-badge{
+  display:inline-block;margin-top:8px;font-size:12px;font-weight:700;font-family:var(--mono);
+  background:var(--brand-soft);color:var(--brand-ink);border-radius:7px;padding:4px 10px;
+}
+
+/* ── 通用表格 ─────────────────────── */
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{font-size:11px;color:var(--ink3);text-align:left;font-weight:700;letter-spacing:.4px;padding:6px 10px;border-bottom:1px solid var(--line)}
+td{padding:9px 10px;border-bottom:1px solid var(--line2);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr{transition:background .12s}
+tbody tr:hover{background:#f8faff}
+tr.current{background:var(--ok-soft)}
+tr.current:hover{background:#dcf0e2}
+tr.sel td{background:var(--ok-soft);font-weight:700}
+tr.mfailed td{color:var(--ink3);background:#f6f7fa}
+tr.dropped td{color:var(--ink3);background:#f6f7fa}
+td.bad{background:var(--bad-soft);color:var(--bad);font-weight:700}
+.mono{font-family:var(--mono)}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:999px}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}
+.tag.bad{background:var(--bad-soft);color:var(--bad)}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+.tag.info{background:var(--brand-soft);color:var(--brand-ink)}
+.mini{font-size:11px;color:var(--ink2)}
+.activate-link{
+  border:1px solid var(--line);background:#fff;color:var(--brand-ink);font-size:11.5px;
+  padding:4px 12px;border-radius:7px;font-weight:700;
+}
+.activate-link:not(:disabled):hover{border-color:var(--brand);background:var(--brand-soft)}
+.empty{padding:26px;text-align:center;color:var(--ink3);font-size:13px}
+.no-data{padding:10px 14px;color:var(--ink3);font-size:12.5px;border:1px dashed var(--line);border-radius:8px;background:#fcfdff}
+
+/* ── LED / 徽标 ───────────────────── */
+.led-row{display:flex;flex-wrap:wrap;gap:8px}
+.led{
+  display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+  padding:5px 11px;border-radius:999px;border:1px solid var(--line);color:var(--ink3);background:#fbfcfe;
+}
+.led i{width:8px;height:8px;border-radius:50%;background:var(--ink3);flex:none}
+.led.ok{color:var(--ok);border-color:#cdebd5;background:var(--ok-soft)}
+.led.ok i{background:var(--ok)}
+.led.warn{color:var(--warn);border-color:#f3d2ae;background:var(--warn-soft)}
+.led.warn i{background:var(--warn)}
+.led.bad{color:var(--bad);border-color:#f3bcbc;background:var(--bad-soft)}
+.led.bad i{background:var(--bad);animation:breath 1.2s infinite}
+.led.blue{color:var(--brand-ink);border-color:#d3dcf9;background:var(--brand-soft)}
+.led.blue i{background:var(--brand)}
+.led.big{font-size:13px;font-weight:700;padding:8px 16px}
+.sub-h{font-size:11.5px;font-weight:700;color:var(--ink3);letter-spacing:.4px;margin:12px 0 7px}
+.sub-h:first-child{margin-top:0}
+
+/* ── 末端位姿 ─────────────────────── */
+.pose-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:480px){.pose-cols{grid-template-columns:1fr}}
+.pose-block{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fbfcfe;min-width:0}
+.pose-block h3{font-size:12px;color:var(--ink2);font-weight:700;margin-bottom:6px}
+.pose-block .pv{font-family:var(--mono);font-size:11.8px;line-height:1.9;color:var(--ink2);word-break:break-all}
+.pose-block .pv b{color:var(--ink)}
+
+/* ── 诊断列表 ─────────────────────── */
+.diag-list{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto}
+.diag-item{
+  display:flex;align-items:baseline;gap:8px;font-size:12px;padding:6px 10px;
+  border:1px solid var(--line2);border-radius:8px;background:#fcfdff;
+}
+.diag-item .nm{font-family:var(--mono);color:var(--ink2);font-weight:700;flex:none}
+.diag-item .ms{color:var(--ink3);word-break:break-all}
+
+/* ── 求解面板 ─────────────────────── */
+.solve-sec{margin-top:14px}
+.solve-sec:first-of-type{margin-top:4px}
+.solve-sec h3{font-size:12.5px;font-weight:700;color:var(--ink2);margin-bottom:8px}
+.formula{
+  border:1px dashed var(--line);border-radius:10px;padding:10px 14px;background:#fcfdff;
+  font-size:12.5px;line-height:2.05;color:var(--ink2);
+}
+.formula b{color:var(--ink)}
+.formula .fx{
+  font-family:var(--mono);font-size:12px;color:var(--ink);background:#fff;
+  border:1px solid var(--line2);border-radius:6px;padding:1px 7px;white-space:nowrap;
+}
+canvas.chart{width:100%;display:block;border:1px solid var(--line2);border-radius:10px;background:#fff}
+.frames-wrap{margin-top:12px}
+
+/* ── 日志 ─────────────────────────── */
+.log-box{
+  max-height:190px;overflow-y:auto;font-family:var(--mono);font-size:11.8px;line-height:1.9;
+  background:#fcfdff;border:1px solid var(--line);border-radius:10px;padding:8px 14px;
+}
+.log-line{display:flex;gap:10px}
+.log-line .t{color:var(--ink3);flex:none}
+.log-line.info .m{color:var(--ink2)}
+.log-line.ok .m{color:var(--ok)}
+.log-line.warn .m{color:var(--warn)}
+.log-line.error .m{color:var(--bad)}
+
+/* ── toast ────────────────────────── */
+#toasts{position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;gap:8px;z-index:99}
+.toast{
+  background:var(--ink);color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;
+  box-shadow:0 10px 30px rgba(28,35,51,.25);max-width:360px;animation:tin .22s ease-out;
+}
+.toast.ok{background:var(--ok)}.toast.error{background:var(--bad)}
+@keyframes tin{from{opacity:0;transform:translateY(10px)}}
+details summary{cursor:pointer;font-size:12.5px;color:var(--brand-ink);font-weight:600;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 顶栏 -->
+  <div class="topbar">
+    <div class="logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b5bdb" stroke-width="1.8">
+        <circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="1.6" fill="#3b5bdb" stroke="none"/>
+        <path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/>
+      </svg>
+    </div>
+    <div class="title">AUBO E5 手眼标定台<small>EYE-IN-HAND CALIBRATION CONSOLE</small></div>
+    <div class="spacer"></div>
+    <span class="chip blue" id="board-chip">棋盘 —</span>
+    <span class="chip" id="visible-chip"><span class="dot"></span>检测中</span>
+    <span class="chip on" id="conn-chip"><span class="dot"></span>已连接</span>
+  </div>
+
+  <div class="grid">
+    <!-- 左列: 相机 + 标定过程 -->
+    <div class="col">
+      <div class="card">
+        <div class="card-h"><span class="ticks"></span><h2>相机预览</h2></div>
+        <div class="preview-box">
+          <img id="preview" src="/preview.mjpeg" alt="相机预览">
+          <span class="moving-flag" id="moving-flag">机器人运动中 · 请勿靠近</span>
+        </div>
+        <div class="preview-meta">
+          <span class="chip" id="fps-chip">— FPS</span>
+          <span class="chip" id="sample-chip">已接受样本 0</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><span class="ticks"></span><h2>位姿采样矩阵</h2><div class="spacer"></div><span class="mini" id="pose-mini"></span></div>
+        <div class="pose-grid" id="pose-grid"></div>
+        <div class="legend">
+          <span><i style="background:#e5e8f0"></i>待规划</span>
+          <span><i style="background:#c6d2f7"></i>规划通过</span>
+          <span><i style="background:#f3d2ae"></i>采样中</span>
+          <span><i style="background:#bfe6c8"></i>采样成功</span>
+          <span><i style="background:#f3bcbc"></i>失败</span>
+          <span class="mini">（点击已采样位姿可展开逐帧观测）</span>
+        </div>
+        <div class="frames-wrap" id="frames-wrap" style="display:none"></div>
+      </div>
+
+      <div class="card" id="reproj-card" style="display:none">
+        <div class="card-h"><span class="ticks"></span><h2>重投影 RMS 时序</h2><div class="spacer"></div>
+          <span class="mini">逐帧 · 跨位姿连续编号</span></div>
+        <canvas class="chart" id="reproj-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- 中列: 机器人状态 + 关节 -->
+    <div class="col">
+      <div class="card">
+        <div class="card-h"><span class="ticks"></span><h2>机器人状态</h2></div>
+        <div id="robot-status-wrap"><div class="no-data">等待数据…</div></div>
+        <div class="sub-h">安全回路</div>
+        <div id="safety-wrap"><div class="no-data">等待数据…</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><span class="ticks"></span><h2>末端位姿</h2><div class="spacer"></div><span class="mini">基座系 · 10Hz</span></div>
+        <div class="pose-cols" id="pose-card-wrap">
+          <div class="pose-block"><h3>腕部 wrist3_Link</h3><div class="no-data" style="border:none;padding:4px 0">等待数据…</div></div>
+          <div class="pose-block"><h3>相机 camera_link</h3><div class="no-data" style="border:none;padding:4px 0">等待数据…</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><span class="ticks"></span><h2>关节状态</h2><div class="spacer"></div>
+          <span class="mini">温度&gt;60°C / |跟随误差|&gt;0.05rad / 错误码≠0 标红</span></div>
+        <div id="joints-wrap"><div class="no-data">等待数据…</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><span class="ticks"></span><h2>诊断</h2></div>
+        <div id="diag-wrap"><div class="no-data">等待数据…</div></div>
+      </div>
+    </div>
+
+    <!-- 右列: 流程 + 结果 + 求解 -->
+    <div class="col">
+      <div class="card">
+        <div class="card-h"><span class="ticks"></span><h2>标定流程</h2></div>
+        <div class="steps" id="steps"></div>
+        <div class="guide">
+          <div class="ring">
+            <svg width="86" height="86">
+              <circle cx="43" cy="43" r="37" fill="none" stroke="#eef0f6" stroke-width="8"/>
+              <circle id="ring-arc" cx="43" cy="43" r="37" fill="none" stroke="#3b5bdb" stroke-width="8"
+                      stroke-linecap="round" stroke-dasharray="232.5" stroke-dashoffset="232.5"/>
+            </svg>
+            <div class="pct" id="ring-pct">0%<small>总进度</small></div>
+          </div>
+          <div class="guide-text">
+            <div class="stage-name" id="stage-name">初始化</div>
+            <div class="guide-line" id="guide-line">正在连接标定服务…</div>
+            <div class="guide-act" id="guide-act"></div>
+          </div>
+        </div>
+        <div class="actions">
+          <label class="method-sel">求解算法
+            <select id="sel-method">
+              <option value="auto" selected>auto · 5 方法竞选取最优</option>
+              <option value="tsai">tsai · Tsai-Lenz</option>
+              <option value="park">park · Park</option>
+              <option value="horaud">horaud · Horaud</option>
+              <option value="andreff">andreff · Andreff</option>
+              <option value="daniilidis">daniilidis · 对偶四元数</option>
+            </select>
+          </label>
+          <button class="btn-primary" id="btn-plan">① 预检并规划</button>
+          <button class="btn-primary" id="btn-run" disabled>② 执行自动标定</button>
+          <button class="btn-danger" id="btn-cancel" disabled>取消</button>
+          <button class="btn-ok" id="btn-activate" disabled>③ 启用结果</button>
+        </div>
+        <div class="safety">⚠ 执行前请清空工作空间、确认急停可用。标定过程中机器人将自动连续运动，请勿将身体任何部位置于运动范围内。</div>
+      </div>
+
+      <div class="card" id="result-card" style="display:none">
+        <div class="result-head">
+          <span class="ticks"></span><h2 style="font-size:13.5px;font-weight:700;color:var(--ink2)">求解结果</h2>
+          <span class="verdict" id="verdict"></span>
+          <span class="method-tag" id="method-tag"></span>
+        </div>
+        <div class="metric-grid" id="metric-grid"></div>
+        <div id="extr-wrap" style="display:none">
+          <div class="extr" id="extr"></div>
+          <span class="diff-badge" id="diff-badge" style="display:none"></span>
+        </div>
+      </div>
+
+      <div class="card" id="solve-card" style="display:none">
+        <div class="card-h"><span class="ticks"></span><h2>求解明细</h2>
+          <span class="chip blue" id="solve-src">本次标定</span>
+          <div class="spacer"></div><span class="method-tag" id="solve-method"></span></div>
+        <div class="solve-sec">
+          <h3>求解模型</h3>
+          <div class="formula">
+            <div><b>链式模型</b>（eye-in-hand 的 AX=XB 形式）：<span class="fx">T_base_target = T_base_gripper · T_gripper_camera · T_camera_target</span></div>
+            <div><b>逐样本残差</b>：<span class="fx">Δ_i = mean(T_est) ⊖ T_est_i</span>（平移 m + 旋转 deg，衡量样本间一致性）</div>
+            <div><b>Huber 精化</b>：<span class="fx">min Σ huber(‖Δt‖, ‖Δrotvec‖)</span>（联合优化 T_gripper_camera 与 T_base_target，共 12 维）</div>
+            <div><b>RMS</b>：<span class="fx">RMS = sqrt(mean(e²))</span></div>
+          </div>
+        </div>
+        <div class="solve-sec">
+          <h3>方法打分</h3>
+          <div id="method-scores-wrap"></div>
+        </div>
+        <div class="solve-sec">
+          <h3>Huber 精化统计</h3>
+          <div id="refine-wrap"></div>
+        </div>
+        <div class="solve-sec">
+          <h3>逐样本残差</h3>
+          <div id="sample-chart-box">
+            <canvas class="chart" id="sample-chart"></canvas>
+            <div class="legend">
+              <span><i style="background:#3b5bdb"></i>接受样本</span>
+              <span><i style="background:#e03131"></i>剔除样本</span>
+              <span><i style="background:transparent;border-top:2px dashed #e03131;height:0;border-radius:0"></i>门限（3mm / 0.5°）</span>
+            </div>
+          </div>
+          <div class="no-data" id="sample-nodata" style="display:none">该结果无此数据</div>
+        </div>
+        <div class="solve-sec">
+          <h3>标定板基座系估计 base_from_target</h3>
+          <div id="btt-wrap"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><span class="ticks"></span><h2>历史标定结果</h2><div class="spacer"></div>
+          <button class="btn-ghost" id="btn-refresh" style="padding:5px 12px;font-size:11.5px">刷新</button></div>
+        <div id="cand-wrap"><div class="empty">加载中…</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><span class="ticks"></span><h2>操作日志</h2><div class="spacer"></div>
+          <button class="btn-ghost" id="btn-clearlog" style="padding:5px 12px;font-size:11.5px">清空</button></div>
+        <div class="log-box" id="log-box"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toasts"></div>
+
+<script>
+const $=q=>document.querySelector(q);
+const STEP_DEFS=[['preflight','预检'],['plan','规划'],['move','运动'],['sample','采样'],['solve','求解'],['done','完成']];
+const STAGE_CN={
+  idle:'空闲就绪',starting:'初始化',requesting:'发送请求',preflighting:'预检查验中',
+  planning:'轨迹规划中',plan_ready:'规划就绪',moving:'机器人运动中',settling:'等待停稳',
+  capturing:'位姿采样中',returning:'返回初始位',solving:'求解计算中',
+  complete:'标定完成',quality_failed:'质量门未通过',failed:'标定失败',
+  cancelling:'正在取消',cancelled:'已取消',activated:'结果已启用',unknown:'未知状态'
+};
+const GUIDE={
+  idle:['系统空闲。棋盘放入相机视野后即可开始预检。','点击 ① 预检并规划 开始'],
+  starting:['正在连接标定服务,请稍候。',''],
+  requesting:['正在向标定服务发送请求。',''],
+  preflighting:['正在检查相机图像、棋盘可见性、TF 坐标链与 MoveIt 连接。机器人不会动。',''],
+  planning:['正在逐位姿做运动学规划验证(仅计算,机器人不动)。','观察左侧位姿矩阵,全部变蓝即规划通过'],
+  plan_ready:['全部位姿规划通过,机器人可以安全到达每个采样点。','清空工作空间、备好急停,点击 ② 执行自动标定'],
+  moving:['机器人正在向采样位姿运动。','请远离工作空间;有异常立即点击 取消'],
+  settling:['已到位,等待机械臂完全停稳后采样。',''],
+  capturing:['正在采集棋盘图像样本(每位姿 5 帧,自动剔除离群帧)。','请保持棋盘静止'],
+  returning:['采样结束,机器人正在返回初始位姿。',''],
+  solving:['正在求解手眼变换并做质量门校验。',''],
+  complete:['质量门全部通过,结果已存档。','核对下方外参数值与历史差异,确认后点击 ③ 启用结果'],
+  quality_failed:['求解完成,但有质量门未通过,结果不可启用。','检查指标卡红色项,调整棋盘或位姿后重新标定'],
+  failed:['标定过程中断,详情见操作日志。','排除故障后可重新预检'],
+  cancelling:['正在取消,机器人将停住。',''],
+  cancelled:['已取消,机器人保持当前位置。','可重新预检开始新一轮标定'],
+  activated:['新的相机外参已启用并发布。',''],
+  unknown:['状态未知。','']
+};
+const POSE_CN={pending:'待规划',planned:'规划✓',plan_failed:'规划失败',settling:'稳定中',sampled:'采样✓',move_failed:'运动失败',capture_failed:'采样失败'};
+const RUNNING=new Set(['preflighting','planning','moving','settling','capturing','returning','solving','cancelling','requesting']);
+const MOVING=new Set(['moving','returning']);
+const STEP_OF={idle:0,preflighting:0,planning:1,plan_ready:1,moving:2,settling:2,capturing:3,returning:3,solving:4,complete:5,quality_failed:5,failed:-1,cancelled:-1,activated:5};
+let candidateId='',qualityPassed=false,activeDoc=null,currentExtr=null,lastStage='';
+
+/* ── 前端展示阈值常量 (仅标红/画线用, 与后端 quality gates 无关) ── */
+const JOINT_TEMP_WARN_C=60;      // 关节温度超过该值标红 (°C)
+const JOINT_FERR_WARN_RAD=0.05;  // 关节跟随误差绝对值超过该值标红 (rad)
+const REPROJ_GATE_PX=1.0;        // 重投影 RMS 时序图门限虚线 (px)
+const SAMPLE_T_GATE_MM=3.0;      // 逐样本平移残差柱状图门限线 (mm)
+const SAMPLE_R_GATE_DEG=0.5;     // 逐样本旋转残差柱状图门限线 (deg)
+const MODE_CN={1:'手动',2:'自动','-1':'未知'};   // RobotStatus.mode 取值含义
+const DIAG_TAG=['ok','warn','bad','bad'];        // diagnostics level 0/1/2/3 → 徽标色
+const DIAG_CN=['正常','警告','错误','停滞'];
+
+/* ── 基础工具 ── */
+const toast=(m,k='')=>{const e=document.createElement('div');e.className='toast '+k;e.textContent=m;$('#toasts').appendChild(e);setTimeout(()=>e.remove(),4200)};
+const post=async(p,b={})=>{const r=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});const d=await r.json();if(!r.ok||d.success===false)throw new Error(d.message||'请求失败');return d};
+const num=(v,d=4)=>typeof v==='number'?(Math.abs(v)>0&&Math.abs(v)<1e-3?v.toExponential(2):v.toFixed(d)):'—';
+const log=(m,kind='info')=>{
+  const box=$('#log-box');const t=new Date().toLocaleTimeString('zh-CN',{hour12:false});
+  const line=document.createElement('div');line.className='log-line '+kind;
+  line.innerHTML=`<span class="t">${t}</span><span class="m">${m}</span>`;
+  box.prepend(line);while(box.children.length>80)box.lastChild.remove();
+};
+$('#btn-clearlog').onclick=()=>{$('#log-box').innerHTML=''};
+/* 四元数 (xyzw) → zyx 欧拉角 [roll,pitch,yaw] (deg); 与后端 scipy 'xyz' 外旋约定一致 */
+function quatToRpyDeg(q){
+  const [x,y,z,w]=q;
+  const roll=Math.atan2(2*(w*x+y*z),1-2*(x*x+y*y));
+  const s=Math.max(-1,Math.min(1,2*(w*y-z*x)));
+  const pitch=Math.asin(s);
+  const yaw=Math.atan2(2*(w*z+x*y),1-2*(y*y+z*z));
+  const d=180/Math.PI;
+  return [roll*d,pitch*d,yaw*d];
+}
+
+/* ── 步骤条 ── */
+function renderSteps(stage){
+  const idx=STEP_OF[stage]??0;
+  $('#steps').innerHTML=STEP_DEFS.map(([k,lbl],i)=>{
+    let cls='step';
+    if(stage==='quality_failed'&&i===5)cls+=' fail';
+    else if(stage==='failed'&&i===Math.max(idx,0))cls+=' fail';
+    else if(i<idx)cls+=' done';
+    else if(i===idx)cls+=RUNNING.has(stage)?' active':(idx===5?' done':' active');
+    const knob=i<idx?'✓':(i+1);
+    return `<div class="${cls}"><div class="knob">${knob}</div><div class="lbl">${lbl}</div></div>`;
+  }).join('');
+}
+
+/* ── 位姿矩阵 + 逐帧观测展开 ── */
+let expandedPose=-1,lastPoses=[],lastFramesKey='';
+function renderPoses(poses){
+  lastPoses=poses||[];
+  const grid=$('#pose-grid');
+  if(!lastPoses.length){
+    grid.innerHTML='<div class="empty" style="grid-column:1/-1">尚未开始标定</div>';
+    $('#pose-mini').textContent='';expandedPose=-1;
+    renderPoseFrames();renderReprojChart();return;
+  }
+  const done=lastPoses.filter(p=>p.status==='sampled').length;
+  $('#pose-mini').textContent=`${done}/${lastPoses.length} 已采样`;
+  grid.innerHTML=lastPoses.map(p=>{
+    let cls='pose-t';
+    if(p.status==='planned')cls+=' planned';
+    else if(p.status==='settling')cls+=' working';
+    else if(p.status==='sampled')cls+=' sampled';
+    else if(p.status&&p.status.endsWith('failed'))cls+=' failed';
+    if(p.frames&&p.frames.length)cls+=' clickable';
+    if(p.pose_index===expandedPose)cls+=' expanded';
+    const tip=p.reprojection_rms_px!==undefined?`重投影 RMS ${num(p.reprojection_rms_px,2)} px`:(p.reason||'');
+    const sub=p.reprojection_rms_px!==undefined?num(p.reprojection_rms_px,2)+'px':(POSE_CN[p.status]||p.status);
+    return `<div class="${cls}" data-idx="${p.pose_index}" title="位姿${p.pose_index+1} ${tip}"><div class="no">${String(p.pose_index+1).padStart(2,'0')}</div><div class="st">${sub}</div></div>`;
+  }).join('');
+  grid.querySelectorAll('.pose-t.clickable').forEach(el=>el.onclick=()=>{
+    const idx=+el.dataset.idx;
+    expandedPose=(expandedPose===idx)?-1:idx;
+    renderPoses(lastPoses);
+  });
+  renderPoseFrames();
+  renderReprojChart();
+}
+/* 展开位姿的逐帧观测表 (帧号 / 重投影 RMS / 腕部 xyz+rpy / 板在相机系 xyz / kept) */
+function renderPoseFrames(){
+  const wrap=$('#frames-wrap');
+  const p=lastPoses.find(x=>x.pose_index===expandedPose);
+  if(!p||!p.frames||!p.frames.length){wrap.style.display='none';lastFramesKey='';return}
+  const key=expandedPose+':'+JSON.stringify(p.frames);
+  if(key===lastFramesKey)return;
+  lastFramesKey=key;
+  wrap.style.display='block';
+  const rows=p.frames.map((f,i)=>{
+    const wr=quatToRpyDeg(f.base_from_gripper.quat_xyzw);
+    return `<tr class="${f.kept?'':'dropped'}">
+      <td class="mono">${i+1}</td>
+      <td class="mono">${num(f.reprojection_rms_px,2)}</td>
+      <td class="mono">${f.base_from_gripper.xyz.map(v=>num(v,4)).join(', ')}</td>
+      <td class="mono">${wr.map(v=>num(v,2)).join(', ')}</td>
+      <td class="mono">${f.camera_from_target.xyz.map(v=>num(v,4)).join(', ')}</td>
+      <td>${f.kept?'<span class="tag ok">留</span>':'<span class="tag bad">剔</span>'}</td></tr>`;
+  }).join('');
+  wrap.innerHTML=`<div class="solve-sec"><h3>位姿 ${expandedPose+1} · 逐帧观测（${p.frames.length} 帧，被剔除行置灰标“剔”）</h3>
+    <table><thead><tr><th>帧</th><th>重投影 RMS px</th><th>腕部 xyz (m)</th><th>腕部 rpy (°)</th><th>板在相机系 xyz (m)</th><th>保留</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+}
+
+/* ── canvas 工具: DPR 适配 + 坐标映射 ── */
+function setupCanvas(cv,h){
+  const dpr=window.devicePixelRatio||1,w=cv.clientWidth||600;
+  cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);cv.style.height=h+'px';
+  const ctx=cv.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+  return [ctx,w,h];
+}
+function drawAxes(ctx,pad,W,H,vmax,unit,fmt){
+  ctx.strokeStyle='#e5e8f0';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,pad.t+pad.ih);ctx.lineTo(pad.l+pad.iw,pad.t+pad.ih);ctx.stroke();
+  ctx.fillStyle='#9aa3b5';ctx.font='10px sans-serif';ctx.textAlign='right';
+  for(let g=0;g<=4;g++){
+    const v=vmax*g/4,y=pad.t+pad.ih*(1-g/4);
+    ctx.strokeStyle='#eef0f6';ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+pad.iw,y);ctx.stroke();
+    ctx.fillText(fmt(v),pad.l-6,y+3);
+  }
+}
+function drawGate(ctx,pad,gate,vmax,label){
+  const y=pad.t+pad.ih*(1-gate/vmax);
+  ctx.strokeStyle='#e03131';ctx.setLineDash([5,4]);ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+pad.iw,y);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#e03131';ctx.font='10px sans-serif';ctx.textAlign='left';
+  ctx.fillText(label,pad.l+6,y-4);
+}
+
+/* ── 重投影 RMS 时序折线图 (横轴=跨位姿连续帧序, 纵轴=px, 门限虚线) ── */
+let lastChartKey='';
+function renderReprojChart(){
+  const frames=[];
+  lastPoses.forEach(p=>(p.frames||[]).forEach(f=>frames.push(f)));
+  const card=$('#reproj-card');
+  if(!frames.length){card.style.display='none';lastChartKey='';return}
+  card.style.display='block';
+  const cv=$('#reproj-chart');
+  const key=JSON.stringify(frames)+'|'+cv.clientWidth;
+  if(key===lastChartKey)return;
+  lastChartKey=key;
+  const [ctx,W,H]=setupCanvas(cv,170);
+  const pad={l:44,r:12,t:14,b:24};pad.iw=W-pad.l-pad.r;pad.ih=H-pad.t-pad.b;
+  const vals=frames.map(f=>f.reprojection_rms_px);
+  const vmax=Math.max(REPROJ_GATE_PX*1.3,...vals)*1.1;
+  const X=i=>pad.l+pad.iw*(vals.length<2?0.5:i/(vals.length-1));
+  const Y=v=>pad.t+pad.ih*(1-v/vmax);
+  drawAxes(ctx,pad,W,H,vmax,'px',v=>v.toFixed(1));
+  drawGate(ctx,pad,REPROJ_GATE_PX,vmax,'门限 '+REPROJ_GATE_PX+' px');
+  ctx.strokeStyle='#3b5bdb';ctx.lineWidth=1.6;ctx.beginPath();
+  vals.forEach((v,i)=>{i?ctx.lineTo(X(i),Y(v)):ctx.moveTo(X(i),Y(v))});
+  ctx.stroke();
+  vals.forEach((v,i)=>{
+    if(!frames[i].kept){
+      ctx.fillStyle='#e03131';ctx.beginPath();ctx.arc(X(i),Y(v),3.4,0,7);ctx.fill();
+    }
+  });
+  ctx.fillStyle='#9aa3b5';ctx.font='10px sans-serif';ctx.textAlign='center';
+  ctx.fillText('帧序（跨位姿连续编号，红点=被剔除帧）',pad.l+pad.iw/2,H-7);
+}
+
+/* ── 逐样本残差柱状图 (上: 平移 mm, 下: 旋转 deg; 剔除样本红柱; 门限虚线) ── */
+function drawSampleBars(cv,errs){
+  const [ctx,W,H]=setupCanvas(cv,250);
+  const bands=[
+    {vals:errs.map(e=>(e.translation_m??0)*1000),gate:SAMPLE_T_GATE_MM,label:'平移残差 (mm)',gl:'门限 '+SAMPLE_T_GATE_MM+' mm'},
+    {vals:errs.map(e=>e.rotation_deg??0),gate:SAMPLE_R_GATE_DEG,label:'旋转残差 (°)',gl:'门限 '+SAMPLE_R_GATE_DEG+'°'},
+  ];
+  const bh=(H-8)/bands.length;
+  bands.forEach((b,bi)=>{
+    const pad={l:44,r:12,t:8+bi*bh+12,b:0};pad.iw=W-pad.l-pad.r;pad.ih=bh-34;
+    const vmax=Math.max(b.gate*1.3,...b.vals)*1.15;
+    const Y=v=>pad.t+pad.ih*(1-v/vmax);
+    drawAxes(ctx,pad,W,H,vmax,'',v=>v.toFixed(1));
+    drawGate(ctx,pad,b.gate,vmax,b.gl);
+    const n=b.vals.length,bw=Math.min(34,pad.iw/n*0.55);
+    b.vals.forEach((v,i)=>{
+      const cx=pad.l+pad.iw*(n<2?0.5:(n===1?0.5:i/(n-1)));
+      const accepted=errs[i].accepted;
+      ctx.fillStyle=accepted?'#3b5bdb':'#e03131';
+      const y=Y(v);
+      ctx.fillRect(cx-bw/2,y,bw,pad.t+pad.ih-y);
+      ctx.fillStyle='#9aa3b5';ctx.font='9.5px sans-serif';ctx.textAlign='center';
+      ctx.fillText(String((errs[i].index??i)+1),cx,pad.t+pad.ih+11);
+    });
+    ctx.fillStyle='#5a6478';ctx.font='bold 10.5px sans-serif';ctx.textAlign='left';
+    ctx.fillText(b.label,pad.l+2,pad.t-4+12);
+  });
+}
+
+/* ── 指标与结果 ── */
+function metricCard(k,v,unit,gate,ok){
+  return `<div class="metric ${ok===true?'ok':ok===false?'bad':''}">
+    <div class="k">${k}</div><div class="v">${v}<small> ${unit||''}</small></div>
+    <div class="gate">${gate||''}</div></div>`;
+}
+function renderResult(s){
+  const m=s.metrics||{},g=s.gates||{};
+  const has=m.translation_rms_m!==undefined;
+  $('#result-card').style.display=has?'block':'none';
+  if(!has)return;
+  const v=$('#verdict');
+  if(s.quality_passed){v.textContent='✓ 质量门通过,可启用';v.className='verdict ok'}
+  else{v.textContent='✗ 质量门未通过';v.className='verdict bad'}
+  $('#method-tag').textContent=(s.method?'solver: '+s.method:'')+(s.candidate_id?'  ·  '+s.candidate_id:'');
+  $('#metric-grid').innerHTML=[
+    metricCard('接受样本',m.accepted_samples??'—','',`≥ ${g.min_samples??'—'}`,g.min_samples!==undefined?(m.accepted_samples>=g.min_samples):null),
+    metricCard('平移 RMS',num(m.translation_rms_m*1000,2),'mm',`≤ ${num((g.max_translation_rms_m??0)*1000,1)} mm`,g.max_translation_rms_m!==undefined?(m.translation_rms_m<=g.max_translation_rms_m):null),
+    metricCard('旋转 RMS',num(m.rotation_rms_deg,3),'°',`≤ ${num(g.max_rotation_rms_deg,1)}°`,g.max_rotation_rms_deg!==undefined?(m.rotation_rms_deg<=g.max_rotation_rms_deg):null),
+    metricCard('重投影 RMS',num(m.reprojection_rms_px,2),'px',`≤ ${num(g.max_reprojection_rms_px,1)} px`,g.max_reprojection_rms_px!==undefined?(m.reprojection_rms_px<=g.max_reprojection_rms_px):null),
+    metricCard('旋转跨度',num(m.rotation_span_deg,1),'°',`≥ ${num(g.min_rotation_span_deg,0)}°`,g.min_rotation_span_deg!==undefined?(m.rotation_span_deg>=g.min_rotation_span_deg):null),
+    metricCard('拒绝样本',m.rejected_samples??'—','','',null),
+  ].join('');
+  const e=(s.extrinsics||{}).wrist_from_camera_optical;
+  if(e){
+    currentExtr=e;$('#extr-wrap').style.display='block';
+    $('#extr').innerHTML=`<b>wrist → camera_optical</b><br>xyz&nbsp;&nbsp;[${e.xyz_m.map(v=>num(v,4)).join(', ')}] m<br>quat [${e.quaternion_xyzw.map(v=>num(v,4)).join(', ')}] xyzw`;
+    renderDiff();
+  }
+}
+function renderDiff(){
+  const badge=$('#diff-badge');
+  if(!currentExtr||!activeDoc){badge.style.display='none';return}
+  const t=(activeDoc.transforms||{}).wrist_from_camera_optical;
+  if(!t){badge.style.display='none';return}
+  const dx=currentExtr.xyz_m.map((v,i)=>v-t.xyz_m[i]);
+  const dt=Math.hypot(...dx)*1000;
+  const q1=currentExtr.quaternion_xyzw,q2=t.quaternion_xyzw;
+  let dot=Math.min(1,Math.abs(q1.reduce((s,v,i)=>s+v*q2[i],0)));
+  const da=2*Math.acos(dot)*180/Math.PI;
+  badge.style.display='inline-block';
+  badge.textContent=`与当前激活版本差异 Δ平移 ${dt.toFixed(2)} mm · Δ旋转 ${da.toFixed(3)}°`;
+}
+
+/* ── 求解明细面板 (live result 与历史候选共用同一渲染函数) ── */
+let lastLiveSolveJson='';
+/* 历史候选文档 → 与 status JSON result 区段同构的对象;
+   旧候选缺新字段时对应键为 null, 渲染侧显示"该结果无此数据" */
+function adaptCandidateResult(doc){
+  const bt=(doc.transforms||{}).base_from_target||{};
+  return {
+    method:doc.method||'',
+    method_scores:doc.method_scores??null,
+    sample_errors:doc.sample_errors??null,
+    refine_stats:doc.refine_stats??null,
+    base_from_target:bt.xyz_m?{xyz:bt.xyz_m,quat_xyzw:bt.quaternion_xyzw}:null,
+  };
+}
+const NO_DATA='<div class="no-data">该结果无此数据</div>';
+function renderSolvePanel(r,sourceId){
+  $('#solve-card').style.display='block';
+  $('#solve-src').textContent=sourceId?('历史候选 · '+sourceId.slice(0,15)+'…'):'本次标定';
+  const scores=r.method_scores;
+  const auto=Array.isArray(scores)&&scores.length>1;
+  $('#solve-method').textContent=r.method
+    ?(auto?`求解方法：5 方法竞选，胜出 ${r.method}`:`求解方法：${r.method}`)
+    :'';
+  /* 方法打分表: selected 行高亮, failed 行置灰标"失败"; 指定方法时单行属正常 */
+  const msWrap=$('#method-scores-wrap');
+  if(!scores||!scores.length){
+    msWrap.innerHTML=NO_DATA;
+  }else{
+    msWrap.innerHTML=`<table><thead><tr><th>方法</th><th>平移 RMS (m)</th><th>旋转 RMS (deg)</th><th>归一化总分</th><th></th></tr></thead><tbody>${
+      scores.map(s=>{
+        if(s.failed)return `<tr class="mfailed"><td class="mono">${s.method}</td><td>—</td><td>—</td><td>—</td><td><span class="tag bad">失败</span></td></tr>`;
+        return `<tr class="${s.selected?'sel':''}">
+          <td class="mono">${s.method}</td>
+          <td class="mono">${num(s.translation_rms_m,6)}</td>
+          <td class="mono">${num(s.rotation_rms_deg,4)}</td>
+          <td class="mono">${num(s.score,4)}</td>
+          <td>${s.selected?'<span class="tag ok">中选</span>':''}</td></tr>`;
+      }).join('')}</tbody></table>`;
+  }
+  /* 精化统计 */
+  const rs=r.refine_stats;
+  if(!rs||!Object.keys(rs).length){
+    $('#refine-wrap').innerHTML=NO_DATA;
+  }else{
+    const conv=rs.converged===true?'<span class="tag ok">已收敛</span>':'<span class="tag warn">未收敛</span>';
+    $('#refine-wrap').innerHTML=`<div class="extr" style="margin-top:0">
+      ${conv}<br>cost&nbsp;&nbsp;<b>${num(rs.initial_cost,6)}</b> → <b>${num(rs.final_cost,6)}</b><br>迭代 <b>${rs.nfev??'—'}</b> 次</div>`;
+  }
+  /* 逐样本残差柱状图 */
+  const se=r.sample_errors;
+  if(!se||!se.length){
+    $('#sample-chart-box').style.display='none';
+    $('#sample-nodata').style.display='block';
+  }else{
+    $('#sample-chart-box').style.display='block';
+    $('#sample-nodata').style.display='none';
+    drawSampleBars($('#sample-chart'),se);
+  }
+  /* base_from_target */
+  const bt=r.base_from_target;
+  if(!bt||!bt.xyz){
+    $('#btt-wrap').innerHTML=NO_DATA;
+  }else{
+    const rpy=quatToRpyDeg(bt.quat_xyzw);
+    $('#btt-wrap').innerHTML=`<div class="extr" style="margin-top:0">
+      xyz&nbsp;&nbsp;<b>[${bt.xyz.map(v=>num(v,4)).join(', ')}]</b> m<br>rpy&nbsp;&nbsp;<b>[${rpy.map(v=>num(v,2)).join(', ')}]</b> °</div>`;
+  }
+}
+/* live result 渲染: 内容未变时跳过, 避免 10Hz 快照反复重绘 canvas */
+function maybeRenderLiveSolve(c){
+  const r=c.result;
+  if(!r)return;
+  const j=JSON.stringify(r);
+  if(j===lastLiveSolveJson)return;
+  lastLiveSolveJson=j;
+  renderSolvePanel(r,null);
+}
+
+/* ── 机器人区段渲染 (robot_status/joints/safety 为 null 时兜底"无数据") ── */
+const led=(label,state,extra='')=>`<span class="led ${state}" ${extra}><i></i>${label}</span>`;
+function renderRobotStatus(rs,safety){
+  const box=$('#robot-status-wrap');
+  if(!rs){
+    box.innerHTML='<div class="no-data">无数据（io 控制器未运行）</div>';
+  }else{
+    const mode=MODE_CN[rs.mode]??('未知('+rs.mode+')');
+    box.innerHTML=`<div class="led-row">
+      ${led('模式：'+mode,'blue')}
+      ${led('急停',rs.e_stopped?'bad':'ok')}
+      ${led('驱动上电',rs.drives_powered?'ok':'')}
+      ${led('可运动',rs.motion_possible?'ok':'warn')}
+      ${led('运动中',rs.in_motion?'blue':'')}
+      ${led('错误',rs.in_error?'bad':'ok')}
+      ${led('错误码 '+(rs.error_code??'—'),rs.error_code?'bad':'')}
+    </div>`;
+  }
+  const sw=$('#safety-wrap');
+  if(!safety){
+    sw.innerHTML='<div class="no-data">无数据（io 控制器未运行）</div>';
+  }else{
+    sw.innerHTML=`<div class="led-row">
+      ${led('急停回路',safety.estop===null||safety.estop===undefined?'':(safety.estop?'bad':'ok'),'style="font-size:13px;padding:8px 16px"')}
+      ${led('防护停',safety.protective_stop===null||safety.protective_stop===undefined?'':(safety.protective_stop?'bad':'ok'),'style="font-size:13px;padding:8px 16px"')}
+    </div>`;
+  }
+}
+function poseBlockHtml(title,p,emptyMsg){
+  if(!p)return `<div class="pose-block"><h3>${title}</h3><div class="no-data" style="border:none;padding:4px 0">${emptyMsg}</div></div>`;
+  return `<div class="pose-block"><h3>${title}</h3><div class="pv">
+    xyz&nbsp;&nbsp;<b>[${p.xyz.map(v=>num(v,4)).join(', ')}]</b> m<br>
+    rpy&nbsp;&nbsp;<b>[${p.rpy_deg.map(v=>num(v,2)).join(', ')}]</b> °<br>
+    quat <b>[${p.quat_xyzw.map(v=>num(v,4)).join(', ')}]</b> xyzw</div></div>`;
+}
+function renderPoseCard(pose,cameraPose){
+  $('#pose-card-wrap').innerHTML=
+    poseBlockHtml('腕部 wrist3_Link',pose,'TF 不可用 / 无数据')+
+    poseBlockHtml('相机 camera_link',cameraPose,'外参未激活 / TF 不可用');
+}
+function renderJoints(joints){
+  const wrap=$('#joints-wrap');
+  if(!joints||!joints.length){
+    wrap.innerHTML='<div class="no-data">无数据（io 控制器未运行）</div>';return;
+  }
+  const cell=(v,d,bad)=>`<td class="mono${bad?' bad':''}">${v===null||v===undefined?'—':num(v,d)}</td>`;
+  wrap.innerHTML=`<table><thead><tr><th>关节</th><th>位置 (rad)</th><th>速度 (rad/s)</th><th>电流 (A)</th><th>温度 (°C)</th><th>跟随误差 (rad)</th><th>错误码</th></tr></thead><tbody>${
+    joints.map(j=>{
+      const tBad=typeof j.temperature==='number'&&j.temperature>JOINT_TEMP_WARN_C;
+      const fBad=typeof j.following_error==='number'&&Math.abs(j.following_error)>JOINT_FERR_WARN_RAD;
+      const eBad=typeof j.error_code==='number'&&j.error_code!==0;
+      return `<tr><td class="mono">${j.name.replace(/_joint$/,'')}</td>
+        ${cell(j.position,4,false)}${cell(j.velocity,3,false)}${cell(j.current,2,false)}
+        ${cell(j.temperature,1,tBad)}${cell(j.following_error,4,fBad)}
+        <td class="mono${eBad?' bad':''}">${j.error_code??'—'}</td></tr>`;
+    }).join('')}</tbody></table>`;
+}
+function renderDiags(diags){
+  const wrap=$('#diag-wrap');
+  if(!diags){
+    wrap.innerHTML='<div class="no-data">无数据（/diagnostics 未发布）</div>';return;
+  }
+  if(!diags.length){
+    wrap.innerHTML='<div class="no-data">诊断列表为空</div>';return;
+  }
+  wrap.innerHTML=`<div class="diag-list">${diags.map(d=>{
+    const lv=Math.max(0,Math.min(3,d.level??0));
+    return `<div class="diag-item"><span class="tag ${DIAG_TAG[lv]}">${DIAG_CN[lv]}</span>
+      <span class="nm">${d.name}</span><span class="ms">${d.message||''}</span></div>`;
+  }).join('')}</div>`;
+}
+function renderRobot(r){
+  r=r||{};
+  renderRobotStatus(r.robot_status??null,r.safety??null);
+  renderPoseCard(r.pose??null,r.camera_pose??null);
+  renderJoints(r.joints??null);
+  renderDiags(r.diagnostics??null);
+}
+
+/* ── 候选表 ── */
+async function refreshCandidates(){
+  try{
+    const d=await (await fetch('/api/candidates')).json();
+    const list=d.candidates||[];
+    if(!list.length){$('#cand-wrap').innerHTML='<div class="empty">暂无历史标定结果</div>';return}
+    const rows=list.map(c=>{
+      if(c.error)return `<tr><td class="mono">${c.candidate_id}</td><td colspan="5"><span class="tag bad">文件损坏</span></td></tr>`;
+      const m=c.metrics||{};
+      const date=(c.created_at||'').replace('T',' ').slice(5,19);
+      const state=c.active?'<span class="tag ok">当前激活</span>':(c.quality_passed?'<span class="tag info">可用</span>':'<span class="tag bad">未过门</span>');
+      const btn=(!c.active&&c.quality_passed)?`<button class="activate-link" data-id="${c.candidate_id}">启用</button>`:'';
+      return `<tr class="${c.active?'current':''}">
+        <td><div class="mono">${date}</div><div class="mini mono" style="color:var(--ink3)">${(c.candidate_id||'').slice(0,15)}…</div></td>
+        <td class="mono">${c.method||'—'}</td>
+        <td class="mono">${num((m.translation_rms_m??NaN)*1000,2)} mm</td>
+        <td class="mono">${num(m.rotation_rms_deg,2)}°</td>
+        <td>${state}</td>
+        <td style="white-space:nowrap"><button class="activate-link detail-link" data-id="${c.candidate_id}">详情</button> ${btn}</td></tr>`;
+    }).join('');
+    $('#cand-wrap').innerHTML=`<table><thead><tr><th>时间</th><th>方法</th><th>平移RMS</th><th>旋转RMS</th><th>状态</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+    document.querySelectorAll('.activate-link:not(.detail-link)').forEach(b=>b.onclick=()=>{
+      if(confirm(`启用标定结果 ${b.dataset.id} ?\n将替换当前相机外参并立即生效。`))
+        activate(b.dataset.id);
+    });
+    document.querySelectorAll('.detail-link').forEach(b=>b.onclick=()=>showCandidateDetail(b.dataset.id));
+  }catch(e){}
+}
+/* 历史回看: 取候选完整文档, 适配成 result 同构对象后复用求解面板渲染 */
+async function showCandidateDetail(id){
+  try{
+    const doc=await (await fetch('/api/candidates/'+encodeURIComponent(id))).json();
+    renderSolvePanel(adaptCandidateResult(doc),id);
+    $('#solve-card').scrollIntoView({behavior:'smooth',block:'nearest'});
+    log(`查看历史候选 ${id} 的求解明细`);
+  }catch(e){toast('候选详情加载失败: '+e.message,'error')}
+}
+async function refreshActive(){
+  try{const d=await (await fetch('/api/active')).json();activeDoc=d.active;renderDiff()}catch(e){}
+}
+function activate(id){
+  post('/api/activate',{candidate_id:id})
+    .then(r=>{toast(r.message,'ok');log(`已启用标定结果 ${id}`,'ok');refreshCandidates();refreshActive();})
+    .catch(e=>{toast(e.message,'error');log(`启用失败: ${e.message}`,'error')});
+}
+
+/* ── calib 区段驱动 UI (原 update 逻辑) ── */
+function renderCalib(s){
+  const stage=s.stage||'unknown';
+  renderSteps(stage);
+  $('#stage-name').innerHTML=`${STAGE_CN[stage]||stage}<span class="en">${stage}</span>`;
+  const g=GUIDE[stage]||['',''];
+  $('#guide-line').textContent=s.detail?`${g[0]}(${s.detail})`:g[0];
+  $('#guide-act').textContent=g[1]||'';$('#guide-act').style.display=g[1]?'block':'none';
+  const pct=Math.round((s.progress||0)*100);
+  $('#ring-pct').innerHTML=`${pct}%<small>总进度</small>`;
+  $('#ring-arc').style.strokeDashoffset=(232.5*(1-(s.progress||0))).toFixed(1);
+  $('#ring-arc').style.stroke=(stage==='quality_failed'||stage==='failed')?'var(--bad)':(stage==='complete'?'var(--ok)':'var(--brand)');
+  if(s.board)$('#board-chip').textContent='棋盘 '+s.board.replace(' inner corners, square ',' · ');
+  const vc=$('#visible-chip');
+  if(s.board_visible!==undefined){
+    vc.innerHTML=`<span class="dot"></span>${s.board_visible?'棋盘可见':'棋盘不可见'}`;
+    vc.className='chip '+(s.board_visible?'on':'off');
+  }
+  const acc=s.accepted_samples??(s.metrics||{}).accepted_samples;
+  if(acc!==undefined)$('#sample-chip').textContent=`已接受样本 ${acc}`;
+  $('#moving-flag').className='moving-flag'+(MOVING.has(stage)?' show':'');
+  renderPoses(s.poses);
+  renderResult(s);
+  maybeRenderLiveSolve(s);
+  if(s.candidate_id){candidateId=s.candidate_id;qualityPassed=!!s.quality_passed;refreshCandidates()}
+  const running=RUNNING.has(stage);
+  $('#btn-plan').disabled=running;
+  $('#btn-run').disabled=running||stage!=='plan_ready';
+  $('#btn-cancel').disabled=!running||stage==='cancelling';
+  $('#btn-activate').disabled=running||!qualityPassed||stage!=='complete';
+  $('#btn-run').className='btn-primary'+((stage==='plan_ready')?' pulse':'');
+  $('#btn-activate').className='btn-ok'+((stage==='complete'&&qualityPassed)?' pulse':'');
+  $('#btn-plan').className='btn-primary'+((stage==='idle'||stage==='cancelled'||stage==='failed')?' pulse':'');
+  if(stage!==lastStage){
+    const kind=stage==='failed'||stage==='quality_failed'?'error':(stage==='complete'||stage==='activated'?'ok':(stage==='cancelled'?'warn':'info'));
+    if(lastStage!==''||stage!=='idle')log(`${STAGE_CN[stage]||stage}${s.detail?' — '+s.detail:''}`,kind);
+    lastStage=stage;
+  }
+}
+
+/* ── 单一渲染入口: 快照 = {calib, robot} ── */
+function update(s){
+  renderCalib(s.calib||{});
+  renderRobot(s.robot||{});
+}
+
+/* ── 操作 ── */
+const selMethod=()=>$('#sel-method').value;
+$('#btn-plan').onclick=()=>post('/api/plan',{method:selMethod()}).then(()=>toast('预检规划已启动(机器人不会动)','ok')).catch(e=>toast(e.message,'error'));
+$('#btn-run').onclick=()=>{
+  if(confirm('机器人将连续自动运动完成全部位姿采样,预计数分钟。\n请确认:工作空间已清空 · 急停可用 · 棋盘固定不动。\n\n开始执行?'))
+    post('/api/run',{method:selMethod()}).then(()=>toast('自动标定已启动,请远离工作空间','ok')).catch(e=>toast(e.message,'error'));
+};
+$('#btn-cancel').onclick=()=>post('/api/cancel').then(()=>toast('已请求取消')).catch(e=>toast(e.message,'error'));
+$('#btn-activate').onclick=()=>{
+  if(!candidateId)return toast('无可用的标定结果','error');
+  if(confirm(`确认启用结果 ${candidateId} ?\n将替换当前相机外参并立即生效。`))activate(candidateId);
+};
+$('#btn-refresh').onclick=()=>{refreshCandidates();refreshActive();toast('已刷新')};
+
+/* ── SSE 连接 (断线自动重连) ── */
+let es;
+function connect(){
+  es=new EventSource('/api/events');
+  es.onopen=()=>{const c=$('#conn-chip');c.innerHTML='<span class="dot"></span>已连接';c.className='chip on'};
+  es.onmessage=e=>{try{update(JSON.parse(e.data))}catch(err){}};
+  es.onerror=()=>{const c=$('#conn-chip');c.innerHTML='<span class="dot"></span>断开,重连中…';c.className='chip off';es.close();setTimeout(connect,2000)};
+}
+connect();refreshCandidates();refreshActive();
+const pv=$('#preview');
+/* 断流自愈: 帧龄超过 10 秒视为 MJPEG 连接已死, 强制重连 */
+let lastReconnect=0;
+pv.onerror=()=>setTimeout(()=>{pv.src='/preview.mjpeg?r='+Date.now()},2000);
+/* ── 预览帧率: 由网关统计预览话题帧率, 每 2 秒轮询 ── */
+setInterval(async()=>{
+  const chip=$('#fps-chip');
+  try{
+    const d=await (await fetch('/api/fps')).json();
+    if(d.last_frame_age_s===null||d.last_frame_age_s>10){
+      chip.textContent='无画面';chip.className='chip off';
+      if(Date.now()-lastReconnect>10000){lastReconnect=Date.now();pv.src='/preview.mjpeg?r='+lastReconnect}
+    }
+    else{
+      chip.textContent=d.fps.toFixed(1)+' FPS';
+      chip.className='chip '+(d.fps>=2?'on':'blue');
+    }
+  }catch(e){chip.textContent='— FPS';chip.className='chip off'}
+},2000);
+</script>
+</body>
+</html>

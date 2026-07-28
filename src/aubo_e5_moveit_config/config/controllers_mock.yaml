@@ -1,0 +1,14 @@
+# mock 模式（mock_components/GenericSystem）专用：标准 JTC，官方 ros2_control 链路。
+controller_names:
+  - joint_trajectory_controller
+joint_trajectory_controller:
+  action_ns: follow_joint_trajectory
+  type: FollowJointTrajectory
+  default: true
+  joints:
+    - shoulder_joint
+    - upperArm_joint
+    - foreArm_joint
+    - wrist1_joint
+    - wrist2_joint
+    - wrist3_joint

@@ -1,0 +1,55 @@
+# Joint limits for AUBO E5 — values follow the field-tested aubo_boot driver
+# (aubo_boot aubo_moveit_config/config/joint_limits.yaml): J1-J3 2.5964 rad/s,
+# J4-J6 3.1105 rad/s. Acceleration limits per aubo_boot (2.5 / 3.0 rad/s^2).
+# has_jerk_limits/max_jerk 与 cartesian_limits 段为 Pilz 管线必需（缺失会使
+# move_group 在加载 pilz 时抛 ParameterUninitializedException 崩溃）。
+joint_limits:
+  shoulder_joint:
+    has_velocity_limits: true
+    max_velocity: 2.5964
+    has_acceleration_limits: true
+    max_acceleration: 2.5
+    has_jerk_limits: true
+    max_jerk: 1500.0
+  upperArm_joint:
+    has_velocity_limits: true
+    max_velocity: 2.5964
+    has_acceleration_limits: true
+    max_acceleration: 2.5
+    has_jerk_limits: true
+    max_jerk: 1500.0
+  foreArm_joint:
+    has_velocity_limits: true
+    max_velocity: 2.5964
+    has_acceleration_limits: true
+    max_acceleration: 2.5
+    has_jerk_limits: true
+    max_jerk: 1500.0
+  wrist1_joint:
+    has_velocity_limits: true
+    max_velocity: 3.1105
+    has_acceleration_limits: true
+    max_acceleration: 3.0
+    has_jerk_limits: true
+    max_jerk: 1250.0
+  wrist2_joint:
+    has_velocity_limits: true
+    max_velocity: 3.1105
+    has_acceleration_limits: true
+    max_acceleration: 3.0
+    has_jerk_limits: true
+    max_jerk: 1250.0
+  wrist3_joint:
+    has_velocity_limits: true
+    max_velocity: 3.1105
+    has_acceleration_limits: true
+    max_acceleration: 3.0
+    has_jerk_limits: true
+    max_jerk: 1250.0
+# Pilz LIN/CIRC 用笛卡尔极限（PTP 不用，但 Pilz 要求该段存在）。值按 E5 关节
+# 速度限值取保守档；max_trans_dec 沿用官方示例的负值惯例。
+cartesian_limits:
+  max_trans_vel: 0.25
+  max_trans_acc: 0.5
+  max_trans_dec: -0.5
+  max_rot_vel: 0.5

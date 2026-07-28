@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="aubo_e5_table" params="parent:=world">
+    <link name="table_link">
+      <inertial>
+        <origin xyz="0.0024005 -0.14873 -0.0020194" rpy="0 0 0"/>
+        <mass value="180.93"/>
+        <inertia ixx="10.702" ixy="6.7618e-17" ixz="3.0187e-14"
+                 iyy="41.01" iyz="1.466e-07" izz="32.457"/>
+      </inertial>
+      <visual>
+        <geometry>
+          <mesh filename="package://aubo_description/meshes/visual/workcell/table.stl"/>
+        </geometry>
+        <material name="table_gray">
+          <color rgba="0.82 0.82 0.82 1.0"/>
+        </material>
+      </visual>
+      <collision>
+        <geometry>
+          <mesh filename="package://aubo_description/meshes/collision/workcell/table.stl"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="table_joint" type="fixed">
+      <parent link="${parent}"/>
+      <child link="table_link"/>
+      <origin xyz="-0.10483 -0.10483 -0.028" rpy="0 0 0"/>
+    </joint>
+  </xacro:macro>
+</robot>

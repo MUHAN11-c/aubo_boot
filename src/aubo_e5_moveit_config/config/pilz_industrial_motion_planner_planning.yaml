@@ -1,0 +1,16 @@
+# Pilz 工业运动规划器管线（moveit_configs_utils 默认模板的本包副本）。
+# 与 ompl_planning.yaml 同级，由 moveit.launch.py 挂到 move_group 的
+# planning_pipelines.pilz_industrial_motion_planner 命名空间。
+# 注意：Pilz 的 MoveGroupSequence* 能力不是管线参数，在 moveit.launch.py 里
+# 以 move_group 顶层 capabilities 参数声明。
+planning_plugins:
+  - pilz_industrial_motion_planner/CommandPlanner
+default_planner_config: PTP
+request_adapters:
+  - default_planning_request_adapters/ResolveConstraintFrames
+  - default_planning_request_adapters/ValidateWorkspaceBounds
+  - default_planning_request_adapters/CheckStartStateBounds
+  - default_planning_request_adapters/CheckStartStateCollision
+response_adapters:
+  - default_planning_response_adapters/ValidateSolution
+  - default_planning_response_adapters/DisplayMotionPath

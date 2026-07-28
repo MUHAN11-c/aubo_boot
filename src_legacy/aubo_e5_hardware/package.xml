@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>aubo_e5_hardware</name>
+  <version>0.1.0</version>
+  <description>ros2_control hardware interface for an AUBO E5 using bundled legacy SDK 2.5.3.</description>
+  <maintainer email="liug@our-robotics.com">Allen Liu</maintainer>
+  <license>BSD-3-Clause</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>hardware_interface</depend>
+  <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>

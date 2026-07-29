@@ -5,7 +5,7 @@
 硬件侧五次重采样（5ms 点距）→ RIB 水位流控 → TCP2CAN 透传至接口板（5ms/点消费）。
 控制器插件为本地自写（参考 UR `PassthroughTrajectoryController` 的写法），经
 `trajectory_passthrough` GPIO 契约接入 ros2_control。2026-07-27 起替换原流式 JTC 架构
-（旧实现归档于 `src_legacy/`，含 COLCON_IGNORE，不参与构建）。
+（旧实现已于 2026-07-29 商业化精简时移除，历史见 git 记录与 `docs/archive/`）。
 
 ## 包结构
 
@@ -141,6 +141,7 @@ hardware 参数（URDF `<param>`，见 `aubo_description/urdf/aubo_e5.ros2_contr
 
 ## 参考
 
-- 架构蓝本：`/home/mu/Music/e`（含 `docs/implementation_plan.md`、`docs/aubo_sdk_research.md`）
 - 写法参考：UR `ur_controllers::PassthroughTrajectoryController`
-- 旧架构（流式 JTC）测试报告见 `docs/`（针对已归档实现，仅供历史参考）
+  （GitHub: UniversalRobots/Universal_Robots_ROS2_Driver）
+- 行为蓝本：aubo_boot 实测驱动（本机 `/home/mu/Music/e`，不随交付分发）
+- 旧架构（流式 JTC）文档见 `docs/archive/`（仅供历史参考）

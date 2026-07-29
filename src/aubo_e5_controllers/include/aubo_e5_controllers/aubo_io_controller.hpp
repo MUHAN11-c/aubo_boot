@@ -31,8 +31,8 @@
 /*!\file
  *
  * AuboIOController —— AUBO E5 驱动的 GPIO 控制器插件，本地重写自 UR 的
- * ur_controllers::GPIOController（参考：reference/
- * Universal_Robots_ROS2_Driver/ur_controllers/src/gpio_controller.cpp）。
+ * ur_controllers::GPIOController（参考：github.com/UniversalRobots/
+ * Universal_Robots_ROS2_Driver（jazzy 分支）ur_controllers/src/gpio_controller.cpp）。
  * 从 aubo_io GPIO 状态接口发布板载/工具 IO 状态（aubo_msgs/IOState）、
  * 机器人状态（aubo_msgs/RobotStatus）、RIB 状态
  * （std_msgs/Int32MultiArray）和关节级详细状态（aubo_msgs/JointStatus，

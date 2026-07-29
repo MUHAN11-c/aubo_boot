@@ -10,8 +10,8 @@
 二进制 vendor 在仓库内，无源码构建）。
 
 核心架构为 **passthrough（一次性下发）** 模式，于 2026-07-27 替换原"标准 JTC 100Hz
-流式打点"架构（旧实现整体归档在 `src_legacy/`，含 `COLCON_IGNORE`，**不参与构建**，
-仅供历史参考）。逻辑遵循 Humble 实测驱动（aubo_boot）蓝本，写法参考 UR 的
+流式打点"架构（旧实现已于 2026-07-29 商业化精简时移除，历史见 git 记录与
+`docs/archive/`）。逻辑遵循 Humble 实测驱动（aubo_boot）蓝本，写法参考 UR 的
 `ur_controllers::PassthroughTrajectoryController`：
 
 ```
@@ -79,11 +79,7 @@ src/                            # 参与构建的包
 │                               #   深度/点云默认关闭；② 新增 color_camera_info_file
 │                               #   参数，默认用 config/color_camera_info.yaml（棋盘
 │                               #   自标内参）覆盖设备 Flash 标称内参，传 '' 回退）
-├── Universal_Robots_ROS2_Driver/  # UR 官方驱动源码（passthrough 写法参考蓝本；
-│                               #   含 COLCON_IGNORE，不参与构建，只读参考）
-└── *.jpeg / *.png              # src/ 根下散落的手眼标定 UI 截图（文档配图，非代码）
 
-src_legacy/                     # 旧流式 JTC 架构归档（COLCON_IGNORE，不构建、勿改）
 tools/                          # 分析/测试脚本（不随 colcon 构建）：
                                 #   passthrough_traj_client.py（轨迹测试客户端）
                                 #   motion_analyzer.py（运动分析工具，单文件单窗口
@@ -111,10 +107,12 @@ diagnostics/                    # SDK 探针（独立 CMake 构建，不参与 c
                                 #   + joint_status 话题，不新增 SDK 连接；实时窗口或
                                 #   --no-gui 记录，退出出汇总 PNG）
                                 #   build/（cmake 产物）、results/（CSV+PNG，每次运行覆盖最新）
-docs/                           # 文档：usage.md（命令手册）、passthrough_migration.md
-                                #   （架构迁移说明）、realtime_setup.md、
-                                #   real_hardware_integration_notes.md 等；
-                                #   早期测试报告针对已归档架构，仅供历史参考
+docs/                           # 现行文档：usage.md（命令手册）、
+                                #   passthrough_migration.md（架构迁移说明）、
+                                #   nic_driver_incident.md（网卡驱动事件运维）、
+                                #   ur_motion_evaluation_standards.md（运动评估标准）；
+                                #   archive/（旧架构文档 6 篇，仅供历史参考）、
+                                #   images/（文档配图）
 scripts/package_workspace.sh    # 打包可迁移源码归档（排除 build/install/log）
 SDK资料/                        # 厂商原始资料（SDK 包、Noetic 参考、文档）
 build/ install/ log/            # colcon 产物，勿手动修改
@@ -233,8 +231,6 @@ cd src/aubo_hand_eye_calibration
   `aubo_e5_hardware/CMakeLists.txt` 注释）。
 - 遵循蓝本（aubo_boot / UR passthrough）语义优先于自由发挥：轨迹一次性下发、
   goal_hold 判定、RIB 水位流控等核心逻辑不要改成流式。
-- `src_legacy/` 与 `src/Universal_Robots_ROS2_Driver/` 只读归档/参考，
-  不要在其中修 bug 或引入构建。
 - 不要向构建树（`build/`、`install/`、`log/`）提交改动。
 
 ## 9. 部署注意事项（容易踩的坑）
@@ -267,7 +263,7 @@ cd src/aubo_hand_eye_calibration
   推送链路会出现 >200ms 停滞触发 read() FAULT：
   `sudo ethtool -K enp130s0 gro off gso off tso off` +
   `echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor`
-  （原 `configure_realtime.sh` 已随旧 bringup 归档在 `src_legacy/`）。
+  （原 `configure_realtime.sh` 已随旧 bringup 删除，手动执行上述两条命令即可）。
 
 ## 10. 安全注意事项
 
@@ -291,6 +287,7 @@ cd src/aubo_hand_eye_calibration
 - `README.md` — 项目入口说明（与本文互补）
 - `docs/usage.md` — 完整命令手册与排障表
 - `docs/passthrough_migration.md` — 架构迁移说明与已验证清单
-- `docs/real_hardware_integration_notes.md`、`docs/manual_testing.md` — 旧架构
-  真机集成笔记（仅供历史参考）
-- 架构蓝本：`/home/mu/Music/e`（含 implementation_plan.md、aubo_sdk_research.md）
+- `docs/archive/` — 旧架构文档（仅供历史参考）
+- 写法参考：UR `ur_controllers::PassthroughTrajectoryController`
+  （GitHub: UniversalRobots/Universal_Robots_ROS2_Driver）；
+  行为蓝本 aubo_boot（本机 `/home/mu/Music/e`，不随交付分发）

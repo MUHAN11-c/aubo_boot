@@ -18,7 +18,7 @@
 - 写路径偶发 1s 整超时（ret=10007）、socket 被断开（10004）；
 - 服务器对查询"节流"的假象：背靠背突发从 ~300Hz 退化到 ~18Hz；
 - 运动执行中流式速率塌缩（~15 pts/s）→ JTC goal_time 超时中止
-  （详见 `aubo_sdk_2_5_3_ros2_control_test_report.md` 下午章节）。
+  （详见 `docs/archive/aubo_sdk_2_5_3_ros2_control_test_report.md` 下午章节）。
 
 ## 排查路径（逐项排除）
 
@@ -41,9 +41,9 @@
    （2026-07-29 补记：现已不再使用 RT/lowlatency 内核，普通 generic
    内核直接运行，见文末"后续补记"。）
 2. 重启 PC（加载新模块）。
-3. `sudo src_legacy/aubo_e5_bringup/scripts/configure_realtime.sh`
-   （governor→performance + **关闭 gro/gso/tso offload**；
-   该脚本 2026-07-27 起随旧 bringup 归档至 `src_legacy/`，命令本身仍有效）。
+3. governor→performance + **关闭 gro/gso/tso offload**（当时用
+   `configure_realtime.sh`；该脚本已于 2026-07-29 随 `src_legacy` 删除，
+   手动执行下方"持久化注意事项"里的两条命令即可，命令本身仍有效）。
 
 ## 修复后实测（2026-07-24 晚）
 
@@ -58,7 +58,7 @@
 ## 持久化注意事项（重要）
 
 - **ethtool offload 关闭与 CPU governor 设置重启后均不持久**，
-  每次开机必须重跑（脚本已归档至 `src_legacy/`，也可直接执行）：
+  每次开机必须重跑（原 `configure_realtime.sh` 已删除，直接执行）：
   ```bash
   sudo ethtool -K enp130s0 gro off gso off tso off
   echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
@@ -67,7 +67,7 @@
   `dkms status` 中 r8126 对新内核编译成功，否则开机会回退到旧行为
   或网卡不可用。
 - GRUB 默认内核的选择决定了加载哪份 DKMS 模块（参见
-  `realtime_setup.md` 的 GRUB 章节——该文档已归档为历史参考，
+  `docs/archive/realtime_setup.md` 的 GRUB 章节——该文档已归档为历史参考，
   当前不再使用 RT/lowlatency 内核）。
 
 ## 运维排障指引（再遇类似症状时按序检查）
@@ -87,9 +87,8 @@ dkms status | grep r8126       # 当前内核必须有已编译模块
 
 - **不再使用 RT/lowlatency 内核**：RT 预检已取消（见 AGENTS.md 第 9 节），
   real 模式在普通 generic 内核直接运行；`configure_realtime.sh` /
-  `realtime_preflight.sh` 随旧 bringup 归档至
-  `src_legacy/aubo_e5_bringup/scripts/`（offload/governor 命令仍有效，
-  每次开机需重跑，见上节）。网卡 DKMS 模块需覆盖当前 generic 内核。
+  `realtime_preflight.sh` 已随旧 bringup 一并删除（offload/governor 命令
+  仍有效，每次开机需重跑，见上节）。网卡 DKMS 模块需覆盖当前 generic 内核。
 - 当日的 read() 推送超时 FAULT（offload 未关导致推送链路 >200ms 停滞）
   即为本文症状在非 RT 内核下的复现；此后 `on_error()` 已补充故障原因
   汇总日志（`aubo_e5_hardware.cpp`，read_error_reason/快照年龄/最后事件），
@@ -100,15 +99,15 @@ dkms status | grep r8126       # 当前内核必须有已编译模块
 - **SDK 库版本是第二个决定变量**：网卡修复后 v2.5.3 写延迟仍 avg ~41ms
   （产能 <200 pts/s），低速运动卡顿未根除；换回 v1.3.1 后写 avg ~5ms，
   卡顿消失。即"旧栈流畅"的经验 = 健康网卡 + v1.3.1 快写通道，两者缺一不可。
-  插件已迁移 v1.3.1（详见 `aubo_sdk_2_5_3_ros2_control_test_report.md`
+  插件已迁移 v1.3.1（详见 `docs/archive/aubo_sdk_2_5_3_ros2_control_test_report.md`
   末尾章节）。
 - push+TCP2CAN 同连接 300s 并发零断链（网卡修复后复测），此前"固件
   必断链"的结论亦随之修正为网卡问题。
 
 ## 相关文件
 
-- `docs/aubo_sdk_2_5_3_ros2_control_test_report.md`（故障与复测全程记录）
-- `docs/realtime_setup.md`（实时权限/内核/GRUB 配置，历史参考）
-- `src_legacy/aubo_e5_bringup/scripts/configure_realtime.sh`、`realtime_preflight.sh`
-  （已归档，不参与构建；offload/governor 命令仍有效）
+- `docs/archive/aubo_sdk_2_5_3_ros2_control_test_report.md`（故障与复测全程记录）
+- `docs/archive/realtime_setup.md`（实时权限/内核/GRUB 配置，历史参考）
+- `configure_realtime.sh`、`realtime_preflight.sh` 已随旧 bringup 删除
+  （offload/governor 命令仍有效，见上文）
 - 探针：`diagnostics/aubo_sdk_runtime_probe.cpp`、`diagnostics/aubo_sdk_tcp2can_probe.cpp`

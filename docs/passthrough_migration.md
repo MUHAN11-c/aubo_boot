@@ -17,12 +17,13 @@
   `aubo_e5.ros2_control.xacro`，顶层 xacro 新增 `hardware_mode`/`robot_ip` 参数）；
   `aubo_e5.srdf`（保留 home/camera_pose，新增 zero）。
 - **归档**：旧流式架构（`aubo_ros2_system.cpp` 等）整体移至 `src_legacy/`
-  （含 COLCON_IGNORE，不参与构建）。
+  （含 COLCON_IGNORE，不参与构建；**2026-07-29 后续**：商业化精简时已整体
+  删除，历史见 git 记录与 `docs/archive/`）。
 - **脚本**：`named_pose_controller.py` 的 action 名改为
   `/aubo_passthrough_trajectory_controller/follow_joint_trajectory`。
-  （**2026-07-29 后续**：该脚本从未从 `src_legacy/` 移植进 `src/`，launch 与
-  文档中的 `named_pose_enabled` 引用已一并移除；home/camera_pose 仍作为
-  SRDF named states 存在，可经 MoveIt 使用。）
+  （**2026-07-29 后续**：该脚本从未移植进 `src/`（已随 `src_legacy/` 一并
+  删除），launch 与文档中的 `named_pose_enabled` 引用已一并移除；
+  home/camera_pose 仍作为 SRDF named states 存在，可经 MoveIt 使用。）
 - **launch 参数变更**：旧的 `use_mock_hardware`/`enable_real_hardware`/
   `allow_motion_commands`/`start_moveit`/`server_host` 由
   `hardware_mode`（mock|sim|real）、`robot_ip`、`moveit_enabled` 取代。
@@ -39,6 +40,6 @@
 
 ## 历史文档
 
-`docs/` 下其余测试报告（NIC 事件、SDK 2.5.3 测试、realtime 配置等）针对已归档的
-流式架构，仅供历史参考；手动测试清单 `manual_testing.md` 中的启动命令已过时，
-以根 README 为准。
+`docs/archive/` 下测试报告（NIC 事件之外的 SDK 2.5.3 测试、realtime 配置等）
+针对已归档的流式架构，仅供历史参考；手动测试清单
+`docs/archive/manual_testing.md` 中的启动命令已过时，以根 README 为准。

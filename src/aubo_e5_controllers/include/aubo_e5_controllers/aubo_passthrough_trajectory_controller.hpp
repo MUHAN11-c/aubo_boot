@@ -32,8 +32,8 @@
  *
  * AuboPassthroughTrajectoryController —— AUBO E5 驱动的轨迹直通控制器插件，
  * 本地重写自 UR 的 ur_controllers::PassthroughTrajectoryController
- * （参考：src/Universal_Robots_ROS2_Driver/ur_controllers/src/
- * passthrough_trajectory_controller.cpp）。核心思路与 UR 一致：通过
+ * （参考：github.com/UniversalRobots/Universal_Robots_ROS2_Driver
+ * （jazzy 分支）ur_controllers/src/passthrough_trajectory_controller.cpp）。核心思路与 UR 一致：通过
  * trajectory_passthrough/ 前缀下的一组命令接口把轨迹点逐个周期透传给
  * 硬件插件，硬件自己插补执行。
  *

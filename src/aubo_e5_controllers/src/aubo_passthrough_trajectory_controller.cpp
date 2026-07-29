@@ -942,10 +942,10 @@ AuboPassthroughTrajectoryController::remapJointNames(const trajectory_msgs::msg:
   return out;
 }
 
-// aubo_boot blendToFirstPoint：blend_steps 个 5ms 的 C2 smoothstep
-// （s = 3t^2 - 2t^3）融合点，从当前位置过渡到轨迹首点。默认阈值 0.01 rad
-// （blend_threshold_rad），默认 30 步 = 150ms（blend_steps），均为 aubo_boot
-// 实测默认值。
+// aubo_boot blendToFirstPoint：blend_steps 个 5ms 的 smoothstep
+// （s = 3t^2 - 2t^3，端点速度为零、加速度非零，数学上为 C1）融合点，从
+// 当前位置过渡到轨迹首点。默认阈值 0.01 rad（blend_threshold_rad），默认
+// 30 步 = 150ms（blend_steps），均为 aubo_boot 实测默认值。
 std::vector<trajectory_msgs::msg::JointTrajectoryPoint> AuboPassthroughTrajectoryController::blendToFirstPoint(
     const std::vector<double>& current_joints, const trajectory_msgs::msg::JointTrajectoryPoint& first_point) const
 {

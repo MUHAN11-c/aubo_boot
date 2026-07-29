@@ -18,10 +18,13 @@ src/
 ├── aubo_e5_hardware/           # 核心：SystemInterface 真机插件 + 板级模拟器插件 + vendor SDK
 ├── aubo_e5_controllers/        # AuboPassthroughTrajectoryController + AuboIOController
 ├── aubo_dashboard/             # 独立服务节点（上电/断电/停止/FK/IK/负载，非运动类）
-├── aubo_e5_moveit_config/      # MoveIt 配置（ompl + pilz 双管线）
-├── aubo_e5_bringup/            # launch + controllers.yaml + 运维脚本
-├── aubo_hand_eye_calibration/  # 手眼标定（未改动）
-└── percipio_camera/            # 相机驱动（未改动）
+├── aubo_e5_moveit_config/      # MoveIt 配置与 launch（ompl + pilz 双管线；
+│                               #   launch/ 下唯一入口 moveit.launch.py：move_group +
+│                               #   rviz2 整体启动，bringup 只 include 它）
+├── aubo_e5_bringup/            # launch（唯一入口 bringup.launch.py）+ controllers.yaml
+├── aubo_hand_eye_calibration/  # 手眼标定（17 预定义位姿 + 多算法求解 + Web 界面 +
+│                               #   unittest 测试套件）
+└── percipio_camera/            # 相机驱动（厂商代码；launch 默认值已项目化）
 ```
 
 ## 构建
@@ -56,16 +59,22 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real robot_ip:=<控
 # MoveIt(move_group)与 rviz2 默认随 bringup 一起启动；底层调试时可关闭：
 ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim moveit_enabled:=false
 
-# 叠加相机 / 手眼标定 / named-pose 快捷服务
+# 只起 MoveIt + rviz2（不起硬件；aubo_e5_moveit_config 的唯一 launch，
+# 自带 rsp + joint_state_publisher_gui，纯规划调试/可视化用）：
+ros2 launch aubo_e5_moveit_config moveit.launch.py
+
+# 叠加相机 / 手眼标定
 ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim \
-  camera_enabled:=true hand_eye_enabled:=true named_pose_enabled:=true
+  camera_enabled:=true hand_eye_enabled:=true
 ```
 
 sim 插件行为与真机契约一致：传输状态机（0/1/2/3/4/5/6）、五次重采样、虚拟接口板每周期
 消费 1 点（200Hz = 5ms/点）、`rib_level`、abort 丢弃队列。执行耗时与真实轨迹时长一致，
 可提前暴露 MoveIt 超时/判定问题。
 
-`real` 模式启动时会先跑 `scripts/realtime_preflight.sh` 做 RT 权限/调度预检，失败即中止。
+`real` 模式在普通内核直接启动（已取消 RT 预检）；但每次开机需手动执行网卡 offload
+关闭 + governor 设置（不持久，命令见 `AGENTS.md` 第 9 节），否则 SDK 推送链路可能出现
+>200ms 停滞触发 read() FAULT。
 
 ## 轨迹执行链路（real/sim）
 
@@ -108,12 +117,12 @@ hardware 参数（URDF `<param>`，见 `aubo_description/urdf/aubo_e5.ros2_contr
 [docs/usage.md](docs/usage.md)。要点：
 
 1. 现场确认急停/限位/碰撞等级/低速模式；`hardware_mode:=real` 只核对 6 关节名称、方向、
-   位置与示教器一致（joint_state_broadcaster）；
-2. 断线/急停注入：验证 read() 报错、控制器停用、不再发旧目标；
-3. 上电：示教器手动或 `ros2 service call /aubo_dashboard/startup`（默认
+   位置与示教器一致（joint_state_broadcaster），不运动；
+2. 上电：示教器手动或 `ros2 service call /aubo_dashboard/startup`（默认
    `auto_power_on=false`，不自动上电）；
-4. 速度因子 0.1 的单关节小轨迹；执行中取消（验证 RIB 被丢弃、余点不继续）；
-5. MoveIt 整机轨迹。
+3. 速度因子 0.1 的单关节小轨迹；
+4. 执行中取消/新 goal 抢占（验证 RIB 被丢弃、余点不继续）；
+5. MoveIt 整机轨迹 + trace 分析（tools/motion_analyzer.py）。
 
 ## 部署注意事项
 

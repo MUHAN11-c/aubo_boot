@@ -93,8 +93,8 @@ MoveIt 执行监控放宽为 **5.0× / 10 s / 0.15 rad**（passthrough 蓝本值
 - 文献口径：调好的 PREEMPT_RT 系统延迟在 ~10–100 µs 级
   （[Linux Foundation RT wiki](https://wiki.linuxfoundation.org/realtime/start)），
   200 Hz（5 ms 周期）下即使 100 µs 抖动也仅占 2%；"deadline-is-the-period"是公认
-  判据。本项目 sim 模式无 RT 要求，real 模式另有 `realtime_preflight.sh` 把关，
-  本工具只做测量报告，不做 RT 合规判定。
+  判据。本项目 sim 模式无 RT 要求，real 模式亦已取消 RT 预检（普通内核直接
+  运行），本工具只做测量报告，不做 RT 合规判定。
 
 ## 本工具判定阈值表
 

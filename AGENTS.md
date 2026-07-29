@@ -16,7 +16,7 @@
 
 ```
 MoveIt → FollowJointTrajectory goal
-  → AuboPassthroughTrajectoryController（按名重排关节、首点 C2 融合，
+  → AuboPassthroughTrajectoryController（按名重排关节、首点 smoothstep（C1）融合，
     每周期经 trajectory_passthrough GPIO 传 1 个设定点，状态机 6→1→2→…→3）
   → AuboE5Hardware::write()（设定点入 SPSC 队列，回写状态机）
   → 发送线程（非 RT，4ms）：五次重采样为 5ms 点 → RIB 水位流控
@@ -34,7 +34,8 @@ MoveIt → FollowJointTrajectory goal
   `/home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12`（Python 3.12 venv，已装
   matplotlib/numpy）。所有 Python 脚本（tools/、diagnostics/、以及其他任何需要
   调用 Python 的场景）一律用 `aubo_py3.12/bin/python` 运行，不要使用系统
-  `python3`；需要新增 Python 包时装进该 venv。
+  `python3`；需要新增 Python 包时装进该 venv。venv 的依赖锁定在工作区根目录
+  `requirements.txt`（`aubo_py3.12/bin/pip install -r requirements.txt` 可复现）。
 - **框架**：ROS 2 Jazzy + ros2_control（hardware_interface / controller_interface /
   pluginlib / generate_parameter_library）+ MoveIt 2（ompl + pilz 双管线）
 - **构建系统**：colcon + ament_cmake（无 pyproject.toml / package.json / Cargo.toml）
@@ -62,14 +63,25 @@ src/                            # 参与构建的包
 │                               #   参数由 generate_parameter_library 从
 │                               #   src/*_parameters.yaml 生成
 ├── aubo_dashboard/             # 独立服务节点（上电/断电/停止/FK/IK/负载，非运动类）
-├── aubo_e5_moveit_config/      # MoveIt 配置（controllers.yaml 与 controllers_mock.yaml
-│                               #   两套控制器映射、joint_limits、kinematics、ompl、pilz）
+├── aubo_e5_moveit_config/      # MoveIt 配置与 launch：launch/ 下只有唯一入口
+│                               #   moveit.launch.py（真机/仿真共用的整体启动：
+│                               #   move_group + rviz2，standalone 时自带 rsp +
+│                               #   joint_state_publisher_gui；bringup 只 include 它）；
+│                               #   config/ 下 controllers.yaml 与 controllers_mock.yaml
+│                               #   两套控制器映射、joint_limits、kinematics、ompl、pilz
 ├── aubo_e5_bringup/            # bringup.launch.py（唯一入口）+ config/controllers.yaml
 ├── aubo_hand_eye_calibration/  # 手眼标定（17 预定义位姿 + MoveIt 位姿约束运动；
 │                               #   求解算法可选 auto/tsai/park/horaud/andreff/
 │                               #   daniilidis + Huber 精化；Web 界面含机器人状态/
 │                               #   末端位姿/关节表/逐帧过程/求解公式与残差图表）
-└── percipio_camera/            # 相机驱动（未改动）
+├── percipio_camera/            # 相机驱动（厂商代码，两处项目化改动：
+│                               #   ① launch 默认值：device_ip=169.254.10.110、
+│                               #   深度/点云默认关闭；② 新增 color_camera_info_file
+│                               #   参数，默认用 config/color_camera_info.yaml（棋盘
+│                               #   自标内参）覆盖设备 Flash 标称内参，传 '' 回退）
+├── Universal_Robots_ROS2_Driver/  # UR 官方驱动源码（passthrough 写法参考蓝本；
+│                               #   含 COLCON_IGNORE，不参与构建，只读参考）
+└── *.jpeg / *.png              # src/ 根下散落的手眼标定 UI 截图（文档配图，非代码）
 
 src_legacy/                     # 旧流式 JTC 架构归档（COLCON_IGNORE，不构建、勿改）
 tools/                          # 分析/测试脚本（不随 colcon 构建）：
@@ -78,9 +90,15 @@ tools/                          # 分析/测试脚本（不随 colcon 构建）�
                                 #     图文报告+CSV+PNG：run=脚本轨迹执行分析，
                                 #     --real 启用 RIB 判定；rec=RViz 手动运动被动
                                 #     录制，逐段 A/B/C/D 四类量化，多段汇总一窗）
-                                #   fk_ik_check.py、joint_trace_recorder.py 等
+                                #   fk_ik_check.py、joint_trace_recorder.py、
+                                #   m2_m3_retest.py，以及一组链接 vendored SDK 的
+                                #   C++ 检查程序（aubo_sdk_{readonly,motion,full,
+                                #   speed,jointmove,coexist}_*.cpp）
 test_results/                   # motion_analyzer 默认输出目录（PNG 报告 + CSV，
                                 #   文件名带时间戳，运行时自动创建）
+hand_eye/                       # 手眼标定结果存储（active.yaml + candidates/*.yaml），
+                                #   由 storage.py 相对包定位（AUBO_HAND_EYE_DIR 可覆盖），
+                                #   不再用 ~/.ros
 diagnostics/                    # SDK 探针（独立 CMake 构建，不参与 colcon）：
                                 #   aubo_sdk_{abi,runtime,push,tcp2can}_probe.cpp
                                 #   （链接 vendored SDK v1.3.1；runtime=轮询延迟/阻塞，
@@ -102,7 +120,8 @@ SDK资料/                        # 厂商原始资料（SDK 包、Noetic 参考
 build/ install/ log/            # colcon 产物，勿手动修改
 ```
 
-无 `AGENTS.md` 子级文件；无单元测试目录（验证靠 sim 模式闭环 + 真机分阶段流程，
+无 `AGENTS.md` 子级文件。除 `aubo_hand_eye_calibration/test/`（Python unittest
+套件，15 例）外其余包无单元测试（验证靠 sim 模式闭环 + 真机分阶段流程，
 见第 6 节）。
 
 ## 4. 构建
@@ -131,8 +150,12 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real robot_ip:=<控
 ```
 
 可叠加 launch 参数（默认 `robot_ip=169.254.10.98`）：`moveit_enabled`（true，
-move_group + rviz2）、`named_pose_enabled`（false）、`camera_enabled`（false）、
-`hand_eye_enabled`（false）、`hand_eye_web_enabled`（true）。
+move_group + rviz2）、`camera_enabled`（false）、`hand_eye_enabled`（false）、
+`hand_eye_web_enabled`（true，仅 `hand_eye_enabled:=true` 时生效）。
+
+只起 MoveIt + rviz2（不起硬件，纯规划调试）：`ros2 launch aubo_e5_moveit_config
+moveit.launch.py`（自带 rsp + joint_state_publisher_gui；参数 `controllers_file`、
+`standalone_state_publishers`，bringup 集成时后者传 false）。
 
 sim 插件与真机契约一致：传输状态机、五次重采样、虚拟接口板 200Hz 每周期消费
 1 个 5ms 点、`rib_level`、abort 丢弃队列；执行耗时与真实轨迹一致，可提前暴露
@@ -140,8 +163,25 @@ MoveIt 超时问题。注意 sim 不模拟板载 IO 写回，`set_io` 返回 suc
 
 ## 6. 测试与验证策略
 
-本项目**没有单元测试/lint 测试**（CMakeLists 中无 BUILD_TESTING 块）。验证方式为：
+本项目只有 `aubo_hand_eye_calibration` 带测试套件（Python unittest，其余包
+CMakeLists 中无 BUILD_TESTING 块、无 lint 测试）：
 
+```bash
+cd src/aubo_hand_eye_calibration
+/home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12/bin/python -m pytest test/ -q   # 15 例
+```
+
+硬件/控制器代码的验证方式为：
+
+0. **运行前先查旧进程**（启动任何 launch/测试/探针之前必做）：
+   ```bash
+   pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
+   ```
+   有残留先清掉再启动。背景：① 相机等设备被旧进程独占时新 launch 报
+   `Open device fail -1014`，且旧进程跑的是**构建前的旧二进制**，会让
+   "改动已生效"的判断失真（2026-07-29 实测踩坑）；② 直接 kill launch
+   进程会留下孤儿 component_container/节点进程，必须按 PID 补杀；
+   ③ SDK 通道（TCP2CAN）与相机一样独占，重开 bringup 前同样要先清。
 1. **sim 闭环冒烟**（改控制器/硬件代码后必做）：
    ```bash
    ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim
@@ -176,8 +216,9 @@ MoveIt 超时问题。注意 sim 不模拟板载 IO 写回，`set_io` 返回 suc
   controller_manager `update_rate: 200`。
 - **MoveIt 侧**：`trajectory_execution.*` 蓝本值 5.0/10.0/0.15；速度缩放由 MoveIt
   时间参数化完成，控制器不做执行期缩放。
-- **GPIO 契约**：`trajectory_passthrough`（transfer_state 状态机 0–6 + 设定点）
-  与 `aubo_io`（IO 状态/命令 + RIB 状态）两组接口，见各插件 XML 描述与 xacro。
+- **GPIO 契约**：`trajectory_passthrough`（transfer_state 状态机 0–6 + 设定点）、
+  `aubo_io`（IO 状态/命令 + RIB 状态）与 `speed_scaling`（speed_scaling_factor，
+  恒定 1.0，本驱动不做执行期缩放）三组接口，见各插件 XML 描述与 xacro。
 
 ## 8. 代码风格与开发约定
 
@@ -192,7 +233,8 @@ MoveIt 超时问题。注意 sim 不模拟板载 IO 写回，`set_io` 返回 suc
   `aubo_e5_hardware/CMakeLists.txt` 注释）。
 - 遵循蓝本（aubo_boot / UR passthrough）语义优先于自由发挥：轨迹一次性下发、
   goal_hold 判定、RIB 水位流控等核心逻辑不要改成流式。
-- `src_legacy/` 只读归档，不要在其中修 bug 或引入构建。
+- `src_legacy/` 与 `src/Universal_Robots_ROS2_Driver/` 只读归档/参考，
+  不要在其中修 bug 或引入构建。
 - 不要向构建树（`build/`、`install/`、`log/`）提交改动。
 
 ## 9. 部署注意事项（容易踩的坑）
@@ -209,9 +251,31 @@ MoveIt 超时问题。注意 sim 不模拟板载 IO 写回，`set_io` 返回 suc
   SCHED_FIFO/lowlatency 内核预检（`docs/realtime_setup.md` 仅供历史参考）。
   注意该机 NVIDIA 595 驱动无 PREEMPT_RT 预编译模块，不能换 RT 内核；
   网卡 r8126 DKMS 驱动曾是 SDK 通道秒级停滞根因（`docs/nic_driver_incident.md`）。
+- **venv 的 numpy 必须 <2**：`aubo_py3.12` 带 `--system-site-packages`，ROS jazzy
+  二进制（cv_bridge）与 apt 的 python3-opencv / python3-scipy 都是按 numpy 1.x
+  编译的。venv 里若装 numpy 2.x，`import cv2` 报
+  "numpy.core.multiarray failed to import"、`import cv_bridge` 直接段错误。
+  正确组合：venv 内 `numpy==1.26.4`（+ `matplotlib==3.11.1`，见根目录
+  `requirements.txt`），cv2/scipy 走系统 dist-packages（4.6.0 / 1.11.4），
+  不要在 venv 里 pip 装 opencv-python/scipy（装了会 shadow 系统版）。
+- **tf2 静态 TF 不接受同发布者覆盖**：`extrinsics_publisher` 的 `~/reload`
+  重读后确实重新 sendTransform，但同一 publisher 进程更新 wrist3_Link→
+  camera_link 不会传播给 tf2 buffer（后加入的订阅者仍拿到旧值）。激活新外参后
+  必须**重启 extrinsics_publisher 进程**（或整个标定 launch）才能让所有
+  消费者看到新 TF。
+- **每次开机必做（不持久）**：网卡 offload 关闭 + governor 设置，否则 SDK
+  推送链路会出现 >200ms 停滞触发 read() FAULT：
+  `sudo ethtool -K enp130s0 gro off gso off tso off` +
+  `echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor`
+  （原 `configure_realtime.sh` 已随旧 bringup 归档在 `src_legacy/`）。
 
 ## 10. 安全注意事项
 
+- **真机运行任何运动测试，速度/加速度缩放必须先压到 0.1**，防止突发碰撞；
+  确认行为符合预期后才可逐步放宽。各入口：RViz 速度滑条、MoveIt 请求的
+  `max_velocity/acceleration_scaling_factor`、测试脚本同理；手眼标定 server
+  的 `velocity_scaling`/`acceleration_scaling` 在
+  `aubo_hand_eye_calibration/config/calibration.yaml`（已默认 0.1）。
 - **真机操作前**：现场确认急停、限位、碰撞等级、低速模式；首次只核对状态不运动；
   严格按 `docs/usage.md` 第 7 节的分阶段流程推进。
 - 默认 `auto_power_on=false`，启动不会自动上电；上电需显式调用
@@ -227,5 +291,6 @@ MoveIt 超时问题。注意 sim 不模拟板载 IO 写回，`set_io` 返回 suc
 - `README.md` — 项目入口说明（与本文互补）
 - `docs/usage.md` — 完整命令手册与排障表
 - `docs/passthrough_migration.md` — 架构迁移说明与已验证清单
-- `docs/real_hardware_integration_notes.md`、`docs/manual_testing.md` — 真机集成
+- `docs/real_hardware_integration_notes.md`、`docs/manual_testing.md` — 旧架构
+  真机集成笔记（仅供历史参考）
 - 架构蓝本：`/home/mu/Music/e`（含 implementation_plan.md、aubo_sdk_research.md）

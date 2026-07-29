@@ -10,6 +10,7 @@
 #include "percipio_camera_node.h"
 
 #include <cv_bridge/cv_bridge.hpp>
+#include <camera_calibration_parsers/parse.hpp>
 
 #include "percipio_video_mode.h"
 
@@ -90,6 +91,27 @@ void PercipioCameraNode::setAndGetNodeParameter(
 void PercipioCameraNode::getParameters() {
     setAndGetNodeParameter<std::string>(camera_name_, "camera_name", "camera");
     camera_link_frame_id_ = camera_name_ + "_link";
+
+    // 内参标定文件（本项目新增）: 默认指向包内 config/color_camera_info.yaml
+    std::string color_camera_info_file;
+    setAndGetNodeParameter<std::string>(
+        color_camera_info_file, "color_camera_info_file", "");
+    if (!color_camera_info_file.empty()) {
+        std::string calib_camera_name;
+        if (camera_calibration_parsers::readCalibration(
+                color_camera_info_file, calib_camera_name,
+                color_camera_info_from_file_)) {
+            color_info_file_override_ = true;
+            RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE),
+                "color camera_info override loaded from %s (camera_name=%s)",
+                color_camera_info_file.c_str(), calib_camera_name.c_str());
+        } else {
+            RCLCPP_ERROR(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE),
+                "failed to parse color_camera_info_file '%s', "
+                "falling back to device intrinsic",
+                color_camera_info_file.c_str());
+        }
+    }
 
     std::string param_name_desc;
     for (auto index : PERCIPIO_IMAGE_STREAMS) {
@@ -365,6 +387,14 @@ void PercipioCameraNode::publishColorFrame(percipio_camera::VideoStream& stream)
     }
 
     auto image_info = stream.getColorInfo();
+    if (color_info_file_override_) {
+        // 保留设备上报的 header/width/height, 仅替换标定相关字段
+        image_info.distortion_model = color_camera_info_from_file_.distortion_model;
+        image_info.d = color_camera_info_from_file_.d;
+        image_info.k = color_camera_info_from_file_.k;
+        image_info.r = color_camera_info_from_file_.r;
+        image_info.p = color_camera_info_from_file_.p;
+    }
     image_info.header.stamp = HWTimeUsToROSTime(stream.getColorStramTimestamp());
     image_info.header.frame_id = optical_frame_id[COLOR_STREAM];
     image_info.width = color.width();

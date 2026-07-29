@@ -259,8 +259,19 @@ private:
   bool logged_in_ = false;
 
   // SDK 推送 -> 快照缓存（RealtimeThreadSafeBox：回调线程写、RT 线程读，
-  // 无锁；写冲突时丢帧）。
+  // 无锁；写冲突时丢帧）。注意 Jazzy 的 try_get() 是 best-effort
+  // try_lock：撞上写锁即返回 nullopt —— 调用方必须把 nullopt 当"瞬时
+  // 撞锁"而非"无数据"（read() 经 last_snap_ 缓存回退处理，见其实现注释）。
   realtime_tools::RealtimeThreadSafeBox<JointStateSnapshot> state_box_;
+
+  // RT read() 的本地快照缓存（只被 RT 线程读写，无需原子/box）：try_get
+  // 撞锁失败时回退复用上一帧；新鲜度由 read() 里对 stamp 的
+  // state_timeout_ms 超时检查保证（缓存帧超龄照样触发 stale FAULT）。
+  JointStateSnapshot last_snap_{};
+  bool have_last_snap_ = false;
+  // try_get 取数失败计数（RT read() 写、on_error() 读；诊断计数器，
+  // relaxed 足够）：让"靠缓存硬顶"的降级在故障汇总里可观测，而不是隐形。
+  std::atomic<uint64_t> read_box_misses_{0};
 
   // 双队列轨迹流水线（4.3）：setpoint_queue_ 传控制器轨迹点（RT write()
   // 生产 -> 发送线程消费），send_queue_ 存重采样后的 5ms 点（发送线程内部
@@ -318,6 +329,14 @@ private:
   // N8：read() 推送超时的原因标志（RT read() 写 -> ioLoop 读后清），
   // 供 ioLoop 的 health 边沿日志分辨"推送超时"与其他 FAULT 来源。
   std::atomic<bool> push_stale_fault_{false};
+  // N8 补充：read() 返回 ERROR 的分支原因与失败时快照年龄（RT 线程只写
+  // 原子量，日志由 on_error() 在非 RT 上下文统一输出）。背景：ioLoop 的
+  // health 边沿上报在故障窗口内可能正阻塞于 conn_status_ 的同步 SDK 调用，
+  // 返回后直接进 teardown 而错过上报；on_error 是 CM 错误路径的必经点，
+  // 不会漏。取值：0=无错误, 1=快照缺失/无效, 2=推送超时(stale),
+  // 3=health 非 OK（事件/发送面 FAULT）。
+  std::atomic<int> read_error_reason_{0};
+  std::atomic<int64_t> read_error_snapshot_age_ms_{-1};
 
   // ---------------------------------------------------------------- 接口存储
   // 关节接口。

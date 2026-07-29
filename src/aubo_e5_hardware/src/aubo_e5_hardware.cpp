@@ -742,8 +742,54 @@ hardware_interface::CallbackReturn AuboE5Hardware::on_error(
 {
   // read()/write() 报 ERROR 或生命周期回调抛异常后 CM 调 on_error：
   // 走与正常路径同一份 teardown，保证错误路径不泄漏线程/连接/板载点。
+
+  // ---- 故障原因汇总（先于 teardown，趁现场还在）----
+  // 背景：ioLoop 的 health 边沿/事件日志在故障窗口内可能正阻塞于
+  // conn_status_ 的同步 SDK 调用，返回后直接进 teardown 而错过上报，
+  // 导致 read() ERROR"静默"。on_error 是 CM 错误路径必经点，在这里兜底：
+  // 1) 先取现场快照（dropped_events_ 会被 drainEventQueue 清零，必须先读）；
+  // 2) drain 一次事件队列 —— 积压的 ERROR 级事件（如 socketDisconnected）
+  //    在此补打日志（moodycamel 队列多消费者安全，与 ioLoop 竞争无妨，
+  //    事件只会被其中一侧取走并记录）；
+  // 3) 再打一行汇总：read() 记录的分支原因、health、快照年龄、最后事件。
+  const auto log = rclcpp::get_logger("AuboE5Hardware");
+  const int reason = read_error_reason_.load();
+  const int64_t age_ms = read_error_snapshot_age_ms_.load();
+  const int health = health_.load();
+  const int last_event = static_cast<int>(event_type_.load());
+  const int last_event_code = static_cast<int>(event_code_.load());
+  const uint64_t dropped_events = dropped_events_.load();
+  const uint64_t box_misses = read_box_misses_.load();
+  drainEventQueue();
+  const char * reason_text = "unknown";
+  switch (reason) {
+    case 0:
+      reason_text = "no read() error recorded (error came from write() or lifecycle callback)";
+      break;
+    case 1:
+      reason_text = "no valid joint status snapshot (push never arrived after activate)";
+      break;
+    case 2:
+      reason_text = "joint status push stale (SDK push link stalled/disconnected)";
+      break;
+    case 3:
+      reason_text = "health FAULT latched by event/send path (see [AuboEvent]/sendLoop logs)";
+      break;
+    default:
+      break;
+  }
+  const char * event_name = (last_event >= 0) ? eventToString(last_event) : nullptr;
+  RCLCPP_ERROR(
+    log,
+    "on_error summary: read_error_reason=%d (%s), health=%d, snapshot_age_ms=%lld, "
+    "read_box_misses=%llu, last_event=%s(%d) code=%d, dropped_events=%llu",
+    reason, reason_text, health, static_cast<long long>(age_ms),
+    static_cast<unsigned long long>(box_misses),
+    (last_event >= 0) ? (event_name ? event_name : "unknown") : "none", last_event,
+    last_event_code, static_cast<unsigned long long>(dropped_events));
+
   teardown();
-  RCLCPP_INFO(rclcpp::get_logger("AuboE5Hardware"), "on_error OK (teardown done)");
+  RCLCPP_INFO(log, "on_error OK (teardown done)");
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
@@ -831,37 +877,66 @@ hardware_interface::return_type AuboE5Hardware::read(
   io_event_code_state_ = event_code_.load();
   io_health_state_ = static_cast<double>(health_.load());
 
-  const auto snap = state_box_.try_get();
-  if (!snap.has_value() || !snap->valid) {
+  // RealtimeThreadSafeBox::try_get() 是 best-effort：内部 try_lock，恰好
+  // 撞上 SDK 推送线程 try_set 持锁（拷贝快照的窗口）就返回 nullopt。
+  // 这是瞬时调度事件而非数据缺失 —— 此前把它当致命错误，运行中一次撞锁
+  // 即触发 hardware ERROR -> CM 停用全部控制器（2026-07-29 真机事故：
+  // 正常执行轨迹后空闲 220s，单次撞锁全线停机，read_error_reason=1 的
+  // "push never arrived" 文案具有误导性）。因此取数失败时回退到 RT 线程
+  // 本地缓存的上一帧良好快照；真正的"推送断流"由下方 stamp 超时检查
+  // （state_timeout_ms，xacro 默认 200ms）兜底，语义不变。与蓝本 UR 对
+  // try_get 失败重试/沿用旧值的处理一致。
+  const auto fresh = state_box_.try_get();
+  if (fresh.has_value() && fresh->valid) {
+    last_snap_ = *fresh;
+    have_last_snap_ = true;
+  } else {
+    // 撞锁，或首帧到来前（box 初值 valid=false）：计数供 on_error 汇总观测。
+    read_box_misses_.fetch_add(1, std::memory_order_relaxed);
+  }
+  if (!have_last_snap_) {
+    // 进程启动以来从未拿到有效帧（正常会被 on_configure 的首帧等待拦住；
+    // 走到这里说明 configure 之后推送链路又出了状况）。
+    read_error_reason_.store(1);
+    read_error_snapshot_age_ms_.store(-1);
     return hardware_interface::return_type::ERROR;
   }
 
   // 推送超时（默认 200ms）说明 SDK 推送链路断了，置 FAULT 并报 ERROR，
   // 让 controller_manager 走错误恢复，而不是拿着旧数据继续发点。
-  // N8：RT 线程不打日志 —— 只标记原因（push_stale_fault_）+ 置 health，
-  // 日志由 ioLoop 观察 health 边沿统一上报（一次性语义在 ioLoop 保持）。
-  const auto age = std::chrono::steady_clock::now() - snap->stamp;
+  // N8：RT 线程不打日志 —— 只标记原因（push_stale_fault_ +
+  // read_error_reason_/快照年龄）+ 置 health，日志由 ioLoop 的 health
+  // 边沿与 on_error() 双路上报（ioLoop 阻塞时 on_error 兜底，不会静默）。
+  // 注意：即使本周期回退用了缓存帧，stamp 仍是该帧的真实到达时刻，
+  // 所以"缓存硬顶"超过 state_timeout_ms 一样会触发 stale FAULT。
+  const auto age = std::chrono::steady_clock::now() - last_snap_.stamp;
   if (age > std::chrono::milliseconds(params_.state_timeout_ms)) {
     push_stale_fault_.store(true);
     health_.store(kHealthFault);
+    read_error_reason_.store(2);
+    read_error_snapshot_age_ms_.store(
+      std::chrono::duration_cast<std::chrono::milliseconds>(age).count());
     return hardware_interface::return_type::ERROR;
   }
 
-  // N8：同上，read() 只留返回码；health 非 OK 的日志在 ioLoop 边沿上报。
+  // N8：同上，read() 只留返回码与原因；日志在 ioLoop 边沿 / on_error()。
   if (health_.load() != kHealthOk) {
+    read_error_reason_.store(3);
+    read_error_snapshot_age_ms_.store(
+      std::chrono::duration_cast<std::chrono::milliseconds>(age).count());
     return hardware_interface::return_type::ERROR;
   }
 
   for (std::size_t i = 0; i < kNumJoints; ++i) {
-    hw_position_states_[i] = snap->pos[i];
-    hw_velocity_states_[i] = snap->vel_moto[i] * kV2R[i];
-    io_joint_error_state_[i] = static_cast<double>(snap->err[i]);
+    hw_position_states_[i] = last_snap_.pos[i];
+    hw_velocity_states_[i] = last_snap_.vel_moto[i] * kV2R[i];
+    io_joint_error_state_[i] = static_cast<double>(last_snap_.err[i]);
     // 反馈增强：目标位置/速度、电流（SDK 原始单位）、温度。
     // tag_vel 与关节速度同一条换算路径（电机 RPM * kV2R -> 关节 rad/s）。
-    io_tag_pos_state_[i] = snap->tag_pos[i];
-    io_tag_vel_state_[i] = snap->tag_vel_moto[i] * kV2R[i];
-    io_joint_current_state_[i] = snap->current_i[i];
-    io_joint_temp_state_[i] = snap->temp[i];
+    io_tag_pos_state_[i] = last_snap_.tag_pos[i];
+    io_tag_vel_state_[i] = last_snap_.tag_vel_moto[i] * kV2R[i];
+    io_joint_current_state_[i] = last_snap_.current_i[i];
+    io_joint_temp_state_[i] = last_snap_.temp[i];
   }
 
   io_estop_state_ = emergency_stopped_.load() ? 1.0 : 0.0;
@@ -876,6 +951,9 @@ hardware_interface::return_type AuboE5Hardware::read(
   // 本就允许跨线程读，精度足够做监控）；速率由发送线程每秒写入原子量。
   io_send_queue_points_state_ = static_cast<double>(send_queue_.size_approx());
   io_send_rate_pps_state_ = send_rate_pps_.load();
+
+  // 通过全部门控：清错误原因，供 on_error() 区分"本次错误"与历史残留。
+  read_error_reason_.store(0);
 
   return hardware_interface::return_type::OK;
 }

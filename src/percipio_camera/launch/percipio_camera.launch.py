@@ -133,7 +133,8 @@ def generate_launch_description():
     args_list = [
         DeclareLaunchArgument('camera_name', default_value='camera'),
         DeclareLaunchArgument('serial_number', default_value=''),
-        DeclareLaunchArgument('device_ip', default_value=''),
+        # 本项目默认相机 IP（AUBO E5 工作单元）；换相机时显式传 device_ip:=...
+        DeclareLaunchArgument('device_ip', default_value='169.254.10.110'),
 
         # Device log configuration
         DeclareLaunchArgument('device_log_enable', default_value='false'),
@@ -167,8 +168,15 @@ def generate_launch_description():
         DeclareLaunchArgument('color_qos', default_value='default'),
         DeclareLaunchArgument('color_camera_info_qos', default_value='default'),
 
+        # 内参标定文件（本项目新增）: 非空时以 yaml 内参覆盖设备 Flash 内参;
+        # 传空字符串 '' 可回退设备内参
+        DeclareLaunchArgument('color_camera_info_file', default_value=PathJoinSubstitution([
+            FindPackageShare('percipio_camera'), 'config', 'color_camera_info.yaml'])),
+
         # Enable depth stream output
-        DeclareLaunchArgument('depth_enable', default_value='true'),
+        # 本项目默认关闭深度/点云（手眼标定与抓取流程只用 RGB）；
+        # 需要深度时显式传 depth_enable:=true 等
+        DeclareLaunchArgument('depth_enable', default_value='false'),
         DeclareLaunchArgument('depth_resolution', default_value='640x400'),
 
         #format list:depth16/xyz48...
@@ -178,7 +186,7 @@ def generate_launch_description():
         DeclareLaunchArgument('depth_camera_info_qos', default_value='default'),
 
         # Map depth image to color coordinate
-        DeclareLaunchArgument('depth_registration_enable', default_value='true'),
+        DeclareLaunchArgument('depth_registration_enable', default_value='false'),
 
         #Speckle filtering enable/disable switch
         DeclareLaunchArgument('depth_speckle_filter', default_value='false'),
@@ -200,7 +208,7 @@ def generate_launch_description():
         # Enable color point cloud stream,  
         # depth_registration_enable will be automatically set to true
         # point_cloud_enable will be automatically set to false
-        DeclareLaunchArgument('color_point_cloud_enable', default_value='true'),
+        DeclareLaunchArgument('color_point_cloud_enable', default_value='false'),
         DeclareLaunchArgument('point_cloud_qos', default_value='default'),
 
         #  IR image enhancement method selection. Choose from:-->

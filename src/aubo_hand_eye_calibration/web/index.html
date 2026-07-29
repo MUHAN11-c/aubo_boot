@@ -370,7 +370,7 @@ details summary{cursor:pointer;font-size:12.5px;color:var(--brand-ink);font-weig
 
       <div class="card">
         <div class="card-h"><span class="ticks"></span><h2>关节状态</h2><div class="spacer"></div>
-          <span class="mini">温度&gt;60°C / |跟随误差|&gt;0.05rad / 错误码≠0 标红</span></div>
+          <span class="mini">电流单位 mA · 温度&gt;60°C / |跟随误差|&gt;0.05rad / 错误码≠0 标红</span></div>
         <div id="joints-wrap"><div class="no-data">等待数据…</div></div>
       </div>
 
@@ -880,13 +880,13 @@ function renderJoints(joints){
     wrap.innerHTML='<div class="no-data">无数据（io 控制器未运行）</div>';return;
   }
   const cell=(v,d,bad)=>`<td class="mono${bad?' bad':''}">${v===null||v===undefined?'—':num(v,d)}</td>`;
-  wrap.innerHTML=`<table><thead><tr><th>关节</th><th>位置 (rad)</th><th>速度 (rad/s)</th><th>电流 (A)</th><th>温度 (°C)</th><th>跟随误差 (rad)</th><th>错误码</th></tr></thead><tbody>${
+  wrap.innerHTML=`<table><thead><tr><th>关节</th><th>位置 (rad)</th><th>速度 (rad/s)</th><th>电流 (mA)</th><th>温度 (°C)</th><th>跟随误差 (rad)</th><th>错误码</th></tr></thead><tbody>${
     joints.map(j=>{
       const tBad=typeof j.temperature==='number'&&j.temperature>JOINT_TEMP_WARN_C;
       const fBad=typeof j.following_error==='number'&&Math.abs(j.following_error)>JOINT_FERR_WARN_RAD;
       const eBad=typeof j.error_code==='number'&&j.error_code!==0;
       return `<tr><td class="mono">${j.name.replace(/_joint$/,'')}</td>
-        ${cell(j.position,4,false)}${cell(j.velocity,3,false)}${cell(j.current,2,false)}
+        ${cell(j.position,4,false)}${cell(j.velocity,3,false)}${cell(j.current,0,false)}
         ${cell(j.temperature,1,tBad)}${cell(j.following_error,4,fBad)}
         <td class="mono${eBad?' bad':''}">${j.error_code??'—'}</td></tr>`;
     }).join('')}</tbody></table>`;

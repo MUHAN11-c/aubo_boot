@@ -59,6 +59,12 @@ class PercipioCameraNode {
         std::string camera_name_ = "percipio_camera";
         std::string camera_link_frame_id_;
 
+        // 内参标定文件覆盖（本项目新增）: 设备 Flash 内参为标称值
+        // (畸变全零、cy 恰为几何中心), 用 checkerboard 自标定 yaml
+        // 覆盖 color 通道发布的 K/D/R/P; 文件为空或不合法时回退设备内参
+        bool color_info_file_override_ = false;
+        sensor_msgs::msg::CameraInfo color_camera_info_from_file_;
+
         bool tf_published_ = false;
         std::shared_ptr<tf2_ros::TransformBroadcaster> _tf = nullptr;
 

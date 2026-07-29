@@ -1,5 +1,12 @@
 # MoveIt2 控制机制 × AUBO SDK 实测限制：平滑 / 实时运动控制综述
 
+> **历史参考（2026-07-29 起）**：本文写于 2026-07-24 的旧流式 JTC 架构
+> （`aubo_driver::AuboRos2System`、路径门走廊、SEND_SUMMARY、旧 launch 参数
+> `use_mock_hardware`/`server_host` 等），所述实现已整体归档 `src_legacy/`。
+> 文中 MoveIt2/ros2_control 官方机制综述仍有参考价值；涉及本项目实现的章节
+> 以 passthrough 架构现行文档（`docs/usage.md`、`docs/passthrough_migration.md`）
+> 为准。
+
 - 整理日期：2026-07-24
 - 版本锚点：ROS 2 Jazzy；MoveIt **2.12.4**；ros2_controllers **4.40.1**；ros2_control（hardware_interface）**4.45.2**；realtime_tools **3.11.0**（均为本机 dpkg 实测）
 - 硬件侧：AUBO E5，控制柜固件 `V4.5.111.456d8e2-Alpha`，SDK `libaubo_sdk.so.2.5.3`
@@ -313,7 +320,7 @@ named_pose_controller.py（check_state_validity 预审 + 3 点轨迹含保持段
 ### 8.5 安全前提（执行前逐项确认）
 
 1. 完成 `README.md` 与 `docs/real_hardware_integration_notes.md` 的首次真机测试清单：急停、限位、碰撞等级、工装/负载、工作空间清空、低速模式。
-2. 启动形态固定为：`use_mock_hardware:=false enable_real_hardware:=true allow_motion_commands:=true start_moveit:=true`（realtime_preflight 会自动跑）。
+2. 启动形态固定为：`hardware_mode:=real robot_ip:=169.254.10.98`（已取消 RT 预检，普通内核直接启动；开机先做网卡 offload/governor 设置）。
 3. RViz 只 Plan & Execute 两个 named target；**绝不执行拖动交互标记得到的任意目标**（路径门会闩锁拒绝，C8/C10）。
 4. 现场人员把守急停；首次执行任一用例先单向往返一次，确认日志干净后再继续。
 

@@ -17,6 +17,8 @@ a Huber loss.
 ```bash
 source /opt/ros/jazzy/setup.bash
 source ~/Desktop/aubo_e5_jazzy_ws/install/setup.bash
+# 相机驱动与手眼标定分开启动（各自独立，顺序不限）:
+ros2 launch percipio_camera percipio_camera.launch.py
 ros2 launch aubo_hand_eye_calibration hand_eye_calibration.launch.py
 # Open http://127.0.0.1:8088
 ```

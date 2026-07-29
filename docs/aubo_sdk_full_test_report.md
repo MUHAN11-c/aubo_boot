@@ -1,5 +1,10 @@
 # AUBO SDK 2.5.3 全面测试报告（2026-07-24，全部现场实测）
 
+> **历史参考**：本报告针对 SDK **2.5.3**（当时 vendor 路径
+> `src/aubo_e5_hardware/vendor/aubo_sdk_2_5_3/`，已删除）。现行插件使用
+> **旧 SDK v1.3.1**（`vendor/lib64/` 下 aubocontroller/protobuf/log4cplus），
+> 文中 SDK 2.5.3 的 API 行为结论不适用于现架构，仅留作基线数据参考。
+
 ## 测试对象与环境
 
 | 项 | 值 |

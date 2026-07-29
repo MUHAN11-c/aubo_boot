@@ -1,10 +1,11 @@
 # AUBO SDK 2.5.3 接入 ros2_control 测试记录
 
-> **2026-07-24 更新**：本报告原始章节（2026-07-23）描述的是旧 `AuboE5Hardware`
-> 插件（健康线程 + write() 内同步 FollowModeJointMove），该实现已被
-> `aubo_driver::AuboRos2System`（双连接 TCP2CAN 流控 + RIB 水位门控 +
-> SPSC 无锁队列）取代，旧文件已不参与编译。原始章节仅留作基线数据参考。
-> 最新实测与运动验证结果见文末"2026-07-24 运动接入实测"章节。
+> **2026-07-29 更新**：本报告（含 2026-07-24 章节）描述的 `AuboE5Hardware`
+> 旧插件与其继任者 `aubo_driver::AuboRos2System`（双连接 TCP2CAN 流控 +
+> RIB 水位门控 + SPSC 无锁队列）均已随旧流式 JTC 架构归档 `src_legacy/`
+> （2026-07-27 passthrough 迁移），且针对的是 SDK 2.5.3（现行插件用旧 SDK
+> v1.3.1）。全文仅留作基线数据参考，现行实现见
+> `docs/passthrough_migration.md`。
 
 - 测试日期：2026-07-23
 - ROS 版本：ROS 2 Jazzy

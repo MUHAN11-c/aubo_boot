@@ -1,5 +1,11 @@
 # ros2_control 实时调度（SCHED_FIFO）与 lowlatency 内核配置记录
 
+> **历史参考（2026-07-29 起）**：已取消 RT 要求，不再使用 RT/lowlatency
+> 内核，real 模式在普通 generic 内核直接运行（见 `AGENTS.md` 第 9 节）。
+> 本文的 SCHED_FIFO/limits/GRUB 内容仅供回溯；**每次开机仍需执行的只有
+> 网卡 offload 关闭与 governor 设置**，命令见
+> `docs/nic_driver_incident.md` 的"持久化注意事项"一节。
+
 记录日期：2026-07-23。目标机器：`mu-MS-7E34`，Ubuntu 24.04（noble），ROS 2 Jazzy。
 
 ## 目标与依据

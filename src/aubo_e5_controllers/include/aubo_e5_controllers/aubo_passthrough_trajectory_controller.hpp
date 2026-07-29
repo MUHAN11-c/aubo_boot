@@ -32,7 +32,7 @@
  *
  * AuboPassthroughTrajectoryController —— AUBO E5 驱动的轨迹直通控制器插件，
  * 本地重写自 UR 的 ur_controllers::PassthroughTrajectoryController
- * （参考：reference/Universal_Robots_ROS2_Driver/ur_controllers/src/
+ * （参考：src/Universal_Robots_ROS2_Driver/ur_controllers/src/
  * passthrough_trajectory_controller.cpp）。核心思路与 UR 一致：通过
  * trajectory_passthrough/ 前缀下的一组命令接口把轨迹点逐个周期透传给
  * 硬件插件，硬件自己插补执行。
@@ -42,7 +42,7 @@
  *  - remapJointNames：接受 goal 时按关节名重排到权威顺序（params.joints）；
  *    含未知关节或缺关节的 goal 直接拒绝。
  *  - blendToFirstPoint：首轨迹点与当前关节位置偏差超过 blend_threshold_rad
- *    时，在前面补一段 C2 smoothstep 融合段（blend_steps x 5ms）。
+ *    时，在前面补一段 smoothstep（3t²-2t³，C1）融合段（blend_steps x 5ms）。
  *  - goal_hold 延迟 result：硬件上报 DONE 后不立即成功，等实际关节状态
  *    连续 goal_hold_frames 次（周期 goal_check_ms）满足容差
  *    （位置 < goal_tolerance_rad 且 |速度| < goal_vel_tolerance）才回成功；
@@ -93,7 +93,8 @@ namespace aubo_e5_controllers
  * 6.0 NEW_TRAJECTORY：      控制器接受了新轨迹（写方：控制器）；硬件收到后
  *                           清空自身缓冲区并回答 1.0（写方：硬件）。
  * 1.0 WAITING_FOR_POINT：   硬件已就绪，等待下一个 setpoint（写方：硬件；
- *                           读方：控制器）。
+ *                           读方：控制器；= 硬件侧常量 kTransferAccepted，
+ *                           同一状态两个名字）。
  * 2.0 TRANSFERRING：        控制器写好了 1 个 setpoint（写方：控制器）；硬件
  *                           取走后回答 1.0，如此交替直至所有点传完。
  * 3.0 TRANSFER_DONE：       全部 setpoint 已移交（写方：控制器）；硬件随后切
@@ -166,7 +167,7 @@ private:
   /// （aubo_boot 对缺省导数量一律补 0）。
   trajectory_msgs::msg::JointTrajectory remapJointNames(const trajectory_msgs::msg::JointTrajectory& traj) const;
 
-  /// 从当前关节位置到轨迹首点的 C2 smoothstep 融合段（s = 3t^2 - 2t^3）。
+  /// 从当前关节位置到轨迹首点的 smoothstep 融合段（s = 3t^2 - 2t^3，C1）。
   /// 不需要融合时（最大偏差 <= blend_threshold_rad）返回空 vector。
   std::vector<trajectory_msgs::msg::JointTrajectoryPoint>
   blendToFirstPoint(const std::vector<double>& current_joints,

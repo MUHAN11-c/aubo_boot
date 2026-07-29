@@ -1,3 +1,20 @@
+# moveit.launch.py —— MoveIt 整体启动入口（真机/仿真共用），本包唯一的 launch，
+# aubo_e5_bringup 经本文件集成 MoveIt。
+#
+# 启动内容：
+#   move_group               规划/执行服务（控制器映射由 controllers_file 选择：
+#                            sim/real -> controllers.yaml（passthrough），
+#                            mock    -> controllers_mock.yaml（标准 JTC），
+#                            由 bringup 按 hardware_mode 透传）
+#   rviz2                    带完整 MoveIt 参数（必须与 move_group 拿同一份
+#                            robot_description*，含 robot_description_planning：
+#                            MotionPlanning 面板 Velocity/Accel 滑条初值从
+#                            robot_description_planning.default_*_scaling_factor
+#                            读取，缺参数会回退硬编码 0.1）
+#   robot_state_publisher + joint_state_publisher_gui
+#                            仅 standalone_state_publishers:=true（脱离 bringup
+#                            单跑）时启动；经 bringup 集成时传 false，rsp 由
+#                            bringup 自带，不要重复起（TF 双发）。
 import os
 import yaml
 import xacro
@@ -21,7 +38,11 @@ def xacro_text(package, path):
     return xacro.process_file(filename).toxml()
 
 def launch_setup(context):
+    # controllers_file 是 launch 参数，必须在 OpaqueFunction 里 perform 后才能
+    # 拼路径读 yaml。
     controllers_file = LaunchConfiguration('controllers_file').perform(context)
+    standalone = LaunchConfiguration('standalone_state_publishers').perform(context).lower() == 'true'
+
     desc = {'robot_description': xacro_text('aubo_description', 'urdf/aubo_e5.urdf.xacro')}
     semantic = {'robot_description_semantic': text('aubo_e5_moveit_config', 'config/aubo_e5.srdf')}
     kin = {'robot_description_kinematics': load('aubo_e5_moveit_config', 'config/kinematics.yaml')}
@@ -61,8 +82,6 @@ def launch_setup(context):
             'aubo_e5_moveit_config', 'config/pilz_industrial_motion_planner_planning.yaml'),
         'capabilities': ('pilz_industrial_motion_planner/MoveGroupSequenceAction '
                          'pilz_industrial_motion_planner/MoveGroupSequenceService')}
-    # controllers_file 由 bringup 按 hardware_mode 选择：sim/real 用
-    # controllers.yaml（passthrough 控制器），mock 用 controllers_mock.yaml（标准 JTC）。
     controllers = {'moveit_simple_controller_manager': load('aubo_e5_moveit_config', 'config/' + controllers_file),
                    'moveit_controller_manager': 'moveit_simple_controller_manager/MoveItSimpleControllerManager'}
     trajectory_execution = {
@@ -74,19 +93,29 @@ def launch_setup(context):
         'trajectory_execution.allowed_start_tolerance': 0.15}
     monitor = {'publish_planning_scene': True, 'publish_geometry_updates': True,
                'publish_state_updates': True, 'publish_transforms_updates': True}
-    return [
-        Node(package='robot_state_publisher', executable='robot_state_publisher', parameters=[desc], output='screen', condition=IfCondition(LaunchConfiguration('standalone_state_publishers'))),
-        Node(package='joint_state_publisher_gui', executable='joint_state_publisher_gui', output='screen', condition=IfCondition(LaunchConfiguration('standalone_state_publishers'))),
-        Node(package='moveit_ros_move_group', executable='move_group', output='screen', parameters=[desc, semantic, kin, limits, pipelines, controllers, trajectory_execution, monitor]),
-        Node(package='rviz2', executable='rviz2', output='screen', arguments=['-d', rviz_config], parameters=[desc, semantic, kin, pipelines]),
+    nodes = [
+        Node(package='moveit_ros_move_group', executable='move_group', output='screen',
+             parameters=[desc, semantic, kin, limits, pipelines, controllers, trajectory_execution, monitor]),
+        # rviz 与 move_group 拿同一份 desc/semantic/kin/limits/pipelines（见文件头注释）
+        Node(package='rviz2', executable='rviz2', output='screen',
+             arguments=['-d', rviz_config], parameters=[desc, semantic, kin, limits, pipelines]),
     ]
+    if standalone:
+        nodes += [
+            Node(package='robot_state_publisher', executable='robot_state_publisher',
+                 parameters=[desc], output='screen'),
+            Node(package='joint_state_publisher_gui', executable='joint_state_publisher_gui',
+                 output='screen'),
+        ]
+    return nodes
 
 
 def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument(
             'standalone_state_publishers', default_value='true',
-            description='Start robot_state_publisher and joint_state_publisher_gui here'),
+            description='true=脱离 bringup 单跑（自带 rsp + joint_state_publisher_gui）；'
+                        'false=经 bringup 集成（rsp 由 bringup 提供）'),
         DeclareLaunchArgument(
             'controllers_file', default_value='controllers.yaml',
             description='config/ 下的 MoveIt 控制器映射文件（mock 模式用 controllers_mock.yaml）'),

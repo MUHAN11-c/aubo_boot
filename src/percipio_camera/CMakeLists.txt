@@ -20,6 +20,7 @@ set(dependencies
   builtin_interfaces
   cv_bridge
   camera_info_manager
+  camera_calibration_parsers
   image_transport
   image_publisher
   rclcpp
@@ -144,6 +145,7 @@ file(GLOB lib_files ${CMAKE_CURRENT_SOURCE_DIR}/camport4/lib/linux/lib_${ARCH}/*
 install(FILES ${lib_files} DESTINATION lib)
 install(DIRECTORY include/ DESTINATION include)
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/)
+install(DIRECTORY config DESTINATION share/${PROJECT_NAME}/)
 install(TARGETS ${PROJECT_NAME}
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib

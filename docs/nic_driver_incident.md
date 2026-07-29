@@ -36,11 +36,14 @@
 
 1. 用户更新网卡驱动：`realtek-r8126/10.017.00`（DKMS，已为
    6.8.0-111/134/136 generic 与 6.8.0-136-lowlatency 注册）；
-   当前内核 `6.8.0-136-lowlatency`，`ethtool -i enp130s0` →
+   当时内核 `6.8.0-136-lowlatency`，`ethtool -i enp130s0` →
    `driver: r8126, version: 10.017.00-NAPI`。
+   （2026-07-29 补记：现已不再使用 RT/lowlatency 内核，普通 generic
+   内核直接运行，见文末"后续补记"。）
 2. 重启 PC（加载新模块）。
-3. `sudo src/aubo_e5_bringup/scripts/configure_realtime.sh`
-   （governor→performance + **关闭 gro/gso/tso offload**）。
+3. `sudo src_legacy/aubo_e5_bringup/scripts/configure_realtime.sh`
+   （governor→performance + **关闭 gro/gso/tso offload**；
+   该脚本 2026-07-27 起随旧 bringup 归档至 `src_legacy/`，命令本身仍有效）。
 
 ## 修复后实测（2026-07-24 晚）
 
@@ -55,13 +58,17 @@
 ## 持久化注意事项（重要）
 
 - **ethtool offload 关闭与 CPU governor 设置重启后均不持久**，
-  每次开机必须重跑 `configure_realtime.sh`（realtime_preflight 只管
-  governor，不管 offload——offload 检查建议加入运维清单）。
+  每次开机必须重跑（脚本已归档至 `src_legacy/`，也可直接执行）：
+  ```bash
+  sudo ethtool -K enp130s0 gro off gso off tso off
+  echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+  ```
 - 网卡驱动是 **DKMS 树外模块**：更换/升级内核后必须确认
   `dkms status` 中 r8126 对新内核编译成功，否则开机会回退到旧行为
   或网卡不可用。
 - GRUB 默认内核的选择决定了加载哪份 DKMS 模块（参见
-  `realtime_setup.md` 的 GRUB 章节）。
+  `realtime_setup.md` 的 GRUB 章节——该文档已归档为历史参考，
+  当前不再使用 RT/lowlatency 内核）。
 
 ## 运维排障指引（再遇类似症状时按序检查）
 
@@ -73,8 +80,20 @@ dkms status | grep r8126       # 当前内核必须有已编译模块
 ./build/diagnostics/tcp2can_probe 169.254.10.98 30 8      # 基线：0 失败，max <200ms
 ```
 
-基线超标时优先：重跑 `configure_realtime.sh` → 重启控制柜 → 重启 PC，
-再怀疑固件/SDK。
+基线超标时优先：重跑上面的 ethtool/governor 命令 → 重启控制柜 →
+重启 PC，再怀疑固件/SDK。
+
+## 后续补记（2026-07-29）
+
+- **不再使用 RT/lowlatency 内核**：RT 预检已取消（见 AGENTS.md 第 9 节），
+  real 模式在普通 generic 内核直接运行；`configure_realtime.sh` /
+  `realtime_preflight.sh` 随旧 bringup 归档至
+  `src_legacy/aubo_e5_bringup/scripts/`（offload/governor 命令仍有效，
+  每次开机需重跑，见上节）。网卡 DKMS 模块需覆盖当前 generic 内核。
+- 当日的 read() 推送超时 FAULT（offload 未关导致推送链路 >200ms 停滞）
+  即为本文症状在非 RT 内核下的复现；此后 `on_error()` 已补充故障原因
+  汇总日志（`aubo_e5_hardware.cpp`，read_error_reason/快照年龄/最后事件），
+  此类故障不再需要翻代码推断分支。
 
 ## 后续补记（2026-07-25 凌晨）
 
@@ -89,6 +108,7 @@ dkms status | grep r8126       # 当前内核必须有已编译模块
 ## 相关文件
 
 - `docs/aubo_sdk_2_5_3_ros2_control_test_report.md`（故障与复测全程记录）
-- `docs/realtime_setup.md`（实时权限/内核/GRUB 配置）
-- `src/aubo_e5_bringup/scripts/configure_realtime.sh`、`realtime_preflight.sh`
+- `docs/realtime_setup.md`（实时权限/内核/GRUB 配置，历史参考）
+- `src_legacy/aubo_e5_bringup/scripts/configure_realtime.sh`、`realtime_preflight.sh`
+  （已归档，不参与构建；offload/governor 命令仍有效）
 - 探针：`diagnostics/aubo_sdk_runtime_probe.cpp`、`diagnostics/aubo_sdk_tcp2can_probe.cpp`

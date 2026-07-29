@@ -33,16 +33,27 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real robot_ip:=169.
 | 参数 | 默认 | 说明 |
 |---|---|---|
 | `moveit_enabled` | true | MoveIt move_group + rviz2（默认开启；底层调试可 `:=false` 关闭） |
-| `named_pose_enabled` | false | 启动 named-pose 快捷服务（home/camera_pose） |
 | `camera_enabled` | false | 启动 percipio 相机 + 外参发布 |
 | `hand_eye_enabled` | false | 启动手眼标定服务 |
-| `hand_eye_web_enabled` | true | 手眼标定 Web 界面 |
+| `hand_eye_web_enabled` | true | 手眼标定 Web 界面（仅 `hand_eye_enabled:=true` 时生效） |
 
 ```bash
 # 完整工作单元（真机 + 相机 + 标定；MoveIt + rviz2 默认已开启）
 ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real \
-  robot_ip:=169.254.10.98 camera_enabled:=true \
-  hand_eye_enabled:=true named_pose_enabled:=true
+  robot_ip:=169.254.10.98 camera_enabled:=true hand_eye_enabled:=true
+```
+
+只起 MoveIt + rviz2（不起硬件/ros2_control，纯规划调试/可视化用）——MoveIt 的
+launch 在 `aubo_e5_moveit_config` 里（唯一文件 `moveit.launch.py`，整体启动
+move_group + rviz2），bringup 只是 include 它：
+
+```bash
+# 默认自带 robot_state_publisher + joint_state_publisher_gui（standalone_state_publishers:=true），
+# 用 jsp_gui 摆位、RViz 里 Plan 看规划效果（无硬件执行）
+ros2 launch aubo_e5_moveit_config moveit.launch.py
+
+# 换控制器映射（默认 controllers.yaml/passthrough；mock 回归用 controllers_mock.yaml）
+ros2 launch aubo_e5_moveit_config moveit.launch.py controllers_file:=controllers_mock.yaml
 ```
 
 ## 3. 控制器管理
@@ -50,11 +61,12 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real \
 ```bash
 ros2 control list_controllers                 # 查看控制器状态
 ros2 control list_hardware_interfaces         # 查看接口（含 GPIO）
-ros2 control switch_controllers \
-  --deactivate aubo_passthrough_trajectory_controller \
-  --activate joint_trajectory_controller      # 切换控制器（sim/real 不建议）
 ros2 control set_controller_state aubo_io_controller inactive
 ```
+
+注：三种模式下加载的控制器互不相同（mock 只有标准 JTC，sim/real 只有
+passthrough + IO），两套轨迹控制器从不共存，因此不存在"切到另一套轨迹
+控制器"的操作；控制器替换需改 launch 配置后重启。
 
 ## 4. 轨迹执行
 
@@ -106,14 +118,7 @@ $PY motion_analyzer.py rec                              # Ctrl-C 汇总
 $PY fk_ik_check.py
 ```
 
-### 4.3 named pose 快捷服务（需 `named_pose_enabled:=true`）
-
-```bash
-ros2 service call /aubo/move_home std_srvs/srv/Trigger
-ros2 service call /aubo/move_camera_pose std_srvs/srv/Trigger
-```
-
-### 4.4 MoveIt / RViz
+### 4.3 MoveIt / RViz
 
 ```bash
 ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim   # MoveIt + rviz2 默认开启
@@ -139,7 +144,8 @@ ros2 service call /aubo_io_controller/set_io aubo_msgs/srv/SetIO "{fun: 1, pin: 
 ros2 topic echo --once /aubo_io_controller/io_states      # 全部 IO 状态
 ros2 topic echo --once /aubo_io_controller/robot_status   # 上电/急停/运动中/错误
 ros2 topic echo --once /aubo_io_controller/rib_status     # RIB 水位 + 队列
-ros2 topic hz /joint_states                               # 状态发布频率（real ~33.5Hz 推送）
+ros2 topic hz /joint_states                               # 发布率 ~200Hz（随 controller_manager update_rate；
+                                                          # 数据内容刷新受 SDK 推送速率限制，hz 看不出来）
 ```
 
 注：sim 插件不模拟板载 IO 写回，`set_io` 返回 success=false 属预期。
@@ -218,3 +224,5 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real robot_ip:=<IP>
 | goal 被拒 | 关节名拼写/数量（必须 6 个权威关节名）、points 的 velocities/accelerations 数组长度 |
 | 抢占后卡死 | 不应出现（蓝本已修复）；抓 `/aubo_io_controller/rib_status` 与 ros2_control_node 日志 |
 | sim 里 set_io 返回 false | 预期行为，sim 不模拟板载 IO 写回 |
+| `on_error summary: read_error_reason=1 (push never arrived)` 但此前运行正常 | 2026-07-29 起已修复：该报错原为 `RealtimeThreadSafeBox::try_get()` 撞锁（best-effort try_lock 返回 nullopt）被误判为无数据；现 `read()` 回退上一帧缓存，真断流仍由 200ms `state_timeout_ms` 超时（reason=2）兜底。汇总里的 `read_box_misses` 是撞锁计数，>0 属正常 |
+| `read_error_reason=2 (push stale)` | SDK 推送链路真断了（>200ms 无新帧）：查网卡 offload/governor（每次开机必做，见 AGENTS.md §9）与 `docs/nic_driver_incident.md` |

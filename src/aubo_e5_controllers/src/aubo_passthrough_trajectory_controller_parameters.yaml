@@ -68,6 +68,6 @@ aubo_passthrough_trajectory_controller:
   blend_steps: {
     type: int,
     default_value: 30,
-    description: "融合时前置的 5ms C2-smoothstep 融合点个数（aubo_boot：30 步 = 150ms）。",
+    description: "融合时前置的 5ms smoothstep（C1）融合点个数（aubo_boot：30 步 = 150ms）。",
     validation: { gt_eq<>: [0] }
   }

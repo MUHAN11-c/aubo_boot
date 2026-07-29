@@ -4,7 +4,7 @@
          base_class_type="controller_interface::ControllerInterface">
     <description>
       FollowJointTrajectory action server that forwards a whole trajectory
-      (remapped to the authoritative joint order, optionally preceded by a C2
+      (remapped to the authoritative joint order, optionally preceded by a C1
       smoothstep blend segment) point-by-point to the hardware via the
       trajectory_passthrough GPIO command interfaces, and reports the result
       only after a goal-hold position/velocity check (aubo_boot semantics).

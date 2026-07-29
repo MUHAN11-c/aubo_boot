@@ -144,7 +144,10 @@ Visualization Manager:
         Show Robot Collision: false
         Show Robot Visual: true
         Show Trail: false
-        State Display Time: 0.05 s
+        # 轨迹回放速度：1x=按 time_from_start 实时回放（与真机速度一致）。
+        # 原为固定 0.05 s/路点：与轨迹时间参数化完全解耦（本管线 totg.resample_dt=0.01，
+        # 动画恒为真实速度 1/5，且调速度缩放几乎看不出差别）。
+        State Display Time: 1x
         Trail Step Size: 1
         Trajectory Topic: /display_planned_path
       Planning Metrics:

@@ -1,24 +1,23 @@
 # AUBO E5 手动测试操作手册
 
-更新日期：2026-07-25。当前配置：SDK **v1.3.1**（TCP2CAN 流式）、
-controller_manager 100Hz、推送 33Hz + 轮询 20Hz 双路反馈。
-
-> **运动约束**：只允许 `home` 与 `camera_pose` 两个授权点位及其连线走廊
-> （±0.02 rad）。走廊外命令会被硬件路径门拒绝并闩锁（cause=2），属正常保护。
+> **注意**：本文写于 2026-07-25 的旧流式 JTC 架构（已归档 `src_legacy/`）。
+> 下面的"每次开机必做"与"启动系统"两节已更新为 2026-07-27 passthrough
+> 架构的命令；其余小节（授权点位服务、FAULT_STOP 原因码、SEND_SUMMARY 日志
+> 格式、旧探针路径等）均为旧架构内容，仅供历史参考——现行命令手册以
+> `docs/usage.md` 为准。
 
 ## 0. 每次开机后必做（需密码）
 
-governor 与 NIC offload 设置**重启后不持久**，必须重跑：
+governor 与 NIC offload 设置**重启后不持久**，必须重跑（原
+`configure_realtime.sh` 已随旧 bringup 归档在 `src_legacy/`，现手动执行）：
 
 ```bash
-sudo /home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_e5_bringup/scripts/configure_realtime.sh
+sudo ethtool -K enp130s0 gro off gso off tso off
+echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 ```
 
-验证（应全 PASS，PREEMPT_RT 行 WARN 可忽略）：
-
-```bash
-/home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/lib/aubo_e5_bringup/realtime_preflight.sh
-```
+已取消 RT 内核/SCHED_FIFO 预检（原 `realtime_preflight.sh` 一并归档），
+普通内核直接启动 real 模式。
 
 ## 1. 环境（每个新终端）
 
@@ -30,20 +29,23 @@ source /opt/ros/jazzy/setup.bash && source install/setup.bash
 ## 2. 启动系统
 
 ```bash
-ros2 launch aubo_e5_bringup bringup.launch.py \
-  use_mock_hardware:=false enable_real_hardware:=true \
-  allow_motion_commands:=true server_host:=169.254.10.98 \
-  camera_enabled:=false hand_eye_enabled:=false start_moveit:=true
+# 真机（MoveIt + rviz2 默认随启；robot_ip 默认即 169.254.10.98，可省略）
+ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real robot_ip:=169.254.10.98
+
+# 无真机闭环验证用 sim；底层调试可追加 moveit_enabled:=false
+ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim
 ```
 
-启动成功的标志（launch 日志）：
+启动成功的标志（launch 日志 + 控制器状态）：
 
-- `on_activate: TCP2CAN + threads started (seed pos=[...])`
-- `first JointStatus push received` + `first joint-state poll succeeded`
-- `Authorized services ready: /aubo/move_home and /aubo/move_camera_pose`
+- `on_configure OK (dual login, push active)` →
+  `on_activate OK (TCP2CAN active, send + IO threads running)`
+- `ros2 control list_controllers`：`joint_state_broadcaster` +
+  `aubo_passthrough_trajectory_controller` + `aubo_io_controller` 均 active
+  （real 模式另有 `aubo_dashboard` 节点）
 
 重启系统时：先在 launch 终端 `Ctrl+C` 一次，等 ~10s 干净退出
-（看到 `senderLoop exit` + `Hardware interface shutdown`）再启动。
+（看到 `sendLoop exit` + `on_shutdown OK (teardown done)`）再启动。
 **切忌 `kill -9`**——SDK 未登出会在控制器侧留僵尸会话，污染后续测试。
 
 ## 3. M1：授权点位运动（直接 JTC）
@@ -105,7 +107,7 @@ leaveTcp2Canbus → logout）。看到 `Hardware interface shutdown` 即干净�
 
 ## 异常处置顺序
 
-1. 卡顿/延迟重现 → 重跑 `configure_realtime.sh`（offload 又开了）
+1. 卡顿/延迟重现 → 重跑第 0 节两条命令（offload/governor 又掉了）
 2. 仍异常 → 重启控制柜（清服务器侧状态）
 3. 仍异常 → 按 `docs/nic_driver_incident.md` 运维指引排查
    （ethtool 驱动版本/offload、dkms 模块、探针基线）

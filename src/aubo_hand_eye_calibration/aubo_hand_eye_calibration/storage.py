@@ -20,12 +20,22 @@ SCHEMA_VERSION = 1
 
 
 def default_storage_directory():
-    return Path(
-        os.environ.get(
-            'AUBO_HAND_EYE_DIR',
-            str(Path.home() / '.ros' / 'aubo_e5' / 'hand_eye'),
-        )
-    )
+    """标定结果存储目录。
+
+    优先级: AUBO_HAND_EYE_DIR 环境变量 > 项目内 <工作区根>/hand_eye/
+    > ~/.ros/aubo_e5/hand_eye（布局无法识别时的兜底）。
+
+    项目内定位相对本文件向上查找（含 src/aubo_hand_eye_calibration 的
+    目录即工作区根），源码树与 colcon install 布局均成立，不硬编码
+    绝对路径。
+    """
+    override = os.environ.get('AUBO_HAND_EYE_DIR')
+    if override:
+        return Path(override)
+    for parent in Path(__file__).resolve().parents:
+        if (parent / 'src' / 'aubo_hand_eye_calibration').is_dir():
+            return parent / 'hand_eye'
+    return Path.home() / '.ros' / 'aubo_e5' / 'hand_eye'
 
 
 def _transform_data(transform):

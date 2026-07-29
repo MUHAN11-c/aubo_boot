@@ -19,8 +19,10 @@
 - **归档**：旧流式架构（`aubo_ros2_system.cpp` 等）整体移至 `src_legacy/`
   （含 COLCON_IGNORE，不参与构建）。
 - **脚本**：`named_pose_controller.py` 的 action 名改为
-  `/aubo_passthrough_trajectory_controller/follow_joint_trajectory`；启动条件改为
-  launch 参数 `named_pose_enabled:=true`（默认 false）。
+  `/aubo_passthrough_trajectory_controller/follow_joint_trajectory`。
+  （**2026-07-29 后续**：该脚本从未从 `src_legacy/` 移植进 `src/`，launch 与
+  文档中的 `named_pose_enabled` 引用已一并移除；home/camera_pose 仍作为
+  SRDF named states 存在，可经 MoveIt 使用。）
 - **launch 参数变更**：旧的 `use_mock_hardware`/`enable_real_hardware`/
   `allow_motion_commands`/`start_moveit`/`server_host` 由
   `hardware_mode`（mock|sim|real）、`robot_ip`、`moveit_enabled` 取代。

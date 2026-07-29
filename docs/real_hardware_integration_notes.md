@@ -1,5 +1,10 @@
 # AUBO E5 真机接入核对与实时通信说明
 
+> **历史参考（2026-07-29 起）**：本文是旧流式 JTC 架构时期的真机接入设计
+> 笔记（`aubo_e5_arm_controller`、FollowModeJointMove 流式跟随、SCHED_FIFO
+> 实时线程设计等），所述实现已归档 `src_legacy/`；RT 实时性要求亦已取消
+> （real 模式普通内核直接运行）。现行真机流程见 `docs/usage.md` 第 7 节。
+
 ## 当前结论
 
 工作区的 mock 链路已验证可启动、规划并完成一次轨迹执行。`controller_manager` 成功以 `SCHED_FIFO` 优先级 50 运行；当前用户的 FIFO 实时优先级范围为 1--99。

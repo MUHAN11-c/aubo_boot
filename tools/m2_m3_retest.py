@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """M2/M3 复测客户端：/plan_kinematic_path 规划 + /execute_trajectory 执行。
 用法: python3 tools/m2_m3_retest.py [ompl|pilz] [home|camera_pose]
-运动范围仅限 home / camera_pose（与 named_pose_controller 同一约束）。
+运动范围仅限 home / camera_pose（SRDF 中的两个 named states）。
 """
 import sys
 

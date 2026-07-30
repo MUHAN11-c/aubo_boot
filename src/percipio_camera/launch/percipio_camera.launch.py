@@ -176,7 +176,7 @@ def generate_launch_description():
         # Enable depth stream output
         # 本项目默认关闭深度/点云（手眼标定与抓取流程只用 RGB）；
         # 需要深度时显式传 depth_enable:=true 等
-        DeclareLaunchArgument('depth_enable', default_value='false'),
+        DeclareLaunchArgument('depth_enable', default_value='true'),
         DeclareLaunchArgument('depth_resolution', default_value='640x400'),
 
         #format list:depth16/xyz48...
@@ -186,7 +186,7 @@ def generate_launch_description():
         DeclareLaunchArgument('depth_camera_info_qos', default_value='default'),
 
         # Map depth image to color coordinate
-        DeclareLaunchArgument('depth_registration_enable', default_value='false'),
+        DeclareLaunchArgument('depth_registration_enable', default_value='true'),
 
         #Speckle filtering enable/disable switch
         DeclareLaunchArgument('depth_speckle_filter', default_value='false'),
@@ -208,7 +208,7 @@ def generate_launch_description():
         # Enable color point cloud stream,  
         # depth_registration_enable will be automatically set to true
         # point_cloud_enable will be automatically set to false
-        DeclareLaunchArgument('color_point_cloud_enable', default_value='false'),
+        DeclareLaunchArgument('color_point_cloud_enable', default_value='true'),
         DeclareLaunchArgument('point_cloud_qos', default_value='default'),
 
         #  IR image enhancement method selection. Choose from:-->
@@ -246,7 +246,6 @@ def generate_launch_description():
         #    2. For TOF cameras, IR image rectification requires reading distortion parameters from the camera and performing distortion correction processing on the host computer.
         #    3. For line-scan 3D cameras, IR image rectification requires reading calibration data from the camera and performing epipolar rectification processing on the host computer.  
         DeclareLaunchArgument('ir_undistortion', default_value='true'),
-
         DeclareLaunchArgument('left_ir_enable', default_value='false'),
         DeclareLaunchArgument('left_ir_qos', default_value='default'),
         DeclareLaunchArgument('left_ir_camera_info_qos', default_value='default'),

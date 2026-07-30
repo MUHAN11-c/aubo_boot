@@ -8,15 +8,29 @@
 # venv 内若出现 numpy 2.x，import cv2 报 "numpy.core.multiarray failed to
 # import"，import cv_bridge 直接段错误。
 #
-# 以下包由系统 site-packages 提供，切勿在 venv 内 pip 安装同名包（会 shadow
-# 系统版并破坏 numpy 1.x 二进制兼容）：cv2(opencv)、scipy、cv_bridge、rclpy、
-# pytest、yaml。
+# 以下由系统 site-packages 提供，切勿在本文件中 pip 安装同名包（会 shadow
+# 系统版）：scipy、cv_bridge、rclpy、pytest、PyYAML（系统已有）。
+# 例外：ultralytics 会拉取 opencv-python；本机已验证与 numpy==1.26.4 /
+# cv_bridge 共存。若出现段错误，可尝试：
+#   aubo_py3.12/bin/pip uninstall -y opencv-python opencv-python-headless
+# 并依赖 apt 的 python3-opencv。
+#
+# 版本锁定基准：2026-07-30 本机 aubo_py3.12 实测。
 
-# ---- 直接依赖（当前环境已验证） ----
-numpy==1.26.4        # 1.26.x 末版，支持 py3.12，与 ROS jazzy 二进制栈兼容
-matplotlib==3.11.1   # tools/ 与 diagnostics/ 绘图；已验证与 numpy 1.26.4 兼容
+# ---- 核心（tools / diagnostics / 全项目 Python） ----
+numpy==1.26.4
+matplotlib==3.11.1
 
-# ---- 传递依赖锁定（matplotlib 依赖树，保证重建环境可复现） ----
+# ---- peach_pose_ros2（YOLO + MobileSAM via ultralytics） ----
+torch==2.13.0
+torchvision==0.28.0
+ultralytics==8.3.0
+ultralytics-thop==2.1.5
+
+# ---- aubo_scene_recon（Open3D 点云/TSDF） ----
+open3d==0.19.0
+
+# ---- matplotlib 传递依赖（保证绘图环境可复现） ----
 contourpy==1.3.3
 cycler==0.12.1
 fonttools==4.63.0

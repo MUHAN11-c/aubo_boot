@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# 用项目 venv 跑节点（需要 open3d）；可用环境变量 AUBO_PYTHON 覆盖。
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# install/.../lib/aubo_scene_recon → 工作区根（上四级）
+WS="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+PY="${AUBO_PYTHON:-${WS}/aubo_py3.12/bin/python}"
+if [[ ! -x "${PY}" ]]; then
+  echo "[aubo_scene_recon] 找不到 venv Python: ${PY}" >&2
+  echo "请先: aubo_py3.12/bin/pip install 'open3d==0.19.0'" >&2
+  exit 1
+fi
+exec "${PY}" -m aubo_scene_recon.fusion_node "$@"

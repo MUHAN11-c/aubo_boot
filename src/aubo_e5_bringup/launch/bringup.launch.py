@@ -12,8 +12,8 @@
 #   1) launch_nodes()      —— OpaqueFunction 回调。launch 参数在声明阶段只有
 #      "替换对象"而没有具体值，只有进入 OpaqueFunction 拿到 context 后才能
 #      .perform(context) 求值，因此所有"按 mode 分支"的逻辑必须放在这里。
-#   2) generate_launch_description() —— 声明全部 launch 参数，以及只依赖
-#      IfCondition 求值的"可选功能块"（相机/外参/手眼标定）。
+#   2) generate_launch_description() —— 声明全部 launch 参数，以及各自独立
+#      开关的可选功能块（相机 / 手眼外参 TF / 手眼标定流程）。
 #      IfCondition 在 launch 执行期惰性求值，不需要 mode 的确定值，
 #      所以这部分可以留在声明式主流程里。
 
@@ -136,27 +136,30 @@ def launch_nodes(context):
 
 
 def generate_launch_description():
-    """声明全部 launch 参数，并组装"可选功能块"（均默认关闭，IfCondition 惰性求值）。"""
+    """声明全部 launch 参数，并组装可选功能块（各自独立开关，IfCondition 惰性求值）。
 
-    # ---- 可选功能块（默认关闭，按需用 launch 参数打开）----
+    默认：hardware_mode:=real，相机 / 手眼外参 TF / MoveIt 开启；
+    手眼标定流程（采集+求解）默认关闭。
+    """
 
-    # 相机驱动（percipio_camera），仅 camera_enabled:=true 时启动
+    # ---- 可选功能块（每个都有独立 enabled 参数）----
+
+    # Percipio 相机：include percipio_camera.launch.py（深度/点云等由其内部参数决定）
     camera_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(
             get_package_share_directory('percipio_camera'),
             'launch', 'percipio_camera.launch.py')),
         condition=IfCondition(LaunchConfiguration('camera_enabled')))
-    # 手眼外参 TF 发布器：有相机才有意义，因此同样挂在 camera_enabled 上
+    # 手眼外参静态 TF（wrist3_Link → camera_link），与相机开关独立
     extrinsics = Node(
         package='aubo_hand_eye_calibration',
         executable='extrinsics_publisher',
         name='hand_eye_extrinsics_publisher',
         output='screen',
-        condition=IfCondition(LaunchConfiguration('camera_enabled')))
-    # 手眼标定流程（17 预定义位姿采集 + 求解 + Web 界面）。
-    # 标定 launch 内部不再启动相机与外参节点：相机由本 launch 的
-    # camera_enabled 统一管理，外参发布器同上；这里固定关掉
-    # extrinsics_enabled，仅把 web 界面开关 hand_eye_web_enabled 透传下去。
+        condition=IfCondition(LaunchConfiguration('extrinsics_enabled')))
+    # 手眼标定流程（17 预定义位姿采集 + 求解 + Web）。
+    # 标定 launch 内不再起相机/外参：由本文件的 camera_enabled /
+    # extrinsics_enabled 统一管；这里固定 extrinsics_enabled:=false 避免双发 TF。
     calibration_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(
             get_package_share_directory('aubo_hand_eye_calibration'),
@@ -167,20 +170,28 @@ def generate_launch_description():
         }.items(),
         condition=IfCondition(LaunchConfiguration('hand_eye_enabled')))
     return LaunchDescription([
-        # ---- launch 参数声明（默认值即日常推荐配置）----
-        DeclareLaunchArgument('hardware_mode', default_value='mock',
-                              description='mock | sim | real'),
-        # 真机控制器 IP；mock/sim 模式下 xacro 也会接收但不会用到
-        DeclareLaunchArgument('robot_ip', default_value='169.254.10.98'),
-        DeclareLaunchArgument('moveit_enabled', default_value='true',
-                              description='默认启动 MoveIt move_group + rviz2；'
-                                          '硬件底层调试时可用 moveit_enabled:=false 关闭'),
-        DeclareLaunchArgument('camera_enabled', default_value='false'),
-        DeclareLaunchArgument('hand_eye_enabled', default_value='false'),
-        # 手眼标定的 Web 界面开关，仅在 hand_eye_enabled:=true 时生效
-        DeclareLaunchArgument('hand_eye_web_enabled', default_value='true'),
-        # 核心节点（rsp / ros2_control_node / spawner / dashboard / MoveIt）
-        # 在 launch 执行期按 hardware_mode 动态组装
+        # ---- launch 参数（默认 = 日常真机 + 相机 + 外参）----
+        DeclareLaunchArgument(
+            'hardware_mode', default_value='real',
+            description='mock | sim | real（默认 real）'),
+        DeclareLaunchArgument(
+            'robot_ip', default_value='169.254.10.98',
+            description='真机控制器 IP；mock/sim 不用'),
+        DeclareLaunchArgument(
+            'moveit_enabled', default_value='true',
+            description='MoveIt move_group + rviz2；false 关闭'),
+        DeclareLaunchArgument(
+            'camera_enabled', default_value='true',
+            description='启动 percipio_camera.launch.py；false 关闭'),
+        DeclareLaunchArgument(
+            'extrinsics_enabled', default_value='true',
+            description='启动手眼外参 TF（extrinsics_publisher）；false 关闭'),
+        DeclareLaunchArgument(
+            'hand_eye_enabled', default_value='false',
+            description='启动手眼标定流程（采集/求解/Web）；默认关'),
+        DeclareLaunchArgument(
+            'hand_eye_web_enabled', default_value='false',
+            description='标定 Web 界面；仅 hand_eye_enabled:=true 时生效'),
         OpaqueFunction(function=launch_nodes),
         camera_launch,
         extrinsics,

@@ -3,7 +3,8 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file or at
 # https://developers.google.com/open-source/licenses/bsd
-"""ROS 2 action server for safe, automatic eye-in-hand calibration.
+"""
+ROS 2 action server for safe, automatic eye-in-hand calibration.
 
 状态机:
     idle -> preflighting -> planning -> plan_ready (plan_only 结束)
@@ -36,6 +37,7 @@ from moveit_msgs.msg import (
     RobotState,
 )
 import numpy as np
+from rcl_interfaces.msg import ParameterDescriptor
 import rclpy
 from rclpy.action import ActionClient, ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -102,7 +104,7 @@ def _transform_message(matrix):
 
 
 def _mad_filter(values, threshold=3.5):
-    """返回 MAD 内点掩码; 样本太少时全部保留。"""
+    """返回 MAD 内点掩码; 样本太少时全部保留."""
     values = np.asarray(values, dtype=np.float64)
     if values.size < 4:
         return np.ones(values.size, dtype=bool)
@@ -118,36 +120,96 @@ class CalibrationServer(Node):
         self._group = ReentrantCallbackGroup()
         defaults = Path(get_package_share_directory(
             'aubo_hand_eye_calibration')) / 'config'
-        self.declare_parameter('poses_file', str(defaults / 'poses.yaml'))
-        self.declare_parameter('base_frame', 'base_link')
-        self.declare_parameter('wrist_frame', 'wrist3_Link')
-        self.declare_parameter('camera_root_frame', 'camera_link')
-        self.declare_parameter('camera_optical_frame', 'camera_color_optical_frame')
-        self.declare_parameter('move_group', 'manipulator_e5')
-        self.declare_parameter('image_topic', '/camera/color/image_raw')
-        self.declare_parameter('camera_info_topic', '/camera/color/camera_info')
-        self.declare_parameter('board_columns', 11)
-        self.declare_parameter('board_rows', 8)
-        self.declare_parameter('board_square_size_m', 0.020)
-        self.declare_parameter('frames_per_pose', 5)
-        self.declare_parameter('min_samples', 12)
-        self.declare_parameter('joint_velocity_threshold', 0.01)
-        self.declare_parameter('settle_duration_s', 0.5)
-        self.declare_parameter('stable_timeout_s', 10.0)
-        self.declare_parameter('sample_timeout_s', 4.0)
-        self.declare_parameter('velocity_scaling', 0.15)
-        self.declare_parameter('acceleration_scaling', 0.15)
-        self.declare_parameter('planning_attempts', 5)
-        self.declare_parameter('planning_time_s', 5.0)
-        self.declare_parameter('position_tolerance_m', 0.001)
-        self.declare_parameter('orientation_tolerance_rad', 0.01)
-        self.declare_parameter('max_reprojection_rms_px', 1.0)
-        self.declare_parameter('max_translation_rms_m', 0.003)
-        self.declare_parameter('max_rotation_rms_deg', 0.5)
-        self.declare_parameter('min_rotation_span_deg', 20.0)
+        self.declare_parameter(
+            'poses_file', str(defaults / 'poses.yaml'),
+            ParameterDescriptor(description='标定位姿定义文件 (yaml) 路径'))
+        self.declare_parameter(
+            'base_frame', 'base_link',
+            ParameterDescriptor(description='机器人基座坐标系'))
+        self.declare_parameter(
+            'wrist_frame', 'wrist3_Link',
+            ParameterDescriptor(description='腕部 (法兰) 坐标系'))
+        self.declare_parameter(
+            'camera_root_frame', 'camera_link',
+            ParameterDescriptor(description='相机安装座坐标系 (外参发布目标)'))
+        self.declare_parameter(
+            'camera_optical_frame', 'camera_color_optical_frame',
+            ParameterDescriptor(description='相机光学坐标系 (标定求解目标)'))
+        self.declare_parameter(
+            'move_group', 'manipulator_e5',
+            ParameterDescriptor(description='MoveIt 规划组名'))
+        self.declare_parameter(
+            'image_topic', '/camera/color/image_raw',
+            ParameterDescriptor(description='彩色图像话题'))
+        self.declare_parameter(
+            'camera_info_topic', '/camera/color/camera_info',
+            ParameterDescriptor(description='相机内参话题'))
+        self.declare_parameter(
+            'board_columns', 11,
+            ParameterDescriptor(description='棋盘格内角点列数'))
+        self.declare_parameter(
+            'board_rows', 8,
+            ParameterDescriptor(description='棋盘格内角点行数'))
+        self.declare_parameter(
+            'board_square_size_m', 0.020,
+            ParameterDescriptor(description='棋盘格格宽 (m, 需实测)'))
+        self.declare_parameter(
+            'frames_per_pose', 5,
+            ParameterDescriptor(
+                description='每个位姿采集的帧数 (剔除离群帧后取均值)'))
+        self.declare_parameter(
+            'min_samples', 12,
+            ParameterDescriptor(description='求解所需最少有效样本数'))
+        self.declare_parameter(
+            'joint_velocity_threshold', 0.01,
+            ParameterDescriptor(
+                description='判定机械臂静止的关节速度阈值 (rad/s)'))
+        self.declare_parameter(
+            'settle_duration_s', 0.5,
+            ParameterDescriptor(description='到位后判定静止所需的持续时长 (s)'))
+        self.declare_parameter(
+            'stable_timeout_s', 10.0,
+            ParameterDescriptor(description='等待机械臂静止的超时时间 (s)'))
+        self.declare_parameter(
+            'sample_timeout_s', 4.0,
+            ParameterDescriptor(description='单个位姿采集足量帧的超时时间 (s)'))
+        self.declare_parameter(
+            'velocity_scaling', 0.1,
+            ParameterDescriptor(description='MoveIt 速度缩放因子'))
+        self.declare_parameter(
+            'acceleration_scaling', 0.15,
+            ParameterDescriptor(description='MoveIt 加速度缩放因子'))
+        self.declare_parameter(
+            'planning_attempts', 5,
+            ParameterDescriptor(description='MoveIt 规划尝试次数'))
+        self.declare_parameter(
+            'planning_time_s', 5.0,
+            ParameterDescriptor(description='MoveIt 单次规划时限 (s)'))
+        self.declare_parameter(
+            'position_tolerance_m', 0.001,
+            ParameterDescriptor(description='目标位置约束容差 (m)'))
+        self.declare_parameter(
+            'orientation_tolerance_rad', 0.01,
+            ParameterDescriptor(description='目标姿态约束容差 (rad)'))
+        self.declare_parameter(
+            'max_reprojection_rms_px', 1.0,
+            ParameterDescriptor(description='质量门: 重投影 RMS 上限 (px)'))
+        self.declare_parameter(
+            'max_translation_rms_m', 0.003,
+            ParameterDescriptor(description='质量门: 平移一致性 RMS 上限 (m)'))
+        self.declare_parameter(
+            'max_rotation_rms_deg', 0.5,
+            ParameterDescriptor(description='质量门: 旋转一致性 RMS 上限 (deg)'))
+        self.declare_parameter(
+            'min_rotation_span_deg', 20.0,
+            ParameterDescriptor(description='质量门: 样本旋转覆盖跨度下限 (deg)'))
         # 求解方法: auto|tsai|park|horaud|andreff|daniilidis;
         # goal.method 为空串时取此参数
-        self.declare_parameter('solver_method', 'auto')
+        self.declare_parameter(
+            'solver_method', 'auto',
+            ParameterDescriptor(
+                description='求解方法 auto|tsai|park|horaud|andreff|daniilidis, '
+                            'goal.method 为空串时生效'))
 
         self._board = board_from_node(self)
         self._detector = CheckerboardDetector(
@@ -487,7 +549,8 @@ class CalibrationServer(Node):
         raise RuntimeError('robot did not become stationary')
 
     async def _capture(self, goal_handle, started_at):
-        """收集 frames_per_pose 帧 (观测, 腕部TF) 配对, 剔除离群帧后取均值。
+        """
+        收集 frames_per_pose 帧 (观测, 腕部TF) 配对, 剔除离群帧后取均值.
 
         返回 (base_from_gripper, camera_from_target, reprojection_rms,
         frame_records); frame_records 为逐帧观测明细 (含 kept 剔除标记)。

@@ -3,7 +3,7 @@
   <name>aubo_e5_hardware</name>
   <version>0.1.0</version>
   <description>ros2_control SystemInterface plugin for the AUBO E5 (legacy SDK, TCP2CAN streaming).</description>
-  <maintainer email="wjz@example.com">wjz</maintainer>
+  <maintainer email="2155413529@qq.com">wjz</maintainer>
   <license>BSD-3-Clause</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
@@ -14,6 +14,13 @@
   <depend>rclcpp_lifecycle</depend>
   <depend>realtime_tools</depend>
   <depend>std_msgs</depend>
+
+  <test_depend>ament_cmake_copyright</test_depend>
+  <test_depend>ament_cmake_cpplint</test_depend>
+  <test_depend>ament_cmake_lint_cmake</test_depend>
+  <test_depend>ament_cmake_uncrustify</test_depend>
+  <test_depend>ament_cmake_xmllint</test_depend>
+  <test_depend>ament_lint_auto</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

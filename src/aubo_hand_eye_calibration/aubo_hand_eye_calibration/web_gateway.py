@@ -18,6 +18,7 @@ from aubo_msgs.action import RunHandEyeCalibration
 from aubo_msgs.msg import IOState, JointStatus, RobotStatus
 from aubo_msgs.srv import ActivateHandEyeCalibration
 from diagnostic_msgs.msg import DiagnosticArray
+from rcl_interfaces.msg import ParameterDescriptor
 import rclpy
 from rclpy.action import ActionClient
 from rclpy.executors import MultiThreadedExecutor
@@ -47,12 +48,22 @@ _JOINT_NAMES = (
 class WebGateway(Node):
     def __init__(self):
         super().__init__('hand_eye_web_gateway')
-        self.declare_parameter('host', '127.0.0.1')
-        self.declare_parameter('port', 8088)
+        self.declare_parameter(
+            'host', '127.0.0.1',
+            ParameterDescriptor(description='Web 服务监听地址 (仅允许 loopback)'))
+        self.declare_parameter(
+            'port', 8088,
+            ParameterDescriptor(description='Web 服务监听端口'))
         # robot 区段 TF 坐标系 (与标定服务端参数同默认值)
-        self.declare_parameter('base_frame', 'base_link')
-        self.declare_parameter('wrist_frame', 'wrist3_Link')
-        self.declare_parameter('camera_root_frame', 'camera_link')
+        self.declare_parameter(
+            'base_frame', 'base_link',
+            ParameterDescriptor(description='robot 区段 TF 基座坐标系'))
+        self.declare_parameter(
+            'wrist_frame', 'wrist3_Link',
+            ParameterDescriptor(description='robot 区段 TF 腕部坐标系'))
+        self.declare_parameter(
+            'camera_root_frame', 'camera_link',
+            ParameterDescriptor(description='robot 区段 TF 相机安装座坐标系'))
         self._action = ActionClient(
             self, RunHandEyeCalibration,
             '/hand_eye_calibration_server/run')
@@ -158,7 +169,7 @@ class WebGateway(Node):
             self._joint_state_msg = message
 
     def status(self):
-        """SSE/GET /api/status 的全量快照: {calib, robot} 两区段。"""
+        """SSE/GET /api/status 的全量快照: {calib, robot} 两区段."""
         with self._lock:
             snapshot = {
                 'calib': dict(self._status),
@@ -174,7 +185,7 @@ class WebGateway(Node):
     # robot 区段组包 (10Hz 定时器, 任何失败都只落 None, 绝不抛异常)
     # ------------------------------------------------------------------
     def _tf_pose(self, parent, child):
-        """base_frame→child 的 {xyz, rpy_deg, quat_xyzw}; 查不到返回 None。"""
+        """base_frame→child 的 {xyz, rpy_deg, quat_xyzw}; 查不到返回 None."""
         try:
             transform = self._tf_buffer.lookup_transform(
                 parent, child, rclpy.time.Time())
@@ -308,7 +319,7 @@ class WebGateway(Node):
             return self._preview
 
     def preview_fps(self, window=5.0):
-        """最近 window 秒内的预览帧率与最后一帧距今年数。"""
+        """最近 window 秒内的预览帧率与最后一帧距今年数."""
         now = time.monotonic()
         with self._lock:
             recent = [t for t in self._preview_times if now - t <= window]

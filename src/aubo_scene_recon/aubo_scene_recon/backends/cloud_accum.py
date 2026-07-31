@@ -1,18 +1,17 @@
-"""Phase 1：Open3D 点云累加 + voxel + 统计滤波。"""
+"""Phase 1：Open3D 点云累加 + voxel + 统计滤波."""
 
 from __future__ import annotations
 
 from typing import Optional, Tuple
 
+from aubo_scene_recon.backends.base import FusionBackend
+from aubo_scene_recon.pc_utils import filter_by_depth
 import numpy as np
 import open3d as o3d
 
-from aubo_scene_recon.backends.base import FusionBackend
-from aubo_scene_recon.pc_utils import filter_by_depth
-
 
 class CloudAccumBackend(FusionBackend):
-    """用 Open3D 做变换后体素合并与周期性去噪，比手写 numpy voxel 更稳。"""
+    """用 Open3D 做变换后体素合并与周期性去噪，比手写 numpy voxel 更稳."""
 
     def __init__(
         self,

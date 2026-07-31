@@ -1,4 +1,4 @@
-"""融合后端抽象基类。"""
+"""融合后端抽象基类."""
 
 from __future__ import annotations
 
@@ -33,5 +33,5 @@ class FusionBackend(ABC):
         ...
 
     def get_o3d_cloud(self):
-        """可选：返回 open3d.geometry.PointCloud（用于 save）。"""
+        """可选：返回 open3d.geometry.PointCloud（用于 save）."""
         raise NotImplementedError

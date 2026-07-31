@@ -1,4 +1,4 @@
-"""backends 工厂。"""
+"""backends 工厂."""
 
 from aubo_scene_recon.backends.base import FusionBackend
 from aubo_scene_recon.backends.cloud_accum import CloudAccumBackend

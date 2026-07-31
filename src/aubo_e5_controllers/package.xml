@@ -10,7 +10,7 @@
     ur_controllers sources (Jazzy), with ur_msgs replaced by aubo_msgs/std_msgs
     and behavior semantics aligned with the field-tested aubo_boot driver.
   </description>
-  <maintainer email="wjz@example.com">wjz</maintainer>
+  <maintainer email="2155413529@qq.com">wjz</maintainer>
   <license>BSD-3-Clause</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
@@ -28,6 +28,13 @@
   <depend>diagnostic_msgs</depend>
   <depend>aubo_msgs</depend>
   <depend>generate_parameter_library</depend>
+
+  <test_depend>ament_cmake_copyright</test_depend>
+  <test_depend>ament_cmake_cpplint</test_depend>
+  <test_depend>ament_cmake_lint_cmake</test_depend>
+  <test_depend>ament_cmake_uncrustify</test_depend>
+  <test_depend>ament_cmake_xmllint</test_depend>
+  <test_depend>ament_lint_auto</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

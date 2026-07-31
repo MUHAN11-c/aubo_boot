@@ -8,7 +8,7 @@
     PeachPose 桃姿 ROS 2 感知节点：订阅 Percipio RGB-D，运行 YOLO+MobileSAM+
     实测深度几何管线，发布抓取参考候选与 RViz Marker（不发送运动指令）。
   </description>
-  <maintainer email="wjz@example.com">wjz</maintainer>
+  <maintainer email="2155413529@qq.com">wjz</maintainer>
   <license>BSD-3-Clause</license>
 
   <buildtool_depend>ament_python</buildtool_depend>
@@ -20,6 +20,7 @@
   <exec_depend>peach_pose_msgs</exec_depend>
   <exec_depend>python3-numpy</exec_depend>
   <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>rcl_interfaces</exec_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>sensor_msgs_py</exec_depend>
@@ -28,6 +29,8 @@
   <exec_depend>visualization_msgs</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
 
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
   <test_depend>python3-pytest</test_depend>
 
   <export>

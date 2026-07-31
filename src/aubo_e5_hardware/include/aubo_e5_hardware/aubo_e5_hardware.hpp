@@ -1,3 +1,31 @@
+// Copyright 2026, aubo_e5_ros2_ws authors
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
+//
+//    * Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//
+//    * Neither the name of the copyright holder nor the names of its
+//      contributors may be used to endorse or promote products derived from
+//      this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+
 // ============================================================================
 // aubo_e5_hardware.hpp —— AUBO E5 机械臂 ros2_control SystemInterface 插件
 // 声明（旧版 SDK 1.3.1，TCP2CAN 位置流 + RIB 流量控制）。
@@ -35,9 +63,9 @@
 #include "realtime_tools/realtime_thread_safe_box.hpp"
 
 // 随包携带（vendored）的 AUBO SDK 1.3.1 头文件 + moodycamel SPSC 队列。
-#include "AuboRobotMetaType.h"
-#include "readerwriterqueue.h"
-#include "serviceinterface.h"
+#include "aubo_driver/AuboRobotMetaType.h"
+#include "aubo_driver/readerwriterqueue.h"
+#include "aubo_driver/serviceinterface.h"
 
 namespace aubo_e5_hardware
 {
@@ -58,18 +86,28 @@ public:
   std::vector<hardware_interface::StateInterface> export_state_interfaces() override;
   std::vector<hardware_interface::CommandInterface> export_command_interfaces() override;
 
-  hardware_interface::CallbackReturn on_configure(const rclcpp_lifecycle::State & previous_state) override;
-  hardware_interface::CallbackReturn on_activate(const rclcpp_lifecycle::State & previous_state) override;
-  hardware_interface::CallbackReturn on_deactivate(const rclcpp_lifecycle::State & previous_state) override;
-  hardware_interface::CallbackReturn on_cleanup(const rclcpp_lifecycle::State & previous_state) override;
+  hardware_interface::CallbackReturn on_configure(
+    const rclcpp_lifecycle::State & previous_state) override;
+  hardware_interface::CallbackReturn on_activate(
+    const rclcpp_lifecycle::State & previous_state) override;
+  hardware_interface::CallbackReturn on_deactivate(
+    const rclcpp_lifecycle::State & previous_state) override;
+  hardware_interface::CallbackReturn on_cleanup(
+    const rclcpp_lifecycle::State & previous_state) override;
   // 错误/收尾路径与正常 deactivate/cleanup 走同一份 teardown（停线程含
   // 板载停止原语 -> 退 TCP2CAN -> 注销回调/logout -> 清队列），保证任何
   // 异常序列下资源都被完整释放（此前缺这两个覆写，error 后线程/连接泄漏）。
-  hardware_interface::CallbackReturn on_shutdown(const rclcpp_lifecycle::State & previous_state) override;
-  hardware_interface::CallbackReturn on_error(const rclcpp_lifecycle::State & previous_state) override;
+  hardware_interface::CallbackReturn on_shutdown(
+    const rclcpp_lifecycle::State & previous_state) override;
+  hardware_interface::CallbackReturn on_error(
+    const rclcpp_lifecycle::State & previous_state) override;
 
-  hardware_interface::return_type read(const rclcpp::Time & time, const rclcpp::Duration & period) override;
-  hardware_interface::return_type write(const rclcpp::Time & time, const rclcpp::Duration & period) override;
+  hardware_interface::return_type read(
+    const rclcpp::Time & time,
+    const rclcpp::Duration & period) override;
+  hardware_interface::return_type write(
+    const rclcpp::Time & time,
+    const rclcpp::Duration & period) override;
 
 private:
   // ---------------------------------------------------------------- 常量
@@ -82,9 +120,10 @@ private:
 
   // 行为基线常量（方案 A 节；刻意不可配置，保证与蓝本实测行为一致）。
   static constexpr int kLoginRetries = 5;              // A.5：登录重试次数
-  static constexpr double kFirstFrameTimeoutSec = 5.0; // 启动流程第 3 步：首帧超时
+  static constexpr double kFirstFrameTimeoutSec = 5.0;  // 启动流程第 3 步：首帧超时
   static constexpr int kRibFailFaultThreshold = 5;     // 健康看门狗：RIB 连查失败上限
-  static constexpr int kSlowdownBatch1 = 2;            // A.7：rib_slowdown_1 <= rib < rib_slowdown_2 时每批 2 点
+  // A.7：rib_slowdown_1 <= rib < rib_slowdown_2 时每批 2 点
+  static constexpr int kSlowdownBatch1 = 2;
   static constexpr int kSlowdownBatch2 = 1;            // A.7：rib >= rib_slowdown_2 时每批 1 点
   static constexpr int kIdleDiagIntervalMs = 250;      // sendLoop：空闲时 RIB 轮询周期
   static constexpr int kFastSleepMs = 1;               // sendLoop 自适应睡眠（快转档）
@@ -93,7 +132,8 @@ private:
   static constexpr unsigned kSafetyIoDivisor = 5;      // 20ms * 5  = ~10Hz 安全 IO 轮询
   static constexpr unsigned kIoStateDivisor = 25;      // 20ms * 25 = 500ms 低频 IO 状态轮询
   static constexpr int kIoLoopPeriodMs = 20;           // IO 异步线程周期
-  static constexpr int kStopRetryTimeoutMs = 1000;     // RobotMoveStop 重试超时，超时改用 robotMoveFastStop
+  // RobotMoveStop 重试超时，超时改用 robotMoveFastStop
+  static constexpr int kStopRetryTimeoutMs = 1000;
   // teardown/on_deactivate 等 ioLoop 执行完停止原语的轮询参数：间隔 5ms、
   // 超时 1500ms（须大于 kStopRetryTimeoutMs=1000，给 FastStop 降级留出余量，
   // 超时仍未完成则放弃并 WARN —— 卡住 teardown 会连带卡死整个 CM 状态机）。
@@ -230,7 +270,9 @@ private:
   void pollSafetyIo();
   void pollIoStates();
 
-  static void jointStatusCallback(const aubo_robot_namespace::JointStatus * status, int size, void * arg);
+  static void jointStatusCallback(
+    const aubo_robot_namespace::JointStatus * status, int size,
+    void * arg);
   static void robotEventCallback(const aubo_robot_namespace::RobotEventInfo * info, void * arg);
 
   // 事件上报（ioLoop 侧）：drain 事件队列 -> 按严重级别打日志 + 更新

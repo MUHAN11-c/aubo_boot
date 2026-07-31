@@ -1,5 +1,5 @@
 """
-PeachPose 桃姿 — 桃树果实 RGB-D 位姿感知算法包。
+PeachPose 桃姿 — 桃树果实 RGB-D 位姿感知算法包.
 
 职责: 将 Azure Kinect RGB-D 观测转为 2D/3D 桃子袋体抓取位姿；本包为算法核心，
 GUI 入口见 ``inspector/``。

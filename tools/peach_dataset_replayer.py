@@ -1,7 +1,13 @@
-"""离线数据集回放：把 peach_canopy data/dataset 帧发布为 RGB-D + CameraInfo。
+"""
+离线数据集回放工具：把数据集（rgb/ + depth/ 成对 PNG）发布为 RGB-D + CameraInfo.
 
-无真相机时可用本节点驱动 peach_pose_node 做全链路冒烟。
-默认内参为本机 Percipio（与 color_camera_info.yaml 一致）；Azure 包请显式传 --fx 等。
+独立测试工具（不随 colcon 构建，不依赖 peach_pose_ros2 包内模块）；无真相机时
+可用它驱动 peach_pose_node 做全链路冒烟。默认内参为本机 Percipio
+（与 color_camera_info.yaml 一致）；Azure 包请显式传 --fx 等。
+
+用法示例（需先 source /opt/ros/jazzy/setup.bash 与工作区 install/setup.bash）:
+    aubo_py3.12/bin/python tools/peach_dataset_replayer.py --limit 3 --loop
+    aubo_py3.12/bin/python tools/peach_dataset_replayer.py --dataset <数据集根> --rate 0.5
 """
 from __future__ import annotations
 
@@ -15,10 +21,20 @@ from rclpy.node import Node
 from sensor_msgs.msg import CameraInfo, Image
 from std_msgs.msg import Header
 
-from peach_pose_ros2.peach_pose.inspector.config import K_PERCIPIO
+# ── 本机 Percipio 彩色内参（640×480，棋盘标定）──
+# 权威源: src/percipio_camera/config/color_camera_info.yaml — 改标定后请同步此处
+K_PERCIPIO = {
+    'fx': 466.174635,
+    'fy': 465.556589,
+    'cx': 326.071333,
+    'cy': 244.789156,
+    'width': 640,
+    'height': 480,
+}
 
 
 def _camera_info(width: int, height: int, K: dict, frame_id: str, stamp) -> CameraInfo:
+    """由 pinhole K 填 CameraInfo（无畸变；P 与 K 一致）."""
     msg = CameraInfo()
     msg.header = Header(stamp=stamp, frame_id=frame_id)
     msg.width = width
@@ -33,6 +49,8 @@ def _camera_info(width: int, height: int, K: dict, frame_id: str, stamp) -> Came
 
 
 class DatasetReplayer(Node):
+    """按定时器循环发布 rgb/ + depth/ 成对 PNG，话题名与真相机一致."""
+
     def __init__(self, dataset_dir: Path, rate_hz: float, limit: int,
                  loop: bool, frame_id: str, K: dict):
         super().__init__('peach_pose_dataset_replayer')
@@ -44,6 +62,7 @@ class DatasetReplayer(Node):
         rgb_dir = dataset_dir / 'rgb'
         depth_dir = dataset_dir / 'depth'
         names = sorted(p.stem for p in rgb_dir.glob('*.png'))
+        # 仅保留 rgb/depth 同名成对的帧
         self.frames = [
             (rgb_dir / f'{n}.png', depth_dir / f'{n}.png')
             for n in names
@@ -64,6 +83,7 @@ class DatasetReplayer(Node):
             f'Replaying {len(self.frames)} frames from {dataset_dir} @ {rate_hz} Hz')
 
     def _tick(self):
+        """发布下一帧；三话题同 stamp，便于 ApproximateTimeSynchronizer."""
         if self.idx >= len(self.frames):
             if self.loop:
                 self.idx = 0
@@ -81,6 +101,7 @@ class DatasetReplayer(Node):
         if depth.dtype != np.uint16:
             depth = depth.astype(np.uint16)
         if rgb.shape[:2] != depth.shape[:2]:
+            # 深度用最近邻，避免插值污染毫米值
             depth = cv2.resize(
                 depth, (rgb.shape[1], rgb.shape[0]), interpolation=cv2.INTER_NEAREST)
         stamp = self.get_clock().now().to_msg()
@@ -103,7 +124,7 @@ class DatasetReplayer(Node):
         depth_msg.data = depth.tobytes()
 
         info = _camera_info(w, h, self.K, self.frame_id, stamp)
-        # 若使用 FOV 推导默认 K 而图像不是 1280x720，按比例缩放光心/焦距
+        # Azure 历史包默认按 1280×720 标定；分辨率不同时按比例缩放 K
         if w != 1280 or h != 720:
             sx, sy = w / 1280.0, h / 720.0
             scaled = {
@@ -119,10 +140,12 @@ class DatasetReplayer(Node):
 
 
 def main(args=None):
-    parser = argparse.ArgumentParser(description='PeachPose dataset replayer')
+    """CLI：解析数据集路径与内参，spin 回放节点."""
+    parser = argparse.ArgumentParser(description='PeachPose 数据集回放工具')
     parser.add_argument(
         '--dataset', type=str, default='',
-        help='dataset root containing rgb/ and depth/')
+        help='含 rgb/ 与 depth/ 的数据集根目录；空 → 工作区 '
+             'src/peach_pose_ros2/data/dataset')
     parser.add_argument('--rate', type=float, default=1.0)
     parser.add_argument('--limit', type=int, default=3)
     parser.add_argument('--loop', action='store_true')
@@ -139,13 +162,13 @@ def main(args=None):
     if known.dataset:
         dataset = Path(known.dataset)
     else:
-        # 包内 data/dataset 软链，或源 peach_canopy
-        here = Path(__file__).resolve().parents[2]
-        candidates = [
-            here / 'data' / 'dataset',
-            Path('/home/mu/Desktop/demo(1)/peach_canopy/data/dataset'),
-        ]
-        dataset = next((p for p in candidates if p.is_dir()), candidates[0])
+        # 默认取包内 data/dataset 软链（tools/ 上一级即工作区根）
+        dataset = (Path(__file__).resolve().parents[1]
+                   / 'src' / 'peach_pose_ros2' / 'data' / 'dataset')
+        if not dataset.is_dir():
+            raise RuntimeError(
+                f'推断默认数据集目录失败: {dataset} 不存在。'
+                '请显式传 --dataset <数据集根目录>（含 rgb/ 与 depth/ 子目录）。')
     K = {'fx': known.fx, 'fy': known.fy, 'cx': known.cx, 'cy': known.cy}
     node = DatasetReplayer(
         dataset, known.rate, known.limit, known.loop, known.frame_id, K)

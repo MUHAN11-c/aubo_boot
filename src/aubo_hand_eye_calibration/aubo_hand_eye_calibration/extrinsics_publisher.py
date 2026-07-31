@@ -8,6 +8,7 @@
 from pathlib import Path
 
 from geometry_msgs.msg import TransformStamped
+from rcl_interfaces.msg import ParameterDescriptor
 import rclpy
 from rclpy.node import Node
 from std_srvs.srv import Trigger
@@ -20,11 +21,24 @@ from .storage import default_storage_directory
 class ExtrinsicsPublisher(Node):
     def __init__(self):
         super().__init__('hand_eye_extrinsics_publisher')
-        self.declare_parameter('parent_frame', 'wrist3_Link')
-        self.declare_parameter('child_frame', 'camera_link')
-        self.declare_parameter('active_file', '')
-        self.declare_parameter('nominal_xyz_m', [0.0, 0.0, 0.020])
-        self.declare_parameter('nominal_quaternion_xyzw', [0.0, 0.0, 0.0, 1.0])
+        self.declare_parameter(
+            'parent_frame', 'wrist3_Link',
+            ParameterDescriptor(description='静态 TF 父坐标系 (腕部)'))
+        self.declare_parameter(
+            'child_frame', 'camera_link',
+            ParameterDescriptor(description='静态 TF 子坐标系 (相机安装座)'))
+        self.declare_parameter(
+            'active_file', '',
+            ParameterDescriptor(
+                description='激活标定结果文件路径, 空串时按默认存储目录定位'))
+        self.declare_parameter(
+            'nominal_xyz_m', [0.0, 0.0, 0.020],
+            ParameterDescriptor(
+                description='无激活结果时发布的标称外参平移 (m)'))
+        self.declare_parameter(
+            'nominal_quaternion_xyzw', [0.0, 0.0, 0.0, 1.0],
+            ParameterDescriptor(
+                description='无激活结果时发布的标称外参四元数 (xyzw)'))
         self._broadcaster = StaticTransformBroadcaster(self)
         self._reload_service = self.create_service(
             Trigger, '~/reload', self._reload)

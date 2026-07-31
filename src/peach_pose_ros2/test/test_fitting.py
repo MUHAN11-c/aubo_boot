@@ -1,17 +1,17 @@
+"""拟合模块：球冠 / 圆柱稳健拟合与径向距离."""
 import unittest
 
 import numpy as np
 
 from peach_pose_ros2.peach_pose.fitting import (
-    estimate_normals, fit_sphere_robust, fit_cylinder_robust,
-    _cylinder_radial_dist,
+    estimate_normals, fit_cylinder_robust, fit_sphere_robust,
 )
 
-K = {"fx": 640.0, "fy": 636.0, "cx": 640.0, "cy": 360.0}
+K = {'fx': 640.0, 'fy': 636.0, 'cx': 640.0, 'cy': 360.0}
 
 
 def _sphere_cap(center, radius, half_angle_deg=45, n=600, noise=0.0015, seed=0):
-    """相机在 +Z 看向原点，生成朝向相机的球冠点云+解析法线。"""
+    """相机在 +Z 看向原点，生成朝向相机的球冠点云+解析法线."""
     rng = np.random.default_rng(seed)
     a = np.radians(half_angle_deg)
     u = rng.uniform(np.cos(a), 1.0, n)
@@ -25,11 +25,12 @@ def _sphere_cap(center, radius, half_angle_deg=45, n=600, noise=0.0015, seed=0):
 
 
 def _cylinder_patch(q0, axis, radius, arc_deg=120, n=800, noise=0.0015, seed=0):
-    """部分弧圆柱面点云+解析法线。"""
+    """部分弧圆柱面点云+解析法线."""
     rng = np.random.default_rng(seed)
     axis = axis / np.linalg.norm(axis)
     ref = np.array([1.0, 0, 0]) if abs(axis[0]) < 0.9 else np.array([0.0, 1.0, 0])
-    u = np.cross(axis, ref); u /= np.linalg.norm(u)
+    u = np.cross(axis, ref)
+    u /= np.linalg.norm(u)
     w = np.cross(axis, u)
     ang = np.radians(arc_deg)
     thetas = rng.uniform(-ang / 2, ang / 2, n)
@@ -55,8 +56,8 @@ class SphereFitTest(unittest.TestCase):
         pts, normals = _sphere_cap(center, 0.035, half_angle_deg=45)
         est = fit_sphere_robust(pts, normals, radius_prior=0.035)
         self.assertIsNotNone(est)
-        self.assertLess(np.linalg.norm(est["center"] - center), 0.008)
-        self.assertGreater(est["inlier_ratio"], 0.8)
+        self.assertLess(np.linalg.norm(est['center'] - center), 0.008)
+        self.assertGreater(est['inlier_ratio'], 0.8)
 
     def test_outliers_rejected(self):
         center = np.array([0.0, 0.0, 0.7])
@@ -66,7 +67,7 @@ class SphereFitTest(unittest.TestCase):
                                 np.vstack([normals, out * 0 + [0, 0, -1]]),
                                 radius_prior=0.030)
         self.assertIsNotNone(est)
-        self.assertLess(np.linalg.norm(est["center"] - center), 0.01)
+        self.assertLess(np.linalg.norm(est['center'] - center), 0.01)
 
 
 class CylinderFitTest(unittest.TestCase):
@@ -75,10 +76,10 @@ class CylinderFitTest(unittest.TestCase):
         pts, normals = _cylinder_patch(np.array([0.02, 0.5, 0.9]), axis, 0.038)
         est = fit_cylinder_robust(pts, normals)
         self.assertIsNotNone(est)
-        cos = abs(float(est["axis"] @ axis))
+        cos = abs(float(est['axis'] @ axis))
         self.assertGreater(cos, np.cos(np.radians(3.0)))
-        self.assertAlmostEqual(est["radius"], 0.038, delta=0.004)
-        self.assertGreater(est["inlier_ratio"], 0.7)
+        self.assertAlmostEqual(est['radius'], 0.038, delta=0.004)
+        self.assertGreater(est['inlier_ratio'], 0.7)
 
     def test_tilted_cylinder(self):
         axis = np.array([0.3, 1.0, 0.2])
@@ -86,7 +87,7 @@ class CylinderFitTest(unittest.TestCase):
         est = fit_cylinder_robust(pts, normals)
         self.assertIsNotNone(est)
         a = axis / np.linalg.norm(axis)
-        cos = abs(float(est["axis"] @ a))
+        cos = abs(float(est['axis'] @ a))
         self.assertGreater(cos, np.cos(np.radians(4.0)))
 
     def test_planar_points_give_up(self):
@@ -99,5 +100,5 @@ class CylinderFitTest(unittest.TestCase):
         self.assertIsNone(est)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

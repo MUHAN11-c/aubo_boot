@@ -42,14 +42,23 @@ source install/setup.bash
 
 ### 无相机（数据集回放冒烟）
 
+数据集回放工具已独立为 `tools/peach_dataset_replayer.py`（不随 colcon 构建，
+与包内模块无依赖）。用法：
+
 ```bash
-ros2 launch peach_pose_ros2 peach_pose.launch.py replay:=true replay_limit:=3
+# 终端 1：感知节点
+ros2 launch peach_pose_ros2 peach_pose.launch.py
+
+# 终端 2：另开终端回放数据集
+aubo_py3.12/bin/python tools/peach_dataset_replayer.py --dataset <数据集根> [--limit N] [--loop] [--rate 0.5]
 ```
 
-启动前请确认无残留：`pgrep -af 'peach_pose_ros2|dataset_replayer'`（多实例同时加载 YOLO/SAM 可能导致段错误）。
+启动前请确认无残留：`pgrep -af 'peach_pose_ros2|peach_dataset_replayer'`（多实例同时加载 YOLO/SAM 可能导致段错误）。
 
-默认数据集：`src/peach_pose_ros2/data/dataset`（软链到 peach_canopy），或源树
-`/home/mu/Desktop/demo(1)/peach_canopy/data/dataset`。
+`--dataset` 缺省为工作区 `src/peach_pose_ros2/data/dataset`（软链到 peach_canopy），
+推断失败会报错。
+节点经 `scripts/` 包装脚本以 aubo_py3.12 venv 启动；`python_executable` 会作为
+`AUBO_PYTHON` 传给包装脚本（空 = venv 默认解释器）。
 
 ### 真相机 RGB-D
 

@@ -13,7 +13,7 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages',
          ['resource/' + package_name]),
-        ('share/' + package_name, ['package.xml', 'README.md']),
+        ('share/' + package_name, ['package.xml', 'README.md', 'LICENSE']),
         ('share/' + package_name + '/config', glob('config/*')),
         ('share/' + package_name + '/launch', glob('launch/*.py')),
         ('share/' + package_name + '/rviz', glob('rviz/*')),
@@ -23,8 +23,7 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='wjz',
-    maintainer_email='wjz@example.com',
+    maintainer_email='2155413529@qq.com',
     description='Eye-in-hand scene reconstruction with Open3D.',
     license='BSD-3-Clause',
-    tests_require=['pytest'],
 )

@@ -1,3 +1,4 @@
+"""inspector.sphere_ref：合成点云球拟合参考."""
 import unittest
 
 import numpy as np
@@ -39,5 +40,5 @@ class SphereReferenceTest(unittest.TestCase):
         self.assertIsNone(c)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

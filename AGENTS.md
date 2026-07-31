@@ -36,6 +36,11 @@ MoveIt → FollowJointTrajectory goal
   调用 Python 的场景）一律用 `aubo_py3.12/bin/python` 运行，不要使用系统
   `python3`；需要新增 Python 包时装进该 venv。venv 的依赖锁定在工作区根目录
   `requirements.txt`（`aubo_py3.12/bin/pip install -r requirements.txt` 可复现）。
+  ROS 节点分两层：纯 ROS 节点（aubo_hand_eye_calibration）走系统 python3
+  （console_scripts + apt 依赖）；依赖 torch/open3d 的节点（aubo_scene_recon、
+  peach_pose_ros2）经包内 `scripts/` 的 bash 包装脚本进 venv 运行（装到
+  `lib/<pkg>`，`Node()`/`ros2 run` 按名引用），解释器可用环境变量
+  `AUBO_PYTHON` 覆盖（约定详见第 8 节）。
 - **框架**：ROS 2 Jazzy + ros2_control（hardware_interface / controller_interface /
   pluginlib / generate_parameter_library）+ MoveIt 2（ompl + pilz 双管线）
 - **构建系统**：colcon + ament_cmake（无 pyproject.toml / package.json / Cargo.toml）
@@ -74,6 +79,11 @@ src/                            # 参与构建的包
 │                               #   求解算法可选 auto/tsai/park/horaud/andreff/
 │                               #   daniilidis + Huber 精化；Web 界面含机器人状态/
 │                               #   末端位姿/关节表/逐帧过程/求解公式与残差图表）
+├── aubo_scene_recon/           # 点云场景重建（open3d TSDF/累积后端；节点经
+│                               #   scripts/recon_fusion_node 包装脚本进 venv 运行）
+├── peach_pose_msgs/            # 桃子位姿估计的自定义 msg
+├── peach_pose_ros2/            # 桃子位姿估计（YOLO+SAM，依赖 venv 内 torch；
+│                               #   节点经 scripts/ 包装脚本启动，同 scene_recon 模式）
 ├── percipio_camera/            # 相机驱动（厂商代码，两处项目化改动：
 │                               #   ① launch 默认值：device_ip=169.254.10.110、
 │                               #   深度/点云默认关闭；② 新增 color_camera_info_file
@@ -86,6 +96,8 @@ tools/                          # 分析/测试脚本（不随 colcon 构建）�
                                 #     图文报告+CSV+PNG：run=脚本轨迹执行分析，
                                 #     --real 启用 RIB 判定；rec=RViz 手动运动被动
                                 #     录制，逐段 A/B/C/D 四类量化，多段汇总一窗）
+                                #   peach_dataset_replayer.py（PeachPose 数据集回放
+                                #     冒烟工具：rgb/+depth/ 成对 PNG → RGB-D+CameraInfo）
                                 #   fk_ik_check.py、joint_trace_recorder.py、
                                 #   m2_m3_retest.py，以及一组链接 vendored SDK 的
                                 #   C++ 检查程序（aubo_sdk_{readonly,motion,full,
@@ -118,9 +130,13 @@ SDK资料/                        # 厂商原始资料（SDK 包、Noetic 参考
 build/ install/ log/            # colcon 产物，勿手动修改
 ```
 
-无 `AGENTS.md` 子级文件。除 `aubo_hand_eye_calibration/test/`（Python unittest
-套件，15 例）外其余包无单元测试（验证靠 sim 模式闭环 + 真机分阶段流程，
-见第 6 节）。
+无 `AGENTS.md` 子级文件。全部 11 个项目包已接入 lint 测试（ament_cmake 包经
+`ament_lint_auto`：copyright/cpplint/uncrustify/lint_cmake/xmllint；ament_python 包带
+官方模板 test_flake8.py/test_pep257.py），`colcon test` 强制风格合规；
+`aubo_e5_hardware/vendor/` 与 `aubo_dashboard/vendor/` 内含 `AMENT_IGNORE`（ament
+工具链跳过厂商代码，不影响编译）。业务测试：aubo_hand_eye_calibration（unittest
+15 例）、aubo_scene_recon 与 peach_pose_ros2（pytest，须用 venv 解释器）；
+硬件/控制器代码验证靠 sim 模式闭环 + 真机分阶段流程（见第 6 节）。
 
 ## 4. 构建
 
@@ -138,9 +154,9 @@ source install/setup.bash
 
 | 模式 | 硬件插件 | 控制器 | 用途 |
 |---|---|---|---|
-| `mock`（默认） | `mock_components/GenericSystem` | `joint_trajectory_controller` | 标准 ros2_control 回归；MoveIt 映射到 controllers_mock.yaml |
+| `mock` | `mock_components/GenericSystem` | `joint_trajectory_controller` | 标准 ros2_control 回归；MoveIt 映射到 controllers_mock.yaml |
 | `sim` | `aubo_e5_hardware/AuboE5SimHardware` | passthrough + IO | passthrough 全链路闭环模拟，无真机开发/验证首选 |
-| `real` | `aubo_e5_hardware/AuboE5Hardware` | passthrough + IO + dashboard | 真机；普通内核直接启动（已取消 RT 预检） |
+| `real`（默认） | `aubo_e5_hardware/AuboE5Hardware` | passthrough + IO + dashboard | 真机；普通内核直接启动（已取消 RT 预检） |
 
 ```bash
 ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim
@@ -161,12 +177,15 @@ MoveIt 超时问题。注意 sim 不模拟板载 IO 写回，`set_io` 返回 suc
 
 ## 6. 测试与验证策略
 
-本项目只有 `aubo_hand_eye_calibration` 带测试套件（Python unittest，其余包
-CMakeLists 中无 BUILD_TESTING 块、无 lint 测试）：
+全部项目包已接入 lint 测试（见第 3 节），`colcon test` 强制风格合规；业务测试
+须用 venv 解释器手动跑（先 source ROS 环境，否则 lint 测试 import 不到 ament_*）：
 
 ```bash
-cd src/aubo_hand_eye_calibration
-/home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12/bin/python -m pytest test/ -q   # 15 例
+source /opt/ros/jazzy/setup.bash
+colcon test && colcon test-result --verbose          # 全包 lint + 接入的测试
+cd src/aubo_hand_eye_calibration && ../../aubo_py3.12/bin/python -m pytest test/ -q  # 15 例
+cd src/aubo_scene_recon && ../../aubo_py3.12/bin/python -m pytest test/ -q
+cd src/peach_pose_ros2 && PYTHONPATH=peach_pose_ros2:$PYTHONPATH ../../aubo_py3.12/bin/python -m pytest test/ -q
 ```
 
 硬件/控制器代码的验证方式为：
@@ -217,6 +236,9 @@ cd src/aubo_hand_eye_calibration
 - **GPIO 契约**：`trajectory_passthrough`（transfer_state 状态机 0–6 + 设定点）、
   `aubo_io`（IO 状态/命令 + RIB 状态）与 `speed_scaling`（speed_scaling_factor，
   恒定 1.0，本驱动不做执行期缩放）三组接口，见各插件 XML 描述与 xacro。
+- **Python 节点参数默认值**：以各包 `config/*.yaml` 为权威源，代码内
+  `declare_parameter` 默认值已逐一对齐（如 hand_eye `velocity_scaling=0.1`、
+  scene_recon `max_range=3.0`/`tf_timeout_sec=0.5`）；改默认值时两边必须同步。
 
 ## 8. 代码风格与开发约定
 
@@ -231,6 +253,22 @@ cd src/aubo_hand_eye_calibration
   `aubo_e5_hardware/CMakeLists.txt` 注释）。
 - 遵循蓝本（aubo_boot / UR passthrough）语义优先于自由发挥：轨迹一次性下发、
   goal_hold 判定、RIB 水位流控等核心逻辑不要改成流式。
+- 全包代码风格执行 ROS 2 官方标准并已被 `colcon test` 强制：C++ 走
+  ament_uncrustify + ament_cpplint（100 列、`*`/`&` 居中对齐、BSD copyright 头）；
+  Python 走 ament_flake8（99 列、单引号、import 分组）；CMake 走 ament_lint_cmake。
+  改代码后必须保持 lint 全绿（工具均在 /opt/ros/jazzy/bin）。
+- venv 依赖节点的启动约定：需要 torch/open3d 的节点（aubo_scene_recon、
+  peach_pose_ros2）一律经包内 `scripts/` 下 bash 包装脚本启动（装到 `lib/<pkg>`，
+  `Node()`/`ros2 run` 按名引用）。包装脚本内部约定：`AUBO_PYTHON` 显式指定解释器
+  优先级最高；操作者已 `source` 某个 venv（`VIRTUAL_ENV` 非空）则直接沿用；
+  否则自动 `source` 工作区 `aubo_py3.12/bin/activate` 后用 `python3 -m` 启动。
+  launch 文件一律用标准 `Node()`，不得出现解释器路径或 ExecuteProcess 拼
+  `python -m`；也不要改回 console_scripts——其 shebang 是系统 python3，
+  没有 torch/open3d，入口会实际不可用。
+- `aubo_e5_hardware` 公共头 `aubo_e5_hardware.hpp` include 了 vendor SDK 头
+  （`AuboRobotMetaType.h`），而 vendor include 路径是 PRIVATE——该头目前不支持
+  被下游包 include（现无下游消费者；如未来需要，先把 SDK 类型移入 .cpp
+  或改为导出 vendor 头）。
 - 不要向构建树（`build/`、`install/`、`log/`）提交改动。
 
 ## 9. 部署注意事项（容易踩的坑）
@@ -254,6 +292,7 @@ cd src/aubo_hand_eye_calibration
   正确组合：venv 内 `numpy==1.26.4`（+ `matplotlib==3.11.1`，见根目录
   `requirements.txt`），cv2/scipy 走系统 dist-packages（4.6.0 / 1.11.4），
   不要在 venv 里 pip 装 opencv-python/scipy（装了会 shadow 系统版）。
+  节点级 venv 入口约定（包装脚本 + `AUBO_PYTHON`）见第 8 节。
 - **tf2 静态 TF 不接受同发布者覆盖**：`extrinsics_publisher` 的 `~/reload`
   重读后确实重新 sendTransform，但同一 publisher 进程更新 wrist3_Link→
   camera_link 不会传播给 tf2 buffer（后加入的订阅者仍拿到旧值）。激活新外参后

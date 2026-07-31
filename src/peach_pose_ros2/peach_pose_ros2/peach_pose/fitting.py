@@ -1,4 +1,5 @@
-"""鲁棒几何拟合 — 法线估计 / 球 RANSAC / 圆柱 RANSAC（实测深度派生量）。
+"""
+鲁棒几何拟合 — 法线估计 / 球 RANSAC / 圆柱 RANSAC（实测深度派生量）.
 
 管线位置:
   剪切抓取核心几何层。为 pipeline.py（袋轴/袋径/entry_start）与
@@ -34,7 +35,8 @@ import numpy as np
 
 def estimate_normals(depth_roi: np.ndarray, xoff: int, yoff: int, K: dict,
                      depth_jump_mm: int = 30) -> Tuple[np.ndarray, np.ndarray]:
-    """有序深度图 → 单位法线图 (h, w, 3)，统一朝向相机。
+    """
+    有序深度图 → 单位法线图 (h, w, 3)，统一朝向相机.
 
     理论: 表面切向量 ≈ 相邻像素 3D 点差，法线 = 两切向叉积。
     深度突变（遮挡边缘）处法线不可靠，置无效。
@@ -45,8 +47,10 @@ def estimate_normals(depth_roi: np.ndarray, xoff: int, yoff: int, K: dict,
         K: 相机内参 {"fx","fy","cx","cy"}
         depth_jump_mm: 相邻像素深度差超过该值视为边缘（法线无效）
 
-    Returns:
-        (normals (h,w,3) float64, normal_valid (h,w) bool)
+    Returns
+    -------
+    (normals (h,w,3) float64, normal_valid (h,w) bool)
+
     """
     h, w = depth_roi.shape
     z = depth_roi.astype(np.float64) / 1000.0
@@ -54,8 +58,8 @@ def estimate_normals(depth_roi: np.ndarray, xoff: int, yoff: int, K: dict,
 
     us = np.arange(w)[None, :] + xoff
     vs = np.arange(h)[:, None] + yoff
-    X = (us - K["cx"]) * z / K["fx"]
-    Y = (vs - K["cy"]) * z / K["fy"]
+    X = (us - K['cx']) * z / K['fx']
+    Y = (vs - K['cy']) * z / K['fy']
 
     # 中心差分切向量（边缘退化为前/后向差分，numpy 自动处理）
     du = np.zeros((h, w, 3))
@@ -67,7 +71,7 @@ def estimate_normals(depth_roi: np.ndarray, xoff: int, yoff: int, K: dict,
 
     n = np.cross(du, dv)
     norm = np.linalg.norm(n, axis=2)
-    with np.errstate(invalid="ignore", divide="ignore"):
+    with np.errstate(invalid='ignore', divide='ignore'):
         n = n / np.where(norm > 1e-12, norm, 1.0)[..., None]
 
     # 朝向相机（相机在原点看 +Z，可见面法线应指向原点）
@@ -103,13 +107,16 @@ def ransac_sphere(points: np.ndarray, normals: Optional[np.ndarray] = None,
                   radius_range: Tuple[float, float] = (0.025, 0.045),
                   thresh: float = 0.004, max_iter: int = 300,
                   seed: int = 0) -> Optional[dict]:
-    """球 RANSAC：法线可用时 1–2 点采样，否则 4 点采样；半径夹紧。
+    """
+    球 RANSAC：法线可用时 1–2 点采样，否则 4 点采样；半径夹紧.
 
     理论: c = p − r·n（射线约束）；半径已知 → 最小采样 1 点（迭代数 ~7）；
     半径未知 → 2 点+法线，r = |p₁−p₂|² / ((n₁−n₂)·(p₁−p₂))。
 
-    Returns:
-        dict(center, radius, inliers, inlier_ratio, rms) 或 None
+    Returns
+    -------
+    dict(center, radius, inliers, inlier_ratio, rms) 或 None
+
     """
     rng = np.random.default_rng(seed)
     n = len(points)
@@ -139,7 +146,7 @@ def ransac_sphere(points: np.ndarray, normals: Optional[np.ndarray] = None,
             idx = rng.choice(n, size=min(4, n), replace=False)
             pts = points[idx]
             a = np.column_stack((2.0 * pts, np.ones(len(pts))))
-            b = np.einsum("ij,ij->i", pts, pts)
+            b = np.einsum('ij,ij->i', pts, pts)
             sol, *_ = np.linalg.lstsq(a, b, rcond=None)
             t = sol[3] + float(sol[:3] @ sol[:3])
             if t <= 0:
@@ -149,20 +156,21 @@ def ransac_sphere(points: np.ndarray, normals: Optional[np.ndarray] = None,
                 continue
 
         inl = _sphere_inliers(points, center, radius, thresh)
-        if best is None or len(inl) > len(best["inliers"]):
-            best = {"center": center, "radius": radius, "inliers": inl}
+        if best is None or len(inl) > len(best['inliers']):
+            best = {'center': center, 'radius': radius, 'inliers': inl}
 
-    if best is None or len(best["inliers"]) < 10:
+    if best is None or len(best['inliers']) < 10:
         return None
-    d = np.linalg.norm(points[best["inliers"]] - best["center"], axis=1)
-    best["inlier_ratio"] = len(best["inliers"]) / n
-    best["rms"] = float(np.sqrt(np.mean((d - best["radius"]) ** 2)))
+    d = np.linalg.norm(points[best['inliers']] - best['center'], axis=1)
+    best['inlier_ratio'] = len(best['inliers']) / n
+    best['rms'] = float(np.sqrt(np.mean((d - best['radius']) ** 2)))
     return best
 
 
 def polish_sphere_lm(points: np.ndarray, center0: np.ndarray,
                      radius: float, fixed_radius: bool = True) -> Tuple[np.ndarray, float]:
-    """几何正交距离 LM 抛光（MLE）。fixed_radius=True 时只估 3 DOF 球心。
+    """
+    几何正交距离 LM 抛光（MLE）。fixed_radius=True 时只估 3 DOF 球心.
 
     理论: min Σ(||p_i−c|| − r)² 是各向同性高斯噪声的最大似然；固定半径
     删除 Fisher 信息矩阵最病态方向，CRLB 严格下降。
@@ -172,12 +180,12 @@ def polish_sphere_lm(points: np.ndarray, center0: np.ndarray,
     if fixed_radius:
         def resid(c):
             return np.linalg.norm(points - c, axis=1) - radius
-        sol = least_squares(resid, center0, method="lm")
+        sol = least_squares(resid, center0, method='lm')
         return sol.x, radius
 
     def resid(cr):
         return np.linalg.norm(points - cr[:3], axis=1) - cr[3]
-    sol = least_squares(resid, np.append(center0, radius), method="lm")
+    sol = least_squares(resid, np.append(center0, radius), method='lm')
     return sol.x[:3], float(sol.x[3])
 
 
@@ -186,14 +194,14 @@ def fit_sphere_robust(points: np.ndarray, normals: Optional[np.ndarray] = None,
                       radius_range: Tuple[float, float] = (0.025, 0.045),
                       thresh: float = 0.004, max_iter: int = 300,
                       seed: int = 0) -> Optional[dict]:
-    """完整球拟合: RANSAC → 内点 LM 抛光 → 重计内点与统计量。"""
+    """完整球拟合: RANSAC → 内点 LM 抛光 → 重计内点与统计量."""
     est = ransac_sphere(points, normals, radius_prior, radius_range,
                         thresh, max_iter, seed)
     if est is None:
         return None
-    inl_pts = points[est["inliers"]]
+    inl_pts = points[est['inliers']]
     center, radius = polish_sphere_lm(
-        inl_pts, est["center"], est["radius"],
+        inl_pts, est['center'], est['radius'],
         fixed_radius=radius_prior is not None)
     if not (radius_range[0] <= radius <= radius_range[1]):
         return None
@@ -201,9 +209,9 @@ def fit_sphere_robust(points: np.ndarray, normals: Optional[np.ndarray] = None,
     if len(inl) < 10:
         return None
     d = np.linalg.norm(points[inl] - center, axis=1)
-    return {"center": center, "radius": radius, "inliers": inl,
-            "inlier_ratio": len(inl) / len(points),
-            "rms": float(np.sqrt(np.mean((d - radius) ** 2)))}
+    return {'center': center, 'radius': radius, 'inliers': inl,
+            'inlier_ratio': len(inl) / len(points),
+            'rms': float(np.sqrt(np.mean((d - radius) ** 2)))}
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -220,13 +228,16 @@ def ransac_cylinder(points: np.ndarray, normals: np.ndarray,
                     radius_range: Tuple[float, float] = (0.025, 0.050),
                     thresh: float = 0.0035, max_iter: int = 300,
                     seed: int = 0) -> Optional[dict]:
-    """圆柱 RANSAC（PCL SACMODEL_CYLINDER 同款构造，clean-room 实现）。
+    """
+    圆柱 RANSAC（PCL SACMODEL_CYLINDER 同款构造，clean-room 实现）.
 
     理论: 圆柱法线 ⊥ 轴 → a = (n₁×n₂)/|n₁×n₂|；投影 ⊥a 平面退化为 2D 圆，
     圆心 = 两射线 p'₁+α·n'₁ 与 p'₂+β·n'₂ 的交点；半径夹紧剪掉退化假设。
 
-    Returns:
-        dict(axis, q0, radius, inliers, inlier_ratio, rms) 或 None
+    Returns
+    -------
+    dict(axis, q0, radius, inliers, inlier_ratio, rms) 或 None
+
     """
     rng = np.random.default_rng(seed)
     n = len(points)
@@ -257,14 +268,14 @@ def ransac_cylinder(points: np.ndarray, normals: np.ndarray,
 
         d = _cylinder_radial_dist(points, center2d, a)
         inl = np.where(np.abs(d - radius) <= thresh)[0]
-        if best is None or len(inl) > len(best["inliers"]):
-            best = {"axis": a, "q0": center2d, "radius": radius, "inliers": inl}
+        if best is None or len(inl) > len(best['inliers']):
+            best = {'axis': a, 'q0': center2d, 'radius': radius, 'inliers': inl}
 
-    if best is None or len(best["inliers"]) < 20:
+    if best is None or len(best['inliers']) < 20:
         return None
-    d = _cylinder_radial_dist(points[best["inliers"]], best["q0"], best["axis"])
-    best["inlier_ratio"] = len(best["inliers"]) / n
-    best["rms"] = float(np.sqrt(np.mean((d - best["radius"]) ** 2)))
+    d = _cylinder_radial_dist(points[best['inliers']], best['q0'], best['axis'])
+    best['inlier_ratio'] = len(best['inliers']) / n
+    best['rms'] = float(np.sqrt(np.mean((d - best['radius']) ** 2)))
     return best
 
 
@@ -276,37 +287,38 @@ def _eberly_direction(theta: float, phi: float) -> np.ndarray:
 
 
 def _eberly_G(w: np.ndarray, X: np.ndarray) -> float:
-    n = len(X)
     P = np.eye(3) - np.outer(w, w)
     Y = X @ P.T
     A = Y.T @ Y
     S = np.array([[0, -w[2], w[1]], [w[2], 0, -w[0]], [-w[1], w[0], 0]])
     A_hat = S @ A @ S.T
-    u = float(np.mean(np.einsum("ij,ij->i", Y, Y)))
-    num = A_hat @ (np.einsum("ij,ij->i", Y, Y)[:, None] * Y).sum(axis=0)
+    u = float(np.mean(np.einsum('ij,ij->i', Y, Y)))
+    num = A_hat @ (np.einsum('ij,ij->i', Y, Y)[:, None] * Y).sum(axis=0)
     den = np.trace(A_hat @ A)
     if abs(den) < 1e-18:
-        return float("inf")
+        return float('inf')
     v = num / den
-    return float(np.sum((np.einsum("ij,ij->i", Y, Y) - u - 2.0 * Y @ v) ** 2))
+    return float(np.sum((np.einsum('ij,ij->i', Y, Y) - u - 2.0 * Y @ v) ** 2))
 
 
 def _eberly_center(w: np.ndarray, X: np.ndarray) -> np.ndarray:
-    """Eberly 闭式轴心 C(w)（消元结果，见 cylinder_fitting/fitting.py）。"""
+    """Eberly 闭式轴心 C(w)（消元结果，见 cylinder_fitting/fitting.py）."""
     P = np.eye(3) - np.outer(w, w)
     Y = X @ P.T
     A = Y.T @ Y
     S = np.array([[0, -w[2], w[1]], [w[2], 0, -w[0]], [-w[1], w[0], 0]])
     A_hat = S @ A @ S.T
-    num = A_hat @ (np.einsum("ij,ij->i", Y, Y)[:, None] * Y).sum(axis=0)
+    num = A_hat @ (np.einsum('ij,ij->i', Y, Y)[:, None] * Y).sum(axis=0)
     den = np.trace(A_hat @ A)
     if abs(den) < 1e-18:
         return np.zeros(3)
     return num / den
 
 
-def polish_cylinder_axis(points: np.ndarray, axis_hint: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """Eberly 轴向抛光：5 维消元为 2 维，以 axis_hint 为起点 Powell 优化。
+def polish_cylinder_axis(points: np.ndarray,
+                         axis_hint: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Eberly 轴向抛光：5 维消元为 2 维，以 axis_hint 为起点 Powell 优化.
 
     Returns: (axis 单位向量, 轴上一点)
     """
@@ -319,10 +331,10 @@ def polish_cylinder_axis(points: np.ndarray, axis_hint: np.ndarray) -> Tuple[np.
     phi0 = float(np.arctan2(hint[1], hint[0]))
     starts = [(theta0, phi0), (0.0, 0.0),
               (np.pi / 2, 0.0), (np.pi / 2, np.pi / 2)]
-    best_w, best_g = None, float("inf")
+    best_w, best_g = None, float('inf')
     for sp in starts:
         res = minimize(lambda x: _eberly_G(_eberly_direction(x[0], x[1]), X),
-                       sp, method="Powell", tol=1e-6)
+                       sp, method='Powell', tol=1e-6)
         if res.fun < best_g:
             best_g, best_w = res.fun, _eberly_direction(res.x[0], res.x[1])
     if best_w is None:
@@ -339,7 +351,8 @@ def fit_cylinder_robust(points: np.ndarray, normals: np.ndarray,
                         radius_range: Tuple[float, float] = (0.025, 0.050),
                         thresh: float = 0.0035, max_iter: int = 300,
                         polish: bool = True, seed: int = 0) -> Optional[dict]:
-    """完整圆柱拟合: RANSAC → Eberly 轴向抛光 → 半径几何重估 → 重计统计量。
+    """
+    完整圆柱拟合: RANSAC → Eberly 轴向抛光 → 半径几何重估 → 重计统计量.
 
     半径用 mean(d_i) 重估（Eberly 代数残差导致 ~1.9mm 系统性半径偏差，
     轴向不受此影响，见 references/notes_fitting_algorithms.md §2.2）。
@@ -347,8 +360,8 @@ def fit_cylinder_robust(points: np.ndarray, normals: np.ndarray,
     est = ransac_cylinder(points, normals, radius_range, thresh, max_iter, seed)
     if est is None:
         return None
-    inl = est["inliers"]
-    axis, q0 = est["axis"], est["q0"]
+    inl = est['inliers']
+    axis, q0 = est['axis'], est['q0']
     if polish and len(inl) >= 20:
         # 抛光代价随点数线性增长，内点抽稀到 800（精度损失可忽略）
         polish_idx = inl if len(inl) <= 800 else np.linspace(
@@ -363,5 +376,5 @@ def fit_cylinder_robust(points: np.ndarray, normals: np.ndarray,
     d = _cylinder_radial_dist(points[inl], q0, axis)
     radius = float(np.mean(d))
     rms = float(np.sqrt(np.mean((d - radius) ** 2)))
-    return {"axis": axis, "q0": q0, "radius": radius, "inliers": inl,
-            "inlier_ratio": len(inl) / len(points), "rms": rms}
+    return {'axis': axis, 'q0': q0, 'radius': radius, 'inliers': inl,
+            'inlier_ratio': len(inl) / len(points), 'rms': rms}

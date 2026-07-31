@@ -39,9 +39,10 @@
 #include <cmath>
 #include <cstdio>
 #include <limits>
-#include <lifecycle_msgs/msg/state.hpp>
 #include <string>
 #include <thread>
+
+#include <lifecycle_msgs/msg/state.hpp>
 
 namespace aubo_e5_controllers
 {
@@ -86,14 +87,14 @@ const char * eventNameOrNull(int type)
 }
 
 // 读状态接口，取不到值时按 0.0 处理
-double read_or_zero(const hardware_interface::LoanedStateInterface& interface)
+double read_or_zero(const hardware_interface::LoanedStateInterface & interface)
 {
   return interface.get_optional().value_or(0.0);
 }
 }  // namespace
 
-template <typename ResponseT>
-bool AuboIOController::ensureActive(const ResponseT& resp)
+template<typename ResponseT>
+bool AuboIOController::ensureActive(const ResponseT & resp)
 {
   if (get_lifecycle_state().id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) {
     RCLCPP_ERROR(get_node()->get_logger(), "Can't accept new requests. Controller is not running.");
@@ -109,7 +110,7 @@ controller_interface::CallbackReturn AuboIOController::on_init()
     // 创建参数监听器并读取参数
     param_listener_ = std::make_shared<aubo_io_controller::ParamListener>(get_node());
     params_ = param_listener_->get_params();
-  } catch (const std::exception& e) {
+  } catch (const std::exception & e) {
     fprintf(stderr, "Exception thrown during init stage with message: %s \n", e.what());
     return CallbackReturn::ERROR;
   }
@@ -117,7 +118,8 @@ controller_interface::CallbackReturn AuboIOController::on_init()
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::InterfaceConfiguration AuboIOController::command_interface_configuration() const
+controller_interface::InterfaceConfiguration AuboIOController::command_interface_configuration()
+const
 {
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
@@ -188,10 +190,10 @@ controller_interface::InterfaceConfiguration AuboIOController::state_interface_c
   for (size_t i = 0; i < 6; ++i) {
     config.names.emplace_back(tf_prefix + "aubo_io/joint_temp_" + std::to_string(i));
   }
-  for (const auto& joint : params_.joints) {
+  for (const auto & joint : params_.joints) {
     config.names.emplace_back(joint + "/position");
   }
-  for (const auto& joint : params_.joints) {
+  for (const auto & joint : params_.joints) {
     config.names.emplace_back(joint + "/velocity");
   }
   // 事件/健康上报（尾部追加，与 StateInterfaces 枚举偏移对齐）。
@@ -202,8 +204,9 @@ controller_interface::InterfaceConfiguration AuboIOController::state_interface_c
   return config;
 }
 
-controller_interface::return_type AuboIOController::update(const rclcpp::Time& time,
-                                                           const rclcpp::Duration& /*period*/)
+controller_interface::return_type AuboIOController::update(
+  const rclcpp::Time & time,
+  const rclcpp::Duration & /*period*/)
 {
   publishIO(time);
   publishRobotStatus();
@@ -215,7 +218,7 @@ controller_interface::return_type AuboIOController::update(const rclcpp::Time& t
 }
 
 controller_interface::CallbackReturn
-AuboIOController::on_configure(const rclcpp_lifecycle::State& /*previous_state*/)
+AuboIOController::on_configure(const rclcpp_lifecycle::State & /*previous_state*/)
 {
   if (!param_listener_) {
     RCLCPP_ERROR(get_node()->get_logger(), "Error encountered during init");
@@ -239,21 +242,29 @@ AuboIOController::on_configure(const rclcpp_lifecycle::State& /*previous_state*/
   try {
     // 在实时 update 循环之外注册发布者
     io_pub_ = std::make_shared<realtime_tools::RealtimePublisher<aubo_msgs::msg::IOState>>(
-        get_node()->create_publisher<aubo_msgs::msg::IOState>("~/io_states", rclcpp::SystemDefaultsQoS()));
+        get_node()->create_publisher<aubo_msgs::msg::IOState>("~/io_states",
+        rclcpp::SystemDefaultsQoS()));
 
-    robot_status_pub_ = std::make_shared<realtime_tools::RealtimePublisher<aubo_msgs::msg::RobotStatus>>(
-        get_node()->create_publisher<aubo_msgs::msg::RobotStatus>("~/robot_status", rclcpp::SystemDefaultsQoS()));
+    robot_status_pub_ =
+      std::make_shared<realtime_tools::RealtimePublisher<aubo_msgs::msg::RobotStatus>>(
+        get_node()->create_publisher<aubo_msgs::msg::RobotStatus>("~/robot_status",
+        rclcpp::SystemDefaultsQoS()));
 
-    rib_status_pub_ = std::make_shared<realtime_tools::RealtimePublisher<std_msgs::msg::Int32MultiArray>>(
-        get_node()->create_publisher<std_msgs::msg::Int32MultiArray>("~/rib_status", rclcpp::SystemDefaultsQoS()));
+    rib_status_pub_ =
+      std::make_shared<realtime_tools::RealtimePublisher<std_msgs::msg::Int32MultiArray>>(
+        get_node()->create_publisher<std_msgs::msg::Int32MultiArray>("~/rib_status",
+        rclcpp::SystemDefaultsQoS()));
 
-    joint_status_pub_ = std::make_shared<realtime_tools::RealtimePublisher<aubo_msgs::msg::JointStatus>>(
-        get_node()->create_publisher<aubo_msgs::msg::JointStatus>("~/joint_status", rclcpp::SystemDefaultsQoS()));
+    joint_status_pub_ =
+      std::make_shared<realtime_tools::RealtimePublisher<aubo_msgs::msg::JointStatus>>(
+        get_node()->create_publisher<aubo_msgs::msg::JointStatus>("~/joint_status",
+        rclcpp::SystemDefaultsQoS()));
 
     // 事件/健康上报：/diagnostics 用全局话题名（aggregator 约定）；
     // ~/events 用 transient_local 持久 QoS，后启动的订阅者也能补到最后
     // 一条事件（事件是低频关键信息，丢一条比乱序更不能接受）。
-    diag_pub_ = std::make_shared<realtime_tools::RealtimePublisher<diagnostic_msgs::msg::DiagnosticArray>>(
+    diag_pub_ =
+      std::make_shared<realtime_tools::RealtimePublisher<diagnostic_msgs::msg::DiagnosticArray>>(
         get_node()->create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
             "/diagnostics", rclcpp::SystemDefaultsQoS()));
 
@@ -263,7 +274,8 @@ AuboIOController::on_configure(const rclcpp_lifecycle::State& /*previous_state*/
 
     // 在实时 update 循环之外注册服务；控制器未激活时请求会被拒绝
     set_io_srv_ = get_node()->create_service<aubo_msgs::srv::SetIO>(
-        "~/set_io", std::bind(&AuboIOController::setIO, this, std::placeholders::_1, std::placeholders::_2));
+        "~/set_io",
+        std::bind(&AuboIOController::setIO, this, std::placeholders::_1, std::placeholders::_2));
   } catch (...) {
     return LifecycleNodeInterface::CallbackReturn::ERROR;
   }
@@ -271,13 +283,14 @@ AuboIOController::on_configure(const rclcpp_lifecycle::State& /*previous_state*/
   return LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
-void AuboIOController::publishIO(const rclcpp::Time& time)
+void AuboIOController::publishIO(const rclcpp::Time & time)
 {
   // N7：stamp 语义保持"纳秒字符串"（IOState.msg 的 string stamp 是 ROS1
   // 遗留，不动消息定义）；写入 on_activate 预分配的 buffer 后 assign 复用
   // std::string 已有容量，避免 std::to_string 在 RT 路径每周期的堆分配。
   const int stamp_len = std::snprintf(
-      io_stamp_buf_, sizeof(io_stamp_buf_), "%lld", static_cast<long long>(time.nanoseconds()));
+      io_stamp_buf_, sizeof(io_stamp_buf_), "%lld",
+      static_cast<long long>(time.nanoseconds()));  // NOLINT(runtime/int)
   io_msg_.stamp.assign(io_stamp_buf_, static_cast<size_t>(stamp_len > 0 ? stamp_len : 0));
 
   for (size_t i = 0; i < 16; ++i) {
@@ -289,7 +302,8 @@ void AuboIOController::publishIO(const rclcpp::Time& time)
   // aubo_io 契约中没有 DO 状态接口：回显命令值（尚未命令过、即 NaN 时
   // 报 flag=false / state=false）。
   for (size_t i = 0; i < 16; ++i) {
-    const double cmd = command_interfaces_[DIGITAL_OUTPUTS_CMD + i].get_optional().value_or(kAsyncWaiting);
+    const double cmd = command_interfaces_[DIGITAL_OUTPUTS_CMD +
+        i].get_optional().value_or(kAsyncWaiting);
     io_msg_.digital_out_states[i].pin = i;
     io_msg_.digital_out_states[i].flag = !std::isnan(cmd);
     io_msg_.digital_out_states[i].state = !std::isnan(cmd) && cmd != 0.0;
@@ -298,7 +312,7 @@ void AuboIOController::publishIO(const rclcpp::Time& time)
   for (size_t i = 0; i < 4; ++i) {
     io_msg_.analog_in_states[i].pin = i;
     io_msg_.analog_in_states[i].state =
-        static_cast<float>(read_or_zero(state_interfaces_[ANALOG_INPUTS + i]));
+      static_cast<float>(read_or_zero(state_interfaces_[ANALOG_INPUTS + i]));
   }
 
   for (size_t i = 0; i < 4; ++i) {
@@ -310,13 +324,14 @@ void AuboIOController::publishIO(const rclcpp::Time& time)
   for (size_t i = 0; i < 2; ++i) {
     io_msg_.tool_io_states[i].pin = i;
     io_msg_.tool_io_states[i].flag = true;
-    io_msg_.tool_io_states[i].state = read_or_zero(state_interfaces_[TOOL_DIGITAL_INPUTS + i]) != 0.0;
+    io_msg_.tool_io_states[i].state = read_or_zero(state_interfaces_[TOOL_DIGITAL_INPUTS + i]) !=
+      0.0;
   }
 
   for (size_t i = 0; i < 2; ++i) {
     io_msg_.tool_ai_states[i].pin = i;
     io_msg_.tool_ai_states[i].state =
-        static_cast<float>(read_or_zero(state_interfaces_[TOOL_ANALOG_INPUTS + i]));
+      static_cast<float>(read_or_zero(state_interfaces_[TOOL_ANALOG_INPUTS + i]));
   }
 
   // 安全输入：pin 0 = 急停（estop），pin 1 = 防护停止（protective stop）。
@@ -359,7 +374,8 @@ void AuboIOController::publishRobotStatus()
   robot_status_msg_.mode = !power_on ? -1 : (estop ? 1 : 2);
   robot_status_msg_.e_stopped = estop ? 1 : 0;
   robot_status_msg_.drives_powered = power_on ? 1 : 0;
-  robot_status_msg_.motion_possible = (power_on && !estop && !protective_stop && !in_motion) ? 1 : 0;
+  robot_status_msg_.motion_possible = (power_on && !estop && !protective_stop &&
+    !in_motion) ? 1 : 0;
   robot_status_msg_.in_motion = in_motion ? 1 : 0;
   robot_status_msg_.in_error = (protective_stop || collision || joint_error) ? 1 : 0;
   robot_status_msg_.error_code = error_code;
@@ -372,7 +388,8 @@ void AuboIOController::publishRibStatus()
   // [rib_level, 发送队列长度, 瞬时吞吐]。后两项来自反馈增强新增的
   // aubo_io/send_queue_points、send_rate_pps 状态接口（此前固定发 0 占位）。
   rib_status_msg_.data[0] = static_cast<int32_t>(read_or_zero(state_interfaces_[RIB_LEVEL]));
-  rib_status_msg_.data[1] = static_cast<int32_t>(read_or_zero(state_interfaces_[SEND_QUEUE_POINTS]));
+  rib_status_msg_.data[1] =
+    static_cast<int32_t>(read_or_zero(state_interfaces_[SEND_QUEUE_POINTS]));
   rib_status_msg_.data[2] = static_cast<int32_t>(read_or_zero(state_interfaces_[SEND_RATE_PPS]));
 
   rib_status_pub_->try_publish(rib_status_msg_);
@@ -392,13 +409,13 @@ void AuboIOController::publishJointStatus()
     joint_status_msg_.tag_vel[i] = read_or_zero(state_interfaces_[TAG_VEL + i]);
     joint_status_msg_.following_error[i] = std::abs(tag_pos - actual_pos);
     joint_status_msg_.error_code[i] =
-        static_cast<uint16_t>(read_or_zero(state_interfaces_[JOINT_ERRORS + i]));
+      static_cast<uint16_t>(read_or_zero(state_interfaces_[JOINT_ERRORS + i]));
   }
 
   joint_status_pub_->try_publish(joint_status_msg_);
 }
 
-void AuboIOController::publishDiagnostics(const rclcpp::Time& time)
+void AuboIOController::publishDiagnostics(const rclcpp::Time & time)
 {
   // 本函数内的字符串拼接保留：1Hz 节流（health 变化才立即发），非 RT 热点。
   const double health = read_or_zero(state_interfaces_[HEALTH]);
@@ -416,7 +433,7 @@ void AuboIOController::publishDiagnostics(const rclcpp::Time& time)
 
   // hardware_health：health 原值（0=OK 1=ESTOP 2=FAULT，枚举定义见硬件
   // aubo_e5_hardware.hpp 的 Health）。
-  auto& hw = diag_msg_.status[kDiagHardwareHealth];
+  auto & hw = diag_msg_.status[kDiagHardwareHealth];
   const int health_int = static_cast<int>(health);
   hw.level = health_int == 0 ? DiagnosticStatus::OK : DiagnosticStatus::ERROR;
   hw.message = health_int == 0 ? "OK" : "health=" + std::to_string(health_int);
@@ -427,14 +444,14 @@ void AuboIOController::publishDiagnostics(const rclcpp::Time& time)
   const bool estop = read_or_zero(state_interfaces_[ESTOP]) != 0.0;
   const bool protective = read_or_zero(state_interfaces_[PROTECTIVE_STOP]) != 0.0;
   const bool collision = read_or_zero(state_interfaces_[COLLISION]) != 0.0;
-  auto& sf = diag_msg_.status[kDiagSafetyIo];
+  auto & sf = diag_msg_.status[kDiagSafetyIo];
   sf.values[0].value = estop ? "1" : "0";
   sf.values[1].value = protective ? "1" : "0";
   sf.values[2].value = collision ? "1" : "0";
   sf.message = "";
-  if (estop) sf.message += "estop ";
-  if (protective) sf.message += "protective_stop ";
-  if (collision) sf.message += "collision ";
+  if (estop) {sf.message += "estop ";}
+  if (protective) {sf.message += "protective_stop ";}
+  if (collision) {sf.message += "collision ";}
   if (sf.message.empty()) {
     sf.level = DiagnosticStatus::OK;
     sf.message = "OK";
@@ -449,7 +466,7 @@ void AuboIOController::publishDiagnostics(const rclcpp::Time& time)
   const double queue_pts = read_or_zero(state_interfaces_[SEND_QUEUE_POINTS]);
   const double rate = read_or_zero(state_interfaces_[SEND_RATE_PPS]);
   const bool in_motion = read_or_zero(state_interfaces_[IN_MOTION]) != 0.0;
-  auto& rs = diag_msg_.status[kDiagRibStream];
+  auto & rs = diag_msg_.status[kDiagRibStream];
   rs.values[0].value = std::to_string(static_cast<int>(rib));
   rs.values[1].value = std::to_string(static_cast<int>(queue_pts));
   rs.values[2].value = std::to_string(static_cast<int>(rate));
@@ -466,7 +483,7 @@ void AuboIOController::publishDiagnostics(const rclcpp::Time& time)
 
   // joint_errors：任一关节错误码非零 -> ERROR，message 列出关节号 + 错误码
   // （十进制 + 十六进制，十六进制方便对照 SDK/驱动器手册的位域定义）。
-  auto& je = diag_msg_.status[kDiagJointErrors];
+  auto & je = diag_msg_.status[kDiagJointErrors];
   je.level = DiagnosticStatus::OK;
   je.message = "OK";
   char hex_buf[16];
@@ -493,12 +510,12 @@ void AuboIOController::publishDiagnostics(const rclcpp::Time& time)
   // 哨兵为 0，与 armCanbusError 同值，激活后无事件时被误显示成 CAN 错误。
   const int ev_type = static_cast<int>(read_or_zero(state_interfaces_[EVENT_TYPE]));
   const int ev_code = static_cast<int>(read_or_zero(state_interfaces_[EVENT_CODE]));
-  auto& le = diag_msg_.status[kDiagLastEvent];
+  auto & le = diag_msg_.status[kDiagLastEvent];
   le.level = DiagnosticStatus::OK;
   if (ev_type < 0) {
     le.message = "none";
   } else {
-    const char* ev_name = eventNameOrNull(ev_type);
+    const char * ev_name = eventNameOrNull(ev_type);
     le.message = "type=" + std::to_string(ev_type);
     if (ev_name != nullptr) {
       le.message += "(" + std::string(ev_name) + ")";
@@ -527,12 +544,13 @@ void AuboIOController::publishEvents()
   // 同一 update 周期内连续多个事件只能看到最后一个 —— 状态接口语义如此，
   // 完整事件序列以 controller_manager 日志的 [AuboEvent] 行为准。
   event_msg_.data = "type=" + std::to_string(static_cast<int>(type)) +
-                    " code=" +
-                    std::to_string(static_cast<int>(read_or_zero(state_interfaces_[EVENT_CODE])));
+    " code=" +
+    std::to_string(static_cast<int>(read_or_zero(state_interfaces_[EVENT_CODE])));
   events_pub_->try_publish(event_msg_);
 }
 
-controller_interface::CallbackReturn AuboIOController::on_activate(const rclcpp_lifecycle::State& /*previous_state*/)
+controller_interface::CallbackReturn AuboIOController::on_activate(
+  const rclcpp_lifecycle::State & /*previous_state*/)
 {
   // （重新）调整消息数组大小；消息对象跨周期复用。
   io_msg_.digital_in_states.resize(16);
@@ -555,9 +573,9 @@ controller_interface::CallbackReturn AuboIOController::on_activate(const rclcpp_
   // /diagnostics 消息预分配（5 个 status 的名字/key/hardware_id 只设一次，
   // update() 里只填数值/级别/消息）。N9：name 带层级前缀（诊断工具按
   // 层级展示），hardware_id 统一标 "aubo_e5"。
-  constexpr const char* kDiagPrefix = "aubo_e5/io_controller/";
+  constexpr const char * kDiagPrefix = "aubo_e5/io_controller/";
   diag_msg_.status.resize(kDiagCount);
-  for (auto& status : diag_msg_.status) {
+  for (auto & status : diag_msg_.status) {
     status.hardware_id = "aubo_e5";
   }
   diag_msg_.status[kDiagHardwareHealth].name = std::string(kDiagPrefix) + "hardware_health";
@@ -595,7 +613,7 @@ controller_interface::CallbackReturn AuboIOController::on_activate(const rclcpp_
 }
 
 controller_interface::CallbackReturn
-AuboIOController::on_deactivate(const rclcpp_lifecycle::State& /*previous_state*/)
+AuboIOController::on_deactivate(const rclcpp_lifecycle::State & /*previous_state*/)
 {
   // 无需清理。发布者和服务在 on_configure 中创建、on_cleanup 中释放。
   // on_activate/on_deactivate 在实时 update 循环内执行，因此把 DDS 管理
@@ -603,7 +621,8 @@ AuboIOController::on_deactivate(const rclcpp_lifecycle::State& /*previous_state*
   return LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::CallbackReturn AuboIOController::on_cleanup(const rclcpp_lifecycle::State& /*previous_state*/)
+controller_interface::CallbackReturn AuboIOController::on_cleanup(
+  const rclcpp_lifecycle::State & /*previous_state*/)
 {
   try {
     io_pub_.reset();
@@ -619,8 +638,9 @@ controller_interface::CallbackReturn AuboIOController::on_cleanup(const rclcpp_l
   return LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
-bool AuboIOController::setIO(aubo_msgs::srv::SetIO::Request::SharedPtr req,
-                             aubo_msgs::srv::SetIO::Response::SharedPtr resp)
+bool AuboIOController::setIO(
+  aubo_msgs::srv::SetIO::Request::SharedPtr req,
+  aubo_msgs::srv::SetIO::Response::SharedPtr resp)
 {
   if (!ensureActive(resp)) {
     return false;
@@ -633,7 +653,8 @@ bool AuboIOController::setIO(aubo_msgs::srv::SetIO::Request::SharedPtr req,
   switch (req->fun) {
     case aubo_msgs::srv::SetIO::Request::FUN_SET_ROBOT_BOARD_USER_DO:
       if (req->pin < 0 || req->pin > 15) {
-        RCLCPP_ERROR(get_node()->get_logger(), "Invalid digital output pin %d (valid: 0..15).", req->pin);
+        RCLCPP_ERROR(get_node()->get_logger(), "Invalid digital output pin %d (valid: 0..15).",
+          req->pin);
         resp->success = false;
         return false;
       }
@@ -641,7 +662,8 @@ bool AuboIOController::setIO(aubo_msgs::srv::SetIO::Request::SharedPtr req,
       break;
     case aubo_msgs::srv::SetIO::Request::FUN_SET_ROBOT_BOARD_USER_AO:
       if (req->pin < 0 || req->pin > 3) {
-        RCLCPP_ERROR(get_node()->get_logger(), "Invalid analog output pin %d (valid: 0..3).", req->pin);
+        RCLCPP_ERROR(get_node()->get_logger(), "Invalid analog output pin %d (valid: 0..3).",
+          req->pin);
         resp->success = false;
         return false;
       }
@@ -649,7 +671,8 @@ bool AuboIOController::setIO(aubo_msgs::srv::SetIO::Request::SharedPtr req,
       break;
     case aubo_msgs::srv::SetIO::Request::FUN_SET_TOOL_DIGITAL_IO:
       if (req->pin < 0 || req->pin > 1) {
-        RCLCPP_ERROR(get_node()->get_logger(), "Invalid tool digital output pin %d (valid: 0..1).", req->pin);
+        RCLCPP_ERROR(get_node()->get_logger(), "Invalid tool digital output pin %d (valid: 0..1).",
+          req->pin);
         resp->success = false;
         return false;
       }
@@ -657,7 +680,8 @@ bool AuboIOController::setIO(aubo_msgs::srv::SetIO::Request::SharedPtr req,
       break;
     case aubo_msgs::srv::SetIO::Request::FUN_SET_ROBOT_TOOL_AO:
       if (req->pin < 0 || req->pin > 1) {
-        RCLCPP_ERROR(get_node()->get_logger(), "Invalid tool analog output pin %d (valid: 0..1).", req->pin);
+        RCLCPP_ERROR(get_node()->get_logger(), "Invalid tool analog output pin %d (valid: 0..1).",
+          req->pin);
         resp->success = false;
         return false;
       }
@@ -675,15 +699,21 @@ bool AuboIOController::setIO(aubo_msgs::srv::SetIO::Request::SharedPtr req,
   std::ignore = command_interfaces_[SET_IO_ASYNC_SUCCESS].set_value(kAsyncWaiting);
   std::ignore = command_interfaces_[command_index].set_value(static_cast<double>(req->state));
 
-  RCLCPP_INFO(get_node()->get_logger(), "Setting IO (fun %d, pin %d) to state '%f'.", req->fun, req->pin, req->state);
+  RCLCPP_INFO(get_node()->get_logger(), "Setting IO (fun %d, pin %d) to state '%f'.", req->fun,
+      req->pin, req->state);
 
   if (!waitForAsyncCommand(
-          [&]() { return command_interfaces_[SET_IO_ASYNC_SUCCESS].get_optional().value_or(kAsyncWaiting); })) {
-    RCLCPP_WARN(get_node()->get_logger(), "Could not verify that io was set. (This might happen when using the "
+      [&]() {
+        return command_interfaces_[SET_IO_ASYNC_SUCCESS].get_optional().value_or(kAsyncWaiting);
+      }))
+  {
+    RCLCPP_WARN(get_node()->get_logger(),
+        "Could not verify that io was set. (This might happen when using the "
                                           "mocked interface)");
   }
 
-  resp->success = command_interfaces_[SET_IO_ASYNC_SUCCESS].get_optional().value_or(kAsyncWaiting) == 1.0;
+  resp->success =
+    command_interfaces_[SET_IO_ASYNC_SUCCESS].get_optional().value_or(kAsyncWaiting) == 1.0;
   return resp->success;
 }
 
@@ -708,4 +738,5 @@ bool AuboIOController::waitForAsyncCommand(std::function<double(void)> get_value
 
 #include "pluginlib/class_list_macros.hpp"
 
-PLUGINLIB_EXPORT_CLASS(aubo_e5_controllers::AuboIOController, controller_interface::ControllerInterface)
+PLUGINLIB_EXPORT_CLASS(aubo_e5_controllers::AuboIOController,
+  controller_interface::ControllerInterface)

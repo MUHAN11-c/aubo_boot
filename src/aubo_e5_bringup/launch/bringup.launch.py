@@ -1,3 +1,31 @@
+# Copyright 2026, aubo_e5_ros2_ws authors
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+#    * Redistributions of source code must retain the above copyright
+#      notice, this list of conditions and the following disclaimer.
+#
+#    * Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions and the following disclaimer in the
+#      documentation and/or other materials provided with the distribution.
+#
+#    * Neither the name of the copyright holder nor the names of its
+#      contributors may be used to endorse or promote products derived from
+#      this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
 # bringup.launch.py —— AUBO E5 工作区唯一启动入口
 #
 # 通过 launch 参数 hardware_mode 切换三种运行模式（mock/sim/real，详见 AGENTS.md
@@ -18,6 +46,7 @@
 #      所以这部分可以留在声明式主流程里。
 
 import os
+
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
@@ -30,17 +59,16 @@ from launch_ros.substitutions import FindPackageShare
 
 
 def launch_nodes(context):
-    """OpaqueFunction 回调：按 hardware_mode 组装核心节点列表并返回。
+    """按 hardware_mode 分支组装核心节点列表并返回（OpaqueFunction 回调）.
 
     在这里 LaunchConfiguration 才能被 .perform(context) 解析成真实字符串，
     因此 hardware_mode / robot_ip / moveit_enabled 的分支逻辑都集中在本函数。
     """
-
     mode = LaunchConfiguration('hardware_mode').perform(context)
     robot_ip = LaunchConfiguration('robot_ip').perform(context)
     if mode not in ('mock', 'sim', 'real'):
         # 早失败：拼错 mode 时直接抛错，避免带着错误配置起一半节点
-        raise RuntimeError("hardware_mode must be one of: mock | sim | real")
+        raise RuntimeError('hardware_mode must be one of: mock | sim | real')
     # 已取消 RT 内核/SCHED_FIFO 预检：普通内核直接运行 real 模式。
 
     # 用 xacro 命令现场展开 URDF，并把 hardware_mode / robot_ip 透传进去——
@@ -87,8 +115,8 @@ def launch_nodes(context):
         # action server），与 MoveIt 的 controllers_mock.yaml 映射对应
         nodes.append(Node(
             package='controller_manager', executable='spawner',
-            arguments=['joint_trajectory_controller', '--controller-manager', '/controller_manager',
-                       '--controller-manager-timeout', '10'],
+            arguments=['joint_trajectory_controller', '--controller-manager',
+                       '/controller_manager', '--controller-manager-timeout', '10'],
             output='screen'))
     else:
         # sim / real 走 passthrough 架构的两个自研控制器：
@@ -136,12 +164,11 @@ def launch_nodes(context):
 
 
 def generate_launch_description():
-    """声明全部 launch 参数，并组装可选功能块（各自独立开关，IfCondition 惰性求值）。
+    """声明全部 launch 参数，并组装可选功能块（各自独立开关，IfCondition 惰性求值）.
 
     默认：hardware_mode:=real，相机 / 手眼外参 TF / MoveIt 开启；
     手眼标定流程（采集+求解）默认关闭。
     """
-
     # ---- 可选功能块（每个都有独立 enabled 参数）----
 
     # Percipio 相机：include percipio_camera.launch.py（深度/点云等由其内部参数决定）
@@ -173,6 +200,7 @@ def generate_launch_description():
         # ---- launch 参数（默认 = 日常真机 + 相机 + 外参）----
         DeclareLaunchArgument(
             'hardware_mode', default_value='real',
+            choices=['mock', 'sim', 'real'],
             description='mock | sim | real（默认 real）'),
         DeclareLaunchArgument(
             'robot_ip', default_value='169.254.10.98',

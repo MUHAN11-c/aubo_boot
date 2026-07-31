@@ -3,7 +3,7 @@
   <name>aubo_e5_bringup</name>
   <version>0.1.0</version>
   <description>Mock and guarded real-hardware bringup for AUBO E5.</description>
-  <maintainer email="aubo@todo.todo">AUBO E5 maintainers</maintainer>
+  <maintainer email="2155413529@qq.com">AUBO E5 maintainers</maintainer>
   <license>BSD-3-Clause</license>
   <buildtool_depend>ament_cmake</buildtool_depend>
   <exec_depend>aubo_description</exec_depend>
@@ -26,5 +26,11 @@
   <exec_depend>aubo_e5_moveit_config</exec_depend>
   <exec_depend>aubo_hand_eye_calibration</exec_depend>
   <exec_depend>percipio_camera</exec_depend>
+  <test_depend>ament_cmake_copyright</test_depend>
+  <test_depend>ament_cmake_cpplint</test_depend>
+  <test_depend>ament_cmake_lint_cmake</test_depend>
+  <test_depend>ament_cmake_uncrustify</test_depend>
+  <test_depend>ament_cmake_xmllint</test_depend>
+  <test_depend>ament_lint_auto</test_depend>
   <export><build_type>ament_cmake</build_type></export>
 </package>

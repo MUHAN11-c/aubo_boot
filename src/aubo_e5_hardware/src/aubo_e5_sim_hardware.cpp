@@ -1,3 +1,31 @@
+// Copyright 2026, aubo_e5_ros2_ws authors
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
+//
+//    * Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//
+//    * Neither the name of the copyright holder nor the names of its
+//      contributors may be used to endorse or promote products derived from
+//      this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+
 // ============================================================================
 // aubo_e5_sim_hardware.cpp —— AUBO E5 passthrough 流水线的控制柜模拟器插件。
 // 定位：UR 驱动生态里 ursim 的等价物 —— 没有真机时，让
@@ -41,7 +69,8 @@ public:
     const hardware_interface::HardwareComponentInterfaceParams & params) override
   {
     if (hardware_interface::SystemInterface::on_init(params) !=
-        hardware_interface::CallbackReturn::SUCCESS) {
+      hardware_interface::CallbackReturn::SUCCESS)
+    {
       return hardware_interface::CallbackReturn::ERROR;
     }
     if (info_.joints.size() != kNumJoints) {
@@ -65,27 +94,28 @@ public:
     // 插件同名导出，具体数值在 read()/write() 里按虚拟板状态填（模拟值，
     // 详见 read() 注释）。
     for (const auto & gpio : {"di_0", "di_1", "di_2", "di_3", "di_4", "di_5", "di_6", "di_7",
-                              "di_8", "di_9", "di_10", "di_11", "di_12", "di_13", "di_14",
-                              "di_15", "ai_0", "ai_1", "ai_2", "ai_3", "tool_di_0",
-                              "tool_di_1", "tool_ai_0", "tool_ai_1", "estop",
-                              "protective_stop", "power_on", "collision", "in_motion",
-                              "rib_level", "joint_error_0", "joint_error_1", "joint_error_2",
-                              "joint_error_3", "joint_error_4", "joint_error_5",
-                              "tag_pos_0", "tag_pos_1", "tag_pos_2", "tag_pos_3", "tag_pos_4",
-                              "tag_pos_5", "tag_vel_0", "tag_vel_1", "tag_vel_2", "tag_vel_3",
-                              "tag_vel_4", "tag_vel_5", "joint_current_0", "joint_current_1",
-                              "joint_current_2", "joint_current_3", "joint_current_4",
-                              "joint_current_5", "joint_temp_0", "joint_temp_1", "joint_temp_2",
-                              "joint_temp_3", "joint_temp_4", "joint_temp_5",
-                              "send_queue_points", "send_rate_pps",
+        "di_8", "di_9", "di_10", "di_11", "di_12", "di_13", "di_14",
+        "di_15", "ai_0", "ai_1", "ai_2", "ai_3", "tool_di_0",
+        "tool_di_1", "tool_ai_0", "tool_ai_1", "estop",
+        "protective_stop", "power_on", "collision", "in_motion",
+        "rib_level", "joint_error_0", "joint_error_1", "joint_error_2",
+        "joint_error_3", "joint_error_4", "joint_error_5",
+        "tag_pos_0", "tag_pos_1", "tag_pos_2", "tag_pos_3", "tag_pos_4",
+        "tag_pos_5", "tag_vel_0", "tag_vel_1", "tag_vel_2", "tag_vel_3",
+        "tag_vel_4", "tag_vel_5", "joint_current_0", "joint_current_1",
+        "joint_current_2", "joint_current_3", "joint_current_4",
+        "joint_current_5", "joint_temp_0", "joint_temp_1", "joint_temp_2",
+        "joint_temp_3", "joint_temp_4", "joint_temp_5",
+        "send_queue_points", "send_rate_pps",
                               // 事件/健康上报（与真机插件同名）：event_code 恒 0、
                               // health 恒 0 = kHealthOk（模拟恒健康）；
                               // event_type 恒 -1 = "无事件"哨兵（N9：模拟器
                               // 没有 SDK 事件源，0 会被 io 控制器误解码成
                               // armCanbusError 显示）。
-                              "event_type", "event_code", "health"}) {
+        "event_type", "event_code", "health"})
+    {
       aubo_io_states_[gpio] = (std::string(gpio) == "power_on") ? 1.0 :
-                              ((std::string(gpio) == "event_type") ? -1.0 : 0.0);
+        ((std::string(gpio) == "event_type") ? -1.0 : 0.0);
       out.emplace_back("aubo_io", gpio, &aubo_io_states_[gpio]);
     }
     return out;
@@ -111,9 +141,10 @@ public:
     out.emplace_back("trajectory_passthrough", "trajectory_size", &traj_size_);
     // IO 命令槽以 NaN 表示"无请求"（同真机插件的哨兵约定）。
     for (const auto & gpio : {"do_0", "do_1", "do_2", "do_3", "do_4", "do_5", "do_6", "do_7",
-                              "do_8", "do_9", "do_10", "do_11", "do_12", "do_13", "do_14",
-                              "do_15", "ao_0", "ao_1", "ao_2", "ao_3", "tool_do_0",
-                              "tool_do_1", "tool_ao_0", "tool_ao_1", "set_io_async_success"}) {
+        "do_8", "do_9", "do_10", "do_11", "do_12", "do_13", "do_14",
+        "do_15", "ao_0", "ao_1", "ao_2", "ao_3", "tool_do_0",
+        "tool_do_1", "tool_ao_0", "tool_ao_1", "set_io_async_success"})
+    {
       aubo_io_cmds_[gpio] = std::numeric_limits<double>::quiet_NaN();
       out.emplace_back("aubo_io", gpio, &aubo_io_cmds_[gpio]);
     }
@@ -123,7 +154,7 @@ public:
   hardware_interface::CallbackReturn on_activate(const rclcpp_lifecycle::State &) override
   {
     // 命令 = 当前位置，激活瞬间不跳变（同真机插件）。
-    for (std::size_t i = 0; i < kNumJoints; ++i) cmd_[i] = pos_[i];
+    for (std::size_t i = 0; i < kNumJoints; ++i) {cmd_[i] = pos_[i];}
     return hardware_interface::CallbackReturn::SUCCESS;
   }
 
@@ -191,8 +222,8 @@ public:
         prev_setpoint_ = setpoints_.front();
         setpoints_.pop_front();
         have_prev_setpoint_ = true;
-        if (setpoints_.empty() && transfer_state_ != kInMotion) break;
-        if (setpoints_.empty()) { emit_point(prev_setpoint_); break; }
+        if (setpoints_.empty() && transfer_state_ != kInMotion) {break;}
+        if (setpoints_.empty()) {emit_point(prev_setpoint_); break;}
       }
       const Setpoint curr = setpoints_.front();
       setpoints_.pop_front();
@@ -210,15 +241,17 @@ public:
       // 记录最新消费点为 tag_pos，并按相邻消费点差分估算 tag_vel（5ms 点距）。
       const auto & consumed = board_queue_.front();
       for (std::size_t i = 0; i < kNumJoints; ++i) {
-        tag_vel_consumed_[i] = have_consumed_point_ ? (consumed[i] - tag_pos_consumed_[i]) / 0.005 : 0.0;
+        tag_vel_consumed_[i] = have_consumed_point_ ? (consumed[i] - tag_pos_consumed_[i]) /
+          0.005 : 0.0;
         tag_pos_consumed_[i] = consumed[i];
       }
       have_consumed_point_ = true;
       pos_ = consumed;
       board_queue_.pop_front();
-      for (std::size_t i = 0; i < kNumJoints; ++i) cmd_[i] = pos_[i];
-    } else if (transfer_state_ == kInMotion &&
-               points_received_ >= static_cast<uint64_t>(traj_size_) && setpoints_.empty()) {
+      for (std::size_t i = 0; i < kNumJoints; ++i) {cmd_[i] = pos_[i];}
+    } else if (transfer_state_ == kInMotion &&  // NOLINT(readability/braces)
+      points_received_ >= static_cast<uint64_t>(traj_size_) && setpoints_.empty())
+    {
       // 点已收齐、重采样完、板载队列排空 -> 回写 DONE(5)。
       transfer_state_ = kDone;
     }
@@ -243,11 +276,11 @@ private:
       const double a1 = l.vel[i], a2 = 0.5 * l.acc[i];
       const double h = c.pos[i] - l.pos[i];
       const double a3 = 0.5 / T3 * (20 * h - (8 * c.vel[i] + 12 * l.vel[i]) * T -
-                                    (3 * l.acc[i] - c.acc[i]) * T2);
+        (3 * l.acc[i] - c.acc[i]) * T2);
       const double a4 = 0.5 / T4 * (-30 * h + (14 * c.vel[i] + 16 * l.vel[i]) * T +
-                                    (3 * l.acc[i] - 2 * c.acc[i]) * T2);
+        (3 * l.acc[i] - 2 * c.acc[i]) * T2);
       const double a5 = 0.5 / T5 * (12 * h - 6 * (c.vel[i] + l.vel[i]) * T +
-                                    (c.acc[i] - l.acc[i]) * T2);
+        (c.acc[i] - l.acc[i]) * T2);
       out.pos[i] = l.pos[i] + a1 * t + a2 * t2 + a3 * t3 + a4 * t4 + a5 * t5;
       out.vel[i] = a1 + 2 * a2 * t + 3 * a3 * t2 + 4 * a4 * t3 + 5 * a5 * t4;
       out.acc[i] = 2 * a2 + 6 * a3 * t + 12 * a4 * t2 + 20 * a5 * t3;
@@ -255,7 +288,7 @@ private:
     return out;
   }
 
-  void emit_point(const Setpoint & sp) { board_queue_.push_back(sp.pos); }
+  void emit_point(const Setpoint & sp) {board_queue_.push_back(sp.pos);}
 
   static constexpr std::size_t kNumJoints = 6;
   // transfer 状态机取值（0..6，语义同真机插件 write() 注释块）。

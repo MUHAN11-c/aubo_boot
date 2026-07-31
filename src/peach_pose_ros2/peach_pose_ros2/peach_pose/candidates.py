@@ -1,15 +1,14 @@
-"""Converged single-mode foreground estimation.
+"""
+收敛后的单模式前景估计入口.
 
-The project has converged on one reliable route: MobileSAM mask intersected
-with the dilated measured-depth connected component (``hybrid_dilated``).
-Pose geometry and tool safety gates live in ``pipeline.py`` and are unchanged
-by foreground construction.  This module is the single public path used by
-both the GUI and batch validation.
+项目只保留一条可靠前景路线：``hybrid_dilated`` =
+MobileSAM 掩膜 ∩ 膨胀后的实测深度连通域。
 
-Learned or inpainted depth is deliberately unsupported: every mask is
-intersected with valid measured depth before it can reach pose geometry.
-When SAM is unavailable the result is an explicit REOBSERVE, never a silent
-fallback.
+位姿几何与刀具安全门控在 ``pipeline.py``，本模块只负责构造前景并路由到
+对应管线。GUI 与离线 e2e 都走这一条公共路径。
+
+故意不支持学习深度 / 补全深度：任何掩膜都必须先与有效实测深度求交，
+才能进入几何。SAM 缺失时显式 REOBSERVE（``mask_unavailable``），禁止静默回退。
 """
 from __future__ import annotations
 
@@ -28,30 +27,36 @@ from .pipeline import (
 
 @dataclass(frozen=True)
 class ForegroundMode:
+    """前景模式描述（目前仅 hybrid_dilated）."""
+
     mode_id: str
     label: str
     description: str
 
 
 FOREGROUND_MODES = (
-    ForegroundMode("hybrid_dilated", "SAM∩膨胀深度",
-                   "SAM mask intersected with dilated measured-depth component"),
+    ForegroundMode(
+        'hybrid_dilated', 'SAM∩膨胀深度',
+        'SAM 掩膜与膨胀后的实测深度连通域求交'),
 )
 MODE_IDS = tuple(mode.mode_id for mode in FOREGROUND_MODES)
 MODE_LABELS = {mode.mode_id: mode.label for mode in FOREGROUND_MODES}
 
 
 class CandidateEstimator:
-    """Build the converged foreground mask and evaluate it through the safety pipeline.
+    """
+    构造收敛前景掩膜，并送入安全管线评估.
 
-    Routes by detection class: ``peach_bag`` (0) → cylinder-axis bag pipeline,
-    ``peach_nobag`` (1) → sphere + stem-cavity fruit pipeline.  Both lines share
-    the same cylindrical cutting tool, entry/travel formulas and safety gates.
+    按检测类别分流：
+      - ``peach_bag`` (class_id=0) → 圆柱轴袋线 ``RobustBagPosePipeline``
+      - ``peach_nobag`` (class_id=1) → 球+梗腔果线 ``RobustFruitPosePipeline``
+    两线共用同一圆柱刀具、入口/行程公式与安全门控。
     """
 
     def __init__(self, pipeline: Optional[RobustBagPosePipeline] = None,
                  dilate_px: int = 5, min_mask_points: int = 50):
         self.pipeline = pipeline or RobustBagPosePipeline()
+        # 果线复用袋线的 ToolGeometry，保证刀具契约一致
         self.fruit_pipeline = RobustFruitPosePipeline(tool=self.pipeline.tool)
         self.dilate_px = max(1, int(dilate_px))
         self.min_mask_points = max(1, int(min_mask_points))
@@ -59,48 +64,51 @@ class CandidateEstimator:
         self._last_mask_timings_ms: dict[str, float] = {}
 
     def _pipeline_for(self, obs: BagObservation) -> RobustBagPosePipeline:
-        class_id = obs.detections[0].get("class_id", 0) if obs.detections else 0
+        """按首个检测的 class_id 选择袋线 / 果线."""
+        class_id = obs.detections[0].get('class_id', 0) if obs.detections else 0
         return self.fruit_pipeline if class_id == 1 else self.pipeline
 
     def estimate_modes(self, obs: BagObservation, target_id: str, bbox: tuple,
                        sam_mask: Optional[np.ndarray],
                        modes: Optional[Iterable[str]] = None
                        ) -> dict[str, TargetPoseResult]:
-        """Evaluate requested modes through identical geometry and safety gates."""
+        """对请求的前景模式跑同一套几何与安全门控，返回 mode→结果."""
         selected = tuple(modes or MODE_IDS)
         unknown = set(selected) - set(MODE_IDS)
         if unknown:
-            raise ValueError(f"unknown foreground modes: {sorted(unknown)}")
+            raise ValueError(f'unknown foreground modes: {sorted(unknown)}')
 
         masks = self.build_masks(obs, bbox, sam_mask)
         pipeline = self._pipeline_for(obs)
-        kind = "fruit" if pipeline is self.fruit_pipeline else "bag"
+        kind = 'fruit' if pipeline is self.fruit_pipeline else 'bag'
         results = {}
         self.last_timings_ms = {}
         for mode in selected:
             started = time.perf_counter()
             mask = masks.get(mode)
             if mask is None:
+                # SAM 缺失或交后像素不足：显式 REOBSERVE，不走深度-only 回退
                 results[mode] = self._unavailable(
-                    obs, target_id, bbox, mode, "mask_unavailable")
+                    obs, target_id, bbox, mode, 'mask_unavailable')
             else:
                 results[mode] = pipeline.estimate(
                     obs, target_id, bbox, mask, self._source(mode))
             pose = results[mode].grasp_3d
             results[mode].target_kind = kind
-            pose.strategy_id = f"robust_{kind}_pose:{mode}"
-            pose.model_version = str(obs.metadata.get("model_version", "unknown"))
+            pose.strategy_id = f'robust_{kind}_pose:{mode}'
+            pose.model_version = str(obs.metadata.get('model_version', 'unknown'))
             pose.calibration_version = str(obs.metadata.get(
-                "calibration_version", "unknown"))
+                'calibration_version', 'unknown'))
             pose.tool_version = self.pipeline.tool.version
             geometry_ms = (time.perf_counter() - started) * 1000.0
+            # 总耗时 = 掩膜构造 + 本模式几何
             self.last_timings_ms[mode] = (
                 self._last_mask_timings_ms.get(mode, 0.0) + geometry_ms)
         return results
 
     def build_masks(self, obs: BagObservation, bbox: tuple,
                     sam_mask: Optional[np.ndarray]) -> dict[str, Optional[np.ndarray]]:
-        """Return the ROI-local measured-depth mask for the converged mode."""
+        """在 bbox ROI 内构造 hybrid_dilated 掩膜（实测深度单位：毫米 uint16）."""
         started = time.perf_counter()
         self._last_mask_timings_ms = {mode: 0.0 for mode in MODE_IDS}
         x1, y1, x2, y2 = self.pipeline._clip_bbox(bbox, obs.depth.shape)
@@ -108,24 +116,28 @@ class CandidateEstimator:
         if roi.size == 0:
             return {mode: None for mode in MODE_IDS}
         valid = self.pipeline._valid_depth(roi)
+        # 深度连通前景：作为「膨胀母体」，限制 SAM 不漂到背景
         depth_mask, _ = self.pipeline._foreground(
-            roi, valid, None, bbox, source="depth_fallback")
+            roi, valid, None, bbox, source='depth_fallback')
 
         mask = None
         sam_roi = self._crop_mask(sam_mask, (x1, y1, x2, y2), obs.depth.shape)
         if sam_roi is not None:
+            # 只保留有实测深度的 SAM 像素
             measured_sam = sam_roi & valid
             k = 2 * (self.dilate_px // 2) + 1
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
             expanded_depth = cv2.dilate(depth_mask.astype(np.uint8), kernel) > 0
+            # SAM ∩ 膨胀深度；像素过少则视为不可用
             mask = self._enough(measured_sam & expanded_depth)
 
         elapsed_ms = (time.perf_counter() - started) * 1000.0
         self._last_mask_timings_ms = {mode: elapsed_ms for mode in MODE_IDS}
-        return {"hybrid_dilated": mask}
+        return {'hybrid_dilated': mask}
 
     def _crop_mask(self, mask: Optional[np.ndarray], bbox: tuple,
                    image_shape: tuple) -> Optional[np.ndarray]:
+        """把全图或 ROI 掩膜裁成与 bbox 同尺寸；尺寸不符返回 None."""
         if mask is None:
             return None
         x1, y1, x2, y2 = bbox
@@ -136,25 +148,28 @@ class CandidateEstimator:
         return arr if arr.shape == expected else None
 
     def _enough(self, mask: np.ndarray) -> Optional[np.ndarray]:
+        """像素数不足 min_mask_points 时丢弃（触发 mask_unavailable）."""
         return mask if int(mask.sum()) >= self.min_mask_points else None
 
     @staticmethod
     def _source(mode: str) -> str:
+        """写入结果的 mask_source 标签（便于诊断追溯）."""
         return {
-            "hybrid_dilated": "mobile_sam_dilated_depth_intersection",
+            'hybrid_dilated': 'mobile_sam_dilated_depth_intersection',
         }[mode]
 
     def _unavailable(self, obs: BagObservation, target_id: str, bbox: tuple,
                      mode: str, reason: str) -> TargetPoseResult:
+        """构造显式失败结果（REOBSERVE + diagnostic_flags）."""
         x1, y1, x2, y2 = map(int, bbox)
         g2d = BagGrasp2D(
             detection_bbox=(x1, y1, x2 - x1, y2 - y1),
-            status="REOBSERVE", diagnostic_flags=[reason])
+            status='REOBSERVE', diagnostic_flags=[reason])
         g3d = BagGraspReference3D(
-            status="REOBSERVE", diagnostic_flags=[reason],
-            strategy_id=f"robust_bag_pose:{mode}",
-            model_version=str(obs.metadata.get("model_version", "unknown")),
+            status='REOBSERVE', diagnostic_flags=[reason],
+            strategy_id=f'robust_bag_pose:{mode}',
+            model_version=str(obs.metadata.get('model_version', 'unknown')),
             calibration_version=str(obs.metadata.get(
-                "calibration_version", "unknown")),
+                'calibration_version', 'unknown')),
             tool_version=self.pipeline.tool.version)
         return TargetPoseResult(target_id, g2d, g3d, mode, {})

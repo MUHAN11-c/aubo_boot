@@ -1,17 +1,16 @@
-"""Phase 2：Open3D ScalableTSDFVolume（RGB-D 融合）。"""
+"""Phase 2：Open3D ScalableTSDFVolume（RGB-D 融合）."""
 
 from __future__ import annotations
 
 from typing import Optional, Tuple
 
+from aubo_scene_recon.backends.base import FusionBackend
 import numpy as np
 import open3d as o3d
 
-from aubo_scene_recon.backends.base import FusionBackend
-
 
 def _height_colormap(xyz: np.ndarray) -> np.ndarray:
-    """按 z 伪彩（蓝→青→绿→黄→红），保证无真彩时 RViz 仍可见。"""
+    """按 z 伪彩（蓝→青→绿→黄→红），保证无真彩时 RViz 仍可见."""
     z = xyz[:, 2]
     zmin, zmax = float(np.min(z)), float(np.max(z))
     t = np.zeros(len(z), dtype=np.float64) if zmax <= zmin else (z - zmin) / (zmax - zmin)
@@ -23,7 +22,7 @@ def _height_colormap(xyz: np.ndarray) -> np.ndarray:
 
 
 class TsdfBackend(FusionBackend):
-    """彩色+深度 TSDF；点云路径仍可用 integrate() 退化成投影较弱，推荐 integrate_rgbd。"""
+    """彩色+深度 TSDF；点云路径仍可用 integrate() 退化成投影较弱，推荐 integrate_rgbd."""
 
     def __init__(
         self,
@@ -59,7 +58,7 @@ class TsdfBackend(FusionBackend):
         T_map_cam: np.ndarray,
         color_is_bgr: bool = True,
     ) -> None:
-        """融合一帧对齐的 RGB-D（depth 单位由 depth_scale 解释，默认 mm）。"""
+        """融合一帧对齐的 RGB-D（depth 单位由 depth_scale 解释，默认 mm）."""
         if color_is_bgr:
             color_rgb = color_bgr_or_rgb[:, :, ::-1].copy()
         else:

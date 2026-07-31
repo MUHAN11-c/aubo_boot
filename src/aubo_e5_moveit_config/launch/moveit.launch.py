@@ -1,3 +1,31 @@
+# Copyright 2026, aubo_e5_ros2_ws authors
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+#    * Redistributions of source code must retain the above copyright
+#      notice, this list of conditions and the following disclaimer.
+#
+#    * Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions and the following disclaimer in the
+#      documentation and/or other materials provided with the distribution.
+#
+#    * Neither the name of the copyright holder nor the names of its
+#      contributors may be used to endorse or promote products derived from
+#      this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
 # moveit.launch.py —— MoveIt 整体启动入口（真机/仿真共用），本包唯一的 launch，
 # aubo_e5_bringup 经本文件集成 MoveIt。
 #
@@ -16,38 +44,46 @@
 #                            单跑）时启动；经 bringup 集成时传 false，rsp 由
 #                            bringup 自带，不要重复起（TF 双发）。
 import os
-import yaml
-import xacro
+
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
-from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+import xacro
+import yaml
+
 
 def load(package, path):
     with open(os.path.join(get_package_share_directory(package), path), encoding='utf-8') as f:
         return yaml.safe_load(f)
 
+
 def text(package, path):
     with open(os.path.join(get_package_share_directory(package), path), encoding='utf-8') as f:
         return f.read()
+
 
 def xacro_text(package, path):
     filename = os.path.join(get_package_share_directory(package), path)
     return xacro.process_file(filename).toxml()
 
+
 def launch_setup(context):
     # controllers_file 是 launch 参数，必须在 OpaqueFunction 里 perform 后才能
     # 拼路径读 yaml。
     controllers_file = LaunchConfiguration('controllers_file').perform(context)
-    standalone = LaunchConfiguration('standalone_state_publishers').perform(context).lower() == 'true'
+    standalone = (
+        LaunchConfiguration('standalone_state_publishers')
+        .perform(context).lower() == 'true')
 
     desc = {'robot_description': xacro_text('aubo_description', 'urdf/aubo_e5.urdf.xacro')}
     semantic = {'robot_description_semantic': text('aubo_e5_moveit_config', 'config/aubo_e5.srdf')}
     kin = {'robot_description_kinematics': load('aubo_e5_moveit_config', 'config/kinematics.yaml')}
-    limits = {'robot_description_planning': load('aubo_e5_moveit_config', 'config/joint_limits.yaml')}
-    rviz_config = os.path.join(get_package_share_directory('aubo_e5_moveit_config'), 'rviz', 'moveit.rviz')
+    limits = {'robot_description_planning':
+              load('aubo_e5_moveit_config', 'config/joint_limits.yaml')}
+    rviz_config = os.path.join(
+        get_package_share_directory('aubo_e5_moveit_config'), 'rviz', 'moveit.rviz')
     # 双管线（move_group 2.12 在节点顶层读取 planning_pipelines 列表 +
     # default_planning_pipeline，每条管线的参数在 <pipeline_name>.* 命名空间下，
     # 与 MoveItConfigsBuilder 产物一致——注意不要再嵌套进 move_group 键，
@@ -82,8 +118,11 @@ def launch_setup(context):
             'aubo_e5_moveit_config', 'config/pilz_industrial_motion_planner_planning.yaml'),
         'capabilities': ('pilz_industrial_motion_planner/MoveGroupSequenceAction '
                          'pilz_industrial_motion_planner/MoveGroupSequenceService')}
-    controllers = {'moveit_simple_controller_manager': load('aubo_e5_moveit_config', 'config/' + controllers_file),
-                   'moveit_controller_manager': 'moveit_simple_controller_manager/MoveItSimpleControllerManager'}
+    controllers = {
+        'moveit_simple_controller_manager': load(
+            'aubo_e5_moveit_config', 'config/' + controllers_file),
+        'moveit_controller_manager':
+            'moveit_simple_controller_manager/MoveItSimpleControllerManager'}
     trajectory_execution = {
         'moveit_manage_controllers': False,
         # passthrough 蓝本值（aubo_boot）：整段轨迹一次下发、硬件侧自行插补执行，
@@ -95,7 +134,8 @@ def launch_setup(context):
                'publish_state_updates': True, 'publish_transforms_updates': True}
     nodes = [
         Node(package='moveit_ros_move_group', executable='move_group', output='screen',
-             parameters=[desc, semantic, kin, limits, pipelines, controllers, trajectory_execution, monitor]),
+             parameters=[desc, semantic, kin, limits, pipelines, controllers,
+                         trajectory_execution, monitor]),
         # rviz 与 move_group 拿同一份 desc/semantic/kin/limits/pipelines（见文件头注释）
         Node(package='rviz2', executable='rviz2', output='screen',
              arguments=['-d', rviz_config], parameters=[desc, semantic, kin, limits, pipelines]),

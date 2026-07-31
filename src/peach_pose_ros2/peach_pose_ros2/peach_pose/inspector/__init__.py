@@ -1,4 +1,5 @@
-"""Inspector 子包 — PySide6 数据集浏览 GUI。
+"""
+Inspector 子包 — PySide6 数据集浏览 GUI.
 
 职责: 提供 ``PeachInspector`` 主窗口，用于离线浏览 RGB-D 数据集、运行收敛安全
 管线 (SAM∩膨胀深度)、叠加 2D 检测/SAM 与 3D 点云/圆柱工具可视化。

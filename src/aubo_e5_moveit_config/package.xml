@@ -3,7 +3,7 @@
   <name>aubo_e5_moveit_config</name>
   <version>0.1.0</version>
   <description>MoveIt 2 Jazzy configuration for the AUBO E5.</description>
-  <maintainer email="aubo@todo.todo">AUBO E5 maintainers</maintainer>
+  <maintainer email="2155413529@qq.com">AUBO E5 maintainers</maintainer>
   <license>BSD-3-Clause</license>
   <buildtool_depend>ament_cmake</buildtool_depend>
   <exec_depend>aubo_description</exec_depend>
@@ -16,5 +16,11 @@
   <exec_depend>rviz2</exec_depend>
   <exec_depend>joint_state_publisher_gui</exec_depend>
   <exec_depend>xacro</exec_depend>
+  <test_depend>ament_cmake_copyright</test_depend>
+  <test_depend>ament_cmake_cpplint</test_depend>
+  <test_depend>ament_cmake_lint_cmake</test_depend>
+  <test_depend>ament_cmake_uncrustify</test_depend>
+  <test_depend>ament_cmake_xmllint</test_depend>
+  <test_depend>ament_lint_auto</test_depend>
   <export><build_type>ament_cmake</build_type></export>
 </package>

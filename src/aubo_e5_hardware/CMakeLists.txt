@@ -15,6 +15,8 @@ target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
 # deprecated，但它仍是 UR 验证过的、能让硬件把 passthrough 状态机反馈回写进
 # command 接口的写法，故保留并仅屏蔽该告警。
 target_compile_options(${PROJECT_NAME} PRIVATE -Wno-deprecated-declarations)
+# prevent pluginlib from using boost
+target_compile_definitions(${PROJECT_NAME} PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
 target_include_directories(${PROJECT_NAME} PRIVATE vendor vendor/aubo_driver PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
@@ -47,7 +49,11 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 
 pluginlib_export_plugin_description_file(hardware_interface aubo_e5_hardware_plugin.xml)
 
-install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
+install(TARGETS ${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
 install(DIRECTORY include/ DESTINATION include)
 install(DIRECTORY
   vendor/lib64/aubocontroller/
@@ -60,8 +66,15 @@ install(DIRECTORY
 # cwd=share/aubo_e5_hardware 启动 ros2_control_node，故把 config 装到 share。
 install(DIRECTORY config/ DESTINATION share/${PROJECT_NAME}/config)
 install(FILES aubo_e5_hardware_plugin.xml DESTINATION share/${PROJECT_NAME})
+install(FILES LICENSE DESTINATION share/${PROJECT_NAME})
 
 ament_export_include_directories(include)
 ament_export_libraries(${PROJECT_NAME})
 ament_export_dependencies(hardware_interface pluginlib rclcpp rclcpp_lifecycle realtime_tools std_msgs)
+
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+  ament_lint_auto_find_test_dependencies()
+endif()
+
 ament_package()

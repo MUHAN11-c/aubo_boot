@@ -1,4 +1,5 @@
 from glob import glob
+
 from setuptools import find_packages, setup
 
 package_name = 'aubo_hand_eye_calibration'
@@ -6,7 +7,7 @@ package_name = 'aubo_hand_eye_calibration'
 setup(
     name=package_name,
     version='1.0.0',
-    packages=find_packages(),
+    packages=find_packages(exclude=['test']),
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml', 'README.md', 'LICENSE']),
@@ -15,10 +16,9 @@ setup(
         ('share/' + package_name + '/web', glob('web/*')),
     ],
     install_requires=['setuptools'],
-    test_suite='test',
     zip_safe=True,
     maintainer='wjz',
-    maintainer_email='wjz@example.com',
+    maintainer_email='2155413529@qq.com',
     description='Automatic eye-in-hand calibration for AUBO E5.',
     license='BSD-3-Clause',
     entry_points={

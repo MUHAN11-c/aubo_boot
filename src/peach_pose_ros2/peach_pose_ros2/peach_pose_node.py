@@ -1,7 +1,12 @@
-"""PeachPose ROS 2 感知节点。
+"""
+PeachPose ROS 2 感知节点.
 
-订阅对齐 RGB-D + CameraInfo，运行 vendored peach_pose 管线，发布抓取参考
-候选 / 2D / 拟合诊断 / 检测 / 掩膜 / Marker / debug 图。不发送运动指令。
+订阅时间对齐的 RGB-D + CameraInfo，经 YOLO → MobileSAM → 实测深度几何管线，
+发布抓取参考候选 / 2D / 拟合诊断 / 检测 / 掩膜 / Marker / debug 图 / 检测框点云。
+
+只发参考位姿，不发送运动指令。几何默认可经 TF 变到 ``output_frame``
+（默认 ``base_link``，依赖 ``hand_eye_extrinsics_publisher``）。
+图像编解码统一走 cv_bridge（bgr8 / passthrough uint16 / mono8）。
 """
 from __future__ import annotations
 
@@ -9,23 +14,12 @@ import math
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-import cv2
-import message_filters
-import numpy as np
-import rclpy
 from ament_index_python.packages import get_package_share_directory
+import cv2
 from cv_bridge import CvBridge
 from geometry_msgs.msg import Point, Pose, Quaternion, Vector3
-from rclpy.duration import Duration
-from rclpy.node import Node
-from rclpy.time import Time
-from sensor_msgs.msg import CameraInfo, Image, PointCloud2, PointField
-from sensor_msgs_py import point_cloud2 as pc2
-from std_msgs.msg import Header
-from tf2_ros import Buffer, TransformException, TransformListener
-from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose
-from visualization_msgs.msg import Marker, MarkerArray
-
+import message_filters
+import numpy as np
 from peach_pose_msgs.msg import (
     BagFitting,
     BagFittingArray,
@@ -37,10 +31,21 @@ from peach_pose_msgs.msg import (
 from peach_pose_ros2.peach_pose.candidates import CandidateEstimator
 from peach_pose_ros2.peach_pose.contracts import BagObservation, ToolGeometry
 from peach_pose_ros2.peach_pose.inference import InferenceEngine
+from rcl_interfaces.msg import ParameterDescriptor
+import rclpy
+from rclpy.duration import Duration
+from rclpy.node import Node
+from rclpy.time import Time
+from sensor_msgs.msg import CameraInfo, Image, PointCloud2, PointField
+from sensor_msgs_py import point_cloud2 as pc2
+from std_msgs.msg import Header
+from tf2_ros import Buffer, TransformException, TransformListener
+from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose
+from visualization_msgs.msg import Marker, MarkerArray
 
 
 def _transform_msg_to_matrix(t) -> np.ndarray:
-    """geometry_msgs/Transform → 4x4（p_out = R @ p_in + t）。"""
+    """geometry_msgs/Transform → 4×4 齐次矩阵（p_out = R @ p_in + t）."""
     q = t.rotation
     x, y, z, w = q.x, q.y, q.z, q.w
     xx, yy, zz = x * x, y * y, z * z
@@ -60,7 +65,11 @@ def _transform_msg_to_matrix(t) -> np.ndarray:
 
 
 def _apply_T_to_grasp3d(g3d, T: np.ndarray) -> None:
-    """把相机系抓取几何变到输出系（原地改 g3d）。"""
+    """
+    把相机系抓取几何变到输出系（原地修改 g3d）.
+
+    点做刚体变换；方向向量只乘 R 后归一化；姿态矩阵左乘 R。
+    """
     R, t = T[:3, :3], T[:3, 3]
 
     def _pt(p):
@@ -79,11 +88,12 @@ def _apply_T_to_grasp3d(g3d, T: np.ndarray) -> None:
         g3d.orientation = R @ np.asarray(g3d.orientation, dtype=float)
 
 
-STATUS_MAP = {"ACCEPT": 0, "REOBSERVE": 1, "REJECT": 2}
+# 与 peach_pose_msgs/BagGraspCandidate.status 枚举一致
+STATUS_MAP = {'ACCEPT': 0, 'REOBSERVE': 1, 'REJECT': 2}
 
 
 def _rotation_to_quat(R: np.ndarray) -> Quaternion:
-    """3x3 旋转矩阵 → geometry_msgs/Quaternion（右手系）。"""
+    """3x3 旋转矩阵 → geometry_msgs/Quaternion（右手系）."""
     # Shepperd 稳健法
     m = np.asarray(R, dtype=float)
     t = float(np.trace(m))
@@ -109,6 +119,7 @@ def _rotation_to_quat(R: np.ndarray) -> Quaternion:
 
 
 def _point(xyz) -> Point:
+    """三维点 → geometry_msgs/Point；None 则零向量。强制 float 避免 rosidl 断言."""
     p = Point()
     if xyz is None:
         return p
@@ -117,6 +128,7 @@ def _point(xyz) -> Point:
 
 
 def _px(uv, z=0.0) -> Point:
+    """像素 (u,v) 塞进 Point.x/y（2D 消息复用 Point）."""
     p = Point()
     if uv is None:
         return p
@@ -125,6 +137,7 @@ def _px(uv, z=0.0) -> Point:
 
 
 def _metric(m: dict, key: str, default: float = -1.0) -> float:
+    """从 metrics 字典取标量；缺失或不可转 float 时用 default（消息侧常用 -1 表示无）."""
     v = m.get(key, None)
     if v is None:
         return default
@@ -135,15 +148,16 @@ def _metric(m: dict, key: str, default: float = -1.0) -> float:
 
 
 def _status_color(status: str) -> Tuple[float, float, float, float]:
+    """三态 → RViz Marker RGBA（绿/黄/红）."""
     return {
-        "ACCEPT": (0.1, 0.85, 0.2, 0.9),
-        "REOBSERVE": (0.95, 0.8, 0.1, 0.9),
-        "REJECT": (0.9, 0.15, 0.15, 0.9),
+        'ACCEPT': (0.1, 0.85, 0.2, 0.9),
+        'REOBSERVE': (0.95, 0.8, 0.1, 0.9),
+        'REJECT': (0.9, 0.15, 0.15, 0.9),
     }.get(status, (0.6, 0.6, 0.6, 0.8))
 
 
 def _pack_rgb_bgr(bgr: np.ndarray) -> np.ndarray:
-    """(N,3) uint8 BGR → float32 位打包 rgb（PointCloud2 常用）。"""
+    """(N,3) uint8 BGR → float32 位打包 rgb（PointCloud2 常用）."""
     b = bgr[:, 0].astype(np.uint32)
     g = bgr[:, 1].astype(np.uint32)
     r = bgr[:, 2].astype(np.uint32)
@@ -158,7 +172,8 @@ def _bbox_cloud_xyzrgb(
     bboxes,
     stride: int = 1,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """检测框内深度反投影 → (N,3) xyz 米、(N,) float32 打包 rgb。
+    """
+    检测框内深度反投影 → (N,3) xyz 米、(N,) float32 打包 rgb.
 
     depth_mm 已是管线「毫米」uint16（Percipio 已 × depth_scale_unit）。
     """
@@ -190,6 +205,7 @@ def _bbox_cloud_xyzrgb(
 
 
 def _xyzrgb_to_cloud(header: Header, xyz: np.ndarray, rgb_f: np.ndarray) -> PointCloud2:
+    """组装 xyz+rgb 点云消息（rgb 为 float32 位打包）."""
     fields = [
         PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
         PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
@@ -206,6 +222,8 @@ def _xyzrgb_to_cloud(header: Header, xyz: np.ndarray, rgb_f: np.ndarray) -> Poin
 
 
 class PeachPoseNode(Node):
+    """RGB-D 同步回调驱动的感知节点：检测 → 分割 → 几何 → TF 变换 → 多话题发布."""
+
     def __init__(self):
         super().__init__('peach_pose_node')
         self.bridge = CvBridge()
@@ -224,6 +242,7 @@ class PeachPoseNode(Node):
         self.estimator = CandidateEstimator(
             pipeline=RobustBagPosePipeline(tool=self.tool))
 
+        # ---- 输出话题（相对命名空间 ~/）----
         self.pub_cands = self.create_publisher(
             BagGraspCandidateArray, '~/grasp_candidates', 10)
         self.pub_cands_2d = self.create_publisher(
@@ -238,6 +257,7 @@ class PeachPoseNode(Node):
         self.pub_det_cloud = self.create_publisher(
             PointCloud2, '~/detection_cloud', 10)
 
+        # 与数据集回放 / 相机驱动对齐：RELIABLE，避免 Best Effort 对不上
         qos = rclpy.qos.QoSProfile(
             depth=10,
             reliability=rclpy.qos.ReliabilityPolicy.RELIABLE,
@@ -254,6 +274,7 @@ class PeachPoseNode(Node):
             [sub_rgb, sub_depth, sub_info], queue_size=10, slop=self.sync_slop_s)
         self.sync.registerCallback(self._on_rgbd)
 
+        # 手眼：wrist3_Link→camera_link 由 extrinsics_publisher 发静态 TF
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
         self._tf_warned = False
@@ -267,13 +288,16 @@ class PeachPoseNode(Node):
             f'calib={self.calibration_version}')
 
     def _declare_params(self):
+        """声明 ROS 参数默认值（与 config/peach_pose.yaml 对齐，可被 yaml 覆盖）."""
         defaults = {
             'color_topic': '/camera/color/image_raw',
             'depth_topic': '/camera/depth/image_raw',
             'camera_info_topic': '/camera/color/camera_info',
+            # 手眼链挂在 color optical；深度 registration 后几何也在此系
             'camera_optical_frame': 'camera_color_optical_frame',
             'output_frame': 'base_link',
             'tf_timeout_sec': 0.5,
+            # Percipio 原始深度常需 ×0.25 才是毫米量级（再 /1000→米）
             'depth_scale_unit': 0.25,
             'sync_slop_s': 0.05,
             'min_detection_conf': 0.5,
@@ -287,6 +311,7 @@ class PeachPoseNode(Node):
             'model_version': 'yolo:6981750db67a726e|mobile_sam:6dbb90523a35330f',
             'calibration_version':
                 'percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006',
+            # 空串 → 算法默认相机系 +Y；否则 "x,y,z" 重力提示
             'gravity_hint_xyz': '',
             'tool.D_inner': 0.104,
             'tool.L_insert': 0.200,
@@ -297,10 +322,46 @@ class PeachPoseNode(Node):
             'tool.margin_neck': 0.015,
             'tool.version': '1.1',
         }
+        descriptions = {
+            'color_topic': '彩色图话题（bgr8）',
+            'depth_topic': '深度图话题（uint16，须与彩色图 registration 对齐）',
+            'camera_info_topic': '彩色相机内参话题',
+            'camera_optical_frame': '相机光学系 frame_id（手眼链所挂）；'
+                                    '空串则用深度图 header.frame_id',
+            'output_frame': '输出坐标系：几何经 TF 变到此帧；空串=保持相机系',
+            'tf_timeout_sec': 'TF 查询超时 (s)',
+            'depth_scale_unit': '深度比例因子：raw × 本值 = 毫米量级（Percipio 常见 '
+                                '0.25）；数据集回放（真毫米）设 1.0',
+            'sync_slop_s': 'RGB-D 近似同步允差 (s)',
+            'min_detection_conf': '检测置信度下限，低于该值的目标不入管线',
+            'yolo_conf': 'YOLO 推理置信度阈值',
+            'publish_debug_image': '是否发布 debug 叠加图 (~/debug_image)',
+            'publish_masks': '是否发布 SAM 掩膜图 (~/masks)',
+            'publish_detection_cloud': '是否发布检测框内深度反投影彩色点云 '
+                                       '(~/detection_cloud)',
+            'detection_cloud_stride': '点云降采样步长（>1 减轻 RViz 负载）',
+            'yolo_model_path': 'YOLO 权重路径；空串=包内 model/best.pt',
+            'sam_model_path': 'MobileSAM 权重路径；空串=包内 model/mobile_sam.pt',
+            'model_version': '模型版本标识（随结果发布，便于追溯）',
+            'calibration_version': '内外参版本标识（内参 color_camera_info.yaml；'
+                                   '外参 hand_eye/active.yaml）',
+            'gravity_hint_xyz': '重力方向提示 "x,y,z"（相机系）；'
+                                '空串=算法默认相机系 +Y',
+            'tool.D_inner': '工具圆柱内径 (m)，袋子必须能通过',
+            'tool.L_insert': '最大插入深度 (m)',
+            'tool.L_blade': '刀刃平面到圆柱入口平面的距离 (m)',
+            'tool.entry_d_tool': '入口 standoff 的工具分量 (m)',
+            'tool.entry_d_s': '入口 standoff 的安全裕量分量 (m)',
+            'tool.clearance_min': '袋体与工具内壁的最小径向余量 (m)',
+            'tool.margin_neck': '袋颈前方的安全停止距离 (m)',
+            'tool.version': '工具几何配置的语义版本号',
+        }
         for k, v in defaults.items():
-            self.declare_parameter(k, v)
+            self.declare_parameter(
+                k, v, ParameterDescriptor(description=descriptions[k]))
 
     def _load_params(self):
+        """从参数服务器读出并缓存为实例属性；重力串解析失败则抛错."""
         g = self.get_parameter
         self.color_topic = g('color_topic').get_parameter_value().string_value
         self.depth_topic = g('depth_topic').get_parameter_value().string_value
@@ -331,6 +392,7 @@ class PeachPoseNode(Node):
             self.gravity_hint = np.asarray(parts, dtype=float)
         else:
             self.gravity_hint = None
+        # entry_standoff = 刀具伸出 + 安全间隙，与 contracts.ToolGeometry 一致
         self.tool = ToolGeometry(
             D_inner=float(g('tool.D_inner').value),
             L_insert=float(g('tool.L_insert').value),
@@ -345,7 +407,7 @@ class PeachPoseNode(Node):
         )
 
     def _lookup_T_out_cam(self, cam_frame: str, stamp) -> Optional[np.ndarray]:
-        """查 output←camera；失败返回 None。"""
+        """查 output←camera；失败返回 None."""
         if not self.output_frame or self.output_frame == cam_frame:
             return np.eye(4)
         stamp_time = Time.from_msg(stamp)
@@ -369,6 +431,7 @@ class PeachPoseNode(Node):
                 return None
 
     def _on_rgbd(self, rgb_msg: Image, depth_msg: Image, info: CameraInfo):
+        """同步回调 (ApproximateTimeSynchronizer)：一帧 RGB-D → 全套感知输出."""
         self.get_logger().info(
             f'RGB-D sync frame {rgb_msg.width}x{rgb_msg.height}')
         try:
@@ -385,7 +448,7 @@ class PeachPoseNode(Node):
             self.get_logger().warn(
                 f'Depth dtype {depth.dtype} expected uint16')
             return
-        # Percipio: z_m = raw * depth_scale_unit / 1000；管线按「毫米」/1000
+        # Percipio: z_m = raw * depth_scale_unit / 1000；管线内部按「毫米」再 /1000
         if abs(self.depth_scale_unit - 1.0) > 1e-9:
             depth = np.clip(
                 np.round(depth.astype(np.float32) * self.depth_scale_unit),
@@ -401,7 +464,7 @@ class PeachPoseNode(Node):
                 f'{depth.shape[1]}x{depth.shape[0]}')
             return
 
-        # 内参：始终用本机 CameraInfo（Percipio color_camera_info.yaml）
+        # 内参：始终用本机 CameraInfo（勿回退 FOV 推导，避免与标定不一致）
         K = {
             'fx': float(info.k[0]), 'fy': float(info.k[4]),
             'cx': float(info.k[2]), 'cy': float(info.k[5]),
@@ -413,7 +476,7 @@ class PeachPoseNode(Node):
                 f'cx={K["cx"]:.3f} cy={K["cy"]:.3f} '
                 f'{K["width"]}x{K["height"]}')
             self._logged_K = True
-        # 手眼外参挂在 color optical；配准深度几何也在 color 系
+        # 几何在相机光心系求解，再按需变到 output_frame
         cam_frame = (
             self.camera_optical_frame
             or depth_msg.header.frame_id
@@ -430,6 +493,7 @@ class PeachPoseNode(Node):
         header.stamp = rgb_msg.header.stamp
         header.frame_id = out_frame
 
+        # ---- 检测 ----
         dets = self.engine.detect(rgb)
         det_msg = Detection2DArray()
         det_msg.header = header
@@ -470,6 +534,7 @@ class PeachPoseNode(Node):
         clear.action = Marker.DELETEALL
         markers.markers.append(clear)
 
+        # ---- 逐目标：SAM → 前景∩深度 → 袋/果管线 → TF → 消息 ----
         for i, det in enumerate(kept):
             bbox = tuple(det['bbox'])
             sam_mask = None
@@ -521,6 +586,7 @@ class PeachPoseNode(Node):
             self.pub_debug.publish(dbg_msg)
 
     def _to_detection2d(self, det: dict, header: Header) -> Detection2D:
+        """内部检测 dict → vision_msgs/Detection2D."""
         x1, y1, x2, y2 = det['bbox']
         d = Detection2D()
         d.header = header
@@ -536,6 +602,7 @@ class PeachPoseNode(Node):
         return d
 
     def _to_candidate(self, header, tid, g3d) -> BagGraspCandidate:
+        """3D 抓取参考 → peach_pose_msgs/BagGraspCandidate（坐标系=header.frame_id）."""
         m = BagGraspCandidate()
         m.header = header
         m.target_id = tid
@@ -564,6 +631,7 @@ class PeachPoseNode(Node):
         return m
 
     def _to_candidate_2d(self, header, tid, g2d) -> BagGrasp2DMsg:
+        """图像平面关键点 / 行程线 → BagGrasp2D（像素坐标）."""
         m = BagGrasp2DMsg()
         m.header = header
         m.target_id = tid
@@ -586,6 +654,7 @@ class PeachPoseNode(Node):
         return m
 
     def _to_fitting(self, header, tid, result) -> BagFitting:
+        """管线 metrics / diagnostic → BagFitting（诊断用，不参与运动）."""
         m = BagFitting()
         m.header = header
         m.target_id = tid
@@ -619,6 +688,11 @@ class PeachPoseNode(Node):
         return m
 
     def _to_markers(self, header, tid, idx, result) -> List[Marker]:
+        """
+        可视化 (RViz)：轴 / 行程箭头 / 刀具圆柱 / 果球 / 三轴架 / 状态文字.
+
+        每个目标占用 id 段 ``idx*20 .. idx*20+19``，避免多目标冲突。
+        """
         g3d = result.grasp_3d
         out: List[Marker] = []
         r, g, b, a = _status_color(g3d.status)
@@ -710,6 +784,7 @@ class PeachPoseNode(Node):
         return out
 
     def _draw_debug(self, img, det, g2d, sam_mask):
+        """在 BGR 图上叠检测框、SAM 掩膜、底→颈箭头与状态文字（原地改 img）."""
         x1, y1, x2, y2 = map(int, det['bbox'])
         color = (0, 220, 0) if det.get('class_id', 0) == 0 else (0, 180, 255)
         cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)

@@ -1,9 +1,9 @@
-"""点云读写 / 变换 / voxel — 无 Open3D 依赖，纯 numpy。"""
+"""点云读写 / 变换 / voxel — 无 Open3D 依赖，纯 numpy."""
 
 from __future__ import annotations
 
-import struct
 from pathlib import Path
+import struct
 from typing import Optional, Tuple
 
 import numpy as np
@@ -13,7 +13,7 @@ from std_msgs.msg import Header
 
 
 def cloud_to_arrays(msg: PointCloud2) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-    """PointCloud2 → (N,3) xyz 与可选 (N,3) rgb∈[0,1]。"""
+    """PointCloud2 → (N,3) xyz 与可选 (N,3) rgb∈[0,1]."""
     field_names = [f.name for f in msg.fields]
     has_rgb = 'rgb' in field_names
     fields = ['x', 'y', 'z', 'rgb'] if has_rgb else ['x', 'y', 'z']
@@ -33,7 +33,7 @@ def cloud_to_arrays(msg: PointCloud2) -> Tuple[np.ndarray, Optional[np.ndarray]]
 
 
 def _unpack_rgb(color_val) -> np.ndarray:
-    """float32 打包的 rgb 字段 → [r,g,b]∈[0,1]。"""
+    """float32 打包的 rgb 字段 → [r,g,b]∈[0,1]."""
     if isinstance(color_val, float):
         raw = struct.pack('<f', float(color_val))
         color_int = struct.unpack('<I', raw)[0]
@@ -46,7 +46,7 @@ def _unpack_rgb(color_val) -> np.ndarray:
 
 
 def _pack_rgb(rgb: np.ndarray) -> np.ndarray:
-    """(N,3) [0,1] → float32 位型 rgb（PointCloud2 常用）。"""
+    """(N,3) [0,1] → float32 位型 rgb（PointCloud2 常用）."""
     r = np.clip(rgb[:, 0] * 255.0, 0, 255).astype(np.uint32)
     g = np.clip(rgb[:, 1] * 255.0, 0, 255).astype(np.uint32)
     b = np.clip(rgb[:, 2] * 255.0, 0, 255).astype(np.uint32)
@@ -55,7 +55,7 @@ def _pack_rgb(rgb: np.ndarray) -> np.ndarray:
 
 
 def transform_points(xyz: np.ndarray, T: np.ndarray) -> np.ndarray:
-    """用 4x4 齐次矩阵变换 (N,3) 点。"""
+    """用 4x4 齐次矩阵变换 (N,3) 点."""
     if xyz.size == 0:
         return xyz
     R = T[:3, :3]
@@ -69,7 +69,7 @@ def filter_by_depth(
     min_range: float,
     max_range: float,
 ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-    """按相机系 z（深度）裁剪。"""
+    """按相机系 z（深度）裁剪."""
     if xyz.size == 0:
         return xyz, colors
     z = xyz[:, 2]
@@ -84,7 +84,7 @@ def voxel_downsample(
     colors: Optional[np.ndarray],
     voxel_size: float,
 ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-    """简单体素下采样：每格保留均值点（及均值色）。"""
+    """简单体素下采样：每格保留均值点（及均值色）."""
     if xyz.size == 0 or voxel_size <= 0.0:
         return xyz, colors
     keys = np.floor(xyz / voxel_size).astype(np.int64)
@@ -113,7 +113,7 @@ def make_pointcloud2(
     xyz: np.ndarray,
     colors: Optional[np.ndarray] = None,
 ) -> PointCloud2:
-    """构造带可选 rgb 的 PointCloud2。"""
+    """构造带可选 rgb 的 PointCloud2."""
     if xyz.size == 0:
         return pc2.create_cloud(header, [
             PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
@@ -149,7 +149,7 @@ def write_ply_xyzrgb(
     xyz: np.ndarray,
     colors: Optional[np.ndarray] = None,
 ) -> None:
-    """写 ASCII PLY（xyz + 可选 uchar rgb）。"""
+    """写 ASCII PLY（xyz + 可选 uchar rgb）."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     n = int(xyz.shape[0])
@@ -174,7 +174,7 @@ def write_ply_xyzrgb(
 
 
 def transform_msg_to_matrix(t) -> np.ndarray:
-    """geometry_msgs/Transform → 4x4。"""
+    """geometry_msgs/Transform → 4x4."""
     q = t.rotation
     x, y, z, w = q.x, q.y, q.z, q.w
     xx, yy, zz = x * x, y * y, z * z

@@ -8,7 +8,6 @@ import unittest
 from aubo_hand_eye_calibration.board import Checkerboard
 from aubo_hand_eye_calibration.detector import CheckerboardDetector
 from aubo_hand_eye_calibration.transforms import (
-    inverse,
     make_transform,
     transform_error,
 )
@@ -19,7 +18,7 @@ from scipy.spatial.transform import Rotation
 
 def render_checkerboard(board, camera_matrix, camera_from_target,
                         width=960, height=720):
-    """合成一张棋盘格图像: 白色背景上投影棋盘角点网格的方格面片。"""
+    """合成一张棋盘格图像: 白色背景上投影棋盘角点网格的方格面片."""
     image = np.full((height, width, 3), 255, dtype=np.uint8)
     # 棋盘物理角点 (比内角点多一圈)
     squares_x, squares_y = board.columns + 1, board.rows + 1

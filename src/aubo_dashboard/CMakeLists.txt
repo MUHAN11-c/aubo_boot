@@ -19,8 +19,13 @@ target_link_libraries(aubo_dashboard_node ${AUBO_SDK_LIB} pthread)
 # DT_RPATH (old dtags) so the rpath also covers transitive deps (libprotobuf.so.9
 # is NEEDED by libauborobotcontroller, not by this executable).
 target_link_options(aubo_dashboard_node PRIVATE -Wl,--disable-new-dtags)
+set(AUBO_DASHBOARD_VENDOR_LIBDIRS
+  ${CMAKE_CURRENT_SOURCE_DIR}/vendor/lib64/aubocontroller
+  ${CMAKE_CURRENT_SOURCE_DIR}/vendor/lib64/config
+  ${CMAKE_CURRENT_SOURCE_DIR}/vendor/lib64/log4cplus
+  ${CMAKE_CURRENT_SOURCE_DIR}/vendor/lib64/protobuf)
 set_target_properties(aubo_dashboard_node PROPERTIES
-  BUILD_RPATH "${CMAKE_CURRENT_SOURCE_DIR}/vendor/lib64/aubocontroller;${CMAKE_CURRENT_SOURCE_DIR}/vendor/lib64/config;${CMAKE_CURRENT_SOURCE_DIR}/vendor/lib64/log4cplus;${CMAKE_CURRENT_SOURCE_DIR}/vendor/lib64/protobuf"
+  BUILD_RPATH "${AUBO_DASHBOARD_VENDOR_LIBDIRS}"
   INSTALL_RPATH "$ORIGIN/vendor")
 
 install(TARGETS aubo_dashboard_node RUNTIME DESTINATION lib/${PROJECT_NAME})
@@ -28,5 +33,11 @@ install(DIRECTORY vendor/lib64/aubocontroller/ vendor/lib64/config/ vendor/lib64
   DESTINATION lib/${PROJECT_NAME}/vendor
   FILES_MATCHING PATTERN "*.so*" PATTERN "*.a" EXCLUDE PATTERN "*.la" EXCLUDE)
 install(DIRECTORY config/ DESTINATION share/${PROJECT_NAME}/config)
+install(FILES LICENSE DESTINATION share/${PROJECT_NAME})
+
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+  ament_lint_auto_find_test_dependencies()
+endif()
 
 ament_package()

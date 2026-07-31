@@ -18,10 +18,16 @@ def generate_launch_description():
     config = os.path.join(share, 'config', 'calibration.yaml')
     poses = os.path.join(share, 'config', 'poses.yaml')
     return LaunchDescription([
-        DeclareLaunchArgument('extrinsics_enabled', default_value='true'),
-        DeclareLaunchArgument('web_enabled', default_value='true'),
+        DeclareLaunchArgument(
+            'extrinsics_enabled', default_value='true',
+            description='是否启动外参静态 TF 发布节点 (extrinsics_publisher)'),
+        DeclareLaunchArgument(
+            'web_enabled', default_value='true',
+            description='是否启动标定 Web 界面网关节点 (web_gateway)'),
         # 注意: 不要命名为 'config_file' —— 避免与其他 launch 的同名参数碰撞
-        DeclareLaunchArgument('calibration_config', default_value=config),
+        DeclareLaunchArgument(
+            'calibration_config', default_value=config,
+            description='标定服务端参数文件路径 (默认取包内 calibration.yaml)'),
         # 相机驱动不在此启动: 由 percipio_camera.launch.py 独立拉起
         # (bringup 则由 camera_enabled 统一管理)。
         Node(

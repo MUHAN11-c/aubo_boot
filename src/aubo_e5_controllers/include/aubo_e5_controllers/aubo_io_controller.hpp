@@ -122,27 +122,31 @@ public:
 
   controller_interface::InterfaceConfiguration state_interface_configuration() const override;
 
-  controller_interface::return_type update(const rclcpp::Time& time, const rclcpp::Duration& period) override;
+  controller_interface::return_type update(
+    const rclcpp::Time & time,
+    const rclcpp::Duration & period) override;
 
-  CallbackReturn on_configure(const rclcpp_lifecycle::State& previous_state) override;
+  CallbackReturn on_configure(const rclcpp_lifecycle::State & previous_state) override;
 
-  CallbackReturn on_activate(const rclcpp_lifecycle::State& previous_state) override;
+  CallbackReturn on_activate(const rclcpp_lifecycle::State & previous_state) override;
 
-  CallbackReturn on_deactivate(const rclcpp_lifecycle::State& previous_state) override;
+  CallbackReturn on_deactivate(const rclcpp_lifecycle::State & previous_state) override;
 
-  CallbackReturn on_cleanup(const rclcpp_lifecycle::State& previous_state) override;
+  CallbackReturn on_cleanup(const rclcpp_lifecycle::State & previous_state) override;
 
   CallbackReturn on_init() override;
 
 private:
   // 控制器未激活时拒绝服务请求。
   // 控制器处于活动状态、请求可继续处理时返回 true。
-  template <typename ResponseT>
-  bool ensureActive(const ResponseT& resp);
+  template<typename ResponseT>
+  bool ensureActive(const ResponseT & resp);
 
-  bool setIO(aubo_msgs::srv::SetIO::Request::SharedPtr req, aubo_msgs::srv::SetIO::Response::SharedPtr resp);
+  bool setIO(
+    aubo_msgs::srv::SetIO::Request::SharedPtr req,
+    aubo_msgs::srv::SetIO::Response::SharedPtr resp);
 
-  void publishIO(const rclcpp::Time& time);
+  void publishIO(const rclcpp::Time & time);
 
   void publishRobotStatus();
 
@@ -154,7 +158,7 @@ private:
   // 事件/健康上报：/diagnostics（1Hz 节流 + health 变化立即发）与
   // ~/events（event_type 变化时发一条 "type=<n> code=<n>"，transient_local
   // 持久，后启动的订阅者也能补到最后一条事件）。
-  void publishDiagnostics(const rclcpp::Time& time);
+  void publishDiagnostics(const rclcpp::Time & time);
   void publishEvents();
 
   /**
@@ -168,9 +172,11 @@ private:
   // 在 ros2_control 实时循环中发布，因此全部用非阻塞 try_publish 包裹，防止控制器超时（overrun）
   std::shared_ptr<realtime_tools::RealtimePublisher<aubo_msgs::msg::IOState>> io_pub_;
   std::shared_ptr<realtime_tools::RealtimePublisher<aubo_msgs::msg::RobotStatus>> robot_status_pub_;
-  std::shared_ptr<realtime_tools::RealtimePublisher<std_msgs::msg::Int32MultiArray>> rib_status_pub_;
+  std::shared_ptr<realtime_tools::RealtimePublisher<std_msgs::msg::Int32MultiArray>>
+  rib_status_pub_;
   std::shared_ptr<realtime_tools::RealtimePublisher<aubo_msgs::msg::JointStatus>> joint_status_pub_;
-  std::shared_ptr<realtime_tools::RealtimePublisher<diagnostic_msgs::msg::DiagnosticArray>> diag_pub_;
+  std::shared_ptr<realtime_tools::RealtimePublisher<diagnostic_msgs::msg::DiagnosticArray>>
+  diag_pub_;
   std::shared_ptr<realtime_tools::RealtimePublisher<std_msgs::msg::String>> events_pub_;
 
   aubo_msgs::msg::IOState io_msg_;

@@ -1,4 +1,5 @@
-"""推理引擎 — YOLO 检测 + SAM 分割的生命周期管理。
+"""
+推理引擎 — YOLO 检测 + SAM 分割的生命周期管理.
 
 职责:
   封装 Ultralytics YOLO / SAM 的懒加载、推理与结果解析，为感知管线上游提供
@@ -28,13 +29,14 @@
 """
 
 import threading
+from typing import List, Tuple
+
 import numpy as np
-from typing import List, Optional, Tuple
-from pathlib import Path
 
 
 class InferenceEngine:
-    """管理 YOLO + SAM 的加载、推理和缓存。
+    """
+    管理 YOLO + SAM 的加载、推理和缓存.
 
     所有推理方法通过 self._lock 序列化，确保同一时刻仅一个线程占用 GPU 模型。
 
@@ -49,8 +51,8 @@ class InferenceEngine:
 
     def __init__(
         self,
-        yolo_model: str = "",
-        sam_model: str = "mobile_sam.pt",
+        yolo_model: str = '',
+        sam_model: str = 'mobile_sam.pt',
         yolo_conf: float = 0.3,
         yolo_iou: float = 0.5,
         sam_max_bboxes: int = 8,
@@ -63,7 +65,7 @@ class InferenceEngine:
         self._yolo_iou = yolo_iou
         self._sam_max_bboxes = sam_max_bboxes
         self._sam_min_area = sam_min_area
-        self._class_names = class_names or {0: "peach_bag", 1: "peach_nobag"}
+        self._class_names = class_names or {0: 'peach_bag', 1: 'peach_nobag'}
 
         # 懒加载: None 表示尚未 load 权重
         self._yolo = None
@@ -79,23 +81,26 @@ class InferenceEngine:
         try:
             import torch
             if torch.cuda.is_available():
-                return "cuda:0"
+                return 'cuda:0'
         except ImportError:
             pass
-        return "cpu"
+        return 'cpu'
     # ═══════════════════════════════════════════════════════════════
     # YOLO 检测
     # ═══════════════════════════════════════════════════════════════
 
     def detect(self, rgb: np.ndarray) -> List[dict]:
-        """对 RGB 图像运行 YOLO 目标检测 (管线步骤 ①)。
+        """
+        对 RGB 图像运行 YOLO 目标检测 (管线步骤 ①).
 
         Args:
             rgb: (H, W, 3) BGR 图像 (OpenCV 惯例)
 
-        Returns:
-            [{"class_id", "class_name", "bbox": (x1,y1,x2,y2), "conf"}, ...]
-            按置信度降序排列
+        Returns
+        -------
+        [{"class_id", "class_name", "bbox": (x1,y1,x2,y2), "conf"}, ...]
+        按置信度降序排列
+
         """
         with self._lock:
             if self._yolo is None:
@@ -121,13 +126,13 @@ class InferenceEngine:
                 cf = float(r.boxes.conf[i])
                 x1, y1, x2, y2 = r.boxes.xyxy[i].tolist()
                 dets.append({
-                    "class_id": ci,
-                    "class_name": self._class_names.get(ci, f"cls_{ci}"),
-                    "bbox": (int(x1), int(y1), int(x2), int(y2)),
-                    "conf": cf,
+                    'class_id': ci,
+                    'class_name': self._class_names.get(ci, f'cls_{ci}'),
+                    'bbox': (int(x1), int(y1), int(x2), int(y2)),
+                    'conf': cf,
                 })
 
-        dets.sort(key=lambda d: d["conf"], reverse=True)
+        dets.sort(key=lambda d: d['conf'], reverse=True)
         return dets
 
     # ═══════════════════════════════════════════════════════════════
@@ -139,7 +144,8 @@ class InferenceEngine:
         rgb: np.ndarray,
         bboxes: List[Tuple[int, int, int, int]],
     ) -> List[Tuple[np.ndarray, Tuple[int, int, int, int]]]:
-        """对 RGB 图像运行 SAM 实例分割 (管线步骤 ②)。
+        """
+        对 RGB 图像运行 SAM 实例分割 (管线步骤 ②).
 
         SAM 以 bbox 为 box prompt，在框内生成二值前景掩码。
 
@@ -147,8 +153,10 @@ class InferenceEngine:
             rgb: (H, W, 3) BGR 图像
             bboxes: [(x1, y1, x2, y2), ...]，超过 sam_max_bboxes 时截断
 
-        Returns:
-            [(binary_mask, bbox), ...]，面积 < sam_min_area 的掩码被丢弃
+        Returns
+        -------
+        [(binary_mask, bbox), ...]，面积 < sam_min_area 的掩码被丢弃
+
         """
         if not bboxes:
             return []
@@ -170,7 +178,7 @@ class InferenceEngine:
                 results = self._sam(
                     rgb, bboxes=bboxes, device=self._device, verbose=False)
             except Exception as e:
-                print(f"[InferenceEngine] SAM 分割失败: {e}")
+                print(f'[InferenceEngine] SAM 分割失败: {e}')
                 return []
 
         if not results or results[0].masks is None:
@@ -197,7 +205,8 @@ class InferenceEngine:
         min_conf: float = 0.5,
         target_classes: set = None,
     ) -> List[Tuple[np.ndarray, Tuple[int, int, int, int]]]:
-        """从 detect() 结果中筛选高置信度目标，再调用 segment()。
+        """
+        从 detect() 结果中筛选高置信度目标，再调用 segment().
 
         典型用法: detect → 过滤 peach_bag/peach_nobag → segment 得掩码供前景管线。
 
@@ -207,15 +216,17 @@ class InferenceEngine:
             min_conf: 置信度下限
             target_classes: 参与分割的 class_id 集合，None 时默认 {0, 1}
 
-        Returns:
-            同 segment()
+        Returns
+        -------
+        同 segment()
+
         """
         if target_classes is None:
             target_classes = {0, 1}  # peach_bag, peach_nobag
 
         bboxes = [
-            d["bbox"] for d in detections
-            if d["class_id"] in target_classes and d["conf"] > min_conf
+            d['bbox'] for d in detections
+            if d['class_id'] in target_classes and d['conf'] > min_conf
         ]
         return self.segment(rgb, bboxes)
 
@@ -224,7 +235,7 @@ class InferenceEngine:
     # ═══════════════════════════════════════════════════════════════
 
     def reset(self):
-        """释放 YOLO/SAM 缓存 (切换模型路径或数据集后调用)。线程安全。"""
+        """释放 YOLO/SAM 缓存 (切换模型路径或数据集后调用)。线程安全."""
         with self._lock:
             self._yolo = None
             self._sam = None

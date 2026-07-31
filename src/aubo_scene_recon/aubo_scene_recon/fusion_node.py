@@ -1,22 +1,9 @@
-"""recon_fusion_node — Open3D 场景融合（默认点云；可选 TSDF RGB-D）。"""
+"""recon_fusion_node — Open3D 场景融合（默认点云；可选 TSDF RGB-D）."""
 
 from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-
-import numpy as np
-import open3d as o3d
-import rclpy
-from cv_bridge import CvBridge
-from message_filters import ApproximateTimeSynchronizer, Subscriber
-from rclpy.duration import Duration
-from rclpy.node import Node
-from rclpy.time import Time
-from sensor_msgs.msg import CameraInfo, Image, PointCloud2
-from std_msgs.msg import Header, String
-from std_srvs.srv import Trigger
-from tf2_ros import Buffer, TransformException, TransformListener
 
 from aubo_scene_recon.backends import create_backend
 from aubo_scene_recon.backends.tsdf_volume import TsdfBackend
@@ -25,30 +12,85 @@ from aubo_scene_recon.pc_utils import (
     make_pointcloud2,
     transform_msg_to_matrix,
 )
+from cv_bridge import CvBridge
+from message_filters import ApproximateTimeSynchronizer, Subscriber
+import numpy as np
+import open3d as o3d
+from rcl_interfaces.msg import ParameterDescriptor
+import rclpy
+from rclpy.duration import Duration
+from rclpy.node import Node
+from rclpy.time import Time
+from sensor_msgs.msg import CameraInfo, Image, PointCloud2
+from std_msgs.msg import Header, String
+from std_srvs.srv import Trigger
+from tf2_ros import Buffer, TransformException, TransformListener
 
 
 class ReconFusionNode(Node):
     def __init__(self) -> None:
         super().__init__('recon_fusion_node')
 
-        self.declare_parameter('backend', 'open3d')
-        self.declare_parameter('map_frame', 'base_link')
-        self.declare_parameter('pointcloud_topic', '/camera/depth_registered/points')
-        self.declare_parameter('color_topic', '/camera/color/image_raw')
-        self.declare_parameter('depth_topic', '/camera/depth/image_raw')
-        self.declare_parameter('color_info_topic', '/camera/color/camera_info')
-        self.declare_parameter('voxel_size', 0.005)
-        self.declare_parameter('sdf_trunc', 0.04)
-        self.declare_parameter('depth_scale', 4000.0)
-        self.declare_parameter('min_range', 0.2)
-        self.declare_parameter('max_range', 1.5)
-        self.declare_parameter('tf_timeout_sec', 0.1)
-        self.declare_parameter('publish_period_sec', 0.5)
-        self.declare_parameter('status_period_sec', 1.0)
-        self.declare_parameter('max_map_points', 2_000_000)
-        self.declare_parameter('outlier_every_n', 5)
-        self.declare_parameter('save_dir', '')
-        self.declare_parameter('no_cloud_warn_sec', 5.0)
+        self.declare_parameter(
+            'backend', 'open3d',
+            ParameterDescriptor(
+                description='融合后端：open3d（点云累加）或 tsdf（RGB-D TSDF）'))
+        self.declare_parameter(
+            'map_frame', 'base_link',
+            ParameterDescriptor(description='地图坐标系（融合与发布的参考系）'))
+        self.declare_parameter(
+            'pointcloud_topic', '/camera/depth_registered/points',
+            ParameterDescriptor(description='输入彩色点云话题（open3d 后端）'))
+        self.declare_parameter(
+            'color_topic', '/camera/color/image_raw',
+            ParameterDescriptor(description='彩色图像话题（tsdf 后端）'))
+        self.declare_parameter(
+            'depth_topic', '/camera/depth/image_raw',
+            ParameterDescriptor(
+                description='深度图像话题（tsdf 后端，需 16UC1 且与彩色同分辨率）'))
+        self.declare_parameter(
+            'color_info_topic', '/camera/color/camera_info',
+            ParameterDescriptor(description='彩色相机内参话题（tsdf 后端）'))
+        self.declare_parameter(
+            'voxel_size', 0.005,
+            ParameterDescriptor(description='体素下采样边长（m），0 表示不下采样'))
+        self.declare_parameter(
+            'sdf_trunc', 0.04,
+            ParameterDescriptor(description='TSDF 截断距离（m，tsdf 后端）'))
+        self.declare_parameter(
+            'depth_scale', 4000.0,
+            ParameterDescriptor(
+                description='深度比例：深度(m)=原始值/depth_scale（Percipio 常 4000）'))
+        self.declare_parameter(
+            'min_range', 0.2,
+            ParameterDescriptor(description='最小有效深度（m），近于此值的点丢弃'))
+        self.declare_parameter(
+            'max_range', 3.0,
+            ParameterDescriptor(description='最大有效深度（m），兼作 TSDF depth_trunc'))
+        self.declare_parameter(
+            'tf_timeout_sec', 0.5,
+            ParameterDescriptor(
+                description='TF 查询超时（秒）；相机 HW 时间戳超前时回退最新 TF'))
+        self.declare_parameter(
+            'publish_period_sec', 0.5,
+            ParameterDescriptor(description='累积地图点云发布周期（秒）'))
+        self.declare_parameter(
+            'status_period_sec', 1.0,
+            ParameterDescriptor(description='状态字符串发布周期（秒）'))
+        self.declare_parameter(
+            'max_map_points', 2_000_000,
+            ParameterDescriptor(description='地图点数上限，超限自动加大体素压缩'))
+        self.declare_parameter(
+            'outlier_every_n', 5,
+            ParameterDescriptor(description='每 N 帧做一次统计离群点滤波，0 关闭'))
+        self.declare_parameter(
+            'save_dir', '',
+            ParameterDescriptor(
+                description='地图保存目录；空串回退到 <进程CWD>/recon_maps'))
+        self.declare_parameter(
+            'no_cloud_warn_sec', 5.0,
+            ParameterDescriptor(
+                description='启动后超过该时长仍无点云/RGB-D 输入则告警（秒）'))
 
         self.backend_name = str(self.get_parameter('backend').value).strip().lower()
         self.map_frame = self.get_parameter('map_frame').value
@@ -121,7 +163,8 @@ class ReconFusionNode(Node):
             f'map_frame={self.map_frame} save_dir={self.save_dir}')
 
     def _lookup_T(self, frame_id: str, stamp) -> np.ndarray | None:
-        """查 map←camera。
+        """
+        查 map←camera.
 
         相机用设备 HW 时间戳，常比机器人 TF（系统时间）略超前，严格按 stamp
         会报 extrapolation into the future 并丢帧，重建就会缺块/错位。

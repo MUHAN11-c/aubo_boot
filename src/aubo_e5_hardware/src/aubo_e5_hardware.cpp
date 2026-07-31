@@ -1,3 +1,31 @@
+// Copyright 2026, aubo_e5_ros2_ws authors
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
+//
+//    * Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//
+//    * Neither the name of the copyright holder nor the names of its
+//      contributors may be used to endorse or promote products derived from
+//      this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+
 // ============================================================================
 // aubo_e5_hardware.cpp —— AUBO E5 机械臂 ros2_control SystemInterface 插件
 // （旧版 SDK 1.3.1，TCP2CAN 位置流 + RIB 流量控制）。
@@ -84,7 +112,7 @@ std::vector<double> parseDoubleList(const std::string & csv)
   return out;
 }
 
-bool parseBool(const std::string & value) { return value == "true" || value == "1"; }
+bool parseBool(const std::string & value) {return value == "true" || value == "1";}
 
 // 提取 IO 名称末尾的数字（"U_DI_12" -> 12），蓝本同款辅助函数。
 int parseIoPin(const std::string & name, int fallback)
@@ -102,7 +130,7 @@ int parseIoPin(const std::string & name, int fallback)
 // 权威关节顺序（方案 A.2）<=> SDK 数组下标 0..5。
 const std::array<std::string, AuboE5Hardware::kNumJoints> AuboE5Hardware::kJointNames = {
   "shoulder_joint", "upperArm_joint", "foreArm_joint",
-  "wrist1_joint",   "wrist2_joint",   "wrist3_joint"};
+  "wrist1_joint", "wrist2_joint", "wrist3_joint"};
 
 // 速度换算（方案 A.6）：jointSpeedMoto 是电机侧 RPM，转关节 rad/s 需乘
 // (2*pi/60)/减速比；E5 前 3 个大关节减速比 121，后 3 个小关节 101。
@@ -130,7 +158,9 @@ AuboE5Hardware::~AuboE5Hardware()
 hardware_interface::CallbackReturn AuboE5Hardware::on_init(
   const hardware_interface::HardwareComponentInterfaceParams & params)
 {
-  if (hardware_interface::SystemInterface::on_init(params) != hardware_interface::CallbackReturn::SUCCESS) {
+  if (hardware_interface::SystemInterface::on_init(params) !=
+    hardware_interface::CallbackReturn::SUCCESS)
+  {
     return hardware_interface::CallbackReturn::ERROR;
   }
 
@@ -175,20 +205,24 @@ bool AuboE5Hardware::validateInterfaceLayout() const
       return false;
     }
     const auto has_if = [](const auto & ifs, const std::string & name) {
-        return std::any_of(ifs.begin(), ifs.end(), [&](const auto & obj) { return obj.name == name; });
+        return std::any_of(ifs.begin(), ifs.end(), [&](const auto & obj) {
+                   return obj.name == name;
+          });
       };
     if (!has_if(joint.command_interfaces, hardware_interface::HW_IF_POSITION) ||
       !has_if(joint.state_interfaces, hardware_interface::HW_IF_POSITION) ||
       !has_if(joint.state_interfaces, hardware_interface::HW_IF_VELOCITY))
     {
       RCLCPP_ERROR(
-        rclcpp::get_logger("AuboE5Hardware"), "joint '%s' missing position command/state or velocity state",
+        rclcpp::get_logger("AuboE5Hardware"),
+          "joint '%s' missing position command/state or velocity state",
         joint.name.c_str());
       return false;
     }
   }
 
-  const auto find_gpio = [this](const std::string & name) -> const hardware_interface::ComponentInfo * {
+  const auto find_gpio =
+    [this](const std::string & name) -> const hardware_interface::ComponentInfo * {
       for (const auto & gpio : info_.gpios) {
         if (gpio.name == name) {
           return &gpio;
@@ -197,7 +231,7 @@ bool AuboE5Hardware::validateInterfaceLayout() const
       return nullptr;
     };
   const auto has_if = [](const auto & ifs, const std::string & name) {
-      return std::any_of(ifs.begin(), ifs.end(), [&](const auto & obj) { return obj.name == name; });
+      return std::any_of(ifs.begin(), ifs.end(), [&](const auto & obj) {return obj.name == name;});
     };
 
   const auto * traj = find_gpio("trajectory_passthrough");
@@ -206,7 +240,9 @@ bool AuboE5Hardware::validateInterfaceLayout() const
     return false;
   }
   for (std::size_t i = 0; i < kNumJoints; ++i) {
-    for (const auto * prefix : {"setpoint_positions_", "setpoint_velocities_", "setpoint_accelerations_"}) {
+    for (const auto * prefix : {"setpoint_positions_", "setpoint_velocities_",
+        "setpoint_accelerations_"})
+    {
       if (!has_if(traj->command_interfaces, std::string(prefix) + std::to_string(i))) {
         RCLCPP_ERROR(
           rclcpp::get_logger("AuboE5Hardware"), "trajectory_passthrough missing %s%zu", prefix, i);
@@ -224,7 +260,8 @@ bool AuboE5Hardware::validateInterfaceLayout() const
 
   const auto * scaling = find_gpio("speed_scaling");
   if (scaling == nullptr || !has_if(scaling->state_interfaces, "speed_scaling_factor")) {
-    RCLCPP_ERROR(rclcpp::get_logger("AuboE5Hardware"), "gpio 'speed_scaling/speed_scaling_factor' missing");
+    RCLCPP_ERROR(rclcpp::get_logger("AuboE5Hardware"),
+        "gpio 'speed_scaling/speed_scaling_factor' missing");
     return false;
   }
 
@@ -284,7 +321,9 @@ bool AuboE5Hardware::validateInterfaceLayout() const
       }
     }
   }
-  for (const auto * name : {"send_queue_points", "send_rate_pps", "event_type", "event_code", "health"}) {
+  for (const auto * name : {"send_queue_points", "send_rate_pps", "event_type", "event_code",
+      "health"})
+  {
     if (!has_if(io->state_interfaces, name)) {
       RCLCPP_ERROR(rclcpp::get_logger("AuboE5Hardware"), "aubo_io missing state '%s'", name);
       return false;
@@ -424,7 +463,8 @@ std::vector<hardware_interface::StateInterface> AuboE5Hardware::export_state_int
       "aubo_io", "joint_temp_" + std::to_string(i), &io_joint_temp_state_[i]));
   }
   state_interfaces.emplace_back(
-    hardware_interface::StateInterface("aubo_io", "send_queue_points", &io_send_queue_points_state_));
+    hardware_interface::StateInterface("aubo_io", "send_queue_points",
+      &io_send_queue_points_state_));
   state_interfaces.emplace_back(
     hardware_interface::StateInterface("aubo_io", "send_rate_pps", &io_send_rate_pps_state_));
   // 事件/健康上报（SDK RobotEventInfo 最近一次事件 + health_ 原值）。
@@ -783,10 +823,10 @@ hardware_interface::CallbackReturn AuboE5Hardware::on_error(
     log,
     "on_error summary: read_error_reason=%d (%s), health=%d, snapshot_age_ms=%lld, "
     "read_box_misses=%llu, last_event=%s(%d) code=%d, dropped_events=%llu",
-    reason, reason_text, health, static_cast<long long>(age_ms),
-    static_cast<unsigned long long>(box_misses),
+    reason, reason_text, health, static_cast<long long>(age_ms),  // NOLINT(runtime/int)
+    static_cast<unsigned long long>(box_misses),  // NOLINT(runtime/int)
     (last_event >= 0) ? (event_name ? event_name : "unknown") : "none", last_event,
-    last_event_code, static_cast<unsigned long long>(dropped_events));
+    last_event_code, static_cast<unsigned long long>(dropped_events));  // NOLINT(runtime/int)
 
   teardown();
   RCLCPP_INFO(log, "on_error OK (teardown done)");
@@ -1053,7 +1093,10 @@ hardware_interface::return_type AuboE5Hardware::write(
 // ============================================================================
 void AuboE5Hardware::sendLoop()
 {
-  using namespace std::chrono;
+  using std::chrono::duration_cast;
+  using std::chrono::microseconds;
+  using std::chrono::milliseconds;
+  using std::chrono::steady_clock;
   const auto log = rclcpp::get_logger("AuboE5Hardware.sendLoop");
 
   // EMA 补偿档位的批量下限由 batch_min/batch_max 推导，使蓝本默认值
@@ -1256,7 +1299,8 @@ void AuboE5Hardware::sendLoop()
         const int ret = conn_control_.robotServiceSetRobotPosData2Canbus(batch);
         if (ret == aubo_robot_namespace::InterfaceCallSuccCode) {
           const double ms = duration_cast<microseconds>(steady_clock::now() - t0).count() / 1000.0;
-          ema_ms = (ema_ms <= 0.0) ? ms : ((1.0 - params_.ema_alpha) * ema_ms + params_.ema_alpha * ms);
+          ema_ms = (ema_ms <=
+            0.0) ? ms : ((1.0 - params_.ema_alpha) * ema_ms + params_.ema_alpha * ms);
           ++sent_ok;
           sent_since_metrics += batch.size();
           pending_batch.clear();
@@ -1272,7 +1316,7 @@ void AuboE5Hardware::sendLoop()
             // 非静态意味着必须经由某个连接实例调用 —— 用 conn_control_
             // （本线程独占），无论其内部是否触网，线程归属都自洽。
             RCLCPP_WARN(log, "SetRobotPosData2Canbus failed #%llu (ret=%d: %s)",
-                        static_cast<unsigned long long>(send_fail), ret,
+                        static_cast<unsigned long long>(send_fail), ret,  // NOLINT(runtime/int)
                         conn_control_.getErrDescByCode(
                           static_cast<aubo_robot_namespace::RobotErrorCode>(ret)).c_str());
           }
@@ -1295,7 +1339,8 @@ void AuboE5Hardware::sendLoop()
       RCLCPP_INFO(
         log, "rib=%d queue=%zu rate=%.0f pts/s ema=%.1fms ok=%llu fail=%llu", rib,
         send_queue_.size_approx(), rate, ema_ms,
-        static_cast<unsigned long long>(sent_ok), static_cast<unsigned long long>(send_fail));
+        static_cast<unsigned long long>(sent_ok),  // NOLINT(runtime/int)
+        static_cast<unsigned long long>(send_fail));  // NOLINT(runtime/int)
       sent_since_metrics = 0;
       last_metrics = now;
     }
@@ -1310,8 +1355,9 @@ void AuboE5Hardware::sendLoop()
     }
   }
   RCLCPP_INFO(
-    log, "sendLoop exit (ok=%llu fail=%llu)", static_cast<unsigned long long>(sent_ok),
-    static_cast<unsigned long long>(send_fail));
+    log, "sendLoop exit (ok=%llu fail=%llu)",
+    static_cast<unsigned long long>(sent_ok),  // NOLINT(runtime/int)
+    static_cast<unsigned long long>(send_fail));  // NOLINT(runtime/int)
 }
 
 // 查 RIB 板载缓冲水位（macTargetPosDataSize，单位见 rib_level 说明）。
@@ -1406,13 +1452,13 @@ void AuboE5Hardware::quinticInterpolate(
     const double h = curr.pos[i] - last.pos[i];
     const double a3 =
       0.5 / T3 * (20.0 * h - (8.0 * curr.vel[i] + 12.0 * last.vel[i]) * T -
-                  (3.0 * last.acc[i] - curr.acc[i]) * T2);
+      (3.0 * last.acc[i] - curr.acc[i]) * T2);
     const double a4 =
       0.5 / T4 * (-30.0 * h + (14.0 * curr.vel[i] + 16.0 * last.vel[i]) * T +
-                  (3.0 * last.acc[i] - 2.0 * curr.acc[i]) * T2);
+      (3.0 * last.acc[i] - 2.0 * curr.acc[i]) * T2);
     const double a5 =
       0.5 / T5 * (12.0 * h - 6.0 * (curr.vel[i] + last.vel[i]) * T +
-                  (curr.acc[i] - last.acc[i]) * T2);
+      (curr.acc[i] - last.acc[i]) * T2);
     out.joint_pos[i] = last.pos[i] + a1 * t + a2 * t2 + a3 * t3 + a4 * t4 + a5 * t5;
     out.joint_vel[i] = a1 + 2.0 * a2 * t + 3.0 * a3 * t2 + 4.0 * a4 * t3 + 5.0 * a5 * t4;
     out.joint_acc[i] = 2.0 * a2 + 6.0 * a3 * t + 12.0 * a4 * t2 + 20.0 * a5 * t3;
@@ -1546,7 +1592,8 @@ void AuboE5Hardware::handleIoCommands()
     if (std::isnan(v)) {
       continue;
     }
-    bool ok = conn_status_.robotServiceSetBoardIOStatus(ns::RobotBoardUserAO, static_cast<int>(i), v) ==
+    bool ok = conn_status_.robotServiceSetBoardIOStatus(ns::RobotBoardUserAO, static_cast<int>(i),
+        v) ==
       ns::InterfaceCallSuccCode;
     if (ok) {
       double readback = 0.0;
@@ -1716,7 +1763,8 @@ void AuboE5Hardware::jointStatusCallback(
     snap.pos[static_cast<std::size_t>(i)] = static_cast<double>(status[i].jointPosJ);
     snap.vel_moto[static_cast<std::size_t>(i)] = static_cast<double>(status[i].jointSpeedMoto);
     snap.tag_pos[static_cast<std::size_t>(i)] = static_cast<double>(status[i].jointTagPosJ);
-    snap.tag_vel_moto[static_cast<std::size_t>(i)] = static_cast<double>(status[i].jointTagSpeedMoto);
+    snap.tag_vel_moto[static_cast<std::size_t>(i)] =
+      static_cast<double>(status[i].jointTagSpeedMoto);
     snap.current_i[static_cast<std::size_t>(i)] = static_cast<double>(status[i].jointCurrentI);
     snap.temp[static_cast<std::size_t>(i)] = static_cast<double>(status[i].jointCurTemp);
     snap.err[static_cast<std::size_t>(i)] = static_cast<int>(status[i].jointErrorNum);
@@ -1770,8 +1818,10 @@ const char * AuboE5Hardware::eventToString(int type)
     case ns::RobotEvent_softEmergency: return "RobotEvent_softEmergency(软急停)";
     case ns::RobotEvent_exitSoftEmergency: return "RobotEvent_exitSoftEmergency(退出软急停)";
     case ns::RobotEvent_collision: return "RobotEvent_collision(碰撞)";
-    case ns::RobotEvent_collisionStatusChanged: return "RobotEvent_collisionStatusChanged(碰撞状态改变)";
-    case ns::RobotEvent_tcpParametersSucc: return "RobotEvent_tcpParametersSucc(工具动力学参数设置成功)";
+    case ns::RobotEvent_collisionStatusChanged: return
+        "RobotEvent_collisionStatusChanged(碰撞状态改变)";
+    case ns::RobotEvent_tcpParametersSucc: return
+        "RobotEvent_tcpParametersSucc(工具动力学参数设置成功)";
     case ns::RobotEvent_powerChanged: return "RobotEvent_powerChanged(电源开关状态改变)";
     case ns::RobotEvent_ArmPowerOff: return "RobotEvent_ArmPowerOff(机械臂电源关闭)";
     case ns::RobotEvent_mountingPoseChanged: return "RobotEvent_mountingPoseChanged(安装位置改变)";
@@ -1781,37 +1831,57 @@ const char * AuboE5Hardware::eventToString(int type)
     case ns::RobotEvent_currentAlarm: return "RobotEvent_currentAlarm(电流异常)";
     case ns::RobotEvent_toolioError: return "RobotEvent_toolioError(工具端错误)";
     case ns::RobotEvent_robotStartupPhase: return "RobotEvent_robotStartupPhase(启动阶段)";
-    case ns::RobotEvent_robotStartupDoneResult: return "RobotEvent_robotStartupDoneResult(启动完成结果)";
+    case ns::RobotEvent_robotStartupDoneResult: return
+        "RobotEvent_robotStartupDoneResult(启动完成结果)";
     case ns::RobotEvent_robotShutdownDone: return "RobotEvent_robotShutdownDone(关机结果)";
     case ns::RobotEvent_atTrackTargetPos: return "RobotEvent_atTrackTargetPos(轨迹运动到位)";
     case ns::RobotSetPowerOnDone: return "RobotSetPowerOnDone(设置电源状态完成)";
     case ns::RobotReleaseBrakeDone: return "RobotReleaseBrakeDone(刹车释放完成)";
-    case ns::RobotEvent_robotControllerStateChaned: return "RobotEvent_robotControllerStateChaned(控制状态改变)";
-    case ns::RobotEvent_robotControllerError: return "RobotEvent_robotControllerError(控制错误/算法规划问题)";
+    case ns::RobotEvent_robotControllerStateChaned: return
+        "RobotEvent_robotControllerStateChaned(控制状态改变)";
+    case ns::RobotEvent_robotControllerError: return
+        "RobotEvent_robotControllerError(控制错误/算法规划问题)";
     case ns::RobotEvent_socketDisconnected: return "RobotEvent_socketDisconnected(socket断开连接)";
     case ns::RobotEvent_robotControlException: return "RobotEvent_robotControlException(控制异常)";
     case ns::RobotEvent_trackPlayInterrupte: return "RobotEvent_trackPlayInterrupte(轨迹回放中断)";
-    case ns::RobotEvent_staticCollisionStatusChanged: return "RobotEvent_staticCollisionStatusChanged(静态碰撞状态改变)";
+    case ns::RobotEvent_staticCollisionStatusChanged: return
+        "RobotEvent_staticCollisionStatusChanged(静态碰撞状态改变)";
     case ns::RobotEvent_MountingPoseWarning: return "RobotEvent_MountingPoseWarning(安装位置警告)";
-    case ns::RobotEvent_MacDataInterruptWarning: return "RobotEvent_MacDataInterruptWarning(Mac数据中断警告)";
+    case ns::RobotEvent_MacDataInterruptWarning: return
+        "RobotEvent_MacDataInterruptWarning(Mac数据中断警告)";
     case ns::RobotEvent_ToolIoError: return "RobotEvent_ToolIoError(工具IO错误)";
-    case ns::RobotEvent_InterfacBoardSafeIoEvent: return "RobotEvent_InterfacBoardSafeIoEvent(接口板安全IO事件)";
+    case ns::RobotEvent_InterfacBoardSafeIoEvent: return
+        "RobotEvent_InterfacBoardSafeIoEvent(接口板安全IO事件)";
     case ns::RobotEvent_RobotHandShakeSucc: return "RobotEvent_RobotHandShakeSucc(握手成功)";
     case ns::RobotEvent_RobotHandShakeFailed: return "RobotEvent_RobotHandShakeFailed(握手失败)";
-    case ns::RobotEvent_RobotErrorInfoNotify: return "RobotEvent_RobotErrorInfoNotify(错误信息通知)";
-    case ns::RobotEvent_InterfacBoardDIChanged: return "RobotEvent_InterfacBoardDIChanged(接口板DI改变)";
-    case ns::RobotEvent_InterfacBoardDOChanged: return "RobotEvent_InterfacBoardDOChanged(接口板DO改变)";
-    case ns::RobotEvent_InterfacBoardAIChanged: return "RobotEvent_InterfacBoardAIChanged(接口板AI改变)";
-    case ns::RobotEvent_InterfacBoardAOChanged: return "RobotEvent_InterfacBoardAOChanged(接口板AO改变)";
-    case ns::RobotEvent_UpdateJoint6Rot360Flag: return "RobotEvent_UpdateJoint6Rot360Flag(关节6旋转360标志更新)";
-    case ns::RobotEvent_RobotMoveControlDone: return "RobotEvent_RobotMoveControlDone(运动控制完成)";
-    case ns::RobotEvent_RobotMoveControlStopDone: return "RobotEvent_RobotMoveControlStopDone(运动停止完成)";
-    case ns::RobotEvent_RobotMoveControlPauseDone: return "RobotEvent_RobotMoveControlPauseDone(运动暂停完成)";
-    case ns::RobotEvent_RobotMoveControlContinueDone: return "RobotEvent_RobotMoveControlContinueDone(运动继续完成)";
-    case ns::RobotEvent_RobotSwitchToOnlineMaster: return "RobotEvent_RobotSwitchToOnlineMaster(切换在线主模式)";
-    case ns::RobotEvent_RobotSwitchToOnlineSlave: return "RobotEvent_RobotSwitchToOnlineSlave(切换在线从模式)";
-    case ns::RobotEvent_ConveyorTrackRobotStartup: return "RobotEvent_ConveyorTrackRobotStartup(传送带跟踪启动)";
-    case ns::RobotEvent_ConveyorTrackRobotCatchup: return "RobotEvent_ConveyorTrackRobotCatchup(传送带跟踪追上)";
+    case ns::RobotEvent_RobotErrorInfoNotify: return
+        "RobotEvent_RobotErrorInfoNotify(错误信息通知)";
+    case ns::RobotEvent_InterfacBoardDIChanged: return
+        "RobotEvent_InterfacBoardDIChanged(接口板DI改变)";
+    case ns::RobotEvent_InterfacBoardDOChanged: return
+        "RobotEvent_InterfacBoardDOChanged(接口板DO改变)";
+    case ns::RobotEvent_InterfacBoardAIChanged: return
+        "RobotEvent_InterfacBoardAIChanged(接口板AI改变)";
+    case ns::RobotEvent_InterfacBoardAOChanged: return
+        "RobotEvent_InterfacBoardAOChanged(接口板AO改变)";
+    case ns::RobotEvent_UpdateJoint6Rot360Flag: return
+        "RobotEvent_UpdateJoint6Rot360Flag(关节6旋转360标志更新)";
+    case ns::RobotEvent_RobotMoveControlDone: return
+        "RobotEvent_RobotMoveControlDone(运动控制完成)";
+    case ns::RobotEvent_RobotMoveControlStopDone: return
+        "RobotEvent_RobotMoveControlStopDone(运动停止完成)";
+    case ns::RobotEvent_RobotMoveControlPauseDone: return
+        "RobotEvent_RobotMoveControlPauseDone(运动暂停完成)";
+    case ns::RobotEvent_RobotMoveControlContinueDone: return
+        "RobotEvent_RobotMoveControlContinueDone(运动继续完成)";
+    case ns::RobotEvent_RobotSwitchToOnlineMaster: return
+        "RobotEvent_RobotSwitchToOnlineMaster(切换在线主模式)";
+    case ns::RobotEvent_RobotSwitchToOnlineSlave: return
+        "RobotEvent_RobotSwitchToOnlineSlave(切换在线从模式)";
+    case ns::RobotEvent_ConveyorTrackRobotStartup: return
+        "RobotEvent_ConveyorTrackRobotStartup(传送带跟踪启动)";
+    case ns::RobotEvent_ConveyorTrackRobotCatchup: return
+        "RobotEvent_ConveyorTrackRobotCatchup(传送带跟踪追上)";
     case ns::RobotEvent_exceptEvent: return "RobotEvent_exceptEvent(异常事件)";
     case ns::RobotEventInvalid: return "RobotEventInvalid(无效事件)";
     case ns::RobotEventMoveJConfigError: return "RobotEventMoveJConfigError(moveJ属性配置错误)";
@@ -1820,24 +1890,39 @@ const char * AuboE5Hardware::eventToString(int type)
     case ns::RobotEventInvailConfigError: return "RobotEventInvailConfigError(无效运动属性配置)";
     case ns::RobotEventWaitRobotStopped: return "RobotEventWaitRobotStopped(等待机器人停止)";
     case ns::RobotEventJointOutRange: return "RobotEventJointOutRange(超出关节运动范围)";
-    case ns::RobotEventFirstWaypointSetError: return "RobotEventFirstWaypointSetError(MODEP第一个路点设置错误)";
-    case ns::RobotEventConveyorTrackConfigError: return "RobotEventConveyorTrackConfigError(传送带跟踪配置错误)";
-    case ns::RobotEventConveyorTrackTrajectoryTypeError: return "RobotEventConveyorTrackTrajectoryTypeError(传送带轨迹类型错误)";
-    case ns::RobotEventRelativeTransformIKFailed: return "RobotEventRelativeTransformIKFailed(相对坐标变换逆解失败)";
+    case ns::RobotEventFirstWaypointSetError: return
+        "RobotEventFirstWaypointSetError(MODEP第一个路点设置错误)";
+    case ns::RobotEventConveyorTrackConfigError: return
+        "RobotEventConveyorTrackConfigError(传送带跟踪配置错误)";
+    case ns::RobotEventConveyorTrackTrajectoryTypeError: return
+        "RobotEventConveyorTrackTrajectoryTypeError(传送带轨迹类型错误)";
+    case ns::RobotEventRelativeTransformIKFailed: return
+        "RobotEventRelativeTransformIKFailed(相对坐标变换逆解失败)";
     case ns::RobotEventTeachModeCollision: return "RobotEventTeachModeCollision(示教模式碰撞)";
-    case ns::RobotEventextErnalToolConfigError: return "RobotEventextErnalToolConfigError(外部工具/手持工件配置错误)";
+    case ns::RobotEventextErnalToolConfigError: return
+        "RobotEventextErnalToolConfigError(外部工具/手持工件配置错误)";
     case ns::RobotEventTrajectoryAbnormal: return "RobotEventTrajectoryAbnormal(轨迹异常)";
-    case ns::RobotEventOnlineTrajectoryPlanError: return "RobotEventOnlineTrajectoryPlanError(在线轨迹规划失败)";
-    case ns::RobotEventOnlineTrajectoryTypeIIError: return "RobotEventOnlineTrajectoryTypeIIError(二型在线轨迹规划失败)";
+    case ns::RobotEventOnlineTrajectoryPlanError: return
+        "RobotEventOnlineTrajectoryPlanError(在线轨迹规划失败)";
+    case ns::RobotEventOnlineTrajectoryTypeIIError: return
+        "RobotEventOnlineTrajectoryTypeIIError(二型在线轨迹规划失败)";
     case ns::RobotEventIKFailed: return "RobotEventIKFailed(逆解失败)";
-    case ns::RobotEventAbnormalLimitProtect: return "RobotEventAbnormalLimitProtect(动力学限制保护)";
-    case ns::RobotEventConveyorTrackingFailed: return "RobotEventConveyorTrackingFailed(传送带跟踪失败)";
-    case ns::RobotEventConveyorOutWorkingRange: return "RobotEventConveyorOutWorkingRange(超出传送带工作范围)";
-    case ns::RobotEventTrajectoryJointOutOfRange: return "RobotEventTrajectoryJointOutOfRange(轨迹关节超出范围)";
-    case ns::RobotEventTrajectoryJointOverspeed: return "RobotEventTrajectoryJointOverspeed(轨迹关节超速)";
-    case ns::RobotEventOfflineTrajectoryPlanFailed: return "RobotEventOfflineTrajectoryPlanFailed(离线轨迹规划失败)";
-    case ns::RobotEventControllerIKFailed: return "RobotEventControllerIKFailed(控制器异常/逆解失败)";
-    case ns::RobotEventControllerStatusException: return "RobotEventControllerStatusException(控制器异常/状态异常)";
+    case ns::RobotEventAbnormalLimitProtect: return
+        "RobotEventAbnormalLimitProtect(动力学限制保护)";
+    case ns::RobotEventConveyorTrackingFailed: return
+        "RobotEventConveyorTrackingFailed(传送带跟踪失败)";
+    case ns::RobotEventConveyorOutWorkingRange: return
+        "RobotEventConveyorOutWorkingRange(超出传送带工作范围)";
+    case ns::RobotEventTrajectoryJointOutOfRange: return
+        "RobotEventTrajectoryJointOutOfRange(轨迹关节超出范围)";
+    case ns::RobotEventTrajectoryJointOverspeed: return
+        "RobotEventTrajectoryJointOverspeed(轨迹关节超速)";
+    case ns::RobotEventOfflineTrajectoryPlanFailed: return
+        "RobotEventOfflineTrajectoryPlanFailed(离线轨迹规划失败)";
+    case ns::RobotEventControllerIKFailed: return
+        "RobotEventControllerIKFailed(控制器异常/逆解失败)";
+    case ns::RobotEventControllerStatusException: return
+        "RobotEventControllerStatusException(控制器异常/状态异常)";
     case ns::RobotEventMoveEnterStopState: return "RobotEventMoveEnterStopState(运动进入stop阶段)";
     case ns::robot_event_unknown: return "robot_event_unknown(未知事件)";
     default: return nullptr;  // 未覆盖的数值由调用方按 "unknown(<n>)" 打印

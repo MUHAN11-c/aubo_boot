@@ -1,11 +1,8 @@
-"""Open3D 融合后端单元测试。"""
+"""Open3D 融合后端单元测试."""
 
 from __future__ import annotations
 
 from pathlib import Path
-
-import numpy as np
-import open3d as o3d
 
 from aubo_scene_recon.backends.cloud_accum import CloudAccumBackend
 from aubo_scene_recon.pc_utils import (
@@ -13,6 +10,8 @@ from aubo_scene_recon.pc_utils import (
     transform_points,
     voxel_downsample,
 )
+import numpy as np
+import open3d as o3d
 
 
 def test_transform_points_translation():

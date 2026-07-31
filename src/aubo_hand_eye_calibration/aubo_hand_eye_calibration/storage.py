@@ -20,7 +20,8 @@ SCHEMA_VERSION = 1
 
 
 def default_storage_directory():
-    """标定结果存储目录。
+    """
+    标定结果存储目录.
 
     优先级: AUBO_HAND_EYE_DIR 环境变量 > 项目内 <工作区根>/hand_eye/
     > ~/.ros/aubo_e5/hand_eye（布局无法识别时的兜底）。

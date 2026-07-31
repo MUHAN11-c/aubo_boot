@@ -28,7 +28,7 @@ methods》只规定**测量方法**，不规定限值；且其全部特性（位
 | abort 后静止漂移 | < 0.01 rad（2 s 窗口） | [test_trajectory_aborts_on_violation](https://github.com/UniversalRobots/Universal_Robots_ROS2_Driver/blob/humble/ur_robot_driver/test/integration_test_passthrough_controller.py) |
 | MoveIt 执行监控默认 | 时长 ≤ 1.1×标称 + 0.5 s；起点偏差 ≤ 0.01 rad | [trajectory_execution_manager.cpp](https://github.com/moveit/moveit2/blob/main/moveit_ros/planning/trajectory_execution_manager/src/trajectory_execution_manager.cpp)（`allowed_execution_duration_scaling=1.1`、`allowed_goal_duration_margin=0.5`、`allowed_start_tolerance=0.01`） |
 
-**本项目现状对照**：`src/aubo_e5_moveit_config/launch/moveit.launch.py:72-74` 将
+**本项目现状对照**：`src/aubo_e5_moveit_config/launch/moveit.launch.py:126-132` 将
 MoveIt 执行监控放宽为 **5.0× / 10 s / 0.15 rad**（passthrough 蓝本值，整段轨迹一次
 下发、硬件侧自行插补，耗时与 RIB 流控相关，余量须比流式 JTC 宽）。因此分析器同时
 给出 MoveIt 默认规则（1.1×+0.5 s）的判定，便于识别"在默认口径下会不会被 MoveIt

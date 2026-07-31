@@ -76,8 +76,13 @@
 ethtool -i enp130s0            # 驱动应为 r8126 / 10.017.00-NAPI
 ethtool -k enp130s0 | grep -E "gro|gso|tso"   # 应全 off
 dkms status | grep r8126       # 当前内核必须有已编译模块
-./build/diagnostics/runtime_probe 169.254.10.98 600 100   # 基线：0 失败，max <50ms
-./build/diagnostics/tcp2can_probe 169.254.10.98 30 8      # 基线：0 失败，max <200ms
+# 探针产物在 diagnostics/build/（二进制带 aubo_sdk_ 前缀）；SDK 按进程 CWD 读
+# ./config/auborobot.conf，须以 install share 目录为 CWD（同 run_tests.sh 约定）：
+(cd install/aubo_e5_hardware/share/aubo_e5_hardware && \
+  ../../../../diagnostics/build/aubo_sdk_runtime_probe 169.254.10.98 600 100)  # 基线：0 失败，max <50ms
+(cd install/aubo_e5_hardware/share/aubo_e5_hardware && \
+  ../../../../diagnostics/build/aubo_sdk_tcp2can_probe 169.254.10.98 30 8)     # 基线：0 失败，max <200ms
+# 或一键构建并跑全套探针（自动处理 CWD 与结果落盘）：./diagnostics/run_tests.sh
 ```
 
 基线超标时优先：重跑上面的 ethtool/governor 命令 → 重启控制柜 →

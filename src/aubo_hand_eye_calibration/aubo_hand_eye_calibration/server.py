@@ -177,7 +177,7 @@ class CalibrationServer(Node):
             'velocity_scaling', 0.1,
             ParameterDescriptor(description='MoveIt 速度缩放因子'))
         self.declare_parameter(
-            'acceleration_scaling', 0.15,
+            'acceleration_scaling', 0.1,
             ParameterDescriptor(description='MoveIt 加速度缩放因子'))
         self.declare_parameter(
             'planning_attempts', 5,

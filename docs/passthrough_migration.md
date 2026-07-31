@@ -38,6 +38,30 @@
 - 分析工具：`tools/passthrough_traj_client.py`、`tools/motion_analyzer.py`（run 模式）
   在 sim 实测通过（sine_shoulder 墙钟/标称比 1.08，终点误差 0，joint_states 200Hz）。
 
+## 后续演进
+
+- **2026-07-29 商业化交付结构重组**：`src_legacy/` 整体删除（见上文"归档"注记）；
+  文档分流为 `docs/`（现行）与 `docs/archive/`（历史参考）；新增交付打包脚本
+  `scripts/package_workspace.sh`。
+- **real 模式取消 RT 预检**（2026-07-29 起）：普通 generic 内核直接启动，不再要求
+  lowlatency/RT 内核与 SCHED_FIFO 预检（背景见 `docs/nic_driver_incident.md`
+  后续补记）；每次开机仍需手动关网卡 offload + 设 governor（命令见
+  `docs/nic_driver_incident.md`"持久化注意事项"）。
+- **2026-07-31 全项目 ROS 2 官方标准规范化**（commit `957d62a`）：
+  - 全部 11 个项目包接入 lint 测试：ament_cmake 包经 `ament_lint_auto`
+    （copyright/cpplint/uncrustify/lint_cmake/xmllint），ament_python 包带官方模板
+    `test_flake8.py`/`test_pep257.py`；`colcon test` 强制风格合规（C++ 100 列、
+    `*`/`&` 居中对齐、BSD copyright 头；Python 99 列、单引号）。厂商代码经
+    `vendor/AMENT_IGNORE` 跳过 lint，不影响编译。
+  - `aubo_e5_hardware` **刻意保留** Jazzy 已 deprecated 的旧式
+    `export_state_interfaces()`/`export_command_interfaces()` 导出——这是 UR 验证过、
+    能让硬件把 passthrough 状态机回写进 command 接口的写法；其
+    `CMakeLists.txt` 以 `-Wno-deprecated-declarations` 屏蔽告警，**不要"升级"为
+    新式接口**。
+  - 项目 Python 环境统一为工作区 venv `aubo_py3.12`（依赖锁定在根目录
+    `requirements.txt`，venv 内 numpy 必须 <2）；依赖 torch/open3d 的节点经包内
+    `scripts/` 包装脚本进 venv 运行，launch 一律用标准 `Node()`。
+
 ## 历史文档
 
 `docs/archive/` 下测试报告（NIC 事件之外的 SDK 2.5.3 测试、realtime 配置等）

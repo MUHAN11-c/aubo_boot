@@ -24,6 +24,9 @@ src/
 ├── aubo_e5_bringup/            # launch（唯一入口 bringup.launch.py）+ controllers.yaml
 ├── aubo_hand_eye_calibration/  # 手眼标定（17 预定义位姿 + 多算法求解 + Web 界面 +
 │                               #   unittest 测试套件）
+├── aubo_scene_recon/           # 点云场景重建（open3d/TSDF 双后端；venv 节点）
+├── peach_pose_msgs/            # 桃子位姿估计的自定义消息
+├── peach_pose_ros2/            # 桃子位姿感知（YOLO+MobileSAM+深度几何，CUDA venv 节点）
 └── percipio_camera/            # 相机驱动（厂商代码；launch 默认值已项目化）
 ```
 
@@ -36,6 +39,37 @@ colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
 ```
 
+## Python 环境（venv）
+
+工作区统一使用 `aubo_py3.12`（Python 3.12 venv，带 `--system-site-packages`）：
+
+```bash
+aubo_py3.12/bin/pip install -r requirements.txt   # 锁定的依赖（numpy<2 等，见文件头注释）
+```
+
+ROS 节点分两层运行（约定详见 `AGENTS.md` 第 2/8 节）：
+
+- **纯 ROS 节点**（aubo_hand_eye_calibration）：系统 python3（console_scripts + apt 依赖）
+- **torch/open3d 节点**（aubo_scene_recon、peach_pose_ros2）：经包内 `scripts/` 的
+  source 式包装脚本进 venv——`AUBO_PYTHON` 显式解释器 > 已激活的 venv > 自动
+  `source aubo_py3.12/bin/activate`；launch 一律标准 `Node()`，`ros2 run` 直接可用
+- **tools/ 脚本**：一律 `aubo_py3.12/bin/python tools/<脚本>` 运行
+
+注意：venv 内禁止装 opencv-python/scipy（会 shadow 系统版导致 cv_bridge 崩溃），
+numpy 必须保持 1.26.x（详见 `AGENTS.md` 第 9 节）。
+
+## 测试
+
+```bash
+source /opt/ros/jazzy/setup.bash
+colcon test && colcon test-result --verbose          # 全包 lint + 接入的测试（117 项）
+
+# 业务测试（venv 解释器）
+cd src/aubo_hand_eye_calibration && ../../aubo_py3.12/bin/python -m pytest test/ -q   # 15+2 例
+cd src/aubo_scene_recon && ../../aubo_py3.12/bin/python -m pytest test/ -q
+cd src/peach_pose_ros2 && PYTHONPATH=peach_pose_ros2:$PYTHONPATH ../../aubo_py3.12/bin/python -m pytest test/ -q
+```
+
 ## 三种运行模式
 
 通过 `hardware_mode` 切换（xacro 参数 + launch 参数）：
@@ -44,7 +78,7 @@ source install/setup.bash
 |---|---|---|---|
 | `mock` | `mock_components/GenericSystem` | `joint_trajectory_controller` | 标准 ros2_control 回归（MoveIt 同样映射到 JTC） |
 | `sim` | `aubo_e5_hardware/AuboE5SimHardware` | passthrough + IO | **passthrough 全链路闭环模拟**（无真机） |
-| `real` | `aubo_e5_hardware/AuboE5Hardware` | passthrough + IO + dashboard | 真机 |
+| `real`（默认） | `aubo_e5_hardware/AuboE5Hardware` | passthrough + IO + dashboard | 真机 |
 
 ```bash
 # mock：标准 JTC 链路
@@ -63,9 +97,22 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim moveit_enabled:
 # 自带 rsp + joint_state_publisher_gui，纯规划调试/可视化用）：
 ros2 launch aubo_e5_moveit_config moveit.launch.py
 
-# 叠加相机 / 手眼标定
-ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim \
-  camera_enabled:=true hand_eye_enabled:=true
+# 叠加手眼标定（相机与外参静态 TF 默认已随 bringup 启动；Web 界面需显式开）
+ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real \
+  hand_eye_enabled:=true hand_eye_web_enabled:=true
+
+# 注意：camera_enabled 默认 true——sim/mock 无相机时建议显式关闭：
+ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim camera_enabled:=false
+
+# 感知与重建（独立入口，均经 venv 包装脚本启动；详见各自 README）
+ros2 launch aubo_scene_recon recon.launch.py            # 点云场景重建（open3d/tsdf）
+ros2 launch peach_pose_ros2 peach_pose.launch.py        # 桃子位姿感知（YOLO+SAM）
+
+# 无相机时用离线数据集回放驱动 peach_pose_node 冒烟（独立测试工具，不随构建）
+aubo_py3.12/bin/python tools/peach_dataset_replayer.py --dataset <数据集根> [--limit N] [--loop]
+
+# 查看任意 launch 的全部参数及中文说明
+ros2 launch aubo_e5_bringup bringup.launch.py --show-args
 ```
 
 sim 插件行为与真机契约一致：传输状态机（0/1/2/3/4/5/6）、五次重采样、虚拟接口板每周期
@@ -141,6 +188,10 @@ hardware 参数（URDF `<param>`，见 `aubo_description/urdf/aubo_e5.ros2_contr
 
 ## 参考
 
+- `AGENTS.md` — 开发约定、部署坑点与安全规范（AI 代理向，但内容对人同样适用）
+- [docs/usage.md](docs/usage.md) — 完整命令手册与排障表
+- 包级 README：[手眼标定](src/aubo_hand_eye_calibration/README.md)、
+  [场景重建](src/aubo_scene_recon/README.md)、[桃子位姿](src/peach_pose_ros2/README.md)
 - 写法参考：UR `ur_controllers::PassthroughTrajectoryController`
   （GitHub: UniversalRobots/Universal_Robots_ROS2_Driver）
 - 行为蓝本：aubo_boot 实测驱动（本机 `/home/mu/Music/e`，不随交付分发）

@@ -86,9 +86,11 @@ src/                            # 参与构建的包
 │                               #   节点经 scripts/ 包装脚本启动，同 scene_recon 模式）
 ├── percipio_camera/            # 相机驱动（厂商代码，两处项目化改动：
 │                               #   ① launch 默认值：device_ip=169.254.10.110、
-│                               #   深度/点云默认关闭；② 新增 color_camera_info_file
-│                               #   参数，默认用 config/color_camera_info.yaml（棋盘
-│                               #   自标内参）覆盖设备 Flash 标称内参，传 '' 回退）
+│                               #   depth_enable=true、point_cloud_enable=false、
+│                               #   color_point_cloud_enable=true；② 新增
+│                               #   color_camera_info_file 参数，默认用
+│                               #   config/color_camera_info.yaml（棋盘自标内参）
+│                               #   覆盖设备 Flash 标称内参，传 '' 回退）
 
 tools/                          # 分析/测试脚本（不随 colcon 构建）：
                                 #   passthrough_traj_client.py（轨迹测试客户端）
@@ -164,12 +166,21 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real robot_ip:=<控
 ```
 
 可叠加 launch 参数（默认 `robot_ip=169.254.10.98`）：`moveit_enabled`（true，
-move_group + rviz2）、`camera_enabled`（false）、`hand_eye_enabled`（false）、
-`hand_eye_web_enabled`（true，仅 `hand_eye_enabled:=true` 时生效）。
+move_group + rviz2）、`camera_enabled`（true，启动 percipio 相机驱动；sim/mock
+无相机时建议显式 false）、`extrinsics_enabled`（true，手眼外参静态 TF
+wrist3_Link→camera_link）、`hand_eye_enabled`（false，标定采集/求解流程）、
+`hand_eye_web_enabled`（false，标定 Web 界面，仅 `hand_eye_enabled:=true` 时生效）。
 
 只起 MoveIt + rviz2（不起硬件，纯规划调试）：`ros2 launch aubo_e5_moveit_config
 moveit.launch.py`（自带 rsp + joint_state_publisher_gui；参数 `controllers_file`、
 `standalone_state_publishers`，bringup 集成时后者传 false）。
+
+感知/重建为独立入口（venv 包装脚本启动，约定见第 8 节）：
+`ros2 launch aubo_scene_recon recon.launch.py`（点云重建）、
+`ros2 launch peach_pose_ros2 peach_pose.launch.py`（桃子位姿，仅
+`python_executable` 一个参数，作为 `AUBO_PYTHON` 传入）；无相机冒烟用
+`aubo_py3.12/bin/python tools/peach_dataset_replayer.py --dataset <根>`。
+任意 launch 的全部参数及中文说明可用 `--show-args` 查看。
 
 sim 插件与真机契约一致：传输状态机、五次重采样、虚拟接口板 200Hz 每周期消费
 1 个 5ms 点、`rib_level`、abort 丢弃队列；执行耗时与真实轨迹一致，可提前暴露
@@ -201,11 +212,12 @@ cd src/peach_pose_ros2 && PYTHONPATH=peach_pose_ros2:$PYTHONPATH ../../aubo_py3.
    ③ SDK 通道（TCP2CAN）与相机一样独占，重开 bringup 前同样要先清。
 1. **sim 闭环冒烟**（改控制器/硬件代码后必做）：
    ```bash
-   ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim
+   ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim camera_enabled:=false
    aubo_py3.12/bin/python tools/passthrough_traj_client.py wave_shoulder 3
    aubo_py3.12/bin/python tools/passthrough_traj_client.py sine_shoulder      # 压测重采样/流控
    aubo_py3.12/bin/python tools/motion_analyzer.py run sine_shoulder   # 数据存 test_results/
    ```
+   （camera_enabled 默认 true；无相机时 sim 冒烟建议显式关闭，避免驱动刷屏报错。）
    已验证基准（2026-07-27，Jazzy）：三控制器 active；goal 执行成功（goal-hold
    confirmed）；执行中新 goal 正确抢占（旧 CANCELED、新 SUCCEEDED）；
    sine_shoulder 墙钟/标称比 1.08、终点误差 0、joint_states 200Hz。

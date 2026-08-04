@@ -1,0 +1,412 @@
+<?xml version="1.0"?>
+<robot name="架子式桃子采摘机器人总装4">
+
+  <!-- 虚拟根连杆：KDL 不支持根连杆带惯量，用无惯量的 base_footprint 作 TF 树根（REP-105） -->
+  <link name="base_footprint"/>
+
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/base_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="1.00000000 0.00000000 0.00000000 1.00000000"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.1464429 0.0020312 -0.142396" rpy="0 0 0" />
+      <mass value="196.9928677" />
+      <inertia ixx="4.3980832" ixy="-0.0011572" ixz="-0.0024354" iyy="11.4438345" iyz="-0.0021542" izz="13.3446757" />
+    </inertial>
+  </link>
+
+  <link name="right1_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/right1_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="1.00000000 0.54902000 0.00000000 1.00000000"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/right1_link.STL" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 -0.08047" rpy="0 0 0" />
+      <mass value="2.1306" />
+      <inertia ixx="0.0033864" ixy="0" ixz="0" iyy="0.0033864" iyz="0" izz="0.0043308" />
+    </inertial>
+  </link>
+
+  <link name="right2_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/right2_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="1.00000000 0.54901961 0.00000000 1.00000000"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/right2_link.STL" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 -0.08047" rpy="0 0 0" />
+      <mass value="2.1306481" />
+      <inertia ixx="0.0033864" ixy="0" ixz="0" iyy="0.0033864" iyz="0" izz="0.0043308" />
+    </inertial>
+  </link>
+
+  <link name="left1_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/left1_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="1.00000000 0.54901961 0.00000000 1.00000000"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/left1_link.STL" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 0.08047" rpy="0 0 0" />
+      <mass value="2.1306481" />
+      <inertia ixx="0.0033864" ixy="0" ixz="0" iyy="0.0033864" iyz="0" izz="0.0043308" />
+    </inertial>
+  </link>
+
+  <link name="left2_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/left2_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="1.00000000 0.54901961 0.00000000 1.00000000"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/left2_link.STL" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 0.08047" rpy="0 0 0" />
+      <mass value="2.1306481" />
+      <inertia ixx="0.0033864" ixy="0" ixz="0" iyy="0.0033864" iyz="0" izz="0.0043308" />
+    </inertial>
+  </link>
+
+  <link name="link1">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/link1.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.61568627 0.64313725 0.67450980 1.00000000"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/link1.STL" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.0001216 -0.0000721 0.4433465" rpy="0 0 0" />
+      <mass value="33.5976929" />
+      <inertia ixx="0.9014928" ixy="-0.0000331" ixz="-0.000085" iyy="0.9010152" iyz="-0.0000091" izz="0.1582769" />
+    </inertial>
+  </link>
+
+  <link name="link2">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/link2.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.61568627 0.64313725 0.67450980 1.00000000"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/link2.STL" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.002365 -0.0000007 0.3819323" rpy="0 0 0" />
+      <mass value="23.1376583" />
+      <inertia ixx="0.8063871" ixy="0.0012704" ixz="-0.0000001" iyy="0.7947931" iyz="0.0000001" izz="0.2797177" />
+    </inertial>
+  </link>
+
+  <link name="link3">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/link3.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="1.00000000 1.00000000 1.00000000 1.00000000"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/link3.STL" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.1037037 -0.0005206 -0.124123" rpy="0 0 0" />
+      <mass value="0.4310566" />
+      <inertia ixx="0.000523" ixy="-0.0000008" ixz="0.0000002" iyy="0.0006795" iyz="-0.0000001" izz="0.0003827" />
+    </inertial>
+  </link>
+
+  <link name="link4">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/link4.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.79216000 0.81961000 0.93333000 1.00000000"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/link4.STL" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.0074906 -0.031854 0.15501" rpy="0 0 0" />
+      <mass value="3.2005" />
+      <inertia ixx="0.19353" ixy="0.0000164" ixz="0.0000007" iyy="0.19429" iyz="-0.003156" izz="0.0038058" />
+    </inertial>
+  </link>
+
+  <link name="link5">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/link5.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.86666667 0.90980392 1.00000000 1.00000000"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/link5.STL" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.0109649 0.0060867 0.1084363" rpy="0 0 0" />
+      <mass value="0.5388368" />
+      <inertia ixx="0.0016443" ixy="-0.0000217" ixz="-0.0000031" iyy="0.0016085" iyz="0.0000012" izz="0.0002419" />
+    </inertial>
+  </link>
+
+  <link name="link6">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/link6.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.86666667 0.90980392 1.00000000 1.00000000"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://peach_gantry_description/meshes/link6.STL" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.0667896 0.1291973 -0.0039918" rpy="0 0 0" />
+      <mass value="1.1636596" />
+      <inertia ixx="0.0027843" ixy="0.0000145" ixz="0.0000323" iyy="0.0021337" iyz="-0.0000716" izz="0.0015378" />
+    </inertial>
+  </link>
+
+  <joint name="right1_joint" type="continuous">
+    <parent link="base_link" />
+    <child link="right1_link" />
+    <origin xyz="0.065 -0.59797 -0.315" rpy="1.5708 0 0" />
+    <axis xyz="0 0 -1" />
+    <!-- 同 joint1：continuous 关节补 <limit>，避免控制器解析 URDF 限值时段错误 -->
+    <limit effort="100" velocity="10" />
+    <hardware>
+      <motorType>None</motorType>
+      <motorDirection>1</motorDirection>
+      <armature>0</armature>
+    </hardware>
+  </joint>
+
+  <joint name="right2_joint" type="continuous">
+    <parent link="base_link" />
+    <child link="right2_link" />
+    <origin xyz="-0.205 -0.59797 -0.315" rpy="1.5708 0 0" />
+    <axis xyz="0 0 -1" />
+    <!-- 同 joint1：continuous 关节补 <limit>，避免控制器解析 URDF 限值时段错误 -->
+    <limit effort="100" velocity="10" />
+    <hardware>
+      <motorType>None</motorType>
+      <motorDirection>1</motorDirection>
+      <armature>0</armature>
+    </hardware>
+  </joint>
+
+  <joint name="left1_joint" type="continuous">
+    <parent link="base_link" />
+    <child link="left1_link" />
+    <origin xyz="0.065 0.59797 -0.315" rpy="1.5708 0 0" />
+    <axis xyz="0 0 -1" />
+    <!-- 同 joint1：continuous 关节补 <limit>，避免控制器解析 URDF 限值时段错误 -->
+    <limit effort="100" velocity="10" />
+    <hardware>
+      <motorType>None</motorType>
+      <motorDirection>1</motorDirection>
+      <armature>0</armature>
+    </hardware>
+  </joint>
+
+  <joint name="left2_joint" type="continuous">
+    <parent link="base_link" />
+    <child link="left2_link" />
+    <origin xyz="-0.205 0.59797 -0.315" rpy="1.5708 0 0" />
+    <axis xyz="0 0 -1" />
+    <!-- 同 joint1：continuous 关节补 <limit>，避免控制器解析 URDF 限值时段错误 -->
+    <limit effort="100" velocity="10" />
+    <hardware>
+      <motorType>None</motorType>
+      <motorDirection>1</motorDirection>
+      <armature>0</armature>
+    </hardware>
+  </joint>
+
+  <joint name="joint1" type="revolute">
+    <parent link="base_link" />
+    <child link="link1" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <axis xyz="0 0 1" />
+    <!-- 实物限位 ±180°（连续旋转会缠绕线缆）；速度为仿真占位限值，待实测替换 -->
+    <limit lower="-3.1416" upper="3.1416" effort="100" velocity="1.5" />
+    <hardware>
+      <motorType>None</motorType>
+      <motorDirection>1</motorDirection>
+      <armature>0</armature>
+    </hardware>
+  </joint>
+
+  <joint name="joint2" type="prismatic">
+    <parent link="link1" />
+    <child link="link2" />
+    <origin xyz="0 0 0.4425" rpy="0 0 0" />
+    <axis xyz="0 0 1" />
+    <limit lower="0" upper="0.3" effort="100" velocity="0.25" /><!-- 仿真占位限值 -->
+    <hardware>
+      <motorType>None</motorType>
+      <motorDirection>1</motorDirection>
+      <armature>0</armature>
+    </hardware>
+  </joint>
+
+  <joint name="joint3" type="revolute">
+    <parent link="link2" />
+    <child link="link3" />
+    <origin xyz="0.1065 0 0.8392" rpy="0 1.5708 0" />
+    <axis xyz="0 0 -1" />
+    <limit lower="-0.8" upper="0.5" effort="100" velocity="1.5" /><!-- 仿真占位限值 -->
+    <hardware>
+      <motorType>None</motorType>
+      <motorDirection>1</motorDirection>
+      <armature>0</armature>
+    </hardware>
+  </joint>
+
+  <joint name="joint4" type="prismatic">
+    <parent link="link3" />
+    <child link="link4" />
+    <origin xyz="-0.031 0 -0.1065" rpy="-1.5708 -1.5708 0" />
+    <axis xyz="0 0 1" />
+    <limit lower="-0.5" upper="0.15" effort="100" velocity="0.25" /><!-- 仿真占位限值 -->
+    <hardware>
+      <motorType>None</motorType>
+      <motorDirection>1</motorDirection>
+      <armature>0</armature>
+    </hardware>
+  </joint>
+
+  <joint name="joint5" type="revolute">
+    <parent link="link4" />
+    <child link="link5" />
+    <origin xyz="-0.0009997 -0.0104 0.63294" rpy="0 0 0" />
+    <axis xyz="0 0 1" />
+    <limit lower="0.5" upper="3.6" effort="100" velocity="3.0" /><!-- 仿真占位限值 -->
+    <hardware>
+      <motorType>None</motorType>
+      <motorDirection>1</motorDirection>
+      <armature>0</armature>
+    </hardware>
+  </joint>
+
+  <joint name="joint6" type="revolute">
+    <parent link="link5" />
+    <child link="link6" />
+    <origin xyz="0 0 0.261" rpy="1.5708 0 1.1255" />
+    <axis xyz="0 0 1" />
+    <limit lower="-1" upper="1" effort="100" velocity="3.0" /><!-- 仿真占位限值 -->
+    <hardware>
+      <motorType>None</motorType>
+      <motorDirection>1</motorDirection>
+      <armature>0</armature>
+    </hardware>
+  </joint>
+
+  <!-- 末端工具坐标系（TCP）：相对 link6（joint6 坐标系）零姿态偏移
+       x=47.9 mm, y=230.066 mm, z=0 mm（2026-08-04 实测给定），
+       夹爪/吸盘换装或重测后修改 tool0_joint 的 origin -->
+  <link name="tool0"/>
+
+  <joint name="tool0_joint" type="fixed">
+    <parent link="link6"/>
+    <child link="tool0"/>
+    <origin xyz="0.0479 0.230066 0" rpy="0 0 0"/>
+  </joint>
+
+</robot>

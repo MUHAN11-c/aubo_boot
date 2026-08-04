@@ -145,7 +145,8 @@ MoveIt 的控制器映射随 `hardware_mode` 自动选择（bringup 传 `control
 ## 5. IO 与状态
 
 ```bash
-# 设置板载用户 DO（fun: 1=板载DO 2=板载AO 3=工具DO 4=工具AO 5=工具电源）
+# 设置板载用户 DO（fun: 1=板载DO(pin 0..15) 2=板载AO(0..3) 3=工具DO(0..1) 4=工具AO(0..1)；
+# srv 里虽定义了 5=工具电源，但 aubo_io 契约无对应接口，控制器有意不支持）
 ros2 service call /aubo_io_controller/set_io aubo_msgs/srv/SetIO "{fun: 1, pin: 3, state: 1.0}"
 
 # 状态监视

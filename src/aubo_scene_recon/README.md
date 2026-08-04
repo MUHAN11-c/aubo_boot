@@ -1,37 +1,21 @@
 # aubo_scene_recon — Eye-in-hand 点云场景重建
 
+## 简介
+
 订阅 Percipio 相机数据，按 TF 把每帧拼到 `map_frame`（默认 `base_link`）
 累积成场景点云，实时发布并可保存 PLY。两个后端：**open3d**（默认，彩色点云
 累加 + 体素 + 统计滤波）与 **tsdf**（RGB-D TSDF 融合）。只建图，不驱动机械臂。
 
-## 架构与数据流
+## 使用方法
 
-```text
-percipio_rgbd（点云 / color+depth+CameraInfo）
-  → recon_fusion_node（单节点）
-      ├─ TF 查 map←camera：先按图像 stamp，失败回退最新 TF
-      │    （相机 HW 时间戳常超前机器人 TF，严格按 stamp 会
-      │    extrapolation into the future 丢帧，重建缺块/错位）
-      ├─ backend.integrate()：open3d 点云累加 或 TSDF 体融合
-      ├─ 定时发布 /recon/map_cloud（PointCloud2）与 /recon/status（String）
-      └─ 服务 ~/save（写 PLY）、~/reset（清空地图）
-```
-
-节点**不走 console_scripts**（系统 python3 没装 open3d）：launch 以标准
-`Node()` 调 `scripts/recon_fusion_node` 包装脚本，脚本按优先级选解释器——
-`AUBO_PYTHON` 显式指定 > 已激活的 venv（`VIRTUAL_ENV` 非空）> 自动
-`source` 工作区 `aubo_py3.12/bin/activate`——最终以
-`python3 -m aubo_scene_recon.fusion_node` 运行。18 个参数全部带中文
-`ParameterDescriptor`（`ros2 param describe /recon_fusion_node <参数>` 可查）。
-
-## 依赖
+### 依赖
 
 ```bash
 aubo_py3.12/bin/pip install -r requirements.txt   # 含 open3d==0.19.0
 # 或只装本包所需: aubo_py3.12/bin/pip install 'open3d==0.19.0'
 ```
 
-## 运行
+### 运行
 
 前置条件（缺一不可）：
 
@@ -66,7 +50,7 @@ launch 参数：`params_file`（默认包内 `config/recon.yaml`）、`backend`
 rviz2 -d "$(ros2 pkg prefix aubo_scene_recon)/share/aubo_scene_recon/rviz/recon.rviz"
 ```
 
-## 话题与服务
+### 话题与服务
 
 | 方向 | 名称 | 类型 | 说明 |
 |---|---|---|---|
@@ -86,7 +70,7 @@ ros2 topic echo /recon/status --once
 启动后超过 `no_cloud_warn_sec`（默认 5 s）仍无输入会周期告警——通常是
 percipio_rgbd 没起或话题名不匹配。
 
-## 参数（权威源 `config/recon.yaml`）
+### 参数（权威源 `config/recon.yaml`）
 
 | 参数 | 默认 | 说明 |
 |---|---|---|
@@ -105,7 +89,7 @@ percipio_rgbd 没起或话题名不匹配。
 | `save_dir` | ""（空串） | 地图保存目录；空串回退 `<进程CWD>/recon_maps` |
 | `no_cloud_warn_sec` | 5.0 | 启动后无输入的告警时限 (s) |
 
-## 两个后端怎么选
+### 两个后端怎么选
 
 - **open3d（默认，首选）**：输入厂商已配准的彩色点云，逐帧 TF 变换后累加，
   每帧 `voxel_down_sample(voxel_size)`，每 `outlier_every_n` 帧做一次统计
@@ -121,7 +105,7 @@ percipio_rgbd 没起或话题名不匹配。
   ② ScalableTSDF 偶发几何正常但顶点色全 0，此时自动改用高度伪彩并
   提示一次——要相机真彩请用 open3d。
 
-## 输出物
+### 输出物
 
 `~/save` 把当前地图写成 **二进制 PLY**（xyz + rgb）：
 
@@ -133,7 +117,7 @@ percipio_rgbd 没起或话题名不匹配。
 工作区根，故不硬编码绝对路径）。从工作区根起 launch 时即落在仓库的
 `recon_maps/`；节点 ready 日志会打印实际 `save_dir=`，以服务返回值为准。
 
-## 测试
+### 测试
 
 ```bash
 source /opt/ros/jazzy/setup.bash
@@ -143,3 +127,29 @@ cd src/aubo_scene_recon && ../../aubo_py3.12/bin/python -m pytest test/ -q
 `test_pc_utils.py` 4 例（点云工具与融合后端，需 venv 内 open3d）+
 flake8/pep257 lint。`colcon test` 走系统 python3，缺 open3d 时
 `test/conftest.py` 自动跳过 `test_pc_utils.py`，属预期。
+
+## 执行逻辑
+
+### 数据流
+
+```text
+percipio_rgbd（点云 / color+depth+CameraInfo）
+  → recon_fusion_node（单节点）
+      ├─ TF 查 map←camera：先按图像 stamp，失败回退最新 TF
+      │    （相机 HW 时间戳常超前机器人 TF，严格按 stamp 会
+      │    extrapolation into the future 丢帧，重建缺块/错位）
+      ├─ backend.integrate()：open3d 点云累加 或 TSDF 体融合
+      ├─ 定时发布 /recon/map_cloud（PointCloud2）与 /recon/status（String）
+      └─ 服务 ~/save（写 PLY）、~/reset（清空地图）
+```
+
+## 软件框架
+
+### 节点入口（venv 包装脚本）
+
+节点**不走 console_scripts**（系统 python3 没装 open3d）：launch 以标准
+`Node()` 调 `scripts/recon_fusion_node` 包装脚本，脚本按优先级选解释器——
+`AUBO_PYTHON` 显式指定 > 已激活的 venv（`VIRTUAL_ENV` 非空）> 自动
+`source` 工作区 `aubo_py3.12/bin/activate`——最终以
+`python3 -m aubo_scene_recon.fusion_node` 运行。18 个参数全部带中文
+`ParameterDescriptor`（`ros2 param describe /recon_fusion_node <参数>` 可查）。

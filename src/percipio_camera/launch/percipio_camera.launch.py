@@ -174,8 +174,9 @@ def generate_launch_description():
             FindPackageShare('percipio_camera'), 'config', 'color_camera_info.yaml'])),
 
         # Enable depth stream output
-        # 本项目默认关闭深度/点云（手眼标定与抓取流程只用 RGB）；
-        # 需要深度时显式传 depth_enable:=true 等
+        # 本项目默认值（与厂商原版不同）：深度开、配准开、灰度点云关、彩色点云开
+        # （场景重建/桃子位姿需要 RGB-D；手眼标定只用 RGB 时可显式传
+        # depth_enable:=false color_point_cloud_enable:=false 关闭）
         DeclareLaunchArgument('depth_enable', default_value='true'),
         DeclareLaunchArgument('depth_resolution', default_value='640x400'),
 

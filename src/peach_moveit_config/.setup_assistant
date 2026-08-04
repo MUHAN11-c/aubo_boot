@@ -1,0 +1,25 @@
+moveit_setup_assistant_config:
+  urdf:
+    package: peach_gantry_description
+    relative_path: urdf/peach_gantry.urdf
+  srdf:
+    relative_path: config/架子式桃子采摘机器人总装4.srdf
+  package_settings:
+    author_name: wjz
+    author_email: 2155413529@qq.com
+    generated_timestamp: 1785828238
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity
+  modified_urdf:
+    xacros:
+      - control_xacro
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity

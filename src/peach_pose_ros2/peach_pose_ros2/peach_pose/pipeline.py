@@ -1,14 +1,13 @@
 """
-Safety-gated RGB-D pose pipelines for one target, bagged or unbagged.
+单目标 RGB-D 位姿安全门控管线（袋装 / 裸果两条并行线）.
 
-Two parallel lines sharing the same cylindrical cutting tool and safety gates:
+两条线共用同一圆柱剪切工具与安全门：
 
-- ``RobustBagPosePipeline``   — bagged peach (class 0): cylinder-RANSAC axis
-- ``RobustFruitPosePipeline`` — unbagged peach (class 1): sphere fit + stem-cavity axis
+- ``RobustBagPosePipeline``   — 袋装桃 (class 0)：圆柱 RANSAC 定轴
+- ``RobustFruitPosePipeline`` — 裸果桃 (class 1)：球拟合定心 + 梗洼定向
 
-The module intentionally has no GUI, Open3D, Torch, or robot dependency.  This
-makes the safety decision testable on recorded RGB-D pairs and prevents a
-visualisation-only algorithm from becoming an implicit execution path.
+本模块刻意不依赖 GUI、Open3D、Torch 与机器人：安全判定可在录制的 RGB-D
+对上离线复测，避免"仅供可视化"的算法悄悄变成隐式执行路径。
 """
 from __future__ import annotations
 
@@ -29,27 +28,40 @@ from .fitting import (
 
 @dataclass
 class TargetPoseResult:
-    """Result for exactly one target; never indexes another detection."""
+    """单个目标的估计结果；只索引本检测，绝不混入其他目标."""
 
-    target_id: str
-    grasp_2d: BagGrasp2D
-    grasp_3d: BagGraspReference3D
-    mask_source: str
-    metrics: dict
+    target_id: str                    # 目标 ID（如 'target_0' / 'frame:idx'）
+    grasp_2d: BagGrasp2D              # 图像平面参考（像素坐标）
+    grasp_3d: BagGraspReference3D     # 3D 抓取参考（相机光学系，米）
+    mask_source: str                  # 前景掩膜来源标签（诊断追溯用）
+    metrics: dict                     # 诊断指标；缺项约定 None（消息层填 -1）
     target_kind: str = 'bag'  # "bag" | "fruit"
 
 
 class RobustBagPosePipeline:
     """
-    Conservative pose estimator for a cylindrical bag insertion tool.
+    袋装桃的保守位姿估计器（圆柱套入工具）.
 
-    It uses only measured depth for all safety decisions.  A supplied instance
-    mask is preferred, while a depth-band connected component is an explicit,
-    inspectable fallback.
+    所有安全判定只用实测深度。优先使用外部实例掩膜（SAM），
+    深度带连通域是显式、可检查的降级来源。
     """
 
     def __init__(self, tool: ToolGeometry = TOOL_GEOMETRY, min_depth_m=0.3,
                  max_depth_m=2.5, min_points=100):
+        """
+        构造袋装管线.
+
+        Args:
+            tool: 工具几何（默认台架测量值 TOOL_GEOMETRY）.
+            min_depth_m: 有效深度下限 (m)，过近视为噪声.
+            max_depth_m: 有效深度上限 (m)，过远视为背景.
+            min_points: 有效前景点数下限，不足直接 REJECT.
+
+        Returns
+        -------
+            无返回值（None）.
+
+        """
         self.tool = tool
         self.min_depth_m = min_depth_m
         self.max_depth_m = max_depth_m
@@ -58,7 +70,22 @@ class RobustBagPosePipeline:
     def estimate(self, obs: BagObservation, target_id: str, bbox: tuple,
                  mask: Optional[np.ndarray] = None,
                  mask_source: str = 'depth_fallback') -> TargetPoseResult:
-        """Estimate one target in ``bbox`` and return an explicit safe status."""
+        """
+        估计 bbox 内单个袋装目标，返回显式安全状态的结果.
+
+        Args:
+            obs: 单帧输入（深度 uint16 毫米；gravity_hint 为相机系方向或 None）.
+            target_id: 目标 ID.
+            bbox: (x1, y1, x2, y2) 检测框（像素，自动裁剪到图内）.
+            mask: 外部前景掩膜（全图或 ROI，bool/0-1）；None 走深度带降级.
+            mask_source: 掩膜来源标签，写入诊断.
+
+        Returns
+        -------
+            TargetPoseResult；status ∈ ACCEPT/REOBSERVE/REJECT，硬性失败
+            （点太少/净空不足等）直接 REJECT，诊断指标经 metrics 暴露.
+
+        """
         x1, y1, x2, y2 = self._clip_bbox(bbox, obs.depth.shape)
         base_2d = BagGrasp2D(detection_bbox=(x1, y1, x2 - x1, y2 - y1))
         if x2 - x1 < 8 or y2 - y1 < 8:
@@ -226,6 +253,21 @@ class RobustBagPosePipeline:
         return TargetPoseResult(target_id, base_2d, g3d, source, metrics)
 
     def _failed(self, target_id, g2d, reason, source, **metrics):
+        """
+        构造袋线 REJECT 结果（status=REJECT + 单一诊断标记）.
+
+        Args:
+            target_id: 目标 ID.
+            g2d: 已建的 BagGrasp2D（被改写为 REJECT）.
+            reason: 失败原因标记（写入 diagnostic_flags）.
+            source: 掩膜来源标签.
+            **metrics: 已采集的诊断指标，原样透传.
+
+        Returns
+        -------
+            TargetPoseResult（target_kind='bag'）.
+
+        """
         g2d.status = 'REJECT'
         g2d.diagnostic_flags = [reason]
         g3d = BagGraspReference3D(status='REJECT', diagnostic_flags=[reason],
@@ -235,15 +277,57 @@ class RobustBagPosePipeline:
 
     @staticmethod
     def _clip_bbox(bbox, shape):
+        """
+        检测框裁剪到图像范围内.
+
+        Args:
+            bbox: (x1, y1, x2, y2) 像素框（可越界，先取整）.
+            shape: 图像 shape（取前两维 h, w）.
+
+        Returns
+        -------
+            (x1, y1, x2, y2) 裁剪后的整数框（可能退化）.
+
+        """
         h, w = shape[:2]
         x1, y1, x2, y2 = (int(round(v)) for v in bbox)
         return max(0, x1), max(0, y1), min(w, x2), min(h, y2)
 
     def _valid_depth(self, depth):
+        """
+        有效深度掩膜：非 0、非饱和，且在 [min_depth_m, max_depth_m] 内.
+
+        Args:
+            depth: (h, w) uint16 深度（毫米）.
+
+        Returns
+        -------
+            (h, w) bool 掩膜.
+
+        """
         z = depth.astype(np.float32) / 1000.0
         return (depth > 0) & (depth < 65535) & (z > self.min_depth_m) & (z < self.max_depth_m)
 
     def _foreground(self, depth, valid, supplied_mask, bbox, source):
+        """
+        前景掩膜：优先外部掩膜 ∩ 有效深度；否则深度带连通域显式降级.
+
+        降级路线：ROI 中心 1/3 区域的深度中位数 ± max(25mm, 3·MAD) 带
+        → 8 连通域，取中心所在域（中心无域则取最大域）。
+
+        Args:
+            depth: (h, w) uint16 ROI 深度（毫米）.
+            valid: (h, w) bool 有效深度掩膜.
+            supplied_mask: 外部掩膜（全图或本 ROI）；形状相符且与有效深度
+                交集 ≥50 像素才采用，否则忽略走降级.
+            bbox: 全图坐标下的 (x1, y1, x2, y2)，用于裁全图掩膜.
+            source: 外部掩膜来源标签.
+
+        Returns
+        -------
+            ((h, w) bool 前景掩膜, 来源标签)；降级时标签为 'depth_fallback'.
+
+        """
         h, w = depth.shape
         if supplied_mask is not None:
             m = np.asarray(supplied_mask, dtype=bool)
@@ -273,6 +357,22 @@ class RobustBagPosePipeline:
         return labels == label, 'depth_fallback'
 
     def _to_points(self, depth, mask, xoff, yoff, K):
+        """
+        前景像素反投影为相机系 3D 点（米）.
+
+        Args:
+            depth: (h, w) uint16 ROI 深度（毫米）.
+            mask: (h, w) bool 前景掩膜（内部再与有效深度求交）.
+            xoff: ROI 在全图的 x 像素偏移.
+            yoff: ROI 在全图的 y 像素偏移.
+            K: 相机内参 {"fx","fy","cx","cy"}.
+
+        Returns
+        -------
+            (points, pixels)：points 为 (N, 3) float 相机系坐标（米），
+            pixels 为 (N, 2) int ROI 内像素坐标 (x, y).
+
+        """
         ys, xs = np.where(mask & self._valid_depth(depth))
         z = depth[ys, xs].astype(float) / 1000.0
         points = np.column_stack(((xs + xoff - K['cx']) * z / K['fx'],
@@ -281,6 +381,18 @@ class RobustBagPosePipeline:
 
     @staticmethod
     def _filter_depth_outliers(points, pixels):
+        """
+        按 z 的 MAD 剔除离群点（|z−中位| > 3.5·MAD）.
+
+        Args:
+            points: (N, 3) 点（米）.
+            pixels: (N, 2) 与 points 对齐的像素.
+
+        Returns
+        -------
+            (过滤后 points, 过滤后 pixels)；N<10 或 MAD≈0 时原样返回.
+
+        """
         if len(points) < 10:
             return points, pixels
         z = points[:, 2]
@@ -293,6 +405,18 @@ class RobustBagPosePipeline:
 
     @staticmethod
     def _boundary_metrics(mask):
+        """
+        前景触边统计：掩膜触边视为 ROI 裁切/遮挡信号.
+
+        Args:
+            mask: (h, w) bool ROI 前景掩膜.
+
+        Returns
+        -------
+            (touch_ratio, sides)：四条边上前景占比的均值，以及占比 >5% 的
+            边数 (0–4)；空掩膜给 (1.0, 4)（最保守）.
+
+        """
         if not mask.any():
             return 1.0, 4
         border = np.concatenate((mask[0], mask[-1], mask[:, 0], mask[:, -1]))
@@ -304,6 +428,21 @@ class RobustBagPosePipeline:
 
     @staticmethod
     def _frame(axis, points):
+        """
+        由袋轴构造右手抓取系 R = [Xg, Yg, Zg]（Zg=axis）.
+
+        Xg 取点云 ⊥axis 平面内的最大方差方向（符号定成 x≥0 去二义），
+        退化时取 axis 与参考轴的叉积。
+
+        Args:
+            axis: (3,) 单位袋轴（底→颈）.
+            points: (N, 3) 前景点（米），用于定 Xg.
+
+        Returns
+        -------
+            (3, 3) 旋转矩阵，列为 Xg/Yg/Zg.
+
+        """
         centred = points - points.mean(axis=0)
         _, vec = np.linalg.eigh(centred.T @ centred / max(len(points), 1))
         x = vec[:, -1] - np.dot(vec[:, -1], axis) * axis
@@ -325,6 +464,17 @@ class RobustBagPosePipeline:
 
         对极点/轴向错误的廉价交叉验证（Kok 2024 的 180° 尾部教训）：
         3D 拟合轴投影到图像后与掩膜 2D 主轴夹角过大，说明拟合可疑。
+
+        Args:
+            mask: (h, w) bool ROI 前景掩膜.
+            bottom_px: 袋底投影像素 (u, v).
+            neck_px: 袋颈投影像素 (u, v).
+
+        Returns
+        -------
+            夹角 (deg, 0–90)；掩膜点太少/投影过短/掩膜近圆形等无判别力
+            情形返回 None.
+
         """
         ys, xs = np.where(mask)
         if len(xs) < 30:
@@ -347,6 +497,18 @@ class RobustBagPosePipeline:
 
     @staticmethod
     def _project(point, K):
+        """
+        相机系 3D 点 → 像素 (u, v).
+
+        Args:
+            point: (3,) 点（米）；None 或 z≤1e-8 给 None.
+            K: 相机内参 {"fx","fy","cx","cy"}.
+
+        Returns
+        -------
+            (u, v) float 像素；不可投影返回 None.
+
+        """
         if point is None or point[2] <= 1e-8:
             return None
         return (float(point[0] * K['fx'] / point[2] + K['cx']),
@@ -359,7 +521,7 @@ class RobustBagPosePipeline:
 
 class RobustFruitPosePipeline(RobustBagPosePipeline):
     """
-    Unbagged-peach pose estimator for the same cylindrical cutting tool.
+    裸果桃位姿估计器（同一圆柱剪切工具）.
 
     与袋装线并列：袋装用"圆柱 RANSAC 定轴"，裸果是近球体、没有圆柱结构，
     改用"球拟合定心定径 + 梗洼定向"：
@@ -385,7 +547,23 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
     def estimate(self, obs: BagObservation, target_id: str, bbox: tuple,
                  mask: Optional[np.ndarray] = None,
                  mask_source: str = 'depth_fallback') -> TargetPoseResult:
-        """Estimate one unbagged peach in ``bbox`` and return an explicit safe status."""
+        """
+        估计 bbox 内单个裸果目标，返回显式安全状态的结果.
+
+        Args:
+            obs: 单帧输入（深度 uint16 毫米；gravity_hint 为相机系方向或 None）.
+            target_id: 目标 ID.
+            bbox: (x1, y1, x2, y2) 检测框（像素，自动裁剪到图内）.
+            mask: 外部前景掩膜（全图或 ROI）；None 走深度带降级.
+            mask_source: 掩膜来源标签，写入诊断.
+
+        Returns
+        -------
+            TargetPoseResult（target_kind='fruit'）；metrics 追加
+            fruit_radius_m / sphere_rms_m / sphere_inlier_ratio /
+            cavity_dip_mm / axis_polarity_corrected（球拟合失败时前三项为 None）.
+
+        """
         x1, y1, x2, y2 = self._clip_bbox(bbox, obs.depth.shape)
         base_2d = BagGrasp2D(detection_bbox=(x1, y1, x2 - x1, y2 - y1))
         if x2 - x1 < 8 or y2 - y1 < 8:
@@ -580,6 +758,17 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
         相对球面的径向残差 d_i − r 在梗端方向帽内显著为负。打分取 P30
         分位以容忍扫描帽大于真实洼区的稀释。零标注局部几何原语，
         只对可见半球有效（无点方向自动跳过）。
+
+        Args:
+            points: (N, 3) 球内点（相机系，米）.
+            center: (3,) 拟合球心（米）.
+            radius: 拟合半径（米）.
+
+        Returns
+        -------
+            (axis, dip)：axis 为 (3,) 单位梗端方向（找不到给 None），
+            dip 为最深帽的 P30 径向残差（米，负值表示下陷；未找到给 0.0）.
+
         """
         rel = points - center
         d = np.linalg.norm(rel, axis=1)
@@ -616,6 +805,21 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
         return refined, best_dip
 
     def _failed_fruit(self, target_id, g2d, reason, source, **metrics):
+        """
+        构造果线 REJECT 结果（同 _failed，target_kind='fruit'）.
+
+        Args:
+            target_id: 目标 ID.
+            g2d: 已建的 BagGrasp2D（被改写为 REJECT）.
+            reason: 失败原因标记（写入 diagnostic_flags）.
+            source: 掩膜来源标签.
+            **metrics: 已采集的诊断指标，原样透传.
+
+        Returns
+        -------
+            TargetPoseResult（target_kind='fruit'）.
+
+        """
         g2d.status = 'REJECT'
         g2d.diagnostic_flags = [reason]
         g3d = BagGraspReference3D(status='REJECT', diagnostic_flags=[reason],

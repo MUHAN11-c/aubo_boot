@@ -29,9 +29,9 @@ from .pipeline import (
 class ForegroundMode:
     """前景模式描述（目前仅 hybrid_dilated）."""
 
-    mode_id: str
-    label: str
-    description: str
+    mode_id: str      # 模式 ID（如 'hybrid_dilated'），估计路由键
+    label: str        # 中文短标签（报告/界面显示）
+    description: str  # 一句话说明
 
 
 FOREGROUND_MODES = (
@@ -55,6 +55,19 @@ class CandidateEstimator:
 
     def __init__(self, pipeline: Optional[RobustBagPosePipeline] = None,
                  dilate_px: int = 5, min_mask_points: int = 50):
+        """
+        构造估计器；果线复用袋线的 ToolGeometry，保证刀具契约一致.
+
+        Args:
+            pipeline: 袋线实例；None 时按默认参数新建（果线共享其 tool）.
+            dilate_px: 深度连通域膨胀半径（像素，≥1；核边长 2*(p//2)+1）.
+            min_mask_points: 掩膜最小像素数，不足判 mask_unavailable.
+
+        Returns
+        -------
+            无返回值（None）；果线复用袋线 tool 建于 self.fruit_pipeline.
+
+        """
         self.pipeline = pipeline or RobustBagPosePipeline()
         # 果线复用袋线的 ToolGeometry，保证刀具契约一致
         self.fruit_pipeline = RobustFruitPosePipeline(tool=self.pipeline.tool)
@@ -64,7 +77,17 @@ class CandidateEstimator:
         self._last_mask_timings_ms: dict[str, float] = {}
 
     def _pipeline_for(self, obs: BagObservation) -> RobustBagPosePipeline:
-        """按首个检测的 class_id 选择袋线 / 果线."""
+        """
+        按首个检测的 class_id 选择袋线 / 果线.
+
+        Args:
+            obs: 单帧输入（取 detections[0] 的 class_id；空列表按袋线）.
+
+        Returns
+        -------
+            class_id==1 → RobustFruitPosePipeline，否则 RobustBagPosePipeline.
+
+        """
         class_id = obs.detections[0].get('class_id', 0) if obs.detections else 0
         return self.fruit_pipeline if class_id == 1 else self.pipeline
 
@@ -72,7 +95,23 @@ class CandidateEstimator:
                        sam_mask: Optional[np.ndarray],
                        modes: Optional[Iterable[str]] = None
                        ) -> dict[str, TargetPoseResult]:
-        """对请求的前景模式跑同一套几何与安全门控，返回 mode→结果."""
+        """
+        对请求的前景模式跑同一套几何与安全门控，返回 mode→结果.
+
+        Args:
+            obs: 单帧输入（深度 uint16 毫米）.
+            target_id: 目标 ID.
+            bbox: (x1, y1, x2, y2) 检测框（像素）.
+            sam_mask: 全图 SAM 掩膜或 None（None → 各模式 mask_unavailable）.
+            modes: 要跑的模式 ID 可迭代；None 跑全部已注册模式；
+                含未知 ID 抛 ValueError.
+
+        Returns
+        -------
+            {mode_id: TargetPoseResult}；掩膜不可用时结果为显式 REOBSERVE；
+            副作用：刷新 last_timings_ms（毫秒，含掩膜构造耗时）.
+
+        """
         selected = tuple(modes or MODE_IDS)
         unknown = set(selected) - set(MODE_IDS)
         if unknown:
@@ -108,7 +147,23 @@ class CandidateEstimator:
 
     def build_masks(self, obs: BagObservation, bbox: tuple,
                     sam_mask: Optional[np.ndarray]) -> dict[str, Optional[np.ndarray]]:
-        """在 bbox ROI 内构造 hybrid_dilated 掩膜（实测深度单位：毫米 uint16）."""
+        """
+        在 bbox ROI 内构造 hybrid_dilated 掩膜（实测深度单位：毫米 uint16）.
+
+        hybrid_dilated = (SAM ∩ 有效深度) ∩ 膨胀后的深度连通域；
+        交后像素 < min_mask_points 给 None。
+
+        Args:
+            obs: 单帧输入（深度 uint16 毫米）.
+            bbox: (x1, y1, x2, y2) 检测框（像素，自动裁剪到图内）.
+            sam_mask: 全图或 ROI 掩膜；None 或裁剪失败则结果为 None.
+
+        Returns
+        -------
+            {mode_id: (h, w) bool ROI 掩膜或 None}；副作用：刷新
+            _last_mask_timings_ms（毫秒）.
+
+        """
         started = time.perf_counter()
         self._last_mask_timings_ms = {mode: 0.0 for mode in MODE_IDS}
         x1, y1, x2, y2 = self.pipeline._clip_bbox(bbox, obs.depth.shape)
@@ -137,7 +192,19 @@ class CandidateEstimator:
 
     def _crop_mask(self, mask: Optional[np.ndarray], bbox: tuple,
                    image_shape: tuple) -> Optional[np.ndarray]:
-        """把全图或 ROI 掩膜裁成与 bbox 同尺寸；尺寸不符返回 None."""
+        """
+        把全图或 ROI 掩膜裁成与 bbox 同尺寸；尺寸不符返回 None.
+
+        Args:
+            mask: bool/0-1 掩膜（全图尺寸则裁 ROI）；None 原样返回 None.
+            bbox: (x1, y1, x2, y2) 已裁剪到图内的整数框（像素）.
+            image_shape: 全图 shape（判全图/ROI 用）.
+
+        Returns
+        -------
+            (y2-y1, x2-x1) bool 掩膜；尺寸对不上给 None.
+
+        """
         if mask is None:
             return None
         x1, y1, x2, y2 = bbox
@@ -148,19 +215,53 @@ class CandidateEstimator:
         return arr if arr.shape == expected else None
 
     def _enough(self, mask: np.ndarray) -> Optional[np.ndarray]:
-        """像素数不足 min_mask_points 时丢弃（触发 mask_unavailable）."""
+        """
+        像素数不足 min_mask_points 时丢弃（触发 mask_unavailable）.
+
+        Args:
+            mask: (h, w) bool 掩膜.
+
+        Returns
+        -------
+            原掩膜或 None.
+
+        """
         return mask if int(mask.sum()) >= self.min_mask_points else None
 
     @staticmethod
     def _source(mode: str) -> str:
-        """写入结果的 mask_source 标签（便于诊断追溯）."""
+        """
+        写入结果的 mask_source 标签（便于诊断追溯）.
+
+        Args:
+            mode: 已注册模式 ID（未知 ID 抛 KeyError）.
+
+        Returns
+        -------
+            来源标签字符串.
+
+        """
         return {
             'hybrid_dilated': 'mobile_sam_dilated_depth_intersection',
         }[mode]
 
     def _unavailable(self, obs: BagObservation, target_id: str, bbox: tuple,
                      mode: str, reason: str) -> TargetPoseResult:
-        """构造显式失败结果（REOBSERVE + diagnostic_flags）."""
+        """
+        构造显式失败结果（REOBSERVE + diagnostic_flags）.
+
+        Args:
+            obs: 单帧输入（取版本元数据）.
+            target_id: 目标 ID.
+            bbox: (x1, y1, x2, y2) 检测框（像素）.
+            mode: 前景模式 ID（写入 strategy_id）.
+            reason: 原因标记（如 'mask_unavailable'）.
+
+        Returns
+        -------
+            TargetPoseResult（status=REOBSERVE，metrics 为空）.
+
+        """
         x1, y1, x2, y2 = map(int, bbox)
         g2d = BagGrasp2D(
             detection_bbox=(x1, y1, x2 - x1, y2 - y1),

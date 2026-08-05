@@ -60,13 +60,18 @@ STATUS_MAP = {'ACCEPT': 0, 'REOBSERVE': 1, 'REJECT': 2}
 
 def _quat_to_matrix_handwritten(q_xyzw) -> np.ndarray:
     """
-    手写原理版：单位四元数 q=(x,y,z,w) → 3×3 旋转矩阵（教学保留）.
+    手写原理版：单位四元数 (x,y,z,w) → 3×3 旋转矩阵（教学对照用）.
 
-    公式由四元数旋转关系 R(q) 展开，预计算 9 个乘积项后直接填 3×3：
-    对角元 1-2(yy+zz) 等，非对角元 2(xy∓wz) 等。
-    注意假定 q 已归一化（不归一）；官方 tf_transformations.quaternion_matrix
-    内部按模长归一，非单位四元数输入时两者才有差异——tf2 下发的 Transform
-    均为单位四元数，正常路径下与官方版数值一致（max|Δ|≈1e-15）。
+    假定 q 已归一化；与官方 quaternion_matrix 的差别仅在于官方内部会归一化。
+    单位四元数输入下两者数值一致（max|Δ|≈1e-15）。
+
+    Args:
+        q_xyzw: 单位四元数 (x, y, z, w) 可迭代序列；未归一化时结果按比例偏差.
+
+    Returns
+    -------
+        (3, 3) float 旋转矩阵.
+
     """
     x, y, z, w = q_xyzw
     xx, yy, zz = x * x, y * y, z * z
@@ -81,12 +86,20 @@ def _quat_to_matrix_handwritten(q_xyzw) -> np.ndarray:
 
 def _transform_msg_to_matrix(t, logger=None) -> np.ndarray:
     """
-    geometry_msgs/Transform → 4×4 齐次矩阵（p_out = R @ p_in + t）.
+    geometry_msgs/Transform → 4×4 齐次矩阵 T（p_out = R@p_in + t）.
 
-    双实现并存：ROS 官方 tf_transformations 为主（内部按模长归一，最稳健，
-    作为返回值）；手写原理版 _quat_to_matrix_handwritten 同步计算并逐帧对比，
-    差异超 1e-9 打告警（可传节点 logger，缺省 print）。2000 组随机单位
-    四元数对比 max|Δ| = 1.1e-15（2026-08-05 验证，固化于 test_tf_matrix.py）。
+    返回官方 tf_transformations 结果（内部归一化，最稳健）；手写原理版
+    同步计算对照，diff>1e-9 经 logger 告警（缺省 print）。
+    一致性已固化于 test_tf_matrix.py。
+
+    Args:
+        t: geometry_msgs/Transform（translation + rotation 四元数）.
+        logger: 双实现不一致时的告警出口；None 时退化为 print.
+
+    Returns
+    -------
+        (4, 4) 齐次变换矩阵（平移单位随消息，通常为米）.
+
     """
     tr = t.translation
     q = t.rotation
@@ -105,9 +118,19 @@ def _transform_msg_to_matrix(t, logger=None) -> np.ndarray:
 
 def _apply_T_to_grasp3d(g3d, T: np.ndarray) -> None:
     """
-    把相机系抓取几何变到输出系【默认base_link】（原地修改 g3d）.
+    抓取几何由相机系变到输出系（默认 base_link），原地修改 g3d.
 
-    点做刚体变换；方向向量只乘 R 后归一化；姿态矩阵左乘 R。
+    T 为 4×4 齐次矩阵（输出系←相机系）。规则：点 R@p+t；方向只乘 R
+    并归一化（平移不影响方向）；姿态矩阵左乘 R。None 字段原样保留。
+
+    Args:
+        g3d: BagGraspReference3D（相机光学系，米）；被原地改写.
+        T: (4, 4) 齐次矩阵，输出系←相机系.
+
+    Returns
+    -------
+        None（结果写回 g3d）.
+
     """
     R, t = T[:3, :3], T[:3, 3]
 
@@ -129,11 +152,18 @@ def _apply_T_to_grasp3d(g3d, T: np.ndarray) -> None:
 
 def _rotation_to_quat_handwritten(R: np.ndarray) -> Quaternion:
     """
-    手写原理版：3x3 旋转矩阵 → 四元数（Shepperd 稳健法，教学保留）.
+    手写原理版：3×3 旋转矩阵 → 四元数（Shepperd 法，教学对照用）.
 
-    按迹 trace 与对角元分四支取值，避免某一分支数值退化（除小量）：
-    t>0 走迹分支，否则选最大对角元分支。四元数有符号二义性
-    （q 与 -q 表示同一旋转），对比时需取 min(|q1-q2|, |q1+q2|)。
+    按迹/最大对角元分四支取值，避免除小量的数值退化。
+    四元数有符号二义性（±q 同旋转），对比时取 min(|q1-q2|, |q1+q2|)。
+
+    Args:
+        R: (3, 3) 旋转矩阵.
+
+    Returns
+    -------
+        geometry_msgs/Quaternion（输入正交时即单位四元数）.
+
     """
     # Shepperd 稳健法
     m = np.asarray(R, dtype=float)
@@ -161,11 +191,19 @@ def _rotation_to_quat_handwritten(R: np.ndarray) -> Quaternion:
 
 def _rotation_to_quat(R: np.ndarray, logger=None) -> Quaternion:
     """
-    3x3 旋转矩阵 → geometry_msgs/Quaternion（右手系）.
+    3×3 旋转矩阵 → geometry_msgs/Quaternion.
 
-    双实现并存：ROS 官方 tf_transformations.quaternion_from_matrix 为主
-    （作为返回值）；手写原理版 _rotation_to_quat_handwritten 同步计算并对比，
-    差异超 1e-9 打告警（四元数符号二义性：按 min(|q1-q2|, |q1+q2|) 度量）。
+    返回官方 quaternion_from_matrix 结果；手写 Shepperd 版同步对照，
+    diff>1e-9 经 logger 告警（缺省 print；按 ±q 等价取 min 差）。
+
+    Args:
+        R: (3, 3) 旋转矩阵.
+        logger: 双实现不一致时的告警出口；None 时退化为 print.
+
+    Returns
+    -------
+        单位四元数 Quaternion 消息.
+
     """
     m4 = np.eye(4, dtype=float)
     m4[:3, :3] = np.asarray(R, dtype=float)
@@ -182,7 +220,17 @@ def _rotation_to_quat(R: np.ndarray, logger=None) -> Quaternion:
 
 
 def _point(xyz) -> Point:
-    """三维点 → geometry_msgs/Point；None 则零向量。强制 float 避免 rosidl 断言."""
+    """
+    3D 点（ndarray/list）→ Point 消息；None 给零点；强制 float 防 rosidl 类型断言.
+
+    Args:
+        xyz: (3,) 坐标（单位随上游，通常米）；None 时返回全零 Point.
+
+    Returns
+    -------
+        geometry_msgs/Point.
+
+    """
     p = Point()
     if xyz is None:
         return p
@@ -191,7 +239,18 @@ def _point(xyz) -> Point:
 
 
 def _px(uv, z=0.0) -> Point:
-    """像素 (u,v) 塞进 Point.x/y（2D 消息复用 Point）."""
+    """
+    像素 (u,v) → Point（x=u, y=v, z=z）；2D 消息复用 Point 类型；None 给零点.
+
+    Args:
+        uv: (2,) 像素坐标；None 时返回全零 Point（有效性由 has_* 标志区分）.
+        z: 填入 Point.z 的值（像素语义下恒 0）.
+
+    Returns
+    -------
+        geometry_msgs/Point.
+
+    """
     p = Point()
     if uv is None:
         return p
@@ -200,7 +259,19 @@ def _px(uv, z=0.0) -> Point:
 
 
 def _metric(m: dict, key: str, default: float = -1.0) -> float:
-    """从 metrics 字典取标量；缺失或不可转 float 时用 default（消息侧常用 -1 表示无）."""
+    """
+    从 metrics 字典取标量转 float；缺失/None/不可转一律给 default（消息以 -1 表无效）.
+
+    Args:
+        m: 管线 metrics 字典（值可为 None）.
+        key: 指标名.
+        default: 缺失/无效时的填充值（BagFitting 约定 -1）.
+
+    Returns
+    -------
+        float 标量.
+
+    """
     v = m.get(key, None)
     if v is None:
         return default
@@ -211,7 +282,17 @@ def _metric(m: dict, key: str, default: float = -1.0) -> float:
 
 
 def _status_color(status: str) -> Tuple[float, float, float, float]:
-    """三态 → RViz Marker RGBA（绿/黄/红）."""
+    """
+    三态 → Marker RGBA：ACCEPT 绿 / REOBSERVE 黄 / REJECT 红 / 其他灰.
+
+    Args:
+        status: 'ACCEPT' | 'REOBSERVE' | 'REJECT'（未知值给灰色）.
+
+    Returns
+    -------
+        (r, g, b, a) 四元组，各分量 [0, 1].
+
+    """
     return {
         'ACCEPT': (0.1, 0.85, 0.2, 0.9),
         'REOBSERVE': (0.95, 0.8, 0.1, 0.9),
@@ -220,7 +301,17 @@ def _status_color(status: str) -> Tuple[float, float, float, float]:
 
 
 def _pack_rgb_bgr(bgr: np.ndarray) -> np.ndarray:
-    """(N,3) uint8 BGR → float32 位打包 rgb（PointCloud2 常用）."""
+    """
+    (N,3) uint8 BGR → (N,) float32：按位打包成 PointCloud2 的 rgb 字段.
+
+    Args:
+        bgr: (N, 3) uint8 数组，列序为 B、G、R（OpenCV 惯例）.
+
+    Returns
+    -------
+        (N,) float32 视图（位内容为 0xRRGGBB，符合 PointCloud2 rgb 打包约定）.
+
+    """
     b = bgr[:, 0].astype(np.uint32)
     g = bgr[:, 1].astype(np.uint32)
     r = bgr[:, 2].astype(np.uint32)
@@ -236,9 +327,23 @@ def _bbox_cloud_xyzrgb(
     stride: int = 1,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
-    检测框内深度反投影 → (N,3) xyz 米、(N,) float32 打包 rgb.
+    检测框内像素反投影成彩色点云：返回 (N,3) xyz（米）与 (N,) 打包 rgb.
 
-    depth_mm 已是管线「毫米」uint16（Percipio 已 × depth_scale_unit）。
+    depth_mm 为毫米单位 uint16（Percipio 原始值已 × depth_scale_unit）；
+    剔除无效深度（0/饱和 65535），stride 为降采样步长。
+
+    Args:
+        rgb_bgr: (H, W, 3) uint8 BGR 图，与深度对齐.
+        depth_mm: (H, W) uint16 深度，单位毫米.
+        K: 相机内参 {"fx","fy","cx","cy"}（像素单位）.
+        bboxes: 检测框列表 [(x1, y1, x2, y2)]（像素，自动裁剪到图内）.
+        stride: 降采样步长（像素）；1 为不降采样.
+
+    Returns
+    -------
+        (xyz, rgb_packed)：xyz 为 (N, 3) float64 相机系点（米），
+        rgb_packed 为 (N,) float32 打包颜色；无有效点时均为空数组.
+
     """
     h, w = depth_mm.shape[:2]
     mask = np.zeros((h, w), dtype=bool)
@@ -268,7 +373,19 @@ def _bbox_cloud_xyzrgb(
 
 
 def _xyzrgb_to_cloud(header: Header, xyz: np.ndarray, rgb_f: np.ndarray) -> PointCloud2:
-    """组装 xyz+rgb 点云消息（rgb 为 float32 位打包）."""
+    """
+    组装 xyz + 打包 rgb → PointCloud2 消息（x/y/z 各一个 FLOAT32 + rgb 位打包）.
+
+    Args:
+        header: 输出消息头（frame_id 决定点云坐标系解释）.
+        xyz: (N, 3) 点坐标（单位随 header 坐标系，通常米）；空数组给空云.
+        rgb_f: (N,) float32 打包 rgb（见 _pack_rgb_bgr）.
+
+    Returns
+    -------
+        sensor_msgs/PointCloud2.
+
+    """
     fields = [
         PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
         PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
@@ -288,6 +405,7 @@ class PeachPoseNode(Node):
     """RGB-D 同步回调驱动的感知节点：检测 → 分割 → 几何 → TF 变换 → 多话题发布."""
 
     def __init__(self):
+        """建节点：参数声明/加载 → 模型与管线 → 发布者、RGB-D 同步订阅与 TF 监听."""
         super().__init__('peach_pose_node')
         self.bridge = CvBridge()
         self._declare_params()
@@ -470,7 +588,19 @@ class PeachPoseNode(Node):
         )
 
     def _lookup_T_out_cam(self, cam_frame: str, stamp) -> Optional[np.ndarray]:
-        """查 output←camera；失败返回 None."""
+        """
+        查 output←camera 的 4×4 齐次矩阵；失败返回 None.
+
+        Args:
+            cam_frame: 相机光学系 frame_id.
+            stamp: 查询时刻（消息时间戳）；按时刻失败时回退最新 TF 并告警一次.
+
+        Returns
+        -------
+            (4, 4) ndarray；output_frame 为空或与 cam_frame 相同给单位阵；
+            TF 彻底失败给 None（调用方退回相机系）.
+
+        """
         if not self.output_frame or self.output_frame == cam_frame:
             return np.eye(4)
         stamp_time = Time.from_msg(stamp)
@@ -494,7 +624,19 @@ class PeachPoseNode(Node):
                 return None
 
     def _on_rgbd(self, rgb_msg: Image, depth_msg: Image, info: CameraInfo):
-        """同步回调 (ApproximateTimeSynchronizer)：一帧 RGB-D → 全套感知输出."""
+        """
+        同步回调 (ApproximateTimeSynchronizer)：一帧 RGB-D → 全套感知输出.
+
+        Args:
+            rgb_msg: 彩色图（bgr8）.
+            depth_msg: 深度图（uint16 原始值；回调内 × depth_scale_unit 化为毫米）.
+            info: 彩色相机内参（须与深度图同分辨率）.
+
+        Returns
+        -------
+            无返回值（None）；感知结果经各发布者发出.
+
+        """
         self.get_logger().info(
             f'RGB-D sync frame {rgb_msg.width}x{rgb_msg.height}')
         try:
@@ -649,7 +791,18 @@ class PeachPoseNode(Node):
             self.pub_debug.publish(dbg_msg)
 
     def _to_detection2d(self, det: dict, header: Header) -> Detection2D:
-        """内部检测 dict → vision_msgs/Detection2D."""
+        """
+        内部检测 dict → Detection2D 消息（bbox 中心/尺寸 + 类别名 + 置信度）.
+
+        Args:
+            det: engine.detect 的一项（bbox xyxy 像素、class_name/class_id、conf）.
+            header: 输出头（stamp/frame_id）.
+
+        Returns
+        -------
+            vision_msgs/Detection2D.
+
+        """
         x1, y1, x2, y2 = det['bbox']
         d = Detection2D()
         d.header = header
@@ -665,7 +818,19 @@ class PeachPoseNode(Node):
         return d
 
     def _to_candidate(self, header, tid, g3d) -> BagGraspCandidate:
-        """3D 抓取参考 → peach_pose_msgs/BagGraspCandidate（坐标系=header.frame_id）."""
+        """
+        3D 抓取参考 → BagGraspCandidate 主输出消息（坐标系=header.frame_id）.
+
+        Args:
+            header: 输出头；frame_id 即 g3d 当前所在坐标系.
+            tid: 目标 ID（target_N）.
+            g3d: BagGraspReference3D（米；None 字段在消息中给零/缺省）.
+
+        Returns
+        -------
+            peach_pose_msgs/BagGraspCandidate.
+
+        """
         m = BagGraspCandidate()
         m.header = header
         m.target_id = tid
@@ -695,7 +860,19 @@ class PeachPoseNode(Node):
         return m
 
     def _to_candidate_2d(self, header, tid, g2d) -> BagGrasp2DMsg:
-        """图像平面关键点 / 行程线 → BagGrasp2D（像素坐标）."""
+        """
+        图像平面关键点/行程线 → BagGrasp2D 消息（像素坐标；无值点由 has_* 标志区分）.
+
+        Args:
+            header: 输出头.
+            tid: 目标 ID.
+            g2d: BagGrasp2D（像素坐标；None 点给零且对应 has_*=False）.
+
+        Returns
+        -------
+            peach_pose_msgs/BagGrasp2D.
+
+        """
         m = BagGrasp2DMsg()
         m.header = header
         m.target_id = tid
@@ -718,7 +895,19 @@ class PeachPoseNode(Node):
         return m
 
     def _to_fitting(self, header, tid, result) -> BagFitting:
-        """管线 metrics / diagnostic → BagFitting（诊断用，不参与运动）."""
+        """
+        管线 metrics/诊断 → BagFitting 消息（仅供诊断调参，不参与运动；无效标量填 -1）.
+
+        Args:
+            header: 输出头.
+            tid: 目标 ID.
+            result: pipeline.TargetPoseResult（metrics 缺项按 -1 填充）.
+
+        Returns
+        -------
+            peach_pose_msgs/BagFitting.
+
+        """
         m = BagFitting()
         m.header = header
         m.target_id = tid
@@ -753,9 +942,20 @@ class PeachPoseNode(Node):
 
     def _to_markers(self, header, tid, idx, result) -> List[Marker]:
         """
-        可视化 (RViz)：轴 / 行程箭头 / 刀具圆柱 / 果球 / 三轴架 / 状态文字.
+        结果 → RViz Marker 列表：袋轴/行程箭头/刀具圆柱/果球/三轴架/状态文字.
 
         每个目标占用 id 段 ``idx*20 .. idx*20+19``，避免多目标冲突。
+
+        Args:
+            header: 输出头（frame_id 与候选消息一致）.
+            tid: 目标 ID（用于状态文字）.
+            idx: 目标序号（Marker id 段基址 = idx*20）.
+            result: pipeline.TargetPoseResult.
+
+        Returns
+        -------
+            Marker 列表（不含 DELETEALL，由调用方统一添加）.
+
         """
         g3d = result.grasp_3d
         out: List[Marker] = []
@@ -849,7 +1049,20 @@ class PeachPoseNode(Node):
         return out
 
     def _draw_debug(self, img, det, g2d, sam_mask):
-        """在 BGR 图上叠检测框、SAM 掩膜、底→颈箭头与状态文字（原地改 img）."""
+        """
+        在 BGR 图上叠检测框、SAM 掩膜、底→颈箭头与状态文字（原地改 img）.
+
+        Args:
+            img: (H, W, 3) uint8 BGR，被原地改写.
+            det: 检测 dict（bbox、class_id；class 0 绿框，其他橙框）.
+            g2d: BagGrasp2D（提供关键点像素与状态）.
+            sam_mask: (H, W) 掩膜或 None（None 时不叠掩膜）.
+
+        Returns
+        -------
+            无返回值（None）；叠加结果写回 img.
+
+        """
         x1, y1, x2, y2 = map(int, det['bbox'])
         color = (0, 220, 0) if det.get('class_id', 0) == 0 else (0, 180, 255)
         cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
@@ -875,6 +1088,17 @@ class PeachPoseNode(Node):
 
 
 def main(args=None):
+    """
+    节点入口：rclpy 初始化 → PeachPoseNode spin → KeyboardInterrupt 干净收尾.
+
+    Args:
+        args: 透传给 rclpy.init 的命令行参数；None 用 sys.argv.
+
+    Returns
+    -------
+        无返回值（None）；节点随 spin 结束销毁.
+
+    """
     rclpy.init(args=args)
     node = PeachPoseNode()
     try:

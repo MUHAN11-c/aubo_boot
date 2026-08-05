@@ -36,7 +36,17 @@ from .validation import AnnotationMetrics, load_annotations
 
 
 def _quantiles(values):
-    """标量列表 → n / p10 / median / p90；空列表返回 None."""
+    """
+    标量列表 → n / p10 / median / p90；空列表返回 None.
+
+    Args:
+        values: 数值列表（可为空）.
+
+    Returns
+    -------
+        dict(n, p10, median, p90)；空输入给 None.
+
+    """
     if not values:
         return None
     a = np.asarray(values, dtype=float)
@@ -49,7 +59,17 @@ def _quantiles(values):
 
 
 def _portable_path(path: Path) -> str:
-    """报告内尽量记相对路径，便于报告跨机器阅读."""
+    """
+    报告内尽量记相对路径，便于报告跨机器阅读.
+
+    Args:
+        path: 任意路径.
+
+    Returns
+    -------
+        相对当前工作目录的路径字符串；不在其下时给原路径字符串.
+
+    """
     try:
         return str(path.resolve().relative_to(Path.cwd().resolve()))
     except ValueError:
@@ -57,7 +77,20 @@ def _portable_path(path: Path) -> str:
 
 
 def _summary(items, elapsed, missing_masks=0):
-    """单模式 items → 状态计数、诊断直方图、指标分位数与耗时."""
+    """
+    单模式 items → 状态计数、诊断直方图、指标分位数与耗时.
+
+    Args:
+        items: _pose_item 字典列表.
+        elapsed: 本模式位姿估计总耗时 (s).
+        missing_masks: mask_unavailable 次数.
+
+    Returns
+    -------
+        汇总 dict（状态计数/分线计数/诊断直方图/unsafe_accept_proxy
+        安全代理/metric_quantiles/耗时）.
+
+    """
     statuses = Counter(item['status'] for item in items)
     reasons = Counter(flag for item in items for flag in item['flags'])
     kind_statuses = defaultdict(Counter)
@@ -89,7 +122,21 @@ def _summary(items, elapsed, missing_masks=0):
 
 
 def _pose_item(frame_id, index, bbox, detection, result):
-    """单目标结果压成可 JSON 序列化的字典（含 entry_start / axis / metrics）."""
+    """
+    单目标结果压成可 JSON 序列化的字典（含 entry_start / axis / metrics）.
+
+    Args:
+        frame_id: 帧 ID.
+        index: 目标在本帧的序号.
+        bbox: (x1, y1, x2, y2) 检测框（像素）.
+        detection: 检测 dict（取 conf）.
+        result: TargetPoseResult.
+
+    Returns
+    -------
+        JSON 可序列化 dict（ndarray → list，None 保留）.
+
+    """
     pose = result.grasp_3d
     return {
         'key': f'{frame_id}:{index}',
@@ -109,7 +156,18 @@ def _pose_item(frame_id, index, bbox, detection, result):
 
 
 def _agreements(mode_items):
-    """多模式两两对比：状态一致率与入口点距离分位数（现仅一模式时为空列表）."""
+    """
+    多模式两两对比：状态一致率与入口点距离分位数（现仅一模式时为空列表）.
+
+    Args:
+        mode_items: {mode: [_pose_item, ...]}.
+
+    Returns
+    -------
+        每对模式一个 dict（shared_targets / status_agreement_rate /
+        entry_start_delta_m）；模式数 <2 给 [].
+
+    """
     reports = []
     for left_mode, right_mode in itertools.combinations(mode_items, 2):
         left = {item['key']: item for item in mode_items[left_mode]}
@@ -131,7 +189,17 @@ def _agreements(mode_items):
 
 
 def _ranking(mode_summaries):
-    """无真值时的暂定排序：优先 unsafe_accept_proxy，再 ACCEPT 率，再耗时."""
+    """
+    无真值时的暂定排序：优先 unsafe_accept_proxy，再 ACCEPT 率，再耗时.
+
+    Args:
+        mode_summaries: {mode: _summary 返回}.
+
+    Returns
+    -------
+        dict(provisional_only=True, reason, ordered_modes=[...]).
+
+    """
     rows = []
     for mode, summary in mode_summaries.items():
         statuses = summary['status_counts']
@@ -155,7 +223,18 @@ def _ranking(mode_summaries):
 
 
 def _ground_truth_ranking(annotation_report: dict, mode_summaries: dict) -> dict:
-    """有真值时按安全优先字典序排序（错误 ACCEPT 上界为首要键）."""
+    """
+    有真值时按安全优先字典序排序（错误 ACCEPT 上界为首要键）.
+
+    Args:
+        annotation_report: AnnotationMetrics.report() 返回.
+        mode_summaries: {mode: _summary 返回}（取耗时）.
+
+    Returns
+    -------
+        dict(provisional_only=False, reason, ordered_modes=[...]).
+
+    """
     rows = []
     for mode, metrics in annotation_report['modes'].items():
         rows.append({
@@ -184,7 +263,18 @@ def _ground_truth_ranking(annotation_report: dict, mode_summaries: dict) -> dict
 
 
 def _write_markdown(path: Path, report: dict):
-    """把报告摘要写成中文 Markdown 表（便于人工扫一眼）."""
+    """
+    把报告摘要写成中文 Markdown 表（便于人工扫一眼）.
+
+    Args:
+        path: 输出 .md 路径（覆盖写）.
+        report: 完整报告 dict（protocol / modes / ranking 等）.
+
+    Returns
+    -------
+        无返回值（None）；文件写入 path.
+
+    """
     class_id = report['protocol']['class_id']
     class_text = '0(peach_bag) + 1(peach_nobag)' if class_id < 0 else str(class_id)
     lines = ['# PeachPose 桃姿 离线端到端验证', '',

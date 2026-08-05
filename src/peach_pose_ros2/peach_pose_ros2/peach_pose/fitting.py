@@ -42,14 +42,16 @@ def estimate_normals(depth_roi: np.ndarray, xoff: int, yoff: int, K: dict,
     深度突变（遮挡边缘）处法线不可靠，置无效。
 
     Args:
-        depth_roi: (h, w) uint16 深度 (mm)
-        xoff, yoff: ROI 在全图中的像素偏移
-        K: 相机内参 {"fx","fy","cx","cy"}
-        depth_jump_mm: 相邻像素深度差超过该值视为边缘（法线无效）
+        depth_roi: (h, w) uint16 深度（毫米）.
+        xoff: ROI 在全图中的 x 像素偏移.
+        yoff: ROI 在全图中的 y 像素偏移.
+        K: 相机内参 {"fx","fy","cx","cy"}（像素单位）.
+        depth_jump_mm: 相邻像素深度差超过该值（毫米）视为边缘，法线置无效.
 
     Returns
     -------
-    (normals (h,w,3) float64, normal_valid (h,w) bool)
+        (normals, normal_valid)：(h, w, 3) float64 单位法线（相机系）与
+        (h, w) bool 有效标记（图边缘一圈恒无效）.
 
     """
     h, w = depth_roi.shape
@@ -98,6 +100,20 @@ def estimate_normals(depth_roi: np.ndarray, xoff: int, yoff: int, K: dict,
 
 def _sphere_inliers(points: np.ndarray, center: np.ndarray, radius: float,
                     thresh: float) -> np.ndarray:
+    """
+    球面内点索引：|‖p−c‖ − r| ≤ thresh.
+
+    Args:
+        points: (N, 3) 点（米）.
+        center: (3,) 球心（米）.
+        radius: 半径（米）.
+        thresh: 径向残差阈值（米）.
+
+    Returns
+    -------
+        内点下标 int 数组.
+
+    """
     d = np.linalg.norm(points - center, axis=1)
     return np.where(np.abs(d - radius) <= thresh)[0]
 
@@ -113,9 +129,18 @@ def ransac_sphere(points: np.ndarray, normals: Optional[np.ndarray] = None,
     理论: c = p − r·n（射线约束）；半径已知 → 最小采样 1 点（迭代数 ~7）；
     半径未知 → 2 点+法线，r = |p₁−p₂|² / ((n₁−n₂)·(p₁−p₂))。
 
+    Args:
+        points: (N, 3) 点（米）；N<10 直接 None.
+        normals: (N, 3) 单位法线；None 或含非有限值时退化 4 点采样.
+        radius_prior: 半径先验（米）；给定时单点采样.
+        radius_range: 接受的半径区间 (min, max)（米），区间外假设丢弃.
+        thresh: 内点径向残差阈值（米）.
+        max_iter: RANSAC 迭代次数.
+        seed: 随机种子（保证可复现）.
+
     Returns
     -------
-    dict(center, radius, inliers, inlier_ratio, rms) 或 None
+        dict(center, radius, inliers, inlier_ratio, rms)；内点 <10 给 None.
 
     """
     rng = np.random.default_rng(seed)
@@ -174,6 +199,17 @@ def polish_sphere_lm(points: np.ndarray, center0: np.ndarray,
 
     理论: min Σ(||p_i−c|| − r)² 是各向同性高斯噪声的最大似然；固定半径
     删除 Fisher 信息矩阵最病态方向，CRLB 严格下降。
+
+    Args:
+        points: (N, 3) 内点（米）.
+        center0: (3,) 初始球心（米）.
+        radius: 半径（米）；fixed_radius 时固定为该值.
+        fixed_radius: True 只估球心（3 DOF）；False 球心+半径联估（4 DOF）.
+
+    Returns
+    -------
+        (center (3,), radius)：抛光后的球心与半径（米）.
+
     """
     from scipy.optimize import least_squares
 
@@ -194,7 +230,23 @@ def fit_sphere_robust(points: np.ndarray, normals: Optional[np.ndarray] = None,
                       radius_range: Tuple[float, float] = (0.025, 0.045),
                       thresh: float = 0.004, max_iter: int = 300,
                       seed: int = 0) -> Optional[dict]:
-    """完整球拟合: RANSAC → 内点 LM 抛光 → 重计内点与统计量."""
+    """
+    完整球拟合: RANSAC → 内点 LM 抛光 → 重计内点与统计量.
+
+    Args:
+        points: (N, 3) 点（米）.
+        normals: (N, 3) 单位法线；None 退化 4 点采样.
+        radius_prior: 半径先验（米）；None 表示半径自由（抛光亦放开）.
+        radius_range: 接受的半径区间（米），抛光后越界判失败.
+        thresh: 内点径向残差阈值（米）.
+        max_iter: RANSAC 迭代次数.
+        seed: 随机种子.
+
+    Returns
+    -------
+        dict(center, radius, inliers, inlier_ratio, rms)；失败给 None.
+
+    """
     est = ransac_sphere(points, normals, radius_prior, radius_range,
                         thresh, max_iter, seed)
     if est is None:
@@ -219,6 +271,19 @@ def fit_sphere_robust(points: np.ndarray, normals: Optional[np.ndarray] = None,
 # ═══════════════════════════════════════════════════════════════
 
 def _cylinder_radial_dist(points: np.ndarray, q0: np.ndarray, axis: np.ndarray) -> np.ndarray:
+    """
+    点到圆柱轴的径向距离.
+
+    Args:
+        points: (N, 3) 点（米）.
+        q0: (3,) 轴上一点（米）.
+        axis: (3,) 单位轴向.
+
+    Returns
+    -------
+        (N,) 径向距离（米）.
+
+    """
     rel = points - q0
     perp = rel - np.outer(rel @ axis, axis)
     return np.linalg.norm(perp, axis=1)
@@ -234,9 +299,17 @@ def ransac_cylinder(points: np.ndarray, normals: np.ndarray,
     理论: 圆柱法线 ⊥ 轴 → a = (n₁×n₂)/|n₁×n₂|；投影 ⊥a 平面退化为 2D 圆，
     圆心 = 两射线 p'₁+α·n'₁ 与 p'₂+β·n'₂ 的交点；半径夹紧剪掉退化假设。
 
+    Args:
+        points: (N, 3) 点（米）；N<20 直接 None.
+        normals: (N, 3) 单位法线；None 或数量不符直接 None.
+        radius_range: 接受的半径区间 (min, max)（米），区间外假设丢弃.
+        thresh: 内点径向残差阈值（米）.
+        max_iter: RANSAC 迭代次数.
+        seed: 随机种子.
+
     Returns
     -------
-    dict(axis, q0, radius, inliers, inlier_ratio, rms) 或 None
+        dict(axis, q0, radius, inliers, inlier_ratio, rms)；内点 <20 给 None.
 
     """
     rng = np.random.default_rng(seed)
@@ -282,11 +355,35 @@ def ransac_cylinder(points: np.ndarray, normals: np.ndarray,
 # ── Eberly 圆柱抛光（BSD 3-Clause, 改编自 xingjiepan/cylinder_fitting）──
 
 def _eberly_direction(theta: float, phi: float) -> np.ndarray:
+    """
+    球坐标 (theta, phi) → 单位方向向量（Eberly 参数化）.
+
+    Args:
+        theta: 与 +Z 的极角 (rad).
+        phi: 绕 Z 的方位角 (rad).
+
+    Returns
+    -------
+        (3,) 单位向量.
+
+    """
     return np.array([np.cos(phi) * np.sin(theta), np.sin(phi) * np.sin(theta),
                      np.cos(theta)])
 
 
 def _eberly_G(w: np.ndarray, X: np.ndarray) -> float:
+    """
+    Eberly 目标函数 G(w)：方向 w 下的代数残差能量.
+
+    Args:
+        w: (3,) 单位轴向.
+        X: (N, 3) 已去均值点（米）.
+
+    Returns
+    -------
+        能量标量；退化（分母≈0）给 inf.
+
+    """
     P = np.eye(3) - np.outer(w, w)
     Y = X @ P.T
     A = Y.T @ Y
@@ -302,7 +399,18 @@ def _eberly_G(w: np.ndarray, X: np.ndarray) -> float:
 
 
 def _eberly_center(w: np.ndarray, X: np.ndarray) -> np.ndarray:
-    """Eberly 闭式轴心 C(w)（消元结果，见 cylinder_fitting/fitting.py）."""
+    """
+    Eberly 闭式轴心 C(w)（消元结果，见 cylinder_fitting/fitting.py）.
+
+    Args:
+        w: (3,) 单位轴向.
+        X: (N, 3) 已去均值点（米）.
+
+    Returns
+    -------
+        (3,) 轴心（去均值坐标系下；分母退化时给零向量）.
+
+    """
     P = np.eye(3) - np.outer(w, w)
     Y = X @ P.T
     A = Y.T @ Y
@@ -320,7 +428,14 @@ def polish_cylinder_axis(points: np.ndarray,
     """
     Eberly 轴向抛光：5 维消元为 2 维，以 axis_hint 为起点 Powell 优化.
 
-    Returns: (axis 单位向量, 轴上一点)
+    Args:
+        points: (N, 3) 点（米）.
+        axis_hint: (3,) 初始轴向（内部归一化；结果与之同向，防符号翻转）.
+
+    Returns
+    -------
+        (axis, q0)：(3,) 单位轴向与 (3,) 轴上一点（米）.
+
     """
     from scipy.optimize import minimize
 
@@ -356,6 +471,20 @@ def fit_cylinder_robust(points: np.ndarray, normals: np.ndarray,
 
     半径用 mean(d_i) 重估（Eberly 代数残差导致 ~1.9mm 系统性半径偏差，
     轴向不受此影响，见 references/notes_fitting_algorithms.md §2.2）。
+
+    Args:
+        points: (N, 3) 点（米）.
+        normals: (N, 3) 单位法线.
+        radius_range: 接受的半径区间 (min, max)（米）.
+        thresh: 内点径向残差阈值（米）.
+        max_iter: RANSAC 迭代次数.
+        polish: True 时做 Eberly 轴向抛光（内点抽稀到 800）.
+        seed: 随机种子.
+
+    Returns
+    -------
+        dict(axis, q0, radius, inliers, inlier_ratio, rms)；失败给 None.
+
     """
     est = ransac_cylinder(points, normals, radius_range, thresh, max_iter, seed)
     if est is None:

@@ -59,6 +59,24 @@ class InferenceEngine:
         sam_min_area: int = 100,
         class_names: dict = None,
     ):
+        """
+        构造引擎（模型懒加载，首次推理时才读权重）.
+
+        Args:
+            yolo_model: YOLO 权重路径（.pt）；空串行为取决于 ultralytics.
+            sam_model: SAM 权重路径或模型名.
+            yolo_conf: YOLO 置信度阈值 [0, 1].
+            yolo_iou: YOLO NMS IoU 阈值 [0, 1].
+            sam_max_bboxes: 单次 SAM 推理的最大 prompt 框数（超出截断）.
+            sam_min_area: 掩膜最小像素数，过小丢弃.
+            class_names: {class_id: 名称}；None 用默认 {0: peach_bag,
+                1: peach_nobag}.
+
+        Returns
+        -------
+            无返回值（None）.
+
+        """
         self._yolo_model_path = yolo_model
         self._sam_model_name = sam_model
         self._yolo_conf = yolo_conf
@@ -78,6 +96,14 @@ class InferenceEngine:
 
     @staticmethod
     def _resolve_device() -> str:
+        """
+        选推理设备：有 CUDA 用 'cuda:0'，否则 'cpu'.
+
+        Returns
+        -------
+            设备字符串（torch 未安装时视为无卡，回退 'cpu'）.
+
+        """
         try:
             import torch
             if torch.cuda.is_available():

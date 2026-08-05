@@ -89,11 +89,11 @@ class BagObservation:
     rgb: np.ndarray                        # (H, W, 3) BGR（OpenCV 惯例）
     depth: np.ndarray                      # (H, W) uint16，单位 mm，与 RGB 对齐
     camera_K: dict                         # {"fx","fy","cx","cy","width","height"}
-    frame_id: str = 'camera_depth_optical_frame'
+    frame_id: str = 'camera_depth_optical_frame'  # 相机光学系 frame_id
     gravity_hint: Optional[np.ndarray] = None  # (3,) 相机系重力方向；IMU 不可用时 None
     # [{"bbox","class_id","conf"}]，bbox 常为 xyxy
     detections: List[dict] = field(default_factory=list)
-    metadata: dict = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)  # 版本追溯（model/calibration_version）
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -111,9 +111,9 @@ class BagGrasp2D:
     grasp_px: Optional[Tuple[float, float]] = None  # 抓取参考点像素 (u, v)
     bag_axis_line: Optional[Tuple] = None           # [bottom_px, neck_px]
     travel_line: Optional[Tuple] = None             # [grasp_px, travel_end_px]
-    confidence: float = 0.0
+    confidence: float = 0.0                         # [0, 1]，越高越可信
     status: str = 'REJECT'                          # ACCEPT|REOBSERVE|REJECT
-    diagnostic_flags: List[str] = field(default_factory=list)
+    diagnostic_flags: List[str] = field(default_factory=list)  # 门控诊断标记
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -124,7 +124,7 @@ class BagGrasp2D:
 class BagGraspReference3D:
     """3D 抓取参考位姿 (相机坐标系, 米)."""
 
-    frame_id: str = 'camera_depth_optical_frame'
+    frame_id: str = 'camera_depth_optical_frame'  # 坐标系（默认相机光学系）
     entry_start: Optional[np.ndarray] = None  # P_entry_start (3,) — 圆柱顶面圆心 = 末端TCP, 位于袋底外侧
     position: Optional[np.ndarray] = None  # P_grasp (3,) — [legacy] 保留兼容, 新代码优先用 entry_start
     orientation: Optional[np.ndarray] = None          # R = [Xg, Yg, Zg] (3×3)
@@ -136,17 +136,24 @@ class BagGraspReference3D:
     suggested_travel_end: Optional[np.ndarray] = None    # P_entry_start + travel × Zg
     position_covariance: Optional[np.ndarray] = None     # (3×3)
     direction_covariance: Optional[np.ndarray] = None    # (3×3)
-    confidence: float = 0.0
+    confidence: float = 0.0                             # [0, 1]
     status: str = 'REJECT'                            # ACCEPT|REOBSERVE|REJECT
-    diagnostic_flags: List[str] = field(default_factory=list)
+    diagnostic_flags: List[str] = field(default_factory=list)  # 门控诊断标记
     diagnostic_info: dict = field(default_factory=dict)  # 诊断详情
-    strategy_id: str = ''
-    model_version: str = ''
-    calibration_version: str = ''
-    tool_version: str = ''
+    strategy_id: str = ''                             # 策略标识（管线:前景模式）
+    model_version: str = ''                           # 模型版本标识
+    calibration_version: str = ''                     # 内外参版本标识
+    tool_version: str = ''                            # 工具几何版本
 
     def to_dict(self) -> dict:
-        """转为 JSON 可序列化字典."""
+        """
+        转为 JSON 可序列化字典（ndarray → list）.
+
+        Returns
+        -------
+            dict；数组字段转嵌套 list，None 保留.
+
+        """
         def arr(a):
             return a.tolist() if isinstance(a, np.ndarray) else a
         return {
@@ -186,13 +193,13 @@ def compute_entry_start(P_bottom: np.ndarray, Z_tool: np.ndarray,
     入口起点位于袋底外侧, 保证圆柱从袋子外部开始套入。
 
     Args:
-        P_bottom: (3,) 袋底3D位置
-        Z_tool: (3,) 归一化的工具轴方向 (袋底→袋颈)
-        entry_standoff: 袋底外侧安全距离 (m)
+        P_bottom: (3,) 袋底3D位置（米，相机光学系）.
+        Z_tool: (3,) 归一化的工具轴方向 (袋底→袋颈).
+        entry_standoff: 袋底外侧安全距离 (m)，= entry_d_tool + entry_d_s.
 
     Returns
     -------
-    P_entry_start: (3,) 圆柱入口起点
+        P_entry_start: (3,) 圆柱入口起点（米）.
 
     """
     return P_bottom - entry_standoff * Z_tool
@@ -208,14 +215,15 @@ def compute_travel_range(P_entry_start: np.ndarray, P_neck: np.ndarray,
     行程受 L_insert 上限约束, 并在袋颈前方保留 margin_neck 安全距离。
 
     Args:
-        P_entry_start: (3,) 入口起点
-        P_neck: (3,) 袋颈候选位置
-        Z_tool: (3,) 归一化的工具轴方向
-        tool: ToolGeometry 实例
+        P_entry_start: (3,) 入口起点（米）.
+        P_neck: (3,) 袋颈候选位置（米）.
+        Z_tool: (3,) 归一化的工具轴方向.
+        tool: ToolGeometry 实例（读 L_blade / margin_neck / L_insert）.
 
     Returns
     -------
-    (travel_min, travel_max): 建议行程区间 (m)
+        (travel_min, travel_max): 建议行程区间 (m)；travel_min 为 0.8 倍
+        安全行程的保守下限，travel_max 受 L_insert 封顶.
 
     """
     s_neck = float(np.dot(P_neck - P_entry_start, Z_tool) - tool.L_blade)

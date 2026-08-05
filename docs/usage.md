@@ -241,11 +241,11 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real robot_ip:=<IP>
 
 ## 9. 场景重建与桃子位姿（venv 节点）
 
-aubo_scene_recon 与 peach_pose_ros2 依赖 open3d/torch，节点一律经包内
-`scripts/` 包装脚本以工作区 venv 启动（launch 用标准 `Node()` 按名引用）。
-包装脚本解释器选择优先级：`AUBO_PYTHON` 环境变量 > 操作者已激活的 venv
-（`VIRTUAL_ENV` 非空）> 自动 source 工作区 `aubo_py3.12/bin/activate`。
-venv 依赖可用 `aubo_py3.12/bin/pip install -r requirements.txt` 复现。
+aubo_scene_recon 与 peach_pose_ros2 依赖 open3d/torch，节点为标准
+console_scripts 入口，启动器 shebang 在构建期由 setup.py 的
+`options.build_scripts.executable` 指向工作区 `aubo_py3.12/bin/python`
+（不存在则回退构建解释器）；launch 用标准 `Node()` 按名引用，无解释器
+参数。venv 依赖可用 `aubo_py3.12/bin/pip install -r requirements.txt` 复现。
 
 ### 9.1 场景重建（aubo_scene_recon）
 
@@ -275,9 +275,7 @@ TF（含 extrinsics_publisher 外参）变到 `base_link`——因此真机使�
 bringup 的 `camera_enabled` 与 `extrinsics_enabled` 都要开着（均默认开）。
 
 ```bash
-ros2 launch peach_pose_ros2 peach_pose.launch.py
-# launch 参数 python_executable：显式指定节点解释器（经 AUBO_PYTHON 传给
-# 包装脚本），默认空 → 工作区 aubo_py3.12 venv
+ros2 launch peach_pose_ros2 peach_pose.launch.py    # 无 launch 参数
 
 # 输出（RViz 观察）：/peach_pose_node/grasp_candidates（抓取候选）、
 #   ~/detections、~/masks、~/markers、~/debug_image、~/detection_cloud

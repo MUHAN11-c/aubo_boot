@@ -5,6 +5,9 @@
 订阅 Percipio RGB-D，运行 YOLO + MobileSAM + 实测深度几何管线，发布抓取参考候选
 与 RViz Marker。**只发参考位姿，不发送运动指令。**
 
+从零逐行读懂本包（启动链 → 参数 → 节点 → 管线 → 输出话题）见
+**[TUTORIAL.md](TUTORIAL.md)**（零基础教程）。
+
 ## 使用方法
 
 ### 依赖（`aubo_py3.12`，**GPU**）
@@ -156,10 +159,11 @@ RGB(bgr8) + 深度(16UC1) + CameraInfo   ApproximateTime 同步 (slop=sync_slop_
 
 ### 节点与入口
 
-单节点 `peach_pose_node`，经 `scripts/peach_pose_node` 包装脚本进 venv 运行
-（source 式约定同 `AGENTS.md` 第 8 节：`AUBO_PYTHON` 显式解释器 > 已激活的
-venv > 自动 `source aubo_py3.12/bin/activate`）。launch 只有一个参数
-`python_executable`，非空时作为 `AUBO_PYTHON` 传给包装脚本。
+单节点 `peach_pose_node`，标准 console_scripts 入口；setup.py 经
+`options.build_scripts.executable` 把启动器 shebang 指到 venv 解释器
+（构建期解析：工作区 `aubo_py3.12/bin/python` 存在则用之，否则回退构建
+解释器；约定同 `AGENTS.md` 第 8 节）。
+launch 无任何解释器参数，标准 `Node()` 启动。
 
 ### 话题
 

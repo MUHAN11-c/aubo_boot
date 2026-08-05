@@ -39,9 +39,9 @@ MoveIt → FollowJointTrajectory goal
   （`aubo_py3.12/bin/pip install -r requirements.txt` 可复现，文件头注释有详细约束）。
   ROS 节点分两层：纯 ROS 节点（aubo_hand_eye_calibration）走系统 python3
   （console_scripts + apt 依赖）；依赖 torch/open3d 的节点（aubo_scene_recon、
-  peach_pose_ros2）经包内 `scripts/` 的 bash 包装脚本进 venv 运行（装到
-  `lib/<pkg>`，`Node()`/`ros2 run` 按名引用），解释器可用环境变量
-  `AUBO_PYTHON` 覆盖（约定详见第 8 节）。
+  peach_pose_ros2）同样用 console_scripts，但 setup.py 经
+  `options.build_scripts.executable` 把启动器 shebang 指到 venv 解释器
+  （构建期解析，约定详见第 8 节）。
 - **框架**：ROS 2 Jazzy + ros2_control（hardware_interface / controller_interface /
   pluginlib / generate_parameter_library）+ MoveIt 2（ompl + pilz 双管线）
 - **构建系统**：colcon + ament_cmake / ament_python（无 pyproject.toml /
@@ -83,8 +83,9 @@ src/                            # 参与构建的包（共 14 个）
 │                               #   约束运动；求解算法可选 auto/tsai/park/horaud/
 │                               #   andreff/daniilidis + Huber 精化；Web 界面含机器人
 │                               #   状态/末端位姿/关节表/逐帧过程/求解公式与残差图表）
-├── aubo_scene_recon/           # 点云场景重建（open3d TSDF/累积后端；节点经
-│                               #   scripts/recon_fusion_node 包装脚本进 venv 运行）
+├── aubo_scene_recon/           # 点云场景重建（open3d TSDF/累积后端；节点为
+│                               #   console_scripts + build_scripts.executable
+│                               #   指向 venv，约定见第 8 节）
 ├── peach_gantry_description/   # 架子式桃子采摘机器人（总装4）URDF 描述包
 │                               #   （SolidWorks 导出，四轮底盘+升降采摘臂，
 │                               #   mesh 路径已改 package:// 引用；TF 根为
@@ -97,7 +98,10 @@ src/                            # 参与构建的包（共 14 个）
 │                               #   TF 显示；未接入 lint）
 ├── peach_pose_msgs/            # 桃子位姿估计的自定义 msg
 ├── peach_pose_ros2/            # 桃子位姿估计（YOLO+SAM，依赖 venv 内 torch；
-│                               #   节点经 scripts/ 包装脚本启动，同 scene_recon 模式）
+│                               #   节点为 console_scripts + build_scripts.executable
+│                               #   指向 venv，同 scene_recon 模式；
+│                               #   TUTORIAL.md=零基础逐行教程：启动链→参数→
+│                               #   节点→管线→输出话题）
 └── percipio_camera/            # 相机驱动（厂商代码，两处项目化改动：
                                 #   ① launch 默认值：device_ip=169.254.10.110、
                                 #   depth_enable=true、point_cloud_enable=false、
@@ -198,10 +202,10 @@ wrist3_Link→camera_link）、`hand_eye_enabled`（false，标定采集/求解�
 moveit.launch.py`（自带 rsp + joint_state_publisher_gui；参数 `controllers_file`、
 `standalone_state_publishers`，bringup 集成时后者传 false）。
 
-感知/重建为独立入口（venv 包装脚本启动，约定见第 8 节）：
+感知/重建为独立入口（console_scripts + venv shebang，约定见第 8 节）：
 `ros2 launch aubo_scene_recon recon.launch.py`（点云重建）、
-`ros2 launch peach_pose_ros2 peach_pose.launch.py`（桃子位姿，仅
-`python_executable` 一个参数，作为 `AUBO_PYTHON` 传入）；无相机冒烟用
+`ros2 launch peach_pose_ros2 peach_pose.launch.py`（桃子位姿，launch 无
+解释器参数）；无相机冒烟用
 `aubo_py3.12/bin/python tools/peach_dataset_replayer.py --dataset <根>`。
 任意 launch 的全部参数及中文说明可用 `--show-args` 查看。
 
@@ -296,13 +300,16 @@ cd src/peach_pose_ros2 && PYTHONPATH=peach_pose_ros2:$PYTHONPATH ../../aubo_py3.
   Python 走 ament_flake8（99 列、单引号、import 分组）；CMake 走 ament_lint_cmake。
   改代码后必须保持 lint 全绿（工具均在 /opt/ros/jazzy/bin）。
 - venv 依赖节点的启动约定：需要 torch/open3d 的节点（aubo_scene_recon、
-  peach_pose_ros2）一律经包内 `scripts/` 下 bash 包装脚本启动（装到 `lib/<pkg>`，
-  `Node()`/`ros2 run` 按名引用）。包装脚本内部约定：`AUBO_PYTHON` 显式指定解释器
-  优先级最高；操作者已 `source` 某个 venv（`VIRTUAL_ENV` 非空）则直接沿用；
-  否则自动 `source` 工作区 `aubo_py3.12/bin/activate` 后用 `python3 -m` 启动。
-  launch 文件一律用标准 `Node()`，不得出现解释器路径或 ExecuteProcess 拼
-  `python -m`；也不要改回 console_scripts——其 shebang 是系统 python3，
-  没有 torch/open3d，入口会实际不可用。
+  peach_pose_ros2）用**标准 console_scripts 入口**，并在 setup.py 里通过
+  `options={'build_scripts': {'executable': _resolve_python()}}` 把启动器
+  shebang 指向 venv 解释器（ROS 2 官方 *Using Python Packages with ROS 2*
+  的做法；setuptools 的 install_scripts 生成启动器时取该值，未设置则回退
+  为构建解释器——apt 版 colcon 固定 /usr/bin/python3，没有 torch/open3d）。
+  `_resolve_python()` 在构建期解析：工作区 `aubo_py3.12/bin/python`
+  （按 setup.py 位置相对推算）存在则用之，否则回退 `sys.executable`；
+  源码不写死绝对路径，迁移/换机重建后自动指向新机 venv。
+  launch 文件一律用标准 `Node()`，不得出现解释器路径。
+  （2026-08-05 前曾用 scripts/ bash 包装脚本方案，已废弃删除，历史见 git。）
 - `aubo_e5_hardware` 公共头 `aubo_e5_hardware.hpp` include 了 vendor SDK 头
   （`AuboRobotMetaType.h`），而 vendor include 路径是 PRIVATE——该头目前不支持
   被下游包 include（现无下游消费者；如未来需要，先把 SDK 类型移入 .cpp
@@ -336,7 +343,8 @@ cd src/peach_pose_ros2 && PYTHONPATH=peach_pose_ros2:$PYTHONPATH ../../aubo_py3.
   不要在 venv 里 pip 装 opencv-python/scipy（装了会 shadow 系统版；
   ultralytics 拉取的 opencv-python 目前实测可共存，若出段错误先卸它，
   详见 requirements.txt 头注释）。
-  节点级 venv 入口约定（包装脚本 + `AUBO_PYTHON`）见第 8 节。
+  节点级 venv 入口约定（console_scripts + `build_scripts.executable` 指向
+  venv）见第 8 节。
 - **tf2 静态 TF 不接受同发布者覆盖**：`extrinsics_publisher` 的 `~/reload`
   重读后确实重新 sendTransform，但同一 publisher 进程更新 wrist3_Link→
   camera_link 不会传播给 tf2 buffer（后加入的订阅者仍拿到旧值）。激活新外参后

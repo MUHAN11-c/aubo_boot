@@ -221,16 +221,138 @@ peach_moveit_config/
 
 ## 附录 C：真机接入指南
 
-### C-1 控制数据格式（从 MoveIt 到电机）
+### C-1 控制数据格式（完整定义与本机实例）
+
+总览：
 
 | 环节 | 格式 | 说明 |
 |---|---|---|
-| MoveIt 输出 | `control_msgs/action/FollowJointTrajectory` goal | `trajectory: trajectory_msgs/JointTrajectory{joint_names[6], points[]{positions, velocities, accelerations, time_from_start}}`；positions 单位 rad（旋转）/ m（直线），已由 TOTG 按限值时间参数化 |
-| JTC ↔ 硬件 | double 数组（ros2_control interface） | 每控制周期（100 Hz）一个位置设定点：position command interface（rad/m）；硬件经 position/velocity state interface 回报 |
-| 硬件插件 ↔ 驱动器 | 取决于实机（CAN/Modbus/EtherCAT/脉冲） | 插件负责 rad/m ↔ 驱动器单位（脉冲、度、mm）换算与限幅 |
+| 用户/RViz → move_group | `moveit_msgs/action/MoveGroup` | 位姿或关节目标，规划+时间参数化在 move_group 内完成 |
+| MoveIt 输出 | `control_msgs/action/FollowJointTrajectory` goal | 见 C-1.2；positions 单位 rad（旋转）/ m（直线），已按限值时间参数化 |
+| JTC ↔ 硬件 | double 数组（ros2_control interface） | 每控制周期（100 Hz）一个位置设定点，见 C-1.3 |
+| 硬件插件 ↔ 驱动器 | 取决于实机（CAN/Modbus/EtherCAT/脉冲） | 插件负责 rad/m ↔ 驱动器单位（脉冲、度、mm）换算与限幅，见 C-1.4 |
 
 MoveIt 侧不需要任何改动：只要 action 名
 `/peach_arm_controller/follow_joint_trajectory` 与接口名不变。
+
+#### C-1.1 组/关节顺序（一切数组的共同约定）
+
+权威关节顺序（JTC 参数 `joints` 的顺序，所有数组都按它排）：
+
+```
+[joint1, joint2, joint3, joint4, joint5, joint6]
+ 旋转rad  直线m   旋转rad  直线m   旋转rad  旋转rad
+```
+
+#### C-1.2 FollowJointTrajectory action（MoveIt → JTC）
+
+类型定义（`control_msgs/action/FollowJointTrajectory`）：
+
+```
+# ===== Goal =====
+trajectory_msgs/JointTrajectory trajectory
+trajectory_msgs/JointTolerance[] path_tolerance    # 路径容差（本配置未用）
+trajectory_msgs/JointTolerance[] goal_tolerance    # 终点容差
+builtin_interfaces/Duration goal_time_tolerance
+# ===== Result =====
+int32 error_code        # 1=SUCCESSFUL；-1=INVALID_GOAL；-2=INVALID_JOINTS；
+                        # -3=OLD_HEADER_TIMESTAMP；-4=PATH_TOLERANCE_VIOLATED；
+                        # -5=GOAL_TOLERANCE_VIOLATED
+string error_string
+# ===== Feedback（每控制周期发出）=====
+std_msgs/Header header
+string[] joint_names
+trajectory_msgs/JointTrajectoryPoint desired
+trajectory_msgs/JointTrajectoryPoint actual
+trajectory_msgs/JointTrajectoryPoint error
+```
+
+核心载荷 `trajectory_msgs/JointTrajectory`：
+
+```
+std_msgs/Header header
+string[] joint_names                              # 见 C-1.1 顺序
+trajectory_msgs/JointTrajectoryPoint[] points     # 时间递增的路点
+# JointTrajectoryPoint:
+float64[] positions                # 6 维；rad（旋转关节）/ m（直线关节）
+float64[] velocities               # rad/s、m/s（TOTG 会给全）
+float64[] accelerations            # rad/s²、m/s²
+float64[] effort                   # 本链路不使用，恒空
+builtin_interfaces/Duration time_from_start   # 从轨迹起点起算的时刻
+```
+
+本机实例（"回零"goal 的轨迹示意，缩写为 3 点；单位见 C-1.1）：
+
+```yaml
+trajectory:
+  joint_names: [joint1, joint2, joint3, joint4, joint5, joint6]
+  points:
+  - positions:     [0.5, 0.1, 0.2, 0.05, 1.0, 0.5]    # 起点=当前状态
+    velocities:    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    accelerations: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    time_from_start: {sec: 0, nanosec: 0}
+  - positions:     [0.25, 0.05, 0.1, 0.025, 0.75, 0.25]
+    velocities:    [0.113, 0.023, 0.045, 0.011, 0.113, 0.113]
+    accelerations: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    time_from_start: {sec: 2, nanosec: 210000000}
+  - positions:     [0.0, 0.0, 0.0, 0.0, 0.5, 0.0]     # 终点
+    velocities:    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    accelerations: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    time_from_start: {sec: 4, nanosec: 420000000}
+```
+
+注意：点密度由 TOTG 决定（通常几十~几百点，不是 3 点）；路点时刻严格递增；
+首点恒等于当前状态。**直线关节 joint2/joint4 的 positions 单位是米**
+（0.1 = 100 mm），与旋转关节的 rad 混排在同一数组——硬件插件换算时
+必须按关节类型分支，这是最容易写错的地方。
+
+#### C-1.3 ros2_control 接口层（JTC ↔ 硬件插件，100 Hz）
+
+JTC 拿到轨迹后做样条插值，每个控制周期（10 ms）往 command interface 写
+一个设定点。接口是"关节名/接口名"的键值对，值就是裸 double：
+
+```
+# command（JTC 写，硬件 write() 读）
+joint1/position = 0.0123        # rad
+joint2/position = 0.0025        # m
+joint3/position = 0.0049        # rad
+joint4/position = 0.0006        # m
+joint5/position = 0.5187        # rad
+joint6/position = 0.0123        # rad
+
+# state（硬件 read() 写，JTC/jsb 读）
+joint1/position = 0.0122        # rad（实测）
+joint1/velocity = 0.1130        # rad/s（实测）
+joint2/position = 0.0025        # m
+joint2/velocity = 0.0231        # m/s
+…（六关节同理）
+```
+
+jsb 把 state 接口原样打包成 `/joint_states`
+（`sensor_msgs/msg/JointState`：`name[]` + `position[]` + `velocity[]`，
+顺序同 C-1.1，100 Hz），MoveIt/Rviz 的状态回读全走这个话题。
+
+#### C-1.4 硬件插件 → 驱动器（真机要自己写的换算）
+
+插件 `write()` 里把 SI 单位换算成驱动器单位，示例如下（参数按实机替换）：
+
+```cpp
+// 旋转关节：rad → 编码器脉冲
+//   pulse = rad / (2π) × 减速比 × 每圈脉冲数
+double rad = command_interfaces_[j];                 // 例：joint1 = 0.0123 rad
+int32_t pulse = static_cast<int32_t>(
+    rad / (2.0 * M_PI) * REDUCTION_RATIO * PULSES_PER_REV);
+
+// 直线关节：m → mm / 丝杠脉冲
+//   mm = m × 1000；pulse = m / 导程 × 每圈脉冲数
+double m = command_interfaces_[j];                   // 例：joint2 = 0.0025 m
+double mm = m * 1000.0;                              // = 2.5 mm
+int32_t lin_pulse = static_cast<int32_t>(m / LEAD_M * PULSES_PER_REV);
+```
+
+反向（`read()`）把驱动器读数除回 rad/m 写进 state 接口；方向符号、
+零位偏置、限幅/软限位都收敛在插件这一层处理，不要改 URDF/JTC 参数去凑。
+下发前建议做增量限幅（每周期最大变化量 = max_velocity × 周期），防跳变。
 
 ### C-2 标准做法：写一个 ros2_control 硬件插件（SystemInterface）
 

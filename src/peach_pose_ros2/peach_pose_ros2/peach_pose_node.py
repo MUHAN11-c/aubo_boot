@@ -40,33 +40,72 @@ from sensor_msgs.msg import CameraInfo, Image, PointCloud2, PointField
 from sensor_msgs_py import point_cloud2 as pc2
 from std_msgs.msg import Header
 from tf2_ros import Buffer, TransformException, TransformListener
+from tf_transformations import (
+    quaternion_from_matrix,
+    quaternion_matrix,
+    translation_matrix,
+)
 from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose
 from visualization_msgs.msg import Marker, MarkerArray
 
+# 三态安全门控结果 → ROS 消息枚举的映射（与 peach_pose_msgs/BagGraspCandidate.status 一致）。
+# 算法管线内部用字符串状态，发布消息时经本表转成 uint8：
+#   ACCEPT=0    可信：无任何诊断标记，位姿可直接用于套袋动作
+#   REOBSERVE=1 存疑：信息不足（如掩膜缺失、轴来自重力先验、触边截断等），
+#               建议换个视角重采一帧再判，不建议直接动作
+#   REJECT=2    不可用：存在硬性失败（如 tool_clearance_failed 净空不足、
+#               有效点太少等），禁止据此位姿动作
+STATUS_MAP = {'ACCEPT': 0, 'REOBSERVE': 1, 'REJECT': 2}
 
-def _transform_msg_to_matrix(t) -> np.ndarray:
-    """geometry_msgs/Transform → 4×4 齐次矩阵（p_out = R @ p_in + t）."""
-    q = t.rotation
-    x, y, z, w = q.x, q.y, q.z, q.w
+
+def _quat_to_matrix_handwritten(q_xyzw) -> np.ndarray:
+    """
+    手写原理版：单位四元数 q=(x,y,z,w) → 3×3 旋转矩阵（教学保留）.
+
+    公式由四元数旋转关系 R(q) 展开，预计算 9 个乘积项后直接填 3×3：
+    对角元 1-2(yy+zz) 等，非对角元 2(xy∓wz) 等。
+    注意假定 q 已归一化（不归一）；官方 tf_transformations.quaternion_matrix
+    内部按模长归一，非单位四元数输入时两者才有差异——tf2 下发的 Transform
+    均为单位四元数，正常路径下与官方版数值一致（max|Δ|≈1e-15）。
+    """
+    x, y, z, w = q_xyzw
     xx, yy, zz = x * x, y * y, z * z
     xy, xz, yz = x * y, x * z, y * z
     wx, wy, wz = w * x, w * y, w * z
-    R = np.array([
+    return np.array([
         [1 - 2 * (yy + zz), 2 * (xy - wz), 2 * (xz + wy)],
         [2 * (xy + wz), 1 - 2 * (xx + zz), 2 * (yz - wx)],
         [2 * (xz - wy), 2 * (yz + wx), 1 - 2 * (xx + yy)],
     ], dtype=float)
-    T = np.eye(4, dtype=float)
-    T[:3, :3] = R
-    T[0, 3] = t.translation.x
-    T[1, 3] = t.translation.y
-    T[2, 3] = t.translation.z
-    return T
+
+
+def _transform_msg_to_matrix(t, logger=None) -> np.ndarray:
+    """
+    geometry_msgs/Transform → 4×4 齐次矩阵（p_out = R @ p_in + t）.
+
+    双实现并存：ROS 官方 tf_transformations 为主（内部按模长归一，最稳健，
+    作为返回值）；手写原理版 _quat_to_matrix_handwritten 同步计算并逐帧对比，
+    差异超 1e-9 打告警（可传节点 logger，缺省 print）。2000 组随机单位
+    四元数对比 max|Δ| = 1.1e-15（2026-08-05 验证，固化于 test_tf_matrix.py）。
+    """
+    tr = t.translation
+    q = t.rotation
+    q_xyzw = (q.x, q.y, q.z, q.w)
+    T_api = translation_matrix((tr.x, tr.y, tr.z)) @ quaternion_matrix(q_xyzw)
+    # 手写原理版同步计算并对比（教学 + 正确性双保险；两个 4×4 运算开销可忽略）
+    T_hw = np.eye(4, dtype=float)
+    T_hw[:3, :3] = _quat_to_matrix_handwritten(q_xyzw)
+    T_hw[0, 3], T_hw[1, 3], T_hw[2, 3] = tr.x, tr.y, tr.z
+    diff = float(np.abs(T_api - T_hw).max())
+    if diff > 1e-9:
+        msg = f'TF 双实现不一致（diff={diff:.3e}），已采用官方 API 结果'
+        (logger.warning if logger is not None else print)(msg)
+    return T_api
 
 
 def _apply_T_to_grasp3d(g3d, T: np.ndarray) -> None:
     """
-    把相机系抓取几何变到输出系（原地修改 g3d）.
+    把相机系抓取几何变到输出系【默认base_link】（原地修改 g3d）.
 
     点做刚体变换；方向向量只乘 R 后归一化；姿态矩阵左乘 R。
     """
@@ -88,12 +127,14 @@ def _apply_T_to_grasp3d(g3d, T: np.ndarray) -> None:
         g3d.orientation = R @ np.asarray(g3d.orientation, dtype=float)
 
 
-# 与 peach_pose_msgs/BagGraspCandidate.status 枚举一致
-STATUS_MAP = {'ACCEPT': 0, 'REOBSERVE': 1, 'REJECT': 2}
+def _rotation_to_quat_handwritten(R: np.ndarray) -> Quaternion:
+    """
+    手写原理版：3x3 旋转矩阵 → 四元数（Shepperd 稳健法，教学保留）.
 
-
-def _rotation_to_quat(R: np.ndarray) -> Quaternion:
-    """3x3 旋转矩阵 → geometry_msgs/Quaternion（右手系）."""
+    按迹 trace 与对角元分四支取值，避免某一分支数值退化（除小量）：
+    t>0 走迹分支，否则选最大对角元分支。四元数有符号二义性
+    （q 与 -q 表示同一旋转），对比时需取 min(|q1-q2|, |q1+q2|)。
+    """
     # Shepperd 稳健法
     m = np.asarray(R, dtype=float)
     t = float(np.trace(m))
@@ -116,6 +157,28 @@ def _rotation_to_quat(R: np.ndarray) -> Quaternion:
     q = Quaternion()
     q.w, q.x, q.y, q.z = float(qw), float(qx), float(qy), float(qz)
     return q
+
+
+def _rotation_to_quat(R: np.ndarray, logger=None) -> Quaternion:
+    """
+    3x3 旋转矩阵 → geometry_msgs/Quaternion（右手系）.
+
+    双实现并存：ROS 官方 tf_transformations.quaternion_from_matrix 为主
+    （作为返回值）；手写原理版 _rotation_to_quat_handwritten 同步计算并对比，
+    差异超 1e-9 打告警（四元数符号二义性：按 min(|q1-q2|, |q1+q2|) 度量）。
+    """
+    m4 = np.eye(4, dtype=float)
+    m4[:3, :3] = np.asarray(R, dtype=float)
+    q_api = quaternion_from_matrix(m4)          # numpy [x, y, z, w]
+    q_hw_msg = _rotation_to_quat_handwritten(R)
+    q_hw = np.array([q_hw_msg.x, q_hw_msg.y, q_hw_msg.z, q_hw_msg.w])
+    diff = min(float(np.linalg.norm(q_hw - q_api)),
+               float(np.linalg.norm(q_hw + q_api)))
+    if diff > 1e-9:
+        msg = f'四元数双实现不一致（diff={diff:.3e}），已采用官方 API 结果'
+        (logger.warning if logger is not None else print)(msg)
+    return Quaternion(x=float(q_api[0]), y=float(q_api[1]),
+                      z=float(q_api[2]), w=float(q_api[3]))
 
 
 def _point(xyz) -> Point:
@@ -414,7 +477,7 @@ class PeachPoseNode(Node):
         try:
             tf = self.tf_buffer.lookup_transform(
                 self.output_frame, cam_frame, stamp_time, timeout=self.tf_timeout)
-            return _transform_msg_to_matrix(tf.transform)
+            return _transform_msg_to_matrix(tf.transform, self.get_logger())
         except TransformException:
             try:
                 tf = self.tf_buffer.lookup_transform(
@@ -424,7 +487,7 @@ class PeachPoseNode(Node):
                         f'TF {self.output_frame}←{cam_frame} 按 stamp 失败，'
                         '已用最新 TF（确认 extrinsics_publisher 已启动）')
                     self._tf_warned = True
-                return _transform_msg_to_matrix(tf.transform)
+                return _transform_msg_to_matrix(tf.transform, self.get_logger())
             except TransformException as ex:
                 self.get_logger().warning(
                     f'TF 失败，输出退回相机系 {cam_frame}: {ex}')
@@ -610,7 +673,8 @@ class PeachPoseNode(Node):
         if g3d.entry_start is not None:
             pose.position = _point(g3d.entry_start)
         if g3d.orientation is not None:
-            pose.orientation = _rotation_to_quat(g3d.orientation)
+            pose.orientation = _rotation_to_quat(g3d.orientation,
+                                                 self.get_logger())
         m.entry_pose = pose
         m.bag_bottom = _point(g3d.bag_bottom)
         m.bag_neck = _point(g3d.bag_neck)
@@ -735,7 +799,8 @@ class PeachPoseNode(Node):
             cyl.pose.position = _point(mid)
             if g3d.orientation is not None:
                 # Marker CYLINDER 默认轴为 Z；抓取架 Zg = translation_direction
-                cyl.pose.orientation = _rotation_to_quat(g3d.orientation)
+                cyl.pose.orientation = _rotation_to_quat(g3d.orientation,
+                                                         self.get_logger())
             diam = float(self.tool.D_inner)
             cyl.scale.x = diam
             cyl.scale.y = diam

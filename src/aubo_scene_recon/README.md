@@ -145,11 +145,12 @@ percipio_rgbd（点云 / color+depth+CameraInfo）
 
 ## 软件框架
 
-### 节点入口（venv 包装脚本）
+### 节点入口（console_scripts + venv shebang）
 
-节点**不走 console_scripts**（系统 python3 没装 open3d）：launch 以标准
-`Node()` 调 `scripts/recon_fusion_node` 包装脚本，脚本按优先级选解释器——
-`AUBO_PYTHON` 显式指定 > 已激活的 venv（`VIRTUAL_ENV` 非空）> 自动
-`source` 工作区 `aubo_py3.12/bin/activate`——最终以
-`python3 -m aubo_scene_recon.fusion_node` 运行。18 个参数全部带中文
+节点为标准 console_scripts 入口（`recon_fusion_node =
+aubo_scene_recon.fusion_node:main`）：setup.py 经
+`options.build_scripts.executable` 把启动器 shebang 指到 venv 解释器
+（工作区 `aubo_py3.12/bin/python` 存在则用之，否则回退构建解释器；构建期
+解析、源码不写死绝对路径；约定同 `AGENTS.md` 第 8 节），launch 以
+标准 `Node()` 启动。18 个参数全部带中文
 `ParameterDescriptor`（`ros2 param describe /recon_fusion_node <参数>` 可查）。

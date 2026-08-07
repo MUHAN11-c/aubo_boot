@@ -26,7 +26,10 @@ src/
 │                               #   unittest 测试套件）
 ├── aubo_scene_recon/           # 点云场景重建（open3d/TSDF 双后端；venv 节点）
 ├── peach_pose_msgs/            # 桃子位姿估计的自定义消息
-├── peach_pose_ros2/            # 桃子位姿感知（YOLO+MobileSAM+深度几何，CUDA venv 节点）
+├── peach_pose_ros2/            # 桃子位姿感知（YOLO+MobileSAM+深度几何，venv 节点）
+├── peach_reconstruction_ros2/  # 桃子多视角局部重建（自动采帧+Open3D TSDF，venv 节点）
+├── peach_gantry_description/   # 【新结构模型，暂不参与】架子式采摘机器人 URDF
+├── peach_moveit_config/        # 【新结构模型，暂不参与】架子机 MoveIt 配置
 └── percipio_camera/            # 相机驱动（厂商代码；launch 默认值已项目化）
 ```
 
@@ -50,9 +53,10 @@ aubo_py3.12/bin/pip install -r requirements.txt   # 锁定的依赖（numpy<2 �
 ROS 节点分两层运行（约定详见 `AGENTS.md` 第 2/8 节）：
 
 - **纯 ROS 节点**（aubo_hand_eye_calibration）：系统 python3（console_scripts + apt 依赖）
-- **torch/open3d 节点**（aubo_scene_recon、peach_pose_ros2）：经包内 `scripts/` 的
-  source 式包装脚本进 venv——`AUBO_PYTHON` 显式解释器 > 已激活的 venv > 自动
-  `source aubo_py3.12/bin/activate`；launch 一律标准 `Node()`，`ros2 run` 直接可用
+- **torch/open3d 节点**（aubo_scene_recon、peach_pose_ros2、peach_reconstruction_ros2）：
+  标准 console_scripts 入口，setup.py 经 `options.build_scripts.executable` 把启动器
+  shebang 指向 venv 解释器（构建期解析，换机重建自动适配）；launch 一律标准 `Node()`，
+  `ros2 run` 直接可用
 - **tools/ 脚本**：一律 `aubo_py3.12/bin/python tools/<脚本>` 运行
 
 注意：venv 内禁止装 opencv-python/scipy（会 shadow 系统版导致 cv_bridge 崩溃），
@@ -62,12 +66,13 @@ numpy 必须保持 1.26.x（详见 `AGENTS.md` 第 9 节）。
 
 ```bash
 source /opt/ros/jazzy/setup.bash
-colcon test && colcon test-result --verbose          # 全包 lint + 接入的测试（117 项）
+colcon test && colcon test-result --verbose          # 全包 lint + 接入的测试（179 项）
 
 # 业务测试（venv 解释器）
 cd src/aubo_hand_eye_calibration && ../../aubo_py3.12/bin/python -m pytest test/ -q   # 15+2 例
 cd src/aubo_scene_recon && ../../aubo_py3.12/bin/python -m pytest test/ -q
-cd src/peach_pose_ros2 && PYTHONPATH=peach_pose_ros2:$PYTHONPATH ../../aubo_py3.12/bin/python -m pytest test/ -q
+cd src/peach_pose_ros2 && PYTHONPATH=peach_pose_ros2:$PYTHONPATH ../../aubo_py3.12/bin/python -m pytest test/ -q   # 42 例
+cd src/peach_reconstruction_ros2 && PYTHONPATH=peach_reconstruction_ros2:$PYTHONPATH ../../aubo_py3.12/bin/python -m pytest test/ -q   # 44 例
 ```
 
 ## 三种运行模式
@@ -104,9 +109,15 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real \
 # 注意：camera_enabled 默认 true——sim/mock 无相机时建议显式关闭：
 ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim camera_enabled:=false
 
-# 感知与重建（独立入口，均经 venv 包装脚本启动；详见各自 README）
+# 感知与重建（独立入口，venv 节点 console_scripts 直接启动；详见各自 README）
 ros2 launch aubo_scene_recon recon.launch.py            # 点云场景重建（open3d/tsdf）
 ros2 launch peach_pose_ros2 peach_pose.launch.py        # 桃子位姿感知（YOLO+SAM）
+ros2 run peach_reconstruction_ros2 peach_reconstruction_node   # 桃子多视角局部重建
+#   默认全自动：有候选自动开始 → RViz 低速动臂自动采帧 → 满 8 视角自动 finalize，
+#   RViz 看 /peach/reconstruction/local_cloud（raw）与 tsdf_cloud（TSDF，RGB8 上色）
+
+# 验证过程数据记录（感知/重建话题 + 相机图 + 点云 PLY + 参数/TF 快照，落盘 validation_runs/）
+aubo_py3.12/bin/python tools/peach_validation_recorder.py record --step <步骤名> [--note "备注"]
 
 # 无相机时用离线数据集回放驱动 peach_pose_node 冒烟（独立测试工具，不随构建）
 aubo_py3.12/bin/python tools/peach_dataset_replayer.py --dataset <数据集根> [--limit N] [--loop]
@@ -191,7 +202,10 @@ hardware 参数（URDF `<param>`，见 `aubo_description/urdf/aubo_e5.ros2_contr
 - `AGENTS.md` — 开发约定、部署坑点与安全规范（AI 代理向，但内容对人同样适用）
 - [docs/usage.md](docs/usage.md) — 完整命令手册与排障表
 - 包级 README：[手眼标定](src/aubo_hand_eye_calibration/README.md)、
-  [场景重建](src/aubo_scene_recon/README.md)、[桃子位姿](src/peach_pose_ros2/README.md)
+  [场景重建](src/aubo_scene_recon/README.md)、[桃子位姿](src/peach_pose_ros2/README.md)、
+  [桃子多视角重建](src/peach_reconstruction_ros2/README.md)
+- [docs/peach_perception_progress.md](docs/peach_perception_progress.md) — 桃子视觉
+  三包开发进度台账（Phase 0–7 已做/未做）
 - 写法参考：UR `ur_controllers::PassthroughTrajectoryController`
   （GitHub: UniversalRobots/Universal_Robots_ROS2_Driver）
 - 行为蓝本：aubo_boot 实测驱动（本机 `/home/mu/Music/e`，不随交付分发）

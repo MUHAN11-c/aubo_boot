@@ -52,7 +52,7 @@ MoveIt → FollowJointTrajectory goal
 ## 3. 仓库结构
 
 ```
-src/                            # 参与构建的包（共 14 个）
+src/                            # 参与构建的包（共 15 个）
 ├── aubo_msgs/                  # 自定义 msg/srv/action（IOState、RobotStatus、SetIO、
 │                               #   GetFK/IK、SetPayload、手眼标定 action/srv）
 ├── aubo_description/           # E5 工作单元 URDF（table/camera/quick_changer）+
@@ -77,7 +77,9 @@ src/                            # 参与构建的包（共 14 个）
 │                               #   move_group + rviz2，standalone 时自带 rsp +
 │                               #   joint_state_publisher_gui；bringup 只 include 它）；
 │                               #   config/ 下 controllers.yaml 与 controllers_mock.yaml
-│                               #   两套控制器映射、joint_limits、kinematics、ompl、pilz
+│                               #   两套控制器映射、joint_limits、kinematics、ompl、pilz、
+│                               #   tcp.yaml（末端 TCP 相对 wrist3_Link 的偏移，
+│                               #   launch 据此发静态 TF wrist3_Link→tcp）
 ├── aubo_e5_bringup/            # bringup.launch.py（唯一入口）+ config/controllers.yaml
 ├── aubo_hand_eye_calibration/  # 手眼标定（ament_python；17 预定义位姿 + MoveIt 位姿
 │                               #   约束运动；求解算法可选 auto/tsai/park/horaud/
@@ -86,22 +88,32 @@ src/                            # 参与构建的包（共 14 个）
 ├── aubo_scene_recon/           # 点云场景重建（open3d TSDF/累积后端；节点为
 │                               #   console_scripts + build_scripts.executable
 │                               #   指向 venv，约定见第 8 节）
-├── peach_gantry_description/   # 架子式桃子采摘机器人（总装4）URDF 描述包
+├── peach_gantry_description/   # 【新结构模型，当前不参与开发/运行】架子式桃子
+│                               #   采摘机器人（总装4）URDF 描述包
 │                               #   （SolidWorks 导出，四轮底盘+升降采摘臂，
 │                               #   mesh 路径已改 package:// 引用；TF 根为
 │                               #   base_footprint；含 display.launch.py：
 │                               #   rsp + joint_state_publisher_gui + RViz2）
-├── peach_moveit_config/        # 架子机 MoveIt 配置（Setup Assistant 生成后项目化
+├── peach_moveit_config/        # 【新结构模型，当前不参与开发/运行】架子机 MoveIt
+│                               #   配置（Setup Assistant 生成后项目化
 │                               #   修改：joint_limits 浮点/真实限值、SRDF 链
 │                               #   base_link→tool0、virtual_joint 指 base_footprint、
 │                               #   initial_positions joint5=0.5、moveit.rviz 加
-│                               #   TF 显示；未接入 lint）
+│                               #   TF 显示；未接入 lint）。peach 视觉链路的机械臂
+│                               #   栈是 AUBO E5（aubo_description +
+│                               #   aubo_e5_moveit_config），与架子机无关
 ├── peach_pose_msgs/            # 桃子位姿估计的自定义 msg
 ├── peach_pose_ros2/            # 桃子位姿估计（YOLO+SAM，依赖 venv 内 torch；
 │                               #   节点为 console_scripts + build_scripts.executable
 │                               #   指向 venv，同 scene_recon 模式；
 │                               #   TUTORIAL.md=零基础逐行教程：启动链→参数→
 │                               #   节点→管线→输出话题）
+├── peach_reconstruction_ros2/  # 桃子多视角局部重建（自动模式默认开：有候选
+│                               #   自动开始、视角达阈自动采帧、采满自动完成；
+│                               #   finalize 时 Open3D TSDF 批量积分出彩色
+│                               #   tsdf_cloud + overlap 指标；6 个 Trigger 服务
+│                               #   备用；深度归一化复用 peach_pose_ros2.
+│                               #   depth_geometry；session 落盘 peach_sessions/）
 └── percipio_camera/            # 相机驱动（厂商代码，两处项目化改动：
                                 #   ① launch 默认值：device_ip=169.254.10.110、
                                 #   depth_enable=true、point_cloud_enable=false、
@@ -118,6 +130,11 @@ tools/                          # 分析/测试脚本（不随 colcon 构建）�
                                 #     录制，逐段 A/B/C/D 四类量化，多段汇总一窗）
                                 #   peach_dataset_replayer.py（PeachPose 数据集回放
                                 #     冒烟工具：rgb/+depth/ 成对 PNG → RGB-D+CameraInfo）
+                                #   peach_validation_recorder.py（采摘感知验证过程
+                                #     数据记录：record 子命令把感知/重建话题快照 +
+                                #     相机 RGB/深度 + 点云渲染 + 参数 dump + TF 快照
+                                #     落盘 validation_runs/run_*/step_NN_*/，
+                                #     含 manifest.yaml 与 index.md）
                                 #   fk_ik_check.py、joint_trace_recorder.py、
                                 #   m2_m3_retest.py，以及一组链接 vendored SDK 的
                                 #   C++ 检查程序（aubo_sdk_{readonly,motion,full,
@@ -145,7 +162,9 @@ docs/                           # 现行文档：usage.md（命令手册）、
                                 #   ur_motion_evaluation_standards.md（运动评估标准）、
                                 #   peach_urdf_migration.md（架子机 URDF 再导出
                                 #   移植清单：SolidWorks 导出物缺陷修补 +
-                                #   Setup Assistant 重打补丁清单 + 最小验证集）；
+                                #   Setup Assistant 重打补丁清单 + 最小验证集）、
+                                #   peach_perception_progress.md（桃子视觉三包
+                                #   开发进度台账：Phase 0–7 已做/未做，随开发更新）；
                                 #   archive/（旧架构文档 6 篇，仅供历史参考）、
                                 #   images/（文档配图）、
                                 #   superpowers/specs/（功能设计文档，如
@@ -156,15 +175,16 @@ SDK资料/                        # 厂商原始资料（SDK 包、Noetic 参考
 build/ install/ log/            # colcon 产物，勿手动修改
 ```
 
-src/ 下 14 个包中 12 个项目包已接入 lint 测试（9 个 ament_cmake 包经
-`ament_lint_auto`：copyright/cpplint/uncrustify/lint_cmake/xmllint；3 个
+src/ 下 15 个包中 13 个项目包已接入 lint 测试（9 个 ament_cmake 包经
+`ament_lint_auto`：copyright/cpplint/uncrustify/lint_cmake/xmllint；4 个
 ament_python 包带官方模板 test_flake8.py/test_pep257.py），`colcon test`
 强制风格合规；`percipio_camera` 为厂商代码不参与 lint，
 `peach_moveit_config` 为 Setup Assistant 生成未接入 lint。
 `aubo_e5_hardware/vendor/`
 与 `aubo_dashboard/vendor/` 内含 `AMENT_IGNORE`（ament 工具链跳过厂商代码，
 不影响编译）。业务测试：aubo_hand_eye_calibration（unittest 15 例）、
-aubo_scene_recon 与 peach_pose_ros2（pytest，须用 venv 解释器）；
+aubo_scene_recon、peach_pose_ros2 与 peach_reconstruction_ros2
+（pytest，须用 venv 解释器）；
 硬件/控制器代码验证靠 sim 模式闭环 + 真机分阶段流程（见第 6 节）。
 
 ## 4. 构建
@@ -205,7 +225,10 @@ moveit.launch.py`（自带 rsp + joint_state_publisher_gui；参数 `controllers
 感知/重建为独立入口（console_scripts + venv shebang，约定见第 8 节）：
 `ros2 launch aubo_scene_recon recon.launch.py`（点云重建）、
 `ros2 launch peach_pose_ros2 peach_pose.launch.py`（桃子位姿，launch 无
-解释器参数）；无相机冒烟用
+解释器参数）、
+`ros2 run peach_reconstruction_ros2 peach_reconstruction_node --ros-args
+--params-file install/peach_reconstruction_ros2/share/peach_reconstruction_ros2/config/reconstruction.yaml`
+（多视角局部重建，无 launch，Trigger 服务驱动）；无相机冒烟用
 `aubo_py3.12/bin/python tools/peach_dataset_replayer.py --dataset <根>`。
 任意 launch 的全部参数及中文说明可用 `--show-args` 查看。
 
@@ -215,7 +238,7 @@ MoveIt 超时问题。注意 sim 不模拟板载 IO 写回，`set_io` 返回 suc
 
 ## 6. 测试与验证策略
 
-11 个项目包已接入 lint 测试（见第 3 节），`colcon test` 强制风格合规；业务测试
+13 个项目包已接入 lint 测试（见第 3 节），`colcon test` 强制风格合规；业务测试
 须用 venv 解释器手动跑（先 source ROS 环境，否则 lint 测试 import 不到 ament_*）：
 
 ```bash
@@ -224,6 +247,7 @@ colcon test && colcon test-result --verbose          # 全包 lint + 接入的�
 cd src/aubo_hand_eye_calibration && ../../aubo_py3.12/bin/python -m pytest test/ -q  # 15 例
 cd src/aubo_scene_recon && ../../aubo_py3.12/bin/python -m pytest test/ -q
 cd src/peach_pose_ros2 && PYTHONPATH=peach_pose_ros2:$PYTHONPATH ../../aubo_py3.12/bin/python -m pytest test/ -q
+cd src/peach_reconstruction_ros2 && ../../aubo_py3.12/bin/python -m pytest test/ -q
 ```
 
 硬件/控制器代码的验证方式为：

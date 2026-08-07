@@ -109,6 +109,8 @@ config/
 ├── aubo_e5.srdf          # 规划组 manipulator_e5；home/camera_pose/zero 三个
 │                         #   预定义位姿；disable_collisions 邻接/永不相撞表
 ├── kinematics.yaml       # KDL 运动学插件参数
+├── tcp.yaml              # 末端 TCP 定义（相对 wrist3_Link：xyz [m] + rpy [rad]），
+│                         #   launch 据此发静态 TF wrist3_Link→tcp
 ├── joint_limits.yaml     # 关节速度/加速度/jerk + 笛卡尔极限（Pilz 用）
 ├── ompl_planning.yaml    # ompl 管线：planner_configs 全集 + manipulator_e5 组配置
 ├── pilz_industrial_motion_planner_planning.yaml
@@ -127,6 +129,7 @@ rviz/moveit.rviz          # RViz 配置（MotionPlanning 面板）
 | action/srv | Pilz 序列能力 | `MoveGroupSequence` | 由 capabilities 声明的 `MoveGroupSequenceAction`/`MoveGroupSequenceService` 提供 |
 | action client | `/<控制器名>/follow_joint_trajectory` | `control_msgs/FollowJointTrajectory` | 执行下发；控制器名由 controllers_file 决定，关节顺序为权威六关节序 |
 | pub | `/planning_scene`、`/monitored_planning_scene`、`/display_planned_path` 等 | 规划场景/轨迹可视化 | monitor 四开关全开（`moveit.launch.py:133-134`） |
+| pub | `/tf_static` | `tf2_msgs/TFMessage` | 末端 TCP 静态变换 `wrist3_Link→tcp`，数值权威源 `config/tcp.yaml`（当前 x=0.00 / y=47.90 / z=151.07 mm，姿态与 wrist3_Link 同向未标定） |
 
 依赖（package.xml）：`aubo_description`（URDF/xacro）、
 `moveit_ros_move_group`、`moveit_simple_controller_manager`、

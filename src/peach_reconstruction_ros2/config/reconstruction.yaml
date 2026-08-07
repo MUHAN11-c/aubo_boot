@@ -1,0 +1,52 @@
+# 多视角局部重建节点参数（Phase 2：手动采帧 + 原始点云累加，无 TSDF）
+# 本文件是参数默认值的权威来源，节点 declare_parameter 默认值与之逐项对齐；
+# 改默认值两边必须同步（AGENTS.md 第 7 节约定）。
+peach_reconstruction_node:
+  ros__parameters:
+    # ── 坐标系 ───────────────────────────────────────────────
+    frames.base_frame: base_link  # 重建输出坐标系（点云/Marker/诊断的 frame_id）
+    # ── 输入话题 ─────────────────────────────────────────────
+    camera.color_topic: /camera/color/image_raw        # 彩图（bgr8）
+    camera.depth_topic: /camera/depth/image_raw        # 深度（uint16 或 32FC1）
+    camera.camera_info_topic: /camera/color/camera_info  # 彩图内参（只用 K 矩阵）
+    sync_slop_s: 0.05   # RGB/深度/内参三路近似时间同步允差（秒）
+    # 单次 TF 查询超时（秒）；按 depth.header.stamp 查（相机 HW 时间戳常超前
+    # 机器人 TF），失败回退一次最新 TF（本帧打 tf_stale 标记），再失败拒帧
+    tf_timeout_sec: 0.5
+    # 深度比例因子（仅 uint16 原始深度生效）：raw × 本值 = 毫米（Percipio 常见
+    # 0.25）；数据集回放(真毫米)设 1.0；32FC1 浮点深度按「米」×1000，本参数不生效
+    depth_scale_unit: 0.25
+    # ── 采帧门禁 ─────────────────────────────────────────────
+    capture.min_views: 4           # finalize 所需最少视角数
+    capture.recommended_views: 5   # 推荐视角数（不足仅提示，不阻塞 finalize）
+    capture.max_views: 8           # 帧栈上限（达到后拒采，先 remove_last/finalize）
+    capture.require_robot_static: false  # true 时采帧要求机器人静止（查 /joint_states）
+    capture.static_joint_vel_thresh: 0.01  # 静止判定：最大关节速度阈值 [rad/s]
+    capture.max_frame_age_s: 2.0   # 缓存帧龄期上限（秒），超过视为陈帧拒采
+    # ── 自动模式（默认开，零服务全自动）─────────────────────
+    capture.auto_mode: true        # 有候选自动开始、视角达阈自动采帧、采满自动完成；
+                                   # false = 纯手动 Trigger 服务流（Phase 2 行为）
+    capture.auto_finalize_at_max: true   # 采满 max_views 自动 finalize
+    capture.auto_min_interval_s: 2.0     # 两次自动采帧最小间隔（秒），防抖动重采
+    # ── 视角过滤（本帧与上一已采帧的相对运动）─────────────────
+    # 平移/旋转同时低于下限 = 重复视角；任一高于上限 = 跳变拒帧
+    view_filter.min_translation: 0.020   # [m] 最小平移（过近=重复视角）
+    view_filter.max_translation: 0.080   # [m] 最大平移（过远=跳变）
+    view_filter.min_rotation_deg: 5.0    # [deg] 最小旋转
+    view_filter.max_rotation_deg: 25.0   # [deg] 最大旋转
+    view_filter.allow_duplicate_views: false  # true 时重复视角仅告警仍采帧
+    # ── 局部体素盒（TSDF 云 ROI 裁剪，中心=绑定候选/首帧云质心）──
+    local_volume.size_x: 0.30  # [m]
+    local_volume.size_y: 0.30  # [m]
+    local_volume.size_z: 0.40  # [m]
+    # ── TSDF 融合（Phase 4 启用：finalize 时批量积分全部已采帧）──
+    tsdf.enable: true         # false=只做原始点云累加（不跑 TSDF）
+    tsdf.voxel_length: 0.003  # [m] 体素边长
+    tsdf.sdf_trunc: 0.012     # [m] 截断距离
+    tsdf.depth_trunc: 1.5     # [m] 深度截断（更远的深度不积分）
+    # ── TSDF 提取云后处理 ─────────────────────────────────
+    cloud_filter.voxel_size: 0.003                 # [m] 体素降采样（≤0 不降）
+    cloud_filter.enable_statistical_filter: true   # 统计离群剔除（20 邻域 2σ）
+    # ── session 落盘 ─────────────────────────────────────────
+    # 空 = <工作区>/peach_sessions（按包 share 路径反推工作区根，不写死绝对路径）
+    session.root_dir: ""

@@ -17,7 +17,7 @@ from typing import List, Optional, Tuple
 from ament_index_python.packages import get_package_share_directory
 import cv2
 from cv_bridge import CvBridge
-from geometry_msgs.msg import Point, Pose, Quaternion, Vector3
+from geometry_msgs.msg import Point, Pose, Quaternion, Vector3, Vector3Stamped
 import message_filters
 import numpy as np
 from peach_pose_msgs.msg import (
@@ -30,6 +30,7 @@ from peach_pose_msgs.msg import (
 )
 from peach_pose_ros2.peach_pose.candidates import CandidateEstimator
 from peach_pose_ros2.peach_pose.contracts import BagObservation, ToolGeometry
+from peach_pose_ros2.peach_pose.depth_geometry import normalize_depth_to_uint16_mm
 from peach_pose_ros2.peach_pose.inference import InferenceEngine
 from rcl_interfaces.msg import ParameterDescriptor
 import rclpy
@@ -120,8 +121,10 @@ def _apply_T_to_grasp3d(g3d, T: np.ndarray) -> None:
     """
     抓取几何由相机系变到输出系（默认 base_link），原地修改 g3d.
 
-    T 为 4×4 齐次矩阵（输出系←相机系）。规则：点 R@p+t；方向只乘 R
-    并归一化（平移不影响方向）；姿态矩阵左乘 R。None 字段原样保留。
+    T 为 4×4 齐次矩阵（输出系←相机系）。规则：点 R@p+t（含 entry_start /
+    bag_bottom / bag_neck / suggested_travel_end / legacy position）；
+    方向只乘 R 并归一化（平移不影响方向）；姿态矩阵左乘 R。
+    None 字段原样保留。
 
     Args:
         g3d: BagGraspReference3D（相机光学系，米）；被原地改写.
@@ -142,12 +145,36 @@ def _apply_T_to_grasp3d(g3d, T: np.ndarray) -> None:
     g3d.entry_start = _pt(g3d.entry_start)
     g3d.bag_bottom = _pt(g3d.bag_bottom)
     g3d.bag_neck = _pt(g3d.bag_neck)
+    # 行程终点与 legacy position 也是点，必须同步变换（漏改会让 ~/markers
+    # 的行程箭头终点留在相机系，与输出系几何错位）
+    g3d.suggested_travel_end = _pt(g3d.suggested_travel_end)
+    g3d.position = _pt(g3d.position)
     if g3d.translation_direction is not None:
         d = R @ np.asarray(g3d.translation_direction, dtype=float)
         n = float(np.linalg.norm(d))
         g3d.translation_direction = d / n if n > 1e-9 else d
     if g3d.orientation is not None:
         g3d.orientation = R @ np.asarray(g3d.orientation, dtype=float)
+
+
+def _gravity_camera_from_R(R_out_cam: np.ndarray) -> np.ndarray:
+    """
+    由 output←camera 旋转反推相机系重力方向（gravity_mode='tf' 用）.
+
+    约定 output_frame（如 base_link）内重力向量为 [0, 0, -1]（竖直向下）；
+    方向向量只乘旋转、不加平移：g_cam = normalize(R_out_cam.T @ g_out)。
+
+    Args:
+        R_out_cam: (3, 3) 旋转矩阵，output_frame←相机系.
+
+    Returns
+    -------
+        (3,) 相机系单位重力向量；退化（近零）时原样返回.
+
+    """
+    g = np.asarray(R_out_cam, dtype=float).T @ np.array([0.0, 0.0, -1.0])
+    n = float(np.linalg.norm(g))
+    return g / n if n > 1e-9 else g
 
 
 def _rotation_to_quat_handwritten(R: np.ndarray) -> Quaternion:
@@ -438,6 +465,24 @@ class PeachPoseNode(Node):
         self.pub_det_cloud = self.create_publisher(
             PointCloud2, '~/detection_cloud', 10)
 
+        # ---- 规范化输出话题（/peach/perception/*）----
+        # 与上面 ~/ 话题并行发布**同一消息对象**，供下游按固定命名订阅；
+        # 旧 ~/ 话题全部保留，行为不变
+        self.pub_norm_pose = self.create_publisher(
+            BagGraspCandidateArray, '/peach/perception/initial_pose', 10)
+        self.pub_norm_axis = self.create_publisher(
+            Vector3Stamped, '/peach/perception/axis', 10)
+        self.pub_norm_cloud = self.create_publisher(
+            PointCloud2, '/peach/perception/single_cloud', 10)
+        self.pub_norm_dets = self.create_publisher(
+            Detection2DArray, '/peach/perception/detections', 10)
+        self.pub_norm_masks = self.create_publisher(
+            Image, '/peach/perception/masks', 10)
+        self.pub_norm_diag = self.create_publisher(
+            BagFittingArray, '/peach/perception/diagnostics', 10)
+        self.pub_norm_markers = self.create_publisher(
+            MarkerArray, '/peach/perception/markers', 10)
+
         # 与数据集回放 / 相机驱动对齐：RELIABLE，避免 Best Effort 对不上
         qos = rclpy.qos.QoSProfile(
             depth=10,
@@ -466,6 +511,7 @@ class PeachPoseNode(Node):
             f'optical={self.camera_optical_frame or "(msg)"} '
             f'output={self.output_frame or "(camera)"} '
             f'depth_scale_unit={self.depth_scale_unit} '
+            f'gravity_mode={self.gravity_mode} '
             f'calib={self.calibration_version}')
 
     def _declare_params(self):
@@ -494,6 +540,8 @@ class PeachPoseNode(Node):
                 'percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006',
             # 空串 → 算法默认相机系 +Y；否则 "x,y,z" 重力提示
             'gravity_hint_xyz': '',
+            # fixed=仅用 gravity_hint_xyz；tf=由本帧 TF 旋转反推相机系重力
+            'gravity_mode': 'fixed',
             'tool.D_inner': 0.104,
             'tool.L_insert': 0.200,
             'tool.L_blade': 0.025,
@@ -511,8 +559,9 @@ class PeachPoseNode(Node):
                                     '空串则用深度图 header.frame_id',
             'output_frame': '输出坐标系：几何经 TF 变到此帧；空串=保持相机系',
             'tf_timeout_sec': 'TF 查询超时 (s)',
-            'depth_scale_unit': '深度比例因子：raw × 本值 = 毫米量级（Percipio 常见 '
-                                '0.25）；数据集回放（真毫米）设 1.0',
+            'depth_scale_unit': '深度比例因子（仅 uint16 原始深度生效）：raw × 本值 = '
+                                '毫米量级（Percipio 常见 0.25）；数据集回放（真毫米）'
+                                '设 1.0；32FC1 浮点深度按「米」×1000 转毫米，本参数不生效',
             'sync_slop_s': 'RGB-D 近似同步允差 (s)',
             'min_detection_conf': '检测置信度下限，低于该值的目标不入管线',
             'yolo_conf': 'YOLO 推理置信度阈值',
@@ -528,6 +577,10 @@ class PeachPoseNode(Node):
                                    '外参 hand_eye/active.yaml）',
             'gravity_hint_xyz': '重力方向提示 "x,y,z"（相机系）；'
                                 '空串=算法默认相机系 +Y',
+            'gravity_mode': '重力来源：fixed=仅用 gravity_hint_xyz（默认，行为与旧版'
+                            '一致）；tf=由本帧 output←camera 的 TF 旋转反推相机系重力'
+                            '（output_frame 系重力约定 [0,0,-1]，只乘旋转不加平移，'
+                            'TF 不可用的帧回退 gravity_hint_xyz）',
             'tool.D_inner': '工具圆柱内径 (m)，袋子必须能通过',
             'tool.L_insert': '最大插入深度 (m)',
             'tool.L_blade': '刀刃平面到圆柱入口平面的距离 (m)',
@@ -573,6 +626,11 @@ class PeachPoseNode(Node):
             self.gravity_hint = np.asarray(parts, dtype=float)
         else:
             self.gravity_hint = None
+        self.gravity_mode = g('gravity_mode').get_parameter_value().string_value.strip()
+        if self.gravity_mode not in ('fixed', 'tf'):
+            self.get_logger().warning(
+                f'未知 gravity_mode={self.gravity_mode!r}，回退 fixed')
+            self.gravity_mode = 'fixed'
         # entry_standoff = 刀具伸出 + 安全间隙，与 contracts.ToolGeometry 一致
         self.tool = ToolGeometry(
             D_inner=float(g('tool.D_inner').value),
@@ -587,9 +645,10 @@ class PeachPoseNode(Node):
             version=str(g('tool.version').value),
         )
 
-    def _lookup_T_out_cam(self, cam_frame: str, stamp) -> Optional[np.ndarray]:
+    def _lookup_T_out_cam(self, cam_frame: str,
+                          stamp) -> Tuple[Optional[np.ndarray], str]:
         """
-        查 output←camera 的 4×4 齐次矩阵；失败返回 None.
+        查 output←camera 的 4×4 齐次矩阵与查询状态.
 
         Args:
             cam_frame: 相机光学系 frame_id.
@@ -597,17 +656,20 @@ class PeachPoseNode(Node):
 
         Returns
         -------
-            (4, 4) ndarray；output_frame 为空或与 cam_frame 相同给单位阵；
-            TF 彻底失败给 None（调用方退回相机系）.
+            (T, status)：T 为 (4, 4) ndarray（output_frame 为空或与 cam_frame
+            相同给单位阵；TF 彻底失败给 None，调用方退回相机系）；
+            status ∈ {'ok', 'stale', 'unavailable'}——'stale' 表示按 stamp
+            查询失败已回退最新 TF，'unavailable' 表示彻底失败，供调用方给
+            本帧结果打 tf_stale / tf_unavailable 诊断标记.
 
         """
         if not self.output_frame or self.output_frame == cam_frame:
-            return np.eye(4)
+            return np.eye(4), 'ok'
         stamp_time = Time.from_msg(stamp)
         try:
             tf = self.tf_buffer.lookup_transform(
                 self.output_frame, cam_frame, stamp_time, timeout=self.tf_timeout)
-            return _transform_msg_to_matrix(tf.transform, self.get_logger())
+            return _transform_msg_to_matrix(tf.transform, self.get_logger()), 'ok'
         except TransformException:
             try:
                 tf = self.tf_buffer.lookup_transform(
@@ -617,11 +679,12 @@ class PeachPoseNode(Node):
                         f'TF {self.output_frame}←{cam_frame} 按 stamp 失败，'
                         '已用最新 TF（确认 extrinsics_publisher 已启动）')
                     self._tf_warned = True
-                return _transform_msg_to_matrix(tf.transform, self.get_logger())
+                return (_transform_msg_to_matrix(tf.transform, self.get_logger()),
+                        'stale')
             except TransformException as ex:
                 self.get_logger().warning(
                     f'TF 失败，输出退回相机系 {cam_frame}: {ex}')
-                return None
+                return None, 'unavailable'
 
     def _on_rgbd(self, rgb_msg: Image, depth_msg: Image, info: CameraInfo):
         """
@@ -629,7 +692,8 @@ class PeachPoseNode(Node):
 
         Args:
             rgb_msg: 彩色图（bgr8）.
-            depth_msg: 深度图（uint16 原始值；回调内 × depth_scale_unit 化为毫米）.
+            depth_msg: 深度图（uint16 原始值或 32FC1 米制；回调内经
+                normalize_depth_to_uint16_mm 统一为 uint16 毫米）.
             info: 彩色相机内参（须与深度图同分辨率）.
 
         Returns
@@ -639,25 +703,32 @@ class PeachPoseNode(Node):
         """
         self.get_logger().info(
             f'RGB-D sync frame {rgb_msg.width}x{rgb_msg.height}')
+        # RGB/深度时间戳偏差：DEBUG 每帧记录；接近同步允差时 WARN 节流提示
+        dt_ms = (Time.from_msg(rgb_msg.header.stamp).nanoseconds
+                 - Time.from_msg(depth_msg.header.stamp).nanoseconds) / 1e6
+        self.get_logger().debug(f'RGB-D 时间戳偏差 {dt_ms:+.1f} ms')
+        if abs(dt_ms) > self.sync_slop_s * 0.8 * 1000.0:
+            self.get_logger().warning(
+                f'RGB-D 时间戳偏差 {dt_ms:+.1f} ms 已超同步允差 '
+                f'{self.sync_slop_s * 1000.0:.0f} ms 的 80%，请检查相机时间戳源',
+                throttle_duration_sec=1.0)
         try:
             rgb = self.bridge.imgmsg_to_cv2(rgb_msg, desired_encoding='bgr8')
         except Exception as exc:  # noqa: BLE001
             self.get_logger().warn(f'RGB convert failed: {exc}')
             return
         try:
-            depth = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding='passthrough')
+            depth_raw = self.bridge.imgmsg_to_cv2(
+                depth_msg, desired_encoding='passthrough')
         except Exception as exc:  # noqa: BLE001
             self.get_logger().warn(f'Depth convert failed: {exc}')
             return
-        if depth.dtype != np.uint16:
-            self.get_logger().warn(
-                f'Depth dtype {depth.dtype} expected uint16')
+        # uint16：raw × depth_scale_unit = 毫米；32FC1：米 ×1000 = 毫米
+        try:
+            depth = normalize_depth_to_uint16_mm(depth_raw, self.depth_scale_unit)
+        except ValueError as exc:
+            self.get_logger().warn(f'Depth convert failed: {exc}')
             return
-        # Percipio: z_m = raw * depth_scale_unit / 1000；管线内部按「毫米」再 /1000
-        if abs(self.depth_scale_unit - 1.0) > 1e-9:
-            depth = np.clip(
-                np.round(depth.astype(np.float32) * self.depth_scale_unit),
-                0, 65535).astype(np.uint16)
         if rgb.shape[:2] != depth.shape[:2]:
             self.get_logger().warn(
                 f'RGB/depth size mismatch {rgb.shape[:2]} vs {depth.shape[:2]}')
@@ -688,27 +759,46 @@ class PeachPoseNode(Node):
             or rgb_msg.header.frame_id
             or info.header.frame_id)
         out_frame = self.output_frame or cam_frame
-        T_out_cam = self._lookup_T_out_cam(cam_frame, rgb_msg.header.stamp)
+        T_out_cam, tf_status = self._lookup_T_out_cam(
+            cam_frame, rgb_msg.header.stamp)
         if T_out_cam is None and self.output_frame:
             # TF 失败则退回相机系，避免静默用错坐标系
             out_frame = cam_frame
             T_out_cam = np.eye(4)
 
+        # 重力方向：fixed 用参数提示；tf 模式由本帧 TF 旋转反推相机系重力
+        # （TF 不可用的帧回退 gravity_hint_xyz，结果带 tf_unavailable 标记）
+        gravity_hint = self.gravity_hint
+        if self.gravity_mode == 'tf':
+            if self.output_frame and tf_status != 'unavailable':
+                gravity_hint = _gravity_camera_from_R(T_out_cam[:3, :3])
+            else:
+                self.get_logger().warning(
+                    'gravity_mode=tf 但 TF 不可用或未设 output_frame，'
+                    '本帧回退 gravity_hint_xyz',
+                    throttle_duration_sec=1.0)
+
         header = Header()
         header.stamp = rgb_msg.header.stamp
         header.frame_id = out_frame
+        # 图像平面数据（检测框/掩膜/debug 图）的 frame_id 用 RGB 图自身坐标系；
+        # 3D 结果（候选/拟合/Marker/检测点云）仍用输出系
+        img_header = Header()
+        img_header.stamp = rgb_msg.header.stamp
+        img_header.frame_id = rgb_msg.header.frame_id
 
         # ---- 检测 ----
         dets = self.engine.detect(rgb)
         det_msg = Detection2DArray()
-        det_msg.header = header
+        det_msg.header = img_header
         kept = []
         for d in dets:
             if float(d.get('conf', 0.0)) < self.min_detection_conf:
                 continue
             kept.append(d)
-            det_msg.detections.append(self._to_detection2d(d, header))
+            det_msg.detections.append(self._to_detection2d(d, img_header))
         self.pub_dets.publish(det_msg)
+        self.pub_norm_dets.publish(det_msg)
 
         # 检测框内彩色点云（深度反投影），便于 RViz 对照相机全图点云
         if self.publish_detection_cloud:
@@ -720,8 +810,10 @@ class PeachPoseNode(Node):
                 xyz_out = (R @ xyz_cam.T).T + t
             else:
                 xyz_out = xyz_cam
-            self.pub_det_cloud.publish(
-                _xyzrgb_to_cloud(header, xyz_out, rgb_f))
+            # 点已随几何一起变到 out_frame，frame_id 保持输出系（非相机系）
+            cloud_msg = _xyzrgb_to_cloud(header, xyz_out, rgb_f)
+            self.pub_det_cloud.publish(cloud_msg)
+            self.pub_norm_cloud.publish(cloud_msg)
 
         mask_canvas = np.zeros(depth.shape[:2], dtype=np.uint8)
         debug = rgb.copy() if self.publish_debug_image else None
@@ -738,6 +830,8 @@ class PeachPoseNode(Node):
         clear.header = header
         clear.action = Marker.DELETEALL
         markers.markers.append(clear)
+        # 本帧各候选的 (状态, 平移方向)，供 /peach/perception/axis 选最优
+        frame_axes: List[Tuple[str, Optional[np.ndarray]]] = []
 
         # ---- 逐目标：SAM → 前景∩深度 → 袋/果管线 → TF → 消息 ----
         for i, det in enumerate(kept):
@@ -750,7 +844,7 @@ class PeachPoseNode(Node):
 
             obs = BagObservation(
                 rgb=rgb, depth=depth, camera_K=K, frame_id=cam_frame,
-                gravity_hint=self.gravity_hint,
+                gravity_hint=gravity_hint,
                 detections=[det],
                 metadata={
                     'model_version': self.model_version,
@@ -760,8 +854,15 @@ class PeachPoseNode(Node):
             tid = f'target_{i}'
             results = self.estimator.estimate_modes(obs, tid, bbox, sam_mask)
             result = results['hybrid_dilated']
+            # TF 回退打标：本帧几何可信度经 diagnostic_flags 暴露给下游
+            if tf_status != 'ok':
+                flag = 'tf_stale' if tf_status == 'stale' else 'tf_unavailable'
+                if flag not in result.grasp_3d.diagnostic_flags:
+                    result.grasp_3d.diagnostic_flags.append(flag)
             if T_out_cam is not None and out_frame != cam_frame:
                 _apply_T_to_grasp3d(result.grasp_3d, T_out_cam)
+            frame_axes.append((result.grasp_3d.status,
+                               result.grasp_3d.translation_direction))
             g3d, g2d = result.grasp_3d, result.grasp_2d
             cand_arr.candidates.append(
                 self._to_candidate(header, tid, g3d))
@@ -778,16 +879,38 @@ class PeachPoseNode(Node):
         self.pub_cands_2d.publish(cand2d_arr)
         self.pub_fitting.publish(fit_arr)
         self.pub_markers.publish(markers)
+        # 规范化话题并行发布同一批消息对象（旧 ~/ 话题全保留）
+        self.pub_norm_pose.publish(cand_arr)
+        self.pub_norm_diag.publish(fit_arr)
+        self.pub_norm_markers.publish(markers)
+        # /peach/perception/axis：最优候选（第一个 ACCEPT，否则第一个有效
+        # 方向）的平移方向；无候选或无有效方向不发布
+        best_dir = None
+        for status, direction in frame_axes:
+            if direction is None:
+                continue
+            if status == 'ACCEPT':
+                best_dir = direction
+                break
+            if best_dir is None:
+                best_dir = direction
+        if best_dir is not None:
+            axis_msg = Vector3Stamped()
+            axis_msg.header = header
+            axis_msg.vector = Vector3(
+                x=float(best_dir[0]), y=float(best_dir[1]), z=float(best_dir[2]))
+            self.pub_norm_axis.publish(axis_msg)
         self.get_logger().info(
             f'Published {len(cand_arr.candidates)} candidates '
             f'(dets={len(kept)})')
         if self.publish_masks:
             mask_msg = self.bridge.cv2_to_imgmsg(mask_canvas, encoding='mono8')
-            mask_msg.header = header
+            mask_msg.header = img_header
             self.pub_masks.publish(mask_msg)
+            self.pub_norm_masks.publish(mask_msg)
         if debug is not None:
             dbg_msg = self.bridge.cv2_to_imgmsg(debug, encoding='bgr8')
-            dbg_msg.header = header
+            dbg_msg.header = img_header
             self.pub_debug.publish(dbg_msg)
 
     def _to_detection2d(self, det: dict, header: Header) -> Detection2D:
@@ -1050,13 +1173,13 @@ class PeachPoseNode(Node):
 
     def _draw_debug(self, img, det, g2d, sam_mask):
         """
-        在 BGR 图上叠检测框、SAM 掩膜、底→颈箭头与状态文字（原地改 img）.
+        在 BGR 图上叠检测框、SAM 掩膜轮廓、底→颈箭头与状态文字（原地改 img）.
 
         Args:
             img: (H, W, 3) uint8 BGR，被原地改写.
             det: 检测 dict（bbox、class_id；class 0 绿框，其他橙框）.
             g2d: BagGrasp2D（提供关键点像素与状态）.
-            sam_mask: (H, W) 掩膜或 None（None 时不叠掩膜）.
+            sam_mask: (H, W) 掩膜或 None（None 时不画轮廓）.
 
         Returns
         -------
@@ -1067,10 +1190,12 @@ class PeachPoseNode(Node):
         color = (0, 220, 0) if det.get('class_id', 0) == 0 else (0, 180, 255)
         cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
         if sam_mask is not None:
-            overlay = img.copy()
-            overlay[sam_mask > 0] = (
-                0.5 * overlay[sam_mask > 0] + np.array([40, 40, 200])).astype(np.uint8)
-            cv2.addWeighted(overlay, 0.5, img, 0.5, 0, img)
+            # 只画分割轮廓线，不做半透明颜色填充——掩膜上色会盖住果实纹理，
+            # 轮廓更便于观察分割边界是否贴边
+            contours, _ = cv2.findContours(
+                (sam_mask > 0).astype(np.uint8),
+                cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            cv2.drawContours(img, contours, -1, (80, 80, 230), 2)
         status = g2d.status
         st_color = {
             'ACCEPT': (0, 220, 0), 'REOBSERVE': (0, 200, 255), 'REJECT': (0, 0, 220)

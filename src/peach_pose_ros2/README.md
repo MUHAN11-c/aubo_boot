@@ -40,6 +40,9 @@ python3-opencv。
 图像编解码统一走 **cv_bridge**（`bgr8` / `passthrough` uint16 mm / `mono8`）。
 
 重力参数：`gravity_hint_xyz` 为逗号分隔 `"x,y,z"`；空串表示 `None`（算法默认相机系 +Y）。
+`gravity_mode` 选重力来源：`fixed`（默认，仅用 `gravity_hint_xyz`）或 `tf`（由本帧
+TF 旋转反推相机系重力，`output_frame` 系重力约定 `[0,0,-1]`，只乘旋转不加平移；
+TF 不可用的帧回退 `gravity_hint_xyz`）。
 
 ### 构建
 
@@ -95,23 +98,24 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim camera_enabled:
 
 ### 参数
 
-27 个参数全部带中文 `ParameterDescriptor`（`ros2 param describe /peach_pose_node
+28 个参数全部带中文 `ParameterDescriptor`（`ros2 param describe /peach_pose_node
 <参数>` 可查），权威值在 `config/peach_pose.yaml`（launch 全量加载）。常用：
 
 | 参数 | 默认 | 说明 |
 |---|---|---|
-| `color_topic` / `depth_topic` / `camera_info_topic` | /camera/color/image_raw 等 | RGB-D 输入（深度须 registration 对齐） |
+| `color_topic` / `depth_topic` / `camera_info_topic` | /camera/color/image_raw 等 | RGB-D 输入（深度须 registration 对齐；uint16 原始值或 32FC1 米制） |
 | `camera_optical_frame` | camera_color_optical_frame | 手眼链所挂光学系；空串用深度图 header.frame_id |
 | `output_frame` | base_link | 输出坐标系；空串保持相机系 |
 | `tf_timeout_sec` | 0.5 | TF 查询超时 (s) |
-| `depth_scale_unit` | 0.25 | raw × 本值 = 毫米（Percipio 常见 0.25）；数据集回放设 1.0 |
-| `sync_slop_s` | 0.05 | RGB-D 近似同步允差 (s) |
+| `depth_scale_unit` | 0.25 | uint16 原始深度：raw × 本值 = 毫米（Percipio 常见 0.25）；数据集回放设 1.0；32FC1 米制深度下不生效 |
+| `sync_slop_s` | 0.05 | RGB-D 近似同步允差 (s)；时间戳偏差超 80% 允差时 WARN 节流提示 |
 | `min_detection_conf` / `yolo_conf` | 0.5 / 0.3 | 入管线置信度下限 / YOLO 推理阈值 |
 | `publish_debug_image` / `publish_masks` / `publish_detection_cloud` | true | 输出开关 |
 | `detection_cloud_stride` | 2 | 检测框点云降采样步长（>1 减轻 RViz 负载） |
 | `yolo_model_path` / `sam_model_path` | "" | 空串 = 包内 model/best.pt、model/mobile_sam.pt |
 | `model_version` / `calibration_version` | 见 yaml | 随结果发布的模型/内外参版本标识（可追溯） |
 | `gravity_hint_xyz` | "" | 重力方向提示 "x,y,z"（相机系）；空串 = 算法默认 +Y |
+| `gravity_mode` | fixed | 重力来源：`fixed`=仅用 gravity_hint_xyz；`tf`=由本帧 TF 旋转反推相机系重力 |
 | `tool.*`（8 个） | 见 yaml | 刀具几何：内径/插入深/刀刃距/入口 standoff/余量/版本号 |
 
 ### 真机联调前置（本包不运动）
@@ -128,7 +132,8 @@ PYTHONPATH=peach_pose_ros2:$PYTHONPATH \
   /home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12/bin/python -m pytest test/ -q
 ```
 
-22 例业务测试（候选/拟合/袋果双管线/球精化/校验）+ flake8/pep257 lint。
+40 例业务测试（候选/拟合/袋果双管线/球精化/校验/深度归一化/TF 变换契约）
++ flake8/pep257 lint。
 
 ## 执行逻辑
 
@@ -137,7 +142,8 @@ PYTHONPATH=peach_pose_ros2:$PYTHONPATH \
 ```text
 RGB(bgr8) + 深度(16UC1) + CameraInfo   ApproximateTime 同步 (slop=sync_slop_s,
   QoS RELIABLE，与数据集回放/相机驱动对齐)
-  → cv_bridge 转图；深度 raw × depth_scale_unit → 毫米；尺寸/CameraInfo 一致性校验
+  → cv_bridge 转图；深度归一化为 uint16 毫米（uint16：raw × depth_scale_unit；
+    32FC1 米制 ×1000，此时 depth_scale_unit 不生效）；尺寸/CameraInfo 一致性校验
   → YOLO 检测（yolo_conf），低于 min_detection_conf 的框丢弃
   → 逐目标 MobileSAM 分割 → hybrid_dilated 前景
       = SAM 掩膜 ∩ 膨胀后的实测深度连通域（SAM 缺失显式 REOBSERVE +
@@ -148,7 +154,9 @@ RGB(bgr8) + 深度(16UC1) + CameraInfo   ApproximateTime 同步 (slop=sync_slop_
   → 刀具几何门控（tool.*：内径/插入深/安全余量）→ 三态
       ACCEPT=0 / REOBSERVE=1 / REJECT=2
   → 几何经 TF 变到 output_frame（默认 base_link，依赖
-      hand_eye_extrinsics_publisher；TF 失败退回相机系并告警，不静默用错系）
+      hand_eye_extrinsics_publisher；按帧时间戳查询失败回退最新 TF 并给本帧
+      candidate/fitting 打 tf_stale；彻底失败退回相机系并告警 + 打
+      tf_unavailable，不静默用错系）
   → 发布候选 / 2D / 拟合诊断 / 检测 / 掩膜 / Marker / debug 图 / 检测框点云
 ```
 
@@ -180,6 +188,18 @@ launch 无任何解释器参数，标准 `Node()` 启动。
 | pub | `/peach_pose_node/markers` | `visualization_msgs/MarkerArray` |
 | pub | `/peach_pose_node/debug_image` | `sensor_msgs/Image` bgr8 |
 | pub | `/peach_pose_node/detection_cloud` | `sensor_msgs/PointCloud2` xyz+rgb（检测框内深度反投影） |
+| pub | `/peach/perception/initial_pose` | `peach_pose_msgs/BagGraspCandidateArray`（同 ~/grasp_candidates） |
+| pub | `/peach/perception/axis` | `geometry_msgs/Vector3Stamped`（最优候选平移方向，ACCEPT 优先；无候选不发布） |
+| pub | `/peach/perception/single_cloud` | `sensor_msgs/PointCloud2`（同 ~/detection_cloud） |
+| pub | `/peach/perception/detections` | `vision_msgs/Detection2DArray`（同 ~/detections） |
+| pub | `/peach/perception/masks` | `sensor_msgs/Image` mono8（同 ~/masks） |
+| pub | `/peach/perception/diagnostics` | `peach_pose_msgs/BagFittingArray`（同 ~/fitting） |
+| pub | `/peach/perception/markers` | `visualization_msgs/MarkerArray`（同 ~/markers） |
+
+`/peach/perception/*` 为规范化话题，与对应 `~/` 话题并行发布**同一消息对象**，
+供下游按固定命名订阅。frame_id 约定：3D 结果（候选/2D/拟合/Marker/检测点云）为
+`output_frame`（TF 失败的帧退回相机系并打 `tf_unavailable`）；图像平面数据
+（detections/masks/debug_image）为 RGB 图自身坐标系。
 
 三态：`ACCEPT=0` / `REOBSERVE=1` / `REJECT=2`。SAM 缺失显式 `mask_unavailable`，禁止静默回退。
 

@@ -1,7 +1,7 @@
 # peach_moveit_config
 
 ## 简介
-
+新机械臂，暂时不参与编程控制
 架子式桃子采摘机器人（总装 4）的 MoveIt 2 配置包。由 MoveIt Setup Assistant
 生成骨架后，经多轮排错与项目化修改达到仿真规划/执行闭环（详见附录 A 修改
 全记录）。模型资源在 `peach_gantry_description`（URDF + meshes，移植过程见

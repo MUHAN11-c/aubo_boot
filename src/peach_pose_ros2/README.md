@@ -165,6 +165,29 @@ RGB(bgr8) + 深度(16UC1) + CameraInfo   ApproximateTime 同步 (slop=sync_slop_
 解释器；约定同 `AGENTS.md` 第 8 节）。
 launch 无任何解释器参数，标准 `Node()` 启动。
 
+### 分层结构（五层）
+
+架构定位：**感知决策层**——三维重建只产点云（peach_recon 纯 TSDF），
+候选时序融合与 ROI 云重拟合（最终方向/抓取定位）在本包出。
+
+```
+peach_pose_ros2/
+├── params.py            # 参数层：DEFAULTS/DESCRIPTIONS/DYNAMIC 三表 +
+│                        #   declare_params / load_params / 热调回调工厂
+├── conversions.py       # 消息转换层：TF 双实现、几何变换、结果 → ROS 消息、
+│                        #   模型路径解析（STATUS_MAP 三态映射在此）
+├── visualization.py     # 可视化层：Marker 组装、debug 叠加图、SAM 概率热图、
+│                        #   检测框彩色点云
+├── peach_pose_node.py   # 编排层（瘦节点）：构造 + TF 查询 + 逐帧编排回调 +
+│                        #   融合决策段（最优候选灌 TemporalFuser →
+│                        #   ~/refined_candidates/fusion_stats/refinement_evolution；
+│                        #   订阅 recon 的 ~/roi_cloud 降频重拟合 → ~/recon_refined）
+└── peach_pose/          # 算法包（不 import rclpy，可离线测试）
+    ├── base.py          #   抽象层：Detector/Segmenter/PosePipeline Protocol 接口
+    ├── temporal_fuser.py #  候选流门控 + 置信度 EMA + 一致簇统计（纯 numpy）
+    └── refiner.py       #   ROI 云按类别重拟合（球/圆柱，open3d）
+```
+
 ### 话题
 
 | 方向 | 话题 | 类型 |
@@ -172,9 +195,14 @@ launch 无任何解释器参数，标准 `Node()` 启动。
 | sub | `/camera/color/image_raw` | `sensor_msgs/Image` bgr8 |
 | sub | `/camera/depth/image_raw` | `sensor_msgs/Image` 16UC1 mm（须 registration） |
 | sub | `/camera/color/camera_info` | `sensor_msgs/CameraInfo` |
+| sub | `/recon_refiner_node/roi_cloud` | `sensor_msgs/PointCloud2`（peach_recon ROI 云，重拟合输入） |
 | pub | `/peach_pose_node/grasp_candidates` | `peach_pose_msgs/BagGraspCandidateArray` |
 | pub | `/peach_pose_node/grasp_candidates_2d` | `peach_pose_msgs/BagGrasp2DArray` |
 | pub | `/peach_pose_node/fitting` | `peach_pose_msgs/BagFittingArray` |
+| pub | `/peach_pose_node/refined_candidates` | `peach_pose_msgs/BagGraspCandidateArray`（融合，`\|fused` 标记） |
+| pub | `/peach_pose_node/fusion_stats` | `peach_pose_msgs/FusionStats` |
+| pub | `/peach_pose_node/refinement_evolution` | `geometry_msgs/PoseStamped` |
+| pub | `/peach_pose_node/recon_refined` | `peach_pose_msgs/BagGraspCandidateArray`（ROI 云重拟合，降频） |
 | pub | `/peach_pose_node/detections` | `vision_msgs/Detection2DArray` |
 | pub | `/peach_pose_node/masks` | `sensor_msgs/Image` mono8 |
 | pub | `/peach_pose_node/markers` | `visualization_msgs/MarkerArray` |

@@ -104,9 +104,10 @@ def rasterize_segmentation(annotation: dict, shape: tuple[int, int]) -> Optional
         return None
     mask = np.zeros(shape, dtype=np.uint8)
     for flat in polygons:
+        # 平铺多边形坐标整形为 (n,2) 点列（-1 = 行数自动推断）
         points = np.asarray(flat, dtype=np.float32).reshape(-1, 2).round().astype(np.int32)
         if len(points) >= 3:
-            cv2.fillPoly(mask, [points], 1)
+            cv2.fillPoly(mask, [points], 1)  # 多边形实心填充 → 栅格掩膜
     return mask.astype(bool)
 
 

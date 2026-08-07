@@ -1,0 +1,25 @@
+# Pick.action — peach_motion 单目标接近验证 action
+# 流程：APPROACH_PLAN → ARC_APPROACH（帧门控弧段）→ REFINE_WAIT →
+#       FINAL_APPROACH（可达性验证）→ INSERT（可选）→ RETREAT
+# ===== Goal =====
+string target_id          # 注册表目标 ID；空串 = 调度指定当前最优 READY 目标
+bool execute_insert       # true=真插入；false=只验证可达性/方向（验证期默认）
+---
+# ===== Result =====
+bool success                       # 全流程是否成功
+geometry_msgs/PoseStamped final_pose   # 最终验证位姿（refined entry_pose）
+uint8 final_status                 # 三态：0=ACCEPT 1=REOBSERVE 2=REJECT
+uint32 total_frames_used           # 本次作业消耗的感知帧数
+string message                     # 结论/失败原因（unreachable/plan_failed/moved...）
+---
+# ===== Feedback =====
+uint8 stage                 # 当前阶段（见下）
+uint8 STAGE_APPROACH_PLAN = 0
+uint8 STAGE_ARC_APPROACH = 1
+uint8 STAGE_REFINE_WAIT = 2
+uint8 STAGE_FINAL_APPROACH = 3
+uint8 STAGE_INSERT = 4
+uint8 STAGE_RETREAT = 5
+float32 progress            # 阶段内进度 [0,1]（如弧段 waypoint 完成比例）
+float32 pose_err_m          # 当前 TCP 与目标位姿的距离（米）
+float32 elapsed_sec         # 本 goal 已用时长（秒）

@@ -25,7 +25,7 @@ import time
 import cv2
 import numpy as np
 
-from .candidates import CandidateEstimator, MODE_IDS, MODE_LABELS
+from .candidates import CandidateEstimator, MODE_ID, MODE_LABEL
 from .contracts import BagObservation
 from .inference import InferenceEngine
 from .inspector.config import (
@@ -33,6 +33,10 @@ from .inspector.config import (
 )
 # e2e 跑的是历史 Azure 录包（1280×720），故用 K_AZURE；实机/本机工具一律 K_PERCIPIO
 from .validation import AnnotationMetrics, load_annotations
+
+# 单模式：报告结构沿用 mode 键（恒为 ('hybrid_dilated',) 单键）
+MODE_IDS = (MODE_ID,)
+MODE_LABELS = {MODE_ID: MODE_LABEL}
 
 
 def _quantiles(values):
@@ -355,6 +359,7 @@ def main():
 
     for frame_id in ids:
         rgb = cv2.imread(str(args.dataset / 'rgb' / f'{frame_id}.png'))
+        # IMREAD_UNCHANGED：16 位深度原样读入（默认会压成 8 位）
         depth = cv2.imread(
             str(args.dataset / 'depth' / f'{frame_id}.png'), cv2.IMREAD_UNCHANGED)
         if rgb is None or depth is None:
@@ -389,11 +394,13 @@ def main():
                 metadata={'model_version': MODEL_VERSION,
                           'calibration_version': CALIBRATION_VERSION},
             )
-            results = estimator.estimate_modes(
-                obs, f'{frame_id}:{index}', bbox, masks_by_bbox.get(bbox), modes)
+            result = estimator.estimate(
+                obs, f'{frame_id}:{index}', bbox, masks_by_bbox.get(bbox))
+            # 单模式：同一结果按所选模式名登记（modes 恒为 ('hybrid_dilated',)）
+            results = {mode: result for mode in modes}
             frame_results.append(results)
-            for mode, result in results.items():
-                mode_elapsed[mode] += estimator.last_timings_ms[mode] / 1000.0
+            for mode in modes:
+                mode_elapsed[mode] += estimator.last_timings_ms / 1000.0
                 if 'mask_unavailable' in result.grasp_3d.diagnostic_flags:
                     missing_masks[mode] += 1
                 mode_items[mode].append(

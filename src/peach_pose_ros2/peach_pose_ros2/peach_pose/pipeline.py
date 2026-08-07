@@ -130,6 +130,7 @@ class RobustBagPosePipeline:
         if cyl is not None and cyl['inlier_ratio'] >= 0.35:
             axis = cyl['axis']
             axis_source = 'cylinder_ransac'
+            # 两项各钳到 [0,1]：内点比越高、残差越小，轴置信越高
             axis_confidence = float(
                 np.clip(cyl['inlier_ratio'] / 0.7, 0.0, 1.0)
                 * np.clip(1.0 - cyl['rms'] / 0.004, 0.0, 1.0))
@@ -139,12 +140,17 @@ class RobustBagPosePipeline:
         if float(axis @ gravity) > 0.0:
             axis = -axis
         orientation_uncertain = abs(float(axis @ gravity)) < 0.3
+        # 融合先验反哺加成（无先验时原样返回，默认行为不变）
+        axis_confidence = self._axis_prior_bonus(axis, axis_confidence,
+                                                 obs.metadata)
 
         # ── 底/颈/袋径: 沿拟合轴投影分位带（背面遮挡时为观测下界） ──
         proj = points @ axis
+        # 投影 P10 以下 / P90 以上的点带 = 袋底 / 袋颈（分位数抗离群）
         bottom_band = points[proj <= np.percentile(proj, 10)]
         neck_band = points[proj >= np.percentile(proj, 90)]
         transverse_points = points - np.outer(points @ axis, axis)
+        # 逐坐标中位数 = 横向中心点（抗离群）
         transverse_center = np.median(transverse_points, axis=0)
         bottom_axis = float(np.median(bottom_band @ axis))
         neck_axis = float(np.median(neck_band @ axis))
@@ -163,6 +169,7 @@ class RobustBagPosePipeline:
             disagreement_deg = self._mask_axis_disagreement(local_mask, _bpx, _npx)
 
         radial = np.linalg.norm(transverse_points - transverse_center, axis=1)
+        # 横向半径 P95 × 2 = 保守袋径上界（遮挡时为观测下界）
         diameter = float(2.0 * np.percentile(radial, 95))
 
         # ── entry_start = P_bottom − (d_tool + d_s)·axis (Gürsoy 分解) ──
@@ -175,13 +182,14 @@ class RobustBagPosePipeline:
         # θ_err 代理: 拟合残差/袋长（指向误差）+ 定向与 2D 校验惩罚。
         # 注意: 圆形掩膜的 2D 主轴无意义，disagreement 仅在掩膜细长时生效。
         if cyl is not None and axis_source == 'cylinder_ransac':
+            # 拟合残差换算的指向误差角（弧度→角度），钳到 [2°,30°]
             theta_err_deg = float(np.clip(
                 np.degrees(np.arctan2(2.0 * cyl['rms'], max(length, 0.03))),
                 2.0, 30.0))
         if orientation_uncertain:
             theta_err_deg = max(theta_err_deg, 12.0)
         radial_clearance = self.tool.D_inner / 2.0 - diameter / 2.0 - self.tool.clearance_min
-        budget_m = (standoff + travel) * np.sin(np.radians(theta_err_deg))
+        budget_m = (standoff + travel) * np.sin(np.radians(theta_err_deg))  # 角度→弧度
 
         flags = []
         if valid_ratio < 0.40:
@@ -208,6 +216,7 @@ class RobustBagPosePipeline:
 
         status = 'ACCEPT' if not flags else (
             'REJECT' if 'tool_clearance_failed' in flags else 'REOBSERVE')
+        # 三因子（有效深度/点数/触边）相乘后钳到 [0,1]
         confidence = float(np.clip(
             min(valid_ratio / 0.65, 1.0) * min(len(points) / 800.0, 1.0)
             * (1.0 - min(boundary_touch, 0.8)), 0.0, 1.0))
@@ -237,7 +246,7 @@ class RobustBagPosePipeline:
                    'cylinder_inlier_ratio': (
                        float(cyl['inlier_ratio']) if cyl is not None else None)}
         g3d = BagGraspReference3D(
-            frame_id=obs.frame_id, entry_start=entry, position=entry,
+            frame_id=obs.frame_id, entry_start=entry,
             orientation=R, bag_bottom=bottom, bag_neck=neck,
             translation_direction=axis, bag_diameter_upper_m=diameter,
             suggested_travel_m=travel, suggested_travel_end=entry + travel * axis,
@@ -344,16 +353,18 @@ class RobustBagPosePipeline:
         values = centre[(centre > 0) & (centre < 65535)]
         if len(values) < 20:
             return np.zeros_like(valid), 'depth_fallback'
+        # 深度中位数 + 中位绝对偏差 MAD（抗离群的中心与尺度估计）
         z0 = np.median(values)
         mad = np.median(np.abs(values.astype(float) - z0))
         band = max(25.0, 3.0 * mad)
         binary = ((np.abs(depth.astype(float) - z0) <= band) & valid).astype(np.uint8)
+        # 8 连通域标记 + 各域像素统计（stats 含面积列 CC_STAT_AREA）
         n, labels, stats, _ = cv2.connectedComponentsWithStats(binary, 8)
         if n <= 1:
             return binary.astype(bool), 'depth_fallback'
         label = labels[cy, cx]
         if label == 0:
-            label = int(1 + np.argmax(stats[1:, cv2.CC_STAT_AREA]))
+            label = int(1 + np.argmax(stats[1:, cv2.CC_STAT_AREA]))  # 中心无域取最大域
         return labels == label, 'depth_fallback'
 
     def _to_points(self, depth, mask, xoff, yoff, K):
@@ -373,11 +384,13 @@ class RobustBagPosePipeline:
             pixels 为 (N, 2) int ROI 内像素坐标 (x, y).
 
         """
+        # 前景有效深度的像素行/列索引（ys=行，xs=列）
         ys, xs = np.where(mask & self._valid_depth(depth))
         z = depth[ys, xs].astype(float) / 1000.0
+        # 反投影得到的三个 (N,) 坐标列拼成 (N,3) 点矩阵（米）
         points = np.column_stack(((xs + xoff - K['cx']) * z / K['fx'],
                                  (ys + yoff - K['cy']) * z / K['fy'], z))
-        return points, np.column_stack((xs, ys))
+        return points, np.column_stack((xs, ys))  # (N,2) 像素矩阵，与点一一对应
 
     @staticmethod
     def _filter_depth_outliers(points, pixels):
@@ -396,6 +409,7 @@ class RobustBagPosePipeline:
         if len(points) < 10:
             return points, pixels
         z = points[:, 2]
+        # z 中位数 + MAD（抗离群尺度）；MAD≈0 时点云共面，无需剔除
         med = np.median(z)
         mad = np.median(np.abs(z - med))
         if mad < 1e-5:
@@ -419,6 +433,7 @@ class RobustBagPosePipeline:
         """
         if not mask.any():
             return 1.0, 4
+        # 四条边（上/下/左/右）的像素拼成一维
         border = np.concatenate((mask[0], mask[-1], mask[:, 0], mask[:, -1]))
         ratio = float(border.mean())
         side_fractions = (mask[0].mean(), mask[-1].mean(),
@@ -444,16 +459,19 @@ class RobustBagPosePipeline:
 
         """
         centred = points - points.mean(axis=0)
+        # 对称阵特征分解（特征值升序）：vec[:, -1] = 点云最大方差方向
         _, vec = np.linalg.eigh(centred.T @ centred / max(len(points), 1))
         x = vec[:, -1] - np.dot(vec[:, -1], axis) * axis
         if np.linalg.norm(x) < 1e-8:
             ref = np.array([1., 0., 0.]) if abs(axis[0]) < .9 else np.array([0., 0., 1.])
-            x = np.cross(axis, ref)
+            x = np.cross(axis, ref)  # 叉积取 ⊥axis 的备用方向
         x /= np.linalg.norm(x)
         if x[0] < 0:
             x = -x
+        # Yg = Zg × Xg（右手系）
         y = np.cross(axis, x)
         y /= np.linalg.norm(y)
+        # 三个 (3,) 列向量拼成 (3,3) 旋转矩阵 [Xg, Yg, Zg]
         return np.column_stack((x, y, axis))
 
     @staticmethod
@@ -476,6 +494,7 @@ class RobustBagPosePipeline:
             情形返回 None.
 
         """
+        # 掩膜像素的行/列索引（点数 <30 太少，无法做主轴）
         ys, xs = np.where(mask)
         if len(xs) < 30:
             return None
@@ -485,15 +504,43 @@ class RobustBagPosePipeline:
         if la < 5.0:  # 投影过短，轴向几乎正对相机，2D 校验无意义
             return None
         a2d /= la
+        # (N,2) 像素点集（转 float 供协方差计算）
         pts2d = np.column_stack([xs, ys]).astype(float)
         pts2d -= pts2d.mean(axis=0)
         cov = pts2d.T @ pts2d / len(pts2d)
+        # 2D 协方差特征分解：vecs[:, -1] = 掩膜 PCA 主轴
         evals, vecs = np.linalg.eigh(cov)
         if evals[-1] < 2.5 * max(evals[0], 1e-9):
             return None  # 掩膜近圆形，2D 主轴无判别力
         v2d = vecs[:, -1]
         cos = abs(float(a2d @ v2d))
+        # 钳到 [0,1] 防 arccos 域外 NaN；弧度→角度
         return float(np.degrees(np.arccos(np.clip(cos, 0.0, 1.0))))
+
+    @staticmethod
+    def _axis_prior_bonus(axis, confidence, metadata):
+        """
+        融合先验加成：先验轴与拟合轴夹角 <15° → 置信度 +0.1（封顶 1.0）.
+
+        Args:
+            axis: (3,) 当前拟合/先验轴（单位向量）.
+            confidence: 当前轴置信度 [0,1].
+            metadata: 观测元数据；无 'axis_prior' 键时原样返回（默认情形）.
+
+        Returns
+        -------
+            加成后的置信度；夹角 ≥15° 不加成（>45° 即先验不可靠，等同忽略）.
+
+        """
+        prior = metadata.get('axis_prior') if metadata else None
+        if prior is None:
+            return confidence
+        # 无向夹角（|cos|）：先验轴与拟合轴越一致，先验越可信
+        cos = abs(float(np.asarray(prior, dtype=float) @ axis))
+        angle = float(np.degrees(np.arccos(np.clip(cos, 0.0, 1.0))))
+        if angle < 15.0:
+            return float(min(confidence + 0.1, 1.0))
+        return confidence
 
     @staticmethod
     def _project(point, K):
@@ -540,6 +587,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
     neck = 球心 + r·axis（梗端，刀片在其前方 margin_neck 处停止）。
     """
 
+    # 梗洼扫描帽半角 20° 的余弦阈值（角度→弧度，预先算好）
     CAVITY_HALF_ANGLE_COS = np.cos(np.radians(20.0))
     CAVITY_MIN_DIP_M = 0.0015     # 梗洼最小下陷深度 1.5mm
     CAVITY_MIN_POINTS = 12
@@ -616,7 +664,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
                 # 去掉帽后弧段更小，放开半径会重新激活半径/球心耦合病态）
                 rel = inl_pts - center
                 u = rel / np.linalg.norm(rel, axis=1, keepdims=True)
-                cap = (u @ axis0) > np.cos(np.radians(15.0))
+                cap = (u @ axis0) > np.cos(np.radians(15.0))  # 15° 洼帽阈值的余弦
                 if int((~cap).sum()) >= 50:
                     center = polish_sphere_lm(
                         inl_pts[~cap], center, radius, fixed_radius=True)[0]
@@ -625,6 +673,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
                     axis = axis0
                     cavity_dip_mm = float(dip0 * 1000.0)
                     axis_source = 'stem_cavity'
+                    # 下陷越深置信越高，钳到 [0.05,1]；角误差钳到 [3°,30°]
                     axis_confidence = float(np.clip(-dip0 / 0.006, 0.05, 1.0))
                     theta_err_deg = float(np.clip(
                         np.degrees(np.arctan2(2.0 * sph['rms'], 2.0 * radius))
@@ -641,6 +690,9 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
             theta_err_deg = min(theta_err_deg + 5.0, 30.0)
         # 近水平定向（梗向与重力近垂直）才是真正歧义
         orientation_uncertain = abs(float(axis @ gravity)) < 0.2
+        # 融合先验反哺加成（无先验时原样返回，默认行为不变）
+        axis_confidence = self._axis_prior_bonus(axis, axis_confidence,
+                                                 obs.metadata)
 
         # ── 参考点与袋径（沿轴） ──
         if sphere_ok:
@@ -671,7 +723,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
         if orientation_uncertain:
             theta_err_deg = max(theta_err_deg, 12.0)
         radial_clearance = self.tool.D_inner / 2.0 - diameter / 2.0 - self.tool.clearance_min
-        budget_m = (standoff + travel) * np.sin(np.radians(theta_err_deg))
+        budget_m = (standoff + travel) * np.sin(np.radians(theta_err_deg))  # 角度→弧度
 
         disagreement_deg = None
         _bpx, _npx = self._project(bottom, obs.camera_K), self._project(neck, obs.camera_K)
@@ -703,6 +755,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
 
         status = 'ACCEPT' if not flags else (
             'REJECT' if 'tool_clearance_failed' in flags else 'REOBSERVE')
+        # 三因子（有效深度/点数/触边）相乘后钳到 [0,1]
         confidence = float(np.clip(
             min(valid_ratio / 0.65, 1.0) * min(len(points) / 800.0, 1.0)
             * (1.0 - min(boundary_touch, 0.8)), 0.0, 1.0))
@@ -733,7 +786,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
                    'error_budget_mm': float(budget_m * 1000.0),
                    'radial_clearance_mm': float(radial_clearance * 1000.0)}
         g3d = BagGraspReference3D(
-            frame_id=obs.frame_id, entry_start=entry, position=entry,
+            frame_id=obs.frame_id, entry_start=entry,
             orientation=R, bag_bottom=bottom, bag_neck=neck,
             translation_direction=axis, bag_diameter_upper_m=diameter,
             suggested_travel_m=travel, suggested_travel_end=entry + travel * axis,
@@ -782,7 +835,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
         n_dir = 200
         k = np.arange(n_dir)
         z = 1.0 - 2.0 * (k + 0.5) / n_dir
-        phi = k * np.pi * (3.0 - np.sqrt(5.0))
+        phi = k * np.pi * (3.0 - np.sqrt(5.0))  # 黄金角步进 ≈222.5°，方向均匀不重叠
         dirs = np.column_stack((np.sqrt(1 - z ** 2) * np.cos(phi),
                                 np.sqrt(1 - z ** 2) * np.sin(phi), z))
         sim = dirs @ u.T                       # (n_dir, n_pts)
@@ -799,7 +852,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
             return None, 0.0
         # 方向精化: 帽内点残差加权平均方向
         sel = sim[best_i] >= self.CAVITY_HALF_ANGLE_COS
-        w = np.clip(-(resid[sel]), 0.0, None) + 1e-6
+        w = np.clip(-(resid[sel]), 0.0, None) + 1e-6  # 下陷（负残差）转正作权重；None=上限不限
         refined = (u[sel] * w[:, None]).sum(axis=0)
         refined /= np.linalg.norm(refined)
         return refined, best_dip

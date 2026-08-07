@@ -1,0 +1,18 @@
+# peach_recon 纯三维重建参数（与 recon_refiner_node.DEFAULTS 对齐，可改值覆盖）
+recon_refiner_node:
+  ros__parameters:
+    # 订阅与坐标系（命名/语义同 peach_pose_ros2）
+    color_topic: /camera/color/image_raw
+    depth_topic: /camera/depth/image_raw
+    camera_info_topic: /camera/color/camera_info
+    camera_optical_frame: camera_color_optical_frame
+    output_frame: base_link
+    tf_timeout_sec: 0.5
+    sync_slop_s: 0.05
+    depth_scale_unit: 0.25     # Percipio 深度比例：raw × 本值 = 毫米（回放真毫米设 1.0）
+    # TSDF 重建内核（Open3D ScalableTSDFVolume）
+    tsdf_voxel_length: 0.005     # TSDF 体素边长 (m)：5mm 级，桃级细节足够
+    sdf_trunc: 0.02              # 截断距离 (m)：≥4×voxel，薄表面不被吃掉
+    depth_max_m: 3.0             # 融合深度上限 (m)：远处背景不入图
+    # ROI 发布
+    roi_cloud_period_sec: 1.0    # ~/roi_cloud 发布周期 (s)（降频）

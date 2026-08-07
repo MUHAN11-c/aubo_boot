@@ -126,7 +126,6 @@ class BagGraspReference3D:
 
     frame_id: str = 'camera_depth_optical_frame'  # 坐标系（默认相机光学系）
     entry_start: Optional[np.ndarray] = None  # P_entry_start (3,) — 圆柱顶面圆心 = 末端TCP, 位于袋底外侧
-    position: Optional[np.ndarray] = None  # P_grasp (3,) — [legacy] 保留兼容, 新代码优先用 entry_start
     orientation: Optional[np.ndarray] = None          # R = [Xg, Yg, Zg] (3×3)
     bag_bottom: Optional[np.ndarray] = None           # P_bottom (3,)
     bag_neck: Optional[np.ndarray] = None             # P_neck (3,)
@@ -134,8 +133,6 @@ class BagGraspReference3D:
     bag_diameter_upper_m: float = 0.0                # 保守袋体直径上界 (m)
     suggested_travel_m: float = 0.0                   # 视觉建议行程 (圆柱长度)
     suggested_travel_end: Optional[np.ndarray] = None    # P_entry_start + travel × Zg
-    position_covariance: Optional[np.ndarray] = None     # (3×3)
-    direction_covariance: Optional[np.ndarray] = None    # (3×3)
     confidence: float = 0.0                             # [0, 1]
     status: str = 'REJECT'                            # ACCEPT|REOBSERVE|REJECT
     diagnostic_flags: List[str] = field(default_factory=list)  # 门控诊断标记
@@ -144,39 +141,6 @@ class BagGraspReference3D:
     model_version: str = ''                           # 模型版本标识
     calibration_version: str = ''                     # 内外参版本标识
     tool_version: str = ''                            # 工具几何版本
-
-    def to_dict(self) -> dict:
-        """
-        转为 JSON 可序列化字典（ndarray → list）.
-
-        Returns
-        -------
-            dict；数组字段转嵌套 list，None 保留.
-
-        """
-        def arr(a):
-            return a.tolist() if isinstance(a, np.ndarray) else a
-        return {
-            'frame_id': self.frame_id,
-            'entry_start': arr(self.entry_start),
-            'position': arr(self.position),
-            'orientation': arr(self.orientation),
-            'bag_bottom': arr(self.bag_bottom),
-            'bag_neck': arr(self.bag_neck),
-            'translation_direction': arr(self.translation_direction),
-            'bag_diameter_upper_m': self.bag_diameter_upper_m,
-            'suggested_travel_m': self.suggested_travel_m,
-            'suggested_travel_end': arr(self.suggested_travel_end),
-            'position_covariance': arr(self.position_covariance),
-            'direction_covariance': arr(self.direction_covariance),
-            'confidence': self.confidence,
-            'status': self.status,
-            'diagnostic_flags': self.diagnostic_flags,
-            'strategy_id': self.strategy_id,
-            'model_version': self.model_version,
-            'calibration_version': self.calibration_version,
-            'tool_version': self.tool_version,
-        }
 
 
 # ═══════════════════════════════════════════════════════════════

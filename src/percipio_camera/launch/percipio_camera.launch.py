@@ -178,7 +178,7 @@ def generate_launch_description():
         # （场景重建/桃子位姿需要 RGB-D；手眼标定只用 RGB 时可显式传
         # depth_enable:=false color_point_cloud_enable:=false 关闭）
         DeclareLaunchArgument('depth_enable', default_value='true'),
-        DeclareLaunchArgument('depth_resolution', default_value='640x400'),
+        DeclareLaunchArgument('depth_resolution', default_value='640x480'),  # 项目改动③：本机相机不支持 640x400 深度流（报 Unsupported stream mode 致深度不出图）
 
         #format list:depth16/xyz48...
         #DeclareLaunchArgument('depth_format', default_value='xyz48'),

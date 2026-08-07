@@ -20,15 +20,21 @@ peach_pose_node:
     sync_slop_s: 0.05        # RGB/深度/内参三路近似时间同步允差（秒）
     min_detection_conf: 0.5  # 检测框进入几何管线的置信度下限（第二级，严出）
     yolo_conf: 0.3           # YOLO 推理置信度阈值（第一级，宽进）
+    yolo_iou: 0.5            # YOLO NMS 的 IoU 阈值
+    sam_max_bboxes: 8        # SAM 单次推理最多处理的检测框数
+    sam_min_area: 100        # SAM 掩膜面积下限（像素），小于则丢弃
+    min_depth_m: 0.3         # 有效深度下限 (m)，过近视为噪声
+    max_depth_m: 2.5         # 有效深度上限 (m)，过远视为背景
+    min_points: 100          # 有效前景点数下限，不足直接 REJECT
     # ── 可视化开关 ───────────────────────────────────────────
     publish_debug_image: true   # ~/debug_image：检测框+掩膜+轴线+状态叠加图（bgr8）
-    publish_masks: true         # ~/masks：SAM 掩膜画布（mono8，目标 i 灰度 i%250+1）
+    publish_masks: true         # ~/masks：SAM 概率热图（mono8，亮=把握大）
     # 检测框内深度反投影彩色点云（~/detection_cloud）；stride>1 降采样减轻 RViz
     publish_detection_cloud: true
     detection_cloud_stride: 2   # 点云降采样步长（每 2 像素取 1）
     # ── 模型与版本追溯 ───────────────────────────────────────
-    yolo_model_path: ""    # YOLO 权重路径；空=包内 model/best.pt
-    sam_model_path: ""     # MobileSAM 权重路径；空=包内 model/mobile_sam.pt
+    yolo_model_path: "model/best.pt"        # YOLO 权重（默认包内 model/best.pt）；可写相对包目录的路径、绝对路径或目录（目录下找 best.pt）；无效告警回退包内
+    sam_model_path: "model/mobile_sam.pt"   # MobileSAM 权重（同上，文件名 mobile_sam.pt）
     # 模型版本标识（git 短 hash），仅随结果发布用于追溯，不参与计算；换模型记得改
     model_version: "yolo:6981750db67a726e|mobile_sam:6dbb90523a35330f"
     # 内参: percipio color_camera_info.yaml；外参: hand_eye/active.yaml
@@ -36,6 +42,13 @@ peach_pose_node:
     # 相机系重力方向提示（"x,y,z"），用于袋底→袋颈定向（逆重力）；
     # 空串=管线默认相机系 +Y（Percipio 正装朝下）
     gravity_hint_xyz: ""
+    # ── 融合决策输出（感知决策层：融合/精化/最终答案从这出）──────
+    refined_outputs_enabled: true     # 融合决策段总开关（refined/stats/evolution/recon_refined）
+    recon_cloud_topic: "/recon_refiner_node/roi_cloud"   # peach_recon 纯重建 ROI 点云
+    roi_size_m: 0.4                    # 感知侧 ROI 盒边长（完整云内自裁）
+    recon_min_points: 3000            # ROI 裁剪后达到该点数才重拟合
+    recon_refined_period_sec: 1.0     # ~/recon_refined 发布周期 (s)
+    target_kind: "bag"                # 重拟合类别：bag 圆柱 | fruit 球
     # ── 套袋工具几何（米）─────────────────────────────────────
     # 换工具必改；直接决定安全门控（误差预算 vs 径向净空）
     tool.D_inner: 0.104      # 工具内径：袋径上界须 < 内径 - 2×clearance_min

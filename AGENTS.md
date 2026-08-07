@@ -99,9 +99,26 @@ src/                            # 参与构建的包（共 14 个）
 ├── peach_pose_msgs/            # 桃子位姿估计的自定义 msg
 ├── peach_pose_ros2/            # 桃子位姿估计（YOLO+SAM，依赖 venv 内 torch；
 │                               #   节点为 console_scripts + build_scripts.executable
-│                               #   指向 venv，同 scene_recon 模式；
+│                               #   指向 venv，同 scene_recon 模式；五层结构：
+│                               #   params.py 参数层 / conversions.py 消息转换层 /
+│                               #   visualization.py 可视化层 / peach_pose_node.py
+│                               #   编排层 + peach_pose/ 算法包（base.py 为后端
+│                               #   Protocol 抽象接口；temporal_fuser/refiner
+│                               #   为融合/精化原语）；
+│                               #   架构定位：感知决策层——候选时序融合
+│                               #   （~/refined_candidates/fusion_stats）与
+│                               #   ROI 云重拟合（~/recon_refined）在此出；
 │                               #   TUTORIAL.md=零基础逐行教程：启动链→参数→
 │                               #   节点→管线→输出话题）
+├── peach_recon/                # 纯三维重建包（venv 包，同 scene_recon 模式；
+│                               #   Open3D ScalableTSDFVolume 逐帧融合 RGB-D，
+│                               #   ROI 盒裁剪发 ~/roi_cloud + ~/reset；
+│                               #   不做融合/精化——只产点云）
+├── peach_motion/               # 任务编排包（ament_python 系统 python3：
+│                               #   TargetRegistry 空间配准/状态机调度 +
+│                               #   ~/pick 六阶段执行器（orbit/MoveIt，
+│                               #   目标栈 AUBO E5 manipulator_e5，
+│                               #   MoveIt 为 ~/ws_moveit 源码 overlay）；
 └── percipio_camera/            # 相机驱动（厂商代码，两处项目化改动：
                                 #   ① launch 默认值：device_ip=169.254.10.110、
                                 #   depth_enable=true、point_cloud_enable=false、
@@ -156,8 +173,8 @@ SDK资料/                        # 厂商原始资料（SDK 包、Noetic 参考
 build/ install/ log/            # colcon 产物，勿手动修改
 ```
 
-src/ 下 14 个包中 12 个项目包已接入 lint 测试（9 个 ament_cmake 包经
-`ament_lint_auto`：copyright/cpplint/uncrustify/lint_cmake/xmllint；3 个
+src/ 下 16 个包中 14 个项目包已接入 lint 测试（9 个 ament_cmake 包经
+`ament_lint_auto`：copyright/cpplint/uncrustify/lint_cmake/xmllint；5 个
 ament_python 包带官方模板 test_flake8.py/test_pep257.py），`colcon test`
 强制风格合规；`percipio_camera` 为厂商代码不参与 lint，
 `peach_moveit_config` 为 Setup Assistant 生成未接入 lint。
@@ -215,7 +232,7 @@ MoveIt 超时问题。注意 sim 不模拟板载 IO 写回，`set_io` 返回 suc
 
 ## 6. 测试与验证策略
 
-11 个项目包已接入 lint 测试（见第 3 节），`colcon test` 强制风格合规；业务测试
+14 个项目包已接入 lint 测试（见第 3 节），`colcon test` 强制风格合规；业务测试
 须用 venv 解释器手动跑（先 source ROS 环境，否则 lint 测试 import 不到 ament_*）：
 
 ```bash

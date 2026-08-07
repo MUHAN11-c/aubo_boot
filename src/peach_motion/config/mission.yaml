@@ -1,0 +1,39 @@
+# peach_motion 任务编排参数（与 mission_manager / pick_executor 的 DEFAULTS 对齐）
+mission_manager:
+  ros__parameters:
+    merge_radius: 0.08            # 空间归并半径 (m)：观测与档案距离小于该值归并同 ID
+    ready_frames: 5               # READY 所需连续 ACCEPT 帧数
+    ready_pos_drift: 0.02         # READY 允许的最大相邻帧位置漂移 (m)
+    lost_timeout_sec: 2.0         # 超过该时长 (s) 未再观测到则标 LOST
+    scan_duration_sec: 3.0        # 每个观测位姿的停留时长 (s)
+    execute_insert: false         # true=真插入；默认仅可达性验证（P2 验证期）
+    record: true                  # 是否落盘 peach_records/（三文件 + rosbag2）
+    # 巡视位姿：逗号分隔浮点，每 7 个一组 (x,y,z,qx,qy,qz,qw)；空串=原位扫描一次
+    observe_poses: ""
+    # MoveIt（巡视段）
+    group_name: manipulator_e5    # 规划组（AUBO E5 链 base_link→wrist3_Link）
+    base_frame: base_link
+    tool_frame: wrist3_Link
+    speed_scaling: 0.01           # 速度缩放（真机先压 0.01）
+    planning_time_sec: 5.0
+    planning_attempts: 2
+    position_tolerance_m: 0.01
+    orientation_tolerance_rad: 0.1
+
+pick_executor:
+  ros__parameters:
+    group_name: manipulator_e5
+    base_frame: base_link
+    tool_frame: wrist3_Link
+    speed_scaling: 0.01           # 弧线/插入段速度缩放（真机先压 0.01）
+    approach_standoff: 0.25       # 预接近距离 (m)：弧线终点距目标半径
+    orbit_arc_deg: 60             # 弧段绕扫角上限 (deg)
+    orbit_points: 7               # 弧线路径点数
+    frame_gate_timeout_sec: 2.0   # 帧门控：每个 waypoint 后等新帧的超时 (s)
+    min_support_frames: 20        # REFINE_WAIT 支撑帧达标数
+    refine_timeout_sec: 8.0       # REFINE_WAIT 超时 (s)
+    target_jump_dist: 0.10        # refined 跳变门 (m)：超过判 moved 失败
+    planning_time_sec: 5.0
+    planning_attempts: 2
+    position_tolerance_m: 0.01
+    orientation_tolerance_rad: 0.1

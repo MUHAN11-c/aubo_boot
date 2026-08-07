@@ -2,8 +2,8 @@
 鲁棒几何拟合 — 法线估计 / 球 RANSAC / 圆柱 RANSAC（实测深度派生量）.
 
 管线位置:
-  剪切抓取核心几何层。为 pipeline.py（袋轴/袋径/entry_start）与
-  inspector/sphere_ref.py（桃子球参考）提供拟合原语。
+  剪切抓取核心几何层。为 pipeline.py（袋线圆柱轴/袋径/entry_start 与
+  果线球拟合+梗洼定向）提供拟合原语。
 
 核心理论 (详见 docs/grasp_axis_entry_design.md 附A/附B):
   1. 球面法线 n = (p−c)/r → c = p − r·n（射线约束）：半径固定时最小采样
@@ -58,6 +58,7 @@ def estimate_normals(depth_roi: np.ndarray, xoff: int, yoff: int, K: dict,
     z = depth_roi.astype(np.float64) / 1000.0
     valid = (depth_roi > 0) & (depth_roi < 65535)
 
+    # 全图像素坐标网格：[None, :]/[:, None] 造成行/列向量，便于广播
     us = np.arange(w)[None, :] + xoff
     vs = np.arange(h)[:, None] + yoff
     X = (us - K['cx']) * z / K['fx']
@@ -71,9 +72,11 @@ def estimate_normals(depth_roi: np.ndarray, xoff: int, yoff: int, K: dict,
     dv[1:-1, :, 1] = Y[2:, :] - Y[:-2, :]
     dv[1:-1, :, 2] = z[2:, :] - z[:-2, :]
 
+    # 两切向逐像素叉积 = 法线（尚未归一化）
     n = np.cross(du, dv)
     norm = np.linalg.norm(n, axis=2)
     with np.errstate(invalid='ignore', divide='ignore'):
+        # 范数过小处除以 1 防 NaN；[..., None] 扩成 (h,w,1) 对齐逐像素除
         n = n / np.where(norm > 1e-12, norm, 1.0)[..., None]
 
     # 朝向相机（相机在原点看 +Z，可见面法线应指向原点）
@@ -115,7 +118,7 @@ def _sphere_inliers(points: np.ndarray, center: np.ndarray, radius: float,
 
     """
     d = np.linalg.norm(points - center, axis=1)
-    return np.where(np.abs(d - radius) <= thresh)[0]
+    return np.where(np.abs(d - radius) <= thresh)[0]  # 径向残差 ≤ 阈值的内点下标
 
 
 def ransac_sphere(points: np.ndarray, normals: Optional[np.ndarray] = None,
@@ -170,8 +173,9 @@ def ransac_sphere(points: np.ndarray, normals: Optional[np.ndarray] = None,
         else:
             idx = rng.choice(n, size=min(4, n), replace=False)
             pts = points[idx]
+            # 4 点球代数解：|p−c|²=r² 线性化为 [2p, 1]·[c; t] = |p|²（t=r²−|c|²）
             a = np.column_stack((2.0 * pts, np.ones(len(pts))))
-            b = np.einsum('ij,ij->i', pts, pts)
+            b = np.einsum('ij,ij->i', pts, pts)  # 'ij,ij->i' = 逐行平方和 |p|²
             sol, *_ = np.linalg.lstsq(a, b, rcond=None)
             t = sol[3] + float(sol[:3] @ sol[:3])
             if t <= 0:
@@ -216,11 +220,13 @@ def polish_sphere_lm(points: np.ndarray, center0: np.ndarray,
     if fixed_radius:
         def resid(c):
             return np.linalg.norm(points - c, axis=1) - radius
+        # scipy LM 最小二乘：迭代最小化径向残差（只估球心）
         sol = least_squares(resid, center0, method='lm')
         return sol.x, radius
 
     def resid(cr):
         return np.linalg.norm(points - cr[:3], axis=1) - cr[3]
+    # scipy LM 最小二乘：球心 + 半径联估（4 DOF）
     sol = least_squares(resid, np.append(center0, radius), method='lm')
     return sol.x[:3], float(sol.x[3])
 
@@ -320,6 +326,7 @@ def ransac_cylinder(points: np.ndarray, normals: np.ndarray,
     for _ in range(max_iter):
         i, j = rng.choice(n, size=2, replace=False)
         n1, n2 = normals[i], normals[j]
+        # 两法线叉积 = 圆柱轴方向（未归一化）
         a = np.cross(n1, n2)
         la = np.linalg.norm(a)
         if la < 0.17:  # sin(10°)：近平行法线无法定轴
@@ -340,7 +347,7 @@ def ransac_cylinder(points: np.ndarray, normals: np.ndarray,
             continue
 
         d = _cylinder_radial_dist(points, center2d, a)
-        inl = np.where(np.abs(d - radius) <= thresh)[0]
+        inl = np.where(np.abs(d - radius) <= thresh)[0]  # 径向残差 ≤ 阈值的内点下标
         if best is None or len(inl) > len(best['inliers']):
             best = {'axis': a, 'q0': center2d, 'radius': radius, 'inliers': inl}
 
@@ -389,6 +396,7 @@ def _eberly_G(w: np.ndarray, X: np.ndarray) -> float:
     A = Y.T @ Y
     S = np.array([[0, -w[2], w[1]], [w[2], 0, -w[0]], [-w[1], w[0], 0]])
     A_hat = S @ A @ S.T
+    # 'ij,ij->i' = 逐行平方和 |y|²（Eberly 消元的中间量）
     u = float(np.mean(np.einsum('ij,ij->i', Y, Y)))
     num = A_hat @ (np.einsum('ij,ij->i', Y, Y)[:, None] * Y).sum(axis=0)
     den = np.trace(A_hat @ A)
@@ -442,12 +450,14 @@ def polish_cylinder_axis(points: np.ndarray,
     t = points.mean(axis=0)
     X = points - t
     hint = axis_hint / np.linalg.norm(axis_hint)
+    # 钳到 [-1,1]，防数值误差致 arccos 域外 NaN
     theta0 = float(np.arccos(np.clip(hint[2], -1.0, 1.0)))
     phi0 = float(np.arctan2(hint[1], hint[0]))
     starts = [(theta0, phi0), (0.0, 0.0),
               (np.pi / 2, 0.0), (np.pi / 2, np.pi / 2)]
     best_w, best_g = None, float('inf')
     for sp in starts:
+        # scipy Powell 无梯度优化：在 (theta, phi) 上最小化 Eberly 能量 G
         res = minimize(lambda x: _eberly_G(_eberly_direction(x[0], x[1]), X),
                        sp, method='Powell', tol=1e-6)
         if res.fun < best_g:
@@ -498,8 +508,8 @@ def fit_cylinder_robust(points: np.ndarray, normals: np.ndarray,
         axis, q0 = polish_cylinder_axis(points[polish_idx], axis)
         # 重选内点（轴向更新后）
         d = _cylinder_radial_dist(points, q0, axis)
-        radius = float(np.median(d[inl]))
-        inl = np.where(np.abs(d - radius) <= thresh)[0]
+        radius = float(np.median(d[inl]))  # 半径先取内点中位数（抗离群）
+        inl = np.where(np.abs(d - radius) <= thresh)[0]  # 径向残差 ≤ 阈值的内点下标
         if len(inl) < 20:
             return None
     d = _cylinder_radial_dist(points[inl], q0, axis)

@@ -17,7 +17,6 @@
 主要对外 API:
   - InferenceEngine.detect(rgb) — 返回检测 dict 列表
   - InferenceEngine.segment(rgb, bboxes) — 返回 [(mask, bbox), ...]
-  - InferenceEngine.segment_detections(...) — 从 detect 结果筛选后分割
   - InferenceEngine.reset() — 释放模型缓存
 
 线程安全说明:
@@ -29,6 +28,7 @@
 """
 
 import threading
+import time
 from typing import List, Tuple
 
 import numpy as np
@@ -138,19 +138,20 @@ class InferenceEngine:
                 except Exception:
                     pass
 
+            # ultralytics YOLO 推理：输入 BGR 图；conf=置信度阈值，iou=NMS 阈值
             results = self._yolo(
                 rgb, conf=self._yolo_conf, iou=self._yolo_iou,
                 device=self._device, verbose=False)
 
         # 锁外解析: 纯 CPU 后处理，不涉及 CUDA
         dets = []
-        for r in results:
-            if r.boxes is None:
+        for r in results:                       # ultralytics 按输入张数返回，本包每次 1 张
+            if r.boxes is None:                 # 该帧无任何检测框
                 continue
             for i in range(len(r.boxes)):
-                ci = int(r.boxes.cls[i])
-                cf = float(r.boxes.conf[i])
-                x1, y1, x2, y2 = r.boxes.xyxy[i].tolist()
+                ci = int(r.boxes.cls[i])        # 类别 id：0=peach_bag 袋装桃, 1=peach_nobag 裸果
+                cf = float(r.boxes.conf[i])     # 置信度 [0,1]
+                x1, y1, x2, y2 = r.boxes.xyxy[i].tolist()   # 框角点 (左,上,右,下) 像素
                 dets.append({
                     'class_id': ci,
                     'class_name': self._class_names.get(ci, f'cls_{ci}'),
@@ -158,6 +159,7 @@ class InferenceEngine:
                     'conf': cf,
                 })
 
+        # 按置信度降序：下游逐目标处理时优先高置信目标
         dets.sort(key=lambda d: d['conf'], reverse=True)
         return dets
 
@@ -185,76 +187,46 @@ class InferenceEngine:
 
         """
         if not bboxes:
-            return []
+            return []                           # 无检测框直接返回（下游按无掩膜处理）
 
-        with self._lock:
-            if self._sam is None:
+        with self._lock:                        # 全局锁：CUDA 加载与推理串行化，防竞态
+            if self._sam is None:               # 懒加载：首次调用才 import 并读权重（秒级）
                 from ultralytics import SAM
                 self._sam = SAM(self._sam_model_name)
                 try:
-                    self._sam.to(self._device)
+                    self._sam.to(self._device)  # 权重上 GPU；失败则保持默认（CPU 兜底）
                 except Exception:
                     pass
 
             # 限制 bbox 数量: SAM 批量推理显存与耗时随 N 增长
             if len(bboxes) > self._sam_max_bboxes:
-                bboxes = bboxes[:self._sam_max_bboxes]
+                bboxes = bboxes[:self._sam_max_bboxes]  # 超上限截断（检测已按置信度降序）
 
             try:
+                # MobileSAM 推理：bboxes 作 box prompt，返回每框一张掩膜概率图
                 results = self._sam(
                     rgb, bboxes=bboxes, device=self._device, verbose=False)
             except Exception as e:
-                print(f'[InferenceEngine] SAM 分割失败: {e}')
-                return []
+                # SAM 持续失败时限流打印（2s 一条），避免按帧刷屏
+                now = time.time()
+                if now - getattr(self, '_sam_fail_log_t', 0.0) > 2.0:
+                    print(f'[InferenceEngine] SAM 分割失败: {e}')
+                    self._sam_fail_log_t = now
+                return []                       # 失败不炸节点，下游按无掩膜降级
 
         if not results or results[0].masks is None:
-            return []
+            return []                           # SAM 无输出（图内无可分割实例）
 
-        masks = results[0].masks.data.cpu().numpy()  # GPU→CPU: (N, H, W) 概率图
+        masks = results[0].masks.data.cpu().numpy()  # GPU→CPU: (N, H, W) 概率图 [0,1]
+        self.last_probs = masks                 # 缓存原始概率图，供 ~/masks 热图显示
 
         output = []
         for i, mask in enumerate(masks):
-            bin_mask = mask > 0.5  # 阈值化得布尔前景掩码
+            bin_mask = mask > 0.5               # 概率阈值化 → 布尔前景掩码 (H, W)
             if bin_mask.sum() > self._sam_min_area:
-                output.append((bin_mask, bboxes[i]))
+                output.append((bin_mask, bboxes[i]))   # 掩膜与 prompt 框按索引一一对应
 
         return output
-
-    # ═══════════════════════════════════════════════════════════════
-    # 便捷方法: 对高置信度检测结果做 SAM 分割
-    # ═══════════════════════════════════════════════════════════════
-
-    def segment_detections(
-        self,
-        rgb: np.ndarray,
-        detections: List[dict],
-        min_conf: float = 0.5,
-        target_classes: set = None,
-    ) -> List[Tuple[np.ndarray, Tuple[int, int, int, int]]]:
-        """
-        从 detect() 结果中筛选高置信度目标，再调用 segment().
-
-        典型用法: detect → 过滤 peach_bag/peach_nobag → segment 得掩码供前景管线。
-
-        Args:
-            rgb: BGR 图像
-            detections: detect() 返回值
-            min_conf: 置信度下限
-            target_classes: 参与分割的 class_id 集合，None 时默认 {0, 1}
-
-        Returns
-        -------
-        同 segment()
-
-        """
-        if target_classes is None:
-            target_classes = {0, 1}  # peach_bag, peach_nobag
-
-        bboxes = [
-            d['bbox'] for d in detections
-            if d['class_id'] in target_classes and d['conf'] > min_conf
-        ]
-        return self.segment(rgb, bboxes)
 
     # ═══════════════════════════════════════════════════════════════
     # 资源管理

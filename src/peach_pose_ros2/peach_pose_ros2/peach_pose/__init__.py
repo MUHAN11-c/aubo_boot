@@ -1,8 +1,8 @@
 """
 PeachPose 桃姿 — 桃树果实 RGB-D 位姿感知算法包.
 
-职责: 将 Azure Kinect RGB-D 观测转为 2D/3D 桃子袋体抓取位姿；本包为算法核心，
-GUI 入口见 ``inspector/``。
+职责: 将 RGB-D 观测转为 2D/3D 桃子袋体抓取位姿；本包为纯算法核心
+（不 import rclpy，可脱离 ROS 离线测试）。
 
 收敛后的唯一感知路线:
   RGB-D → YOLO 检测 → MobileSAM 分割 → SAM掩膜 ∩ 膨胀深度连通域 (hybrid_dilated)
@@ -16,14 +16,16 @@ GUI 入口见 ``inspector/``。
 
 模块:
   contracts.py     — 数据合约 (BagObservation, BagGrasp2D, BagGraspReference3D, ToolGeometry)
+  base.py          — Detector/Segmenter/PosePipeline 后端 Protocol 抽象接口
   inference.py     — InferenceEngine: YOLO + SAM 懒加载，CUDA 调用线程安全
-  candidates.py    — CandidateEstimator: 收敛前景模式的统一入口
+  candidates.py    — CandidateEstimator: 收敛前景 (hybrid_dilated) 的统一入口
   pipeline.py      — 单目标实测深度几何与工具安全门控
+  fitting.py       — 法线估计 / 球 / 圆柱 RANSAC 拟合原语
+  temporal_fuser.py — TemporalFuser: 候选流门控 + 置信度 EMA + 一致簇统计
+  refiner.py       — refine_target: ROI 累积点云按类别重拟合 (球/圆柱, open3d)
   validation.py    — 离线真值加载与指标累计
   e2e_validate.py  — 批量端到端验证与 JSON/Markdown 报告
-  depth.py         — Open3D 点云转换 (可视化用)
-  visualization.py — Open3D 3D 可视化 (QTimer 非阻塞窗口)
-  inspector/       — PySide6 GUI 数据集浏览器
+  inspector/config.py — 内参/数据集路径/可视化常量（e2e 与工具共用）
 
 使用:
   from peach_pose.candidates import CandidateEstimator
@@ -31,7 +33,5 @@ GUI 入口见 ``inspector/``。
 
   estimator = CandidateEstimator()
   obs = BagObservation(rgb=..., depth=..., camera_K=..., detections=[...])
-  results = estimator.estimate_modes(obs, target_id, bbox, sam_mask)
-
-启动 GUI: ``./run.sh`` 或 ``python3 -m peach_pose.inspector.main_window``
+  result = estimator.estimate(obs, target_id, bbox, sam_mask)
 """

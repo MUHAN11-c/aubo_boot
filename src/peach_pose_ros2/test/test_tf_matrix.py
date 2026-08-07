@@ -3,7 +3,7 @@ import unittest
 
 import numpy as np
 
-from peach_pose_ros2.peach_pose_node import (
+from peach_pose_ros2.conversions import (
     _quat_to_matrix_handwritten,
     _rotation_to_quat,
     _rotation_to_quat_handwritten,

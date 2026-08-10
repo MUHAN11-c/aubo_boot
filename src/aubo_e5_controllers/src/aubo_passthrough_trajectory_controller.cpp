@@ -74,15 +74,12 @@ bool set_rt_box_from_non_rt(RTBox & rt_box, const ValueType & value)
 
 double duration_to_double(const builtin_interfaces::msg::Duration & duration)
 {
-  return duration.sec + (duration.nanosec / 1000000000.0);
+  return rclcpp::Duration(duration).seconds();
 }
 
 builtin_interfaces::msg::Duration double_to_duration(double seconds)
 {
-  builtin_interfaces::msg::Duration duration;
-  duration.sec = static_cast<int32_t>(seconds);
-  duration.nanosec = static_cast<uint32_t>((seconds - duration.sec) * 1e9);
-  return duration;
+  return rclcpp::Duration::from_seconds(seconds);
 }
 
 // 非实时上下文从实时 box 读当前活动 goal（同样带重试）
@@ -637,7 +634,8 @@ rclcpp_action::GoalResponse AuboPassthroughTrajectoryController::goal_received_c
   // 校验轨迹各部分是否合法。注意：正在执行的轨迹不会拒绝新 goal——
   // 新 goal 直接抢占它（aubo_boot handleAccepted 语义）。
   if (!check_goal_joints(goal) || !check_goal_positions(goal) || !check_goal_velocities(goal) ||
-    !check_goal_accelerations(goal) || !check_goal_tolerances(goal))
+    !check_goal_accelerations(goal) || !check_goal_values_and_timing(goal) ||
+    !check_goal_tolerances(goal))
   {
     RCLCPP_ERROR(get_node()->get_logger(), "Trajectory rejected");
     return rclcpp_action::GoalResponse::REJECT;
@@ -677,15 +675,32 @@ bool AuboPassthroughTrajectoryController::check_goal_joints(
 bool AuboPassthroughTrajectoryController::check_goal_tolerances(
   const std::shared_ptr<const FollowJTrajAction::Goal> & goal) const
 {
-  auto & tolerances = goal->goal_tolerance;
+  const auto & tolerances = goal->goal_tolerance;
 
   if (!tolerances.empty()) {
-    for (auto & tol : tolerances) {
+    for (const auto & tol : tolerances) {
       auto found_it = std::find(joint_names_.begin(), joint_names_.end(), tol.name);
       if (found_it == joint_names_.end()) {
         RCLCPP_ERROR(get_node()->get_logger(),
                      "Tolerance for joint '%s' given. This joint is not known to this controller.",
             tol.name.c_str());
+        return false;
+      }
+      if (std::count_if(
+          tolerances.begin(), tolerances.end(), [&tol](const auto & other) {
+            return other.name == tol.name;
+          }) > 1)
+      {
+        RCLCPP_ERROR(get_node()->get_logger(),
+                     "Can't accept new trajectory. Duplicate tolerance for joint '%s'.",
+                     tol.name.c_str());
+        return false;
+      }
+      if (!std::isfinite(tol.position) || !std::isfinite(tol.velocity) ||
+        !std::isfinite(tol.acceleration))
+      {
+        RCLCPP_ERROR(get_node()->get_logger(),
+                     "Can't accept new trajectory. Tolerances must be finite.");
         return false;
       }
     }
@@ -767,6 +782,57 @@ bool AuboPassthroughTrajectoryController::check_goal_accelerations(
                    number_of_joints_, i, goal->trajectory.points[i].accelerations.size());
       return false;
     }
+  }
+  return true;
+}
+
+bool AuboPassthroughTrajectoryController::check_goal_values_and_timing(
+  const std::shared_ptr<const FollowJTrajAction::Goal> & goal) const
+{
+  // UR passthrough 蓝本只校验数组长度；AUBO 路径会把数值直接交给旧 SDK，
+  // 因此在 action 非实时边界补齐标准 JTC 同类的有限值与严格递增时间校验，
+  // 防止 NaN/Inf 绕过硬件限速比较或零时长段进入重采样器。
+  int64_t previous_time_ns = -1;
+  for (std::size_t i = 0; i < goal->trajectory.points.size(); ++i) {
+    const auto & point = goal->trajectory.points[i];
+    const auto all_finite = [](const auto & values) {
+        return std::all_of(values.begin(), values.end(), [](double value) {
+                   return std::isfinite(value);
+          });
+      };
+    if (!all_finite(point.positions) || !all_finite(point.velocities) ||
+      !all_finite(point.accelerations))
+    {
+      RCLCPP_ERROR(get_node()->get_logger(),
+                   "Can't accept new trajectory. Point %zu contains NaN or infinity.", i + 1);
+      return false;
+    }
+    if (!point.effort.empty()) {
+      RCLCPP_ERROR(get_node()->get_logger(),
+                   "Can't accept new trajectory. Effort commands are not supported.");
+      return false;
+    }
+    if (point.time_from_start.sec < 0 || point.time_from_start.nanosec >= 1000000000u) {
+      RCLCPP_ERROR(get_node()->get_logger(),
+                   "Can't accept new trajectory. Point %zu has an invalid time_from_start.",
+                   i + 1);
+      return false;
+    }
+    const int64_t time_ns = static_cast<int64_t>(point.time_from_start.sec) * 1000000000LL +
+      static_cast<int64_t>(point.time_from_start.nanosec);
+    if (time_ns <= previous_time_ns) {
+      RCLCPP_ERROR(get_node()->get_logger(),
+                   "Can't accept new trajectory. time_from_start must be strictly increasing "
+                   "(point %zu).", i + 1);
+      return false;
+    }
+    previous_time_ns = time_ns;
+  }
+  if (!goal->path_tolerance.empty()) {
+    RCLCPP_ERROR(get_node()->get_logger(),
+                 "Can't accept new trajectory. Path tolerances are not supported by the "
+                 "passthrough controller.");
+    return false;
   }
   return true;
 }

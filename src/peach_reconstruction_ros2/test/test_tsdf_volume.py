@@ -60,7 +60,8 @@ class TsdfIntegrationTest(unittest.TestCase):
     def setUpClass(cls):
         """正确方向积分一次，各用例共享；GT 为面积均匀可见面质心."""
         cls.frames = _make_frames()
-        cls.xyz, cls.colors = _integrate_all(LocalTsdf(**_TSDF_KW), cls.frames)
+        cls.volume = LocalTsdf(**_TSDF_KW)
+        cls.xyz, cls.colors = _integrate_all(cls.volume, cls.frames)
         cls.gt_centroid = visible_surface_cloud().mean(axis=0)
 
     def test_cloud_nonempty_and_colored(self):
@@ -114,6 +115,15 @@ class TsdfIntegrationTest(unittest.TestCase):
             self.xyz, self.colors, CYL_CENTER + 5.0, size)
         self.assertEqual(far.shape[0], 0)
         self.assertEqual(far_colors.shape[0], 0)
+
+    def test_mesh_has_triangles_and_normals(self):
+        """Open3D TSDF 可直接提取带逐顶点法向的三角网格."""
+        mesh = self.volume.extract_mesh(
+            center=CYL_CENTER, size_xyz=(0.30, 0.30, 0.40))
+        self.assertGreater(len(mesh['vertices']), 100)
+        self.assertGreater(len(mesh['triangles']), 100)
+        self.assertEqual(mesh['normals'].shape, mesh['vertices'].shape)
+        self.assertEqual(mesh['colors_bgr'].shape, mesh['vertices'].shape)
 
 
 if __name__ == '__main__':

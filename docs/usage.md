@@ -163,7 +163,7 @@ ros2 topic hz /joint_states                               # 发布率 ~200Hz（�
 ## 6. Dashboard 服务（仅 real 模式）
 
 ```bash
-ros2 service call /aubo_dashboard/startup std_srvs/srv/Trigger            # 上电初始化
+# /aubo_dashboard/startup 仅为冻结驱动兼容接口；项目流程禁止调用，上电由用户现场手动完成
 ros2 service call /aubo_dashboard/shutdown std_srvs/srv/Trigger           # 断电
 ros2 service call /aubo_dashboard/release_brake std_srvs/srv/Trigger      # 松刹车
 ros2 service call /aubo_dashboard/stop std_srvs/srv/Trigger               # 停止（保留队列语义）
@@ -191,8 +191,8 @@ pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'   # �
 ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real robot_ip:=<IP>
 ros2 topic echo --once /joint_states
 
-# 第 2 步：上电（或示教器手动上电）
-ros2 service call /aubo_dashboard/startup std_srvs/srv/Trigger
+# 第 2 步：用户通过示教器或控制柜手动上电；确认完成后才允许继续
+# 禁止脚本、测试、launch 或代理调用 /aubo_dashboard/startup
 
 # 第 3 步：低速小轨迹（RViz 速度因子拉到 0.1，或用工具的小幅轨迹）
 aubo_py3.12/bin/python tools/passthrough_traj_client.py wave_shoulder
@@ -241,7 +241,8 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real robot_ip:=<IP>
 
 ## 9. 场景重建与桃子位姿（venv 节点）
 
-aubo_scene_recon 与 peach_pose_ros2 依赖 open3d/torch，节点为标准
+aubo_scene_recon、peach_pose_ros2 与 peach_reconstruction_ros2 依赖
+open3d/torch，节点为标准
 console_scripts 入口，启动器 shebang 在构建期由 setup.py 的
 `options.build_scripts.executable` 指向工作区 `aubo_py3.12/bin/python`
 （不存在则回退构建解释器）；launch 用标准 `Node()` 按名引用，无解释器
@@ -281,7 +282,32 @@ ros2 launch peach_pose_ros2 peach_pose.launch.py    # 无 launch 参数
 #   ~/detections、~/masks、~/markers、~/debug_image、~/detection_cloud
 ```
 
-### 9.3 无相机冒烟：数据集回放（tools/peach_dataset_replayer.py）
+### 9.3 套袋桃连续局部 TSDF（peach_reconstruction_ros2）
+
+本包使用图像时间戳对应的精确 TF，以 Robot FK + 手眼外参为相机绝对位姿，
+Open3D ICP 只做有界小修正；合格帧在机械臂连续慢速运动中立即积分，无需停稳。
+机械臂只允许操作者在硬件或示教器上手动上电，禁止调用
+`/aubo_dashboard/startup`。
+
+```bash
+# peach_pose_ros2 已运行且检测到目标后启动
+ros2 run peach_reconstruction_ros2 peach_reconstruction_node --ros-args \
+  --params-file install/peach_reconstruction_ros2/share/peach_reconstruction_ros2/config/reconstruction.yaml
+
+# RViz2 速度缩放保持 0.01；连续获取 12～24 帧时观察
+ros2 topic echo /peach/reconstruction/diagnostics
+ros2 topic hz /camera/depth/image_raw
+
+# 覆盖充分后由用户完成、保存
+ros2 service call /peach_reconstruction_node/finalize_reconstruction std_srvs/srv/Trigger '{}'
+ros2 service call /peach_reconstruction_node/save_session std_srvs/srv/Trigger '{}'
+```
+
+RViz2 添加 `/peach/reconstruction/tsdf_cloud`（PointCloud2）与
+`/peach/reconstruction/markers`（MarkerArray）；后者包含相机轨迹、
+finalize 后的 TSDF 网格和 refined 轴。完整参数与判据见包级 README。
+
+### 9.4 无相机冒烟：数据集回放（tools/peach_dataset_replayer.py）
 
 回放工具已独立到 tools/（不随 colcon 构建），发布与相机驱动同名的话题
 （`/camera/color/image_raw`、`/camera/depth/image_raw`、
@@ -301,12 +327,12 @@ ros2 param set /peach_pose_node depth_scale_unit 1.0
 
 ## 10. 测试与 lint
 
-11 个项目包已接入 lint 测试（percipio_camera 为厂商代码，未接入），
+13 个项目包已接入 lint 测试（percipio_camera 为厂商代码，未接入），
 业务测试用 venv 解释器手动跑：
 
 ```bash
-# 全包 lint + 已接入的测试（8 个 CMake 包 ament_lint_auto：
-# copyright/cpplint/uncrustify/lint_cmake/xmllint；3 个 Python 包 pytest 模板
+# 全包 lint + 已接入的测试（9 个 CMake 包 ament_lint_auto：
+# copyright/cpplint/uncrustify/lint_cmake/xmllint；4 个 Python 包 pytest 模板
 # test_flake8/test_pep257）
 colcon test && colcon test-result --verbose
 
@@ -315,6 +341,7 @@ colcon test && colcon test-result --verbose
 cd src/aubo_hand_eye_calibration && ../../aubo_py3.12/bin/python -m pytest test/ -q  # 15 例 + 2 lint
 cd src/aubo_scene_recon && ../../aubo_py3.12/bin/python -m pytest test/ -q            # open3d 在 venv
 cd src/peach_pose_ros2 && PYTHONPATH=peach_pose_ros2:$PYTHONPATH ../../aubo_py3.12/bin/python -m pytest test/ -q
+cd src/peach_reconstruction_ros2 && PYTHONPATH=.:../peach_pose_ros2:$PYTHONPATH ../../aubo_py3.12/bin/python -m pytest test/ -q
 ```
 
 注：`colcon test` 走系统 python3（无 open3d），aubo_scene_recon 的
@@ -357,7 +384,7 @@ aubo_py3.12/bin/python diagnostics/live_monitor.py --no-gui   # 无头记录，C
 | `libprotobuf.so.9` 找不到 | 确认经 launch 启动（RPATH 已配置）；手动跑二进制需 `LD_LIBRARY_PATH` 指向 `install/aubo_e5_hardware/lib/aubo_e5_hardware/vendor` |
 | SDK 读不到配置/日志 | ros2_control_node 与 dashboard 的 cwd 必须是各自 share 目录（launch 已设置） |
 | 相机 `Open device fail -1014`，或改动"没生效" | 旧进程残留：设备与 SDK 通道均独占，且旧进程跑的是构建前二进制。`pgrep -af 'ros2 launch\|component_container\|extrinsics_publisher\|ros2 run'` 后按 PID 补杀（kill launch 会留孤儿节点），再重启 |
-| goal 被拒 | 关节名拼写/数量（必须 6 个权威关节名）、points 的 velocities/accelerations 数组长度 |
+| goal 被拒 | 检查 6 个权威关节名、各点数组长度、NaN/Inf、严格递增的 `time_from_start`；passthrough 不支持 effort/path tolerance，携带时会拒绝 |
 | 抢占后卡死 | 不应出现（蓝本已修复）；抓 `/aubo_io_controller/rib_status` 与 ros2_control_node 日志 |
 | sim 里 set_io 返回 false | 预期行为，sim 不模拟板载 IO 写回 |
 | sim/mock 启动后 percipio 刷屏报错 | 默认 `camera_enabled:=true` 会拉起相机驱动；未接相机时显式 `camera_enabled:=false` |

@@ -3,9 +3,9 @@
 
 管线位置:
   剪切抓取核心几何层。为 pipeline.py（袋轴/袋径/entry_start）与
-  inspector/sphere_ref.py（桃子球参考）提供拟合原语。
+  offline/sphere_ref.py（桃子球参考）提供拟合原语。
 
-核心理论 (详见 docs/grasp_axis_entry_design.md 附A/附B):
+核心理论要点（原设计文档已随旧项目移除，要点记录于此）:
   1. 球面法线 n = (p−c)/r → c = p − r·n（射线约束）：半径固定时最小采样
      1 点+法线；RANSAC 迭代数 N = log(1−p)/log(1−w^k)，k=1 → 7 次。
   2. 固定半径删掉 Fisher 信息矩阵中最病态方向（小球冠条件数 O(α⁻⁴)→O(α⁻²)）。

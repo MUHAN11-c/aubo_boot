@@ -24,8 +24,6 @@
   YOLO/SAM 在 GPU 上持有 CUDA context 与内部缓冲；多线程并发 forward 可能导致
   结果错乱或 CUDA 错误。因此 with self._lock 包裹整个加载+推理路径。
   GUI 侧 Open3D/Qt 应在主线程；若需后台推理，用 QThread + 信号槽，勿裸线程共享 engine。
-
-详见 docs/architecture.md「推理与模型」章节 (若已撰写)。
 """
 
 import threading
@@ -33,8 +31,10 @@ from typing import List, Tuple
 
 import numpy as np
 
+from .interfaces import Detector, Segmenter
 
-class InferenceEngine:
+
+class InferenceEngine(Detector, Segmenter):
     """
     管理 YOLO + SAM 的加载、推理和缓存.
 

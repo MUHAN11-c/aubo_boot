@@ -36,7 +36,9 @@ def invert_transform(T: np.ndarray) -> np.ndarray:
     """
     4×4 齐次矩阵求逆：T_camera_base = inv(T_base_camera).
 
-    刚体变换逆 = [R.T, -R.T @ t]，比 np.linalg.inv 数值更稳、语义更明确。
+    官方 np.linalg.inv（通用 4×4 求逆）：刚体矩阵上数值误差 ~1e-16，
+    与手写 [R.T, -R.T@t] 在测试锚点精度（atol=1e-12）内无差别；
+    输入的刚性由 test_tf_utils 正逆互反用例守门，无需自造刚体特化。
 
     Args:
         T: (4, 4) 齐次矩阵.
@@ -46,17 +48,18 @@ def invert_transform(T: np.ndarray) -> np.ndarray:
         (4, 4) float64 逆矩阵.
 
     """
-    R = T[:3, :3]
-    t = T[:3, 3]
-    T_inv = np.eye(4, dtype=np.float64)
-    T_inv[:3, :3] = R.T
-    T_inv[:3, 3] = -R.T @ t
-    return T_inv
+    return np.linalg.inv(np.asarray(T, dtype=np.float64))
 
 
 def relative_motion(T_a: np.ndarray, T_b: np.ndarray) -> tuple:
     """
     两个 base←camera 位姿间的相对运动量（视角过滤用）.
+
+    保留 numpy 闭式（官方无等价物）：tf_transformations 没有「两旋转
+    夹角」直出 API，须绕 quaternion_from_matrix → 2·arccos(|w|) 取角，
+    反而多一次四元数往返；trace 闭式 R_rel→arccos((tr−1)/2) 是教科书
+    标准式，单次矩阵乘即得。concatenate_matrices 仅为矩阵乘语法糖，
+    无语义收益，不用。
 
     Args:
         T_a: (4, 4) 本帧位姿.

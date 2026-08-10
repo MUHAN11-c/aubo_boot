@@ -1,11 +1,12 @@
 """
-相机轨迹 Marker 构造（RViz 可视化，ROS 侧模块）.
+相机轨迹 + TSDF 网格 + refined 轴 Marker 构造（RViz 可视化）.
 
 每个已采帧画：相机位置球点（SPHERE_LIST）+ 顺序连线（LINE_LIST）+
-沿光轴 +Z 的朝向小箭头（ARROW，长 0.05 m）。frame_id 由调用方给
-（通常 base_frame）。
+沿光轴 +Z 的朝向小箭头（ARROW，长 0.05 m）。refit 成功时另画 refined
+轴箭头（bottom→neck，独立 namespace 便于 RViz 单独开关）。frame_id
+由调用方给（通常 base_frame）。
 """
-from typing import List
+from typing import List, Optional
 
 from geometry_msgs.msg import Point
 import numpy as np
@@ -13,6 +14,8 @@ from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker, MarkerArray
 
 _MARKER_NS = 'peach_reconstruction'
+_REFINED_NS = 'peach_reconstruction/refined'  # refined 轴箭头独立 namespace
+_MESH_NS = 'peach_reconstruction/tsdf_mesh'
 
 
 def _color(r: float, g: float, b: float, a: float) -> ColorRGBA:
@@ -133,3 +136,56 @@ def build_camera_markers(header, frames: List) -> MarkerArray:
         arrow.points = [_point_msg(start), _point_msg(start + 0.05 * view_dir)]
         arr.markers.append(arrow)
     return arr
+
+
+def build_refined_marker(header, refined: Optional[dict]) -> Optional[Marker]:
+    """
+    由 refit 结果构造 refined 轴箭头（bottom→neck，独立 namespace）.
+
+    Args:
+        header: std_msgs/Header（frame_id=base_frame）.
+        refined: geometry_refiner.refine_geometry 的成功结果 dict
+            （读 bottom/neck）；None 或 ok=False 时不画.
+
+    Returns
+    -------
+        ARROW Marker（ns=peach_reconstruction/refined，id=0）；
+        无有效结果给 None（调用方不入列）.
+
+    """
+    if not refined or not refined.get('ok'):
+        return None
+    arrow = _new_marker(header, 0, Marker.ARROW)
+    arrow.ns = _REFINED_NS
+    arrow.scale.x = 0.006   # 杆径 [m]（比相机箭头略粗，突出主结果）
+    arrow.scale.y = 0.012   # 箭头径 [m]
+    arrow.scale.z = 0.012   # 箭头长 [m]
+    arrow.color = _color(0.95, 0.2, 0.85, 0.95)  # 品红，与相机轨迹配色区分
+    arrow.points = [_point_msg(refined['bottom']),
+                    _point_msg(refined['neck'])]
+    return arrow
+
+
+def build_mesh_marker(header, mesh_data: Optional[dict],
+                      max_triangles: int = 50000) -> Optional[Marker]:
+    """把 TSDF 三角网格转换为 RViz TRIANGLE_LIST；过大时均匀抽取."""
+    if not mesh_data:
+        return None
+    vertices = np.asarray(mesh_data.get('vertices', []), dtype=np.float64)
+    triangles = np.asarray(mesh_data.get('triangles', []), dtype=np.int64)
+    if not len(vertices) or not len(triangles):
+        return None
+    if len(triangles) > max_triangles:
+        indices = np.linspace(
+            0, len(triangles) - 1, max_triangles, dtype=np.int64)
+        triangles = triangles[indices]
+    marker = _new_marker(header, 0, Marker.TRIANGLE_LIST)
+    marker.ns = _MESH_NS
+    marker.scale.x = marker.scale.y = marker.scale.z = 1.0
+    marker.color = _color(0.2, 0.75, 0.95, 0.75)
+    marker.points = [
+        _point_msg(vertices[index])
+        for triangle in triangles
+        for index in triangle
+    ]
+    return marker

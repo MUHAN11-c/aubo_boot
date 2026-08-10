@@ -115,5 +115,22 @@ class ColorSamplingTest(unittest.TestCase):
                          (0,))
 
 
+class ByteOrderTest(unittest.TestCase):
+    def test_explicit_little_and_big_endian_depth(self):
+        """cv_bridge 零拷贝深度带显式字节序（'<u2'/'>'），结果与原生一致."""
+        K = {'fx': 2.0, 'fy': 2.0, 'cx': 1.0, 'cy': 1.0}
+        native = np.full((3, 3), 1000, dtype=np.uint16)
+        native[0, 0] = 0
+        ref, _, _ = build_cloud_base(native, K, np.eye(4))
+        # cv_bridge 的 dtype 带显式字节序标记（newbyteorder 构造；
+        # 普通 view('<u2') 在同序机器上会被 numpy 归一化为 '='，复现不出）
+        little = native.view(np.dtype('<u2').newbyteorder('<'))
+        big = native.byteswap().view(np.dtype('>u2').newbyteorder('>'))
+        self.assertEqual(little.dtype.byteorder, '<')
+        for tagged in (little, big):
+            cloud, _, _ = build_cloud_base(tagged, K, np.eye(4))
+            np.testing.assert_array_equal(cloud, ref)
+
+
 if __name__ == '__main__':
     unittest.main()

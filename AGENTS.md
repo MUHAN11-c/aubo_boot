@@ -105,15 +105,21 @@ src/                            # 参与构建的包（共 15 个）
 ├── peach_pose_msgs/            # 桃子位姿估计的自定义 msg
 ├── peach_pose_ros2/            # 桃子位姿估计（YOLO+SAM，依赖 venv 内 torch；
 │                               #   节点为 console_scripts + build_scripts.executable
-│                               #   指向 venv，同 scene_recon 模式；
+│                               #   指向 venv，同 scene_recon 模式；ROS 面已按职责
+│                               #   拆分 tf_utils/conversions/visualization/
+│                               #   cloud_utils + 640 行节点主体；
+│                               #   目标身份记忆 target_registry：base_link 世界系
+│                               #   空间匹配，目标消失重现 target_id 不变；
 │                               #   TUTORIAL.md=零基础逐行教程：启动链→参数→
 │                               #   节点→管线→输出话题）
-├── peach_reconstruction_ros2/  # 桃子多视角局部重建（自动模式默认开：有候选
-│                               #   自动开始、视角达阈自动采帧、采满自动完成；
-│                               #   finalize 时 Open3D TSDF 批量积分出彩色
-│                               #   tsdf_cloud + overlap 指标；6 个 Trigger 服务
-│                               #   备用；深度归一化复用 peach_pose_ros2.
-│                               #   depth_geometry；session 落盘 peach_sessions/）
+├── peach_reconstruction_ros2/  # 套袋桃连续运动局部重建（唯一重建包）：
+│                               #   精确图像时刻 FK/手眼位姿 + 有界 Open3D
+│                               #   点到平面 ICP，小修正通过后在线积分 TSDF；
+│                               #   finalize 提取彩色点云/带法向网格 + 圆柱/球拟合
+│                               #   （refined_pose/refined_axis/refined_diagnostics）；
+│                               #   6 个 Trigger 服务备用；深度归一化复用
+│                               #   peach_pose_ros2.depth_geometry；
+│                               #   session 落盘 peach_sessions/）
 └── percipio_camera/            # 相机驱动（厂商代码，两处项目化改动：
                                 #   ① launch 默认值：device_ip=169.254.10.110、
                                 #   depth_enable=true、point_cloud_enable=false、
@@ -163,8 +169,8 @@ docs/                           # 现行文档：usage.md（命令手册）、
                                 #   peach_urdf_migration.md（架子机 URDF 再导出
                                 #   移植清单：SolidWorks 导出物缺陷修补 +
                                 #   Setup Assistant 重打补丁清单 + 最小验证集）、
-                                #   peach_perception_progress.md（桃子视觉三包
-                                #   开发进度台账：Phase 0–7 已做/未做，随开发更新）；
+                                #   peach_perception_progress.md（桃子感知 +
+                                #   连续 TSDF 两包进度与真机验证台账）；
                                 #   archive/（旧架构文档 6 篇，仅供历史参考）、
                                 #   images/（文档配图）、
                                 #   superpowers/specs/（功能设计文档，如
@@ -228,7 +234,7 @@ moveit.launch.py`（自带 rsp + joint_state_publisher_gui；参数 `controllers
 解释器参数）、
 `ros2 run peach_reconstruction_ros2 peach_reconstruction_node --ros-args
 --params-file install/peach_reconstruction_ros2/share/peach_reconstruction_ros2/config/reconstruction.yaml`
-（多视角局部重建，无 launch，Trigger 服务驱动）；无相机冒烟用
+（连续在线 TSDF，无 launch，自动采集 + Trigger 服务备用）；无相机冒烟用
 `aubo_py3.12/bin/python tools/peach_dataset_replayer.py --dataset <根>`。
 任意 launch 的全部参数及中文说明可用 `--show-args` 查看。
 
@@ -244,10 +250,10 @@ MoveIt 超时问题。注意 sim 不模拟板载 IO 写回，`set_io` 返回 suc
 ```bash
 source /opt/ros/jazzy/setup.bash
 colcon test && colcon test-result --verbose          # 全包 lint + 接入的测试
-cd src/aubo_hand_eye_calibration && ../../aubo_py3.12/bin/python -m pytest test/ -q  # 15 例
+cd src/aubo_hand_eye_calibration && ../../aubo_py3.12/bin/python -m pytest test/ -q
 cd src/aubo_scene_recon && ../../aubo_py3.12/bin/python -m pytest test/ -q
 cd src/peach_pose_ros2 && PYTHONPATH=peach_pose_ros2:$PYTHONPATH ../../aubo_py3.12/bin/python -m pytest test/ -q
-cd src/peach_reconstruction_ros2 && ../../aubo_py3.12/bin/python -m pytest test/ -q
+cd src/peach_reconstruction_ros2 && PYTHONPATH=.:../peach_pose_ros2:$PYTHONPATH ../../aubo_py3.12/bin/python -m pytest test/ -q
 ```
 
 硬件/控制器代码的验证方式为：
@@ -274,7 +280,7 @@ cd src/peach_reconstruction_ros2 && ../../aubo_py3.12/bin/python -m pytest test/
    sine_shoulder 墙钟/标称比 1.08、终点误差 0、joint_states 200Hz。
 2. **mock 回归**：`hardware_mode:=mock` 下标准 JTC goal 成功。
 3. **真机分阶段流程**（务必按序，详见 `docs/usage.md` 第 7 节）：
-   只核对 joint_states → 上电（`/aubo_dashboard/startup`）→ 低速小轨迹 →
+   只核对 joint_states → 用户在示教器/控制柜手动上电并确认 → 低速小轨迹 →
    取消/抢占行为 → MoveIt 整机轨迹 + trace 分析。
    验收指标：执行期点吞吐率 ≈200 点/s；RIB 不饿死（>0）不溢出（<400）；
    墙钟/标称时长比 ≈1.0；终点误差 < 0.02 rad。
@@ -308,6 +314,19 @@ cd src/peach_reconstruction_ros2 && ../../aubo_py3.12/bin/python -m pytest test/
 
 ## 8. 代码风格与开发约定
 
+- **桃子视觉包四层架构**（peach_pose_ros2 / peach_reconstruction_ros2，
+  设计文档 `docs/superpowers/specs/2026-08-10-peach-layered-architecture.md`）：
+  参数层 `params.py`（frozen dataclass + declare/from_node 集中装载，yaml↔declare
+  双向同步有单测强制）；抽象接口层纯核 `interfaces.py`（abc.ABC + 显式注册表
+  字典选实现）；数据层（TargetRegistry/FrameCollector 等工作数据持有者 +
+  session_io 持久化，零 ROS import）；编排主节点（只做装载/接线/转换/调用/发布，
+  msg⇄纯类型只在 conversions.py）。纯核子包零 ROS import 由 import guard
+  单测强制。
+  新算法实现必须走注册表登记，不得在节点里堆业务逻辑。
+- **连续 TSDF 不变量**：重建只接受 depth.header.stamp 对应的精确 TF，禁止
+  latest TF 回退；机器人 FK/手眼外参是绝对位姿，ICP 只能做有界小修正；
+  合格帧到达即在线积分，不要求停稳后采集。独立 fusion 包已移除，质量门、
+  点云/网格与 refined 输出均归 peach_reconstruction_ros2。
 - C++17；注释以中文为主、密度较高，注释常解释"为什么"（尤其是蓝本语义与 SDK 坑），
   修改行为时必须同步更新注释与 `docs/` 相关文档。
 - 控制器参数用 **generate_parameter_library** 声明：改参数要改
@@ -319,6 +338,20 @@ cd src/peach_reconstruction_ros2 && ../../aubo_py3.12/bin/python -m pytest test/
   **不要"升级"为新式接口**。
 - 遵循蓝本（aubo_boot / UR passthrough）语义优先于自由发挥：轨迹一次性下发、
   goal_hold 判定、RIB 水位流控等核心逻辑不要改成流式。
+- **真机机械臂驱动栈已冻结，固定不允许再修改**。以下范围一律只读：
+  `src/aubo_e5_hardware/`、`src/aubo_e5_controllers/`、`src/aubo_dashboard/`、
+  `src/aubo_description/urdf/aubo_e5.ros2_control.xacro`、
+  `src/aubo_e5_bringup/launch/bringup.launch.py`、
+  `src/aubo_e5_bringup/config/controllers.yaml`，以及
+  `src/aubo_e5_moveit_config/config/controllers.yaml` 中的真机控制器映射。
+  允许读取、构建、测试和报告问题，但即使审查发现缺陷也不得直接修改上述源码、
+  参数、接口契约或 vendor 内容；只能记录风险与建议，等待用户单独明确授权。
+  感知、重建、分析工具、测试和文档仍可修改，但不得改变或绕过真机驱动接口。
+- **真机只允许用户现场手动上电**：由用户通过示教器或控制柜完成并明确确认。
+  AI、launch、脚本、测试和自动化流程不得调用 `/aubo_dashboard/startup`，不得代替
+  用户执行上电、松刹车或安全恢复；`auto_power_on=false` 必须保持不变。
+  dashboard 的 `startup` 服务仅作为冻结驱动的兼容接口保留，不属于项目允许的
+  真机操作流程。
 - 全包代码风格执行 ROS 2 官方标准并已被 `colcon test` 强制：C++ 走
   ament_uncrustify + ament_cpplint（100 列、`*`/`&` 居中对齐、BSD copyright 头）；
   Python 走 ament_flake8（99 列、单引号、import 分组）；CMake 走 ament_lint_cmake。
@@ -389,8 +422,9 @@ cd src/peach_reconstruction_ros2 && ../../aubo_py3.12/bin/python -m pytest test/
   `aubo_hand_eye_calibration/config/calibration.yaml`（已默认 0.1）。
 - **真机操作前**：现场确认急停、限位、碰撞等级、低速模式；首次只核对状态不运动；
   严格按 `docs/usage.md` 第 7 节的分阶段流程推进。
-- 默认 `auto_power_on=false`，启动不会自动上电；上电需显式调用
-  `/aubo_dashboard/startup` 或示教器手动操作。
+- `auto_power_on=false` 必须保持不变，启动不会自动上电。上电只能由用户在现场通过
+  示教器或控制柜手动完成；任何代理、launch、脚本或测试均禁止调用
+  `/aubo_dashboard/startup`。
 - 急停/防护停由本体安全回路主导，软件侧仅停发清队——不要在代码里试图"恢复"
   安全停止状态。
 - SDK 用户名/密码：硬件插件走 xacro 参数（`sdk_username`/`sdk_password`）；

@@ -12,6 +12,9 @@ import numpy as np
 CYL_CENTER = np.array([0.40, 0.0, 0.30])  # 圆柱轴心 [m]
 CYL_R = 0.035                             # 半径 [m]
 CYL_HALF_H = 0.06                         # 半高 [m]（h=0.12）
+# 合成球（Phase 5 refit 测试用）：与圆柱同心同半径，位姿复用 make_poses
+SPH_CENTER = CYL_CENTER.copy()            # 球心 [m]
+SPH_R = 0.035                             # 球半径 [m]
 K = {'fx': 500.0, 'fy': 500.0, 'cx': 320.0, 'cy': 240.0}
 IMG_W, IMG_H = 640, 480
 CAM_DIST = 0.55        # 相机到轴心距离 [m]（0.5~0.7 区间）
@@ -70,6 +73,17 @@ def cylinder_samples(n_theta=720, n_z=240):
                                np.sin(T_grid).ravel(),
                                np.zeros(T_grid.size)])
     return pts, normals
+
+
+def sphere_samples(n_theta=720, n_phi=360):
+    """球面致密参数采样（base 系）+ 外法线（渲染器输入，可见性由 z-buffer 定）."""
+    theta = np.linspace(0.0, 2.0 * np.pi, n_theta, endpoint=False)  # 方位角
+    phi = np.linspace(0.0, np.pi, n_phi)                            # 极角
+    T_grid, P_grid = np.meshgrid(theta, phi)
+    dirs = np.column_stack([np.sin(P_grid).ravel() * np.cos(T_grid).ravel(),
+                            np.sin(P_grid).ravel() * np.sin(T_grid).ravel(),
+                            np.cos(P_grid).ravel()])
+    return SPH_CENTER + SPH_R * dirs, dirs
 
 
 def render_depth(T_base_camera, pts):

@@ -4,7 +4,7 @@ import unittest
 import numpy as np
 
 from peach_pose_ros2.peach_pose.contracts import BagGraspReference3D
-from peach_pose_ros2.peach_pose_node import (
+from peach_pose_ros2.tf_utils import (
     _apply_T_to_grasp3d,
     _gravity_camera_from_R,
 )
@@ -29,6 +29,7 @@ class ApplyTToGrasp3dTest(unittest.TestCase):
             entry_start=np.array([0.1, 0.2, 0.3]),
             bag_bottom=np.array([0.0, 0.0, 0.5]),
             bag_neck=np.array([0.1, 0.0, 0.7]),
+            points_centroid=np.array([0.05, 0.0, 0.6]),
             translation_direction=np.array([1.0, 0.0, 0.0]),
         )
         _apply_T_to_grasp3d(g, T)
@@ -38,6 +39,9 @@ class ApplyTToGrasp3dTest(unittest.TestCase):
             g.bag_bottom, R @ np.array([0.0, 0.0, 0.5]) + t, atol=1e-12)
         np.testing.assert_allclose(
             g.bag_neck, R @ np.array([0.1, 0.0, 0.7]) + t, atol=1e-12)
+        # 身份锚点（前景点云质心）同为点，必须按 R@p+t 变换
+        np.testing.assert_allclose(
+            g.points_centroid, R @ np.array([0.05, 0.0, 0.6]) + t, atol=1e-12)
         # 绕 z 转 90°：+X → +Y；平移 (1,2,3) 不得混入方向
         np.testing.assert_allclose(
             g.translation_direction, [0.0, 1.0, 0.0], atol=1e-12)

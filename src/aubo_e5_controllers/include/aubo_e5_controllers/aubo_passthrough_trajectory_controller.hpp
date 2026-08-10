@@ -165,6 +165,8 @@ private:
   bool check_goal_positions(const std::shared_ptr<const FollowJTrajAction::Goal> & goal) const;
   bool check_goal_velocities(const std::shared_ptr<const FollowJTrajAction::Goal> & goal) const;
   bool check_goal_accelerations(const std::shared_ptr<const FollowJTrajAction::Goal> & goal) const;
+  bool check_goal_values_and_timing(
+    const std::shared_ptr<const FollowJTrajAction::Goal> & goal) const;
   bool check_goal_tolerances(const std::shared_ptr<const FollowJTrajAction::Goal> & goal) const;
 
   /// 按关节名把轨迹点重排到权威顺序（蓝本：aubo_boot remapJointNames，

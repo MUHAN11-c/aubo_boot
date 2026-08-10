@@ -41,7 +41,7 @@ ros2 run aubo_dashboard aubo_dashboard_node --ros-args -p robot_ip:=169.254.10.9
 常用服务调用：
 
 ```bash
-ros2 service call /aubo_dashboard/startup std_srvs/srv/Trigger            # 上电初始化
+# startup 为兼容接口，项目真机流程禁止调用；上电由用户通过示教器/控制柜手动完成
 ros2 service call /aubo_dashboard/shutdown std_srvs/srv/Trigger           # 断电（先停运动）
 ros2 service call /aubo_dashboard/release_brake std_srvs/srv/Trigger      # 松刹车
 ros2 service call /aubo_dashboard/stop std_srvs/srv/Trigger               # 停止
@@ -65,10 +65,11 @@ ros2 service call /aubo_dashboard/get_ik aubo_msgs/srv/GetIK \
 | `sdk_username` | aubo | SDK 登录用户名 |
 | `sdk_password` | 123456 | SDK 登录密码（真实凭据不要提交进仓库） |
 
-安全约定：本节点自身不驱动运动，但 `startup` 是真机流程的上电入口——
-之后的任何运动测试，速度/加速度缩放必须先压到 0.1，确认行为符合预期后
-再逐步放宽（AGENTS.md 第 10 节）。`startup` 为阻塞调用，期间不要重复
-发起；急停/防护停由本体安全回路主导，本节点不提供"恢复安全停止"的服务。
+安全约定：真机机械臂驱动栈已冻结，本节点源码不得修改。`startup` 只作为兼容
+接口保留，不属于允许的项目真机流程；上电只能由用户在现场通过示教器或控制柜
+手动完成，脚本、测试、launch 和代理均不得调用。之后的任何运动测试，速度/
+加速度缩放必须先压到 0.1，确认行为符合预期后再逐步放宽（AGENTS.md 第 10 节）。
+急停/防护停由本体安全回路主导，本节点不提供"恢复安全停止"的服务。
 
 ## 执行逻辑
 

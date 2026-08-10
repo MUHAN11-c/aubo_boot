@@ -11,8 +11,8 @@ ros2_control 控制器插件包（ament_cmake，无独立节点/launch），装�
 - `aubo_e5_controllers/AuboIOController`：从 `aubo_io` GPIO 发布 IO/RobotStatus/
   RIB/JointStatus/诊断/事件，并提供 `~/set_io` 服务。
 
-写法参考 UR `ur_controllers`（PassthroughTrajectoryController / GPIOController，
-Jazzy 分支），行为语义对齐实测蓝本 aubo_boot；消息用 `aubo_msgs`/`std_msgs`
+写法参考 UR `ur_controllers`（PassthroughTrajectoryController / GPIOController），
+行为语义对齐实测蓝本 aubo_boot；消息用 `aubo_msgs`/`std_msgs`
 替代 `ur_msgs`。输入是 MoveIt（经 `aubo_e5_moveit_config/config/controllers.yaml`
 映射）或测试脚本的 FJT goal；输出落到 `aubo_e5_hardware`（real/sim 插件）导出的
 GPIO 命令接口。由 `aubo_e5_bringup` 经 spawner 拉起；mock 模式不使用本包
@@ -85,8 +85,10 @@ ros2 topic echo --once /aubo_io_controller/joint_status   # 各关节电流/温�
 ### AuboPassthroughTrajectoryController
 
 - **接 goal（非实时）**：`goal_received_callback` 校验关节集合（必须恰好是 6 个
-  权威关节名）、点数、速度/加速度数组一致性、容差，非法直接 REJECT
-  （`src/aubo_passthrough_trajectory_controller.cpp:620`）。接受即抢占：正在执行
+  权威关节名）、点数、速度/加速度数组一致性、有限数值、严格递增且合法的
+  `time_from_start`、容差名称/有限值，非法直接 REJECT。控制器不支持 effort 与
+  执行期 path tolerance，带这两类字段的 goal 会显式拒绝，避免静默忽略约束。
+  接受即抢占：正在执行
   的旧 goal 被写 `abort=1.0` 并 setAborted("Preempted by a new goal")
   （`:818`）。`goal_accepted_callback` 里 `remapJointNames` 按名重排到权威顺序
   （缺省速度/加速度补 0，`:988`），首点偏差超 `blend_threshold_rad` 时
@@ -141,8 +143,8 @@ src/aubo_e5_controllers/
 │   ├── aubo_passthrough_trajectory_controller.hpp    # 状态机常量契约 + 类声明
 │   └── aubo_io_controller.hpp                        # 命令/状态接口偏移枚举（手工对齐）
 └── src/
-    ├── aubo_passthrough_trajectory_controller.cpp    # FJT action server 实现（1081 行）
-    ├── aubo_io_controller.cpp                        # IO/状态/诊断实现（742 行）
+    ├── aubo_passthrough_trajectory_controller.cpp    # FJT action server 实现
+    ├── aubo_io_controller.cpp                        # IO/状态/诊断实现
     ├── aubo_passthrough_trajectory_controller_parameters.yaml  # generate_parameter_library 声明
     └── aubo_io_controller_parameters.yaml
 ```

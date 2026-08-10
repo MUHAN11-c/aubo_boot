@@ -36,7 +36,7 @@ setup(
     zip_safe=True,
     maintainer='wjz',
     maintainer_email='2155413529@qq.com',
-    description='Peach multi-view local reconstruction (manual capture, Phase 2).',
+    description='Continuous peach reconstruction (FK-seeded ICP + Open3D TSDF).',
     license='BSD-3-Clause',
     entry_points={
         'console_scripts': [

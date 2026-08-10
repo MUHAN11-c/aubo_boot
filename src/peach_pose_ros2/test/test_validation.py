@@ -4,7 +4,10 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from peach_pose_ros2.peach_pose.validation import bbox_iou, load_annotations
+from peach_pose_ros2.peach_pose.offline.validation import (
+    bbox_iou,
+    load_annotations,
+)
 
 
 class ValidationSchemaTest(unittest.TestCase):

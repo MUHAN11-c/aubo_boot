@@ -66,13 +66,13 @@ numpy 必须保持 1.26.x（详见 `AGENTS.md` 第 9 节）。
 
 ```bash
 source /opt/ros/jazzy/setup.bash
-colcon test && colcon test-result --verbose          # 全包 lint + 接入的测试（179 项）
+colcon test && colcon test-result --verbose          # 全包 lint + 接入的测试
 
 # 业务测试（venv 解释器）
-cd src/aubo_hand_eye_calibration && ../../aubo_py3.12/bin/python -m pytest test/ -q   # 15+2 例
+cd src/aubo_hand_eye_calibration && ../../aubo_py3.12/bin/python -m pytest test/ -q
 cd src/aubo_scene_recon && ../../aubo_py3.12/bin/python -m pytest test/ -q
-cd src/peach_pose_ros2 && PYTHONPATH=peach_pose_ros2:$PYTHONPATH ../../aubo_py3.12/bin/python -m pytest test/ -q   # 42 例
-cd src/peach_reconstruction_ros2 && PYTHONPATH=peach_reconstruction_ros2:$PYTHONPATH ../../aubo_py3.12/bin/python -m pytest test/ -q   # 44 例
+cd src/peach_pose_ros2 && PYTHONPATH=peach_pose_ros2:$PYTHONPATH ../../aubo_py3.12/bin/python -m pytest test/ -q
+cd src/peach_reconstruction_ros2 && PYTHONPATH=.:../peach_pose_ros2:$PYTHONPATH ../../aubo_py3.12/bin/python -m pytest test/ -q
 ```
 
 ## 三种运行模式
@@ -154,8 +154,9 @@ RIB；急停/防护停=仅停发清队（本体安全回路主导）。
 1. **action 连接**（`aubo_e5_moveit_config/config/controllers.yaml`）：
    `controller_names: [aubo_passthrough_trajectory_controller]` +
    `action_ns: follow_joint_trajectory`——MoveIt 不感知背后是 JTC 还是自研控制器。
-2. **goal 内动态参数**：`path_tolerance/goal_tolerance/goal_time_tolerance` 可覆盖控制器
-   默认容差；关节顺序以 goal 的 joint_names 为准，控制器 remap 到权威顺序。
+2. **goal 内动态参数**：`goal_tolerance/goal_time_tolerance` 可覆盖控制器默认容差；
+   passthrough 不实现执行期 `path_tolerance`，携带时会拒绝 goal；关节顺序以 goal 的
+   joint_names 为准，控制器 remap 到权威顺序。
 3. **静态配置**：move_group 侧 `trajectory_execution.*`（蓝本值 5.0/10.0/0.15）；
    控制器侧参数在 `aubo_e5_bringup/config/controllers.yaml`。
 4. **速度缩放**：由 MoveIt 时间参数化完成，控制器不做执行期缩放。
@@ -176,8 +177,8 @@ hardware 参数（URDF `<param>`，见 `aubo_description/urdf/aubo_e5.ros2_contr
 
 1. 现场确认急停/限位/碰撞等级/低速模式；`hardware_mode:=real` 只核对 6 关节名称、方向、
    位置与示教器一致（joint_state_broadcaster），不运动；
-2. 上电：示教器手动或 `ros2 service call /aubo_dashboard/startup`（默认
-   `auto_power_on=false`，不自动上电）；
+2. 用户在现场通过示教器或控制柜手动上电并确认；项目流程禁止调用
+   `/aubo_dashboard/startup`，且 `auto_power_on=false` 必须保持不变；
 3. 速度因子 0.1 的单关节小轨迹；
 4. 执行中取消/新 goal 抢占（验证 RIB 被丢弃、余点不继续）；
 5. MoveIt 整机轨迹 + trace 分析（tools/motion_analyzer.py）。
@@ -203,9 +204,10 @@ hardware 参数（URDF `<param>`，见 `aubo_description/urdf/aubo_e5.ros2_contr
 - [docs/usage.md](docs/usage.md) — 完整命令手册与排障表
 - 包级 README：[手眼标定](src/aubo_hand_eye_calibration/README.md)、
   [场景重建](src/aubo_scene_recon/README.md)、[桃子位姿](src/peach_pose_ros2/README.md)、
-  [桃子多视角重建](src/peach_reconstruction_ros2/README.md)
+  [桃子连续TSDF重建](src/peach_reconstruction_ros2/README.md)
+- [docs/source_audit_2026-08-10.md](docs/source_audit_2026-08-10.md) — 源码审查范围、官方基线与修复记录
 - [docs/peach_perception_progress.md](docs/peach_perception_progress.md) — 桃子视觉
-  三包开发进度台账（Phase 0–7 已做/未做）
+  两包开发进度与真机验证台账
 - 写法参考：UR `ur_controllers::PassthroughTrajectoryController`
   （GitHub: UniversalRobots/Universal_Robots_ROS2_Driver）
 - 行为蓝本：aubo_boot 实测驱动（本机 `/home/mu/Music/e`，不随交付分发）

@@ -5,8 +5,9 @@
   <name>peach_reconstruction_ros2</name>
   <version>0.1.0</version>
   <description>
-    桃子多视角局部重建（Phase 2）：手动采帧 + 按图像时间戳查 TF +
-    base_link 多帧原始点云累加；Trigger 服务驱动，无 TSDF、无几何 refit。
+    套袋桃连续运动局部重建：精确时间戳 FK/手眼位姿作为初值，
+    Open3D 有界点到平面 ICP 小范围修正，合格 RGB-D 帧在线积分 TSDF，
+    输出局部点云、三角网格及几何精化结果。
   </description>
   <maintainer email="2155413529@qq.com">wjz</maintainer>
   <license>BSD-3-Clause</license>

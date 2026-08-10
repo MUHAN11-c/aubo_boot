@@ -20,9 +20,8 @@ import cv2
 import numpy as np
 
 from .contracts import BagGrasp2D, BagGraspReference3D, BagObservation
-from .pipeline import (
-    RobustBagPosePipeline, RobustFruitPosePipeline, TargetPoseResult,
-)
+from .interfaces import POSE_ESTIMATORS
+from .pipeline import RobustBagPosePipeline, TargetPoseResult
 
 
 @dataclass(frozen=True)
@@ -68,28 +67,36 @@ class CandidateEstimator:
             无返回值（None）；果线复用袋线 tool 建于 self.fruit_pipeline.
 
         """
-        self.pipeline = pipeline or RobustBagPosePipeline()
+        self.pipeline = pipeline or POSE_ESTIMATORS['bag']()
         # 果线复用袋线的 ToolGeometry，保证刀具契约一致
-        self.fruit_pipeline = RobustFruitPosePipeline(tool=self.pipeline.tool)
+        self.fruit_pipeline = POSE_ESTIMATORS['fruit'](tool=self.pipeline.tool)
+        # 类别路由用的实例表：kind（注册表键）→ 已建实例（YOLO 标签契约：
+        # class_id==1 → 'fruit'，其余 → 'bag'，见 _pipeline_for）
+        self._estimator_by_kind = {
+            'bag': self.pipeline,
+            'fruit': self.fruit_pipeline,
+        }
         self.dilate_px = max(1, int(dilate_px))
         self.min_mask_points = max(1, int(min_mask_points))
         self.last_timings_ms: dict[str, float] = {}
         self._last_mask_timings_ms: dict[str, float] = {}
 
-    def _pipeline_for(self, obs: BagObservation) -> RobustBagPosePipeline:
+    def _pipeline_for(self, obs: BagObservation) -> tuple:
         """
-        按首个检测的 class_id 选择袋线 / 果线.
+        按首个检测的 class_id 选择袋线 / 果线（路由键即注册表 kind）.
 
         Args:
             obs: 单帧输入（取 detections[0] 的 class_id；空列表按袋线）.
 
         Returns
         -------
-            class_id==1 → RobustFruitPosePipeline，否则 RobustBagPosePipeline.
+            (kind, pipeline)：class_id==1 → ('fruit', 果线实例），
+            否则 ('bag', 袋线实例）；实例来自注册表键索引.
 
         """
         class_id = obs.detections[0].get('class_id', 0) if obs.detections else 0
-        return self.fruit_pipeline if class_id == 1 else self.pipeline
+        kind = 'fruit' if class_id == 1 else 'bag'
+        return kind, self._estimator_by_kind[kind]
 
     def estimate_modes(self, obs: BagObservation, target_id: str, bbox: tuple,
                        sam_mask: Optional[np.ndarray],
@@ -118,8 +125,7 @@ class CandidateEstimator:
             raise ValueError(f'unknown foreground modes: {sorted(unknown)}')
 
         masks = self.build_masks(obs, bbox, sam_mask)
-        pipeline = self._pipeline_for(obs)
-        kind = 'fruit' if pipeline is self.fruit_pipeline else 'bag'
+        kind, pipeline = self._pipeline_for(obs)
         results = {}
         self.last_timings_ms = {}
         for mode in selected:
@@ -274,3 +280,47 @@ class CandidateEstimator:
                 'calibration_version', 'unknown')),
             tool_version=self.pipeline.tool.version)
         return TargetPoseResult(target_id, g2d, g3d, mode, {})
+
+
+def dedup_overlapping_detections(dets, ios_threshold: float = 0.6) -> list:
+    """
+    重叠检测框去重：IoS（交集/较小框面积）≥ 阈值判同一物理目标，保留大框.
+
+    面积并列时保留置信度高者；跨类别同样生效——YOLO 按类 NMS，
+    同一颗桃可同时出 bag/nobag 两框，或检出一个被大框包含的局部误检小框，
+    都会在身份注册表上重复占号。用 IoS 而非 IoU：部分重叠的相邻两颗桃
+    IoS 低不误删，只有"一框基本包含另一框"才去重。
+    贪心顺序为面积降序（置信度次之），后遍历到的高重叠框被抑制。
+
+    Args:
+        dets: 检测 dict 列表（须含 'bbox'=(x1,y1,x2,y2)；'conf' 可选）.
+        ios_threshold: IoS 阈值；≥1.0 时永不命中，等效关闭去重.
+
+    Returns
+    -------
+        去重后的检测 dict 列表（按面积降序；元素为原 dict 引用，不改原对象）.
+
+    """
+    if not dets or ios_threshold >= 1.0:
+        return list(dets)
+    boxes = np.asarray([d['bbox'] for d in dets], dtype=float).reshape(-1, 4)
+    areas = (np.maximum(0.0, boxes[:, 2] - boxes[:, 0])
+             * np.maximum(0.0, boxes[:, 3] - boxes[:, 1]))
+    confs = np.array([float(d.get('conf', 0.0)) for d in dets])
+    order = sorted(range(len(dets)), key=lambda i: (-areas[i], -confs[i]))
+    kept: list = []
+    for i in order:
+        suppress = False
+        for j in kept:
+            ix1 = max(boxes[i, 0], boxes[j, 0])
+            iy1 = max(boxes[i, 1], boxes[j, 1])
+            ix2 = min(boxes[i, 2], boxes[j, 2])
+            iy2 = min(boxes[i, 3], boxes[j, 3])
+            inter = max(0.0, ix2 - ix1) * max(0.0, iy2 - iy1)
+            smaller = min(areas[i], areas[j])
+            if smaller > 0.0 and inter / smaller >= ios_threshold:
+                suppress = True
+                break
+        if not suppress:
+            kept.append(i)
+    return [dets[i] for i in kept]

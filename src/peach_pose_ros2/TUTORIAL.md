@@ -299,6 +299,15 @@ rclpy**，可以脱离 ROS 离线跑测试——这是刻意分层。
 
 ### 5.1 模块头与 8 个工具函数（1–221 行）
 
+> **更新说明（2026-08-10）**：本节描述的是单文件时代的布局。现工具函数已按
+> 职责拆到同层模块 `tf_utils.py`（TF/旋转）、`conversions.py`（消息组装）、
+> `visualization.py`（Marker/debug 图）、`cloud_utils.py`（检测框点云），
+> 节点本体只保留编排层；同时四元数/旋转矩阵换算已由「官方 API + 手写
+> Shepperd 双实现对照」改为只走官方 `tf_transformations`（下表
+> `_rotation_to_quat` 的"Shepperd 法"描述随之作废，现为官方
+> `quaternion_from_matrix`，数值同样稳健）。函数语义与本节讲解一致，
+> 行号已失效。
+
 ```python
 class PeachPoseNode(Node):   # 第 224 行
 ```
@@ -685,6 +694,9 @@ ros2 run rqt_image_view rqt_image_view /peach_pose_node/debug_image
   换算）、467（内参勿推导）、488（TF 回退）、530（DELETEALL 坑）、
   709（ColorRGBA 必须 float）；pipeline.py 88–90（为何不用 PCA）、
   437–445（为何固定球半径）、457（重力极性校正）。
-- **已过时提示**：`peach_pose/__init__.py` docstring 提到的
+- **已过时提示（2026-08-10 起失效）**：`peach_pose/__init__.py` docstring 已
+  重写为如实结构——在线算法（pipeline/fitting/candidates 等）与
+  `offline/` 子包（e2e_validate/validation/config/sphere_ref，由
+  `inspector/` 与原顶层离线模块合并迁入）分层；更早版本提到的
   `depth.py`/`visualization.py`/`inspector/main_window`/`run.sh`
-  已不存在（精简时移除），以本文结构图为准。
+  已不存在（精简时移除），以现行包内 docstring 为准。

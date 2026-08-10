@@ -1,5 +1,5 @@
 """
-深度反投影与点云坐标变换 — 纯 numpy 几何工具.
+深度反投影与点云坐标变换 — 几何核心走 Open3D 官方 API（懒加载，无 ROS）.
 
 单位约定:
   - 深度图为 uint16「毫米」[mm]（上游经
@@ -9,13 +9,41 @@
     pack_rgb_bgr 打包成 float32 位模式的 ``rgb`` 字段（RViz RGB8 约定）；
   - T_base_camera 为 4×4 齐次矩阵（base←camera）：p_base = R @ p_camera + t。
 
-本模块不依赖 ROS，便于离线单测与复用。
+官方 API 与语义等价性（2026-08-10 本包 A/B 对拍）:
+  - 反投影：``PointCloud.create_from_depth_image``（uint16 原生，
+    ``depth_scale=1000.0`` → z=d/1000 m；pinhole 公式与官方文档一致；
+    ``stride`` 为官方采样步长，抽样像素坐标保持原图坐标，与旧手写
+    「切片+坐标乘回 stride」逐点一致）；相机系结果 diff=0.0，
+    经 transform 后 ≤3e-8 m（open3d 内部 float32 舍入量级）；
+  - 彩色建云：``RGBDImage.create_from_color_and_depth`` +
+    ``create_from_rgbd_image``（颜色同像素采样；uint8→[0,1]→uint8
+    往返无损，已逐值比对）；
+  - 坐标变换：建云时用单位外参（相机系），再 ``cloud.transform``
+    （T_base_camera）变到 base 系——不用 create_from_* 的 extrinsic
+    参数：open3d 该参数沿用经典 CV「world→camera」约定，内部取逆
+    （与 TSDF integrate 同坑），transform 才是正向语义；
+  - ``create_from_rgbd_image`` 无 stride 参数：stride>1 的彩色路径
+    预切片 + 内参等比缩放（fx/s, fy/s, cx/s, cy/s），解析上等价。
+
+保留的 numpy 段（非自造几何，官方无对应物或属数据预处理）:
+  - 有效深度掩膜/占比：指标计算，与几何求交无关；
+  - 饱和 65535 预清零：open3d 只认 0 为无效深度，毫米饱和值须先置 0；
+  - BGR↔RGB 通道翻转：OpenCV↔open3d 颜色序约定；
+  - pack_rgb_bgr：RViz float32 位打包 rgb 字段，官方无打包 API。
+
+分层契约：build_cloud_base 是模块级 workhorse 函数（单测直接锚定）；
+Open3dCloudBuilder 是其实现 interfaces.CloudBuilder 的薄壳（编排层按
+注册表 CLOUD_BUILDERS 实例化，设计文档 §2.2）。
 """
 from __future__ import annotations
 
 import numpy as np
 
+from peach_reconstruction_ros2.interfaces import CloudBuilder
+from peach_reconstruction_ros2.tsdf_volume import require_open3d
+
 DEPTH_SATURATED_MM = 65535  # uint16 饱和值 [mm]，视为无效深度
+_DEPTH_TRUNC_M = 1000.0     # open3d 深度截断 [m]（饱和已预清零，仅作兜底）
 
 
 def valid_depth_mask(depth_mm: np.ndarray) -> np.ndarray:
@@ -51,44 +79,61 @@ def valid_depth_ratio(depth_mm: np.ndarray) -> float:
     return float(np.count_nonzero(valid_depth_mask(depth_mm))) / float(total)
 
 
-def _backproject_with_pixels(depth_mm: np.ndarray, camera_K: dict,
-                             stride: int = 1) -> tuple:
+def _depth_image_o3d(depth_mm: np.ndarray):
     """
-    反投影并返回每个点的源像素坐标（供颜色同步采样）.
+    uint16 毫米深度 → open3d Image（饱和 65535 预清零，语义与掩膜一致）.
+
+    open3d 只把 0 当无效深度，毫米饱和值 65535（65.535 m）必须显式置 0，
+    否则会作为合法远点入云。输入数组先拷贝再改，绝不原地改调用方数据。
 
     Args:
         depth_mm: (H, W) uint16 深度 [mm].
-        camera_K: 内参 dict {"fx","fy","cx","cy"}.
-        stride: 降采样步长（像素）.
 
     Returns
     -------
-        (xyz, us, vs)：xyz 为 (N, 3) float64 相机系点 [m]；us/vs 为 (N,)
-        int 原图像素坐标（与 xyz 逐点对应，行主序）.
+        open3d.geometry.Image（uint16）.
 
     """
-    stride = max(1, int(stride))
-    roi = depth_mm[::stride, ::stride]
-    valid = valid_depth_mask(roi)
-    if not np.any(valid):
-        return (np.zeros((0, 3), dtype=np.float64),
-                np.zeros((0,), dtype=int), np.zeros((0,), dtype=int))
-    vs, us = np.nonzero(valid)
-    z = roi[vs, us].astype(np.float64) / 1000.0  # [mm] → [m]
-    # 抽样网格坐标乘回原图像素坐标
-    us = us * stride
-    vs = vs * stride
-    fx, fy = float(camera_K['fx']), float(camera_K['fy'])
-    cx, cy = float(camera_K['cx']), float(camera_K['cy'])
-    x = (us.astype(np.float64) - cx) * z / fx
-    y = (vs.astype(np.float64) - cy) * z / fy
-    return np.column_stack((x, y, z)), us, vs
+    o3d = require_open3d()
+    img = np.array(depth_mm, dtype=np.uint16, copy=True)
+    # cv_bridge 零拷贝数组带显式字节序 dtype（'<u2'），open3d 的 buffer
+    # 检查只认原生字节序（'H'/'=H'），'<H' 会被拒收；x86_64 上 '<u2'
+    # 与原生等价，重标记即可（大端 '>u2' 先 byteswap 再重标记）
+    if img.dtype.byteorder == '>':
+        img = img.byteswap().view(np.uint16)
+    elif img.dtype.byteorder == '<':
+        img = img.view(np.uint16)
+    img[img >= DEPTH_SATURATED_MM] = 0
+    return o3d.geometry.Image(img)
+
+
+def _intrinsic_o3d(camera_K: dict, scale: float, width: int, height: int):
+    """
+    内参 dict → open3d PinholeCameraIntrinsic（scale 用于切片后的等比缩放）.
+
+    Args:
+        camera_K: 内参 dict {"fx","fy","cx","cy"}（原图像素单位）.
+        scale: 预切片步长（1.0=不缩放；stride>1 时 fx/s 等保持投影等价）.
+        width: 图像宽 [px].
+        height: 图像高 [px].
+
+    Returns
+    -------
+        open3d.camera.PinholeCameraIntrinsic.
+
+    """
+    o3d = require_open3d()
+    s = float(scale)
+    return o3d.camera.PinholeCameraIntrinsic(
+        int(width), int(height),
+        float(camera_K['fx']) / s, float(camera_K['fy']) / s,
+        float(camera_K['cx']) / s, float(camera_K['cy']) / s)
 
 
 def backproject_depth(depth_mm: np.ndarray, camera_K: dict,
                       stride: int = 1) -> np.ndarray:
     """
-    uint16 毫米深度反投影为相机系点云 [m]（pinhole 模型）.
+    uint16 毫米深度反投影为相机系点云 [m]（open3d 官方，pinhole 模型）.
 
     x = (u - cx) * z / fx；y = (v - cy) * z / fy；z = depth_mm / 1000。
 
@@ -102,14 +147,19 @@ def backproject_depth(depth_mm: np.ndarray, camera_K: dict,
         (N, 3) float64 相机系点 [m]；无有效深度时给 (0, 3) 空数组.
 
     """
-    xyz, _, _ = _backproject_with_pixels(depth_mm, camera_K, stride=stride)
-    return xyz
+    o3d = require_open3d()
+    h, w = depth_mm.shape[:2]
+    pcd = o3d.geometry.PointCloud.create_from_depth_image(
+        _depth_image_o3d(depth_mm), _intrinsic_o3d(camera_K, 1.0, w, h),
+        np.eye(4), depth_scale=1000.0, depth_trunc=_DEPTH_TRUNC_M,
+        stride=max(1, int(stride)), project_valid_depth_only=True)
+    return np.asarray(pcd.points, dtype=np.float64).reshape(-1, 3)
 
 
 def transform_points(T_base_camera: np.ndarray,
                      cloud_camera: np.ndarray) -> np.ndarray:
     """
-    点云由相机系变到 base 系：p_base = R @ p_camera + t.
+    点云由相机系变到 base 系：p_base = R @ p_camera + t（numpy 线性代数）.
 
     Args:
         T_base_camera: (4, 4) 齐次矩阵（base←camera）.
@@ -135,6 +185,12 @@ def build_cloud_base(depth_mm: np.ndarray, camera_K: dict,
     """
     一帧深度 → base 系点云 [m] + 逐点颜色 + 有效深度占比.
 
+    几何/颜色走 open3d 官方 API：先以单位外参建相机系云，再
+    ``pcd.transform(T_base_camera)`` 变 base 系（不用 create_from_* 的
+    extrinsic 参数——open3d 那里是经典 CV「world→camera」约定、内部
+    取逆，transform 才是正向语义）。stride 在无图路径用官方 stride
+    参数，有图路径预切片 + 内参等比缩放（两者均逐点等价）。
+
     Args:
         depth_mm: (H, W) uint16 深度 [mm].
         camera_K: 内参 dict {"fx","fy","cx","cy"}.
@@ -150,14 +206,36 @@ def build_cloud_base(depth_mm: np.ndarray, camera_K: dict,
         ratio 为有效深度占比 [0, 1].
 
     """
-    cloud_camera, us, vs = _backproject_with_pixels(
-        depth_mm, camera_K, stride=stride)
-    cloud_base = transform_points(T_base_camera, cloud_camera)
-    colors = None
-    if rgb_bgr is not None:
-        # 与深度逐点同像素采样（BGR 原样保留，打包在发布侧做）
-        colors = np.asarray(rgb_bgr)[vs, us].astype(np.uint8).reshape(-1, 3)
-    return cloud_base, colors, valid_depth_ratio(depth_mm)
+    o3d = require_open3d()
+    stride = max(1, int(stride))
+    T = np.asarray(T_base_camera, dtype=np.float64)
+    if rgb_bgr is None:
+        # 无图路径：官方 stride 采样（抽样像素坐标保持原图坐标）
+        h, w = depth_mm.shape[:2]
+        pcd = o3d.geometry.PointCloud.create_from_depth_image(
+            _depth_image_o3d(depth_mm), _intrinsic_o3d(camera_K, 1.0, w, h),
+            np.eye(4), depth_scale=1000.0, depth_trunc=_DEPTH_TRUNC_M,
+            stride=stride, project_valid_depth_only=True)
+        pcd.transform(T)
+        return (np.asarray(pcd.points, dtype=np.float64).reshape(-1, 3),
+                None, valid_depth_ratio(depth_mm))
+    # 有图路径：create_from_rgbd_image 无 stride 参数，预切片 + 内参缩放
+    d = depth_mm[::stride, ::stride]
+    img = np.ascontiguousarray(rgb_bgr[::stride, ::stride, ::-1])  # BGR→RGB
+    rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
+        o3d.geometry.Image(img), _depth_image_o3d(d),
+        depth_scale=1000.0, depth_trunc=_DEPTH_TRUNC_M,
+        convert_rgb_to_intensity=False)
+    pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
+        rgbd, _intrinsic_o3d(camera_K, float(stride), d.shape[1], d.shape[0]),
+        np.eye(4), project_valid_depth_only=True)
+    pcd.transform(T)
+    xyz = np.asarray(pcd.points, dtype=np.float64).reshape(-1, 3)
+    # [0,1] RGB → uint8 BGR（uint8→float→uint8 往返无损，已逐值比对）
+    rgb01 = np.asarray(pcd.colors, dtype=np.float64)
+    colors = np.clip(np.round(rgb01[:, ::-1] * 255.0),
+                     0, 255).astype(np.uint8)
+    return xyz, colors, valid_depth_ratio(depth_mm)
 
 
 def pack_rgb_bgr(colors_bgr: np.ndarray) -> np.ndarray:
@@ -166,6 +244,7 @@ def pack_rgb_bgr(colors_bgr: np.ndarray) -> np.ndarray:
 
     语义与 peach_pose_node._pack_rgb_bgr 一致：r<<16 | g<<8 | b 塞进
     float32 位模式，PointCloud2 里以名为 ``rgb`` 的 FLOAT32 字段承载。
+    sensor_msgs_py 无颜色位打包 API，此为唯一保留的手写转换。
 
     Args:
         colors_bgr: (N, 3) uint8 数组，列序为 B、G、R（OpenCV 惯例）.
@@ -183,3 +262,38 @@ def pack_rgb_bgr(colors_bgr: np.ndarray) -> np.ndarray:
     r = colors[:, 2].astype(np.uint32)
     packed = (r << 16) | (g << 8) | b
     return packed.view(np.float32)
+
+
+class Open3dCloudBuilder(CloudBuilder):
+    """
+    interfaces.CloudBuilder 的 open3d 实现薄壳（无状态，委托模块函数）.
+
+    workhorse 本体是模块函数 build_cloud_base（单测直接锚定，避免
+    「类委托函数、函数再委托类」的双向跳转）；本类只把签名对齐到
+    ABC 形态（rgb 提前为第二参数，便于编排层位置传参）。
+    """
+
+    def build(self, depth_mm: np.ndarray, rgb_bgr=None,
+              camera_K: dict = None, T_base_camera: np.ndarray = None,
+              stride: int = 1) -> tuple:
+        """
+        委托 build_cloud_base（签名对齐 interfaces.CloudBuilder）.
+
+        Args:
+            depth_mm: (H, W) uint16 深度 [mm].
+            rgb_bgr: (H, W, 3) uint8 BGR；None 只建几何.
+            camera_K: 内参 dict {"fx","fy","cx","cy"}.
+            T_base_camera: (4, 4) base←camera 位姿.
+            stride: 降采样步长（像素）.
+
+        Returns
+        -------
+            (xyz_base, colors_bgr|None, valid_depth_ratio).
+
+        """
+        return build_cloud_base(depth_mm, camera_K, T_base_camera,
+                                rgb_bgr=rgb_bgr, stride=stride)
+
+
+# 实现注册表（显式字典，yolo_ros 先例；编排层按名实例化）
+CLOUD_BUILDERS = {'open3d': Open3dCloudBuilder}

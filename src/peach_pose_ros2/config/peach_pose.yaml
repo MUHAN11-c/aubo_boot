@@ -20,7 +20,10 @@ peach_pose_node:
     # ── 同步与检测阈值 ────────────────────────────────────────
     sync_slop_s: 0.05        # RGB/深度/内参三路近似时间同步允差（秒）
     min_detection_conf: 0.5  # 检测框进入几何管线的置信度下限（第二级，严出）
-    yolo_conf: 0.3           # YOLO 推理置信度阈值（第一级，宽进）
+    yolo_conf: 0.5           # YOLO 推理置信度阈值（第一级，宽进）
+    # 重叠检测框去重：IoS（交集/较小框面积）≥ 本值判同一物理目标，保留大框
+    # （跨类生效，消一果两框/局部误检小框）；≥1.0 等效关闭
+    detection_dedup_ios: 0.6
     # ── 可视化开关 ───────────────────────────────────────────
     publish_debug_image: true   # ~/debug_image：检测框+掩膜+轴线+状态叠加图（bgr8）
     publish_masks: true         # ~/masks：SAM 掩膜画布（mono8，目标 i 灰度 i%250+1）
@@ -51,3 +54,22 @@ peach_pose_node:
     tool.clearance_min: 0.005    # 最小径向净空（安全门控余量）
     tool.margin_neck: 0.015      # 行程在袋颈前预留的安全余量
     tool.version: "1.1"          # 工具版本标识，仅随结果发布用于追溯
+    # ── 目标身份记忆（世界系 target_id 跨帧稳定）────────────────
+    # 同一物理桃子消失再出现复用同一 target_id；匹配在世界系（output_frame）做
+    # 最近邻（同类 + 距离 ≤ 半径），tf_unavailable 帧跳过注册并打 target_untracked
+    target_memory.enable: true        # 身份记忆开关；false 回到帧内序号 target_{i}
+    target_memory.match_radius_m: 0.06  # 匹配半径 (m)：同类且距离 ≤ 本值的最近目标命中
+    target_memory.max_targets: 50       # 目标表容量上限；超限按最久未见淘汰
+    target_memory.position_ema: 0.3     # 命中后位置/轴/直径 EMA 系数 α(0,1]，越大越跟随新观测
+    # 恢复匹配：正常匹配未命中时半径 × 本倍率再匹配一次，抗检测跳动引起的锚点
+    # 跳变（1.0=关闭）；只在未命中时启用，常态相邻目标不受影响
+    target_memory.recovery_scale: 2.0
+    # 恢复匹配允许跨类别：同一颗桃 bag/nobag 翻类时复用原 ID（半径不放大仍限
+    # match_radius 内——真翻类锚点几乎不动，邻近异类新目标不会被误并；
+    # 命中不改表项类别）
+    target_memory.cross_class_recovery: true
+    # 确认机制：新目标累计命中 ≥ 本帧数才转正长期记录；之前的短暂出现
+    # （如单帧误检）不长期保留；1=立即确认
+    target_memory.confirm_frames: 3
+    # 未确认目标的存活时限（秒）：超期未再命中即从表中清除（瞬时误检不占身份）
+    target_memory.tentative_ttl_sec: 1.0

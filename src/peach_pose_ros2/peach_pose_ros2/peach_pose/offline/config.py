@@ -1,11 +1,11 @@
 """
-Inspector 全局配置 — 相机内参、数据集路径与可视化参数.
+offline 全局配置 — 相机内参、数据集路径与可视化参数.
 
-职责: 集中存放 GUI 与可视化共用的常量，避免 magic number 散落各处。
+职责: 集中存放离线评估工具共用的常量，避免 magic number 散落各处。
 
 在管线中的位置:
-  支撑/GUI — 不参与算法推理，为 pinhole 反投影、YOLO 类别色、3D 标记色
-  提供单一配置源。
+  支撑/离线 — 不参与算法推理与在线管线，为 pinhole 反投影、YOLO 类别色、
+  3D 标记色提供单一配置源。
 
 核心理论要点:
   - 本工作区默认内参一律本机 Percipio（color_camera_info.yaml 棋盘标定）
@@ -19,7 +19,7 @@ Inspector 全局配置 — 相机内参、数据集路径与可视化参数.
 from pathlib import Path
 
 # ── 工具几何 (从 contracts 导入, 单一数据源) ──
-from ..contracts import TOOL_GEOMETRY  # noqa: F401  # 重新导出供 visualization / GUI 使用
+from ..contracts import TOOL_GEOMETRY  # noqa: F401  # 重新导出供离线工具使用
 
 # ── 本机 Percipio 彩色内参（640×480，棋盘标定）──
 # 权威源: src/percipio_camera/config/color_camera_info.yaml — 改标定后请同步此处

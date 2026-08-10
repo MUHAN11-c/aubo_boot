@@ -47,11 +47,12 @@ class ViewFilterTest(unittest.TestCase):
         self.assertIsNone(rot)
 
     def test_duplicate_rejected(self):
-        """与上一帧平移 5 mm（< 20 mm）且无旋转 → 重复视角拒帧."""
+        """与上一帧平移 1 mm（< 2 mm）且无旋转 → 重复视角拒帧."""
+        self.col.config.allow_duplicate_views = False
         self.assertTrue(self.col.add_frame(_frame(_T(0.0))))
-        ok, reason, trans, _ = self.col.check_view(_T(0.005))
+        ok, reason, trans, _ = self.col.check_view(_T(0.001))
         self.assertFalse(ok)
-        self.assertAlmostEqual(trans, 0.005)
+        self.assertAlmostEqual(trans, 0.001)
         self.assertIn('过近', reason)
 
     def test_sufficient_motion_accepted(self):
@@ -80,7 +81,7 @@ class ViewFilterTest(unittest.TestCase):
         col = FrameCollector(CollectorConfig(allow_duplicate_views=True))
         col.start()
         col.add_frame(_frame(_T(0.0)))
-        ok, reason, _, _ = col.check_view(_T(0.005))
+        ok, reason, _, _ = col.check_view(_T(0.001))
         self.assertTrue(ok)
         self.assertEqual(reason, 'duplicate_allowed')
 
@@ -119,7 +120,8 @@ class StateMachineTest(unittest.TestCase):
 
     def test_max_views_guard(self):
         """max_views 上限：满栈后 add_frame 拒收."""
-        col = FrameCollector(CollectorConfig(max_views=2))
+        col = FrameCollector(CollectorConfig(
+            max_views=2, auto_finalize_at_max=True))
         col.start()
         self.assertTrue(col.add_frame(_frame(_T(0.0))))
         self.assertTrue(col.add_frame(_frame(_T(0.03))))
@@ -190,13 +192,14 @@ class AutoModeTest(unittest.TestCase):
         col = FrameCollector()
         col.start()
         col.add_frame(_frame(_T(0.0)))
-        # 未达阈：平移 5 mm < 20 mm 且无旋转 → skip
-        action, _ = col.auto_capture_decision(_T(0.005), 999.0)
+        # 未达阈：相机仍连续接收，但近重复视角不积分
+        action, _ = col.auto_capture_decision(_T(0.001), 999.0)
         self.assertEqual(action, 'skip')
         # 达阈：平移 30 mm ≥ 20 mm → capture
         action, _ = col.auto_capture_decision(_T(0.03), 999.0)
         self.assertEqual(action, 'capture')
-        # 间隔门优先于达阈：0.5 s < 2.0 s → skip
+        # 显式配置非零间隔时，间隔门仍可用
+        col.config.auto_min_interval_s = 1.0
         action, reason = col.auto_capture_decision(_T(0.03), 0.5)
         self.assertEqual(action, 'skip')
         self.assertIn('间隔门', reason)
@@ -218,7 +221,8 @@ class AutoModeTest(unittest.TestCase):
 
     def test_auto_finalize_gating(self):
         """满 max_views 且双开关开才触发自动完成信号."""
-        col = FrameCollector(CollectorConfig(max_views=2))
+        col = FrameCollector(CollectorConfig(
+            max_views=2, auto_finalize_at_max=True))
         col.start()
         self.assertFalse(col.should_auto_finalize())
         col.add_frame(_frame(_T(0.0)))

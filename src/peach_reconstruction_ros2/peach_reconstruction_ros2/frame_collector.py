@@ -2,16 +2,19 @@
 FrameCollector — 采帧状态机 + 视角过滤 + 帧栈管理（纯 Python，不依赖 ROS）.
 
 状态机：IDLE → COLLECTING → READY（FAILED 预留给后续 Phase 的失败路径）。
-视角过滤：本帧与上一已采帧比较相对平移 [m] / 旋转 [deg]——两者同时低于
-下限视为重复视角，任一高于上限视为跳变（Move-Stop-Capture 应小幅移动）。
+视角过滤：手动模式保留重复/跳变检查；自动模式连续接收每个唯一相机帧，
+位姿差只作诊断，不再要求机器人停稳或移动到离散视角。
 自动模式决策（should_auto_start / auto_capture_decision /
 should_auto_finalize）同为纯函数放本模块，节点只做 TF/订阅接线。
+分层契约：FrameCollector 实现 interfaces.FrameStore（批级帧栈数据
+持有者）；注册表 FRAME_STORES 供编排层按名实例化（设计文档 §2.2）。
 """
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 import numpy as np
 
+from peach_reconstruction_ros2.interfaces import FrameStore
 from peach_reconstruction_ros2.tf_utils import relative_motion
 
 STATE_IDLE = 'IDLE'
@@ -27,18 +30,18 @@ class CollectorConfig:
     min_views: int = 4                # finalize 所需最少视角数
     recommended_views: int = 5        # 推荐视角数（不足仅提示）
     max_views: int = 8                # 帧栈上限
-    min_translation: float = 0.020    # [m] 与上一帧最小平移（低于=重复视角）
+    min_translation: float = 0.002    # [m] 与上一帧最小平移（低于=近重复）
     max_translation: float = 0.080    # [m] 与上一帧最大平移（高于=跳变）
-    min_rotation_deg: float = 5.0     # [deg] 最小旋转
+    min_rotation_deg: float = 1.0     # [deg] 最小旋转
     max_rotation_deg: float = 25.0    # [deg] 最大旋转
-    allow_duplicate_views: bool = False  # True 时重复视角仅告警不拒帧
-    # ── 自动模式（默认开；False 回 Phase 2 纯手动服务流）──
+    allow_duplicate_views: bool = True  # True 时重复视角仅告警不拒帧
+    # ── 自动模式（默认开；False 使用纯手动 Trigger 服务流）──
     auto_mode: bool = True            # 自动开始/采帧/完成总开关
-    auto_finalize_at_max: bool = True  # 采满 max_views 自动 finalize
-    auto_min_interval_s: float = 2.0  # [s] 两次自动采帧最小间隔
+    auto_finalize_at_max: bool = False  # 连续扫描默认由用户 finalize
+    auto_min_interval_s: float = 0.0  # [s] 0=每个唯一时间戳均进入质量门
 
 
-class FrameCollector:
+class FrameCollector(FrameStore):
     """
     采帧流程的纯逻辑核心：状态机 + 视角过滤 + CapturedFrame 帧栈.
 
@@ -164,9 +167,8 @@ class FrameCollector:
         自动采帧决策（纯逻辑）.
 
         规则（与手动 check_view 的严格拒帧不同，自动模式以「跳过」代替拒绝）：
-        首帧直采 → 间隔门（距上次 < auto_min_interval_s 跳过）→ 平移 ≥
-        min_translation **或** 旋转 ≥ min_rotation_deg 即采；超上限
-        （max_translation/max_rotation_deg）只告警照采（'warn_capture'）。
+        首帧直采 → 可选间隔门 → 近重复视角跳过积分 → 其余连续帧采集；
+        相对运动高于上限只返回 warn_capture，供诊断路径质量。
 
         Args:
             T_base_camera: (4, 4) 本帧 base←camera 位姿.
@@ -193,8 +195,9 @@ class FrameCollector:
         moved = (trans >= self.config.min_translation
                  or rot >= self.config.min_rotation_deg)
         if not moved:
-            return 'skip', (f'视角未达阈：平移 {trans * 1000.0:.1f} mm / '
-                            f'旋转 {rot:.2f} deg')
+            return 'skip', (
+                f'近重复视角不积分：平移 {trans * 1000.0:.1f} mm / '
+                f'旋转 {rot:.2f} deg')
         if (trans > self.config.max_translation
                 or rot > self.config.max_rotation_deg):
             return 'warn_capture', (f'连续运动超上限：平移 '
@@ -289,3 +292,7 @@ class FrameCollector:
         if n < self.config.recommended_views:
             msg += f'（少于推荐 {self.config.recommended_views} 视角）'
         return True, msg, cloud
+
+
+# 实现注册表（显式字典，yolo_ros 先例；编排层按名实例化）
+FRAME_STORES = {'default': FrameCollector}

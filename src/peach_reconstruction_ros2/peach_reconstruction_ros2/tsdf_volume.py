@@ -1,5 +1,5 @@
 """
-Open3D TSDF 封装 — finalize 时批量积分已采帧（无 ROS 依赖，懒加载 open3d）.
+Open3D TSDF 封装 — 连续运动中在线积分（无 ROS 依赖，懒加载 open3d）.
 
 外参方向约定（最易错点，由 test_tsdf_volume.py 守门）：
   ROS 侧每帧存 ``T_base_camera``（camera→base，p_base = T @ p_camera）；
@@ -12,6 +12,9 @@ Open3D TSDF 封装 — finalize 时批量积分已采帧（无 ROS 依赖，懒�
 
 深度约定：CapturedFrame.depth_mm 为 uint16 毫米，积分前转 float32 米制
 （depth_scale=1.0）；0 与超 depth_trunc 的深度不参与积分。
+
+分层契约：LocalTsdf 实现 interfaces.VolumeFusion（注册表
+VOLUME_FUSIONS 供编排层按名实例化，设计文档 §2.2）。
 """
 from __future__ import annotations
 
@@ -20,12 +23,13 @@ from typing import Optional, Tuple
 
 import numpy as np
 
+from peach_reconstruction_ros2.interfaces import VolumeFusion
 from peach_reconstruction_ros2.tf_utils import invert_transform
 
 _O3D = None  # 懒加载缓存（无 open3d 的环境仍可 import 本模块）
 
 
-def _require_open3d():
+def require_open3d():
     """返回 open3d 模块；缺失时抛带指引的 RuntimeError."""
     global _O3D
     if _O3D is None:
@@ -39,8 +43,8 @@ def _require_open3d():
     return _O3D
 
 
-class LocalTsdf:
-    """局部 TSDF 体积：批量积分 → 提取 → ROI 裁剪 → 降采样 → 离群剔除."""
+class LocalTsdf(VolumeFusion):
+    """局部 TSDF 体积：在线积分 → 点云/网格提取 → ROI 后处理."""
 
     def __init__(self, voxel_length: float = 0.003, sdf_trunc: float = 0.012,
                  depth_trunc: float = 1.5):
@@ -57,14 +61,31 @@ class LocalTsdf:
             无返回值（None）；integrate_time_s 累计积分墙钟 [s].
 
         """
-        o3d = _require_open3d()
+        o3d = require_open3d()
         self.voxel_length = float(voxel_length)
         self.sdf_trunc = float(sdf_trunc)
         self.depth_trunc = float(depth_trunc)
-        self._volume = o3d.pipelines.integration.ScalableTSDFVolume(
+        self._o3d = o3d
+        self.reset()
+
+    def reset(self) -> None:
+        """
+        清空体积与累计耗时（VolumeFusion 契约；实例可复用）.
+
+        语义等同「弃例新建」：体积重建为同参数空 ScalableTSDFVolume，
+        integrate_time_s 归零。节点现状每轮 finalize 新建实例，本方法
+        为接口层轻量生命周期钩子，不改变该用法。
+
+        Returns
+        -------
+            无返回值（None）.
+
+        """
+        self._volume = self._o3d.pipelines.integration.ScalableTSDFVolume(
             voxel_length=self.voxel_length,
             sdf_trunc=self.sdf_trunc,
-            color_type=o3d.pipelines.integration.TSDFVolumeColorType.RGB8)
+            color_type=(self._o3d.pipelines.integration
+                        .TSDFVolumeColorType.RGB8))
         self.integrate_time_s = 0.0
 
     def _make_rgbd(self, rgb_bgr: np.ndarray, depth_mm: np.ndarray,
@@ -82,7 +103,7 @@ class LocalTsdf:
             (rgbd, intrinsic)：Open3D 对象对.
 
         """
-        o3d = _require_open3d()
+        o3d = require_open3d()
         h, w = depth_mm.shape[:2]
         # BGR → RGB（Open3D 颜色通道序）
         color = o3d.geometry.Image(
@@ -162,6 +183,34 @@ class LocalTsdf:
                              0, 255).astype(np.uint8)  # → BGR uint8
         return xyz, colors
 
+    def extract_mesh(self, center=None, size_xyz=None) -> dict:
+        """
+        提取三角网格并计算顶点法向，可选按 base 系轴对齐盒裁剪.
+
+        Returns
+        -------
+            dict：vertices、triangles、normals、colors_bgr 四个 numpy 数组。
+
+        """
+        mesh = self._volume.extract_triangle_mesh()
+        if center is not None and size_xyz is not None and len(mesh.vertices):
+            c = np.asarray(center, dtype=np.float64)
+            half = np.asarray(size_xyz, dtype=np.float64) / 2.0
+            box = self._o3d.geometry.AxisAlignedBoundingBox(c - half, c + half)
+            mesh = mesh.crop(box)
+        mesh.compute_vertex_normals()
+        colors = np.zeros((len(mesh.vertices), 3), dtype=np.uint8)
+        if mesh.has_vertex_colors():
+            colors = np.clip(np.round(
+                np.asarray(mesh.vertex_colors)[:, ::-1] * 255.0),
+                0, 255).astype(np.uint8)
+        return {
+            'vertices': np.asarray(mesh.vertices, dtype=np.float64),
+            'triangles': np.asarray(mesh.triangles, dtype=np.int32),
+            'normals': np.asarray(mesh.vertex_normals, dtype=np.float64),
+            'colors_bgr': colors,
+        }
+
     @staticmethod
     def crop_to_box(xyz: np.ndarray, colors: Optional[np.ndarray],
                     center, size_xyz) -> Tuple[np.ndarray, Optional[np.ndarray]]:
@@ -206,7 +255,7 @@ class LocalTsdf:
         """
         if voxel_size <= 0.0 or xyz.size == 0:
             return xyz, colors
-        o3d = _require_open3d()
+        o3d = require_open3d()
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(xyz)
         if colors is not None and len(colors) == len(xyz):
@@ -242,7 +291,7 @@ class LocalTsdf:
         """
         if xyz.shape[0] <= nb_neighbors:
             return xyz, colors
-        o3d = _require_open3d()
+        o3d = require_open3d()
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(xyz)
         _inlier_pcd, inlier_idx = pcd.remove_statistical_outlier(
@@ -250,3 +299,7 @@ class LocalTsdf:
         idx = np.asarray(inlier_idx, dtype=int)
         colors_in = colors[idx] if colors is not None else None
         return xyz[idx], colors_in
+
+
+# 实现注册表（显式字典，yolo_ros 先例；编排层按名实例化）
+VOLUME_FUSIONS = {'open3d_scalable': LocalTsdf}

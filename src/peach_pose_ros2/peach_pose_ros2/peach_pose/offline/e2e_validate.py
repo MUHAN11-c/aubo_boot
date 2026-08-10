@@ -9,7 +9,7 @@ r"""
 
 示例::
 
-    aubo_py3.12/bin/python -m peach_pose_ros2.peach_pose.e2e_validate \
+    aubo_py3.12/bin/python -m peach_pose_ros2.peach_pose.offline.e2e_validate \
         --output e2e_validation.json
 """
 from __future__ import annotations
@@ -25,14 +25,14 @@ import time
 import cv2
 import numpy as np
 
-from .candidates import CandidateEstimator, MODE_IDS, MODE_LABELS
-from .contracts import BagObservation
-from .inference import InferenceEngine
-from .inspector.config import (
+# e2e 跑的是历史 Azure 录包（1280×720），故用 K_AZURE；实机/本机工具一律 K_PERCIPIO
+from .config import (
     CALIBRATION_VERSION, DATASET_DIR, K_AZURE, MODEL_VERSION, YOLO_MODEL,
 )
-# e2e 跑的是历史 Azure 录包（1280×720），故用 K_AZURE；实机/本机工具一律 K_PERCIPIO
 from .validation import AnnotationMetrics, load_annotations
+from ..candidates import CandidateEstimator, MODE_IDS, MODE_LABELS
+from ..contracts import BagObservation
+from ..inference import InferenceEngine
 
 
 def _quantiles(values):

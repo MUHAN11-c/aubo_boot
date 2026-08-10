@@ -17,7 +17,7 @@
   ToolGeometry, TOOL_GEOMETRY, BagObservation, BagGrasp2D, BagGraspReference3D,
   compute_entry_start, compute_travel_range
 
-参见: docs/architecture.md — 「数据合约与状态机」「坐标系」
+注: 原 docs/architecture.md 已随旧项目移除，契约说明以本文件各 docstring 为准。
 """
 
 from dataclasses import dataclass, field
@@ -127,6 +127,7 @@ class BagGraspReference3D:
     frame_id: str = 'camera_depth_optical_frame'  # 坐标系（默认相机光学系）
     entry_start: Optional[np.ndarray] = None  # P_entry_start (3,) — 圆柱顶面圆心 = 末端TCP, 位于袋底外侧
     position: Optional[np.ndarray] = None  # P_grasp (3,) — [legacy] 保留兼容, 新代码优先用 entry_start
+    points_centroid: Optional[np.ndarray] = None  # 检测框前景点云中位质心 (3,) — 身份锚点，比端点抗抖
     orientation: Optional[np.ndarray] = None          # R = [Xg, Yg, Zg] (3×3)
     bag_bottom: Optional[np.ndarray] = None           # P_bottom (3,)
     bag_neck: Optional[np.ndarray] = None             # P_neck (3,)
@@ -160,6 +161,7 @@ class BagGraspReference3D:
             'frame_id': self.frame_id,
             'entry_start': arr(self.entry_start),
             'position': arr(self.position),
+            'points_centroid': arr(self.points_centroid),
             'orientation': arr(self.orientation),
             'bag_bottom': arr(self.bag_bottom),
             'bag_neck': arr(self.bag_neck),

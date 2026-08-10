@@ -36,10 +36,10 @@ class CapturedFrameTest(unittest.TestCase):
         colors = np.zeros((4, 3), dtype=np.uint8)
         f = _make(target_id='target_3', valid_depth_ratio=0.7,
                   cloud_base=cloud, cloud_rgb=colors,
-                  diagnostic_flags=['tf_stale'])
+                  diagnostic_flags=['pose_icp'])
         self.assertIs(f.cloud_base, cloud)
         self.assertIs(f.cloud_rgb, colors)
-        self.assertEqual(f.diagnostic_flags, ['tf_stale'])
+        self.assertEqual(f.diagnostic_flags, ['pose_icp'])
         self.assertAlmostEqual(f.valid_depth_ratio, 0.7)
         self.assertEqual(f.target_id, 'target_3')
 
@@ -47,7 +47,7 @@ class CapturedFrameTest(unittest.TestCase):
         """diagnostic_flags 默认列表不跨实例共享（dataclass 易踩坑）."""
         f1 = _make()
         f2 = _make()
-        f1.diagnostic_flags.append('tf_stale')
+        f1.diagnostic_flags.append('pose_icp')
         self.assertEqual(f2.diagnostic_flags, [])
 
 

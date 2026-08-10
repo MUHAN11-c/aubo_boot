@@ -1,9 +1,9 @@
-"""inspector.sphere_ref：合成点云球拟合参考."""
+"""offline.sphere_ref：合成点云球拟合参考."""
 import unittest
 
 import numpy as np
 
-from peach_pose_ros2.peach_pose.inspector.sphere_ref import fit_sphere_reference
+from peach_pose_ros2.peach_pose.offline.sphere_ref import fit_sphere_reference
 
 
 class SphereReferenceTest(unittest.TestCase):

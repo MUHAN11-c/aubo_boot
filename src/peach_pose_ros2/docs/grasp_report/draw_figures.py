@@ -1,4 +1,5 @@
-"""生成 peach_pose_ros2 项目汇报配图（figures/ 下 6 张 PNG）。
+"""
+生成 peach_pose_ros2 项目汇报配图（figures/ 下 6 张 PNG）.
 
 用法（工作区根目录）:
     aubo_py3.12/bin/python src/peach_pose_ros2/docs/grasp_report/draw_figures.py
@@ -18,9 +19,9 @@ from pathlib import Path
 
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Polygon
-import numpy as np
+from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Polygon  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
 
 plt.rcParams['font.sans-serif'] = [
     'Noto Sans CJK SC', 'Noto Sans CJK JP', 'Droid Sans Fallback',
@@ -48,7 +49,7 @@ C_BAD = '#c0392b'
 
 
 def box(ax, x, y, w, h, text, fc=C_BOX, ec=C_EDGE, fs=10, lw=1.4, weight='normal'):
-    """画圆角文本框，返回 (cx, cy)。"""
+    """画圆角文本框，返回 (cx, cy)."""
     ax.add_patch(FancyBboxPatch(
         (x, y), w, h, boxstyle='round,pad=0.008,rounding_size=0.012',
         fc=fc, ec=ec, lw=lw, mutation_aspect=0.6))
@@ -59,7 +60,7 @@ def box(ax, x, y, w, h, text, fc=C_BOX, ec=C_EDGE, fs=10, lw=1.4, weight='normal
 
 def arrow(ax, p0, p1, color='#444444', lw=1.6, style='-|>', shrinkA=2,
           shrinkB=2, ls='-', mutation=14):
-    """两点间箭头。"""
+    """两点间箭头."""
     ax.add_patch(FancyArrowPatch(
         p0, p1, arrowstyle=style, color=color, lw=lw, linestyle=ls,
         shrinkA=shrinkA, shrinkB=shrinkB, mutation_scale=mutation))
@@ -172,7 +173,7 @@ def fig2():
 
     # ── 拟合轴（底→颈 = 逆重力） ──
     ax.annotate('', xy=(0, 0.155), xytext=(0, -0.035),
-                arrowprops=dict(arrowstyle='-|>', color=C_BAD, lw=2.2))
+                arrowprops={'arrowstyle': '-|>', 'color': C_BAD, 'lw': 2.2})
     ax.plot([0, 0], [-0.10, 0.19], '--', color=C_BAD, lw=1.0, alpha=0.5)
     ax.text(0.006, 0.160, '袋轴 axis = 底→颈（逆重力 −g）\n圆柱 RANSAC 主估 / 重力先验降级',
             fontsize=9.5, color=C_BAD, ha='left')
@@ -181,21 +182,21 @@ def fig2():
     ax.plot(0, 0.0, 'o', ms=9, color=C_OK, zorder=4)
     ax.annotate('P_bottom 袋底（轴投影 P10 带中位）', xy=(0, 0.0),
                 xytext=(-0.205, 0.012), fontsize=9.5, color='#1d6b33',
-                arrowprops=dict(arrowstyle='-', color='#1d6b33', lw=0.8))
+                arrowprops={'arrowstyle': '-', 'color': '#1d6b33', 'lw': 0.8})
     ax.plot(0, 0.12, 'o', ms=9, color=C_OK, zorder=4)
     ax.annotate('P_neck 袋颈（P90 带中位，观测下界）', xy=(0, 0.12),
                 xytext=(-0.205, 0.126), fontsize=9.5, color='#1d6b33',
-                arrowprops=dict(arrowstyle='-', color='#1d6b33', lw=0.8))
+                arrowprops={'arrowstyle': '-', 'color': '#1d6b33', 'lw': 0.8})
     entry_y = -STANDOFF
     ax.plot(0, entry_y, 's', ms=10, color='#8e44ad', zorder=4)
     ax.annotate('entry_start = P_bottom − standoff·axis\n（= 工具顶面圆心 = 末端 TCP 目标位）',
                 xy=(0, entry_y), xytext=(-0.155, entry_y - 0.017),
                 fontsize=9.5, color='#8e44ad',
-                arrowprops=dict(arrowstyle='-', color='#8e44ad', lw=0.8))
+                arrowprops={'arrowstyle': '-', 'color': '#8e44ad', 'lw': 0.8})
 
     # ── standoff 分解标注 ──
     ax.annotate('', xy=(-0.062, 0.0), xytext=(-0.062, entry_y),
-                arrowprops=dict(arrowstyle='<->', color='#555555', lw=1.2))
+                arrowprops={'arrowstyle': '<->', 'color': '#555555', 'lw': 1.2})
     ax.text(-0.115, entry_y / 2,
             'standoff = entry_d_tool(30mm)\n+ entry_d_s(40mm) = 70mm',
             fontsize=9, ha='center', color='#333333')
@@ -216,7 +217,7 @@ def fig2():
             '套袋工具（空心圆柱）\nD_inner=104mm\nL_insert=200mm（行程上限）',
             fontsize=9.5, va='center')
     ax.annotate('', xy=(-half, tool_bot - 0.012), xytext=(half, tool_bot - 0.012),
-                arrowprops=dict(arrowstyle='<->', color='#566573', lw=1.1))
+                arrowprops={'arrowstyle': '<->', 'color': '#566573', 'lw': 1.1})
     ax.text(0, tool_bot - 0.024, 'D_inner', fontsize=9, ha='center',
             color='#566573')
 
@@ -225,7 +226,7 @@ def fig2():
     s_max = min(s_neck - MARGIN_NECK, L_INSERT)
     travel_end = entry_y + s_max
     ax.annotate('', xy=(0.062, travel_end), xytext=(0.062, entry_y),
-                arrowprops=dict(arrowstyle='<->', color=C_OK, lw=2.0))
+                arrowprops={'arrowstyle': '<->', 'color': C_OK, 'lw': 2.0})
     ax.plot(0, travel_end, 'D', ms=7, color=C_OK, zorder=4)
     ax.text(0.068, (entry_y + travel_end) / 2,
             'suggested_travel\n= (P_neck − entry)·axis − L_blade\n'
@@ -234,7 +235,7 @@ def fig2():
     ax.annotate('刀刃停于袋颈前\nL_blade=25mm + margin_neck=15mm',
                 xy=(0.012, 0.12 - L_BLADE - MARGIN_NECK), xytext=(0.10, 0.065),
                 fontsize=8.5, color='#7d3c98',
-                arrowprops=dict(arrowstyle='->', color='#7d3c98', lw=0.9))
+                arrowprops={'arrowstyle': '->', 'color': '#7d3c98', 'lw': 0.9})
 
     # ── 误差锥（误差预算） ──
     theta = np.radians(10)
@@ -244,13 +245,13 @@ def fig2():
     ax.annotate('误差锥 ±θ_err\nδ=(standoff+travel)·sinθ_err\n须 ≤ 径向净空',
                 xy=(-0.035, 0.045), xytext=(-0.16, 0.075), fontsize=9.5,
                 color='#9a7d0a',
-                arrowprops=dict(arrowstyle='->', color=C_WARN, lw=1.0))
+                arrowprops={'arrowstyle': '->', 'color': C_WARN, 'lw': 1.0})
 
     # ── 径向净空剖面 ──
     ax.annotate('', xy=(-0.047, 0.135), xytext=(-half, 0.135),
-                arrowprops=dict(arrowstyle='-', color=C_BAD, lw=3.0))
+                arrowprops={'arrowstyle': '-', 'color': C_BAD, 'lw': 3.0})
     ax.annotate('', xy=(0.047, 0.135), xytext=(half, 0.135),
-                arrowprops=dict(arrowstyle='-', color=C_BAD, lw=3.0))
+                arrowprops={'arrowstyle': '-', 'color': C_BAD, 'lw': 3.0})
     ax.text(0.062, 0.135,
             '径向净空 = (D_inner − D_bag)/2 − clearance_min\n'
             'D_bag = 横向半径 P95 × 2（保守上界）',
@@ -258,7 +259,7 @@ def fig2():
 
     # ── 重力 ──
     ax.annotate('', xy=(-0.135, -0.13), xytext=(-0.135, -0.075),
-                arrowprops=dict(arrowstyle='-|>', color='#333333', lw=1.6))
+                arrowprops={'arrowstyle': '-|>', 'color': '#333333', 'lw': 1.6})
     ax.text(-0.135, -0.145, '重力 g（gravity_hint / tf 反推）',
             fontsize=9, ha='center')
 
@@ -266,7 +267,7 @@ def fig2():
     ax.text(-0.185, 0.165,
             '抓取系 R=[Xg,Yg,Zg]\nZg=axis（套入轴）\nXg=⊥Zg 最大方差方向',
             fontsize=9, color='#33608a',
-            bbox=dict(fc='#eef4fb', ec='#33608a', boxstyle='round,pad=0.35'))
+            bbox={'fc': '#eef4fb', 'ec': '#33608a', 'boxstyle': 'round,pad=0.35'})
 
     ax.set_xlim(-0.21, 0.21)
     ax.set_ylim(-0.30, 0.20)
@@ -306,7 +307,7 @@ def fig3():
 
     # 相机
     ax.annotate('', xy=(-0.085, 0), xytext=(-0.135, 0),
-                arrowprops=dict(arrowstyle='-|>', color='#555555', lw=1.5))
+                arrowprops={'arrowstyle': '-|>', 'color': '#555555', 'lw': 1.5})
     ax.text(-0.14, 0.006, 'RGB-D 相机', fontsize=9.5, ha='center')
 
     # 梗洼帽（20° 扫描帽 + 下陷标注）
@@ -317,11 +318,11 @@ def fig3():
                 '（Fibonacci 球面 ~200 向扫描）',
                 xy=(r * 1.18 * np.cos(np.pi / 2 + 0.3), r * 1.18 * np.sin(np.pi / 2 + 0.3)),
                 xytext=(0.062, 0.062), fontsize=9.5, color=C_BAD,
-                arrowprops=dict(arrowstyle='->', color=C_BAD, lw=1.0))
+                arrowprops={'arrowstyle': '->', 'color': C_BAD, 'lw': 1.0})
 
     # 套入轴
     ax.annotate('', xy=(0, 0.082), xytext=(0, -0.062),
-                arrowprops=dict(arrowstyle='-|>', color=C_BAD, lw=2.2))
+                arrowprops={'arrowstyle': '-|>', 'color': C_BAD, 'lw': 2.2})
     ax.plot([0, 0], [-0.085, 0.095], '--', color=C_BAD, lw=1.0, alpha=0.5)
     ax.text(0.006, -0.092, '套入轴 = 底→梗端（颈）\nstem_cavity 主估 / 重力先验降级',
             fontsize=9.5, color=C_BAD, ha='left')
@@ -332,10 +333,10 @@ def fig3():
     ax.plot(0, 0, '+', ms=13, mew=2.2, color='#1d6b33', zorder=4)
     ax.annotate('P_bottom = 球心 − r·axis', xy=(0, -r), xytext=(-0.155, -0.052),
                 fontsize=9.5, color='#1d6b33',
-                arrowprops=dict(arrowstyle='-', color='#1d6b33', lw=0.8))
+                arrowprops={'arrowstyle': '-', 'color': '#1d6b33', 'lw': 0.8})
     ax.annotate('P_neck = 球心 + r·axis（梗端）', xy=(0, r), xytext=(-0.16, 0.048),
                 fontsize=9.5, color='#1d6b33',
-                arrowprops=dict(arrowstyle='-', color='#1d6b33', lw=0.8))
+                arrowprops={'arrowstyle': '-', 'color': '#1d6b33', 'lw': 0.8})
     ax.text(0.004, -0.006, '球心（点+法线 RANSAC\n+ 几何 LM 抛光）', fontsize=9,
             color='#1d6b33')
 
@@ -345,7 +346,7 @@ def fig3():
     ax.annotate('entry_start = P_bottom − 70mm·axis\n（公式与袋线相同）',
                 xy=(0, entry_y), xytext=(0.066, entry_y - 0.010), fontsize=9.5,
                 color='#8e44ad',
-                arrowprops=dict(arrowstyle='-', color='#8e44ad', lw=0.8))
+                arrowprops={'arrowstyle': '-', 'color': '#8e44ad', 'lw': 0.8})
     half = D_INNER / 2
     ax.plot([-half, -half], [entry_y, entry_y - 0.05], color='#566573', lw=5,
             solid_capstyle='butt')
@@ -358,7 +359,7 @@ def fig3():
 
     # 重力极性校正说明
     ax.annotate('', xy=(-0.105, -0.10), xytext=(-0.105, -0.045),
-                arrowprops=dict(arrowstyle='-|>', color='#333333', lw=1.6))
+                arrowprops={'arrowstyle': '-|>', 'color': '#333333', 'lw': 1.6})
     ax.text(-0.105, -0.116, '重力 g', fontsize=9.5, ha='center')
     ax.text(-0.165, 0.10,
             '极性校正（Kok 2024 对极点教训）\n'
@@ -366,22 +367,19 @@ def fig3():
             '⇒ 翻轴 + 置信度×0.7 + θ_err+5°\n'
             '（不直接放弃，显式降级）',
             fontsize=9, color='#7d3c98',
-            bbox=dict(fc='#f5eef8', ec='#7d3c98', boxstyle='round,pad=0.4'))
+            bbox={'fc': '#f5eef8', 'ec': '#7d3c98', 'boxstyle': 'round,pad=0.4'})
 
     # 袋径取保守大者
     ax.annotate('D_bag = max(2r, 横向 P95 直径)\n→ 与袋线同一净空门控',
                 xy=(r * 0.72, -r * 0.72), xytext=(0.06, -0.075), fontsize=9.5,
                 color=C_BAD,
-                arrowprops=dict(arrowstyle='->', color=C_BAD, lw=0.9))
+                arrowprops={'arrowstyle': '->', 'color': C_BAD, 'lw': 0.9})
 
     ax.set_xlim(-0.175, 0.175)
     ax.set_ylim(-0.175, 0.125)
     ax.legend(loc='lower right', fontsize=9)
     fig.savefig(OUT / 'fig3_fruit_geometry.png', dpi=160, bbox_inches='tight')
     plt.close(fig)
-
-
-
 
 
 # ════════════════════════════════════════════════════════════════
@@ -446,8 +444,8 @@ def fig4():
 
     # ── 右列：三态输出 ──
     arrow(ax, (0.62, 0.84), (0.70, 0.60))
-    c_dec = box(ax, 0.68, 0.53, 0.13, 0.10,
-                '状态判定\n（pipeline.py 末尾）', fs=10, weight='bold')
+    box(ax, 0.68, 0.53, 0.13, 0.10,
+        '状态判定\n（pipeline.py 末尾）', fs=10, weight='bold')
     box(ax, 0.855, 0.74, 0.135, 0.09, 'ACCEPT (0)\nflags 为空\n可据此位姿执行',
         fs=9.5, fc='#e8f6ec', ec=C_OK, weight='bold')
     box(ax, 0.855, 0.50, 0.135, 0.10, 'REOBSERVE (1)\n仅有软标记\n换视角重采再判',
@@ -514,7 +512,7 @@ def fig5():
     ax.plot(wp_d, wp_th, 'o', ms=9, color=C_BAD, zorder=5)
     ax.annotate(f'例：D_bag=90mm, travel=150mm\nθ_err 须 ≤ {wp_th:.1f}°',
                 xy=(wp_d, wp_th), xytext=(70, 8), fontsize=9.5, color=C_BAD,
-                arrowprops=dict(arrowstyle='->', color=C_BAD, lw=1.0))
+                arrowprops={'arrowstyle': '->', 'color': C_BAD, 'lw': 1.0})
     ax.axvline(D_INNER * 1000 - 2 * CLEARANCE_MIN * 1000, color=C_BAD,
                ls='--', lw=1.2, alpha=0.6)
     ax.text(94.5, 27, 'tool_clearance_failed 边界\nD_bag ≥ D_inner − 2·clearance_min',

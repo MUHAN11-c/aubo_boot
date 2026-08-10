@@ -24,6 +24,7 @@ from .contracts import (
 from .fitting import (
     estimate_normals, fit_cylinder_robust, fit_sphere_robust, polish_sphere_lm,
 )
+from .interfaces import POSE_ESTIMATORS, PoseEstimator
 
 
 @dataclass
@@ -38,7 +39,7 @@ class TargetPoseResult:
     target_kind: str = 'bag'  # "bag" | "fruit"
 
 
-class RobustBagPosePipeline:
+class RobustBagPosePipeline(PoseEstimator):
     """
     袋装桃的保守位姿估计器（圆柱套入工具）.
 
@@ -114,7 +115,7 @@ class RobustBagPosePipeline:
 
         # ── 套入轴估计: 圆柱 RANSAC 主估 → 2D 掩膜校验 → 重力显式降级 ──
         # 理论: 圆柱法线 ⊥ 轴 (a = n₁×n₂)；局部几何结构良态，全局 PCA 对
-        # 近回转体退化；重力假设仅在自由悬垂时成立 (docs/grasp_axis_entry_design.md)
+        # 近回转体退化；重力假设仅在自由悬垂时成立
         normals_map, nvalid_map = estimate_normals(roi, x1, y1, obs.camera_K)
         pnormals = normals_map[pixels[:, 1], pixels[:, 0]]
         pnvalid = nvalid_map[pixels[:, 1], pixels[:, 0]]
@@ -171,7 +172,7 @@ class RobustBagPosePipeline:
         _, travel = compute_travel_range(entry, neck, axis, self.tool)
         R = self._frame(axis, points)
 
-        # ── 误差预算: δ = L·sin(θ_err) ≤ 径向余量 (docs/grasp_axis_entry_design.md §核心二) ──
+        # ── 误差预算: δ = L·sin(θ_err) ≤ 径向余量 ──
         # θ_err 代理: 拟合残差/袋长（指向误差）+ 定向与 2D 校验惩罚。
         # 注意: 圆形掩膜的 2D 主轴无意义，disagreement 仅在掩膜细长时生效。
         if cyl is not None and axis_source == 'cylinder_ransac':
@@ -238,6 +239,7 @@ class RobustBagPosePipeline:
                        float(cyl['inlier_ratio']) if cyl is not None else None)}
         g3d = BagGraspReference3D(
             frame_id=obs.frame_id, entry_start=entry, position=entry,
+            points_centroid=np.median(points, axis=0),
             orientation=R, bag_bottom=bottom, bag_neck=neck,
             translation_direction=axis, bag_diameter_upper_m=diameter,
             suggested_travel_m=travel, suggested_travel_end=entry + travel * axis,
@@ -734,6 +736,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
                    'radial_clearance_mm': float(radial_clearance * 1000.0)}
         g3d = BagGraspReference3D(
             frame_id=obs.frame_id, entry_start=entry, position=entry,
+            points_centroid=np.median(points, axis=0),
             orientation=R, bag_bottom=bottom, bag_neck=neck,
             translation_direction=axis, bag_diameter_upper_m=diameter,
             suggested_travel_m=travel, suggested_travel_end=entry + travel * axis,
@@ -828,3 +831,9 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
                                   diagnostic_info={**metrics, 'mask_source': source})
         return TargetPoseResult(target_id, g2d, g3d, source, metrics,
                                 target_kind='fruit')
+
+
+# 显式登记进接口层注册表（yolo_ros type_to_model 先例；import 本模块即完成登记，
+# candidates.py 的类别路由与 test_interfaces.py 均以 POSE_ESTIMATORS 为准）
+POSE_ESTIMATORS['bag'] = RobustBagPosePipeline
+POSE_ESTIMATORS['fruit'] = RobustFruitPosePipeline

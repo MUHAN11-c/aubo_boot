@@ -14,6 +14,8 @@ RGB-D 时间戳并执行：
 
 peach_pose_ros2 仍负责检测、分割和初始目标；原
 peach_pose_fusion_ros2 已移除，重建质量门和最终 refined 输出均在本包内。
+自动绑定只接受 base_frame 中且不含 tf_stale/tf_unavailable/target_untracked
+标记的有限候选；绑定后缓存 target_kind，目标暂时离场也不会误换拟合模型。
 机械臂驱动、控制器、Dashboard 和真机 bringup 不属于本包，固定只读。
 
 ## 使用方法
@@ -55,8 +57,7 @@ ros2 launch peach_pose_ros2 peach_pose.launch.py
 source /opt/ros/jazzy/setup.bash
 cd /home/mu/Desktop/aubo_e5_jazzy_ws
 source install/setup.bash
-ros2 run peach_reconstruction_ros2 peach_reconstruction_node --ros-args \
-  --params-file install/peach_reconstruction_ros2/share/peach_reconstruction_ros2/config/reconstruction.yaml
+ros2 launch peach_reconstruction_ros2 reconstruction.launch.py
 ```
 
 在 RViz2 将速度缩放保持为 0.01，规划相机围绕目标的平滑慢速路径。运动期间
@@ -75,6 +76,25 @@ RViz2 关注：
 - /peach/reconstruction/refined_pose：最终目标几何；
 - /peach/reconstruction/refined_axis：表面/采摘方向；
 - /peach/reconstruction/diagnostics：TF、ICP、TSDF 和重建质量。
+
+### 全链路状态与抓取许可查询
+
+重建只绑定全局计划的 `selected_target_id`，仅接受该 ID 且与深度图完全同时间戳
+的掩膜。默认质量门会跳过掩膜小于 300 像素、掩膜内有效深度低于 0.35、目标
+相对绑定中心漂移超过 40 mm 的帧，分别覆盖远距/遮挡、室外强光深度空洞和风吹
+摆动场景。掩膜外深度在建云、TSDF、失败重放和 session 落盘前全部清零。
+
+```bash
+ros2 service call /peach_reconstruction_node/query_reconstruction_state \
+  std_srvs/srv/Trigger "{}"
+ros2 topic echo /peach/reconstruction/grasp_decision
+```
+
+`grasp_decision` 是只读 JSON：只有重建状态为 READY、最终几何存在且 refit 为
+ACCEPT 时 `allowed=true`；REOBSERVE、REJECT、目标丢失或重建未完成均为 false。
+本包不会据此发送 MoveIt goal。重建事件附着到同一 `harvest_run_id` 的
+`harvest_runs/harvest_*/events.jsonl`；详细 RGB-D、位姿、点云和网格仍保存在
+`peach_sessions/session_*`，其路径由 `session_saved` 事件反向关联。
 
 ## 执行逻辑
 
@@ -125,6 +145,7 @@ metadata.yaml
 | 文件 | 职责 |
 |---|---|
 | reconstruction_node.py | ROS 编排：同步、精确 TF、状态、在线积分、发布与服务 |
+| candidate_contract.py | 感知候选安全门禁与绑定目标类别记忆（零 ROS import） |
 | params.py | frozen dataclass 参数层，和 reconstruction.yaml 双向测试同步 |
 | frame_collector.py | 无 ROS 的帧栈和采集状态机 |
 | icp_refiner.py | Open3D 两尺度鲁棒点到平面 ICP 与边界/质量门 |
@@ -142,6 +163,10 @@ metadata.yaml
 | capture.auto_min_interval_s | 0.0 s |
 | capture.require_robot_static | false |
 | capture.auto_finalize_at_max | false |
+| capture.require_target_mask | true |
+| capture.min_mask_pixels | 300 |
+| capture.min_mask_depth_ratio | 0.35 |
+| capture.max_target_drift_m | 0.04 m |
 | tsdf.voxel_length / sdf_trunc | 3 mm / 12 mm |
 | icp.max_translation / max_rotation_deg | 10 mm / 3° |
 | icp.min_fitness / max_rmse | 0.35 / 8 mm |

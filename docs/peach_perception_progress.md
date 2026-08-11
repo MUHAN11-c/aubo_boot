@@ -1,6 +1,6 @@
 # 桃子感知与连续 TSDF 重建进度台账
 
-> 最后更新：2026-08-10。当前采用两个功能包：
+> 最后更新：2026-08-11。当前采用两个功能包：
 > peach_pose_ros2 + peach_reconstruction_ros2。
 
 ## 当前结论
@@ -22,11 +22,16 @@
 - 修复深度尺度、32FC1 深度、TF 变换和 travel_end 变换问题。
 - 将算法核、ROS 转换、TF、可视化、点云和离线验证按职责拆分。
 - 目标身份在 base_link 中做空间记忆，短时消失后 target_id 保持稳定。
+- 首轮稳定观测锁定目标数量、确定性优先级和 selected_target_id；逐 ID 发布结果与精确时刻掩膜。
+- 每轮建立 harvest_run_id，manifest、事件、最新状态和掩膜统一落入 harvest_runs。
 - 参数集中到 frozen dataclass，并由测试保证 YAML 与代码默认值一致。
 
 ### 重建
 
 - RGB/Depth/CameraInfo 按消息头时间戳同步。
+- 感知三维候选与 TF 查询统一使用 depth.header.stamp；2D 图像结果保持 RGB 时间戳。
+- 重建自动绑定拒绝非 base_link 或带 TF 异常标记的候选，并在会话内保持
+  已绑定 target_kind，目标离场后仍选择正确的圆柱/球拟合线。
 - 每帧只查询 depth.header.stamp 对应的 base_link←camera TF；失败跳帧，
   不再使用 latest TF 回退。
 - Robot FK + 手眼外参提供 T_fk；Open3D 两尺度点到平面 ICP 只估计相对
@@ -39,6 +44,8 @@
 - 合格帧到达即积分 Open3D ScalableTSDFVolume；finalize 不再重复批量积分，
   只提取局部点云、带法向三角网格和圆柱/球几何结果。
 - remove_last_frame 会重建空体积并重放剩余帧，避免已删除帧残留在 TSDF。
+- 重建只积分 selected_target_id 的精确时刻掩膜深度；小目标、强光深度空洞、风动漂移和丢失帧均跳过。
+- READY + refit ACCEPT 才发布 allowed=true 的只读 grasp_decision，不发送运动。
 - session 保存 RGB、深度、内参、T_fk、T_used、ICP fitness/RMSE/修正量、
   tsdf_cloud.ply、tsdf_mesh.ply 和完整参数快照。
 

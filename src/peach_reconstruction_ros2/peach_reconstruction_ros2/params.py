@@ -53,6 +53,10 @@ class CaptureParams:
     auto_mode: bool = True
     auto_finalize_at_max: bool = False
     auto_min_interval_s: float = 0.0
+    require_target_mask: bool = True
+    min_mask_pixels: int = 300
+    min_mask_depth_ratio: float = 0.35
+    max_target_drift_m: float = 0.04
 
 
 @dataclass(frozen=True)
@@ -167,6 +171,10 @@ _DESCRIPTIONS: Dict[str, str] = {
                                     '（连续扫描默认关闭）',
     'capture.auto_min_interval_s': '两次自动采帧最小间隔 (s)，0 表示每个'
                                    '唯一相机时间戳均进入质量门',
+    'capture.require_target_mask': '仅积分全局计划所选 target_id 的逐帧掩膜',
+    'capture.min_mask_pixels': '目标掩膜最少像素数（过小视为远距或遮挡）',
+    'capture.min_mask_depth_ratio': '掩膜内有效深度占比下限（强光/空洞门）',
+    'capture.max_target_drift_m': '当前目标中心相对绑定中心最大漂移 [m]（风动门）',
     'view_filter.min_translation': '与上一已采帧的最小平移 [m]（过近=重复视角）',
     'view_filter.max_translation': '与上一已采帧的最大平移 [m]（过远=跳变）',
     'view_filter.min_rotation_deg': '与上一已采帧的最小旋转 [deg]',
@@ -214,7 +222,7 @@ _SCALARS: Tuple[str, ...] = ('sync_slop_s', 'tf_timeout_sec', 'depth_scale_unit'
 
 @dataclass(frozen=True)
 class ReconstructionParams:
-    """全部 47 个节点参数的 frozen 装载形态（嵌套组 + 顶层标量）."""
+    """全部 51 个节点参数的 frozen 装载形态（嵌套组 + 顶层标量）."""
 
     sync_slop_s: float = 0.05
     tf_timeout_sec: float = 1.0

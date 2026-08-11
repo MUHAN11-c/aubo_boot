@@ -29,10 +29,17 @@ from peach_pose_msgs.msg import (
     BagFittingArray,
     BagGraspCandidate,
     BagGraspCandidateArray,
+    PeachTargetObservationArray,
 )
+from peach_pose_ros2.harvest_data import HarvestDataStore
 from peach_pose_ros2.peach_pose.depth_geometry import normalize_depth_to_uint16_mm
+from peach_reconstruction_ros2.candidate_contract import (
+    select_reconstruction_candidate,
+    TargetKindMemory,
+)
 from peach_reconstruction_ros2.captured_frame import CapturedFrame
 from peach_reconstruction_ros2.cloud_builder import (
+    apply_target_mask,
     CLOUD_BUILDERS,
     pack_rgb_bgr,
 )
@@ -41,6 +48,7 @@ from peach_reconstruction_ros2.frame_collector import (
     FRAME_STORES,
     STATE_COLLECTING,
     STATE_IDLE,
+    STATE_READY,
 )
 from peach_reconstruction_ros2.geometry_refiner import (
     GEOMETRY_REFINERS,
@@ -76,10 +84,6 @@ from std_msgs.msg import Header, String
 from std_srvs.srv import Trigger
 from tf2_ros import Buffer, TransformException, TransformListener
 from visualization_msgs.msg import MarkerArray
-
-# /peach/perception/initial_pose 候选消息的状态枚举（与 peach_pose_msgs 一致）
-_STATUS_ACCEPT = 0
-_STATUS_REJECT = 2
 
 
 def _xyzrgb_to_cloud_msg(xyz: np.ndarray, colors_bgr,
@@ -183,6 +187,11 @@ class PeachReconstructionNode(Node):
         self._latest_frame: Optional[tuple] = None
         self._last_captured_stamp_sec = -1.0  # [s] 上次成功采帧的图像时间戳
         self._latest_candidates: Optional[BagGraspCandidateArray] = None
+        self._preferred_target_id = ''
+        self._harvest_run_id = ''
+        self._target_observation_seen = False
+        self._target_masks = {}
+        self._harvest_data = HarvestDataStore()
         self._joint_states_seen = False
         self._max_joint_vel = 0.0  # [rad/s] 最近 /joint_states 的最大关节速度
         self._last_tf_latency_ms: Optional[float] = None  # 最近一次 TF 查询墙钟耗时
@@ -197,7 +206,7 @@ class PeachReconstructionNode(Node):
         # refit：感知 diagnostics 的 target_id→target_kind 映射；
         # _refined_result=refine_geometry 结果（None=未跑/失败），
         # _refined_info=diagnostics JSON 的 refined 键内容
-        self._kind_by_target: dict = {}
+        self._target_kind_memory = TargetKindMemory()
         self._refined_result: Optional[dict] = None
         self._refined_info: Optional[dict] = None
 
@@ -214,6 +223,8 @@ class PeachReconstructionNode(Node):
             String, '/peach/reconstruction/status', latched_qos)
         self.pub_diag = self.create_publisher(
             String, '/peach/reconstruction/diagnostics', latched_qos)
+        self.pub_grasp_decision = self.create_publisher(
+            String, '/peach/reconstruction/grasp_decision', latched_qos)
         self.pub_markers = self.create_publisher(
             MarkerArray, '/peach/reconstruction/markers', latched_qos)
         self.pub_tsdf_cloud = self.create_publisher(
@@ -246,6 +257,10 @@ class PeachReconstructionNode(Node):
         self.create_subscription(
             BagGraspCandidateArray, '/peach/perception/initial_pose',
             self._on_initial_pose, 10)
+        self.create_subscription(
+            PeachTargetObservationArray,
+            '/peach/perception/target_observations',
+            self._on_target_observations, 10)
         # 感知诊断（target_id→target_kind）：refit 选圆柱/球拟合线的依据
         self.create_subscription(
             BagFittingArray, '/peach/perception/diagnostics',
@@ -264,6 +279,9 @@ class PeachReconstructionNode(Node):
         self.create_service(
             Trigger, '~/finalize_reconstruction', self._on_finalize)
         self.create_service(Trigger, '~/save_session', self._on_save_session)
+        self.create_service(
+            Trigger, '~/query_reconstruction_state',
+            self._on_query_reconstruction_state)
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -344,10 +362,104 @@ class PeachReconstructionNode(Node):
         """缓存最新感知候选（启动重建时绑定最优目标用）."""
         self._latest_candidates = msg
 
+    def _on_target_observations(
+            self, msg: PeachTargetObservationArray) -> None:
+        """缓存全局计划选中 ID 的精确深度时刻掩膜与当前中心."""
+        self._target_observation_seen = True
+        if msg.harvest_run_id != self._harvest_run_id:
+            self._harvest_run_id = msg.harvest_run_id
+            self._harvest_data.attach(self._harvest_run_id)
+            self._harvest_data.append_event({
+                'source': 'reconstruction',
+                'event': 'reconstruction_linked'})
+        requested_target_id = msg.selected_target_id
+        if (self._preferred_target_id
+                and requested_target_id != self._preferred_target_id):
+            if self.collector.state == STATE_READY:
+                self.collector.reset()
+                self._target_kind_memory.reset()
+                self._last_captured_stamp_sec = -1.0
+                self._reset_products(create_volume=False)
+                self._target_masks.clear()
+            elif self.collector.state != STATE_IDLE:
+                self.get_logger().warning(
+                    '重建尚未 READY，拒绝切换 selected_target_id')
+                return
+        self._preferred_target_id = requested_target_id
+        selected = next((item for item in msg.observations
+                         if item.target_id == msg.selected_target_id), None)
+        if selected is None or selected.tracking_status != selected.OBSERVED:
+            return
+        if not selected.mask.data:
+            return
+        try:
+            mask = self.bridge.imgmsg_to_cv2(
+                selected.mask, desired_encoding='mono8')
+        except Exception as exc:  # noqa: BLE001
+            self.get_logger().warning(f'目标掩膜解码失败: {exc}')
+            return
+        stamp = selected.mask.header.stamp
+        stamp_ns = int(stamp.sec) * 1000000000 + int(stamp.nanosec)
+        bottom = np.array([
+            selected.candidate.bag_bottom.x,
+            selected.candidate.bag_bottom.y,
+            selected.candidate.bag_bottom.z], dtype=np.float64)
+        neck = np.array([
+            selected.candidate.bag_neck.x,
+            selected.candidate.bag_neck.y,
+            selected.candidate.bag_neck.z], dtype=np.float64)
+        center = 0.5 * (bottom + neck)
+        if not np.all(np.isfinite(center)) or not np.any(center):
+            center = None
+        self._target_masks[stamp_ns] = (
+            np.asarray(mask, dtype=np.uint8), center)
+        while len(self._target_masks) > 30:
+            self._target_masks.pop(next(iter(self._target_masks)))
+        if self.params.capture.auto_mode:
+            self._auto_drive()
+
+    def _target_mask_for_frame(self, stamp_msg, depth_mm):
+        """取严格同时间戳掩膜，并执行小目标、深度空洞和风动质量门."""
+        if not self.params.capture.require_target_mask:
+            return None, ''
+        stamp_ns = int(stamp_msg.sec) * 1000000000 + int(stamp_msg.nanosec)
+        entry = self._target_masks.get(stamp_ns)
+        if entry is None:
+            return None, '缺少所选 target_id 的同时间戳掩膜'
+        mask, center = entry
+        pixels = int(np.count_nonzero(mask))
+        if pixels < self.params.capture.min_mask_pixels:
+            return None, (
+                f'目标掩膜仅 {pixels} 像素 < '
+                f'{self.params.capture.min_mask_pixels}')
+        try:
+            _masked, ratio = apply_target_mask(depth_mm, mask)
+        except ValueError as exc:
+            return None, str(exc)
+        if ratio < self.params.capture.min_mask_depth_ratio:
+            return None, (
+                f'掩膜内有效深度占比 {ratio:.2f} < '
+                f'{self.params.capture.min_mask_depth_ratio:.2f}')
+        bound = self.collector.target_center
+        if center is not None and bound is not None:
+            drift = float(np.linalg.norm(center - np.asarray(bound)))
+            if drift > self.params.capture.max_target_drift_m:
+                return None, (
+                    f'目标漂移 {drift * 1000.0:.1f} mm > '
+                    f'{self.params.capture.max_target_drift_m * 1000.0:.1f} mm')
+        return mask, ''
+
+    def _on_query_reconstruction_state(self, request, response):
+        """~/query_reconstruction_state：返回当前重建和数据关联 JSON."""
+        del request
+        response.success = True
+        response.message = json.dumps(
+            self._diagnostics(), ensure_ascii=False)
+        return response
+
     def _on_perception_diagnostics(self, msg: BagFittingArray):
         """缓存 target_id→target_kind 映射（refit 选圆柱/球拟合线用）."""
-        self._kind_by_target = {
-            f.target_id: f.target_kind for f in msg.fittings if f.target_id}
+        self._target_kind_memory.update(msg.fittings)
 
     def _resolve_target_kind(self) -> Tuple[str, bool]:
         """
@@ -361,10 +473,7 @@ class PeachReconstructionNode(Node):
             target_kind_defaulted 标记）.
 
         """
-        kind = self._kind_by_target.get(self.collector.target_id, '')
-        if not kind:
-            return 'bag', True
-        return ('fruit' if kind == 'fruit' else 'bag'), False
+        return self._target_kind_memory.resolve()
 
     def _on_joint_states(self, msg: JointState):
         """缓存最大关节速度幅值 [rad/s]（require_robot_static 判定用）."""
@@ -484,51 +593,30 @@ class PeachReconstructionNode(Node):
         response.success = False
         response.message = message
         self.get_logger().warning(f'拒绝：{message}')
+        self._harvest_data.append_event({
+            'source': 'reconstruction', 'event': 'frame_rejected',
+            'target_id': self.collector.target_id, 'reason': message,
+        })
         if count_reject:
             self.collector.rejected_views += 1
         self._publish_all()
         return response
 
     def _best_candidate(self) -> Tuple[str, Optional[np.ndarray]]:
-        """
-        最新候选中取最优（第一个 ACCEPT，否则第一个非 REJECT）.
-
-        Returns
-        -------
-            (target_id, center_base|None)：center 取 bottom/neck 中点
-            （fruit 两端关于球心对称，bag 取几何中部）；无候选给 ('', None).
-
-        """
-        msg = self._latest_candidates
-        if msg is None or not msg.candidates:
+        """取全局计划选中且坐标系与 TF 诊断均安全的候选."""
+        if (self.params.capture.require_target_mask
+                and not self._preferred_target_id):
             return '', None
-        best = None
-        for cand in msg.candidates:
-            if cand.status == _STATUS_ACCEPT:
-                best = cand
-                break
-        if best is None:
-            best = next(
-                (cand for cand in msg.candidates
-                 if cand.status != _STATUS_REJECT), None)
-        if best is None:
-            return '', None
-        bottom = np.array([best.bag_bottom.x, best.bag_bottom.y,
-                           best.bag_bottom.z])
-        neck = np.array([best.bag_neck.x, best.bag_neck.y,
-                         best.bag_neck.z])
-        center = 0.5 * (bottom + neck)
-        if not np.any(center):
-            center = bottom if np.any(bottom) else neck
-        if not np.any(center):
-            center = None
-        return best.target_id, center
+        return select_reconstruction_candidate(
+            self._latest_candidates, self.params.frames.base_frame,
+            self._preferred_target_id)
 
     def _on_start(self, request, response):
         """~/start_reconstruction：清空帧栈，绑定当前最优候选，→ COLLECTING."""
         del request
         target_id, center = self._best_candidate()
         response.message = self.collector.start(target_id, center)
+        self._target_kind_memory.bind(target_id)
         self._last_captured_stamp_sec = -1.0
         self._reset_products(create_volume=True)
         response.success = True
@@ -552,6 +640,10 @@ class PeachReconstructionNode(Node):
         if cached is None:
             return self._deny(response, '尚无同步 RGB-D 帧（确认相机/回放在线）')
         rgb, depth_mm, K, stamp_msg, stamp_sec, cam_frame = cached
+        target_mask, mask_reason = self._target_mask_for_frame(
+            stamp_msg, depth_mm)
+        if mask_reason:
+            return self._deny(response, mask_reason)
         if stamp_sec <= self._last_captured_stamp_sec:
             return self._deny(response, '缓存帧未更新（与上次采帧同帧），请等下一帧')
         age_s = self.get_clock().now().nanoseconds / 1e9 - stamp_sec
@@ -587,7 +679,8 @@ class PeachReconstructionNode(Node):
                 f'重复视角仍采帧（allow_duplicate_views=true）：'
                 f'平移 {trans * 1000.0:.1f} mm / 旋转 {rot:.1f} deg')
         accepted, message = self._accept_frame(
-            rgb, depth_mm, K, stamp_sec, T_base_camera, tf_status)
+            rgb, depth_mm, K, stamp_sec, T_base_camera, tf_status,
+            target_mask=target_mask)
         if not accepted:
             return self._deny(response, message)
         response.success = True
@@ -595,7 +688,8 @@ class PeachReconstructionNode(Node):
         return response
 
     def _accept_frame(self, rgb, depth_mm, K, stamp_sec: float,
-                      T_base_camera, tf_status: str) -> Tuple[bool, str]:
+                      T_base_camera, tf_status: str,
+                      target_mask=None) -> Tuple[bool, str]:
         """
         FK 构云 → 有界帧到模型 ICP → 入库并立即积分 TSDF.
 
@@ -617,11 +711,14 @@ class PeachReconstructionNode(Node):
         """
         try:
             cloud_fk, cloud_rgb, ratio = self._cloud_builder.build(
-                depth_mm, rgb, K, T_base_camera)
+                depth_mm, rgb, K, T_base_camera,
+                target_mask=target_mask)
         except (RuntimeError, ValueError) as exc:
             return False, f'点云构建失败: {exc}'
         if tf_status != 'ok':
             return False, '非精确时间 TF 帧禁止进入 TSDF'
+        masked_depth, _mask_ratio = apply_target_mask(
+            depth_mm, target_mask)
 
         # ICP 只看目标局部表面，避免桌面/枝叶等背景主导刚体修正。
         center = self._roi_center()
@@ -668,7 +765,7 @@ class PeachReconstructionNode(Node):
                                       'icp_disabled'):
             flags.append(reg_info['reason'])
         frame = CapturedFrame(
-            rgb=rgb, depth_mm=depth_mm, camera_K=K, stamp=stamp_sec,
+            rgb=rgb, depth_mm=masked_depth, camera_K=K, stamp=stamp_sec,
             T_base_camera=T_used, T_base_camera_fk=T_base_camera,
             target_id=self.collector.target_id,
             valid_depth_ratio=ratio, cloud_base=cloud_base,
@@ -683,7 +780,7 @@ class PeachReconstructionNode(Node):
                     self._tsdf_volume = VOLUME_FUSIONS['open3d_scalable'](
                         **self.tsdf_params)
                 self._tsdf_volume.integrate_frame(
-                    rgb, depth_mm, K, T_used)
+                    rgb, masked_depth, K, T_used)
                 self._refresh_tsdf_outputs()
             except Exception as exc:  # noqa: BLE001
                 # ScalableTSDF 不支持移除单帧；重建空体积并重放此前已确认帧，
@@ -711,6 +808,13 @@ class PeachReconstructionNode(Node):
             f'本帧 {cloud_base.shape[0]} 点，有效深度占比 {ratio:.2f}，'
             f'位姿={mode}')
         self.get_logger().info(message)
+        self._harvest_data.append_event({
+            'source': 'reconstruction', 'event': 'frame_accepted',
+            'target_id': self.collector.target_id,
+            'stamp_ns': int(round(stamp_sec * 1000000000.0)),
+            'view_index': n, 'mask_depth_ratio': float(ratio),
+            'registration': reg_info,
+        })
         self._publish_all()
         return True, message
 
@@ -751,6 +855,7 @@ class PeachReconstructionNode(Node):
         """~/reset_reconstruction：清空帧栈与绑定目标，回 IDLE."""
         del request
         self.collector.reset()
+        self._target_kind_memory.reset()
         self._last_captured_stamp_sec = -1.0
         self._reset_products(create_volume=False)
         response.success = True
@@ -784,6 +889,13 @@ class PeachReconstructionNode(Node):
                 if self.params.refit.enable:
                     message += self._run_refit()
             self.get_logger().info(message)
+            self._harvest_data.append_event({
+                'source': 'reconstruction', 'event': 'reconstruction_finalized',
+                'target_id': self.collector.target_id,
+                'captured_views': len(self.collector.frames),
+                'refined': self._refined_info,
+                'grasp_decision': self._grasp_decision(),
+            })
         else:
             self._overlap_cache = None
             self._tsdf_cloud_cache = None
@@ -941,6 +1053,11 @@ class PeachReconstructionNode(Node):
             return response
         response.success = True
         response.message = f'已保存 {len(frames)} 帧到 {session_dir}'
+        self._harvest_data.append_event({
+            'source': 'reconstruction', 'event': 'session_saved',
+            'target_id': self.collector.target_id,
+            'session_dir': str(session_dir),
+        })
         self.get_logger().info(response.message)
         self._publish_all()
         return response
@@ -973,6 +1090,7 @@ class PeachReconstructionNode(Node):
         if not target_id:
             return  # 无候选：静默等待（initial_pose 到位后自然触发）
         message = self.collector.start(target_id, center)
+        self._target_kind_memory.bind(target_id)
         self._last_captured_stamp_sec = -1.0
         self._reset_products(create_volume=True)
         self.get_logger().info(f'自动开始：{message}')
@@ -986,6 +1104,11 @@ class PeachReconstructionNode(Node):
         if cached is None:
             return
         rgb, depth_mm, K, stamp_msg, stamp_sec, cam_frame = cached
+        target_mask, mask_reason = self._target_mask_for_frame(
+            stamp_msg, depth_mm)
+        if mask_reason:
+            self.get_logger().debug(f'自动采帧跳过：{mask_reason}')
+            return
         if stamp_sec <= self._last_captured_stamp_sec:
             return  # 本帧已采过（等下一帧回调）
         age_s = self.get_clock().now().nanoseconds / 1e9 - stamp_sec
@@ -1017,7 +1140,8 @@ class PeachReconstructionNode(Node):
         if action == 'warn_capture':
             self.get_logger().warning(f'自动采帧：{reason}')
         accepted, message = self._accept_frame(
-            rgb, depth_mm, K, stamp_sec, T_base_camera, tf_status)
+            rgb, depth_mm, K, stamp_sec, T_base_camera, tf_status,
+            target_mask=target_mask)
         if not accepted:
             self.collector.rejected_views += 1
             self.get_logger().warning(f'自动采帧未入库：{message}')
@@ -1043,6 +1167,8 @@ class PeachReconstructionNode(Node):
         self.pub_status.publish(String(data=self.collector.state))
         self.pub_diag.publish(
             String(data=json.dumps(self._diagnostics(), ensure_ascii=False)))
+        self.pub_grasp_decision.publish(String(
+            data=json.dumps(self._grasp_decision(), ensure_ascii=False)))
         markers = build_camera_markers(header, self.collector.frames)
         refined_arrow = build_refined_marker(header, self._refined_result)
         if refined_arrow is not None:
@@ -1174,12 +1300,43 @@ class PeachReconstructionNode(Node):
         m.diagnostic_flags = list(result['flags'])
         return m
 
+    def _grasp_decision(self) -> dict:
+        """把最终精化质量归一成只读抓取许可，不发送运动指令."""
+        decision = {
+            'harvest_run_id': self._harvest_run_id,
+            'target_id': self.collector.target_id,
+            'allowed': False,
+            'reason': 'reconstruction_not_ready',
+        }
+        if self.collector.state != 'READY':
+            return decision
+        result = self._refined_result
+        if result is None or not result.get('ok'):
+            decision['reason'] = 'refined_geometry_unavailable'
+            return decision
+        if int(result.get('status', STATUS_REJECT)) != STATUS_ACCEPT:
+            decision['reason'] = 'refined_quality_requires_reobserve'
+            return decision
+        decision.update({
+            'allowed': True,
+            'reason': 'refined_geometry_accept',
+            'entry': [float(v) for v in result['entry']],
+            'axis': [float(v) for v in result['axis']],
+            'diameter_m': float(result['diameter']),
+            'rmse_m': float(result['rmse']),
+            'inlier_ratio': float(result['inlier_ratio']),
+        })
+        return decision
+
     def _diagnostics(self) -> dict:
         """组装诊断 dict（随 /peach/reconstruction/diagnostics 以 JSON 发出）."""
         c = self.collector
         cloud = c.accumulated_cloud()
         last_ratio = c.frames[-1].valid_depth_ratio if c.frames else None
         return {
+            'harvest_run_id': self._harvest_run_id,
+            'selected_target_id': self._preferred_target_id,
+            'target_mask_cache_size': len(self._target_masks),
             'state': c.state,
             'target_id': c.target_id,
             'target_center_base': (None if c.target_center is None
@@ -1204,6 +1361,7 @@ class PeachReconstructionNode(Node):
             # refit 摘要（kind/center/axis/diameter/rmse/inlier_ratio/ok）；
             # 未跑为 None，失败为 {'ok': False, 'reason': ...}
             'refined': self._refined_info,
+            'grasp_decision': self._grasp_decision(),
         }
 
     def _session_root(self) -> Path:
@@ -1221,6 +1379,9 @@ class PeachReconstructionNode(Node):
             'created': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'node': 'peach_reconstruction_node',
             'pipeline': 'exact-time FK + bounded ICP + online TSDF + refit',
+            'harvest_run_id': self._harvest_run_id,
+            'selected_target_id': self._preferred_target_id,
+            'target_mask_cache_size': len(self._target_masks),
             'state': c.state,
             'target_id': c.target_id,
             'target_center_base': (None if c.target_center is None

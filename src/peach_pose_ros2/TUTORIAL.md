@@ -471,10 +471,11 @@ CameraInfo，勿回退 FOV 推导"——内参只能信标定值）。
 接着确定两个坐标系并查 TF：
 
 ```python
-        T_out_cam = self._lookup_T_out_cam(rgb_msg.header.stamp, out_frame, cam_frame)
+        T_out_cam, tf_status = self._lookup_T_out_cam(
+            cam_frame, depth_msg.header.stamp)
 ```
 
-`_lookup_T_out_cam`（409–431）：先按帧时间戳查 TF；查不到退而查"最新"
+`_lookup_T_out_cam`（409–431）：先按深度图时间戳查 TF；查不到退而查"最新"
 TF 并一次性告警；再失败返回 None。488 行注释记录了设计决策：TF 查不到且
 设了 `output_frame` 时，**退回相机系发布**（`out_frame = cam_frame`），
 "避免静默用错坐标系"——下游拿到相机系的结果至少能发现并处理，比拿一个

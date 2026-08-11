@@ -4,6 +4,7 @@ import unittest
 import numpy as np
 
 from peach_reconstruction_ros2.cloud_builder import (
+    apply_target_mask,
     backproject_depth,
     build_cloud_base,
     pack_rgb_bgr,
@@ -130,6 +131,26 @@ class ByteOrderTest(unittest.TestCase):
         for tagged in (little, big):
             cloud, _, _ = build_cloud_base(tagged, K, np.eye(4))
             np.testing.assert_array_equal(cloud, ref)
+
+
+class TargetMaskTest(unittest.TestCase):
+    def test_mask_removes_background_and_reports_inside_ratio(self):
+        """掩膜外深度清零，质量比例只按目标掩膜内部统计."""
+        depth = np.full((4, 5), 1000, dtype=np.uint16)
+        mask = np.zeros_like(depth, dtype=np.uint8)
+        mask[1:3, 1:4] = 255
+        depth[1, 1] = 0
+        masked, ratio = apply_target_mask(depth, mask)
+        self.assertEqual(np.count_nonzero(masked), 5)
+        self.assertAlmostEqual(ratio, 5.0 / 6.0)
+        self.assertEqual(int(masked[0, 0]), 0)
+
+    def test_mask_shape_mismatch_rejected(self):
+        """掩膜与深度尺寸不同必须拒绝，防止错误目标区域被积分."""
+        with self.assertRaises(ValueError):
+            apply_target_mask(
+                np.ones((4, 5), dtype=np.uint16),
+                np.ones((3, 5), dtype=np.uint8))
 
 
 if __name__ == '__main__':

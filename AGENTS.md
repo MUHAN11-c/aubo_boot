@@ -1,4 +1,5 @@
-# AGENTS.md — AUBO E5 ROS 2 Jazzy 工作区
+
+（默认加载包内 ；可用  覆盖）# AGENTS.md — AUBO E5 ROS 2 Jazzy 工作区
 
 > 面向 AI 编码代理的项目说明。阅读者默认对本项目一无所知。
 > 项目文档与代码注释以中文为主，本文沿用中文。
@@ -232,9 +233,9 @@ moveit.launch.py`（自带 rsp + joint_state_publisher_gui；参数 `controllers
 `ros2 launch aubo_scene_recon recon.launch.py`（点云重建）、
 `ros2 launch peach_pose_ros2 peach_pose.launch.py`（桃子位姿，launch 无
 解释器参数）、
-`ros2 run peach_reconstruction_ros2 peach_reconstruction_node --ros-args
---params-file install/peach_reconstruction_ros2/share/peach_reconstruction_ros2/config/reconstruction.yaml`
-（连续在线 TSDF，无 launch，自动采集 + Trigger 服务备用）；无相机冒烟用
+`ros2 launch peach_reconstruction_ros2 reconstruction.launch.py`
+（默认加载包内 `config/reconstruction.yaml`；`params_file:=<路径>` 可覆盖；
+自动采集 + Trigger 服务备用）；无相机冒烟用
 `aubo_py3.12/bin/python tools/peach_dataset_replayer.py --dataset <根>`。
 任意 launch 的全部参数及中文说明可用 `--show-args` 查看。
 

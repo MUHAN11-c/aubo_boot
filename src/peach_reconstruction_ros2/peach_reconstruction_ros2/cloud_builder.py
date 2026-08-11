@@ -178,10 +178,28 @@ def transform_points(T_base_camera: np.ndarray,
     return (R @ cloud.T).T + t
 
 
+def apply_target_mask(depth_mm: np.ndarray, target_mask=None) -> tuple:
+    """将深度限制到单目标掩膜，并返回掩膜内有效深度占比."""
+    depth = np.asarray(depth_mm)
+    if target_mask is None:
+        return depth, valid_depth_ratio(depth)
+    mask = np.asarray(target_mask)
+    if mask.shape != depth.shape[:2]:
+        raise ValueError(
+            f'目标掩膜尺寸 {mask.shape} 与深度 {depth.shape[:2]} 不一致')
+    selected = mask > 0
+    pixels = int(np.count_nonzero(selected))
+    if pixels == 0:
+        return np.zeros_like(depth), 0.0
+    masked = np.where(selected, depth, 0).astype(depth.dtype, copy=False)
+    valid = np.count_nonzero(selected & np.isfinite(depth) & (depth > 0))
+    return masked, float(valid) / float(pixels)
+
+
 def build_cloud_base(depth_mm: np.ndarray, camera_K: dict,
                      T_base_camera: np.ndarray,
                      rgb_bgr: np.ndarray = None,
-                     stride: int = 1) -> tuple:
+                     stride: int = 1, target_mask=None) -> tuple:
     """
     一帧深度 → base 系点云 [m] + 逐点颜色 + 有效深度占比.
 
@@ -207,20 +225,21 @@ def build_cloud_base(depth_mm: np.ndarray, camera_K: dict,
 
     """
     o3d = require_open3d()
+    depth_work, ratio = apply_target_mask(depth_mm, target_mask)
     stride = max(1, int(stride))
     T = np.asarray(T_base_camera, dtype=np.float64)
     if rgb_bgr is None:
         # 无图路径：官方 stride 采样（抽样像素坐标保持原图坐标）
-        h, w = depth_mm.shape[:2]
+        h, w = depth_work.shape[:2]
         pcd = o3d.geometry.PointCloud.create_from_depth_image(
-            _depth_image_o3d(depth_mm), _intrinsic_o3d(camera_K, 1.0, w, h),
+            _depth_image_o3d(depth_work), _intrinsic_o3d(camera_K, 1.0, w, h),
             np.eye(4), depth_scale=1000.0, depth_trunc=_DEPTH_TRUNC_M,
             stride=stride, project_valid_depth_only=True)
         pcd.transform(T)
         return (np.asarray(pcd.points, dtype=np.float64).reshape(-1, 3),
-                None, valid_depth_ratio(depth_mm))
+                None, ratio)
     # 有图路径：create_from_rgbd_image 无 stride 参数，预切片 + 内参缩放
-    d = depth_mm[::stride, ::stride]
+    d = depth_work[::stride, ::stride]
     img = np.ascontiguousarray(rgb_bgr[::stride, ::stride, ::-1])  # BGR→RGB
     rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
         o3d.geometry.Image(img), _depth_image_o3d(d),
@@ -235,7 +254,7 @@ def build_cloud_base(depth_mm: np.ndarray, camera_K: dict,
     rgb01 = np.asarray(pcd.colors, dtype=np.float64)
     colors = np.clip(np.round(rgb01[:, ::-1] * 255.0),
                      0, 255).astype(np.uint8)
-    return xyz, colors, valid_depth_ratio(depth_mm)
+    return xyz, colors, ratio
 
 
 def pack_rgb_bgr(colors_bgr: np.ndarray) -> np.ndarray:
@@ -275,7 +294,7 @@ class Open3dCloudBuilder(CloudBuilder):
 
     def build(self, depth_mm: np.ndarray, rgb_bgr=None,
               camera_K: dict = None, T_base_camera: np.ndarray = None,
-              stride: int = 1) -> tuple:
+              stride: int = 1, target_mask=None) -> tuple:
         """
         委托 build_cloud_base（签名对齐 interfaces.CloudBuilder）.
 
@@ -292,7 +311,8 @@ class Open3dCloudBuilder(CloudBuilder):
 
         """
         return build_cloud_base(depth_mm, camera_K, T_base_camera,
-                                rgb_bgr=rgb_bgr, stride=stride)
+                                rgb_bgr=rgb_bgr, stride=stride,
+                                target_mask=target_mask)
 
 
 # 实现注册表（显式字典，yolo_ros 先例；编排层按名实例化）

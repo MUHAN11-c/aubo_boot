@@ -59,8 +59,8 @@ class CloudBuilder(ABC):
     @abstractmethod
     def build(self, depth_mm: np.ndarray, rgb_bgr: Optional[np.ndarray],
               camera_K: dict, T_base_camera: np.ndarray,
-              stride: int = 1) -> Tuple[np.ndarray, Optional[np.ndarray],
-                                        float]:
+              stride: int = 1, target_mask=None
+              ) -> Tuple[np.ndarray, Optional[np.ndarray], float]:
         """
         一帧深度反投影并变到 base 系.
 

@@ -6,8 +6,9 @@ import unittest
 from peach_reconstruction_ros2.params import ReconstructionParams
 import yaml
 
-_CONFIG = (Path(__file__).resolve().parents[1]
-           / 'config' / 'reconstruction.yaml')
+_PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+_CONFIG = _PACKAGE_ROOT / 'config' / 'reconstruction.yaml'
+_LAUNCH = _PACKAGE_ROOT / 'launch' / 'reconstruction.launch.py'
 
 
 class _FakeParam:
@@ -38,9 +39,9 @@ class ParamsSyncTest(unittest.TestCase):
         cls.code_defaults = ReconstructionParams.defaults_flat()
 
     def test_yaml_and_declare_keys_bidirectional(self):
-        """YAML 键集 == declare 键集（双向，35 个）."""
+        """YAML 键集 == declare 键集（双向，51 个）."""
         self.assertEqual(set(self.yaml_params), set(self.code_defaults))
-        self.assertEqual(len(self.code_defaults), 47)
+        self.assertEqual(len(self.code_defaults), 51)
 
     def test_yaml_and_declare_values_equal(self):
         """YAML 默认值 == declare 默认值（逐项，类型与数值一致）."""
@@ -96,6 +97,15 @@ class ParamsLoadTest(unittest.TestCase):
         params = ReconstructionParams.from_node(node)
         with self.assertRaises(dataclasses.FrozenInstanceError):
             params.depth_scale_unit = 1.0
+
+
+def test_launch_loads_packaged_reconstruction_yaml():
+    """标准 launch 默认加载包内 reconstruction.yaml 且使用 Node 入口."""
+    source = _LAUNCH.read_text(encoding='utf-8')
+    assert "'config', 'reconstruction.yaml'" in source
+    assert "executable='peach_reconstruction_node'" in source
+    assert 'parameters=[params_file]' in source
+    assert 'DeclareLaunchArgument(' in source
 
 
 if __name__ == '__main__':

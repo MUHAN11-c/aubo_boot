@@ -28,6 +28,10 @@ peach_reconstruction_node:
                                    # false = 纯手动 Trigger 服务流
     capture.auto_finalize_at_max: false  # 默认由用户在覆盖充分后 finalize
     capture.auto_min_interval_s: 0.0     # 每个唯一相机时间戳均进入质量门
+    capture.require_target_mask: true   # 只积分所选稳定 ID 的精确时刻掩膜
+    capture.min_mask_pixels: 300        # 过小视为远距小目标或严重遮挡
+    capture.min_mask_depth_ratio: 0.35  # 强光/反光造成深度空洞时跳帧
+    capture.max_target_drift_m: 0.04    # [m] 风吹目标漂移过大时跳帧
     # ── 视角过滤（本帧与上一已采帧的相对运动）─────────────────
     # 平移/旋转同时低于下限 = 重复视角；任一高于上限 = 跳变拒帧
     view_filter.min_translation: 0.002   # [m] 与旋转同时低于阈值则不重复积分

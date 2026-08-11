@@ -181,10 +181,64 @@ PYTHONPATH=peach_pose_ros2:$PYTHONPATH \
   /home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12/bin/python -m pytest test/ -q
 ```
 
-87 例业务测试（候选/拟合/袋果双管线/球精化/校验/深度归一化/TF 变换契约与锚点/
+91 例业务测试（候选/拟合/袋果双管线/球精化/校验/深度归一化/TF 变换契约与锚点/
 目标身份注册表（含恢复匹配与确认机制）/检测框去重/参数层同步与装载/接口层契约/
 纯核 import guard）
 + flake8/pep257 lint。
+
+### 全局目标计划与运行数据查询
+
+节点以首次稳定确认的全局观测锁定目标数量，按安全状态、相机距离、置信度
+和稳定 ID 确定固定优先级；靠近期间目标暂时遮挡或丢失不会改变选中 ID，只有
+显式调用重置服务才开始下一轮全局拍照。逐目标消息
+`/peach/perception/target_observations` 同时携带稳定 ID、优先级、三维结果、
+2D 结果、拟合诊断和以 `depth.header.stamp` 标记的独立 mono8 掩膜。
+
+```bash
+ros2 topic echo /peach/perception/harvest_state
+ros2 service call /peach_pose_node/query_harvest_state std_srvs/srv/Trigger "{}"
+# 外部抓取执行器确认成功后推进到固定优先级的下一目标
+ros2 service call /peach_pose_node/complete_selected_target std_srvs/srv/Trigger "{}"
+# 整轮结束或需要放弃计划时，才重新确定目标数量
+ros2 service call /peach_pose_node/reset_global_targets std_srvs/srv/Trigger "{}"
+```
+
+每轮数据默认写入工作区 `harvest_runs/harvest_*/`，也可用环境变量
+`AUBO_HARVEST_DATA_DIR` 改根目录：
+
+```text
+manifest.yaml                 # 固定目标清单、优先级、模型/标定版本
+events.jsonl                  # 感知与重建按时间追加的完整事件链
+latest_perception.json        # 感知最新状态
+latest_reconstruction.json    # 重建最新状态
+masks/<stamp_ns>_<id>.png     # 选中目标的逐帧掩膜
+```
+
+### 全局目标计划与运行数据查询
+
+节点以首次稳定确认的全局观测锁定目标数量，按安全状态、相机距离、置信度
+和稳定 ID 确定固定优先级；靠近期间目标暂时遮挡或丢失不会改变选中 ID，只有
+显式调用重置服务才开始下一轮全局拍照。逐目标消息
+ 同时携带稳定 ID、优先级、三维结果、
+2D 结果、拟合诊断和以  标记的独立 mono8 掩膜。
+
+WARNING: topic [/peach/perception/harvest_state] does not appear to be published yet
+waiting for service to become available...
+requester: making request: std_srvs.srv.Trigger_Request()
+
+response:
+std_srvs.srv.Trigger_Response(success=True, message='{"harvest_run_id": "", "snapshot_id": 0, "target_set_locked": false, "target_count": 0, "target_ids": [], "completed_target_ids": [], "priorities": {}, "selected_target_id": "", "data": {"run_dir": "", "latest": {}}}')
+
+waiting for service to become available...
+requester: making request: std_srvs.srv.Trigger_Request()
+
+response:
+std_srvs.srv.Trigger_Response(success=True, message='已重置全局目标集合，上一轮=无')
+
+每轮数据默认写入工作区 ，也可用环境变量
+ 改根目录：
+
+
 
 ## 执行逻辑
 
@@ -205,7 +259,7 @@ RGB(bgr8) + 深度(16UC1) + CameraInfo   ApproximateTime 同步 (slop=sync_slop_
   → 刀具几何门控（tool.*：内径/插入深/安全余量）→ 三态
       ACCEPT=0 / REOBSERVE=1 / REJECT=2
   → 几何经 TF 变到 output_frame（默认 base_link，依赖
-      hand_eye_extrinsics_publisher；按帧时间戳查询失败回退最新 TF 并给本帧
+      hand_eye_extrinsics_publisher；按 depth.header.stamp 查询失败回退最新 TF 并给本帧
       candidate/fitting 打 tf_stale；彻底失败退回相机系并告警 + 打
       tf_unavailable，不静默用错系）
   → 目标身份记忆（target_memory.*）：世界系最近邻匹配/注册，帧内序号
@@ -278,7 +332,8 @@ launch 无任何解释器参数，标准 `Node()` 启动。
 `/peach/perception/*` 为规范化话题，与对应 `~/` 话题并行发布**同一消息对象**，
 供下游按固定命名订阅。frame_id 约定：3D 结果（候选/2D/拟合/Marker/检测点云）为
 `output_frame`（TF 失败的帧退回相机系并打 `tf_unavailable`）；图像平面数据
-（detections/masks/debug_image）为 RGB 图自身坐标系。
+（detections/masks/debug_image）为 RGB 图自身坐标系。3D 结果的 header.stamp 与
+TF 查询统一使用 depth.header.stamp；图像平面结果保持 RGB 时间戳。
 
 三态：`ACCEPT=0` / `REOBSERVE=1` / `REJECT=2`。SAM 缺失显式 `mask_unavailable`，禁止静默回退。
 

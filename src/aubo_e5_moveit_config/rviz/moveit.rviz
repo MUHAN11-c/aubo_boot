@@ -4,11 +4,17 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
+        - /Global Options1
+        - /Status1
         - /PeachPose1
         - /PeachPose1/Grasp Markers1
+        - /PointCloud21
         - /Image1
         - /MotionPlanning1
-        - /RobotModel1
+        - /MarkerArray1
+        - /MarkerArray1/Status1
+        - /MarkerArray1/Topic1
+        - /MarkerArray2
       Splitter Ratio: 0.7425600290298462
     Tree Height: 462
   - Class: rviz_common/Views
@@ -44,7 +50,7 @@ Visualization Manager:
     - Class: rviz_common/Group
       Displays:
         - Class: rviz_default_plugins/MarkerArray
-          Enabled: true
+          Enabled: false
           Name: Grasp Markers
           Namespaces:
             {}
@@ -54,7 +60,7 @@ Visualization Manager:
             History Policy: Keep Last
             Reliability Policy: Reliable
             Value: /peach_pose_node/markers
-          Value: true
+          Value: false
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
@@ -119,7 +125,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /peach_pose_node/detection_cloud
+        Value: /peach/reconstruction/tsdf_cloud
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
@@ -326,7 +332,7 @@ Visualization Manager:
         Show Robot Collision: false
         Show Robot Visual: false
       Value: true
-      Velocity_Scaling_Factor: 0.1
+      Velocity_Scaling_Factor: 0.01
     - Alpha: 1
       Class: rviz_default_plugins/RobotModel
       Collision Enabled: false
@@ -353,10 +359,34 @@ Visualization Manager:
       Update Interval: 0
       Value: true
       Visual Enabled: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: MarkerArray
+      Namespaces:
+        {}
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /peach/reconstruction/markers
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: MarkerArray
+      Namespaces:
+        {}
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /peach_approach_grasp_node/planned_views
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
-    Fixed Frame: world
+    Fixed Frame: base_link
     Frame Rate: 30
   Name: root
   Tools:
@@ -371,31 +401,27 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/XYOrbit
-      Distance: 3.484525680541992
+      Distance: 2.6838371753692627
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.10346552729606628
-        Y: 0.5082409381866455
+        X: 0.04764673113822937
+        Y: -0.3418741226196289
         Z: -1.1175866347912233e-06
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.04479517042636871
+      Pitch: 0.5147976875305176
       Target Frame: world
       Value: XYOrbit (rviz)
-      Yaw: 4.974889755249023
+      Yaw: 0.4117034673690796
     Saved: ~
 Window Geometry:
-  "":
-    collapsed: false
-  " - Trajectory Slider":
-    collapsed: false
   Displays:
     collapsed: false
   Height: 1011
@@ -403,7 +429,11 @@ Window Geometry:
   Hide Right Dock: false
   Image:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000100000000000003f900000399fc0200000011fb000000100044006900730070006c006100790073010000003d0000020b000000c900fffffffb0000000800480065006c00700000000342000000bb0000000000000000fb0000000a0056006900650077007300000003b0000000b0000000a400fffffffb0000000c00430061006d00650072006100000002ff000001610000000000000000fb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e00670100000374000001890000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000000000000000fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e0067010000024e000001880000000000000000fb00000024005200760069007a00560069007300750061006c0054006f006f006c00730047007500690100000335000000410000000000000000fb0000000a00440065007000740068000000030a000000160000000000000000fb0000000a0043006f006c006f00720000000326000000160000000000000000fb0000000a004d00610073006b00730000000342000000160000000000000000fb0000000a00440065006200750067000000035e000000160000000000000000fb0000001e0054006f006f006c002000500072006f007000650072007400690065007300000002d00000005c0000005c00fffffffb0000000a0049006d00610067006500000002a1000001350000001600fffffffb000000280020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000004100fffffffbffffffff010000024e000001880000017d00fffffffb000000280020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff00000000000000000000033f0000039900000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  MotionPlanning:
+    collapsed: false
+  MotionPlanning - Trajectory Slider:
+    collapsed: false
+  QMainWindow State: 000000ff00000000fd0000000100000000000003f900000399fc0200000010fb000000100044006900730070006c006100790073010000003d0000020b000000c900fffffffb0000000800480065006c00700000000342000000bb0000000000000000fb0000000a0056006900650077007300000003b0000000b0000000a400fffffffb0000000c00430061006d00650072006100000002ff000001610000000000000000fb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e00670100000374000001890000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000004100fffffffb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e0067010000024e000001880000017d00fffffffb00000024005200760069007a00560069007300750061006c0054006f006f006c00730047007500690100000335000000410000000000000000fb0000000a00440065007000740068000000030a000000160000000000000000fb0000000a0043006f006c006f00720000000326000000160000000000000000fb0000000a004d00610073006b00730000000342000000160000000000000000fb0000000a00440065006200750067000000035e000000160000000000000000fb0000001e0054006f006f006c002000500072006f007000650072007400690065007300000002d00000005c0000005c00fffffffb0000000a0049006d0061006700650000000316000000c00000001600fffffffb000000280020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000000000000000fb000000280020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff00000000000000000000033f0000039900000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Tool Properties:
     collapsed: false
   Views:

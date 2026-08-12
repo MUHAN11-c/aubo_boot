@@ -5,6 +5,7 @@ import unittest
 import numpy as np
 
 from peach_reconstruction_ros2.candidate_contract import (
+    candidate_axis_hint,
     select_reconstruction_candidate,
     TargetKindMemory,
 )
@@ -24,6 +25,7 @@ def _candidate(target_id, status=0, frame='base_link', flags=None):
         diagnostic_flags=list(flags or []),
         bag_bottom=_point(0.1, 0.2, 0.3),
         bag_neck=_point(0.1, 0.2, 0.5),
+        translation_direction=_point(0.0, 2.0, 0.0),
     )
 
 
@@ -77,6 +79,26 @@ class CandidateContractTest(unittest.TestCase):
         target_id, _ = select_reconstruction_candidate(
             msg, 'base_link', preferred_target_id='selected')
         self.assertEqual(target_id, 'selected')
+
+    def test_preferred_id_is_hard_constraint(self):
+        """首选质量较低或暂时缺失时，不得静默绑定其他 ACCEPT 目标."""
+        msg = _candidate_array(
+            _candidate('selected', status=1), _candidate('other'))
+        target_id, _ = select_reconstruction_candidate(
+            msg, 'base_link', preferred_target_id='selected')
+        self.assertEqual(target_id, 'selected')
+
+        target_id, center = select_reconstruction_candidate(
+            msg, 'base_link', preferred_target_id='missing')
+        self.assertEqual(target_id, '')
+        self.assertIsNone(center)
+
+    def test_bound_axis_hint_is_normalized(self):
+        """重建冻结与绑定 ID 对应的有限单位方向先验."""
+        msg = _candidate_array(_candidate('selected'))
+        np.testing.assert_allclose(
+            candidate_axis_hint(msg, 'selected'), [0.0, 1.0, 0.0])
+        self.assertIsNone(candidate_axis_hint(msg, 'missing'))
 
 
 class TargetKindContractTest(unittest.TestCase):

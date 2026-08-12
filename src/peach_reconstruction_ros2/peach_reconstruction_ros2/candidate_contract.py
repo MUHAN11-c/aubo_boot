@@ -13,7 +13,13 @@ _BLOCKING_CANDIDATE_FLAGS = frozenset({
 
 def select_reconstruction_candidate(
         msg, base_frame: str, preferred_target_id: str = ''):
-    """选择可安全用于重建的候选，并返回 (target_id, center_base)."""
+    """
+    选择可安全用于重建的候选，并返回 (target_id, center_base).
+
+    ``preferred_target_id`` 非空时是身份硬约束：只允许返回该 ID，不能因
+    其他目标质量更高而静默换目标。重建同时消费 selected ID 的掩膜，因此
+    ID 软排序会把一个目标的掩膜与另一个目标的身份/ROI 混在同一 session。
+    """
     if msg is None or not msg.candidates:
         return '', None
     if msg.header.frame_id != base_frame:
@@ -28,8 +34,8 @@ def select_reconstruction_candidate(
             continue
         eligible.append(cand)
     if preferred_target_id:
-        eligible.sort(
-            key=lambda cand: cand.target_id != preferred_target_id)
+        eligible = [cand for cand in eligible
+                    if cand.target_id == preferred_target_id]
     best = next(
         (cand for cand in eligible if cand.status == _STATUS_ACCEPT), None)
     if best is None:
@@ -49,6 +55,25 @@ def select_reconstruction_candidate(
     if not np.any(center):
         center = None
     return best.target_id, center
+
+
+def candidate_axis_hint(msg, target_id: str):
+    """读取已绑定候选的有限单位轴；缺失或退化时返回 None."""
+    if msg is None or not target_id:
+        return None
+    candidate = next(
+        (item for item in msg.candidates if item.target_id == target_id), None)
+    if candidate is None:
+        return None
+    direction = candidate.translation_direction
+    axis = np.array(
+        [direction.x, direction.y, direction.z], dtype=np.float64)
+    if not np.all(np.isfinite(axis)):
+        return None
+    norm = float(np.linalg.norm(axis))
+    if norm <= 1.0e-9:
+        return None
+    return axis / norm
 
 
 class TargetKindMemory:

@@ -104,7 +104,7 @@ def test_launch_loads_packaged_reconstruction_yaml():
     source = _LAUNCH.read_text(encoding='utf-8')
     assert "'config', 'reconstruction.yaml'" in source
     assert "executable='peach_reconstruction_node'" in source
-    assert 'parameters=[params_file]' in source
+    assert 'parameters=[reconstruction_params_file]' in source
     assert 'DeclareLaunchArgument(' in source
 
 

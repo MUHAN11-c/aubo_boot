@@ -31,9 +31,11 @@ from peach_pose_msgs.msg import (
     BagGraspCandidateArray,
     PeachTargetObservationArray,
 )
+from peach_pose_ros2.bounded_worker import BoundedWorker
 from peach_pose_ros2.harvest_data import HarvestDataStore
 from peach_pose_ros2.peach_pose.depth_geometry import normalize_depth_to_uint16_mm
 from peach_reconstruction_ros2.candidate_contract import (
+    candidate_axis_hint,
     select_reconstruction_candidate,
     TargetKindMemory,
 )
@@ -69,6 +71,7 @@ from peach_reconstruction_ros2.params import ReconstructionParams
 from peach_reconstruction_ros2.session_io import save_session
 from peach_reconstruction_ros2.tf_utils import transform_msg_to_matrix
 from peach_reconstruction_ros2.tsdf_volume import LocalTsdf, VOLUME_FUSIONS
+from peach_reconstruction_ros2.view_coverage import summarize_view_coverage
 from peach_reconstruction_ros2.visualization import (
     build_camera_markers,
     build_mesh_marker,
@@ -209,6 +212,8 @@ class PeachReconstructionNode(Node):
         self._target_kind_memory = TargetKindMemory()
         self._refined_result: Optional[dict] = None
         self._refined_info: Optional[dict] = None
+        # 球体 refit 无法独立恢复姿态轴；绑定时冻结感知侧果梗/凹陷方向先验。
+        self._bound_axis_hint: Optional[np.ndarray] = None
 
         # ---- 发布者（/peach/reconstruction/* 固定命名）----
         # 状态类话题用 transient_local 闩锁（depth=1）：后启动的订阅者
@@ -251,6 +256,8 @@ class PeachReconstructionNode(Node):
             self, Image, self.params.camera.depth_topic, qos_profile=qos)
         sub_info = message_filters.Subscriber(
             self, CameraInfo, self.params.camera.camera_info_topic, qos_profile=qos)
+        self._frame_worker = BoundedWorker(
+            self._process_rgbd, capacity=3, drop_oldest=False)
         self.sync = message_filters.ApproximateTimeSynchronizer(
             [sub_rgb, sub_depth, sub_info], queue_size=10, slop=self.params.sync_slop_s)
         self.sync.registerCallback(self._on_rgbd)
@@ -307,6 +314,13 @@ class PeachReconstructionNode(Node):
     # 订阅回调
     # ------------------------------------------------------------------
     def _on_rgbd(self, rgb_msg: Image, depth_msg: Image, info: CameraInfo):
+        """将同步帧交给 TSDF 单写者队列，满队列拒绝新帧."""
+        if not self._frame_worker.submit((rgb_msg, depth_msg, info)):
+            self.get_logger().warning(
+                '重建 worker 队列已满，拒绝新帧以保持积分顺序',
+                throttle_duration_sec=1.0)
+
+    def _process_rgbd(self, frame):
         """
         同步回调：归一化深度后**只缓存最新一帧**（绝不自动累积）.
 
@@ -320,6 +334,7 @@ class PeachReconstructionNode(Node):
             无返回值（None）；缓存写 self._latest_frame.
 
         """
+        rgb_msg, depth_msg, info = frame
         try:
             rgb = self.bridge.imgmsg_to_cv2(rgb_msg, desired_encoding='bgr8')
             depth_raw = self.bridge.imgmsg_to_cv2(
@@ -342,6 +357,7 @@ class PeachReconstructionNode(Node):
             'cx': float(info.k[2]), 'cy': float(info.k[5]),
             'width': int(depth_mm.shape[1]), 'height': int(depth_mm.shape[0]),
         }
+
         intrinsic_values = np.array(
             [K['fx'], K['fy'], K['cx'], K['cy']], dtype=np.float64)
         if (not np.all(np.isfinite(intrinsic_values))
@@ -380,6 +396,7 @@ class PeachReconstructionNode(Node):
                 self._target_kind_memory.reset()
                 self._last_captured_stamp_sec = -1.0
                 self._reset_products(create_volume=False)
+                self._bound_axis_hint = None
                 self._target_masks.clear()
             elif self.collector.state != STATE_IDLE:
                 self.get_logger().warning(
@@ -619,6 +636,8 @@ class PeachReconstructionNode(Node):
         self._target_kind_memory.bind(target_id)
         self._last_captured_stamp_sec = -1.0
         self._reset_products(create_volume=True)
+        self._bound_axis_hint = candidate_axis_hint(
+            self._latest_candidates, target_id)
         response.success = True
         self.get_logger().info(response.message)
         self._publish_all()
@@ -858,6 +877,7 @@ class PeachReconstructionNode(Node):
         self._target_kind_memory.reset()
         self._last_captured_stamp_sec = -1.0
         self._reset_products(create_volume=False)
+        self._bound_axis_hint = None
         response.success = True
         response.message = '已清空，回 IDLE'
         self.get_logger().info(response.message)
@@ -962,7 +982,8 @@ class PeachReconstructionNode(Node):
         self.get_logger().info(
             f'REFINING：几何二次拟合开始（kind={kind}，{xyz.shape[0]} 点）')
         try:
-            result = self._geometry_refiner.refine(xyz, kind, self.refit_config)
+            result = self._geometry_refiner.refine(
+                xyz, kind, self.refit_config, self._bound_axis_hint)
         except Exception as exc:  # noqa: BLE001
             self._refined_result = None
             self._refined_info = {'ok': False, 'reason': f'exception:{exc}'}
@@ -1093,6 +1114,8 @@ class PeachReconstructionNode(Node):
         self._target_kind_memory.bind(target_id)
         self._last_captured_stamp_sec = -1.0
         self._reset_products(create_volume=True)
+        self._bound_axis_hint = candidate_axis_hint(
+            self._latest_candidates, target_id)
         self.get_logger().info(f'自动开始：{message}')
         self._publish_all()
 
@@ -1341,6 +1364,8 @@ class PeachReconstructionNode(Node):
             'target_id': c.target_id,
             'target_center_base': (None if c.target_center is None
                                    else [float(v) for v in c.target_center]),
+            'bound_axis_hint': (None if self._bound_axis_hint is None
+                                else [float(v) for v in self._bound_axis_hint]),
             'captured_views': len(c.frames),
             'rejected_views': c.rejected_views,
             'tf_failures': c.tf_failures,
@@ -1358,6 +1383,9 @@ class PeachReconstructionNode(Node):
                 'latest': (None if not self._registration_history
                            else self._registration_history[-1]),
             },
+            # 主动视觉控制器消费精确采帧位姿，而不是回调时刻的 latest TF。
+            'view_coverage': summarize_view_coverage(
+                c.frames, c.target_center),
             # refit 摘要（kind/center/axis/diameter/rmse/inlier_ratio/ok）；
             # 未跑为 None，失败为 {'ok': False, 'reason': ...}
             'refined': self._refined_info,
@@ -1389,6 +1417,8 @@ class PeachReconstructionNode(Node):
             'captured_views': len(c.frames),
             'rejected_views': c.rejected_views,
             'tf_failures': c.tf_failures,
+            'view_coverage': summarize_view_coverage(
+                c.frames, c.target_center),
             'parameters': {
                 'frames.base_frame': self.params.frames.base_frame,
                 'sync_slop_s': self.params.sync_slop_s,
@@ -1451,6 +1481,11 @@ class PeachReconstructionNode(Node):
                 'registration': dict(f.registration),
             } for i, f in enumerate(c.frames)],
         }
+
+    def destroy_node(self):
+        """停止重建单写者 worker 后销毁 ROS 节点."""
+        self._frame_worker.close(drain=False)
+        return super().destroy_node()
 
 
 def main(args=None):

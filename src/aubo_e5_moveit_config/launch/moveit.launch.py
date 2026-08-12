@@ -122,8 +122,10 @@ def launch_setup(context):
         'ompl': ompl_pipeline,
         'pilz_industrial_motion_planner': load(
             'aubo_e5_moveit_config', 'config/pilz_industrial_motion_planner_planning.yaml'),
+        # MTC 的 Task::execute() 通过此 capability 将完整 solution 交给 move_group。
         'capabilities': ('pilz_industrial_motion_planner/MoveGroupSequenceAction '
-                         'pilz_industrial_motion_planner/MoveGroupSequenceService')}
+                         'pilz_industrial_motion_planner/MoveGroupSequenceService '
+                         'move_group/ExecuteTaskSolutionCapability')}
     controllers = {
         'moveit_simple_controller_manager': load(
             'aubo_e5_moveit_config', 'config/' + controllers_file),

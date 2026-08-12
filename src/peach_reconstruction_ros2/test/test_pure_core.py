@@ -3,7 +3,7 @@
 
 guard 清单（数据层/算法层/接口层，均不得 import ROS）：
 captured_frame / frame_collector / cloud_builder / tf_utils / tsdf_volume /
-geometry_refiner / overlap / interfaces / session_io。
+geometry_refiner / overlap / interfaces / session_io / view_coverage。
 
 刻意排除（编排/参数层，ROS 耦合是本职，注释固化）：
   - reconstruction_node.py：编排主节点（rclpy/sensor_msgs 等）；
@@ -29,6 +29,7 @@ _PURE_CORE = (
     'overlap',
     'interfaces',
     'session_io',
+    'view_coverage',
 )
 
 # 行首 import 形式匹配 ROS 包（docstring 里的 'geometry_msgs/Transform'

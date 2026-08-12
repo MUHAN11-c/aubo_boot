@@ -5,8 +5,18 @@
 订阅 Percipio RGB-D，运行 YOLO + MobileSAM + 实测深度几何管线，发布抓取参考候选
 与 RViz Marker。**只发参考位姿，不发送运动指令。**
 
+## 当前开发范围：套袋桃
+
+当前项目的开发、参数整定和真机验收均以**套袋桃**为主线。在线链路重点使用
+`peach_bag` 类别、袋体掩膜、袋底—袋颈方向以及面向下游重建的稳定目标身份。
+`peach_nobag` 裸桃分支仅作为研究与接口兼容能力保留，尚未纳入当前真机抓取
+验收；其参考位姿不得绕过重建质量门，或直接作为现阶段工具接触的放行依据。
+
 从零逐行读懂本包（启动链 → 参数 → 节点 → 管线 → 输出话题）见
 **[TUTORIAL.md](TUTORIAL.md)**（零基础教程）。
+
+本包与连续局部重建的职责边界、接口映射、目标切换、真机全流程和验收方法见
+**[桃子首帧感知与连续局部重建联动说明](../../docs/peach_pose_reconstruction_integration.md)**。
 
 ## 使用方法
 
@@ -79,17 +89,17 @@ aubo_py3.12/bin/python tools/peach_dataset_replayer.py --dataset <数据集根> 
 #### 真相机 RGB-D
 
 ```bash
-# 终端 1：深度+配准（不改默认 RGB-only launch）
+# 终端 1：显式 RGB-D 封装（同时强制开启普通点云）
 ros2 launch percipio_camera percipio_rgbd.launch.py
 
 # 终端 2：感知节点
 ros2 launch peach_pose_ros2 peach_pose.launch.py
 ```
 
-或与 bringup 并用。注意 bringup 经 `camera_enabled` 起的是默认
-`percipio_camera.launch.py`（RGB-only，深度/点云关）；本包要深度，相机应改由
-`percipio_rgbd.launch.py` 提供（bringup 侧给 `camera_enabled:=false`，
-避免两个 launch 重复打开同一设备）：
+也可直接与 bringup 并用。当前 `percipio_camera.launch.py` 默认已开启深度、
+深度到 color 配准和彩色点云，因此 `camera_enabled:=true` 可直接满足本包输入。
+`percipio_rgbd.launch.py` 额外强制开启普通点云，适合单独调试；若选择另起该
+launch，bringup 侧必须给 `camera_enabled:=false`，避免重复打开同一设备：
 
 ```bash
 ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim camera_enabled:=false
@@ -214,31 +224,22 @@ latest_reconstruction.json    # 重建最新状态
 masks/<stamp_ns>_<id>.png     # 选中目标的逐帧掩膜
 ```
 
-### 全局目标计划与运行数据查询
+### 与 `peach_reconstruction_ros2` 联动
 
-节点以首次稳定确认的全局观测锁定目标数量，按安全状态、相机距离、置信度
-和稳定 ID 确定固定优先级；靠近期间目标暂时遮挡或丢失不会改变选中 ID，只有
-显式调用重置服务才开始下一轮全局拍照。逐目标消息
- 同时携带稳定 ID、优先级、三维结果、
-2D 结果、拟合诊断和以  标记的独立 mono8 掩膜。
+本包输出的是“发现与接近初值”，重建包输出的是“多视角精化结果”。联动时：
 
-WARNING: topic [/peach/perception/harvest_state] does not appear to be published yet
-waiting for service to become available...
-requester: making request: std_srvs.srv.Trigger_Request()
+1. 本包通过 `/peach/perception/target_observations` 发布当前选中 ID、逐目标掩膜、
+   初始三维候选、优先级、跟踪状态和质量标志。
+2. 掩膜使用 `depth.header.stamp`，重建包只接受同时间戳的深度、掩膜和精确 TF。
+3. 上层以 `/peach/perception/initial_pose` 规划低速接近，不将其当作最终抓取结果。
+4. 重建 finalize 后，上层优先使用 `/peach/reconstruction/refined_pose`，并把
+   `/peach/reconstruction/grasp_decision` 作为视觉许可门。
+5. 实际抓取和撤离成功后，上层才调用 `complete_selected_target` 推进下一目标。
 
-response:
-std_srvs.srv.Trigger_Response(success=True, message='{"harvest_run_id": "", "snapshot_id": 0, "target_set_locked": false, "target_count": 0, "target_ids": [], "completed_target_ids": [], "priorities": {}, "selected_target_id": "", "data": {"run_dir": "", "latest": {}}}')
-
-waiting for service to become available...
-requester: making request: std_srvs.srv.Trigger_Request()
-
-response:
-std_srvs.srv.Trigger_Response(success=True, message='已重置全局目标集合，上一轮=无')
-
-每轮数据默认写入工作区 ，也可用环境变量
- 改根目录：
-
-
+重建候选选择器对非空 `selected_target_id` 执行严格身份硬绑定：该 ID 暂时
+不可用时等待或拒绝本帧，不会切换到其他更高质量目标。运行时仍应监测感知
+`selected_target_id` 与重建 `diagnostics.target_id` 一致；不一致说明存在陈旧进程或
+跨版本节点，应立即 reset 并重启相关节点。完整约束见上方跨包联动文档。
 
 ## 执行逻辑
 
@@ -265,7 +266,11 @@ RGB(bgr8) + 深度(16UC1) + CameraInfo   ApproximateTime 同步 (slop=sync_slop_
   → 目标身份记忆（target_memory.*）：世界系最近邻匹配/注册，帧内序号
       target_{i} 改写为跨帧稳定 ID；tf_unavailable 帧跳过并打
       target_untracked（详见「目标身份记忆」小节）
+  → HarvestPlan：首次出现已确认且可选择目标时锁定数量和固定优先级；
+      生成 selected_target_id 与 PLANNED / WAITING_QUALITY / SELECTED / HARVESTED 状态
+  → HarvestDataStore：写 latest_perception.json、events.jsonl 和选中目标逐帧掩膜
   → 发布候选 / 2D / 拟合诊断 / 检测 / 掩膜 / Marker / debug 图 / 检测框点云
+      + target_observations / harvest_state
 ```
 
 内参始终取本机 `/camera/color/camera_info`（不做 FOV 推导回退，避免与标定
@@ -288,7 +293,7 @@ params.py（参数层）──► peach_pose_node.py（编排层）──► pea
 |---|---|---|
 | 参数层 | `params.py` | `PeachPoseParams` frozen dataclass：`declare(node)` 集中声明 32 参数 + `from_node(node)` 集中读取/解析/校验；YAML 为权威源（双向同步测试强制） |
 | 接口层 | `peach_pose/interfaces.py` | abc.ABC：`Detector`/`Segmenter`/`PoseEstimator` + `POSE_ESTIMATORS` 注册表（pipeline 底部显式登记；candidates 类别路由走注册表） |
-| 数据层 | `peach_pose/contracts.py`、`peach_pose/target_registry.py` | 纯数据合约 dataclass 与目标级数据持有者 TargetRegistry；零 ROS import |
+| 数据层 | `peach_pose/contracts.py`、`target_registry.py`、`harvest_plan.py`、`harvest_data.py` | 纯数据合约、稳定身份表、固定采摘计划和运行数据持有者；零 ROS import |
 | 编排层 | `peach_pose_node.py` | 只做：参数一行装载 → 建数据持有者 → 按注册表实例化算法 → 接线（订阅/发布/TF）→ 回调编排 → 发布 |
 | 编排层工具 | `tf_utils.py` / `conversions.py` / `visualization.py` / `cloud_utils.py` | TF 工具、msg⇄纯类型转换、RViz/debug 绘制、检测框点云（只被编排层用） |
 | 离线工具 | `peach_pose/offline/` | 离线数据集评估子包（不参与在线管线）：`e2e_validate.py` CLI、`validation.py`、`config.py`、`sphere_ref.py` |
@@ -328,12 +333,23 @@ launch 无任何解释器参数，标准 `Node()` 启动。
 | pub | `/peach/perception/masks` | `sensor_msgs/Image` mono8（同 ~/masks） |
 | pub | `/peach/perception/diagnostics` | `peach_pose_msgs/BagFittingArray`（同 ~/fitting） |
 | pub | `/peach/perception/markers` | `visualization_msgs/MarkerArray`（同 ~/markers） |
+| pub | `/peach/perception/target_observations` | `peach_pose_msgs/PeachTargetObservationArray`（稳定 ID、计划、逐目标结果与深度时间戳掩膜） |
+| pub | `/peach/perception/harvest_state` | `std_msgs/String`（JSON，全局计划快照，transient-local） |
 
 `/peach/perception/*` 为规范化话题，与对应 `~/` 话题并行发布**同一消息对象**，
-供下游按固定命名订阅。frame_id 约定：3D 结果（候选/2D/拟合/Marker/检测点云）为
+供下游按固定命名订阅。frame_id 约定：三维结果（候选/拟合/Marker/检测点云）为
 `output_frame`（TF 失败的帧退回相机系并打 `tf_unavailable`）；图像平面数据
-（detections/masks/debug_image）为 RGB 图自身坐标系。3D 结果的 header.stamp 与
-TF 查询统一使用 depth.header.stamp；图像平面结果保持 RGB 时间戳。
+（2D 候选/detections/整幅 masks/debug_image）使用图像坐标语义。三维结果的
+header.stamp 与 TF 查询统一使用 `depth.header.stamp`；普通图像平面调试结果保持
+RGB 时间戳；`target_observations` 内逐目标 mask 特意使用深度时间戳，供重建精确匹配。
+
+### 服务
+
+| 服务 | 类型 | 作用 |
+|---|---|---|
+| `/peach_pose_node/query_harvest_state` | `std_srvs/srv/Trigger` | 返回本轮 run ID、锁定数量、优先级、完成集合和 selected ID |
+| `/peach_pose_node/complete_selected_target` | `std_srvs/srv/Trigger` | 抓取与撤离确认后标记当前目标完成并推进 |
+| `/peach_pose_node/reset_global_targets` | `std_srvs/srv/Trigger` | 放弃旧计划并开始新的全局观察轮次 |
 
 三态：`ACCEPT=0` / `REOBSERVE=1` / `REJECT=2`。SAM 缺失显式 `mask_unavailable`，禁止静默回退。
 

@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f2ec">
+  <title>Peach Data Console</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <div class="terrain" aria-hidden="true"></div>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark"><span></span><span></span><span></span></div>
+      <div><p class="eyebrow">AUBO E5 · HARVEST OPERATIONS</p><h1>桃子采摘任务中心</h1></div>
+    </div>
+    <div class="top-status">
+      <div class="run-id"><span>HARVEST RUN</span><strong id="run-id">等待目标计划</strong></div>
+      <div class="connection" id="connection"><i></i><span>正在连接</span></div>
+      <time id="clock">--:--:--</time>
+    </div>
+  </header>
+
+  <section class="identity-bus panel" id="identity-bus">
+    <div class="bus-title"><p class="kicker">TARGET ID INVARIANT</p><strong id="identity-result">等待数据</strong></div>
+    <div class="identity-node"><span>感知选中</span><b id="perception-id">—</b></div>
+    <i class="bus-arrow">→</i>
+    <div class="identity-node"><span>重建绑定</span><b id="reconstruction-id">—</b></div>
+    <i class="bus-arrow">→</i>
+    <div class="identity-node"><span>精化输出</span><b id="refined-id">—</b></div>
+    <div class="identity-led"><i></i><span id="identity-hint">尚未形成完整链路</span></div>
+  </section>
+
+  <section class="operations panel" id="operations">
+    <div class="operation-summary">
+      <div><p class="kicker">ORCHESTRATION</p><h2 id="batch-state">等待编排器</h2></div>
+      <p id="batch-message">尚未收到类型化状态</p>
+      <div class="blockers" id="batch-blockers"></div>
+    </div>
+    <div class="operation-actions">
+      <button data-control="0" title="在安全检查点暂停">安全暂停</button>
+      <button data-control="1" title="通过健康门后恢复">恢复自动</button>
+      <button data-control="2" title="释放自动所有权">进入维护</button>
+      <button data-control="3" title="退出维护并保持暂停">退出维护</button>
+      <button class="danger" data-control="4" data-confirm="立即取消当前过程？">立即取消</button>
+      <button data-control="7" title="人工确认机械臂已处于安全位置后解除恢复锁定">确认恢复</button>
+    </div>
+    <div class="policy-grid">
+      <label title="健康门满足后自动开始"><input id="policy-auto" type="checkbox">自动开始</label>
+      <label title="允许规划结果发送到机械臂"><input id="policy-execution" type="checkbox">规划执行</label>
+      <label title="允许进入接触阶段"><input id="policy-grasp" type="checkbox">抓取动作</label>
+      <label title="允许调用末端工具 IO"><input id="policy-tool" type="checkbox">工具 IO</label>
+      <button id="apply-policy">应用策略</button>
+    </div>
+    <details class="debug-drawer" id="debug-drawer">
+      <summary><span>维护模式 · 手动调试服务</span><b>悬浮按钮查看含义</b></summary>
+      <div class="debug-groups">
+        <fieldset><legend>感知</legend>
+          <button data-debug="pose_query">查询计划</button><button data-debug="pose_complete">完成目标</button>
+          <button class="danger" data-debug="pose_reset" data-confirm="重置全部目标记忆？">重置目标</button>
+        </fieldset>
+        <fieldset><legend>重建</legend>
+          <button data-debug="recon_start">开始</button><button data-debug="recon_capture">采集</button>
+          <button data-debug="recon_remove">移除末帧</button><button data-debug="recon_finalize">完成</button>
+          <button data-debug="recon_save">保存</button><button data-debug="recon_query">查询</button>
+          <button class="danger" data-debug="recon_reset" data-confirm="清空当前重建会话？">重置</button>
+        </fieldset>
+        <fieldset><legend>靠近抓取</legend>
+          <button data-debug="approach_query">查询</button><button data-debug="approach_preview">预览靠近</button>
+          <button data-debug="approach_contact" data-confirm="执行完整接触预览？">完整接触</button>
+          <button data-debug="approach_start" data-confirm="启动单目标周期？">启动周期</button>
+          <button data-debug="approach_cancel">取消</button><button data-debug="approach_recovery">确认恢复</button>
+          <button data-debug="approach_arm" data-armed="true" data-confirm="使能机械臂执行调试？">Arm</button>
+          <button data-debug="approach_arm" data-armed="false">Disarm</button>
+        </fieldset>
+      </div>
+    </details>
+    <div class="profile-row"><input id="profile-name" maxlength="64" placeholder="档案名，如 sim_safe">
+      <button id="load-profile">加载档案</button><button id="save-profile">保存当前档案</button>
+      <span id="operation-result">等待操作</span></div>
+  </section>
+
+  <main class="dashboard">
+    <div class="plan-column">
+      <section class="panel target-panel">
+      <div class="section-head">
+        <div><p class="kicker">GLOBAL DISCOVERY</p><h2>固定目标计划</h2></div>
+        <span class="counter" id="target-count">0</span>
+      </div>
+      <div class="plan-meta">
+        <span id="plan-lock" class="tag neutral">未锁定</span>
+        <span id="snapshot-id">SNAP —</span>
+        <span id="completed-count">DONE 0</span>
+      </div>
+      <div class="target-table-wrap">
+        <table class="target-table">
+          <thead><tr><th>优先</th><th>ID / 状态</th><th>质量</th><th>距离</th><th>深度</th></tr></thead>
+          <tbody id="target-list"><tr><td colspan="5" class="empty">等待 target_observations</td></tr></tbody>
+        </table>
+      </div>
+      <div class="legend"><span><i class="accept"></i>ACCEPT</span><span><i class="warn"></i>REOBSERVE</span><span><i class="reject"></i>REJECT</span></div>
+      </section>
+
+      <section class="panel health-panel">
+        <div class="section-head compact"><div><p class="kicker">TOPIC FRESHNESS</p><h2>数据链路</h2></div><span id="revision">REV 0</span></div>
+        <div id="topic-health" class="topic-health"></div>
+      </section>
+
+      <section class="panel raw-panel">
+        <details><summary><span>原始状态快照</span><b>JSON · 点击展开</b></summary><pre id="raw-json">{}</pre></details>
+      </section>
+    </div>
+
+    <section class="panel selected-panel">
+      <div class="section-head">
+        <div><p class="kicker">SELECTED TARGET CONTRACT</p><h2>当前目标数据</h2></div>
+        <div class="quality-pair"><span id="tracking-state">NO DATA</span><strong id="quality-state">—</strong></div>
+      </div>
+
+      <div class="coordinate-block">
+        <div class="coordinate-head"><span>初始抓取入口</span><b id="pose-frame">FRAME —</b></div>
+        <div class="coordinate-row xyz"><span>X</span><b id="entry-x">—</b><span>Y</span><b id="entry-y">—</b><span>Z</span><b id="entry-z">—</b></div>
+        <div class="coordinate-row quat"><span>QX</span><b id="quat-x">—</b><span>QY</span><b id="quat-y">—</b><span>QZ</span><b id="quat-z">—</b><span>QW</span><b id="quat-w">—</b></div>
+      </div>
+
+      <div class="vector-grid">
+        <article><span>平移方向</span><strong id="translation-vector">—</strong></article>
+        <article><span>袋底坐标</span><strong id="bottom-vector">—</strong></article>
+        <article><span>袋颈坐标</span><strong id="neck-vector">—</strong></article>
+      </div>
+
+      <div class="metric-grid six">
+        <div><span>相机距离</span><strong id="camera-distance">—</strong></div>
+        <div><span>检测置信度</span><strong id="confidence">—</strong></div>
+        <div><span>目标直径</span><strong id="diameter">—</strong></div>
+        <div><span>建议行程</span><strong id="travel">—</strong></div>
+        <div><span>有效深度</span><strong id="depth-ratio">—</strong></div>
+        <div><span>拟合点数</span><strong id="fit-points">—</strong></div>
+      </div>
+
+      <div class="quality-bars">
+        <div><label><span>轴线置信度</span><b id="axis-confidence-value">—</b></label><i><em id="axis-confidence-bar"></em></i></div>
+        <div><label><span>拟合内点比例</span><b id="inlier-value">—</b></label><i><em id="inlier-bar"></em></i></div>
+      </div>
+
+      <div class="flags" id="target-flags"><span class="flag neutral">暂无诊断标志</span></div>
+
+      <dl class="versions">
+        <div><dt>策略</dt><dd id="strategy-id">—</dd></div>
+        <div><dt>模型</dt><dd id="model-version">—</dd></div>
+        <div><dt>标定</dt><dd id="calibration-version">—</dd></div>
+        <div><dt>刀具</dt><dd id="tool-version">—</dd></div>
+      </dl>
+    </section>
+
+    <aside class="telemetry-column">
+      <section class="panel reconstruction-panel">
+        <div class="section-head"><div><p class="kicker">LOCAL RECONSTRUCTION</p><h2>重建编排</h2></div><span class="state-pill idle" id="recon-state">IDLE</span></div>
+        <div class="metric-grid four">
+          <div><span>合格视角</span><strong id="captured-views">0</strong></div>
+          <div><span>拒绝帧</span><strong id="rejected-views">0</strong></div>
+          <div><span>TF 失败</span><strong id="tf-failures">0</strong></div>
+          <div><span>TF 延迟</span><strong id="tf-latency">—</strong></div>
+        </div>
+        <div class="mini-table">
+          <div><span>目标中心</span><b id="target-center">—</b></div>
+          <div><span>相邻位移</span><b id="relative-translation">—</b></div>
+          <div><span>相邻旋转</span><b id="relative-rotation">—</b></div>
+          <div><span>掩膜缓存</span><b id="mask-cache">0</b></div>
+        </div>
+      </section>
+
+      <section class="panel registration-panel">
+        <div class="section-head compact"><h2>FK / ICP 修正</h2><strong id="reg-mode">WARMUP</strong></div>
+        <div class="reg-result"><span id="reg-reason">等待模型</span><b id="reg-accepted">0 ACCEPTED</b></div>
+        <div class="metric-grid four small">
+          <div><span>Fitness</span><strong id="fitness">—</strong></div>
+          <div><span>RMSE</span><strong id="rmse">—</strong></div>
+          <div><span>平移修正</span><strong id="correction-translation">—</strong></div>
+          <div><span>旋转修正</span><strong id="correction-rotation">—</strong></div>
+        </div>
+      </section>
+
+      <section class="panel tsdf-panel">
+        <div class="section-head compact"><h2>TSDF 数据摘要</h2><span id="tsdf-status">NO DATA</span></div>
+        <div class="metric-grid four small">
+          <div><span>模型点数</span><strong id="tsdf-points">0</strong></div>
+          <div><span>积分帧</span><strong id="integrated-frames">0</strong></div>
+          <div><span>体素</span><strong id="voxel-length">—</strong></div>
+          <div><span>积分耗时</span><strong id="integrate-time">—</strong></div>
+        </div>
+        <div class="mini-table"><div><span>ROI 中心</span><b id="roi-center">—</b></div><div><span>融合云点数</span><b id="cloud-points">0</b></div></div>
+      </section>
+
+      <section class="panel decision-card" id="decision-card">
+        <p class="kicker">GRASP QUALITY GATE</p>
+        <div class="decision-title"><span class="decision-symbol">×</span><div><h2 id="decision-title">禁止抓取</h2><p id="decision-reason">reconstruction_not_ready</p></div></div>
+        <div class="metric-grid three small">
+          <div><span>精化直径</span><strong id="refined-diameter">—</strong></div>
+          <div><span>精化 RMSE</span><strong id="refined-rmse">—</strong></div>
+          <div><span>内点比例</span><strong id="refined-inlier">—</strong></div>
+        </div>
+        <div class="refined-row"><span>精化入口</span><b id="refined-entry">—</b></div>
+        <div class="refined-row"><span>精化轴线</span><b id="refined-axis">—</b></div>
+      </section>
+
+      <section class="panel approach-panel">
+        <div class="section-head compact"><div><p class="kicker">ACTIVE VIEW & GRASP</p><h2>靠近抓取编排</h2></div><span class="state-pill idle" id="approach-state">IDLE</span></div>
+        <div class="mini-table">
+          <div><span>当前说明</span><b id="approach-message">等待节点</b></div>
+          <div><span>周期目标</span><b id="approach-target">—</b></div>
+        </div>
+        <div class="metric-grid four small">
+          <div><span>执行 / Arm</span><strong id="approach-arm">OFF / OFF</strong></div>
+          <div><span>合格视角</span><strong id="approach-views">0</strong></div>
+          <div><span>最大 / 近邻基线</span><strong id="approach-baseline">—</strong></div>
+          <div><span>有效深度</span><strong id="approach-depth">—</strong></div>
+          <div><span>精化 RMSE</span><strong id="approach-rmse">—</strong></div>
+          <div><span>精化内点</span><strong id="approach-inlier">—</strong></div>
+          <div><span>视觉许可</span><strong id="approach-allowed">NO</strong></div>
+          <div><span>抓取执行</span><strong id="approach-grasp">DISABLED</strong></div>
+        </div>
+      </section>
+    </aside>
+
+  </main>
+
+  <footer class="footer"><span>CONTROLLED OPERATIONS · IMAGE & CLOUD IN RVIZ2</span><span>运动使能不包含上电；上电与安全恢复始终由现场人员完成</span><span id="server-uptime">UP 00:00</span></footer>
+  <script src="/app.js"></script>
+</body>
+</html>

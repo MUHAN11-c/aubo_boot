@@ -1,0 +1,68 @@
+peach_approach_grasp_node:
+  ros__parameters:
+    frames:
+      base: base_link
+      wrist: wrist3_Link
+      # 视点姿态按 ROS 光学坐标系（+Z 前、+X 右、+Y 下）生成。
+      camera: camera_depth_optical_frame
+      tool: tcp
+    moveit:
+      planning_group: manipulator_e5
+      planning_time_s: 5.0
+      planning_attempts: 5
+      # 真机初始验证不得高于 0.1。
+      velocity_scaling: 0.05
+      acceleration_scaling: 0.05
+      pilz_pipeline: pilz_industrial_motion_planner
+      fallback_pipeline: ompl
+      # MTC：自由空间用 OMPL，进入果袋后只允许笛卡尔直线。
+      mtc_free_space_planner: RRTConnectkConfigDefault
+      mtc_cartesian_step_m: 0.005
+      mtc_cartesian_precision_m: 0.001
+      mtc_max_solutions: 5
+    behavior_tree:
+      # launch 会覆盖为安装目录下 config/harvest_tree.xml 的绝对路径。
+      xml: ''
+    scan:
+      observation_radius_m: 0.28
+      minimum_radius_m: 0.20
+      azimuth_step_deg: 12.0
+      azimuth_limit_deg: 36.0
+      elevation_step_deg: 8.0
+      elevation_limit_deg: 16.0
+      preferred_baseline_deg: 15.0
+      radial_step_m: 0.015
+      candidate_layers: 3
+      views_to_minimum_radius: 5
+      maximum_moves: 8
+      frame_wait_s: 3.0
+    quality:
+      minimum_views: 5
+      minimum_baseline_deg: 22.0
+      minimum_mean_nearest_baseline_deg: 8.0
+      minimum_mean_depth_ratio: 0.40
+      maximum_refined_rmse_m: 0.005
+      minimum_refined_inlier_ratio: 0.35
+      maximum_data_age_s: 2.0
+    execution:
+      # 默认只规划：设为 true 后，每个周期还必须人工调用 set_execution_armed。
+      enabled: false
+      require_robot_status: true
+      robot_status_max_age_s: 1.0
+      target_observation_max_age_s: 1.0
+      reset_reconstruction_on_start: false
+    grasp:
+      # 默认停在 READY_FOR_GRASP，不执行接触动作。
+      enabled: false
+      neck_margin_m: 0.015
+      minimum_travel_m: 0.02
+      maximum_travel_m: 0.20
+      complete_target_after_retreat: true
+    tool:
+      enabled: false
+      io_fun: 3
+      io_pin: 0
+      close_state: 1.0
+    timeouts:
+      service_s: 3.0
+      refined_s: 10.0

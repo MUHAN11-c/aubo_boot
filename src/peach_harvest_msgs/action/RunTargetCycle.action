@@ -1,0 +1,20 @@
+uint8 PREVIEW=0
+uint8 OBSERVE_ONLY=1
+uint8 FULL=2
+
+string request_id
+string run_id
+string cycle_id
+string target_id
+uint8 mode
+---
+uint8 SUCCEEDED=0
+uint8 SKIPPED_QUALITY=1
+uint8 SKIPPED_UNREACHABLE=2
+uint8 FAILED=3
+
+uint8 outcome
+string reason
+bool recovery_required
+---
+peach_harvest_msgs/HarvestState state

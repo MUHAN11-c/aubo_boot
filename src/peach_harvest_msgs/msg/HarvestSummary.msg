@@ -1,0 +1,10 @@
+string run_id
+uint32 discovered
+uint32 attempted
+uint32 succeeded
+uint32 skipped_quality
+uint32 skipped_unreachable
+uint32 failed
+uint32 canceled
+builtin_interfaces/Duration elapsed
+peach_harvest_msgs/TargetOutcome[] outcomes

@@ -14,8 +14,9 @@ A/B 方向一致到 |dot|=1.0；TSDF 云无序、无原始深度图可用，符�
 输出轴统一 bottom→neck（neck 恒在上方）。base_link 为 z 向上系、重力
 约定 [0,0,-1]：axis·[0,0,-1] > 0（轴指向地下）则取反。圆柱 bottom/neck =
 内点云沿轴投影的 P10/P90 分位带中位点（再投回轴线，抓取语义要轴上点）；
-球无内禀轴，按重力约定取竖直向上轴：bottom = center − r·axis、
-neck = center + r·axis。
+球面无内禀轴，不能仅凭球拟合恢复果梗方向：球心和半径由 TSDF 精化，
+方向沿用本轮绑定目标在 base_frame 中的单帧果梗/凹陷轴；先验缺失时才显式
+回退 +Z 并添加 `fruit_axis_defaulted`。
 
 失败语义：空云/少点/拟合不收敛一律 ok=False 返回（status=REJECT），
 不抛异常，由节点侧决定不发布 refined_pose/refined_axis。
@@ -170,7 +171,8 @@ def _fail(reason: str, n_points: int) -> dict:
 
 
 def refine_geometry(xyz: np.ndarray, target_kind: str = 'bag',
-                    config: Optional[RefitConfig] = None) -> dict:
+                    config: Optional[RefitConfig] = None,
+                    axis_hint=None) -> dict:
     """
     TSDF 云几何二次拟合：袋桃圆柱 RANSAC / 裸桃球拟合 + 方向消歧 + 门控.
 
@@ -184,6 +186,9 @@ def refine_geometry(xyz: np.ndarray, target_kind: str = 'bag',
         xyz: (N, 3) 点 [m]（base_frame）；空云/少点优雅失败不抛异常.
         target_kind: 'bag'/'fruit'（来自 /peach/perception/diagnostics）.
         config: 门控与行为参数；None 用 RefitConfig 默认.
+        axis_hint: 可选 bottom→neck 单位方向（base_frame）。球体自身旋转
+            对称，无法只靠球面恢复果梗方向；有效先验来自绑定目标的单帧
+            果梗/凹陷估计。缺失时才退回 base +Z，并显式打诊断标记.
 
     Returns
     -------
@@ -223,8 +228,18 @@ def refine_geometry(xyz: np.ndarray, target_kind: str = 'bag',
         if est is None:
             return _fail('sphere_fit_failed', n)
         center = np.asarray(est['center'], dtype=np.float64)
-        # 球无内禀轴：按重力约定取竖直向上（消歧后 neck 恒在上方）
-        axis = np.array([0.0, 0.0, 1.0])
+        # 球面旋转对称，球拟合只能精化 center/radius，不能凭空产生果梗轴。
+        # 优先沿用绑定目标在 base 系的果梗/凹陷方向；先验缺失才显式退 +Z。
+        hint = None if axis_hint is None else np.asarray(
+            axis_hint, dtype=np.float64).reshape(-1)
+        if (hint is not None and hint.size == 3
+                and np.all(np.isfinite(hint))
+                and np.linalg.norm(hint) > 1.0e-9):
+            axis = hint / np.linalg.norm(hint)
+            axis_flag = 'fruit_axis_from_perception'
+        else:
+            axis = np.array([0.0, 0.0, 1.0])
+            axis_flag = 'fruit_axis_defaulted'
         bottom = center - est['radius'] * axis
         neck = center + est['radius'] * axis
         span = 2.0 * float(est['radius'])
@@ -234,6 +249,8 @@ def refine_geometry(xyz: np.ndarray, target_kind: str = 'bag',
     rmse = float(est['rms'])
     inlier_ratio = float(est['inlier_ratio'])
     flags: List[str] = []
+    if kind == 'sphere':
+        flags.append(axis_flag)
     status = STATUS_ACCEPT
     if inlier_ratio < config.cylinder_inlier_min:
         flags.append('low_inlier_ratio')
@@ -262,7 +279,8 @@ class RansacGeometryRefiner(GeometryRefiner):
     """
 
     def refine(self, cloud_xyz: np.ndarray, target_kind: str = 'bag',
-               config: Optional[RefitConfig] = None) -> dict:
+               config: Optional[RefitConfig] = None,
+               axis_hint=None) -> dict:
         """
         委托 refine_geometry（签名对齐 interfaces.GeometryRefiner）.
 
@@ -276,7 +294,7 @@ class RansacGeometryRefiner(GeometryRefiner):
             与 refine_geometry 相同的 dict.
 
         """
-        return refine_geometry(cloud_xyz, target_kind, config)
+        return refine_geometry(cloud_xyz, target_kind, config, axis_hint)
 
 
 # 实现注册表（显式字典，yolo_ros 先例；编排层按名实例化）

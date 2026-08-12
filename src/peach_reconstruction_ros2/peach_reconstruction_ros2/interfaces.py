@@ -106,7 +106,7 @@ class GeometryRefiner(ABC):
 
     @abstractmethod
     def refine(self, cloud_xyz: np.ndarray, target_kind: str,
-               config=None) -> dict:
+               config=None, axis_hint=None) -> dict:
         """
         圆柱/球 RANSAC 精化 + bottom→neck 消歧 + ACCEPT/REOBSERVE 门控.
 
@@ -114,6 +114,7 @@ class GeometryRefiner(ABC):
             cloud_xyz: (N, 3) 点 [m]（base_frame）.
             target_kind: 'bag'/'fruit'（'fruit' 以外按袋桃圆柱线）.
             config: geometry_refiner.RefitConfig；None 用默认.
+            axis_hint: 可选 bottom→neck 方向先验；球体无内禀轴时使用.
 
         Returns
         -------

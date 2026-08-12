@@ -114,7 +114,7 @@ class GeometryRefinerTest(unittest.TestCase):
         self.assertAlmostEqual(self.sph['radius'], SPH_R, delta=0.004)
 
     def test_sphere_bottom_neck_convention(self):
-        """球 bottom/neck 约定：center∓r·[0,0,1]（竖直轴，neck 在上）."""
+        """无方向先验时显式退到 +Z，并发布 defaulted 诊断."""
         axis = self.sph['axis']
         self.assertTrue(np.allclose(axis, [0.0, 0.0, 1.0]))
         self.assertTrue(np.allclose(
@@ -122,6 +122,20 @@ class GeometryRefinerTest(unittest.TestCase):
         self.assertTrue(np.allclose(
             self.sph['neck'], self.sph['center'] + self.sph['radius'] * axis))
         self.assertGreater(self.sph['neck'][2], self.sph['bottom'][2])
+        self.assertIn('fruit_axis_defaulted', self.sph['flags'])
+
+    def test_sphere_uses_bound_perception_axis(self):
+        """球面只精化中心/半径，姿态沿用已绑定目标的果梗方向先验."""
+        hint = np.array([1.0, 2.0, -1.0])
+        expected = hint / np.linalg.norm(hint)
+        result = refine_geometry(
+            self.sph_xyz, 'fruit', RefitConfig(), axis_hint=hint)
+        np.testing.assert_allclose(result['axis'], expected)
+        np.testing.assert_allclose(
+            result['bottom'], result['center'] - result['radius'] * expected)
+        np.testing.assert_allclose(
+            result['neck'], result['center'] + result['radius'] * expected)
+        self.assertIn('fruit_axis_from_perception', result['flags'])
 
     # ── 方向消歧 ────────────────────────────────────────────
     def test_axis_flip_invariance(self):

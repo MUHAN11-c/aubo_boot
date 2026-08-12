@@ -1,5 +1,13 @@
 # AUBO E5 ROS 2 Jazzy 工作区
 
+> **⚠️ 测试状态：未完全测试完成**
+>
+> 本快照为持续开发中的交付版本（2026-08-12），包含桃子采摘感知/重建/抓取/编排全链路
+> 新代码，但**尚未完成全部测试**：部分新包（peach_harvest_orchestrator、
+> peach_approach_grasp、peach_perception_web 等）仅通过单测/静态检查，整机集成、
+> 真机运动验证与 colcon 全量回归尚未完成。使用前请仔细阅读各包 README 与
+> `docs/peach_harvest_operations.md`，并按安全章节流程自行验证。
+
 面向 AUBO E5 六轴机械臂（老控制器固件，8899 端口旧 SDK v1.3.1）的 ROS 2 Jazzy 驱动。
 核心逻辑完全遵循 Humble 实测驱动（aubo_boot）的**一次性下发**模式：整条轨迹一次接收，
 硬件侧五次重采样（5ms 点距）→ RIB 水位流控 → TCP2CAN 透传至接口板（5ms/点消费）。
@@ -28,6 +36,8 @@ src/
 ├── peach_pose_msgs/            # 桃子位姿估计的自定义消息
 ├── peach_pose_ros2/            # 桃子位姿感知（YOLO+MobileSAM+深度几何，venv 节点）
 ├── peach_reconstruction_ros2/  # 桃子多视角局部重建（自动采帧+Open3D TSDF，venv 节点）
+├── peach_approach_grasp/       # 主动视觉、行为树与 MTC 抓取编排（C++/MoveIt）
+├── peach_perception_web/       # 感知/重建/抓取只读数据台（目标、位姿、质量、ID 链）
 ├── peach_gantry_description/   # 【新结构模型，暂不参与】架子式采摘机器人 URDF
 ├── peach_moveit_config/        # 【新结构模型，暂不参与】架子机 MoveIt 配置
 └── percipio_camera/            # 相机驱动（厂商代码；launch 默认值已项目化）
@@ -52,7 +62,8 @@ aubo_py3.12/bin/pip install -r requirements.txt   # 锁定的依赖（numpy<2 �
 
 ROS 节点分两层运行（约定详见 `AGENTS.md` 第 2/8 节）：
 
-- **纯 ROS 节点**（aubo_hand_eye_calibration）：系统 python3（console_scripts + apt 依赖）
+- **纯 ROS 节点**（aubo_hand_eye_calibration、peach_perception_web）：系统 python3
+  （console_scripts + apt 依赖）
 - **torch/open3d 节点**（aubo_scene_recon、peach_pose_ros2、peach_reconstruction_ros2）：
   标准 console_scripts 入口，setup.py 经 `options.build_scripts.executable` 把启动器
   shebang 指向 venv 解释器（构建期解析，换机重建自动适配）；launch 一律标准 `Node()`，
@@ -73,6 +84,7 @@ cd src/aubo_hand_eye_calibration && ../../aubo_py3.12/bin/python -m pytest test/
 cd src/aubo_scene_recon && ../../aubo_py3.12/bin/python -m pytest test/ -q
 cd src/peach_pose_ros2 && PYTHONPATH=peach_pose_ros2:$PYTHONPATH ../../aubo_py3.12/bin/python -m pytest test/ -q
 cd src/peach_reconstruction_ros2 && PYTHONPATH=.:../peach_pose_ros2:$PYTHONPATH ../../aubo_py3.12/bin/python -m pytest test/ -q
+cd src/peach_perception_web && ../../aubo_py3.12/bin/python -m pytest test/ -q
 ```
 
 ## 三种运行模式
@@ -112,9 +124,10 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim camera_enabled:
 # 感知与重建（独立入口，venv 节点 console_scripts 直接启动；详见各自 README）
 ros2 launch aubo_scene_recon recon.launch.py            # 点云场景重建（open3d/tsdf）
 ros2 launch peach_pose_ros2 peach_pose.launch.py        # 桃子位姿感知（YOLO+SAM）
-ros2 run peach_reconstruction_ros2 peach_reconstruction_node   # 桃子多视角局部重建
-#   默认全自动：有候选自动开始 → RViz 低速动臂自动采帧 → 满 8 视角自动 finalize，
-#   RViz 看 /peach/reconstruction/local_cloud（raw）与 tsdf_cloud（TSDF，RGB8 上色）
+ros2 launch peach_reconstruction_ros2 reconstruction.launch.py # 桃子多视角局部重建
+#   默认有候选自动开始并连续采帧；覆盖充分后显式 finalize
+ros2 launch peach_approach_grasp approach_grasp.launch.py # 默认只规划，不发送运动
+ros2 launch peach_perception_web peach_perception_web.launch.py # 数据台 http://127.0.0.1:8090
 
 # 验证过程数据记录（感知/重建话题 + 相机图 + 点云 PLY + 参数/TF 快照，落盘 validation_runs/）
 aubo_py3.12/bin/python tools/peach_validation_recorder.py record --step <步骤名> [--note "备注"]
@@ -204,7 +217,9 @@ hardware 参数（URDF `<param>`，见 `aubo_description/urdf/aubo_e5.ros2_contr
 - [docs/usage.md](docs/usage.md) — 完整命令手册与排障表
 - 包级 README：[手眼标定](src/aubo_hand_eye_calibration/README.md)、
   [场景重建](src/aubo_scene_recon/README.md)、[桃子位姿](src/peach_pose_ros2/README.md)、
-  [桃子连续TSDF重建](src/peach_reconstruction_ros2/README.md)
+  [桃子连续TSDF重建](src/peach_reconstruction_ros2/README.md)、
+  [主动视觉靠近与抓取](src/peach_approach_grasp/README.md)、
+  [桃子感知 Web 控制台](src/peach_perception_web/README.md)
 - [docs/source_audit_2026-08-10.md](docs/source_audit_2026-08-10.md) — 源码审查范围、官方基线与修复记录
 - [docs/peach_perception_progress.md](docs/peach_perception_progress.md) — 桃子视觉
   两包开发进度与真机验证台账

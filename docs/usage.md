@@ -258,7 +258,7 @@ percipio_camera.launch.py`。相机默认开启彩色点云，输出
 ```bash
 ros2 launch aubo_scene_recon recon.launch.py                       # open3d 点云累加（默认后端）
 ros2 launch aubo_scene_recon recon.launch.py backend:=tsdf         # RGB-D TSDF
-# launch 参数：params_file（默认包内 config/recon.yaml）、save_dir
+# launch 参数：reconstruction_params_file（默认包内 config/reconstruction.yaml）、save_dir
 # （空 → 回退 <进程CWD>/recon_maps，工作区根运行即 recon_maps/）、
 # pointcloud_topic、backend；ros2 launch ... --show-args 可查
 
@@ -290,9 +290,8 @@ Open3D ICP 只做有界小修正；合格帧在机械臂连续慢速运动中立
 `/aubo_dashboard/startup`。
 
 ```bash
-# peach_pose_ros2 已运行且检测到目标后启动
-ros2 run peach_reconstruction_ros2 peach_reconstruction_node --ros-args \
-  --params-file install/peach_reconstruction_ros2/share/peach_reconstruction_ros2/config/reconstruction.yaml
+# peach_pose_ros2 已运行且检测到目标后启动；launch 默认加载 reconstruction.yaml
+ros2 launch peach_reconstruction_ros2 reconstruction.launch.py
 
 # RViz2 速度缩放保持 0.01；连续获取 12～24 帧时观察
 ros2 topic echo /peach/reconstruction/diagnostics
@@ -307,7 +306,26 @@ RViz2 添加 `/peach/reconstruction/tsdf_cloud`（PointCloud2）与
 `/peach/reconstruction/markers`（MarkerArray）；后者包含相机轨迹、
 finalize 后的 TSDF 网格和 refined 轴。完整参数与判据见包级 README。
 
-### 9.4 无相机冒烟：数据集回放（tools/peach_dataset_replayer.py）
+### 9.4 主动视觉靠近与抓取（peach_approach_grasp）
+
+默认模式只生成候选视点并调用 MoveIt 规划，不发送运动。BehaviorTree.CPP 读取
+`config/harvest_tree.xml` 编排质量门和分支；球面主动视点仍采用首段 PTP、后续短 LIN
+逐位闭环补观测。最终抓取由 MTC 执行“OMPL 无碰到入口 → Cartesian 精化轴插入 →
+工具 IO → 独立 Cartesian 原轴撤回”。完整质量门、安全限制见包级 README。
+
+```bash
+ros2 launch peach_approach_grasp approach_grasp.launch.py
+ros2 service call /peach_approach_grasp_node/start_cycle std_srvs/srv/Trigger '{}'
+ros2 service call /peach_approach_grasp_node/query_state std_srvs/srv/Trigger '{}'
+```
+
+RViz2 添加 `/peach_approach_grasp_node/planned_views`（MarkerArray）查看候选视点；
+Web 数据台显示 `/peach_approach_grasp_node/status`。真机运动默认关闭，禁止跳过
+README 中的人工 arm、0.05 速度和无工具观察运动验证阶段。
+RViz2 添加 Motion Planning Tasks 面板可查看 MTC 分阶段 solution。升级后必须重启
+bringup/move_group，使 `ExecuteTaskSolutionCapability` 生效；不得为此重启当前真机进程。
+
+### 9.5 无相机冒烟：数据集回放（tools/peach_dataset_replayer.py）
 
 回放工具已独立到 tools/（不随 colcon 构建），发布与相机驱动同名的话题
 （`/camera/color/image_raw`、`/camera/depth/image_raw`、
@@ -327,12 +345,13 @@ ros2 param set /peach_pose_node depth_scale_unit 1.0
 
 ## 10. 测试与 lint
 
-13 个项目包已接入 lint 测试（percipio_camera 为厂商代码，未接入），
+15 个项目包已接入 lint 测试（percipio_camera 为厂商代码、
+peach_moveit_config 为 Setup Assistant 生成包，均未接入），
 业务测试用 venv 解释器手动跑：
 
 ```bash
-# 全包 lint + 已接入的测试（9 个 CMake 包 ament_lint_auto：
-# copyright/cpplint/uncrustify/lint_cmake/xmllint；4 个 Python 包 pytest 模板
+# 全包 lint + 已接入的测试（10 个 CMake 包 ament_lint_auto：
+# copyright/cpplint/uncrustify/lint_cmake/xmllint；5 个 Python 包 pytest 模板
 # test_flake8/test_pep257）
 colcon test && colcon test-result --verbose
 
@@ -394,3 +413,11 @@ aubo_py3.12/bin/python diagnostics/live_monitor.py --no-gui   # 无头记录，C
 | `colcon test` 里 aubo_scene_recon 的 test_pc_utils 被跳过 | 预期：colcon test 走系统 python3（无 open3d），conftest 自动 collect_ignore；全量跑用 venv 手动 pytest（见第 10 节） |
 | `on_error summary: read_error_reason=1 (push never arrived)` 但此前运行正常 | 2026-07-29 起已修复：该报错原为 `RealtimeThreadSafeBox::try_get()` 撞锁（best-effort try_lock 返回 nullopt）被误判为无数据；现 `read()` 回退上一帧缓存，真断流仍由 200ms `state_timeout_ms` 超时（reason=2）兜底。汇总里的 `read_box_misses` 是撞锁计数，>0 属正常 |
 | `read_error_reason=2 (push stale)` | SDK 推送链路真断了（>200ms 无新帧）：查网卡 offload/governor（每次开机必做，见 AGENTS.md §9）与 `docs/nic_driver_incident.md` |
+# 桃子采摘任务中心
+
+商业化联动、自动/维护所有权、Web 手动调试按钮、动态使能和类型化接口见
+[`docs/peach_harvest_operations.md`](peach_harvest_operations.md)。统一业务栈入口：
+
+```bash
+ros2 launch peach_harvest_orchestrator harvest_system.launch.py
+```

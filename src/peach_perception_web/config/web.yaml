@@ -1,0 +1,15 @@
+peach_perception_web:
+  ros__parameters:
+    host: 127.0.0.1              # 默认仅本机；局域网查看显式改 0.0.0.0
+    port: 8090
+    profile_directory: ""         # 空值默认使用工作区根目录 peach_profiles/
+    target_observations_topic: /peach/perception/target_observations
+    harvest_state_topic: /peach/perception/harvest_state
+    reconstruction_status_topic: /peach/reconstruction/status
+    reconstruction_diagnostics_topic: /peach/reconstruction/diagnostics
+    grasp_decision_topic: /peach/reconstruction/grasp_decision
+    refined_pose_topic: /peach/reconstruction/refined_pose
+    refined_axis_topic: /peach/reconstruction/refined_axis
+    refined_diagnostics_topic: /peach/reconstruction/refined_diagnostics
+    approach_status_topic: /peach_approach_grasp_node/status
+    orchestrator_state_topic: /peach_harvest_orchestrator/state

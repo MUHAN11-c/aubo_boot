@@ -1,0 +1,12 @@
+peach_harvest_orchestrator:
+  ros__parameters:
+    auto_start_enabled: true
+    execution_enabled: false
+    grasp_enabled: false
+    tool_enabled: false
+    readiness.perception: false
+    readiness.reconstruction: false
+    readiness.motion: false
+    readiness.web: true
+    readiness.timeout_s: 2.0
+    readiness.require_robot_status: true

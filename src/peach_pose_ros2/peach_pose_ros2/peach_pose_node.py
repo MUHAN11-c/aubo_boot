@@ -37,6 +37,7 @@ from peach_pose_msgs.msg import (
     PeachTargetObservation,
     PeachTargetObservationArray,
 )
+from peach_pose_ros2.bounded_worker import BoundedWorker
 from peach_pose_ros2.cloud_utils import _bbox_cloud_xyzrgb, _xyzrgb_to_cloud
 from peach_pose_ros2.conversions import (
     _to_candidate,
@@ -163,6 +164,8 @@ class PeachPoseNode(Node):
         sub_info = message_filters.Subscriber(
             self, CameraInfo, self.camera_info_topic, qos_profile=qos)
 
+        self._frame_worker = BoundedWorker(
+            self._process_rgbd, capacity=1, drop_oldest=True)
         self.sync = message_filters.ApproximateTimeSynchronizer(
             [sub_rgb, sub_depth, sub_info], queue_size=10, slop=self.sync_slop_s)
         self.sync.registerCallback(self._on_rgbd)
@@ -388,6 +391,11 @@ class PeachPoseNode(Node):
                 return None, 'unavailable'
 
     def _on_rgbd(self, rgb_msg: Image, depth_msg: Image, info: CameraInfo):
+        """将最新同步帧交给容量一推理 worker."""
+        if not self._frame_worker.submit((rgb_msg, depth_msg, info)):
+            self.get_logger().warning('感知 worker 已停止，丢弃 RGB-D 帧')
+
+    def _process_rgbd(self, frame):
         """
         同步回调 (ApproximateTimeSynchronizer)：一帧 RGB-D → 全套感知输出.
 
@@ -402,6 +410,7 @@ class PeachPoseNode(Node):
             无返回值（None）；感知结果经各发布者发出.
 
         """
+        rgb_msg, depth_msg, info = frame
         self.get_logger().info(
             f'RGB-D sync frame {rgb_msg.width}x{rgb_msg.height}')
         # RGB/深度时间戳偏差：DEBUG 每帧记录；接近同步允差时 WARN 节流提示
@@ -698,6 +707,11 @@ class PeachPoseNode(Node):
             dbg_msg = self.bridge.cv2_to_imgmsg(debug, encoding='bgr8')
             dbg_msg.header = img_header
             self.pub_debug.publish(dbg_msg)
+
+    def destroy_node(self):
+        """停止推理 worker 后销毁 ROS 节点."""
+        self._frame_worker.close(drain=False)
+        return super().destroy_node()
 
 
 def main(args=None):

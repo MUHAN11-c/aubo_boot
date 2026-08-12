@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root BTCPP_format="4" main_tree_to_execute="PeachHarvest">
+  <BehaviorTree ID="PeachHarvest">
+    <Sequence name="harvest_cycle">
+      <PrepareCycle/>
+      <Fallback name="preview_or_active_cycle">
+        <Sequence>
+          <IsPlanOnly/>
+          <PlanObservationPreview/>
+        </Sequence>
+        <Sequence>
+          <AcquireReconstructionViews/>
+          <FinalizeAndValidate/>
+          <Fallback name="report_or_grasp">
+            <Sequence>
+              <IsGraspDisabled/>
+              <ReportReadyForGrasp/>
+            </Sequence>
+            <Sequence>
+              <MTCApproachAndInsert/>
+              <ActuateTool/>
+              <MTCRetreat/>
+              <CompleteTarget/>
+            </Sequence>
+          </Fallback>
+        </Sequence>
+      </Fallback>
+    </Sequence>
+  </BehaviorTree>
+</root>

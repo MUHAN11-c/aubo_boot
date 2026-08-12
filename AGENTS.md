@@ -53,7 +53,7 @@ MoveIt → FollowJointTrajectory goal
 ## 3. 仓库结构
 
 ```
-src/                            # 参与构建的包（共 15 个）
+src/                            # 参与构建的包（共 17 个）
 ├── aubo_msgs/                  # 自定义 msg/srv/action（IOState、RobotStatus、SetIO、
 │                               #   GetFK/IK、SetPayload、手眼标定 action/srv）
 ├── aubo_description/           # E5 工作单元 URDF（table/camera/quick_changer）+
@@ -113,6 +113,14 @@ src/                            # 参与构建的包（共 15 个）
 │                               #   空间匹配，目标消失重现 target_id 不变；
 │                               #   TUTORIAL.md=零基础逐行教程：启动链→参数→
 │                               #   节点→管线→输出话题）
+├── peach_approach_grasp/       # 主动视觉靠近与抓取（ament_cmake/C++17）：
+│                               #   球面自适应视点 + 重建覆盖质量门 + BT.CPP
+│                               #   编排 + MTC（OMPL 入口/Cartesian 插入撤离）；
+│                               #   默认只规划，运动需每周期人工 arm，
+│                               #   抓取与工具 IO 默认关闭；不直接访问冻结驱动
+├── peach_perception_web/       # 桃子感知/重建只读数据台（ament_python，系统
+│                               #   Python + 标准库 HTTP；目标/位姿/质量/抓取状态，
+│                               #   不订阅图像或点云；默认仅监听 127.0.0.1）
 ├── peach_reconstruction_ros2/  # 套袋桃连续运动局部重建（唯一重建包）：
 │                               #   精确图像时刻 FK/手眼位姿 + 有界 Open3D
 │                               #   点到平面 ICP，小修正通过后在线积分 TSDF；
@@ -171,7 +179,10 @@ docs/                           # 现行文档：usage.md（命令手册）、
                                 #   移植清单：SolidWorks 导出物缺陷修补 +
                                 #   Setup Assistant 重打补丁清单 + 最小验证集）、
                                 #   peach_perception_progress.md（桃子感知 +
-                                #   连续 TSDF 两包进度与真机验证台账）；
+                                #   连续 TSDF 两包进度与真机验证台账）、
+                                #   peach_perception_reconstruction_logic.md
+                                #   （感知+重建两包全逻辑图解：管线/状态机/
+                                #   身份记忆/目标切换/联动时序，mermaid）；
                                 #   archive/（旧架构文档 6 篇，仅供历史参考）、
                                 #   images/（文档配图）、
                                 #   superpowers/specs/（功能设计文档，如
@@ -182,15 +193,15 @@ SDK资料/                        # 厂商原始资料（SDK 包、Noetic 参考
 build/ install/ log/            # colcon 产物，勿手动修改
 ```
 
-src/ 下 15 个包中 13 个项目包已接入 lint 测试（9 个 ament_cmake 包经
-`ament_lint_auto`：copyright/cpplint/uncrustify/lint_cmake/xmllint；4 个
+src/ 下 17 个包中 15 个项目包已接入 lint 测试（10 个 ament_cmake 包经
+`ament_lint_auto`：copyright/cpplint/uncrustify/lint_cmake/xmllint；5 个
 ament_python 包带官方模板 test_flake8.py/test_pep257.py），`colcon test`
 强制风格合规；`percipio_camera` 为厂商代码不参与 lint，
 `peach_moveit_config` 为 Setup Assistant 生成未接入 lint。
 `aubo_e5_hardware/vendor/`
 与 `aubo_dashboard/vendor/` 内含 `AMENT_IGNORE`（ament 工具链跳过厂商代码，
 不影响编译）。业务测试：aubo_hand_eye_calibration（unittest 15 例）、
-aubo_scene_recon、peach_pose_ros2 与 peach_reconstruction_ros2
+aubo_scene_recon、peach_pose_ros2、peach_reconstruction_ros2 与 peach_perception_web
 （pytest，须用 venv 解释器）；
 硬件/控制器代码验证靠 sim 模式闭环 + 真机分阶段流程（见第 6 节）。
 
@@ -237,6 +248,8 @@ moveit.launch.py`（自带 rsp + joint_state_publisher_gui；参数 `controllers
 （默认加载包内 `config/reconstruction.yaml`；`params_file:=<路径>` 可覆盖；
 自动采集 + Trigger 服务备用）；无相机冒烟用
 `aubo_py3.12/bin/python tools/peach_dataset_replayer.py --dataset <根>`。
+只读 Web 可视化用 `ros2 launch peach_perception_web
+peach_perception_web.launch.py`（默认 `http://127.0.0.1:8090`）。
 任意 launch 的全部参数及中文说明可用 `--show-args` 查看。
 
 sim 插件与真机契约一致：传输状态机、五次重采样、虚拟接口板 200Hz 每周期消费
@@ -245,7 +258,7 @@ MoveIt 超时问题。注意 sim 不模拟板载 IO 写回，`set_io` 返回 suc
 
 ## 6. 测试与验证策略
 
-13 个项目包已接入 lint 测试（见第 3 节），`colcon test` 强制风格合规；业务测试
+15 个项目包已接入 lint 测试（见第 3 节），`colcon test` 强制风格合规；业务测试
 须用 venv 解释器手动跑（先 source ROS 环境，否则 lint 测试 import 不到 ament_*）：
 
 ```bash
@@ -255,6 +268,7 @@ cd src/aubo_hand_eye_calibration && ../../aubo_py3.12/bin/python -m pytest test/
 cd src/aubo_scene_recon && ../../aubo_py3.12/bin/python -m pytest test/ -q
 cd src/peach_pose_ros2 && PYTHONPATH=peach_pose_ros2:$PYTHONPATH ../../aubo_py3.12/bin/python -m pytest test/ -q
 cd src/peach_reconstruction_ros2 && PYTHONPATH=.:../peach_pose_ros2:$PYTHONPATH ../../aubo_py3.12/bin/python -m pytest test/ -q
+cd src/peach_perception_web && ../../aubo_py3.12/bin/python -m pytest test/ -q
 ```
 
 硬件/控制器代码的验证方式为：

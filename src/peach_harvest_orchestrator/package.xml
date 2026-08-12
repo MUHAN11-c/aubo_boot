@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>peach_harvest_orchestrator</name>
+  <version>0.1.0</version>
+  <description>桃子自动采摘批次编排器。</description>
+  <maintainer email="mu@todo.todo">mu</maintainer>
+  <license>BSD-3-Clause</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>diagnostic_msgs</depend>
+  <depend>aubo_msgs</depend>
+  <depend>peach_harvest_msgs</depend>
+  <depend>peach_pose_msgs</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
+  <depend>rclcpp_lifecycle</depend>
+  <depend>lifecycle_msgs</depend>
+  <depend>std_msgs</depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>aubo_e5_bringup</exec_depend>
+  <exec_depend>peach_approach_grasp</exec_depend>
+  <exec_depend>peach_perception_web</exec_depend>
+  <exec_depend>peach_pose_ros2</exec_depend>
+  <exec_depend>peach_reconstruction_ros2</exec_depend>
+  <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

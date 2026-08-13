@@ -19,8 +19,8 @@ peach_pose_node:
     depth_scale_unit: 0.25
     # ── 同步与检测阈值 ────────────────────────────────────────
     sync_slop_s: 0.05        # RGB/深度/内参三路近似时间同步允差（秒）
-    min_detection_conf: 0.5  # 检测框进入几何管线的置信度下限（第二级，严出）
-    yolo_conf: 0.5           # YOLO 推理置信度阈值（第一级，宽进）
+    min_detection_conf: 0.3  # 检测框进入几何管线的置信度下限（第二级，严出）
+    yolo_conf: 0.3           # YOLO 推理置信度阈值（第一级，宽进）
     # 重叠检测框去重：IoS（交集/较小框面积）≥ 本值判同一物理目标，保留大框
     # （跨类生效，消一果两框/局部误检小框）；≥1.0 等效关闭
     detection_dedup_ios: 0.6
@@ -62,8 +62,11 @@ peach_pose_node:
     target_memory.max_targets: 50       # 目标表容量上限；超限按最久未见淘汰
     target_memory.position_ema: 0.3     # 命中后位置/轴/直径 EMA 系数 α(0,1]，越大越跟随新观测
     # 恢复匹配：正常匹配未命中时半径 × 本倍率再匹配一次，抗检测跳动引起的锚点
-    # 跳变（1.0=关闭）；只在未命中时启用，常态相邻目标不受影响
-    target_memory.recovery_scale: 2.0
+    # 跳变（1.0=关闭）；只在未命中时启用，常态相邻目标不受影响。
+    # 2026-08-13 真机实测：拍照位姿(0.66m)与环绕视点(0.28m)对同一颗桃的世界系
+    # 锚点相差 15.7cm（深度/外参视角相关偏差），2.0(12cm) 不够会每帧发新 ID；
+    # 3.5 → 恢复半径 21cm，仅在正常匹配未命中时兜底，相邻目标常态仍走 6cm。
+    target_memory.recovery_scale: 3.5
     # 恢复匹配允许跨类别：同一颗桃 bag/nobag 翻类时复用原 ID（半径不放大仍限
     # match_radius 内——真翻类锚点几乎不动，邻近异类新目标不会被误并；
     # 命中不改表项类别）
@@ -73,3 +76,14 @@ peach_pose_node:
     target_memory.confirm_frames: 3
     # 未确认目标的存活时限（秒）：超期未再命中即从表中清除（瞬时误检不占身份）
     target_memory.tentative_ttl_sec: 1.0
+    # ── 全局采摘计划（收齐式窗口锁定）────────────────────────────
+    # reset 后进入收齐窗口：逐帧累积确认目标，窗口关闭才一次性锁定
+    # 目标集合与优先级；锁定后新出现的 ID 不再入集
+    harvest.min_collect_frames: 10    # 窗口最少累积帧数：达到后才允许按静止条件关闭窗口
+    harvest.lock_settle_frames: 5     # 连续无新增确认 ID 的帧数，与最少帧数联合判定集合稳定
+    harvest.max_collect_s: 25.0       # 窗口最长时长（秒），超时强制关闭兜底（空集也锁定）；
+                                      # 必须 ≥ min_collect_frames/相机FPS+settle 余量：0.78FPS 下
+                                      # 10 帧需 12.8s，8s 会在确认完成前超时锁定空集
+    # 优先级启用高度键：true=先低后高（避免摘高处目标时碰落低处果实，
+    # Xiong 草莓采摘机实证顺序）；false 则高度不参与排序
+    harvest.priority_prefer_lower_first: true

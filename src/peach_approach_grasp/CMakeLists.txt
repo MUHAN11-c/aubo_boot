@@ -24,19 +24,29 @@ find_package(tf2_eigen REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
+find_package(Threads REQUIRED)
+
+# 纯逻辑核（零 ROS/MoveIt 依赖）：质量门、视点规划、安全门、目标缓存。
 add_library(${PROJECT_NAME}_core
   src/quality_gate.cpp
+  src/safety_gate.cpp
+  src/target_cache.cpp
   src/view_planner.cpp
 )
 target_include_directories(${PROJECT_NAME}_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(${PROJECT_NAME}_core Eigen3::Eigen)
+target_link_libraries(${PROJECT_NAME}_core Eigen3::Eigen Threads::Threads)
 
+# 节点按职责拆为多个编译单元，共享私有类声明 approach_grasp_node_impl.hpp。
 add_executable(approach_grasp_node
   src/approach_grasp_node.cpp
+  src/bt_nodes.cpp
+  src/cycle_action.cpp
   src/grasp_task.cpp
+  src/main.cpp
+  src/motion_interface.cpp
 )
 target_include_directories(approach_grasp_node PRIVATE include)
 ament_target_dependencies(approach_grasp_node
@@ -77,6 +87,10 @@ if(BUILD_TESTING)
 
   ament_add_gtest(test_quality_gate test/test_quality_gate.cpp)
   target_link_libraries(test_quality_gate ${PROJECT_NAME}_core)
+  ament_add_gtest(test_safety_gate test/test_safety_gate.cpp)
+  target_link_libraries(test_safety_gate ${PROJECT_NAME}_core)
+  ament_add_gtest(test_target_cache test/test_target_cache.cpp)
+  target_link_libraries(test_target_cache ${PROJECT_NAME}_core)
   ament_add_gtest(test_behavior_tree test/test_behavior_tree.cpp)
   ament_target_dependencies(test_behavior_tree behaviortree_cpp)
   target_compile_definitions(test_behavior_tree PRIVATE

@@ -15,6 +15,7 @@ find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 
 add_library(harvest_state_machine src/state_machine.cpp)
 target_include_directories(harvest_state_machine PUBLIC
@@ -31,7 +32,7 @@ add_executable(harvest_orchestrator_node src/harvest_orchestrator_node.cpp)
 target_include_directories(harvest_orchestrator_node PRIVATE include)
 ament_target_dependencies(harvest_orchestrator_node
   aubo_msgs diagnostic_msgs peach_harvest_msgs peach_pose_msgs rclcpp
-  rclcpp_action rclcpp_lifecycle std_msgs)
+  rclcpp_action rclcpp_lifecycle std_msgs std_srvs)
 target_link_libraries(harvest_orchestrator_node harvest_state_machine)
 install(TARGETS harvest_orchestrator_node DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY config launch DESTINATION share/${PROJECT_NAME})

@@ -3,8 +3,8 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 //
-//    * Redistributions of source code must retain the above copyright notice,
-//      this list of conditions and the following disclaimer.
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
 //
 //    * Redistributions in binary form must reproduce the above copyright
 //      notice, this list of conditions and the following disclaimer in the
@@ -25,13 +25,58 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-#ifndef PEACH_APPROACH_GRASP__ACTION_CONTRACT_HPP_
-#define PEACH_APPROACH_GRASP__ACTION_CONTRACT_HPP_
+// 执行前安全门纯核实现：判定语义与原节点内联 safetyReady/cycleTargetReady 一致。
+#include "peach_approach_grasp/safety_gate.hpp"
+
+#include <string>
+#include <utility>
 
 namespace peach_approach_grasp
 {
-// action 终局分类。状态枚举与 terminalOutcome(CycleState) 见 cycle_state.hpp；
-// 终局判定只走枚举，不再从状态字符串反推。
-enum class CycleOutcome {RUNNING, SUCCEEDED, CANCELED, FAILED, RECOVERY_REQUIRED};
+SafetyGate::SafetyGate(SafetyGateConfig config, std::function<double()> clock_s)
+: config_(config), clock_s_(std::move(clock_s))
+{
+}
+
+bool SafetyGate::robotReady(const RobotStatusSample & sample, std::string & reason) const
+{
+  if (!config_.require_robot_status) {
+    return true;
+  }
+  if (!sample.received) {
+    reason = "robot_status_missing";
+    return false;
+  }
+  if (clock_s_() - sample.received_s > config_.robot_status_max_age_s) {
+    reason = "robot_status_stale";
+    return false;
+  }
+  if (sample.e_stopped || sample.in_error || !sample.drives_powered ||
+    !sample.motion_possible)
+  {
+    reason = "robot_status_not_motion_ready";
+    return false;
+  }
+  return true;
+}
+
+bool SafetyGate::targetReady(
+  const TargetGateSample & sample, const std::string & target_id,
+  std::string & reason) const
+{
+  if (sample.id != target_id) {
+    reason = "selected_target_changed";
+    return false;
+  }
+  if (!sample.valid) {
+    reason = "selected_target_not_observed";
+    return false;
+  }
+  if (clock_s_() - sample.received_s > config_.target_observation_max_age_s) {
+    reason = "selected_target_stale";
+    return false;
+  }
+  return true;
+}
+
 }  // namespace peach_approach_grasp
-#endif  // PEACH_APPROACH_GRASP__ACTION_CONTRACT_HPP_

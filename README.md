@@ -2,11 +2,10 @@
 
 > **⚠️ 测试状态：未完全测试完成**
 >
-> 本快照为持续开发中的交付版本（2026-08-12），包含桃子采摘感知/重建/抓取/编排全链路
-> 新代码，但**尚未完成全部测试**：部分新包（peach_harvest_orchestrator、
-> peach_approach_grasp、peach_perception_web 等）仅通过单测/静态检查，整机集成、
-> 真机运动验证与 colcon 全量回归尚未完成。使用前请仔细阅读各包 README 与
-> `docs/peach_harvest_operations.md`，并按安全章节流程自行验证。
+> 本快照为持续开发中的交付版本（2026-08-13），包含桃子采摘感知/重建/抓取/编排全链路
+> 代码；批次闭环（拍照前置 → 收齐锁定 → 逐目标分级记账 → 复扫递减集 →
+> HarvestSummary）已落地且单测全绿，但**整机集成与真机运动验证尚未完成**。使用前请
+> 仔细阅读各包 README 与 `docs/peach_harvest_operations.md`，并按安全章节流程自行验证。
 
 面向 AUBO E5 六轴机械臂（老控制器固件，8899 端口旧 SDK v1.3.1）的 ROS 2 Jazzy 驱动。
 核心逻辑完全遵循 Humble 实测驱动（aubo_boot）的**一次性下发**模式：整条轨迹一次接收，
@@ -37,7 +36,11 @@ src/
 ├── peach_pose_ros2/            # 桃子位姿感知（YOLO+MobileSAM+深度几何，venv 节点）
 ├── peach_reconstruction_ros2/  # 桃子多视角局部重建（自动采帧+Open3D TSDF，venv 节点）
 ├── peach_approach_grasp/       # 主动视觉、行为树与 MTC 抓取编排（C++/MoveIt）
-├── peach_perception_web/       # 感知/重建/抓取只读数据台（目标、位姿、质量、ID 链）
+├── peach_harvest_msgs/         # 采摘编排类型化接口（RunHarvest/RunTargetCycle action、
+│                               #   ControlHarvest/SetOperationPolicy、HarvestState/Event/Summary）
+├── peach_harvest_orchestrator/ # 采摘批次编排器（批次状态机、拍照前置、复扫循环、
+│                               #   RunHarvest + HarvestSummary；整栈入口 harvest_system.launch.py）
+├── peach_perception_web/       # 感知/重建/抓取数据台与批次操作代理（目标、位姿、质量、ID 链）
 ├── peach_gantry_description/   # 【新结构模型，暂不参与】架子式采摘机器人 URDF
 ├── peach_moveit_config/        # 【新结构模型，暂不参与】架子机 MoveIt 配置
 └── percipio_camera/            # 相机驱动（厂商代码；launch 默认值已项目化）
@@ -219,6 +222,7 @@ hardware 参数（URDF `<param>`，见 `aubo_description/urdf/aubo_e5.ros2_contr
   [场景重建](src/aubo_scene_recon/README.md)、[桃子位姿](src/peach_pose_ros2/README.md)、
   [桃子连续TSDF重建](src/peach_reconstruction_ros2/README.md)、
   [主动视觉靠近与抓取](src/peach_approach_grasp/README.md)、
+  [采摘批次编排器](src/peach_harvest_orchestrator/README.md)、
   [桃子感知 Web 控制台](src/peach_perception_web/README.md)
 - [docs/source_audit_2026-08-10.md](docs/source_audit_2026-08-10.md) — 源码审查范围、官方基线与修复记录
 - [docs/peach_perception_progress.md](docs/peach_perception_progress.md) — 桃子视觉

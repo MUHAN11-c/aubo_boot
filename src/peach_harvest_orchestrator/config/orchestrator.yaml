@@ -4,9 +4,36 @@ peach_harvest_orchestrator:
     execution_enabled: false
     grasp_enabled: false
     tool_enabled: false
-    readiness.perception: false
-    readiness.reconstruction: false
-    readiness.motion: false
     readiness.web: true
     readiness.timeout_s: 2.0
     readiness.require_robot_status: true
+    # 抓取全局拍照位姿（关节角，rad）。2026-08-13 真机记录，
+    # 关节顺序为权威顺序：shoulder, upperArm, foreArm, wrist1, wrist2, wrist3。
+    # 仅存档：实际移动由 go_to_photo_pose 服务按 SRDF 命名状态
+    # global_photo_pose（aubo_e5.srdf）完成，二者应保持一致。
+    global_photo_joints: [0.425083, 0.195177, 1.677740, 1.461739, -0.500161, 0.038621]
+    photo_pose:
+      # 拍照位姿前置：进入 DISCOVERY 与每个复扫轮次先回拍照位姿再重置感知；
+      # execution_enabled=false 时自动跳过（不移动机械臂、不重置感知）。
+      enabled: true
+      # 连续失败此次数后进入待恢复（require_recovery）。
+      max_retries: 3
+      # 失败重试冷却（s）。
+      retry_cooldown_s: 5.0
+      # 单次 go_to_photo_pose/reset_global_targets 调用超时（s）；
+      # 真机移动到拍照位姿耗时数十秒，不得按普通服务超时设置。
+      service_timeout_s: 90.0
+      # 批次完成后再回一次拍照位姿（best-effort，失败仅记事件）。
+      return_on_complete: true
+    harvest:
+      # 复扫递减集循环：本轮锁定目标全部处理完后回拍照位姿重锁感知再摘一轮，
+      # 直到新一轮锁定空集或达到 max_rounds。
+      rescan_until_empty: true
+      # 总轮次上限（round 从 1 起计，含首轮）。
+      max_rounds: 3
+    # 跨包接口名称（默认值即现有全网名，launch 不需要改）。
+    target_cycle_action_name: '/peach_approach_grasp_node/run_target_cycle'
+    approach_node_name: '/peach_approach_grasp_node'
+    complete_target_service_name: '/peach_pose_node/complete_selected_target'
+    reset_targets_service_name: '/peach_pose_node/reset_global_targets'
+    photo_pose_service_name: '/peach_approach_grasp_node/go_to_photo_pose'

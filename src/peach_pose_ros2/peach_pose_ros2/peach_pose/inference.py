@@ -26,12 +26,15 @@
   GUI 侧 Open3D/Qt 应在主线程；若需后台推理，用 QThread + 信号槽，勿裸线程共享 engine。
 """
 
+import logging
 import threading
 from typing import List, Tuple
 
 import numpy as np
 
 from .interfaces import Detector, Segmenter
+
+_logger = logging.getLogger(__name__)
 
 
 class InferenceEngine(Detector, Segmenter):
@@ -204,7 +207,8 @@ class InferenceEngine(Detector, Segmenter):
                 results = self._sam(
                     rgb, bboxes=bboxes, device=self._device, verbose=False)
             except Exception as e:
-                print(f'[InferenceEngine] SAM 分割失败: {e}')
+                # 纯核不能 import ROS，走 stdlib logging（print 会污染 stdout）
+                _logger.warning('SAM 分割失败: %s', e)
                 return []
 
         if not results or results[0].masks is None:

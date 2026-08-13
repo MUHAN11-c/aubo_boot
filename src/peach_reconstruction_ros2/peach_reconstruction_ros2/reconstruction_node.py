@@ -16,6 +16,7 @@ from __future__ import annotations
 from datetime import datetime
 import json
 from pathlib import Path
+import threading
 import time
 from typing import Optional, Tuple
 
@@ -38,6 +39,12 @@ from peach_reconstruction_ros2.candidate_contract import (
     candidate_axis_hint,
     select_reconstruction_candidate,
     TargetKindMemory,
+)
+from peach_reconstruction_ros2.capture_gate import (
+    capture_gate,
+    GATE_ALLOW,
+    GATE_NEED_TF,
+    GateDecision,
 )
 from peach_reconstruction_ros2.captured_frame import CapturedFrame
 from peach_reconstruction_ros2.cloud_builder import (
@@ -185,6 +192,18 @@ class PeachReconstructionNode(Node):
         self._geometry_refiner = GEOMETRY_REFINERS['ransac']()
         self._icp_refiner = POSE_REFINERS['open3d_bounded'](self.icp_config)
 
+        # 并发收敛选型（方案 b，与 peach_pose_node._plan_lock 同模式）：
+        # collector/在线 TSDF/派生产物的竞态源是 worker 线程
+        # （_process_rgbd→_auto_drive）与 executor 线程（订阅/服务回调）
+        # 双写；方案 (a) 把命令类任务也挤进 BoundedWorker 不可行——
+        # capacity=3 且 drop_oldest=False，满队列直接拒收，与「命令不丢」
+        # 冲突，Trigger 服务又需同步应答难以异步化。故用节点级 RLock：
+        # 服务/订阅/自动驱动入口持锁，帧栈、TSDF 积分与全部产物读写均在
+        # 锁内（RLock 允许 _auto_drive→_finalize_now 等锁内嵌套调用）。
+        # _latest_frame/_latest_candidates/_max_joint_vel 等单字段原子
+        # 赋值不持锁（CPython 引用赋值原子，读者一次取引用后局部使用）。
+        self._state_lock = threading.RLock()
+
         # 最新一帧同步 RGB-D 缓存：(rgb, depth_mm, K, stamp_msg, stamp_sec,
         # cam_frame)。只缓存、不直接累积；手动/自动门禁通过后才会入帧栈
         self._latest_frame: Optional[tuple] = None
@@ -205,13 +224,12 @@ class PeachReconstructionNode(Node):
         self._tsdf_info: Optional[dict] = None  # diagnostics 的 tsdf 键内容
         self._tsdf_volume = None  # 每轮 session 持续在线积分
         self._mesh_cache: Optional[dict] = None
-        self._registration_history = []
         # refit：感知 diagnostics 的 target_id→target_kind 映射；
-        # _refined_result=refine_geometry 结果（None=未跑/失败），
-        # _refined_info=diagnostics JSON 的 refined 键内容
+        # _refined 为 refit 唯一缓存——refine_geometry 成功结果 dict 或
+        # {'ok': False, 'reason': ...} 失败记录（None=未跑/已失效），
+        # diagnostics JSON 的 refined 键由 _refined_info() 投影派生
         self._target_kind_memory = TargetKindMemory()
-        self._refined_result: Optional[dict] = None
-        self._refined_info: Optional[dict] = None
+        self._refined: Optional[dict] = None
         # 球体 refit 无法独立恢复姿态轴；绑定时冻结感知侧果梗/凹陷方向先验。
         self._bound_axis_hint: Optional[np.ndarray] = None
 
@@ -292,6 +310,11 @@ class PeachReconstructionNode(Node):
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
+
+        # 1Hz 活性心跳：状态/诊断/抓取许可三件套周期重发。_publish_all 只在
+        # 状态变化时触发，IDLE 期无消息会让编排器重建就绪门（2s 新鲜度）永远
+        # 不满足——拍照前置建立不了目标→无法锁定→无法绑定的死锁由此解开。
+        self._heartbeat_timer = self.create_timer(1.0, self._publish_heartbeat)
 
         # 启动即首发一次（IDLE + 空云），闩锁话题让后启动的订阅者立即可读
         self._publish_all()
@@ -381,59 +404,62 @@ class PeachReconstructionNode(Node):
     def _on_target_observations(
             self, msg: PeachTargetObservationArray) -> None:
         """缓存全局计划选中 ID 的精确深度时刻掩膜与当前中心."""
-        self._target_observation_seen = True
-        if msg.harvest_run_id != self._harvest_run_id:
-            self._harvest_run_id = msg.harvest_run_id
-            self._harvest_data.attach(self._harvest_run_id)
-            self._harvest_data.append_event({
-                'source': 'reconstruction',
-                'event': 'reconstruction_linked'})
-        requested_target_id = msg.selected_target_id
-        if (self._preferred_target_id
-                and requested_target_id != self._preferred_target_id):
-            if self.collector.state == STATE_READY:
-                self.collector.reset()
-                self._target_kind_memory.reset()
-                self._last_captured_stamp_sec = -1.0
-                self._reset_products(create_volume=False)
-                self._bound_axis_hint = None
-                self._target_masks.clear()
-            elif self.collector.state != STATE_IDLE:
-                self.get_logger().warning(
-                    '重建尚未 READY，拒绝切换 selected_target_id')
+        # 目标切换会 reset 帧栈并清空产物，须与 worker 线程互斥（持锁全程）
+        with self._state_lock:
+            self._target_observation_seen = True
+            if msg.harvest_run_id != self._harvest_run_id:
+                self._harvest_run_id = msg.harvest_run_id
+                self._harvest_data.attach(self._harvest_run_id)
+                self._harvest_data.append_event({
+                    'source': 'reconstruction',
+                    'event': 'reconstruction_linked'})
+            requested_target_id = msg.selected_target_id
+            if (self._preferred_target_id
+                    and requested_target_id != self._preferred_target_id):
+                if self.collector.state == STATE_READY:
+                    self.collector.reset()
+                    self._target_kind_memory.reset()
+                    self._last_captured_stamp_sec = -1.0
+                    self._reset_products(create_volume=False)
+                    self._bound_axis_hint = None
+                    self._target_masks.clear()
+                elif self.collector.state != STATE_IDLE:
+                    self.get_logger().warning(
+                        '重建尚未 READY，拒绝切换 selected_target_id',
+                        throttle_duration_sec=10.0)
+                    return
+            self._preferred_target_id = requested_target_id
+            selected = next((item for item in msg.observations
+                             if item.target_id == msg.selected_target_id), None)
+            if selected is None or selected.tracking_status != selected.OBSERVED:
                 return
-        self._preferred_target_id = requested_target_id
-        selected = next((item for item in msg.observations
-                         if item.target_id == msg.selected_target_id), None)
-        if selected is None or selected.tracking_status != selected.OBSERVED:
-            return
-        if not selected.mask.data:
-            return
-        try:
-            mask = self.bridge.imgmsg_to_cv2(
-                selected.mask, desired_encoding='mono8')
-        except Exception as exc:  # noqa: BLE001
-            self.get_logger().warning(f'目标掩膜解码失败: {exc}')
-            return
-        stamp = selected.mask.header.stamp
-        stamp_ns = int(stamp.sec) * 1000000000 + int(stamp.nanosec)
-        bottom = np.array([
-            selected.candidate.bag_bottom.x,
-            selected.candidate.bag_bottom.y,
-            selected.candidate.bag_bottom.z], dtype=np.float64)
-        neck = np.array([
-            selected.candidate.bag_neck.x,
-            selected.candidate.bag_neck.y,
-            selected.candidate.bag_neck.z], dtype=np.float64)
-        center = 0.5 * (bottom + neck)
-        if not np.all(np.isfinite(center)) or not np.any(center):
-            center = None
-        self._target_masks[stamp_ns] = (
-            np.asarray(mask, dtype=np.uint8), center)
-        while len(self._target_masks) > 30:
-            self._target_masks.pop(next(iter(self._target_masks)))
-        if self.params.capture.auto_mode:
-            self._auto_drive()
+            if not selected.mask.data:
+                return
+            try:
+                mask = self.bridge.imgmsg_to_cv2(
+                    selected.mask, desired_encoding='mono8')
+            except Exception as exc:  # noqa: BLE001
+                self.get_logger().warning(f'目标掩膜解码失败: {exc}')
+                return
+            stamp = selected.mask.header.stamp
+            stamp_ns = int(stamp.sec) * 1000000000 + int(stamp.nanosec)
+            bottom = np.array([
+                selected.candidate.bag_bottom.x,
+                selected.candidate.bag_bottom.y,
+                selected.candidate.bag_bottom.z], dtype=np.float64)
+            neck = np.array([
+                selected.candidate.bag_neck.x,
+                selected.candidate.bag_neck.y,
+                selected.candidate.bag_neck.z], dtype=np.float64)
+            center = 0.5 * (bottom + neck)
+            if not np.all(np.isfinite(center)) or not np.any(center):
+                center = None
+            self._target_masks[stamp_ns] = (
+                np.asarray(mask, dtype=np.uint8), center)
+            while len(self._target_masks) > 30:
+                self._target_masks.pop(next(iter(self._target_masks)))
+            if self.params.capture.auto_mode:
+                self._auto_drive()
 
     def _target_mask_for_frame(self, stamp_msg, depth_mm):
         """取严格同时间戳掩膜，并执行小目标、深度空洞和风动质量门."""
@@ -469,14 +495,17 @@ class PeachReconstructionNode(Node):
     def _on_query_reconstruction_state(self, request, response):
         """~/query_reconstruction_state：返回当前重建和数据关联 JSON."""
         del request
-        response.success = True
-        response.message = json.dumps(
-            self._diagnostics(), ensure_ascii=False)
-        return response
+        with self._state_lock:
+            response.success = True
+            response.message = json.dumps(
+                self._diagnostics(), ensure_ascii=False)
+            return response
 
     def _on_perception_diagnostics(self, msg: BagFittingArray):
         """缓存 target_id→target_kind 映射（refit 选圆柱/球拟合线用）."""
-        self._target_kind_memory.update(msg.fittings)
+        # bind/reset 发生在持锁的开始/复位路径，update 同样入锁保持一致
+        with self._state_lock:
+            self._target_kind_memory.update(msg.fittings)
 
     def _resolve_target_kind(self) -> Tuple[str, bool]:
         """
@@ -543,9 +572,7 @@ class PeachReconstructionNode(Node):
         self._tsdf_cloud_cache = None
         self._tsdf_info = None
         self._mesh_cache = None
-        self._registration_history = []
-        self._refined_result = None
-        self._refined_info = None
+        self._refined = None
         self._tsdf_volume = None
         if create_volume and self.params.tsdf.enable:
             self._tsdf_volume = VOLUME_FUSIONS['open3d_scalable'](
@@ -631,80 +658,113 @@ class PeachReconstructionNode(Node):
     def _on_start(self, request, response):
         """~/start_reconstruction：清空帧栈，绑定当前最优候选，→ COLLECTING."""
         del request
-        target_id, center = self._best_candidate()
-        response.message = self.collector.start(target_id, center)
-        self._target_kind_memory.bind(target_id)
-        self._last_captured_stamp_sec = -1.0
-        self._reset_products(create_volume=True)
-        self._bound_axis_hint = candidate_axis_hint(
-            self._latest_candidates, target_id)
-        response.success = True
-        self.get_logger().info(response.message)
-        self._publish_all()
-        return response
+        with self._state_lock:
+            target_id, center = self._best_candidate()
+            response.message = self.collector.start(target_id, center)
+            self._target_kind_memory.bind(target_id)
+            self._last_captured_stamp_sec = -1.0
+            self._reset_products(create_volume=True)
+            self._bound_axis_hint = candidate_axis_hint(
+                self._latest_candidates, target_id)
+            response.success = True
+            self.get_logger().info(response.message)
+            self._publish_all()
+            return response
+
+    def _gated_capture(self, automatic: bool
+                       ) -> Tuple[GateDecision, Optional[tuple]]:
+        """
+        两路采帧的公共门禁：收集判据值 → 纯函数 capture_gate（两阶段 TF）.
+
+        第一阶段 tf_available=None：前置门禁（满栈/无帧/掩膜/同帧/帧龄/
+        静止/空 frame_id）任一不过即定案；全过返回 GATE_NEED_TF，本方法
+        完成阻塞式精确时刻 TF 查询后以真实结果重评。判据采集与 TF 查询
+        有副作用留在节点，判定本身零副作用（capture_gate.py）。
+
+        Args:
+            automatic: True=自动模式（拒绝映射 skip），False=手动服务
+                （映射 deny，由调用方写服务响应）.
+
+        Returns
+        -------
+            (decision, context)：action 为 GATE_ALLOW 时 context 为
+            (rgb, depth_mm, K, stamp_sec, T_base_camera, tf_status,
+            target_mask)，否则为 None。须持 _state_lock 调用.
+
+        """
+        cached = self._latest_frame
+        rgb = depth_mm = K = stamp_msg = cam_frame = None
+        stamp_sec = 0.0
+        target_mask = None
+        mask_reason = ''
+        if cached is not None:
+            rgb, depth_mm, K, stamp_msg, stamp_sec, cam_frame = cached
+            target_mask, mask_reason = self._target_mask_for_frame(
+                stamp_msg, depth_mm)
+        gate_values = {
+            'frame_available': cached is not None,
+            'frame_count': len(self.collector.frames),
+            'max_views': self.params.capture.max_views,
+            'mask_reason': mask_reason,
+            'stamp_sec': stamp_sec,
+            'last_captured_stamp_sec': self._last_captured_stamp_sec,
+            'frame_age_s': (self.get_clock().now().nanoseconds / 1e9
+                            - stamp_sec),
+            'max_frame_age_s': self.params.capture.max_frame_age_s,
+            'require_robot_static': self.params.capture.require_robot_static,
+            'joint_states_seen': self._joint_states_seen,
+            'max_joint_vel': self._max_joint_vel,
+            'static_joint_vel_thresh':
+                self.params.capture.static_joint_vel_thresh,
+            'cam_frame_ok': bool(cam_frame),
+            'base_frame': self.params.frames.base_frame,
+            'cam_frame': cam_frame or '',
+            'automatic': automatic,
+        }
+        decision = capture_gate(tf_available=None, **gate_values)
+        if decision.action != GATE_NEED_TF:
+            return decision, None
+        T_base_camera, tf_status = self._lookup_T_base_camera(
+            cam_frame, stamp_msg)
+        decision = capture_gate(
+            tf_available=T_base_camera is not None, **gate_values)
+        if decision.action != GATE_ALLOW:
+            return decision, None
+        return decision, (rgb, depth_mm, K, stamp_sec, T_base_camera,
+                          tf_status, target_mask)
 
     def _on_capture(self, request, response):
         """~/capture_frame：过全部门禁后把当前缓存帧采入帧栈并重发累加云."""
         del request
-        if self.collector.state != STATE_COLLECTING:
-            return self._deny(
-                response,
-                f'当前状态 {self.collector.state}，先 ~/start_reconstruction',
-                count_reject=False)
-        if len(self.collector.frames) >= self.params.capture.max_views:
-            return self._deny(
-                response,
-                f'已达 max_views={self.params.capture.max_views}，请 finalize 或 remove_last')
-        cached = self._latest_frame
-        if cached is None:
-            return self._deny(response, '尚无同步 RGB-D 帧（确认相机/回放在线）')
-        rgb, depth_mm, K, stamp_msg, stamp_sec, cam_frame = cached
-        target_mask, mask_reason = self._target_mask_for_frame(
-            stamp_msg, depth_mm)
-        if mask_reason:
-            return self._deny(response, mask_reason)
-        if stamp_sec <= self._last_captured_stamp_sec:
-            return self._deny(response, '缓存帧未更新（与上次采帧同帧），请等下一帧')
-        age_s = self.get_clock().now().nanoseconds / 1e9 - stamp_sec
-        if age_s > self.params.capture.max_frame_age_s:
-            return self._deny(
-                response,
-                f'缓存帧龄期 {age_s:.2f} s > max_frame_age_s='
-                f'{self.params.capture.max_frame_age_s}（陈帧拒采）')
-        if self.params.capture.require_robot_static:
-            if not self._joint_states_seen:
-                return self._deny(
-                    response, 'require_robot_static=true 但未收到 /joint_states')
-            if self._max_joint_vel > self.params.capture.static_joint_vel_thresh:
+        with self._state_lock:
+            if self.collector.state != STATE_COLLECTING:
                 return self._deny(
                     response,
-                    f'机器人未静止：最大关节速度 {self._max_joint_vel:.4f} rad/s '
-                    f'> {self.params.capture.static_joint_vel_thresh}')
-        if not cam_frame:
-            return self._deny(
-                response, '深度图 header.frame_id 为空，无法查 TF', count_reject=False)
-        T_base_camera, tf_status = self._lookup_T_base_camera(cam_frame, stamp_msg)
-        if T_base_camera is None:
-            self.collector.tf_failures += 1
-            return self._deny(
-                response,
-                f'TF {self.params.frames.base_frame}←{cam_frame} 查询失败（已计 tf_failures）',
-                count_reject=False)
-        ok, reason, trans, rot = self.collector.check_view(T_base_camera)
-        if not ok:
-            return self._deny(response, reason)
-        if reason == 'duplicate_allowed':
-            self.get_logger().warning(
-                f'重复视角仍采帧（allow_duplicate_views=true）：'
-                f'平移 {trans * 1000.0:.1f} mm / 旋转 {rot:.1f} deg')
-        accepted, message = self._accept_frame(
-            rgb, depth_mm, K, stamp_sec, T_base_camera, tf_status,
-            target_mask=target_mask)
-        if not accepted:
-            return self._deny(response, message)
-        response.success = True
-        response.message = message
-        return response
+                    f'当前状态 {self.collector.state}，先 ~/start_reconstruction',
+                    count_reject=False)
+            decision, context = self._gated_capture(automatic=False)
+            if decision.action != GATE_ALLOW:
+                if decision.count_tf_failure:
+                    self.collector.tf_failures += 1
+                return self._deny(response, decision.reason,
+                                  count_reject=decision.count_reject)
+            (rgb, depth_mm, K, stamp_sec,
+             T_base_camera, tf_status, target_mask) = context
+            ok, reason, trans, rot = self.collector.check_view(T_base_camera)
+            if not ok:
+                return self._deny(response, reason)
+            if reason == 'duplicate_allowed':
+                self.get_logger().warning(
+                    f'重复视角仍采帧（allow_duplicate_views=true）：'
+                    f'平移 {trans * 1000.0:.1f} mm / 旋转 {rot:.1f} deg')
+            accepted, message = self._accept_frame(
+                rgb, depth_mm, K, stamp_sec, T_base_camera, tf_status,
+                target_mask=target_mask)
+            if not accepted:
+                return self._deny(response, message)
+            response.success = True
+            response.message = message
+            return response
 
     def _accept_frame(self, rgb, depth_mm, K, stamp_sec: float,
                       T_base_camera, tf_status: str,
@@ -815,12 +875,11 @@ class PeachReconstructionNode(Node):
                 return False, f'TSDF 在线积分失败: {exc}'
 
         self._last_captured_stamp_sec = stamp_sec
-        self._registration_history.append(reg_info)
         # 新帧使 finalize 指标与几何精化失效；在线 TSDF 缓存已在上面刷新。
+        # （registration 历史不再单独存副本：由帧栈 f.registration 派生）
         self._overlap_cache = None
         self._mesh_cache = None
-        self._refined_result = None
-        self._refined_info = None
+        self._refined = None
         n = len(self.collector.frames)
         message = (
             f'已采第 {n}/{self.params.capture.recommended_views} 视角，'
@@ -840,49 +899,48 @@ class PeachReconstructionNode(Node):
     def _on_remove_last(self, request, response):
         """~/remove_last_frame：弹帧后重放剩余帧，保证在线 TSDF 一致."""
         del request
-        removed = self.collector.remove_last()
-        if removed is None:
-            response.success = False
-            response.message = '帧栈为空，无可移除帧'
-            self.get_logger().warning(response.message)
-        else:
-            response.success = True
-            response.message = (
-                f'已移除最后一帧，剩余 {len(self.collector.frames)} 视角')
-            self._overlap_cache = None
-            if self.params.tsdf.enable:
-                self._tsdf_volume = VOLUME_FUSIONS['open3d_scalable'](
-                    **self.tsdf_params)
-                for old in self.collector.frames:
-                    self._tsdf_volume.integrate_frame(
-                        old.rgb, old.depth_mm, old.camera_K,
-                        old.T_base_camera)
-                self._refresh_tsdf_outputs()
+        with self._state_lock:
+            removed = self.collector.remove_last()
+            if removed is None:
+                response.success = False
+                response.message = '帧栈为空，无可移除帧'
+                self.get_logger().warning(response.message)
             else:
-                self._tsdf_cloud_cache = None
-                self._tsdf_info = None
-            self._mesh_cache = None
-            self._registration_history = [
-                dict(f.registration) for f in self.collector.frames]
-            self._refined_result = None
-            self._refined_info = None
-            self.get_logger().info(response.message)
-        self._publish_all()
-        return response
+                response.success = True
+                response.message = (
+                    f'已移除最后一帧，剩余 {len(self.collector.frames)} 视角')
+                self._overlap_cache = None
+                if self.params.tsdf.enable:
+                    self._tsdf_volume = VOLUME_FUSIONS['open3d_scalable'](
+                        **self.tsdf_params)
+                    for old in self.collector.frames:
+                        self._tsdf_volume.integrate_frame(
+                            old.rgb, old.depth_mm, old.camera_K,
+                            old.T_base_camera)
+                    self._refresh_tsdf_outputs()
+                else:
+                    self._tsdf_cloud_cache = None
+                    self._tsdf_info = None
+                self._mesh_cache = None
+                self._refined = None
+                self.get_logger().info(response.message)
+            self._publish_all()
+            return response
 
     def _on_reset(self, request, response):
         """~/reset_reconstruction：清空帧栈与绑定目标，回 IDLE."""
         del request
-        self.collector.reset()
-        self._target_kind_memory.reset()
-        self._last_captured_stamp_sec = -1.0
-        self._reset_products(create_volume=False)
-        self._bound_axis_hint = None
-        response.success = True
-        response.message = '已清空，回 IDLE'
-        self.get_logger().info(response.message)
-        self._publish_all()
-        return response
+        with self._state_lock:
+            self.collector.reset()
+            self._target_kind_memory.reset()
+            self._last_captured_stamp_sec = -1.0
+            self._reset_products(create_volume=False)
+            self._bound_axis_hint = None
+            response.success = True
+            response.message = '已清空，回 IDLE'
+            self.get_logger().info(response.message)
+            self._publish_all()
+            return response
 
     def _finalize_now(self) -> Tuple[bool, str]:
         """
@@ -913,15 +971,14 @@ class PeachReconstructionNode(Node):
                 'source': 'reconstruction', 'event': 'reconstruction_finalized',
                 'target_id': self.collector.target_id,
                 'captured_views': len(self.collector.frames),
-                'refined': self._refined_info,
+                'refined': self._refined_info(),
                 'grasp_decision': self._grasp_decision(),
             })
         else:
             self._overlap_cache = None
             self._tsdf_cloud_cache = None
             self._tsdf_info = None
-            self._refined_result = None
-            self._refined_info = None
+            self._refined = None
             self.get_logger().warning(message)
         # 累加云由 _publish_all 统一重发（frame_id=base_frame）
         self._publish_all()
@@ -973,8 +1030,7 @@ class PeachReconstructionNode(Node):
 
         """
         if self._tsdf_cloud_cache is None or not self._tsdf_cloud_cache[0].size:
-            self._refined_result = None
-            self._refined_info = {'ok': False, 'reason': 'no_tsdf_cloud'}
+            self._refined = {'ok': False, 'reason': 'no_tsdf_cloud'}
             self.get_logger().warning('REFINING：无 TSDF 云，refit 跳过')
             return '；refit 跳过（无 TSDF 云）'
         xyz = self._tsdf_cloud_cache[0]
@@ -985,22 +1041,19 @@ class PeachReconstructionNode(Node):
             result = self._geometry_refiner.refine(
                 xyz, kind, self.refit_config, self._bound_axis_hint)
         except Exception as exc:  # noqa: BLE001
-            self._refined_result = None
-            self._refined_info = {'ok': False, 'reason': f'exception:{exc}'}
+            self._refined = {'ok': False, 'reason': f'exception:{exc}'}
             self.get_logger().warning(f'refit 异常（不影响 finalize）: {exc}')
             return f'；refit 失败（{exc}）'
         if defaulted:
             result['flags'].append('target_kind_defaulted')
         if not result['ok']:
-            self._refined_result = None
-            self._refined_info = {
+            self._refined = {
                 'ok': False, 'reason': result['reason'],
                 'kind': kind, 'n_points': result['n_points']}
             self.get_logger().warning(
                 f'refit 失败（不影响 finalize）：{result["reason"]}')
             return f'；refit 失败（{result["reason"]}）'
-        self._refined_result = result
-        self._refined_info = self._refined_diag_dict(result)
+        self._refined = result
         status_text = ('ACCEPT' if result['status'] == STATUS_ACCEPT
                        else 'REOBSERVE')
         self.get_logger().info(
@@ -1012,6 +1065,23 @@ class PeachReconstructionNode(Node):
         return (f"；refit {status_text}（{result['kind']}，"
                 f"rmse {result['rmse'] * 1000.0:.1f}mm，"
                 f"inlier {result['inlier_ratio']:.2f}）")
+
+    def _refined_info(self) -> Optional[dict]:
+        """
+        由唯一 refit 缓存 _refined 投影出 diagnostics JSON 的 refined 键.
+
+        Returns
+        -------
+            None（未跑/已失效）；失败记录原样拷贝（{'ok': False,
+            'reason': ...}）；成功结果经 _refined_diag_dict 转 JSON 形态.
+
+        """
+        result = self._refined
+        if result is None:
+            return None
+        if not result.get('ok'):
+            return dict(result)
+        return self._refined_diag_dict(result)
 
     @staticmethod
     def _refined_diag_dict(result: dict) -> dict:
@@ -1046,42 +1116,45 @@ class PeachReconstructionNode(Node):
     def _on_finalize(self, request, response):
         """~/finalize_reconstruction：视角数达标则拼接全部帧发 local_cloud."""
         del request
-        ok, message = self._finalize_now()
-        response.success = ok
-        response.message = message
-        return response
+        with self._state_lock:
+            ok, message = self._finalize_now()
+            response.success = ok
+            response.message = message
+            return response
 
     def _on_save_session(self, request, response):
         """~/save_session：全部已采帧落盘 session_<时间戳>/（含参数快照）."""
         del request
-        frames = self.collector.frames
-        if not frames:
-            response.success = False
-            response.message = '无已采帧，未落盘'
-            self.get_logger().warning(response.message)
+        # 落盘期间持锁：帧栈/TSDF 缓存快照须一致，worker 短暂阻塞属预期
+        with self._state_lock:
+            frames = self.collector.frames
+            if not frames:
+                response.success = False
+                response.message = '无已采帧，未落盘'
+                self.get_logger().warning(response.message)
+                self._publish_all()
+                return response
+            try:
+                session_dir = save_session(
+                    self._session_root(), frames, self._session_metadata(),
+                    tsdf_cloud=self._tsdf_cloud_cache,
+                    tsdf_mesh=self._mesh_cache)
+            except Exception as exc:  # noqa: BLE001
+                response.success = False
+                response.message = f'落盘失败: {exc}'
+                self.get_logger().error(response.message)
+                self._publish_all()
+                return response
+            response.success = True
+            response.message = f'已保存 {len(frames)} 帧到 {session_dir}'
+            self._harvest_data.append_event({
+                'source': 'reconstruction', 'event': 'session_saved',
+                'target_id': self.collector.target_id,
+                'session_dir': str(session_dir),
+            })
+            self.get_logger().info(response.message)
             self._publish_all()
             return response
-        try:
-            session_dir = save_session(
-                self._session_root(), frames, self._session_metadata(),
-                tsdf_cloud=self._tsdf_cloud_cache,
-                tsdf_mesh=self._mesh_cache)
-        except Exception as exc:  # noqa: BLE001
-            response.success = False
-            response.message = f'落盘失败: {exc}'
-            self.get_logger().error(response.message)
-            self._publish_all()
-            return response
-        response.success = True
-        response.message = f'已保存 {len(frames)} 帧到 {session_dir}'
-        self._harvest_data.append_event({
-            'source': 'reconstruction', 'event': 'session_saved',
-            'target_id': self.collector.target_id,
-            'session_dir': str(session_dir),
-        })
-        self.get_logger().info(response.message)
-        self._publish_all()
-        return response
 
     # ------------------------------------------------------------------
     # 自动模式（决策纯逻辑在 FrameCollector，这里只做 TF/订阅接线）
@@ -1093,17 +1166,21 @@ class PeachReconstructionNode(Node):
         流程：IDLE 且有候选 → 自动开始；COLLECTING → 满 max_views 自动
         finalize，否则尝试自动采帧；READY/FAILED 停采，等 reset/start 进
         下一轮。所有"不行"都只对当前帧跳过/告警，不打断流程。
+        全程持 _state_lock：本方法可由 worker 线程（_process_rgbd）与
+        executor 线程（_on_target_observations）并发进入，锁保证
+        collector/TSDF/产物单写者。
         """
-        if self.collector.state == STATE_IDLE and \
-                self.collector.should_auto_start():
-            self._auto_start()
-        if self.collector.state == STATE_COLLECTING:
-            if self.collector.should_auto_finalize():
-                ok, message = self._finalize_now()
-                if ok:
-                    self.get_logger().info(f'自动完成：{message}')
-            else:
-                self._try_auto_capture()
+        with self._state_lock:
+            if self.collector.state == STATE_IDLE and \
+                    self.collector.should_auto_start():
+                self._auto_start()
+            if self.collector.state == STATE_COLLECTING:
+                if self.collector.should_auto_finalize():
+                    ok, message = self._finalize_now()
+                    if ok:
+                        self.get_logger().info(f'自动完成：{message}')
+                else:
+                    self._try_auto_capture()
 
     def _auto_start(self):
         """自动开始：绑定当前最优候选进 COLLECTING；无候选静默等待."""
@@ -1120,37 +1197,18 @@ class PeachReconstructionNode(Node):
         self._publish_all()
 
     def _try_auto_capture(self):
-        """自动采帧：帧新鲜度/静止/TF/视角决策全过才建云入库."""
+        """自动采帧：公共门禁（capture_gate）全过后做间隔/视角决策再建云."""
         if len(self.collector.frames) >= self.params.capture.max_views:
             return  # 满栈后静默等待 finalize，避免每帧重复构云/ICP和刷屏
-        cached = self._latest_frame
-        if cached is None:
+        decision, context = self._gated_capture(automatic=True)
+        if decision.action != GATE_ALLOW:
+            if decision.count_tf_failure:
+                self.collector.tf_failures += 1
+            if decision.reason:
+                self.get_logger().debug(f'自动采帧跳过：{decision.reason}')
             return
-        rgb, depth_mm, K, stamp_msg, stamp_sec, cam_frame = cached
-        target_mask, mask_reason = self._target_mask_for_frame(
-            stamp_msg, depth_mm)
-        if mask_reason:
-            self.get_logger().debug(f'自动采帧跳过：{mask_reason}')
-            return
-        if stamp_sec <= self._last_captured_stamp_sec:
-            return  # 本帧已采过（等下一帧回调）
-        age_s = self.get_clock().now().nanoseconds / 1e9 - stamp_sec
-        if age_s > self.params.capture.max_frame_age_s:
-            return  # 陈帧跳过（自动模式不记 rejected_views）
-        if self.params.capture.require_robot_static:
-            if not self._joint_states_seen:
-                return
-            if self._max_joint_vel > self.params.capture.static_joint_vel_thresh:
-                self.get_logger().debug(
-                    f'自动采帧跳过：关节速度 {self._max_joint_vel:.4f} rad/s 超阈')
-                return
-        if not cam_frame:
-            return
-        T_base_camera, tf_status = self._lookup_T_base_camera(
-            cam_frame, stamp_msg)
-        if T_base_camera is None:
-            self.collector.tf_failures += 1
-            return  # TF 失败跳过本帧，不打断流程
+        (rgb, depth_mm, K, stamp_sec,
+         T_base_camera, tf_status, target_mask) = context
         if self._last_captured_stamp_sec > 0.0:
             since_last = stamp_sec - self._last_captured_stamp_sec
         else:
@@ -1172,6 +1230,15 @@ class PeachReconstructionNode(Node):
     # ------------------------------------------------------------------
     # 发布与诊断
     # ------------------------------------------------------------------
+    def _publish_heartbeat(self):
+        """1Hz 活性心跳：状态 + 诊断 + 抓取许可（轻量三件套，不含云/Marker）."""
+        with self._state_lock:
+            self.pub_status.publish(String(data=self.collector.state))
+            self.pub_diag.publish(
+                String(data=json.dumps(self._diagnostics(), ensure_ascii=False)))
+            self.pub_grasp_decision.publish(String(
+                data=json.dumps(self._grasp_decision(), ensure_ascii=False)))
+
     def _publish_all(self):
         """状态变化后统一重发：累加云 + 状态 + 诊断 JSON + 相机轨迹 Marker."""
         header = Header()
@@ -1193,7 +1260,7 @@ class PeachReconstructionNode(Node):
         self.pub_grasp_decision.publish(String(
             data=json.dumps(self._grasp_decision(), ensure_ascii=False)))
         markers = build_camera_markers(header, self.collector.frames)
-        refined_arrow = build_refined_marker(header, self._refined_result)
+        refined_arrow = build_refined_marker(header, self._refined)
         if refined_arrow is not None:
             markers.markers.append(refined_arrow)
         mesh_marker = build_mesh_marker(header, self._mesh_cache)
@@ -1230,7 +1297,7 @@ class PeachReconstructionNode(Node):
         axis_msg.header = header
         fit_arr = BagFittingArray()
         fit_arr.header = header
-        result = self._refined_result
+        result = self._refined
         if result is not None and result['ok']:
             cand = BagGraspCandidate()
             cand.header = header
@@ -1275,15 +1342,16 @@ class PeachReconstructionNode(Node):
 
         Args:
             header: 输出头.
-            result: refine_geometry 结果；None 表示未跑或失败（失败时
-                由 _refined_info 取原因，发 REJECT 记录）.
+            result: refit 唯一缓存 _refined（成功结果或 {'ok': False,
+                'reason': ...} 失败记录）；None 表示未跑（失败时由
+                _refined_info() 取原因，发 REJECT 记录）.
 
         Returns
         -------
             peach_pose_msgs/BagFitting；从未跑过 refit 给 None.
 
         """
-        info = self._refined_info
+        info = self._refined_info()
         if result is None and not info:
             return None
         m = BagFitting()
@@ -1333,7 +1401,7 @@ class PeachReconstructionNode(Node):
         }
         if self.collector.state != 'READY':
             return decision
-        result = self._refined_result
+        result = self._refined
         if result is None or not result.get('ok'):
             decision['reason'] = 'refined_geometry_unavailable'
             return decision
@@ -1356,6 +1424,8 @@ class PeachReconstructionNode(Node):
         c = self.collector
         cloud = c.accumulated_cloud()
         last_ratio = c.frames[-1].valid_depth_ratio if c.frames else None
+        # registration 摘要不存副本，由帧栈各帧 registration 派生
+        registrations = [f.registration for f in c.frames]
         return {
             'harvest_run_id': self._harvest_run_id,
             'selected_target_id': self._preferred_target_id,
@@ -1379,16 +1449,16 @@ class PeachReconstructionNode(Node):
             # finalize 时的 TSDF 摘要（points/integrate_time_s/roi_center 等）
             'tsdf': self._tsdf_info,
             'registration': {
-                'accepted': len(self._registration_history),
-                'latest': (None if not self._registration_history
-                           else self._registration_history[-1]),
+                'accepted': len(registrations),
+                'latest': (None if not registrations
+                           else registrations[-1]),
             },
             # 主动视觉控制器消费精确采帧位姿，而不是回调时刻的 latest TF。
             'view_coverage': summarize_view_coverage(
                 c.frames, c.target_center),
             # refit 摘要（kind/center/axis/diameter/rmse/inlier_ratio/ok）；
             # 未跑为 None，失败为 {'ok': False, 'reason': ...}
-            'refined': self._refined_info,
+            'refined': self._refined_info(),
             'grasp_decision': self._grasp_decision(),
         }
 
@@ -1464,7 +1534,7 @@ class PeachReconstructionNode(Node):
                 'refit.entry_standoff_m': self.refit_config.entry_standoff_m,
             },
             'tsdf_result': self._tsdf_info,
-            'refined_result': self._refined_info,
+            'refined_result': self._refined_info(),
             'frames': [{
                 'index': i,
                 'stamp_sec': float(f.stamp),

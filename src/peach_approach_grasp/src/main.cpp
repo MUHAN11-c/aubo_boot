@@ -3,8 +3,8 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 //
-//    * Redistributions of source code must retain the above copyright notice,
-//      this list of conditions and the following disclaimer.
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
 //
 //    * Redistributions in binary form must reproduce the above copyright
 //      notice, this list of conditions and the following disclaimer in the
@@ -25,13 +25,27 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-#ifndef PEACH_APPROACH_GRASP__ACTION_CONTRACT_HPP_
-#define PEACH_APPROACH_GRASP__ACTION_CONTRACT_HPP_
+// 进程入口：构造节点、初始化 MoveIt（失败即退出）、四线程 executor 自旋。
+#include <exception>
+#include <memory>
 
-namespace peach_approach_grasp
+#include "approach_grasp_node_impl.hpp"
+
+int main(int argc, char ** argv)
 {
-// action 终局分类。状态枚举与 terminalOutcome(CycleState) 见 cycle_state.hpp；
-// 终局判定只走枚举，不再从状态字符串反推。
-enum class CycleOutcome {RUNNING, SUCCEEDED, CANCELED, FAILED, RECOVERY_REQUIRED};
-}  // namespace peach_approach_grasp
-#endif  // PEACH_APPROACH_GRASP__ACTION_CONTRACT_HPP_
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<peach_approach_grasp::ApproachGraspNode>();
+  try {
+    node->initializeMoveIt();
+  } catch (const std::exception & error) {
+    RCLCPP_FATAL(
+      node->get_logger(), "MoveIt 初始化失败: %s", error.what());
+    rclcpp::shutdown();
+    return 1;
+  }
+  rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 4);
+  executor.add_node(node);
+  executor.spin();
+  rclcpp::shutdown();
+  return 0;
+}

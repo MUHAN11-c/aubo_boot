@@ -63,6 +63,23 @@ ros2 service call /peach_approach_grasp_node/start_cycle std_srvs/srv/Trigger '{
 ros2 service call /peach_approach_grasp_node/query_state std_srvs/srv/Trigger '{}'
 ```
 
+批次编排器不调用 Trigger，而是经 action 驱动单目标周期（反馈携带编排状态，结果带
+outcome 分级，见「周期终态与 outcome」）：
+
+```bash
+ros2 action send_goal /peach_approach_grasp_node/run_target_cycle \
+  peach_harvest_msgs/action/RunTargetCycle \
+  "{request_id: demo-1, run_id: demo, cycle_id: demo-1, target_id: <ID>, mode: 2}"
+```
+
+全局拍照位姿服务（批次编排器在发现/复扫轮次开始前调用；守卫运行中周期与接触段
+recovery，先复核安全门，再按 `photo_pose_named_target` 的 SRDF 命名状态规划，
+Pilz `PTP` 失败回退 OMPL；`execution.enabled=false` 时仅规划不运动）：
+
+```bash
+ros2 service call /peach_approach_grasp_node/go_to_photo_pose std_srvs/srv/Trigger '{}'
+```
+
 重建 finalize 且 `grasp_decision.allowed=true` 后，可继续预览后续接触轨迹：
 
 ```bash
@@ -116,7 +133,7 @@ ros2 service call /peach_approach_grasp_node/acknowledge_recovery \
 1. 锁存当前 `selected_target_id`、初始入口、轴和目标中心；目标切换、丢失或数据过期立即
    阻止下一段运动。
 2. 读取 `base_link→camera_depth_optical_frame`，生成目标中心球面候选。姿态按 ROS 光学
-   坐标系 `+Z` 朝目标，TF 再换算成 `wrist3_Link` 的 MoveIt 目标。
+   坐标系 `+Z` 朝目标，TF 再换算成 `tcp` 的 MoveIt 目标（规划组 tip 即末端 TCP）。
 3. 首段使用 Pilz `PTP` 到安全观察位；后续使用短 `LIN` 弦段构成弧形补观测轨迹。每到一位
    等待重建 `captured_views` 增长，禁止开环扫完整条曲线。
 4. 重建输出至少 5 个合格视图、最大角基线至少 22°、平均最近邻角基线至少 8°、平均
@@ -128,14 +145,36 @@ ros2 service call /peach_approach_grasp_node/acknowledge_recovery \
    MoveRelative(CartesianPath)`。OMPL 只用于枝叶环境中的自由空间入口搜索，接触段必须保持
    精化轴直线；规划后、执行前再次检查机器人状态、目标 ID/新鲜度和取消标志。
 7. 行为树单独执行工具 IO，成功后用另一条 MTC `CurrentState → MoveRelative` 原轴撤回，
-   最后才完成目标。工具失败也尝试 MTC 原轴撤离；撤离仍检查机器人安全状态，但不要求
-   被末端遮挡的目标继续可见。接触/撤离不回退为任意 OMPL 路径。接触轨迹执行后若取消或撤离失败，状态锁定为
+   最后才完成目标。完成推进权归属：action（RunTargetCycle）驱动的周期由批次编排器按
+   终态统一调 `complete_selected_target` 推进感知计划，本节点不再调用，避免双写；
+   手动 `start_cycle` 周期没有编排器，仍由本节点自推进兜底。工具失败也尝试 MTC 原轴
+   撤离；撤离仍检查机器人安全状态，但不要求被末端遮挡的目标继续可见。接触/撤离不
+   回退为任意 OMPL 路径。接触轨迹执行后若取消或撤离失败，状态锁定为
    `RECOVERY_REQUIRED`，必须现场人工撤离并确认，禁止自动开始下一周期。
 
 关键安全门包括：一次性人工 arm、机器人状态新鲜且无急停/错误/断电、目标仍可见且 ID
 不变、重建质量收敛、MoveIt 碰撞与可达性规划成功。环境风动枝叶属于动态障碍；当前仅依赖
 规划场景和逐帧目标可见性，正式室外部署仍应增加近场避障传感器、末端力/触觉确认和工具
 闭合反馈，不能把本版本直接视为无人值守量产安全系统。
+
+## 周期终态与 outcome
+
+周期状态在节点内部一律以 `enum class CycleState`（`cycle_state.hpp`）流转，状态 JSON
+中的字符串只是发布层投影，终局判定只认枚举——修复了旧字符串分类把 `PLAN_READY` /
+`READY_FOR_GRASP` 误判为 FAILED 的问题。终局映射（`terminalOutcome`）：
+
+| 终态 | 终局 |
+|---|---|
+| `SUCCEEDED` / `PREVIEW_READY` / `PLAN_READY` / `READY_FOR_GRASP` | SUCCEEDED（只规划与未使能抓取两档均为圆满终态） |
+| `CANCELED` | CANCELED |
+| `FAILED` / `PREVIEW_FAILED` | FAILED |
+| `RECOVERY_REQUIRED` | RECOVERY_REQUIRED（接触段不确定，需人工） |
+
+action Result 的 `outcome` 再按失败点细分（`pending_outcome_`，BT 失败时记录）：
+视角均不可达或扫描上限未收敛、MTC 规划阶段失败（未启动执行）记
+`SKIPPED_UNREACHABLE`；finalize 后最终质量门失败记 `SKIPPED_QUALITY`；执行已启动后
+的失败记 `FAILED`。编排器据此分级记账并自动推进，只有 `recovery_required=true` 才
+中断批次等人工。
 
 ## 软件框架
 
@@ -151,10 +190,18 @@ aubo_io_controller ─ robot_status ────┘   ├─ MTC：OMPL 到入�
 
 - `view_planner.*`：无 ROS 依赖的候选视点生成、评分、相机 look-at 和工具轴姿态。
 - `quality_gate.*`：无 ROS 依赖的 ID、新鲜度、覆盖和精化质量门。
+- `target_cache.*`：选中目标、重建诊断与精化结果的线程安全缓存及 ID 一致性调和。
+- `safety_gate.*`：机器人状态与目标观测新鲜度的纯核安全门。
+- `motion_interface.cpp`：MoveGroup 规划/执行、接触轨迹预览与 `go_to_photo_pose`。
+- `bt_nodes.cpp`：行为树节点（视点循环、finalize 质量门、MTC、工具、目标完成）。
+- `cycle_action.cpp`：周期工作线程、RunTargetCycle action 与各 Trigger/SetBool 服务。
+- `cycle_state.hpp` / `action_contract.hpp`：`CycleState` 枚举与终局映射、action 契约。
 - `config/harvest_tree.xml`：可检查的采摘行为树拓扑和失败传播顺序。
-- `grasp_task.*`：MTC 接近/插入/撤离任务，发布 MTC introspection solution。
-- `approach_grasp_node.cpp`：ROS/MoveIt 接线、BT 节点、服务调用和执行安全门。
-- `config/approach_grasp.yaml`：所有默认参数；代码默认值与 YAML 同步维护。
+- `grasp_task.*`：MTC 接近/插入/撤离任务（stage 工厂消重），发布 MTC introspection solution。
+- `approach_grasp_node.cpp`（本体约 590 行）+ `approach_grasp_node_impl.hpp`：ROS/MoveIt
+  接线、参数与状态投影。
+- `config/approach_grasp.yaml`：所有默认参数（含 `photo_pose_named_target`）；代码默认值
+  与 YAML 同步维护。
 - `test/`：视点几何、排序和质量门单元测试。
 
 本包新增的上游数据只有重建 diagnostics 中的 `view_coverage`：它来自真正被 TSDF 接受的

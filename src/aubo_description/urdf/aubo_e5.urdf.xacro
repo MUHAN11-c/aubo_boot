@@ -5,6 +5,7 @@
   <xacro:include filename="components/table.xacro"/>
   <xacro:include filename="components/camera.xacro"/>
   <xacro:include filename="components/quick_changer.xacro"/>
+  <xacro:include filename="components/tcp.xacro"/>
   <xacro:include filename="aubo_e5.ros2_control.xacro"/>
 
   <xacro:arg name="include_table" default="true"/>
@@ -28,4 +29,6 @@
       <xacro:aubo_e5_quick_changer parent="camera_body_link"/>
     </xacro:if>
   </xacro:if>
+  <!-- 末端 TCP 固定关节（URDF 内建，robot_state_publisher 发布，见 components/tcp.xacro） -->
+  <xacro:aubo_e5_tcp parent="wrist3_Link"/>
 </robot>

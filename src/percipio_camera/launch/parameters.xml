@@ -1,6 +1,8 @@
 <source name="Depth">
     <feature name="DepthScaleUnit"></feature>
-    <feature name="DepthSgbmImageNumber"></feature>
+    <!-- SGBM 参与图像数：空值=设备默认；置 5 提高深度稳定性（代价是帧率下降，
+         启动后需观察 percipio fps 日志确认帧率可接受） -->
+    <feature name="DepthSgbmImageNumber">5</feature>
     <feature name="DepthSgbmDisparityNumber"></feature>
     <feature name="DepthSgbmDisparityOffset"></feature>
     <feature name="DepthSgbmMatchWinHeight"></feature>

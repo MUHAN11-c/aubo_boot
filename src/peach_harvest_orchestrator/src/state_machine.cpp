@@ -31,6 +31,63 @@
 
 namespace peach_harvest_orchestrator
 {
+Readiness ReadinessTracker::evaluate(const ReadinessSample & sample) const
+{
+  // fresh：收到过（时刻>0）且未超龄；与原节点 fresh() 判定一致。
+  const auto fresh = [&sample, this](double received_s) {
+      return received_s > 0.0 && sample.now_s - received_s <= timeout_s_;
+    };
+  Readiness readiness;
+  // 感知就绪只看话题新鲜度：锁定由派发前置保证，避免收齐窗口期卡回 WAITING_READY。
+  readiness.perception = fresh(sample.targets_received_s);
+  readiness.reconstruction = fresh(sample.reconstruction_received_s);
+  const bool robot_ready = !require_robot_status_ || (
+    fresh(sample.robot_received_s) && !sample.robot_e_stopped && !sample.robot_in_error &&
+    sample.robot_drives_powered && sample.robot_motion_possible);
+  readiness.motion = sample.action_server_ready && robot_ready;
+  readiness.web = sample.web_ready;
+  return readiness;
+}
+
+std::vector<std::string> ReadinessTracker::blockers(const Readiness & readiness)
+{
+  std::vector<std::string> blockers;
+  if (!readiness.perception) {blockers.emplace_back("perception");}
+  if (!readiness.reconstruction) {blockers.emplace_back("reconstruction");}
+  if (!readiness.motion) {blockers.emplace_back("motion");}
+  if (!readiness.web) {blockers.emplace_back("web");}
+  return blockers;
+}
+
+bool allow_dispatch(
+  bool photo_step_done, const std::string & selected_target_id,
+  const std::string & last_dispatched_target, bool target_active,
+  bool action_server_ready)
+{
+  return photo_step_done && !selected_target_id.empty() &&
+         selected_target_id != last_dispatched_target && !target_active &&
+         action_server_ready;
+}
+
+RoundVerdict decide_round(
+  bool locked, uint32_t target_count, uint32_t processed_count,
+  uint32_t round, uint32_t max_rounds, bool rescan_enabled)
+{
+  if (!locked || processed_count < target_count) {
+    return {RoundDecision::WAIT, ""};
+  }
+  if (target_count == 0) {
+    return {RoundDecision::COMPLETE, "本轮未锁定到目标，批次完成"};
+  }
+  if (rescan_enabled && round < max_rounds) {
+    return {RoundDecision::RESCAN, ""};
+  }
+  if (rescan_enabled) {
+    return {RoundDecision::COMPLETE, "达到最大复拍轮次，批次完成"};
+  }
+  return {RoundDecision::COMPLETE, "本轮目标已处理完，批次完成"};
+}
+
 const HarvestSnapshot & HarvestStateMachine::snapshot() const noexcept {return state_;}
 
 bool HarvestStateMachine::all_ready() const noexcept
@@ -41,11 +98,7 @@ bool HarvestStateMachine::all_ready() const noexcept
 
 void HarvestStateMachine::refresh_blockers()
 {
-  state_.blockers.clear();
-  if (!readiness_.perception) {state_.blockers.emplace_back("perception");}
-  if (!readiness_.reconstruction) {state_.blockers.emplace_back("reconstruction");}
-  if (!readiness_.motion) {state_.blockers.emplace_back("motion");}
-  if (!readiness_.web) {state_.blockers.emplace_back("web");}
+  state_.blockers = ReadinessTracker::blockers(readiness_);
 }
 
 void HarvestStateMachine::update_readiness(const Readiness & readiness)
@@ -116,12 +169,105 @@ void HarvestStateMachine::require_recovery(const std::string & reason)
   ++state_.revision;
 }
 
+void HarvestStateMachine::record_target_outcome(
+  const std::string & target_id, TargetOutcome outcome, const std::string & reason)
+{
+  // 无活动目标时不记账：终态回调可能迟到于 CANCEL_NOW 等已清场路径。
+  if (!state_.target_active) {return;}
+  ++state_.counters.attempted;
+  const char * default_message = "目标周期完成";
+  switch (outcome) {
+    case TargetOutcome::SUCCEEDED:
+      ++state_.counters.succeeded;
+      break;
+    case TargetOutcome::SKIPPED_QUALITY:
+      ++state_.counters.skipped_quality;
+      default_message = "质量门未通过，已跳过目标";
+      break;
+    case TargetOutcome::SKIPPED_UNREACHABLE:
+      ++state_.counters.skipped_unreachable;
+      default_message = "目标不可达，已跳过";
+      break;
+    case TargetOutcome::FAILED:
+      ++state_.counters.failed;
+      default_message = "目标周期失败";
+      break;
+    case TargetOutcome::CANCELED:
+      ++state_.counters.canceled;
+      default_message = "目标周期已取消";
+      break;
+  }
+  state_.outcomes.push_back(TargetOutcomeRecord{target_id, outcome, reason});
+  state_.target_active = false;
+  state_.target_phase = TargetPhase::IDLE;
+  if (state_.batch_state == BatchState::PAUSE_PENDING) {
+    // 暂停请求挂起期间周期结束：直接落到 PAUSED。
+    state_.batch_state = BatchState::PAUSED;
+    state_.mode = OperationMode::PAUSED;
+    state_.message = "已在安全检查点暂停";
+  } else {
+    state_.message = reason.empty() ? default_message : reason;
+  }
+  ++state_.revision;
+}
+
+bool HarvestStateMachine::complete_batch(const std::string & message)
+{
+  if (state_.target_active ||
+    (state_.batch_state != BatchState::DISCOVERY && state_.batch_state != BatchState::RUNNING))
+  {
+    return false;
+  }
+  state_.batch_state = BatchState::COMPLETED;
+  state_.run_active = false;
+  state_.message = message;
+  ++state_.revision;
+  return true;
+}
+
+bool HarvestStateMachine::reset_batch()
+{
+  if (state_.batch_state != BatchState::COMPLETED &&
+    state_.batch_state != BatchState::INTERRUPTED)
+  {
+    return false;
+  }
+  state_.counters = BatchCounters{};
+  state_.outcomes.clear();
+  state_.target_id.clear();
+  state_.target_phase = TargetPhase::IDLE;
+  state_.mode = OperationMode::AUTO;
+  state_.batch_state = all_ready() ? BatchState::DISCOVERY : BatchState::WAITING_READY;
+  state_.run_active = all_ready();
+  state_.message = all_ready() ? "批次已复位，重新开始发现目标" : "批次已复位，等待系统就绪";
+  ++state_.revision;
+  return true;
+}
+
+bool HarvestStateMachine::set_target_phase(TargetPhase phase)
+{
+  if (!state_.target_active || state_.target_phase == phase) {return false;}
+  state_.target_phase = phase;
+  ++state_.revision;
+  return true;
+}
+
 CommandResult HarvestStateMachine::finish_request(
   const std::string & request_id, bool accepted, const std::string & message, bool state_changed)
 {
   if (state_changed) {++state_.revision;}
   const CommandResult result{accepted, message, state_.revision};
-  if (!request_id.empty()) {request_results_[request_id] = result;}
+  if (!request_id.empty()) {
+    if (request_results_.find(request_id) == request_results_.end()) {
+      // 新条目入列；超过上限时淘汰最旧，防止长期运行缓存无界增长。
+      request_order_.push_back(request_id);
+      if (request_order_.size() > kMaxRequestResults) {
+        request_results_.erase(request_order_.front());
+        request_order_.pop_front();
+      }
+    }
+    request_results_[request_id] = result;
+  }
   return result;
 }
 
@@ -135,6 +281,9 @@ CommandResult HarvestStateMachine::control(
   }
   switch (command) {
     case ControlCommand::PAUSE:
+      if (state_.recovery_required) {
+        return finish_request(request_id, false, "需先确认恢复", false);
+      }
       if (state_.mode == OperationMode::MAINTENANCE) {
         return finish_request(request_id, false, "维护模式无需暂停", false);
       }
@@ -186,8 +335,15 @@ CommandResult HarvestStateMachine::control(
       state_.message = "恢复已确认，保持暂停";
       return finish_request(request_id, true, state_.message, true);
     case ControlCommand::RETRY_TARGET:
-    case ControlCommand::SKIP_TARGET:
+      // 预留：重试语义待复扫阶段定义，当前恒拒。
       return finish_request(request_id, false, "当前阶段不允许该命令", false);
+    case ControlCommand::SKIP_TARGET:
+      // 仅登记跳过意图；真正的 goal 取消由节点层向能力端传播。
+      if (!state_.target_active) {
+        return finish_request(request_id, false, "当前没有活动目标可跳过", false);
+      }
+      state_.message = "已请求跳过当前目标";
+      return finish_request(request_id, true, state_.message, true);
   }
   return finish_request(request_id, false, "未知命令", false);
 }

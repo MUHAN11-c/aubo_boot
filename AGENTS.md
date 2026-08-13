@@ -1,269 +1,157 @@
+# AGENTS.md — AUBO E5 ROS 2 Jazzy 工作区
 
-（默认加载包内 ；可用  覆盖）# AGENTS.md — AUBO E5 ROS 2 Jazzy 工作区
-
-> 面向 AI 编码代理的项目说明。阅读者默认对本项目一无所知。
-> 项目文档与代码注释以中文为主，本文沿用中文。
+> 面向 AI 编码代理的项目说明。内容以源码、各包 README 与 `docs/` 为权威源，
+> 包级细节先查对应 README。项目文档与代码注释以中文为主。
+> 当前交付快照（2026-08-13）：采摘批次闭环（拍照前置→收齐锁定→逐目标分级记账→
+> 复扫递减集→HarvestSummary）已落地且测试全绿；整机集成与真机验证仍未完成。
 
 ## 1. 项目概述
 
-本仓库是一个 ROS 2 Jazzy（Ubuntu 24.04 / noble）工作区，为 **AUBO E5 六轴机械臂**
-提供 ros2_control 驱动。机械臂使用老控制器固件（8899 端口，**旧 SDK v1.3.1**，
-二进制 vendor 在仓库内，无源码构建）。
+ROS 2 Jazzy（Ubuntu 24.04 / noble）工作区，共 19 个包：为 AUBO E5 六轴机械臂提供
+ros2_control 驱动（老控制器固件、vendored 旧 SDK v1.3.1，无源码构建），并叠加桃子
+采摘的感知/重建/抓取/编排全链路。
 
-核心架构为 **passthrough（一次性下发）** 模式，于 2026-07-27 替换原"标准 JTC 100Hz
-流式打点"架构（旧实现已于 2026-07-29 商业化精简时移除，历史见 git 记录与
-`docs/archive/`）。逻辑遵循 Humble 实测驱动（aubo_boot）蓝本，写法参考 UR 的
-`ur_controllers::PassthroughTrajectoryController`：
+驱动核心为 **passthrough（一次性下发）** 架构，2026-07-27 起替代流式 JTC（旧实现
+见 `docs/archive/`）；蓝本为 Humble 实测驱动 aubo_boot，写法参考 UR
+`PassthroughTrajectoryController`：
 
 ```
-MoveIt → FollowJointTrajectory goal
-  → AuboPassthroughTrajectoryController（按名重排关节、首点 smoothstep（C1）融合，
-    每周期经 trajectory_passthrough GPIO 传 1 个设定点，状态机 6→1→2→…→3）
+MoveIt → FJT goal
+  → AuboPassthroughTrajectoryController（按名重排、首点 smoothstep 融合，每周期经
+    trajectory_passthrough GPIO 传 1 个设定点，状态机 6→1→2→…→3）
   → AuboE5Hardware::write()（设定点入 SPSC 队列，回写状态机）
   → 发送线程（非 RT，4ms）：五次重采样为 5ms 点 → RIB 水位流控
     → SetRobotPosData2Canbus 批量透传 → 接口板 5ms/点消费
   → 队列排空 → DONE(5) → 控制器 goal_hold → action succeed
 ```
 
-停止原语分三类：正常完成=队列自然排空；取消/抢占=清双队列 + `RobotMoveStop`
-主动丢弃 RIB；急停/防护停=仅停发清队（由本体安全回路主导）。
+停止原语三类：正常完成=队列自然排空；取消/抢占=清双队列 + `RobotMoveStop` 主动丢弃
+RIB；急停/防护停=仅停发清队（本体安全回路主导）。
 
-## 2. 技术栈
+## 2. 技术栈与 Python 环境
 
-- **语言**：C++17（硬件/控制器/dashboard 插件与节点）、Python（launch、tools 脚本）
-- **项目 Python 环境**：整个项目的 Python 环境统一为
-  `/home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12`（Python 3.12 venv，带
-  `--system-site-packages`，已装 matplotlib/numpy/torch/open3d 等）。所有 Python
-  脚本（tools/、diagnostics/、以及其他任何需要调用 Python 的场景）一律用
-  `aubo_py3.12/bin/python` 运行，不要使用系统 `python3`；需要新增 Python 包时
-  装进该 venv。venv 的依赖锁定在工作区根目录 `requirements.txt`
-  （`aubo_py3.12/bin/pip install -r requirements.txt` 可复现，文件头注释有详细约束）。
-  ROS 节点分两层：纯 ROS 节点（aubo_hand_eye_calibration）走系统 python3
-  （console_scripts + apt 依赖）；依赖 torch/open3d 的节点（aubo_scene_recon、
-  peach_pose_ros2）同样用 console_scripts，但 setup.py 经
-  `options.build_scripts.executable` 把启动器 shebang 指到 venv 解释器
-  （构建期解析，约定详见第 8 节）。
-- **框架**：ROS 2 Jazzy + ros2_control（hardware_interface / controller_interface /
-  pluginlib / generate_parameter_library）+ MoveIt 2（ompl + pilz 双管线）
-- **构建系统**：colcon + ament_cmake / ament_python（无 pyproject.toml /
-  package.json / Cargo.toml）
-- **外部依赖**：vendored AUBO 旧 SDK v1.3.1（`libauborobotcontroller.so`，
-  强依赖 protobuf 2.6.1 / libconfig / log4cplus，均已 vendor）
+- C++17（硬件/控制器/dashboard/编排），Python（launch、tools、感知/重建）；
+  colcon + ament_cmake / ament_python。
+- 全项目 Python 统一用 `aubo_py3.12`（Python 3.12 venv，带 `--system-site-packages`）。
+  tools/、diagnostics/ 及一切 Python 调用都用 `aubo_py3.12/bin/python`；依赖锁定在
+  根目录 `requirements.txt`（`aubo_py3.12/bin/pip install -r requirements.txt` 可复现）。
+- **venv 内 numpy 必须保持 1.26.4（<2）**；禁止 pip 安装 opencv-python/scipy（会
+  shadow 系统版，导致 cv2 / cv_bridge 崩溃），详见 requirements.txt 头注释。
+- 节点解释器分两层：
+  - 纯 ROS 节点（aubo_hand_eye_calibration、peach_perception_web）：系统 python3 +
+    console_scripts；
+  - torch/open3d 节点（aubo_scene_recon、peach_pose_ros2、peach_reconstruction_ros2）：
+    console_scripts + setup.py `build_scripts.executable` 指向 venv（构建期
+    `_resolve_python()` 相对解析，不写死路径）；launch 一律标准 `Node()`。
+- MoveIt 2（ompl + pilz）不在 apt，来自源码 overlay `~/ws_moveit`（~/.bashrc 自动
+  source；新机部署必须同步构建）。
 
 ## 3. 仓库结构
 
-```
-src/                            # 参与构建的包（共 17 个）
-├── aubo_msgs/                  # 自定义 msg/srv/action（IOState、RobotStatus、SetIO、
-│                               #   GetFK/IK、SetPayload、手眼标定 action/srv）
-├── aubo_description/           # E5 工作单元 URDF（table/camera/quick_changer）+
-│                               #   aubo_e5.ros2_control.xacro（接口契约 + 硬件参数表）
-├── aubo_e5_hardware/           # 核心：SystemInterface 插件
-│   ├── src/aubo_e5_hardware.cpp        # 真机插件（双 SDK 连接：conn_control_ 走
-│   │                                   #   TCP2CAN 流控发送线程；conn_status_ 走状态
-│   │                                   #   推送/安全 IO/停止原语，IO 异步线程）
-│   ├── src/aubo_e5_sim_hardware.cpp    # 板级模拟器插件（ursim 等价物，无 SDK 无真机）
-│   ├── vendor/                         # SDK 头文件 + lib64 二进制 + 文档
-│   └── config/                         # auborobot.conf、tracelog.properties（SDK 按
-│                                       #   进程 CWD 读取 ./config/，装到 share）
-├── aubo_e5_controllers/        # AuboPassthroughTrajectoryController（FJT action server）
-│                               #   + AuboIOController（io_states/robot_status/
-│                               #   rib_status/joint_status + ~/events + /diagnostics
-│                               #   发布，set_io 服务）
-│                               #   参数由 generate_parameter_library 从
-│                               #   src/*_parameters.yaml 生成
-├── aubo_dashboard/             # 独立服务节点（上电/断电/停止/FK/IK/负载，非运动类）
-├── aubo_e5_moveit_config/      # MoveIt 配置与 launch：launch/ 下只有唯一入口
-│                               #   moveit.launch.py（真机/仿真共用的整体启动：
-│                               #   move_group + rviz2，standalone 时自带 rsp +
-│                               #   joint_state_publisher_gui；bringup 只 include 它）；
-│                               #   config/ 下 controllers.yaml 与 controllers_mock.yaml
-│                               #   两套控制器映射、joint_limits、kinematics、ompl、pilz、
-│                               #   tcp.yaml（末端 TCP 相对 wrist3_Link 的偏移，
-│                               #   launch 据此发静态 TF wrist3_Link→tcp）
-├── aubo_e5_bringup/            # bringup.launch.py（唯一入口）+ config/controllers.yaml
-├── aubo_hand_eye_calibration/  # 手眼标定（ament_python；17 预定义位姿 + MoveIt 位姿
-│                               #   约束运动；求解算法可选 auto/tsai/park/horaud/
-│                               #   andreff/daniilidis + Huber 精化；Web 界面含机器人
-│                               #   状态/末端位姿/关节表/逐帧过程/求解公式与残差图表）
-├── aubo_scene_recon/           # 点云场景重建（open3d TSDF/累积后端；节点为
-│                               #   console_scripts + build_scripts.executable
-│                               #   指向 venv，约定见第 8 节）
-├── peach_gantry_description/   # 【新结构模型，当前不参与开发/运行】架子式桃子
-│                               #   采摘机器人（总装4）URDF 描述包
-│                               #   （SolidWorks 导出，四轮底盘+升降采摘臂，
-│                               #   mesh 路径已改 package:// 引用；TF 根为
-│                               #   base_footprint；含 display.launch.py：
-│                               #   rsp + joint_state_publisher_gui + RViz2）
-├── peach_moveit_config/        # 【新结构模型，当前不参与开发/运行】架子机 MoveIt
-│                               #   配置（Setup Assistant 生成后项目化
-│                               #   修改：joint_limits 浮点/真实限值、SRDF 链
-│                               #   base_link→tool0、virtual_joint 指 base_footprint、
-│                               #   initial_positions joint5=0.5、moveit.rviz 加
-│                               #   TF 显示；未接入 lint）。peach 视觉链路的机械臂
-│                               #   栈是 AUBO E5（aubo_description +
-│                               #   aubo_e5_moveit_config），与架子机无关
-├── peach_pose_msgs/            # 桃子位姿估计的自定义 msg
-├── peach_pose_ros2/            # 桃子位姿估计（YOLO+SAM，依赖 venv 内 torch；
-│                               #   节点为 console_scripts + build_scripts.executable
-│                               #   指向 venv，同 scene_recon 模式；ROS 面已按职责
-│                               #   拆分 tf_utils/conversions/visualization/
-│                               #   cloud_utils + 640 行节点主体；
-│                               #   目标身份记忆 target_registry：base_link 世界系
-│                               #   空间匹配，目标消失重现 target_id 不变；
-│                               #   TUTORIAL.md=零基础逐行教程：启动链→参数→
-│                               #   节点→管线→输出话题）
-├── peach_approach_grasp/       # 主动视觉靠近与抓取（ament_cmake/C++17）：
-│                               #   球面自适应视点 + 重建覆盖质量门 + BT.CPP
-│                               #   编排 + MTC（OMPL 入口/Cartesian 插入撤离）；
-│                               #   默认只规划，运动需每周期人工 arm，
-│                               #   抓取与工具 IO 默认关闭；不直接访问冻结驱动
-├── peach_perception_web/       # 桃子感知/重建只读数据台（ament_python，系统
-│                               #   Python + 标准库 HTTP；目标/位姿/质量/抓取状态，
-│                               #   不订阅图像或点云；默认仅监听 127.0.0.1）
-├── peach_reconstruction_ros2/  # 套袋桃连续运动局部重建（唯一重建包）：
-│                               #   精确图像时刻 FK/手眼位姿 + 有界 Open3D
-│                               #   点到平面 ICP，小修正通过后在线积分 TSDF；
-│                               #   finalize 提取彩色点云/带法向网格 + 圆柱/球拟合
-│                               #   （refined_pose/refined_axis/refined_diagnostics）；
-│                               #   6 个 Trigger 服务备用；深度归一化复用
-│                               #   peach_pose_ros2.depth_geometry；
-│                               #   session 落盘 peach_sessions/）
-└── percipio_camera/            # 相机驱动（厂商代码，两处项目化改动：
-                                #   ① launch 默认值：device_ip=169.254.10.110、
-                                #   depth_enable=true、point_cloud_enable=false、
-                                #   color_point_cloud_enable=true；② 新增
-                                #   color_camera_info_file 参数，默认用
-                                #   config/color_camera_info.yaml（棋盘自标内参）
-                                #   覆盖设备 Flash 标称内参，传 '' 回退）
+### 驱动栈（冻结只读，见第 7 节）
 
-tools/                          # 分析/测试脚本（不随 colcon 构建）：
-                                #   passthrough_traj_client.py（轨迹测试客户端）
-                                #   motion_analyzer.py（运动分析工具，单文件单窗口
-                                #     图文报告+CSV+PNG：run=脚本轨迹执行分析，
-                                #     --real 启用 RIB 判定；rec=RViz 手动运动被动
-                                #     录制，逐段 A/B/C/D 四类量化，多段汇总一窗）
-                                #   peach_dataset_replayer.py（PeachPose 数据集回放
-                                #     冒烟工具：rgb/+depth/ 成对 PNG → RGB-D+CameraInfo）
-                                #   peach_validation_recorder.py（采摘感知验证过程
-                                #     数据记录：record 子命令把感知/重建话题快照 +
-                                #     相机 RGB/深度 + 点云渲染 + 参数 dump + TF 快照
-                                #     落盘 validation_runs/run_*/step_NN_*/，
-                                #     含 manifest.yaml 与 index.md）
-                                #   fk_ik_check.py、joint_trace_recorder.py、
-                                #   m2_m3_retest.py，以及一组链接 vendored SDK 的
-                                #   C++ 检查程序（aubo_sdk_{readonly,motion,full,
-                                #   speed,jointmove,coexist}_*.cpp）
-test_results/                   # motion_analyzer 默认输出目录（PNG 报告 + CSV，
-                                #   文件名带时间戳，运行时自动创建）
-hand_eye/                       # 手眼标定结果存储（active.yaml + candidates/*.yaml），
-                                #   由 storage.py 相对包定位（AUBO_HAND_EYE_DIR 可覆盖），
-                                #   不再用 ~/.ros
-diagnostics/                    # SDK 探针（独立 CMake 构建，不参与 colcon）：
-                                #   aubo_sdk_{abi,runtime,push,tcp2can}_probe.cpp
-                                #   （链接 vendored SDK v1.3.1；runtime=轮询延迟/阻塞，
-                                #   push=推送频率/空洞，tcp2can=RIB 水位/写延迟，全部零运动）
-                                #   run_tests.sh（一键构建+按序运行+绘图）、
-                                #   plot_results.py（读 results/*.csv 出 PNG 曲线，
-                                #   用 aubo_py3.12/bin/python 运行）
-                                #   live_monitor.py（实时监测：与 bringup/RViz2 并行运行，
-                                #   只订阅 /joint_states + /aubo_io_controller/rib_status
-                                #   + joint_status 话题，不新增 SDK 连接；实时窗口或
-                                #   --no-gui 记录，退出出汇总 PNG）
-                                #   build/（cmake 产物）、results/（CSV+PNG，每次运行覆盖最新）
-docs/                           # 现行文档：usage.md（命令手册）、
-                                #   passthrough_migration.md（架构迁移说明）、
-                                #   nic_driver_incident.md（网卡驱动事件运维）、
-                                #   ur_motion_evaluation_standards.md（运动评估标准）、
-                                #   peach_urdf_migration.md（架子机 URDF 再导出
-                                #   移植清单：SolidWorks 导出物缺陷修补 +
-                                #   Setup Assistant 重打补丁清单 + 最小验证集）、
-                                #   peach_perception_progress.md（桃子感知 +
-                                #   连续 TSDF 两包进度与真机验证台账）、
-                                #   peach_perception_reconstruction_logic.md
-                                #   （感知+重建两包全逻辑图解：管线/状态机/
-                                #   身份记忆/目标切换/联动时序，mermaid）；
-                                #   archive/（旧架构文档 6 篇，仅供历史参考）、
-                                #   images/（文档配图）、
-                                #   superpowers/specs/（功能设计文档，如
-                                #   2026-07-30-aubo-scene-recon-design.md）
-scripts/package_workspace.sh    # 打包可迁移源码归档（排除 build/install/log，
-                                #   输出 release/*_source_V<n>.tar.gz，n 按已有归档递增）
-SDK资料/                        # 厂商原始资料（SDK 包、Noetic 参考、文档）
-build/ install/ log/            # colcon 产物，勿手动修改
-```
+| 包 | 职责 |
+|---|---|
+| aubo_msgs | 自定义 msg/srv/action（IO、RobotStatus、FK/IK、SetPayload、手眼标定） |
+| aubo_description | E5 工作单元 URDF + ros2_control xacro（接口契约与硬件参数表） |
+| aubo_e5_hardware | SystemInterface 真机插件（双 SDK 连接 + TCP2CAN 发送线程）与 sim 板级模拟器；vendor SDK |
+| aubo_e5_controllers | passthrough FJT 控制器 + IO 控制器（状态/RIB/diagnostics 发布、set_io） |
+| aubo_dashboard | 非运动服务节点（上电/断电/停止/FK/IK/负载） |
+| aubo_e5_moveit_config | MoveIt 配置与唯一 launch `moveit.launch.py`（controllers.yaml / controllers_mock.yaml） |
+| aubo_e5_bringup | 唯一入口 `bringup.launch.py` + controllers.yaml |
+| percipio_camera | 厂商相机驱动（仅 launch 默认值与内参配置被项目化；不参与 lint） |
 
-src/ 下 17 个包中 15 个项目包已接入 lint 测试（10 个 ament_cmake 包经
-`ament_lint_auto`：copyright/cpplint/uncrustify/lint_cmake/xmllint；5 个
-ament_python 包带官方模板 test_flake8.py/test_pep257.py），`colcon test`
-强制风格合规；`percipio_camera` 为厂商代码不参与 lint，
-`peach_moveit_config` 为 Setup Assistant 生成未接入 lint。
-`aubo_e5_hardware/vendor/`
-与 `aubo_dashboard/vendor/` 内含 `AMENT_IGNORE`（ament 工具链跳过厂商代码，
-不影响编译）。业务测试：aubo_hand_eye_calibration（unittest 15 例）、
-aubo_scene_recon、peach_pose_ros2、peach_reconstruction_ros2 与 peach_perception_web
-（pytest，须用 venv 解释器）；
-硬件/控制器代码验证靠 sim 模式闭环 + 真机分阶段流程（见第 6 节）。
+### 手眼标定与场景重建
 
-## 4. 构建
+- `aubo_hand_eye_calibration`：17 预定义位姿 + 多算法求解 + Web；系统 python3。
+- `aubo_scene_recon`：Open3D TSDF 点云场景重建；venv 节点。
+
+### 桃子采摘链路
+
+- `peach_pose_msgs` / `peach_harvest_msgs`：感知与采摘编排的类型化 msg/srv/action
+  （含 RunHarvest / RunTargetCycle、ControlHarvest、SetOperationPolicy）。
+- `peach_pose_ros2`：YOLO+MobileSAM 位姿估计；target_id 在 base_link 世界系空间匹配，
+  消失重现 ID 不变；venv。
+- `peach_reconstruction_ros2`：连续运动局部重建（精确时刻 TF/FK + 有界 ICP + 在线
+  TSDF + 精化拟合）；session 落盘；venv。
+- `peach_approach_grasp`：球面自适应视点 + 行为树 + MTC 抓取；周期状态 `CycleState`
+  枚举流转、action 终局 outcome 分级（SUCCEEDED/SKIPPED_QUALITY/SKIPPED_UNREACHABLE/
+  FAILED/recovery）；`~/go_to_photo_pose` 服务移动到 SRDF 命名状态
+  `global_photo_pose`（Pilz PTP+OMPL 兜底）；默认只规划，运动需人工 arm，抓取与
+  工具 IO 默认关闭。
+- `peach_perception_web`：感知/重建/抓取**只读**监控台（2026-08-13 起移除全部
+  Web 写入口：控制/调试/策略/档案代理取消，只留 GET /api/state）：批次过程线
+  （就绪→拍照位姿→感知锁定→观察规划→质量验证→靠近抓取→工具动作→撤离收尾→
+  完成）+ 过程数据 + 各节点当前参数只读镜像（3s 轮询 get_parameters）；
+  系统 python3，默认 127.0.0.1:8090。
+- `peach_harvest_orchestrator`：批次唯一所有者（生命周期状态机、四路就绪门、三级策略
+  execution→grasp→tool 两阶段提交、RunHarvest action + HarvestSummary、Web 代理类型化
+  命令）；批次闭环：拍照前置（go_to_photo_pose→reset_global_targets）→ 感知收齐锁定 →
+  按优先级逐目标派发、outcome 记账自动推进 → 复扫递减集循环（`harvest.max_rounds`
+  上限）→ COMPLETED；SKIP_TARGET/CANCEL_NOW 真取消活动 goal；
+  `config/orchestrator.yaml` 默认 auto_start=true 但 execution/grasp/tool=false；
+  整栈入口 `harvest_system.launch.py`。
+- `peach_gantry_description` / `peach_moveit_config`：【暂不参与开发/运行】架子式
+  采摘机器人模型与 MoveIt 配置。
+
+### 非包目录
+
+- `tools/`：分析/测试脚本（passthrough_traj_client、motion_analyzer、
+  peach_dataset_replayer、peach_validation_recorder、fk_ik_check、
+  joint_trace_recorder、m2_m3_retest、SDK 检查程序；不随 colcon 构建）。
+- `diagnostics/`：SDK 探针（COLCON_IGNORE，独立 CMake，零运动）。
+- `hand_eye/`、`test_results/`、`harvest_runs/`、`peach_profiles/`：标定结果、
+  运动分析输出、采摘批次结果、操作策略档案。
+- `docs/`、`scripts/package_workspace.sh`、`SDK资料/`（厂商资料，勿外传）；
+  `build/` `install/` `log/` 为 colcon 产物，勿改勿提交。
+
+19 个包中 17 个接入 lint（12 个 ament_cmake + 5 个 ament_python）；`percipio_camera`
+（厂商）与 `peach_moveit_config`（生成配置）除外；vendor 目录含 `AMENT_IGNORE`。
+
+## 4. 构建与运行
 
 ```bash
 source /opt/ros/jazzy/setup.bash
 cd /home/mu/Desktop/aubo_e5_jazzy_ws
-colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release     # 全量构建
-colcon build --packages-select aubo_e5_controllers        # 只构建某个包
+colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release   # 全量；--packages-select <pkg> 单包
 source install/setup.bash
 ```
 
-## 5. 运行（三种模式）
-
-通过 launch 参数 `hardware_mode` 切换（透传到 xacro）：
+三种模式（bringup 参数 `hardware_mode`）：
 
 | 模式 | 硬件插件 | 控制器 | 用途 |
 |---|---|---|---|
-| `mock` | `mock_components/GenericSystem` | `joint_trajectory_controller` | 标准 ros2_control 回归；MoveIt 映射到 controllers_mock.yaml |
-| `sim` | `aubo_e5_hardware/AuboE5SimHardware` | passthrough + IO | passthrough 全链路闭环模拟，无真机开发/验证首选 |
-| `real`（默认） | `aubo_e5_hardware/AuboE5Hardware` | passthrough + IO + dashboard | 真机；普通内核直接启动（已取消 RT 预检） |
+| mock | mock_components/GenericSystem | 标准 JTC | ros2_control 回归 |
+| sim | AuboE5SimHardware | passthrough + IO | 无真机闭环验证首选 |
+| real（默认） | AuboE5Hardware | passthrough + IO + dashboard | 真机（普通内核即可） |
 
 ```bash
-ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim
-ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real robot_ip:=<控制器IP>
+ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim camera_enabled:=false
+ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real robot_ip:=<IP>
+ros2 launch aubo_e5_moveit_config moveit.launch.py                      # 只起 MoveIt+rviz2
+ros2 launch peach_harvest_orchestrator harvest_system.launch.py         # 采摘整栈
+ros2 launch aubo_scene_recon recon.launch.py
+ros2 launch peach_pose_ros2 peach_pose.launch.py
+ros2 launch peach_reconstruction_ros2 reconstruction.launch.py          # params_file:=<路径> 可覆盖
+ros2 launch peach_approach_grasp approach_grasp.launch.py
+ros2 launch peach_perception_web peach_perception_web.launch.py
 ```
 
-可叠加 launch 参数（默认 `robot_ip=169.254.10.98`）：`moveit_enabled`（true，
-move_group + rviz2）、`camera_enabled`（true，启动 percipio 相机驱动；sim/mock
-无相机时建议显式 false）、`extrinsics_enabled`（true，手眼外参静态 TF
-wrist3_Link→camera_link）、`hand_eye_enabled`（false，标定采集/求解流程）、
-`hand_eye_web_enabled`（false，标定 Web 界面，仅 `hand_eye_enabled:=true` 时生效）。
+bringup 其他参数：`robot_ip`（默认 169.254.10.98）、`moveit_enabled`（true）、
+`camera_enabled`（true；sim/mock 无相机建议显式 false）、`extrinsics_enabled`
+（true）、`hand_eye_enabled` / `hand_eye_web_enabled`（false）。任意 launch 可用
+`--show-args` 查看全部参数及中文说明。
 
-只起 MoveIt + rviz2（不起硬件，纯规划调试）：`ros2 launch aubo_e5_moveit_config
-moveit.launch.py`（自带 rsp + joint_state_publisher_gui；参数 `controllers_file`、
-`standalone_state_publishers`，bringup 集成时后者传 false）。
+sim 插件与真机契约一致：传输状态机、五次重采样、虚拟接口板 200Hz 每周期消费 1 个
+5ms 点、`rib_level`、abort 丢弃队列，执行耗时与真实轨迹一致；sim 不模拟板载 IO，
+`set_io` 返回 success=false 属预期。
 
-感知/重建为独立入口（console_scripts + venv shebang，约定见第 8 节）：
-`ros2 launch aubo_scene_recon recon.launch.py`（点云重建）、
-`ros2 launch peach_pose_ros2 peach_pose.launch.py`（桃子位姿，launch 无
-解释器参数）、
-`ros2 launch peach_reconstruction_ros2 reconstruction.launch.py`
-（默认加载包内 `config/reconstruction.yaml`；`params_file:=<路径>` 可覆盖；
-自动采集 + Trigger 服务备用）；无相机冒烟用
-`aubo_py3.12/bin/python tools/peach_dataset_replayer.py --dataset <根>`。
-只读 Web 可视化用 `ros2 launch peach_perception_web
-peach_perception_web.launch.py`（默认 `http://127.0.0.1:8090`）。
-任意 launch 的全部参数及中文说明可用 `--show-args` 查看。
-
-sim 插件与真机契约一致：传输状态机、五次重采样、虚拟接口板 200Hz 每周期消费
-1 个 5ms 点、`rib_level`、abort 丢弃队列；执行耗时与真实轨迹一致，可提前暴露
-MoveIt 超时问题。注意 sim 不模拟板载 IO 写回，`set_io` 返回 success=false 属预期。
-
-## 6. 测试与验证策略
-
-15 个项目包已接入 lint 测试（见第 3 节），`colcon test` 强制风格合规；业务测试
-须用 venv 解释器手动跑（先 source ROS 环境，否则 lint 测试 import 不到 ament_*）：
+## 5. 测试与验证
 
 ```bash
 source /opt/ros/jazzy/setup.bash
-colcon test && colcon test-result --verbose          # 全包 lint + 接入的测试
+colcon test && colcon test-result --verbose    # 全包 lint + 接入的测试
+
 cd src/aubo_hand_eye_calibration && ../../aubo_py3.12/bin/python -m pytest test/ -q
 cd src/aubo_scene_recon && ../../aubo_py3.12/bin/python -m pytest test/ -q
 cd src/peach_pose_ros2 && PYTHONPATH=peach_pose_ros2:$PYTHONPATH ../../aubo_py3.12/bin/python -m pytest test/ -q
@@ -271,190 +159,117 @@ cd src/peach_reconstruction_ros2 && PYTHONPATH=.:../peach_pose_ros2:$PYTHONPATH 
 cd src/peach_perception_web && ../../aubo_py3.12/bin/python -m pytest test/ -q
 ```
 
-硬件/控制器代码的验证方式为：
+硬件/控制器验证流程（启动任何 launch/测试/探针前必查旧进程，防止旧二进制与设备独占
+干扰判断）：
 
-0. **运行前先查旧进程**（启动任何 launch/测试/探针之前必做）：
-   ```bash
-   pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
-   ```
-   有残留先清掉再启动。背景：① 相机等设备被旧进程独占时新 launch 报
-   `Open device fail -1014`，且旧进程跑的是**构建前的旧二进制**，会让
-   "改动已生效"的判断失真（2026-07-29 实测踩坑）；② 直接 kill launch
-   进程会留下孤儿 component_container/节点进程，必须按 PID 补杀；
-   ③ SDK 通道（TCP2CAN）与相机一样独占，重开 bringup 前同样要先清。
-1. **sim 闭环冒烟**（改控制器/硬件代码后必做）：
-   ```bash
-   ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim camera_enabled:=false
-   aubo_py3.12/bin/python tools/passthrough_traj_client.py wave_shoulder 3
-   aubo_py3.12/bin/python tools/passthrough_traj_client.py sine_shoulder      # 压测重采样/流控
-   aubo_py3.12/bin/python tools/motion_analyzer.py run sine_shoulder   # 数据存 test_results/
-   ```
-   （camera_enabled 默认 true；无相机时 sim 冒烟建议显式关闭，避免驱动刷屏报错。）
-   已验证基准（2026-07-27，Jazzy）：三控制器 active；goal 执行成功（goal-hold
-   confirmed）；执行中新 goal 正确抢占（旧 CANCELED、新 SUCCEEDED）；
-   sine_shoulder 墙钟/标称比 1.08、终点误差 0、joint_states 200Hz。
-2. **mock 回归**：`hardware_mode:=mock` 下标准 JTC goal 成功。
-3. **真机分阶段流程**（务必按序，详见 `docs/usage.md` 第 7 节）：
-   只核对 joint_states → 用户在示教器/控制柜手动上电并确认 → 低速小轨迹 →
-   取消/抢占行为 → MoveIt 整机轨迹 + trace 分析。
-   验收指标：执行期点吞吐率 ≈200 点/s；RIB 不饿死（>0）不溢出（<400）；
-   墙钟/标称时长比 ≈1.0；终点误差 < 0.02 rad。
+```bash
+pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
+```
 
-完整命令手册（控制器管理、action/服务示例、排障表）见 `docs/usage.md`。
+1. sim 闭环冒烟：`hardware_mode:=sim camera_enabled:=false` 起 bringup，然后
+   `tools/passthrough_traj_client.py wave_shoulder 3`、`sine_shoulder` 压测，
+   `tools/motion_analyzer.py run sine_shoulder` 分析（输出 test_results/）。
+   已验证基准：三控制器 active、goal-hold 成功、抢占正确、sine 墙钟/标称 ≈1.08、
+   终点误差 0、joint_states 200Hz。
+2. mock 回归：标准 JTC goal 成功。
+3. 真机分阶段（`docs/usage.md` 第 7 节）：只核对 joint_states → 用户现场手动上电并
+   确认 → 0.1 缩放低速小轨迹 → 取消/抢占 → MoveIt 整机轨迹 + trace。验收指标：
+   点吞吐 ≈200 点/s、RIB 不饿死不溢出（0<level<400）、墙钟/标称 ≈1.0、
+   终点误差 <0.02 rad。
 
-## 7. 关键参数与契约
+## 6. 关键参数与契约
 
-- **权威关节顺序**（goal 的 joint_names 会被控制器 remap 到此顺序）：
-  `shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint`
-- **hardware 参数**（URDF `<param>`，见
-  `src/aubo_description/urdf/aubo_e5.ros2_control.xacro`，默认值与蓝本一致）：
+- 权威关节顺序（goal 的 joint_names 会被控制器 remap 到此顺序）：
+  `shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint`。
+- hardware 参数（`aubo_description/urdf/aubo_e5.ros2_control.xacro`）：
   `send_period_ms=4`、`rib_target=400`、`rib_slowdown_1/2=300/350`、
   `batch_min/max=2/8`、`ema_alpha=0.1`、`stop_retry_ms=20`、`auto_power_on=false`、
   `max_joint_velocity/acceleration` 等。
-- **控制器参数**（`src/aubo_e5_bringup/config/controllers.yaml`）：
+- 控制器参数（`aubo_e5_bringup/config/controllers.yaml`）：
   `goal_tolerance_rad=0.02`、`goal_vel_tolerance=0.01`、`goal_hold_frames=5`、
   `goal_check_ms=50`、`goal_time=0.0`（禁用超时）、`blend_threshold_rad=0.01`、
   `blend_steps=30`；controller_manager `update_rate: 200`。
-- **MoveIt 侧**：`trajectory_execution.*` 蓝本值 5.0/10.0/0.15；速度缩放由 MoveIt
-  时间参数化完成，控制器不做执行期缩放。
-- **GPIO 契约**：`trajectory_passthrough`（transfer_state 状态机 0–6 +
-  setpoint_positions/velocities/accelerations + time_from_start + abort +
-  trajectory_size）、`aubo_io`（IO 状态/命令 + RIB 状态）与 `speed_scaling`
-  （speed_scaling_factor，恒定 1.0，本驱动不做执行期缩放；控制器激活时强制
-  认领该接口但从不读取）三组接口，见
-  `aubo_e5.ros2_control.xacro` 的 `<gpio>` 段与硬件插件 XML 描述。
-- **Python 节点参数默认值**：以各包 `config/*.yaml` 为权威源，代码内
-  `declare_parameter` 默认值已逐一对齐（如 hand_eye `velocity_scaling=0.1`、
-  scene_recon `max_range=3.0`/`tf_timeout_sec=0.5`）；改默认值时两边必须同步。
+- GPIO 三组接口：`trajectory_passthrough`（transfer_state 0–6 + 设定点 + abort +
+  trajectory_size）、`aubo_io`（IO + RIB）、`speed_scaling`（恒 1.0，不做执行期缩放）。
+- MoveIt：`controller_names=aubo_passthrough_trajectory_controller` +
+  `action_ns=follow_joint_trajectory`；goal 容差可覆盖默认；携带 path_tolerance 会
+  拒 goal；速度缩放由 MoveIt 时间参数化完成。
+- 采摘链路参数（权威源：各包 `config/*.yaml`，全表见
+  `docs/peach_harvest_operations.md` 参数节）：编排器 `photo_pose.*`（拍照前置开关/
+  重试/冷却/90s 超时/完成回位）、`harvest.rescan_until_empty`/`harvest.max_rounds=3`
+  （复扫递减集）、5 个跨包接口名；能力端 `photo_pose_named_target='global_photo_pose'`，
+  速度双档 `moveit.velocity_scaling=0.05`（接触段 MTC）/
+  `moveit.transit_velocity_scaling=0.05`（自由空间转移；0.01 蠕行曾在高重力矩姿态
+  持续过久而关节过流，低速档不得让高重力矩姿态持续过久）；
+  感知 `harvest.min_collect_frames=10`/`lock_settle_frames=5`/`max_collect_s=25.0`/
+  `priority_prefer_lower_first=true`（收齐窗口与优先级；max_collect_s 必须
+  ≥ min_collect_frames/相机FPS+settle 余量，0.78FPS 下 8s 会在确认完成前锁定空集）、`yolo_conf`/
+  `min_detection_conf=0.3`、`target_memory.recovery_scale=3.5`（跨视角锚点偏差
+  实测 15.7cm，恢复半径 21cm 兜底）；重建节点 1Hz 活性心跳（status/diagnostics/
+  grasp_decision，无心跳时编排器重建就绪门会因 2s 新鲜度永远不满足）。
+- Python 节点参数以各包 `config/*.yaml` 为权威源，代码内 `declare_parameter` 默认值
+  必须逐一对齐。
 
-## 8. 代码风格与开发约定
+## 7. 开发约定与安全红线
 
-- **桃子视觉包四层架构**（peach_pose_ros2 / peach_reconstruction_ros2，
-  设计文档 `docs/superpowers/specs/2026-08-10-peach-layered-architecture.md`）：
-  参数层 `params.py`（frozen dataclass + declare/from_node 集中装载，yaml↔declare
-  双向同步有单测强制）；抽象接口层纯核 `interfaces.py`（abc.ABC + 显式注册表
-  字典选实现）；数据层（TargetRegistry/FrameCollector 等工作数据持有者 +
-  session_io 持久化，零 ROS import）；编排主节点（只做装载/接线/转换/调用/发布，
-  msg⇄纯类型只在 conversions.py）。纯核子包零 ROS import 由 import guard
-  单测强制。
-  新算法实现必须走注册表登记，不得在节点里堆业务逻辑。
-- **连续 TSDF 不变量**：重建只接受 depth.header.stamp 对应的精确 TF，禁止
-  latest TF 回退；机器人 FK/手眼外参是绝对位姿，ICP 只能做有界小修正；
-  合格帧到达即在线积分，不要求停稳后采集。独立 fusion 包已移除，质量门、
-  点云/网格与 refined 输出均归 peach_reconstruction_ros2。
-- C++17；注释以中文为主、密度较高，注释常解释"为什么"（尤其是蓝本语义与 SDK 坑），
-  修改行为时必须同步更新注释与 `docs/` 相关文档。
-- 控制器参数用 **generate_parameter_library** 声明：改参数要改
-  `src/aubo_e5_controllers/src/*_parameters.yaml`，不是手写参数解析。
-- 硬件插件刻意使用 Jazzy 已 deprecated 的旧式
-  `export_state_interfaces()/export_command_interfaces()`——这是 UR 验证过、能让硬件
-  把 passthrough 状态机回写进 command 接口的写法，用
-  `-Wno-deprecated-declarations` 屏蔽告警（`aubo_e5_hardware/CMakeLists.txt`），
-  **不要"升级"为新式接口**。
-- 遵循蓝本（aubo_boot / UR passthrough）语义优先于自由发挥：轨迹一次性下发、
-  goal_hold 判定、RIB 水位流控等核心逻辑不要改成流式。
-- **真机机械臂驱动栈已冻结，固定不允许再修改**。以下范围一律只读：
-  `src/aubo_e5_hardware/`、`src/aubo_e5_controllers/`、`src/aubo_dashboard/`、
+- **真机驱动栈冻结只读，禁止修改**：`src/aubo_e5_hardware/`、
+  `src/aubo_e5_controllers/`、`src/aubo_dashboard/`、
   `src/aubo_description/urdf/aubo_e5.ros2_control.xacro`、
   `src/aubo_e5_bringup/launch/bringup.launch.py`、
   `src/aubo_e5_bringup/config/controllers.yaml`，以及
-  `src/aubo_e5_moveit_config/config/controllers.yaml` 中的真机控制器映射。
-  允许读取、构建、测试和报告问题，但即使审查发现缺陷也不得直接修改上述源码、
-  参数、接口契约或 vendor 内容；只能记录风险与建议，等待用户单独明确授权。
-  感知、重建、分析工具、测试和文档仍可修改，但不得改变或绕过真机驱动接口。
-- **真机只允许用户现场手动上电**：由用户通过示教器或控制柜完成并明确确认。
-  AI、launch、脚本、测试和自动化流程不得调用 `/aubo_dashboard/startup`，不得代替
-  用户执行上电、松刹车或安全恢复；`auto_power_on=false` 必须保持不变。
-  dashboard 的 `startup` 服务仅作为冻结驱动的兼容接口保留，不属于项目允许的
-  真机操作流程。
-- 全包代码风格执行 ROS 2 官方标准并已被 `colcon test` 强制：C++ 走
-  ament_uncrustify + ament_cpplint（100 列、`*`/`&` 居中对齐、BSD copyright 头）；
-  Python 走 ament_flake8（99 列、单引号、import 分组）；CMake 走 ament_lint_cmake。
-  改代码后必须保持 lint 全绿（工具均在 /opt/ros/jazzy/bin）。
-- venv 依赖节点的启动约定：需要 torch/open3d 的节点（aubo_scene_recon、
-  peach_pose_ros2）用**标准 console_scripts 入口**，并在 setup.py 里通过
-  `options={'build_scripts': {'executable': _resolve_python()}}` 把启动器
-  shebang 指向 venv 解释器（ROS 2 官方 *Using Python Packages with ROS 2*
-  的做法；setuptools 的 install_scripts 生成启动器时取该值，未设置则回退
-  为构建解释器——apt 版 colcon 固定 /usr/bin/python3，没有 torch/open3d）。
-  `_resolve_python()` 在构建期解析：工作区 `aubo_py3.12/bin/python`
-  （按 setup.py 位置相对推算）存在则用之，否则回退 `sys.executable`；
-  源码不写死绝对路径，迁移/换机重建后自动指向新机 venv。
-  launch 文件一律用标准 `Node()`，不得出现解释器路径。
-  （2026-08-05 前曾用 scripts/ bash 包装脚本方案，已废弃删除，历史见 git。）
-- `aubo_e5_hardware` 公共头 `aubo_e5_hardware.hpp` include 了 vendor SDK 头
-  （`AuboRobotMetaType.h`），而 vendor include 路径是 PRIVATE——该头目前不支持
-  被下游包 include（现无下游消费者；如未来需要，先把 SDK 类型移入 .cpp
-  或改为导出 vendor 头）。
-- 不要向构建树（`build/`、`install/`、`log/`）提交改动。
+  `src/aubo_e5_moveit_config/config/controllers.yaml` 中的真机映射。
+  允许读/构建/测试/报告，缺陷只能记录风险与建议、等待用户授权；感知、重建、工具、
+  测试、文档可改，但不得改变或绕过真机驱动接口。
+- **上电只能由用户现场手动完成**：AI、launch、脚本、测试禁止调用
+  `/aubo_dashboard/startup`；`auto_power_on=false` 必须保持不变；急停/防护停由本体
+  安全回路主导，软件只停发清队，不做“恢复”。
+- 真机任何运动测试先压速度/加速度缩放到 0.1，确认安全后再放宽；现场先确认急停、
+  限位、碰撞等级、低速模式。
+- passthrough 语义优先于自由发挥：一次性下发、goal_hold、RIB 流控等不得改回流式；
+  硬件插件保留旧式 export_state/command_interfaces（UR 验证写法，勿“升级”）。
+- 控制器参数用 generate_parameter_library（改
+  `src/aubo_e5_controllers/src/*_parameters.yaml`，不手写参数解析）。
+- peach 视觉包四层架构（params.py / interfaces.py 注册表 / 数据层零 ROS / 编排
+  节点），纯核子包零 ROS import 由单测强制；重建只用精确时间戳 TF、禁止 latest TF
+  回退、ICP 只做有界小修正；`peach_harvest_orchestrator` 是批次唯一所有者，抓取只
+  执行稳定 target_id。
+- 风格由 `colcon test` 强制：C++（uncrustify/cpplint，100 列）、Python（flake8，
+  99 列/单引号）、CMake（lint_cmake）；改代码保持 lint 全绿并同步注释与 docs。
+- `aubo_e5_hardware` 公共头 include 了 vendor SDK 头且 include 路径为 PRIVATE，
+  不支持下游 include（未来需要先移出 SDK 类型）。
+- 不向 `build/` `install/` `log/` 提交改动。
 
-## 9. 部署注意事项（容易踩的坑）
+## 8. 部署坑点
 
-- **libprotobuf.so.9**：旧 SDK 强依赖 protobuf 2.6.1，vendor 在
-  `aubo_e5_hardware/vendor/lib64/`。链接强制 `DT_RPATH`（`--disable-new-dtags`），
-  因为传递依赖不走 RUNPATH；手动跑二进制需设 `LD_LIBRARY_PATH` 指向
-  `install/aubo_e5_hardware/lib/aubo_e5_hardware/vendor`，正常经 launch 启动则无此问题。
+- **libprotobuf.so.9**：SDK 强依赖 protobuf 2.6.1，vendor 在
+  `aubo_e5_hardware/vendor/lib64/`；链接强制 DT_RPATH，手动跑二进制需设
+  LD_LIBRARY_PATH 指向 install 下 vendor 目录（经 launch 启动无此问题）。
 - **SDK 按进程 CWD 读配置**：`./config/auborobot.conf` 与 `tracelog.properties`；
-  launch 已把 `ros2_control_node` 与 `aubo_dashboard_node` 的 cwd 设为各自 share 目录。
-- **TCP2CAN 独占**：插件 activate 后 SDK 运动 API 被独占，示教器运动暂停；
-  deactivate 后恢复。
-- **RT 实时性**：已取消 RT 要求——real 模式在普通内核直接运行，无
-  SCHED_FIFO/lowlatency 内核预检（`docs/archive/realtime_setup.md` 仅供历史参考）。
-  注意该机 NVIDIA 595 驱动无 PREEMPT_RT 预编译模块，不能换 RT 内核；
-  网卡 r8126 DKMS 驱动曾是 SDK 通道秒级停滞根因（`docs/nic_driver_incident.md`）。
-- **MoveIt 不在 apt**：`/opt/ros/jazzy` 下没有 moveit/pilz 包，全部来自本机
-  源码 overlay `~/ws_moveit`（`~/.bashrc` 自动 source 其 install/setup.bash）；
-  新机部署必须同步构建该 overlay（或改装 apt 版 MoveIt），否则 move_group
-  与 pilz 管线不可用。
-- **venv 的 numpy 必须 <2**：`aubo_py3.12` 带 `--system-site-packages`，ROS jazzy
-  二进制（cv_bridge）与 apt 的 python3-opencv / python3-scipy 都是按 numpy 1.x
-  编译的。venv 里若装 numpy 2.x，`import cv2` 报
-  "numpy.core.multiarray failed to import"、`import cv_bridge` 直接段错误。
-  正确组合：venv 内 `numpy==1.26.4`（+ `matplotlib==3.11.1`，见根目录
-  `requirements.txt`），cv2/scipy 走系统 dist-packages（4.6.0 / 1.11.4），
-  不要在 venv 里 pip 装 opencv-python/scipy（装了会 shadow 系统版；
-  ultralytics 拉取的 opencv-python 目前实测可共存，若出段错误先卸它，
-  详见 requirements.txt 头注释）。
-  节点级 venv 入口约定（console_scripts + `build_scripts.executable` 指向
-  venv）见第 8 节。
-- **tf2 静态 TF 不接受同发布者覆盖**：`extrinsics_publisher` 的 `~/reload`
-  重读后确实重新 sendTransform，但同一 publisher 进程更新 wrist3_Link→
-  camera_link 不会传播给 tf2 buffer（后加入的订阅者仍拿到旧值）。激活新外参后
-  必须**重启 extrinsics_publisher 进程**（或整个标定 launch）才能让所有
-  消费者看到新 TF。
-- **每次开机必做（不持久）**：网卡 offload 关闭 + governor 设置，否则 SDK
-  推送链路会出现 >200ms 停滞触发 read() FAULT：
-  `sudo ethtool -K enp130s0 gro off gso off tso off` +
-  `echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor`
-  （原 `configure_realtime.sh` 已随旧 bringup 删除，手动执行上述两条命令即可）。
+  launch 已把 `ros2_control_node` 与 dashboard 的 cwd 设为各自 share 目录。
+- **TCP2CAN 独占**：activate 后 SDK 运动 API 被独占、示教器运动暂停；deactivate 恢复。
+- 已取消 RT 要求（普通内核直接运行；NVIDIA 595 无 PREEMPT_RT 模块）；网卡 r8126
+  DKMS 曾致 SDK 通道秒级停滞，见 `docs/nic_driver_incident.md`。
+- **每次开机必做（不持久）**：`sudo ethtool -K enp130s0 gro off gso off tso off` +
+  `echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor`，
+  否则 SDK 推送链路可能 >200ms 停滞触发 read() FAULT。
+- MoveIt 不在 apt：依赖 `~/ws_moveit` 源码 overlay。
+- tf2 静态 TF 不接受同发布者覆盖：更新 wrist3_Link→camera_link 后必须重启
+  extrinsics_publisher（或整个标定 launch）。
+- SDK 凭据走 xacro 参数，dashboard 需单独传 `sdk_password`；不要把真实凭据、
+  `SDK资料/` 或 vendor 二进制提交/外传。
 
-## 10. 安全注意事项
+## 9. 参考
 
-- **真机运行任何运动测试，速度/加速度缩放必须先压到 0.1**，防止突发碰撞；
-  确认行为符合预期后才可逐步放宽。各入口：RViz 速度滑条、MoveIt 请求的
-  `max_velocity/acceleration_scaling_factor`、测试脚本同理；手眼标定 server
-  的 `velocity_scaling`/`acceleration_scaling` 在
-  `aubo_hand_eye_calibration/config/calibration.yaml`（已默认 0.1）。
-- **真机操作前**：现场确认急停、限位、碰撞等级、低速模式；首次只核对状态不运动；
-  严格按 `docs/usage.md` 第 7 节的分阶段流程推进。
-- `auto_power_on=false` 必须保持不变，启动不会自动上电。上电只能由用户在现场通过
-  示教器或控制柜手动完成；任何代理、launch、脚本或测试均禁止调用
-  `/aubo_dashboard/startup`。
-- 急停/防护停由本体安全回路主导，软件侧仅停发清队——不要在代码里试图"恢复"
-  安全停止状态。
-- SDK 用户名/密码：硬件插件走 xacro 参数（`sdk_username`/`sdk_password`）；
-  dashboard 节点声明同名 ROS 参数，但 bringup 只透传 `robot_ip`——改密码时
-  需单独给 dashboard 传 `-p sdk_password:=...`。不要把真实凭据提交进仓库。
-- `SDK资料/` 与 vendor 二进制为厂商专有资料，不要外传或上传到公共仓库。
-
-## 11. 参考文档
-
-- `README.md` — 项目入口说明（与本文互补）
+- `README.md` — 项目入口与当前交付状态
 - `docs/usage.md` — 完整命令手册与排障表
-- `docs/passthrough_migration.md` — 架构迁移说明与已验证清单
+- `docs/passthrough_migration.md` — 驱动架构迁移说明
+- `docs/peach_harvest_operations.md` — 采摘编排/Web/类型化接口手册
+- `docs/peach_pose_reconstruction_integration.md` — 感知与重建联动契约
+- `docs/peach_perception_progress.md`、`docs/peach_perception_reconstruction_logic.md`
+  — 感知/重建进度台账与逻辑图解
+- `docs/source_audit_2026-08-10.md` — 源码审查记录
+- `docs/superpowers/specs/` — 功能设计文档（含
+  `2026-08-12-peach-commercial-orchestration-design.md`）
 - `docs/archive/` — 旧架构文档（仅供历史参考）
-- 包级 README：src/ 下包均有 `README.md`，项目包 README 固定四章节结构：
-  简介 → 使用方法 → 执行逻辑 → 软件框架（新增/重写包文档时保持该结构）
-- 写法参考：UR `ur_controllers::PassthroughTrajectoryController`
-  （GitHub: UniversalRobots/Universal_Robots_ROS2_Driver）；
-  行为蓝本 aubo_boot（本机 `/home/mu/Music/e`，不随交付分发）
+- 蓝本：aubo_boot（`/home/mu/Music/e`，不随交付分发）；写法参考 UR
+  `PassthroughTrajectoryController`

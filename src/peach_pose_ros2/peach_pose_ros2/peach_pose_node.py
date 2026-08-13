@@ -14,7 +14,7 @@ PeachPose ROS 2 感知节点.
   conversions.py   — 算法 dataclass/检测 dict → ROS 消息组装
   visualization.py — RViz Marker 与 debug 叠加图
   cloud_utils.py   — 检测框点云反投影与 PointCloud2 组装
-  harvest_plan.py  — 全局目标数量锁定与确定性优先级
+  harvest_plan.py  — 全局目标收齐式窗口锁定与多维确定性优先级
   harvest_data.py  — manifest/事件/掩膜数据管理
 """
 from __future__ import annotations
@@ -23,6 +23,7 @@ import dataclasses
 from datetime import datetime
 import json
 from pathlib import Path
+import threading
 from typing import List, Optional, Tuple
 
 from ament_index_python.packages import get_package_share_directory
@@ -99,8 +100,19 @@ class PeachPoseNode(Node):
         from peach_pose_ros2.peach_pose.pipeline import RobustBagPosePipeline
         self.estimator = CandidateEstimator(
             pipeline=RobustBagPosePipeline(tool=self.tool))
+        # plan 竞态防护选型：BoundedWorker（capacity=1, drop_oldest=True）的
+        # 丢帧策略会静默吞掉 reset/complete 命令任务，不满足「命令不丢」语义；
+        # 改造 worker 支持双优先级队列代价大于收益，故用节点级 RLock 细粒度锁：
+        # harvest_plan 与 harvest_run_id/harvest_data 是同一份一致性状态，
+        # 全部由本锁保护（worker 线程帧处理 + executor 线程服务回调）；
+        # RLock 允许持锁内嵌套 _publish_harvest_state → _harvest_state_dict。
+        self._plan_lock = threading.RLock()
         self.harvest_plan = GlobalHarvestPlan(
-            max_targets=self.target_memory_max_targets)
+            max_targets=self.target_memory_max_targets,
+            min_collect_frames=self.harvest_min_collect_frames,
+            lock_settle_frames=self.harvest_lock_settle_frames,
+            max_collect_s=self.harvest_max_collect_s,
+            prefer_lower_first=self.harvest_priority_prefer_lower_first)
         self.harvest_data = HarvestDataStore()
         self.harvest_run_id = ''
 
@@ -193,18 +205,19 @@ class PeachPoseNode(Node):
             self.get_logger().info('目标身份记忆已禁用：target_id 为帧内序号')
 
     def _harvest_state_dict(self) -> dict:
-        """返回可序列化的全局采摘计划与数据路径."""
-        return {
-            'harvest_run_id': self.harvest_run_id,
-            'snapshot_id': self.harvest_plan.snapshot_id,
-            'target_set_locked': self.harvest_plan.locked,
-            'target_count': self.harvest_plan.target_count,
-            'target_ids': list(self.harvest_plan.locked_ids),
-            'completed_target_ids': sorted(self.harvest_plan.completed_ids),
-            'priorities': dict(self.harvest_plan.priorities),
-            'selected_target_id': self.harvest_plan.selected_target_id,
-            'data': self.harvest_data.query(),
-        }
+        """返回可序列化的全局采摘计划与数据路径（持锁读取一致快照）."""
+        with self._plan_lock:
+            return {
+                'harvest_run_id': self.harvest_run_id,
+                'snapshot_id': self.harvest_plan.snapshot_id,
+                'target_set_locked': self.harvest_plan.locked,
+                'target_count': self.harvest_plan.target_count,
+                'target_ids': list(self.harvest_plan.locked_ids),
+                'completed_target_ids': sorted(self.harvest_plan.completed_ids),
+                'priorities': dict(self.harvest_plan.priorities),
+                'selected_target_id': self.harvest_plan.selected_target_id,
+                'data': self.harvest_data.query(),
+            }
 
     def _publish_harvest_state(self) -> None:
         """发布闩锁 JSON 状态，便于运行中随时查询."""
@@ -224,14 +237,15 @@ class PeachPoseNode(Node):
     def _on_reset_global_targets(self, request, response):
         """~/reset_global_targets：结束本轮，允许下一次全局拍照重锁目标."""
         del request
-        old_run = self.harvest_run_id
-        if old_run:
-            self.harvest_data.append_event({
-                'source': 'perception', 'event': 'run_reset'})
-        self.harvest_plan.reset()
-        self.harvest_data = HarvestDataStore(root=self.harvest_data.root)
-        self.harvest_run_id = ''
-        self._publish_harvest_state()
+        with self._plan_lock:
+            old_run = self.harvest_run_id
+            if old_run:
+                self.harvest_data.append_event({
+                    'source': 'perception', 'event': 'run_reset'})
+            self.harvest_plan.reset()
+            self.harvest_data = HarvestDataStore(root=self.harvest_data.root)
+            self.harvest_run_id = ''
+            self._publish_harvest_state()
         response.success = True
         response.message = f'已重置全局目标集合，上一轮={old_run or "无"}'
         return response
@@ -239,116 +253,124 @@ class PeachPoseNode(Node):
     def _on_complete_selected_target(self, request, response):
         """~/complete_selected_target：确认抓取成功并推进固定优先级计划."""
         del request
-        completed = self.harvest_plan.selected_target_id
-        if not completed:
-            response.success = False
-            response.message = '当前没有可完成的 selected_target_id'
-            return response
-        next_target = self.harvest_plan.complete_selected()
-        self.harvest_data.append_event({
-            'source': 'perception', 'event': 'target_harvested',
-            'target_id': completed, 'next_target_id': next_target,
-        })
-        self._publish_harvest_state()
+        with self._plan_lock:
+            completed = self.harvest_plan.selected_target_id
+            if not completed:
+                response.success = False
+                response.message = '当前没有可完成的 selected_target_id'
+                return response
+            next_target = self.harvest_plan.complete_selected()
+            self.harvest_data.append_event({
+                'source': 'perception', 'event': 'target_harvested',
+                'target_id': completed, 'next_target_id': next_target,
+            })
+            self._publish_harvest_state()
         response.success = True
         response.message = (
             f'已完成 {completed}，下一目标={next_target or "本轮全部完成"}')
         return response
 
     def _start_harvest_run(self) -> None:
-        """为刚锁定的全局目标集合创建不可变 manifest."""
-        now = datetime.now()
-        self.harvest_run_id = (
-            f'harvest_{now.strftime("%Y%m%dT%H%M%S_%f")}_'
-            f's{self.harvest_plan.snapshot_id}')
-        targets = [
-            {'target_id': target_id,
-             'priority': self.harvest_plan.priority(target_id)}
-            for target_id in self.harvest_plan.locked_ids
-        ]
-        self.harvest_data.start(self.harvest_run_id, {
-            'snapshot_id': self.harvest_plan.snapshot_id,
-            'target_count': self.harvest_plan.target_count,
-            'selected_target_id': self.harvest_plan.selected_target_id,
-            'targets': targets,
-            'model_version': self.model_version,
-            'calibration_version': self.calibration_version,
-            'output_frame': self.output_frame,
-        })
-        self.harvest_data.append_event({
-            'source': 'perception', 'event': 'global_targets_locked',
-            'target_count': self.harvest_plan.target_count,
-            'selected_target_id': self.harvest_plan.selected_target_id,
-        })
+        """为刚锁定的全局目标集合创建不可变 manifest（须持 _plan_lock 调用）."""
+        with self._plan_lock:
+            now = datetime.now()
+            self.harvest_run_id = (
+                f'harvest_{now.strftime("%Y%m%dT%H%M%S_%f")}_'
+                f's{self.harvest_plan.snapshot_id}')
+            targets = [
+                {'target_id': target_id,
+                 'priority': self.harvest_plan.priority(target_id)}
+                for target_id in self.harvest_plan.locked_ids
+            ]
+            self.harvest_data.start(self.harvest_run_id, {
+                'snapshot_id': self.harvest_plan.snapshot_id,
+                'target_count': self.harvest_plan.target_count,
+                'selected_target_id': self.harvest_plan.selected_target_id,
+                'targets': targets,
+                'model_version': self.model_version,
+                'calibration_version': self.calibration_version,
+                'output_frame': self.output_frame,
+            })
+            self.harvest_data.append_event({
+                'source': 'perception', 'event': 'global_targets_locked',
+                'target_count': self.harvest_plan.target_count,
+                'selected_target_id': self.harvest_plan.selected_target_id,
+            })
 
     def _publish_target_observations(
             self, header, mask_header, records, payloads) -> None:
-        """发布锁定 ID 的逐目标结果，并记录选中目标掩膜与状态事件."""
-        was_locked = self.harvest_plan.locked
-        current = self.harvest_plan.update(records)
-        try:
-            if self.harvest_plan.locked and not was_locked:
-                self._start_harvest_run()
-        except OSError as exc:
-            self.get_logger().error(f'采摘运行目录创建失败: {exc}')
+        """
+        发布锁定 ID 的逐目标结果，并记录选中目标掩膜与状态事件.
 
-        array = PeachTargetObservationArray()
-        array.header = header
-        array.snapshot_id = self.harvest_plan.snapshot_id
-        array.harvest_run_id = self.harvest_run_id
-        array.target_set_locked = self.harvest_plan.locked
-        array.target_count = self.harvest_plan.target_count
-        array.selected_target_id = self.harvest_plan.selected_target_id
-        observed_ids = []
-        stamp_ns = Time.from_msg(mask_header.stamp).nanoseconds
-        for target_id in self.harvest_plan.locked_ids:
-            item = PeachTargetObservation()
-            item.header = header
-            item.target_id = target_id
-            item.priority = self.harvest_plan.priority(target_id)
-            item.confirmed = True
-            item.selected = target_id == self.harvest_plan.selected_target_id
-            item.harvest_status = self.harvest_plan.harvest_status(target_id)
-            payload = payloads.get(target_id)
-            record = current.get(target_id, {})
-            if payload is None:
-                item.tracking_status = PeachTargetObservation.LOST
-                item.diagnostic_flags = ['target_temporarily_lost']
-            else:
-                item.tracking_status = PeachTargetObservation.OBSERVED
-                item.camera_distance_m = float(
-                    record.get('camera_distance_m', 0.0))
-                item.confidence = float(record.get('confidence', 0.0))
-                item.candidate = payload['candidate']
-                item.candidate_2d = payload['candidate_2d']
-                item.fitting = payload['fitting']
-                item.diagnostic_flags = list(
-                    record.get('diagnostic_flags', ()))
-                mask = payload.get('mask')
-                if mask is None:
-                    item.tracking_status = PeachTargetObservation.OCCLUDED
-                    item.diagnostic_flags.append('mask_unavailable')
+        全程持 _plan_lock：plan.update 及后续逐字段读取必须与服务回调
+        （reset/complete）互斥，保证 plan 单写者与快照一致性。
+        """
+        with self._plan_lock:
+            was_locked = self.harvest_plan.locked
+            current = self.harvest_plan.update(records)
+            try:
+                if self.harvest_plan.locked and not was_locked:
+                    self._start_harvest_run()
+            except OSError as exc:
+                self.get_logger().error(f'采摘运行目录创建失败: {exc}')
+
+            array = PeachTargetObservationArray()
+            array.header = header
+            array.snapshot_id = self.harvest_plan.snapshot_id
+            array.harvest_run_id = self.harvest_run_id
+            array.target_set_locked = self.harvest_plan.locked
+            array.target_count = self.harvest_plan.target_count
+            array.selected_target_id = self.harvest_plan.selected_target_id
+            observed_ids = []
+            stamp_ns = Time.from_msg(mask_header.stamp).nanoseconds
+            for target_id in self.harvest_plan.locked_ids:
+                item = PeachTargetObservation()
+                item.header = header
+                item.target_id = target_id
+                item.priority = self.harvest_plan.priority(target_id)
+                item.confirmed = True
+                item.selected = target_id == self.harvest_plan.selected_target_id
+                item.harvest_status = self.harvest_plan.harvest_status(target_id)
+                payload = payloads.get(target_id)
+                record = current.get(target_id, {})
+                if payload is None:
+                    item.tracking_status = PeachTargetObservation.LOST
+                    item.diagnostic_flags = ['target_temporarily_lost']
                 else:
-                    item.mask = self.bridge.cv2_to_imgmsg(
-                        (mask > 0).astype(np.uint8) * 255,
-                        encoding='mono8')
-                    item.mask.header = mask_header
-                    observed_ids.append(target_id)
-                    if item.selected:
-                        try:
-                            self.harvest_data.save_mask(
-                                target_id, stamp_ns, mask)
-                        except OSError as exc:
-                            self.get_logger().error(str(exc))
-            array.observations.append(item)
-        self.pub_target_observations.publish(array)
-        if self.harvest_plan.locked:
-            self.harvest_data.append_event({
-                'source': 'perception', 'event': 'frame_observations',
-                'stamp_ns': stamp_ns, 'observed_target_ids': observed_ids,
-                'selected_target_id': self.harvest_plan.selected_target_id,
-            })
-        self._publish_harvest_state()
+                    item.tracking_status = PeachTargetObservation.OBSERVED
+                    item.camera_distance_m = float(
+                        record.get('camera_distance_m', 0.0))
+                    item.confidence = float(record.get('confidence', 0.0))
+                    item.candidate = payload['candidate']
+                    item.candidate_2d = payload['candidate_2d']
+                    item.fitting = payload['fitting']
+                    item.diagnostic_flags = list(
+                        record.get('diagnostic_flags', ()))
+                    mask = payload.get('mask')
+                    if mask is None:
+                        item.tracking_status = PeachTargetObservation.OCCLUDED
+                        item.diagnostic_flags.append('mask_unavailable')
+                    else:
+                        item.mask = self.bridge.cv2_to_imgmsg(
+                            (mask > 0).astype(np.uint8) * 255,
+                            encoding='mono8')
+                        item.mask.header = mask_header
+                        observed_ids.append(target_id)
+                        if item.selected:
+                            try:
+                                self.harvest_data.save_mask(
+                                    target_id, stamp_ns, mask)
+                            except OSError as exc:
+                                self.get_logger().error(str(exc))
+                array.observations.append(item)
+            self.pub_target_observations.publish(array)
+            if self.harvest_plan.locked:
+                self.harvest_data.append_event({
+                    'source': 'perception', 'event': 'frame_observations',
+                    'stamp_ns': stamp_ns, 'observed_target_ids': observed_ids,
+                    'selected_target_id': self.harvest_plan.selected_target_id,
+                })
+            self._publish_harvest_state()
 
     def _lookup_T_out_cam(self, cam_frame: str,
                           stamp) -> Tuple[Optional[np.ndarray], str]:
@@ -411,7 +433,7 @@ class PeachPoseNode(Node):
 
         """
         rgb_msg, depth_msg, info = frame
-        self.get_logger().info(
+        self.get_logger().debug(
             f'RGB-D sync frame {rgb_msg.width}x{rgb_msg.height}')
         # RGB/深度时间戳偏差：DEBUG 每帧记录；接近同步允差时 WARN 节流提示
         dt_ms = (Time.from_msg(rgb_msg.header.stamp).nanoseconds
@@ -425,27 +447,27 @@ class PeachPoseNode(Node):
         try:
             rgb = self.bridge.imgmsg_to_cv2(rgb_msg, desired_encoding='bgr8')
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().warn(f'RGB convert failed: {exc}')
+            self.get_logger().warning(f'RGB convert failed: {exc}')
             return
         try:
             depth_raw = self.bridge.imgmsg_to_cv2(
                 depth_msg, desired_encoding='passthrough')
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().warn(f'Depth convert failed: {exc}')
+            self.get_logger().warning(f'Depth convert failed: {exc}')
             return
         # uint16：raw × depth_scale_unit = 毫米；32FC1：米 ×1000 = 毫米
         try:
             depth = normalize_depth_to_uint16_mm(depth_raw, self.depth_scale_unit)
         except ValueError as exc:
-            self.get_logger().warn(f'Depth convert failed: {exc}')
+            self.get_logger().warning(f'Depth convert failed: {exc}')
             return
         if rgb.shape[:2] != depth.shape[:2]:
-            self.get_logger().warn(
+            self.get_logger().warning(
                 f'RGB/depth size mismatch {rgb.shape[:2]} vs {depth.shape[:2]}')
             return
         if info.width and info.height and (
                 int(info.width) != depth.shape[1] or int(info.height) != depth.shape[0]):
-            self.get_logger().warn(
+            self.get_logger().warning(
                 f'CameraInfo size {info.width}x{info.height} != depth '
                 f'{depth.shape[1]}x{depth.shape[0]}')
             return
@@ -643,13 +665,28 @@ class PeachPoseNode(Node):
             confirmed = (
                 True if self.target_registry is None
                 else bool(registry_item and registry_item['confirmed']))
-            harvest_records.append({
+            # 果实高度（output_frame 系 Z，供全局计划「先低后高」排序）：
+            # 取袋底 bag_bottom——果实最低点最贴近「高度」语义；几何缺失时
+            # 按锚点链回退，全 None 则不写该键（排序键按 inf 兜底）。
+            # 此处 grasp_3d 已经 _apply_T_to_grasp3d 变到 out_frame；
+            # output_frame 为世界系（默认 base_link）时 Z 才是真实高度
+            base_anchor = result.grasp_3d.bag_bottom
+            if base_anchor is None:
+                base_anchor = result.grasp_3d.points_centroid
+            if base_anchor is None:
+                base_anchor = result.grasp_3d.position
+            if base_anchor is None:
+                base_anchor = result.grasp_3d.entry_start
+            record = {
                 'target_id': tid, 'status': int(candidate_msg.status),
                 'confidence': float(candidate_msg.confidence),
                 'camera_distance_m': camera_distance_m,
                 'confirmed': confirmed,
                 'diagnostic_flags': list(candidate_msg.diagnostic_flags),
-            })
+            }
+            if base_anchor is not None:
+                record['base_height_m'] = float(base_anchor[2])
+            harvest_records.append(record)
             harvest_payloads[tid] = {
                 'candidate': candidate_msg,
                 'candidate_2d': candidate_2d_msg,
@@ -689,7 +726,7 @@ class PeachPoseNode(Node):
             axis_msg.vector = Vector3(
                 x=float(best_dir[0]), y=float(best_dir[1]), z=float(best_dir[2]))
             self.pub_norm_axis.publish(axis_msg)
-        self.get_logger().info(
+        self.get_logger().debug(
             f'Published {len(cand_arr.candidates)} candidates '
             f'(dets={len(kept)})')
         if self.target_registry is not None:

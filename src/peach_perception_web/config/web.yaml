@@ -2,7 +2,7 @@ peach_perception_web:
   ros__parameters:
     host: 127.0.0.1              # 默认仅本机；局域网查看显式改 0.0.0.0
     port: 8090
-    profile_directory: ""         # 空值默认使用工作区根目录 peach_profiles/
+    param_poll_period_s: 3.0      # 各节点当前参数只读镜像的轮询周期（秒）
     target_observations_topic: /peach/perception/target_observations
     harvest_state_topic: /peach/perception/harvest_state
     reconstruction_status_topic: /peach/reconstruction/status

@@ -33,51 +33,26 @@
 
   <section class="operations panel" id="operations">
     <div class="operation-summary">
-      <div><p class="kicker">ORCHESTRATION</p><h2 id="batch-state">等待编排器</h2></div>
+      <div><p class="kicker">ORCHESTRATION · 自动全流程（只读监控）</p><h2 id="batch-state">等待编排器</h2></div>
       <p id="batch-message">尚未收到类型化状态</p>
+      <div class="batch-detail">
+        <span>目标阶段 <b id="target-phase">—</b></span>
+        <span>批次进度 <b id="batch-progress-value">—</b></span>
+        <i class="batch-progress-track"><em id="batch-progress-bar"></em></i>
+      </div>
       <div class="blockers" id="batch-blockers"></div>
     </div>
-    <div class="operation-actions">
-      <button data-control="0" title="在安全检查点暂停">安全暂停</button>
-      <button data-control="1" title="通过健康门后恢复">恢复自动</button>
-      <button data-control="2" title="释放自动所有权">进入维护</button>
-      <button data-control="3" title="退出维护并保持暂停">退出维护</button>
-      <button class="danger" data-control="4" data-confirm="立即取消当前过程？">立即取消</button>
-      <button data-control="7" title="人工确认机械臂已处于安全位置后解除恢复锁定">确认恢复</button>
+    <div class="pipeline" id="pipeline" title="当前执行环节高亮；红色表示该环节出现故障/待恢复">
+      <div class="step" data-stage="ready"><i></i><span>就绪</span></div>
+      <div class="step" data-stage="photo"><i></i><span>拍照位姿</span></div>
+      <div class="step" data-stage="lock"><i></i><span>感知锁定</span></div>
+      <div class="step" data-stage="observe"><i></i><span>观察规划</span></div>
+      <div class="step" data-stage="validate"><i></i><span>质量验证</span></div>
+      <div class="step" data-stage="approach"><i></i><span>靠近抓取</span></div>
+      <div class="step" data-stage="tool"><i></i><span>工具动作</span></div>
+      <div class="step" data-stage="retreat"><i></i><span>撤离收尾</span></div>
+      <div class="step" data-stage="done"><i></i><span>批次完成</span></div>
     </div>
-    <div class="policy-grid">
-      <label title="健康门满足后自动开始"><input id="policy-auto" type="checkbox">自动开始</label>
-      <label title="允许规划结果发送到机械臂"><input id="policy-execution" type="checkbox">规划执行</label>
-      <label title="允许进入接触阶段"><input id="policy-grasp" type="checkbox">抓取动作</label>
-      <label title="允许调用末端工具 IO"><input id="policy-tool" type="checkbox">工具 IO</label>
-      <button id="apply-policy">应用策略</button>
-    </div>
-    <details class="debug-drawer" id="debug-drawer">
-      <summary><span>维护模式 · 手动调试服务</span><b>悬浮按钮查看含义</b></summary>
-      <div class="debug-groups">
-        <fieldset><legend>感知</legend>
-          <button data-debug="pose_query">查询计划</button><button data-debug="pose_complete">完成目标</button>
-          <button class="danger" data-debug="pose_reset" data-confirm="重置全部目标记忆？">重置目标</button>
-        </fieldset>
-        <fieldset><legend>重建</legend>
-          <button data-debug="recon_start">开始</button><button data-debug="recon_capture">采集</button>
-          <button data-debug="recon_remove">移除末帧</button><button data-debug="recon_finalize">完成</button>
-          <button data-debug="recon_save">保存</button><button data-debug="recon_query">查询</button>
-          <button class="danger" data-debug="recon_reset" data-confirm="清空当前重建会话？">重置</button>
-        </fieldset>
-        <fieldset><legend>靠近抓取</legend>
-          <button data-debug="approach_query">查询</button><button data-debug="approach_preview">预览靠近</button>
-          <button data-debug="approach_contact" data-confirm="执行完整接触预览？">完整接触</button>
-          <button data-debug="approach_start" data-confirm="启动单目标周期？">启动周期</button>
-          <button data-debug="approach_cancel">取消</button><button data-debug="approach_recovery">确认恢复</button>
-          <button data-debug="approach_arm" data-armed="true" data-confirm="使能机械臂执行调试？">Arm</button>
-          <button data-debug="approach_arm" data-armed="false">Disarm</button>
-        </fieldset>
-      </div>
-    </details>
-    <div class="profile-row"><input id="profile-name" maxlength="64" placeholder="档案名，如 sim_safe">
-      <button id="load-profile">加载档案</button><button id="save-profile">保存当前档案</button>
-      <span id="operation-result">等待操作</span></div>
   </section>
 
   <main class="dashboard">
@@ -104,6 +79,11 @@
       <section class="panel health-panel">
         <div class="section-head compact"><div><p class="kicker">TOPIC FRESHNESS</p><h2>数据链路</h2></div><span id="revision">REV 0</span></div>
         <div id="topic-health" class="topic-health"></div>
+      </section>
+
+      <section class="panel params-panel">
+        <div class="section-head compact"><div><p class="kicker">ACTIVE PARAMETERS</p><h2>当前参数</h2></div><span id="params-hint">只读镜像</span></div>
+        <div id="params-tables"><p class="empty">等待各节点参数服务</p></div>
       </section>
 
       <section class="panel raw-panel">
@@ -225,7 +205,7 @@
 
   </main>
 
-  <footer class="footer"><span>CONTROLLED OPERATIONS · IMAGE & CLOUD IN RVIZ2</span><span>运动使能不包含上电；上电与安全恢复始终由现场人员完成</span><span id="server-uptime">UP 00:00</span></footer>
+  <footer class="footer"><span>READ-ONLY MONITORING · IMAGE & CLOUD IN RVIZ2</span><span>只读监控：自动全流程由编排器闭环；上电与安全恢复始终由现场人员完成</span><span id="server-uptime">UP 00:00</span></footer>
   <script src="/app.js"></script>
 </body>
 </html>

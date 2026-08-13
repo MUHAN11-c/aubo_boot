@@ -27,21 +27,61 @@
 // POSSIBILITY OF SUCH DAMAGE.
 #include <gtest/gtest.h>
 
-#include "peach_approach_grasp/action_contract.hpp"
+#include <string>
+
+#include "peach_approach_grasp/cycle_state.hpp"
 
 namespace peach_approach_grasp
 {
-TEST(ActionContract, MapsTerminalStatesWithoutHidingRecoveryRequirement)
+TEST(ActionContract, SuccessTerminalStates)
 {
-  EXPECT_EQ(classifyTerminalState("SUCCEEDED"), CycleOutcome::SUCCEEDED);
-  EXPECT_EQ(classifyTerminalState("CANCELED"), CycleOutcome::CANCELED);
-  EXPECT_EQ(classifyTerminalState("FAILED"), CycleOutcome::FAILED);
-  EXPECT_EQ(classifyTerminalState("RECOVERY_REQUIRED"), CycleOutcome::RECOVERY_REQUIRED);
+  EXPECT_EQ(terminalOutcome(CycleState::SUCCEEDED), CycleOutcome::SUCCEEDED);
+  EXPECT_EQ(terminalOutcome(CycleState::PREVIEW_READY), CycleOutcome::SUCCEEDED);
+  // 回归用例：只规划与 grasp 关闭两档的圆满终态必须上报成功，不能再落入 FAILED。
+  EXPECT_EQ(terminalOutcome(CycleState::PLAN_READY), CycleOutcome::SUCCEEDED);
+  EXPECT_EQ(terminalOutcome(CycleState::READY_FOR_GRASP), CycleOutcome::SUCCEEDED);
+}
+
+TEST(ActionContract, NonSuccessTerminalStatesKeepTheirMeaning)
+{
+  EXPECT_EQ(terminalOutcome(CycleState::CANCELED), CycleOutcome::CANCELED);
+  EXPECT_EQ(terminalOutcome(CycleState::FAILED), CycleOutcome::FAILED);
+  EXPECT_EQ(terminalOutcome(CycleState::PREVIEW_FAILED), CycleOutcome::FAILED);
+  EXPECT_EQ(terminalOutcome(CycleState::RECOVERY_REQUIRED), CycleOutcome::RECOVERY_REQUIRED);
 }
 
 TEST(ActionContract, RunningStatesAreNotReportedAsTerminal)
 {
-  EXPECT_EQ(classifyTerminalState("MTC_APPROACH"), CycleOutcome::RUNNING);
-  EXPECT_EQ(classifyTerminalState("OBSERVE"), CycleOutcome::RUNNING);
+  EXPECT_EQ(terminalOutcome(CycleState::IDLE), CycleOutcome::RUNNING);
+  EXPECT_EQ(terminalOutcome(CycleState::PLAN_OBSERVATION), CycleOutcome::RUNNING);
+  EXPECT_EQ(terminalOutcome(CycleState::MOVE_TO_VIEW), CycleOutcome::RUNNING);
+  EXPECT_EQ(terminalOutcome(CycleState::WAIT_FRAME), CycleOutcome::RUNNING);
+  EXPECT_EQ(terminalOutcome(CycleState::FINALIZE), CycleOutcome::RUNNING);
+  EXPECT_EQ(terminalOutcome(CycleState::MTC_APPROACH_INSERT), CycleOutcome::RUNNING);
+  EXPECT_EQ(terminalOutcome(CycleState::ACTUATE_TOOL), CycleOutcome::RUNNING);
+  EXPECT_EQ(terminalOutcome(CycleState::MTC_RETREAT), CycleOutcome::RUNNING);
+  EXPECT_EQ(terminalOutcome(CycleState::PREVIEW_CONTACT_PLANNING), CycleOutcome::RUNNING);
+}
+
+TEST(ActionContract, StateStringsMatchLegacyJsonProjection)
+{
+  // 发布层投影字符串必须与历史状态 JSON 一致（dashboard/web 只读消费）。
+  EXPECT_EQ(toString(CycleState::IDLE), "IDLE");
+  EXPECT_EQ(toString(CycleState::PLAN_OBSERVATION), "PLAN_OBSERVATION");
+  EXPECT_EQ(toString(CycleState::MOVE_TO_VIEW), "MOVE_TO_VIEW");
+  EXPECT_EQ(toString(CycleState::WAIT_FRAME), "WAIT_FRAME");
+  EXPECT_EQ(toString(CycleState::FINALIZE), "FINALIZE");
+  EXPECT_EQ(toString(CycleState::MTC_APPROACH_INSERT), "MTC_APPROACH_INSERT");
+  EXPECT_EQ(toString(CycleState::ACTUATE_TOOL), "ACTUATE_TOOL");
+  EXPECT_EQ(toString(CycleState::MTC_RETREAT), "MTC_RETREAT");
+  EXPECT_EQ(toString(CycleState::PREVIEW_CONTACT_PLANNING), "PREVIEW_CONTACT_PLANNING");
+  EXPECT_EQ(toString(CycleState::PREVIEW_READY), "PREVIEW_READY");
+  EXPECT_EQ(toString(CycleState::PREVIEW_FAILED), "PREVIEW_FAILED");
+  EXPECT_EQ(toString(CycleState::PLAN_READY), "PLAN_READY");
+  EXPECT_EQ(toString(CycleState::READY_FOR_GRASP), "READY_FOR_GRASP");
+  EXPECT_EQ(toString(CycleState::SUCCEEDED), "SUCCEEDED");
+  EXPECT_EQ(toString(CycleState::CANCELED), "CANCELED");
+  EXPECT_EQ(toString(CycleState::FAILED), "FAILED");
+  EXPECT_EQ(toString(CycleState::RECOVERY_REQUIRED), "RECOVERY_REQUIRED");
 }
 }  // namespace peach_approach_grasp

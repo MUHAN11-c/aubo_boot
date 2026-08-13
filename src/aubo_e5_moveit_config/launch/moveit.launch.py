@@ -43,9 +43,9 @@
 #                            仅 standalone_state_publishers:=true（脱离 bringup
 #                            单跑）时启动；经 bringup 集成时传 false，rsp 由
 #                            bringup 自带，不要重复起（TF 双发）
-#   static_transform_publisher
-#                            末端 TCP 静态 TF wrist3_Link→tcp，数值见
-#                            config/tcp.yaml（URDF 未内建 tcp link，在此补发）
+#   末端 TCP：已内建于 URDF（components/tcp.xacro，wrist3_Link→tcp 由 rsp 发布），
+#                            MoveIt 规划组 manipulator_e5 的 tip_link 为 tcp，
+#                            规划/执行统一以 TCP 坐标系为准
 import os
 
 from ament_index_python.packages import get_package_share_directory
@@ -83,9 +83,8 @@ def launch_setup(context):
     desc = {'robot_description': xacro_text('aubo_description', 'urdf/aubo_e5.urdf.xacro')}
     semantic = {'robot_description_semantic': text('aubo_e5_moveit_config', 'config/aubo_e5.srdf')}
     kin = {'robot_description_kinematics': load('aubo_e5_moveit_config', 'config/kinematics.yaml')}
-    # 末端 TCP 静态 TF（wrist3_Link→tcp，数值权威源 config/tcp.yaml）。
-    # URDF 未内建 tcp link，故在此补发；若未来 URDF 内建 tcp，必须删除本节点避免双发。
-    tcp = load('aubo_e5_moveit_config', 'config/tcp.yaml')['tcp']
+    # 末端 TCP 已内建于 URDF（aubo_description components/tcp.xacro，
+    # wrist3_Link→tcp 由 robot_state_publisher 发布），不再静态补发。
     limits = {'robot_description_planning':
               load('aubo_e5_moveit_config', 'config/joint_limits.yaml')}
     rviz_config = os.path.join(
@@ -147,14 +146,6 @@ def launch_setup(context):
         # rviz 与 move_group 拿同一份 desc/semantic/kin/limits/pipelines（见文件头注释）
         Node(package='rviz2', executable='rviz2', output='screen',
              arguments=['-d', rviz_config], parameters=[desc, semantic, kin, limits, pipelines]),
-        # 新版参数形式（Jazzy 已废弃位置参数，会刷 deprecated 告警）
-        Node(package='tf2_ros', executable='static_transform_publisher',
-             arguments=['--x', str(tcp['xyz'][0]), '--y', str(tcp['xyz'][1]),
-                        '--z', str(tcp['xyz'][2]),
-                        '--yaw', str(tcp['rpy'][0]), '--pitch', str(tcp['rpy'][1]),
-                        '--roll', str(tcp['rpy'][2]),
-                        '--frame-id', tcp['parent_frame'],
-                        '--child-frame-id', tcp['child_frame']]),
     ]
     if standalone:
         nodes += [

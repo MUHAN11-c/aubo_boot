@@ -139,11 +139,11 @@ def generate_launch_description():
         # Device log configuration
         DeclareLaunchArgument('device_log_enable', default_value='false'),
         # Device log level VERBOSE / DEBUG / INFO / WARNING / ERROR / NEVER
-        DeclareLaunchArgument('device_log_level', default_value='WARNING'),
+        DeclareLaunchArgument('device_log_level', default_value='ERROR'),
         DeclareLaunchArgument('device_log_server_port', default_value='9001'),
 
         # Whether to enable frame rate control for device output images
-        DeclareLaunchArgument('frame_rate_control', default_value='false'),
+        DeclareLaunchArgument('frame_rate_control', default_value='true'),
         #  Frame rate parameter for device output images (floating point number)
         DeclareLaunchArgument('frame_rate', default_value='5.0'),
 

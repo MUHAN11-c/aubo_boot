@@ -214,6 +214,7 @@ result/tsdf_mesh.ply
 |---|---|
 | reconstruction_node.py | ROS 编排：同步、精确 TF、状态、在线积分、发布与服务 |
 | candidate_contract.py | 感知候选安全门禁与绑定目标类别记忆（零 ROS import） |
+| capture_gate.py | 手动/自动两路采帧公共门禁纯函数（零 ROS import） |
 | params.py | frozen dataclass 参数层，和 reconstruction.yaml 双向测试同步 |
 | frame_collector.py | 无 ROS 的帧栈和采集状态机 |
 | icp_refiner.py | Open3D 两尺度鲁棒点到平面 ICP 与边界/质量门 |

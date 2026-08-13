@@ -1336,11 +1336,27 @@ void AuboE5Hardware::sendLoop()
       // 顺手暴露给状态接口 aubo_io/send_rate_pps（io 控制器 rib_status 的
       // data[2] 以及 ~/joint_status 都从这里取）。
       send_rate_pps_.store(rate);
-      RCLCPP_INFO(
-        log, "rib=%d queue=%zu rate=%.0f pts/s ema=%.1fms ok=%llu fail=%llu", rib,
-        send_queue_.size_approx(), rate, ema_ms,
-        static_cast<unsigned long long>(sent_ok),  // NOLINT(runtime/int)
-        static_cast<unsigned long long>(send_fail));  // NOLINT(runtime/int)
+      // 例行指标静默（DEBUG 可查）：1Hz INFO 刷屏会淹没真问题；仅异常时 INFO：
+      // 发送失败增长、RIB 饿死（队列非空但接口板不消费）即属异常。
+      // 队列满溢丢弃由上方独立 ERROR 覆盖，此处不重复。
+      static unsigned long long last_logged_fail = 0;  // NOLINT(runtime/int)
+      const bool anomalous =
+        send_fail != last_logged_fail ||
+        (rib <= 0 && send_queue_.size_approx() > 0);
+      if (anomalous) {
+        RCLCPP_INFO(
+          log, "rib=%d queue=%zu rate=%.0f pts/s ema=%.1fms ok=%llu fail=%llu", rib,
+          send_queue_.size_approx(), rate, ema_ms,
+          static_cast<unsigned long long>(sent_ok),  // NOLINT(runtime/int)
+          static_cast<unsigned long long>(send_fail));  // NOLINT(runtime/int)
+        last_logged_fail = send_fail;
+      } else {
+        RCLCPP_DEBUG(
+          log, "rib=%d queue=%zu rate=%.0f pts/s ema=%.1fms ok=%llu fail=%llu", rib,
+          send_queue_.size_approx(), rate, ema_ms,
+          static_cast<unsigned long long>(sent_ok),  // NOLINT(runtime/int)
+          static_cast<unsigned long long>(send_fail));  // NOLINT(runtime/int)
+      }
       sent_since_metrics = 0;
       last_metrics = now;
     }

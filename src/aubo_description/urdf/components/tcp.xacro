@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="aubo_e5_tcp" params="parent:=wrist3_Link">
+    <!-- 末端 TCP（Tool Center Point）。数据来源：示教器 TCP 设定
+         x=0.00mm y=47.90mm z=151.07mm（2026-08-07 提供），姿态与法兰同向（未标定）。
+         URDF 内建后由 robot_state_publisher 发布 wrist3_Link→tcp，
+         不允许再用 static_transform_publisher 补发同一变换（TF 双发）。
+         MoveIt 规划组 manipulator_e5 的 tip_link 即 tcp，规划/执行均以 TCP 为准。 -->
+    <link name="tcp"/>
+    <joint name="tcp_joint" type="fixed">
+      <parent link="${parent}"/>
+      <child link="tcp"/>
+      <origin xyz="0 0.0479 0.15107" rpy="0 0 0"/>
+    </joint>
+  </xacro:macro>
+</robot>

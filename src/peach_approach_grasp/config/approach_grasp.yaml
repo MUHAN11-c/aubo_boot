@@ -2,7 +2,8 @@ peach_approach_grasp_node:
   ros__parameters:
     frames:
       base: base_link
-      wrist: wrist3_Link
+      # 规划/IK 末端连杆：MoveIt 组 manipulator_e5 的 tip_link（URDF 内建 tcp）。
+      tip: tcp
       # 视点姿态按 ROS 光学坐标系（+Z 前、+X 右、+Y 下）生成。
       camera: camera_depth_optical_frame
       tool: tcp
@@ -10,9 +11,14 @@ peach_approach_grasp_node:
       planning_group: manipulator_e5
       planning_time_s: 5.0
       planning_attempts: 5
-      # 真机初始验证不得高于 0.1。
+      # 速度统一 0.05（2026-08-13 真机验证过的档位；0.01 蠕行曾在高重力矩
+      # 姿态持续过久触发肩部过流）。velocity_scaling 作用于接触段
+      # （MTC 靠近/插入/撤离），transit_* 作用于自由空间转移（环绕视点/
+      # 拍照位姿往返）；真机初始验证不得高于 0.1。
       velocity_scaling: 0.05
       acceleration_scaling: 0.05
+      transit_velocity_scaling: 0.05
+      transit_acceleration_scaling: 0.05
       pilz_pipeline: pilz_industrial_motion_planner
       fallback_pipeline: ompl
       # MTC：自由空间用 OMPL，进入果袋后只允许笛卡尔直线。
@@ -20,12 +26,18 @@ peach_approach_grasp_node:
       mtc_cartesian_step_m: 0.005
       mtc_cartesian_precision_m: 0.001
       mtc_max_solutions: 5
+    # 全局拍照位姿的 SRDF 命名状态（~/go_to_photo_pose 服务目标），
+    # 与 aubo_e5_moveit_config/config/aubo_e5.srdf 的 group_state 对应。
+    photo_pose_named_target: 'global_photo_pose'
     behavior_tree:
       # launch 会覆盖为安装目录下 config/harvest_tree.xml 的绝对路径。
       xml: ''
     scan:
-      observation_radius_m: 0.28
-      minimum_radius_m: 0.20
+      # 环绕观察半径下限退出深度相机近距盲区：0.20-0.28m 实测深度偏差把世界系
+      # 锚点拉偏 15-20cm，跨视角匹配（恢复半径 21cm）临界失配、目标身份在环绕
+      # 视点后丢失；0.40/0.32m 保持锚点跨视角一致。
+      observation_radius_m: 0.40
+      minimum_radius_m: 0.32
       azimuth_step_deg: 12.0
       azimuth_limit_deg: 36.0
       elevation_step_deg: 8.0
@@ -35,7 +47,8 @@ peach_approach_grasp_node:
       candidate_layers: 3
       views_to_minimum_radius: 5
       maximum_moves: 8
-      frame_wait_s: 3.0
+      # 视点后等待新重建帧的超时：相机 0.78FPS，3s 仅约 2 帧余量，6s 留 4-5 帧
+      frame_wait_s: 6.0
     quality:
       minimum_views: 5
       minimum_baseline_deg: 22.0
@@ -49,7 +62,8 @@ peach_approach_grasp_node:
       enabled: false
       require_robot_status: true
       robot_status_max_age_s: 1.0
-      target_observation_max_age_s: 1.0
+      # 0.78FPS 相机下单帧间隔 1.28s，取 3s 容忍连续两帧闪烁/漏检
+      target_observation_max_age_s: 3.0
       reset_reconstruction_on_start: false
     grasp:
       # 默认停在 READY_FOR_GRASP，不执行接触动作。

@@ -119,7 +119,7 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim camera_enabled:
 | `tf_timeout_sec` | 0.5 | TF 查询超时 (s) |
 | `depth_scale_unit` | 0.25 | uint16 原始深度：raw × 本值 = 毫米（Percipio 常见 0.25）；数据集回放设 1.0；32FC1 米制深度下不生效 |
 | `sync_slop_s` | 0.05 | RGB-D 近似同步允差 (s)；时间戳偏差超 80% 允差时 WARN 节流提示 |
-| `min_detection_conf` / `yolo_conf` | 0.5 / 0.5 | 入管线置信度下限 / YOLO 推理阈值 |
+| `min_detection_conf` / `yolo_conf` | 0.3 / 0.3 | 入管线置信度下限 / YOLO 推理阈值 |
 | `detection_dedup_ios` | 0.6 | 重叠检测框去重：IoS（交集/较小框面积）≥ 本值判同一目标，保留大框（跨类生效）；≥1.0 关闭 |
 | `publish_debug_image` / `publish_masks` / `publish_detection_cloud` | true | 输出开关 |
 | `detection_cloud_stride` | 2 | 检测框点云降采样步长（>1 减轻 RViz 负载） |
@@ -129,6 +129,7 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim camera_enabled:
 | `gravity_mode` | fixed | 重力来源：`fixed`=仅用 gravity_hint_xyz；`tf`=由本帧 TF 旋转反推相机系重力 |
 | `tool.*`（8 个） | 见 yaml | 刀具几何：内径/插入深/刀刃距/入口 standoff/余量/版本号 |
 | `target_memory.*`（8 个） | 见下节 | 目标身份记忆：世界系匹配跨帧复用 target_id |
+| `harvest.*`（4 个） | 见「全局目标计划」节 | 收齐式窗口锁定与多维优先级 |
 
 ### 目标身份记忆（跨帧稳定 target_id）
 
@@ -172,7 +173,7 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim camera_enabled:
 | `target_memory.match_radius_m` | 0.06 | 匹配半径 (m)：同类且距离 ≤ 本值的最近目标命中 |
 | `target_memory.max_targets` | 50 | 目标表容量上限；超限按最久未见淘汰 |
 | `target_memory.position_ema` | 0.3 | 命中后位置/轴/直径 EMA 系数 α(0,1]，越大越跟随新观测 |
-| `target_memory.recovery_scale` | 2.0 | 恢复匹配半径倍率（同类，未命中才启用）；1.0=关闭 |
+| `target_memory.recovery_scale` | 3.5 | 恢复匹配半径倍率（同类，未命中才启用，21cm 覆盖跨视角锚点偏差）；1.0=关闭 |
 | `target_memory.cross_class_recovery` | true | 恢复匹配允许跨类（半径不放大，命中不改表项类别） |
 | `target_memory.confirm_frames` | 3 | 累计命中 ≥ 本值帧数才转正长期记录；1=立即确认 |
 | `target_memory.tentative_ttl_sec` | 1.0 | 未确认目标存活时限 (s)，超期未再命中即清除 |
@@ -191,18 +192,34 @@ PYTHONPATH=peach_pose_ros2:$PYTHONPATH \
   /home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12/bin/python -m pytest test/ -q
 ```
 
-91 例业务测试（候选/拟合/袋果双管线/球精化/校验/深度归一化/TF 变换契约与锚点/
-目标身份注册表（含恢复匹配与确认机制）/检测框去重/参数层同步与装载/接口层契约/
-纯核 import guard）
+98 例业务测试（候选/拟合/袋果双管线/球精化/校验/深度归一化/TF 变换契约与锚点/
+目标身份注册表（含恢复匹配与确认机制）/全局计划收齐式锁定与多维优先级/
+检测框去重/参数层同步与装载/接口层契约/纯核 import guard）
 + flake8/pep257 lint。
 
 ### 全局目标计划与运行数据查询
 
-节点以首次稳定确认的全局观测锁定目标数量，按安全状态、相机距离、置信度
-和稳定 ID 确定固定优先级；靠近期间目标暂时遮挡或丢失不会改变选中 ID，只有
-显式调用重置服务才开始下一轮全局拍照。逐目标消息
-`/peach/perception/target_observations` 同时携带稳定 ID、优先级、三维结果、
-2D 结果、拟合诊断和以 `depth.header.stamp` 标记的独立 mono8 掩膜。
+节点对全局目标采用**收齐式窗口锁定**：`~/reset_global_targets`（或启动）后
+进入收齐窗口，逐帧把已确认目标（含 REOBSERVE，不限于可选择目标）并入累积集
+（同 ID 后者覆盖，锁定时取最新一帧质量量）。满足「累计 ≥
+`harvest.min_collect_frames` 帧且连续 `harvest.lock_settle_frames` 帧无新增
+确认 ID」即关闭窗口；超过 `harvest.max_collect_s` 秒未静止也强制关闭兜底。
+窗口关闭时对累积集一次性排序、按 `target_memory.max_targets` 截断并锁定——
+**空集也锁定**（`target_set_locked=true`、`target_count=0`）。锁定后新出现的
+ID 不再入集，靠近期间目标暂时遮挡或丢失不会改变选中 ID，只有显式调用重置
+服务才开始下一轮收齐。优先级排序键：安全状态（ACCEPT 先于 REOBSERVE）→
+相机距离（先近后远，先清外围减少碰枝/遮挡）→ base 系高度（先低后高，避免摘
+高处时碰落低处果；高度取袋底 `bag_bottom` 的 base 系 Z，几何缺失按
+质心→position→入口点回退）→ 置信度 → 稳定 ID（确定性 tie-break）。逐目标
+消息 `/peach/perception/target_observations` 同时携带稳定 ID、优先级、三维
+结果、2D 结果、拟合诊断和以 `depth.header.stamp` 标记的独立 mono8 掩膜。
+
+| 参数 | 默认 | 说明 |
+|---|---|---|
+| `harvest.min_collect_frames` | 10 | 收齐窗口最少累积帧数：达到后才允许按静止条件关闭窗口锁定 |
+| `harvest.lock_settle_frames` | 5 | 连续无新增确认 ID 的帧数，与最少帧数联合判定目标集合已稳定 |
+| `harvest.max_collect_s` | 25.0 | 收齐窗口最长时长 (s)，超时强制关闭兜底（空集也锁定）；须 ≥ min_collect_frames/相机FPS+settle 余量 |
+| `harvest.priority_prefer_lower_first` | true | 优先级启用高度键（先低后高）；false 则高度不参与排序 |
 
 ```bash
 ros2 topic echo /peach/perception/harvest_state
@@ -266,7 +283,8 @@ RGB(bgr8) + 深度(16UC1) + CameraInfo   ApproximateTime 同步 (slop=sync_slop_
   → 目标身份记忆（target_memory.*）：世界系最近邻匹配/注册，帧内序号
       target_{i} 改写为跨帧稳定 ID；tf_unavailable 帧跳过并打
       target_untracked（详见「目标身份记忆」小节）
-  → HarvestPlan：首次出现已确认且可选择目标时锁定数量和固定优先级；
+  → HarvestPlan：收齐窗口逐帧累积确认目标，窗口关闭（帧数+静止判据，
+      超时兜底）一次性锁定数量和固定优先级（空集也锁定）；
       生成 selected_target_id 与 PLANNED / WAITING_QUALITY / SELECTED / HARVESTED 状态
   → HarvestDataStore：写 latest_perception.json、events.jsonl 和选中目标逐帧掩膜
   → 发布候选 / 2D / 拟合诊断 / 检测 / 掩膜 / Marker / debug 图 / 检测框点云
@@ -291,7 +309,7 @@ params.py（参数层）──► peach_pose_node.py（编排层）──► pea
 
 | 层 | 模块 | 职责 |
 |---|---|---|
-| 参数层 | `params.py` | `PeachPoseParams` frozen dataclass：`declare(node)` 集中声明 32 参数 + `from_node(node)` 集中读取/解析/校验；YAML 为权威源（双向同步测试强制） |
+| 参数层 | `params.py` | `PeachPoseParams` frozen dataclass：`declare(node)` 集中声明 41 参数 + `from_node(node)` 集中读取/解析/校验；YAML 为权威源（双向同步测试强制） |
 | 接口层 | `peach_pose/interfaces.py` | abc.ABC：`Detector`/`Segmenter`/`PoseEstimator` + `POSE_ESTIMATORS` 注册表（pipeline 底部显式登记；candidates 类别路由走注册表） |
 | 数据层 | `peach_pose/contracts.py`、`target_registry.py`、`harvest_plan.py`、`harvest_data.py` | 纯数据合约、稳定身份表、固定采摘计划和运行数据持有者；零 ROS import |
 | 编排层 | `peach_pose_node.py` | 只做：参数一行装载 → 建数据持有者 → 按注册表实例化算法 → 接线（订阅/发布/TF）→ 回调编排 → 发布 |

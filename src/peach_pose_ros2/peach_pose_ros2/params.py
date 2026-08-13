@@ -1,5 +1,5 @@
 """
-参数层 — PeachPoseParams：32 个参数的集中声明/装载/校验（frozen dataclass）.
+参数层 — PeachPoseParams：41 个参数的集中声明/装载/校验（frozen dataclass）.
 
 对标 nav2 ParameterHandler 的 Python 版（设计文档
 docs/superpowers/specs/2026-08-10-peach-layered-architecture.md §2.1）：
@@ -39,8 +39,8 @@ DECLARE_DEFAULTS = {
     # Percipio 原始深度常需 ×0.25 才是毫米量级（再 /1000→米）
     'depth_scale_unit': 0.25,
     'sync_slop_s': 0.05,
-    'min_detection_conf': 0.5,
-    'yolo_conf': 0.5,
+    'min_detection_conf': 0.3,
+    'yolo_conf': 0.3,
     # 重叠检测框去重：IoS（交集/较小框面积）≥ 本值判同一目标，保留大框
     'detection_dedup_ios': 0.6,
     'publish_debug_image': True,
@@ -69,14 +69,24 @@ DECLARE_DEFAULTS = {
     'target_memory.match_radius_m': 0.06,
     'target_memory.max_targets': 50,
     'target_memory.position_ema': 0.3,
-    # 恢复匹配：正常匹配未命中时半径 × 本倍率再试一次（1.0=关闭）
-    'target_memory.recovery_scale': 2.0,
+    # 恢复匹配：正常匹配未命中时半径 × 本倍率再试一次（1.0=关闭）；
+    # 3.5（恢复半径 21cm）覆盖真机实测的跨视角锚点偏差 15.7cm
+    'target_memory.recovery_scale': 3.5,
     # 恢复匹配允许跨类别（抗 bag/nobag 翻类；命中不改表项类别）
     'target_memory.cross_class_recovery': True,
     # 确认机制：累计命中 ≥ 本帧数才转正长期记录（1=立即确认）
     'target_memory.confirm_frames': 3,
     # 未确认目标存活时限 (s)：超期未再命中即清除（瞬时误检不留记录）
     'target_memory.tentative_ttl_sec': 1.0,
+    # 全局采摘计划（收齐式窗口锁定）：窗口最少累积帧数，达到后才允许
+    # 按静止条件关闭窗口锁定目标集合
+    'harvest.min_collect_frames': 10,
+    # 连续无新增确认 ID 的帧数，与最少帧数联合判定目标集合已稳定
+    'harvest.lock_settle_frames': 5,
+    # 收齐窗口最长时长 (s)，超时强制关闭兜底（空集也锁定）
+    'harvest.max_collect_s': 25.0,
+    # 优先级是否启用高度键：true=先低后高（避免摘高处时碰落低处果）
+    'harvest.priority_prefer_lower_first': True,
 }
 
 DESCRIPTIONS = {
@@ -136,13 +146,22 @@ DESCRIPTIONS = {
                                     '记录，之前的短暂出现不长期保留；1=立即确认',
     'target_memory.tentative_ttl_sec': '未确认目标存活时限 (s)：超过本时间未再'
                                        '命中即从表中清除（瞬时误检不占身份）',
+    'harvest.min_collect_frames': '全局目标收齐窗口的最少累积帧数：达到后才允许'
+                                  '按静止条件关闭窗口、锁定目标集合',
+    'harvest.lock_settle_frames': '连续无新增确认 ID 的帧数：与最少帧数联合判定'
+                                  '目标集合已稳定，关闭收齐窗口',
+    'harvest.max_collect_s': '收齐窗口最长时长 (s)：超时强制关闭窗口兜底'
+                             '（空集也锁定，target_count=0）',
+    'harvest.priority_prefer_lower_first': '优先级排序启用高度键：先低后高，避免'
+                                           '摘高处目标时碰落低处果实；false 则'
+                                           '高度不参与排序',
 }
 
 
 @dataclass(frozen=True, eq=False)
 class PeachPoseParams:
     """
-    PeachPoseNode 全部启动期参数（37 项 declare）装载后的不可变结构.
+    PeachPoseNode 全部启动期参数（41 项 declare）装载后的不可变结构.
 
     标量字段名与参数键同名（``target_memory.*`` 的点号换下划线）；
     ``tool`` / ``gravity_hint`` / ``target_registry`` 为 from_node 的
@@ -177,16 +196,20 @@ class PeachPoseParams:
     target_memory_match_radius_m: float = 0.06
     target_memory_max_targets: int = 50
     target_memory_position_ema: float = 0.3
-    target_memory_recovery_scale: float = 2.0
+    target_memory_recovery_scale: float = 3.5
     target_memory_cross_class_recovery: bool = True
     target_memory_confirm_frames: int = 3
     target_memory_tentative_ttl_sec: float = 1.0
+    harvest_min_collect_frames: int = 10
+    harvest_lock_settle_frames: int = 5
+    harvest_max_collect_s: float = 25.0
+    harvest_priority_prefer_lower_first: bool = True
     target_registry: Optional[TargetRegistry] = field(default=None, compare=False)
 
     @staticmethod
     def declare(node) -> None:
         """
-        在 node 上集中 declare 全部 32 个参数（中文 descriptor 同步附着）.
+        在 node 上集中 declare 全部 41 个参数（中文 descriptor 同步附着）.
 
         Args:
             node: rclpy Node（测试可用带 declare_parameter 的替身）.
@@ -303,5 +326,12 @@ class PeachPoseParams:
                 g('target_memory.confirm_frames').value),
             target_memory_tentative_ttl_sec=float(
                 g('target_memory.tentative_ttl_sec').value),
+            harvest_min_collect_frames=int(
+                g('harvest.min_collect_frames').value),
+            harvest_lock_settle_frames=int(
+                g('harvest.lock_settle_frames').value),
+            harvest_max_collect_s=float(g('harvest.max_collect_s').value),
+            harvest_priority_prefer_lower_first=bool(
+                g('harvest.priority_prefer_lower_first').value),
             target_registry=target_registry,
         )

@@ -40,6 +40,16 @@
 namespace moveit::task_constructor
 {
 class Task;
+namespace solvers
+{
+class CartesianPath;
+class PipelinePlanner;
+}  // namespace solvers
+namespace stages
+{
+class MoveRelative;
+class MoveTo;
+}  // namespace stages
 }  // namespace moveit::task_constructor
 
 namespace peach_approach_grasp
@@ -48,7 +58,7 @@ namespace peach_approach_grasp
 struct GraspTaskConfig
 {
   std::string planning_group;
-  std::string wrist_frame;
+  std::string tip_frame;  // IK/规划末端连杆（MoveIt 组 tip_link，当前为 tcp）
   std::string base_frame;
   std::string free_space_pipeline{"ompl"};
   std::string free_space_planner{"RRTConnectkConfigDefault"};
@@ -79,14 +89,14 @@ public:
   ~GraspTask();
 
   GraspTaskResult approachAndInsert(
-    const Eigen::Isometry3d & entry_wrist_pose,
+    const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
     double insertion_distance_m,
     bool execute);
 
   // 在同一 MTC 解中预览“到入口→插入→原轴撤离”，硬编码只规划，永不执行。
   GraspTaskResult previewFullContact(
-    const Eigen::Isometry3d & entry_wrist_pose,
+    const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
     double insertion_distance_m);
 
@@ -102,6 +112,20 @@ private:
     std::unique_ptr<moveit::task_constructor::Task> task,
     bool execute,
     const std::function<bool(std::string &)> & execution_gate);
+
+  // 三个任务共用的 solver/stage 搭建工厂：集中配置，行为与原内联实现一致。
+  std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner>
+  makeFreeSpaceSolver() const;
+  std::shared_ptr<moveit::task_constructor::solvers::CartesianPath>
+  makeCartesianSolver() const;
+  std::unique_ptr<moveit::task_constructor::stages::MoveTo> makeMoveToEntry(
+    const std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner> & solver,
+    const Eigen::Isometry3d & entry_tip_pose) const;
+  // 轴向直线段：direction 内部归一化，距离固定为 [distance_m, distance_m]。
+  std::unique_ptr<moveit::task_constructor::stages::MoveRelative> makeLinearMove(
+    const std::string & label,
+    const std::shared_ptr<moveit::task_constructor::solvers::CartesianPath> & solver,
+    const Eigen::Vector3d & direction, double distance_m) const;
 
   rclcpp::Node::SharedPtr node_;
   GraspTaskConfig config_;

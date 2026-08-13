@@ -35,7 +35,9 @@
 #include <moveit/task_constructor/task.h>
 
 #include <exception>
+#include <memory>
 #include <sstream>
+#include <string>
 #include <utility>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
@@ -69,8 +71,65 @@ GraspTask::GraspTask(rclcpp::Node::SharedPtr node, GraspTaskConfig config)
 
 GraspTask::~GraspTask() = default;
 
+std::shared_ptr<mtc::solvers::PipelinePlanner> GraspTask::makeFreeSpaceSolver() const
+{
+  auto solver = std::make_shared<mtc::solvers::PipelinePlanner>(
+    node_, config_.free_space_pipeline, config_.free_space_planner);
+  solver->setMaxVelocityScalingFactor(config_.velocity_scaling);
+  solver->setMaxAccelerationScalingFactor(config_.acceleration_scaling);
+  return solver;
+}
+
+std::shared_ptr<mtc::solvers::CartesianPath> GraspTask::makeCartesianSolver() const
+{
+  auto solver = std::make_shared<mtc::solvers::CartesianPath>();
+  solver->setStepSize(config_.cartesian_step_m);
+  moveit::core::CartesianPrecision precision;
+  precision.translational = config_.cartesian_precision_m;
+  solver->setPrecision(precision);
+  solver->setMaxVelocityScalingFactor(config_.velocity_scaling);
+  solver->setMaxAccelerationScalingFactor(config_.acceleration_scaling);
+  return solver;
+}
+
+std::unique_ptr<mtc::stages::MoveTo> GraspTask::makeMoveToEntry(
+  const std::shared_ptr<mtc::solvers::PipelinePlanner> & solver,
+  const Eigen::Isometry3d & entry_tip_pose) const
+{
+  auto stage = std::make_unique<mtc::stages::MoveTo>(
+    "collision-aware move to refined entry", solver);
+  stage->setGroup(config_.planning_group);
+  stage->setIKFrame(config_.tip_frame);
+  stage->setTimeout(config_.planning_time_s);
+  geometry_msgs::msg::PoseStamped entry;
+  entry.header.frame_id = config_.base_frame;
+  entry.header.stamp = node_->now();
+  entry.pose = toPose(entry_tip_pose);
+  stage->setGoal(entry);
+  return stage;
+}
+
+std::unique_ptr<mtc::stages::MoveRelative> GraspTask::makeLinearMove(
+  const std::string & label,
+  const std::shared_ptr<mtc::solvers::CartesianPath> & solver,
+  const Eigen::Vector3d & direction, double distance_m) const
+{
+  auto stage = std::make_unique<mtc::stages::MoveRelative>(label, solver);
+  stage->setGroup(config_.planning_group);
+  stage->setIKFrame(config_.tip_frame);
+  stage->setMinMaxDistance(distance_m, distance_m);
+  geometry_msgs::msg::Vector3Stamped stamped;
+  stamped.header.frame_id = config_.base_frame;
+  const Eigen::Vector3d unit = direction.normalized();
+  stamped.vector.x = unit.x();
+  stamped.vector.y = unit.y();
+  stamped.vector.z = unit.z();
+  stage->setDirection(stamped);
+  return stage;
+}
+
 GraspTaskResult GraspTask::approachAndInsert(
-  const Eigen::Isometry3d & entry_wrist_pose,
+  const Eigen::Isometry3d & entry_tip_pose,
   const Eigen::Vector3d & insertion_axis,
   double insertion_distance_m,
   bool execute)
@@ -80,46 +139,16 @@ GraspTaskResult GraspTask::approachAndInsert(
   task->add(std::make_unique<mtc::stages::CurrentState>("current robot state"));
 
   // 室外枝叶环境先用 OMPL 搜索无碰路径到入口；接触段禁止回退 OMPL，必须保持轴向直线。
-  auto free_space = std::make_shared<mtc::solvers::PipelinePlanner>(
-    node_, config_.free_space_pipeline, config_.free_space_planner);
-  free_space->setMaxVelocityScalingFactor(config_.velocity_scaling);
-  free_space->setMaxAccelerationScalingFactor(config_.acceleration_scaling);
-  auto move_to_entry = std::make_unique<mtc::stages::MoveTo>(
-    "collision-aware move to refined entry", free_space);
-  move_to_entry->setGroup(config_.planning_group);
-  move_to_entry->setIKFrame(config_.wrist_frame);
-  move_to_entry->setTimeout(config_.planning_time_s);
-  geometry_msgs::msg::PoseStamped entry;
-  entry.header.frame_id = config_.base_frame;
-  entry.header.stamp = node_->now();
-  entry.pose = toPose(entry_wrist_pose);
-  move_to_entry->setGoal(entry);
-  task->add(std::move(move_to_entry));
-
-  auto cartesian = std::make_shared<mtc::solvers::CartesianPath>();
-  cartesian->setStepSize(config_.cartesian_step_m);
-  moveit::core::CartesianPrecision precision;
-  precision.translational = config_.cartesian_precision_m;
-  cartesian->setPrecision(precision);
-  cartesian->setMaxVelocityScalingFactor(config_.velocity_scaling);
-  cartesian->setMaxAccelerationScalingFactor(config_.acceleration_scaling);
-  auto insert = std::make_unique<mtc::stages::MoveRelative>(
-    "guarded linear insertion", cartesian);
-  insert->setGroup(config_.planning_group);
-  insert->setIKFrame(config_.wrist_frame);
-  insert->setMinMaxDistance(insertion_distance_m, insertion_distance_m);
-  geometry_msgs::msg::Vector3Stamped direction;
-  direction.header.frame_id = config_.base_frame;
-  direction.vector.x = insertion_axis.normalized().x();
-  direction.vector.y = insertion_axis.normalized().y();
-  direction.vector.z = insertion_axis.normalized().z();
-  insert->setDirection(direction);
-  task->add(std::move(insert));
+  task->add(makeMoveToEntry(makeFreeSpaceSolver(), entry_tip_pose));
+  task->add(
+    makeLinearMove(
+      "guarded linear insertion", makeCartesianSolver(), insertion_axis,
+      insertion_distance_m));
   return planAndMaybeExecute(std::move(task), execute, config_.approach_execution_gate);
 }
 
 GraspTaskResult GraspTask::previewFullContact(
-  const Eigen::Isometry3d & entry_wrist_pose,
+  const Eigen::Isometry3d & entry_tip_pose,
   const Eigen::Vector3d & insertion_axis,
   double insertion_distance_m)
 {
@@ -127,57 +156,20 @@ GraspTaskResult GraspTask::previewFullContact(
   task->loadRobotModel(node_);
   task->add(std::make_unique<mtc::stages::CurrentState>("current robot state"));
 
-  auto free_space = std::make_shared<mtc::solvers::PipelinePlanner>(
-    node_, config_.free_space_pipeline, config_.free_space_planner);
-  free_space->setMaxVelocityScalingFactor(config_.velocity_scaling);
-  free_space->setMaxAccelerationScalingFactor(config_.acceleration_scaling);
-  auto move_to_entry = std::make_unique<mtc::stages::MoveTo>(
-    "collision-aware move to refined entry", free_space);
-  move_to_entry->setGroup(config_.planning_group);
-  move_to_entry->setIKFrame(config_.wrist_frame);
-  move_to_entry->setTimeout(config_.planning_time_s);
-  geometry_msgs::msg::PoseStamped entry;
-  entry.header.frame_id = config_.base_frame;
-  entry.header.stamp = node_->now();
-  entry.pose = toPose(entry_wrist_pose);
-  move_to_entry->setGoal(entry);
-  task->add(std::move(move_to_entry));
+  task->add(makeMoveToEntry(makeFreeSpaceSolver(), entry_tip_pose));
 
-  auto cartesian = std::make_shared<mtc::solvers::CartesianPath>();
-  cartesian->setStepSize(config_.cartesian_step_m);
+  auto cartesian = makeCartesianSolver();
   // 完整预览在插入末端立即反向撤离，TOTG 不支持这种 180 度折返。
   // 此接口永不执行，仅需保留几何路径供 MTC/RViz 展示，因此关闭阶段时间参数化。
   cartesian->setTimeParameterization(nullptr);
-  moveit::core::CartesianPrecision precision;
-  precision.translational = config_.cartesian_precision_m;
-  cartesian->setPrecision(precision);
-  cartesian->setMaxVelocityScalingFactor(config_.velocity_scaling);
-  cartesian->setMaxAccelerationScalingFactor(config_.acceleration_scaling);
-
-  geometry_msgs::msg::Vector3Stamped direction;
-  direction.header.frame_id = config_.base_frame;
-  direction.vector.x = insertion_axis.normalized().x();
-  direction.vector.y = insertion_axis.normalized().y();
-  direction.vector.z = insertion_axis.normalized().z();
-  auto insert = std::make_unique<mtc::stages::MoveRelative>(
-    "guarded linear insertion", cartesian);
-  insert->setGroup(config_.planning_group);
-  insert->setIKFrame(config_.wrist_frame);
-  insert->setMinMaxDistance(insertion_distance_m, insertion_distance_m);
-  insert->setDirection(direction);
-  task->add(std::move(insert));
-
-  geometry_msgs::msg::Vector3Stamped reverse = direction;
-  reverse.vector.x *= -1.0;
-  reverse.vector.y *= -1.0;
-  reverse.vector.z *= -1.0;
-  auto retreat = std::make_unique<mtc::stages::MoveRelative>(
-    "linear retreat along insertion path", cartesian);
-  retreat->setGroup(config_.planning_group);
-  retreat->setIKFrame(config_.wrist_frame);
-  retreat->setMinMaxDistance(insertion_distance_m, insertion_distance_m);
-  retreat->setDirection(reverse);
-  task->add(std::move(retreat));
+  // 插入与撤离共用同一个 solver 实例（同一 MTC 解内保持配置一致）。
+  task->add(
+    makeLinearMove(
+      "guarded linear insertion", cartesian, insertion_axis, insertion_distance_m));
+  task->add(
+    makeLinearMove(
+      "linear retreat along insertion path", cartesian, -insertion_axis,
+      insertion_distance_m));
 
   // 此接口没有 execute 参数，结构上保证预览服务不能下发轨迹。
   return planAndMaybeExecute(std::move(task), false, {});
@@ -192,25 +184,10 @@ GraspTaskResult GraspTask::retreat(
   task->loadRobotModel(node_);
   task->add(std::make_unique<mtc::stages::CurrentState>("current robot state"));
 
-  auto cartesian = std::make_shared<mtc::solvers::CartesianPath>();
-  cartesian->setStepSize(config_.cartesian_step_m);
-  moveit::core::CartesianPrecision precision;
-  precision.translational = config_.cartesian_precision_m;
-  cartesian->setPrecision(precision);
-  cartesian->setMaxVelocityScalingFactor(config_.velocity_scaling);
-  cartesian->setMaxAccelerationScalingFactor(config_.acceleration_scaling);
-  auto retreat = std::make_unique<mtc::stages::MoveRelative>(
-    "linear retreat along insertion path", cartesian);
-  retreat->setGroup(config_.planning_group);
-  retreat->setIKFrame(config_.wrist_frame);
-  retreat->setMinMaxDistance(retreat_distance_m, retreat_distance_m);
-  geometry_msgs::msg::Vector3Stamped direction;
-  direction.header.frame_id = config_.base_frame;
-  direction.vector.x = -insertion_axis.normalized().x();
-  direction.vector.y = -insertion_axis.normalized().y();
-  direction.vector.z = -insertion_axis.normalized().z();
-  retreat->setDirection(direction);
-  task->add(std::move(retreat));
+  task->add(
+    makeLinearMove(
+      "linear retreat along insertion path", makeCartesianSolver(), -insertion_axis,
+      retreat_distance_m));
   return planAndMaybeExecute(std::move(task), execute, config_.retreat_execution_gate);
 }
 

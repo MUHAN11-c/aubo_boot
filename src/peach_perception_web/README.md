@@ -2,13 +2,18 @@
 
 ## 简介
 
-本包是 `peach_pose_ros2`、`peach_reconstruction_ros2` 与
-`peach_approach_grasp` 的只读数据监控台。
+本包是 `peach_pose_ros2`、`peach_reconstruction_ros2`、
+`peach_approach_grasp` 与 `peach_harvest_orchestrator` 的**只读数据监控台**
+（2026-08-13 起取消全部 Web 写入口：控制/调试/策略下发/参数档案均已移除，
+测试与运行一律走自动全流程，问题定位依靠本页过程监测）。
 图像、Marker 和点云继续在 RViz2 查看；Web 页面不订阅、不转换、不传输
 `sensor_msgs/Image` 或 `PointCloud2`，只展示算法和任务状态数据。
 
 重点显示：
 
+- **批次过程线**：就绪→拍照位姿→感知锁定→观察规划→质量验证→靠近抓取→
+  工具动作→撤离收尾→批次完成，当前环节高亮、故障环节标红；
+- **当前参数只读镜像**：按节点分组的运行参数（轮询各节点 `get_parameters`）；
 - 感知 selected ID、重建 target ID、refined target ID 的一致性；
 - 固定目标数量、优先级、稳定 ID、跟踪状态和采摘状态；
 - 初始抓取入口 XYZ、四元数、方向、袋底、袋颈、直径和建议行程；
@@ -21,8 +26,9 @@
 - 主动靠近阶段、执行/arm 状态、视角覆盖和最终抓取编排状态；
 - 各 ROS 数据话题的新鲜度及完整原始 JSON 快照。
 
-页面没有服务客户端、Action 客户端或运动发布器，不能启动机械臂、切换目标、
-finalize 或触发抓取。`allowed=true` 也只表示视觉质量门通过。
+页面为纯只读监控：不提供任何控制/调试/参数写入 HTTP 入口；自动全流程由
+编排器闭环，现场只通过本页定位「当前跑到哪一步、该步数据是什么」。
+`allowed=true` 也只表示视觉质量门通过；上电与安全恢复始终由现场人员完成。
 
 完整视觉链路见
 [桃子首帧感知与连续局部重建联动说明](../../docs/peach_pose_reconstruction_integration.md)。
@@ -114,13 +120,15 @@ finalize”，不会误判为不一致。该检查是现场可见性保护，不
 
 | 文件 | 职责 |
 |---|---|
-| `gateway.py` | ROS 订阅、线程安全状态缓存、只读 HTTP 路由与生命周期 |
+| `gateway.py` | ROS 节点：只读订阅、参数镜像轮询与 HttpBackend 窄接口组装 |
+| `state.py` | DashboardState：HTTP 与 ROS 回调间的线程安全最新值缓存（含参数镜像） |
+| `http_server.py` | 零 ROS 的只读 HTTP 层：GET Handler 与 start_http（可 fake 后端单测） |
 | `codec.py` | 目标消息、初始/refined 结果和 JSON String 的结构化转换 |
-| `config/web.yaml` | 端口及结构化输入话题的权威默认值 |
+| `config/web.yaml` | 端口、参数轮询周期及结构化输入话题的权威默认值 |
 | `launch/peach_perception_web.launch.py` | 默认加载 YAML；显式 host/port 才覆盖 |
-| `web/index.html` | 数据审计台语义结构 |
+| `web/index.html` | 过程线 + 数据面板语义结构 |
 | `web/app.css` | 高对比、响应式现场数据布局 |
-| `web/app.js` | 500 ms 状态轮询、ID 不变量和数据字段渲染 |
+| `web/app.js` | 500 ms 状态轮询、过程线/ID 不变量/参数镜像渲染 |
 
 订阅接口：
 
@@ -136,12 +144,14 @@ finalize”，不会误判为不一致。该检查是现场可见性保护，不
 | `/peach/reconstruction/refined_diagnostics` | `BagFittingArray` |
 | `/peach_approach_grasp_node/status` | `std_msgs/String` JSON |
 
-HTTP API 只有两个只读入口：
+HTTP API：
 
-| 路径 | 返回 |
-|---|---|
-| `/api/state` | 目标、重建、refined 和数据新鲜度 JSON |
-| `/` | 随包安装的数据仪表盘 HTML/CSS/JavaScript |
+| 路径 | 方法 | 返回/作用 |
+|---|---|---|
+| `/api/state` | GET | 目标、重建、refined、编排器状态、参数镜像和数据新鲜度 JSON |
+| `/` | GET | 随包安装的数据仪表盘 HTML/CSS/JavaScript |
+
+一切 POST 统一 405（只读监控台，无写入口）。
 
 本包使用系统 Python 的标准 console_scripts 入口，不依赖 torch、open3d、OpenCV、
 numpy、WebGL、npm、CDN 或互联网连接。

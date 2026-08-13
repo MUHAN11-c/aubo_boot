@@ -3,30 +3,28 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/BSD-3-Clause
-"""桃子感知与重建的只读 HTTP 可视化网关."""
+"""
+桃子采摘链路只读 HTTP 监控网关（无控制/调试写入口）.
+
+设计约定（2026-08-13 起）：测试与运行一律走自动全流程，本节点只回答
+「现在跑到哪一步、各步数据是什么、当前参数是什么」，
+问题定位依靠过程监测（阶段线 + 过程数据 + 参数镜像）。
+"""
 
 from __future__ import annotations
 
-from http import HTTPStatus
-from http.cookies import SimpleCookie
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-import json
 from pathlib import Path
-import secrets
-import threading
-import time
-from urllib.parse import urlparse
 
 from ament_index_python.packages import get_package_share_directory
 from geometry_msgs.msg import Vector3Stamped
 from peach_harvest_msgs.msg import HarvestState
-from peach_harvest_msgs.srv import ControlHarvest, SetOperationPolicy
 from peach_pose_msgs.msg import (
     BagFittingArray,
     BagGraspCandidateArray,
     PeachTargetObservationArray,
 )
 from rcl_interfaces.msg import ParameterDescriptor
+from rcl_interfaces.srv import GetParameters
 import rclpy
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
@@ -36,127 +34,89 @@ from rclpy.qos import (
     ReliabilityPolicy,
 )
 from std_msgs.msg import String
-from std_srvs.srv import SetBool, Trigger
 
+from . import http_server
 from .codec import (
     candidate_array,
-    finite_or_none,
     fitting_array,
     parse_json_text,
     target_observations,
     vector_stamped,
 )
-from .control import CommandGuard, ProfileStore
+from .state import DashboardState
 
 
-class DashboardState:
-    """HTTP 与 ROS 回调之间的线程安全最新值缓存."""
+# 过程监测需要回答「当前以什么参数在跑」：按节点分组的只读参数白名单。
+PARAM_WATCHLIST = {
+    '/peach_pose_node': [
+        'yolo_conf', 'min_detection_conf',
+        'target_memory.match_radius_m', 'target_memory.recovery_scale',
+        'target_memory.confirm_frames',
+        'harvest.min_collect_frames', 'harvest.lock_settle_frames',
+        'harvest.max_collect_s', 'harvest.priority_prefer_lower_first',
+    ],
+    '/peach_reconstruction_node': [
+        'capture.min_views', 'capture.recommended_views',
+        'capture.min_mask_depth_ratio', 'capture.require_target_mask',
+        'icp.enable', 'tsdf.enable',
+    ],
+    '/peach_approach_grasp_node': [
+        'moveit.velocity_scaling', 'moveit.acceleration_scaling',
+        'moveit.transit_velocity_scaling', 'moveit.transit_acceleration_scaling',
+        'scan.observation_radius_m', 'scan.minimum_radius_m',
+        'scan.frame_wait_s', 'scan.maximum_moves',
+        'quality.minimum_views', 'quality.minimum_baseline_deg',
+        'quality.maximum_refined_rmse_m',
+        'execution.enabled', 'grasp.enabled', 'tool.enabled',
+    ],
+    '/peach_harvest_orchestrator': [
+        'auto_start_enabled', 'execution_enabled', 'grasp_enabled',
+        'tool_enabled', 'harvest.max_rounds', 'harvest.rescan_until_empty',
+        'photo_pose.enabled', 'readiness.timeout_s',
+    ],
+}
 
-    def __init__(self):
-        """创建空状态."""
-        self._lock = threading.Lock()
-        self._revision = 0
-        self._started = time.time()
-        self._values = {
-            'perception': {
-                'harvest': {},
-                'targets': {},
-            },
-            'reconstruction': {
-                'status': {},
-                'diagnostics': {},
-                'grasp_decision': {},
-            },
-            'refined': {
-                'pose': {},
-                'axis': {},
-                'diagnostics': {},
-            },
-            'approach': {
-                'status': {},
-            },
-            'orchestration': {
-                'state': {},
-                'audit': [],
-            },
-        }
-        self._updated = {}
 
-    def update(self, section: str, key: str, value) -> None:
-        """更新一个结构化状态区段."""
-        now = time.time()
-        with self._lock:
-            self._values[section][key] = finite_or_none(value)
-            self._updated[f'{section}.{key}'] = now
-            self._revision += 1
-
-    def snapshot(self) -> dict:
-        """返回浏览器状态快照与话题年龄."""
-        now = time.time()
-        with self._lock:
-            result = json.loads(json.dumps(self._values, ensure_ascii=False))
-            result['system'] = {
-                'revision': self._revision,
-                'server_time': now,
-                'uptime_s': now - self._started,
-                'topic_age_s': {
-                    key: round(now - stamp, 3)
-                    for key, stamp in self._updated.items()
-                },
-            }
-            return result
-
-    def orchestrator_revision(self) -> int:
-        """返回业务状态 revision，不与页面缓存 revision 混用。."""
-        with self._lock:
-            return int(self._values['orchestration']['state'].get(
-                'revision', 0))
-
-    def operation_mode(self) -> int:
-        """返回编排器操作模式。."""
-        with self._lock:
-            return int(self._values['orchestration']['state'].get(
-                'operation_mode', 0))
-
-    def audit(self, action: str, accepted: bool, message: str) -> None:
-        """记录有界 Web 操作审计。."""
-        with self._lock:
-            events = self._values['orchestration']['audit']
-            events.append({
-                'time': time.time(), 'action': action,
-                'accepted': accepted, 'message': message,
-            })
-            del events[:-200]
-            self._revision += 1
+def _parameter_scalar(value) -> object:
+    """rcl_interfaces/ParameterValue → 标量（数组取列表，未设置给 None）."""
+    kind = value.type
+    if kind == 1:
+        return bool(value.bool_value)
+    if kind == 2:
+        return int(value.integer_value)
+    if kind == 3:
+        return float(value.double_value)
+    if kind == 4:
+        return str(value.string_value)
+    if kind == 6:
+        return [bool(item) for item in value.bool_array_value]
+    if kind == 7:
+        return [int(item) for item in value.integer_array_value]
+    if kind == 8:
+        return [float(item) for item in value.double_array_value]
+    if kind == 9:
+        return [str(item) for item in value.string_array_value]
+    return None
 
 
 class PeachPerceptionWeb(Node):
-    """订阅两视觉包输出并提供只读 HTTP API."""
+    """订阅采摘链路各阶段输出并提供只读 HTTP 监控 API."""
 
     def __init__(self):
         """声明参数、订阅话题并初始化共享缓存."""
         super().__init__('peach_perception_web')
         self._declare_parameters()
         self._state = DashboardState()
-        self._session_nonce = secrets.token_urlsafe(32)
-        self._guard = CommandGuard(self._session_nonce)
-        share = Path(get_package_share_directory('peach_perception_web'))
-        configured_profiles = str(
-            self.get_parameter('profile_directory').value).strip()
-        profile_root = (Path(configured_profiles) if configured_profiles else
-                        share.parents[3] / 'peach_profiles')
-        self._profiles = ProfileStore(profile_root)
         self._http = None
         self._create_subscriptions()
-        self._create_control_clients()
+        self._create_param_watchers()
 
     def _declare_parameters(self) -> None:
         """集中声明 Web 和话题参数."""
         parameters = {
             'host': ('127.0.0.1', 'HTTP 监听地址；局域网访问显式设 0.0.0.0'),
             'port': (8090, 'HTTP 监听端口'),
-            'profile_directory': (
-                '', '参数档案目录；空值使用工作区 peach_profiles'),
+            'param_poll_period_s': (3.0, '各节点参数镜像轮询周期（秒）'),
             'target_observations_topic': (
                 '/peach/perception/target_observations', '全局目标快照话题'),
             'harvest_state_topic': (
@@ -248,7 +208,7 @@ class PeachPerceptionWeb(Node):
             self._orchestrator_callback, latched_qos)
 
     def _orchestrator_callback(self, message: HarvestState) -> None:
-        """把类型化业务状态转换为稳定的浏览器对象。."""
+        """把类型化业务状态转换为稳定的浏览器对象."""
         self._state.update('orchestration', 'state', {
             'revision': message.revision,
             'run_id': message.run_id,
@@ -276,285 +236,72 @@ class PeachPerceptionWeb(Node):
             return
         self._state.update('perception', 'targets', value)
 
-    def _create_control_clients(self) -> None:
-        """创建编排控制和全部兼容手动调试服务客户端。."""
-        self._control_client = self.create_client(
-            ControlHarvest, '/peach_harvest_orchestrator/control')
-        self._policy_client = self.create_client(
-            SetOperationPolicy,
-            '/peach_harvest_orchestrator/set_operation_policy')
-        trigger_names = {
-            'pose_reset': '/peach_pose_node/reset_global_targets',
-            'pose_query': '/peach_pose_node/query_harvest_state',
-            'pose_complete': '/peach_pose_node/complete_selected_target',
-            'recon_start': '/peach_reconstruction_node/start_reconstruction',
-            'recon_capture': '/peach_reconstruction_node/capture_frame',
-            'recon_remove': '/peach_reconstruction_node/remove_last_frame',
-            'recon_reset': '/peach_reconstruction_node/reset_reconstruction',
-            'recon_finalize': '/peach_reconstruction_node/finalize_reconstruction',
-            'recon_save': '/peach_reconstruction_node/save_session',
-            'recon_query': (
-                '/peach_reconstruction_node/query_reconstruction_state'),
-            'approach_start': '/peach_approach_grasp_node/start_cycle',
-            'approach_preview': (
-                '/peach_approach_grasp_node/preview_approach_insert'),
-            'approach_contact': (
-                '/peach_approach_grasp_node/preview_full_contact'),
-            'approach_cancel': '/peach_approach_grasp_node/cancel_cycle',
-            'approach_recovery': (
-                '/peach_approach_grasp_node/acknowledge_recovery'),
-            'approach_query': '/peach_approach_grasp_node/query_state',
+    # ------------------------------------------------------------------
+    # 参数镜像：周期轮询白名单节点的 get_parameters，只读不写
+    # ------------------------------------------------------------------
+    def _create_param_watchers(self) -> None:
+        """为白名单节点建 get_parameters 客户端并启动轮询定时器."""
+        self._param_clients = {
+            name: self.create_client(GetParameters, f'{name}/get_parameters')
+            for name in PARAM_WATCHLIST
         }
-        self._debug_clients = {
-            key: self.create_client(Trigger, service)
-            for key, service in trigger_names.items()
+        # 服务未就绪时静默跳过（节点可能未启动），不刷错误日志
+        self._param_inflight = set()
+        period = float(self.get_parameter('param_poll_period_s').value)
+        self._param_timer = self.create_timer(period, self._poll_params)
+
+    def _poll_params(self) -> None:
+        """对就绪的参数服务发起异步查询（在途请求去重）."""
+        for name, client in self._param_clients.items():
+            if name in self._param_inflight or not client.service_is_ready():
+                continue
+            request = GetParameters.Request()
+            request.names = list(PARAM_WATCHLIST[name])
+            self._param_inflight.add(name)
+            future = client.call_async(request)
+            future.add_done_callback(
+                lambda fut, node_name=name: self._on_params(node_name, fut))
+
+    def _on_params(self, node_name: str, future) -> None:
+        """落参数镜像到状态缓存；异常仅降级为空镜像."""
+        self._param_inflight.discard(node_name)
+        try:
+            response = future.result()
+        except (RuntimeError, rclpy.exceptions.RCLError):
+            return
+        if response is None:
+            return
+        values = {
+            name: _parameter_scalar(value)
+            for name, value in zip(
+                PARAM_WATCHLIST[node_name], response.values)
         }
-        self._arm_client = self.create_client(
-            SetBool, '/peach_approach_grasp_node/set_execution_armed')
+        self._state.update_params(node_name, values)
 
-    @staticmethod
-    def _wait_future(future, timeout: float = 5.0):
-        """从 HTTP worker 等待 ROS future，不占用执行器线程。."""
-        completed = threading.Event()
-        future.add_done_callback(lambda _: completed.set())
-        if not completed.wait(timeout):
-            raise TimeoutError('ROS 服务响应超时')
-        return future.result()
-
-    def call_debug(self, action: str, armed: bool = False) -> tuple[bool, str]:
-        """调用一个维护模式调试服务并统一响应。."""
-        if action == 'approach_arm':
-            client = self._arm_client
-            request = SetBool.Request()
-            request.data = bool(armed)
-        else:
-            client = self._debug_clients.get(action)
-            if client is None:
-                return False, '未知调试命令'
-            request = Trigger.Request()
-        if not client.service_is_ready():
-            return False, '目标 ROS 服务不可用'
-        try:
-            response = self._wait_future(client.call_async(request))
-        except (TimeoutError, RuntimeError) as error:
-            return False, str(error)
-        return bool(response.success), str(response.message)
-
-    def call_control(
-            self, command: int, request_id: str,
-            expected_revision: int, reason: str) -> tuple[bool, str]:
-        """调用带 revision 的编排控制服务。."""
-        if not self._control_client.service_is_ready():
-            return False, '编排控制服务不可用'
-        request = ControlHarvest.Request()
-        request.command = command
-        request.request_id = request_id
-        request.expected_revision = expected_revision
-        request.reason = reason
-        try:
-            response = self._wait_future(
-                self._control_client.call_async(request))
-        except (TimeoutError, RuntimeError) as error:
-            return False, str(error)
-        return bool(response.accepted), str(response.message)
-
-    def call_policy(self, body: dict) -> tuple[bool, str]:
-        """原子更新自动运行与三级运动使能策略。."""
-        if not self._policy_client.service_is_ready():
-            return False, '编排策略服务不可用'
-        request = SetOperationPolicy.Request()
-        request.request_id = str(body.get('request_id', ''))
-        request.expected_revision = int(body.get('expected_revision', 0))
-        request.auto_start_enabled = bool(body.get(
-            'auto_start_enabled', True))
-        request.execution_enabled = bool(body.get(
-            'execution_enabled', False))
-        request.grasp_enabled = bool(body.get('grasp_enabled', False))
-        request.tool_enabled = bool(body.get('tool_enabled', False))
-        try:
-            response = self._wait_future(
-                self._policy_client.call_async(request))
-        except (TimeoutError, RuntimeError) as error:
-            return False, str(error)
-        return bool(response.accepted), str(response.message)
+    # ------------------------------------------------------------------
+    # HttpBackend 窄接口实现（http_server 只依赖这两个方法）
+    # ------------------------------------------------------------------
+    def snapshot(self) -> dict:
+        """浏览器状态快照（GET /api/state 的载荷）."""
+        return self._state.snapshot()
 
     def start_http(self) -> None:
-        """启动静态文件和只读 API 服务."""
-        web_root = Path(get_package_share_directory(
-            'peach_perception_web')) / 'web'
-        gateway = self
-
-        class Handler(BaseHTTPRequestHandler):
-            """该网关专用 HTTP handler."""
-
-            def log_message(self, fmt, *args):
-                gateway.get_logger().debug(fmt % args)
-
-            def _send(
-                    self, status, content_type, data, cache='no-store',
-                    set_session=False):
-                self.send_response(status)
-                self.send_header('Content-Type', content_type)
-                self.send_header('Content-Length', str(len(data)))
-                self.send_header('Cache-Control', cache)
-                self.send_header('X-Content-Type-Options', 'nosniff')
-                self.send_header('X-Frame-Options', 'DENY')
-                self.send_header(
-                    'Content-Security-Policy',
-                    "default-src 'self'; object-src 'none'; "
-                    "frame-ancestors 'none'")
-                if set_session:
-                    self.send_header(
-                        'Set-Cookie',
-                        'peach_session=' + gateway._session_nonce +
-                        '; Path=/; HttpOnly; SameSite=Strict')
-                self.end_headers()
-                self.wfile.write(data)
-
-            def _json(self, value, status=HTTPStatus.OK):
-                data = json.dumps(
-                    value, ensure_ascii=False,
-                    separators=(',', ':')).encode('utf-8')
-                self._send(status, 'application/json; charset=utf-8', data)
-
-            def _session_value(self):
-                cookie = SimpleCookie(self.headers.get('Cookie', ''))
-                item = cookie.get('peach_session')
-                return item.value if item is not None else ''
-
-            def _same_origin(self):
-                origin = self.headers.get('Origin', '')
-                if not origin:
-                    return False
-                parsed = urlparse(origin)
-                return (parsed.scheme in ('http', 'https') and
-                        parsed.netloc == self.headers.get('Host', ''))
-
-            def _read_json(self):
-                length = int(self.headers.get('Content-Length', '0'))
-                if length <= 0 or length > 32768:
-                    raise ValueError('请求体大小无效')
-                value = json.loads(self.rfile.read(length).decode('utf-8'))
-                if not isinstance(value, dict):
-                    raise ValueError('请求体必须是 JSON 对象')
-                return value
-
-            def do_GET(self):
-                parsed = urlparse(self.path)
-                path = parsed.path
-                if path == '/api/state':
-                    self._json(gateway._state.snapshot())
-                    return
-                if path == '/api/profiles':
-                    self._json({'profiles': gateway._profiles.list_names()})
-                    return
-                assets = {
-                    '/': ('index.html', 'text/html; charset=utf-8'),
-                    '/index.html': ('index.html', 'text/html; charset=utf-8'),
-                    '/app.css': ('app.css', 'text/css; charset=utf-8'),
-                    '/app.js': ('app.js', 'text/javascript; charset=utf-8'),
-                }
-                asset = assets.get(path)
-                if asset is None:
-                    self.send_error(HTTPStatus.NOT_FOUND)
-                    return
-                data = (web_root / asset[0]).read_bytes()
-                self._send(
-                    HTTPStatus.OK, asset[1], data,
-                    cache='public, max-age=60',
-                    set_session=path in ('/', '/index.html'))
-
-            def do_POST(self):
-                path = urlparse(self.path).path
-                if not self._same_origin():
-                    self._json({'accepted': False,
-                                'message': '请求来源无效'},
-                               HTTPStatus.FORBIDDEN)
-                    return
-                try:
-                    body = self._read_json()
-                except (ValueError, json.JSONDecodeError) as error:
-                    self._json({'accepted': False, 'message': str(error)},
-                               HTTPStatus.BAD_REQUEST)
-                    return
-                revision = int(body.get('expected_revision', -1))
-                allowed, reason = gateway._guard.authorize(
-                    self._session_value(), revision,
-                    gateway._state.orchestrator_revision(),
-                    maintenance_required=path == '/api/debug',
-                    operation_mode=gateway._state.operation_mode())
-                if not allowed:
-                    self._json({'accepted': False, 'message': reason},
-                               HTTPStatus.CONFLICT)
-                    return
-                if path == '/api/control':
-                    command = int(body.get('command', -1))
-                    if command == 4 and body.get('confirmed') is not True:
-                        accepted, message = False, '立即取消需要二次确认'
-                    else:
-                        accepted, message = gateway.call_control(
-                            command, str(body.get('request_id', '')),
-                            revision, str(body.get('reason', '')))
-                elif path == '/api/debug':
-                    action = str(body.get('action', ''))
-                    high_risk = action in {
-                        'pose_reset', 'recon_reset',
-                        'approach_start', 'approach_contact'} or (
-                            action == 'approach_arm' and
-                            bool(body.get('armed', False)))
-                    if high_risk and body.get('confirmed') is not True:
-                        accepted, message = False, '该调试命令需要二次确认'
-                    else:
-                        accepted, message = gateway.call_debug(
-                            action, bool(body.get('armed', False)))
-                elif path == '/api/policy':
-                    enabling = any(bool(body.get(key, False)) for key in (
-                        'execution_enabled', 'grasp_enabled',
-                        'tool_enabled'))
-                    if enabling and body.get('confirmed') is not True:
-                        accepted, message = False, '开启运动策略需要二次确认'
-                    else:
-                        accepted, message = gateway.call_policy(body)
-                elif path == '/api/profiles/save':
-                    try:
-                        gateway._profiles.save(
-                            str(body.get('name', '')),
-                            body.get('values', {}))
-                        accepted, message = True, '参数档案已保存'
-                    except (OSError, TypeError, ValueError) as error:
-                        accepted, message = False, str(error)
-                elif path == '/api/profiles/load':
-                    try:
-                        values = gateway._profiles.load(str(body.get(
-                            'name', '')))
-                        accepted, message = True, '参数档案已加载，尚未应用'
-                    except (OSError, TypeError, ValueError) as error:
-                        accepted, message, values = False, str(error), {}
-                else:
-                    self._json({'accepted': False,
-                                'message': '未知 API'},
-                               HTTPStatus.NOT_FOUND)
-                    return
-                gateway._state.audit(path, accepted, message)
-                response = {'accepted': accepted, 'message': message,
-                            'revision': gateway._state.orchestrator_revision()}
-                if path == '/api/profiles/load':
-                    response['values'] = values
-                self._json(response,
-                           HTTPStatus.OK if accepted else HTTPStatus.CONFLICT)
-
+        """校验监听参数、提示非回环风险并启动 HTTP 服务线程."""
         host = str(self.get_parameter('host').value)
         port = int(self.get_parameter('port').value)
         if not 1 <= port <= 65535:
             raise ValueError('port 必须在 1..65535')
-        self._http = ThreadingHTTPServer((host, port), Handler)
-        thread = threading.Thread(
-            target=self._http.serve_forever,
-            name='peach-perception-http', daemon=True)
-        thread.start()
+        if host not in ('127.0.0.1', 'localhost'):
+            self.get_logger().warning(
+                f'*** 安全提示：Web 监控台监听在非回环地址 {host}:{port}，'
+                '该 HTTP 服务无鉴权，严禁暴露到公网或不受信网络 ***')
+        web_root = Path(get_package_share_directory(
+            'peach_perception_web')) / 'web'
+        self._http = http_server.start_http(
+            host, port, web_root, self, self.get_logger().debug)
         shown_host = '127.0.0.1' if host == '0.0.0.0' else host
         self.get_logger().info(
-            f'桃子感知 Web 控制台: http://{shown_host}:{port}')
+            f'桃子采摘监控台（只读）: http://{shown_host}:{port}')
 
     def destroy_node(self):
         """停止 HTTP 线程后销毁 ROS 节点."""

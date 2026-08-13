@@ -54,7 +54,7 @@ class YamlDeclareSyncTest(unittest.TestCase):
     """YAML 权威哲学强制：config/peach_pose.yaml 与 declare 默认值逐项一致."""
 
     def test_yaml_defaults_match_declare_defaults(self):
-        """ros__parameters 与 DECLARE_DEFAULTS 键集与逐值完全相等（37 项）."""
+        """ros__parameters 与 DECLARE_DEFAULTS 键集与逐值完全相等（41 项）."""
         import yaml  # 延迟 import：仅本测试需要 PyYAML
         doc = yaml.safe_load(YAML_PATH.read_text())
         yaml_params = doc['peach_pose_node']['ros__parameters']
@@ -72,12 +72,12 @@ class YamlDeclareSyncTest(unittest.TestCase):
 
 
 class DeclareCollectTest(unittest.TestCase):
-    """declare(node)：37 键全量 declare，默认值与 descriptor 原样透传."""
+    """declare(node)：41 键全量 declare，默认值与 descriptor 原样透传."""
 
     def test_declare_registers_all_defaults(self):
         node = _FakeNode({})
         PeachPoseParams.declare(node)
-        self.assertEqual(len(node.declared), 37)
+        self.assertEqual(len(node.declared), 41)
         for key, (default, descriptor) in node.declared.items():
             self.assertEqual(default, DECLARE_DEFAULTS[key], key)
             self.assertEqual(descriptor.description, DESCRIPTIONS[key], key)

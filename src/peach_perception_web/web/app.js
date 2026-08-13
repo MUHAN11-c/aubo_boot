@@ -13,111 +13,81 @@ const vector = (value, digits = 4) => Array.isArray(value) && value.length
 const safe = (value) => String(value ?? "—").replace(/[&<>"']/g, (char) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
 })[char]);
-let operationRevision = 0;
-let policyDirty = false;
+// 批次状态与目标阶段枚举映射，与 peach_harvest_msgs/HarvestState.msg 常量保持一致
 const batchNames = ["等待就绪", "发现目标", "运行中", "等待安全暂停点", "已暂停", "维护模式", "已完成", "故障", "需要恢复", "已中断"];
+const phaseNames = ["空闲", "选择目标", "观测中", "完成观测", "质量校验", "靠近中", "工具动作", "撤退中", "收尾中", "目标成功", "目标跳过", "目标失败"];
+// 过程线阶段顺序（与 index.html data-stage 一致）
+const stageOrder = ["ready", "photo", "lock", "observe", "validate", "approach", "tool", "retreat", "done"];
+
+// 由编排器状态推导当前过程线阶段：拍照前置/收齐在 DISCOVERY 内按消息区分；
+// 目标周期内按 target_phase 映射；终局/异常单独归类。
+function currentStage(state) {
+  const batch = Number(state.batch_state ?? -1);
+  const phase = Number(state.target_phase ?? 0);
+  const message = String(state.message || "");
+  if (batch === 6) return "done";
+  if (batch === 0) return "ready";
+  if (batch === 1) return message.includes("拍照") ? "photo" : "lock";
+  if (batch === 2 || batch === 3) {
+    if (phase >= 1 && phase <= 3) return "observe";
+    if (phase === 4) return "validate";
+    if (phase === 5) return "approach";
+    if (phase === 6) return "tool";
+    if (phase === 7 || phase === 8) return "retreat";
+    return "observe";
+  }
+  return "ready";
+}
+
+function renderPipeline(state) {
+  const active = currentStage(state);
+  const activeIndex = stageOrder.indexOf(active);
+  const batch = Number(state.batch_state ?? -1);
+  const alert = batch === 7 || batch === 8 || state.recovery_required === true;
+  document.querySelectorAll("#pipeline .step").forEach((el) => {
+    const index = stageOrder.indexOf(el.dataset.stage);
+    el.classList.toggle("done", index >= 0 && index < activeIndex);
+    el.classList.toggle("active", index === activeIndex);
+    el.classList.toggle("alert", index === activeIndex && alert);
+  });
+}
 
 function renderOperations(orchestration) {
   const state = orchestration.state || {};
-  operationRevision = Number(state.revision || 0);
   setText("batch-state", batchNames[state.batch_state] || "等待编排器");
+  $("batch-state").classList.toggle("completed", state.batch_state === 6);
   setText("batch-message", state.message || "尚未收到类型化状态");
+  setText("target-phase", phaseNames[state.target_phase] || "—");
+  setText("batch-progress-value", percent(state.progress));
+  setBar("batch-progress-bar", state.progress);
   $("batch-blockers").innerHTML = (state.blockers || []).map((item) =>
     "<span title=\"该健康门未通过\">" + safe(item) + "</span>").join("");
-  const maintenance = state.operation_mode === 2;
-  document.querySelectorAll("[data-debug]").forEach((button) => {
-    button.disabled = !maintenance;
-  });
-  if (!policyDirty) {
-    $("policy-auto").checked = state.auto_start_enabled === true;
-    $("policy-execution").checked = state.execution_enabled === true;
-    $("policy-grasp").checked = state.grasp_enabled === true;
-    $("policy-tool").checked = state.tool_enabled === true;
+  renderPipeline(state);
+}
+
+// 当前参数只读镜像：按节点分组的小表；值来自后端参数轮询。
+function renderParams(params, ages) {
+  const root = $("params-tables");
+  const names = Object.keys(params || {}).sort();
+  if (!names.length) {
+    root.innerHTML = '<p class="empty">等待各节点参数服务</p>';
+    return;
   }
+  const shortName = (full) => full.replace(/^\//, "");
+  root.innerHTML = names.map((nodeName) => {
+    const values = params[nodeName] || {};
+    const age = ages ? ages[`params.${nodeName}`] : undefined;
+    const rows = Object.entries(values).map(([key, value]) => {
+      const text = value === null || value === undefined ? "—" :
+        Array.isArray(value) ? `[${value.join(", ")}]` :
+        typeof value === "number" ? String(Math.round(value * 10000) / 10000) :
+        String(value);
+      return `<tr><td>${safe(key)}</td><td>${safe(text)}</td></tr>`;
+    }).join("");
+    const ageText = age === undefined ? "" : `${Number(age).toFixed(1)}s`;
+    return `<div class="param-group"><h3 title="${safe(nodeName)}">${safe(shortName(nodeName))}<span>${ageText}</span></h3><table>${rows}</table></div>`;
+  }).join("");
 }
-
-async function apiPost(path, payload) {
-  const response = await fetch(path, {
-    method: "POST", credentials: "same-origin",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({...payload, expected_revision: operationRevision})
-  });
-  const result = await response.json();
-  setText("operation-result", result.message || ("HTTP " + response.status));
-  if (!response.ok) throw new Error(result.message || ("HTTP " + response.status));
-  return result;
-}
-
-document.querySelectorAll("[data-control]").forEach((button) => {
-  button.addEventListener("click", async () => {
-    const confirmed = !button.dataset.confirm || window.confirm(button.dataset.confirm);
-    if (!confirmed) return;
-    try {
-      await apiPost("/api/control", {
-        command: Number(button.dataset.control),
-        request_id: crypto.randomUUID(), confirmed,
-        reason: "web_task_center"
-      });
-    } catch (_) { /* API 已显示明确原因 */ }
-  });
-});
-
-document.querySelectorAll("[data-debug]").forEach((button) => {
-  button.addEventListener("click", async () => {
-    const confirmed = !button.dataset.confirm || window.confirm(button.dataset.confirm);
-    if (!confirmed) return;
-    try {
-      await apiPost("/api/debug", {
-        action: button.dataset.debug,
-        armed: button.dataset.armed === "true", confirmed
-      });
-    } catch (_) { /* API 已显示明确原因 */ }
-  });
-});
-
-["policy-auto", "policy-execution", "policy-grasp", "policy-tool"].forEach((id) => {
-  $(id).addEventListener("change", () => { policyDirty = true; });
-});
-
-$("apply-policy").addEventListener("click", async () => {
-  const payload = {
-    request_id: crypto.randomUUID(),
-    auto_start_enabled: $("policy-auto").checked,
-    execution_enabled: $("policy-execution").checked,
-    grasp_enabled: $("policy-grasp").checked,
-    tool_enabled: $("policy-tool").checked
-  };
-  const enabling = payload.execution_enabled || payload.grasp_enabled || payload.tool_enabled;
-  payload.confirmed = !enabling || window.confirm("确认修改运动、抓取和工具使能？真机必须保持低速并由现场人员上电。");
-  if (!payload.confirmed) return;
-  try { await apiPost("/api/policy", payload); policyDirty = false; } catch (_) {}
-});
-
-$("save-profile").addEventListener("click", async () => {
-  try {
-    await apiPost("/api/profiles/save", {
-      name: $("profile-name").value,
-      values: {orchestrator: {
-        auto_start_enabled: $("policy-auto").checked,
-        execution_enabled: $("policy-execution").checked,
-        grasp_enabled: $("policy-grasp").checked,
-        tool_enabled: $("policy-tool").checked
-      }}
-    });
-  } catch (_) {}
-});
-
-$("load-profile").addEventListener("click", async () => {
-  try {
-    const result = await apiPost("/api/profiles/load", {name: $("profile-name").value});
-    const policy = result.values?.orchestrator || {};
-    $("policy-auto").checked = policy.auto_start_enabled === true;
-    $("policy-execution").checked = policy.execution_enabled === true;
-    $("policy-grasp").checked = policy.grasp_enabled === true;
-    $("policy-tool").checked = policy.tool_enabled === true;
-    policyDirty = true;
-  } catch (_) {}
-});
 
 function qualityClass(status) {
   return String(status || "").toLowerCase();
@@ -324,6 +294,7 @@ async function pollState() {
     const result = renderReconstruction(state.reconstruction || {}, state.refined || {});
     renderApproach(state.approach || {});
     renderOperations(state.orchestration || {});
+    renderParams(state.params || {}, state.system?.topic_age_s || {});
     renderIdentity(targets, result.diagnostics, state.refined || {}, result.decision);
     renderHealth(state.system || {});
     $("raw-json").textContent = JSON.stringify(state, null, 2);

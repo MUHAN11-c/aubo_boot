@@ -2,8 +2,9 @@
 纯核 import guard：纯核模块零 ROS import（设计文档 §3 层间依赖规则）.
 
 guard 清单（数据层/算法层/接口层，均不得 import ROS）：
-captured_frame / frame_collector / cloud_builder / tf_utils / tsdf_volume /
-geometry_refiner / overlap / interfaces / session_io / view_coverage。
+captured_frame / capture_gate / frame_collector / cloud_builder /
+tf_utils / tsdf_volume / geometry_refiner / overlap / interfaces /
+session_io / view_coverage。
 
 刻意排除（编排/参数层，ROS 耦合是本职，注释固化）：
   - reconstruction_node.py：编排主节点（rclpy/sensor_msgs 等）；
@@ -21,6 +22,7 @@ import unittest
 
 _PURE_CORE = (
     'captured_frame',
+    'capture_gate',
     'frame_collector',
     'cloud_builder',
     'tf_utils',

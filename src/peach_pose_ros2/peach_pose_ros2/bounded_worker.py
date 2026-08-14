@@ -2,11 +2,16 @@
 """可配置背压策略的单线程有界 worker."""
 
 from collections import deque
+import logging
 import threading
+import traceback
 from typing import Callable, Generic, TypeVar
 
 
 Item = TypeVar('Item')
+
+# 纯核不能 import ROS，走 stdlib logging（print 会污染 stdout）
+_logger = logging.getLogger(__name__)
 
 
 class BoundedWorker(Generic[Item]):
@@ -56,6 +61,7 @@ class BoundedWorker(Generic[Item]):
         self._thread.join()
 
     def _run(self) -> None:
+        consecutive_errors = 0
         while True:
             with self._condition:
                 self._condition.wait_for(
@@ -63,4 +69,16 @@ class BoundedWorker(Generic[Item]):
                 if self._closing and (not self._drain or not self._queue):
                     return
                 item = self._queue.popleft()
-            self._process(item)
+            # 任务异常不得杀 worker 线程（否则 submit 照常返回 True、节点静默
+            # 无输出）：记错误日志（含 traceback）后继续处理后续任务；连续异常
+            # 计数用于日志节流——第 1 次必打，之后每 10 次打一次
+            try:
+                self._process(item)
+            except Exception:  # noqa: BLE001
+                consecutive_errors += 1
+                if consecutive_errors == 1 or consecutive_errors % 10 == 0:
+                    _logger.error(
+                        'bounded-worker 任务处理异常（连续第 %d 次）:\n%s',
+                        consecutive_errors, traceback.format_exc())
+            else:
+                consecutive_errors = 0

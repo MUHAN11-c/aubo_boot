@@ -49,10 +49,17 @@ rclcpp_action::GoalResponse ApproachGraspNode::onActionGoal(
   if (goal->target_id.empty() || goal->mode == RunTargetCycle::Goal::OBSERVE_ONLY ||
     running_.load() || contact_recovery_required_.load())
   {
+    RCLCPP_WARN(
+      get_logger(), "拒绝目标请求 %s: 周期运行中/恢复待确认/请求非法",
+      goal->target_id.c_str());
     return rclcpp_action::GoalResponse::REJECT;
   }
   const auto target = targetSnapshot();
   if (!target || target->id != goal->target_id) {
+    RCLCPP_WARN(
+      get_logger(), "拒绝目标请求 %s: 缓存目标=%s",
+      goal->target_id.c_str(),
+      target ? target->id.c_str() : "（无有效锚点）");
     return rclcpp_action::GoalResponse::REJECT;
   }
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
@@ -89,6 +96,10 @@ void ApproachGraspNode::executeAction(
   } else {
     // Action 是自动编排专用入口；手动 Trigger 仍要求每周期单独 arm。
     if (execution_enabled_.load()) {execution_armed_.store(true);}
+    // goal 钉死（设计文档第 7 节）：受理到 Prepare 快照之间感知可能切换
+    // selected；钉入受理时的目标 ID，btPrepareCycle 发现身份不一致即失败，
+    // 由编排按新 selected 重新派发。
+    cycle_target_id_ = goal->target_id;
     onStart(std::make_shared<Trigger::Request>(), trigger_response, true);
   }
   if (!trigger_response->success) {

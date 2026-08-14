@@ -53,12 +53,13 @@ from peach_pose_ros2.peach_pose.candidates import (
     CandidateEstimator,
     dedup_overlapping_detections,
 )
-from peach_pose_ros2.peach_pose.contracts import BagObservation
+from peach_pose_ros2.peach_pose.contracts import BagObservation, compute_entry_start
 from peach_pose_ros2.peach_pose.depth_geometry import normalize_depth_to_uint16_mm
 from peach_pose_ros2.peach_pose.inference import InferenceEngine
 from peach_pose_ros2.tf_utils import (
     _apply_T_to_grasp3d,
     _gravity_camera_from_R,
+    _rotation_to_quat,
     _transform_msg_to_matrix,
 )
 from peach_pose_ros2.visualization import _draw_debug, _to_markers
@@ -115,6 +116,9 @@ class PeachPoseNode(Node):
             prefer_lower_first=self.harvest_priority_prefer_lower_first)
         self.harvest_data = HarvestDataStore()
         self.harvest_run_id = ''
+        # 实测帧间隔 EMA（帧率自适应收齐窗口兜底；None=未测得）
+        self._frame_interval_ema = None
+        self._last_frame_clock_s = None
 
         # ---- 输出话题（相对命名空间 ~/）----
         self.pub_cands = self.create_publisher(
@@ -307,6 +311,24 @@ class PeachPoseNode(Node):
         """
         with self._plan_lock:
             was_locked = self.harvest_plan.locked
+            # 帧率自适应收齐兜底：按实测帧间隔 EMA 伸缩 max_collect_s（帧率
+            # 以运行状态为准）——低帧率放大防误锁空集，高帧率收紧提速；
+            # 配置值 ×0.4 作下限。异常间隔（暂停后首帧）不进 EMA。
+            now_s = self.get_clock().now().nanoseconds * 1e-9
+            if self._last_frame_clock_s is not None:
+                frame_dt = now_s - self._last_frame_clock_s
+                if 1e-3 < frame_dt < 30.0:
+                    self._frame_interval_ema = (
+                        frame_dt if self._frame_interval_ema is None
+                        else 0.7 * self._frame_interval_ema + 0.3 * frame_dt)
+            self._last_frame_clock_s = now_s
+            if self._frame_interval_ema:
+                adaptive_collect_s = (
+                    (self.harvest_plan.min_collect_frames
+                     + self.harvest_plan.lock_settle_frames + 3)
+                    * self._frame_interval_ema)
+                self.harvest_plan.max_collect_s = max(
+                    0.4 * self.harvest_max_collect_s, adaptive_collect_s)
             current = self.harvest_plan.update(records)
             try:
                 if self.harvest_plan.locked and not was_locked:
@@ -362,6 +384,61 @@ class PeachPoseNode(Node):
                                     target_id, stamp_ns, mask)
                             except OSError as exc:
                                 self.get_logger().error(str(exc))
+                # 几何退化统一兜底（LOST 无 payload，或观测帧深度失败导致
+                # bag_bottom/neck 近零）：回填注册表记忆锚点——世界系身份记忆
+                # 的本职用途；带 anchor_from_memory 标记，能力端不把它当新鲜
+                # 观测（不刷新新鲜度），但锚点可派发/可规划
+                _b = item.candidate.bag_bottom
+                _n = item.candidate.bag_neck
+                _degenerate = (
+                    abs(_b.x) < 1e-6 and abs(_b.y) < 1e-6 and abs(_b.z) < 1e-6) or (
+                    abs(_n.x) < 1e-6 and abs(_n.y) < 1e-6 and abs(_n.z) < 1e-6)
+                if _degenerate:
+                    entry = (self.target_registry.get(target_id)
+                             if self.target_registry is not None else None)
+                    if entry is not None and entry.get('position') is not None:
+                        center = np.asarray(entry['position'], dtype=np.float64)
+                        axis = entry.get('axis')
+                        axis = (np.array([0.0, 0.0, 1.0]) if axis is None
+                                else np.asarray(axis, dtype=np.float64))
+                        half = 0.5 * float(entry.get('diameter') or 0.06)
+                        bottom = center - axis * half
+                        neck = center + axis * half
+                        item.candidate.target_id = target_id
+                        item.candidate.bag_bottom.x = float(bottom[0])
+                        item.candidate.bag_bottom.y = float(bottom[1])
+                        item.candidate.bag_bottom.z = float(bottom[2])
+                        item.candidate.bag_neck.x = float(neck[0])
+                        item.candidate.bag_neck.y = float(neck[1])
+                        item.candidate.bag_neck.z = float(neck[2])
+                        item.candidate.translation_direction.x = float(axis[0])
+                        item.candidate.translation_direction.y = float(axis[1])
+                        item.candidate.translation_direction.z = float(axis[2])
+                        # entry_pose 一并回填（下游契约要求完整入口位姿）：位置用
+                        # contracts 纯函数 compute_entry_start（standoff 与管线
+                        # 一致 = entry_d_tool + entry_d_s）；姿态由袋轴构造右手
+                        # 抓取系 R=[Xg,Yg,Zg]（无点云可用，取 pipeline._frame
+                        # 退化分支同法的参考轴叉积）
+                        axis_norm = float(np.linalg.norm(axis))
+                        zg = (axis / axis_norm if axis_norm > 1e-9
+                              else np.array([0.0, 0.0, 1.0]))
+                        standoff = self.tool.entry_d_tool + self.tool.entry_d_s
+                        entry_start = compute_entry_start(bottom, zg, standoff)
+                        item.candidate.entry_pose.position.x = float(entry_start[0])
+                        item.candidate.entry_pose.position.y = float(entry_start[1])
+                        item.candidate.entry_pose.position.z = float(entry_start[2])
+                        ref = (np.array([1.0, 0.0, 0.0]) if abs(zg[0]) < 0.9
+                               else np.array([0.0, 0.0, 1.0]))
+                        xg = np.cross(zg, ref)
+                        xg /= np.linalg.norm(xg)
+                        if xg[0] < 0:
+                            xg = -xg
+                        yg = np.cross(zg, xg)
+                        frame = np.column_stack((xg, yg, zg))
+                        item.candidate.entry_pose.orientation = (
+                            _rotation_to_quat(frame))
+                        item.candidate.status = item.candidate.REOBSERVE
+                        item.diagnostic_flags.append('anchor_from_memory')
                 array.observations.append(item)
             self.pub_target_observations.publish(array)
             if self.harvest_plan.locked:
@@ -524,7 +601,14 @@ class PeachPoseNode(Node):
         img_header.frame_id = rgb_msg.header.frame_id
 
         # ---- 检测 ----
-        dets = self.engine.detect(rgb)
+        # YOLO 异常（权重缺失/CUDA 错误等）不得炸穿 worker：记日志跳过本帧，
+        # 与上方 convert 失败的早退形状一致（SAM 侧已在 engine 内捕获返回 []）
+        try:
+            dets = self.engine.detect(rgb)
+        except Exception as exc:  # noqa: BLE001
+            self.get_logger().error(
+                f'YOLO 检测异常，跳过本帧: {exc}', throttle_duration_sec=1.0)
+            return
         # 置信度过滤（第二级，严出）→ IoS 去重（消一果两框/局部误检小框，
         # 跨类生效，防同一物理目标在身份表重复占号）；发布的 detections
         # 即实际入管线的目标
@@ -583,12 +667,30 @@ class PeachPoseNode(Node):
                             and tf_status != 'unavailable')
         if track_this_frame:
             self.target_registry.begin_frame()
+        # ---- SAM 批量分割：整帧收集全部 bbox 一次 forward（N 目标 N 次 → 1 次），
+        # 再按 bbox 精确取回各目标掩膜（segment 丢弃面积过小掩膜，返回项与目标
+        # 非一一对齐，故按 bbox 建映射而非按下标）；批量路径自身异常时回退逐目标
+        # 调用兜底（engine 内部已捕获的 SAM 推理失败返回 []，不触发本回退）
+        frame_bboxes = [tuple(d['bbox']) for d in kept]
+        mask_by_bbox = {}
+        if frame_bboxes:
+            try:
+                segs = self.engine.segment(rgb, frame_bboxes)
+            except Exception as exc:  # noqa: BLE001
+                self.get_logger().warning(
+                    f'SAM 批量分割异常，回退逐目标调用: {exc}')
+                segs = []
+                for fallback_bbox in frame_bboxes:
+                    try:
+                        segs.extend(self.engine.segment(rgb, [fallback_bbox]))
+                    except Exception as exc_single:  # noqa: BLE001
+                        self.get_logger().warning(
+                            f'SAM 单目标分割异常: {exc_single}')
+            mask_by_bbox = {bbox: mask for mask, bbox in segs}
         for i, det in enumerate(kept):
             bbox = tuple(det['bbox'])
-            sam_mask = None
-            segs = self.engine.segment(rgb, [bbox])
-            if segs:
-                sam_mask = segs[0][0]
+            sam_mask = mask_by_bbox.get(bbox)
+            if sam_mask is not None:
                 mask_canvas[sam_mask > 0] = np.uint8((i % 250) + 1)
 
             obs = BagObservation(

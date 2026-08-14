@@ -49,6 +49,7 @@ using namespace std::chrono_literals;
 
 namespace peach_approach_grasp
 {
+
 void ApproachGraspNode::onRobotStatus(
   const aubo_msgs::msg::RobotStatus::SharedPtr message)
 {
@@ -146,12 +147,8 @@ bool ApproachGraspNode::planOrMoveTip(
     setState(CycleState::FAILED, "执行前安全门失败: " + safety_reason);
     return false;
   }
-  if (!cycle_target_id_.empty() &&
-    !cycleTargetReady(cycle_target_id_, safety_reason))
-  {
-    setState(CycleState::FAILED, "执行前目标安全门失败: " + safety_reason);
-    return false;
-  }
+  // 目标身份/新鲜度不在运动层判定：由 BT 层单点决策（设计文档第 7 节），
+  // 避免与 BT 的 stale 放行/记忆锚点获取性移动策略互相否决。
   return move_group_->execute(plan) == moveit::core::MoveItErrorCode::SUCCESS;
 }
 

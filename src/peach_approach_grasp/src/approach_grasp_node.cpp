@@ -54,6 +54,17 @@ ApproachGraspNode::ApproachGraspNode()
   loadParameters();
   parameter_callback_handle_ = add_on_set_parameters_callback(
     std::bind(&ApproachGraspNode::onParameters, this, std::placeholders::_1));
+  // on-set 回调内 get_parameter 读到的仍是旧值，其余参数的全量生效必须放到
+  // 参数实际写入之后（P0-6：此前它们被静默吞掉）。
+  post_parameter_callback_handle_ = add_post_set_parameters_callback(
+    [this](const std::vector<rclcpp::Parameter> &) {
+      // loadParameters 会重建 view_planner_/quality_gate_/safety_gate_
+      // （非线程安全），仅空闲时重载；运行中的改参已被 onParameters 前置拒绝，
+      // 此处 !running_ 为兜底（默认互斥回调组，不与订阅回调并发）。
+      if (!running_.load()) {
+        loadParameters();
+      }
+    });
   createInterfaces();
   setState(CycleState::IDLE, "等待 start_cycle；默认只规划，不执行运动");
 }
@@ -100,9 +111,10 @@ void ApproachGraspNode::initializeMoveIt()
   task_config.cartesian_step_m = mtc_cartesian_step_m_;
   task_config.cartesian_precision_m = mtc_cartesian_precision_m_;
   task_config.max_solutions = static_cast<std::size_t>(mtc_max_solutions_);
+  // 执行边界只留硬件安全门（safetyReady 永不放宽）；目标身份/新鲜度策略
+  // 由 BT 层单点决策（设计文档第 7 节），此处不再重复判定以免互相否决。
   task_config.approach_execution_gate = [this](std::string & reason) {
-      return safetyReady(reason) && cycleTargetReady(cycle_target_id_, reason) &&
-             !cancel_requested_.load();
+      return safetyReady(reason) && !cancel_requested_.load();
     };
   // 插入后目标常被工具遮挡，撤离不能依赖视觉可见性，否则会把正常遮挡误判为禁止撤离。
   task_config.retreat_execution_gate = [this](std::string & reason) {
@@ -131,8 +143,8 @@ void ApproachGraspNode::declareParameters()
   declare_parameter("moveit.planning_attempts", 5);
   declare_parameter("moveit.velocity_scaling", 0.05);
   declare_parameter("moveit.acceleration_scaling", 0.05);
-  declare_parameter("moveit.transit_velocity_scaling", 0.05);
-  declare_parameter("moveit.transit_acceleration_scaling", 0.05);
+  declare_parameter("moveit.transit_velocity_scaling", 0.10);
+  declare_parameter("moveit.transit_acceleration_scaling", 0.10);
   declare_parameter("moveit.pilz_pipeline", "pilz_industrial_motion_planner");
   declare_parameter("moveit.fallback_pipeline", "ompl");
   declare_parameter("moveit.mtc_free_space_planner", "RRTConnectkConfigDefault");
@@ -152,13 +164,17 @@ void ApproachGraspNode::declareParameters()
   declare_parameter("scan.radial_step_m", 0.015);
   declare_parameter("scan.candidate_layers", 3);
   declare_parameter("scan.views_to_minimum_radius", 5);
-  declare_parameter("scan.maximum_moves", 8);
+  declare_parameter("scan.maximum_moves", 5);
+  // 观察段时间盒（秒）：到期带现有覆盖强制 finalize（不达标由候选锚点
+  // 降级抓取兜底），控制单目标观察耗时。暂时测试设置，实际工况再调。
+  declare_parameter("scan.time_budget_s", 5.0);
+  declare_parameter("scan.min_camera_height_m", 0.06);
   declare_parameter("scan.frame_wait_s", 6.0);
-  declare_parameter("quality.minimum_views", 5);
-  declare_parameter("quality.minimum_baseline_deg", 22.0);
-  declare_parameter("quality.minimum_mean_nearest_baseline_deg", 8.0);
+  declare_parameter("quality.minimum_views", 3);
+  declare_parameter("quality.minimum_baseline_deg", 15.0);
+  declare_parameter("quality.minimum_mean_nearest_baseline_deg", 6.0);
   declare_parameter("quality.minimum_mean_depth_ratio", 0.40);
-  declare_parameter("quality.maximum_refined_rmse_m", 0.005);
+  declare_parameter("quality.maximum_refined_rmse_m", 0.01);
   declare_parameter("quality.minimum_refined_inlier_ratio", 0.35);
   declare_parameter("quality.maximum_data_age_s", 2.0);
   declare_parameter("execution.enabled", false);
@@ -217,8 +233,11 @@ void ApproachGraspNode::loadParameters()
   view_config.candidate_layers = get_parameter("scan.candidate_layers").as_int();
   view_config.views_to_minimum_radius =
     get_parameter("scan.views_to_minimum_radius").as_int();
+  view_config.min_camera_height_m =
+    get_parameter("scan.min_camera_height_m").as_double();
   view_planner_ = std::make_unique<ViewPlanner>(view_config);
   maximum_scan_moves_ = get_parameter("scan.maximum_moves").as_int();
+  scan_time_budget_s_ = get_parameter("scan.time_budget_s").as_double();
   frame_wait_s_ = get_parameter("scan.frame_wait_s").as_double();
 
   QualityGateConfig gate_config;
@@ -245,6 +264,7 @@ void ApproachGraspNode::loadParameters()
     get_parameter("execution.robot_status_max_age_s").as_double();
   safety_config.target_observation_max_age_s =
     get_parameter("execution.target_observation_max_age_s").as_double();
+  target_observation_max_age_config_s_ = safety_config.target_observation_max_age_s;
   safety_gate_ = std::make_unique<SafetyGate>(
     safety_config, [this]() {return now().seconds();});
 
@@ -391,6 +411,9 @@ void ApproachGraspNode::createInterfaces()
 void ApproachGraspNode::onTargets(
   const peach_pose_msgs::msg::PeachTargetObservationArray::SharedPtr message)
 {
+  // 每帧测量观测到达间隔并刷新帧率自适应超时（帧率以运行状态为准）。
+  trackFrameInterval();
+  safety_gate_->set_target_observation_max_age_s(effectiveTargetMaxAgeS());
   auto selected = std::find_if(
     message->observations.begin(), message->observations.end(),
     [&message](const auto & item) {
@@ -403,15 +426,49 @@ void ApproachGraspNode::onTargets(
   SelectedTargetUpdate update;
   update.selected_id = message->selected_target_id;
   update.harvest_run_id = message->harvest_run_id;
+  // 记忆锚点帧不算新鲜观测：锚点可用于派发/规划，但不刷新观测新鲜度，
+  // 让安全门的 stale 判定继续以真实观测为准。
+  const bool anchor_from_memory = std::find(
+    selected->diagnostic_flags.begin(), selected->diagnostic_flags.end(),
+    "anchor_from_memory") != selected->diagnostic_flags.end();
   update.observed =
     selected->tracking_status == peach_pose_msgs::msg::PeachTargetObservation::OBSERVED &&
-    selected->candidate.status != peach_pose_msgs::msg::BagGraspCandidate::REJECT;
+    selected->candidate.status != peach_pose_msgs::msg::BagGraspCandidate::REJECT &&
+    !anchor_from_memory;
   update.bottom = pointToEigen(selected->candidate.bag_bottom);
   update.neck = pointToEigen(selected->candidate.bag_neck);
   update.axis = vectorToEigen(selected->candidate.translation_direction);
   update.entry_pose = poseToEigen(selected->candidate.entry_pose);
   update.suggested_travel_m = selected->candidate.suggested_travel_m;
   cache_.updateSelectedTarget(update);
+}
+
+void ApproachGraspNode::trackFrameInterval()
+{
+  const double arrival_s = now().seconds();
+  if (last_targets_arrival_s_ > 0.0) {
+    const double dt = arrival_s - last_targets_arrival_s_;
+    // 异常间隔（暂停后首帧/时钟跳变）不进 EMA，避免污染帧率估计
+    if (dt > 1e-3 && dt < 30.0) {
+      frame_interval_ema_s_ = frame_interval_ema_s_ > 0.0 ?
+        0.7 * frame_interval_ema_s_ + 0.3 * dt : dt;
+    }
+  }
+  last_targets_arrival_s_ = arrival_s;
+}
+
+double ApproachGraspNode::effectiveFrameWaitS() const
+{
+  if (frame_interval_ema_s_ <= 0.0) {return frame_wait_s_;}
+  // 视点到位后等 ~4 帧 + 1s 稳定余量；下限 2s，上限为配置值
+  return adaptive_timeout_s(frame_interval_ema_s_, 4.0, 1.0, 2.0, frame_wait_s_);
+}
+
+double ApproachGraspNode::effectiveTargetMaxAgeS() const
+{
+  if (frame_interval_ema_s_ <= 0.0) {return target_observation_max_age_config_s_;}
+  // 新鲜度按 ~2.5 帧 + 0.5s 余量放宽：低帧率下丢 1 帧不误判 stale
+  return adaptive_timeout_s(frame_interval_ema_s_, 2.5, 0.5, 1.0, 10.0);
 }
 
 void ApproachGraspNode::onDiagnostics(const std_msgs::msg::String::SharedPtr message)

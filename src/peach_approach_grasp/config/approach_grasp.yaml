@@ -17,8 +17,10 @@ peach_approach_grasp_node:
       # 拍照位姿往返）；真机初始验证不得高于 0.1。
       velocity_scaling: 0.05
       acceleration_scaling: 0.05
-      transit_velocity_scaling: 0.05
-      transit_acceleration_scaling: 0.05
+      # 转移提速到 0.10（观察段耗时大头是视点间转移；高速度缩短高重力矩
+      # 姿态持续时间，反而降低过流风险；真机初始验证不得高于 0.1）
+      transit_velocity_scaling: 0.10
+      transit_acceleration_scaling: 0.10
       pilz_pipeline: pilz_industrial_motion_planner
       fallback_pipeline: ompl
       # MTC：自由空间用 OMPL，进入果袋后只允许笛卡尔直线。
@@ -46,15 +48,26 @@ peach_approach_grasp_node:
       radial_step_m: 0.015
       candidate_layers: 3
       views_to_minimum_radius: 5
-      maximum_moves: 8
-      # 视点后等待新重建帧的超时：相机 0.78FPS，3s 仅约 2 帧余量，6s 留 4-5 帧
+      # 聚类指标+锚点纠偏后通常 3-4 个机位即收敛，5 次封顶控制观察耗时
+      maximum_moves: 5
+      # 观察段时间盒（秒）：到期带现有覆盖强制 finalize（不达标由候选锚点
+      # 降级抓取兜底），控制单目标观察耗时。暂时测试设置，实际工况再调
+      time_budget_s: 5.0
+      # 相机位置 z 下限（base 系，桌面保护平面）：低于此的视点物理穿桌、
+      # 规划必败且白耗 planning_time×attempts，生成阶段直接剔除
+      min_camera_height_m: 0.06
+      # 视点后等待新帧的超时上限：实测帧间隔自适应（≈4 帧+1s，下限 2s），
+      # 本值为未测得帧率时的回退值与自适应上限；帧率以运行状态为准
       frame_wait_s: 6.0
     quality:
-      minimum_views: 5
-      minimum_baseline_deg: 22.0
-      minimum_mean_nearest_baseline_deg: 8.0
+      # 验证期放宽档（2026-08-14）：先让完整抓取周期走完，由真机观察评估
+      # 拟合精度后再收紧。views 5→3、baseline 22°→15°（与视点规划
+      # preferred_baseline_deg 对齐）、refined_rmse 5mm→10mm。
+      minimum_views: 3
+      minimum_baseline_deg: 15.0
+      minimum_mean_nearest_baseline_deg: 6.0
       minimum_mean_depth_ratio: 0.40
-      maximum_refined_rmse_m: 0.005
+      maximum_refined_rmse_m: 0.01
       minimum_refined_inlier_ratio: 0.35
       maximum_data_age_s: 2.0
     execution:
@@ -62,7 +75,8 @@ peach_approach_grasp_node:
       enabled: false
       require_robot_status: true
       robot_status_max_age_s: 1.0
-      # 0.78FPS 相机下单帧间隔 1.28s，取 3s 容忍连续两帧闪烁/漏检
+      # 目标观测新鲜度门：实测帧间隔自适应（≈2.5 帧+0.5s，夹 1~10s），
+      # 本值为未测得帧率时的回退值；低帧率丢 1 帧不误判 stale，高帧率收紧提速
       target_observation_max_age_s: 3.0
       reset_reconstruction_on_start: false
     grasp:

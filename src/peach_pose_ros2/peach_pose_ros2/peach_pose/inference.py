@@ -17,7 +17,6 @@
 主要对外 API:
   - InferenceEngine.detect(rgb) — 返回检测 dict 列表
   - InferenceEngine.segment(rgb, bboxes) — 返回 [(mask, bbox), ...]
-  - InferenceEngine.segment_detections(...) — 从 detect 结果筛选后分割
   - InferenceEngine.reset() — 释放模型缓存
 
 线程安全说明:
@@ -223,42 +222,6 @@ class InferenceEngine(Detector, Segmenter):
                 output.append((bin_mask, bboxes[i]))
 
         return output
-
-    # ═══════════════════════════════════════════════════════════════
-    # 便捷方法: 对高置信度检测结果做 SAM 分割
-    # ═══════════════════════════════════════════════════════════════
-
-    def segment_detections(
-        self,
-        rgb: np.ndarray,
-        detections: List[dict],
-        min_conf: float = 0.5,
-        target_classes: set = None,
-    ) -> List[Tuple[np.ndarray, Tuple[int, int, int, int]]]:
-        """
-        从 detect() 结果中筛选高置信度目标，再调用 segment().
-
-        典型用法: detect → 过滤 peach_bag/peach_nobag → segment 得掩码供前景管线。
-
-        Args:
-            rgb: BGR 图像
-            detections: detect() 返回值
-            min_conf: 置信度下限
-            target_classes: 参与分割的 class_id 集合，None 时默认 {0, 1}
-
-        Returns
-        -------
-        同 segment()
-
-        """
-        if target_classes is None:
-            target_classes = {0, 1}  # peach_bag, peach_nobag
-
-        bboxes = [
-            d['bbox'] for d in detections
-            if d['class_id'] in target_classes and d['conf'] > min_conf
-        ]
-        return self.segment(rgb, bboxes)
 
     # ═══════════════════════════════════════════════════════════════
     # 资源管理

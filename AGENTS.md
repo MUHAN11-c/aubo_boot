@@ -197,16 +197,30 @@ pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
 - 采摘链路参数（权威源：各包 `config/*.yaml`，全表见
   `docs/peach_harvest_operations.md` 参数节）：编排器 `photo_pose.*`（拍照前置开关/
   重试/冷却/90s 超时/完成回位）、`harvest.rescan_until_empty`/`harvest.max_rounds=3`
-  （复扫递减集）、5 个跨包接口名；能力端 `photo_pose_named_target='global_photo_pose'`，
+  （复扫递减集）、`harvest.stall_timeout_s=30`（无可选目标停滞提前收口）、
+  `dispatch.retry_delay_s=2.0`/`dispatch.max_retries=4`（goal 拒绝冷却重试，
+  只在感知 selected 跨帧真变时复位）、`dispatch.max_consecutive_rejections=6`
+  （连续拒绝熔断进 RECOVERY_REQUIRED）、5 个跨包接口名；能力端
+  `photo_pose_named_target='global_photo_pose'`，
   速度双档 `moveit.velocity_scaling=0.05`（接触段 MTC）/
-  `moveit.transit_velocity_scaling=0.05`（自由空间转移；0.01 蠕行曾在高重力矩姿态
-  持续过久而关节过流，低速档不得让高重力矩姿态持续过久）；
+  `moveit.transit_velocity_scaling=0.10`（自由空间转移；0.01 蠕行曾在高重力矩姿态
+  持续过久而关节过流，低速档不得让高重力矩姿态持续过久）、
+  `scan.maximum_moves=5`/`scan.min_camera_height_m=0.06`（桌面保护平面过滤）、
+  `scan.time_budget_s=5.0`（观察段时间盒，到期强制 finalize 走降级链；
+  暂时测试设置，实际工况再调）、
+  质量门验证档 `quality.minimum_views=3`/`minimum_baseline_deg=15`/
+  `maximum_refined_rmse_m=0.01`（精化未达标时回退候选锚点降级抓取，非极端必抓）；
   感知 `harvest.min_collect_frames=10`/`lock_settle_frames=5`/`max_collect_s=25.0`/
-  `priority_prefer_lower_first=true`（收齐窗口与优先级；max_collect_s 必须
-  ≥ min_collect_frames/相机FPS+settle 余量，0.78FPS 下 8s 会在确认完成前锁定空集）、`yolo_conf`/
-  `min_detection_conf=0.3`、`target_memory.recovery_scale=3.5`（跨视角锚点偏差
-  实测 15.7cm，恢复半径 21cm 兜底）；重建节点 1Hz 活性心跳（status/diagnostics/
-  grasp_decision，无心跳时编排器重建就绪门会因 2s 新鲜度永远不满足）。
+  `priority_prefer_lower_first=true`（收齐窗口与优先级；max_collect_s 运行期按实测
+  帧间隔 EMA 自适应伸缩、有未确认记录在攒帧就不关窗防锁空集）、`yolo_conf`/
+  `min_detection_conf=0.25`（逆光 0.3 全滤真实目标；不宜再低，误检由确认机制兜底）、
+  `target_memory.recovery_scale=3.5`（跨视角锚点偏差
+  实测 15.7cm，恢复半径 21cm 兜底）、`target_memory.tentative_ttl_frames=5`
+  （未确认目标存活按帧计，帧率以运行状态为准）；帧率自适应超时——能力端
+  `scan.frame_wait_s`/`execution.target_observation_max_age_s` 均按观测话题实测
+  帧间隔 EMA 伸缩（配置值为回退/上限）；重建节点 1Hz 活性心跳（status/diagnostics/
+  grasp_decision，无心跳时编排器重建就绪门会因 2s 新鲜度永远不满足）；视角覆盖
+  指标按机位聚类（同机位连帧不稀释基线）。
 - Python 节点参数以各包 `config/*.yaml` 为权威源，代码内 `declare_parameter` 默认值
   必须逐一对齐。
 
@@ -265,11 +279,15 @@ pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
 - `docs/passthrough_migration.md` — 驱动架构迁移说明
 - `docs/peach_harvest_operations.md` — 采摘编排/Web/类型化接口手册
 - `docs/peach_pose_reconstruction_integration.md` — 感知与重建联动契约
+- `docs/peach_auto_grasp_overview.md` — 自动抓取全流程图解与细节说明（mermaid + 静态 PNG）
+- `docs/code_review_peach_grasp.md` — 2026-08-13 自动抓取链路代码审查报告（P0/P1 修复清单）
 - `docs/peach_perception_progress.md`、`docs/peach_perception_reconstruction_logic.md`
   — 感知/重建进度台账与逻辑图解
 - `docs/source_audit_2026-08-10.md` — 源码审查记录
 - `docs/superpowers/specs/` — 功能设计文档（含
-  `2026-08-12-peach-commercial-orchestration-design.md`）
+  `2026-08-12-peach-commercial-orchestration-design.md`、
+  `2026-08-14-peach-harvest-integral-design.md` 整体分层设计/状态机/接口契约/
+  安全门分层/Refinement Journal 规划/问题登记册）
 - `docs/archive/` — 旧架构文档（仅供历史参考）
 - 蓝本：aubo_boot（`/home/mu/Music/e`，不随交付分发）；写法参考 UR
   `PassthroughTrajectoryController`

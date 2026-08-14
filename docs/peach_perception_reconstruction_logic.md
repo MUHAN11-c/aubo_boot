@@ -126,7 +126,7 @@ flowchart TD
     D -- 命中 --> H2[只复用 ID + EMA<br/>不改表项类别]
     D -- 未命中 --> E[发新 ID target_N 单调计数<br/>confirmed=false]
     H --> F{obs_count ≥ confirm_frames 3?}
-    E --> G[未确认表项<br/>超 tentative_ttl_sec 1.0s 未再命中即清除]
+    E --> G[未确认表项<br/>连续超 tentative_ttl_frames 5 帧未再命中即清除]
     F -- 是 --> OK[confirmed=true 长期记录]
     H2 --> F
 ```
@@ -345,7 +345,7 @@ peach_sessions/session_<时间戳>/      # 单目标重建原始数据（save_se
 | 参数 | 默认 | 作用域 |
 |---|---|---|
 | `target_memory.match_radius_m` | 0.06 | 身份匹配半径 |
-| `target_memory.confirm_frames` / `tentative_ttl_sec` | 3 / 1.0 | 目标转正/误检清除 |
+| `target_memory.confirm_frames` / `tentative_ttl_frames` | 3 / 5 | 目标转正/误检清除（按帧计，帧率以运行状态为准） |
 | `capture.auto_mode` / `auto_finalize_at_max` | true / false | 自动采集 / 满栈自动 finalize |
 | `capture.min_views` / `max_views` | 4 / 24（以 yaml 为准） | finalize 门槛 / 帧栈上限 |
 | `capture.min_mask_pixels` / `min_mask_depth_ratio` / `max_target_drift_m` | 300 / 0.35 / 0.04 | 掩膜质量门 |

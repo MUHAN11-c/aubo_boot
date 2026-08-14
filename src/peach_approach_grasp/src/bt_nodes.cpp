@@ -64,12 +64,12 @@ std::string ApproachGraspNode::graspDecisionTargetSnapshot()
 
 bool ApproachGraspNode::waitForNewView(std::size_t previous_views)
 {
-  return cache_.waitForNewView(previous_views, frame_wait_s_, cancel_requested_);
+  return cache_.waitForNewView(previous_views, effectiveFrameWaitS(), cancel_requested_);
 }
 
 bool ApproachGraspNode::waitForFreshTarget(double after_s)
 {
-  return cache_.waitForFreshTarget(after_s, frame_wait_s_, cancel_requested_);
+  return cache_.waitForFreshTarget(after_s, effectiveFrameWaitS(), cancel_requested_);
 }
 
 bool ApproachGraspNode::waitForRefined(const std::string & target_id)
@@ -119,8 +119,17 @@ BT::NodeStatus ApproachGraspNode::btPrepareCycle()
   cycle_target_ = targetSnapshot();
   cycle_refined_.reset();
   cycle_candidates_.clear();
+  cycle_degraded_grasp_ = false;
   if (!cycle_target_) {
     return btFailure("selected_target 在启动后失效");
+  }
+  // goal 钉死校验（设计文档第 7 节）：action 受理到本快照之间感知若已切换
+  // selected，身份不一致即周期失败，由编排按新 selected 重新派发；
+  // 手动周期钉入值为空，直接采纳当下快照身份。
+  if (!cycle_target_id_.empty() && cycle_target_->id != cycle_target_id_) {
+    return btFailure(
+      "目标身份变更: goal=" + cycle_target_id_ +
+      " 当前 selected=" + cycle_target_->id);
   }
   cycle_target_id_ = cycle_target_->id;
   setState(CycleState::PLAN_OBSERVATION, "行为树生成目标导向主动视点");
@@ -158,7 +167,10 @@ BT::NodeStatus ApproachGraspNode::btAcquireViews()
   }
   int moves = 0;
   std::vector<std::string> attempted;
-  while (!cancel_requested_.load() && moves < maximum_scan_moves_) {
+  const double scan_start_s = now().seconds();
+  while (!cancel_requested_.load() && moves < maximum_scan_moves_ &&
+    (now().seconds() - scan_start_s) < scan_time_budget_s_)
+  {
     const GateResult finalize_gate = quality_gate_->readyToFinalize(qualitySnapshot());
     if (finalize_gate.allowed) {
       break;
@@ -167,9 +179,15 @@ BT::NodeStatus ApproachGraspNode::btAcquireViews()
     if (!current_camera) {
       return btFailure("扫描中无法取得相机位姿");
     }
+    // 每次规划前用缓存中的最新观测锚点：跨视角锚点偏差在近距获得观测后
+    // 自动纠偏，避免按拍照位姿的旧锚点把目标指到画面外（stale 主因）。
+    const auto latest_target = targetSnapshot();
+    const Eigen::Vector3d scan_center =
+      (latest_target && latest_target->id == cycle_target_id_) ?
+      latest_target->center : cycle_target_->center;
     cycle_candidates_ = view_planner_->generate(
-      cycle_target_->center, current_camera->translation(), observedDirectionsSnapshot());
-    publishViewMarkers(cycle_target_->center, cycle_candidates_);
+      scan_center, current_camera->translation(), observedDirectionsSnapshot());
+    publishViewMarkers(scan_center, cycle_candidates_);
     bool moved = false;
     for (const auto & candidate : cycle_candidates_) {
       if (std::find(attempted.begin(), attempted.end(), candidate.label) != attempted.end()) {
@@ -178,7 +196,21 @@ BT::NodeStatus ApproachGraspNode::btAcquireViews()
       attempted.push_back(candidate.label);
       std::string target_reason;
       if (!cycleTargetReady(cycle_target_id_, target_reason)) {
-        return btFailure("目标身份/可见性安全门失败: " + target_reason);
+        const bool stale = target_reason == "selected_target_stale";
+        // 短暂闪烁/遮挡：等一个新鲜帧窗口后复核，恢复则继续扫描
+        const bool recovered = stale && moves > 0 &&
+          waitForFreshTarget(now().seconds()) &&
+          cycleTargetReady(cycle_target_id_, target_reason);
+        if (recovered) {
+          RCLCPP_INFO(get_logger(), "目标观测短暂丢失后已恢复，继续扫描");
+        }
+        if (stale && moves == 0) {
+          // 周期起步目标即 stale（残局视角暂不可见）：凭记忆锚点做获取性
+          // 移动，到位后由 waitForFreshTarget 判定是否重新可见
+          RCLCPP_INFO(get_logger(), "目标观测暂陈旧，凭记忆锚点执行获取性移动");
+        } else if (!recovered) {
+          return btFailure("目标身份/可见性安全门失败: " + target_reason);
+        }
       }
       const std::size_t before = qualitySnapshot().captured_views;
       setState(
@@ -196,7 +228,9 @@ BT::NodeStatus ApproachGraspNode::btAcquireViews()
       const double move_done_s = now().seconds();
       setState(CycleState::WAIT_FRAME, "等待到位后新鲜目标观测与重建帧");
       if (!waitForFreshTarget(move_done_s)) {
-        RCLCPP_WARN(get_logger(), "视点到达但等待新鲜目标观测超时");
+        // 无新鲜目标观测则本视点必无有效掩膜帧，不再等重建成帧，直接换视点
+        RCLCPP_WARN(get_logger(), "视点到达但等待新鲜目标观测超时，换下一视点");
+        break;
       }
       if (!waitForNewView(before)) {
         RCLCPP_WARN(get_logger(), "视点到达但等待新重建帧超时");
@@ -214,6 +248,15 @@ BT::NodeStatus ApproachGraspNode::btAcquireViews()
   }
   const GateResult gate = quality_gate_->readyToFinalize(qualitySnapshot());
   if (!gate.allowed) {
+    if (moves < maximum_scan_moves_) {
+      // 观察时间盒到期（移动次数未耗尽）：带现有覆盖强制 finalize，精化
+      // 不达标由候选锚点降级抓取兜底（非极端必抓），控制单目标观察耗时。
+      RCLCPP_WARN(
+        get_logger(),
+        "观察时间盒 %.1fs 到期且覆盖未达标（%s），强制 finalize 走降级抓取链",
+        scan_time_budget_s_, gate.reason.c_str());
+      return BT::NodeStatus::SUCCESS;
+    }
     // 扫描上限内采集帧不足/不收敛：同样按目标不可达跳过。
     pending_outcome_.store(RunTargetCycle::Result::SKIPPED_UNREACHABLE);
     return btFailure("达到扫描上限仍未收敛: " + gate.reason);
@@ -224,32 +267,64 @@ BT::NodeStatus ApproachGraspNode::btAcquireViews()
 BT::NodeStatus ApproachGraspNode::btFinalizeAndValidate()
 {
   setState(CycleState::FINALIZE, "视角覆盖达标，提取 TSDF 与精化几何");
-  if (!callTrigger(finalize_client_, "finalize_reconstruction") ||
-    !waitForRefined(cycle_target_id_))
-  {
-    return btFailure("finalize 后未收到同 ID 精化结果");
-  }
-  const GateResult gate = quality_gate_->readyToGrasp(qualitySnapshot());
-  if (!gate.allowed || graspDecisionTargetSnapshot() != cycle_target_id_) {
-    // 质量门失败：批次侧可按 SKIPPED_QUALITY 记录质量原因并跳过。
-    pending_outcome_.store(RunTargetCycle::Result::SKIPPED_QUALITY);
-    return btFailure("最终抓取质量门失败: " + gate.reason);
-  }
+  const bool refined_arrived =
+    callTrigger(finalize_client_, "finalize_reconstruction") &&
+    waitForRefined(cycle_target_id_);
+  // 每周期落盘重建 session（无论精化是否达标，重建过程持续记录）
   callTrigger(save_client_, "save_session", false);
-  cycle_refined_ = refinedSnapshot();
-  if (!cycle_refined_) {
-    return btFailure("精化位姿数据不存在");
-  }
-  Eigen::Isometry3d entry_tool_pose = Eigen::Isometry3d::Identity();
-  entry_tool_pose.translation() = cycle_refined_->entry;
-  entry_tool_pose.linear() = ViewPlanner::toolOrientation(
-    cycle_refined_->axis, cycle_target_->initial_pose.linear().col(0));
+  const GateResult gate = quality_gate_->readyToGrasp(qualitySnapshot());
+  const bool grasp_ready = refined_arrived && gate.allowed &&
+    graspDecisionTargetSnapshot() == cycle_target_id_;
   const auto tip_from_tool = lookupTransform(tip_frame_, tool_frame_);
   if (!tip_from_tool) {
     return btFailure("无法取得 tip 到 tool 的变换");
   }
+  if (grasp_ready) {
+    cycle_refined_ = refinedSnapshot();
+    if (!cycle_refined_) {
+      return btFailure("精化位姿数据不存在");
+    }
+    Eigen::Isometry3d entry_tool_pose = Eigen::Isometry3d::Identity();
+    entry_tool_pose.translation() = cycle_refined_->entry;
+    entry_tool_pose.linear() = ViewPlanner::toolOrientation(
+      cycle_refined_->axis, cycle_target_->initial_pose.linear().col(0));
+    cycle_entry_tip_pose_ = entry_tool_pose * tip_from_tool->inverse();
+    cycle_travel_m_ = insertionTravel(*cycle_refined_);
+    return BT::NodeStatus::SUCCESS;
+  }
+  // 回退（非极端必抓）：精化未产出或质量门未过时，身份一致的锚点还在就用
+  // 感知候选几何降级抓取；连锚点都没有才算极端情况，按 SKIPPED_QUALITY 跳过。
+  const auto fallback = targetSnapshot();
+  if (!fallback || fallback->id != cycle_target_id_) {
+    pending_outcome_.store(RunTargetCycle::Result::SKIPPED_QUALITY);
+    return btFailure(
+      "最终抓取质量门失败且无候选锚点可回退: " + gate.reason);
+  }
+  CachedRefined degraded;
+  degraded.id = fallback->id;
+  degraded.axis = fallback->initial_axis.normalized();
+  degraded.suggested_travel_m = fallback->suggested_travel_m;
+  degraded.valid = true;
+  // 降级路径无精化 neck/entry 几何，insertionTravel 的几何回退恒钳下限
+  // （插入过浅）：suggested_travel_m 无效时直接取量程中点。
+  cycle_travel_m_ = degraded.suggested_travel_m > 0.0 ?
+    insertionTravel(degraded) :
+    std::clamp(
+      0.5 * (minimum_travel_m_ + maximum_travel_m_), minimum_travel_m_,
+      maximum_travel_m_);
+  // 入口点取锚点后方（沿轴后退 行程+5cm），不依赖可能缺省的 initial_pose。
+  degraded.entry = fallback->center - degraded.axis * (cycle_travel_m_ + 0.05);
+  cycle_refined_ = degraded;
+  Eigen::Isometry3d entry_tool_pose = Eigen::Isometry3d::Identity();
+  entry_tool_pose.translation() = degraded.entry;
+  entry_tool_pose.linear() = ViewPlanner::toolOrientation(
+    degraded.axis, fallback->initial_pose.linear().col(0));
   cycle_entry_tip_pose_ = entry_tool_pose * tip_from_tool->inverse();
-  cycle_travel_m_ = insertionTravel(*cycle_refined_);
+  cycle_degraded_grasp_ = true;
+  RCLCPP_WARN(
+    get_logger(), "精化不可用/未过门（%s），回退候选锚点降级抓取 %s",
+    gate.reason.c_str(), cycle_target_id_.c_str());
+  setState(CycleState::FINALIZE, "精化未达标，按感知候选锚点降级抓取");
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -263,10 +338,30 @@ BT::NodeStatus ApproachGraspNode::btReportReady()
 BT::NodeStatus ApproachGraspNode::btMtcApproachAndInsert()
 {
   std::string reason;
-  if (!safetyReady(reason) || !cycleTargetReady(cycle_target_id_, reason)) {
-    return btFailure("MTC 执行前安全门失败: " + reason);
+  if (!safetyReady(reason)) {
+    return btFailure("MTC 执行前机器人安全门失败: " + reason);
   }
-  setState(CycleState::MTC_APPROACH_INSERT, "MTC: OMPL 避障到入口，再沿精化轴直线插入");
+  if (!cycleTargetReady(cycle_target_id_, reason)) {
+    if (reason != "selected_target_stale") {
+      return btFailure("MTC 执行前安全门失败: " + reason);
+    }
+    // finalize 耗时必然超过观测新鲜度窗口：先等一窗新鲜观测再复核；
+    // 仍不新鲜则按静态果实处置——锚点来自多视融合/身份记忆，MTC 碰撞
+    // 检查兜底，继续执行（验证期策略：非极端必抓，准确性现场评估）。
+    if (waitForFreshTarget(now().seconds()) &&
+      cycleTargetReady(cycle_target_id_, reason))
+    {
+      RCLCPP_INFO(get_logger(), "MTC 前目标观测已刷新，继续执行");
+    } else {
+      RCLCPP_WARN(
+        get_logger(), "MTC 前观测仍陈旧，按静态目标锚点继续（已等待复核）");
+    }
+  }
+  setState(
+    CycleState::MTC_APPROACH_INSERT,
+    cycle_degraded_grasp_ ?
+      "MTC（降级：候选锚点）: OMPL 避障到入口，再沿候选轴直线插入" :
+      "MTC: OMPL 避障到入口，再沿精化轴直线插入");
   const auto result = grasp_task_->approachAndInsert(
     cycle_entry_tip_pose_, cycle_refined_->axis, cycle_travel_m_, true);
   if (result.execution_started) {

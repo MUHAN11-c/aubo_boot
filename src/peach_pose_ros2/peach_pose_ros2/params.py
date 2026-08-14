@@ -39,8 +39,8 @@ DECLARE_DEFAULTS = {
     # Percipio 原始深度常需 ×0.25 才是毫米量级（再 /1000→米）
     'depth_scale_unit': 0.25,
     'sync_slop_s': 0.05,
-    'min_detection_conf': 0.3,
-    'yolo_conf': 0.3,
+    'min_detection_conf': 0.25,
+    'yolo_conf': 0.25,
     # 重叠检测框去重：IoS（交集/较小框面积）≥ 本值判同一目标，保留大框
     'detection_dedup_ios': 0.6,
     'publish_debug_image': True,
@@ -76,8 +76,10 @@ DECLARE_DEFAULTS = {
     'target_memory.cross_class_recovery': True,
     # 确认机制：累计命中 ≥ 本帧数才转正长期记录（1=立即确认）
     'target_memory.confirm_frames': 3,
-    # 未确认目标存活时限 (s)：超期未再命中即清除（瞬时误检不留记录）
-    'target_memory.tentative_ttl_sec': 1.0,
+    # 未确认目标存活时限（帧）：连续超本帧数未再命中即清除（瞬时误检不留
+    # 记录）；按帧计、帧率以运行状态为准——须 ≥ confirm_frames + 余量，
+    # 低帧率/卡顿时墙钟 TTL 会在确认攒满前误清进度，帧计数不受帧率影响
+    'target_memory.tentative_ttl_frames': 5,
     # 全局采摘计划（收齐式窗口锁定）：窗口最少累积帧数，达到后才允许
     # 按静止条件关闭窗口锁定目标集合
     'harvest.min_collect_frames': 10,
@@ -144,8 +146,9 @@ DESCRIPTIONS = {
                                           '命中只复用 ID 不改表项类别）',
     'target_memory.confirm_frames': '目标确认帧数：累计命中 ≥ 本值才转为长期'
                                     '记录，之前的短暂出现不长期保留；1=立即确认',
-    'target_memory.tentative_ttl_sec': '未确认目标存活时限 (s)：超过本时间未再'
-                                       '命中即从表中清除（瞬时误检不占身份）',
+    'target_memory.tentative_ttl_frames': '未确认目标存活时限（帧）：连续超'
+                                          '本帧数未再命中即清除（瞬时误检不占'
+                                          '身份；按帧计，帧率以运行状态为准）',
     'harvest.min_collect_frames': '全局目标收齐窗口的最少累积帧数：达到后才允许'
                                   '按静止条件关闭窗口、锁定目标集合',
     'harvest.lock_settle_frames': '连续无新增确认 ID 的帧数：与最少帧数联合判定'
@@ -199,7 +202,7 @@ class PeachPoseParams:
     target_memory_recovery_scale: float = 3.5
     target_memory_cross_class_recovery: bool = True
     target_memory_confirm_frames: int = 3
-    target_memory_tentative_ttl_sec: float = 1.0
+    target_memory_tentative_ttl_frames: int = 5
     harvest_min_collect_frames: int = 10
     harvest_lock_settle_frames: int = 5
     harvest_max_collect_s: float = 25.0
@@ -282,8 +285,8 @@ class PeachPoseParams:
                 cross_class_recovery=bool(
                     g('target_memory.cross_class_recovery').value),
                 confirm_frames=int(g('target_memory.confirm_frames').value),
-                tentative_ttl_sec=float(
-                    g('target_memory.tentative_ttl_sec').value))
+                tentative_ttl_frames=int(
+                    g('target_memory.tentative_ttl_frames').value))
         else:
             target_registry = None
         return cls(
@@ -324,8 +327,8 @@ class PeachPoseParams:
                 g('target_memory.cross_class_recovery').value),
             target_memory_confirm_frames=int(
                 g('target_memory.confirm_frames').value),
-            target_memory_tentative_ttl_sec=float(
-                g('target_memory.tentative_ttl_sec').value),
+            target_memory_tentative_ttl_frames=int(
+                g('target_memory.tentative_ttl_frames').value),
             harvest_min_collect_frames=int(
                 g('harvest.min_collect_frames').value),
             harvest_lock_settle_frames=int(

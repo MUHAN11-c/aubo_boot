@@ -38,6 +38,20 @@ class DashboardState:
             },
             'orchestration': {
                 'state': {},
+                # 批次过程/审计事件时间线（按到达顺序追加，超限截断头部）
+                'events': [],
+            },
+            # 机械臂状态（aubo_msgs/RobotStatus）
+            'robot': {
+                'status': {},
+            },
+            # 系统/GPU/进程性能采样（独立线程写入，单次整体替换）
+            'metrics': {
+                'sample': {},
+            },
+            # 监控数据落盘记录器状态（enabled + 当前 run 目录）
+            'record': {
+                'info': {},
             },
             # 各节点当前参数只读镜像：{节点名: {参数名: 标量值}}
             'params': {},
@@ -50,6 +64,17 @@ class DashboardState:
         with self._lock:
             self._values[section][key] = finite_or_none(value)
             self._updated[f'{section}.{key}'] = now
+            self._revision += 1
+
+    def append_event(self, value, limit: int = 100) -> None:
+        """追加一条批次事件到环形缓冲，只保留最近 limit 条."""
+        now = time.time()
+        with self._lock:
+            events = self._values['orchestration']['events']
+            events.append(finite_or_none(value))
+            if len(events) > limit:
+                del events[:len(events) - limit]
+            self._updated['orchestration.events'] = now
             self._revision += 1
 
     def update_params(self, node_name: str, values: dict) -> None:

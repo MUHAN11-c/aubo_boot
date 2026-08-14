@@ -57,7 +57,6 @@ from peach_reconstruction_ros2.frame_collector import (
     FRAME_STORES,
     STATE_COLLECTING,
     STATE_IDLE,
-    STATE_READY,
 )
 from peach_reconstruction_ros2.geometry_refiner import (
     GEOMETRY_REFINERS,
@@ -415,19 +414,24 @@ class PeachReconstructionNode(Node):
                     'event': 'reconstruction_linked'})
             requested_target_id = msg.selected_target_id
             if (self._preferred_target_id
-                    and requested_target_id != self._preferred_target_id):
-                if self.collector.state == STATE_READY:
-                    self.collector.reset()
-                    self._target_kind_memory.reset()
-                    self._last_captured_stamp_sec = -1.0
-                    self._reset_products(create_volume=False)
-                    self._bound_axis_hint = None
-                    self._target_masks.clear()
-                elif self.collector.state != STATE_IDLE:
-                    self.get_logger().warning(
-                        '重建尚未 READY，拒绝切换 selected_target_id',
-                        throttle_duration_sec=10.0)
-                    return
+                    and requested_target_id != self._preferred_target_id
+                    and self.collector.state != STATE_IDLE):
+                # 感知计划推进（上一目标周期已终局）后必须跟随新 selected：
+                # 旧目标未 READY 的半成品会话已随周期结束失效，继续绑定只会让
+                # 身份门永远 mismatch（旧实现 COLLECTING 中拒绝切换，导致后续
+                # 每个目标都"扫描上限未收敛"被跳过）。COLLECTING/READY 一律
+                # 放弃旧会话并重发清空产物（RViz 同步刷新）。
+                self.get_logger().info(
+                    f'跟随计划切换重建目标: {self._preferred_target_id} -> '
+                    f'{requested_target_id or "（空）"}'
+                    f'（放弃 {self.collector.state} 会话）')
+                self.collector.reset()
+                self._target_kind_memory.reset()
+                self._last_captured_stamp_sec = -1.0
+                self._reset_products(create_volume=False)
+                self._bound_axis_hint = None
+                self._target_masks.clear()
+                self._publish_all()
             self._preferred_target_id = requested_target_id
             selected = next((item for item in msg.observations
                              if item.target_id == msg.selected_target_id), None)
@@ -1426,6 +1430,7 @@ class PeachReconstructionNode(Node):
         last_ratio = c.frames[-1].valid_depth_ratio if c.frames else None
         # registration 摘要不存副本，由帧栈各帧 registration 派生
         registrations = [f.registration for f in c.frames]
+        coverage = summarize_view_coverage(c.frames, c.target_center)
         return {
             'harvest_run_id': self._harvest_run_id,
             'selected_target_id': self._preferred_target_id,
@@ -1436,7 +1441,8 @@ class PeachReconstructionNode(Node):
                                    else [float(v) for v in c.target_center]),
             'bound_axis_hint': (None if self._bound_axis_hint is None
                                 else [float(v) for v in self._bound_axis_hint]),
-            'captured_views': len(c.frames),
+            'captured_views': (coverage['view_count'] if coverage['valid']
+                               else len(c.frames)),
             'rejected_views': c.rejected_views,
             'tf_failures': c.tf_failures,
             'tf_latency_ms': self._last_tf_latency_ms,
@@ -1454,8 +1460,8 @@ class PeachReconstructionNode(Node):
                            else registrations[-1]),
             },
             # 主动视觉控制器消费精确采帧位姿，而不是回调时刻的 latest TF。
-            'view_coverage': summarize_view_coverage(
-                c.frames, c.target_center),
+            # 覆盖指标按机位聚类（同机位连帧不稀释基线），captured_views 同口径。
+            'view_coverage': coverage,
             # refit 摘要（kind/center/axis/diameter/rmse/inlier_ratio/ok）；
             # 未跑为 None，失败为 {'ok': False, 'reason': ...}
             'refined': self._refined_info(),

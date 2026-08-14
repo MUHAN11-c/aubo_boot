@@ -16,8 +16,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
+from aubo_msgs.msg import RobotStatus
 from geometry_msgs.msg import Vector3Stamped
-from peach_harvest_msgs.msg import HarvestState
+from peach_harvest_msgs.msg import HarvestEvent, HarvestState
 from peach_pose_msgs.msg import (
     BagFittingArray,
     BagGraspCandidateArray,
@@ -33,16 +34,21 @@ from rclpy.qos import (
     QoSProfile,
     ReliabilityPolicy,
 )
+from sensor_msgs.msg import Image, PointCloud2
 from std_msgs.msg import String
 
 from . import http_server
 from .codec import (
     candidate_array,
     fitting_array,
+    harvest_event,
     parse_json_text,
+    robot_status,
     target_observations,
     vector_stamped,
 )
+from .metrics import MetricsSampler
+from .recorder import Recorder
 from .state import DashboardState
 
 
@@ -108,8 +114,17 @@ class PeachPerceptionWeb(Node):
         self._declare_parameters()
         self._state = DashboardState()
         self._http = None
+        self._metrics = None
+        self._recorder = Recorder(
+            root_dir=str(self.get_parameter('record.root_dir').value),
+            enabled=bool(self.get_parameter('record.enabled').value),
+            save_images=bool(self.get_parameter('record.save_images').value),
+            save_clouds=bool(self.get_parameter('record.save_clouds').value),
+            on_info=lambda info: self._state.update('record', 'info', info),
+            log_warning=lambda msg: self.get_logger().warning(msg))
         self._create_subscriptions()
         self._create_param_watchers()
+        self._create_metrics_sampler()
 
     def _declare_parameters(self) -> None:
         """集中声明 Web 和话题参数."""
@@ -140,6 +155,30 @@ class PeachPerceptionWeb(Node):
             'orchestrator_state_topic': (
                 '/peach_harvest_orchestrator/state',
                 '采摘编排器类型化状态话题'),
+            'orchestrator_events_topic': (
+                '/peach_harvest_orchestrator/events',
+                '采摘编排器过程/审计事件话题（事件时间线）'),
+            'robot_status_topic': (
+                '/aubo_io_controller/robot_status',
+                '机械臂上电/急停/运动/错误状态话题'),
+            'event_buffer_size': (100, '事件时间线环形缓冲上限（条）'),
+            'metrics_period_s': (1.0, '系统/GPU/进程性能采样周期（秒）'),
+            'metrics_process_patterns': (
+                [
+                    'peach_pose_node', 'peach_reconstruction_node',
+                    'peach_approach_grasp_node', 'peach_harvest_orchestrator',
+                    'ros2_control_node', 'percipio',
+                ],
+                '进程性能监控的 cmdline 子串匹配关键字列表'),
+            'record.enabled': (True, '监控数据分类落盘总开关'),
+            'record.root_dir': (
+                'web_runs', '记录根目录（相对节点 CWD；按 run_id 分子目录）'),
+            'record.save_images': (True, '关键事件时刻保存感知调试图 PNG'),
+            'record.save_clouds': (True, 'target 终局时刻保存 TSDF 点云 PLY'),
+            'debug_image_topic': (
+                '/peach_pose_node/debug_image', '感知调试叠加图话题（bgr8）'),
+            'tsdf_cloud_topic': (
+                '/peach/reconstruction/tsdf_cloud', '在线 TSDF 点云话题'),
         }
         for name, (default, description) in parameters.items():
             self.declare_parameter(
@@ -165,27 +204,16 @@ class PeachPerceptionWeb(Node):
             self._targets_callback, reliable_qos)
         self.create_subscription(
             String, self._topic('harvest_state_topic'),
-            lambda msg: self._state.update(
-                'perception', 'harvest', parse_json_text(msg.data)),
-            latched_qos)
+            self._harvest_callback, latched_qos)
         self.create_subscription(
             String, self._topic('reconstruction_status_topic'),
-            lambda msg: self._state.update(
-                'reconstruction', 'status',
-                parse_json_text(msg.data, 'state')),
-            latched_qos)
+            self._recon_status_callback, latched_qos)
         self.create_subscription(
             String, self._topic('reconstruction_diagnostics_topic'),
-            lambda msg: self._state.update(
-                'reconstruction', 'diagnostics',
-                parse_json_text(msg.data)),
-            latched_qos)
+            self._recon_diagnostics_callback, latched_qos)
         self.create_subscription(
             String, self._topic('grasp_decision_topic'),
-            lambda msg: self._state.update(
-                'reconstruction', 'grasp_decision',
-                parse_json_text(msg.data)),
-            latched_qos)
+            self._recon_decision_callback, latched_qos)
         self.create_subscription(
             BagGraspCandidateArray, self._topic('refined_pose_topic'),
             lambda msg: self._state.update(
@@ -200,16 +228,73 @@ class PeachPerceptionWeb(Node):
                 'refined', 'diagnostics', fitting_array(msg)), latched_qos)
         self.create_subscription(
             String, self._topic('approach_status_topic'),
-            lambda msg: self._state.update(
-                'approach', 'status', parse_json_text(msg.data)),
-            latched_qos)
+            self._approach_callback, latched_qos)
         self.create_subscription(
             HarvestState, self._topic('orchestrator_state_topic'),
             self._orchestrator_callback, latched_qos)
+        self.create_subscription(
+            HarvestEvent, self._topic('orchestrator_events_topic'),
+            self._events_callback,
+            QoSProfile(depth=50, reliability=ReliabilityPolicy.RELIABLE))
+        self.create_subscription(
+            RobotStatus, self._topic('robot_status_topic'),
+            lambda msg: self._state.update(
+                'robot', 'status', robot_status(msg)), reliable_qos)
+        # 记录器图像/点云订阅：只在对应开关开启时建立（省带宽）
+        if bool(self.get_parameter('record.enabled').value):
+            if bool(self.get_parameter('record.save_images').value):
+                self.create_subscription(
+                    Image, self._topic('debug_image_topic'),
+                    self._recorder.handle_image, reliable_qos)
+            if bool(self.get_parameter('record.save_clouds').value):
+                self.create_subscription(
+                    PointCloud2, self._topic('tsdf_cloud_topic'),
+                    self._recorder.handle_cloud, latched_qos)
+
+    def _harvest_callback(self, message: String) -> None:
+        """感知采摘计划：进状态缓存并喂记录器（perception.jsonl 并入）."""
+        value = parse_json_text(message.data)
+        self._state.update('perception', 'harvest', value)
+        self._recorder.handle_harvest(value)
+
+    def _recon_status_callback(self, message: String) -> None:
+        """重建状态文本：进状态缓存并喂记录器（reconstruction.jsonl）."""
+        value = parse_json_text(message.data, 'state')
+        self._state.update('reconstruction', 'status', value)
+        self._recorder.handle_reconstruction('status', value)
+
+    def _recon_diagnostics_callback(self, message: String) -> None:
+        """重建 1Hz 诊断：进状态缓存并喂记录器（reconstruction.jsonl）."""
+        value = parse_json_text(message.data)
+        self._state.update('reconstruction', 'diagnostics', value)
+        self._recorder.handle_reconstruction('diagnostics', value)
+
+    def _recon_decision_callback(self, message: String) -> None:
+        """重建抓取许可：进状态缓存并喂记录器（reconstruction.jsonl）."""
+        value = parse_json_text(message.data)
+        self._state.update('reconstruction', 'grasp_decision', value)
+        self._recorder.handle_reconstruction('grasp_decision', value)
+
+    def _approach_callback(self, message: String) -> None:
+        """靠近抓取状态：进状态缓存并喂记录器（approach.jsonl）."""
+        value = parse_json_text(message.data)
+        self._state.update('approach', 'status', value)
+        self._recorder.handle_approach(value)
+
+    def _events_callback(self, message: HarvestEvent) -> None:
+        """批次事件进环形缓冲，供前端事件时间线消费."""
+        try:
+            value = harvest_event(message)
+        except (AttributeError, TypeError, ValueError) as error:
+            self.get_logger().warning(f'事件转换失败: {error}')
+            return
+        limit = int(self.get_parameter('event_buffer_size').value)
+        self._state.append_event(value, max(1, limit))
+        self._recorder.handle_event(value)
 
     def _orchestrator_callback(self, message: HarvestState) -> None:
         """把类型化业务状态转换为稳定的浏览器对象."""
-        self._state.update('orchestration', 'state', {
+        value = {
             'revision': message.revision,
             'run_id': message.run_id,
             'cycle_id': message.cycle_id,
@@ -226,7 +311,9 @@ class PeachPerceptionWeb(Node):
             'progress': message.progress,
             'message': message.message,
             'blockers': list(message.blockers),
-        })
+        }
+        self._state.update('orchestration', 'state', value)
+        self._recorder.handle_state(value)
 
     def _targets_callback(self, message) -> None:
         try:
@@ -235,6 +322,7 @@ class PeachPerceptionWeb(Node):
             self.get_logger().warning(f'目标快照转换失败: {error}')
             return
         self._state.update('perception', 'targets', value)
+        self._recorder.handle_targets(value)
 
     # ------------------------------------------------------------------
     # 参数镜像：周期轮询白名单节点的 get_parameters，只读不写
@@ -279,6 +367,23 @@ class PeachPerceptionWeb(Node):
         self._state.update_params(node_name, values)
 
     # ------------------------------------------------------------------
+    # 性能采样：独立线程写 state，绝不占用 ROS 回调线程
+    # ------------------------------------------------------------------
+    def _create_metrics_sampler(self) -> None:
+        """按参数建性能采样线程（GPU 不可用时自动降级为 None）."""
+        period = float(self.get_parameter('metrics_period_s').value)
+        patterns = list(
+            self.get_parameter('metrics_process_patterns').value)
+        self._metrics = MetricsSampler(
+            period, patterns, self._metrics_callback,
+            lambda msg: self.get_logger().warning(msg))
+
+    def _metrics_callback(self, sample: dict) -> None:
+        """性能采样落状态缓存并喂记录器（metrics.jsonl）."""
+        self._state.update('metrics', 'sample', sample)
+        self._recorder.handle_metrics(sample)
+
+    # ------------------------------------------------------------------
     # HttpBackend 窄接口实现（http_server 只依赖这两个方法）
     # ------------------------------------------------------------------
     def snapshot(self) -> dict:
@@ -299,12 +404,18 @@ class PeachPerceptionWeb(Node):
             'peach_perception_web')) / 'web'
         self._http = http_server.start_http(
             host, port, web_root, self, self.get_logger().debug)
+        if self._metrics is not None:
+            self._metrics.start()
         shown_host = '127.0.0.1' if host == '0.0.0.0' else host
         self.get_logger().info(
             f'桃子采摘监控台（只读）: http://{shown_host}:{port}')
 
     def destroy_node(self):
-        """停止 HTTP 线程后销毁 ROS 节点."""
+        """停止 HTTP/性能采样/记录器后销毁 ROS 节点."""
+        if self._metrics is not None:
+            self._metrics.stop()
+        if self._recorder is not None:
+            self._recorder.close()
         if self._http is not None:
             self._http.shutdown()
             self._http.server_close()

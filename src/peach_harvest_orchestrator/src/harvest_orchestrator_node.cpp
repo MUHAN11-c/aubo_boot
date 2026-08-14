@@ -71,6 +71,137 @@ using TargetGoalHandle = rclcpp_action::ClientGoalHandle<RunTargetCycle>;
 using SetOperationPolicy = peach_harvest_msgs::srv::SetOperationPolicy;
 using Trigger = std_srvs::srv::Trigger;
 using TriggerFuture = rclcpp::Client<Trigger>::SharedFuture;
+// 服务请求常量别名，仅用于下方枚举对齐断言。
+using ControlRequest = ControlHarvest::Request;
+
+// 纯核枚举（state_machine.hpp）底层值与 peach_harvest_msgs 常量按声明顺序隐式
+// 对齐，节点侧靠 static_cast 互转（make_state / 反馈阶段 / 结果记账 / 控制命令
+// 校验）；纯核零 ROS 不能 include 消息头，故断言放在本节点 TU。
+// 新增枚举值必须同步消息常量并补断言。
+// OperationMode ↔ HarvestState MODE_*
+static_assert(
+  static_cast<uint8_t>(OperationMode::AUTO) == HarvestState::MODE_AUTO,
+  "OperationMode 与 HarvestState MODE_* 常量失配");
+static_assert(
+  static_cast<uint8_t>(OperationMode::PAUSED) == HarvestState::MODE_PAUSED,
+  "OperationMode 与 HarvestState MODE_* 常量失配");
+static_assert(
+  static_cast<uint8_t>(OperationMode::MAINTENANCE) == HarvestState::MODE_MAINTENANCE,
+  "OperationMode 与 HarvestState MODE_* 常量失配");
+// BatchState ↔ HarvestState 同名批次状态常量
+static_assert(
+  static_cast<uint8_t>(BatchState::WAITING_READY) == HarvestState::WAITING_READY,
+  "BatchState 与 HarvestState 批次状态常量失配");
+static_assert(
+  static_cast<uint8_t>(BatchState::DISCOVERY) == HarvestState::DISCOVERY,
+  "BatchState 与 HarvestState 批次状态常量失配");
+static_assert(
+  static_cast<uint8_t>(BatchState::RUNNING) == HarvestState::RUNNING,
+  "BatchState 与 HarvestState 批次状态常量失配");
+static_assert(
+  static_cast<uint8_t>(BatchState::PAUSE_PENDING) == HarvestState::PAUSE_PENDING,
+  "BatchState 与 HarvestState 批次状态常量失配");
+static_assert(
+  static_cast<uint8_t>(BatchState::PAUSED) == HarvestState::PAUSED,
+  "BatchState 与 HarvestState 批次状态常量失配");
+static_assert(
+  static_cast<uint8_t>(BatchState::MAINTENANCE) == HarvestState::MAINTENANCE,
+  "BatchState 与 HarvestState 批次状态常量失配");
+static_assert(
+  static_cast<uint8_t>(BatchState::COMPLETED) == HarvestState::COMPLETED,
+  "BatchState 与 HarvestState 批次状态常量失配");
+static_assert(
+  static_cast<uint8_t>(BatchState::FAULT) == HarvestState::FAULT,
+  "BatchState 与 HarvestState 批次状态常量失配");
+static_assert(
+  static_cast<uint8_t>(BatchState::RECOVERY_REQUIRED) == HarvestState::RECOVERY_REQUIRED,
+  "BatchState 与 HarvestState 批次状态常量失配");
+static_assert(
+  static_cast<uint8_t>(BatchState::INTERRUPTED) == HarvestState::INTERRUPTED,
+  "BatchState 与 HarvestState 批次状态常量失配");
+// TargetPhase ↔ HarvestState 目标阶段常量（首尾带 TARGET_ 前缀）
+static_assert(
+  static_cast<uint8_t>(TargetPhase::IDLE) == HarvestState::TARGET_IDLE,
+  "TargetPhase 与 HarvestState 目标阶段常量失配");
+static_assert(
+  static_cast<uint8_t>(TargetPhase::SELECTING) == HarvestState::SELECTING,
+  "TargetPhase 与 HarvestState 目标阶段常量失配");
+static_assert(
+  static_cast<uint8_t>(TargetPhase::OBSERVING) == HarvestState::OBSERVING,
+  "TargetPhase 与 HarvestState 目标阶段常量失配");
+static_assert(
+  static_cast<uint8_t>(TargetPhase::FINALIZING) == HarvestState::FINALIZING,
+  "TargetPhase 与 HarvestState 目标阶段常量失配");
+static_assert(
+  static_cast<uint8_t>(TargetPhase::VALIDATING) == HarvestState::VALIDATING,
+  "TargetPhase 与 HarvestState 目标阶段常量失配");
+static_assert(
+  static_cast<uint8_t>(TargetPhase::APPROACHING) == HarvestState::APPROACHING,
+  "TargetPhase 与 HarvestState 目标阶段常量失配");
+static_assert(
+  static_cast<uint8_t>(TargetPhase::TOOL_ACTION) == HarvestState::TOOL_ACTION,
+  "TargetPhase 与 HarvestState 目标阶段常量失配");
+static_assert(
+  static_cast<uint8_t>(TargetPhase::RETREATING) == HarvestState::RETREATING,
+  "TargetPhase 与 HarvestState 目标阶段常量失配");
+static_assert(
+  static_cast<uint8_t>(TargetPhase::COMPLETING) == HarvestState::COMPLETING,
+  "TargetPhase 与 HarvestState 目标阶段常量失配");
+static_assert(
+  static_cast<uint8_t>(TargetPhase::SUCCEEDED) == HarvestState::TARGET_SUCCEEDED,
+  "TargetPhase 与 HarvestState 目标阶段常量失配");
+static_assert(
+  static_cast<uint8_t>(TargetPhase::SKIPPED) == HarvestState::TARGET_SKIPPED,
+  "TargetPhase 与 HarvestState 目标阶段常量失配");
+static_assert(
+  static_cast<uint8_t>(TargetPhase::FAILED) == HarvestState::TARGET_FAILED,
+  "TargetPhase 与 HarvestState 目标阶段常量失配");
+// ControlCommand ↔ ControlHarvest 请求命令常量
+static_assert(
+  static_cast<uint8_t>(ControlCommand::PAUSE) == ControlRequest::PAUSE,
+  "ControlCommand 与 ControlHarvest 命令常量失配");
+static_assert(
+  static_cast<uint8_t>(ControlCommand::RESUME) == ControlRequest::RESUME,
+  "ControlCommand 与 ControlHarvest 命令常量失配");
+static_assert(
+  static_cast<uint8_t>(ControlCommand::ENTER_MAINTENANCE) ==
+  ControlRequest::ENTER_MAINTENANCE,
+  "ControlCommand 与 ControlHarvest 命令常量失配");
+static_assert(
+  static_cast<uint8_t>(ControlCommand::EXIT_MAINTENANCE) ==
+  ControlRequest::EXIT_MAINTENANCE,
+  "ControlCommand 与 ControlHarvest 命令常量失配");
+static_assert(
+  static_cast<uint8_t>(ControlCommand::CANCEL_NOW) == ControlRequest::CANCEL_NOW,
+  "ControlCommand 与 ControlHarvest 命令常量失配");
+static_assert(
+  static_cast<uint8_t>(ControlCommand::RETRY_TARGET) == ControlRequest::RETRY_TARGET,
+  "ControlCommand 与 ControlHarvest 命令常量失配");
+static_assert(
+  static_cast<uint8_t>(ControlCommand::SKIP_TARGET) == ControlRequest::SKIP_TARGET,
+  "ControlCommand 与 ControlHarvest 命令常量失配");
+static_assert(
+  static_cast<uint8_t>(ControlCommand::ACKNOWLEDGE_RECOVERY) ==
+  ControlRequest::ACKNOWLEDGE_RECOVERY,
+  "ControlCommand 与 ControlHarvest 命令常量失配");
+// TargetOutcome ↔ TargetOutcome.msg 同名常量
+static_assert(
+  static_cast<uint8_t>(TargetOutcome::SUCCEEDED) == TargetOutcomeMsg::SUCCEEDED,
+  "TargetOutcome 与 TargetOutcome.msg 常量失配");
+static_assert(
+  static_cast<uint8_t>(TargetOutcome::SKIPPED_QUALITY) ==
+  TargetOutcomeMsg::SKIPPED_QUALITY,
+  "TargetOutcome 与 TargetOutcome.msg 常量失配");
+static_assert(
+  static_cast<uint8_t>(TargetOutcome::SKIPPED_UNREACHABLE) ==
+  TargetOutcomeMsg::SKIPPED_UNREACHABLE,
+  "TargetOutcome 与 TargetOutcome.msg 常量失配");
+static_assert(
+  static_cast<uint8_t>(TargetOutcome::FAILED) == TargetOutcomeMsg::FAILED,
+  "TargetOutcome 与 TargetOutcome.msg 常量失配");
+static_assert(
+  static_cast<uint8_t>(TargetOutcome::CANCELED) == TargetOutcomeMsg::CANCELED,
+  "TargetOutcome 与 TargetOutcome.msg 常量失配");
 
 class HarvestOrchestratorNode : public rclcpp_lifecycle::LifecycleNode
 {
@@ -100,6 +231,17 @@ public:
     // 直到新一轮锁定空集或达到 max_rounds（round 从 1 起计，含首轮）。
     declare_parameter("harvest.rescan_until_empty", true);
     declare_parameter("harvest.max_rounds", 3);
+    // 无可选目标停滞上限：selected 持续为空（剩余目标 WAITING_QUALITY 不恢复）
+    // 超过本值时本轮提前收口并复扫回拍照位姿重新观测，避免残局视角永久空等。
+    declare_parameter("harvest.stall_timeout_s", 30.0);
+    // 目标派发拒绝重试：能力端拒绝多为瞬态竞态（上周期运行标志未清/能力端
+    // 缓存尚未跟上新 selected），冷却 retry_delay_s 后重派同一目标（不记账、
+    // 不推进感知计划），max_retries 耗尽才按不可达记账跳过。
+    declare_parameter("dispatch.retry_delay_s", 2.0);
+    declare_parameter("dispatch.max_retries", 4);
+    // 连续拒绝熔断上限：跨目标累计（goal 接受即清零）达到本次数认定能力端
+    // 故障，进入待恢复等人工确认。
+    declare_parameter("dispatch.max_consecutive_rejections", 6);
     // 跨包接口名称（默认值保持现有全网名，launch 不需要改）。
     declare_parameter(
       "target_cycle_action_name", "/peach_approach_grasp_node/run_target_cycle");
@@ -130,6 +272,14 @@ public:
     rescan_until_empty_ = get_parameter("harvest.rescan_until_empty").as_bool();
     max_rounds_ =
       static_cast<uint32_t>(std::max<int64_t>(get_parameter("harvest.max_rounds").as_int(), 1));
+    harvest_stall_timeout_s_ = get_parameter("harvest.stall_timeout_s").as_double();
+    dispatch_retry_delay_s_ = get_parameter("dispatch.retry_delay_s").as_double();
+    max_dispatch_retries_ =
+      static_cast<uint32_t>(std::max<int64_t>(get_parameter("dispatch.max_retries").as_int(), 0));
+    // 熔断上限钳制 ≥1：0 会把首次拒绝即熔断，语义不成立。
+    const auto max_rejections = std::max<int64_t>(
+      get_parameter("dispatch.max_consecutive_rejections").as_int(), 1);
+    max_consecutive_rejections_ = static_cast<uint32_t>(max_rejections);
 
     state_pub_ = create_publisher<HarvestState>("~/state", rclcpp::QoS(1).transient_local());
     event_pub_ = create_publisher<HarvestEvent>("~/events", 50);
@@ -326,6 +476,14 @@ private:
     if (message->selected_target_id != last_dispatched_target_) {
       last_dispatched_target_.clear();
     }
+    // 重试预算与冷却只在 selected 真实跨帧变化时复位（与上一帧消息比，
+    // 不能与 last_dispatched_target_ 比——拒绝路径会清空它，导致每帧消息
+    // 都把冷却/计数误复位，冷却重试被架空成每帧重派）。
+    if (message->selected_target_id != last_seen_selected_) {
+      dispatch_retries_ = 0;
+      retry_not_before_ = std::chrono::steady_clock::time_point{};
+      last_seen_selected_ = message->selected_target_id;
+    }
     selected_target_id_ = message->selected_target_id;
     targets_locked_ = message->target_set_locked;
     targets_received_ = now();
@@ -346,6 +504,8 @@ private:
 
   void dispatch_target_locked()
   {
+    // 派发拒绝后的冷却重试窗口：到期前不派发（steady 时钟，零值恒不阻塞）。
+    if (std::chrono::steady_clock::now() < retry_not_before_) {return;}
     // 拍照前置未完成（含等待感知重新锁定）时不派发；selected 非空本身隐含已锁定。
     // 五项前置的判定在状态机库纯核 allow_dispatch，节点只做事实采集。
     if (!allow_dispatch(
@@ -375,27 +535,42 @@ private:
             // 保存活动 goal handle，供控制命令/停用时传播取消。
             active_target_goal_ = handle;
             consecutive_rejections_ = 0;
+            dispatch_retries_ = 0;
             return;
           }
-          // 能力端拒绝（目标当前不可观测/缓存未命中等单目标级原因）：按不可达
-          // 记账并自动推进感知计划跳过该目标，批次不停；连续拒绝达到上限才认定
-          // 能力端故障，进入待恢复。拒绝原因无语义字段可区分，熔断计数是唯一
-          // 可靠边界。last_dispatched_target_ 由 targets_callback 在感知
-          // selected 变化时复位，本路径无需处理。
+          // 能力端拒绝多为瞬态竞态（上周期运行标志未清 / 能力端缓存尚未跟上
+          // 新 selected）：先落安全检查点、冷却 retry_delay_s 后重派同一目标
+          // （不记账、不推进感知计划）；重试耗尽才按不可达记账跳过；连续拒绝
+          // （跨目标累计，接受即清零）达熔断上限才认定能力端故障进待恢复。
           ++consecutive_rejections_;
           const std::string target_id = machine_.snapshot().target_id;
-          if (consecutive_rejections_ >= 3) {
+          if (consecutive_rejections_ >= max_consecutive_rejections_) {
             machine_.require_recovery("单目标能力连续拒绝目标请求");
             publish_event(
               "target_rejected", "单目标能力连续拒绝目标请求，批次待人工确认",
               HarvestEvent::ERROR, current_cycle_id_, target_id);
+          } else if (dispatch_retries_ < max_dispatch_retries_) {
+            ++dispatch_retries_;
+            retry_not_before_ = std::chrono::steady_clock::now() +
+              std::chrono::milliseconds(
+              static_cast<int64_t>(dispatch_retry_delay_s_ * 1000.0));
+            machine_.reach_safe_checkpoint();
+            // 冷却到点后重派同一 selected：清派发锁（selected 未变，
+            // targets_callback 不会替我们复位）。
+            last_dispatched_target_.clear();
+            publish_event(
+              "target_dispatch_retry",
+              "目标请求被拒（多为缓存同步竞态），冷却后重试（第" +
+              std::to_string(dispatch_retries_) + "次）",
+              HarvestEvent::INFO, current_cycle_id_, target_id);
           } else {
             machine_.record_target_outcome(
               target_id, TargetOutcome::SKIPPED_UNREACHABLE,
-              "单目标能力拒绝目标请求");
+              "单目标能力持续拒绝目标请求");
+            dispatch_retries_ = 0;
             advance_perception = true;
             publish_event(
-              "target_rejected", "单目标能力拒绝目标请求，已跳过该目标",
+              "target_rejected", "单目标能力持续拒绝目标请求，已跳过该目标",
               HarvestEvent::WARNING, current_cycle_id_, target_id);
           }
           current_cycle_id_.clear();
@@ -439,6 +614,8 @@ private:
               // 暂停/立即取消路径：落安全检查点，复位派发锁允许恢复后重派。
               machine_.reach_safe_checkpoint();
               last_dispatched_target_.clear();
+              dispatch_retries_ = 0;
+              retry_not_before_ = std::chrono::steady_clock::time_point{};
               publish_event(
                 "target_canceled", "单目标周期已取消", HarvestEvent::WARNING, "", target_id);
             }
@@ -702,10 +879,27 @@ private:
     if (harvesting && !snap.target_active && photo_step_ == PhotoStep::DONE &&
       targets_locked_ && selected_target_id_.empty())
     {
+      // 无可选目标停滞计时：selected 持续为空（剩余目标 WAITING_QUALITY 在
+      // 当前视角迟迟不恢复）超过停滞上限时按本轮已收口处理，复扫回拍照位姿
+      // 重新观测，避免批次在残局视角永久空等。
+      if (selected_empty_since_.nanoseconds() == 0) {selected_empty_since_ = now();}
+      const double stalled_s = (now() - selected_empty_since_).seconds();
       const uint32_t processed = snap.counters.attempted > round_start_attempted_ ?
         snap.counters.attempted - round_start_attempted_ : 0;
-      const auto verdict = decide_round(
+      auto verdict = decide_round(
         true, last_target_count_, processed, round_, max_rounds_, rescan_until_empty_);
+      if (verdict.decision == RoundDecision::WAIT &&
+        stalled_s >= harvest_stall_timeout_s_)
+      {
+        publish_event(
+          "round_stall",
+          "第" + std::to_string(round_) + "轮剩余目标持续不可选 " +
+          std::to_string(static_cast<int>(stalled_s)) + "s，本轮提前收口",
+          HarvestEvent::WARNING);
+        verdict = decide_round(
+          true, last_target_count_, last_target_count_, round_, max_rounds_,
+          rescan_until_empty_);
+      }
       if (verdict.decision == RoundDecision::RESCAN) {
         publish_event(
           "round_completed",
@@ -713,11 +907,16 @@ private:
           std::to_string(last_target_count_) + " 个目标，回拍照位姿开启复扫",
           HarvestEvent::INFO);
         ++round_;
+        selected_empty_since_ = rclcpp::Time{0, 0, RCL_ROS_TIME};
         // 新一轮重新走拍照前置（回拍照位姿 + 重置感知收齐锁定）。
         photo_step_ = PhotoStep::NOT_STARTED;
       } else if (verdict.decision == RoundDecision::COMPLETE) {
         if (machine_.complete_batch(verdict.message)) {
-          publish_event("batch_completed", verdict.message, HarvestEvent::INFO);
+          // batch_completed 单点发送：RunHarvest 在线时由 execute 线程随终局结果
+          // 发送；仅无活动 RunHarvest（auto_start 自动批次）时才由 refresh 补发。
+          if (!active_run_goal_) {
+            publish_event("batch_completed", verdict.message, HarvestEvent::INFO);
+          }
           // 批次完成后回一次拍照位姿（best-effort）：结果仅记事件，不影响批次结论。
           if (photo_return_on_complete_ && photo_motion_required_locked() &&
             photo_pose_client_->service_is_ready())
@@ -729,6 +928,9 @@ private:
           }
         }
       }
+    } else if (!selected_target_id_.empty()) {
+      // 可选目标恢复（重新被观测确认）：停滞计时清零。
+      selected_empty_since_ = rclcpp::Time{0, 0, RCL_ROS_TIME};
     }
 
     // 批次完成后的回位调用轮询：与批次状态解耦，成功/失败/超时均只记事件。
@@ -928,7 +1130,11 @@ private:
       return_future_ = TriggerFuture();
       return_call_pending_ = false;
       last_dispatched_target_.clear();
+      last_seen_selected_.clear();
       consecutive_rejections_ = 0;
+      dispatch_retries_ = 0;
+      retry_not_before_ = std::chrono::steady_clock::time_point{};
+      selected_empty_since_ = rclcpp::Time{0, 0, RCL_ROS_TIME};
       publish_state();
     }
     // 防御性 join：单 goal 守卫下不应存在未退出的旧线程。
@@ -1022,6 +1228,8 @@ private:
   rclcpp::TimerBase::SharedPtr timer_;
   std::string selected_target_id_;
   std::string last_dispatched_target_;
+  // 上一帧感知消息的 selected（识别 selected 真实跨帧变化，见 targets_callback）。
+  std::string last_seen_selected_;
   bool targets_locked_{false};
   uint32_t last_target_count_{0};
   uint64_t discovered_total_{0};
@@ -1045,10 +1253,20 @@ private:
   bool photo_return_on_complete_{true};
   bool rescan_until_empty_{true};
   uint32_t max_rounds_{3};
+  double harvest_stall_timeout_s_{30.0};
+  // 无可选目标停滞计时起点（0=未停滞）；见轮次判定块的提前收口逻辑。
+  rclcpp::Time selected_empty_since_{0, 0, RCL_ROS_TIME};
   std::string run_id_;
   std::string current_cycle_id_;
   // 能力端连续 goal 拒绝计数（接受即清零；达到上限才进待恢复）。
   uint32_t consecutive_rejections_{0};
+  // 派发拒绝重试：当前目标已重试次数与冷却截止（steady 时钟，零值无冷却）。
+  uint32_t dispatch_retries_{0};
+  std::chrono::steady_clock::time_point retry_not_before_{};
+  double dispatch_retry_delay_s_{2.0};
+  uint32_t max_dispatch_retries_{4};
+  // 连续拒绝熔断上限（on_configure 缓存，钳制 ≥1）。
+  uint32_t max_consecutive_rejections_{6};
   rclcpp::Time batch_started_{0, 0, RCL_ROS_TIME};
   TargetGoalHandle::SharedPtr active_target_goal_;
   std::shared_ptr<RunGoalHandle> active_run_goal_;

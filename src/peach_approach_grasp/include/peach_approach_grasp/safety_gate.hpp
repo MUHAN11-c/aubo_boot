@@ -28,11 +28,23 @@
 #ifndef PEACH_APPROACH_GRASP__SAFETY_GATE_HPP_
 #define PEACH_APPROACH_GRASP__SAFETY_GATE_HPP_
 
+#include <algorithm>
 #include <functional>
 #include <string>
 
 namespace peach_approach_grasp
 {
+
+// 帧率自适应超时（纯函数）：等待预算以帧数表达（per_frame_mult），按实测帧
+// 间隔 EMA 折成秒并夹在 [floor_s, cap_s]。帧率以运行状态为准——高帧率自动
+// 收紧提速，低帧率自动放宽防误判；ema 未测得（≤0）由调用方回退到配置值。
+inline double adaptive_timeout_s(
+  double frame_interval_ema_s, double per_frame_mult, double margin_s,
+  double floor_s, double cap_s)
+{
+  return std::clamp(
+    per_frame_mult * frame_interval_ema_s + margin_s, floor_s, cap_s);
+}
 
 struct SafetyGateConfig
 {
@@ -75,6 +87,12 @@ public:
   bool targetReady(
     const TargetGateSample & sample, const std::string & target_id,
     std::string & reason) const;
+
+  // 运行期按实测帧率自适应调整目标观测新鲜度上限（见 adaptive_timeout_s）。
+  void set_target_observation_max_age_s(double value)
+  {
+    config_.target_observation_max_age_s = value;
+  }
 
 private:
   SafetyGateConfig config_;

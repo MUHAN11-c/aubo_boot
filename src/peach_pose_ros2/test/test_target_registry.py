@@ -216,23 +216,26 @@ class RecoveryMatchTest(unittest.TestCase):
 
 
 class ConfirmationTest(unittest.TestCase):
-    """确认机制：短暂出现不长期记录（confirm_frames + tentative_ttl_sec）."""
+    """确认机制：短暂出现不长期记录（confirm_frames + tentative_ttl_frames）."""
 
     def setUp(self):
-        # 3 帧确认、未确认 TTL 1.0 s（测试注入同一时钟基准的 now）
+        # 3 帧确认、未确认 TTL 2 帧（按帧计，帧率以运行状态为准）
         self.reg = TargetRegistry(match_radius=0.06, max_targets=50,
                                   position_ema=0.3, confirm_frames=3,
-                                  tentative_ttl_sec=1.0)
+                                  tentative_ttl_frames=2)
 
     def test_transient_sighting_is_evicted_after_ttl(self):
-        """只出现一次的误检：未确认，超 TTL 后在 begin_frame 被清除."""
+        """只出现一次的误检：未确认，连续超 TTL 帧未命中后被清除."""
         tid, _ = self.reg.match_or_register([0.0, 0.0, 1.0], class_id=0, now=1.0)
         self.assertFalse(self.reg.get(tid)['confirmed'])
-        self.reg.begin_frame(now=2.5)   # 1.5 s 未再命中 > TTL
+        self.reg.begin_frame()   # 1 帧未命中 ≤ TTL，保留
+        self.reg.begin_frame()   # 2 帧未命中 ≤ TTL，保留
+        self.assertIsNotNone(self.reg.get(tid))
+        self.reg.begin_frame()   # 3 帧未命中 > TTL → 清除
         self.assertIsNone(self.reg.get(tid))
         self.assertEqual(self.reg.stats()['n_targets'], 0)
         # 序号不复用：下一新目标仍是 target_1
-        self.reg.begin_frame(now=2.6)
+        self.reg.begin_frame()
         tid2, _ = self.reg.match_or_register([0.0, 0.0, 1.0], class_id=0, now=2.6)
         self.assertEqual(tid2, 'target_1')
 
@@ -240,13 +243,13 @@ class ConfirmationTest(unittest.TestCase):
         """连续命中 3 帧转正；转正后长期不出现也不被 TTL 清除."""
         tid, _ = self.reg.match_or_register([0.0, 0.0, 1.0], class_id=0, now=1.0)
         self.assertFalse(self.reg.get(tid)['confirmed'])
-        self.reg.begin_frame(now=1.1)
-        self.reg.match_or_register([0.0, 0.0, 1.0], class_id=0, now=1.1)
-        self.assertFalse(self.reg.get(tid)['confirmed'])
-        self.reg.begin_frame(now=1.2)
-        self.reg.match_or_register([0.0, 0.0, 1.0], class_id=0, now=1.2)
+        for k in range(1, 3):
+            self.reg.begin_frame()
+            self.reg.match_or_register([0.0, 0.0, 1.0], class_id=0,
+                                       now=1.0 + 0.1 * k)
         self.assertTrue(self.reg.get(tid)['confirmed'])
-        self.reg.begin_frame(now=100.0)  # 远超 TTL，但已确认不清除
+        for _ in range(100):     # 远超 TTL，但已确认不清除
+            self.reg.begin_frame()
         self.assertIsNotNone(self.reg.get(tid))
 
     def test_confirmed_entry_wins_over_nearer_tentative(self):
@@ -254,15 +257,15 @@ class ConfirmationTest(unittest.TestCase):
         confirmed, _ = self.reg.match_or_register(
             [0.0, 0.0, 1.0], class_id=0, now=1.0)
         for k in range(1, 3):  # 再命中 2 帧 → obs_count=3 转正
-            self.reg.begin_frame(now=1.0 + 0.1 * k)
+            self.reg.begin_frame()
             self.reg.match_or_register([0.0, 0.0, 1.0], class_id=0,
                                        now=1.0 + 0.1 * k)
         # 0.09 m 外出现一个未确认目标（超出正常匹配半径，注册为新表项）
-        self.reg.begin_frame(now=2.0)
+        self.reg.begin_frame()
         tent, _ = self.reg.match_or_register([0.09, 0.0, 1.0], class_id=0, now=2.0)
         self.assertFalse(self.reg.get(tent)['confirmed'])
         # 候选距已确认 0.04、距未确认 0.05（更近）：须命中已确认者
-        self.reg.begin_frame(now=2.1)
+        self.reg.begin_frame()
         tid, is_new = self.reg.match_or_register(
             [0.04, 0.0, 1.0], class_id=0, now=2.1)
         self.assertEqual(tid, confirmed)
@@ -274,15 +277,16 @@ class ConfirmationTest(unittest.TestCase):
         reg = TargetRegistry(match_radius=0.06)
         tid, _ = reg.match_or_register([0.0, 0.0, 1.0], class_id=0, now=1.0)
         self.assertTrue(reg.get(tid)['confirmed'])
-        reg.begin_frame(now=1000.0)
+        for _ in range(100):
+            reg.begin_frame()
         self.assertIsNotNone(reg.get(tid))
 
     def test_invalid_confirm_params_rejected(self):
-        """confirm_frames < 1 或 tentative_ttl_sec ≤ 0 抛 ValueError."""
+        """confirm_frames < 1 或 tentative_ttl_frames < 1 抛 ValueError."""
         with self.assertRaises(ValueError):
             TargetRegistry(match_radius=0.06, confirm_frames=0)
         with self.assertRaises(ValueError):
-            TargetRegistry(match_radius=0.06, tentative_ttl_sec=0.0)
+            TargetRegistry(match_radius=0.06, tentative_ttl_frames=0)
 
 
 if __name__ == '__main__':

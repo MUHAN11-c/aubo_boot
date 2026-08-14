@@ -155,9 +155,11 @@ public:
   // 精化指标的期望 ID：refined 优先、selected 兜底（供忽略警告日志）。
   std::string expectedFittingTargetId() const;
 
-  // 等待新重建帧/同 ID 精化结果：谓词满足返回 true，超时或 cancel 置位返回 false。
+  // 等待新重建帧：谓词满足返回 true，超时或 cancel 置位返回 false。
   bool waitForNewView(
     std::size_t previous_views, double timeout_s, const std::atomic_bool & cancel) const;
+  // 等待同 ID 的有效精化位姿：以 refined_.valid 且 ID 匹配为准，
+  // fitting 指标单独到达不满足谓词；超时或 cancel 置位返回 false。
   bool waitForRefined(
     const std::string & target_id, double timeout_s,
     const std::atomic_bool & cancel) const;

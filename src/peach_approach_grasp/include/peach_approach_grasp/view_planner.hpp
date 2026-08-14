@@ -38,8 +38,10 @@ namespace peach_approach_grasp
 
 struct ViewPlannerConfig
 {
-  double observation_radius_m{0.28};
-  double minimum_radius_m{0.20};
+  // 默认值以 config/approach_grasp.yaml 为权威源，此处仅为直接构造兜底：
+  // 0.40/0.32m 退出深度相机近距盲区，保持跨视角锚点一致。
+  double observation_radius_m{0.40};
+  double minimum_radius_m{0.32};
   double azimuth_step_deg{12.0};
   double azimuth_limit_deg{36.0};
   double elevation_step_deg{8.0};
@@ -48,6 +50,9 @@ struct ViewPlannerConfig
   double radial_step_m{0.015};
   int candidate_layers{3};
   int views_to_minimum_radius{5};
+  // 相机位置 z 下限（base 系）：低于桌面保护平面的视点物理上必然穿桌，
+  // 规划必败且白耗 planning_time×attempts，生成阶段直接剔除。
+  double min_camera_height_m{0.06};
 };
 
 struct ViewCandidate

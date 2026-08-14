@@ -6,8 +6,7 @@ docs/superpowers/specs/2026-08-10-peach-layered-architecture.md §2.2）：
 
 - ``Detector``：workhorse ``detect(rgb) -> list[dict]``（YOLO 检测）；
 - ``Segmenter``：workhorse ``segment(rgb, bboxes) -> [(mask, bbox), ...]``
-  （SAM 分割；签名为批量形，与 InferenceEngine 现状对齐——节点逐目标时
-  传单元素列表并取首项）；
+  （SAM 分割；签名为批量形，节点整帧一次调用后按 bbox 取回各目标掩膜）；
 - ``PoseEstimator``：workhorse ``estimate(obs, target_id, bbox, mask,
   mask_source) -> TargetPoseResult``（袋线/果线位姿 + 安全门控）。
 
@@ -75,7 +74,8 @@ class Segmenter(ABC):
 
         Returns
         -------
-            [(掩膜, 框)] 列表；逐目标用法传单元素列表并取首项.
+            [(掩膜, 框)] 列表；掩膜按 bbox 与 prompt 框对应（过小掩膜被
+            丢弃，返回项与 prompt 非一一对齐）.
 
         """
 

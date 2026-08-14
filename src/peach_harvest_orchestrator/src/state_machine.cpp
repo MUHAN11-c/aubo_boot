@@ -335,7 +335,7 @@ CommandResult HarvestStateMachine::control(
       state_.message = "恢复已确认，保持暂停";
       return finish_request(request_id, true, state_.message, true);
     case ControlCommand::RETRY_TARGET:
-      // 预留：重试语义待复扫阶段定义，当前恒拒。
+      // 预留，未启用：重试语义待复扫阶段定义，当前恒拒。
       return finish_request(request_id, false, "当前阶段不允许该命令", false);
     case ControlCommand::SKIP_TARGET:
       // 仅登记跳过意图；真正的 goal 取消由节点层向能力端传播。

@@ -18,9 +18,11 @@
   - 已确认目标不删除；注册数超 max_targets 时按「最久未见」淘汰（淘汰
     优先落在 last_seen 最旧者，未确认表项另有 TTL 清除，见下）。
   - 确认机制：新目标先记为未确认（confirmed=False），累计命中
-    ≥ confirm_frames 帧转正；未确认表项超过 tentative_ttl_sec 未再命中
-    即在 begin_frame 清除——瞬时出现又消失的误检不留长期记录、不占匹配
-    优先级（已确认表项匹配优先于未确认表项）。
+    ≥ confirm_frames 帧转正；未确认表项连续超 tentative_ttl_frames 帧
+    未再命中即在 begin_frame 清除——瞬时出现又消失的误检不留长期记录、
+    不占匹配优先级（已确认表项匹配优先于未确认表项）。存活期按**帧**计：
+    帧率以运行状态为准，低帧率/卡顿时墙钟 TTL 会在确认进度攒满前误清
+    表项，帧计数不受帧率影响。
   - 恢复匹配（recovery）：正常匹配（同类 + match_radius）未命中时才启用，
     分两段：① 同类、半径放宽到 match_radius × recovery_scale（吸收检测
     跳动导致的锚点跳变）；② 跨类但半径**不放大**（吸收 bag/nobag 翻类——
@@ -52,16 +54,18 @@ class TargetRegistry:
     （≥1，1.0=关闭，仅放大同类匹配半径），cross_class_recovery 为恢复匹配
     是否允许跨类别（半径不放大，仍限 match_radius 内）。
     confirm_frames 为目标确认帧数（≥1）：新注册表项为未确认状态，累计命中
-    ≥ 本值才转正长期记录；tentative_ttl_sec 为未确认表项的存活时限 (s)，
-    超期未再命中即在 begin_frame 时清除——瞬时出现又消失的误检不留记录。
+    ≥ 本值才转正长期记录；tentative_ttl_frames 为未确认表项的存活时限
+    （帧，≥1）：连续超本帧数未再命中即在 begin_frame 时清除——瞬时出现又
+    消失的误检不留记录。按帧计而非墙钟秒：帧率以运行状态为准，任何帧率下
+    确认进度都不会被 TTL 误清。
 
     """
 
     def __init__(self, match_radius: float = 0.06, max_targets: int = 50,
                  position_ema: float = 0.3, recovery_scale: float = 1.0,
                  cross_class_recovery: bool = False, confirm_frames: int = 1,
-                 tentative_ttl_sec: float = 1.0):
-        """建空表；参数校验（半径>0、容量≥1、0<α≤1、倍率≥1、帧数≥1、TTL>0）."""
+                 tentative_ttl_frames: int = 5):
+        """建空表；参数校验（半径>0、容量≥1、0<α≤1、倍率≥1、帧数≥1、TTL≥1帧）."""
         if match_radius <= 0.0:
             raise ValueError(f'match_radius 须 > 0，got {match_radius}')
         if max_targets < 1:
@@ -72,29 +76,29 @@ class TargetRegistry:
             raise ValueError(f'recovery_scale 须 ≥ 1，got {recovery_scale}')
         if confirm_frames < 1:
             raise ValueError(f'confirm_frames 须 ≥ 1，got {confirm_frames}')
-        if tentative_ttl_sec <= 0.0:
+        if tentative_ttl_frames < 1:
             raise ValueError(
-                f'tentative_ttl_sec 须 > 0，got {tentative_ttl_sec}')
+                f'tentative_ttl_frames 须 ≥ 1，got {tentative_ttl_frames}')
         self.match_radius = float(match_radius)
         self.max_targets = int(max_targets)
         self.alpha = float(position_ema)
         self.recovery_scale = float(recovery_scale)
         self.cross_class_recovery = bool(cross_class_recovery)
         self.confirm_frames = int(confirm_frames)
-        self.tentative_ttl_sec = float(tentative_ttl_sec)
+        self.tentative_ttl_frames = int(tentative_ttl_frames)
         self._targets: Dict[str, dict] = {}
         self._next_index = 0          # 单调计数器，不复用已消亡序号
         self._frame_used: set = set()  # 本帧已命中的 target_id（同帧去重）
+        self._frame_index = 0         # 帧计数（begin_frame 递增，TTL 按帧判定）
         self._n_matched = 0           # 累计命中次数（诊断用）
         self._n_registered = 0        # 累计新发 ID 次数（诊断用）
 
-    def begin_frame(self, now: Optional[float] = None) -> None:
+    def begin_frame(self) -> None:
         """
         开始新一帧：清空同帧去重集合，并清除超期未命中的未确认表项.
 
-        Args:
-            now: 时间戳 (s)，None 用 time.monotonic()；测试注入的 now 必须与
-                match_or_register 注入值同一时钟基准.
+        未确认表项的存活期按帧计（当前帧序号 - 最后命中帧序号 >
+        tentative_ttl_frames 即清除），随运行帧率自适应，不做墙钟假设。
 
         Returns
         -------
@@ -102,10 +106,11 @@ class TargetRegistry:
 
         """
         self._frame_used.clear()
-        ts = time.monotonic() if now is None else float(now)
+        self._frame_index += 1
         stale = [tid for tid, t in self._targets.items()
                  if not t['confirmed']
-                 and ts - t['last_seen'] > self.tentative_ttl_sec]
+                 and self._frame_index - t['last_seen_frame']
+                 > self.tentative_ttl_frames]
         for tid in stale:
             del self._targets[tid]
 
@@ -199,6 +204,7 @@ class TargetRegistry:
             if t['obs_count'] >= self.confirm_frames:
                 t['confirmed'] = True
             t['last_seen'] = ts
+            t['last_seen_frame'] = self._frame_index
             t['last_status'] = status
             self._frame_used.add(best_id)
             self._n_matched += 1
@@ -217,10 +223,12 @@ class TargetRegistry:
             'diameter': diameter_value,
             'first_seen': ts,
             'last_seen': ts,
+            'last_seen_frame': self._frame_index,
             'obs_count': 1,
             'last_status': status,
-            # 未确认表项：累计命中满 confirm_frames 才转正；超 TTL 未再命中
-            # 由 begin_frame 清除（瞬时误检不留长期记录）
+            # 未确认表项：累计命中满 confirm_frames 才转正；连续超
+            # tentative_ttl_frames 帧未再命中由 begin_frame 清除（瞬时误检
+            # 不留长期记录；按帧计，帧率以运行状态为准）
             'confirmed': self.confirm_frames <= 1,
         }
         self._frame_used.add(tid)

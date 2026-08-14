@@ -83,13 +83,18 @@ INTERRUPTED 转暂停。接触段 `recovery_required` 不进账，批次停等�
 | `~/control` | `ControlHarvest` | 暂停/恢复/维护/立即取消/跳过/恢复确认（幂等 request_id + revision 乐观锁） |
 | `~/set_operation_policy` | `SetOperationPolicy` | 原子三级使能（两阶段提交） |
 
-订阅与下游依赖（名称均可由参数重配）：
+订阅（3 个话题名硬编码，暂不可参数重配）：
 
-| 目标 | 类型 | 用途 |
+| 话题 | 类型 | 用途 |
 |---|---|---|
 | `/peach/perception/target_observations` | `PeachTargetObservationArray` | 锁定沿/选中目标/目标数（发现数累计） |
 | `/peach/reconstruction/diagnostics` | `std_msgs/String` | 重建就绪路新鲜度 |
 | `/aubo_io_controller/robot_status` | `aubo_msgs/RobotStatus` | motion 就绪路（急停/故障/上电/可运动） |
+
+下游依赖（5 个接口名由参数重配，默认值见参数表）：
+
+| 参数 | 类型 | 用途 |
+|---|---|---|
 | `target_cycle_action_name` | `RunTargetCycle` Action client | 单目标派发与取消传播 |
 | `photo_pose_service_name` | `Trigger` client | 拍照前置：移动到 `global_photo_pose` |
 | `reset_targets_service_name` | `Trigger` client | 拍照前置：重置感知收齐窗口 |
@@ -115,6 +120,9 @@ INTERRUPTED 转暂停。接触段 `recovery_required` 不进账，批次停等�
 | `photo_pose.return_on_complete` | `true` | 批次完成后 best-effort 再回一次拍照位姿（仅记事件） |
 | `harvest.rescan_until_empty` | `true` | 复扫递减集循环开关 |
 | `harvest.max_rounds` | `3` | 总轮次上限（round 从 1 起计，含首轮） |
+| `dispatch.retry_delay_s` | `2.0` | goal 被能力端拒绝后的冷却重试间隔（s），须 ≥ 感知帧周期 |
+| `dispatch.max_retries` | `4` | 同一目标拒绝重试上限，耗尽按 SKIPPED_UNREACHABLE 记账跳过 |
+| `dispatch.max_consecutive_rejections` | `6` | 跨目标连续拒绝熔断上限（接受即清零），达到即进 RECOVERY_REQUIRED |
 | `target_cycle_action_name` | `/peach_approach_grasp_node/run_target_cycle` | 单目标 action 名 |
 | `approach_node_name` | `/peach_approach_grasp_node` | 能力端节点名（策略下发） |
 | `complete_target_service_name` | `/peach_pose_node/complete_selected_target` | 感知计划推进服务名 |
@@ -138,6 +146,10 @@ INTERRUPTED 转暂停。接触段 `recovery_required` 不进账，批次停等�
   `max_rounds` 回拍照位姿新一轮；锁定空集/达上限/复扫关闭则 `complete_batch`。
 - **结账**：`RunHarvest` 在 COMPLETED succeed、recovery abort、客户端取消级联取消
   活动目标 goal 后 canceled，三路径均携带 `HarvestSummary`（计数 + 逐目标 outcomes）。
+- **RunHarvest 取消 ≠ 批次停止**：取消 action 只停其执行线程（goal 以 canceled
+  终局并携带 summary），批次状态机不受影响、仍按当前策略继续运行；要停批次用
+  `~/control` 的 `PAUSE`（安全检查点后暂停，可 RESUME）或 `CANCEL_NOW`（真取消
+  活动目标 goal，批次进 INTERRUPTED 转暂停）。
 
 ## 软件框架
 

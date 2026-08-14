@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
+import time
 
 import cv2
 import numpy as np
@@ -30,6 +31,8 @@ class HarvestDataStore:
         self.root = Path(root) if root else default_harvest_root()
         self.run_dir = None
         self.latest_state = {}
+        # target_id → 上次掩膜落盘的 time.monotonic() 时刻（save_mask 节流用）
+        self._mask_last_saved = {}
 
     def start(self, run_id: str, manifest: dict) -> Path:
         """创建运行目录并原子写 manifest.yaml."""
@@ -73,14 +76,24 @@ class HarvestDataStore:
         tmp.replace(self.run_dir / f'latest_{source}.json')
 
     def save_mask(self, target_id: str, stamp_ns: int,
-                  mask: np.ndarray) -> str:
-        """保存选中目标的 mono8 PNG 掩膜并返回相对路径."""
+                  mask: np.ndarray, min_interval_s: float = 1.0) -> str:
+        """保存选中目标的 mono8 PNG 掩膜并返回相对路径.
+
+        每目标按 monotonic 时钟节流（间隔 < min_interval_s 直接返回 ''），
+        防长观测期 masks/ 文件数无界；写失败仍抛 OSError 由调用方记日志。
+        """
         if self.run_dir is None or mask is None:
+            return ''
+        now = time.monotonic()
+        last = self._mask_last_saved.get(target_id)
+        if last is not None and now - last < min_interval_s:
             return ''
         binary = (np.asarray(mask) > 0).astype(np.uint8) * 255
         path = self.run_dir / 'masks' / f'{stamp_ns}_{target_id}.png'
         if not cv2.imwrite(str(path), binary):
             raise OSError(f'掩膜保存失败: {path}')
+        # 仅写成功才记录时刻：失败帧下一帧可立即重试
+        self._mask_last_saved[target_id] = now
         return str(path.relative_to(self.run_dir))
 
     def query(self) -> dict:

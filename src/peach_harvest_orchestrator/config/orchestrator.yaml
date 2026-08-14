@@ -31,6 +31,19 @@ peach_harvest_orchestrator:
       rescan_until_empty: true
       # 总轮次上限（round 从 1 起计，含首轮）。
       max_rounds: 3
+      # 无可选目标停滞上限（秒）：selected 持续为空（剩余目标 WAITING_QUALITY
+      # 在残局视角不恢复）超限时本轮提前收口并复扫回拍照位姿重新观测
+      stall_timeout_s: 30.0
+    dispatch:
+      # goal 被能力端拒绝后的冷却重试：多为瞬态竞态（上周期运行标志未清/
+      # 能力端缓存尚未跟上新 selected），冷却后重派同一目标（不记账）；
+      # 重试耗尽才按不可达记账跳过。retry_delay_s 须 ≥ 感知帧周期（0.78FPS
+      # 下约 1.3s），保证重试前能力端缓存已随新帧刷新。
+      retry_delay_s: 2.0
+      max_retries: 4
+      # 连续拒绝熔断：跨目标累计（goal 接受即清零）达到本次数认定能力端故障，
+      # 进入待恢复（RECOVERY_REQUIRED）等人工确认；配置值钳制 ≥1。
+      max_consecutive_rejections: 6
     # 跨包接口名称（默认值即现有全网名，launch 不需要改）。
     target_cycle_action_name: '/peach_approach_grasp_node/run_target_cycle'
     approach_node_name: '/peach_approach_grasp_node'

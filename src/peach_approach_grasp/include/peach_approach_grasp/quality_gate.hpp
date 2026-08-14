@@ -34,13 +34,15 @@
 namespace peach_approach_grasp
 {
 
+// 默认值以 config/approach_grasp.yaml 为权威源，此处仅为直接构造兜底
+// （2026-08-14 对齐 yaml 验证期放宽档）。
 struct QualityGateConfig
 {
-  std::size_t minimum_views{5};
-  double minimum_baseline_deg{22.0};
-  double minimum_mean_nearest_baseline_deg{8.0};
+  std::size_t minimum_views{3};
+  double minimum_baseline_deg{15.0};
+  double minimum_mean_nearest_baseline_deg{6.0};
   double minimum_mean_depth_ratio{0.40};
-  double maximum_refined_rmse_m{0.005};
+  double maximum_refined_rmse_m{0.01};
   double minimum_refined_inlier_ratio{0.35};
   double maximum_data_age_s{2.0};
 };

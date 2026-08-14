@@ -163,6 +163,12 @@ private:
   // 等待一条晚于 after_s 的有效目标观测（视点到位后的新鲜帧）。
   bool waitForFreshTarget(double after_s);
   bool waitForRefined(const std::string & target_id);
+  // 帧率自适应取值：ema 未测得时回退配置值；视点等待以配置为上限，
+  // 新鲜度门以实测帧间隔放大（低帧率放宽防 stale 误判，高帧率收紧提速）。
+  double effectiveFrameWaitS() const;
+  double effectiveTargetMaxAgeS() const;
+  // 观测话题到达间隔 EMA 更新（onTargets 每帧调用）。
+  void trackFrameInterval();
 
   // 行为树节点注册与节点体（bt_nodes.cpp）。
   void registerBehaviorTreeNodes();
@@ -200,13 +206,20 @@ private:
   // 0.01 长转移蠕行 90s 肩部过流：低速档不得压到让高重力矩姿态持续过久。
   double velocity_scaling_{0.05};
   double acceleration_scaling_{0.05};
-  double transit_velocity_scaling_{0.05};
-  double transit_acceleration_scaling_{0.05};
+  double transit_velocity_scaling_{0.10};
+  double transit_acceleration_scaling_{0.10};
   double mtc_cartesian_step_m_{0.005};
   double mtc_cartesian_precision_m_{0.001};
   int mtc_max_solutions_{5};
-  int maximum_scan_moves_{8};
+  int maximum_scan_moves_{5};
+  // 观察段时间盒（秒）：到期带现有覆盖强制 finalize（不达标由候选锚点
+  // 降级抓取兜底），控制单目标观察耗时。暂时测试设置，实际工况再调。
+  double scan_time_budget_s_{5.0};
   double frame_wait_s_{6.0};
+  // 帧率自适应：观测话题到达间隔 EMA（≤0=未测得）与配置回退值。
+  double frame_interval_ema_s_{0.0};
+  double last_targets_arrival_s_{0.0};
+  double target_observation_max_age_config_s_{3.0};
   std::atomic_bool execution_enabled_{false};
   bool reset_reconstruction_on_start_{false};
   std::atomic_bool grasp_enabled_{false};
@@ -248,6 +261,8 @@ private:
   std::string cycle_terminal_message_;
   std::optional<CachedTarget> cycle_target_;
   std::optional<CachedRefined> cycle_refined_;
+  // 本周期是否为候选锚点降级抓取（精化未达标回退），用于状态消息标记。
+  bool cycle_degraded_grasp_{false};
   std::vector<ViewCandidate> cycle_candidates_;
   Eigen::Isometry3d cycle_entry_tip_pose_{Eigen::Isometry3d::Identity()};
   double cycle_travel_m_{0.0};
@@ -282,6 +297,7 @@ private:
   rclcpp::Service<SetBool>::SharedPtr arm_service_;
   rclcpp_action::Server<RunTargetCycle>::SharedPtr cycle_action_server_;
   OnSetParametersCallbackHandle::SharedPtr parameter_callback_handle_;
+  PostSetParametersCallbackHandle::SharedPtr post_parameter_callback_handle_;
   rclcpp::Client<Trigger>::SharedPtr reset_client_;
   rclcpp::Client<Trigger>::SharedPtr finalize_client_;
   rclcpp::Client<Trigger>::SharedPtr save_client_;

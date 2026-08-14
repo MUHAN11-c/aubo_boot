@@ -19,8 +19,11 @@ peach_pose_node:
     depth_scale_unit: 0.25
     # ── 同步与检测阈值 ────────────────────────────────────────
     sync_slop_s: 0.05        # RGB/深度/内参三路近似时间同步允差（秒）
-    min_detection_conf: 0.3  # 检测框进入几何管线的置信度下限（第二级，严出）
-    yolo_conf: 0.3           # YOLO 推理置信度阈值（第一级，宽进）
+    min_detection_conf: 0.25  # 检测框进入几何管线的置信度下限（第二级，严出）
+    yolo_conf: 0.25           # YOLO 推理置信度阈值（第一级，宽进）；
+                           # 逆光场景 0.3 会全滤掉真实目标（2026-08-14 傍晚实测），
+                           # 但也不宜再低——误检由 confirm_frames 确认机制+TTL 清除兜底，
+                           # 治本靠补光/曝光，不是继续降阈
     # 重叠检测框去重：IoS（交集/较小框面积）≥ 本值判同一物理目标，保留大框
     # （跨类生效，消一果两框/局部误检小框）；≥1.0 等效关闭
     detection_dedup_ios: 0.6
@@ -74,16 +77,19 @@ peach_pose_node:
     # 确认机制：新目标累计命中 ≥ 本帧数才转正长期记录；之前的短暂出现
     # （如单帧误检）不长期保留；1=立即确认
     target_memory.confirm_frames: 3
-    # 未确认目标的存活时限（秒）：超期未再命中即从表中清除（瞬时误检不占身份）
-    target_memory.tentative_ttl_sec: 1.0
+    # 未确认目标的存活时限（帧）：连续超本帧数未再命中即清除（瞬时误检不占身份）。
+    # 按帧计、帧率以运行状态为准：取 confirm_frames + 余量；低帧率/卡顿时墙钟
+    # TTL 会在确认攒满前误清进度（防丢失效），帧计数不受帧率影响。
+    target_memory.tentative_ttl_frames: 5
     # ── 全局采摘计划（收齐式窗口锁定）────────────────────────────
     # reset 后进入收齐窗口：逐帧累积确认目标，窗口关闭才一次性锁定
     # 目标集合与优先级；锁定后新出现的 ID 不再入集
     harvest.min_collect_frames: 10    # 窗口最少累积帧数：达到后才允许按静止条件关闭窗口
     harvest.lock_settle_frames: 5     # 连续无新增确认 ID 的帧数，与最少帧数联合判定集合稳定
-    harvest.max_collect_s: 25.0       # 窗口最长时长（秒），超时强制关闭兜底（空集也锁定）；
-                                      # 必须 ≥ min_collect_frames/相机FPS+settle 余量：0.78FPS 下
-                                      # 10 帧需 12.8s，8s 会在确认完成前超时锁定空集
+    harvest.max_collect_s: 25.0       # 窗口最长时长（秒）配置基准：运行期按实测帧间隔
+                                      # EMA 自适应为 (min_collect+settle+3)×帧间隔
+                                      # （帧率以运行状态为准），下限为本值×0.4，
+                                      # 低帧率自动放大防误锁空集、高帧率收紧提速
     # 优先级启用高度键：true=先低后高（避免摘高处目标时碰落低处果实，
     # Xiong 草莓采摘机实证顺序）；false 则高度不参与排序
     harvest.priority_prefer_lower_first: true

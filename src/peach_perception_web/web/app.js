@@ -5,21 +5,19 @@ const numeric = (value) => value !== null && value !== undefined && value !== ''
   Number.isFinite(Number(value));
 const fmt = (value, digits = 3, suffix = "") => numeric(value)
   ? `${Number(value).toFixed(digits)}${suffix}` : "—";
-const intFmt = (value) => numeric(value) ? Number(value).toLocaleString() : "0";
 const percent = (value) => numeric(value) ? `${(Number(value) * 100).toFixed(1)}%` : "—";
-const vector = (value, digits = 4) => Array.isArray(value) && value.length
-  ? `[${value.map((item) => numeric(item) ? Number(item).toFixed(digits) : "—").join(", ")}]`
-  : "—";
 const safe = (value) => String(value ?? "—").replace(/[&<>"']/g, (char) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
 })[char]);
-// 批次状态与目标阶段枚举映射，与 peach_harvest_msgs/HarvestState.msg 常量保持一致
+const setText = (id, value) => { $(id).textContent = value ?? "—"; };
+
+// 枚举映射与 peach_harvest_msgs/HarvestState.msg 常量一致
 const batchNames = ["等待就绪", "发现目标", "运行中", "等待安全暂停点", "已暂停", "维护模式", "已完成", "故障", "需要恢复", "已中断"];
 const phaseNames = ["空闲", "选择目标", "观测中", "完成观测", "质量校验", "靠近中", "工具动作", "撤退中", "收尾中", "目标成功", "目标跳过", "目标失败"];
-// 过程线阶段顺序（与 index.html data-stage 一致）
+const modeNames = ["自动", "已暂停", "维护"];
 const stageOrder = ["ready", "photo", "lock", "observe", "validate", "approach", "tool", "retreat", "done"];
 
-// 由编排器状态推导当前过程线阶段：拍照前置/收齐在 DISCOVERY 内按消息区分；
+// 由编排器状态推导过程线当前环节：拍照前置/收齐在 DISCOVERY 内按消息区分；
 // 目标周期内按 target_phase 映射；终局/异常单独归类。
 function currentStage(state) {
   const batch = Number(state.batch_state ?? -1);
@@ -29,7 +27,7 @@ function currentStage(state) {
   if (batch === 0) return "ready";
   if (batch === 1) return message.includes("拍照") ? "photo" : "lock";
   if (batch === 2 || batch === 3) {
-    if (phase >= 1 && phase <= 3) return "observe";
+    if (phase <= 3) return "observe";
     if (phase === 4) return "validate";
     if (phase === 5) return "approach";
     if (phase === 6) return "tool";
@@ -37,6 +35,24 @@ function currentStage(state) {
     return "observe";
   }
   return "ready";
+}
+
+// 复扫轮次：从最近一条 round_started/round_completed 事件文本解析“第N轮”，
+// 总轮数取编排器参数镜像 harvest.max_rounds。
+function renderRoundBadge(events, params) {
+  const badge = $("round-badge");
+  let round = null;
+  (events || []).slice().reverse().some((ev) => {
+    if (ev.code !== "round_started" && ev.code !== "round_completed") return false;
+    const match = /第\s*(\d+)\s*轮/.exec(ev.message || "");
+    if (!match) return false;
+    round = Number(match[1]);
+    return true;
+  });
+  if (!round) { badge.hidden = true; return; }
+  const maxRounds = params?.["/peach_harvest_orchestrator"]?.["harvest.max_rounds"];
+  badge.textContent = numeric(maxRounds) ? `第 ${round}/${maxRounds} 轮` : `第 ${round} 轮`;
+  badge.hidden = false;
 }
 
 function renderPipeline(state) {
@@ -47,22 +63,261 @@ function renderPipeline(state) {
   document.querySelectorAll("#pipeline .step").forEach((el) => {
     const index = stageOrder.indexOf(el.dataset.stage);
     el.classList.toggle("done", index >= 0 && index < activeIndex);
-    el.classList.toggle("active", index === activeIndex);
+    el.classList.toggle("active", index === activeIndex && !alert);
     el.classList.toggle("alert", index === activeIndex && alert);
   });
 }
 
-function renderOperations(orchestration) {
+// 阶段耗时跟踪：阶段/周期/目标任一变化即结算上阶段耗时；records 按周期存明细。
+let phaseTrack = {key: "", cycleKey: "", phase: -1, since: 0, records: []};
+function trackPhaseDurations(state) {
+  const phase = Number(state.target_phase ?? 0);
+  const cycleKey = `${state.cycle_id ?? ""}|${state.target_id ?? ""}`;
+  const key = `${state.batch_state ?? ""}|${phase}|${cycleKey}`;
+  const now = Date.now();
+  if (cycleKey !== phaseTrack.cycleKey) {
+    phaseTrack = {key, cycleKey, phase, since: now, records: []};
+    return;
+  }
+  if (key !== phaseTrack.key) {
+    const elapsed = Math.max(0, (now - phaseTrack.since) / 1000);
+    if (phaseTrack.phase >= 0 && phaseTrack.since > 0) {
+      phaseTrack.records.push({
+        name: phaseNames[phaseTrack.phase] || "—", seconds: elapsed});
+    }
+    phaseTrack.key = key;
+    phaseTrack.phase = phase;
+    phaseTrack.since = now;
+  }
+}
+function phaseElapsedS() {
+  return phaseTrack.since > 0 ? Math.max(0, (Date.now() - phaseTrack.since) / 1000) : 0;
+}
+function renderPhaseDurations(state) {
+  const items = phaseTrack.records.map((r) =>
+    `<span class="phase-chip">${safe(r.name)} ${r.seconds.toFixed(0)}s</span>`);
+  if (Boolean(state.target_id) || Number(state.target_phase) > 0) {
+    items.push(`<span class="phase-chip current">${phaseNames[state.target_phase] || "—"} ${phaseElapsedS().toFixed(0)}s</span>`);
+  }
+  $("phase-durations").innerHTML = items.length
+    ? items.join("") : '<p class="empty">暂无阶段耗时</p>';
+}
+
+function renderFlow(orchestration, params) {
   const state = orchestration.state || {};
+  const events = orchestration.events || [];
+  trackPhaseDurations(state);
   setText("batch-state", batchNames[state.batch_state] || "等待编排器");
   $("batch-state").classList.toggle("completed", state.batch_state === 6);
   setText("batch-message", state.message || "尚未收到类型化状态");
-  setText("target-phase", phaseNames[state.target_phase] || "—");
-  setText("batch-progress-value", percent(state.progress));
-  setBar("batch-progress-bar", state.progress);
-  $("batch-blockers").innerHTML = (state.blockers || []).map((item) =>
-    "<span title=\"该健康门未通过\">" + safe(item) + "</span>").join("");
   renderPipeline(state);
+  renderRoundBadge(events, params);
+  const hasTarget = Boolean(state.target_id);
+  setText("cycle-target", state.target_id || "—");
+  setText("cycle-id", state.cycle_id || "—");
+  setText("cycle-phase", phaseNames[state.target_phase] || "—");
+  setText("cycle-elapsed", hasTarget || Number(state.target_phase) > 0
+    ? `${phaseElapsedS().toFixed(0)} s` : "—");
+  renderPhaseDurations(state);
+  const width = numeric(state.progress) ? Math.max(0, Math.min(100, Number(state.progress) * 100)) : 0;
+  $("batch-progress-bar").style.width = `${width}%`;
+  setText("batch-progress-value", percent(state.progress));
+  renderEvents(events);
+}
+
+function renderEvents(events) {
+  setText("event-count", `${events.length} 条`);
+  if (!events.length) {
+    $("event-list").innerHTML = '<p class="empty">等待编排器事件</p>';
+    return;
+  }
+  $("event-list").innerHTML = events.slice().reverse().map((ev) => {
+    const time = numeric(ev.stamp) && ev.stamp > 0
+      ? new Date(ev.stamp * 1000).toLocaleTimeString("zh-CN", {hour12: false}) : "--:--:--";
+    const severity = numeric(ev.severity) ? Number(ev.severity) : 0;
+    const target = ev.target_id ? `<span class="target">[${safe(ev.target_id)}]</span>` : "";
+    return `<div class="event-item sev-${severity}"><time>${time}</time><i class="dot" title="${safe(ev.severity_name)}"></i><div class="body"><span class="code">${safe(ev.code)}</span>${target}<p>${safe(ev.message)}</p></div></div>`;
+  }).join("");
+}
+
+// 采摘/跟踪状态徽标配色
+const harvestChip = {HARVESTED: "ok", WAITING_QUALITY: "warn", SELECTED: "ok", PLANNED: ""};
+const trackingChip = {OBSERVED: "ok", OCCLUDED: "warn", LOST: "err", INVALID: "err"};
+const chip = (text, cls) => `<span class="status-chip ${cls}">${safe(text)}</span>`;
+
+function renderPlan(perception, orchestration) {
+  const targets = perception.targets || {};
+  const harvest = perception.harvest || {};
+  const state = orchestration.state || {};
+  const observations = targets.observations || [];
+  const harvested = observations.filter((item) => item.harvest_status === "HARVESTED");
+  const pending = observations.filter((item) =>
+    item.harvest_status === "PLANNED" || item.harvest_status === "WAITING_QUALITY");
+  setText("plan-total", targets.target_count ?? harvest.target_count ?? observations.length);
+  setText("plan-harvested", harvested.length || (harvest.completed_target_ids || []).length);
+  setText("plan-pending", pending.length);
+  setText("plan-selected", state.target_id || targets.selected_target_id || "—");
+  setText("run-id", targets.harvest_run_id || harvest.harvest_run_id || state.run_id || "等待批次");
+
+  const policies = [
+    ["auto_start_enabled", "自动开始"],
+    ["execution_enabled", "执行"],
+    ["grasp_enabled", "抓取"],
+    ["tool_enabled", "工具"],
+  ];
+  $("policy-badges").innerHTML = policies.map(([key, label]) => {
+    const on = state[key] === true;
+    return `<span class="badge ${on ? "on" : "off"}">${label} ${on ? "启" : "停"}</span>`;
+  }).join("");
+
+  const blockers = state.blockers || [];
+  $("batch-blockers").hidden = !blockers.length;
+  $("batch-blockers").innerHTML = blockers.map((item) =>
+    `<span title="该就绪门未通过">${safe(item)}</span>`).join("");
+
+  if (!observations.length) {
+    $("target-list").innerHTML = '<tr><td colspan="7" class="empty">等待 target_observations</td></tr>';
+  } else {
+    const selectedId = state.target_id || targets.selected_target_id || "";
+    $("target-list").innerHTML = observations.slice().sort((a, b) => a.priority - b.priority)
+      .map((item) => {
+        const rowClass = `${item.target_id === selectedId || item.selected ? "selected" : ""} ${item.harvest_status === "HARVESTED" ? "harvested" : ""}`;
+        const flags = (item.diagnostic_flags || []).map((flag) => `<span class="flag">${safe(flag)}</span>`).join("");
+        return `<tr class="${rowClass}">
+          <td><b>${safe(item.target_id)}</b></td>
+          <td>#${safe(item.priority)}</td>
+          <td>${chip(item.harvest_status, harvestChip[item.harvest_status] ?? "")}</td>
+          <td>${chip(item.tracking_status, trackingChip[item.tracking_status] ?? "")}</td>
+          <td>${percent(item.confidence)}</td>
+          <td>${fmt(item.camera_distance_m, 2, " m")}</td>
+          <td>${flags || "—"}</td>
+        </tr>`;
+      }).join("");
+  }
+  const doneIds = harvest.completed_target_ids?.length
+    ? harvest.completed_target_ids : harvested.map((item) => item.target_id);
+  setText("harvested-ids", doneIds.length ? doneIds.join(", ") : "（暂无）");
+}
+
+// 话题新鲜度：>5s 黄、>15s 红、从未收到灰
+function freshnessHtml(age) {
+  if (age === undefined) return ["", "无数据"];
+  if (age > 15) return ["err", `${age.toFixed(0)}s 前`];
+  if (age > 5) return ["warn", `${age.toFixed(1)}s 前`];
+  return ["ok", `${age.toFixed(1)}s 前`];
+}
+
+function setFreshness(nodeKey, age) {
+  const el = document.querySelector(`.node-card[data-node="${nodeKey}"] [data-freshness]`);
+  if (!el) return;
+  const [cls, text] = freshnessHtml(age);
+  el.className = `freshness ${cls}`;
+  el.querySelector("b").textContent = text;
+}
+
+function pillClass(text) {
+  const value = String(text || "").toUpperCase();
+  if (/FAIL|ERROR|FAULT|RECOVERY/.test(value)) return "err";
+  if (/WARN|PAUSE|REOBSERVE/.test(value)) return "warn";
+  if (/READY|RUNNING|COMPLETE|SUCCEED|IDLE/.test(value)) return "ok";
+  return "";
+}
+
+function setPill(id, text) {
+  setText(id, text || "—");
+  $(id).className = `state-pill ${pillClass(text)}`;
+}
+
+const yesNo = (value, yes = "是", no = "否") =>
+  value === true || value === 1 ? yes : value === false || value === 0 ? no : "—";
+
+function renderNodes(state) {
+  const ages = state.system?.topic_age_s || {};
+  setFreshness("perception", ages["perception.targets"]);
+  setFreshness("reconstruction", ages["reconstruction.diagnostics"]);
+  setFreshness("approach", ages["approach.status"]);
+  setFreshness("orchestrator", ages["orchestration.state"]);
+  setFreshness("robot", ages["robot.status"]);
+
+  const targets = state.perception?.targets || {};
+  setText("node-perception-count", targets.target_count ?? "—");
+  setText("node-perception-locked", targets.target_set_locked === undefined
+    ? "—" : targets.target_set_locked ? "已锁定" : "收集中");
+  setText("node-perception-selected", targets.selected_target_id || "—");
+
+  const diag = state.reconstruction?.diagnostics || {};
+  const reconState = diag.state || state.reconstruction?.status?.state ||
+    state.reconstruction?.status?.text;
+  setPill("node-recon-state", reconState);
+  setText("node-recon-target", diag.target_id || "—");
+  setText("node-recon-views", diag.captured_views === undefined
+    ? "—" : `${diag.captured_views} / ${diag.rejected_views ?? 0}`);
+
+  const approach = state.approach?.status || {};
+  setPill("node-approach-state", approach.state);
+  setText("node-approach-message", approach.message || "—");
+  setText("node-approach-arm", `${yesNo(approach.execution_enabled, "ON", "OFF")} / ${yesNo(approach.execution_armed, "ARM", "SAFE")}`);
+
+  const orch = state.orchestration?.state || {};
+  setPill("node-orch-state", batchNames[orch.batch_state]);
+  setText("node-orch-mode", modeNames[orch.operation_mode] || "—");
+  setText("node-orch-active", yesNo(orch.action_active));
+
+  const robot = state.robot?.status || {};
+  const hasRobot = Object.keys(robot).length > 0;
+  setText("node-robot-power", yesNo(robot.drives_powered, "已上电", "未上电"));
+  setText("node-robot-motion", `${yesNo(robot.motion_possible)} / ${yesNo(robot.in_motion)}`);
+  const errorText = !hasRobot ? "—"
+    : `${yesNo(robot.e_stopped, "急停", "正常")} / ${robot.in_error ? `错误(${robot.error_code})` : "无错误"}`;
+  const errorEl = $("node-robot-error");
+  errorEl.textContent = errorText;
+  errorEl.style.color = hasRobot && (robot.e_stopped === 1 || robot.in_error === 1)
+    ? "var(--err)" : "";
+}
+
+function gauge(id, value) {
+  const el = $(id);
+  const width = numeric(value) ? Math.max(0, Math.min(100, Number(value))) : 0;
+  el.style.width = `${width}%`;
+  el.classList.toggle("hot", width >= 70 && width < 90);
+  el.classList.toggle("critical", width >= 90);
+}
+
+function renderMetrics(state) {
+  const sample = state.metrics?.sample || {};
+  const age = state.system?.topic_age_s?.["metrics.sample"];
+  setText("metrics-age", age === undefined ? "采样未启动" : `采样 ${age.toFixed(1)}s 前`);
+  gauge("sys-cpu-bar", sample.cpu_percent);
+  gauge("sys-mem-bar", sample.memory_percent);
+  setText("sys-cpu", numeric(sample.cpu_percent) ? `${Number(sample.cpu_percent).toFixed(0)}%` : "—");
+  setText("sys-mem", numeric(sample.memory_percent)
+    ? `${Number(sample.memory_percent).toFixed(0)}% (${fmt(sample.memory_used_mb, 0)}M)` : "—");
+  setText("sys-load", numeric(sample.load1)
+    ? `${fmt(sample.load1, 2)} / ${fmt(sample.load5, 2)} / ${fmt(sample.load15, 2)}` : "—");
+
+  const gpu = sample.gpu;
+  $("gpu-body").style.display = gpu ? "" : "none";
+  $("gpu-empty").hidden = Boolean(gpu);
+  if (gpu) {
+    gauge("gpu-util-bar", gpu.utilization_percent);
+    setText("gpu-util", `${fmt(gpu.utilization_percent, 0)}%`);
+    setText("gpu-mem", `${fmt(gpu.memory_used_mb, 0)} / ${fmt(gpu.memory_total_mb, 0)} MB`);
+  }
+
+  const diag = state.reconstruction?.diagnostics || {};
+  const timings = [
+    ["TF 查询延迟", numeric(diag.tf_latency_ms) ? fmt(diag.tf_latency_ms, 1, " ms") : null],
+    ["TSDF 积分耗时", numeric(diag.tsdf?.integrate_time_s) ? fmt(diag.tsdf.integrate_time_s, 3, " s") : null],
+  ].filter(([, value]) => value !== null);
+  $("timing-list").innerHTML = timings.length
+    ? timings.map(([label, value]) =>
+      `<div class="timing-row"><span>${label}</span><b>${value}</b></div>`).join("")
+    : '<p class="empty">等待链路诊断数据</p>';
+
+  const processes = sample.processes || [];
+  $("process-list").innerHTML = processes.length
+    ? processes.map((proc) => `<tr><td>${safe(proc.name)}</td><td>${proc.pid}</td><td>${fmt(proc.cpu_percent, 1, "%")}</td><td>${fmt(proc.rss_mb, 0, " MB")}</td></tr>`).join("")
+    : '<tr><td colspan="4" class="empty">未匹配到受监控进程</td></tr>';
 }
 
 // 当前参数只读镜像：按节点分组的小表；值来自后端参数轮询。
@@ -89,215 +344,25 @@ function renderParams(params, ages) {
   }).join("");
 }
 
-function qualityClass(status) {
-  return String(status || "").toLowerCase();
-}
-
-function setText(id, value) {
-  $(id).textContent = value ?? "—";
-}
-
-function setBar(id, value) {
-  const width = numeric(value) ? Math.max(0, Math.min(100, Number(value) * 100)) : 0;
-  $(id).style.width = `${width}%`;
-}
-
-function renderIdentity(targets, diagnostics, refined, decision) {
-  const perceptionId = targets.selected_target_id || "";
-  const reconstructionId = diagnostics.target_id || decision.target_id || "";
-  const refinedId = refined.pose?.candidates?.[0]?.target_id || "";
-  setText("perception-id", perceptionId || "—");
-  setText("reconstruction-id", reconstructionId || "—");
-  setText("refined-id", refinedId || "等待 finalize");
-  const bus = $("identity-bus");
-  bus.classList.remove("match", "mismatch");
-  if (!perceptionId || !reconstructionId) {
-    setText("identity-result", "链路未建立");
-    setText("identity-hint", "等待感知选中与重建绑定");
-    return;
-  }
-  const baseMatch = perceptionId === reconstructionId;
-  const refinedMatch = !refinedId || refinedId === reconstructionId;
-  if (baseMatch && refinedMatch) {
-    bus.classList.add("match");
-    setText("identity-result", refinedId ? "三级 ID 一致" : "绑定一致 · 等待精化");
-    setText("identity-hint", refinedId ? "可追溯链路完整" : "当前重建没有串目标");
-  } else {
-    bus.classList.add("mismatch");
-    setText("identity-result", "目标 ID 不一致");
-    setText("identity-hint", "必须停止融合并核对绑定");
-  }
-}
-
-function renderTargets(targets) {
-  const observations = targets.observations || [];
-  setText("target-count", targets.target_count ?? observations.length);
-  setText("snapshot-id", `SNAP ${targets.snapshot_id ?? "—"}`);
-  setText("completed-count", `DONE ${observations.filter((item) => item.harvest_status === "HARVESTED").length}`);
-  setText("run-id", targets.harvest_run_id || "等待目标计划");
-  $("plan-lock").textContent = targets.target_set_locked ? "计划已锁定" : "未锁定";
-  $("plan-lock").className = `tag ${targets.target_set_locked ? "locked" : "neutral"}`;
-  if (!observations.length) {
-    $("target-list").innerHTML = '<tr><td colspan="5" class="empty">等待 target_observations</td></tr>';
-    return null;
-  }
-  $("target-list").innerHTML = observations.slice().sort((a, b) => a.priority - b.priority)
-    .map((item) => {
-      const quality = item.fitting?.status || item.candidate?.status || "—";
-      const rowClass = `${item.selected ? "selected" : ""} ${item.harvest_status === "HARVESTED" ? "harvested" : ""}`;
-      return `<tr class="${rowClass}">
-        <td class="rank">#${safe(item.priority)}</td>
-        <td class="target-name"><b>${safe(item.target_id)}</b><span>${safe(item.harvest_status)} · ${safe(item.tracking_status)}</span></td>
-        <td><span class="quality ${qualityClass(quality)}">${safe(quality)}</span></td>
-        <td class="number">${fmt(item.camera_distance_m, 2, " m")}</td>
-        <td class="number">${percent(item.fitting?.valid_depth_ratio)}</td>
-      </tr>`;
-    }).join("");
-  return observations.find((item) => item.selected) || null;
-}
-
-function renderSelected(selected, frameId) {
-  const candidate = selected?.candidate || {};
-  const fitting = selected?.fitting || {};
-  const position = candidate.entry_position || [];
-  const quaternion = candidate.entry_quaternion_xyzw || [];
-  setText("tracking-state", selected?.tracking_status || "NO DATA");
-  setText("quality-state", fitting.status || candidate.status || "—");
-  $("quality-state").className = qualityClass(fitting.status || candidate.status);
-  setText("pose-frame", `FRAME ${frameId || "—"}`);
-  ["x", "y", "z"].forEach((axis, index) => setText(`entry-${axis}`, fmt(position[index], 5)));
-  ["x", "y", "z", "w"].forEach((axis, index) => setText(`quat-${axis}`, fmt(quaternion[index], 6)));
-  setText("translation-vector", vector(candidate.translation_direction));
-  setText("bottom-vector", vector(candidate.bag_bottom));
-  setText("neck-vector", vector(candidate.bag_neck));
-  setText("camera-distance", fmt(selected?.camera_distance_m, 3, " m"));
-  setText("confidence", percent(selected?.confidence));
-  setText("diameter", fmt(candidate.diameter_m || fitting.diameter_m, 4, " m"));
-  setText("travel", fmt(candidate.travel_m, 4, " m"));
-  setText("depth-ratio", percent(fitting.valid_depth_ratio));
-  setText("fit-points", intFmt(fitting.n_points));
-  setText("axis-confidence-value", percent(fitting.axis_confidence));
-  setText("inlier-value", percent(fitting.inlier_ratio));
-  setBar("axis-confidence-bar", fitting.axis_confidence);
-  setBar("inlier-bar", fitting.inlier_ratio);
-  const flags = [...new Set([
-    ...(selected?.diagnostic_flags || []),
-    ...(candidate.diagnostic_flags || []),
-    ...(fitting.diagnostic_flags || [])
-  ])];
-  $("target-flags").innerHTML = flags.length
-    ? flags.map((flag) => `<span class="flag">${safe(flag)}</span>`).join("")
-    : '<span class="flag neutral">暂无诊断标志</span>';
-  setText("strategy-id", candidate.strategy_id || "—");
-  setText("model-version", candidate.model_version || "—");
-  setText("calibration-version", candidate.calibration_version || "—");
-  setText("tool-version", candidate.tool_version || "—");
-}
-
-function renderReconstruction(reconstruction, refined) {
-  const diagnostics = reconstruction.diagnostics || {};
-  const status = diagnostics.state || reconstruction.status?.state || reconstruction.status?.text || "IDLE";
-  setText("recon-state", status);
-  $("recon-state").className = `state-pill ${String(status).toLowerCase()}`;
-  setText("captured-views", intFmt(diagnostics.captured_views));
-  setText("rejected-views", intFmt(diagnostics.rejected_views));
-  setText("tf-failures", intFmt(diagnostics.tf_failures));
-  setText("tf-latency", fmt(diagnostics.tf_latency_ms, 2, " ms"));
-  setText("target-center", vector(diagnostics.target_center_base));
-  setText("relative-translation", fmt(diagnostics.last_rel_translation_m, 4, " m"));
-  setText("relative-rotation", fmt(diagnostics.last_rel_rotation_deg, 2, "°"));
-  setText("mask-cache", intFmt(diagnostics.target_mask_cache_size));
-
-  const registration = diagnostics.registration || {};
-  const latest = registration.latest || {};
-  setText("reg-mode", String(latest.mode || "WARMUP").toUpperCase());
-  setText("reg-reason", latest.reason || "等待模型");
-  setText("reg-accepted", `${intFmt(registration.accepted)} ACCEPTED`);
-  setText("fitness", fmt(latest.fitness, 4));
-  setText("rmse", fmt(latest.rmse_m, 5, " m"));
-  setText("correction-translation", fmt(latest.translation_m, 5, " m"));
-  setText("correction-rotation", fmt(latest.rotation_deg, 3, "°"));
-
-  const tsdf = diagnostics.tsdf || {};
-  setText("tsdf-status", diagnostics.tsdf ? "ONLINE" : "NO DATA");
-  setText("tsdf-points", intFmt(tsdf.points));
-  setText("integrated-frames", intFmt(tsdf.integrated_frames));
-  setText("voxel-length", fmt(tsdf.voxel_length, 4, " m"));
-  setText("integrate-time", fmt(tsdf.integrate_time_s, 3, " s"));
-  setText("roi-center", vector(tsdf.roi_center));
-  setText("cloud-points", intFmt(diagnostics.cloud_points));
-
-  const decision = reconstruction.grasp_decision || diagnostics.grasp_decision || {};
-  const allowed = decision.allowed === true;
-  $("decision-card").classList.toggle("allowed", allowed);
-  setText("decision-title", allowed ? "视觉允许抓取" : "禁止抓取");
-  setText("decision-reason", decision.reason || "reconstruction_not_ready");
-  document.querySelector(".decision-symbol").textContent = allowed ? "✓" : "×";
-  const refinedFit = refined.diagnostics?.fittings?.[0] || {};
-  const refinedCandidate = refined.pose?.candidates?.[0] || {};
-  setText("refined-diameter", fmt(decision.diameter_m ?? refinedFit.diameter_m, 4, " m"));
-  setText("refined-rmse", fmt(decision.rmse_m ?? refinedFit.cylinder_rms_m ?? refinedFit.sphere_rms_m, 5, " m"));
-  setText("refined-inlier", percent(decision.inlier_ratio ?? refinedFit.inlier_ratio));
-  setText("refined-entry", vector(decision.entry || refinedCandidate.entry_position));
-  setText("refined-axis", vector(decision.axis || refined.axis?.xyz));
-  return {diagnostics, decision};
-}
-
-function renderApproach(approach) {
-  const status = approach.status || {};
-  const quality = status.quality || {};
-  const state = status.state || "IDLE";
-  setText("approach-state", state);
-  $("approach-state").className = `state-pill ${String(state).toLowerCase()}`;
-  setText("approach-message", status.message || "等待节点");
-  setText("approach-target", status.target_id || quality.selected_target_id || "—");
-  setText("approach-arm", `${status.execution_enabled ? "ON" : "OFF"} / ${status.execution_armed ? "ARM" : "SAFE"}`);
-  setText("approach-views", intFmt(quality.captured_views));
-  setText("approach-baseline", `${fmt(quality.max_baseline_deg, 1, "°")} / ${fmt(quality.mean_nearest_baseline_deg, 1, "°")}`);
-  setText("approach-depth", percent(quality.mean_depth_ratio));
-  setText("approach-rmse", fmt(quality.refined_rmse_m, 5, " m"));
-  setText("approach-inlier", percent(quality.refined_inlier_ratio));
-  setText("approach-allowed", quality.grasp_allowed ? "YES" : "NO");
-  setText("approach-grasp", status.grasp_enabled ? "ENABLED" : "DISABLED");
-}
-
-function renderHealth(system) {
-  setText("revision", `REV ${system.revision || 0}`);
-  const uptime = Math.max(0, Number(system.uptime_s) || 0);
-  setText("server-uptime", `UP ${String(Math.floor(uptime / 60)).padStart(2, "0")}:${String(Math.floor(uptime % 60)).padStart(2, "0")}`);
-  const labels = {
-    "perception.targets": "目标快照",
-    "perception.harvest": "采摘计划",
-    "reconstruction.status": "重建状态",
-    "reconstruction.diagnostics": "重建诊断",
-    "reconstruction.grasp_decision": "抓取许可",
-    "refined.pose": "精化位姿",
-    "refined.diagnostics": "精化质量",
-    "approach.status": "靠近抓取"
-  };
-  const ages = system.topic_age_s || {};
-  $("topic-health").innerHTML = Object.entries(labels).map(([key, label]) => {
-    const age = ages[key];
-    const cls = age === undefined ? "" : age < 3 ? "fresh" : age < 15 ? "stale" : "";
-    return `<article class="health-item ${cls}"><div><i></i><span>${label}</span></div><b>${age === undefined ? "NO DATA" : `${age.toFixed(1)} s`}</b></article>`;
-  }).join("");
-}
-
 async function pollState() {
   try {
     const response = await fetch(`/api/state?t=${Date.now()}`, {cache: "no-store"});
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const state = await response.json();
-    const targets = state.perception?.targets || {};
-    const selected = renderTargets(targets);
-    renderSelected(selected, targets.frame_id);
-    const result = renderReconstruction(state.reconstruction || {}, state.refined || {});
-    renderApproach(state.approach || {});
-    renderOperations(state.orchestration || {});
+    const record = state.record?.info || {};
+    setText("record-dir", record.enabled === false
+      ? "记录已关闭" : record.directory || "等待首批数据");
+    $("record-strip").classList.toggle("off",
+      record.enabled === false || !record.directory);
+    renderFlow(state.orchestration || {}, state.params || {});
+    renderPlan(state.perception || {}, state.orchestration || {});
+    renderNodes(state);
+    renderMetrics(state);
     renderParams(state.params || {}, state.system?.topic_age_s || {});
-    renderIdentity(targets, result.diagnostics, state.refined || {}, result.decision);
-    renderHealth(state.system || {});
     $("raw-json").textContent = JSON.stringify(state, null, 2);
+    const uptime = Math.max(0, Number(state.system?.uptime_s) || 0);
+    setText("server-uptime",
+      `UP ${String(Math.floor(uptime / 60)).padStart(2, "0")}:${String(Math.floor(uptime % 60)).padStart(2, "0")}`);
     $("connection").className = "connection online";
     $("connection").querySelector("span").textContent = "数据 API 已连接";
   } catch (_) {
@@ -309,5 +374,5 @@ async function pollState() {
 const tickClock = () => { $("clock").textContent = new Date().toLocaleTimeString("zh-CN", {hour12: false}); };
 tickClock();
 setInterval(tickClock, 500);
-setInterval(pollState, 500);
+setInterval(pollState, 1000);
 pollState();

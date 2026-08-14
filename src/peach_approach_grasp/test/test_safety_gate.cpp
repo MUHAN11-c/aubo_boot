@@ -133,4 +133,40 @@ TEST(SafetyGate, TargetReadyIdentityValidityFreshness)
   EXPECT_TRUE(gate.targetReady(sample, "peach_1", reason));
 }
 
+TEST(SafetyGate, AdaptiveTimeoutScalesWithMeasuredFrameInterval)
+{
+  // 高帧率（5FPS，间隔 0.2s）：4 帧+1s → 1.8s，被下限 2s 托起
+  EXPECT_DOUBLE_EQ(
+    peach_approach_grasp::adaptive_timeout_s(0.2, 4.0, 1.0, 2.0, 6.0), 2.0);
+  // 低帧率（0.78FPS，间隔 1.28s）：4 帧+1s → 6.12s，被上限 6s 截断
+  EXPECT_DOUBLE_EQ(
+    peach_approach_grasp::adaptive_timeout_s(1.28, 4.0, 1.0, 2.0, 6.0), 6.0);
+  // 新鲜度门（2.5 帧+0.5s，夹 1~10s）：低帧率放宽超旧默认 3s
+  EXPECT_DOUBLE_EQ(
+    peach_approach_grasp::adaptive_timeout_s(1.28, 2.5, 0.5, 1.0, 10.0), 3.7);
+  // 高帧率收紧到 1s 下限
+  EXPECT_DOUBLE_EQ(
+    peach_approach_grasp::adaptive_timeout_s(0.2, 2.5, 0.5, 1.0, 10.0), 1.0);
+}
+
+TEST(SafetyGate, TargetObservationMaxAgeAdjustableAtRuntime)
+{
+  double now_s = 100.5;
+  SafetyGateConfig config;
+  config.target_observation_max_age_s = 3.0;
+  SafetyGate gate(config, [&now_s]() {return now_s;});
+  std::string reason;
+
+  TargetGateSample sample;
+  sample.id = "peach_1";
+  sample.valid = true;
+  sample.received_s = 98.0;  // 2.5s 前：默认 3s 门内
+  EXPECT_TRUE(gate.targetReady(sample, "peach_1", reason));
+
+  // 运行期收紧到 1s（模拟高帧率自适应）：同一样本变 stale
+  gate.set_target_observation_max_age_s(1.0);
+  EXPECT_FALSE(gate.targetReady(sample, "peach_1", reason));
+  EXPECT_EQ(reason, "selected_target_stale");
+}
+
 }  // namespace peach_approach_grasp

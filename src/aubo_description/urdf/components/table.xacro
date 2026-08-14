@@ -26,7 +26,10 @@
     <joint name="table_joint" type="fixed">
       <parent link="${parent}"/>
       <child link="table_link"/>
-      <origin xyz="-0.10483 -0.10483 -0.028" rpy="0 0 0"/>
+      <!-- 桌面板上表面（网格系 z=+0.0075）落到世界系 -0.001m：与真机底座
+           所压的真实桌面（=底座底面 z≈-0.0005）贴合，留 0.5mm 防底座与桌面
+           常碰。旧值 -0.028 让模型桌面比真实低 2cm，碰撞检查失真曾致撞桌。 -->
+      <origin xyz="-0.10483 -0.10483 -0.0085" rpy="0 0 0"/>
     </joint>
   </xacro:macro>
 </robot>

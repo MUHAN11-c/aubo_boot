@@ -151,7 +151,8 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim camera_enabled:
 - **恢复匹配②（跨类收紧）**：仍半径内但允许跨类，吸收 bag/nobag 翻类；
   命中只复用 ID、不改表项类别
 - **确认机制**：新目标累计命中 ≥ `confirm_frames` 帧才转正长期记录；
-  未确认目标超 `tentative_ttl_sec` 未再命中即清除（瞬时误检不留记录）；
+  未确认目标连续超 `tentative_ttl_frames` 帧未再命中即清除（瞬时误检
+  不留记录；按帧计、帧率以运行状态为准，低帧率/卡顿不误清确认进度）；
   匹配时已确认表项优先于更近的未确认表项
 
 语义边界：
@@ -176,7 +177,7 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim camera_enabled:
 | `target_memory.recovery_scale` | 3.5 | 恢复匹配半径倍率（同类，未命中才启用，21cm 覆盖跨视角锚点偏差）；1.0=关闭 |
 | `target_memory.cross_class_recovery` | true | 恢复匹配允许跨类（半径不放大，命中不改表项类别） |
 | `target_memory.confirm_frames` | 3 | 累计命中 ≥ 本值帧数才转正长期记录；1=立即确认 |
-| `target_memory.tentative_ttl_sec` | 1.0 | 未确认目标存活时限 (s)，超期未再命中即清除 |
+| `target_memory.tentative_ttl_frames` | 5 | 未确认目标存活时限（帧），连续超本帧数未再命中即清除；按帧计，帧率以运行状态为准 |
 
 ### 真机联调前置（本包不运动）
 

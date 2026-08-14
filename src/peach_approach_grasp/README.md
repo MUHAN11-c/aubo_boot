@@ -136,9 +136,10 @@ ros2 service call /peach_approach_grasp_node/acknowledge_recovery \
    坐标系 `+Z` 朝目标，TF 再换算成 `tcp` 的 MoveIt 目标（规划组 tip 即末端 TCP）。
 3. 首段使用 Pilz `PTP` 到安全观察位；后续使用短 `LIN` 弦段构成弧形补观测轨迹。每到一位
    等待重建 `captured_views` 增长，禁止开环扫完整条曲线。
-4. 重建输出至少 5 个合格视图、最大角基线至少 22°、平均最近邻角基线至少 8°、平均
+4. 重建输出至少 3 个合格视图、最大角基线至少 15°、平均最近邻角基线至少 6°、平均
    有效深度比例至少 0.40，且感知/重建 ID 一致、数据新鲜，才调用
-   `finalize_reconstruction`。
+   `finalize_reconstruction`（阈值以 `config/approach_grasp.yaml` 为权威源，
+   此处仅为现行档说明）。
 5. 只有 `READY`、同 ID 精化结果、`grasp_decision.allowed=true`、拟合 RMSE/inlier 通过，
    才进入 `READY_FOR_GRASP`。
 6. 抓取启用后，行为树进入 `MTCApproachAndInsert`：`CurrentState → MoveTo(OMPL) →

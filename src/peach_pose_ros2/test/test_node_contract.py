@@ -95,6 +95,24 @@ def test_locks_on_timeout_even_without_settle():
     assert plan.locked_ids == ('b', 'a')
 
 
+def test_window_waits_for_pending_confirmation():
+    """有未确认记录（确认攒帧中）时窗口不按静止关闭，防提前锁定空集."""
+    plan = _plan()
+    pending = _rec('late', confirmed=False)
+    # 帧数与静止条件都满足，但仍有未确认记录 → 不得锁定
+    for frame in range(5):
+        plan.update([pending], now=float(frame + 1))
+        assert not plan.locked
+    # 确认入场：新增确认 ID 重置静止计数
+    confirmed = _rec('late', confirmed=True)
+    plan.update([confirmed], now=6.0)
+    assert not plan.locked
+    plan.update([confirmed], now=7.0)
+    plan.update([confirmed], now=8.0)
+    assert plan.locked
+    assert plan.locked_ids == ('late',)
+
+
 def test_empty_window_locks_with_zero_targets():
     """窗口期满无确认目标也锁定（locked=True、count=0、selected=''）."""
     plan = _plan()
@@ -178,10 +196,13 @@ def test_reobservation_overwrites_and_keeps_single_entry():
 
 
 def test_unconfirmed_records_never_enter_lock_set():
-    """未确认记录不进累积集，窗口期满按空集锁定."""
+    """未确认记录不进累积集：确认进行中窗口保持打开，消失后按空集锁定."""
     plan = _plan()
     for frame in range(4):
         plan.update([_rec('a', confirmed=False)], now=float(frame + 1))
+        assert not plan.locked  # 确认进行中，窗口不按静止关闭
+    # 未确认记录消失（TTL 清除）后静止条件生效，空集锁定
+    plan.update([], now=5.0)
     assert plan.locked
     assert plan.locked_ids == ()
 

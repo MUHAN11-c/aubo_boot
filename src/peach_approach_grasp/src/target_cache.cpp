@@ -66,14 +66,19 @@ void TargetCache::updateSelectedTarget(const SelectedTargetUpdate & update)
   }
   target_.id = update.selected_id;
   target_.harvest_run_id = update.harvest_run_id;
-  if (update.observed && nonzeroFinite(update.bottom) && nonzeroFinite(update.neck) &&
-    nonzeroFinite(update.axis))
-  {
+  const bool has_anchor = nonzeroFinite(update.bottom) && nonzeroFinite(update.neck) &&
+    nonzeroFinite(update.axis);
+  if (has_anchor) {
+    // 锚点几何即采用：LOST 帧携带的注册表记忆锚点同样可用（世界系身份记忆
+    // 的意义所在），短暂不可见的目标保持可派发/可规划；观测新鲜度仍由
+    // received_s 只在有效观测帧刷新来把关（安全门按 max_age 判陈旧）。
     target_.center = 0.5 * (update.bottom + update.neck);
-    target_.initial_pose = update.entry_pose;
     target_.initial_axis = update.axis.normalized();
     target_.suggested_travel_m = update.suggested_travel_m;
     target_.valid = true;
+  }
+  if (update.observed && has_anchor) {
+    target_.initial_pose = update.entry_pose;
     // 仅在有效观测帧刷新时间戳：短暂检测闪烁保留最后有效样本（安全门按
     // max_age 判陈旧），真消失的目标会在 max_age 后按 stale 拒绝。
     target_.received_s = clock_s_();
@@ -229,9 +234,13 @@ bool TargetCache::waitForRefined(
   return cv_.wait_for(
     lock, std::chrono::duration<double>(timeout_s),
     [this, &target_id, &cancel]() {
+      // 谓词以锁存精化位姿有效且 ID 匹配为准：refined_.id/valid 仅由
+      // updateRefinedPose 写入；updateRefinedFitting 只写
+      // quality_.refined_target_id，单独到达不再满足谓词（旧路径会让随后的
+      // refinedSnapshot 为空 → 硬 FAILED 绕过降级链）。
       return cancel.load() ||
              (quality_.reconstruction_state == "READY" &&
-             quality_.refined_target_id == target_id);
+             refined_.valid && refined_.id == target_id);
     }) && !cancel.load();
 }
 

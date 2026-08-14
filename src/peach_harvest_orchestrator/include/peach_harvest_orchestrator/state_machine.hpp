@@ -39,7 +39,11 @@
 
 namespace peach_harvest_orchestrator
 {
+// 以下各枚举底层值与 peach_harvest_msgs 对应常量按声明顺序一一对应；纯核零 ROS
+// 不 include 消息头，对齐由节点 TU 的 static_assert 编译期钉死
+// （harvest_orchestrator_node.cpp）。新增枚举值必须同步消息常量并补断言。
 enum class OperationMode : uint8_t {AUTO, PAUSED, MAINTENANCE};
+// FAULT 预留，未启用：故障分级语义待定，当前无任何转移进入该状态。
 enum class BatchState : uint8_t
 {
   WAITING_READY, DISCOVERY, RUNNING, PAUSE_PENDING, PAUSED, MAINTENANCE,
@@ -50,6 +54,7 @@ enum class TargetPhase : uint8_t
   IDLE, SELECTING, OBSERVING, FINALIZING, VALIDATING, APPROACHING,
   TOOL_ACTION, RETREATING, COMPLETING, SUCCEEDED, SKIPPED, FAILED
 };
+// RETRY_TARGET 预留，未启用：重试语义待复扫阶段定义，状态机当前恒拒。
 enum class ControlCommand : uint8_t
 {
   PAUSE, RESUME, ENTER_MAINTENANCE, EXIT_MAINTENANCE, CANCEL_NOW,

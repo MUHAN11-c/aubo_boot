@@ -158,6 +158,11 @@ std::vector<ViewCandidate> ViewPlanner::generate(
           std::cos(elevation) * std::sin(azimuth) * side +
           std::sin(elevation) * up;
         direction.normalize();
+        const Eigen::Vector3d camera_position = target + radius * direction;
+        // 桌面保护平面：低于 z 下限的视点规划必败，不生成（省时且防撞桌）。
+        if (camera_position.z() < config_.min_camera_height_m) {
+          continue;
+        }
 
         double nearest = std::numeric_limits<double>::max();
         for (const auto & previous : observed) {
@@ -185,7 +190,7 @@ std::vector<ViewCandidate> ViewPlanner::generate(
         candidate.motion_angle_deg = motion;
         candidate.score = 0.45 * overlap_score + 0.30 * novelty_score +
           0.15 * motion_score + 0.10 * radial_score;
-        candidate.camera_pose.translation() = target + radius * direction;
+        candidate.camera_pose.translation() = camera_position;
         candidate.camera_pose.linear() = lookAtOptical(
           candidate.camera_pose.translation(), target);
         std::ostringstream label;

@@ -156,10 +156,16 @@ class GlobalHarvestPlan:
                 if target_id not in self._accumulated:
                     self._last_new_id_frame = self._collect_frames
                 self._accumulated[target_id] = record
+            # 静止关闭追加前提"无进行中确认"：当前帧仍有未确认记录（确认
+            # 进度攒帧中）时不得关窗，否则低置信/闪烁场景会在确认完成前
+            # 锁定空集（2026-08-14 真机：0.3 阈值下检测迟到，窗口提前锁定空集）。
+            has_pending_confirmation = any(
+                not record.get('confirmed') for record in current.values())
             settled = (
                 self._collect_frames >= self.min_collect_frames
                 and self._collect_frames - self._last_new_id_frame
-                >= self.lock_settle_frames)
+                >= self.lock_settle_frames
+                and not has_pending_confirmation)
             timed_out = ts - self._window_start >= self.max_collect_s
             if settled or timed_out:
                 self._lock_now()

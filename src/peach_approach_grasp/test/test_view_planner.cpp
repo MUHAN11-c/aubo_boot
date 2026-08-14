@@ -64,6 +64,33 @@ TEST(ViewPlanner, CandidateScoresAreSortedAndRespectRadius)
   }
 }
 
+TEST(ViewPlanner, CandidatesBelowTablePlaneAreFiltered)
+{
+  // 桌面上的目标（z=0.05）：负俯仰视点的相机位置会落到桌面保护平面以下，
+  // 这些视点规划必败，生成阶段应被剔除，且不消耗任何扫描预算。
+  ViewPlannerConfig config;
+  config.observation_radius_m = 0.40;
+  config.minimum_radius_m = 0.32;
+  config.min_camera_height_m = 0.06;
+  ViewPlanner planner(config);
+  const Eigen::Vector3d target(0.0, 0.0, 0.05);
+  const auto candidates = planner.generate(
+    target, Eigen::Vector3d(0.40, 0.0, 0.25),
+    std::vector<Eigen::Vector3d>{});
+  ASSERT_FALSE(candidates.empty());
+  for (const auto & candidate : candidates) {
+    EXPECT_GE(candidate.camera_pose.translation().z(), config.min_camera_height_m)
+      << candidate.label;
+  }
+  // 抬高下限到当前相机高度以上：候选数应严格减少（过滤确实生效）
+  config.min_camera_height_m = 0.30;
+  ViewPlanner high_floor_planner(config);
+  const auto fewer = high_floor_planner.generate(
+    target, Eigen::Vector3d(0.40, 0.0, 0.25),
+    std::vector<Eigen::Vector3d>{});
+  EXPECT_LT(fewer.size(), candidates.size());
+}
+
 TEST(ViewPlanner, ToolZAxisFollowsApproachAxis)
 {
   const Eigen::Vector3d axis(0.2, -0.4, 0.8);

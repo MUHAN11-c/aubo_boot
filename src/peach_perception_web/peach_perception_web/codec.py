@@ -13,6 +13,7 @@ from typing import Any
 
 _STATUS_NAMES = {0: 'ACCEPT', 1: 'REOBSERVE', 2: 'REJECT'}
 _TRACKING_NAMES = {0: 'OBSERVED', 1: 'OCCLUDED', 2: 'LOST', 3: 'INVALID'}
+_SEVERITY_NAMES = {0: 'INFO', 1: 'WARNING', 2: 'ERROR', 3: 'AUDIT'}
 
 
 def parse_json_text(text: str, fallback_key: str = 'text') -> dict:
@@ -153,6 +154,38 @@ def vector_stamped(message) -> dict:
         'stamp': stamp_seconds(message.header),
         'frame_id': message.header.frame_id,
         'xyz': point(message.vector),
+    }
+
+
+def harvest_event(message) -> dict:
+    """转换编排器过程/审计事件（HarvestEvent）为时间线条目."""
+    return {
+        'stamp': stamp_seconds(message.header),
+        'sequence': int(message.sequence),
+        'severity': int(message.severity),
+        'severity_name': _SEVERITY_NAMES.get(
+            int(message.severity), str(message.severity)),
+        'code': message.code,
+        'message': message.message,
+        'request_id': message.request_id,
+        'run_id': message.run_id,
+        'cycle_id': message.cycle_id,
+        'target_id': message.target_id,
+        'details': {
+            item.key: item.value for item in message.details},
+    }
+
+
+def robot_status(message) -> dict:
+    """转换机械臂状态（aubo_msgs/RobotStatus，简化 industrial 语义）."""
+    return {
+        'mode': int(message.mode),
+        'e_stopped': int(message.e_stopped),
+        'drives_powered': int(message.drives_powered),
+        'motion_possible': int(message.motion_possible),
+        'in_motion': int(message.in_motion),
+        'in_error': int(message.in_error),
+        'error_code': int(message.error_code),
     }
 
 

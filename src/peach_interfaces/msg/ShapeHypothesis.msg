@@ -1,0 +1,11 @@
+std_msgs/Header header
+string target_id
+uint32 scene_epoch
+geometry_msgs/Point center
+geometry_msgs/Vector3 axis
+float32 diameter_m
+float32 length_m
+float64[9] position_covariance
+float64[9] direction_covariance
+float32 confidence
+string model_kind

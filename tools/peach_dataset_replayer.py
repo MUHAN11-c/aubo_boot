@@ -1,8 +1,8 @@
 """
 离线数据集回放工具：把数据集（rgb/ + depth/ 成对 PNG）发布为 RGB-D + CameraInfo.
 
-独立测试工具（不随 colcon 构建，不依赖 peach_pose_ros2 包内模块）；无真相机时
-可用它驱动 peach_pose_node 做全链路冒烟。默认内参为本机 Percipio
+独立测试工具（不随 colcon 构建，不依赖 peach_scene_perception 包内模块）；无真相机时
+可用它驱动 peach_scene_perception_node 做全链路冒烟。默认内参为本机 Percipio
 （与 color_camera_info.yaml 一致）；Azure 包请显式传 --fx 等。
 
 用法示例（需先 source /opt/ros/jazzy/setup.bash 与工作区 install/setup.bash）:
@@ -145,7 +145,7 @@ def main(args=None):
     parser.add_argument(
         '--dataset', type=str, default='',
         help='含 rgb/ 与 depth/ 的数据集根目录；空 → 工作区 '
-             'src/peach_pose_ros2/data/dataset')
+             'src/peach_scene_perception/data/dataset')
     parser.add_argument('--rate', type=float, default=1.0)
     parser.add_argument('--limit', type=int, default=3)
     parser.add_argument('--loop', action='store_true')
@@ -164,7 +164,7 @@ def main(args=None):
     else:
         # 默认取包内 data/dataset 软链（tools/ 上一级即工作区根）
         dataset = (Path(__file__).resolve().parents[1]
-                   / 'src' / 'peach_pose_ros2' / 'data' / 'dataset')
+                   / 'src' / 'peach_scene_perception' / 'data' / 'dataset')
         if not dataset.is_dir():
             raise RuntimeError(
                 f'推断默认数据集目录失败: {dataset} 不存在。'

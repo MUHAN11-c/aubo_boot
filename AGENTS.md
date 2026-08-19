@@ -15,11 +15,11 @@
 
 ## 测试
 
-`test/` 只保留 lint、参数/状态机等无实机图的检查。不要再加 DDS 假现场、launch_testing 长超时或模拟整条采摘链。对错以实机为准。
+各包 `test/` 只保留 ROS 2 默认 lint（Python：`test_flake8.py` / `test_pep257.py`；CMake：`ament_lint_auto`）。不要写业务用例、gtest、DDS 假现场或 launch_testing。语法与流程由审查核对，对错以实机为准。
 
 ## 技术
 
-C++17；参数走 yaml + `generate_parameter_library` / `declare_parameter`。`peach_harvest_orchestrator` 是批次唯一所有者。能力端运动绑定 Lifecycle **Active**。重建只用精确时间戳 TF。编排器默认 `auto_start_enabled=true`，`execution/grasp/tool=false`。
+C++17；参数走 yaml + `generate_parameter_library` / `declare_parameter`。`peach_task_executor` 是批次唯一所有者；**launch 绝不自动 RunHarvest**。能力端运动绑定 Lifecycle **Active**。重建只用精确时间戳 TF。默认 `execution/grasp/tool=false`。
 
 ## 入口
 
@@ -28,5 +28,5 @@ source /opt/ros/jazzy/setup.bash
 cd /home/mu/Desktop/aubo_e5_jazzy_ws
 colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
-ros2 launch peach_harvest_orchestrator harvest_system.launch.py hardware_mode:=sim camera_enabled:=false
+ros2 launch peach_task_executor harvest_system.launch.py hardware_mode:=sim camera_enabled:=false
 ```

@@ -1,0 +1,15 @@
+uint8 AUTO=0
+uint8 MANUAL=1
+
+string request_id
+string scene_key
+string profile_id
+uint8 intent
+uint8 selection_mode
+string[] target_ids
+---
+bool success
+string termination_reason
+peach_interfaces/HarvestSummary summary
+---
+peach_interfaces/HarvestState state

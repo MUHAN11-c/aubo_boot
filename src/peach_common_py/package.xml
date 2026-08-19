@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd"
+  schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>peach_common_py</name>
+  <version>0.1.0</version>
+  <description>
+    桃子采摘链路公共纯核库：坐标变换、深度归一化、有界工作队列、采摘数据
+    存储、时钟抽象与实现注册表。除 peach_common_py.ros 子包外零 ROS import。
+    帧率 EMA 已下沉到 peach_scene_perception。
+  </description>
+  <maintainer email="2155413529@qq.com">wjz</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>tf_transformations</exec_depend>
+
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

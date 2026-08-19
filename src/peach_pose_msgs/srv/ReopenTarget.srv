@@ -1,7 +1,0 @@
-# 重开已终局目标（E3 残局抬质量配套）：把 completed_ids 中的目标移回可选池。
-# 仅当目标仍在本轮锁定集内且已终局（complete_selected 入账）时成功；
-# 重开后是否重新选中由固定优先级计划按当前帧可观测性自决。
-string target_id
----
-bool success
-string message

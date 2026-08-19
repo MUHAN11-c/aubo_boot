@@ -1,0 +1,14 @@
+std_msgs/Header header
+uint64 sequence
+uint8 INFO=0
+uint8 WARNING=1
+uint8 ERROR=2
+uint8 AUDIT=3
+uint8 severity
+string code
+string message
+string request_id
+string run_id
+string target_id
+uint64 state_seq
+diagnostic_msgs/KeyValue[] details

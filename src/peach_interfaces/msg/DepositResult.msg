@@ -1,0 +1,2 @@
+bool deposited
+string reason

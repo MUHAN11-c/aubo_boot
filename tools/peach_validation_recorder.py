@@ -52,7 +52,7 @@ import matplotlib
 matplotlib.use('Agg')  # 无显示环境的离屏渲染（须在 pyplot 导入前设置）
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np
-from peach_pose_msgs.msg import BagFittingArray, BagGraspCandidateArray
+from peach_interfaces.msg import BagFittingArray, BagGraspCandidateArray
 import rclpy
 from rclpy.time import Time
 from rosidl_runtime_py.convert import message_to_ordereddict
@@ -80,8 +80,10 @@ _TOPICS_CLOUD = [
     ('reconstruction_local_cloud.ply', '/peach/reconstruction/local_cloud', True),
 ]
 _PARAM_NODES = [
-    ('params_peach_pose_node.yaml', '/peach_pose_node'),
-    ('params_peach_reconstruction_node.yaml', '/peach_reconstruction_node'),
+    ('params_peach_scene_perception_node.yaml',
+     '/peach_scene_perception_node'),
+    ('params_peach_target_reconstruction_node.yaml',
+     '/peach_target_reconstruction_node'),
 ]
 # TF 快照：(target, source)——写 yaml 时键为 'target<-source'
 _TF_PAIRS = [

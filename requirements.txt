@@ -21,13 +21,13 @@
 numpy==1.26.4
 matplotlib==3.11.1
 
-# ---- peach_pose_ros2（YOLO + MobileSAM via ultralytics） ----
+# ---- peach_scene_perception（YOLO + MobileSAM via ultralytics） ----
 torch==2.13.0
 torchvision==0.28.0
 ultralytics==8.3.0
 ultralytics-thop==2.1.5
 
-# ---- aubo_scene_recon（Open3D 点云/TSDF） ----
+# ---- peach_target_reconstruction（Open3D 点云/TSDF） ----
 open3d==0.19.0
 
 # ---- matplotlib 传递依赖（保证绘图环境可复现） ----

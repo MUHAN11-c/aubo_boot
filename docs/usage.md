@@ -17,18 +17,18 @@ pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
 colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 ```
 
-`colcon test` 只做 lint 和少量无 ROS 图的逻辑/参数检查。行为对错以实机和 `_archive/runs/`、`web_runs/` 为准。
+`colcon test` 只跑 ROS 2 默认 lint。行为对错以实机和过程数据为准。
 
 ## 采摘整栈
 
 ```bash
 # 开发机（无相机、不运动）
-ros2 launch peach_harvest_orchestrator harvest_system.launch.py \
+ros2 launch peach_task_executor harvest_system.launch.py \
   hardware_mode:=sim camera_enabled:=false
 
-# 真机（默认 hardware_mode=real；先手动上电，禁止 /aubo_dashboard/startup）
-ros2 launch peach_harvest_orchestrator harvest_system.launch.py \
-  hardware_mode:=real robot_ip:=169.254.10.98
+# 真机（须显式 real；先手动上电，禁止 /aubo_dashboard/startup）
+ros2 launch peach_task_executor harvest_system.launch.py \
+  hardware_mode:=real camera_enabled:=true robot_ip:=169.254.10.98
 ```
 
 监控：`http://127.0.0.1:8090`。过程记录写在启动时的 CWD 下 `web_runs/`。
@@ -37,15 +37,15 @@ ros2 launch peach_harvest_orchestrator harvest_system.launch.py \
 
 | 参数 | 默认 | 说明 |
 |------|------|------|
-| `hardware_mode` | real | mock / sim / real |
+| `hardware_mode` | sim | mock / sim / real |
 | `robot_ip` | 169.254.10.98 | 仅 real |
-| `camera_enabled` | true | 无设备时设 false |
+| `camera_enabled` | false | 有相机时设 true |
 | `extrinsics_enabled` | true | wrist3 → camera_link 静态 TF |
 | `moveit_enabled` | true | move_group + RViz |
 | `hand_eye_enabled` | false | 标定流程 |
 | `hand_eye_web_enabled` | false | 标定 Web `http://127.0.0.1:8088` |
 
-无相机时务必 `camera_enabled:=false`，否则 Percipio 刷屏。
+无相机时保持默认 `camera_enabled:=false`。有设备时再打开。
 
 只起手臂：
 
@@ -54,17 +54,20 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim camera_enabled:
 ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real robot_ip:=169.254.10.98
 ```
 
-## 编排与技能（默认不运动）
+## 任务与技能（默认不运动、不自动开批）
 
 ```bash
-ros2 action send_goal /peach_harvest_orchestrator/run_harvest peach_harvest_msgs/action/RunHarvest "{}"
-ros2 service call /peach_harvest_orchestrator/control peach_harvest_msgs/srv/ControlHarvest \
-  "{command: 0, expected_revision: 0}"   # 0=PAUSE 1=RESUME 4=CANCEL_NOW；revision 以 /state 为准
-ros2 topic echo /peach_harvest_orchestrator/state
-ros2 topic echo /peach_harvest_orchestrator/events
+ros2 action send_goal /peach_task_executor/run_harvest peach_interfaces/action/RunHarvest \
+  "{request_id: 'dev', scene_key: 'lab', profile_id: 'default'}"
+ros2 action send_goal /peach_manipulation_skills_node/survey_scene peach_interfaces/action/SurveyScene \
+  "{request_id: 'dev', scene_key: 'lab'}"
+ros2 service call /peach_task_executor/control peach_interfaces/srv/ControlTask \
+  "{command: 0, expected_state_seq: 0}"
+ros2 topic echo /peach_task_executor/state
+ros2 topic echo /peach_task_executor/events
 ```
 
-打开真运动必须同时改编排器与能力端 yaml（`execution_enabled` / `execution.enabled` 等），并经人工授权。未授权禁止 SetIO。
+打开真运动须同时改编排器 `execution_enabled` 与技能端 `execution.enabled` 等，并经人工授权。
 
 ## 手臂透传冒烟
 
@@ -76,8 +79,6 @@ ros2 topic echo --once /aubo_io_controller/robot_status
 aubo_py3.12/bin/python tools/passthrough_traj_client.py wave_shoulder
 ```
 
-`tools/motion_analyzer.py` 出图默认写 `test_results/`（已 gitignore）。历史分析数据在 `_archive/runs/`。
-
 ## 手眼标定
 
 ```bash
@@ -86,13 +87,3 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real \
 ```
 
 浏览器只开回环 `http://127.0.0.1:8088`。
-
-## 排障要点
-
-| 现象 | 处理 |
-|------|------|
-| 改动像没生效 / 相机 -1014 | 旧进程占用设备；先 pgrep 再重启 |
-| venv 缺 rcl_interfaces | 先 source `/opt/ros/jazzy` |
-| cv2 / numpy 冲突 | `numpy==1.26.4`，不要 pip 装 opencv-python |
-| 静态 TF 改了没变 | 重启 extrinsics_publisher |
-| sim 里 set_io 失败 | 预期 |

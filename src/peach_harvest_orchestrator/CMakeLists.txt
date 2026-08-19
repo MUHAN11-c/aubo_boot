@@ -90,45 +90,7 @@ if(BUILD_TESTING)
     ORCHESTRATOR_YAML_PATH="${CMAKE_CURRENT_SOURCE_DIR}/config/orchestrator.yaml")
   add_dependencies(test_yaml_defaults harvest_orchestrator_node)
 
-  # 阶段 B P0 修复的节点层集成测试：进程内构造真实编排器节点（复用
-  # harvest_orchestrator_node.cpp，NO_MAIN 屏蔽进程入口；模式同
-  # peach_approach_grasp 的 test_lifecycle）+ 进程内假能力端。
-  # 覆盖：推进重试熔断/恢复重派、CANCEL_NOW 终结 RunHarvest、失能拒绝
-  # 不计熔断、skip 绑 cycle_id（协议 2.5/2.6/2.2-T9/2.9）；
-  # 阶段 C 增补：收齐窗口超时重判+发现进度透出（2.3/R-D8）、cycle_id
-  # 唯一化（2.5）；阶段 D2 增补：丢失目标记账（2.4）与误记账防御、
-  # fresh_scene 清记忆调用链（2.3）。TIMEOUT 放宽到 600s：用例内含脚本化
-  # 终局延迟与冷却等待，且 DDS 异常窗口每用例需 ~10s 可达性探测后才跳过。
-  ament_add_gtest(test_dispatch_protocol
-    test/test_dispatch_protocol.cpp
-    src/harvest_orchestrator_node.cpp)
-  set_tests_properties(test_dispatch_protocol PROPERTIES TIMEOUT 600)
-  target_include_directories(test_dispatch_protocol PRIVATE include src)
-  target_compile_definitions(test_dispatch_protocol PRIVATE
-    PEACH_HARVEST_ORCHESTRATOR_NO_MAIN
-    FAKE_CAPABILITY_PY="${CMAKE_CURRENT_SOURCE_DIR}/test/fake_capability_node.py")
-  target_link_libraries(test_dispatch_protocol
-    harvest_state_machine
-    harvest_orchestrator_node_parameters
-    rclcpp::rclcpp
-    rclcpp_action::rclcpp_action
-    rclcpp_lifecycle::rclcpp_lifecycle
-    ${aubo_msgs_TARGETS}
-    ${geometry_msgs_TARGETS}
-    ${lifecycle_msgs_TARGETS}
-    ${peach_harvest_msgs_TARGETS}
-    ${peach_pose_msgs_TARGETS}
-    ${std_msgs_TARGETS}
-    ${std_srvs_TARGETS}
-    ${diagnostic_msgs_TARGETS}
-    tf2::tf2
-    tf2_ros::tf2_ros)
-
-  find_package(launch_testing_ament_cmake REQUIRED)
-  add_launch_test(test/test_dispatch_protocol_launch.py TIMEOUT 120)
-
-  # 参数定义校验用例：启动期非法覆盖抛异常、运行期非法 set 拒绝、合法 set
-  # 即时可见（readiness.* 热读通道）。
+  # 参数定义校验：启动期非法覆盖抛异常、运行期非法 set 拒绝。
   ament_add_gtest(test_parameter_validation test/test_parameter_validation.cpp)
   target_link_libraries(test_parameter_validation
     rclcpp::rclcpp

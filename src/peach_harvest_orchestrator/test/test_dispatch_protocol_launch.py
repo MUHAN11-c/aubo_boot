@@ -51,7 +51,6 @@ def generate_test_description():
         launch_ros.actions.Node(
             executable=sys.executable,
             arguments=[fake],
-            name='fake_capability_proc',
             output='screen',
         ),
         launch_testing.actions.ReadyToTest(),

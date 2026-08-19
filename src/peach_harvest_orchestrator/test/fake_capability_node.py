@@ -46,6 +46,7 @@ from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
+from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
@@ -93,8 +94,6 @@ class FakeField(LifecycleNode):
             String, '/fake_field/command', self._on_command, 20,
             callback_group=self._group)
         self._status_pub = self.create_publisher(String, '/fake_field/status', 10)
-        self._approach = ApproachHelper(self)
-        self._approach.setup()
         self.create_service(
             Trigger, '/peach_pose_node/complete_selected_target',
             self._on_complete)
@@ -276,27 +275,22 @@ class FakeField(LifecycleNode):
 
 
 class ApproachHelper:
-    """独立 Lifecycle 名 peach_approach_grasp_node。."""
+    """普通 Node 上的假 RunTargetCycle，避免 Lifecycle 未激活导致不可见。."""
 
     def __init__(self, field: FakeField):
         self.field = field
-        self.node = LifecycleNode('peach_approach_grasp_node')
-
-    def setup(self):
-        node = self.node
+        self.node = Node('peach_approach_grasp_node')
         group = ReentrantCallbackGroup()
-        node.create_service(
+        self.node.create_service(
             GetState, 'get_state', self._on_get_state, callback_group=group)
-        node.create_service(
+        self.node.create_service(
             Trigger, 'go_to_photo_pose', self._on_photo, callback_group=group)
         self._server = ActionServer(
-            node, RunTargetCycle, 'run_target_cycle',
+            self.node, RunTargetCycle, 'run_target_cycle',
             execute_callback=self._execute,
             goal_callback=self._goal,
             cancel_callback=self._cancel,
             callback_group=group)
-        node.trigger_configure()
-        node.trigger_activate()
 
     def _on_get_state(self, _req, response):
         response.current_state.id = State.PRIMARY_STATE_ACTIVE
@@ -375,18 +369,18 @@ class ApproachHelper:
 def main():
     rclpy.init()
     field = FakeField()
+    helper = ApproachHelper(field)
     executor = MultiThreadedExecutor(num_threads=8)
     executor.add_node(field)
+    executor.add_node(helper.node)
     field.trigger_configure()
     field.trigger_activate()
-    approach = field._approach
-    executor.add_node(approach.node)
     try:
         executor.spin()
     finally:
         executor.shutdown()
+        helper.node.destroy_node()
         field.destroy_node()
-        approach.node.destroy_node()
         rclpy.shutdown()
 
 

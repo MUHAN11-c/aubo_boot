@@ -5,7 +5,7 @@
   把 pipeline.TargetPoseResult 画出来：`_to_markers` 生成 RViz Marker
   （依赖 visualization_msgs），`_draw_debug` 在 BGR 图上叠加检测框 /
   掩膜轮廓 / 关键点 / 剪切线 / 稳定 ID 与置信度文字（颜色表三态，依赖 cv2）。
-  依赖 ROS 消息类型与 conversions/tf_utils 的转换函数，不依赖 rclpy 节点。
+  依赖 ROS 消息类型与 conversions/grasp_tf 的转换函数，不依赖 rclpy 节点。
 
 坐标系/单位约定:
   Marker 坐标系随 header.frame_id（与候选消息一致，米制；每个目标占用
@@ -19,7 +19,7 @@ from typing import List
 import cv2
 import numpy as np
 from peach_pose_ros2.conversions import _metric, _point
-from peach_pose_ros2.tf_utils import _rotation_to_quat
+from peach_pose_ros2.grasp_tf import _rotation_to_quat
 from visualization_msgs.msg import Marker
 
 

@@ -8,13 +8,17 @@
 
 目录归属按「编排器批次执行期」划分：batch_state 进入 DISCOVERY/RUNNING
 （或节点启动后见到的首个活动批次）开 `run_<时间戳>/`，终局
-（COMPLETED/INTERRUPTED/FAULT/RECOVERY_REQUIRED）关闭并生成 summary；
+（COMPLETED/INTERRUPTED/RECOVERY_REQUIRED）关闭并生成 summary；
 同一批次的所有复扫轮次不拆目录；无批次期间的记录进 `idle_<时间戳>/`
 （节点启动时创建，批次开始后关闭，批次结束后再开新的）。
 
 纯函数部分（目录命名、PointCloud2→PLY、summary 各项统计）零 ROS 依赖，
 可直接单测；Recorder 只被 gateway 回调调用，所有盘写经队列 + 独立守护
-线程执行，不阻塞 ROS 回调与 HTTP 线程。
+线程执行，不阻塞 ROS 回调与 HTTP 线程（阶段 H 效率项 2.13：jsonl 记录
+在写线程内按路径缓冲，批量（≥_JSONL_BATCH_LINES 条）或队列空闲一个轮询
+周期时一次性追加落盘，避免逐行 open/close 的 syscall 抖动；单个文件写盘
+失败只降级告警丢弃该批，不阻断后续采集；close() 先 queue.join() 再停线程，
+缓冲区随线程退出前最后一次 flush 全部排空）。
 
 目录结构（root 默认 web_runs/，相对节点 CWD）：
 
@@ -43,20 +47,22 @@ import time
 
 import numpy as np
 
-# target 终局事件码（触发点云保存与图像索引，并进入逐目标 outcome 表）
+# target 终局事件码（触发点云保存与图像索引，并进入逐目标 outcome 表）；
+# target_operator_skipped（A13 拆分）：操作员跳过独立于系统判定的 target_skipped
 TERMINAL_TARGET_CODES = {
     'target_succeeded', 'target_skipped', 'target_failed',
-    'target_rejected', 'target_canceled',
+    'target_rejected', 'target_canceled', 'target_operator_skipped',
 }
 # 需要在 image_index.jsonl 里关联最近调试图的事件码
 IMAGE_EVENT_CODES = {'round_locked', 'photo_pose_reached'} | TERMINAL_TARGET_CODES
 # HarvestState batch_state：1 DISCOVERY / 2 RUNNING / 3 PAUSE_PENDING /
 # 4 PAUSED / 5 MAINTENANCE 都算批次活动期
 ACTIVE_BATCH_STATES = {1, 2, 3, 4, 5}
-# 终局：6 COMPLETED / 7 FAULT / 8 RECOVERY_REQUIRED / 9 INTERRUPTED
-TERMINAL_BATCH_STATES = {6, 7, 8, 9}
+# 终局：6 COMPLETED / 7 RECOVERY_REQUIRED / 8 INTERRUPTED
+# （2026-08 消息契约删除预留的 FAULT，后续状态顺序前移）
+TERMINAL_BATCH_STATES = {6, 7, 8}
 _BATCH_STATE_NAMES = {
-    6: 'COMPLETED', 7: 'FAULT', 8: 'RECOVERY_REQUIRED', 9: 'INTERRUPTED',
+    6: 'COMPLETED', 7: 'RECOVERY_REQUIRED', 8: 'INTERRUPTED',
 }
 # target_phase 枚举名（与 peach_harvest_msgs/HarvestState.msg 一致）
 _PHASE_NAMES = {
@@ -72,6 +78,9 @@ _WORKING_PHASES = [
 ]
 # PointField datatype → numpy 类型串（仅本模块用到的）
 _FIELD_DTYPES = {6: 'u4', 7: 'f4', 8: 'f8'}
+# jsonl 写缓冲批量阈值（条）：达到即一次性落盘；未达阈值时由写线程队列
+# 轮询超时（0.2s 空闲）兜底 flush，兼顾吞吐与可见时延。
+_JSONL_BATCH_LINES = 64
 
 
 def _sanitize(text: str) -> str:
@@ -658,27 +667,50 @@ class Recorder:
     # 写线程：唯一执行盘写的地方
     # ------------------------------------------------------------------
     def _writer_loop(self) -> None:
+        """取任务执行；jsonl 先进路径缓冲，批量/空闲/退出前三处 flush."""
+        pending = {}  # Path -> [record]，仅本线程访问
+
+        def flush() -> None:
+            """把缓冲记录按路径批量追加落盘；单文件失败告警丢弃，不影响其他."""
+            for path, records in pending.items():
+                try:
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(path, 'a', encoding='utf-8') as stream:
+                        for record in records:
+                            stream.write(
+                                json.dumps(record, ensure_ascii=False) + '\n')
+                except Exception as error:  # 写盘失败只降级告警，不阻断采集
+                    self._log_warning(
+                        f'落盘失败（丢弃 {len(records)} 条）{path}: {error}')
+            pending.clear()
+
         while not self._stop.is_set() or not self._queue.empty():
             try:
                 job = self._queue.get(timeout=0.2)
             except queue.Empty:
+                flush()  # 队列空闲一个轮询周期：间隔 flush 兜底可见时延
                 continue
             try:
-                self._run_job(job)
+                if job[0] == 'jsonl':
+                    pending.setdefault(job[1], []).append(job[2])
+                    if sum(len(r) for r in pending.values()) >= \
+                            _JSONL_BATCH_LINES:
+                        flush()
+                else:
+                    # mkdir/summary/image/cloud 与既有 jsonl 记录有先后语义
+                    # （summary 读本目录 jsonl 现算），执行前必须先 flush。
+                    flush()
+                    self._run_job(job)
             except Exception as error:  # 单个任务失败只告警，线程不死
                 self._log_warning(f'记录任务失败（跳过）: {error}')
             finally:
                 self._queue.task_done()
+        flush()  # close() 排空队列后的最后一次 drain
 
     def _run_job(self, job) -> None:
         kind = job[0]
         if kind == 'mkdir':
             job[1].mkdir(parents=True, exist_ok=True)
-        elif kind == 'jsonl':
-            _, path, record = job
-            path.parent.mkdir(parents=True, exist_ok=True)
-            with open(path, 'a', encoding='utf-8') as stream:
-                stream.write(json.dumps(record, ensure_ascii=False) + '\n')
         elif kind == 'image':
             _, message, path = job
             self._write_image(message, path)

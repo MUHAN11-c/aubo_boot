@@ -82,6 +82,14 @@ struct GraspTaskResult
 
 // MTC 只负责接触动作的运动学序列。工具 IO 和感知反馈留在行为树层，避免把外部副作用
 // 隐藏进 MoveIt 轨迹，才能在工具失败时明确进入撤离分支。
+//
+// 线程模型（2.13-E3 预规划后）：BT 工作线程之外新增一个预规划线程
+// （preplanApproachAndInsert 在其上运行）。task_mutex_ 保护 active_task_ /
+// preplanned_task_ 两个槽；任一时刻至多一个任务在 plan/execute（调用端纪律：
+// 内联重规划前必须先等预规划线程退出，见 bt_nodes.cpp settlePreplanBeforeReplan）。
+// MTC Task 的 plan/execute 分离复用是官方支持的用法（solution 持有完整轨迹，
+// execute 只负责下发）；唯一前提是规划时刻的 CurrentState 采样到执行前机械臂
+// 未运动——再确认等待段恰好静止，语义成立。
 class GraspTask
 {
 public:
@@ -93,6 +101,23 @@ public:
     const Eigen::Vector3d & insertion_axis,
     double insertion_distance_m,
     bool execute);
+
+  // 预规划（2.13-E3 plan-while-waiting）：与 approachAndInsert(execute=false)
+  // 同结构，但规划成功后任务连同解移入 preplanned_task_ 槽保留，供
+  // executePreplannedApproach 复用；失败则丢弃。预期在独立预规划线程调用，
+  // 运行期间可被 cancel() preempt。
+  GraspTaskResult preplanApproachAndInsert(
+    const Eigen::Isometry3d & entry_tip_pose,
+    const Eigen::Vector3d & insertion_axis,
+    double insertion_distance_m);
+
+  // 执行预规划解：取出 preplanned_task_（取出即清槽，不可二次执行），复核
+  // approach 执行门后下发。前置：调用方已按 PreplanSlot 判定复用成立且预规划
+  // 线程已退出。无可用预规划解时返回 success=false（execution_started=false）。
+  GraspTaskResult executePreplannedApproach();
+
+  // 丢弃预规划槽中的任务（不复用/取消/周期结束路径）；幂等。
+  void discardPreplanned();
 
   // 在同一 MTC 解中预览“到入口→插入→原轴撤离”，硬编码只规划，永不执行。
   GraspTaskResult previewFullContact(
@@ -113,6 +138,21 @@ private:
     bool execute,
     const std::function<bool(std::string &)> & execution_gate);
 
+  // plan/execute 拆分原语（预规划复用与 planAndMaybeExecute 共用）：
+  // planTaskOnly 只规划+发布 introspection，成功时解留在任务对象内；
+  // executeSolution 复核执行门后下发首解。两者都不动 active/preplanned 槽。
+  GraspTaskResult planTaskOnly(moveit::task_constructor::Task * active);
+  GraspTaskResult executeSolution(
+    moveit::task_constructor::Task * active,
+    const std::function<bool(std::string &)> & execution_gate);
+
+  // 接近/插入任务搭建（approachAndInsert 与 preplanApproachAndInsert 共用）。
+  std::unique_ptr<moveit::task_constructor::Task> makeApproachInsertTask(
+    const std::string & task_name,
+    const Eigen::Isometry3d & entry_tip_pose,
+    const Eigen::Vector3d & insertion_axis,
+    double insertion_distance_m);
+
   // 三个任务共用的 solver/stage 搭建工厂：集中配置，行为与原内联实现一致。
   std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner>
   makeFreeSpaceSolver() const;
@@ -131,6 +171,9 @@ private:
   GraspTaskConfig config_;
   std::mutex task_mutex_;
   std::unique_ptr<moveit::task_constructor::Task> active_task_;
+  // 预规划任务槽（2.13-E3）：preplanApproachAndInsert 成功后保留任务与解，
+  // executePreplannedApproach 取出执行，discardPreplanned 丢弃。
+  std::unique_ptr<moveit::task_constructor::Task> preplanned_task_;
 };
 
 }  // namespace peach_approach_grasp

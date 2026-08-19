@@ -7,6 +7,7 @@ peach_perception_web:
     harvest_state_topic: /peach/perception/harvest_state
     reconstruction_status_topic: /peach/reconstruction/status
     reconstruction_diagnostics_topic: /peach/reconstruction/diagnostics
+    reconstruction_diagnostics_debug_topic: /peach/reconstruction/diagnostics_debug  # 调试明细 JSON（镜像合并补充）
     grasp_decision_topic: /peach/reconstruction/grasp_decision
     refined_pose_topic: /peach/reconstruction/refined_pose
     refined_axis_topic: /peach/reconstruction/refined_axis
@@ -30,5 +31,5 @@ peach_perception_web:
                                     # 复扫轮次不拆目录；无批次记录进 idle_<时间戳>/）
       save_images: true             # 逐帧保存感知调试图 JPEG q85（需 cv_bridge/cv2）
       save_clouds: true             # target 终局时刻保存 TSDF 点云 PLY
-    debug_image_topic: /peach_pose_node/debug_image      # 感知调试叠加图（bgr8）
+    debug_image_topic: /peach/perception/debug_image     # 感知调试叠加图（bgr8）
     tsdf_cloud_topic: /peach/reconstruction/tsdf_cloud   # 在线 TSDF 点云（latched）

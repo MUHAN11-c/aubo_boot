@@ -1,0 +1,218 @@
+---
+# peach_harvest_orchestrator 参数定义（generate_parameter_library 单一事实源）：
+# 声明/类型/默认值/校验全在本文件；默认值与 config/orchestrator.yaml 逐项对齐
+# （test_yaml_defaults 强制；唯一有意例外 global_photo_joints：默认空数组，
+# yaml 存档真机实测位姿）。
+# 生效语义（与原 declare/get 实现一致，迁移未改）：
+#   readiness.*    —— refresh 每 tick 经 ParamListener 快照直读，运行期热生效；
+#   其余参数        —— on_configure 一次性缓存进成员，运行期改动在下次 configure 前
+#                    不影响运行（yaml 为权威源，运行期不预期动态改）。
+# 原 on_configure 的钳制（max_retries/max_rounds/max_consecutive_rejections ≥1、
+# dispatch.max_retries ≥0）上收为本文件的 validation：非法值现在启动即抛
+# InvalidParameterValueException、运行期 set 被拒（原为静默钳制）。
+peach_harvest_orchestrator:
+  auto_start_enabled: {
+    type: bool,
+    default_value: true,
+    description: "启动策略：就绪后自动开批次（on_configure 经状态机 set_policy 生效，依赖链由状态机终审）。"
+  }
+  execution_enabled: {
+    type: bool,
+    default_value: false,
+    description: "启动策略：执行使能（默认关，整机不动）。运行期调整走 ~/set_operation_policy 服务两阶段提交。"
+  }
+  grasp_enabled: {
+    type: bool,
+    default_value: false,
+    description: "启动策略：抓取使能（依赖 execution_enabled）。"
+  }
+  tool_enabled: {
+    type: bool,
+    default_value: false,
+    description: "启动策略：工具使能（依赖 grasp_enabled）。"
+  }
+  readiness:
+    web: {
+      type: bool,
+      default_value: true,
+      description: "web 就绪路开关（热生效：refresh 每 tick 直读）。"
+    }
+    timeout_s: {
+      type: double,
+      default_value: 2.0,
+      description: "各就绪路观测新鲜度上限（秒，热生效）。",
+      validation: { gt<>: [0.0] }
+    }
+    require_robot_status: {
+      type: bool,
+      default_value: true,
+      description: "motion 就绪路是否要求 robot_status 在线（热生效）。"
+    }
+  global_photo_joints: {
+    type: double_array,
+    default_value: [],
+    description: "抓取全局拍照位姿（权威关节顺序的关节角，rad），仅存档；实际移动走 go_to_photo_pose 服务 + SRDF 命名状态 global_photo_pose。yaml 存档真机实测值，默认空数组为有意差异（test_yaml_defaults 例外项）。"
+  }
+  photo_pose:
+    enabled: {
+      type: bool,
+      default_value: true,
+      description: "全局拍照位姿前置：进入 DISCOVERY/复扫轮次先把机械臂送到拍照位姿，再重置感知收齐锁定；execution_enabled=false 时自动跳过。"
+    }
+    max_retries: {
+      type: int,
+      default_value: 3,
+      description: "拍照前置连续失败此次数后进入待恢复（require_recovery）。",
+      validation: { gt_eq<>: [1] }
+    }
+    retry_cooldown_s: {
+      type: double,
+      default_value: 5.0,
+      description: "拍照前置失败重试冷却（秒）。",
+      validation: { gt_eq<>: [0.0] }
+    }
+    service_timeout_s: {
+      type: double,
+      default_value: 90.0,
+      description: "单次 go_to_photo_pose/reset_global_targets 调用超时（秒）；真机移动到拍照位姿耗时数十秒，不得按普通服务超时设置。",
+      validation: { gt<>: [0.0] }
+    }
+    return_on_complete: {
+      type: bool,
+      default_value: true,
+      description: "批次完成后再回一次拍照位姿（best-effort，失败仅记事件）。"
+    }
+  harvest:
+    preflight_check: {
+      type: bool,
+      default_value: true,
+      description: "批次启动就位自校（阶段 F3）：批次首轮进入拍照前置链之前做一次静态几何就位检查（TF 外参链 base_link→camera_link 可查 + robot_status 已收到且无故障/急停标志；robot 检查跟随 readiness.require_robot_status），未通过则不进入拍照前置、发 ERROR 事件并把 preflight 计入 state blockers；幂等门——refresh 每拍重试、连续失败不熔断，环境就位后自动放行；RESCAN 复扫轮次不重复自校；false 时整体跳过（旧行为）。"
+    }
+    rescan_until_empty: {
+      type: bool,
+      default_value: true,
+      description: "复扫递减集循环：本轮目标全部处理完后回拍照位姿重锁感知再摘一轮，直到新一轮锁定空集或达到 max_rounds。"
+    }
+    max_rounds: {
+      type: int,
+      default_value: 3,
+      description: "总轮次上限（round 从 1 起计，含首轮）。",
+      validation: { gt_eq<>: [1] }
+    }
+    stall_timeout_s: {
+      type: double,
+      default_value: 30.0,
+      description: "无可选目标停滞上限（秒）：selected 持续为空（剩余目标 WAITING_QUALITY 在残局视角不恢复）超限时本轮提前收口并复扫回拍照位姿重新观测，避免批次永久空等。",
+      validation: { gt<>: [0.0] }
+    }
+    collect_timeout_s: {
+      type: double,
+      default_value: 40.0,
+      description: "收齐窗口编排侧总超时配置下限（秒，协议 2.3 监督）：PhotoStep 完成（reset_global_targets 已发）后感知迟迟不锁定（locked=false）超限时，发 round_stall 事件并按本轮处理完重判 decide_round（RESCAN 或 COMPLETE，不无限等）；locked 到达或新一轮开始重置计时。运行期实际上限自适应为 max(本值, 1.5×实测上次开窗→锁定墙钟)（I4），首轮无实测时用本值。",
+      validation: { gt<>: [0.0] }
+    }
+    fresh_scene: {
+      type: bool,
+      default_value: false,
+      description: "换场景/换果树开始新批次时置 true（协议 2.3，阶段 D2）：批次首轮开窗前（reset_global_targets 之前）先调 clear_target_memory 清感知世界系身份记忆，防上一轮/上一场景陈旧锚点被恢复匹配误命中；仅首轮生效（复扫轮次同场景，清记忆会破坏跨视角锚点恢复）。失败处理与 reset 失败同级（冷却重试计入拍照前置失败链）。",
+    }
+    observe_retry_enabled: {
+      type: bool,
+      default_value: true,
+      description: "残局抬质量总开关（协议 2.8 残局，阶段 E3）：每轮正常派发耗尽后、RESCAN 复扫判定之前，对锁定集中最新终局账为 SKIPPED_QUALITY 的残局目标按优先级逐个派发 mode=OBSERVE_ONLY 的 RunTargetCycle（只观察+精化验证不抓取，次数上限见 observe_retry_max）；抬质量期间不算停滞（stall_timeout_s 计时挂起），目标重新可选后回正常派发链以 FULL 重试；false 时残局直接进停滞/复扫判定（E3 前旧行为）。"
+    }
+    observe_retry_max: {
+      type: int,
+      default_value: 2,
+      description: "每目标每批次 OBSERVE_ONLY 抬质量次数上限（协议 2.8，阶段 E3）：次数在派发时消耗，goal 被拒/被取消不归还——能力端系统性拒绝（如缓存 selected 与残局目标不匹配）时批次仍有界收口；另每轮每目标至多抬一次（终局未改善让位下一个残局目标，复扫新一轮恢复）。",
+      validation: { gt_eq<>: [0] }
+    }
+  dispatch:
+    retry_delay_s: {
+      type: double,
+      default_value: 2.0,
+      description: "goal 被能力端拒绝后的冷却（秒）：须 ≥ 感知帧周期（0.78FPS 下约 1.3s），保证重试前能力端缓存已随新帧刷新。",
+      validation: { gt_eq<>: [0.0] }
+    }
+    max_retries: {
+      type: int,
+      default_value: 4,
+      description: "同一目标派发拒绝的冷却重试次数（不记账、不推进感知计划）；耗尽才按不可达记账跳过。",
+      validation: { gt_eq<>: [0] }
+    }
+    max_consecutive_rejections: {
+      type: int,
+      default_value: 6,
+      description: "连续拒绝熔断上限：跨目标累计（goal 接受即清零）达到本次数认定能力端故障，进入待恢复等人工确认。",
+      validation: { gt_eq<>: [1] }
+    }
+  advance:
+    retry_delay_s: {
+      type: double,
+      default_value: 1.0,
+      description: "感知推进（complete_selected_target）失败后的重试冷却（秒）。协议 2.6 T(advance_retry)=1s：服务不可用/超时/被拒均按失败计，冷却后由 refresh 重发。",
+      validation: { gt_eq<>: [0.0] }
+    }
+    max_retries: {
+      type: int,
+      default_value: 5,
+      description: "感知推进连续失败熔断上限（次，钳 ≥1）：达到后 require_recovery（感知推进持续失败），协议 2.6 不变式——记账与推进要么都完成、要么进 RECOVERY_REQUIRED，不存在悬挂态。",
+      validation: { gt_eq<>: [1] }
+    }
+    timeout_s: {
+      type: double,
+      default_value: 2.0,
+      description: "单次 complete_selected_target 调用超时（秒）。协议 2.6 T(advance_rpc)=2s；超时按失败计入重试。",
+      validation: { gt<>: [0.0] }
+    }
+  target_cycle_action_name: {
+    type: string,
+    default_value: "/peach_approach_grasp_node/run_target_cycle",
+    description: "单目标周期 action 全网名（跨包接口）。"
+  }
+  approach_node_name: {
+    type: string,
+    default_value: "/peach_approach_grasp_node",
+    description: "靠近抓取节点全网名（策略两阶段提交的参数下发目标）。"
+  }
+  complete_target_service_name: {
+    type: string,
+    default_value: "/peach_pose_node/complete_selected_target",
+    description: "感知固定优先级计划推进服务全网名。"
+  }
+  reset_targets_service_name: {
+    type: string,
+    default_value: "/peach_pose_node/reset_global_targets",
+    description: "感知收齐锁定重置服务全网名（拍照前置第二步）。"
+  }
+  clear_memory_service_name: {
+    type: string,
+    default_value: "/peach_pose_node/clear_target_memory",
+    description: "感知目标身份记忆清空服务全网名（harvest.fresh_scene=true 时拍照前置在重置收齐之前调用）。"
+  }
+  reopen_target_service_name: {
+    type: string,
+    default_value: "/peach_pose_node/reopen_target",
+    description: "感知重开已终局目标服务全网名（E3 残局抬质量：OBSERVE_ONLY 派发前调用，目标恢复可选使重建绑定精化；终局后正常链按新 selected 以 FULL 重试；显式批次不调）。"
+  }
+  photo_pose_service_name: {
+    type: string,
+    default_value: "/peach_approach_grasp_node/go_to_photo_pose",
+    description: "拍照位姿移动服务全网名（拍照前置第一步）。"
+  }
+  topics:
+    target_observations: {
+      type: string,
+      default_value: "/peach/perception/target_observations",
+      description: "感知目标观测流：锁定沿/选中目标/目标数（perception 就绪路与派发输入）。"
+    }
+    reconstruction_status: {
+      type: string,
+      default_value: "/peach/reconstruction/diagnostics",
+      description: "重建类型化诊断（transient_local）：reconstruction 就绪路只看新鲜度（1Hz 活性心跳）。"
+    }
+    robot_status: {
+      type: string,
+      default_value: "/aubo_io_controller/robot_status",
+      description: "机械臂状态：motion 就绪路的急停/故障/上电/可运动判读。"
+    }

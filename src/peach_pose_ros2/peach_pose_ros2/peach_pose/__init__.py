@@ -3,7 +3,9 @@ PeachPose 桃姿 — 桃树果实 RGB-D 位姿感知算法包（在线算法核�
 
 职责: 将 RGB-D 观测转为 2D/3D 桃子袋体抓取位姿；本包为纯算法核心，
 不 import rclpy，ROS 面见上层 ``peach_pose_node.py`` 及同层模块
-（tf_utils / conversions / visualization / cloud_utils）。
+（grasp_tf / conversions / visualization / cloud_utils）。通用纯核
+原语（TF 变换、深度归一化、有界 worker、采摘数据、帧率/超时、注册表）
+在 ``peach_core`` 包（A3 起单份事实源）。
 
 收敛后的唯一感知路线:
   RGB-D → YOLO 检测 → MobileSAM 分割 → SAM掩膜 ∩ 膨胀深度连通域 (hybrid_dilated)
@@ -17,12 +19,23 @@ PeachPose 桃姿 — 桃树果实 RGB-D 位姿感知算法包（在线算法核�
 
 在线算法模块:
   contracts.py     — 数据合约 (BagObservation, BagGrasp2D, BagGraspReference3D, ToolGeometry)
-  inference.py     — InferenceEngine: YOLO + SAM 懒加载，CUDA 调用线程安全
+  interfaces.py    — 接口层 ABC 与实现注册表（2.14；Detector/Segmenter/
+                     PosePipeline/TargetMatcher/LockPolicy + Registry）
+  impls.py         — 默认实现的显式注册清单（yolo/mobile_sam/robust_bag/
+                     robust_fruit/spatial_ema/collect_lock）
+  inference.py     — UltralyticsYolo/MobileSam（懒加载，CUDA 线程安全）
+                     + InferenceEngine 组合调用端
   candidates.py    — CandidateEstimator: 收敛前景模式的统一入口
   pipeline.py      — 单目标实测深度几何与工具安全门控
   fitting.py       — 法线估计 / 球 RANSAC / 圆柱 RANSAC 拟合原语
-  depth_geometry.py — 深度图归一化（uint16 比例因子 / 32FC1 米制 → uint16 毫米）
-  target_registry.py — TargetRegistry: 世界系目标身份记忆（跨帧稳定 target_id）
+  target_registry.py — SpatialEmaMatcher（匹配段）+ TargetRegistry（世界系
+                     目标身份记忆，跨帧稳定 target_id；摆动检测/墙钟淘汰）
+  harvest_plan.py  — CollectLockPolicy（收齐窗口判定）+ GlobalHarvestPlan
+                     （锁定记账与多维优先级；锚点新鲜度衰减/移除入口）
+  observation_quality.py — 跟踪状态四分类（OCCLUDED/OUT_OF_VIEW/
+                     DEPTH_VOID/LOST）+ 光照质量 EMA 统计（阶段 D1）
+  segmentation_gate.py — 锁定后 selected-only SAM 门控（阶段 H，协议
+                     2.13-E1：锚点反投影识别锁定框，纯函数策略）
 
 offline/ 子包（离线数据集评估/回放工具，不参与在线管线）:
   offline/e2e_validate.py — 批量端到端验证 CLI 与 JSON/Markdown 报告

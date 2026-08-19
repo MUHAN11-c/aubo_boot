@@ -4,8 +4,8 @@ offline 全局配置 — 相机内参、数据集路径与可视化参数.
 职责: 集中存放离线评估工具共用的常量，避免 magic number 散落各处。
 
 在管线中的位置:
-  支撑/离线 — 不参与算法推理与在线管线，为 pinhole 反投影、YOLO 类别色、
-  3D 标记色提供单一配置源。
+  支撑/离线 — 不参与算法推理与在线管线，为 pinhole 反投影提供单一
+  配置源。
 
 核心理论要点:
   - 本工作区默认内参一律本机 Percipio（color_camera_info.yaml 棋盘标定）
@@ -14,7 +14,7 @@ offline 全局配置 — 相机内参、数据集路径与可视化参数.
   - 深度单位: 管线内部 uint16「毫米」/1000→米；Percipio 原始图需先 × DepthScaleUnit
 
 主要常量:
-  K / K_PERCIPIO, K_AZURE, DATASET_DIR, YOLO_MODEL, KEYPOINT_COLORS, TOOL_GEOMETRY
+  K / K_PERCIPIO, K_AZURE, DATASET_DIR, YOLO_MODEL, TOOL_GEOMETRY
 """
 from pathlib import Path
 
@@ -46,13 +46,3 @@ DATASET_DIR = _PKG_ROOT / 'data' / 'dataset'
 YOLO_MODEL = _PKG_ROOT / 'model' / 'best.pt'
 MODEL_VERSION = (
     'yolo:6981750db67a726e|mobile_sam:6dbb90523a35330f')
-
-# ── 类别定义 (与 YOLO best.pt 训练标签一致) ──
-CLASS_COLORS = {0: (0, 220, 0), 1: (255, 200, 0)}  # OpenCV BGR: bag=绿, nobag=橙
-
-# ── 关键点可视化颜色 (2D BGR / 3D RGB 归一化 [0,1]) ──
-KEYPOINT_COLORS = {
-    'center':  {'label': '球心(参考)', 'bgr': (0, 230, 0),   'rgb3d': (0.0, 0.9, 0.0)},
-    'entry_start': {'label': '入口起点(TCP)', 'bgr': (0, 255, 255), 'rgb3d': (1.0, 1.0, 0.0)},
-    'cylinder':    {'label': '圆柱包络',      'bgr': (100, 100, 255), 'rgb3d': (0.5, 0.5, 0.5)},
-}

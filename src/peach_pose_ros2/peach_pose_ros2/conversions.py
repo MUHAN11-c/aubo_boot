@@ -20,7 +20,7 @@ from peach_pose_msgs.msg import (
     BagGrasp2D as BagGrasp2DMsg,
     BagGraspCandidate,
 )
-from peach_pose_ros2.tf_utils import _rotation_to_quat
+from peach_pose_ros2.grasp_tf import _rotation_to_quat
 from vision_msgs.msg import Detection2D, ObjectHypothesisWithPose
 
 # 三态安全门控结果 → ROS 消息枚举的映射（与 peach_pose_msgs/BagGraspCandidate.status 一致）。

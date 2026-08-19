@@ -12,7 +12,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from peach_reconstruction_ros2.tf_utils import relative_motion
+from peach_core.tf_utils import relative_motion
+from peach_reconstruction_ros2.interfaces import Refiner, REFINERS
 from peach_reconstruction_ros2.tsdf_volume import require_open3d
 
 
@@ -63,7 +64,7 @@ def _quality_ok(fitness: float, rmse: float, config: IcpConfig) -> bool:
     return fitness >= config.min_fitness and rmse <= config.max_rmse
 
 
-class BoundedIcp:
+class BoundedIcp(Refiner):
     """Open3D 鲁棒点到平面 ICP；机器人 FK 是绝对位姿，ICP 只做小修正."""
 
     def __init__(self, config: IcpConfig):
@@ -171,5 +172,6 @@ class BoundedIcp:
             float(final.inlier_rmse), translation, rotation, reason)
 
 
-# 显式注册表：编排层按名字选实现，避免在节点中写算法条件分支。
-POSE_REFINERS = {'open3d_bounded': BoundedIcp}
+# 显式注册清单（2.14）：注册名 'bounded_icp'，yaml refiner.impl 默认值；
+# 编排层按名 create（kwargs 透传构造），不写算法条件分支。
+REFINERS.register('bounded_icp', BoundedIcp)

@@ -3,7 +3,7 @@
 
 单位约定:
   - 深度图为 uint16「毫米」[mm]（上游经
-    peach_pose_ros2.peach_pose.depth_geometry.normalize_depth_to_uint16_mm
+    peach_core.depth_geometry.normalize_depth_to_uint16_mm
     归一化）；0 与饱和值 65535 一律视为无效深度；
   - 点云坐标一律「米」[m]；颜色为 uint8 BGR（OpenCV 惯例），发布侧经
     pack_rgb_bgr 打包成 float32 位模式的 ``rgb`` 字段（RViz RGB8 约定）；
@@ -33,13 +33,14 @@
 
 分层契约：build_cloud_base 是模块级 workhorse 函数（单测直接锚定）；
 Open3dCloudBuilder 是其实现 interfaces.CloudBuilder 的薄壳（编排层按
-注册表 CLOUD_BUILDERS 实例化，设计文档 §2.2）。
+interfaces.CLOUD_BUILDERS 注册表经 yaml cloud_builder.impl 装配，
+设计文档 §2.2 / 协议 2.14）。
 """
 from __future__ import annotations
 
 import numpy as np
 
-from peach_reconstruction_ros2.interfaces import CloudBuilder
+from peach_reconstruction_ros2.interfaces import CLOUD_BUILDERS, CloudBuilder
 from peach_reconstruction_ros2.tsdf_volume import require_open3d
 
 DEPTH_SATURATED_MM = 65535  # uint16 饱和值 [mm]，视为无效深度
@@ -315,5 +316,5 @@ class Open3dCloudBuilder(CloudBuilder):
                                 target_mask=target_mask)
 
 
-# 实现注册表（显式字典，yolo_ros 先例；编排层按名实例化）
-CLOUD_BUILDERS = {'open3d': Open3dCloudBuilder}
+# 显式注册清单（2.14）：注册名 'open3d_cloud'，yaml cloud_builder.impl 默认值
+CLOUD_BUILDERS.register('open3d_cloud', Open3dCloudBuilder)

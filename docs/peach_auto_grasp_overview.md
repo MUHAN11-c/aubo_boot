@@ -218,7 +218,6 @@ outcomes[]`；状态话题的 progress = attempted / discovered（超界钳到 1
 | `ENTER/EXIT_MAINTENANCE` | 释放/收回自动所有权；退出维护保持暂停 |
 | `CANCEL_NOW` | 清活动目标、进 INTERRUPTED 转 PAUSED；节点层**真取消**活动 goal（非仅置标志） |
 | `SKIP_TARGET` | 仅活动目标时接受：登记跳过意图并取消当前 goal；落地后记 CANCELED 并推进 |
-| `RETRY_TARGET` | 预留（重试由复扫轮次承担），当前恒拒 |
 | `ACKNOWLEDGE_RECOVERY` | 现场人工确认已安全撤离后解除 recovery 锁定，保持 PAUSED |
 
 三级策略（`set_operation_policy`）：依赖固定
@@ -536,7 +535,7 @@ SKIPPED_UNREACHABLE；finalize 后最终质量门失败 → SKIPPED_QUALITY；�
 
 | 接口 | 类型 | 用途 |
 |---|---|---|
-| `~/run_target_cycle` | RunTargetCycle action | 单目标周期（mode：PREVIEW=0 / OBSERVE_ONLY=1 / FULL=2；OBSERVE_ONLY 恒拒；goal 目标须等于当前缓存 selected） |
+| `~/run_target_cycle` | RunTargetCycle action | 单目标周期（mode：PREVIEW=0 / OBSERVE_ONLY=1 / FULL=2；OBSERVE_ONLY 只走观察+精化验证段后落 PLAN_READY 报 SUCCEEDED；goal 目标须等于当前缓存 selected） |
 | `~/start_cycle` / `~/cancel_cycle` | Trigger | 手动启动（需单独 arm）/取消周期 |
 | `~/set_execution_armed` | SetBool | 一次性人工 arm |
 | `~/acknowledge_recovery` | Trigger | 确认人工撤离（不发运动） |
@@ -631,6 +630,8 @@ sequenceDiagram
 | 重建 `capture.min_mask_pixels / min_mask_depth_ratio / max_target_drift_m` | 300 / 0.35 / 0.04 | 掩膜质量门 |
 | 重建 `view_filter.min/max_translation / min/max_rotation_deg` | 0.002/0.080 m / 1°/25° | 视角过滤（重复/跳变） |
 | 重建 `icp.max_translation / max_rotation_deg / min_fitness / max_rmse` | 0.010 / 3° / 0.35 / 0.008 | 有界 ICP |
+| 重建 `icp.target_refresh_min/max_period / drift_ratio` | 1 / 5 帧 / 0.5 | E4 ICP target 增量复用 |
+| 重建 `publish.on_change_only / min_interval_s` | true / 0.2 s | E4 点云/Marker 发布节流 |
 | 重建 `tsdf.voxel_length / sdf_trunc / depth_trunc` | 0.003 / 0.012 / 1.5 | 在线 TSDF |
 | 重建 `refit.cylinder_inlier_min / rmse_max_m / entry_standoff_m` | 0.35 / 0.005 / 0.070 | refit ACCEPT 门 |
 | 编排 `auto_start_enabled / execution_enabled / grasp_enabled / tool_enabled` | true / false / false / false | 自动开始 + 三级策略 |

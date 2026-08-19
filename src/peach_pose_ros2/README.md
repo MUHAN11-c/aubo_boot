@@ -121,7 +121,9 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim camera_enabled:
 | `sync_slop_s` | 0.05 | RGB-D 近似同步允差 (s)；时间戳偏差超 80% 允差时 WARN 节流提示 |
 | `min_detection_conf` / `yolo_conf` | 0.3 / 0.3 | 入管线置信度下限 / YOLO 推理阈值 |
 | `detection_dedup_ios` | 0.6 | 重叠检测框去重：IoS（交集/较小框面积）≥ 本值判同一目标，保留大框（跨类生效）；≥1.0 关闭 |
-| `publish_debug_image` / `publish_masks` / `publish_detection_cloud` | true | 输出开关 |
+| `publish_debug_image` | false | debug 叠加图开关；阶段 H（2.13）起生产档默认关——关闭时零序列化零发布，现场调图显式置 true |
+| `publish_masks` / `publish_detection_cloud` | true | 掩膜画布 / 检测框点云输出开关 |
+| `pipeline.locked_only_segmentation` | true | 阶段 H（2.13-E1）：锁定后 SAM 只对锁定集目标的检测框推理（记忆锚点经 TF 反投影识别锁定框；锁定前/开关关/TF 不可用帧全量）；segment_ms 分项 EMA 随之回落 |
 | `detection_cloud_stride` | 2 | 检测框点云降采样步长（>1 减轻 RViz 负载） |
 | `yolo_model_path` / `sam_model_path` | "" | 空串 = 包内 model/best.pt、model/mobile_sam.pt |
 | `model_version` / `calibration_version` | 见 yaml | 随结果发布的模型/内外参版本标识（可追溯） |
@@ -337,26 +339,20 @@ launch 无任何解释器参数，标准 `Node()` 启动。
 | sub | `/camera/color/image_raw` | `sensor_msgs/Image` bgr8 |
 | sub | `/camera/depth/image_raw` | `sensor_msgs/Image` 16UC1 mm（须 registration） |
 | sub | `/camera/color/camera_info` | `sensor_msgs/CameraInfo` |
-| pub | `/peach_pose_node/grasp_candidates` | `peach_pose_msgs/BagGraspCandidateArray` |
-| pub | `/peach_pose_node/grasp_candidates_2d` | `peach_pose_msgs/BagGrasp2DArray` |
-| pub | `/peach_pose_node/fitting` | `peach_pose_msgs/BagFittingArray` |
-| pub | `/peach_pose_node/detections` | `vision_msgs/Detection2DArray` |
-| pub | `/peach_pose_node/masks` | `sensor_msgs/Image` mono8 |
-| pub | `/peach_pose_node/markers` | `visualization_msgs/MarkerArray` |
-| pub | `/peach_pose_node/debug_image` | `sensor_msgs/Image` bgr8 |
-| pub | `/peach_pose_node/detection_cloud` | `sensor_msgs/PointCloud2` xyz+rgb（检测框内深度反投影） |
-| pub | `/peach/perception/initial_pose` | `peach_pose_msgs/BagGraspCandidateArray`（同 ~/grasp_candidates） |
+| pub | `/peach/perception/initial_pose` | `peach_pose_msgs/BagGraspCandidateArray`（3D 抓取参考候选，主输出） |
 | pub | `/peach/perception/axis` | `geometry_msgs/Vector3Stamped`（最优候选平移方向，ACCEPT 优先；无候选不发布） |
-| pub | `/peach/perception/single_cloud` | `sensor_msgs/PointCloud2`（同 ~/detection_cloud） |
-| pub | `/peach/perception/detections` | `vision_msgs/Detection2DArray`（同 ~/detections） |
-| pub | `/peach/perception/masks` | `sensor_msgs/Image` mono8（同 ~/masks） |
-| pub | `/peach/perception/diagnostics` | `peach_pose_msgs/BagFittingArray`（同 ~/fitting） |
-| pub | `/peach/perception/markers` | `visualization_msgs/MarkerArray`（同 ~/markers） |
-| pub | `/peach/perception/target_observations` | `peach_pose_msgs/PeachTargetObservationArray`（稳定 ID、计划、逐目标结果与深度时间戳掩膜） |
-| pub | `/peach/perception/harvest_state` | `std_msgs/String`（JSON，全局计划快照，transient-local） |
+| pub | `/peach/perception/single_cloud` | `sensor_msgs/PointCloud2` xyz+rgb（检测框内深度反投影） |
+| pub | `/peach/perception/detections` | `vision_msgs/Detection2DArray` |
+| pub | `/peach/perception/masks` | `sensor_msgs/Image` mono8 |
+| pub | `/peach/perception/diagnostics` | `peach_pose_msgs/BagFittingArray`（拟合诊断指标） |
+| pub | `/peach/perception/markers` | `visualization_msgs/MarkerArray` |
+| pub | `/peach/perception/debug_image` | `sensor_msgs/Image` bgr8（debug 叠加图） |
+| pub | `/peach/perception/target_observations` | `peach_pose_msgs/PeachTargetObservationArray`（稳定 ID、计划、逐目标结果与深度时间戳掩膜；`collecting_count`/`pending_count` 发现进度摘要——锁定前 observations 恒空，进度看这两字段） |
+| pub | `/peach/perception/harvest_state` | `std_msgs/String`（JSON，全局计划快照，transient-local；含同名 `collecting_count`/`pending_count` 键与 `timing` 子对象——detect/segment/geometry/total 各段耗时 EMA 毫秒 + 实测 fps） |
 
-`/peach/perception/*` 为规范化话题，与对应 `~/` 话题并行发布**同一消息对象**，
-供下游按固定命名订阅。frame_id 约定：三维结果（候选/拟合/Marker/检测点云）为
+发布面为 `/peach/perception/*` 单套规范话题（A5 起旧 `~/` 组已删除；2D 候选
+不再单独成话题，随 `target_observations` 的 `candidate_2d` 字段下发）。
+frame_id 约定：三维结果（候选/拟合/Marker/检测点云）为
 `output_frame`（TF 失败的帧退回相机系并打 `tf_unavailable`）；图像平面数据
 （2D 候选/detections/整幅 masks/debug_image）使用图像坐标语义。三维结果的
 header.stamp 与 TF 查询统一使用 `depth.header.stamp`；普通图像平面调试结果保持

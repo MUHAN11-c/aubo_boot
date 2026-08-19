@@ -66,6 +66,10 @@ void TargetCache::updateSelectedTarget(const SelectedTargetUpdate & update)
   }
   target_.id = update.selected_id;
   target_.harvest_run_id = update.harvest_run_id;
+  // 诊断透传每帧都刷新（含非观测帧）：再确认段摆动判定与失败原因文案以
+  // 最近一帧为准；received_s 仍只在有效观测帧刷新（见下）。
+  target_.swinging = update.swinging;
+  target_.tracking_status = update.tracking_status;
   const bool has_anchor = nonzeroFinite(update.bottom) && nonzeroFinite(update.neck) &&
     nonzeroFinite(update.axis);
   if (has_anchor) {
@@ -84,6 +88,56 @@ void TargetCache::updateSelectedTarget(const SelectedTargetUpdate & update)
     target_.received_s = clock_s_();
   }
   quality_.selected_target_id = target_.id;
+  cv_.notify_all();
+}
+
+void TargetCache::updateLockedTargets(
+  bool target_set_locked, const std::string & harvest_run_id,
+  const std::vector<LockedTargetUpdate> & updates)
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!target_set_locked) {
+    // 未锁定帧 observations 恒空（感知锁定前只发收齐摘要），锁定集缓存无
+    // 意义：清空并复位批次记钥，下次锁定按新集合整体重建。
+    if (!locked_targets_.empty() || !locked_run_id_.empty()) {
+      locked_targets_.clear();
+      locked_run_id_.clear();
+      cv_.notify_all();
+    }
+    return;
+  }
+  if (locked_run_id_ != harvest_run_id) {
+    // 批次切换：跨批次身份不复用（run_id 是感知身份记忆的生命期边界），
+    // 旧批次锚点全部作废后按新批次重建。
+    locked_targets_.clear();
+    locked_run_id_ = harvest_run_id;
+  }
+  for (const auto & update : updates) {
+    if (update.target_id.empty()) {
+      continue;
+    }
+    CachedTarget & entry = locked_targets_[update.target_id];
+    entry.id = update.target_id;
+    entry.harvest_run_id = harvest_run_id;
+    // 诊断透传每帧刷新（含非观测帧，与 selected 缓存同语义）：残局目标的
+    // 摆动旗标/跟踪状态是再确认段与失败原因文案的数据源。
+    entry.swinging = update.swinging;
+    entry.tracking_status = update.tracking_status;
+    const bool has_anchor = nonzeroFinite(update.bottom) &&
+      nonzeroFinite(update.neck) && nonzeroFinite(update.axis);
+    if (has_anchor) {
+      // 锚点几何即采用（含 LOST 帧的记忆锚点，理由同 updateSelectedTarget）；
+      // 观测新鲜度仍由 received_s 只在有效观测帧刷新来把关。
+      entry.center = 0.5 * (update.bottom + update.neck);
+      entry.initial_axis = update.axis.normalized();
+      entry.suggested_travel_m = update.suggested_travel_m;
+      entry.valid = true;
+    }
+    if (update.observed && has_anchor) {
+      entry.initial_pose = update.entry_pose;
+      entry.received_s = clock_s_();
+    }
+  }
   cv_.notify_all();
 }
 
@@ -172,6 +226,29 @@ std::optional<CachedTarget> TargetCache::targetSnapshot() const
   return target_;
 }
 
+std::optional<CachedTarget> TargetCache::lockedTargetSnapshot(
+  const std::string & target_id) const
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  const auto it = locked_targets_.find(target_id);
+  if (it == locked_targets_.end() || !it->second.valid) {
+    return std::nullopt;
+  }
+  return it->second;
+}
+
+TargetGateSample TargetCache::lockedTargetGateSample(
+  const std::string & target_id) const
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  const auto it = locked_targets_.find(target_id);
+  if (it == locked_targets_.end()) {
+    // 不在锁定集：空 ID 样本，SafetyGate::targetReady 按身份不匹配拒绝。
+    return TargetGateSample{};
+  }
+  return TargetGateSample{it->second.id, it->second.valid, it->second.received_s};
+}
+
 std::optional<CachedRefined> TargetCache::refinedSnapshot() const
 {
   std::lock_guard<std::mutex> lock(mutex_);
@@ -253,6 +330,21 @@ bool TargetCache::waitForFreshTarget(
     [this, after_s, &cancel]() {
       return cancel.load() ||
              (target_.valid && target_.received_s > after_s);
+    }) && !cancel.load();
+}
+
+bool TargetCache::waitForFreshLockedTarget(
+  const std::string & target_id, double after_s, double timeout_s,
+  const std::atomic_bool & cancel) const
+{
+  std::unique_lock<std::mutex> lock(mutex_);
+  return cv_.wait_for(
+    lock, std::chrono::duration<double>(timeout_s),
+    [this, &target_id, after_s, &cancel]() {
+      const auto it = locked_targets_.find(target_id);
+      return cancel.load() ||
+             (it != locked_targets_.end() && it->second.valid &&
+             it->second.received_s > after_s);
     }) && !cancel.load();
 }
 

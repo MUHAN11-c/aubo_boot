@@ -2,6 +2,7 @@
 """recorder 纯函数与 Recorder 落盘行为测试（零 ROS 依赖）."""
 
 import json
+import threading
 import time
 from types import SimpleNamespace
 
@@ -144,6 +145,21 @@ def test_build_target_rows_and_csv():
     assert rows[0]['duration_s'] == 5.5
     assert rows[1]['outcome'] == 'failed'
     assert 'p1,1,succeeded,抓取完成' in build_summary_csv(rows)
+
+
+def test_target_rows_distinguish_operator_skip():
+    """A13 拆分：操作员跳过（target_operator_skipped）独立于系统判定跳过."""
+    events = [
+        {'code': 'target_dispatched', 'stamp': 11.0, 'target_id': 'p1'},
+        {'code': 'target_operator_skipped', 'message': '操作员跳过当前目标',
+         'stamp': 13.0, 'target_id': 'p1'},
+        {'code': 'target_dispatched', 'stamp': 20.0, 'target_id': 'p2'},
+        {'code': 'target_skipped', 'message': '质量不达标', 'stamp': 25.0,
+         'target_id': 'p2'},
+    ]
+    rows = build_target_rows(events, {'p1': 1, 'p2': 2})
+    assert rows[0]['outcome'] == 'operator_skipped'
+    assert rows[1]['outcome'] == 'skipped'
 
 
 def test_phase_durations_per_cycle():
@@ -370,3 +386,81 @@ def test_recorder_disabled_is_noop(tmp_path):
     recorder.close()
     assert list(tmp_path.iterdir()) == []
     assert recorder.info() == {'enabled': False, 'directory': None}
+
+
+def test_recorder_async_write_does_not_block_caller(tmp_path, monkeypatch):
+    """写线程执行慢任务时，回调入口仍只入队即时返回（不阻塞采集主路径）."""
+    recorder = Recorder(
+        root_dir=tmp_path, enabled=True, save_images=False, save_clouds=True)
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_cloud(message, path):
+        started.set()
+        release.wait(5.0)
+
+    monkeypatch.setattr(recorder, '_write_cloud', slow_cloud)
+    recorder.handle_cloud(_fake_cloud(_POINTS))
+    # target 终局事件触发点云落盘任务，写线程随即卡在 slow_cloud 上
+    recorder.handle_event({'code': 'target_succeeded', 'stamp': 1.0,
+                           'run_id': 'r', 'target_id': 'p1'})
+    assert started.wait(2.0), '写线程应已开始执行慢任务'
+    begin = time.monotonic()
+    for index in range(500):
+        recorder.handle_metrics({'stamp': float(index), 'cpu_percent': 1.0})
+    elapsed = time.monotonic() - begin
+    release.set()
+    recorder.close()
+    assert elapsed < 0.5, f'回调入口被写盘阻塞: {elapsed:.3f}s'
+
+
+def test_recorder_write_failure_degrades_without_blocking(tmp_path):
+    """单批落盘失败只降级告警并丢弃该批，后续采集与落盘不受影响."""
+    warnings = []
+    recorder = Recorder(
+        root_dir=tmp_path, enabled=True, save_images=False, save_clouds=False,
+        log_warning=warnings.append)
+    recorder.handle_metrics({'stamp': 1.0, 'bad': object()})  # 不可序列化
+    time.sleep(0.6)  # 等写线程空闲 flush 尝试并失败
+    recorder.handle_metrics({'stamp': 2.0, 'cpu_percent': 3.0})
+    recorder.close()
+    assert any('落盘失败' in text for text in warnings)
+    idle_dirs = [p for p in tmp_path.iterdir() if p.name.startswith('idle_')]
+    lines = [line for folder in idle_dirs
+             if (folder / 'metrics.jsonl').exists()
+             for line in _jsonl(folder / 'metrics.jsonl')]
+    assert [item['stamp'] for item in lines] == [2.0]
+
+
+def test_recorder_close_drains_pending_writes(tmp_path):
+    """退出 drain：close() 排空队列与写缓冲（含跨批量阈值），记录不丢."""
+    recorder = Recorder(
+        root_dir=tmp_path, enabled=True, save_images=False, save_clouds=False)
+    total = 200  # 超过 _JSONL_BATCH_LINES=64，覆盖批量 flush + 退出 drain
+    for index in range(total):
+        recorder.handle_metrics({'stamp': float(index), 'cpu_percent': 1.0})
+    recorder.close()
+    idle_dirs = [p for p in tmp_path.iterdir() if p.name.startswith('idle_')]
+    lines = [line for folder in idle_dirs
+             for line in _jsonl(folder / 'metrics.jsonl')]
+    assert len(lines) == total
+
+
+def test_recorder_jsonl_visible_after_idle_flush(tmp_path):
+    """未达批量阈值的记录在队列空闲一个轮询周期后落盘（不等 close）."""
+    recorder = Recorder(
+        root_dir=tmp_path, enabled=True, save_images=False, save_clouds=False)
+    try:
+        recorder.handle_metrics({'stamp': 7.0, 'cpu_percent': 9.0})
+        deadline = time.monotonic() + 3.0
+        found = []
+        while time.monotonic() < deadline and not found:
+            idle_dirs = [p for p in tmp_path.iterdir()
+                         if p.name.startswith('idle_')]
+            found = [line for folder in idle_dirs
+                     if (folder / 'metrics.jsonl').exists()
+                     for line in _jsonl(folder / 'metrics.jsonl')]
+            time.sleep(0.05)
+        assert found and found[0]['stamp'] == 7.0
+    finally:
+        recorder.close()

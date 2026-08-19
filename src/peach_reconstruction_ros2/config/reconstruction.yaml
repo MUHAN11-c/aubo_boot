@@ -31,7 +31,20 @@ peach_reconstruction_node:
     capture.require_target_mask: true   # 只积分所选稳定 ID 的精确时刻掩膜
     capture.min_mask_pixels: 300        # 过小视为远距小目标或严重遮挡
     capture.min_mask_depth_ratio: 0.35  # 强光/反光造成深度空洞时跳帧
-    capture.max_target_drift_m: 0.04    # [m] 风吹目标漂移过大时跳帧
+    # [m] 风吹目标漂移过大时跳帧。室外风动场景建议档 0.06：风摆瞬时漂移常
+    # 短时超过 40mm 导致大面积跳帧、扫描停滞；调档依据是风动幅值实测（摆动
+    # 峰峰 5~6cm 仍在同一果实身份内，由同戳掩膜门兜底不误绑），0.06 在吸纳
+    # 正常风摆的同时仍能拦住跨目标误绑（配合下方邻目标间距门）。
+    capture.max_target_drift_m: 0.04
+    # [m] 绑定锚点与其他锁定目标锚点的最小间距（E2 邻目标串扰门）：当前帧
+    # 锁定集中存在比本值更近的其他目标锚点时拒帧，防邻近目标点云混入形成
+    # TSDF 不可回滚双层表面（I6）；≤0 关闭本门
+    capture.min_neighbor_gap_m: 0.15
+    # ── 目标绑定（E2 会话防抖）──────────────────────────────
+    # [s] selected 切换防抖：selected_target_id 变化（含变空）须持续超过本
+    # 时长才放弃进行中会话重绑，防感知 selected 瞬态抖动销毁会话；holdoff
+    # 内切回原 ID 取消挂起，旧会话继续采帧（同一果实的瞬态误切不浪费视角）
+    bind.switch_holdoff_s: 2.0
     # ── 视角过滤（本帧与上一已采帧的相对运动）─────────────────
     # 平移/旋转同时低于下限 = 重复视角；任一高于上限 = 跳变拒帧
     view_filter.min_translation: 0.002   # [m] 与旋转同时低于阈值则不重复积分
@@ -52,6 +65,17 @@ peach_reconstruction_node:
     icp.max_rmse: 0.008              # [m]
     icp.max_translation: 0.010       # [m]，超出说明不是“小修正”
     icp.max_rotation_deg: 3.0        # [deg]
+    # ── E4 ICP target 增量复用（协议 2.13-E4）──────────────────
+    # 两次全量 extract 之间复用「上次全量提取 + 其间已采帧修正后点云增量
+    # 拼接」做 ICP target；全量刷新周期 k 按下述参数自适应伸缩。正确性红线：
+    # 有界 ICP 越界拒绝语义不变，由 test_icp_refiner 一致性对照守门。
+    icp.target_refresh_min_period: 1   # [帧] k 下限；1=每帧全量提取（旧行为）
+    icp.target_refresh_max_period: 5   # [帧] k 上限（修正量长期稳定才拉长到此）
+    # 漂移判定比：修正量 EMA ≥ max_translation×本值（或出现 fk 回退/拒帧）
+    # → k 收回下限（漂移风险高，更快全量刷新）；EMA ≤ 1/4×该阈值 → k 拉长
+    # 到上限（稳定，省全量提取）；中间为迟滞保持带防抖。起步保守：新会话
+    # 无修正量证据前 k=下限（逐帧全量）
+    icp.target_refresh_drift_ratio: 0.5
     # ── 局部体素盒（TSDF 云 ROI 裁剪，中心=绑定候选/首帧云质心）──
     local_volume.size_x: 0.30  # [m]
     local_volume.size_y: 0.30  # [m]
@@ -71,6 +95,22 @@ peach_reconstruction_node:
     refit.cylinder_inlier_min: 0.35  # ACCEPT 门控：内点率下限（圆柱/球共用）
     refit.rmse_max_m: 0.005          # [m] ACCEPT 门控：拟合 RMSE 上限
     refit.entry_standoff_m: 0.070    # [m] entry_pose 自 bottom 沿 −axis 后撤量
+    # ── 发布节流（E4：on-change + 最小间隔）─────────────────────
+    # 点云/Marker 类大消息（local_cloud/tsdf_cloud/markers；单次 PointCloud2
+    # 可达数万点）仅内容版本变化且距上次实际发布超过最小间隔才真正组装发布。
+    # 三个话题均为 transient_local 闩锁（depth=1），零变化/间隔内抑制不丢
+    # RViz 显示；间隔内的变化不丢——下次发布触发时补发最新版本；产物清空
+    # （绑定切换/reset）强制立即透传同步 RViz。心跳/状态/诊断/refit 三件套
+    # 不经过本节流（就绪门/新鲜度门载体与闩锁覆盖语义不动）。
+    publish.on_change_only: true   # false=回退逐次全发旧行为
+    publish.min_interval_s: 0.2    # [s] 最小发布间隔；≤0 关闭间隔门
+    # ── 可替换实现装配（协议 2.14：ABC + Registry，按注册名选择实现）──
+    cloud_builder.impl: open3d_cloud      # 点云构建器（interfaces.CLOUD_BUILDERS）
+    refiner.impl: bounded_icp             # 帧到模型配准（interfaces.REFINERS）
+    volume.impl: local_tsdf               # 融合体积（interfaces.VOLUMES）
+    refitter.cylinder_impl: cylinder_refit  # 袋桃圆柱 refit（interfaces.REFITTERS）
+    refitter.sphere_impl: sphere_refit      # 裸桃球 refit（interfaces.REFITTERS）
+    mask_gate.impl: strict_mask_gate      # 目标掩膜门（interfaces.MASK_GATES）
     # ── session 落盘 ─────────────────────────────────────────
     # 空 = <工作区>/peach_sessions（按包 share 路径反推工作区根，不写死绝对路径）
     session.root_dir: ""

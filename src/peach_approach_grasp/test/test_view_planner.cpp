@@ -30,6 +30,7 @@
 
 #include <Eigen/Geometry>
 
+#include <algorithm>
 #include <vector>
 
 #include "peach_approach_grasp/view_planner.hpp"
@@ -89,6 +90,88 @@ TEST(ViewPlanner, CandidatesBelowTablePlaneAreFiltered)
     target, Eigen::Vector3d(0.40, 0.0, 0.25),
     std::vector<Eigen::Vector3d>{});
   EXPECT_LT(fewer.size(), candidates.size());
+}
+
+TEST(ViewPlanner, CandidatesInsideProtectedZoneAreFiltered)
+{
+  // 环境几何保护区（阶段 F1）：x>=0.1 的半空间盒应剔除 front 方向（+x）的
+  // 全部候选，盒外候选保留。
+  ViewPlannerConfig config;
+  config.observation_radius_m = 0.30;
+  config.minimum_radius_m = 0.25;
+  const Eigen::Vector3d target(0.0, 0.0, 0.20);
+  const Eigen::Vector3d camera(0.30, 0.0, 0.20);
+  ViewPlanner baseline(config);
+  const auto base_candidates = baseline.generate(target, camera, {});
+  ASSERT_FALSE(base_candidates.empty());
+  config.protected_zones =
+    parseProtectedZones({0.1, -1.0, -1.0, 5.0, 1.0, 1.0}).zones;
+  ViewPlanner filtered(config);
+  const auto remaining = filtered.generate(target, camera, {});
+  EXPECT_LT(remaining.size(), base_candidates.size());
+  for (const auto & candidate : remaining) {
+    EXPECT_LT(candidate.camera_pose.translation().x(), 0.1) << candidate.label;
+  }
+}
+
+TEST(ViewPlanner, CandidateOnZoneSurfaceIsFiltered)
+{
+  // 闭区间边界：盒 min 面恰好穿过已知候选（front 方向层 0 的 orbit_a0_e0_r0，
+  // 相机位置 = target + observation_radius*front = (0.30, 0, 0.20)）也必须
+  // 剔除——盒表面与盒内同等危险，边界不留缝隙。
+  ViewPlannerConfig config;
+  config.observation_radius_m = 0.30;
+  config.minimum_radius_m = 0.25;
+  const Eigen::Vector3d target(0.0, 0.0, 0.20);
+  const Eigen::Vector3d camera(0.30, 0.0, 0.20);
+  ViewPlanner baseline(config);
+  const auto base_candidates = baseline.generate(target, camera, {});
+  const auto has_front = [](const auto & candidates) {
+      return std::any_of(
+        candidates.begin(), candidates.end(),
+        [](const auto & c) {return c.label == "orbit_a0_e0_r0";});
+    };
+  ASSERT_TRUE(has_front(base_candidates));
+  // 小盒只罩住该候选（邻近候选 y/z 均越界，断言差值恒为 1）。
+  config.protected_zones =
+    parseProtectedZones({0.30, -0.01, 0.19, 0.31, 0.01, 0.21}).zones;
+  ViewPlanner filtered(config);
+  const auto remaining = filtered.generate(target, camera, {});
+  EXPECT_EQ(base_candidates.size() - remaining.size(), 1U);
+  EXPECT_FALSE(has_front(remaining));
+}
+
+TEST(ViewPlanner, DistantZoneKeepsAllCandidates)
+{
+  // 盒远离视点球面：剔除零个候选（语义等价于无保护区）。
+  ViewPlannerConfig config;
+  config.observation_radius_m = 0.30;
+  config.minimum_radius_m = 0.25;
+  const Eigen::Vector3d target(0.0, 0.0, 0.20);
+  const Eigen::Vector3d camera(0.30, 0.0, 0.20);
+  ViewPlanner baseline(config);
+  config.protected_zones =
+    parseProtectedZones({10.0, 10.0, 10.0, 11.0, 11.0, 11.0}).zones;
+  ViewPlanner zoned(config);
+  EXPECT_EQ(
+    zoned.generate(target, camera, {}).size(),
+    baseline.generate(target, camera, {}).size());
+}
+
+TEST(ViewPlanner, ZoneCoveringEverythingYieldsEmpty)
+{
+  // 保护区罩住全部候选：返回空列表（无可用视点），由 PrepareCycle 按
+  // “没有生成可用观察视点”失败——剔除语义与桌面平面过滤一致。
+  ViewPlannerConfig config;
+  config.observation_radius_m = 0.30;
+  config.minimum_radius_m = 0.25;
+  config.min_camera_height_m = -1.0;  // 关掉平面过滤，单独验证盒剔除
+  config.protected_zones =
+    parseProtectedZones({-10.0, -10.0, -10.0, 10.0, 10.0, 10.0}).zones;
+  ViewPlanner planner(config);
+  EXPECT_TRUE(planner.generate(
+      Eigen::Vector3d(0.0, 0.0, 0.20), Eigen::Vector3d(0.30, 0.0, 0.20),
+      {}).empty());
 }
 
 TEST(ViewPlanner, ToolZAxisFollowsApproachAxis)

@@ -113,6 +113,19 @@ std::vector<ViewCandidate> ViewPlanner::generate(
   const Eigen::Vector3d & current_camera_position,
   const std::vector<Eigen::Vector3d> & observed_directions) const
 {
+  ViewContext context;
+  context.target = target;
+  context.current_camera_position = current_camera_position;
+  context.observed_directions = observed_directions;
+  return generate(context);
+}
+
+std::vector<ViewCandidate> ViewPlanner::generate(const ViewContext & context) const
+{
+  const Eigen::Vector3d & target = context.target;
+  const Eigen::Vector3d & current_camera_position = context.current_camera_position;
+  const std::vector<Eigen::Vector3d> & observed_directions =
+    context.observed_directions;
   const Eigen::Vector3d front = safeUnit(
     current_camera_position - target, Eigen::Vector3d::UnitX());
   Eigen::Vector3d side = Eigen::Vector3d::UnitZ().cross(front);
@@ -161,6 +174,11 @@ std::vector<ViewCandidate> ViewPlanner::generate(
         const Eigen::Vector3d camera_position = target + radius * direction;
         // 桌面保护平面：低于 z 下限的视点规划必败，不生成（省时且防撞桌）。
         if (camera_position.z() < config_.min_camera_height_m) {
+          continue;
+        }
+        // 环境几何保护区（阶段 F1）：相机位置落入任一保护盒（闭区间，含盒
+        // 表面）的候选不生成——盒内视点必然碰撞，同平面过滤一样省时且防撞。
+        if (protectedZoneHit(camera_position, config_.protected_zones)) {
           continue;
         }
 

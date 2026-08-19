@@ -83,12 +83,12 @@ INTERRUPTED 转暂停。接触段 `recovery_required` 不进账，批次停等�
 | `~/control` | `ControlHarvest` | 暂停/恢复/维护/立即取消/跳过/恢复确认（幂等 request_id + revision 乐观锁） |
 | `~/set_operation_policy` | `SetOperationPolicy` | 原子三级使能（两阶段提交） |
 
-订阅（3 个话题名硬编码，暂不可参数重配）：
+订阅（话题名由 `topics.*` 参数重配，默认值即下表现值）：
 
 | 话题 | 类型 | 用途 |
 |---|---|---|
 | `/peach/perception/target_observations` | `PeachTargetObservationArray` | 锁定沿/选中目标/目标数（发现数累计） |
-| `/peach/reconstruction/diagnostics` | `std_msgs/String` | 重建就绪路新鲜度 |
+| `/peach/reconstruction/diagnostics` | `peach_harvest_msgs/ReconstructionStatus` | 重建就绪路新鲜度 |
 | `/aubo_io_controller/robot_status` | `aubo_msgs/RobotStatus` | motion 就绪路（急停/故障/上电/可运动） |
 
 下游依赖（5 个接口名由参数重配，默认值见参数表）：
@@ -110,7 +110,7 @@ INTERRUPTED 转暂停。接触段 `recovery_required` 不进账，批次停等�
 | `auto_start_enabled` | `true` | 四路全就绪后自动进入 DISCOVERY |
 | `execution_enabled` / `grasp_enabled` / `tool_enabled` | `false` | 三级操作策略初始值（交付默认全关） |
 | `readiness.web` | `true` | Web 就绪门（静态开关） |
-| `readiness.timeout_s` | `2.0` | 四路输入新鲜度超时（s） |
+| `readiness.timeout_s` | `2.0` | 四路输入新鲜度配置下限（s）；运行期阈值自适应 max(本值, 2.5×实测发布周期EMA)（2.11） |
 | `readiness.require_robot_status` | `true` | motion 路是否要求 RobotStatus 正常 |
 | `global_photo_joints` | 见 YAML | 拍照位姿关节角存档（仅对照；实际移动走 SRDF 命名状态 `global_photo_pose`） |
 | `photo_pose.enabled` | `true` | 拍照前置开关；execution 关时自动跳过移动 |
@@ -118,8 +118,13 @@ INTERRUPTED 转暂停。接触段 `recovery_required` 不进账，批次停等�
 | `photo_pose.retry_cooldown_s` | `5.0` | 拍照前置失败重试冷却（s） |
 | `photo_pose.service_timeout_s` | `90.0` | 单次 go_to_photo_pose / reset_global_targets 调用超时（s） |
 | `photo_pose.return_on_complete` | `true` | 批次完成后 best-effort 再回一次拍照位姿（仅记事件） |
+| `harvest.preflight_check` | `true` | 批次启动就位自校（F3）：首轮进入拍照前置前检查 TF 外参链（base_link→camera_link）可查 + robot_status 已收且无故障；未通过挂起拍照前置、发 ERROR、state blockers 计 `preflight`，refresh 每拍幂等重试不熔断，就位后自动放行；复扫轮次不重复；`false` 整体跳过 |
 | `harvest.rescan_until_empty` | `true` | 复扫递减集循环开关 |
 | `harvest.max_rounds` | `3` | 总轮次上限（round 从 1 起计，含首轮） |
+| `harvest.stall_timeout_s` | `30.0` | 无可选目标停滞上限（s）：超限本轮提前收口并复扫重新观测 |
+| `harvest.collect_timeout_s` | `40.0` | 收齐窗口编排侧总超时配置下限（s，2.3 监督）：超时发 round_stall 并按本轮处理完重判轮次；运行期上限自适应 max(本值, 1.5×实测上次窗口时长) |
+| `harvest.observe_retry_enabled` | `true` | 残局抬质量开关（2.8/E3）：每轮派发耗尽后、RESCAN 前对 SKIPPED_QUALITY 残局目标按优先级发 OBSERVE_ONLY 周期抬质量；抬质量期间不算停滞 |
+| `harvest.observe_retry_max` | `2` | 每目标每批次抬质量次数上限（派发时消耗，拒绝/取消不归还；每轮每目标至多一次） |
 | `dispatch.retry_delay_s` | `2.0` | goal 被能力端拒绝后的冷却重试间隔（s），须 ≥ 感知帧周期 |
 | `dispatch.max_retries` | `4` | 同一目标拒绝重试上限，耗尽按 SKIPPED_UNREACHABLE 记账跳过 |
 | `dispatch.max_consecutive_rejections` | `6` | 跨目标连续拒绝熔断上限（接受即清零），达到即进 RECOVERY_REQUIRED |
@@ -128,12 +133,17 @@ INTERRUPTED 转暂停。接触段 `recovery_required` 不进账，批次停等�
 | `complete_target_service_name` | `/peach_pose_node/complete_selected_target` | 感知计划推进服务名 |
 | `reset_targets_service_name` | `/peach_pose_node/reset_global_targets` | 感知重置服务名 |
 | `photo_pose_service_name` | `/peach_approach_grasp_node/go_to_photo_pose` | 拍照位姿服务名 |
+| `topics.target_observations` | `/peach/perception/target_observations` | 感知目标观测流话题（perception 就绪路与派发输入） |
+| `topics.reconstruction_status` | `/peach/reconstruction/diagnostics` | 重建类型化诊断话题（reconstruction 就绪路新鲜度） |
+| `topics.robot_status` | `/aubo_io_controller/robot_status` | 机械臂状态话题（motion 就绪路判读） |
 
 ## 与批次流程的关系
 
 - **就绪门**：perception 只看观测流新鲜（不要求已锁定，收齐窗口期不卡回
   WAITING_READY）；reconstruction 看诊断流新鲜；motion = action server 在线 +
-  RobotStatus 正常；web 为静态开关。推算在纯核 `ReadinessTracker` 完成。
+  RobotStatus 正常；web 为静态开关。推算在纯核 `ReadinessTracker` 完成；
+  fresh 阈值为 2.11 自适应 max(`readiness.timeout_s` 下限, 2.5×实测发布周期EMA)
+  （`PeriodEstimator` 在订阅回调记录到达间隔；节点真死时超 2.5×EMA 判失连）。
 - **拍照前置**（节点侧 PhotoStep：`NOT_STARTED → MOVE_PENDING → MOVING →
   RESET_PENDING → RESETTING → DONE`）：两步均为异步 Trigger，future 由 500ms 定时器
   轮询，锁内绝不阻塞等 RPC；失败冷却重试，连续超限进 RECOVERY_REQUIRED。首轮且无需
@@ -144,6 +154,10 @@ INTERRUPTED 转暂停。接触段 `recovery_required` 不进账，批次停等�
   `complete_selected_target` 推进感知；只有 `recovery_required` 中断批次等人工。
 - **复扫**：本轮锁定集合耗尽后 `decide_round` 纯函数判定——摘到目标且未达
   `max_rounds` 回拍照位姿新一轮；锁定空集/达上限/复扫关闭则 `complete_batch`。
+  RESCAN 判定前先做**残局抬质量**（2.8/E3，`harvest.observe_retry_*`）：对锁定集中
+  最新终局账为 SKIPPED_QUALITY 的目标按优先级逐个发 OBSERVE_ONLY 周期（只观察+
+  精化验证不抓取，只进审计账不动 counters），抬质量成功目标重新可选后回正常链
+  FULL 重试；候选耗尽仍无可选目标才启动停滞计时与轮次判定。
 - **结账**：`RunHarvest` 在 COMPLETED succeed、recovery abort、客户端取消级联取消
   活动目标 goal 后 canceled，三路径均携带 `HarvestSummary`（计数 + 逐目标 outcomes）。
 - **RunHarvest 取消 ≠ 批次停止**：取消 action 只停其执行线程（goal 以 canceled
@@ -163,3 +177,49 @@ INTERRUPTED 转暂停。接触段 `recovery_required` 不进账，批次停等�
 
 并发约定：互斥锁内只改状态、绝不阻塞等 RPC；action 结果回调锁内路由、锁外推进
 感知；策略两阶段提交不持锁跨 RPC；RunHarvest 执行线程随 deactivate/析构 join。
+
+## 附录 A：事件码表（A13 审计，2026-08-18）
+
+`~/events`（HarvestEvent，QoS depth=50 RELIABLE）一名一义约定如下。
+消费方：peach_perception_web 事件时间线/记录器（`TERMINAL_TARGET_CODES` 驱动
+逐目标 outcome 表与点云保存；`IMAGE_EVENT_CODES` 关联调试图）。
+
+| 码 | 语义 | 严重度 | 消费方不变量 |
+|---|---|---|---|
+| `orchestrator_activated` | lifecycle 激活完成 | INFO | 每次 activate 恰好一次 |
+| `round_locked` | 第 N 轮感知目标集收齐锁定 | INFO | 关联调试图；之后才有 `round_started` |
+| `round_started` | 第 N 轮开始（拍照前置完成/按策略跳过） | INFO | 每轮恰好一次，轮次单调递增 |
+| `round_stall` | 本轮提前收口：无可选目标停滞超时，或收齐窗口超 `harvest.collect_timeout_s` 未锁定（2.3 监督） | WARNING | 随后必出 `round_completed` 或批次终局事件 |
+| `round_completed` | 本轮锁定集耗尽，进入复扫 | INFO | 后续必接下一轮 `round_started` |
+| `photo_step_retry` | 拍照前置失败冷却重试 | WARNING | 不记账；重试计数 ≤ `photo_pose.max_retries` |
+| `photo_pose_reached` | 已到全局拍照位姿 | INFO | 关联调试图；随后必接感知重置 |
+| `photo_pose_returned` / `photo_pose_return_failed` | 批次完成后回拍照位姿（best-effort） | INFO/WARNING | 仅记录，不影响批次结论 |
+| `target_dispatched` | RunTargetCycle goal 已派发 | INFO | `cycle_id`+`target_id` 非空；recorder 以此记派发时刻 |
+| `target_dispatch_retry` | goal 被拒，冷却后将重派同一目标 | INFO | 不记账、不推进计划 |
+| `target_rejected` | 能力端拒绝：重试耗尽按不可达跳过（WARNING）/ 连续拒绝熔断（ERROR） | WARNING/ERROR | 前者记账 SKIPPED_UNREACHABLE；后者批次进 RECOVERY_REQUIRED |
+| `target_succeeded` | 目标周期成功 | INFO | 已记账 SUCCEEDED 并推进计划 |
+| `target_skipped` | 系统判定跳过（SKIPPED_QUALITY / SKIPPED_UNREACHABLE / 显式目标不在锁定集） | AUDIT/WARNING | 已记账并推进计划；outcome=skipped |
+| `target_operator_skipped` | 操作员 SKIP_TARGET 主动跳过（A13 自 `target_skipped` 拆出） | AUDIT | 记账 CANCELED 并推进计划；outcome=operator_skipped |
+| `target_canceled` | 周期被取消（暂停/CANCEL_NOW 路径） | WARNING | 不记账；落安全检查点，恢复后可重派 |
+| `target_failed` | 目标周期失败 | ERROR | `recovery_required` 时批次进 RECOVERY_REQUIRED |
+| `recovery_required` | 拍照前置连续失败，批次待人工确认 | ERROR | batch_state=RECOVERY_REQUIRED |
+| `batch_completed` | 批次完成 | INFO | batch_state=COMPLETED；单点发送（RunHarvest 在线时随终局结果发）；message 附吞吐（目标/小时，2.13-E5，含显式清单批次） |
+| `batch_aborted` | 批次因恢复需求中止（RunHarvest abort） | ERROR | 携带 HarvestSummary |
+| `batch_canceled` | RunHarvest 被客户端取消 | WARNING | 只停执行线程，批次状态机不受影响 |
+| `control_accepted` | 控制命令受理（含 SKIP_TARGET/RESUME 等） | AUDIT | 幂等 `request_id` 可查结果 |
+| `policy_updated` | 三级操作策略更新生效 | AUDIT | execution→grasp→tool 依赖链已终审 |
+
+## 附录 B：配置边界审计（A12，2026-08-18）
+
+判据（2.14 配置边界三问）：键只承载「选实现 + 数值/名称/开关/阈值」为合格；
+承载多步状态转移或策略分支逻辑为违规（须回代码 + 单测）。
+
+| 文件 | 键数 | 合格 | 例外 |
+|---|---:|---:|---|
+| `config/orchestrator.yaml` | 27 | 27 | 无 |
+
+逐键结论：策略开关系列（`auto_start_enabled`、`*_enabled`）、就绪门
+（`readiness.*`）、拍照前置（`photo_pose.*`）、复扫（`harvest.*`）、派发
+重试/熔断（`dispatch.*`）均为状态机消费的开关/阈值，状态转移逻辑全部在
+`state_machine.cpp` 纯核（有单测）；接口名与话题名系列为「选实现」；
+`global_photo_joints` 为数值存档。未发现用配置表达流程分支的违规键。

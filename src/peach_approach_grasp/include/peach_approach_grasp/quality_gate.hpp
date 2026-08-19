@@ -31,6 +31,8 @@
 #include <cstddef>
 #include <string>
 
+#include "peach_approach_grasp/quality_gate_base.hpp"
+
 namespace peach_approach_grasp
 {
 
@@ -47,37 +49,16 @@ struct QualityGateConfig
   double maximum_data_age_s{2.0};
 };
 
-struct QualitySnapshot
-{
-  std::string selected_target_id;
-  std::string reconstruction_target_id;
-  std::string refined_target_id;
-  std::string reconstruction_state;
-  std::size_t captured_views{0};
-  double max_baseline_deg{0.0};
-  double mean_nearest_baseline_deg{0.0};
-  double mean_depth_ratio{0.0};
-  double refined_rmse_m{-1.0};
-  double refined_inlier_ratio{-1.0};
-  double data_age_s{1.0e9};
-  bool refined_accept{false};
-  bool grasp_allowed{false};
-};
-
-struct GateResult
-{
-  bool allowed{false};
-  std::string reason;
-};
-
-class QualityGate
+// 默认质量门实现（注册名 threshold）：固定阈值档的身份一致性 + 视图覆盖 +
+// 精化拟合质量判定。线程安全与生命周期约定见 QualityGateBase。
+class QualityGate : public QualityGateBase
 {
 public:
   explicit QualityGate(QualityGateConfig config = QualityGateConfig());
 
-  GateResult readyToFinalize(const QualitySnapshot & snapshot) const;
-  GateResult readyToPreviewContact(const QualitySnapshot & snapshot) const;
-  GateResult readyToGrasp(const QualitySnapshot & snapshot) const;
+  GateResult readyToFinalize(const QualitySnapshot & snapshot) const override;
+  GateResult readyToPreviewContact(const QualitySnapshot & snapshot) const override;
+  GateResult readyToGrasp(const QualitySnapshot & snapshot) const override;
 
 private:
   GateResult commonIdentityGate(const QualitySnapshot & snapshot) const;

@@ -33,6 +33,9 @@
 #include <string>
 #include <vector>
 
+#include "peach_approach_grasp/protected_zones.hpp"
+#include "peach_approach_grasp/view_planner_base.hpp"
+
 namespace peach_approach_grasp
 {
 
@@ -53,26 +56,25 @@ struct ViewPlannerConfig
   // 相机位置 z 下限（base 系）：低于桌面保护平面的视点物理上必然穿桌，
   // 规划必败且白耗 planning_time×attempts，生成阶段直接剔除。
   double min_camera_height_m{0.06};
+  // 环境几何保护区（重构计划阶段 F1）：base 系轴对齐盒列表，候选视点的相机
+  // 位置落入任一盒（闭区间，含盒表面）即剔除。
+  // 与 min_camera_height_m 的关系：protected_zones 是通用的任意盒列表；
+  // 桌面保护平面是"z<下限"半空间这一特例的 shortcut（无限大盒无法用一个
+  // 有限 AABB 表达，保留独立参数避免配置噪音），两者并存、各自独立生效。
+  std::vector<ProtectedZone> protected_zones;
 };
 
-struct ViewCandidate
-{
-  Eigen::Isometry3d camera_pose{Eigen::Isometry3d::Identity()};
-  Eigen::Vector3d direction_target_to_camera{Eigen::Vector3d::UnitX()};
-  double radius_m{0.0};
-  double azimuth_deg{0.0};
-  double elevation_deg{0.0};
-  double nearest_baseline_deg{0.0};
-  double motion_angle_deg{0.0};
-  double score{0.0};
-  std::string label;
-};
-
-class ViewPlanner
+// 默认视点规划实现（注册名 spherical_adaptive）：目标中心球面上的离散自适应
+// 候选生成与评分。线程安全与生命周期约定见 ViewPlannerBase。
+class ViewPlanner : public ViewPlannerBase
 {
 public:
   explicit ViewPlanner(ViewPlannerConfig config = ViewPlannerConfig());
 
+  // 基类接口：候选生成（纯函数，空列表=无可用视点）。
+  std::vector<ViewCandidate> generate(const ViewContext & context) const override;
+
+  // 便捷重载：与 generate(ViewContext) 等价，供既有单测/直调方使用。
   std::vector<ViewCandidate> generate(
     const Eigen::Vector3d & target,
     const Eigen::Vector3d & current_camera_position,

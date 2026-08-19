@@ -32,7 +32,7 @@ from .config import (
 from .validation import AnnotationMetrics, load_annotations
 from ..candidates import CandidateEstimator, MODE_IDS, MODE_LABELS
 from ..contracts import BagObservation
-from ..inference import InferenceEngine
+from ..inference import InferenceEngine, MobileSam, UltralyticsYolo
 
 
 def _quantiles(values):
@@ -339,9 +339,10 @@ def main():
     # 模型在包根 model/（与 YOLO_MODEL 同目录）；勿用 parents[1]（那是内层
     # peach_pose_ros2/ 包目录，移植后不再含 model/）
     engine = InferenceEngine(
-        yolo_model=str(YOLO_MODEL),
-        sam_model=str(YOLO_MODEL.parent / 'mobile_sam.pt'),
-        sam_max_bboxes=args.sam_max_bboxes,
+        detector=UltralyticsYolo(yolo_model=str(YOLO_MODEL)),
+        segmenter=MobileSam(
+            sam_model=str(YOLO_MODEL.parent / 'mobile_sam.pt'),
+            sam_max_bboxes=args.sam_max_bboxes),
     )
     estimator = CandidateEstimator()
     mode_items = {mode: [] for mode in modes}

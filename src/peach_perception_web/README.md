@@ -32,7 +32,7 @@
 
 目录归属按**编排器批次执行期**划分：`batch_state` 进入 DISCOVERY/RUNNING
 （或节点启动后见到的首个活动批次）开 `run_<时间戳>/`，批次终局
-（COMPLETED/INTERRUPTED/FAULT/RECOVERY_REQUIRED）关闭并生成 summary；
+（COMPLETED/INTERRUPTED/RECOVERY_REQUIRED）关闭并生成 summary；
 同一批次的所有复扫轮次在同一文件夹内（轮次由事件/状态自带，不拆目录）；
 无批次期间的记录进 `idle_<时间戳>/`（节点启动时创建，首个批次开始后关闭，
 批次结束后再开新的）。目录结构：
@@ -62,7 +62,8 @@ target_phase 跃迁推导，按目标周期分列 OBSERVING~COMPLETING 各阶段
 变化范围）、重建关键指标终值（captured_views/baseline/RMSE 门等，取
 reconstruction.jsonl 最后一条 diagnostics）、运行性能统计（CPU/内存/GPU 均值
 峰值）。summary 在批次终局生成，节点关闭时若批次未结也补一份；所有盘写走
-独立守护线程 + 队列，不阻塞 ROS 回调与 HTTP 线程。
+独立守护线程 + 队列，jsonl 按路径缓冲批量/空闲间隔 flush，单批写盘失败只
+降级告警不阻断采集，不阻塞 ROS 回调与 HTTP 线程。
 
 页面为纯只读监控：不提供任何控制/调试/参数写入 HTTP 入口；自动全流程由
 编排器闭环，现场只通过本页定位「当前跑到哪一步、该步数据是什么」。
@@ -114,7 +115,7 @@ launch 默认加载 `config/web.yaml`：
 图像和三维效果仍按以下方式查看：
 
 - RViz2 Image：感知调试图，或用 `rqt_image_view` 查看
-  `/peach_pose_node/debug_image`；
+  `/peach/perception/debug_image`；
 - RViz2 PointCloud2：`/peach/reconstruction/local_cloud`；
 - RViz2 PointCloud2：`/peach/reconstruction/tsdf_cloud`；
 - RViz2 MarkerArray：两包的 `/peach/perception/markers` 与
@@ -191,7 +192,7 @@ DashboardState（线程安全最近值 + 事件环形缓冲）
 | `/peach_harvest_orchestrator/state` | `peach_harvest_msgs/HarvestState` |
 | `/peach_harvest_orchestrator/events` | `peach_harvest_msgs/HarvestEvent` |
 | `/aubo_io_controller/robot_status` | `aubo_msgs/RobotStatus` |
-| `/peach_pose_node/debug_image` | `sensor_msgs/Image`（bgr8，仅记录器） |
+| `/peach/perception/debug_image` | `sensor_msgs/Image`（bgr8，仅记录器） |
 | `/peach/reconstruction/tsdf_cloud` | `sensor_msgs/PointCloud2`（latched，仅记录器） |
 
 HTTP API：

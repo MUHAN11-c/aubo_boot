@@ -11,8 +11,8 @@ const safe = (value) => String(value ?? "—").replace(/[&<>"']/g, (char) => ({
 })[char]);
 const setText = (id, value) => { $(id).textContent = value ?? "—"; };
 
-// 枚举映射与 peach_harvest_msgs/HarvestState.msg 常量一致
-const batchNames = ["等待就绪", "发现目标", "运行中", "等待安全暂停点", "已暂停", "维护模式", "已完成", "故障", "需要恢复", "已中断"];
+// 枚举映射与 peach_harvest_msgs/HarvestState.msg 常量一致（2026-08 删除 FAULT）
+const batchNames = ["等待就绪", "发现目标", "运行中", "等待安全暂停点", "已暂停", "维护模式", "已完成", "需要恢复", "已中断"];
 const phaseNames = ["空闲", "选择目标", "观测中", "完成观测", "质量校验", "靠近中", "工具动作", "撤退中", "收尾中", "目标成功", "目标跳过", "目标失败"];
 const modeNames = ["自动", "已暂停", "维护"];
 const stageOrder = ["ready", "photo", "lock", "observe", "validate", "approach", "tool", "retreat", "done"];
@@ -140,9 +140,14 @@ function renderEvents(events) {
   }).join("");
 }
 
-// 采摘/跟踪状态徽标配色
+// 采摘/跟踪状态徽标配色（token 与 codec._TRACKING_NAMES 一致；
+// OUT_OF_VIEW=出画（复扫无益，视同不可恢复）标红，DEPTH_VOID=深度空洞
+// （质量类，可能随视角恢复）标黄）
 const harvestChip = {HARVESTED: "ok", WAITING_QUALITY: "warn", SELECTED: "ok", PLANNED: ""};
-const trackingChip = {OBSERVED: "ok", OCCLUDED: "warn", LOST: "err", INVALID: "err"};
+const trackingChip = {
+  OBSERVED: "ok", OCCLUDED: "warn", LOST: "err", INVALID: "err",
+  OUT_OF_VIEW: "err", DEPTH_VOID: "warn",
+};
 const chip = (text, cls) => `<span class="status-chip ${cls}">${safe(text)}</span>`;
 
 function renderPlan(perception, orchestration) {

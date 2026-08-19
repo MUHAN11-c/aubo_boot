@@ -19,9 +19,16 @@ from typing import Iterable, Optional
 import cv2
 import numpy as np
 
+from . import impls as _impls  # noqa: F401  显式注册清单：保证默认实现已登记
 from .contracts import BagGrasp2D, BagGraspReference3D, BagObservation
-from .interfaces import POSE_ESTIMATORS
-from .pipeline import RobustBagPosePipeline, TargetPoseResult
+from .interfaces import POSE_PIPELINES
+from .pipeline import (
+    clip_bbox,
+    foreground_mask,
+    RobustBagPosePipeline,
+    TargetPoseResult,
+    valid_depth_mask,
+)
 
 
 @dataclass(frozen=True)
@@ -53,23 +60,28 @@ class CandidateEstimator:
     """
 
     def __init__(self, pipeline: Optional[RobustBagPosePipeline] = None,
+                 fruit_pipeline: Optional[RobustBagPosePipeline] = None,
                  dilate_px: int = 5, min_mask_points: int = 50):
         """
-        构造估计器；果线复用袋线的 ToolGeometry，保证刀具契约一致.
+        构造估计器；两条管线只按 PosePipeline 接口持有（2.14 装配）.
 
         Args:
-            pipeline: 袋线实例；None 时按默认参数新建（果线共享其 tool）.
+            pipeline: 袋线实例；None 时按注册表默认实现（'robust_bag'）
+                新建.
+            fruit_pipeline: 果线实例；None 时按注册表默认实现
+                （'robust_fruit'）新建并复用袋线的 ToolGeometry，保证刀具
+                契约一致.
             dilate_px: 深度连通域膨胀半径（像素，≥1；核边长 2*(p//2)+1）.
             min_mask_points: 掩膜最小像素数，不足判 mask_unavailable.
 
         Returns
         -------
-            无返回值（None）；果线复用袋线 tool 建于 self.fruit_pipeline.
+            无返回值（None）.
 
         """
-        self.pipeline = pipeline or POSE_ESTIMATORS['bag']()
-        # 果线复用袋线的 ToolGeometry，保证刀具契约一致
-        self.fruit_pipeline = POSE_ESTIMATORS['fruit'](tool=self.pipeline.tool)
+        self.pipeline = pipeline or POSE_PIPELINES.create('robust_bag')
+        self.fruit_pipeline = fruit_pipeline or POSE_PIPELINES.create(
+            'robust_fruit', tool=self.pipeline.tool)
         # 类别路由用的实例表：kind（注册表键）→ 已建实例（YOLO 标签契约：
         # class_id==1 → 'fruit'，其余 → 'bag'，见 _pipeline_for）
         self._estimator_by_kind = {
@@ -172,13 +184,15 @@ class CandidateEstimator:
         """
         started = time.perf_counter()
         self._last_mask_timings_ms = {mode: 0.0 for mode in MODE_IDS}
-        x1, y1, x2, y2 = self.pipeline._clip_bbox(bbox, obs.depth.shape)
+        x1, y1, x2, y2 = clip_bbox(bbox, obs.depth.shape)
         roi = obs.depth[y1:y2, x1:x2]
         if roi.size == 0:
             return {mode: None for mode in MODE_IDS}
-        valid = self.pipeline._valid_depth(roi)
+        # 有效深度区间取袋线管线参数（两条线共用同一相机/深度约定）
+        valid = valid_depth_mask(
+            roi, self.pipeline.min_depth_m, self.pipeline.max_depth_m)
         # 深度连通前景：作为「膨胀母体」，限制 SAM 不漂到背景
-        depth_mask, _ = self.pipeline._foreground(
+        depth_mask, _ = foreground_mask(
             roi, valid, None, bbox, source='depth_fallback')
 
         mask = None

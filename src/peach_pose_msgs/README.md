@@ -39,18 +39,17 @@ ros2 interface show peach_pose_msgs/msg/BagFitting
 
 ## 执行逻辑
 
-生产者只有一个：peach_pose_ros2 的 `peach_pose_node`
-（peach_pose_node.py:246-251）。一帧 RGB-D 处理完成后同帧发布三个话题
-（`~` 解析为 `/peach_pose_node/`）：
+生产者只有一个：peach_pose_ros2 的 `peach_pose_node`。一帧 RGB-D 处理完成后
+同帧发布到规范组话题（A5 起旧 `~/` 组已删除，发布面单套化）：
 
 | 话题 | 类型 | 内容 |
 |---|---|---|
-| `~/grasp_candidates` | `BagGraspCandidateArray` | 3D 抓取候选，坐标系=header.frame_id（output_frame，默认 base_link；TF 失败退回相机系并告警） |
-| `~/grasp_candidates_2d` | `BagGrasp2DArray` | 2D 像素参考，与 3D 按 `target_id` 对齐 |
-| `~/fitting` | `BagFittingArray` | 拟合诊断（TargetPoseResult.metrics 的平坦化） |
+| `/peach/perception/initial_pose` | `BagGraspCandidateArray` | 3D 抓取候选，坐标系=header.frame_id（output_frame，默认 base_link；TF 失败退回相机系并告警） |
+| `/peach/perception/diagnostics` | `BagFittingArray` | 拟合诊断（TargetPoseResult.metrics 的平坦化） |
 
-全工作区 grep 核实：工作区内暂无订阅方——这是感知→规划的冻结边界，
-下游规划端按 `target_id` 关联三条数据流。三种消息的 `status` 枚举一致
+2D 像素参考不再单独成话题，随 `/peach/perception/target_observations` 的
+`candidate_2d` 字段与 3D 按 `target_id` 对齐下发。下游按 `target_id` 关联
+数据流。消息的 `status` 枚举一致
 （ACCEPT=0 / REOBSERVE=1 / REJECT=2），由节点的刀具几何门控判定；
 SAM 掩膜缺失时显式 REOBSERVE + `mask_unavailable`，不做静默深度回退
 （管线细节见 `src/peach_pose_ros2/README.md`）。
@@ -85,6 +84,5 @@ msg/
                               axis_polarity_corrected、status、
                               diagnostic_flags；无效标量填 -1
   BagGraspCandidateArray.msg  header + BagGraspCandidate[] candidates
-  BagGrasp2DArray.msg         header + BagGrasp2D[] candidates
   BagFittingArray.msg         header + BagFitting[] fittings
 ```

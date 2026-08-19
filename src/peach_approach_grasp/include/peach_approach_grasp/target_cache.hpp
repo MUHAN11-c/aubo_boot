@@ -37,6 +37,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "peach_approach_grasp/quality_gate.hpp"
@@ -61,6 +62,11 @@ struct CachedTarget
   Eigen::Vector3d initial_axis{Eigen::Vector3d::UnitZ()};
   double suggested_travel_m{0.0};
   double received_s{0.0};  // 接收时刻（秒，与注入时钟同源）
+  // 最近一帧（含非 OBSERVED 帧）的诊断透传：target_swinging 摆动旗标与
+  // tracking_status 原始枚举值（PeachTargetObservation.msg 常量；255=未知），
+  // 供抓取前再确认（2.7-RECONFIRM）的摆动等平息与失败原因文案使用。
+  bool swinging{false};
+  uint8_t tracking_status{255};
   bool valid{false};
 };
 
@@ -88,6 +94,26 @@ struct SelectedTargetUpdate
   Eigen::Vector3d axis{Eigen::Vector3d::Zero()};
   Eigen::Isometry3d entry_pose{Eigen::Isometry3d::Identity()};
   double suggested_travel_m{0.0};
+  // 诊断透传（含义见 CachedTarget）：由节点从 diagnostic_flags/tracking_status 提取。
+  bool swinging{false};
+  uint8_t tracking_status{255};
+};
+
+// updateLockedTargets 单目标输入（阶段 E 残局抬质量能力端）：锁定集中一条
+// confirmed 观测（含非 selected 目标）的纯值提取；字段语义与
+// SelectedTargetUpdate 一致（observed 判定由节点薄壳完成，含 anchor_from_memory
+// 记忆锚点帧不算新鲜观测的排除）。
+struct LockedTargetUpdate
+{
+  std::string target_id;
+  bool observed{false};
+  Eigen::Vector3d bottom{Eigen::Vector3d::Zero()};
+  Eigen::Vector3d neck{Eigen::Vector3d::Zero()};
+  Eigen::Vector3d axis{Eigen::Vector3d::Zero()};
+  Eigen::Isometry3d entry_pose{Eigen::Isometry3d::Identity()};
+  double suggested_travel_m{0.0};
+  bool swinging{false};
+  uint8_t tracking_status{255};
 };
 
 // updateReconstructionDiagnostics 输入：节点解析 diagnostics JSON 后的纯值字段。
@@ -128,7 +154,8 @@ struct RefinedFittingUpdate
 };
 
 // 目标数据缓存（纯逻辑，零 ROS）：目标观测/精化位姿/精化指标/抓取决策四源的
-// ID 一致性调和与快照访问。时钟以 std::function 注入（秒），数据经方法传入，
+// ID 一致性调和与快照访问，外加锁定集锚点缓存（id→几何，供 OBSERVE_ONLY 残局
+// 抬质量周期受理与执行）。时钟以 std::function 注入（秒），数据经方法传入，
 // 不碰 ROS 订阅；内部自带互斥与条件变量，等待语义与原节点 data_cv_ 一致。
 class TargetCache
 {
@@ -137,6 +164,19 @@ public:
 
   // 目标观测调和：ID 冲突时清旧目标/精化/决策缓存；同 ID 的锁存精化结果保留。
   void updateSelectedTarget(const SelectedTargetUpdate & update);
+  // 锁定集锚点缓存批量刷新（阶段 E 残局抬质量能力端）：数据源为
+  // PeachTargetObservationArray.observations 中全部 confirmed 目标（含非
+  // selected；confirmed 过滤与字段提取在节点薄壳完成）。
+  //   - target_set_locked=false：锁定集不存在（锁定前 observations 恒空），
+  //     清空缓存并复位 run 记钥；
+  //   - harvest_run_id 变化：跨批次身份不复用，清空后按新批次重建；
+  //   - 单目标刷新语义与 updateSelectedTarget 一致：锚点几何（center/axis/
+  //     travel）凡携带即采用，entry_pose/received_s 仅 OBSERVED 有效观测帧
+  //     刷新，swinging/tracking_status 诊断透传每帧刷新；本帧缺席的目标保留
+  //     最后已知条目（同 selected 缓存的闪烁容忍语义）。
+  void updateLockedTargets(
+    bool target_set_locked, const std::string & harvest_run_id,
+    const std::vector<LockedTargetUpdate> & updates);
   void updateReconstructionDiagnostics(const ReconstructionDiagnosticsUpdate & update);
   // 抓取决策调和；返回 false 表示非当前目标被忽略（节点侧据此记警告）。
   bool updateGraspDecision(const std::string & target_id, bool allowed);
@@ -146,6 +186,15 @@ public:
   bool updateRefinedFitting(const RefinedFittingUpdate & update);
 
   std::optional<CachedTarget> targetSnapshot() const;
+  // 锁定集锚点快照（OBSERVE_ONLY 残局抬质量周期的受理与执行数据源）：
+  // 目标不在锁定集或锚点无效（从未携带有效几何）均返回 nullopt——与
+  // targetSnapshot 的"无效即空"语义一致；需要区分两种拒绝原因时用
+  // lockedTargetGateSample（id 空=不在锁定集，id 命中但 valid=false=锚点缺失）。
+  std::optional<CachedTarget> lockedTargetSnapshot(
+    const std::string & target_id) const;
+  // 锁定集目标的安全门样本：未命中返回空 ID 样本（SafetyGate::targetReady
+  // 判身份不匹配拒绝）。
+  TargetGateSample lockedTargetGateSample(const std::string & target_id) const;
   std::optional<CachedRefined> refinedSnapshot() const;
   QualitySnapshot qualitySnapshot() const;
   std::string graspDecisionTarget() const;
@@ -167,6 +216,11 @@ public:
   // 到位后的新鲜帧（移动中途被接受的帧不算），供安全门在新鲜样本上复核。
   bool waitForFreshTarget(
     double after_s, double timeout_s, const std::atomic_bool & cancel) const;
+  // waitForFreshTarget 的锁定集版本（OBSERVE_ONLY 周期目标非 selected）：
+  // 谓词、超时与取消语义完全相同，只是数据源换成指定 ID 的锁定集锚点条目。
+  bool waitForFreshLockedTarget(
+    const std::string & target_id, double after_s, double timeout_s,
+    const std::atomic_bool & cancel) const;
   // 取消/关停时唤醒全部等待（谓词内的 cancel 负责终结语义）。
   void notifyAll();
 
@@ -176,6 +230,11 @@ private:
   mutable std::condition_variable cv_;
   CachedTarget target_;
   CachedRefined refined_;
+  // 锁定集锚点缓存（id → 几何/诊断，复用 CachedTarget）：OBSERVE_ONLY 残局
+  // 抬质量周期的受理门与执行体数据源；仅由 updateLockedTargets 维护
+  // （locked_run_id_ 为批次记钥，空串=当前无锁定集）。
+  std::unordered_map<std::string, CachedTarget> locked_targets_;
+  std::string locked_run_id_;
   QualitySnapshot quality_;
   std::vector<Eigen::Vector3d> observed_directions_;
   std::string grasp_decision_target_id_;

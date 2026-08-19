@@ -1,7 +1,7 @@
 """
 FrameCollector — 采帧状态机 + 视角过滤 + 帧栈管理（纯 Python，不依赖 ROS）.
 
-状态机：IDLE → COLLECTING → READY（FAILED 预留给后续 Phase 的失败路径）。
+状态机：IDLE → COLLECTING → READY。
 视角过滤：手动模式保留重复/跳变检查；自动模式连续接收每个唯一相机帧，
 位姿差只作诊断，不再要求机器人停稳或移动到离散视角。
 自动模式决策（should_auto_start / auto_capture_decision /
@@ -14,13 +14,12 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 
-from peach_reconstruction_ros2.interfaces import FrameStore
-from peach_reconstruction_ros2.tf_utils import relative_motion
+from peach_core.tf_utils import relative_motion
+from peach_reconstruction_ros2.interfaces import FRAME_STORES, FrameStore
 
 STATE_IDLE = 'IDLE'
 STATE_COLLECTING = 'COLLECTING'
 STATE_READY = 'READY'
-STATE_FAILED = 'FAILED'
 
 
 @dataclass
@@ -294,5 +293,5 @@ class FrameCollector(FrameStore):
         return True, msg, cloud
 
 
-# 实现注册表（显式字典，yolo_ros 先例；编排层按名实例化）
-FRAME_STORES = {'default': FrameCollector}
+# 显式注册清单（2.14）：注册名 'default'（节点固定经 FRAME_STORES 装配）
+FRAME_STORES.register('default', FrameCollector)

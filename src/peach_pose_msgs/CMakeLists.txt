@@ -11,11 +11,11 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/BagGraspCandidate.msg"
   "msg/BagGraspCandidateArray.msg"
   "msg/BagGrasp2D.msg"
-  "msg/BagGrasp2DArray.msg"
   "msg/BagFitting.msg"
   "msg/BagFittingArray.msg"
   "msg/PeachTargetObservation.msg"
   "msg/PeachTargetObservationArray.msg"
+  "srv/ReopenTarget.srv"
   DEPENDENCIES geometry_msgs sensor_msgs std_msgs
 )
 

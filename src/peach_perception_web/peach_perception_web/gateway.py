@@ -18,7 +18,12 @@ from pathlib import Path
 from ament_index_python.packages import get_package_share_directory
 from aubo_msgs.msg import RobotStatus
 from geometry_msgs.msg import Vector3Stamped
-from peach_harvest_msgs.msg import HarvestEvent, HarvestState
+from peach_harvest_msgs.msg import (
+    GraspDecision,
+    HarvestEvent,
+    HarvestState,
+    ReconstructionStatus,
+)
 from peach_pose_msgs.msg import (
     BagFittingArray,
     BagGraspCandidateArray,
@@ -41,13 +46,17 @@ from . import http_server
 from .codec import (
     candidate_array,
     fitting_array,
+    grasp_decision,
     harvest_event,
     parse_json_text,
+    reconstruction_status,
     robot_status,
     target_observations,
     vector_stamped,
 )
 from .metrics import MetricsSampler
+from .params import DEFAULTS as _DEFAULTS
+from .params import load_params as _load_params
 from .recorder import Recorder
 from .state import DashboardState
 
@@ -109,17 +118,23 @@ class PeachPerceptionWeb(Node):
     """订阅采摘链路各阶段输出并提供只读 HTTP 监控 API."""
 
     def __init__(self):
-        """声明参数、订阅话题并初始化共享缓存."""
+        """声明参数、装载不可变快照、订阅话题并初始化共享缓存."""
         super().__init__('peach_perception_web')
         self._declare_parameters()
+        # A9：declare 后立即集中装载+校验；非法值抛 ValueError 不进运行
+        self._params = _load_params(self)
         self._state = DashboardState()
         self._http = None
         self._metrics = None
+        # 重建镜像合并缓存：调试 JSON 明细（tsdf/registration/refined 等）与
+        # 最近一次许可镜像——类型化诊断到达时并入，保持镜像/落盘信息不缩水
+        self._recon_debug_extra: dict = {}
+        self._recon_decision_value: dict | None = None
         self._recorder = Recorder(
-            root_dir=str(self.get_parameter('record.root_dir').value),
-            enabled=bool(self.get_parameter('record.enabled').value),
-            save_images=bool(self.get_parameter('record.save_images').value),
-            save_clouds=bool(self.get_parameter('record.save_clouds').value),
+            root_dir=self._params.record_root_dir,
+            enabled=self._params.record_enabled,
+            save_images=self._params.record_save_images,
+            save_clouds=self._params.record_save_clouds,
             on_info=lambda info: self._state.update('record', 'info', info),
             log_warning=lambda msg: self.get_logger().warning(msg))
         self._create_subscriptions()
@@ -127,65 +142,14 @@ class PeachPerceptionWeb(Node):
         self._create_metrics_sampler()
 
     def _declare_parameters(self) -> None:
-        """集中声明 Web 和话题参数."""
-        parameters = {
-            'host': ('127.0.0.1', 'HTTP 监听地址；局域网访问显式设 0.0.0.0'),
-            'port': (8090, 'HTTP 监听端口'),
-            'param_poll_period_s': (3.0, '各节点参数镜像轮询周期（秒）'),
-            'target_observations_topic': (
-                '/peach/perception/target_observations', '全局目标快照话题'),
-            'harvest_state_topic': (
-                '/peach/perception/harvest_state', '采摘计划 JSON 话题'),
-            'reconstruction_status_topic': (
-                '/peach/reconstruction/status', '重建状态话题'),
-            'reconstruction_diagnostics_topic': (
-                '/peach/reconstruction/diagnostics', '重建诊断 JSON 话题'),
-            'grasp_decision_topic': (
-                '/peach/reconstruction/grasp_decision', '抓取许可 JSON 话题'),
-            'refined_pose_topic': (
-                '/peach/reconstruction/refined_pose', '精化位姿话题'),
-            'refined_axis_topic': (
-                '/peach/reconstruction/refined_axis', '精化轴线话题'),
-            'refined_diagnostics_topic': (
-                '/peach/reconstruction/refined_diagnostics',
-                '精化质量话题'),
-            'approach_status_topic': (
-                '/peach_approach_grasp_node/status',
-                '主动视觉靠近与抓取编排 JSON 话题'),
-            'orchestrator_state_topic': (
-                '/peach_harvest_orchestrator/state',
-                '采摘编排器类型化状态话题'),
-            'orchestrator_events_topic': (
-                '/peach_harvest_orchestrator/events',
-                '采摘编排器过程/审计事件话题（事件时间线）'),
-            'robot_status_topic': (
-                '/aubo_io_controller/robot_status',
-                '机械臂上电/急停/运动/错误状态话题'),
-            'event_buffer_size': (100, '事件时间线环形缓冲上限（条）'),
-            'metrics_period_s': (1.0, '系统/GPU/进程性能采样周期（秒）'),
-            'metrics_process_patterns': (
-                [
-                    'peach_pose_node', 'peach_reconstruction_node',
-                    'peach_approach_grasp_node', 'peach_harvest_orchestrator',
-                    'ros2_control_node', 'percipio',
-                ],
-                '进程性能监控的 cmdline 子串匹配关键字列表'),
-            'record.enabled': (True, '监控数据分类落盘总开关'),
-            'record.root_dir': (
-                'web_runs', '记录根目录（相对节点 CWD；按 run_id 分子目录）'),
-            'record.save_images': (True, '关键事件时刻保存感知调试图 PNG'),
-            'record.save_clouds': (True, 'target 终局时刻保存 TSDF 点云 PLY'),
-            'debug_image_topic': (
-                '/peach_pose_node/debug_image', '感知调试叠加图话题（bgr8）'),
-            'tsdf_cloud_topic': (
-                '/peach/reconstruction/tsdf_cloud', '在线 TSDF 点云话题'),
-        }
-        for name, (default, description) in parameters.items():
+        """集中声明 Web 和话题参数（默认值权威源为模块级 _DEFAULTS）."""
+        for name, (default, description) in _DEFAULTS.items():
             self.declare_parameter(
                 name, default, ParameterDescriptor(description=description))
 
     def _topic(self, parameter: str) -> str:
-        return str(self.get_parameter(parameter).value)
+        """从不可变快照取话题名（启动期建订阅用）."""
+        return self._params.topics[parameter]
 
     def _create_subscriptions(self) -> None:
         """建立全部只读订阅."""
@@ -209,10 +173,16 @@ class PeachPerceptionWeb(Node):
             String, self._topic('reconstruction_status_topic'),
             self._recon_status_callback, latched_qos)
         self.create_subscription(
-            String, self._topic('reconstruction_diagnostics_topic'),
+            ReconstructionStatus,
+            self._topic('reconstruction_diagnostics_topic'),
             self._recon_diagnostics_callback, latched_qos)
+        # 调试明细（tsdf/registration/overlap/refined/逐机位）：并入镜像与落盘，
+        # 保持「类型化后过程数据不缩水」；类型化字段为准，明细键补充
         self.create_subscription(
-            String, self._topic('grasp_decision_topic'),
+            String, self._topic('reconstruction_diagnostics_debug_topic'),
+            self._recon_debug_callback, latched_qos)
+        self.create_subscription(
+            GraspDecision, self._topic('grasp_decision_topic'),
             self._recon_decision_callback, latched_qos)
         self.create_subscription(
             BagGraspCandidateArray, self._topic('refined_pose_topic'),
@@ -241,18 +211,24 @@ class PeachPerceptionWeb(Node):
             lambda msg: self._state.update(
                 'robot', 'status', robot_status(msg)), reliable_qos)
         # 记录器图像/点云订阅：只在对应开关开启时建立（省带宽）
-        if bool(self.get_parameter('record.enabled').value):
-            if bool(self.get_parameter('record.save_images').value):
+        if self._params.record_enabled:
+            if self._params.record_save_images:
                 self.create_subscription(
                     Image, self._topic('debug_image_topic'),
                     self._recorder.handle_image, reliable_qos)
-            if bool(self.get_parameter('record.save_clouds').value):
+            if self._params.record_save_clouds:
                 self.create_subscription(
                     PointCloud2, self._topic('tsdf_cloud_topic'),
                     self._recorder.handle_cloud, latched_qos)
 
     def _harvest_callback(self, message: String) -> None:
-        """感知采摘计划：进状态缓存并喂记录器（perception.jsonl 并入）."""
+        """
+        感知采摘计划：进状态缓存并喂记录器（perception.jsonl 并入）.
+
+        JSON 全量透传：发布侧新增键（如阶段 D1 的 anchor_stale_target_ids/
+        out_of_view_target_ids/dropped_target_ids/lighting/low_light_quality）
+        无需本侧改动即进入 /api/state 镜像。
+        """
         value = parse_json_text(message.data)
         self._state.update('perception', 'harvest', value)
         self._recorder.handle_harvest(value)
@@ -263,15 +239,30 @@ class PeachPerceptionWeb(Node):
         self._state.update('reconstruction', 'status', value)
         self._recorder.handle_reconstruction('status', value)
 
-    def _recon_diagnostics_callback(self, message: String) -> None:
-        """重建 1Hz 诊断：进状态缓存并喂记录器（reconstruction.jsonl）."""
-        value = parse_json_text(message.data)
-        self._state.update('reconstruction', 'diagnostics', value)
-        self._recorder.handle_reconstruction('diagnostics', value)
+    def _recon_diagnostics_callback(
+            self, message: ReconstructionStatus) -> None:
+        """
+        重建 1Hz 结构化诊断：消息字段重建镜像 dict 并喂记录器.
 
-    def _recon_decision_callback(self, message: String) -> None:
-        """重建抓取许可：进状态缓存并喂记录器（reconstruction.jsonl）."""
-        value = parse_json_text(message.data)
+        合并调试 JSON 明细（tsdf/registration/refined 等）与最近许可镜像，
+        保持镜像/落盘键集与旧裸 JSON 契约一致（reconstruction_final 摘要
+        与前端 tsdf 计时依赖这些键）。
+        """
+        merged = dict(self._recon_debug_extra)
+        merged.update(reconstruction_status(message))
+        if self._recon_decision_value is not None:
+            merged['grasp_decision'] = self._recon_decision_value
+        self._state.update('reconstruction', 'diagnostics', merged)
+        self._recorder.handle_reconstruction('diagnostics', merged)
+
+    def _recon_debug_callback(self, message: String) -> None:
+        """重建调试明细 JSON：只更新合并缓存，不直接落盘（防重复记录）."""
+        self._recon_debug_extra = parse_json_text(message.data)
+
+    def _recon_decision_callback(self, message: GraspDecision) -> None:
+        """重建抓取许可：消息字段重建镜像 dict 并喂记录器."""
+        value = grasp_decision(message)
+        self._recon_decision_value = value
         self._state.update('reconstruction', 'grasp_decision', value)
         self._recorder.handle_reconstruction('grasp_decision', value)
 
@@ -288,8 +279,8 @@ class PeachPerceptionWeb(Node):
         except (AttributeError, TypeError, ValueError) as error:
             self.get_logger().warning(f'事件转换失败: {error}')
             return
-        limit = int(self.get_parameter('event_buffer_size').value)
-        self._state.append_event(value, max(1, limit))
+        # 缓冲上限来自启动期快照（A9）：已校验 >= 1，运行期不再直读参数
+        self._state.append_event(value, self._params.event_buffer_size)
         self._recorder.handle_event(value)
 
     def _orchestrator_callback(self, message: HarvestState) -> None:
@@ -335,8 +326,8 @@ class PeachPerceptionWeb(Node):
         }
         # 服务未就绪时静默跳过（节点可能未启动），不刷错误日志
         self._param_inflight = set()
-        period = float(self.get_parameter('param_poll_period_s').value)
-        self._param_timer = self.create_timer(period, self._poll_params)
+        self._param_timer = self.create_timer(
+            self._params.param_poll_period_s, self._poll_params)
 
     def _poll_params(self) -> None:
         """对就绪的参数服务发起异步查询（在途请求去重）."""
@@ -370,12 +361,11 @@ class PeachPerceptionWeb(Node):
     # 性能采样：独立线程写 state，绝不占用 ROS 回调线程
     # ------------------------------------------------------------------
     def _create_metrics_sampler(self) -> None:
-        """按参数建性能采样线程（GPU 不可用时自动降级为 None）."""
-        period = float(self.get_parameter('metrics_period_s').value)
-        patterns = list(
-            self.get_parameter('metrics_process_patterns').value)
+        """按快照参数建性能采样线程（GPU 不可用时自动降级为 None）."""
         self._metrics = MetricsSampler(
-            period, patterns, self._metrics_callback,
+            self._params.metrics_period_s,
+            list(self._params.metrics_process_patterns),
+            self._metrics_callback,
             lambda msg: self.get_logger().warning(msg))
 
     def _metrics_callback(self, sample: dict) -> None:
@@ -391,11 +381,9 @@ class PeachPerceptionWeb(Node):
         return self._state.snapshot()
 
     def start_http(self) -> None:
-        """校验监听参数、提示非回环风险并启动 HTTP 服务线程."""
-        host = str(self.get_parameter('host').value)
-        port = int(self.get_parameter('port').value)
-        if not 1 <= port <= 65535:
-            raise ValueError('port 必须在 1..65535')
+        """按快照参数提示非回环风险并启动 HTTP 服务线程."""
+        host = self._params.host
+        port = self._params.port
         if host not in ('127.0.0.1', 'localhost'):
             self.get_logger().warning(
                 f'*** 安全提示：Web 监控台监听在非回环地址 {host}:{port}，'

@@ -289,5 +289,131 @@ class ConfirmationTest(unittest.TestCase):
             TargetRegistry(match_radius=0.06, tentative_ttl_frames=0)
 
 
+class MaxAgeEvictionTest(unittest.TestCase):
+    """
+    max_age_s 墙钟淘汰（阶段 D1 语义变更：已确认表项也按龄淘汰）.
+
+    理由（协议 2.4/阶段 D 第 6 条）：跨场景/跨批次陈旧锚点会在新场景被
+    恢复匹配误命中抢走新目标身份；长期存活性按墙钟秒判定，与帧率无关。
+    """
+
+    def setUp(self):
+        # max_age 10 s（小值便于测试），confirm_frames=1 注册即确认
+        self.reg = TargetRegistry(match_radius=0.06, max_age_s=10.0)
+
+    def test_confirmed_entry_evicted_after_max_age(self):
+        """已确认表项 last_seen 超 max_age_s 未命中，begin_frame 注入同钟淘汰."""
+        tid, _ = self.reg.match_or_register([0.0, 0.0, 1.0], class_id=0, now=1.0)
+        self.assertTrue(self.reg.get(tid)['confirmed'])
+        self.reg.begin_frame(now=5.0)    # 龄 4 s ≤ 10 s：保留
+        self.assertIsNotNone(self.reg.get(tid))
+        self.reg.begin_frame(now=11.5)   # 龄 10.5 s > 10 s：淘汰
+        self.assertIsNone(self.reg.get(tid))
+        # 序号不复用：新目标仍是 target_1
+        tid2, _ = self.reg.match_or_register([0.0, 0.0, 1.0], class_id=0, now=12.0)
+        self.assertEqual(tid2, 'target_1')
+
+    def test_recent_hit_refreshes_max_age(self):
+        """超龄前再次命中刷新 last_seen，不被淘汰."""
+        tid, _ = self.reg.match_or_register([0.0, 0.0, 1.0], class_id=0, now=1.0)
+        self.reg.begin_frame(now=9.0)
+        self.reg.match_or_register([0.0, 0.0, 1.0], class_id=0, now=9.0)
+        self.reg.begin_frame(now=18.5)   # 距 9.0 仅 9.5 s ≤ 10 s
+        self.assertIsNotNone(self.reg.get(tid))
+        self.reg.begin_frame(now=19.5)   # 10.5 s > 10 s：淘汰
+        self.assertIsNone(self.reg.get(tid))
+
+    def test_no_now_skips_max_age_eviction(self):
+        """begin_frame 不注入 now 时跳过墙钟淘汰（防双时钟混比误清）."""
+        tid, _ = self.reg.match_or_register([0.0, 0.0, 1.0], class_id=0, now=1.0)
+        for _ in range(50):              # 帧 TTL 对 confirmed 本就不生效
+            self.reg.begin_frame()
+        self.assertIsNotNone(self.reg.get(tid))
+
+    def test_invalid_max_age_or_swing_params_rejected(self):
+        """max_age_s ≤ 0 / swing_threshold_m ≤ 0 / swing_frames < 1 抛错."""
+        with self.assertRaises(ValueError):
+            TargetRegistry(match_radius=0.06, max_age_s=0.0)
+        with self.assertRaises(ValueError):
+            TargetRegistry(match_radius=0.06, swing_threshold_m=0.0)
+        with self.assertRaises(ValueError):
+            TargetRegistry(match_radius=0.06, swing_frames=0)
+
+    def test_clear_returns_count_and_empties_table(self):
+        """clear() 清全部表项并返回清前数量；序号计数器不复位."""
+        self.reg.match_or_register([0.0, 0.0, 1.0], class_id=0, now=1.0)
+        self.reg.begin_frame(now=1.1)
+        self.reg.match_or_register([0.5, 0.0, 1.0], class_id=0, now=1.1)
+        self.assertEqual(self.reg.clear(), 2)
+        self.assertEqual(self.reg.target_ids(), [])
+        self.assertEqual(self.reg.clear(), 0)
+        # 清空后新发 ID 全局单调（不与清空前已下发下游的 ID 撞号）
+        tid, _ = self.reg.match_or_register([0.0, 0.0, 1.0], class_id=0, now=2.0)
+        self.assertEqual(tid, 'target_2')
+
+
+class SwingDetectionTest(unittest.TestCase):
+    """
+    摆动检测（阶段 D1，协议 2.4）：观测残差连击置位/对称连击清除.
+
+    残差 = 当前观测锚点 − 注册表 EMA 位置的模长（EMA 更新前）；阈值
+    0.03 m、连击 3 帧与节点 wind.* 默认一致。
+    """
+
+    def setUp(self):
+        # α=1.0：EMA 完全跟随最新观测，残差 = 相邻两帧观测点的距离，
+        # 序列可精确预测（交替点位制造 0.04 连击，同点复测残差为 0）
+        self.reg = TargetRegistry(match_radius=0.06, position_ema=1.0,
+                                  swing_threshold_m=0.03, swing_frames=3)
+
+    def _hit(self, pos, now):
+        self.reg.begin_frame(now=now)
+        tid, is_new = self.reg.match_or_register(pos, class_id=0, now=now)
+        self.assertFalse(is_new)
+        return tid
+
+    def test_swing_flag_set_and_cleared_symmetrically(self):
+        """连续 3 帧残差超阈值置 swinging；连续 3 帧低于阈值清除."""
+        tid, _ = self.reg.match_or_register([0.0, 0.0, 1.0], class_id=0, now=1.0)
+        self.assertFalse(self.reg.get(tid)['swinging'])
+        # 交替点位：每帧残差 0.04 > 0.03；连击 1、2 帧未置位，第 3 帧置位
+        self._hit([0.04, 0.0, 1.0], now=1.1)   # 上连击 1
+        self._hit([0.0, 0.0, 1.0], now=1.2)    # 上连击 2
+        self.assertFalse(self.reg.get(tid)['swinging'])
+        self._hit([0.04, 0.0, 1.0], now=1.3)   # 上连击 3 → 置位
+        self.assertTrue(self.reg.get(tid)['swinging'])
+        # 平息对称：同点复测残差 0，连击 1、2 帧保持，第 3 帧清除
+        self._hit([0.04, 0.0, 1.0], now=1.4)   # 下连击 1
+        self._hit([0.04, 0.0, 1.0], now=1.5)   # 下连击 2
+        self.assertTrue(self.reg.get(tid)['swinging'])
+        self._hit([0.04, 0.0, 1.0], now=1.6)   # 下连击 3 → 清除
+        self.assertFalse(self.reg.get(tid)['swinging'])
+
+    def test_lost_frames_do_not_vote(self):
+        """目标 LOST 帧不增不清连击（无观测不是平息证据）."""
+        tid, _ = self.reg.match_or_register([0.0, 0.0, 1.0], class_id=0, now=1.0)
+        self._hit([0.04, 0.0, 1.0], now=1.1)   # 上连击 1
+        self._hit([0.0, 0.0, 1.0], now=1.2)    # 上连击 2
+        for k in range(3, 8):                  # 5 帧 LOST：连击保持
+            self.reg.begin_frame(now=1.0 + 0.1 * k)
+        self.assertFalse(self.reg.get(tid)['swinging'])
+        self._hit([0.04, 0.0, 1.0], now=1.8)   # 上连击 3 → 置位
+        self.assertTrue(self.reg.get(tid)['swinging'])
+
+    def test_residual_below_threshold_resets_up_streak(self):
+        """连击中途一帧低于阈值即清零上连击（须重新连满 3 帧）."""
+        tid, _ = self.reg.match_or_register([0.0, 0.0, 1.0], class_id=0, now=1.0)
+        self._hit([0.04, 0.0, 1.0], now=1.1)   # 上连击 1
+        self._hit([0.04, 0.0, 1.0], now=1.2)   # 残差 0：上连击清零
+        self._hit([0.09, 0.0, 1.0], now=1.3)   # 残差 0.05：上连击 1
+        self._hit([0.09, 0.0, 1.0], now=1.4)   # 残差 0：再次清零
+        self.assertFalse(self.reg.get(tid)['swinging'])
+        self._hit([0.13, 0.0, 1.0], now=1.5)   # 残差 0.04：上连击 1
+        self._hit([0.09, 0.0, 1.0], now=1.6)   # 残差 0.04：上连击 2
+        self.assertFalse(self.reg.get(tid)['swinging'])
+        self._hit([0.13, 0.0, 1.0], now=1.7)   # 残差 0.04：上连击 3 → 置位
+        self.assertTrue(self.reg.get(tid)['swinging'])
+
+
 if __name__ == '__main__':
     unittest.main()

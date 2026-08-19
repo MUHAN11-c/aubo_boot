@@ -32,6 +32,8 @@
 #include <functional>
 #include <string>
 
+#include "peach_approach_grasp/safety_gate_base.hpp"
+
 namespace peach_approach_grasp
 {
 
@@ -53,43 +55,26 @@ struct SafetyGateConfig
   double target_observation_max_age_s{3.0};
 };
 
-// robot_status 的纯值快照：节点把 int8 消息字段转成布尔后传入，纯核不认识消息类型。
-struct RobotStatusSample
-{
-  bool received{false};    // 是否已收到过 robot_status
-  double received_s{0.0};  // 接收时刻（秒，与注入时钟同源）
-  bool e_stopped{false};
-  bool in_error{false};
-  bool drives_powered{false};
-  bool motion_possible{false};
-};
-
-// 周期目标的纯值快照：id 在观测无效时也可能非空（身份一致性判定先于有效性判定）。
-struct TargetGateSample
-{
-  std::string id;
-  bool valid{false};
-  double received_s{0.0};
-};
-
-// 执行前安全门（纯逻辑，零 ROS）：机器人状态门 + 周期目标门。
-// 时钟以 std::function 注入（秒），数据以值入参；判定结果与原因字符串语义
-// 与原 ApproachGraspNode::safetyReady/cycleTargetReady 内联实现完全一致。
-class SafetyGate
+// 执行前安全门默认实现（注册名 robot_status_gate，纯逻辑，零 ROS）：机器人
+// 状态门 + 周期目标门。时钟以 std::function 注入（秒），数据以值入参；判定
+// 结果与原因字符串语义与原 ApproachGraspNode::safetyReady/cycleTargetReady
+// 内联实现完全一致。I5：robotReady 为硬件安全门，实现不得旁路（见
+// safety_gate_base.hpp 契约注释）。
+class SafetyGate : public SafetyGateBase
 {
 public:
   SafetyGate(SafetyGateConfig config, std::function<double()> clock_s);
 
   // 机器人状态门：require_robot_status=false 时直接放行；否则要求已收到、
   // 未超龄、无急停/错误且驱动已上电可运动。
-  bool robotReady(const RobotStatusSample & sample, std::string & reason) const;
+  bool robotReady(const RobotStatusSample & sample, std::string & reason) const override;
   // 周期目标门：目标身份一致、观测有效、未超龄。
   bool targetReady(
     const TargetGateSample & sample, const std::string & target_id,
-    std::string & reason) const;
+    std::string & reason) const override;
 
   // 运行期按实测帧率自适应调整目标观测新鲜度上限（见 adaptive_timeout_s）。
-  void set_target_observation_max_age_s(double value)
+  void set_target_observation_max_age_s(double value) override
   {
     config_.target_observation_max_age_s = value;
   }

@@ -212,12 +212,16 @@ result/tsdf_mesh.ply
 
 | 文件 | 职责 |
 |---|---|
-| reconstruction_node.py | ROS 编排：同步、精确 TF、状态、在线积分、发布与服务 |
+| reconstruction_node.py | 节点编排壳：参数声明、接口装配、订阅/服务回调入口、采帧门禁三段式、TSDF/refit 写路径、session 落盘、main |
+| auto_controller.py | 自动状态机驱动 mixin：自动绑定/采帧落地/自动 finalize（AutoControllerMixin） |
+| publishers.py | 发布面 mixin：心跳、状态三件套、点云/Marker、refit 消息与诊断组装（PublisherMixin） |
 | candidate_contract.py | 感知候选安全门禁与绑定目标类别记忆（零 ROS import） |
 | capture_gate.py | 手动/自动两路采帧公共门禁纯函数（零 ROS import） |
 | params.py | frozen dataclass 参数层，和 reconstruction.yaml 双向测试同步 |
 | frame_collector.py | 无 ROS 的帧栈和采集状态机 |
 | icp_refiner.py | Open3D 两尺度鲁棒点到平面 ICP 与边界/质量门 |
+| icp_target_cache.py | E4：ICP target 增量复用缓存（每 k 帧自适应或关键事件才全量 extract，零 ROS import） |
+| publish_throttle.py | E4：点云/Marker 发布 on-change + 最小间隔节流（零 ROS import，注入时钟） |
 | tsdf_volume.py | Open3D ScalableTSDFVolume、点云和网格提取 |
 | geometry_refiner.py | TSDF 表面的圆柱/球几何精化 |
 | session_io.py | 原始帧、FK/ICP 位姿、点云、网格和元数据落盘 |
@@ -285,3 +289,5 @@ Fixed Frame 设为 `base_link`。同时添加 `local_cloud` 和 `tsdf_cloud`：�
 | tsdf.voxel_length / sdf_trunc | 3 mm / 12 mm |
 | icp.max_translation / max_rotation_deg | 10 mm / 3° |
 | icp.min_fitness / max_rmse | 0.35 / 8 mm |
+| icp.target_refresh_min_period / max_period / drift_ratio | 1 / 5 帧 / 0.5（E4：ICP target 全量 extract 自适应周期，min=max=1 退化为逐帧全量旧行为） |
+| publish.on_change_only / min_interval_s | true / 0.2 s（E4：点云/Marker on-change + 最小间隔节流，闩锁保持不丢 RViz 显示） |

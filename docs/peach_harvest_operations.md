@@ -15,6 +15,36 @@ ros2 launch peach_harvest_orchestrator harvest_system.launch.py
 Web 默认 `http://127.0.0.1:8090`。真机上电由现场人员操作；首次运动速度/加速度缩放不高于
 0.1。
 
+## 真机作业检查单（批次启动前逐项确认）
+
+1. 上电/松刹车由现场人员手动完成（软件栈不含上电入口，`auto_power_on=false` 不变）。
+2. 急停、限位、碰撞等级、低速模式现场确认就位；首次运动速度/加速度缩放 ≤0.1。
+3. 速度纪律（能力端双档，勿随意调低）：
+   - 接触段 MTC `moveit.velocity_scaling=0.05`；自由空间转移
+     `moveit.transit_velocity_scaling=0.10`；
+   - 低速档不得让高重力矩姿态持续过久——0.01 蠕行曾在高重力矩姿态持续过久而
+     关节过流；若姿态不得不久留，优先改路径而非继续压速度。
+4. 每次开机执行网卡/频率治理（不持久）：
+   `sudo ethtool -K enp130s0 gro off gso off tso off` +
+   `echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor`。
+5. 启动前查旧进程防设备独占：`pgrep -af 'ros2 launch|component_container|ros2 run'`。
+
+## 碰撞环境现状与静态碰撞体评估（阶段 F2 结论）
+
+当前 MoveIt 规划环境为空（无 octomap、无静态碰撞体），依赖视点侧剔除
+（`scan.min_camera_height_m` 地面平面 + `scan.protected_zones` 轴对齐盒）与
+MTC 入口保护区拒绝兜底。评估结论与可选路线：
+
+- **不动冻结栈可实现**：新增独立「场景对象发布节点」（非冻结包，如放
+  `peach_approach_grasp` 或 bringup 侧新小节点），启动时经 PlanningScene 差分
+  消息注入静态盒（树干/支柱/地面台架）；move_group 的 planning scene monitor
+  已开 `publish_geometry_updates`，无需改 `aubo_e5_moveit_config` 任何文件。
+- **不建议**：改 URDF/SRDF 加环境几何——`aubo_description` 属驱动栈契约面，
+  环境属于部署差异而非机器人本体，混进描述包会让仿真/真机/不同果园共用
+  同一模型时互相污染。
+- 待授权项：若后续要 octomap 点云在线避障，需评估 move_group 传感器插件与
+  感知点云带宽，另行立项；本阶段不实施。
+
 ## 批次流程
 
 ```
@@ -118,7 +148,6 @@ expected_revision 乐观锁）：
 | `ENTER_MAINTENANCE` / `EXIT_MAINTENANCE` | 释放/收回自动所有权；退出维护保持暂停 |
 | `CANCEL_NOW` | 状态机清活动目标与运行标志、进 INTERRUPTED 转 PAUSED；节点层向能力端传播取消活动 goal（真取消，非仅置标志） |
 | `SKIP_TARGET` | 仅活动目标时接受：登记跳过意图并取消当前 goal；取消落地后记 `CANCELED`（“操作员跳过”）并推进感知计划 |
-| `RETRY_TARGET` | 预留（重试由复扫轮次承担），当前恒拒 |
 | `ACKNOWLEDGE_RECOVERY` | 现场人工确认已安全撤离后解除 recovery 锁定，保持 PAUSED |
 
 ## 复扫轮次
@@ -130,6 +159,14 @@ expected_revision 乐观锁）：
 - 本轮摘到目标、`harvest.rescan_until_empty=true` 且 `round < harvest.max_rounds`：
   `RESCAN`——回拍照位姿、重置感知、收齐锁定新一轮；
 - 达到 `max_rounds` 或复扫关闭：`COMPLETE`（message 注明原因）。
+
+**残局抬质量（协议 2.8，阶段 E3）**：进入上述 RESCAN/COMPLETE 判定与停滞计时
+之前，若锁定集中还有最新终局账为 `SKIPPED_QUALITY`、抬质量次数未达
+`harvest.observe_retry_max` 且本轮未抬过的目标（显式批次限清单内目标），编排器
+按优先级逐个派发 `mode=OBSERVE_ONLY` 的 RunTargetCycle（只观察+精化验证不抓
+取）。抬质量期间不算"停滞"（stall 计时挂起）；终局只进审计账（reason 标
+observe_retry，不动 counters/attempted）、不推进感知计划；目标因质量改善重新
+可选后回正常派发链以 FULL 重试。候选耗尽仍无可选目标才恢复停滞计时与轮次判定。
 
 `round` 从 1 起计，`max_rounds` 为总轮次上限（含首轮，默认 3）。复扫是**物理递减
 集**：已摘目标不在树上，新一轮收齐自然不再包含；因遮挡/质量未入集的目标则有机会
@@ -152,12 +189,17 @@ expected_revision 乐观锁）：
 
 | 字段 | 含义 |
 |---|---|
-| `run_id` | 批次 ID（goal request_id，缺省自动生成 `run-<ns>`；无 goal 的自动批次为 `auto`） |
+| `run_id` | 批次 ID（goal request_id，缺省自动生成 `run-<ns>`；无 goal 的自动批次为 `auto-<ns>`，首个拍照前置启动时生成） |
 | `discovered` | 本批次累计发现目标数（各轮锁定沿累加；首轮 reset 清零重计） |
 | `attempted` | 已处理目标数（全部终态合计） |
 | `succeeded` / `skipped_quality` / `skipped_unreachable` / `failed` / `canceled` | 各终态计数 |
-| `elapsed` | 批次墙钟时长 |
-| `outcomes[]` | 逐目标记录（`target_id`、`outcome`、`reason`；`quality_score` 与单目标 `elapsed` 本阶段不采集，保持 0） |
+| `elapsed` | 批次墙钟时长（RunHarvest 批次自 goal 受理起计；auto_start 自动批次自首个拍照前置启动起计） |
+| `outcomes[]` | 逐目标记录（`target_id`、`outcome`、`reason`、单目标 `elapsed`=派发→终局墙钟、`quality_score` 质量占位分：成功=1.0/降级=0.5/其余=0，待阶段 E 接真实质量分） |
+
+批次吞吐 targets/hour = attempted/elapsed_hours 随批次终局事件
+（`batch_completed`/`batch_canceled`/`batch_aborted`）的 message 透出（HarvestSummary
+无吞吐字段且消息契约冻结）；单目标阶段耗时分解（能力端 Result
+`stage_names`/`stage_durations`）拼进 `target_succeeded` 等终局事件 message。
 
 状态话题的 `progress` = attempted / discovered（0 除保护，超界钳到 1），Web 据此渲染
 批次进度条。
@@ -216,10 +258,13 @@ Arm、接触动作及开启运动策略需要二次确认，审计缓存保留�
 | `/peach_harvest_orchestrator/set_operation_policy` | `SetOperationPolicy` | 原子三级使能 |
 | `/peach_approach_grasp_node/go_to_photo_pose` | `Trigger` | 移动到全局拍照位姿（编排器拍照前置调用） |
 | `/peach_pose_node/reset_global_targets` | `Trigger` | 重置感知收齐窗口（每轮拍照后置调用） |
+| `/peach_pose_node/clear_target_memory` | `Trigger` | 清空感知世界系身份记忆（`harvest.fresh_scene=true` 时批次首轮在重置收齐之前调用） |
 | `/peach_pose_node/complete_selected_target` | `Trigger` | 推进感知固定优先级计划（目标终态后调用） |
+| `/peach_pose_node/reopen_target` | `ReopenTarget` | 重开已终局目标恢复可选（E3 残局抬质量：OBSERVE_ONLY 派发前调用，使重建绑定精化；仅自动批次，best-effort 不熔断） |
 
 跨包接口名由编排器参数化（`target_cycle_action_name`、`approach_node_name`、
-`complete_target_service_name`、`reset_targets_service_name`、`photo_pose_service_name`），
+`complete_target_service_name`、`reset_targets_service_name`、`photo_pose_service_name`、
+`clear_memory_service_name`、`reopen_target_service_name`），
 默认值即现网名，launch 不需要改。旧 Trigger 与 JSON 话题保留一个迁移周期；新客户端
 使用类型化接口。
 
@@ -232,7 +277,7 @@ Arm、接触动作及开启运动策略需要二次确认，审计缓存保留�
 | `auto_start_enabled` | `true` | 四路全就绪后自动进入 DISCOVERY |
 | `execution_enabled` / `grasp_enabled` / `tool_enabled` | `false` | 三级操作策略初始值（交付默认全关） |
 | `readiness.web` | `true` | Web 就绪门（静态开关） |
-| `readiness.timeout_s` | `2.0` | 四路输入的新鲜度超时 |
+| `readiness.timeout_s` | `2.0` | 四路输入的新鲜度配置下限（s）；运行期阈值自适应为 max(本值, 2.5×实测发布周期EMA)（2.11，节点真死时超 2.5×EMA 判失连） |
 | `readiness.require_robot_status` | `true` | motion 路是否要求 RobotStatus 正常 |
 | `global_photo_joints` | 见 YAML | 拍照位姿关节角存档（仅对照，运动走 SRDF 命名状态） |
 | `photo_pose.enabled` | `true` | 拍照前置开关；execution 关时自动跳过移动 |
@@ -240,15 +285,21 @@ Arm、接触动作及开启运动策略需要二次确认，审计缓存保留�
 | `photo_pose.retry_cooldown_s` | `5.0` | 拍照前置失败重试冷却（s） |
 | `photo_pose.service_timeout_s` | `90.0` | 单次 go_to_photo_pose / reset_global_targets 调用超时（s） |
 | `photo_pose.return_on_complete` | `true` | 批次完成后 best-effort 再回一次拍照位姿 |
+| `harvest.preflight_check` | `true` | 批次启动就位自校（F3）：首轮进入拍照前置前检查 TF 外参链（base_link→camera_link）可查 + robot_status 已收且无故障/急停（robot 检查跟随 `readiness.require_robot_status`）；未通过则挂起拍照前置、发 `preflight_failed` ERROR 事件（列清失败项，签名变化或每 5s 节流）、state blockers 计 `preflight`；幂等门——refresh 每拍重试不熔断，就位后自动放行（`preflight_passed` 事件）；复扫轮次不重复自校；`false` 整体跳过（旧行为） |
 | `harvest.rescan_until_empty` | `true` | 复扫递减集循环开关 |
 | `harvest.max_rounds` | `3` | 总轮次上限（round 从 1 起计，含首轮） |
-| `target_cycle_action_name` 等 5 个接口名 | 现网名 | 跨包 action/service/节点名参数化 |
+| `harvest.collect_timeout_s` | `40.0` | 收齐窗口编排侧总超时配置下限（s）：拍照前置完成后迟迟不锁定超限则发 round_stall 并按本轮处理完重判轮次；运行期上限自适应 max(本值, 1.5×实测上次窗口时长) |
+| `harvest.fresh_scene` | `false` | 换场景/换果树批次置 true：首轮开窗前（reset_global_targets 之前）先调 clear_target_memory 清感知世界系身份记忆；仅首轮生效，失败与 reset 同级走拍照前置重试链 |
+| `harvest.observe_retry_enabled` | `true` | 残局抬质量开关（2.8/E3）：RESCAN/停滞判定前对 SKIPPED_QUALITY 残局目标发 OBSERVE_ONLY 周期抬质量；抬质量期间不算停滞；成功重新可选后回正常链 FULL 重试 |
+| `harvest.observe_retry_max` | `2` | 每目标每批次抬质量次数上限（派发时消耗，拒绝/取消不归还；每轮每目标至多一次） |
+| `target_cycle_action_name` 等 6 个接口名 | 现网名 | 跨包 action/service/节点名参数化 |
 
 能力端（`peach_approach_grasp/config/approach_grasp.yaml`）新增：
 
 | 参数 | 默认值 | 说明 |
 |---|---:|---|
 | `photo_pose_named_target` | `'global_photo_pose'` | `~/go_to_photo_pose` 的 SRDF 命名状态 |
+| `scan.protected_zones` | `[]` | 环境几何保护区（F1）：base_link 系轴对齐盒列表，stride-6 扁平编码 `[xmin,ymin,zmin,xmax,ymax,zmax]*N`（米）；视点生成剔除相机位置落入任一盒（闭区间含表面）的候选，MTC 接触段入口点（含降级链入口）落入即拒规划，终局 SKIPPED_UNREACHABLE；畸形盒（长度残余组/非有限分量/min>=max）装载时告警并逐盒丢弃；与 `scan.min_camera_height_m`（“z<下限半空间”特例 shortcut）并存各自生效 |
 
 感知（`peach_pose_ros2/config/peach_pose.yaml`）新增：
 

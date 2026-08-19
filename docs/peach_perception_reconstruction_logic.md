@@ -351,6 +351,8 @@ peach_sessions/session_<时间戳>/      # 单目标重建原始数据（save_se
 | `capture.min_mask_pixels` / `min_mask_depth_ratio` / `max_target_drift_m` | 300 / 0.35 / 0.04 | 掩膜质量门 |
 | `icp.max_translation` / `max_rotation_deg` | 0.01 / 3 | ICP 有界修正上限 |
 | `icp.min_fitness` / `max_rmse` | 0.35 / 0.008 | ICP 质量门 |
+| `icp.target_refresh_min/max_period` / `drift_ratio` | 1 / 5 帧 / 0.5 | E4 ICP target 增量复用（自适应全量 extract 周期） |
+| `publish.on_change_only` / `min_interval_s` | true / 0.2 | E4 点云/Marker 发布 on-change + 最小间隔节流 |
 | `tsdf.voxel_length` / `sdf_trunc` | 0.003 / 0.012 | TSDF 分辨率 |
 
 权威值以 `src/peach_pose_ros2/config/peach_pose.yaml` 与

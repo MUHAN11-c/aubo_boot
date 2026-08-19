@@ -24,13 +24,24 @@ peach_pose_node:
                            # 逆光场景 0.3 会全滤掉真实目标（2026-08-14 傍晚实测），
                            # 但也不宜再低——误检由 confirm_frames 确认机制+TTL 清除兜底，
                            # 治本靠补光/曝光，不是继续降阈
+    # YOLO NMS IoU 阈值（阶段 D1 参数化）：室外多果密排场景可调低防并框
+    yolo_nms_iou: 0.5
+    # 单次 SAM 推理最大 prompt 框数（阶段 D1 由硬编码 8 提为参数）：室外多果
+    # 场景一帧目标数常超 8，截断目标无掩膜会被判 OCCLUDED
+    sam_max_bboxes: 16
+    sam_min_area: 100         # SAM 掩膜最小像素数，过小丢弃（抗边角碎掩膜）
+    # 收敛前景掩膜最小像素数，不足判 mask_unavailable（CandidateEstimator）
+    min_mask_points: 50
     # 重叠检测框去重：IoS（交集/较小框面积）≥ 本值判同一物理目标，保留大框
     # （跨类生效，消一果两框/局部误检小框）；≥1.0 等效关闭
     detection_dedup_ios: 0.6
     # ── 可视化开关 ───────────────────────────────────────────
-    publish_debug_image: true   # ~/debug_image：检测框+掩膜+轴线+状态叠加图（bgr8）
-    publish_masks: true         # ~/masks：SAM 掩膜画布（mono8，目标 i 灰度 i%250+1）
-    # 检测框内深度反投影彩色点云（~/detection_cloud）；stride>1 降采样减轻 RViz
+    # 阶段 H（协议 2.13 效率协议）：生产档 debug 叠加图默认关——关闭时零序列化
+    # 零发布（不复制图像、不画轮廓、不 cv_bridge 转换、不发布，非发空图）；
+    # bgr8 全图 + 逐目标 findContours 是发布面最高开销项，现场调图再显式置 true
+    publish_debug_image: false  # /peach/perception/debug_image：检测框+掩膜+轴线+状态叠加图（bgr8）
+    publish_masks: true         # /peach/perception/masks：SAM 掩膜画布（mono8，目标 i 灰度 i%250+1）
+    # 检测框内深度反投影彩色点云（/peach/perception/single_cloud）；stride>1 降采样减轻 RViz
     publish_detection_cloud: true
     detection_cloud_stride: 2   # 点云降采样步长（每 2 像素取 1）
     # ── 模型与版本追溯 ───────────────────────────────────────
@@ -47,6 +58,13 @@ peach_pose_node:
     # tf=由本帧 output←camera 的 TF 旋转反推相机系重力（output_frame 系重力
     # 约定 [0,0,-1]，只乘旋转不加平移；TF 不可用的帧回退 gravity_hint_xyz）
     gravity_mode: fixed
+    # ── 接口层实现装配（2.14：注册名见 peach_pose/impls.py 显式注册清单）────
+    detector.impl: yolo              # 检测器（Detector）：UltralyticsYolo
+    segmenter.impl: mobile_sam       # 分割器（Segmenter）：MobileSam
+    pipeline.bag_impl: robust_bag    # 袋装线位姿管线（PosePipeline）
+    pipeline.fruit_impl: robust_fruit  # 裸果线位姿管线（PosePipeline）
+    matcher.impl: spatial_ema        # 目标匹配器（TargetMatcher）：SpatialEmaMatcher
+    lock.impl: collect_lock          # 收齐窗口锁定策略（LockPolicy）：CollectLockPolicy
     # ── 套袋工具几何（米）─────────────────────────────────────
     # 换工具必改；直接决定安全门控（误差预算 vs 径向净空）
     tool.D_inner: 0.104      # 工具内径：袋径上界须 < 内径 - 2×clearance_min
@@ -81,6 +99,40 @@ peach_pose_node:
     # 按帧计、帧率以运行状态为准：取 confirm_frames + 余量；低帧率/卡顿时墙钟
     # TTL 会在确认攒满前误清进度（防丢失效），帧计数不受帧率影响。
     target_memory.tentative_ttl_frames: 5
+    # ── 阶段 D1 室外感知强化（协议 2.4 摆动降权/锚点衰减）────────────────
+    # 锁定集 LOST 目标的记忆锚点新鲜度上限（秒）：LOST 超本值打 anchor_stale
+    # 旗标并视为不可选（不移除，重新被观测自动恢复）；上限语义——运行期按
+    # 实测帧间隔 EMA 折算帧数判定（I4，帧率以运行状态为准）
+    target_memory.anchor_max_age_s: 30.0
+    # LOST 超本值从计划移除并记 target_dropped 事件（编排侧按
+    # SKIPPED_UNREACHABLE「目标丢失超时」入账）；同按帧率折算
+    target_memory.anchor_drop_s: 120.0
+    # 全部表项（含已确认）的墙钟龄上限（秒）：超时未命中即淘汰。
+    # 阶段 D1 语义变更：A3 前「已确认永不 TTL 清除」，但跨场景/跨批次陈旧
+    # 锚点会在新场景被恢复匹配误命中抢走新目标身份，必须按墙钟淘汰
+    target_memory.max_age_s: 600.0
+    # 摆动检测（室外风动）：观测残差（当前观测锚点 − 注册表 EMA 位置模长）
+    # 连续 swing_frames 帧超阈值 → 目标打 target_swinging 旗标（视为不可选，
+    # 能力端 RECONFIRM 阶段等平息）；平息判定对称连击清除
+    wind.swing_threshold_m: 0.03
+    wind.swing_frames: 3
+    # 光照质量观测指标（不打阻断旗标；harvest_state.lighting +
+    # low_light_quality + 节点 WARN 节流提示现场补光）：锁定集目标掩膜内
+    # 有效深度占比 EMA / 检测置信度均值 EMA 任一连续 bad_frames 帧低于阈值
+    lighting.min_depth_ratio: 0.35
+    lighting.min_conf_mean: 0.3
+    lighting.bad_frames: 5
+    # 位姿管线有效深度窗与前景点数下限（阶段 D1 由构造默认提为参数）
+    pipeline.min_depth_m: 0.3     # 有效深度下限 (m)，过近视为噪声
+    pipeline.max_depth_m: 2.5     # 有效深度上限 (m)，过远视为背景
+    pipeline.min_points: 100      # 有效前景点数下限，不足直接 REJECT
+    # 阶段 H（协议 2.13-E1 锁定后 selected-only 掩膜）：目标集合锁定后，
+    # MobileSAM 只对锁定集目标的检测框推理——分割前尚无本帧 target_id，
+    # 故用锁定目标的世界系记忆锚点经 TF 反投影到本帧像素，落进哪个（外扩
+    # 10% 的）检测框就分割哪个（纯核 peach_pose/segmentation_gate.py）；
+    # 锁定前/开关关/TF 不可用帧回退全量分割（旧行为），锁定目标全部不可见
+    # 时本帧 SAM 零推理；segment_ms 分项 EMA（harvest_state.timing）随之回落
+    pipeline.locked_only_segmentation: true
     # ── 全局采摘计划（收齐式窗口锁定）────────────────────────────
     # reset 后进入收齐窗口：逐帧累积确认目标，窗口关闭才一次性锁定
     # 目标集合与优先级；锁定后新出现的 ID 不再入集

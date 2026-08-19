@@ -146,40 +146,6 @@ class BagGraspReference3D:
     calibration_version: str = ''                     # 内外参版本标识
     tool_version: str = ''                            # 工具几何版本
 
-    def to_dict(self) -> dict:
-        """
-        转为 JSON 可序列化字典（ndarray → list）.
-
-        Returns
-        -------
-            dict；数组字段转嵌套 list，None 保留.
-
-        """
-        def arr(a):
-            return a.tolist() if isinstance(a, np.ndarray) else a
-        return {
-            'frame_id': self.frame_id,
-            'entry_start': arr(self.entry_start),
-            'position': arr(self.position),
-            'points_centroid': arr(self.points_centroid),
-            'orientation': arr(self.orientation),
-            'bag_bottom': arr(self.bag_bottom),
-            'bag_neck': arr(self.bag_neck),
-            'translation_direction': arr(self.translation_direction),
-            'bag_diameter_upper_m': self.bag_diameter_upper_m,
-            'suggested_travel_m': self.suggested_travel_m,
-            'suggested_travel_end': arr(self.suggested_travel_end),
-            'position_covariance': arr(self.position_covariance),
-            'direction_covariance': arr(self.direction_covariance),
-            'confidence': self.confidence,
-            'status': self.status,
-            'diagnostic_flags': self.diagnostic_flags,
-            'strategy_id': self.strategy_id,
-            'model_version': self.model_version,
-            'calibration_version': self.calibration_version,
-            'tool_version': self.tool_version,
-        }
-
 
 # ═══════════════════════════════════════════════════════════════
 # 圆柱套入位姿计算 (纯函数, 工具物理约束)

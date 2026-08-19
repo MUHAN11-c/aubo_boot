@@ -1,5 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- 采摘周期行为树（重构协议 2.16-9 SubTree 库化）：主树 PeachHarvest 只负责
+     阶段组合与失败传播，各阶段封装为可复用 SubTree——观察扫描 ObserveScan、
+     质量验证+降级 QualityValidate、靠近抓取 ApproachInsert（含 2.7-RECONFIRM
+     抓取前再确认）、工具动作 ToolAction、撤离收尾 RetreatFinish。
+     分工：MTC 管规划层、BT 管执行层；节点注册名保持不变（行为不变，仅结构拆分）。 -->
 <root BTCPP_format="4" main_tree_to_execute="PeachHarvest">
+  <!-- 观察扫描：逐段闭环主动视点扫描，直到质量门允许 finalize 或时间盒到期。 -->
+  <BehaviorTree ID="ObserveScan">
+    <Sequence name="observe_scan">
+      <AcquireReconstructionViews/>
+    </Sequence>
+  </BehaviorTree>
+  <!-- 质量验证+降级：finalize/精化/质量门；未达标时按候选锚点降级抓取兜底。 -->
+  <BehaviorTree ID="QualityValidate">
+    <Sequence name="quality_validate">
+      <FinalizeAndValidate/>
+    </Sequence>
+  </BehaviorTree>
+  <!-- 靠近抓取：先过抓取前再确认（新鲜观测+锚点漂移+摆动平息，2.7-RECONFIRM），
+       再放行 MTC 靠近/插入。 -->
+  <BehaviorTree ID="ApproachInsert">
+    <Sequence name="approach_insert">
+      <ReconfirmTarget/>
+      <MTCApproachAndInsert/>
+    </Sequence>
+  </BehaviorTree>
+  <!-- 工具动作：末端工具 IO（失败就地紧急撤离，见 ActuateTool 节点体）。 -->
+  <BehaviorTree ID="ToolAction">
+    <Sequence name="tool_action">
+      <ActuateTool/>
+    </Sequence>
+  </BehaviorTree>
+  <!-- 撤离收尾：原轴同距撤离（成功才清接触 recovery 锁）+ 周期完成。 -->
+  <BehaviorTree ID="RetreatFinish">
+    <Sequence name="retreat_finish">
+      <MTCRetreat/>
+      <CompleteTarget/>
+    </Sequence>
+  </BehaviorTree>
   <BehaviorTree ID="PeachHarvest">
     <Sequence name="harvest_cycle">
       <PrepareCycle/>
@@ -9,18 +47,21 @@
           <PlanObservationPreview/>
         </Sequence>
         <Sequence>
-          <AcquireReconstructionViews/>
-          <FinalizeAndValidate/>
+          <SubTree ID="ObserveScan"/>
+          <SubTree ID="QualityValidate"/>
           <Fallback name="report_or_grasp">
+            <Sequence>
+              <IsObserveOnly/>
+              <ReportObserveOnly/>
+            </Sequence>
             <Sequence>
               <IsGraspDisabled/>
               <ReportReadyForGrasp/>
             </Sequence>
             <Sequence>
-              <MTCApproachAndInsert/>
-              <ActuateTool/>
-              <MTCRetreat/>
-              <CompleteTarget/>
+              <SubTree ID="ApproachInsert"/>
+              <SubTree ID="ToolAction"/>
+              <SubTree ID="RetreatFinish"/>
             </Sequence>
           </Fallback>
         </Sequence>

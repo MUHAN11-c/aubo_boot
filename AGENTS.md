@@ -78,7 +78,15 @@ RIB；急停/防护停=仅停发清队（本体安全回路主导）。
   枚举流转、action 终局 outcome 分级（SUCCEEDED/SKIPPED_QUALITY/SKIPPED_UNREACHABLE/
   FAILED/recovery）；`~/go_to_photo_pose` 服务移动到 SRDF 命名状态
   `global_photo_pose`（Pilz PTP+OMPL 兜底）；默认只规划，运动需人工 arm，抓取与
-  工具 IO 默认关闭。
+  工具 IO 默认关闭。**LifecycleNode（A8）**：launch 自动 configure→activate，
+  运动输出权限绑定 Active 态（非 Active 一切运动类入口拒绝并给出原因）；
+  deactivate 等价 CANCEL_NOW（真取消活动周期，接触段 recovery 锁不变）；
+  MoveIt/MTC 由同名伴随 rclcpp::Node 承载（MGI/MTC 不支持 LifecycleNode）。
+  RunTargetCycle 受理门按 mode 分流（2026-08-19，E3 能力端）：FULL/PREVIEW 钉死
+  感知 selected；OBSERVE_ONLY 改为命中 TargetCache 锁定集锚点缓存（onTargets
+  逐帧维护 observations 全部 confirmed 目标，未锁定/run_id 切换清空）即受理，
+  执行体经 `cycleTargetSnapshot` 单点分流用 goal 目标几何，BT 经 IsObserveOnly
+  短路不进 MTC/工具/撤离，终局 PLAN_READY→SUCCEEDED。
 - `peach_perception_web`：感知/重建/抓取**只读**监控台（2026-08-13 起移除全部
   Web 写入口：控制/调试/策略/档案代理取消，只留 GET /api/state）：批次过程线
   （就绪→拍照位姿→感知锁定→观察规划→质量验证→靠近抓取→工具动作→撤离收尾→
@@ -90,7 +98,9 @@ RIB；急停/防护停=仅停发清队（本体安全回路主导）。
   按优先级逐目标派发、outcome 记账自动推进 → 复扫递减集循环（`harvest.max_rounds`
   上限）→ COMPLETED；SKIP_TARGET/CANCEL_NOW 真取消活动 goal；
   `config/orchestrator.yaml` 默认 auto_start=true 但 execution/grasp/tool=false；
-  整栈入口 `harvest_system.launch.py`。
+  整栈入口 `harvest_system.launch.py`。motion 路就绪/派发守卫 = action server
+  在线 + robot_status + **对端 lifecycle Active**（A8：GetState 异步轮询折叠进
+  `action_server_ready` 样本；对端未 Active 时不派发、blockers 报 motion）。
 - `peach_gantry_description` / `peach_moveit_config`：【暂不参与开发/运行】架子式
   采摘机器人模型与 MoveIt 配置。
 
@@ -196,30 +206,77 @@ pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
   拒 goal；速度缩放由 MoveIt 时间参数化完成。
 - 采摘链路参数（权威源：各包 `config/*.yaml`，全表见
   `docs/peach_harvest_operations.md` 参数节）：编排器 `photo_pose.*`（拍照前置开关/
-  重试/冷却/90s 超时/完成回位）、`harvest.rescan_until_empty`/`harvest.max_rounds=3`
+  重试/冷却/90s 超时/完成回位）、`harvest.preflight_check=true`（批次启动就位
+  自校——F3：首轮进拍照前置前查 TF 外参链 base_link→camera_link 可查 +
+  robot_status 已收且无故障，未通过挂起拍照前置、blockers 计 preflight、
+  发 ERROR，refresh 每拍幂等重试不熔断、就位自动放行；复扫轮次不重复；
+  false 整体跳过）、`harvest.rescan_until_empty`/`harvest.max_rounds=3`
   （复扫递减集）、`harvest.stall_timeout_s=30`（无可选目标停滞提前收口）、
-  `dispatch.retry_delay_s=2.0`/`dispatch.max_retries=4`（goal 拒绝冷却重试，
-  只在感知 selected 跨帧真变时复位）、`dispatch.max_consecutive_rejections=6`
-  （连续拒绝熔断进 RECOVERY_REQUIRED）、5 个跨包接口名；能力端
+  `harvest.collect_timeout_s=40`（收齐窗口编排侧总超时配置下限——2.3 监督，
+  超限发 round_stall 并按本轮处理完重判轮次；运行期上限自适应
+  max(下限, 1.5×实测上次窗口时长)）、`harvest.fresh_scene=false`（换场景批次
+  置 true：首轮开窗前先调 clear_target_memory 清感知身份记忆，仅首轮生效——
+  2.3）、`harvest.observe_retry_enabled=true`/`harvest.observe_retry_max=2`
+  （残局抬质量——2.8/E3：RESCAN/停滞判定前对 SKIPPED_QUALITY 残局目标按优先级
+  发 OBSERVE_ONLY 周期抬质量，次数派发时消耗、每轮每目标至多一次、显式批次限
+  清单内；observe 终局只进审计账不动 counters，抬质量期间不算停滞，成功重新
+  可选后回正常链 FULL 重试）、`dispatch.retry_delay_s=2.0`/`dispatch.max_retries=4`（goal 拒绝冷却重试，
+  只在感知 selected 跨帧真变时复位；拒绝落入本端 motion 失能窗口时只冷却、
+  不计熔断/不耗重试——2.5-R-2）、`dispatch.max_consecutive_rejections=6`
+  （连续拒绝熔断进 RECOVERY_REQUIRED）、`advance.retry_delay_s=1.0`/
+  `advance.max_retries=5`/`advance.timeout_s=2.0`（感知推进
+  complete_selected_target 失败冷却重试与熔断——2.6）、7 个跨包接口名
+  （含 E3 新增 `reopen_target_service_name`：OBSERVE_ONLY 派发前请感知
+  重开目标恢复可选，使重建绑定精化、终局后正常链 FULL 重试；best-effort
+  不熔断；显式批次不调）；
+  丢失目标记账（2.4）：锁定集目标未派发即消失（anchor_drop）记
+  SKIPPED_UNREACHABLE + AUDIT 事件 target_dropped，reset/轮次切换清册不误记；
+  能力端
   `photo_pose_named_target='global_photo_pose'`，
   速度双档 `moveit.velocity_scaling=0.05`（接触段 MTC）/
   `moveit.transit_velocity_scaling=0.10`（自由空间转移；0.01 蠕行曾在高重力矩姿态
   持续过久而关节过流，低速档不得让高重力矩姿态持续过久）、
   `scan.maximum_moves=5`/`scan.min_camera_height_m=0.06`（桌面保护平面过滤）、
+  `scan.protected_zones=[]`（F1 环境几何保护区：base 系轴对齐盒 stride-6 扁平
+  编码 [xmin,ymin,zmin,xmax,ymax,zmax]*N，视点相机位置与 MTC 接触段入口点
+  （含降级链入口）落入任一盒（闭区间含表面）即剔除/拒规划，入口命中终局
+  SKIPPED_UNREACHABLE；畸形盒装载时告警逐盒丢弃；min_camera_height_m 是其
+  半空间特例 shortcut，并存各自生效）、
   `scan.time_budget_s=5.0`（观察段时间盒，到期强制 finalize 走降级链；
   暂时测试设置，实际工况再调）、
   质量门验证档 `quality.minimum_views=3`/`minimum_baseline_deg=15`/
-  `maximum_refined_rmse_m=0.01`（精化未达标时回退候选锚点降级抓取，非极端必抓）；
+  `maximum_refined_rmse_m=0.01`（精化未达标时回退候选锚点降级抓取，非极端必抓；
+  入口袋外余量 `grasp.fallback_standoff_m=0.05`，终局 reason 带 degraded_anchor）、
+  抓取前再确认（2.7-RECONFIRM，FinalizeAndValidate 与 MTC 之间）：
+  `grasp.reconfirm_wait_s=6.0`（单次窗口上限/回退，按观测帧间隔 EMA 自适应）、
+  `reconfirm_tolerance_m=0.03`（锚点漂移容差，超限用最新锚点重算 entry/axis 一次）、
+  `reconfirm_max_attempts=3`（漂移超限/窗口耗尽/摆动不息累计上限，达到 →
+  SKIPPED_QUALITY）、`allow_stale_anchor=false`（true 退化为旧"按静态锚点继续"）；
   感知 `harvest.min_collect_frames=10`/`lock_settle_frames=5`/`max_collect_s=25.0`/
   `priority_prefer_lower_first=true`（收齐窗口与优先级；max_collect_s 运行期按实测
   帧间隔 EMA 自适应伸缩、有未确认记录在攒帧就不关窗防锁空集）、`yolo_conf`/
   `min_detection_conf=0.25`（逆光 0.3 全滤真实目标；不宜再低，误检由确认机制兜底）、
   `target_memory.recovery_scale=3.5`（跨视角锚点偏差
   实测 15.7cm，恢复半径 21cm 兜底）、`target_memory.tentative_ttl_frames=5`
-  （未确认目标存活按帧计，帧率以运行状态为准）；帧率自适应超时——能力端
+  （未确认目标存活按帧计，帧率以运行状态为准）、阶段 D1 室外感知
+  （`peach_pose_ros2`）：`target_memory.anchor_max_age_s=30`/`anchor_drop_s=120`
+  （锁定集 LOST 锚点陈旧降权/移除上限，按帧率 EMA 折算帧数判定）、
+  `target_memory.max_age_s=600`（含已确认表项墙钟淘汰，防跨场景陈旧锚点误命中）、
+  `wind.swing_threshold_m=0.03`/`wind.swing_frames=3`（摆动 target_swinging 旗标，
+  对称连击平息）、`lighting.min_depth_ratio=0.35`/`min_conf_mean=0.3`/`bad_frames=5`
+  （low_light_quality 观测指标不阻断）、tracking_status 四分类（追加
+  OUT_OF_VIEW=4/DEPTH_VOID=5，OUT_OF_VIEW 视为不可选）、
+  `~/clear_target_memory`（Trigger，清身份记忆不动计划）、
+  `sam_max_bboxes=16`/`sam_min_area=100`/`yolo_nms_iou=0.5`/`min_mask_points=50`/
+  `pipeline.min_depth_m=0.3`/`max_depth_m=2.5`/`min_points=100`（容量与深度窗参数化）；
+  阶段 H 效率项（2.13-E1）：`pipeline.locked_only_segmentation=true`（锁定后 SAM 只对
+  锁定集目标框推理——记忆锚点经 TF 反投影识别锁定框，锁定前/开关关/TF 不可用帧回退
+  全量）、`publish_debug_image=false`（debug 叠加图生产档默认关，零序列化零发布）；
+  帧率自适应超时——能力端
   `scan.frame_wait_s`/`execution.target_observation_max_age_s` 均按观测话题实测
   帧间隔 EMA 伸缩（配置值为回退/上限）；重建节点 1Hz 活性心跳（status/diagnostics/
-  grasp_decision，无心跳时编排器重建就绪门会因 2s 新鲜度永远不满足）；视角覆盖
+  grasp_decision；编排器侧新鲜度门为 2.11 自适应 max(配置下限 readiness.timeout_s,
+  2.5×实测发布周期EMA)，无心跳时超 2.5×EMA 判失连）；视角覆盖
   指标按机位聚类（同机位连帧不稀释基线）。
 - Python 节点参数以各包 `config/*.yaml` 为权威源，代码内 `declare_parameter` 默认值
   必须逐一对齐。

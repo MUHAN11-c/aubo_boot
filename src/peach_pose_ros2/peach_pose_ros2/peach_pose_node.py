@@ -2,7 +2,10 @@
 PeachPose ROS 2 感知节点.
 
 订阅时间对齐的 RGB-D + CameraInfo，经 YOLO → MobileSAM → 实测深度几何管线，
-发布抓取参考候选 / 2D / 拟合诊断 / 检测 / 掩膜 / Marker / debug 图 / 检测框点云。
+发布面为规范组单套话题 ``/peach/perception/*``（initial_pose / axis /
+single_cloud / detections / masks / diagnostics / markers / debug_image /
+target_observations / harvest_state；2D 候选随 target_observations 的
+candidate_2d 字段下发，不再单独成话题）。
 
 只发参考位姿，不发送运动指令。几何默认可经 TF 变到 ``output_frame``
 （默认 ``base_link``，依赖 ``hand_eye_extrinsics_publisher``）。
@@ -10,12 +13,13 @@ PeachPose ROS 2 感知节点.
 
 本模块为编排层（参数、订阅发布、回调编排、main）；纯函数按职责拆分：
   params.py        — 参数层（PeachPoseParams 集中 declare/装载）
-  tf_utils.py      — TF/旋转工具（官方 tf_transformations）
+  grasp_tf.py      — 抓取几何坐标变换（感知专属残留层，基于 peach_core）
   conversions.py   — 算法 dataclass/检测 dict → ROS 消息组装
   visualization.py — RViz Marker 与 debug 叠加图
   cloud_utils.py   — 检测框点云反投影与 PointCloud2 组装
-  harvest_plan.py  — 全局目标收齐式窗口锁定与多维确定性优先级
-  harvest_data.py  — manifest/事件/掩膜数据管理
+  peach_pose/harvest_plan.py — 全局目标收齐式窗口锁定与多维确定性优先级
+  peach_core       — 通用纯核（tf_utils/depth_geometry/bounded_worker/
+                     harvest_data/timing/registry；A3 起单份事实源）
 """
 from __future__ import annotations
 
@@ -31,14 +35,19 @@ from cv_bridge import CvBridge
 from geometry_msgs.msg import Vector3, Vector3Stamped
 import message_filters
 import numpy as np
+from peach_core.bounded_worker import BoundedWorker
+from peach_core.depth_geometry import normalize_depth_to_uint16_mm
+from peach_core.harvest_data import HarvestDataStore
+from peach_core.ros.clock_adapter import RclpyClockAdapter
+from peach_core.tf_utils import gravity_camera_from_R, transform_msg_to_matrix
+from peach_core.timing import AdaptiveTimeout, RateEstimator
 from peach_pose_msgs.msg import (
     BagFittingArray,
-    BagGrasp2DArray,
     BagGraspCandidateArray,
     PeachTargetObservation,
     PeachTargetObservationArray,
 )
-from peach_pose_ros2.bounded_worker import BoundedWorker
+from peach_pose_msgs.srv import ReopenTarget
 from peach_pose_ros2.cloud_utils import _bbox_cloud_xyzrgb, _xyzrgb_to_cloud
 from peach_pose_ros2.conversions import (
     _to_candidate,
@@ -46,22 +55,40 @@ from peach_pose_ros2.conversions import (
     _to_detection2d,
     _to_fitting,
 )
-from peach_pose_ros2.harvest_data import HarvestDataStore
-from peach_pose_ros2.harvest_plan import GlobalHarvestPlan
+from peach_pose_ros2.grasp_tf import _apply_T_to_grasp3d, _rotation_to_quat
 from peach_pose_ros2.params import PeachPoseParams
+from peach_pose_ros2.peach_pose import impls as _impls  # noqa: F401  注册清单
 from peach_pose_ros2.peach_pose.candidates import (
     CandidateEstimator,
     dedup_overlapping_detections,
 )
 from peach_pose_ros2.peach_pose.contracts import BagObservation, compute_entry_start
-from peach_pose_ros2.peach_pose.depth_geometry import normalize_depth_to_uint16_mm
+from peach_pose_ros2.peach_pose.harvest_plan import GlobalHarvestPlan
 from peach_pose_ros2.peach_pose.inference import InferenceEngine
-from peach_pose_ros2.tf_utils import (
-    _apply_T_to_grasp3d,
-    _gravity_camera_from_R,
-    _rotation_to_quat,
-    _transform_msg_to_matrix,
+from peach_pose_ros2.peach_pose.interfaces import (
+    DETECTORS,
+    LOCK_POLICIES,
+    MATCHERS,
+    POSE_PIPELINES,
+    SEGMENTERS,
 )
+from peach_pose_ros2.peach_pose.observation_quality import (
+    bbox_touches_image_edge,
+    classify_tracking_status,
+    LightingMeter,
+    STATUS_DEPTH_VOID,
+    STATUS_LOST,
+    STATUS_OBSERVED,
+    STATUS_OCCLUDED,
+    STATUS_OUT_OF_VIEW,
+)
+from peach_pose_ros2.peach_pose.pipeline import valid_depth_mask
+from peach_pose_ros2.peach_pose.segmentation_gate import (
+    plan_segmentation_bboxes,
+    project_positions_to_pixels,
+)
+from peach_pose_ros2.peach_pose.target_registry import TargetRegistry
+from peach_pose_ros2.peach_pose.timing_metrics import TimingMetrics
 from peach_pose_ros2.visualization import _draw_debug, _to_markers
 import rclpy
 from rclpy.duration import Duration
@@ -73,6 +100,16 @@ from std_srvs.srv import Trigger
 from tf2_ros import Buffer, TransformException, TransformListener
 from vision_msgs.msg import Detection2DArray
 from visualization_msgs.msg import Marker, MarkerArray
+
+# 跟踪状态四分类 token → msg 常量（阶段 D1；分类纯函数在纯核
+# observation_quality，零 ROS import，msg 常量只能在本层映射）
+_TRACKING_STATUS_TO_MSG = {
+    STATUS_OBSERVED: PeachTargetObservation.OBSERVED,
+    STATUS_OCCLUDED: PeachTargetObservation.OCCLUDED,
+    STATUS_LOST: PeachTargetObservation.LOST,
+    STATUS_OUT_OF_VIEW: PeachTargetObservation.OUT_OF_VIEW,
+    STATUS_DEPTH_VOID: PeachTargetObservation.DEPTH_VOID,
+}
 
 
 class PeachPoseNode(Node):
@@ -96,11 +133,47 @@ class PeachPoseNode(Node):
         self.get_logger().info(f'YOLO={yolo}')
         self.get_logger().info(f'SAM={sam}')
 
-        self.engine = InferenceEngine(
-            yolo_model=yolo, sam_model=sam, yolo_conf=self.yolo_conf)
-        from peach_pose_ros2.peach_pose.pipeline import RobustBagPosePipeline
+        # 2.14 装配：检测/分割/位姿管线/匹配器/锁定策略全部按 yaml *.impl
+        # 注册名 create 注入，调用端只持有接口层 ABC 引用
+        detector = DETECTORS.create(
+            self.detector_impl, yolo_model=yolo, yolo_conf=self.yolo_conf,
+            yolo_iou=self.yolo_nms_iou)
+        segmenter = SEGMENTERS.create(
+            self.segmenter_impl, sam_model=sam,
+            sam_max_bboxes=self.sam_max_bboxes, sam_min_area=self.sam_min_area)
+        self.engine = InferenceEngine(detector=detector, segmenter=segmenter)
+        # 有效深度窗与前景点数下限随参数下发（阶段 D1 参数化；两条管线共用
+        # 同一相机/深度约定，取同一组 pipeline.* 值）
+        pipeline_kwargs = {
+            'min_depth_m': self.pipeline_min_depth_m,
+            'max_depth_m': self.pipeline_max_depth_m,
+            'min_points': self.pipeline_min_points,
+        }
+        bag_pipeline = POSE_PIPELINES.create(
+            self.pipeline_bag_impl, tool=self.tool, **pipeline_kwargs)
+        fruit_pipeline = POSE_PIPELINES.create(
+            self.pipeline_fruit_impl, tool=self.tool, **pipeline_kwargs)
         self.estimator = CandidateEstimator(
-            pipeline=RobustBagPosePipeline(tool=self.tool))
+            pipeline=bag_pipeline, fruit_pipeline=fruit_pipeline,
+            min_mask_points=self.min_mask_points)
+        # 目标身份记忆：匹配器按 matcher.impl 创建，表由 TargetRegistry 持有
+        if self.target_memory_enable:
+            matcher = MATCHERS.create(
+                self.matcher_impl,
+                match_radius=self.target_memory_match_radius_m,
+                recovery_scale=self.target_memory_recovery_scale,
+                cross_class_recovery=self.target_memory_cross_class_recovery)
+            self.target_registry = TargetRegistry(
+                matcher=matcher,
+                max_targets=self.target_memory_max_targets,
+                position_ema=self.target_memory_position_ema,
+                confirm_frames=self.target_memory_confirm_frames,
+                tentative_ttl_frames=self.target_memory_tentative_ttl_frames,
+                max_age_s=self.target_memory_max_age_s,
+                swing_threshold_m=self.wind_swing_threshold_m,
+                swing_frames=self.wind_swing_frames)
+        else:
+            self.target_registry = None
         # plan 竞态防护选型：BoundedWorker（capacity=1, drop_oldest=True）的
         # 丢帧策略会静默吞掉 reset/complete 命令任务，不满足「命令不丢」语义；
         # 改造 worker 支持双优先级队列代价大于收益，故用节点级 RLock 细粒度锁：
@@ -108,36 +181,51 @@ class PeachPoseNode(Node):
         # 全部由本锁保护（worker 线程帧处理 + executor 线程服务回调）；
         # RLock 允许持锁内嵌套 _publish_harvest_state → _harvest_state_dict。
         self._plan_lock = threading.RLock()
-        self.harvest_plan = GlobalHarvestPlan(
-            max_targets=self.target_memory_max_targets,
+        lock_policy = LOCK_POLICIES.create(
+            self.lock_impl,
             min_collect_frames=self.harvest_min_collect_frames,
             lock_settle_frames=self.harvest_lock_settle_frames,
-            max_collect_s=self.harvest_max_collect_s,
-            prefer_lower_first=self.harvest_priority_prefer_lower_first)
+            max_collect_s=self.harvest_max_collect_s)
+        self.harvest_plan = GlobalHarvestPlan(
+            max_targets=self.target_memory_max_targets,
+            prefer_lower_first=self.harvest_priority_prefer_lower_first,
+            # 锚点帧龄阈值初值按 5 fps 名义帧率折算（30 s/120 s → 150/600
+            # 帧）兜底；首帧实测帧间隔 EMA 就位后逐帧改写（协议 I4）
+            anchor_max_age_frames=max(
+                1, round(self.target_memory_anchor_max_age_s / 0.2)),
+            anchor_drop_frames=max(
+                1, round(self.target_memory_anchor_drop_s / 0.2)),
+            lock_policy=lock_policy)
         self.harvest_data = HarvestDataStore()
         self.harvest_run_id = ''
-        # 实测帧间隔 EMA（帧率自适应收齐窗口兜底；None=未测得）
-        self._frame_interval_ema = None
-        self._last_frame_clock_s = None
+        # 阶段 D1：锁定集目标光照质量统计（观测指标，不打阻断旗标）；
+        # OUT_OF_VIEW 分类用的「消失前最后检测框是否触图像边缘」记忆
+        # （稳定 target_id → bool；clear_target_memory 时一并清空）
+        self._lighting = LightingMeter(
+            alpha=0.3,
+            min_depth_ratio=self.lighting_min_depth_ratio,
+            min_conf_mean=self.lighting_min_conf_mean,
+            bad_frames=self.lighting_bad_frames)
+        self._bbox_at_edge = {}
+        # 协议 I3（时钟唯一）：节点时钟为唯一时钟源，经适配器注入纯核；
+        # 帧率自适应收齐兜底 = RateEstimator(实测帧间隔 EMA, α=0.3) +
+        # AdaptiveTimeout(clamp(0.4×cfg, (min_collect+settle+3)×EMA, ∞))，
+        # 与原内联实现逐项等价（异常间隔 ≤1ms/>30s 不进 EMA）
+        self._clock = RclpyClockAdapter(self.get_clock())
+        self._frame_rate = RateEstimator(alpha=0.3)
+        self._collect_window_timeout = AdaptiveTimeout(
+            lower=0.4 * self.harvest_max_collect_s, upper=float('inf'),
+            factor=(self.harvest_min_collect_frames
+                    + self.harvest_lock_settle_frames + 3))
+        # 推理耗时分项埋点：_process_rgbd 各段（detect/segment/geometry/total）
+        # 用上面同一个注入时钟测量，EMA（α=0.3 与帧率同纪律）后随
+        # harvest_state JSON 的 timing 子对象下发，不新增话题
+        self._timing = TimingMetrics(alpha=0.3)
 
-        # ---- 输出话题（相对命名空间 ~/）----
-        self.pub_cands = self.create_publisher(
-            BagGraspCandidateArray, '~/grasp_candidates', 10)
-        self.pub_cands_2d = self.create_publisher(
-            BagGrasp2DArray, '~/grasp_candidates_2d', 10)
-        self.pub_fitting = self.create_publisher(
-            BagFittingArray, '~/fitting', 10)
-        self.pub_dets = self.create_publisher(
-            Detection2DArray, '~/detections', 10)
-        self.pub_masks = self.create_publisher(Image, '~/masks', 10)
-        self.pub_markers = self.create_publisher(MarkerArray, '~/markers', 10)
-        self.pub_debug = self.create_publisher(Image, '~/debug_image', 10)
-        self.pub_det_cloud = self.create_publisher(
-            PointCloud2, '~/detection_cloud', 10)
-
-        # ---- 规范化输出话题（/peach/perception/*）----
-        # 与上面 ~/ 话题并行发布**同一消息对象**，供下游按固定命名订阅；
-        # 旧 ~/ 话题全部保留，行为不变
+        # ---- 输出话题（规范组 /peach/perception/*，单套发布面）----
+        # A5 起旧 ~/ 组（grasp_candidates/fitting/markers 等）已删除，下游一律
+        # 订阅本组固定命名；2D 候选不再单独成话题（随 target_observations 的
+        # candidate_2d 字段下发）
         self.pub_norm_pose = self.create_publisher(
             BagGraspCandidateArray, '/peach/perception/initial_pose', 10)
         self.pub_norm_axis = self.create_publisher(
@@ -152,6 +240,8 @@ class PeachPoseNode(Node):
             BagFittingArray, '/peach/perception/diagnostics', 10)
         self.pub_norm_markers = self.create_publisher(
             MarkerArray, '/peach/perception/markers', 10)
+        self.pub_norm_debug = self.create_publisher(
+            Image, '/peach/perception/debug_image', 10)
         self.pub_target_observations = self.create_publisher(
             PeachTargetObservationArray,
             '/peach/perception/target_observations', 10)
@@ -166,6 +256,10 @@ class PeachPoseNode(Node):
         self.create_service(
             Trigger, '~/complete_selected_target',
             self._on_complete_selected_target)
+        self.create_service(
+            Trigger, '~/clear_target_memory', self._on_clear_target_memory)
+        self.create_service(
+            ReopenTarget, '~/reopen_target', self._on_reopen_target)
 
         # 与数据集回放 / 相机驱动对齐：RELIABLE，避免 Best Effort 对不上
         qos = rclpy.qos.QoSProfile(
@@ -208,18 +302,47 @@ class PeachPoseNode(Node):
         else:
             self.get_logger().info('目标身份记忆已禁用：target_id 为帧内序号')
 
+    def _discovery_counts(self) -> Tuple[int, int]:
+        """
+        发现进度摘要 (collecting_count, pending_count)（缺陷 R-D8；须持锁调用）.
+
+        collecting_count：锁定前=收齐窗口累积的已确认目标数（plan 透传策略
+        累积集大小），锁定后=锁定集大小（与 target_count 一致）；
+        pending_count：锁定前=注册表确认中（未转正）记录数，锁定后恒 0；
+        身份记忆禁用时恒 0（每帧记录即确认，无攒帧过程）。
+        """
+        collecting = self.harvest_plan.collecting_count
+        if self.harvest_plan.locked or self.target_registry is None:
+            return collecting, 0
+        return collecting, self.target_registry.pending_count
+
     def _harvest_state_dict(self) -> dict:
         """返回可序列化的全局采摘计划与数据路径（持锁读取一致快照）."""
         with self._plan_lock:
+            collecting_count, pending_count = self._discovery_counts()
             return {
                 'harvest_run_id': self.harvest_run_id,
                 'snapshot_id': self.harvest_plan.snapshot_id,
                 'target_set_locked': self.harvest_plan.locked,
                 'target_count': self.harvest_plan.target_count,
+                # R-D8 发现进度摘要：与 target_observations 同名字段对齐
+                'collecting_count': collecting_count,
+                'pending_count': pending_count,
                 'target_ids': list(self.harvest_plan.locked_ids),
                 'completed_target_ids': sorted(self.harvest_plan.completed_ids),
                 'priorities': dict(self.harvest_plan.priorities),
                 'selected_target_id': self.harvest_plan.selected_target_id,
+                # 阶段 D1（协议 2.4）：锚点陈旧/出视野/已移除目标集（均为
+                # 纯增量键，下游只读消费）与光照质量观测指标
+                'anchor_stale_target_ids': sorted(
+                    self.harvest_plan.anchor_stale_ids),
+                'out_of_view_target_ids': sorted(
+                    self.harvest_plan.out_of_view_ids),
+                'dropped_target_ids': sorted(self.harvest_plan.dropped_ids),
+                'lighting': self._lighting.snapshot(),
+                'low_light_quality': self._lighting.low_quality,
+                # 推理耗时分项 EMA（毫秒）+ 实测 fps；详见 TimingMetrics
+                'timing': self._timing.snapshot(fps=self._frame_rate.rate_hz),
                 'data': self.harvest_data.query(),
             }
 
@@ -274,6 +397,51 @@ class PeachPoseNode(Node):
             f'已完成 {completed}，下一目标={next_target or "本轮全部完成"}')
         return response
 
+    def _on_reopen_target(self, request, response):
+        """
+        ~/reopen_target：重开已终局目标恢复可选（E3 残局抬质量配套）.
+
+        编排器对 SKIPPED_QUALITY 残局目标的 OBSERVE_ONLY 抬质量成功后调用；
+        守卫与语义见 harvest_plan.GlobalHarvestPlan.reopen_target。成功记
+        target_reopened 事件并刷新 harvest_state（是否重新选中由固定
+        优先级计划按下帧观测自决）。
+        """
+        with self._plan_lock:
+            reason = self.harvest_plan.reopen_target(request.target_id)
+            if reason:
+                response.success = False
+                response.message = f'重开被拒：{reason}'
+                return response
+            self.harvest_data.append_event({
+                'source': 'perception', 'event': 'target_reopened',
+                'target_id': request.target_id,
+            })
+            self._publish_harvest_state()
+        response.success = True
+        response.message = f'已重开 {request.target_id}（恢复可选，等待重选）'
+        return response
+
+    def _on_clear_target_memory(self, request, response):
+        """
+        ~/clear_target_memory：清空目标身份记忆全部表项（计划/锁定集不动）.
+
+        协议 2.3：批次开局 harvest.fresh_scene=true 时编排器先调本服务，
+        清掉上一轮/上一场景的锚点记忆，防陈旧锚点被恢复匹配误命中。
+        同时清空 OUT_OF_VIEW 分类用的检测框触边记忆（旧 ID 不再复现）。
+        """
+        del request
+        with self._plan_lock:
+            if self.target_registry is None:
+                response.success = False
+                response.message = '目标身份记忆未启用（target_memory.enable=false）'
+                return response
+            count = self.target_registry.clear()
+            self._bbox_at_edge.clear()
+        response.success = True
+        response.message = (
+            f'已清空目标身份记忆（清除 {count} 条表项），计划/锁定集未动')
+        return response
+
     def _start_harvest_run(self) -> None:
         """为刚锁定的全局目标集合创建不可变 manifest（须持 _plan_lock 调用）."""
         with self._plan_lock:
@@ -314,27 +482,67 @@ class PeachPoseNode(Node):
             # 帧率自适应收齐兜底：按实测帧间隔 EMA 伸缩 max_collect_s（帧率
             # 以运行状态为准）——低帧率放大防误锁空集，高帧率收紧提速；
             # 配置值 ×0.4 作下限。异常间隔（暂停后首帧）不进 EMA。
-            now_s = self.get_clock().now().nanoseconds * 1e-9
-            if self._last_frame_clock_s is not None:
-                frame_dt = now_s - self._last_frame_clock_s
-                if 1e-3 < frame_dt < 30.0:
-                    self._frame_interval_ema = (
-                        frame_dt if self._frame_interval_ema is None
-                        else 0.7 * self._frame_interval_ema + 0.3 * frame_dt)
-            self._last_frame_clock_s = now_s
-            if self._frame_interval_ema:
-                adaptive_collect_s = (
-                    (self.harvest_plan.min_collect_frames
-                     + self.harvest_plan.lock_settle_frames + 3)
-                    * self._frame_interval_ema)
-                self.harvest_plan.max_collect_s = max(
-                    0.4 * self.harvest_max_collect_s, adaptive_collect_s)
-            current = self.harvest_plan.update(records)
+            # 协议 I3：now 取节点时钟（同一时钟源同时驱动窗口超时判定）
+            now_s = self._clock.now()
+            self._frame_rate.update(now_s)
+            frame_interval = self._frame_rate.interval
+            if frame_interval is not None:
+                self.harvest_plan.max_collect_s = (
+                    self._collect_window_timeout.value(frame_interval))
+                # 锚点新鲜度两档时限（阶段 D1，协议 2.4/I4）：秒级上限 ÷
+                # 实测帧间隔 EMA = 帧数阈值，逐帧改写；帧率跌落时帧数变少，
+                # 墙钟上限保持不变
+                self.harvest_plan.anchor_max_age_frames = max(
+                    1, round(self.target_memory_anchor_max_age_s
+                             / frame_interval))
+                self.harvest_plan.anchor_drop_frames = max(
+                    1, round(self.target_memory_anchor_drop_s
+                             / frame_interval))
+            # OUT_OF_VIEW 预分类（须在 plan.update 前完成：计划按本集合做
+            # 不可选/去选判定）：锁定目标本帧无观测且消失前最后检测框触
+            # 图像边缘 → 走出视野；单位姿模型下复扫无益，视为不可选（2.4）
+            out_of_view_ids = {
+                target_id for target_id in self.harvest_plan.locked_ids
+                if target_id not in payloads
+                and self._bbox_at_edge.get(target_id, False)
+            }
+            current = self.harvest_plan.update(
+                records, now=now_s, out_of_view_ids=out_of_view_ids)
+            # 锚点超龄移除（LOST 超 anchor_drop）：记账 target_dropped 事件，
+            # 编排侧据此按 SKIPPED_UNREACHABLE「目标丢失超时」入账（协议 2.4）
+            for dropped_id in self.harvest_plan.pop_dropped():
+                self.harvest_data.append_event({
+                    'source': 'perception', 'event': 'target_dropped',
+                    'target_id': dropped_id,
+                    'reason': 'anchor_drop_timeout（目标丢失超时）',
+                })
             try:
                 if self.harvest_plan.locked and not was_locked:
                     self._start_harvest_run()
             except OSError as exc:
                 self.get_logger().error(f'采摘运行目录创建失败: {exc}')
+
+            # 光照质量统计（阶段 D1；观测指标，不打阻断旗标）：锁定集中
+            # 本帧带掩膜观测的目标，逐帧注入掩膜内有效深度占比与置信度
+            if self.harvest_plan.locked:
+                depth_ratios = []
+                confidences = []
+                for target_id in self.harvest_plan.locked_ids:
+                    payload = payloads.get(target_id)
+                    if payload is None or payload.get('mask') is None:
+                        continue
+                    depth_ratios.append(payload.get('mask_depth_ratio', 0.0))
+                    confidences.append(float(
+                        current.get(target_id, {}).get('confidence', 0.0)))
+                self._lighting.update(depth_ratios, confidences)
+            if self._lighting.low_quality:
+                self.get_logger().warning(
+                    f'光照质量持续偏低（{self.lighting_bad_frames} 帧连击：'
+                    f'掩膜内有效深度占比 EMA='
+                    f'{self._lighting.snapshot()["depth_ratio"]} < '
+                    f'{self.lighting_min_depth_ratio} 或置信度 EMA < '
+                    f'{self.lighting.min_conf_mean}），建议现场补光/调曝光',
+                    throttle_duration_sec=10.0)
 
             array = PeachTargetObservationArray()
             array.header = header
@@ -343,6 +551,10 @@ class PeachPoseNode(Node):
             array.target_set_locked = self.harvest_plan.locked
             array.target_count = self.harvest_plan.target_count
             array.selected_target_id = self.harvest_plan.selected_target_id
+            # R-D8 发现进度摘要：锁定前 observations 恒空，下游经本两字段
+            # 跟踪收齐进度；锁定后=锁定集大小/0（语义见 msg 注释）
+            array.collecting_count, array.pending_count = (
+                self._discovery_counts())
             observed_ids = []
             stamp_ns = Time.from_msg(mask_header.stamp).nanoseconds
             for target_id in self.harvest_plan.locked_ids:
@@ -355,11 +567,25 @@ class PeachPoseNode(Node):
                 item.harvest_status = self.harvest_plan.harvest_status(target_id)
                 payload = payloads.get(target_id)
                 record = current.get(target_id, {})
+                # 跟踪状态四分类（阶段 D1，协议 2.4 第 4 条）：分类纯函数
+                # 在 observation_quality，本处只做 token → msg 常量映射
+                token = classify_tracking_status(
+                    has_observation=payload is not None,
+                    has_mask=(payload is not None
+                              and payload.get('mask') is not None),
+                    mask_depth_ratio=(
+                        None if payload is None
+                        else payload.get('mask_depth_ratio')),
+                    min_depth_ratio=self.lighting_min_depth_ratio,
+                    last_bbox_touched_edge=self._bbox_at_edge.get(
+                        target_id, False))
+                item.tracking_status = _TRACKING_STATUS_TO_MSG[token]
                 if payload is None:
-                    item.tracking_status = PeachTargetObservation.LOST
-                    item.diagnostic_flags = ['target_temporarily_lost']
+                    if token == STATUS_OUT_OF_VIEW:
+                        item.diagnostic_flags = ['target_out_of_view']
+                    else:
+                        item.diagnostic_flags = ['target_temporarily_lost']
                 else:
-                    item.tracking_status = PeachTargetObservation.OBSERVED
                     item.camera_distance_m = float(
                         record.get('camera_distance_m', 0.0))
                     item.confidence = float(record.get('confidence', 0.0))
@@ -370,9 +596,10 @@ class PeachPoseNode(Node):
                         record.get('diagnostic_flags', ()))
                     mask = payload.get('mask')
                     if mask is None:
-                        item.tracking_status = PeachTargetObservation.OCCLUDED
                         item.diagnostic_flags.append('mask_unavailable')
                     else:
+                        if token == STATUS_DEPTH_VOID:
+                            item.diagnostic_flags.append('depth_void')
                         item.mask = self.bridge.cv2_to_imgmsg(
                             (mask > 0).astype(np.uint8) * 255,
                             encoding='mono8')
@@ -384,6 +611,12 @@ class PeachPoseNode(Node):
                                     target_id, stamp_ns, mask)
                             except OSError as exc:
                                 self.get_logger().error(str(exc))
+                # 锚点陈旧旗标（阶段 D1，协议 2.4）：LOST 超 anchor_max_age
+                # 的锁定目标已被计划排除出可选集，此处把旗标同步进该目标的
+                # diagnostic_flags 供下游/Web 展示
+                if (target_id in self.harvest_plan.anchor_stale_ids
+                        and 'anchor_stale' not in item.diagnostic_flags):
+                    item.diagnostic_flags.append('anchor_stale')
                 # 几何退化统一兜底（LOST 无 payload，或观测帧深度失败导致
                 # bag_bottom/neck 近零）：回填注册表记忆锚点——世界系身份记忆
                 # 的本职用途；带 anchor_from_memory 标记，能力端不把它当新鲜
@@ -473,7 +706,7 @@ class PeachPoseNode(Node):
         try:
             tf = self.tf_buffer.lookup_transform(
                 self.output_frame, cam_frame, stamp_time, timeout=self.tf_timeout)
-            return _transform_msg_to_matrix(tf.transform), 'ok'
+            return transform_msg_to_matrix(tf.transform), 'ok'
         except TransformException:
             try:
                 tf = self.tf_buffer.lookup_transform(
@@ -483,11 +716,55 @@ class PeachPoseNode(Node):
                         f'TF {self.output_frame}←{cam_frame} 按 stamp 失败，'
                         '已用最新 TF（确认 extrinsics_publisher 已启动）')
                     self._tf_warned = True
-                return _transform_msg_to_matrix(tf.transform), 'stale'
+                return transform_msg_to_matrix(tf.transform), 'stale'
             except TransformException as ex:
                 self.get_logger().warning(
                     f'TF 失败，输出退回相机系 {cam_frame}: {ex}')
                 return None, 'unavailable'
+
+    def _segmentation_bboxes(self, kept, T_out_cam, K):
+        """
+        决定本帧送 SAM 的检测框集（阶段 H，协议 2.13-E1 锁定后 selected-only）.
+
+        锁定前/开关关/TF 不可用帧全量（旧行为）；锁定后把锁定且未终局目标
+        的世界系记忆锚点（TargetRegistry 表项 position）经 T_out_cam 逆变换
+        反投影到本帧像素，只分割「包含锚点投影」的检测框（纯核策略见
+        peach_pose/segmentation_gate.py，重叠框宁多勿漏）。已终局
+        （completed）目标不再分割：账目已定，掩膜不再进任何判定。
+        分割失败的锁定目标在下游被显式判 OCCLUDED + mask_unavailable，
+        几何走深度带降级——不漏报、不静默。
+
+        Args:
+            kept: 本帧入管线检测 dict 列表（置信度过滤+去重后）.
+            T_out_cam: (4, 4) output←camera 齐次矩阵或 None（TF 彻底失败）.
+            K: 本帧相机内参 dict（fx/fy/cx/cy/width/height）.
+
+        Returns
+        -------
+            送 SAM 的 (x1, y1, x2, y2) 框列表（顺序与 kept 一致）.
+
+        """
+        # 持 _plan_lock：harvest_plan 与 target_registry 是同一份一致性状态
+        # （clear_target_memory 服务回调在同锁下清表），门控读取须与之互斥；
+        # 锁内只有 dict 读取与一次 4×4 求逆，耗时微秒级
+        with self._plan_lock:
+            locked = self.harvest_plan.locked
+            anchor_px = None
+            if (self.pipeline_locked_only_segmentation and locked
+                    and self.target_registry is not None
+                    and T_out_cam is not None):
+                positions = {}
+                for target_id in self.harvest_plan.locked_ids:
+                    if target_id in self.harvest_plan.completed_ids:
+                        continue
+                    entry = self.target_registry.get(target_id)
+                    if entry is not None and entry.get('position') is not None:
+                        positions[target_id] = np.asarray(
+                            entry['position'], dtype=float)
+                anchor_px = project_positions_to_pixels(
+                    positions, np.linalg.inv(T_out_cam), K)
+            return plan_segmentation_bboxes(
+                kept, self.pipeline_locked_only_segmentation, locked, anchor_px)
 
     def _on_rgbd(self, rgb_msg: Image, depth_msg: Image, info: CameraInfo):
         """将最新同步帧交给容量一推理 worker."""
@@ -510,6 +787,10 @@ class PeachPoseNode(Node):
 
         """
         rgb_msg, depth_msg, info = frame
+        # 推理耗时分项埋点（协议 I3：唯一时钟源为注入的节点时钟，禁止
+        # time.time/perf_counter 第二时钟）；早退帧（转换失败/检测异常等）
+        # 不记录，只统计完整走完管线的帧
+        t_total_start = self._clock.now()
         self.get_logger().debug(
             f'RGB-D sync frame {rgb_msg.width}x{rgb_msg.height}')
         # RGB/深度时间戳偏差：DEBUG 每帧记录；接近同步允差时 WARN 节流提示
@@ -584,7 +865,7 @@ class PeachPoseNode(Node):
         gravity_hint = self.gravity_hint
         if self.gravity_mode == 'tf':
             if self.output_frame and tf_status != 'unavailable':
-                gravity_hint = _gravity_camera_from_R(T_out_cam[:3, :3])
+                gravity_hint = gravity_camera_from_R(T_out_cam[:3, :3])
             else:
                 self.get_logger().warning(
                     'gravity_mode=tf 但 TF 不可用或未设 output_frame，'
@@ -603,6 +884,7 @@ class PeachPoseNode(Node):
         # ---- 检测 ----
         # YOLO 异常（权重缺失/CUDA 错误等）不得炸穿 worker：记日志跳过本帧，
         # 与上方 convert 失败的早退形状一致（SAM 侧已在 engine 内捕获返回 []）
+        t_detect_start = self._clock.now()
         try:
             dets = self.engine.detect(rgb)
         except Exception as exc:  # noqa: BLE001
@@ -615,11 +897,13 @@ class PeachPoseNode(Node):
         kept = [d for d in dets
                 if float(d.get('conf', 0.0)) >= self.min_detection_conf]
         kept = dedup_overlapping_detections(kept, self.detection_dedup_ios)
+        # detect 段 = YOLO 推理 + 置信度过滤 + IoS 去重（入管线目标的完整出品）
+        self._timing.record(
+            'detect_ms', (self._clock.now() - t_detect_start) * 1e3)
         det_msg = Detection2DArray()
         det_msg.header = img_header
         for d in kept:
             det_msg.detections.append(_to_detection2d(d, img_header))
-        self.pub_dets.publish(det_msg)
         self.pub_norm_dets.publish(det_msg)
 
         # 检测框内彩色点云（深度反投影），便于 RViz 对照相机全图点云
@@ -634,15 +918,12 @@ class PeachPoseNode(Node):
                 xyz_out = xyz_cam
             # 点已随几何一起变到 out_frame，frame_id 保持输出系（非相机系）
             cloud_msg = _xyzrgb_to_cloud(header, xyz_out, rgb_f)
-            self.pub_det_cloud.publish(cloud_msg)
             self.pub_norm_cloud.publish(cloud_msg)
 
         mask_canvas = np.zeros(depth.shape[:2], dtype=np.uint8)
         debug = rgb.copy() if self.publish_debug_image else None
         cand_arr = BagGraspCandidateArray()
         cand_arr.header = header
-        cand2d_arr = BagGrasp2DArray()
-        cand2d_arr.header = header
         fit_arr = BagFittingArray()
         fit_arr.header = header
         markers = MarkerArray()
@@ -666,12 +947,19 @@ class PeachPoseNode(Node):
         track_this_frame = (self.target_registry is not None
                             and tf_status != 'unavailable')
         if track_this_frame:
-            self.target_registry.begin_frame()
+            # I3：与 match_or_register 注入同一节点时钟——max_age_s 墙钟
+            # 淘汰（阶段 D1）要求两入口同一时钟基准；不注入则注册表跳过
+            # 墙钟淘汰（防 time.monotonic 兜底与注入时钟混比误清表项）
+            self.target_registry.begin_frame(now=self._clock.now())
         # ---- SAM 批量分割：整帧收集全部 bbox 一次 forward（N 目标 N 次 → 1 次），
         # 再按 bbox 精确取回各目标掩膜（segment 丢弃面积过小掩膜，返回项与目标
         # 非一一对齐，故按 bbox 建映射而非按下标）；批量路径自身异常时回退逐目标
         # 调用兜底（engine 内部已捕获的 SAM 推理失败返回 []，不触发本回退）
-        frame_bboxes = [tuple(d['bbox']) for d in kept]
+        t_segment_start = self._clock.now()
+        # 阶段 H（协议 2.13-E1）：锁定后 selected-only 门控——只对锁定集目标的
+        # 检测框跑 SAM（锁定前/开关关/TF 不可用帧全量，见 _segmentation_bboxes）；
+        # segment_ms 分项随之真实回落，是 E1「帧率随目标数回升」的量测口径
+        frame_bboxes = self._segmentation_bboxes(kept, T_out_cam, K)
         mask_by_bbox = {}
         if frame_bboxes:
             try:
@@ -687,6 +975,16 @@ class PeachPoseNode(Node):
                         self.get_logger().warning(
                             f'SAM 单目标分割异常: {exc_single}')
             mask_by_bbox = {bbox: mask for mask, bbox in segs}
+        # segment 段 = SAM 批量分割（含异常时的逐目标回退兜底耗时）
+        self._timing.record(
+            'segment_ms', (self._clock.now() - t_segment_start) * 1e3)
+        # geometry 段 = 逐目标袋/果双管线位姿估计 + TF 变换 + 候选消息构造
+        t_geometry_start = self._clock.now()
+        # 有效深度掩膜（全图，阶段 D1）：逐目标「掩膜内有效深度占比」的
+        # 分母/分子基础，光照质量指标与 DEPTH_VOID 分类共用；参数与几何
+        # 管线同源（pipeline.*），口径一致
+        valid_depth_full = valid_depth_mask(
+            depth, self.pipeline_min_depth_m, self.pipeline_max_depth_m)
         for i, det in enumerate(kept):
             bbox = tuple(det['bbox'])
             sam_mask = mask_by_bbox.get(bbox)
@@ -745,9 +1043,23 @@ class PeachPoseNode(Node):
                             axis=result.grasp_3d.translation_direction,
                             diameter=float(
                                 result.grasp_3d.bag_diameter_upper_m or 0.0),
-                            status=result.grasp_3d.status)
+                            status=result.grasp_3d.status,
+                            now=self._clock.now())
                         result.grasp_3d.diagnostic_flags.append(
                             'target_new' if is_new else 'target_matched')
+                        # 摆动旗标（阶段 D1 室外风动，协议 2.4）：注册表按
+                        # 观测残差连击判定；旗标随 record 进锁定计划即视为
+                        # 不可选，能力端 RECONFIRM 阶段消费等平息
+                        tracked_entry = self.target_registry.get(tid)
+                        if (tracked_entry is not None
+                                and tracked_entry.get('swinging')):
+                            result.grasp_3d.diagnostic_flags.append(
+                                'target_swinging')
+                        # OUT_OF_VIEW 分类证据：记忆「消失前最后检测框是否
+                        # 触图像边缘」（仅稳定 ID 有跨帧意义，故只在身份
+                        # 匹配成功路径更新）
+                        self._bbox_at_edge[tid] = bbox_touches_image_edge(
+                            bbox, depth.shape[1], depth.shape[0])
                 else:
                     # tf_unavailable：保留帧内序号，打标提示下游 ID 不可跨帧追踪
                     result.grasp_3d.diagnostic_flags.append('target_untracked')
@@ -759,7 +1071,6 @@ class PeachPoseNode(Node):
             candidate_2d_msg = _to_candidate_2d(header, tid, g2d)
             fitting_msg = _to_fitting(header, tid, result)
             cand_arr.candidates.append(candidate_msg)
-            cand2d_arr.candidates.append(candidate_2d_msg)
             fit_arr.fittings.append(fitting_msg)
             registry_item = (
                 None if self.target_registry is None
@@ -789,11 +1100,22 @@ class PeachPoseNode(Node):
             if base_anchor is not None:
                 record['base_height_m'] = float(base_anchor[2])
             harvest_records.append(record)
+            # 掩膜内有效深度占比（阶段 D1：光照质量指标 + DEPTH_VOID
+            # 分类共用）；无掩膜记 0.0（不会被采信——无掩膜帧不入统计）
+            mask_depth_ratio = 0.0
+            if sam_mask is not None:
+                sam_foreground = np.asarray(sam_mask) > 0
+                n_foreground = int(np.count_nonzero(sam_foreground))
+                if n_foreground > 0:
+                    mask_depth_ratio = float(
+                        np.count_nonzero(sam_foreground & valid_depth_full)
+                        / n_foreground)
             harvest_payloads[tid] = {
                 'candidate': candidate_msg,
                 'candidate_2d': candidate_2d_msg,
                 'fitting': fitting_msg,
                 'mask': sam_mask,
+                'mask_depth_ratio': mask_depth_ratio,
             }
             markers.markers.extend(_to_markers(
                 header, tid, i, result,
@@ -801,13 +1123,10 @@ class PeachPoseNode(Node):
             if debug is not None:
                 _draw_debug(debug, det, g2d, sam_mask, tid)
 
+        self._timing.record(
+            'geometry_ms', (self._clock.now() - t_geometry_start) * 1e3)
         self._publish_target_observations(
             header, mask_header, harvest_records, harvest_payloads)
-        self.pub_cands.publish(cand_arr)
-        self.pub_cands_2d.publish(cand2d_arr)
-        self.pub_fitting.publish(fit_arr)
-        self.pub_markers.publish(markers)
-        # 规范化话题并行发布同一批消息对象（旧 ~/ 话题全保留）
         self.pub_norm_pose.publish(cand_arr)
         self.pub_norm_diag.publish(fit_arr)
         self.pub_norm_markers.publish(markers)
@@ -840,12 +1159,14 @@ class PeachPoseNode(Node):
         if self.publish_masks:
             mask_msg = self.bridge.cv2_to_imgmsg(mask_canvas, encoding='mono8')
             mask_msg.header = img_header
-            self.pub_masks.publish(mask_msg)
             self.pub_norm_masks.publish(mask_msg)
         if debug is not None:
             dbg_msg = self.bridge.cv2_to_imgmsg(debug, encoding='bgr8')
             dbg_msg.header = img_header
-            self.pub_debug.publish(dbg_msg)
+            self.pub_norm_debug.publish(dbg_msg)
+        # total 段 = 整帧 _process_rgbd（含转换/检测/分割/几何/发布全链路）
+        self._timing.record(
+            'total_ms', (self._clock.now() - t_total_start) * 1e3)
 
     def destroy_node(self):
         """停止推理 worker 后销毁 ROS 节点."""

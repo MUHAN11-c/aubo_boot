@@ -53,6 +53,15 @@ source install/setup.bash
 ros2 launch peach_approach_grasp approach_grasp.launch.py
 ```
 
+本节点是 LifecycleNode（A8）：launch 自动触发 configure→activate；运动输出
+权限绑定 Active 态——Unconfigured/Inactive/ErrorProcessing 下一切运动类入口
+（RunTargetCycle action、start_cycle、go_to_photo_pose、preview_*、
+set_execution_armed、工具 IO）一律拒绝并给出原因。configure 失败（非法参数、
+机器人模型缺失）停在 Unconfigured，可修复后经 `ros2 lifecycle set` 重新触发；
+deactivate 等价于 CANCEL_NOW（真取消活动周期后落 Inactive，接触段 recovery
+锁语义不变）。MoveIt/MTC 接口由同名伴随节点承载（MGI/MTC 只接受
+rclcpp::Node），对话题/服务名无影响。
+
 构建后需要重启 `move_group`/bringup，因为 MoveIt 启动文件新增了官方
 `move_group/ExecuteTaskSolutionCapability`；旧进程不会热加载该 capability。
 
@@ -71,6 +80,17 @@ ros2 action send_goal /peach_approach_grasp_node/run_target_cycle \
   peach_harvest_msgs/action/RunTargetCycle \
   "{request_id: demo-1, run_id: demo, cycle_id: demo-1, target_id: <ID>, mode: 2}"
 ```
+
+受理门按 mode 分流（2026-08-19，阶段 E 残局抬质量能力端）：`FULL`/`PREVIEW`
+维持钉死语义——goal 目标必须仍是感知 selected 缓存目标；`OBSERVE_ONLY`
+（残局抬质量，只观察+精化验证不抓取）的 goal 目标在 FULL 终局后已被感知计划
+complete、selected 为空，改为命中**锁定集锚点缓存**即受理（`onTargets` 把每帧
+`observations` 中全部 confirmed 目标——含非 selected——逐条维护进
+`TargetCache`，`target_set_locked=false` 或 `harvest_run_id` 切换时清空；拒绝日志
+区分"不在锁定集/锚点缺失"）。OBSERVE_ONLY 周期执行体的目标快照/新鲜帧等待/
+目标安全门一律按 goal 钉入 ID 走锁定集缓存（`cycleTargetSnapshot` 单点分流），
+BT 在 `FinalizeAndValidate` 后经 `IsObserveOnly` 短路到 `ReportObserveOnly`，
+不进再确认/MTC/工具/撤离段，终局按 `PLAN_READY` 上报 SUCCEEDED。
 
 全局拍照位姿服务（批次编排器在发现/复扫轮次开始前调用；守卫运行中周期与接触段
 recovery，先复核安全门，再按 `photo_pose_named_target` 的 SRDF 命名状态规划，
@@ -135,17 +155,36 @@ ros2 service call /peach_approach_grasp_node/acknowledge_recovery \
 2. 读取 `base_link→camera_depth_optical_frame`，生成目标中心球面候选。姿态按 ROS 光学
    坐标系 `+Z` 朝目标，TF 再换算成 `tcp` 的 MoveIt 目标（规划组 tip 即末端 TCP）。
 3. 首段使用 Pilz `PTP` 到安全观察位；后续使用短 `LIN` 弦段构成弧形补观测轨迹。每到一位
-   等待重建 `captured_views` 增长，禁止开环扫完整条曲线。
+   等待重建 `captured_views` 增长，禁止开环扫完整条曲线。观察段为预算制扫描
+   （2.13-E2）：以保证 `scan.min_effective_views=2` 次有效视点观测（移动到位且收到
+   新鲜目标帧）为下限，达到下限且质量收敛即提前收口；运行预算为
+   `max(scan.time_budget_s, 2.5×实测移动+等帧成本EMA)`，剩余预算按实测 EMA 换不起
+   一个有效视点即预测性收口、强制 finalize 走降级链；`scan.maximum_moves` 仅兜底。
 4. 重建输出至少 3 个合格视图、最大角基线至少 15°、平均最近邻角基线至少 6°、平均
    有效深度比例至少 0.40，且感知/重建 ID 一致、数据新鲜，才调用
    `finalize_reconstruction`（阈值以 `config/approach_grasp.yaml` 为权威源，
    此处仅为现行档说明）。
 5. 只有 `READY`、同 ID 精化结果、`grasp_decision.allowed=true`、拟合 RMSE/inlier 通过，
-   才进入 `READY_FOR_GRASP`。
-6. 抓取启用后，行为树进入 `MTCApproachAndInsert`：`CurrentState → MoveTo(OMPL) →
+   才进入 `READY_FOR_GRASP`；精化未达标但身份一致的锚点还在时按候选锚点降级抓取
+   （入口点=锚点−轴·(行程+`grasp.fallback_standoff_m` 袋外余量），终局 reason 带
+   `降级抓取(degraded_anchor)` 标记）。
+6. 抓取启用后先过 `ReconfirmTarget` 抓取前再确认（2.7-RECONFIRM）：等一窗新鲜观测
+   （窗口按观测话题实测帧间隔 EMA 自适应，上限 `grasp.reconfirm_wait_s`），复核身份
+   一致、锚点漂移 ≤ `grasp.reconfirm_tolerance_m`、无 `target_swinging` 摆动；漂移超限
+   用最新锚点重算 entry/axis 一次再复核，摆动在窗口预算内等平息；窗口耗尽/漂移超限/
+   摆动不息累计达 `grasp.reconfirm_max_attempts` 次即放弃，周期终局 SKIPPED_QUALITY
+   （reason 含具体原因）。`grasp.allow_stale_anchor=true` 退化为旧"按静态锚点继续"
+   行为（验证期遗留，室外默认关闭）。
+7. 再确认通过后行为树进入 `MTCApproachAndInsert`：`CurrentState → MoveTo(OMPL) →
    MoveRelative(CartesianPath)`。OMPL 只用于枝叶环境中的自由空间入口搜索，接触段必须保持
-   精化轴直线；规划后、执行前再次检查机器人状态、目标 ID/新鲜度和取消标志。
-7. 行为树单独执行工具 IO，成功后用另一条 MTC `CurrentState → MoveRelative` 原轴撤回，
+   精化轴直线；规划后、执行前再次检查机器人状态、目标 ID/新鲜度和取消标志
+   （`allow_stale_anchor=false` 时观测仍陈旧则按 SKIPPED_QUALITY 拒绝，不再二次放行）。
+   plan-while-waiting（2.13-E3，`grasp.mtc_preplan=true` 默认开）：再确认等待窗口机械臂
+   静止，期间按当前锚点在后台线程预规划该 MTC 任务（只规划不执行）；再确认通过且最终
+   锚点与规划基准锚点漂移 ≤ `grasp.replan_threshold_m`（0.02m）时直接执行预规划解，
+   超限/预规划失败/漂移重算过几何才内联重规划；取消与 deactivate 经 cancel→preempt
+   正确丢弃预规划任务。
+8. 行为树单独执行工具 IO，成功后用另一条 MTC `CurrentState → MoveRelative` 原轴撤回，
    最后才完成目标。完成推进权归属：action（RunTargetCycle）驱动的周期由批次编排器按
    终态统一调 `complete_selected_target` 推进感知计划，本节点不再调用，避免双写；
    手动 `start_cycle` 周期没有编排器，仍由本节点自推进兜底。工具失败也尝试 MTC 原轴
@@ -172,7 +211,8 @@ ros2 service call /peach_approach_grasp_node/acknowledge_recovery \
 | `RECOVERY_REQUIRED` | RECOVERY_REQUIRED（接触段不确定，需人工） |
 
 action Result 的 `outcome` 再按失败点细分（`pending_outcome_`，BT 失败时记录）：
-视角均不可达或扫描上限未收敛、MTC 规划阶段失败（未启动执行）记
+视角均不可达或扫描上限未收敛、接触段入口点落入保护区（`scan.protected_zones`，
+F1）、MTC 规划阶段失败（未启动执行）记
 `SKIPPED_UNREACHABLE`；finalize 后最终质量门失败记 `SKIPPED_QUALITY`；执行已启动后
 的失败记 `FAILED`。编排器据此分级记账并自动推进，只有 `recovery_required=true` 才
 中断批次等人工。
@@ -190,21 +230,73 @@ aubo_io_controller ─ robot_status ────┘   ├─ MTC：OMPL 到入�
 ```
 
 - `view_planner.*`：无 ROS 依赖的候选视点生成、评分、相机 look-at 和工具轴姿态。
+- `protected_zones.*`：无 ROS 依赖的环境几何保护区（F1）——`scan.protected_zones`
+  stride-6 轴对齐盒的解析（畸形盒逐条丢弃）与点包含判定（闭区间含表面），视点
+  生成剔除与 MTC 接触段入口剔除共用同一谓词。
 - `quality_gate.*`：无 ROS 依赖的 ID、新鲜度、覆盖和精化质量门。
 - `target_cache.*`：选中目标、重建诊断与精化结果的线程安全缓存及 ID 一致性调和。
 - `safety_gate.*`：机器人状态与目标观测新鲜度的纯核安全门。
-- `motion_interface.cpp`：MoveGroup 规划/执行、接触轨迹预览与 `go_to_photo_pose`。
-- `bt_nodes.cpp`：行为树节点（视点循环、finalize 质量门、MTC、工具、目标完成）。
+- `*_base.hpp` + `impl_factory.hpp` / `motion_factory.hpp`：四类可替换职责的抽象基类与
+  按名工厂（`view_planner.impl=spherical_adaptive`、`quality_gate.impl=threshold`、
+  `safety_gate.impl=robot_status_gate`、`motion.impl=moveit_motion`；未知名启动即抛
+  `std::invalid_argument` 并列出可用名）。调用端只持基类指针；I5：硬件安全门任何实现
+  不得旁路。
+- `motion_interface.cpp` + `motion_interface_impl.*`：节点侧运动薄壳（Trigger、工具 IO、
+  接触轨迹预览、`go_to_photo_pose`）与 MoveGroup 规划/执行默认实现（moveit_motion）。
+- `bt_nodes.cpp`：行为树节点（视点循环、finalize 质量门、抓取前再确认、MTC、工具、
+  目标完成）。
+- `reconfirm_policy.hpp` / `grasp_geometry.hpp`：抓取前再确认（2.7-RECONFIRM）的
+  逐样本判定纯核（漂移容差/摆动平息/超限计数）与降级/重算入口点纯函数。
 - `cycle_action.cpp`：周期工作线程、RunTargetCycle action 与各 Trigger/SetBool 服务。
 - `cycle_state.hpp` / `action_contract.hpp`：`CycleState` 枚举与终局映射、action 契约。
-- `config/harvest_tree.xml`：可检查的采摘行为树拓扑和失败传播顺序。
+- `config/harvest_tree.xml`：可检查的采摘行为树拓扑和失败传播顺序；按阶段拆为
+  SubTree 库（观察扫描/质量验证/靠近抓取/工具动作/撤离收尾，协议 2.16-9），
+  主树只负责组合，节点注册名不变。
 - `grasp_task.*`：MTC 接近/插入/撤离任务（stage 工厂消重），发布 MTC introspection solution。
 - `approach_grasp_node.cpp`（本体约 590 行）+ `approach_grasp_node_impl.hpp`：ROS/MoveIt
   接线、参数与状态投影。
 - `config/approach_grasp.yaml`：所有默认参数（含 `photo_pose_named_target`）；代码默认值
   与 YAML 同步维护。
-- `test/`：视点几何、排序和质量门单元测试。
+- `test/`：视点几何、排序和质量门单元测试，外加 `test_impl_contract.cpp` 可替换接口
+  契约测试（每基类 fake + 工厂按名创建/未知名抛错）。
 
 本包新增的上游数据只有重建 diagnostics 中的 `view_coverage`：它来自真正被 TSDF 接受的
 帧及其精确相机位姿，不使用规划轨迹猜测采集效果。session metadata 同步保存该字段，便于
 复现实验和调参。
+
+## 附录 A：CycleState → TargetPhase 投影（A13，2026-08-18）
+
+RunTargetCycle 反馈的 `state.target_phase` 由 `targetPhase(CycleState)`
+（`cycle_state.hpp`）投影，编排器 `set_target_phase` 消费以驱动批次过程线。
+投影一名一义（常量与 `HarvestState.msg` 的 `TARGET_*` 由 `cycle_action.cpp`
+static_assert 与 `test_action_contract.cpp` 双向钉死）：
+
+| CycleState | TargetPhase |
+|---|---|
+| `IDLE` / `CANCELED` | TARGET_IDLE（无取消相，编排器记账后同回 IDLE） |
+| `PLAN_OBSERVATION` / `MOVE_TO_VIEW` / `WAIT_FRAME` | OBSERVING |
+| `FINALIZE` | FINALIZING（质量门验证在其内完成，无独立 VALIDATING 态） |
+| `MTC_APPROACH_INSERT` / `PREVIEW_CONTACT_PLANNING` | APPROACHING |
+| `ACTUATE_TOOL` | TOOL_ACTION |
+| `MTC_RETREAT` | RETREATING |
+| `PLAN_READY` / `READY_FOR_GRASP` / `PREVIEW_READY` | COMPLETING（plan-only 圆满收尾） |
+| `SUCCEEDED` | TARGET_SUCCEEDED |
+| `FAILED` / `PREVIEW_FAILED` / `RECOVERY_REQUIRED` | TARGET_FAILED |
+
+A13 前反馈从不填充该字段（恒 TARGET_IDLE），过程线在周期内停在 IDLE；
+本次补齐投影（消费方不变量：仅在 `target_active` 期间驱动阶段显示，
+终局仍以 action Result 的 outcome 为准）。
+
+## 附录 B：配置边界审计（A12，2026-08-18）
+
+判据同编排器（键只承载「选实现 + 数值/名称/开关/阈值」为合格）。
+
+| 文件 | 键数 | 合格 | 例外 |
+|---|---:|---:|---|
+| `config/approach_grasp.yaml` | 66 | 66 | 无 |
+
+逐键结论：`*.impl` 四键为按名选实现（未知名启动抛错）；`frames.*`、
+`moveit.*`、`photo_pose_named_target`、`behavior_tree.xml` 为名称/路径/数值；
+`scan.*`、`quality.*`、`timeouts.*` 为几何与阈值数值；`execution.*`/`grasp.*`/
+`tool.*` 为开关+阈值。周期状态转移全部在 `cycle_state.hpp` 枚举与 BT
+（`harvest_tree.xml`）中，策略分支不由配置键表达。未发现违规键。

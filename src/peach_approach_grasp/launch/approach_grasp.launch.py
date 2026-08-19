@@ -29,9 +29,13 @@ from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, EmitEvent, RegisterEventHandler
+from launch.events import matches_action
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node
+from launch_ros.actions import LifecycleNode
+from launch_ros.event_handlers import OnStateTransition
+from launch_ros.events.lifecycle import ChangeState
+from lifecycle_msgs.msg import Transition
 import xacro
 import yaml
 
@@ -92,25 +96,41 @@ def generate_launch_description():
             Path(get_package_share_directory('peach_approach_grasp')) /
             'config' / 'harvest_tree.xml'),
     }
+    node = LifecycleNode(
+        package='peach_approach_grasp',
+        executable='approach_grasp_node',
+        name='peach_approach_grasp_node',
+        namespace='',
+        output='screen',
+        parameters=[
+            approach_params_file,
+            robot_description,
+            robot_description_semantic,
+            robot_description_kinematics,
+            robot_description_planning,
+            mtc_pipeline,
+            behavior_tree,
+        ],
+    )
+    # 生命周期自动转换（A8）：进程就绪后 configure（参数验证+资源分配，
+    # 失败则停在 Unconfigured 报错），到 Inactive 后 activate 开放运动输出权限。
+    configure = EmitEvent(event=ChangeState(
+        lifecycle_node_matcher=matches_action(node),
+        transition_id=Transition.TRANSITION_CONFIGURE))
+    activate = RegisterEventHandler(OnStateTransition(
+        target_lifecycle_node=node,
+        goal_state='inactive',
+        entities=[EmitEvent(event=ChangeState(
+            lifecycle_node_matcher=matches_action(node),
+            transition_id=Transition.TRANSITION_ACTIVATE))],
+    ))
     return LaunchDescription([
         DeclareLaunchArgument(
             'approach_params_file',
             default_value=str(default_params),
             description='主动视觉靠近与抓取参数文件',
         ),
-        Node(
-            package='peach_approach_grasp',
-            executable='approach_grasp_node',
-            name='peach_approach_grasp_node',
-            output='screen',
-            parameters=[
-                approach_params_file,
-                robot_description,
-                robot_description_semantic,
-                robot_description_kinematics,
-                robot_description_planning,
-                mtc_pipeline,
-                behavior_tree,
-            ],
-        ),
+        activate,
+        node,
+        configure,
     ])

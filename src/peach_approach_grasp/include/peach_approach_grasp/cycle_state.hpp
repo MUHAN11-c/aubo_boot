@@ -28,6 +28,7 @@
 #ifndef PEACH_APPROACH_GRASP__CYCLE_STATE_HPP_
 #define PEACH_APPROACH_GRASP__CYCLE_STATE_HPP_
 
+#include <cstdint>
 #include <string>
 
 #include "peach_approach_grasp/action_contract.hpp"
@@ -43,6 +44,7 @@ enum class CycleState
   MOVE_TO_VIEW,
   WAIT_FRAME,
   FINALIZE,
+  RECONFIRM,
   MTC_APPROACH_INSERT,
   ACTUATE_TOOL,
   MTC_RETREAT,
@@ -71,6 +73,8 @@ inline std::string toString(CycleState state)
       return "WAIT_FRAME";
     case CycleState::FINALIZE:
       return "FINALIZE";
+    case CycleState::RECONFIRM:
+      return "RECONFIRM";
     case CycleState::MTC_APPROACH_INSERT:
       return "MTC_APPROACH_INSERT";
     case CycleState::ACTUATE_TOOL:
@@ -128,5 +132,48 @@ struct CycleResult
   std::string reason;
   bool recovery_required{false};
 };
+
+// A13：CycleState → HarvestState.target_phase 投影（RunTargetCycle 反馈携带，
+// 编排器据此驱动批次过程线的目标阶段）。取值即 peach_harvest_msgs/HarvestState.msg
+// 的 TARGET_* 常量（cycle_action.cpp 有 static_assert 双向钉死，防枚举漂移）。
+// 语义约定：质量门在 FINALIZE 内完成（FINALIZING 含验证）；RECONFIRM（阶段 E1
+// 抓取前再确认，2.7-RECONFIRM）映射 VALIDATING——它是 finalize 之后、接触段之前
+// 的最后一道验证关；
+// plan-only 圆满终态（PLAN_READY/READY_FOR_GRASP/PREVIEW_READY）映射 COMPLETING
+// （周期收尾、结果即出），CANCELED 映射 IDLE（编排器记账后同回 IDLE，无取消相）。
+constexpr uint8_t targetPhase(CycleState state)
+{
+  switch (state) {
+    case CycleState::PLAN_OBSERVATION:
+    case CycleState::MOVE_TO_VIEW:
+    case CycleState::WAIT_FRAME:
+      return 2;  // OBSERVING
+    case CycleState::FINALIZE:
+      return 3;  // FINALIZING（含质量门验证）
+    case CycleState::RECONFIRM:
+      return 4;  // VALIDATING（抓取前再确认：新鲜观测+锚点漂移门）
+    case CycleState::MTC_APPROACH_INSERT:
+    case CycleState::PREVIEW_CONTACT_PLANNING:
+      return 5;  // APPROACHING
+    case CycleState::ACTUATE_TOOL:
+      return 6;  // TOOL_ACTION
+    case CycleState::MTC_RETREAT:
+      return 7;  // RETREATING
+    case CycleState::PLAN_READY:
+    case CycleState::READY_FOR_GRASP:
+    case CycleState::PREVIEW_READY:
+      return 8;  // COMPLETING（plan-only 圆满收尾）
+    case CycleState::SUCCEEDED:
+      return 9;  // TARGET_SUCCEEDED
+    case CycleState::FAILED:
+    case CycleState::PREVIEW_FAILED:
+    case CycleState::RECOVERY_REQUIRED:
+      return 11;  // TARGET_FAILED
+    case CycleState::IDLE:
+    case CycleState::CANCELED:
+    default:
+      return 0;  // TARGET_IDLE
+  }
+}
 }  // namespace peach_approach_grasp
 #endif  // PEACH_APPROACH_GRASP__CYCLE_STATE_HPP_

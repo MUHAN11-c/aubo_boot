@@ -13,18 +13,18 @@ Open3D TSDF 封装 — 连续运动中在线积分（无 ROS 依赖，懒加载 
 深度约定：CapturedFrame.depth_mm 为 uint16 毫米，积分前转 float32 米制
 （depth_scale=1.0）；0 与超 depth_trunc 的深度不参与积分。
 
-分层契约：LocalTsdf 实现 interfaces.VolumeFusion（注册表
-VOLUME_FUSIONS 供编排层按名实例化，设计文档 §2.2）。
+分层契约：LocalTsdf 实现 interfaces.Volume（interfaces.VOLUMES 注册表
+供编排层经 yaml volume.impl 装配，设计文档 §2.2 / 协议 2.14）。
 """
 from __future__ import annotations
 
 import time
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 import numpy as np
 
-from peach_reconstruction_ros2.interfaces import VolumeFusion
-from peach_reconstruction_ros2.tf_utils import invert_transform
+from peach_core.tf_utils import invert_transform
+from peach_reconstruction_ros2.interfaces import Volume, VOLUMES
 
 _O3D = None  # 懒加载缓存（无 open3d 的环境仍可 import 本模块）
 
@@ -43,11 +43,11 @@ def require_open3d():
     return _O3D
 
 
-class LocalTsdf(VolumeFusion):
+class LocalTsdf(Volume):
     """局部 TSDF 体积：在线积分 → 点云/网格提取 → ROI 后处理."""
 
     def __init__(self, voxel_length: float = 0.003, sdf_trunc: float = 0.012,
-                 depth_trunc: float = 1.5):
+                 depth_trunc: float = 1.5, now: Optional[Callable] = None):
         """
         建 TSDF 体积（参数单位均 [m]）.
 
@@ -55,6 +55,9 @@ class LocalTsdf(VolumeFusion):
             voxel_length: 体素边长 [m].
             sdf_trunc: 截断距离 [m].
             depth_trunc: 深度截断 [m]（更远的深度不积分）.
+            now: 单调时钟（返回 float 秒，协议 I3 由编排层注入，如
+                peach_core.ros.RclpyClockAdapter.now）；None 回退
+                time.perf_counter（纯核自包含缺省，单测直建实例用）.
 
         Returns
         -------
@@ -65,12 +68,13 @@ class LocalTsdf(VolumeFusion):
         self.voxel_length = float(voxel_length)
         self.sdf_trunc = float(sdf_trunc)
         self.depth_trunc = float(depth_trunc)
+        self._now = now if now is not None else time.perf_counter
         self._o3d = o3d
         self.reset()
 
     def reset(self) -> None:
         """
-        清空体积与累计耗时（VolumeFusion 契约；实例可复用）.
+        清空体积与累计耗时（Volume 契约；实例可复用）.
 
         语义等同「弃例新建」：体积重建为同参数空 ScalableTSDFVolume，
         integrate_time_s 归零。节点现状每轮 finalize 新建实例，本方法
@@ -135,11 +139,11 @@ class LocalTsdf(VolumeFusion):
             无返回值（None）；耗时累计进 integrate_time_s.
 
         """
-        t0 = time.perf_counter()
+        t0 = self._now()
         self._volume.integrate(rgbd, intrinsic,
                                np.asarray(extrinsic_camera_base,
                                           dtype=np.float64))
-        self.integrate_time_s += time.perf_counter() - t0
+        self.integrate_time_s += self._now() - t0
 
     def integrate_frame(self, rgb_bgr: np.ndarray, depth_mm: np.ndarray,
                         camera_K: dict, T_base_camera: np.ndarray) -> None:
@@ -301,5 +305,5 @@ class LocalTsdf(VolumeFusion):
         return xyz[idx], colors_in
 
 
-# 实现注册表（显式字典，yolo_ros 先例；编排层按名实例化）
-VOLUME_FUSIONS = {'open3d_scalable': LocalTsdf}
+# 显式注册清单（2.14）：注册名 'local_tsdf'，yaml volume.impl 默认值
+VOLUMES.register('local_tsdf', LocalTsdf)

@@ -1,13 +1,14 @@
-"""抓取几何 TF 变换契约：点/方向/行程终点变换规则 + 重力 tf 模式纯函数."""
+"""抓取几何 TF 变换契约：点/方向/行程终点变换规则 + 四元数消息包装."""
 import unittest
 
+from geometry_msgs.msg import Quaternion
 import numpy as np
 
-from peach_pose_ros2.peach_pose.contracts import BagGraspReference3D
-from peach_pose_ros2.tf_utils import (
+from peach_pose_ros2.grasp_tf import (
     _apply_T_to_grasp3d,
-    _gravity_camera_from_R,
+    _rotation_to_quat,
 )
+from peach_pose_ros2.peach_pose.contracts import BagGraspReference3D
 
 
 def _known_T():
@@ -50,7 +51,7 @@ class ApplyTToGrasp3dTest(unittest.TestCase):
         """
         suggested_travel_end 与 legacy position 同为点，必须按 R@p+t 变换.
 
-        回归锚点：旧版漏变换 suggested_travel_end，导致 ~/markers 行程箭头
+        回归锚点：旧版漏变换 suggested_travel_end，导致 markers 行程箭头
         终点留在相机系。
         """
         T = _known_T()
@@ -80,27 +81,34 @@ class ApplyTToGrasp3dTest(unittest.TestCase):
         self.assertIsNone(g.translation_direction)
 
 
-class GravityCameraFromRTest(unittest.TestCase):
-    def test_identity_rotation_gives_down(self):
-        """单位旋转：相机系重力 = output 系约定 [0, 0, -1]."""
-        np.testing.assert_allclose(
-            _gravity_camera_from_R(np.eye(3)), [0.0, 0.0, -1.0], atol=1e-12)
+class RotationToQuatMsgTest(unittest.TestCase):
+    """
+    grasp_tf._rotation_to_quat：peach_core 值对象 → Quaternion 消息包装.
 
-    def test_pure_rotation_rotates_vector_only(self):
-        """纯旋转输入：重力向量只随之旋转（绕 x 转 90° → [0,-1,0]），无平移项."""
-        R = np.array([[1.0, 0.0, 0.0],
-                      [0.0, 0.0, -1.0],
-                      [0.0, 1.0, 0.0]])
-        np.testing.assert_allclose(
-            _gravity_camera_from_R(R), [0.0, -1.0, 0.0], atol=1e-12)
+    数值路径的锚点测试（已知旋转/往返一致性）在 peach_core
+    test_tf_utils.py；此处只守包装层的类型与字段接线。
+    """
 
-    def test_scaled_rotation_still_unit(self):
-        """带缩放的旋转输入：输出仍为单位向量（normalize 生效）."""
-        R = np.array([[1.0, 0.0, 0.0],
-                      [0.0, 0.0, -1.0],
-                      [0.0, 1.0, 0.0]])
-        np.testing.assert_allclose(
-            _gravity_camera_from_R(2.0 * R), [0.0, -1.0, 0.0], atol=1e-12)
+    def test_returns_geometry_msgs_quaternion(self):
+        """返回 geometry_msgs/Quaternion 消息（不是值对象/元组）."""
+        q = _rotation_to_quat(np.eye(3))
+        self.assertIsInstance(q, Quaternion)
+
+    def test_identity_and_field_wiring(self):
+        """单位旋转 → (x,y,z,w)=(0,0,0,1)；字段接线顺序正确."""
+        q = _rotation_to_quat(np.eye(3))
+        self.assertAlmostEqual(q.x, 0.0, places=12)
+        self.assertAlmostEqual(q.y, 0.0, places=12)
+        self.assertAlmostEqual(q.z, 0.0, places=12)
+        self.assertAlmostEqual(q.w, 1.0, places=12)
+        # 绕 z 转 90° → (0, 0, ±√2/2, √2/2)（±q 等价）
+        R = np.array([[0.0, -1.0, 0.0],
+                      [1.0, 0.0, 0.0],
+                      [0.0, 0.0, 1.0]])
+        q = _rotation_to_quat(R)
+        s = np.sqrt(0.5)
+        self.assertLess(min(abs(q.z - s), abs(q.z + s)), 1e-12)
+        self.assertAlmostEqual(abs(q.w), s, places=12)
 
 
 if __name__ == '__main__':

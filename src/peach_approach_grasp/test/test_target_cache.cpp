@@ -62,6 +62,20 @@ RefinedFittingUpdate makeFitting(const std::string & id)
   update.accepted = true;
   return update;
 }
+
+// 锁定集单目标更新（observed 可控；x 偏移区分不同目标几何）。
+LockedTargetUpdate makeLockedTarget(
+  const std::string & id, bool observed = true, double x = 0.30)
+{
+  LockedTargetUpdate update;
+  update.target_id = id;
+  update.observed = observed;
+  update.bottom = Eigen::Vector3d(x, 0.0, 0.10);
+  update.neck = Eigen::Vector3d(x, 0.0, 0.18);
+  update.axis = Eigen::Vector3d::UnitZ();
+  update.suggested_travel_m = 0.05;
+  return update;
+}
 }  // namespace
 
 // transient_local 的精化结果可能早于 volatile 目标观测到达：同 ID 首次观测必须
@@ -188,6 +202,177 @@ TEST(TargetCache, QualitySnapshotDataAgeFollowsInjectedClock)
   // 时钟前进 1.5s：快照 age 跟随注入时钟
   now_s = 101.5;
   EXPECT_DOUBLE_EQ(cache.qualitySnapshot().data_age_s, 1.5);
+}
+
+TEST(TargetCache, SwingingAndTrackingStatusPassThrough)
+{
+  // 再确认段诊断透传（2.7-RECONFIRM）：swinging/tracking_status 每帧刷新
+  // （含非观测帧——非观测帧不刷新 received_s 但必须更新摆动/跟踪投影）。
+  double now_s = 80.0;
+  TargetCache cache([&now_s]() {return now_s;});
+  auto update = makeObservedTarget("peach_1", "run-5");
+  update.swinging = false;
+  update.tracking_status = 0;  // OBSERVED
+  cache.updateSelectedTarget(update);
+  auto target = cache.targetSnapshot();
+  ASSERT_TRUE(target.has_value());
+  EXPECT_FALSE(target->swinging);
+  EXPECT_EQ(target->tracking_status, 0);
+
+  // 摆动中的观测帧：旗标随帧透传。
+  now_s = 81.0;
+  update.swinging = true;
+  cache.updateSelectedTarget(update);
+  EXPECT_TRUE(cache.targetSnapshot()->swinging);
+
+  // 出视野帧（非观测）：received_s 不刷新，但跟踪状态投影要更新。
+  now_s = 82.0;
+  update.observed = false;
+  update.swinging = false;
+  update.tracking_status = 4;  // OUT_OF_VIEW
+  cache.updateSelectedTarget(update);
+  target = cache.targetSnapshot();
+  ASSERT_TRUE(target.has_value());
+  EXPECT_EQ(target->tracking_status, 4);
+  EXPECT_DOUBLE_EQ(target->received_s, 81.0);
+  EXPECT_FALSE(target->swinging);
+}
+
+// 锁定集锚点缓存（阶段 E 残局抬质量能力端）：多目标共存、按 ID 取快照，
+// 与 selected 缓存互不干扰（残期 selected 为空时锁定集仍是可用数据源）。
+TEST(TargetCache, LockedSetCachesMultipleTargetsById)
+{
+  double now_s = 200.0;
+  TargetCache cache([&now_s]() {return now_s;});
+
+  cache.updateLockedTargets(
+    true, "run-100", {makeLockedTarget("peach_1", true, 0.30),
+      makeLockedTarget("peach_2", true, 0.45)});
+  const auto first = cache.lockedTargetSnapshot("peach_1");
+  const auto second = cache.lockedTargetSnapshot("peach_2");
+  ASSERT_TRUE(first.has_value());
+  ASSERT_TRUE(second.has_value());
+  EXPECT_EQ(first->id, "peach_1");
+  EXPECT_DOUBLE_EQ(first->center.x(), 0.30);
+  EXPECT_DOUBLE_EQ(second->center.x(), 0.45);
+  EXPECT_DOUBLE_EQ(first->received_s, 200.0);
+  EXPECT_DOUBLE_EQ(second->received_s, 200.0);
+  // 未收录目标：快照为空，门样本 id 为空（受理门判"不在锁定集"）。
+  EXPECT_FALSE(cache.lockedTargetSnapshot("peach_9").has_value());
+  EXPECT_TRUE(cache.lockedTargetGateSample("peach_9").id.empty());
+  // 锁定集缓存不影响 selected 缓存（两者数据源独立）。
+  EXPECT_FALSE(cache.targetSnapshot().has_value());
+}
+
+// 受理门拒绝原因区分的数据源：门样本 id 命中但 valid=false = 锚点缺失
+// （条目在但从未携带有效几何）；id 空 = 不在锁定集。
+TEST(TargetCache, LockedSetDistinguishesMissingAnchorFromAbsent)
+{
+  double now_s = 210.0;
+  TargetCache cache([&now_s]() {return now_s;});
+  LockedTargetUpdate no_anchor = makeLockedTarget("peach_1");
+  no_anchor.bottom = Eigen::Vector3d::Zero();
+  no_anchor.neck = Eigen::Vector3d::Zero();
+  no_anchor.axis = Eigen::Vector3d::Zero();
+  cache.updateLockedTargets(true, "run-101", {no_anchor});
+
+  const auto sample = cache.lockedTargetGateSample("peach_1");
+  EXPECT_EQ(sample.id, "peach_1");
+  EXPECT_FALSE(sample.valid);
+  EXPECT_FALSE(cache.lockedTargetSnapshot("peach_1").has_value());
+  // 后续帧带来有效锚点：条目转正，快照可用。
+  now_s = 211.0;
+  cache.updateLockedTargets(true, "run-101", {makeLockedTarget("peach_1")});
+  ASSERT_TRUE(cache.lockedTargetSnapshot("peach_1").has_value());
+  EXPECT_TRUE(cache.lockedTargetGateSample("peach_1").valid);
+}
+
+// target_set_locked=false 清空锁定集缓存（锁定前 observations 恒空，
+// 缓存必须随之失效，防止拿上一锁定期的锚点误受理）。
+TEST(TargetCache, LockedSetClearsOnUnlock)
+{
+  double now_s = 220.0;
+  TargetCache cache([&now_s]() {return now_s;});
+  cache.updateLockedTargets(true, "run-102", {makeLockedTarget("peach_1")});
+  ASSERT_TRUE(cache.lockedTargetSnapshot("peach_1").has_value());
+
+  cache.updateLockedTargets(false, "run-102", {});
+  EXPECT_FALSE(cache.lockedTargetSnapshot("peach_1").has_value());
+  EXPECT_TRUE(cache.lockedTargetGateSample("peach_1").id.empty());
+}
+
+// harvest_run_id 变化（批次切换）清空锁定集缓存：跨批次身份不复用。
+TEST(TargetCache, LockedSetClearsOnRunIdChange)
+{
+  double now_s = 230.0;
+  TargetCache cache([&now_s]() {return now_s;});
+  cache.updateLockedTargets(true, "run-103", {makeLockedTarget("peach_1")});
+  ASSERT_TRUE(cache.lockedTargetSnapshot("peach_1").has_value());
+
+  // 新批次首帧尚未携带该目标：run_id 切换即清旧锚点。
+  cache.updateLockedTargets(
+    true, "run-104", {makeLockedTarget("peach_7", true, 0.60)});
+  EXPECT_FALSE(cache.lockedTargetSnapshot("peach_1").has_value());
+  ASSERT_TRUE(cache.lockedTargetSnapshot("peach_7").has_value());
+  EXPECT_EQ(
+    cache.lockedTargetSnapshot("peach_7")->harvest_run_id, "run-104");
+}
+
+// 非观测帧只刷新诊断透传（swinging/tracking_status），不刷新 received_s 与
+// entry_pose——与 selected 缓存语义一致（安全门按 max_age 判陈旧兜底）。
+TEST(TargetCache, LockedSetNonObservedFrameRefreshesDiagnosticsOnly)
+{
+  double now_s = 240.0;
+  TargetCache cache([&now_s]() {return now_s;});
+  auto observed = makeLockedTarget("peach_1");
+  observed.swinging = false;
+  observed.tracking_status = 0;  // OBSERVED
+  cache.updateLockedTargets(true, "run-105", {observed});
+  ASSERT_TRUE(cache.lockedTargetSnapshot("peach_1").has_value());
+  EXPECT_DOUBLE_EQ(cache.lockedTargetSnapshot("peach_1")->received_s, 240.0);
+
+  // 摆动中的出视野帧（非观测）：诊断投影更新，received_s 保持。
+  now_s = 241.0;
+  auto lost = makeLockedTarget("peach_1", false);
+  lost.swinging = true;
+  lost.tracking_status = 4;  // OUT_OF_VIEW
+  cache.updateLockedTargets(true, "run-105", {lost});
+  const auto target = cache.lockedTargetSnapshot("peach_1");
+  ASSERT_TRUE(target.has_value());
+  EXPECT_TRUE(target->swinging);
+  EXPECT_EQ(target->tracking_status, 4);
+  EXPECT_DOUBLE_EQ(target->received_s, 240.0);
+
+  // 有效观测恢复：received_s 刷新，诊断投影随帧更新。
+  now_s = 242.0;
+  cache.updateLockedTargets(true, "run-105", {makeLockedTarget("peach_1")});
+  EXPECT_DOUBLE_EQ(cache.lockedTargetSnapshot("peach_1")->received_s, 242.0);
+  EXPECT_FALSE(cache.lockedTargetSnapshot("peach_1")->swinging);
+}
+
+// 锁定集新鲜帧等待谓词：与 waitForFreshTarget 同语义（新鲜即返回/超时/
+// cancel），只是按指定 ID 查锁定集条目；条目被清空后不再满足。
+TEST(TargetCache, WaitForFreshLockedTargetSemantics)
+{
+  double now_s = 250.0;
+  TargetCache cache([&now_s]() {return now_s;});
+  std::atomic_bool cancel{false};
+  cache.updateLockedTargets(true, "run-106", {makeLockedTarget("peach_1")});
+
+  // 已有有效样本晚于阈值：立即返回 true。
+  EXPECT_TRUE(cache.waitForFreshLockedTarget("peach_1", 249.0, 0.01, cancel));
+  // 有效样本不晚于阈值：无新帧时超时返回 false。
+  EXPECT_FALSE(cache.waitForFreshLockedTarget("peach_1", 251.0, 0.05, cancel));
+  // 未收录目标：恒不满足（不会在别目标的新帧上误唤醒）。
+  cache.updateLockedTargets(true, "run-106", {makeLockedTarget("peach_2")});
+  EXPECT_FALSE(cache.waitForFreshLockedTarget("peach_9", 0.0, 0.05, cancel));
+  // 解锁清空后原目标立即不再满足。
+  cache.updateLockedTargets(false, "run-106", {});
+  EXPECT_FALSE(cache.waitForFreshLockedTarget("peach_1", 249.0, 0.01, cancel));
+  // cancel 置位：立即返回 false。
+  cache.updateLockedTargets(true, "run-106", {makeLockedTarget("peach_1")});
+  cancel.store(true);
+  EXPECT_FALSE(cache.waitForFreshLockedTarget("peach_1", 0.0, 5.0, cancel));
 }
 
 }  // namespace peach_approach_grasp

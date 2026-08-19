@@ -1,5 +1,19 @@
 peach_approach_grasp_node:
   ros__parameters:
+    # 可替换实现装配名（重构协议 2.14：工厂按名创建，未知名启动即抛错并列出可用名）
+    view_planner:
+      # 观察视点生成。可选: spherical_adaptive（球面自适应候选生成与评分）
+      impl: spherical_adaptive
+    quality_gate:
+      # 重建/精化质量门。可选: threshold（固定阈值档身份/覆盖/精化判定）
+      impl: threshold
+    safety_gate:
+      # 执行前安全门（I5：任何实现不得旁路硬件安全门）。
+      # 可选: robot_status_gate（robot_status 状态门 + 目标新鲜度门）
+      impl: robot_status_gate
+    motion:
+      # 运动规划/执行。可选: moveit_motion（MoveGroupInterface Pilz/OMPL/LIN）
+      impl: moveit_motion
     frames:
       base: base_link
       # 规划/IK 末端连杆：MoveIt 组 manipulator_e5 的 tip_link（URDF 内建 tcp）。
@@ -48,14 +62,28 @@ peach_approach_grasp_node:
       radial_step_m: 0.015
       candidate_layers: 3
       views_to_minimum_radius: 5
-      # 聚类指标+锚点纠偏后通常 3-4 个机位即收敛，5 次封顶控制观察耗时
+      # 聚类指标+锚点纠偏后通常 3-4 个机位即收敛，5 次封顶控制观察耗时；
+      # 2.13-E2 预算制后收口主判据是有效视点下限+预算，本值仅兜底
       maximum_moves: 5
-      # 观察段时间盒（秒）：到期带现有覆盖强制 finalize（不达标由候选锚点
-      # 降级抓取兜底），控制单目标观察耗时。暂时测试设置，实际工况再调
+      # 观察段有效视点观测下限（2.13-E2 预算制）：移动到位且收到新鲜目标观测
+      # 才算一次有效视点；未达本值前质量收敛与预算耗尽都不得收口（下限保证），
+      # 达到后质量收敛（覆盖/基线达标）即提前收口
+      min_effective_views: 2
+      # 观察段时间预算下限（秒，2.13-E2）：运行期预算=max(本值,
+      # 2.5×实测移动+等帧成本EMA)；移动成本 EMA 测得后剩余预算换不起一个
+      # 有效视点即预测性收口，强制 finalize 走降级链。暂时测试设置，实际工况再调
       time_budget_s: 5.0
       # 相机位置 z 下限（base 系，桌面保护平面）：低于此的视点物理穿桌、
       # 规划必败且白耗 planning_time×attempts，生成阶段直接剔除
       min_camera_height_m: 0.06
+      # 环境几何保护区（阶段 F1）：base_link 系轴对齐盒列表，stride-6 扁平
+      # 编码 [xmin,ymin,zmin,xmax,ymax,zmax]*N（米）。视点生成剔除相机位置
+      # 落入任一盒（闭区间，含盒表面）的候选；MTC 接触段入口点（含降级链
+      # degradedEntryPoint 的入口）落入即拒规划，终局 SKIPPED_UNREACHABLE。
+      # 畸形盒（长度残余组/非有限分量/min>=max）装载时告警并逐盒丢弃，
+      # 不炸节点。与 min_camera_height_m 的关系：桌面保护平面是保护区的
+      # “z<下限半空间”特例 shortcut，两者并存、各自生效。
+      protected_zones: []
       # 视点后等待新帧的超时上限：实测帧间隔自适应（≈4 帧+1s，下限 2s），
       # 本值为未测得帧率时的回退值与自适应上限；帧率以运行状态为准
       frame_wait_s: 6.0
@@ -86,11 +114,38 @@ peach_approach_grasp_node:
       minimum_travel_m: 0.02
       maximum_travel_m: 0.20
       complete_target_after_retreat: true
+      # 降级抓取入口的袋外预入口余量（米）：入口点=锚点−轴·(行程+本值)，管入口前
+      # 净空；与入袋后越过袋口的颈部余量 neck_margin_m 互补，两者不叠加
+      fallback_standoff_m: 0.05
+      # 抓取前再确认（2.7-RECONFIRM，FinalizeAndValidate 之后、MTC 之前）：
+      # 单次尝试的新鲜观测等待窗口上限（秒），实测帧间隔 EMA 自适应伸缩，
+      # 本值为回退值与上限；摆动等平息也在本窗口预算内
+      reconfirm_wait_s: 6.0
+      # 锚点漂移容差（米）：超限用最新锚点重算 entry/axis 一次
+      reconfirm_tolerance_m: 0.03
+      # 累计超限放弃阈值（次）：漂移超限/窗口耗尽/摆动不息任一计一次，
+      # 达到本值 → SKIPPED_QUALITY（reason 含“目标持续摆动”）
+      reconfirm_max_attempts: 3
+      # MTC 预规划（2.13-E3 plan-while-waiting）：再确认等待窗口期按当前锚点
+      # 后台预规划接近/插入任务（只规划不执行），再确认通过且最终锚点与规划
+      # 基准锚点漂移 ≤ replan_threshold_m 时直接执行预规划解，超限（或预规划
+      # 失败/漂移重算过几何）才内联重规划；取消/deactivate 经 cancel→preempt
+      # 正确丢弃预规划任务。mtc_preplan=false 退回纯串行（现场调试排障用）
+      replan_threshold_m: 0.02
+      mtc_preplan: true
+      # 回退开关（验证期遗留，室外默认关闭）：true 恢复旧“按静态锚点继续”
+      # 行为；false 时新鲜度由 ReconfirmTarget 单点把关，MTC 前不再二次放行 stale
+      allow_stale_anchor: false
     tool:
       enabled: false
       io_fun: 3
       io_pin: 0
       close_state: 1.0
     timeouts:
+      # 普通服务调用超时（秒）：本地 RPC，与感知帧率无因果关系，保持固定
+      # （AdaptiveTimeout 审计 2.13：语义上不随帧率伸缩的保留固定值）
       service_s: 3.0
+      # 等待精化结果的超时上限（秒）：实测观测帧间隔 EMA 自适应
+      # （≈3 帧+2s 余量，下限 2s；refit 实测耗时本包不可得，按帧间隔近似），
+      # 本值为未测得帧率时的回退值与自适应上限
       refined_s: 10.0

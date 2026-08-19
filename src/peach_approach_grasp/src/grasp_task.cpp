@@ -128,13 +128,13 @@ std::unique_ptr<mtc::stages::MoveRelative> GraspTask::makeLinearMove(
   return stage;
 }
 
-GraspTaskResult GraspTask::approachAndInsert(
+std::unique_ptr<mtc::Task> GraspTask::makeApproachInsertTask(
+  const std::string & task_name,
   const Eigen::Isometry3d & entry_tip_pose,
   const Eigen::Vector3d & insertion_axis,
-  double insertion_distance_m,
-  bool execute)
+  double insertion_distance_m)
 {
-  auto task = std::make_unique<mtc::Task>("peach_approach_insert");
+  auto task = std::make_unique<mtc::Task>(task_name);
   task->loadRobotModel(node_);
   task->add(std::make_unique<mtc::stages::CurrentState>("current robot state"));
 
@@ -144,7 +144,91 @@ GraspTaskResult GraspTask::approachAndInsert(
     makeLinearMove(
       "guarded linear insertion", makeCartesianSolver(), insertion_axis,
       insertion_distance_m));
-  return planAndMaybeExecute(std::move(task), execute, config_.approach_execution_gate);
+  return task;
+}
+
+GraspTaskResult GraspTask::approachAndInsert(
+  const Eigen::Isometry3d & entry_tip_pose,
+  const Eigen::Vector3d & insertion_axis,
+  double insertion_distance_m,
+  bool execute)
+{
+  return planAndMaybeExecute(
+    makeApproachInsertTask(
+      "peach_approach_insert", entry_tip_pose, insertion_axis,
+      insertion_distance_m),
+    execute, config_.approach_execution_gate);
+}
+
+GraspTaskResult GraspTask::preplanApproachAndInsert(
+  const Eigen::Isometry3d & entry_tip_pose,
+  const Eigen::Vector3d & insertion_axis,
+  double insertion_distance_m)
+{
+  // 预规划（2.13-E3）：与 approachAndInsert(execute=false) 同结构，但成功后
+  // 任务连同解移入预规划槽保留（供 executePreplannedApproach 复用），失败丢弃。
+  auto task = makeApproachInsertTask(
+    "peach_approach_insert_preplan", entry_tip_pose, insertion_axis,
+    insertion_distance_m);
+  mtc::Task * active = nullptr;
+  {
+    std::lock_guard<std::mutex> lock(task_mutex_);
+    active_task_ = std::move(task);
+    active = active_task_.get();
+  }
+  GraspTaskResult output;
+  try {
+    output = planTaskOnly(active);
+  } catch (const std::exception & error) {
+    output.reason = error.what();
+  }
+  {
+    std::lock_guard<std::mutex> lock(task_mutex_);
+    if (output.success) {
+      preplanned_task_ = std::move(active_task_);
+    } else {
+      active_task_.reset();
+    }
+  }
+  return output;
+}
+
+GraspTaskResult GraspTask::executePreplannedApproach()
+{
+  std::unique_ptr<mtc::Task> task;
+  {
+    std::lock_guard<std::mutex> lock(task_mutex_);
+    task = std::move(preplanned_task_);
+    preplanned_task_.reset();
+  }
+  GraspTaskResult output;
+  if (!task) {
+    output.reason = "无可用预规划解（未预规划或已丢弃）";
+    return output;
+  }
+  mtc::Task * active = nullptr;
+  {
+    std::lock_guard<std::mutex> lock(task_mutex_);
+    // 执行期间移回 active 槽：cancel() 的 preempt 语义与内联规划路径一致。
+    active_task_ = std::move(task);
+    active = active_task_.get();
+  }
+  try {
+    output = executeSolution(active, config_.approach_execution_gate);
+  } catch (const std::exception & error) {
+    output.reason = error.what();
+  }
+  {
+    std::lock_guard<std::mutex> lock(task_mutex_);
+    active_task_.reset();
+  }
+  return output;
+}
+
+void GraspTask::discardPreplanned()
+{
+  std::lock_guard<std::mutex> lock(task_mutex_);
+  preplanned_task_.reset();
 }
 
 GraspTaskResult GraspTask::previewFullContact(
@@ -191,6 +275,49 @@ GraspTaskResult GraspTask::retreat(
   return planAndMaybeExecute(std::move(task), execute, config_.retreat_execution_gate);
 }
 
+GraspTaskResult GraspTask::planTaskOnly(mtc::Task * active)
+{
+  GraspTaskResult output;
+  const auto result = active->plan(config_.max_solutions);
+  if (result != moveit::core::MoveItErrorCode::SUCCESS || active->solutions().empty()) {
+    std::ostringstream details;
+    if (active->explainFailure(details) && !details.str().empty()) {
+      std::string message = details.str();
+      while (!message.empty() && (message.back() == '\n' || message.back() == '\r')) {
+        message.pop_back();
+      }
+      output.reason = "MTC planning failed: " + message;
+    } else {
+      output.reason = "MTC planning failed";
+    }
+    return output;
+  }
+  active->introspection().publishSolution(*active->solutions().front());
+  output.success = true;
+  output.reason = "MTC plan ready";
+  return output;
+}
+
+GraspTaskResult GraspTask::executeSolution(
+  mtc::Task * active,
+  const std::function<bool(std::string &)> & execution_gate)
+{
+  GraspTaskResult output;
+  if (execution_gate && !execution_gate(output.reason)) {
+    output.reason = "execution gate rejected: " + output.reason;
+    return output;
+  }
+  output.execution_started = true;
+  const auto execute_result = active->execute(*active->solutions().front());
+  if (execute_result == moveit::core::MoveItErrorCode::SUCCESS) {
+    output.success = true;
+    output.reason = "MTC execution succeeded";
+  } else {
+    output.reason = "MTC execution failed";
+  }
+  return output;
+}
+
 GraspTaskResult GraspTask::planAndMaybeExecute(
   std::unique_ptr<mtc::Task> task,
   bool execute,
@@ -204,35 +331,9 @@ GraspTaskResult GraspTask::planAndMaybeExecute(
   }
   GraspTaskResult output;
   try {
-    const auto result = active->plan(config_.max_solutions);
-    if (result != moveit::core::MoveItErrorCode::SUCCESS || active->solutions().empty()) {
-      std::ostringstream details;
-      if (active->explainFailure(details) && !details.str().empty()) {
-        std::string message = details.str();
-        while (!message.empty() && (message.back() == '\n' || message.back() == '\r')) {
-          message.pop_back();
-        }
-        output.reason = "MTC planning failed: " + message;
-      } else {
-        output.reason = "MTC planning failed";
-      }
-    } else {
-      active->introspection().publishSolution(*active->solutions().front());
-      if (!execute) {
-        output.success = true;
-        output.reason = "MTC plan ready";
-      } else if (execution_gate && !execution_gate(output.reason)) {
-        output.reason = "execution gate rejected: " + output.reason;
-      } else {
-        output.execution_started = true;
-        const auto execute_result = active->execute(*active->solutions().front());
-        if (execute_result == moveit::core::MoveItErrorCode::SUCCESS) {
-          output.success = true;
-          output.reason = "MTC execution succeeded";
-        } else {
-          output.reason = "MTC execution failed";
-        }
-      }
+    output = planTaskOnly(active);
+    if (output.success && execute) {
+      output = executeSolution(active, execution_gate);
     }
   } catch (const std::exception & error) {
     output.reason = error.what();

@@ -1,8 +1,11 @@
 """全局采摘计划收齐式锁定语义与运行数据契约测试."""
 import numpy as np
 
-from peach_pose_ros2.harvest_data import HarvestDataStore
-from peach_pose_ros2.harvest_plan import GlobalHarvestPlan
+from peach_core.harvest_data import HarvestDataStore
+from peach_pose_ros2.peach_pose.harvest_plan import GlobalHarvestPlan
+from peach_pose_ros2.peach_pose.target_registry import TargetRegistry
+from peach_pose_ros2.peach_pose.timing_metrics import TimingMetrics
+import pytest
 
 
 def _rec(target_id, status=0, distance=1.0, confidence=0.9, height=0.5,
@@ -60,6 +63,82 @@ def test_locks_after_collect_window_and_advances_by_fixed_priority():
     plan.update([far, near], now=7.0)
     assert plan.complete_selected() == ''
     assert plan.harvest_status('far') == 'HARVESTED'
+
+
+def test_reopen_target_restores_selectability():
+    """E3 残局抬质量：终局目标重开后按固定优先级重新可选（观测在场时）."""
+    plan = _plan()
+    far = _rec('far', distance=1.2, height=0.8)
+    near = _rec('near', distance=0.7, height=0.4)
+    for frame in range(4):
+        plan.update([far, near], now=float(frame + 1))
+    assert plan.locked
+    assert plan.selected_target_id == 'near'
+    # 残局场景：一轮耗尽，两个目标均已终局（selected 空）
+    assert plan.complete_selected() == 'far'
+    assert plan.complete_selected() == ''
+    assert plan.selected_target_id == ''
+    # 抬质量成功 → 重开 near：移出 completed，下帧按优先级重新选中
+    assert plan.reopen_target('near') == ''
+    assert 'near' not in plan.completed_ids
+    plan.update([far, near], now=5.0)
+    assert plan.selected_target_id == 'near'
+    # 幂等守卫：已重开（无 completed 账目）再次重开被拒
+    assert '未终局' in plan.reopen_target('near')
+
+
+def test_reopen_target_does_not_preempt_active_selection():
+    """选中粘性：重开的更高优先级目标不抢占在办 selected，等其自然终局."""
+    plan = _plan()
+    far = _rec('far', distance=1.2, height=0.8)
+    near = _rec('near', distance=0.7, height=0.4)
+    for frame in range(4):
+        plan.update([far, near], now=float(frame + 1))
+    assert plan.locked
+    assert plan.complete_selected() == 'far'  # near 终局，选中推进到 far
+    assert plan.reopen_target('near') == ''
+    # far 仍在办：near 不抢占（与既有推进不变语义一致，防抖动切换）
+    plan.update([far, near], now=5.0)
+    assert plan.selected_target_id == 'far'
+    # far 终局后 near 按优先级接上
+    assert plan.complete_selected() == 'near'
+
+
+def test_reopen_target_guards():
+    """Reopen 三重守卫：未锁定 / 不在锁定集 / 未终局，均不动账目."""
+    plan = _plan()
+    rec = _rec('a', distance=0.7)
+    assert '尚未锁定' in plan.reopen_target('a')
+    for frame in range(4):
+        plan.update([rec], now=float(frame + 1))
+    assert plan.locked
+    assert '不在本轮锁定集' in plan.reopen_target('ghost')
+    assert '未终局' in plan.reopen_target('a')
+    # 守卫拒绝后账目不变：a 仍是选中目标且可正常推进
+    assert plan.selected_target_id == 'a'
+    assert plan.complete_selected() == ''
+    assert plan.harvest_status('a') == 'HARVESTED'
+
+
+def test_reopen_target_waits_for_observation_to_reselect():
+    """重开目标当前帧不可选（记录缺席）时不强选，观测恢复后按优先级重选."""
+    plan = _plan()
+    a = _rec('a', distance=0.7)
+    b = _rec('b', distance=0.9)
+    for frame in range(4):
+        plan.update([a, b], now=float(frame + 1))
+    assert plan.locked
+    # 残局场景：两个目标均终局，selected 空
+    assert plan.complete_selected() == 'b'
+    assert plan.complete_selected() == ''
+    assert plan.selected_target_id == ''
+    assert plan.reopen_target('a') == ''
+    # 当前帧 a 无观测记录（消失态）：不强选，selected 保持空
+    plan.update([], now=5.0)
+    assert plan.selected_target_id == ''
+    # a 观测恢复：可选判定按优先级选中 a
+    plan.update([a], now=6.0)
+    assert plan.selected_target_id == 'a'
 
 
 def test_rejected_target_waits_until_quality_recovers():
@@ -225,6 +304,140 @@ def test_reset_reopens_collect_window():
     assert plan.snapshot_id == 2
 
 
+def _locked_ab_plan(**kwargs):
+    """锁定 ('a','b') 两目标的计划（a 近优先，selected='a'）；4 帧关窗."""
+    plan = _plan(**kwargs)
+    for frame in range(4):
+        plan.update([_rec('a', distance=0.5), _rec('b', distance=0.8)],
+                    now=float(frame + 1))
+    assert plan.locked and plan.locked_ids == ('a', 'b')
+    assert plan.selected_target_id == 'a'
+    return plan
+
+
+def test_anchor_stale_excludes_selection_and_recovers():
+    """
+    阶段 D1（协议 2.4）：LOST 超 anchor_max_age 视为不可选但不移除.
+
+    LOST 帧龄按 update 帧计数（节点按秒级配置 ÷ 帧率 EMA 折算帧数阈值）。
+    陈旧期去选并按固定序重选；重新被观测帧龄归零，恢复可选。
+    """
+    plan = _locked_ab_plan(anchor_max_age_frames=3, anchor_drop_frames=100)
+    # a 消失：帧龄 1..3 未超阈，选中保持（锚点回填期内粘性选中语义不变）
+    for frame in range(5, 8):
+        plan.update([_rec('b', distance=0.8)], now=float(frame))
+        assert plan.selected_target_id == 'a'
+        assert 'a' not in plan.anchor_stale_ids
+    # 帧龄 4 > 3：入 anchor_stale_ids、去选 a、按序重选 b；a 不移除
+    plan.update([_rec('b', distance=0.8)], now=8.0)
+    assert plan.anchor_stale_ids == {'a'}
+    assert plan.selected_target_id == 'b'
+    assert 'a' in plan.locked_ids
+    # 重新被观测：帧龄归零，自动恢复可选（不回跳 selected——不跳跃）
+    plan.update([_rec('a', distance=0.5), _rec('b', distance=0.8)], now=9.0)
+    assert plan.anchor_stale_ids == set()
+    assert plan.selected_target_id == 'b'
+    # b 完成后 a 可被正常重选
+    assert plan.complete_selected() == 'a'
+
+
+def test_anchor_drop_removes_from_plan_and_records():
+    """
+    阶段 D1（协议 2.4）：LOST 超 anchor_drop 从计划移除并记账.
+
+    移除入口语义：locked_ids/priorities 剔除、dropped_ids 记录、
+    pop_dropped 供节点取走记 target_dropped 事件、selected 自动顺延。
+    """
+    plan = _locked_ab_plan(anchor_max_age_frames=2, anchor_drop_frames=4)
+    # a 消失：帧龄 3（>2 陈旧）→4 未超 drop，5 > 4 移除
+    plan.update([_rec('b', distance=0.8)], now=5.0)   # 龄 1
+    plan.update([_rec('b', distance=0.8)], now=6.0)   # 龄 2
+    plan.update([_rec('b', distance=0.8)], now=7.0)   # 龄 3 → 陈旧
+    assert plan.anchor_stale_ids == {'a'}
+    assert plan.selected_target_id == 'b'
+    plan.update([_rec('b', distance=0.8)], now=8.0)   # 龄 4，未超
+    assert 'a' in plan.locked_ids
+    plan.update([_rec('b', distance=0.8)], now=9.0)   # 龄 5 > 4 → 移除
+    assert plan.locked_ids == ('b',)
+    assert plan.priority('a') == 0
+    assert plan.dropped_ids == {'a'}
+    assert plan.pop_dropped() == ['a']
+    assert plan.pop_dropped() == []     # 队列一次性取走
+    assert plan.selected_target_id == 'b'
+
+
+def test_out_of_view_target_is_not_selectable():
+    """
+    阶段 D1（协议 2.4）：OUT_OF_VIEW 目标视为不可选（复扫无益）.
+
+    单位姿模型下回到同一拍照位姿也看不到已走出视野的目标；节点按
+    「消失前最后检测框触图像边缘」分类并逐帧注入 out_of_view_ids。
+    """
+    plan = _locked_ab_plan(anchor_max_age_frames=100, anchor_drop_frames=200)
+    plan.update([_rec('b', distance=0.8)], now=5.0, out_of_view_ids={'a'})
+    assert plan.out_of_view_ids == {'a'}
+    assert plan.selected_target_id == 'b'     # 去选 a 按序重选 b
+    # 非锁定 ID 注入被忽略（防御交集）
+    plan.update([_rec('b', distance=0.8)], now=6.0,
+                out_of_view_ids={'a', 'ghost'})
+    assert plan.out_of_view_ids == {'a'}
+    # b 完成：a 出视野仍不可选 → selected 空串
+    assert plan.complete_selected() == ''
+    # a 重新被观测且不再注入出视野 → 恢复可选
+    plan.update([_rec('a', distance=0.5)], now=7.0)
+    assert plan.out_of_view_ids == set()
+    assert plan.selected_target_id == 'a'
+
+
+def test_swinging_target_is_not_selectable():
+    """
+    阶段 D1（协议 2.4）：record 带 target_swinging 阻断旗标视为不可选.
+
+    摆动由 TargetRegistry 观测残差连击判定、节点打入 record 旗标；
+    选中目标起摆即去选重选，平息后（旗标消失）恢复可选但不回跳。
+    """
+    plan = _locked_ab_plan(anchor_max_age_frames=100, anchor_drop_frames=200)
+    swinging_a = _rec('a', distance=0.5, flags=('target_swinging',))
+    plan.update([swinging_a, _rec('b', distance=0.8)], now=5.0)
+    assert 'a' not in plan.current_selectable_ids
+    assert plan.selected_target_id == 'b'
+    # 全部可选目标都摆动时 selected 为空串（不跳跃，恢复后重选）
+    plan.update([swinging_a, _rec('b', distance=0.8,
+                                  flags=('target_swinging',))], now=6.0)
+    assert plan.selected_target_id == ''
+    plan.update([_rec('a', distance=0.5), _rec('b', distance=0.8)], now=7.0)
+    assert plan.selected_target_id == 'a'
+
+
+def test_reset_clears_outdoor_state():
+    """阶段 D1 状态随 reset 一并复位（新一轮不带入陈旧/出视野/移除账）."""
+    plan = _locked_ab_plan(anchor_max_age_frames=2, anchor_drop_frames=3)
+    plan.update([_rec('b', distance=0.8)], now=5.0, out_of_view_ids=set())
+    plan.update([_rec('b', distance=0.8)], now=6.0)
+    plan.update([_rec('b', distance=0.8)], now=7.0)
+    plan.update([_rec('b', distance=0.8)], now=8.0)   # 龄 4 > 3 → 移除 a
+    assert plan.dropped_ids == {'a'}
+    plan.reset()
+    assert plan.anchor_stale_ids == set()
+    assert plan.out_of_view_ids == set()
+    assert plan.dropped_ids == set()
+    assert plan.pop_dropped() == []
+    assert plan.locked_ids == ()
+
+
+def test_anchor_frame_thresholds_validated_and_writable():
+    """锚点帧龄阈值：≥1 校验，运行期可按帧率 EMA 折算逐帧改写（I4）."""
+    plan = _plan()
+    with pytest.raises(ValueError):
+        plan.anchor_max_age_frames = 0
+    with pytest.raises(ValueError):
+        plan.anchor_drop_frames = 0
+    plan.anchor_max_age_frames = 60    # 帧率 10 fps 时 30 s → 300 帧等
+    plan.anchor_drop_frames = 240
+    assert plan.anchor_max_age_frames == 60
+    assert plan.anchor_drop_frames == 240
+
+
 def test_harvest_store_manifest_events_and_mask(tmp_path):
     """一个 run 可关联 manifest、来源事件和时间戳掩膜."""
     store = HarvestDataStore(root=tmp_path)
@@ -236,3 +449,81 @@ def test_harvest_store_manifest_events_and_mask(tmp_path):
     assert (run_dir / 'events.jsonl').is_file()
     assert (run_dir / 'latest_perception.json').is_file()
     assert (run_dir / mask_path).is_file()
+
+
+def test_collecting_count_tracks_window_progress_then_lock_size():
+    """
+    R-D8：collecting_count 锁定前=累积已确认数，锁定后=锁定集大小.
+
+    节点把本属性填入 target_observations.collecting_count 与 harvest_state
+    同名键，本测试锁定其语义即锁定 msg 字段填充契约。
+    """
+    plan = _plan()
+    assert plan.collecting_count == 0
+    plan.update([_rec('a')], now=1.0)
+    assert not plan.locked
+    assert plan.collecting_count == 1
+    plan.update([_rec('a'), _rec('b', distance=0.5)], now=2.0)
+    assert plan.collecting_count == 2
+    # 未确认记录不进累积集（确认中不计入 collecting_count）
+    plan.update([_rec('a'), _rec('b', distance=0.5),
+                 _rec('c', confirmed=False)], now=3.0)
+    assert plan.collecting_count == 2
+    # 第 4 帧窗口关闭锁定：语义切换为锁定集大小（== target_count）
+    plan.update([_rec('a'), _rec('b', distance=0.5)], now=4.0)
+    assert plan.locked
+    assert plan.collecting_count == plan.target_count == 2
+    # 锁定后目标暂时丢失不影响 collecting_count
+    plan.update([_rec('a')], now=5.0)
+    assert plan.collecting_count == 2
+
+
+def test_registry_pending_count_tracks_confirmation():
+    """
+    R-D8：pending_count=未转正记录数，累计命中满 confirm_frames 归零.
+
+    节点把本属性填入 target_observations.pending_count 与 harvest_state
+    同名键（锁定后/身份记忆禁用时节点侧直接给 0）。
+    """
+    registry = TargetRegistry(confirm_frames=2, tentative_ttl_frames=5)
+    assert registry.pending_count == 0
+    registry.begin_frame()
+    tid, is_new = registry.match_or_register(
+        [0.0, 0.0, 1.0], class_id=0, now=1.0)
+    assert is_new
+    assert registry.pending_count == 1
+    # 第二次命中后 obs_count=2 满 confirm_frames → 转正，pending 归零
+    registry.begin_frame()
+    tid2, is_new2 = registry.match_or_register(
+        [0.0, 0.0, 1.01], class_id=0, now=2.0)
+    assert (tid2, is_new2) == (tid, False)
+    assert registry.pending_count == 0
+
+
+def test_timing_metrics_snapshot_keys_and_ema_monotonic():
+    """
+    推理耗时 EMA：快照含全部分段键与 fps，EMA 向新样本单调收敛.
+
+    harvest_state JSON 的 timing 子对象即本快照，本测试锁定键存在性
+    （detect/segment/geometry/total + fps）与 EMA 单调收敛性质。
+    """
+    metrics = TimingMetrics(alpha=0.5)
+    # 无样本时仅含 fps 键（None 安全）
+    assert metrics.snapshot() == {'fps': 0.0}
+    for key in ('detect_ms', 'segment_ms', 'geometry_ms', 'total_ms'):
+        metrics.record(key, 10.0)
+    snap = metrics.snapshot(fps=5.0)
+    for key in ('detect_ms', 'segment_ms', 'geometry_ms', 'total_ms'):
+        assert snap[key] == 10.0
+    assert snap['fps'] == 5.0
+    # EMA 单调收敛：持续记录更大样本，估计值单调递增且不越过样本
+    prev = snap['total_ms']
+    for _ in range(5):
+        metrics.record('total_ms', 100.0)
+        current = metrics.snapshot()['total_ms']
+        assert prev < current <= 100.0
+        prev = current
+    # 脏样本（nan/负值）不进 EMA，不污染估计
+    metrics.record('total_ms', float('nan'))
+    metrics.record('total_ms', -1.0)
+    assert metrics.snapshot()['total_ms'] == prev

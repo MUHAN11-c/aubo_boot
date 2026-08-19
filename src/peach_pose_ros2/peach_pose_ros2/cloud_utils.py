@@ -2,8 +2,8 @@
 检测框点云 — 深度反投影、rgb 位打包与 PointCloud2 组装.
 
 职责:
-  把检测框内像素的实测深度反投影成彩色点云（~/detection_cloud /
-  /peach/perception/single_cloud），供 RViz 对照相机全图点云。
+  把检测框内像素的实测深度反投影成彩色点云
+  （/peach/perception/single_cloud），供 RViz 对照相机全图点云。
   依赖 sensor_msgs / numpy，不依赖 rclpy 节点。
 
 坐标系/单位约定:

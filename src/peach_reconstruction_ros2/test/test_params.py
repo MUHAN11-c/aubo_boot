@@ -39,9 +39,9 @@ class ParamsSyncTest(unittest.TestCase):
         cls.code_defaults = ReconstructionParams.defaults_flat()
 
     def test_yaml_and_declare_keys_bidirectional(self):
-        """YAML 键集 == declare 键集（双向，51 个）."""
+        """YAML 键集 == declare 键集（双向，64 个）."""
         self.assertEqual(set(self.yaml_params), set(self.code_defaults))
-        self.assertEqual(len(self.code_defaults), 51)
+        self.assertEqual(len(self.code_defaults), 64)
 
     def test_yaml_and_declare_values_equal(self):
         """YAML 默认值 == declare 默认值（逐项，类型与数值一致）."""
@@ -55,9 +55,10 @@ class ParamsSyncTest(unittest.TestCase):
         """Dataclass 字段集（组前缀拼接）== ROS 参数名集（无遗漏/无冗余）."""
         inst = ReconstructionParams()
         flat = set()
-        for group_name in ('frames', 'camera', 'capture', 'view_filter',
-                           'icp', 'local_volume', 'tsdf', 'cloud_filter', 'refit',
-                           'session'):
+        for group_name in ('frames', 'camera', 'capture', 'bind', 'view_filter',
+                           'icp', 'local_volume', 'tsdf', 'cloud_filter',
+                           'cloud_builder', 'refiner', 'volume', 'refitter',
+                           'mask_gate', 'refit', 'publish', 'session'):
             group = getattr(inst, group_name)
             flat |= {f'{group_name}.{k}' for k in vars(group)}
         flat |= {'sync_slop_s', 'tf_timeout_sec', 'depth_scale_unit'}
@@ -77,8 +78,19 @@ class ParamsLoadTest(unittest.TestCase):
         self.assertEqual(params.icp.max_translation, 0.010)
         self.assertEqual(params.tsdf.voxel_length, 0.003)
         self.assertEqual(params.refit.entry_standoff_m, 0.070)
+        self.assertEqual(params.icp.target_refresh_min_period, 1)
+        self.assertEqual(params.icp.target_refresh_max_period, 5)
+        self.assertEqual(params.icp.target_refresh_drift_ratio, 0.5)
+        self.assertTrue(params.publish.on_change_only)
+        self.assertEqual(params.publish.min_interval_s, 0.2)
         self.assertEqual(params.frames.base_frame, 'base_link')
         self.assertEqual(params.session.root_dir, '')
+        self.assertEqual(params.cloud_builder.impl, 'open3d_cloud')
+        self.assertEqual(params.refiner.impl, 'bounded_icp')
+        self.assertEqual(params.volume.impl, 'local_tsdf')
+        self.assertEqual(params.refitter.cylinder_impl, 'cylinder_refit')
+        self.assertEqual(params.refitter.sphere_impl, 'sphere_refit')
+        self.assertEqual(params.mask_gate.impl, 'strict_mask_gate')
 
     def test_from_node_reads_override_and_strips(self):
         """from_node 读节点覆盖值；字符串字段 strip（base_frame/root_dir 语义）."""

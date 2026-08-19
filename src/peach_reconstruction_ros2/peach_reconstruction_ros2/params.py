@@ -3,8 +3,10 @@
 
 形态对标 nav2 ``ParameterHandler<ParamsT>`` 的 Python 版（设计文档
 docs/superpowers/specs/2026-08-10-peach-layered-architecture.md §2.1）：
-嵌套 frozen dataclass 按 ROS 参数名分组（frames/camera/capture/
-view_filter/local_volume/tsdf/cloud_filter/refit/session），字段名 =
+嵌套 frozen dataclass 按 ROS 参数名分组（frames/camera/capture/bind/
+view_filter/icp/local_volume/tsdf/cloud_filter/refit/publish/session +
+装配组 cloud_builder/refiner/volume/refitter/mask_gate，协议 2.14 的
+``*.impl`` 实现选择键），字段名 =
 ROS 参数名去组前缀，类型与 ROS 参数一致。
 
 权威源哲学（本仓约定）：``config/reconstruction.yaml`` 是默认值权威源，
@@ -57,6 +59,19 @@ class CaptureParams:
     min_mask_pixels: int = 300
     min_mask_depth_ratio: float = 0.35
     max_target_drift_m: float = 0.04
+    # 邻目标串扰门（E2）：绑定锚点与其他锁定目标锚点间距小于本值时拒帧，
+    # 防邻近目标点云混入形成 TSDF 不可回滚双层表面（I6）；≤0 关闭
+    min_neighbor_gap_m: float = 0.15
+
+
+@dataclass(frozen=True)
+class BindParams:
+    """目标绑定参数（bind.*，E2 会话防抖）."""
+
+    # 防感知 selected 瞬态抖动销毁进行中会话：selected_target_id 变化
+    # （含变空）须持续超过本时长才放弃旧会话重绑；holdoff 内切回原 ID
+    # 取消挂起，旧会话继续采帧（同一果实的瞬态误切不浪费已攒视角）
+    switch_holdoff_s: float = 2.0
 
 
 @dataclass(frozen=True)
@@ -86,6 +101,15 @@ class IcpParams:
     max_rmse: float = 0.008
     max_translation: float = 0.010
     max_rotation_deg: float = 3.0
+    # E4 ICP target 增量复用（icp_target_cache.IcpTargetCache）：两次全量
+    # extract 之间复用「上次全量+已采帧修正后云增量拼接」做 ICP target；
+    # 全量刷新周期 k [帧] 按近期修正量 EMA 在 [min,max] 内自适应伸缩
+    # （min=max=1 退化为旧行为：每帧全量提取）
+    target_refresh_min_period: int = 1
+    target_refresh_max_period: int = 5
+    # 漂移判定比：修正量 EMA ≥ max_translation×本值（或 fk 回退/拒帧）→
+    # k 收回下限；EMA ≤ 1/4×该阈值 → k 拉长到上限；中间迟滞带保持
+    target_refresh_drift_ratio: float = 0.5
 
 
 @dataclass(frozen=True)
@@ -116,6 +140,42 @@ class CloudFilterParams:
 
 
 @dataclass(frozen=True)
+class CloudBuilderParams:
+    """点云构建器装配参数（cloud_builder.*，协议 2.14）."""
+
+    impl: str = 'open3d_cloud'  # interfaces.CLOUD_BUILDERS 注册名
+
+
+@dataclass(frozen=True)
+class RefinerParams:
+    """配准器装配参数（refiner.*，协议 2.14）."""
+
+    impl: str = 'bounded_icp'  # interfaces.REFINERS 注册名
+
+
+@dataclass(frozen=True)
+class VolumeParams:
+    """融合体积装配参数（volume.*，协议 2.14）."""
+
+    impl: str = 'local_tsdf'  # interfaces.VOLUMES 注册名
+
+
+@dataclass(frozen=True)
+class RefitterParams:
+    """几何精化器装配参数（refitter.*，协议 2.14，圆柱/球两线）."""
+
+    cylinder_impl: str = 'cylinder_refit'  # interfaces.REFITTERS 注册名
+    sphere_impl: str = 'sphere_refit'      # interfaces.REFITTERS 注册名
+
+
+@dataclass(frozen=True)
+class MaskGateParams:
+    """掩膜门装配参数（mask_gate.*，协议 2.14）."""
+
+    impl: str = 'strict_mask_gate'  # interfaces.MASK_GATES 注册名
+
+
+@dataclass(frozen=True)
 class RefitParams:
     """几何二次拟合参数（refit.*，长度 [m]）."""
 
@@ -123,6 +183,19 @@ class RefitParams:
     cylinder_inlier_min: float = 0.35
     rmse_max_m: float = 0.005
     entry_standoff_m: float = 0.070
+
+
+@dataclass(frozen=True)
+class PublishParams:
+    """发布节流参数（publish.*，E4 on-change + 最小间隔）."""
+
+    # 点云/Marker 类大消息（local_cloud/tsdf_cloud/markers）仅内容版本
+    # 变化才发（transient_local 闩锁保持，零变化抑制不丢 RViz 显示）；
+    # false 回退逐次全发旧行为。心跳/状态/诊断/refit 三件套不经过本开关
+    on_change_only: bool = True
+    # 同一话题两次实际发布的最小间隔 [s]；间隔内的变化被抑制（不丢：
+    # 下次发布触发时补发最新版本）；≤0 关闭间隔门（只留 on-change）
+    min_interval_s: float = 0.2
 
 
 @dataclass(frozen=True)
@@ -137,12 +210,19 @@ _GROUPS: Tuple[Tuple[str, type], ...] = (
     ('frames', FramesParams),
     ('camera', CameraParams),
     ('capture', CaptureParams),
+    ('bind', BindParams),
     ('view_filter', ViewFilterParams),
     ('icp', IcpParams),
     ('local_volume', LocalVolumeParams),
     ('tsdf', TsdfParams),
     ('cloud_filter', CloudFilterParams),
+    ('cloud_builder', CloudBuilderParams),
+    ('refiner', RefinerParams),
+    ('volume', VolumeParams),
+    ('refitter', RefitterParams),
+    ('mask_gate', MaskGateParams),
     ('refit', RefitParams),
+    ('publish', PublishParams),
     ('session', SessionParams),
 )
 
@@ -174,7 +254,14 @@ _DESCRIPTIONS: Dict[str, str] = {
     'capture.require_target_mask': '仅积分全局计划所选 target_id 的逐帧掩膜',
     'capture.min_mask_pixels': '目标掩膜最少像素数（过小视为远距或遮挡）',
     'capture.min_mask_depth_ratio': '掩膜内有效深度占比下限（强光/空洞门）',
-    'capture.max_target_drift_m': '当前目标中心相对绑定中心最大漂移 [m]（风动门）',
+    'capture.max_target_drift_m': '当前目标中心相对绑定中心最大漂移 [m]（风动门；'
+                                  '室外风动场景建议调至 0.06，见 yaml 注释）',
+    'capture.min_neighbor_gap_m': '绑定锚点与其他锁定目标锚点的最小间距 [m]；'
+                                  '小于则拒帧，防邻近目标点云混入形成 TSDF '
+                                  '不可回滚双层表面（I6）；≤0 关闭本门',
+    'bind.switch_holdoff_s': 'selected 切换防抖 (s)：selected_target_id 变化'
+                             '（含变空）须持续超过本时长才放弃进行中会话重绑，'
+                             '防感知 selected 瞬态抖动销毁会话',
     'view_filter.min_translation': '与上一已采帧的最小平移 [m]（过近=重复视角）',
     'view_filter.max_translation': '与上一已采帧的最大平移 [m]（过远=跳变）',
     'view_filter.min_rotation_deg': '与上一已采帧的最小旋转 [deg]',
@@ -192,6 +279,15 @@ _DESCRIPTIONS: Dict[str, str] = {
     'icp.max_rmse': 'ICP/FK 预对齐最大内点 RMSE [m]',
     'icp.max_translation': 'ICP 相对 FK 的最大平移修正 [m]',
     'icp.max_rotation_deg': 'ICP 相对 FK 的最大旋转修正 [deg]',
+    'icp.target_refresh_min_period': 'ICP target 全量 extract 刷新周期下限 '
+                                     '[帧]（E4）；1=每帧全量提取（旧行为）',
+    'icp.target_refresh_max_period': 'ICP target 全量 extract 刷新周期上限 '
+                                     '[帧]（E4）；k 在上下限间按修正量 EMA '
+                                     '自适应伸缩',
+    'icp.target_refresh_drift_ratio': '漂移判定比（E4）：修正量 EMA ≥ '
+                                      'max_translation×本值（或 fk 回退/拒帧）'
+                                      '→ k 收回下限；EMA ≤ 1/4×该阈值 → k '
+                                      '拉长到上限；中间迟滞带保持',
     'local_volume.size_x': '局部体素盒 X 尺寸 [m]（TSDF 云 ROI 裁剪）',
     'local_volume.size_y': '局部体素盒 Y 尺寸 [m]（TSDF 云 ROI 裁剪）',
     'local_volume.size_z': '局部体素盒 Z 尺寸 [m]（TSDF 云 ROI 裁剪）',
@@ -203,6 +299,17 @@ _DESCRIPTIONS: Dict[str, str] = {
     'cloud_filter.voxel_size': 'TSDF 提取云体素降采样边长 [m]（≤0 不降）',
     'cloud_filter.enable_statistical_filter': 'TSDF 提取云统计离群剔除'
                                               '（20 邻域 2σ）',
+    'cloud_builder.impl': '点云构建器实现注册名（interfaces.CLOUD_BUILDERS，'
+                          '协议 2.14）',
+    'refiner.impl': '帧到模型配准器实现注册名（interfaces.REFINERS，'
+                    '协议 2.14）',
+    'volume.impl': '融合体积实现注册名（interfaces.VOLUMES，协议 2.14）',
+    'refitter.cylinder_impl': '圆柱（袋桃）refit 实现注册名'
+                              '（interfaces.REFITTERS，协议 2.14）',
+    'refitter.sphere_impl': '球（裸桃）refit 实现注册名'
+                            '（interfaces.REFITTERS，协议 2.14）',
+    'mask_gate.impl': '目标掩膜门实现注册名（interfaces.MASK_GATES，'
+                      '协议 2.14）',
     'refit.enable': '几何二次拟合（refit）开关：true=finalize TSDF 后对 '
                     'tsdf_cloud 做圆柱/球 RANSAC 精化，发 '
                     'refined_pose/refined_axis/refined_diagnostics',
@@ -212,6 +319,12 @@ _DESCRIPTIONS: Dict[str, str] = {
                         '（超过则 REOBSERVE）',
     'refit.entry_standoff_m': 'refined_pose 的 entry_pose 自 bottom 沿 '
                               '−axis 后撤量 [m]',
+    'publish.on_change_only': '点云/Marker 类大消息（local_cloud/tsdf_cloud/'
+                              'markers）仅内容版本变化才发（E4；闩锁保持，'
+                              '零变化抑制不丢 RViz 显示）；false=逐次全发',
+    'publish.min_interval_s': '点云/Marker 类话题两次实际发布的最小间隔 [s]'
+                              '（E4）；间隔内变化被抑制、下次触发补发最新版；'
+                              '≤0 关闭间隔门',
     'session.root_dir': 'session 落盘根目录；空 = <工作区>/peach_sessions'
                         '（按包 share 路径反推工作区根）',
 }
@@ -222,7 +335,7 @@ _SCALARS: Tuple[str, ...] = ('sync_slop_s', 'tf_timeout_sec', 'depth_scale_unit'
 
 @dataclass(frozen=True)
 class ReconstructionParams:
-    """全部 51 个节点参数的 frozen 装载形态（嵌套组 + 顶层标量）."""
+    """全部 64 个节点参数的 frozen 装载形态（嵌套组 + 顶层标量）."""
 
     sync_slop_s: float = 0.05
     tf_timeout_sec: float = 1.0
@@ -230,12 +343,20 @@ class ReconstructionParams:
     frames: FramesParams = field(default_factory=FramesParams)
     camera: CameraParams = field(default_factory=CameraParams)
     capture: CaptureParams = field(default_factory=CaptureParams)
+    bind: BindParams = field(default_factory=BindParams)
     view_filter: ViewFilterParams = field(default_factory=ViewFilterParams)
     icp: IcpParams = field(default_factory=IcpParams)
     local_volume: LocalVolumeParams = field(default_factory=LocalVolumeParams)
     tsdf: TsdfParams = field(default_factory=TsdfParams)
     cloud_filter: CloudFilterParams = field(default_factory=CloudFilterParams)
+    cloud_builder: CloudBuilderParams = field(
+        default_factory=CloudBuilderParams)
+    refiner: RefinerParams = field(default_factory=RefinerParams)
+    volume: VolumeParams = field(default_factory=VolumeParams)
+    refitter: RefitterParams = field(default_factory=RefitterParams)
+    mask_gate: MaskGateParams = field(default_factory=MaskGateParams)
     refit: RefitParams = field(default_factory=RefitParams)
+    publish: PublishParams = field(default_factory=PublishParams)
     session: SessionParams = field(default_factory=SessionParams)
 
     @classmethod
@@ -291,7 +412,7 @@ class ReconstructionParams:
 
         Returns
         -------
-            ReconstructionParams（frozen，47 个参数全装载）.
+            ReconstructionParams（frozen，64 个参数全装载）.
 
         """
         g = node.get_parameter

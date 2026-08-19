@@ -72,8 +72,8 @@ _TOPICS_YAML = [
      BagFittingArray, False),
 ]
 _TOPICS_IMAGE = [
-    ('perception_debug_image.png', '/peach_pose_node/debug_image', 'bgr8', False),
-    ('perception_masks.png', '/peach_pose_node/masks', 'passthrough', False),
+    ('perception_debug_image.png', '/peach/perception/debug_image', 'bgr8', False),
+    ('perception_masks.png', '/peach/perception/masks', 'passthrough', False),
 ]
 _TOPICS_CLOUD = [
     ('perception_single_cloud.ply', '/peach/perception/single_cloud', False),
@@ -519,8 +519,10 @@ def _record_all(node, step_dir: Path, timeout_sec: float, render_title: str):
         errors['cloud_render.png'] = str(exc)
 
     try:
-        msg = _wait_one(node, '/peach/reconstruction/diagnostics', String,
-                        timeout_sec, latched=True)
+        # 诊断主话题已类型化（ReconstructionStatus）；完整明细 JSON 走
+        # diagnostics_debug 调试话题，落盘内容不变
+        msg = _wait_one(node, '/peach/reconstruction/diagnostics_debug',
+                        String, timeout_sec, latched=True)
         if msg is None:
             artifacts['reconstruction_diagnostics.json'] = 'missing'
         else:

@@ -126,8 +126,10 @@ struct Harness
       rclcpp::Parameter("robot_description_semantic", std::string(kMinimalSrdf)),
       // 进程内最小环境无真实 BT 路径覆盖，显式指向仓库内 harvest_tree.xml。
       rclcpp::Parameter("behavior_tree.xml", std::string(HARVEST_TREE_XML)),
-      // 无 TF 广播：相机系钉到 base_link，lookupTransform 同帧恒等快速返回。
+      // 无 robot_state_publisher：相机与末端钉到 base_link，TF 同帧恒等。
       rclcpp::Parameter("frames.camera", "base_link"),
+      rclcpp::Parameter("frames.tip", "base_link"),
+      rclcpp::Parameter("frames.tool", "base_link"),
       // 走完 MTC 前的全部分支需要执行+抓取使能（action 驱动自动 arm）；
       // 无 robot_status 发布者，安全门的机器人路关闭（目标路仍生效）。
       rclcpp::Parameter("execution.enabled", true),

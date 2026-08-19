@@ -47,8 +47,8 @@ namespace peach_approach_grasp
 struct ScanBudgetConfig
 {
   // 默认值以 config/approach_grasp.yaml 为权威源，此处仅为直接构造兜底。
-  int maximum_moves{5};       // 移动次数硬上限（兜底，防候选全失败死循环）
-  int min_effective_views{2}; // 有效视点观测下限（收口前提）
+  int maximum_moves{5};        // 移动次数硬上限（兜底，防候选全失败死循环）
+  int min_effective_views{2};  // 有效视点观测下限（收口前提）
   double time_budget_s{5.0};  // 观察段时间预算下限（秒），运行期按成本 EMA 伸缩
 };
 

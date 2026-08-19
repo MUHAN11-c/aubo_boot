@@ -3,7 +3,8 @@
 > 状态：设计基线已核对并冻结，尚未进入重构、联调或真机执行  
 > 日期：2026-08-19  
 > 适用工作区：`/home/mu/Desktop/aubo_e5_jazzy_ws`  
-> 参考实现：当前工作区源码与文档、`/home/mu/aubo_boot/aubo_ros2_jazzy_ws/Robotics_Tutorial`  
+> 参考实现：当前工作区源码与文档  
+> 原则参考：`/home/mu/aubo_boot/aubo_ros2_jazzy_ws/Robotics_Tutorial` 为 Markdown 知识库（高层异步 BT、类型化端口、MTC 运动阶段、恢复预案、事件回放、主动感知信息增益），无可直接移植的运行时代码  
 > 变更性质：允许破坏性重设计；切换完成后直接删除旧实现，不保留兼容层或重复归档  
 > 安全边界：AUBO 真机驱动栈冻结只读；禁止自动上电；未授权时不得产生真实运动或工具输出
 
@@ -44,8 +45,8 @@
 - 重建链中的精确深度时间戳 TF、有界 ICP、FK 回退判定、在线 TSDF 和几何精化可保留。
 - 接近抓取中“自由空间转移 + 受约束接触段”的分层符合安全要求。
 - Lifecycle、动作取消、只读监控和结构化结果已有基础，可在新边界中重建。
-- `Robotics_Tutorial` 中的高层异步 BT、类型化端口、MTC 运动阶段、恢复预案、事件回放
-  和主动感知信息增益原则适合本项目。
+- `Robotics_Tutorial` 是 Markdown 知识库，仅作原则参考（高层异步 BT、类型化端口、
+  MTC 运动阶段、恢复预案、事件回放、主动感知信息增益），没有可迁移的运行时代码。
 
 ### 3.2 必须解决的结构问题
 
@@ -403,6 +404,18 @@ Result：`HarvestResult`、`DepositResult`、`Verification`、`TargetOutcome`、
 - 精确 TF 不可用时可发布仅供诊断的相机系观测，但不得进入身份 registry、SceneSnapshot
   或任何可执行目标。
 - SAM 失败时允许用深度连通区域维持低置信跟踪；该结果不得参与 TargetModel、抓取或结果验证。
+
+### 10.2.1 分割器插件与 2026 模型现状
+
+第一版继续使用现有 **YOLO 检测 + MobileSAM 分割** 组合，数学与权重原样迁移，仅把检测/分割放在可替换接口后面。
+
+2026 年 Ultralytics 公开基准（MobileSAM 文档对照表）显示：YOLO11n-seg / YOLO26n-seg 约 6 MB、CPU 约 24 ms/张；MobileSAM 约 40 MB、CPU 约 23800 ms/张。单阶段 YOLO-seg 在延迟与模型体积上显著占优，适合作为后续实机 bench-off 的替代实现，**不在 M0–M7 切换范围内替换**。
+
+约束：
+
+1. `Detector` 与 `Segmenter` 必须是独立插件点；节点与身份链只消费 `bbox + mask`，不绑定具体权重文件名。
+2. 允许后续增加 `YoloSeg` 单阶段实现，与 MobileSAM 并行存在于测试夹具中，不得改 IDL 或质量门。
+3. 生产 profile 在实机标定前仍指向现有 `best.pt` + `mobile_sam.pt`。
 
 ### 10.3 身份关联
 
@@ -836,6 +849,7 @@ harvest_runs/<job_id>/
 - 袋底外侧沿底到颈轴插入、接触前预规划同轴撤退。
 - 每目标立即卸果、HarvestResult/DepositResult 分离。
 - JSONL canonical journal + MCAP telemetry/evidence。
+- 第一版分割保持 YOLO 检测 + MobileSAM；分割器可插拔，YOLO-seg 仅作为后续实机 bench-off。
 - 切换后删除旧实现，不保留兼容层。
 
 ### 20.2 不改变软件架构、但阻塞 G10 的现场标定

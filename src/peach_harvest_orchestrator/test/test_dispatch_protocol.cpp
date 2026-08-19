@@ -85,9 +85,16 @@
 //      无 TF 发布端），仅本用例置 true。
 #include <gtest/gtest.h>
 
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <chrono>
+#include <csignal>
+#include <cstdlib>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -110,6 +117,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
+#include "std_msgs/msg/string.hpp"
 #include "std_srvs/srv/trigger.hpp"
 
 #include "orchestrator_test_access.hpp"
@@ -569,6 +577,258 @@ bool send_control(
   return false;
 }
 
+struct FakeRemote
+{
+  struct Flag
+  {
+    FakeRemote * self{nullptr};
+    const char * key{nullptr};
+    void store(bool value)
+    {
+      self->send(std::string(key) + (value ? "=1" : "=0"));
+    }
+  };
+  struct IntFlag
+  {
+    FakeRemote * self{nullptr};
+    const char * key{nullptr};
+    void store(int value)
+    {
+      self->send(std::string(key) + "=" + std::to_string(value));
+    }
+  };
+  struct Goals
+  {
+    FakeRemote * self{nullptr};
+    int load() const {return self->status_int("goals_received");}
+  };
+  struct Calls
+  {
+    FakeRemote * self{nullptr};
+    const char * key{nullptr};
+    int load() const {return self->status_int(key);}
+  };
+
+  Flag complete_success{this, "complete_success"};
+  Flag targets_locked_flag{this, "locked"};
+  Flag estop{this, "estop"};
+  IntFlag collecting_count{this, "collecting_count"};
+  IntFlag pending_count{this, "pending_count"};
+  Goals goals_received{this};
+  Calls clear_calls{this, "clear_calls"};
+  Calls reset_calls{this, "reset_calls"};
+  std::mutex cycle_ids_mutex;
+  std::vector<std::string> cycle_ids;
+  std::vector<uint8_t> goal_modes;
+  std::function<void(int)> on_complete;
+  std::function<bool(int, const RunTargetCycle::Goal &)> goal_handler;
+  std::function<bool(const std::string &)> cancel_handler;
+  std::function<void(int, const std::string &,
+    std::atomic<int64_t> &, std::atomic<uint8_t> &)> finish_script;
+  std::function<bool(int)> clear_handler;
+  std::vector<std::string> target_ids{"peach_1"};
+
+  void bind(const rclcpp::Node::SharedPtr & node)
+  {
+    cmd_pub_ = node->create_publisher<std_msgs::msg::String>(
+      "/fake_field/command", 20);
+    status_sub_ = node->create_subscription<std_msgs::msg::String>(
+      "/fake_field/status", 10,
+      [this](const std_msgs::msg::String::SharedPtr message) {
+        std::vector<std::string> to_flush;
+        {
+          std::lock_guard<std::mutex> lock(status_mutex_);
+          status_json_ = message->data;
+          refresh_vectors_locked();
+          if (!ready_) {
+            ready_ = true;
+            to_flush.swap(pending_);
+          }
+        }
+        for (const auto & line : to_flush) {publish_line(line);}
+      });
+  }
+
+  bool wait_ready(std::chrono::milliseconds timeout)
+  {
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
+    while (std::chrono::steady_clock::now() < deadline) {
+      {
+        std::lock_guard<std::mutex> lock(status_mutex_);
+        if (ready_) {return true;}
+      }
+      std::this_thread::sleep_for(50ms);
+    }
+    return false;
+  }
+
+  void send(const std::string & line)
+  {
+    bool publish_now = false;
+    {
+      std::lock_guard<std::mutex> lock(status_mutex_);
+      if (!ready_ || !cmd_pub_) {
+        pending_.push_back(line);
+      } else {
+        publish_now = true;
+      }
+    }
+    if (publish_now) {
+      publish_line(line);
+      std::this_thread::sleep_for(50ms);
+    }
+  }
+
+  void set_selected(const std::string & value)
+  {
+    send("set_selected=" + value);
+  }
+
+  void set_target_ids(const std::vector<std::string> & ids)
+  {
+    target_ids = ids;
+    std::string joined;
+    for (size_t i = 0; i < ids.size(); ++i) {
+      if (i) {joined += ",";}
+      joined += ids[i];
+    }
+    send("target_ids=" + joined);
+  }
+
+  std::vector<std::string> pose_order()
+  {
+    return status_string_list("pose_order");
+  }
+
+  void apply_scripts()
+  {
+    if (!target_ids.empty()) {set_target_ids(target_ids);}
+    if (target_ids.size() == 2) {
+      send("complete_select_seq=peach_2,");
+    } else if (on_complete) {
+      send("on_complete_clear_selected=1");
+    }
+    if (clear_handler) {send("clear_fail_first=1");}
+    if (cancel_handler) {send("cancel_reject=peach_2");}
+    if (goal_handler && finish_script) {
+      send("reject_observe_only=1");
+    } else if (goal_handler) {
+      send("reject_first_n=4");
+      send("estop_on_reject=1");
+    }
+    if (finish_script) {
+      std::atomic<int64_t> delay{300};
+      std::atomic<uint8_t> outcome{0};
+      finish_script(1, "peach_1", delay, outcome);
+      if (outcome.load() == RunTargetCycle::Result::SKIPPED_QUALITY) {
+        send("first_outcome_quality=1");
+      }
+      delay.store(300);
+      finish_script(1, "peach_2", delay, outcome);
+      if (delay.load() == 3000) {
+        send("peach2_delay_ms=3000");
+        send("finish_delay_ms=10000");
+      }
+    }
+  }
+
+  int status_int(const char * key) const
+  {
+    std::lock_guard<std::mutex> lock(status_mutex_);
+    const std::string needle = std::string("\"") + key + "\":";
+    const auto pos = status_json_.find(needle);
+    if (pos == std::string::npos) {return 0;}
+    return std::atoi(status_json_.c_str() + pos + needle.size());
+  }
+
+private:
+  void publish_line(const std::string & line)
+  {
+    std_msgs::msg::String message;
+    message.data = line;
+    cmd_pub_->publish(message);
+  }
+
+  void refresh_vectors_locked()
+  {
+    cycle_ids = status_string_list_locked("cycle_ids");
+    goal_modes.clear();
+    const std::string needle = "\"goal_modes\":[";
+    const auto pos = status_json_.find(needle);
+    if (pos == std::string::npos) {return;}
+    auto cursor = pos + needle.size();
+    while (cursor < status_json_.size() && status_json_[cursor] != ']') {
+      if (std::isdigit(static_cast<unsigned char>(status_json_[cursor]))) {
+        goal_modes.push_back(static_cast<uint8_t>(
+            std::atoi(status_json_.c_str() + cursor)));
+        while (cursor < status_json_.size() &&
+          std::isdigit(static_cast<unsigned char>(status_json_[cursor])))
+        {
+          ++cursor;
+        }
+      } else {
+        ++cursor;
+      }
+    }
+  }
+
+  std::vector<std::string> status_string_list(const char * key)
+  {
+    std::lock_guard<std::mutex> lock(status_mutex_);
+    return status_string_list_locked(key);
+  }
+
+  std::vector<std::string> status_string_list_locked(const char * key) const
+  {
+    std::vector<std::string> out;
+    const std::string needle = std::string("\"") + key + "\":[";
+    const auto pos = status_json_.find(needle);
+    if (pos == std::string::npos) {return out;}
+    auto cursor = pos + needle.size();
+    while (cursor < status_json_.size() && status_json_[cursor] != ']') {
+      if (status_json_[cursor] == '"') {
+        const auto end = status_json_.find('"', cursor + 1);
+        if (end == std::string::npos) {break;}
+        out.push_back(status_json_.substr(cursor + 1, end - cursor - 1));
+        cursor = end + 1;
+      } else {
+        ++cursor;
+      }
+    }
+    return out;
+  }
+
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr cmd_pub_;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr status_sub_;
+  mutable std::mutex status_mutex_;
+  std::string status_json_;
+  std::vector<std::string> pending_;
+  bool ready_{false};
+};
+
+class FakeChild
+{
+public:
+  FakeChild()
+  {
+    pid_ = fork();
+    if (pid_ == 0) {
+      execl("/usr/bin/python3", "python3", FAKE_CAPABILITY_PY, nullptr);
+      std::_Exit(127);
+    }
+  }
+  ~FakeChild()
+  {
+    if (pid_ <= 0) {return;}
+    kill(pid_, SIGTERM);
+    waitpid(pid_, nullptr, 0);
+  }
+  bool started() const {return pid_ > 0;}
+
+private:
+  pid_t pid_{-1};
+};
+
 struct Harness
 {
   // extra_params：各用例差异参数（如 execution_enabled / 熔断上限）。
@@ -591,17 +851,17 @@ struct Harness
     overrides.insert(overrides.end(), extra_params.begin(), extra_params.end());
     rclcpp::NodeOptions options;
     options.parameter_overrides(overrides);
-    orchestrator = peach_harvest_orchestrator::make_orchestrator_node_for_test(options);
+    fake_child = std::make_unique<FakeChild>();
+    orchestrator =
+      peach_harvest_orchestrator::make_orchestrator_node_for_test(options);
     executor = std::make_unique<rclcpp::executors::MultiThreadedExecutor>(
       rclcpp::ExecutorOptions(), 8);
-    field.start(*executor);
     executor->add_node(orchestrator->get_node_base_interface());
     observer.start(*executor);
+    field.bind(observer.node);
     spin_thread = std::thread([this]() {executor->spin();});
-    // executor 自旋后统一触发假节点 configure（接口在 on_configure 内装配，
-    // 见 FakeLifecycleNode 注释）+activate 开闸。
-    std::this_thread::sleep_for(500ms);
-    field.activate_all();
+    field.wait_ready(10s);
+    field.apply_scripts();
     control_client = observer.node->create_client<ControlHarvest>(
       "/peach_harvest_orchestrator/control");
     run_client = rclcpp_action::create_client<RunHarvest>(
@@ -626,7 +886,7 @@ struct Harness
   void stop()
   {
     if (!executor) {return;}
-    field.stop();
+    fake_child.reset();
     executor->cancel();
     if (spin_thread.joinable()) {spin_thread.join();}
     executor.reset();
@@ -647,7 +907,8 @@ struct Harness
   }
 
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> orchestrator;
-  FakeField field;
+  FakeRemote field;
+  std::unique_ptr<FakeChild> fake_child;
   Observer observer;
   std::unique_ptr<rclcpp::executors::MultiThreadedExecutor> executor;
   std::thread spin_thread;

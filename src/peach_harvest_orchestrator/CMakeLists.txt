@@ -105,7 +105,8 @@ if(BUILD_TESTING)
   set_tests_properties(test_dispatch_protocol PROPERTIES TIMEOUT 600)
   target_include_directories(test_dispatch_protocol PRIVATE include src)
   target_compile_definitions(test_dispatch_protocol PRIVATE
-    PEACH_HARVEST_ORCHESTRATOR_NO_MAIN)
+    PEACH_HARVEST_ORCHESTRATOR_NO_MAIN
+    FAKE_CAPABILITY_PY="${CMAKE_CURRENT_SOURCE_DIR}/test/fake_capability_node.py")
   target_link_libraries(test_dispatch_protocol
     harvest_state_machine
     harvest_orchestrator_node_parameters
@@ -117,9 +118,14 @@ if(BUILD_TESTING)
     ${lifecycle_msgs_TARGETS}
     ${peach_harvest_msgs_TARGETS}
     ${peach_pose_msgs_TARGETS}
+    ${std_msgs_TARGETS}
     ${std_srvs_TARGETS}
+    ${diagnostic_msgs_TARGETS}
     tf2::tf2
     tf2_ros::tf2_ros)
+
+  find_package(launch_testing_ament_cmake REQUIRED)
+  add_launch_test(test/test_dispatch_protocol_launch.py TIMEOUT 120)
 
   # 参数定义校验用例：启动期非法覆盖抛异常、运行期非法 set 拒绝、合法 set
   # 即时可见（readiness.* 热读通道）。

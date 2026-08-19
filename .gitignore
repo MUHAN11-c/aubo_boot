@@ -10,9 +10,15 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 
-# 厂商原始资料（体积大，本地保留）
+# 工作空间归档（运行输出、厂商资料、一次性排查、大模型）
+_archive/
+
+# 厂商原始资料（体积大，本地保留；已迁入 _archive/vendor/）
 SDK资料/
 src.tar.xz
+
+# C/C++ 扩展 IntelliSense 数据库（可再生，可达数 GB）
+.vscode/browse.vc.db*
 
 # 工具/测试运行输出
 diagnostics/build/

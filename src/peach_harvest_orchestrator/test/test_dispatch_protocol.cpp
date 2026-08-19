@@ -821,6 +821,11 @@ public:
   {
     if (pid_ <= 0) {return;}
     kill(pid_, SIGTERM);
+    for (int i = 0; i < 20; ++i) {
+      if (waitpid(pid_, nullptr, WNOHANG) == pid_) {return;}
+      std::this_thread::sleep_for(50ms);
+    }
+    kill(pid_, SIGKILL);
     waitpid(pid_, nullptr, 0);
   }
   bool started() const {return pid_ > 0;}

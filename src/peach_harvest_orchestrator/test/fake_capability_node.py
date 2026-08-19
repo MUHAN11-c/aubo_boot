@@ -47,7 +47,6 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
 from rclpy.node import Node
-from rclpy.qos import DurabilityPolicy, QoSProfile
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
 from tf2_ros import StaticTransformBroadcaster
@@ -103,12 +102,11 @@ class FakeField(LifecycleNode):
             Trigger, '/peach_pose_node/clear_target_memory', self._on_clear)
         self.create_service(
             ReopenTarget, '/peach_pose_node/reopen_target', self._on_reopen)
-        latched = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self._obs_pub = self.create_publisher(
             PeachTargetObservationArray,
             '/peach/perception/target_observations', 10)
         self._recon_pub = self.create_publisher(
-            ReconstructionStatus, '/peach/reconstruction/diagnostics', latched)
+            ReconstructionStatus, '/peach/reconstruction/diagnostics', 10)
         self._robot_pub = self.create_publisher(
             RobotStatus, '/aubo_io_controller/robot_status', 10)
         self.create_timer(0.2, self._tick_obs)

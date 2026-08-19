@@ -49,6 +49,16 @@ colcon test && colcon test-result --verbose
 
 处理：将假能力端改为独立 Python 进程 + `launch_testing` 夹具（`test/fake_capability_node.py`）。
 
+### 跨进程夹具复测（同日稍后）
+
+| 项 | 结果 |
+|---|---|
+| `test_test_dispatch_protocol_launch.py` | **通过**：20 s 内发现 `/peach_approach_grasp_node/run_target_cycle` |
+| `flake8` / `pep257`（编排器包） | 通过 |
+| `test_dispatch_protocol` 14 例 | 3 失败（脚本化假现场与 C++ lambda 不完全等价：推进熔断未触发、RunHarvest 拒 goal），11 仍 `GTEST_SKIP`（前序失败残留进程污染 discovery） |
+
+结论：内核 6.8.0-138 不是根因；进程内晚建 action 才是。跨进程假能力端 **action 可发现**（launch_testing 门已绿）。把 14 条协议断言从 C++ 进程内脚本完整搬到 Python 命令通道是 M5/G5 后续工作，不阻塞 M0 契约冻结。
+
 ## 其余编排器测试
 
 `test_state_machine`、`test_policy_service`、`test_yaml_defaults`、`test_parameter_validation` 全绿。

@@ -74,6 +74,10 @@ constexpr char kMinimalUrdf[] =
   "    <parent link='base_link'/><child link='tip'/>"
   "  </joint>"
   "  <link name='tip'/>"
+  "  <joint name='j_tcp' type='fixed'>"
+  "    <parent link='tip'/><child link='tcp'/>"
+  "  </joint>"
+  "  <link name='tcp'/>"
   "</robot>";
 constexpr char kMinimalSrdf[] =
   "<robot name='minimal'>"

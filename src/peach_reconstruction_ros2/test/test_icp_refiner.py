@@ -15,10 +15,10 @@ from peach_reconstruction_ros2.icp_target_cache import (
 )
 from peach_reconstruction_ros2.tsdf_volume import LocalTsdf
 from synth_scene import (
-    cylinder_samples,
     IMG_H,
     IMG_W,
     K,
+    cylinder_samples,
     make_poses,
     render_depth,
 )

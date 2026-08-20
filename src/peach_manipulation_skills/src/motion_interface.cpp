@@ -91,35 +91,6 @@ bool ApproachGraspNode::cycleTargetReady(
   return safety_gate_->targetReady(sample, target_id, reason);
 }
 
-bool ApproachGraspNode::callTrigger(
-  const rclcpp::Client<Trigger>::SharedPtr & client,
-  const std::string & label,
-  bool required)
-{
-  if (!client->wait_for_service(std::chrono::duration<double>(service_timeout_s_))) {
-    if (required) {
-      setState(CycleState::FAILED, label + " 服务不可用");
-    }
-    return false;
-  }
-  auto future = client->async_send_request(std::make_shared<Trigger::Request>());
-  if (future.wait_for(std::chrono::duration<double>(service_timeout_s_)) !=
-    std::future_status::ready)
-  {
-    if (required) {
-      setState(CycleState::FAILED, label + " 服务超时");
-    }
-    return false;
-  }
-  if (!future.get()->success) {
-    if (required) {
-      setState(CycleState::FAILED, label + " 拒绝请求");
-    }
-    return false;
-  }
-  return true;
-}
-
 bool ApproachGraspNode::commandToolClose()
 {
   // 工具 IO 是运动类输出（A8）：非 Active 拒绝（纵深防御——正常路径下周期

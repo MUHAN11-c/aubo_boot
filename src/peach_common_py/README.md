@@ -1,28 +1,26 @@
 # peach_common_py
 
-被多个 Python 包共用的**零 ROS 纯核**（`peach_common_py.ros` 除外）。帧率 EMA 已下沉到 `peach_scene_perception`，本包不再提供 timing。
+被多个 Python 包共用的**零 ROS 纯核**（`peach_common_py.ros` 除外）。帧率 EMA 在 `peach_scene_perception.peach_pose.timing_metrics`，本包不提供 timing。
 
-## 职责
+总览：[docs/flow.md](../../docs/flow.md)。
 
-跨包复用、且至少两个消费者的小工具：深度单位、TF 矩阵、有界队列、时钟、注册表、过程数据目录。
+## 从哪读
 
-## 模块
-
-| 模块 | 作用 |
-|------|------|
-| `depth_geometry` | 深度图归一成 uint16 毫米（Percipio `depth_scale_unit` 或 32FC1 米） |
-| `tf_utils` | `Transform` → 4×4、点/方向变换、重力在相机系的投影 |
-| `bounded_worker` | 有界队列单写者线程，满则拒新任务，保积分顺序 |
-| `clock` | `Clock` / `ManualClock`，纯核计时不绑 rclpy |
-| `registry` | 按名装配检测器/分割器/管线等实现 |
-| `harvest_data` | 过程数据根目录与事件追加 |
-| `ros.clock_adapter` | 把 `rclpy` 时钟适配成纯核 `Clock`（仅此子包可 import rclpy） |
-
-## 使用
+| 模块 | 作用 | 谁用 |
+|------|------|------|
+| `fitting.py` | 法线、球/柱 RANSAC | 感知 `pipeline`（经 `peach_pose/fitting.py` 再导出）、重建 `geometry_refiner` |
+| `depth_geometry.py` | 深度图 → uint16 毫米 | 感知、重建 |
+| `tf_utils.py` | `Transform` → 4×4、点/方向 | 感知、重建 |
+| `bounded_worker.py` | 有界队列单写者 | 重建积分顺序 |
+| `clock.py` | 纯核时钟 | 节点经 `ros.clock_adapter` |
+| `registry.py` | 按名装配检测器/分割器 | 感知 `impls` |
+| `harvest_data.py` | 过程数据根目录 | 观测落盘辅助 |
+| `ros/clock_adapter.py` | **唯一**允许 `import rclpy` 的子模块 | 节点侧 |
 
 ```python
 from peach_common_py.depth_geometry import normalize_depth_to_uint16_mm
-from peach_common_py.ros.clock_adapter import RclpyClockAdapter  # 节点侧显式 import
+from peach_common_py.fitting import ...  # 几何拟合
+from peach_common_py.ros.clock_adapter import RclpyClockAdapter
 ```
 
-纯核文件禁止 `import rclpy`。Python 解释器用工作区 `aubo_py3.12`，numpy **1.26.4**。
+纯核文件禁止 `import rclpy`。Python：`aubo_py3.12`，numpy **1.26.4**。

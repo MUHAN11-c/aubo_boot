@@ -54,6 +54,7 @@ from peach_interfaces.msg import (
     HarvestState,
     PeachTargetObservationArray,
     ReconstructionStatus,
+    ShapeHypothesis,
     TargetModel,
     TargetQuality,
 )
@@ -113,12 +114,12 @@ from peach_target_reconstruction.timing import TimingStats
 from peach_target_reconstruction.tsdf_volume import LocalTsdf
 from peach_target_reconstruction.view_coverage import summarize_view_coverage
 import rclpy
-from rclpy.action import ActionServer
+from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.duration import Duration
 from rclpy.event_handler import PublisherEventCallbacks
 from rclpy.executors import MultiThreadedExecutor
-from rclpy.node import Node
+from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
 from rclpy.qos import (
     DurabilityPolicy,
     HistoryPolicy,
@@ -133,15 +134,16 @@ from tf2_ros import Buffer, TransformException, TransformListener
 from visualization_msgs.msg import MarkerArray
 
 
-class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
-    """连续运动局部重建节点：默认自动收帧，Trigger 服务作人工控制."""
+class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode):
+    """连续运动局部重建 Lifecycle 节点：Active 后才积分与受理 BuildTargetModel."""
 
     def __init__(self):
         """建节点：参数层一行装载 → 数据持有者/算法（注册表）→ ROS 接线."""
         super().__init__('peach_target_reconstruction_node')
+        self._lifecycle_active = False
         self.bridge = cv_bridge.CvBridge()
         # 协议 I3（时钟唯一）：节点时钟适配为纯核 Clock，一切计时走注入 now
-        self._clock = RclpyClockAdapter(self.get_clock())
+        self._algo_clock = RclpyClockAdapter(self.get_clock())
         # 参数层：declare + 装载（全部 64 参数在 params.py）
         ReconstructionParams.declare(self)
         self.params = ReconstructionParams.from_node(self)
@@ -205,7 +207,7 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
         # 注入时钟 I3）：selected 变化须持续超过 bind.switch_holdoff_s 才
         # 放弃进行中会话重绑，holdoff 内切回原 ID 取消挂起
         self._switch_holdoff = BindSwitchHoldoff(
-            holdoff_s=p.bind.switch_holdoff_s, now=self._clock.now)
+            holdoff_s=p.bind.switch_holdoff_s, now=self._algo_clock.now)
         # E4 ICP target 增量复用缓存（纯核 icp_target_cache.IcpTargetCache）：
         # 两次全量 extract 之间复用「上次全量+已采帧修正后云增量拼接」做
         # ICP target；全量刷新周期 k 按修正量 EMA 在上下限间自适应伸缩。
@@ -221,7 +223,7 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
         # 点云/Marker 类大消息 on-change + 最小间隔；心跳/状态/诊断/refit
         # 三件套不经过本节流。on_change_only=false 时编排层整体绕过
         self._publish_throttle = PublishThrottle(
-            min_interval_s=p.publish.min_interval_s, now=self._clock.now)
+            min_interval_s=p.publish.min_interval_s, now=self._algo_clock.now)
         # 产物版本号（E4 发布节流的 on-change 判据）：_tsdf_cloud_version
         # 随 _tsdf_cloud_cache 每次写入递增；_products_version 随任一
         # 云/Marker 产物（含 refined/mesh）写入递增；清空类事件另置
@@ -244,6 +246,7 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
         # _latest_frame/_latest_candidates/_max_joint_vel 等单字段原子
         # 赋值不持锁（CPython 引用赋值原子，读者一次取引用后局部使用）。
         self._state_lock = threading.RLock()
+        self._view_progress = threading.Event()
 
         # 最新一帧同步 RGB-D 缓存：(rgb, depth_mm, K, stamp_msg, stamp_sec,
         # cam_frame)。只缓存、不直接累积；手动/自动门禁通过后才会入帧栈
@@ -252,6 +255,7 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
         self._latest_candidates: Optional[BagGraspCandidateArray] = None
         self._preferred_target_id = ''
         self._executor_target_id = ''
+        self._executor_state_seen = False
         self._harvest_run_id = ''
         self._target_observation_seen = False
         self._target_masks = {}
@@ -330,6 +334,9 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
         self.pub_refined_diag = self.create_publisher(
             BagFittingArray, '/peach/reconstruction/refined_diagnostics',
             latched_qos)
+        self.pub_shape = self.create_publisher(
+            ShapeHypothesis, '/peach/reconstruction/shape_hypothesis',
+            latched_qos)
 
         # ---- 订阅：RGB-D 三件套（RELIABLE，与回放/驱动对齐）----
         qos = rclpy.qos.QoSProfile(
@@ -389,6 +396,8 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
         ActionServer(
             self, BuildTargetModel, '~/build_target_model',
             execute_callback=self._on_build_target_model,
+            goal_callback=self._on_build_goal,
+            cancel_callback=self._on_build_cancel,
             callback_group=self._cb)
 
         self.tf_buffer = Buffer()
@@ -416,11 +425,41 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
             f'auto_mode={self.params.capture.auto_mode} '
             f'session_root={self._session_root()}')
 
+    def on_configure(self, state):
+        del state
+        return TransitionCallbackReturn.SUCCESS
+
+    def on_activate(self, state):
+        self._lifecycle_active = True
+        self.get_logger().info('reconstruction Active：开始积分')
+        return super().on_activate(state)
+
+    def on_deactivate(self, state):
+        self._lifecycle_active = False
+        return super().on_deactivate(state)
+
+    def on_cleanup(self, state):
+        del state
+        self._lifecycle_active = False
+        return TransitionCallbackReturn.SUCCESS
+
+    def _on_build_goal(self, goal_request):
+        del goal_request
+        if not self._lifecycle_active:
+            return GoalResponse.REJECT
+        return GoalResponse.ACCEPT
+
+    def _on_build_cancel(self, cancel_request):
+        del cancel_request
+        return CancelResponse.ACCEPT
+
     # ------------------------------------------------------------------
     # 订阅回调
     # ------------------------------------------------------------------
     def _on_rgbd(self, rgb_msg: Image, depth_msg: Image, info: CameraInfo):
         """将同步帧交给 TSDF 单写者队列，满队列拒绝新帧."""
+        if not self._lifecycle_active:
+            return
         if not self._frame_worker.submit((rgb_msg, depth_msg, info)):
             self.get_logger().warning(
                 '重建 worker 队列已满，拒绝新帧以保持积分顺序',
@@ -496,8 +535,10 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
                 self._harvest_data.append_event({
                     'source': 'reconstruction',
                     'event': 'reconstruction_linked'})
-            requested_target_id = (
-                self._executor_target_id or msg.selected_target_id)
+            if self._executor_state_seen:
+                requested_target_id = self._executor_target_id
+            else:
+                requested_target_id = msg.selected_target_id
             # E2 切换防抖（bind_holdoff.BindSwitchHoldoff）：进行中会话的
             # 放弃重绑须新 selected 持续稳定超过 bind.switch_holdoff_s；
             # 挂起中（PEND/WAIT）保持旧绑定，旧会话照常采帧，瞬态抖动
@@ -654,15 +695,15 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
         """
         if not cam_frame or cam_frame == self.params.frames.base_frame:
             return np.eye(4), 'ok'
-        t0 = self._clock.now()
+        t0 = self._algo_clock.now()
         try:
             tf = self.tf_buffer.lookup_transform(
                 self.params.frames.base_frame, cam_frame, Time.from_msg(stamp),
                 timeout=self.tf_timeout)
-            self._last_tf_latency_ms = (self._clock.now() - t0) * 1000.0
+            self._last_tf_latency_ms = (self._algo_clock.now() - t0) * 1000.0
             return transform_msg_to_matrix(tf.transform), 'ok'
         except TransformException as ex:
-            self._last_tf_latency_ms = (self._clock.now() - t0) * 1000.0
+            self._last_tf_latency_ms = (self._algo_clock.now() - t0) * 1000.0
             self.get_logger().warning(
                 f'TF {self.params.frames.base_frame}←{cam_frame} 在图像时刻'
                 f'不可用，本帧跳过: {ex}')
@@ -674,7 +715,7 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
     def _create_volume(self):
         """按 yaml volume.impl 经 VOLUMES 注册表建一个空融合体积（I3 注入时钟）."""
         return VOLUMES.create(
-            self.params.volume.impl, now=self._clock.now, **self.tsdf_params)
+            self.params.volume.impl, now=self._algo_clock.now, **self.tsdf_params)
 
     def _bump_products_version(self, tsdf_cloud: bool = False) -> None:
         """
@@ -848,7 +889,7 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
             'mask_reason': mask_reason,
             'stamp_sec': stamp_sec,
             'last_captured_stamp_sec': self._last_captured_stamp_sec,
-            'frame_age_s': self._clock.now() - stamp_sec,
+            'frame_age_s': self._algo_clock.now() - stamp_sec,
             'max_frame_age_s': self.params.capture.max_frame_age_s,
             'require_robot_static': self.params.capture.require_robot_static,
             'joint_states_seen': self._joint_states_seen,
@@ -1011,6 +1052,76 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
         response.message = message
         return response
 
+    def _crop_for_icp(self, cloud_fk, cloud_rgb):
+        """把 ICP 输入裁到目标局部盒，避免背景主导刚体修正."""
+        center = self._roi_center()
+        if center is None:
+            center = self.collector.target_center
+        if center is not None and cloud_fk.size:
+            return LocalTsdf.crop_to_box(
+                cloud_fk, cloud_rgb, center, self.local_volume)
+        return cloud_fk, cloud_rgb
+
+    def _register_cloud(self, cloud_fk, target):
+        """有界 ICP（或纯 FK）。返回 (ok, T_corr, mode, info, err)."""
+        if not self.params.icp.enable:
+            info = {
+                'mode': 'fk', 'reason': 'icp_disabled',
+                'fitness': -1.0, 'rmse_m': -1.0,
+                'translation_m': 0.0, 'rotation_deg': 0.0,
+            }
+            return True, np.eye(4, dtype=np.float64), 'fk', info, ''
+        t_icp0 = self._algo_clock.now()
+        registration = self._icp_refiner.refine(cloud_fk, target)
+        self._timing.record_icp((self._algo_clock.now() - t_icp0) * 1000.0)
+        self._icp_target_cache.note_result(
+            registration.mode, registration.translation_m)
+        if not registration.accepted:
+            err = (
+                f'配准拒帧：{registration.reason}，'
+                f'fitness={registration.fitness:.3f} '
+                f'rmse={registration.rmse * 1000.0:.1f}mm，'
+                f'修正={registration.translation_m * 1000.0:.1f}mm/'
+                f'{registration.rotation_deg:.2f}deg')
+            return False, None, '', {}, err
+        info = {
+            'mode': registration.mode,
+            'reason': registration.reason,
+            'fitness': float(registration.fitness),
+            'rmse_m': float(registration.rmse),
+            'translation_m': float(registration.translation_m),
+            'rotation_deg': float(registration.rotation_deg),
+        }
+        return True, registration.correction, registration.mode, info, ''
+
+    def _integrate_tsdf(self, rgb, masked_depth, K, T_used, cloud_base):
+        """积分当前帧；失败回滚并返回错误串，成功返回 None."""
+        if not self.params.tsdf.enable:
+            return None
+        try:
+            if self._tsdf_volume is None:
+                self._tsdf_volume = self._create_volume()
+            t_tsdf0 = self._algo_clock.now()
+            self._tsdf_volume.integrate_frame(
+                rgb, masked_depth, K, T_used)
+            if self._icp_target_cache.should_refresh():
+                self._refresh_tsdf_outputs()
+                if self.params.refit.enable:
+                    self._run_refit(keep_last_good=True, mark_final=False)
+            else:
+                self._icp_target_cache.append_frame(cloud_base)
+            self._timing.record_tsdf_integrate(
+                (self._algo_clock.now() - t_tsdf0) * 1000.0)
+            return None
+        except Exception as exc:  # noqa: BLE001
+            self.collector.remove_last()
+            self._tsdf_volume = self._create_volume()
+            for old in self.collector.frames:
+                self._tsdf_volume.integrate_frame(
+                    old.rgb, old.depth_mm, old.camera_K, old.T_base_camera)
+            self._refresh_tsdf_outputs()
+            return f'TSDF 在线积分失败: {exc}'
+
     def _accept_frame(self, rgb, depth_mm, K, stamp_sec: float,
                       T_base_camera, tf_status: str,
                       target_mask=None) -> Tuple[bool, str]:
@@ -1035,7 +1146,7 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
         """
         # 帧总耗时起点（注入时钟，I3）：覆盖构云→ICP→入库→TSDF 积分全链，
         # 仅在成功收帧时计入 frame_total EMA（拒帧早退不污染基线）
-        t_frame0 = self._clock.now()
+        t_frame0 = self._algo_clock.now()
         try:
             cloud_fk, cloud_rgb, ratio = self._cloud_builder.build(
                 depth_mm, rgb, K, T_base_camera,
@@ -1047,56 +1158,14 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
         masked_depth, _mask_ratio = apply_target_mask(
             depth_mm, target_mask)
 
-        # ICP 只看目标局部表面，避免桌面/枝叶等背景主导刚体修正。
-        center = self._roi_center()
-        if center is None:
-            center = self.collector.target_center
-        if center is not None and cloud_fk.size:
-            cloud_fk, cloud_rgb = LocalTsdf.crop_to_box(
-                cloud_fk, cloud_rgb, center, self.local_volume)
-        # E4：ICP target 取自增量复用缓存（上次全量提取 + 其间已采帧修正
-        # 后云的增量拼接），不再每帧从 TSDF 全量 extract；缓存为空（会话
-        # 开始/模型未形成）给空云，refine 走 model_warmup FK 语义（与旧
-        # 路径完全一致）。有界 ICP 越界拒绝语义不受影响（红线）
+        cloud_fk, cloud_rgb = self._crop_for_icp(cloud_fk, cloud_rgb)
         cached_target = self._icp_target_cache.current_target()
         target = (np.zeros((0, 3), dtype=np.float64)
                   if cached_target is None else cached_target)
-
-        if self.params.icp.enable:
-            # ICP 耗时（含拒帧路径：精化本身已执行，属于真实开销）
-            t_icp0 = self._clock.now()
-            registration = self._icp_refiner.refine(cloud_fk, target)
-            self._timing.record_icp((self._clock.now() - t_icp0) * 1000.0)
-            # E4 自适应刷新周期：每帧配准结果（含 fk 回退/拒帧）驱动
-            # 修正量 EMA 与 k 伸缩；icp.enable=false 时无修正量证据，
-            # k 恒为下限（逐帧全量=旧行为）
-            self._icp_target_cache.note_result(
-                registration.mode, registration.translation_m)
-            if not registration.accepted:
-                return False, (
-                    f'配准拒帧：{registration.reason}，'
-                    f'fitness={registration.fitness:.3f} '
-                    f'rmse={registration.rmse * 1000.0:.1f}mm，'
-                    f'修正={registration.translation_m * 1000.0:.1f}mm/'
-                    f'{registration.rotation_deg:.2f}deg')
-            correction = registration.correction
-            mode = registration.mode
-            reg_info = {
-                'mode': mode,
-                'reason': registration.reason,
-                'fitness': float(registration.fitness),
-                'rmse_m': float(registration.rmse),
-                'translation_m': float(registration.translation_m),
-                'rotation_deg': float(registration.rotation_deg),
-            }
-        else:
-            correction = np.eye(4, dtype=np.float64)
-            mode = 'fk'
-            reg_info = {
-                'mode': mode, 'reason': 'icp_disabled',
-                'fitness': -1.0, 'rmse_m': -1.0,
-                'translation_m': 0.0, 'rotation_deg': 0.0,
-            }
+        ok, correction, mode, reg_info, err = self._register_cloud(
+            cloud_fk, target)
+        if not ok:
+            return False, err
         T_used = correction @ np.asarray(T_base_camera, dtype=np.float64)
         cloud_base = transform_points(cloud_fk, correction)
         flags = [f'pose_{mode}']
@@ -1112,44 +1181,16 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
             registration=reg_info)
         if not self.collector.add_frame(frame):
             return False, f'已达 max_views={self.params.capture.max_views}'
-
-        if self.params.tsdf.enable:
-            try:
-                if self._tsdf_volume is None:
-                    self._tsdf_volume = self._create_volume()
-                # TSDF 耗时：在线积分 + 局部云产物刷新（仅成功路径计入；
-                # 失败重放属异常恢复，不计入稳态基线）
-                t_tsdf0 = self._clock.now()
-                self._tsdf_volume.integrate_frame(
-                    rgb, masked_depth, K, T_used)
-                # E4 全量提取节流：缓存空/距上次刷新已满 k 帧（自适应周期）
-                # 才从 TSDF 全量 extract 刷新（_refresh_tsdf_outputs 内同步
-                # 重置 ICP target 基线并递增产物版本号）；其间仅把本帧修正
-                # 后点云增量并入 target，跳过最贵的 extract+后处理
-                if self._icp_target_cache.should_refresh():
-                    self._refresh_tsdf_outputs()
-                else:
-                    self._icp_target_cache.append_frame(cloud_base)
-                self._timing.record_tsdf_integrate(
-                    (self._clock.now() - t_tsdf0) * 1000.0)
-            except Exception as exc:  # noqa: BLE001
-                # ScalableTSDF 不支持移除单帧；重建空体积并重放此前已确认帧，
-                # 确保失败帧绝不残留。
-                self.collector.remove_last()
-                self._tsdf_volume = self._create_volume()
-                for old in self.collector.frames:
-                    self._tsdf_volume.integrate_frame(
-                        old.rgb, old.depth_mm, old.camera_K,
-                        old.T_base_camera)
-                self._refresh_tsdf_outputs()
-                return False, f'TSDF 在线积分失败: {exc}'
+        tsdf_err = self._integrate_tsdf(
+            rgb, masked_depth, K, T_used, cloud_base)
+        if tsdf_err:
+            return False, tsdf_err
 
         self._last_captured_stamp_sec = stamp_sec
-        # 新帧使 finalize 指标与几何精化失效；在线 TSDF 缓存已在上面刷新。
-        # （registration 历史不再单独存副本：由帧栈 f.registration 派生）
+        # 新帧使 overlap/mesh 失效；精化在 extract 后现场重拟（keep 上一帧
+        # 成功结果），运动中 RViz 抓取示意连续更新而不是清屏。
         self._overlap_cache = None
         self._mesh_cache = None
-        self._refined = None
         n = len(self.collector.frames)
         message = (
             f'已采第 {n}/{self.params.capture.recommended_views} 视角，'
@@ -1165,8 +1206,9 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
         })
         # 帧总耗时落账（成功路径终点；不含其后的统一重发，发布开销
         # 由心跳侧另计）
-        self._timing.record_frame_total((self._clock.now() - t_frame0) * 1000.0)
+        self._timing.record_frame_total((self._algo_clock.now() - t_frame0) * 1000.0)
         self._publish_all()
+        self._view_progress.set()
         return True, message
 
     def _on_remove_last(self, request, response):
@@ -1190,6 +1232,9 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
                             old.rgb, old.depth_mm, old.camera_K,
                             old.T_base_camera)
                     self._refresh_tsdf_outputs()
+                    if self.params.refit.enable:
+                        self._run_refit(
+                            keep_last_good=False, mark_final=False)
                 else:
                     self._tsdf_cloud_cache = None
                     self._tsdf_info = None
@@ -1197,8 +1242,8 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
                     # ICP target 缓存作废（帧栈已变，模型语义已清）
                     self._icp_target_cache.invalidate()
                     self._bump_products_version(tsdf_cloud=True)
+                    self._refined = None
                 self._mesh_cache = None
-                self._refined = None
                 self.get_logger().info(response.message)
             self._publish_all()
             return response
@@ -1208,6 +1253,7 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
         del request
         with self._state_lock:
             self.collector.reset()
+            self._view_progress.clear()
             self._target_kind_memory.reset()
             self._last_captured_stamp_sec = -1.0
             self._reset_products(create_volume=False)
@@ -1229,7 +1275,7 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
         """
         # finalize 总耗时起点（含重叠指标、TSDF 最终提取、refit 全链；
         # 成功/失败路径都记 last 值）
-        t_finalize0 = self._clock.now()
+        t_finalize0 = self._algo_clock.now()
         ok, message, _cloud = self.collector.finalize()
         if ok:
             # 刚性对齐量化指标：相邻帧最近邻统计 + 质心（并入诊断 JSON）
@@ -1244,7 +1290,8 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
                 message += self._run_tsdf()
                 # 在线 TSDF 最终提取后接几何精化。
                 if self.params.refit.enable:
-                    message += self._run_refit()
+                    message += self._run_refit(
+                        keep_last_good=False, mark_final=True)
             self.get_logger().info(message)
             self._harvest_data.append_event({
                 'source': 'reconstruction', 'event': 'reconstruction_finalized',
@@ -1261,7 +1308,7 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
             # E4：finalize 失败清空产物同样递增版本号（闩锁话题需覆盖刷新）
             self._bump_products_version(tsdf_cloud=True)
             self.get_logger().warning(message)
-        self._timing.record_finalize((self._clock.now() - t_finalize0) * 1000.0)
+        self._timing.record_finalize((self._algo_clock.now() - t_finalize0) * 1000.0)
         # 累加云由 _publish_all 统一重发（frame_id=base_frame）
         self._publish_all()
         return ok, message
@@ -1296,24 +1343,25 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
                 f' / mesh {mesh_vertices} 顶点'
                 f'（累计积分 {self._tsdf_volume.integrate_time_s:.2f}s）')
 
-    def _run_refit(self) -> str:
+    def _run_refit(self, keep_last_good: bool = False,
+                   mark_final: bool = False) -> str:
         """
-        REFINING 阶段：对 TSDF 云做几何二次拟合（finalize 成功后调用一次）.
+        对当前 TSDF 云做几何二次拟合.
 
-        链：tsdf_cloud（xyz，base_frame，米）→ 按绑定 target_id 查感知
-        diagnostics 得 target_kind（查不到缺省袋桃并记
-        target_kind_defaulted）→ refine_geometry（圆柱/球 RANSAC +
-        bottom→neck 消歧 + ACCEPT/REOBSERVE 门控）。结果缓存供
-        refined_pose/refined_axis/refined_diagnostics 闩锁重发与
-        save_session 摘要；失败只告警不污染 finalize（diagnostics 记
-        refined.ok=false 与原因，refined_pose 发空数组覆盖闩锁防陈旧）。
+        采帧路径在每次全量 extract 后调用（keep_last_good=True）：失败保留
+        上一帧成功结果，RViz 抓取示意连续更新。finalize 调用
+        keep_last_good=False、mark_final=True：定稿供技能端抓取。
+        抓取许可仍要求 collector.state==READY，在线 ACCEPT 不会提前放行。
 
         Returns
         -------
-            追加到 finalize message 的片段（如 '；refit ACCEPT（...）'）.
+            追加到 finalize/采帧 message 的片段.
 
         """
+        previous = self._refined if keep_last_good else None
         if self._tsdf_cloud_cache is None or not self._tsdf_cloud_cache[0].size:
+            if previous and previous.get('ok'):
+                return '；refit 跳过（无新 TSDF 云，保留上一帧）'
             self._refined = {'ok': False, 'reason': 'no_tsdf_cloud'}
             self._bump_products_version()  # E4：refined 写入递增产物版本号
             self.get_logger().warning('REFINING：无 TSDF 云，refit 跳过')
@@ -1324,20 +1372,28 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
             f'REFINING：几何二次拟合开始（kind={kind}，{xyz.shape[0]} 点）')
         # refit 耗时（last 值）：几何拟合主体调用；成功/异常路径都落账
         # （异常说明拟合已执行且开销真实发生），无云跳过路径保持上一次值
-        t_refit0 = self._clock.now()
+        t_refit0 = self._algo_clock.now()
         try:
             result = select_refitter(self._refitters, kind).refit(
                 xyz, kind, self.refit_config, self._bound_axis_hint)
-            self._timing.record_refit((self._clock.now() - t_refit0) * 1000.0)
+            self._timing.record_refit((self._algo_clock.now() - t_refit0) * 1000.0)
         except Exception as exc:  # noqa: BLE001
-            self._timing.record_refit((self._clock.now() - t_refit0) * 1000.0)
+            self._timing.record_refit((self._algo_clock.now() - t_refit0) * 1000.0)
+            if previous and previous.get('ok'):
+                self.get_logger().warning(
+                    f'refit 异常，保留上一帧抓取示意: {exc}')
+                return f'；refit 异常，保留上一帧（{exc}）'
             self._refined = {'ok': False, 'reason': f'exception:{exc}'}
             self._bump_products_version()  # E4：refined 写入递增产物版本号
             self.get_logger().warning(f'refit 异常（不影响 finalize）: {exc}')
             return f'；refit 失败（{exc}）'
         if defaulted:
-            result['flags'].append('target_kind_defaulted')
+            result.setdefault('flags', []).append('target_kind_defaulted')
         if not result['ok']:
+            if previous and previous.get('ok'):
+                self.get_logger().warning(
+                    f"refit 未收敛，保留上一帧：{result['reason']}")
+                return f'；refit 未更新（{result["reason"]}）'
             self._refined = {
                 'ok': False, 'reason': result['reason'],
                 'kind': kind, 'n_points': result['n_points']}
@@ -1345,12 +1401,17 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
             self.get_logger().warning(
                 f'refit 失败（不影响 finalize）：{result["reason"]}')
             return f'；refit 失败（{result["reason"]}）'
+        result['final'] = bool(mark_final)
         self._refined = result
         self._bump_products_version()  # E4：refined 写入递增产物版本号
+        # 绑定当帧会先 force 发空 Marker；0.2s 间隔门会把紧随其后的
+        # 抓取示意压掉，而静止位姿不再采帧就永远闩在 DELETEALL。
+        self._products_force_publish = True
         status_text = ('ACCEPT' if result['status'] == STATUS_ACCEPT
                        else 'REOBSERVE')
         self.get_logger().info(
             f"REFINING 完成：{result['kind']} status={status_text} "
+            f"final={result['final']} "
             f"axis={np.round(result['axis'], 4).tolist()} "
             f"diameter={result['diameter'] * 1000.0:.1f}mm "
             f"rmse={result['rmse'] * 1000.0:.2f}mm "
@@ -1371,31 +1432,68 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
     def _on_executor_state(self, msg: HarvestState) -> None:
         """批次执行器当前目标：覆盖感知 selected，作为重建绑定权威."""
         with self._state_lock:
+            self._executor_state_seen = True
             self._executor_target_id = str(msg.target_id or '')
 
-    def _on_build_target_model(self, goal_handle):
-        """BuildTargetModel：绑定 goal.target_id，等 min_views 后 finalize."""
-        goal = goal_handle.request
-        with self._state_lock:
-            if goal.target_id:
-                self._executor_target_id = goal.target_id
-        timeout_s = 30.0
-        deadline = time.monotonic() + timeout_s
+    def _wait_min_views(self, goal_handle, target_id: str, timeout_s: float):
+        """等 min_views（或取消/超时）。反馈只在视角数变化时发."""
         min_views = int(self.params.capture.min_views)
+        deadline = time.monotonic() + timeout_s
+        last_n = -1
+        n_frames, bound = 0, ''
         while time.monotonic() < deadline:
             if goal_handle.is_cancel_requested:
-                result = BuildTargetModel.Result()
-                result.success = False
-                result.message = 'canceled'
-                goal_handle.canceled()
-                return result
+                return 'canceled', n_frames, bound
             with self._state_lock:
                 n_frames = len(self.collector.frames)
                 bound = self.collector.target_id
+                state = self.collector.state
+            if n_frames != last_n:
+                last_n = n_frames
+                feedback = BuildTargetModel.Feedback()
+                feedback.view_count = n_frames
+                feedback.status = state
+                goal_handle.publish_feedback(feedback)
             if n_frames >= min_views and (
-                    not goal.target_id or bound == goal.target_id):
+                    not target_id or bound == target_id):
+                return 'ready', n_frames, bound
+            remaining = deadline - time.monotonic()
+            if remaining <= 0.0:
                 break
-            time.sleep(0.2)
+            self._view_progress.wait(timeout=min(0.5, remaining))
+            self._view_progress.clear()
+        return 'timeout', n_frames, bound
+
+    def _on_build_target_model(self, goal_handle):
+        """BuildTargetModel：reset 后绑定 goal.target_id，等 min_views 再 finalize."""
+        goal = goal_handle.request
+        self._on_reset(Trigger.Request(), Trigger.Response())
+        with self._state_lock:
+            if goal.target_id:
+                self._executor_state_seen = True
+                self._executor_target_id = goal.target_id
+                self._preferred_target_id = goal.target_id
+        status, n_frames, _bound = self._wait_min_views(
+            goal_handle, goal.target_id,
+            timeout_s=float(self.params.capture.build_timeout_s))
+        if status in ('canceled', 'timeout'):
+            result = BuildTargetModel.Result()
+            result.success = False
+            result.message = status
+            result.quality_level = TargetQuality.LOW
+            model = TargetModel()
+            model.target_id = goal.target_id
+            model.scene_epoch = goal.scene_epoch
+            model.accepted = False
+            model.message = status
+            model.quality.level = result.quality_level
+            model.view_count = n_frames
+            result.model = model
+            if status == 'canceled':
+                goal_handle.canceled()
+            else:
+                goal_handle.abort()
+            return result
         with self._state_lock:
             ok, message = self._finalize_now()
         result = BuildTargetModel.Result()
@@ -1409,6 +1507,7 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, Node):
         model.accepted = bool(ok)
         model.message = message
         model.quality.level = result.quality_level
+        model.view_count = n_frames
         result.model = model
         if ok:
             goal_handle.succeed()

@@ -62,6 +62,7 @@ class CaptureParams:
     # 邻目标串扰门（E2）：绑定锚点与其他锁定目标锚点间距小于本值时拒帧，
     # 防邻近目标点云混入形成 TSDF 不可回滚双层表面（I6）；≤0 关闭
     min_neighbor_gap_m: float = 0.15
+    build_timeout_s: float = 180.0  # BuildTargetModel 等 min_views 上限
 
 
 @dataclass(frozen=True)
@@ -259,6 +260,7 @@ _DESCRIPTIONS: Dict[str, str] = {
     'capture.min_neighbor_gap_m': '绑定锚点与其他锁定目标锚点的最小间距 [m]；'
                                   '小于则拒帧，防邻近目标点云混入形成 TSDF '
                                   '不可回滚双层表面（I6）；≤0 关闭本门',
+    'capture.build_timeout_s': 'BuildTargetModel 等待 min_views 的上限 (s)；超时不 finalize',
     'bind.switch_holdoff_s': 'selected 切换防抖 (s)：selected_target_id 变化'
                              '（含变空）须持续超过本时长才放弃进行中会话重绑，'
                              '防感知 selected 瞬态抖动销毁会话',
@@ -310,9 +312,10 @@ _DESCRIPTIONS: Dict[str, str] = {
                             '（interfaces.REFITTERS，协议 2.14）',
     'mask_gate.impl': '目标掩膜门实现注册名（interfaces.MASK_GATES，'
                       '协议 2.14）',
-    'refit.enable': '几何二次拟合（refit）开关：true=finalize TSDF 后对 '
-                    'tsdf_cloud 做圆柱/球 RANSAC 精化，发 '
-                    'refined_pose/refined_axis/refined_diagnostics',
+    'refit.enable': '几何二次拟合（refit）开关：true=每次 TSDF 全量提取后'
+                    '对 tsdf_cloud 做圆柱/球 RANSAC 精化并更新抓取示意；'
+                    'finalize 后再拟一次为定稿。抓取许可仍仅 READY 后放行。'
+                    '发 refined_pose/refined_axis/refined_diagnostics',
     'refit.cylinder_inlier_min': 'refit ACCEPT 门控：拟合内点率下限'
                                  '（圆柱/球共用，低于则 REOBSERVE）',
     'refit.rmse_max_m': 'refit ACCEPT 门控：拟合 RMSE 上限 [m]'

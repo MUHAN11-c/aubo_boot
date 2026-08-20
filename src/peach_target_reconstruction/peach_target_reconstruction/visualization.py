@@ -1,15 +1,21 @@
 """
-相机轨迹 + TSDF 网格 + refined 轴 Marker 构造（RViz 可视化）.
+相机轨迹 + TSDF 网格 + refined 抓取示意 Marker 构造（RViz 可视化）.
 
 每个已采帧画：相机位置球点（SPHERE_LIST）+ 顺序连线（LINE_LIST）+
-沿光轴 +Z 的朝向小箭头（ARROW，长 0.05 m）。refit 成功时另画 refined
-轴箭头（bottom→neck，独立 namespace 便于 RViz 单独开关）。frame_id
-由调用方给（通常 base_frame）。
+沿光轴 +Z 的朝向小箭头（ARROW，长 0.05 m）。refit 成功时画与感知
+同款的抓取示意（袋轴/行程/圆柱/果球/三轴架/文字，独立 namespace）。
+frame_id 由调用方给（通常 base_frame）。
 """
 from typing import List, Optional
 
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Point, Quaternion
 import numpy as np
+from peach_common_py.tf_utils import rotation_to_quat
+from peach_target_reconstruction.geometry_refiner import (
+    STATUS_ACCEPT,
+    STATUS_REJECT,
+    STATUS_REOBSERVE,
+)
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker, MarkerArray
 
@@ -138,32 +144,137 @@ def build_camera_markers(header, frames: List) -> MarkerArray:
     return arr
 
 
-def build_refined_marker(header, refined: Optional[dict]) -> Optional[Marker]:
+def _status_rgba(status: int):
+    """ACCEPT 绿 / REOBSERVE 黄 / REJECT 红 / 其他灰（与感知 Marker 同三态）."""
+    return {
+        STATUS_ACCEPT: (0.1, 0.85, 0.2, 0.9),
+        STATUS_REOBSERVE: (0.95, 0.8, 0.1, 0.9),
+        STATUS_REJECT: (0.9, 0.15, 0.15, 0.9),
+    }.get(int(status), (0.6, 0.6, 0.6, 0.8))
+
+
+def _grasp_rotation(axis) -> np.ndarray:
+    """抓取架：Z=推进轴（bottom→neck），X 取与轴不平行的参考叉积."""
+    z_axis = np.asarray(axis, dtype=np.float64).reshape(3)
+    norm = np.linalg.norm(z_axis)
+    if norm < 1e-9:
+        return np.eye(3, dtype=np.float64)
+    z_axis = z_axis / norm
+    ref = np.array([0.0, 0.0, 1.0]) if abs(z_axis[2]) < 0.9 else np.array(
+        [1.0, 0.0, 0.0])
+    x_axis = np.cross(ref, z_axis)
+    x_norm = np.linalg.norm(x_axis)
+    if x_norm < 1e-9:
+        x_axis = np.array([1.0, 0.0, 0.0])
+    else:
+        x_axis = x_axis / x_norm
+    y_axis = np.cross(z_axis, x_axis)
+    y_axis = y_axis / max(np.linalg.norm(y_axis), 1e-12)
+    return np.column_stack((x_axis, y_axis, z_axis))
+
+
+def _quat_from_rotation(rotation: np.ndarray) -> Quaternion:
+    """3×3 旋转 → geometry_msgs/Quaternion（xyzw）."""
+    value = rotation_to_quat(rotation)
+    msg = Quaternion()
+    msg.x = float(value.x)
+    msg.y = float(value.y)
+    msg.z = float(value.z)
+    msg.w = float(value.w)
+    return msg
+
+
+def build_refined_grasp_markers(
+    header, refined: Optional[dict], target_id: str = '',
+    tool_d_inner: float = 0.104,
+) -> List[Marker]:
     """
-    由 refit 结果构造 refined 轴箭头（bottom→neck，独立 namespace）.
+    精化结果 → 与感知同款抓取示意（ns=peach_reconstruction/refined）.
 
-    Args:
-        header: std_msgs/Header（frame_id=base_frame）.
-        refined: geometry_refiner.refine_geometry 的成功结果 dict
-            （读 bottom/neck）；None 或 ok=False 时不画.
-
-    Returns
-    -------
-        ARROW Marker（ns=peach_reconstruction/refined，id=0）；
-        无有效结果给 None（调用方不入列）.
-
+    袋轴用拟合底/颈；半透明圆柱直径用工具内径（与感知 Marker 同，
+    不是袋径）；行程从 entry 画到颈。文字放在颈上方，避免叠在入口架上。
     """
     if not refined or not refined.get('ok'):
-        return None
-    arrow = _new_marker(header, 0, Marker.ARROW)
-    arrow.ns = _REFINED_NS
-    arrow.scale.x = 0.006   # 杆径 [m]（比相机箭头略粗，突出主结果）
-    arrow.scale.y = 0.012   # 箭头径 [m]
-    arrow.scale.z = 0.012   # 箭头长 [m]
-    arrow.color = _color(0.95, 0.2, 0.85, 0.95)  # 品红，与相机轨迹配色区分
-    arrow.points = [_point_msg(refined['bottom']),
-                    _point_msg(refined['neck'])]
-    return arrow
+        return []
+    bottom = np.asarray(refined['bottom'], dtype=np.float64)
+    neck = np.asarray(refined['neck'], dtype=np.float64)
+    axis = np.asarray(refined['axis'], dtype=np.float64)
+    entry = np.asarray(refined['entry'], dtype=np.float64)
+    diameter = float(refined.get('diameter', 0.0))
+    radius = 0.5 * diameter
+    rotation = _grasp_rotation(axis)
+    to_neck = float(np.dot(neck - entry, axis))
+    travel = to_neck if to_neck > 1e-6 else float(refined.get('span_m', 0.0))
+    travel_end = entry + travel * axis
+    red, green, blue, alpha = _status_rgba(refined.get('status', STATUS_REJECT))
+    out: List[Marker] = []
+
+    def _mk(mid: int, mtype: int) -> Marker:
+        marker = _new_marker(header, mid, mtype)
+        marker.ns = _REFINED_NS
+        marker.color = _color(red, green, blue, alpha)
+        return marker
+
+    axis_line = _mk(0, Marker.LINE_LIST)
+    axis_line.scale.x = 0.004
+    axis_line.points = [_point_msg(bottom), _point_msg(neck)]
+    out.append(axis_line)
+
+    if travel > 1e-6:
+        arrow = _mk(1, Marker.ARROW)
+        arrow.scale.x = 0.008
+        arrow.scale.y = 0.015
+        arrow.scale.z = 0.015
+        arrow.points = [_point_msg(entry), _point_msg(travel_end)]
+        out.append(arrow)
+        cyl = _mk(2, Marker.CYLINDER)
+        mid = entry + 0.5 * travel * axis
+        cyl.pose.position = _point_msg(mid)
+        cyl.pose.orientation = _quat_from_rotation(rotation)
+        diam = float(tool_d_inner) if tool_d_inner > 1e-6 else 0.104
+        cyl.scale.x = diam
+        cyl.scale.y = diam
+        cyl.scale.z = travel
+        cyl.color.a = 0.25
+        out.append(cyl)
+
+    if str(refined.get('kind', '')) == 'fruit' and radius > 1e-6:
+        sphere = _mk(3, Marker.SPHERE)
+        sphere.pose.position = _point_msg(0.5 * (bottom + neck))
+        sphere.scale.x = sphere.scale.y = sphere.scale.z = float(2.0 * radius)
+        sphere.color.a = 0.3
+        out.append(sphere)
+
+    origin = entry
+    frame_colors = (
+        (1.0, 0.0, 0.0, 1.0),
+        (0.0, 1.0, 0.0, 1.0),
+        (0.0, 0.0, 1.0, 1.0),
+    )
+    for axis_i, col in enumerate(frame_colors):
+        axis_m = _mk(4 + axis_i, Marker.ARROW)
+        axis_m.scale.x = 0.005
+        axis_m.scale.y = 0.01
+        axis_m.scale.z = 0.01
+        axis_m.color = _color(*col)
+        end = origin + 0.05 * rotation[:, axis_i]
+        axis_m.points = [_point_msg(origin), _point_msg(end)]
+        out.append(axis_m)
+
+    text = _mk(10, Marker.TEXT_VIEW_FACING)
+    text.scale.z = 0.03
+    suffix = 'final' if refined.get('final') else 'live'
+    tid = target_id or str(refined.get('kind', 'refit'))
+    text.text = f'{tid} {suffix}'
+    text.pose.position = _point_msg(neck + np.array([0.0, 0.0, 0.04]))
+    out.append(text)
+    return out
+
+
+def build_refined_marker(header, refined: Optional[dict]) -> Optional[Marker]:
+    """兼容旧调用：返回抓取示意中的袋轴线段，无结果给 None."""
+    markers = build_refined_grasp_markers(header, refined)
+    return markers[0] if markers else None
 
 
 def build_mesh_marker(header, mesh_data: Optional[dict],

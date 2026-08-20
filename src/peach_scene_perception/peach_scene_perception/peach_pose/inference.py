@@ -35,9 +35,11 @@ import logging
 import threading
 from typing import List, Tuple
 
+import cv2
 import numpy as np
 
 from .interfaces import Detector, Segmenter
+from .pipeline import clip_bbox
 
 _logger = logging.getLogger(__name__)
 
@@ -131,11 +133,14 @@ class UltralyticsYolo(Detector):
             for i in range(len(r.boxes)):
                 ci = int(r.boxes.cls[i])
                 cf = float(r.boxes.conf[i])
-                x1, y1, x2, y2 = r.boxes.xyxy[i].tolist()
+                x1, y1, x2, y2 = clip_bbox(
+                    r.boxes.xyxy[i].tolist(), rgb.shape)
+                if x2 <= x1 or y2 <= y1:
+                    continue
                 dets.append({
                     'class_id': ci,
                     'class_name': self._class_names.get(ci, f'cls_{ci}'),
-                    'bbox': (int(x1), int(y1), int(x2), int(y2)),
+                    'bbox': (x1, y1, x2, y2),
                     'conf': cf,
                 })
 
@@ -227,10 +232,15 @@ class MobileSam(Segmenter):
             return []
 
         masks = results[0].masks.data.cpu().numpy()  # GPU→CPU: (N, H, W) 概率图
+        ih, iw = rgb.shape[:2]
 
         output = []
         for i, mask in enumerate(masks):
             bin_mask = mask > 0.5  # 阈值化得布尔前景掩码
+            if bin_mask.shape != (ih, iw):
+                bin_mask = cv2.resize(
+                    bin_mask.astype(np.uint8), (iw, ih),
+                    interpolation=cv2.INTER_NEAREST).astype(bool)
             if bin_mask.sum() > self._sam_min_area:
                 output.append((bin_mask, bboxes[i]))
 

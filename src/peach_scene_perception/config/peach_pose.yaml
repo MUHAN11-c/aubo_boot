@@ -19,11 +19,9 @@ peach_scene_perception_node:
     depth_scale_unit: 0.25
     # ── 同步与检测阈值 ────────────────────────────────────────
     sync_slop_s: 0.05        # RGB/深度/内参三路近似时间同步允差（秒）
-    min_detection_conf: 0.25  # 检测框进入几何管线的置信度下限（第二级，严出）
-    yolo_conf: 0.25           # YOLO 推理置信度阈值（第一级，宽进）；
-                           # 逆光场景 0.3 会全滤掉真实目标（2026-08-14 傍晚实测），
-                           # 但也不宜再低——误检由 confirm_frames 确认机制+TTL 清除兜底，
-                           # 治本靠补光/曝光，不是继续降阈
+    min_detection_conf: 0.40  # 检测框进入几何管线的置信度下限（第二级）
+    yolo_conf: 0.35           # YOLO 推理置信度阈值（第一级）；
+                           # 0.25 误检偏多；0.35 压闪框。逆光若漏检再降，不要低于 0.30
     # YOLO NMS IoU 阈值（阶段 D1 参数化）：室外多果密排场景可调低防并框
     yolo_nms_iou: 0.5
     # 单次 SAM 推理最大 prompt 框数（阶段 D1 由硬编码 8 提为参数）：室外多果
@@ -36,11 +34,9 @@ peach_scene_perception_node:
     # （跨类生效，消一果两框/局部误检小框）；≥1.0 等效关闭
     detection_dedup_ios: 0.6
     # ── 可视化开关 ───────────────────────────────────────────
-    # 阶段 H（协议 2.13 效率协议）：生产档 debug 叠加图默认关——关闭时零序列化
-    # 零发布（不复制图像、不画轮廓、不 cv_bridge 转换、不发布，非发空图）；
-    # bgr8 全图 + 逐目标 findContours 是发布面最高开销项，现场调图再显式置 true
-    publish_debug_image: false  # /peach/perception/debug_image：检测框+掩膜+轴线+状态叠加图（bgr8）
-    publish_masks: true         # /peach/perception/masks：SAM 掩膜画布（mono8，目标 i 灰度 i%250+1）
+    # 现场观察默认开叠加图；关掉则零序列化、不发布（非发空图）。
+    publish_debug_image: true   # /peach/perception/debug_image：检测框+掩膜+轴线+状态叠加图（bgr8）
+    publish_masks: true         # /peach/perception/masks：一张 mono16 标签画布
     # 检测框内深度反投影彩色点云（/peach/perception/single_cloud）；stride>1 降采样减轻 RViz
     publish_detection_cloud: true
     detection_cloud_stride: 2   # 点云降采样步长（每 2 像素取 1）
@@ -78,7 +74,7 @@ peach_scene_perception_node:
     # ── 目标身份记忆（世界系 target_id 跨帧稳定）────────────────
     # 同一物理桃子消失再出现复用同一 target_id；匹配在世界系（output_frame）做
     # 最近邻（同类 + 距离 ≤ 半径），tf_unavailable 帧跳过注册并打 target_untracked
-    target_memory.enable: true        # 身份记忆开关；false 回到帧内序号 target_{i}
+    target_memory.enable: true        # 身份记忆开关；false 时 Debug 上为 untracked_{i}
     target_memory.match_radius_m: 0.06  # 匹配半径 (m)：同类且距离 ≤ 本值的最近目标命中
     target_memory.max_targets: 50       # 目标表容量上限；超限按最久未见淘汰
     target_memory.position_ema: 0.3     # 命中后位置/轴/直径 EMA 系数 α(0,1]，越大越跟随新观测
@@ -93,13 +89,11 @@ peach_scene_perception_node:
     # match_radius 内——真翻类锚点几乎不动，邻近异类新目标不会被误并；
     # 命中不改表项类别）
     target_memory.cross_class_recovery: true
-    # 确认机制：新目标累计命中 ≥ 本帧数才转正长期记录；之前的短暂出现
-    # （如单帧误检）不长期保留；1=立即确认
-    target_memory.confirm_frames: 3
-    # 未确认目标的存活时限（帧）：连续超本帧数未再命中即清除（瞬时误检不占身份）。
-    # 按帧计、帧率以运行状态为准：取 confirm_frames + 余量；低帧率/卡顿时墙钟
-    # TTL 会在确认攒满前误清进度（防丢失效），帧计数不受帧率影响。
-    target_memory.tentative_ttl_frames: 5
+    # 确认机制：新目标累计命中 ≥ 本帧数才转正（计入锁定/3D Marker/候选话题）。
+    # ~2.4 fps 时 5 帧约 2 s，单帧闪现不会转正；1=立即确认
+    target_memory.confirm_frames: 5
+    # 未确认目标存活时限（帧）：连续超本帧数未再命中即清除。须 > confirm_frames
+    target_memory.tentative_ttl_frames: 8
     # ── 阶段 D1 室外感知强化（协议 2.4 摆动降权/锚点衰减）────────────────
     # 锁定集 LOST 目标的记忆锚点新鲜度上限（秒）：LOST 超本值打 anchor_stale
     # 旗标并视为不可选（不移除，重新被观测自动恢复）；上限语义——运行期按

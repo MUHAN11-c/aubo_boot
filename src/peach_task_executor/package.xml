@@ -9,17 +9,22 @@
   <license>BSD-3-Clause</license>
 
   <buildtool_depend>ament_python</buildtool_depend>
+  <build_depend>generate_parameter_library_py</build_depend>
 
   <exec_depend>ament_index_python</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>lifecycle_msgs</exec_depend>
+  <exec_depend>generate_parameter_library_py</exec_depend>
   <exec_depend>peach_interfaces</exec_depend>
   <exec_depend>peach_manipulation_skills</exec_depend>
   <exec_depend>peach_observability</exec_depend>
   <exec_depend>peach_scene_perception</exec_depend>
   <exec_depend>peach_target_reconstruction</exec_depend>
   <exec_depend>rclpy</exec_depend>
+  <exec_depend>ros2bag</exec_depend>
+  <exec_depend>rosbag2_storage_mcap</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
   <exec_depend>std_srvs</exec_depend>
   <exec_depend>aubo_e5_bringup</exec_depend>
 

@@ -45,6 +45,8 @@ peach_manipulation_skills_node:
     # 全局拍照位姿的 SRDF 命名状态（~/go_to_photo_pose 服务目标），
     # 与 aubo_e5_moveit_config/config/aubo_e5.srdf 的 group_state 对应。
     photo_pose_named_target: 'global_photo_pose'
+    # 卸果站命名状态；空=未现场标定（M8），软件跳过转移。
+    deposit_pose_named_target: ''
     behavior_tree:
       # launch 会覆盖为安装目录下 config/harvest_tree.xml 的绝对路径。
       xml: ''
@@ -83,7 +85,8 @@ peach_manipulation_skills_node:
       # 畸形盒（长度残余组/非有限分量/min>=max）装载时告警并逐盒丢弃，
       # 不炸节点。与 min_camera_height_m 的关系：桌面保护平面是保护区的
       # “z<下限半空间”特例 shortcut，两者并存、各自生效。
-      protected_zones: []
+      # 空保护区：占位盒 min==max，装载时丢弃（空 double_array 会让参数库拒启）。
+      protected_zones: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
       # 视点后等待新帧的超时上限：实测帧间隔自适应（≈4 帧+1s，下限 2s），
       # 本值为未测得帧率时的回退值与自适应上限；帧率以运行状态为准
       frame_wait_s: 6.0

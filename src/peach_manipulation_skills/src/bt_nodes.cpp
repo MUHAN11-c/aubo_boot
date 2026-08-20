@@ -36,6 +36,7 @@
 #include "peach_manipulation_skills/grasp_geometry.hpp"
 #include "peach_manipulation_skills/protected_zones.hpp"
 #include "peach_manipulation_skills/reconfirm_policy.hpp"
+#include <tf2_eigen/tf2_eigen.hpp>
 
 namespace peach_manipulation_skills
 {
@@ -161,6 +162,11 @@ void ApproachGraspNode::registerBehaviorTreeNodes()
     "IsObserveOnly", [this](BT::TreeNode &) {
       return cycle_observe_only_.load() ? BT::NodeStatus::SUCCESS : BT::NodeStatus::FAILURE;
     });
+  bt_factory_.registerSimpleCondition(
+    "IsSkipObservation", [this](BT::TreeNode &) {
+      return cycle_skip_observation_.load() ?
+             BT::NodeStatus::SUCCESS : BT::NodeStatus::FAILURE;
+    });
   bt_factory_.registerSimpleAction(
     "ReportObserveOnly", [this](BT::TreeNode &) {return btReportObserveOnly();});
   bt_factory_.registerSimpleAction(
@@ -171,6 +177,8 @@ void ApproachGraspNode::registerBehaviorTreeNodes()
     "ActuateTool", [this](BT::TreeNode &) {return btActuateTool();});
   bt_factory_.registerSimpleAction(
     "MTCRetreat", [this](BT::TreeNode &) {return btMtcRetreat();});
+  bt_factory_.registerSimpleAction(
+    "DepositToStation", [this](BT::TreeNode &) {return btDepositToStation();});
   bt_factory_.registerSimpleAction(
     "CompleteTarget", [this](BT::TreeNode &) {return btCompleteTarget();});
 }
@@ -237,11 +245,6 @@ BT::NodeStatus ApproachGraspNode::btPlanPreview()
 
 BT::NodeStatus ApproachGraspNode::btAcquireViews()
 {
-  if (reset_reconstruction_on_start_ &&
-    !callTrigger(reset_client_, "reset_reconstruction"))
-  {
-    return btFailure("重建重置失败");
-  }
   // 扫描预算制（2.13-E2 / 2.7-OBSERVE，判定纯核 ScanBudget）：
   //   - 下限保证：有效视点观测（移动到位且收到新鲜目标观测）未达
   //     min_effective_views_ 前不得收口；
@@ -388,12 +391,11 @@ BT::NodeStatus ApproachGraspNode::btAcquireViews()
 
 BT::NodeStatus ApproachGraspNode::btFinalizeAndValidate()
 {
-  setState(CycleState::FINALIZE, "视角覆盖达标，提取 TSDF 与精化几何");
-  const bool refined_arrived =
-    callTrigger(finalize_client_, "finalize_reconstruction") &&
-    waitForRefined(cycle_target_id_);
-  // 每周期落盘重建 session（无论精化是否达标，重建过程持续记录）
-  callTrigger(save_client_, "save_session", false);
+  if (cycle_observe_only_.load()) {
+    return BT::NodeStatus::SUCCESS;
+  }
+  setState(CycleState::FINALIZE, "等待重建精化几何（BuildTargetModel）");
+  const bool refined_arrived = waitForRefined(cycle_target_id_);
   const GateResult gate = quality_gate_->readyToGrasp(qualitySnapshot());
   const bool grasp_ready = refined_arrived && gate.allowed &&
     graspDecisionTargetSnapshot() == cycle_target_id_;
@@ -414,6 +416,16 @@ BT::NodeStatus ApproachGraspNode::btFinalizeAndValidate()
       cycle_refined_->axis, cycle_target_->initial_pose.linear().col(0));
     cycle_entry_tip_pose_ = entry_tool_pose * tip_from_tool->inverse();
     cycle_travel_m_ = insertionTravel(*cycle_refined_);
+    if (grasp_hyp_pub_) {
+      peach_interfaces::msg::GraspHypothesis hyp;
+      hyp.header.stamp = now();
+      hyp.header.frame_id = base_frame_;
+      hyp.target_id = cycle_target_id_;
+      hyp.entry_pose = tf2::toMsg(cycle_entry_tip_pose_);
+      hyp.travel_m = static_cast<float>(cycle_travel_m_);
+      hyp.rank_score = 1.0f;
+      grasp_hyp_pub_->publish(hyp);
+    }
     return BT::NodeStatus::SUCCESS;
   }
   // 回退（非极端必抓）：精化未产出或质量门未过时，身份一致的锚点还在就用
@@ -454,6 +466,17 @@ BT::NodeStatus ApproachGraspNode::btFinalizeAndValidate()
     get_logger(), "精化不可用/未过门（%s），回退候选锚点降级抓取 %s",
     gate.reason.c_str(), cycle_target_id_.c_str());
   setState(CycleState::FINALIZE, "精化未达标，按感知候选锚点降级抓取");
+  if (grasp_hyp_pub_) {
+    peach_interfaces::msg::GraspHypothesis hyp;
+    hyp.header.stamp = now();
+    hyp.header.frame_id = base_frame_;
+    hyp.target_id = cycle_target_id_;
+    hyp.entry_pose = tf2::toMsg(cycle_entry_tip_pose_);
+    hyp.travel_m = static_cast<float>(cycle_travel_m_);
+    hyp.rank_score = 0.5f;
+    hyp.diagnostic_flags = {"degraded_anchor"};
+    grasp_hyp_pub_->publish(hyp);
+  }
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -740,6 +763,33 @@ BT::NodeStatus ApproachGraspNode::btMtcRetreat()
     return btFailure("MTC 抓取后撤离失败，需要人工处理: " + result.reason);
   }
   contact_recovery_required_.store(false);
+  return BT::NodeStatus::SUCCESS;
+}
+
+BT::NodeStatus ApproachGraspNode::btDepositToStation()
+{
+  setState(CycleState::MTC_RETREAT, "转移到卸果站或跳过（M8 未标定）");
+  if (deposit_pose_named_target_.empty()) {
+    cycle_deposit_ok_ = false;
+    cycle_deposit_skipped_m8_ = true;
+    cycle_deposit_reason_ = "pending_m8_unload_pose";
+    return BT::NodeStatus::SUCCESS;
+  }
+  if (!motion_) {
+    cycle_deposit_ok_ = false;
+    cycle_deposit_skipped_m8_ = false;
+    cycle_deposit_reason_ = "MoveIt 尚未初始化";
+    return btFailure("卸果转移失败: " + cycle_deposit_reason_);
+  }
+  std::string message;
+  const bool ok = motion_->goToPhotoPose(
+    deposit_pose_named_target_, execution_enabled_.load(), message);
+  cycle_deposit_ok_ = ok;
+  cycle_deposit_skipped_m8_ = false;
+  cycle_deposit_reason_ = message;
+  if (!ok) {
+    return btFailure("卸果转移失败: " + message);
+  }
   return BT::NodeStatus::SUCCESS;
 }
 

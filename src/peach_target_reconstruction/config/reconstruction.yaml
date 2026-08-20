@@ -40,6 +40,7 @@ peach_target_reconstruction_node:
     # 锁定集中存在比本值更近的其他目标锚点时拒帧，防邻近目标点云混入形成
     # TSDF 不可回滚双层表面（I6）；≤0 关闭本门
     capture.min_neighbor_gap_m: 0.15
+    capture.build_timeout_s: 180.0  # BuildTargetModel 等 min_views；超时不 finalize
     # ── 目标绑定（E2 会话防抖）──────────────────────────────
     # [s] selected 切换防抖：selected_target_id 变化（含变空）须持续超过本
     # 时长才放弃进行中会话重绑，防感知 selected 瞬态抖动销毁会话；holdoff

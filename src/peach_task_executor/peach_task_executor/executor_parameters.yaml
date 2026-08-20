@@ -1,0 +1,60 @@
+executor_node:
+  execution_enabled: {
+    type: bool,
+    default_value: false,
+    description: "false 时 Survey 后直接结算，不选目标、不派 ExecuteTarget。"
+  }
+  survey_wait_s: {
+    type: double,
+    default_value: 8.0,
+    description: "SurveyScene 后等待目标集锁定的秒数。",
+    validation: { gt_eq<>: [0.0] }
+  }
+  service_timeout_s: {
+    type: double,
+    default_value: 30.0,
+    description: "BeginScene 等服务等待上限。",
+    validation: { gt<>: [0.0] }
+  }
+  action_timeout_s: {
+    type: double,
+    default_value: 180.0,
+    description: "Survey/Build/Execute 动作等待上限。",
+    validation: { gt<>: [0.0] }
+  }
+  empty_survey_limit: {
+    type: int,
+    default_value: 2,
+    description: "连续空扫次数上限，达到则结算批次。",
+    validation: { gt_eq<>: [1] }
+  }
+  persist_ledger: {
+    type: bool,
+    default_value: true,
+    description: "是否把 TargetOutcome 写入 harvest_runs 账本。"
+  }
+  begin_scene_service: {
+    type: string,
+    default_value: "/peach_scene_perception_node/begin_scene",
+    description: "BeginScene 服务名。"
+  }
+  survey_scene_action: {
+    type: string,
+    default_value: "/peach_manipulation_skills_node/survey_scene",
+    description: "SurveyScene 动作名。"
+  }
+  execute_target_action: {
+    type: string,
+    default_value: "/peach_manipulation_skills_node/execute_target",
+    description: "ExecuteTarget 动作名。"
+  }
+  build_target_model_action: {
+    type: string,
+    default_value: "/peach_target_reconstruction_node/build_target_model",
+    description: "BuildTargetModel 动作名。"
+  }
+  require_managed_stack: {
+    type: bool,
+    default_value: false,
+    description: "true 时须等 /peach/lifecycle/managed_nodes_activated 才接受 RunHarvest。"
+  }

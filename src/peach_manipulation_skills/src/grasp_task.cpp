@@ -27,6 +27,8 @@
 // POSSIBILITY OF SUCH DAMAGE.
 #include "peach_manipulation_skills/grasp_task.hpp"
 
+#include <moveit/planning_scene_interface/planning_scene_interface.h>
+#include <moveit/task_constructor/container.h>
 #include <moveit/task_constructor/solvers/cartesian_path.h>
 #include <moveit/task_constructor/solvers/pipeline_planner.h>
 #include <moveit/task_constructor/stages/current_state.h>
@@ -39,9 +41,12 @@
 #include <sstream>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/vector3_stamped.hpp>
+#include <moveit_msgs/msg/collision_object.hpp>
+#include <shape_msgs/msg/solid_primitive.hpp>
 
 namespace peach_manipulation_skills
 {
@@ -128,22 +133,75 @@ std::unique_ptr<mtc::stages::MoveRelative> GraspTask::makeLinearMove(
   return stage;
 }
 
+void GraspTask::syncKeepoutCollisionObjects() const
+{
+  moveit::planning_interface::PlanningSceneInterface scene;
+  if (!published_keepout_ids_.empty()) {
+    scene.removeCollisionObjects(published_keepout_ids_);
+    published_keepout_ids_.clear();
+  }
+  if (config_.protected_zones.empty()) {
+    return;
+  }
+  std::vector<moveit_msgs::msg::CollisionObject> objects;
+  objects.reserve(config_.protected_zones.size());
+  std::size_t index = 0;
+  for (const auto & zone : config_.protected_zones) {
+    moveit_msgs::msg::CollisionObject object;
+    object.id = "peach_keepout_" + std::to_string(index++);
+    object.header.frame_id = config_.base_frame;
+    object.operation = moveit_msgs::msg::CollisionObject::ADD;
+    shape_msgs::msg::SolidPrimitive box;
+    box.type = shape_msgs::msg::SolidPrimitive::BOX;
+    box.dimensions = {
+      zone.max.x() - zone.min.x(),
+      zone.max.y() - zone.min.y(),
+      zone.max.z() - zone.min.z()};
+    geometry_msgs::msg::Pose pose;
+    pose.orientation.w = 1.0;
+    pose.position.x = 0.5 * (zone.min.x() + zone.max.x());
+    pose.position.y = 0.5 * (zone.min.y() + zone.max.y());
+    pose.position.z = 0.5 * (zone.min.z() + zone.max.z());
+    object.primitives.push_back(box);
+    object.primitive_poses.push_back(pose);
+    objects.push_back(object);
+    published_keepout_ids_.push_back(object.id);
+  }
+  scene.applyCollisionObjects(objects);
+}
+
+std::unique_ptr<mtc::SerialContainer> GraspTask::makeApproachInsertSequence(
+  const Eigen::Isometry3d & entry_tip_pose,
+  const Eigen::Vector3d & insertion_axis,
+  double insertion_distance_m) const
+{
+  auto sequence = std::make_unique<mtc::SerialContainer>("approach and insert");
+  sequence->add(makeMoveToEntry(makeFreeSpaceSolver(), entry_tip_pose));
+  sequence->add(
+    makeLinearMove(
+      "guarded linear insertion", makeCartesianSolver(), insertion_axis,
+      insertion_distance_m));
+  return sequence;
+}
+
+std::unique_ptr<mtc::Task> GraspTask::makeTaskShell(const std::string & task_name) const
+{
+  auto task = std::make_unique<mtc::Task>(task_name);
+  task->loadRobotModel(node_);
+  task->setProperty("group", config_.planning_group);
+  task->add(std::make_unique<mtc::stages::CurrentState>("current robot state"));
+  return task;
+}
+
 std::unique_ptr<mtc::Task> GraspTask::makeApproachInsertTask(
   const std::string & task_name,
   const Eigen::Isometry3d & entry_tip_pose,
   const Eigen::Vector3d & insertion_axis,
   double insertion_distance_m)
 {
-  auto task = std::make_unique<mtc::Task>(task_name);
-  task->loadRobotModel(node_);
-  task->add(std::make_unique<mtc::stages::CurrentState>("current robot state"));
-
-  // 室外枝叶环境先用 OMPL 搜索无碰路径到入口；接触段禁止回退 OMPL，必须保持轴向直线。
-  task->add(makeMoveToEntry(makeFreeSpaceSolver(), entry_tip_pose));
+  auto task = makeTaskShell(task_name);
   task->add(
-    makeLinearMove(
-      "guarded linear insertion", makeCartesianSolver(), insertion_axis,
-      insertion_distance_m));
+    makeApproachInsertSequence(entry_tip_pose, insertion_axis, insertion_distance_m));
   return task;
 }
 
@@ -165,8 +223,6 @@ GraspTaskResult GraspTask::preplanApproachAndInsert(
   const Eigen::Vector3d & insertion_axis,
   double insertion_distance_m)
 {
-  // 预规划（2.13-E3）：与 approachAndInsert(execute=false) 同结构，但成功后
-  // 任务连同解移入预规划槽保留（供 executePreplannedApproach 复用），失败丢弃。
   auto task = makeApproachInsertTask(
     "peach_approach_insert_preplan", entry_tip_pose, insertion_axis,
     insertion_distance_m);
@@ -209,7 +265,6 @@ GraspTaskResult GraspTask::executePreplannedApproach()
   mtc::Task * active = nullptr;
   {
     std::lock_guard<std::mutex> lock(task_mutex_);
-    // 执行期间移回 active 槽：cancel() 的 preempt 语义与内联规划路径一致。
     active_task_ = std::move(task);
     active = active_task_.get();
   }
@@ -236,26 +291,20 @@ GraspTaskResult GraspTask::previewFullContact(
   const Eigen::Vector3d & insertion_axis,
   double insertion_distance_m)
 {
-  auto task = std::make_unique<mtc::Task>("peach_full_contact_preview");
-  task->loadRobotModel(node_);
-  task->add(std::make_unique<mtc::stages::CurrentState>("current robot state"));
-
-  task->add(makeMoveToEntry(makeFreeSpaceSolver(), entry_tip_pose));
-
+  auto task = makeTaskShell("peach_full_contact_preview");
   auto cartesian = makeCartesianSolver();
-  // 完整预览在插入末端立即反向撤离，TOTG 不支持这种 180 度折返。
-  // 此接口永不执行，仅需保留几何路径供 MTC/RViz 展示，因此关闭阶段时间参数化。
   cartesian->setTimeParameterization(nullptr);
-  // 插入与撤离共用同一个 solver 实例（同一 MTC 解内保持配置一致）。
-  task->add(
+  auto contact = std::make_unique<mtc::SerialContainer>("preview contact");
+  contact->add(makeMoveToEntry(makeFreeSpaceSolver(), entry_tip_pose));
+  contact->add(
     makeLinearMove(
       "guarded linear insertion", cartesian, insertion_axis, insertion_distance_m));
-  task->add(
+  contact->add(
     makeLinearMove(
       "linear retreat along insertion path", cartesian, -insertion_axis,
       insertion_distance_m));
+  task->add(std::move(contact));
 
-  // 此接口没有 execute 参数，结构上保证预览服务不能下发轨迹。
   return planAndMaybeExecute(std::move(task), false, {});
 }
 
@@ -264,10 +313,7 @@ GraspTaskResult GraspTask::retreat(
   double retreat_distance_m,
   bool execute)
 {
-  auto task = std::make_unique<mtc::Task>("peach_linear_retreat");
-  task->loadRobotModel(node_);
-  task->add(std::make_unique<mtc::stages::CurrentState>("current robot state"));
-
+  auto task = makeTaskShell("peach_linear_retreat");
   task->add(
     makeLinearMove(
       "linear retreat along insertion path", makeCartesianSolver(), -insertion_axis,
@@ -277,6 +323,7 @@ GraspTaskResult GraspTask::retreat(
 
 GraspTaskResult GraspTask::planTaskOnly(mtc::Task * active)
 {
+  syncKeepoutCollisionObjects();
   GraspTaskResult output;
   const auto result = active->plan(config_.max_solutions);
   if (result != moveit::core::MoveItErrorCode::SUCCESS || active->solutions().empty()) {

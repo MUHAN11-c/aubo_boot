@@ -10,12 +10,7 @@ refitter.cylinder_impl/sphere_impl 经 REFITTERS.create 各持一个实例，
 select_refitter 按 target_kind 选线）；refine_geometry 保留为模块级
 workhorse 门面（单测锚点），内部即默认两线的分派。
 
-拟合原语暂复用 peach_scene_perception.peach_pose.fitting
-（fit_cylinder_robust/fit_sphere_robust——官方库无带半径窗的圆柱/球
-RANSAC，保留）；法线用 open3d 官方 estimate_normals（KDTree+协方差最小
-特征向量，与原手写 kNN+PCA 同算法，A/B 方向一致到 |dot|=1.0；TSDF 云
-无序、无原始深度图可用，符号任意——圆柱 RANSAC 只用 n₁×n₂ 定轴与射线
-交点定圆心，对法线符号不敏感）。
+拟合原语在 peach_common_py.fitting（fit_cylinder_robust / fit_sphere_robust）。
 
 坐标系/单位约定：全程 base_frame（默认 base_link）、米制。方向消歧：
 输出轴统一 bottom→neck（neck 恒在上方）。base_link 为 z 向上系、重力
@@ -34,7 +29,7 @@ from dataclasses import dataclass
 from typing import List, Mapping, Optional, Tuple
 
 import numpy as np
-from peach_scene_perception.peach_pose.fitting import (
+from peach_common_py.fitting import (
     fit_cylinder_robust,
     fit_sphere_robust,
 )

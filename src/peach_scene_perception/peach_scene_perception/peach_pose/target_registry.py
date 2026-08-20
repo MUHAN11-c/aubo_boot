@@ -340,7 +340,8 @@ class TargetRegistry:
         """
         对本帧全部有锚点检测做一次全局 1-1 分配后再提交.
 
-        无 position 的项保留帧内序号、不占表。歧义标 ambiguous_* 且不入表.
+        无 position 的项标 untracked_{i}、不占表（不用 target_{i}，避免
+        与注册表 target_0 撞号）。歧义标 ambiguous_* 且不入表.
         """
         ts = time.monotonic() if now is None else float(now)
         out: List[Optional[Tuple[str, bool]]] = [None] * len(items)
@@ -350,11 +351,11 @@ class TargetRegistry:
         for i, item in enumerate(items):
             pos = item.get('position')
             if pos is None:
-                out[i] = (f'target_{i}', False)
+                out[i] = (f'untracked_{i}', False)
                 continue
             pos = np.asarray(pos, dtype=float).reshape(3)
             if not np.all(np.isfinite(pos)):
-                out[i] = (f'target_{i}', False)
+                out[i] = (f'untracked_{i}', False)
                 continue
             ax = None
             axis = item.get('axis')
@@ -387,7 +388,7 @@ class TargetRegistry:
                     target_id=tid, distance=float(d2), status=status)
                 out[i] = self._commit_match(
                     pos, class_id, ax, diameter_value, st, ts, matched)
-        return [row if row is not None else (f'target_{i}', False)
+        return [row if row is not None else (f'untracked_{i}', False)
                 for i, row in enumerate(out)]
 
     def _commit_match(

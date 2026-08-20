@@ -131,6 +131,7 @@ void ApproachGraspNode::executeAction(
   auto trigger_response = std::make_shared<Trigger::Response>();
   if (goal->mode == ExecuteTarget::Goal::PREVIEW) {
     cycle_observe_only_.store(false);
+    cycle_skip_observation_.store(false);
     previewContact(false, trigger_response);
   } else {
     // Action 是自动编排专用入口；手动 Trigger 仍要求每周期单独 arm。
@@ -138,10 +139,14 @@ void ApproachGraspNode::executeAction(
     // OBSERVE_ONLY：BT 在 FinalizeAndValidate 后经 IsObserveOnly 分支短路，
     // 不进 MTC/工具/撤离段（见 harvest_tree.xml report_or_grasp）。
     cycle_observe_only_.store(goal->mode == ExecuteTarget::Goal::OBSERVE_ONLY);
+    cycle_skip_observation_.store(goal->skip_observation);
     // goal 钉死（设计文档第 7 节）：受理到 Prepare 快照之间感知可能切换
     // selected；钉入受理时的目标 ID，btPrepareCycle 发现身份不一致即失败，
     // 由编排按新 selected 重新派发。
     cycle_target_id_ = goal->target_id;
+    cycle_deposit_ok_ = false;
+    cycle_deposit_skipped_m8_ = false;
+    cycle_deposit_reason_.clear();
     onStart(std::make_shared<Trigger::Request>(), trigger_response, true);
   }
   if (!trigger_response->success) {
@@ -151,6 +156,7 @@ void ApproachGraspNode::executeAction(
     result->recovery_required = contact_recovery_required_.load();
     // 启动即失败：计时未启动则两数组为空，符合"未经历的阶段不出现"契约。
     fillStageDurations(result);
+    fillExecuteResults(result);
     goal_handle->abort(result);
     return;
   }
@@ -194,6 +200,7 @@ void ApproachGraspNode::executeAction(
   result->recovery_required = cycle_result.recovery_required;
   // 阶段耗时埋点：成功/取消/失败终局一律填充已历经阶段（含取消路径）。
   fillStageDurations(result);
+  fillExecuteResults(result);
   // 线程可 join 后必须兜住 shutdown 竞态下的上报异常，避免 std::terminate。
   try {
     if (outcome == CycleOutcome::SUCCEEDED) {
@@ -232,6 +239,7 @@ void ApproachGraspNode::onStart(
     // 手动 Trigger 周期恒为 FULL 语义：清掉上一 action 周期可能残留的
     // observe-only 标志（action 路径由 executeAction 按 goal.mode 显式设置）。
     cycle_observe_only_.store(false);
+    cycle_skip_observation_.store(false);
   }
   if (!move_group_) {
     response->success = false;

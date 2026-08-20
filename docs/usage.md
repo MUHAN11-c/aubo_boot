@@ -1,5 +1,7 @@
 # 使用方法
 
+逻辑、调用关系、源码阅读顺序：[flow.md](flow.md)。真机干跑：[field_test.md](field_test.md)。
+
 先：
 
 ```bash
@@ -26,12 +28,12 @@ colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 ros2 launch peach_task_executor harvest_system.launch.py \
   hardware_mode:=sim camera_enabled:=false
 
-# 真机（须显式 real；先手动上电，禁止 /aubo_dashboard/startup）
+# 真机（须显式 real；示教器上电；bringup 不起 aubo_dashboard）
 ros2 launch peach_task_executor harvest_system.launch.py \
   hardware_mode:=real camera_enabled:=true robot_ip:=169.254.10.98
 ```
 
-监控：`http://127.0.0.1:8090`。过程记录写在启动时的 CWD 下 `web_runs/`。
+监控：`http://127.0.0.1:8090`。过程记录写在启动时的 CWD 下 `web_runs/`。账本在 `harvest_runs/<request_id>/ledger.json`。真机干跑步骤：[field_test.md](field_test.md)。
 
 常用 launch 参数（完整列表：`--show-args`）：
 
@@ -44,6 +46,7 @@ ros2 launch peach_task_executor harvest_system.launch.py \
 | `moveit_enabled` | true | move_group + RViz |
 | `hand_eye_enabled` | false | 标定流程 |
 | `hand_eye_web_enabled` | false | 标定 Web `http://127.0.0.1:8088` |
+| `record_mcap` | false | 为 true 时 `ros2 bag record -s mcap` 录关键话题 |
 
 无相机时保持默认 `camera_enabled:=false`。有设备时再打开。
 
@@ -87,3 +90,12 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real \
 ```
 
 浏览器只开回环 `http://127.0.0.1:8088`。
+
+日常采摘不跑标定流程，但必须有激活外参：工作区 `hand_eye/active.yaml`（gitignore，不入库）。没有该文件时 `extrinsics_publisher` 会发名义 TF（`wrist3_Link→camera_link` 平移 2 cm、单位四元数），光学系相对法兰会偏约 10 cm 并转错方向。现场副本在 `_archive/runs/hand_eye/`。拷回后若节点已在跑：
+
+```bash
+ros2 service call /hand_eye_extrinsics_publisher/reload std_srvs/srv/Trigger {}
+ros2 run tf2_ros tf2_echo wrist3_Link camera_link
+```
+
+平移应接近 `[0.045, 0.108, 0.002]`，而不是 `[0, 0, 0.020]`。

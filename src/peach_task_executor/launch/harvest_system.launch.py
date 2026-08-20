@@ -28,11 +28,13 @@
 
 """启动桃子采摘完整业务栈."""
 
+from datetime import datetime
 import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import (
+    DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, OpaqueFunction)
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 
@@ -79,6 +81,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'hand_eye_web_enabled', default_value='false',
             description='启动手眼标定 Web；仅 hand_eye_enabled 生效'),
+        DeclareLaunchArgument(
+            'record_mcap', default_value='false',
+            description='为 true 时用 ros2 bag record -s mcap 录执行器/感知/重建关键话题'),
         _include(
             'aubo_e5_bringup', 'bringup.launch.py', {
                 'hardware_mode': hardware_mode,
@@ -89,9 +94,44 @@ def generate_launch_description():
                 'hand_eye_enabled': hand_eye_enabled,
                 'hand_eye_web_enabled': hand_eye_web_enabled,
             }),
-        _include('peach_scene_perception', 'peach_pose.launch.py'),
-        _include('peach_target_reconstruction', 'reconstruction.launch.py'),
-        _include('peach_manipulation_skills', 'approach_grasp.launch.py'),
+        _include(
+            'peach_scene_perception', 'peach_pose.launch.py',
+            {'autostart': 'false'}),
+        _include(
+            'peach_target_reconstruction', 'reconstruction.launch.py',
+            {'autostart': 'false'}),
+        _include(
+            'peach_manipulation_skills', 'approach_grasp.launch.py',
+            {'autostart': 'false'}),
         _include('peach_observability', 'observability.launch.py'),
-        _include('peach_task_executor', 'executor.launch.py'),
+        _include(
+            'peach_task_executor', 'executor.launch.py',
+            {'autostart': 'false', 'require_managed_stack': 'true'}),
+        _include('peach_task_executor', 'lifecycle_manager.launch.py'),
+        OpaqueFunction(function=_maybe_record_mcap),
     ])
+
+
+def _maybe_record_mcap(context):
+    """仅在 record_mcap:=true 时启动 rosbag2 MCAP，默认不录以免占盘."""
+    flag = LaunchConfiguration('record_mcap').perform(context).lower()
+    if flag not in ('true', '1', 'yes'):
+        return []
+    stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    output = os.path.join(os.getcwd(), 'web_runs', f'mcap_{stamp}')
+    topics = [
+        '/peach_task_executor/events',
+        '/peach_task_executor/state',
+        '/peach_task_executor/scene_snapshot',
+        '/peach/perception/target_observations',
+        '/peach/reconstruction/status',
+        '/peach/reconstruction/shape_hypothesis',
+        '/peach/manipulation/grasp_hypothesis',
+    ]
+    return [
+        ExecuteProcess(
+            cmd=['ros2', 'bag', 'record', '-s', 'mcap', '--output', output,
+                 *topics],
+            output='screen',
+        ),
+    ]

@@ -55,6 +55,7 @@
 #include <peach_interfaces/action/execute_target.hpp>
 #include <peach_interfaces/action/survey_scene.hpp>
 #include <peach_interfaces/msg/grasp_decision.hpp>
+#include <peach_interfaces/msg/grasp_hypothesis.hpp>
 #include <peach_interfaces/msg/reconstruction_status.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
@@ -142,6 +143,9 @@ private:
   rcl_interfaces::msg::SetParametersResult onParameters(
     const std::vector<rclcpp::Parameter> & parameters);
   void createInterfaces();
+  void createSubscriptions();
+  void createServices();
+  void createActions();
 
   // 订阅回调（薄壳）：消息字段提取后委托 cache_ 做四源一致性调和。
   void onTargets(
@@ -184,9 +188,6 @@ private:
   // 工具 IO、接触轨迹预览与 go_to_photo_pose 服务回调。规划/执行/TF 查询
   // 已下沉到 MotionInterfaceBase 实现（bt_nodes 经 motion_ 基类指针调用）。
   void rebuildMotionInterface();
-  bool callTrigger(
-    const rclcpp::Client<Trigger>::SharedPtr & client, const std::string & label,
-    bool required = true);
   bool commandToolClose();
   void onPreviewApproachInsert(
     const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response);
@@ -255,6 +256,7 @@ private:
   BT::NodeStatus btMtcApproachAndInsert();
   BT::NodeStatus btActuateTool();
   BT::NodeStatus btMtcRetreat();
+  BT::NodeStatus btDepositToStation();
   BT::NodeStatus btCompleteTarget();
 
   void runCycle();
@@ -268,6 +270,8 @@ private:
   void startCycleTiming();
   void fillStageDurations(
     const std::shared_ptr<ExecuteTarget::Result> & result);
+  void fillExecuteResults(
+    const std::shared_ptr<ExecuteTarget::Result> & result);
 
   std::string base_frame_;
   std::string tip_frame_;  // 规划/IK 末端连杆（MoveIt 组 tip_link，当前为 tcp）
@@ -278,6 +282,7 @@ private:
   std::string fallback_pipeline_;
   std::string mtc_free_space_planner_;
   std::string photo_pose_named_target_;
+  std::string deposit_pose_named_target_;
   std::string behavior_tree_xml_;
   double planning_time_s_{5.0};
   int planning_attempts_{5};
@@ -308,12 +313,10 @@ private:
   double last_targets_arrival_s_{0.0};
   double target_observation_max_age_config_s_{3.0};
   std::atomic_bool execution_enabled_{false};
-  bool reset_reconstruction_on_start_{false};
   std::atomic_bool grasp_enabled_{false};
   double neck_margin_m_{0.015};
   double minimum_travel_m_{0.02};
   double maximum_travel_m_{0.20};
-  bool complete_target_after_retreat_{true};
   // 降级抓取入口的袋外预入口余量（米）：入口点=锚点−轴·(行程+本值)。
   double fallback_standoff_m_{0.05};
   // 环境几何保护区（阶段 F1，scan.protected_zones 解析结果）：base 系轴对齐
@@ -404,6 +407,10 @@ private:
   // 本周期为 OBSERVE_ONLY 模式：BT 在 FinalizeAndValidate 后经 IsObserveOnly
   // 分支短路，不进 MTC/工具/撤离段；由 executeAction 按 goal.mode 设置。
   std::atomic_bool cycle_observe_only_{false};
+  std::atomic_bool cycle_skip_observation_{false};
+  bool cycle_deposit_ok_{false};
+  bool cycle_deposit_skipped_m8_{false};
+  std::string cycle_deposit_reason_;
   std::atomic_bool execution_armed_{false};
   std::atomic_bool contact_recovery_required_{false};
   // abort 路径的终局分级（ExecuteTarget::Result 常量），由 BT 失败点按需覆盖。
@@ -430,6 +437,8 @@ private:
   CallbackTimingRegistry callback_timing_;
   rclcpp_lifecycle::LifecyclePublisher<visualization_msgs::msg::MarkerArray>::SharedPtr
     marker_pub_;
+  rclcpp::Publisher<peach_interfaces::msg::GraspHypothesis>::SharedPtr
+    grasp_hyp_pub_;
   rclcpp::Service<Trigger>::SharedPtr start_service_;
   rclcpp::Service<Trigger>::SharedPtr preview_approach_service_;
   rclcpp::Service<Trigger>::SharedPtr preview_full_contact_service_;
@@ -452,9 +461,6 @@ private:
   // 参数监听器（构造即声明全部参数并做启动校验；运行期 set 经其内置范围
   // 校验 + onParameters 钩子，post-set 后 loadParameters 重载快照）。
   std::shared_ptr<peach_manipulation_skills_node::ParamListener> param_listener_;
-  rclcpp::Client<Trigger>::SharedPtr reset_client_;
-  rclcpp::Client<Trigger>::SharedPtr finalize_client_;
-  rclcpp::Client<Trigger>::SharedPtr save_client_;
   rclcpp::Client<aubo_msgs::srv::SetIO>::SharedPtr tool_io_client_;
 };
 

@@ -8,9 +8,9 @@
 |-----------------|------|------|
 | `mock` | `GenericSystem` | 标准 `joint_trajectory_controller` |
 | `sim` | `AuboE5SimHardware` | 透传控制器 |
-| `real` | `AuboE5Hardware` + dashboard | 透传控制器 |
+| `real` | `AuboE5Hardware` | 透传控制器 |
 
-xacro 同一份模板，按 mode 换插件。`auto_power_on` 必须为 false。
+xacro 同一份模板，按 mode 换插件。`auto_power_on` 必须为 false。**不起** `aubo_dashboard`：柜侧用示教器，规划用 MoveIt，停轨走透传取消 + 硬件 `RobotMoveStop`。
 
 ## 可选块
 

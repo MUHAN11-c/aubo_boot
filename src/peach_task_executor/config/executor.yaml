@@ -4,6 +4,9 @@ peach_task_executor:
     survey_wait_s: 8.0
     service_timeout_s: 30.0
     action_timeout_s: 180.0
+    empty_survey_limit: 2
+    persist_ledger: true
     begin_scene_service: /peach_scene_perception_node/begin_scene
     survey_scene_action: /peach_manipulation_skills_node/survey_scene
     execute_target_action: /peach_manipulation_skills_node/execute_target
+    build_target_model_action: /peach_target_reconstruction_node/build_target_model

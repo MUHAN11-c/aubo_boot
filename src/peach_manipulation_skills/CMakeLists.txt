@@ -11,6 +11,7 @@ find_package(behaviortree_cpp REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(generate_parameter_library REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(moveit_msgs REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 find_package(moveit_task_constructor_core REQUIRED)
 find_package(nlohmann_json REQUIRED)
@@ -18,6 +19,7 @@ find_package(peach_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
+find_package(shape_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(tf2 REQUIRED)
@@ -76,7 +78,9 @@ target_link_libraries(approach_grasp_node PRIVATE
   tf2_ros::tf2_ros
   ${aubo_msgs_TARGETS}
   ${geometry_msgs_TARGETS}
+  ${moveit_msgs_TARGETS}
   ${peach_interfaces_TARGETS}
+  ${shape_msgs_TARGETS}
   ${std_msgs_TARGETS}
   ${std_srvs_TARGETS}
   ${visualization_msgs_TARGETS}

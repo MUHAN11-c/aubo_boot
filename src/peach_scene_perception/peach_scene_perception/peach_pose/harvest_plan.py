@@ -441,10 +441,17 @@ class GlobalHarvestPlan:
         self._locked = True
         self.snapshot_id += 1
 
+    def mark_completed(self, target_id: str) -> None:
+        """记入完成集；不推进本地 cursor（当前作业以执行器 target_id 为准）."""
+        if target_id:
+            self.completed_ids.add(target_id)
+            if self.selected_target_id == target_id:
+                self.selected_target_id = ''
+
     def complete_selected(self) -> str:
         """标记当前目标已完成，并按固定优先级推进到下一个未完成 ID."""
         if self.selected_target_id:
-            self.completed_ids.add(self.selected_target_id)
+            self.mark_completed(self.selected_target_id)
         self.selected_target_id = self._next_selectable()
         return self.selected_target_id
 
@@ -492,11 +499,14 @@ class GlobalHarvestPlan:
         self._dropped_queue.clear()
         return dropped
 
-    def harvest_status(self, target_id: str) -> str:
-        """返回目标在本轮固定计划中的采摘状态."""
+    def harvest_status(
+            self, target_id: str, executor_id: Optional[str] = None) -> str:
+        """采摘状态。executor_id 非 None 时当前目标只跟执行器，不回退本地 cursor."""
         if target_id in self.completed_ids:
             return 'HARVESTED'
-        if target_id == self.selected_target_id:
+        current = (
+            executor_id if executor_id is not None else self.selected_target_id)
+        if current and target_id == current:
             return 'SELECTED'
         if target_id not in self.current_selectable_ids:
             return 'WAITING_QUALITY'

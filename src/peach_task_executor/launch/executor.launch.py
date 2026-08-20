@@ -4,8 +4,10 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import EmitEvent, RegisterEventHandler
+from launch.actions import DeclareLaunchArgument, EmitEvent, RegisterEventHandler
+from launch.conditions import IfCondition
 from launch.events import matches_action
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import LifecycleNode
 from launch_ros.event_handlers import OnStateTransition
 from launch_ros.events.lifecycle import ChangeState
@@ -23,16 +25,32 @@ def generate_launch_description():
         name='peach_task_executor',
         namespace='',
         output='screen',
-        parameters=[params],
+        parameters=[
+            params,
+            {'require_managed_stack': LaunchConfiguration('require_managed_stack')},
+        ],
     )
-    configure = EmitEvent(event=ChangeState(
-        lifecycle_node_matcher=matches_action(node),
-        transition_id=Transition.TRANSITION_CONFIGURE))
-    activate = RegisterEventHandler(OnStateTransition(
-        target_lifecycle_node=node,
-        goal_state='inactive',
-        entities=[EmitEvent(event=ChangeState(
+    autostart = LaunchConfiguration('autostart')
+    configure = EmitEvent(
+        event=ChangeState(
             lifecycle_node_matcher=matches_action(node),
-            transition_id=Transition.TRANSITION_ACTIVATE))],
-    ))
-    return LaunchDescription([activate, node, configure])
+            transition_id=Transition.TRANSITION_CONFIGURE),
+        condition=IfCondition(autostart))
+    activate = RegisterEventHandler(
+        OnStateTransition(
+            target_lifecycle_node=node,
+            goal_state='inactive',
+            entities=[EmitEvent(event=ChangeState(
+                lifecycle_node_matcher=matches_action(node),
+                transition_id=Transition.TRANSITION_ACTIVATE))],
+        ),
+        condition=IfCondition(autostart))
+    return LaunchDescription([
+        DeclareLaunchArgument(
+            'autostart', default_value='true',
+            description='false 时由 peach_lifecycle_manager 有序 configure/activate'),
+        DeclareLaunchArgument(
+            'require_managed_stack', default_value='false',
+            description='true 时须等生命周期管理器就绪旗标才接受 RunHarvest'),
+        activate, node, configure,
+    ])

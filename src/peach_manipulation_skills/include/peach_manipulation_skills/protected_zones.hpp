@@ -25,12 +25,8 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-// 职责：环境几何保护区（重构计划阶段 F1）纯核——base_link 系轴对齐盒（AABB）
-// 列表的参数解析与点包含判定，零 ROS 依赖、纯函数、线程无关。
-// 输入：scan.protected_zones 参数（double 扁平数组，stride-6 编码
-//   [xmin,ymin,zmin,xmax,ymax,zmax]*N，单位米）。
-// 输出：合法盒列表 + 逐条丢弃原因（节点侧 WARN）；点命中判定（供视点生成
-//   剔除与 MTC 接触段入口剔除两处调用端共用同一谓词，保证剔除语义一致）。
+// 保护区 AABB（base_link，米）。参数 scan.protected_zones 为 stride-6：
+// [xmin,ymin,zmin,xmax,ymax,zmax]*N。零 ROS 依赖。
 #ifndef PEACH_MANIPULATION_SKILLS__PROTECTED_ZONES_HPP_
 #define PEACH_MANIPULATION_SKILLS__PROTECTED_ZONES_HPP_
 
@@ -53,19 +49,14 @@ struct ProtectedZone
   Eigen::Vector3d max{Eigen::Vector3d::Zero()};
 };
 
-// parseProtectedZones 输出：合法盒与逐条丢弃原因（调用方逐条 WARN，不炸节点）。
+// parseProtectedZones 输出：合法盒 + 丢弃原因（调用方 WARN，不炸节点）。
 struct ProtectedZoneParseResult
 {
   std::vector<ProtectedZone> zones;
   std::vector<std::string> issues;
 };
 
-// 解析 scan.protected_zones 扁平数组（stride-6）。
-// 失败语义（协议：告警并丢弃该盒，不炸节点）：
-//   - 长度非 6 倍数：末尾不完整残余组整体丢弃（记一条 issue），前面的完整
-//     盒照常解析——配置笔误不应拖垮全部保护区；
-//   - 单盒含非有限分量或任一轴 min>=max（空盒/退化盒/大小写反）：该盒丢弃，
-//     其余盒不受影响。
+// 解析 stride-6。长度非 6 倍数：完整盒保留，残余丢弃。单盒非有限或 min>=max：丢该盒。
 inline ProtectedZoneParseResult parseProtectedZones(const std::vector<double> & flat)
 {
   ProtectedZoneParseResult result;
@@ -94,8 +85,7 @@ inline ProtectedZoneParseResult parseProtectedZones(const std::vector<double> & 
   return result;
 }
 
-// 点是否落入任一保护盒（闭区间，含盒表面）；命中返回盒序号供原因文案使用。
-// 空保护区列表恒返回 nullopt（默认配置零开销快速路径）。
+// 闭区间含表面；空列表恒 nullopt。命中返回盒序号。
 inline std::optional<std::size_t> protectedZoneHit(
   const Eigen::Vector3d & point, const std::vector<ProtectedZone> & zones)
 {

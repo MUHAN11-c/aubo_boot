@@ -34,6 +34,7 @@ from peach_interfaces.msg import (
     BagFittingArray,
     BagGraspCandidate,
     BagGraspCandidateArray,
+    ShapeHypothesis,
 )
 from peach_target_reconstruction.cloud_builder import pack_rgb_bgr
 from peach_target_reconstruction.geometry_refiner import (
@@ -48,7 +49,7 @@ from peach_target_reconstruction.view_coverage import summarize_view_coverage
 from peach_target_reconstruction.visualization import (
     build_camera_markers,
     build_mesh_marker,
-    build_refined_marker,
+    build_refined_grasp_markers,
 )
 from sensor_msgs.msg import PointCloud2, PointField
 from sensor_msgs_py.point_cloud2 import create_cloud
@@ -166,15 +167,14 @@ class PublisherMixin:
             self.pub_tsdf_cloud.publish(
                 xyzrgb_to_cloud_msg(tsdf_xyz, tsdf_rgb, header))
         self._publish_status_trio(header)
-        # Marker 内容 = 相机轨迹（帧栈）+ refined 箭头 + mesh；后两者随
+        # Marker 内容 = 相机轨迹（帧栈）+ refined 抓取示意 + mesh
         # _products_version 覆盖（refit 写入/finalize 清理均递增）
         if throttle is None or throttle.should_publish(
                 'markers', (n_frames, last_stamp, self._products_version),
                 force=force):
             markers = build_camera_markers(header, self.collector.frames)
-            refined_arrow = build_refined_marker(header, self._refined)
-            if refined_arrow is not None:
-                markers.markers.append(refined_arrow)
+            markers.markers.extend(build_refined_grasp_markers(
+                header, self._refined, self.collector.target_id or ''))
             mesh_marker = build_mesh_marker(header, self._mesh_cache)
             if mesh_marker is not None:
                 markers.markers.append(mesh_marker)
@@ -184,6 +184,30 @@ class PublisherMixin:
         self.pub_refined_pose.publish(pose_arr)
         self.pub_refined_axis.publish(axis_msg)
         self.pub_refined_diag.publish(fit_arr)
+        self.pub_shape.publish(self._shape_hypothesis_msg(header))
+
+    def _shape_hypothesis_msg(self, header: Header) -> ShapeHypothesis:
+        """由 refit 缓存组形状假设（几何+协方差占位，不含工具抓取量）."""
+        msg = ShapeHypothesis()
+        msg.header = header
+        msg.target_id = self.collector.target_id or ''
+        result = self._refined
+        if result is None or not result.get('ok'):
+            return msg
+        bottom = result['bottom']
+        neck = result['neck']
+        center = 0.5 * (bottom + neck)
+        msg.center = Point(
+            x=float(center[0]), y=float(center[1]), z=float(center[2]))
+        msg.axis = Vector3(
+            x=float(result['axis'][0]),
+            y=float(result['axis'][1]),
+            z=float(result['axis'][2]))
+        msg.diameter_m = float(result['diameter'])
+        msg.length_m = float(result.get('span_m', 0.0))
+        msg.confidence = float(result.get('inlier_ratio', 0.0))
+        msg.model_kind = str(result.get('kind', ''))
+        return msg
 
     def _refined_messages(self, header: Header):
         """

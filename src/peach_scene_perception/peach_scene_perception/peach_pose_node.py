@@ -43,6 +43,7 @@ from peach_common_py.tf_utils import gravity_camera_from_R, transform_msg_to_mat
 from peach_interfaces.msg import (
     BagFittingArray,
     BagGraspCandidateArray,
+    HarvestState,
     PeachTargetObservation,
     PeachTargetObservationArray,
 )
@@ -57,11 +58,13 @@ from peach_scene_perception.conversions import (
 from peach_scene_perception.grasp_tf import _apply_T_to_grasp3d, _rotation_to_quat
 from peach_scene_perception.params import PeachPoseParams
 from peach_scene_perception.peach_pose import impls as _impls  # noqa: F401  注册清单
+from peach_scene_perception.peach_pose.anchor_memory import (
+    first_point, memory_grasp)
 from peach_scene_perception.peach_pose.candidates import (
     CandidateEstimator,
     dedup_overlapping_detections,
 )
-from peach_scene_perception.peach_pose.contracts import BagObservation, compute_entry_start
+from peach_scene_perception.peach_pose.contracts import BagObservation
 from peach_scene_perception.peach_pose.harvest_plan import GlobalHarvestPlan
 from peach_scene_perception.peach_pose.inference import InferenceEngine
 from peach_scene_perception.peach_pose.interfaces import (
@@ -92,7 +95,7 @@ from peach_scene_perception.timing import AdaptiveTimeout, RateEstimator
 from peach_scene_perception.visualization import _draw_debug, _to_markers
 import rclpy
 from rclpy.duration import Duration
-from rclpy.node import Node
+from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
 from rclpy.time import Time
 from sensor_msgs.msg import CameraInfo, Image, PointCloud2
 from std_msgs.msg import Header, String
@@ -112,12 +115,30 @@ _TRACKING_STATUS_TO_MSG = {
 }
 
 
-class PeachPoseNode(Node):
-    """RGB-D 同步回调驱动的感知节点：检测 → 分割 → 几何 → TF 变换 → 多话题发布."""
+@dataclasses.dataclass
+class SyncedRgbd:
+    """解码后的一帧 RGB-D 与 TF 查询结果."""
+
+    rgb: np.ndarray
+    depth: np.ndarray
+    K: dict
+    cam_frame: str
+    out_frame: str
+    geometry_stamp: object
+    img_header: Header
+    header: Header
+    T_out_cam: np.ndarray
+    tf_status: str
+    gravity_hint: np.ndarray
+
+
+class PeachPoseNode(LifecycleNode):
+    """RGB-D 感知 Lifecycle 节点：Active 后才处理帧并受理 BeginScene."""
 
     def __init__(self):
         """建节点：参数层装载 → 模型与管线 → 发布者、RGB-D 同步订阅与 TF 监听."""
         super().__init__('peach_scene_perception_node')
+        self._lifecycle_active = False
         self.bridge = CvBridge()
         # 参数层（params.py）：declare + 集中装载为 frozen dataclass；
         # 字段镜像回同名实例属性，保持本类下游引用零改动（启动期静态参数）
@@ -198,6 +219,8 @@ class PeachPoseNode(Node):
             lock_policy=lock_policy)
         self.harvest_data = HarvestDataStore()
         self.harvest_run_id = ''
+        self._executor_target_id = ''
+        self._executor_state_seen = False
         self._scene_epoch = 0
         # 阶段 D1：锁定集目标光照质量统计（观测指标，不打阻断旗标）；
         # OUT_OF_VIEW 分类用的「消失前最后检测框是否触图像边缘」记忆
@@ -250,6 +273,9 @@ class PeachPoseNode(Node):
             depth=1, durability=rclpy.qos.DurabilityPolicy.TRANSIENT_LOCAL)
         self.pub_harvest_state = self.create_publisher(
             String, '/peach/perception/harvest_state', state_qos)
+        self.create_subscription(
+            HarvestState, '/peach_task_executor/state',
+            self._on_executor_state, state_qos)
         self.create_service(
             Trigger, '~/query_harvest_state', self._on_query_harvest_state)
         self.create_service(BeginScene, '~/begin_scene', self._on_begin_scene)
@@ -295,6 +321,40 @@ class PeachPoseNode(Node):
         else:
             self.get_logger().info('目标身份记忆已禁用：target_id 为帧内序号')
 
+    def on_configure(self, state):
+        del state
+        return TransitionCallbackReturn.SUCCESS
+
+    def on_activate(self, state):
+        self._lifecycle_active = True
+        self.get_logger().info('perception Active：开始处理 RGB-D')
+        return super().on_activate(state)
+
+    def on_deactivate(self, state):
+        self._lifecycle_active = False
+        return super().on_deactivate(state)
+
+    def on_cleanup(self, state):
+        del state
+        self._lifecycle_active = False
+        return TransitionCallbackReturn.SUCCESS
+
+    def _on_executor_state(self, msg: HarvestState) -> None:
+        """执行器当前目标覆盖感知 selected；作业结束写入 completed_ids."""
+        new_id = str(msg.target_id or '')
+        with self._plan_lock:
+            self._executor_state_seen = True
+            old = self._executor_target_id
+            if old and old != new_id:
+                self.harvest_plan.mark_completed(old)
+            self._executor_target_id = new_id
+
+    def _effective_selected_id(self) -> str:
+        """批次当前目标；已见执行器状态时不回退收齐窗口 cursor."""
+        if self._executor_state_seen:
+            return self._executor_target_id
+        return self.harvest_plan.selected_target_id
+
     def _discovery_counts(self) -> Tuple[int, int]:
         """
         发现进度摘要 (collecting_count, pending_count)（缺陷 R-D8；须持锁调用）.
@@ -324,7 +384,7 @@ class PeachPoseNode(Node):
                 'target_ids': list(self.harvest_plan.locked_ids),
                 'completed_target_ids': sorted(self.harvest_plan.completed_ids),
                 'priorities': dict(self.harvest_plan.priorities),
-                'selected_target_id': self.harvest_plan.selected_target_id,
+                'selected_target_id': self._effective_selected_id(),
                 # 阶段 D1（协议 2.4）：锚点陈旧/出视野/已移除目标集（均为
                 # 纯增量键，下游只读消费）与光照质量观测指标
                 'anchor_stale_target_ids': sorted(
@@ -356,6 +416,11 @@ class PeachPoseNode(Node):
 
     def _on_begin_scene(self, request, response):
         """BeginScene：新 scene_epoch，清空身份表并重置收齐窗口."""
+        if not self._lifecycle_active:
+            response.accepted = False
+            response.scene_epoch = self._scene_epoch
+            response.message = 'perception not Active'
+            return response
         with self._plan_lock:
             self._scene_epoch += 1
             old_run = self.harvest_run_id
@@ -488,7 +553,7 @@ class PeachPoseNode(Node):
             array.harvest_run_id = self.harvest_run_id
             array.target_set_locked = self.harvest_plan.locked
             array.target_count = self.harvest_plan.target_count
-            array.selected_target_id = self.harvest_plan.selected_target_id
+            array.selected_target_id = self._effective_selected_id()
             # R-D8 发现进度摘要：锁定前 observations 恒空，下游经本两字段
             # 跟踪收齐进度；锁定后=锁定集大小/0（语义见 msg 注释）
             array.collecting_count, array.pending_count = (
@@ -501,8 +566,12 @@ class PeachPoseNode(Node):
                 item.target_id = target_id
                 item.priority = self.harvest_plan.priority(target_id)
                 item.confirmed = True
-                item.selected = target_id == self.harvest_plan.selected_target_id
-                item.harvest_status = self.harvest_plan.harvest_status(target_id)
+                item.selected = target_id == array.selected_target_id
+                item.harvest_status = self.harvest_plan.harvest_status(
+                    target_id,
+                    executor_id=(
+                        self._executor_target_id if self._executor_state_seen
+                        else None))
                 payload = payloads.get(target_id)
                 record = current.get(target_id, {})
                 # 跟踪状态四分类（阶段 D1，协议 2.4 第 4 条）：分类纯函数
@@ -555,70 +624,49 @@ class PeachPoseNode(Node):
                 if (target_id in self.harvest_plan.anchor_stale_ids
                         and 'anchor_stale' not in item.diagnostic_flags):
                     item.diagnostic_flags.append('anchor_stale')
-                # 几何退化统一兜底（LOST 无 payload，或观测帧深度失败导致
-                # bag_bottom/neck 近零）：回填注册表记忆锚点——世界系身份记忆
-                # 的本职用途；带 anchor_from_memory 标记，能力端不把它当新鲜
-                # 观测（不刷新新鲜度），但锚点可派发/可规划
-                _b = item.candidate.bag_bottom
-                _n = item.candidate.bag_neck
-                _degenerate = (
-                    abs(_b.x) < 1e-6 and abs(_b.y) < 1e-6 and abs(_b.z) < 1e-6) or (
-                    abs(_n.x) < 1e-6 and abs(_n.y) < 1e-6 and abs(_n.z) < 1e-6)
-                if _degenerate:
-                    entry = (self.target_registry.get(target_id)
-                             if self.target_registry is not None else None)
-                    if entry is not None and entry.get('position') is not None:
-                        center = np.asarray(entry['position'], dtype=np.float64)
-                        axis = entry.get('axis')
-                        axis = (np.array([0.0, 0.0, 1.0]) if axis is None
-                                else np.asarray(axis, dtype=np.float64))
-                        half = 0.5 * float(entry.get('diameter') or 0.06)
-                        bottom = center - axis * half
-                        neck = center + axis * half
-                        item.candidate.target_id = target_id
-                        item.candidate.bag_bottom.x = float(bottom[0])
-                        item.candidate.bag_bottom.y = float(bottom[1])
-                        item.candidate.bag_bottom.z = float(bottom[2])
-                        item.candidate.bag_neck.x = float(neck[0])
-                        item.candidate.bag_neck.y = float(neck[1])
-                        item.candidate.bag_neck.z = float(neck[2])
-                        item.candidate.translation_direction.x = float(axis[0])
-                        item.candidate.translation_direction.y = float(axis[1])
-                        item.candidate.translation_direction.z = float(axis[2])
-                        # entry_pose 一并回填（下游契约要求完整入口位姿）：位置用
-                        # contracts 纯函数 compute_entry_start（standoff 与管线
-                        # 一致 = entry_d_tool + entry_d_s）；姿态由袋轴构造右手
-                        # 抓取系 R=[Xg,Yg,Zg]（无点云可用，取 pipeline._frame
-                        # 退化分支同法的参考轴叉积）
-                        axis_norm = float(np.linalg.norm(axis))
-                        zg = (axis / axis_norm if axis_norm > 1e-9
-                              else np.array([0.0, 0.0, 1.0]))
-                        standoff = self.tool.entry_d_tool + self.tool.entry_d_s
-                        entry_start = compute_entry_start(bottom, zg, standoff)
-                        item.candidate.entry_pose.position.x = float(entry_start[0])
-                        item.candidate.entry_pose.position.y = float(entry_start[1])
-                        item.candidate.entry_pose.position.z = float(entry_start[2])
-                        ref = (np.array([1.0, 0.0, 0.0]) if abs(zg[0]) < 0.9
-                               else np.array([0.0, 0.0, 1.0]))
-                        xg = np.cross(zg, ref)
-                        xg /= np.linalg.norm(xg)
-                        if xg[0] < 0:
-                            xg = -xg
-                        yg = np.cross(zg, xg)
-                        frame = np.column_stack((xg, yg, zg))
-                        item.candidate.entry_pose.orientation = (
-                            _rotation_to_quat(frame))
-                        item.candidate.status = item.candidate.REOBSERVE
-                        item.diagnostic_flags.append('anchor_from_memory')
+                # 几何退化：用身份表记忆锚点回填（能力端见 anchor_from_memory）
+                if self._degenerate_candidate(item.candidate):
+                    self._fill_memory_anchor(item, target_id)
                 array.observations.append(item)
             self.pub_target_observations.publish(array)
             if self.harvest_plan.locked:
                 self.harvest_data.append_event({
                     'source': 'perception', 'event': 'frame_observations',
                     'stamp_ns': stamp_ns, 'observed_target_ids': observed_ids,
-                    'selected_target_id': self.harvest_plan.selected_target_id,
+                    'selected_target_id': self._effective_selected_id(),
                 })
             self._publish_harvest_state()
+
+    @staticmethod
+    def _degenerate_candidate(candidate) -> bool:
+        """袋底或袋颈近原点，视为本帧几何失败."""
+        bottom, neck = candidate.bag_bottom, candidate.bag_neck
+        origin = (abs(bottom.x) < 1e-6 and abs(bottom.y) < 1e-6
+                  and abs(bottom.z) < 1e-6)
+        neck_origin = (abs(neck.x) < 1e-6 and abs(neck.y) < 1e-6
+                       and abs(neck.z) < 1e-6)
+        return origin or neck_origin
+
+    def _fill_memory_anchor(self, item, target_id: str) -> None:
+        """用身份表记忆回填 candidate，并打 anchor_from_memory."""
+        entry = (None if self.target_registry is None
+                 else self.target_registry.get(target_id))
+        standoff = self.tool.entry_d_tool + self.tool.entry_d_s
+        grasp = memory_grasp(entry, standoff)
+        if grasp is None:
+            return
+        cand = item.candidate
+        cand.target_id = target_id
+        for dest, src in (
+                (cand.bag_bottom, grasp.bottom),
+                (cand.bag_neck, grasp.neck),
+                (cand.translation_direction, grasp.axis),
+                (cand.entry_pose.position, grasp.entry_start)):
+            dest.x, dest.y, dest.z = (float(src[0]), float(src[1]),
+                                      float(src[2]))
+        cand.entry_pose.orientation = _rotation_to_quat(grasp.rotation)
+        cand.status = cand.REOBSERVE
+        item.diagnostic_flags.append('anchor_from_memory')
 
     def _lookup_T_out_cam(self, cam_frame: str,
                           stamp) -> Tuple[Optional[np.ndarray], str]:
@@ -695,6 +743,9 @@ class PeachPoseNode(Node):
                 for target_id in self.harvest_plan.locked_ids:
                     if target_id in self.harvest_plan.completed_ids:
                         continue
+                    if (self._executor_target_id
+                            and target_id != self._executor_target_id):
+                        continue
                     entry = self.target_registry.get(target_id)
                     if entry is not None and entry.get('position') is not None:
                         positions[target_id] = np.asarray(
@@ -706,32 +757,13 @@ class PeachPoseNode(Node):
 
     def _on_rgbd(self, rgb_msg: Image, depth_msg: Image, info: CameraInfo):
         """将最新同步帧交给容量一推理 worker."""
+        if not self._lifecycle_active:
+            return
         if not self._frame_worker.submit((rgb_msg, depth_msg, info)):
             self.get_logger().warning('感知 worker 已停止，丢弃 RGB-D 帧')
 
-    def _process_rgbd(self, frame):
-        """
-        同步回调 (ApproximateTimeSynchronizer)：一帧 RGB-D → 全套感知输出.
-
-        Args:
-            rgb_msg: 彩色图（bgr8）.
-            depth_msg: 深度图（uint16 原始值或 32FC1 米制；回调内经
-                normalize_depth_to_uint16_mm 统一为 uint16 毫米）.
-            info: 彩色相机内参（须与深度图同分辨率）.
-
-        Returns
-        -------
-            无返回值（None）；感知结果经各发布者发出.
-
-        """
-        rgb_msg, depth_msg, info = frame
-        # 推理耗时分项埋点（协议 I3：唯一时钟源为注入的节点时钟，禁止
-        # time.time/perf_counter 第二时钟）；早退帧（转换失败/检测异常等）
-        # 不记录，只统计完整走完管线的帧
-        t_total_start = self._clock.now()
-        self.get_logger().debug(
-            f'RGB-D sync frame {rgb_msg.width}x{rgb_msg.height}')
-        # RGB/深度时间戳偏差：DEBUG 每帧记录；接近同步允差时 WARN 节流提示
+    def _decode_rgbd(self, rgb_msg, depth_msg, info) -> Optional[SyncedRgbd]:
+        """解码、对齐尺寸、查 TF；失败返回 None（已打日志）."""
         dt_ms = (Time.from_msg(rgb_msg.header.stamp).nanoseconds
                  - Time.from_msg(depth_msg.header.stamp).nanoseconds) / 1e6
         self.get_logger().debug(f'RGB-D 时间戳偏差 {dt_ms:+.1f} ms')
@@ -744,31 +776,26 @@ class PeachPoseNode(Node):
             rgb = self.bridge.imgmsg_to_cv2(rgb_msg, desired_encoding='bgr8')
         except Exception as exc:  # noqa: BLE001
             self.get_logger().warning(f'RGB convert failed: {exc}')
-            return
+            return None
         try:
             depth_raw = self.bridge.imgmsg_to_cv2(
                 depth_msg, desired_encoding='passthrough')
+            depth = normalize_depth_to_uint16_mm(
+                depth_raw, self.depth_scale_unit)
         except Exception as exc:  # noqa: BLE001
             self.get_logger().warning(f'Depth convert failed: {exc}')
-            return
-        # uint16：raw × depth_scale_unit = 毫米；32FC1：米 ×1000 = 毫米
-        try:
-            depth = normalize_depth_to_uint16_mm(depth_raw, self.depth_scale_unit)
-        except ValueError as exc:
-            self.get_logger().warning(f'Depth convert failed: {exc}')
-            return
+            return None
         if rgb.shape[:2] != depth.shape[:2]:
             self.get_logger().warning(
                 f'RGB/depth size mismatch {rgb.shape[:2]} vs {depth.shape[:2]}')
-            return
+            return None
         if info.width and info.height and (
-                int(info.width) != depth.shape[1] or int(info.height) != depth.shape[0]):
+                int(info.width) != depth.shape[1]
+                or int(info.height) != depth.shape[0]):
             self.get_logger().warning(
                 f'CameraInfo size {info.width}x{info.height} != depth '
                 f'{depth.shape[1]}x{depth.shape[0]}')
-            return
-
-        # 内参：始终用本机 CameraInfo（勿回退 FOV 推导，避免与标定不一致）
+            return None
         K = {
             'fx': float(info.k[0]), 'fy': float(info.k[4]),
             'cx': float(info.k[2]), 'cy': float(info.k[5]),
@@ -780,26 +807,18 @@ class PeachPoseNode(Node):
                 f'cx={K["cx"]:.3f} cy={K["cy"]:.3f} '
                 f'{K["width"]}x{K["height"]}')
             self._logged_K = True
-        # 几何在相机光心系求解，再按需变到 output_frame
         cam_frame = (
             self.camera_optical_frame
             or depth_msg.header.frame_id
             or rgb_msg.header.frame_id
             or info.header.frame_id)
         out_frame = self.output_frame or cam_frame
-        # 三维几何来自深度图，TF 与 3D 输出头必须使用 depth.header.stamp。
-        # ApproximateTimeSynchronizer 只保证三路时间差落在 slop 内；连续运动时若
-        # 错用 RGB 时间戳，几十毫秒偏差也会把目标中心变换到错误的 base 位姿。
         geometry_stamp = depth_msg.header.stamp
         T_out_cam, tf_status = self._lookup_T_out_cam(
             cam_frame, geometry_stamp)
         if T_out_cam is None and self.output_frame:
-            # TF 失败则退回相机系，避免静默用错坐标系
             out_frame = cam_frame
             T_out_cam = np.eye(4)
-
-        # 重力方向：fixed 用参数提示；tf 模式由本帧 TF 旋转反推相机系重力
-        # （TF 不可用的帧回退 gravity_hint_xyz，结果带 tf_unavailable 标记）
         gravity_hint = self.gravity_hint
         if self.gravity_mode == 'tf':
             if self.output_frame and tf_status != 'unavailable':
@@ -809,15 +828,31 @@ class PeachPoseNode(Node):
                     'gravity_mode=tf 但 TF 不可用或未设 output_frame，'
                     '本帧回退 gravity_hint_xyz',
                     throttle_duration_sec=1.0)
+        header = Header(stamp=geometry_stamp, frame_id=out_frame)
+        img_header = Header(
+            stamp=rgb_msg.header.stamp, frame_id=rgb_msg.header.frame_id)
+        return SyncedRgbd(
+            rgb=rgb, depth=depth, K=K, cam_frame=cam_frame,
+            out_frame=out_frame, geometry_stamp=geometry_stamp,
+            img_header=img_header, header=header,
+            T_out_cam=T_out_cam, tf_status=tf_status,
+            gravity_hint=gravity_hint)
 
-        header = Header()
-        header.stamp = geometry_stamp
-        header.frame_id = out_frame
-        # 图像平面数据（检测框/掩膜/debug 图）的 frame_id 用 RGB 图自身坐标系；
-        # 3D 结果（候选/拟合/Marker/检测点云）仍用输出系
-        img_header = Header()
-        img_header.stamp = rgb_msg.header.stamp
-        img_header.frame_id = rgb_msg.header.frame_id
+    def _process_rgbd(self, frame):
+        """一帧 RGB-D → 检测 / 分割 / 几何 / 观测发布."""
+        rgb_msg, depth_msg, info = frame
+        t_total_start = self._clock.now()
+        self.get_logger().debug(
+            f'RGB-D sync frame {rgb_msg.width}x{rgb_msg.height}')
+        synced = self._decode_rgbd(rgb_msg, depth_msg, info)
+        if synced is None:
+            return
+        rgb, depth, K = synced.rgb, synced.depth, synced.K
+        cam_frame, out_frame = synced.cam_frame, synced.out_frame
+        geometry_stamp = synced.geometry_stamp
+        img_header, header = synced.img_header, synced.header
+        T_out_cam, tf_status = synced.T_out_cam, synced.tf_status
+        gravity_hint = synced.gravity_hint
 
         # ---- 检测 ----
         # YOLO 异常（权重缺失/CUDA 错误等）不得炸穿 worker：记日志跳过本帧，
@@ -947,13 +982,11 @@ class PeachPoseNode(Node):
                 flag = 'tf_stale' if tf_status == 'stale' else 'tf_unavailable'
                 if flag not in result.grasp_3d.diagnostic_flags:
                     result.grasp_3d.diagnostic_flags.append(flag)
-            camera_anchor = result.grasp_3d.points_centroid
-            if camera_anchor is None:
-                camera_anchor = result.grasp_3d.bag_bottom
-            if camera_anchor is None:
-                camera_anchor = result.grasp_3d.position
-            if camera_anchor is None:
-                camera_anchor = result.grasp_3d.entry_start
+            camera_anchor = first_point(
+                result.grasp_3d.points_centroid,
+                result.grasp_3d.bag_bottom,
+                result.grasp_3d.position,
+                result.grasp_3d.entry_start)
             camera_distance_m = (
                 0.0 if camera_anchor is None
                 else float(np.linalg.norm(camera_anchor)))
@@ -967,20 +1000,15 @@ class PeachPoseNode(Node):
             })
 
         # 整帧一次匈牙利分配，避免逐检测贪心交叉误绑
-        assigned_ids = [(f'target_{p["i"]}', False) for p in pending]
+        assigned_ids = [(f'untracked_{p["i"]}', False) for p in pending]
         if self.target_registry is not None and track_this_frame:
             assign_items = []
             for p in pending:
                 g3d = p['result'].grasp_3d
-                anchor = g3d.points_centroid
-                if anchor is None:
-                    anchor = g3d.bag_bottom
-                if anchor is None:
-                    anchor = g3d.position
-                if anchor is None:
-                    anchor = g3d.entry_start
                 assign_items.append({
-                    'position': anchor,
+                    'position': first_point(
+                        g3d.points_centroid, g3d.bag_bottom,
+                        g3d.position, g3d.entry_start),
                     'class_id': int(p['det'].get('class_id', 0)),
                     'axis': g3d.translation_direction,
                     'diameter': float(g3d.bag_diameter_upper_m or 0.0),
@@ -1017,26 +1045,24 @@ class PeachPoseNode(Node):
                 tool_version=self.tool.version)
             candidate_2d_msg = _to_candidate_2d(header, tid, g2d)
             fitting_msg = _to_fitting(header, tid, result)
-            cand_arr.candidates.append(candidate_msg)
-            fit_arr.fittings.append(fitting_msg)
             registry_item = (
                 None if self.target_registry is None
                 else self.target_registry.get(tid))
             confirmed = (
                 True if self.target_registry is None
                 else bool(registry_item and registry_item['confirmed']))
+            if str(tid).startswith(('untracked_', 'ambiguous_')):
+                confirmed = False
             # 果实高度（output_frame 系 Z，供全局计划「先低后高」排序）：
             # 取袋底 bag_bottom——果实最低点最贴近「高度」语义；几何缺失时
             # 按锚点链回退，全 None 则不写该键（排序键按 inf 兜底）。
             # 此处 grasp_3d 已经 _apply_T_to_grasp3d 变到 out_frame；
             # output_frame 为世界系（默认 base_link）时 Z 才是真实高度
-            base_anchor = result.grasp_3d.bag_bottom
-            if base_anchor is None:
-                base_anchor = result.grasp_3d.points_centroid
-            if base_anchor is None:
-                base_anchor = result.grasp_3d.position
-            if base_anchor is None:
-                base_anchor = result.grasp_3d.entry_start
+            base_anchor = first_point(
+                result.grasp_3d.bag_bottom,
+                result.grasp_3d.points_centroid,
+                result.grasp_3d.position,
+                result.grasp_3d.entry_start)
             record = {
                 'target_id': tid, 'status': int(candidate_msg.status),
                 'confidence': float(candidate_msg.confidence),
@@ -1047,28 +1073,29 @@ class PeachPoseNode(Node):
             if base_anchor is not None:
                 record['base_height_m'] = float(base_anchor[2])
             harvest_records.append(record)
-            # 掩膜内有效深度占比（阶段 D1：光照质量指标 + DEPTH_VOID
-            # 分类共用）；无掩膜记 0.0（不会被采信——无掩膜帧不入统计）
-            mask_depth_ratio = 0.0
-            if sam_mask is not None:
-                sam_foreground = np.asarray(sam_mask) > 0
-                n_foreground = int(np.count_nonzero(sam_foreground))
-                if n_foreground > 0:
-                    mask_depth_ratio = float(
-                        np.count_nonzero(sam_foreground & valid_depth_full)
-                        / n_foreground)
-            harvest_payloads[tid] = {
-                'candidate': candidate_msg,
-                'candidate_2d': candidate_2d_msg,
-                'fitting': fitting_msg,
-                'mask': sam_mask,
-                'mask_depth_ratio': mask_depth_ratio,
-            }
-            markers.markers.extend(_to_markers(
-                header, tid, i, result,
-                tool_d_inner=float(self.tool.D_inner)))
+            if confirmed:
+                mask_depth_ratio = 0.0
+                if sam_mask is not None:
+                    sam_foreground = np.asarray(sam_mask) > 0
+                    n_foreground = int(np.count_nonzero(sam_foreground))
+                    if n_foreground > 0:
+                        mask_depth_ratio = float(
+                            np.count_nonzero(sam_foreground & valid_depth_full)
+                            / n_foreground)
+                harvest_payloads[tid] = {
+                    'candidate': candidate_msg,
+                    'candidate_2d': candidate_2d_msg,
+                    'fitting': fitting_msg,
+                    'mask': sam_mask,
+                    'mask_depth_ratio': mask_depth_ratio,
+                }
+                cand_arr.candidates.append(candidate_msg)
+                fit_arr.fittings.append(fitting_msg)
+                markers.markers.extend(_to_markers(
+                    header, tid, i, result,
+                    tool_d_inner=float(self.tool.D_inner)))
             if debug is not None:
-                _draw_debug(debug, det, g2d, sam_mask, tid)
+                _draw_debug(debug, det, g2d, sam_mask, tid, confirmed=confirmed)
 
         self._timing.record(
             'geometry_ms', (self._clock.now() - t_geometry_start) * 1e3)

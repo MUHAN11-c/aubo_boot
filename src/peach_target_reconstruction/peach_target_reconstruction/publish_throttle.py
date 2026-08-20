@@ -1,4 +1,5 @@
-"""发布节流（协议 2.13-E4）：on-change + 最小间隔（纯核零 ROS，注入时钟）.
+"""
+发布节流（协议 2.13-E4）：on-change + 最小间隔（纯核零 ROS，注入时钟）.
 
 职责:
   点云/Marker 类大消息（/peach/reconstruction/local_cloud、tsdf_cloud、
@@ -28,7 +29,8 @@ from typing import Callable, Dict, Hashable, Optional
 
 
 class PublishThrottle:
-    """on-change + 最小间隔发布节流器（按话题独立记账）.
+    """
+    on-change + 最小间隔发布节流器（按话题独立记账）.
 
     生命周期：随节点构造创建、全程复用；min_interval_s<=0 时间隔门失效
     （只留 on-change），on-change 本身的总开关（publish.on_change_only）
@@ -37,17 +39,7 @@ class PublishThrottle:
 
     def __init__(self, min_interval_s: float = 0.2,
                  now: Optional[Callable] = None):
-        """
-        保存最小间隔与注入时钟（协议 I3）.
-
-        Args:
-            min_interval_s: 同一话题两次实际发布的最小间隔 [s]；<=0 关闭
-                间隔门（key 变化即放行）.
-            now: 单调时钟（返回 float 秒，协议 I3 由编排层注入，如
-                RclpyClockAdapter.now）；None 回退 time.perf_counter
-                （纯核自包含缺省，单测可注入假时钟）.
-
-        """
+        """保存最小间隔与注入时钟；now 为单调秒，None 则用 time.perf_counter."""
         self._min_interval = max(0.0, float(min_interval_s))
         self._now = now if now is not None else time.perf_counter
         # 每话题最近一次「实际发布」的版本 key 与时刻；未发布过无记录
@@ -56,9 +48,11 @@ class PublishThrottle:
 
     def should_publish(self, topic: str, key: Hashable,
                        force: bool = False) -> bool:
-        """判定本次是否真正发布.
+        """
+        判定本次是否真正发布.
 
         Args:
+        ----
             topic: 话题标识（记账键，用固定字符串如 'local_cloud'）.
             key: 内容版本 key（可哈希；内容未变须相等，变了须不等——由
                 调用方用帧数/版本号等廉价标量组元组，不做内容哈希）.

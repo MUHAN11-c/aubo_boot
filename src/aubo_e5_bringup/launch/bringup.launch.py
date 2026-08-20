@@ -34,7 +34,7 @@
 #         （ros2_control 回归链路）
 #   sim ：aubo_e5_hardware/AuboE5SimHardware + passthrough 控制器
 #         （无真机全链路闭环模拟，开发验证首选）
-#   real：aubo_e5_hardware/AuboE5Hardware + passthrough 控制器 + dashboard（真机）
+#   real：aubo_e5_hardware/AuboE5Hardware + passthrough 控制器（真机；不起 dashboard）
 #
 # 文件分两段：
 #   1) launch_nodes()      —— OpaqueFunction 回调。launch 参数在声明阶段只有
@@ -134,14 +134,8 @@ def launch_nodes(context):
                             '--controller-manager-timeout', '10'],
                  output='screen'),
         ]
-        if mode == 'real':
-            # 真机才有 dashboard：上电/断电/停止/FK/IK/负载等非运动类服务。
-            # 与 SDK 的第二条连接（conn_status_），同样需要 SDK 配置目录作 CWD，
-            # 这里用的是 aubo_dashboard 自己的 share 目录（也装了 SDK config）。
-            nodes.append(Node(
-                package='aubo_dashboard', executable='aubo_dashboard_node',
-                parameters=[{'robot_ip': robot_ip}],
-                cwd=get_package_share_directory('aubo_dashboard'), output='screen'))
+        # 不起 aubo_dashboard：柜侧用示教器，规划用 MoveIt，停轨由透传取消
+        # → 硬件 write() abort → ioLoop RobotMoveStop（不依赖 dashboard）。
 
     # MoveIt 由 aubo_e5_moveit_config 的唯一 launch（moveit.launch.py，整体启动
     # move_group + rviz2）提供；本文件只按模式选控制器映射并集成导入：mock 走

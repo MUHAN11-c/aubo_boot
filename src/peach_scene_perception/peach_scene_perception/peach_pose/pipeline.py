@@ -16,16 +16,31 @@ from typing import Optional, Tuple
 
 import cv2
 import numpy as np
+from peach_common_py.fitting import (
+    estimate_normals, fit_cylinder_robust, fit_sphere_robust, polish_sphere_lm,
+)
 
 from .assignment import estimate_pose_covariance
 from .contracts import (
     BagGrasp2D, BagGraspReference3D, BagObservation, compute_entry_start,
     compute_travel_range, TOOL_GEOMETRY, ToolGeometry,
 )
-from .fitting import (
-    estimate_normals, fit_cylinder_robust, fit_sphere_robust, polish_sphere_lm,
-)
 from .interfaces import PosePipeline
+
+
+def grasp_frame_from_axis(axis) -> np.ndarray:
+    """右手抓取系 R=[Xg,Yg,Zg]，无点云时由袋轴与参考轴叉积得到."""
+    zg = np.asarray(axis, dtype=np.float64)
+    norm = float(np.linalg.norm(zg))
+    zg = zg / norm if norm > 1e-9 else np.array([0.0, 0.0, 1.0])
+    ref = (np.array([1.0, 0.0, 0.0]) if abs(zg[0]) < 0.9
+           else np.array([0.0, 0.0, 1.0]))
+    xg = np.cross(zg, ref)
+    xg /= np.linalg.norm(xg)
+    if xg[0] < 0:
+        xg = -xg
+    yg = np.cross(zg, xg)
+    return np.column_stack((xg, yg, zg))
 
 
 @dataclass
@@ -456,33 +471,18 @@ class RobustBagPosePipeline(PosePipeline):
 
     @staticmethod
     def _frame(axis, points):
-        """
-        由袋轴构造右手抓取系 R = [Xg, Yg, Zg]（Zg=axis）.
-
-        Xg 取点云 ⊥axis 平面内的最大方差方向（符号定成 x≥0 去二义），
-        退化时取 axis 与参考轴的叉积。
-
-        Args:
-            axis: (3,) 单位袋轴（底→颈）.
-            points: (N, 3) 前景点（米），用于定 Xg.
-
-        Returns
-        -------
-            (3, 3) 旋转矩阵，列为 Xg/Yg/Zg.
-
-        """
+        """由袋轴构造右手抓取系 R = [Xg, Yg, Zg]（Zg=axis）."""
         centred = points - points.mean(axis=0)
         _, vec = np.linalg.eigh(centred.T @ centred / max(len(points), 1))
         x = vec[:, -1] - np.dot(vec[:, -1], axis) * axis
-        if np.linalg.norm(x) < 1e-8:
-            ref = np.array([1., 0., 0.]) if abs(axis[0]) < .9 else np.array([0., 0., 1.])
-            x = np.cross(axis, ref)
-        x /= np.linalg.norm(x)
-        if x[0] < 0:
-            x = -x
-        y = np.cross(axis, x)
-        y /= np.linalg.norm(y)
-        return np.column_stack((x, y, axis))
+        if np.linalg.norm(x) >= 1e-8:
+            x /= np.linalg.norm(x)
+            if x[0] < 0:
+                x = -x
+            y = np.cross(axis, x)
+            y /= np.linalg.norm(y)
+            return np.column_stack((x, y, axis))
+        return grasp_frame_from_axis(axis)
 
     @staticmethod
     def _mask_axis_disagreement(mask: np.ndarray, bottom_px: tuple,

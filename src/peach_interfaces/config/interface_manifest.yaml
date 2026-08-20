@@ -1,0 +1,115 @@
+# peach 跨包契约清单（单一真源，对齐 Autoware component_interface_specs 思路）
+# 名称 / 类型 / QoS / 生产与消费方。脚本 scripts/check_interface_manifest.py 核对源码字面量。
+version: 1
+interfaces:
+  - name: /peach_task_executor/state
+    kind: topic
+    type: peach_interfaces/msg/HarvestState
+    qos: {reliability: reliable, durability: transient_local, depth: 1}
+    producers: [peach_task_executor]
+    consumers: [peach_observability, peach_scene_perception, peach_target_reconstruction]
+  - name: /peach_task_executor/events
+    kind: topic
+    type: peach_interfaces/msg/CanonicalEvent
+    qos: {reliability: reliable, durability: transient_local, depth: 50}
+    producers: [peach_task_executor]
+    consumers: [peach_observability]
+  - name: /peach_task_executor/scene_snapshot
+    kind: topic
+    type: peach_interfaces/msg/SceneSnapshot
+    qos: {reliability: reliable, durability: transient_local, depth: 1}
+    producers: [peach_task_executor]
+    consumers: [peach_observability]
+  - name: /peach_task_executor/run_harvest
+    kind: action
+    type: peach_interfaces/action/RunHarvest
+    producers: [peach_task_executor]
+    consumers: []
+  - name: /peach_task_executor/control
+    kind: service
+    type: peach_interfaces/srv/ControlTask
+    producers: [peach_task_executor]
+    consumers: [peach_observability]
+  - name: /peach/perception/target_observations
+    kind: topic
+    type: peach_interfaces/msg/PeachTargetObservationArray
+    qos: {reliability: reliable, durability: volatile, depth: 10}
+    producers: [peach_scene_perception]
+    consumers: [peach_task_executor, peach_target_reconstruction, peach_manipulation_skills, peach_observability]
+  - name: /peach/perception/initial_pose
+    kind: topic
+    type: peach_interfaces/msg/BagGraspCandidateArray
+    producers: [peach_scene_perception]
+    consumers: [peach_target_reconstruction, peach_observability]
+  - name: /peach/perception/diagnostics
+    kind: topic
+    type: peach_interfaces/msg/BagFittingArray
+    producers: [peach_scene_perception]
+    consumers: [peach_target_reconstruction, peach_observability]
+  - name: /peach/reconstruction/diagnostics
+    kind: topic
+    type: peach_interfaces/msg/ReconstructionStatus
+    qos: {reliability: reliable, durability: transient_local, depth: 1}
+    producers: [peach_target_reconstruction]
+    consumers: [peach_manipulation_skills, peach_observability]
+  - name: /peach/reconstruction/grasp_decision
+    kind: topic
+    type: peach_interfaces/msg/GraspDecision
+    qos: {reliability: reliable, durability: transient_local, depth: 1}
+    producers: [peach_target_reconstruction]
+    consumers: [peach_manipulation_skills, peach_observability]
+  - name: /peach/reconstruction/refined_pose
+    kind: topic
+    type: peach_interfaces/msg/BagGraspCandidateArray
+    qos: {reliability: reliable, durability: transient_local, depth: 1}
+    producers: [peach_target_reconstruction]
+    consumers: [peach_manipulation_skills, peach_observability]
+  - name: /peach/reconstruction/refined_diagnostics
+    kind: topic
+    type: peach_interfaces/msg/BagFittingArray
+    qos: {reliability: reliable, durability: transient_local, depth: 1}
+    producers: [peach_target_reconstruction]
+    consumers: [peach_manipulation_skills]
+  - name: /peach/manipulation/grasp_hypothesis
+    kind: topic
+    type: peach_interfaces/msg/GraspHypothesis
+    qos: {reliability: reliable, durability: transient_local, depth: 1}
+    producers: [peach_manipulation_skills]
+    consumers: [peach_observability]
+  - name: /peach_scene_perception_node/begin_scene
+    kind: service
+    type: peach_interfaces/srv/BeginScene
+    producers: [peach_scene_perception]
+    consumers: [peach_task_executor]
+  - name: /peach_manipulation_skills_node/survey_scene
+    kind: action
+    type: peach_interfaces/action/SurveyScene
+    producers: [peach_manipulation_skills]
+    consumers: [peach_task_executor]
+  - name: /peach_manipulation_skills_node/execute_target
+    kind: action
+    type: peach_interfaces/action/ExecuteTarget
+    producers: [peach_manipulation_skills]
+    consumers: [peach_task_executor]
+  - name: /peach/reconstruction/shape_hypothesis
+    kind: topic
+    type: peach_interfaces/msg/ShapeHypothesis
+    qos: {reliability: reliable, durability: transient_local, depth: 1}
+    producers: [peach_target_reconstruction]
+    consumers: [peach_observability]
+  - name: /peach_manipulation_skills_node/acknowledge_recovery
+    kind: service
+    type: std_srvs/srv/Trigger
+    producers: [peach_manipulation_skills]
+    consumers: [peach_task_executor]
+  - name: /peach/lifecycle/managed_nodes_activated
+    kind: topic
+    type: std_msgs/msg/Bool
+    qos: {reliability: reliable, durability: transient_local, depth: 1}
+    producers: [peach_task_executor]
+    consumers: [peach_task_executor]
+  - name: /peach_target_reconstruction_node/build_target_model
+    kind: action
+    type: peach_interfaces/action/BuildTargetModel
+    producers: [peach_target_reconstruction]
+    consumers: [peach_task_executor]

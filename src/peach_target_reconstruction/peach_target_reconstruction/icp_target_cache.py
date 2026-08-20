@@ -1,4 +1,5 @@
-"""ICP target 增量复用缓存（协议 2.13-E4，纯核零 ROS）.
+"""
+ICP target 增量复用缓存（协议 2.13-E4，纯核零 ROS）.
 
 职责:
   帧到模型 ICP 的 target 不再每帧从 TSDF 全量 extract（extract_point_cloud
@@ -45,7 +46,8 @@ _STABLE_RATIO = 0.25
 
 @dataclass(frozen=True)
 class IcpTargetRefreshConfig:
-    """ICP target 全量刷新周期自适应配置（长度单位 [m]，周期单位 [帧]）.
+    """
+    ICP target 全量刷新周期自适应配置（长度单位 [m]，周期单位 [帧]）.
 
     min_period/max_period/drift_ratio 来自 ROS 参数
     icp.target_refresh_min_period/max_period/drift_ratio；
@@ -63,7 +65,8 @@ class IcpTargetRefreshConfig:
 
 
 class IcpTargetCache:
-    """ICP target 增量复用缓存：全量基线 + 逐帧增量拼接 + 自适应周期 k.
+    """
+    ICP target 增量复用缓存：全量基线 + 逐帧增量拼接 + 自适应周期 k.
 
     生命周期：随节点构造创建、跨会话复用；会话开始/绑定切换/reset/
     remove_last 重放/finalize 清理等关键事件由编排层调 invalidate()
@@ -87,7 +90,8 @@ class IcpTargetCache:
         self.invalidate()
 
     def invalidate(self) -> None:
-        """关键事件复位：弃缓存、清零计数、自适应状态回保守初值.
+        """
+        关键事件复位：弃缓存、清零计数、自适应状态回保守初值.
 
         调用后 should_refresh() 恒 True（target 为空），下一次成功采帧
         必走全量 extract；修正量 EMA 与周期一并复位——新会话/新模型的
@@ -118,7 +122,8 @@ class IcpTargetCache:
                 or self._frames_since_refresh >= self._period)
 
     def set_full(self, xyz: np.ndarray) -> None:
-        """以全量 extract 结果重置基线（由 _refresh_tsdf_outputs 单点回调）.
+        """
+        以全量 extract 结果重置基线（由 _refresh_tsdf_outputs 单点回调）.
 
         Args:
             xyz: (N, 3) 全量提取点云（base 系 [m]，已过 ROI/降采样/统计
@@ -136,7 +141,8 @@ class IcpTargetCache:
         self.full_refreshes += 1
 
     def append_frame(self, cloud_base: np.ndarray) -> None:
-        """非刷新帧：把本帧 ICP 修正后的 base 系点云增量并入 target.
+        """
+        非刷新帧：把本帧 ICP 修正后的 base 系点云增量并入 target.
 
         仅应在 should_refresh() 为 False 的成功采帧路径调用；拼接结果
         超过 max_incremental_points 时按 downsample_voxel 体素降采样
@@ -166,7 +172,8 @@ class IcpTargetCache:
                 self._target, None, self._downsample_voxel)
 
     def note_result(self, mode: str, translation_m: float) -> None:
-        """消费一次配准结果，更新修正量 EMA 并自适应伸缩刷新周期 k.
+        """
+        消费一次配准结果，更新修正量 EMA 并自适应伸缩刷新周期 k.
 
         每帧 refine 后调用（含 fk 回退/拒帧路径）：
           - mode != 'icp'（fk 回退或拒帧）：对齐风险信号，k 立即收回下限

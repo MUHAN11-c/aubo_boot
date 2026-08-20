@@ -30,6 +30,7 @@ from pathlib import Path
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, EmitEvent, RegisterEventHandler
+from launch.conditions import IfCondition
 from launch.events import matches_action
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import LifecycleNode
@@ -114,22 +115,30 @@ def generate_launch_description():
     )
     # 生命周期自动转换（A8）：进程就绪后 configure（参数验证+资源分配，
     # 失败则停在 Unconfigured 报错），到 Inactive 后 activate 开放运动输出权限。
-    configure = EmitEvent(event=ChangeState(
-        lifecycle_node_matcher=matches_action(node),
-        transition_id=Transition.TRANSITION_CONFIGURE))
-    activate = RegisterEventHandler(OnStateTransition(
-        target_lifecycle_node=node,
-        goal_state='inactive',
-        entities=[EmitEvent(event=ChangeState(
+    autostart = LaunchConfiguration('autostart')
+    configure = EmitEvent(
+        event=ChangeState(
             lifecycle_node_matcher=matches_action(node),
-            transition_id=Transition.TRANSITION_ACTIVATE))],
-    ))
+            transition_id=Transition.TRANSITION_CONFIGURE),
+        condition=IfCondition(autostart))
+    activate = RegisterEventHandler(
+        OnStateTransition(
+            target_lifecycle_node=node,
+            goal_state='inactive',
+            entities=[EmitEvent(event=ChangeState(
+                lifecycle_node_matcher=matches_action(node),
+                transition_id=Transition.TRANSITION_ACTIVATE))],
+        ),
+        condition=IfCondition(autostart))
     return LaunchDescription([
         DeclareLaunchArgument(
             'approach_params_file',
             default_value=str(default_params),
             description='主动视觉靠近与抓取参数文件',
         ),
+        DeclareLaunchArgument(
+            'autostart', default_value='true',
+            description='true 时本 launch 自行 configure/activate'),
         activate,
         node,
         configure,

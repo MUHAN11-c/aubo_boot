@@ -298,9 +298,7 @@ void ApproachGraspNode::releaseResources()
   robot_status_sub_.reset();
   status_pub_.reset();
   marker_pub_.reset();
-  reset_client_.reset();
-  finalize_client_.reset();
-  save_client_.reset();
+  grasp_hyp_pub_.reset();
   tool_io_client_.reset();
   grasp_task_.reset();
   motion_.reset();
@@ -341,6 +339,7 @@ void ApproachGraspNode::initializeMoveIt()
   task_config.cartesian_step_m = mtc_cartesian_step_m_;
   task_config.cartesian_precision_m = mtc_cartesian_precision_m_;
   task_config.max_solutions = static_cast<std::size_t>(mtc_max_solutions_);
+  task_config.protected_zones = protected_zones_;
   // 执行边界 = 运动输出权限（Active 态）叠加硬件安全门（safetyReady 永不放宽）；
   // 目标身份/新鲜度策略由 BT 层单点决策（设计文档第 7 节），此处不再重复判定。
   task_config.approach_execution_gate = [this](std::string & reason) {
@@ -385,6 +384,7 @@ void ApproachGraspNode::loadParameters()
   mtc_cartesian_precision_m_ = params.moveit.mtc_cartesian_precision_m;
   mtc_max_solutions_ = static_cast<int>(params.moveit.mtc_max_solutions);
   photo_pose_named_target_ = params.photo_pose_named_target;
+  deposit_pose_named_target_ = params.deposit_pose_named_target;
   behavior_tree_xml_ = params.behavior_tree.xml;
 
   ViewPlannerConfig view_config;
@@ -444,12 +444,10 @@ void ApproachGraspNode::loadParameters()
     [this]() {return now().seconds();});
 
   execution_enabled_.store(params.execution.enabled);
-  reset_reconstruction_on_start_ = params.execution.reset_reconstruction_on_start;
   grasp_enabled_.store(params.grasp.enabled);
   neck_margin_m_ = params.grasp.neck_margin_m;
   minimum_travel_m_ = params.grasp.minimum_travel_m;
   maximum_travel_m_ = params.grasp.maximum_travel_m;
-  complete_target_after_retreat_ = params.grasp.complete_target_after_retreat;
   fallback_standoff_m_ = params.grasp.fallback_standoff_m;
   reconfirm_wait_s_ = params.grasp.reconfirm_wait_s;
   reconfirm_tolerance_m_ = params.grasp.reconfirm_tolerance_m;
@@ -533,20 +531,15 @@ rcl_interfaces::msg::SetParametersResult ApproachGraspNode::onParameters(
 
 void ApproachGraspNode::createInterfaces()
 {
-  // 回调组划分（Robotics_Tutorial 2.16-4 推荐表）：
-  //   planning_callback_group_（独立互斥）：长规划类服务 ~/preview_approach_insert、
-  //     ~/preview_full_contact、~/go_to_photo_pose——单次 MTC/MoveIt 规划
-  //     （execution 使能时含执行）可占用数秒，独立成组后不挡默认组的订阅/
-  //     快捷服务/action 回调；组内互斥保证三个长规划入口串行，跨线程进入
-  //     （executeAction 的 PREVIEW 分支、worker 周期）由 running_ CAS 兜底。
-  //   默认组（互斥）：全部订阅 + start/cancel/acknowledge_recovery/query/arm
-  //     快捷服务 + ExecuteTarget action 服务端 + 参数服务——参数 post-set
-  //     重载会重建 view_planner_/quality_gate_/safety_gate_，必须与使用它们
-  //     的订阅回调保持同组互斥（运行中改参由 onParameters 前置拒绝兜底）。
-  //   client（reset/finalize/save/complete/tool_io）的 wait_for 全部发生在
-  //     worker/BT 线程（bt_nodes.cpp）内，不经 executor 回调，无需独立组。
   planning_callback_group_ = create_callback_group(
     rclcpp::CallbackGroupType::MutuallyExclusive);
+  createSubscriptions();
+  createServices();
+  createActions();
+}
+
+void ApproachGraspNode::createSubscriptions()
+{
   const auto latched = rclcpp::QoS(1).reliable().transient_local();
   target_sub_ = create_subscription<peach_interfaces::msg::PeachTargetObservationArray>(
     "/peach/perception/target_observations", 10,
@@ -567,10 +560,15 @@ void ApproachGraspNode::createInterfaces()
   robot_status_sub_ = create_subscription<aubo_msgs::msg::RobotStatus>(
     "/aubo_io_controller/robot_status", 10,
     std::bind(&ApproachGraspNode::onRobotStatus, this, std::placeholders::_1));
-
   status_pub_ = create_publisher<std_msgs::msg::String>("~/status", latched);
   marker_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
     "~/planned_views", latched);
+  grasp_hyp_pub_ = create_publisher<peach_interfaces::msg::GraspHypothesis>(
+    "/peach/manipulation/grasp_hypothesis", latched);
+}
+
+void ApproachGraspNode::createServices()
+{
   start_service_ = create_service<Trigger>(
     "~/start_cycle",
     std::bind(
@@ -614,6 +612,12 @@ void ApproachGraspNode::createInterfaces()
     std::bind(
       &ApproachGraspNode::onArm, this,
       std::placeholders::_1, std::placeholders::_2));
+  tool_io_client_ = create_client<aubo_msgs::srv::SetIO>(
+    "/aubo_io_controller/set_io");
+}
+
+void ApproachGraspNode::createActions()
+{
   cycle_action_server_ = rclcpp_action::create_server<ExecuteTarget>(
     this, "~/execute_target",
     std::bind(
@@ -632,15 +636,6 @@ void ApproachGraspNode::createInterfaces()
       &ApproachGraspNode::onSurveyCancel, this, std::placeholders::_1),
     std::bind(
       &ApproachGraspNode::onSurveyAccepted, this, std::placeholders::_1));
-
-  reset_client_ = create_client<Trigger>(
-    "/peach_target_reconstruction_node/reset_reconstruction");
-  finalize_client_ = create_client<Trigger>(
-    "/peach_target_reconstruction_node/finalize_reconstruction");
-  save_client_ = create_client<Trigger>(
-    "/peach_target_reconstruction_node/save_session");
-  tool_io_client_ = create_client<aubo_msgs::srv::SetIO>(
-    "/aubo_io_controller/set_io");
 }
 
 void ApproachGraspNode::onTargets(
@@ -974,6 +969,31 @@ void ApproachGraspNode::fillStageDurations(
     duration.nanosec = static_cast<uint32_t>(nanos % 1000000000LL);
     result->stage_durations.push_back(duration);
   }
+}
+
+void ApproachGraspNode::fillExecuteResults(
+  const std::shared_ptr<ExecuteTarget::Result> & result)
+{
+  const bool observe_only = cycle_observe_only_.load();
+  const bool succeeded =
+    result->outcome == ExecuteTarget::Result::SUCCEEDED;
+  result->harvest.grasped = succeeded && !observe_only;
+  result->harvest.reason = result->reason;
+  result->deposit.deposited = cycle_deposit_ok_;
+  result->deposit.reason = cycle_deposit_reason_;
+  if (observe_only) {
+    result->verification.passed = succeeded;
+    result->verification.reason = result->reason;
+  } else {
+    result->verification.passed =
+      result->harvest.grasped &&
+      (cycle_deposit_ok_ || cycle_deposit_skipped_m8_);
+    result->verification.reason = cycle_deposit_reason_.empty() ?
+      result->reason : cycle_deposit_reason_;
+  }
+  result->outcome_record.target_id = cycle_target_id_;
+  result->outcome_record.outcome = result->outcome;
+  result->outcome_record.reason = result->reason;
 }
 
 }  // namespace peach_manipulation_skills

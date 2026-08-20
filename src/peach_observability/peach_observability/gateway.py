@@ -83,9 +83,8 @@ PARAM_WATCHLIST = {
         'execution.enabled', 'grasp.enabled', 'tool.enabled',
     ],
     '/peach_task_executor': [
-        'auto_start_enabled', 'execution_enabled', 'grasp_enabled',
-        'tool_enabled', 'harvest.max_rounds', 'harvest.rescan_until_empty',
-        'photo_pose.enabled', 'readiness.timeout_s',
+        'execution_enabled', 'survey_wait_s', 'empty_survey_limit',
+        'persist_ledger',
     ],
 }
 

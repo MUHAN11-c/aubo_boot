@@ -11,8 +11,9 @@ from geometry_msgs.msg import TransformStamped
 from rcl_interfaces.msg import ParameterDescriptor
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile
 from std_srvs.srv import Trigger
-from tf2_ros import StaticTransformBroadcaster
+from tf2_msgs.msg import TFMessage
 import yaml
 
 from .storage import default_storage_directory
@@ -39,7 +40,18 @@ class ExtrinsicsPublisher(Node):
             'nominal_quaternion_xyzw', [0.0, 0.0, 0.0, 1.0],
             ParameterDescriptor(
                 description='无激活结果时发布的标称外参四元数 (xyzw)'))
-        self._broadcaster = StaticTransformBroadcaster(self)
+        # Own /tf_static publisher: tf2_ros StaticTransformBroadcaster will not
+        # replace a child_frame_id it already sent, so ~/reload would keep the
+        # first (often nominal) pose latched.
+        self._tf_pub = self.create_publisher(
+            TFMessage,
+            '/tf_static',
+            QoSProfile(
+                depth=1,
+                durability=DurabilityPolicy.TRANSIENT_LOCAL,
+                history=HistoryPolicy.KEEP_LAST,
+            ),
+        )
         self._reload_service = self.create_service(
             Trigger, '~/reload', self._reload)
         try:
@@ -97,7 +109,7 @@ class ExtrinsicsPublisher(Node):
         message.transform.rotation.y = float(quaternion[1])
         message.transform.rotation.z = float(quaternion[2])
         message.transform.rotation.w = float(quaternion[3])
-        self._broadcaster.sendTransform(message)
+        self._tf_pub.publish(TFMessage(transforms=[message]))
 
     def _publish(self):
         xyz, quaternion, nominal = self._load_transform()

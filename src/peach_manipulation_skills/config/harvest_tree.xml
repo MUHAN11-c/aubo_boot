@@ -31,10 +31,11 @@
       <ActuateTool/>
     </Sequence>
   </BehaviorTree>
-  <!-- 撤离收尾：原轴同距撤离（成功才清接触 recovery 锁）+ 周期完成。 -->
+  <!-- 撤离收尾：同轴撤离 + 卸果转移（未标定则跳过）+ 周期完成。 -->
   <BehaviorTree ID="RetreatFinish">
     <Sequence name="retreat_finish">
       <MTCRetreat/>
+      <DepositToStation/>
       <CompleteTarget/>
     </Sequence>
   </BehaviorTree>
@@ -47,7 +48,10 @@
           <PlanObservationPreview/>
         </Sequence>
         <Sequence>
-          <SubTree ID="ObserveScan"/>
+          <Fallback name="observe_or_skip">
+            <IsSkipObservation/>
+            <SubTree ID="ObserveScan"/>
+          </Fallback>
           <SubTree ID="QualityValidate"/>
           <Fallback name="report_or_grasp">
             <Sequence>

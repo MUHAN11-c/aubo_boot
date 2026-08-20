@@ -43,8 +43,8 @@ DECLARE_DEFAULTS = {
     # Percipio 原始深度常需 ×0.25 才是毫米量级（再 /1000→米）
     'depth_scale_unit': 0.25,
     'sync_slop_s': 0.05,
-    'min_detection_conf': 0.25,
-    'yolo_conf': 0.25,
+    'min_detection_conf': 0.40,
+    'yolo_conf': 0.35,
     # YOLO NMS IoU 阈值（阶段 D1 参数化；室外多果密排场景可调低防并框）
     'yolo_nms_iou': 0.5,
     # 单次 SAM 推理的最大 prompt 框数（阶段 D1 由硬编码 8 提为参数；室外
@@ -58,7 +58,7 @@ DECLARE_DEFAULTS = {
     'detection_dedup_ios': 0.6,
     # 阶段 H（协议 2.13）：生产档 debug 叠加图默认关——关闭时零序列化零
     # 发布（不画不转不发，非发空图）；现场调图再显式开
-    'publish_debug_image': False,
+    'publish_debug_image': True,
     'publish_masks': True,
     'publish_detection_cloud': True,
     'detection_cloud_stride': 2,
@@ -97,11 +97,11 @@ DECLARE_DEFAULTS = {
     # 恢复匹配允许跨类别（抗 bag/nobag 翻类；命中不改表项类别）
     'target_memory.cross_class_recovery': True,
     # 确认机制：累计命中 ≥ 本帧数才转正长期记录（1=立即确认）
-    'target_memory.confirm_frames': 3,
+    'target_memory.confirm_frames': 5,
     # 未确认目标存活时限（帧）：连续超本帧数未再命中即清除（瞬时误检不留
     # 记录）；按帧计、帧率以运行状态为准——须 ≥ confirm_frames + 余量，
     # 低帧率/卡顿时墙钟 TTL 会在确认攒满前误清进度，帧计数不受帧率影响
-    'target_memory.tentative_ttl_frames': 5,
+    'target_memory.tentative_ttl_frames': 8,
     # 锁定集 LOST 目标的记忆锚点新鲜度（阶段 D1，协议 2.4）：LOST 超本秒数
     # 打 anchor_stale 旗标并视为不可选（不移除）；上限语义——运行期节点按
     # 实测帧间隔 EMA 折算帧数判定（I4，帧率以运行状态为准）
@@ -155,8 +155,8 @@ DESCRIPTIONS = {
                         '毫米量级（Percipio 常见 0.25）；数据集回放（真毫米）'
                         '设 1.0；32FC1 浮点深度按「米」×1000 转毫米，本参数不生效',
     'sync_slop_s': 'RGB-D 近似同步允差 (s)',
-    'min_detection_conf': '检测置信度下限，低于该值的目标不入管线',
-    'yolo_conf': 'YOLO 推理置信度阈值',
+    'min_detection_conf': '检测框进入几何管线的置信度下限（第二级）',
+    'yolo_conf': 'YOLO 推理置信度阈值（第一级，低于此值的框不进入）',
     'yolo_nms_iou': 'YOLO NMS IoU 阈值：室外多果密排可调低防并框',
     'sam_max_bboxes': '单次 SAM 推理最大 prompt 框数（超出截断；室外多果'
                       '场景须覆盖一帧目标数，否则截断目标无掩膜判 OCCLUDED）',
@@ -214,8 +214,8 @@ DESCRIPTIONS = {
     'target_memory.cross_class_recovery': '恢复匹配允许跨类别（抗 bag/nobag '
                                           '翻类；半径不放大仍限 match_radius，'
                                           '命中只复用 ID 不改表项类别）',
-    'target_memory.confirm_frames': '目标确认帧数：累计命中 ≥ 本值才转为长期'
-                                    '记录，之前的短暂出现不长期保留；1=立即确认',
+    'target_memory.confirm_frames': '目标确认帧数：累计命中 ≥ 本值才计入锁定/'
+                                    '候选话题/3D Marker；短暂闪现不转正；1=立即确认',
     'target_memory.tentative_ttl_frames': '未确认目标存活时限（帧）：连续超'
                                           '本帧数未再命中即清除（瞬时误检不占'
                                           '身份；按帧计，帧率以运行状态为准）',
@@ -305,8 +305,8 @@ class PeachPoseParams:
     target_memory_position_ema: float = 0.3
     target_memory_recovery_scale: float = 1.0
     target_memory_cross_class_recovery: bool = True
-    target_memory_confirm_frames: int = 3
-    target_memory_tentative_ttl_frames: int = 5
+    target_memory_confirm_frames: int = 5
+    target_memory_tentative_ttl_frames: int = 8
     target_memory_anchor_max_age_s: float = 30.0
     target_memory_anchor_drop_s: float = 120.0
     target_memory_max_age_s: float = 600.0

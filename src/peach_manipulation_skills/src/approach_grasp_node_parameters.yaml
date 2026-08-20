@@ -128,6 +128,11 @@ peach_manipulation_skills_node:
     default_value: "global_photo_pose",
     description: "全局拍照位姿的 SRDF 命名状态（go_to_photo_pose 服务的目标），与 aubo_e5_moveit_config/config/aubo_e5.srdf 的 group_state 对应。"
   }
+  deposit_pose_named_target: {
+    type: string,
+    default_value: "",
+    description: "卸果站 SRDF 命名状态；空串表示现场标定未完成（M8），撤离后跳过转移并在 DepositResult 标明 pending_m8。"
+  }
   behavior_tree:
     xml: {
       type: string,
@@ -220,7 +225,7 @@ peach_manipulation_skills_node:
     }
     protected_zones: {
       type: double_array,
-      default_value: [],
+      default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
       description: "环境几何保护区（阶段 F1）：base_link 系轴对齐盒列表，stride-6 扁平编码 [xmin,ymin,zmin,xmax,ymax,zmax]*N（米）。视点生成剔除相机位置落入任一盒（闭区间，含盒表面）的候选；MTC 接触段入口点（含降级链 degradedEntryPoint 的入口）落入任一盒即拒规划，终局 SKIPPED_UNREACHABLE。装载时逐盒校验：长度非 6 倍数的残余组、含非有限分量或任一轴 min>=max 的盒告警并丢弃（不炸节点）。默认空列表=无保护区。"
     }
     frame_wait_s: {
@@ -298,7 +303,7 @@ peach_manipulation_skills_node:
     reset_reconstruction_on_start: {
       type: bool,
       default_value: false,
-      description: "周期开始时是否重置重建。"
+      description: "已废弃：执行器不再调用重建 reset。保留以免旧 yaml 加载失败。"
     }
   grasp:
     enabled: {

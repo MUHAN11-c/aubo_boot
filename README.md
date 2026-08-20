@@ -2,7 +2,7 @@
 
 套袋桃采摘工作区：手臂透传 + 场景感知 → 目标重建 → 技能 → 显式任务执行。
 
-- 流程：[docs/flow.md](docs/flow.md)
+- 流程、阅读地图、调用关系：[docs/flow.md](docs/flow.md)
 - 用法：[docs/usage.md](docs/usage.md)
 - 代理约束：[AGENTS.md](AGENTS.md)
 
@@ -22,7 +22,7 @@ ros2 launch peach_task_executor harvest_system.launch.py \
 
 ## 功能包
 
-逻辑与接口写在各包 README。
+逻辑、谁调谁、从哪读源码：先看 [docs/flow.md](docs/flow.md)，再进各包 README。
 
 **采摘**
 
@@ -44,7 +44,7 @@ ros2 launch peach_task_executor harvest_system.launch.py \
 | [aubo_description](src/aubo_description/README.md) | URDF / xacro |
 | [aubo_e5_hardware](src/aubo_e5_hardware/README.md) | ros2_control 插件 |
 | [aubo_e5_controllers](src/aubo_e5_controllers/README.md) | 透传与 IO 控制器 |
-| [aubo_dashboard](src/aubo_dashboard/README.md) | 慢操作；禁 startup |
+| [aubo_dashboard](src/aubo_dashboard/README.md) | 柜侧慢操作；bringup 不起，作业禁用 |
 | [aubo_e5_bringup](src/aubo_e5_bringup/README.md) | 手臂唯一 launch |
 | [aubo_e5_moveit_config](src/aubo_e5_moveit_config/README.md) | E5 MoveIt |
 | [aubo_hand_eye_calibration](src/aubo_hand_eye_calibration/README.md) | 手眼 TF |

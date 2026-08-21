@@ -37,11 +37,16 @@ peach_manipulation_skills_node:
       transit_acceleration_scaling: 0.10
       pilz_pipeline: pilz_industrial_motion_planner
       fallback_pipeline: ompl
-      # MTC：自由空间用 OMPL，进入果袋后只允许笛卡尔直线。
-      mtc_free_space_planner: RRTConnectkConfigDefault
+      # MTC：到入口优先确定性 Pilz PTP，进入果袋后只允许笛卡尔直线；
+      # 轨迹下发前另有时长与关节累计行程硬门，禁止近目标大绕行。
+      mtc_free_space_pipeline: pilz_industrial_motion_planner
+      mtc_free_space_planner: PTP
       mtc_cartesian_step_m: 0.005
       mtc_cartesian_precision_m: 0.001
       mtc_max_solutions: 5
+      mtc_approach_max_duration_s: 12.0
+      mtc_approach_max_total_joint_travel_rad: 4.0
+      mtc_approach_max_single_joint_travel_rad: 2.1
     # 全局拍照位姿的 SRDF 命名状态（~/go_to_photo_pose 服务目标），
     # 与 aubo_e5_moveit_config/config/aubo_e5.srdf 的 group_state 对应。
     photo_pose_named_target: 'global_photo_pose'
@@ -64,17 +69,15 @@ peach_manipulation_skills_node:
       radial_step_m: 0.015
       candidate_layers: 3
       views_to_minimum_radius: 5
-      # 聚类指标+锚点纠偏后通常 3-4 个机位即收敛，5 次封顶控制观察耗时；
-      # 2.13-E2 预算制后收口主判据是有效视点下限+预算，本值仅兜底
-      maximum_moves: 5
-      # 观察段有效视点观测下限（2.13-E2 预算制）：移动到位且收到新鲜目标观测
-      # 才算一次有效视点；未达本值前质量收敛与预算耗尽都不得收口（下限保证），
-      # 达到后质量收敛（覆盖/基线达标）即提前收口
-      min_effective_views: 2
+      # 正常路径 3 个有效移动视点，第 4 个仅作初始拍照位未成帧/质量补偿；
+      # 最终 captured_views>=4 仍由独立质量门硬约束
+      maximum_moves: 4
+      # 质量尚未达标时的有效视点下限；完整质量门放行后立即收口。
+      # 有效视点须移动到位且收到新鲜目标观测以及新重建帧
+      min_effective_views: 3
       # 观察段时间预算下限（秒，2.13-E2）：运行期预算=max(本值,
-      # 2.5×实测移动+等帧成本EMA)；移动成本 EMA 测得后剩余预算换不起一个
-      # 有效视点即预测性收口，强制 finalize 走降级链。暂时测试设置，实际工况再调
-      time_budget_s: 5.0
+      # 2.5×实测移动+等帧成本EMA)；须能覆盖 min_effective_views 次到位+等重建帧
+      time_budget_s: 35.0
       # 相机位置 z 下限（base 系，桌面保护平面）：低于此的视点物理穿桌、
       # 规划必败且白耗 planning_time×attempts，生成阶段直接剔除
       min_camera_height_m: 0.06
@@ -91,16 +94,19 @@ peach_manipulation_skills_node:
       # 本值为未测得帧率时的回退值与自适应上限；帧率以运行状态为准
       frame_wait_s: 6.0
     quality:
-      # 验证期放宽档（2026-08-14）：先让完整抓取周期走完，由真机观察评估
-      # 拟合精度后再收紧。views 5→3、baseline 22°→15°（与视点规划
-      # preferred_baseline_deg 对齐）、refined_rmse 5mm→10mm。
-      minimum_views: 3
-      minimum_baseline_deg: 15.0
+      # 与重建 capture.min_views 对齐：观察段不得在重建未满最少视角时提前收口
+      minimum_views: 4
+      # 与 scan.azimuth_step_deg=12 对齐：两相邻环绕位即可过门；15° 会让
+      # 单步 12° 的三机位仍可能判 insufficient_angular_baseline。
+      minimum_baseline_deg: 12.0
       minimum_mean_nearest_baseline_deg: 6.0
       minimum_mean_depth_ratio: 0.40
       maximum_refined_rmse_m: 0.01
       minimum_refined_inlier_ratio: 0.35
       maximum_data_age_s: 2.0
+      # [deg] 单帧检测轴 vs 重建精化轴夹角上限；超过则接触前拒绝。
+      # 现场 target_0≈26.7° 可过，target_1≈88° 必须拦；翻转 ~180° 同样拒绝。
+      maximum_axis_angle_deg: 35.0
     execution:
       # 默认只规划：设为 true 后，每个周期还必须人工调用 set_execution_armed。
       enabled: false
@@ -124,7 +130,8 @@ peach_manipulation_skills_node:
       # 单次尝试的新鲜观测等待窗口上限（秒），实测帧间隔 EMA 自适应伸缩，
       # 本值为回退值与上限；摆动等平息也在本窗口预算内
       reconfirm_wait_s: 6.0
-      # 锚点漂移容差（米）：超限用最新锚点重算 entry/axis 一次
+      # 锚点漂移容差（米）：与 finalize 时感知底/颈中点比较。精化路径超限
+      # 保留 TSDF 入口再开窗，不按单帧平移；降级路径才按最新锚点重算入口
       reconfirm_tolerance_m: 0.03
       # 累计超限放弃阈值（次）：漂移超限/窗口耗尽/摆动不息任一计一次，
       # 达到本值 → SKIPPED_QUALITY（reason 含“目标持续摆动”）
@@ -132,7 +139,8 @@ peach_manipulation_skills_node:
       # MTC 预规划（2.13-E3 plan-while-waiting）：再确认等待窗口期按当前锚点
       # 后台预规划接近/插入任务（只规划不执行），再确认通过且最终锚点与规划
       # 基准锚点漂移 ≤ replan_threshold_m 时直接执行预规划解，超限（或预规划
-      # 失败/漂移重算过几何）才内联重规划；取消/deactivate 经 cancel→preempt
+      # 失败/降级路径重算过几何）才内联重规划；精化路径超容差不平移入口，
+      # 预规划仍可复用。取消/deactivate 经 cancel→preempt
       # 正确丢弃预规划任务。mtc_preplan=false 退回纯串行（现场调试排障用）
       replan_threshold_m: 0.02
       mtc_preplan: true
@@ -151,4 +159,4 @@ peach_manipulation_skills_node:
       # 等待精化结果的超时上限（秒）：实测观测帧间隔 EMA 自适应
       # （≈3 帧+2s 余量，下限 2s；refit 实测耗时本包不可得，按帧间隔近似），
       # 本值为未测得帧率时的回退值与自适应上限
-      refined_s: 10.0
+      refined_s: 30.0

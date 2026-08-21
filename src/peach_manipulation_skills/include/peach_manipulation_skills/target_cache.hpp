@@ -144,6 +144,7 @@ struct RefinedPoseUpdate
 // updateRefinedFitting 输入：is_fruit=true 取球拟合指标，否则取柱拟合指标。
 struct RefinedFittingUpdate
 {
+  bool clear{false};
   std::string target_id;
   bool is_fruit{false};
   double sphere_rms_m{0.0};

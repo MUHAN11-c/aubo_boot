@@ -28,12 +28,9 @@
 
 # bringup.launch.py —— AUBO E5 工作区唯一启动入口
 #
-# 通过 launch 参数 hardware_mode 切换三种运行模式（mock/sim/real，详见 AGENTS.md
-# 第 5 节）：
+# 通过 launch 参数 hardware_mode 切换两种运行模式：
 #   mock：mock_components/GenericSystem + 标准 joint_trajectory_controller
-#         （ros2_control 回归链路）
-#   sim ：aubo_e5_hardware/AuboE5SimHardware + passthrough 控制器
-#         （无真机全链路闭环模拟，开发验证首选）
+#         （ros2_control 标准仿真）
 #   real：aubo_e5_hardware/AuboE5Hardware + passthrough 控制器（真机；不起 dashboard）
 #
 # 文件分两段：
@@ -66,13 +63,13 @@ def launch_nodes(context):
     """
     mode = LaunchConfiguration('hardware_mode').perform(context)
     robot_ip = LaunchConfiguration('robot_ip').perform(context)
-    if mode not in ('mock', 'sim', 'real'):
+    if mode not in ('mock', 'real'):
         # 早失败：拼错 mode 时直接抛错，避免带着错误配置起一半节点
-        raise RuntimeError('hardware_mode must be one of: mock | sim | real')
+        raise RuntimeError('hardware_mode must be one of: mock | real')
     # 已取消 RT 内核/SCHED_FIFO 预检：普通内核直接运行 real 模式。
 
     # 用 xacro 命令现场展开 URDF，并把 hardware_mode / robot_ip 透传进去——
-    # xacro 内部据此选择硬件插件（mock/sim/real）并填充 <param> robot_ip，
+    # xacro 内部据此选择硬件插件（mock/real）并填充 <param> robot_ip，
     # 即"一份 URDF 模板、三种硬件后端"的实现方式。
     robot_description = Command([
         'xacro ',
@@ -89,7 +86,7 @@ def launch_nodes(context):
     # cwd must contain ./config/auborobot.conf for the legacy AUBO SDK (real mode)
     # 旧 SDK 按"进程 CWD"读取 ./config/auborobot.conf 与 tracelog.properties，
     # 因此 ros2_control_node 的工作目录必须指到 aubo_e5_hardware 的 share 目录
-    # （config 随包安装在那里）。mock/sim 模式不连 SDK，设了也无害。
+    # （config 随包安装在那里）。mock 模式不连 SDK，设了也无害。
     sdk_cwd = get_package_share_directory('aubo_e5_hardware')
 
     # URDF 文本会被 launch_ros 误当 YAML 解析，显式声明为字符串
@@ -119,7 +116,7 @@ def launch_nodes(context):
                        '/controller_manager', '--controller-manager-timeout', '10'],
             output='screen'))
     else:
-        # sim / real 走 passthrough 架构的两个自研控制器：
+        # real 走 passthrough 架构的两个自研控制器：
         #   aubo_io_controller            —— IO 状态发布 + set_io 服务 + RIB 状态
         #   aubo_passthrough_trajectory_controller —— FJT action server，
         #       一次性下发轨迹（蓝本语义，见 AGENTS.md 第 1 节）
@@ -139,7 +136,7 @@ def launch_nodes(context):
 
     # MoveIt 由 aubo_e5_moveit_config 的唯一 launch（moveit.launch.py，整体启动
     # move_group + rviz2）提供；本文件只按模式选控制器映射并集成导入：mock 走
-    # 标准 JTC（controllers_mock.yaml，官方 ros2_control 链路），sim/real 走
+    # 标准 JTC（controllers_mock.yaml，官方 ros2_control 链路），real 走
     # passthrough 控制器（controllers.yaml）。放进 OpaqueFunction 才能按 mode 取值。
     moveit_enabled = LaunchConfiguration('moveit_enabled').perform(context).lower() == 'true'
     if moveit_enabled:
@@ -194,11 +191,11 @@ def generate_launch_description():
         # ---- launch 参数（默认 = 日常真机 + 相机 + 外参）----
         DeclareLaunchArgument(
             'hardware_mode', default_value='real',
-            choices=['mock', 'sim', 'real'],
-            description='mock | sim | real（默认 real）'),
+            choices=['mock', 'real'],
+            description='mock | real（默认 real）'),
         DeclareLaunchArgument(
             'robot_ip', default_value='169.254.10.98',
-            description='真机控制器 IP；mock/sim 不用'),
+            description='真机控制器 IP；mock 不用'),
         DeclareLaunchArgument(
             'moveit_enabled', default_value='true',
             description='MoveIt move_group + rviz2；false 关闭'),

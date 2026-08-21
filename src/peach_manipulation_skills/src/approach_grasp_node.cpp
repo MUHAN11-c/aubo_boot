@@ -331,7 +331,7 @@ void ApproachGraspNode::initializeMoveIt()
   task_config.planning_group = planning_group_;
   task_config.tip_frame = tip_frame_;
   task_config.base_frame = base_frame_;
-  task_config.free_space_pipeline = fallback_pipeline_;
+  task_config.free_space_pipeline = mtc_free_space_pipeline_;
   task_config.free_space_planner = mtc_free_space_planner_;
   task_config.planning_time_s = planning_time_s_;
   task_config.velocity_scaling = velocity_scaling_;
@@ -339,6 +339,11 @@ void ApproachGraspNode::initializeMoveIt()
   task_config.cartesian_step_m = mtc_cartesian_step_m_;
   task_config.cartesian_precision_m = mtc_cartesian_precision_m_;
   task_config.max_solutions = static_cast<std::size_t>(mtc_max_solutions_);
+  task_config.approach_max_duration_s = mtc_approach_max_duration_s_;
+  task_config.approach_max_total_joint_travel_rad =
+    mtc_approach_max_total_joint_travel_rad_;
+  task_config.approach_max_single_joint_travel_rad =
+    mtc_approach_max_single_joint_travel_rad_;
   task_config.protected_zones = protected_zones_;
   // 执行边界 = 运动输出权限（Active 态）叠加硬件安全门（safetyReady 永不放宽）；
   // 目标身份/新鲜度策略由 BT 层单点决策（设计文档第 7 节），此处不再重复判定。
@@ -379,10 +384,16 @@ void ApproachGraspNode::loadParameters()
   transit_acceleration_scaling_ = params.moveit.transit_acceleration_scaling;
   pilz_pipeline_ = params.moveit.pilz_pipeline;
   fallback_pipeline_ = params.moveit.fallback_pipeline;
+  mtc_free_space_pipeline_ = params.moveit.mtc_free_space_pipeline;
   mtc_free_space_planner_ = params.moveit.mtc_free_space_planner;
   mtc_cartesian_step_m_ = params.moveit.mtc_cartesian_step_m;
   mtc_cartesian_precision_m_ = params.moveit.mtc_cartesian_precision_m;
   mtc_max_solutions_ = static_cast<int>(params.moveit.mtc_max_solutions);
+  mtc_approach_max_duration_s_ = params.moveit.mtc_approach_max_duration_s;
+  mtc_approach_max_total_joint_travel_rad_ =
+    params.moveit.mtc_approach_max_total_joint_travel_rad;
+  mtc_approach_max_single_joint_travel_rad_ =
+    params.moveit.mtc_approach_max_single_joint_travel_rad;
   photo_pose_named_target_ = params.photo_pose_named_target;
   deposit_pose_named_target_ = params.deposit_pose_named_target;
   behavior_tree_xml_ = params.behavior_tree.xml;
@@ -431,6 +442,7 @@ void ApproachGraspNode::loadParameters()
   gate_config.maximum_refined_rmse_m = params.quality.maximum_refined_rmse_m;
   gate_config.minimum_refined_inlier_ratio = params.quality.minimum_refined_inlier_ratio;
   gate_config.maximum_data_age_s = params.quality.maximum_data_age_s;
+  gate_config.maximum_axis_angle_deg = params.quality.maximum_axis_angle_deg;
   quality_gate_ = createQualityGate(params.quality_gate.impl, gate_config);
 
   SafetyGateConfig safety_config;
@@ -825,6 +837,9 @@ void ApproachGraspNode::onRefinedDiagnostics(
   const peach_interfaces::msg::BagFittingArray::SharedPtr message)
 {
   if (message->fittings.empty()) {
+    RefinedFittingUpdate clear;
+    clear.clear = true;
+    cache_.updateRefinedFitting(clear);
     return;
   }
   const auto & fitting = message->fittings.front();
@@ -923,6 +938,7 @@ void ApproachGraspNode::setState(CycleState state, const std::string & message)
       {"mean_depth_ratio", snapshot.mean_depth_ratio},
       {"refined_rmse_m", snapshot.refined_rmse_m},
       {"refined_inlier_ratio", snapshot.refined_inlier_ratio},
+      {"axis_angle_deg", snapshot.axis_angle_deg},
       {"grasp_allowed", snapshot.grasp_allowed},
     };
   }
@@ -977,8 +993,12 @@ void ApproachGraspNode::fillExecuteResults(
   const bool observe_only = cycle_observe_only_.load();
   const bool succeeded =
     result->outcome == ExecuteTarget::Result::SUCCEEDED;
-  result->harvest.grasped = succeeded && !observe_only;
+  result->harvest.grasped =
+    succeeded && !observe_only && grasp_enabled_.load();
   result->harvest.reason = result->reason;
+  if (result->harvest.grasped && !tool_enabled_.load()) {
+    result->harvest.reason += "；tool.enabled=false，跳过末端 IO";
+  }
   result->deposit.deposited = cycle_deposit_ok_;
   result->deposit.reason = cycle_deposit_reason_;
   if (observe_only) {

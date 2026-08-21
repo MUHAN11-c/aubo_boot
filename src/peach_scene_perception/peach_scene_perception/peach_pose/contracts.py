@@ -40,7 +40,7 @@ class ToolGeometry:
     Fields:
         D_inner: 圆柱内径 — 袋子必须能通过
         L_insert: 最大插入深度 (从入口起点计)
-        L_blade: 刀刃平面到圆柱入口平面的距离 (沿Z_tool正方向)
+        L_blade: TCP 到剪切平面的轴向距离 (沿Z_tool正方向；当前为 0)
         entry_d_tool: 入口 standoff 的工具分量（套入余量，Gürsoy 分解之 d_tool）
         entry_d_s: 入口 standoff 的安全裕量分量（防碰撞，文献基准 30–50mm）
         entry_standoff: [legacy] 旧版单一 standoff = entry_d_tool + entry_d_s
@@ -52,7 +52,7 @@ class ToolGeometry:
 
     D_inner: float = 0.104          # 104mm 内径
     L_insert: float = 0.200         # 200mm 最大插入
-    L_blade: float = 0.025          # 25mm 刀刃偏移
+    L_blade: float = 0.0            # TCP 与剪切平面重合
     entry_d_tool: float = 0.030     # 30mm 工具分量 standoff
     entry_d_s: float = 0.040        # 40mm 安全裕量 standoff
     entry_standoff: float = 0.070   # legacy: = d_tool + d_s
@@ -68,7 +68,7 @@ class ToolGeometry:
 TOOL_GEOMETRY = ToolGeometry(
     D_inner=0.104,          # 104mm 内径
     L_insert=0.200,         # 200mm 最大插入
-    L_blade=0.025,          # 25mm 刀刃偏移
+    L_blade=0.0,            # TCP 与剪切平面重合
     entry_d_tool=0.030,     # 30mm 工具分量
     entry_d_s=0.040,        # 40mm 安全裕量
     entry_standoff=0.070,   # = d_tool + d_s

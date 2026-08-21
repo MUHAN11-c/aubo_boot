@@ -200,21 +200,29 @@ void ApproachGraspNode::executeAction(
   result->recovery_required = cycle_result.recovery_required;
   // 阶段耗时埋点：成功/取消/失败终局一律填充已历经阶段（含取消路径）。
   fillStageDurations(result);
+  const bool succeeded = outcome == CycleOutcome::SUCCEEDED;
+  const bool canceled =
+    outcome == CycleOutcome::CANCELED || goal_handle->is_canceling();
+  if (succeeded) {
+    result->outcome = ExecuteTarget::Result::SUCCEEDED;
+  } else if (canceled) {
+    result->outcome = ExecuteTarget::Result::CANCELED;
+  } else {
+    result->outcome = pending_outcome_.load();
+  }
+  // outcome_record 必须在最终 outcome 赋值后生成，避免默认 0 污染失败记账。
   fillExecuteResults(result);
   // 线程可 join 后必须兜住 shutdown 竞态下的上报异常，避免 std::terminate。
   try {
-    if (outcome == CycleOutcome::SUCCEEDED) {
-      result->outcome = ExecuteTarget::Result::SUCCEEDED;
+    if (succeeded) {
       goal_handle->succeed(result);
-    } else if (outcome == CycleOutcome::CANCELED || goal_handle->is_canceling()) {
+    } else if (canceled) {
       // 取消终局显式上报 outcome=CANCELED（2026-08 起替代复用 FAILED）：
       // 编排器据 outcome 判别"操作员跳过"与"暂停/立即取消"语义。
       // recovery 路径不进本分支（终局枚举为 RECOVERY_REQUIRED，走下方 abort）。
-      result->outcome = ExecuteTarget::Result::CANCELED;
       goal_handle->canceled(result);
     } else {
       // abort 路径按 BT 失败点记录的 pending_outcome_ 分级（质量/不可达/失败）。
-      result->outcome = pending_outcome_.load();
       goal_handle->abort(result);
     }
   } catch (const std::exception & error) {
@@ -395,7 +403,10 @@ void ApproachGraspNode::executeSurvey(
 {
   auto result = std::make_shared<SurveyScene::Result>();
   auto response = std::make_shared<Trigger::Response>();
+  // 动作入口与 ExecuteTarget 一致：execution.enabled 时自动一次性 arm。
+  if (execution_enabled_.load()) {execution_armed_.store(true);}
   onGoToPhotoPose(std::make_shared<Trigger::Request>(), response);
+  execution_armed_.store(false);
   result->snapshot_id = last_snapshot_id_;
   result->degraded = !last_target_set_locked_ || last_observation_count_ == 0;
   result->message = response->message;

@@ -245,11 +245,11 @@ def _draw_debug(img, det, g2d, sam_mask, tid='', confirmed: bool = True):
         cv2.circle(
             img, _px(img, g2d.grasp_px[0], g2d.grasp_px[1]),
             5, st_color, -1)
-    # 剪切线：行程终点（果柄处）垂直于袋轴方向的线段，表示刃口切割方向——
-    # 套入沿轴推进，剪切动作与推进方向垂直。取数与 _to_candidate_2d 同源
-    # （g2d.travel_line = [grasp_px, travel_end_px]，方向即袋轴投影）；
-    # 两端点任一 None（投影失败）或行程退化（零长度无法定方向）则跳过；
-    # 半长取检测框宽 1/4（近似刀具刃口尺度）
+    # TCP 是工具圆柱前端面圆心，也就是物理剪切点；travel_line 终点因此
+    # 同时代表 TCP 终点与剪切中心。投影失败或行程退化时跳过，紫色空心圆
+    # 标出剪切中心，垂直于袋轴投影的紫线表示刃口切割方向。线段半长取
+    # 检测框宽 1/4（近似工具刃口尺度），与执行端 neck_margin 停止语义
+    # 保持一致。
     if (g2d.travel_line and len(g2d.travel_line) >= 2
             and g2d.travel_line[0] is not None
             and g2d.travel_line[1] is not None):
@@ -265,6 +265,7 @@ def _draw_debug(img, det, g2d, sam_mask, tid='', confirmed: bool = True):
                 _px(img, ex - px * half, ey - py * half),
                 _px(img, ex + px * half, ey + py * half),
                 (255, 0, 255), 2)
+            cv2.circle(img, _px(img, ex, ey), 5, (255, 0, 255), 2)
     # 稳定 ID + YOLO 检测置信度（det['conf']，与位姿管线 confidence 区分）。
     # OpenCV putText 的 y 是基线：写在框顶上方会画出图外。贴在框内左上，
     # 黑底保证绿/黄/红字在果面纹理上仍可读。

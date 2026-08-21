@@ -100,9 +100,14 @@ peach_manipulation_skills_node:
       default_value: "ompl",
       description: "Pilz 失败后的兜底规划管线。"
     }
+    mtc_free_space_pipeline: {
+      type: string,
+      default_value: "pilz_industrial_motion_planner",
+      description: "MTC 到入口的自由空间规划管线；默认 Pilz 以获得确定性短程 PTP。"
+    }
     mtc_free_space_planner: {
       type: string,
-      default_value: "RRTConnectkConfigDefault",
+      default_value: "PTP",
       description: "MTC 自由空间段规划器；进入果袋后只允许笛卡尔直线。"
     }
     mtc_cartesian_step_m: {
@@ -122,6 +127,24 @@ peach_manipulation_skills_node:
       default_value: 5,
       description: "MTC 最大解数量。",
       validation: { gt_eq<>: [1] }
+    }
+    mtc_approach_max_duration_s: {
+      type: double,
+      default_value: 12.0,
+      description: "MTC 接近段预计时长硬上限（秒）；超限拒绝下发，防止近目标长绕行。",
+      validation: { gt<>: [0.0] }
+    }
+    mtc_approach_max_total_joint_travel_rad: {
+      type: double,
+      default_value: 4.0,
+      description: "MTC 接近段六轴累计绝对行程硬上限（弧度）。",
+      validation: { gt<>: [0.0] }
+    }
+    mtc_approach_max_single_joint_travel_rad: {
+      type: double,
+      default_value: 2.1,
+      description: "MTC 接近段任一单轴累计绝对行程硬上限（弧度）。",
+      validation: { gt<>: [0.0] }
     }
   photo_pose_named_target: {
     type: string,
@@ -202,20 +225,20 @@ peach_manipulation_skills_node:
     }
     maximum_moves: {
       type: int,
-      default_value: 5,
-      description: "单目标观察移动次数封顶（兜底，防候选规划/移动全失败死循环）：聚类指标+锚点纠偏后通常 3-4 个机位即收敛，5 次封顶控制观察耗时。2.13-E2 预算制后收口主判据是有效视点下限+预算，本值仅兜底。",
+      default_value: 4,
+      description: "单目标观察移动次数封顶：3 个有效移动视点为正常路径，第 4 个仅作初始拍照位未成帧或质量未收敛时的补偿。",
       validation: { gt_eq<>: [1] }
     }
     min_effective_views: {
       type: int,
-      default_value: 2,
-      description: "观察段有效视点观测下限（2.13-E2 预算制）：移动到位且收到新鲜目标观测才算一次有效视点；未达本值前质量收敛与预算耗尽都不得收口（下限保证），达到后质量收敛即提前收口。",
+      default_value: 3,
+      description: "质量尚未达标时的主动移动有效视点下限；完整质量门一旦放行立即收口。最终仍由 quality.minimum_views=4、角基线和深度质量硬门控。",
       validation: { gt_eq<>: [1] }
     }
     time_budget_s: {
       type: double,
-      default_value: 5.0,
-      description: "观察段时间预算下限（秒，2.13-E2）：运行期预算=max(本值, 2.5×实测移动+等帧成本EMA)（协议 2.7-OBSERVE 的 T(scan_budget)）；移动成本 EMA 测得后剩余预算换不起一个有效视点即预测性收口，强制 finalize 走降级链。暂时测试设置，实际工况再调。",
+      default_value: 35.0,
+      description: "观察段时间预算下限（秒，2.13-E2）：运行期预算=max(本值, 2.5×实测移动+等帧成本EMA)；须覆盖 min_effective_views 次到位+等重建帧。预算耗尽在 OBSERVE_ONLY 为失败，FULL 才走降级抓取。",
       validation: { gt<>: [0.0] }
     }
     min_camera_height_m: {
@@ -237,14 +260,14 @@ peach_manipulation_skills_node:
   quality:
     minimum_views: {
       type: int,
-      default_value: 3,
-      description: "质量门最少机位数（验证期放宽档 2026-08-14：先走完完整抓取周期，真机评估拟合精度后再收紧）。",
+      default_value: 4,
+      description: "质量门最少机位数，与重建 capture.min_views 对齐。",
       validation: { gt_eq<>: [1] }
     }
     minimum_baseline_deg: {
       type: double,
-      default_value: 15.0,
-      description: "质量门最大基线角下限（度，与视点规划 preferred_baseline_deg 对齐）。",
+      default_value: 12.0,
+      description: "质量门最大基线角下限（度，与 scan.azimuth_step_deg 对齐）。",
       validation: { gt_eq<>: [0.0] }
     }
     minimum_mean_nearest_baseline_deg: {
@@ -276,6 +299,12 @@ peach_manipulation_skills_node:
       default_value: 2.0,
       description: "质量证据数据最大年龄（秒）。",
       validation: { gt<>: [0.0] }
+    }
+    maximum_axis_angle_deg: {
+      type: double,
+      default_value: 35.0,
+      description: "检测轴与重建精化轴夹角上限（度）；超过则接触前拒绝。",
+      validation: { gt<>: [0.0], lt_eq<>: [180.0] }
     }
   execution:
     enabled: {
@@ -349,7 +378,7 @@ peach_manipulation_skills_node:
     reconfirm_tolerance_m: {
       type: double,
       default_value: 0.03,
-      description: "抓取前再确认的锚点漂移容差（米）：最新观测锚点与入口几何参考锚点的偏差上限；超限用最新锚点重算 entry/axis 一次。",
+      description: "抓取前再确认的锚点漂移容差（米）：最新观测锚点与 finalize 时感知底/颈中点的偏差上限。精化路径超限保留 TSDF 入口并再开窗（禁止单帧平移）；降级路径才按最新锚点重算入口。",
       validation: { gt<>: [0.0] }
     }
     reconfirm_max_attempts: {
@@ -361,7 +390,7 @@ peach_manipulation_skills_node:
     replan_threshold_m: {
       type: double,
       default_value: 0.02,
-      description: "MTC 预规划复用阈值（米，2.13-E3 plan-while-waiting）：再确认等待窗口期按当前锚点后台预规划接近/插入任务；再确认通过且最终锚点与规划基准锚点漂移 ≤ 本值时直接执行预规划解，超限（或预规划失败/漂移重算过几何）才内联重规划。与 reconfirm_tolerance_m 的关系：后者超限会重算入口几何使预规划必然作废，本值是更严的复用闸。",
+      description: "MTC 预规划复用阈值（米，2.13-E3 plan-while-waiting）：再确认等待窗口期按当前锚点后台预规划接近/插入任务；再确认通过且最终锚点与规划基准锚点漂移 ≤ 本值时直接执行预规划解，超限（或预规划失败/降级路径重算过几何）才内联重规划。精化路径超 reconfirm_tolerance_m 不再平移入口，预规划仍可复用。",
       validation: { gt<>: [0.0] }
     }
     mtc_preplan: {
@@ -406,7 +435,7 @@ peach_manipulation_skills_node:
     }
     refined_s: {
       type: double,
-      default_value: 10.0,
-      description: "等待精化结果的超时上限（秒，协议 2.7-FINALIZE 的 T(refined)）：实测观测帧间隔 EMA 自适应（≈3 帧+2s 余量，下限 2s——refit 实测耗时本包不可得且不跨包改接口，按帧间隔近似），本值为未测得帧率时的回退值与自适应上限。",
+      default_value: 30.0,
+      description: "等待精化结果的超时上限（秒）：须覆盖 BuildTargetModel 最终 TSDF 提取+refit。实测帧间隔 EMA 自适应，本值为未测得帧率时的回退值与上限。",
       validation: { gt<>: [0.0] }
     }

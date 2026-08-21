@@ -189,7 +189,9 @@ Visualization Manager:
           Enabled: true
           Name: Reconstruction Markers
           Namespaces:
-            {}
+            peach_reconstruction: true
+            peach_reconstruction/refined: true
+            peach_reconstruction/tsdf_mesh: true
           Topic:
             Depth: 1
             Durability Policy: Transient Local
@@ -201,7 +203,7 @@ Visualization Manager:
           Enabled: true
           Name: Planned Views
           Namespaces:
-            {}
+            candidate_views: true
           Topic:
             Depth: 1
             Durability Policy: Transient Local

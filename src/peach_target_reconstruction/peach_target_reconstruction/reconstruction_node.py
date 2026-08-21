@@ -61,6 +61,7 @@ from peach_interfaces.msg import (
 from peach_target_reconstruction.auto_controller import AutoControllerMixin
 from peach_target_reconstruction.bind_holdoff import BindSwitchHoldoff
 from peach_target_reconstruction.candidate_contract import (
+    axis_from_vector3,
     candidate_axis_hint,
     select_reconstruction_candidate,
     TargetKindMemory,
@@ -110,6 +111,7 @@ from peach_target_reconstruction.params import ReconstructionParams
 from peach_target_reconstruction.publish_throttle import PublishThrottle
 from peach_target_reconstruction.publishers import PublisherMixin
 from peach_target_reconstruction.session_io import save_session
+from peach_target_reconstruction.skip_codes import classify_skip_reason
 from peach_target_reconstruction.timing import TimingStats
 from peach_target_reconstruction.tsdf_volume import LocalTsdf
 from peach_target_reconstruction.view_coverage import summarize_view_coverage
@@ -160,7 +162,8 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
         self.refit_config = RefitConfig(
             cylinder_inlier_min=p.refit.cylinder_inlier_min,
             rmse_max_m=p.refit.rmse_max_m,
-            entry_standoff_m=p.refit.entry_standoff_m)
+            entry_standoff_m=p.refit.entry_standoff_m,
+            max_axis_angle_deg=p.refit.max_axis_angle_deg)
         self.icp_config = IcpConfig(
             min_points=p.icp.min_points,
             coarse_voxel=p.icp.coarse_voxel,
@@ -248,8 +251,12 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
         self._state_lock = threading.RLock()
         self._view_progress = threading.Event()
 
-        # 最新一帧同步 RGB-D 缓存：(rgb, depth_mm, K, stamp_msg, stamp_sec,
-        # cam_frame)。只缓存、不直接累积；手动/自动门禁通过后才会入帧栈
+        # 同步 RGB-D 帧环：按 stamp_ns 保留最近若干帧，供掩膜滞后对齐。
+        # 元组 (rgb, depth_mm, K, stamp_msg, stamp_sec, cam_frame)。
+        # 只缓存、不直接累积；手动/自动门禁通过后才会入帧栈。
+        # _latest_frame 仍指向环内最新一帧（兼容只读侧）。
+        self._frame_ring_max = 5
+        self._frame_ring: dict = {}
         self._latest_frame: Optional[tuple] = None
         self._last_captured_stamp_sec = -1.0  # [s] 上次成功采帧的图像时间戳
         self._latest_candidates: Optional[BagGraspCandidateArray] = None
@@ -357,7 +364,7 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
         self.sync.registerCallback(self._on_rgbd)
         self.create_subscription(
             BagGraspCandidateArray, '/peach/perception/initial_pose',
-            self._on_initial_pose, 10)
+            self._on_initial_pose, latched_qos)
         self.create_subscription(
             PeachTargetObservationArray,
             '/peach/perception/target_observations',
@@ -513,7 +520,8 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
         stamp_msg = depth_msg.header.stamp
         stamp_sec = float(stamp_msg.sec) + float(stamp_msg.nanosec) * 1e-9
         cam_frame = depth_msg.header.frame_id or rgb_msg.header.frame_id
-        self._latest_frame = (rgb, depth_mm, K, stamp_msg, stamp_sec, cam_frame)
+        self._push_frame_ring(
+            (rgb, depth_mm, K, stamp_msg, stamp_sec, cam_frame))
         # 自动模式：每个新同步帧驱动一次（自动开始/采帧/完成）；
         # auto_mode=false 时不走这里，改用纯手动 Trigger 服务流
         if self.params.capture.auto_mode:
@@ -522,6 +530,11 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
     def _on_initial_pose(self, msg: BagGraspCandidateArray):
         """缓存最新感知候选（启动重建时绑定最优目标用）."""
         self._latest_candidates = msg
+        with self._state_lock:
+            bound_id = self.collector.target_id
+            hint = candidate_axis_hint(msg, bound_id)
+            if hint is not None:
+                self._bound_axis_hint = hint
 
     def _on_target_observations(
             self, msg: PeachTargetObservationArray) -> None:
@@ -577,6 +590,11 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
             bound_obs = next((item for item in msg.observations
                               if item.target_id == self._preferred_target_id),
                              None)
+            if bound_obs is not None:
+                hint = axis_from_vector3(
+                    bound_obs.candidate.translation_direction)
+                if hint is not None:
+                    self._bound_axis_hint = hint
             # E2 邻目标串扰门数据源：每条观测消息全量重建锁定集锚点缓存
             # （绑定目标自身在 _target_mask_for_frame 组 MaskContext 时剔除；
             # 未锁定时 observations 恒空，缓存随之为空）
@@ -604,8 +622,10 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
                 np.asarray(mask, dtype=np.uint8), center)
             while len(self._target_masks) > 30:
                 self._target_masks.pop(next(iter(self._target_masks)))
-            if self.params.capture.auto_mode:
-                self._auto_drive()
+        # 自动驱动可能执行精确时刻 TF 查询、采帧与 TSDF/refit；必须在外层
+        # 观测缓存锁释放后进入。否则 BuildTargetModel 的 reset/bind 会被饿死。
+        if self.params.capture.auto_mode:
+            self._auto_drive()
 
     @staticmethod
     def _candidate_center(candidate):
@@ -824,9 +844,12 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
         response.success = False
         response.message = message
         self.get_logger().warning(f'拒绝：{message}')
+        code = classify_skip_reason(message)
+        self.collector.note_skip(code, message)
         self._harvest_data.append_event({
             'source': 'reconstruction', 'event': 'frame_rejected',
-            'target_id': self.collector.target_id, 'reason': message,
+            'target_id': self.collector.target_id,
+            'code': code, 'reason': message,
         })
         if count_reject:
             self.collector.rejected_views += 1
@@ -858,13 +881,60 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
             self._publish_all()
             return response
 
-    def _collect_gate_values(self, automatic: bool
+    def _stamp_ns(self, stamp_msg) -> int:
+        """ROS Time → 纳秒整数（与掩膜缓存键一致）."""
+        return int(stamp_msg.sec) * 1000000000 + int(stamp_msg.nanosec)
+
+    def _clear_frame_ring(self) -> None:
+        """换绑/reset 时丢弃未对齐的陈帧，避免旧目标点云混入."""
+        self._frame_ring = {}
+        self._latest_frame = None
+
+    def _push_frame_ring(self, frame_tuple) -> None:
+        """按 stamp_ns 写入帧环，超出容量丢最旧."""
+        stamp_msg = frame_tuple[3]
+        stamp_ns = self._stamp_ns(stamp_msg)
+        self._frame_ring.pop(stamp_ns, None)
+        self._frame_ring[stamp_ns] = frame_tuple
+        while len(self._frame_ring) > self._frame_ring_max:
+            self._frame_ring.pop(next(iter(self._frame_ring)))
+        self._latest_frame = frame_tuple
+
+    def _select_cached_frame(
+            self, prefer_stamp_sec=None, prefer_cam_frame=None):
+        """
+        取采帧缓存：优先指定 stamp；否则取「有同戳掩膜的最新帧」.
+
+        严格同戳语义不变：不回退 latest TF。掩膜尚未到达的最新帧留在环
+        内，等感知回调再驱动。环空返回 None。
+        """
+        if prefer_stamp_sec is not None:
+            for frame in self._frame_ring.values():
+                if abs(float(frame[4]) - float(prefer_stamp_sec)) > 1e-9:
+                    continue
+                if (prefer_cam_frame is not None
+                        and (frame[5] or '') != prefer_cam_frame):
+                    continue
+                return frame
+            return None
+        for stamp_ns in reversed(list(self._frame_ring.keys())):
+            if stamp_ns in self._target_masks:
+                return self._frame_ring[stamp_ns]
+        if self._frame_ring:
+            return next(reversed(self._frame_ring.values()))
+        return self._latest_frame
+
+    def _collect_gate_values(self, automatic: bool,
+                             prefer_stamp_sec=None,
+                             prefer_cam_frame=None
                              ) -> Tuple[dict, Optional[tuple]]:
         """
         采集采帧门禁判据快照（须持 _state_lock；只读共享状态，零副作用）.
 
         Args:
             automatic: True=自动模式 / False=手动服务（透传进判据）.
+            prefer_stamp_sec: 指定帧时间戳（TF 收口复核用）.
+            prefer_cam_frame: 指定相机系名.
 
         Returns
         -------
@@ -873,7 +943,9 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
             无缓存帧时为 None.
 
         """
-        cached = self._latest_frame
+        cached = self._select_cached_frame(
+            prefer_stamp_sec=prefer_stamp_sec,
+            prefer_cam_frame=prefer_cam_frame)
         rgb = depth_mm = K = stamp_msg = cam_frame = None
         stamp_sec = 0.0
         target_mask = None
@@ -958,12 +1030,10 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
         """
         公共门禁·锁内收口段（须持 _state_lock）：复核帧有效性后以真实 TF 重评.
 
-        竞态收口：TF 查询在锁外完成，期间缓存帧可能被新帧替换、帧栈可能被
-        reset/收满/已采入同帧。本段重新采集判据快照，先比对 stamp_sec 与
-        cam_frame——缓存帧已不再是发起查询时那一帧则丢弃本次尝试（自动
-        =skip、手动=deny 提示重试），绝不把旧帧时刻的位姿套到新帧上；
-        同帧已被采入/帧龄超期/静止破坏等也由重采判据经 capture_gate 重评
-        兜住，随后才以 TF 结果走完第二阶段门禁。
+        竞态收口：TF 查询在锁外完成，期间帧环可能追加新帧、帧栈可能被
+        reset/收满/已采入同帧。本段按查询 stamp 从帧环取同一帧复核——
+        查询中到达的更新帧不覆盖这次尝试；查询帧已滚出环则丢弃（自动
+        =skip、手动=deny 提示重试）。绝不把旧帧时刻的位姿套到新帧上。
 
         Args:
             automatic: 同 _gated_capture_begin.
@@ -979,12 +1049,11 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
         """
         _stamp_msg, query_stamp_sec, query_cam_frame = tf_request
         T_base_camera, tf_status = tf_result
-        gate_values, snapshot = self._collect_gate_values(automatic)
-        frame_changed = (
-            snapshot is None
-            or snapshot[4] != query_stamp_sec
-            or (snapshot[5] or '') != query_cam_frame)
-        if frame_changed:
+        gate_values, snapshot = self._collect_gate_values(
+            automatic,
+            prefer_stamp_sec=query_stamp_sec,
+            prefer_cam_frame=query_cam_frame)
+        if snapshot is None:
             return GateDecision(
                 action=GATE_SKIP if automatic else GATE_DENY,
                 reason='TF 查询期间缓存帧已更新，请等下一帧重试',
@@ -1256,6 +1325,7 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
             self._view_progress.clear()
             self._target_kind_memory.reset()
             self._last_captured_stamp_sec = -1.0
+            self._clear_frame_ring()
             self._reset_products(create_volume=False)
             self._bound_axis_hint = None
             response.success = True
@@ -1277,8 +1347,14 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
         # 成功/失败路径都记 last 值）
         t_finalize0 = self._algo_clock.now()
         ok, message, _cloud = self.collector.finalize()
-        if ok:
-            # 刚性对齐量化指标：相邻帧最近邻统计 + 质心（并入诊断 JSON）
+        if not ok:
+            self._overlap_cache = None
+            self._tsdf_cloud_cache = None
+            self._tsdf_info = None
+            self._refined = None
+            self._bump_products_version(tsdf_cloud=True)
+            self.get_logger().warning(message)
+        else:
             self._overlap_cache = assembly_overlap_metrics(self.collector.frames)
             summary = summarize_pairs_mm(self._overlap_cache['pairs'])
             if summary is None:
@@ -1286,30 +1362,36 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
             else:
                 message += (f'；重叠 mean={summary["mean_mm"]:.1f}mm '
                             f'p95={summary["p95_mm"]:.1f}mm')
+            product_ok = True
             if self.params.tsdf.enable:
                 message += self._run_tsdf()
-                # 在线 TSDF 最终提取后接几何精化。
-                if self.params.refit.enable:
+                product_ok = (
+                    self._tsdf_cloud_cache is not None
+                    and self._tsdf_cloud_cache[0].size)
+                if not product_ok:
+                    message += '；TSDF 产物为空'
+                elif self.params.refit.enable:
                     message += self._run_refit(
                         keep_last_good=False, mark_final=True)
-            self.get_logger().info(message)
-            self._harvest_data.append_event({
-                'source': 'reconstruction', 'event': 'reconstruction_finalized',
-                'target_id': self.collector.target_id,
-                'captured_views': len(self.collector.frames),
-                'refined': self._refined_info(),
-                'grasp_decision': self._grasp_decision(),
-            })
-        else:
-            self._overlap_cache = None
-            self._tsdf_cloud_cache = None
-            self._tsdf_info = None
-            self._refined = None
-            # E4：finalize 失败清空产物同样递增版本号（闩锁话题需覆盖刷新）
-            self._bump_products_version(tsdf_cloud=True)
-            self.get_logger().warning(message)
+                    if not (self._refined and self._refined.get('ok')):
+                        product_ok = False
+                        message += '；refit 未产出可用几何'
+            if product_ok:
+                self.get_logger().info(message)
+                self._harvest_data.append_event({
+                    'source': 'reconstruction',
+                    'event': 'reconstruction_finalized',
+                    'target_id': self.collector.target_id,
+                    'captured_views': len(self.collector.frames),
+                    'refined': self._refined_info(),
+                    'grasp_decision': self._grasp_decision(),
+                })
+            else:
+                # 已提取的 TSDF 留给 RViz；状态退回 COLLECTING，Build 失败
+                ok = False
+                self.collector.state = STATE_COLLECTING
+                self.get_logger().warning(message)
         self._timing.record_finalize((self._algo_clock.now() - t_finalize0) * 1000.0)
-        # 累加云由 _publish_all 统一重发（frame_id=base_frame）
         self._publish_all()
         return ok, message
 
@@ -1337,7 +1419,7 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
             self._mesh_cache = None
             # E4：提取失败清空产物，版本号递增保证闩锁话题覆盖旧内容
             self._bump_products_version(tsdf_cloud=True)
-            self.get_logger().error(f'TSDF 最终提取失败（不影响 finalize）: {exc}')
+            self.get_logger().error(f'TSDF 最终提取失败: {exc}')
             return f'；TSDF 提取失败（{exc}）'
         return (f'；TSDF {xyz.shape[0]} 点'
                 f' / mesh {mesh_vertices} 顶点'
@@ -1385,7 +1467,7 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
                 return f'；refit 异常，保留上一帧（{exc}）'
             self._refined = {'ok': False, 'reason': f'exception:{exc}'}
             self._bump_products_version()  # E4：refined 写入递增产物版本号
-            self.get_logger().warning(f'refit 异常（不影响 finalize）: {exc}')
+            self.get_logger().warning(f'refit 异常: {exc}')
             return f'；refit 失败（{exc}）'
         if defaulted:
             result.setdefault('flags', []).append('target_kind_defaulted')
@@ -1399,7 +1481,7 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
                 'kind': kind, 'n_points': result['n_points']}
             self._bump_products_version()  # E4：refined 写入递增产物版本号
             self.get_logger().warning(
-                f'refit 失败（不影响 finalize）：{result["reason"]}')
+                f'refit 失败：{result["reason"]}')
             return f'；refit 失败（{result["reason"]}）'
         result['final'] = bool(mark_final)
         self._refined = result
@@ -1436,8 +1518,9 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
             self._executor_target_id = str(msg.target_id or '')
 
     def _wait_min_views(self, goal_handle, target_id: str, timeout_s: float):
-        """等 min_views（或取消/超时）。反馈只在视角数变化时发."""
-        min_views = int(self.params.capture.min_views)
+        """等积分帧数与覆盖质量同时达标（或取消/超时）."""
+        capture = self.params.capture
+        min_views = int(capture.min_views)
         deadline = time.monotonic() + timeout_s
         last_n = -1
         n_frames, bound = 0, ''
@@ -1445,17 +1528,32 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
             if goal_handle.is_cancel_requested:
                 return 'canceled', n_frames, bound
             with self._state_lock:
-                n_frames = len(self.collector.frames)
+                frames = list(self.collector.frames)
+                n_frames = len(frames)
+                center = (None if self.collector.target_center is None
+                          else self.collector.target_center.copy())
                 bound = self.collector.target_id
                 state = self.collector.state
+            coverage_ready = False
+            if n_frames >= min_views:
+                coverage = summarize_view_coverage(frames, center)
+                coverage_ready = (
+                    bool(coverage.get('valid'))
+                    and float(coverage['max_baseline_deg']) >=
+                    float(capture.minimum_baseline_deg)
+                    and float(coverage['mean_nearest_baseline_deg']) >=
+                    float(capture.minimum_mean_nearest_baseline_deg)
+                    and float(coverage['valid_depth_ratio_mean']) >=
+                    float(capture.minimum_mean_depth_ratio)
+                )
             if n_frames != last_n:
                 last_n = n_frames
                 feedback = BuildTargetModel.Feedback()
                 feedback.view_count = n_frames
                 feedback.status = state
                 goal_handle.publish_feedback(feedback)
-            if n_frames >= min_views and (
-                    not target_id or bound == target_id):
+            if (target_id and bound == target_id and n_frames >= min_views
+                    and coverage_ready):
                 return 'ready', n_frames, bound
             remaining = deadline - time.monotonic()
             if remaining <= 0.0:
@@ -1467,12 +1565,36 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
     def _on_build_target_model(self, goal_handle):
         """BuildTargetModel：reset 后绑定 goal.target_id，等 min_views 再 finalize."""
         goal = goal_handle.request
+        if not goal.target_id:
+            result = BuildTargetModel.Result()
+            result.success = False
+            result.message = 'empty_target_id'
+            result.quality_level = TargetQuality.LOW
+            model = TargetModel()
+            model.accepted = False
+            model.message = result.message
+            result.model = model
+            goal_handle.abort()
+            return result
         self._on_reset(Trigger.Request(), Trigger.Response())
         with self._state_lock:
             if goal.target_id:
                 self._executor_state_seen = True
                 self._executor_target_id = goal.target_id
                 self._preferred_target_id = goal.target_id
+            # Build 刚 reset 回 IDLE；必须立刻进 COLLECTING，否则观察段
+            # 走动时重建仍无绑定，质量门 reconstruction_unbound，Build 空等。
+            self._auto_start()
+            if self.collector.state == STATE_IDLE and goal.target_id:
+                center = self._locked_target_centers.get(goal.target_id)
+                message = self.collector.start(goal.target_id, center)
+                self._target_kind_memory.bind(goal.target_id)
+                self._last_captured_stamp_sec = -1.0
+                self._reset_products(create_volume=True)
+                self._bound_axis_hint = candidate_axis_hint(
+                    self._latest_candidates, goal.target_id)
+                self.get_logger().info(f'BuildTargetModel 强制开始：{message}')
+                self._publish_all()
         status, n_frames, _bound = self._wait_min_views(
             goal_handle, goal.target_id,
             timeout_s=float(self.params.capture.build_timeout_s))
@@ -1577,6 +1699,9 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
             'captured_views': len(c.frames),
             'rejected_views': c.rejected_views,
             'tf_failures': c.tf_failures,
+            'skipped_views': c.skipped_views,
+            'skip_reasons': dict(c.skip_reasons),
+            'last_skip_code': c.last_skip_code,
             'view_coverage': summarize_view_coverage(
                 c.frames, c.target_center),
             'parameters': {
@@ -1628,6 +1753,8 @@ class PeachReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode
                     self.refit_config.cylinder_inlier_min,
                 'refit.rmse_max_m': self.refit_config.rmse_max_m,
                 'refit.entry_standoff_m': self.refit_config.entry_standoff_m,
+                'refit.max_axis_angle_deg':
+                    self.refit_config.max_axis_angle_deg,
             },
             'tsdf_result': self._tsdf_info,
             'refined_result': self._refined_info(),

@@ -29,6 +29,7 @@ from peach_target_reconstruction.frame_collector import (
     STATE_COLLECTING,
     STATE_IDLE,
 )
+from peach_target_reconstruction.skip_codes import classify_skip_reason
 
 
 class AutoControllerMixin:
@@ -66,7 +67,10 @@ class AutoControllerMixin:
         if tf_request is None:
             # 前置门禁已定案（skip），无需 TF 查询。
             if decision.reason:
-                self.get_logger().debug(f'自动采帧跳过：{decision.reason}')
+                self._record_auto_skip(
+                    decision.reason,
+                    count_reject=decision.count_reject,
+                    count_tf_failure=decision.count_tf_failure)
             return
         # 锁外：阻塞式 TF 查询（不得持 _state_lock）。
         tf_result = self._gated_capture_query_tf(tf_request)
@@ -76,10 +80,12 @@ class AutoControllerMixin:
             self._auto_capture_commit(decision, context)
 
     def _auto_start(self):
-        """自动开始：绑定当前最优候选进 COLLECTING；无候选静默等待."""
+        """自动开始：绑定当前最优候选进 COLLECTING；无候选则保持 IDLE 等待."""
         target_id, center = self._best_candidate()
         if not target_id:
-            return  # 无候选：静默等待（initial_pose 到位后自然触发）
+            self.get_logger().debug(
+                '自动开始：无 initial_pose 候选，保持 IDLE')
+            return
         message = self.collector.start(target_id, center)
         self._target_kind_memory.bind(target_id)
         self._last_captured_stamp_sec = -1.0
@@ -97,10 +103,13 @@ class AutoControllerMixin:
         context 为 ALLOW 时的帧上下文（见 _gated_capture_finish）。
         """
         if decision.action != GATE_ALLOW:
-            if decision.count_tf_failure:
-                self.collector.tf_failures += 1
             if decision.reason:
-                self.get_logger().debug(f'自动采帧跳过：{decision.reason}')
+                self._record_auto_skip(
+                    decision.reason,
+                    count_reject=decision.count_reject,
+                    count_tf_failure=decision.count_tf_failure)
+            elif decision.count_tf_failure:
+                self.collector.tf_failures += 1
             return
         (rgb, depth_mm, K, stamp_sec,
          T_base_camera, tf_status, target_mask) = context
@@ -110,14 +119,32 @@ class AutoControllerMixin:
             since_last = float('inf')  # 首帧不受间隔门限制
         action, reason = self.collector.auto_capture_decision(
             T_base_camera, since_last)
-        if action == 'skip':
-            self.get_logger().debug(f'自动采帧跳过：{reason}')
+        if action != 'capture':
+            self._record_auto_skip(reason)
             return
-        if action == 'warn_capture':
-            self.get_logger().warning(f'自动采帧：{reason}')
         accepted, message = self._accept_frame(
             rgb, depth_mm, K, stamp_sec, T_base_camera, tf_status,
             target_mask=target_mask)
         if not accepted:
             self.collector.rejected_views += 1
+            self._record_auto_skip(message, count_reject=False)
             self.get_logger().warning(f'自动采帧未入库：{message}')
+
+    def _record_auto_skip(
+            self, reason: str, *, count_reject: bool = False,
+            count_tf_failure: bool = False) -> None:
+        """自动 skip 落账：原因码计数 + 节流 WARN + harvest_data 事件."""
+        code = classify_skip_reason(reason)
+        self.collector.note_skip(code, reason)
+        if count_tf_failure:
+            self.collector.tf_failures += 1
+        if count_reject:
+            self.collector.rejected_views += 1
+        self.get_logger().warning(
+            f'自动采帧跳过 [{code}]：{reason}',
+            throttle_duration_sec=1.0)
+        self._harvest_data.append_event({
+            'source': 'reconstruction', 'event': 'frame_skipped',
+            'target_id': self.collector.target_id,
+            'code': code, 'reason': reason,
+        })

@@ -280,6 +280,7 @@ private:
   std::string planning_group_;
   std::string pilz_pipeline_;
   std::string fallback_pipeline_;
+  std::string mtc_free_space_pipeline_;
   std::string mtc_free_space_planner_;
   std::string photo_pose_named_target_;
   std::string deposit_pose_named_target_;
@@ -296,6 +297,9 @@ private:
   double mtc_cartesian_step_m_{0.005};
   double mtc_cartesian_precision_m_{0.001};
   int mtc_max_solutions_{5};
+  double mtc_approach_max_duration_s_{12.0};
+  double mtc_approach_max_total_joint_travel_rad_{4.0};
+  double mtc_approach_max_single_joint_travel_rad_{2.1};
   int maximum_scan_moves_{5};
   // 观察段有效视点观测下限（2.13-E2）：未达此前不得收口（移动到位且收到
   // 新鲜目标观测计一次有效视点）。
@@ -345,7 +349,7 @@ private:
   int tool_io_pin_{0};
   double tool_close_state_{1.0};
   double service_timeout_s_{3.0};
-  double refined_timeout_s_{10.0};
+  double refined_timeout_s_{30.0};
 
   // MoveIt/MTC 伴随节点（声明在所有 MoveIt 资源之前，保证析构时最后释放）。
   rclcpp::Node::SharedPtr moveit_node_;

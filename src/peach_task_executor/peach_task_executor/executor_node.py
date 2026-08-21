@@ -39,7 +39,7 @@ from .harvest_fsm import (
     BATCH_NAMES, canonical_code_for_outcome, Command, COMPLETED, Event,
     event_for_outcome, MODE_AUTO, MODE_MAINTENANCE, MODE_PAUSED, PAUSE_PENDING,
     PAUSED, permissions_for, react, RECOVERY_REQUIRED, WAITING_READY)
-from .ledger import default_ledger_root, ledger_file, load_ledger, save_ledger
+from .ledger import default_ledger_root, ledger_file, load_ledger, save_ledger, set_elapsed
 from .select import next_target_id
 from .summary import build_summary
 
@@ -60,6 +60,7 @@ class PeachTaskExecutor(LifecycleNode):
         self._current_target_id = ''
         self._scene_epoch = 0
         self._outcomes = []
+        self._outcome_details = []
         self._batch_state = WAITING_READY
         self._target_phase = 0
         self._operation_mode = MODE_AUTO
@@ -72,11 +73,14 @@ class PeachTaskExecutor(LifecycleNode):
         self._paused_batch = WAITING_READY
         self._recovery_batch = WAITING_READY
         self._in_flight = []
+        self._build_feedback = {'view_count': 0, 'status': '', 'started_s': 0.0}
         self._run_goal_handle = None
         self._harvest_busy = False
         self._run_started = 0.0
         self._discovered = 0
         self._ledger_loaded = False
+        self._cycle_observe_extra = {}
+        self._cycle_dispatch_t0 = 0.0
         self._observations: Optional[PeachTargetObservationArray] = None
         self._stack_ready = False
         self._cb = ReentrantCallbackGroup()
@@ -284,6 +288,7 @@ class PeachTaskExecutor(LifecycleNode):
             self._run_id = goal.request_id or 'harvest'
             self._cycle_id = self._run_id
             self._outcomes = []
+            self._outcome_details = []
             self._scene_epoch = 0
             self._discovered = 0
             self._ledger_loaded = False
@@ -340,6 +345,7 @@ class PeachTaskExecutor(LifecycleNode):
                     claimed, restored = self._restore_ledger(self._run_id)
                     if restored:
                         self._outcomes = restored
+                        self._outcome_details = [{} for _ in restored]
                     self._ledger_loaded = True
                 if survey_only:
                     reaction = react(self._batch_state, Event.SURVEY_ONLY)
@@ -383,17 +389,24 @@ class PeachTaskExecutor(LifecycleNode):
         aborted = reaction.command == Command.ABORT
         interrupted = (
             reaction.command == Command.INTERRUPT or self._cancel)
-        result.success = not aborted and not interrupted
+        result.summary = build_summary(
+            self._run_id, self._outcomes, self._discovered,
+            time.monotonic() - self._run_started)
+        no_product = (
+            not aborted and not interrupted
+            and int(result.summary.attempted) > 0
+            and int(result.summary.succeeded) == 0)
+        result.success = not aborted and not interrupted and not no_product
         if aborted:
             result.termination_reason = 'begin_scene_failed'
         elif interrupted:
             result.termination_reason = 'canceled'
+        elif no_product:
+            result.termination_reason = 'no_targets_succeeded'
+            self._batch_state = COMPLETED
         else:
             result.termination_reason = 'completed'
             self._batch_state = COMPLETED
-        result.summary = build_summary(
-            self._run_id, self._outcomes, self._discovered,
-            time.monotonic() - self._run_started)
         if interrupted:
             goal_handle.canceled()
         elif aborted:
@@ -420,68 +433,161 @@ class PeachTaskExecutor(LifecycleNode):
 
     def _cmd_dispatch(self, request_id: str):
         timeout = float(self.get_parameter('action_timeout_s').value)
+        min_views = int(self.get_parameter('reconstruction_min_views').value)
+        start_timeout = float(
+            self.get_parameter('build_start_timeout_s').value)
+        grace_s = float(self.get_parameter('observe_build_grace_s').value)
         target_id = self._current_target_id
+        dispatch_t0 = time.monotonic()
+        self._cycle_observe_extra = {}
+        self._cycle_dispatch_t0 = 0.0
         if self._take_skip():
             reaction = react(self._batch_state, Event.SKIP)
-            self._record_skip(target_id, TargetOutcome.CANCELED, 'skip_target')
+            self._record_skip(
+                target_id, TargetOutcome.CANCELED, 'skip_target',
+                failure_code='canceled', elapsed_s=time.monotonic() - dispatch_t0)
+            self._apply(reaction, request_id, target_id)
+            return reaction
+        if not self._wait_target_in_locked_set(target_id, 2.5):
+            reaction = react(self._batch_state, Event.OBSERVE_FAILED)
+            self._record_skip(
+                target_id, TargetOutcome.SKIPPED_QUALITY,
+                'observe_failed: target_not_in_locked_set',
+                failure_code='observe_failed',
+                elapsed_s=time.monotonic() - dispatch_t0)
             self._apply(reaction, request_id, target_id)
             return reaction
         build_goal = BuildTargetModel.Goal()
         build_goal.request_id = request_id
         build_goal.target_id = target_id
         build_goal.scene_epoch = self._scene_epoch
-        build_handle = self._send_goal(self._build, build_goal, timeout)
+        self._build_feedback = {
+            'view_count': 0, 'status': '', 'started_s': time.monotonic()}
+        build_handle = self._send_goal(
+            self._build, build_goal, timeout,
+            feedback_cb=self._on_build_feedback)
         if build_handle is None:
             reaction = react(self._batch_state, Event.BUILD_FAILED)
             self._record_skip(
                 target_id, TargetOutcome.SKIPPED_QUALITY,
-                'build_target_model rejected')
+                'build_target_model rejected',
+                failure_code='build_rejected',
+                elapsed_s=time.monotonic() - dispatch_t0)
             self._apply(reaction, request_id, target_id)
             return reaction
         self._in_flight.append(build_handle)
+        if not self._wait_build_started(build_handle, start_timeout):
+            self._cancel_handle(build_handle)
+            self._forget_handle(build_handle)
+            reaction = react(self._batch_state, Event.BUILD_FAILED)
+            self._record_skip(
+                target_id, TargetOutcome.SKIPPED_QUALITY,
+                'build_start_timeout: reconstruction not COLLECTING',
+                failure_code='build_start_timeout',
+                elapsed_s=time.monotonic() - dispatch_t0,
+                extra=self._build_details(dispatch_t0, None))
+            self._apply(reaction, request_id, target_id)
+            return reaction
         observe = ExecuteTarget.Goal()
         observe.request_id = request_id
         observe.target_id = target_id
         observe.mode = ExecuteTarget.Goal.OBSERVE_ONLY
-        observed = self._send_action(
-            self._exec, observe, timeout, feedback=True)
-        if self._cancel or self._peek_skip() or observed is None:
+        observed = None
+        for attempt in range(4):
+            if self._cancel or self._peek_skip():
+                break
+            observed = self._send_action(
+                self._exec, observe, timeout, feedback=True)
+            if observed is not None:
+                break
+            self.get_logger().warning(
+                f'ExecuteTarget OBSERVE_ONLY rejected {target_id} '
+                f'attempt={attempt + 1}/4')
+            time.sleep(0.4)
+        observe_ok = (
+            observed is not None
+            and int(getattr(observed, 'outcome', 3)) == 0)
+        observe_details = self._stages_from_execute(observed)
+        if self._cancel or self._peek_skip() or not observe_ok:
             self._take_skip()
             self._cancel_handle(build_handle)
             self._wait_result(build_handle, min(timeout, 10.0))
-            if observed is None and not self._cancel:
+            if not observe_ok and not self._cancel:
                 reaction = react(self._batch_state, Event.OBSERVE_FAILED)
+                reason = (
+                    str(getattr(observed, 'reason', '') or 'observe_only failed')
+                    if observed is not None else
+                    'observe_only rejected (skills locked set)')
                 self._record_skip(
                     target_id, TargetOutcome.SKIPPED_QUALITY,
-                    'observe_only failed')
+                    'observe_failed: ' + reason,
+                    failure_code='observe_failed',
+                    elapsed_s=time.monotonic() - dispatch_t0,
+                    extra=observe_details)
             else:
                 reaction = react(self._batch_state, Event.SKIP)
                 self._record_skip(
-                    target_id, TargetOutcome.CANCELED, 'canceled_or_skipped')
+                    target_id, TargetOutcome.CANCELED, 'canceled_or_skipped',
+                    failure_code='canceled',
+                    elapsed_s=time.monotonic() - dispatch_t0,
+                    extra=observe_details)
             self._apply(reaction, request_id, target_id)
             return reaction
-        built = self._wait_result(build_handle, timeout)
+        built, wait_kind = self._wait_build_after_observe(
+            build_handle, timeout, grace_s, min_views)
         self._forget_handle(build_handle)
+        build_details = self._build_details(dispatch_t0, built)
+        build_details.update(observe_details)
         if self._cancel or self._take_skip():
             reaction = react(self._batch_state, Event.SKIP)
             self._record_skip(
-                target_id, TargetOutcome.CANCELED, 'canceled_or_skipped')
+                target_id, TargetOutcome.CANCELED, 'canceled_or_skipped',
+                failure_code='canceled',
+                elapsed_s=time.monotonic() - dispatch_t0,
+                extra=build_details)
             self._apply(reaction, request_id, target_id)
             return reaction
-        if built is None or not bool(getattr(built, 'success', False)):
+        views = int(self._build_feedback.get('view_count') or 0)
+        if wait_kind == 'observe_build_view_race' or (
+                built is None and views < min_views):
+            self._emit(
+                'observe_build_view_race', request_id, target_id,
+                details={
+                    'view_count': views, 'min_views': min_views,
+                    'timeout_source': 'observe_build_view_race',
+                })
             reaction = react(self._batch_state, Event.BUILD_FAILED)
             self._record_skip(
                 target_id, TargetOutcome.SKIPPED_QUALITY,
-                str(getattr(built, 'message', 'build_target_model failed')))
+                f'observe_build_view_race: views={views} min_views={min_views}',
+                failure_code='observe_build_view_race',
+                elapsed_s=time.monotonic() - dispatch_t0,
+                extra=build_details)
+            self._apply(reaction, request_id, target_id)
+            return reaction
+        if built is None or not bool(getattr(built, 'success', False)):
+            message = (
+                'build_timeout:executor_wait' if built is None
+                else str(getattr(built, 'message', '') or ''))
+            failure_code, reason = self._classify_build_failure(built, message)
+            reaction = react(self._batch_state, Event.BUILD_FAILED)
+            self._record_skip(
+                target_id, TargetOutcome.SKIPPED_QUALITY, reason,
+                failure_code=failure_code,
+                elapsed_s=time.monotonic() - dispatch_t0,
+                extra={**build_details, 'timeout_source': failure_code})
             self._apply(reaction, request_id, target_id)
             return reaction
         reaction = react(self._batch_state, Event.READY_FULL)
+        self._cycle_observe_extra = dict(build_details)
+        self._cycle_dispatch_t0 = dispatch_t0
         self._apply(reaction, request_id, target_id)
         return reaction
 
     def _cmd_full(self, request_id: str):
         timeout = float(self.get_parameter('action_timeout_s').value)
         target_id = self._current_target_id
+        t0 = time.monotonic()
         full = ExecuteTarget.Goal()
         full.request_id = request_id
         full.target_id = target_id
@@ -491,10 +597,15 @@ class PeachTaskExecutor(LifecycleNode):
         operator_skip = self._take_skip()
         outcome = TargetOutcome()
         outcome.target_id = target_id
+        extra = self._merge_cycle_extra(
+            self._cycle_observe_extra, self._stages_from_execute(executed))
         if executed is None:
             outcome.outcome = TargetOutcome.FAILED
+            extra['failure_code'] = (
+                'canceled' if operator_skip else 'full_failed')
             outcome.reason = (
-                'skip_target' if operator_skip else 'execute_target failed')
+                'skip_target' if operator_skip
+                else 'full_failed: execute_target failed')
         else:
             record = getattr(executed, 'outcome_record', None)
             if record is not None and getattr(record, 'target_id', ''):
@@ -503,27 +614,184 @@ class PeachTaskExecutor(LifecycleNode):
                 outcome.outcome = int(getattr(
                     executed, 'outcome', TargetOutcome.FAILED))
                 outcome.reason = str(getattr(executed, 'reason', ''))
+            if int(outcome.outcome) != int(TargetOutcome.SUCCEEDED):
+                extra['failure_code'] = self._full_failure_code(
+                    outcome, operator_skip)
+                prefix = extra['failure_code']
+                if prefix and not str(outcome.reason).startswith(prefix):
+                    outcome.reason = (
+                        f'{prefix}: {outcome.reason}').strip(': ')
             deposit = getattr(executed, 'deposit', None)
             if deposit is not None and not bool(
                     getattr(deposit, 'deposited', False)):
-                extra = str(getattr(deposit, 'reason', ''))
-                if extra and extra not in outcome.reason:
+                extra_reason = str(getattr(deposit, 'reason', ''))
+                if extra_reason and extra_reason not in outcome.reason:
                     outcome.reason = (
-                        outcome.reason + '; ' + extra).strip('; ')
+                        outcome.reason + '; ' + extra_reason).strip('; ')
             self._recovery_required = self._recovery_required or bool(
                 getattr(executed, 'recovery_required', False))
-        self._outcomes.append(outcome)
+        started = self._cycle_dispatch_t0 or t0
+        set_elapsed(outcome, time.monotonic() - started)
+        self._cycle_observe_extra = {}
+        self._cycle_dispatch_t0 = 0.0
+        self._push_outcome(outcome, extra)
         event = event_for_outcome(outcome.outcome, operator_skip)
         reaction = react(self._batch_state, event)
         self._apply(reaction, request_id, target_id)
         return reaction
 
-    def _record_skip(self, target_id: str, code: int, reason: str) -> None:
+    def _record_skip(
+            self, target_id: str, code: int, reason: str,
+            failure_code: str = '', elapsed_s: float = 0.0,
+            extra: dict | None = None) -> None:
         outcome = TargetOutcome()
         outcome.target_id = target_id
         outcome.outcome = code
         outcome.reason = reason
+        if elapsed_s:
+            set_elapsed(outcome, elapsed_s)
+        details = dict(extra or {})
+        if failure_code:
+            details['failure_code'] = failure_code
+        self._push_outcome(outcome, details)
+
+    def _push_outcome(self, outcome, extra=None) -> None:
+        """将 outcomes 与遥测附加字段等长追加."""
         self._outcomes.append(outcome)
+        self._outcome_details.append(dict(extra or {}))
+
+    def _stages_from_execute(self, executed) -> dict:
+        """将 ExecuteTarget 结果中的阶段耗时转换为 ledger extra."""
+        if executed is None:
+            return {}
+        names = [str(n) for n in list(getattr(executed, 'stage_names', []) or [])]
+        raw = list(getattr(executed, 'stage_durations', []) or [])
+        durations = []
+        for item in raw:
+            durations.append(
+                round(float(getattr(item, 'sec', 0) or 0)
+                      + float(getattr(item, 'nanosec', 0) or 0) * 1e-9, 3))
+        if not names:
+            return {}
+        return {'stage_names': names, 'stage_durations': durations}
+
+    @staticmethod
+    def _full_failure_code(outcome, operator_skip: bool) -> str:
+        """按 TargetOutcome 分级 FULL 失败码，质量/不可达不记 full_failed."""
+        if operator_skip or int(outcome.outcome) == int(TargetOutcome.CANCELED):
+            return 'canceled'
+        code = int(outcome.outcome)
+        if code == int(TargetOutcome.SKIPPED_QUALITY):
+            return 'skipped_quality'
+        if code == int(TargetOutcome.SKIPPED_UNREACHABLE):
+            return 'skipped_unreachable'
+        return 'full_failed'
+
+    @staticmethod
+    def _merge_cycle_extra(observe_extra, full_extra) -> dict:
+        """合并 OBSERVE_ONLY 与 FULL 的阶段耗时；丢掉 FULL 里为零的观察段."""
+        merged = dict(observe_extra or {})
+        full_extra = dict(full_extra or {})
+        obs_names = [str(n) for n in list(merged.get('stage_names') or [])]
+        obs_durs = list(merged.get('stage_durations') or [])
+        while len(obs_durs) < len(obs_names):
+            obs_durs.append(0.0)
+        obs_durs = obs_durs[:len(obs_names)]
+        skip = {'prepare', 'observe', 'finalize'}
+        keep_names = []
+        keep_durs = []
+        full_names = [str(n) for n in list(full_extra.get('stage_names') or [])]
+        full_durs = list(full_extra.get('stage_durations') or [])
+        for index, name in enumerate(full_names):
+            if name in skip:
+                continue
+            keep_names.append(name)
+            keep_durs.append(
+                float(full_durs[index]) if index < len(full_durs) else 0.0)
+        if obs_names or keep_names:
+            merged['stage_names'] = obs_names + keep_names
+            merged['stage_durations'] = [
+                round(float(d), 3) for d in obs_durs + keep_durs]
+        for key, value in full_extra.items():
+            if key in ('stage_names', 'stage_durations'):
+                continue
+            merged[key] = value
+        return merged
+
+    def _build_details(self, dispatch_t0: float, built) -> dict:
+        """Build 反馈与耗时摘要."""
+        started = float(self._build_feedback.get('started_s') or dispatch_t0)
+        details = {
+            'build_view_count': int(
+                self._build_feedback.get('view_count') or 0),
+            'build_status': str(self._build_feedback.get('status') or ''),
+            'build_duration_s': round(time.monotonic() - started, 3),
+        }
+        if built is not None:
+            model = getattr(built, 'model', None)
+            if model is not None and getattr(model, 'view_count', None) is not None:
+                details['build_view_count'] = int(model.view_count)
+            status = str(getattr(built, 'message', '') or '')
+            if status:
+                details['build_status'] = status
+        return details
+
+    def _classify_build_failure(self, built, message: str) -> tuple:
+        """区分执行器等待超时 / 重建内部 timeout / finalize 失败."""
+        text = str(message or '')
+        if built is None or text == 'build_timeout:executor_wait':
+            return 'build_timeout:executor_wait', 'build_timeout:executor_wait'
+        if text == 'timeout':
+            return 'build_timeout:reconstruction', 'build_timeout:reconstruction'
+        if text in ('canceled', 'cancelled'):
+            return 'canceled', 'build_canceled'
+        return 'build_finalize_failed', 'build_finalize_failed: ' + text
+
+    def _wait_build_after_observe(
+            self, handle, timeout_s: float, grace_s: float, min_views: int):
+        """
+        OBSERVE 之后等 Build：视角未达 min_views 只给 grace_s，达线后用满超时.
+
+        Returns
+        -------
+            (result, kind)：kind 为 '' / observe_build_view_race /
+            build_timeout:executor_wait.
+
+        """
+        if handle is None:
+            return None, 'build_timeout:executor_wait'
+        result_fut = handle.get_result_async()
+        started = time.monotonic()
+        race_deadline = started + max(grace_s, 0.0)
+        full_deadline = started + max(timeout_s, 0.0)
+        while not result_fut.done():
+            now = time.monotonic()
+            views = int(self._build_feedback.get('view_count') or 0)
+            if now >= full_deadline:
+                self.get_logger().warning(
+                    'build wait timeout (executor_wait), views=%s', views)
+                self._cancel_handle(handle)
+                return None, 'build_timeout:executor_wait'
+            if views < min_views and now >= race_deadline:
+                self.get_logger().warning(
+                    'observe_build_view_race: views=%s < min_views=%s',
+                    views, min_views)
+                self._cancel_handle(handle)
+                return None, 'observe_build_view_race'
+            if self._paused and self._batch_state not in (
+                    PAUSED, PAUSE_PENDING):
+                self._batch_state = PAUSE_PENDING
+                self._publish_state()
+            if self._cancel or self._peek_skip():
+                self._cancel_handle(handle)
+            time.sleep(0.05)
+        self._action_active = False
+        try:
+            wrapped = result_fut.result()
+        except Exception as exc:  # noqa: BLE001
+            self.get_logger().warning(f'action result failed: {exc}')
+            return None, 'build_finalize_failed'
+        return getattr(wrapped, 'result', wrapped), ''
 
     def _survey_body(self, goal):
         timeout = float(self.get_parameter('action_timeout_s').value)
@@ -563,20 +831,68 @@ class PeachTaskExecutor(LifecycleNode):
         self._action_active = False
 
     def _send_goal(self, client, goal_msg, timeout_s: float,
-                   feedback: bool = False):
+                   feedback: bool = False, feedback_cb=None):
         if not client.wait_for_server(timeout_sec=timeout_s):
             self.get_logger().warning('action server not ready')
             return None
         kwargs = {}
-        if feedback:
-            kwargs['feedback_callback'] = self._on_exec_feedback
+        callback = feedback_cb
+        if callback is None and feedback:
+            callback = self._on_exec_feedback
+        if callback is not None:
+            kwargs['feedback_callback'] = callback
         send_fut = client.send_goal_async(goal_msg, **kwargs)
         handle = self._await_future(send_fut, timeout_s)
         if handle is None or not handle.accepted:
-            self.get_logger().warning('action goal rejected')
+            tid = str(getattr(goal_msg, 'target_id', '') or '')
+            self.get_logger().warning(
+                f'action goal rejected target_id={tid or "-"}')
             return None
         self._action_active = True
         return handle
+
+    def _wait_target_in_locked_set(
+            self, target_id: str, timeout_s: float) -> bool:
+        """等感知锁定集出现该 ID，再派 ExecuteTarget，避免技能空缓存秒拒."""
+        if not target_id:
+            return False
+        deadline = time.monotonic() + max(timeout_s, 0.0)
+        while time.monotonic() < deadline:
+            obs = self._observations
+            locked = obs is not None and bool(
+                getattr(obs, 'target_set_locked', False))
+            if locked:
+                for item in obs.observations:
+                    tid = str(getattr(item, 'target_id', ''))
+                    if tid == target_id and bool(
+                            getattr(item, 'confirmed', False)):
+                        return True
+            if self._cancel or self._peek_skip():
+                return False
+            time.sleep(0.05)
+        self.get_logger().warning(
+            f'target {target_id} not in locked set after {timeout_s:.1f}s')
+        return False
+
+    def _on_build_feedback(self, feedback_msg) -> None:
+        """记录 BuildTargetModel 的 view_count/status 供 OBSERVE 收口核对."""
+        fb = getattr(feedback_msg, 'feedback', feedback_msg)
+        self._build_feedback['view_count'] = int(
+            getattr(fb, 'view_count', 0) or 0)
+        self._build_feedback['status'] = str(getattr(fb, 'status', '') or '')
+
+    def _wait_build_started(self, handle, timeout_s: float) -> bool:
+        """等 Build 绑定目标进入采集态；未确认前严禁发观察运动."""
+        result_fut = handle.get_result_async()
+        deadline = time.monotonic() + max(timeout_s, 0.0)
+        while time.monotonic() < deadline:
+            if str(self._build_feedback.get('status') or '') in (
+                    'COLLECTING', 'READY'):
+                return True
+            if result_fut.done() or self._cancel or self._peek_skip():
+                return False
+            time.sleep(0.02)
+        return False
 
     def _on_exec_feedback(self, feedback_msg) -> None:
         fb = getattr(feedback_msg, 'feedback', feedback_msg)
@@ -667,7 +983,9 @@ class PeachTaskExecutor(LifecycleNode):
         if not bool(self.get_parameter('persist_ledger').value):
             return
         try:
-            save_ledger(self._ledger_path(), claimed, self._outcomes)
+            save_ledger(
+                self._ledger_path(), claimed, self._outcomes,
+                self._outcome_details)
         except OSError as exc:
             self.get_logger().warning(f'ledger write failed: {exc}')
 
@@ -794,7 +1112,8 @@ class PeachTaskExecutor(LifecycleNode):
                 pass
         return state
 
-    def _emit(self, code: str, request_id: str, target_id: str = '') -> None:
+    def _emit(self, code: str, request_id: str, target_id: str = '',
+              details: dict | None = None) -> None:
         if code in {
             'target_succeeded', 'target_skipped', 'target_failed',
             'target_canceled', 'target_operator_skipped',
@@ -811,7 +1130,10 @@ class PeachTaskExecutor(LifecycleNode):
         ev.run_id = self._run_id
         ev.target_id = target_id
         ev.state_seq = self._state_seq
-        ev.message = json.dumps({'code': code}, ensure_ascii=False)
+        payload = {'code': code}
+        if details:
+            payload.update(details)
+        ev.message = json.dumps(payload, ensure_ascii=False)
         if hasattr(self, '_pub_event'):
             self._pub_event.publish(ev)
 

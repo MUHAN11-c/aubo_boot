@@ -57,15 +57,10 @@ def select_reconstruction_candidate(
     return best.target_id, center
 
 
-def candidate_axis_hint(msg, target_id: str):
-    """读取已绑定候选的有限单位轴；缺失或退化时返回 None."""
-    if msg is None or not target_id:
+def axis_from_vector3(direction):
+    """geometry_msgs/Vector3 → 有限单位轴；缺失或退化时返回 None."""
+    if direction is None:
         return None
-    candidate = next(
-        (item for item in msg.candidates if item.target_id == target_id), None)
-    if candidate is None:
-        return None
-    direction = candidate.translation_direction
     axis = np.array(
         [direction.x, direction.y, direction.z], dtype=np.float64)
     if not np.all(np.isfinite(axis)):
@@ -74,6 +69,17 @@ def candidate_axis_hint(msg, target_id: str):
     if norm <= 1.0e-9:
         return None
     return axis / norm
+
+
+def candidate_axis_hint(msg, target_id: str):
+    """读取已绑定候选的有限单位轴；缺失或退化时返回 None."""
+    if msg is None or not target_id:
+        return None
+    candidate = next(
+        (item for item in msg.candidates if item.target_id == target_id), None)
+    if candidate is None:
+        return None
+    return axis_from_vector3(candidate.translation_direction)
 
 
 class TargetKindMemory:

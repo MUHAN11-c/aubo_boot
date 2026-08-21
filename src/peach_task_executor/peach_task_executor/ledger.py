@@ -26,14 +26,40 @@ def ledger_file(root: Path, request_id: str) -> Path:
     return Path(root) / safe / 'ledger.json'
 
 
-def outcome_to_dict(outcome: TargetOutcome) -> dict:
-    """Serialize TargetOutcome to a JSON-friendly dict."""
-    return {
+def elapsed_s(outcome) -> float | None:
+    """TargetOutcome.elapsed → 秒；零/缺省给 None."""
+    elapsed = getattr(outcome, 'elapsed', None)
+    if elapsed is None:
+        return None
+    value = (float(getattr(elapsed, 'sec', 0) or 0)
+             + float(getattr(elapsed, 'nanosec', 0) or 0) * 1e-9)
+    return round(value, 3) if value > 0.0 else None
+
+
+def set_elapsed(outcome, seconds: float) -> None:
+    """把墙钟秒写入 TargetOutcome.elapsed."""
+    value = max(float(seconds or 0.0), 0.0)
+    outcome.elapsed.sec = int(value)
+    outcome.elapsed.nanosec = int(round((value - int(value)) * 1e9))
+
+
+def outcome_to_dict(outcome: TargetOutcome, extra: dict | None = None) -> dict:
+    """Serialize TargetOutcome plus optional telemetry extra."""
+    data = {
         'target_id': str(outcome.target_id),
         'outcome': int(outcome.outcome),
         'reason': str(outcome.reason),
         'quality_score': float(getattr(outcome, 'quality_score', 0.0) or 0.0),
+        'elapsed_s': elapsed_s(outcome),
     }
+    extra = extra or {}
+    for key in (
+            'failure_code', 'stage_names', 'stage_durations',
+            'build_view_count', 'build_status', 'build_duration_s',
+            'timeout_source'):
+        if extra.get(key) is not None:
+            data[key] = extra[key]
+    return data
 
 
 def dict_to_outcome(data: dict) -> TargetOutcome:
@@ -43,6 +69,8 @@ def dict_to_outcome(data: dict) -> TargetOutcome:
     item.outcome = int(data.get('outcome', TargetOutcome.FAILED))
     item.reason = str(data.get('reason', ''))
     item.quality_score = float(data.get('quality_score', 0.0) or 0.0)
+    if data.get('elapsed_s') is not None:
+        set_elapsed(item, float(data['elapsed_s']))
     return item
 
 
@@ -59,12 +87,17 @@ def load_ledger(path: Path) -> tuple:
     return claimed, outcomes
 
 
-def save_ledger(path: Path, claimed, outcomes) -> None:
-    """原子写 ledger.json."""
+def save_ledger(path: Path, claimed, outcomes, details=None) -> None:
+    """原子写 ledger.json（details 与 outcomes 等长的遥测附加字段）."""
     path.parent.mkdir(parents=True, exist_ok=True)
+    extras = list(details or [])
+    rows = []
+    for index, item in enumerate(outcomes):
+        extra = extras[index] if index < len(extras) else {}
+        rows.append(outcome_to_dict(item, extra))
     document = {
         'claimed': sorted(str(tid) for tid in claimed if tid),
-        'outcomes': [outcome_to_dict(item) for item in outcomes],
+        'outcomes': rows,
     }
     tmp = path.with_suffix('.json.tmp')
     tmp.write_text(

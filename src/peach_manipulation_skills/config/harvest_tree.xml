@@ -11,7 +11,7 @@
       <AcquireReconstructionViews/>
     </Sequence>
   </BehaviorTree>
-  <!-- 质量验证+降级：finalize/精化/质量门；未达标时按候选锚点降级抓取兜底。 -->
+  <!-- 质量验证：OBSERVE_ONLY 须等到绑定目标的 TSDF/精化；FULL 才允许降级锚点。 -->
   <BehaviorTree ID="QualityValidate">
     <Sequence name="quality_validate">
       <FinalizeAndValidate/>
@@ -42,6 +42,8 @@
   <BehaviorTree ID="PeachHarvest">
     <Sequence name="harvest_cycle">
       <PrepareCycle/>
+      <!-- plan-only（execution.enabled=false）：只规划预览。OBSERVE_ONLY
+           在此路径必须 SKIPPED_QUALITY，不得把 PLAN_READY 当观察成功。 -->
       <Fallback name="preview_or_active_cycle">
         <Sequence>
           <IsPlanOnly/>

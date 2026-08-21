@@ -24,7 +24,7 @@
 
 | 方向 | 内容 |
 |------|------|
-| 被执行器调 | `~/begin_scene`：清身份表、推进 `scene_epoch` |
+| 被执行器调 | `~/begin_scene`：重置批次计划、推进 `scene_epoch`；仅 `scene_key` 改变时清身份表 |
 | 订阅 | 相机三件套；闩锁 `HarvestState` |
 | 发布 | `/peach/perception/*`（见下表） |
 | 消费方 | 执行器、重建、技能、观测 |
@@ -65,6 +65,7 @@ ros2 launch peach_scene_perception peach_pose.launch.py
 | `debug_image` | 叠加图 |
 | `harvest_state` | 计划 JSON（闩锁） |
 
-服务：`~/begin_scene`；`~/query_harvest_state`。没有批次完成/清记忆服务。
+服务：`~/begin_scene`；`~/query_harvest_state`。同一 `scene_key` 续批保留稳定
+`target_id`；物理场景重新布置时应更换 `scene_key`。没有批次完成/清记忆服务。
 
 输出系默认 `base_link`。`depth_scale_unit` 默认 `0.25`（Percipio）；毫米回放设 `1.0`。

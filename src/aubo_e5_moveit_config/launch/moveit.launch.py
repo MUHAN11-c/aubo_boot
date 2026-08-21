@@ -31,8 +31,8 @@
 #
 # 启动内容：
 #   move_group               规划/执行服务（控制器映射由 controllers_file 选择：
-#                            sim/real -> controllers.yaml（passthrough），
-#                            mock    -> controllers_mock.yaml（标准 JTC），
+#                            real -> controllers.yaml（passthrough），
+#                            mock -> controllers_mock.yaml（标准 JTC），
 #                            由 bringup 按 hardware_mode 透传）
 #   rviz2                    带完整 MoveIt 参数（必须与 move_group 拿同一份
 #                            robot_description*，含 robot_description_planning：

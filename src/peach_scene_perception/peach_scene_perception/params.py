@@ -70,7 +70,7 @@ DECLARE_DEFAULTS = {
     # 空串 → 算法默认相机系 +Y；否则 "x,y,z" 重力提示
     'gravity_hint_xyz': '',
     # fixed=仅用 gravity_hint_xyz；tf=由本帧 TF 旋转反推相机系重力
-    'gravity_mode': 'fixed',
+    'gravity_mode': 'tf',
     # 2.14 装配：接口层实现的注册名（默认实现见 peach_pose/impls.py）
     'detector.impl': 'yolo',
     'segmenter.impl': 'mobile_sam',
@@ -80,7 +80,7 @@ DECLARE_DEFAULTS = {
     'lock.impl': 'collect_lock',
     'tool.D_inner': 0.104,
     'tool.L_insert': 0.200,
-    'tool.L_blade': 0.025,
+    'tool.L_blade': 0.0,
     'tool.entry_d_tool': 0.030,
     'tool.entry_d_s': 0.040,
     'tool.clearance_min': 0.005,
@@ -177,8 +177,8 @@ DESCRIPTIONS = {
                            '外参 hand_eye/active.yaml）',
     'gravity_hint_xyz': '重力方向提示 "x,y,z"（相机系）；'
                         '空串=算法默认相机系 +Y',
-    'gravity_mode': '重力来源：fixed=仅用 gravity_hint_xyz（默认，行为与旧版'
-                    '一致）；tf=由本帧 output←camera 的 TF 旋转反推相机系重力'
+    'gravity_mode': '重力来源：tf=腕载相机默认，由本帧 output←camera 的 TF'
+                    '旋转反推相机系重力；fixed=仅用 gravity_hint_xyz'
                     '（output_frame 系重力约定 [0,0,-1]，只乘旋转不加平移，'
                     'TF 不可用的帧回退 gravity_hint_xyz）',
     'detector.impl': '检测器实现注册名（Detector 接口；默认 yolo='
@@ -195,7 +195,7 @@ DESCRIPTIONS = {
                  'collect_lock=CollectLockPolicy）',
     'tool.D_inner': '工具圆柱内径 (m)，袋子必须能通过',
     'tool.L_insert': '最大插入深度 (m)',
-    'tool.L_blade': '刀刃平面到圆柱入口平面的距离 (m)',
+    'tool.L_blade': 'TCP 到剪切平面的轴向距离 (m)；当前二者重合为 0',
     'tool.entry_d_tool': '入口 standoff 的工具分量 (m)',
     'tool.entry_d_s': '入口 standoff 的安全裕量分量 (m)',
     'tool.clearance_min': '袋体与工具内壁的最小径向余量 (m)',

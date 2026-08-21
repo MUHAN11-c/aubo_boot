@@ -51,10 +51,10 @@ PAUSE 时循环卡住。`SKIP_TARGET` 跳过当前目标。`~/state.target_id` �
 ```bash
 ros2 launch peach_task_executor executor.launch.py
 ros2 launch peach_task_executor harvest_system.launch.py \
-  hardware_mode:=sim camera_enabled:=false
+  hardware_mode:=mock camera_enabled:=false
 ```
 
-整栈默认 `hardware_mode:=sim`、`camera_enabled:=false`；真机须显式 `real`。
+整栈默认 `hardware_mode:=mock`、`camera_enabled:=false`；真机须显式 `real`。
 
 ## 接口
 

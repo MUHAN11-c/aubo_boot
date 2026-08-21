@@ -222,6 +222,7 @@ class PeachPoseNode(LifecycleNode):
         self._executor_target_id = ''
         self._executor_state_seen = False
         self._scene_epoch = 0
+        self._scene_key = ''
         # 阶段 D1：锁定集目标光照质量统计（观测指标，不打阻断旗标）；
         # OUT_OF_VIEW 分类用的「消失前最后检测框是否触图像边缘」记忆
         # （稳定 target_id → bool；clear_target_memory 时一并清空）
@@ -250,8 +251,10 @@ class PeachPoseNode(LifecycleNode):
         # A5 起旧 ~/ 组（grasp_candidates/fitting/markers 等）已删除，下游一律
         # 订阅本组固定命名；2D 候选不再单独成话题（随 target_observations 的
         # candidate_2d 字段下发）
+        pose_qos = rclpy.qos.QoSProfile(
+            depth=1, durability=rclpy.qos.DurabilityPolicy.TRANSIENT_LOCAL)
         self.pub_norm_pose = self.create_publisher(
-            BagGraspCandidateArray, '/peach/perception/initial_pose', 10)
+            BagGraspCandidateArray, '/peach/perception/initial_pose', pose_qos)
         self.pub_norm_axis = self.create_publisher(
             Vector3Stamped, '/peach/perception/axis', 10)
         self.pub_norm_cloud = self.create_publisher(
@@ -415,7 +418,7 @@ class PeachPoseNode(LifecycleNode):
         return response
 
     def _on_begin_scene(self, request, response):
-        """BeginScene：新 scene_epoch，清空身份表并重置收齐窗口."""
+        """BeginScene：推进批次；仅物理场景切换时清空身份表."""
         if not self._lifecycle_active:
             response.accepted = False
             response.scene_epoch = self._scene_epoch
@@ -434,14 +437,18 @@ class PeachPoseNode(LifecycleNode):
             self.harvest_data = HarvestDataStore(root=self.harvest_data.root)
             self.harvest_run_id = ''
             cleared = 0
-            if self.target_registry is not None:
+            scene_changed = bool(
+                self._scene_key and request.scene_key != self._scene_key)
+            if self.target_registry is not None and scene_changed:
                 cleared = self.target_registry.clear()
+            self._scene_key = request.scene_key
             self._bbox_at_edge.clear()
             self._publish_harvest_state()
         response.accepted = True
         response.scene_epoch = self._scene_epoch
         response.message = (
             f'scene_epoch={self._scene_epoch} key={request.scene_key} '
+            f'identity={"cleared" if scene_changed else "preserved"} '
             f'cleared={cleared} prev_run={old_run or "none"}')
         return response
 

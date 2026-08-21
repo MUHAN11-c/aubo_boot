@@ -28,5 +28,5 @@ source /opt/ros/jazzy/setup.bash
 cd /home/mu/Desktop/aubo_e5_jazzy_ws
 colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
-ros2 launch peach_task_executor harvest_system.launch.py hardware_mode:=sim camera_enabled:=false
+ros2 launch peach_task_executor harvest_system.launch.py hardware_mode:=mock camera_enabled:=false
 ```

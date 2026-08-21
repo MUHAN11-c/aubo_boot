@@ -15,7 +15,7 @@ colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
 pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
 ros2 launch peach_task_executor harvest_system.launch.py \
-  hardware_mode:=sim camera_enabled:=false
+  hardware_mode:=mock camera_enabled:=false
 ```
 
 默认不上电、不派发运动、不打工具 IO、**不自动开批**。监控 `http://127.0.0.1:8090`。

@@ -56,6 +56,7 @@ class RefitConfig:
     cylinder_inlier_min: float = 0.35  # ACCEPT 门控：内点率下限（圆柱/球共用）
     rmse_max_m: float = 0.005          # ACCEPT 门控：拟合 RMSE 上限 [m]
     entry_standoff_m: float = 0.070    # entry 自 bottom 沿 −axis 后撤量 [m]
+    max_axis_angle_deg: float = 35.0   # 检测轴 vs 精化轴夹角上限 [deg]
     normal_neighbors: int = 24         # 法线估计 kNN 邻域点数
     seed: int = 0                      # RANSAC 随机种子（固定保证可复现）
 
@@ -113,6 +114,22 @@ def orient_axis_bottom_to_neck(axis: np.ndarray) -> np.ndarray:
     if axis @ GRAVITY_BASE > 0.0:
         axis = -axis
     return axis
+
+
+def axis_angle_deg(first, second):
+    """两轴夹角 [deg]；退化向量返回 None（不取绝对值，翻转算 180°）."""
+    a = np.asarray(first, dtype=np.float64).reshape(-1)
+    b = np.asarray(second, dtype=np.float64).reshape(-1)
+    if a.size != 3 or b.size != 3:
+        return None
+    if not np.all(np.isfinite(a)) or not np.all(np.isfinite(b)):
+        return None
+    na = float(np.linalg.norm(a))
+    nb = float(np.linalg.norm(b))
+    if na <= 1.0e-9 or nb <= 1.0e-9:
+        return None
+    cosine = float(np.clip(np.dot(a / na, b / nb), -1.0, 1.0))
+    return float(np.degrees(np.arccos(cosine)))
 
 
 def _cylinder_ends(points_inl: np.ndarray, axis_point: np.ndarray,
@@ -246,12 +263,56 @@ def _gated_result(kind: str, n_points: int, center: np.ndarray,
     }
 
 
+def _normalize_axis_hint(axis_hint):
+    """可选轴先验 → 有限单位向量；无效给 None."""
+    if axis_hint is None:
+        return None
+    hint = np.asarray(axis_hint, dtype=np.float64).reshape(-1)
+    if hint.size != 3 or not np.all(np.isfinite(hint)):
+        return None
+    norm = float(np.linalg.norm(hint))
+    if norm <= 1.0e-9:
+        return None
+    return hint / norm
+
+
+def _apply_axis_consistency(result: dict, axis_hint, config: RefitConfig) -> dict:
+    """
+    检测轴—精化轴夹角门：超过 max_axis_angle_deg 则降为 REOBSERVE.
+
+    先验缺失时只记录 axis_angle_deg=None，不在本层拒绝（技能端质量门
+    仍可用观测轴对照精化轴）。
+
+    Args:
+        result: _gated_result 的 ok=True 结果（原地增补字段）.
+        axis_hint: 可选检测轴（任意长度，内部单位化）.
+        config: 含 max_axis_angle_deg 的门控参数.
+
+    Returns
+    -------
+        同一 result dict.
+
+    """
+    hint = _normalize_axis_hint(axis_hint)
+    if hint is None:
+        result['axis_angle_deg'] = None
+        return result
+    angle = axis_angle_deg(result['axis'], hint)
+    result['axis_angle_deg'] = angle
+    result['perception_axis'] = [float(v) for v in hint]
+    max_deg = float(config.max_axis_angle_deg)
+    if angle is not None and angle > max_deg:
+        result['flags'].append('perception_reconstruction_axis_mismatch')
+        result['status'] = STATUS_REOBSERVE
+    return result
+
+
 class CylinderRefitter(Refitter):
     """
     interfaces.Refitter 的袋桃圆柱线：法线估计 + 圆柱 RANSAC + 消歧.
 
     无状态（RefitConfig 随调用传入）；target_kind 参数仅为对齐 ABC
-    签名，本实现恒走圆柱线。
+    签名，本实现恒走圆柱线。axis_hint 用于与精化轴做夹角门。
     """
 
     def refit(self, cloud_xyz: np.ndarray, target_kind: str = 'bag',
@@ -264,14 +325,15 @@ class CylinderRefitter(Refitter):
             cloud_xyz: (N, 3) 点 [m]（base_frame）；空云/少点优雅失败.
             target_kind: 忽略（恒圆柱线；选线由 select_refitter 负责）.
             config: RefitConfig；None 用默认.
-            axis_hint: 忽略（圆柱有内禀轴，无需先验）.
+            axis_hint: 可选 bottom→neck 单位方向（base_frame）；用于
+                与圆柱精化轴做夹角门，不再忽略.
 
         Returns
         -------
             RefitResult dict（键集见 interfaces.Refitter）.
 
         """
-        del target_kind, axis_hint  # 圆柱线不使用（ABC 签名对齐）
+        del target_kind  # 圆柱线不使用（ABC 签名对齐）
         config = config or RefitConfig()
         xyz, fail = _precheck(cloud_xyz)
         if fail is not None:
@@ -288,9 +350,10 @@ class CylinderRefitter(Refitter):
         center = 0.5 * (bottom + neck)
         span = float(np.linalg.norm(neck - bottom))
         axis_point = np.asarray(est['q0'], dtype=np.float64)
-        return _gated_result(
+        result = _gated_result(
             'cylinder', n, center, axis, axis_point, bottom, neck, span,
             est, config, flags=[])
+        return _apply_axis_consistency(result, axis_hint, config)
 
 
 class SphereRefitter(Refitter):
@@ -346,9 +409,10 @@ class SphereRefitter(Refitter):
         bottom = center - est['radius'] * axis
         neck = center + est['radius'] * axis
         span = 2.0 * float(est['radius'])
-        return _gated_result(
+        result = _gated_result(
             'sphere', n, center, axis, center.copy(), bottom, neck, span,
             est, config, flags=[axis_flag])
+        return _apply_axis_consistency(result, axis_hint, config)
 
 
 def select_refitter(refitters: Mapping[str, Refitter],

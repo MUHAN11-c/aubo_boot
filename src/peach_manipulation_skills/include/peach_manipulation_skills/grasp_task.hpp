@@ -63,14 +63,17 @@ struct GraspTaskConfig
   std::string planning_group;  // MoveIt 规划组
   std::string tip_frame;       // IK 末端连杆（当前 tcp）
   std::string base_frame;      // 位姿参考系（base_link）
-  std::string free_space_pipeline{"ompl"};  // 到入口的自由空间管线
-  std::string free_space_planner{"RRTConnectkConfigDefault"};
+  std::string free_space_pipeline{"pilz_industrial_motion_planner"};
+  std::string free_space_planner{"PTP"};
   double planning_time_s{5.0};
   double velocity_scaling{0.05};       // 接触段（靠近/插入/撤离）
   double acceleration_scaling{0.05};
   double cartesian_step_m{0.005};      // 直线插入步长 [m]
   double cartesian_precision_m{0.001};
   std::size_t max_solutions{5U};
+  double approach_max_duration_s{12.0};
+  double approach_max_total_joint_travel_rad{4.0};
+  double approach_max_single_joint_travel_rad{2.1};
   std::vector<ProtectedZone> protected_zones;  // base 系 AABB → planning scene
   std::function<bool(std::string &)> approach_execution_gate;  // 下发接近轨迹前
   std::function<bool(std::string &)> retreat_execution_gate;   // 撤离不依赖视觉
@@ -92,7 +95,7 @@ public:
   GraspTask(rclcpp::Node::SharedPtr node, GraspTaskConfig config);
   ~GraspTask();
 
-  // 到入口（OMPL）再沿轴直线插入。execute=false 只规划。
+  // 碰撞感知短路径到入口，再沿轴直线插入。execute=false 只规划。
   GraspTaskResult approachAndInsert(
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
@@ -127,8 +130,10 @@ private:
   GraspTaskResult planAndMaybeExecute(
     std::unique_ptr<moveit::task_constructor::Task> task,
     bool execute,
-    const std::function<bool(std::string &)> & execution_gate);
-  GraspTaskResult planTaskOnly(moveit::task_constructor::Task * active);
+    const std::function<bool(std::string &)> & execution_gate,
+    bool guard_approach = false);
+  GraspTaskResult planTaskOnly(
+    moveit::task_constructor::Task * active, bool guard_approach);
   GraspTaskResult executeSolution(
     moveit::task_constructor::Task * active,
     const std::function<bool(std::string &)> & execution_gate);

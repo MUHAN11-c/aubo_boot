@@ -49,8 +49,11 @@ class CaptureParams:
     min_views: int = 4
     recommended_views: int = 5
     max_views: int = 24
-    require_robot_static: bool = False
-    static_joint_vel_thresh: float = 0.01
+    minimum_baseline_deg: float = 15.0
+    minimum_mean_nearest_baseline_deg: float = 6.0
+    minimum_mean_depth_ratio: float = 0.40
+    require_robot_static: bool = True
+    static_joint_vel_thresh: float = 0.03
     max_frame_age_s: float = 2.0
     auto_mode: bool = True
     auto_finalize_at_max: bool = False
@@ -184,6 +187,7 @@ class RefitParams:
     cylinder_inlier_min: float = 0.35
     rmse_max_m: float = 0.005
     entry_standoff_m: float = 0.070
+    max_axis_angle_deg: float = 35.0
 
 
 @dataclass(frozen=True)
@@ -242,7 +246,11 @@ _DESCRIPTIONS: Dict[str, str] = {
     'capture.min_views': 'finalize 所需最少视角数',
     'capture.recommended_views': '推荐视角数（不足仅提示，不阻塞 finalize）',
     'capture.max_views': '帧栈上限（达到后拒采，先 remove_last 或 finalize）',
-    'capture.require_robot_static': '采帧是否要求机器人静止（查 /joint_states）',
+    'capture.minimum_baseline_deg': 'Build 完成所需最大角基线 [deg]',
+    'capture.minimum_mean_nearest_baseline_deg': 'Build 完成所需平均最近邻角基线 [deg]',
+    'capture.minimum_mean_depth_ratio': 'Build 完成所需机位平均有效深度占比',
+    'capture.require_robot_static': '采帧是否要求机器人静止（查 /joint_states）；'
+                                    '运动中帧跳过，避免连续扫描超采污染 TSDF',
     'capture.static_joint_vel_thresh': '静止判定：最大关节速度阈值 [rad/s]',
     'capture.max_frame_age_s': '缓存帧龄期上限 (s)，超过视为陈帧拒采',
     'capture.auto_mode': '自动模式总开关：true=有候选自动开始、每个唯一'
@@ -322,6 +330,8 @@ _DESCRIPTIONS: Dict[str, str] = {
                         '（超过则 REOBSERVE）',
     'refit.entry_standoff_m': 'refined_pose 的 entry_pose 自 bottom 沿 '
                               '−axis 后撤量 [m]',
+    'refit.max_axis_angle_deg': '检测轴与精化轴夹角上限 [deg]；超过则 '
+                                'REOBSERVE 且不允许抓取',
     'publish.on_change_only': '点云/Marker 类大消息（local_cloud/tsdf_cloud/'
                               'markers）仅内容版本变化才发（E4；闩锁保持，'
                               '零变化抑制不丢 RViz 显示）；false=逐次全发',
@@ -338,7 +348,7 @@ _SCALARS: Tuple[str, ...] = ('sync_slop_s', 'tf_timeout_sec', 'depth_scale_unit'
 
 @dataclass(frozen=True)
 class ReconstructionParams:
-    """全部 64 个节点参数的 frozen 装载形态（嵌套组 + 顶层标量）."""
+    """全部 65 个节点参数的 frozen 装载形态（嵌套组 + 顶层标量）."""
 
     sync_slop_s: float = 0.05
     tf_timeout_sec: float = 1.0

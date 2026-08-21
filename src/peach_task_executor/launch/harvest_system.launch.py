@@ -60,12 +60,12 @@ def generate_launch_description():
     hand_eye_web_enabled = LaunchConfiguration('hand_eye_web_enabled')
     return LaunchDescription([
         DeclareLaunchArgument(
-            'hardware_mode', default_value='sim',
-            choices=['mock', 'sim', 'real'],
-            description='硬件模式；默认 sim，真机须显式 hardware_mode:=real'),
+            'hardware_mode', default_value='mock',
+            choices=['mock', 'real'],
+            description='硬件模式；默认 mock（标准仿真），真机须显式 hardware_mode:=real'),
         DeclareLaunchArgument(
             'robot_ip', default_value='169.254.10.98',
-            description='AUBO 控制器 IP；sim/mock 模式不使用'),
+            description='AUBO 控制器 IP；mock 模式不使用'),
         DeclareLaunchArgument(
             'moveit_enabled', default_value='true',
             description='启动 MoveIt move_group 和 RViz2'),

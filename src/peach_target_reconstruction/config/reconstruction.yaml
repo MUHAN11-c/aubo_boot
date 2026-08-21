@@ -20,8 +20,13 @@ peach_target_reconstruction_node:
     capture.min_views: 4           # finalize 所需最少视角数
     capture.recommended_views: 5   # 推荐视角数（不足仅提示，不阻塞 finalize）
     capture.max_views: 24          # 约 30 s 连续扫描上限（0.8 FPS）
-    capture.require_robot_static: false  # true 时采帧要求机器人静止（查 /joint_states）
-    capture.static_joint_vel_thresh: 0.01  # 静止判定：最大关节速度阈值 [rad/s]
+    capture.minimum_baseline_deg: 15.0
+    capture.minimum_mean_nearest_baseline_deg: 6.0
+    capture.minimum_mean_depth_ratio: 0.40
+    # 观察到位后才积分。false 时连续运动中每个唯一时间戳都会入栈，
+    # 现场 3 个机位可积到 22 帧，TSDF 重影后圆柱轴相对检测轴可偏 ~90°。
+    capture.require_robot_static: true  # true 时采帧要求机器人静止（查 /joint_states）
+    capture.static_joint_vel_thresh: 0.03  # 到位后残余速度；转移中仍是 0.4–1.5 rad/s
     capture.max_frame_age_s: 2.0   # 缓存帧龄期上限（秒），超过视为陈帧拒采
     # ── 自动模式（默认开，零服务全自动）─────────────────────
     capture.auto_mode: true        # 有候选自动开始，每个唯一同步帧进入质量门；
@@ -96,6 +101,10 @@ peach_target_reconstruction_node:
     refit.cylinder_inlier_min: 0.35  # ACCEPT 门控：内点率下限（圆柱/球共用）
     refit.rmse_max_m: 0.005          # [m] ACCEPT 门控：拟合 RMSE 上限
     refit.entry_standoff_m: 0.070    # [m] entry_pose 自 bottom 沿 −axis 后撤量
+    # [deg] 检测轴（绑定候选 translation_direction）与精化轴夹角上限。
+    # 超过则 REOBSERVE 且 grasp_allowed=false。现场 target_0≈26.7° 可过，
+    # target_1≈88° 必须拦；符号翻转（~180°）同样拒绝。
+    refit.max_axis_angle_deg: 35.0
     # ── 发布节流（E4：on-change + 最小间隔）─────────────────────
     # 点云/Marker 类大消息（local_cloud/tsdf_cloud/markers；单次 PointCloud2
     # 可达数万点）仅内容版本变化且距上次实际发布超过最小间隔才真正组装发布。

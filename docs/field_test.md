@@ -70,13 +70,13 @@ Lifecycle 应为 Active：`peach_scene_perception_node`、`peach_target_reconstr
 | Detection Cloud | 关 | `/peach/perception/single_cloud` | 检测框内深度反投影的彩色点云（步长 `detection_cloud_stride`，默认每 2 像素取 1）。用来对 TF/深度，不是重建结果。 |
 | Camera Points | 关 | `/camera/depth_registered/points` | Percipio 整幅配准深度点云，相机光学系。很密，现场默认关。 |
 | TSDF Cloud | 开 | `/peach/reconstruction/tsdf_cloud` | 绑定目标的 TSDF 表面点（米、RGB，Transient Local）。多视角积分后的果/袋外形。 |
-| Local Cloud | 关 | `/peach/reconstruction/local_cloud` | 各已采视角点云拼在一起（未融成体）。比 TSDF 碎、更贴单帧。 |
+| Local Cloud | 关 | `/peach/reconstruction/local_cloud` | 各已采视角点云拼在一起（未融成体）。不是作业用模型，默认关。 |
 | Reconstruction Markers | 开 | `/peach/reconstruction/markers` | 重建相机轨迹与精化抓取示意（Transient Local）。绿点球/黄线/青箭头=已采相机位与光轴。ns `peach_reconstruction/refined` 与 Perception Markers 同款：袋轴、入袋行程、圆柱、果球（fruit）、入口 RGB 架、文字（`live` 随积分更新，`final` 为 finalize 定稿）。半透明青网格（ns `peach_reconstruction/tsdf_mesh`）=TSDF 三角面。换绑/reset 仍清屏。 |
 | Planned Views | 开 | `/peach_manipulation_skills_node/planned_views` | 技能规划的候选拍照位（ns `candidate_views`，最多 24）。箭头从规划相机位指向目标中心；越绿分数越高、越红越低。`execution.enabled=false` 时仍会在 Survey/Observe 规划后出现，不代表已经走到该位。 |
 | Camera Color | 关 | `/camera/color/image_raw` | 相机原彩图，无叠加。 |
-| Debug Image | 开 | `/peach/perception/debug_image` | 感知叠加图。绿/橙框=已确认目标；灰框=未满 `confirm_frames` 的闪现（不进锁定/3D Marker）。文字=`target_id` + YOLO 置信度。`untracked_*` 无 3D/无 TF，不计入。 |
+| Debug Image | 开 | `/peach/perception/debug_image` | 感知叠加图。绿/橙框=已确认目标；灰框=未满 `confirm_frames` 的闪现（不进锁定/3D Marker）。紫色横线+空心圆=TCP 行程终点，同时也是物理刀刃剪切位置（袋颈前保留 `tool.margin_neck`）。文字=`target_id` + YOLO 置信度。`untracked_*` 无 3D/无 TF，不计入。 |
 
-现场干跑优先看 **Debug Image**（2D 检/分割）和 **Perception Markers**（3D 是否落在 `base_link` 正确位置）。重建开始后再看 **TSDF Cloud** 与 **Reconstruction Markers**。不要同时开 Camera Points 和 Detection Cloud，RViz 会卡。
+现场干跑优先看 **Debug Image**（2D 检/分割）和 **Perception Markers**（3D 是否落在 `base_link` 正确位置）。重建开始后看 **TSDF Cloud** 与 **Reconstruction Markers**。不要同时开 Camera Points 和 Detection Cloud，RViz 会卡。
 
 ## 4. 显式开批（仍不运动）
 
@@ -129,9 +129,12 @@ ros2 action send_goal /peach_task_executor/run_harvest peach_interfaces/action/R
 # intent 0 = PICK_ALL（须另开使能才真走臂）
 
 # 授权后真运动（抓取/工具默认仍关）
+# 动作入口（ExecuteTarget / SurveyScene）在 execution.enabled=true 时自动一次性 arm；
+# 手动 ~/start_cycle 与 ~/go_to_photo_pose 仍须人工 arm。
 ros2 param set /peach_task_executor execution_enabled true
 ros2 param set /peach_manipulation_skills_node execution.enabled true
-ros2 service call /peach_manipulation_skills_node/set_execution_armed std_srvs/srv/SetBool "{data: true}"
+# 仅手动 Trigger 需要：
+# ros2 service call /peach_manipulation_skills_node/set_execution_armed std_srvs/srv/SetBool "{data: true}"
 ros2 service call /peach_manipulation_skills_node/go_to_photo_pose std_srvs/srv/Trigger "{}"
 ```
 
@@ -139,4 +142,93 @@ ros2 service call /peach_manipulation_skills_node/go_to_photo_pose std_srvs/srv/
 
 ## 6. 以后若要真运动（须另授权）
 
-同时打开执行器 `execution_enabled` 与技能 `execution.enabled`，并调用 `~/set_execution_armed`。抓取再开 `grasp.enabled` / `tool.enabled`。卸果须现场标定 `deposit_pose_named_target`（M8）。本页不写使能步骤的默认值。
+同时打开执行器 `execution_enabled` 与技能 `execution.enabled`。`RunHarvest` / `ExecuteTarget` / `SurveyScene` 动作入口会自动 arm；手动 Trigger 才调用 `~/set_execution_armed`。抓取再开 `grasp.enabled` / `tool.enabled`。卸果须现场标定 `deposit_pose_named_target`（M8）。本页不写使能步骤的默认值。
+
+## 7. M1 单果观察验收（不接触、不开工具）
+
+档位：`execution_enabled=true`，技能 `execution.enabled=true`，`grasp.enabled=false`，`tool.enabled=false`。确认 `motion_possible=1` `e_stop=0`。
+
+同一可见目标连续 3 次 `RunHarvest` intent=PICK_ALL（或单独 ExecuteTarget OBSERVE_ONLY）。每次须：
+
+- `captured_views >= 4`
+- TSDF 点数 > 0，refit `ok=True`
+- `ExecuteTarget.outcome=SUCCEEDED` 且 `BuildTargetModel.success=True`
+- 失败时 `web_runs/run_*/summary.md` 与 `harvest_runs/<id>/ledger.json` 能看到 `skip_reasons` / `failure_code`（不得再出现计数器全 0 且无告警）
+
+结论写入 `web_runs/field_test_<日期>/log.md`。
+
+## 8. 单目标完整抓取验收（运动、接触，不开工具 IO）
+
+档位：执行器与技能 `execution=true`、`grasp.enabled=true`、`tool.enabled=false`。精度与安全优先于节拍，禁止为提速放宽质量门。
+
+- Build action 接收后须在 2 秒内反馈 `COLLECTING`/`READY`；未确认绑定时机械臂不得开始环绕。
+- 正常观察预算不超过 35 秒：初始拍照位 + 3 个有效移动视点，第 4 个只作质量补偿。
+- `captured_views >= 4`，基线、深度覆盖、refit RMSE 与内点率全部通过。
+- 记录初始与精化后 entry/neck 位移、axis 夹角和 TCP travel 差值；无精化结果不得宣称方向/定位准确。
+- MTC 接近、直线插入与同轴撤离均须成功，控制器每段必须回报 goal-hold 成功。
+- `tool.enabled=false` 全程保持，日志不得出现 SetIO 调用；工具阶段只允许明确记录“跳过末端 IO”。
+- 单目标完整周期目标 45–60 秒；超时须按阶段拆分观察、重建、再确认和接触耗时。
+- 失败必须产生明确 `failure_code`，批次可取消并收敛，不得停在 `RUNNING + action_active=false`。
+
+**2026-08-21 结论：本节验收未通过。** 不得宣称接近、直线插入、同轴撤离成功。当日批次见 §10。
+
+## 9. 树干/粗枝避障（下周调试项）
+
+当前 URDF 已包含机械臂与相机碰撞几何，但环境中树干、粗枝尚未进入
+MoveIt PlanningScene。本周真机抓取仅允许使用人工确认的无粗枝通道；相机或
+机械臂可能接近木质结构时立即取消，不以末端工具“允许接触”替代环境避障。
+
+计划在 2026-08-24 至 2026-08-30 调试：从配准深度点云提取跨帧稳定的树干/
+粗枝体素或圆柱，转换到精确时间戳 `base_link`，按保守膨胀半径加入碰撞场景；
+仅对末端工具链设置允许碰撞，相机和其余机械臂链保持禁止碰撞。验收须包含
+静态场景稳定性、传感器盲区/陈旧数据停止门、规划失败安全收敛及近枝实机低速测试。
+
+## 10. 2026-08-21 阶段性成果（真机，工具 IO 关）
+
+过程结论另有 `web_runs/field_test_20260821/log.md`（目录 gitignore，勿删）。账本在 `harvest_runs/<request_id>/ledger.json`。
+
+### 已通过 / 已落地
+
+| 项 | 证据 |
+|----|------|
+| 整栈 Lifecycle Active，透传、相机 ~2.4 fps，手眼 TF | 冒烟；`drives_powered=1` `motion_possible=1` `e_stop=0` |
+| Survey → 并行 Build + OBSERVE_ONLY → FULL（`skip_observation`） | 编排按设计走两段 `ExecuteTarget` |
+| 静止采帧 `capture.require_robot_static=true` | 转移中 `robot_not_static` skip，不再把运动帧积进 TSDF |
+| 检测轴 vs 精化轴 35° 门 | `1840_grasp_opt3` 的 `target_1` 约 49° → `perception_reconstruction_axis_mismatch` |
+| 新机位静止时采集（不再当 `motion_jump` 丢掉） | 同批 `target_0` **4** 视角、`target_1` **5** 视角 |
+| 派观察前等锁定集 | `1835` 起 ID 稳定为 `target_0`/`target_1`，不再观察 1.9 s 秒拒 |
+| 账本 `failure_code` 分级 + 观察段耗时合并 | `skipped_quality` / `skipped_unreachable`；`elapsed_s` 含 observe |
+| 工具 IO | 全程 `tool.enabled=false`，无 SetIO |
+
+关键源码/参数：`reconstruction.yaml` 静止门；`frame_collector.auto_capture_decision` 新机位采集；重建/技能 `max_axis_angle_deg=35`；再确认精化路径不平移 TSDF；执行器锁定集等待与 OBSERVE 重试。
+
+### 接触轮（均未形成成功抓取）
+
+| 批次 | 目录 | 摘要 |
+|------|------|------|
+| `field_full_20260821_1743_mtc_guard_final` | `web_runs/run_20260821_174311` | `target_0` 插入 68.97% 接触前拒绝；`target_1` 22 帧轴偏 ~88°。运动中超采。 |
+| `field_full_20260821_1827_grasp_opt` | `web_runs/run_20260821_182839` | 技能空锁定集秒拒 `target_0`。 |
+| `field_full_20260821_1835_grasp_opt2` | `web_runs/run_20260821_183524` | 新机位 9 cm 被 80 mm `motion_jump` 丢掉，`captured_views=1`。 |
+| **`field_full_20260821_1840_grasp_opt3`** | `web_runs/run_20260821_183951` | 观察恢复。见下行。 |
+
+`1840_grasp_opt3`（71.2 s，使能已关回 false）：
+
+- `target_0`：4 视角，轴夹角 ~11°，refit ACCEPT，`grasp_allowed=true`。FULL 再确认 3 窗（自适应约 2.6 s）报「未获得新鲜观测」，跟踪状态却是 OBSERVED → `skipped_quality`。未进 MTC。
+- `target_1`：5 视角，轴夹角 ~49°，夹角门生效后降级锚点；MTC 接近预计 29 s > 12 s 短路径门 → `skipped_unreachable`。
+
+### 实测节拍（opt3 账本）
+
+| 目标 | observe | reconfirm | approach | 合计 |
+|------|--------:|----------:|---------:|-----:|
+| target_0 | 14.7 s | 8.1 s | — | 24.1 s |
+| target_1 | 17.3 s | 0.2 s | 0.2 s | 17.9 s |
+
+## 11. 下周继续（2026-08-24 起）
+
+1. **再确认新鲜度（优先）**：锁定目标已是 OBSERVED 时应用当前锚点判漂移，不要只等 `received_s > after_s`。`target_0` 在 opt3 已具备接触几何。
+2. **接触验收（§8）**：MTC 接近 + 直线插入 + 同轴撤离均 goal-hold；`tool.enabled` 仍默认 false。
+3. **降级抓取**：轴夹角超限后不要用远距离 PTP 硬闯；短路径门拒绝应保持 `skipped_unreachable`。
+4. **树干/粗枝进 PlanningScene**（§9），无通道不接触。
+5. **M2 效率**（`docs/m2_efficiency.md`）须等 §8 通过后再下调 `min_views`。
+
+使能顺序：先 `grasp.enabled=false` 再关 `execution.enabled`（依赖链 `execution→grasp→tool`）。launch 仍不自动 `RunHarvest`。

@@ -65,7 +65,7 @@ enum class ReconfirmVerdict
 {
   PENDING,   // 继续等下一窗口/下一帧（摆动等平息中）
   PASS,      // 再确认通过（含 allow_stale_anchor 的静态锚点回退放行）
-  REFINED,   // 漂移超限：已用最新锚点重算一次，重新复核
+  REFINED,   // 漂移超限：降级路径按最新锚点重算；精化路径保留 TSDF 入口再开窗
   ABORT      // 放弃：reason 给出原因（身份变更/持续摆动）
 };
 
@@ -79,7 +79,8 @@ struct ReconfirmDecision
 // - 身份不一致 → 立即 ABORT（不计超限，由周期钉死语义兜底失败）；
 // - 窗口耗尽 → allow_stale_anchor 时 PASS（旧"按静态锚点继续"行为，验证期遗留）；
 //   否则计一次超限；
-// - 漂移超限 → REFINED（节点体用样本锚点重算 entry/axis 一次）并计一次超限；
+// - 漂移超限 → REFINED 并计一次超限。节点体：降级路径用样本锚点重算入口；
+//   精化路径保留 TSDF 几何，等下一窗观测回到容差（禁止单帧平移精化入口）；
 // - 摆动（target_swinging）→ PENDING 等平息，须残差低于容差且连续 2 帧干净
 //   才 PASS（摆动本身不计超限，摆动持续导致窗口耗尽才计）；
 // - 累计超限达 max_attempts → ABORT，reason 按真实致因区分（"锚点漂移超限"/
@@ -119,7 +120,7 @@ public:
           " 次超容差）" :
           "锚点漂移超限：累计 " + std::to_string(strikes_) + " 次超容差"};
       }
-      // 漂移超限：用最新锚点重算 entry/axis 一次（节点体执行），重新复核。
+      // 漂移超限：节点体决定是否重算入口（降级才平移，精化保留 TSDF）。
       return {ReconfirmVerdict::REFINED,
         "锚点漂移 " + std::to_string(sample.anchor_drift_m) +
         "m 超容差，已按最新锚点重算入口/轴（第 " + std::to_string(strikes_) + " 次）"};

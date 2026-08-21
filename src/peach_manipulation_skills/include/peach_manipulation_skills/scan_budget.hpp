@@ -35,9 +35,9 @@ namespace peach_manipulation_skills
 
 // 观察段扫描预算（2.13-E2 / 2.7-OBSERVE）纯核：从"固定 maximum_moves 计数 +
 // 固定时间盒"升级为预算制——
-//   * 下限保证：有效视点观测（移动到位且收到新鲜目标观测）未达
-//     min_effective_views 前，质量收敛与预算耗尽都不得收口；
-//   * 提前收口：达到下限且质量门允许 finalize（覆盖/基线达标）即停；
+//   * 质量优先收口：完整质量门允许 finalize 即停，不为凑移动次数继续运动；
+//   * 下限保证：质量尚未达标且有效视点未达 min_effective_views 时，
+//     预算不得提前收口；
 //   * 预算自适应：运行预算 = max(配置下限 time_budget_s,
 //     2.5 × 实测移动+等帧成本 EMA)（协议 T(scan_budget)）；移动成本 EMA 已测
 //     得时，剩余预算换不起一个视点则预测性收口，提前 finalize 走降级链；
@@ -47,9 +47,9 @@ namespace peach_manipulation_skills
 struct ScanBudgetConfig
 {
   // 默认值以 config/approach_grasp.yaml 为权威源，此处仅为直接构造兜底。
-  int maximum_moves{5};        // 移动次数硬上限（兜底，防候选全失败死循环）
-  int min_effective_views{2};  // 有效视点观测下限（收口前提）
-  double time_budget_s{5.0};  // 观察段时间预算下限（秒），运行期按成本 EMA 伸缩
+  int maximum_moves{4};        // 3 个正常主动视点 + 1 个质量补偿
+  int min_effective_views{3};  // 主动移动下限；初始视角另计，质量门仍要求总视角>=4
+  double time_budget_s{35.0};  // 观察段时间预算下限（秒），运行期按成本 EMA 伸缩
 };
 
 enum class ScanVerdict
@@ -80,22 +80,24 @@ public:
 
   // 每轮扫描循环顶部的收口判定。
   //   gate_allowed     ：质量门 readyToFinalize 当前是否放行（覆盖/基线达标）；
-  //   moves/effective_views：已执行移动次数 / 有效视点观测数（到位且收到新鲜帧）；
+  //   moves/effective_views：已执行移动次数 / 有效视点数（到位+新鲜观测+新重建帧）；
   //   elapsed_s        ：观察段已耗时（秒）；
   //   move_cost_ema_s  ：单视点移动+等帧成本 EMA（秒，≤0=未测得）。
   ScanVerdict poll(
     bool gate_allowed, int moves, int effective_views, double elapsed_s,
     double move_cost_ema_s) const
   {
+    // 完整质量门已覆盖积分帧数、角基线、视角分布与深度质量；放行后
+    // 继续移动只会等待一个 Build READY 后不再产生的新帧。
+    if (gate_allowed) {
+      return ScanVerdict::CONVERGED;
+    }
     if (moves >= config_.maximum_moves) {
       return ScanVerdict::MOVES_EXHAUSTED;
     }
-    // 下限保证：有效视点未达下限前，质量收敛也不得收口（2.13-E2）。
+    // 质量尚未达标时，下限保证优先于预算收口。
     if (effective_views < config_.min_effective_views) {
       return ScanVerdict::CONTINUE;
-    }
-    if (gate_allowed) {
-      return ScanVerdict::CONVERGED;
     }
     const double budget_s = effectiveBudgetS(move_cost_ema_s);
     if (elapsed_s >= budget_s) {

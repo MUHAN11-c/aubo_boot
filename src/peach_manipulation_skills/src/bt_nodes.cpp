@@ -231,6 +231,12 @@ BT::NodeStatus ApproachGraspNode::btPrepareCycle()
 
 BT::NodeStatus ApproachGraspNode::btPlanPreview()
 {
+  // OBSERVE_ONLY 必须真走臂采多视角；plan-only 不得伪装成观察成功。
+  if (cycle_observe_only_.load()) {
+    pending_outcome_.store(ExecuteTarget::Result::SKIPPED_QUALITY);
+    return btFailure(
+      "observe_only 需要 execution.enabled=true 才能采多视角；当前为只规划预览");
+  }
   for (const auto & candidate : cycle_candidates_) {
     if (motion_->planOrMoveCamera(
         candidate.camera_pose, "PTP", false, candidate.label, true))
@@ -246,9 +252,9 @@ BT::NodeStatus ApproachGraspNode::btPlanPreview()
 BT::NodeStatus ApproachGraspNode::btAcquireViews()
 {
   // 扫描预算制（2.13-E2 / 2.7-OBSERVE，判定纯核 ScanBudget）：
-  //   - 下限保证：有效视点观测（移动到位且收到新鲜目标观测）未达
-  //     min_effective_views_ 前不得收口；
-  //   - 提前收口：达到下限且质量门允许 finalize 即停；
+  //   - 质量优先：完整质量门放行即停，不为凑主动移动次数继续运动；
+  //   - 下限保证：质量尚未达标且有效视点未达 min_effective_views_ 时，
+  //     不得按预算提前收口；
   //   - 预算自适应：运行预算 = max(scan_time_budget_s_, 2.5×移动成本EMA)；
   //     剩余预算按实测 EMA 换不起一个视点即预测性收口，强制 finalize 走降级链；
   //   - maximum_moves_ 仅兜底（候选规划/移动全失败的极端场景）。
@@ -348,10 +354,12 @@ BT::NodeStatus ApproachGraspNode::btAcquireViews()
         RCLCPP_WARN(get_logger(), "视点到达但等待新鲜目标观测超时，换下一视点");
         break;
       }
-      ++effective_views;
       if (!waitForNewView(before)) {
-        RCLCPP_WARN(get_logger(), "视点到达但等待新重建帧超时");
+        // 无新重建帧则本视点未进入 TSDF，不计有效视点（与感知新鲜帧解耦）。
+        RCLCPP_WARN(get_logger(), "视点到达但等待新重建帧超时，换下一视点");
+        break;
       }
+      ++effective_views;
       // 移动+等帧成本 EMA（0.7/0.3，与 trackFrameInterval 同形状）：预算制
       // （2.13-E2）预测"剩余预算能否再换一个有效视点"的实测输入，跨周期保留。
       const double move_cost_s = now().seconds() - move_start_s;
@@ -376,8 +384,12 @@ BT::NodeStatus ApproachGraspNode::btAcquireViews()
   const GateResult gate = quality_gate_->readyToFinalize(qualitySnapshot());
   if (!gate.allowed) {
     if (budget_exhausted) {
-      // 预算收口已按 SUCCESS 路径带现有覆盖强制 finalize（精化不达标由候选
-      // 锚点降级抓取兜底，非极端必抓；降级终局 reason 带 degraded_anchor 可计数）。
+      // FULL：预算收口带现有覆盖强制 finalize，精化不达标由候选锚点降级抓取。
+      // OBSERVE_ONLY：没有精化产物就算失败，不能把重建未绑定/帧不足当成功。
+      if (cycle_observe_only_.load()) {
+        pending_outcome_.store(ExecuteTarget::Result::SKIPPED_QUALITY);
+        return btFailure("观察预算收口但重建未收敛: " + gate.reason);
+      }
       return BT::NodeStatus::SUCCESS;
     }
     // 移动次数上限内采集帧不足/不收敛（含有效视点未达下限）：按目标不可达跳过。
@@ -391,12 +403,24 @@ BT::NodeStatus ApproachGraspNode::btAcquireViews()
 
 BT::NodeStatus ApproachGraspNode::btFinalizeAndValidate()
 {
-  if (cycle_observe_only_.load()) {
-    return BT::NodeStatus::SUCCESS;
-  }
   setState(CycleState::FINALIZE, "等待重建精化几何（BuildTargetModel）");
   const bool refined_arrived = waitForRefined(cycle_target_id_);
-  const GateResult gate = quality_gate_->readyToGrasp(qualitySnapshot());
+  if (cycle_observe_only_.load()) {
+    if (!refined_arrived) {
+      pending_outcome_.store(ExecuteTarget::Result::SKIPPED_QUALITY);
+      return btFailure(
+        "observe_only 未等到绑定目标的 TSDF/精化几何: " + cycle_target_id_);
+    }
+    return BT::NodeStatus::SUCCESS;
+  }
+  const QualitySnapshot snapshot = qualitySnapshot();
+  const GateResult gate = quality_gate_->readyToGrasp(snapshot);
+  if (!gate.allowed) {
+    RCLCPP_WARN(
+      get_logger(),
+      "grasp quality gate denied: %s (axis_angle_deg=%.2f)",
+      gate.reason.c_str(), snapshot.axis_angle_deg);
+  }
   const bool grasp_ready = refined_arrived && gate.allowed &&
     graspDecisionTargetSnapshot() == cycle_target_id_;
   const auto tip_from_tool = motion_->lookupTransform(tip_frame_, tool_frame_);
@@ -408,8 +432,13 @@ BT::NodeStatus ApproachGraspNode::btFinalizeAndValidate()
     if (!cycle_refined_) {
       return btFailure("精化位姿数据不存在");
     }
-    // 再确认漂移判定的参考锚点：精化几何对应的目标锚点（底/颈中点）。
-    cycle_reference_anchor_ = 0.5 * (cycle_refined_->bottom + cycle_refined_->neck);
+    // 再确认漂移判定必须和后续新鲜观测用同一套锚点定义（感知底/颈中点）。
+    // 若拿 TSDF 中点去比单帧检测中点，现场曾把 ~5cm 的定义差当成果实移动，
+    // 再把精化入口整包平移，直线插入在错误位置走不完。
+    const auto live_anchor = cycleTargetSnapshot();
+    cycle_reference_anchor_ = (live_anchor && live_anchor->valid) ?
+      live_anchor->center :
+      0.5 * (cycle_refined_->bottom + cycle_refined_->neck);
     Eigen::Isometry3d entry_tool_pose = Eigen::Isometry3d::Identity();
     entry_tool_pose.translation() = cycle_refined_->entry;
     entry_tool_pose.linear() = ViewPlanner::toolOrientation(
@@ -578,25 +607,24 @@ BT::NodeStatus ApproachGraspNode::btReconfirmTarget()
       return BT::NodeStatus::SUCCESS;
     }
     if (decision.verdict == ReconfirmVerdict::REFINED) {
-      // 漂移超限重算入口几何后，按旧几何的预规划必然作废：立即清槽（仍在
-      // 运行的 plan 结果按 stale 忽略）；不再按新几何重启预规划——重算只
-      // 发生一次（协议 2.7-RECONFIRM），MTC 阶段内联重规划即可。
+      if (!cycle_degraded_grasp_) {
+        // 精化路径：多视 TSDF 入口比单帧检测稳，超容差只计一次超限并再开窗，
+        // 不把入口平移到跳变锚点。预规划仍对应原精化几何，槽可保留。
+        RCLCPP_WARN(
+          get_logger(),
+          "%s；保留 TSDF 入口，不按单帧平移", decision.reason.c_str());
+        setState(
+          CycleState::RECONFIRM,
+          decision.reason + "；保留精化入口，等观测回到容差");
+        continue;
+      }
+      // 降级路径来自单帧候选：入口必须跟最新锚点走，旧预规划作废。
       preplan_slot_.discard();
-      // 漂移超限：用最新锚点重算 entry/axis 一次（写回周期"黑板"成员）。
-      // 精化路径按 delta 平移保留 entry-bottom 几何关系；降级路径按参数化
-      // 袋外余量整体重构入口点。参考锚点随之更新，下一窗口按新锚点复核。
-      const Eigen::Vector3d delta = latest_anchor - reference_anchor;
       if (nonzeroFinite(latest_axis)) {
         cycle_refined_->axis = latest_axis.normalized();
       }
-      if (cycle_degraded_grasp_) {
-        cycle_refined_->entry = degradedEntryPoint(
-          latest_anchor, cycle_refined_->axis, cycle_travel_m_, fallback_standoff_m_);
-      } else {
-        cycle_refined_->entry += delta;
-        cycle_refined_->bottom += delta;
-        cycle_refined_->neck += delta;
-      }
+      cycle_refined_->entry = degradedEntryPoint(
+        latest_anchor, cycle_refined_->axis, cycle_travel_m_, fallback_standoff_m_);
       const auto tip_from_tool = motion_->lookupTransform(tip_frame_, tool_frame_);
       if (!tip_from_tool) {
         return btFailure("再确认重算入口时无法取得 tip 到 tool 的变换");
@@ -633,7 +661,9 @@ BT::NodeStatus ApproachGraspNode::btReconfirmTarget()
 BT::NodeStatus ApproachGraspNode::btReportReady()
 {
   cycle_terminal_state_ = CycleState::READY_FOR_GRASP;
-  cycle_terminal_message_ = "精化质量通过；grasp.enabled=false，未执行接触动作";
+  cycle_terminal_message_ = cycle_degraded_grasp_ ?
+    "grasp.enabled=false，未执行接触；入口来自感知降级锚点" :
+    "精化质量通过；grasp.enabled=false，未执行接触动作";
   return BT::NodeStatus::SUCCESS;
 }
 
@@ -695,11 +725,13 @@ BT::NodeStatus ApproachGraspNode::btMtcApproachAndInsert()
         get_logger(), "MTC 前观测仍陈旧，按静态目标锚点继续（已等待复核）");
     }
   }
+  const std::string planner_label =
+    mtc_free_space_pipeline_ + "/" + mtc_free_space_planner_;
   setState(
     CycleState::MTC_APPROACH_INSERT,
     cycle_degraded_grasp_ ?
-      "MTC（降级：候选锚点）: OMPL 避障到入口，再沿候选轴直线插入" :
-      "MTC: OMPL 避障到入口，再沿精化轴直线插入");
+      "MTC（降级：候选锚点）: " + planner_label + " 到入口，再沿候选轴直线插入" :
+      "MTC: " + planner_label + " 到入口，再沿精化轴直线插入");
   GraspTaskResult result;
   if (preplan_reuse_) {
     // 预规划复用（2.13-E3）：再确认 PASS 点已判定 READY 且漂移 ≤
@@ -741,6 +773,10 @@ BT::NodeStatus ApproachGraspNode::btMtcApproachAndInsert()
 
 BT::NodeStatus ApproachGraspNode::btActuateTool()
 {
+  if (!tool_enabled_.load()) {
+    setState(CycleState::ACTUATE_TOOL, "tool.enabled=false，跳过末端 IO");
+    return BT::NodeStatus::SUCCESS;
+  }
   setState(CycleState::ACTUATE_TOOL, "触发末端工具抓取/切割");
   if (!commandToolClose()) {
     const auto retreat = grasp_task_->retreat(

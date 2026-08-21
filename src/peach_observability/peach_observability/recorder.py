@@ -345,8 +345,45 @@ def reconstruction_final(records: list[dict]) -> dict:
         'tsdf_integrate_time_s': tsdf.get('integrate_time_s'),
         'grasp_allowed': decision.get('allowed'),
         'grasp_reason': decision.get('reason'),
+        'skipped_views': last.get('skipped_views'),
+        'skip_reasons': last.get('skip_reasons'),
+        'last_skip_code': last.get('last_skip_code'),
+        'last_skip_reason': last.get('last_skip_reason'),
     }
     return {key: value for key, value in result.items() if value is not None}
+
+
+def reconstruction_per_target(records: list[dict]) -> list[dict]:
+    """reconstruction.jsonl → 逐目标最大视角数与门禁跳过码."""
+    by_id = {}
+    for item in records:
+        if item.get('topic') != 'diagnostics':
+            continue
+        data = item.get('data') or {}
+        tid = str(data.get('target_id') or '')
+        if not tid:
+            continue
+        row = by_id.setdefault(tid, {
+            'target_id': tid,
+            'captured_views_max': 0,
+            'skipped_views_max': 0,
+            'skip_reasons': {},
+            'last_state': '',
+        })
+        row['captured_views_max'] = max(
+            row['captured_views_max'], int(data.get('captured_views') or 0))
+        row['skipped_views_max'] = max(
+            row['skipped_views_max'], int(data.get('skipped_views') or 0))
+        reasons = data.get('skip_reasons') or {}
+        if isinstance(reasons, dict):
+            for key, value in reasons.items():
+                row['skip_reasons'][key] = max(
+                    row['skip_reasons'].get(key, 0), int(value or 0))
+        row['last_state'] = data.get('state') or row['last_state']
+        if data.get('last_skip_code'):
+            row['last_skip_code'] = data.get('last_skip_code')
+            row['last_skip_reason'] = data.get('last_skip_reason')
+    return list(by_id.values())
 
 
 def _clock(stamp: float | None) -> str:
@@ -376,7 +413,8 @@ def build_summary_markdown(run_id: str, started: float | None,
                            ended: float | None, batch_state, rounds: int,
                            rows: list[dict], phases: list[dict],
                            event_stats: dict, perception: dict, recon: dict,
-                           metrics: dict) -> str:
+                           metrics: dict,
+                           recon_targets: list[dict] | None = None) -> str:
     """批次概览 + 逐目标/逐阶段耗时 + 事件/感知/重建/性能统计 → Markdown."""
     counts = {}
     for row in rows:
@@ -433,6 +471,21 @@ def build_summary_markdown(run_id: str, started: float | None,
             lines.append(f'- {key}：{value}')
     else:
         lines.append('- （无重建诊断记录）')
+    lines += ['', '## 逐目标重建视角', '']
+    if recon_targets:
+        lines.append('| target_id | captured_views_max | skipped_views_max | last_state | last_skip |')
+        lines.append('|---|---:|---:|---|---|')
+        for item in recon_targets:
+            skip = item.get('last_skip_code') or ''
+            reasons = item.get('skip_reasons') or {}
+            if reasons:
+                skip = skip + ' ' + json.dumps(reasons, ensure_ascii=False)
+            lines.append(
+                f"| {item.get('target_id')} | {item.get('captured_views_max')} | "
+                f"{item.get('skipped_views_max')} | {item.get('last_state') or '—'} | "
+                f"{(skip or '—').replace('|', '/')} |")
+    else:
+        lines.append('- （无逐目标诊断）')
     lines += ['', '## 运行性能统计', '',
               f"- 性能采样条数：{metrics.get('samples', 0)}"]
     for key, label in (('cpu_percent', 'CPU %'), ('memory_percent', '内存 %'),
@@ -783,6 +836,7 @@ class Recorder:
         stamps = [float(item.get('recorded_at') or 0.0)
                   for item in events + states if item.get('recorded_at')]
         rows = build_target_rows(events, priorities)
+        recon_targets = reconstruction_per_target(reconstruction)
         markdown = build_summary_markdown(
             run_id,
             min(stamps) if stamps else None,
@@ -790,7 +844,7 @@ class Recorder:
             batch_state, max(rounds) if rounds else 1, rows,
             phase_durations(states), event_statistics(events),
             perception_stats(perception), reconstruction_final(reconstruction),
-            summarize_metrics(metrics))
+            summarize_metrics(metrics), recon_targets)
         (run_dir / 'summary.csv').write_text(
             build_summary_csv(rows), encoding='utf-8')
         (run_dir / 'summary.md').write_text(markdown, encoding='utf-8')

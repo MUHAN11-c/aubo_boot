@@ -9,7 +9,7 @@ find_package(rclcpp_lifecycle REQUIRED)
 find_package(realtime_tools REQUIRED)
 find_package(std_msgs REQUIRED)
 
-add_library(${PROJECT_NAME} SHARED src/aubo_e5_hardware.cpp src/aubo_e5_sim_hardware.cpp)
+add_library(${PROJECT_NAME} SHARED src/aubo_e5_hardware.cpp)
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
 # 旧式 export_state_interfaces()/export_command_interfaces() 在 Jazzy 已标记
 # deprecated，但它仍是 UR 验证过的、能让硬件把 passthrough 状态机反馈回写进

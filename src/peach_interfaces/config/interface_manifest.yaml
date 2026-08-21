@@ -39,6 +39,7 @@ interfaces:
   - name: /peach/perception/initial_pose
     kind: topic
     type: peach_interfaces/msg/BagGraspCandidateArray
+    qos: {reliability: reliable, durability: transient_local, depth: 1}
     producers: [peach_scene_perception]
     consumers: [peach_target_reconstruction, peach_observability]
   - name: /peach/perception/diagnostics
@@ -91,6 +92,18 @@ interfaces:
     type: peach_interfaces/action/ExecuteTarget
     producers: [peach_manipulation_skills]
     consumers: [peach_task_executor]
+  - name: /peach/reconstruction/tsdf_cloud
+    kind: topic
+    type: sensor_msgs/msg/PointCloud2
+    qos: {reliability: reliable, durability: transient_local, depth: 1}
+    producers: [peach_target_reconstruction]
+    consumers: [peach_observability]
+  - name: /peach/reconstruction/markers
+    kind: topic
+    type: visualization_msgs/msg/MarkerArray
+    qos: {reliability: reliable, durability: transient_local, depth: 1}
+    producers: [peach_target_reconstruction]
+    consumers: []
   - name: /peach/reconstruction/shape_hypothesis
     kind: topic
     type: peach_interfaces/msg/ShapeHypothesis

@@ -38,6 +38,7 @@ from peach_interfaces.msg import (
 )
 from peach_target_reconstruction.cloud_builder import pack_rgb_bgr
 from peach_target_reconstruction.geometry_refiner import (
+    axis_angle_deg,
     STATUS_ACCEPT,
     STATUS_REJECT,
 )
@@ -257,7 +258,9 @@ class PublisherMixin:
                                                  z=float(result['axis'][2]))
             # 圆柱为袋径、球为果径（均 = 2r）
             cand.bag_diameter_upper_m = float(result['diameter'])
-            cand.suggested_travel_m = float(result['span_m'])
+            # 重建只提供 entry/neck/axis 几何，不持有刀刃长度和颈部余量；
+            # 0 表示执行端必须按工具参数重算，禁止把纯袋长 span_m 当 TCP 行程。
+            cand.suggested_travel_m = 0.0
             cand.confidence = float(result['inlier_ratio'])
             cand.status = int(result['status'])
             cand.diagnostic_flags = list(result['flags'])
@@ -341,6 +344,15 @@ class PublisherMixin:
         if result is None or not result.get('ok'):
             decision['reason'] = 'refined_geometry_unavailable'
             return decision
+        angle = result.get('axis_angle_deg')
+        if angle is None:
+            angle = axis_angle_deg(result.get('axis'), self._bound_axis_hint)
+        if angle is not None:
+            decision['axis_angle_deg'] = float(angle)
+            max_deg = float(self.params.refit.max_axis_angle_deg)
+            if angle > max_deg:
+                decision['reason'] = 'perception_reconstruction_axis_mismatch'
+                return decision
         if int(result.get('status', STATUS_REJECT)) != STATUS_ACCEPT:
             decision['reason'] = 'refined_quality_requires_reobserve'
             return decision
@@ -373,10 +385,15 @@ class PublisherMixin:
                                    else [float(v) for v in c.target_center]),
             'bound_axis_hint': (None if self._bound_axis_hint is None
                                 else [float(v) for v in self._bound_axis_hint]),
-            'captured_views': (coverage['view_count'] if coverage['valid']
-                               else len(c.frames)),
+            # 实际积分帧数；聚类后的独立方向数仅用于角基线。
+            'captured_views': len(c.frames),
             'rejected_views': c.rejected_views,
             'tf_failures': c.tf_failures,
+            'skipped_views': c.skipped_views,
+            'skip_reasons': dict(c.skip_reasons),
+            'last_skip_code': c.last_skip_code,
+            'last_skip_reason': c.last_skip_reason,
+            'frame_ring_size': len(getattr(self, '_frame_ring', {})),
             'tf_latency_ms': self._last_tf_latency_ms,
             'valid_depth_ratio': last_ratio,
             'cloud_points': int(cloud.shape[0]),
@@ -400,7 +417,8 @@ class PublisherMixin:
                     self._icp_target_cache.incremental_appends,
             },
             # 主动视觉控制器消费精确采帧位姿，而不是回调时刻的 latest TF。
-            # 覆盖指标按机位聚类（同机位连帧不稀释基线），captured_views 同口径。
+            # 覆盖指标按机位聚类（同机位连帧不稀释角基线）；积分帧数另由
+            # captured_views 报告。
             'view_coverage': coverage,
             # refit 摘要（kind/center/axis/diameter/rmse/inlier_ratio/ok）；
             # 未跑为 None，失败为 {'ok': False, 'reason': ...}
@@ -456,4 +474,6 @@ class PublisherMixin:
             'inlier_ratio': float(result['inlier_ratio']),
             'n_points': int(result['n_points']),
             'flags': list(result['flags']),
+            'axis_angle_deg': result.get('axis_angle_deg'),
+            'perception_axis': result.get('perception_axis'),
         }

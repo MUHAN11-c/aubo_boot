@@ -42,6 +42,9 @@ GateResult QualityGate::commonIdentityGate(const QualitySnapshot & snapshot) con
   if (snapshot.selected_target_id.empty()) {
     return {false, "selected_target_missing"};
   }
+  if (snapshot.reconstruction_target_id.empty()) {
+    return {false, "reconstruction_unbound"};
+  }
   if (snapshot.reconstruction_target_id != snapshot.selected_target_id) {
     return {false, "perception_reconstruction_id_mismatch"};
   }
@@ -49,6 +52,17 @@ GateResult QualityGate::commonIdentityGate(const QualitySnapshot & snapshot) con
     return {false, "reconstruction_data_stale"};
   }
   return {true, "identity_and_freshness_ok"};
+}
+
+GateResult QualityGate::axisConsistencyGate(const QualitySnapshot & snapshot) const
+{
+  if (snapshot.axis_angle_deg < 0.0) {
+    return {true, "axis_angle_unavailable"};
+  }
+  if (snapshot.axis_angle_deg > config_.maximum_axis_angle_deg) {
+    return {false, "perception_reconstruction_axis_mismatch"};
+  }
+  return {true, "axis_consistency_ok"};
 }
 
 GateResult QualityGate::readyToFinalize(const QualitySnapshot & snapshot) const
@@ -81,6 +95,9 @@ GateResult QualityGate::readyToPreviewContact(const QualitySnapshot & snapshot) 
   if (snapshot.selected_target_id.empty()) {
     return {false, "selected_target_missing"};
   }
+  if (snapshot.reconstruction_target_id.empty()) {
+    return {false, "reconstruction_unbound"};
+  }
   if (snapshot.reconstruction_target_id != snapshot.selected_target_id) {
     return {false, "perception_reconstruction_id_mismatch"};
   }
@@ -89,6 +106,10 @@ GateResult QualityGate::readyToPreviewContact(const QualitySnapshot & snapshot) 
   }
   if (snapshot.refined_target_id != snapshot.selected_target_id) {
     return {false, "refined_target_id_mismatch"};
+  }
+  const GateResult axis_gate = axisConsistencyGate(snapshot);
+  if (!axis_gate.allowed) {
+    return axis_gate;
   }
   if (!snapshot.refined_accept || !snapshot.grasp_allowed) {
     return {false, "refined_quality_not_allowed"};
@@ -115,6 +136,10 @@ GateResult QualityGate::readyToGrasp(const QualitySnapshot & snapshot) const
   }
   if (snapshot.refined_target_id != snapshot.selected_target_id) {
     return {false, "refined_target_id_mismatch"};
+  }
+  const GateResult axis_gate = axisConsistencyGate(snapshot);
+  if (!axis_gate.allowed) {
+    return axis_gate;
   }
   if (!snapshot.refined_accept || !snapshot.grasp_allowed) {
     return {false, "refined_quality_not_allowed"};

@@ -36,6 +36,7 @@
 #include <moveit/task_constructor/stages/move_to.h>
 #include <moveit/task_constructor/task.h>
 
+#include <algorithm>
 #include <exception>
 #include <memory>
 #include <sstream>
@@ -46,7 +47,10 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/vector3_stamped.hpp>
 #include <moveit_msgs/msg/collision_object.hpp>
+#include <moveit_task_constructor_msgs/msg/solution.hpp>
 #include <shape_msgs/msg/solid_primitive.hpp>
+
+#include "peach_manipulation_skills/trajectory_guard.hpp"
 
 namespace peach_manipulation_skills
 {
@@ -89,6 +93,7 @@ std::shared_ptr<mtc::solvers::CartesianPath> GraspTask::makeCartesianSolver() co
 {
   auto solver = std::make_shared<mtc::solvers::CartesianPath>();
   solver->setStepSize(config_.cartesian_step_m);
+  solver->setMinFraction(1.0);
   moveit::core::CartesianPrecision precision;
   precision.translational = config_.cartesian_precision_m;
   solver->setPrecision(precision);
@@ -215,7 +220,7 @@ GraspTaskResult GraspTask::approachAndInsert(
     makeApproachInsertTask(
       "peach_approach_insert", entry_tip_pose, insertion_axis,
       insertion_distance_m),
-    execute, config_.approach_execution_gate);
+    execute, config_.approach_execution_gate, true);
 }
 
 GraspTaskResult GraspTask::preplanApproachAndInsert(
@@ -234,7 +239,7 @@ GraspTaskResult GraspTask::preplanApproachAndInsert(
   }
   GraspTaskResult output;
   try {
-    output = planTaskOnly(active);
+    output = planTaskOnly(active, true);
   } catch (const std::exception & error) {
     output.reason = error.what();
   }
@@ -305,7 +310,7 @@ GraspTaskResult GraspTask::previewFullContact(
       insertion_distance_m));
   task->add(std::move(contact));
 
-  return planAndMaybeExecute(std::move(task), false, {});
+  return planAndMaybeExecute(std::move(task), false, {}, true);
 }
 
 GraspTaskResult GraspTask::retreat(
@@ -321,7 +326,7 @@ GraspTaskResult GraspTask::retreat(
   return planAndMaybeExecute(std::move(task), execute, config_.retreat_execution_gate);
 }
 
-GraspTaskResult GraspTask::planTaskOnly(mtc::Task * active)
+GraspTaskResult GraspTask::planTaskOnly(mtc::Task * active, bool guard_approach)
 {
   syncKeepoutCollisionObjects();
   GraspTaskResult output;
@@ -338,6 +343,42 @@ GraspTaskResult GraspTask::planTaskOnly(mtc::Task * active)
       output.reason = "MTC planning failed";
     }
     return output;
+  }
+  if (guard_approach) {
+    moveit_task_constructor_msgs::msg::Solution solution;
+    active->solutions().front()->toMsg(solution);
+    const auto approach = std::find_if(
+      solution.sub_trajectory.cbegin(), solution.sub_trajectory.cend(),
+      [](const auto & sub) {
+        const auto & trajectory = sub.trajectory.joint_trajectory;
+        return !trajectory.joint_names.empty() && !trajectory.points.empty();
+      });
+    if (approach == solution.sub_trajectory.cend()) {
+      output.reason = "MTC short-path guard rejected: 缺少接近轨迹";
+      return output;
+    }
+    const TrajectoryGuardLimits limits{
+      config_.approach_max_duration_s,
+      config_.approach_max_total_joint_travel_rad,
+      config_.approach_max_single_joint_travel_rad};
+    const auto report = inspectApproachTrajectory(
+      approach->trajectory.joint_trajectory, limits);
+    const auto approach_index = static_cast<std::size_t>(
+      approach - solution.sub_trajectory.cbegin());
+    RCLCPP_INFO(
+      node_->get_logger(),
+      "MTC 接近短路径审查: segment=%zu/%zu planner=%s "
+      "allowed=%s points=%zu duration=%.3fs "
+      "joint_total=%.3frad joint_max=%.3frad (%s)",
+      approach_index + 1U, solution.sub_trajectory.size(),
+      approach->info.planner_id.c_str(),
+      report.allowed ? "true" : "false", report.point_count,
+      report.duration_s, report.total_joint_travel_rad,
+      report.max_single_joint_travel_rad, report.reason.c_str());
+    if (!report.allowed) {
+      output.reason = "MTC short-path guard rejected: " + report.reason;
+      return output;
+    }
   }
   active->introspection().publishSolution(*active->solutions().front());
   output.success = true;
@@ -368,7 +409,8 @@ GraspTaskResult GraspTask::executeSolution(
 GraspTaskResult GraspTask::planAndMaybeExecute(
   std::unique_ptr<mtc::Task> task,
   bool execute,
-  const std::function<bool(std::string &)> & execution_gate)
+  const std::function<bool(std::string &)> & execution_gate,
+  bool guard_approach)
 {
   mtc::Task * active = nullptr;
   {
@@ -378,7 +420,7 @@ GraspTaskResult GraspTask::planAndMaybeExecute(
   }
   GraspTaskResult output;
   try {
-    output = planTaskOnly(active);
+    output = planTaskOnly(active, guard_approach);
     if (output.success && execute) {
       output = executeSolution(active, execution_gate);
     }

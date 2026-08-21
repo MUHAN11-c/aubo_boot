@@ -1,6 +1,6 @@
 # 使用方法
 
-逻辑、调用关系、源码阅读顺序：[flow.md](flow.md)。真机干跑：[field_test.md](field_test.md)。
+逻辑、调用关系、源码阅读顺序：[flow.md](flow.md)。真机干跑与 **2026-08-21 阶段性成果 / 下周任务**：[field_test.md](field_test.md) §10–11。
 
 先：
 
@@ -26,7 +26,7 @@ colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 ```bash
 # 开发机（无相机、不运动）
 ros2 launch peach_task_executor harvest_system.launch.py \
-  hardware_mode:=sim camera_enabled:=false
+  hardware_mode:=mock camera_enabled:=false
 
 # 真机（须显式 real；示教器上电；bringup 不起 aubo_dashboard）
 ros2 launch peach_task_executor harvest_system.launch.py \
@@ -39,7 +39,7 @@ ros2 launch peach_task_executor harvest_system.launch.py \
 
 | 参数 | 默认 | 说明 |
 |------|------|------|
-| `hardware_mode` | sim | mock / sim / real |
+| `hardware_mode` | mock | mock / real |
 | `robot_ip` | 169.254.10.98 | 仅 real |
 | `camera_enabled` | false | 有相机时设 true |
 | `extrinsics_enabled` | true | wrist3 → camera_link 静态 TF |
@@ -53,7 +53,7 @@ ros2 launch peach_task_executor harvest_system.launch.py \
 只起手臂：
 
 ```bash
-ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim camera_enabled:=false
+ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=mock camera_enabled:=false
 ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real robot_ip:=169.254.10.98
 ```
 
@@ -74,7 +74,7 @@ ros2 topic echo /peach_task_executor/events
 
 ## 手臂透传冒烟
 
-关节名必须是权威六轴顺序。sim 下 `set_io` 失败属预期。
+关节名必须是权威六轴顺序。透传冒烟仅适用于 `hardware_mode:=real`。
 
 ```bash
 ros2 topic echo --once /joint_states

@@ -30,12 +30,28 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace peach_manipulation_skills
 {
+namespace
+{
+constexpr double kPi = 3.14159265358979323846;
+
+double axisAngleDeg(const Eigen::Vector3d & first, const Eigen::Vector3d & second)
+{
+  if (!nonzeroFinite(first) || !nonzeroFinite(second)) {
+    return -1.0;
+  }
+  const double cosine = std::clamp(
+    first.normalized().dot(second.normalized()), -1.0, 1.0);
+  return std::acos(cosine) * 180.0 / kPi;
+}
+}  // namespace
+
 TargetCache::TargetCache(std::function<double()> clock_s)
 : clock_s_(std::move(clock_s))
 {
@@ -161,6 +177,12 @@ void TargetCache::updateReconstructionDiagnostics(
 bool TargetCache::updateGraspDecision(const std::string & target_id, bool allowed)
 {
   std::lock_guard<std::mutex> lock(mutex_);
+  if (target_id.empty()) {
+    grasp_decision_target_id_.clear();
+    quality_.grasp_allowed = false;
+    cv_.notify_all();
+    return true;
+  }
   if (!target_.id.empty() && target_id != target_.id) {
     return false;
   }
@@ -198,6 +220,16 @@ bool TargetCache::updateRefinedPose(const RefinedPoseUpdate & update)
 bool TargetCache::updateRefinedFitting(const RefinedFittingUpdate & update)
 {
   std::lock_guard<std::mutex> lock(mutex_);
+  if (update.clear) {
+    quality_.refined_rmse_m = 0.0;
+    quality_.refined_inlier_ratio = 0.0;
+    quality_.refined_accept = false;
+    if (refined_.id.empty()) {
+      quality_.refined_target_id.clear();
+    }
+    cv_.notify_all();
+    return true;
+  }
   const std::string expected_id = refined_.id.empty() ? target_.id : refined_.id;
   if (!expected_id.empty() && update.target_id != expected_id) {
     return false;
@@ -264,6 +296,11 @@ QualitySnapshot TargetCache::qualitySnapshot() const
   QualitySnapshot snapshot = quality_;
   if (diagnostics_seen_) {
     snapshot.data_age_s = std::max(0.0, clock_s_() - diagnostics_received_s_);
+  }
+  if (target_.valid && refined_.valid) {
+    snapshot.axis_angle_deg = axisAngleDeg(target_.initial_axis, refined_.axis);
+  } else {
+    snapshot.axis_angle_deg = -1.0;
   }
   return snapshot;
 }

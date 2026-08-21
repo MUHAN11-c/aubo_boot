@@ -37,16 +37,17 @@ namespace peach_manipulation_skills
 {
 
 // 默认值以 config/approach_grasp.yaml 为权威源，此处仅为直接构造兜底
-// （2026-08-14 对齐 yaml 验证期放宽档）。
+// （2026-08-21 与 capture.min_views=4 对齐）。
 struct QualityGateConfig
 {
-  std::size_t minimum_views{3};
-  double minimum_baseline_deg{15.0};
+  std::size_t minimum_views{4};
+  double minimum_baseline_deg{12.0};
   double minimum_mean_nearest_baseline_deg{6.0};
   double minimum_mean_depth_ratio{0.40};
   double maximum_refined_rmse_m{0.01};
   double minimum_refined_inlier_ratio{0.35};
   double maximum_data_age_s{2.0};
+  double maximum_axis_angle_deg{35.0};
 };
 
 // 默认质量门实现（注册名 threshold）：固定阈值档的身份一致性 + 视图覆盖 +
@@ -62,6 +63,7 @@ public:
 
 private:
   GateResult commonIdentityGate(const QualitySnapshot & snapshot) const;
+  GateResult axisConsistencyGate(const QualitySnapshot & snapshot) const;
   QualityGateConfig config_;
 };
 

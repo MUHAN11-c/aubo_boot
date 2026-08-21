@@ -50,10 +50,10 @@ peach_scene_perception_node:
     # 相机系重力方向提示（"x,y,z"），用于袋底→袋颈定向（逆重力）；
     # 空串=管线默认相机系 +Y（Percipio 正装朝下）
     gravity_hint_xyz: ""
-    # 重力来源：fixed=仅用 gravity_hint_xyz（默认，行为与旧版一致）；
+    # 重力来源：tf=腕载相机默认，按本帧 TF 反推；fixed=仅用 gravity_hint_xyz；
     # tf=由本帧 output←camera 的 TF 旋转反推相机系重力（output_frame 系重力
     # 约定 [0,0,-1]，只乘旋转不加平移；TF 不可用的帧回退 gravity_hint_xyz）
-    gravity_mode: fixed
+    gravity_mode: tf
     # ── 接口层实现装配（2.14：注册名见 peach_pose/impls.py 显式注册清单）────
     detector.impl: yolo              # 检测器（Detector）：UltralyticsYolo
     segmenter.impl: mobile_sam       # 分割器（Segmenter）：MobileSam
@@ -65,7 +65,7 @@ peach_scene_perception_node:
     # 换工具必改；直接决定安全门控（误差预算 vs 径向净空）
     tool.D_inner: 0.104      # 工具内径：袋径上界须 < 内径 - 2×clearance_min
     tool.L_insert: 0.200     # 最大插入行程（建议行程的上限）
-    tool.L_blade: 0.025      # 刃口长度（行程计算时在颈部前扣掉）
+    tool.L_blade: 0.000      # TCP 到剪切平面的轴向距离；当前二者重合
     tool.entry_d_tool: 0.030 # 接近时工具端面预停距离
     tool.entry_d_s: 0.040    # 附加安全距离；与上者相加 = 总预停距离 entry_standoff=0.070
     tool.clearance_min: 0.005    # 最小径向净空（安全门控余量）

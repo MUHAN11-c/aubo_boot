@@ -68,7 +68,7 @@ flowchart LR
 
 `peach_task_executor/launch/harvest_system.launch.py` 按顺序 **include**（能力包 `autostart:=false`）：
 
-1. `aubo_e5_bringup` — 手臂（mock/sim/real）+ 可选相机、手眼 TF、MoveIt
+1. `aubo_e5_bringup` — 手臂（mock/real）+ 可选相机、手眼 TF、MoveIt
 2. `peach_scene_perception` — RGB-D、YOLO+MobileSAM、身份、`BeginScene`
 3. `peach_target_reconstruction` — 有界 ICP + TSDF，`BuildTargetModel`
 4. `peach_manipulation_skills` — `SurveyScene` + `ExecuteTarget`
@@ -96,8 +96,13 @@ WAITING_READY
   -- execution_enabled=false → Survey 后结算（不选目标）
   -- TARGET_SELECTED → RUNNING + DISPATCH
        并行 BuildTargetModel 与 ExecuteTarget OBSERVE_ONLY
-       观察失败 → 取消 Build，账本 SKIPPED
-       模型不够 → SKIPPED_QUALITY
+       OBSERVE_ONLY 在 execution.enabled=false 时报 SKIPPED_QUALITY（不再把规划预览当成功）
+       观察成功条件：重建已绑定、已采满 min_views、TSDF/精化已发布
+       OBSERVE 成功但 Build view_count < min_views → observe_build_view_race（不等 180s）
+       观察失败 → 取消 Build，账本 SKIPPED（reason 前缀 observe_failed）
+       Build 超时区分 build_timeout:executor_wait 与 build_timeout:reconstruction
+       Build 无 TSDF/精化 → build_finalize_failed
+       尝试过目标但 succeeded=0 → RunHarvest.success=false（no_targets_succeeded）
        READY_FULL → ExecuteTarget FULL（skip_observation）
   -- FULL_* → 写账本 → CYCLE_DONE → 再 SELECT
 ```
@@ -135,7 +140,7 @@ PrepareCycle
 
 能力包 Lifecycle：**非 Active** 拒绝运动 / 积分 / `BeginScene`。
 
-## 透传运动（sim / real）
+## 透传运动（real）
 
 ```
 FollowJointTrajectory
@@ -152,7 +157,7 @@ FollowJointTrajectory
 
 ## 过程数据
 
-Web `record.root_dir: web_runs`。执行器账本 `harvest_runs/`。历史在 `_archive/runs/`。MCAP 默认关：`record_mcap:=true`。记录器按 `HarvestState.batch_state` 开关 `web_runs/run_*` 目录；事件码须与 `canonical_code_for_outcome` 一致（`target_dispatched` / `target_succeeded` / …）。
+Web `record.root_dir: web_runs`。执行器账本 `harvest_runs/`。历史在 `_archive/runs/`。MCAP 默认关：`record_mcap:=true`。记录器按 `HarvestState.batch_state` 开关 `web_runs/run_*` 目录；事件码须与 `canonical_code_for_outcome` 一致（`target_dispatched` / `target_succeeded` / …）。2026-08-21 真机阶段性结论与下周任务：[field_test.md](field_test.md) §10–11。
 
 ```mermaid
 flowchart TD

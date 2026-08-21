@@ -148,7 +148,7 @@ _TABLE: dict[tuple, Reaction] = {
     (RUNNING, Event.FULL_SKIPPED): Reaction(
         RUNNING, TARGET_SKIPPED, Command.NONE, 'target_skipped', 'running'),
     (RUNNING, Event.CYCLE_DONE): Reaction(
-        DISCOVERY, SELECTING, Command.SELECT, '', 'discovery'),
+        DISCOVERY, TARGET_IDLE, Command.SURVEY, '', 'discovery'),
 }
 
 

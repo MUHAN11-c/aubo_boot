@@ -40,7 +40,8 @@ namespace peach_manipulation_skills
 {
 
 // 质量门判定的全部输入（纯值快照）：感知选中目标、重建状态与覆盖指标、
-// 精化拟合指标、数据时效与许可标志。无效标量约定 -1 或极大值（见字段默认）。
+// 精化拟合指标、检测—精化轴夹角、数据时效与许可标志。无效标量约定 -1
+// 或极大值（见字段默认；axis_angle_deg<0 表示夹角不可算）。
 struct QualitySnapshot
 {
   std::string selected_target_id;
@@ -54,6 +55,7 @@ struct QualitySnapshot
   double refined_rmse_m{-1.0};
   double refined_inlier_ratio{-1.0};
   double data_age_s{1.0e9};
+  double axis_angle_deg{-1.0};
   bool refined_accept{false};
   bool grasp_allowed{false};
 };

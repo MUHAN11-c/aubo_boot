@@ -71,6 +71,11 @@ def generate_launch_description():
     with (moveit_share / 'config' / 'ompl_planning.yaml').open(
             encoding='utf-8') as stream:
         ompl_pipeline = yaml.safe_load(stream)
+    with (
+            moveit_share / 'config' /
+            'pilz_industrial_motion_planner_planning.yaml'
+    ).open(encoding='utf-8') as stream:
+        pilz_pipeline = yaml.safe_load(stream)
     ompl_pipeline.update({
         'planning_plugins': ['ompl_interface/OMPLPlanner'],
         'request_adapters': [
@@ -88,9 +93,10 @@ def generate_launch_description():
         'totg': {'resample_dt': 0.01},
     })
     mtc_pipeline = {
-        'planning_pipelines': ['ompl'],
+        'planning_pipelines': ['ompl', 'pilz_industrial_motion_planner'],
         'default_planning_pipeline': 'ompl',
         'ompl': ompl_pipeline,
+        'pilz_industrial_motion_planner': pilz_pipeline,
     }
     behavior_tree = {
         'behavior_tree.xml': str(

@@ -71,8 +71,23 @@ class FrameCollector(FrameStore):
         self.target_center: Optional[np.ndarray] = None
         self.rejected_views = 0
         self.tf_failures = 0
+        self.skip_reasons: dict = {}
+        self.last_skip_code = ''
+        self.last_skip_reason = ''
         self.last_rel_translation_m: Optional[float] = None
         self.last_rel_rotation_deg: Optional[float] = None
+
+    def note_skip(self, code: str, reason: str = '') -> None:
+        """按原因码累计一次跳过（自动 skip 与手动 deny 共用）."""
+        key = str(code or 'other')
+        self.skip_reasons[key] = int(self.skip_reasons.get(key, 0)) + 1
+        self.last_skip_code = key
+        self.last_skip_reason = str(reason or '')
+
+    @property
+    def skipped_views(self) -> int:
+        """全部门禁跳过次数（含同戳掩膜缺失等自动 skip）."""
+        return int(sum(self.skip_reasons.values()))
 
     def start(self, target_id: str = '', target_center=None) -> str:
         """
@@ -166,8 +181,11 @@ class FrameCollector(FrameStore):
         自动采帧决策（纯逻辑）.
 
         规则（与手动 check_view 的严格拒帧不同，自动模式以「跳过」代替拒绝）：
-        首帧直采 → 可选间隔门 → 近重复视角跳过积分 → 其余连续帧采集；
-        相对运动高于上限只返回 warn_capture，供诊断路径质量。
+        首帧直采 → 可选间隔门 → 近重复视角跳过积分 → 其余采集。
+        转移中的超采由 capture_gate.require_robot_static 拦下；本函数见到
+        相对上一已采帧偏大的位移，表示已经到了新机位，应当采集，不能当
+        成「连续运动超上限」丢掉（现场 12°/0.40 m 环绕约 84 mm，大于旧的
+        max_translation=80 mm，会把 captured_views 钉死在 1）。
 
         Args:
             T_base_camera: (4, 4) 本帧 base←camera 位姿.
@@ -175,7 +193,7 @@ class FrameCollector(FrameStore):
 
         Returns
         -------
-            (action, reason)：action ∈ {'capture', 'warn_capture', 'skip'}；
+            (action, reason)：action ∈ {'capture', 'skip'}；
             auto_mode=False 时恒 ('skip', ...)，回纯手动.
 
         """
@@ -197,12 +215,8 @@ class FrameCollector(FrameStore):
             return 'skip', (
                 f'近重复视角不积分：平移 {trans * 1000.0:.1f} mm / '
                 f'旋转 {rot:.2f} deg')
-        if (trans > self.config.max_translation
-                or rot > self.config.max_rotation_deg):
-            return 'warn_capture', (f'连续运动超上限：平移 '
-                                    f'{trans * 1000.0:.1f} mm / 旋转 '
-                                    f'{rot:.2f} deg（自动模式只告警仍采帧）')
-        return 'capture', 'ok'
+        return 'capture', (
+            f'新机位：平移 {trans * 1000.0:.1f} mm / 旋转 {rot:.2f} deg')
 
     def add_frame(self, frame) -> bool:
         """
@@ -286,6 +300,9 @@ class FrameCollector(FrameStore):
             return False, (f'已采 {n} 视角 < min_views={self.config.min_views}，'
                            '继续采帧或 reset'), None
         cloud = self.accumulated_cloud()
+        if cloud is None or int(cloud.shape[0]) == 0:
+            return False, (
+                f'已采 {n} 视角但累加云为空，保持 COLLECTING'), None
         self.state = STATE_READY
         msg = f'局部重建完成：{n} 视角，{cloud.shape[0]} 点'
         if n < self.config.recommended_views:

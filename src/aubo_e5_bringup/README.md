@@ -7,7 +7,6 @@
 | `hardware_mode` | 硬件 | 轨迹 |
 |-----------------|------|------|
 | `mock` | `GenericSystem` | 标准 `joint_trajectory_controller` |
-| `sim` | `AuboE5SimHardware` | 透传控制器 |
 | `real` | `AuboE5Hardware` | 透传控制器 |
 
 xacro 同一份模板，按 mode 换插件。`auto_power_on` 必须为 false。**不起** `aubo_dashboard`：柜侧用示教器，规划用 MoveIt，停轨走透传取消 + 硬件 `RobotMoveStop`。
@@ -19,7 +18,7 @@ xacro 同一份模板，按 mode 换插件。`auto_power_on` 必须为 false。*
 ## 用法
 
 ```bash
-ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=sim camera_enabled:=false
+ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=mock camera_enabled:=false
 ```
 
 采摘请用 `peach_task_executor/harvest_system.launch.py`，它会 include 本文件。启动前 `pgrep` 避免重复容器。

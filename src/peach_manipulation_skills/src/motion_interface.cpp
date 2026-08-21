@@ -55,11 +55,20 @@ void ApproachGraspNode::onRobotStatus(
 
 double ApproachGraspNode::insertionTravel(const CachedRefined & refined) const
 {
-  // suggested_travel_m 由感知/重建端结合工具几何给出，是跨包行程契约。
-  // 仅为兼容旧记录或异常消息，字段无效时才按几何距离与颈部余量回退。
+  // TCP 是工具圆柱前端面圆心，也就是物理剪切点。精化结果具备完整几何时，
+  // 执行端统一计算 TCP 行程，使终点停在 neck-margin；重建历史消息曾把
+  // 纯袋长 span_m 写入 suggested_travel_m，不能作为最终行程。降级候选
+  // 缺少完整底/颈几何时才采用感知建议字段。
   double travel = refined.suggested_travel_m;
-  if (!std::isfinite(travel) || travel <= 0.0) {
-    travel = (refined.neck - refined.entry).norm() - neck_margin_m_;
+  const bool has_refined_geometry =
+    refined.entry.allFinite() &&
+    refined.bottom.allFinite() &&
+    refined.neck.allFinite() &&
+    refined.axis.allFinite() && refined.axis.norm() > 1.0e-9 &&
+    (refined.neck - refined.bottom).norm() > 1.0e-6;
+  if (has_refined_geometry) {
+    const Eigen::Vector3d axis = refined.axis.normalized();
+    travel = (refined.neck - refined.entry).dot(axis) - neck_margin_m_;
   }
   return std::clamp(travel, minimum_travel_m_, maximum_travel_m_);
 }

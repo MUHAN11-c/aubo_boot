@@ -38,9 +38,6 @@
         <xacro:if value="${hardware_mode == 'mock'}">
           <plugin>mock_components/GenericSystem</plugin>
         </xacro:if>
-        <xacro:if value="${hardware_mode == 'sim'}">
-          <plugin>aubo_e5_hardware/AuboE5SimHardware</plugin>
-        </xacro:if>
         <xacro:if value="${hardware_mode == 'real'}">
           <plugin>aubo_e5_hardware/AuboE5Hardware</plugin>
           <param name="robot_ip">${robot_ip}</param>
@@ -198,7 +195,7 @@
         <state_interface name="joint_error_4"/>
         <state_interface name="joint_error_5"/>
         <!-- Feedback enrichment: full SDK JointStatus fields + send-pipeline metrics.
-             Names/order must match export_state_interfaces() in both hardware plugins. -->
+             Names/order must match export_state_interfaces() in AuboE5Hardware. -->
         <state_interface name="tag_pos_0"/>
         <state_interface name="tag_pos_1"/>
         <state_interface name="tag_pos_2"/>
@@ -228,7 +225,7 @@
         <!-- Event/health reporting: last SDK RobotEventInfo (type/code) + health_ raw value.
              event_type uses -1 as the "no event yet" sentinel (0 would alias
              armCanbusError); consumers must not publish pseudo events while
-             type < 0. Appended at the tail; keep in sync with both hardware plugins. -->
+             type < 0. Appended at the tail; keep in sync with AuboE5Hardware. -->
         <state_interface name="event_type"/>
         <state_interface name="event_code"/>
         <state_interface name="health"/>

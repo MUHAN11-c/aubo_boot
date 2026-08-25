@@ -36,17 +36,17 @@
 namespace peach_manipulation_skills
 {
 
-// 默认值以 config/approach_grasp.yaml 为权威源，此处仅为直接构造兜底
-// （2026-08-21 与 capture.min_views=4 对齐）。
+// 默认值以 config/peach_manipulation_skills.yaml 为权威源，此处仅为直接构造兜底
+// （2026-08-24 与 capture.min_views=2 对齐：当前位+一次短 PTP）。
 struct QualityGateConfig
 {
-  std::size_t minimum_views{4};
+  std::size_t minimum_views{2};
   double minimum_baseline_deg{12.0};
   double minimum_mean_nearest_baseline_deg{6.0};
   double minimum_mean_depth_ratio{0.40};
   double maximum_refined_rmse_m{0.01};
   double minimum_refined_inlier_ratio{0.35};
-  double maximum_data_age_s{2.0};
+  double maximum_data_age_s{3.0};
   double maximum_axis_angle_deg{35.0};
 };
 

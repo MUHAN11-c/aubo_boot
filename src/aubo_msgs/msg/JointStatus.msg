@@ -1,5 +1,6 @@
-# 关节级详细状态：SDK JointStatus 推送帧的全量透传 + 派生量，
-# 由 aubo_io_controller 的 ~/joint_status 话题每周期发布（数组长度 = 关节数 6）。
+# 关节级详细状态：SDK JointStatus 推送帧的全量透传 + 派生量。
+# aubo_io_controller 的 ~/joint_status 每周期发布。
+# 各数组长度 = 6，顺序：shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint。
 
 # 关节电流。SDK 原始单位（jointCurrentI，int 驱动器读数；SDK 未给出到安培
 # 的换算系数，硬件插件不做猜测性换算，消费侧自行标定）。

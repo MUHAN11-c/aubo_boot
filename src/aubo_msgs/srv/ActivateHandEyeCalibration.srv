@@ -1,5 +1,9 @@
+# 把一次手眼标定候选写成当前激活外参（hand_eye/active.yaml）。
+# aubo_hand_eye_calibration 服务器提供；激活后 extrinsics_publisher 可 reload TF。
+# candidate_id 为候选文件名（无路径、无 '..'），对应 candidates/<id>.yaml。
+
 string candidate_id
 ---
 bool success
 string message
-string active_result_file
+string active_result_file  # 激活后的 active.yaml 绝对路径；失败时为空

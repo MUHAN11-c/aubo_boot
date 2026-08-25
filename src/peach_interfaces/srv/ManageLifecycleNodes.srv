@@ -1,0 +1,14 @@
+# peach_lifecycle_manager ~/manage_nodes
+# 整栈生命周期，不发 RunHarvest。
+# 与 ControlTask 不同：这里 PAUSE 是能力端 Inactive（切断 DDS 输出），
+# ControlTask.PAUSE 只暂停批次循环。
+
+uint8 STARTUP=0    # 先全部 configure，再全部 activate
+uint8 PAUSE=1      # 逆序 deactivate
+uint8 RESUME=2     # 顺序 activate
+uint8 RESET=3      # 逆序 deactivate+cleanup，再 STARTUP
+uint8 SHUTDOWN=4   # 逆序 deactivate+cleanup，停在 Unconfigured
+uint8 command
+---
+bool success
+string message

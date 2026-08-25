@@ -1,22 +1,31 @@
 # peach_manipulation_skills
 
-能力端：拍照观察、主动视点、质量门、再确认、MTC 接近/插入、工具 GPIO、同轴撤退。
+五个能力包之一：**机械臂执行**。一节点。拍照、主动视点、质量/安全门、再确认、MTC 接近/插入、工具 GPIO、同轴撤退。不写账本、不调重建 Trigger、不 `BeginScene`、不 `RunHarvest`。详细作用见 [docs/architecture.md](../../docs/architecture.md) §3 `peach_manipulation_skills`。
 
-**Lifecycle**：仅 **Active** 才允许运动类入口。总览：[docs/flow.md](../../docs/flow.md)。
+**Lifecycle**：仅 **Active** 才允许运动类入口。总览：[docs/architecture.md](../../docs/architecture.md)。契约：[docs/io.md](../../docs/io.md)。
+
+```
+peach_manipulation_skills/
+  include/peach_manipulation_skills/
+  src/manipulation_skills_node.cpp
+  config/peach_manipulation_skills.yaml
+  config/behavior_tree.xml
+  launch/peach_manipulation_skills.launch.py
+```
 
 ## 从哪读
 
 | 文件 | 职责 |
 |------|------|
-| `src/approach_grasp_node.cpp` + `approach_grasp_node_impl.hpp` | 节点外壳：Lifecycle、`createSubscriptions/Services/Actions`、预规划槽 |
+| `src/manipulation_skills_node.cpp` + `src/manipulation_skills_node_impl.hpp` | 节点外壳：Lifecycle、`createSubscriptions/Services/Actions`、预规划槽 |
 | `src/cycle_action.cpp` | `ExecuteTarget` / `SurveyScene` 接受、执行、取消 |
-| `config/harvest_tree.xml` | 主树 `PeachHarvest` 与 SubTree 阶段 |
+| `config/behavior_tree.xml` | 主树 `PeachHarvest` 与 SubTree 阶段 |
 | `src/bt_nodes.cpp` | 树节点实现（观察、质量、再确认、MTC、工具、撤离） |
-| `include/.../grasp_task.hpp` + `src/grasp_task.cpp` | MTC：`SerialContainer` 入口+插入；`syncKeepoutCollisionObjects` |
+| `include/.../grasp_task.hpp` + `src/grasp_task.cpp` | MTC：过渡点分段到入口 + 插入；`syncKeepoutCollisionObjects` |
 | `src/motion_interface.cpp` | MoveGroup / 拍照位姿 / 预览服务 |
 | `include/.../protected_zones.hpp` | 保护区 AABB 纯核（参数 stride-6） |
 | `include/.../view_planner.hpp`、`quality_gate.hpp`、`reconfirm_policy.hpp` | 视点、质量、再确认策略 |
-| `config/approach_grasp.yaml` | 运行参数；与 `approach_grasp_node_parameters.yaml` 对齐 |
+| `config/peach_manipulation_skills.yaml` | 运行参数；与 `manipulation_skills_parameters.yaml` 对齐 |
 
 读单周期：先 XML 看阶段顺序，再 `bt_nodes.cpp` 里同名节点，接触段进 `GraspTask`。工具 IO 只在 BT `ActuateTool`，不 attach 果体。
 
@@ -33,7 +42,7 @@
 
 ## 流程
 
-1. `SurveyScene` → `goToPhotoPose`
+1. `SurveyScene` → `goToPhotoPose`（`transit_max_*` 护栏；超限拒绝）
 2. 批次对每个目标：并行 `BuildTargetModel` + `OBSERVE_ONLY`，再 `FULL`（`skip_observation`）
 3. 主树：观察（可跳过）→ 等精化 → 再确认 → MTC → 工具 → 同轴撤退 → 卸果（未标定则跳过）
 
@@ -44,7 +53,7 @@
 ## 启动
 
 ```bash
-ros2 launch peach_manipulation_skills approach_grasp.launch.py
+ros2 launch peach_manipulation_skills peach_manipulation_skills.launch.py
 ```
 
 整栈里 `autostart:=false`，由 lifecycle manager 转换。

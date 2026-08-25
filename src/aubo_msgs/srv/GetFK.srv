@@ -1,5 +1,7 @@
-float32[] joint
----
-float32[] pos
-float32[] ori
+# SDK 正解：关节角 → 法兰笛卡尔位姿。仅 aubo_dashboard 提供 ~/get_fk。
+# bringup 不起该节点；采摘栈规划 / FK / IK 用 MoveIt，不要依赖本服务。
 
+float32[] joint  # 长度 ≥ 6 [rad]；顺序 shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint
+---
+float32[] pos    # 长度 3：法兰位置 x, y, z [m]（基座系）。失败时保持空
+float32[] ori    # 长度 4：四元数 w, x, y, z。失败时保持空

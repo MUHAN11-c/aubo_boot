@@ -3,21 +3,15 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 from peach_interfaces.msg import TargetOutcome
+from peach_perception.common.harvest_data import default_runs_root
 
 
 def default_ledger_root() -> Path:
-    """账本根目录，可由 AUBO_HARVEST_DATA_DIR 覆盖."""
-    override = os.environ.get('AUBO_HARVEST_DATA_DIR')
-    if override:
-        return Path(override)
-    for parent in Path(__file__).resolve().parents:
-        if (parent / 'src' / 'peach_task_executor').is_dir():
-            return parent / 'harvest_runs'
-    return Path.cwd() / 'harvest_runs'
+    """账本根目录，与观测/session 同为工作区 ``runs/``."""
+    return default_runs_root()
 
 
 def ledger_file(root: Path, request_id: str) -> Path:

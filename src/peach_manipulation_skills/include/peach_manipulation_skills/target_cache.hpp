@@ -33,6 +33,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <mutex>
 #include <optional>
@@ -61,13 +62,22 @@ struct CachedTarget
   Eigen::Isometry3d initial_pose{Eigen::Isometry3d::Identity()};
   Eigen::Vector3d initial_axis{Eigen::Vector3d::UnitZ()};
   double suggested_travel_m{0.0};
-  double received_s{0.0};  // 接收时刻（秒，与注入时钟同源）
+  double received_s{0.0};  // 有效观测帧接收时刻（秒，与注入时钟同源）
+  double updated_s{0.0};   // 任意诊断帧到达时刻（含记忆锚点/非 OBSERVED）
   // 最近一帧（含非 OBSERVED 帧）的诊断透传：target_swinging 摆动旗标与
   // tracking_status 原始枚举值（PeachTargetObservation.msg 常量；255=未知），
   // 供抓取前再确认（2.7-RECONFIRM）的摆动等平息与失败原因文案使用。
   bool swinging{false};
   uint8_t tracking_status{255};
   bool valid{false};
+  // 当前帧检测框（像素）与图像尺寸：观察视点朝分割更完整的方向走。
+  int bbox_x{0};
+  int bbox_y{0};
+  int bbox_w{0};
+  int bbox_h{0};
+  int image_width{640};
+  int image_height{480};
+  bool bbox_valid{false};
 };
 
 // 精化几何（重建侧锁存的最终拟合结果）。
@@ -97,6 +107,13 @@ struct SelectedTargetUpdate
   // 诊断透传（含义见 CachedTarget）：由节点从 diagnostic_flags/tracking_status 提取。
   bool swinging{false};
   uint8_t tracking_status{255};
+  int bbox_x{0};
+  int bbox_y{0};
+  int bbox_w{0};
+  int bbox_h{0};
+  int image_width{640};
+  int image_height{480};
+  bool bbox_valid{false};
 };
 
 // updateLockedTargets 单目标输入（阶段 E 残局抬质量能力端）：锁定集中一条
@@ -114,6 +131,13 @@ struct LockedTargetUpdate
   double suggested_travel_m{0.0};
   bool swinging{false};
   uint8_t tracking_status{255};
+  int bbox_x{0};
+  int bbox_y{0};
+  int bbox_w{0};
+  int bbox_h{0};
+  int image_width{640};
+  int image_height{480};
+  bool bbox_valid{false};
 };
 
 // updateReconstructionDiagnostics 输入：节点解析 diagnostics JSON 后的纯值字段。
@@ -193,6 +217,9 @@ public:
   // lockedTargetGateSample（id 空=不在锁定集，id 命中但 valid=false=锚点缺失）。
   std::optional<CachedTarget> lockedTargetSnapshot(
     const std::string & target_id) const;
+  // 锁定集里除 exclude_id 外的有效中心（base 系），供观察朝「更多果」走。
+  std::vector<Eigen::Vector3d> lockedNeighborCenters(
+    const std::string & exclude_id) const;
   // 锁定集目标的安全门样本：未命中返回空 ID 样本（SafetyGate::targetReady
   // 判身份不匹配拒绝）。
   TargetGateSample lockedTargetGateSample(const std::string & target_id) const;
@@ -208,6 +235,11 @@ public:
   // 等待新重建帧：谓词满足返回 true，超时或 cancel 置位返回 false。
   bool waitForNewView(
     std::size_t previous_views, double timeout_s, const std::atomic_bool & cancel) const;
+  // 等待新机位：view_directions 聚类代表数增加。同机位停稳连帧会增加
+  // captured_views 但不增加机位；NBV 式覆盖要用机位而不是积分帧。
+  bool waitForNewStation(
+    std::size_t previous_stations, double timeout_s,
+    const std::atomic_bool & cancel) const;
   // 等待同 ID 的有效精化位姿：以 refined_.valid 且 ID 匹配为准，
   // fitting 指标单独到达不满足谓词；超时或 cancel 置位返回 false。
   bool waitForRefined(
@@ -216,12 +248,16 @@ public:
   // 等待一条 received_s 晚于 after_s 的有效目标观测：视点移动到位后等待
   // 到位后的新鲜帧（移动中途被接受的帧不算），供安全门在新鲜样本上复核。
   bool waitForFreshTarget(
-    double after_s, double timeout_s, const std::atomic_bool & cancel) const;
+    double after_s, double timeout_s, const std::atomic_bool & cancel,
+    bool live_observation_required = true) const;
   // waitForFreshTarget 的锁定集版本（OBSERVE_ONLY 周期目标非 selected）：
   // 谓词、超时与取消语义完全相同，只是数据源换成指定 ID 的锁定集锚点条目。
+  // live_observation_required=false：再确认用——锁定目标已是 OBSERVED 时
+  // 用当前锚点判漂移，不等 received_s > after_s（记忆锚点帧仍更新 updated_s）。
   bool waitForFreshLockedTarget(
     const std::string & target_id, double after_s, double timeout_s,
-    const std::atomic_bool & cancel) const;
+    const std::atomic_bool & cancel,
+    bool live_observation_required = true) const;
   // 取消/关停时唤醒全部等待（谓词内的 cancel 负责终结语义）。
   void notifyAll();
 

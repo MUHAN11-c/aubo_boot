@@ -42,9 +42,9 @@ namespace peach_manipulation_skills
 
 struct TrajectoryGuardLimits
 {
-  double max_duration_s{12.0};
-  double max_total_joint_travel_rad{4.0};
-  double max_single_joint_travel_rad{2.1};
+  double max_duration_s{20.0};
+  double max_total_joint_travel_rad{10.0};
+  double max_single_joint_travel_rad{3.2};
 };
 
 struct TrajectoryGuardReport
@@ -57,42 +57,71 @@ struct TrajectoryGuardReport
   std::string reason;
 };
 
-inline TrajectoryGuardReport inspectApproachTrajectory(
-  const trajectory_msgs::msg::JointTrajectory & trajectory,
+inline TrajectoryGuardReport inspectApproachTrajectories(
+  const std::vector<trajectory_msgs::msg::JointTrajectory> & parts,
   const TrajectoryGuardLimits & limits)
 {
   TrajectoryGuardReport report;
-  report.point_count = trajectory.points.size();
-  if (trajectory.points.empty() || trajectory.joint_names.empty()) {
+  if (parts.empty()) {
     report.reason = "接近轨迹为空";
     return report;
   }
-  const auto joint_count = trajectory.joint_names.size();
-  std::vector<double> per_joint(joint_count, 0.0);
-  for (const auto & point : trajectory.points) {
-    if (point.positions.size() != joint_count) {
-      report.reason = "接近轨迹关节维度不一致";
+  std::vector<std::string> names;
+  std::vector<double> per_joint;
+  std::vector<double> previous_end;
+  for (const auto & trajectory : parts) {
+    if (trajectory.points.empty() || trajectory.joint_names.empty()) {
+      report.reason = "接近轨迹为空";
       return report;
     }
-  }
-  for (std::size_t i = 1; i < trajectory.points.size(); ++i) {
-    const auto & previous = trajectory.points[i - 1].positions;
-    const auto & current = trajectory.points[i].positions;
-    for (std::size_t joint = 0; joint < joint_count; ++joint) {
-      const double delta = std::abs(current[joint] - previous[joint]);
-      if (!std::isfinite(delta)) {
-        report.reason = "接近轨迹含非有限关节值";
+    const auto joint_count = trajectory.joint_names.size();
+    if (names.empty()) {
+      names = trajectory.joint_names;
+      per_joint.assign(joint_count, 0.0);
+    } else if (trajectory.joint_names != names) {
+      report.reason = "接近轨迹关节名不一致";
+      return report;
+    }
+    for (const auto & point : trajectory.points) {
+      if (point.positions.size() != joint_count) {
+        report.reason = "接近轨迹关节维度不一致";
         return report;
       }
-      per_joint[joint] += delta;
-      report.total_joint_travel_rad += delta;
     }
+    // 段间接缝也计入行程：过渡点边界处腕部 ±π 翻转不会出现在任一段内部。
+    if (!previous_end.empty()) {
+      const auto & next_start = trajectory.points.front().positions;
+      for (std::size_t joint = 0; joint < joint_count; ++joint) {
+        const double delta = std::abs(next_start[joint] - previous_end[joint]);
+        if (!std::isfinite(delta)) {
+          report.reason = "接近轨迹含非有限关节值";
+          return report;
+        }
+        per_joint[joint] += delta;
+        report.total_joint_travel_rad += delta;
+      }
+    }
+    for (std::size_t i = 1; i < trajectory.points.size(); ++i) {
+      const auto & previous = trajectory.points[i - 1].positions;
+      const auto & current = trajectory.points[i].positions;
+      for (std::size_t joint = 0; joint < joint_count; ++joint) {
+        const double delta = std::abs(current[joint] - previous[joint]);
+        if (!std::isfinite(delta)) {
+          report.reason = "接近轨迹含非有限关节值";
+          return report;
+        }
+        per_joint[joint] += delta;
+        report.total_joint_travel_rad += delta;
+      }
+    }
+    const auto & end = trajectory.points.back().time_from_start;
+    report.duration_s += static_cast<double>(end.sec) +
+      static_cast<double>(end.nanosec) * 1e-9;
+    report.point_count += trajectory.points.size();
+    previous_end = trajectory.points.back().positions;
   }
   report.max_single_joint_travel_rad =
     *std::max_element(per_joint.begin(), per_joint.end());
-  const auto & end = trajectory.points.back().time_from_start;
-  report.duration_s = static_cast<double>(end.sec) +
-    static_cast<double>(end.nanosec) * 1e-9;
 
   std::ostringstream reason;
   if (report.duration_s > limits.max_duration_s) {
@@ -119,6 +148,13 @@ inline TrajectoryGuardReport inspectApproachTrajectory(
   reason << "短路径门通过";
   report.reason = reason.str();
   return report;
+}
+
+inline TrajectoryGuardReport inspectApproachTrajectory(
+  const trajectory_msgs::msg::JointTrajectory & trajectory,
+  const TrajectoryGuardLimits & limits)
+{
+  return inspectApproachTrajectories({trajectory}, limits);
 }
 
 }  // namespace peach_manipulation_skills

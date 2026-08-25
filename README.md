@@ -1,12 +1,15 @@
 # AUBO E5 ROS 2 Jazzy
 
-套袋桃采摘工作区：手臂透传 + 场景感知 → 目标重建 → 技能 → 显式任务执行。
+套袋桃采摘：到位（预留）→ 场景里有哪些桃 → 这一颗的局部模型 → 臂怎么动 → 调度开批。
 
-- 流程、阅读地图、调用关系：[docs/flow.md](docs/flow.md)
-- 用法：[docs/usage.md](docs/usage.md)
+- 设计架构：[docs/architecture.md](docs/architecture.md)
+- 输入输出：[docs/io.md](docs/io.md)
+- 测试：[docs/testing.md](docs/testing.md)
 - 代理约束：[AGENTS.md](AGENTS.md)
 
-验收看实机和过程数据（`web_runs/`、`_archive/runs/`）。`colcon test` 只跑 ROS 2 默认 lint。
+这三份是活文档，与源码互相更新：改一边须同一轮改另一边。`docs/` 不另增活文档。
+
+验收看实机和过程数据（`runs/`、`_archive/runs/`）。`colcon test` 只跑 ROS 2 默认 lint。
 
 ```bash
 source /opt/ros/jazzy/setup.bash
@@ -20,23 +23,23 @@ ros2 launch peach_task_executor harvest_system.launch.py \
 
 默认不上电、不派发运动、不打工具 IO、**不自动开批**。监控 `http://127.0.0.1:8090`。
 
-## 功能包
+## 采摘五个能力包
 
-逻辑、谁调谁、从哪读源码：先看 [docs/flow.md](docs/flow.md)，再进各包 README。
+详细作用、入口、禁止项、命名与文件树：[docs/architecture.md](docs/architecture.md) §3。跨包契约：[docs/io.md](docs/io.md)。能力包不互发批次命令；只有调度当客户端。节点之间只走 `peach_interfaces`。
 
-**采摘**
+| 包 | 作用 | 含节点 | 不做什么 |
+|----|------|--------|----------|
+| [peach_interfaces](src/peach_interfaces/README.md) | 跨包唯一 IDL：批次/观测/重建/抓取/导航动作 | 无 | 不跑节点、不设算法参数、不 launch |
+| [peach_perception](src/peach_perception/README.md) | 看场景（身份+锁定集）+ 建当前目标（TSDF/`GraspDecision`） | `peach_scene_perception_node`、`peach_target_reconstruction_node` | 不选下一颗、不运动、不写账本；积分不用 latest TF |
+| [peach_manipulation_skills](src/peach_manipulation_skills/README.md) | 拍照、主动视点、质量/安全门、MTC 接触、工具 SetIO、撤退 | `peach_manipulation_skills_node` | 不写账本、不调重建 Trigger、不 `BeginScene`/`RunHarvest` |
+| [peach_navigation](src/peach_navigation/README.md) | `NavigateToWorksite` 作业位缝；现行 stub 当已到位 | `peach_navigation_node` | 不写账本、不做视觉、不规划臂、不实现底盘/Nav2 |
+| [peach_task_executor](src/peach_task_executor/README.md) | 开批、选果、账本；lifecycle 五节点；只读 Web/jsonl；整栈 launch | `peach_task_executor`、`peach_lifecycle_manager`、`peach_observability` | 不做视觉、不规划接触/导航、Web 不发运动、launch 不自动开批 |
 
-| 包 | 职责 |
-|----|------|
-| [peach_interfaces](src/peach_interfaces/README.md) | 唯一跨包 IDL |
-| [peach_common_py](src/peach_common_py/README.md) | 共享纯 Python |
-| [peach_scene_perception](src/peach_scene_perception/README.md) | RGB-D 观测与身份 |
-| [peach_target_reconstruction](src/peach_target_reconstruction/README.md) | 单目标 TSDF / 精化 |
-| [peach_manipulation_skills](src/peach_manipulation_skills/README.md) | SurveyScene + ExecuteTarget |
-| [peach_task_executor](src/peach_task_executor/README.md) | 显式批次，唯一所有者 |
-| [peach_observability](src/peach_observability/README.md) | 只读 Web / JSONL |
+作业目标以执行器 `~/state.target_id` 为准。感知 `harvest_plan` 只做收齐锁定窗。默认 `navigation_enabled=false`。
 
-**手臂与相机**（驱动栈只读：hardware / controllers / dashboard / ros2_control xacro / bringup / controllers.yaml）
+## 手臂与相机
+
+驱动栈只读：hardware / controllers / dashboard / ros2_control xacro / bringup / controllers.yaml。
 
 | 包 | 职责 |
 |----|------|
@@ -47,18 +50,18 @@ ros2 launch peach_task_executor harvest_system.launch.py \
 | [aubo_dashboard](src/aubo_dashboard/README.md) | 柜侧慢操作；bringup 不起，作业禁用 |
 | [aubo_e5_bringup](src/aubo_e5_bringup/README.md) | 手臂唯一 launch |
 | [aubo_e5_moveit_config](src/aubo_e5_moveit_config/README.md) | E5 MoveIt |
-| [aubo_hand_eye_calibration](src/aubo_hand_eye_calibration/README.md) | 手眼 TF |
+| [aubo_hand_eye_calibration](src/aubo_hand_eye_calibration/README.md) | 手眼标定（侧车） |
 | [percipio_camera](src/percipio_camera/README.md) | 图漾驱动 |
 
-架子机 [peach_gantry_description](src/peach_gantry_description/README.md)、[peach_moveit_config](src/peach_moveit_config/README.md) 不在本链路。
+架子机 URDF / MoveIt 在 `_archive/parked_2026-08-24/`，不在本链路。
+
+## 交付树
 
 | 路径 | 内容 |
 |------|------|
-| `src/` | ROS 包 |
-| `tools/` | 轨迹客户端、运动分析、回放 |
-| `diagnostics/` | SDK 零运动探针 |
-| `peach_profiles/` | 操作策略 |
-| `docs/` | 流程与用法（按源码维护） |
+| `src/` | 采摘 5 包 + 臂/相机 9 包 |
+| `docs/` | `architecture.md` 设计架构；`io.md` 输入输出；`testing.md` 测试 |
+| `runs/` | 过程数据唯一根（gitignore：账本、观测、session、MCAP） |
 | `_archive/runs/` | 历史过程数据（勿删） |
-| `_archive/` | 旧文档、厂商资料、快照 |
-| `aubo_py3.12/` | Python 3.12 venv |
+| `_archive/parked_2026-08-24/` | 暂不用：tools / diagnostics / profiles / scripts / 架子机 / 过程文档 |
+| `aubo_py3.12/` | Python 3.12 venv（本机，不入库） |

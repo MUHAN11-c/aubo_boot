@@ -55,13 +55,22 @@ struct ViewCandidate
   std::string label;
 };
 
-// generate() 的全部输入（纯值）：目标锚点、当前相机位置与已采集观察方向
-// （target→camera 单位向量，base 系）。实现不得读取除此之外的任何隐式状态。
+// generate() 的全部输入（纯值）：目标锚点、当前相机位置、已采集观察方向
+// （target→camera 单位向量，base 系），以及检测/分割可见性（像素框、邻果）。
+// 实现不得读取除此之外的任何隐式状态。
 struct ViewContext
 {
   Eigen::Vector3d target{Eigen::Vector3d::Zero()};
   Eigen::Vector3d current_camera_position{Eigen::Vector3d::Zero()};
   std::vector<Eigen::Vector3d> observed_directions;
+  int image_width{640};
+  int image_height{480};
+  int bbox_x{0};
+  int bbox_y{0};
+  int bbox_w{0};
+  int bbox_h{0};
+  bool bbox_valid{false};
+  std::vector<Eigen::Vector3d> neighbor_centers;
 };
 
 // 视点规划器抽象基类。

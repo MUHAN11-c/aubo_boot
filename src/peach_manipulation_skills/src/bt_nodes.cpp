@@ -32,7 +32,7 @@
 #include <string>
 #include <vector>
 
-#include "approach_grasp_node_impl.hpp"
+#include "manipulation_skills_node_impl.hpp"
 #include "peach_manipulation_skills/grasp_geometry.hpp"
 #include "peach_manipulation_skills/protected_zones.hpp"
 #include "peach_manipulation_skills/reconfirm_policy.hpp"
@@ -66,12 +66,12 @@ std::string trackingStatusLabel(uint8_t status)
 }
 }  // namespace
 // 数据快照薄壳：统一从 cache_ 取一致性快照，供 BT 节点体与运动接口使用。
-QualitySnapshot ApproachGraspNode::qualitySnapshot()
+QualitySnapshot ManipulationSkillsNode::qualitySnapshot()
 {
   return cache_.qualitySnapshot();
 }
 
-std::optional<CachedTarget> ApproachGraspNode::targetSnapshot()
+std::optional<CachedTarget> ManipulationSkillsNode::targetSnapshot()
 {
   return cache_.targetSnapshot();
 }
@@ -83,7 +83,7 @@ std::optional<CachedTarget> ApproachGraspNode::targetSnapshot()
 // 周期；而锁定集锚点缓存是独立数据源，goal 钉入 ID（cycle_target_id_）在
 // 受理时已写好，执行体按"本周期生效目标"取快照即可，零侵入既有调和语义。
 // FULL/PREVIEW/手动周期（cycle_observe_only_=false）恒退化为 selected 缓存。
-std::optional<CachedTarget> ApproachGraspNode::cycleTargetSnapshot()
+std::optional<CachedTarget> ManipulationSkillsNode::cycleTargetSnapshot()
 {
   if (!cycle_target_id_.empty()) {
     auto locked = cache_.lockedTargetSnapshot(cycle_target_id_);
@@ -92,49 +92,59 @@ std::optional<CachedTarget> ApproachGraspNode::cycleTargetSnapshot()
   return cache_.targetSnapshot();
 }
 
-std::vector<Eigen::Vector3d> ApproachGraspNode::observedDirectionsSnapshot()
+std::vector<Eigen::Vector3d> ManipulationSkillsNode::observedDirectionsSnapshot()
 {
   return cache_.observedDirections();
 }
 
-std::optional<CachedRefined> ApproachGraspNode::refinedSnapshot()
+std::optional<CachedRefined> ManipulationSkillsNode::refinedSnapshot()
 {
   return cache_.refinedSnapshot();
 }
 
-std::string ApproachGraspNode::graspDecisionTargetSnapshot()
+std::string ManipulationSkillsNode::graspDecisionTargetSnapshot()
 {
   return cache_.graspDecisionTarget();
 }
 
-bool ApproachGraspNode::waitForNewView(std::size_t previous_views)
+bool ManipulationSkillsNode::waitForNewView(std::size_t previous_views)
 {
   return cache_.waitForNewView(previous_views, effectiveFrameWaitS(), cancel_requested_);
 }
 
-bool ApproachGraspNode::waitForFreshTarget(double after_s)
+bool ManipulationSkillsNode::waitForNewStation(std::size_t previous_stations)
+{
+  return cache_.waitForNewStation(
+    previous_stations, effectiveFrameWaitS(), cancel_requested_);
+}
+
+bool ManipulationSkillsNode::waitForFreshTarget(double after_s)
 {
   return waitForFreshCycleTarget(after_s, effectiveFrameWaitS());
 }
 
-bool ApproachGraspNode::waitForFreshCycleTarget(double after_s, double window_s)
+bool ManipulationSkillsNode::waitForFreshCycleTarget(
+  double after_s, double window_s, bool live_observation_required)
 {
   // 数据源随周期生效目标走（同 cycleTargetSnapshot 的分流理由）：
   // OBSERVE_ONLY 等 goal 目标的锁定集锚点新鲜帧，其余等 selected 新鲜帧。
+  // live_observation_required=false 仅再确认：已 OBSERVED 则用当前锚点。
   if (!cycle_target_id_.empty()) {
     return cache_.waitForFreshLockedTarget(
-      cycle_target_id_, after_s, window_s, cancel_requested_);
+      cycle_target_id_, after_s, window_s, cancel_requested_,
+      live_observation_required);
   }
-  return cache_.waitForFreshTarget(after_s, window_s, cancel_requested_);
+  return cache_.waitForFreshTarget(
+    after_s, window_s, cancel_requested_, live_observation_required);
 }
 
-bool ApproachGraspNode::waitForRefined(const std::string & target_id)
+bool ManipulationSkillsNode::waitForRefined(const std::string & target_id)
 {
   // 超时按协议 2.7-FINALIZE 的 T(refined) 帧率自适应（effectiveRefinedWaitS）。
   return cache_.waitForRefined(target_id, effectiveRefinedWaitS(), cancel_requested_);
 }
 
-void ApproachGraspNode::registerBehaviorTreeNodes()
+void ManipulationSkillsNode::registerBehaviorTreeNodes()
 {
   bt_factory_.registerSimpleAction(
     "PrepareCycle", [this](BT::TreeNode &) {return btPrepareCycle();});
@@ -157,7 +167,7 @@ void ApproachGraspNode::registerBehaviorTreeNodes()
       return grasp_enabled_.load() ? BT::NodeStatus::FAILURE : BT::NodeStatus::SUCCESS;
     });
   // OBSERVE_ONLY 周期短路条件：FinalizeAndValidate 后直接落 PLAN_READY 终态，
-  // 跳过 MTC/工具/撤离段（优先级高于 IsGraspDisabled，见 harvest_tree.xml）。
+  // 跳过 MTC/工具/撤离段（优先级高于 IsGraspDisabled，见 behavior_tree.xml）。
   bt_factory_.registerSimpleCondition(
     "IsObserveOnly", [this](BT::TreeNode &) {
       return cycle_observe_only_.load() ? BT::NodeStatus::SUCCESS : BT::NodeStatus::FAILURE;
@@ -183,14 +193,14 @@ void ApproachGraspNode::registerBehaviorTreeNodes()
     "CompleteTarget", [this](BT::TreeNode &) {return btCompleteTarget();});
 }
 
-BT::NodeStatus ApproachGraspNode::btFailure(const std::string & reason)
+BT::NodeStatus ManipulationSkillsNode::btFailure(const std::string & reason)
 {
   bt_failure_reason_ = reason;
   setState(CycleState::FAILED, reason);
   return BT::NodeStatus::FAILURE;
 }
 
-BT::NodeStatus ApproachGraspNode::btPrepareCycle()
+BT::NodeStatus ManipulationSkillsNode::btPrepareCycle()
 {
   // 周期"黑板"锚定本周期生效目标：OBSERVE_ONLY=锁定集锚点缓存的 goal 目标，
   // 其余=感知 selected（见 cycleTargetSnapshot 注释）。
@@ -201,7 +211,7 @@ BT::NodeStatus ApproachGraspNode::btPrepareCycle()
   if (!cycle_target_) {
     return btFailure("周期目标（selected/锁定集锚点）在启动后失效");
   }
-  // goal 钉死校验（设计文档第 7 节）：action 受理到本快照之间感知若已切换
+  // goal 钉死校验（ExecuteTarget.goal.target_id）：action 受理到本快照之间感知若已切换
   // selected，身份不一致即周期失败，由编排按新 selected 重新派发；
   // 手动周期钉入值为空，直接采纳当下快照身份。OBSERVE_ONLY 周期的快照按
   // goal ID 取自锁定集缓存，身份一致由缓存键保证（条目消失走上方空快照
@@ -221,6 +231,14 @@ BT::NodeStatus ApproachGraspNode::btPrepareCycle()
   view_context.target = cycle_target_->center;
   view_context.current_camera_position = base_from_camera->translation();
   view_context.observed_directions = observedDirectionsSnapshot();
+  view_context.bbox_valid = cycle_target_->bbox_valid;
+  view_context.bbox_x = cycle_target_->bbox_x;
+  view_context.bbox_y = cycle_target_->bbox_y;
+  view_context.bbox_w = cycle_target_->bbox_w;
+  view_context.bbox_h = cycle_target_->bbox_h;
+  view_context.image_width = cycle_target_->image_width;
+  view_context.image_height = cycle_target_->image_height;
+  view_context.neighbor_centers = cache_.lockedNeighborCenters(cycle_target_id_);
   cycle_candidates_ = view_planner_->generate(view_context);
   publishViewMarkers(cycle_target_->center, cycle_candidates_);
   if (cycle_candidates_.empty()) {
@@ -229,7 +247,7 @@ BT::NodeStatus ApproachGraspNode::btPrepareCycle()
   return BT::NodeStatus::SUCCESS;
 }
 
-BT::NodeStatus ApproachGraspNode::btPlanPreview()
+BT::NodeStatus ManipulationSkillsNode::btPlanPreview()
 {
   // OBSERVE_ONLY 必须真走臂采多视角；plan-only 不得伪装成观察成功。
   if (cycle_observe_only_.load()) {
@@ -249,22 +267,35 @@ BT::NodeStatus ApproachGraspNode::btPlanPreview()
   return btFailure("所有候选观察位姿均不可规划");
 }
 
-BT::NodeStatus ApproachGraspNode::btAcquireViews()
+BT::NodeStatus ManipulationSkillsNode::btAcquireViews()
 {
   // 扫描预算制（2.13-E2 / 2.7-OBSERVE，判定纯核 ScanBudget）：
   //   - 质量优先：完整质量门放行即停，不为凑主动移动次数继续运动；
   //   - 下限保证：质量尚未达标且有效视点未达 min_effective_views_ 时，
   //     不得按预算提前收口；
-  //   - 预算自适应：运行预算 = max(scan_time_budget_s_, 2.5×移动成本EMA)；
+  //   - 预算自适应：运行预算 = max(scan_time_budget_s_,
+  //     budget_cost_margin×移动成本EMA)；
   //     剩余预算按实测 EMA 换不起一个视点即预测性收口，强制 finalize 走降级链；
   //   - maximum_moves_ 仅兜底（候选规划/移动全失败的极端场景）。
   const ScanBudget scan_budget(ScanBudgetConfig{
-      maximum_scan_moves_, min_effective_views_, scan_time_budget_s_});
+      maximum_scan_moves_, min_effective_views_, scan_time_budget_s_,
+      scan_budget_cost_margin_});
   int moves = 0;
   int effective_views = 0;
   bool budget_exhausted = false;
   std::vector<std::string> attempted;
   const double scan_start_s = now().seconds();
+  setState(CycleState::WAIT_FRAME, "当前位采帧，不环绕");
+  {
+    const std::size_t before_stay = qualitySnapshot().captured_views;
+    if (waitForFreshTarget(scan_start_s) && waitForNewView(before_stay)) {
+      RCLCPP_INFO(
+        get_logger(),
+        "当前位已采重建帧，不环绕；基线未过再做最多两次短 PTP");
+    } else {
+      RCLCPP_WARN(get_logger(), "当前位采帧未完成，将做一次短 PTP 接近");
+    }
+  }
   while (!cancel_requested_.load()) {
     const GateResult finalize_gate = quality_gate_->readyToFinalize(qualitySnapshot());
     const double elapsed_s = now().seconds() - scan_start_s;
@@ -303,6 +334,24 @@ BT::NodeStatus ApproachGraspNode::btAcquireViews()
     scan_context.target = scan_center;
     scan_context.current_camera_position = current_camera->translation();
     scan_context.observed_directions = observedDirectionsSnapshot();
+    if (latest_target && latest_target->id == cycle_target_id_) {
+      scan_context.bbox_valid = latest_target->bbox_valid;
+      scan_context.bbox_x = latest_target->bbox_x;
+      scan_context.bbox_y = latest_target->bbox_y;
+      scan_context.bbox_w = latest_target->bbox_w;
+      scan_context.bbox_h = latest_target->bbox_h;
+      scan_context.image_width = latest_target->image_width;
+      scan_context.image_height = latest_target->image_height;
+    } else if (cycle_target_) {
+      scan_context.bbox_valid = cycle_target_->bbox_valid;
+      scan_context.bbox_x = cycle_target_->bbox_x;
+      scan_context.bbox_y = cycle_target_->bbox_y;
+      scan_context.bbox_w = cycle_target_->bbox_w;
+      scan_context.bbox_h = cycle_target_->bbox_h;
+      scan_context.image_width = cycle_target_->image_width;
+      scan_context.image_height = cycle_target_->image_height;
+    }
+    scan_context.neighbor_centers = cache_.lockedNeighborCenters(cycle_target_id_);
     cycle_candidates_ = view_planner_->generate(scan_context);
     publishViewMarkers(scan_center, cycle_candidates_);
     bool moved = false;
@@ -329,15 +378,17 @@ BT::NodeStatus ApproachGraspNode::btAcquireViews()
           return btFailure("目标身份/可见性安全门失败: " + target_reason);
         }
       }
-      const std::size_t before = qualitySnapshot().captured_views;
       setState(
         CycleState::MOVE_TO_VIEW,
         candidate.label + " score=" + std::to_string(candidate.score));
-      const std::string planner = moves == 0 ? "PTP" : "LIN";
+      // 观察只走短 PTP：LIN 失败后的 OMPL 会绕行，后续机位也不再 LIN。
+      const std::string planner = "PTP";
+      // 移动前记下机位数：到位后同机位连帧不加机位，必须比移动前多一个。
+      const std::size_t stations_before_move = observedDirectionsSnapshot().size();
       // 移动成本计时起点：含规划+执行+到位后等帧（预规划预算估计的实测输入）。
       const double move_start_s = now().seconds();
       if (!motion_->planOrMoveCamera(
-          candidate.camera_pose, planner, true, candidate.label, true))
+          candidate.camera_pose, planner, true, candidate.label, false))
       {
         continue;
       }
@@ -354,9 +405,10 @@ BT::NodeStatus ApproachGraspNode::btAcquireViews()
         RCLCPP_WARN(get_logger(), "视点到达但等待新鲜目标观测超时，换下一视点");
         break;
       }
-      if (!waitForNewView(before)) {
-        // 无新重建帧则本视点未进入 TSDF，不计有效视点（与感知新鲜帧解耦）。
-        RCLCPP_WARN(get_logger(), "视点到达但等待新重建帧超时，换下一视点");
+      // 停走采帧（温室多视：到位静止后再积分）。同机位连帧会加 captured_views
+      // 但不加机位；等 view_directions 相对移动前增加，避免 60ms 内收口丢掉下一颗。
+      if (!waitForNewStation(stations_before_move)) {
+        RCLCPP_WARN(get_logger(), "视点到达但未形成新机位，换下一视点");
         break;
       }
       ++effective_views;
@@ -401,7 +453,7 @@ BT::NodeStatus ApproachGraspNode::btAcquireViews()
   return BT::NodeStatus::SUCCESS;
 }
 
-BT::NodeStatus ApproachGraspNode::btFinalizeAndValidate()
+BT::NodeStatus ManipulationSkillsNode::btFinalizeAndValidate()
 {
   setState(CycleState::FINALIZE, "等待重建精化几何（BuildTargetModel）");
   const bool refined_arrived = waitForRefined(cycle_target_id_);
@@ -445,6 +497,15 @@ BT::NodeStatus ApproachGraspNode::btFinalizeAndValidate()
       cycle_refined_->axis, cycle_target_->initial_pose.linear().col(0));
     cycle_entry_tip_pose_ = entry_tool_pose * tip_from_tool->inverse();
     cycle_travel_m_ = insertionTravel(*cycle_refined_);
+    const auto quality = qualitySnapshot();
+    RCLCPP_INFO(
+      get_logger(),
+      "接触几何（核对方向） target=%s entry=[%.3f %.3f %.3f] axis=[%.3f %.3f %.3f] "
+      "travel=%.3fm axis_angle_deg=%.2f",
+      cycle_target_id_.c_str(),
+      cycle_refined_->entry.x(), cycle_refined_->entry.y(), cycle_refined_->entry.z(),
+      cycle_refined_->axis.x(), cycle_refined_->axis.y(), cycle_refined_->axis.z(),
+      cycle_travel_m_, quality.axis_angle_deg);
     if (grasp_hyp_pub_) {
       peach_interfaces::msg::GraspHypothesis hyp;
       hyp.header.stamp = now();
@@ -509,7 +570,7 @@ BT::NodeStatus ApproachGraspNode::btFinalizeAndValidate()
   return BT::NodeStatus::SUCCESS;
 }
 
-BT::NodeStatus ApproachGraspNode::btReconfirmTarget()
+BT::NodeStatus ManipulationSkillsNode::btReconfirmTarget()
 {
   // 抓取前再确认（2.7-RECONFIRM）：FinalizeAndValidate 已产出入口几何
   // （cycle_refined_/cycle_entry_tip_pose_/cycle_travel_m_，本周期"黑板"成员），
@@ -555,10 +616,10 @@ BT::NodeStatus ApproachGraspNode::btReconfirmTarget()
       const double remaining_s = deadline_s - now().seconds();
       bool got_fresh = false;
       if (remaining_s > 1e-3) {
-        // 窗口等待谓词对周期生效目标生效：OBSERVE_ONLY 等 goal 目标的锁定集
-        // 锚点新鲜帧（当前树经 IsObserveOnly 短路不会走到这里，但谓词按周期
-        // 上下文取数，树结构调整后语义仍正确），其余等 selected 新鲜帧。
-        got_fresh = waitForFreshCycleTarget(after_s, remaining_s);
+        // 再确认不等 received_s 新戳：锁定目标已是 OBSERVED 时用当前锚点
+        // 判漂移（记忆锚点帧仍刷新 updated_s / tracking_status）。
+        got_fresh = waitForFreshCycleTarget(
+          after_s, remaining_s, false);
       }
       const auto latest = got_fresh ? cycleTargetSnapshot() : std::nullopt;
       if (!latest) {
@@ -566,7 +627,7 @@ BT::NodeStatus ApproachGraspNode::btReconfirmTarget()
         decision = policy.check(ReconfirmSample::exhausted());
         break;
       }
-      after_s = latest->received_s;
+      after_s = latest->updated_s > 0.0 ? latest->updated_s : latest->received_s;
       latest_anchor = latest->center;
       latest_axis = latest->initial_axis;
       ReconfirmSample sample;
@@ -651,6 +712,8 @@ BT::NodeStatus ApproachGraspNode::btReconfirmTarget()
     const auto latest = cycleTargetSnapshot();
     if (latest) {
       reason += "；最近跟踪状态=" + trackingStatusLabel(latest->tracking_status);
+      reason += " received_s=" + std::to_string(latest->received_s);
+      reason += " updated_s=" + std::to_string(latest->updated_s);
     }
     pending_outcome_.store(ExecuteTarget::Result::SKIPPED_QUALITY);
     return btFailure(reason);
@@ -658,7 +721,7 @@ BT::NodeStatus ApproachGraspNode::btReconfirmTarget()
   return BT::NodeStatus::FAILURE;
 }
 
-BT::NodeStatus ApproachGraspNode::btReportReady()
+BT::NodeStatus ManipulationSkillsNode::btReportReady()
 {
   cycle_terminal_state_ = CycleState::READY_FOR_GRASP;
   cycle_terminal_message_ = cycle_degraded_grasp_ ?
@@ -667,7 +730,7 @@ BT::NodeStatus ApproachGraspNode::btReportReady()
   return BT::NodeStatus::SUCCESS;
 }
 
-BT::NodeStatus ApproachGraspNode::btReportObserveOnly()
+BT::NodeStatus ManipulationSkillsNode::btReportObserveOnly()
 {
   // OBSERVE_ONLY 圆满终态：观察+精化验证段已完成，reason 标 observe_only；
   // PLAN_READY 经 terminalOutcome 映射 SUCCEEDED 上报编排器。
@@ -677,7 +740,7 @@ BT::NodeStatus ApproachGraspNode::btReportObserveOnly()
   return BT::NodeStatus::SUCCESS;
 }
 
-BT::NodeStatus ApproachGraspNode::btMtcApproachAndInsert()
+BT::NodeStatus ManipulationSkillsNode::btMtcApproachAndInsert()
 {
   std::string reason;
   // 运动输出权限（A8）：deactivate 竞态下周期虽已被取消流程拦截，此处再兜底。
@@ -725,13 +788,11 @@ BT::NodeStatus ApproachGraspNode::btMtcApproachAndInsert()
         get_logger(), "MTC 前观测仍陈旧，按静态目标锚点继续（已等待复核）");
     }
   }
-  const std::string planner_label =
-    mtc_free_space_pipeline_ + "/" + mtc_free_space_planner_;
   setState(
     CycleState::MTC_APPROACH_INSERT,
     cycle_degraded_grasp_ ?
-      "MTC（降级：候选锚点）: " + planner_label + " 到入口，再沿候选轴直线插入" :
-      "MTC: " + planner_label + " 到入口，再沿精化轴直线插入");
+      "MTC（降级）：沿检测轴短程进入；未对轴则先 PTP 到预抓取" :
+      "MTC：沿检测轴短程进入；未对轴则先 PTP 到预抓取");
   GraspTaskResult result;
   if (preplan_reuse_) {
     // 预规划复用（2.13-E3）：再确认 PASS 点已判定 READY 且漂移 ≤
@@ -771,7 +832,7 @@ BT::NodeStatus ApproachGraspNode::btMtcApproachAndInsert()
   return BT::NodeStatus::SUCCESS;
 }
 
-BT::NodeStatus ApproachGraspNode::btActuateTool()
+BT::NodeStatus ManipulationSkillsNode::btActuateTool()
 {
   if (!tool_enabled_.load()) {
     setState(CycleState::ACTUATE_TOOL, "tool.enabled=false，跳过末端 IO");
@@ -790,7 +851,7 @@ BT::NodeStatus ApproachGraspNode::btActuateTool()
   return BT::NodeStatus::SUCCESS;
 }
 
-BT::NodeStatus ApproachGraspNode::btMtcRetreat()
+BT::NodeStatus ManipulationSkillsNode::btMtcRetreat()
 {
   setState(CycleState::MTC_RETREAT, "MTC 沿插入反方向保持直线撤离");
   const auto result = grasp_task_->retreat(
@@ -802,7 +863,7 @@ BT::NodeStatus ApproachGraspNode::btMtcRetreat()
   return BT::NodeStatus::SUCCESS;
 }
 
-BT::NodeStatus ApproachGraspNode::btDepositToStation()
+BT::NodeStatus ManipulationSkillsNode::btDepositToStation()
 {
   setState(CycleState::MTC_RETREAT, "转移到卸果站或跳过（M8 未标定）");
   if (deposit_pose_named_target_.empty()) {
@@ -829,7 +890,7 @@ BT::NodeStatus ApproachGraspNode::btDepositToStation()
   return BT::NodeStatus::SUCCESS;
 }
 
-BT::NodeStatus ApproachGraspNode::btCompleteTarget()
+BT::NodeStatus ManipulationSkillsNode::btCompleteTarget()
 {
   // 账本由 peach_task_executor 按 ExecuteTarget 终态写入；此处只结束行为树。
   cycle_terminal_state_ = CycleState::SUCCEEDED;
@@ -837,7 +898,7 @@ BT::NodeStatus ApproachGraspNode::btCompleteTarget()
   return BT::NodeStatus::SUCCESS;
 }
 
-void ApproachGraspNode::publishViewMarkers(
+void ManipulationSkillsNode::publishViewMarkers(
   const Eigen::Vector3d & target,
   const std::vector<ViewCandidate> & candidates)
 {

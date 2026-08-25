@@ -1,6 +1,8 @@
 # AGENTS.md — 编码代理约束
 
-权威：源码、各包 `config/*.yaml`、[docs/flow.md](docs/flow.md)（含阅读地图与调用关系）、[docs/usage.md](docs/usage.md)。旧手册只在 `_archive/`。
+权威：源码、各包 `config/*.yaml`、三份活文档——[docs/architecture.md](docs/architecture.md)（设计架构）、[docs/io.md](docs/io.md)（输入输出）、[docs/testing.md](docs/testing.md)（测试）。**设计和改动依赖这三份。源码与文档互相更新：改一边必须同一改动内改另一边，始终一致。** 不要在 `docs/` 再加第四份活文档。旧手册与暂不用的根目录项只在 `_archive/`（含 `parked_2026-08-24/`）。不把监控或底盘驱动拆成新 peach 包。
+
+改行为 / yaml / IDL / launch 必须改对应文档；改文档里的现行描述必须兑现到源码或 yaml（标成「缺口 / 预留 / 归档」的除外）。注释不得与这三份或现行源码打架。发现不一致：两边一起改到一致再继续，禁止只改一边。
 
 ## 红线
 
@@ -11,7 +13,7 @@
 - 关节顺序：`shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint`。
 - 启动前：`pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'`
 - 不向 `build/`、`install/`、`log/`、`_archive/` 提交。
-- **不要删过程数据**（`_archive/runs/`、现场 `web_runs/`）。
+- **不要删过程数据**（`_archive/runs/`、现场 `runs/`）。
 
 ## 测试
 
@@ -19,7 +21,17 @@
 
 ## 技术
 
-C++17；参数走 yaml + `generate_parameter_library` / `declare_parameter`。`peach_task_executor` 是批次唯一所有者；**launch 绝不自动 RunHarvest**。能力端运动绑定 Lifecycle **Active**。重建只用精确时间戳 TF。默认 `execution/grasp/tool=false`。
+C++17；参数走 yaml + `generate_parameter_library` / `declare_parameter`。采摘 ROS 包五个，作用不得串（详细：[docs/architecture.md](docs/architecture.md) §3）：
+
+- `peach_interfaces`：跨包唯一 IDL，不跑节点
+- `peach_perception`：视觉算法（两节点：看场景 + 建当前目标），不发运动、不选下一颗、不写账本；积分不用 latest TF
+- `peach_manipulation_skills`：机械臂执行（`SurveyScene` / `ExecuteTarget`：视点、MTC、工具、撤退），不写账本、不调重建 Trigger
+- `peach_navigation`：作业位导航适配（`NavigateToWorksite`）；现行 stub，不实现底盘/Nav2
+- `peach_task_executor`：整栈调度（含 lifecycle 与只读 Web）；**launch 绝不自动 RunHarvest**；默认 `navigation_enabled=false`
+
+臂/相机九包职责与只读范围同 architecture §3 驱动层。
+
+Python 模块名与包名一致；launch/config/可执行文件跟职责名对齐（见 architecture §3 命名与文件树）。图名（节点/话题/动作）保持契约，不因整理文件而改。能力端运动绑定 Lifecycle **Active**。重建只用精确时间戳 TF。默认 `execution/grasp/tool=false`。
 
 ## 入口
 

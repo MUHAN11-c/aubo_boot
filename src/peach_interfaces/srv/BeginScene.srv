@@ -1,6 +1,9 @@
-string request_id
-string scene_key
+# 清身份、推进场景世代。服务端 peach_perception ~/begin_scene。
+# 执行器在 RUN_REQUESTED → DISCOVERY 时调用。节点非 Lifecycle Active 时拒绝。
+
+string request_id          # 批次 request_id
+string scene_key           # 场景键；与当前键不同则换场
 ---
-bool accepted
-uint32 scene_epoch
+bool accepted              # 是否接受（非 Active / 忙则 false）
+uint32 scene_epoch         # 接受后的新世代（从 1 递增）
 string message

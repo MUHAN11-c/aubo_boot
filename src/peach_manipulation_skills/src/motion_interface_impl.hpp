@@ -26,7 +26,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 // 运动接口默认实现（注册名 moveit_motion，包内私有头不安装）：
-// MoveGroupInterface + TF 的规划/执行体。行为与原 ApproachGraspNode 成员函数
+// MoveGroupInterface + TF 的规划/执行体。行为与原 ManipulationSkillsNode 成员函数
 // 内联实现逐行等价；节点经 src/motion_factory.hpp 按 motion.impl 创建。
 #ifndef MOTION_INTERFACE_IMPL_HPP_
 #define MOTION_INTERFACE_IMPL_HPP_
@@ -46,7 +46,7 @@
 namespace peach_manipulation_skills
 {
 
-// moveit_motion 的运行配置（默认值以 config/approach_grasp.yaml 为权威源）。
+// moveit_motion 的运行配置（默认值以 config/peach_manipulation_skills.yaml 为权威源）。
 struct MoveItMotionConfig
 {
   std::string base_frame;
@@ -58,6 +58,18 @@ struct MoveItMotionConfig
   // 自由空间转移速度档（观察视点、拍照位姿往返）。
   double transit_velocity_scaling{0.10};
   double transit_acceleration_scaling{0.10};
+  // 观察/相机转移轨迹护栏（默认与 config/peach_manipulation_skills.yaml 对齐）。
+  double transit_max_duration_s{25.0};
+  double transit_max_total_joint_travel_rad{6.0};
+  double transit_max_single_joint_travel_rad{2.5};
+  double observe_planning_time_s{1.0};
+  int observe_planning_attempts{1};
+  double observe_max_duration_s{8.0};
+  double observe_max_total_joint_travel_rad{2.5};
+  double observe_max_single_joint_travel_rad{1.5};
+  double photo_planning_time_s{3.0};
+  double default_planning_time_s{1.5};
+  int default_planning_attempts{1};
 };
 
 // MotionInterfaceBase 的 MoveIt 默认实现。

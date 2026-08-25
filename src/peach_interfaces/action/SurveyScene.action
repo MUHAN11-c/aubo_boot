@@ -1,10 +1,13 @@
-string request_id
-string scene_key
+# 去拍照位姿并采一场。服务端 peach_manipulation_skills ~/survey_scene。
+# 执行器在 DISCOVERY 于 BeginScene 成功后调用。PAUSE 会取消本动作，恢复后重试。
+
+string request_id          # 批次 request_id
+string scene_key           # 与 BeginScene 相同的场景键
 ---
-string snapshot_id
-uint32 scene_epoch
-bool degraded
+string snapshot_id         # 本场快照 ID
+uint32 scene_epoch         # 当前场景世代
+bool degraded              # 空集、超时或目标集未锁
 string message
 ---
-uint32 observation_count
-string status
+uint32 observation_count   # 已见观测数（反馈）
+string status              # 短状态（moving/capturing/...）

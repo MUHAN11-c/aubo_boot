@@ -37,6 +37,7 @@ from launch.actions import (
     DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, OpaqueFunction)
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
+from peach_perception.common.harvest_data import default_runs_root
 
 
 def _include(package, launch_file, launch_arguments=None):
@@ -84,6 +85,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'record_mcap', default_value='false',
             description='为 true 时用 ros2 bag record -s mcap 录执行器/感知/重建关键话题'),
+        DeclareLaunchArgument(
+            'navigation_enabled', default_value='false',
+            description='true 时开批先 NavigateToWorksite；默认跳过（固定座）'),
         _include(
             'aubo_e5_bringup', 'bringup.launch.py', {
                 'hardware_mode': hardware_mode,
@@ -95,18 +99,25 @@ def generate_launch_description():
                 'hand_eye_web_enabled': hand_eye_web_enabled,
             }),
         _include(
-            'peach_scene_perception', 'peach_pose.launch.py',
+            'peach_perception', 'scene_perception.launch.py',
             {'autostart': 'false'}),
         _include(
-            'peach_target_reconstruction', 'reconstruction.launch.py',
+            'peach_perception', 'target_reconstruction.launch.py',
             {'autostart': 'false'}),
         _include(
-            'peach_manipulation_skills', 'approach_grasp.launch.py',
+            'peach_manipulation_skills', 'peach_manipulation_skills.launch.py',
             {'autostart': 'false'}),
-        _include('peach_observability', 'observability.launch.py'),
         _include(
-            'peach_task_executor', 'executor.launch.py',
-            {'autostart': 'false', 'require_managed_stack': 'true'}),
+            'peach_navigation', 'navigation.launch.py',
+            {'autostart': 'false'}),
+        _include('peach_task_executor', 'observability.launch.py'),
+        _include(
+            'peach_task_executor', 'peach_task_executor.launch.py',
+            {
+                'autostart': 'false',
+                'require_managed_stack': 'true',
+                'navigation_enabled': LaunchConfiguration('navigation_enabled'),
+            }),
         _include('peach_task_executor', 'lifecycle_manager.launch.py'),
         OpaqueFunction(function=_maybe_record_mcap),
     ])
@@ -118,7 +129,7 @@ def _maybe_record_mcap(context):
     if flag not in ('true', '1', 'yes'):
         return []
     stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    output = os.path.join(os.getcwd(), 'web_runs', f'mcap_{stamp}')
+    output = str(default_runs_root() / f'mcap_{stamp}')
     topics = [
         '/peach_task_executor/events',
         '/peach_task_executor/state',

@@ -37,8 +37,10 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Verification.msg"
   "srv/BeginScene.srv"
   "srv/ControlTask.srv"
+  "srv/ManageLifecycleNodes.srv"
   "action/BuildTargetModel.action"
   "action/ExecuteTarget.action"
+  "action/NavigateToWorksite.action"
   "action/RunHarvest.action"
   "action/SurveyScene.action"
   DEPENDENCIES

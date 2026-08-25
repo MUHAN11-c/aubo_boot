@@ -1,10 +1,10 @@
 # 全局发现锁定后的固定目标集合；每帧更新各 ID 的观测状态
 std_msgs/Header header
-uint32 snapshot_id
-string harvest_run_id
-bool target_set_locked
-uint32 target_count
-string selected_target_id
+uint32 snapshot_id             # 发现窗/锁定集世代；锁定后不变
+string harvest_run_id          # 所属批次；空=尚未开批
+bool target_set_locked         # true=锁定集已关闭，observations 为固定 ID 集合
+uint32 target_count            # 锁定后等于锁定集大小；锁定前可为 0
+string selected_target_id      # 当前选中目标；空=未选。须与执行器 state.target_id 调和
 # 发现进度摘要（缺陷 R-D8）：锁定前 observations 恒空，下游看不到收齐进度，
 # 故每帧发布本两字段供进度跟踪（锁定前 observations 仍为空数组，只发摘要）。
 # collecting_count：锁定前=收齐窗口内累积的已确认目标数（随窗口攒帧单调增长）；

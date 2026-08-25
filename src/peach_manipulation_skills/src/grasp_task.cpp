@@ -36,7 +36,10 @@
 #include <moveit/task_constructor/stages/move_to.h>
 #include <moveit/task_constructor/task.h>
 
+#include <Eigen/Geometry>
+
 #include <algorithm>
+#include <cmath>
 #include <exception>
 #include <memory>
 #include <sstream>
@@ -71,6 +74,73 @@ geometry_msgs::msg::Pose toPose(const Eigen::Isometry3d & transform)
   pose.orientation.w = quaternion.w();
   return pose;
 }
+
+double tipToEntryDistanceM(
+  const GraspTaskConfig & config, const Eigen::Isometry3d & entry)
+{
+  if (!config.lookup_current_tip) {
+    return 1.0e9;
+  }
+  const auto start = config.lookup_current_tip();
+  if (!start) {
+    return 1.0e9;
+  }
+  return (start->translation() - entry.translation()).norm();
+}
+
+struct ApproachSplit
+{
+  bool need_ptp{true};
+  double lin_to_entry_m{0.0};
+  double lateral_m{0.0};
+  double axial_m{0.0};
+  double align_deg{180.0};
+};
+
+Eigen::Isometry3d pregraspTipPose(
+  const Eigen::Isometry3d & entry, const Eigen::Vector3d & axis, double standoff_m)
+{
+  Eigen::Isometry3d pose = entry;
+  pose.translation() -= axis.normalized() * standoff_m;
+  return pose;
+}
+
+ApproachSplit classifyApproach(
+  const GraspTaskConfig & config,
+  const Eigen::Isometry3d & entry,
+  const Eigen::Vector3d & insertion_axis)
+{
+  ApproachSplit out;
+  const Eigen::Vector3d axis = insertion_axis.normalized();
+  out.lin_to_entry_m = config.approach_along_axis_m;
+  if (!config.lookup_current_tip) {
+    return out;
+  }
+  const auto start = config.lookup_current_tip();
+  if (!start) {
+    return out;
+  }
+  const Eigen::Vector3d delta = entry.translation() - start->translation();
+  out.axial_m = delta.dot(axis);
+  out.lateral_m = (delta - out.axial_m * axis).norm();
+  const Eigen::Vector3d tip_z = start->linear().col(2);
+  const double cosine = std::clamp(tip_z.dot(axis), -1.0, 1.0);
+  out.align_deg = std::acos(cosine) * (180.0 / std::acos(-1.0));
+  const bool aligned = out.align_deg <= config.approach_max_align_deg;
+  const bool on_line = out.lateral_m <= config.approach_max_lateral_m;
+  const bool short_axial =
+    out.axial_m >= -0.02 &&
+    out.axial_m <= config.approach_along_axis_m + 0.02 &&
+    out.axial_m <= config.approach_cartesian_max_distance_m;
+  out.need_ptp = !(aligned && on_line && short_axial);
+  if (!out.need_ptp) {
+    out.lin_to_entry_m = std::max(0.0, out.axial_m);
+  }
+  if (out.lin_to_entry_m < 0.005) {
+    out.lin_to_entry_m = 0.0;
+  }
+  return out;
+}
 }  // namespace
 
 GraspTask::GraspTask(rclcpp::Node::SharedPtr node, GraspTaskConfig config)
@@ -93,7 +163,8 @@ std::shared_ptr<mtc::solvers::CartesianPath> GraspTask::makeCartesianSolver() co
 {
   auto solver = std::make_shared<mtc::solvers::CartesianPath>();
   solver->setStepSize(config_.cartesian_step_m);
-  solver->setMinFraction(1.0);
+  // 1.0 在末步常因离散/自碰只到 29/30（真机 0.9667）。0.95 仍拒绝半程插入。
+  solver->setMinFraction(config_.cartesian_min_fraction);
   moveit::core::CartesianPrecision precision;
   precision.translational = config_.cartesian_precision_m;
   solver->setPrecision(precision);
@@ -104,10 +175,10 @@ std::shared_ptr<mtc::solvers::CartesianPath> GraspTask::makeCartesianSolver() co
 
 std::unique_ptr<mtc::stages::MoveTo> GraspTask::makeMoveToEntry(
   const std::shared_ptr<mtc::solvers::PipelinePlanner> & solver,
-  const Eigen::Isometry3d & entry_tip_pose) const
+  const Eigen::Isometry3d & entry_tip_pose,
+  const std::string & label) const
 {
-  auto stage = std::make_unique<mtc::stages::MoveTo>(
-    "collision-aware move to refined entry", solver);
+  auto stage = std::make_unique<mtc::stages::MoveTo>(label, solver);
   stage->setGroup(config_.planning_group);
   stage->setIKFrame(config_.tip_frame);
   stage->setTimeout(config_.planning_time_s);
@@ -175,13 +246,36 @@ void GraspTask::syncKeepoutCollisionObjects() const
   scene.applyCollisionObjects(objects);
 }
 
-std::unique_ptr<mtc::SerialContainer> GraspTask::makeApproachInsertSequence(
-  const Eigen::Isometry3d & entry_tip_pose,
+void GraspTask::appendPtpToPose(
+  mtc::SerialContainer & sequence,
+  const Eigen::Isometry3d & target_tip_pose) const
+{
+  sequence.add(
+    makeMoveToEntry(
+      makeFreeSpaceSolver(), target_tip_pose, "ptp to on-axis pregrasp"));
+}
+
+void GraspTask::appendAlongAxisMove(
+  mtc::SerialContainer & sequence,
   const Eigen::Vector3d & insertion_axis,
+  double along_axis_m,
+  const std::string & label) const
+{
+  if (along_axis_m <= 0.005) {
+    return;
+  }
+  sequence.add(
+    makeLinearMove(label, makeCartesianSolver(), insertion_axis, along_axis_m));
+}
+
+std::unique_ptr<mtc::SerialContainer> GraspTask::makeApproachInsertSequence(
+  const Eigen::Vector3d & insertion_axis,
+  double along_axis_m,
   double insertion_distance_m) const
 {
   auto sequence = std::make_unique<mtc::SerialContainer>("approach and insert");
-  sequence->add(makeMoveToEntry(makeFreeSpaceSolver(), entry_tip_pose));
+  appendAlongAxisMove(
+    *sequence, insertion_axis, along_axis_m, "along-axis approach to entry");
   sequence->add(
     makeLinearMove(
       "guarded linear insertion", makeCartesianSolver(), insertion_axis,
@@ -200,13 +294,38 @@ std::unique_ptr<mtc::Task> GraspTask::makeTaskShell(const std::string & task_nam
 
 std::unique_ptr<mtc::Task> GraspTask::makeApproachInsertTask(
   const std::string & task_name,
-  const Eigen::Isometry3d & entry_tip_pose,
+  const Eigen::Vector3d & insertion_axis,
+  double along_axis_m,
+  double insertion_distance_m)
+{
+  auto task = makeTaskShell(task_name);
+  task->add(
+    makeApproachInsertSequence(
+      insertion_axis, along_axis_m, insertion_distance_m));
+  return task;
+}
+
+std::unique_ptr<mtc::Task> GraspTask::makeApproachOnlyTask(
+  const std::string & task_name,
+  const Eigen::Isometry3d & target_tip_pose)
+{
+  auto task = makeTaskShell(task_name);
+  auto sequence = std::make_unique<mtc::SerialContainer>("approach to pregrasp");
+  appendPtpToPose(*sequence, target_tip_pose);
+  task->add(std::move(sequence));
+  return task;
+}
+
+std::unique_ptr<mtc::Task> GraspTask::makeInsertOnlyTask(
+  const std::string & task_name,
   const Eigen::Vector3d & insertion_axis,
   double insertion_distance_m)
 {
   auto task = makeTaskShell(task_name);
   task->add(
-    makeApproachInsertSequence(entry_tip_pose, insertion_axis, insertion_distance_m));
+    makeLinearMove(
+      "guarded linear insertion", makeCartesianSolver(), insertion_axis,
+      insertion_distance_m));
   return task;
 }
 
@@ -216,21 +335,90 @@ GraspTaskResult GraspTask::approachAndInsert(
   double insertion_distance_m,
   bool execute)
 {
-  return planAndMaybeExecute(
+  const ApproachSplit split =
+    classifyApproach(config_, entry_tip_pose, insertion_axis);
+  const Eigen::Isometry3d pregrasp = pregraspTipPose(
+    entry_tip_pose, insertion_axis, config_.approach_along_axis_m);
+  RCLCPP_INFO(
+    node_->get_logger(),
+    "接近沿检测轴：直线距入口 %.3fm 轴向 %.3fm 侧向 %.3fm 姿态夹角 %.1f° "
+    "沿轴LIN %.3fm %s",
+    tipToEntryDistanceM(config_, entry_tip_pose),
+    split.axial_m, split.lateral_m, split.align_deg, split.lin_to_entry_m,
+    split.need_ptp ? "先PTP到轴上预抓取" : "已对轴，只走短程LIN");
+  if (split.need_ptp) {
+    auto to_pregrasp = planAndMaybeExecute(
+      makeApproachOnlyTask("peach_approach_pregrasp", pregrasp),
+      execute, config_.approach_execution_gate, true, 0U);
+    if (!to_pregrasp.success) {
+      to_pregrasp.reason = "到轴上预抓取失败: " + to_pregrasp.reason;
+      return to_pregrasp;
+    }
+    if (!execute) {
+      auto along = planAndMaybeExecute(
+        makeApproachInsertTask(
+          "peach_along_axis_insert", insertion_axis, split.lin_to_entry_m,
+          insertion_distance_m),
+        false, {}, false, 0U);
+      if (!along.success) {
+        to_pregrasp.success = false;
+        to_pregrasp.reason = "已规划到预抓取，沿轴进入未过: " + along.reason;
+        return to_pregrasp;
+      }
+      to_pregrasp.reason = "已规划到预抓取并沿轴进入（仅规划）";
+      return to_pregrasp;
+    }
+  }
+  auto along = planAndMaybeExecute(
     makeApproachInsertTask(
-      "peach_approach_insert", entry_tip_pose, insertion_axis,
+      "peach_along_axis_insert", insertion_axis, split.lin_to_entry_m,
       insertion_distance_m),
-    execute, config_.approach_execution_gate, true);
+    execute, config_.approach_execution_gate, true,
+    split.lin_to_entry_m > 0.005 ? 1U : 0U);
+  if (along.success || along.execution_started) {
+    if (along.success) {
+      return along;
+    }
+  } else if (execute && split.lin_to_entry_m > 0.005) {
+    RCLCPP_WARN(
+      node_->get_logger(),
+      "沿轴进入+插入一体失败（%s），改分步沿轴再插入",
+      along.reason.c_str());
+    auto to_entry = planAndMaybeExecute(
+      makeInsertOnlyTask(
+        "peach_along_axis_to_entry", insertion_axis, split.lin_to_entry_m),
+      true, config_.approach_execution_gate, false, 0U);
+    if (!to_entry.success) {
+      to_entry.reason = "沿轴到入口失败: " + to_entry.reason;
+      return to_entry;
+    }
+    along = planAndMaybeExecute(
+      makeInsertOnlyTask(
+        "peach_linear_insert", insertion_axis, insertion_distance_m),
+      true, config_.approach_execution_gate, false, 0U);
+    if (along.success) {
+      return along;
+    }
+  } else if (!execute) {
+    return along;
+  }
+  if (along.success) {
+    return along;
+  }
+  if (!execute) {
+    return along;
+  }
+  const auto back = retreat(insertion_axis, insertion_distance_m, true);
+  along.execution_started = true;
+  along.success = false;
+  along.reason = "已到抓取入口但插入未完成: " + along.reason +
+    "；撤离: " + back.reason;
+  return along;
 }
 
-GraspTaskResult GraspTask::preplanApproachAndInsert(
-  const Eigen::Isometry3d & entry_tip_pose,
-  const Eigen::Vector3d & insertion_axis,
-  double insertion_distance_m)
+GraspTaskResult GraspTask::preplanOneTask(
+  std::unique_ptr<mtc::Task> task, std::size_t guard_skip_tail)
 {
-  auto task = makeApproachInsertTask(
-    "peach_approach_insert_preplan", entry_tip_pose, insertion_axis,
-    insertion_distance_m);
   mtc::Task * active = nullptr;
   {
     std::lock_guard<std::mutex> lock(task_mutex_);
@@ -239,7 +427,7 @@ GraspTaskResult GraspTask::preplanApproachAndInsert(
   }
   GraspTaskResult output;
   try {
-    output = planTaskOnly(active, true);
+    output = planTaskOnly(active, true, guard_skip_tail);
   } catch (const std::exception & error) {
     output.reason = error.what();
   }
@@ -252,6 +440,36 @@ GraspTaskResult GraspTask::preplanApproachAndInsert(
     }
   }
   return output;
+}
+
+GraspTaskResult GraspTask::preplanApproachAndInsert(
+  const Eigen::Isometry3d & entry_tip_pose,
+  const Eigen::Vector3d & insertion_axis,
+  double insertion_distance_m)
+{
+  const ApproachSplit split =
+    classifyApproach(config_, entry_tip_pose, insertion_axis);
+  const Eigen::Isometry3d pregrasp = pregraspTipPose(
+    entry_tip_pose, insertion_axis, config_.approach_along_axis_m);
+  const std::size_t skip_tail = split.lin_to_entry_m > 0.005 ? 1U : 0U;
+  if (!split.need_ptp) {
+    return preplanOneTask(
+      makeApproachInsertTask(
+        "peach_approach_insert_preplan", insertion_axis, split.lin_to_entry_m,
+        insertion_distance_m),
+      skip_tail);
+  }
+  auto task = makeTaskShell("peach_approach_insert_preplan");
+  auto sequence = std::make_unique<mtc::SerialContainer>("pregrasp then along-axis");
+  appendPtpToPose(*sequence, pregrasp);
+  appendAlongAxisMove(
+    *sequence, insertion_axis, split.lin_to_entry_m, "along-axis approach to entry");
+  sequence->add(
+    makeLinearMove(
+      "guarded linear insertion", makeCartesianSolver(), insertion_axis,
+      insertion_distance_m));
+  task->add(std::move(sequence));
+  return preplanOneTask(std::move(task), skip_tail);
 }
 
 GraspTaskResult GraspTask::executePreplannedApproach()
@@ -296,11 +514,19 @@ GraspTaskResult GraspTask::previewFullContact(
   const Eigen::Vector3d & insertion_axis,
   double insertion_distance_m)
 {
+  const ApproachSplit split =
+    classifyApproach(config_, entry_tip_pose, insertion_axis);
+  const Eigen::Isometry3d pregrasp = pregraspTipPose(
+    entry_tip_pose, insertion_axis, config_.approach_along_axis_m);
   auto task = makeTaskShell("peach_full_contact_preview");
   auto cartesian = makeCartesianSolver();
   cartesian->setTimeParameterization(nullptr);
   auto contact = std::make_unique<mtc::SerialContainer>("preview contact");
-  contact->add(makeMoveToEntry(makeFreeSpaceSolver(), entry_tip_pose));
+  if (split.need_ptp) {
+    appendPtpToPose(*contact, pregrasp);
+  }
+  appendAlongAxisMove(
+    *contact, insertion_axis, split.lin_to_entry_m, "along-axis approach to entry");
   contact->add(
     makeLinearMove(
       "guarded linear insertion", cartesian, insertion_axis, insertion_distance_m));
@@ -309,8 +535,8 @@ GraspTaskResult GraspTask::previewFullContact(
       "linear retreat along insertion path", cartesian, -insertion_axis,
       insertion_distance_m));
   task->add(std::move(contact));
-
-  return planAndMaybeExecute(std::move(task), false, {}, true);
+  const std::size_t skip_tail = 2U;
+  return planAndMaybeExecute(std::move(task), false, {}, true, skip_tail);
 }
 
 GraspTaskResult GraspTask::retreat(
@@ -326,7 +552,8 @@ GraspTaskResult GraspTask::retreat(
   return planAndMaybeExecute(std::move(task), execute, config_.retreat_execution_gate);
 }
 
-GraspTaskResult GraspTask::planTaskOnly(mtc::Task * active, bool guard_approach)
+GraspTaskResult GraspTask::planTaskOnly(
+  mtc::Task * active, bool guard_approach, std::size_t guard_skip_tail)
 {
   syncKeepoutCollisionObjects();
   GraspTaskResult output;
@@ -347,13 +574,18 @@ GraspTaskResult GraspTask::planTaskOnly(mtc::Task * active, bool guard_approach)
   if (guard_approach) {
     moveit_task_constructor_msgs::msg::Solution solution;
     active->solutions().front()->toMsg(solution);
-    const auto approach = std::find_if(
-      solution.sub_trajectory.cbegin(), solution.sub_trajectory.cend(),
-      [](const auto & sub) {
-        const auto & trajectory = sub.trajectory.joint_trajectory;
-        return !trajectory.joint_names.empty() && !trajectory.points.empty();
-      });
-    if (approach == solution.sub_trajectory.cend()) {
+    std::vector<trajectory_msgs::msg::JointTrajectory> approach_parts;
+    approach_parts.reserve(solution.sub_trajectory.size());
+    for (const auto & sub : solution.sub_trajectory) {
+      const auto & trajectory = sub.trajectory.joint_trajectory;
+      if (!trajectory.joint_names.empty() && !trajectory.points.empty()) {
+        approach_parts.push_back(trajectory);
+      }
+    }
+    if (guard_skip_tail > 0U && approach_parts.size() > guard_skip_tail) {
+      approach_parts.resize(approach_parts.size() - guard_skip_tail);
+    }
+    if (approach_parts.empty()) {
       output.reason = "MTC short-path guard rejected: 缺少接近轨迹";
       return output;
     }
@@ -361,17 +593,13 @@ GraspTaskResult GraspTask::planTaskOnly(mtc::Task * active, bool guard_approach)
       config_.approach_max_duration_s,
       config_.approach_max_total_joint_travel_rad,
       config_.approach_max_single_joint_travel_rad};
-    const auto report = inspectApproachTrajectory(
-      approach->trajectory.joint_trajectory, limits);
-    const auto approach_index = static_cast<std::size_t>(
-      approach - solution.sub_trajectory.cbegin());
+    const auto report = inspectApproachTrajectories(approach_parts, limits);
     RCLCPP_INFO(
       node_->get_logger(),
-      "MTC 接近短路径审查: segment=%zu/%zu planner=%s "
+      "MTC 接近短路径审查: segments=%zu "
       "allowed=%s points=%zu duration=%.3fs "
       "joint_total=%.3frad joint_max=%.3frad (%s)",
-      approach_index + 1U, solution.sub_trajectory.size(),
-      approach->info.planner_id.c_str(),
+      approach_parts.size(),
       report.allowed ? "true" : "false", report.point_count,
       report.duration_s, report.total_joint_travel_rad,
       report.max_single_joint_travel_rad, report.reason.c_str());
@@ -410,7 +638,8 @@ GraspTaskResult GraspTask::planAndMaybeExecute(
   std::unique_ptr<mtc::Task> task,
   bool execute,
   const std::function<bool(std::string &)> & execution_gate,
-  bool guard_approach)
+  bool guard_approach,
+  std::size_t guard_skip_tail)
 {
   mtc::Task * active = nullptr;
   {
@@ -420,7 +649,7 @@ GraspTaskResult GraspTask::planAndMaybeExecute(
   }
   GraspTaskResult output;
   try {
-    output = planTaskOnly(active, guard_approach);
+    output = planTaskOnly(active, guard_approach, guard_skip_tail);
     if (output.success && execute) {
       output = executeSolution(active, execution_gate);
     }

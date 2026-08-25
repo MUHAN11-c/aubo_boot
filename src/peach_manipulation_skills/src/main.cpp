@@ -31,12 +31,12 @@
 // 并报错，可由 ros2 lifecycle 重新触发。
 #include <memory>
 
-#include "approach_grasp_node_impl.hpp"
+#include "manipulation_skills_node_impl.hpp"
 
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<peach_manipulation_skills::ApproachGraspNode>();
+  auto node = std::make_shared<peach_manipulation_skills::ManipulationSkillsNode>();
   rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 4);
   executor.add_node(node->get_node_base_interface());
   // MoveIt 伴随节点必须同 executor 自旋：MGI 的 CurrentStateMonitor 等

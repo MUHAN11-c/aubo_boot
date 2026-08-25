@@ -1,3 +1,7 @@
-float32 payload
+# 设置工具负载质量。仅 aubo_dashboard 提供 ~/set_payload。
+# SDK 约定应在上电前写入；运行中调用可能被固件忽略，须下次 startup 才生效。
+# 只改质量，质心等其余动力学字段保持全零。
+
+float32 payload  # 工具质量 [kg]
 ---
-bool success
+bool success     # SDK 返回成功。未连接时为 false

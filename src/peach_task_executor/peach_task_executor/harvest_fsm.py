@@ -61,6 +61,8 @@ class Event:
     """Harvest orchestration event names."""
 
     RUN_REQUESTED = 'run_requested'
+    NAV_OK = 'nav_ok'
+    NAV_FAILED = 'nav_failed'
     BEGIN_OK = 'begin_ok'
     BEGIN_FAILED = 'begin_failed'
     SURVEY_DONE = 'survey_done'
@@ -85,6 +87,7 @@ class Command:
     """Next ROS I/O command for the executor node."""
 
     BEGIN_SCENE = 'begin_scene'
+    NAVIGATE = 'navigate'
     SURVEY = 'survey'
     SELECT = 'select'
     DISPATCH = 'dispatch'
@@ -110,6 +113,10 @@ class Reaction:
 
 _TABLE: dict[tuple, Reaction] = {
     (WAITING_READY, Event.RUN_REQUESTED): Reaction(
+        DISCOVERY, TARGET_IDLE, Command.NAVIGATE, '', 'preparing'),
+    (DISCOVERY, Event.NAV_FAILED): Reaction(
+        INTERRUPTED, TARGET_IDLE, Command.ABORT, '', 'navigate_failed'),
+    (DISCOVERY, Event.NAV_OK): Reaction(
         DISCOVERY, TARGET_IDLE, Command.BEGIN_SCENE, '', 'preparing'),
     (DISCOVERY, Event.BEGIN_FAILED): Reaction(
         INTERRUPTED, TARGET_IDLE, Command.ABORT, '', 'begin_scene_failed'),

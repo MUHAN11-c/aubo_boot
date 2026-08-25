@@ -1,0 +1,14 @@
+flowchart LR
+  subgraph NAV[导航门]
+    N1[靠近执行] --> N2[刹停并宣布可抓取]
+  end
+  subgraph ARM[抓取门]
+    A1[近距重建] --> A2[抓取许可后直线套入]
+  end
+  subgraph TOOL[姿态门 仅末端B]
+    T1[圆柱姿态] --> T2[相对袋轴辅助判断]
+  end
+  SCH[作业调度]
+  N2 --> SCH
+  A2 --> SCH
+  T2 --> SCH

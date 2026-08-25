@@ -1,6 +1,6 @@
 # aubo_description
 
-AUBO E5 工作单元 URDF / xacro / mesh。采摘栈通过 `robot_state_publisher` 消费展开后的 `robot_description`。
+AUBO E5 工作单元 URDF / xacro / mesh。采摘栈通过 `robot_state_publisher` 消费展开后的 `robot_description`。包职责见 [docs/architecture.md](../../docs/architecture.md) §3 驱动层。
 
 ## 关键文件
 

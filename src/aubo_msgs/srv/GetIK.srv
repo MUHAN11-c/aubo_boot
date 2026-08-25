@@ -1,5 +1,8 @@
-float32[] ref_joint
-float32[] pos
-float32[] ori
+# SDK 逆解：笛卡尔位姿 + 参考关节 → 关节角。仅 aubo_dashboard 提供 ~/get_ik。
+# bringup 不起该节点；采摘栈规划 / FK / IK 用 MoveIt，不要依赖本服务。
+
+float32[] ref_joint  # 参考关节角，长度 ≥ 6 [rad]；用于选解，顺序同 GetFK
+float32[] pos        # 目标位置，长度 ≥ 3：x, y, z [m]
+float32[] ori        # 目标姿态，长度 ≥ 4：四元数 w, x, y, z
 ---
-float32[] joint
+float32[] joint      # 求解关节角，长度 6 [rad]。失败时保持空

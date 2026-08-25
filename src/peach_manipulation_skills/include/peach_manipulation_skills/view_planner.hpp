@@ -41,8 +41,8 @@ namespace peach_manipulation_skills
 
 struct ViewPlannerConfig
 {
-  // 默认值以 config/approach_grasp.yaml 为权威源，此处仅为直接构造兜底：
-  // 0.40/0.32m 退出深度相机近距盲区，保持跨视角锚点一致。
+  // 默认值以 config/peach_manipulation_skills.yaml 为权威源，此处仅为直接构造兜底。
+  // 视点半径用当前相机距，不再贴 observation_radius 球面；本值只作过近时的参考。
   double observation_radius_m{0.40};
   double minimum_radius_m{0.32};
   double azimuth_step_deg{12.0};
@@ -64,8 +64,8 @@ struct ViewPlannerConfig
   std::vector<ProtectedZone> protected_zones;
 };
 
-// 默认视点规划实现（注册名 spherical_adaptive）：目标中心球面上的离散自适应
-// 候选生成与评分。线程安全与生命周期约定见 ViewPlannerBase。
+// 默认视点规划实现（注册名 spherical_adaptive）：保持当前观察半径，一次
+// ~12° 短 PTP，朝检测框更完整 / 邻果更多的方向。线程安全见 ViewPlannerBase。
 class ViewPlanner : public ViewPlannerBase
 {
 public:

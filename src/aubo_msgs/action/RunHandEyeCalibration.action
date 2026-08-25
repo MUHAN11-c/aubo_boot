@@ -1,23 +1,25 @@
-# Run the configured eye-in-hand calibration sequence.
-bool plan_only
-bool return_to_start
+# 按配置位姿跑一遍眼在手上手眼标定（采集棋盘格 → 求解 → 落盘候选，不自动激活）。
+# 服务端：aubo_hand_eye_calibration。激活另调 ActivateHandEyeCalibration。
+
+bool plan_only         # true=只规划/检查采集位姿，不运动、不求解
+bool return_to_start   # 采集结束后是否回到起始位姿
 # 求解方法: auto|tsai|park|horaud|andreff|daniilidis, 空串 = 服务端 solver_method 参数 (默认 auto)
 string method
 ---
 bool success
 string message
-string candidate_id
-geometry_msgs/Transform wrist_to_camera_optical
-uint32 accepted_samples
-uint32 rejected_samples
-float64 translation_rms_m
-float64 rotation_rms_deg
-float64 reprojection_rms_px
-string result_file
+string candidate_id                          # 本次落盘的候选 ID（时间戳）；未写出时为空
+geometry_msgs/Transform wrist_to_camera_optical  # 腕 → 相机光学系外参
+uint32 accepted_samples                      # 过质量门的采样数
+uint32 rejected_samples                      # 被拒采样数
+float64 translation_rms_m                    # 平移 RMS [m]
+float64 rotation_rms_deg                     # 旋转 RMS [deg]
+float64 reprojection_rms_px                  # 重投影 RMS [px]
+string result_file                           # 候选 yaml 路径
 ---
-string stage
-string detail
-uint32 pose_index
-uint32 pose_count
+string stage           # 当前阶段名（moving/capturing/solving/...）
+string detail          # 人读进度说明
+uint32 pose_index      # 当前采集位姿序号（从 0）
+uint32 pose_count      # 配置的采集位姿总数
 uint32 accepted_samples
-float32 progress
+float32 progress       # 0..1

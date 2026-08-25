@@ -46,14 +46,14 @@ target_include_directories(${PROJECT_NAME}_core PUBLIC
 target_link_libraries(${PROJECT_NAME}_core PUBLIC Eigen3::Eigen Threads::Threads)
 
 # 参数定义单一事实源（声明/类型/默认值/校验）：生成
-# peach_manipulation_skills/approach_grasp_node_parameters.hpp（ParamListener/Params）。
-generate_parameter_library(approach_grasp_node_parameters
-  src/approach_grasp_node_parameters.yaml
+# peach_manipulation_skills/manipulation_skills_parameters.hpp（ParamListener/Params）。
+generate_parameter_library(manipulation_skills_parameters
+  src/manipulation_skills_parameters.yaml
 )
 
-# 节点按职责拆为多个编译单元，共享私有类声明 approach_grasp_node_impl.hpp。
-add_executable(approach_grasp_node
-  src/approach_grasp_node.cpp
+# 节点按职责拆为多个编译单元，共享私有类声明 manipulation_skills_node_impl.hpp。
+add_executable(peach_manipulation_skills_node
+  src/manipulation_skills_node.cpp
   src/bt_nodes.cpp
   src/cycle_action.cpp
   src/grasp_task.cpp
@@ -61,13 +61,13 @@ add_executable(approach_grasp_node
   src/motion_interface.cpp
   src/motion_interface_impl.cpp
 )
-target_include_directories(approach_grasp_node PRIVATE include)
+target_include_directories(peach_manipulation_skills_node PRIVATE include)
 # 命名空间 target / ${pkg_TARGETS}（Jazzy 现代 CMake 惯例，替代
 # ament_target_dependencies）；节点非导出目标，一律 PRIVATE。
-target_link_libraries(approach_grasp_node PRIVATE
+target_link_libraries(peach_manipulation_skills_node PRIVATE
   ${PROJECT_NAME}_core
   nlohmann_json::nlohmann_json
-  approach_grasp_node_parameters
+  manipulation_skills_parameters
   behaviortree_cpp::behaviortree_cpp
   moveit_ros_planning_interface::moveit_ros_planning_interface
   moveit_task_constructor_core::moveit_task_constructor_core
@@ -90,7 +90,7 @@ target_link_libraries(approach_grasp_node PRIVATE
   ${visualization_msgs_TARGETS}
 )
 
-install(TARGETS ${PROJECT_NAME}_core approach_grasp_node
+install(TARGETS ${PROJECT_NAME}_core peach_manipulation_skills_node
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}

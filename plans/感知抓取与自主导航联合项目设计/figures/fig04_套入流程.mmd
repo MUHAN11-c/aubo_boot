@@ -1,0 +1,22 @@
+%% PNG 按 A4 版心网格绘制，勿用 mmdc 覆盖
+flowchart TB
+  subgraph COL1[许可]
+    direction TB
+    A[车辆可抓取] --> B[近距观察建模]
+    B --> C{抓取许可}
+    C -->|不成立| D[不接触]
+    C -->|成立| E[沿许可轴接近]
+  end
+  subgraph COL2[套入]
+    direction TB
+    F{末端}
+    F -->|A| G[按行程套入或撤退]
+    F -->|B| H[采集圆柱零位]
+    H --> I[推进并读姿态]
+    I --> J{轴偏差}
+    J -->|超门或突变| L[同轴撤退 放弃本颗]
+    J -->|可接受| K{行程到达}
+    K -->|否| I
+    K -->|是| G
+  end
+  E --> F

@@ -1,15 +1,18 @@
-uint8 AUTO=0
-uint8 MANUAL=1
+# 显式开一批。服务端 peach_task_executor ~/run_harvest。launch 绝不自动发本动作。
+# intent 取值见 JobIntent（本文件不重复常量，须与其对齐）。
 
-string request_id
-string scene_key
-string profile_id
-uint8 intent
-uint8 selection_mode
-string[] target_ids
+uint8 AUTO=0    # selection_mode：按锁定集自动选下一颗
+uint8 MANUAL=1  # selection_mode：优先 goal.target_ids
+
+string request_id          # 本批请求 ID，同时作账本目录名；须唯一
+string scene_key           # 场景键，传给 BeginScene / SurveyScene
+string profile_id          # 参数剖面 ID（当前执行器未消费，预留）
+uint8 intent               # JobIntent：PICK_ALL / PICK_SELECTED / SURVEY_ONLY
+uint8 selection_mode       # AUTO / MANUAL
+string[] target_ids        # 可选允许列表；空=不限定。MANUAL/PICK_SELECTED 时使用
 ---
-bool success
-string termination_reason
+bool success               # 至少成功一颗为 true；尝试过但 succeeded=0 为 false（no_targets_succeeded）
+string termination_reason  # 终局原因（completed / canceled / begin_scene_failed 等）
 peach_interfaces/HarvestSummary summary
 ---
-peach_interfaces/HarvestState state
+peach_interfaces/HarvestState state  # 与 ~/state 同源快照

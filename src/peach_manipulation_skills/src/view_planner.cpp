@@ -33,6 +33,8 @@
 #include <sstream>
 #include <utility>
 
+#include <Eigen/Core>
+
 namespace peach_manipulation_skills
 {
 namespace
@@ -50,6 +52,59 @@ Eigen::Vector3d safeUnit(const Eigen::Vector3d & value, const Eigen::Vector3d & 
     return fallback;
   }
   return value.normalized();
+}
+Eigen::Vector2d visibilityDesired(
+  const ViewContext & context,
+  const Eigen::Vector3d & target,
+  const Eigen::Vector3d & side,
+  const Eigen::Vector3d & up)
+{
+  Eigen::Vector2d desired = Eigen::Vector2d::Zero();
+  const int width = std::max(1, context.image_width);
+  const int height = std::max(1, context.image_height);
+  if (context.bbox_valid && context.bbox_w > 0 && context.bbox_h > 0) {
+    const double cx = static_cast<double>(context.bbox_x) +
+      0.5 * static_cast<double>(context.bbox_w);
+    const double cy = static_cast<double>(context.bbox_y) +
+      0.5 * static_cast<double>(context.bbox_h);
+    desired.x() += (cx - 0.5 * width) / (0.5 * width);
+    desired.y() += (cy - 0.5 * height) / (0.5 * height);
+    constexpr double kMarginPx = 8.0;
+    const double clip_left = std::max(
+      0.0, kMarginPx - static_cast<double>(context.bbox_x));
+    const double clip_right = std::max(
+      0.0, static_cast<double>(context.bbox_x + context.bbox_w) -
+      (width - kMarginPx));
+    const double clip_top = std::max(
+      0.0, kMarginPx - static_cast<double>(context.bbox_y));
+    const double clip_bottom = std::max(
+      0.0, static_cast<double>(context.bbox_y + context.bbox_h) -
+      (height - kMarginPx));
+    // 框贴边说明袋/果被裁切：相机沿光学 +X/+Y 移动才能把裁掉的一侧纳入画面。
+    desired.x() += 1.5 * (clip_right - clip_left) / width;
+    desired.y() += 1.5 * (clip_bottom - clip_top) / height;
+  }
+  for (const auto & neighbor : context.neighbor_centers) {
+    const Eigen::Vector3d rel = neighbor - target;
+    desired.x() += 0.35 * rel.dot(side);
+    desired.y() += 0.35 * rel.dot(up);
+  }
+  if (desired.norm() < 1.0e-6) {
+    desired.x() = 1.0;
+  }
+  return desired.normalized();
+}
+
+bool bboxTooSmall(const ViewContext & context)
+{
+  if (!context.bbox_valid || context.bbox_w <= 0 || context.bbox_h <= 0) {
+    return false;
+  }
+  const double area = static_cast<double>(context.bbox_w) *
+    static_cast<double>(context.bbox_h);
+  const double image = static_cast<double>(
+    std::max(1, context.image_width) * std::max(1, context.image_height));
+  return area / image < 0.04;
 }
 }  // namespace
 
@@ -139,27 +194,27 @@ std::vector<ViewCandidate> ViewPlanner::generate(const ViewContext & context) co
     observed.push_back(front);
   }
 
+  const double current_radius = (current_camera_position - target).norm();
+  const double radius0 = std::clamp(
+    current_radius, config_.minimum_radius_m, 2.0);
+  const bool want_closer = bboxTooSmall(context) &&
+    radius0 > config_.minimum_radius_m + 0.5 * config_.radial_step_m;
+  const Eigen::Vector2d desired = visibilityDesired(context, target, side, up);
+
   std::vector<ViewCandidate> result;
-  const double radial_progress = std::clamp(
-    static_cast<double>(observed_directions.size()) /
-    std::max(1, config_.views_to_minimum_radius), 0.0, 1.0);
-  const double desired_layer = radial_progress *
-    std::max(0, config_.candidate_layers - 1);
-  const int azimuth_steps = static_cast<int>(
-    std::floor(config_.azimuth_limit_deg / config_.azimuth_step_deg));
-  const int elevation_steps = static_cast<int>(
-    std::floor(config_.elevation_limit_deg / config_.elevation_step_deg));
-  for (int layer = 0; layer < config_.candidate_layers; ++layer) {
+  const int azimuth_steps = 1;
+  const int elevation_steps = config_.elevation_limit_deg > 1.0e-6 ? 1 : 0;
+  const int layer_count = want_closer ? 2 : 1;
+  for (int layer = 0; layer < layer_count; ++layer) {
     const double radius = std::max(
-      config_.minimum_radius_m,
-      config_.observation_radius_m - layer * config_.radial_step_m);
+      config_.minimum_radius_m, radius0 - layer * config_.radial_step_m);
     for (int azimuth_index = -azimuth_steps;
       azimuth_index <= azimuth_steps; ++azimuth_index)
     {
       for (int elevation_index = -elevation_steps;
         elevation_index <= elevation_steps; ++elevation_index)
       {
-        if (azimuth_index == 0 && elevation_index == 0 && layer > 0) {
+        if (azimuth_index == 0 && elevation_index == 0) {
           continue;
         }
         const double azimuth_deg = azimuth_index * config_.azimuth_step_deg;
@@ -172,32 +227,35 @@ std::vector<ViewCandidate> ViewPlanner::generate(const ViewContext & context) co
           std::sin(elevation) * up;
         direction.normalize();
         const Eigen::Vector3d camera_position = target + radius * direction;
-        // 桌面保护平面：低于 z 下限的视点规划必败，不生成（省时且防撞桌）。
         if (camera_position.z() < config_.min_camera_height_m) {
           continue;
         }
-        // 环境几何保护区（阶段 F1）：相机位置落入任一保护盒（闭区间，含盒
-        // 表面）的候选不生成——盒内视点必然碰撞，同平面过滤一样省时且防撞。
         if (protectedZoneHit(camera_position, config_.protected_zones)) {
           continue;
         }
 
+        const double motion = angleDegrees(direction, front);
+        if (motion < 3.0) {
+          continue;
+        }
         double nearest = std::numeric_limits<double>::max();
         for (const auto & previous : observed) {
           nearest = std::min(nearest, angleDegrees(direction, previous));
         }
-        const double motion = angleDegrees(direction, front);
+        const double move_side = direction.dot(side);
+        const double move_up = direction.dot(up);
+        Eigen::Vector2d move(move_side, move_up);
+        if (move.norm() > 1.0e-9) {
+          move.normalize();
+        }
+        const double align = 0.5 * (move.dot(desired) + 1.0);
         const double baseline_error =
           (nearest - config_.preferred_baseline_deg) /
           std::max(1.0, config_.preferred_baseline_deg * 0.7);
         const double overlap_score = std::exp(-0.5 * baseline_error * baseline_error);
-        const double novelty_score = std::clamp(
-          nearest / std::max(1.0, config_.azimuth_limit_deg), 0.0, 1.0);
         const double motion_score = 1.0 - std::clamp(
-          motion / std::max(1.0, config_.azimuth_limit_deg +
-          config_.elevation_limit_deg), 0.0, 1.0);
-        const double radial_score = std::exp(
-          -std::abs(static_cast<double>(layer) - desired_layer));
+          motion / std::max(1.0, config_.azimuth_step_deg +
+          std::max(1.0, config_.elevation_step_deg)), 0.0, 1.0);
 
         ViewCandidate candidate;
         candidate.direction_target_to_camera = direction;
@@ -206,13 +264,12 @@ std::vector<ViewCandidate> ViewPlanner::generate(const ViewContext & context) co
         candidate.elevation_deg = elevation_deg;
         candidate.nearest_baseline_deg = nearest;
         candidate.motion_angle_deg = motion;
-        candidate.score = 0.45 * overlap_score + 0.30 * novelty_score +
-          0.15 * motion_score + 0.10 * radial_score;
+        candidate.score = 0.55 * align + 0.25 * overlap_score + 0.20 * motion_score;
         candidate.camera_pose.translation() = camera_position;
         candidate.camera_pose.linear() = lookAtOptical(
           candidate.camera_pose.translation(), target);
         std::ostringstream label;
-        label << "orbit_a" << azimuth_index << "_e" << elevation_index <<
+        label << "see_a" << azimuth_index << "_e" << elevation_index <<
           "_r" << layer;
         candidate.label = label.str();
         result.push_back(candidate);

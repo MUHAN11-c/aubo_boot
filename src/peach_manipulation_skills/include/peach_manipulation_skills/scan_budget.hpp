@@ -39,17 +39,18 @@ namespace peach_manipulation_skills
 //   * 下限保证：质量尚未达标且有效视点未达 min_effective_views 时，
 //     预算不得提前收口；
 //   * 预算自适应：运行预算 = max(配置下限 time_budget_s,
-//     2.5 × 实测移动+等帧成本 EMA)（协议 T(scan_budget)）；移动成本 EMA 已测
+//     budget_cost_margin × 实测移动+等帧成本 EMA)（协议 T(scan_budget)）；移动成本 EMA 已测
 //     得时，剩余预算换不起一个视点则预测性收口，提前 finalize 走降级链；
 //   * 移动次数上限 maximum_moves 仍兜底（候选规划/移动失败的极端场景）。
 // 纯核零 ROS、零阻塞、零时钟依赖：耗时/EMA 由调用方注入，可单测。
 
 struct ScanBudgetConfig
 {
-  // 默认值以 config/approach_grasp.yaml 为权威源，此处仅为直接构造兜底。
-  int maximum_moves{4};        // 3 个正常主动视点 + 1 个质量补偿
-  int min_effective_views{3};  // 主动移动下限；初始视角另计，质量门仍要求总视角>=4
-  double time_budget_s{35.0};  // 观察段时间预算下限（秒），运行期按成本 EMA 伸缩
+  // 默认值以 config/peach_manipulation_skills.yaml 为权威源，此处仅为直接构造兜底。
+  int maximum_moves{2};        // 当前位采帧；基线未过最多两次短 PTP
+  int min_effective_views{1};  // 主动移动下限；初始视角另计
+  double time_budget_s{20.0};  // 观察段时间预算下限（秒）
+  double budget_cost_margin{2.5};  // 相对单视点成本 EMA 的倍率
 };
 
 enum class ScanVerdict
@@ -69,13 +70,14 @@ public:
   }
 
   // 运行期有效预算（秒）：配置值为下限；移动+等帧成本 EMA 测得后按
-  // 2.5× 伸缩（协议 2.7-OBSERVE 的 T(scan_budget)），ema≤0 表示未测得。
+  // budget_cost_margin 伸缩（协议 2.7-OBSERVE 的 T(scan_budget)），ema≤0 表示未测得。
   double effectiveBudgetS(double move_cost_ema_s) const
   {
     if (move_cost_ema_s <= 0.0) {
       return config_.time_budget_s;
     }
-    return std::max(config_.time_budget_s, 2.5 * move_cost_ema_s);
+    return std::max(
+      config_.time_budget_s, config_.budget_cost_margin * move_cost_ema_s);
   }
 
   // 每轮扫描循环顶部的收口判定。

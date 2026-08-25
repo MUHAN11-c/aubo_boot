@@ -1,10 +1,14 @@
-int8 FUN_SET_ROBOT_BOARD_USER_DO = 1
-int8 FUN_SET_ROBOT_BOARD_USER_AO = 2
-int8 FUN_SET_TOOL_DIGITAL_IO = 3
-int8 FUN_SET_ROBOT_TOOL_AO = 4
-int8 FUN_SET_TOOL_POWER_TYPE = 5
+# 写一路 IO。aubo_io_controller 的 ~/set_io 提供；控制器须为 Active。
+# 技能端默认 execution/grasp/tool=false，不调本服务。未授权禁止真机 SetIO。
+# FUN_SET_TOOL_POWER_TYPE 在 aubo_io 契约中无对应接口，请求会被拒绝。
+
+int8 FUN_SET_ROBOT_BOARD_USER_DO = 1  # 板载用户 DO，pin 0..15；state 0/1
+int8 FUN_SET_ROBOT_BOARD_USER_AO = 2  # 板载用户 AO，pin 0..3；state 为模拟量
+int8 FUN_SET_TOOL_DIGITAL_IO = 3      # 工具数字输出，pin 0..1；state 0/1
+int8 FUN_SET_ROBOT_TOOL_AO = 4        # 工具模拟输出，pin 0..1；state 为模拟量
+int8 FUN_SET_TOOL_POWER_TYPE = 5      # 工具电源类型（当前实现不支持）
 int8 fun
 int8 pin
-float32 state
+float32 state  # DO/工具 DO：0 或非 0；AO：模拟量命令值
 ---
-bool success
+bool success   # 硬件异步应答成功。pin 越界、功能号不支持、控制器非 Active 时为 false

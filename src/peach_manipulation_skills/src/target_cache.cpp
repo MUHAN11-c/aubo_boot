@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -40,6 +41,19 @@ namespace peach_manipulation_skills
 namespace
 {
 constexpr double kPi = 3.14159265358979323846;
+constexpr uint8_t kTrackingObserved = 0;  // PeachTargetObservation.OBSERVED
+
+template<typename Src>
+void copyBbox(CachedTarget & dest, const Src & src)
+{
+  dest.bbox_x = src.bbox_x;
+  dest.bbox_y = src.bbox_y;
+  dest.bbox_w = src.bbox_w;
+  dest.bbox_h = src.bbox_h;
+  dest.image_width = src.image_width;
+  dest.image_height = src.image_height;
+  dest.bbox_valid = src.bbox_valid;
+}
 
 double axisAngleDeg(const Eigen::Vector3d & first, const Eigen::Vector3d & second)
 {
@@ -49,6 +63,27 @@ double axisAngleDeg(const Eigen::Vector3d & first, const Eigen::Vector3d & secon
   const double cosine = std::clamp(
     first.normalized().dot(second.normalized()), -1.0, 1.0);
   return std::acos(cosine) * 180.0 / kPi;
+}
+
+bool freshEnough(const CachedTarget & target, double after_s, bool live_required)
+{
+  if (!target.valid) {
+    return false;
+  }
+  if (live_required) {
+    return target.received_s > after_s;
+  }
+  return target.tracking_status == kTrackingObserved && target.updated_s > after_s;
+}
+
+double freshnessStamp(const CachedTarget & target)
+{
+  if (target.tracking_status == kTrackingObserved &&
+    target.updated_s > target.received_s)
+  {
+    return target.updated_s;
+  }
+  return target.received_s;
 }
 }  // namespace
 
@@ -86,6 +121,8 @@ void TargetCache::updateSelectedTarget(const SelectedTargetUpdate & update)
   // 最近一帧为准；received_s 仍只在有效观测帧刷新（见下）。
   target_.swinging = update.swinging;
   target_.tracking_status = update.tracking_status;
+  copyBbox(target_, update);
+  target_.updated_s = clock_s_();
   const bool has_anchor = nonzeroFinite(update.bottom) && nonzeroFinite(update.neck) &&
     nonzeroFinite(update.axis);
   if (has_anchor) {
@@ -139,6 +176,8 @@ void TargetCache::updateLockedTargets(
     // 摆动旗标/跟踪状态是再确认段与失败原因文案的数据源。
     entry.swinging = update.swinging;
     entry.tracking_status = update.tracking_status;
+    copyBbox(entry, update);
+    entry.updated_s = clock_s_();
     const bool has_anchor = nonzeroFinite(update.bottom) &&
       nonzeroFinite(update.neck) && nonzeroFinite(update.axis);
     if (has_anchor) {
@@ -269,6 +308,21 @@ std::optional<CachedTarget> TargetCache::lockedTargetSnapshot(
   return it->second;
 }
 
+std::vector<Eigen::Vector3d> TargetCache::lockedNeighborCenters(
+  const std::string & exclude_id) const
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  std::vector<Eigen::Vector3d> centers;
+  centers.reserve(locked_targets_.size());
+  for (const auto & item : locked_targets_) {
+    if (item.first == exclude_id || !item.second.valid) {
+      continue;
+    }
+    centers.push_back(item.second.center);
+  }
+  return centers;
+}
+
 TargetGateSample TargetCache::lockedTargetGateSample(
   const std::string & target_id) const
 {
@@ -278,7 +332,7 @@ TargetGateSample TargetCache::lockedTargetGateSample(
     // 不在锁定集：空 ID 样本，SafetyGate::targetReady 按身份不匹配拒绝。
     return TargetGateSample{};
   }
-  return TargetGateSample{it->second.id, it->second.valid, it->second.received_s};
+  return TargetGateSample{it->second.id, it->second.valid, freshnessStamp(it->second)};
 }
 
 std::optional<CachedRefined> TargetCache::refinedSnapshot() const
@@ -320,7 +374,7 @@ std::vector<Eigen::Vector3d> TargetCache::observedDirections() const
 TargetGateSample TargetCache::targetGateSample() const
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  return TargetGateSample{target_.id, target_.valid, target_.received_s};
+  return TargetGateSample{target_.id, target_.valid, freshnessStamp(target_)};
 }
 
 std::string TargetCache::expectedFittingTargetId() const
@@ -337,6 +391,18 @@ bool TargetCache::waitForNewView(
     lock, std::chrono::duration<double>(timeout_s),
     [this, previous_views, &cancel]() {
       return cancel.load() || quality_.captured_views > previous_views;
+    }) && !cancel.load();
+}
+
+bool TargetCache::waitForNewStation(
+  std::size_t previous_stations, double timeout_s,
+  const std::atomic_bool & cancel) const
+{
+  std::unique_lock<std::mutex> lock(mutex_);
+  return cv_.wait_for(
+    lock, std::chrono::duration<double>(timeout_s),
+    [this, previous_stations, &cancel]() {
+      return cancel.load() || observed_directions_.size() > previous_stations;
     }) && !cancel.load();
 }
 
@@ -359,29 +425,30 @@ bool TargetCache::waitForRefined(
 }
 
 bool TargetCache::waitForFreshTarget(
-  double after_s, double timeout_s, const std::atomic_bool & cancel) const
+  double after_s, double timeout_s, const std::atomic_bool & cancel,
+  bool live_observation_required) const
 {
   std::unique_lock<std::mutex> lock(mutex_);
   return cv_.wait_for(
     lock, std::chrono::duration<double>(timeout_s),
-    [this, after_s, &cancel]() {
+    [this, after_s, &cancel, live_observation_required]() {
       return cancel.load() ||
-             (target_.valid && target_.received_s > after_s);
+             freshEnough(target_, after_s, live_observation_required);
     }) && !cancel.load();
 }
 
 bool TargetCache::waitForFreshLockedTarget(
   const std::string & target_id, double after_s, double timeout_s,
-  const std::atomic_bool & cancel) const
+  const std::atomic_bool & cancel, bool live_observation_required) const
 {
   std::unique_lock<std::mutex> lock(mutex_);
   return cv_.wait_for(
     lock, std::chrono::duration<double>(timeout_s),
-    [this, &target_id, after_s, &cancel]() {
+    [this, &target_id, after_s, &cancel, live_observation_required]() {
       const auto it = locked_targets_.find(target_id);
       return cancel.load() ||
-             (it != locked_targets_.end() && it->second.valid &&
-             it->second.received_s > after_s);
+             (it != locked_targets_.end() &&
+             freshEnough(it->second, after_s, live_observation_required));
     }) && !cancel.load();
 }
 

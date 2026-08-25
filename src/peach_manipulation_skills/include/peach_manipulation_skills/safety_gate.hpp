@@ -57,7 +57,7 @@ struct SafetyGateConfig
 
 // 执行前安全门默认实现（注册名 robot_status_gate，纯逻辑，零 ROS）：机器人
 // 状态门 + 周期目标门。时钟以 std::function 注入（秒），数据以值入参；判定
-// 结果与原因字符串语义与原 ApproachGraspNode::safetyReady/cycleTargetReady
+// 结果与原因字符串语义与原 ManipulationSkillsNode::safetyReady/cycleTargetReady
 // 内联实现完全一致。I5：robotReady 为硬件安全门，实现不得旁路（见
 // safety_gate_base.hpp 契约注释）。
 class SafetyGate : public SafetyGateBase

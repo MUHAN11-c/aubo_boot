@@ -33,6 +33,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -65,15 +66,29 @@ struct GraspTaskConfig
   std::string base_frame;      // 位姿参考系（base_link）
   std::string free_space_pipeline{"pilz_industrial_motion_planner"};
   std::string free_space_planner{"PTP"};
-  double planning_time_s{5.0};
-  double velocity_scaling{0.05};       // 接触段（靠近/插入/撤离）
-  double acceleration_scaling{0.05};
+  double planning_time_s{1.5};
+  double velocity_scaling{0.10};       // 接触段（靠近/插入/撤离）
+  double acceleration_scaling{0.10};
   double cartesian_step_m{0.005};      // 直线插入步长 [m]
+  double cartesian_min_fraction{0.95};  // 直线完成比例；1.0 会因末步离散失败
   double cartesian_precision_m{0.001};
   std::size_t max_solutions{5U};
-  double approach_max_duration_s{12.0};
-  double approach_max_total_joint_travel_rad{4.0};
-  double approach_max_single_joint_travel_rad{2.1};
+  double approach_max_duration_s{20.0};
+  double approach_max_total_joint_travel_rad{10.0};
+  double approach_max_single_joint_travel_rad{3.2};
+  // 过渡点参数保留给 generate_parameter_library；接近已禁止多段笛卡尔爬行。
+  double approach_via_max_spacing_m{0.08};
+  double approach_via_min_spacing_m{0.03};
+  int approach_via_max_points{1};
+  // 沿检测轴 LIN 上限；超过则先 PTP 到轴上预抓取点，再短程沿轴进入。
+  double approach_cartesian_max_distance_m{0.15};
+  // 预抓取点在入口沿 −axis 后撤量；接触 LIN 只走这一段（垂直检测、尽量短）。
+  double approach_along_axis_m{0.10};
+  // 末端到抓取轴线侧向偏差超过本值则先 PTP 对轴，不斜着笛卡尔顶进去。
+  double approach_max_lateral_m{0.05};
+  // 末端 Z 与检测轴夹角超过本值则先 PTP 把工具转到轴上。
+  double approach_max_align_deg{20.0};
+  std::function<std::optional<Eigen::Isometry3d>()> lookup_current_tip;
   std::vector<ProtectedZone> protected_zones;  // base 系 AABB → planning scene
   std::function<bool(std::string &)> approach_execution_gate;  // 下发接近轨迹前
   std::function<bool(std::string &)> retreat_execution_gate;   // 撤离不依赖视觉
@@ -95,7 +110,8 @@ public:
   GraspTask(rclcpp::Node::SharedPtr node, GraspTaskConfig config);
   ~GraspTask();
 
-  // 碰撞感知短路径到入口，再沿轴直线插入。execute=false 只规划。
+  // 碰撞感知短路径到入口：距入口近才笛卡尔，否则单段 PTP，禁止 OMPL 与
+  // 多段笛卡尔爬行。再沿轴直线插入。execute=false 只规划。
   GraspTaskResult approachAndInsert(
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
@@ -131,9 +147,14 @@ private:
     std::unique_ptr<moveit::task_constructor::Task> task,
     bool execute,
     const std::function<bool(std::string &)> & execution_gate,
-    bool guard_approach = false);
+    bool guard_approach = false,
+    std::size_t guard_skip_tail = 0);
   GraspTaskResult planTaskOnly(
-    moveit::task_constructor::Task * active, bool guard_approach);
+    moveit::task_constructor::Task * active, bool guard_approach,
+    std::size_t guard_skip_tail = 0);
+  GraspTaskResult preplanOneTask(
+    std::unique_ptr<moveit::task_constructor::Task> task,
+    std::size_t guard_skip_tail = 1U);
   GraspTaskResult executeSolution(
     moveit::task_constructor::Task * active,
     const std::function<bool(std::string &)> & execution_gate);
@@ -142,13 +163,28 @@ private:
     const std::string & task_name) const;
   std::unique_ptr<moveit::task_constructor::Task> makeApproachInsertTask(
     const std::string & task_name,
-    const Eigen::Isometry3d & entry_tip_pose,
+    const Eigen::Vector3d & insertion_axis,
+    double along_axis_m,
+    double insertion_distance_m);
+  std::unique_ptr<moveit::task_constructor::Task> makeApproachOnlyTask(
+    const std::string & task_name,
+    const Eigen::Isometry3d & target_tip_pose);
+  std::unique_ptr<moveit::task_constructor::Task> makeInsertOnlyTask(
+    const std::string & task_name,
     const Eigen::Vector3d & insertion_axis,
     double insertion_distance_m);
   std::unique_ptr<moveit::task_constructor::SerialContainer> makeApproachInsertSequence(
-    const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
+    double along_axis_m,
     double insertion_distance_m) const;
+  void appendPtpToPose(
+    moveit::task_constructor::SerialContainer & sequence,
+    const Eigen::Isometry3d & target_tip_pose) const;
+  void appendAlongAxisMove(
+    moveit::task_constructor::SerialContainer & sequence,
+    const Eigen::Vector3d & insertion_axis,
+    double along_axis_m,
+    const std::string & label) const;
   void syncKeepoutCollisionObjects() const;
 
   std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner>
@@ -157,7 +193,8 @@ private:
   makeCartesianSolver() const;
   std::unique_ptr<moveit::task_constructor::stages::MoveTo> makeMoveToEntry(
     const std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner> & solver,
-    const Eigen::Isometry3d & entry_tip_pose) const;
+    const Eigen::Isometry3d & entry_tip_pose,
+    const std::string & label) const;
   std::unique_ptr<moveit::task_constructor::stages::MoveRelative> makeLinearMove(
     const std::string & label,
     const std::shared_ptr<moveit::task_constructor::solvers::CartesianPath> & solver,

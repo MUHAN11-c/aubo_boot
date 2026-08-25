@@ -38,13 +38,13 @@
 #include <string>
 #include <utility>
 
-#include "approach_grasp_node_impl.hpp"
+#include "manipulation_skills_node_impl.hpp"
 #include "eigen_conversions.hpp"
 
 namespace peach_manipulation_skills
 {
 
-void ApproachGraspNode::onRobotStatus(
+void ManipulationSkillsNode::onRobotStatus(
   const aubo_msgs::msg::RobotStatus::SharedPtr message)
 {
   std::lock_guard<std::mutex> lock(robot_mutex_);
@@ -53,7 +53,7 @@ void ApproachGraspNode::onRobotStatus(
   robot_status_valid_ = true;
 }
 
-double ApproachGraspNode::insertionTravel(const CachedRefined & refined) const
+double ManipulationSkillsNode::insertionTravel(const CachedRefined & refined) const
 {
   // TCP 是工具圆柱前端面圆心，也就是物理剪切点。精化结果具备完整几何时，
   // 执行端统一计算 TCP 行程，使终点停在 neck-margin；重建历史消息曾把
@@ -73,7 +73,7 @@ double ApproachGraspNode::insertionTravel(const CachedRefined & refined) const
   return std::clamp(travel, minimum_travel_m_, maximum_travel_m_);
 }
 
-bool ApproachGraspNode::safetyReady(std::string & reason)
+bool ManipulationSkillsNode::safetyReady(std::string & reason)
 {
   RobotStatusSample sample;
   {
@@ -88,7 +88,7 @@ bool ApproachGraspNode::safetyReady(std::string & reason)
   return safety_gate_->robotReady(sample, reason);
 }
 
-bool ApproachGraspNode::cycleTargetReady(
+bool ManipulationSkillsNode::cycleTargetReady(
   const std::string & target_id, std::string & reason)
 {
   // 安全门样本按周期生效目标取数（同 bt_nodes.cpp cycleTargetSnapshot 的
@@ -100,7 +100,7 @@ bool ApproachGraspNode::cycleTargetReady(
   return safety_gate_->targetReady(sample, target_id, reason);
 }
 
-bool ApproachGraspNode::commandToolClose()
+bool ManipulationSkillsNode::commandToolClose()
 {
   // 工具 IO 是运动类输出（A8）：非 Active 拒绝（纵深防御——正常路径下周期
   // 根本不会在非 Active 启动，此处兜底 deactivate 竞态）。
@@ -133,21 +133,21 @@ bool ApproachGraspNode::commandToolClose()
   return true;
 }
 
-void ApproachGraspNode::onPreviewApproachInsert(
+void ManipulationSkillsNode::onPreviewApproachInsert(
   const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response)
 {
   const ScopedTimer timer(get_logger(), "preview_approach_insert", &callback_timing_);
   previewContact(false, response);
 }
 
-void ApproachGraspNode::onPreviewFullContact(
+void ManipulationSkillsNode::onPreviewFullContact(
   const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response)
 {
   const ScopedTimer timer(get_logger(), "preview_full_contact", &callback_timing_);
   previewContact(true, response);
 }
 
-void ApproachGraspNode::previewContact(
+void ManipulationSkillsNode::previewContact(
   bool include_retreat, Trigger::Response::SharedPtr response)
 {
   // 接触轨迹预览是运动类入口（A8）：即便只规划不执行，也非 Active 不放行。
@@ -235,7 +235,7 @@ void ApproachGraspNode::previewContact(
 // 独占 planning_callback_group_（独立互斥组），规划期间只组内排队，默认组的
 // 订阅/快捷服务/action 回调照常调度。规划/执行体在 MotionInterfaceBase 实现
 // 内，本回调只保留周期互斥、recovery 守卫与响应投影。
-void ApproachGraspNode::onGoToPhotoPose(
+void ManipulationSkillsNode::onGoToPhotoPose(
   const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response)
 {
   const ScopedTimer timer(get_logger(), "go_to_photo_pose", &callback_timing_);

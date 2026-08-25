@@ -1,6 +1,6 @@
 # aubo_e5_bringup
 
-手臂工作单元**唯一启动入口**：`bringup.launch.py`（**只读**）。采摘整栈 include 本 launch。
+手臂工作单元**唯一启动入口**：`bringup.launch.py`（**只读**）。采摘整栈 include 本 launch。包职责见 [docs/architecture.md](../../docs/architecture.md) §3 驱动层。
 
 ## 模式
 

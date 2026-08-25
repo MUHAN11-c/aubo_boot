@@ -10,4 +10,4 @@
 - 运动学规划、FK/IK → **MoveIt**
 - 停轨 → 透传 `FollowJointTrajectory` 取消 → 硬件 `abort` → `ioLoop` 发 `RobotMoveStop`（失败再 `robotMoveFastStop`）。**不依赖本包。**
 
-`auto_power_on` 必须为 false。`tools/fk_ik_check.py` 依赖本节点，作业不要跑。
+`auto_power_on` 必须为 false。归档脚本 `_archive/parked_2026-08-24/tools/fk_ik_check.py` 依赖本节点，作业不要跑。

@@ -36,7 +36,7 @@
 
 #include <moveit/move_group_interface/move_group_interface.hpp>
 
-#include "approach_grasp_node_impl.hpp"
+#include "manipulation_skills_node_impl.hpp"
 
 using namespace std::chrono_literals;
 
@@ -58,7 +58,7 @@ static_assert(targetPhase(CycleState::PLAN_READY) == HarvestStateMsg::COMPLETING
 static_assert(targetPhase(CycleState::SUCCEEDED) == HarvestStateMsg::TARGET_SUCCEEDED);
 static_assert(targetPhase(CycleState::FAILED) == HarvestStateMsg::TARGET_FAILED);
 
-rclcpp_action::GoalResponse ApproachGraspNode::onActionGoal(
+rclcpp_action::GoalResponse ManipulationSkillsNode::onActionGoal(
   const rclcpp_action::GoalUUID &,
   const std::shared_ptr<const ExecuteTarget::Goal> goal)
 {
@@ -102,7 +102,7 @@ rclcpp_action::GoalResponse ApproachGraspNode::onActionGoal(
   return rclcpp_action::GoalResponse::REJECT;
 }
 
-rclcpp_action::CancelResponse ApproachGraspNode::onActionCancel(
+rclcpp_action::CancelResponse ManipulationSkillsNode::onActionCancel(
   const std::shared_ptr<RunTargetGoalHandle>)
 {
   const ScopedTimer timer(get_logger(), "action_cancel", &callback_timing_);
@@ -113,7 +113,7 @@ rclcpp_action::CancelResponse ApproachGraspNode::onActionCancel(
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
-void ApproachGraspNode::onActionAccepted(
+void ManipulationSkillsNode::onActionAccepted(
   const std::shared_ptr<RunTargetGoalHandle> goal_handle)
 {
   // action 执行线程保持可 join：析构时先置取消标志再回收，避免 detach 后
@@ -124,7 +124,7 @@ void ApproachGraspNode::onActionAccepted(
   action_thread_ = std::thread([this, goal_handle]() {executeAction(goal_handle);});
 }
 
-void ApproachGraspNode::executeAction(
+void ManipulationSkillsNode::executeAction(
   const std::shared_ptr<RunTargetGoalHandle> goal_handle)
 {
   const auto goal = goal_handle->get_goal();
@@ -137,10 +137,10 @@ void ApproachGraspNode::executeAction(
     // Action 是自动编排专用入口；手动 Trigger 仍要求每周期单独 arm。
     if (execution_enabled_.load()) {execution_armed_.store(true);}
     // OBSERVE_ONLY：BT 在 FinalizeAndValidate 后经 IsObserveOnly 分支短路，
-    // 不进 MTC/工具/撤离段（见 harvest_tree.xml report_or_grasp）。
+    // 不进 MTC/工具/撤离段（见 behavior_tree.xml report_or_grasp）。
     cycle_observe_only_.store(goal->mode == ExecuteTarget::Goal::OBSERVE_ONLY);
     cycle_skip_observation_.store(goal->skip_observation);
-    // goal 钉死（设计文档第 7 节）：受理到 Prepare 快照之间感知可能切换
+    // goal 钉死（ExecuteTarget.goal.target_id）：受理到 Prepare 快照之间感知可能切换
     // selected；钉入受理时的目标 ID，btPrepareCycle 发现身份不一致即失败，
     // 由编排按新 selected 重新派发。
     cycle_target_id_ = goal->target_id;
@@ -231,7 +231,7 @@ void ApproachGraspNode::executeAction(
   }
 }
 
-void ApproachGraspNode::onStart(
+void ManipulationSkillsNode::onStart(
   const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response,
   bool action_driven)
 {
@@ -298,13 +298,13 @@ void ApproachGraspNode::onStart(
   cycle_action_driven_ = action_driven;
   // 阶段耗时计时随周期真正启动开始（此前一切拒绝路径不计时）。
   startCycleTiming();
-  worker_ = std::thread(&ApproachGraspNode::runCycle, this);
+  worker_ = std::thread(&ManipulationSkillsNode::runCycle, this);
   response->success = true;
   response->message = execution_enabled_.load() ? "已启动主动视觉靠近周期" :
     "已启动只规划预览（不会发送运动）";
 }
 
-void ApproachGraspNode::onCancel(
+void ManipulationSkillsNode::onCancel(
   const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response)
 {
   const ScopedTimer timer(get_logger(), "cancel_cycle", &callback_timing_);
@@ -320,7 +320,7 @@ void ApproachGraspNode::onCancel(
   response->message = "已请求取消；当前 MoveIt 执行将停止";
 }
 
-void ApproachGraspNode::onAcknowledgeRecovery(
+void ManipulationSkillsNode::onAcknowledgeRecovery(
   const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response)
 {
   if (running_.load()) {
@@ -334,7 +334,7 @@ void ApproachGraspNode::onAcknowledgeRecovery(
   setState(CycleState::IDLE, response->message);
 }
 
-void ApproachGraspNode::onQuery(
+void ManipulationSkillsNode::onQuery(
   const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response)
 {
   std::lock_guard<std::mutex> lock(state_mutex_);
@@ -342,7 +342,7 @@ void ApproachGraspNode::onQuery(
   response->message = state_json_.dump();
 }
 
-void ApproachGraspNode::onArm(
+void ManipulationSkillsNode::onArm(
   const SetBool::Request::SharedPtr request, SetBool::Response::SharedPtr response)
 {
   // arm 是运动类入口（A8）：非 Active 一律拒绝（含解除 arm——Active 权限关闭时
@@ -365,7 +365,7 @@ void ApproachGraspNode::onArm(
   publishState();
 }
 
-rclcpp_action::GoalResponse ApproachGraspNode::onSurveyGoal(
+rclcpp_action::GoalResponse ManipulationSkillsNode::onSurveyGoal(
   const rclcpp_action::GoalUUID &,
   const std::shared_ptr<const SurveyScene::Goal> goal)
 {
@@ -382,14 +382,14 @@ rclcpp_action::GoalResponse ApproachGraspNode::onSurveyGoal(
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
 
-rclcpp_action::CancelResponse ApproachGraspNode::onSurveyCancel(
+rclcpp_action::CancelResponse ManipulationSkillsNode::onSurveyCancel(
   const std::shared_ptr<SurveyGoalHandle>)
 {
   cancel_requested_.store(true);
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
-void ApproachGraspNode::onSurveyAccepted(
+void ManipulationSkillsNode::onSurveyAccepted(
   const std::shared_ptr<SurveyGoalHandle> goal_handle)
 {
   if (survey_thread_.joinable()) {
@@ -398,7 +398,7 @@ void ApproachGraspNode::onSurveyAccepted(
   survey_thread_ = std::thread([this, goal_handle]() {executeSurvey(goal_handle);});
 }
 
-void ApproachGraspNode::executeSurvey(
+void ManipulationSkillsNode::executeSurvey(
   const std::shared_ptr<SurveyGoalHandle> goal_handle)
 {
   auto result = std::make_shared<SurveyScene::Result>();

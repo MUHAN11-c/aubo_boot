@@ -15,9 +15,9 @@ bool has_bottom_px
 bool has_neck_px
 bool has_grasp_px
 bool has_travel_end_px
-float32 confidence
-uint8 status
+float32 confidence                 # 0..1
+uint8 status                       # ACCEPT 才可作为 2D 抓取参考
 uint8 ACCEPT=0
 uint8 REOBSERVE=1
 uint8 REJECT=2
-string[] diagnostic_flags
+string[] diagnostic_flags          # 门控标记

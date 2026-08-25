@@ -1,4 +1,5 @@
 from glob import glob
+import os
 from pathlib import Path
 import sys
 
@@ -8,8 +9,8 @@ from setuptools import find_packages, setup
 package_name = 'peach_task_executor'
 
 generate_parameter_module(
-    'executor_parameters',
-    'peach_task_executor/executor_parameters.yaml')
+    'task_executor_parameters',
+    'peach_task_executor/task_executor_parameters.yaml')
 
 
 def _resolve_python():
@@ -27,9 +28,10 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages',
          ['resource/' + package_name]),
-        ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + '/config', glob('config/*.yaml')),
-        ('share/' + package_name + '/launch', glob('launch/*.launch.py')),
+        (os.path.join('share', package_name), ['package.xml']),
+        (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
+        (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
+        (os.path.join('share', package_name, 'web'), glob('web/*')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -39,8 +41,9 @@ setup(
     license='BSD-3-Clause',
     entry_points={
         'console_scripts': [
-            'peach_task_executor = peach_task_executor.executor_node:main',
+            'peach_task_executor = peach_task_executor.task_executor_node:main',
             'peach_lifecycle_manager = peach_task_executor.lifecycle_manager:main',
+            'peach_observability = peach_task_executor.observability.observability_node:main',
         ],
     },
     options={

@@ -1,13 +1,17 @@
+# 单目标周期。服务端 peach_manipulation_skills ~/execute_target。
+# PREVIEW：只规划接触，不执行。OBSERVE_ONLY：只补视角。FULL：观察可跳过 + 接触。
+# 默认 execution/grasp/tool=false：只规划、不接触、不 SetIO。
+
 uint8 PREVIEW=0
 uint8 OBSERVE_ONLY=1
 uint8 FULL=2
 
-string request_id
+string request_id          # 批次 request_id
 string run_id
-string cycle_id
-string target_id
-uint8 mode
-bool skip_observation
+string cycle_id            # 通常 run_id:target_id
+string target_id           # 钉死本周期目标；与受理后感知 selected 不一致则失败
+uint8 mode                 # PREVIEW / OBSERVE_ONLY / FULL
+bool skip_observation      # FULL 时跳过观察段（观察已在 OBSERVE_ONLY 完成）
 ---
 uint8 SUCCEEDED=0
 uint8 SKIPPED_QUALITY=1
@@ -15,14 +19,14 @@ uint8 SKIPPED_UNREACHABLE=2
 uint8 FAILED=3
 uint8 CANCELED=4
 
-uint8 outcome
+uint8 outcome              # 上列常量，与 TargetOutcome 对齐
 string reason
-bool recovery_required
-builtin_interfaces/Duration[] stage_durations
+bool recovery_required     # 接触后须人工 ACK 才继续下颗
+builtin_interfaces/Duration[] stage_durations  # 与 stage_names 等长
 string[] stage_names
 peach_interfaces/HarvestResult harvest
 peach_interfaces/DepositResult deposit
 peach_interfaces/Verification verification
 peach_interfaces/TargetOutcome outcome_record
 ---
-peach_interfaces/HarvestState state
+peach_interfaces/HarvestState state  # 技能侧镜像的批次状态（字段子集）

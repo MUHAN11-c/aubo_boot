@@ -1,5 +1,5 @@
 # Percipio RGB-D 启动封装：在现有 percipio_camera.launch.py 上强制打开
-# 深度、深度到 color 配准与点云，供 peach_pose 等需要逐像素对齐 RGB-D 的节点使用。
+# 深度、深度到 color 配准与点云，供场景感知等需要逐像素对齐 RGB-D 的节点使用。
 # 不改变默认 RGB-only launch，避免影响手眼标定路径。
 
 from launch import LaunchDescription

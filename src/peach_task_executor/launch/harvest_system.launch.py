@@ -29,23 +29,24 @@
 """启动桃子采摘完整业务栈."""
 
 from datetime import datetime
-import os
 
-from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
-    DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, OpaqueFunction)
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
-from peach_perception.common.harvest_data import default_runs_root
+    DeclareLaunchArgument,
+    ExecuteProcess,
+    IncludeLaunchDescription,
+    OpaqueFunction,
+)
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.substitutions import FindPackageShare
+from peach_perception.common.runtime import default_runs_root
 
 
 def _include(package, launch_file, launch_arguments=None):
-    """按包 share 目录包含一个 Python launch."""
-    path = os.path.join(
-        get_package_share_directory(package), 'launch', launch_file)
+    """按包 share 目录包含一个 launch 文件."""
     return IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(path),
+        PathJoinSubstitution([
+            FindPackageShare(package), 'launch', launch_file]),
         launch_arguments=(launch_arguments or {}).items(),
     )
 

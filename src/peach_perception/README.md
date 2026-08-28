@@ -32,10 +32,11 @@ peach_perception/
 | 文件 | 读什么 |
 |------|--------|
 | `peach_perception/scene_perception/scene_perception_node.py` | 感知外壳：`_on_rgbd` → `_process_rgbd` |
-| `peach_perception/scene_perception/pipeline.py` 等 | 检测分割、身份、锁定窗 |
+| `peach_perception/scene_perception/pipeline.py` | 检测、分割、前景、袋/果位姿 |
+| `peach_perception/scene_perception/identity.py` | 世界系身份、锁定窗、记忆锚点 |
 | `peach_perception/target_reconstruction/target_reconstruction_node.py` | 重建外壳：`_accept_frame`、`BuildTargetModel` |
-| `peach_perception/target_reconstruction/capture_gate.py` | 锁 → 精确 stamp TF → 重校验 |
-| `peach_perception/common/fitting.py` | 球/柱 RANSAC |
+| `peach_perception/target_reconstruction/capture.py` | 锁 → 精确 stamp TF → 重校验 |
+| `peach_perception/common/geometry.py` | 球/柱 RANSAC、深度单位、TF 纯函数 |
 
 参数：`config/scene_perception.yaml`、`config/target_reconstruction.yaml`。
 

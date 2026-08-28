@@ -13,13 +13,10 @@ candidate_2d 字段下发，不再单独成话题）。
 
 本模块为编排层（参数、订阅发布、回调编排、main）；纯函数按职责拆分：
   params.py        — 参数层（ScenePerceptionParams 集中 declare/装载）
-  grasp_tf.py      — 抓取几何坐标变换（感知专属残留层，基于 peach_perception.common）
-  conversions.py   — 算法 dataclass/检测 dict → ROS 消息组装
-  visualization.py — RViz Marker 与 debug 叠加图
-  cloud_utils.py   — 检测框点云反投影与 PointCloud2 组装
-  harvest_plan.py — 全局目标收齐式窗口锁定与多维确定性优先级
-  peach_perception.common       — 通用纯核（tf_utils/depth_geometry/bounded_worker/
-                     harvest_data/registry）
+  pipeline.py      — 检测/分割/位姿（import 本模块即完成 DETECTORS 等注册）
+  identity.py      — 身份匹配与锁定窗
+  visualization.py — 消息组装、RViz Marker 与 debug 叠加图
+  peach_perception.common — 通用纯核（geometry/runtime）
 """
 from __future__ import annotations
 
@@ -43,56 +40,59 @@ from peach_interfaces.msg import (
     PeachTargetObservationArray,
 )
 from peach_interfaces.srv import BeginScene
-from peach_perception.common.bounded_worker import BoundedWorker
-from peach_perception.common.depth_geometry import normalize_depth_to_uint16_mm
-from peach_perception.common.harvest_data import HarvestDataStore
+from peach_perception.common.geometry import (
+    gravity_camera_from_R,
+    normalize_depth_to_uint16_mm,
+    transform_msg_to_matrix,
+)
 from peach_perception.common.ros.clock_adapter import RclpyClockAdapter
-from peach_perception.common.tf_utils import gravity_camera_from_R, transform_msg_to_matrix
-from peach_perception.scene_perception import impls as _impls  # noqa: F401  注册清单
-from peach_perception.scene_perception.anchor_memory import (
-    first_point, memory_grasp)
-from peach_perception.scene_perception.candidates import (
-    CandidateEstimator,
-    dedup_overlapping_detections,
+from peach_perception.common.runtime import BoundedWorker, HarvestDataStore
+from peach_perception.scene_perception.identity import (
+    first_point,
+    GlobalHarvestPlan,
+    memory_grasp,
+    TargetRegistry,
 )
-from peach_perception.scene_perception.cloud_utils import _bbox_cloud_xyzrgb, _xyzrgb_to_cloud
-from peach_perception.scene_perception.contracts import BagObservation
-from peach_perception.scene_perception.conversions import (
-    _to_candidate,
-    _to_candidate_2d,
-    _to_detection2d,
-    _to_fitting,
-)
-from peach_perception.scene_perception.grasp_tf import _apply_T_to_grasp3d, _rotation_to_quat
-from peach_perception.scene_perception.harvest_plan import GlobalHarvestPlan
-from peach_perception.scene_perception.inference import InferenceEngine
 from peach_perception.scene_perception.interfaces import (
+    BagObservation,
     DETECTORS,
     LOCK_POLICIES,
     MATCHERS,
     POSE_PIPELINES,
     SEGMENTERS,
 )
-from peach_perception.scene_perception.observation_quality import (
+from peach_perception.scene_perception.params import ScenePerceptionParams
+from peach_perception.scene_perception.pipeline import (
+    _apply_T_to_grasp3d,
+    _rotation_to_quat,
+    AdaptiveTimeout,
     bbox_touches_image_edge,
+    CandidateEstimator,
     classify_tracking_status,
+    dedup_overlapping_detections,
+    InferenceEngine,
     LightingMeter,
+    plan_segmentation_bboxes,
+    project_positions_to_pixels,
+    RateEstimator,
     STATUS_DEPTH_VOID,
     STATUS_LOST,
     STATUS_OBSERVED,
     STATUS_OCCLUDED,
     STATUS_OUT_OF_VIEW,
+    TimingMetrics,
+    valid_depth_mask,
 )
-from peach_perception.scene_perception.params import ScenePerceptionParams
-from peach_perception.scene_perception.pipeline import valid_depth_mask
-from peach_perception.scene_perception.segmentation_gate import (
-    plan_segmentation_bboxes,
-    project_positions_to_pixels,
+from peach_perception.scene_perception.visualization import (
+    _bbox_cloud_xyzrgb,
+    _draw_debug,
+    _to_candidate,
+    _to_candidate_2d,
+    _to_detection2d,
+    _to_fitting,
+    _to_markers,
+    _xyzrgb_to_cloud,
 )
-from peach_perception.scene_perception.target_registry import TargetRegistry
-from peach_perception.scene_perception.timing import AdaptiveTimeout, RateEstimator
-from peach_perception.scene_perception.timing_metrics import TimingMetrics
-from peach_perception.scene_perception.visualization import _draw_debug, _to_markers
 import rclpy
 from rclpy.duration import Duration
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
@@ -142,8 +142,12 @@ class ScenePerceptionNode(LifecycleNode):
         self.bridge = CvBridge()
         # 参数层（params.py）：declare + 集中装载为 frozen dataclass；
         # 字段镜像回同名实例属性，保持本类下游引用零改动（启动期静态参数）
-        ScenePerceptionParams.declare(self)
-        self.params = ScenePerceptionParams.from_node(self)
+        # generate_parameter_library_py 官方装载链：ParamListener 声明（类型/
+        # 默认值/描述/校验，源 config/scene_perception_parameters.yaml），
+        # 快照装载为 frozen dataclass（params.py from_params）
+        self._param_listener = ScenePerceptionParams.declare(self)
+        self.params = ScenePerceptionParams.from_params(
+            self._param_listener.get_params())
         for f in dataclasses.fields(self.params):
             setattr(self, f.name, getattr(self.params, f.name))
         self.tf_timeout = Duration(seconds=self.params.tf_timeout_sec)
@@ -247,65 +251,10 @@ class ScenePerceptionNode(LifecycleNode):
         # harvest_state JSON 的 timing 子对象下发，不新增话题
         self._timing = TimingMetrics(alpha=0.3)
 
-        # ---- 输出话题（规范组 /peach/perception/*，单套发布面）----
-        # A5 起旧 ~/ 组（grasp_candidates/fitting/markers 等）已删除，下游一律
-        # 订阅本组固定命名；2D 候选不再单独成话题（随 target_observations 的
-        # candidate_2d 字段下发）
-        pose_qos = rclpy.qos.QoSProfile(
-            depth=1, durability=rclpy.qos.DurabilityPolicy.TRANSIENT_LOCAL)
-        self.pub_norm_pose = self.create_lifecycle_publisher(
-            BagGraspCandidateArray, '/peach/perception/initial_pose', pose_qos)
-        self.pub_norm_axis = self.create_lifecycle_publisher(
-            Vector3Stamped, '/peach/perception/axis', 10)
-        self.pub_norm_cloud = self.create_lifecycle_publisher(
-            PointCloud2, '/peach/perception/single_cloud', 10)
-        self.pub_norm_dets = self.create_lifecycle_publisher(
-            Detection2DArray, '/peach/perception/detections', 10)
-        self.pub_norm_masks = self.create_lifecycle_publisher(
-            Image, '/peach/perception/masks', 10)
-        self.pub_norm_diag = self.create_lifecycle_publisher(
-            BagFittingArray, '/peach/perception/diagnostics', 10)
-        self.pub_norm_markers = self.create_lifecycle_publisher(
-            MarkerArray, '/peach/perception/markers', 10)
-        self.pub_norm_debug = self.create_lifecycle_publisher(
-            Image, '/peach/perception/debug_image', 10)
-        self.pub_target_observations = self.create_lifecycle_publisher(
-            PeachTargetObservationArray,
-            '/peach/perception/target_observations', 10)
-        state_qos = rclpy.qos.QoSProfile(
-            depth=1, durability=rclpy.qos.DurabilityPolicy.TRANSIENT_LOCAL)
-        self.pub_harvest_state = self.create_lifecycle_publisher(
-            String, '/peach/perception/harvest_state', state_qos)
-        self.create_subscription(
-            HarvestState, '/peach_task_executor/state',
-            self._on_executor_state, state_qos)
-        self.create_service(
-            Trigger, '~/query_harvest_state', self._on_query_harvest_state)
-        self.create_service(BeginScene, '~/begin_scene', self._on_begin_scene)
-
-        # 与数据集回放 / 相机驱动对齐：RELIABLE，避免 Best Effort 对不上
-        qos = rclpy.qos.QoSProfile(
-            depth=10,
-            reliability=rclpy.qos.ReliabilityPolicy.RELIABLE,
-            history=rclpy.qos.HistoryPolicy.KEEP_LAST,
-        )
-        sub_rgb = message_filters.Subscriber(
-            self, Image, self.color_topic, qos_profile=qos)
-        sub_depth = message_filters.Subscriber(
-            self, Image, self.depth_topic, qos_profile=qos)
-        sub_info = message_filters.Subscriber(
-            self, CameraInfo, self.camera_info_topic, qos_profile=qos)
-
-        self._frame_worker = BoundedWorker(
-            self._process_rgbd, capacity=1, drop_oldest=True)
-        self.sync = message_filters.ApproximateTimeSynchronizer(
-            [sub_rgb, sub_depth, sub_info], queue_size=10, slop=self.sync_slop_s)
-        self.sync.registerCallback(self._on_rgbd)
-
-        # 手眼：wrist3_Link→camera_link 由 extrinsics_publisher 发静态 TF
-        self.tf_buffer = Buffer()
-        self.tf_listener = TransformListener(self.tf_buffer, self)
-        self._tf_warned = False
+        # ROS 实体（发布器/订阅/服务/TF）统一在 on_configure 创建（官方
+        # LifecycleNode 写法：Unconfigured 期零 ROS 接口，configure 失败即 ERROR），
+        # on_cleanup 释放；见 _wire_ros / _unwire_ros。
+        self._ros_entities_wired = False
 
         self.get_logger().info(
             f'Subscribed color={self.color_topic} depth={self.depth_topic} '
@@ -324,8 +273,115 @@ class ScenePerceptionNode(LifecycleNode):
         else:
             self.get_logger().info('目标身份记忆已禁用：target_id 为帧内序号')
 
+    def _wire_ros(self) -> None:
+        """在 on_configure 创建全部 ROS 实体（发布器/订阅/服务/TF）."""
+        if self._ros_entities_wired:
+            return
+        # ---- 输出话题（规范组 /peach/perception/*，单套发布面）----
+        # A5 起旧 ~/ 组（grasp_candidates/fitting/markers 等）已删除，下游一律
+        # 订阅本组固定命名；2D 候选不再单独成话题（随 target_observations 的
+        # candidate_2d 字段下发）
+        pose_qos = rclpy.qos.QoSProfile(
+            depth=1, durability=rclpy.qos.DurabilityPolicy.TRANSIENT_LOCAL)
+        # 输出话题默认 QoS = depth 10 / RELIABLE / volatile（等价旧裸 10）
+        default_qos = rclpy.qos.QoSProfile(depth=10)
+        self.pub_norm_pose = self.create_lifecycle_publisher(
+            BagGraspCandidateArray, '/peach/perception/initial_pose', pose_qos)
+        self.pub_norm_axis = self.create_lifecycle_publisher(
+            Vector3Stamped, '/peach/perception/axis', default_qos)
+        self.pub_norm_cloud = self.create_lifecycle_publisher(
+            PointCloud2, '/peach/perception/single_cloud', default_qos)
+        self.pub_norm_dets = self.create_lifecycle_publisher(
+            Detection2DArray, '/peach/perception/detections', default_qos)
+        self.pub_norm_masks = self.create_lifecycle_publisher(
+            Image, '/peach/perception/masks', default_qos)
+        self.pub_norm_diag = self.create_lifecycle_publisher(
+            BagFittingArray, '/peach/perception/diagnostics', default_qos)
+        self.pub_norm_markers = self.create_lifecycle_publisher(
+            MarkerArray, '/peach/perception/markers', default_qos)
+        self.pub_norm_debug = self.create_lifecycle_publisher(
+            Image, '/peach/perception/debug_image', default_qos)
+        self.pub_target_observations = self.create_lifecycle_publisher(
+            PeachTargetObservationArray,
+            '/peach/perception/target_observations', default_qos)
+        state_qos = rclpy.qos.QoSProfile(
+            depth=1, durability=rclpy.qos.DurabilityPolicy.TRANSIENT_LOCAL)
+        self.pub_harvest_state = self.create_lifecycle_publisher(
+            String, '/peach/perception/harvest_state', state_qos)
+        self._sub_exec_state = self.create_subscription(
+            HarvestState, '/peach_task_executor/state',
+            self._on_executor_state, state_qos)
+        self._svc_query = self.create_service(
+            Trigger, '~/query_harvest_state', self._on_query_harvest_state)
+        self._svc_begin = self.create_service(
+            BeginScene, '~/begin_scene', self._on_begin_scene)
+
+        # 与数据集回放 / 相机驱动对齐：RELIABLE，避免 Best Effort 对不上
+        qos = rclpy.qos.QoSProfile(
+            depth=10,
+            reliability=rclpy.qos.ReliabilityPolicy.RELIABLE,
+            history=rclpy.qos.HistoryPolicy.KEEP_LAST,
+        )
+        self._sub_rgb = message_filters.Subscriber(
+            self, Image, self.color_topic, qos_profile=qos)
+        self._sub_depth = message_filters.Subscriber(
+            self, Image, self.depth_topic, qos_profile=qos)
+        self._sub_info = message_filters.Subscriber(
+            self, CameraInfo, self.camera_info_topic, qos_profile=qos)
+
+        self._frame_worker = BoundedWorker(
+            self._process_rgbd, capacity=1, drop_oldest=True)
+        self.sync = message_filters.ApproximateTimeSynchronizer(
+            [self._sub_rgb, self._sub_depth, self._sub_info],
+            queue_size=10, slop=self.sync_slop_s)
+        self.sync.registerCallback(self._on_rgbd)
+
+        # 手眼：wrist3_Link→camera_link 由 extrinsics_publisher 发静态 TF
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+        self._tf_warned = False
+        self._ros_entities_wired = True
+
+    def _unwire_ros(self) -> None:
+        """on_cleanup 释放全部 ROS 实体（与 _wire_ros 一一对应）."""
+        if not self._ros_entities_wired:
+            return
+        try:
+            self.destroy_service(self._svc_query)
+            self.destroy_service(self._svc_begin)
+        except Exception:  # noqa: BLE001 已释放则忽略
+            pass
+        try:
+            for sub in (
+                    self._sub_exec_state, self._sub_rgb.sub,
+                    self._sub_depth.sub, self._sub_info.sub):
+                self.destroy_subscription(sub)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            for pub in (
+                    self.pub_norm_pose, self.pub_norm_axis,
+                    self.pub_norm_cloud, self.pub_norm_dets,
+                    self.pub_norm_masks, self.pub_norm_diag,
+                    self.pub_norm_markers, self.pub_norm_debug,
+                    self.pub_target_observations, self.pub_harvest_state):
+                self.destroy_lifecycle_publisher(pub)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            self.destroy_subscription(self.tf_listener.tf_sub)
+            self.destroy_subscription(self.tf_listener.tf_static_sub)
+        except Exception:  # noqa: BLE001
+            pass
+        self._ros_entities_wired = False
+
     def on_configure(self, state):
         del state
+        try:
+            self._wire_ros()
+        except Exception as exc:  # noqa: BLE001 接线失败（话题/参数非法）整包停走
+            self.get_logger().error(f'configure 失败: {exc}')
+            return TransitionCallbackReturn.ERROR
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state):
@@ -340,6 +396,7 @@ class ScenePerceptionNode(LifecycleNode):
 
     def on_cleanup(self, state):
         self._lifecycle_active = False
+        self._unwire_ros()
         return super().on_cleanup(state)
 
     def _on_executor_state(self, msg: HarvestState) -> None:
@@ -551,7 +608,7 @@ class ScenePerceptionNode(LifecycleNode):
                     f'掩膜内有效深度占比 EMA='
                     f'{self._lighting.snapshot()["depth_ratio"]} < '
                     f'{self.lighting_min_depth_ratio} 或置信度 EMA < '
-                    f'{self.lighting.min_conf_mean}），建议现场补光/调曝光',
+                    f'{self.lighting_min_conf_mean}），建议现场补光/调曝光',
                     throttle_duration_sec=10.0)
 
             array = PeachTargetObservationArray()

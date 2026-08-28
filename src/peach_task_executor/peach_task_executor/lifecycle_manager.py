@@ -6,6 +6,7 @@ import threading
 from lifecycle_msgs.msg import State, Transition
 from lifecycle_msgs.srv import ChangeState, GetState
 from peach_interfaces.srv import ManageLifecycleNodes
+from rcl_interfaces.msg import ParameterDescriptor
 import rclpy
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
@@ -26,7 +27,7 @@ class LifecycleManagerNode(Node):
 
     def __init__(self):
         super().__init__('peach_lifecycle_manager')
-        # 感知 → 重建 → 技能 → 导航 → 执行器；执行器 require_managed_stack 读下方旗标
+        # 感知 → 重建 → 技能 → 导航 → 执行器（与 config/lifecycle_manager.yaml 默认一致）
         self.declare_parameter(
             'node_names', [
                 'peach_scene_perception_node',
@@ -34,8 +35,14 @@ class LifecycleManagerNode(Node):
                 'peach_manipulation_skills_node',
                 'peach_navigation_node',
                 'peach_task_executor',
-            ])
-        self.declare_parameter('startup_timeout_s', 60.0)
+            ],
+            ParameterDescriptor(
+                description='有序 configure/activate 的节点名单；'
+                            'observability 不进名单（自行 configure/activate）'))
+        self.declare_parameter(
+            'startup_timeout_s', 60.0,
+            ParameterDescriptor(
+                description='单次状态转换等待上限 (s)'))
         latched = QoSProfile(
             history=HistoryPolicy.KEEP_LAST, depth=1,
             reliability=ReliabilityPolicy.RELIABLE,
@@ -50,7 +57,7 @@ class LifecycleManagerNode(Node):
         self.create_service(
             ManageLifecycleNodes, '~/manage_nodes', self._on_manage,
             callback_group=self._cb)
-        self._timer = self.create_timer(0.2, self._kick)
+        self._timer = self.create_timer(0.2, self._kick, callback_group=self._cb)
 
     def _kick(self):
         # 离开定时器回调再阻塞 RPC，避免卡住默认 executor

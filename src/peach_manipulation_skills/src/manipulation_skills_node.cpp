@@ -26,8 +26,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 // 节点本体：生命周期回调、参数、接口创建、订阅回调薄壳、runCycle、状态发布。
-// 运动接口见 motion_interface.cpp，行为树节点见 bt_nodes.cpp，
-// action 服务端与周期控制服务见 cycle_action.cpp。
+// 运动接口见 motion.cpp，行为树与 action 见 cycle.cpp。
 // 生命周期回调职责表（A8 / Robotics_Tutorial 2.16-1）：
 //   on_configure  ：依赖链复核（启动覆盖值不走 on-set 钩子）→ loadParameters
 //     工厂装配 → createInterfaces（订阅/服务/action/client）→ initializeMoveIt
@@ -380,6 +379,7 @@ void ManipulationSkillsNode::loadParameters()
   transit_max_total_joint_travel_rad_ = params.moveit.transit_max_total_joint_travel_rad;
   transit_max_single_joint_travel_rad_ = params.moveit.transit_max_single_joint_travel_rad;
   photo_pose_named_target_ = params.photo_pose_named_target;
+  harvest_stow_named_target_ = params.harvest_stow_named_target;
   deposit_pose_named_target_ = params.deposit_pose_named_target;
   behavior_tree_xml_ = params.behavior_tree.xml;
 
@@ -680,6 +680,14 @@ void ManipulationSkillsNode::createServices()
       std::placeholders::_1, std::placeholders::_2));
   tool_io_client_ = create_client<aubo_msgs::srv::SetIO>(
     "/aubo_io_controller/set_io");
+  tool_actuator_.setSendIo(
+    [this](int, int, double, std::string & reason) {
+      if (!commandToolClose()) {
+        reason = "set_io_failed";
+        return false;
+      }
+      return true;
+    });
 }
 
 void ManipulationSkillsNode::createActions()
@@ -1011,6 +1019,7 @@ void ManipulationSkillsNode::setState(CycleState state, const std::string & mess
       {"reconstruction_target_id", snapshot.reconstruction_target_id},
       {"refined_target_id", snapshot.refined_target_id},
       {"captured_views", snapshot.captured_views},
+      {"station_count", snapshot.station_count},
       {"max_baseline_deg", snapshot.max_baseline_deg},
       {"mean_nearest_baseline_deg", snapshot.mean_nearest_baseline_deg},
       {"mean_depth_ratio", snapshot.mean_depth_ratio},
@@ -1069,25 +1078,45 @@ void ManipulationSkillsNode::fillExecuteResults(
   const std::shared_ptr<ExecuteTarget::Result> & result)
 {
   const bool observe_only = cycle_observe_only_.load();
+  const bool pregrasp_only = cycle_pregrasp_only_.load();
   const bool succeeded =
     result->outcome == ExecuteTarget::Result::SUCCEEDED;
-  result->harvest.grasped =
-    succeeded && !observe_only && grasp_enabled_.load();
+  result->completion_level = cycle_completion_level_;
+  result->failure_code = succeeded ? 0u : cycle_failure_code_;
+  result->cut_command_accepted = cycle_cut_command_accepted_;
+  result->cut_confirmed = cycle_cut_confirmed_;
+  result->retreat_confirmed = cycle_retreat_confirmed_;
+  result->harvest_confirmed =
+    cycle_cut_confirmed_ && cycle_retreat_confirmed_;
+  result->pregrasp = cycle_pregrasp_msg_;
+  result->harvest.completion_level = cycle_completion_level_;
+  result->harvest.commanded =
+    grasp_enabled_.load() && !observe_only && !pregrasp_only;
+  result->harvest.confirmed = result->harvest_confirmed;
+  result->harvest.grasped = result->harvest_confirmed;
   result->harvest.reason = result->reason;
-  if (result->harvest.grasped && !tool_enabled_.load()) {
+  if (!tool_enabled_.load() && result->harvest.commanded) {
     result->harvest.reason += "；tool.enabled=false，跳过末端 IO";
   }
   result->deposit.deposited = cycle_deposit_ok_;
   result->deposit.reason = cycle_deposit_reason_;
-  if (observe_only) {
+  if (observe_only || pregrasp_only) {
     result->verification.passed = succeeded;
+    result->verification.commanded = false;
+    result->verification.confirmed = pregrasp_only && cycle_pregrasp_verified_;
+    result->verification.harvest_confirmed = false;
     result->verification.reason = result->reason;
+    result->verification.failure_code = result->failure_code;
   } else {
     result->verification.passed =
       result->harvest.grasped &&
       (cycle_deposit_ok_ || cycle_deposit_skipped_m8_);
+    result->verification.commanded = result->harvest.commanded;
+    result->verification.confirmed = result->harvest.confirmed;
+    result->verification.harvest_confirmed = result->harvest_confirmed;
     result->verification.reason = cycle_deposit_reason_.empty() ?
       result->reason : cycle_deposit_reason_;
+    result->verification.failure_code = result->failure_code;
   }
   result->outcome_record.target_id = cycle_target_id_;
   result->outcome_record.outcome = result->outcome;

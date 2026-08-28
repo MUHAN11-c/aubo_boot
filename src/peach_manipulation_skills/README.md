@@ -1,6 +1,6 @@
 # peach_manipulation_skills
 
-五个能力包之一：**机械臂执行**。一节点。拍照、主动视点、质量/安全门、再确认、MTC 接近/插入、工具 GPIO、同轴撤退。不写账本、不调重建 Trigger、不 `BeginScene`、不 `RunHarvest`。详细作用见 [docs/architecture.md](../../docs/architecture.md) §3 `peach_manipulation_skills`。
+五个能力包之一：**机械臂执行**。一节点。拍照、主动视点、质量/安全门、预抓取验证、沿轴套入、刀具 GPIO、原路撤退。不写账本、不调重建 Trigger、不 `BeginScene`、不 `RunHarvest`。详细作用见 [docs/architecture.md](../../docs/architecture.md) §3 `peach_manipulation_skills`。
 
 **Lifecycle**：仅 **Active** 才允许运动类入口。总览：[docs/architecture.md](../../docs/architecture.md)。契约：[docs/io.md](../../docs/io.md)。
 
@@ -18,23 +18,23 @@ peach_manipulation_skills/
 | 文件 | 职责 |
 |------|------|
 | `src/manipulation_skills_node.cpp` + `src/manipulation_skills_node_impl.hpp` | 节点外壳：Lifecycle、`createSubscriptions/Services/Actions`、预规划槽 |
-| `src/cycle_action.cpp` | `ExecuteTarget` / `SurveyScene` 接受、执行、取消 |
+| `src/cycle.cpp` | `ExecuteTarget` / `SurveyScene` 接受、执行、取消；BT 节点实现 |
 | `config/behavior_tree.xml` | 主树 `PeachHarvest` 与 SubTree 阶段 |
-| `src/bt_nodes.cpp` | 树节点实现（观察、质量、再确认、MTC、工具、撤离） |
+| `src/core.cpp` | 质量门、安全门、视点规划、目标缓存 |
 | `include/.../grasp_task.hpp` + `src/grasp_task.cpp` | MTC：过渡点分段到入口 + 插入；`syncKeepoutCollisionObjects` |
-| `src/motion_interface.cpp` | MoveGroup / 拍照位姿 / 预览服务 |
+| `src/motion.cpp` | MoveGroup / 拍照位姿 / 预览服务 |
 | `include/.../protected_zones.hpp` | 保护区 AABB 纯核（参数 stride-6） |
 | `include/.../view_planner.hpp`、`quality_gate.hpp`、`reconfirm_policy.hpp` | 视点、质量、再确认策略 |
 | `config/peach_manipulation_skills.yaml` | 运行参数；与 `manipulation_skills_parameters.yaml` 对齐 |
 
-读单周期：先 XML 看阶段顺序，再 `bt_nodes.cpp` 里同名节点，接触段进 `GraspTask`。工具 IO 只在 BT `ActuateTool`，不 attach 果体。
+读单周期：先 XML 看阶段顺序，再 `cycle.cpp` 里同名 BT 节点，接触段进 `GraspTask`。工具 IO 只在 BT `ActuateCutter`/`ToolActuator`，ACK 不等于切断确认。
 
 ## 谁调谁
 
 | 方向 | 内容 |
 |------|------|
-| 被执行器调 | `SurveyScene`、`ExecuteTarget`（PREVIEW / OBSERVE_ONLY / FULL） |
-| 订阅 | 感知 `target_observations`；重建 `diagnostics` / `refined_*` / `grasp_decision`；`HarvestState` 间接经观测 selected |
+| 被执行器调 | `SurveyScene`、`ExecuteTarget`（PREVIEW / OBSERVE_ONLY / FULL / PREGRASP_ONLY） |
+| 订阅 | 感知 `target_observations`；重建 `diagnostics` / `refined_*` / `grasp_decision`。`pregrasp_verification` 由重建发布作观测，技能 `VerifyPregrasp` 用工具 TF 残差（非该话题） |
 | 发布 | `~/status`、`~/planned_views`、`/peach/manipulation/grasp_hypothesis` |
 | 不调用 | 重建 `reset`/`finalize` Trigger；账本在执行器 |
 
@@ -43,12 +43,12 @@ peach_manipulation_skills/
 ## 流程
 
 1. `SurveyScene` → `goToPhotoPose`（`transit_max_*` 护栏；超限拒绝）
-2. 批次对每个目标：并行 `BuildTargetModel` + `OBSERVE_ONLY`，再 `FULL`（`skip_observation`）
-3. 主树：观察（可跳过）→ 等精化 → 再确认 → MTC → 工具 → 同轴撤退 → 卸果（未标定则跳过）
+2. 批次对每个目标：并行 `BuildTargetModel` + `OBSERVE_ONLY`，再 `PREGRASP_ONLY` 或 `FULL`（`skip_observation`；调度默认 PREGRASP_ONLY）
+3. 主树：观察（可跳过）→ 等精化 → 再确认 → 预抓取验证 →（PREGRASP_ONLY 停住）或套入/工具/原路撤退
 
 默认 `execution.enabled` / `grasp.enabled` / `tool.enabled` 为关。
 
-接触失败置 recovery，须 `acknowledge_recovery`（或执行器 ControlTask ACK）才继续；未确认时执行器不派下一颗。
+接触失败或 PREGRASP_ONLY 到位后置 recovery，须 `acknowledge_recovery`（或执行器 ControlTask ACK）才 Survey / 派下一颗。
 
 ## 启动
 

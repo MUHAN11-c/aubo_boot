@@ -15,7 +15,7 @@
 | `peach_interfaces` | IDL + `interface_manifest.yaml` | — | 运行时节点 |
 | `peach_perception` | `BeginScene`；`/peach/perception/*`；`BuildTargetModel`；`/peach/reconstruction/*` | RGB-D、`HarvestState`、精确 stamp TF | 运动动作、账本、选下一颗 |
 | `peach_manipulation_skills` | `SurveyScene`、`ExecuteTarget`、`grasp_hypothesis`、预览/使能/ACK 服务 | 观测、`GraspDecision`、`refined_*` | `RunHarvest`、重建 Trigger 客户端、账本 |
-| `peach_navigation` | `NavigateToWorksite` | 将来：地图/`cmd_vel`（现行 stub 不订） | 账本、视觉、臂规划、底盘驱动 |
+| `peach_navigation` | `NavigateToWorksite`；`/peach/navigation/target_report`、`arm_status`；（stub）`vehicle_state` | `HarvestState`、`GraspDecision`、外部 `VehicleState` | 账本、视觉、臂规划、底盘驱动、`cmd_vel` |
 | `peach_task_executor` | `RunHarvest`、`ControlTask`、`HarvestState`/`events`、lifecycle、只读监控 | 观测（选果）、动作结果 | RGB-D 处理、MoveIt 规划接触、Nav2 规划 |
 
 调度是批次侧**唯一**动作客户端。技能不调重建 `reset`/`finalize` Trigger。默认 `navigation_enabled=false`，开批不发送 `NavigateToWorksite`。
@@ -28,11 +28,14 @@ flowchart LR
   Ex -->|BeginScene| Perc[peach_scene_perception_node]
   Ex -->|SurveyScene| Skill[peach_manipulation_skills_node]
   Ex -->|BuildTargetModel| Rec[peach_target_reconstruction_node]
-  Ex -->|ExecuteTarget OBSERVE / FULL| Skill
+  Ex -->|ExecuteTarget OBSERVE / FULL / PREGRASP_ONLY| Skill
   Perc -->|target_observations / initial_pose| Ex
   Perc --> Rec
   Perc --> Skill
   Rec -->|refined_* / grasp_decision / diagnostics| Skill
+  Nav -->|target_report / arm_status| ExtNav[外部导航]
+  ExtNav -->|vehicle_state| Nav
+  Nav --> Ex
   Ex -->|HarvestState.target_id| Perc
   Ex --> Rec
   Skill -->|grasp_hypothesis| Obs[peach_observability]
@@ -47,8 +50,9 @@ flowchart LR
 | `BeginScene` | 感知 `~/begin_scene` | 调度 `_cmd_begin` | `Command.BEGIN_SCENE` |
 | `SurveyScene` | 技能 `~/survey_scene` | `_survey_body` | `Command.SURVEY` |
 | `BuildTargetModel` | 重建 `~/build_target_model` | `_cmd_dispatch` | 与 OBSERVE_ONLY **并行** |
-| `ExecuteTarget` OBSERVE_ONLY | 技能 `~/execute_target` | `_cmd_dispatch` | 主动视点给重建凑 `min_views` |
-| `ExecuteTarget` FULL | 技能 | `_cmd_full` | 观察+模型都过门之后 |
+| `ExecuteTarget` OBSERVE_ONLY | 技能 `~/execute_target` | `_cmd_dispatch` | 主动视点给重建凑 `min_views` 机位 |
+| `ExecuteTarget` FULL | 技能 `~/execute_target` | `_cmd_full` | 观察+模型都过门之后；仅 `execute_pregrasp_only=false` |
+| `ExecuteTarget` PREGRASP_ONLY | 技能 `~/execute_target` | `_cmd_full` | 默认 `execute_pregrasp_only=true` 时替代 FULL；停预抓取等 ACK |
 | `ControlTask` | 调度 `~/control` | 人工（监控只读不发） | PAUSE / SKIP / CANCEL… |
 | `ManageLifecycleNodes` | 管理器 `~/manage_nodes` | 人工 | STARTUP/PAUSE/RESUME/RESET/SHUTDOWN；不发 RunHarvest |
 
@@ -71,7 +75,8 @@ flowchart LR
 | `/peach/perception/initial_pose` | topic | `BagGraspCandidateArray` | reliable, transient_local, 1 | scene_perception | target_reconstruction, task_executor |
 | `/peach/perception/diagnostics` | topic | `BagFittingArray` | | scene_perception | target_reconstruction, task_executor |
 | `/peach/reconstruction/diagnostics` | topic | `ReconstructionStatus` | reliable, transient_local, 1 | target_reconstruction | manipulation_skills, task_executor |
-| `/peach/reconstruction/grasp_decision` | topic | `GraspDecision` | reliable, transient_local, 1 | target_reconstruction | manipulation_skills, task_executor |
+| `/peach/reconstruction/grasp_decision` | topic | `GraspDecision` | reliable, transient_local, 1 | target_reconstruction | manipulation_skills, task_executor, peach_navigation |
+| `/peach/reconstruction/pregrasp_verification` | topic | `PregraspVerification` | reliable, transient_local, 1 | target_reconstruction | （观测；技能 VerifyPregrasp 用工具 TF，未订本话题） |
 | `/peach/reconstruction/refined_pose` | topic | `BagGraspCandidateArray` | reliable, transient_local, 1 | target_reconstruction | manipulation_skills, task_executor |
 | `/peach/reconstruction/refined_diagnostics` | topic | `BagFittingArray` | reliable, transient_local, 1 | target_reconstruction | manipulation_skills |
 | `/peach/reconstruction/tsdf_cloud` | topic | `sensor_msgs/PointCloud2` | reliable, transient_local, 1 | target_reconstruction | task_executor |
@@ -81,6 +86,9 @@ flowchart LR
 | `/peach_scene_perception_node/begin_scene` | service | `BeginScene` | | scene_perception | task_executor |
 | `/peach_manipulation_skills_node/survey_scene` | action | `SurveyScene` | | manipulation_skills | task_executor |
 | `/peach_navigation_node/navigate_to_worksite` | action | `NavigateToWorksite` | | navigation | task_executor |
+| `/peach/navigation/target_report` | topic | `HarvestTargetReport` | reliable, transient_local, 1 | navigation | （外部导航） |
+| `/peach/navigation/vehicle_state` | topic | `VehicleState` | reliable, transient_local, 1 | navigation（stub）/ 外部导航 | task_executor, navigation |
+| `/peach/navigation/arm_status` | topic | `HarvestOperationStatus` | reliable, transient_local, 1 | navigation | （外部导航） |
 | `/peach_manipulation_skills_node/execute_target` | action | `ExecuteTarget` | | manipulation_skills | task_executor |
 | `/peach_target_reconstruction_node/build_target_model` | action | `BuildTargetModel` | | target_reconstruction | task_executor |
 | `/peach_manipulation_skills_node/acknowledge_recovery` | service | `std_srvs/Trigger` | | manipulation_skills | task_executor |
@@ -101,7 +109,7 @@ flowchart LR
 | `NavigateToWorksite` | navigation | 走到作业位。默认调度不发；stub 回报已到位 |
 | `SurveyScene` | manipulation_skills | 去拍照位姿 |
 | `BuildTargetModel` | target_reconstruction | 绑定目标、等合格视角后 finalize |
-| `ExecuteTarget` | manipulation_skills | `PREVIEW=0` / `OBSERVE_ONLY=1` / `FULL=2`。终局 `SUCCEEDED` / `SKIPPED_*` / `FAILED` / `CANCELED` |
+| `ExecuteTarget` | manipulation_skills | `PREVIEW=0` / `OBSERVE_ONLY=1` / `FULL=2` / `PREGRASP_ONLY=3`。终局 `SUCCEEDED` / `SKIPPED_*` / `FAILED` / `CANCELED`。`harvest.grasped` 仅切断且撤退确认。`completion_level`：NONE→HARVEST_CONFIRMED。失败码 `FailureCode.*` |
 
 | 服务 | 服务端 | 作用 |
 |------|--------|------|
@@ -111,7 +119,7 @@ flowchart LR
 
 技能另有 Trigger：`start_cycle`、`cancel_cycle`、`query_state`、`go_to_photo_pose`、预览、`set_execution_armed`、`acknowledge_recovery`。
 
-主要消息：`PeachTargetObservation*`（身份与锁定集）、`BagGraspCandidate` / `BagFitting`、`HarvestState` / `HarvestSummary` / `TargetOutcome` / `CanonicalEvent`、`ReconstructionStatus`、`GraspDecision`、`TargetModel`、`TargetQuality`。事件码：`target_dispatched` / `target_succeeded` / `target_skipped` / `target_failed` / `target_canceled` / `target_operator_skipped` / `round_locked`。`MatchStatus`：`OK` / `NEW` / `AMBIGUOUS` / `REJECTED`；歧义不强制合并。
+主要消息：`PeachTargetObservation*`（身份与锁定集）、`BagGraspCandidate` / `BagFitting`、`HarvestState` / `HarvestSummary` / `TargetOutcome` / `CanonicalEvent`、`ReconstructionStatus`、`GraspDecision`、`PregraspVerification`、`TargetModel`、`TargetQuality`、`FailureCode`、`HarvestTargetReport` / `VehicleState` / `HarvestOperationStatus`。事件码：`target_dispatched` / `target_succeeded` / `target_skipped` / `target_failed` / `target_canceled` / `target_operator_skipped` / `round_locked`。`MatchStatus`：`OK` / `NEW` / `AMBIGUOUS` / `REJECTED`；歧义不强制合并。
 
 契约预留、节点尚未全部当批次门用：`JobIntent`、`ShapeHypothesis`、`GraspHypothesis`、`HarvestEvent`。`ShapeHypothesis` 由重建发，`GraspHypothesis` 由技能发。
 
@@ -135,6 +143,8 @@ base_link → 臂链 → wrist3_Link
   → camera_link（extrinsics_publisher 标定权威）
      → camera_color_frame → camera_color_optical_frame（感知 yaml）
      → camera_depth_frame → camera_depth_optical_frame（深度 header、技能 yaml）
+  → tool_axis → cutting_plane / tcp / sleeve_mouth / tool_body_link
+     （hollow_cylinder_v1；TCP 在圆柱顶部 (0, 47.90, 151.07) mm；Rx(-90°)：Z=开口，XY=刀口；筒沿 −Z 200 mm）
 ```
 
 无 `active.yaml` 时名义 TF：`wrist3_Link→camera_link` 平移 2 cm、单位四元数。现场标定约 `[0.045, 0.108, 0.002]`。驱动两光学系相对 `camera_link` 平移为 0（源码如此；未 live echo 不改名）。
@@ -209,7 +219,7 @@ Lifecycle 非 Active：同步回调直接 return，不积分、不 `BeginScene`�
 
 ## 7. 重建到抓取许可
 
-采帧门（`capture_gate.py`，自动失败=skip）：满栈 → 无帧 → 掩膜 → 同 stamp → 帧龄>2 s → 静止（`/joint_states` 最大 `|vel|`>0.03 rad/s）→ 空 frame_id → **精确 TF**。
+采帧门（`target_reconstruction/capture.py`，自动失败=skip）：满栈 → 无帧 → 掩膜 → 同 stamp → 帧龄>2 s → 静止（`/joint_states` 最大 `|vel|`>0.03 rad/s）→ 空 frame_id → **精确 TF**。
 
 ```mermaid
 flowchart TB
@@ -218,8 +228,15 @@ flowchart TB
   icp -->|拒| skip["跳帧 不硬套"]
   icp -->|过| tsdf["LocalTsdf"]
   tsdf --> fin["finalize 提云"]
-  fin --> refit["袋圆柱 / 果球"]
-  refit --> gd{"GraspDecision.allowed"}
+  fin --> landmarks["宽头=底、窄头=口；轴袋底→袋口且不朝下；对打否决该帧"]
+  landmarks --> geom["入口侧向贴体积 + 剪切参考=袋口/框极限"]
+  geom --> pre["PREGRASP_ONLY 真机评方向定位"]
+  geom --> envelope["TSDF 包络主方向否决"]
+  envelope -->|病态跳过12°| budget["动态径向/轴向预算"]
+  envelope -->|夹角>12°| veto["keypoint_cloud_axis_conflict"]
+  envelope -->|一致| budget
+  veto --> gd{"GraspDecision.allowed 只拦套入"}
+  budget --> gd
 ```
 
 **两层三态不要混：**
@@ -227,22 +244,24 @@ flowchart TB
 | 层 | 字段 | 谁消费 |
 |----|------|--------|
 | 感知单帧 | `BagGraspCandidate.status` ACCEPT/REOBSERVE/REJECT | 初值、可视化。不发运动 |
-| 重建许可 | `GraspDecision.allowed` | 技能/调度消费入口与轴的**唯一权威** |
+| 融合几何 | `GraspDecision` 入口/轴/预抓取/剪切参考（融合成功即填） | `PREGRASP_ONLY` PTP；RViz/监控目视。方向定位对错以真机预抓取实测为准 |
+| 接触许可 | `GraspDecision.allowed` | 只授权套入/剪切；禁止降级接触 |
 
-`allowed=false` 时 entry/axis 是占位，只信 `reason`。常见 reason：`reconstruction_not_ready`、`refined_geometry_unavailable`、`perception_reconstruction_axis_mismatch`（检测轴 vs 精化轴 >35°）、`refined_quality_requires_reobserve`。通过：`refined_geometry_accept`。
+融合成功时 entry/axis/pregrasp/cut_pose 有效，即使 `allowed=false`。无几何时入口/轴填零，只信 `reason` / `failure_code`。常见 reason：`reconstruction_not_ready`、`refined_geometry_unavailable`、`bag_model_unavailable`、`dynamic_budget_negative`、`keypoint_cloud_axis_conflict`（包络轴与关键点轴 >12° 且包络有长径比）、`cut_plane_fruit_clearance` / `cut_band_unavailable`。`envelope_axis_ill_conditioned` / `envelope_too_few_slices` 只诊断，不单独关 `allowed`。>35° 只打 `diagnostic_axis_mismatch`，不单独把 `allowed` 打成 false。通过接触：`dynamic_budget_accept` / `refined_geometry_accept`。软件预算与夹角不代替预抓取位的真机精度评定。
 
-`allowed=true` 之后仍可能 `skipped_quality`（再确认）或 `skipped_unreachable`（MTC 护栏）。心跳里大量 `not_ready` 不等于精化从未 ACCEPT；看逐目标 max，不要看收工 IDLE。
+`allowed=true` 之后仍可能 `skipped_quality`（再确认/预抓取残差）或 `skipped_unreachable`（MTC 护栏）。心跳里大量 `not_ready` 不等于精化从未 ACCEPT；看逐目标 max，不要看收工 IDLE。
 
 ---
 
 ## 8. 技能周期输入输出
 
-主树 `PeachHarvest`：PrepareCycle → 可跳过 ObserveScan → QualityValidate →（OBSERVE_ONLY 则结束）→ ReconfirmTarget → MTCApproachAndInsert → ActuateTool → MTCRetreat → DepositToStation → CompleteTarget。
+主树 `PeachHarvest`：PrepareCycle → 可跳过 ObserveScan → QualityValidate →（OBSERVE_ONLY / grasp 关闭则结束）→ Reconfirm → MovePregrasp → VerifyPregrasp →（PREGRASP_ONLY 则 `HoldPregrasp` 停住）→ PlanSleeveAndReverseRetreat → SleeveLinear → VerifyCutHold → ActuateCutter → VerifyCut → ExecuteReservedReverseRetreat → ReturnHarvestStow → VerifyHarvestOutcome → CompleteTarget。
 
-- OBSERVE_ONLY：当前位先采帧；基线未过最多两次短 PTP（对侧补角），朝当前目标检测框更完整 / 锁定集邻果更多的方向；半径保持当前相机距（画面过小才近一步）。禁止 OMPL/贴 0.40 m 球面环绕。覆盖门 `minimum_baseline_deg: 8`。到位后等新机位（`view_directions` 增加），同机位连帧不加覆盖。成功：重建已绑定、已采满 `min_views`、TSDF/精化已发布。观察成功但 Build `view_count < min_views` → `observe_build_view_race`。
-- FULL：`skip_observation`。结果填 `HarvestResult` / `DepositResult` / `Verification` / `outcome_record`。
+- OBSERVE_ONLY：当前位先采帧；基线未过最多两次短 PTP（对侧补角），朝当前目标检测框更完整 / 锁定集邻果更多的方向；半径保持当前相机距（画面过小才近一步）。禁止 OMPL/贴 0.40 m 球面环绕。覆盖门 `minimum_baseline_deg: 8`。到位后等新机位（`view_directions` 增加），同机位连帧不加覆盖。成功：重建已绑定、独立机位已满 `min_views`、TSDF/精化已发布。观察成功但 Build `view_count`（机位数）`< min_views` → `observe_build_view_race`。`captured_views` 仍是积分帧数。
+- PREGRASP_ONLY：有融合几何即 PTP 到预抓取；不要求 `allowed`。工具 TF 两帧残差最多两次短修正；残差未过门也停在预抓取（不回 `harvest_stow`），便于真机评方向/定位。任何路径不 SetIO。真运动后 `recovery_required`，ACK 前调度不 Survey。现行不是两帧精确 TF RGB-D 重估。
+- FULL：`skip_observation`。结果填 `HarvestResult` / `DepositResult` / `Verification` / `PregraspVerification` / `outcome_record`。`harvest.grasped` 仅 `cut_confirmed && retreat_confirmed`。SetIO ACK 只产生 `CUT_COMMAND_ACCEPTED`。
 - 新鲜度门：`SafetyGate` 比较 `clock - freshnessStamp`。OBSERVED 且 `updated_s` 更新时用 `updated_s`，否则末次有效观测 `received_s`。门限 `effectiveTargetMaxAgeS()`：未测得 EMA 用 yaml 3.0 s，测得后只放宽。`assumed_frame_interval_s: 0.4` 只估等待窗口，不预填 EMA。
-- 接触护栏（yaml）：接近 `mtc_approach_max_duration_s: 20`、累计 10 rad、单轴 3.2 rad；段间接缝计入 `|Δq|`。接触沿检测轴短程 LIN（预抓取后撤 `mtc_approach_along_axis_m: 0.10`）；未对轴（侧向 > 0.05 m 或姿态 > 20°）才 PTP 到预抓取点。沿轴 LIN 上限 0.15 m。观察 PTP：`observe_max_*` 8 s / 2.5 rad / 1.5 rad。`goToPhotoPose`：`transit_max_*` 25 s / 6 rad / 2.5 rad。超限不执行。
+- 接触护栏（yaml）：接近 `mtc_approach_max_duration_s: 20`、累计 10 rad、单轴 3.2 rad；段间接缝计入 `|Δq|`。先 PTP 预抓取再一段沿轴 LIN 套入；反向同轨迹回预抓取。沿轴 LIN 上限 0.15 m。观察 PTP：`observe_max_*` 8 s / 2.5 rad / 1.5 rad。`goToPhotoPose`：`transit_max_*` 25 s / 6 rad / 2.5 rad。超限不执行。
 
 默认 `execution/grasp/tool=false`：只规划、不接触、不 SetIO。
 
@@ -250,13 +269,13 @@ flowchart TB
 
 ## 9. 过程数据落盘
 
-根：工作区 `runs/`（`peach_perception.common.harvest_data.default_runs_root`）。历史 `_archive/runs/`，不要删。监控参数：`peach_task_executor/config/observability.yaml`。HTTP `/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipulation` / `task_executor` / `robot` / `metrics` / `record` / `params` / **`job`**（当前果实作业票：过程线状态、档位、`why`、感知入口/重建中心/抓取进入点，`base_link` 米）。监控页首屏按作业票展示；抓取档关闭时靠近/工具为 gated，不是已完成。
+根：工作区 `runs/`（`peach_perception.common.runtime.default_runs_root`）。历史 `_archive/runs/`，不要删。监控参数：运行 `peach_task_executor/config/observability.yaml`；声明/校验源 `config/observability_parameters.yaml`（generate_parameter_library_py）。HTTP `/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipulation` / `task_executor` / `robot` / `metrics` / `record` / `params` / **`job`**（当前果实作业票：过程线状态、档位、`why`、感知入口/重建中心/抓取进入点，`base_link` 米）。监控页首屏按作业票展示；抓取档关闭时靠近/工具为 gated，不是已完成。
 
 | 产物 | 路径 |
 |------|------|
 | 账本 | `runs/<request_id>/ledger.json` |
 | 监控 jsonl | `runs/run_*`：`events`、`state`、`perception`、`reconstruction`、`manipulation`、`job`、`metrics`；另有 `image_index.jsonl` |
-| 重建 session | 同根 |
+| 重建 session | 同根；含 `geometry.jsonl`（袋底/颈/轴/剪切点/D95/预算/单帧 flags，`peach_bag_baseline` 复算）。三维点按 `list[float]` 写，缺失用 `is None` 回退，不得对 ndarray 用 Python `or`（真值歧义会把已积分体积回滚，RViz TSDF Cloud 变空） |
 | MCAP | `runs/mcap_<时间>`，默认关 |
 
 记录器按 `HarvestState.batch_state` 开关 `run_*` 目录。事件码须与 `canonical_code_for_outcome` 一致。批次结束后仍写 jsonl 是已知缺口（见 architecture 缺口表）。归档里若有 `approach.jsonl`，那是旧技能状态文件名。

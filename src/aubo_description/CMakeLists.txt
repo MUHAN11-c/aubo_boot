@@ -3,7 +3,7 @@ project(aubo_description)
 
 find_package(ament_cmake REQUIRED)
 
-install(DIRECTORY meshes urdf
+install(DIRECTORY meshes urdf config
   DESTINATION share/${PROJECT_NAME}
 )
 install(FILES LICENSE DESTINATION share/${PROJECT_NAME})

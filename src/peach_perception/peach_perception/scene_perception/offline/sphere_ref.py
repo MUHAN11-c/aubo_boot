@@ -10,7 +10,7 @@
   - 球面法线 n = (p−c)/r → c = p − r·n（射线约束）：2 点+法线采样求半径，
     半径夹紧剪掉退化假设，比 4 点采样迭代数与方差同步下降；
   - 内点再做几何正交距离 LM 抛光（各向同性噪声下的 MLE）。
-实现位于 peach_perception.scene_perception.fitting。
+实现位于 peach_perception.common.geometry。
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 
-from ..fitting import fit_sphere_robust
+from peach_perception.common.geometry import fit_sphere_robust
 
 
 def fit_sphere_reference(points: np.ndarray,

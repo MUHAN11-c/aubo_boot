@@ -68,6 +68,7 @@ peach_manipulation_skills_node:
     # 全局拍照位姿的 SRDF 命名状态（~/go_to_photo_pose 服务目标），
     # 与 aubo_e5_moveit_config/config/aubo_e5.srdf 的 group_state 对应。
     photo_pose_named_target: 'global_photo_pose'
+    harvest_stow_named_target: 'harvest_stow'
     # 卸果站命名状态；空=未现场标定（M8），软件跳过转移。
     deposit_pose_named_target: ''
     behavior_tree:
@@ -122,8 +123,9 @@ peach_manipulation_skills_node:
       maximum_refined_rmse_m: 0.01
       minimum_refined_inlier_ratio: 0.35
       maximum_data_age_s: 3.0  # 2.0 时 ~1 Hz 诊断心跳会 reconstruction_data_stale，观察收口抓不到
-      # [deg] 单帧检测轴 vs 重建精化轴夹角上限；超过则接触前拒绝。
-      # 现场 target_0≈26.7° 可过，target_1≈88° 必须拦；翻转 ~180° 同样拒绝。
+      # [deg] 单帧检测轴 vs 重建精化轴完全错轴诊断；超过只打旗标。
+      # 接触许可只信 GraspDecision.allowed（袋融合动态预算）。
+      # PREGRASP_ONLY 只要求融合几何，不要求 allowed / RMSE。
       maximum_axis_angle_deg: 35.0
     execution:
       # 默认只规划：设为 true 后，每个周期还必须人工调用 set_execution_armed。

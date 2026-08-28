@@ -1,0 +1,9 @@
+# Cartesian limits for the Pilz planner（MoveItConfigsBuilder 官方加载链：
+# planning_pipelines 含 pilz 时 to_moveit_configs() 自动并入 robot_description_planning）。
+# 数值与 config/joint_limits.yaml 的 cartesian_limits 一致（现场保守档）；
+# PTP 关节空间不受影响，仅约束 Pilz 笛卡尔段（LIN/CIRC）。
+cartesian_limits:
+  max_trans_vel: 0.25
+  max_trans_acc: 0.5
+  max_trans_dec: -0.5
+  max_rot_vel: 0.5

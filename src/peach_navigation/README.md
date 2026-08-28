@@ -2,7 +2,7 @@
 
 五个能力包之一：**作业位导航适配**。一节点。调度层是唯一客户端。详细作用见 [docs/architecture.md](../../docs/architecture.md) §3 `peach_navigation`。
 
-现行 `impl: reserved_stub`：不接雷达、不发 `cmd_vel`、不调发行版 Nav2，把固定座当作已到位。SLAM / AMCL / 代价地图预留，有真底盘后再接线。
+现行 `impl: reserved_stub`：不接雷达、不发 `cmd_vel`、不调发行版 Nav2，把固定座当作已到位，并合成静止 `VehicleState`。另发布 `HarvestTargetReport` / `HarvestOperationStatus`。SLAM / AMCL / 代价地图预留，有真底盘后再接线。
 
 总览：[docs/architecture.md](../../docs/architecture.md)。契约：[docs/io.md](../../docs/io.md)。
 
@@ -10,8 +10,9 @@
 
 | 文件 | 职责 |
 |------|------|
-| `peach_navigation/navigation_node.py` | Lifecycle + `NavigateToWorksite` |
-| `config/navigation.yaml` | `impl` / `worksite_frame` |
+| `peach_navigation/navigation_node.py` | Lifecycle + `NavigateToWorksite` + 适配话题 |
+| `config/navigation.yaml` | `impl` / `worksite_frame`（运行） |
+| `config/navigation_parameters.yaml` | GPL 声明/默认/描述 |
 | `launch/navigation.launch.py` | 单独或整栈 include |
 
 ## 不负责

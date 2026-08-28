@@ -15,7 +15,7 @@ bringup 在 `moveit_enabled` 为真时拉起 `move_group` 和 `rviz/moveit.rviz`
 | `config/ompl_planning.yaml` / `pilz_*.yaml` | 规划器 |
 | `config/controllers.yaml` / `controllers_mock.yaml` | 与透传控制器对齐 |
 | `config/joint_limits.yaml` | 关节限 |
-| `launch/moveit.launch.py` | move_group + RViz |
+| `launch/moveit.launch.py` | move_group + RViz（`MoveItConfigsBuilder`） |
 | `rviz/moveit.rviz` | 显示 |
 
 ## 示教位姿（改 SRDF，不要写到工作区根）

@@ -28,22 +28,20 @@ from peach_interfaces.msg import (
     PeachTargetObservationArray,
     ReconstructionStatus,
 )
-from peach_perception.common.harvest_data import resolve_runs_root
-from rcl_interfaces.msg import ParameterDescriptor
+from peach_perception.common.runtime import resolve_runs_root
 from rcl_interfaces.srv import GetParameters
 import rclpy
+from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
-from rclpy.qos import (
-    DurabilityPolicy,
-    QoSProfile,
-    ReliabilityPolicy,
-)
+from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import Image, PointCloud2
 from std_msgs.msg import String
 
 from . import http_server
-from .codec import (
+from .params import declare as _declare_params
+from .params import from_params as _from_params
+from .recorder import (
     candidate_array,
     fitting_array,
     grasp_decision,
@@ -51,15 +49,12 @@ from .codec import (
     harvest_event,
     parse_json_text,
     reconstruction_status,
+    Recorder,
     robot_status,
     target_observations,
     vector_stamped,
 )
-from .metrics import MetricsSampler
-from .params import DEFAULTS as _DEFAULTS
-from .params import load_params as _load_params
-from .recorder import Recorder
-from .state import ObservabilityState
+from .state import MetricsSampler, ObservabilityState
 
 
 # 过程监测需要回答「当前以什么参数在跑」：按节点分组的只读参数白名单。
@@ -120,7 +115,7 @@ class ObservabilityNode(LifecycleNode):
     def __init__(self):
         """声明参数；订阅与 HTTP 等到 configure / activate."""
         super().__init__('peach_observability')
-        self._declare_parameters()
+        self._param_listener = None
         self._params = None
         self._state = ObservabilityState()
         self._http = None
@@ -130,6 +125,8 @@ class ObservabilityNode(LifecycleNode):
         self._param_clients = {}
         self._param_timer = None
         self._param_inflight = set()
+        # 轮询定时器/参数服务回调与订阅回调共享再入组（触发状态镜像并发写）。
+        self._cb = ReentrantCallbackGroup()
         # 重建镜像合并缓存：调试 JSON 明细（tsdf/registration/refined 等）与
         # 最近一次许可镜像——类型化诊断到达时并入，保持镜像/落盘信息不缩水
         self._recon_debug_extra: dict = {}
@@ -138,8 +135,11 @@ class ObservabilityNode(LifecycleNode):
     def on_configure(self, state):
         del state
         try:
-            self._params = _load_params(self)
-        except ValueError as exc:
+            # 官方 generate_parameter_library_py 装载链：on_configure 内声明
+            # （declare 期校验非法值即失败，节点停在 Unconfigured 可查日志）
+            self._param_listener = _declare_params(self)
+            self._params = _from_params(self._param_listener.get_params())
+        except Exception as exc:  # noqa: BLE001 参数库校验异常类型跨 rclpy 版本
             self.get_logger().error(f'参数非法: {exc}')
             return TransitionCallbackReturn.FAILURE
         self._recorder = Recorder(
@@ -167,12 +167,6 @@ class ObservabilityNode(LifecycleNode):
         self._stop_runtime()
         self._release_resources()
         return super().on_cleanup(state)
-
-    def _declare_parameters(self) -> None:
-        """集中声明监控与话题参数（默认值权威源为模块级 _DEFAULTS）."""
-        for name, (default, description) in _DEFAULTS.items():
-            self.declare_parameter(
-                name, default, ParameterDescriptor(description=description))
 
     def _topic(self, parameter: str) -> str:
         """从不可变快照取话题名（启动期建订阅用）."""
@@ -371,13 +365,16 @@ class ObservabilityNode(LifecycleNode):
     def _create_param_watchers(self) -> None:
         """为白名单节点建 get_parameters 客户端并启动轮询定时器."""
         self._param_clients = {
-            name: self.create_client(GetParameters, f'{name}/get_parameters')
+            name: self.create_client(
+                GetParameters, f'{name}/get_parameters',
+                callback_group=self._cb)
             for name in PARAM_WATCHLIST
         }
         # 服务未就绪时静默跳过（节点可能未启动），不刷错误日志
         self._param_inflight = set()
         self._param_timer = self.create_timer(
-            self._params.param_poll_period_s, self._poll_params)
+            self._params.param_poll_period_s, self._poll_params,
+            callback_group=self._cb)
 
     def _poll_params(self) -> None:
         """对就绪的参数服务发起异步查询（在途请求去重）."""

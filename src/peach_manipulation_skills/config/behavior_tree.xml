@@ -1,49 +1,38 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- 采摘周期行为树（重构协议 2.16-9 SubTree 库化）：主树 PeachHarvest 只负责
-     阶段组合与失败传播，各阶段封装为可复用 SubTree——观察扫描 ObserveScan、
-     质量验证+降级 QualityValidate、靠近抓取 ApproachInsert（含 2.7-RECONFIRM
-     抓取前再确认）、工具动作 ToolAction、撤离收尾 RetreatFinish。
-     分工：MTC 管规划层、BT 管执行层；节点注册名保持不变（行为不变，仅结构拆分）。 -->
+<!-- 套袋桃：预抓取验证 →（PREGRASP_ONLY 停住不回 stow）套入 → 剪切 → 原路撤退。 -->
 <root BTCPP_format="4" main_tree_to_execute="PeachHarvest">
-  <!-- 观察扫描：逐段闭环主动视点扫描，直到质量门允许 finalize 或时间盒到期。 -->
   <BehaviorTree ID="ObserveScan">
     <Sequence name="observe_scan">
       <AcquireReconstructionViews/>
     </Sequence>
   </BehaviorTree>
-  <!-- 质量验证：OBSERVE_ONLY 须等到绑定目标的 TSDF/精化；FULL 才允许降级锚点。 -->
   <BehaviorTree ID="QualityValidate">
     <Sequence name="quality_validate">
       <FinalizeAndValidate/>
     </Sequence>
   </BehaviorTree>
-  <!-- 靠近抓取：先过抓取前再确认（新鲜观测+锚点漂移+摆动平息，2.7-RECONFIRM），
-       再放行 MTC 靠近/插入。 -->
-  <BehaviorTree ID="ApproachInsert">
-    <Sequence name="approach_insert">
+  <BehaviorTree ID="MoveAndVerifyPregrasp">
+    <Sequence name="move_verify_pregrasp">
       <ReconfirmTarget/>
-      <MTCApproachAndInsert/>
+      <MovePregrasp/>
+      <VerifyPregrasp/>
     </Sequence>
   </BehaviorTree>
-  <!-- 工具动作：末端工具 IO（失败就地紧急撤离，见 ActuateTool 节点体）。 -->
-  <BehaviorTree ID="ToolAction">
-    <Sequence name="tool_action">
-      <ActuateTool/>
-    </Sequence>
-  </BehaviorTree>
-  <!-- 撤离收尾：同轴撤离 + 卸果转移（未标定则跳过）+ 周期完成。 -->
-  <BehaviorTree ID="RetreatFinish">
-    <Sequence name="retreat_finish">
-      <MTCRetreat/>
-      <DepositToStation/>
-      <CompleteTarget/>
+  <BehaviorTree ID="SleeveCutRetreat">
+    <Sequence name="sleeve_cut_retreat">
+      <PlanSleeveAndReverseRetreat/>
+      <SleeveLinear/>
+      <VerifyCutHold/>
+      <ActuateCutter/>
+      <VerifyCut/>
+      <ExecuteReservedReverseRetreat/>
+      <ReturnHarvestStow/>
+      <VerifyHarvestOutcome/>
     </Sequence>
   </BehaviorTree>
   <BehaviorTree ID="PeachHarvest">
     <Sequence name="harvest_cycle">
       <PrepareCycle/>
-      <!-- plan-only（execution.enabled=false）：只规划预览。OBSERVE_ONLY
-           在此路径必须 SKIPPED_QUALITY，不得把 PLAN_READY 当观察成功。 -->
       <Fallback name="preview_or_active_cycle">
         <Sequence>
           <IsPlanOnly/>
@@ -65,9 +54,15 @@
               <ReportReadyForGrasp/>
             </Sequence>
             <Sequence>
-              <SubTree ID="ApproachInsert"/>
-              <SubTree ID="ToolAction"/>
-              <SubTree ID="RetreatFinish"/>
+              <SubTree ID="MoveAndVerifyPregrasp"/>
+              <Fallback name="pregrasp_or_contact">
+                <Sequence>
+                  <IsPregraspOnly/>
+                  <HoldPregrasp/>
+                </Sequence>
+                <SubTree ID="SleeveCutRetreat"/>
+              </Fallback>
+              <CompleteTarget/>
             </Sequence>
           </Fallback>
         </Sequence>

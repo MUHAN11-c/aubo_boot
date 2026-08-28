@@ -1,0 +1,44 @@
+# 当前空心圆柱剪切工具档案（hollow_cylinder_v1）。
+# TCP 原点为机械尺寸；姿态：Z=开口，XY=刀口平面。改几何只改本文件与 tcp.xacro。
+profile_id: hollow_cylinder_v1
+calibration_status: mechanical_dimension
+source: "机械尺寸 TCP 在圆柱顶部 (0, 47.90, 151.07) mm；Rx(-90°) 使 Z=开口、XY=刀口"
+frames:
+  parent: wrist3_Link
+  # 原点 = 机械 TCP；rpy Rx(-90°) → TCP Z // 法兰 +Y（开口），XY = 刀口水平面
+  tool_axis: {xyz: [0.0, 0.0479, 0.15107], rpy: [-1.5708, 0.0, 0.0]}
+  # L_blade=0：刀片面与 TCP 重合（同一 XY）
+  cutting_plane: {xyz: [0.0, 0.0, 0.0], rpy: [0.0, 0.0, 0.0]}
+  tcp: {xyz: [0.0, 0.0, 0.0], rpy: [0.0, 0.0, 0.0]}
+  # 套筒口 = 圆柱顶部 = TCP（开口）；筒长 L_insert 沿 −Z
+  sleeve_mouth: {xyz: [0.0, 0.0, 0.0], rpy: [0.0, 0.0, 0.0]}
+geometry_m:
+  D_inner: 0.104
+  D_outer: 0.120
+  L_insert: 0.200
+  L_blade: 0.0
+  entry_d_tool: 0.030
+  entry_d_s: 0.040
+  clearance_min: 0.005
+  margin_neck: 0.015
+  wall_clearance: 0.002
+  blade_thickness: 0.003
+  blade_capture_half_width: 0.008
+  fruit_safety_clearance: 0.012
+  axial_safety_margin: 0.004
+error_m:
+  tool_runout95: 0.001
+  tcp_calibration_error95: 0.002
+  hand_eye_error95: 0.003
+  bag_deformation_margin95: 0.002
+  blade_plane_calibration_error95: 0.002
+  robot_axial_error95: 0.002
+  target_motion95: 0.003
+io:
+  fun: 3
+  pin: 0
+  close_state: 1.0
+  pulse: false
+  feedback_timeout_s: 1.5
+  notes: "SetIO ACK 只算 CUT_COMMAND_ACCEPTED，不能单独确认切断"
+version: "1.3"

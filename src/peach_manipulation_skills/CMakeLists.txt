@@ -33,10 +33,7 @@ find_package(Threads REQUIRED)
 
 # 纯逻辑核（零 ROS/MoveIt 依赖）：质量门、视点规划、安全门、目标缓存。
 add_library(${PROJECT_NAME}_core
-  src/quality_gate.cpp
-  src/safety_gate.cpp
-  src/target_cache.cpp
-  src/view_planner.cpp
+  src/core.cpp
 )
 target_include_directories(${PROJECT_NAME}_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -54,12 +51,11 @@ generate_parameter_library(manipulation_skills_parameters
 # 节点按职责拆为多个编译单元，共享私有类声明 manipulation_skills_node_impl.hpp。
 add_executable(peach_manipulation_skills_node
   src/manipulation_skills_node.cpp
-  src/bt_nodes.cpp
-  src/cycle_action.cpp
+  src/cycle.cpp
   src/grasp_task.cpp
   src/main.cpp
-  src/motion_interface.cpp
-  src/motion_interface_impl.cpp
+  src/motion.cpp
+  src/tool_actuator.cpp
 )
 target_include_directories(peach_manipulation_skills_node PRIVATE include)
 # 命名空间 target / ${pkg_TARGETS}（Jazzy 现代 CMake 惯例，替代
@@ -105,4 +101,6 @@ endif()
 
 ament_export_include_directories(include)
 ament_export_libraries(${PROJECT_NAME}_core)
+# _core 公共头使用 Eigen / nlohmann_json，按 ament 官方惯例导出依赖。
+ament_export_dependencies(Eigen3 nlohmann_json)
 ament_package()

@@ -4,16 +4,17 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/BSD-3-Clause
 """
-参数层 — ObservabilityParams：不可变参数快照（A9）.
+ObservabilityParams：generate_parameter_library_py 官方生成参数之上的不可变参数快照（A9）.
 
-与 scene_perception / target_reconstruction 的 params.py 同层：
-默认值权威源为 ``config/observability.yaml``；
-declare 后立即集中装载为 frozen dataclass 并校验，非法值（端口越界、
-周期/缓冲非正）抛 ValueError 整包拒绝启动；运行路径只持有快照引用，
-不再逐回调 get_parameter 直读。
+声明 / 类型 / 默认值 / 中文描述 / 范围校验的权威源统一为
+config/observability_parameters.yaml（根键=节点名），由
+generate_parameter_library_py 在构建期生成
+peach_task_executor/observability_parameters.py；旧 DEFAULTS 手工描述表与
+load_params 手写数值校验（端口越界、周期/缓冲非正）已由参数库校验器承担，
+declare 期即拒绝非法值。运行路径只持有快照引用，不再逐回调 get_parameter。
 
-本模块只依赖标准库与鸭子类型 node（get_parameter(name).value），
-不 import rclpy，可被无 ROS 上下文的单测直接装载。
+本模块只依赖标准库与鸭子类型 Params 快照，不 import rclpy，可被无 ROS
+上下文的单测直接装载。
 """
 
 from __future__ import annotations
@@ -22,68 +23,25 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Mapping, Tuple
 
-# 参数默认值权威源（config/observability.yaml 与之对齐）：name → (default, 中文说明)
-DEFAULTS = {
-    'host': ('127.0.0.1', 'HTTP 监听地址；局域网访问显式设 0.0.0.0'),
-    'port': (8090, 'HTTP 监听端口'),
-    'param_poll_period_s': (3.0, '各节点参数镜像轮询周期（秒）'),
-    'target_observations_topic': (
-        '/peach/perception/target_observations', '全局目标快照话题'),
-    'harvest_state_topic': (
-        '/peach/perception/harvest_state', '采摘计划 JSON 话题'),
-    'reconstruction_status_topic': (
-        '/peach/reconstruction/status', '重建状态话题'),
-    'reconstruction_diagnostics_topic': (
-        '/peach/reconstruction/diagnostics', '重建结构化诊断话题'),
-    'reconstruction_diagnostics_debug_topic': (
-        '/peach/reconstruction/diagnostics_debug',
-        '重建调试明细 JSON 话题（镜像合并补充）'),
-    'grasp_decision_topic': (
-        '/peach/reconstruction/grasp_decision', '抓取许可话题'),
-    'refined_pose_topic': (
-        '/peach/reconstruction/refined_pose', '精化位姿话题'),
-    'refined_axis_topic': (
-        '/peach/reconstruction/refined_axis', '精化轴线话题'),
-    'refined_diagnostics_topic': (
-        '/peach/reconstruction/refined_diagnostics',
-        '精化质量话题'),
-    'manipulation_status_topic': (
-        '/peach_manipulation_skills_node/status',
-        '机械臂技能节点状态 JSON 话题'),
-    'grasp_hypothesis_topic': (
-        '/peach/manipulation/grasp_hypothesis',
-        '技能侧抓取假设（只读监控，不构成运动指令）'),
-    'task_executor_state_topic': (
-        '/peach_task_executor/state',
-        '调度节点类型化状态话题'),
-    'task_executor_events_topic': (
-        '/peach_task_executor/events',
-        '调度过程/审计事件话题（事件时间线）'),
-    'robot_status_topic': (
-        '/aubo_io_controller/robot_status',
-        '机械臂上电/急停/运动/错误状态话题'),
-    'event_buffer_size': (100, '事件时间线环形缓冲上限（条）'),
-    'metrics_period_s': (1.0, '系统/GPU/进程性能采样周期（秒）'),
-    'metrics_process_patterns': (
-        [
-            'peach_scene_perception_node', 'peach_target_reconstruction_node',
-            'peach_manipulation_skills_node', 'peach_task_executor',
-            'ros2_control_node', 'percipio',
-        ],
-        '进程性能监控的 cmdline 子串匹配关键字列表'),
-    'record.enabled': (True, '监控数据分类落盘总开关'),
-    'record.root_dir': (
-        '', '过程数据根；空=工作区 runs/（与账本、session 同一目录）'),
-    'record.save_images': (True, '关键事件时刻保存感知调试图 PNG'),
-    'record.save_clouds': (True, 'target 终局时刻保存 TSDF 点云 PLY'),
-    'debug_image_topic': (
-        '/peach/perception/debug_image', '感知调试叠加图话题（bgr8）'),
-    'tsdf_cloud_topic': (
-        '/peach/reconstruction/tsdf_cloud', '在线 TSDF 点云话题'),
-}
-
 # 话题键（*_topic）集中进 topics 映射，供快照只读索引
-TOPIC_NAMES = tuple(k for k in DEFAULTS if k.endswith('_topic'))
+TOPIC_NAMES = (
+    'target_observations_topic',
+    'harvest_state_topic',
+    'reconstruction_status_topic',
+    'reconstruction_diagnostics_topic',
+    'reconstruction_diagnostics_debug_topic',
+    'grasp_decision_topic',
+    'refined_pose_topic',
+    'refined_axis_topic',
+    'refined_diagnostics_topic',
+    'manipulation_status_topic',
+    'grasp_hypothesis_topic',
+    'task_executor_state_topic',
+    'task_executor_events_topic',
+    'robot_status_topic',
+    'debug_image_topic',
+    'tsdf_cloud_topic',
+)
 
 
 @dataclass(frozen=True)
@@ -108,50 +66,51 @@ class ObservabilityParams:
     topics: Mapping[str, str]
 
 
-def load_params(node) -> ObservabilityParams:
+def declare(node) -> object:
     """
-    从 node 集中读取全部参数，校验后组装为 frozen 快照（declare 后立即调用）.
+    生成 generate_parameter_library_py 的 ParamListener 并集中声明全部参数.
 
     Args:
-        node: 鸭子类型节点（提供 get_parameter(name).value）.
+        node: rclpy 节点（声明参数+挂 on_set 校验）.
+
+    Returns
+    -------
+        ParamListener：调用方持有并用于读取 Params 快照（建议在 on_configure
+        内创建，declare 期校验失败→TransitionCallbackReturn.FAILURE）.
+
+    """
+    # 构建期由 setup.py 的 generate_parameter_module 生成.
+    from peach_task_executor.observability_parameters import peach_observability
+    return peach_observability.ParamListener(node)
+
+
+def from_params(p) -> ObservabilityParams:
+    """
+    从生成的 Params 快照集中装载为 frozen 快照.
+
+    数值范围（port/周期/缓冲）已由参数库校验器承担；此处仅做字符串 strip 与
+    只读容器转换。
+
+    Args:
+        p: peach_observability.Params（declare 后 get_params() 快照）.
 
     Returns
     -------
         ObservabilityParams（frozen；topics 为 MappingProxyType）.
 
-    Raises
-    ------
-        ValueError: port 越界、event_buffer_size < 1、轮询/采样周期 ≤ 0.
-
     """
-    g = node.get_parameter
-    port = int(g('port').value)
-    if not 1 <= port <= 65535:
-        raise ValueError(f'port 必须在 1..65535，got {port}')
-    event_buffer_size = int(g('event_buffer_size').value)
-    if event_buffer_size < 1:
-        raise ValueError(
-            f'event_buffer_size 必须 >= 1，got {event_buffer_size}')
-    param_poll_period_s = float(g('param_poll_period_s').value)
-    if param_poll_period_s <= 0:
-        raise ValueError(
-            f'param_poll_period_s 必须 > 0，got {param_poll_period_s}')
-    metrics_period_s = float(g('metrics_period_s').value)
-    if metrics_period_s <= 0:
-        raise ValueError(f'metrics_period_s 必须 > 0，got {metrics_period_s}')
     topics = MappingProxyType(
-        {name: str(g(name).value).strip() for name in TOPIC_NAMES})
+        {name: str(getattr(p, name)).strip() for name in TOPIC_NAMES})
     return ObservabilityParams(
-        host=str(g('host').value).strip(),
-        port=port,
-        param_poll_period_s=param_poll_period_s,
-        event_buffer_size=event_buffer_size,
-        metrics_period_s=metrics_period_s,
-        metrics_process_patterns=tuple(
-            str(item) for item in g('metrics_process_patterns').value),
-        record_enabled=bool(g('record.enabled').value),
-        record_root_dir=str(g('record.root_dir').value),
-        record_save_images=bool(g('record.save_images').value),
-        record_save_clouds=bool(g('record.save_clouds').value),
+        host=str(p.host).strip(),
+        port=int(p.port),
+        param_poll_period_s=float(p.param_poll_period_s),
+        event_buffer_size=int(p.event_buffer_size),
+        metrics_period_s=float(p.metrics_period_s),
+        metrics_process_patterns=tuple(str(item) for item in p.metrics_process_patterns),
+        record_enabled=bool(p.record.enabled),
+        record_root_dir=str(p.record.root_dir),
+        record_save_images=bool(p.record.save_images),
+        record_save_clouds=bool(p.record.save_clouds),
         topics=topics,
     )

@@ -1,5 +1,5 @@
-%% PNG 按 A4 版心网格绘制，勿用 mmdc 覆盖
-flowchart TB
+%% 图4-1 工艺总流程：左列「到位与选定」，右列「靠近套入与收口」
+flowchart LR
   subgraph COL1[到位与选定]
     direction TB
     A[人工开批] --> B[L1 作业位靠近]
@@ -14,7 +14,8 @@ flowchart TB
     E -->|可抓取| F[近距重建]
     F -->|无许可| Y
     F -->|有许可| G[套入]
-    G --> H{末端B}
+    G -->|臂侧安全| Y
+    G --> H{末端 B？}
     H -->|否 方案A| I[记账]
     H -->|是| J{姿态门}
     J -->|通过| I

@@ -3,6 +3,10 @@ build/
 install/
 log/
 
+# generate_parameter_library_py 写入源码包（供 PYTHONPATH 指向 src 时导入）
+src/peach_perception/peach_perception/scene_perception_parameters.py
+src/peach_perception/peach_perception/target_reconstruction_parameters.py
+
 # Python 环境（本机 venv，不随仓库分发）
 aubo_py3.12/
 **/.venv-yolo/

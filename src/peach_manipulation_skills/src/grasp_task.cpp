@@ -525,18 +525,42 @@ GraspTaskResult GraspTask::previewFullContact(
   if (split.need_ptp) {
     appendPtpToPose(*contact, pregrasp);
   }
-  appendAlongAxisMove(
-    *contact, insertion_axis, split.lin_to_entry_m, "along-axis approach to entry");
+  const double sleeve_m = split.lin_to_entry_m + insertion_distance_m;
   contact->add(
     makeLinearMove(
-      "guarded linear insertion", cartesian, insertion_axis, insertion_distance_m));
+      "sleeve linear along bag axis", cartesian, insertion_axis, sleeve_m));
   contact->add(
     makeLinearMove(
       "linear retreat along insertion path", cartesian, -insertion_axis,
-      insertion_distance_m));
+      sleeve_m));
   task->add(std::move(contact));
   const std::size_t skip_tail = 2U;
   return planAndMaybeExecute(std::move(task), false, {}, true, skip_tail);
+}
+
+GraspTaskResult GraspTask::moveToPregrasp(
+  const Eigen::Isometry3d & entry_tip_pose,
+  const Eigen::Vector3d & insertion_axis,
+  bool execute)
+{
+  const Eigen::Isometry3d pregrasp = pregraspTipPose(
+    entry_tip_pose, insertion_axis, config_.approach_along_axis_m);
+  return planAndMaybeExecute(
+    makeApproachOnlyTask("peach_move_pregrasp", pregrasp),
+    execute, config_.approach_execution_gate, true, 0U);
+}
+
+GraspTaskResult GraspTask::sleeveLinear(
+  const Eigen::Vector3d & insertion_axis,
+  double insertion_distance_m,
+  bool execute)
+{
+  const double sleeve_m =
+    config_.approach_along_axis_m + insertion_distance_m;
+  return planAndMaybeExecute(
+    makeInsertOnlyTask(
+      "peach_sleeve_linear", insertion_axis, sleeve_m),
+    execute, config_.approach_execution_gate, true, 0U);
 }
 
 GraspTaskResult GraspTask::retreat(

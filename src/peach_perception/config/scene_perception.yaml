@@ -1,6 +1,7 @@
 # 场景感知节点参数（本机 Percipio + 手眼）
-# 说明：本文件是参数默认值的权威来源，节点代码内 declare_parameter 的默认值与之
-# 逐一对齐；改默认值两边必须同步（AGENTS.md：参数走 yaml）。
+# 运行 yaml：launch 传给节点的 ros__parameters。声明/类型/默认值/校验在
+# config/scene_perception_parameters.yaml（generate_parameter_library_py）。
+# 两边默认值逐项对齐。
 peach_scene_perception_node:
   ros__parameters:
     # ── 输入话题 ─────────────────────────────────────────────
@@ -55,7 +56,7 @@ peach_scene_perception_node:
     # tf=由本帧 output←camera 的 TF 旋转反推相机系重力（output_frame 系重力
     # 约定 [0,0,-1]，只乘旋转不加平移；TF 不可用的帧回退 gravity_hint_xyz）
     gravity_mode: tf
-    # ── 接口层实现装配（2.14：注册名见 scene_perception/impls.py 显式注册清单）────
+    # ── 接口层实现装配（2.14：注册名见 pipeline.py / identity.py 末尾）────
     detector.impl: yolo              # 检测器（Detector）：UltralyticsYolo
     segmenter.impl: mobile_sam       # 分割器（Segmenter）：MobileSam
     pipeline.bag_impl: robust_bag    # 袋装线位姿管线（PosePipeline）

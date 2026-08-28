@@ -3,9 +3,14 @@ import os
 from pathlib import Path
 import sys
 
+from generate_parameter_library_py.setup_helper import generate_parameter_module
 from setuptools import find_packages, setup
 
 package_name = 'peach_navigation'
+
+generate_parameter_module(
+    'navigation_parameters',
+    'config/navigation_parameters.yaml')
 
 
 def _resolve_python():

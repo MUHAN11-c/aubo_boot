@@ -1,28 +1,30 @@
 """作业位导航适配：Lifecycle configure → activate 后才接 NavigateToWorksite."""
-import os
 
-from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, EmitEvent, RegisterEventHandler
 from launch.conditions import IfCondition
 from launch.events import matches_action
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import LifecycleNode
 from launch_ros.event_handlers import OnStateTransition
 from launch_ros.events.lifecycle import ChangeState
+from launch_ros.parameter_descriptions import ParameterFile
+from launch_ros.substitutions import FindPackageShare
 from lifecycle_msgs.msg import Transition
 
 
 def generate_launch_description():
     """配置并激活导航适配节点."""
-    share = get_package_share_directory('peach_navigation')
-    config = os.path.join(share, 'config', 'navigation.yaml')
+    config = PathJoinSubstitution([
+        FindPackageShare('peach_navigation'),
+        'config', 'navigation.yaml'])
     node = LifecycleNode(
         package='peach_navigation',
         executable='peach_navigation_node',
         name='peach_navigation_node',
         namespace='',
-        parameters=[LaunchConfiguration('navigation_params_file')],
+        parameters=[ParameterFile(
+            LaunchConfiguration('navigation_params_file'), allow_substs=True)],
         output='screen',
     )
     configure = EmitEvent(

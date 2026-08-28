@@ -19,7 +19,7 @@ offline 全局配置 — 相机内参、数据集路径与可视化参数.
 from pathlib import Path
 
 # ── 工具几何 (从 contracts 导入, 单一数据源) ──
-from ..contracts import TOOL_GEOMETRY  # noqa: F401  # 重新导出供离线工具使用
+from ..interfaces import TOOL_GEOMETRY  # noqa: F401  # 重新导出供离线工具使用
 
 # ── 本机 Percipio 彩色内参（640×480，棋盘标定）──
 # 权威源: src/percipio_camera/config/color_camera_info.yaml — 改标定后请同步此处

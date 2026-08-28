@@ -25,14 +25,23 @@ import time
 import cv2
 import numpy as np
 
-# e2e 跑的是历史 Azure 录包（1280×720），故用 K_AZURE；实机/本机工具一律 K_PERCIPIO
 from .config import (
-    CALIBRATION_VERSION, DATASET_DIR, K_AZURE, MODEL_VERSION, YOLO_MODEL,
+    CALIBRATION_VERSION,
+    DATASET_DIR,
+    K_AZURE,
+    MODEL_VERSION,
+    YOLO_MODEL,
 )
 from .validation import AnnotationMetrics, load_annotations
-from ..candidates import CandidateEstimator, MODE_IDS, MODE_LABELS
-from ..contracts import BagObservation
-from ..inference import InferenceEngine, MobileSam, UltralyticsYolo
+from ..interfaces import BagObservation
+from ..pipeline import (
+    CandidateEstimator,
+    InferenceEngine,
+    MobileSam,
+    MODE_IDS,
+    MODE_LABELS,
+    UltralyticsYolo,
+)
 
 
 def _quantiles(values):

@@ -1,29 +1,24 @@
-"""
-peach_perception.common — 桃子采摘链路公共纯核库（重构阶段 A1）.
-
-纯核零 ROS import（peach_perception.common.ros 子包除外，AST 测试强制）。公共 API
-汇总导出；ROS 适配器请显式 ``from peach_perception.common.ros.clock_adapter import
-RclpyClockAdapter``，避免纯核 import 链触碰 rclpy。
-"""
-from peach_perception.common.bounded_worker import BoundedWorker
-from peach_perception.common.clock import Clock, ManualClock
-from peach_perception.common.depth_geometry import normalize_depth_to_uint16_mm
-from peach_perception.common.harvest_data import (
-    default_harvest_root,
-    default_runs_root,
-    HarvestDataStore,
-    resolve_runs_root,
-)
-from peach_perception.common.registry import Registry
-from peach_perception.common.tf_utils import (
+"""peach_perception.common — 拟合/深度/TF/时钟/注册表/runs（纯核）."""
+from peach_perception.common.geometry import (
     gravity_camera_from_R,
     invert_transform,
+    normalize_depth_to_uint16_mm,
     QuaternionValue,
     relative_motion,
     rotation_to_quat,
     transform_direction,
     transform_msg_to_matrix,
     transform_point,
+)
+from peach_perception.common.runtime import (
+    BoundedWorker,
+    Clock,
+    default_harvest_root,
+    default_runs_root,
+    HarvestDataStore,
+    ManualClock,
+    Registry,
+    resolve_runs_root,
 )
 
 __all__ = [

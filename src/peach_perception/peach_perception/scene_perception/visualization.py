@@ -1,30 +1,374 @@
-"""
-可视化 — RViz Marker 组装与 debug 叠加图绘制.
-
-职责:
-  把 pipeline.TargetPoseResult 画出来：`_to_markers` 生成 RViz Marker
-  （依赖 visualization_msgs），`_draw_debug` 在 BGR 图上叠加检测框 /
-  掩膜轮廓 / 关键点 / 剪切线 / 稳定 ID 与置信度文字（颜色表三态，依赖 cv2）。
-  依赖 ROS 消息类型与 conversions/grasp_tf 的转换函数，不依赖 rclpy 节点。
-
-坐标系/单位约定:
-  Marker 坐标系随 header.frame_id（与候选消息一致，米制；每个目标占用
-  id 段 ``idx*20 .. idx*20+19`` 防多目标冲突）；debug 图为图像平面像素
-  坐标（BGR，原地改写）。
-"""
 from __future__ import annotations
+"""感知可视化：消息转换、Debug 图、Marker、检测点云。"""
 
-from typing import List
+from typing import List, Tuple
 
 import cv2
+from geometry_msgs.msg import Point, Pose, Vector3
 import numpy as np
-from peach_perception.scene_perception.conversions import _metric, _point
-from peach_perception.scene_perception.grasp_tf import _rotation_to_quat
-from peach_perception.scene_perception.pipeline import clip_bbox
+from peach_interfaces.msg import (
+    BagFitting,
+    BagGrasp2D as BagGrasp2DMsg,
+    BagGraspCandidate,
+)
+from peach_perception.scene_perception.pipeline import (
+    _rotation_to_quat,
+    clip_bbox,
+)
+from sensor_msgs.msg import PointCloud2, PointField
+from sensor_msgs_py import point_cloud2 as pc2
+from std_msgs.msg import Header
+from vision_msgs.msg import Detection2D, ObjectHypothesisWithPose
 from visualization_msgs.msg import Marker
 
 
-def _px(img, x, y):
+# === conversions.py ===
+
+# 三态安全门控结果 → ROS 消息枚举的映射（与 peach_interfaces/BagGraspCandidate.status 一致）。
+# 算法管线内部用字符串状态，发布消息时经本表转成 uint8：
+#   ACCEPT=0    可信：无任何诊断标记，位姿可直接用于套袋动作
+#   REOBSERVE=1 存疑：信息不足（如掩膜缺失、轴来自重力先验、触边截断等），
+#               建议换个视角重采一帧再判，不建议直接动作
+#   REJECT=2    不可用：存在硬性失败（如 tool_clearance_failed 净空不足、
+#               有效点太少等），禁止据此位姿动作
+STATUS_MAP = {'ACCEPT': 0, 'REOBSERVE': 1, 'REJECT': 2}
+
+
+def _point(xyz) -> Point:
+    """
+    3D 点（ndarray/list）→ Point 消息；None 给零点；强制 float 防 rosidl 类型断言.
+
+    Args:
+        xyz: (3,) 坐标（单位随上游，通常米）；None 时返回全零 Point.
+
+    Returns
+    -------
+        geometry_msgs/Point.
+
+    """
+    p = Point()
+    if xyz is None:
+        return p
+    p.x, p.y, p.z = float(xyz[0]), float(xyz[1]), float(xyz[2])
+    return p
+
+
+def _px(uv, z=0.0) -> Point:
+    """
+    像素 (u,v) → Point（x=u, y=v, z=z）；2D 消息复用 Point 类型；None 给零点.
+
+    Args:
+        uv: (2,) 像素坐标；None 时返回全零 Point（有效性由 has_* 标志区分）.
+        z: 填入 Point.z 的值（像素语义下恒 0）.
+
+    Returns
+    -------
+        geometry_msgs/Point.
+
+    """
+    p = Point()
+    if uv is None:
+        return p
+    p.x, p.y, p.z = float(uv[0]), float(uv[1]), float(z)
+    return p
+
+
+def _metric(m: dict, key: str, default: float = -1.0) -> float:
+    """
+    从 metrics 字典取标量转 float；缺失/None/不可转一律给 default（消息以 -1 表无效）.
+
+    Args:
+        m: 管线 metrics 字典（值可为 None）.
+        key: 指标名.
+        default: 缺失/无效时的填充值（BagFitting 约定 -1）.
+
+    Returns
+    -------
+        float 标量.
+
+    """
+    v = m.get(key, None)
+    if v is None:
+        return default
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def _to_detection2d(det: dict, header) -> Detection2D:
+    """
+    内部检测 dict → Detection2D 消息（bbox 中心/尺寸 + 类别名 + 置信度）.
+
+    Args:
+        det: engine.detect 的一项（bbox xyxy 像素、class_name/class_id、conf）.
+        header: 输出头（stamp/frame_id）.
+
+    Returns
+    -------
+        vision_msgs/Detection2D.
+
+    """
+    x1, y1, x2, y2 = det['bbox']
+    d = Detection2D()
+    d.header = header
+    d.bbox.center.position.x = 0.5 * (x1 + x2)
+    d.bbox.center.position.y = 0.5 * (y1 + y2)
+    d.bbox.center.theta = 0.0
+    d.bbox.size_x = float(max(0.0, x2 - x1))
+    d.bbox.size_y = float(max(0.0, y2 - y1))
+    hyp = ObjectHypothesisWithPose()
+    hyp.hypothesis.class_id = str(det.get('class_name', det.get('class_id', '')))
+    hyp.hypothesis.score = float(det.get('conf', 0.0))
+    d.results.append(hyp)
+    return d
+
+
+def _to_candidate(header, tid, g3d, model_version: str,
+                  calibration_version: str, tool_version: str) -> BagGraspCandidate:
+    """
+    3D 抓取参考 → BagGraspCandidate 主输出消息（坐标系=header.frame_id）.
+
+    Args:
+        header: 输出头；frame_id 即 g3d 当前所在坐标系.
+        tid: 目标 ID（target_N）.
+        g3d: BagGraspReference3D（米；None 字段在消息中给零/缺省）.
+        model_version: 模型版本回退值（g3d 自带时优先）.
+        calibration_version: 内外参版本回退值（g3d 自带时优先）.
+        tool_version: 工具版本回退值（g3d 自带时优先）.
+
+    Returns
+    -------
+        peach_interfaces/BagGraspCandidate.
+
+    """
+    m = BagGraspCandidate()
+    m.header = header
+    m.target_id = tid
+    pose = Pose()
+    if g3d.entry_start is not None:
+        pose.position = _point(g3d.entry_start)
+    if g3d.orientation is not None:
+        pose.orientation = _rotation_to_quat(g3d.orientation)
+    m.entry_pose = pose
+    m.bag_bottom = _point(g3d.bag_bottom)
+    m.bag_neck = _point(g3d.bag_neck)
+    if g3d.translation_direction is not None:
+        m.translation_direction = Vector3(
+            x=float(g3d.translation_direction[0]),
+            y=float(g3d.translation_direction[1]),
+            z=float(g3d.translation_direction[2]))
+    m.bag_diameter_upper_m = float(g3d.bag_diameter_upper_m or 0.0)
+    m.suggested_travel_m = float(g3d.suggested_travel_m or 0.0)
+    m.confidence = float(g3d.confidence or 0.0)
+    m.status = STATUS_MAP.get(g3d.status, 2)
+    m.diagnostic_flags = list(g3d.diagnostic_flags or [])
+    m.strategy_id = g3d.strategy_id or ''
+    m.model_version = g3d.model_version or model_version
+    m.calibration_version = g3d.calibration_version or calibration_version
+    m.tool_version = g3d.tool_version or tool_version
+    if g3d.position_covariance is not None:
+        m.position_covariance = np.asarray(
+            g3d.position_covariance, dtype=float).reshape(9).tolist()
+    if g3d.direction_covariance is not None:
+        m.direction_covariance = np.asarray(
+            g3d.direction_covariance, dtype=float).reshape(9).tolist()
+    return m
+
+
+def _to_candidate_2d(header, tid, g2d) -> BagGrasp2DMsg:
+    """
+    图像平面关键点/行程线 → BagGrasp2D 消息（像素坐标；无值点由 has_* 标志区分）.
+
+    Args:
+        header: 输出头.
+        tid: 目标 ID.
+        g2d: BagGrasp2D（像素坐标；None 点给零且对应 has_*=False）.
+
+    Returns
+    -------
+        peach_interfaces/BagGrasp2D.
+
+    """
+    m = BagGrasp2DMsg()
+    m.header = header
+    m.target_id = tid
+    x, y, w, h = g2d.detection_bbox
+    m.bbox_x, m.bbox_y, m.bbox_w, m.bbox_h = int(x), int(y), int(w), int(h)
+    m.bottom_px = _px(g2d.bottom_px)
+    m.neck_px = _px(g2d.neck_px)
+    m.grasp_px = _px(g2d.grasp_px)
+    travel_end = None
+    if g2d.travel_line and len(g2d.travel_line) >= 2:
+        travel_end = g2d.travel_line[1]
+    m.travel_end_px = _px(travel_end)
+    m.has_bottom_px = g2d.bottom_px is not None
+    m.has_neck_px = g2d.neck_px is not None
+    m.has_grasp_px = g2d.grasp_px is not None
+    m.has_travel_end_px = travel_end is not None
+    m.confidence = float(g2d.confidence or 0.0)
+    m.status = STATUS_MAP.get(g2d.status, 2)
+    m.diagnostic_flags = list(g2d.diagnostic_flags or [])
+    return m
+
+
+def _to_fitting(header, tid, result) -> BagFitting:
+    """
+    管线 metrics/诊断 → BagFitting 消息（仅供诊断调参，不参与运动；无效标量填 -1）.
+
+    Args:
+        header: 输出头.
+        tid: 目标 ID.
+        result: pipeline.TargetPoseResult（metrics 缺项按 -1 填充）.
+
+    Returns
+    -------
+        peach_interfaces/BagFitting.
+
+    """
+    m = BagFitting()
+    m.header = header
+    m.target_id = tid
+    m.target_kind = result.target_kind or 'bag'
+    m.mask_source = result.mask_source or ''
+    metrics = result.metrics or {}
+    info = result.grasp_3d.diagnostic_info or {}
+    m.axis_source = str(info.get('axis_source', ''))
+    m.axis_confidence = _metric(metrics, 'axis_confidence')
+    m.axis_disagreement_deg = _metric(metrics, 'axis_disagreement_deg')
+    m.theta_err_deg = _metric(metrics, 'theta_err_deg')
+    m.error_budget_mm = _metric(metrics, 'error_budget_mm')
+    m.radial_clearance_mm = _metric(metrics, 'radial_clearance_mm')
+    m.valid_depth_ratio = _metric(metrics, 'valid_depth_ratio')
+    m.foreground_ratio = _metric(metrics, 'foreground_ratio')
+    m.boundary_touch_ratio = _metric(metrics, 'boundary_touch_ratio')
+    m.boundary_sides_touched = int(metrics.get('boundary_sides_touched', -1) or -1)
+    m.n_points = int(metrics.get('n_points', -1) or -1)
+    m.bag_length_m = _metric(metrics, 'bag_length_m')
+    m.bag_diameter_upper_m = _metric(metrics, 'bag_diameter_upper_m')
+    m.travel_m = _metric(metrics, 'travel_m')
+    m.cylinder_rms_m = _metric(metrics, 'cylinder_rms_m')
+    m.cylinder_inlier_ratio = _metric(metrics, 'cylinder_inlier_ratio')
+    m.fruit_radius_m = _metric(metrics, 'fruit_radius_m')
+    m.sphere_rms_m = _metric(metrics, 'sphere_rms_m')
+    m.sphere_inlier_ratio = _metric(metrics, 'sphere_inlier_ratio')
+    m.cavity_dip_mm = _metric(metrics, 'cavity_dip_mm')
+    m.axis_polarity_corrected = bool(metrics.get('axis_polarity_corrected', False))
+    m.status = STATUS_MAP.get(result.grasp_3d.status, 2)
+    m.diagnostic_flags = list(result.grasp_3d.diagnostic_flags or [])
+    return m
+
+
+# === cloud_utils.py ===
+
+def _pack_rgb_bgr(bgr: np.ndarray) -> np.ndarray:
+    """
+    (N,3) uint8 BGR → (N,) float32：按位打包成 PointCloud2 的 rgb 字段.
+
+    Args:
+        bgr: (N, 3) uint8 数组，列序为 B、G、R（OpenCV 惯例）.
+
+    Returns
+    -------
+        (N,) float32 视图（位内容为 0xRRGGBB，符合 PointCloud2 rgb 打包约定）.
+
+    """
+    b = bgr[:, 0].astype(np.uint32)
+    g = bgr[:, 1].astype(np.uint32)
+    r = bgr[:, 2].astype(np.uint32)
+    packed = (r << 16) | (g << 8) | b
+    return packed.view(np.float32)
+
+
+def _bbox_cloud_xyzrgb(
+    rgb_bgr: np.ndarray,
+    depth_mm: np.ndarray,
+    K: dict,
+    bboxes,
+    stride: int = 1,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    检测框内像素反投影成彩色点云：返回 (N,3) xyz（米）与 (N,) 打包 rgb.
+
+    depth_mm 为毫米单位 uint16（Percipio 原始值已 × depth_scale_unit）；
+    剔除无效深度（0/饱和 65535），stride 为降采样步长。
+
+    Args:
+        rgb_bgr: (H, W, 3) uint8 BGR 图，与深度对齐.
+        depth_mm: (H, W) uint16 深度，单位毫米.
+        K: 相机内参 {"fx","fy","cx","cy"}（像素单位）.
+        bboxes: 检测框列表 [(x1, y1, x2, y2)]（像素，自动裁剪到图内）.
+        stride: 降采样步长（像素）；1 为不降采样.
+
+    Returns
+    -------
+        (xyz, rgb_packed)：xyz 为 (N, 3) float64 相机系点（米），
+        rgb_packed 为 (N,) float32 打包颜色；无有效点时均为空数组.
+
+    """
+    h, w = depth_mm.shape[:2]
+    mask = np.zeros((h, w), dtype=bool)
+    for bbox in bboxes:
+        x1, y1, x2, y2 = [int(v) for v in bbox]
+        x1 = max(0, min(w - 1, x1))
+        x2 = max(0, min(w, x2))
+        y1 = max(0, min(h - 1, y1))
+        y2 = max(0, min(h, y2))
+        if x2 <= x1 or y2 <= y1:
+            continue
+        mask[y1:y2:stride, x1:x2:stride] = True
+    # 有效深度：>0 且非饱和
+    valid = mask & (depth_mm > 0) & (depth_mm < 65535)
+    if not np.any(valid):
+        return np.zeros((0, 3), dtype=np.float64), np.zeros((0,), dtype=np.float32)
+
+    vs, us = np.where(valid)
+    z = depth_mm[vs, us].astype(np.float64) / 1000.0
+    fx, fy = float(K['fx']), float(K['fy'])
+    cx, cy = float(K['cx']), float(K['cy'])
+    x = (us.astype(np.float64) - cx) * z / fx
+    y = (vs.astype(np.float64) - cy) * z / fy
+    xyz = np.column_stack((x, y, z))
+    rgb_packed = _pack_rgb_bgr(rgb_bgr[vs, us])
+    return xyz, rgb_packed
+
+
+def _xyzrgb_to_cloud(header: Header, xyz: np.ndarray, rgb_f: np.ndarray) -> PointCloud2:
+    """
+    组装 xyz + 打包 rgb → PointCloud2 消息（x/y/z 各一个 FLOAT32 + rgb 位打包）.
+
+    走官方 sensor_msgs_py.point_cloud2.create_cloud；fields 手工声明是因为
+    官方预置只有 create_cloud_xyz32（纯 xyz 无 rgb），带打包 rgb 的自定义
+    布局必须显式给 fields——这是官方 API 对自定义布局的标准用法。
+
+    Args:
+        header: 输出消息头（frame_id 决定点云坐标系解释）.
+        xyz: (N, 3) 点坐标（单位随 header 坐标系，通常米）；空数组给空云.
+        rgb_f: (N,) float32 打包 rgb（见 _pack_rgb_bgr）.
+
+    Returns
+    -------
+        sensor_msgs/PointCloud2.
+
+    """
+    fields = [
+        PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
+        PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
+        PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1),
+        PointField(name='rgb', offset=12, datatype=PointField.FLOAT32, count=1),
+    ]
+    if xyz.size == 0:
+        return pc2.create_cloud(header, fields, [])
+    pts = [
+        (float(xyz[i, 0]), float(xyz[i, 1]), float(xyz[i, 2]), float(rgb_f[i]))
+        for i in range(len(xyz))
+    ]
+    return pc2.create_cloud(header, fields, pts)
+
+
+# === visualization.py ===
+
+def _clamp_px(img, x, y):
     """像素点裁到图内（含边界），供 cv2 画线/点用."""
     h, w = img.shape[:2]
     return int(np.clip(int(round(x)), 0, w - 1)), int(
@@ -136,25 +480,40 @@ def _to_markers(header, tid, idx, result, tool_d_inner: float) -> List[Marker]:
 
     if (g3d.entry_start is not None and g3d.translation_direction is not None
             and g3d.suggested_travel_m > 0):
-        cyl = _mk(2, Marker.CYLINDER)
+        env = _mk(2, Marker.CYLINDER)
+        env.ns = 'bag_envelope'
         mid = g3d.entry_start + 0.5 * g3d.suggested_travel_m * g3d.translation_direction
+        env.pose.position = _point(mid)
+        if g3d.orientation is not None:
+            env.pose.orientation = _rotation_to_quat(g3d.orientation)
+        bag_d = float(g3d.bag_diameter_upper_m or 0.06)
+        env.scale.x = bag_d
+        env.scale.y = bag_d
+        env.scale.z = float(g3d.suggested_travel_m)
+        env.color.r, env.color.g, env.color.b, env.color.a = 0.2, 0.7, 0.9, 0.22
+        out.append(env)
+        cyl = _mk(12, Marker.CYLINDER)
+        cyl.ns = 'tool_swept_volume'
         cyl.pose.position = _point(mid)
         if g3d.orientation is not None:
-            # Marker CYLINDER 默认轴为 Z；抓取架 Zg = translation_direction
             cyl.pose.orientation = _rotation_to_quat(g3d.orientation)
         diam = float(tool_d_inner)
         cyl.scale.x = diam
         cyl.scale.y = diam
         cyl.scale.z = float(g3d.suggested_travel_m)
-        cyl.color.a = 0.25
+        cyl.color.a = 0.12
         out.append(cyl)
 
-    if (result.target_kind == 'fruit' and g3d.bag_bottom is not None
-            and g3d.bag_neck is not None):
-        # 球心近似为底/颈中点
+    prior_kind = str(getattr(result, 'target_kind', '') or '')
+    info = g3d.diagnostic_info or {}
+    prior_r = float(info.get('fruit_prior_radius_m') or 0.0)
+    if ((prior_kind in ('fruit', 'sphere') or prior_r > 0)
+            and g3d.bag_bottom is not None and g3d.bag_neck is not None):
         sphere = _mk(3, Marker.SPHERE)
+        sphere.ns = 'prior'
         center = 0.5 * (np.asarray(g3d.bag_bottom) + np.asarray(g3d.bag_neck))
-        radius = _metric(result.metrics or {}, 'fruit_radius_m', 0.0)
+        radius = prior_r if prior_r > 0 else _metric(
+            result.metrics or {}, 'fruit_radius_m', 0.0)
         if radius > 0:
             sphere.pose.position = _point(center)
             sphere.scale.x = sphere.scale.y = sphere.scale.z = float(2.0 * radius)
@@ -211,8 +570,8 @@ def _draw_debug(img, det, g2d, sam_mask, tid='', confirmed: bool = True):
     h, w = img.shape[:2]
     x1, y1, x2, y2 = clip_bbox(det['bbox'], img.shape)
     # OpenCV 矩形角点含边界；clip_bbox 的 x2/y2 可等于 w/h（切片右开）
-    x1d, y1d = _px(img, x1, y1)
-    x2d, y2d = _px(img, max(x1, x2 - 1), max(y1, y2 - 1))
+    x1d, y1d = _clamp_px(img, x1, y1)
+    x2d, y2d = _clamp_px(img, max(x1, x2 - 1), max(y1, y2 - 1))
     if not confirmed:
         cv2.rectangle(img, (x1d, y1d), (x2d, y2d), (160, 160, 160), 1)
         label = f'{tid} {det.get("conf", 0.0):.2f}'.strip()
@@ -235,21 +594,21 @@ def _draw_debug(img, det, g2d, sam_mask, tid='', confirmed: bool = True):
     st_color = {
         'ACCEPT': (0, 220, 0), 'REOBSERVE': (0, 200, 255), 'REJECT': (0, 0, 220)
     }.get(status, (180, 180, 180))
+    # 黄箭头：袋底（宽）→袋口（窄）；反了就是口底标反
     if g2d.bottom_px and g2d.neck_px:
         cv2.arrowedLine(
             img,
-            _px(img, g2d.bottom_px[0], g2d.bottom_px[1]),
-            _px(img, g2d.neck_px[0], g2d.neck_px[1]),
+            _clamp_px(img, g2d.bottom_px[0], g2d.bottom_px[1]),
+            _clamp_px(img, g2d.neck_px[0], g2d.neck_px[1]),
             (255, 255, 0), 2, tipLength=0.15)
     if g2d.grasp_px:
         cv2.circle(
-            img, _px(img, g2d.grasp_px[0], g2d.grasp_px[1]),
+            img, _clamp_px(img, g2d.grasp_px[0], g2d.grasp_px[1]),
             5, st_color, -1)
     # TCP 是工具圆柱前端面圆心，也就是物理剪切点；travel_line 终点因此
-    # 同时代表 TCP 终点与剪切中心。投影失败或行程退化时跳过，紫色空心圆
-    # 标出剪切中心，垂直于袋轴投影的紫线表示刃口切割方向。线段半长取
-    # 检测框宽 1/4（近似工具刃口尺度），与执行端 neck_margin 停止语义
-    # 保持一致。
+    # 同时代表 TCP 终点与剪切中心（袋口 / 分割贴检测框极限）。投影失败
+    # 或行程退化时跳过，紫色空心圆标出剪切中心，垂直于袋轴投影的紫线
+    # 表示刃口切割方向。线段半长取检测框宽 1/4（近似工具刃口尺度）。
     if (g2d.travel_line and len(g2d.travel_line) >= 2
             and g2d.travel_line[0] is not None
             and g2d.travel_line[1] is not None):
@@ -262,10 +621,10 @@ def _draw_debug(img, det, g2d, sam_mask, tid='', confirmed: bool = True):
             half = max(16, (x2d - x1d) // 4)
             cv2.line(
                 img,
-                _px(img, ex - px * half, ey - py * half),
-                _px(img, ex + px * half, ey + py * half),
+                _clamp_px(img, ex - px * half, ey - py * half),
+                _clamp_px(img, ex + px * half, ey + py * half),
                 (255, 0, 255), 2)
-            cv2.circle(img, _px(img, ex, ey), 5, (255, 0, 255), 2)
+            cv2.circle(img, _clamp_px(img, ex, ey), 5, (255, 0, 255), 2)
     # 稳定 ID + YOLO 检测置信度（det['conf']，与位姿管线 confidence 区分）。
     # OpenCV putText 的 y 是基线：写在框顶上方会画出图外。贴在框内左上，
     # 黑底保证绿/黄/红字在果面纹理上仍可读。

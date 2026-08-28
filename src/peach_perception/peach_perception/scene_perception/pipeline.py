@@ -1,32 +1,771 @@
-"""
-单目标 RGB-D 位姿安全门控管线（袋装 / 裸果两条并行线）.
-
-两条线共用同一圆柱剪切工具与安全门：
-
-- ``RobustBagPosePipeline``   — 袋装桃 (class 0)：圆柱 RANSAC 定轴
-- ``RobustFruitPosePipeline`` — 裸果桃 (class 1)：球拟合定心 + 梗洼定向
-
-本模块刻意不依赖 GUI、Open3D、Torch 与机器人：安全判定可在录制的 RGB-D
-对上离线复测，避免"仅供可视化"的算法悄悄变成隐式执行路径。
-"""
 from __future__ import annotations
+"""检测/分割/前景/位姿管线（看场景算法核）。"""
 
 from dataclasses import dataclass
-from typing import Optional, Tuple
+import logging
+import math
+import threading
+import time
+from typing import (
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 import cv2
+from geometry_msgs.msg import Quaternion
 import numpy as np
-from peach_perception.common.fitting import (
-    estimate_normals, fit_cylinder_robust, fit_sphere_robust, polish_sphere_lm,
+from peach_perception.common.geometry import (
+    estimate_normals,
+    fit_cylinder_robust,
+    fit_sphere_robust,
+    polish_sphere_lm,
+    rotation_to_quat,
+    transform_direction,
+    transform_point,
 )
 
-from .assignment import estimate_pose_covariance
-from .contracts import (
-    BagGrasp2D, BagGraspReference3D, BagObservation, compute_entry_start,
-    compute_travel_range, TOOL_GEOMETRY, ToolGeometry,
+from .bag_landmarks import (
+    clamp_upper_hemisphere,
+    enforce_wide_bottom,
+    estimate_bag_landmarks,
 )
-from .interfaces import PosePipeline
+from .interfaces import (
+    BagGrasp2D,
+    BagGraspReference3D,
+    BagObservation,
+    compute_entry_start,
+    compute_travel_range,
+    Detector,
+    DETECTORS,
+    POSE_PIPELINES,
+    PosePipeline,
+    Segmenter,
+    SEGMENTERS,
+    TOOL_GEOMETRY,
+    ToolGeometry,
+)
 
+
+# === timing.py ===
+
+class RateEstimator:
+    """
+    帧/事件间隔 EMA 估计器（帧率以运行状态为准）.
+
+    异常间隔过滤沿用 peach_scene_perception_node 帧率 EMA 纪律：间隔 ≤1ms（同帧
+    重复/时钟噪声）或 >30s（暂停后首帧/时钟跳变）不进 EMA，防污染
+    估计；但「上次时刻」始终更新，保证暂停恢复后下一帧间隔重新有效。
+
+    生命周期：构造后可长期持有，随每个事件调用 update；无重置需求
+    （EMA 自然跟踪缓变）。线程安全：无内部锁，单写者使用。
+    """
+
+    def __init__(self, alpha: float = 0.3, *,
+                 min_interval_s: float = 1e-3,
+                 max_interval_s: float = 30.0):
+        """
+        创建估计器；alpha 为新样本权重（现网三处均为 0.3）.
+
+        Raises
+        ------
+            ValueError: alpha 不在 (0, 1] 或异常过滤区间非法.
+
+        """
+        if not 0.0 < alpha <= 1.0:
+            raise ValueError(f'alpha 必须在 (0, 1] 内: {alpha}')
+        if min_interval_s <= 0.0 or min_interval_s >= max_interval_s:
+            raise ValueError(
+                f'过滤区间非法: ({min_interval_s}, {max_interval_s})')
+        self._alpha = float(alpha)
+        self._min_interval_s = float(min_interval_s)
+        self._max_interval_s = float(max_interval_s)
+        self._last_now: Optional[float] = None
+        self._ema: Optional[float] = None
+
+    def update(self, now: float) -> None:
+        """
+        注入一个事件的单调时钟秒；内部完成间隔计算与 EMA 更新.
+
+        异常间隔（≤min_interval_s 或 >max_interval_s）不进 EMA；
+        首个合法样本直接作 EMA 初值（与现网 ``ema if None else …`` 一致）。
+        now 为注入时钟的当前秒（协议 I3：禁止内部自行取时钟）。
+        """
+        if self._last_now is not None:
+            dt = now - self._last_now
+            if self._min_interval_s < dt < self._max_interval_s:
+                self._ema = (
+                    dt if self._ema is None
+                    else (1.0 - self._alpha) * self._ema + self._alpha * dt)
+        # 上次时刻始终更新：暂停后首帧虽不进 EMA，但恢复后下一帧间隔有效
+        self._last_now = now
+
+    @property
+    def interval(self) -> Optional[float]:
+        """间隔 EMA（秒）；尚无有效样本时返回 None."""
+        return self._ema
+
+    @property
+    def rate_hz(self) -> Optional[float]:
+        """估计频率（Hz）；尚无有效样本时返回 None（None 安全）."""
+        if self._ema is None or self._ema <= 0.0:
+            return None
+        return 1.0 / self._ema
+
+
+class AdaptiveTimeout:
+    """
+    自适应超时取值器（协议 I4：clamp(下限, f(实测EMA), 上限)）.
+
+    构造后不可变，可跨线程只读共享。三处现网用法映射：
+      - 视点等待 frame_wait：AdaptiveTimeout(
+            lower=2.0, upper=<scan.frame_wait_s 配置>, factor=4.0,
+            offset=1.0)；ema 未测得时回退配置值（=upper）；
+      - 收齐窗口 max_collect_s：factor=(min_collect+settle+3)、offset=0、
+            lower=0.4×配置、upper=float('inf')（现网只设下限；无实测时
+            由调用方保留配置值，勿用本类 None 回退档）；
+      - 目标观测龄 target_observation_max_age：AdaptiveTimeout(
+            lower=1.0, upper=10.0, factor=2.5, offset=0.5)。
+    """
+
+    def __init__(self, *, lower: float, upper: float,
+                 factor: float, offset: float = 0.0):
+        """
+        创建取值器；lower ≤ upper，factor ≥ 0，均有限（upper 可为 inf）.
+
+        Raises
+        ------
+            ValueError: 参数区间非法.
+
+        """
+        if lower > upper:
+            raise ValueError(f'lower 不得大于 upper: {lower} > {upper}')
+        if factor < 0.0:
+            raise ValueError(f'factor 不得为负: {factor}')
+        self._lower = float(lower)
+        self._upper = float(upper)
+        self._factor = float(factor)
+        self._offset = float(offset)
+
+    def value(self, estimated_interval: Optional[float]) -> float:
+        """
+        按实测间隔 EMA 求超时秒.
+
+        无实测（None）返回 upper（回退档，对应现网「ema 未测得回退配置
+        值」——各用法的配置上限即 upper）；有实测返回
+        clamp(lower, factor×estimated_interval + offset, upper)。
+
+        Args:
+            estimated_interval: RateEstimator.interval（秒）或 None.
+
+        Returns
+        -------
+            超时秒数，保证落在 [lower, upper].
+
+        """
+        if estimated_interval is None:
+            return self._upper
+        raw = self._factor * estimated_interval + self._offset
+        return min(self._upper, max(self._lower, raw))
+
+
+# === timing_metrics.py ===
+
+class TimingMetrics:
+    """
+    分段耗时 EMA 记录器（键 → 毫秒 EMA）.
+
+    构造参数 alpha 为新样本权重（0, 1]；与现网帧率 EMA 同取 0.3。
+    record() 逐帧注入各段耗时；snapshot() 返回含全部分段键与 fps 的
+    可序列化 dict（键固定排序，便于下游 diff/测试断言）。
+    """
+
+    def __init__(self, alpha: float = 0.3):
+        """建空记录器；alpha 校验（须在 (0, 1]）."""
+        if not 0.0 < alpha <= 1.0:
+            raise ValueError(f'alpha 必须在 (0, 1] 内: {alpha}')
+        self._alpha = float(alpha)
+        self._ema: Dict[str, float] = {}
+
+    def record(self, key: str, sample_ms: float) -> None:
+        """
+        记录一段耗时样本（毫秒）；首个样本直接作 EMA 初值.
+
+        Args:
+            key: 分段名（如 'detect_ms'）.
+            sample_ms: 本帧该段耗时（毫秒，调用方用注入时钟测量）.
+
+        Returns
+        -------
+            无返回值（None）；脏样本（nan/inf/负值）静默丢弃.
+
+        """
+        value = float(sample_ms)
+        if not math.isfinite(value) or value < 0.0:
+            return
+        old = self._ema.get(key)
+        self._ema[key] = (
+            value if old is None
+            else (1.0 - self._alpha) * old + self._alpha * value)
+
+    def snapshot(self, fps: Optional[float] = None) -> dict:
+        """
+        返回可 JSON 序列化快照：各段 EMA 毫秒（3 位小数）+ 实测 fps.
+
+        Args:
+            fps: 实测帧率（Hz，来自帧间隔 EMA）；None/非正数记 0.0.
+
+        Returns
+        -------
+            dict：{<分段键>: EMA 毫秒, ..., 'fps': 实测帧率}；尚无样本时
+            仅含 'fps' 键.
+
+        """
+        out = {key: round(value, 3) for key, value in sorted(self._ema.items())}
+        out['fps'] = round(float(fps), 2) if fps and fps > 0.0 else 0.0
+        return out
+
+
+# === grasp_tf.py ===
+
+def _apply_T_to_grasp3d(g3d, T: np.ndarray) -> None:
+    """
+    抓取几何由相机系变到输出系（默认 base_link），原地修改 g3d.
+
+    T 为 4×4 齐次矩阵（输出系←相机系）。规则：点 R@p+t（含 entry_start /
+    bag_bottom / bag_neck / suggested_travel_end / legacy position /
+    points_centroid，走 peach_perception.common transform_point）；方向只乘 R 并归一化
+    （transform_direction：平移不影响方向）；姿态矩阵左乘 R。None 字段
+    原样保留。
+
+    Args:
+        g3d: BagGraspReference3D（相机光学系，米）；被原地改写.
+        T: (4, 4) 齐次矩阵，输出系←相机系.
+
+    Returns
+    -------
+        None（结果写回 g3d）.
+
+    """
+    # 行程终点、legacy position 与身份锚点（前景点云质心）也是点，必须同步
+    # 变换（漏改会让 markers 的行程箭头终点留在相机系，与输出系几何错位；
+    # 质心漏改则身份锚点掉到相机系，匹配半径在世界系下失真）
+    g3d.entry_start = transform_point(T, g3d.entry_start)
+    g3d.bag_bottom = transform_point(T, g3d.bag_bottom)
+    g3d.bag_neck = transform_point(T, g3d.bag_neck)
+    g3d.suggested_travel_end = transform_point(T, g3d.suggested_travel_end)
+    g3d.position = transform_point(T, g3d.position)
+    g3d.points_centroid = transform_point(T, g3d.points_centroid)
+    g3d.translation_direction = transform_direction(
+        T, g3d.translation_direction)
+    if g3d.orientation is not None:
+        g3d.orientation = (
+            T[:3, :3] @ np.asarray(g3d.orientation, dtype=float))
+
+
+def _rotation_to_quat(R: np.ndarray) -> Quaternion:
+    """
+    3×3 旋转矩阵 → geometry_msgs/Quaternion（peach_perception.common 值对象的消息包装）.
+
+    数值路径与重构前完全一致：官方 quaternion_from_matrix（见
+    peach_perception.common.geometry.rotation_to_quat），此处仅把 QuaternionValue
+    组装成消息（纯核不 import geometry_msgs）。
+
+    Args:
+        R: (3, 3) 旋转矩阵.
+
+    Returns
+    -------
+        单位四元数 Quaternion 消息（x, y, z, w）.
+
+    """
+    q = rotation_to_quat(R)
+    return Quaternion(x=q.x, y=q.y, z=q.z, w=q.w)
+
+
+# === assignment.py ===
+
+# 3 自由度约 3σ（χ²₀.₉₉₇ ≈ 11.3；取 9 ≈ 3σ 实用门）
+CHI2_GATE = 9.0
+AMBIGUOUS_RATIO = 1.2
+
+
+def regularize_cov(cov, floor: float = 1e-6) -> np.ndarray:
+    """3×3 协方差对称化并加对角地板，保证可逆."""
+    mat = np.asarray(cov, dtype=float).reshape(3, 3)
+    mat = 0.5 * (mat + mat.T)
+    mat = mat + floor * np.eye(3)
+    return mat
+
+
+def mahalanobis2(delta, cov) -> float:
+    """平方马氏距离 (x-μ)ᵀ Σ⁻¹ (x-μ)."""
+    d = np.asarray(delta, dtype=float).reshape(3)
+    inv = np.linalg.inv(regularize_cov(cov))
+    return float(d @ inv @ d)
+
+
+def estimate_pose_covariance(
+        points: np.ndarray,
+        axis: Optional[np.ndarray],
+        theta_err_deg: float) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    由前景点云样本协方差写位置 Σ；轴向 Σ 为垂直于轴的角不确定度.
+
+    点数不足时退回各向同性地板（1 cm / 5°）.
+    """
+    pts = np.asarray(points, dtype=float).reshape(-1, 3)
+    if len(pts) >= 4:
+        centered = pts - np.median(pts, axis=0)
+        pos = (centered.T @ centered) / max(len(pts) - 1, 1)
+    else:
+        pos = (0.01 ** 2) * np.eye(3)
+    pos = regularize_cov(pos, floor=1e-6)
+    sigma_theta = np.radians(max(float(theta_err_deg), 1.0))
+    if axis is None or not np.all(np.isfinite(axis)):
+        direction = (sigma_theta ** 2) * np.eye(3)
+    else:
+        a = np.asarray(axis, dtype=float).reshape(3)
+        n = float(np.linalg.norm(a))
+        if n < 1e-9:
+            direction = (sigma_theta ** 2) * np.eye(3)
+        else:
+            a = a / n
+            # 轴角 σ 映射到切空间：Σ ≈ σ² (I − aaᵀ)
+            direction = (sigma_theta ** 2) * (np.eye(3) - np.outer(a, a))
+    direction = regularize_cov(direction, floor=1e-8)
+    return pos, direction
+
+
+def hungarian(cost: np.ndarray) -> List[Tuple[int, int]]:
+    """
+    矩形代价矩阵的最小权和一对一分配（Munkres）.
+
+    禁止边用 +inf。返回 (row, col) 列表，不含填充虚节点。
+    """
+    cost = np.asarray(cost, dtype=float)
+    if cost.size == 0:
+        return []
+    n, m = cost.shape
+    k = max(n, m)
+    big = 1e12
+    C = np.full((k, k), big, dtype=float)
+    finite = np.isfinite(cost)
+    C[:n, :m] = np.where(finite, cost, big)
+    # 行减最小值
+    C = C - C.min(axis=1, keepdims=True)
+    C = C - C.min(axis=0, keepdims=True)
+    star = np.zeros((k, k), dtype=bool)
+    prime = np.zeros((k, k), dtype=bool)
+    row_cover = np.zeros(k, dtype=bool)
+    col_cover = np.zeros(k, dtype=bool)
+    for i in range(k):
+        for j in range(k):
+            if C[i, j] == 0 and not row_cover[i] and not col_cover[j]:
+                star[i, j] = True
+                row_cover[i] = True
+                col_cover[j] = True
+    row_cover[:] = False
+    col_cover[:] = False
+
+    def cover_starred():
+        col_cover[:] = star.any(axis=0)
+
+    cover_starred()
+    while col_cover.sum() < k:
+        def find_uncovered_zero():
+            for i in range(k):
+                if row_cover[i]:
+                    continue
+                for j in range(k):
+                    if not col_cover[j] and C[i, j] == 0 and not prime[i, j]:
+                        return i, j
+            return None
+
+        while True:
+            z = find_uncovered_zero()
+            if z is None:
+                leftover = C[~row_cover][:, ~col_cover]
+                if leftover.size == 0:
+                    break
+                mval = leftover.min()
+                C[~row_cover] += mval
+                C[:, ~col_cover] -= mval
+                C[np.abs(C) < 1e-12] = 0.0
+                continue
+            i, j = z
+            prime[i, j] = True
+            star_cols = np.where(star[i])[0]
+            if star_cols.size:
+                row_cover[i] = True
+                col_cover[star_cols[0]] = False
+                continue
+            # 增广路
+            path = [(i, j)]
+            while True:
+                star_rows = np.where(star[:, path[-1][1]])[0]
+                if not star_rows.size:
+                    break
+                r = int(star_rows[0])
+                path.append((r, path[-1][1]))
+                prime_cols = np.where(prime[r])[0]
+                path.append((r, int(prime_cols[0])))
+            for r, c in path:
+                star[r, c] = not star[r, c]
+            prime[:] = False
+            row_cover[:] = False
+            col_cover[:] = False
+            cover_starred()
+            break
+
+    pairs = []
+    for i in range(n):
+        js = np.where(star[i, :m])[0]
+        if js.size and np.isfinite(cost[i, js[0]]):
+            pairs.append((i, int(js[0])))
+    return pairs
+
+
+def assign_detections(
+        detections: Sequence[dict],
+        table: Dict[str, dict],
+        frame_used: set,
+        match_radius: float,
+        recovery_scale: float = 1.0,
+) -> List[Tuple[Optional[str], float, str]]:
+    """
+    本帧检测相对表项做全局 1-1 分配.
+
+    每个 detection 字典需含 position、(可选) covariance、class_id.
+    返回与 detections 等长的 (target_id|None, mahalanobis2, status).
+    status: ok / new / ambiguous.
+    """
+    n = len(detections)
+    if n == 0:
+        return []
+    tracks = [
+        (tid, rec) for tid, rec in table.items() if tid not in frame_used]
+    if not tracks:
+        return [(None, 0.0, 'new') for _ in detections]
+
+    cost = np.full((n, len(tracks)), np.inf)
+    for i, det in enumerate(detections):
+        pos = np.asarray(det['position'], dtype=float).reshape(3)
+        cov = det.get('covariance')
+        if cov is None:
+            sigma = max(match_radius / 3.0, 1e-3) * float(recovery_scale)
+            cov = (sigma ** 2) * np.eye(3)
+        else:
+            cov = regularize_cov(cov) * (float(recovery_scale) ** 2)
+        cid = int(det.get('class_id', 0))
+        for j, (_tid, rec) in enumerate(tracks):
+            if rec.get('class_id', cid) != cid:
+                continue
+            d2 = mahalanobis2(pos - rec['position'], cov)
+            if d2 <= CHI2_GATE:
+                cost[i, j] = d2
+
+    pairs = hungarian(cost)
+    assigned_cols = {j for _, j in pairs}
+    assigned_rows = {i for i, _ in pairs}
+    # 歧义：某检测存在另一未占用轨道，代价与最优比 < AMBIGUOUS_RATIO
+    results: List[Tuple[Optional[str], float, str]] = [
+        (None, 0.0, 'new') for _ in detections]
+    for i, j in pairs:
+        best = cost[i, j]
+        ambiguous = False
+        for jj in range(len(tracks)):
+            if jj == j or jj in assigned_cols:
+                continue
+            alt = cost[i, jj]
+            if (np.isfinite(alt) and alt * AMBIGUOUS_RATIO >= best
+                    and alt <= best * AMBIGUOUS_RATIO):
+                ambiguous = True
+                break
+        if ambiguous:
+            results[i] = (None, float(best), 'ambiguous')
+        else:
+            results[i] = (tracks[j][0], float(best), 'ok')
+    for i in range(n):
+        if i not in assigned_rows:
+            # 若有多个有限代价却因匈牙利落到 inf（被占），保持 new
+            results[i] = (None, 0.0, 'new')
+    return results
+
+
+# === observation_quality.py ===
+
+# 跟踪状态 token：节点映射到 PeachTargetObservation.msg 同名常量
+STATUS_OBSERVED = 'OBSERVED'
+STATUS_OCCLUDED = 'OCCLUDED'
+STATUS_LOST = 'LOST'
+STATUS_OUT_OF_VIEW = 'OUT_OF_VIEW'
+STATUS_DEPTH_VOID = 'DEPTH_VOID'
+
+
+def bbox_touches_image_edge(bbox: Tuple[int, int, int, int],
+                            width: int, height: int) -> bool:
+    """
+    检测框是否触及图像边缘（含出界裁剪后贴边）.
+
+    判定 OUT_OF_VIEW 的证据：目标走出视野前最后一帧的检测框必然贴在
+    图像某侧边缘上；被枝叶遮挡/检测漏检而消失的目标框一般在图内。
+
+    Args:
+        bbox: (x1, y1, x2, y2) 像素框.
+        width: 图像宽（像素）.
+        height: 图像高（像素）.
+
+    Returns
+    -------
+        任一边贴到图像边界（x1<=0 / y1<=0 / x2>=width / y2>=height）为真.
+
+    """
+    x1, y1, x2, y2 = (int(v) for v in bbox)
+    return x1 <= 0 or y1 <= 0 or x2 >= int(width) or y2 >= int(height)
+
+
+def classify_tracking_status(has_observation: bool, has_mask: bool,
+                             mask_depth_ratio: Optional[float],
+                             min_depth_ratio: float,
+                             last_bbox_touched_edge: bool) -> str:
+    """
+    单目标跟踪状态四分类（阶段 D1；优先级自上而下首个命中即返回）.
+
+    Args:
+        has_observation: 本帧该目标是否有检测/几何输出（payload 非空）.
+        has_mask: 本帧是否有可用 SAM 掩膜（仅 has_observation 为真时有意义）.
+        mask_depth_ratio: 掩膜内有效深度占比 [0,1]；无掩膜时可为 None.
+        min_depth_ratio: DEPTH_VOID 判定的有效深度占比下限.
+        last_bbox_touched_edge: 目标消失前最后一帧检测框是否触图像边缘.
+
+    Returns
+    -------
+        状态 token（本模块 STATUS_* 常量）：
+        无观测 → OUT_OF_VIEW（触边消失）/ LOST（其余消失）；
+        有观测无掩膜 → OCCLUDED；掩膜内有效深度占比低于阈值 → DEPTH_VOID；
+        否则 OBSERVED.
+
+    """
+    if not has_observation:
+        return STATUS_OUT_OF_VIEW if last_bbox_touched_edge else STATUS_LOST
+    if not has_mask:
+        return STATUS_OCCLUDED
+    ratio = mask_depth_ratio
+    if ratio is None or not math.isfinite(float(ratio)):
+        # 占比缺失按 0 处理：无法证明有足够实测深度，保守判 DEPTH_VOID
+        ratio = 0.0
+    if float(ratio) < min_depth_ratio:
+        return STATUS_DEPTH_VOID
+    return STATUS_OBSERVED
+
+
+class LightingMeter:
+    """
+    锁定集目标光照质量统计：逐帧均值 + 跨帧 EMA + 连续低质判定.
+
+    每帧由节点注入两个样本序列（仅锁定集中本帧带掩膜观测的目标）：
+    掩膜内有效深度占比与检测置信度；帧内取均值后以 EMA（α 默认 0.3，
+    与帧率/耗时埋点同纪律）平滑。判定：深度占比 EMA < min_depth_ratio
+    或置信度 EMA < min_conf_mean 的帧记一帧低质，连续 bad_frames 帧
+    低质 → low_quality=True；一帧达标即清零连击（与摆动判定的对称
+    连击同一风格）。无样本帧（锁定集目标全部无掩膜观测）不进 EMA也
+    不计低质——没有观测不等于低质。
+
+    线程安全：无内部锁，与调用方（节点 _plan_lock 保护区）同一把锁。
+    """
+
+    def __init__(self, alpha: float = 0.3, min_depth_ratio: float = 0.35,
+                 min_conf_mean: float = 0.3, bad_frames: int = 5):
+        """建表；α∈(0,1]、阈值∈[0,1]、连击帧数≥1 校验."""
+        if not 0.0 < alpha <= 1.0:
+            raise ValueError(f'alpha 必须在 (0, 1] 内: {alpha}')
+        if not 0.0 <= min_depth_ratio <= 1.0:
+            raise ValueError(f'min_depth_ratio 须在 [0,1]: {min_depth_ratio}')
+        if not 0.0 <= min_conf_mean <= 1.0:
+            raise ValueError(f'min_conf_mean 须在 [0,1]: {min_conf_mean}')
+        if bad_frames < 1:
+            raise ValueError(f'bad_frames 须 ≥ 1: {bad_frames}')
+        self.alpha = float(alpha)
+        self.min_depth_ratio = float(min_depth_ratio)
+        self.min_conf_mean = float(min_conf_mean)
+        self.bad_frames = int(bad_frames)
+        self._depth_ema: Optional[float] = None
+        self._conf_ema: Optional[float] = None
+        self._bad_streak = 0
+
+    @staticmethod
+    def _finite_mean(samples: Iterable[float]) -> Optional[float]:
+        """有限样本均值；空集/全非有限返回 None（脏样本不进 EMA）."""
+        values = [float(s) for s in samples if math.isfinite(float(s))]
+        if not values:
+            return None
+        return sum(values) / len(values)
+
+    def update(self, depth_ratios: Iterable[float],
+               confidences: Iterable[float]) -> None:
+        """
+        注入本帧锁定集目标的观测样本并刷新 EMA 与低质连击.
+
+        Args:
+            depth_ratios: 各目标掩膜内有效深度占比 [0,1]（可空序列）.
+            confidences: 各目标检测置信度 [0,1]（可空序列）.
+
+        Returns
+        -------
+            无返回值（None）；两序列均空（本帧无有效观测）时整帧跳过，
+            EMA 与连击保持不变.
+
+        """
+        depth_mean = self._finite_mean(depth_ratios)
+        conf_mean = self._finite_mean(confidences)
+        if depth_mean is None and conf_mean is None:
+            return
+        if depth_mean is not None:
+            self._depth_ema = (
+                depth_mean if self._depth_ema is None
+                else (1.0 - self.alpha) * self._depth_ema
+                + self.alpha * depth_mean)
+        if conf_mean is not None:
+            self._conf_ema = (
+                conf_mean if self._conf_ema is None
+                else (1.0 - self.alpha) * self._conf_ema
+                + self.alpha * conf_mean)
+        # 尚无 EMA 的分量按达标处理（无法证明低质时不冤枉现场光照）
+        bad = (
+            (self._depth_ema is not None
+             and self._depth_ema < self.min_depth_ratio)
+            or (self._conf_ema is not None
+                and self._conf_ema < self.min_conf_mean))
+        self._bad_streak = self._bad_streak + 1 if bad else 0
+
+    @property
+    def low_quality(self) -> bool:
+        """连续 bad_frames 帧低质（EMA 维度任一不达标）."""
+        return self._bad_streak >= self.bad_frames
+
+    def snapshot(self) -> dict:
+        """
+        harvest_state JSON 的 lighting 子对象.
+
+        Returns
+        -------
+            dict：depth_ratio / conf_mean 为 EMA（无样本为 None）、
+            bad_streak 为当前低质连击帧数、low_quality 为判定结果.
+
+        """
+        return {
+            'depth_ratio': self._depth_ema,
+            'conf_mean': self._conf_ema,
+            'bad_streak': self._bad_streak,
+            'low_quality': self.low_quality,
+        }
+
+
+# === segmentation_gate.py ===
+
+# 检测框外扩比例（每边各扩 10% 宽高）：容忍锚点投影与 YOLO 框边的贴边
+# 误差（质心投影理论上在框内，外扩只为深度噪声/框回归抖动兜底）
+DEFAULT_MARGIN_FRAC = 0.1
+
+
+def project_positions_to_pixels(
+        positions: Dict[str, np.ndarray],
+        T_cam_world: np.ndarray,
+        camera_K: dict) -> Dict[str, Tuple[float, float]]:
+    """
+    世界系锚点集 → 本帧像素坐标（pinhole 投影）.
+
+    Args:
+        positions: target_id → (3,) 世界系（output_frame）锚点（米）.
+        T_cam_world: (4, 4) 世界系→相机光学系齐次变换（即 output←camera
+            的逆；调用方负责取逆）.
+        camera_K: 内参 dict（fx/fy/cx/cy；width/height 存在时用于裁剪
+            视野外投影）.
+
+    Returns
+    -------
+        target_id → (u, v) 像素坐标；非有限、相机后方（z≤0）或明确
+        落在图像外的锚点被剔除（剔除即视为本帧不可见，不参与门控）.
+
+    """
+    T = np.asarray(T_cam_world, dtype=float).reshape(4, 4)
+    fx = float(camera_K['fx'])
+    fy = float(camera_K['fy'])
+    cx = float(camera_K['cx'])
+    cy = float(camera_K['cy'])
+    width = camera_K.get('width')
+    height = camera_K.get('height')
+    out: Dict[str, Tuple[float, float]] = {}
+    for target_id, pos in positions.items():
+        p = np.asarray(pos, dtype=float).reshape(3)
+        if not np.all(np.isfinite(p)):
+            continue
+        pc = T[:3, :3] @ p + T[:3, 3]
+        if not np.all(np.isfinite(pc)) or pc[2] <= 1e-8:
+            continue
+        u = fx * pc[0] / pc[2] + cx
+        v = fy * pc[1] / pc[2] + cy
+        if width is not None and height is not None:
+            if not (0.0 <= u < float(width) and 0.0 <= v < float(height)):
+                continue
+        out[target_id] = (float(u), float(v))
+    return out
+
+
+def plan_segmentation_bboxes(
+        detections: List[dict],
+        locked_only: bool,
+        locked: bool,
+        anchor_px: Optional[Dict[str, Tuple[float, float]]],
+        margin_frac: float = DEFAULT_MARGIN_FRAC) -> List[Tuple[int, int, int, int]]:
+    """
+    决定本帧送 SAM 的检测框集（2.13-E1 门控策略，纯函数）.
+
+    语义矩阵（详见模块 docstring 降级语义）：
+      - ``locked_only=False`` 或 ``locked=False`` → 全量框（旧行为）；
+      - 已锁定但 ``anchor_px=None``（锚点不可投影，如 TF 不可用帧）
+        → 全量框（无法识别哪些框属于锁定集，宁多勿漏）；
+      - 已锁定且 ``anchor_px`` 为空 dict → 空列表（锁定目标本帧均不
+        可见，SAM 零推理）；
+      - 否则只选「外扩 margin 后包含至少一个锁定锚点像素」的框。
+
+    Args:
+        detections: 本帧入管线检测 dict 列表（须带 'bbox' 键，
+            (x1, y1, x2, y2) 像素框）.
+        locked_only: 锁定后 selected-only 开关（yaml
+            pipeline.locked_only_segmentation）.
+        locked: 目标集合是否已锁定（harvest_plan.locked）.
+        anchor_px: 锁定目标锚点像素集（project_positions_to_pixels
+            输出）；None 表示本帧锚点不可投影.
+        margin_frac: 框外扩比例（每边各扩 margin_frac×宽/高）.
+
+    Returns
+    -------
+        送 SAM 的 (x1, y1, x2, y2) 框列表，顺序与 detections 一致.
+
+    """
+    all_bboxes = [tuple(d['bbox']) for d in detections]
+    if not locked_only or not locked or anchor_px is None:
+        return all_bboxes
+    if not anchor_px:
+        return []
+    points = list(anchor_px.values())
+    selected = []
+    for bbox in all_bboxes:
+        x1, y1, x2, y2 = (float(v) for v in bbox)
+        mx = (x2 - x1) * margin_frac
+        my = (y2 - y1) * margin_frac
+        if any(x1 - mx <= u <= x2 + mx and y1 - my <= v <= y2 + my
+               for u, v in points):
+            selected.append(bbox)
+    return selected
+
+
+# === pipeline.py ===
 
 def grasp_frame_from_axis(axis) -> np.ndarray:
     """右手抓取系 R=[Xg,Yg,Zg]，无点云时由袋轴与参考轴叉积得到."""
@@ -238,7 +977,7 @@ class RobustBagPosePipeline(PosePipeline):
                 * np.clip(1.0 - cyl['rms'] / 0.004, 0.0, 1.0))
         if axis is None:
             axis = -gravity
-        # 轴符号定向: 底→颈 = 逆重力方向；近水平时定向不可靠
+        # 轴符号定向: 底→颈；近水平只标不确定，不改成竖轴（斜袋口在侧）
         if float(axis @ gravity) > 0.0:
             axis = -axis
         orientation_uncertain = abs(float(axis @ gravity)) < 0.3
@@ -267,6 +1006,48 @@ class RobustBagPosePipeline(PosePipeline):
 
         radial = np.linalg.norm(transverse_points - transverse_center, axis=1)
         diameter = float(2.0 * np.percentile(radial, 95))
+        bbox_aspect = float(max(x2 - x1, 1) / max(y2 - y1, 1))
+        landmarks = estimate_bag_landmarks(
+            points, gravity,
+            mask_area_ratio=coverage, edge_touch=False,
+            neighbor_gap_m=1.0, valid_depth_ratio=valid_ratio,
+            bbox_aspect=bbox_aspect)
+        landmark_flags = list(landmarks.flags)
+        if (landmarks.neck_center is not None
+                and landmarks.bottom_center is not None
+                and landmarks.bag_axis is not None):
+            bottom = landmarks.bottom_center
+            neck = landmarks.neck_center
+            axis = landmarks.bag_axis
+            axis_source = 'bag_landmarks'
+            if landmarks.d95_m > 0.0:
+                diameter = float(landmarks.d95_m)
+        bottom, neck, axis, width_flipped = enforce_wide_bottom(
+            bottom, neck, axis, points)
+        if width_flipped:
+            landmark_flags.append('taper_polarity_swapped')
+        bpx = self._project(bottom, obs.camera_K)
+        npx = self._project(neck, obs.camera_K)
+        if self._mask_axis_against_taper(local_mask, x1, y1, bpx, npx):
+            flipped = -np.asarray(axis, dtype=float)
+            if float(flipped @ gravity) <= 0.0:
+                bottom, neck = neck, bottom
+                axis = flipped
+                if 'taper_polarity_swapped' not in landmark_flags:
+                    landmark_flags.append('taper_polarity_swapped')
+                landmark_flags.append('mask_bbox_flush_mouth')
+        bottom, neck, axis, up_flipped = clamp_upper_hemisphere(
+            bottom, neck, axis, gravity)
+        if up_flipped:
+            landmark_flags.append('polarity_upper_hemisphere')
+        axial = (points - np.asarray(bottom, dtype=float)) @ np.asarray(
+            axis, dtype=float)
+        if axial.size >= 8:
+            t_tip = float(np.percentile(axial, 98))
+            if t_tip > 0.02:
+                neck = np.asarray(bottom, dtype=float) + t_tip * np.asarray(
+                    axis, dtype=float)
+        length = float(np.dot(neck - bottom, axis))
 
         # ── entry_start = P_bottom − (d_tool + d_s)·axis (Gürsoy 分解) ──
         standoff = self.tool.entry_d_tool + self.tool.entry_d_s
@@ -287,6 +1068,7 @@ class RobustBagPosePipeline(PosePipeline):
         budget_m = (standoff + travel) * np.sin(np.radians(theta_err_deg))
 
         flags = []
+        flags.extend(landmark_flags)
         if valid_ratio < 0.40:
             flags.append('low_valid_depth')
         if coverage < 0.01:
@@ -318,8 +1100,8 @@ class RobustBagPosePipeline(PosePipeline):
         base_2d.neck_px = self._project(neck, obs.camera_K)
         base_2d.grasp_px = self._project(entry, obs.camera_K)
         base_2d.bag_axis_line = [base_2d.bottom_px, base_2d.neck_px]
-        base_2d.travel_line = [
-            base_2d.grasp_px, self._project(entry + travel * axis, obs.camera_K)]
+        # 紫线终点 = 袋口（分割/检测框极限），不走果包络与袋口的中点。
+        base_2d.travel_line = [base_2d.grasp_px, base_2d.neck_px]
         base_2d.confidence = confidence
         base_2d.status = status
         base_2d.diagnostic_flags = flags.copy()
@@ -343,14 +1125,19 @@ class RobustBagPosePipeline(PosePipeline):
             points, axis, float(theta_err_deg))
         g3d = BagGraspReference3D(
             frame_id=obs.frame_id, entry_start=entry, position=entry,
-            points_centroid=np.median(points, axis=0),
+            points_centroid=0.5 * (np.asarray(bottom) + np.asarray(neck)),
             orientation=R, bag_bottom=bottom, bag_neck=neck,
             translation_direction=axis, bag_diameter_upper_m=diameter,
-            suggested_travel_m=travel, suggested_travel_end=entry + travel * axis,
+            suggested_travel_m=travel, suggested_travel_end=neck,
             position_covariance=pos_cov, direction_covariance=dir_cov,
             confidence=confidence, status=status, diagnostic_flags=flags,
             diagnostic_info={**metrics, 'mask_source': source,
                              'axis_source': axis_source,
+                             'occlusion_class': landmarks.occlusion_class,
+                             'fruit_prior_radius_m': landmarks.fruit_prior_radius_m,
+                             'd95_m': diameter,
+                             'sigma_position_m': landmarks.sigma_position_m,
+                             'sigma_axis_deg': landmarks.sigma_axis_deg,
                              'D_bag_mm': f'{diameter * 1000:.0f}'},
             strategy_id='robust_bag_pose',
             model_version=str(obs.metadata.get('model_version', 'unknown')),
@@ -483,6 +1270,61 @@ class RobustBagPosePipeline(PosePipeline):
             y /= np.linalg.norm(y)
             return np.column_stack((x, y, axis))
         return grasp_frame_from_axis(axis)
+
+    @staticmethod
+    def _mask_axis_against_taper(
+            mask: np.ndarray, x1: int, y1: int, bottom_px, neck_px) -> bool:
+        """
+        口在沿轴朝外更贴检测框边的那一端（如左边竖缝贴左框）.
+
+        竖缝垂直方向很长，两半宽度会把口判成宽头。果鼓贴框底时，
+        到四边最短距也会两端都贴。只比各端朝外那条框边。True = 当前
+        底比口更贴朝外边，对调.
+        """
+        if (mask is None or mask.size == 0 or bottom_px is None
+                or neck_px is None):
+            return False
+        ys, xs = np.where(mask > 0)
+        if xs.size < 30:
+            return False
+        height, width = mask.shape[:2]
+        origin = np.array(
+            [float(bottom_px[0]) - float(x1),
+             float(bottom_px[1]) - float(y1)], dtype=float)
+        tip = np.array(
+            [float(neck_px[0]) - float(x1),
+             float(neck_px[1]) - float(y1)], dtype=float)
+        axis_2d = tip - origin
+        span = float(np.linalg.norm(axis_2d))
+        if span < 8.0:
+            return False
+        axis_2d /= span
+        pts = np.column_stack((xs.astype(float), ys.astype(float)))
+        along = (pts - origin) @ axis_2d
+        band = 0.25 * span
+
+        def _outward_flush(lo: float, hi: float, outward) -> float:
+            selected = pts[(along >= lo) & (along <= hi)]
+            if selected.shape[0] < 8:
+                return float('inf')
+            left = selected[:, 0]
+            right = (width - 1.0) - selected[:, 0]
+            top = selected[:, 1]
+            bottom = (height - 1.0) - selected[:, 1]
+            edges = (
+                (np.array([-1.0, 0.0]), left),
+                (np.array([1.0, 0.0]), right),
+                (np.array([0.0, -1.0]), top),
+                (np.array([0.0, 1.0]), bottom),
+            )
+            dist = max(edges, key=lambda item: float(np.dot(outward, item[0])))[1]
+            return float(np.median(dist))
+
+        flush_bottom = _outward_flush(-0.05 * span, band, -axis_2d)
+        flush_neck = _outward_flush(span - band, span * 1.05, axis_2d)
+        if not (np.isfinite(flush_bottom) and np.isfinite(flush_neck)):
+            return False
+        return flush_bottom + 3.0 < flush_neck
 
     @staticmethod
     def _mask_axis_disagreement(mask: np.ndarray, bottom_px: tuple,
@@ -709,6 +1551,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
             disagreement_deg = self._mask_axis_disagreement(local_mask, _bpx, _npx)
 
         flags = []
+        flags.append('unbagged_display_only')
         if valid_ratio < 0.40:
             flags.append('low_valid_depth')
         if coverage < 0.01:
@@ -864,5 +1707,609 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
                                 target_kind='fruit')
 
 
-# 注册已迁至 impls.py 显式注册清单（2.14：POSE_PIPELINES.register
-# ('robust_bag' / 'robust_fruit', ...)），本模块不再自登记
+# 默认实现登记在本文件末尾（2.14：POSE_PIPELINES.register
+# ('robust_bag' / 'robust_fruit', ...)）
+
+
+# === inference.py ===
+
+_logger = logging.getLogger(__name__)
+
+
+def _resolve_device() -> str:
+    """
+    选推理设备：有 CUDA 用 'cuda:0'，否则 'cpu'.
+
+    Returns
+    -------
+        设备字符串（torch 未安装时视为无卡，回退 'cpu'）.
+
+    """
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return 'cuda:0'
+    except ImportError:
+        pass
+    return 'cpu'
+
+
+class UltralyticsYolo(Detector):
+    """
+    Ultralytics YOLO 检测器（Detector 默认实现，注册名 'yolo'）.
+
+    懒加载：首次 detect 才读权重。所有推理经 self._lock 序列化，确保同一
+    时刻仅一个线程占用 GPU 模型。
+    """
+
+    def __init__(self, yolo_model: str = '', yolo_conf: float = 0.3,
+                 yolo_iou: float = 0.5, class_names: dict = None):
+        """
+        构造检测器（模型懒加载，首次推理时才读权重）.
+
+        Args:
+            yolo_model: YOLO 权重路径（.pt）；空串行为取决于 ultralytics.
+            yolo_conf: YOLO 置信度阈值 [0, 1].
+            yolo_iou: YOLO NMS IoU 阈值 [0, 1].
+            class_names: {class_id: 名称}；None 用默认 {0: peach_bag,
+                1: peach_nobag}.
+
+        Returns
+        -------
+            无返回值（None）.
+
+        """
+        self._yolo_model_path = yolo_model
+        self._yolo_conf = yolo_conf
+        self._yolo_iou = yolo_iou
+        self._class_names = class_names or {0: 'peach_bag', 1: 'peach_nobag'}
+        # 懒加载: None 表示尚未 load 权重
+        self._yolo = None
+        # 推理设备：默认优先 CUDA（peach_scene_perception 要求 GPU）；无卡时回退 CPU
+        self._device = _resolve_device()
+        # CUDA 线程安全: 锁序列化 load + forward
+        self._lock = threading.Lock()
+
+    def detect(self, rgb: np.ndarray) -> List[dict]:
+        """
+        对 RGB 图像运行 YOLO 目标检测 (管线步骤 ①).
+
+        Args:
+            rgb: (H, W, 3) BGR 图像 (OpenCV 惯例)
+
+        Returns
+        -------
+        [{"class_id", "class_name", "bbox": (x1,y1,x2,y2), "conf"}, ...]
+        按置信度降序排列
+
+        """
+        with self._lock:
+            if self._yolo is None:
+                from ultralytics import YOLO
+                self._yolo = YOLO(self._yolo_model_path)
+                # 权重迁到目标设备；后续 predict 显式传 device，避免默认漂到 CPU
+                try:
+                    self._yolo.to(self._device)
+                except Exception:
+                    pass
+
+            results = self._yolo(
+                rgb, conf=self._yolo_conf, iou=self._yolo_iou,
+                device=self._device, verbose=False)
+
+        # 锁外解析: 纯 CPU 后处理，不涉及 CUDA
+        dets = []
+        for r in results:
+            if r.boxes is None:
+                continue
+            for i in range(len(r.boxes)):
+                ci = int(r.boxes.cls[i])
+                cf = float(r.boxes.conf[i])
+                x1, y1, x2, y2 = clip_bbox(
+                    r.boxes.xyxy[i].tolist(), rgb.shape)
+                if x2 <= x1 or y2 <= y1:
+                    continue
+                dets.append({
+                    'class_id': ci,
+                    'class_name': self._class_names.get(ci, f'cls_{ci}'),
+                    'bbox': (x1, y1, x2, y2),
+                    'conf': cf,
+                })
+
+        dets.sort(key=lambda d: d['conf'], reverse=True)
+        return dets
+
+    def reset(self):
+        """释放 YOLO 缓存 (切换模型路径或数据集后调用)。线程安全."""
+        with self._lock:
+            self._yolo = None
+
+
+class MobileSam(Segmenter):
+    """
+    Ultralytics MobileSAM 分割器（Segmenter 默认实现，注册名 'mobile_sam'）.
+
+    懒加载：首次 segment 才读权重。SAM 以 bbox 为 box prompt，在框内生成
+    二值前景掩码；面积 < sam_min_area 的掩码被丢弃。所有推理经
+    self._lock 序列化（CUDA 线程安全，同 UltralyticsYolo）。
+    """
+
+    def __init__(self, sam_model: str = 'mobile_sam.pt',
+                 sam_max_bboxes: int = 16, sam_min_area: int = 100):
+        """
+        构造分割器（模型懒加载，首次推理时才读权重）.
+
+        Args:
+            sam_model: SAM 权重路径或模型名.
+            sam_max_bboxes: 单次 SAM 推理的最大 prompt 框数（超出截断）；
+                默认 16（阶段 D1 由 8 上调并参数化为 yaml sam_max_bboxes：
+                室外多果场景一帧目标数常超 8，截断目标无掩膜被判 OCCLUDED）.
+            sam_min_area: 掩膜最小像素数，过小丢弃.
+
+        Returns
+        -------
+            无返回值（None）.
+
+        """
+        self._sam_model_name = sam_model
+        self._sam_max_bboxes = sam_max_bboxes
+        self._sam_min_area = sam_min_area
+        # 懒加载: None 表示尚未 load 权重
+        self._sam = None
+        self._device = _resolve_device()
+        self._lock = threading.Lock()
+
+    def segment(
+        self,
+        rgb: np.ndarray,
+        bboxes: List[Tuple[int, int, int, int]],
+    ) -> List[Tuple[np.ndarray, Tuple[int, int, int, int]]]:
+        """
+        对 RGB 图像运行 SAM 实例分割 (管线步骤 ②).
+
+        Args:
+            rgb: (H, W, 3) BGR 图像
+            bboxes: [(x1, y1, x2, y2), ...]，超过 sam_max_bboxes 时截断
+
+        Returns
+        -------
+        [(binary_mask, bbox), ...]，面积 < sam_min_area 的掩码被丢弃
+
+        """
+        if not bboxes:
+            return []
+
+        with self._lock:
+            if self._sam is None:
+                from ultralytics import SAM
+                self._sam = SAM(self._sam_model_name)
+                try:
+                    self._sam.to(self._device)
+                except Exception:
+                    pass
+
+            # 限制 bbox 数量: SAM 批量推理显存与耗时随 N 增长
+            if len(bboxes) > self._sam_max_bboxes:
+                bboxes = bboxes[:self._sam_max_bboxes]
+
+            try:
+                results = self._sam(
+                    rgb, bboxes=bboxes, device=self._device, verbose=False)
+            except Exception as e:
+                # 纯核不能 import ROS，走 stdlib logging（print 会污染 stdout）
+                _logger.warning('SAM 分割失败: %s', e)
+                return []
+
+        if not results or results[0].masks is None:
+            return []
+
+        masks = results[0].masks.data.cpu().numpy()  # GPU→CPU: (N, H, W) 概率图
+        ih, iw = rgb.shape[:2]
+
+        output = []
+        for i, mask in enumerate(masks):
+            bin_mask = mask > 0.5  # 阈值化得布尔前景掩码
+            if bin_mask.shape != (ih, iw):
+                bin_mask = cv2.resize(
+                    bin_mask.astype(np.uint8), (iw, ih),
+                    interpolation=cv2.INTER_NEAREST).astype(bool)
+            if bin_mask.sum() > self._sam_min_area:
+                output.append((bin_mask, bboxes[i]))
+
+        return output
+
+    def reset(self):
+        """释放 SAM 缓存 (切换模型路径或数据集后调用)。线程安全."""
+        with self._lock:
+            self._sam = None
+
+
+class InferenceEngine:
+    """
+    检测/分割组合引擎（调用端）：只持有 Detector/Segmenter 接口引用.
+
+    detect/segment/reset 全部委托给构造期注入的接口实现；引擎自身不含
+    任何模型逻辑，可替换性由接口层注册表（2.14）保证。
+
+    用法::
+
+        engine = InferenceEngine(
+            detector=UltralyticsYolo(yolo_model='best.pt'),
+            segmenter=MobileSam(sam_model='mobile_sam.pt'),
+        )
+        dets = engine.detect(rgb)               # → list[dict]
+        masks = engine.segment(rgb, bboxes)     # → list[(mask, bbox)]
+    """
+
+    def __init__(self, detector: Detector, segmenter: Segmenter):
+        """
+        装配检测器与分割器（接口引用，不绑死具体实现）.
+
+        Args:
+            detector: Detector 接口实现（如 UltralyticsYolo）.
+            segmenter: Segmenter 接口实现（如 MobileSam）.
+
+        Returns
+        -------
+            无返回值（None）.
+
+        """
+        self._detector = detector
+        self._segmenter = segmenter
+
+    def detect(self, rgb: np.ndarray) -> List[dict]:
+        """委托注入的 Detector（签名与语义见 Detector.detect）."""
+        return self._detector.detect(rgb)
+
+    def segment(
+        self,
+        rgb: np.ndarray,
+        bboxes: List[Tuple[int, int, int, int]],
+    ) -> List[Tuple[np.ndarray, Tuple[int, int, int, int]]]:
+        """委托注入的 Segmenter（签名与语义见 Segmenter.segment）."""
+        return self._segmenter.segment(rgb, bboxes)
+
+    def reset(self):
+        """释放两个模型的缓存（逐接口委托；实现方各自保证线程安全）."""
+        self._detector.reset()
+        self._segmenter.reset()
+
+
+# === candidates.py ===
+
+@dataclass(frozen=True)
+class ForegroundMode:
+    """前景模式描述（目前仅 hybrid_dilated）."""
+
+    mode_id: str      # 模式 ID（如 'hybrid_dilated'），估计路由键
+    label: str        # 中文短标签（报告/界面显示）
+    description: str  # 一句话说明
+
+
+FOREGROUND_MODES = (
+    ForegroundMode(
+        'hybrid_dilated', 'SAM∩膨胀深度',
+        'SAM 掩膜与膨胀后的实测深度连通域求交'),
+)
+MODE_IDS = tuple(mode.mode_id for mode in FOREGROUND_MODES)
+MODE_LABELS = {mode.mode_id: mode.label for mode in FOREGROUND_MODES}
+
+
+class CandidateEstimator:
+    """
+    构造收敛前景掩膜，并送入安全管线评估.
+
+    按检测类别分流：
+      - ``peach_bag`` (class_id=0) → 圆柱轴袋线 ``RobustBagPosePipeline``
+      - ``peach_nobag`` (class_id=1) → 球+梗腔果线 ``RobustFruitPosePipeline``
+    两线共用同一圆柱刀具、入口/行程公式与安全门控。
+    """
+
+    def __init__(self, pipeline: Optional[RobustBagPosePipeline] = None,
+                 fruit_pipeline: Optional[RobustBagPosePipeline] = None,
+                 dilate_px: int = 5, min_mask_points: int = 50):
+        """
+        构造估计器；两条管线只按 PosePipeline 接口持有（2.14 装配）.
+
+        Args:
+            pipeline: 袋线实例；None 时按注册表默认实现（'robust_bag'）
+                新建.
+            fruit_pipeline: 果线实例；None 时按注册表默认实现
+                （'robust_fruit'）新建并复用袋线的 ToolGeometry，保证刀具
+                契约一致.
+            dilate_px: 深度连通域膨胀半径（像素，≥1；核边长 2*(p//2)+1）.
+            min_mask_points: 掩膜最小像素数，不足判 mask_unavailable.
+
+        Returns
+        -------
+            无返回值（None）.
+
+        """
+        self.pipeline = pipeline or POSE_PIPELINES.create('robust_bag')
+        self.fruit_pipeline = fruit_pipeline or POSE_PIPELINES.create(
+            'robust_fruit', tool=self.pipeline.tool)
+        # 类别路由用的实例表：kind（注册表键）→ 已建实例（YOLO 标签契约：
+        # class_id==1 → 'fruit'，其余 → 'bag'，见 _pipeline_for）
+        self._estimator_by_kind = {
+            'bag': self.pipeline,
+            'fruit': self.fruit_pipeline,
+        }
+        self.dilate_px = max(1, int(dilate_px))
+        self.min_mask_points = max(1, int(min_mask_points))
+        self.last_timings_ms: dict[str, float] = {}
+        self._last_mask_timings_ms: dict[str, float] = {}
+
+    def _pipeline_for(self, obs: BagObservation, bbox: tuple | None = None
+                      ) -> tuple:
+        """
+        按与 bbox 匹配的检测 class_id 选择袋线 / 果线.
+
+        Args:
+            obs: 单帧输入.
+            bbox: 当前目标框；None 时才回退 detections[0].
+
+        Returns
+        -------
+            (kind, pipeline)：class_id==1 → fruit，否则 bag.
+
+        """
+        class_id = 0
+        dets = list(obs.detections or [])
+        if bbox is not None and dets:
+            bx = np.asarray(bbox, dtype=float).reshape(4)
+            best_iou, best = -1.0, None
+            for det in dets:
+                db = np.asarray(det.get('bbox', (0, 0, 0, 0)), dtype=float)
+                if db.size != 4:
+                    continue
+                ix1 = max(bx[0], db[0])
+                iy1 = max(bx[1], db[1])
+                ix2 = min(bx[2], db[2])
+                iy2 = min(bx[3], db[3])
+                inter = max(0.0, ix2 - ix1) * max(0.0, iy2 - iy1)
+                union = ((bx[2] - bx[0]) * (bx[3] - bx[1])
+                         + (db[2] - db[0]) * (db[3] - db[1]) - inter)
+                iou = inter / union if union > 1e-6 else 0.0
+                if iou > best_iou:
+                    best_iou, best = iou, det
+            if best is not None:
+                class_id = int(best.get('class_id', 0))
+        elif dets:
+            class_id = int(dets[0].get('class_id', 0))
+        kind = 'fruit' if class_id == 1 else 'bag'
+        return kind, self._estimator_by_kind[kind]
+
+    def estimate_modes(self, obs: BagObservation, target_id: str, bbox: tuple,
+                       sam_mask: Optional[np.ndarray],
+                       modes: Optional[Iterable[str]] = None
+                       ) -> dict[str, TargetPoseResult]:
+        """
+        对请求的前景模式跑同一套几何与安全门控，返回 mode→结果.
+
+        Args:
+            obs: 单帧输入（深度 uint16 毫米）.
+            target_id: 目标 ID.
+            bbox: (x1, y1, x2, y2) 检测框（像素）.
+            sam_mask: 全图 SAM 掩膜或 None（None → 各模式 mask_unavailable）.
+            modes: 要跑的模式 ID 可迭代；None 跑全部已注册模式；
+                含未知 ID 抛 ValueError.
+
+        Returns
+        -------
+            {mode_id: TargetPoseResult}；掩膜不可用时结果为显式 REOBSERVE；
+            副作用：刷新 last_timings_ms（毫秒，含掩膜构造耗时）.
+
+        """
+        selected = tuple(modes or MODE_IDS)
+        unknown = set(selected) - set(MODE_IDS)
+        if unknown:
+            raise ValueError(f'unknown foreground modes: {sorted(unknown)}')
+
+        masks = self.build_masks(obs, bbox, sam_mask)
+        kind, pipeline = self._pipeline_for(obs, bbox)
+        results = {}
+        self.last_timings_ms = {}
+        for mode in selected:
+            started = time.perf_counter()
+            mask = masks.get(mode)
+            if mask is None:
+                # SAM 缺失或交后像素不足：显式 REOBSERVE，不走深度-only 回退
+                results[mode] = self._unavailable(
+                    obs, target_id, bbox, mode, 'mask_unavailable')
+            else:
+                results[mode] = pipeline.estimate(
+                    obs, target_id, bbox, mask, self._source(mode))
+            pose = results[mode].grasp_3d
+            results[mode].target_kind = kind
+            pose.strategy_id = f'robust_{kind}_pose:{mode}'
+            pose.model_version = str(obs.metadata.get('model_version', 'unknown'))
+            pose.calibration_version = str(obs.metadata.get(
+                'calibration_version', 'unknown'))
+            pose.tool_version = self.pipeline.tool.version
+            geometry_ms = (time.perf_counter() - started) * 1000.0
+            # 总耗时 = 掩膜构造 + 本模式几何
+            self.last_timings_ms[mode] = (
+                self._last_mask_timings_ms.get(mode, 0.0) + geometry_ms)
+        return results
+
+    def build_masks(self, obs: BagObservation, bbox: tuple,
+                    sam_mask: Optional[np.ndarray]) -> dict[str, Optional[np.ndarray]]:
+        """
+        在 bbox ROI 内构造 hybrid_dilated 掩膜（实测深度单位：毫米 uint16）.
+
+        hybrid_dilated = (SAM ∩ 有效深度) ∩ 膨胀后的深度连通域；
+        交后像素 < min_mask_points 给 None。
+
+        Args:
+            obs: 单帧输入（深度 uint16 毫米）.
+            bbox: (x1, y1, x2, y2) 检测框（像素，自动裁剪到图内）.
+            sam_mask: 全图或 ROI 掩膜；None 或裁剪失败则结果为 None.
+
+        Returns
+        -------
+            {mode_id: (h, w) bool ROI 掩膜或 None}；副作用：刷新
+            _last_mask_timings_ms（毫秒）.
+
+        """
+        started = time.perf_counter()
+        self._last_mask_timings_ms = {mode: 0.0 for mode in MODE_IDS}
+        x1, y1, x2, y2 = clip_bbox(bbox, obs.depth.shape)
+        roi = obs.depth[y1:y2, x1:x2]
+        if roi.size == 0:
+            return {mode: None for mode in MODE_IDS}
+        # 有效深度区间取袋线管线参数（两条线共用同一相机/深度约定）
+        valid = valid_depth_mask(
+            roi, self.pipeline.min_depth_m, self.pipeline.max_depth_m)
+        # 深度连通前景：作为「膨胀母体」，限制 SAM 不漂到背景
+        depth_mask, _ = foreground_mask(
+            roi, valid, None, bbox, source='depth_fallback')
+
+        mask = None
+        sam_roi = self._crop_mask(sam_mask, (x1, y1, x2, y2), obs.depth.shape)
+        if sam_roi is not None:
+            # 只保留有实测深度的 SAM 像素
+            measured_sam = sam_roi & valid
+            k = 2 * (self.dilate_px // 2) + 1
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
+            expanded_depth = cv2.dilate(depth_mask.astype(np.uint8), kernel) > 0
+            # SAM ∩ 膨胀深度；像素过少则视为不可用
+            mask = self._enough(measured_sam & expanded_depth)
+
+        elapsed_ms = (time.perf_counter() - started) * 1000.0
+        self._last_mask_timings_ms = {mode: elapsed_ms for mode in MODE_IDS}
+        return {'hybrid_dilated': mask}
+
+    def _crop_mask(self, mask: Optional[np.ndarray], bbox: tuple,
+                   image_shape: tuple) -> Optional[np.ndarray]:
+        """
+        把全图或 ROI 掩膜裁成与 bbox 同尺寸；尺寸不符返回 None.
+
+        Args:
+            mask: bool/0-1 掩膜（全图尺寸则裁 ROI）；None 原样返回 None.
+            bbox: (x1, y1, x2, y2) 已裁剪到图内的整数框（像素）.
+            image_shape: 全图 shape（判全图/ROI 用）.
+
+        Returns
+        -------
+            (y2-y1, x2-x1) bool 掩膜；尺寸对不上给 None.
+
+        """
+        if mask is None:
+            return None
+        x1, y1, x2, y2 = bbox
+        arr = np.asarray(mask, dtype=bool)
+        if arr.shape[:2] == image_shape[:2]:
+            arr = arr[y1:y2, x1:x2]
+        expected = (y2 - y1, x2 - x1)
+        return arr if arr.shape == expected else None
+
+    def _enough(self, mask: np.ndarray) -> Optional[np.ndarray]:
+        """
+        像素数不足 min_mask_points 时丢弃（触发 mask_unavailable）.
+
+        Args:
+            mask: (h, w) bool 掩膜.
+
+        Returns
+        -------
+            原掩膜或 None.
+
+        """
+        return mask if int(mask.sum()) >= self.min_mask_points else None
+
+    @staticmethod
+    def _source(mode: str) -> str:
+        """
+        写入结果的 mask_source 标签（便于诊断追溯）.
+
+        Args:
+            mode: 已注册模式 ID（未知 ID 抛 KeyError）.
+
+        Returns
+        -------
+            来源标签字符串.
+
+        """
+        return {
+            'hybrid_dilated': 'mobile_sam_dilated_depth_intersection',
+        }[mode]
+
+    def _unavailable(self, obs: BagObservation, target_id: str, bbox: tuple,
+                     mode: str, reason: str) -> TargetPoseResult:
+        """
+        构造显式失败结果（REOBSERVE + diagnostic_flags）.
+
+        Args:
+            obs: 单帧输入（取版本元数据）.
+            target_id: 目标 ID.
+            bbox: (x1, y1, x2, y2) 检测框（像素）.
+            mode: 前景模式 ID（写入 strategy_id）.
+            reason: 原因标记（如 'mask_unavailable'）.
+
+        Returns
+        -------
+            TargetPoseResult（status=REOBSERVE，metrics 为空）.
+
+        """
+        x1, y1, x2, y2 = map(int, bbox)
+        g2d = BagGrasp2D(
+            detection_bbox=(x1, y1, x2 - x1, y2 - y1),
+            status='REOBSERVE', diagnostic_flags=[reason])
+        g3d = BagGraspReference3D(
+            status='REOBSERVE', diagnostic_flags=[reason],
+            strategy_id=f'robust_bag_pose:{mode}',
+            model_version=str(obs.metadata.get('model_version', 'unknown')),
+            calibration_version=str(obs.metadata.get(
+                'calibration_version', 'unknown')),
+            tool_version=self.pipeline.tool.version)
+        return TargetPoseResult(target_id, g2d, g3d, mode, {})
+
+
+def dedup_overlapping_detections(dets, ios_threshold: float = 0.6) -> list:
+    """
+    重叠检测框去重：IoS（交集/较小框面积）≥ 阈值判同一物理目标，保留大框.
+
+    面积并列时保留置信度高者；跨类别同样生效——YOLO 按类 NMS，
+    同一颗桃可同时出 bag/nobag 两框，或检出一个被大框包含的局部误检小框，
+    都会在身份注册表上重复占号。用 IoS 而非 IoU：部分重叠的相邻两颗桃
+    IoS 低不误删，只有"一框基本包含另一框"才去重。
+    贪心顺序为面积降序（置信度次之），后遍历到的高重叠框被抑制。
+
+    Args:
+        dets: 检测 dict 列表（须含 'bbox'=(x1,y1,x2,y2)；'conf' 可选）.
+        ios_threshold: IoS 阈值；≥1.0 时永不命中，等效关闭去重.
+
+    Returns
+    -------
+        去重后的检测 dict 列表（按面积降序；元素为原 dict 引用，不改原对象）.
+
+    """
+    if not dets or ios_threshold >= 1.0:
+        return list(dets)
+    boxes = np.asarray([d['bbox'] for d in dets], dtype=float).reshape(-1, 4)
+    areas = (np.maximum(0.0, boxes[:, 2] - boxes[:, 0])
+             * np.maximum(0.0, boxes[:, 3] - boxes[:, 1]))
+    confs = np.array([float(d.get('conf', 0.0)) for d in dets])
+    order = sorted(range(len(dets)), key=lambda i: (-areas[i], -confs[i]))
+    kept: list = []
+    for i in order:
+        suppress = False
+        for j in kept:
+            ix1 = max(boxes[i, 0], boxes[j, 0])
+            iy1 = max(boxes[i, 1], boxes[j, 1])
+            ix2 = min(boxes[i, 2], boxes[j, 2])
+            iy2 = min(boxes[i, 3], boxes[j, 3])
+            inter = max(0.0, ix2 - ix1) * max(0.0, iy2 - iy1)
+            smaller = min(areas[i], areas[j])
+            if smaller > 0.0 and inter / smaller >= ios_threshold:
+                suppress = True
+                break
+        if not suppress:
+            kept.append(i)
+    return [dets[i] for i in kept]
+
+
+DETECTORS.register('yolo', UltralyticsYolo)
+SEGMENTERS.register('mobile_sam', MobileSam)
+POSE_PIPELINES.register('robust_bag', RobustBagPosePipeline)
+POSE_PIPELINES.register('robust_fruit', RobustFruitPosePipeline)

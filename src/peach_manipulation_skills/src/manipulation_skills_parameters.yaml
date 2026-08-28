@@ -253,6 +253,11 @@ peach_manipulation_skills_node:
     default_value: "global_photo_pose",
     description: "全局拍照位姿的 SRDF 命名状态（go_to_photo_pose 服务的目标），与 aubo_e5_moveit_config/config/aubo_e5.srdf 的 group_state 对应。"
   }
+  harvest_stow_named_target: {
+    type: string,
+    default_value: "harvest_stow",
+    description: "接触后安全观察/收纳位 SRDF 命名状态；空串则回退 photo_pose_named_target。"
+  }
   deposit_pose_named_target: {
     type: string,
     default_value: "",
@@ -358,7 +363,8 @@ peach_manipulation_skills_node:
     min_camera_height_m: {
       type: double,
       default_value: 0.06,
-      description: "相机位置 z 下限（base 系，桌面保护平面）：低于此的视点物理穿桌、规划必败，生成阶段直接剔除。语义上是 protected_zones 的“z<下限半空间”特例 shortcut，两者并存、各自生效。"
+      description: "相机位置 z 下限（base 系，桌面保护平面）：低于此的视点物理穿桌、规划必败，生成阶段直接剔除。语义上是 protected_zones 的“z<下限半空间”特例 shortcut，两者并存、各自生效。",
+      validation: { gt_eq<>: [0.0] }
     }
     protected_zones: {
       type: double_array,
@@ -399,7 +405,7 @@ peach_manipulation_skills_node:
     maximum_refined_rmse_m: {
       type: double,
       default_value: 0.01,
-      description: "精化拟合 RMSE 上限（米）；未达标时回退候选锚点降级抓取，非极端必抓。",
+      description: "精化关键点残差诊断上限（米）；不单独关接触许可，也不拦 PREGRASP_ONLY。",
       validation: { gt<>: [0.0] }
     }
     minimum_refined_inlier_ratio: {
@@ -417,7 +423,7 @@ peach_manipulation_skills_node:
     maximum_axis_angle_deg: {
       type: double,
       default_value: 35.0,
-      description: "检测轴与重建精化轴夹角上限（度）；超过则接触前拒绝。",
+      description: "检测轴与重建轴完全错轴诊断上限（度）；只打诊断旗标。套入许可走重建动态径向/轴向预算，本角不单独授权或拒绝接触。",
       validation: { gt<>: [0.0], lt_eq<>: [180.0] }
     }
   execution:

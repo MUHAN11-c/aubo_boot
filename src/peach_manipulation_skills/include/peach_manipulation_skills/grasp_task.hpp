@@ -135,6 +135,16 @@ public:
     const Eigen::Vector3d & insertion_axis,
     double insertion_distance_m);
 
+  GraspTaskResult moveToPregrasp(
+    const Eigen::Isometry3d & entry_tip_pose,
+    const Eigen::Vector3d & insertion_axis,
+    bool execute);
+
+  GraspTaskResult sleeveLinear(
+    const Eigen::Vector3d & insertion_axis,
+    double insertion_distance_m,
+    bool execute);
+
   GraspTaskResult retreat(
     const Eigen::Vector3d & insertion_axis,
     double retreat_distance_m,

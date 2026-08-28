@@ -24,10 +24,10 @@
 C++17；参数走 yaml + `generate_parameter_library` / `declare_parameter`。采摘 ROS 包五个，作用不得串（详细：[docs/architecture.md](docs/architecture.md) §3）：
 
 - `peach_interfaces`：跨包唯一 IDL，不跑节点
-- `peach_perception`：视觉算法（两节点：看场景 + 建当前目标），不发运动、不选下一颗、不写账本；积分不用 latest TF
-- `peach_manipulation_skills`：机械臂执行（`SurveyScene` / `ExecuteTarget`：视点、MTC、工具、撤退），不写账本、不调重建 Trigger
-- `peach_navigation`：作业位导航适配（`NavigateToWorksite`）；现行 stub，不实现底盘/Nav2
-- `peach_task_executor`：整栈调度（含 lifecycle 与只读 Web）；**launch 绝不自动 RunHarvest**；默认 `navigation_enabled=false`
+- `peach_perception`：视觉算法（两节点：看场景 + 建当前目标），不发运动、不选下一颗、不写账本；积分不用 latest TF；球只作袋内果实包络先验
+- `peach_manipulation_skills`：机械臂执行（`SurveyScene` / `ExecuteTarget`：视点、预抓取、套入、刀具、原路撤退），不写账本、不调重建 Trigger；`GraspDecision.allowed` 是套入/剪切唯一权威（`PREGRASP_ONLY` 不要求 `allowed`；方向定位以预抓取真机实测为准）
+- `peach_navigation`：作业位导航适配（`NavigateToWorksite` + 目标/车辆/臂状态话题）；现行 stub，不实现底盘/Nav2/`cmd_vel`
+- `peach_task_executor`：整栈调度（含 lifecycle 与只读 Web）；**launch 绝不自动 RunHarvest**；默认 `navigation_enabled=false`；`execute_pregrasp_only` 默认 true（停预抓取不回 stow；套入前改 false）
 
 臂/相机九包职责与只读范围同 architecture §3 驱动层。
 

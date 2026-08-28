@@ -21,11 +21,12 @@ from peach_interfaces.msg import (
     PeachTargetObservationArray,
     SceneSnapshot,
     TargetOutcome,
+    VehicleState,
 )
 from peach_interfaces.srv import BeginScene, ControlTask
 from rclpy.action import ActionClient, ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
-from rclpy.lifecycle import LifecycleNode
+from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
 from rclpy.qos import (
     DurabilityPolicy,
     HistoryPolicy,
@@ -35,14 +36,20 @@ from rclpy.qos import (
 from std_msgs.msg import Bool
 from std_srvs.srv import Trigger
 
-from .control import apply_control
+from .batch import (
+    apply_control,
+    build_summary,
+    default_ledger_root,
+    ledger_file,
+    load_ledger,
+    next_target_id,
+    save_ledger,
+    set_elapsed,
+)
 from .harvest_fsm import (
     BATCH_NAMES, canonical_code_for_outcome, Command, COMPLETED, Event,
     event_for_outcome, MODE_AUTO, MODE_MAINTENANCE, MODE_PAUSED, PAUSE_PENDING,
     PAUSED, permissions_for, react, RECOVERY_REQUIRED, RUNNING, WAITING_READY)
-from .ledger import default_ledger_root, ledger_file, load_ledger, save_ledger, set_elapsed
-from .select import next_target_id
-from .summary import build_summary
 
 
 class TaskExecutorNode(LifecycleNode):
@@ -84,13 +91,30 @@ class TaskExecutorNode(LifecycleNode):
         self._cycle_observe_extra = {}
         self._cycle_dispatch_t0 = 0.0
         self._observations: Optional[PeachTargetObservationArray] = None
+        self._vehicle_state: Optional[VehicleState] = None
+        self._last_model_revision = ''
         self._stack_ready = False
         self._wake = threading.Event()
         self._cb = ReentrantCallbackGroup()
         from peach_task_executor.task_executor_parameters import peach_task_executor
         self._param_listener = peach_task_executor.ParamListener(self)
+        # 官方 GPL 用途：运行路径读快照，不散落 get_parameter。
+        # 开批与 HarvestState 发布会按 stamp 刷新，故 ros2 param set
+        # execution_enabled 可在下次 RunHarvest 生效，不必改 yaml 默认。
+        self._params = self._param_listener.get_params()
 
     def on_configure(self, state):
+        try:  # 官方 LifecycleNode：configure 失败返回 ERROR，停在 Unconfigured.
+            self._configure_ros()
+        except Exception as exc:  # noqa: BLE001 接线失败（话题/参数非法）整包停走
+            self.get_logger().error(f'configure 失败: {exc}')
+            return TransitionCallbackReturn.ERROR
+        self.get_logger().info(
+            'task executor configured; will not auto-start harvest')
+        return super().on_configure(state)
+
+    def _configure_ros(self) -> None:
+        """集中创建 ROS 实体（发布器/订阅/客户端/动作/服务）."""
         latched = QoSProfile(
             history=HistoryPolicy.KEEP_LAST,
             depth=1,
@@ -109,48 +133,74 @@ class TaskExecutorNode(LifecycleNode):
             CanonicalEvent, '~/events', event_qos)
         self._pub_snapshot = self.create_lifecycle_publisher(
             SceneSnapshot, '~/scene_snapshot', latched)
-        self.create_subscription(
+        self._sub_obs = self.create_subscription(
             PeachTargetObservationArray,
             '/peach/perception/target_observations',
             self._on_obs, 10, callback_group=self._cb)
+        self._sub_vehicle = self.create_subscription(
+            VehicleState, '/peach/navigation/vehicle_state',
+            self._on_vehicle, latched, callback_group=self._cb)
         self._begin = self.create_client(
-            BeginScene, self.get_parameter('begin_scene_service').value,
+            BeginScene, self._params.begin_scene_service,
             callback_group=self._cb)
         self._survey = ActionClient(
             self, SurveyScene,
-            self.get_parameter('survey_scene_action').value,
+            self._params.survey_scene_action,
             callback_group=self._cb)
         self._exec = ActionClient(
             self, ExecuteTarget,
-            self.get_parameter('execute_target_action').value,
+            self._params.execute_target_action,
             callback_group=self._cb)
         self._build = ActionClient(
             self, BuildTargetModel,
-            self.get_parameter('build_target_model_action').value,
+            self._params.build_target_model_action,
             callback_group=self._cb)
         self._nav = ActionClient(
             self, NavigateToWorksite,
-            self.get_parameter('navigate_to_worksite_action').value,
+            self._params.navigate_to_worksite_action,
             callback_group=self._cb)
         self._ack_recovery = self.create_client(
             Trigger,
             '/peach_manipulation_skills_node/acknowledge_recovery',
             callback_group=self._cb)
-        ActionServer(
+        self._run_server = ActionServer(
             self, RunHarvest, '~/run_harvest',
             execute_callback=self._run_harvest,
             goal_callback=self._goal_if_active,
             cancel_callback=self._accept_cancel,
             callback_group=self._cb)
-        self.create_service(
+        self._control_srv = self.create_service(
             ControlTask, '~/control', self._on_control,
             callback_group=self._cb)
-        self.create_subscription(
+        self._sub_stack = self.create_subscription(
             Bool, '/peach/lifecycle/managed_nodes_activated',
             self._on_stack_ready, latched, callback_group=self._cb)
-        self.get_logger().info(
-            'task executor configured; will not auto-start harvest')
-        return super().on_configure(state)
+
+    def _unconfigure_ros(self) -> None:
+        """on_cleanup 释放全部 ROS 实体（与 _configure_ros 一一对应）."""
+        try:
+            for pub in (self._pub_state, self._pub_event, self._pub_snapshot):
+                self.destroy_lifecycle_publisher(pub)
+        except Exception:  # noqa: BLE001 已释放则忽略
+            pass
+        try:
+            for client in (self._begin, self._ack_recovery):
+                self.destroy_client(client)
+            for client in (self._survey, self._exec, self._build, self._nav):
+                client.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            self.destroy_subscription(self._sub_obs)
+            self.destroy_subscription(self._sub_vehicle)
+            self.destroy_subscription(self._sub_stack)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            self._run_server.destroy()
+            self.destroy_service(self._control_srv)
+        except Exception:  # noqa: BLE001
+            pass
 
     def on_activate(self, state):
         result = super().on_activate(state)
@@ -165,6 +215,7 @@ class TaskExecutorNode(LifecycleNode):
 
     def on_cleanup(self, state):
         self._active = False
+        self._unconfigure_ros()
         return super().on_cleanup(state)
 
     def _on_stack_ready(self, msg: Bool) -> None:
@@ -184,7 +235,7 @@ class TaskExecutorNode(LifecycleNode):
         with self._lock:
             if not self._active:
                 return GoalResponse.REJECT
-            if (bool(self.get_parameter('require_managed_stack').value)
+            if (bool(self._params.require_managed_stack)
                     and not self._stack_ready):
                 self.get_logger().warning('RunHarvest 拒绝：生命周期栈未就绪')
                 return GoalResponse.REJECT
@@ -204,6 +255,29 @@ class TaskExecutorNode(LifecycleNode):
             self._discovered = max(
                 self._discovered, len(msg.observations))
         self._poke()
+
+    def _on_vehicle(self, msg: VehicleState) -> None:
+        self._vehicle_state = msg
+        self._poke()
+
+    def _wait_vehicle_stationary(self, site_id: str, timeout_s: float) -> bool:
+        """navigation_enabled 时要求外部/适配 VehicleState 到位且静止."""
+        deadline = time.monotonic() + max(0.5, float(timeout_s))
+        while time.monotonic() < deadline:
+            if self._cancel:
+                return False
+            msg = self._vehicle_state
+            if (
+                msg is not None
+                and bool(msg.arrived)
+                and bool(msg.stationary)
+                and bool(msg.fresh)
+            ):
+                site = str(msg.site_id or '')
+                if not site_id or not site or site == site_id:
+                    return True
+            self._idle(0.2)
+        return False
 
     def _on_control(self, request, response):
         cmd = int(request.command)
@@ -279,8 +353,9 @@ class TaskExecutorNode(LifecycleNode):
     def _acknowledge_recovery(self) -> tuple:
         """转发技能 ~/acknowledge_recovery，成功才清批次恢复旗标."""
         timeout = min(
-            5.0, float(self.get_parameter('service_timeout_s').value))
-        if not self._ack_recovery.wait_for_service(timeout_sec=timeout):
+            5.0, float(self._params.service_timeout_s))
+        # 非阻塞探测（服务不在时报错即回）；响应等待由 _await_future 有界完成。
+        if not self._ack_recovery.is_service_ready():
             self.get_logger().error('acknowledge_recovery 不可用')
             return False, 'acknowledge_recovery unavailable'
         resp = self._await_future(
@@ -329,15 +404,21 @@ class TaskExecutorNode(LifecycleNode):
                 self._harvest_busy = False
             self._publish_state()
 
+    def _refresh_params(self) -> None:
+        """ParamListener stamp 变了则深拷一份运行快照."""
+        if self._param_listener.is_old(self._params):
+            self._params = self._param_listener.get_params()
+
     def _run_harvest_body(self, goal_handle, goal):
         """批次命令循环；busy 旗标由 _run_harvest 的 finally 清掉."""
+        self._refresh_params()
         result = RunHarvest.Result()
         reaction = react(self._batch_state, Event.RUN_REQUESTED)
         self._apply(reaction, goal.request_id)
         claimed = set()
-        empty_limit = max(1, int(self.get_parameter('empty_survey_limit').value))
+        empty_limit = max(1, int(self._params.empty_survey_limit))
         empty_rounds = 0
-        enabled = bool(self.get_parameter('execution_enabled').value)
+        enabled = bool(self._params.execution_enabled)
         survey_only = int(goal.intent) == int(JobIntent.SURVEY_ONLY)
         survey_goal = SurveyScene.Goal()
         survey_goal.request_id = goal.request_id
@@ -448,19 +529,24 @@ class TaskExecutorNode(LifecycleNode):
 
     def _cmd_navigate(self, goal):
         """到位后再 BeginScene. 默认关：不发动作，直接 NAV_OK."""
-        if not bool(self.get_parameter('navigation_enabled').value):
+        if not bool(self._params.navigation_enabled):
             reaction = react(self._batch_state, Event.NAV_OK)
             self._apply(reaction, goal.request_id)
             return reaction
         nav_goal = NavigateToWorksite.Goal()
         nav_goal.site_id = str(goal.scene_key or '')
-        timeout = float(self.get_parameter('action_timeout_s').value)
+        timeout = float(self._params.action_timeout_s)
         self._action_active = True
         self._publish_state()
         result = self._send_action(
             self._nav, nav_goal, timeout, interrupt_on_pause=True)
         self._action_active = False
         arrived = result is not None and bool(getattr(result, 'arrived', False))
+        if arrived and not self._wait_vehicle_stationary(
+                str(nav_goal.site_id or ''), timeout):
+            arrived = False
+            self.get_logger().warning(
+                'NavigateToWorksite arrived but vehicle not stationary')
         event = Event.NAV_OK if arrived else Event.NAV_FAILED
         if not arrived:
             code = ''
@@ -488,11 +574,11 @@ class TaskExecutorNode(LifecycleNode):
         return reaction
 
     def _cmd_dispatch(self, request_id: str):
-        timeout = float(self.get_parameter('action_timeout_s').value)
-        min_views = int(self.get_parameter('reconstruction_min_views').value)
+        timeout = float(self._params.action_timeout_s)
+        min_views = int(self._params.reconstruction_min_views)
         start_timeout = float(
-            self.get_parameter('build_start_timeout_s').value)
-        grace_s = float(self.get_parameter('observe_build_grace_s').value)
+            self._params.build_start_timeout_s)
+        grace_s = float(self._params.observe_build_grace_s)
         target_id = self._current_target_id
         dispatch_t0 = time.monotonic()
         self._cycle_observe_extra = {}
@@ -534,6 +620,8 @@ class TaskExecutorNode(LifecycleNode):
         self._in_flight.append(build_handle)
         if not self._wait_build_started(build_handle, start_timeout):
             self._cancel_handle(build_handle)
+            # 单槽 Build：不等取消结束就派下一颗，下一颗会被拒空等 action_timeout。
+            self._wait_result(build_handle, min(timeout, 10.0))
             self._forget_handle(build_handle)
             reaction = react(self._batch_state, Event.BUILD_FAILED)
             self._record_skip(
@@ -548,6 +636,8 @@ class TaskExecutorNode(LifecycleNode):
         observe.request_id = request_id
         observe.target_id = target_id
         observe.mode = ExecuteTarget.Goal.OBSERVE_ONLY
+        observe.scene_epoch = int(self._scene_epoch or 0)
+        observe.tool_profile_id = 'hollow_cylinder_v1'
         observed = None
         for attempt in range(4):
             if self._cancel or self._peek_skip():
@@ -634,6 +724,9 @@ class TaskExecutorNode(LifecycleNode):
                 extra={**build_details, 'timeout_source': failure_code})
             self._apply(reaction, request_id, target_id)
             return reaction
+        model = getattr(built, 'model', None)
+        self._last_model_revision = str(
+            getattr(model, 'model_revision', '') or '')
         reaction = react(self._batch_state, Event.READY_FULL)
         self._cycle_observe_extra = dict(build_details)
         self._cycle_dispatch_t0 = dispatch_t0
@@ -641,14 +734,20 @@ class TaskExecutorNode(LifecycleNode):
         return reaction
 
     def _cmd_full(self, request_id: str):
-        timeout = float(self.get_parameter('action_timeout_s').value)
+        timeout = float(self._params.action_timeout_s)
         target_id = self._current_target_id
         t0 = time.monotonic()
         full = ExecuteTarget.Goal()
         full.request_id = request_id
         full.target_id = target_id
-        full.mode = ExecuteTarget.Goal.FULL
+        full.mode = (
+            ExecuteTarget.Goal.PREGRASP_ONLY
+            if bool(self._params.execute_pregrasp_only)
+            else ExecuteTarget.Goal.FULL)
         full.skip_observation = True
+        full.scene_epoch = int(self._scene_epoch or 0)
+        full.tool_profile_id = 'hollow_cylinder_v1'
+        full.model_revision = str(self._last_model_revision or '')
         executed = self._send_action(self._exec, full, timeout, feedback=True)
         operator_skip = self._take_skip()
         outcome = TargetOutcome()
@@ -677,6 +776,16 @@ class TaskExecutorNode(LifecycleNode):
                 if prefix and not str(outcome.reason).startswith(prefix):
                     outcome.reason = (
                         f'{prefix}: {outcome.reason}').strip(': ')
+            extra['harvest_confirmed'] = bool(
+                getattr(executed, 'harvest_confirmed', False))
+            extra['completion_level'] = int(
+                getattr(executed, 'completion_level', 0) or 0)
+            extra['cut_confirmed'] = bool(
+                getattr(executed, 'cut_confirmed', False))
+            extra['retreat_confirmed'] = bool(
+                getattr(executed, 'retreat_confirmed', False))
+            if int(getattr(executed, 'failure_code', 0) or 0):
+                extra['failure_code_n'] = int(executed.failure_code)
             deposit = getattr(executed, 'deposit', None)
             if deposit is not None and not bool(
                     getattr(deposit, 'deposited', False)):
@@ -806,7 +915,7 @@ class TaskExecutorNode(LifecycleNode):
     def _wait_build_after_observe(
             self, handle, timeout_s: float, grace_s: float, min_views: int):
         """
-        OBSERVE 之后等 Build：视角未达 min_views 只给 grace_s，达线后用满超时.
+        OBSERVE 之后等 Build：机位未达 min_views 只给 grace_s，达线后用满超时.
 
         Returns
         -------
@@ -851,7 +960,7 @@ class TaskExecutorNode(LifecycleNode):
         return getattr(wrapped, 'result', wrapped), ''
 
     def _survey_body(self, goal):
-        timeout = float(self.get_parameter('action_timeout_s').value)
+        timeout = float(self._params.action_timeout_s)
         self._action_active = True
         self._publish_state()
         while not self._cancel:
@@ -861,7 +970,7 @@ class TaskExecutorNode(LifecycleNode):
                 self._wait_pause()
                 continue
             break
-        wait_s = float(self.get_parameter('survey_wait_s').value)
+        wait_s = float(self._params.survey_wait_s)
         deadline = time.monotonic() + max(wait_s, 0.0)
         while time.monotonic() < deadline and not self._cancel:
             self._wait_pause()
@@ -1033,7 +1142,7 @@ class TaskExecutorNode(LifecycleNode):
         return ledger_file(default_ledger_root(), self._run_id)
 
     def _restore_ledger(self, run_id: str):
-        if not bool(self.get_parameter('persist_ledger').value):
+        if not bool(self._params.persist_ledger):
             return set(), []
         claimed, outcomes = load_ledger(
             ledger_file(default_ledger_root(), run_id))
@@ -1043,7 +1152,7 @@ class TaskExecutorNode(LifecycleNode):
         return claimed, outcomes
 
     def _persist_ledger(self, claimed) -> None:
-        if not bool(self.get_parameter('persist_ledger').value):
+        if not bool(self._params.persist_ledger):
             return
         try:
             save_ledger(
@@ -1053,7 +1162,7 @@ class TaskExecutorNode(LifecycleNode):
             self.get_logger().warning(f'ledger write failed: {exc}')
 
     def _call_service(self, client, request):
-        timeout = float(self.get_parameter('service_timeout_s').value)
+        timeout = float(self._params.service_timeout_s)
         if not client.wait_for_service(timeout_sec=timeout):
             self.get_logger().warning('service not ready')
             return None
@@ -1126,6 +1235,7 @@ class TaskExecutorNode(LifecycleNode):
             self._idle(0.1)
 
     def _make_state(self) -> HarvestState:
+        self._refresh_params()
         msg = HarvestState()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = 'base_link'
@@ -1141,7 +1251,7 @@ class TaskExecutorNode(LifecycleNode):
         msg.action_active = self._action_active
         msg.auto_start_enabled = False
         msg.execution_enabled = bool(
-            self.get_parameter('execution_enabled').value)
+            self._params.execution_enabled)
         msg.grasp_enabled = self._grasp_enabled
         msg.tool_enabled = self._tool_enabled
         msg.recovery_required = self._recovery_required

@@ -21,13 +21,10 @@ peach_task_executor/
 |------|------|
 | `harvest_fsm.py` | 纯核：`(batch_state, Event) → Reaction`（下一态、`command`、记录器事件码） |
 | `task_executor_node.py` | Lifecycle 节点：`_run_harvest` 执行 `command`；`_make_state` 填满 `HarvestState` |
-| `control.py` | `ControlTask`：`expected_state_seq` 防乱序 |
-| `select.py` | 下一个 `target_id`（goal 优先，否则已确认观测） |
-| `ledger.py` | `runs/<request_id>/ledger.json` 读写 |
-| `summary.py` | `HarvestSummary` 计数 |
+| `batch.py` | 选果、`ControlTask`、`HarvestSummary`、`ledger.json` |
 | `lifecycle_manager.py` | 有序 configure→activate；逆序拆除；`~/manage_nodes`；闩锁 `/peach/lifecycle/managed_nodes_activated` |
-| `observability/` | 只读 Web / JSONL；不发运动 |
-| `config/peach_task_executor.yaml` + `peach_task_executor/task_executor_parameters.yaml` | 运行 yaml 与 generate_parameter_library 根键都是节点名 `peach_task_executor` |
+| `observability/` | 只读 Web / JSONL；状态在 `state.py`，落盘在 `recorder.py` |
+| `config/peach_task_executor.yaml` + `config/task_executor_parameters.yaml` | 运行 yaml 与 generate_parameter_library_py 参数库源；根键都是节点名 `peach_task_executor` |
 | `config/observability.yaml` | 监控参数 |
 | `launch/harvest_system.launch.py` | 整栈 include；能力包 `autostart:=false` |
 
@@ -54,7 +51,7 @@ peach_task_executor/
   → 循环未入账目标
        → 并行 BuildTargetModel + ExecuteTarget OBSERVE_ONLY
          → 观察失败则取消 Build；模型失败则 SKIPPED_QUALITY
-         → ExecuteTarget FULL（skip_observation）
+         → ExecuteTarget PREGRASP_ONLY（默认）或 FULL（skip_observation）
   → 账本落盘（同 id 可续跑）→ HarvestSummary
 ```
 
@@ -80,6 +77,6 @@ ros2 launch peach_task_executor harvest_system.launch.py \
 | 生命周期管理 | `/peach_lifecycle_manager/manage_nodes`（`ManageLifecycleNodes`） |
 | 发布 | `~/state`、`~/events`、`~/scene_snapshot`（TRANSIENT_LOCAL） |
 
-参数要点：`execution_enabled` 默认 false；`navigation_enabled` 默认 false；`survey_wait_s` 8；`empty_survey_limit` 2；`persist_ledger` true。
+参数要点：`execution_enabled` 默认 false；`navigation_enabled` 默认 false；`execute_pregrasp_only` 默认 true（停预抓取等 ACK）；`survey_wait_s` 8；`empty_survey_limit` 2；`persist_ledger` true。
 
 禁止自动 `RunHarvest`。bringup 不起 `aubo_dashboard`。

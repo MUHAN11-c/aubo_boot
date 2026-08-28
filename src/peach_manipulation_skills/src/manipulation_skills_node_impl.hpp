@@ -56,6 +56,7 @@
 #include <peach_interfaces/action/survey_scene.hpp>
 #include <peach_interfaces/msg/grasp_decision.hpp>
 #include <peach_interfaces/msg/grasp_hypothesis.hpp>
+#include <peach_interfaces/msg/pregrasp_verification.hpp>
 #include <peach_interfaces/msg/reconstruction_status.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
@@ -77,6 +78,7 @@
 #include "peach_manipulation_skills/scan_budget.hpp"
 #include "peach_manipulation_skills/stage_timing.hpp"
 #include "peach_manipulation_skills/target_cache.hpp"
+#include "peach_manipulation_skills/tool_actuator.hpp"
 #include "peach_manipulation_skills/view_planner.hpp"
 #include "scoped_timer.hpp"
 // 参数声明/默认值/校验的单一事实源（generate_parameter_library 生成，
@@ -159,7 +161,7 @@ private:
     const peach_interfaces::msg::BagFittingArray::SharedPtr message);
   void onRobotStatus(const aubo_msgs::msg::RobotStatus::SharedPtr message);
 
-  // ExecuteTarget action 服务端与周期控制服务（cycle_action.cpp）。
+  // ExecuteTarget action 服务端与周期控制服务（cycle.cpp）。
   rclcpp_action::GoalResponse onActionGoal(
     const rclcpp_action::GoalUUID &,
     const std::shared_ptr<const ExecuteTarget::Goal> goal);
@@ -184,7 +186,7 @@ private:
   void onArm(
     const SetBool::Request::SharedPtr request, SetBool::Response::SharedPtr response);
 
-  // 运动相关（motion_interface.cpp）：可替换运动接口的装配、Trigger 调用、
+  // 运动相关（motion.cpp）：可替换运动接口的装配、Trigger 调用、
   // 工具 IO、接触轨迹预览与 go_to_photo_pose 服务回调。规划/执行/TF 查询
   // 已下沉到 MotionInterfaceBase 实现（bt_nodes 经 motion_ 基类指针调用）。
   void rebuildMotionInterface();
@@ -236,7 +238,7 @@ private:
   // 观测话题到达间隔 EMA 更新（onTargets 每帧调用）。
   void trackFrameInterval();
 
-  // MTC 预规划（2.13-E3 plan-while-waiting）三件套（bt_nodes.cpp）：
+  // MTC 预规划（2.13-E3 plan-while-waiting）三件套（cycle.cpp）：
   //   launchPreplan 在再确认入口按当前几何后台预规划接近/插入任务；
   //   settlePreplanBeforeReplan 在内联重规划前清场（preempt 未落定规划并回收
   //   线程，杜绝 GraspTask active_task_ 并发）；cleanupPreplan 在周期终局与
@@ -245,7 +247,7 @@ private:
   void settlePreplanBeforeReplan();
   void cleanupPreplan();
 
-  // 行为树节点注册与节点体（bt_nodes.cpp）。
+  // 行为树节点注册与节点体（cycle.cpp）。
   void registerBehaviorTreeNodes();
   BT::NodeStatus btFailure(const std::string & reason);
   BT::NodeStatus btPrepareCycle();
@@ -258,8 +260,17 @@ private:
   BT::NodeStatus btReportReady();
   BT::NodeStatus btReportObserveOnly();
   BT::NodeStatus btMtcApproachAndInsert();
+  BT::NodeStatus btMovePregrasp();
+  BT::NodeStatus btVerifyPregrasp();
+  BT::NodeStatus btHoldPregrasp();
+  BT::NodeStatus btPlanSleeveAndReverseRetreat();
+  BT::NodeStatus btSleeveLinear();
+  BT::NodeStatus btVerifyCutHold();
   BT::NodeStatus btActuateTool();
+  BT::NodeStatus btVerifyCut();
   BT::NodeStatus btMtcRetreat();
+  BT::NodeStatus btReturnHarvestStow();
+  BT::NodeStatus btVerifyHarvestOutcome();
   BT::NodeStatus btDepositToStation();
   BT::NodeStatus btCompleteTarget();
 
@@ -287,6 +298,7 @@ private:
   std::string mtc_free_space_pipeline_;
   std::string mtc_free_space_planner_;
   std::string photo_pose_named_target_;
+  std::string harvest_stow_named_target_{"harvest_stow"};
   std::string deposit_pose_named_target_;
   std::string behavior_tree_xml_;
   double planning_time_s_{1.5};
@@ -404,7 +416,7 @@ private:
   StageTimer stage_timer_;
   // 周期身份钉（ExecuteTarget.goal.target_id）：仅 action 受理（executeAction）
   // 与 btPrepareCycle 写入；previewContact 等预览入口不得写本成员（preview
-  // 隔离，见 motion_interface.cpp previewContact 注释）。OBSERVE_ONLY 周期
+  // 隔离，见 motion.cpp previewContact 注释）。OBSERVE_ONLY 周期
   // 本成员同时是周期生效目标快照（cycleTargetSnapshot）的锁定集查询键。
   std::string cycle_target_id_;
   std::string bt_failure_reason_;
@@ -426,7 +438,18 @@ private:
   // 本周期为 OBSERVE_ONLY 模式：BT 在 FinalizeAndValidate 后经 IsObserveOnly
   // 分支短路，不进 MTC/工具/撤离段；由 executeAction 按 goal.mode 设置。
   std::atomic_bool cycle_observe_only_{false};
+  std::atomic_bool cycle_pregrasp_only_{false};
   std::atomic_bool cycle_skip_observation_{false};
+  bool cycle_pregrasp_verified_{false};
+  bool cycle_sleeve_planned_{false};
+  bool cycle_cut_command_accepted_{false};
+  bool cycle_cut_confirmed_{false};
+  bool cycle_retreat_confirmed_{false};
+  uint8_t cycle_completion_level_{0};
+  uint32_t cycle_failure_code_{0};
+  peach_interfaces::msg::PregraspVerification cycle_pregrasp_msg_{};
+  std::string cycle_contact_transaction_id_;
+  ToolActuator tool_actuator_{};
   bool cycle_deposit_ok_{false};
   bool cycle_deposit_skipped_m8_{false};
   std::string cycle_deposit_reason_;

@@ -5,7 +5,7 @@
 绑定开始；COLLECTING 时每个唯一 RGB-D 时间戳均进入质量门，合格即在线
 积分 TSDF；finalize 只提取最终网格并做几何 refit。6 个 Trigger 服务保留
 （capture_frame 补拍、remove_last 回滚等语义不变）；capture.auto_mode=false
-时使用纯手动服务流。
+时使用纯手动服务流.
 
 每帧只按 depth.header.stamp 查 base←camera TF；失败跳帧，禁止运动中使用
 latest TF。当前帧先由 FK 变到 base 系，再与已有 TSDF 表面做有界 ICP；
@@ -13,19 +13,16 @@ ICP 只修正小刚性误差，越界或低质量帧不进入不可回滚的 TSD
 E4 效率项（协议 2.13-E4）：ICP target 经 icp_target_cache.IcpTargetCache
 增量复用（每 k 帧自适应或关键事件才从 TSDF 全量 extract）；发布面
 local_cloud/tsdf_cloud/markers 经 publish_throttle.PublishThrottle
-on-change + 最小间隔节流（心跳/状态/诊断 1Hz 活性发布不动）。
+on-change + 最小间隔节流（心跳/状态/诊断 1Hz 活性发布不动）.
 
 线程模型：节点级 RLock 保护 collector/TSDF/产物（worker 与 executor 线程
 双写收敛）；采帧门禁的阻塞式 TF 查询在锁外完成（_gated_capture_begin →
 _query_tf → _finish 三段式），锁内按帧 stamp 复核收口，查询期间 Trigger
-服务/目标观测回调/1Hz 心跳不被堵住（A7 起）。
+服务/目标观测回调/1Hz 心跳不被堵住（A7 起）.
 
-模块边界（A14 拆分）：本文件为节点编排壳（参数声明、接口装配、订阅/
-服务回调入口、采帧门禁、TSDF/refit 写路径、session 落盘、main）；
-自动状态机驱动在 auto_controller.py（AutoControllerMixin），发布面
-（心跳/状态三件套/点云/Marker/refit 消息与诊断组装）在
-publishers.py（PublisherMixin），两者均为无 __init__ 的 mixin，
-宿主契约见各自模块 docstring。
+模块边界：本文件为节点编排壳；自动状态机在 capture.AutoControllerMixin，
+发布面在 publish.PublisherMixin。import capture / integrate / refine 完成
+FRAME_STORES 等注册。
 """
 from __future__ import annotations
 
@@ -37,7 +34,7 @@ import time
 from typing import Optional, Tuple
 
 import cv_bridge
-from geometry_msgs.msg import Vector3Stamped
+from geometry_msgs.msg import Point, Vector3, Vector3Stamped
 import message_filters
 import numpy as np
 from peach_interfaces.action import BuildTargetModel
@@ -47,51 +44,53 @@ from peach_interfaces.msg import (
     GraspDecision,
     HarvestState,
     PeachTargetObservationArray,
+    PregraspVerification,
     ReconstructionStatus,
     ShapeHypothesis,
     TargetModel,
     TargetQuality,
 )
-from peach_perception.common.bounded_worker import BoundedWorker
-from peach_perception.common.depth_geometry import normalize_depth_to_uint16_mm
-from peach_perception.common.harvest_data import HarvestDataStore, resolve_runs_root
-from peach_perception.common.ros.clock_adapter import RclpyClockAdapter
-from peach_perception.common.tf_utils import transform_msg_to_matrix
-from peach_perception.target_reconstruction.auto_controller import AutoControllerMixin
-from peach_perception.target_reconstruction.bind_holdoff import BindSwitchHoldoff
-from peach_perception.target_reconstruction.candidate_contract import (
-    axis_from_vector3,
-    candidate_axis_hint,
-    select_reconstruction_candidate,
-    TargetKindMemory,
+from peach_perception.common.geometry import (
+    normalize_depth_to_uint16_mm,
+    transform_msg_to_matrix,
 )
-from peach_perception.target_reconstruction.capture_gate import (
+from peach_perception.common.ros.clock_adapter import RclpyClockAdapter
+from peach_perception.common.runtime import (
+    BoundedWorker,
+    HarvestDataStore,
+    resolve_runs_root,
+)
+from peach_perception.scene_perception.bag_landmarks import (
+    estimate_bag_landmarks,
+)
+from peach_perception.target_reconstruction.bag_model import fuse_bag_views
+from peach_perception.target_reconstruction.capture import (
+    AutoControllerMixin,
+    BindSwitchHoldoff,
     capture_gate,
+    CapturedFrame,
+    classify_skip_reason,
+    CollectorConfig,
     GATE_ALLOW,
     GATE_DENY,
     GATE_NEED_TF,
     GATE_SKIP,
     GateDecision,
-)
-from peach_perception.target_reconstruction.captured_frame import CapturedFrame
-from peach_perception.target_reconstruction.cloud_builder import apply_target_mask
-from peach_perception.target_reconstruction.frame_collector import (
-    CollectorConfig,
+    MaskContext,
     STATE_COLLECTING,
     STATE_IDLE,
+    TimingStats,
 )
-from peach_perception.target_reconstruction.geometry_refiner import (
-    RefitConfig,
-    select_refitter,
-    STATUS_ACCEPT,
-)
-from peach_perception.target_reconstruction.icp_refiner import (
+from peach_perception.target_reconstruction.integrate import (
+    apply_target_mask,
+    assembly_overlap_metrics,
     IcpConfig,
-    transform_points,
-)
-from peach_perception.target_reconstruction.icp_target_cache import (
     IcpTargetCache,
     IcpTargetRefreshConfig,
+    LocalTsdf,
+    summarize_pairs_mm,
+    summarize_view_coverage,
+    transform_points,
 )
 from peach_perception.target_reconstruction.interfaces import (
     CLOUD_BUILDERS,
@@ -101,19 +100,26 @@ from peach_perception.target_reconstruction.interfaces import (
     REFITTERS,
     VOLUMES,
 )
-from peach_perception.target_reconstruction.mask_gate import MaskContext
-from peach_perception.target_reconstruction.overlap import (
-    assembly_overlap_metrics,
-    summarize_pairs_mm,
-)
 from peach_perception.target_reconstruction.params import TargetReconstructionParams
-from peach_perception.target_reconstruction.publish_throttle import PublishThrottle
-from peach_perception.target_reconstruction.publishers import PublisherMixin
-from peach_perception.target_reconstruction.session_io import save_session
-from peach_perception.target_reconstruction.skip_codes import classify_skip_reason
-from peach_perception.target_reconstruction.timing import TimingStats
-from peach_perception.target_reconstruction.tsdf_volume import LocalTsdf
-from peach_perception.target_reconstruction.view_coverage import summarize_view_coverage
+from peach_perception.target_reconstruction.pregrasp_verification import (
+    evaluate_pregrasp,
+)
+from peach_perception.target_reconstruction.publish import (
+    PublisherMixin,
+    PublishThrottle,
+    save_session,
+)
+from peach_perception.target_reconstruction.refine import (
+    axis_angle_deg,
+    axis_from_vector3,
+    candidate_axis_hint,
+    RefitConfig,
+    select_reconstruction_candidate,
+    select_refitter,
+    STATUS_ACCEPT,
+    STATUS_REOBSERVE,
+    TargetKindMemory,
+)
 import rclpy
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -135,6 +141,16 @@ from tf2_ros import Buffer, TransformException, TransformListener
 from visualization_msgs.msg import MarkerArray
 
 
+def _xyz_list(value, fallback=(0.0, 0.0, 0.0)):
+    """三维点转三个 float；ndarray 不得走 Python `or`（真值歧义会抛）."""
+    if value is None:
+        value = fallback
+    arr = np.asarray(value, dtype=np.float64).reshape(-1)
+    if arr.size < 3 or not np.all(np.isfinite(arr[:3])):
+        arr = np.asarray(fallback, dtype=np.float64).reshape(-1)
+    return [float(v) for v in arr[:3]]
+
+
 class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode):
     """连续运动局部重建 Lifecycle 节点：Active 后才积分与受理 BuildTargetModel."""
 
@@ -145,9 +161,12 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
         self.bridge = cv_bridge.CvBridge()
         # 协议 I3（时钟唯一）：节点时钟适配为纯核 Clock，一切计时走注入 now
         self._algo_clock = RclpyClockAdapter(self.get_clock())
-        # 参数层：declare + 装载（全部 64 参数在 params.py）
-        TargetReconstructionParams.declare(self)
-        self.params = TargetReconstructionParams.from_node(self)
+        # generate_parameter_library_py 官方装载链：ParamListener 声明（类型/
+        # 默认值/描述/校验，源 config/target_reconstruction_parameters.yaml），
+        # 快照装载为 frozen dataclass（params.py from_params）
+        self._param_listener = TargetReconstructionParams.declare(self)
+        self.params = TargetReconstructionParams.from_params(
+            self._param_listener.get_params())
         p = self.params
         # 派生量（ROS 类型/容器形态转换，非参数副本）
         self.tf_timeout = Duration(seconds=p.tf_timeout_sec)
@@ -290,9 +309,33 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
         # diagnostics JSON 的 refined 键由 _refined_info() 投影派生
         self._target_kind_memory = TargetKindMemory()
         self._refined: Optional[dict] = None
+        self._bag_model: Optional[dict] = None
+        self._pregrasp_prev: Optional[dict] = None
         # 球体 refit 无法独立恢复姿态轴；绑定时冻结感知侧果梗/凹陷方向先验。
-        self._bound_axis_hint: Optional[np.ndarray] = None
+        self._bound_axis_hint = None
+        # ROS 实体（发布器/订阅/服务/ActionServer/TF/心跳）统一在 on_configure
+        # 创建（官方 LifecycleNode 写法：Unconfigured 期零 ROS 接口，configure
+        # 失败即 ERROR），on_cleanup 释放；见 _wire_ros / _unwire_ros。
+        self._ros_entities_wired = False
 
+        self.get_logger().info(
+            f'peach_target_reconstruction_node ready: '
+            f'base={self.params.frames.base_frame} '
+            f'color={self.params.camera.color_topic} '
+            f'depth={self.params.camera.depth_topic} '
+            f'slop={self.params.sync_slop_s}s '
+            f'depth_scale_unit={self.params.depth_scale_unit} '
+            f'views(min/rec/max)={self.params.capture.min_views}/'
+            f'{self.params.capture.recommended_views}/'
+            f'{self.params.capture.max_views} '
+            f'require_static={self.params.capture.require_robot_static} '
+            f'auto_mode={self.params.capture.auto_mode} '
+            f'session_root={self._session_root()}')
+
+    def _wire_ros(self) -> None:
+        """在 on_configure 创建全部 ROS 实体（发布器/订阅/服务/动作/TF/心跳）."""
+        if self._ros_entities_wired:
+            return
         # ---- 发布者（/peach/reconstruction/* 固定命名）----
         # 状态类话题用 transient_local 闩锁（depth=1）：后启动的订阅者
         # （验证记录器 / RViz）也能拿到最后一次发布；发布频率低，闩锁代价可忽略
@@ -312,7 +355,7 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
         )
         diag_pub_callbacks = PublisherEventCallbacks(
             deadline=lambda info: self.get_logger().warning(
-                f'diagnostics 心跳超过 offered deadline 1.5s'
+                'diagnostics 心跳超过 offered deadline 1.5s'
                 f'（累计违约 {info.total_count} 次）：节点执行器疑似卡滞'),
             use_default_callbacks=False)
         self.pub_cloud = self.create_lifecycle_publisher(
@@ -328,6 +371,9 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
             String, '/peach/reconstruction/diagnostics_debug', latched_qos)
         self.pub_grasp_decision = self.create_lifecycle_publisher(
             GraspDecision, '/peach/reconstruction/grasp_decision', latched_qos)
+        self.pub_pregrasp = self.create_lifecycle_publisher(
+            PregraspVerification,
+            '/peach/reconstruction/pregrasp_verification', latched_qos)
         self.pub_markers = self.create_lifecycle_publisher(
             MarkerArray, '/peach/reconstruction/markers', latched_qos)
         self.pub_tsdf_cloud = self.create_lifecycle_publisher(
@@ -351,56 +397,61 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
             reliability=rclpy.qos.ReliabilityPolicy.RELIABLE,
             history=rclpy.qos.HistoryPolicy.KEEP_LAST,
         )
-        sub_rgb = message_filters.Subscriber(
+        self._sub_rgb = message_filters.Subscriber(
             self, Image, self.params.camera.color_topic, qos_profile=qos)
-        sub_depth = message_filters.Subscriber(
+        self._sub_depth = message_filters.Subscriber(
             self, Image, self.params.camera.depth_topic, qos_profile=qos)
-        sub_info = message_filters.Subscriber(
-            self, CameraInfo, self.params.camera.camera_info_topic, qos_profile=qos)
+        self._sub_info = message_filters.Subscriber(
+            self, CameraInfo, self.params.camera.camera_info_topic,
+            qos_profile=qos)
         self._frame_worker = BoundedWorker(
             self._process_rgbd, capacity=3, drop_oldest=False)
         self.sync = message_filters.ApproximateTimeSynchronizer(
-            [sub_rgb, sub_depth, sub_info], queue_size=10, slop=self.params.sync_slop_s)
+            [self._sub_rgb, self._sub_depth, self._sub_info],
+            queue_size=10, slop=self.params.sync_slop_s)
         self.sync.registerCallback(self._on_rgbd)
-        self.create_subscription(
+        default_qos = rclpy.qos.QoSProfile(depth=10)
+        self._sub_initial = self.create_subscription(
             BagGraspCandidateArray, '/peach/perception/initial_pose',
             self._on_initial_pose, latched_qos)
-        self.create_subscription(
+        self._sub_target_obs = self.create_subscription(
             PeachTargetObservationArray,
             '/peach/perception/target_observations',
-            self._on_target_observations, 10)
+            self._on_target_observations, default_qos)
         # 感知诊断（target_id→target_kind）：refit 选圆柱/球拟合线的依据
-        self.create_subscription(
+        self._sub_perc_diag = self.create_subscription(
             BagFittingArray, '/peach/perception/diagnostics',
-            self._on_perception_diagnostics, 10)
-        self.create_subscription(
-            JointState, '/joint_states', self._on_joint_states, 10)
+            self._on_perception_diagnostics, default_qos)
+        self._sub_joint = self.create_subscription(
+            JointState, '/joint_states', self._on_joint_states, default_qos)
+        self._cb = ReentrantCallbackGroup()
         latched = QoSProfile(
             history=HistoryPolicy.KEEP_LAST,
             depth=1,
             reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
         )
-        self._cb = ReentrantCallbackGroup()
-        self.create_subscription(
+        self._sub_exec_state = self.create_subscription(
             HarvestState, '/peach_task_executor/state',
             self._on_executor_state, latched, callback_group=self._cb)
 
         # ---- 服务（std_srvs/Trigger，节点相对名；人工/BT 调试口）----
-        self.create_service(
+        self._svc_start = self.create_service(
             Trigger, '~/start_reconstruction', self._on_start)
-        self.create_service(Trigger, '~/capture_frame', self._on_capture)
-        self.create_service(
+        self._svc_capture = self.create_service(
+            Trigger, '~/capture_frame', self._on_capture)
+        self._svc_remove_last = self.create_service(
             Trigger, '~/remove_last_frame', self._on_remove_last)
-        self.create_service(
+        self._svc_reset = self.create_service(
             Trigger, '~/reset_reconstruction', self._on_reset)
-        self.create_service(
+        self._svc_finalize = self.create_service(
             Trigger, '~/finalize_reconstruction', self._on_finalize)
-        self.create_service(Trigger, '~/save_session', self._on_save_session)
-        self.create_service(
+        self._svc_save = self.create_service(
+            Trigger, '~/save_session', self._on_save_session)
+        self._svc_query = self.create_service(
             Trigger, '~/query_reconstruction_state',
             self._on_query_reconstruction_state)
-        ActionServer(
+        self._action_server = ActionServer(
             self, BuildTargetModel, '~/build_target_model',
             execute_callback=self._on_build_target_model,
             goal_callback=self._on_build_goal,
@@ -413,32 +464,69 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
         # 1Hz 活性心跳：状态/诊断/抓取许可三件套周期重发。_publish_all 只在
         # 状态变化时触发，IDLE 期无消息会让编排器重建就绪门（2s 新鲜度）永远
         # 不满足——拍照前置建立不了目标→无法锁定→无法绑定的死锁由此解开。
-        self._heartbeat_timer = self.create_timer(1.0, self._publish_heartbeat)
+        self._heartbeat_timer = self.create_timer(
+            1.0, self._publish_heartbeat, callback_group=self._cb)
+        self._ros_entities_wired = True
 
-        # 启动即首发一次（IDLE + 空云），闩锁话题让后启动的订阅者立即可读
-        self._publish_all()
-
-        self.get_logger().info(
-            f'peach_target_reconstruction_node ready: '
-            f'base={self.params.frames.base_frame} '
-            f'color={self.params.camera.color_topic} '
-            f'depth={self.params.camera.depth_topic} '
-            f'slop={self.params.sync_slop_s}s '
-            f'depth_scale_unit={self.params.depth_scale_unit} '
-            f'views(min/rec/max)={self.params.capture.min_views}/'
-            f'{self.params.capture.recommended_views}/'
-            f'{self.params.capture.max_views} '
-            f'require_static={self.params.capture.require_robot_static} '
-            f'auto_mode={self.params.capture.auto_mode} '
-            f'session_root={self._session_root()}')
+    def _unwire_ros(self) -> None:
+        """on_cleanup 释放全部 ROS 实体（与 _wire_ros 一一对应）."""
+        if not self._ros_entities_wired:
+            return
+        try:
+            self.destroy_timer(self._heartbeat_timer)
+        except Exception:  # noqa: BLE001 已释放则忽略
+            pass
+        try:
+            for svc in (
+                    self._svc_start, self._svc_capture, self._svc_remove_last,
+                    self._svc_reset, self._svc_finalize, self._svc_save,
+                    self._svc_query):
+                self.destroy_service(svc)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            for sub in (
+                    self._sub_initial, self._sub_target_obs,
+                    self._sub_perc_diag, self._sub_joint, self._sub_exec_state,
+                    self._sub_rgb.sub, self._sub_depth.sub, self._sub_info.sub):
+                self.destroy_subscription(sub)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            for pub in (
+                    self.pub_cloud, self.pub_status, self.pub_diag,
+                    self.pub_diag_debug, self.pub_grasp_decision,
+                    self.pub_pregrasp,
+                    self.pub_markers, self.pub_tsdf_cloud,
+                    self.pub_refined_pose, self.pub_refined_axis,
+                    self.pub_refined_diag, self.pub_shape):
+                self.destroy_lifecycle_publisher(pub)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            self._action_server.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            self.destroy_subscription(self.tf_listener.tf_sub)
+            self.destroy_subscription(self.tf_listener.tf_static_sub)
+        except Exception:  # noqa: BLE001
+            pass
+        self._ros_entities_wired = False
 
     def on_configure(self, state):
         del state
+        try:
+            self._wire_ros()
+        except Exception as exc:  # noqa: BLE001 接线失败（话题/参数非法）整包停走
+            self.get_logger().error(f'configure 失败: {exc}')
+            return TransitionCallbackReturn.ERROR
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state):
         result = super().on_activate(state)
         self._lifecycle_active = True
+        # 激活后首发一次（IDLE + 空云），闩锁话题让后启动的订阅者立即可读
         self._publish_all()
         self.get_logger().info('reconstruction Active：开始积分')
         return result
@@ -449,6 +537,7 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
 
     def on_cleanup(self, state):
         self._lifecycle_active = False
+        self._unwire_ros()
         return super().on_cleanup(state)
 
     def _on_build_goal(self, goal_request):
@@ -703,7 +792,7 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
         按图像时间戳精确查询 base←camera 4×4 矩阵.
 
         timeout 只用于等待相应时刻的机器人 TF 到达。连续运动中禁止回退
-        latest TF，因为错时位姿会在 TSDF 中形成不可回滚的双层表面。
+        latest TF，因为错时位姿会在 TSDF 中形成不可回滚的双层表面.
 
         Args:
             cam_frame: 相机光学系 frame_id（取深度图 header.frame_id）.
@@ -987,7 +1076,7 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
         前置门禁（满栈/无帧/掩膜/同帧/帧龄/静止/空 frame_id）任一不过即
         定案返回 (decision, None)；全过返回 (GateDecision(GATE_NEED_TF),
         tf_request)，调用方须释放 _state_lock 后用 tf_request 调
-        _gated_capture_query_tf，再重新持锁调 _gated_capture_finish 收口。
+        _gated_capture_query_tf，再重新持锁调 _gated_capture_finish 收口.
 
         Args:
             automatic: True=自动模式（拒绝映射 skip），False=手动服务
@@ -1013,7 +1102,7 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
 
         最长阻塞 self.tf_timeout；查询期间 _state_lock 空闲，Trigger 服务/
         目标观测回调/心跳不被本查询堵住。查询按帧 stamp 进行，结果对当前
-        缓存帧是否仍有效由锁内 _gated_capture_finish 按 stamp 复核。
+        缓存帧是否仍有效由锁内 _gated_capture_finish 按 stamp 复核.
 
         Args:
             tf_request: _gated_capture_begin 返回的
@@ -1035,7 +1124,7 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
         竞态收口：TF 查询在锁外完成，期间帧环可能追加新帧、帧栈可能被
         reset/收满/已采入同帧。本段按查询 stamp 从帧环取同一帧复核——
         查询中到达的更新帧不覆盖这次尝试；查询帧已滚出环则丢弃（自动
-        =skip、手动=deny 提示重试）。绝不把旧帧时刻的位姿套到新帧上。
+        =skip、手动=deny 提示重试）。绝不把旧帧时刻的位姿套到新帧上.
 
         Args:
             automatic: 同 _gated_capture_begin.
@@ -1166,9 +1255,10 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
         return True, registration.correction, registration.mode, info, ''
 
     def _integrate_tsdf(self, rgb, masked_depth, K, T_used, cloud_base):
-        """积分当前帧；失败回滚并返回错误串，成功返回 None."""
+        """积分当前帧；体积失败才回滚。袋融合失败保留体积，该帧仍算采入."""
         if not self.params.tsdf.enable:
             return None
+        refreshed = False
         try:
             if self._tsdf_volume is None:
                 self._tsdf_volume = self._create_volume()
@@ -1177,13 +1267,11 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
                 rgb, masked_depth, K, T_used)
             if self._icp_target_cache.should_refresh():
                 self._refresh_tsdf_outputs()
-                if self.params.refit.enable:
-                    self._run_refit(keep_last_good=True, mark_final=False)
+                refreshed = True
             else:
                 self._icp_target_cache.append_frame(cloud_base)
             self._timing.record_tsdf_integrate(
                 (self._algo_clock.now() - t_tsdf0) * 1000.0)
-            return None
         except Exception as exc:  # noqa: BLE001
             self.collector.remove_last()
             self._tsdf_volume = self._create_volume()
@@ -1192,6 +1280,13 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
                     old.rgb, old.depth_mm, old.camera_K, old.T_base_camera)
             self._refresh_tsdf_outputs()
             return f'TSDF 在线积分失败: {exc}'
+        if refreshed and self.params.refit.enable:
+            try:
+                self._run_refit(keep_last_good=True, mark_final=False)
+            except Exception as exc:  # noqa: BLE001
+                self.get_logger().warning(
+                    f'REFINING 失败（TSDF 体积已保留）: {exc}')
+        return None
 
     def _accept_frame(self, rgb, depth_mm, K, stamp_sec: float,
                       T_base_camera, tf_status: str,
@@ -1200,7 +1295,7 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
         FK 构云 → 有界帧到模型 ICP → 入库并立即积分 TSDF.
 
         T_base_camera 是精确图像时刻的 FK/手眼位姿；ICP 只估计相对它的
-        小修正。ICP 与 FK 预对齐都不合格时拒帧，避免污染在线体积。
+        小修正。ICP 与 FK 预对齐都不合格时拒帧，避免污染在线体积.
 
         Args:
             rgb: (H, W, 3) uint8 BGR 彩图.
@@ -1348,6 +1443,19 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
         # finalize 总耗时起点（含重叠指标、TSDF 最终提取、refit 全链；
         # 成功/失败路径都记 last 值）
         t_finalize0 = self._algo_clock.now()
+        coverage = summarize_view_coverage(
+            self.collector.frames, self.collector.target_center)
+        pose_count = int(coverage.get('view_count') or 0)
+        min_views = int(self.params.capture.min_views)
+        if pose_count < min_views:
+            message = (
+                f'已采 {pose_count} 机位 < min_views={min_views}，'
+                '继续采帧或 reset')
+            self.get_logger().warning(message)
+            self._timing.record_finalize(
+                (self._algo_clock.now() - t_finalize0) * 1000.0)
+            self._publish_all()
+            return False, message
         ok, message, _cloud = self.collector.finalize()
         if not ok:
             self._overlap_cache = None
@@ -1385,6 +1493,7 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
                     'event': 'reconstruction_finalized',
                     'target_id': self.collector.target_id,
                     'captured_views': len(self.collector.frames),
+                    'pose_count': pose_count,
                     'refined': self._refined_info(),
                     'grasp_decision': self._grasp_decision(),
                 })
@@ -1402,7 +1511,7 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
         从在线 TSDF 提取最终点云和三角网格.
 
         每帧已在 _accept_frame 中完成积分；此处禁止再次批量积分，只做
-        ROI 点云后处理与 Open3D marching-cubes 网格提取。
+        ROI 点云后处理与 Open3D marching-cubes 网格提取.
 
         Returns
         -------
@@ -1430,82 +1539,182 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
     def _run_refit(self, keep_last_good: bool = False,
                    mark_final: bool = False) -> str:
         """
-        对当前 TSDF 云做几何二次拟合.
+        Fuse bag landmarks; TSDF cylinder/sphere is visualization only.
 
-        采帧路径在每次全量 extract 后调用（keep_last_good=True）：失败保留
-        上一帧成功结果，RViz 抓取示意连续更新。finalize 调用
-        keep_last_good=False、mark_final=True：定稿供技能端抓取。
-        抓取许可仍要求 collector.state==READY，在线 ACCEPT 不会提前放行。
+        Contact authority is the fused bag model plus dynamic budget.
+        TSDF cloud supplies envelope-axis consistency only; squat volumes
+        skip the 12° veto. Fusion still runs from cloud_base when TSDF is
+        missing. keep_last_good keeps the last bag model that already has
+        a budget. Finalize marks the result final. GraspDecision still
+        requires collector.state==READY.
 
         Returns
         -------
-            追加到 finalize/采帧 message 的片段.
+            Suffix appended to the finalize/capture message.
 
         """
         previous = self._refined if keep_last_good else None
-        if self._tsdf_cloud_cache is None or not self._tsdf_cloud_cache[0].size:
-            if previous and previous.get('ok'):
-                return '；refit 跳过（无新 TSDF 云，保留上一帧）'
-            self._refined = {'ok': False, 'reason': 'no_tsdf_cloud'}
-            self._bump_products_version()  # E4：refined 写入递增产物版本号
-            self.get_logger().warning('REFINING：无 TSDF 云，refit 跳过')
-            return '；refit 跳过（无 TSDF 云）'
-        xyz = self._tsdf_cloud_cache[0]
         kind, defaulted = self._resolve_target_kind()
-        self.get_logger().info(
-            f'REFINING：几何二次拟合开始（kind={kind}，{xyz.shape[0]} 点）')
-        # refit 耗时（last 值）：几何拟合主体调用；成功/异常路径都落账
-        # （异常说明拟合已执行且开销真实发生），无云跳过路径保持上一次值
-        t_refit0 = self._algo_clock.now()
-        try:
-            result = select_refitter(self._refitters, kind).refit(
-                xyz, kind, self.refit_config, self._bound_axis_hint)
-            self._timing.record_refit((self._algo_clock.now() - t_refit0) * 1000.0)
-        except Exception as exc:  # noqa: BLE001
-            self._timing.record_refit((self._algo_clock.now() - t_refit0) * 1000.0)
-            if previous and previous.get('ok'):
-                self.get_logger().warning(
-                    f'refit 异常，保留上一帧抓取示意: {exc}')
-                return f'；refit 异常，保留上一帧（{exc}）'
-            self._refined = {'ok': False, 'reason': f'exception:{exc}'}
-            self._bump_products_version()  # E4：refined 写入递增产物版本号
-            self.get_logger().warning(f'refit 异常: {exc}')
-            return f'；refit 失败（{exc}）'
-        if defaulted:
-            result.setdefault('flags', []).append('target_kind_defaulted')
-        if not result['ok']:
-            if previous and previous.get('ok'):
-                self.get_logger().warning(
-                    f"refit 未收敛，保留上一帧：{result['reason']}")
-                return f'；refit 未更新（{result["reason"]}）'
-            self._refined = {
-                'ok': False, 'reason': result['reason'],
-                'kind': kind, 'n_points': result['n_points']}
-            self._bump_products_version()  # E4：refined 写入递增产物版本号
-            self.get_logger().warning(
-                f'refit 失败：{result["reason"]}')
-            return f'；refit 失败（{result["reason"]}）'
+        has_tsdf = (
+            self._tsdf_cloud_cache is not None
+            and self._tsdf_cloud_cache[0].size)
+        result = None
+        if has_tsdf:
+            xyz = self._tsdf_cloud_cache[0]
+            self.get_logger().info(
+                f'REFINING：几何二次拟合开始（kind={kind}，{xyz.shape[0]} 点）')
+            t_refit0 = self._algo_clock.now()
+            try:
+                result = select_refitter(self._refitters, kind).refit(
+                    xyz, kind, self.refit_config, self._bound_axis_hint)
+                self._timing.record_refit(
+                    (self._algo_clock.now() - t_refit0) * 1000.0)
+            except Exception as exc:  # noqa: BLE001
+                self._timing.record_refit(
+                    (self._algo_clock.now() - t_refit0) * 1000.0)
+                self.get_logger().warning(f'refit 异常: {exc}')
+                result = {
+                    'ok': False, 'reason': f'exception:{exc}',
+                    'kind': kind, 'n_points': int(xyz.shape[0]),
+                    'flags': []}
+            if defaulted and result is not None:
+                result.setdefault('flags', []).append('target_kind_defaulted')
+        else:
+            result = {
+                'ok': False, 'reason': 'no_tsdf_cloud',
+                'kind': kind, 'n_points': 0, 'flags': ['no_tsdf_cloud']}
+        result = result or {
+            'ok': False, 'reason': 'refit_missing', 'kind': kind,
+            'n_points': 0, 'flags': []}
         result['final'] = bool(mark_final)
+        views = self._collect_bag_views()
+        cloud_xyz = (
+            self._tsdf_cloud_cache[0] if has_tsdf else None)
+        fused = fuse_bag_views(
+            views,
+            cloud_xyz=cloud_xyz,
+            detection_axis=self._bound_axis_hint,
+            entry_standoff_m=float(self.refit_config.entry_standoff_m))
+        result = self._merge_fused_bag_model(result, fused, views)
+        if result.get('ok') and result.get('budget'):
+            self._refined = result
+            self._log_geometry_row(result, fused)
+            self._bump_products_version()
+            self._products_force_publish = True
+            status_text = (
+                'ACCEPT' if result.get('status') == STATUS_ACCEPT
+                else 'REOBSERVE')
+            self.get_logger().info(
+                f"REFINING 完成：{result.get('kind')} status={status_text} "
+                f"final={result['final']} "
+                f"axis={np.round(result['axis'], 4).tolist()} "
+                f"diameter={float(result.get('diameter') or 0) * 1000.0:.1f}mm")
+            return (f'；refit {status_text}（袋模型 '
+                    f"{fused.get('view_count', 0)} 视）")
+        if previous and previous.get('ok') and previous.get('budget'):
+            self.get_logger().warning(
+                f"refit/融合未收敛，保留上一帧袋模型：{result.get('reason')}")
+            return f'；refit 未更新（{result.get("reason")}）'
         self._refined = result
-        self._bump_products_version()  # E4：refined 写入递增产物版本号
-        # 绑定当帧会先 force 发空 Marker；0.2s 间隔门会把紧随其后的
-        # 抓取示意压掉，而静止位姿不再采帧就永远闩在 DELETEALL。
-        self._products_force_publish = True
-        status_text = ('ACCEPT' if result['status'] == STATUS_ACCEPT
-                       else 'REOBSERVE')
-        self.get_logger().info(
-            f"REFINING 完成：{result['kind']} status={status_text} "
-            f"final={result['final']} "
-            f"axis={np.round(result['axis'], 4).tolist()} "
-            f"diameter={result['diameter'] * 1000.0:.1f}mm "
-            f"rmse={result['rmse'] * 1000.0:.2f}mm "
-            f"inlier={result['inlier_ratio']:.2f}")
-        return (f"；refit {status_text}（{result['kind']}，"
-                f"rmse {result['rmse'] * 1000.0:.1f}mm，"
-                f"inlier {result['inlier_ratio']:.2f}）")
+        self._bag_model = fused
+        self._bump_products_version()
+        self.get_logger().warning(
+            f"REFINING：无接触权威几何（{result.get('reason')}）")
+        return f'；refit 失败（{result.get("reason")}）'
+
+    def _collect_bag_views(self) -> list:
+        """Extract bag landmarks, one cloud per camera pose cluster."""
+        frames = list(self.collector.frames)
+        coverage = summarize_view_coverage(frames, self.collector.target_center)
+        selected = []
+        if coverage.get('views'):
+            for pose in coverage['views']:
+                indices = pose.get('member_indices') or [pose['index']]
+                valid = [
+                    index for index in indices
+                    if 0 <= int(index) < len(frames)]
+                if not valid:
+                    continue
+                best = max(
+                    valid,
+                    key=lambda index: float(frames[index].valid_depth_ratio))
+                selected.append(frames[best])
+        else:
+            selected = frames
+        views = []
+        for frame in selected:
+            cloud = getattr(frame, 'cloud_base', None)
+            if cloud is None:
+                continue
+            cloud = np.asarray(cloud, dtype=np.float64)
+            if cloud.ndim != 2 or cloud.shape[0] < 30:
+                continue
+            landmarks = estimate_bag_landmarks(
+                cloud,
+                gravity=np.array([0.0, 0.0, -1.0], dtype=np.float64),
+                valid_depth_ratio=float(frame.valid_depth_ratio))
+            views.append(landmarks)
+            self._log_view_geometry(landmarks, frame)
+        return views
+
+    def _merge_fused_bag_model(self, result: dict, fused: dict, views) -> dict:
+        """Write fused bag geometry; drop the contact budget if fusion fails."""
+        self._bag_model = fused
+        if not fused.get('ok'):
+            result.setdefault('flags', []).append('bag_fusion_required')
+            result['ok'] = False
+            result['budget'] = {}
+            result['corridor_clear'] = False
+            result['status'] = STATUS_REOBSERVE
+            result['reason'] = str(
+                fused.get('reason') or result.get('reason') or
+                'bag_model_unavailable')
+            return result
+        result['ok'] = True
+        result['kind'] = 'cylinder'
+        result['bottom'] = fused['bottom']
+        result['neck'] = fused['neck']
+        result['axis'] = fused['axis']
+        result['center'] = 0.5 * (
+            np.asarray(fused['bottom']) + np.asarray(fused['neck']))
+        result['d95_m'] = fused['d95_m']
+        result['diameter'] = fused['d95_m']
+        result['radius'] = 0.5 * float(fused['d95_m'])
+        result['rmse'] = float(fused.get('rmse') or 0.0)
+        result['inlier_ratio'] = float(fused.get('inlier_ratio') or 0.0)
+        result.setdefault('n_points', 0)
+        result['radial_margin_m'] = fused['radial_margin_m']
+        result['axial_margin_m'] = fused['axial_margin_m']
+        result['corridor_clear'] = fused['corridor_clear']
+        result['budget'] = fused.get('budget') or {}
+        result['occlusion_class'] = fused.get('occlusion_class', '')
+        result['fruit_prior_radius_m'] = fused.get(
+            'fruit_prior_radius_m', 0.0)
+        result['model_revision'] = (
+            f'{self.collector.target_id}:{len(views)}')
+        result['span_m'] = float(fused.get('length_m') or 0.0)
+        angle = axis_angle_deg(fused['axis'], self._bound_axis_hint)
+        result['axis_angle_deg'] = angle
+        max_deg = float(self.refit_config.max_axis_angle_deg)
+        result['diagnostic_axis_mismatch'] = bool(
+            angle is not None and angle > max_deg)
+        # 融合成功即可接近预抓取；接触许可仍只看 budget.allowed。
+        result['status'] = STATUS_ACCEPT
+        result.setdefault('flags', []).extend(fused.get('flags') or [])
+        result['envelope_conditioned'] = bool(fused.get('envelope_conditioned'))
+        result['envelope_reason'] = str(fused.get('envelope_reason') or '')
+        result['axis_conflict_deg'] = float(fused.get('axis_conflict_deg') or 0.0)
+        result['entry'] = fused['entry']
+        result['pregrasp'] = fused.get('pregrasp')
+        result['cut_pose'] = fused.get('cut_pose', fused['neck'])
+        result['cut_plane_point'] = fused.get(
+            'cut_plane_point', fused['neck'])
+        result['cut_travel_m'] = float(fused.get('cut_travel_m') or 0.0)
+        result['cut_to_fruit_m'] = float(fused.get('cut_to_fruit_m') or 0.0)
+        return result
 
     def _on_finalize(self, request, response):
-        """~/finalize_reconstruction：视角数达标则拼接全部帧发 local_cloud."""
+        """~/finalize_reconstruction：机位与帧数达标则拼接全部帧发 local_cloud."""
         del request
         with self._state_lock:
             ok, message = self._finalize_now()
@@ -1520,52 +1729,50 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
             self._executor_target_id = str(msg.target_id or '')
 
     def _wait_min_views(self, goal_handle, target_id: str, timeout_s: float):
-        """等积分帧数与覆盖质量同时达标（或取消/超时）."""
+        """等独立机位数与角基线同时达标（或取消/超时）."""
         capture = self.params.capture
         min_views = int(capture.min_views)
         deadline = time.monotonic() + timeout_s
-        last_n = -1
-        n_frames, bound = 0, ''
+        last_poses = -1
+        pose_count, bound = 0, ''
         while time.monotonic() < deadline:
             if goal_handle.is_cancel_requested:
-                return 'canceled', n_frames, bound
+                return 'canceled', pose_count, bound
             with self._state_lock:
                 frames = list(self.collector.frames)
-                n_frames = len(frames)
                 center = (None if self.collector.target_center is None
                           else self.collector.target_center.copy())
                 bound = self.collector.target_id
                 state = self.collector.state
-            coverage_ready = False
-            if n_frames >= min_views:
-                coverage = summarize_view_coverage(frames, center)
-                coverage_ready = (
-                    bool(coverage.get('valid'))
-                    and float(coverage['max_baseline_deg']) >=
-                    float(capture.minimum_baseline_deg)
-                    and float(coverage['mean_nearest_baseline_deg']) >=
-                    float(capture.minimum_mean_nearest_baseline_deg)
-                    and float(coverage['valid_depth_ratio_mean']) >=
-                    float(capture.minimum_mean_depth_ratio)
-                )
-            if n_frames != last_n:
-                last_n = n_frames
+            coverage = summarize_view_coverage(frames, center)
+            pose_count = int(coverage.get('view_count') or 0)
+            coverage_ready = (
+                bool(coverage.get('valid'))
+                and pose_count >= min_views
+                and float(coverage.get('max_baseline_deg') or 0.0) >=
+                float(capture.minimum_baseline_deg)
+                and float(coverage.get('mean_nearest_baseline_deg') or 0.0) >=
+                float(capture.minimum_mean_nearest_baseline_deg)
+                and float(coverage.get('valid_depth_ratio_mean') or 0.0) >=
+                float(capture.minimum_mean_depth_ratio)
+            )
+            if pose_count != last_poses:
+                last_poses = pose_count
                 feedback = BuildTargetModel.Feedback()
-                feedback.view_count = n_frames
+                feedback.view_count = pose_count
                 feedback.status = state
                 goal_handle.publish_feedback(feedback)
-            if (target_id and bound == target_id and n_frames >= min_views
-                    and coverage_ready):
-                return 'ready', n_frames, bound
+            if (target_id and bound == target_id and coverage_ready):
+                return 'ready', pose_count, bound
             remaining = deadline - time.monotonic()
             if remaining <= 0.0:
                 break
             self._view_progress.wait(timeout=min(0.5, remaining))
             self._view_progress.clear()
-        return 'timeout', n_frames, bound
+        return 'timeout', pose_count, bound
 
     def _on_build_target_model(self, goal_handle):
-        """BuildTargetModel：reset 后绑定 goal.target_id，等 min_views 再 finalize."""
+        """BuildTargetModel：reset 后绑定 goal.target_id，等机位数再 finalize."""
         goal = goal_handle.request
         if not goal.target_id:
             result = BuildTargetModel.Result()
@@ -1597,7 +1804,13 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
                     self._latest_candidates, goal.target_id)
                 self.get_logger().info(f'BuildTargetModel 强制开始：{message}')
                 self._publish_all()
-        status, n_frames, _bound = self._wait_min_views(
+        with self._state_lock:
+            bound_state = self.collector.state
+        started = BuildTargetModel.Feedback()
+        started.view_count = 0
+        started.status = bound_state
+        goal_handle.publish_feedback(started)
+        status, pose_count, _bound = self._wait_min_views(
             goal_handle, goal.target_id,
             timeout_s=float(self.params.capture.build_timeout_s))
         if status in ('canceled', 'timeout'):
@@ -1611,7 +1824,7 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
             model.accepted = False
             model.message = status
             model.quality.level = result.quality_level
-            model.view_count = n_frames
+            model.view_count = pose_count
             result.model = model
             if status == 'canceled':
                 goal_handle.canceled()
@@ -1631,7 +1844,8 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
         model.accepted = bool(ok)
         model.message = message
         model.quality.level = result.quality_level
-        model.view_count = n_frames
+        model.view_count = pose_count
+        self._fill_target_model(model)
         result.model = model
         if ok:
             goal_handle.succeed()
@@ -1774,6 +1988,182 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
                 'registration': dict(f.registration),
             } for i, f in enumerate(c.frames)],
         }
+
+    def _log_geometry_row(self, result: dict, fused: dict) -> None:
+        """追加 geometry.jsonl，供离线基线复算."""
+        root = self._session_root()
+        path = Path(root) / 'geometry.jsonl'
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            cut_pose = fused.get('cut_pose')
+            if cut_pose is None:
+                cut_pose = result.get('neck')
+            row = {
+                'target_id': self.collector.target_id,
+                'bag_bottom': _xyz_list(result.get('bottom')),
+                'bag_neck': _xyz_list(result.get('neck')),
+                'axis': _xyz_list(result.get('axis'), (0.0, 0.0, 1.0)),
+                'd95_m': float(result.get('d95_m') or result.get('diameter') or 0),
+                'length_m': float(fused.get('length_m') or result.get('span_m') or 0),
+                'sigma_position_m': float(fused.get('sigma_position_m') or 0.02),
+                'sigma_axis_deg': float(fused.get('sigma_axis_deg') or 8.0),
+                'radial_margin_m': float(fused.get('radial_margin_m') or 0.0),
+                'axial_margin_m': float(fused.get('axial_margin_m') or 0.0),
+                'occlusion_class': str(fused.get('occlusion_class') or ''),
+                'allowed': bool(fused.get('allowed')),
+                'reason': str(fused.get('reason') or ''),
+                'view_count': int(fused.get('view_count') or 0),
+                'axis_conflict_deg': float(
+                    fused.get('axis_conflict_deg') or 0.0),
+                'envelope_conditioned': bool(
+                    fused.get('envelope_conditioned')),
+                'envelope_reason': str(fused.get('envelope_reason') or ''),
+                'cut_pose': _xyz_list(cut_pose),
+                'cut_to_fruit_m': float(fused.get('cut_to_fruit_m') or 0.0),
+                'cut_travel_m': float(fused.get('cut_travel_m') or 0.0),
+                'rmse_m': float(fused.get('rmse') or 0.0),
+                'inlier_ratio': float(fused.get('inlier_ratio') or 0.0),
+                'corridor_clear': bool(fused.get('corridor_clear')),
+                'flags': list(fused.get('flags') or []),
+                'fused': True,
+            }
+            with path.open('a', encoding='utf-8') as stream:
+                stream.write(json.dumps(row, ensure_ascii=False) + '\n')
+        except Exception as exc:  # noqa: BLE001
+            self.get_logger().warning(f'geometry.jsonl 写入失败: {exc}')
+
+    def _log_view_geometry(self, landmarks, frame) -> None:
+        """单视角袋关键点行，供多视角离散度基线."""
+        if landmarks.bottom_center is None or landmarks.neck_center is None:
+            return
+        root = self._session_root()
+        path = Path(root) / 'geometry.jsonl'
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            row = {
+                'target_id': self.collector.target_id,
+                'bag_bottom': [float(v) for v in landmarks.bottom_center],
+                'bag_neck': [float(v) for v in landmarks.neck_center],
+                'axis': [float(v) for v in (
+                    landmarks.bag_axis if landmarks.bag_axis is not None
+                    else (0, 0, 1))],
+                'd95_m': float(landmarks.d95_m or 0.0),
+                'length_m': float(np.linalg.norm(
+                    landmarks.neck_center - landmarks.bottom_center)),
+                'sigma_position_m': float(landmarks.sigma_position_m),
+                'sigma_axis_deg': float(landmarks.sigma_axis_deg),
+                'occlusion_class': str(landmarks.occlusion_class or ''),
+                'flags': list(landmarks.flags),
+                'stamp_sec': float(getattr(frame, 'stamp', 0.0) or 0.0),
+                'fused': False,
+            }
+            with path.open('a', encoding='utf-8') as stream:
+                stream.write(json.dumps(row, ensure_ascii=False) + '\n')
+        except OSError:
+            self.get_logger().warning('geometry.jsonl 视角行写入失败')
+
+    def _lookup_tool_frame(self, child: str):
+        """Latest TF: base <- child; None on failure."""
+        try:
+            tf = self.tf_buffer.lookup_transform(
+                self.params.frames.base_frame, child, Time())
+        except TransformException:
+            return None, None
+        t = tf.transform.translation
+        q = tf.transform.rotation
+        xyz = np.array([t.x, t.y, t.z], dtype=np.float64)
+        x, y, z, w = q.x, q.y, q.z, q.w
+        z_axis = np.array([
+            2.0 * (x * z + w * y),
+            2.0 * (y * z - w * x),
+            1.0 - 2.0 * (x * x + y * y),
+        ], dtype=np.float64)
+        return xyz, z_axis
+
+    def _pregrasp_verification_msg(self, header):
+        """工具帧相对融合袋模型的预抓取残差（观测用，不授权 SetIO）."""
+        msg = PregraspVerification()
+        msg.header = header
+        msg.target_id = str(self.collector.target_id or '')
+        fused = self._bag_model or {}
+        result = self._refined or {}
+        msg.model_revision = str(result.get('model_revision') or '')
+        msg.tool_profile_id = 'hollow_cylinder_v1'
+        if not fused.get('ok'):
+            msg.reason = 'bag_model_unavailable'
+            return msg
+        mouth, _ = self._lookup_tool_frame('sleeve_mouth')
+        _, tool_z = self._lookup_tool_frame('tool_axis')
+        blade, _ = self._lookup_tool_frame('cutting_plane')
+        if mouth is None or tool_z is None or blade is None:
+            msg.reason = 'tool_tf_missing'
+            msg.failure_code = 11
+            return msg
+        cut_pt = fused.get('cut_plane_point', fused.get('cut_pose'))
+        if cut_pt is None:
+            cut_pt = fused.get('neck')
+        eval_row = evaluate_pregrasp(
+            tool_z, fused.get('axis'), mouth, fused.get('bottom'),
+            blade, cut_pt,
+            float(fused.get('radial_margin_m') or 0.0),
+            float(fused.get('axial_margin_m') or 0.0),
+            previous=self._pregrasp_prev)
+        self._pregrasp_prev = eval_row
+        msg.frames_consistent = bool(eval_row['frames_consistent'])
+        msg.axis_angle_deg = float(eval_row['axis_angle_deg'])
+        msg.lateral_error_m = float(eval_row['lateral_error_m'])
+        msg.axial_error_m = float(eval_row['axial_error_m'])
+        msg.radial_margin_m = float(eval_row['radial_margin_m'])
+        msg.axial_margin_m = float(eval_row['axial_margin_m'])
+        msg.needs_correction = bool(eval_row['needs_correction'])
+        msg.passed = bool(eval_row['passed'])
+        msg.failure_code = int(eval_row['failure_code'])
+        msg.reason = str(eval_row['reason'])
+        return msg
+
+    def _fill_target_model(self, model: TargetModel) -> None:
+        """把融合袋模型写入 TargetModel 扩展字段."""
+        fused = self._bag_model or {}
+        result = self._refined or {}
+        model.model_revision = str(result.get('model_revision') or '')
+        model.tool_profile_id = 'hollow_cylinder_v1'
+        if not fused.get('ok'):
+            return
+        bottom = fused.get('bottom')
+        neck = fused.get('neck')
+        axis = fused.get('axis')
+        if bottom is not None:
+            model.bag_bottom = Point(
+                x=float(bottom[0]), y=float(bottom[1]), z=float(bottom[2]))
+        if neck is not None:
+            model.bag_neck = Point(
+                x=float(neck[0]), y=float(neck[1]), z=float(neck[2]))
+        cut_pt = fused.get('cut_plane_point', fused.get('cut_pose', neck))
+        if cut_pt is not None:
+            model.cut_plane_point = Point(
+                x=float(cut_pt[0]), y=float(cut_pt[1]), z=float(cut_pt[2]))
+        if axis is not None:
+            model.bag_axis = Vector3(
+                x=float(axis[0]), y=float(axis[1]), z=float(axis[2]))
+            model.cut_normal = model.bag_axis
+        model.d95_m = float(fused.get('d95_m') or 0.0)
+        model.fruit_prior_radius_m = float(
+            fused.get('fruit_prior_radius_m') or 0.0)
+        model.fruit_prior_auxiliary = True
+        model.radial_margin_m = float(fused.get('radial_margin_m') or 0.0)
+        model.axial_margin_m = float(fused.get('axial_margin_m') or 0.0)
+        model.corridor_clear = bool(fused.get('corridor_clear'))
+        model.occlusion_class = str(fused.get('occlusion_class') or '')
+        sig = float(fused.get('sigma_position_m') or 0.02)
+        pos_cov = [0.0] * 9
+        pos_cov[0] = pos_cov[4] = pos_cov[8] = sig * sig
+        model.bottom_covariance = pos_cov
+        model.neck_covariance = pos_cov
+        sig_axis = float(fused.get('sigma_axis_deg') or 8.0)
+        axis_rad = sig_axis * 3.141592653589793 / 180.0
+        axis_cov = [0.0] * 9
+        axis_cov[0] = axis_cov[4] = axis_cov[8] = axis_rad * axis_rad
+        model.axis_covariance = axis_cov
 
     def destroy_node(self):
         """停止重建单写者 worker 后销毁 ROS 节点."""

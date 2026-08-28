@@ -1,46 +1,204 @@
-"""
-接口层 — 感知算法抽象基类（abc.ABC）与实现注册表（2.14 装配规则）.
-
-对标 nav2_core 的纯接口包形态（设计文档
-docs/superpowers/specs/2026-08-10-peach-layered-architecture.md §2.2），
-A3 起全部六类可替换组件在此正式化：
-
-- ``Detector``：``detect(rgb) -> list[dict]``（YOLO 检测）；
-- ``Segmenter``：``segment(rgb, bboxes) -> [(mask, bbox), ...]``
-  （SAM 分割；签名为批量形，节点整帧一次调用后按 bbox 取回各目标掩膜）；
-- ``PosePipeline``：``estimate(obs, target_id, bbox, mask, mask_source)
-  -> TargetPoseResult`` + 类属性 ``kind``（袋线/果线位姿 + 安全门控）；
-- ``TargetMatcher``：``match(anchor, class_id, table, frame_used)
-  -> MatchResult``（世界系身份匹配 + 恢复段；表由调用方 TargetRegistry
-  持有，匹配器不持表）；
-- ``LockPolicy``：``update(records, now) -> LockEvent | None``
-  （收齐窗口关闭判定；锁定后的集合记账由调用方 GlobalHarvestPlan 持有）。
-
-装配规则（2.14）：每类 ABC 配一个 ``peach_perception.common.registry.Registry``，
-实现类在 ``impls.py`` 显式注册清单按名登记（暂不用自注册装饰器，集中
-一处便于审阅装配面）；yaml 以 ``*.impl`` 参数按名选择实现，节点构造期
-``Registry.create`` 注入，调用端只持有 ABC 引用。
-
-本模块属纯核：零 ROS import（test_pure_core.py AST 强制）；契约类型
-（MatchResult / LockEvent）为不可变值对象，不依赖任何实现模块，避免
-interfaces ↔ 实现 循环 import。
-"""
 from __future__ import annotations
+"""感知缝位 ABC、契约类型与注册表。实现注册在 pipeline / identity 末尾。"""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from dataclasses import dataclass, field
+from typing import (
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    TYPE_CHECKING,
+)
 
 import numpy as np
-from peach_perception.common.registry import Registry
+from peach_perception.common.runtime import Registry
 
-from .contracts import BagObservation
+
+# === contracts.py ===
+
+# ═══════════════════════════════════════════════════════════════
+# 工具几何配置
+# ═══════════════════════════════════════════════════════════════
+
+@dataclass
+class ToolGeometry:
+    """
+    空心圆柱工具几何参数（台架测量, 版本化）.
+
+    所有长度单位为米。
+
+    Fields:
+        D_inner: 圆柱内径 — 袋子必须能通过
+        L_insert: 最大插入深度 (从入口起点计)
+        L_blade: TCP 到剪切平面的轴向距离 (沿Z_tool正方向；当前为 0)
+        entry_d_tool: 入口 standoff 的工具分量（套入余量，Gürsoy 分解之 d_tool）
+        entry_d_s: 入口 standoff 的安全裕量分量（防碰撞，文献基准 30–50mm）
+        entry_standoff: [legacy] 旧版单一 standoff = entry_d_tool + entry_d_s
+                        P_entry_start = P_bottom - (d_tool + d_s) × Z_tool
+        clearance_min: 袋体与工具内壁之间的最小径向余量
+        margin_neck: 袋颈候选前方的安全停止距离
+        version: 此工具配置的语义版本号
+    """
+
+    D_inner: float = 0.104          # 104mm 内径
+    L_insert: float = 0.200         # 200mm 最大插入
+    L_blade: float = 0.0            # TCP 与剪切平面重合
+    entry_d_tool: float = 0.030     # 30mm 工具分量 standoff
+    entry_d_s: float = 0.040        # 40mm 安全裕量 standoff
+    entry_standoff: float = 0.070   # legacy: = d_tool + d_s
+    clearance_min: float = 0.005    # 5mm 最小径向余量
+    margin_neck: float = 0.015      # 袋颈前 15mm 安全距离
+    version: str = '1.1'
+
+
+# ═══════════════════════════════════════════════════════════════
+# 全局工具实例 (台架测量, 版本化)
+# ═══════════════════════════════════════════════════════════════
+
+TOOL_GEOMETRY = ToolGeometry(
+    D_inner=0.104,          # 104mm 内径
+    L_insert=0.200,         # 200mm 最大插入
+    L_blade=0.0,            # TCP 与剪切平面重合
+    entry_d_tool=0.030,     # 30mm 工具分量
+    entry_d_s=0.040,        # 40mm 安全裕量
+    entry_standoff=0.070,   # = d_tool + d_s
+    clearance_min=0.005,    # 5mm 最小径向余量
+    margin_neck=0.015,      # 袋颈前 15mm
+    version='1.1',
+)
+
+
+# ═══════════════════════════════════════════════════════════════
+# 输入
+# ═══════════════════════════════════════════════════════════════
+
+@dataclass
+class BagObservation:
+    """单帧感知输入：对齐的 RGB-D + YOLO 检测列表."""
+
+    rgb: np.ndarray                        # (H, W, 3) BGR（OpenCV 惯例）
+    depth: np.ndarray                      # (H, W) uint16，单位 mm，与 RGB 对齐
+    camera_K: dict                         # {"fx","fy","cx","cy","width","height"}
+    frame_id: str = 'camera_depth_optical_frame'  # 相机光学系 frame_id
+    gravity_hint: Optional[np.ndarray] = None  # (3,) 相机系重力方向；IMU 不可用时 None
+    # [{"bbox","class_id","conf"}]，bbox 常为 xyxy
+    detections: List[dict] = field(default_factory=list)
+    metadata: dict = field(default_factory=dict)  # 版本追溯（model/calibration_version）
+
+
+# ═══════════════════════════════════════════════════════════════
+# 2D 输出
+# ═══════════════════════════════════════════════════════════════
+
+@dataclass
+class BagGrasp2D:
+    """2D 视觉参考 (像素坐标)."""
+
+    detection_bbox: Tuple[int, int, int, int] = (0, 0, 0, 0)  # x, y, w, h
+    foreground_mask: Optional[np.ndarray] = None    # bbox深度前景伪mask
+    bottom_px: Optional[Tuple[float, float]] = None  # 袋底像素 (u, v)
+    neck_px: Optional[Tuple[float, float]] = None   # 袋颈像素 (u, v)
+    grasp_px: Optional[Tuple[float, float]] = None  # 抓取参考点像素 (u, v)
+    bag_axis_line: Optional[Tuple] = None           # [bottom_px, neck_px]
+    travel_line: Optional[Tuple] = None             # [grasp_px, travel_end_px]
+    confidence: float = 0.0                         # [0, 1]，越高越可信
+    status: str = 'REJECT'                          # ACCEPT|REOBSERVE|REJECT
+    diagnostic_flags: List[str] = field(default_factory=list)  # 门控诊断标记
+
+
+# ═══════════════════════════════════════════════════════════════
+# 3D 输出
+# ═══════════════════════════════════════════════════════════════
+
+@dataclass
+class BagGraspReference3D:
+    """3D 抓取参考位姿 (相机坐标系, 米)."""
+
+    frame_id: str = 'camera_depth_optical_frame'  # 坐标系（默认相机光学系）
+    entry_start: Optional[np.ndarray] = None  # P_entry_start (3,) — 圆柱顶面圆心 = 末端TCP, 位于袋底外侧
+    position: Optional[np.ndarray] = None  # P_grasp (3,) — [legacy] 保留兼容, 新代码优先用 entry_start
+    points_centroid: Optional[np.ndarray] = None  # 检测框前景点云中位质心 (3,) — 身份锚点，比端点抗抖
+    orientation: Optional[np.ndarray] = None          # R = [Xg, Yg, Zg] (3×3)
+    bag_bottom: Optional[np.ndarray] = None           # P_bottom (3,)
+    bag_neck: Optional[np.ndarray] = None             # P_neck (3,)
+    translation_direction: Optional[np.ndarray] = None  # +Zg = bag bottom → bag neck = 圆柱轴线
+    bag_diameter_upper_m: float = 0.0                # 保守袋体直径上界 (m)
+    suggested_travel_m: float = 0.0                   # 视觉建议行程 (圆柱长度)
+    suggested_travel_end: Optional[np.ndarray] = None    # P_entry_start + travel × Zg
+    position_covariance: Optional[np.ndarray] = None     # (3×3)
+    direction_covariance: Optional[np.ndarray] = None    # (3×3)
+    confidence: float = 0.0                             # [0, 1]
+    status: str = 'REJECT'                            # ACCEPT|REOBSERVE|REJECT
+    diagnostic_flags: List[str] = field(default_factory=list)  # 门控诊断标记
+    diagnostic_info: dict = field(default_factory=dict)  # 诊断详情
+    strategy_id: str = ''                             # 策略标识（管线:前景模式）
+    model_version: str = ''                           # 模型版本标识
+    calibration_version: str = ''                     # 内外参版本标识
+    tool_version: str = ''                            # 工具几何版本
+
+
+# ═══════════════════════════════════════════════════════════════
+# 圆柱套入位姿计算 (纯函数, 工具物理约束)
+# ═══════════════════════════════════════════════════════════════
+
+def compute_entry_start(P_bottom: np.ndarray, Z_tool: np.ndarray,
+                        entry_standoff: float) -> np.ndarray:
+    """
+    计算圆柱入口起点 = 圆柱顶面圆心 = 末端TCP.
+
+    P_entry_start = P_bottom - entry_standoff × Z_tool
+
+    入口起点位于袋底外侧, 保证圆柱从袋子外部开始套入。
+
+    Args:
+        P_bottom: (3,) 袋底3D位置（米，相机光学系）.
+        Z_tool: (3,) 归一化的工具轴方向 (袋底→袋颈).
+        entry_standoff: 袋底外侧安全距离 (m)，= entry_d_tool + entry_d_s.
+
+    Returns
+    -------
+        P_entry_start: (3,) 圆柱入口起点（米）.
+
+    """
+    return P_bottom - entry_standoff * Z_tool
+
+
+def compute_travel_range(P_entry_start: np.ndarray, P_neck: np.ndarray,
+                         Z_tool: np.ndarray, tool: 'ToolGeometry') -> Tuple[float, float]:
+    """
+    基于工具几何参数计算建议行程区间.
+
+    s_neck = dot(P_neck - P_entry_start, Z_tool) - tool.L_blade
+
+    行程受 L_insert 上限约束, 并在袋颈前方保留 margin_neck 安全距离。
+
+    Args:
+        P_entry_start: (3,) 入口起点（米）.
+        P_neck: (3,) 袋颈候选位置（米）.
+        Z_tool: (3,) 归一化的工具轴方向.
+        tool: ToolGeometry 实例（读 L_blade / margin_neck / L_insert）.
+
+    Returns
+    -------
+        (travel_min, travel_max): 建议行程区间 (m)；travel_min 为 0.8 倍
+        安全行程的保守下限，travel_max 受 L_insert 封顶.
+
+    """
+    s_neck = float(np.dot(P_neck - P_entry_start, Z_tool) - tool.L_blade)
+    s_safe = max(0.0, s_neck - tool.margin_neck)
+    s_min = max(0.0, s_safe * 0.8)   # 保守下限
+    s_max = min(s_safe, tool.L_insert)  # 上限受工具长度约束
+    return (s_min, s_max)
+
+
+# === interfaces.py ===
 
 if TYPE_CHECKING:
     # 仅类型标注用，运行期不 import（避免 interfaces ↔ pipeline 循环导入）
     from .pipeline import TargetPoseResult
 
-# 实现注册表（2.14）：按名登记/创建，默认实现在 impls.py 显式注册
+# 实现注册表（2.14）：按名登记/创建，默认实现在 pipeline.py / identity.py 末尾
 DETECTORS: Registry['Detector'] = Registry('检测器')
 SEGMENTERS: Registry['Segmenter'] = Registry('分割器')
 POSE_PIPELINES: Registry['PosePipeline'] = Registry('位姿管线')

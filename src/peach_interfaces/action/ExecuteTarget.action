@@ -1,17 +1,23 @@
 # 单目标周期。服务端 peach_manipulation_skills ~/execute_target。
-# PREVIEW：只规划接触，不执行。OBSERVE_ONLY：只补视角。FULL：观察可跳过 + 接触。
-# 默认 execution/grasp/tool=false：只规划、不接触、不 SetIO。
+# PREVIEW：只规划接触，不执行。OBSERVE_ONLY：只补视角。
+# PREGRASP_ONLY：到预抓取、验证后停住不回 harvest_stow；任何路径不 SetIO。
+# ACK 后调度才 Survey / 派下一颗。
+# FULL：观察可跳过 + 接触。默认 execution/grasp/tool=false。
 
 uint8 PREVIEW=0
 uint8 OBSERVE_ONLY=1
 uint8 FULL=2
+uint8 PREGRASP_ONLY=3
 
-string request_id          # 批次 request_id
+string request_id
 string run_id
-string cycle_id            # 通常 run_id:target_id
-string target_id           # 钉死本周期目标；与受理后感知 selected 不一致则失败
-uint8 mode                 # PREVIEW / OBSERVE_ONLY / FULL
-bool skip_observation      # FULL 时跳过观察段（观察已在 OBSERVE_ONLY 完成）
+string cycle_id
+string target_id
+uint8 mode
+bool skip_observation
+uint32 scene_epoch
+string model_revision
+string tool_profile_id
 ---
 uint8 SUCCEEDED=0
 uint8 SKIPPED_QUALITY=1
@@ -19,14 +25,29 @@ uint8 SKIPPED_UNREACHABLE=2
 uint8 FAILED=3
 uint8 CANCELED=4
 
-uint8 outcome              # 上列常量，与 TargetOutcome 对齐
+uint8 LEVEL_NONE=0
+uint8 LEVEL_PREGRASP_VERIFIED=1
+uint8 LEVEL_SLEEVE_COMPLETED=2
+uint8 LEVEL_CUT_COMMAND_ACCEPTED=3
+uint8 LEVEL_CUT_CONFIRMED=4
+uint8 LEVEL_RETREAT_CONFIRMED=5
+uint8 LEVEL_HARVEST_CONFIRMED=6
+
+uint8 outcome
+uint8 completion_level
+uint32 failure_code
 string reason
-bool recovery_required     # 接触后须人工 ACK 才继续下颗
-builtin_interfaces/Duration[] stage_durations  # 与 stage_names 等长
+bool recovery_required
+bool cut_command_accepted
+bool cut_confirmed
+bool retreat_confirmed
+bool harvest_confirmed
+builtin_interfaces/Duration[] stage_durations
 string[] stage_names
 peach_interfaces/HarvestResult harvest
 peach_interfaces/DepositResult deposit
 peach_interfaces/Verification verification
 peach_interfaces/TargetOutcome outcome_record
+peach_interfaces/PregraspVerification pregrasp
 ---
-peach_interfaces/HarvestState state  # 技能侧镜像的批次状态（字段子集）
+peach_interfaces/HarvestState state

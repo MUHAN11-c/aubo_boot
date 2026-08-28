@@ -10,7 +10,10 @@ package_name = 'peach_task_executor'
 
 generate_parameter_module(
     'task_executor_parameters',
-    'peach_task_executor/task_executor_parameters.yaml')
+    'config/task_executor_parameters.yaml')
+generate_parameter_module(
+    'observability_parameters',
+    'config/observability_parameters.yaml')
 
 
 def _resolve_python():

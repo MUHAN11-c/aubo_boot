@@ -1,29 +1,19 @@
 """
-参数层 — TargetReconstructionParams：frozen dataclass + declare/from_node.
+TargetReconstructionParams：GPL py 官方生成参数之上的 frozen dataclass 装载层（嵌套组形态与参数库一致）.
 
-形态对标 nav2 ``ParameterHandler<ParamsT>`` 的 Python 版（设计文档
-docs/superpowers/specs/2026-08-10-peach-layered-architecture.md §2.1）：
-嵌套 frozen dataclass 按 ROS 参数名分组（frames/camera/capture/bind/
-view_filter/icp/local_volume/tsdf/cloud_filter/refit/publish/session +
-装配组 frame_store/cloud_builder/refiner/volume/refitter/mask_gate，协议 2.14 的
-``*.impl`` 实现选择键），字段名 =
-ROS 参数名去组前缀，类型与 ROS 参数一致。
+声明 / 类型 / 默认值 / 中文描述 / 范围校验的权威源统一为
+config/target_reconstruction_parameters.yaml（根键=节点名），由
+generate_parameter_library_py 在构建期生成
+peach_perception/target_reconstruction_parameters.py；本模块不再重复声明默认值
+（旧 _DESCRIPTIONS + defaults_flat 维护面已移除，消除两处默认值漂移）。
+参数为启动期静态装载（不做动态改参回调）；declare 期校验类型与范围，
+from_params 不再另加业务校验（现状语义保持不变）。
 
-权威源哲学（本仓约定）：``config/target_reconstruction.yaml`` 是默认值权威源，
-dataclass 字段默认值为代码侧唯一来源（declare 直接取字段默认值，
-不再另存字典），两边由 test_params.py 的双向同步测试强制对齐。
-参数为启动期静态装载（不做动态改参回调）；declare_parameter 本身即
-类型校验，from_node 不另加业务校验（现状语义保持不变）。
-
-本模块只依赖 rcl_interfaces（descriptor）与鸭子类型 node
-（declare_parameter/get_parameter），不 import rclpy。
+本模块只依赖 stdlib 与鸭子类型 Params 快照，不 import rclpy。
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field, fields
-from typing import Dict, Tuple
-
-from rcl_interfaces.msg import ParameterDescriptor
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -46,7 +36,7 @@ class CameraParams:
 class CaptureParams:
     """采帧门禁与自动模式参数（capture.*）."""
 
-    min_views: int = 2
+    min_views: int = 2  # 最少独立机位数（当前位+一次短 PTP）
     recommended_views: int = 5
     max_views: int = 24
     minimum_baseline_deg: float = 8.0
@@ -63,7 +53,7 @@ class CaptureParams:
     min_mask_depth_ratio: float = 0.35
     max_target_drift_m: float = 0.04
     # 邻目标串扰门（E2）：绑定锚点与其他锁定目标锚点间距小于本值时拒帧，
-    # 防邻近目标点云混入形成 TSDF 不可回滚双层表面（I6）；≤0 关闭
+    # 防邻近目标点云混入形成 TSDF 不可回滚双层表面（I6）；<=0 关闭
     min_neighbor_gap_m: float = 0.15
     build_timeout_s: float = 180.0  # BuildTargetModel 等 min_views 上限
 
@@ -111,8 +101,8 @@ class IcpParams:
     # （min=max=1 退化为旧行为：每帧全量提取）
     target_refresh_min_period: int = 1
     target_refresh_max_period: int = 5
-    # 漂移判定比：修正量 EMA ≥ max_translation×本值（或 fk 回退/拒帧）→
-    # k 收回下限；EMA ≤ 1/4×该阈值 → k 拉长到上限；中间迟滞带保持
+    # 漂移判定比：修正量 EMA >= max_translation×本值（或 fk 回退/拒帧）→
+    # k 收回下限；EMA <= 1/4×该阈值 → k 拉长到上限；中间迟滞带保持
     target_refresh_drift_ratio: float = 0.5
 
 
@@ -206,7 +196,7 @@ class PublishParams:
     # false 回退逐次全发旧行为。心跳/状态/诊断/refit 三件套不经过本开关
     on_change_only: bool = True
     # 同一话题两次实际发布的最小间隔 [s]；间隔内的变化被抑制（不丢：
-    # 下次发布触发时补发最新版本）；≤0 关闭间隔门（只留 on-change）
+    # 下次发布触发时补发最新版本）；<=0 关闭间隔门（只留 on-change）
     min_interval_s: float = 0.2
 
 
@@ -215,145 +205,6 @@ class SessionParams:
     """session 落盘参数（session.*）."""
 
     root_dir: str = ''  # 空 = 工作区 runs/
-
-
-# 嵌套组（组字段名 → 组 dataclass 类型）；顺序即 declare/文档顺序
-_GROUPS: Tuple[Tuple[str, type], ...] = (
-    ('frames', FramesParams),
-    ('camera', CameraParams),
-    ('capture', CaptureParams),
-    ('bind', BindParams),
-    ('view_filter', ViewFilterParams),
-    ('icp', IcpParams),
-    ('local_volume', LocalVolumeParams),
-    ('tsdf', TsdfParams),
-    ('cloud_filter', CloudFilterParams),
-    ('frame_store', FrameStoreParams),
-    ('cloud_builder', CloudBuilderParams),
-    ('refiner', RefinerParams),
-    ('volume', VolumeParams),
-    ('refitter', RefitterParams),
-    ('mask_gate', MaskGateParams),
-    ('refit', RefitParams),
-    ('publish', PublishParams),
-    ('session', SessionParams),
-)
-
-# 中文 descriptor（key 为完整 ROS 参数名；declare 时逐个取用）
-_DESCRIPTIONS: Dict[str, str] = {
-    'frames.base_frame': '重建输出坐标系（点云/Marker/诊断的 frame_id）',
-    'camera.color_topic': '彩色图话题（bgr8）',
-    'camera.depth_topic': '深度图话题（uint16 或 32FC1，须与彩图对齐）',
-    'camera.camera_info_topic': '彩色相机内参话题',
-    'sync_slop_s': 'RGB-D 近似同步允差 (s)',
-    'tf_timeout_sec': '按 depth.header.stamp 精确查询 TF 的等待上限 (s)；'
-                      '失败直接拒帧，禁止运动中回退最新 TF',
-    'depth_scale_unit': '深度比例因子（仅 uint16 原始深度生效）：raw × 本值 = '
-                        '毫米（Percipio 常见 0.25）；数据集回放设 1.0；'
-                        '32FC1 浮点深度按「米」×1000 转毫米，本参数不生效',
-    'capture.min_views': 'finalize 所需最少视角数',
-    'capture.recommended_views': '推荐视角数（不足仅提示，不阻塞 finalize）',
-    'capture.max_views': '帧栈上限（达到后拒采，先 remove_last 或 finalize）',
-    'capture.minimum_baseline_deg': 'Build 完成所需最大角基线 [deg]；12° PTP 实测约 9.5°，默认 8',
-    'capture.minimum_mean_nearest_baseline_deg': 'Build 完成所需平均最近邻角基线 [deg]',
-    'capture.minimum_mean_depth_ratio': 'Build 完成所需机位平均有效深度占比',
-    'capture.require_robot_static': '采帧是否要求机器人静止（查 /joint_states）；'
-                                    '运动中帧跳过，避免连续扫描超采污染 TSDF',
-    'capture.static_joint_vel_thresh': '静止判定：最大关节速度阈值 [rad/s]',
-    'capture.max_frame_age_s': '缓存帧龄期上限 (s)，超过视为陈帧拒采',
-    'capture.auto_mode': '自动模式总开关：true=有候选自动开始、每个唯一'
-                         '同步帧进入质量门并连续采集；'
-                         'false=纯手动 Trigger 服务流',
-    'capture.auto_finalize_at_max': '采满 max_views 自动 finalize'
-                                    '（连续扫描默认关闭）',
-    'capture.auto_min_interval_s': '两次自动采帧最小间隔 (s)，0 表示每个'
-                                   '唯一相机时间戳均进入质量门',
-    'capture.require_target_mask': '仅积分全局计划所选 target_id 的逐帧掩膜',
-    'capture.min_mask_pixels': '目标掩膜最少像素数（过小视为远距或遮挡）',
-    'capture.min_mask_depth_ratio': '掩膜内有效深度占比下限（强光/空洞门）',
-    'capture.max_target_drift_m': '当前目标中心相对绑定中心最大漂移 [m]（风动门；'
-                                  '室外风动场景建议调至 0.06，见 yaml 注释）',
-    'capture.min_neighbor_gap_m': '绑定锚点与其他锁定目标锚点的最小间距 [m]；'
-                                  '小于则拒帧，防邻近目标点云混入形成 TSDF '
-                                  '不可回滚双层表面（I6）；≤0 关闭本门',
-    'capture.build_timeout_s': 'BuildTargetModel 等待 min_views 的上限 (s)；超时不 finalize',
-    'bind.switch_holdoff_s': 'selected 切换防抖 (s)：selected_target_id 变化'
-                             '（含变空）须持续超过本时长才放弃进行中会话重绑，'
-                             '防感知 selected 瞬态抖动销毁会话',
-    'view_filter.min_translation': '与上一已采帧的最小平移 [m]（过近=重复视角）',
-    'view_filter.max_translation': '与上一已采帧的最大平移 [m]（过远=跳变）',
-    'view_filter.min_rotation_deg': '与上一已采帧的最小旋转 [deg]',
-    'view_filter.max_rotation_deg': '与上一已采帧的最大旋转 [deg]',
-    'view_filter.allow_duplicate_views': 'true 时重复视角仅告警仍采帧',
-    'icp.enable': '启用 FK 初值约束下的帧到 TSDF 模型 ICP',
-    'icp.min_points': 'ICP 源云和模型云各自最少点数',
-    'icp.coarse_voxel': 'ICP 粗层体素边长 [m]',
-    'icp.fine_voxel': 'ICP 细层体素边长 [m]',
-    'icp.coarse_correspondence': 'ICP 粗层最大对应距离 [m]',
-    'icp.fine_correspondence': 'ICP 细层最大对应距离 [m]',
-    'icp.coarse_iterations': 'ICP 粗层最大迭代次数',
-    'icp.fine_iterations': 'ICP 细层最大迭代次数',
-    'icp.min_fitness': 'ICP/FK 预对齐最小重叠 fitness',
-    'icp.max_rmse': 'ICP/FK 预对齐最大内点 RMSE [m]',
-    'icp.max_translation': 'ICP 相对 FK 的最大平移修正 [m]',
-    'icp.max_rotation_deg': 'ICP 相对 FK 的最大旋转修正 [deg]',
-    'icp.target_refresh_min_period': 'ICP target 全量 extract 刷新周期下限 '
-                                     '[帧]（E4）；1=每帧全量提取（旧行为）',
-    'icp.target_refresh_max_period': 'ICP target 全量 extract 刷新周期上限 '
-                                     '[帧]（E4）；k 在上下限间按修正量 EMA '
-                                     '自适应伸缩',
-    'icp.target_refresh_drift_ratio': '漂移判定比（E4）：修正量 EMA ≥ '
-                                      'max_translation×本值（或 fk 回退/拒帧）'
-                                      '→ k 收回下限；EMA ≤ 1/4×该阈值 → k '
-                                      '拉长到上限；中间迟滞带保持',
-    'local_volume.size_x': '局部体素盒 X 尺寸 [m]（TSDF 云 ROI 裁剪）',
-    'local_volume.size_y': '局部体素盒 Y 尺寸 [m]（TSDF 云 ROI 裁剪）',
-    'local_volume.size_z': '局部体素盒 Z 尺寸 [m]（TSDF 云 ROI 裁剪）',
-    'tsdf.enable': 'TSDF 融合开关：true=采帧后立即在线积分并发布'
-                   ' /peach/reconstruction/tsdf_cloud',
-    'tsdf.voxel_length': 'TSDF 体素边长 [m]',
-    'tsdf.sdf_trunc': 'TSDF 截断距离 [m]',
-    'tsdf.depth_trunc': 'TSDF 深度截断 [m]（更远的深度不积分）',
-    'cloud_filter.voxel_size': 'TSDF 提取云体素降采样边长 [m]（≤0 不降）',
-    'cloud_filter.enable_statistical_filter': 'TSDF 提取云统计离群剔除'
-                                              '（20 邻域 2σ）',
-    'frame_store.impl': '批级帧栈实现注册名（interfaces.FRAME_STORES，'
-                        '协议 2.14）',
-    'cloud_builder.impl': '点云构建器实现注册名（interfaces.CLOUD_BUILDERS，'
-                          '协议 2.14）',
-    'refiner.impl': '帧到模型配准器实现注册名（interfaces.REFINERS，'
-                    '协议 2.14）',
-    'volume.impl': '融合体积实现注册名（interfaces.VOLUMES，协议 2.14）',
-    'refitter.cylinder_impl': '圆柱（袋桃）refit 实现注册名'
-                              '（interfaces.REFITTERS，协议 2.14）',
-    'refitter.sphere_impl': '球（裸桃）refit 实现注册名'
-                            '（interfaces.REFITTERS，协议 2.14）',
-    'mask_gate.impl': '目标掩膜门实现注册名（interfaces.MASK_GATES，'
-                      '协议 2.14）',
-    'refit.enable': '几何二次拟合（refit）开关：true=每次 TSDF 全量提取后'
-                    '对 tsdf_cloud 做圆柱/球 RANSAC 精化并更新抓取示意；'
-                    'finalize 后再拟一次为定稿。抓取许可仍仅 READY 后放行。'
-                    '发 refined_pose/refined_axis/refined_diagnostics',
-    'refit.cylinder_inlier_min': 'refit ACCEPT 门控：拟合内点率下限'
-                                 '（圆柱/球共用，低于则 REOBSERVE）',
-    'refit.rmse_max_m': 'refit ACCEPT 门控：拟合 RMSE 上限 [m]'
-                        '（超过则 REOBSERVE）',
-    'refit.entry_standoff_m': 'refined_pose 的 entry_pose 自 bottom 沿 '
-                              '−axis 后撤量 [m]',
-    'refit.max_axis_angle_deg': '检测轴与精化轴夹角上限 [deg]；超过则 '
-                                'REOBSERVE 且不允许抓取',
-    'publish.on_change_only': '点云/Marker 类大消息（local_cloud/tsdf_cloud/'
-                              'markers）仅内容版本变化才发（E4；闩锁保持，'
-                              '零变化抑制不丢 RViz 显示）；false=逐次全发',
-    'publish.min_interval_s': '点云/Marker 类话题两次实际发布的最小间隔 [s]'
-                              '（E4）；间隔内变化被抑制、下次触发补发最新版；'
-                              '≤0 关闭间隔门',
-    'session.root_dir': 'session 落盘根目录；空 = 工作区 runs/'
-                        '（按包 share 路径反推工作区根）',
-}
-
-# 无组前缀的顶层标量参数
-_SCALARS: Tuple[str, ...] = ('sync_slop_s', 'tf_timeout_sec', 'depth_scale_unit')
 
 
 @dataclass(frozen=True)
@@ -383,74 +234,131 @@ class TargetReconstructionParams:
     publish: PublishParams = field(default_factory=PublishParams)
     session: SessionParams = field(default_factory=SessionParams)
 
-    @classmethod
-    def defaults_flat(cls) -> Dict[str, object]:
+    @staticmethod
+    def declare(node) -> object:
         """
-        全部参数的平坦 {ROS 名: 默认值} 映射（declare 与同步测试共用）.
-
-        Returns
-        -------
-            dict：key 为完整 ROS 参数名（含组前缀），value 为字段默认值；
-            遍历组 dataclass 即时构建，字段默认值是唯一代码来源.
-
-        """
-        inst = cls()
-        out = {}
-        for name in _SCALARS:
-            out[name] = getattr(inst, name)
-        for group_name, _group_cls in _GROUPS:
-            group = getattr(inst, group_name)
-            for f in fields(group):
-                out[f'{group_name}.{f.name}'] = getattr(group, f.name)
-        return out
-
-    @classmethod
-    def declare(cls, node) -> None:
-        """
-        在 node 上集中 declare 全部参数（中文 descriptor 逐个附带）.
+        生成 generate_parameter_library_py 的 ParamListener 并集中声明全部参数.
 
         Args:
-            node: 鸭子类型节点（提供 declare_parameter(name, default,
-                descriptor)）.
+            node: rclpy Node（声明参数+挂 on_set 校验，非法值在 declare 期拒绝）.
 
         Returns
         -------
-            无返回值（None）.
+            ParamListener：调用方持有并用于读取 Params 快照.
 
         """
-        for name, default in cls.defaults_flat().items():
-            node.declare_parameter(
-                name, default,
-                ParameterDescriptor(description=_DESCRIPTIONS[name]))
+        # 构建期由 setup.py 的 generate_parameter_module 生成.
+        from peach_perception.target_reconstruction_parameters import (
+            peach_target_reconstruction_node)
+        return peach_target_reconstruction_node.ParamListener(node)
 
     @classmethod
-    def from_node(cls, node) -> 'TargetReconstructionParams':
+    def from_params(cls, p) -> 'TargetReconstructionParams':
         """
-        从 node 集中读取全部参数并组装为 frozen dataclass.
+        从生成的 Params 快照集中装载为 frozen dataclass.
 
         字符串字段沿用现状语义（base_frame/root_dir 读入后 strip）；
-        其余类型由 declare 的默认值类型保证，不再另加校验。
+        其余类型与范围由参数库校验器保证，不再另加校验。
 
         Args:
-            node: 鸭子类型节点（提供 get_parameter(name).value）.
+            p: peach_target_reconstruction_node.Params（declare 后
+                get_params() 快照；嵌套组字段名与下列 dataclass 一一对应）.
 
         Returns
         -------
             TargetReconstructionParams（frozen，64 个参数全装载）.
 
         """
-        g = node.get_parameter
-        group_kwargs = {}
-        for group_name, group_cls in _GROUPS:
-            kwargs = {}
-            for f in fields(group_cls):
-                value = g(f'{group_name}.{f.name}').value
-                if isinstance(value, str):
-                    value = value.strip()
-                kwargs[f.name] = value
-            group_kwargs[group_name] = group_cls(**kwargs)
+        def _strip(v):
+            return v.strip() if isinstance(v, str) else v
+
         return cls(
-            sync_slop_s=float(g('sync_slop_s').value),
-            tf_timeout_sec=float(g('tf_timeout_sec').value),
-            depth_scale_unit=float(g('depth_scale_unit').value),
-            **group_kwargs)
+            sync_slop_s=float(p.sync_slop_s),
+            tf_timeout_sec=float(p.tf_timeout_sec),
+            depth_scale_unit=float(p.depth_scale_unit),
+            frames=FramesParams(base_frame=_strip(p.frames.base_frame)),
+            camera=CameraParams(
+                color_topic=p.camera.color_topic,
+                depth_topic=p.camera.depth_topic,
+                camera_info_topic=p.camera.camera_info_topic),
+            capture=CaptureParams(
+                min_views=int(p.capture.min_views),
+                recommended_views=int(p.capture.recommended_views),
+                max_views=int(p.capture.max_views),
+                minimum_baseline_deg=float(p.capture.minimum_baseline_deg),
+                minimum_mean_nearest_baseline_deg=float(
+                    p.capture.minimum_mean_nearest_baseline_deg),
+                minimum_mean_depth_ratio=float(
+                    p.capture.minimum_mean_depth_ratio),
+                require_robot_static=bool(p.capture.require_robot_static),
+                static_joint_vel_thresh=float(
+                    p.capture.static_joint_vel_thresh),
+                max_frame_age_s=float(p.capture.max_frame_age_s),
+                auto_mode=bool(p.capture.auto_mode),
+                auto_finalize_at_max=bool(p.capture.auto_finalize_at_max),
+                auto_min_interval_s=float(p.capture.auto_min_interval_s),
+                require_target_mask=bool(p.capture.require_target_mask),
+                min_mask_pixels=int(p.capture.min_mask_pixels),
+                min_mask_depth_ratio=float(p.capture.min_mask_depth_ratio),
+                max_target_drift_m=float(p.capture.max_target_drift_m),
+                min_neighbor_gap_m=float(p.capture.min_neighbor_gap_m),
+                build_timeout_s=float(p.capture.build_timeout_s)),
+            bind=BindParams(switch_holdoff_s=float(p.bind.switch_holdoff_s)),
+            view_filter=ViewFilterParams(
+                min_translation=float(p.view_filter.min_translation),
+                max_translation=float(p.view_filter.max_translation),
+                min_rotation_deg=float(p.view_filter.min_rotation_deg),
+                max_rotation_deg=float(p.view_filter.max_rotation_deg),
+                allow_duplicate_views=bool(
+                    p.view_filter.allow_duplicate_views)),
+            icp=IcpParams(
+                enable=bool(p.icp.enable),
+                min_points=int(p.icp.min_points),
+                coarse_voxel=float(p.icp.coarse_voxel),
+                fine_voxel=float(p.icp.fine_voxel),
+                coarse_correspondence=float(p.icp.coarse_correspondence),
+                fine_correspondence=float(p.icp.fine_correspondence),
+                coarse_iterations=int(p.icp.coarse_iterations),
+                fine_iterations=int(p.icp.fine_iterations),
+                min_fitness=float(p.icp.min_fitness),
+                max_rmse=float(p.icp.max_rmse),
+                max_translation=float(p.icp.max_translation),
+                max_rotation_deg=float(p.icp.max_rotation_deg),
+                target_refresh_min_period=int(
+                    p.icp.target_refresh_min_period),
+                target_refresh_max_period=int(
+                    p.icp.target_refresh_max_period),
+                target_refresh_drift_ratio=float(
+                    p.icp.target_refresh_drift_ratio)),
+            local_volume=LocalVolumeParams(
+                size_x=float(p.local_volume.size_x),
+                size_y=float(p.local_volume.size_y),
+                size_z=float(p.local_volume.size_z)),
+            tsdf=TsdfParams(
+                enable=bool(p.tsdf.enable),
+                voxel_length=float(p.tsdf.voxel_length),
+                sdf_trunc=float(p.tsdf.sdf_trunc),
+                depth_trunc=float(p.tsdf.depth_trunc)),
+            cloud_filter=CloudFilterParams(
+                voxel_size=float(p.cloud_filter.voxel_size),
+                enable_statistical_filter=bool(
+                    p.cloud_filter.enable_statistical_filter)),
+            frame_store=FrameStoreParams(impl=p.frame_store.impl),
+            cloud_builder=CloudBuilderParams(impl=p.cloud_builder.impl),
+            refiner=RefinerParams(impl=p.refiner.impl),
+            volume=VolumeParams(impl=p.volume.impl),
+            refitter=RefitterParams(
+                cylinder_impl=p.refitter.cylinder_impl,
+                sphere_impl=p.refitter.sphere_impl),
+            mask_gate=MaskGateParams(impl=p.mask_gate.impl),
+            refit=RefitParams(
+                enable=bool(p.refit.enable),
+                cylinder_inlier_min=float(p.refit.cylinder_inlier_min),
+                rmse_max_m=float(p.refit.rmse_max_m),
+                entry_standoff_m=float(p.refit.entry_standoff_m),
+                max_axis_angle_deg=float(p.refit.max_axis_angle_deg)),
+            publish=PublishParams(
+                on_change_only=bool(p.publish.on_change_only),
+                min_interval_s=float(p.publish.min_interval_s)),
+            session=SessionParams(root_dir=_strip(p.session.root_dir)),
+        )

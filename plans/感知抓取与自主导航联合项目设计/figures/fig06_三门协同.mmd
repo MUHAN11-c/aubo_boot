@@ -1,14 +1,17 @@
+%% 图8-1 运行控制：导航门、抓取门、姿态门（仅末端 B）
 flowchart LR
   subgraph NAV[导航门]
+    direction LR
     N1[靠近执行] --> N2[刹停并宣布可抓取]
   end
   subgraph ARM[抓取门]
+    direction LR
     A1[近距重建] --> A2[抓取许可后直线套入]
   end
-  subgraph TOOL[姿态门 仅末端B]
+  subgraph TOOL[姿态门（仅末端 B）]
+    direction LR
     T1[圆柱姿态] --> T2[相对袋轴辅助判断]
   end
-  SCH[作业调度]
-  N2 --> SCH
+  N2 --> SCH[作业调度]
   A2 --> SCH
   T2 --> SCH

@@ -29,130 +29,83 @@
 # moveit.launch.py —— MoveIt 整体启动入口（真机/仿真共用），本包唯一的 launch，
 # aubo_e5_bringup 经本文件集成 MoveIt。
 #
+# 参数装载：MoveItConfigsBuilder（与 MoveIt 2 官方 move_group launch 同链）。
+# .setup_assistant 提供 URDF/SRDF 定位；ompl/pilz 走 config/*_planning.yaml。
+#
 # 启动内容：
-#   move_group               规划/执行服务（控制器映射由 controllers_file 选择：
-#                            real -> controllers.yaml（passthrough），
-#                            mock -> controllers_mock.yaml（标准 JTC），
-#                            由 bringup 按 hardware_mode 透传）
-#   rviz2                    带完整 MoveIt 参数（必须与 move_group 拿同一份
-#                            robot_description*，含 robot_description_planning：
-#                            MotionPlanning 面板 Velocity/Accel 滑条初值从
-#                            robot_description_planning.default_*_scaling_factor
-#                            读取，缺参数会回退硬编码 0.1）
+#   move_group  规划/执行（controllers_file：real→controllers.yaml 透传，
+#               mock→controllers_mock.yaml 标准 JTC，由 bringup 按 hardware_mode 透传）
+#   rviz2       与 move_group 同一套 robot_description* / 管线（MotionPlanning
+#               面板 default_*_scaling_factor 来自 robot_description_planning）
 #   robot_state_publisher + joint_state_publisher_gui
-#                            仅 standalone_state_publishers:=true（脱离 bringup
-#                            单跑）时启动；经 bringup 集成时传 false，rsp 由
-#                            bringup 自带，不要重复起（TF 双发）
-#   末端 TCP：已内建于 URDF（components/tcp.xacro，wrist3_Link→tcp 由 rsp 发布），
-#                            MoveIt 规划组 manipulator_e5 的 tip_link 为 tcp，
-#                            规划/执行统一以 TCP 坐标系为准
-import os
-
-from ament_index_python.packages import get_package_share_directory
+#               仅 standalone_state_publishers:=true（脱离 bringup 单跑）；
+#               经 bringup 集成时传 false，避免 TF 双发
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-import xacro
-import yaml
+from moveit_configs_utils import MoveItConfigsBuilder
+
+# MTC Task::execute() 经 move_group 这些 capability 下发完整 solution。
+# 不是管线 yaml 字段，须作为 move_group 顶层 capabilities（空格分隔）。
+_MOVE_GROUP_CAPABILITIES = (
+    'pilz_industrial_motion_planner/MoveGroupSequenceAction '
+    'pilz_industrial_motion_planner/MoveGroupSequenceService '
+    'move_group/ExecuteTaskSolutionCapability')
 
 
-def load(package, path):
-    with open(os.path.join(get_package_share_directory(package), path), encoding='utf-8') as f:
-        return yaml.safe_load(f)
-
-
-def text(package, path):
-    with open(os.path.join(get_package_share_directory(package), path), encoding='utf-8') as f:
-        return f.read()
-
-
-def xacro_text(package, path):
-    filename = os.path.join(get_package_share_directory(package), path)
-    return xacro.process_file(filename).toxml()
+def _moveit_configs(controllers_file: str):
+    """按官方 Builder 装载 URDF/SRDF/IK/管线/控制器映射/Pilz 笛卡尔限."""
+    return (
+        MoveItConfigsBuilder(
+            'aubo_e5', package_name='aubo_e5_moveit_config')
+        .planning_pipelines(
+            pipelines=['ompl', 'pilz_industrial_motion_planner'],
+            default_planning_pipeline='ompl')
+        .trajectory_execution(
+            file_path='config/' + controllers_file,
+            moveit_manage_controllers=False)
+        .planning_scene_monitor(
+            publish_planning_scene=True,
+            publish_geometry_updates=True,
+            publish_state_updates=True,
+            publish_transforms_updates=True)
+        .to_moveit_configs())
 
 
 def launch_setup(context):
-    # controllers_file 是 launch 参数，必须在 OpaqueFunction 里 perform 后才能
-    # 拼路径读 yaml。
+    """controllers_file / standalone 须 perform 后再拼 Builder 与可选 RSP."""
     controllers_file = LaunchConfiguration('controllers_file').perform(context)
     standalone = (
         LaunchConfiguration('standalone_state_publishers')
         .perform(context).lower() == 'true')
-
-    desc = {'robot_description': xacro_text('aubo_description', 'urdf/aubo_e5.urdf.xacro')}
-    semantic = {'robot_description_semantic': text('aubo_e5_moveit_config', 'config/aubo_e5.srdf')}
-    kin = {'robot_description_kinematics': load('aubo_e5_moveit_config', 'config/kinematics.yaml')}
-    # 末端 TCP 已内建于 URDF（aubo_description components/tcp.xacro，
-    # wrist3_Link→tcp 由 robot_state_publisher 发布），不再静态补发。
-    limits = {'robot_description_planning':
-              load('aubo_e5_moveit_config', 'config/joint_limits.yaml')}
-    rviz_config = os.path.join(
-        get_package_share_directory('aubo_e5_moveit_config'), 'rviz', 'moveit.rviz')
-    # 双管线（move_group 2.12 在节点顶层读取 planning_pipelines 列表 +
-    # default_planning_pipeline，每条管线的参数在 <pipeline_name>.* 命名空间下，
-    # 与 MoveItConfigsBuilder 产物一致——注意不要再嵌套进 move_group 键，
-    # 否则 move_group 读不到列表会回退到 legacy 单管线命名空间）：
-    # - ompl（默认）：TOTG 之后接 Ruckig jerk 平滑（response_adapters 按列表顺序执行，
-    #   Ruckig 要求输入已是时间参数化轨迹，必须排在 AddTimeOptimalParameterization 之后）；
-    #   totg.resample_dt 0.1→0.01，输出路点更密，供硬件侧五次重采样取更平滑的段边界。
-    # - pilz_industrial_motion_planner：确定性 PTP/LIN/CIRC，两点直达运动用。
-    ompl_pipeline = {
-        'planning_plugins': ['ompl_interface/OMPLPlanner'],
-        'request_adapters': [
-            'default_planning_request_adapters/ResolveConstraintFrames',
-            'default_planning_request_adapters/ValidateWorkspaceBounds',
-            'default_planning_request_adapters/CheckStartStateBounds',
-            'default_planning_request_adapters/CheckStartStateCollision'],
-        'response_adapters': [
-            'default_planning_response_adapters/AddTimeOptimalParameterization',
-            'default_planning_response_adapters/AddRuckigTrajectorySmoothing',
-            'default_planning_response_adapters/ValidateSolution',
-            'default_planning_response_adapters/DisplayMotionPath'],
-        'start_state_max_bounds_error': 0.1,
-        # TOTG 适配器经 generate_parameter_library 读取 <管线命名空间>.totg.*
-        # （default_response_adapter_parameters 只是 C++ 命名空间，不进参数名）：
-        # resample_dt 0.1→0.01，输出路点更密，利于硬件侧重采样平滑。
-        'totg': {'resample_dt': 0.01}}
-    ompl_pipeline.update(load('aubo_e5_moveit_config', 'config/ompl_planning.yaml'))
-    pipelines = {
-        'planning_pipelines': ['ompl', 'pilz_industrial_motion_planner'],
-        'default_planning_pipeline': 'ompl',
-        'ompl': ompl_pipeline,
-        'pilz_industrial_motion_planner': load(
-            'aubo_e5_moveit_config', 'config/pilz_industrial_motion_planner_planning.yaml'),
-        # MTC 的 Task::execute() 通过此 capability 将完整 solution 交给 move_group。
-        'capabilities': ('pilz_industrial_motion_planner/MoveGroupSequenceAction '
-                         'pilz_industrial_motion_planner/MoveGroupSequenceService '
-                         'move_group/ExecuteTaskSolutionCapability')}
-    controllers = {
-        'moveit_simple_controller_manager': load(
-            'aubo_e5_moveit_config', 'config/' + controllers_file),
-        'moveit_controller_manager':
-            'moveit_simple_controller_manager/MoveItSimpleControllerManager'}
-    trajectory_execution = {
-        'moveit_manage_controllers': False,
-        # passthrough 蓝本值（aubo_boot）：整段轨迹一次下发、硬件侧自行插补执行，
-        # 执行耗时与 RIB 流控相关，余量须比流式 JTC 宽。
-        'trajectory_execution.allowed_execution_duration_scaling': 5.0,
-        'trajectory_execution.allowed_goal_duration_margin': 10.0,
-        'trajectory_execution.allowed_start_tolerance': 0.15}
-    monitor = {'publish_planning_scene': True, 'publish_geometry_updates': True,
-               'publish_state_updates': True, 'publish_transforms_updates': True}
+    moveit_config = _moveit_configs(controllers_file)
+    params = moveit_config.to_dict()
+    rviz_config = str(moveit_config.package_path / 'rviz' / 'moveit.rviz')
     nodes = [
-        Node(package='moveit_ros_move_group', executable='move_group', output='screen',
-             parameters=[desc, semantic, kin, limits, pipelines, controllers,
-                         trajectory_execution, monitor]),
-        # rviz 与 move_group 拿同一份 desc/semantic/kin/limits/pipelines（见文件头注释）
-        Node(package='rviz2', executable='rviz2', output='screen',
-             arguments=['-d', rviz_config], parameters=[desc, semantic, kin, limits, pipelines]),
+        Node(
+            package='moveit_ros_move_group',
+            executable='move_group',
+            output='screen',
+            parameters=[params, {'capabilities': _MOVE_GROUP_CAPABILITIES}]),
+        Node(
+            package='rviz2',
+            executable='rviz2',
+            output='screen',
+            arguments=['-d', rviz_config],
+            parameters=[params]),
     ]
     if standalone:
         nodes += [
-            Node(package='robot_state_publisher', executable='robot_state_publisher',
-                 parameters=[desc], output='screen'),
-            Node(package='joint_state_publisher_gui', executable='joint_state_publisher_gui',
-                 output='screen'),
+            Node(
+                package='robot_state_publisher',
+                executable='robot_state_publisher',
+                parameters=[moveit_config.robot_description],
+                output='screen'),
+            Node(
+                package='joint_state_publisher_gui',
+                executable='joint_state_publisher_gui',
+                output='screen'),
         ]
     return nodes
 
@@ -165,6 +118,6 @@ def generate_launch_description():
                         'false=经 bringup 集成（rsp 由 bringup 提供）'),
         DeclareLaunchArgument(
             'controllers_file', default_value='controllers.yaml',
-            description='config/ 下的 MoveIt 控制器映射文件（mock 模式用 controllers_mock.yaml）'),
+            description='config/ 下的 MoveIt 控制器映射（mock 用 controllers_mock.yaml）'),
         OpaqueFunction(function=launch_setup),
     ])

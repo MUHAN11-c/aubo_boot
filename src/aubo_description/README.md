@@ -5,6 +5,7 @@ AUBO E5 工作单元 URDF / xacro / mesh。采摘栈通过 `robot_state_publishe
 ## 关键文件
 
 - `urdf/aubo_e5.urdf.xacro`：整机描述
+- `urdf/components/tcp.xacro` + `config/hollow_cylinder_v1.yaml`：空心圆柱；TCP 在圆柱顶部，Z=开口、XY=刀口（相对法兰 Rx(-90°)），筒沿 −Z 200 mm
 - `urdf/aubo_e5.ros2_control.xacro`：**只读**。按 `hardware_mode` 选 mock / real 插件并填 `robot_ip`
 
 ## 关节顺序（权威）

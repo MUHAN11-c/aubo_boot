@@ -49,6 +49,7 @@ struct QualitySnapshot
   std::string refined_target_id;
   std::string reconstruction_state;
   std::size_t captured_views{0};
+  std::size_t station_count{0};
   double max_baseline_deg{0.0};
   double mean_nearest_baseline_deg{0.0};
   double mean_depth_ratio{0.0};
@@ -71,18 +72,23 @@ struct GateResult
 // 质量门抽象基类。
 // 用途：判定观察覆盖是否可 finalize、精化质量是否可预览/可抓取。
 // 生命周期：由节点构造期/参数重载时经工厂创建，unique_ptr 独占持有。
-// 线程安全：三个判定方法为 const 纯函数，只在 BT 工作线程/executor 回调调用。
+// 线程安全：判定方法为 const 纯函数，只在 BT 工作线程/executor 回调调用。
 // 可替换性：注册名见 impl_factory.hpp（默认实现 threshold）。
 class QualityGateBase
 {
 public:
   virtual ~QualityGateBase() = default;
 
-  // finalize 门：覆盖证据（视图数/基线/深度）与身份、时效是否达标。
+  // finalize 门：覆盖证据（机位数/基线/深度）与身份、时效是否达标。
   virtual GateResult readyToFinalize(const QualitySnapshot & snapshot) const = 0;
   // 接触轨迹预览门：预览只读锁存几何、不执行运动，时效要求由实现自定。
   virtual GateResult readyToPreviewContact(const QualitySnapshot & snapshot) const = 0;
-  // 抓取门：finalize 后精化质量与许可是否达标（真实执行的最终质量门）。
+  // 预抓取门：融合几何可接近，不要求 GraspDecision.allowed。
+  virtual GateResult readyToApproach(const QualitySnapshot & snapshot) const
+  {
+    return readyToGrasp(snapshot);
+  }
+  // 抓取门：接近几何 + 接触许可（真实套入/剪切的最终质量门）。
   virtual GateResult readyToGrasp(const QualitySnapshot & snapshot) const = 0;
 };
 

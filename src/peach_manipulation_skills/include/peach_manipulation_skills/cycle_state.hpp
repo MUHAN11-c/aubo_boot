@@ -135,7 +135,7 @@ struct CycleResult
 
 // A13：CycleState → HarvestState.target_phase 投影（ExecuteTarget 反馈携带，
 // 编排器据此驱动批次过程线的目标阶段）。取值即 peach_interfaces/HarvestState.msg
-// 的 TARGET_* 常量（cycle_action.cpp 有 static_assert 双向钉死，防枚举漂移）。
+// 的 TARGET_* 常量（cycle.cpp 有 static_assert 双向钉死，防枚举漂移）。
 // 语义约定：质量门在 FINALIZE 内完成（FINALIZING 含验证）；RECONFIRM（阶段 E1
 // 抓取前再确认，2.7-RECONFIRM）映射 VALIDATING——它是 finalize 之后、接触段之前
 // 的最后一道验证关；

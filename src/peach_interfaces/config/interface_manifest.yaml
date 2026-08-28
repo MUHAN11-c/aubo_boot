@@ -58,7 +58,13 @@ interfaces:
     type: peach_interfaces/msg/GraspDecision
     qos: {reliability: reliable, durability: transient_local, depth: 1}
     producers: [peach_target_reconstruction]
-    consumers: [peach_manipulation_skills, peach_task_executor]
+    consumers: [peach_manipulation_skills, peach_task_executor, peach_navigation]
+  - name: /peach/reconstruction/pregrasp_verification
+    kind: topic
+    type: peach_interfaces/msg/PregraspVerification
+    qos: {reliability: reliable, durability: transient_local, depth: 1}
+    producers: [peach_target_reconstruction]
+    consumers: []
   - name: /peach/reconstruction/refined_pose
     kind: topic
     type: peach_interfaces/msg/BagGraspCandidateArray
@@ -87,6 +93,24 @@ interfaces:
     type: peach_interfaces/action/NavigateToWorksite
     producers: [peach_navigation]
     consumers: [peach_task_executor]
+  - name: /peach/navigation/target_report
+    kind: topic
+    type: peach_interfaces/msg/HarvestTargetReport
+    qos: {reliability: reliable, durability: transient_local, depth: 1}
+    producers: [peach_navigation]
+    consumers: []
+  - name: /peach/navigation/vehicle_state
+    kind: topic
+    type: peach_interfaces/msg/VehicleState
+    qos: {reliability: reliable, durability: transient_local, depth: 1}
+    producers: [peach_navigation]
+    consumers: [peach_task_executor, peach_navigation]
+  - name: /peach/navigation/arm_status
+    kind: topic
+    type: peach_interfaces/msg/HarvestOperationStatus
+    qos: {reliability: reliable, durability: transient_local, depth: 1}
+    producers: [peach_navigation]
+    consumers: []
   - name: /peach_manipulation_skills_node/survey_scene
     kind: action
     type: peach_interfaces/action/SurveyScene

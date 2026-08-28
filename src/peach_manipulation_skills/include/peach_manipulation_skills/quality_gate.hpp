@@ -59,6 +59,7 @@ public:
 
   GateResult readyToFinalize(const QualitySnapshot & snapshot) const override;
   GateResult readyToPreviewContact(const QualitySnapshot & snapshot) const override;
+  GateResult readyToApproach(const QualitySnapshot & snapshot) const override;
   GateResult readyToGrasp(const QualitySnapshot & snapshot) const override;
 
 private:

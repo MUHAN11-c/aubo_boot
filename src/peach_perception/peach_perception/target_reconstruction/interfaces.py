@@ -5,7 +5,7 @@
   设计文档 docs/superpowers/specs/2026-08-10-peach-layered-architecture.md
   §2.2 与协议 2.14（可替换架构）：ABC 只约束 workhorse 纯数据方法
   （numpy/纯 dataclass 进 → numpy/dict 出，无副作用、不碰 ROS）；本模块
-  不 import 实现（防循环）。实现发现走 peach_perception.common.registry.Registry
+  不 import 实现（防循环）。实现发现走 peach_perception.common.runtime.Registry
   按名注册/创建（yolo_ros 先例的正式化），注册语句以显式清单形式写在
   各实现模块末尾（导入期单线程注册，运行期只读）。
 
@@ -15,13 +15,13 @@
   替换实现 = 新写一个 ABC 子类 + 一行注册 + 改 yaml 一个键。
 
 注册表与默认实现清单（显式注册清单）:
-  - FRAME_STORES:   'default'         → frame_collector.FrameCollector
-  - CLOUD_BUILDERS: 'open3d_cloud'    → cloud_builder.Open3dCloudBuilder
-  - REFINERS:       'bounded_icp'     → icp_refiner.BoundedIcp
-  - VOLUMES:        'local_tsdf'      → tsdf_volume.LocalTsdf
-  - REFITTERS:      'cylinder_refit'  → geometry_refiner.CylinderRefitter
-                    'sphere_refit'    → geometry_refiner.SphereRefitter
-  - MASK_GATES:     'strict_mask_gate' → mask_gate.StrictMaskGate
+  - FRAME_STORES:   'default'         → capture.FrameCollector
+  - CLOUD_BUILDERS: 'open3d_cloud'    → integrate.Open3dCloudBuilder
+  - REFINERS:       'bounded_icp'     → integrate.BoundedIcp
+  - VOLUMES:        'local_tsdf'      → integrate.LocalTsdf
+  - REFITTERS:      'cylinder_refit'  → refine.CylinderRefitter
+                    'sphere_refit'    → refine.SphereRefitter
+  - MASK_GATES:     'strict_mask_gate' → capture.StrictMaskGate
 
 数据成员契约（start/reset 之外的状态面）写在各 ABC docstring，
 由实现继承 docstring 语义，不以 abstractmethod 强制（实例属性无法
@@ -32,7 +32,7 @@
 
 线程模型:
   注册发生在模块导入期（单线程），运行期注册表只读（见
-  peach_perception.common.registry 模块 docstring）。
+  peach_perception.common.runtime 模块 docstring）。
 """
 from __future__ import annotations
 
@@ -41,12 +41,12 @@ from typing import Optional, Tuple
 
 import numpy as np
 
-from peach_perception.common.registry import Registry
+from peach_perception.common.runtime import Registry
 
 
 class FrameStore(ABC):
     """
-    批级帧栈数据持有者契约（对齐 frame_collector.FrameCollector）.
+    批级帧栈数据持有者契约（对齐 capture.FrameCollector）.
 
     数据成员契约（实现以实例属性提供）：``frames``（CapturedFrame 列表）、
     ``state``（IDLE/COLLECTING/READY/FAILED）、``target_id``、
@@ -105,7 +105,7 @@ class Refiner(ABC):
     """
     FK 初值约束下的帧到模型配准契约（默认实现 BoundedIcp）.
 
-    返回值鸭子类型对齐 icp_refiner.IcpResult：mode/correction/fitness/
+    返回值鸭子类型对齐 integrate.IcpResult：mode/correction/fitness/
     rmse/translation_m/rotation_deg/reason 字段与 accepted 属性。
     """
 
@@ -153,7 +153,7 @@ class Refitter(ABC):
     TSDF 云几何二次拟合契约（默认实现 CylinderRefitter/SphereRefitter）.
 
     圆柱（袋桃）与球（裸桃）为两条独立实现线，编排层按 target_kind
-    各持一个实例（geometry_refiner.select_refitter 负责选线）。
+    各持一个实例（refine.select_refitter 负责选线）。
     """
 
     @abstractmethod
@@ -165,13 +165,13 @@ class Refitter(ABC):
         Args:
             cloud_xyz: (N, 3) 点 [m]（base_frame）.
             target_kind: 'bag'/'fruit'（实现可按自身拟合线忽略）.
-            config: geometry_refiner.RefitConfig；None 用默认.
+            config: refine.RefitConfig；None 用默认.
             axis_hint: 可选 bottom→neck 方向先验；球体无内禀轴时使用.
 
         Returns
         -------
             dict（RefitResult 形态，键集见
-            geometry_refiner.refine_geometry）：ok/reason/kind/status/
+            refine.refine_geometry）：ok/reason/kind/status/
             n_points/center/axis/axis_point/bottom/neck/entry/radius/
             diameter/span_m/rmse/inlier_ratio/flags；失败 ok=False 不抛异常.
 
@@ -182,8 +182,8 @@ class MaskGate(ABC):
     """
     目标掩膜质量门契约（默认实现 StrictMaskGate）.
 
-    入参鸭子类型对齐 mask_gate.MaskContext（stamp_ns/depth_mm/masks/
-    bound_center/neighbor_centers）；返回鸭子类型对齐 mask_gate.GateResult
+    入参鸭子类型对齐 capture.MaskContext（stamp_ns/depth_mm/masks/
+    bound_center/neighbor_centers）；返回鸭子类型对齐 capture.GateResult
     （mask/reason，reason 为空串表示通过）。
     """
 
@@ -193,11 +193,11 @@ class MaskGate(ABC):
         评估一帧的目标掩膜门禁（同戳/像素数/有效深度占比/漂移/邻目标间距）.
 
         Args:
-            mask_ctx: mask_gate.MaskContext（鸭子类型即可）.
+            mask_ctx: capture.MaskContext（鸭子类型即可）.
 
         Returns
         -------
-            mask_gate.GateResult（鸭子类型）：reason='' 时 mask 为
+            capture.GateResult（鸭子类型）：reason='' 时 mask 为
             可用掩膜（或未启用门禁时 None），否则为拒绝原因.
 
         """

@@ -1,16 +1,80 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- hollow_cylinder_v1：TCP 在圆柱顶部（开口）。
+       原点机械尺寸 (x=0, y=47.90mm, z=151.07mm) in wrist3_Link。
+       TCP 姿态：Z = 开口方向，XY = 刀口平面（剪切在该水平面上）。
+       相对法兰 Rx(-90°)，零位开口朝世界 +Z。
+       L_blade=0 → cutting_plane / tcp / sleeve_mouth 同点（顶部）；
+       筒体沿 TCP −Z 长 L_insert=200mm。
+       不得再用 static_transform_publisher 补发 wrist3_Link→tcp。
+       几何档案：aubo_description/config/hollow_cylinder_v1.yaml -->
   <xacro:macro name="aubo_e5_tcp" params="parent:=wrist3_Link">
-    <!-- 末端 TCP（Tool Center Point）。数据来源：示教器 TCP 设定
-         x=0.00mm y=47.90mm z=151.07mm（2026-08-07 提供），姿态与法兰同向（未标定）。
-         URDF 内建后由 robot_state_publisher 发布 wrist3_Link→tcp，
-         不允许再用 static_transform_publisher 补发同一变换（TF 双发）。
-         MoveIt 规划组 manipulator_e5 的 tip_link 即 tcp，规划/执行均以 TCP 为准。 -->
+    <link name="tool_axis"/>
+    <joint name="tool_axis_joint" type="fixed">
+      <parent link="${parent}"/>
+      <child link="tool_axis"/>
+      <origin xyz="0 0.0479 0.15107" rpy="-1.5708 0 0"/>
+    </joint>
+
+    <link name="cutting_plane"/>
+    <joint name="cutting_plane_joint" type="fixed">
+      <parent link="tool_axis"/>
+      <child link="cutting_plane"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
     <link name="tcp"/>
     <joint name="tcp_joint" type="fixed">
-      <parent link="${parent}"/>
+      <parent link="tool_axis"/>
       <child link="tcp"/>
-      <origin xyz="0 0.0479 0.15107" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
+    <link name="sleeve_mouth"/>
+    <joint name="sleeve_mouth_joint" type="fixed">
+      <parent link="tool_axis"/>
+      <child link="sleeve_mouth"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
+    <link name="tool_body_link">
+      <!-- 筒在 TCP 下方，沿 −Z；顶部 = TCP -->
+      <visual>
+        <origin xyz="0 0 -0.100" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="0.060" length="0.200"/>
+        </geometry>
+        <material name="hollow_cylinder_steel">
+          <color rgba="0.55 0.58 0.62 0.55"/>
+        </material>
+      </visual>
+      <!-- 刀口 / 开口：TCP XY 水平面（圆柱顶部） -->
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="0.060" length="0.003"/>
+        </geometry>
+        <material name="hollow_cylinder_blade">
+          <color rgba="0.75 0.15 0.12 1.0"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 -0.100" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="0.060" length="0.200"/>
+        </geometry>
+      </collision>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="0.056" length="0.003"/>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="tool_body_joint" type="fixed">
+      <parent link="tool_axis"/>
+      <child link="tool_body_link"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
     </joint>
   </xacro:macro>
 </robot>

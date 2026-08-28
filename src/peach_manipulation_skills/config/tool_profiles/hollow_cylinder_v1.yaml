@@ -1,0 +1,25 @@
+# 技能侧工具档案，数值与 aubo_description/config/hollow_cylinder_v1.yaml 对齐。
+# TCP/工具帧以 description 侧为准：TCP 在圆柱顶部，Z=开口、XY=刀口平面（Rx(-90°)）。
+# 不新建 peach_end_effector 包；IO 与状态机在 manipulation_skills 节点内。
+profile_id: hollow_cylinder_v1
+D_inner: 0.104
+D_outer: 0.120
+L_insert: 0.200
+L_blade: 0.0
+entry_d_tool: 0.030
+entry_d_s: 0.040
+clearance_min: 0.005
+margin_neck: 0.015
+wall_clearance: 0.002
+blade_capture_half_width: 0.008
+fruit_safety_clearance: 0.012
+axial_safety_margin: 0.004
+tool_runout95: 0.001
+tcp_calibration_error95: 0.002
+hand_eye_error95: 0.003
+bag_deformation_margin95: 0.002
+io_fun: 3
+io_pin: 0
+close_state: 1.0
+feedback_timeout_s: 1.5
+version: "1.3"

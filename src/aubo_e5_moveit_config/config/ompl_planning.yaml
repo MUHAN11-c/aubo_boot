@@ -1,3 +1,23 @@
+# OMPL 规划管线（move_group 顶层 planning_pipelines.ompl 命名空间，官方布局：
+# 管线级配置直接放本文件，由 MoveItConfigsBuilder 原样装载）。
+# - TOTG 之后接 Ruckig jerk 平滑（response_adapters 按列表顺序执行，Ruckig
+#   要求输入已是时间参数化轨迹，必须排在 AddTimeOptimalParameterization 之后）；
+# - totg.resample_dt 0.1→0.01，输出路点更密，供硬件侧五次重采样取更平滑的段边界。
+planning_plugins:
+  - ompl_interface/OMPLPlanner
+request_adapters:
+  - default_planning_request_adapters/ResolveConstraintFrames
+  - default_planning_request_adapters/ValidateWorkspaceBounds
+  - default_planning_request_adapters/CheckStartStateBounds
+  - default_planning_request_adapters/CheckStartStateCollision
+response_adapters:
+  - default_planning_response_adapters/AddTimeOptimalParameterization
+  - default_planning_response_adapters/AddRuckigTrajectorySmoothing
+  - default_planning_response_adapters/ValidateSolution
+  - default_planning_response_adapters/DisplayMotionPath
+start_state_max_bounds_error: 0.1
+totg:
+  resample_dt: 0.01
 planner_configs:
   SBL:
     type: geometric::SBL

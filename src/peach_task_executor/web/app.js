@@ -117,7 +117,9 @@ function renderTicket(job) {
     ["感知袋底", coords.perception_bottom, ""],
     ["重建中心", coords.reconstruction_center, "绑定/TSDF 中心"],
     ["精化轴", coords.refined_axis, "单位向量"],
-    ["抓取进入", coords.grasp_entry, grasp.allowed ? "GraspDecision 许可几何" : "无许可不填几何"],
+    ["抓取进入", coords.grasp_entry, grasp.allowed
+      ? "接触许可几何"
+      : (coords.grasp_entry ? "预抓取几何（接触未许可）" : "无融合几何")],
     ["技能假设", coords.hypothesis_entry,
       numeric(coords.hypothesis_travel_m)
         ? `行程 ${Number(coords.hypothesis_travel_m).toFixed(3)} m` : "FULL 接触前发布"],

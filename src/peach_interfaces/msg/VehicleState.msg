@@ -1,4 +1,4 @@
-# 外部导航→采摘：车辆到位且静止。导航拥有路径主权。
+# 【预留】外部导航→采摘：车辆到位且静止（固定座核心栈不发布/不消费；随 NavigateToWorksite 一并归档）。导航拥有路径主权。
 std_msgs/Header header
 string target_id
 string site_id

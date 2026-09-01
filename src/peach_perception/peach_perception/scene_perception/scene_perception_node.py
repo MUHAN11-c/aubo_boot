@@ -46,7 +46,8 @@ from peach_perception.common.geometry import (
     transform_msg_to_matrix,
 )
 from peach_perception.common.ros.clock_adapter import RclpyClockAdapter
-from peach_perception.common.runtime import BoundedWorker, HarvestDataStore
+from peach_perception.common.runtime import (
+    BoundedWorker, default_runs_root, HarvestDataStore)
 from peach_perception.scene_perception.identity import (
     first_point,
     GlobalHarvestPlan,
@@ -186,8 +187,7 @@ class ScenePerceptionNode(LifecycleNode):
             matcher = MATCHERS.create(
                 self.matcher_impl,
                 match_radius=self.target_memory_match_radius_m,
-                recovery_scale=self.target_memory_recovery_scale,
-                cross_class_recovery=self.target_memory_cross_class_recovery)
+                recovery_scale=self.target_memory_recovery_scale)
             self.target_registry = TargetRegistry(
                 matcher=matcher,
                 max_targets=self.target_memory_max_targets,
@@ -223,6 +223,7 @@ class ScenePerceptionNode(LifecycleNode):
             lock_policy=lock_policy)
         self.harvest_data = HarvestDataStore()
         self.harvest_run_id = ''
+        self._executor_run_id = ''
         self._executor_target_id = ''
         self._executor_state_seen = False
         self._scene_epoch = 0
@@ -301,6 +302,10 @@ class ScenePerceptionNode(LifecycleNode):
             MarkerArray, '/peach/perception/markers', default_qos)
         self.pub_norm_debug = self.create_lifecycle_publisher(
             Image, '/peach/perception/debug_image', default_qos)
+        # 真相流画布（全量检测叠加，含未确认灰框）：只进记录层对比，
+        # 不进 RViz（RViz 只订稳定流 debug_image）
+        self.pub_norm_debug_raw = self.create_lifecycle_publisher(
+            Image, '/peach/perception/debug_image_raw', default_qos)
         self.pub_target_observations = self.create_lifecycle_publisher(
             PeachTargetObservationArray,
             '/peach/perception/target_observations', default_qos)
@@ -309,7 +314,7 @@ class ScenePerceptionNode(LifecycleNode):
         self.pub_harvest_state = self.create_lifecycle_publisher(
             String, '/peach/perception/harvest_state', state_qos)
         self._sub_exec_state = self.create_subscription(
-            HarvestState, '/peach_task_executor/state',
+            HarvestState, '/peach_executor/state',
             self._on_executor_state, state_qos)
         self._svc_query = self.create_service(
             Trigger, '~/query_harvest_state', self._on_query_harvest_state)
@@ -346,6 +351,12 @@ class ScenePerceptionNode(LifecycleNode):
         """on_cleanup 释放全部 ROS 实体（与 _wire_ros 一一对应）."""
         if not self._ros_entities_wired:
             return
+        # 先停 worker 再拆实体：反复 configure/cleanup 不得累积常驻线程
+        # （close 丢弃未处理帧并 join；此后 _on_rgbd 的 submit 只会安全失败）。
+        try:
+            self._frame_worker.close(drain=False)
+        except Exception:  # noqa: BLE001 已停止则忽略
+            pass
         try:
             self.destroy_service(self._svc_query)
             self.destroy_service(self._svc_begin)
@@ -364,6 +375,7 @@ class ScenePerceptionNode(LifecycleNode):
                     self.pub_norm_cloud, self.pub_norm_dets,
                     self.pub_norm_masks, self.pub_norm_diag,
                     self.pub_norm_markers, self.pub_norm_debug,
+                    self.pub_norm_debug_raw,
                     self.pub_target_observations, self.pub_harvest_state):
                 self.destroy_lifecycle_publisher(pub)
         except Exception:  # noqa: BLE001
@@ -404,6 +416,8 @@ class ScenePerceptionNode(LifecycleNode):
         new_id = str(msg.target_id or '')
         with self._plan_lock:
             self._executor_state_seen = True
+            # 单根会话目录（R7）：批次 request_id 驱动 datastore 基目录
+            self._executor_run_id = str(msg.run_id or '')
             old = self._executor_target_id
             if old and old != new_id:
                 self.harvest_plan.mark_completed(old)
@@ -512,6 +526,14 @@ class ScenePerceptionNode(LifecycleNode):
     def _start_harvest_run(self) -> None:
         """为刚锁定的全局目标集合创建不可变 manifest（须持 _plan_lock 调用）."""
         with self._plan_lock:
+            # 批次在跑：轮目录落 runs/<request_id>/perception_data/<轮ID>；
+            # 无批次回退旧布局（root/<轮ID>）
+            if self._executor_run_id:
+                self.harvest_data.base_dir = (
+                    default_runs_root() / self._executor_run_id
+                    / 'perception_data')
+            else:
+                self.harvest_data.base_dir = None
             now = datetime.now()
             self.harvest_run_id = (
                 f'harvest_{now.strftime("%Y%m%dT%H%M%S_%f")}_'
@@ -935,7 +957,9 @@ class ScenePerceptionNode(LifecycleNode):
         # 即实际入管线的目标
         kept = [d for d in dets
                 if float(d.get('conf', 0.0)) >= self.min_detection_conf]
-        kept = dedup_overlapping_detections(kept, self.detection_dedup_ios)
+        kept = dedup_overlapping_detections(
+            kept, self.detection_dedup_ios,
+            frag_area_ratio=self.detection_dedup_area_ratio)
         # detect 段 = YOLO 推理 + 置信度过滤 + IoS 去重（入管线目标的完整出品）
         self._timing.record(
             'detect_ms', (self._clock.now() - t_detect_start) * 1e3)
@@ -945,27 +969,20 @@ class ScenePerceptionNode(LifecycleNode):
             det_msg.detections.append(_to_detection2d(d, img_header))
         self.pub_norm_dets.publish(det_msg)
 
-        # 检测框内彩色点云（深度反投影），便于 RViz 对照相机全图点云
-        if self.publish_detection_cloud:
-            bboxes = [d['bbox'] for d in kept]
-            xyz_cam, rgb_f = _bbox_cloud_xyzrgb(
-                rgb, depth, K, bboxes, stride=self.detection_cloud_stride)
-            if xyz_cam.shape[0] and T_out_cam is not None:
-                R, t = T_out_cam[:3, :3], T_out_cam[:3, 3]
-                xyz_out = (R @ xyz_cam.T).T + t
-            else:
-                xyz_out = xyz_cam
-            # 点已随几何一起变到 out_frame，frame_id 保持输出系（非相机系）
-            cloud_msg = _xyzrgb_to_cloud(header, xyz_out, rgb_f)
-            self.pub_norm_cloud.publish(cloud_msg)
+        # 稳定点云（confirmed bbox）在身份判定后生成发布（见循环下方）；
+        # 全量检测点云不再发布——RViz 呈现层只收筛选后稳定内容。
 
         mask_canvas = np.zeros(depth.shape[:2], dtype=np.uint16)
+        # 双画布：debug=稳定流（confirmed-only，RViz）；debug_raw=真相流
+        # （全量含未确认，供记录层筛选前后对比）
         debug = rgb.copy() if self.publish_debug_image else None
+        debug_raw = rgb.copy() if self.publish_debug_image else None
         cand_arr = BagGraspCandidateArray()
         cand_arr.header = header
         fit_arr = BagFittingArray()
         fit_arr.header = header
         markers = MarkerArray()
+        confirmed_bboxes = []
         # DELETEALL 不要设 ns/id：否则会与首个 ADD (scene_perception, 0) 冲突，
         # RViz 报 "same ns and id: (scene_perception, 0)"
         clear = Marker()
@@ -988,8 +1005,11 @@ class ScenePerceptionNode(LifecycleNode):
         if track_this_frame:
             # I3：与 match_or_register 注入同一节点时钟——max_age_s 墙钟
             # 淘汰（阶段 D1）要求两入口同一时钟基准；不注入则注册表跳过
-            # 墙钟淘汰（防 time.monotonic 兜底与注入时钟混比误清表项）
-            self.target_registry.begin_frame(now=self._clock.now())
+            # 墙钟淘汰（防 time.monotonic 兜底与注入时钟混比误清表项）。
+            # 持 _plan_lock：与 BeginScene 清表 / plan.update 同一互斥
+            # （worker 帧处理 vs executor 服务回调对身份表的并发读写）。
+            with self._plan_lock:
+                self.target_registry.begin_frame(now=self._clock.now())
         # ---- SAM 批量分割：整帧收集全部 bbox 一次 forward（N 目标 N 次 → 1 次），
         # 再按 bbox 精确取回各目标掩膜（segment 丢弃面积过小掩膜，返回项与目标
         # 非一一对齐，故按 bbox 建映射而非按下标）；批量路径自身异常时回退逐目标
@@ -1029,6 +1049,15 @@ class ScenePerceptionNode(LifecycleNode):
             bbox = tuple(det['bbox'])
             sam_mask = mask_by_bbox.get(bbox)
             if sam_mask is not None:
+                # 掩膜裁剪到检测框内（分割原理边界）：SAM 框提示可能泄漏到
+                # 框外（枝叶），几何/TSDF/绘制全链只认框内部分——从此处
+                # 裁剪，下游（ROI 前景、observations.mask、叠加轮廓）一致
+                x1, y1, x2, y2 = (int(v) for v in bbox)
+                sam_mask = sam_mask.copy()
+                sam_mask[:max(y1, 0), :] = 0
+                sam_mask[max(y2, 0):, :] = 0
+                sam_mask[:, :max(x1, 0)] = 0
+                sam_mask[:, max(x2, 0):] = 0
                 mask_canvas[sam_mask > 0] = np.uint16(i + 1)
 
             obs = BagObservation(
@@ -1080,8 +1109,11 @@ class ScenePerceptionNode(LifecycleNode):
                     'diameter': float(g3d.bag_diameter_upper_m or 0.0),
                     'status': g3d.status,
                 })
-            assigned_ids = self.target_registry.match_or_register_frame(
-                assign_items, now=self._clock.now())
+            # 持 _plan_lock：身份分配与 BeginScene 清表 / plan.update 互斥
+            # （字典迭代与清空不得跨线程并发）。
+            with self._plan_lock:
+                assigned_ids = self.target_registry.match_or_register_frame(
+                    assign_items, now=self._clock.now())
 
         for p, (tid, is_new) in zip(pending, assigned_ids):
             i, det, bbox, sam_mask = (
@@ -1140,6 +1172,7 @@ class ScenePerceptionNode(LifecycleNode):
                 record['base_height_m'] = float(base_anchor[2])
             harvest_records.append(record)
             if confirmed:
+                confirmed_bboxes.append(det['bbox'])
                 mask_depth_ratio = 0.0
                 if sam_mask is not None:
                     sam_foreground = np.asarray(sam_mask) > 0
@@ -1160,8 +1193,10 @@ class ScenePerceptionNode(LifecycleNode):
                 markers.markers.extend(_to_markers(
                     header, tid, i, result,
                     tool_d_inner=float(self.tool.D_inner)))
-            if debug is not None:
-                _draw_debug(debug, det, g2d, sam_mask, tid, confirmed=confirmed)
+            if debug_raw is not None:
+                _draw_debug(debug_raw, det, g2d, sam_mask, tid, confirmed=confirmed)
+            if debug is not None and confirmed:
+                _draw_debug(debug, det, g2d, sam_mask, tid, confirmed=True)
 
         self._timing.record(
             'geometry_ms', (self._clock.now() - t_geometry_start) * 1e3)
@@ -1200,10 +1235,25 @@ class ScenePerceptionNode(LifecycleNode):
             mask_msg = self.bridge.cv2_to_imgmsg(mask_canvas, encoding='mono16')
             mask_msg.header = img_header
             self.pub_norm_masks.publish(mask_msg)
+        if self.publish_detection_cloud and confirmed_bboxes:
+            xyz_cam, rgb_f = _bbox_cloud_xyzrgb(
+                rgb, depth, K, confirmed_bboxes,
+                stride=self.detection_cloud_stride)
+            if xyz_cam.shape[0] and T_out_cam is not None:
+                R, t = T_out_cam[:3, :3], T_out_cam[:3, 3]
+                xyz_out = (R @ xyz_cam.T).T + t
+            else:
+                xyz_out = xyz_cam
+            cloud_msg = _xyzrgb_to_cloud(header, xyz_out, rgb_f)
+            self.pub_norm_cloud.publish(cloud_msg)
         if debug is not None:
             dbg_msg = self.bridge.cv2_to_imgmsg(debug, encoding='bgr8')
             dbg_msg.header = img_header
             self.pub_norm_debug.publish(dbg_msg)
+        if debug_raw is not None:
+            raw_msg = self.bridge.cv2_to_imgmsg(debug_raw, encoding='bgr8')
+            raw_msg.header = img_header
+            self.pub_norm_debug_raw.publish(raw_msg)
         # total 段 = 整帧 _process_rgbd（含转换/检测/分割/几何/发布全链路）
         self._timing.record(
             'total_ms', (self._clock.now() - t_total_start) * 1e3)

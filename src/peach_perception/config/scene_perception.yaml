@@ -68,8 +68,7 @@ peach_scene_perception_node:
     tool.D_inner: 0.104      # 工具内径：袋径上界须 < 内径 - 2×clearance_min
     tool.L_insert: 0.200     # 最大插入行程（建议行程的上限）
     tool.L_blade: 0.000      # TCP 到剪切平面的轴向距离；当前二者重合
-    tool.entry_d_tool: 0.030 # 接近时工具端面预停距离
-    tool.entry_d_s: 0.040    # 附加安全距离；与上者相加 = 总预停距离 entry_standoff=0.070
+    # 入口相对袋底：grasp_standoffs.yaml（launch 注入 tool.entry_d_*）
     tool.clearance_min: 0.005    # 最小径向净空（安全门控余量）
     tool.margin_neck: 0.015      # 行程在袋颈前预留的安全余量
     tool.version: "1.1"          # 工具版本标识，仅随结果发布用于追溯
@@ -87,10 +86,6 @@ peach_scene_perception_node:
     # 3.5 → 恢复半径 21cm，仅在正常匹配未命中时兜底，相邻目标常态仍走 6cm。
     # 马氏门控下 recovery_scale 只膨胀 Σ；默认 1.0，避免旧 21 cm 欧氏恢复半径误合并。
     target_memory.recovery_scale: 1.0
-    # 恢复匹配允许跨类别：同一颗桃 bag/nobag 翻类时复用原 ID（半径不放大仍限
-    # match_radius 内——真翻类锚点几乎不动，邻近异类新目标不会被误并；
-    # 命中不改表项类别）
-    target_memory.cross_class_recovery: true
     # 确认机制：新目标累计命中 ≥ 本帧数才转正（计入锁定/3D Marker/候选话题）。
     # ~2.4 fps 时 5 帧约 2 s，单帧闪现不会转正；1=立即确认
     target_memory.confirm_frames: 5

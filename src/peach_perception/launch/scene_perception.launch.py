@@ -12,6 +12,8 @@ from launch_ros.parameter_descriptions import ParameterFile
 from launch_ros.substitutions import FindPackageShare
 from lifecycle_msgs.msg import Transition
 
+from peach_perception.grasp_standoffs import scene_overlay
+
 
 def generate_launch_description():
     """配置并激活感知节点（与 Nav2 能力端同一套 launch 转换）."""
@@ -23,7 +25,10 @@ def generate_launch_description():
         executable='peach_scene_perception_node',
         name='peach_scene_perception_node',
         namespace='',
-        parameters=[ParameterFile(config, allow_substs=True)],
+        parameters=[
+            ParameterFile(config, allow_substs=True),
+            scene_overlay(),
+        ],
         output='screen',
     )
     configure = EmitEvent(

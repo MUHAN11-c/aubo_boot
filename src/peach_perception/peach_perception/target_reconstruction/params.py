@@ -55,6 +55,9 @@ class CaptureParams:
     # 邻目标串扰门（E2）：绑定锚点与其他锁定目标锚点间距小于本值时拒帧，
     # 防邻近目标点云混入形成 TSDF 不可回滚双层表面（I6）；<=0 关闭
     min_neighbor_gap_m: float = 0.15
+    # 串扰门小框豁免比：邻居框面积×本值 < 绑定框面积时该邻居不计入间距
+    # （叶片遮挡残片/误检）；<=0 关闭豁免（09-01 近距双检定夺）
+    neighbor_gap_area_ratio: float = 2.0
     build_timeout_s: float = 180.0  # BuildTargetModel 等 min_views 上限
 
 
@@ -183,7 +186,8 @@ class RefitParams:
     enable: bool = True
     cylinder_inlier_min: float = 0.35
     rmse_max_m: float = 0.005
-    entry_standoff_m: float = 0.070
+    entry_standoff_m: float = 0.0
+    pregrasp_standoff_m: float = 0.0
     max_axis_angle_deg: float = 35.0
 
 
@@ -302,6 +306,8 @@ class TargetReconstructionParams:
                 min_mask_depth_ratio=float(p.capture.min_mask_depth_ratio),
                 max_target_drift_m=float(p.capture.max_target_drift_m),
                 min_neighbor_gap_m=float(p.capture.min_neighbor_gap_m),
+                neighbor_gap_area_ratio=float(
+                    p.capture.neighbor_gap_area_ratio),
                 build_timeout_s=float(p.capture.build_timeout_s)),
             bind=BindParams(switch_holdoff_s=float(p.bind.switch_holdoff_s)),
             view_filter=ViewFilterParams(
@@ -356,6 +362,7 @@ class TargetReconstructionParams:
                 cylinder_inlier_min=float(p.refit.cylinder_inlier_min),
                 rmse_max_m=float(p.refit.rmse_max_m),
                 entry_standoff_m=float(p.refit.entry_standoff_m),
+                pregrasp_standoff_m=float(p.refit.pregrasp_standoff_m),
                 max_axis_angle_deg=float(p.refit.max_axis_angle_deg)),
             publish=PublishParams(
                 on_change_only=bool(p.publish.on_change_only),

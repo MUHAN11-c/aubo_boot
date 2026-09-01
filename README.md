@@ -17,25 +17,24 @@ cd /home/mu/Desktop/aubo_e5_jazzy_ws
 colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
 pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
-ros2 launch peach_task_executor harvest_system.launch.py \
+ros2 launch peach_executor harvest_system.launch.py \
   hardware_mode:=mock camera_enabled:=false
 ```
 
 默认不上电、不派发运动、不打工具 IO、**不自动开批**。监控 `http://127.0.0.1:8090`。
 
-## 采摘五个能力包
+## 采摘四个能力包
 
 详细作用、入口、禁止项、命名与文件树：[docs/architecture.md](docs/architecture.md) §3。跨包契约：[docs/io.md](docs/io.md)。能力包不互发批次命令；只有调度当客户端。节点之间只走 `peach_interfaces`。
 
 | 包 | 作用 | 含节点 | 不做什么 |
 |----|------|--------|----------|
-| [peach_interfaces](src/peach_interfaces/README.md) | 跨包唯一 IDL：批次/观测/重建/抓取/导航动作 | 无 | 不跑节点、不设算法参数、不 launch |
+| [peach_interfaces](src/peach_interfaces/README.md) | 跨包唯一 IDL：批次/观测/重建/抓取（导航名预留） | 无 | 不跑节点、不设算法参数、不 launch |
 | [peach_perception](src/peach_perception/README.md) | 看场景（身份+锁定集）+ 建当前目标（TSDF/`GraspDecision`） | `peach_scene_perception_node`、`peach_target_reconstruction_node` | 不选下一颗、不运动、不写账本；积分不用 latest TF |
-| [peach_manipulation_skills](src/peach_manipulation_skills/README.md) | 拍照、主动视点、质量/安全门、MTC 接触、工具 SetIO、撤退 | `peach_manipulation_skills_node` | 不写账本、不调重建 Trigger、不 `BeginScene`/`RunHarvest` |
-| [peach_navigation](src/peach_navigation/README.md) | `NavigateToWorksite` 作业位缝；现行 stub 当已到位 | `peach_navigation_node` | 不写账本、不做视觉、不规划臂、不实现底盘/Nav2 |
-| [peach_task_executor](src/peach_task_executor/README.md) | 开批、选果、账本；lifecycle 五节点；只读 Web/jsonl；整栈 launch | `peach_task_executor`、`peach_lifecycle_manager`、`peach_observability` | 不做视觉、不规划接触/导航、Web 不发运动、launch 不自动开批 |
+| [peach_manipulation](src/peach_manipulation/README.md) | 拍照、主动视点、质量/安全门、MTC 接触、工具 SetIO、撤退 | `peach_manipulation_node` | 不写账本、不调重建 Trigger、不 `BeginScene`/`RunHarvest` |
+| [peach_executor](src/peach_executor/README.md) | 开批、选果、账本；lifecycle 四节点；只读 Web/jsonl；整栈 launch | `peach_executor`、`peach_lifecycle_manager`、`peach_observability` | 不做视觉、不规划接触/导航、Web 不发运动、launch 不自动开批 |
 
-作业目标以执行器 `~/state.target_id` 为准。感知 `harvest_plan` 只做收齐锁定窗。默认 `navigation_enabled=false`。
+作业目标以执行器 `~/state.target_id` 为准。感知 `harvest_plan` 只做收齐锁定窗。导航已归档 `_archive/parked_2026-09/`，到位一步调度直通 `NAV_OK`（`NavigateToWorksite` 预留）。
 
 ## 手臂与相机
 
@@ -59,9 +58,10 @@ ros2 launch peach_task_executor harvest_system.launch.py \
 
 | 路径 | 内容 |
 |------|------|
-| `src/` | 采摘 5 包 + 臂/相机 9 包 |
+| `src/` | 采摘 4 包 + 臂/相机 9 包 + 可选 USB IMU 1 |
 | `docs/` | `architecture.md` 设计架构；`io.md` 输入输出；`testing.md` 测试 |
 | `runs/` | 过程数据唯一根（gitignore：账本、观测、session、MCAP） |
 | `_archive/runs/` | 历史过程数据（勿删） |
 | `_archive/parked_2026-08-24/` | 暂不用：tools / diagnostics / profiles / scripts / 架子机 / 过程文档 |
+| `_archive/parked_2026-09/` | 已归档 `peach_navigation`（真底盘授权后恢复） |
 | `aubo_py3.12/` | Python 3.12 venv（本机，不入库） |

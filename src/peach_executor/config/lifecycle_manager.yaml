@@ -1,0 +1,9 @@
+peach_lifecycle_manager:
+  ros__parameters:
+    # 有序 configure → activate；拆除逆序。observability 不进名单。
+    node_names:
+      - peach_scene_perception_node
+      - peach_target_reconstruction_node
+      - peach_manipulation_node
+      - peach_executor
+    startup_timeout_s: 60.0

@@ -1,0 +1,108 @@
+peach_executor:
+  execution_enabled: {
+    type: bool,
+    default_value: false,
+    description: "false 时 Survey 后直接结算，不选目标、不派 ExecuteTarget。"
+  }
+  survey_wait_s: {
+    type: double,
+    default_value: 8.0,
+    description: "SurveyScene 后等待目标集锁定的秒数。",
+    validation: { gt_eq<>: [0.0] }
+  }
+  service_timeout_s: {
+    type: double,
+    default_value: 30.0,
+    description: "BeginScene 等服务等待上限。",
+    validation: { gt<>: [0.0] }
+  }
+  action_timeout_s: {
+    type: double,
+    default_value: 180.0,
+    description: "Survey/Build/Execute 动作等待上限。",
+    validation: { gt<>: [0.0] }
+  }
+  empty_survey_limit: {
+    type: int,
+    default_value: 2,
+    description: "连续空扫次数上限，达到则结算批次。",
+    validation: { gt_eq<>: [1] }
+  }
+  persist_ledger: {
+    type: bool,
+    default_value: true,
+    description: "是否把 TargetOutcome 写入 runs/ 账本。"
+  }
+  reconstruction_min_views: {
+    type: int,
+    default_value: 2,
+    description: "OBSERVE 成功后 Build 至少应有的机位数，不足则 observe_build_view_race。与当前位+一次短 PTP 对齐。",
+    validation: { gt_eq<>: [1] }
+  }
+  build_start_timeout_s: {
+    type: double,
+    default_value: 2.0,
+    description: "Build 目标绑定并进入 COLLECTING 的等待上限；超时禁止观察运动。",
+    validation: { gt<>: [0.0] }
+  }
+  observe_build_grace_s: {
+    type: double,
+    default_value: 3.0,
+    description: "OBSERVE 结束后等待重建机位数追上的宽限秒数。",
+    validation: { gt_eq<>: [0.0] }
+  }
+  begin_scene_service: {
+    type: string,
+    default_value: "/peach_scene_perception_node/begin_scene",
+    description: "BeginScene 服务名。"
+  }
+  survey_scene_action: {
+    type: string,
+    default_value: "/peach_manipulation_node/survey_scene",
+    description: "SurveyScene 动作名。"
+  }
+  execute_target_action: {
+    type: string,
+    default_value: "/peach_manipulation_node/execute_target",
+    description: "ExecuteTarget 动作名。"
+  }
+  build_target_model_action: {
+    type: string,
+    default_value: "/peach_target_reconstruction_node/build_target_model",
+    description: "BuildTargetModel 动作名。"
+  }
+  execute_pregrasp_only: {
+    type: bool,
+    default_value: true,
+    description: "true 时接触段发 ExecuteTarget PREGRASP_ONLY（到预抓取验证后停住，不回 harvest_stow、不 SetIO；ACK 后再 Survey）；false 发 FULL。"
+  }
+  selection_reach_min_m: {
+    type: double,
+    default_value: 0.15,
+    description: "选果可达窗下限（base_link 半径，米）：过近进入自碰/退化区不选。goal.target_ids 显式指定时不受窗限。"
+  }
+  selection_reach_max_m: {
+    type: double,
+    default_value: 0.88,
+    description: "可达性回退窗上限（仅 CheckReachability 服务不可用时生效）：估计预抓取点半径。现场标定 09-01：预抓取成功 0.830–0.840 / MTC 0 解失败 ≥0.917。IK 预检在线时本参数不参与判定。"
+  }
+  check_reachability_service: {
+    type: string,
+    default_value: "/peach_manipulation_node/check_reachability",
+    description: "TCP IK 可达性预检服务（技能节点提供；executor SELECT 段批量查询）。"
+  }
+  selection_depth_min_m: {
+    type: double,
+    default_value: 0.30,
+    description: "选果深度距离窗下限（相机到目标，米）：与感知管线 min_depth 一致，过近深度不可用。"
+  }
+  selection_depth_max_m: {
+    type: double,
+    default_value: 1.60,
+    description: "选果深度距离窗上限（相机到目标，米）：深度质量随距离退化；采集门 min_mask_depth_ratio 仍逐帧把关，本窗做选果级预过滤。"
+  }
+  require_managed_stack: {
+    type: bool,
+    default_value: false,
+    description: "true 时须等 /peach/lifecycle/managed_nodes_activated 才接受 RunHarvest。"
+  }

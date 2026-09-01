@@ -6,16 +6,16 @@ from typing import Iterable, Optional
 import numpy as np
 
 from peach_perception.common.tool_budget import (
-    ToolBudgetParams,
     evaluate_sleeve_cut,
+    ToolBudgetParams,
 )
 from peach_perception.scene_perception.bag_landmarks import (
     BagLandmarks,
+    clamp_upper_hemisphere,
+    enforce_wide_bottom,
     OCCLUSION_BRANCH,
     OCCLUSION_DAMAGED,
     OCCLUSION_NEIGHBOR,
-    clamp_upper_hemisphere,
-    enforce_wide_bottom,
 )
 
 
@@ -268,8 +268,8 @@ def fuse_bag_views(
         params: ToolBudgetParams | None = None,
         cloud_xyz=None,
         detection_axis=None,
-        entry_standoff_m: float = 0.070,
-        pregrasp_standoff_m: float = 0.10) -> dict:
+        entry_standoff_m: float = 0.0,
+        pregrasp_standoff_m: float = 0.0) -> dict:
     """
     融合多视角袋关键点.
 
@@ -277,6 +277,7 @@ def fuse_bag_views(
     定位：体积截面质心只改侧向。
     剪切站：袋口 / 分割贴检测框极限；果距不足只否决 allowed，不挪刀。
     包络长径比不足则跳过 12° 否决。检测轴夹角只诊断，不进接触预算。
+    后撤量由调用方传入（节点从 ROS 参数读，不在本函数写死米数）。
     """
     cfg = params or ToolBudgetParams()
     items = [item for item in views if item.neck_center is not None
@@ -302,7 +303,10 @@ def fuse_bag_views(
         axis = _unit(np.mean(np.stack(axes), axis=0))
     if bottom is None or neck is None or axis is None:
         return {'ok': False, 'reason': 'fusion_failed', 'allowed': False}
-    d95 = float(np.median([item.d95_m for item in items if item.d95_m > 0]))
+    d95_values = [item.d95_m for item in items if item.d95_m > 0]
+    # 全部视角 d95 缺失（0/负）时回退 0：下游预算把 0 当「无径向散布数据」
+    # 处理，不得让 np.median([]) 的 NaN 流进许可与 diagnostics JSON。
+    d95 = float(np.median(d95_values)) if d95_values else 0.0
     length = float(np.dot(neck - bottom, axis))
     if length < 0.0:
         axis = -axis
@@ -359,12 +363,18 @@ def fuse_bag_views(
     entry = bottom - standoff * axis
     pregrasp = entry - float(pregrasp_standoff_m) * axis
     cut_travel = float(np.dot(cut['cut'] - entry, axis))
-    budget = evaluate_sleeve_cut(
-        d_bag95=d95, length_m=max(length, 0.05),
-        center_lateral95=sig_p, axis_error_deg=axis_error_deg,
-        neck_position95=sig_p,
-        cut_to_fruit_m=float(cut['cut_to_fruit_m']),
-        params=cfg)
+    if d95 <= 1e-6:
+        # 无任何径向尺度证据（逐视角 d95 与体积包络全缺）：d_bag95=0 会拿到
+        # 最宽松的径向预算（袋当零宽），保守拒绝而不是放行。12=几何超限族。
+        budget = {
+            'allowed': False, 'reason': 'bag_d95_missing', 'failure_code': 12}
+    else:
+        budget = evaluate_sleeve_cut(
+            d_bag95=d95, length_m=max(length, 0.05),
+            center_lateral95=sig_p, axis_error_deg=axis_error_deg,
+            neck_position95=sig_p,
+            cut_to_fruit_m=float(cut['cut_to_fruit_m']),
+            params=cfg)
     occlusion = items[-1].occlusion_class
     flags = []
     if n_dropped:

@@ -203,6 +203,46 @@ Visualization Manager:
           Value: true
         - Class: rviz_default_plugins/MarkerArray
           Enabled: true
+          Name: TCP Trajectory
+          Namespaces:
+            {}
+          Topic:
+            Depth: 1
+            Durability Policy: Transient Local
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /peach/observability/markers
+          Value: true
+        - Alpha: 1
+          Buffer Length: 1
+          Class: rviz_default_plugins/Path
+          Color: 79; 163; 224
+          Enabled: true
+          Head Diameter: 0.02
+          Head Length: 0.02
+          Length: 0.3
+          Line Style: Lines
+          Line Width: 0.006
+          Name: TCP Path
+          Offset:
+            X: 0
+            Y: 0
+            Z: 0
+          Pose Color: 255; 85; 255
+          Pose Style: None
+          Radius: 0.03
+          Shaft Diameter: 0.005
+          Shaft Length: 0.04
+          Topic:
+            Depth: 1
+            Durability Policy: Transient Local
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /peach/observability/tcp_path
+          Value: true
+        - Class: rviz_default_plugins/MarkerArray
+          Enabled: true
           Name: Planned Views
           Namespaces:
             {}
@@ -211,7 +251,7 @@ Visualization Manager:
             Durability Policy: Transient Local
             History Policy: Keep Last
             Reliability Policy: Reliable
-            Value: /peach_manipulation_skills_node/planned_views
+            Value: /peach_manipulation_node/planned_views
           Value: true
         - Class: rviz_default_plugins/Image
           Enabled: false

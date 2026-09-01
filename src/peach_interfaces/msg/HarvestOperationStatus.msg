@@ -1,4 +1,4 @@
-# 采摘→外部导航：臂占用与放行。剪切/撤退完成前不得 resume。
+# 【预留】采摘→外部导航：臂占用与放行（固定座核心栈不发布/不消费；随 NavigateToWorksite 一并归档）。剪切/撤退完成前不得 resume。
 std_msgs/Header header
 string target_id
 string site_id

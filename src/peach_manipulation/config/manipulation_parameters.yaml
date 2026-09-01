@@ -1,0 +1,521 @@
+---
+# peach_manipulation_node 参数定义（generate_parameter_library 单一事实源）：
+# 声明/类型/默认值/校验全在本文件；默认值与 config/peach_manipulation.yaml 逐项对齐
+# （test_yaml_defaults 强制），中文注释口径以 config/peach_manipulation.yaml 为权威。
+peach_manipulation_node:
+  frames:
+    base: {
+      type: string,
+      default_value: "base_link",
+      description: "世界/基座坐标系。"
+    }
+    tip: {
+      type: string,
+      default_value: "tcp",
+      description: "规划/IK 末端连杆：MoveIt 组 manipulator_e5 的 tip_link（URDF 内建 tcp，见 aubo_description tcp.xacro）。"
+    }
+    camera: {
+      type: string,
+      default_value: "camera_depth_optical_frame",
+      description: "相机坐标系；视点姿态按 ROS 光学坐标系（+Z 前、+X 右、+Y 下）生成。"
+    }
+    tool: {
+      type: string,
+      default_value: "tcp",
+      description: "工具坐标系（当前与 tip 同为 tcp）。"
+    }
+  moveit:
+    planning_group: {
+      type: string,
+      default_value: "manipulator_e5",
+      description: "MoveIt 规划组。"
+    }
+    planning_time_s: {
+      type: double,
+      default_value: 1.5,
+      description: "MTC/默认单次规划时间上限（秒）。观察另用 observe_planning_time_s。",
+      validation: { gt<>: [0.0] }
+    }
+    planning_attempts: {
+      type: int,
+      default_value: 1,
+      description: "默认规划尝试次数。观察另用 observe_planning_attempts。",
+      validation: { gt_eq<>: [1] }
+    }
+    velocity_scaling: {
+      type: double,
+      default_value: 0.10,
+      description: "接触段速度缩放（MTC 靠近/插入/撤离）。0.05 时接近段常被参数化到 40s 而护栏拒发；真机初始验证不得高于 0.1。",
+      validation: { gt<>: [0.0], lt_eq<>: [1.0] }
+    }
+    acceleration_scaling: {
+      type: double,
+      default_value: 0.10,
+      description: "接触段加速度缩放（同 velocity_scaling 的档位约束）。",
+      validation: { gt<>: [0.0], lt_eq<>: [1.0] }
+    }
+    transit_velocity_scaling: {
+      type: double,
+      default_value: 0.10,
+      description: "自由空间转移速度缩放（环绕视点/拍照位姿往返）；高速度缩短高重力矩姿态持续时间，反而降低过流风险；真机初始验证不得高于 0.1。",
+      validation: { gt<>: [0.0], lt_eq<>: [1.0] }
+    }
+    transit_acceleration_scaling: {
+      type: double,
+      default_value: 0.10,
+      description: "自由空间转移加速度缩放（同 transit_velocity_scaling 的档位约束）。",
+      validation: { gt<>: [0.0], lt_eq<>: [1.0] }
+    }
+    pilz_pipeline: {
+      type: string,
+      default_value: "pilz_industrial_motion_planner",
+      description: "Pilz 规划管线名（PTP/LIN）。"
+    }
+    fallback_pipeline: {
+      type: string,
+      default_value: "ompl",
+      description: "Pilz 失败后的兜底规划管线。"
+    }
+    mtc_free_space_pipeline: {
+      type: string,
+      default_value: "pilz_industrial_motion_planner",
+      description: "MTC 到预抓取的 Pilz 管线。LIN/CIRC/PTP 按最短路径分档。"
+    }
+    mtc_free_space_planner: {
+      type: string,
+      default_value: "LIN",
+      description: "Pilz LIN 规划器 id（已对轴平移）。大姿态用 PTP，侧向穿球用 CIRC。插入段仍是沿轴 CartesianPath。",
+    }
+    mtc_cartesian_step_m: {
+      type: double,
+      default_value: 0.005,
+      description: "MTC 笛卡尔段步长（米）。",
+      validation: { gt<>: [0.0] }
+    }
+    mtc_cartesian_min_fraction: {
+      type: double,
+      default_value: 0.95,
+      description: "MTC 直线插入最低完成比例。1.0 会因笛卡尔末步离散在接触深度失败（真机常见 0.966）；0.95 仍拒绝半程插入。",
+      validation: { gt<>: [0.0], lt_eq<>: [1.0] }
+    }
+    mtc_cartesian_precision_m: {
+      type: double,
+      default_value: 0.001,
+      description: "MTC 笛卡尔段平移精度（米）。",
+      validation: { gt<>: [0.0] }
+    }
+    mtc_max_solutions: {
+      type: int,
+      default_value: 5,
+      description: "MTC 最大解数量。",
+      validation: { gt_eq<>: [1] }
+    }
+    mtc_approach_max_duration_s: {
+      type: double,
+      default_value: 0.0,
+      description: "MTC 接近段预计时长上限（秒）。0=不按时长拒发。绕行只看关节行程，时长随速度变。",
+      validation: { gt_eq<>: [0.0] }
+    }
+    mtc_approach_max_total_joint_travel_rad: {
+      type: double,
+      default_value: 12.0,
+      description: "MTC 接近段六轴累计绝对行程硬上限（弧度）。须覆盖拍照位到预抓取最短合法 PTP（08-31 现场 10.79）。",
+      validation: { gt<>: [0.0] }
+    }
+    mtc_approach_max_single_joint_travel_rad: {
+      type: double,
+      default_value: 6.1,
+      description: "MTC 接近段任一单轴累计绝对行程硬上限（弧度）。6.1=URDF ±3.05 满行程；E5 无法 2π 折返，3.2 会拒最短合法腕程（现场 4.23）。",
+      validation: { gt<>: [0.0] }
+    }
+    mtc_approach_via_max_spacing_m: {
+      type: double,
+      default_value: 0.08,
+      description: "保留参数；接近不再插多段笛卡尔过渡点。",
+      validation: { gt_eq<>: [0.0] }
+    }
+    mtc_approach_via_min_spacing_m: {
+      type: double,
+      default_value: 0.03,
+      description: "保留参数；接近不再插多段笛卡尔过渡点。",
+      validation: { gt_eq<>: [0.0] }
+    }
+    mtc_approach_via_max_points: {
+      type: int,
+      default_value: 1,
+      description: "保留参数；接近不插 via（会把路径拉长）。",
+      validation: { gt_eq<>: [1] }
+    }
+    mtc_approach_cartesian_max_distance_m: {
+      type: double,
+      default_value: 0.15,
+      description: "沿检测轴 LIN 与 CIRC 弧长参考（米）。更长的到位用 PTP。直线会穿预抓取球时改 CIRC。观察位无 IK 则回拍照位再试。",
+      validation: { gt<>: [0.0] }
+    }
+    mtc_approach_along_axis_m: {
+      type: double,
+      default_value: 0.0,
+      description: "预抓取点在入口沿检测轴反向后撤量（米）。0=与入口重合。整栈由 grasp_standoffs.yaml 注入；已对轴时 LIN 走这一段。",
+      validation: { gt_eq<>: [0.0] }
+    }
+    mtc_approach_max_lateral_m: {
+      type: double,
+      default_value: 0.05,
+      description: "末端到抓取轴线的侧向偏差（米）。小于此值视为已对轴，LIN 是最短直线。",
+      validation: { gt<>: [0.0] }
+    }
+    mtc_approach_max_align_deg: {
+      type: double,
+      default_value: 20.0,
+      description: "末端 Z 与检测轴夹角（度）。小于此值视为已齐，LIN 不再带大 slerp。",
+      validation: { gt<>: [0.0] }
+    }
+    observe_planning_time_s: {
+      type: double,
+      default_value: 1.0,
+      description: "观察短 PTP 单次规划时间上限（秒）。",
+      validation: { gt<>: [0.0] }
+    }
+    observe_planning_attempts: {
+      type: int,
+      default_value: 1,
+      description: "观察短 PTP 规划尝试次数。",
+      validation: { gt_eq<>: [1] }
+    }
+    observe_max_duration_s: {
+      type: double,
+      default_value: 0.0,
+      description: "观察转移轨迹预计时长上限（秒）。0=不按时长拒发。绕行看累计/单轴行程。",
+      validation: { gt_eq<>: [0.0] }
+    }
+    observe_max_total_joint_travel_rad: {
+      type: double,
+      default_value: 4.0,
+      description: "观察转移六轴累计行程上限（弧度）。09-01 现场 0.15m 观察 LIN 实测 2.63–3.70，2.5 会拒合法短移。",
+      validation: { gt<>: [0.0] }
+    }
+    observe_max_single_joint_travel_rad: {
+      type: double,
+      default_value: 1.5,
+      description: "观察转移单轴累计行程上限（弧度）。",
+      validation: { gt<>: [0.0] }
+    }
+    photo_planning_time_s: {
+      type: double,
+      default_value: 3.0,
+      description: "回拍照位规划时间上限（秒）。",
+      validation: { gt<>: [0.0] }
+    }
+    transit_max_duration_s: {
+      type: double,
+      default_value: 0.0,
+      description: "goToPhotoPose 轨迹预计时长上限（秒）。0=不按时长拒发。绕行看行程；PTP 失败回退 OMPL 后仍须过行程门。",
+      validation: { gt_eq<>: [0.0] }
+    }
+    transit_max_total_joint_travel_rad: {
+      type: double,
+      default_value: 6.0,
+      description: "goToPhotoPose 六轴累计绝对行程上限（弧度）。段间接缝计入行程（原始 |Δq|，不按最短角）。",
+      validation: { gt<>: [0.0] }
+    }
+    transit_max_single_joint_travel_rad: {
+      type: double,
+      default_value: 2.5,
+      description: "goToPhotoPose 任一单轴累计绝对行程上限（弧度）。",
+      validation: { gt<>: [0.0] }
+    }
+  photo_pose_named_target: {
+    type: string,
+    default_value: "global_photo_pose",
+    description: "全局拍照位姿的 SRDF 命名状态（go_to_photo_pose 服务的目标），与 aubo_e5_moveit_config/config/aubo_e5.srdf 的 group_state 对应。"
+  }
+  harvest_stow_named_target: {
+    type: string,
+    default_value: "harvest_stow",
+    description: "接触后安全观察/收纳位 SRDF 命名状态；空串则回退 photo_pose_named_target。"
+  }
+  scan:
+    observation_radius_m: {
+      type: double,
+      default_value: 0.40,
+      description: "观察半径参考（米）：视点从当前相机沿直线截步；画面过小时才向本值/下限靠近，不再把相机贴到球面上。",
+      validation: { gt<>: [0.0] }
+    }
+    minimum_radius_m: {
+      type: double,
+      default_value: 0.32,
+      description: "观察半径下限（米）：退出深度相机近距盲区。",
+      validation: { gt<>: [0.0] }
+    }
+    azimuth_step_deg: {
+      type: double,
+      default_value: 12.0,
+      description: "候选视点的方位角步进（度）。",
+      validation: { gt<>: [0.0] }
+    }
+    azimuth_limit_deg: {
+      type: double,
+      default_value: 16.0,
+      description: "候选视点的方位角上限（度，相对初始视线）。16° 只允许一次 ~12° 短 PTP，禁止大环绕。",
+      validation: { gt_eq<>: [0.0] }
+    }
+    elevation_step_deg: {
+      type: double,
+      default_value: 8.0,
+      description: "候选视点的俯仰角步进（度）。",
+      validation: { gt<>: [0.0] }
+    }
+    elevation_limit_deg: {
+      type: double,
+      default_value: 0.0,
+      description: "候选视点的俯仰角上限（度）。0=不俯仰环绕，只做水平短 PTP。",
+      validation: { gt_eq<>: [0.0] }
+    }
+    preferred_baseline_deg: {
+      type: double,
+      default_value: 12.0,
+      description: "相邻机位期望基线角（度），与质量门 minimum_baseline_deg 对齐。0.15 m 短移在 0.7 m 处约 12°。",
+      validation: { gt_eq<>: [0.0] }
+    }
+    radial_step_m: {
+      type: double,
+      default_value: 0.015,
+      description: "半径向最小半径收敛的每步进给（米）。",
+      validation: { gt<>: [0.0] }
+    }
+    candidate_layers: {
+      type: int,
+      default_value: 1,
+      description: "候选视点分层数。观察以当前半径为种子，画面过小时才再靠近一层。",
+      validation: { gt_eq<>: [1] }
+    }
+    views_to_minimum_radius: {
+      type: int,
+      default_value: 5,
+      description: "收敛到最小半径的视点数。",
+      validation: { gt_eq<>: [1] }
+    }
+    max_camera_step_m: {
+      type: double,
+      default_value: 0.15,
+      description: "观察每步相机直线位移上限（米）。沿当前位到候选视点截断。0.15 使 ~0.7 m 处一跨过覆盖门 8°；禁止绕球面走远路。",
+      validation: { gt<>: [0.0] }
+    }
+    workspace_max_reach_m: {
+      type: double,
+      default_value: 0.78,
+      description: "相机位置距 base 原点上限（米）。超出则沿视线收进球内并提高评分，不因超限清空候选。E5 标称约 0.80 m。",
+      validation: { gt<>: [0.0] }
+    }
+    maximum_moves: {
+      type: int,
+      default_value: 2,
+      description: "单目标观察移动次数封顶。当前位先采帧；覆盖未过则把次数走完（LIN 失败才 PTP），不是环绕。覆盖达标立即停。",
+      validation: { gt_eq<>: [1] }
+    }
+    min_effective_views: {
+      type: int,
+      default_value: 1,
+      description: "质量尚未达标时的主动移动有效视点下限（日志/失败文案）。停准则以质量门和 maximum_moves 为准。当前位采帧另计。",
+      validation: { gt_eq<>: [1] }
+    }
+    time_budget_s: {
+      type: double,
+      default_value: 15.0,
+      description: "观察段墙钟对照（秒）。只进日志；停准则是覆盖达标或 maximum_moves 用尽，不按 EMA 放大或预测收口。",
+      validation: { gt<>: [0.0] }
+    }
+    budget_cost_margin: {
+      type: double,
+      default_value: 1.5,
+      description: "保留兼容。不再参与观察停准则（曾按倍率×移动+等帧 EMA 预测收口，会砍掉第二机位）。",
+      validation: { gt<>: [0.0] }
+    }
+    assumed_frame_interval_s: {
+      type: double,
+      default_value: 0.4,
+      description: "未测得观测间隔 EMA 时，仅用于等帧/再确认/精化等待的回退帧间隔（秒）。归档现场中位约 0.4 s（≈2.5 FPS）；0=等待回退到各自超时上限。不预填 EMA，不收紧新鲜度门。不改 Percipio launch 请求帧率。",
+      validation: { gt_eq<>: [0.0] }
+    }
+    min_camera_height_m: {
+      type: double,
+      default_value: 0.06,
+      description: "相机位置 z 下限（base 系，桌面保护平面）：低于此的视点物理穿桌、规划必败，生成阶段直接剔除。语义上是 protected_zones 的“z<下限半空间”特例 shortcut，两者并存、各自生效。",
+      validation: { gt_eq<>: [0.0] }
+    }
+    protected_zones: {
+      type: double_array,
+      default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      description: "环境几何保护区（阶段 F1）：base_link 系轴对齐盒列表，stride-6 扁平编码 [xmin,ymin,zmin,xmax,ymax,zmax]*N（米）。视点生成剔除相机位置落入任一盒（闭区间，含盒表面）的候选；GraspTask 把同一列表写入 planning scene 碰撞盒，接触段规划碰撞检查兜底。装载时逐盒校验：长度非 6 倍数的残余组、含非有限分量或任一轴 min>=max 的盒告警并丢弃（不炸节点）。默认空列表=无保护区。"
+    }
+    frame_wait_s: {
+      type: double,
+      default_value: 4.0,
+      description: "视点后等待新帧的超时上限（秒）。实测 EMA 时 ≈4 帧+1s（下限 2s）；未测得时用 assumed_frame_interval_s 估窗口，不预填 EMA。本值为回退值与自适应上限。",
+      validation: { gt<>: [0.0] }
+    }
+  quality:
+    minimum_views: {
+      type: int,
+      default_value: 2,
+      description: "质量门最少机位数，与重建 capture.min_views 对齐。当前位+一次 0.15 m 短移。",
+      validation: { gt_eq<>: [1] }
+    }
+    minimum_baseline_deg: {
+      type: double,
+      default_value: 8.0,
+      description: "质量门最大基线角下限（度）。0.15 m 短移在 0.7 m 处约 12°，本值取 8。",
+      validation: { gt_eq<>: [0.0] }
+    }
+    minimum_mean_nearest_baseline_deg: {
+      type: double,
+      default_value: 6.0,
+      description: "质量门平均最近基线角下限（度）。",
+      validation: { gt_eq<>: [0.0] }
+    }
+    minimum_mean_depth_ratio: {
+      type: double,
+      default_value: 0.40,
+      description: "质量门平均有效深度比例下限（0~1）。",
+      validation: { gt_eq<>: [0.0], lt_eq<>: [1.0] }
+    }
+    maximum_refined_rmse_m: {
+      type: double,
+      default_value: 0.01,
+      description: "精化关键点残差诊断上限（米）；不单独关接触许可，也不拦 PREGRASP_ONLY。",
+      validation: { gt<>: [0.0] }
+    }
+    minimum_refined_inlier_ratio: {
+      type: double,
+      default_value: 0.35,
+      description: "精化拟合内点比例下限（0~1）。",
+      validation: { gt_eq<>: [0.0], lt_eq<>: [1.0] }
+    }
+    maximum_data_age_s: {
+      type: double,
+      default_value: 3.0,
+      description: "质量证据数据最大年龄（秒）。2.0 时 1 Hz 诊断会误判 stale。",
+      validation: { gt<>: [0.0] }
+    }
+    maximum_axis_angle_deg: {
+      type: double,
+      default_value: 35.0,
+      description: "检测轴与重建轴完全错轴诊断上限（度）；只打诊断旗标。套入许可走重建动态径向/轴向预算，本角不单独授权或拒绝接触。",
+      validation: { gt<>: [0.0], lt_eq<>: [180.0] }
+    }
+  execution:
+    enabled: {
+      type: bool,
+      default_value: false,
+      description: "执行使能（默认只规划）：设为 true 后每个周期还必须人工调用 set_execution_armed。依赖链 execution→grasp→tool 由参数校验钩子强制。"
+    }
+    require_robot_status: {
+      type: bool,
+      default_value: true,
+      description: "安全门是否要求 robot_status 在线。"
+    }
+    robot_status_max_age_s: {
+      type: double,
+      default_value: 1.0,
+      description: "robot_status 最大年龄（秒）。",
+      validation: { gt<>: [0.0] }
+    }
+    target_observation_max_age_s: {
+      type: double,
+      default_value: 3.0,
+      description: "目标观测新鲜度门下限（秒）。未测得帧间隔时用本值；测得后只按低帧率放宽，不得收得比本值更紧。",
+      validation: { gt<>: [0.0] }
+    }
+    reset_reconstruction_on_start: {
+      type: bool,
+      default_value: false,
+      description: "已废弃：执行器不再调用重建 reset。保留以免旧 yaml 加载失败。"
+    }
+  grasp:
+    enabled: {
+      type: bool,
+      default_value: false,
+      description: "抓取使能（默认停在 READY_FOR_GRASP，不执行接触动作）；开启要求 execution.enabled=true。"
+    }
+    neck_margin_m: {
+      type: double,
+      default_value: 0.015,
+      description: "入袋后越过袋口的颈部余量（米）。",
+      validation: { gt_eq<>: [0.0] }
+    }
+    minimum_travel_m: {
+      type: double,
+      default_value: 0.02,
+      description: "最小插入行程（米）。",
+      validation: { gt<>: [0.0] }
+    }
+    maximum_travel_m: {
+      type: double,
+      default_value: 0.20,
+      description: "最大插入行程（米）。",
+      validation: { gt<>: [0.0] }
+    }
+    complete_target_after_retreat: {
+      type: bool,
+      default_value: false,
+      description: "撤离后是否推进感知计划（已废弃；账本由 peach_executor 持有）。"
+    }
+    reconfirm_wait_s: {
+      type: double,
+      default_value: 6.0,
+      description: "抓取前再确认（2.7-RECONFIRM）单次尝试的新鲜观测等待窗口上限（秒）：实测帧间隔 EMA 自适应伸缩，本值为未测得帧率时的回退值与自适应上限；摆动等平息也在本窗口预算内。",
+      validation: { gt<>: [0.0] }
+    }
+    reconfirm_tolerance_m: {
+      type: double,
+      default_value: 0.03,
+      description: "抓取前再确认的锚点漂移容差（米）：最新观测锚点与 finalize 时感知底/颈中点的偏差上限。超限保留 TSDF 入口并再开窗（禁止单帧平移）。",
+      validation: { gt<>: [0.0] }
+    }
+    reconfirm_max_attempts: {
+      type: int,
+      default_value: 3,
+      description: "抓取前再确认的累计超限放弃阈值（次）：漂移超限/窗口耗尽/摆动不息任一计一次超限，累计达到本值 → SKIPPED_QUALITY（reason 含“目标持续摆动”）。",
+      validation: { gt_eq<>: [1] }
+    }
+    allow_stale_anchor: {
+      type: bool,
+      default_value: false,
+      description: "回退开关（验证期遗留，室外默认关闭）：true 时恢复旧行为——再确认等不到新鲜观测、MTC 前观测陈旧时按静态目标锚点继续执行；false 时新鲜度由 ReconfirmTarget 单点把关，MTC 前不再二次放行 stale。"
+    }
+  tool:
+    enabled: {
+      type: bool,
+      default_value: false,
+      description: "工具使能（默认关闭工具 IO）；开启要求 grasp.enabled=true。"
+    }
+    io_fun: {
+      type: int,
+      default_value: 3,
+      description: "工具 IO 功能号（SetIO 的 fun）。",
+      validation: { gt_eq<>: [0] }
+    }
+    io_pin: {
+      type: int,
+      default_value: 0,
+      description: "工具 IO 引脚号（SetIO 的 pin）。",
+      validation: { gt_eq<>: [0] }
+    }
+    close_state: {
+      type: double,
+      default_value: 1.0,
+      description: "工具闭合写入的 IO 电平值。"
+    }
+  timeouts:
+    service_s: {
+      type: double,
+      default_value: 3.0,
+      description: "普通服务调用超时（秒）。",
+      validation: { gt<>: [0.0] }
+    }
+    refined_s: {
+      type: double,
+      default_value: 30.0,
+      description: "等待精化结果的超时上限（秒）：须覆盖 BuildTargetModel 最终 TSDF 提取+refit。实测帧间隔 EMA 自适应，本值为未测得帧率时的回退值与上限。",
+      validation: { gt<>: [0.0] }
+    }

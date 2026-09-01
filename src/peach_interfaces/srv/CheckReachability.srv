@@ -1,0 +1,11 @@
+# 选果级 TCP 可达性预检（有效深度窗之外的臂可达权威）。
+# 服务端 peach_manipulation_node（MoveIt RobotState::setFromIK，种子=当前状态）；
+# 唯一客户端 peach_executor（SELECT 段批量查询）。只答「能否求解」，不规划、不动臂。
+# 坐标系：tcp_poses 一般为 base_link（模型系）；非模型系由服务端 TF 转换。
+std_msgs/Header header
+geometry_msgs/PoseStamped[] tcp_poses   # 估计预抓取 TCP 位姿（入口−0.10·轴）
+float64 timeout_s                       # 单位姿求解超时（秒；≤0 用服务端默认 0.1）
+---
+bool[] reachable                        # 与请求 tcp_poses 等长
+string[] error_codes                    # 每位姿失败码：no_ik / invalid_frame / moveit_unavailable
+string message                          # 整体说明（服务端异常时非空）

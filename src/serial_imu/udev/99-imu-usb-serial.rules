@@ -1,0 +1,3 @@
+# QinHeng CH340 (1a86:7523). Cheap adapters have no unique serial.
+# After install: /dev/imu -> ttyUSB*
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", SYMLINK+="imu", MODE="0660", GROUP="dialout"

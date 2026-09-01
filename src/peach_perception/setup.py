@@ -1,5 +1,5 @@
-from glob import glob
 import contextlib
+from glob import glob
 import io
 import os
 from pathlib import Path
@@ -14,7 +14,8 @@ package_name = 'peach_perception'
 
 
 def _generate_parameter_module(module_name, yaml_file):
-    """写入 install（colcon argv）以及源码包目录.
+    """
+    写入 install（colcon argv）以及源码包目录.
 
     仅写 install 时，若 PYTHONPATH 把 src/peach_perception 放在前面，
     运行会找不到生成的 *_parameters 模块。

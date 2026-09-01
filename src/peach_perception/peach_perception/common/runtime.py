@@ -151,9 +151,6 @@ class Registry(Generic[T]):
 
 # === bounded_worker.py ===
 
-# Copyright 2026 wjz
-
-
 Item = TypeVar('Item')
 
 # 纯核不能 import ROS，走 stdlib logging（print 会污染 stdout）
@@ -260,19 +257,31 @@ def default_harvest_root() -> Path:
 
 
 class HarvestDataStore:
-    """每轮采摘的轻量可查询事件库；RGB-D 大数据仍由重建 session 保存."""
+    """
+    每轮采摘的轻量可查询事件库；RGB-D 大数据仍由重建 session 保存.
 
-    def __init__(self, root=None):
-        """创建尚未开始的存储器."""
+    单根会话目录（R7）：executor 批次在跑时 base_dir 指向
+    ``runs/<request_id>/perception_data``，start/attach 的轮目录落其下；
+    base_dir 为 None 时维持旧布局 ``<root>/<run_id>``（无批次回退）。
+    """
+
+    def __init__(self, root=None, base_dir=None):
+        """创建尚未开始的存储器；base_dir 由节点按 executor run_id 设置."""
         self.root = Path(root) if root else default_harvest_root()
+        self.base_dir = Path(base_dir) if base_dir else None
         self.run_dir = None
         self.latest_state = {}
         # target_id → 上次掩膜落盘的 time.monotonic() 时刻（save_mask 节流用）
         self._mask_last_saved = {}
 
+    def _resolve(self, run_id: str) -> Path:
+        """轮目录：批次在跑=base_dir/run_id，否则 root/run_id（旧布局）."""
+        base = self.base_dir if self.base_dir is not None else self.root
+        return base / run_id
+
     def start(self, run_id: str, manifest: dict) -> Path:
         """创建运行目录并原子写 manifest.yaml."""
-        self.run_dir = self.root / run_id
+        self.run_dir = self._resolve(run_id)
         self.run_dir.mkdir(parents=True, exist_ok=False)
         (self.run_dir / 'masks').mkdir()
         document = dict(manifest)
@@ -288,7 +297,7 @@ class HarvestDataStore:
 
     def attach(self, run_id: str) -> bool:
         """附着到既有运行目录，供重建进程追加同一事件链."""
-        candidate = self.root / run_id
+        candidate = self._resolve(run_id)
         if not run_id or not candidate.is_dir():
             return False
         self.run_dir = candidate

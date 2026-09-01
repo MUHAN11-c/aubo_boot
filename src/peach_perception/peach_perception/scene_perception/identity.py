@@ -531,14 +531,14 @@ class SpatialEmaMatcher(TargetMatcher):
     """
     空间最近邻匹配器（TargetMatcher 默认实现，注册名 'spatial_ema'）.
 
-    三段搜索链（仅前一段未命中才进下一段）：
+    两段搜索（仅前一段未命中才进下一段）：
       1. 正常匹配：同类、距离 ≤ match_radius 取最近者；
-      2. 恢复匹配①（同类）：半径放宽到 match_radius × recovery_scale
-         （recovery_scale>1 时），抗检测跳动导致的锚点跳变；
-      3. 恢复匹配②（跨类）：半径**不放大**仍限 match_radius
-         （cross_class_recovery 为真时），抗 bag/nobag 翻类——真翻类
-         锚点几乎不动，邻近异类新目标不会被误并。
+      2. 恢复匹配（同类）：半径放宽到 match_radius × recovery_scale
+         （recovery_scale>1 时），抗检测跳动导致的锚点跳变。
     两档优先级：已确认表项优先于未确认表项（瞬时目标不抢稳定身份）。
+    帧级路径（match_or_register_frame）只走全局 1-1 同类分配；跨类恢复
+    为预留能力（曾以 cross_class_recovery 配置承诺、帧级路径从未生效，
+    已删配置；需要时在帧级分配后对未命中项补一次 class 打开的二次分配）。
 
     生命周期：与 TargetRegistry 同寿，由节点按 matcher.impl 创建注入。
     线程安全：无内部状态（配置不可变），与注册表同一把外部锁保护。
@@ -546,8 +546,7 @@ class SpatialEmaMatcher(TargetMatcher):
     """
 
     def __init__(self, match_radius: float = 0.06,
-                 recovery_scale: float = 1.0,
-                 cross_class_recovery: bool = False):
+                 recovery_scale: float = 1.0):
         """建匹配器；参数校验（半径>0、倍率≥1）."""
         if match_radius <= 0.0:
             raise ValueError(f'match_radius 须 > 0，got {match_radius}')
@@ -555,7 +554,6 @@ class SpatialEmaMatcher(TargetMatcher):
             raise ValueError(f'recovery_scale 须 ≥ 1，got {recovery_scale}')
         self.match_radius = float(match_radius)
         self.recovery_scale = float(recovery_scale)
-        self.cross_class_recovery = bool(cross_class_recovery)
 
     def match(self, anchor: np.ndarray, class_id: int,
               table: Dict[str, dict], frame_used: set) -> MatchResult:
@@ -582,12 +580,6 @@ class SpatialEmaMatcher(TargetMatcher):
         }]
         (tid, d2, status), = assign_detections(
             dets, table, frame_used, self.match_radius, self.recovery_scale)
-        if tid is None and self.cross_class_recovery:
-            open_table = {
-                key: {**val, 'class_id': int(class_id)}
-                for key, val in table.items()}
-            (tid, d2, status), = assign_detections(
-                dets, open_table, frame_used, self.match_radius, 1.0)
         dist = (float(np.sqrt(max(d2, 0.0))) if tid is not None
                 else self.match_radius)
         return MatchResult(target_id=tid, distance=dist, status=status)
@@ -636,7 +628,7 @@ class TargetRegistry:
          swing_up, swing_down, swinging}
 
     构造参数：matcher 为目标匹配器（TargetMatcher 接口；None 时按
-    match_radius / recovery_scale / cross_class_recovery 构造默认
+    match_radius / recovery_scale 构造默认
     SpatialEmaMatcher——后两个参数仅在该路径生效）；max_targets 为表容量
     上限，超限注册新目标时淘汰 last_seen 最旧的表项；position_ema 为
     EMA 系数 α∈(0,1]，new = (1-α)·old + α·obs，position / axis /
@@ -653,7 +645,7 @@ class TargetRegistry:
 
     def __init__(self, match_radius: float = 0.06, max_targets: int = 50,
                  position_ema: float = 0.3, recovery_scale: float = 1.0,
-                 cross_class_recovery: bool = False, confirm_frames: int = 1,
+                 confirm_frames: int = 1,
                  tentative_ttl_frames: int = 5,
                  max_age_s: float = 600.0, swing_threshold_m: float = 0.03,
                  swing_frames: int = 3,
@@ -675,8 +667,7 @@ class TargetRegistry:
         if swing_frames < 1:
             raise ValueError(f'swing_frames 须 ≥ 1，got {swing_frames}')
         self._matcher = matcher or SpatialEmaMatcher(
-            match_radius=match_radius, recovery_scale=recovery_scale,
-            cross_class_recovery=cross_class_recovery)
+            match_radius=match_radius, recovery_scale=recovery_scale)
         self.max_targets = int(max_targets)
         self.alpha = float(position_ema)
         self.confirm_frames = int(confirm_frames)

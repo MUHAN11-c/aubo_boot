@@ -1,7 +1,7 @@
 # peach_target_reconstruction_node 参数定义（generate_parameter_library_py 单一事实源）。
 # 声明 / 类型 / 默认值 / 描述 / 校验全部在本文件；根键 = 节点名 = 参数库约定。
 # 运行期由 launch 传 config/target_reconstruction.yaml（含 ros__parameters 的运行时键值），
-# 两边默认值逐项对齐（与 C++ 技能包 src/manipulation_skills_parameters.yaml 同理）。
+# 两边默认值逐项对齐（与 C++ 技能包 config/manipulation_parameters.yaml 同理）。
 # 嵌套组展开出点号参数名：capture.min_views / icp.voxel_length / refit.enable 等。
 peach_target_reconstruction_node:
   frames:
@@ -41,7 +41,7 @@ peach_target_reconstruction_node:
     min_views:
       type: int
       default_value: 2
-      description: 'finalize 所需最少机位数（当前位+一次短 PTP）；同机位连帧不加机位'
+      description: 'finalize 所需最少机位数（当前位+一次 0.15 m 短移）；同机位连帧不加机位'
       validation: { gt_eq<>: [1] }
     recommended_views:
       type: int
@@ -118,6 +118,11 @@ peach_target_reconstruction_node:
       type: double
       default_value: 0.15
       description: '[m] 绑定锚点与其他锁定目标锚点的最小间距（邻目标串扰门）；≤0 关闭本门'
+    neighbor_gap_area_ratio:
+      type: double
+      default_value: 2.0
+      description: '串扰门小框豁免比；邻居检测框面积×本值 < 绑定框面积时该邻居不计入间距（叶片遮挡残片/误检）；≤0 关闭豁免'
+      validation: { gt_eq<>: [0.0] }
     build_timeout_s:
       type: double
       default_value: 180.0
@@ -292,8 +297,13 @@ peach_target_reconstruction_node:
       validation: { gt<>: [0.0] }
     entry_standoff_m:
       type: double
-      default_value: 0.070
-      description: '[m] entry_pose 自 bottom 沿 −axis 后撤量'
+      default_value: 0.0
+      description: '[m] entry_pose 自 bottom 沿 −axis 后撤量；0=入口在拟合袋底。整栈数值以 grasp_standoffs.yaml 为准。'
+      validation: { gt_eq<>: [0.0] }
+    pregrasp_standoff_m:
+      type: double
+      default_value: 0.0
+      description: '[m] GraspDecision.pregrasp 自入口沿 −axis 后撤；0=与入口重合。由 grasp_standoffs.yaml 与技能 mtc_approach_along_axis_m 同值注入。'
       validation: { gt_eq<>: [0.0] }
     max_axis_angle_deg:
       type: double

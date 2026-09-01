@@ -21,4 +21,4 @@ xacro 同一份模板，按 mode 换插件。`auto_power_on` 必须为 false。*
 ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=mock camera_enabled:=false
 ```
 
-采摘请用 `peach_task_executor/harvest_system.launch.py`，它会 include 本文件。启动前 `pgrep` 避免重复容器。
+采摘请用 `peach_executor/harvest_system.launch.py`，它会 include 本文件。启动前 `pgrep` 避免重复容器。

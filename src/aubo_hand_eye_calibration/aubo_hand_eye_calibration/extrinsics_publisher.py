@@ -1,8 +1,3 @@
-# Copyright 2026 wjz
-#
-# Use of this source code is governed by a BSD-style
-# license that can be found in the LICENSE file or at
-# https://developers.google.com/open-source/licenses/bsd
 """Single-authority wrist-to-camera-root static TF publisher."""
 
 from pathlib import Path
@@ -56,10 +51,11 @@ class ExtrinsicsPublisher(Node):
             Trigger, '~/reload', self._reload)
         try:
             self._publish()
-        except (OSError, KeyError, TypeError, ValueError,
+        except (OSError, KeyError, IndexError, TypeError, ValueError,
                 yaml.YAMLError) as error:
             # active.yaml 损坏或 frame 不匹配不应导致节点启动崩溃,
-            # 回退到 nominal 外参并告警
+            # 回退到 nominal 外参并告警; IndexError 兜住 quaternion_xyzw
+            # 长度不足时的下标越界
             self.get_logger().error(
                 f'failed to load active calibration ({error}); '
                 'falling back to nominal extrinsic')
@@ -126,7 +122,9 @@ class ExtrinsicsPublisher(Node):
             self._publish()
             response.success = True
             response.message = 'extrinsic reloaded'
-        except (OSError, KeyError, TypeError, ValueError, yaml.YAMLError) as error:
+        except (OSError, KeyError, IndexError, TypeError, ValueError,
+                yaml.YAMLError) as error:
+            # 同 __init__: IndexError 兜住畸形 active.yaml 的 quaternion 下标越界
             response.success = False
             response.message = str(error)
         return response

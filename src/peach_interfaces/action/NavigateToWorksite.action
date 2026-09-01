@@ -1,6 +1,7 @@
-# 走到作业位。服务端 peach_navigation；唯一客户端 peach_task_executor。
-# navigation_enabled=false（默认）时调度不发送本动作，批次直接 BeginScene。
-# 现行服务端是 reserved_stub（固定座视为已到位）。发行版 Nav2 实现预留。
+# 走到作业位。唯一客户端 peach_executor。
+# 【预留】固定座现行核心栈不发送本动作（_cmd_navigate 直通 NAV_OK）；
+# 服务端包已归档 _archive/parked_2026-09/peach_navigation。真底盘授权后
+# 恢复该包并在其内部接发行版 Nav2。
 
 geometry_msgs/PoseStamped pose
 string site_id

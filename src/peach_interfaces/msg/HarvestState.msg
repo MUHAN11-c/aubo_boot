@@ -1,4 +1,4 @@
-# 批次唯一状态快照。peach_task_executor 的 ~/state 发布（transient_local, depth 1）。
+# 批次唯一状态快照。peach_executor 的 ~/state 发布（transient_local, depth 1）。
 # batch_state / target_phase 只由 harvest_fsm.react 推导，禁止节点手写枚举。
 # 作业目标只认本消息的 target_id（感知 SAM 焦点、重建绑定、观测 selected）。
 

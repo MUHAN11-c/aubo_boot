@@ -157,7 +157,8 @@ class RefitConfig:
 
     cylinder_inlier_min: float = 0.35  # ACCEPT 门控：内点率下限（圆柱/球共用）
     rmse_max_m: float = 0.005          # ACCEPT 门控：拟合 RMSE 上限 [m]
-    entry_standoff_m: float = 0.070    # entry 自 bottom 沿 −axis 后撤量 [m]
+    entry_standoff_m: float = 0.0
+    pregrasp_standoff_m: float = 0.0
     max_axis_angle_deg: float = 35.0   # 检测轴 vs 精化轴夹角上限 [deg]
     normal_neighbors: int = 24         # 法线估计 kNN 邻域点数
     seed: int = 0                      # RANSAC 随机种子（固定保证可复现）
@@ -565,7 +566,7 @@ def refine_geometry(xyz: np.ndarray, target_kind: str = 'bag',
         dict：ok/reason/kind/status/n_points/center/axis/axis_point/
         bottom/neck/entry/radius/diameter/span_m/rmse/inlier_ratio/flags。
         几何量单位均 [m]；axis 为 bottom→neck 单位向量；
-        entry = bottom − axis×entry_standoff_m（剪切接近点）.
+        entry = bottom − axis×entry_standoff_m（0 时入口=袋底）.
 
     """
     refitters = {'cylinder': CylinderRefitter(), 'sphere': SphereRefitter()}

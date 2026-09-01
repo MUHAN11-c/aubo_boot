@@ -1,0 +1,15 @@
+serial_imu:
+  ros__parameters:
+    port: /dev/imu
+    port_fallbacks:
+      - /dev/serial/by-id/usb-1a86_USB_Serial-if00-port0
+      - /dev/ttyUSB0
+    baudrate: 115200
+    frame_id: imu_link
+    read_period_s: 0.005
+    # 安装位静态 TF（单位姿态）。接手臂时改 tf_parent_frame:=base_link。
+    publish_tf: true
+    tf_parent_frame: world
+    # 姿态另发 imu_attitude，勿写进 imu_link（否则 RViz Imu 插件会转两次）。
+    publish_attitude_tf: true
+    attitude_frame_id: imu_attitude

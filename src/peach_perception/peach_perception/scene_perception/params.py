@@ -51,6 +51,7 @@ class ScenePerceptionParams:
     sam_min_area: int              # >=0（参数库校验）
     min_mask_points: int           # >=1（参数库校验）
     detection_dedup_ios: float
+    detection_dedup_area_ratio: float
     publish_debug_image: bool
     publish_masks: bool
     publish_detection_cloud: bool
@@ -75,7 +76,6 @@ class ScenePerceptionParams:
     target_memory_max_targets: int = 50
     target_memory_position_ema: float = 0.3
     target_memory_recovery_scale: float = 1.0
-    target_memory_cross_class_recovery: bool = True
     target_memory_confirm_frames: int = 5
     target_memory_tentative_ttl_frames: int = 8
     target_memory_anchor_max_age_s: float = 30.0
@@ -150,7 +150,7 @@ class ScenePerceptionParams:
             rclpy.logging.get_logger('peach_scene_perception_node').warning(
                 f'未知 gravity_mode={gravity_mode!r}，回退 fixed')
             gravity_mode = 'fixed'
-        # entry_standoff = 刀具伸出 + 安全间隙，与 contracts.ToolGeometry 一致
+        # entry_standoff = d_tool + d_s；0 时入口在拟合袋底
         tool = ToolGeometry(
             D_inner=float(p.tool.D_inner),
             L_insert=float(p.tool.L_insert),
@@ -179,6 +179,8 @@ class ScenePerceptionParams:
             sam_min_area=int(p.sam_min_area),
             min_mask_points=int(p.min_mask_points),
             detection_dedup_ios=float(p.detection_dedup_ios),
+            detection_dedup_area_ratio=float(
+                p.detection_dedup_area_ratio),
             publish_debug_image=bool(p.publish_debug_image),
             publish_masks=bool(p.publish_masks),
             publish_detection_cloud=bool(p.publish_detection_cloud),
@@ -202,8 +204,6 @@ class ScenePerceptionParams:
             target_memory_max_targets=int(p.target_memory.max_targets),
             target_memory_position_ema=float(p.target_memory.position_ema),
             target_memory_recovery_scale=float(p.target_memory.recovery_scale),
-            target_memory_cross_class_recovery=bool(
-                p.target_memory.cross_class_recovery),
             target_memory_confirm_frames=int(p.target_memory.confirm_frames),
             target_memory_tentative_ttl_frames=int(
                 p.target_memory.tentative_ttl_frames),

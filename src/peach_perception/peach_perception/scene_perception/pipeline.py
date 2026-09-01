@@ -342,91 +342,23 @@ def estimate_pose_covariance(
 
 def hungarian(cost: np.ndarray) -> List[Tuple[int, int]]:
     """
-    矩形代价矩阵的最小权和一对一分配（Munkres）.
+    矩形代价矩阵的最小化和一对一分配（scipy 官方求解器）.
 
-    禁止边用 +inf。返回 (row, col) 列表，不含填充虚节点。
+    禁止边用 +inf：以大有限代价参与求解，结果里再按原代价有限性过滤。
+    返回 (row, col) 列表，不含被禁止的配对。
     """
+    # apt python3-scipy，与 common/geometry.py 的惰性导入约定一致
+    from scipy.optimize import linear_sum_assignment
     cost = np.asarray(cost, dtype=float)
     if cost.size == 0:
         return []
-    n, m = cost.shape
-    k = max(n, m)
     big = 1e12
-    C = np.full((k, k), big, dtype=float)
     finite = np.isfinite(cost)
-    C[:n, :m] = np.where(finite, cost, big)
-    # 行减最小值
-    C = C - C.min(axis=1, keepdims=True)
-    C = C - C.min(axis=0, keepdims=True)
-    star = np.zeros((k, k), dtype=bool)
-    prime = np.zeros((k, k), dtype=bool)
-    row_cover = np.zeros(k, dtype=bool)
-    col_cover = np.zeros(k, dtype=bool)
-    for i in range(k):
-        for j in range(k):
-            if C[i, j] == 0 and not row_cover[i] and not col_cover[j]:
-                star[i, j] = True
-                row_cover[i] = True
-                col_cover[j] = True
-    row_cover[:] = False
-    col_cover[:] = False
-
-    def cover_starred():
-        col_cover[:] = star.any(axis=0)
-
-    cover_starred()
-    while col_cover.sum() < k:
-        def find_uncovered_zero():
-            for i in range(k):
-                if row_cover[i]:
-                    continue
-                for j in range(k):
-                    if not col_cover[j] and C[i, j] == 0 and not prime[i, j]:
-                        return i, j
-            return None
-
-        while True:
-            z = find_uncovered_zero()
-            if z is None:
-                leftover = C[~row_cover][:, ~col_cover]
-                if leftover.size == 0:
-                    break
-                mval = leftover.min()
-                C[~row_cover] += mval
-                C[:, ~col_cover] -= mval
-                C[np.abs(C) < 1e-12] = 0.0
-                continue
-            i, j = z
-            prime[i, j] = True
-            star_cols = np.where(star[i])[0]
-            if star_cols.size:
-                row_cover[i] = True
-                col_cover[star_cols[0]] = False
-                continue
-            # 增广路
-            path = [(i, j)]
-            while True:
-                star_rows = np.where(star[:, path[-1][1]])[0]
-                if not star_rows.size:
-                    break
-                r = int(star_rows[0])
-                path.append((r, path[-1][1]))
-                prime_cols = np.where(prime[r])[0]
-                path.append((r, int(prime_cols[0])))
-            for r, c in path:
-                star[r, c] = not star[r, c]
-            prime[:] = False
-            row_cover[:] = False
-            col_cover[:] = False
-            cover_starred()
-            break
-
-    pairs = []
-    for i in range(n):
-        js = np.where(star[i, :m])[0]
-        if js.size and np.isfinite(cost[i, js[0]]):
-            pairs.append((i, int(js[0])))
-    return pairs
+    C = np.where(finite, cost, big)
+    rows, cols = linear_sum_assignment(C)
+    return [
+        (int(i), int(j)) for i, j in zip(rows, cols)
+        if np.isfinite(cost[i, j])]
 
 
 def assign_detections(
@@ -1467,7 +1399,9 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
         pnvalid = nvalid_map[pixels[:, 1], pixels[:, 0]]
 
         # ── 球拟合定心定径 (点+法线 RANSAC + 几何抛光) ──
-        sph = fit_sphere_robust(points[pnvalid], pnormals[pnvalid],
+        # fit 的 inliers 是相对「法线有效子集」的下标，内点取点必须用同一子集
+        valid_pts, valid_nrm = points[pnvalid], pnormals[pnvalid]
+        sph = fit_sphere_robust(valid_pts, valid_nrm,
                                 radius_prior=None,
                                 radius_range=(0.025, 0.045)) if pnvalid.sum() >= 50 else None
         sphere_ok = sph is not None and sph['inlier_ratio'] >= 0.35
@@ -1480,7 +1414,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
         cavity_dip_mm = None
         polarity_corrected = False
         if sphere_ok:
-            inl_pts = points[sph['inliers']]
+            inl_pts = valid_pts[sph['inliers']]
             center, radius = sph['center'], sph['radius']
             axis0, dip0 = self._stem_cavity_axis(inl_pts, center, radius)
             if axis0 is not None:
@@ -2257,7 +2191,8 @@ class CandidateEstimator:
             status='REOBSERVE', diagnostic_flags=[reason])
         g3d = BagGraspReference3D(
             status='REOBSERVE', diagnostic_flags=[reason],
-            strategy_id=f'robust_bag_pose:{mode}',
+            # strategy_id 与成功路径同名（袋线/果线经管线 kind 区分，不恒为 bag）
+            strategy_id=f'robust_{self.pipeline.kind}_pose:{mode}',
             model_version=str(obs.metadata.get('model_version', 'unknown')),
             calibration_version=str(obs.metadata.get(
                 'calibration_version', 'unknown')),
@@ -2265,14 +2200,21 @@ class CandidateEstimator:
         return TargetPoseResult(target_id, g2d, g3d, mode, {})
 
 
-def dedup_overlapping_detections(dets, ios_threshold: float = 0.6) -> list:
+def dedup_overlapping_detections(
+        dets, ios_threshold: float = 0.6,
+        frag_ios_threshold: float = 0.2,
+        frag_area_ratio: float = 0.5) -> list:
     """
     重叠检测框去重：IoS（交集/较小框面积）≥ 阈值判同一物理目标，保留大框.
 
-    面积并列时保留置信度高者；跨类别同样生效——YOLO 按类 NMS，
-    同一颗桃可同时出 bag/nobag 两框，或检出一个被大框包含的局部误检小框，
+    规则 1（基本包含）：IoS ≥ ios_threshold → 抑制小框（原有）；
+    规则 2（碎片残枝，09-01「先做大框」定夺）：IoS ≥ frag_ios_threshold
+    且面积比（小/大）≤ frag_area_ratio → 抑制小框——叶片遮挡碎片框 IoS
+    达不到包含阈值，但「明显更小+可见重叠」足以判为同一颗的残片；相邻
+    两颗袋面积相当（比值≈1）不会被误删。面积并列时保留置信度高者；
+    跨类别同样生效——YOLO 按类 NMS，同一颗桃可同时出 bag/nobag 两框，
     都会在身份注册表上重复占号。用 IoS 而非 IoU：部分重叠的相邻两颗桃
-    IoS 低不误删，只有"一框基本包含另一框"才去重。
+    IoS 低不误删。
     贪心顺序为面积降序（置信度次之），后遍历到的高重叠框被抑制。
 
     Args:
@@ -2295,15 +2237,23 @@ def dedup_overlapping_detections(dets, ios_threshold: float = 0.6) -> list:
     for i in order:
         suppress = False
         for j in kept:
+            if areas[i] <= 0.0 or areas[j] <= 0.0:
+                continue
             ix1 = max(boxes[i, 0], boxes[j, 0])
             iy1 = max(boxes[i, 1], boxes[j, 1])
             ix2 = min(boxes[i, 2], boxes[j, 2])
             iy2 = min(boxes[i, 3], boxes[j, 3])
             inter = max(0.0, ix2 - ix1) * max(0.0, iy2 - iy1)
-            smaller = min(areas[i], areas[j])
-            if smaller > 0.0 and inter / smaller >= ios_threshold:
+            if inter / min(areas[i], areas[j]) >= ios_threshold:
                 suppress = True
                 break
+            if frag_area_ratio > 0.0:
+                small_over_big = min(areas[i], areas[j]) / max(
+                    areas[i], areas[j])
+                if (small_over_big <= frag_area_ratio
+                        and inter / areas[i] >= frag_ios_threshold):
+                    suppress = True
+                    break
         if not suppress:
             kept.append(i)
     return [dets[i] for i in kept]

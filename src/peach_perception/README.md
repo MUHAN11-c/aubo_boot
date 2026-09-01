@@ -1,6 +1,6 @@
 # peach_perception
 
-五个能力包之一：**视觉算法**。一包两节点：场景身份与锁定集；当前目标局部模型与 `GraspDecision`。不发运动、不选下一颗、不写账本。重建积分只用精确 stamp TF。
+四个能力包之一：**视觉算法**。一包两节点：场景身份与锁定集；当前目标局部模型与 `GraspDecision`。不发运动、不选下一颗、不写账本。重建积分只用精确 stamp TF。
 节点之间、以及与技能/执行器之间，只走 [`peach_interfaces`](../peach_interfaces/README.md)，不互相 import 业务模块。详细作用见 [docs/architecture.md](../../docs/architecture.md) §3 `peach_perception`。
 
 总览：[docs/architecture.md](../../docs/architecture.md)。契约：[docs/io.md](../../docs/io.md)。
@@ -12,6 +12,7 @@ peach_perception/
   peach_perception/          # import peach_perception.*
     common/                  # 拟合、深度、时钟、runs/
     scene_perception/        # peach_scene_perception_node
+      offline/               # bag_baseline 等离线脚本
     target_reconstruction/   # peach_target_reconstruction_node
   config/  launch/  model/
   resource/  test/
@@ -47,4 +48,4 @@ ros2 launch peach_perception scene_perception.launch.py
 ros2 launch peach_perception target_reconstruction.launch.py
 ```
 
-整栈由 `peach_task_executor/harvest_system.launch.py` include，`autostart:=false`。
+整栈由 `peach_executor/harvest_system.launch.py` include，`autostart:=false`。

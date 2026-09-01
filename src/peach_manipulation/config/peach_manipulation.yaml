@@ -1,0 +1,167 @@
+peach_manipulation_node:
+  ros__parameters:
+    frames:
+      base: base_link
+      # 规划/IK 末端连杆：MoveIt 组 manipulator_e5 的 tip_link（URDF 内建 tcp）。
+      tip: tcp
+      # 视点姿态按 ROS 光学坐标系（+Z 前、+X 右、+Y 下）生成。
+      camera: camera_depth_optical_frame
+      tool: tcp
+    moveit:
+      planning_group: manipulator_e5
+      planning_time_s: 1.5
+      planning_attempts: 1
+      # 速度 0.10：0.05 时接近段时间参数化常到 40 s，被 12 s 护栏整段丢掉、
+      # 接触轨迹不下发。真机初始验证不得高于 0.1。
+      velocity_scaling: 0.10
+      acceleration_scaling: 0.10
+      # 转移提速到 0.10（观察段耗时大头是视点间转移；高速度缩短高重力矩
+      # 姿态持续时间，反而降低过流风险；真机初始验证不得高于 0.1）
+      transit_velocity_scaling: 0.10
+      transit_acceleration_scaling: 0.10
+      pilz_pipeline: pilz_industrial_motion_planner
+      fallback_pipeline: ompl
+      # 接触：预抓取先 PTP 回拍照位，再按最短路径选原语（短程已齐且直线
+      # 不穿预抓取球 → LIN；直线会穿球 → CIRC 再沿轴 LIN；短程未齐 →
+      # PTP 转 Z 再 LIN；远距/无 IK → PTP）。套入沿轴 LIN。
+      # 不插 via。绕行只看关节行程（累计/单轴），不按时长。
+      # 12 / 6.1：放行 08-31 最短合法 PTP（10.79 / 4.23）。单轴 6.1 = URDF
+      # ±3.05 满行程（无法 2π 折返）；3.2 会把限位内腕程当成绕腕拒发。
+      mtc_free_space_pipeline: pilz_industrial_motion_planner
+      mtc_free_space_planner: LIN
+      mtc_cartesian_step_m: 0.005
+      mtc_cartesian_min_fraction: 0.95
+      mtc_cartesian_precision_m: 0.001
+      mtc_max_solutions: 5
+      # 0=不按时长拒发。
+      mtc_approach_max_duration_s: 0.0
+      mtc_approach_max_total_joint_travel_rad: 12.0
+      mtc_approach_max_single_joint_travel_rad: 6.1
+      mtc_approach_cartesian_max_distance_m: 0.15
+      # 预抓取后撤：grasp_standoffs.yaml（launch 注入 mtc_approach_along_axis_m）
+      mtc_approach_max_lateral_m: 0.05
+      mtc_approach_max_align_deg: 20.0
+      mtc_approach_via_max_spacing_m: 0.08
+      mtc_approach_via_min_spacing_m: 0.03
+      mtc_approach_via_max_points: 1  # 保留；不插 via
+      observe_planning_time_s: 1.0
+      observe_planning_attempts: 1
+      observe_max_duration_s: 0.0
+      # 09-01 现场实测（0900/0907 两轮）：0.15 m 观察 LIN 累计行程
+      # 2.63–3.70 rad，2.5 会拒合法短移；默认固化 4.0。
+      observe_max_total_joint_travel_rad: 4.0
+      observe_max_single_joint_travel_rad: 1.5
+      photo_planning_time_s: 3.0
+      # Survey/卸果回拍照位：绕行看行程。PTP 失败才 OMPL，超行程拒绝。
+      transit_max_duration_s: 0.0
+      transit_max_total_joint_travel_rad: 6.0
+      transit_max_single_joint_travel_rad: 2.5
+    # 全局拍照位姿的 SRDF 命名状态（~/go_to_photo_pose 服务目标），
+    # 与 aubo_e5_moveit_config/config/aubo_e5.srdf 的 group_state 对应。
+    photo_pose_named_target: 'global_photo_pose'
+    harvest_stow_named_target: 'harvest_stow'
+    scan:
+      # 视点半径用当前相机距，不再把相机贴到 0.40 m 球面（贴球面曾把
+      # azimuth=0 变成几十厘米径向抽插）。本值只在画面过小需要靠近时作参考。
+      observation_radius_m: 0.40
+      minimum_radius_m: 0.32
+      azimuth_step_deg: 12.0
+      azimuth_limit_deg: 16.0
+      elevation_step_deg: 8.0
+      elevation_limit_deg: 0.0
+      preferred_baseline_deg: 12.0
+      radial_step_m: 0.015
+      candidate_layers: 1
+      views_to_minimum_radius: 5
+      # 每步沿当前相机直线截断，评分以行程最短为主；超出可达球沿视线收进。
+      # 可达球只参与评分，不把候选全部剔除（否则拍照位略超 0.78 m 会
+      # observe_failed：没有生成可用观察视点）。
+      # 0.08 m 在 ~0.7 m 处弦约 6.6°，过不了覆盖门 8°；0.15 m 在 0.7 m 约
+      # 12°、在 0.88 m 约 9.8°，与接触段笛卡尔上限对齐。
+      max_camera_step_m: 0.15
+      workspace_max_reach_m: 0.78
+      # 当前位先采帧。下一视点取最近可达短步（先 LIN，失败才 PTP），朝检测框内
+      # 分割更满的方向微偏；禁止对侧兜圈、OMPL、贴球面环绕。最多两次。
+      # 覆盖达标或次数用尽才停；不用移动+等帧 EMA 预测收口。
+      # 到位后等新机位再判覆盖。
+      maximum_moves: 2
+      min_effective_views: 1
+      # 墙钟只作日志对照，不按 EMA 放大、不预测收口。
+      time_budget_s: 15.0
+      budget_cost_margin: 1.5
+      # 未测得 EMA 时只用于等帧/再确认窗口（按 0.4 s ≈ 2.5 FPS）；
+      # 不预填 EMA，新鲜度门保持 target_observation_max_age_s。
+      assumed_frame_interval_s: 0.4
+      # 相机位置 z 下限（base 系，桌面保护平面）：低于此的视点物理穿桌、
+      # 规划必败且白耗 planning_time×attempts，生成阶段直接剔除
+      min_camera_height_m: 0.06
+      # 环境几何保护区（阶段 F1）：base_link 系轴对齐盒列表，stride-6 扁平
+      # 编码 [xmin,ymin,zmin,xmax,ymax,zmax]*N（米）。视点生成剔除相机位置
+      # 落入任一盒（闭区间，含盒表面）的候选；GraspTask 把同一列表写入
+      # planning scene 碰撞盒，接触段规划碰撞检查兜底。
+      # 畸形盒（长度残余组/非有限分量/min>=max）装载时告警并逐盒丢弃，
+      # 不炸节点。与 min_camera_height_m 的关系：桌面保护平面是保护区的
+      # “z<下限半空间”特例 shortcut，两者并存、各自生效。
+      # 空保护区：占位盒 min==max，装载时丢弃（空 double_array 会让参数库拒启）。
+      protected_zones: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+      # 视点后等待新帧的超时上限：实测帧间隔自适应（≈4 帧+1s，下限 2s）。
+      # 本值为回退值与自适应上限。未测得 EMA 时 waitIntervalS 用
+      # assumed_frame_interval_s 估窗口，不把 0.4 s 预填进 EMA，以免把
+      # target_observation_max_age_s 收到 1.5 s。
+      frame_wait_s: 4.0
+    quality:
+      minimum_views: 2
+      # 0.15 m 短移在 0.7 m 处弦约 12°；8° 仍要求两机位（聚类 5°）。
+      # 0.08 m 过不了本门（08-31 1633/1636）。
+      minimum_baseline_deg: 8.0
+      minimum_mean_nearest_baseline_deg: 6.0
+      minimum_mean_depth_ratio: 0.40
+      maximum_refined_rmse_m: 0.01
+      minimum_refined_inlier_ratio: 0.35
+      maximum_data_age_s: 3.0  # 2.0 时 ~1 Hz 诊断心跳会 reconstruction_data_stale，观察收口抓不到
+      # [deg] 单帧检测轴 vs 重建精化轴完全错轴诊断；超过只打旗标。
+      # 接触许可只信 GraspDecision.allowed（袋融合动态预算）。
+      # PREGRASP_ONLY 只要求融合几何，不要求 allowed / RMSE。
+      maximum_axis_angle_deg: 35.0
+    execution:
+      # 默认只规划：设为 true 后，每个周期还必须人工调用 set_execution_armed。
+      enabled: false
+      require_robot_status: true
+      robot_status_max_age_s: 1.0
+      # 目标观测新鲜度门下限（秒）。未测得帧间隔时用本值；测得后只按低帧率
+      # 放宽，不得收得比本值更紧。
+      target_observation_max_age_s: 3.0
+      reset_reconstruction_on_start: false
+    grasp:
+      # 默认停在 READY_FOR_GRASP，不执行接触动作。
+      enabled: false
+      neck_margin_m: 0.015
+      minimum_travel_m: 0.02
+      maximum_travel_m: 0.20
+      complete_target_after_retreat: false
+      # 抓取前再确认（2.7-RECONFIRM，FinalizeAndValidate 之后、MTC 之前）：
+      # 单次尝试的新鲜观测等待窗口上限（秒），实测帧间隔 EMA 自适应伸缩，
+      # 本值为回退值与上限；摆动等平息也在本窗口预算内
+      reconfirm_wait_s: 6.0
+      # 锚点漂移容差（米）：与 finalize 时感知底/颈中点比较。超限保留 TSDF
+      # 入口再开窗，不按单帧平移
+      reconfirm_tolerance_m: 0.03
+      # 累计超限放弃阈值（次）：漂移超限/窗口耗尽/摆动不息任一计一次，
+      # 达到本值 → SKIPPED_QUALITY（reason 含“目标持续摆动”）
+      reconfirm_max_attempts: 3
+      # 回退开关（验证期遗留，室外默认关闭）：true 恢复旧“按静态锚点继续”
+      # 行为；false 时新鲜度由 ReconfirmTarget 单点把关，MTC 前不再二次放行 stale
+      allow_stale_anchor: false
+    tool:
+      enabled: false
+      io_fun: 3
+      io_pin: 0
+      close_state: 1.0
+    timeouts:
+      # 普通服务调用超时（秒）：本地 RPC，与感知帧率无因果关系，保持固定
+      # （AdaptiveTimeout 审计 2.13：语义上不随帧率伸缩的保留固定值）
+      service_s: 3.0
+      # 等待精化结果的超时上限（秒）：实测观测帧间隔 EMA 自适应
+      # （≈3 帧+2s 余量，下限 2s；refit 实测耗时本包不可得，按帧间隔近似），
+      # 本值为未测得帧率时的回退值与自适应上限
+      refined_s: 30.0

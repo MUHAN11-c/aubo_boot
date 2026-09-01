@@ -12,6 +12,8 @@ from launch_ros.parameter_descriptions import ParameterFile
 from launch_ros.substitutions import FindPackageShare
 from lifecycle_msgs.msg import Transition
 
+from peach_perception.grasp_standoffs import reconstruction_overlay
+
 
 def generate_launch_description():
     """配置并激活重建节点."""
@@ -24,7 +26,10 @@ def generate_launch_description():
         executable='peach_target_reconstruction_node',
         name='peach_target_reconstruction_node',
         namespace='',
-        parameters=[ParameterFile(params_file, allow_substs=True)],
+        parameters=[
+            ParameterFile(params_file, allow_substs=True),
+            reconstruction_overlay(),
+        ],
         output='screen',
     )
     configure = EmitEvent(

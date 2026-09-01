@@ -21,13 +21,14 @@
 
 ## 技术
 
-C++17；参数走 yaml + `generate_parameter_library` / `declare_parameter`。采摘 ROS 包五个，作用不得串（详细：[docs/architecture.md](docs/architecture.md) §3）：
+C++17；参数走 yaml + `generate_parameter_library` / `declare_parameter`。采摘 ROS 包四个，作用不得串（详细：[docs/architecture.md](docs/architecture.md) §3）：
 
 - `peach_interfaces`：跨包唯一 IDL，不跑节点
 - `peach_perception`：视觉算法（两节点：看场景 + 建当前目标），不发运动、不选下一颗、不写账本；积分不用 latest TF；球只作袋内果实包络先验
-- `peach_manipulation_skills`：机械臂执行（`SurveyScene` / `ExecuteTarget`：视点、预抓取、套入、刀具、原路撤退），不写账本、不调重建 Trigger；`GraspDecision.allowed` 是套入/剪切唯一权威（`PREGRASP_ONLY` 不要求 `allowed`；方向定位以预抓取真机实测为准）
-- `peach_navigation`：作业位导航适配（`NavigateToWorksite` + 目标/车辆/臂状态话题）；现行 stub，不实现底盘/Nav2/`cmd_vel`
-- `peach_task_executor`：整栈调度（含 lifecycle 与只读 Web）；**launch 绝不自动 RunHarvest**；默认 `navigation_enabled=false`；`execute_pregrasp_only` 默认 true（停预抓取不回 stow；套入前改 false）
+- `peach_manipulation`：机械臂执行（`SurveyScene` / `ExecuteTarget`：视点、预抓取、套入、刀具、原路撤退），不写账本、不调重建 Trigger；`GraspDecision.allowed` 是套入/剪切唯一权威（`PREGRASP_ONLY` 不要求 `allowed`；方向定位以预抓取真机实测为准）
+- `peach_executor`：整栈调度（含 lifecycle 与只读 Web）；**launch 绝不自动 RunHarvest**；`execute_pregrasp_only` 默认 true（停预抓取不回 stow；套入前改 false）
+
+导航适配 `peach_navigation` 已归档 `_archive/parked_2026-09/`（固定座核心栈四包不含它）；`NavigateToWorksite` 等 IDL 保留标预留，真底盘授权后恢复。
 
 臂/相机九包职责与只读范围同 architecture §3 驱动层。
 
@@ -40,5 +41,5 @@ source /opt/ros/jazzy/setup.bash
 cd /home/mu/Desktop/aubo_e5_jazzy_ws
 colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
-ros2 launch peach_task_executor harvest_system.launch.py hardware_mode:=mock camera_enabled:=false
+ros2 launch peach_executor harvest_system.launch.py hardware_mode:=mock camera_enabled:=false
 ```

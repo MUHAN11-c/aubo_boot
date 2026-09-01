@@ -1,4 +1,4 @@
-# 采摘→外部导航：当前作业目标位置/方向/状态。本仓不发 cmd_vel。
+# 【预留】采摘→外部导航：当前作业目标位置/方向/状态（固定座核心栈不发布/不消费；随 NavigateToWorksite 一并归档）。本仓不发 cmd_vel。
 std_msgs/Header header
 string target_id
 string site_id

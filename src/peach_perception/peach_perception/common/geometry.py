@@ -478,8 +478,8 @@ def fit_cylinder_robust(points: np.ndarray, normals: np.ndarray,
     axis, q0 = est['axis'], est['q0']
     if polish and len(inl) >= 20:
         # 抛光代价随点数线性增长，内点抽稀到 800（精度损失可忽略）
-        polish_idx = inl if len(inl) <= 800 else np.linspace(
-            0, len(points) - 1, 800, dtype=int)
+        polish_idx = inl if len(inl) <= 800 else inl[np.linspace(
+            0, len(inl) - 1, 800, dtype=int)]
         axis, q0 = polish_cylinder_axis(points[polish_idx], axis)
         # 重选内点（轴向更新后）
         d = _cylinder_radial_dist(points, q0, axis)

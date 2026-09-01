@@ -32,10 +32,9 @@ class ToolGeometry:
         D_inner: 圆柱内径 — 袋子必须能通过
         L_insert: 最大插入深度 (从入口起点计)
         L_blade: TCP 到剪切平面的轴向距离 (沿Z_tool正方向；当前为 0)
-        entry_d_tool: 入口 standoff 的工具分量（套入余量，Gürsoy 分解之 d_tool）
-        entry_d_s: 入口 standoff 的安全裕量分量（防碰撞，文献基准 30–50mm）
-        entry_standoff: [legacy] 旧版单一 standoff = entry_d_tool + entry_d_s
-                        P_entry_start = P_bottom - (d_tool + d_s) × Z_tool
+        entry_d_tool: 入口相对袋底；由 ROS 参数装载
+        entry_d_s: 附加安全距离；由 ROS 参数装载
+        entry_standoff: [legacy] = entry_d_tool + entry_d_s
         clearance_min: 袋体与工具内壁之间的最小径向余量
         margin_neck: 袋颈候选前方的安全停止距离
         version: 此工具配置的语义版本号
@@ -44,9 +43,9 @@ class ToolGeometry:
     D_inner: float = 0.104          # 104mm 内径
     L_insert: float = 0.200         # 200mm 最大插入
     L_blade: float = 0.0            # TCP 与剪切平面重合
-    entry_d_tool: float = 0.030     # 30mm 工具分量 standoff
-    entry_d_s: float = 0.040        # 40mm 安全裕量 standoff
-    entry_standoff: float = 0.070   # legacy: = d_tool + d_s
+    entry_d_tool: float = 0.0
+    entry_d_s: float = 0.0
+    entry_standoff: float = 0.0   # = d_tool + d_s
     clearance_min: float = 0.005    # 5mm 最小径向余量
     margin_neck: float = 0.015      # 袋颈前 15mm 安全距离
     version: str = '1.1'
@@ -60,9 +59,9 @@ TOOL_GEOMETRY = ToolGeometry(
     D_inner=0.104,          # 104mm 内径
     L_insert=0.200,         # 200mm 最大插入
     L_blade=0.0,            # TCP 与剪切平面重合
-    entry_d_tool=0.030,     # 30mm 工具分量
-    entry_d_s=0.040,        # 40mm 安全裕量
-    entry_standoff=0.070,   # = d_tool + d_s
+    entry_d_tool=0.0,
+    entry_d_s=0.0,
+    entry_standoff=0.0,   # = d_tool + d_s
     clearance_min=0.005,    # 5mm 最小径向余量
     margin_neck=0.015,      # 袋颈前 15mm
     version='1.1',
@@ -149,12 +148,12 @@ def compute_entry_start(P_bottom: np.ndarray, Z_tool: np.ndarray,
 
     P_entry_start = P_bottom - entry_standoff × Z_tool
 
-    入口起点位于袋底外侧, 保证圆柱从袋子外部开始套入。
+    后撤量由调用方传入（节点从 ROS 参数读）。0 时入口与袋底重合。
 
     Args:
         P_bottom: (3,) 袋底3D位置（米，相机光学系）.
         Z_tool: (3,) 归一化的工具轴方向 (袋底→袋颈).
-        entry_standoff: 袋底外侧安全距离 (m)，= entry_d_tool + entry_d_s.
+        entry_standoff: 袋底外侧后撤 (m)，= entry_d_tool + entry_d_s.
 
     Returns
     -------

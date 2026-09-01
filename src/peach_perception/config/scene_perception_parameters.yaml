@@ -1,7 +1,7 @@
 # peach_scene_perception_node 参数定义（generate_parameter_library_py 单一事实源）。
 # 声明 / 类型 / 默认值 / 描述 / 校验全部在本文件；根键 = 节点名 = 参数库约定。
 # 运行期由 launch 传 config/scene_perception.yaml（含 ros__parameters 的运行时键值），
-# 两边默认值逐项对齐（与 C++ 技能包 src/manipulation_skills_parameters.yaml 同理）。
+# 两边默认值逐项对齐（与 C++ 技能包 config/manipulation_parameters.yaml 同理）。
 # 嵌套组展开出点号参数名：detector.impl / tool.D_inner / target_memory.enable 等。
 peach_scene_perception_node:
   color_topic:
@@ -70,6 +70,10 @@ peach_scene_perception_node:
     type: double
     default_value: 0.6
     description: '重叠检测框去重 IoS 阈值：交集/较小框面积 ≥ 本值判同一物理目标，保留大框（跨类生效）；≥1.0 等效关闭'
+  detection_dedup_area_ratio:
+    type: double
+    default_value: 0.5
+    description: '碎片残枝抑制面积比（小/大）：重叠 IoS≥0.2 且面积比≤本值的小框判为遮挡残片/误检并抑制（先做大框）；≤0 关闭碎片规则'
   publish_debug_image:
     type: bool
     default_value: true
@@ -176,13 +180,13 @@ peach_scene_perception_node:
       description: 'TCP 到剪切平面的轴向距离 (m)；当前二者重合为 0'
     entry_d_tool:
       type: double
-      default_value: 0.030
-      description: '入口 standoff 的工具分量 (m)'
+      default_value: 0.0
+      description: '入口相对袋底的工具分量 (m)。整栈由 grasp_standoffs.yaml 注入。'
       validation: { gt_eq<>: [0.0] }
     entry_d_s:
       type: double
-      default_value: 0.040
-      description: '入口 standoff 的安全裕量分量 (m)'
+      default_value: 0.0
+      description: '入口相对袋底的附加安全距离 (m)。整栈注入时为 0，总和=grasp_standoffs entry_standoff_m。'
       validation: { gt_eq<>: [0.0] }
     clearance_min:
       type: double
@@ -223,10 +227,6 @@ peach_scene_perception_node:
       default_value: 1.0
       description: '恢复匹配半径倍率 (≥1)：正常匹配未命中时放宽到 match_radius×本值再匹配一次，抗锚点跳变；1.0=关闭'
       validation: { gt_eq<>: [1.0] }
-    cross_class_recovery:
-      type: bool
-      default_value: true
-      description: '恢复匹配允许跨类别（抗 bag/nobag 翻类；半径不放大仍限 match_radius，命中只复用 ID 不改表项类别）'
     confirm_frames:
       type: int
       default_value: 5

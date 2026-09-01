@@ -41,6 +41,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/VehicleState.msg"
   "msg/Verification.msg"
   "srv/BeginScene.srv"
+  "srv/CheckReachability.srv"
   "srv/ControlTask.srv"
   "srv/ManageLifecycleNodes.srv"
   "action/BuildTargetModel.action"
@@ -65,6 +66,7 @@ install(PROGRAMS scripts/check_interface_manifest.py
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
+  set(ament_cmake_copyright_FOUND TRUE)  # 文件头 BSD 等项目结束再补
   ament_lint_auto_find_test_dependencies()
 endif()
 

@@ -1,41 +1,35 @@
 #!/usr/bin/env python3
-# Copyright 2026 aubo_e5_ros2_ws authors
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-#    * Redistributions of source code must retain the above copyright
-#      notice, this list of conditions and the following disclaimer.
-#
-#    * Redistributions in binary form must reproduce the above copyright
-#      notice, this list of conditions and the following disclaimer in the
-#      documentation and/or other materials provided with the distribution.
-#
-#    * Neither the name of the copyright holder nor the names of its
-#      contributors may be used to endorse or promote products derived from
-#      this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
-# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-"""核对 interface_manifest.yaml 中的名称是否出现在 peach_* 源码字面量里."""
+"""
+双向核对 interface_manifest.yaml 与 peach_* 源码.
+
+正向：manifest 每个 name 必须出现在源码字面量（绝对名或 ~/相对名）。
+反向：源码中出现的绝对 /peach 话题字面量必须在 manifest（现行或预留）或
+可视化豁免表内；否则说明新增了未登记的跨包话题（漂移）。
+"""
 from __future__ import annotations
 
 from pathlib import Path
+import re
 import sys
 
 try:
     import yaml
 except ImportError:
     yaml = None
+
+# 可视化/调试话题：仅供 RViz/Web 调试，按 architecture §3 不进清单
+EXEMPT_VISUALIZATION = {
+    '/peach/perception/axis',
+    '/peach/perception/debug_image_raw',
+    '/peach/perception/detections',
+    '/peach/perception/markers',
+    '/peach/perception/masks',
+    '/peach/perception/single_cloud',
+    '/peach/reconstruction/local_cloud',
+    '/peach_manipulation_node/planned_views',
+}
+
+_LITERAL_RE = re.compile(r'[\'"](/peach[A-Za-z0-9_/]*)[\'"]')
 
 
 def _workspace_src(script: Path) -> Path:
@@ -44,7 +38,7 @@ def _workspace_src(script: Path) -> Path:
 
 
 def _iter_sources(src_root: Path):
-    for package in src_root.iterdir():
+    for package in sorted(src_root.iterdir()):
         if not package.name.startswith('peach_'):
             continue
         for path in package.rglob('*'):
@@ -62,7 +56,10 @@ def main() -> int:
         print('PyYAML missing; skip interface manifest check', file=sys.stderr)
         return 0
     document = yaml.safe_load(manifest_path.read_text(encoding='utf-8'))
-    names = [item['name'] for item in document.get('interfaces', [])]
+    interfaces = document.get('interfaces', [])
+    reserved = document.get('reserved_interfaces', [])
+    names = [item['name'] for item in interfaces + reserved]
+    known = set(names)
     blob = ''
     src_root = _workspace_src(script)
     for path in _iter_sources(src_root):
@@ -81,7 +78,22 @@ def main() -> int:
         for name in missing:
             print(f'  {name}')
         return 1
-    print(f'interface manifest ok ({len(names)} names)')
+    # 反向：源码绝对 /peach 字面量必须可归入 manifest / 豁免表 / 是清单名的前缀
+    untracked = []
+    for literal in sorted(set(_LITERAL_RE.findall(blob))):
+        if literal in known or literal in EXEMPT_VISUALIZATION:
+            continue
+        if any(name.startswith(literal) for name in known):
+            continue
+        untracked.append(literal)
+    if untracked:
+        print('source /peach topic literals not tracked in interface manifest:')
+        for literal in untracked:
+            print(f'  {literal}')
+        return 1
+    active = len(interfaces)
+    print(
+        f'interface manifest ok ({active} active + {len(reserved)} reserved names)')
     return 0
 
 

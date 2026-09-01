@@ -1,0 +1,5 @@
+# 入口 / 预抓取轴向距离（米）。整栈只改下面两行。
+# launch 读本文件后注入各节点已声明参数；不要当作 ROS ParameterFile 直接喂给节点
+# （rcl 不允许在 ros__parameters 之前出现裸值）。
+entry_standoff_m: 0.0
+pregrasp_standoff_m: 0.0

@@ -1,8 +1,8 @@
-# 显式开一批。服务端 peach_task_executor ~/run_harvest。launch 绝不自动发本动作。
+# 显式开一批。服务端 peach_executor ~/run_harvest。launch 绝不自动发本动作。
 # intent 取值见 JobIntent（本文件不重复常量，须与其对齐）。
 
-uint8 AUTO=0    # selection_mode：按锁定集自动选下一颗
-uint8 MANUAL=1  # selection_mode：优先 goal.target_ids
+uint8 AUTO=0    # selection_mode【预留】：现行语义为 target_ids 提供即优先（等同 MANUAL），执行器不独立消费本字段
+uint8 MANUAL=1  # selection_mode【预留】：同上；goal.target_ids 非空时优先按其选择
 
 string request_id          # 本批请求 ID，同时作账本目录名；须唯一
 string scene_key           # 场景键，传给 BeginScene / SurveyScene

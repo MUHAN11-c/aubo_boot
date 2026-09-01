@@ -1,8 +1,3 @@
-# Copyright 2026 wjz
-#
-# Use of this source code is governed by a BSD-style
-# license that can be found in the LICENSE file or at
-# https://developers.google.com/open-source/licenses/bsd
 """
 ROS 2 action server for safe, automatic eye-in-hand calibration.
 
@@ -811,10 +806,33 @@ class CalibrationServer(Node):
                 'min_rotation_span_deg': float(
                     self.get_parameter('min_rotation_span_deg').value),
             }
-            if result.passed:
-                goal_handle.succeed()
-            else:
-                goal_handle.abort()
+            if goal_handle.is_cancel_requested or not goal_handle.is_active():
+                # 求解/落盘期间收到取消：goal 已进 CANCELING，再 succeed/
+                # abort 属非法状态迁移（抛异常且 goal 永卡 CANCELING），
+                # 改走 canceled 收口
+                response.success = False
+                response.message = 'calibration cancelled during solve'
+                goal_handle.canceled()
+                self._publish_status(
+                    'cancelled', response.message, poses=self._pose_status)
+                return response
+            try:
+                if result.passed:
+                    goal_handle.succeed()
+                else:
+                    goal_handle.abort()
+            except Exception:
+                # 取消请求与终态迁移竞态：迁移已非法时回退 canceled，
+                # 避免 goal 卡死在 CANCELING
+                response.success = False
+                response.message = 'calibration cancelled; robot hold requested'
+                try:
+                    goal_handle.canceled()
+                except Exception:
+                    pass
+                self._publish_status(
+                    'cancelled', response.message, poses=self._pose_status)
+                return response
             self._publish_status(
                 'complete' if result.passed else 'quality_failed',
                 response.message,

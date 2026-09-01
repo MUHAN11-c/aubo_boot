@@ -181,6 +181,7 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
             cylinder_inlier_min=p.refit.cylinder_inlier_min,
             rmse_max_m=p.refit.rmse_max_m,
             entry_standoff_m=p.refit.entry_standoff_m,
+            pregrasp_standoff_m=p.refit.pregrasp_standoff_m,
             max_axis_angle_deg=p.refit.max_axis_angle_deg)
         self.icp_config = IcpConfig(
             min_points=p.icp.min_points,
@@ -224,7 +225,8 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
             min_mask_pixels=p.capture.min_mask_pixels,
             min_mask_depth_ratio=p.capture.min_mask_depth_ratio,
             max_target_drift_m=p.capture.max_target_drift_m,
-            min_neighbor_gap_m=p.capture.min_neighbor_gap_m)
+            min_neighbor_gap_m=p.capture.min_neighbor_gap_m,
+            neighbor_gap_area_ratio=p.capture.neighbor_gap_area_ratio)
         # E2 selected 切换防抖状态机（纯核 bind_holdoff.BindSwitchHoldoff，
         # 注入时钟 I3）：selected 变化须持续超过 bind.switch_holdoff_s 才
         # 放弃进行中会话重绑，holdoff 内切回原 ID 取消挂起
@@ -283,11 +285,13 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
         self._executor_target_id = ''
         self._executor_state_seen = False
         self._harvest_run_id = ''
+        self._executor_run_id = ''
         self._target_observation_seen = False
         self._target_masks = {}
         # 锁定集目标锚点缓存 {target_id: (3,) base 系中心 [m]}：E2 邻目标
         # 串扰门数据源（每条 target_observations 全量重建，未锁定恒空）
         self._locked_target_centers = {}
+        self._locked_target_areas = {}
         self._harvest_data = HarvestDataStore()
         self._joint_states_seen = False
         self._max_joint_vel = 0.0  # [rad/s] 最近 /joint_states 的最大关节速度
@@ -311,6 +315,8 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
         self._refined: Optional[dict] = None
         self._bag_model: Optional[dict] = None
         self._pregrasp_prev: Optional[dict] = None
+        # BuildTargetModel 单槽重入护栏（goal 回调置位，执行体 finally 清零）
+        self._build_goal_active = False
         # 球体 refit 无法独立恢复姿态轴；绑定时冻结感知侧果梗/凹陷方向先验。
         self._bound_axis_hint = None
         # ROS 实体（发布器/订阅/服务/ActionServer/TF/心跳）统一在 on_configure
@@ -432,22 +438,27 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
         )
         self._sub_exec_state = self.create_subscription(
-            HarvestState, '/peach_task_executor/state',
+            HarvestState, '/peach_executor/state',
             self._on_executor_state, latched, callback_group=self._cb)
 
-        # ---- 服务（std_srvs/Trigger，节点相对名；人工/BT 调试口）----
+        # ---- 服务（std_srvs/Trigger，节点相对名；人工/阶段执行器调试口）----
+        # 会改状态的 6 个入口统一过 Active 门（非 Active 只读口拒绝驱动
+        # 状态机；query 只读不加门）。
         self._svc_start = self.create_service(
-            Trigger, '~/start_reconstruction', self._on_start)
+            Trigger, '~/start_reconstruction', self._active_gate(self._on_start))
         self._svc_capture = self.create_service(
-            Trigger, '~/capture_frame', self._on_capture)
+            Trigger, '~/capture_frame', self._active_gate(self._on_capture))
         self._svc_remove_last = self.create_service(
-            Trigger, '~/remove_last_frame', self._on_remove_last)
+            Trigger, '~/remove_last_frame',
+            self._active_gate(self._on_remove_last))
         self._svc_reset = self.create_service(
-            Trigger, '~/reset_reconstruction', self._on_reset)
+            Trigger, '~/reset_reconstruction',
+            self._active_gate(self._on_reset))
         self._svc_finalize = self.create_service(
-            Trigger, '~/finalize_reconstruction', self._on_finalize)
+            Trigger, '~/finalize_reconstruction',
+            self._active_gate(self._on_finalize))
         self._svc_save = self.create_service(
-            Trigger, '~/save_session', self._on_save_session)
+            Trigger, '~/save_session', self._active_gate(self._on_save_session))
         self._svc_query = self.create_service(
             Trigger, '~/query_reconstruction_state',
             self._on_query_reconstruction_state)
@@ -544,12 +555,29 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
         del goal_request
         if not self._lifecycle_active:
             return GoalResponse.REJECT
+        # 单槽重入护栏：上一 Build 未结束（执行体重入/取消后立即重试）时
+        # 拒绝第二个 goal——否则后到的 reset 会清掉前者的帧栈与绑定，
+        # 双方都在错误绑定上等到 timeout/abort。
+        if self._build_goal_active:
+            self.get_logger().warning('BuildTargetModel 拒绝：已有 Build 在跑')
+            return GoalResponse.REJECT
+        self._build_goal_active = True
         return GoalResponse.ACCEPT
 
     def _on_build_cancel(self, cancel_request):
         del cancel_request
         self._view_progress.set()
         return CancelResponse.ACCEPT
+
+    def _active_gate(self, handler):
+        """Trigger 服务统一 Active 门：非 Active 拒绝驱动重建状态机."""
+        def gated(request, response):
+            if not self._lifecycle_active:
+                response.success = False
+                response.message = 'reconstruction 节点非 Active'
+                return response
+            return handler(request, response)
+        return gated
 
     # ------------------------------------------------------------------
     # 订阅回调
@@ -688,13 +716,20 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
                     self._bound_axis_hint = hint
             # E2 邻目标串扰门数据源：每条观测消息全量重建锁定集锚点缓存
             # （绑定目标自身在 _target_mask_for_frame 组 MaskContext 时剔除；
-            # 未锁定时 observations 恒空，缓存随之为空）
+            # 未锁定时 observations 恒空，缓存随之为空）。同步记录检测框
+            # 面积（像素²）：串扰门对「远小于本目标的框」豁免——小框多为
+            # 叶片遮挡残片/误检（09-01 现场 58.5 mm 近距即此类），大框先行。
             centers = {}
+            areas = {}
             for item in msg.observations:
                 c = self._candidate_center(item.candidate)
                 if c is not None:
                     centers[item.target_id] = c
+                box = item.candidate_2d
+                if box.bbox_w > 0 and box.bbox_h > 0:
+                    areas[item.target_id] = float(box.bbox_w) * float(box.bbox_h)
             self._locked_target_centers = centers
+            self._locked_target_areas = areas
             if (bound_obs is None
                     or bound_obs.tracking_status != bound_obs.OBSERVED):
                 return
@@ -737,16 +772,23 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
     def _target_mask_for_frame(self, stamp_msg, depth_mm):
         """取严格同时间戳掩膜并过五道质量门（判定本体在 MaskGate 实现）."""
         stamp_ns = int(stamp_msg.sec) * 1000000000 + int(stamp_msg.nanosec)
-        # 邻目标锚点=锁定集锚点缓存剔除绑定目标自身（E2 串扰门输入）
+        # 邻目标锚点=锁定集锚点缓存剔除绑定目标自身（E2 串扰门输入）；
+        # 框面积并行携带，供串扰门按面积比豁免小框邻居
         neighbors = tuple(
-            c for tid, c in self._locked_target_centers.items()
+            (c, self._locked_target_areas.get(tid, 0.0))
+            for tid, c in self._locked_target_centers.items()
             if tid != self._preferred_target_id)
+        centers = tuple(c for c, _ in neighbors)
+        areas = tuple(a for _, a in neighbors)
         result = self._mask_gate.check(MaskContext(
             stamp_ns=stamp_ns,
             depth_mm=depth_mm,
             masks=self._target_masks,
             bound_center=self.collector.target_center,
-            neighbor_centers=neighbors))
+            neighbor_centers=centers,
+            bound_area=self._locked_target_areas.get(
+                self._preferred_target_id, 0.0),
+            neighbor_areas=areas))
         return result.mask, result.reason
 
     def _on_query_reconstruction_state(self, request, response):
@@ -847,6 +889,9 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
 
     def _reset_products(self, create_volume: bool) -> None:
         """清空本轮派生结果；开始新轮时同时创建一个空在线 TSDF."""
+        # 预抓取验证的一致性比对基点一并清空：换目标后首拍不得与上一
+        # 目标（甚至上一轮）的残差比 frames_consistent。
+        self._pregrasp_prev = None
         self._overlap_cache = None
         self._tsdf_cloud_cache = None
         self._tsdf_info = None
@@ -1000,7 +1045,8 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
         内，等感知回调再驱动。环空返回 None。
         """
         if prefer_stamp_sec is not None:
-            for frame in self._frame_ring.values():
+            # 快照遍历：worker 线程可能并发插入新时间戳（环由其无锁写入）
+            for frame in list(self._frame_ring.values()):
                 if abs(float(frame[4]) - float(prefer_stamp_sec)) > 1e-9:
                     continue
                 if (prefer_cam_frame is not None
@@ -1012,7 +1058,7 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
             if stamp_ns in self._target_masks:
                 return self._frame_ring[stamp_ns]
         if self._frame_ring:
-            return next(reversed(self._frame_ring.values()))
+            return next(reversed(list(self._frame_ring.values())))
         return self._latest_frame
 
     def _collect_gate_values(self, automatic: bool,
@@ -1544,7 +1590,10 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
         Contact authority is the fused bag model plus dynamic budget.
         TSDF cloud supplies envelope-axis consistency only; squat volumes
         skip the 12° veto. Fusion still runs from cloud_base when TSDF is
-        missing. keep_last_good keeps the last bag model that already has
+        enabled-but-empty. NOTE: caller gates this on tsdf.enable — with
+        tsdf disabled, refit/fusion is skipped entirely and GraspDecision
+        stays refined_geometry_unavailable (raw-cloud accumulation only).
+        keep_last_good keeps the last bag model that already has
         a budget. Finalize marks the result final. GraspDecision still
         requires collector.state==READY.
 
@@ -1594,7 +1643,8 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
             views,
             cloud_xyz=cloud_xyz,
             detection_axis=self._bound_axis_hint,
-            entry_standoff_m=float(self.refit_config.entry_standoff_m))
+            entry_standoff_m=float(self.refit_config.entry_standoff_m),
+            pregrasp_standoff_m=float(self.refit_config.pregrasp_standoff_m))
         result = self._merge_fused_bag_model(result, fused, views)
         if result.get('ok') and result.get('budget'):
             self._refined = result
@@ -1727,6 +1777,13 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
         with self._state_lock:
             self._executor_state_seen = True
             self._executor_target_id = str(msg.target_id or '')
+            # 单根会话目录（R7）：批次 request_id 驱动 session/geometry 与
+            # 事件库基目录（与感知 datastore 同一 runs/<request_id>/ 根）
+            self._executor_run_id = str(msg.run_id or '')
+            self._harvest_data.base_dir = (
+                resolve_runs_root(None) / self._executor_run_id
+                / 'perception_data'
+                if self._executor_run_id else None)
 
     def _wait_min_views(self, goal_handle, target_id: str, timeout_s: float):
         """等独立机位数与角基线同时达标（或取消/超时）."""
@@ -1773,6 +1830,12 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
 
     def _on_build_target_model(self, goal_handle):
         """BuildTargetModel：reset 后绑定 goal.target_id，等机位数再 finalize."""
+        try:
+            return self._build_target_model_body(goal_handle)
+        finally:
+            self._build_goal_active = False
+
+    def _build_target_model_body(self, goal_handle):
         goal = goal_handle.request
         if not goal.target_id:
             result = BuildTargetModel.Result()
@@ -1891,7 +1954,13 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
     # 自动模式（决策纯逻辑在 FrameCollector，这里只做 TF/订阅接线）
     # ------------------------------------------------------------------
     def _session_root(self) -> Path:
-        """Session 与账本、观测同目录：工作区 ``runs/``."""
+        """
+        Session 根：批次在跑=runs/<request_id>/sessions（单根，R7）.
+
+        无批次回退旧布局（配置根/工作区 runs/）。
+        """
+        if self._executor_run_id:
+            return resolve_runs_root(None) / self._executor_run_id / 'sessions'
         return resolve_runs_root(self.params.session.root_dir)
 
     def _session_metadata(self) -> dict:
@@ -1965,6 +2034,8 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
                     self.refit_config.cylinder_inlier_min,
                 'refit.rmse_max_m': self.refit_config.rmse_max_m,
                 'refit.entry_standoff_m': self.refit_config.entry_standoff_m,
+                'refit.pregrasp_standoff_m':
+                    self.refit_config.pregrasp_standoff_m,
                 'refit.max_axis_angle_deg':
                     self.refit_config.max_axis_angle_deg,
             },
@@ -1989,9 +2060,15 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
             } for i, f in enumerate(c.frames)],
         }
 
+    def _geometry_root(self) -> Path:
+        """geometry.jsonl 根：批次=runs/<request_id>/（单根批根，R7）."""
+        if self._executor_run_id:
+            return resolve_runs_root(None) / self._executor_run_id
+        return resolve_runs_root(self.params.session.root_dir)
+
     def _log_geometry_row(self, result: dict, fused: dict) -> None:
         """追加 geometry.jsonl，供离线基线复算."""
-        root = self._session_root()
+        root = self._geometry_root()
         path = Path(root) / 'geometry.jsonl'
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -2036,7 +2113,7 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
         """单视角袋关键点行，供多视角离散度基线."""
         if landmarks.bottom_center is None or landmarks.neck_center is None:
             return
-        root = self._session_root()
+        root = self._geometry_root()
         path = Path(root) / 'geometry.jsonl'
         try:
             path.parent.mkdir(parents=True, exist_ok=True)

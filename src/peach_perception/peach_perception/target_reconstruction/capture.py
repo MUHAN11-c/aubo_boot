@@ -690,6 +690,10 @@ class MaskContext:
     masks: Mapping[int, Tuple[np.ndarray, Optional[np.ndarray]]]
     bound_center: Optional[np.ndarray]
     neighbor_centers: Tuple[np.ndarray, ...] = field(default=())
+    # 检测框面积（像素²，>0 有效）：绑定目标与各邻居并行携带。串扰门按
+    # 面积比豁免「远小于绑定目标」的邻居框（叶片遮挡残片/误检，09-01）。
+    bound_area: float = 0.0
+    neighbor_areas: Tuple[float, ...] = field(default=())
 
 
 @dataclass(frozen=True)
@@ -725,9 +729,10 @@ class StrictMaskGate(MaskGate):
                  min_mask_pixels: int = 300,
                  min_mask_depth_ratio: float = 0.35,
                  max_target_drift_m: float = 0.04,
-                 min_neighbor_gap_m: float = 0.15):
+                 min_neighbor_gap_m: float = 0.15,
+                 neighbor_gap_area_ratio: float = 2.0):
         """
-        注入五道门配置（值与 capture.* 参数一致）.
+        注入六道门配置（值与 capture.* 参数一致）.
 
         Args:
             require_target_mask: False 时掩膜门整体直通.
@@ -736,6 +741,10 @@ class StrictMaskGate(MaskGate):
             max_target_drift_m: 目标中心最大漂移 [m].
             min_neighbor_gap_m: 绑定锚点与其他锁定目标锚点的最小间距
                 [m]（E2 串扰门）；≤0 关闭本门.
+            neighbor_gap_area_ratio: 串扰门小框豁免比（≤0 关闭豁免）：
+                邻居检测框面积 < 绑定框面积/本值时视为遮挡残片/误检，
+                不计入串扰间距（近距双检常见同一颗袋的大框+残片小框，
+                不豁免则两颗互相锁死，09-01 现场 58.5 mm 即此类）.
 
         Returns
         -------
@@ -747,6 +756,7 @@ class StrictMaskGate(MaskGate):
         self.min_mask_depth_ratio = float(min_mask_depth_ratio)
         self.max_target_drift_m = float(max_target_drift_m)
         self.min_neighbor_gap_m = float(min_neighbor_gap_m)
+        self.neighbor_gap_area_ratio = float(neighbor_gap_area_ratio)
 
     def check(self, mask_ctx: MaskContext) -> GateResult:
         """
@@ -791,11 +801,25 @@ class StrictMaskGate(MaskGate):
                     f'{self.max_target_drift_m * 1000.0:.1f} mm')
         # 门 5（E2 邻目标串扰）：绑定锚点与其他锁定目标锚点过近时拒帧。
         # 邻近目标的掩膜/点云会局部落入本目标 ROI，混入在线 TSDF 后形成
-        # 不可回滚双层表面（I6）；TSDF 无单帧撤销，宁可停采等视角拉开
+        # 不可回滚双层表面（I6）；TSDF 无单帧撤销，宁可停采等视角拉开。
+        # 小框豁免：面积远小于绑定框的邻居（叶片遮挡残片/误检）不计入
+        # 间距——近距双检常见同一颗袋的大框+残片小框，不豁免则互相锁死。
         if bound is not None and self.min_neighbor_gap_m > 0.0:
             bound_arr = np.asarray(bound)
+            areas = mask_ctx.neighbor_areas
+            effective = []
+            for idx, c in enumerate(mask_ctx.neighbor_centers):
+                neighbor_area = (
+                    float(areas[idx]) if idx < len(areas) else 0.0)
+                if (self.neighbor_gap_area_ratio > 0.0
+                        and mask_ctx.bound_area > 0.0
+                        and neighbor_area > 0.0
+                        and neighbor_area * self.neighbor_gap_area_ratio
+                        < mask_ctx.bound_area):
+                    continue
+                effective.append(c)
             gaps = [float(np.linalg.norm(np.asarray(c) - bound_arr))
-                    for c in mask_ctx.neighbor_centers]
+                    for c in effective]
             if gaps:
                 nearest = min(gaps)
                 if nearest < self.min_neighbor_gap_m:

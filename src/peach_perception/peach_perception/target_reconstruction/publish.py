@@ -119,7 +119,7 @@ def _scalar_or_invalid(value) -> float:
 
 
 def _vec_or(value, fallback):
-    """向量字段：仅 None 才回退。ndarray 不能写 `a or b`（真值歧义）。"""
+    """向量字段：仅 None 才回退。ndarray 不能写 `a or b`（真值歧义）."""
     return fallback if value is None else value
 
 

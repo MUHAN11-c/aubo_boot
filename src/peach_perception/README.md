@@ -33,11 +33,12 @@ peach_perception/
 | 文件 | 读什么 |
 |------|--------|
 | `peach_perception/scene_perception/scene_perception_node.py` | 感知外壳：`_on_rgbd` → `_process_rgbd` |
-| `peach_perception/scene_perception/pipeline.py` | 检测、分割、前景、袋/果位姿 |
+| `peach_perception/scene_perception/{pose_pipelines,inference}.py` | 袋/果位姿线；YOLO/SAM 推理与候选估计 |
+| `peach_perception/scene_perception/{assignment,image_gates,stream_metrics}.py` | 身份分配门控；投影/深度门；帧率/超时/光照 EMA |
 | `peach_perception/scene_perception/identity.py` | 世界系身份、锁定窗、记忆锚点 |
-| `peach_perception/target_reconstruction/target_reconstruction_node.py` | 重建外壳：`_accept_frame`、`BuildTargetModel` |
+| `peach_perception/target_reconstruction/target_reconstruction_node.py` | 重建外壳：`_accept_frame`、`BuildTargetModel`（帧环/掩膜缓存在 `frame_store.py` mixin） |
 | `peach_perception/target_reconstruction/capture.py` | 锁 → 精确 stamp TF → 重校验 |
-| `peach_perception/common/geometry.py` | 球/柱 RANSAC、深度单位、TF 纯函数 |
+| `peach_perception/common/geometry.py` | 球/柱 RANSAC、深度单位、TF 纯函数（`ema.py`/`pointcloud.py` 为共用原语） |
 
 参数：`config/scene_perception.yaml`、`config/target_reconstruction.yaml`。
 

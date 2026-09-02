@@ -1,5 +1,5 @@
 # 人工控制批次。服务端 peach_executor ~/control。
-# Web/监控只读，不发运动；本服务是唯一人工入口。
+# 客户端：调度（自动流）与 Web 调试操作面（鉴权+默认关，见 io.md §5.3）。
 # expected_state_seq 须等于当前 HarvestState.state_seq（0=不检查），防过期点击。
 
 uint8 PAUSE=0                 # 非接触段立即停；接触段标 PAUSE_PENDING

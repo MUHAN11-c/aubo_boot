@@ -160,11 +160,8 @@ bool ManipulationSkillsNode::motionOutputAllowed(std::string & why) const
   return true;
 }
 
-void ManipulationSkillsNode::closeMotionOutputAndCancel()
+void ManipulationSkillsNode::requestCancelAll()
 {
-  // 顺序即语义：先关权限/撤 arm（拒新入口），再取消活动周期并唤醒所有等待。
-  motion_output_permitted_.store(false);
-  execution_armed_.store(false);
   cancel_requested_.store(true);
   if (move_group_) {
     move_group_->stop();
@@ -173,6 +170,14 @@ void ManipulationSkillsNode::closeMotionOutputAndCancel()
     grasp_task_->cancel();
   }
   cache_.notifyAll();
+}
+
+void ManipulationSkillsNode::closeMotionOutputAndCancel()
+{
+  // 顺序即语义：先关权限/撤 arm（拒新入口），再取消活动周期并唤醒所有等待。
+  motion_output_permitted_.store(false);
+  execution_armed_.store(false);
+  requestCancelAll();
   // 先回收 worker（executeCycle 落定终态），再回收 action 线程——
   // executeAction 以 running==false 为周期结束信号读终态上报，反向回收会让
   // 它读到覆盖后的状态。

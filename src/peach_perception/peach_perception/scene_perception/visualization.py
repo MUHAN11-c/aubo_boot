@@ -11,10 +11,9 @@ from peach_interfaces.msg import (
     BagGrasp2D as BagGrasp2DMsg,
     BagGraspCandidate,
 )
-from peach_perception.scene_perception.pipeline import (
-    _rotation_to_quat,
-    clip_bbox,
-)
+from peach_perception.common.pointcloud import pack_rgb_bgr
+from peach_perception.scene_perception.image_gates import clip_bbox
+from peach_perception.scene_perception.pose_pipelines import _rotation_to_quat
 from sensor_msgs.msg import PointCloud2, PointField
 from sensor_msgs_py import point_cloud2 as pc2
 from std_msgs.msg import Header
@@ -261,23 +260,8 @@ def _to_fitting(header, tid, result) -> BagFitting:
 
 # === cloud_utils.py ===
 
-def _pack_rgb_bgr(bgr: np.ndarray) -> np.ndarray:
-    """
-    (N,3) uint8 BGR → (N,) float32：按位打包成 PointCloud2 的 rgb 字段.
-
-    Args:
-        bgr: (N, 3) uint8 数组，列序为 B、G、R（OpenCV 惯例）.
-
-    Returns
-    -------
-        (N,) float32 视图（位内容为 0xRRGGBB，符合 PointCloud2 rgb 打包约定）.
-
-    """
-    b = bgr[:, 0].astype(np.uint32)
-    g = bgr[:, 1].astype(np.uint32)
-    r = bgr[:, 2].astype(np.uint32)
-    packed = (r << 16) | (g << 8) | b
-    return packed.view(np.float32)
+# RGB 位打包统一走 common.pointcloud.pack_rgb_bgr（与重建侧同实现）
+_pack_rgb_bgr = pack_rgb_bgr
 
 
 def _bbox_cloud_xyzrgb(
@@ -337,9 +321,11 @@ def _xyzrgb_to_cloud(header: Header, xyz: np.ndarray, rgb_f: np.ndarray) -> Poin
     """
     组装 xyz + 打包 rgb → PointCloud2 消息（x/y/z 各一个 FLOAT32 + rgb 位打包）.
 
-    走官方 sensor_msgs_py.point_cloud2.create_cloud；fields 手工声明是因为
-    官方预置只有 create_cloud_xyz32（纯 xyz 无 rgb），带打包 rgb 的自定义
-    布局必须显式给 fields——这是官方 API 对自定义布局的标准用法。
+    走官方 sensor_msgs_py.point_cloud2.create_cloud 的 numpy 结构化数组
+    快路径（与 target_reconstruction.publish.xyzrgb_to_cloud_msg 同款）；
+    fields 手工声明是因为官方预置只有 create_cloud_xyz32（纯 xyz 无 rgb），
+    带打包 rgb 的自定义布局必须显式给 fields——这是官方 API 对自定义
+    布局的标准用法。
 
     Args:
         header: 输出消息头（frame_id 决定点云坐标系解释）.
@@ -359,10 +345,9 @@ def _xyzrgb_to_cloud(header: Header, xyz: np.ndarray, rgb_f: np.ndarray) -> Poin
     ]
     if xyz.size == 0:
         return pc2.create_cloud(header, fields, [])
-    pts = [
-        (float(xyz[i, 0]), float(xyz[i, 1]), float(xyz[i, 2]), float(rgb_f[i]))
-        for i in range(len(xyz))
-    ]
+    pts = np.zeros((len(xyz), 4), dtype=np.float32)
+    pts[:, :3] = xyz
+    pts[:, 3] = rgb_f
     return pc2.create_cloud(header, fields, pts)
 
 

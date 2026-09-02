@@ -12,11 +12,12 @@
 #include <utility>
 #include <vector>
 
+#include "peach_manipulation/math_utils.hpp"
+
 namespace peach_manipulation
 {
 namespace
 {
-constexpr double kPi = 3.14159265358979323846;
 
 double radians(double degrees)
 {
@@ -135,10 +136,9 @@ Eigen::Vector3d projectLookRayIntoReach(
 
 double angleDegrees(const Eigen::Vector3d & first, const Eigen::Vector3d & second)
 {
-  const Eigen::Vector3d a = safeUnit(first, Eigen::Vector3d::UnitX());
-  const Eigen::Vector3d b = safeUnit(second, Eigen::Vector3d::UnitX());
-  const double dot = std::clamp(a.dot(b), -1.0, 1.0);
-  return std::acos(dot) * 180.0 / kPi;
+  return angleBetweenDeg(
+    safeUnit(first, Eigen::Vector3d::UnitX()),
+    safeUnit(second, Eigen::Vector3d::UnitX()));
 }
 
 ViewPlanner::ViewPlanner(ViewPlannerConfig config)

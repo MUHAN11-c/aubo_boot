@@ -2,7 +2,6 @@ from __future__ import annotations
 """积分：点云、有界 ICP、TSDF、覆盖。"""
 
 from dataclasses import dataclass
-import math
 import time
 from typing import (
     Callable,
@@ -12,7 +11,13 @@ from typing import (
 )
 
 import numpy as np
-from peach_perception.common.geometry import invert_transform, relative_motion
+from peach_perception.common.ema import ScalarEma
+from peach_perception.common.geometry import (
+    angle_between_deg,
+    invert_transform,
+    relative_motion,
+    unit_vector as _safe_unit,
+)
 from peach_perception.target_reconstruction.interfaces import (
     CLOUD_BUILDERS,
     CloudBuilder,
@@ -425,28 +430,6 @@ def backproject_depth(depth_mm: np.ndarray, camera_K: dict,
     return np.asarray(pcd.points, dtype=np.float64).reshape(-1, 3)
 
 
-def transform_camera_points(T_base_camera: np.ndarray,
-                            cloud_camera: np.ndarray) -> np.ndarray:
-    """
-    点云由相机系变到 base 系：p_base = R @ p_camera + t（numpy 线性代数）.
-
-    Args:
-        T_base_camera: (4, 4) 齐次矩阵（base←camera）.
-        cloud_camera: (N, 3) 相机系点 [m].
-
-    Returns
-    -------
-        (N, 3) float64 base 系点 [m]；空输入给 (0, 3) 空数组.
-
-    """
-    cloud = np.asarray(cloud_camera, dtype=np.float64)
-    if cloud.size == 0:
-        return cloud.reshape(0, 3)
-    R = T_base_camera[:3, :3]
-    t = T_base_camera[:3, 3]
-    return (R @ cloud.T).T + t
-
-
 def apply_target_mask(depth_mm: np.ndarray, target_mask=None) -> tuple:
     """将深度限制到单目标掩膜，并返回掩膜内有效深度占比."""
     depth = np.asarray(depth_mm)
@@ -526,32 +509,6 @@ def build_cloud_base(depth_mm: np.ndarray, camera_K: dict,
     return xyz, colors, ratio
 
 
-def pack_rgb_bgr(colors_bgr: np.ndarray) -> np.ndarray:
-    """
-    (N, 3) uint8 BGR → (N,) float32 位打包（0xRRGGBB，RViz RGB8 约定）.
-
-    语义与 peach_scene_perception_node._pack_rgb_bgr 一致：r<<16 | g<<8 | b 塞进
-    float32 位模式，PointCloud2 里以名为 ``rgb`` 的 FLOAT32 字段承载。
-    sensor_msgs_py 无颜色位打包 API，此为唯一保留的手写转换。
-
-    Args:
-        colors_bgr: (N, 3) uint8 数组，列序为 B、G、R（OpenCV 惯例）.
-
-    Returns
-    -------
-        (N,) float32 视图（位内容为 0xRRGGBB）；空输入给 (0,) 空数组.
-
-    """
-    colors = np.asarray(colors_bgr, dtype=np.uint8).reshape(-1, 3)
-    if colors.shape[0] == 0:
-        return np.zeros((0,), dtype=np.float32)
-    b = colors[:, 0].astype(np.uint32)
-    g = colors[:, 1].astype(np.uint32)
-    r = colors[:, 2].astype(np.uint32)
-    packed = (r << 16) | (g << 8) | b
-    return packed.view(np.float32)
-
-
 class Open3dCloudBuilder(CloudBuilder):
     """
     interfaces.CloudBuilder 的 open3d 实现薄壳（无状态，委托模块函数）.
@@ -623,13 +580,6 @@ class IcpResult:
     def accepted(self) -> bool:
         """ICP 或 FK 预对齐通过质量门即允许积分."""
         return self.mode in ('icp', 'fk')
-
-
-def transform_points(points: np.ndarray, transform: np.ndarray) -> np.ndarray:
-    """对 (N,3) 点应用齐次刚体变换，不修改输入."""
-    xyz = np.asarray(points, dtype=np.float64).reshape(-1, 3)
-    T = np.asarray(transform, dtype=np.float64)
-    return xyz @ T[:3, :3].T + T[:3, 3]
 
 
 def _quality_ok(fitness: float, rmse: float, config: IcpConfig) -> bool:
@@ -816,7 +766,7 @@ class IcpTargetCache:
         self._target: Optional[np.ndarray] = None
         self._frames_since_refresh = 0
         self._period = self._min_period  # 起步保守：无修正量证据前逐帧全量
-        self._corr_ema: Optional[float] = None
+        self._corr_ema = ScalarEma(_CORR_EMA_ALPHA)
 
     @property
     def period(self) -> int:
@@ -911,16 +861,11 @@ class IcpTargetCache:
         if mode != 'icp':
             self._period = self._min_period
             return
-        sample = max(0.0, float(translation_m))
-        if self._corr_ema is None:
-            self._corr_ema = sample
-        else:
-            self._corr_ema = (_CORR_EMA_ALPHA * sample
-                              + (1.0 - _CORR_EMA_ALPHA) * self._corr_ema)
-        if self._corr_ema >= self._drift_thresh:
+        corr = self._corr_ema.update(max(0.0, float(translation_m)))
+        if corr >= self._drift_thresh:
             # 修正量偏大（漂移风险高）→ 缩短 k，更快全量刷新
             self._period = self._min_period
-        elif self._corr_ema <= _STABLE_RATIO * self._drift_thresh:
+        elif corr <= _STABLE_RATIO * self._drift_thresh:
             # 修正量长期远小于漂移阈值（稳定）→ 拉长 k，省全量提取
             self._period = self._max_period
         # 中间区间保持现周期（迟滞带防抖）
@@ -1066,19 +1011,10 @@ def summarize_pairs_mm(pairs: List) -> Optional[dict]:
 
 # === view_coverage.py ===
 
-def _safe_unit(vector):
-    """返回单位向量；退化向量返回 None."""
-    value = np.asarray(vector, dtype=np.float64).reshape(3)
-    norm = float(np.linalg.norm(value))
-    if not np.isfinite(norm) or norm < 1e-9:
-        return None
-    return value / norm
-
-
 def _angle_deg(first, second):
-    """两个单位方向的夹角 [deg]，点积先裁剪避免浮点越界."""
-    dot = float(np.clip(np.dot(first, second), -1.0, 1.0))
-    return math.degrees(math.acos(dot))
+    """两个单位方向的夹角 [deg]；退化输入按 90°（零向量点积的等价值）."""
+    angle = angle_between_deg(first, second)
+    return 90.0 if angle is None else angle
 
 
 def summarize_view_coverage(frames, target_center, cluster_angle_deg=5.0):

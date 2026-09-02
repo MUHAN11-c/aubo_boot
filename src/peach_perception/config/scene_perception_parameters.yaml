@@ -119,7 +119,7 @@ peach_scene_perception_node:
     impl:
       type: string
       default_value: yolo
-      description: '检测器实现注册名（Detector 接口；默认 yolo=UltralyticsYolo，可选名见 pipeline.py 末尾）'
+      description: '检测器实现注册名（Detector 接口；默认 yolo=UltralyticsYolo，可选名见 inference.py 末尾）'
   segmenter:
     impl:
       type: string

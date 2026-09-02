@@ -32,6 +32,9 @@
 #include <shape_msgs/msg/solid_primitive.hpp>
 
 #include "peach_manipulation/trajectory_guard.hpp"
+#include "peach_manipulation/eigen_conversions.hpp"
+#include "peach_manipulation/math_utils.hpp"
+#include "peach_manipulation/orientation_gate.hpp"
 
 namespace peach_manipulation
 {
@@ -39,20 +42,6 @@ namespace mtc = moveit::task_constructor;
 
 namespace
 {
-geometry_msgs::msg::Pose toPose(const Eigen::Isometry3d & transform)
-{
-  geometry_msgs::msg::Pose pose;
-  pose.position.x = transform.translation().x();
-  pose.position.y = transform.translation().y();
-  pose.position.z = transform.translation().z();
-  const Eigen::Quaterniond quaternion(transform.linear());
-  pose.orientation.x = quaternion.x();
-  pose.orientation.y = quaternion.y();
-  pose.orientation.z = quaternion.z();
-  pose.orientation.w = quaternion.w();
-  return pose;
-}
-
 double tipToEntryDistanceM(
   const GraspTaskConfig & config, const Eigen::Isometry3d & entry)
 {
@@ -139,8 +128,7 @@ ApproachSplit classifyApproach(
   out.axial_m = delta.dot(axis);
   out.lateral_m = (delta - out.axial_m * axis).norm();
   const Eigen::Vector3d tip_z = start->linear().col(2);
-  const double cosine = std::clamp(tip_z.dot(axis), -1.0, 1.0);
-  out.align_deg = std::acos(cosine) * (180.0 / std::acos(-1.0));
+  out.align_deg = angleBetweenDeg(tip_z, axis);
   const bool aligned = out.align_deg <= config.approach_max_align_deg;
   const bool on_line = out.lateral_m <= config.approach_max_lateral_m;
   const bool short_axial =
@@ -164,9 +152,7 @@ ApproachSplit classifyApproach(
   const Eigen::Vector3d radial = start->translation() - entry.translation();
   out.radius_m = radial.norm();
   if (out.radius_m > 1.0e-6) {
-    const double cosine_s =
-      std::clamp(radial.normalized().dot(-axis), -1.0, 1.0);
-    out.sweep_deg = std::acos(cosine_s) * (180.0 / std::acos(-1.0));
+    out.sweep_deg = angleBetweenDeg(radial, -axis);
   }
 
   const Eigen::Isometry3d pregrasp = pregraspTipPose(
@@ -270,27 +256,13 @@ std::unique_ptr<mtc::stages::MoveTo> GraspTask::makeMoveToEntry(
   geometry_msgs::msg::PoseStamped entry;
   entry.header.frame_id = config_.base_frame;
   entry.header.stamp = node_->now();
-  entry.pose = toPose(entry_tip_pose);
+  entry.pose = eigenToPose(entry_tip_pose);
   stage->setGoal(entry);
   // 姿态保持：到入口的 PTP 段约束 tip 姿态不偏离入口目标超过对轴门
   // （Pilz PTP 忽略约束无副作用；换采样规划器时防工具侧翻）。
-  moveit_msgs::msg::OrientationConstraint orientation;
-  orientation.link_name = config_.tip_frame;
-  orientation.header.frame_id = config_.base_frame;
-  const Eigen::Quaterniond target_quat(entry_tip_pose.linear());
-  orientation.orientation.x = target_quat.x();
-  orientation.orientation.y = target_quat.y();
-  orientation.orientation.z = target_quat.z();
-  orientation.orientation.w = target_quat.w();
-  const double tol = config_.approach_max_align_deg * M_PI / 180.0;
-  orientation.absolute_x_axis_tolerance = tol;
-  orientation.absolute_y_axis_tolerance = tol;
-  orientation.absolute_z_axis_tolerance = tol;
-  orientation.weight = 1.0;
-  moveit_msgs::msg::Constraints orientation_constraints;
-  orientation_constraints.name = "entry_orientation_gate";
-  orientation_constraints.orientation_constraints.push_back(orientation);
-  stage->setPathConstraints(std::move(orientation_constraints));
+  stage->setPathConstraints(makeOrientationGate(
+    config_.tip_frame, config_.base_frame, entry_tip_pose,
+    config_.approach_max_align_deg, "entry_orientation_gate"));
   return stage;
 }
 

@@ -21,11 +21,11 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <moveit/move_group_interface/move_group_interface.hpp>
 #include <moveit/utils/moveit_error_code.hpp>
-#include <tf2_eigen/tf2_eigen.hpp>
 
 #include "peach_manipulation/manipulation_skills_node_impl.hpp"
 #include "peach_manipulation/eigen_conversions.hpp"
 #include "peach_manipulation/grasp_geometry.hpp"
+#include "peach_manipulation/orientation_gate.hpp"
 #include "peach_manipulation/trajectory_guard.hpp"
 
 using namespace std::chrono_literals;
@@ -184,13 +184,8 @@ void ManipulationSkillsNode::previewContact(
   // 的目标 ID 会污染后续手动周期：stagePrepareCycle 的 goal 钉死校验会把
   // "新 selected ≠ 预览残留 ID"误判为目标身份变更而失败。本函数内一律用局部
   // target/refined。
-  Eigen::Isometry3d entry_tool_pose = Eigen::Isometry3d::Identity();
-  entry_tool_pose.translation() = refined->entry;
-  const auto current_tool = motion_->lookupTransform(base_frame_, tool_frame_);
-  entry_tool_pose.linear() = current_tool ?
-    alignFrameZ(current_tool->linear(), refined->axis) :
-    ViewPlanner::toolOrientation(
-      refined->axis, target->initial_pose.linear().col(0));
+  Eigen::Isometry3d entry_tool_pose = entryToolPose(
+    refined->entry, refined->axis, target->initial_pose.linear().col(0));
   const auto tip_from_tool = motion_->lookupTransform(tip_frame_, tool_frame_);
   if (!tip_from_tool) {
     finish(false, CycleState::PREVIEW_FAILED, "无法取得 tip 到 tool 的变换");
@@ -247,8 +242,8 @@ void ManipulationSkillsNode::onCheckReachability(
     return;
   }
   moveit::core::RobotState seed = *move_group_->getCurrentState();
-  const double timeout_s = request->timeout_s > 0.0
-    ? std::min(request->timeout_s, 1.0) : 0.1;
+  const double timeout_s = request->timeout_s > 0.0 ?
+    std::min(request->timeout_s, 1.0) : 0.1;
   for (std::size_t i = 0; i < request->tcp_poses.size(); ++i) {
     const auto & stamped = request->tcp_poses[i];
     geometry_msgs::msg::Pose pose = stamped.pose;
@@ -389,23 +384,9 @@ bool MoveItMotionInterface::planOrMoveTip(
     move_group_->setPlannerId("PTP");
     // 姿态保持：PTP 回退段约束 tip 姿态不偏离目标超过对轴门（Pilz PTP
     // 关节空间插值忽略本约束、无副作用；对采样型规划器生效防侧翻）。
-    moveit_msgs::msg::OrientationConstraint orientation;
-    orientation.link_name = config_.tip_frame;
-    orientation.header.frame_id = config_.base_frame;
-    const Eigen::Quaterniond target_quat(tip_pose.linear());
-    orientation.orientation.x = target_quat.x();
-    orientation.orientation.y = target_quat.y();
-    orientation.orientation.z = target_quat.z();
-    orientation.orientation.w = target_quat.w();
-    const double tol = config_.orientation_gate_deg * M_PI / 180.0;
-    orientation.absolute_x_axis_tolerance = tol;
-    orientation.absolute_y_axis_tolerance = tol;
-    orientation.absolute_z_axis_tolerance = tol;
-    orientation.weight = 1.0;
-    moveit_msgs::msg::Constraints orientation_constraints;
-    orientation_constraints.name = "tip_orientation_gate";
-    orientation_constraints.orientation_constraints.push_back(orientation);
-    move_group_->setPathConstraints(orientation_constraints);
+    move_group_->setPathConstraints(makeOrientationGate(
+      config_.tip_frame, config_.base_frame, tip_pose,
+      config_.orientation_gate_deg, "tip_orientation_gate"));
     result = move_group_->plan(plan);
     move_group_->clearPathConstraints();
   }

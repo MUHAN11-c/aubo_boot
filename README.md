@@ -4,10 +4,11 @@
 
 - 设计架构：[docs/architecture.md](docs/architecture.md)
 - 输入输出：[docs/io.md](docs/io.md)
-- 测试：[docs/testing.md](docs/testing.md)
+- 测试流程与命名：[docs/testing.md](docs/testing.md)
+- 测试过程记录：[docs/testing-log.md](docs/testing-log.md)
 - 代理约束：[AGENTS.md](AGENTS.md)
 
-这三份是活文档，与源码互相更新：改一边须同一轮改另一边。`docs/` 不另增活文档。
+前三份（architecture / io / testing）是活文档，与源码互相更新：改一边须同一轮改另一边。`testing-log.md` 只记轮次，不驱动现行设计。`docs/` 不另增活文档。
 
 验收看实机和过程数据（`runs/`、`_archive/runs/`）。`colcon test` 只跑 ROS 2 默认 lint。
 
@@ -59,7 +60,7 @@ ros2 launch peach_executor harvest_system.launch.py \
 | 路径 | 内容 |
 |------|------|
 | `src/` | 采摘 4 包 + 臂/相机 9 包 + 可选 USB IMU 1 |
-| `docs/` | `architecture.md` 设计架构；`io.md` 输入输出；`testing.md` 测试 |
+| `docs/` | `architecture.md` 设计架构；`io.md` 输入输出；`testing.md` 测试流程与命名；`testing-log.md` 测试过程记录 |
 | `runs/` | 过程数据唯一根（gitignore：账本、观测、session、MCAP） |
 | `_archive/runs/` | 历史过程数据（勿删） |
 | `_archive/parked_2026-08-24/` | 暂不用：tools / diagnostics / profiles / scripts / 架子机 / 过程文档 |

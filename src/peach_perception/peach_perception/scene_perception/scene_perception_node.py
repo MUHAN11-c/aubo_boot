@@ -13,10 +13,15 @@ candidate_2d 字段下发，不再单独成话题）。
 
 本模块为编排层（参数、订阅发布、回调编排、main）；纯函数按职责拆分：
   params.py        — 参数层（ScenePerceptionParams 集中 declare/装载）
-  pipeline.py      — 检测/分割/位姿（import 本模块即完成 DETECTORS 等注册）
+  stream_metrics.py — 帧率/超时/耗时/光照 EMA 观测原语
+  assignment.py    — χ²门 + 匈牙利身份分配与跟踪状态分类
+  image_gates.py   — 锚点投影与深度/前景门控
+  pose_pipelines.py — 袋/果位姿线（import 即完成 POSE_PIPELINES 注册）
+  inference.py     — YOLO/SAM 推理与候选估计（import 即完成 DETECTORS/
+                     SEGMENTERS 注册）
   identity.py      — 身份匹配与锁定窗
   visualization.py — 消息组装、RViz Marker 与 debug 叠加图
-  peach_perception.common — 通用纯核（geometry/runtime）
+  peach_perception.common — 通用纯核（geometry/ema/pointcloud/runtime）
 """
 from __future__ import annotations
 
@@ -48,11 +53,30 @@ from peach_perception.common.geometry import (
 from peach_perception.common.ros.clock_adapter import RclpyClockAdapter
 from peach_perception.common.runtime import (
     BoundedWorker, default_runs_root, HarvestDataStore)
+from peach_perception.scene_perception.assignment import (
+    bbox_touches_image_edge,
+    classify_tracking_status,
+    STATUS_DEPTH_VOID,
+    STATUS_LOST,
+    STATUS_OBSERVED,
+    STATUS_OCCLUDED,
+    STATUS_OUT_OF_VIEW,
+)
 from peach_perception.scene_perception.identity import (
     first_point,
     GlobalHarvestPlan,
     memory_grasp,
     TargetRegistry,
+)
+from peach_perception.scene_perception.image_gates import (
+    plan_segmentation_bboxes,
+    project_positions_to_pixels,
+    valid_depth_mask,
+)
+from peach_perception.scene_perception.inference import (
+    CandidateEstimator,
+    dedup_overlapping_detections,
+    InferenceEngine,
 )
 from peach_perception.scene_perception.interfaces import (
     BagObservation,
@@ -63,26 +87,15 @@ from peach_perception.scene_perception.interfaces import (
     SEGMENTERS,
 )
 from peach_perception.scene_perception.params import ScenePerceptionParams
-from peach_perception.scene_perception.pipeline import (
+from peach_perception.scene_perception.pose_pipelines import (
     _apply_T_to_grasp3d,
     _rotation_to_quat,
+)
+from peach_perception.scene_perception.stream_metrics import (
     AdaptiveTimeout,
-    bbox_touches_image_edge,
-    CandidateEstimator,
-    classify_tracking_status,
-    dedup_overlapping_detections,
-    InferenceEngine,
     LightingMeter,
-    plan_segmentation_bboxes,
-    project_positions_to_pixels,
     RateEstimator,
-    STATUS_DEPTH_VOID,
-    STATUS_LOST,
-    STATUS_OBSERVED,
-    STATUS_OCCLUDED,
-    STATUS_OUT_OF_VIEW,
     TimingMetrics,
-    valid_depth_mask,
 )
 from peach_perception.scene_perception.visualization import (
     _bbox_cloud_xyzrgb,

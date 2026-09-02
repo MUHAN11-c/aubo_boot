@@ -153,3 +153,99 @@ peach_observability:
     type: string
     default_value: /peach/observability/markers
     description: 末端轨迹/入口/预抓取 visualization_msgs/MarkerArray（与重建 markers 同契约）
+  # ── 手动调试操作面（决策 0007 推翻条款执行：融合单端口 8090，鉴权+门控） ──
+  debug:
+    enabled:
+      type: bool
+      default_value: false
+      description: 手动调试操作面总开关；false 时全部 POST 拒绝，只读监控不受影响
+    motion_enabled:
+      type: bool
+      default_value: false
+      description: 运动类操作放行开关（RunHarvest 非只扫/Survey/Execute 非只规划档/go_to_photo_pose/arm）；false 一律 423 拒绝；技能侧既有安全门不受影响
+    token:
+      type: string
+      default_value: ""
+      description: 调试操作令牌（请求头 X-Debug-Token）；空串=所有 POST 拒绝；不出现在 /api/state
+    action_timeout_s:
+      type: double
+      default_value: 180.0
+      description: 动作结果等待上限（秒）；服务 10 秒
+      validation: { gt<>: [0.0] }
+    audit_enabled:
+      type: bool
+      default_value: true
+      description: 调试操作审计落盘 runs/debug_audit/<日期>.jsonl（含被拒请求）
+    endpoints:
+      run_harvest_action:
+        type: string
+        default_value: /peach_executor/run_harvest
+        description: RunHarvest 动作名
+      control_service:
+        type: string
+        default_value: /peach_executor/control
+        description: ControlTask 服务名
+      begin_scene_service:
+        type: string
+        default_value: /peach_scene_perception_node/begin_scene
+        description: BeginScene 服务名
+      survey_action:
+        type: string
+        default_value: /peach_manipulation_node/survey_scene
+        description: SurveyScene 动作名
+      execute_action:
+        type: string
+        default_value: /peach_manipulation_node/execute_target
+        description: ExecuteTarget 动作名
+      build_action:
+        type: string
+        default_value: /peach_target_reconstruction_node/build_target_model
+        description: BuildTargetModel 动作名
+      check_reachability_service:
+        type: string
+        default_value: /peach_manipulation_node/check_reachability
+        description: CheckReachability 服务名
+      photo_pose_service:
+        type: string
+        default_value: /peach_manipulation_node/go_to_photo_pose
+        description: 去拍照位 Trigger 服务名
+      preview_approach_service:
+        type: string
+        default_value: /peach_manipulation_node/preview_approach_insert
+        description: 只规划接近+插入 Trigger 服务名
+      preview_full_service:
+        type: string
+        default_value: /peach_manipulation_node/preview_full_contact
+        description: 只规划全接触 Trigger 服务名
+      ack_recovery_service:
+        type: string
+        default_value: /peach_manipulation_node/acknowledge_recovery
+        description: 确认恢复 Trigger 服务名
+      arm_service:
+        type: string
+        default_value: /peach_manipulation_node/set_execution_armed
+        description: 执行 arm 开关 SetBool 服务名
+      skill_cancel_service:
+        type: string
+        default_value: /peach_manipulation_node/cancel_cycle
+        description: 技能周期取消 Trigger 服务名
+      recon_save_session_service:
+        type: string
+        default_value: /peach_target_reconstruction_node/save_session
+        description: 重建会话落盘 Trigger 服务名
+      recon_reset_service:
+        type: string
+        default_value: /peach_target_reconstruction_node/reset_reconstruction
+        description: 重建复位 Trigger 服务名
+      recon_finalize_service:
+        type: string
+        default_value: /peach_target_reconstruction_node/finalize_reconstruction
+        description: 重建手动 finalize Trigger 服务名
+      recon_query_service:
+        type: string
+        default_value: /peach_target_reconstruction_node/query_reconstruction_state
+        description: 重建状态查询服务名
+      manage_nodes_service:
+        type: string
+        default_value: /peach_lifecycle_manager/manage_nodes
+        description: 整栈生命周期管理服务名

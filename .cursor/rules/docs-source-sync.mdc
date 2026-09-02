@@ -9,11 +9,13 @@ alwaysApply: true
 
 - `docs/architecture.md` — 分层、五包、缝位、批次/BT、决策、规约
 - `docs/io.md` — 跨包话题/动作/服务、QoS、TF、深度、GraspDecision
-- `docs/testing.md` — lint、怎么跑、验收门、归档基线
+- `docs/testing.md` — lint、怎么跑、命名、验收门
+
+过程记录（不驱动现行设计）：`docs/testing-log.md`。改行为改 testing.md + 源码；补实测只追加 testing-log。
 
 硬约束：
 
 - 源码与文档**互相更新**：改行为、接口、yaml、验收口径时同一轮改对应文档；改这三份里的现行描述时同一轮改源码或 yaml。标成「缺口 / 预留 / 归档」的除外。
 - 发现不一致：两边一起改到一致再继续，禁止只改一边。
-- `docs/` 不新增第四份活文档。旧手册只在 `_archive/`。
+- `docs/` 不新增第四份活文档。`testing-log.md` 不是活文档：改行为改 testing.md + 源码；补实测只追加 testing-log。旧手册只在 `_archive/`。
 - 完整红线见 `AGENTS.md`。

@@ -105,6 +105,10 @@ public:
 private:
   // 运动输出权限单点守卫（A8）：仅 Active 态放行；非 Active 时 why 给出原因。
   bool motionOutputAllowed(std::string & why) const;
+  // 取消级联公共段：置取消标志 → 停 MoveIt 当前执行 → 取消 MTC → 唤醒
+  // 缓存等待（各取消入口与 closeMotionOutputAndCancel 共用；后者在级联
+  // 前先关权限、级联后回收线程，顺序即语义，不得并入本函数）。
+  void requestCancelAll();
   // 关闭输出权限并按 CANCEL_NOW 等价路径取消活动周期（撤 arm、置取消标志、
   // stop MoveIt/MTC、唤醒等待、回收 worker/action 线程）。
   void closeMotionOutputAndCancel();
@@ -234,6 +238,16 @@ private:
   void executeCycle(CycleContext & ctx);
   // 周期失败单点：记 failure_reason 并投影 FAILED，返回 false 供阶段串联。
   bool failStage(CycleContext & ctx, const std::string & reason);
+  // 阶段失败三分行合并写法：置终态 outcome + 失败码后走 failStage。
+  bool failStage(
+    CycleContext & ctx, uint8_t outcome, uint32_t failure_code,
+    const std::string & reason);
+  // 入口工具位姿（三处共用）：平移=精化入口；姿态优先沿当前工具姿态对轴
+  // （alignFrameZ），TF 不可用退到 ViewPlanner::toolOrientation（preferred_x
+  // 通常取目标 initial_pose 的 X 轴）；tip 位姿由调用方乘 (tip←tool)^-1。
+  Eigen::Isometry3d entryToolPose(
+    const Eigen::Vector3d & entry, const Eigen::Vector3d & axis,
+    const Eigen::Vector3d & preferred_x);
   bool stagePrepareCycle(CycleContext & ctx);
   bool stagePlanPreview(CycleContext & ctx);
   bool stageAcquireViews(CycleContext & ctx);

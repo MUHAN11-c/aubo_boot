@@ -5,11 +5,87 @@ from dataclasses import dataclass
 from typing import Optional, Tuple
 
 import numpy as np
-from tf_transformations import (
-    quaternion_from_matrix,
-    quaternion_matrix,
-    translation_matrix,
-)
+from scipy.optimize import least_squares, minimize
+from scipy.spatial.transform import Rotation
+
+
+# ═══════════════════════════════════════════════════════════════
+# 向量/轴线原语（各子模块共用）
+# ═══════════════════════════════════════════════════════════════
+
+# 四元数模长平方回退阈值：与原 tf_transformations.quaternion_matrix 的
+# _EPS（numpy.finfo(float64).eps）一致；低于此值回退单位旋转。
+_QUAT_NORM_EPS = float(np.finfo(np.float64).eps)
+
+
+def unit_vector(vector) -> Optional[np.ndarray]:
+    """
+    有限非零向量 → 单位向量；None/非三维/含非有限/近零 → None.
+
+    近零判废阈值为 norm < 1e-9（收敛自各处 ``_unit`` 的多数口径；
+    refine 侧原 ``<= 1.0e-9`` 为浮点测度零的等值边界差，随统一收敛，
+    见 refine.py 对应辅助函数的边界注）。
+
+    Args:
+        vector: 长度 3 序列；None 原样返回 None.
+
+    Returns
+    -------
+        (3,) float64 单位向量，或 None（不可用输入）.
+
+    """
+    if vector is None:
+        return None
+    value = np.asarray(vector, dtype=np.float64).reshape(-1)
+    if value.size != 3 or not np.all(np.isfinite(value)):
+        return None
+    norm = float(np.linalg.norm(value))
+    if norm < 1e-9:
+        return None
+    return value / norm
+
+
+def angle_between_deg(first, second) -> Optional[float]:
+    """
+    两向量夹角 [deg]（arccos 点积，不取绝对值）；退化输入 → None.
+
+    Args:
+        first / second: 长度 3 向量（内部各自归一化）.
+
+    Returns
+    -------
+        夹角 [deg] ∈ [0, 180]；任一向量 unit_vector 判不可用时 None.
+
+    """
+    a = unit_vector(first)
+    b = unit_vector(second)
+    if a is None or b is None:
+        return None
+    cosine = float(np.clip(np.dot(a, b), -1.0, 1.0))
+    return float(np.degrees(np.arccos(cosine)))
+
+
+def axis_radial_distance(points: np.ndarray, axis: np.ndarray,
+                         origin) -> np.ndarray:
+    """
+    点集到轴线（过 origin、方向 axis）的垂直距离.
+
+    理论: delta = p − origin 的垂直分量模 ‖delta − (delta·a)a‖；origin
+    只需在轴线上（取截面质心或锚点均可，浮点末位级差异）。
+
+    Args:
+        points: (N, 3) 点.
+        axis: (3,) 单位轴向.
+        origin: (3,) 轴上一点（如截面质心/锚点）.
+
+    Returns
+    -------
+        (N,) float64 距离（与输入同单位）.
+
+    """
+    delta = np.asarray(points, dtype=np.float64) - np.asarray(
+        origin, dtype=np.float64)
+    return np.linalg.norm(delta - np.outer(delta @ axis, axis), axis=1)
 
 
 # === fitting.py ===
@@ -196,8 +272,6 @@ def polish_sphere_lm(points: np.ndarray, center0: np.ndarray,
         (center (3,), radius)：抛光后的球心与半径（米）.
 
     """
-    from scipy.optimize import least_squares
-
     if fixed_radius:
         def resid(c):
             return np.linalg.norm(points - c, axis=1) - radius
@@ -422,8 +496,6 @@ def polish_cylinder_axis(points: np.ndarray,
         (axis, q0)：(3,) 单位轴向与 (3,) 轴上一点（米）.
 
     """
-    from scipy.optimize import minimize
-
     t = points.mean(axis=0)
     X = points - t
     hint = axis_hint / np.linalg.norm(axis_hint)
@@ -555,7 +627,7 @@ class QuaternionValue:
     w: float
 
     def as_tuple(self) -> tuple:
-        """返回 (x, y, z, w) 元组，供 tf_transformations 等数组接口使用."""
+        """返回 (x, y, z, w) 元组，供 scipy Rotation 等数组接口使用."""
         return (self.x, self.y, self.z, self.w)
 
 
@@ -563,11 +635,14 @@ def transform_msg_to_matrix(transform) -> np.ndarray:
     """
     Transform（鸭子类型）→ 4×4 齐次矩阵 T（p_out = R@p_in + t）.
 
-    官方 tf_transformations 组合：translation_matrix @ quaternion_matrix
-    （后者内部按模长归一化，非单位四元数输入也安全）。统一自原
-    peach_perception.scene_perception.tf_utils._transform_msg_to_matrix 与
-    peach_perception.target_reconstruction.tf_utils.transform_msg_to_matrix（两者
-    数值等价：quaternion_matrix 不写平移列）。
+    有限且模长平方 ≥ float64 eps 的四元数走官方 scipy Rotation 组合
+    （与原 tf_transformations 组合在 1e-12 内数值等价——该等价仅对此
+    类输入成立）；零/亚 eps 范数四元数回退单位旋转、仅保留平移（沿用
+    tf_transformations quaternion_matrix 的同阈值回退语义，区别于
+    scipy from_quat 对零范数抛 ValueError）。非有限四元数同样回退单位
+    旋转：旧实现会产出 NaN 矩阵污染下游，属未定义垃圾路径，不再保留。
+    统一自原 peach_perception.scene_perception.tf_utils._transform_msg_to_matrix
+    与 peach_perception.target_reconstruction.tf_utils.transform_msg_to_matrix。
 
     Args:
         transform: 带 .translation.x/y/z 与 .rotation.x/y/z/w 的对象.
@@ -579,8 +654,12 @@ def transform_msg_to_matrix(transform) -> np.ndarray:
     """
     tr = transform.translation
     q = transform.rotation
-    q_xyzw = (q.x, q.y, q.z, q.w)
-    return translation_matrix((tr.x, tr.y, tr.z)) @ quaternion_matrix(q_xyzw)
+    qv = np.asarray([q.x, q.y, q.z, q.w], dtype=np.float64)
+    T = np.eye(4, dtype=np.float64)
+    if np.all(np.isfinite(qv)) and float(qv @ qv) >= _QUAT_NORM_EPS:
+        T[:3, :3] = Rotation.from_quat(qv).as_matrix()
+    T[:3, 3] = (tr.x, tr.y, tr.z)
+    return T
 
 
 def invert_transform(T: np.ndarray) -> np.ndarray:
@@ -607,11 +686,9 @@ def relative_motion(T_a: np.ndarray, T_b: np.ndarray) -> tuple:
     """
     两个 base←camera 位姿间的相对运动量（视角过滤用）.
 
-    保留 numpy 闭式（官方无等价物）：tf_transformations 没有「两旋转
-    夹角」直出 API，须绕 quaternion_from_matrix → 2·arccos(|w|) 取角，
-    反而多一次四元数往返；trace 闭式 R_rel→arccos((tr−1)/2) 是教科书
-    标准式，单次矩阵乘即得。concatenate_matrices 仅为矩阵乘语法糖，
-    无语义收益，不用。
+    保留 numpy 闭式（官方无更直等价物）：须绕四元数或 Rotation 对象
+    才能取「两旋转夹角」，反而多一次构造往返；trace 闭式
+    R_rel→arccos((tr−1)/2) 是教科书标准式，单次矩阵乘即得。
     （实现沿用原 peach_perception.target_reconstruction.tf_utils.relative_motion。）
 
     Args:
@@ -632,7 +709,7 @@ def relative_motion(T_a: np.ndarray, T_b: np.ndarray) -> tuple:
 
 def rotation_to_quat(R: np.ndarray) -> QuaternionValue:
     """
-    3×3 旋转矩阵 → 单位四元数值对象（官方 quaternion_from_matrix）.
+    3×3 旋转矩阵 → 单位四元数值对象（官方 scipy Rotation.as_quat）.
 
     Args:
         R: (3, 3) 旋转矩阵（非正交输入的行为随官方实现，调用方保证刚性）.
@@ -642,9 +719,7 @@ def rotation_to_quat(R: np.ndarray) -> QuaternionValue:
         QuaternionValue（x, y, z, w），模长为 1.
 
     """
-    m4 = np.eye(4, dtype=float)
-    m4[:3, :3] = np.asarray(R, dtype=float)
-    q = quaternion_from_matrix(m4)            # numpy [x, y, z, w]
+    q = Rotation.from_matrix(np.asarray(R, dtype=float)).as_quat()  # [x, y, z, w]
     return QuaternionValue(
         x=float(q[0]), y=float(q[1]), z=float(q[2]), w=float(q[3]))
 

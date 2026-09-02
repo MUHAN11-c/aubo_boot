@@ -6,7 +6,11 @@ from typing import Optional
 
 import numpy as np
 
-from peach_perception.common.geometry import fit_sphere_robust
+from peach_perception.common.geometry import (
+    axis_radial_distance,
+    fit_sphere_robust,
+    unit_vector as _unit,
+)
 
 OCCLUSION_CLEAR = 'clear'
 OCCLUSION_LEAF = 'leaf_occluded'
@@ -42,19 +46,6 @@ class BagLandmarks:
     sigma_position_m: float = 0.02
     sigma_axis_deg: float = 8.0
     flags: list = field(default_factory=list)
-
-
-def _unit(vector) -> Optional[np.ndarray]:
-    """有限非零向量 → 单位向量."""
-    if vector is None:
-        return None
-    value = np.asarray(vector, dtype=np.float64).reshape(-1)
-    if value.size != 3 or not np.all(np.isfinite(value)):
-        return None
-    norm = float(np.linalg.norm(value))
-    if norm < 1e-9:
-        return None
-    return value / norm
 
 
 def _mid(left: Landmark3D, right: Landmark3D) -> Optional[np.ndarray]:
@@ -146,9 +137,8 @@ def _bin_radii(points: np.ndarray, axis: np.ndarray):
         if sel.shape[0] < 8:
             continue
         mid = sel.mean(axis=0)
-        radial = np.linalg.norm(
-            sel - mid - np.outer((sel - mid) @ axis, axis), axis=1)
-        radii[i] = float(np.percentile(radial, 90))
+        radii[i] = float(np.percentile(
+            axis_radial_distance(sel, axis, mid), 90))
     return proj, edges, radii
 
 
@@ -201,9 +191,8 @@ def _band_radius(band: np.ndarray, axis) -> float:
     if axis_u is None or band is None or band.shape[0] < 4:
         return float('nan')
     mid = band.mean(axis=0)
-    radial = np.linalg.norm(
-        band - mid - np.outer((band - mid) @ axis_u, axis_u), axis=1)
-    return float(np.percentile(radial, 90))
+    return float(np.percentile(
+        axis_radial_distance(band, axis_u, mid), 90))
 
 
 def _slice_radius(points, axis, origin, t_m: float,
@@ -381,11 +370,7 @@ def estimate_bag_landmarks(
     result.bottom_center = bottom
     result.neck_center = neck
     result.bag_axis = axis
-    radial = np.linalg.norm(
-        finite - np.outer(finite @ result.bag_axis, result.bag_axis)
-        - (result.bottom_center
-           - float(result.bottom_center @ result.bag_axis) * result.bag_axis),
-        axis=1)
+    radial = axis_radial_distance(finite, result.bag_axis, result.bottom_center)
     result.d95_m = float(2.0 * np.percentile(radial, 95))
     sphere = fit_sphere_robust(finite)
     if sphere is not None:

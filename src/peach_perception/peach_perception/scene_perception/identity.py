@@ -14,6 +14,7 @@ from typing import (
 
 import numpy as np
 
+from .assignment import assign_detections
 from .interfaces import (
     compute_entry_start,
     LOCK_POLICIES,
@@ -23,7 +24,7 @@ from .interfaces import (
     MatchResult,
     TargetMatcher,
 )
-from .pipeline import assign_detections, grasp_frame_from_axis
+from .pose_pipelines import grasp_frame_from_axis
 
 
 # === harvest_plan.py ===
@@ -583,38 +584,6 @@ class SpatialEmaMatcher(TargetMatcher):
         dist = (float(np.sqrt(max(d2, 0.0))) if tid is not None
                 else self.match_radius)
         return MatchResult(target_id=tid, distance=dist, status=status)
-
-    @staticmethod
-    def _find_nearest(pos, class_id: int, radius: float, same_class: bool,
-                      table: Dict[str, dict], frame_used: set):
-        """
-        在未被本帧占用的表项中找距离 ≤ radius 的最近者（已确认表项优先）.
-
-        两档优先级：已确认表项优先于未确认表项——候选同时落在一个已确认
-        目标与一个更近的未确认（疑似误检）目标半径内时，命中已确认者，
-        避免瞬时出现的目标抢走稳定身份。
-
-        Returns
-        -------
-            (target_id | None, 距离)：无候选时 (None, radius).
-
-        """
-        best_id, best_d = None, radius        # 已确认档
-        tent_id, tent_d = None, radius        # 未确认档
-        for tid, t in table.items():
-            if tid in frame_used:
-                continue
-            if same_class and t['class_id'] != class_id:
-                continue
-            d = float(np.linalg.norm(pos - t['position']))
-            if t['confirmed']:
-                if d <= best_d:
-                    best_id, best_d = tid, d
-            elif d <= tent_d:
-                tent_id, tent_d = tid, d
-        if best_id is not None:
-            return best_id, best_d
-        return tent_id, tent_d
 
 
 class TargetRegistry:

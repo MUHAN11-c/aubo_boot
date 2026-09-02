@@ -2,7 +2,7 @@
 
 USB 串口 IMU（QinHeng CH340 `1a86:7523`，0xA4 寄存器协议）。**不是**采摘五包，不进 `harvest_system`，lifecycle 不管。
 
-现行行为以源码为准。栈内摘要：[architecture.md](../../docs/architecture.md) §3 `serial_imu`、[io.md](../../docs/io.md)、[testing.md](../../docs/testing.md)。本文件是本包现场手册。
+现行行为以源码为准。栈内摘要：[architecture.md](../../docs/architecture.md) §3 `serial_imu`、[io.md](../../docs/io.md)、[testing.md](../../docs/testing.md)（怎么跑）。本文件是本包现场手册。
 
 ```
 serial_imu/

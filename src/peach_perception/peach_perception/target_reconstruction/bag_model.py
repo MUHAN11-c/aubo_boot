@@ -5,6 +5,11 @@ from typing import Iterable, Optional
 
 import numpy as np
 
+from peach_perception.common.geometry import (
+    angle_between_deg,
+    axis_radial_distance,
+    unit_vector as _unit,
+)
 from peach_perception.common.tool_budget import (
     evaluate_sleeve_cut,
     ToolBudgetParams,
@@ -38,27 +43,10 @@ def _huber_mean(points: np.ndarray, k: float = 0.02) -> Optional[np.ndarray]:
     return center
 
 
-def _unit(vector) -> Optional[np.ndarray]:
-    """有限非零向量 → 单位向量."""
-    if vector is None:
-        return None
-    value = np.asarray(vector, dtype=np.float64).reshape(-1)
-    if value.size != 3 or not np.all(np.isfinite(value)):
-        return None
-    norm = float(np.linalg.norm(value))
-    if norm < 1e-9:
-        return None
-    return value / norm
-
-
 def _signed_angle_deg(first, second) -> float:
-    """有符号夹角 [deg]；反向为 180°，不取绝对值."""
-    a = _unit(first)
-    b = _unit(second)
-    if a is None or b is None:
-        return 180.0
-    cosine = float(np.clip(np.dot(a, b), -1.0, 1.0))
-    return float(np.degrees(np.arccos(cosine)))
+    """有符号夹角 [deg]；反向为 180°，不取绝对值；退化输入按 180°."""
+    angle = angle_between_deg(first, second)
+    return 180.0 if angle is None else angle
 
 
 def _mad_m(points: np.ndarray, center: np.ndarray) -> float:
@@ -128,8 +116,8 @@ def envelope_axis_from_cloud(
     axial = (finite - origin) @ axis
     t_lo, t_hi = np.percentile(axial, [5.0, 95.0])
     span = float(t_hi - t_lo)
-    radial = finite - origin - np.outer(axial, axis)
-    d95 = float(2.0 * np.percentile(np.linalg.norm(radial, axis=1), 95))
+    d95 = float(2.0 * np.percentile(
+        axis_radial_distance(finite, axis, origin), 95))
     if span < min_length_m or (d95 > 1e-6 and span / d95 < min_aspect):
         return {
             'conditioned': False, 'axis': None, 'span_m': span, 'd95_m': d95,
@@ -184,10 +172,8 @@ def _corridor_clear(
             continue
         seen += 1
         mid = selected.mean(axis=0)
-        radial = np.linalg.norm(
-            selected - mid - np.outer((selected - mid) @ axis_u, axis_u),
-            axis=1)
-        if float(np.percentile(radial, 95)) > limit:
+        if float(np.percentile(
+                axis_radial_distance(selected, axis_u, mid), 95)) > limit:
             return False
     return seen >= 3
 

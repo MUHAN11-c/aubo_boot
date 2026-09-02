@@ -1,11 +1,12 @@
 """
-Web 监控台 HTTP 层：静态文件与只读状态 API 的 Handler 与启动函数.
+Web 监控台 HTTP 层：静态文件、只读状态 API 与鉴权调试操作面.
 
-只读设计（2026-08-13 起）：不提供任何 POST/写入口，控制与调试全部
-移出 Web（自动全流程由调度闭环），本层只回答状态快照。Handler 不
-闭包引用 ROS 节点，只经 `_ObservabilityHTTPServer` 上的窄接口
-`HttpBackend`（snapshot / trajectory）取依赖，可用 fake 后端在单元
-测试里直接起真实 server 打请求。
+2026-09 起融合手动调试（决策 0007 推翻条款执行）：GET 仍是只读状态；
+POST 仅开放 `/api/debug/<action>` 调试端点，鉴权（X-Debug-Token）、
+运动门控（motion_enabled）与审计全部在后端 `debug_command` 内完成，
+本层只做解析与转发——无令牌时一切 POST 仍被拒绝。Handler 不闭包
+引用 ROS 节点，只经 `_ObservabilityHTTPServer` 上的窄接口
+`HttpBackend`（snapshot / trajectory / debug_command）取依赖。
 """
 
 from __future__ import annotations
@@ -18,6 +19,9 @@ import threading
 from typing import Protocol
 from urllib.parse import urlparse
 
+# 调试请求体上限（字节）：调试载荷只有 ID/枚举/坐标数组，64KB 富余
+_MAX_BODY_BYTES = 65536
+
 
 class HttpBackend(Protocol):
     """HTTP Handler 依赖的窄接口（由 ObservabilityNode 实现，测试可伪造）."""
@@ -28,6 +32,23 @@ class HttpBackend(Protocol):
 
     def trajectory(self) -> dict:
         """返回 TCP 点列、visualization_msgs Marker 字典与路标."""
+        ...
+
+    def debug_command(self, action: str, payload: dict,
+                      headers) -> tuple:
+        """
+        执行一次调试操作（鉴权/门控/审计在后端内完成）.
+
+        Args:
+            action: 调试端点键（如 'begin_scene_service'）.
+            payload: 已解析的 JSON 请求体.
+            headers: 请求头（取 X-Debug-Token）.
+
+        Returns
+        -------
+            (http_status, 响应 dict).
+
+        """
         ...
 
 
@@ -88,10 +109,41 @@ class ObservabilityHttpHandler(BaseHTTPRequestHandler):
             cache='public, max-age=60')
 
     def do_POST(self):
-        """只读监控台：一切写请求统一 405."""
-        self._json(
-            {'accepted': False, 'message': '只读监控台，无写入口'},
-            HTTPStatus.METHOD_NOT_ALLOWED)
+        """调试操作面唯一入口：/api/debug/<action>；鉴权与门控在后端."""
+        parsed = urlparse(self.path)
+        if not parsed.path.startswith('/api/debug/'):
+            self._json(
+                {'accepted': False, 'message': '非调试端点（只读监控）'},
+                HTTPStatus.NOT_FOUND)
+            return
+        action = parsed.path[len('/api/debug/'):].strip('/')
+        if not action:
+            self._json({'accepted': False, 'message': '缺少调试端点'},
+                       HTTPStatus.NOT_FOUND)
+            return
+        length = int(self.headers.get('Content-Length') or 0)
+        if length > _MAX_BODY_BYTES:
+            self._json({'accepted': False, 'message': '请求体过大'},
+                       HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
+            return
+        try:
+            raw = self.rfile.read(length) if length else b'{}'
+            payload = json.loads(raw or b'{}')
+        except ValueError:
+            self._json({'accepted': False, 'message': '请求体不是合法 JSON'},
+                       HTTPStatus.BAD_REQUEST)
+            return
+        if not isinstance(payload, dict):
+            self._json({'accepted': False, 'message': '请求体须为 JSON 对象'},
+                       HTTPStatus.BAD_REQUEST)
+            return
+        submit = getattr(self.server.backend, 'debug_command', None)
+        if not callable(submit):
+            self._json({'accepted': False, 'message': '调试操作面未启用'},
+                       HTTPStatus.SERVICE_UNAVAILABLE)
+            return
+        status, response = submit(action, payload, self.headers)
+        self._json(response, HTTPStatus(status))
 
 
 class _ObservabilityHTTPServer(ThreadingHTTPServer):

@@ -128,10 +128,7 @@ rclcpp_action::CancelResponse ManipulationSkillsNode::onActionCancel(
   const std::shared_ptr<RunTargetGoalHandle>)
 {
   const ScopedTimer timer(get_logger(), "action_cancel", &callback_timing_);
-  cancel_requested_.store(true);
-  if (move_group_) {move_group_->stop();}
-  if (grasp_task_) {grasp_task_->cancel();}
-  cache_.notifyAll();
+  requestCancelAll();
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
@@ -183,10 +180,7 @@ void ManipulationSkillsNode::executeAction(
 
   while (rclcpp::ok() && running_.load()) {
     if (goal_handle->is_canceling()) {
-      cancel_requested_.store(true);
-      if (move_group_) {move_group_->stop();}
-      if (grasp_task_) {grasp_task_->cancel();}
-      cache_.notifyAll();
+      requestCancelAll();
     }
     auto feedback = std::make_shared<ExecuteTarget::Feedback>();
     feedback->state.target_id = goal->target_id;
@@ -329,14 +323,7 @@ void ManipulationSkillsNode::onCancel(
   const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response)
 {
   const ScopedTimer timer(get_logger(), "cancel_cycle", &callback_timing_);
-  cancel_requested_.store(true);
-  if (move_group_) {
-    move_group_->stop();
-  }
-  if (grasp_task_) {
-    grasp_task_->cancel();
-  }
-  cache_.notifyAll();
+  requestCancelAll();
   response->success = true;
   response->message = "已请求取消；当前 MoveIt 执行将停止";
 }
@@ -408,14 +395,7 @@ rclcpp_action::CancelResponse ManipulationSkillsNode::onSurveyCancel(
 {
   // 取消与 ExecuteTarget 同纪律：除置取消标志外，停 MoveIt/MTC 当前执行并
   // 唤醒等待（否则拍照位运动会继续走完，周期侧等待也不退场）。
-  cancel_requested_.store(true);
-  if (move_group_) {
-    move_group_->stop();
-  }
-  if (grasp_task_) {
-    grasp_task_->cancel();
-  }
-  cache_.notifyAll();
+  requestCancelAll();
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 

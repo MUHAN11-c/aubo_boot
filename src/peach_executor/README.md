@@ -2,7 +2,7 @@
 
 四个能力包之一：**整栈调度**。三节点：执行器（开批/选果/账本）、lifecycle 管理器（四节点名单）、observability（只读 Web/jsonl）。串联感知与臂技能，感知抓取已接线；导航已归档，到位一步直通 `NAV_OK`。不做视觉、不直接规划接触或导航。**launch 绝不自动开批。** 详细作用见 [docs/architecture.md](../../docs/architecture.md) §3 `peach_executor`。
 
-总览：[docs/architecture.md](../../docs/architecture.md)。跨包调用：[docs/io.md](../../docs/io.md)。怎么跑：[docs/testing.md](../../docs/testing.md)。
+总览：[docs/architecture.md](../../docs/architecture.md)。跨包调用：[docs/io.md](../../docs/io.md)。怎么跑：[docs/testing.md](../../docs/testing.md)。轮次：[docs/testing-log.md](../../docs/testing-log.md)。
 
 ```
 peach_executor/

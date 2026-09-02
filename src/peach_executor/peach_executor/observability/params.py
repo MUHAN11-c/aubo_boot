@@ -41,6 +41,28 @@ TOPIC_NAMES = (
     'tcp_markers_topic',
 )
 
+# 手动调试操作面的目标端点名（debug.endpoints.* 子组，集中进 endpoints 映射）
+DEBUG_ENDPOINTS = (
+    'run_harvest_action',
+    'control_service',
+    'begin_scene_service',
+    'survey_action',
+    'execute_action',
+    'build_action',
+    'check_reachability_service',
+    'photo_pose_service',
+    'preview_approach_service',
+    'preview_full_service',
+    'ack_recovery_service',
+    'arm_service',
+    'skill_cancel_service',
+    'recon_save_session_service',
+    'recon_reset_service',
+    'recon_finalize_service',
+    'recon_query_service',
+    'manage_nodes_service',
+)
+
 
 @dataclass(frozen=True)
 class ObservabilityParams:
@@ -68,6 +90,12 @@ class ObservabilityParams:
     trajectory_min_step_m: float
     trajectory_max_points: int
     topics: Mapping[str, str]
+    debug_enabled: bool
+    debug_motion_enabled: bool
+    debug_token: str
+    debug_action_timeout_s: float
+    debug_audit_enabled: bool
+    debug_endpoints: Mapping[str, str]
 
 
 def declare(node) -> object:
@@ -105,6 +133,10 @@ def from_params(p) -> ObservabilityParams:
     """
     topics = MappingProxyType(
         {name: str(getattr(p, name)).strip() for name in TOPIC_NAMES})
+    endpoints = getattr(p.debug, 'endpoints')
+    debug_endpoints = MappingProxyType(
+        {name: str(getattr(endpoints, name)).strip()
+         for name in DEBUG_ENDPOINTS})
     return ObservabilityParams(
         host=str(p.host).strip(),
         port=int(p.port),
@@ -123,4 +155,10 @@ def from_params(p) -> ObservabilityParams:
         trajectory_min_step_m=float(p.trajectory.min_step_m),
         trajectory_max_points=int(p.trajectory.max_points),
         topics=topics,
+        debug_enabled=bool(p.debug.enabled),
+        debug_motion_enabled=bool(p.debug.motion_enabled),
+        debug_token=str(p.debug.token),
+        debug_action_timeout_s=float(p.debug.action_timeout_s),
+        debug_audit_enabled=bool(p.debug.audit_enabled),
+        debug_endpoints=debug_endpoints,
     )

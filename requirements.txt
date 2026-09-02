@@ -1,23 +1,28 @@
-# aubo_py3.12 venv 依赖约束（Python 3.12，--system-site-packages）
+# aubo_py3.12 venv 依赖清单（Python 3.12，--system-site-packages）
 #
-# 用法：
-#   aubo_py3.12/bin/pip install -r requirements.txt
+# 依赖分层原则（venv-first）：
+#   * ROS 2 依赖（rclpy / cv_bridge / tf2_ros / message_filters /
+#     sensor_msgs_py / ament_index_python / launch 等）来自 Jazzy apt
+#     官方源，不由本文件管理——这是 venv 隔离的物理边界。
+#   * 其余一切第三方 Python 库统一由本文件钉版本安装：
+#       aubo_py3.12/bin/pip install -r requirements.txt
+#     （对带 --system-site-packages 的 venv，apt 同名包存在时需加
+#     --ignore-installed 才会真正落入 venv。）
 #
-# 关键约束：numpy 必须 <2。该 venv 带 --system-site-packages，ROS jazzy 的
-# cv_bridge 以及 apt 的 python3-opencv / python3-scipy 均按 numpy 1.x 编译；
-# venv 内若出现 numpy 2.x，import cv2 报 "numpy.core.multiarray failed to
-# import"，import cv_bridge 直接段错误。
+# 关键 ABI 约束：numpy 必须 <2 且 ==1.26.4。Jazzy 的 cv_bridge 二进制按
+# numpy 1.x 编译；出现 numpy 2.x 时 import cv2 报
+# "numpy.core.multiarray failed to import"，import cv_bridge 直接段错误。
+# 1.26.4 同时是 apt python3-numpy 的版本，双路径一致。
 #
-# 以下由系统 site-packages 提供，切勿在本文件中 pip 安装同名包（会 shadow
-# 系统版）：scipy、cv_bridge、rclpy、pytest、PyYAML（系统已有）。
-# 例外：ultralytics 会拉取 opencv-python；本机已验证与 numpy==1.26.4 /
-# cv_bridge 共存。若出现段错误，可尝试：
-#   aubo_py3.12/bin/pip uninstall -y opencv-python opencv-python-headless
-# 并依赖 apt 的 python3-opencv。
-#
-# 版本锁定基准：2026-07-30 本机 aubo_py3.12 实测。
+# 版本锁定基准：2026-07-30 本机实测；2026-09-02 补钉 scipy/PyYAML 入 venv
+# （与 apt python3-scipy/python3-yaml 同版本，仅隔离位置）。
+# 已知遗留：pip check 会报若干 types-*/pynacl 等 dev-stub 缺伴依赖，为
+# venv 内与本项目无关的历史包，不参与运行时。
 
 numpy==1.26.4
+scipy==1.11.4
+PyYAML==6.0.1
+opencv-python==4.11.0.86
 matplotlib==3.11.1
 
 # ---- peach_perception 感知节点（YOLO + MobileSAM via ultralytics） ----

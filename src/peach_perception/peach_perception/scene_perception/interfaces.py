@@ -194,10 +194,11 @@ def compute_travel_range(P_entry_start: np.ndarray, P_neck: np.ndarray,
 # === interfaces.py ===
 
 if TYPE_CHECKING:
-    # 仅类型标注用，运行期不 import（避免 interfaces ↔ pipeline 循环导入）
-    from .pipeline import TargetPoseResult
+    # 仅类型标注用，运行期不 import（避免 interfaces ↔ pose_pipelines 循环导入）
+    from .pose_pipelines import TargetPoseResult
 
-# 实现注册表（2.14）：按名登记/创建，默认实现在 pipeline.py / identity.py 末尾
+# 实现注册表（2.14）：按名登记/创建，默认实现在 inference.py / pose_pipelines.py /
+# identity.py 末尾
 DETECTORS: Registry['Detector'] = Registry('检测器')
 SEGMENTERS: Registry['Segmenter'] = Registry('分割器')
 POSE_PIPELINES: Registry['PosePipeline'] = Registry('位姿管线')

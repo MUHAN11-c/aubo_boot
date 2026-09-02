@@ -38,6 +38,15 @@ peach_observability:
       period_s: 0.05                # 20 Hz
       min_step_m: 0.003
       max_points: 8000
+    # ── 手动调试操作面（融合 8090；决策 0007 推翻条款执行）──
+    # 三重门全默认关：enabled 总开关 / token 令牌（空=全拒）/ motion_enabled 运动类放行。
+    # 启用步骤见 testing.md「Web 手动调试」；端点名用 GPL 默认（debug.endpoints.*）。
+    debug:
+      enabled: false
+      motion_enabled: false
+      token: ""
+      action_timeout_s: 180.0
+      audit_enabled: true
     debug_image_topic: /peach/perception/debug_image     # 感知调试叠加图（bgr8）
     debug_image_raw_topic: /peach/perception/debug_image_raw  # 全量叠加（筛选前）——与稳定流成对落盘
     tsdf_cloud_topic: /peach/reconstruction/tsdf_cloud   # 在线 TSDF 点云（latched）

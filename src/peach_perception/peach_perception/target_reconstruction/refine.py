@@ -11,8 +11,10 @@ from typing import (
 
 import numpy as np
 from peach_perception.common.geometry import (
+    angle_between_deg,
     fit_cylinder_robust,
     fit_sphere_robust,
+    unit_vector,
 )
 from peach_perception.target_reconstruction.integrate import require_open3d
 from peach_perception.target_reconstruction.interfaces import (
@@ -76,18 +78,15 @@ def select_reconstruction_candidate(
     return best.target_id, center
 
 
+# 边界注：本文件 axis_from_vector3 / axis_angle_deg / _normalize_axis_hint
+# 原实现按 norm <= 1.0e-9 判废，收敛到共享 unit_vector 后统一为 < 1e-9——
+# 恰等于 1e-9 的输入为浮点测度零边界（旧拒/新收一个单位向量），工程上
+# 不可观测，按多数实现口径（<）统一。
 def axis_from_vector3(direction):
     """geometry_msgs/Vector3 → 有限单位轴；缺失或退化时返回 None."""
     if direction is None:
         return None
-    axis = np.array(
-        [direction.x, direction.y, direction.z], dtype=np.float64)
-    if not np.all(np.isfinite(axis)):
-        return None
-    norm = float(np.linalg.norm(axis))
-    if norm <= 1.0e-9:
-        return None
-    return axis / norm
+    return unit_vector([direction.x, direction.y, direction.z])
 
 
 def candidate_axis_hint(msg, target_id: str):
@@ -221,18 +220,7 @@ def orient_axis_bottom_to_neck(axis: np.ndarray) -> np.ndarray:
 
 def axis_angle_deg(first, second):
     """两轴夹角 [deg]；退化向量返回 None（不取绝对值，翻转算 180°）."""
-    a = np.asarray(first, dtype=np.float64).reshape(-1)
-    b = np.asarray(second, dtype=np.float64).reshape(-1)
-    if a.size != 3 or b.size != 3:
-        return None
-    if not np.all(np.isfinite(a)) or not np.all(np.isfinite(b)):
-        return None
-    na = float(np.linalg.norm(a))
-    nb = float(np.linalg.norm(b))
-    if na <= 1.0e-9 or nb <= 1.0e-9:
-        return None
-    cosine = float(np.clip(np.dot(a / na, b / nb), -1.0, 1.0))
-    return float(np.degrees(np.arccos(cosine)))
+    return angle_between_deg(first, second)
 
 
 def _cylinder_ends(points_inl: np.ndarray, axis_point: np.ndarray,
@@ -368,15 +356,7 @@ def _gated_result(kind: str, n_points: int, center: np.ndarray,
 
 def _normalize_axis_hint(axis_hint):
     """可选轴先验 → 有限单位向量；无效给 None."""
-    if axis_hint is None:
-        return None
-    hint = np.asarray(axis_hint, dtype=np.float64).reshape(-1)
-    if hint.size != 3 or not np.all(np.isfinite(hint)):
-        return None
-    norm = float(np.linalg.norm(hint))
-    if norm <= 1.0e-9:
-        return None
-    return hint / norm
+    return unit_vector(axis_hint)
 
 
 def _apply_axis_consistency(result: dict, axis_hint, config: RefitConfig) -> dict:

@@ -33,8 +33,7 @@ from .config import (
     YOLO_MODEL,
 )
 from .validation import AnnotationMetrics, load_annotations
-from ..interfaces import BagObservation
-from ..pipeline import (
+from ..inference import (
     CandidateEstimator,
     InferenceEngine,
     MobileSam,
@@ -42,6 +41,7 @@ from ..pipeline import (
     MODE_LABELS,
     UltralyticsYolo,
 )
+from ..interfaces import BagObservation
 
 
 def _quantiles(values):

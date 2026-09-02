@@ -54,6 +54,7 @@ from peach_perception.common.geometry import (
     normalize_depth_to_uint16_mm,
     transform_msg_to_matrix,
 )
+from peach_perception.common.pointcloud import transform_points
 from peach_perception.common.ros.clock_adapter import RclpyClockAdapter
 from peach_perception.common.runtime import (
     BoundedWorker,
@@ -76,11 +77,11 @@ from peach_perception.target_reconstruction.capture import (
     GATE_NEED_TF,
     GATE_SKIP,
     GateDecision,
-    MaskContext,
     STATE_COLLECTING,
     STATE_IDLE,
     TimingStats,
 )
+from peach_perception.target_reconstruction.frame_store import FrameStoreMixin
 from peach_perception.target_reconstruction.integrate import (
     apply_target_mask,
     assembly_overlap_metrics,
@@ -90,7 +91,6 @@ from peach_perception.target_reconstruction.integrate import (
     LocalTsdf,
     summarize_pairs_mm,
     summarize_view_coverage,
-    transform_points,
 )
 from peach_perception.target_reconstruction.interfaces import (
     CLOUD_BUILDERS,
@@ -151,7 +151,8 @@ def _xyz_list(value, fallback=(0.0, 0.0, 0.0)):
     return [float(v) for v in arr[:3]]
 
 
-class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNode):
+class TargetReconstructionNode(
+        AutoControllerMixin, FrameStoreMixin, PublisherMixin, LifecycleNode):
     """连续运动局部重建 Lifecycle 节点：Active 后才积分与受理 BuildTargetModel."""
 
     def __init__(self):
@@ -742,7 +743,7 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
                 self.get_logger().warning(f'目标掩膜解码失败: {exc}')
                 return
             stamp = bound_obs.mask.header.stamp
-            stamp_ns = int(stamp.sec) * 1000000000 + int(stamp.nanosec)
+            stamp_ns = self._stamp_ns(stamp)
             center = self._candidate_center(bound_obs.candidate)
             self._target_masks[stamp_ns] = (
                 np.asarray(mask, dtype=np.uint8), center)
@@ -754,43 +755,6 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
             self._auto_drive()
 
     @staticmethod
-    def _candidate_center(candidate):
-        """候选几何袋底/袋颈中点（base 系 [m]）；非有限或全零时返回 None."""
-        bottom = np.array([
-            candidate.bag_bottom.x,
-            candidate.bag_bottom.y,
-            candidate.bag_bottom.z], dtype=np.float64)
-        neck = np.array([
-            candidate.bag_neck.x,
-            candidate.bag_neck.y,
-            candidate.bag_neck.z], dtype=np.float64)
-        center = 0.5 * (bottom + neck)
-        if not np.all(np.isfinite(center)) or not np.any(center):
-            return None
-        return center
-
-    def _target_mask_for_frame(self, stamp_msg, depth_mm):
-        """取严格同时间戳掩膜并过五道质量门（判定本体在 MaskGate 实现）."""
-        stamp_ns = int(stamp_msg.sec) * 1000000000 + int(stamp_msg.nanosec)
-        # 邻目标锚点=锁定集锚点缓存剔除绑定目标自身（E2 串扰门输入）；
-        # 框面积并行携带，供串扰门按面积比豁免小框邻居
-        neighbors = tuple(
-            (c, self._locked_target_areas.get(tid, 0.0))
-            for tid, c in self._locked_target_centers.items()
-            if tid != self._preferred_target_id)
-        centers = tuple(c for c, _ in neighbors)
-        areas = tuple(a for _, a in neighbors)
-        result = self._mask_gate.check(MaskContext(
-            stamp_ns=stamp_ns,
-            depth_mm=depth_mm,
-            masks=self._target_masks,
-            bound_center=self.collector.target_center,
-            neighbor_centers=centers,
-            bound_area=self._locked_target_areas.get(
-                self._preferred_target_id, 0.0),
-            neighbor_areas=areas))
-        return result.mask, result.reason
-
     def _on_query_reconstruction_state(self, request, response):
         """~/query_reconstruction_state：返回当前重建和数据关联 JSON."""
         del request
@@ -1016,50 +980,6 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
             self.get_logger().info(response.message)
             self._publish_all()
             return response
-
-    def _stamp_ns(self, stamp_msg) -> int:
-        """ROS Time → 纳秒整数（与掩膜缓存键一致）."""
-        return int(stamp_msg.sec) * 1000000000 + int(stamp_msg.nanosec)
-
-    def _clear_frame_ring(self) -> None:
-        """换绑/reset 时丢弃未对齐的陈帧，避免旧目标点云混入."""
-        self._frame_ring = {}
-        self._latest_frame = None
-
-    def _push_frame_ring(self, frame_tuple) -> None:
-        """按 stamp_ns 写入帧环，超出容量丢最旧."""
-        stamp_msg = frame_tuple[3]
-        stamp_ns = self._stamp_ns(stamp_msg)
-        self._frame_ring.pop(stamp_ns, None)
-        self._frame_ring[stamp_ns] = frame_tuple
-        while len(self._frame_ring) > self._frame_ring_max:
-            self._frame_ring.pop(next(iter(self._frame_ring)))
-        self._latest_frame = frame_tuple
-
-    def _select_cached_frame(
-            self, prefer_stamp_sec=None, prefer_cam_frame=None):
-        """
-        取采帧缓存：优先指定 stamp；否则取「有同戳掩膜的最新帧」.
-
-        严格同戳语义不变：不回退 latest TF。掩膜尚未到达的最新帧留在环
-        内，等感知回调再驱动。环空返回 None。
-        """
-        if prefer_stamp_sec is not None:
-            # 快照遍历：worker 线程可能并发插入新时间戳（环由其无锁写入）
-            for frame in list(self._frame_ring.values()):
-                if abs(float(frame[4]) - float(prefer_stamp_sec)) > 1e-9:
-                    continue
-                if (prefer_cam_frame is not None
-                        and (frame[5] or '') != prefer_cam_frame):
-                    continue
-                return frame
-            return None
-        for stamp_ns in reversed(list(self._frame_ring.keys())):
-            if stamp_ns in self._target_masks:
-                return self._frame_ring[stamp_ns]
-        if self._frame_ring:
-            return next(reversed(list(self._frame_ring.values())))
-        return self._latest_frame
 
     def _collect_gate_values(self, automatic: bool,
                              prefer_stamp_sec=None,
@@ -2146,16 +2066,8 @@ class TargetReconstructionNode(AutoControllerMixin, PublisherMixin, LifecycleNod
                 self.params.frames.base_frame, child, Time())
         except TransformException:
             return None, None
-        t = tf.transform.translation
-        q = tf.transform.rotation
-        xyz = np.array([t.x, t.y, t.z], dtype=np.float64)
-        x, y, z, w = q.x, q.y, q.z, q.w
-        z_axis = np.array([
-            2.0 * (x * z + w * y),
-            2.0 * (y * z - w * x),
-            1.0 - 2.0 * (x * x + y * y),
-        ], dtype=np.float64)
-        return xyz, z_axis
+        T = transform_msg_to_matrix(tf.transform)
+        return T[:3, 3].copy(), T[:3, 2].copy()
 
     def _pregrasp_verification_msg(self, header):
         """工具帧相对融合袋模型的预抓取残差（观测用，不授权 SetIO）."""

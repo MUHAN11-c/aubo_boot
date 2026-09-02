@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import os
 
-import yaml
 from ament_index_python.packages import get_package_share_directory
+import yaml
 
 
 def load_grasp_standoffs():

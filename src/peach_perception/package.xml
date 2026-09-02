@@ -21,10 +21,11 @@
   <exec_depend>lifecycle_msgs</exec_depend>
   <exec_depend>message_filters</exec_depend>
   <exec_depend>peach_interfaces</exec_depend>
+  <!-- 数值/图像第三方库（scipy/opencv/PyYAML）按 venv-first 原则由工作区
+       requirements.txt 钉版本安装（见 docs/testing.md §1），不走 rosdep；
+       python3-numpy 保留：1.26.4 是 cv_bridge 二进制的 ABI 边界，
+       apt 与 venv 双路径必须同版。 -->
   <exec_depend>python3-numpy</exec_depend>
-  <exec_depend>python3-opencv</exec_depend>
-  <exec_depend>python3-scipy</exec_depend>
-  <exec_depend>python3-yaml</exec_depend>
   <exec_depend>rcl_interfaces</exec_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
@@ -32,7 +33,6 @@
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>std_srvs</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
-  <exec_depend>tf_transformations</exec_depend>
   <exec_depend>vision_msgs</exec_depend>
   <exec_depend>visualization_msgs</exec_depend>
 

@@ -11,11 +11,12 @@
 #include <utility>
 #include <vector>
 
+#include "peach_manipulation/math_utils.hpp"
+
 namespace peach_manipulation
 {
 namespace
 {
-constexpr double kPi = 3.14159265358979323846;
 constexpr uint8_t kTrackingObserved = 0;  // PeachTargetObservation.OBSERVED
 
 template<typename Src>
@@ -36,9 +37,7 @@ double axisAngleDeg(const Eigen::Vector3d & first, const Eigen::Vector3d & secon
   if (!nonzeroFinite(first) || !nonzeroFinite(second)) {
     return -1.0;
   }
-  const double cosine = std::clamp(
-    first.normalized().dot(second.normalized()), -1.0, 1.0);
-  return std::acos(cosine) * 180.0 / kPi;
+  return angleBetweenDeg(first, second);
 }
 
 bool freshEnough(const CachedTarget & target, double after_s, bool live_required)

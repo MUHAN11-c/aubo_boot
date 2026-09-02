@@ -56,7 +56,8 @@ peach_scene_perception_node:
     # tf=由本帧 output←camera 的 TF 旋转反推相机系重力（output_frame 系重力
     # 约定 [0,0,-1]，只乘旋转不加平移；TF 不可用的帧回退 gravity_hint_xyz）
     gravity_mode: tf
-    # ── 接口层实现装配（2.14：注册名见 pipeline.py / identity.py 末尾）────
+    # ── 接口层实现装配（2.14：注册名见 inference.py / pose_pipelines.py /
+    #    identity.py 末尾）────────────────────────────────────────
     detector.impl: yolo              # 检测器（Detector）：UltralyticsYolo
     segmenter.impl: mobile_sam       # 分割器（Segmenter）：MobileSam
     pipeline.bag_impl: robust_bag    # 袋装线位姿管线（PosePipeline）

@@ -22,6 +22,7 @@
 #include <tf2_eigen/tf2_eigen.hpp>
 
 #include "peach_manipulation/cycle.hpp"
+#include "peach_manipulation/math_utils.hpp"
 
 using namespace std::chrono_literals;
 
@@ -33,13 +34,10 @@ namespace
 {
 double axisAngleDeg(const Eigen::Vector3d & first, const Eigen::Vector3d & second)
 {
-  const double na = first.norm();
-  const double nb = second.norm();
-  if (na < 1e-9 || nb < 1e-9) {
+  if (first.norm() < 1e-9 || second.norm() < 1e-9) {
     return 180.0;
   }
-  const double cosine = std::clamp(first.dot(second) / (na * nb), -1.0, 1.0);
-  return std::acos(cosine) * 180.0 / std::acos(-1.0);
+  return angleBetweenDeg(first, second);
 }
 
 // 跟踪状态枚举 → 中文标签（再确认失败原因文案用；常量为
@@ -167,6 +165,28 @@ bool ManipulationSkillsNode::failStage(CycleContext & ctx, const std::string & r
   ctx.failure_reason = reason;
   setState(CycleState::FAILED, reason, ctx.target_id);
   return false;
+}
+
+bool ManipulationSkillsNode::failStage(
+  CycleContext & ctx, uint8_t outcome, uint32_t failure_code,
+  const std::string & reason)
+{
+  pending_outcome_.store(outcome);
+  ctx.failure_code = failure_code;
+  return failStage(ctx, reason);
+}
+
+Eigen::Isometry3d ManipulationSkillsNode::entryToolPose(
+  const Eigen::Vector3d & entry, const Eigen::Vector3d & axis,
+  const Eigen::Vector3d & preferred_x)
+{
+  Eigen::Isometry3d entry_tool_pose = Eigen::Isometry3d::Identity();
+  entry_tool_pose.translation() = entry;
+  const auto current_tool = motion_->lookupTransform(base_frame_, tool_frame_);
+  entry_tool_pose.linear() = current_tool ?
+    alignFrameZ(current_tool->linear(), axis) :
+    ViewPlanner::toolOrientation(axis, preferred_x);
+  return entry_tool_pose;
 }
 
 // 授权矩阵（execution_authority.hpp）的失败包装：GraspDecision 复检未通过
@@ -605,13 +625,9 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
     ctx.reference_anchor = (live_anchor && live_anchor->valid) ?
       live_anchor->center :
       0.5 * (ctx.refined->bottom + ctx.refined->neck);
-    Eigen::Isometry3d entry_tool_pose = Eigen::Isometry3d::Identity();
-    entry_tool_pose.translation() = ctx.refined->entry;
-    const auto current_tool = motion_->lookupTransform(base_frame_, tool_frame_);
-    entry_tool_pose.linear() = current_tool ?
-      alignFrameZ(current_tool->linear(), ctx.refined->axis) :
-      ViewPlanner::toolOrientation(
-        ctx.refined->axis, ctx.target->initial_pose.linear().col(0));
+    const Eigen::Isometry3d entry_tool_pose = entryToolPose(
+      ctx.refined->entry, ctx.refined->axis,
+      ctx.target->initial_pose.linear().col(0));
     ctx.entry_tip_pose = entry_tool_pose * tip_from_tool->inverse();
     ctx.travel_m = insertionTravel(*ctx.refined);
     const auto quality = qualitySnapshot();
@@ -635,10 +651,9 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
     }
     return true;
   }
-  pending_outcome_.store(ExecuteTarget::Result::SKIPPED_QUALITY);
-  ctx.failure_code = FailureCode::DEGRADED_CONTACT_FORBIDDEN;
   return failStage(
-    ctx,
+    ctx, ExecuteTarget::Result::SKIPPED_QUALITY,
+    FailureCode::DEGRADED_CONTACT_FORBIDDEN,
     ctx.pregrasp_only ?
     ("预抓取缺少融合几何: " + gate.reason) :
     ("GraspDecision.allowed=false，禁止降级接触: " + gate.reason));
@@ -800,9 +815,9 @@ bool ManipulationSkillsNode::stageMovePregrasp(CycleContext & ctx)
     }
   }
   if (!result.success) {
-    pending_outcome_.store(ExecuteTarget::Result::SKIPPED_UNREACHABLE);
-    ctx.failure_code = FailureCode::SLEEVE_PLAN_FAILED;
-    return failStage(ctx, "到预抓取失败: " + result.reason);
+    return failStage(
+      ctx, ExecuteTarget::Result::SKIPPED_UNREACHABLE,
+      FailureCode::SLEEVE_PLAN_FAILED, "到预抓取失败: " + result.reason);
   }
   if (result.execution_started) {
     contact_recovery_required_.store(true);
@@ -816,9 +831,9 @@ bool ManipulationSkillsNode::stageVerifyPregrasp(CycleContext & ctx)
 {
   setState(CycleState::RECONFIRM, "预抓取停稳验证（不 SetIO）", ctx.target_id);
   if (!ctx.refined || !ctx.refined->valid) {
-    pending_outcome_.store(ExecuteTarget::Result::SKIPPED_QUALITY);
-    ctx.failure_code = FailureCode::PREGRASP_RESIDUAL;
-    return failStage(ctx, "预抓取验证无精化几何");
+    return failStage(
+      ctx, ExecuteTarget::Result::SKIPPED_QUALITY,
+      FailureCode::PREGRASP_RESIDUAL, "预抓取验证无精化几何");
   }
   ctx.pregrasp_msg.target_id = ctx.target_id;
   ctx.pregrasp_msg.tool_profile_id = "hollow_cylinder_v1";
@@ -833,9 +848,10 @@ bool ManipulationSkillsNode::stageVerifyPregrasp(CycleContext & ctx)
     if (!first_axis || !second_axis || !first_mouth || !second_mouth ||
       !first_cut || !second_cut)
     {
-      pending_outcome_.store(ExecuteTarget::Result::SKIPPED_QUALITY);
-      ctx.failure_code = FailureCode::EXACT_TF_MISSING;
-      return failStage(ctx, "预抓取缺少 tool_axis/sleeve_mouth/cutting_plane TF");
+      return failStage(
+        ctx, ExecuteTarget::Result::SKIPPED_QUALITY,
+        FailureCode::EXACT_TF_MISSING,
+        "预抓取缺少 tool_axis/sleeve_mouth/cutting_plane TF");
     }
     const Eigen::Vector3d tool_z = second_axis->linear().col(2);
     const double frames_deg = axisAngleDeg(
@@ -885,18 +901,14 @@ bool ManipulationSkillsNode::stageVerifyPregrasp(CycleContext & ctx)
       }
       const auto tip_from_tool = motion_->lookupTransform(tip_frame_, tool_frame_);
       if (!tip_from_tool) {
-        pending_outcome_.store(ExecuteTarget::Result::SKIPPED_QUALITY);
-        ctx.failure_code = FailureCode::EXACT_TF_MISSING;
         return failStage(
-          ctx, "预抓取修正重算入口时无法取得 tip 到 tool 的变换");
+          ctx, ExecuteTarget::Result::SKIPPED_QUALITY,
+          FailureCode::EXACT_TF_MISSING,
+          "预抓取修正重算入口时无法取得 tip 到 tool 的变换");
       }
-      Eigen::Isometry3d entry_tool_pose = Eigen::Isometry3d::Identity();
-      entry_tool_pose.translation() = latest_refined->entry;
-      const auto current_tool = motion_->lookupTransform(base_frame_, tool_frame_);
-      entry_tool_pose.linear() = current_tool ?
-        alignFrameZ(current_tool->linear(), latest_refined->axis) :
-        ViewPlanner::toolOrientation(
-          latest_refined->axis, ctx.target->initial_pose.linear().col(0));
+      const Eigen::Isometry3d entry_tool_pose = entryToolPose(
+        latest_refined->entry, latest_refined->axis,
+        ctx.target->initial_pose.linear().col(0));
       ctx.refined = latest_refined;
       ctx.entry_tip_pose = entry_tool_pose * tip_from_tool->inverse();
       ctx.travel_m = insertionTravel(*latest_refined);
@@ -960,9 +972,9 @@ bool ManipulationSkillsNode::stagePlanSleeveAndReverseRetreat(CycleContext & ctx
   const auto result = grasp_task_->previewFullContact(
     ctx.entry_tip_pose, ctx.refined->axis, ctx.travel_m);
   if (!result.success) {
-    pending_outcome_.store(ExecuteTarget::Result::SKIPPED_UNREACHABLE);
-    ctx.failure_code = FailureCode::SLEEVE_PLAN_FAILED;
-    return failStage(ctx, "套入/撤退预规划失败: " + result.reason);
+    return failStage(
+      ctx, ExecuteTarget::Result::SKIPPED_UNREACHABLE,
+      FailureCode::SLEEVE_PLAN_FAILED, "套入/撤退预规划失败: " + result.reason);
   }
   ctx.sleeve_planned = true;
   return true;
@@ -1051,9 +1063,9 @@ bool ManipulationSkillsNode::stageVerifyCut(CycleContext & ctx)
     return true;
   }
   if (!ctx.cut_command_accepted) {
-    pending_outcome_.store(ExecuteTarget::Result::FAILED);
-    ctx.failure_code = FailureCode::CUT_COMMAND_FAILED;
-    return failStage(ctx, "无 CUT_COMMAND_ACCEPTED");
+    return failStage(
+      ctx, ExecuteTarget::Result::FAILED,
+      FailureCode::CUT_COMMAND_FAILED, "无 CUT_COMMAND_ACCEPTED");
   }
   return true;
 }

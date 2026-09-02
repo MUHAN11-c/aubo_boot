@@ -12,6 +12,7 @@ from typing import (
 )
 
 import numpy as np
+from peach_perception.common.ema import ScalarEma
 from peach_perception.common.geometry import relative_motion
 from peach_perception.target_reconstruction.integrate import apply_target_mask
 from peach_perception.target_reconstruction.interfaces import (
@@ -287,46 +288,25 @@ class TimingStats:
     """重建流水线耗时累计器（分项 EMA + 单次 last 值；纯数值，零 ROS）."""
 
     def __init__(self):
-        """清零：EMA 分项未播种（内部 None，快照投影 0.0），计数为 0."""
-        self._icp_ms: Optional[float] = None
-        self._tsdf_integrate_ms: Optional[float] = None
-        self._frame_total_ms: Optional[float] = None
+        """清零：EMA 分项未播种（快照投影 0.0），计数为 0."""
+        self._icp_ms = ScalarEma(EMA_ALPHA)
+        self._tsdf_integrate_ms = ScalarEma(EMA_ALPHA)
+        self._frame_total_ms = ScalarEma(EMA_ALPHA)
         self._refit_ms_last = 0.0
         self._finalize_ms_last = 0.0
         self._frames_timed = 0
 
-    @staticmethod
-    def _ema_update(current: Optional[float], sample_ms: float) -> float:
-        """
-        EMA 递推：未播种（None）直接取样本，否则 α·sample + (1−α)·current.
-
-        Args:
-            current: 该分项当前 EMA；None 表示尚无样本.
-            sample_ms: 本次样本耗时 [ms]（调用方保证非负）.
-
-        Returns
-        -------
-            更新后的 EMA [ms].
-
-        """
-        sample = max(0.0, float(sample_ms))
-        if current is None:
-            return sample
-        return EMA_ALPHA * sample + (1.0 - EMA_ALPHA) * current
-
     def record_icp(self, sample_ms: float) -> None:
         """记录一次 ICP refine 耗时 [ms]（每帧至多一次，拒帧也计入）."""
-        self._icp_ms = self._ema_update(self._icp_ms, sample_ms)
+        self._icp_ms.update(max(0.0, float(sample_ms)))
 
     def record_tsdf_integrate(self, sample_ms: float) -> None:
         """记录一次 TSDF 在线积分+产物刷新耗时 [ms]（仅积分成功路径）."""
-        self._tsdf_integrate_ms = self._ema_update(
-            self._tsdf_integrate_ms, sample_ms)
+        self._tsdf_integrate_ms.update(max(0.0, float(sample_ms)))
 
     def record_frame_total(self, sample_ms: float) -> None:
         """记录一次成功采帧的 _accept_frame 总耗时 [ms]，并递增计数."""
-        self._frame_total_ms = self._ema_update(
-            self._frame_total_ms, sample_ms)
+        self._frame_total_ms.update(max(0.0, float(sample_ms)))
         self._frames_timed += 1
 
     def record_refit(self, sample_ms: float) -> None:
@@ -338,9 +318,9 @@ class TimingStats:
         self._finalize_ms_last = max(0.0, float(sample_ms))
 
     @staticmethod
-    def _project(ema: Optional[float]) -> float:
-        """内部 Optional EMA → 快照标量：未播种投影为 0.0."""
-        return 0.0 if ema is None else float(ema)
+    def _project(ema: ScalarEma) -> float:
+        """内部 EMA → 快照标量：未播种投影为 0.0."""
+        return 0.0 if not ema.seeded else float(ema.value)
 
     def snapshot(self) -> dict:
         """

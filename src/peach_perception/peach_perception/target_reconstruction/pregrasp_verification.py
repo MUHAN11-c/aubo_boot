@@ -1,32 +1,18 @@
 """预抓取残差：工具轴/套筒口/刀片面相对袋模型（纯核）."""
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 
-
-def _unit(vector) -> Optional[np.ndarray]:
-    """有限非零向量 → 单位向量."""
-    if vector is None:
-        return None
-    value = np.asarray(vector, dtype=np.float64).reshape(-1)
-    if value.size != 3 or not np.all(np.isfinite(value)):
-        return None
-    norm = float(np.linalg.norm(value))
-    if norm < 1e-9:
-        return None
-    return value / norm
+from peach_perception.common.geometry import (
+    angle_between_deg,
+    unit_vector as _unit,
+)
 
 
 def axis_angle_deg(tool_axis, bag_axis) -> float:
-    """两轴夹角（度）."""
-    first = _unit(tool_axis)
-    second = _unit(bag_axis)
-    if first is None or second is None:
-        return 180.0
-    cosine = float(np.clip(np.dot(first, second), -1.0, 1.0))
-    return float(np.degrees(np.arccos(cosine)))
+    """两轴夹角（度）；退化输入按 180°."""
+    angle = angle_between_deg(tool_axis, bag_axis)
+    return 180.0 if angle is None else angle
 
 
 def lateral_axial_errors(

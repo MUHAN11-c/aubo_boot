@@ -865,6 +865,7 @@ async function pollState() {
     renderMetrics(state);
     renderParams(state.params || {}, state.system?.topic_age_s || {});
     $("raw-json").textContent = JSON.stringify(state, null, 2);
+    renderDebugPanel(state.debug || {});
     const uptime = Math.max(0, Number(state.system?.uptime_s) || 0);
     setText("server-uptime",
       `UP ${String(Math.floor(uptime / 60)).padStart(2, "0")}:${String(Math.floor(uptime % 60)).padStart(2, "0")}`);
@@ -883,4 +884,154 @@ setInterval(pollState, 1000);
 setInterval(pollTrajectory, 400);
 window.addEventListener("resize", renderTcpCanvas);
 pollState();
+
+// ============ 手动调试操作面（决策 0007 推翻条款：融合 8090，鉴权+门控） ============
+// Web 只是另一个 ROS 客户端：技能 ExecutionAuthority 与调度/重建门照常复核。
+const debugView = {results: []};
+
+function switchView(name) {
+  document.querySelectorAll(".view-tabs button").forEach((el) => {
+    el.classList.toggle("active", el.dataset.view === name);
+  });
+  $("view-monitor").hidden = name !== "monitor";
+  $("view-debug").hidden = name !== "debug";
+}
+
+function debugToken() {
+  return $("debug-token").value.trim();
+}
+
+async function debugPost(action, payload, confirmText) {
+  if (confirmText && !window.confirm(confirmText)) {
+    return null;
+  }
+  const response = await fetch(`/api/debug/${encodeURIComponent(action)}`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json", "X-Debug-Token": debugToken()},
+    body: JSON.stringify(payload || {}),
+  });
+  let body = {};
+  try { body = await response.json(); } catch (_) { /* 非 JSON 响应 */ }
+  debugView.results.unshift({
+    ts: new Date().toLocaleTimeString("zh-CN", {hour12: false}),
+    action, status: response.status, accepted: body.accepted === true,
+    message: body.message || "", detail: body,
+  });
+  if (debugView.results.length > 30) debugView.results.pop();
+  renderDebugResults();
+  return {ok: response.ok, status: response.status, body};
+}
+
+function renderDebugResults() {
+  const list = $("debug-results");
+  if (!debugView.results.length) {
+    list.innerHTML = '<p class="empty">尚无操作</p>';
+    return;
+  }
+  list.innerHTML = debugView.results.map((entry, index) => {
+    const cls = entry.accepted ? (entry.status < 300 ? "ok" : "warn") : "err";
+    const detail = safe(JSON.stringify(entry.detail));
+    return `<details class="debug-result ${cls}" ${index ? "" : "open"}>
+      <summary><b>${safe(entry.ts)}</b> ${safe(entry.action)}
+      <span class="debug-status">${entry.status} ${entry.accepted ? "已受理" : "被拒/未成"}</span></summary>
+      <p>${safe(entry.message)}</p><pre>${detail}</pre></details>`;
+  }).join("");
+  $("debug-recent-count").textContent = `${debugView.results.length} 条（会话内）`;
+}
+
+// 门控状态横幅（/api/state 每秒刷新；令牌本身绝不下发）
+function renderDebugPanel(debug) {
+  const gates = $("debug-gates");
+  if (!gates) return;
+  const enabled = debug.enabled === true;
+  const motion = debug.motion_enabled === true;
+  const tokenRequired = debug.token_required === true;
+  gates.innerHTML = `
+    <span class="debug-gate ${enabled ? "ok" : "err"}">操作面 ${enabled ? "已启用" : "未启用（debug.enabled=false，POST 全拒）"}</span>
+    <span class="debug-gate ${motion ? "warn" : "ok"}">运动类 ${motion ? "已放行" : "默认拒绝（423）"}</span>
+    <span class="debug-gate ${tokenRequired ? "warn" : "err"}">令牌 ${tokenRequired ? "必填" : "未配置（全拒）"}</span>`;
+  document.querySelectorAll("[data-debug], [data-debug-cancel]").forEach((el) => {
+    el.disabled = !enabled;
+  });
+}
+
+function bindDebugControls() {
+  document.querySelectorAll(".view-tabs button").forEach((el) => {
+    el.addEventListener("click", () => switchView(el.dataset.view));
+  });
+  document.querySelectorAll("[data-debug]").forEach((el) => {
+    el.addEventListener("click", async () => {
+      const action = el.dataset.debug;
+      const payload = buildDebugPayload(action, el);
+      if (payload === null) return;
+      const needsConfirm = el.dataset.confirm === "1";
+      const outcome = await debugPost(action, payload, needsConfirm
+        ? `确认发送【${action}】？\n${JSON.stringify(payload, null, 2)}\n\n运动类操作：技能侧安全门仍会独立复核。`
+        : null);
+      if (outcome && !outcome.ok && outcome.status === 401) {
+        window.alert("401：令牌缺失或不匹配（服务端 debug.token）");
+      } else if (outcome && outcome.status === 423) {
+        window.alert("423：运动类操作被拒（服务端 debug.motion_enabled=false）");
+      }
+    });
+  });
+  document.querySelectorAll("[data-debug-cancel]").forEach((el) => {
+    el.addEventListener("click", () => debugPost("cancel", {target: el.dataset.debugCancel}, null));
+  });
+  $("debug-ping").addEventListener("click", async () => {
+    const outcome = await debugPost("recon_query_service", {}, null);
+    if (outcome) window.alert(outcome.ok ? "令牌有效，操作面可用" : `失败：HTTP ${outcome.status}`);
+  });
+}
+
+// 从页面控件收集各端点 payload；返回 null 表示输入不合法
+function buildDebugPayload(action, el) {
+  if (action === "manage_nodes_service") {
+    return {command: el.dataset.payload ? JSON.parse(el.dataset.payload).command : ""};
+  }
+  if (action === "run_harvest_action") {
+    const requestId = $("run-request-id").value.trim();
+    if (!requestId) { window.alert("request_id 必填（同时是账本目录名，不得复用）"); return null; }
+    const intent = $("run-intent").value;
+    const targets = $("run-target-ids").value.split(",").map((s) => s.trim()).filter(Boolean);
+    return {request_id: requestId, scene_key: "lab", intent,
+      selection_mode: targets.length ? "MANUAL" : "AUTO", target_ids: targets};
+  }
+  if (action === "control_service") {
+    return {command: $("ctl-command").value,
+      expected_state_seq: Number($("ctl-seq").value) || 0,
+      reason: $("ctl-reason").value.trim() || "web 手动调试"};
+  }
+  if (action === "begin_scene_service") {
+    return {request_id: $("scene-request-id").value.trim() || "dev",
+      scene_key: $("scene-key").value.trim() || "lab"};
+  }
+  if (action === "build_action") {
+    const targetId = $("build-target-id").value.trim();
+    if (!targetId) { window.alert("target_id 必填（须与 HarvestState.target_id 一致）"); return null; }
+    return {request_id: $("scene-request-id").value.trim() || "dev", target_id: targetId,
+      scene_epoch: Number($("build-epoch").value) || 0};
+  }
+  if (action === "execute_action") {
+    const targetId = $("exec-target-id").value.trim();
+    if (!targetId) { window.alert("target_id 必填"); return null; }
+    return {request_id: $("scene-request-id").value.trim() || "dev", target_id: targetId,
+      mode: $("exec-mode").value, skip_observation: $("exec-skip-obs").checked};
+  }
+  if (action === "arm_service") {
+    return {data: $("arm-data").value === "true"};
+  }
+  if (action === "check_reachability_service") {
+    const parts = $("reach-xyz").value.split(",").map((s) => Number(s.trim()));
+    if (parts.length !== 3 || parts.some((v) => !Number.isFinite(v))) {
+      window.alert("位姿格式：x,y,z（米）"); return null;
+    }
+    return {timeout_s: 0.5, tcp_poses: [{frame_id: "base_link",
+      position: {x: parts[0], y: parts[1], z: parts[2]},
+      orientation: {x: 0, y: 0, z: 0, w: 1}}]};
+  }
+  return {};  // Trigger 形服务无字段
+}
+
+bindDebugControls();
 pollTrajectory();

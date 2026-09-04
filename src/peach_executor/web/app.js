@@ -34,9 +34,8 @@ function renderPipeline(job, state) {
   });
 }
 
-// 复扫轮次：从最近一条 round_started/round_completed 事件文本解析“第N轮”，
-// 总轮数取调度参数镜像 harvest.max_rounds。
-function renderRoundBadge(events, params) {
+// 复扫轮次：从最近一条 round_started/round_completed 事件文本解析“第N轮”。
+function renderRoundBadge(events) {
   const badge = $("round-badge");
   let round = null;
   (events || []).slice().reverse().some((ev) => {
@@ -47,8 +46,7 @@ function renderRoundBadge(events, params) {
     return true;
   });
   if (!round) { badge.hidden = true; return; }
-  const maxRounds = params?.["/peach_executor"]?.["harvest.max_rounds"];
-  badge.textContent = numeric(maxRounds) ? `第 ${round}/${maxRounds} 轮` : `第 ${round} 轮`;
+  badge.textContent = `第 ${round} 轮`;
   badge.hidden = false;
 }
 
@@ -144,7 +142,7 @@ function renderTicket(job) {
   $("ticket-metrics").innerHTML = metrics.map((text) => `<span>${safe(text)}</span>`).join("");
 }
 
-function renderFlow(taskExecutor, params, job) {
+function renderFlow(taskExecutor, job) {
   const state = taskExecutor.state || {};
   const events = taskExecutor.events || [];
   trackPhaseDurations(state);
@@ -153,7 +151,7 @@ function renderFlow(taskExecutor, params, job) {
   setText("batch-message", state.message || "尚未收到类型化状态");
   renderPipeline(job || {}, state);
   renderTicket(job || {});
-  renderRoundBadge(events, params);
+  renderRoundBadge(events);
   const hasTarget = Boolean(state.target_id);
   setText("cycle-target", state.target_id || "—");
   setText("cycle-id", state.cycle_id || "—");
@@ -289,10 +287,25 @@ function renderNodes(state) {
   setFreshness("robot", ages["robot.status"]);
 
   const targets = state.perception?.targets || {};
-  setText("node-perception-count", targets.target_count ?? "—");
-  setText("node-perception-locked", targets.target_set_locked === undefined
-    ? "—" : targets.target_set_locked ? "已锁定" : "收集中");
-  setText("node-perception-selected", targets.selected_target_id || "—");
+  const harvest = state.perception?.harvest || {};
+  const epoch = Number(targets.scene_epoch ?? harvest.scene_epoch ?? 0);
+  const collecting = Number(
+    targets.collecting_count ?? harvest.collecting_count ?? 0);
+  const locked = targets.target_set_locked === true
+    || harvest.target_set_locked === true;
+  const lockKnown = targets.target_set_locked !== undefined
+    || harvest.target_set_locked !== undefined
+    || targets.scene_epoch !== undefined
+    || harvest.scene_epoch !== undefined;
+  let lockLabel = "—";
+  if (lockKnown) {
+    if (!epoch) lockLabel = "未 Begin";
+    else if (locked) lockLabel = "已锁定";
+    else lockLabel = collecting ? `收齐中 ${collecting}` : "收齐中";
+  }
+  setText("node-perception-count", targets.target_count ?? harvest.target_count ?? "—");
+  setText("node-perception-locked", lockLabel);
+  setText("node-perception-selected", targets.selected_target_id || harvest.selected_target_id || "—");
 
   const diag = state.reconstruction?.diagnostics || {};
   const reconState = diag.state || state.reconstruction?.status?.state ||
@@ -859,7 +872,7 @@ async function pollState() {
       ? "记录已关闭" : record.directory || "等待首批数据");
     $("record-strip").classList.toggle("off",
       record.enabled === false || !record.directory);
-    renderFlow(state.task_executor || {}, state.params || {}, state.job || {});
+    renderFlow(state.task_executor || {}, state.job || {});
     renderPlan(state.perception || {}, state.task_executor || {});
     renderNodes(state);
     renderMetrics(state);
@@ -964,7 +977,9 @@ function bindDebugControls() {
       const action = el.dataset.debug;
       const payload = buildDebugPayload(action, el);
       if (payload === null) return;
-      const needsConfirm = el.dataset.confirm === "1";
+      const motionControl = action === "control_service" &&
+        (payload.command === "RESUME" || payload.command === "EXIT_MAINTENANCE");
+      const needsConfirm = el.dataset.confirm === "1" || motionControl;
       const outcome = await debugPost(action, payload, needsConfirm
         ? `确认发送【${action}】？\n${JSON.stringify(payload, null, 2)}\n\n运动类操作：技能侧安全门仍会独立复核。`
         : null);
@@ -1004,6 +1019,11 @@ function buildDebugPayload(action, el) {
   }
   if (action === "begin_scene_service") {
     return {request_id: $("scene-request-id").value.trim() || "dev",
+      scene_key: $("scene-key").value.trim() || "lab"};
+  }
+  if (action === "survey_action") {
+    return {request_id: $("scene-request-id").value.trim() ||
+      $("run-request-id").value.trim() || "dev",
       scene_key: $("scene-key").value.trim() || "lab"};
   }
   if (action === "build_action") {

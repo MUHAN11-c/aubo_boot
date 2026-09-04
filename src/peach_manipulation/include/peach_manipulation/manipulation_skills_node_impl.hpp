@@ -177,7 +177,7 @@ private:
   void previewContact(bool include_retreat, Trigger::Response::SharedPtr response);
   void onGoToPhotoPose(
     const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response);
-  // 选果级 TCP IK 预检（motion.cpp）：逐位姿 setFromIK，只答能否求解。
+  // 选果级 TCP IK 预检（motion.cpp）：入口→停位几何后 setFromIK，只答能否。
   void onCheckReachability(
     const CheckReachability::Request::SharedPtr request,
     CheckReachability::Response::SharedPtr response);
@@ -316,7 +316,10 @@ private:
   double mtc_approach_via_max_spacing_m_{0.08};
   double mtc_approach_via_min_spacing_m_{0.03};
   int mtc_approach_via_max_points_{1};
-  double mtc_approach_cartesian_max_distance_m_{0.15};
+  double mtc_approach_max_detour_ratio_{2.2};
+  double mtc_approach_max_chord_deviation_m_{0.25};
+  double mtc_approach_max_recede_m_{0.08};
+  double mtc_approach_cartesian_max_distance_m_{0.80};
   double mtc_approach_along_axis_m_{0.0};
   double mtc_approach_max_lateral_m_{0.05};
   double mtc_approach_max_align_deg_{20.0};

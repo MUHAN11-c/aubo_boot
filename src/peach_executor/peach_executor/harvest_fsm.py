@@ -68,7 +68,10 @@ class Event:
     NAV_FAILED = 'nav_failed'
     BEGIN_OK = 'begin_ok'
     BEGIN_FAILED = 'begin_failed'
+    SURVEY_AT_POSE = 'survey_at_pose'
+    SURVEY_FAILED = 'survey_failed'
     SURVEY_DONE = 'survey_done'
+    LOCK_READY = 'lock_ready'
     SURVEY_ONLY = 'survey_only'
     NO_TARGET = 'no_target'
     EMPTY_LIMIT = 'empty_limit'
@@ -92,6 +95,7 @@ class Command:
     BEGIN_SCENE = 'begin_scene'
     NAVIGATE = 'navigate'
     SURVEY = 'survey'
+    WAIT_LOCK = 'wait_lock'
     SELECT = 'select'
     DISPATCH = 'dispatch'
     EXECUTE_FULL = 'execute_full'
@@ -120,11 +124,18 @@ _TABLE: dict[tuple, Reaction] = {
     (DISCOVERY, Event.NAV_FAILED): Reaction(
         INTERRUPTED, TARGET_IDLE, Command.ABORT, '', 'navigate_failed'),
     (DISCOVERY, Event.NAV_OK): Reaction(
+        DISCOVERY, TARGET_IDLE, Command.SURVEY, '', 'surveying'),
+    (DISCOVERY, Event.SURVEY_FAILED): Reaction(
+        INTERRUPTED, TARGET_IDLE, Command.ABORT, 'survey_failed',
+        'survey_failed'),
+    (DISCOVERY, Event.SURVEY_AT_POSE): Reaction(
         DISCOVERY, TARGET_IDLE, Command.BEGIN_SCENE, '', 'preparing'),
     (DISCOVERY, Event.BEGIN_FAILED): Reaction(
         INTERRUPTED, TARGET_IDLE, Command.ABORT, '', 'begin_scene_failed'),
     (DISCOVERY, Event.BEGIN_OK): Reaction(
-        DISCOVERY, TARGET_IDLE, Command.SURVEY, '', 'discovery'),
+        DISCOVERY, TARGET_IDLE, Command.WAIT_LOCK, '', 'collecting'),
+    (DISCOVERY, Event.LOCK_READY): Reaction(
+        DISCOVERY, SELECTING, Command.SELECT, 'round_locked', 'discovery'),
     (DISCOVERY, Event.SURVEY_DONE): Reaction(
         DISCOVERY, SELECTING, Command.SELECT, 'round_locked', 'discovery'),
     (DISCOVERY, Event.SURVEY_ONLY): Reaction(

@@ -162,7 +162,7 @@ peach_observability:
     motion_enabled:
       type: bool
       default_value: false
-      description: 运动类操作放行开关（RunHarvest 非只扫/Survey/Execute 非只规划档/go_to_photo_pose/arm）；false 一律 423 拒绝；技能侧既有安全门不受影响
+      description: 运动类操作放行开关（RunHarvest 非 SURVEY_ONLY / Survey / Execute 非 PREVIEW / go_to_photo_pose / arm / ControlTask 的 RESUME 与 EXIT_MAINTENANCE）；false 一律 423；PREVIEW 与只规划 Trigger 不拦；技能侧既有安全门不受影响
     token:
       type: string
       default_value: ""

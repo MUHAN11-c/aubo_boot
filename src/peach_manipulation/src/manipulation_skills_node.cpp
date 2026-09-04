@@ -284,6 +284,10 @@ void ManipulationSkillsNode::loadParameters()
   mtc_approach_via_max_spacing_m_ = params.moveit.mtc_approach_via_max_spacing_m;
   mtc_approach_via_min_spacing_m_ = params.moveit.mtc_approach_via_min_spacing_m;
   mtc_approach_via_max_points_ = static_cast<int>(params.moveit.mtc_approach_via_max_points);
+  mtc_approach_max_detour_ratio_ = params.moveit.mtc_approach_max_detour_ratio;
+  mtc_approach_max_chord_deviation_m_ =
+    params.moveit.mtc_approach_max_chord_deviation_m;
+  mtc_approach_max_recede_m_ = params.moveit.mtc_approach_max_recede_m;
   mtc_approach_cartesian_max_distance_m_ =
     params.moveit.mtc_approach_cartesian_max_distance_m;
   mtc_approach_along_axis_m_ = params.moveit.mtc_approach_along_axis_m;
@@ -396,7 +400,8 @@ void ManipulationSkillsNode::rebuildMotionInterface()
     transit_max_total_joint_travel_rad_;
   motion_config.transit_max_single_joint_travel_rad =
     transit_max_single_joint_travel_rad_;
-  const auto moveit = param_listener_->get_params().moveit;
+  const auto params = param_listener_->get_params();
+  const auto moveit = params.moveit;
   motion_config.observe_planning_time_s = moveit.observe_planning_time_s;
   motion_config.observe_planning_attempts =
     static_cast<int>(moveit.observe_planning_attempts);
@@ -408,7 +413,10 @@ void ManipulationSkillsNode::rebuildMotionInterface()
   motion_config.photo_planning_time_s = moveit.photo_planning_time_s;
   motion_config.default_planning_time_s = planning_time_s_;
   motion_config.default_planning_attempts = planning_attempts_;
-  motion_config.orientation_gate_deg = mtc_approach_max_align_deg_;
+  motion_config.photo_pose_joint_tolerance_rad =
+    params.photo_pose_joint_tolerance_rad;
+  motion_config.photo_pose_max_joint_vel_rad_s =
+    params.photo_pose_max_joint_vel_rad_s;
   // 直接构造唯一实现。执行闸门（A8/I5）：运动输出权限（Active 态）叠加
   // 硬件安全门回调注入——即授权矩阵的 TRANSIT 级底座（任何 execute 路径
   // 不得旁路；plan-only 路径不经其执行段）；safety_block_hook 保持原
@@ -450,6 +458,10 @@ void ManipulationSkillsNode::rebuildGraspTask()
   task_config.approach_via_max_spacing_m = mtc_approach_via_max_spacing_m_;
   task_config.approach_via_min_spacing_m = mtc_approach_via_min_spacing_m_;
   task_config.approach_via_max_points = mtc_approach_via_max_points_;
+  task_config.approach_max_detour_ratio = mtc_approach_max_detour_ratio_;
+  task_config.approach_max_chord_deviation_m =
+    mtc_approach_max_chord_deviation_m_;
+  task_config.approach_max_recede_m = mtc_approach_max_recede_m_;
   task_config.approach_cartesian_max_distance_m =
     mtc_approach_cartesian_max_distance_m_;
   task_config.approach_along_axis_m = mtc_approach_along_axis_m_;

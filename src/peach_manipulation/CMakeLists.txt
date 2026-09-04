@@ -5,6 +5,10 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
 endif()
 
+# clangd 需要编译数据库才能带上 Eigen 的 -isystem /usr/include/eigen3；
+# 否则打开公共头时会报 'Eigen/Geometry' file not found。
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 find_package(ament_cmake REQUIRED)
 find_package(aubo_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)

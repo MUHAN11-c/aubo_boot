@@ -1,5 +1,5 @@
-// 功能：MTC 接触。到预抓取按几何用 Pilz PTP / LIN / CIRC；沿轴套入与撤退。
-// 刀具 IO 不在此（阶段执行器 / ToolActuator）。
+// 功能：MTC 接触。到预抓取只走 Pilz LIN / CIRC（TCP 约束轨迹）；沿轴套入
+// 与撤退。PTP 不用于接触。刀具 IO 不在此（阶段执行器 / ToolActuator）。
 #ifndef PEACH_MANIPULATION__GRASP_TASK_HPP_
 #define PEACH_MANIPULATION__GRASP_TASK_HPP_
 
@@ -51,17 +51,21 @@ struct GraspTaskConfig
   double approach_max_duration_s{0.0};
   double approach_max_total_joint_travel_rad{12.0};
   double approach_max_single_joint_travel_rad{6.1};
+  // 笛卡尔绕行审查；任一项 <=0 则跳过该项。拦「先远离再绕回」。
+  double approach_max_detour_ratio{2.2};
+  double approach_max_chord_deviation_m{0.25};
+  double approach_max_recede_m{0.08};
   // 过渡点参数保留给 generate_parameter_library；不插 via（会把路径拉长）。
   double approach_via_max_spacing_m{0.08};
   double approach_via_min_spacing_m{0.03};
   int approach_via_max_points{1};
-  // 沿轴 LIN / CIRC 弧长参考：笛卡尔段保持短，更长的到位用 PTP。
-  double approach_cartesian_max_distance_m{0.15};
+  // 接触笛卡尔弦长/弧长上限；超过则 skipped_unreachable，不改 PTP。
+  double approach_cartesian_max_distance_m{0.80};
   // 预抓取点在入口沿 −axis 后撤量；0=与入口重合（拟合袋底）。已对轴时 LIN 只走这一段。
   double approach_along_axis_m{0.0};
   // 侧向小于此值视为已对轴，LIN 是最短直线。
   double approach_max_lateral_m{0.05};
-  // 工具 Z 与轴夹角小于此值视为已齐，LIN 不再带大 slerp。
+  // 工具 Z 与轴夹角小于此值视为已齐；已齐 LIN 才挂同值姿态路径约束。
   double approach_max_align_deg{20.0};
   std::function<std::optional<Eigen::Isometry3d>()> lookup_current_tip;
   std::vector<ProtectedZone> protected_zones;  // base 系 AABB → planning scene
@@ -84,9 +88,9 @@ public:
   GraspTask(rclcpp::Node::SharedPtr node, GraspTaskConfig config);
   ~GraspTask();
 
-  // 到预抓取：先由阶段执行器 PTP 回拍照位。短程已齐且直线不穿预抓取球则 LIN；
-  // 直线会穿球则 CIRC 再沿轴 LIN；短程未齐则 PTP 转 Z 再 LIN；远距或无
-  // IK 则 PTP。再沿轴插入。execute=false 只规划。
+  // 到预抓取：先由阶段执行器 PTP 回拍照位。直线不穿预抓取球则 LIN（未齐则
+  // 先 LIN 原地对齐工具 Z）；直线会穿球则 CIRC 再沿轴 LIN。失败不改 PTP。
+  // 再沿轴插入。execute=false 只规划。
   GraspTaskResult approachAndInsert(
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
@@ -140,9 +144,8 @@ private:
   std::unique_ptr<moveit::task_constructor::Task> makeApproachOnlyTask(
     const std::string & task_name,
     const Eigen::Isometry3d & entry_tip_pose,
-    const Eigen::Vector3d & insertion_axis,
-    bool force_ptp = false);
-  GraspTaskResult planToPregraspWithFallback(
+    const Eigen::Vector3d & insertion_axis);
+  GraspTaskResult planToPregrasp(
     const std::string & task_name,
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
@@ -158,11 +161,8 @@ private:
   void appendLinToPose(
     moveit::task_constructor::SerialContainer & sequence,
     const Eigen::Isometry3d & target_tip_pose,
-    const std::string & label) const;
-  void appendPtpToPose(
-    moveit::task_constructor::SerialContainer & sequence,
-    const Eigen::Isometry3d & target_tip_pose,
-    const std::string & label) const;
+    const std::string & label,
+    bool gate_orientation) const;
   void appendCircToPose(
     moveit::task_constructor::SerialContainer & sequence,
     const Eigen::Isometry3d & target_tip_pose,
@@ -171,8 +171,7 @@ private:
   void appendApproachToPregrasp(
     moveit::task_constructor::SerialContainer & sequence,
     const Eigen::Isometry3d & entry_tip_pose,
-    const Eigen::Vector3d & insertion_axis,
-    bool force_ptp = false) const;
+    const Eigen::Vector3d & insertion_axis) const;
   void appendAlongAxisMove(
     moveit::task_constructor::SerialContainer & sequence,
     const Eigen::Vector3d & insertion_axis,
@@ -184,8 +183,6 @@ private:
   makePilzSolver(const std::string & planner_id) const;
   std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner>
   makeLinSolver() const;
-  std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner>
-  makePtpSolver() const;
   std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner>
   makeCircSolver() const;
   std::shared_ptr<moveit::task_constructor::solvers::CartesianPath>

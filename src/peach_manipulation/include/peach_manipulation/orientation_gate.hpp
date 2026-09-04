@@ -1,5 +1,7 @@
 // 功能：MoveIt 姿态保持门（OrientationConstraint）组装。包内私用。
-// Pilz PTP 关节空间插值忽略该约束无副作用；对采样型规划器生效防工具侧翻。
+// 只挂已齐 LIN（分档要求起点对轴，拦笛卡尔插值中途侧翻）。
+// 未齐第一段 LIN-align 与 CIRC 不挂：Jazzy ValidateSolution 验每个路点含起点，
+// 起点相对目标 >20° 会 INVALID_MOTION_PLAN。接触不用 PTP。
 #ifndef PEACH_MANIPULATION__ORIENTATION_GATE_HPP_
 #define PEACH_MANIPULATION__ORIENTATION_GATE_HPP_
 

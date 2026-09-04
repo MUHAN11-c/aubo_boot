@@ -2,12 +2,18 @@ peach_executor:
   execution_enabled: {
     type: bool,
     default_value: false,
-    description: "false 时 Survey 后直接结算，不选目标、不派 ExecuteTarget。"
+    description: "false 时 WAIT_LOCK 后直接结算，不选目标、不派 ExecuteTarget。"
   }
   survey_wait_s: {
     type: double,
-    default_value: 8.0,
-    description: "SurveyScene 后等待目标集锁定的秒数。",
+    default_value: 15.0,
+    description: "BeginScene 后等待本世代锁定集关闭的秒数（WAIT_LOCK）。",
+    validation: { gt_eq<>: [0.0] }
+  }
+  survey_dwell_s: {
+    type: double,
+    default_value: 2.0,
+    description: "已锁回访到位后驻留秒数，让几何来自拍照位（snapshot_id 不变）。",
     validation: { gt_eq<>: [0.0] }
   }
   service_timeout_s: {

@@ -2,10 +2,12 @@
 # 服务端 peach_manipulation_node（MoveIt RobotState::setFromIK，种子=当前状态）；
 # 唯一客户端 peach_executor（SELECT 段批量查询）。只答「能否求解」，不规划、不动臂。
 # 坐标系：tcp_poses 一般为 base_link（模型系）；非模型系由服务端 TF 转换。
-# tcp_poses：调度填感知入口（姿态=入口姿态）。技能停位再减 mtc_approach_along_axis_m
-# （grasp_standoffs.yaml 注入；现行 0 则入口=预抓取=拟合袋底）。
+# tcp_poses：调度填感知入口（位置=袋底；姿态 Z=袋轴，滚转任意）。服务端换成与
+# MovePregrasp 同一停位再求解：位置沿 −Z 后撤 mtc_approach_along_axis_m
+# （grasp_standoffs.yaml 注入，现行 0.03 m）；姿态=alignFrameZ(当前 TCP, 袋轴)，
+# 不抄感知滚转。现行 0 则只改姿态、位置仍在入口。
 std_msgs/Header header
-geometry_msgs/PoseStamped[] tcp_poses   # 估计预抓取 TCP 位姿
+geometry_msgs/PoseStamped[] tcp_poses   # 感知入口；服务端映射为预抓取停位后再 IK
 float64 timeout_s                       # 单位姿求解超时（秒；≤0 用服务端默认 0.1）
 ---
 bool[] reachable                        # 与请求 tcp_poses 等长

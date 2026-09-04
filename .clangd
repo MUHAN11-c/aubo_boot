@@ -1,0 +1,27 @@
+# 各 C++ 包各自一份编译数据库。clangd 会在工作区 build/ 下找
+# compile_commands.json；若那里只有 peach_manipulation 的条目，
+# 打开其它包会套错 flags（本包头 / 厂商 SDK 都找不到）。
+If:
+  PathMatch: .*/peach_manipulation/.*
+CompileFlags:
+  CompilationDatabase: build/peach_manipulation
+---
+If:
+  PathMatch: .*/aubo_e5_hardware/.*
+CompileFlags:
+  CompilationDatabase: build/aubo_e5_hardware
+---
+If:
+  PathMatch: .*/aubo_e5_controllers/.*
+CompileFlags:
+  CompilationDatabase: build/aubo_e5_controllers
+---
+If:
+  PathMatch: .*/aubo_dashboard/.*
+CompileFlags:
+  CompilationDatabase: build/aubo_dashboard
+---
+If:
+  PathMatch: .*/percipio_camera/.*
+CompileFlags:
+  CompilationDatabase: build/percipio_camera

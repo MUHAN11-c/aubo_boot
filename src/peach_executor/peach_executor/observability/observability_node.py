@@ -11,6 +11,7 @@ debug.motion_enabled——全部默认关；每次操作（含被拒）写审计
 
 from __future__ import annotations
 
+import hmac
 import json
 from pathlib import Path
 
@@ -92,9 +93,11 @@ PARAM_WATCHLIST = {
         'quality.minimum_views', 'quality.minimum_baseline_deg',
         'quality.maximum_refined_rmse_m',
         'execution.enabled', 'grasp.enabled', 'tool.enabled',
+        'photo_pose_joint_tolerance_rad', 'photo_pose_max_joint_vel_rad_s',
     ],
     '/peach_executor': [
-        'execution_enabled', 'survey_wait_s', 'empty_survey_limit',
+        'execution_enabled', 'survey_wait_s', 'survey_dwell_s',
+        'empty_survey_limit',
         'persist_ledger',
     ],
 }
@@ -632,14 +635,14 @@ class ObservabilityNode(LifecycleNode):
     # 手动调试操作面（默认关；门控链：enabled → token → motion → 审计）
     # ------------------------------------------------------------------
     def _create_debug_bridge(self) -> None:
-        """按快照参数装配调试桥与审计器（debug.enabled=false 时跳过）."""
-        if not self._params.debug_enabled:
-            self.get_logger().info('手动调试操作面未启用（debug.enabled=false）')
-            return
+        """装配审计器；debug.enabled=true 才建转发桥（否则 POST 503 仍可审计）."""
         self._debug_audit = DebugAudit(
             str(resolve_runs_root(self._params.record_root_dir)),
             self._params.debug_audit_enabled,
             lambda msg: self.get_logger().warning(msg))
+        if not self._params.debug_enabled:
+            self.get_logger().info('手动调试操作面未启用（debug.enabled=false）')
+            return
         self._debug_bridge = DebugBridge(
             self, self._params.debug_endpoints,
             self._params.debug_action_timeout_s,
@@ -684,14 +687,19 @@ class ObservabilityNode(LifecycleNode):
 
         if self._debug_bridge is None or self._params is None:
             return audit(False, 503, '调试操作面未启用（debug.enabled=false）')
-        if not expected or token != expected:
+        if not expected or not hmac.compare_digest(
+                token.encode('utf-8'), expected.encode('utf-8')):
             return audit(False, 401, '令牌缺失或不匹配')
         if is_motion(action, payload) and not self._params.debug_motion_enabled:
             return audit(
                 False, 423,
                 '运动类操作被拒绝：debug.motion_enabled=false（会动臂/机位的'
                 '操作须显式开启该开关；技能侧安全门仍会独立复核）')
-        status, body = self._debug_bridge.command(action, payload)
+        try:
+            status, body = self._debug_bridge.command(action, payload)
+        except (TypeError, ValueError, RuntimeError, OSError, KeyError,
+                AttributeError) as exc:
+            return audit(False, 500, f'调试桥异常: {exc}')
         accepted = bool(body.get('accepted'))
         row.update({'accepted': accepted, 'status': status,
                     'result': body.get('result')})

@@ -57,7 +57,7 @@ peach_interfaces/
 
 | 服务 | 服务端 | 作用 |
 |------|--------|------|
-| `BeginScene` | `peach_scene_perception` | 清身份、推进世代 |
+| `BeginScene` | `peach_scene_perception` | 重启收齐窗、推进世代；换场才清身份 |
 | `ControlTask` | `peach_executor` | PAUSE / RESUME / 维护 / CANCEL_NOW / SKIP_TARGET / ACKNOWLEDGE_RECOVERY |
 | `ManageLifecycleNodes` | `peach_lifecycle_manager` | 整栈生命周期；不发 RunHarvest。PAUSE 是 Inactive，不是批次暂停 |
 

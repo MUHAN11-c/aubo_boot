@@ -9,14 +9,14 @@ uint8 MODE_MAINTENANCE=2  # 维护态，不选下一颗
 
 # batch_state：批次级状态机
 uint8 WAITING_READY=0     # 等待显式 RunHarvest（launch 不自动开批）
-uint8 DISCOVERY=1         # BeginScene + SurveyScene，尚未派目标
+uint8 DISCOVERY=1         # 首巡 Survey→Begin→WAIT_LOCK→SELECT；回访只 Survey。尚未派目标
 uint8 RUNNING=2           # 正在观察/建模/FULL 接触
 uint8 PAUSE_PENDING=3     # 接触段收到 PAUSE，动作结束后再停
 uint8 PAUSED=4            # 已暂停，等待 RESUME
 uint8 MAINTENANCE=5       # 维护态
 uint8 COMPLETED=6         # 正常结算
 uint8 RECOVERY_REQUIRED=7 # 接触恢复未 ACK，不选下一颗
-uint8 INTERRUPTED=8       # 取消或 BeginScene 失败等中断
+uint8 INTERRUPTED=8       # 取消或 SurveyScene / BeginScene 失败等中断
 uint8 NAVIGATING=9        # 预留：到位作业点；navigation_enabled=false 时不进入
 
 # target_phase：当前目标阶段（无目标时为 TARGET_IDLE）

@@ -1,4 +1,4 @@
-// 功能：节点侧运动入口与 MoveIt 运动接口实现（拍照位、观察 PTP、预览接近/
+// 功能：节点侧运动入口与 MoveIt 运动接口实现（拍照位 PTP、观察 LIN、预览接近/
 // 接触服务、tip/camera 规划执行、TF 查询）。真实下发前过注入的安全门
 // （TRANSIT 级底座；CONTACT/TOOL 级在阶段函数与 GraspTask 门加查）。
 #include "peach_manipulation/motion.hpp"
@@ -9,11 +9,11 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <utility>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
-#include <moveit_msgs/msg/constraints.hpp>
 #include <moveit/robot_state/robot_state.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
 #include <tf2/exceptions.h>
@@ -25,7 +25,6 @@
 #include "peach_manipulation/manipulation_skills_node_impl.hpp"
 #include "peach_manipulation/eigen_conversions.hpp"
 #include "peach_manipulation/grasp_geometry.hpp"
-#include "peach_manipulation/orientation_gate.hpp"
 #include "peach_manipulation/trajectory_guard.hpp"
 
 using namespace std::chrono_literals;
@@ -213,11 +212,9 @@ void ManipulationSkillsNode::previewContact(
     "入口与插入轨迹已发布到 RViz；仅规划，未发送任何运动");
 }
 
-// 全局拍照位姿：批次编排器在发现/复扫轮次开始前调用，把机械臂送到 SRDF
-// 命名状态（默认 global_photo_pose）。与 previewContact 同为 executor 回调内
-// 选果级 TCP IK 预检：逐位姿以当前关节状态为种子 setFromIK，只答能否求解。
-// 纯几何查询——不规划、不占周期互斥、不绑 Active（MoveIt 就绪即可答）；
-// IK 无解的目标由 executor 在 SELECT 段过滤（MTC 规划仍是最终权威）。
+// 选果级 TCP IK 预检：请求当入口，换成与 MovePregrasp 同一停位再 setFromIK
+// （后撤 mtc_approach_along_axis_m + alignFrameZ 保留当前 TCP 滚转）。只答能否，
+// 不规划、不占周期互斥、不绑 Active；无解由 executor SELECT 过滤。
 void ManipulationSkillsNode::onCheckReachability(
   const CheckReachability::Request::SharedPtr request,
   CheckReachability::Response::SharedPtr response)
@@ -244,6 +241,12 @@ void ManipulationSkillsNode::onCheckReachability(
   moveit::core::RobotState seed = *move_group_->getCurrentState();
   const double timeout_s = request->timeout_s > 0.0 ?
     std::min(request->timeout_s, 1.0) : 0.1;
+  Eigen::Isometry3d current_tip = Eigen::Isometry3d::Identity();
+  bool have_current_tip = false;
+  if (robot_model->hasLinkModel(tip_frame_)) {
+    current_tip = seed.getGlobalLinkTransform(tip_frame_);
+    have_current_tip = current_tip.matrix().allFinite();
+  }
   for (std::size_t i = 0; i < request->tcp_poses.size(); ++i) {
     const auto & stamped = request->tcp_poses[i];
     geometry_msgs::msg::Pose pose = stamped.pose;
@@ -263,6 +266,10 @@ void ManipulationSkillsNode::onCheckReachability(
     }
     Eigen::Isometry3d target;
     tf2::fromMsg(pose, target);
+    if (have_current_tip) {
+      target = pregraspFromEntryKeepRoll(
+        target, current_tip.linear(), mtc_approach_along_axis_m_);
+    }
     moveit::core::RobotState state = seed;
     response->reachable[i] = state.setFromIK(
       group, target, tip_frame_, timeout_s);
@@ -272,11 +279,9 @@ void ManipulationSkillsNode::onCheckReachability(
   }
 }
 
-// 同步规划（execution 使能时含执行），单次调用可能占用数秒——A7 起三个长
-// 规划服务（preview_approach_insert / preview_full_contact / go_to_photo_pose）
-// 独占 planning_callback_group_（独立互斥组），规划期间只组内排队，默认组的
-// 订阅/快捷服务/action 回调照常调度。规划/执行体在 MoveItMotionInterface 内，
-// 本回调只保留周期互斥、recovery 守卫与响应投影。
+// 全局拍照位姿：批次编排器在发现/复扫轮次开始前调用，把机械臂送到 SRDF
+// 命名状态（默认 global_photo_pose）。同步规划（execution 使能时含执行）。
+// A7 起三个长规划服务独占 planning_callback_group_；规划期间只组内排队。
 void ManipulationSkillsNode::onGoToPhotoPose(
   const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response)
 {
@@ -378,17 +383,11 @@ bool MoveItMotionInterface::planOrMoveTip(
     planner_id == "LIN" && allow_fallback)
   {
     RCLCPP_WARN(
-      logger_, "%s 的 LIN 规划失败，改用 Pilz PTP（禁止 OMPL 绕行）",
+      logger_, "%s 的 LIN 规划失败，改用 Pilz PTP（仅当调用方显式允许）",
       label.c_str());
     move_group_->setPlanningPipelineId(config_.pilz_pipeline);
     move_group_->setPlannerId("PTP");
-    // 姿态保持：PTP 回退段约束 tip 姿态不偏离目标超过对轴门（Pilz PTP
-    // 关节空间插值忽略本约束、无副作用；对采样型规划器生效防侧翻）。
-    move_group_->setPathConstraints(makeOrientationGate(
-      config_.tip_frame, config_.base_frame, tip_pose,
-      config_.orientation_gate_deg, "tip_orientation_gate"));
     result = move_group_->plan(plan);
-    move_group_->clearPathConstraints();
   }
   move_group_->clearPoseTargets();
   move_group_->setPlanningTime(config_.default_planning_time_s);
@@ -397,7 +396,7 @@ bool MoveItMotionInterface::planOrMoveTip(
   if (result != moveit::core::MoveItErrorCode::SUCCESS) {
     return false;
   }
-  // 观察禁止大关节绕行（看行程，不按时长）。LIN 失败只回退 PTP。
+  // 观察禁止大关节绕行（看行程，不按时长）。接触/观察短移不走 PTP 兜底。
   const TrajectoryGuardLimits camera_limits{
     config_.observe_max_duration_s,
     config_.observe_max_total_joint_travel_rad,
@@ -487,7 +486,10 @@ bool MoveItMotionInterface::goToPhotoPose(
     return false;
   }
   if (!execute) {
-    message = "拍照位姿规划成功；仅规划（execution 未使能）";
+    if (!atNamedTarget(named_target, message)) {
+      return false;
+    }
+    message = "拍照位姿规划成功；当前关节已在命名状态（execution 未使能）";
     return true;
   }
   // 执行前复核安全门：规划耗时数秒，期间现场可能拍急停。
@@ -500,7 +502,54 @@ bool MoveItMotionInterface::goToPhotoPose(
     message = "拍照位姿执行失败: " + moveit::core::errorCodeToString(result);
     return false;
   }
+  if (!atNamedTarget(named_target, message)) {
+    return false;
+  }
   message = "已到达全局拍照位姿";
+  return true;
+}
+
+bool MoveItMotionInterface::atNamedTarget(
+  const std::string & named_target, std::string & message)
+{
+  if (move_group_ == nullptr) {
+    message = "photo_pose_mismatch: MoveIt 尚未初始化";
+    return false;
+  }
+  const auto robot_model = move_group_->getRobotModel();
+  const auto * group = robot_model->getJointModelGroup(move_group_->getName());
+  if (group == nullptr) {
+    message = "photo_pose_mismatch: unknown_planning_group";
+    return false;
+  }
+  const moveit::core::RobotState current = *move_group_->getCurrentState();
+  moveit::core::RobotState named = current;
+  if (!named.setToDefaultValues(group, named_target)) {
+    message = "photo_pose_mismatch: SRDF 中不存在命名状态: " + named_target;
+    return false;
+  }
+  std::ostringstream detail;
+  bool ok = true;
+  for (const std::string & joint_name : group->getActiveJointModelNames()) {
+    const double delta = std::abs(
+      current.getVariablePosition(joint_name) -
+      named.getVariablePosition(joint_name));
+    const double velocity = std::abs(current.getVariableVelocity(joint_name));
+    if (delta > config_.photo_pose_joint_tolerance_rad) {
+      ok = false;
+      detail << ' ' << joint_name << " dq=" << delta;
+    }
+    if (std::isfinite(velocity) &&
+      velocity > config_.photo_pose_max_joint_vel_rad_s)
+    {
+      ok = false;
+      detail << ' ' << joint_name << " vel=" << velocity;
+    }
+  }
+  if (!ok) {
+    message = "photo_pose_mismatch:" + detail.str();
+    return false;
+  }
   return true;
 }
 

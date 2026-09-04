@@ -1,6 +1,7 @@
 # 编排器过程/审计事件。peach_executor 的 ~/events 发布（transient_local）。
 # 事件码须与 canonical_code_for_outcome 一致：target_dispatched / target_succeeded /
-# target_skipped / target_failed / target_canceled / target_operator_skipped / round_locked。
+# target_skipped / target_failed / target_canceled / target_operator_skipped /
+# photo_pose_reached / round_locked / survey_failed。
 # HarvestEvent 是契约预留，线上走本消息。
 
 std_msgs/Header header

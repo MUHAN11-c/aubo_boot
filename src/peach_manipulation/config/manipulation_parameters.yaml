@@ -79,12 +79,12 @@ peach_manipulation_node:
     mtc_free_space_pipeline: {
       type: string,
       default_value: "pilz_industrial_motion_planner",
-      description: "MTC 到预抓取的 Pilz 管线。LIN/CIRC/PTP 按最短路径分档。"
+      description: "MTC 到预抓取的 Pilz 管线。接触只分档 LIN/CIRC。"
     }
     mtc_free_space_planner: {
       type: string,
       default_value: "LIN",
-      description: "Pilz LIN 规划器 id（已对轴平移）。大姿态用 PTP，侧向穿球用 CIRC。插入段仍是沿轴 CartesianPath。",
+      description: "Pilz LIN 规划器 id（已对轴平移）。未齐先 LIN 原地转 Z；直线穿球用 CIRC。插入段仍是沿轴 CartesianPath。接触不用 PTP。",
     }
     mtc_cartesian_step_m: {
       type: double,
@@ -113,20 +113,38 @@ peach_manipulation_node:
     mtc_approach_max_duration_s: {
       type: double,
       default_value: 0.0,
-      description: "MTC 接近段预计时长上限（秒）。0=不按时长拒发。绕行只看关节行程，时长随速度变。",
+      description: "MTC 接近段预计时长上限（秒）。0=不按时长拒发。绕行看关节行程与笛卡尔三项。",
       validation: { gt_eq<>: [0.0] }
     }
     mtc_approach_max_total_joint_travel_rad: {
       type: double,
       default_value: 12.0,
-      description: "MTC 接近段六轴累计绝对行程硬上限（弧度）。须覆盖拍照位到预抓取最短合法 PTP（08-31 现场 10.79）。",
+      description: "MTC 接近段六轴累计绝对行程硬上限（弧度）。拦绕腕；笛卡尔绕行另三项。",
       validation: { gt<>: [0.0] }
     }
     mtc_approach_max_single_joint_travel_rad: {
       type: double,
       default_value: 6.1,
-      description: "MTC 接近段任一单轴累计绝对行程硬上限（弧度）。6.1=URDF ±3.05 满行程；E5 无法 2π 折返，3.2 会拒最短合法腕程（现场 4.23）。",
+      description: "MTC 接近段任一单轴累计绝对行程硬上限（弧度）。6.1=URDF ±3.05 满行程；E5 无法 2π 折返。",
       validation: { gt<>: [0.0] }
+    }
+    mtc_approach_max_detour_ratio: {
+      type: double,
+      default_value: 2.2,
+      description: "接近 TCP 路径长/弦长上限。0=不查。1740 无约束 PTP 为 3.2，须拒。",
+      validation: { gt_eq<>: [0.0] }
+    }
+    mtc_approach_max_chord_deviation_m: {
+      type: double,
+      default_value: 0.25,
+      description: "接近 TCP 相对起止弦最大偏离（米）。0=不查。1740 为 0.51 m。",
+      validation: { gt_eq<>: [0.0] }
+    }
+    mtc_approach_max_recede_m: {
+      type: double,
+      default_value: 0.08,
+      description: "接近中途相对起点更远离目标的最大回退（米）。0=不查。1740 为 0.24 m。",
+      validation: { gt_eq<>: [0.0] }
     }
     mtc_approach_via_max_spacing_m: {
       type: double,
@@ -148,8 +166,8 @@ peach_manipulation_node:
     }
     mtc_approach_cartesian_max_distance_m: {
       type: double,
-      default_value: 0.15,
-      description: "沿检测轴 LIN 与 CIRC 弧长参考（米）。更长的到位用 PTP。直线会穿预抓取球时改 CIRC。观察位无 IK 则回拍照位再试。",
+      default_value: 0.80,
+      description: "接触笛卡尔弦长/弧长上限（米）。超过则 skipped_unreachable，不改 PTP。0.80 覆盖拍照位到袋口（现场弦长约 0.44 m）。直线穿预抓取球则 CIRC。",
       validation: { gt<>: [0.0] }
     }
     mtc_approach_along_axis_m: {
@@ -167,19 +185,19 @@ peach_manipulation_node:
     mtc_approach_max_align_deg: {
       type: double,
       default_value: 20.0,
-      description: "末端 Z 与检测轴夹角（度）。小于此值视为已齐，LIN 不再带大 slerp。",
+      description: "末端 Z 与检测轴夹角（度）。小于此值视为已齐，走 LIN 且挂同值姿态路径约束。未齐则先 LIN 原地对齐再平移；接触不用 PTP。",
       validation: { gt<>: [0.0] }
     }
     observe_planning_time_s: {
       type: double,
       default_value: 1.0,
-      description: "观察短 PTP 单次规划时间上限（秒）。",
+      description: "观察短 LIN 单次规划时间上限（秒）。",
       validation: { gt<>: [0.0] }
     }
     observe_planning_attempts: {
       type: int,
       default_value: 1,
-      description: "观察短 PTP 规划尝试次数。",
+      description: "观察短 LIN 规划尝试次数。",
       validation: { gt_eq<>: [1] }
     }
     observe_max_duration_s: {
@@ -228,6 +246,18 @@ peach_manipulation_node:
     type: string,
     default_value: "global_photo_pose",
     description: "全局拍照位姿的 SRDF 命名状态（go_to_photo_pose 服务的目标），与 aubo_e5_moveit_config/config/aubo_e5.srdf 的 group_state 对应。"
+  }
+  photo_pose_joint_tolerance_rad: {
+    type: double,
+    default_value: 0.05,
+    description: "goToPhotoPose 成功出口：每轴当前关节与命名状态 |Δq| 上限（弧度）。execute=false 仍核当前关节。",
+    validation: { gt<>: [0.0] }
+  }
+  photo_pose_max_joint_vel_rad_s: {
+    type: double,
+    default_value: 0.05,
+    description: "goToPhotoPose 成功出口：任一轴 |qdot| 上限（弧度/秒）；未静止则 photo_pose_mismatch。",
+    validation: { gt<>: [0.0] }
   }
   harvest_stow_named_target: {
     type: string,
@@ -310,7 +340,7 @@ peach_manipulation_node:
     maximum_moves: {
       type: int,
       default_value: 2,
-      description: "单目标观察移动次数封顶。当前位先采帧；覆盖未过则把次数走完（LIN 失败才 PTP），不是环绕。覆盖达标立即停。",
+      description: "单目标观察移动次数封顶。当前位先采帧；覆盖未过则把次数走完（只 LIN，失败换候选），不是环绕。覆盖达标立即停。",
       validation: { gt_eq<>: [1] }
     }
     min_effective_views: {

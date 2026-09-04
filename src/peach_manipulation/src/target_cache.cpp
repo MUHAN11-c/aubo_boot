@@ -19,6 +19,7 @@ namespace
 {
 constexpr uint8_t kTrackingObserved = 0;  // PeachTargetObservation.OBSERVED
 
+// 观测 / 精化消息的检测框字段同名同义，无公共基类可借，逐字段拷入缓存。
 template<typename Src>
 void copyBbox(CachedTarget & dest, const Src & src)
 {
@@ -32,6 +33,8 @@ void copyBbox(CachedTarget & dest, const Src & src)
   dest.foreground_ratio = src.foreground_ratio;
 }
 
+// 夹角（度）；任一向量非有限或为零返回 -1，调用方按「不可判」处理，
+// 不会与真实夹角区间混淆。
 double axisAngleDeg(const Eigen::Vector3d & first, const Eigen::Vector3d & second)
 {
   if (!nonzeroFinite(first) || !nonzeroFinite(second)) {
@@ -40,6 +43,8 @@ double axisAngleDeg(const Eigen::Vector3d & first, const Eigen::Vector3d & secon
   return angleBetweenDeg(first, second);
 }
 
+// 新鲜判据（io.md 门口径）：live_observation_required=true 只认末次 live
+// 观测（received_s）；否则要求 OBSERVED 且 updated_s > after_s。
 bool freshEnough(const CachedTarget & target, double after_s, bool live_required)
 {
   if (!target.valid) {
@@ -51,6 +56,8 @@ bool freshEnough(const CachedTarget & target, double after_s, bool live_required
   return target.tracking_status == kTrackingObserved && target.updated_s > after_s;
 }
 
+// 新鲜度比较基准：OBSERVED 且 updated_s 更新时取 updated_s，
+// 否则退回末次 live 观测 received_s（非 OBSERVED 不被 updated_s 抬高）。
 double freshnessStamp(const CachedTarget & target)
 {
   if (target.tracking_status == kTrackingObserved &&

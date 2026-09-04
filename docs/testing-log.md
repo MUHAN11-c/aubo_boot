@@ -59,6 +59,22 @@ python3 scripts/replay_metrics.py
 
 命令见 [testing.md](testing.md) 就绪单。起栈前示教器手动回到 `global_photo_pose`（相对 SRDF 最大 |Δq|=0.0001 rad）。`target_2` SELECT `ik_no_solution`。`target_1` 观察 LIN 0.118 m / 8.28 s → 回拍照位 3.94 s → 预抓取 PTP 5.53 s goal-hold → **HoldPregrasp `SUCCEEDED` + `recovery_required`**。入口=预抓取=`[0.304, -0.614, 0.536]`（相对 1704 TCP 沿袋轴约 +17 cm，与去掉 70+100 mm 后撤一致）。融合轴 `[0.042, 0.136, 0.990]`；到位 TCP Z 与该轴重合（`alignFrameZ` 只转工具 Z、保留拍照位滚转，倾斜约 8°，目视不像大拧腕）。`allowed=false`（`bag_d95_exceeds_tool`）未拦。无 SetIO。ACK 前 summary 计 `unfinished`。**现场目视 `target_1`：方向与定位中上水平，只需微调。** 过程 `runs/field_test_20260901/log.md`；账本 `runs/field_pregrasp_20260901_1757/`。
 
+### 09-03 16:04 `field_pregrasp_20260903_1604`（先 Survey 再 Begin 开窗；未 Hold）
+
+起栈已在拍照位（|Δq|≤0.0001 rad）。档位：调度+技能 `execution`/`grasp` 开，`tool.enabled=false`，`execute_pregrasp_only=true`。链：`surveying` → `photo_pose_reached` → `collecting` → `round_locked`（`scene_epoch=1`）。首轮 SELECT 三颗均 `ik_no_solution`；回访 Survey（不 Begin）后再锁，派 `target_0`/`target_2`/`target_1`。三颗均 `observe_failed`：`target_0` 有效视点 0/1（`neighbor_gap` 79 / `missing_mask` 13）；`target_2`/`target_1` `selected_target_stale`（重建全程 `missing_mask`）。`termination_reason=no_targets_succeeded`；到预抓取停住 0；无 SetIO。结束 TCP 回到拍照位 `[0.302, -0.232, 0.708]`。过程 `runs/field_test_20260903/log.md`；账本 `runs/field_pregrasp_20260903_1604/`。
+
+### 09-03 17:09 `field_pregrasp_20260903_1709`（SELECT IK 改停位几何后首测）
+
+SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `global_photo_pose`（|Δq|≤0.0001）。后撤现行 0.03 m。`CheckReachability` 对入口做后撤 + `alignFrameZ` 再 IK。`target_0` **SELECT 过**（`target_dispatched`，不再 `ik_no_solution`）；观察 2 视 refit ACCEPT。`PREGRASP_ONLY` 卡 MTC `ptp to on-axis pregrasp (0/1)`：`ValidateSolution` `INVALID_MOTION_PLAN`（路径上 tcp 姿态相对目标误差 ~0.48 rad > 容差 0.35 rad / 20°）。`skipped_unreachable`；到预抓取停住 0；无 SetIO；结束回拍照位。回访 `target_1` `out_of_depth_window:2.20m;ik_no_solution`。过程 `runs/field_test_20260903/log.md`；账本 `runs/field_pregrasp_20260903_1709/`。
+
+### 09-03 17:16–17:18 连开两批（第三批 Hold 后停）
+
+`1716`：同 1709。`target_0` SELECT 过、2 视 ACCEPT，MTC `ptp to on-axis pregrasp (0/1)` → `skipped_unreachable`；46.8 s；回拍照位。账本 `runs/field_pregrasp_20260903_1716/`。
+
+`1717`：`target_0` SELECT 过、观察后 **HoldPregrasp `SUCCEEDED` + `recovery_required`**。到位 TCP `[0.388, -0.598, 0.510]`（与 1624 Hold 几乎同点）；姿态相对拍照位小倾（q `[-0.053, 0.110, -0.038, 0.992]`）。`allowed=false`（`bag_d95_exceeds_tool`）未拦。无 SetIO。ACK 前 summary 计 `unfinished`。未发 1718。账本 `runs/field_pregrasp_20260903_1717/`。
+
+`1740`：去掉 PTP 段 20° OrientationConstraint 后，MTC `ptp to on-axis pregrasp` **规划并执行**。关节护栏 `joint_total=11.12` / `joint_max=3.84` 过 12/6.1。TCP 拍照 `[0.302, -0.232, 0.708]` → Hold `[0.384, -0.614, 0.518]`：路径 1.39 m、弦 0.44 m、绕行比 **3.21**、相对弦偏离 0.51 m、途中 z 抬到 **1.065 m**（比拍照位高 35 cm）、相对目标最远回退 0.24 m。Hold 关节相对拍照位跳构型（shoulder `0.425→2.115`，foreArm 反号，wrist1 `1.462→-2.374`）。现场目视：**绕行轨迹不可接受**。精化轴约 23°，`keypoint_cloud_axis_conflict`，`allowed` 未过。无 SetIO。臂停在 Hold，`recovery_required=true`，未 ACK。账本 `runs/field_pregrasp_20260903_1740/`（若目录存在）。随后源码改为接触到预抓取只走 LIN/CIRC，失败不改 PTP，并加笛卡尔绕行审查。
+
 技能方向：定位用感知入口；工具 Z 对齐感知袋轴；滚转不抄感知四元数。详见 architecture 接触段与 `alignFrameZ`。
 
 ---

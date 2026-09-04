@@ -1,7 +1,8 @@
 peach_executor:
   ros__parameters:
     execution_enabled: false
-    survey_wait_s: 8.0
+    survey_wait_s: 15.0
+    survey_dwell_s: 2.0
     service_timeout_s: 30.0
     action_timeout_s: 180.0
     empty_survey_limit: 2
@@ -14,7 +15,7 @@ peach_executor:
     execute_target_action: /peach_manipulation_node/execute_target
     build_target_model_action: /peach_target_reconstruction_node/build_target_model
     execute_pregrasp_only: true
-    # 选果联合约束：有效深度窗 ∩ 可达性（TCP IK 预检权威；服务不可用回退半径窗）
+    # 选果：CheckReachability 把入口换成停位几何再 IK；服务不可用回退半径窗
     # 回退窗标定：预抓取成功 0.830–0.840 / 失败 ≥0.917
     selection_reach_min_m: 0.15
     selection_reach_max_m: 0.88

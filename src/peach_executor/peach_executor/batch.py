@@ -13,11 +13,11 @@ from peach_interfaces.msg import HarvestSummary, TargetOutcome
 
 def pregrasp_pose_of(item):
     """
-    观测候选 → 估计预抓取 TCP 位姿 (px,py,pz,qx,qy,qz,qw).
+    观测候选 → 感知入口 7 元组 (px,py,pz,qx,qy,qz,qw).
 
-    SELECT 用感知入口（entry_pose）。技能停位 = 入口 − 技能参数
-    mtc_approach_along_axis_m（由 grasp_standoffs.yaml 注入）。几何未绑定 /
-    坐标系非 base 系返回 None.
+    SELECT 把入口送给 CheckReachability；服务端再换成与 MovePregrasp 同一
+    停位（沿袋轴后撤 mtc_approach_along_axis_m + alignFrameZ）。本函数仍
+    返回入口，供查询与半径回退。几何未绑定 / 坐标系非 base 系返回 None.
     """
     cand = getattr(item, 'candidate', None)
     if cand is None:
@@ -80,7 +80,7 @@ def next_target(
     联合约束选果：有效深度窗 ∩ 可达性，返回 (target_id, filtered).
 
     可达性判定优先用 **TCP IK 预检结果**（ik_results: tid→(reachable, code)，
-    由技能节点 CheckReachability 服务以当前关节状态为种子求解）；
+    由技能 CheckReachability 把入口换成停位几何后以当前关节为种子求解）；
     ik_results 为 None（服务不可用/mock）时回退**估计预抓取点半径窗**
     （fallback_reach_range，现场标定：成功 0.830–0.840 / MTC 0 解 ≥0.917）。
     goal.target_ids 显式名单直通（不受窗限）。深度距离窗用

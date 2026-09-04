@@ -23,6 +23,24 @@ inline Eigen::Matrix3d alignFrameZ(
   return (delta * Eigen::Quaterniond(current_R)).normalized().toRotationMatrix();
 }
 
+// SELECT / CheckReachability 与 MovePregrasp 同一停位：请求当入口（Z=袋轴），
+// 位置沿 −Z 后撤 standoff，姿态 alignFrameZ 保留当前 TCP 滚转。轴无效则原样返回。
+inline Eigen::Isometry3d pregraspFromEntryKeepRoll(
+  const Eigen::Isometry3d & entry,
+  const Eigen::Matrix3d & current_R,
+  double standoff_m)
+{
+  const Eigen::Vector3d axis = entry.linear().col(2);
+  Eigen::Isometry3d pose = entry;
+  if (!axis.allFinite() || axis.norm() < 1.0e-9) {
+    return pose;
+  }
+  const double retreat = standoff_m > 0.0 ? standoff_m : 0.0;
+  pose.translation() -= axis.normalized() * retreat;
+  pose.linear() = alignFrameZ(current_R, axis);
+  return pose;
+}
+
 // 降级/重算的入口点构造（纯函数）：入口点 = 锚点 − 轴·(行程 + standoff)。
 // standoff 是袋外预入口余量（管进袋前净空），与入袋后越过袋口的颈部余量
 // neck_margin 互补：一个在 entry 构造里后退，一个在 insertionTravel 里前送，

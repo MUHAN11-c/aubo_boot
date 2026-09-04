@@ -24,6 +24,7 @@ double radians(double degrees)
   return degrees * kPi / 180.0;
 }
 
+// 零向量/非有限时退回 fallback，避免归一化产生 NaN 污染候选方向。
 Eigen::Vector3d safeUnit(const Eigen::Vector3d & value, const Eigen::Vector3d & fallback)
 {
   if (!value.allFinite() || value.norm() < 1.0e-9) {
@@ -31,6 +32,9 @@ Eigen::Vector3d safeUnit(const Eigen::Vector3d & value, const Eigen::Vector3d & 
   }
   return value.normalized();
 }
+// 期望视线方向的像面分量（side/up 单位基）：框心偏离像心 + 框贴边裁切越界量
+// 都往「把目标摆回画面中心」的方向推；邻目标只在分割前景足够（≥0.40）时
+// 参与推挤避让。全零时给默认 +x，保证返回单位向量。
 Eigen::Vector2d visibilityDesired(
   const ViewContext & context,
   const Eigen::Vector3d & target,
@@ -76,6 +80,7 @@ Eigen::Vector2d visibilityDesired(
   return desired.normalized();
 }
 
+// 检测框面积占比 <4% 视为太远/太小，该机位不作为合格观测（框无效不算小）。
 bool bboxTooSmall(const ViewContext & context)
 {
   if (!context.bbox_valid || context.bbox_w <= 0 || context.bbox_h <= 0) {
@@ -88,11 +93,14 @@ bool bboxTooSmall(const ViewContext & context)
   return area / image < 0.04;
 }
 
+// 分割前景占比 <0.40 视为掩膜质量不足（与 visibilityDesired 的邻目标避让门一致）。
 bool maskFillLow(const ViewContext & context)
 {
   return context.foreground_ratio >= 0.0 && context.foreground_ratio < 0.40;
 }
 
+// 把「当前→目标」的直线路径截到单步上限（max_camera_step_m，默认 0.15 m）：
+// 观察短移沿当前相机直线走，超限只截距不转向（io.md §4 观察移位口径）。
 Eigen::Vector3d clampToStep(
   const Eigen::Vector3d & current,
   const Eigen::Vector3d & goal,
@@ -134,6 +142,7 @@ Eigen::Vector3d projectLookRayIntoReach(
 }
 }  // namespace
 
+// 夹角（度）；退化向量按 +x 兜底归一化，保证结果有限且落在 0–180°。
 double angleDegrees(const Eigen::Vector3d & first, const Eigen::Vector3d & second)
 {
   return angleBetweenDeg(

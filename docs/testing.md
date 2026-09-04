@@ -34,12 +34,12 @@
 ```bash
 source /opt/ros/jazzy/setup.bash
 cd /home/mu/Desktop/aubo_e5_jazzy_ws
-colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
+colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 source install/setup.bash
 pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
 ```
 
-有残留按 PID 补杀。Python：`aubo_py3.12`。依赖分层（venv-first）：ROS 2 依赖走 Jazzy apt；其余第三方（numpy/scipy/opencv/PyYAML/open3d/torch 等）一律由工作区 `requirements.txt` 钉版本装进 venv（对同名 apt 包需 `pip install --ignore-installed -r requirements.txt` 才真正落入 venv）。**numpy 必须 ==1.26.4**（<2）：Jazzy 的 cv_bridge 二进制按 numpy 1.x 编译，numpy 2.x 会 `import cv2` 报错、`import cv_bridge` 段错误；该版本同时是 apt python3-numpy 的版本，双路径一致。感知身份分配与手眼标定共用 scipy（venv 内 1.11.4）；`peach_perception` 的 package.xml 只声明 ROS 键与 `python3-numpy`（ABI 边界），数值库不走 rosdep。感知 GPL 生成模块同时落在 `install/` 与源码包 `peach_perception/*_parameters.py`（gitignore）；不要把 `PYTHONPATH` 指到 `src/peach_perception` 却不带这两份生成文件，否则场景/重建节点会在 import 期退出，lifecycle 拉不齐 Active。本机若 venv 抢了 `PYTHONPATH`，launch 前先清再只留 Jazzy site-packages 并重新 `source` 两份 setup（见 §4 复现命令）。跨包轴向后撤只改 `src/peach_perception/config/grasp_standoffs.yaml` 两行；不要把它当 ROS `ParameterFile` 直接喂节点（rcl 不允许 `ros__parameters` 之前出现裸值）。能力 launch 读入后注入已声明参数。
+有残留按 PID 补杀。clangd：上述 `CMAKE_EXPORT_COMPILE_COMMANDS` 让每个 CMake 包在 `build/<pkg>/compile_commands.json` 留下编译命令；工作区 `.clangd` 按包指向这些文件。驱动栈 CMakeLists 只读，不在那些包里写 `set(CMAKE_EXPORT_COMPILE_COMMANDS)`。改完 CMake 或新编一包后 **Clangd: Restart language server**。Python：`aubo_py3.12`。依赖分层（venv-first）：ROS 2 依赖走 Jazzy apt；其余第三方（numpy/scipy/opencv/PyYAML/open3d/torch 等）一律由工作区 `requirements.txt` 钉版本装进 venv（对同名 apt 包需 `pip install --ignore-installed -r requirements.txt` 才真正落入 venv）。**numpy 必须 ==1.26.4**（<2）：Jazzy 的 cv_bridge 二进制按 numpy 1.x 编译，numpy 2.x 会 `import cv2` 报错、`import cv_bridge` 段错误；该版本同时是 apt python3-numpy 的版本，双路径一致。感知身份分配与手眼标定共用 scipy（venv 内 1.11.4）；`peach_perception` 的 package.xml 只声明 ROS 键与 `python3-numpy`（ABI 边界），数值库不走 rosdep。感知 GPL 生成模块同时落在 `install/` 与源码包 `peach_perception/*_parameters.py`（gitignore）；不要把 `PYTHONPATH` 指到 `src/peach_perception` 却不带这两份生成文件，否则场景/重建节点会在 import 期退出，lifecycle 拉不齐 Active。本机若 venv 抢了 `PYTHONPATH`，launch 前先清再只留 Jazzy site-packages 并重新 `source` 两份 setup（见 §4 复现命令）。跨包轴向后撤只改 `src/peach_perception/config/grasp_standoffs.yaml` 两行；不要把它当 ROS `ParameterFile` 直接喂节点（rcl 不允许 `ros__parameters` 之前出现裸值）。能力 launch 读入后注入已声明参数。
 
 ```bash
 # 开发机：无相机、不运动
@@ -55,7 +55,7 @@ ros2 launch peach_executor harvest_system.launch.py \
 
 ### Web 手动调试（决策 0013）
 
-监控页 Tab「手动调试」＝向**既有**动作/服务发调试请求的纯客户端：生命周期（ManageNodes）、调度（RunHarvest/ControlTask）、感知（BeginScene）、重建（Build/finalize/save_session/query）、技能（CheckReachability/go_to_photo_pose/preview/ack/arm/ExecuteTarget 各档位）。**三重门默认全关**：`debug.enabled=false`（POST 一律 503）→ `debug.token=""`（空=一律 401）→ 运动类另需 `debug.motion_enabled=true`（false=423）。每次操作（含被拒）审计 `runs/debug_audit/<日期>.jsonl`。
+监控页 Tab「手动调试」＝向**既有**动作/服务发调试请求的纯客户端：生命周期（ManageNodes）、调度（RunHarvest/ControlTask）、感知（BeginScene）、重建（Build/finalize/save_session/query）、技能（SurveyScene/CheckReachability/go_to_photo_pose/preview/ack/arm/ExecuteTarget 各档位）。**三重门默认全关**：`debug.enabled=false`（POST 一律 503）→ `debug.token=""`（空=一律 401）→ 运动类另需 `debug.motion_enabled=true`（false=423）。每次操作（含被拒，含操作面未启用的 503）审计 `runs/debug_audit/<日期>.jsonl`（`audit_enabled` 默认开）。
 
 启用（真机手调预抓取方向定位等场景）：
 
@@ -69,7 +69,7 @@ ros2 run peach_executor peach_observability --ros-args \
 # 3) 浏览器 8090 → 手动调试 Tab → 填令牌 → 「测试令牌」应提示可用
 ```
 
-门控验收口径（curl 矩阵，`X-Debug-Token` 头）：无/错令牌 `401`；令牌对 + `motion_enabled=false` 时 RunHarvest 非 SURVEY_ONLY、Survey、ExecuteTarget 非 PREVIEW/OBSERVE_ONLY、go_to_photo_pose、arm 一律 `423`；PREVIEW/OBSERVE_ONLY/BeginScene/save_session/生命周期不受运动门拦；未知端点 `404`；非调试路径 `404`。Web 只是又一客户端：**绕不过** `ExecutionAuthority`、调度使能与重建门；真机运动授权流程不变。
+门控验收口径（curl 矩阵，`X-Debug-Token` 头）：无/错令牌 `401`；令牌对 + `motion_enabled=false` 时 RunHarvest 非 SURVEY_ONLY、Survey、ExecuteTarget 非 PREVIEW（含 OBSERVE_ONLY）、go_to_photo_pose、arm、ControlTask 的 RESUME/EXIT_MAINTENANCE 一律 `423`；PREVIEW/BeginScene/save_session/生命周期/只规划 Trigger 不受运动门拦；未知端点 `404`；未知 mode/intent/command `400`；非调试路径 `404`。Web 只是又一客户端：**绕不过** `ExecutionAuthority`、调度使能与重建门；真机运动授权流程不变。
 
 | 参数 | 默认 | 说明 |
 |------|------|------|
@@ -145,7 +145,7 @@ ros2 lifecycle get /peach_executor
 timeout 5 ros2 run tf2_ros tf2_echo wrist3_Link camera_link
 ```
 
-关节名必须是：`shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint`。把 `/joint_states` 对照 SRDF `global_photo_pose`（`src/aubo_e5_moveit_config/config/aubo_e5.srdf` 的 `group_state`）。launch / lifecycle **不到**拍照位；开执行后第一次 `SurveyScene` 才 PTP 过去。上一轮若停在 HoldPregrasp，当前多半还在袋口——差值大时先目视/示教器确认再开 `execution`。`ros2 topic hz /camera/color/image_raw` 默认可靠 QoS，相机是 best_effort，可能误报未发布；以 Percipio `fps ≈ 2.43` 与感知注册表为准。四节点须 Active。重建有时停在 inactive：`ros2 lifecycle set /peach_target_reconstruction_node activate`。固定座无导航动作（`NavigateToWorksite` 预留，调度 `_cmd_navigate` 直通 `NAV_OK`）。
+关节名必须是：`shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint`。把 `/joint_states` 对照 SRDF `global_photo_pose`（`src/aubo_e5_moveit_config/config/aubo_e5.srdf` 的 `group_state`）。launch / lifecycle **不到**拍照位；开执行后第一次 `SurveyScene` 才 PTP 过去。`execution.enabled=false` 时 Survey 仍核**当前**关节：停在袋口开批须 `termination_reason=survey_failed`，不得把袋口 FOV 收进本批锁定集。上一轮若停在 HoldPregrasp，当前多半还在袋口——差值大时先目视/示教器确认再开 `execution`。`ros2 topic hz /camera/color/image_raw` 默认可靠 QoS，相机是 best_effort，可能误报未发布；以 Percipio `fps ≈ 2.43` 与感知注册表为准。四节点须 Active。重建有时停在 inactive：`ros2 lifecycle set /peach_target_reconstruction_node activate`。固定座无导航动作（`NavigateToWorksite` 预留，调度 `_cmd_navigate` 直通 `NAV_OK`）。
 
 显式只扫（仍不运动）：
 
@@ -154,7 +154,7 @@ ros2 action send_goal /peach_executor/run_harvest peach_interfaces/action/RunHar
   "{request_id: 'field_dry', scene_key: 'lab', profile_id: 'default', intent: 2}"
 ```
 
-`intent: 2` = SURVEY_ONLY。技能 `execution.enabled=false` 时 Survey 只规划拍照位。默认 intent 0 且调度 `execution_enabled` 关时，第一次 Survey 后直接结算（不选果、不记 `SKIPPED_QUALITY`）。全流程到预抓取须两边 `execution=true` 且技能 `grasp.enabled=true`。
+`intent: 2` = SURVEY_ONLY。技能 `execution.enabled=false` 时 Survey **仍核当前关节**（只规划不够）。调度会先 Survey、再 Begin、再 WAIT_LOCK，然后结算（不选果）。默认 intent 0 且调度 `execution_enabled` 关时同样：拍照位失败则 `survey_failed`；成功则锁定后直接结算（不选果、不记 `SKIPPED_QUALITY`）。全流程到预抓取须两边 `execution=true` 且技能 `grasp.enabled=true`。
 
 停栈：launch 终端 Ctrl+C，再 `pgrep`。
 
@@ -214,10 +214,10 @@ Fixed Frame 用 **`base_link`**，不要用未接上的 `world`。改显示配�
 档位：`execution=true`、`grasp.enabled=true`、`tool.enabled=false`。禁止为提速放宽质量门。
 
 - Build 接收后 2 s 内反馈 COLLECTING/READY；未绑定时臂不得环绕。超时取消后须等该 Build 结束再派下一颗。
-- 观察：覆盖达标或 `maximum_moves` 用尽才停（不做完位姿序列不收口）；`time_budget_s` 只进日志，不按移动+等帧 EMA 预测收口。拍照位 + 当前位采帧；下一视点沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m，~0.7 m 处一跨过 8°），先 LIN 失败才 PTP（绕行看 2.5 rad / 单轴 1.5 rad，不按时长）。到位后等新机位再判覆盖，同机位连帧不算。时长随 ~2.5 FPS 等帧浮动。
+- 观察：覆盖达标或 `maximum_moves` 用尽才停（不做完位姿序列不收口）；`time_budget_s` 只进日志，不按移动+等帧 EMA 预测收口。拍照位 + 当前位采帧；下一视点沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m，~0.7 m 处一跨过 8°），只 LIN，失败换候选（绕行看 4.0 rad / 单轴 1.5 rad，不按时长）。到位后等新机位再判覆盖，同机位连帧不算。时长随 ~2.5 FPS 等帧浮动。
 - 机位数 `view_count >= capture.min_views`（默认 2），基线/深度/RMSE/内点率过门。`captured_views` 是积分帧数。
 - 无精化不得宣称方向准确。
-- MTC 接近、直线套入、同轴撤离均须 goal-hold。预抓取先 PTP 回拍照位，再按最短路径选 LIN / CIRC / PTP（短程已齐且直线不穿预抓取球则 LIN；直线会穿球则 CIRC；短程未齐则 PTP 转 Z 再 LIN；远距或无 IK 则 PTP）。再一段沿轴 LIN；反向同轨迹回预抓取后 PTP `harvest_stow`。接近绕行护栏 **累计 12 rad / 单轴 6.1 rad**（URDF 满行程；不按时长；0.10 速度下直线可以超过 20 s）。
+- MTC 接近、直线套入、同轴撤离均须 goal-hold。预抓取先 PTP 回拍照位，再只走 LIN / CIRC（直线不穿预抓取球则 LIN；直线会穿球则 CIRC；未齐则先 LIN 原地对齐工具 Z 再 LIN）。已齐 LIN 段加相对目标 20° 姿态路径约束。LIN/CIRC 失败不改 PTP。再一段沿轴 LIN；反向同轨迹回预抓取后 PTP `harvest_stow`。接近绕行护栏 **累计 12 rad / 单轴 6.1 rad**，以及笛卡尔 **绕行比 2.2 / 弦偏离 0.25 m / 回退 0.08 m**（URDF 满行程；不按时长；0.10 速度下直线可以超过 20 s）。
 - 日志不得出现 SetIO。`harvest.grasped=false`（未开工具不得宣称采摘成功）。
 - 单目标目标 45–60 s；失败必须有 `failure_code`，不得停在 `RUNNING + action_active=false`。
 
@@ -235,11 +235,12 @@ Fixed Frame 用 **`base_link`**，不要用未接上的 `world`。改显示配�
 | P1 几何基线 | `runs/` 写 `geometry.jsonl`；`ros2 run peach_perception peach_bag_baseline --runs runs` | 离线脚本已装 |
 | P2 袋模型 | 观测 `occlusion_class`；球 marker ns=`prior`；裸果不入 `next_target_id`；`branch_blocked`/`neighbor_overlap`/`damaged_or_wet` 不得 `allowed` | 沿袋长轴半径剖面，窄头为口、宽头为底，箭头袋底→袋口；斜袋保持长轴不对成竖轴；袋底→袋口只许上半球（从下往上，左右最多水平，禁止朝下）；分割两端比沿轴朝外框边贴合，更贴边的一端为口（竖缝贴左边）；剪切参考在袋口/分割贴框极限，果距不足只否决 `allowed` 不挪刀；两端贴合差不够才用 3D 窄头/逆重力 |
 | P3 重建权威 | `allowed` 须袋融合预算才套入；无 budget 不得接触；圆柱/TSDF 不定轴；包络轴只否决，扁袋不打 12°；35° 只诊断 | FULL 时 `allowed=false` → `SKIPPED_QUALITY`；`PREGRASP_ONLY` 不要求 `allowed` |
-| P4 预抓取 | 默认 `execute_pregrasp_only=true`；停预抓取（现行 TCP 在拟合袋底，入口=预抓取）；无 SetIO；ACK 后再 Survey。**方向/定位是否可用与精度以到位后真机目视/测量为准**，不以预算或 2°/3 mm 残差代替 | 残差未过门也 Hold；`allowed=false` 不拦预抓取。现行停袋底现场轮次见 [testing-log.md](testing-log.md) 1757 |
+| P4 预抓取 | 默认 `execute_pregrasp_only=true`；停预抓取（入口在拟合袋底，预抓取沿 −axis 后撤 30 mm）；无 SetIO；ACK 后再 Survey。**方向/定位是否可用与精度以到位后真机目视/测量为准**，不以预算或 2°/3 mm 残差代替 | 残差未过门也 Hold；`allowed=false` 不拦预抓取。停袋底对照轮次见 [testing-log.md](testing-log.md) 1757 |
 | P5 套入干跑 | `grasp=true` `tool=false`；套入与反向撤退均须先过 `PlanSleeve` 规划；到预抓取只走直线 | 软件路径已接线；直线失败不绕行 |
 | P6 刀具 | `ToolActuator`：SetIO ACK ≠ `cut_confirmed`；无硬件反馈时不得 `CUT_CONFIRMED` | 已实现；真刀未接 |
 | P7 成功语义 | `harvest.grasped` 仅 `cut_confirmed && retreat_confirmed`；tool 关干跑可 `outcome=SUCCEEDED` 但 grasped=false | 软件已钉死 |
 | P8 导航适配（预留） | 导航包已归档（`_archive/parked_2026-09/`）；四个 IDL 名在 manifest `reserved_interfaces`；调度 `_cmd_navigate` 直通 `NAV_OK` | 固定座现行；清单脚本核对预留区 |
+| P9 发现开窗 | 袋口开批（干跑或不在拍照位）须 `termination_reason=survey_failed`，不 Begin。通过：`photo_pose_reached` 先于 `round_locked`，且锁定集 `scene_epoch` 与 Begin 返回值对齐 | 调度首巡 Survey→Begin→WAIT_LOCK |
 
 ```bash
 ros2 run peach_perception peach_bag_baseline --runs runs
@@ -274,7 +275,7 @@ python3 src/peach_interfaces/scripts/check_interface_manifest.py
 | 技能 `tool.enabled` | **false** | 全程不得出现 SetIO |
 | 调度 `execute_pregrasp_only` | true | 现行默认；到位后停住等 ACK |
 | 观察 `observe_max_total_joint_travel_rad` | 4.0 | yaml 已固化，勿再运行时改 |
-| 轴向后撤 | `grasp_standoffs.yaml` 现行 `0.0` / `0.0` | 入口=预抓取=拟合袋底 |
+| 轴向后撤 | `grasp_standoffs.yaml` 现行 `0.0` / `0.03` | 入口=拟合袋底；预抓取沿 −axis 后撤 30 mm |
 
 复现命令（`request_id` 按「命名」节换新，勿复用；停袋底对照批次 `field_pregrasp_20260901_1757`）：
 
@@ -282,7 +283,7 @@ python3 src/peach_interfaces/scripts/check_interface_manifest.py
 source /opt/ros/jazzy/setup.bash
 cd /home/mu/Desktop/aubo_e5_jazzy_ws
 colcon build --packages-select peach_perception peach_manipulation peach_executor \
-  --cmake-args -DCMAKE_BUILD_TYPE=Release
+  --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
 # 有残留按 PID 补杀。停在预抓取的重启：示教器先回到拍照位
 # （SRDF global_photo_pose ≈ 0.425, 0.195, 1.678, 1.462, -0.500, 0.039 rad）。
@@ -296,7 +297,7 @@ ros2 launch peach_executor harvest_system.launch.py \
   hardware_mode:=real camera_enabled:=true robot_ip:=169.254.10.98
 # 等到 rosout：managed nodes Active（仍须显式 RunHarvest）
 
-# 冒烟：五节点 Active；standoffs 三个节点均为 0；
+# 冒烟：五节点 Active；standoffs 入口 0 / 预抓取 0.03；
 # /aubo_io_controller/robot_status drives_powered=1 motion_possible=1；
 # tf2_echo wrist3_Link camera_link 平移 ≈ [0.045, 0.108, 0.002]；
 # tf2_echo base_link tip 应失败；关节对照拍照位。
@@ -320,7 +321,7 @@ ros2 service call /peach_executor/control peach_interfaces/srv/ControlTask \
 
 选果约束（有效深度 + TCP IK 可达，09-01 定稿）：
 
-- **可达性权威 = TCP IK 预检**：SELECT 段把各目标感知入口（`entry_pose`，姿态=入口姿态）批量送技能 `CheckReachability`（`setFromIK`，种子=当前关节状态，与 MTC 同一运动学），无解目标过滤并留 `ik_no_solution` 归因。技能停位 = 入口 − `mtc_approach_along_axis_m`（`grasp_standoffs.yaml` 注入；现行 0 则停在入口/拟合袋底）。
+- **可达性权威 = TCP IK 预检**：SELECT 把各目标感知入口（`entry_pose`，Z=袋轴）批量送技能 `CheckReachability`。服务端换成与 MovePregrasp 同一停位再 `setFromIK`（位置沿袋轴后撤 `mtc_approach_along_axis_m`，现行 0.03 m；姿态=`alignFrameZ` 保留当前 TCP 滚转，不抄感知四元数；种子=当前关节，与 MTC 同一运动学）。无解过滤并留 `ik_no_solution` 归因。
 - **有效深度窗**：相机距离 0.30–1.60 m（`selection_depth_min/max_m`）；逐帧掩膜有效深度仍由采集门 `min_mask_depth_ratio` 把关。
 - 服务不可用（mock/技能未起）回退标定半径窗 0.88（成功 0.830–0.840 / MTC 0 解 ≥0.917），事件里带 `reach_check` 说明。
 - 摆位建议：袋底距基座 0.5–0.8 m（参考成功标定区间）。
@@ -329,7 +330,7 @@ ros2 service call /peach_executor/control peach_interfaces/srv/ControlTask \
 
 1. `ros2 launch peach_executor harvest_system.launch.py hardware_mode:=real camera_enabled:=true robot_ip:=169.254.10.98`（先 moveit_enabled 默认 true）。
 2. Active 后先对照拍照位，再 `ros2 param set` 开执行/抓取（`tool.enabled` 保持 false），再发 `RunHarvest`（launch 不自动开批）。完整命令见上「复现命令」。
-3. 每颗期望链：Survey → Build+OBSERVE 并行 → `PREGRASP_ONLY` 停在预抓取（作业票停在「靠近」）→ 现场目视评方向/定位（筒口对袋轴？侧向偏多少？剪切点落袋口？）→ `ControlTask` 命令 6 ACK → 下一颗。
+3. 每颗期望链：首巡 Survey → Begin → WAIT_LOCK → SELECT → Build+OBSERVE 并行 → `PREGRASP_ONLY` 停在预抓取（作业票停在「靠近」）→ 现场目视评方向/定位（筒口对袋轴？侧向偏多少？剪切点落袋口？）→ `ControlTask` 命令 6 ACK → 回访 Survey（不 Begin）→ 下一颗。
 4. 通过判据：`ExecuteTarget` 终局 `SUCCEEDED` 且 `recovery_required=true`（不得 `FAILED`）；全程无 SetIO；这些对错只在现场评，`allowed`/余量只作记录。ACK **前** 自动 `summary.md` 常把该目标记 `unfinished`、门「到预抓取停住」显示 0——以技能 `[SUCCEEDED] PREGRASP_ONLY` 与现场停位为准，不要等 ACK 才认 Hold。
 
 中断与异常：

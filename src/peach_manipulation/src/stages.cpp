@@ -32,6 +32,7 @@ using FailureCode = peach_interfaces::msg::FailureCode;
 
 namespace
 {
+// 夹角（度）；零向量按 180°（最大不对轴）处理，让门判定走拒绝侧而非误放行。
 double axisAngleDeg(const Eigen::Vector3d & first, const Eigen::Vector3d & second)
 {
   if (first.norm() < 1e-9 || second.norm() < 1e-9) {
@@ -366,7 +367,7 @@ bool ManipulationSkillsNode::stagePlanPreview(CycleContext & ctx)
   // plan-only 结构性只规划：execute=false 恒不发送运动。
   for (const auto & candidate : ctx.candidates) {
     if (motion_->planOrMoveCamera(
-        candidate.camera_pose, "LIN", false, candidate.label, true))
+        candidate.camera_pose, "LIN", false, candidate.label, false))
     {
       ctx.terminal_state = CycleState::PLAN_READY;
       ctx.terminal_message = "只规划预览成功；未发送任何运动";
@@ -509,14 +510,14 @@ bool ManipulationSkillsNode::stageAcquireViews(CycleContext & ctx)
         candidate.label + " score=" + std::to_string(candidate.score) +
         " travel=" + std::to_string(candidate.travel_m) + "m",
         ctx.target_id);
-      // 观察走最近直线：先 Pilz LIN，失败才 PTP；禁止 OMPL 绕行。
+      // 观察走最近直线：只 Pilz LIN，失败换下一候选；禁止 PTP/OMPL 绕行。
       const std::string planner = "LIN";
       // 移动前记下机位数：到位后同机位连帧不加机位，必须比移动前多一个。
       const std::size_t stations_before_move = observedDirectionsSnapshot().size();
       // 移动成本计时起点：含规划+执行+到位后等帧（预算估计的实测输入）。
       const double move_start_s = now().seconds();
       if (!motion_->planOrMoveCamera(
-          candidate.camera_pose, planner, true, candidate.label, true))
+          candidate.camera_pose, planner, true, candidate.label, false))
       {
         continue;
       }

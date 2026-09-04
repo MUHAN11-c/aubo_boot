@@ -250,8 +250,8 @@
         <button type="button" data-debug="manage_nodes_service" data-payload='{"command":"STARTUP"}'>STARTUP 全栈启动</button>
         <button type="button" data-debug="manage_nodes_service" data-payload='{"command":"PAUSE"}'>PAUSE 逆序停</button>
         <button type="button" data-debug="manage_nodes_service" data-payload='{"command":"RESUME"}'>RESUME 顺序启</button>
-        <button type="button" data-debug="manage_nodes_service" data-payload='{"command":"RESET"}'>RESET 复位重启</button>
-        <button type="button" data-debug="manage_nodes_service" data-payload='{"command":"SHUTDOWN"}' class="danger">SHUTDOWN 全栈下电</button>
+        <button type="button" data-debug="manage_nodes_service" data-payload='{"command":"RESET"}' data-confirm="1">RESET 复位重启</button>
+        <button type="button" data-debug="manage_nodes_service" data-payload='{"command":"SHUTDOWN"}' class="danger" data-confirm="1">SHUTDOWN 全栈下电</button>
       </div>
     </section>
 
@@ -280,6 +280,8 @@
         <label>request_id <input id="scene-request-id" placeholder="field_..."></label>
         <label>scene_key <input id="scene-key" value="lab"></label>
         <button type="button" data-debug="begin_scene_service">BeginScene 清身份开新场</button>
+        <button type="button" data-debug="survey_action" data-confirm="1">SurveyScene 去拍照位采一场（运动类）</button>
+        <button type="button" data-debug-cancel="survey_action">取消 Survey</button>
       </div>
     </section>
 
@@ -293,9 +295,9 @@
       </div>
       <div class="debug-row">
         <button type="button" data-debug="recon_finalize_service">手动 finalize</button>
-        <button type="button" data-debug="recon_save_session">save_session 落盘</button>
+        <button type="button" data-debug="recon_save_session_service">save_session 落盘</button>
         <button type="button" data-debug="recon_query_service">查询状态</button>
-        <button type="button" data-debug="recon_reset_service" class="danger">reset 重建</button>
+        <button type="button" data-debug="recon_reset_service" class="danger" data-confirm="1">reset 重建</button>
       </div>
     </section>
 

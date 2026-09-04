@@ -11,6 +11,7 @@ import threading
 import time
 from typing import Optional
 
+from action_msgs.msg import GoalStatus
 import geometry_msgs.msg
 
 from peach_interfaces.action import (
@@ -49,10 +50,10 @@ from .batch import (
 )
 from .harvest_fsm import (
     apply_pause_pending, apply_recovery_ack, apply_resume, BATCH_NAMES,
-    canonical_code_for_outcome, Command, enter_pause, enter_recovery, Event,
-    event_for_outcome, MODE_AUTO, MODE_MAINTENANCE, MODE_PAUSED, PAUSE_PENDING,
-    PAUSED, permissions_for, react, Reaction, RUNNING, settle_terminal,
-    WAITING_READY)
+    canonical_code_for_outcome, Command, DISCOVERY, enter_pause, enter_recovery,
+    Event, event_for_outcome, MODE_AUTO, MODE_MAINTENANCE, MODE_PAUSED,
+    PAUSE_PENDING, PAUSED, permissions_for, react, Reaction, RUNNING,
+    settle_terminal, WAITING_READY)
 
 
 class TaskExecutorNode(LifecycleNode):
@@ -77,6 +78,7 @@ class TaskExecutorNode(LifecycleNode):
         # 此后节点内不再直写 self._batch_state，唯一写入点在 _apply。
         self._batch_state: int = WAITING_READY
         self._target_phase = 0
+        self._fsm_message = ''
         self._operation_mode = MODE_AUTO
         self._action_active = False
         self._recovery_required = False
@@ -352,6 +354,7 @@ class TaskExecutorNode(LifecycleNode):
     def _apply(self, reaction, request_id: str, target_id: str = '') -> None:
         self._batch_state = reaction.batch_state
         self._target_phase = reaction.target_phase
+        self._fsm_message = reaction.message
         if reaction.operation_mode != MODE_AUTO:
             self._operation_mode = reaction.operation_mode
         self._publish_state()
@@ -453,35 +456,55 @@ class TaskExecutorNode(LifecycleNode):
             elif cmd == Command.BEGIN_SCENE:
                 reaction = self._cmd_begin(goal)
             elif cmd == Command.SURVEY:
-                self._survey_body(survey_goal)
+                survey_ok = self._survey_body(survey_goal)
                 if not self._ledger_loaded:
                     claimed, restored = self._restore_ledger(self._run_id)
                     if restored:
                         self._outcomes = restored
                         self._outcome_details = [{} for _ in restored]
                     self._ledger_loaded = True
+                if self._cancel:
+                    continue
+                if not survey_ok:
+                    reaction = react(self._batch_state, Event.SURVEY_FAILED)
+                elif self._scene_epoch == 0:
+                    reaction = react(self._batch_state, Event.SURVEY_AT_POSE)
+                else:
+                    reaction = react(self._batch_state, Event.SURVEY_DONE)
+                self._apply(reaction, goal.request_id)
+            elif cmd == Command.WAIT_LOCK:
+                self._wait_lock()
+                self._publish_scene_snapshot(survey_goal.scene_key)
+                if self._cancel:
+                    continue
                 if survey_only:
                     reaction = react(self._batch_state, Event.SURVEY_ONLY)
                 elif not enabled:
                     reaction = react(
                         self._batch_state, Event.EXECUTION_DISABLED)
                 else:
-                    reaction = react(self._batch_state, Event.SURVEY_DONE)
+                    reaction = react(self._batch_state, Event.LOCK_READY)
                 self._apply(reaction, goal.request_id)
             elif cmd == Command.SELECT:
-                # 联合约束选果：有效深度窗 ∩ 可达性（TCP IK 预检为权威，
-                # 服务不可用回退标定半径窗；超窗发 targets_filtered 留归因）
-                ik_results, ik_note = self._query_reachability(
-                    reach_queries(self._observations, claimed))
-                target_id, filtered = next_target(
-                    self._observations, claimed, goal.target_ids,
-                    depth_range=(float(self._params.selection_depth_min_m),
-                                 float(self._params.selection_depth_max_m)),
-                    ik_results=ik_results,
-                    fallback_reach_range=(
-                        float(self._params.selection_reach_min_m),
-                        float(self._params.selection_reach_max_m)))
-                if filtered or ik_note:
+                # 联合约束选果：有效深度窗 ∩ 可达性（CheckReachability 把入口
+                # 换成停位几何再 IK；服务不可用回退半径窗；超窗 targets_filtered）
+                if not self._lock_set_ready():
+                    ik_results, ik_note = None, 'lock_set_not_ready'
+                    target_id, filtered = '', {}
+                else:
+                    ik_results, ik_note = self._query_reachability(
+                        reach_queries(self._observations, claimed))
+                    target_id, filtered = next_target(
+                        self._observations, claimed, goal.target_ids,
+                        depth_range=(
+                            float(self._params.selection_depth_min_m),
+                            float(self._params.selection_depth_max_m)),
+                        ik_results=ik_results,
+                        fallback_reach_range=(
+                            float(self._params.selection_reach_min_m),
+                            float(self._params.selection_reach_max_m)))
+                if filtered or (
+                        ik_note and ik_note != 'lock_set_not_ready'):
                     details = {'filtered': filtered} if filtered else {}
                     if ik_note:
                         details['reach_check'] = ik_note
@@ -527,9 +550,11 @@ class TaskExecutorNode(LifecycleNode):
             and int(result.summary.succeeded) == 0)
         result.success = not aborted and not interrupted and not no_product
         if aborted:
-            result.termination_reason = (
-                'navigate_failed' if reaction.message == 'navigate_failed'
-                else 'begin_scene_failed')
+            if reaction.message in (
+                    'navigate_failed', 'begin_scene_failed', 'survey_failed'):
+                result.termination_reason = reaction.message
+            else:
+                result.termination_reason = 'begin_scene_failed'
         elif interrupted:
             result.termination_reason = 'canceled'
         elif no_product:
@@ -566,6 +591,7 @@ class TaskExecutorNode(LifecycleNode):
             self._apply(reaction, goal.request_id)
             return reaction
         self._scene_epoch = int(getattr(resp, 'scene_epoch', 0) or 0)
+        self._observations = None
         reaction = react(self._batch_state, Event.BEGIN_OK)
         self._apply(reaction, goal.request_id)
         return reaction
@@ -962,43 +988,78 @@ class TaskExecutorNode(LifecycleNode):
             return None, 'build_finalize_failed'
         return getattr(wrapped, 'result', wrapped), ''
 
-    def _survey_body(self, goal):
-        timeout = float(self._params.action_timeout_s)
-        self._action_active = True
-        self._publish_state()
-        while not self._cancel:
-            self._send_action(
-                self._survey, goal, timeout, interrupt_on_pause=True,
-                goal_handle=self._run_goal_handle)
-            if self._paused and not self._cancel:
-                self._wait_pause()
-                continue
-            break
+    def _lock_set_ready(self) -> bool:
+        """本世代锁定集才可 SELECT / CheckReachability."""
+        obs = self._observations
+        epoch = int(getattr(obs, 'scene_epoch', 0) or 0) if obs else 0
+        return (
+            obs is not None
+            and epoch == int(self._scene_epoch or 0)
+            and epoch > 0
+            and bool(getattr(obs, 'target_set_locked', False)))
+
+    def _wait_lock(self) -> None:
+        """WAIT_LOCK：等到本世代锁定或 survey_wait_s。允许空集锁后 SELECT 走 NO_TARGET."""
         wait_s = float(self._params.survey_wait_s)
         deadline = time.monotonic() + max(wait_s, 0.0)
         while time.monotonic() < deadline and not self._cancel:
             self._wait_pause()
-            obs = self._observations
-            if obs is not None and obs.target_set_locked:
-                break
+            if self._lock_set_ready():
+                return
             self._idle(0.1)
+
+    def _publish_scene_snapshot(self, scene_key: str) -> None:
+        """WAIT_LOCK 结束或回访 dwell 后发布；scene_epoch 须为 Begin 之后."""
         snap = SceneSnapshot()
         snap.scene_epoch = self._scene_epoch
-        snap.scene_key = goal.scene_key
+        snap.scene_key = scene_key
         snap.message = 'survey'
-        if self._observations is not None:
-            snap.snapshot_id = str(self._observations.snapshot_id)
-            snap.degraded = not self._observations.target_set_locked
-            snap.observation_count = len(self._observations.observations)
+        obs = self._observations
+        if obs is not None and self._lock_set_ready():
+            snap.snapshot_id = str(obs.snapshot_id)
+            snap.degraded = not obs.target_set_locked
+            snap.observation_count = len(obs.observations)
             snap.target_ids = [
-                item.target_id for item in self._observations.observations
+                item.target_id for item in obs.observations
                 if item.target_id]
             self._discovered = max(self._discovered, snap.observation_count)
         else:
             snap.degraded = True
+            if obs is not None:
+                snap.snapshot_id = str(obs.snapshot_id)
+                snap.observation_count = len(obs.observations)
         if hasattr(self, '_pub_snapshot'):
             self._pub_snapshot.publish(snap)
+
+    def _survey_body(self, goal) -> bool:
+        """SurveyScene：核 GoalStatus。首巡不等锁；回访 dwell 后再出快照."""
+        timeout = float(self._params.action_timeout_s)
+        self._action_active = True
+        self._publish_state()
+        result = None
+        status = 0
+        while not self._cancel:
+            result, status = self._send_action(
+                self._survey, goal, timeout, interrupt_on_pause=True,
+                goal_handle=self._run_goal_handle, want_status=True)
+            if self._paused and not self._cancel:
+                self._wait_pause()
+                continue
+            break
         self._action_active = False
+        if self._cancel:
+            return False
+        if result is None or status != GoalStatus.STATUS_SUCCEEDED:
+            return False
+        self._emit('photo_pose_reached', goal.request_id)
+        if int(self._scene_epoch or 0) > 0:
+            dwell = float(self._params.survey_dwell_s)
+            deadline = time.monotonic() + max(dwell, 0.0)
+            while time.monotonic() < deadline and not self._cancel:
+                self._wait_pause()
+                self._idle(0.1)
+            self._publish_scene_snapshot(goal.scene_key)
+        return not self._cancel
 
     def _send_goal(self, client, goal_msg, timeout_s: float,
                    feedback: bool = False, feedback_cb=None):
@@ -1029,9 +1090,7 @@ class TaskExecutorNode(LifecycleNode):
         deadline = time.monotonic() + max(timeout_s, 0.0)
         while time.monotonic() < deadline:
             obs = self._observations
-            locked = obs is not None and bool(
-                getattr(obs, 'target_set_locked', False))
-            if locked:
+            if self._lock_set_ready() and obs is not None:
                 for item in obs.observations:
                     tid = str(getattr(item, 'target_id', ''))
                     if tid == target_id and bool(
@@ -1054,7 +1113,7 @@ class TaskExecutorNode(LifecycleNode):
 
     def _query_reachability(self, queries):
         """
-        批量 TCP IK 预检（技能节点 CheckReachability，种子=当前关节状态）.
+        批量 TCP IK 预检（技能 CheckReachability：入口→停位后再 setFromIK）.
 
         返回 (ik_results, note)：ik_results 为 tid→(reachable, code)，
         服务不可用/超时/异常返回 (None, 原因说明)——调用方回退半径窗。
@@ -1126,19 +1185,26 @@ class TaskExecutorNode(LifecycleNode):
         self._action_active = True
         self._publish_state()
 
-    def _wait_result(self, handle, timeout_s: float,
-                     interrupt_on_pause: bool = False, goal_handle=None):
+    def _wait_result(
+            self, handle, timeout_s: float,
+            interrupt_on_pause: bool = False, goal_handle=None,
+            want_status: bool = False):
         """等动作结果；可轮询 RunHarvest goal 的取消请求及时止损."""
         if handle is None:
-            return None
+            return (None, 0) if want_status else None
         result_fut = handle.get_result_async()
         result_fut.add_done_callback(lambda _: self._poke())
         deadline = time.monotonic() + max(timeout_s, 0.0)
+
+        def _done(result, status=0):
+            """Optionally pair the action result with GoalStatus."""
+            return (result, status) if want_status else result
+
         while not result_fut.done():
             if time.monotonic() >= deadline:
                 self.get_logger().warning('action result timeout')
                 self._cancel_handle(handle)
-                return None
+                return _done(None)
             if self._paused and self._batch_state not in (
                     PAUSED, PAUSE_PENDING):
                 self._apply_state(enter_pause(self._batch_state))
@@ -1157,8 +1223,22 @@ class TaskExecutorNode(LifecycleNode):
             wrapped = result_fut.result()
         except Exception as exc:  # noqa: BLE001
             self.get_logger().warning(f'action result failed: {exc}')
-            return None
-        return getattr(wrapped, 'result', wrapped)
+            return _done(None)
+        status = int(getattr(wrapped, 'status', 0) or 0)
+        return _done(getattr(wrapped, 'result', wrapped), status)
+
+    def _send_action(self, client, goal_msg, timeout_s: float,
+                     feedback: bool = False, interrupt_on_pause: bool = False,
+                     goal_handle=None, want_status: bool = False):
+        handle = self._send_goal(
+            client, goal_msg, timeout_s, feedback=feedback)
+        if handle is not None:
+            self._in_flight.append(handle)
+        result = self._wait_result(
+            handle, timeout_s, interrupt_on_pause=interrupt_on_pause,
+            goal_handle=goal_handle, want_status=want_status)
+        self._forget_handle(handle)
+        return result
 
     def _cancel_handle(self, handle) -> None:
         if handle is None:
@@ -1228,19 +1308,6 @@ class TaskExecutorNode(LifecycleNode):
                 return None
         self.get_logger().warning('future timeout')
         return None
-
-    def _send_action(self, client, goal_msg, timeout_s: float,
-                     feedback: bool = False, interrupt_on_pause: bool = False,
-                     goal_handle=None):
-        handle = self._send_goal(
-            client, goal_msg, timeout_s, feedback=feedback)
-        if handle is not None:
-            self._in_flight.append(handle)
-        result = self._wait_result(
-            handle, timeout_s, interrupt_on_pause=interrupt_on_pause,
-            goal_handle=goal_handle)
-        self._forget_handle(handle)
-        return result
 
     def _wait_pause(self) -> None:
         """暂停门：挂起批次到 PAUSED，恢复时回到保存的批次态."""
@@ -1327,6 +1394,8 @@ class TaskExecutorNode(LifecycleNode):
         total = max(self._discovered, attempted, 1)
         msg.progress = float(attempted) / float(total)
         msg.message = BATCH_NAMES.get(self._batch_state, '')
+        if self._batch_state == DISCOVERY and self._fsm_message:
+            msg.message = self._fsm_message
         if self._batch_state == RUNNING and self._cycle_message:
             msg.message = self._cycle_message
         msg.blockers = list(self._blockers)
@@ -1377,6 +1446,8 @@ class TaskExecutorNode(LifecycleNode):
         if details:
             payload.update(details)
         ev.message = json.dumps(payload, ensure_ascii=False)
+        if code == 'survey_failed':
+            ev.severity = CanonicalEvent.WARNING
         if hasattr(self, '_pub_event'):
             self._pub_event.publish(ev)
 

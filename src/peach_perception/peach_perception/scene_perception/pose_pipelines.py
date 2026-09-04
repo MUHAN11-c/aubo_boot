@@ -124,13 +124,14 @@ class TargetPoseResult:
 
 
 class RobustBagPosePipeline(PosePipeline):
-    kind = 'bag'
     """
     袋装桃的保守位姿估计器（圆柱套入工具）.
 
     所有安全判定只用实测深度。优先使用外部实例掩膜（SAM），
     深度带连通域是显式、可检查的降级来源。
     """
+
+    kind = 'bag'
 
     def __init__(self, tool: ToolGeometry = TOOL_GEOMETRY, min_depth_m=0.3,
                  max_depth_m=2.5, min_points=100):
@@ -547,6 +548,9 @@ class RobustBagPosePipeline(PosePipeline):
         along = (pts - origin) @ axis_2d
         band = 0.25 * span
 
+        # [lo,hi] 沿轴带内前景像素到 outward 所指图边的中位距离；点太少返回
+        # inf（视为不贴边）。返回值 = 当前判的底端比口端更贴朝外边（差 >3 px），
+        # True 则按「贴边端为口」对调（语义见 _mask_axis_against_taper docstring）。
         def _outward_flush(lo: float, hi: float, outward) -> float:
             selected = pts[(along >= lo) & (along <= hi)]
             if selected.shape[0] < 8:
@@ -634,8 +638,6 @@ class RobustBagPosePipeline(PosePipeline):
 # ═══════════════════════════════════════════════════════════════
 
 class RobustFruitPosePipeline(RobustBagPosePipeline):
-    kind = 'fruit'
-
     """
     裸果桃位姿估计器（同一圆柱剪切工具）.
 
@@ -655,6 +657,8 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
     参考点定义：bottom = 球心 − r·axis（远离梗端，圆柱从此处起套），
     neck = 球心 + r·axis（梗端，刀片在其前方 margin_neck 处停止）。
     """
+
+    kind = 'fruit'
 
     CAVITY_HALF_ANGLE_COS = np.cos(np.radians(20.0))
     CAVITY_MIN_DIP_M = 0.0015     # 梗洼最小下陷深度 1.5mm

@@ -132,6 +132,27 @@ def is_motion(action: str, payload: dict) -> bool:
     return False
 
 
+def _validate_payload(action: str, payload: dict) -> str | None:
+    """枚举字段合法性；非法返回错误文案，合法返回 None."""
+    if action == 'execute_action':
+        mode = str(payload.get('mode', 'PREVIEW')).upper()
+        if mode not in _EXECUTE_MODE:
+            return f'未知 ExecuteTarget mode: {mode}'
+    if action == 'run_harvest_action':
+        intent = str(payload.get('intent', 'PICK_ALL')).upper()
+        if intent not in _INTENT:
+            return f'未知 RunHarvest intent: {intent}'
+    if action == 'control_service':
+        command = str(payload.get('command', '')).upper()
+        if command not in _CONTROL:
+            return f'未知 ControlTask command: {command}'
+    if action == 'manage_nodes_service':
+        command = str(payload.get('command', '')).upper()
+        if command not in _LIFECYCLE:
+            return f'未知 ManageNodes command: {command}'
+    return None
+
+
 def _fill_str(request, payload: dict) -> None:
     """按白名单拷贝字符串字段（仅当请求侧真有该字段）."""
     for key in _STR_KEYS:
@@ -160,7 +181,7 @@ def _goal_for(action: str, payload: dict):
         _fill_str(goal, payload)
         goal.mode = _EXECUTE_MODE.get(
             str(payload.get('mode', 'PREVIEW')).upper(),
-            ExecuteTarget.Request.PREVIEW)
+            ExecuteTarget.Goal.PREVIEW)
         goal.skip_observation = bool(payload.get('skip_observation', False))
         return goal
     if action == 'build_action':
@@ -199,7 +220,7 @@ def _goal_for(action: str, payload: dict):
             request.tcp_poses.append(pose)
         return request
     if action == 'arm_service':
-        request = SetBool()
+        request = SetBool.Request()
         request.data = bool(payload.get('data', False))
         return request
     if action == 'manage_nodes_service':
@@ -275,7 +296,8 @@ class DebugBridge:
         for client in list(self._action_clients.values()):
             client.destroy()
         self._action_clients.clear()
-        self._goal_handles.clear()
+        with self._lock:
+            self._goal_handles.clear()
 
     def state(self) -> dict:
         """/api/state 的 debug 段（不含令牌本身）."""
@@ -322,7 +344,8 @@ class DebugBridge:
             (http_status, 响应 dict).
 
         """
-        handle = self._goal_handles.get(target)
+        with self._lock:
+            handle = self._goal_handles.get(target)
         if handle is None:
             return 404, {'accepted': False, 'message': '无在途目标'}
         future = handle.cancel_goal_async()
@@ -339,6 +362,9 @@ class DebugBridge:
             summary = dict(body)
             summary['_status'] = status
             return bool(body.get('accepted')), summary
+        error = _validate_payload(action, payload)
+        if error:
+            return False, {'_status': 400, 'message': error}
         if action in _ACTION_TYPES:
             return self._call_action(action, payload)
         if action in _SERVICE_TYPES:
@@ -351,7 +377,11 @@ class DebugBridge:
             return False, {'_status': 404, 'message': '端点未配置'}
         if not client.wait_for_service(timeout_sec=2.0):
             return False, {'_status': 503, 'message': '目标服务不可用'}
-        future = client.call_async(_goal_for(key, payload))
+        try:
+            request = _goal_for(key, payload)
+        except (TypeError, ValueError, AttributeError, OverflowError) as exc:
+            return False, {'_status': 400, 'message': f'请求体无法映射: {exc}'}
+        future = client.call_async(request)
         if not self._wait(future, 10.0):
             return False, {'_status': 504, 'message': '服务响应超时'}
         response = future.result()
@@ -365,13 +395,18 @@ class DebugBridge:
             return False, {'_status': 404, 'message': '端点未配置'}
         if not client.wait_for_server(timeout_sec=2.0):
             return False, {'_status': 503, 'message': '目标动作服务端不可用'}
-        goal_future = client.send_goal_async(_goal_for(key, payload))
+        try:
+            goal = _goal_for(key, payload)
+        except (TypeError, ValueError, AttributeError, OverflowError) as exc:
+            return False, {'_status': 400, 'message': f'请求体无法映射: {exc}'}
+        goal_future = client.send_goal_async(goal)
         if not self._wait(goal_future, 10.0):
             return False, {'_status': 504, 'message': '目标受理超时'}
         handle = goal_future.result()
         if handle is None or not handle.accepted:
             return False, {'_status': 409, 'message': '目标被服务端拒绝'}
-        self._goal_handles[key] = handle
+        with self._lock:
+            self._goal_handles[key] = handle
         result_future = handle.get_result_async()
         if not self._wait(result_future, self._timeout_s):
             return False, {
@@ -385,7 +420,8 @@ class DebugBridge:
         result = wrapped.result
         summary = _summarize_result(key, result)
         summary['action_status'] = status
-        self._goal_handles.pop(key, None)
+        with self._lock:
+            self._goal_handles.pop(key, None)
         return True, summary
 
     @staticmethod

@@ -34,8 +34,8 @@
 flowchart LR
   Op[人工] -->|RunHarvest / ControlTask| Ex[peach_executor]
   LCM[peach_lifecycle_manager] -->|managed_nodes_activated| Ex
-  Ex -->|BeginScene| Perc[peach_scene_perception_node]
   Ex -->|SurveyScene| Skill[peach_manipulation_node]
+  Ex -->|BeginScene| Perc[peach_scene_perception_node]
   Ex -->|BuildTargetModel| Rec[peach_target_reconstruction_node]
   Ex -->|ExecuteTarget OBSERVE / FULL / PREGRASP_ONLY| Skill
   Perc -->|target_observations / initial_pose| Ex
@@ -55,9 +55,10 @@ flowchart LR
 | 调用 | 服务端 | 发起方 | 何时 |
 |------|--------|--------|------|
 | `NavigateToWorksite` | （预留，导航包已归档） | `_cmd_navigate` | `Command.NAVIGATE`；固定座直通 `NAV_OK`，不发送动作 |
-| `CheckReachability` | `peach_manipulation_node` | `_query_reachability`（SELECT 段） | 批量 TCP IK 预检（种子=当前关节状态；只答能否，不规划不动臂）；不可用回退标定半径窗 |
-| `BeginScene` | 感知 `~/begin_scene` | 调度 `_cmd_begin` | `Command.BEGIN_SCENE` |
-| `SurveyScene` | 技能 `~/survey_scene` | `_survey_body` | `Command.SURVEY` |
+| `CheckReachability` | `peach_manipulation_node` | `_query_reachability`（SELECT 段） | 批量 TCP IK 预检（请求=感知入口；服务端换成停位几何：后撤 + `alignFrameZ`；种子=当前关节；只答能否，不规划不动臂）；不可用回退标定半径窗 |
+| `SurveyScene` | 技能 `~/survey_scene` | `_survey_body` | `Command.SURVEY`；首巡 `NAV_OK` 后，回访 `CYCLE_DONE` / `NO_TARGET` |
+| `BeginScene` | 感知 `~/begin_scene` | 调度 `_cmd_begin` | 仅首巡 `SURVEY_AT_POSE` 后一次 |
+| 等锁 | （消费观测） | `_wait_lock` | `Command.WAIT_LOCK`；谓词：`scene_epoch` 对齐且 `target_set_locked` |
 | `BuildTargetModel` | 重建 `~/build_target_model` | `_cmd_dispatch` | 与 OBSERVE_ONLY **并行** |
 | `ExecuteTarget` OBSERVE_ONLY | 技能 `~/execute_target` | `_cmd_dispatch` | 主动视点给重建凑 `min_views` 机位 |
 | `ExecuteTarget` FULL | 技能 `~/execute_target` | `_cmd_full` | 观察+模型都过门之后；仅 `execute_pregrasp_only=false` |
@@ -75,25 +76,25 @@ flowchart LR
 |------|--------------|------|
 | `RunHarvest` | `peach_executor` | **开一批采摘。** launch 绝不自动发。goal：`request_id`（账本目录名，须唯一）、`scene_key`、`profile_id`（现行未消费）、`intent`（PICK_ALL / PICK_SELECTED / SURVEY_ONLY）、可选 `target_ids`。结果：至少成功一颗才 `success` |
 | `NavigateToWorksite` | （预留，导航包已归档） | **走到作业位。** 固定座调度直通 `NAV_OK`，不发动作、无服务端 |
-| `SurveyScene` | `peach_manipulation` | **去全局拍照位并采一场。** 给感知凑锁定集。PAUSE 会取消，恢复后重试。空集或未锁则 `degraded` |
+| `SurveyScene` | `peach_manipulation` | **去全局拍照位并复核关节已静止。** 给感知准备发现 FOV。PAUSE 会取消，恢复后重试。失败整批 `survey_failed`，不 Begin |
 | `BuildTargetModel` | `peach_perception` | **绑一颗、收合格机位后 finalize。** 与 OBSERVE_ONLY 并行。积分只用精确 stamp TF。反馈 `view_count` 是机位数 |
 | `ExecuteTarget` | `peach_manipulation` | **对当前 `target_id` 跑一周期。** `PREVIEW` 只规划；`OBSERVE_ONLY` 只补视角；`PREGRASP_ONLY` 停预抓取不 SetIO（默认干跑）；`FULL` 套入/刀/撤退。终局 `SUCCEEDED` / `SKIPPED_*` / `FAILED` / `CANCELED`。`harvest.grasped` 仅切断且撤退确认 |
 
 | 服务 | 服务端所在包 | 含义 |
 |------|--------------|------|
-| `BeginScene` | `peach_perception` | **清身份、换场。** 推进 `scene_epoch`。非 Active 拒绝。调度 DISCOVERY 时调用 |
-| `CheckReachability` | `peach_manipulation` | **选果：这几个 TCP 位姿当前关节种子下有没有 IK。** 不规划、不动臂。无解记 `ik_no_solution`。服务不可用时调度回退半径窗 |
+| `BeginScene` | `peach_perception` | **重启收齐窗。** 推进 `scene_epoch`。同 `scene_key` 保留身份；换场才清表。非 Active 拒绝。调度仅 DISCOVERY 首巡 Survey 到位后调用一次 |
+| `CheckReachability` | `peach_manipulation` | **选果：入口换成与 Hold 同一停位后，当前关节种子下有没有 IK。** 位置后撤 `mtc_approach_along_axis_m`，姿态 `alignFrameZ` 不抄感知滚转。不规划、不动臂。无解记 `ik_no_solution`。服务不可用时调度回退半径窗 |
 | `ControlTask` | `peach_executor` | **人工控批（监控不发）。** PAUSE / RESUME / CANCEL_NOW / SKIP_TARGET / ACKNOWLEDGE_RECOVERY。`expected_state_seq` 须对上，防过期点击 |
 | `ManageLifecycleNodes` | `peach_executor` | **整栈 configure/activate/拆除。** PAUSE=节点 Inactive，不是批次暂停。不发 `RunHarvest` |
 
 | 消息 | 含义 |
 |------|------|
-| `PeachTargetObservation*` | **场景里有哪些桃。** 稳定 `target_id`、跟踪态、掩膜、单帧几何。调度据此选果；重建据此对齐掩膜 |
+| `PeachTargetObservation*` | **场景里有哪些桃。** 稳定 `target_id`、跟踪态、掩膜、单帧几何；数组带 `scene_epoch`。调度据此选果（须世代对齐且已锁定）；重建据此对齐掩膜 |
 | `BagGraspCandidate` / `BagFitting` | **单帧袋/果几何与拟合诊断。** `status` ACCEPT/REOBSERVE/REJECT 只当初值与画面，不发运动 |
 | `HarvestState` | **批次唯一快照。** `target_id` 是感知/重建作业绑定；`batch_state` / `target_phase` 只由 FSM 推导 |
 | `HarvestSummary` / `TargetOutcome` | 一批结算与单颗入账结果 |
 | `CanonicalEvent` | **可检索事件流。** 派发/成功/跳过/失败/暂停/ACK；终局 `message` 带 `failure_code` |
-| `SceneSnapshot` | 一场 Survey 后的场景快照（锁定集侧） |
+| `SceneSnapshot` | WAIT_LOCK 结束或回访 dwell 后的锁定集快照；`scene_epoch` 须为 Begin 之后 |
 | `ReconstructionStatus` | **重建心跳。** 绑定目标、机位数、基线、TF 失败次数。技能看覆盖 |
 | `GraspDecision` | **融合几何 + 套入许可。** 入口/轴/预抓取/剪切参考给预抓取；`allowed` 只拦套入/剪切 |
 | `PregraspVerification` | 重建侧预抓取残差观测；技能 VerifyPregrasp **未订**本话题，用工具 TF |
@@ -103,7 +104,7 @@ flowchart LR
 | `GraspHypothesis` | 技能本周期抓取假说；监控订阅，尚未当批次门 |
 | `JobIntent` / `HarvestEvent` | 契约预留；`intent` 常量以 `JobIntent` 为准 |
 
-事件码：`target_dispatched` / `target_succeeded` / `target_skipped` / `target_failed` / `target_canceled` / `target_operator_skipped` / `round_locked`；人工操作审计码：`batch_paused` / `batch_resumed`（含 from/to 态）、`recovery_required`（真运动后停驻）、`recovery_acknowledged`（人工 ACK 完成）；选果过滤码：`targets_filtered`（details 列出超窗目标与原因 `out_of_reach_window` / `out_of_depth_window` / `ik_no_solution`）。终局目标事件的 `message` JSON 并入 outcome 细节（`failure_code` 等），summary「原因」列取之。`MatchStatus`：`OK` / `NEW` / `AMBIGUOUS` / `REJECTED`；歧义不强制合并。
+事件码：`target_dispatched` / `target_succeeded` / `target_skipped` / `target_failed` / `target_canceled` / `target_operator_skipped` / `photo_pose_reached` / `round_locked` / `survey_failed`；人工操作审计码：`batch_paused` / `batch_resumed`（含 from/to 态）、`recovery_required`（真运动后停驻）、`recovery_acknowledged`（人工 ACK 完成）；选果过滤码：`targets_filtered`（details 列出超窗目标与原因 `out_of_reach_window` / `out_of_depth_window` / `ik_no_solution`）。终局目标事件的 `message` JSON 并入 outcome 细节（`failure_code` 等），summary「原因」列取之。`MatchStatus`：`OK` / `NEW` / `AMBIGUOUS` / `REJECTED`；歧义不强制合并。
 
 导航预留（manifest `reserved_interfaces`，无生产方；调度 NAV 直通）：
 
@@ -146,19 +147,19 @@ flowchart TB
   act{"Lifecycle Active?"}
   act -->|否| idle["回调直接 return"]
   act -->|是| src{"入口"}
-  src -->|BeginScene| clr["清身份 scene_epoch++"]
+  src -->|BeginScene| clr["重启收齐窗 scene_epoch++；换场才清身份"]
   src -->|HarvestState| lock["作业 target_id 只作锁定显示 不选下一颗"]
   src -->|RGB-D 同步| pipe["一帧管线"]
   pipe --> out["observations / initial_pose / diagnostics / debug_image"]
   clr --> wait["等下一帧"]
 ```
 
-**读图：** 节点三入口。`BeginScene` 清本场身份；`HarvestState` 只告诉「当前作业是哪颗」，不在这里选果。真正产出在 RGB-D 回调（下图）。
+**读图：** 节点三入口。`BeginScene` 重启收齐窗；换场才清身份。`HarvestState` 只告诉「当前作业是哪颗」，不在这里选果。真正产出在 RGB-D 回调（下图）。
 
 | 名字 | 种类 | 含义 | 生产 | 消费 |
 |------|------|------|------|------|
-| `/peach_scene_perception_node/begin_scene` | service | 清身份、推进 `scene_epoch`，开一场新场景 | peach_scene_perception | peach_executor |
-| `/peach/perception/target_observations` | topic | 全量观测（含未确认）：稳定 ID、跟踪态、掩膜。调度选果、重建对齐、技能新鲜度 | peach_scene_perception | peach_executor, peach_target_reconstruction, peach_manipulation |
+| `/peach_scene_perception_node/begin_scene` | service | 重启收齐窗、推进 `scene_epoch`；换场才清身份 | peach_scene_perception | peach_executor |
+| `/peach/perception/target_observations` | topic | 全量观测（锁定前 `observations[]` 空）：稳定 ID、跟踪态、掩膜、`scene_epoch`。调度选果须世代对齐且已锁定；重建对齐、技能新鲜度 | peach_scene_perception | peach_executor, peach_target_reconstruction, peach_manipulation |
 | `/peach/perception/initial_pose` | topic | 单帧袋入口/轴初值。重建当起点；不授权运动 | peach_scene_perception | peach_target_reconstruction, peach_executor |
 | `/peach/perception/diagnostics` | topic | 单帧拟合诊断（直径/RMSE/内点） | peach_scene_perception | peach_target_reconstruction, peach_executor |
 | `/peach/perception/harvest_state` | topic | 感知侧计划 JSON（锁定集镜像，给监控） | peach_scene_perception | peach_observability |
@@ -278,7 +279,7 @@ flowchart TB
 | 层 | 字段 | 谁消费 |
 |----|------|--------|
 | 感知单帧 | `BagGraspCandidate.status` ACCEPT/REOBSERVE/REJECT | 初值、可视化。不发运动 |
-| 融合几何 | `GraspDecision` 入口/轴/预抓取/剪切参考（融合成功即填；后撤由 `grasp_standoffs.yaml` 注入，现行 0 则入口=预抓取=拟合袋底） | `PREGRASP_ONLY` 到预抓取停住；RViz/监控目视。方向定位对错以真机预抓取实测为准。停袋底对照轮次见 [testing-log.md](testing-log.md) 1757 |
+| 融合几何 | `GraspDecision` 入口/轴/预抓取/剪切参考（融合成功即填；后撤由 `grasp_standoffs.yaml` 注入，现行入口 0=拟合袋底、预抓取相对入口 0.03 m） | `PREGRASP_ONLY` 到预抓取停住；RViz/监控目视。方向定位对错以真机预抓取实测为准。停袋底对照轮次见 [testing-log.md](testing-log.md) 1757 |
 | 接触许可 | `GraspDecision.allowed` | 只授权套入/剪切；禁止降级接触 |
 
 融合成功时 entry/axis/pregrasp/cut_pose 有效，即使 `allowed=false`。无几何时入口/轴填零，只信 `reason` / `failure_code`。常见 reason：`reconstruction_not_ready`、`refined_geometry_unavailable`、`bag_model_unavailable`、`dynamic_budget_negative`、`keypoint_cloud_axis_conflict`（包络轴与关键点轴 >12° 且包络有长径比）、`cut_plane_fruit_clearance` / `cut_band_unavailable`。`envelope_axis_ill_conditioned` / `envelope_too_few_slices` 只诊断，不单独关 `allowed`。>35° 只打 `diagnostic_axis_mismatch`，不单独把 `allowed` 打成 false。通过接触：`dynamic_budget_accept` / `refined_geometry_accept`。软件预算与夹角不代替预抓取位的真机精度评定。
@@ -307,8 +308,8 @@ flowchart TB
   act{"Lifecycle Active?"}
   act -->|否| idle["拒运动类入口"]
   act -->|是| src{"入口"}
-  src -->|CheckReachability| ik["setFromIK 只答能否 不动臂"]
-  src -->|SurveyScene| photo["goToPhotoPose 行程门 6 / 2.5"]
+  src -->|CheckReachability| ik["入口→停位几何后 setFromIK 只答能否 不动臂"]
+  src -->|SurveyScene| photo["goToPhotoPose 行程门 6 / 2.5；成功出口 atNamedTarget"]
   src -->|ExecuteTarget| cycle["executeCycle"]
   cycle --> en{"execution_enabled?"}
   en -->|否| preview["PlanPreview 终结"]
@@ -334,7 +335,7 @@ flowchart TB
 
 | 名字 | 种类 | 含义 | 生产 | 消费 |
 |------|------|------|------|------|
-| `/peach_manipulation_node/survey_scene` | action | 去 SRDF 拍照位采一场；给感知锁定集 | peach_manipulation | peach_executor |
+| `/peach_manipulation_node/survey_scene` | action | 去 SRDF 拍照位并复核当前关节；不重启收齐窗 | peach_manipulation | peach_executor |
 | `/peach_manipulation_node/execute_target` | action | 对一颗桃：观察 / 预抓取 / 套入剪切，按 `mode` 短路 | peach_manipulation | peach_executor |
 | `/peach_manipulation_node/check_reachability` | service | 批量 TCP IK：当前关节下这些位姿有没有解；不动臂 | peach_manipulation | peach_executor |
 | `/peach_manipulation_node/acknowledge_recovery` | service | 技能确认停驻已看过；调度 ACK 会调它，成功才消耗 `state_seq` | peach_manipulation | peach_executor |
@@ -355,11 +356,11 @@ flowchart TB
 
 `stages.cpp` 的 `executeCycle(ctx)` 显式模式 switch，周期状态全在 `CycleContext`（action 受理时创建、worker 单写者）：PrepareCycle →（`execution_enabled` 关则 PlanPreview 终结）→（未 `skip_observation` 则 AcquireViews）→ FinalizeAndValidate →（OBSERVE_ONLY → Report / `grasp_enabled` 关 → ReportReady / Reconfirm → MovePregrasp → VerifyPregrasp →（PREGRASP_ONLY 则 `HoldPregrasp` 停住 | PlanSleeve → SleeveLinear → VerifyCutHold → ActuateCutter → VerifyCut → ReverseRetreat → ReturnStow → VerifyHarvestOutcome））→ CompleteTarget。运动/IO 入口逐阶段过 `ExecutionAuthority`（套入/剪切前复检 `GraspDecision.allowed`；撤离 TRANSIT 级不做决策复检）。
 
-- OBSERVE_ONLY：当前位先采帧；基线未过最多两次最近短移（先 LIN，失败才 PTP），沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m），评分以行程最短为主；朝当前目标检测框内分割更满的方向微偏。禁止 OMPL、对侧兜圈、贴 0.40 m 球面环绕。覆盖门 `minimum_baseline_deg: 8`。停准则：覆盖达标或 `maximum_moves` 用尽；`time_budget_s` 只进日志，不按移动+等帧 EMA 预测收口。到位后等新机位（`view_directions` 增加），同机位连帧不加覆盖。成功：重建已绑定、独立机位已满 `min_views`、TSDF/精化已发布。观察成功但 Build `view_count`（机位数）`< min_views` → `observe_build_view_race`。`captured_views` 仍是积分帧数。
-- PREGRASP_ONLY：有融合几何即去预抓取（现行停在拟合袋底：入口=预抓取）；先 PTP 回拍照位，再按最短路径选 LIN / CIRC / PTP（短程已齐且直线不穿预抓取球则 LIN；直线会穿球且后撤 ≥ 5 mm 则 CIRC 再沿轴 LIN；后撤 0 不走 CIRC；短程未齐则 PTP 转 Z 再 LIN；远距或无 IK 则 PTP）。拍照位失败则从当前位规划。不要求 `allowed`。工具 TF 残差超门则按**最新精化快照**重算 entry/pregrasp 做增量修正（最多两次）；残差未过门也停在预抓取（不回 `harvest_stow`），便于真机评方向/定位。任何路径不 SetIO。到位终局 `SUCCEEDED` 且 `recovery_required`，ACK 前调度不 Survey。现行不是两帧精确 TF RGB-D 重估。
+- OBSERVE_ONLY：当前位先采帧；基线未过最多两次最近短移（只 LIN，失败换候选），沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m），评分以行程最短为主；朝当前目标检测框内分割更满的方向微偏。禁止 OMPL、对侧兜圈、贴 0.40 m 球面环绕、PTP 兜底。覆盖门 `minimum_baseline_deg: 8`。停准则：覆盖达标或 `maximum_moves` 用尽；`time_budget_s` 只进日志，不按移动+等帧 EMA 预测收口。到位后等新机位（`view_directions` 增加），同机位连帧不加覆盖。成功：重建已绑定、独立机位已满 `min_views`、TSDF/精化已发布。观察成功但 Build `view_count`（机位数）`< min_views` → `observe_build_view_race`。`captured_views` 仍是积分帧数。
+- PREGRASP_ONLY：有融合几何即去预抓取（入口在拟合袋底，预抓取相对入口后撤 0.03 m）；先 PTP 回拍照位，再只走 LIN / CIRC（直线不穿预抓取球则 LIN；未齐先 LIN 原地对齐工具 Z；直线会穿球且后撤 ≥ 5 mm 则 CIRC 再沿轴 LIN；后撤 0 不走 CIRC）。已齐 LIN 加相对目标 20° 姿态路径约束。LIN/CIRC 失败不改 PTP。拍照位失败则从当前位规划。不要求 `allowed`。工具 TF 残差超门则按**最新精化快照**重算 entry/pregrasp 做增量修正（最多两次）；残差未过门也停在预抓取（不回 `harvest_stow`），便于真机评方向/定位。任何路径不 SetIO。到位终局 `SUCCEEDED` 且 `recovery_required`，ACK 前调度不 Survey。现行不是两帧精确 TF RGB-D 重估。
 - FULL：`skip_observation`。结果填 `HarvestResult` / `Verification` / `PregraspVerification` / `outcome_record`；`DepositResult` 字段保留标**预留**（卸果站已删，恒 `deposited=false`）。`harvest.grasped` 仅 `cut_confirmed && retreat_confirmed`。SetIO ACK 只产生 `CUT_COMMAND_ACCEPTED`；切断确认保守：刀具 DI 预留接 `/aubo_io_controller/io_states`，反馈未接线前 `tool.enabled=true` 终局 `FAILED`/`CUT_FEEDBACK_TIMEOUT`。
 - 新鲜度门：`SafetyGate` 比较 `clock - freshnessStamp`。OBSERVED 且 `updated_s` 更新时用 `updated_s`，否则末次有效观测 `received_s`。门限 `effectiveTargetMaxAgeS()`：未测得 EMA 用 yaml 3.0 s，测得后只放宽。`assumed_frame_interval_s: 0.4` 只估等待窗口，不预填 EMA。
-- 接触护栏（yaml）：绕行看累计 12 rad、单轴 6.1 rad（URDF ±3.05 满行程）；段间接缝计入 `|Δq|`。不按时长（`mtc_approach_max_duration_s` 默认 0）。预抓取先 PTP 回拍照位，再按最短路径选 LIN / CIRC / PTP，再一段沿轴 LIN 套入；反向同轨迹回预抓取。PTP 回退段与 `makeMoveToEntry` 加 tip 姿态 OrientationConstraint（对目标姿态，容差 `mtc_approach_max_align_deg` 20°；Pilz PTP 忽略约束无副作用，约束对采样规划器生效）。沿轴 LIN / CIRC 弧长参考 0.15 m。观察短移：行程 `observe_max_*` 4.0 rad / 1.5 rad（09-01 现场把 2.5 会拒的合法短移固化进 yaml）。`goToPhotoPose`：行程 `transit_max_*` 6 rad / 2.5 rad。超行程不执行。
+- 接触护栏（yaml）：绕行看累计 12 rad、单轴 6.1 rad（URDF ±3.05 满行程）；段间接缝计入 `|Δq|`。笛卡尔 **绕行比 2.2 / 弦偏离 0.25 m / 回退 0.08 m**（FK 规划 TCP）。不按时长（`mtc_approach_max_duration_s` 默认 0）。预抓取先 PTP 回拍照位，再只走 LIN / CIRC 到预抓取，再一段沿轴 LIN 套入；反向同轨迹回预抓取。已齐 LIN 加 tip 姿态 OrientationConstraint（对目标姿态，容差 `mtc_approach_max_align_deg` 20°）。未齐先 LIN 原地对齐；LIN/CIRC 失败不改 PTP。弦长/弧长上限 0.80 m。观察短移：只 LIN；行程 `observe_max_*` 4.0 rad / 1.5 rad（09-01 现场把 2.5 会拒的合法短移固化进 yaml）。`goToPhotoPose`：行程 `transit_max_*` 6 rad / 2.5 rad。成功出口核当前关节（`photo_pose_joint_tolerance_rad` / `photo_pose_max_joint_vel_rad_s`，`execute=false` 仍核）。超行程或不在拍照位不报成功。
 
 默认 `execution/grasp/tool=false`：只规划、不接触、不 SetIO。
 
@@ -370,14 +371,17 @@ flowchart TB
 | `execution.enabled` | 开了才真动；每个周期还须 `set_execution_armed`。须与调度 `execution_enabled` 同时开 |
 | `grasp.enabled` | 关则停在 READY、不到预抓取。开要求 execution 已开 |
 | `tool.enabled` | 关则跳过 SetIO，不得宣称采摘成功 |
-| `mtc_approach_along_axis_m` | 预抓取相对入口后撤。由 `grasp_standoffs.yaml` 注入，现行 0 |
+| `mtc_approach_along_axis_m` | 预抓取相对入口后撤。由 `grasp_standoffs.yaml` 注入，现行 0.03 m |
 | `mtc_approach_max_total_joint_travel_rad` / `max_single_joint_travel_rad` | 接近绕行护栏 12 / 6.1；超则不执行 |
+| `mtc_approach_max_detour_ratio` / `max_chord_deviation_m` / `max_recede_m` | 接近笛卡尔绕行 2.2 / 0.25 m / 0.08 m；超则不执行 |
+| `mtc_approach_cartesian_max_distance_m` | 接触笛卡尔弦长/弧长上限 0.80 m；超过不改 PTP |
 | `observe_max_total_joint_travel_rad` / `max_single_joint_travel_rad` | 观察短移护栏 4.0 / 1.5 |
 | `transit_max_total_joint_travel_rad` / `max_single_joint_travel_rad` | 回拍照位护栏 6 / 2.5 |
 | `max_camera_step_m` | 下一视点沿当前相机直线截步（默认 0.15 m） |
 | `maximum_moves` | 观察移动次数封顶；覆盖达标即停 |
 | `quality.minimum_baseline_deg` | 覆盖门 8° |
 | `photo_pose_named_target` | Survey / 回拍照位的 SRDF 名（`global_photo_pose`） |
+| `photo_pose_joint_tolerance_rad` / `photo_pose_max_joint_vel_rad_s` | `goToPhotoPose` 成功出口每轴 \|Δq\| / \|qdot\| 上限（默认 0.05） |
 
 ---
 
@@ -392,13 +396,15 @@ flowchart TB
   rh["RunHarvest"] --> flag{"managed_nodes_activated?"}
   flag -->|否且 require_managed_stack| rej["拒绝开批"]
   flag -->|是| nav["_cmd_navigate 直通 NAV_OK"]
-  nav --> begin["BeginScene"]
-  begin --> survey["SurveyScene"]
-  survey --> intent{"intent / execution_enabled?"}
+  nav --> survey["SurveyScene 复核关节"]
+  survey -->|失败| fail["整批 survey_failed"]
+  survey -->|成功| begin["BeginScene 重启收齐窗"]
+  begin --> waitLock["WAIT_LOCK 世代对齐且锁定"]
+  waitLock --> intent{"intent / execution_enabled?"}
   intent -->|SURVEY_ONLY 或执行关| settle["结算 不选果"]
   intent -->|PICK| sel["SELECT 深度窗 ∩ CheckReachability"]
   sel -->|无候选| empty{"empty_survey_limit?"}
-  empty -->|否| survey
+  empty -->|否| revisit["SurveyScene 回访 不 Begin"]
   empty -->|是| settle
   sel -->|有| disp["并行 BuildTargetModel + ExecuteTarget OBSERVE"]
   disp --> full{"execute_pregrasp_only?"}
@@ -408,19 +414,20 @@ flowchart TB
   recov -->|是 未 ACK| hold["不 Survey 不派下一颗"]
   recov -->|ACK| ledger["写 ledger.json"]
   fl --> ledger
-  ledger --> survey
+  ledger --> revisit
+  revisit --> sel
   ctl["ControlTask PAUSE/SKIP/CANCEL/ACK"] -.-> recov
 ```
 
-**读图：** 调度是唯一动作客户端。开批先看 lifecycle 旗标；到位无导航动作。拍照选果后重建与观察并行；默认停预抓取，须 ACK 才再 Survey。状态机细节见 [architecture.md](architecture.md) 图 C。虚线是人工 `ControlTask`，监控不发。
+**读图：** 调度是唯一动作客户端。开批先看 lifecycle 旗标（软件就绪，不是柜侧上电）；到位无导航动作。**先到拍照位再开收齐窗**；锁定后才选果。默认停预抓取，须 ACK 才再 Survey（回访不 Begin）。状态机细节见 [architecture.md](architecture.md) 图 C。虚线是人工 `ControlTask`，监控不发。
 
 | 名字 | 种类 | 含义 | 生产 | 消费 |
 |------|------|------|------|------|
 | `/peach_executor/run_harvest` | action | 显式开一批；不自动发 | peach_executor | 人工 |
 | `/peach_executor/control` | service | 暂停/跳过/取消/ACK；须带对的 `state_seq` | peach_executor | 人工 |
 | `/peach_executor/state` | topic | 批次快照：`target_id`、档位、`recovery_required`、permissions | peach_executor | peach_executor, peach_scene_perception, peach_target_reconstruction |
-| `/peach_executor/events` | topic | 可检索事件（派发/终局/过滤/ACK） | peach_executor | peach_executor |
-| `/peach_executor/scene_snapshot` | topic | Survey 后锁定集快照 | peach_executor | peach_executor |
+| `/peach_executor/events` | topic | 可检索事件（拍照到位/锁定/派发/终局/过滤/ACK） | peach_executor | peach_executor |
+| `/peach_executor/scene_snapshot` | topic | WAIT_LOCK 或回访 dwell 后的锁定集快照 | peach_executor | peach_executor |
 
 客户端（仅本节点）：`BeginScene`、`SurveyScene`、`BuildTargetModel`（与 OBSERVE_ONLY 并行）、`ExecuteTarget`、`CheckReachability`。账本：`runs/<request_id>/ledger.json`。
 
@@ -428,9 +435,11 @@ flowchart TB
 
 | 参数 | 含义 |
 |------|------|
-| `execution_enabled` | false：Survey 后结算，不选果、不派 ExecuteTarget。运行期 `ros2 param set`，不改仓库默认 |
+| `execution_enabled` | false：WAIT_LOCK 后结算，不选果、不派 ExecuteTarget。运行期 `ros2 param set`，不改仓库默认 |
 | `execute_pregrasp_only` | true（默认）：接触槽发 PREGRASP_ONLY；false 才 FULL 套入 |
 | `require_managed_stack` | 整栈 launch 为 true：未收到 lifecycle 旗标拒绝开批 |
+| `survey_wait_s` | WAIT_LOCK 上限（默认 15 s） |
+| `survey_dwell_s` | 已锁回访到位后驻留（默认 2 s） |
 | `empty_survey_limit` | 连续空扫次数上限，到则结算 |
 | `build_start_timeout_s` | Build 须在此时限内进 COLLECTING/READY，否则取消并等结束再派下一颗 |
 | `selection_depth_min_m` / `selection_depth_max_m` | 选果相机距离窗（默认 0.30–1.60 m） |
@@ -451,7 +460,7 @@ flowchart TB
   wait -->|SHUTDOWN| td["逆向 teardown → 旗标 false"]
 ```
 
-**读图：** 名单感知 → 重建 → 技能 → 调度；observability 不进名单。PAUSE 是节点 Inactive，不是批次暂停。不发 `RunHarvest`。
+**读图：** 名单感知 → 重建 → 技能 → 调度；observability 不进名单。PAUSE 是节点 Inactive，不是批次暂停。不管柜侧上电，不发 `RunHarvest`。
 
 | 名字 | 种类 | 含义 | 生产 | 消费 |
 |------|------|------|------|------|
@@ -493,10 +502,11 @@ flowchart LR
 | `host` / `port` | HTTP 监听；默认回环 8090。局域网须显式 `0.0.0.0` |
 | `record.enabled` | 分类落盘总开关 |
 | `trajectory.enabled` | latest TF 采 TCP 轨迹（不进 MCAP） |
-| `debug.enabled` / `debug.token` / `debug.motion_enabled` / `debug.audit_enabled` | 调试操作面三重门与审计开关，全部默认关 |
+| `debug.enabled` / `debug.token` / `debug.motion_enabled` | 调试操作面三重门，全部默认关 |
+| `debug.audit_enabled` | 审计落盘 `runs/debug_audit/`；默认开（含被拒，含 `enabled=false` 的 503） |
 | `debug.endpoints.*` | 调试桥目标（18 个既有动作/服务名，GPL 默认=现行契约名） |
 
-HTTP `/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipulation` / `task_executor` / `robot`（含 `tcp` 摘要）/ `metrics` / `record` / `params` / **`job`**（当前果实作业票：过程线状态、档位、`why`、感知入口/重建中心/预抓取/抓取进入点，`base_link` 米）/ **`debug`**（三重门状态 + 最近操作环形缓冲；令牌绝不下发）。`GET /api/trajectory` 给三维页：TCP 点列、起止弦、路标、Marker 字典。监控页首屏按作业票展示，其下是末端三维（轨道相机，对照弦与入口）；抓取档关闭时靠近/工具为 gated，不是已完成。`POST /api/debug/<action>`：`enabled=false→503`、令牌不符→`401`、运动类未放行→`423`、未知端点→`404`；端点清单见 `config/observability_parameters.yaml` 的 `debug.endpoints.*`。
+HTTP `/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipulation` / `task_executor` / `robot`（含 `tcp` 摘要）/ `metrics` / `record` / `params` / **`job`**（当前果实作业票：过程线状态、档位、`why`、感知入口/重建中心/预抓取/抓取进入点，`base_link` 米）/ **`debug`**（三重门状态 + 最近操作环形缓冲；令牌绝不下发）。`GET /api/trajectory` 给三维页：TCP 点列、起止弦、路标、Marker 字典。监控页首屏按作业票展示，其下是末端三维（轨道相机，对照弦与入口）；抓取档关闭时靠近/工具为 gated，不是已完成。`POST /api/debug/<action>`：`enabled=false→503`、令牌不符→`401`、运动类未放行→`423`、未知端点→`404`、未知 mode/intent/command→`400`。运动类 = RunHarvest 非 `SURVEY_ONLY`、Survey、Execute 非 `PREVIEW`（`OBSERVE_ONLY` 算运动）、`go_to_photo_pose`、arm、ControlTask 的 `RESUME`/`EXIT_MAINTENANCE`。端点清单见 `config/observability_parameters.yaml` 的 `debug.endpoints.*`。
 
 | 产物 | 路径 |
 |------|------|

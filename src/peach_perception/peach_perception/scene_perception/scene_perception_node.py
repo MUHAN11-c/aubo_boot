@@ -481,6 +481,7 @@ class ScenePerceptionNode(LifecycleNode):
                 'dropped_target_ids': sorted(self.harvest_plan.dropped_ids),
                 'lighting': self._lighting.snapshot(),
                 'low_light_quality': self._lighting.low_quality,
+                'scene_epoch': self._scene_epoch,
                 # 推理耗时分项 EMA（毫秒）+ 实测 fps；详见 TimingMetrics
                 'timing': self._timing.snapshot(fps=self._frame_rate.rate_hz),
                 'data': self.harvest_data.query(),
@@ -502,7 +503,7 @@ class ScenePerceptionNode(LifecycleNode):
         return response
 
     def _on_begin_scene(self, request, response):
-        """BeginScene：推进批次；仅物理场景切换时清空身份表."""
+        """BeginScene：重启收齐窗；仅物理场景切换时清空身份表."""
         if not self._lifecycle_active:
             response.accepted = False
             response.scene_epoch = self._scene_epoch
@@ -649,6 +650,7 @@ class ScenePerceptionNode(LifecycleNode):
             array = PeachTargetObservationArray()
             array.header = header
             array.snapshot_id = self.harvest_plan.snapshot_id
+            array.scene_epoch = self._scene_epoch
             array.harvest_run_id = self.harvest_run_id
             array.target_set_locked = self.harvest_plan.locked
             array.target_count = self.harvest_plan.target_count

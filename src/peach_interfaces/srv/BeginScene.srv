@@ -1,5 +1,6 @@
-# 清身份、推进场景世代。服务端 peach_perception ~/begin_scene。
-# 执行器在 RUN_REQUESTED → DISCOVERY 时调用。节点非 Lifecycle Active 时拒绝。
+# 重启收齐窗、推进场景世代。服务端 peach_perception ~/begin_scene。
+# 调度 DISCOVERY 首巡：SurveyScene 到位后才调用一次。回访不再调用。
+# 同 scene_key 保留身份表；换场才 clear。节点非 Lifecycle Active 时拒绝。
 
 string request_id          # 批次 request_id
 string scene_key           # 场景键；与当前键不同则换场

@@ -12,7 +12,7 @@ uint8 selection_mode       # AUTO / MANUAL
 string[] target_ids        # 可选允许列表；空=不限定。MANUAL/PICK_SELECTED 时使用
 ---
 bool success               # 至少成功一颗为 true；尝试过但 succeeded=0 为 false（no_targets_succeeded）
-string termination_reason  # 终局原因（completed / canceled / begin_scene_failed 等）
+string termination_reason  # 终局原因（completed / canceled / begin_scene_failed / survey_failed 等）
 peach_interfaces/HarvestSummary summary
 ---
 peach_interfaces/HarvestState state  # 与 ~/state 同源快照

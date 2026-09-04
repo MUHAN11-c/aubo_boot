@@ -1,5 +1,5 @@
 # 一场扫描结束后的场景引用。执行器 ~/scene_snapshot 闩锁发布，供监控只读镜像。
-# SurveyScene.Result 携带同源字段（snapshot_id / scene_epoch / degraded）。
+# WAIT_LOCK 结束或回访 dwell 结束后由调度发布。scene_epoch 须为 Begin 之后的值。
 
 std_msgs/Header header
 string snapshot_id           # 本场快照 ID（感知锁定窗 ID 的字符串）

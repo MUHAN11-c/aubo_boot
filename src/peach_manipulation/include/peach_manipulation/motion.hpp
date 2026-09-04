@@ -44,11 +44,9 @@ struct MoveItMotionConfig
   double photo_planning_time_s{3.0};
   double default_planning_time_s{1.5};
   int default_planning_attempts{1};
-  // 工具姿态保持门（度）：PTP 回退段加 OrientationConstraint，tip 姿态相对
-  // 目标姿态的偏差不得超过该值（与对轴门同源，config 的 mtc_approach_max_align_deg）。
-  // LIN/CIRC 直线插值天然保姿态；Pilz PTP 关节空间插值忽略约束（无害），
-  // 约束对 OMPL 采样段生效。
-  double orientation_gate_deg{20.0};
+  // goToPhotoPose 成功出口复核：当前关节须在命名状态且静止。
+  double photo_pose_joint_tolerance_rad{0.05};
+  double photo_pose_max_joint_vel_rad_s{0.05};
 };
 
 // MoveIt 运动接口：tip/camera 位姿规划执行、TF 查询、拍照位往返。
@@ -74,8 +72,8 @@ public:
     const std::string & target, const std::string & source);
 
   // 以 tip 连杆目标位姿规划（execute=true 时并执行）。planner_id 为实现认识
-  // 的规划器标识（PTP/LIN）；allow_fallback 允许 LIN 失败回退 Pilz PTP。
-  // 失败返回 false，不抛异常；execute=true 时下发前复核安全门。
+  // 的规划器标识（PTP/LIN）。观察短移 allow_fallback=false：LIN 失败换候选，
+  // 不改 PTP。失败返回 false，不抛异常；execute=true 时下发前复核安全门。
   bool planOrMoveTip(
     const Eigen::Isometry3d & tip_pose, const std::string & planner_id,
     bool execute, const std::string & label, bool allow_fallback);
@@ -86,12 +84,17 @@ public:
     bool execute, const std::string & label, bool allow_fallback);
 
   // 移动到 SRDF 命名状态（拍照位姿）：先点对点管线规划，失败回退自由空间；
-  // execute=false 时仅规划。真实下发前必须复核硬件安全门（I5）。
+  // execute=false 时仅规划，仍核当前关节（干跑须已在拍照位）。真实下发前必须
+  // 复核硬件安全门（I5）。成功出口一律 atNamedTarget。
   // message 始终写入面向操作员的结果描述（成功/失败原因）。
   bool goToPhotoPose(
     const std::string & named_target, bool execute, std::string & message);
 
 private:
+  // 当前关节相对 SRDF 命名状态：每轴 |Δq| 与 |qdot| 均在配置上限内。
+  // 失败时 message 以 photo_pose_mismatch 开头。
+  bool atNamedTarget(
+    const std::string & named_target, std::string & message);
   moveit::planning_interface::MoveGroupInterface * move_group_;
   tf2_ros::Buffer * tf_buffer_;
   rclcpp::Logger logger_;

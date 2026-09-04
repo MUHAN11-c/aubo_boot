@@ -121,7 +121,16 @@ class ObservabilityHttpHandler(BaseHTTPRequestHandler):
             self._json({'accepted': False, 'message': '缺少调试端点'},
                        HTTPStatus.NOT_FOUND)
             return
-        length = int(self.headers.get('Content-Length') or 0)
+        try:
+            length = int(self.headers.get('Content-Length') or 0)
+        except (TypeError, ValueError):
+            self._json({'accepted': False, 'message': 'Content-Length 非法'},
+                       HTTPStatus.BAD_REQUEST)
+            return
+        if length < 0:
+            self._json({'accepted': False, 'message': 'Content-Length 非法'},
+                       HTTPStatus.BAD_REQUEST)
+            return
         if length > _MAX_BODY_BYTES:
             self._json({'accepted': False, 'message': '请求体过大'},
                        HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
@@ -142,8 +151,19 @@ class ObservabilityHttpHandler(BaseHTTPRequestHandler):
             self._json({'accepted': False, 'message': '调试操作面未启用'},
                        HTTPStatus.SERVICE_UNAVAILABLE)
             return
-        status, response = submit(action, payload, self.headers)
-        self._json(response, HTTPStatus(status))
+        try:
+            status, response = submit(action, payload, self.headers)
+        except (TypeError, ValueError, RuntimeError, OSError, KeyError,
+                AttributeError) as exc:
+            self._json(
+                {'accepted': False, 'message': f'调试处理失败: {exc}'},
+                HTTPStatus.INTERNAL_SERVER_ERROR)
+            return
+        try:
+            http_status = HTTPStatus(status)
+        except ValueError:
+            http_status = HTTPStatus.INTERNAL_SERVER_ERROR
+        self._json(response, http_status)
 
 
 class _ObservabilityHTTPServer(ThreadingHTTPServer):

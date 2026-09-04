@@ -20,7 +20,7 @@ peach_manipulation/
 | `src/cycle.cpp` | `ExecuteTarget` / `SurveyScene` 受理与取消；`authorizeStage` 授权矩阵 |
 | `src/stages.cpp` | 阶段执行器：`executeCycle(ctx)` 显式模式 switch，序列与旧主树严格同构 |
 | `src/quality_gate.cpp` / `view_planner.cpp` / `safety_gate.cpp` / `target_cache.cpp` | `_core`：质量门、视点、安全门、目标缓存 |
-| `include/.../grasp_task.hpp` + `src/grasp_task.cpp` | MTC：预抓取先拍照位再 LIN/CIRC/PTP + 沿轴插入；`syncKeepoutCollisionObjects` |
+| `include/.../grasp_task.hpp` + `src/grasp_task.cpp` | MTC：预抓取先拍照位再 LIN/CIRC + 沿轴插入；已齐 LIN 带 20° 姿态约束；接触不用 PTP |
 | `src/motion.cpp` | MoveGroup / 拍照位姿 / 预览服务 |
 | `include/.../protected_zones.hpp` | 保护区 AABB 纯核（参数 stride-6） |
 | `include/.../view_planner.hpp`、`quality_gate.hpp`、`reconfirm_policy.hpp` | 视点、质量、再确认策略 |
@@ -32,7 +32,7 @@ peach_manipulation/
 
 | 方向 | 内容 |
 |------|------|
-| 被执行器调 | `SurveyScene`、`ExecuteTarget`（PREVIEW / OBSERVE_ONLY / FULL / PREGRASP_ONLY） |
+| 被执行器调 | `SurveyScene`、`ExecuteTarget`（PREVIEW / OBSERVE_ONLY / FULL / PREGRASP_ONLY）、`CheckReachability`（入口→停位几何后 IK，不动臂） |
 | 订阅 | 感知 `target_observations`；重建 `diagnostics` / `refined_*` / `grasp_decision`。`pregrasp_verification` 由重建发布作观测，技能 `VerifyPregrasp` 用工具 TF 残差（非该话题） |
 | 发布 | `~/status`、`~/planned_views`、`/peach/manipulation/grasp_hypothesis` |
 | 不调用 | 重建 `reset`/`finalize` Trigger；账本在执行器 |
@@ -41,7 +41,7 @@ peach_manipulation/
 
 ## 流程
 
-1. `SurveyScene` → `goToPhotoPose`（`transit_max_*` 护栏；超限拒绝）
+1. `SurveyScene` → `goToPhotoPose`（`transit_max_*` 护栏；成功出口 `atNamedTarget` 核当前关节）
 2. 批次对每个目标：并行 `BuildTargetModel` + `OBSERVE_ONLY`，再 `PREGRASP_ONLY` 或 `FULL`（`skip_observation`；调度默认 PREGRASP_ONLY）
 3. 阶段序列（`executeCycle`）：观察（可跳过）→ 等精化 → 再确认 → 预抓取验证 →（PREGRASP_ONLY 停住）或套入/工具/原路撤退
 

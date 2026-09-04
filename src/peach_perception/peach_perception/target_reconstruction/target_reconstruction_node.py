@@ -1756,6 +1756,7 @@ class TargetReconstructionNode(
             self._build_goal_active = False
 
     def _build_target_model_body(self, goal_handle):
+        """Build 主体：reset→绑定→强制 COLLECTING→等机位数→finalize（槽位护栏见外层）."""
         goal = goal_handle.request
         if not goal.target_id:
             result = BuildTargetModel.Result()

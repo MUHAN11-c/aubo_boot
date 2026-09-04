@@ -1,5 +1,6 @@
-# 去拍照位姿并采一场。服务端 peach_manipulation ~/survey_scene。
-# 执行器在 DISCOVERY 于 BeginScene 成功后调用。PAUSE 会取消本动作，恢复后重试。
+# 去拍照位姿并复核当前关节已在命名状态。服务端 peach_manipulation ~/survey_scene。
+# 调度 DISCOVERY 首巡在 BeginScene 之前调用；回访只 Survey、不再 Begin。
+# 成功须 GoalStatus 成功且当前关节过 atNamedTarget。PAUSE 会取消，恢复后重试。
 
 string request_id          # 批次 request_id
 string scene_key           # 与 BeginScene 相同的场景键

@@ -1,6 +1,7 @@
 # 全局发现锁定后的固定目标集合；每帧更新各 ID 的观测状态
 std_msgs/Header header
 uint32 snapshot_id             # 发现窗/锁定集世代；锁定后不变
+uint32 scene_epoch             # 最近一次被接受的 BeginScene 世代；0=尚未 Begin。SELECT / WAIT_LOCK 必须与执行器 _scene_epoch 一致
 string harvest_run_id          # 所属批次；空=尚未开批
 bool target_set_locked         # true=锁定集已关闭，observations 为固定 ID 集合
 uint32 target_count            # 锁定后等于锁定集大小；锁定前可为 0

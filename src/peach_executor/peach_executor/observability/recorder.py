@@ -135,10 +135,13 @@ def target_observations(message) -> dict:
         'stamp': stamp_seconds(message.header),
         'frame_id': message.header.frame_id,
         'snapshot_id': int(message.snapshot_id),
+        'scene_epoch': int(getattr(message, 'scene_epoch', 0) or 0),
         'harvest_run_id': message.harvest_run_id,
         'target_set_locked': bool(message.target_set_locked),
         'target_count': int(message.target_count),
         'selected_target_id': message.selected_target_id,
+        'collecting_count': int(getattr(message, 'collecting_count', 0) or 0),
+        'pending_count': int(getattr(message, 'pending_count', 0) or 0),
         'observations': observations,
     }
 

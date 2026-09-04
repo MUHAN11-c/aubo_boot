@@ -41,7 +41,7 @@ Python 模块名与包名一致；launch/config/可执行文件跟职责名对�
 ```bash
 source /opt/ros/jazzy/setup.bash
 cd /home/mu/Desktop/aubo_e5_jazzy_ws
-colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
+colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 source install/setup.bash
 ros2 launch peach_executor harvest_system.launch.py hardware_mode:=mock camera_enabled:=false
 ```

@@ -1,11 +1,12 @@
 """
 连续运动局部重建节点（精确时间 FK + 有界 ICP + 在线 TSDF）.
 
-默认工作流（零服务）：IDLE 时 /peach/perception/initial_pose 有候选即自动
-绑定开始；COLLECTING 时每个唯一 RGB-D 时间戳均进入质量门，合格即在线
-积分 TSDF；finalize 只提取最终网格并做几何 refit。6 个 Trigger 服务保留
-（capture_frame 补拍、remove_last 回滚等语义不变）；capture.auto_mode=false
-时使用纯手动服务流.
+默认工作流：IDLE 时 /peach/perception/initial_pose 有候选即自动绑定开始
+（或由 BuildTargetModel 直接绑定）；COLLECTING 时每个唯一 RGB-D 时间戳均
+进入质量门，合格即在线积分 TSDF；finalize 只提取最终网格并做几何 refit。
+手动 Trigger 保留 reset / finalize / save_session / query 四口（Web 调试面
+用）；采集由 auto 状态机驱动，`capture.auto_mode=false` 时仅 Build 路径可
+开新会话。
 
 每帧只按 depth.header.stamp 查 base←camera TF；失败跳帧，禁止运动中使用
 latest TF。当前帧先由 FK 变到 base 系，再与已有 TSDF 表面做有界 ICP；
@@ -70,7 +71,6 @@ from peach_perception.target_reconstruction.capture import (
     BindSwitchHoldoff,
     capture_gate,
     CapturedFrame,
-    classify_skip_reason,
     CollectorConfig,
     GATE_ALLOW,
     GATE_DENY,
@@ -181,8 +181,6 @@ class TargetReconstructionNode(
         self.refit_config = RefitConfig(
             cylinder_inlier_min=p.refit.cylinder_inlier_min,
             rmse_max_m=p.refit.rmse_max_m,
-            entry_standoff_m=p.refit.entry_standoff_m,
-            pregrasp_standoff_m=p.refit.pregrasp_standoff_m,
             max_axis_angle_deg=p.refit.max_axis_angle_deg)
         self.icp_config = IcpConfig(
             min_points=p.icp.min_points,
@@ -443,15 +441,8 @@ class TargetReconstructionNode(
             self._on_executor_state, latched, callback_group=self._cb)
 
         # ---- 服务（std_srvs/Trigger，节点相对名；人工/阶段执行器调试口）----
-        # 会改状态的 6 个入口统一过 Active 门（非 Active 只读口拒绝驱动
+        # 会改状态的入口统一过 Active 门（非 Active 只读口拒绝驱动
         # 状态机；query 只读不加门）。
-        self._svc_start = self.create_service(
-            Trigger, '~/start_reconstruction', self._active_gate(self._on_start))
-        self._svc_capture = self.create_service(
-            Trigger, '~/capture_frame', self._active_gate(self._on_capture))
-        self._svc_remove_last = self.create_service(
-            Trigger, '~/remove_last_frame',
-            self._active_gate(self._on_remove_last))
         self._svc_reset = self.create_service(
             Trigger, '~/reset_reconstruction',
             self._active_gate(self._on_reset))
@@ -490,7 +481,6 @@ class TargetReconstructionNode(
             pass
         try:
             for svc in (
-                    self._svc_start, self._svc_capture, self._svc_remove_last,
                     self._svc_reset, self._svc_finalize, self._svc_save,
                     self._svc_query):
                 self.destroy_service(svc)
@@ -927,35 +917,6 @@ class TargetReconstructionNode(
                            else [float(v) for v in center]),
         }
 
-    def _deny(self, response, message: str, count_reject: bool = True):
-        """
-        统一拒帧/拒绝出口：写响应、计数、刷新状态话题.
-
-        Args:
-            response: Trigger 响应（被原地填写）.
-            message: 拒绝原因（中文，回给调用方）.
-            count_reject: 是否计 rejected_views（TF 失败单独计 tf_failures）.
-
-        Returns
-        -------
-            填写后的 response.
-
-        """
-        response.success = False
-        response.message = message
-        self.get_logger().warning(f'拒绝：{message}')
-        code = classify_skip_reason(message)
-        self.collector.note_skip(code, message)
-        self._harvest_data.append_event({
-            'source': 'reconstruction', 'event': 'frame_rejected',
-            'target_id': self.collector.target_id,
-            'code': code, 'reason': message,
-        })
-        if count_reject:
-            self.collector.rejected_views += 1
-        self._publish_all()
-        return response
-
     def _best_candidate(self) -> Tuple[str, Optional[np.ndarray]]:
         """取全局计划选中且坐标系与 TF 诊断均安全的候选."""
         if (self.params.capture.require_target_mask
@@ -964,22 +925,6 @@ class TargetReconstructionNode(
         return select_reconstruction_candidate(
             self._latest_candidates, self.params.frames.base_frame,
             self._preferred_target_id)
-
-    def _on_start(self, request, response):
-        """~/start_reconstruction：清空帧栈，绑定当前最优候选，→ COLLECTING."""
-        del request
-        with self._state_lock:
-            target_id, center = self._best_candidate()
-            response.message = self.collector.start(target_id, center)
-            self._target_kind_memory.bind(target_id)
-            self._last_captured_stamp_sec = -1.0
-            self._reset_products(create_volume=True)
-            self._bound_axis_hint = candidate_axis_hint(
-                self._latest_candidates, target_id)
-            response.success = True
-            self.get_logger().info(response.message)
-            self._publish_all()
-            return response
 
     def _collect_gate_values(self, automatic: bool,
                              prefer_stamp_sec=None,
@@ -1122,61 +1067,6 @@ class TargetReconstructionNode(
         rgb, depth_mm, K, _sm, stamp_sec, _cf, target_mask = snapshot
         return decision, (rgb, depth_mm, K, stamp_sec, T_base_camera,
                           tf_status, target_mask)
-
-    def _on_capture(self, request, response):
-        """
-        ~/capture_frame：过全部门禁后把当前缓存帧采入帧栈并重发累加云.
-
-        两段式门禁：判据采集与 TF 重评在锁内（_gated_capture_begin/finish），
-        阻塞式精确时刻 TF 查询在锁外（_gated_capture_query_tf，最长
-        tf_timeout），查询期间 Trigger 服务/观测回调/心跳可正常取锁。
-        """
-        del request
-        with self._state_lock:
-            if self.collector.state != STATE_COLLECTING:
-                return self._deny(
-                    response,
-                    f'当前状态 {self.collector.state}，先 ~/start_reconstruction',
-                    count_reject=False)
-            decision, tf_request = self._gated_capture_begin(automatic=False)
-            if tf_request is None:
-                return self._resolve_capture_decision(response, decision, None)
-        # 锁外：阻塞式 TF 查询（不得持 _state_lock）。
-        tf_result = self._gated_capture_query_tf(tf_request)
-        with self._state_lock:
-            if self.collector.state != STATE_COLLECTING:
-                return self._deny(
-                    response,
-                    'TF 查询期间重建已离开 COLLECTING，请重试',
-                    count_reject=False)
-            decision, context = self._gated_capture_finish(
-                automatic=False, tf_request=tf_request, tf_result=tf_result)
-            return self._resolve_capture_decision(response, decision, context)
-
-    def _resolve_capture_decision(self, response, decision, context):
-        """手动采帧落地段（须持 _state_lock）：门禁结果 → 入库或统一拒绝."""
-        if decision.action != GATE_ALLOW:
-            if decision.count_tf_failure:
-                self.collector.tf_failures += 1
-            return self._deny(response, decision.reason,
-                              count_reject=decision.count_reject)
-        (rgb, depth_mm, K, stamp_sec,
-         T_base_camera, tf_status, target_mask) = context
-        ok, reason, trans, rot = self.collector.check_view(T_base_camera)
-        if not ok:
-            return self._deny(response, reason)
-        if reason == 'duplicate_allowed':
-            self.get_logger().warning(
-                f'重复视角仍采帧（allow_duplicate_views=true）：'
-                f'平移 {trans * 1000.0:.1f} mm / 旋转 {rot:.1f} deg')
-        accepted, message = self._accept_frame(
-            rgb, depth_mm, K, stamp_sec, T_base_camera, tf_status,
-            target_mask=target_mask)
-        if not accepted:
-            return self._deny(response, message)
-        response.success = True
-        response.message = message
-        return response
 
     def _crop_for_icp(self, cloud_fk, cloud_rgb):
         """把 ICP 输入裁到目标局部盒，避免背景主导刚体修正."""
@@ -1342,43 +1232,6 @@ class TargetReconstructionNode(
         self._publish_all()
         self._view_progress.set()
         return True, message
-
-    def _on_remove_last(self, request, response):
-        """~/remove_last_frame：弹帧后重放剩余帧，保证在线 TSDF 一致."""
-        del request
-        with self._state_lock:
-            removed = self.collector.remove_last()
-            if removed is None:
-                response.success = False
-                response.message = '帧栈为空，无可移除帧'
-                self.get_logger().warning(response.message)
-            else:
-                response.success = True
-                response.message = (
-                    f'已移除最后一帧，剩余 {len(self.collector.frames)} 视角')
-                self._overlap_cache = None
-                if self.params.tsdf.enable:
-                    self._tsdf_volume = self._create_volume()
-                    for old in self.collector.frames:
-                        self._tsdf_volume.integrate_frame(
-                            old.rgb, old.depth_mm, old.camera_K,
-                            old.T_base_camera)
-                    self._refresh_tsdf_outputs()
-                    if self.params.refit.enable:
-                        self._run_refit(
-                            keep_last_good=False, mark_final=False)
-                else:
-                    self._tsdf_cloud_cache = None
-                    self._tsdf_info = None
-                    # E4：TSDF 关闭路径的产物清空也须递增版本号并让
-                    # ICP target 缓存作废（帧栈已变，模型语义已清）
-                    self._icp_target_cache.invalidate()
-                    self._bump_products_version(tsdf_cloud=True)
-                    self._refined = None
-                self._mesh_cache = None
-                self.get_logger().info(response.message)
-            self._publish_all()
-            return response
 
     def _on_reset(self, request, response):
         """~/reset_reconstruction：清空帧栈与绑定目标，回 IDLE."""
@@ -1563,8 +1416,9 @@ class TargetReconstructionNode(
             views,
             cloud_xyz=cloud_xyz,
             detection_axis=self._bound_axis_hint,
-            entry_standoff_m=float(self.refit_config.entry_standoff_m),
-            pregrasp_standoff_m=float(self.refit_config.pregrasp_standoff_m))
+            entry_standoff_m=float(self.params.refit.entry_standoff_m),
+            pregrasp_standoff_m=float(
+                self.params.refit.pregrasp_standoff_m))
         result = self._merge_fused_bag_model(result, fused, views)
         if result.get('ok') and result.get('budget'):
             self._refined = result
@@ -1954,9 +1808,10 @@ class TargetReconstructionNode(
                 'refit.cylinder_inlier_min':
                     self.refit_config.cylinder_inlier_min,
                 'refit.rmse_max_m': self.refit_config.rmse_max_m,
-                'refit.entry_standoff_m': self.refit_config.entry_standoff_m,
+                'refit.entry_standoff_m':
+                    self.params.refit.entry_standoff_m,
                 'refit.pregrasp_standoff_m':
-                    self.refit_config.pregrasp_standoff_m,
+                    self.params.refit.pregrasp_standoff_m,
                 'refit.max_axis_angle_deg':
                     self.refit_config.max_axis_angle_deg,
             },

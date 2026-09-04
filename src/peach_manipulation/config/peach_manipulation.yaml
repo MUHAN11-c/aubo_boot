@@ -43,9 +43,6 @@ peach_manipulation_node:
       # 预抓取后撤：grasp_standoffs.yaml（launch 注入 mtc_approach_along_axis_m）
       mtc_approach_max_lateral_m: 0.05
       mtc_approach_max_align_deg: 20.0  # 分档「已齐」门槛；已齐 LIN 才挂路径约束
-      mtc_approach_via_max_spacing_m: 0.08
-      mtc_approach_via_min_spacing_m: 0.03
-      mtc_approach_via_max_points: 1  # 保留；不插 via
       observe_planning_time_s: 1.0
       observe_planning_attempts: 1
       observe_max_duration_s: 0.0
@@ -92,7 +89,6 @@ peach_manipulation_node:
       min_effective_views: 1
       # 墙钟只作日志对照，不按 EMA 放大、不预测收口。
       time_budget_s: 15.0
-      budget_cost_margin: 1.5
       # 未测得 EMA 时只用于等帧/再确认窗口（按 0.4 s ≈ 2.5 FPS）；
       # 不预填 EMA，新鲜度门保持 target_observation_max_age_s。
       assumed_frame_interval_s: 0.4
@@ -120,8 +116,6 @@ peach_manipulation_node:
       minimum_baseline_deg: 8.0
       minimum_mean_nearest_baseline_deg: 6.0
       minimum_mean_depth_ratio: 0.40
-      maximum_refined_rmse_m: 0.01
-      minimum_refined_inlier_ratio: 0.35
       maximum_data_age_s: 3.0  # 2.0 时 ~1 Hz 诊断心跳会 reconstruction_data_stale，观察收口抓不到
       # [deg] 单帧检测轴 vs 重建精化轴完全错轴诊断；超过只打旗标。
       # 接触许可只信 GraspDecision.allowed（袋融合动态预算）。
@@ -135,14 +129,12 @@ peach_manipulation_node:
       # 目标观测新鲜度门下限（秒）。未测得帧间隔时用本值；测得后只按低帧率
       # 放宽，不得收得比本值更紧。
       target_observation_max_age_s: 3.0
-      reset_reconstruction_on_start: false
     grasp:
       # 默认停在 READY_FOR_GRASP，不执行接触动作。
       enabled: false
       neck_margin_m: 0.015
       minimum_travel_m: 0.02
       maximum_travel_m: 0.20
-      complete_target_after_retreat: false
       # 抓取前再确认（2.7-RECONFIRM，FinalizeAndValidate 之后、MTC 之前）：
       # 单次尝试的新鲜观测等待窗口上限（秒），实测帧间隔 EMA 自适应伸缩，
       # 本值为回退值与上限；摆动等平息也在本窗口预算内

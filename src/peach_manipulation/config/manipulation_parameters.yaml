@@ -1,7 +1,7 @@
 ---
 # peach_manipulation_node 参数定义（generate_parameter_library 单一事实源）：
-# 声明/类型/默认值/校验全在本文件；默认值与 config/peach_manipulation.yaml 逐项对齐
-# （test_yaml_defaults 强制），中文注释口径以 config/peach_manipulation.yaml 为权威。
+# 声明/类型/默认值/校验全在本文件；默认值与 config/peach_manipulation.yaml
+# 由审查逐项对齐（不设自动检查），中文注释口径以 config/peach_manipulation.yaml 为权威。
 peach_manipulation_node:
   frames:
     base: {
@@ -145,24 +145,6 @@ peach_manipulation_node:
       default_value: 0.08,
       description: "接近中途相对起点更远离目标的最大回退（米）。0=不查。1740 为 0.24 m。",
       validation: { gt_eq<>: [0.0] }
-    }
-    mtc_approach_via_max_spacing_m: {
-      type: double,
-      default_value: 0.08,
-      description: "保留参数；接近不再插多段笛卡尔过渡点。",
-      validation: { gt_eq<>: [0.0] }
-    }
-    mtc_approach_via_min_spacing_m: {
-      type: double,
-      default_value: 0.03,
-      description: "保留参数；接近不再插多段笛卡尔过渡点。",
-      validation: { gt_eq<>: [0.0] }
-    }
-    mtc_approach_via_max_points: {
-      type: int,
-      default_value: 1,
-      description: "保留参数；接近不插 via（会把路径拉长）。",
-      validation: { gt_eq<>: [1] }
     }
     mtc_approach_cartesian_max_distance_m: {
       type: double,
@@ -355,12 +337,6 @@ peach_manipulation_node:
       description: "观察段墙钟对照（秒）。只进日志；停准则是覆盖达标或 maximum_moves 用尽，不按 EMA 放大或预测收口。",
       validation: { gt<>: [0.0] }
     }
-    budget_cost_margin: {
-      type: double,
-      default_value: 1.5,
-      description: "保留兼容。不再参与观察停准则（曾按倍率×移动+等帧 EMA 预测收口，会砍掉第二机位）。",
-      validation: { gt<>: [0.0] }
-    }
     assumed_frame_interval_s: {
       type: double,
       default_value: 0.4,
@@ -409,18 +385,6 @@ peach_manipulation_node:
       description: "质量门平均有效深度比例下限（0~1）。",
       validation: { gt_eq<>: [0.0], lt_eq<>: [1.0] }
     }
-    maximum_refined_rmse_m: {
-      type: double,
-      default_value: 0.01,
-      description: "精化关键点残差诊断上限（米）；不单独关接触许可，也不拦 PREGRASP_ONLY。",
-      validation: { gt<>: [0.0] }
-    }
-    minimum_refined_inlier_ratio: {
-      type: double,
-      default_value: 0.35,
-      description: "精化拟合内点比例下限（0~1）。",
-      validation: { gt_eq<>: [0.0], lt_eq<>: [1.0] }
-    }
     maximum_data_age_s: {
       type: double,
       default_value: 3.0,
@@ -456,11 +420,6 @@ peach_manipulation_node:
       description: "目标观测新鲜度门下限（秒）。未测得帧间隔时用本值；测得后只按低帧率放宽，不得收得比本值更紧。",
       validation: { gt<>: [0.0] }
     }
-    reset_reconstruction_on_start: {
-      type: bool,
-      default_value: false,
-      description: "已废弃：执行器不再调用重建 reset。保留以免旧 yaml 加载失败。"
-    }
   grasp:
     enabled: {
       type: bool,
@@ -484,11 +443,6 @@ peach_manipulation_node:
       default_value: 0.20,
       description: "最大插入行程（米）。",
       validation: { gt<>: [0.0] }
-    }
-    complete_target_after_retreat: {
-      type: bool,
-      default_value: false,
-      description: "撤离后是否推进感知计划（已废弃；账本由 peach_executor 持有）。"
     }
     reconfirm_wait_s: {
       type: double,

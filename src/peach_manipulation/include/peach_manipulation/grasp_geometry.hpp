@@ -41,17 +41,5 @@ inline Eigen::Isometry3d pregraspFromEntryKeepRoll(
   return pose;
 }
 
-// 降级/重算的入口点构造（纯函数）：入口点 = 锚点 − 轴·(行程 + standoff)。
-// standoff 是袋外预入口余量（管进袋前净空），与入袋后越过袋口的颈部余量
-// neck_margin 互补：一个在 entry 构造里后退，一个在 insertionTravel 里前送，
-// 两者作用于行程两端，不叠加也不互相替代。axis 为零向量时按原样返回 NaN 传播
-// 防护交给调用方（调用前必须保证 nonzeroFinite(axis)）。
-inline Eigen::Vector3d degradedEntryPoint(
-  const Eigen::Vector3d & anchor, const Eigen::Vector3d & axis,
-  double travel_m, double standoff_m)
-{
-  return anchor - axis.normalized() * (travel_m + standoff_m);
-}
-
 }  // namespace peach_manipulation
 #endif  // PEACH_MANIPULATION__GRASP_GEOMETRY_HPP_

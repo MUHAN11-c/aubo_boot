@@ -532,11 +532,13 @@ std::unique_ptr<mtc::Task> GraspTask::makeInsertOnlyTask(
   return task;
 }
 
+// 只规划（PREVIEW / preview Trigger 专用）：接近分档后一次装配
+// 「到预抓取 + 沿轴插入」的 plan-only 预览。执行路径已删——生产周期走
+// moveToPregrasp（阶段执行器）+ previewFullContact 预验证 + sleeveLinear。
 GraspTaskResult GraspTask::approachAndInsert(
   const Eigen::Isometry3d & entry_tip_pose,
   const Eigen::Vector3d & insertion_axis,
-  double insertion_distance_m,
-  bool execute)
+  double insertion_distance_m)
 {
   const ApproachSplit split =
     classifyApproach(config_, entry_tip_pose, insertion_axis);
@@ -549,71 +551,30 @@ GraspTaskResult GraspTask::approachAndInsert(
     split.radius_m, split.lin_to_entry_m, approachKindName(split.kind));
   if (split.need_lin) {
     auto to_pregrasp = planToPregrasp(
-      "peach_approach_pregrasp", entry_tip_pose, insertion_axis, execute);
+      "peach_approach_pregrasp", entry_tip_pose, insertion_axis, false);
     if (!to_pregrasp.success) {
       to_pregrasp.reason = "到轴上预抓取失败: " + to_pregrasp.reason;
       return to_pregrasp;
     }
-    if (!execute) {
-      auto along = planAndMaybeExecute(
-        makeApproachInsertTask(
-          "peach_along_axis_insert", insertion_axis, split.lin_to_entry_m,
-          insertion_distance_m),
-        false, {}, false, 0U);
-      if (!along.success) {
-        to_pregrasp.success = false;
-        to_pregrasp.reason = "已规划到预抓取，沿轴进入未过: " + along.reason;
-        return to_pregrasp;
-      }
-      to_pregrasp.reason = "已规划到预抓取并沿轴进入（仅规划）";
+    auto along = planAndMaybeExecute(
+      makeApproachInsertTask(
+        "peach_along_axis_insert", insertion_axis, split.lin_to_entry_m,
+        insertion_distance_m),
+      false, {}, false, 0U);
+    if (!along.success) {
+      to_pregrasp.success = false;
+      to_pregrasp.reason = "已规划到预抓取，沿轴进入未过: " + along.reason;
       return to_pregrasp;
     }
+    to_pregrasp.reason = "已规划到预抓取并沿轴进入（仅规划）";
+    return to_pregrasp;
   }
-  auto along = planAndMaybeExecute(
+  return planAndMaybeExecute(
     makeApproachInsertTask(
       "peach_along_axis_insert", insertion_axis, split.lin_to_entry_m,
       insertion_distance_m),
-    execute, config_.approach_execution_gate, true,
+    false, config_.approach_execution_gate, true,
     split.lin_to_entry_m > 0.005 ? 1U : 0U);
-  if (along.success || along.execution_started) {
-    if (along.success) {
-      return along;
-    }
-  } else if (execute && split.lin_to_entry_m > 0.005) {
-    RCLCPP_WARN(
-      node_->get_logger(),
-      "沿轴进入+插入一体失败（%s），改分步沿轴再插入",
-      along.reason.c_str());
-    auto to_entry = planAndMaybeExecute(
-      makeInsertOnlyTask(
-        "peach_along_axis_to_entry", insertion_axis, split.lin_to_entry_m),
-      true, config_.approach_execution_gate, false, 0U);
-    if (!to_entry.success) {
-      to_entry.reason = "沿轴到入口失败: " + to_entry.reason;
-      return to_entry;
-    }
-    along = planAndMaybeExecute(
-      makeInsertOnlyTask(
-        "peach_linear_insert", insertion_axis, insertion_distance_m),
-      true, config_.approach_execution_gate, false, 0U);
-    if (along.success) {
-      return along;
-    }
-  } else if (!execute) {
-    return along;
-  }
-  if (along.success) {
-    return along;
-  }
-  if (!execute) {
-    return along;
-  }
-  const auto back = retreat(insertion_axis, insertion_distance_m, true);
-  along.execution_started = true;
-  along.success = false;
-  along.reason = "已到抓取入口但插入未完成: " + along.reason +
-    "；撤离: " + back.reason;
-  return along;
 }
 
 GraspTaskResult GraspTask::previewFullContact(

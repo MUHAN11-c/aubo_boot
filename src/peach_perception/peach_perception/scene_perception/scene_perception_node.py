@@ -113,7 +113,6 @@ from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
 from rclpy.time import Time
 from sensor_msgs.msg import CameraInfo, Image, PointCloud2
 from std_msgs.msg import Header, String
-from std_srvs.srv import Trigger
 from tf2_ros import Buffer, TransformException, TransformListener
 from vision_msgs.msg import Detection2DArray
 from visualization_msgs.msg import Marker, MarkerArray
@@ -243,7 +242,7 @@ class ScenePerceptionNode(LifecycleNode):
         self._scene_key = ''
         # 阶段 D1：锁定集目标光照质量统计（观测指标，不打阻断旗标）；
         # OUT_OF_VIEW 分类用的「消失前最后检测框是否触图像边缘」记忆
-        # （稳定 target_id → bool；clear_target_memory 时一并清空）
+        # （稳定 target_id → bool；换场清身份时一并清空）
         self._lighting = LightingMeter(
             alpha=0.3,
             min_depth_ratio=self.lighting_min_depth_ratio,
@@ -329,8 +328,6 @@ class ScenePerceptionNode(LifecycleNode):
         self._sub_exec_state = self.create_subscription(
             HarvestState, '/peach_executor/state',
             self._on_executor_state, state_qos)
-        self._svc_query = self.create_service(
-            Trigger, '~/query_harvest_state', self._on_query_harvest_state)
         self._svc_begin = self.create_service(
             BeginScene, '~/begin_scene', self._on_begin_scene)
 
@@ -371,7 +368,6 @@ class ScenePerceptionNode(LifecycleNode):
         except Exception:  # noqa: BLE001 已停止则忽略
             pass
         try:
-            self.destroy_service(self._svc_query)
             self.destroy_service(self._svc_begin)
         except Exception:  # noqa: BLE001 已释放则忽略
             pass
@@ -493,14 +489,6 @@ class ScenePerceptionNode(LifecycleNode):
         message.data = json.dumps(
             self._harvest_state_dict(), ensure_ascii=False)
         self.pub_harvest_state.publish(message)
-
-    def _on_query_harvest_state(self, request, response):
-        """~/query_harvest_state：返回当前目标集合、优先级和数据目录."""
-        del request
-        response.success = True
-        response.message = json.dumps(
-            self._harvest_state_dict(), ensure_ascii=False)
-        return response
 
     def _on_begin_scene(self, request, response):
         """BeginScene：重启收齐窗；仅物理场景切换时清空身份表."""
@@ -834,7 +822,7 @@ class ScenePerceptionNode(LifecycleNode):
 
         """
         # 持 _plan_lock：harvest_plan 与 target_registry 是同一份一致性状态
-        # （clear_target_memory 服务回调在同锁下清表），门控读取须与之互斥；
+        # （BeginScene 换场清表在同锁下进行），门控读取须与之互斥；
         # 锁内只有 dict 读取与一次 4×4 求逆，耗时微秒级
         with self._plan_lock:
             locked = self.harvest_plan.locked

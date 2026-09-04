@@ -71,8 +71,6 @@ setup(
             'peach_perception.scene_perception.scene_perception_node:main',
             'peach_target_reconstruction_node = '
             'peach_perception.target_reconstruction.target_reconstruction_node:main',
-            'peach_bag_baseline = '
-            'peach_perception.scene_perception.offline.bag_baseline:main',
         ],
     },
     options={

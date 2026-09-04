@@ -398,8 +398,7 @@ bool ManipulationSkillsNode::stageAcquireViews(CycleContext & ctx)
   // 把下一颗的第二机位在第一拍就判成买不起。
   scan_move_cost_ema_s_ = 0.0;
   const ScanBudget scan_budget(ScanBudgetConfig{
-      maximum_scan_moves_, min_effective_views_, scan_time_budget_s_,
-      scan_budget_cost_margin_});
+      maximum_scan_moves_, min_effective_views_, scan_time_budget_s_});
   int moves = 0;
   int effective_views = 0;
   bool budget_exhausted = false;

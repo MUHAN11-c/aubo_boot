@@ -154,13 +154,10 @@ private:
     const std::shared_ptr<SurveyGoalHandle>);
   void onSurveyAccepted(const std::shared_ptr<SurveyGoalHandle> goal_handle);
   void executeSurvey(const std::shared_ptr<SurveyGoalHandle> goal_handle);
-  void onStart(
-    const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response,
-    bool action_driven);
+  void onStart(const Trigger::Response::SharedPtr & response);
   void onCancel(const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response);
   void onAcknowledgeRecovery(
     const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response);
-  void onQuery(const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response);
   void onArm(
     const SetBool::Request::SharedPtr request, SetBool::Response::SharedPtr response);
 
@@ -313,9 +310,6 @@ private:
   double mtc_approach_max_duration_s_{0.0};
   double mtc_approach_max_total_joint_travel_rad_{12.0};
   double mtc_approach_max_single_joint_travel_rad_{6.1};
-  double mtc_approach_via_max_spacing_m_{0.08};
-  double mtc_approach_via_min_spacing_m_{0.03};
-  int mtc_approach_via_max_points_{1};
   double mtc_approach_max_detour_ratio_{2.2};
   double mtc_approach_max_chord_deviation_m_{0.25};
   double mtc_approach_max_recede_m_{0.08};
@@ -332,7 +326,6 @@ private:
   int min_effective_views_{1};
   // 观察段墙钟对照（秒）。停准则不按本值或 EMA 预测收口；只进日志。
   double scan_time_budget_s_{15.0};
-  double scan_budget_cost_margin_{1.5};
   // 未测得观测间隔 EMA 时的回退帧间隔（秒）。0=不预填。
   double assumed_frame_interval_s_{0.4};
   // 本目标内移动+等帧成本（秒，≤0=未测得）：stageAcquireViews 开头清零，
@@ -404,7 +397,7 @@ private:
   // 周期阶段耗时计时器（重构阶段 C）：仅在本互斥锁内访问（setState 喂入、
   // startCycleTiming/fillStageDurations 起止与读取）。
   StageTimer stage_timer_;
-  // 当前周期上下文：action 受理（executeAction）或手动周期（onStart）创建，
+  // 当前周期上下文：action 受理（executeAction）创建，
   // worker 线程启动时按 shared_ptr 持有；一切周期可变状态在 ctx 内
   // （见 cycle_context.hpp 线程规则）。下一周期创建即整体丢弃上一份。
   std::shared_ptr<CycleContext> cycle_;
@@ -427,7 +420,7 @@ private:
   rclcpp::Subscription<peach_interfaces::msg::BagFittingArray>::SharedPtr refined_diag_sub_;
   rclcpp::Subscription<aubo_msgs::msg::RobotStatus>::SharedPtr robot_status_sub_;
   // 生命周期发布者：on_activate/on_deactivate 切换激活态；publishState 在
-  // 未激活/已清理时只更新内存投影不发布（query_state 仍可读）。
+  // 未激活/已清理时只更新内存投影不发布（~/status 仍随激活发布）。
   rclcpp_lifecycle::LifecyclePublisher<std_msgs::msg::String>::SharedPtr status_pub_;
   // 回调耗时累计注册表（2.16-5）：关键回调入口的 ScopedTimer 析构时写入，
   // publishState 将其 JSON 投影随 ~/status 一起发布（不新增话题）。
@@ -436,12 +429,10 @@ private:
     marker_pub_;
   rclcpp::Publisher<peach_interfaces::msg::GraspHypothesis>::SharedPtr
     grasp_hyp_pub_;
-  rclcpp::Service<Trigger>::SharedPtr start_service_;
   rclcpp::Service<Trigger>::SharedPtr preview_approach_service_;
   rclcpp::Service<Trigger>::SharedPtr preview_full_contact_service_;
   rclcpp::Service<Trigger>::SharedPtr cancel_service_;
   rclcpp::Service<Trigger>::SharedPtr recovery_service_;
-  rclcpp::Service<Trigger>::SharedPtr query_service_;
   rclcpp::Service<Trigger>::SharedPtr photo_pose_service_;
   rclcpp::Service<CheckReachability>::SharedPtr reachability_service_;
   rclcpp::Service<SetBool>::SharedPtr arm_service_;

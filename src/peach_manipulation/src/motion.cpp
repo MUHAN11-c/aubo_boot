@@ -200,7 +200,7 @@ void ManipulationSkillsNode::previewContact(
     "MTC 只规划：到入口、直线插入");
   const GraspTaskResult result = include_retreat ?
     grasp_task_->previewFullContact(entry_tip_pose, refined->axis, travel) :
-    grasp_task_->approachAndInsert(entry_tip_pose, refined->axis, travel, false);
+    grasp_task_->approachAndInsert(entry_tip_pose, refined->axis, travel);
   if (!result.success) {
     finish(false, CycleState::PREVIEW_FAILED, "MTC 接触轨迹预览失败: " + result.reason);
     return;

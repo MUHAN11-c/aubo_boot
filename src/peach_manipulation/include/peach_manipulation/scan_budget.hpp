@@ -22,7 +22,6 @@ struct ScanBudgetConfig
   int maximum_moves{2};
   int min_effective_views{1};
   double time_budget_s{15.0};
-  double budget_cost_margin{1.5};  // 保留兼容；不再参与停准则
 };
 
 enum class ScanVerdict

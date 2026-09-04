@@ -199,12 +199,10 @@ void ManipulationSkillsNode::releaseResources()
   // loadParameters 重建），contact_recovery_required_ 跨清理保持。
   cycle_action_server_.reset();
   survey_action_server_.reset();
-  start_service_.reset();
   preview_approach_service_.reset();
   preview_full_contact_service_.reset();
   cancel_service_.reset();
   recovery_service_.reset();
-  query_service_.reset();
   photo_pose_service_.reset();
   arm_service_.reset();
   target_sub_.reset();
@@ -281,9 +279,6 @@ void ManipulationSkillsNode::loadParameters()
     params.moveit.mtc_approach_max_total_joint_travel_rad;
   mtc_approach_max_single_joint_travel_rad_ =
     params.moveit.mtc_approach_max_single_joint_travel_rad;
-  mtc_approach_via_max_spacing_m_ = params.moveit.mtc_approach_via_max_spacing_m;
-  mtc_approach_via_min_spacing_m_ = params.moveit.mtc_approach_via_min_spacing_m;
-  mtc_approach_via_max_points_ = static_cast<int>(params.moveit.mtc_approach_via_max_points);
   mtc_approach_max_detour_ratio_ = params.moveit.mtc_approach_max_detour_ratio;
   mtc_approach_max_chord_deviation_m_ =
     params.moveit.mtc_approach_max_chord_deviation_m;
@@ -334,7 +329,6 @@ void ManipulationSkillsNode::loadParameters()
   maximum_scan_moves_ = static_cast<int>(params.scan.maximum_moves);
   min_effective_views_ = static_cast<int>(params.scan.min_effective_views);
   scan_time_budget_s_ = params.scan.time_budget_s;
-  scan_budget_cost_margin_ = params.scan.budget_cost_margin;
   assumed_frame_interval_s_ = params.scan.assumed_frame_interval_s;
   frame_wait_s_ = params.scan.frame_wait_s;
 
@@ -344,8 +338,6 @@ void ManipulationSkillsNode::loadParameters()
   gate_config.minimum_mean_nearest_baseline_deg =
     params.quality.minimum_mean_nearest_baseline_deg;
   gate_config.minimum_mean_depth_ratio = params.quality.minimum_mean_depth_ratio;
-  gate_config.maximum_refined_rmse_m = params.quality.maximum_refined_rmse_m;
-  gate_config.minimum_refined_inlier_ratio = params.quality.minimum_refined_inlier_ratio;
   gate_config.maximum_data_age_s = params.quality.maximum_data_age_s;
   gate_config.maximum_axis_angle_deg = params.quality.maximum_axis_angle_deg;
   quality_gate_ = std::make_unique<QualityGate>(gate_config);
@@ -455,9 +447,6 @@ void ManipulationSkillsNode::rebuildGraspTask()
     mtc_approach_max_total_joint_travel_rad_;
   task_config.approach_max_single_joint_travel_rad =
     mtc_approach_max_single_joint_travel_rad_;
-  task_config.approach_via_max_spacing_m = mtc_approach_via_max_spacing_m_;
-  task_config.approach_via_min_spacing_m = mtc_approach_via_min_spacing_m_;
-  task_config.approach_via_max_points = mtc_approach_via_max_points_;
   task_config.approach_max_detour_ratio = mtc_approach_max_detour_ratio_;
   task_config.approach_max_chord_deviation_m =
     mtc_approach_max_chord_deviation_m_;
@@ -560,11 +549,6 @@ void ManipulationSkillsNode::createSubscriptions()
 
 void ManipulationSkillsNode::createServices()
 {
-  start_service_ = create_service<Trigger>(
-    "~/start_cycle",
-    std::bind(
-      &ManipulationSkillsNode::onStart, this,
-      std::placeholders::_1, std::placeholders::_2, false));
   preview_approach_service_ = create_service<Trigger>(
     "~/preview_approach_insert",
     std::bind(
@@ -586,11 +570,6 @@ void ManipulationSkillsNode::createServices()
     "~/acknowledge_recovery",
     std::bind(
       &ManipulationSkillsNode::onAcknowledgeRecovery, this,
-      std::placeholders::_1, std::placeholders::_2));
-  query_service_ = create_service<Trigger>(
-    "~/query_state",
-    std::bind(
-      &ManipulationSkillsNode::onQuery, this,
       std::placeholders::_1, std::placeholders::_2));
   photo_pose_service_ = create_service<Trigger>(
     "~/go_to_photo_pose",

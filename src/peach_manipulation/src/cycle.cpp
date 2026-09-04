@@ -155,7 +155,8 @@ void ManipulationSkillsNode::executeAction(
   if (goal->mode == ExecuteTarget::Goal::PREVIEW) {
     previewContact(false, trigger_response);
   } else {
-    // Action 是自动编排专用入口；手动 Trigger 仍要求每周期单独 arm。
+    // Action 是唯一周期入口（自动编排）：受理即自动 arm（手动 Trigger
+    // 类入口须另行 set_execution_armed）。
     if (execution_enabled_.load()) {execution_armed_.store(true);}
     ctx = std::make_shared<CycleContext>();
     ctx->target_id = goal->target_id;
@@ -164,7 +165,7 @@ void ManipulationSkillsNode::executeAction(
     ctx->skip_observation = goal->skip_observation;
     ctx->action_driven = true;
     cycle_ = ctx;
-    onStart(std::make_shared<Trigger::Request>(), trigger_response, true);
+    onStart(trigger_response);
   }
   if (!trigger_response->success) {
     auto result = std::make_shared<ExecuteTarget::Result>();
@@ -246,22 +247,15 @@ void ManipulationSkillsNode::executeAction(
   }
 }
 
-void ManipulationSkillsNode::onStart(
-  const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response,
-  bool action_driven)
+void ManipulationSkillsNode::onStart(const Trigger::Response::SharedPtr & response)
 {
   const ScopedTimer timer(get_logger(), "start_cycle", &callback_timing_);
-  // 运动输出权限绑定 Active 态（A8）：start_cycle 与 action 派生的周期共用本入口。
+  // 运动输出权限绑定 Active 态（A8）：action 派生周期唯一启动入口。
   std::string motion_reason;
   if (!motionOutputAllowed(motion_reason)) {
     response->success = false;
     response->message = motion_reason;
     return;
-  }
-  if (!action_driven) {
-    // 手动 Trigger 周期恒为 FULL 语义：全新上下文（目标空、三旗标全 false），
-    // 不残留上一 action 周期的 goal 钉死身份与模式旗标。
-    cycle_ = std::make_shared<CycleContext>();
   }
   if (!move_group_) {
     response->success = false;
@@ -340,14 +334,6 @@ void ManipulationSkillsNode::onAcknowledgeRecovery(
   response->success = true;
   response->message = "已记录现场人工撤离确认；本服务不发送任何运动命令";
   setState(CycleState::IDLE, response->message);
-}
-
-void ManipulationSkillsNode::onQuery(
-  const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response)
-{
-  std::lock_guard<std::mutex> lock(state_mutex_);
-  response->success = true;
-  response->message = state_json_.dump();
 }
 
 void ManipulationSkillsNode::onArm(

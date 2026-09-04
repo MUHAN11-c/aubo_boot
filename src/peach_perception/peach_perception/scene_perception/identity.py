@@ -438,40 +438,6 @@ class GlobalHarvestPlan:
             if self.selected_target_id == target_id:
                 self.selected_target_id = ''
 
-    def complete_selected(self) -> str:
-        """标记当前目标已完成，并按固定优先级推进到下一个未完成 ID."""
-        if self.selected_target_id:
-            self.mark_completed(self.selected_target_id)
-        self.selected_target_id = self._next_selectable()
-        return self.selected_target_id
-
-    def reopen_target(self, target_id: str) -> str:
-        """
-        重开已终局目标：移出 completed_ids 恢复可选（E3 残局抬质量配套）.
-
-        编排器对 SKIPPED_QUALITY 残局目标派发 OBSERVE_ONLY 抬质量成功后
-        调用（节点经 ~/reopen_target 服务入口）。重开后目标参与
-        _next_selectable 的固定优先级竞争，是否立即重新选中由当前帧
-        可观测性自决（不在 current_selectable_ids 即等下一帧观测恢复）。
-
-        Args:
-            target_id: 待重开目标 ID.
-
-        Returns
-        -------
-            拒绝原因；空串表示成功。守卫依次：未锁定 / 不在锁定集 /
-            未终局（不在 completed_ids，含从未派发与已重开）.
-
-        """
-        if not self._locked:
-            return '目标集合尚未锁定，无账目可重开'
-        if target_id not in self.locked_ids:
-            return f'{target_id} 不在本轮锁定集'
-        if target_id not in self.completed_ids:
-            return f'{target_id} 未终局（无 completed 账目）'
-        self.completed_ids.discard(target_id)
-        return ''
-
     def pop_dropped(self) -> List[str]:
         """
         取走自上次调用以来被移除的 target_id 队列（阶段 D1 移除入口）.
@@ -681,8 +647,8 @@ class TargetRegistry:
         Args:
             now: 时间戳 (s) 或 None；None 时只做帧 TTL 清除（兼容不注入
                 时钟的旧调用），注入时才启用 max_age_s 墙钟淘汰，且须与
-                match_or_register 的 now 同一时钟基准（否则 max_age 比较
-                失真）.
+                match_or_register_frame 的 now 同一时钟基准（否则 max_age
+                比较失真）.
 
         Returns
         -------
@@ -697,68 +663,14 @@ class TargetRegistry:
                  > self.tentative_ttl_frames]
         ts = None if now is None else float(now)
         if ts is not None:
-            # now 未注入时跳过墙钟淘汰：match_or_register 若用了
+            # now 未注入时跳过墙钟淘汰：match_or_register_frame 若用了
             # time.monotonic() 兜底，两时钟混比会把表项瞬间误判超龄；
-            # 生产路径节点对 begin_frame/match_or_register 注入同一时钟
+            # 生产路径节点对 begin_frame/match_or_register_frame 注入同一时钟
             stale.extend(
                 tid for tid, t in self._targets.items()
                 if ts - t['last_seen'] > self.max_age_s)
         for tid in set(stale):
             del self._targets[tid]
-
-    def match_or_register(
-        self,
-        position,
-        class_id: int,
-        axis=None,
-        diameter: float = 0.0,
-        status: str = '',
-        now: Optional[float] = None,
-    ) -> Tuple[str, bool]:
-        """
-        对一个世界系候选做匹配或注册，返回 (target_id, is_new).
-
-        匹配段委托 TargetMatcher 接口（三段搜索链见 SpatialEmaMatcher）。
-        命中：复用其 target_id，position/diameter 按 α EMA，
-        双方 axis 都存在时先做符号对齐再 EMA 并归一化（轴有 ± 二义性，点积 < 0
-        先取反，否则反向轴直接 EMA 会互相抵消）；obs_count+1，last_seen /
-        last_status 更新。未命中：发新 ID ``target_{next_index}``（计数单调增），
-        必要时先淘汰最久未见表项。
-
-        Args:
-            position: (3,) 世界系位置（米），目标身份的空间锚点.
-            class_id: 检测类别（不同类永不匹配）.
-            axis: (3,) 单位轴方向或 None（如袋轴 translation_direction）.
-            diameter: 目标直径 (m)；≤0 视为无效观测，不参与 EMA（防 0 值污染）.
-            status: 本帧三态字符串，仅记录到 last_status，不影响匹配.
-            now: 时间戳 (s)，None 用 time.monotonic()；测试可注入显式值.
-
-        Returns
-        -------
-            (target_id, is_new)：is_new=True 表示本次新注册.
-
-        """
-        pos = np.asarray(position, dtype=float).reshape(3)
-        if not np.all(np.isfinite(pos)):
-            raise ValueError('position 必须是有限的三维世界系坐标')
-        ax = None
-        if axis is not None:
-            candidate_axis = np.asarray(axis, dtype=float).reshape(3)
-            if np.all(np.isfinite(candidate_axis)):
-                n = float(np.linalg.norm(candidate_axis))
-                if n > 1e-9:
-                    ax = candidate_axis / n
-        ts = time.monotonic() if now is None else float(now)
-        if not np.isfinite(ts):
-            raise ValueError('now 必须是有限时间戳')
-        diameter_value = float(diameter)
-        if not np.isfinite(diameter_value) or diameter_value <= 0.0:
-            diameter_value = 0.0
-
-        matched = self._matcher.match(
-            pos, class_id, self._targets, self._frame_used)
-        return self._commit_match(
-            pos, class_id, ax, diameter_value, status, ts, matched)
 
     def match_or_register_frame(
         self,
@@ -905,11 +817,10 @@ class TargetRegistry:
 
     def clear(self) -> int:
         """
-        清空全部表项（阶段 D1，~/clear_target_memory 服务的纯核入口）.
+        清空全部表项（阶段 D1；节点 BeginScene 换场时调用）.
 
-        用途（协议 2.3）：批次开局 harvest.fresh_scene=true 时编排器先调
-        本服务，清掉上一轮/上一场景的锚点记忆，防陈旧锚点在新场景被恢复
-        匹配误命中。计划/锁定集不在本类职责内，由节点保持不动。
+        用途：物理场景切换时清掉上一轮锚点记忆，防陈旧锚点在新场景被
+        恢复匹配误命中。计划/锁定集不在本类职责内，由节点保持不动。
         序号计数器 _next_index 不复位：清空后新发 ID 仍全局单调，避免与
         清空前已下发给下游的 target_id 撞号。
 

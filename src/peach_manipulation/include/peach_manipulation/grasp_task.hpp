@@ -55,10 +55,6 @@ struct GraspTaskConfig
   double approach_max_detour_ratio{2.2};
   double approach_max_chord_deviation_m{0.25};
   double approach_max_recede_m{0.08};
-  // 过渡点参数保留给 generate_parameter_library；不插 via（会把路径拉长）。
-  double approach_via_max_spacing_m{0.08};
-  double approach_via_min_spacing_m{0.03};
-  int approach_via_max_points{1};
   // 接触笛卡尔弦长/弧长上限；超过则 skipped_unreachable，不改 PTP。
   double approach_cartesian_max_distance_m{0.80};
   // 预抓取点在入口沿 −axis 后撤量；0=与入口重合（拟合袋底）。已对轴时 LIN 只走这一段。
@@ -88,14 +84,12 @@ public:
   GraspTask(rclcpp::Node::SharedPtr node, GraspTaskConfig config);
   ~GraspTask();
 
-  // 到预抓取：先由阶段执行器 PTP 回拍照位。直线不穿预抓取球则 LIN（未齐则
-  // 先 LIN 原地对齐工具 Z）；直线会穿球则 CIRC 再沿轴 LIN。失败不改 PTP。
-  // 再沿轴插入。execute=false 只规划。
+  // 只规划（PREVIEW / preview Trigger）：接近分档 + 到预抓取 + 沿轴插入
+  // 整链一次装配预览，不下发。执行的接触走 moveToPregrasp / sleeveLinear。
   GraspTaskResult approachAndInsert(
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
-    double insertion_distance_m,
-    bool execute);
+    double insertion_distance_m);
 
   // 入口→插入→原轴撤离，只规划不下发。
   GraspTaskResult previewFullContact(

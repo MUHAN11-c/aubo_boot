@@ -346,8 +346,7 @@ flowchart TB
 
 | 名字 | 含义 |
 |------|------|
-| `start_cycle` / `cancel_cycle` | 手动开/停一周期（调度走动作，不走这两口） |
-| `query_state` | 查询技能周期状态 |
+| `cancel_cycle` | 手动停一周期（调度走动作 cancel，不走此口；调试面在用） |
 | `go_to_photo_pose` | 只回拍照位，不采锁定集 |
 | `preview_approach_insert` / `preview_full_contact` | 只规划接触预览 |
 | `set_execution_armed` | 本周期武装；`execution.enabled` 后每个周期还须调一次 |
@@ -512,7 +511,7 @@ HTTP `/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipu
 |------|------|
 | 账本 | `runs/<request_id>/ledger.json` |
 | 监控 jsonl | `runs/run_*`：`events`、`state`、`perception`、`reconstruction`、`manipulation`、`job`、`metrics`、`tcp_trajectory`；另有 `image_index.jsonl` |
-| 重建 session | 同根；含 `geometry.jsonl`（袋底/颈/轴/剪切点/D95/预算/单帧 flags，`peach_bag_baseline` 复算）。三维点按 `list[float]` 写，缺失用 `is None` 回退，不得对 ndarray 用 Python `or`（真值歧义会把已积分体积回滚，RViz TSDF Cloud 变空） |
+| 重建 session | 同根；含 `geometry.jsonl`（袋底/颈/轴/剪切点/D95/预算/单帧 flags；复算脚本已归档 `_archive/offline_2026-09/`，写入保留）。三维点按 `list[float]` 写，缺失用 `is None` 回退，不得对 ndarray 用 Python `or`（真值歧义会把已积分体积回滚，RViz TSDF Cloud 变空） |
 | MCAP | `runs/mcap_<时间>`，默认关 |
 
 根：工作区 `runs/`（`peach_perception.common.runtime.default_runs_root`）。历史 `_archive/runs/`，不要删。记录器按 `HarvestState.batch_state` 开关 `run_*` 目录。事件码须与 `canonical_code_for_outcome` 一致。批次结束后仍写 jsonl 是已知缺口（见 architecture 缺口表）。归档里若有 `approach.jsonl`，那是旧技能状态文件名。

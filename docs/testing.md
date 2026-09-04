@@ -232,7 +232,7 @@ Fixed Frame 用 **`base_link`**，不要用未接上的 `world`。改显示配�
 | 门 | 怎么验 | 现行 |
 |----|--------|------|
 | P0 可构建 + 工具帧 | 干净 `build/install/log` 后 colcon；URDF 有 `tool_axis` / `sleeve_mouth` / `cutting_plane` / `tool_body_link` | TCP 在圆柱顶部 `(0, 47.90, 151.07) mm`，`Rx(-90°)`：Z=开口、XY=刀口；筒沿 −Z 200 mm |
-| P1 几何基线 | `runs/` 写 `geometry.jsonl`；`ros2 run peach_perception peach_bag_baseline --runs runs` | 离线脚本已装 |
+| P1 几何基线 | `runs/` 写 `geometry.jsonl`；复算脚本已归档（需要时 `_archive/offline_2026-09/` 下以模块方式运行） | 离线脚本已归档 |
 | P2 袋模型 | 观测 `occlusion_class`；球 marker ns=`prior`；裸果不入 `next_target_id`；`branch_blocked`/`neighbor_overlap`/`damaged_or_wet` 不得 `allowed` | 沿袋长轴半径剖面，窄头为口、宽头为底，箭头袋底→袋口；斜袋保持长轴不对成竖轴；袋底→袋口只许上半球（从下往上，左右最多水平，禁止朝下）；分割两端比沿轴朝外框边贴合，更贴边的一端为口（竖缝贴左边）；剪切参考在袋口/分割贴框极限，果距不足只否决 `allowed` 不挪刀；两端贴合差不够才用 3D 窄头/逆重力 |
 | P3 重建权威 | `allowed` 须袋融合预算才套入；无 budget 不得接触；圆柱/TSDF 不定轴；包络轴只否决，扁袋不打 12°；35° 只诊断 | FULL 时 `allowed=false` → `SKIPPED_QUALITY`；`PREGRASP_ONLY` 不要求 `allowed` |
 | P4 预抓取 | 默认 `execute_pregrasp_only=true`；停预抓取（入口在拟合袋底，预抓取沿 −axis 后撤 30 mm）；无 SetIO；ACK 后再 Survey。**方向/定位是否可用与精度以到位后真机目视/测量为准**，不以预算或 2°/3 mm 残差代替 | 残差未过门也 Hold；`allowed=false` 不拦预抓取。停袋底对照轮次见 [testing-log.md](testing-log.md) 1757 |
@@ -243,7 +243,6 @@ Fixed Frame 用 **`base_link`**，不要用未接上的 `world`。改显示配�
 | P9 发现开窗 | 袋口开批（干跑或不在拍照位）须 `termination_reason=survey_failed`，不 Begin。通过：`photo_pose_reached` 先于 `round_locked`，且锁定集 `scene_epoch` 与 Begin 返回值对齐 | 调度首巡 Survey→Begin→WAIT_LOCK |
 
 ```bash
-ros2 run peach_perception peach_bag_baseline --runs runs
 python3 src/peach_interfaces/scripts/check_interface_manifest.py
 ```
 

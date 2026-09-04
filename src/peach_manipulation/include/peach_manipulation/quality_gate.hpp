@@ -18,8 +18,6 @@ struct QualityGateConfig
   double minimum_baseline_deg{8.0};
   double minimum_mean_nearest_baseline_deg{6.0};
   double minimum_mean_depth_ratio{0.40};
-  double maximum_refined_rmse_m{0.01};
-  double minimum_refined_inlier_ratio{0.35};
   double maximum_data_age_s{3.0};
   double maximum_axis_angle_deg{35.0};
 };

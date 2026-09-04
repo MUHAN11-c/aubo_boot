@@ -152,12 +152,16 @@ STATUS_REJECT = 2
 
 @dataclass
 class RefitConfig:
-    """refit 门控与行为参数（长度 [m]，比率为无量纲）."""
+    """
+    refit 门控与行为参数（长度 [m]，比率为无量纲）.
+
+    入口/预抓取后撤（refit.entry_standoff_m / pregrasp_standoff_m）不在
+    本配置：refit 只出 bottom/neck/axis 等纯几何，入口与预抓取由
+    bag_model.fuse_bag_views 按同一组参数构造（grasp_standoffs 注入）。
+    """
 
     cylinder_inlier_min: float = 0.35  # ACCEPT 门控：内点率下限（圆柱/球共用）
     rmse_max_m: float = 0.005          # ACCEPT 门控：拟合 RMSE 上限 [m]
-    entry_standoff_m: float = 0.0
-    pregrasp_standoff_m: float = 0.0
     max_axis_angle_deg: float = 35.0   # 检测轴 vs 精化轴夹角上限 [deg]
     normal_neighbors: int = 24         # 法线估计 kNN 邻域点数
     seed: int = 0                      # RANSAC 随机种子（固定保证可复现）
@@ -347,7 +351,6 @@ def _gated_result(kind: str, n_points: int, center: np.ndarray,
         'n_points': int(n_points),
         'center': center, 'axis': axis, 'axis_point': axis_point,
         'bottom': bottom, 'neck': neck,
-        'entry': bottom - axis * config.entry_standoff_m,
         'radius': radius, 'diameter': 2.0 * radius, 'span_m': float(span_m),
         'rmse': rmse, 'inlier_ratio': inlier_ratio,
         'flags': flags,
@@ -544,9 +547,9 @@ def refine_geometry(xyz: np.ndarray, target_kind: str = 'bag',
     Returns
     -------
         dict：ok/reason/kind/status/n_points/center/axis/axis_point/
-        bottom/neck/entry/radius/diameter/span_m/rmse/inlier_ratio/flags。
-        几何量单位均 [m]；axis 为 bottom→neck 单位向量；
-        entry = bottom − axis×entry_standoff_m（0 时入口=袋底）.
+        bottom/neck/radius/diameter/span_m/rmse/inlier_ratio/flags。
+        几何量单位均 [m]；axis 为 bottom→neck 单位向量；入口/预抓取
+        由 bag_model.fuse_bag_views 构造（refit 不出这两个点）.
 
     """
     refitters = {'cylinder': CylinderRefitter(), 'sphere': SphereRefitter()}

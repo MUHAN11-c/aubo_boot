@@ -29,9 +29,9 @@ class ToolGeometry:
     所有长度单位为米。
 
     Fields:
-        D_inner: 圆柱内径 — 袋子必须能通过
-        L_insert: 最大插入深度 (从入口起点计)
-        L_blade: TCP 到剪切平面的轴向距离 (沿Z_tool正方向；当前为 0)
+        d_inner_m: 圆柱内径 — 袋子必须能通过
+        insert_length_m: 最大插入深度 (从入口起点计)
+        blade_offset_m: TCP 到剪切平面的轴向距离 (沿Z_tool正方向；当前为 0)
         entry_d_tool: 入口相对袋底；由 ROS 参数装载
         entry_d_s: 附加安全距离；由 ROS 参数装载
         entry_standoff: [legacy] = entry_d_tool + entry_d_s
@@ -40,9 +40,9 @@ class ToolGeometry:
         version: 此工具配置的语义版本号
     """
 
-    D_inner: float = 0.104          # 104mm 内径
-    L_insert: float = 0.200         # 200mm 最大插入
-    L_blade: float = 0.0            # TCP 与剪切平面重合
+    d_inner_m: float = 0.104          # 104mm 内径
+    insert_length_m: float = 0.200         # 200mm 最大插入
+    blade_offset_m: float = 0.0            # TCP 与剪切平面重合
     entry_d_tool: float = 0.0
     entry_d_s: float = 0.0
     entry_standoff: float = 0.0   # = d_tool + d_s
@@ -56,9 +56,9 @@ class ToolGeometry:
 # ═══════════════════════════════════════════════════════════════
 
 TOOL_GEOMETRY = ToolGeometry(
-    D_inner=0.104,          # 104mm 内径
-    L_insert=0.200,         # 200mm 最大插入
-    L_blade=0.0,            # TCP 与剪切平面重合
+    d_inner_m=0.104,          # 104mm 内径
+    insert_length_m=0.200,         # 200mm 最大插入
+    blade_offset_m=0.0,            # TCP 与剪切平面重合
     entry_d_tool=0.0,
     entry_d_s=0.0,
     entry_standoff=0.0,   # = d_tool + d_s
@@ -168,26 +168,26 @@ def compute_travel_range(P_entry_start: np.ndarray, P_neck: np.ndarray,
     """
     基于工具几何参数计算建议行程区间.
 
-    s_neck = dot(P_neck - P_entry_start, Z_tool) - tool.L_blade
+    s_neck = dot(P_neck - P_entry_start, Z_tool) - tool.blade_offset_m
 
-    行程受 L_insert 上限约束, 并在袋颈前方保留 margin_neck 安全距离。
+    行程受 insert_length_m 上限约束, 并在袋颈前方保留 margin_neck 安全距离。
 
     Args:
         P_entry_start: (3,) 入口起点（米）.
         P_neck: (3,) 袋颈候选位置（米）.
         Z_tool: (3,) 归一化的工具轴方向.
-        tool: ToolGeometry 实例（读 L_blade / margin_neck / L_insert）.
+        tool: ToolGeometry 实例（读 blade_offset_m / margin_neck / insert_length_m）.
 
     Returns
     -------
         (travel_min, travel_max): 建议行程区间 (m)；travel_min 为 0.8 倍
-        安全行程的保守下限，travel_max 受 L_insert 封顶.
+        安全行程的保守下限，travel_max 受 insert_length_m 封顶.
 
     """
-    s_neck = float(np.dot(P_neck - P_entry_start, Z_tool) - tool.L_blade)
+    s_neck = float(np.dot(P_neck - P_entry_start, Z_tool) - tool.blade_offset_m)
     s_safe = max(0.0, s_neck - tool.margin_neck)
     s_min = max(0.0, s_safe * 0.8)   # 保守下限
-    s_max = min(s_safe, tool.L_insert)  # 上限受工具长度约束
+    s_max = min(s_safe, tool.insert_length_m)  # 上限受工具长度约束
     return (s_min, s_max)
 
 

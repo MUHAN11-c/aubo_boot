@@ -61,8 +61,8 @@ struct ApproachSplit
 {
   bool need_lin{true};
   bool need_align{true};
-  enum class Kind { Skip, Lin, LinAlignThenLin, CircThenLin, Blocked } kind{
-    Kind::Blocked};
+  enum class Kind { SKIP, LIN, LIN_ALIGN_THEN_LIN, CIRC_THEN_LIN, BLOCKED } kind{
+    Kind::BLOCKED};
   double lin_to_entry_m{0.0};
   double lateral_m{0.0};
   double axial_m{0.0};
@@ -75,15 +75,15 @@ struct ApproachSplit
 const char * approachKindName(ApproachSplit::Kind kind)
 {
   switch (kind) {
-    case ApproachSplit::Kind::Skip:
+    case ApproachSplit::Kind::SKIP:
       return "skip";
-    case ApproachSplit::Kind::Lin:
+    case ApproachSplit::Kind::LIN:
       return "LIN";
-    case ApproachSplit::Kind::LinAlignThenLin:
+    case ApproachSplit::Kind::LIN_ALIGN_THEN_LIN:
       return "LIN-align+LIN";
-    case ApproachSplit::Kind::CircThenLin:
+    case ApproachSplit::Kind::CIRC_THEN_LIN:
       return "CIRC+LIN";
-    case ApproachSplit::Kind::Blocked:
+    case ApproachSplit::Kind::BLOCKED:
       return "blocked";
   }
   return "blocked";
@@ -148,7 +148,7 @@ ApproachSplit classifyApproach(
   out.need_align = !aligned;
   out.need_lin = !(aligned && on_line && short_axial);
   if (!out.need_lin) {
-    out.kind = ApproachSplit::Kind::Skip;
+    out.kind = ApproachSplit::Kind::SKIP;
     out.lin_to_entry_m = std::max(0.0, out.axial_m);
     if (out.lin_to_entry_m < 0.005) {
       out.lin_to_entry_m = 0.0;
@@ -178,8 +178,8 @@ ApproachSplit classifyApproach(
   }
   // 直线不穿预抓取球：LIN 约束 TCP。未齐则先原地 LIN 转 Z，再直线平移。
   if (lin_clears) {
-    out.kind = aligned ? ApproachSplit::Kind::Lin :
-      ApproachSplit::Kind::LinAlignThenLin;
+    out.kind = aligned ? ApproachSplit::Kind::LIN :
+      ApproachSplit::Kind::LIN_ALIGN_THEN_LIN;
     return out;
   }
   // CIRC：直线会穿球时，等半径短弧是约束下的最短路径（Pilz 取劣弧，<180°）。
@@ -194,7 +194,7 @@ ApproachSplit classifyApproach(
     out.sweep_deg < 90.0 &&
     arc_m <= config.approach_cartesian_max_distance_m + 0.05;
   if (circ_ok) {
-    out.kind = ApproachSplit::Kind::CircThenLin;
+    out.kind = ApproachSplit::Kind::CIRC_THEN_LIN;
     return out;
   }
   out.blocked_reason = "直线穿预抓取球且无法 CIRC，不改 PTP";
@@ -410,23 +410,23 @@ void GraspTask::appendApproachToPregrasp(
   if (have_current) {
     pregrasp.linear() = alignFrameZ(current->linear(), insertion_axis);
   }
-  if (split.kind == ApproachSplit::Kind::Skip ||
-    split.kind == ApproachSplit::Kind::Blocked)
+  if (split.kind == ApproachSplit::Kind::SKIP ||
+    split.kind == ApproachSplit::Kind::BLOCKED)
   {
     return;
   }
-  if (split.kind == ApproachSplit::Kind::Lin) {
+  if (split.kind == ApproachSplit::Kind::LIN) {
     appendLinToPose(sequence, pregrasp, "lin to on-axis pregrasp", true);
     return;
   }
-  if (split.kind == ApproachSplit::Kind::LinAlignThenLin && have_current) {
+  if (split.kind == ApproachSplit::Kind::LIN_ALIGN_THEN_LIN && have_current) {
     Eigen::Isometry3d aligned = *current;
     aligned.linear() = pregrasp.linear();
     appendLinToPose(sequence, aligned, "lin align tool z", false);
     appendLinToPose(sequence, pregrasp, "lin to on-axis pregrasp", true);
     return;
   }
-  if (split.kind == ApproachSplit::Kind::CircThenLin) {
+  if (split.kind == ApproachSplit::Kind::CIRC_THEN_LIN) {
     const Eigen::Vector3d axis = insertion_axis.normalized();
     Eigen::Isometry3d circ_goal = pregrasp;
     circ_goal.translation() =
@@ -509,7 +509,7 @@ GraspTaskResult GraspTask::planToPregrasp(
 {
   const ApproachSplit split =
     classifyApproach(config_, entry_tip_pose, insertion_axis);
-  if (split.kind == ApproachSplit::Kind::Blocked) {
+  if (split.kind == ApproachSplit::Kind::BLOCKED) {
     GraspTaskResult blocked;
     blocked.reason = split.blocked_reason;
     return blocked;
@@ -584,7 +584,7 @@ GraspTaskResult GraspTask::previewFullContact(
 {
   const ApproachSplit split =
     classifyApproach(config_, entry_tip_pose, insertion_axis);
-  if (split.kind == ApproachSplit::Kind::Blocked) {
+  if (split.kind == ApproachSplit::Kind::BLOCKED) {
     GraspTaskResult blocked;
     blocked.reason = split.blocked_reason;
     return blocked;

@@ -46,7 +46,7 @@ def stamp_seconds(header) -> float:
     return float(stamp.sec) + float(stamp.nanosec) * 1e-9
 
 
-def point(point_message) -> list[float]:
+def to_point(point_message) -> list[float]:
     """转换 geometry_msgs Point/Vector3."""
     return [
         float(point_message.x),
@@ -55,19 +55,19 @@ def point(point_message) -> list[float]:
     ]
 
 
-def candidate(candidate_message) -> dict:
+def to_candidate(candidate_message) -> dict:
     """转换抓取候选，保留浏览器需要的几何与版本信息."""
     pose = candidate_message.entry_pose
     return {
         'target_id': candidate_message.target_id,
-        'entry_position': point(pose.position),
+        'entry_position': to_point(pose.position),
         'entry_quaternion_xyzw': [
             float(pose.orientation.x), float(pose.orientation.y),
             float(pose.orientation.z), float(pose.orientation.w),
         ],
-        'bag_bottom': point(candidate_message.bag_bottom),
-        'bag_neck': point(candidate_message.bag_neck),
-        'translation_direction': point(
+        'bag_bottom': to_point(candidate_message.bag_bottom),
+        'bag_neck': to_point(candidate_message.bag_neck),
+        'translation_direction': to_point(
             candidate_message.translation_direction),
         'diameter_m': float(candidate_message.bag_diameter_upper_m),
         'travel_m': float(candidate_message.suggested_travel_m),
@@ -82,7 +82,7 @@ def candidate(candidate_message) -> dict:
     }
 
 
-def fitting(fitting_message) -> dict:
+def to_fitting(fitting_message) -> dict:
     """转换几何拟合质量消息."""
     diameter = float(fitting_message.bag_diameter_upper_m)
     if diameter <= 0.0 and float(fitting_message.fruit_radius_m) > 0.0:
@@ -108,7 +108,7 @@ def fitting(fitting_message) -> dict:
     }
 
 
-def target_observations(message) -> dict:
+def to_target_observations(message) -> dict:
     """转换全局目标快照；故意排除大体积 mask 像素."""
     observations = []
     for item in message.observations:
@@ -122,8 +122,8 @@ def target_observations(message) -> dict:
                 int(item.tracking_status), str(item.tracking_status)),
             'camera_distance_m': float(item.camera_distance_m),
             'confidence': float(item.confidence),
-            'candidate': candidate(item.candidate),
-            'fitting': fitting(item.fitting),
+            'candidate': to_candidate(item.candidate),
+            'fitting': to_fitting(item.fitting),
             'mask': {
                 'width': int(item.mask.width),
                 'height': int(item.mask.height),
@@ -146,34 +146,34 @@ def target_observations(message) -> dict:
     }
 
 
-def candidate_array(message) -> dict:
+def to_candidate_array(message) -> dict:
     """转换抓取候选数组."""
     return {
         'stamp': stamp_seconds(message.header),
         'frame_id': message.header.frame_id,
-        'candidates': [candidate(item) for item in message.candidates],
+        'candidates': [to_candidate(item) for item in message.candidates],
     }
 
 
-def fitting_array(message) -> dict:
+def to_fitting_array(message) -> dict:
     """转换拟合诊断数组."""
     return {
         'stamp': stamp_seconds(message.header),
         'frame_id': message.header.frame_id,
-        'fittings': [fitting(item) for item in message.fittings],
+        'fittings': [to_fitting(item) for item in message.fittings],
     }
 
 
-def vector_stamped(message) -> dict:
+def to_vector_stamped(message) -> dict:
     """转换带时间戳向量."""
     return {
         'stamp': stamp_seconds(message.header),
         'frame_id': message.header.frame_id,
-        'xyz': point(message.vector),
+        'xyz': to_point(message.vector),
     }
 
 
-def harvest_event(message) -> dict:
+def to_harvest_event(message) -> dict:
     """转换调度过程/审计事件（CanonicalEvent / HarvestEvent）为时间线条目."""
     return {
         'stamp': stamp_seconds(message.header),
@@ -193,7 +193,7 @@ def harvest_event(message) -> dict:
     }
 
 
-def robot_status(message) -> dict:
+def to_robot_status(message) -> dict:
     """转换机械臂状态（aubo_msgs/RobotStatus，简化 industrial 语义）."""
     return {
         'mode': int(message.mode),
@@ -212,7 +212,7 @@ def _valid_scalar(value) -> float | None:
     return value if value >= 0.0 else None
 
 
-def reconstruction_status(message) -> dict:
+def to_reconstruction_status(message) -> dict:
     """
     结构化重建诊断（ReconstructionStatus）→ 浏览器镜像 dict.
 
@@ -242,18 +242,18 @@ def reconstruction_status(message) -> dict:
                 message.mean_nearest_baseline_deg),
             'valid_depth_ratio_mean': depth_ratio,
         },
-        'view_directions': [point(v) for v in message.view_directions],
+        'view_directions': [to_point(v) for v in message.view_directions],
     }
 
 
-def grasp_hypothesis(message) -> dict:
+def to_grasp_hypothesis(message) -> dict:
     """技能侧抓取假设（GraspHypothesis）→ 浏览器镜像；不构成运动指令."""
     pose = message.entry_pose
     return {
         'stamp': stamp_seconds(message.header),
         'frame_id': message.header.frame_id,
         'target_id': message.target_id,
-        'entry_position': point(pose.position),
+        'entry_position': to_point(pose.position),
         'entry_quaternion_xyzw': [
             float(pose.orientation.x), float(pose.orientation.y),
             float(pose.orientation.z), float(pose.orientation.w),
@@ -266,7 +266,7 @@ def grasp_hypothesis(message) -> dict:
     }
 
 
-def grasp_decision(message) -> dict:
+def to_grasp_decision(message) -> dict:
     """
     抓取许可（GraspDecision）→ 浏览器镜像 dict.
 
@@ -284,10 +284,10 @@ def grasp_decision(message) -> dict:
     has_geom = (axis.x * axis.x + axis.y * axis.y + axis.z * axis.z) > 0.25
     if message.allowed or has_geom:
         value.update({
-            'entry': point(message.entry),
-            'pregrasp': point(message.pregrasp),
-            'cut_pose': point(message.cut_pose),
-            'axis': point(message.axis),
+            'entry': to_point(message.entry),
+            'pregrasp': to_point(message.pregrasp),
+            'cut_pose': to_point(message.cut_pose),
+            'axis': to_point(message.axis),
             'diameter_m': float(message.diameter_m),
             'rmse_m': float(message.rmse_m),
             'inlier_ratio': float(message.inlier_ratio),
@@ -380,7 +380,7 @@ def slim_targets(value: dict) -> dict:
     }
 
 
-def xyz_rgb_from_pointcloud2(message):
+def xyzrgb_from_pointcloud2(message):
     """
     手写 numpy 解析 PointCloud2：返回 (xyz float32 Nx3, rgb uint8 Nx3|None).
 
@@ -1277,7 +1277,7 @@ class Recorder:
 
     def _write_cloud(self, message, path: Path) -> None:
         """PointCloud2 → binary PLY；空云跳过."""
-        parsed = xyz_rgb_from_pointcloud2(message)
+        parsed = xyzrgb_from_pointcloud2(message)
         if parsed is None:
             return
         xyz, rgb = parsed

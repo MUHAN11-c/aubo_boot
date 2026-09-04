@@ -691,11 +691,6 @@ class GateResult:
     mask: Optional[np.ndarray]
     reason: str = ''
 
-    @property
-    def passed(self) -> bool:
-        """Reason 为空即通过（含门禁未启用的直通情形）."""
-        return not self.reason
-
 
 class StrictMaskGate(MaskGate):
     """
@@ -748,7 +743,7 @@ class StrictMaskGate(MaskGate):
 
         Returns
         -------
-            GateResult；passed 时 mask 为可用掩膜（门禁关闭时为 None）.
+            GateResult；reason 为空即通过时 mask 为可用掩膜（门禁关闭时为 None）.
 
         """
         if not self.require_target_mask:

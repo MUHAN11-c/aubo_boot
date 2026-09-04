@@ -273,14 +273,14 @@ def polish_sphere_lm(points: np.ndarray, center0: np.ndarray,
 
     """
     if fixed_radius:
-        def resid(c):
+        def residuals(c):
             return np.linalg.norm(points - c, axis=1) - radius
-        sol = least_squares(resid, center0, method='lm')
+        sol = least_squares(residuals, center0, method='lm')
         return sol.x, radius
 
-    def resid(cr):
+    def residuals(cr):
         return np.linalg.norm(points - cr[:3], axis=1) - cr[3]
-    sol = least_squares(resid, np.append(center0, radius), method='lm')
+    sol = least_squares(residuals, np.append(center0, radius), method='lm')
     return sol.x[:3], float(sol.x[3])
 
 

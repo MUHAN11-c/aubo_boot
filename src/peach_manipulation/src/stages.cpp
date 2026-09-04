@@ -2,6 +2,8 @@
 // 预抓取验证、套入、刀具、原路撤退。不写账本、不调重建 Trigger。接触走
 // GraspTask；刀具 IO 只在本文件。阶段调用序列与原 behavior_tree.xml 主树
 // 遍历严格同构（映射表见 executeCycle 注释）。
+#include "peach_manipulation/cycle.hpp"
+#include "peach_manipulation/math_utils.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -14,15 +16,11 @@
 #include <string>
 #include <thread>
 #include <vector>
-
 #include <moveit/move_group_interface/move_group_interface.hpp>
 #include <peach_interfaces/msg/failure_code.hpp>
 #include <peach_interfaces/msg/harvest_state.hpp>
 #include <peach_interfaces/msg/peach_target_observation.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
-
-#include "peach_manipulation/cycle.hpp"
-#include "peach_manipulation/math_utils.hpp"
 
 using namespace std::chrono_literals;
 

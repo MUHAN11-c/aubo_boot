@@ -123,18 +123,18 @@ def _to_detection2d(det: dict, header) -> Detection2D:
     return d
 
 
-def _to_candidate(header, tid, g3d, model_version: str,
+def _to_candidate(header, tid, grasp_3d, model_version: str,
                   calibration_version: str, tool_version: str) -> BagGraspCandidate:
     """
     3D 抓取参考 → BagGraspCandidate 主输出消息（坐标系=header.frame_id）.
 
     Args:
-        header: 输出头；frame_id 即 g3d 当前所在坐标系.
+        header: 输出头；frame_id 即 grasp_3d 当前所在坐标系.
         tid: 目标 ID（target_N）.
-        g3d: BagGraspReference3D（米；None 字段在消息中给零/缺省）.
-        model_version: 模型版本回退值（g3d 自带时优先）.
-        calibration_version: 内外参版本回退值（g3d 自带时优先）.
-        tool_version: 工具版本回退值（g3d 自带时优先）.
+        grasp_3d: BagGraspReference3D（米；None 字段在消息中给零/缺省）.
+        model_version: 模型版本回退值（grasp_3d 自带时优先）.
+        calibration_version: 内外参版本回退值（grasp_3d 自带时优先）.
+        tool_version: 工具版本回退值（grasp_3d 自带时优先）.
 
     Returns
     -------
@@ -145,44 +145,44 @@ def _to_candidate(header, tid, g3d, model_version: str,
     m.header = header
     m.target_id = tid
     pose = Pose()
-    if g3d.entry_start is not None:
-        pose.position = _point(g3d.entry_start)
-    if g3d.orientation is not None:
-        pose.orientation = _rotation_to_quat(g3d.orientation)
+    if grasp_3d.entry_start is not None:
+        pose.position = _point(grasp_3d.entry_start)
+    if grasp_3d.orientation is not None:
+        pose.orientation = _rotation_to_quat(grasp_3d.orientation)
     m.entry_pose = pose
-    m.bag_bottom = _point(g3d.bag_bottom)
-    m.bag_neck = _point(g3d.bag_neck)
-    if g3d.translation_direction is not None:
+    m.bag_bottom = _point(grasp_3d.bag_bottom)
+    m.bag_neck = _point(grasp_3d.bag_neck)
+    if grasp_3d.translation_direction is not None:
         m.translation_direction = Vector3(
-            x=float(g3d.translation_direction[0]),
-            y=float(g3d.translation_direction[1]),
-            z=float(g3d.translation_direction[2]))
-    m.bag_diameter_upper_m = float(g3d.bag_diameter_upper_m or 0.0)
-    m.suggested_travel_m = float(g3d.suggested_travel_m or 0.0)
-    m.confidence = float(g3d.confidence or 0.0)
-    m.status = STATUS_MAP.get(g3d.status, 2)
-    m.diagnostic_flags = list(g3d.diagnostic_flags or [])
-    m.strategy_id = g3d.strategy_id or ''
-    m.model_version = g3d.model_version or model_version
-    m.calibration_version = g3d.calibration_version or calibration_version
-    m.tool_version = g3d.tool_version or tool_version
-    if g3d.position_covariance is not None:
+            x=float(grasp_3d.translation_direction[0]),
+            y=float(grasp_3d.translation_direction[1]),
+            z=float(grasp_3d.translation_direction[2]))
+    m.bag_diameter_upper_m = float(grasp_3d.bag_diameter_upper_m or 0.0)
+    m.suggested_travel_m = float(grasp_3d.suggested_travel_m or 0.0)
+    m.confidence = float(grasp_3d.confidence or 0.0)
+    m.status = STATUS_MAP.get(grasp_3d.status, 2)
+    m.diagnostic_flags = list(grasp_3d.diagnostic_flags or [])
+    m.strategy_id = grasp_3d.strategy_id or ''
+    m.model_version = grasp_3d.model_version or model_version
+    m.calibration_version = grasp_3d.calibration_version or calibration_version
+    m.tool_version = grasp_3d.tool_version or tool_version
+    if grasp_3d.position_covariance is not None:
         m.position_covariance = np.asarray(
-            g3d.position_covariance, dtype=float).reshape(9).tolist()
-    if g3d.direction_covariance is not None:
+            grasp_3d.position_covariance, dtype=float).reshape(9).tolist()
+    if grasp_3d.direction_covariance is not None:
         m.direction_covariance = np.asarray(
-            g3d.direction_covariance, dtype=float).reshape(9).tolist()
+            grasp_3d.direction_covariance, dtype=float).reshape(9).tolist()
     return m
 
 
-def _to_candidate_2d(header, tid, g2d) -> BagGrasp2DMsg:
+def _to_candidate_2d(header, tid, grasp_2d) -> BagGrasp2DMsg:
     """
     图像平面关键点/行程线 → BagGrasp2D 消息（像素坐标；无值点由 has_* 标志区分）.
 
     Args:
         header: 输出头.
         tid: 目标 ID.
-        g2d: BagGrasp2D（像素坐标；None 点给零且对应 has_*=False）.
+        grasp_2d: BagGrasp2D（像素坐标；None 点给零且对应 has_*=False）.
 
     Returns
     -------
@@ -192,22 +192,22 @@ def _to_candidate_2d(header, tid, g2d) -> BagGrasp2DMsg:
     m = BagGrasp2DMsg()
     m.header = header
     m.target_id = tid
-    x, y, w, h = g2d.detection_bbox
+    x, y, w, h = grasp_2d.detection_bbox
     m.bbox_x, m.bbox_y, m.bbox_w, m.bbox_h = int(x), int(y), int(w), int(h)
-    m.bottom_px = _px(g2d.bottom_px)
-    m.neck_px = _px(g2d.neck_px)
-    m.grasp_px = _px(g2d.grasp_px)
+    m.bottom_px = _px(grasp_2d.bottom_px)
+    m.neck_px = _px(grasp_2d.neck_px)
+    m.grasp_px = _px(grasp_2d.grasp_px)
     travel_end = None
-    if g2d.travel_line and len(g2d.travel_line) >= 2:
-        travel_end = g2d.travel_line[1]
+    if grasp_2d.travel_line and len(grasp_2d.travel_line) >= 2:
+        travel_end = grasp_2d.travel_line[1]
     m.travel_end_px = _px(travel_end)
-    m.has_bottom_px = g2d.bottom_px is not None
-    m.has_neck_px = g2d.neck_px is not None
-    m.has_grasp_px = g2d.grasp_px is not None
+    m.has_bottom_px = grasp_2d.bottom_px is not None
+    m.has_neck_px = grasp_2d.neck_px is not None
+    m.has_grasp_px = grasp_2d.grasp_px is not None
     m.has_travel_end_px = travel_end is not None
-    m.confidence = float(g2d.confidence or 0.0)
-    m.status = STATUS_MAP.get(g2d.status, 2)
-    m.diagnostic_flags = list(g2d.diagnostic_flags or [])
+    m.confidence = float(grasp_2d.confidence or 0.0)
+    m.status = STATUS_MAP.get(grasp_2d.status, 2)
+    m.diagnostic_flags = list(grasp_2d.diagnostic_flags or [])
     return m
 
 
@@ -317,7 +317,7 @@ def _bbox_cloud_xyzrgb(
     return xyz, rgb_packed
 
 
-def _xyzrgb_to_cloud(header: Header, xyz: np.ndarray, rgb_f: np.ndarray) -> PointCloud2:
+def _xyzrgb_to_cloud_msg(header: Header, xyz: np.ndarray, rgb_f: np.ndarray) -> PointCloud2:
     """
     组装 xyz + 打包 rgb → PointCloud2 消息（x/y/z 各一个 FLOAT32 + rgb 位打包）.
 
@@ -428,9 +428,9 @@ def _to_markers(header, tid, idx, result, tool_d_inner: float) -> List[Marker]:
         Marker 列表（不含 DELETEALL，由调用方统一添加）.
 
     """
-    g3d = result.grasp_3d
+    grasp_3d = result.grasp_3d
     out: List[Marker] = []
-    r, g, b, a = _status_color(g3d.status)
+    r, g, b, a = _status_color(grasp_3d.status)
     base_id = idx * 20
 
     def _mk(mid, mtype) -> Marker:
@@ -449,54 +449,56 @@ def _to_markers(header, tid, idx, result, tool_d_inner: float) -> List[Marker]:
         m.lifetime.sec = 0
         return m
 
-    if g3d.bag_bottom is not None and g3d.bag_neck is not None:
+    if grasp_3d.bag_bottom is not None and grasp_3d.bag_neck is not None:
         axis = _mk(0, Marker.LINE_LIST)
         axis.scale.x = 0.004
-        axis.points = [_point(g3d.bag_bottom), _point(g3d.bag_neck)]
+        axis.points = [_point(grasp_3d.bag_bottom), _point(grasp_3d.bag_neck)]
         out.append(axis)
 
-    if (g3d.entry_start is not None and g3d.suggested_travel_end is not None):
+    if (grasp_3d.entry_start is not None and grasp_3d.suggested_travel_end is not None):
         arrow = _mk(1, Marker.ARROW)
         arrow.scale.x = 0.008
         arrow.scale.y = 0.015
         arrow.scale.z = 0.015
-        arrow.points = [_point(g3d.entry_start), _point(g3d.suggested_travel_end)]
+        arrow.points = [_point(grasp_3d.entry_start), _point(grasp_3d.suggested_travel_end)]
         out.append(arrow)
 
-    if (g3d.entry_start is not None and g3d.translation_direction is not None
-            and g3d.suggested_travel_m > 0):
+    if (grasp_3d.entry_start is not None and grasp_3d.translation_direction is not None
+            and grasp_3d.suggested_travel_m > 0):
         env = _mk(2, Marker.CYLINDER)
         env.ns = 'bag_envelope'
-        mid = g3d.entry_start + 0.5 * g3d.suggested_travel_m * g3d.translation_direction
+        mid = (grasp_3d.entry_start
+               + 0.5 * grasp_3d.suggested_travel_m
+               * grasp_3d.translation_direction)
         env.pose.position = _point(mid)
-        if g3d.orientation is not None:
-            env.pose.orientation = _rotation_to_quat(g3d.orientation)
-        bag_d = float(g3d.bag_diameter_upper_m or 0.06)
+        if grasp_3d.orientation is not None:
+            env.pose.orientation = _rotation_to_quat(grasp_3d.orientation)
+        bag_d = float(grasp_3d.bag_diameter_upper_m or 0.06)
         env.scale.x = bag_d
         env.scale.y = bag_d
-        env.scale.z = float(g3d.suggested_travel_m)
+        env.scale.z = float(grasp_3d.suggested_travel_m)
         env.color.r, env.color.g, env.color.b, env.color.a = 0.2, 0.7, 0.9, 0.22
         out.append(env)
         cyl = _mk(12, Marker.CYLINDER)
         cyl.ns = 'tool_swept_volume'
         cyl.pose.position = _point(mid)
-        if g3d.orientation is not None:
-            cyl.pose.orientation = _rotation_to_quat(g3d.orientation)
+        if grasp_3d.orientation is not None:
+            cyl.pose.orientation = _rotation_to_quat(grasp_3d.orientation)
         diam = float(tool_d_inner)
         cyl.scale.x = diam
         cyl.scale.y = diam
-        cyl.scale.z = float(g3d.suggested_travel_m)
+        cyl.scale.z = float(grasp_3d.suggested_travel_m)
         cyl.color.a = 0.12
         out.append(cyl)
 
     prior_kind = str(getattr(result, 'target_kind', '') or '')
-    info = g3d.diagnostic_info or {}
+    info = grasp_3d.diagnostic_info or {}
     prior_r = float(info.get('fruit_prior_radius_m') or 0.0)
     if ((prior_kind in ('fruit', 'sphere') or prior_r > 0)
-            and g3d.bag_bottom is not None and g3d.bag_neck is not None):
+            and grasp_3d.bag_bottom is not None and grasp_3d.bag_neck is not None):
         sphere = _mk(3, Marker.SPHERE)
         sphere.ns = 'prior'
-        center = 0.5 * (np.asarray(g3d.bag_bottom) + np.asarray(g3d.bag_neck))
+        center = 0.5 * (np.asarray(grasp_3d.bag_bottom) + np.asarray(grasp_3d.bag_neck))
         radius = prior_r if prior_r > 0 else _metric(
             result.metrics or {}, 'fruit_radius_m', 0.0)
         if radius > 0:
@@ -505,10 +507,10 @@ def _to_markers(header, tid, idx, result, tool_d_inner: float) -> List[Marker]:
             sphere.color.a = 0.3
             out.append(sphere)
 
-    if g3d.entry_start is not None and g3d.orientation is not None:
+    if grasp_3d.entry_start is not None and grasp_3d.orientation is not None:
         # 三轴架
-        R = np.asarray(g3d.orientation)
-        origin = np.asarray(g3d.entry_start, dtype=float)
+        R = np.asarray(grasp_3d.orientation)
+        origin = np.asarray(grasp_3d.entry_start, dtype=float)
         colors = [(1.0, 0.0, 0.0, 1.0), (0.0, 1.0, 0.0, 1.0), (0.0, 0.0, 1.0, 1.0)]
         for ax_i, col in enumerate(colors):
             axis_m = _mk(4 + ax_i, Marker.ARROW)
@@ -527,22 +529,22 @@ def _to_markers(header, tid, idx, result, tool_d_inner: float) -> List[Marker]:
     text.scale.z = 0.03
     # 三态由 _mk 的状态色表达（ACCEPT 绿/REOBSERVE 黄/REJECT 红），文字只留 ID
     text.text = tid
-    if g3d.entry_start is not None:
-        text.pose.position = _point(g3d.entry_start)
-    elif g3d.bag_bottom is not None:
-        text.pose.position = _point(g3d.bag_bottom)
+    if grasp_3d.entry_start is not None:
+        text.pose.position = _point(grasp_3d.entry_start)
+    elif grasp_3d.bag_bottom is not None:
+        text.pose.position = _point(grasp_3d.bag_bottom)
     out.append(text)
     return out
 
 
-def _draw_debug(img, det, g2d, sam_mask, tid='', confirmed: bool = True):
+def _draw_debug(img, det, grasp_2d, sam_mask, tid='', confirmed: bool = True):
     """
     叠检测框/掩膜轮廓/底→颈箭头/剪切线/ID 置信度文字（原地改 img，三态用颜色表达）.
 
     Args:
         img: (H, W, 3) uint8 BGR，被原地改写.
         det: 检测 dict（bbox、class_id、conf；class 0 绿框，其他橙框）.
-        g2d: BagGrasp2D（提供关键点像素与状态）.
+        grasp_2d: BagGrasp2D（提供关键点像素与状态）.
         sam_mask: (H, W) 掩膜或 None（None 时不画轮廓）.
         tid: 目标稳定 ID（target_registry 匹配结果；空串则不显示）.
         confirmed: False 时只画灰框+文字，不把突现误检画成正式目标.
@@ -575,30 +577,30 @@ def _draw_debug(img, det, g2d, sam_mask, tid='', confirmed: bool = True):
             (sam_mask > 0).astype(np.uint8),
             cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         cv2.drawContours(img, contours, -1, (80, 80, 230), 2)
-    status = g2d.status
+    status = grasp_2d.status
     st_color = {
         'ACCEPT': (0, 220, 0), 'REOBSERVE': (0, 200, 255), 'REJECT': (0, 0, 220)
     }.get(status, (180, 180, 180))
     # 黄箭头：袋底（宽）→袋口（窄）；反了就是口底标反
-    if g2d.bottom_px and g2d.neck_px:
+    if grasp_2d.bottom_px and grasp_2d.neck_px:
         cv2.arrowedLine(
             img,
-            _clamp_px(img, g2d.bottom_px[0], g2d.bottom_px[1]),
-            _clamp_px(img, g2d.neck_px[0], g2d.neck_px[1]),
+            _clamp_px(img, grasp_2d.bottom_px[0], grasp_2d.bottom_px[1]),
+            _clamp_px(img, grasp_2d.neck_px[0], grasp_2d.neck_px[1]),
             (255, 255, 0), 2, tipLength=0.15)
-    if g2d.grasp_px:
+    if grasp_2d.grasp_px:
         cv2.circle(
-            img, _clamp_px(img, g2d.grasp_px[0], g2d.grasp_px[1]),
+            img, _clamp_px(img, grasp_2d.grasp_px[0], grasp_2d.grasp_px[1]),
             5, st_color, -1)
     # TCP 是工具圆柱前端面圆心，也就是物理剪切点；travel_line 终点因此
     # 同时代表 TCP 终点与剪切中心（袋口 / 分割贴检测框极限）。投影失败
     # 或行程退化时跳过，紫色空心圆标出剪切中心，垂直于袋轴投影的紫线
     # 表示刃口切割方向。线段半长取检测框宽 1/4（近似工具刃口尺度）。
-    if (g2d.travel_line and len(g2d.travel_line) >= 2
-            and g2d.travel_line[0] is not None
-            and g2d.travel_line[1] is not None):
-        gx, gy = g2d.travel_line[0]
-        ex, ey = g2d.travel_line[1]
+    if (grasp_2d.travel_line and len(grasp_2d.travel_line) >= 2
+            and grasp_2d.travel_line[0] is not None
+            and grasp_2d.travel_line[1] is not None):
+        gx, gy = grasp_2d.travel_line[0]
+        ex, ey = grasp_2d.travel_line[1]
         dx, dy = ex - gx, ey - gy
         norm = float((dx * dx + dy * dy) ** 0.5)
         if norm > 1e-6:

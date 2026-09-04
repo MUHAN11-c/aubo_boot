@@ -1105,10 +1105,10 @@ class TaskExecutorNode(LifecycleNode):
 
     def _on_build_feedback(self, feedback_msg) -> None:
         """记录 BuildTargetModel 的 view_count/status 供 OBSERVE 收口核对."""
-        fb = getattr(feedback_msg, 'feedback', feedback_msg)
+        feedback = getattr(feedback_msg, 'feedback', feedback_msg)
         self._build_feedback['view_count'] = int(
-            getattr(fb, 'view_count', 0) or 0)
-        self._build_feedback['status'] = str(getattr(fb, 'status', '') or '')
+            getattr(feedback, 'view_count', 0) or 0)
+        self._build_feedback['status'] = str(getattr(feedback, 'status', '') or '')
         self._poke()
 
     def _query_reachability(self, queries):
@@ -1165,8 +1165,8 @@ class TaskExecutorNode(LifecycleNode):
         return False
 
     def _on_exec_feedback(self, feedback_msg) -> None:
-        fb = getattr(feedback_msg, 'feedback', feedback_msg)
-        state = getattr(fb, 'state', None)
+        feedback = getattr(feedback_msg, 'feedback', feedback_msg)
+        state = getattr(feedback, 'state', None)
         if state is None:
             return
         phase = int(getattr(state, 'target_phase', self._target_phase) or 0)
@@ -1435,21 +1435,21 @@ class TaskExecutorNode(LifecycleNode):
                 code = canonical_code_for_outcome(
                     self._outcomes[-1].outcome,
                     code == 'target_operator_skipped')
-        ev = CanonicalEvent()
-        ev.header.stamp = self.get_clock().now().to_msg()
-        ev.code = code
-        ev.request_id = request_id
-        ev.run_id = self._run_id
-        ev.target_id = target_id
-        ev.state_seq = self._state_seq
+        event = CanonicalEvent()
+        event.header.stamp = self.get_clock().now().to_msg()
+        event.code = code
+        event.request_id = request_id
+        event.run_id = self._run_id
+        event.target_id = target_id
+        event.state_seq = self._state_seq
         payload = {'code': code}
         if details:
             payload.update(details)
-        ev.message = json.dumps(payload, ensure_ascii=False)
+        event.message = json.dumps(payload, ensure_ascii=False)
         if code == 'survey_failed':
-            ev.severity = CanonicalEvent.WARNING
+            event.severity = CanonicalEvent.WARNING
         if hasattr(self, '_pub_event'):
-            self._pub_event.publish(ev)
+            self._pub_event.publish(event)
 
 
 def main(args=None):

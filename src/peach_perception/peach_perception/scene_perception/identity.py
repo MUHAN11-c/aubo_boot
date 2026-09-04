@@ -540,13 +540,13 @@ class SpatialEmaMatcher(TargetMatcher):
             (None, match_radius)（距离字段仅供诊断，无语义承诺）.
 
         """
-        dets = [{
+        detections = [{
             'position': np.asarray(anchor, dtype=float).reshape(3),
             'class_id': int(class_id),
             'covariance': None,
         }]
         (tid, d2, status), = assign_detections(
-            dets, table, frame_used, self.match_radius, self.recovery_scale)
+            detections, table, frame_used, self.match_radius, self.recovery_scale)
         dist = (float(np.sqrt(max(d2, 0.0))) if tid is not None
                 else self.match_radius)
         return MatchResult(target_id=tid, distance=dist, status=status)
@@ -685,7 +685,7 @@ class TargetRegistry:
         """
         ts = time.monotonic() if now is None else float(now)
         out: List[Optional[Tuple[str, bool]]] = [None] * len(items)
-        dets: List[dict] = []
+        detections: List[dict] = []
         index_map: List[int] = []
         parsed: List[tuple] = []
         for i, item in enumerate(items):
@@ -710,15 +710,15 @@ class TargetRegistry:
                 diameter_value = 0.0
             parsed.append((pos, int(item.get('class_id', 0)), ax,
                            diameter_value, str(item.get('status', ''))))
-            dets.append({
+            detections.append({
                 'position': pos,
                 'class_id': int(item.get('class_id', 0)),
                 'covariance': item.get('covariance'),
             })
             index_map.append(i)
-        if dets:
+        if detections:
             assigned = assign_detections(
-                dets, self._targets, self._frame_used,
+                detections, self._targets, self._frame_used,
                 self._matcher.match_radius,
                 float(getattr(self._matcher, 'recovery_scale', 1.0)))
             for local_i, (tid, d2, status) in enumerate(assigned):

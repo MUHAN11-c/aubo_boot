@@ -113,26 +113,26 @@ class UltralyticsYolo(Detector):
                 device=self._device, verbose=False)
 
         # 锁外解析: 纯 CPU 后处理，不涉及 CUDA
-        dets = []
+        detections = []
         for r in results:
             if r.boxes is None:
                 continue
             for i in range(len(r.boxes)):
-                ci = int(r.boxes.cls[i])
-                cf = float(r.boxes.conf[i])
+                class_id = int(r.boxes.cls[i])
+                conf = float(r.boxes.conf[i])
                 x1, y1, x2, y2 = clip_bbox(
                     r.boxes.xyxy[i].tolist(), rgb.shape)
                 if x2 <= x1 or y2 <= y1:
                     continue
-                dets.append({
-                    'class_id': ci,
-                    'class_name': self._class_names.get(ci, f'cls_{ci}'),
+                detections.append({
+                    'class_id': class_id,
+                    'class_name': self._class_names.get(class_id, f'cls_{class_id}'),
                     'bbox': (x1, y1, x2, y2),
-                    'conf': cf,
+                    'conf': conf,
                 })
 
-        dets.sort(key=lambda d: d['conf'], reverse=True)
-        return dets
+        detections.sort(key=lambda d: d['conf'], reverse=True)
+        return detections
 
     def reset(self):
         """释放 YOLO 缓存 (切换模型路径或数据集后调用)。线程安全."""
@@ -252,7 +252,7 @@ class InferenceEngine:
             detector=UltralyticsYolo(yolo_model='best.pt'),
             segmenter=MobileSam(sam_model='mobile_sam.pt'),
         )
-        dets = engine.detect(rgb)               # → list[dict]
+        detections = engine.detect(rgb)               # → list[dict]
         masks = engine.segment(rgb, bboxes)     # → list[(mask, bbox)]
     """
 
@@ -367,28 +367,28 @@ class CandidateEstimator:
 
         """
         class_id = 0
-        dets = list(obs.detections or [])
-        if bbox is not None and dets:
-            bx = np.asarray(bbox, dtype=float).reshape(4)
+        detections = list(obs.detections or [])
+        if bbox is not None and detections:
+            bbox = np.asarray(bbox, dtype=float).reshape(4)
             best_iou, best = -1.0, None
-            for det in dets:
-                db = np.asarray(det.get('bbox', (0, 0, 0, 0)), dtype=float)
-                if db.size != 4:
+            for det in detections:
+                det_bbox = np.asarray(det.get('bbox', (0, 0, 0, 0)), dtype=float)
+                if det_bbox.size != 4:
                     continue
-                ix1 = max(bx[0], db[0])
-                iy1 = max(bx[1], db[1])
-                ix2 = min(bx[2], db[2])
-                iy2 = min(bx[3], db[3])
+                ix1 = max(bbox[0], det_bbox[0])
+                iy1 = max(bbox[1], det_bbox[1])
+                ix2 = min(bbox[2], det_bbox[2])
+                iy2 = min(bbox[3], det_bbox[3])
                 inter = max(0.0, ix2 - ix1) * max(0.0, iy2 - iy1)
-                union = ((bx[2] - bx[0]) * (bx[3] - bx[1])
-                         + (db[2] - db[0]) * (db[3] - db[1]) - inter)
+                union = ((bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
+                         + (det_bbox[2] - det_bbox[0]) * (det_bbox[3] - det_bbox[1]) - inter)
                 iou = inter / union if union > 1e-6 else 0.0
                 if iou > best_iou:
                     best_iou, best = iou, det
             if best is not None:
                 class_id = int(best.get('class_id', 0))
-        elif dets:
-            class_id = int(dets[0].get('class_id', 0))
+        elif detections:
+            class_id = int(detections[0].get('class_id', 0))
         kind = 'fruit' if class_id == 1 else 'bag'
         return kind, self._estimator_by_kind[kind]
 
@@ -565,10 +565,10 @@ class CandidateEstimator:
 
         """
         x1, y1, x2, y2 = map(int, bbox)
-        g2d = BagGrasp2D(
+        grasp_2d = BagGrasp2D(
             detection_bbox=(x1, y1, x2 - x1, y2 - y1),
             status='REOBSERVE', diagnostic_flags=[reason])
-        g3d = BagGraspReference3D(
+        grasp_3d = BagGraspReference3D(
             status='REOBSERVE', diagnostic_flags=[reason],
             # strategy_id 与成功路径同名（袋线/果线经管线 kind 区分，不恒为 bag）
             strategy_id=f'robust_{self.pipeline.kind}_pose:{mode}',
@@ -576,11 +576,11 @@ class CandidateEstimator:
             calibration_version=str(obs.metadata.get(
                 'calibration_version', 'unknown')),
             tool_version=self.pipeline.tool.version)
-        return TargetPoseResult(target_id, g2d, g3d, mode, {})
+        return TargetPoseResult(target_id, grasp_2d, grasp_3d, mode, {})
 
 
 def dedup_overlapping_detections(
-        dets, ios_threshold: float = 0.6,
+        detections, ios_threshold: float = 0.6,
         frag_ios_threshold: float = 0.2,
         frag_area_ratio: float = 0.5) -> list:
     """
@@ -597,7 +597,7 @@ def dedup_overlapping_detections(
     贪心顺序为面积降序（置信度次之），后遍历到的高重叠框被抑制。
 
     Args:
-        dets: 检测 dict 列表（须含 'bbox'=(x1,y1,x2,y2)；'conf' 可选）.
+        detections: 检测 dict 列表（须含 'bbox'=(x1,y1,x2,y2)；'conf' 可选）.
         ios_threshold: IoS 阈值；≥1.0 时永不命中，等效关闭去重.
 
     Returns
@@ -605,13 +605,13 @@ def dedup_overlapping_detections(
         去重后的检测 dict 列表（按面积降序；元素为原 dict 引用，不改原对象）.
 
     """
-    if not dets or ios_threshold >= 1.0:
-        return list(dets)
-    boxes = np.asarray([d['bbox'] for d in dets], dtype=float).reshape(-1, 4)
+    if not detections or ios_threshold >= 1.0:
+        return list(detections)
+    boxes = np.asarray([d['bbox'] for d in detections], dtype=float).reshape(-1, 4)
     areas = (np.maximum(0.0, boxes[:, 2] - boxes[:, 0])
              * np.maximum(0.0, boxes[:, 3] - boxes[:, 1]))
-    confs = np.array([float(d.get('conf', 0.0)) for d in dets])
-    order = sorted(range(len(dets)), key=lambda i: (-areas[i], -confs[i]))
+    confs = np.array([float(d.get('conf', 0.0)) for d in detections])
+    order = sorted(range(len(detections)), key=lambda i: (-areas[i], -confs[i]))
     kept: list = []
     for i in order:
         suppress = False
@@ -635,7 +635,7 @@ def dedup_overlapping_detections(
                     break
         if not suppress:
             kept.append(i)
-    return [dets[i] for i in kept]
+    return [detections[i] for i in kept]
 
 
 DETECTORS.register('yolo', UltralyticsYolo)

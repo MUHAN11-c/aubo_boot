@@ -37,9 +37,10 @@ def project_positions_to_pixels(
 
     """
     T = np.asarray(T_cam_world, dtype=float).reshape(4, 4)
-    Kmat = np.array([[float(camera_K['fx']), 0.0, float(camera_K['cx'])],
-                     [0.0, float(camera_K['fy']), float(camera_K['cy'])],
-                     [0.0, 0.0, 1.0]], dtype=float)
+    intrinsics_mat = np.array(
+        [[float(camera_K['fx']), 0.0, float(camera_K['cx'])],
+         [0.0, float(camera_K['fy']), float(camera_K['cy'])],
+         [0.0, 0.0, 1.0]], dtype=float)
     width = camera_K.get('width')
     height = camera_K.get('height')
     out: Dict[str, Tuple[float, float]] = {}
@@ -49,7 +50,7 @@ def project_positions_to_pixels(
     P = np.asarray([np.asarray(positions[tid], dtype=float).reshape(3)
                     for tid in ids])
     rvec, _ = cv2.Rodrigues(T[:3, :3])
-    uv, _ = cv2.projectPoints(P.reshape(-1, 1, 3), rvec, T[:3, 3], Kmat, None)
+    uv, _ = cv2.projectPoints(P.reshape(-1, 1, 3), rvec, T[:3, 3], intrinsics_mat, None)
     uv = uv.reshape(-1, 2)
     zc = (P @ T[:3, :3].T + T[:3, 3])[:, 2]
     for target_id, (u, v), z in zip(ids, uv, zc):

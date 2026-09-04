@@ -12,6 +12,7 @@
 //   on_cleanup    ：释放 MoveIt/MTC/订阅/服务/action/client 全部资源，
 //     回 Unconfigured（参数声明与验证钩子保留，可再次 configure）。
 //   on_shutdown/on_error：关输出权限 + 取消活动周期 + 释放资源。
+#include "peach_manipulation/manipulation_skills_node_impl.hpp"
 #include <algorithm>
 #include <exception>
 #include <functional>
@@ -20,10 +21,7 @@
 #include <string>
 #include <utility>
 #include <vector>
-
 #include <moveit/move_group_interface/move_group_interface.hpp>
-
-#include "peach_manipulation/manipulation_skills_node_impl.hpp"
 #include "peach_manipulation/eigen_conversions.hpp"
 
 namespace peach_manipulation

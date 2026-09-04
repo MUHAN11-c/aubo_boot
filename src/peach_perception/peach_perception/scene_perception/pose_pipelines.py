@@ -41,9 +41,9 @@ from .interfaces import (
 )
 
 
-def _apply_T_to_grasp3d(g3d, T: np.ndarray) -> None:
+def _apply_T_to_grasp3d(grasp_3d, T: np.ndarray) -> None:
     """
-    抓取几何由相机系变到输出系（默认 base_link），原地修改 g3d.
+    抓取几何由相机系变到输出系（默认 base_link），原地修改 grasp_3d.
 
     T 为 4×4 齐次矩阵（输出系←相机系）。规则：点 R@p+t（含 entry_start /
     bag_bottom / bag_neck / suggested_travel_end / legacy position /
@@ -52,28 +52,28 @@ def _apply_T_to_grasp3d(g3d, T: np.ndarray) -> None:
     原样保留。
 
     Args:
-        g3d: BagGraspReference3D（相机光学系，米）；被原地改写.
+        grasp_3d: BagGraspReference3D（相机光学系，米）；被原地改写.
         T: (4, 4) 齐次矩阵，输出系←相机系.
 
     Returns
     -------
-        None（结果写回 g3d）.
+        None（结果写回 grasp_3d）.
 
     """
     # 行程终点、legacy position 与身份锚点（前景点云质心）也是点，必须同步
     # 变换（漏改会让 markers 的行程箭头终点留在相机系，与输出系几何错位；
     # 质心漏改则身份锚点掉到相机系，匹配半径在世界系下失真）
-    g3d.entry_start = transform_point(T, g3d.entry_start)
-    g3d.bag_bottom = transform_point(T, g3d.bag_bottom)
-    g3d.bag_neck = transform_point(T, g3d.bag_neck)
-    g3d.suggested_travel_end = transform_point(T, g3d.suggested_travel_end)
-    g3d.position = transform_point(T, g3d.position)
-    g3d.points_centroid = transform_point(T, g3d.points_centroid)
-    g3d.translation_direction = transform_direction(
-        T, g3d.translation_direction)
-    if g3d.orientation is not None:
-        g3d.orientation = (
-            T[:3, :3] @ np.asarray(g3d.orientation, dtype=float))
+    grasp_3d.entry_start = transform_point(T, grasp_3d.entry_start)
+    grasp_3d.bag_bottom = transform_point(T, grasp_3d.bag_bottom)
+    grasp_3d.bag_neck = transform_point(T, grasp_3d.bag_neck)
+    grasp_3d.suggested_travel_end = transform_point(T, grasp_3d.suggested_travel_end)
+    grasp_3d.position = transform_point(T, grasp_3d.position)
+    grasp_3d.points_centroid = transform_point(T, grasp_3d.points_centroid)
+    grasp_3d.translation_direction = transform_direction(
+        T, grasp_3d.translation_direction)
+    if grasp_3d.orientation is not None:
+        grasp_3d.orientation = (
+            T[:3, :3] @ np.asarray(grasp_3d.orientation, dtype=float))
 
 
 def _rotation_to_quat(R: np.ndarray) -> Quaternion:
@@ -245,9 +245,11 @@ class RobustBagPosePipeline(PosePipeline):
 
         # 2D 校验: 掩膜 PCA 主轴 与 袋轴投影(底→颈) 的夹角
         disagreement_deg = None
-        _bpx, _npx = self._project(bottom, obs.camera_K), self._project(neck, obs.camera_K)
-        if _bpx is not None and _npx is not None:
-            disagreement_deg = self._mask_axis_disagreement(local_mask, _bpx, _npx)
+        _bottom_px = self._project(bottom, obs.camera_K)
+        _neck_px = self._project(neck, obs.camera_K)
+        if _bottom_px is not None and _neck_px is not None:
+            disagreement_deg = self._mask_axis_disagreement(
+                local_mask, _bottom_px, _neck_px)
 
         radial = np.linalg.norm(transverse_points - transverse_center, axis=1)
         diameter = float(2.0 * np.percentile(radial, 95))
@@ -271,9 +273,9 @@ class RobustBagPosePipeline(PosePipeline):
             bottom, neck, axis, points)
         if width_flipped:
             landmark_flags.append('taper_polarity_swapped')
-        bpx = self._project(bottom, obs.camera_K)
-        npx = self._project(neck, obs.camera_K)
-        if self._mask_axis_against_taper(local_mask, x1, y1, bpx, npx):
+        bottom_px = self._project(bottom, obs.camera_K)
+        neck_px = self._project(neck, obs.camera_K)
+        if self._mask_axis_against_taper(local_mask, x1, y1, bottom_px, neck_px):
             flipped = -np.asarray(axis, dtype=float)
             if float(flipped @ gravity) <= 0.0:
                 bottom, neck = neck, bottom
@@ -309,7 +311,7 @@ class RobustBagPosePipeline(PosePipeline):
                 2.0, 30.0))
         if orientation_uncertain:
             theta_err_deg = max(theta_err_deg, 12.0)
-        radial_clearance = self.tool.D_inner / 2.0 - diameter / 2.0 - self.tool.clearance_min
+        radial_clearance = self.tool.d_inner_m / 2.0 - diameter / 2.0 - self.tool.clearance_min
         budget_m = (standoff + travel) * np.sin(np.radians(theta_err_deg))
 
         flags = []
@@ -318,7 +320,7 @@ class RobustBagPosePipeline(PosePipeline):
             flags.append('low_valid_depth')
         if coverage < 0.01:
             flags.append('small_foreground')
-        if diameter + 2.0 * self.tool.clearance_min >= self.tool.D_inner:
+        if diameter + 2.0 * self.tool.clearance_min >= self.tool.d_inner_m:
             flags.append('tool_clearance_failed')
         if travel < 0.05:
             flags.append('travel_too_short')
@@ -368,7 +370,7 @@ class RobustBagPosePipeline(PosePipeline):
                        float(cyl['inlier_ratio']) if cyl is not None else None)}
         pos_cov, dir_cov = estimate_pose_covariance(
             points, axis, float(theta_err_deg))
-        g3d = BagGraspReference3D(
+        grasp_3d = BagGraspReference3D(
             frame_id=obs.frame_id, entry_start=entry, position=entry,
             points_centroid=0.5 * (np.asarray(bottom) + np.asarray(neck)),
             orientation=R, bag_bottom=bottom, bag_neck=neck,
@@ -389,15 +391,15 @@ class RobustBagPosePipeline(PosePipeline):
             calibration_version=str(obs.metadata.get(
                 'calibration_version', 'unknown')),
             tool_version=self.tool.version)
-        return TargetPoseResult(target_id, base_2d, g3d, source, metrics)
+        return TargetPoseResult(target_id, base_2d, grasp_3d, source, metrics)
 
-    def _failed(self, target_id, g2d, reason, source, **metrics):
+    def _failed(self, target_id, grasp_2d, reason, source, **metrics):
         """
         构造袋线 REJECT 结果（status=REJECT + 单一诊断标记）.
 
         Args:
             target_id: 目标 ID.
-            g2d: 已建的 BagGrasp2D（被改写为 REJECT）.
+            grasp_2d: 已建的 BagGrasp2D（被改写为 REJECT）.
             reason: 失败原因标记（写入 diagnostic_flags）.
             source: 掩膜来源标签.
             **metrics: 已采集的诊断指标，原样透传.
@@ -407,12 +409,13 @@ class RobustBagPosePipeline(PosePipeline):
             TargetPoseResult（target_kind='bag'）.
 
         """
-        g2d.status = 'REJECT'
-        g2d.diagnostic_flags = [reason]
-        g3d = BagGraspReference3D(status='REJECT', diagnostic_flags=[reason],
-                                  strategy_id='robust_bag_pose', tool_version=self.tool.version,
-                                  diagnostic_info={**metrics, 'mask_source': source})
-        return TargetPoseResult(target_id, g2d, g3d, source, metrics)
+        grasp_2d.status = 'REJECT'
+        grasp_2d.diagnostic_flags = [reason]
+        grasp_3d = BagGraspReference3D(
+            status='REJECT', diagnostic_flags=[reason],
+            strategy_id='robust_bag_pose', tool_version=self.tool.version,
+            diagnostic_info={**metrics, 'mask_source': source})
+        return TargetPoseResult(target_id, grasp_2d, grasp_3d, source, metrics)
 
     @staticmethod
     def _clip_bbox(bbox, shape):
@@ -792,13 +795,15 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
         # ── 误差预算（与袋装线同公式） ──
         if orientation_uncertain:
             theta_err_deg = max(theta_err_deg, 12.0)
-        radial_clearance = self.tool.D_inner / 2.0 - diameter / 2.0 - self.tool.clearance_min
+        radial_clearance = self.tool.d_inner_m / 2.0 - diameter / 2.0 - self.tool.clearance_min
         budget_m = (standoff + travel) * np.sin(np.radians(theta_err_deg))
 
         disagreement_deg = None
-        _bpx, _npx = self._project(bottom, obs.camera_K), self._project(neck, obs.camera_K)
-        if _bpx is not None and _npx is not None:
-            disagreement_deg = self._mask_axis_disagreement(local_mask, _bpx, _npx)
+        _bottom_px = self._project(bottom, obs.camera_K)
+        _neck_px = self._project(neck, obs.camera_K)
+        if _bottom_px is not None and _neck_px is not None:
+            disagreement_deg = self._mask_axis_disagreement(
+                local_mask, _bottom_px, _neck_px)
 
         flags = []
         flags.append('unbagged_display_only')
@@ -806,7 +811,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
             flags.append('low_valid_depth')
         if coverage < 0.01:
             flags.append('small_foreground')
-        if diameter + 2.0 * self.tool.clearance_min >= self.tool.D_inner:
+        if diameter + 2.0 * self.tool.clearance_min >= self.tool.d_inner_m:
             flags.append('tool_clearance_failed')
         if travel < 0.05:
             flags.append('travel_too_short')
@@ -857,7 +862,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
                    'radial_clearance_mm': float(radial_clearance * 1000.0)}
         pos_cov, dir_cov = estimate_pose_covariance(
             points, axis, float(theta_err_deg))
-        g3d = BagGraspReference3D(
+        grasp_3d = BagGraspReference3D(
             frame_id=obs.frame_id, entry_start=entry, position=entry,
             points_centroid=np.median(points, axis=0),
             orientation=R, bag_bottom=bottom, bag_neck=neck,
@@ -873,7 +878,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
             calibration_version=str(obs.metadata.get(
                 'calibration_version', 'unknown')),
             tool_version=self.tool.version)
-        return TargetPoseResult(target_id, base_2d, g3d, source, metrics,
+        return TargetPoseResult(target_id, base_2d, grasp_3d, source, metrics,
                                 target_kind='fruit')
 
     def _stem_cavity_axis(self, points: np.ndarray, center: np.ndarray,
@@ -903,7 +908,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
         if ok.sum() < 30:
             return None, 0.0
         u = rel[ok] / d[ok, None]
-        resid = d[ok] - radius
+        residuals = d[ok] - radius
 
         # Fibonacci 球面方向采样（约 200 向）
         n_dir = 200
@@ -919,25 +924,25 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
             if sel.sum() < self.CAVITY_MIN_POINTS:
                 continue
             # P30 分位: 容忍扫描帽(20°)大于真实洼区时的稀释（中位数会被拉到 0）
-            dip = float(np.percentile(resid[sel], 30))
+            dip = float(np.percentile(residuals[sel], 30))
             if dip < best_dip:
                 best_dip, best_i = dip, i
         if best_i < 0 or best_dip > -self.CAVITY_MIN_DIP_M:
             return None, 0.0
         # 方向精化: 帽内点残差加权平均方向
         sel = sim[best_i] >= self.CAVITY_HALF_ANGLE_COS
-        w = np.clip(-(resid[sel]), 0.0, None) + 1e-6
+        w = np.clip(-(residuals[sel]), 0.0, None) + 1e-6
         refined = (u[sel] * w[:, None]).sum(axis=0)
         refined /= np.linalg.norm(refined)
         return refined, best_dip
 
-    def _failed_fruit(self, target_id, g2d, reason, source, **metrics):
+    def _failed_fruit(self, target_id, grasp_2d, reason, source, **metrics):
         """
         构造果线 REJECT 结果（同 _failed，target_kind='fruit'）.
 
         Args:
             target_id: 目标 ID.
-            g2d: 已建的 BagGrasp2D（被改写为 REJECT）.
+            grasp_2d: 已建的 BagGrasp2D（被改写为 REJECT）.
             reason: 失败原因标记（写入 diagnostic_flags）.
             source: 掩膜来源标签.
             **metrics: 已采集的诊断指标，原样透传.
@@ -947,13 +952,14 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
             TargetPoseResult（target_kind='fruit'）.
 
         """
-        g2d.status = 'REJECT'
-        g2d.diagnostic_flags = [reason]
-        g3d = BagGraspReference3D(status='REJECT', diagnostic_flags=[reason],
-                                  strategy_id='robust_fruit_pose',
-                                  tool_version=self.tool.version,
-                                  diagnostic_info={**metrics, 'mask_source': source})
-        return TargetPoseResult(target_id, g2d, g3d, source, metrics,
+        grasp_2d.status = 'REJECT'
+        grasp_2d.diagnostic_flags = [reason]
+        grasp_3d = BagGraspReference3D(
+            status='REJECT', diagnostic_flags=[reason],
+            strategy_id='robust_fruit_pose',
+            tool_version=self.tool.version,
+            diagnostic_info={**metrics, 'mask_source': source})
+        return TargetPoseResult(target_id, grasp_2d, grasp_3d, source, metrics,
                                 target_kind='fruit')
 
 

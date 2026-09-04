@@ -26,7 +26,7 @@ def regularize_cov(cov, floor: float = 1e-6) -> np.ndarray:
     return mat
 
 
-def mahalanobis2(delta, cov) -> float:
+def squared_mahalanobis(delta, cov) -> float:
     """平方马氏距离 (x-μ)ᵀ Σ⁻¹ (x-μ)."""
     d = np.asarray(delta, dtype=float).reshape(3)
     inv = np.linalg.inv(regularize_cov(cov))
@@ -65,7 +65,7 @@ def estimate_pose_covariance(
     return pos, direction
 
 
-def hungarian(cost: np.ndarray) -> List[Tuple[int, int]]:
+def solve_hungarian(cost: np.ndarray) -> List[Tuple[int, int]]:
     """
     矩形代价矩阵的最小化和一对一分配（scipy 官方求解器）.
 
@@ -95,7 +95,7 @@ def assign_detections(
     本帧检测相对表项做全局 1-1 分配.
 
     每个 detection 字典需含 position、(可选) covariance、class_id.
-    返回与 detections 等长的 (target_id|None, mahalanobis2, status).
+    返回与 detections 等长的 (target_id|None, squared_mahalanobis, status).
     status: ok / new / ambiguous.
     """
     n = len(detections)
@@ -119,11 +119,11 @@ def assign_detections(
         for j, (_tid, rec) in enumerate(tracks):
             if rec.get('class_id', cid) != cid:
                 continue
-            d2 = mahalanobis2(pos - rec['position'], cov)
+            d2 = squared_mahalanobis(pos - rec['position'], cov)
             if d2 <= CHI2_GATE:
                 cost[i, j] = d2
 
-    pairs = hungarian(cost)
+    pairs = solve_hungarian(cost)
     assigned_cols = {j for _, j in pairs}
     assigned_rows = {i for i, _ in pairs}
     # 歧义：某检测存在另一未占用轨道，代价与最优比 < AMBIGUOUS_RATIO

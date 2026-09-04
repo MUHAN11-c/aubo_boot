@@ -950,7 +950,7 @@ class ScenePerceptionNode(LifecycleNode):
         # 与上方 convert 失败的早退形状一致（SAM 侧已在 engine 内捕获返回 []）
         t_detect_start = self._clock.now()
         try:
-            dets = self.engine.detect(rgb)
+            detections = self.engine.detect(rgb)
         except Exception as exc:  # noqa: BLE001
             self.get_logger().error(
                 f'YOLO 检测异常，跳过本帧: {exc}', throttle_duration_sec=1.0)
@@ -958,7 +958,7 @@ class ScenePerceptionNode(LifecycleNode):
         # 置信度过滤（第二级，严出）→ IoS 去重（消一果两框/局部误检小框，
         # 跨类生效，防同一物理目标在身份表重复占号）；发布的 detections
         # 即实际入管线的目标
-        kept = [d for d in dets
+        kept = [d for d in detections
                 if float(d.get('conf', 0.0)) >= self.min_detection_conf]
         kept = dedup_overlapping_detections(
             kept, self.detection_dedup_ios,
@@ -1102,15 +1102,15 @@ class ScenePerceptionNode(LifecycleNode):
         if self.target_registry is not None and track_this_frame:
             assign_items = []
             for p in pending:
-                g3d = p['result'].grasp_3d
+                grasp_3d = p['result'].grasp_3d
                 assign_items.append({
                     'position': first_point(
-                        g3d.points_centroid, g3d.bag_bottom,
-                        g3d.position, g3d.entry_start),
+                        grasp_3d.points_centroid, grasp_3d.bag_bottom,
+                        grasp_3d.position, grasp_3d.entry_start),
                     'class_id': int(p['det'].get('class_id', 0)),
-                    'axis': g3d.translation_direction,
-                    'diameter': float(g3d.bag_diameter_upper_m or 0.0),
-                    'status': g3d.status,
+                    'axis': grasp_3d.translation_direction,
+                    'diameter': float(grasp_3d.bag_diameter_upper_m or 0.0),
+                    'status': grasp_3d.status,
                 })
             # 持 _plan_lock：身份分配与 BeginScene 清表 / plan.update 互斥
             # （字典迭代与清空不得跨线程并发）。
@@ -1139,12 +1139,12 @@ class ScenePerceptionNode(LifecycleNode):
                         bbox, depth.shape[1], depth.shape[0])
                 else:
                     result.grasp_3d.diagnostic_flags.append('target_untracked')
-            g3d, g2d = result.grasp_3d, result.grasp_2d
+            grasp_3d, grasp_2d = result.grasp_3d, result.grasp_2d
             candidate_msg = _to_candidate(
-                header, tid, g3d, model_version=self.model_version,
+                header, tid, grasp_3d, model_version=self.model_version,
                 calibration_version=self.calibration_version,
                 tool_version=self.tool.version)
-            candidate_2d_msg = _to_candidate_2d(header, tid, g2d)
+            candidate_2d_msg = _to_candidate_2d(header, tid, grasp_2d)
             fitting_msg = _to_fitting(header, tid, result)
             registry_item = (
                 None if self.target_registry is None
@@ -1195,11 +1195,11 @@ class ScenePerceptionNode(LifecycleNode):
                 fit_arr.fittings.append(fitting_msg)
                 markers.markers.extend(_to_markers(
                     header, tid, i, result,
-                    tool_d_inner=float(self.tool.D_inner)))
+                    tool_d_inner=float(self.tool.d_inner_m)))
             if debug_raw is not None:
-                _draw_debug(debug_raw, det, g2d, sam_mask, tid, confirmed=confirmed)
+                _draw_debug(debug_raw, det, grasp_2d, sam_mask, tid, confirmed=confirmed)
             if debug is not None and confirmed:
-                _draw_debug(debug, det, g2d, sam_mask, tid, confirmed=True)
+                _draw_debug(debug, det, grasp_2d, sam_mask, tid, confirmed=True)
 
         self._timing.record(
             'geometry_ms', (self._clock.now() - t_geometry_start) * 1e3)
@@ -1227,7 +1227,7 @@ class ScenePerceptionNode(LifecycleNode):
             self.pub_norm_axis.publish(axis_msg)
         self.get_logger().debug(
             f'Published {len(cand_arr.candidates)} candidates '
-            f'(dets={len(kept)})')
+            f'(detections={len(kept)})')
         if self.target_registry is not None:
             st = self.target_registry.stats()
             self.get_logger().info(

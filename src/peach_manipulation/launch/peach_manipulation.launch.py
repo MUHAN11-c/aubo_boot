@@ -53,9 +53,6 @@ def generate_launch_description():
     default_params = PathJoinSubstitution([
         FindPackageShare('peach_manipulation'),
         'config', 'peach_manipulation.yaml'])
-    behavior_tree = PathJoinSubstitution([
-        FindPackageShare('peach_manipulation'),
-        'config', 'behavior_tree.xml'])
     params_file = LaunchConfiguration('params_file')
     node = LifecycleNode(
         package='peach_manipulation',
@@ -67,7 +64,6 @@ def generate_launch_description():
             ParameterFile(params_file, allow_substs=True),
             manipulation_overlay(),
             *_skills_moveit_params(),
-            {'behavior_tree.xml': behavior_tree},
         ],
     )
     autostart = LaunchConfiguration('autostart')

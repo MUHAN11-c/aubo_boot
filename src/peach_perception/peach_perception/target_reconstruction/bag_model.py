@@ -49,7 +49,7 @@ def _signed_angle_deg(first, second) -> float:
     return 180.0 if angle is None else angle
 
 
-def _mad_m(points: np.ndarray, center: np.ndarray) -> float:
+def median_absolute_deviation_m(points: np.ndarray, center: np.ndarray) -> float:
     """点到中心距离的 MAD→σ [m]."""
     delta = np.linalg.norm(
         np.asarray(points, dtype=np.float64) - center, axis=1)
@@ -316,7 +316,9 @@ def fuse_bag_views(
     length = float(np.dot(neck - bottom, axis))
     view_sigma = float(np.median([item.sigma_position_m for item in items]))
     sig_p = max(
-        view_sigma, _mad_m(bottoms, bottom), _mad_m(necks, neck), 0.006)
+        view_sigma,
+        median_absolute_deviation_m(bottoms, bottom),
+        median_absolute_deviation_m(necks, neck), 0.006)
     sig_a = float(np.median([item.sigma_axis_deg for item in items]))
     bottom_err = np.linalg.norm(bottoms - bottom, axis=1)
     neck_err = np.linalg.norm(necks - neck, axis=1)

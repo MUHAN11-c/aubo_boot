@@ -152,9 +152,9 @@ class ScenePerceptionParams:
             gravity_mode = 'fixed'
         # entry_standoff = d_tool + d_s；0 时入口在拟合袋底
         tool = ToolGeometry(
-            D_inner=float(p.tool.D_inner),
-            L_insert=float(p.tool.L_insert),
-            L_blade=float(p.tool.L_blade),
+            d_inner_m=float(p.tool.D_inner),
+            insert_length_m=float(p.tool.L_insert),
+            blade_offset_m=float(p.tool.L_blade),
             entry_d_tool=float(p.tool.entry_d_tool),
             entry_d_s=float(p.tool.entry_d_s),
             entry_standoff=float(p.tool.entry_d_tool)

@@ -5,7 +5,7 @@ Web 监控台 HTTP 层：静态文件、只读状态 API 与鉴权调试操作�
 POST 仅开放 `/api/debug/<action>` 调试端点，鉴权（X-Debug-Token）、
 运动门控（motion_enabled）与审计全部在后端 `debug_command` 内完成，
 本层只做解析与转发——无令牌时一切 POST 仍被拒绝。Handler 不闭包
-引用 ROS 节点，只经 `_ObservabilityHTTPServer` 上的窄接口
+引用 ROS 节点，只经 `_ObservabilityHttpServer` 上的窄接口
 `HttpBackend`（snapshot / trajectory / debug_command）取依赖。
 """
 
@@ -55,8 +55,8 @@ class HttpBackend(Protocol):
 class ObservabilityHttpHandler(BaseHTTPRequestHandler):
     """只读 GET handler（依赖全经 server 窄接口）."""
 
-    # 类型注解仅供阅读：实例属性来自 _ObservabilityHTTPServer
-    server: '_ObservabilityHTTPServer'
+    # 类型注解仅供阅读：实例属性来自 _ObservabilityHttpServer
+    server: '_ObservabilityHttpServer'
 
     def log_message(self, fmt, *args):
         """访问日志转交后端 debug 日志（ROS 节点或测试 noop）."""
@@ -166,7 +166,7 @@ class ObservabilityHttpHandler(BaseHTTPRequestHandler):
         self._json(response, http_status)
 
 
-class _ObservabilityHTTPServer(ThreadingHTTPServer):
+class _ObservabilityHttpServer(ThreadingHTTPServer):
     """携带窄接口后端与静态根目录的 HTTP 服务（Handler 经 server 取依赖）."""
 
     def __init__(self, server_address, backend: HttpBackend,
@@ -196,7 +196,7 @@ def start_http(host: str, port: int, web_root, backend: HttpBackend,
         运行中的 ThreadingHTTPServer（调用方负责 shutdown/server_close）.
 
     """
-    server = _ObservabilityHTTPServer(
+    server = _ObservabilityHttpServer(
         (host, port), backend, Path(web_root), log_debug)
     thread = threading.Thread(
         target=server.serve_forever,

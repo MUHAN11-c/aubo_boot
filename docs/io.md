@@ -207,7 +207,8 @@ flowchart TB
 | `confirm_frames` | 累计命中才转正进锁定/候选；短暂闪现不占 ID |
 | `target_memory.match_radius_m` | 同类且距离内复用同一 `target_id` |
 | `harvest.min_collect_frames` / `lock_settle_frames` / `max_collect_s` | 收齐窗口：最少帧、无新 ID 稳定帧、超时兜底 |
-| `pose.min_depth_m` / `max_depth_m` | 位姿管线有效深度窗 |
+| `pipeline.min_depth_m` / `max_depth_m` | 位姿管线有效深度窗 |
+| `pipeline.bag_impl` / `fruit_impl` | 袋/果线映射名（`PIPELINES_BY_IMPL`）；其余算法直接构造 |
 | `depth_scale_unit` | uint16：raw × 本值 = 毫米（Percipio 0.25） |
 | `sync_slop_s` | RGB-D 近似同步允差（0.05 s） |
 | `tool.entry_d_tool` / `entry_d_s` | 入口相对袋底。由 `grasp_standoffs.yaml` 注入，勿只改这里 |
@@ -296,6 +297,7 @@ flowchart TB
 | `capture.min_neighbor_gap_m` / `neighbor_gap_area_ratio` | 邻锚过近拒帧；小框面积比豁免，近距双检不互锁 |
 | `tf_timeout_sec` | 按深度 stamp 精确查 TF；失败跳帧，禁止 latest |
 | `refit.entry_standoff_m` / `refit.pregrasp_standoff_m` | 入口相对袋底、预抓取相对入口。只改 `grasp_standoffs.yaml` |
+| `refitter.cylinder_impl` / `sphere_impl` | 柱/球精化映射名（`REFITTERS_BY_IMPL`）；其余算法直接构造 |
 
 ---
 

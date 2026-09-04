@@ -5,6 +5,14 @@ from typing import Iterable, Optional
 
 import numpy as np
 
+from peach_perception.common.bag_landmarks import (
+    BagLandmarks,
+    clamp_upper_hemisphere,
+    enforce_wide_bottom,
+    OCCLUSION_BRANCH,
+    OCCLUSION_DAMAGED,
+    OCCLUSION_NEIGHBOR,
+)
 from peach_perception.common.geometry import (
     angle_between_deg,
     axis_radial_distance,
@@ -13,14 +21,6 @@ from peach_perception.common.geometry import (
 from peach_perception.common.tool_budget import (
     evaluate_sleeve_cut,
     ToolBudgetParams,
-)
-from peach_perception.scene_perception.bag_landmarks import (
-    BagLandmarks,
-    clamp_upper_hemisphere,
-    enforce_wide_bottom,
-    OCCLUSION_BRANCH,
-    OCCLUSION_DAMAGED,
-    OCCLUSION_NEIGHBOR,
 )
 
 

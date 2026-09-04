@@ -15,14 +15,10 @@ from typing import (
 import numpy as np
 
 from .assignment import assign_detections
-from .interfaces import (
+from .contracts import (
     compute_entry_start,
-    LOCK_POLICIES,
     LockEvent,
-    LockPolicy,
-    MATCHERS,
     MatchResult,
-    TargetMatcher,
 )
 from .pose_pipelines import grasp_frame_from_axis
 
@@ -55,9 +51,9 @@ def _selectable(record) -> bool:
     )
 
 
-class CollectLockPolicy(LockPolicy):
+class CollectLockPolicy:
     """
-    收齐窗口锁定策略（LockPolicy 默认实现，注册名 'collect_lock'）.
+    收齐窗口锁定策略（唯一实现，直接构造）.
 
     逐帧累积确认目标（同 ID 后者覆盖，窗口关闭时取最新一帧的质量量）；
     关闭条件二选一：静止关闭（累积帧数 ≥ min_collect_frames 且连续
@@ -65,9 +61,9 @@ class CollectLockPolicy(LockPolicy):
     或超时兜底（now − 窗口起点 ≥ max_collect_s，空集也关闭）。关闭后
     发一次 LockEvent 即冻结，reset() 后重新开窗。
 
-    生命周期：与 GlobalHarvestPlan 同寿，由节点按 lock.impl 创建注入。
+    生命周期：与 GlobalHarvestPlan 同寿，由节点直接构造注入。
     线程安全：无内部锁，与 plan 同一把外部锁保护（见模块 docstring）。
-    可替换性：实现 LockPolicy 即可经 LOCK_POLICIES 注册表替换。
+    现行为唯一实现（直接构造）；换策略=改一个类。
     """
 
     def __init__(self, min_collect_frames: int = 10,
@@ -172,7 +168,7 @@ class GlobalHarvestPlan:
                  prefer_lower_first: bool = True,
                  anchor_max_age_frames: int = 150,
                  anchor_drop_frames: int = 600,
-                 lock_policy: Optional[LockPolicy] = None):
+                 lock_policy: Optional[CollectLockPolicy] = None):
         """建未锁定计划并进入收齐窗口（容量≥1 校验；策略可注入替换）."""
         if max_targets < 1:
             raise ValueError('max_targets 须 ≥ 1')
@@ -494,9 +490,9 @@ class GlobalHarvestPlan:
 
 # === target_registry.py ===
 
-class SpatialEmaMatcher(TargetMatcher):
+class SpatialEmaMatcher:
     """
-    空间最近邻匹配器（TargetMatcher 默认实现，注册名 'spatial_ema'）.
+    空间最近邻匹配器（唯一实现，直接构造）.
 
     两段搜索（仅前一段未命中才进下一段）：
       1. 正常匹配：同类、距离 ≤ match_radius 取最近者；
@@ -507,9 +503,9 @@ class SpatialEmaMatcher(TargetMatcher):
     为预留能力（曾以 cross_class_recovery 配置承诺、帧级路径从未生效，
     已删配置；需要时在帧级分配后对未命中项补一次 class 打开的二次分配）。
 
-    生命周期：与 TargetRegistry 同寿，由节点按 matcher.impl 创建注入。
+    生命周期：与 TargetRegistry 同寿，由节点直接构造注入。
     线程安全：无内部状态（配置不可变），与注册表同一把外部锁保护。
-    可替换性：实现 TargetMatcher 即可经 MATCHERS 注册表替换。
+    现行为唯一实现（直接构造）；换匹配器=改一个类。
     """
 
     def __init__(self, match_radius: float = 0.06,
@@ -562,7 +558,7 @@ class TargetRegistry:
          first_seen, last_seen, obs_count, last_status, confirmed,
          swing_up, swing_down, swinging}
 
-    构造参数：matcher 为目标匹配器（TargetMatcher 接口；None 时按
+    构造参数：matcher 为 SpatialEmaMatcher（None 时按
     match_radius / recovery_scale 构造默认
     SpatialEmaMatcher——后两个参数仅在该路径生效）；max_targets 为表容量
     上限，超限注册新目标时淘汰 last_seen 最旧的表项；position_ema 为
@@ -584,7 +580,7 @@ class TargetRegistry:
                  tentative_ttl_frames: int = 5,
                  max_age_s: float = 600.0, swing_threshold_m: float = 0.03,
                  swing_frames: int = 3,
-                 matcher: Optional[TargetMatcher] = None):
+                 matcher: Optional[SpatialEmaMatcher] = None):
         """建空表（容量/EMA/确认帧/TTL/max_age/摆动参数校验，匹配器可注入）."""
         if max_targets < 1:
             raise ValueError(f'max_targets 须 ≥ 1，got {max_targets}')
@@ -919,7 +915,3 @@ def memory_grasp(entry: dict, standoff: float) -> Optional[MemoryGrasp]:
         entry_start=compute_entry_start(bottom, zg, standoff),
         rotation=rotation,
     )
-
-
-MATCHERS.register('spatial_ema', SpatialEmaMatcher)
-LOCK_POLICIES.register('collect_lock', CollectLockPolicy)

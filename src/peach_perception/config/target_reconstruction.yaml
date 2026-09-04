@@ -118,14 +118,9 @@ peach_target_reconstruction_node:
     # 不经过本节流（就绪门/新鲜度门载体与闩锁覆盖语义不动）。
     publish.on_change_only: true   # false=回退逐次全发旧行为
     publish.min_interval_s: 0.2    # [s] 最小发布间隔；≤0 关闭间隔门
-    # ── 可替换实现装配（协议 2.14：ABC + Registry，按注册名选择实现）──
-    frame_store.impl: default             # 批级帧栈（interfaces.FRAME_STORES）
-    cloud_builder.impl: open3d_cloud      # 点云构建器（interfaces.CLOUD_BUILDERS）
-    refiner.impl: bounded_icp             # 帧到模型配准（interfaces.REFINERS）
-    volume.impl: local_tsdf               # 融合体积（interfaces.VOLUMES）
-    refitter.cylinder_impl: cylinder_refit  # 袋桃圆柱 refit（interfaces.REFITTERS）
-    refitter.sphere_impl: sphere_refit      # 裸桃球 refit（interfaces.REFITTERS）
-    mask_gate.impl: strict_mask_gate      # 目标掩膜门（interfaces.MASK_GATES）
+    # ── 柱/球精化线（REFITTERS_BY_IMPL；其余算法直接构造）──
+    refitter.cylinder_impl: cylinder_refit  # 袋桃圆柱：CylinderRefitter
+    refitter.sphere_impl: sphere_refit      # 裸桃球：SphereRefitter
     # ── session 落盘 ─────────────────────────────────────────
     # 空 = 工作区 runs/（与账本、观测 JSONL 同一根）
     session.root_dir: ""

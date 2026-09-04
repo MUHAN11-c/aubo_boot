@@ -11,7 +11,7 @@ from peach_interfaces.msg import (
     BagGrasp2D as BagGrasp2DMsg,
     BagGraspCandidate,
 )
-from peach_perception.common.pointcloud import pack_rgb_bgr
+from peach_perception.common.geometry import pack_rgb_bgr
 from peach_perception.scene_perception.image_gates import clip_bbox
 from peach_perception.scene_perception.pose_pipelines import _rotation_to_quat
 from sensor_msgs.msg import PointCloud2, PointField
@@ -260,7 +260,7 @@ def _to_fitting(header, tid, result) -> BagFitting:
 
 # === cloud_utils.py ===
 
-# RGB 位打包统一走 common.pointcloud.pack_rgb_bgr（与重建侧同实现）
+# RGB 位打包统一走 common.geometry.pack_rgb_bgr（与重建侧同实现）
 _pack_rgb_bgr = pack_rgb_bgr
 
 

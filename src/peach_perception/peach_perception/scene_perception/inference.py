@@ -15,18 +15,17 @@ from typing import Iterable, List, Optional, Tuple
 import cv2
 import numpy as np
 
-from .image_gates import clip_bbox, foreground_mask, valid_depth_mask
-from .interfaces import (
+from .contracts import (
     BagGrasp2D,
     BagGraspReference3D,
     BagObservation,
-    Detector,
-    DETECTORS,
-    POSE_PIPELINES,
-    Segmenter,
-    SEGMENTERS,
 )
-from .pose_pipelines import RobustBagPosePipeline, TargetPoseResult
+from .image_gates import clip_bbox, foreground_mask, valid_depth_mask
+from .pose_pipelines import (
+    RobustBagPosePipeline,
+    RobustFruitPosePipeline,
+    TargetPoseResult,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -49,9 +48,9 @@ def _resolve_device() -> str:
     return 'cpu'
 
 
-class UltralyticsYolo(Detector):
+class UltralyticsYolo:
     """
-    Ultralytics YOLO 检测器（Detector 默认实现，注册名 'yolo'）.
+    Ultralytics YOLO 检测器（唯一实现，直接构造）.
 
     懒加载：首次 detect 才读权重。所有推理经 self._lock 序列化，确保同一
     时刻仅一个线程占用 GPU 模型。
@@ -140,9 +139,9 @@ class UltralyticsYolo(Detector):
             self._yolo = None
 
 
-class MobileSam(Segmenter):
+class MobileSam:
     """
-    Ultralytics MobileSAM 分割器（Segmenter 默认实现，注册名 'mobile_sam'）.
+    Ultralytics MobileSAM 分割器（唯一实现，直接构造）.
 
     懒加载：首次 segment 才读权重。SAM 以 bbox 为 box prompt，在框内生成
     二值前景掩码；面积 < sam_min_area 的掩码被丢弃。所有推理经
@@ -241,10 +240,9 @@ class MobileSam(Segmenter):
 
 class InferenceEngine:
     """
-    检测/分割组合引擎（调用端）：只持有 Detector/Segmenter 接口引用.
+    检测/分割组合引擎：持有 UltralyticsYolo + MobileSam（直接构造）.
 
-    detect/segment/reset 全部委托给构造期注入的接口实现；引擎自身不含
-    任何模型逻辑，可替换性由接口层注册表（2.14）保证。
+    detect/segment/reset 全部委托给构造期注入的实现；引擎自身不含模型逻辑。
 
     用法::
 
@@ -256,13 +254,13 @@ class InferenceEngine:
         masks = engine.segment(rgb, bboxes)     # → list[(mask, bbox)]
     """
 
-    def __init__(self, detector: Detector, segmenter: Segmenter):
+    def __init__(self, detector, segmenter):
         """
-        装配检测器与分割器（接口引用，不绑死具体实现）.
+        装配检测器与分割器（唯一实现直接注入）.
 
         Args:
-            detector: Detector 接口实现（如 UltralyticsYolo）.
-            segmenter: Segmenter 接口实现（如 MobileSam）.
+            detector: UltralyticsYolo.
+            segmenter: MobileSam.
 
         Returns
         -------
@@ -273,7 +271,7 @@ class InferenceEngine:
         self._segmenter = segmenter
 
     def detect(self, rgb: np.ndarray) -> List[dict]:
-        """委托注入的 Detector（签名与语义见 Detector.detect）."""
+        """委托注入的检测器."""
         return self._detector.detect(rgb)
 
     def segment(
@@ -281,11 +279,11 @@ class InferenceEngine:
         rgb: np.ndarray,
         bboxes: List[Tuple[int, int, int, int]],
     ) -> List[Tuple[np.ndarray, Tuple[int, int, int, int]]]:
-        """委托注入的 Segmenter（签名与语义见 Segmenter.segment）."""
+        """委托注入的分割器."""
         return self._segmenter.segment(rgb, bboxes)
 
     def reset(self):
-        """释放两个模型的缓存（逐接口委托；实现方各自保证线程安全）."""
+        """释放两个模型的缓存（实现方各自保证线程安全）."""
         self._detector.reset()
         self._segmenter.reset()
 
@@ -322,14 +320,12 @@ class CandidateEstimator:
                  fruit_pipeline: Optional[RobustBagPosePipeline] = None,
                  dilate_px: int = 5, min_mask_points: int = 50):
         """
-        构造估计器；两条管线只按 PosePipeline 接口持有（2.14 装配）.
+        构造估计器；袋/果两条线由节点经 PIPELINES_BY_IMPL 注入.
 
         Args:
-            pipeline: 袋线实例；None 时按注册表默认实现（'robust_bag'）
-                新建.
-            fruit_pipeline: 果线实例；None 时按注册表默认实现
-                （'robust_fruit'）新建并复用袋线的 ToolGeometry，保证刀具
-                契约一致.
+            pipeline: 袋线实例；None 时新建 RobustBagPosePipeline.
+            fruit_pipeline: 果线实例；None 时新建 RobustFruitPosePipeline
+                并复用袋线的 ToolGeometry，保证刀具契约一致.
             dilate_px: 深度连通域膨胀半径（像素，≥1；核边长 2*(p//2)+1）.
             min_mask_points: 掩膜最小像素数，不足判 mask_unavailable.
 
@@ -338,11 +334,10 @@ class CandidateEstimator:
             无返回值（None）.
 
         """
-        self.pipeline = pipeline or POSE_PIPELINES.create('robust_bag')
-        self.fruit_pipeline = fruit_pipeline or POSE_PIPELINES.create(
-            'robust_fruit', tool=self.pipeline.tool)
-        # 类别路由用的实例表：kind（注册表键）→ 已建实例（YOLO 标签契约：
-        # class_id==1 → 'fruit'，其余 → 'bag'，见 _pipeline_for）
+        self.pipeline = pipeline or RobustBagPosePipeline()
+        self.fruit_pipeline = fruit_pipeline or RobustFruitPosePipeline(
+            tool=self.pipeline.tool)
+        # 类别路由：class_id==1 → 'fruit'，其余 → 'bag'
         self._estimator_by_kind = {
             'bag': self.pipeline,
             'fruit': self.fruit_pipeline,
@@ -368,26 +363,7 @@ class CandidateEstimator:
         """
         class_id = 0
         detections = list(obs.detections or [])
-        if bbox is not None and detections:
-            bbox = np.asarray(bbox, dtype=float).reshape(4)
-            best_iou, best = -1.0, None
-            for det in detections:
-                det_bbox = np.asarray(det.get('bbox', (0, 0, 0, 0)), dtype=float)
-                if det_bbox.size != 4:
-                    continue
-                ix1 = max(bbox[0], det_bbox[0])
-                iy1 = max(bbox[1], det_bbox[1])
-                ix2 = min(bbox[2], det_bbox[2])
-                iy2 = min(bbox[3], det_bbox[3])
-                inter = max(0.0, ix2 - ix1) * max(0.0, iy2 - iy1)
-                union = ((bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
-                         + (det_bbox[2] - det_bbox[0]) * (det_bbox[3] - det_bbox[1]) - inter)
-                iou = inter / union if union > 1e-6 else 0.0
-                if iou > best_iou:
-                    best_iou, best = iou, det
-            if best is not None:
-                class_id = int(best.get('class_id', 0))
-        elif detections:
+        if detections:
             class_id = int(detections[0].get('class_id', 0))
         kind = 'fruit' if class_id == 1 else 'bag'
         return kind, self._estimator_by_kind[kind]
@@ -418,7 +394,8 @@ class CandidateEstimator:
         if unknown:
             raise ValueError(f'unknown foreground modes: {sorted(unknown)}')
 
-        masks = self.build_masks(obs, bbox, sam_mask)
+        bbox = clip_bbox(bbox, obs.depth.shape)
+        masks, valid_roi = self.build_masks(obs, bbox, sam_mask)
         kind, pipeline = self._pipeline_for(obs, bbox)
         results = {}
         self.last_timings_ms = {}
@@ -431,7 +408,8 @@ class CandidateEstimator:
                     obs, target_id, bbox, mode, 'mask_unavailable')
             else:
                 results[mode] = pipeline.estimate(
-                    obs, target_id, bbox, mask, self._source(mode))
+                    obs, target_id, bbox, mask, self._source(mode),
+                    valid_roi=valid_roi)
             pose = results[mode].grasp_3d
             results[mode].target_kind = kind
             pose.strategy_id = f'robust_{kind}_pose:{mode}'
@@ -446,51 +424,49 @@ class CandidateEstimator:
         return results
 
     def build_masks(self, obs: BagObservation, bbox: tuple,
-                    sam_mask: Optional[np.ndarray]) -> dict[str, Optional[np.ndarray]]:
+                    sam_mask: Optional[np.ndarray]
+                    ) -> tuple[dict[str, Optional[np.ndarray]], Optional[np.ndarray]]:
         """
         在 bbox ROI 内构造 hybrid_dilated 掩膜（实测深度单位：毫米 uint16）.
 
         hybrid_dilated = (SAM ∩ 有效深度) ∩ 膨胀后的深度连通域；
-        交后像素 < min_mask_points 给 None。
+        交后像素 < min_mask_points 给 None。SAM 缺失时跳过深度连通域白算.
 
         Args:
             obs: 单帧输入（深度 uint16 毫米）.
-            bbox: (x1, y1, x2, y2) 检测框（像素，自动裁剪到图内）.
+            bbox: (x1, y1, x2, y2) 已裁到图内的检测框（像素）.
             sam_mask: 全图或 ROI 掩膜；None 或裁剪失败则结果为 None.
 
         Returns
         -------
-            {mode_id: (h, w) bool ROI 掩膜或 None}；副作用：刷新
-            _last_mask_timings_ms（毫秒）.
+            ({mode_id: ROI 掩膜或 None}, ROI 有效深度掩膜或 None)；
+            副作用：刷新 _last_mask_timings_ms（毫秒）.
 
         """
         started = time.perf_counter()
         self._last_mask_timings_ms = {mode: 0.0 for mode in MODE_IDS}
-        x1, y1, x2, y2 = clip_bbox(bbox, obs.depth.shape)
+        x1, y1, x2, y2 = bbox
         roi = obs.depth[y1:y2, x1:x2]
+        empty = {mode: None for mode in MODE_IDS}
         if roi.size == 0:
-            return {mode: None for mode in MODE_IDS}
-        # 有效深度区间取袋线管线参数（两条线共用同一相机/深度约定）
+            return empty, None
+        sam_roi = self._crop_mask(sam_mask, (x1, y1, x2, y2), obs.depth.shape)
+        if sam_roi is None:
+            elapsed_ms = (time.perf_counter() - started) * 1000.0
+            self._last_mask_timings_ms = {mode: elapsed_ms for mode in MODE_IDS}
+            return empty, None
         valid = valid_depth_mask(
             roi, self.pipeline.min_depth_m, self.pipeline.max_depth_m)
-        # 深度连通前景：作为「膨胀母体」，限制 SAM 不漂到背景
         depth_mask, _ = foreground_mask(
             roi, valid, None, bbox, source='depth_fallback')
-
-        mask = None
-        sam_roi = self._crop_mask(sam_mask, (x1, y1, x2, y2), obs.depth.shape)
-        if sam_roi is not None:
-            # 只保留有实测深度的 SAM 像素
-            measured_sam = sam_roi & valid
-            k = 2 * (self.dilate_px // 2) + 1
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
-            expanded_depth = cv2.dilate(depth_mask.astype(np.uint8), kernel) > 0
-            # SAM ∩ 膨胀深度；像素过少则视为不可用
-            mask = self._enough(measured_sam & expanded_depth)
-
+        measured_sam = sam_roi & valid
+        k = 2 * (self.dilate_px // 2) + 1
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
+        expanded_depth = cv2.dilate(depth_mask.astype(np.uint8), kernel) > 0
+        mask = self._enough(measured_sam & expanded_depth)
         elapsed_ms = (time.perf_counter() - started) * 1000.0
         self._last_mask_timings_ms = {mode: elapsed_ms for mode in MODE_IDS}
-        return {'hybrid_dilated': mask}
+        return {'hybrid_dilated': mask}, valid
 
     def _crop_mask(self, mask: Optional[np.ndarray], bbox: tuple,
                    image_shape: tuple) -> Optional[np.ndarray]:
@@ -636,7 +612,3 @@ def dedup_overlapping_detections(
         if not suppress:
             kept.append(i)
     return [detections[i] for i in kept]
-
-
-DETECTORS.register('yolo', UltralyticsYolo)
-SEGMENTERS.register('mobile_sam', MobileSam)

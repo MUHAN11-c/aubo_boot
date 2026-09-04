@@ -35,7 +35,7 @@ from peach_interfaces.msg import (
     ReconstructionStatus,
     ShapeHypothesis,
 )
-from peach_perception.common.pointcloud import pack_rgb_bgr
+from peach_perception.common.geometry import pack_rgb_bgr
 from peach_perception.target_reconstruction.integrate import (
     require_open3d,
     summarize_view_coverage,

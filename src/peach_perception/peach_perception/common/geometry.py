@@ -1,5 +1,5 @@
 from __future__ import annotations
-"""几何原语：拟合、深度单位、TF 纯函数。"""
+"""几何原语：拟合、深度单位、TF、点云 RGB 打包。"""
 
 from dataclasses import dataclass
 from typing import Optional, Tuple
@@ -783,3 +783,43 @@ def gravity_camera_from_R(R_out_cam: np.ndarray) -> np.ndarray:
     g = np.asarray(R_out_cam, dtype=float).T @ np.array([0.0, 0.0, -1.0])
     n = float(np.linalg.norm(g))
     return g / n if n > 1e-9 else g
+
+
+def pack_rgb_bgr(colors_bgr: np.ndarray) -> np.ndarray:
+    """
+    (N, 3) uint8 BGR → (N,) float32 位打包（0xRRGGBB，RViz RGB8 约定）.
+
+    Args:
+        colors_bgr: (N, 3) uint8 数组，列序为 B、G、R（OpenCV 惯例）.
+
+    Returns
+    -------
+        (N,) float32 视图（位内容为 0xRRGGBB）；空输入给 (0,) 空数组.
+
+    """
+    colors = np.asarray(colors_bgr, dtype=np.uint8).reshape(-1, 3)
+    if colors.shape[0] == 0:
+        return np.zeros((0,), dtype=np.float32)
+    b = colors[:, 0].astype(np.uint32)
+    g = colors[:, 1].astype(np.uint32)
+    r = colors[:, 2].astype(np.uint32)
+    packed = (r << 16) | (g << 8) | b
+    return packed.view(np.float32)
+
+
+def transform_points(points: np.ndarray, transform: np.ndarray) -> np.ndarray:
+    """
+    对 (N, 3) 点应用齐次刚体变换 p_out = R@p_in + t，不修改输入.
+
+    Args:
+        points: (N, 3) 点.
+        transform: (4, 4) 齐次矩阵，输出系←输入系.
+
+    Returns
+    -------
+        (N, 3) float64 变换后点；空输入给 (0, 3) 空数组.
+
+    """
+    xyz = np.asarray(points, dtype=np.float64).reshape(-1, 3)
+    T = np.asarray(transform, dtype=np.float64)
+    return xyz @ T[:3, :3].T + T[:3, 3]

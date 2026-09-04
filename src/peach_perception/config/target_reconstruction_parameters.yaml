@@ -320,40 +320,15 @@ peach_target_reconstruction_node:
       default_value: 0.2
       description: '[s] 最小发布间隔；≤0 关闭间隔门'
       validation: { gt_eq<>: [0.0] }
-  frame_store:
-    impl:
-      type: string
-      default_value: default
-      description: '批级帧栈实现注册名（interfaces.FRAME_STORES）'
-  cloud_builder:
-    impl:
-      type: string
-      default_value: open3d_cloud
-      description: '点云构建器实现注册名（interfaces.CLOUD_BUILDERS）'
-  refiner:
-    impl:
-      type: string
-      default_value: bounded_icp
-      description: '帧到模型配准实现注册名（interfaces.REFINERS）'
-  volume:
-    impl:
-      type: string
-      default_value: local_tsdf
-      description: '融合体积实现注册名（interfaces.VOLUMES）'
   refitter:
     cylinder_impl:
       type: string
       default_value: cylinder_refit
-      description: '袋桃圆柱 refit 实现注册名（interfaces.REFITTERS）'
+      description: '袋桃圆柱 refit 映射名（REFITTERS_BY_IMPL；默认 CylinderRefitter）'
     sphere_impl:
       type: string
       default_value: sphere_refit
-      description: '裸桃球 refit 实现注册名（interfaces.REFITTERS）'
-  mask_gate:
-    impl:
-      type: string
-      default_value: strict_mask_gate
-      description: '目标掩膜门实现注册名（interfaces.MASK_GATES）'
+      description: '裸桃球 refit 映射名（REFITTERS_BY_IMPL；默认 SphereRefitter）'
   session:
     root_dir:
       type: string

@@ -11,6 +11,11 @@ from typing import Optional, Tuple
 
 from geometry_msgs.msg import Quaternion
 import numpy as np
+from peach_perception.common.bag_landmarks import (
+    clamp_upper_hemisphere,
+    enforce_wide_bottom,
+    estimate_bag_landmarks,
+)
 from peach_perception.common.geometry import (
     estimate_normals,
     fit_cylinder_robust,
@@ -22,23 +27,16 @@ from peach_perception.common.geometry import (
 )
 
 from .assignment import estimate_pose_covariance
-from .bag_landmarks import (
-    clamp_upper_hemisphere,
-    enforce_wide_bottom,
-    estimate_bag_landmarks,
-)
-from .image_gates import clip_bbox, foreground_mask, valid_depth_mask
-from .interfaces import (
+from .contracts import (
     BagGrasp2D,
     BagGraspReference3D,
     BagObservation,
     compute_entry_start,
     compute_travel_range,
-    POSE_PIPELINES,
-    PosePipeline,
     TOOL_GEOMETRY,
     ToolGeometry,
 )
+from .image_gates import clip_bbox, foreground_mask, valid_depth_mask
 
 
 def _apply_T_to_grasp3d(grasp_3d, T: np.ndarray) -> None:
@@ -123,7 +121,7 @@ class TargetPoseResult:
     target_kind: str = 'bag'  # "bag" | "fruit"
 
 
-class RobustBagPosePipeline(PosePipeline):
+class RobustBagPosePipeline:
     """
     袋装桃的保守位姿估计器（圆柱套入工具）.
 
@@ -156,7 +154,8 @@ class RobustBagPosePipeline(PosePipeline):
 
     def estimate(self, obs: BagObservation, target_id: str, bbox: tuple,
                  mask: Optional[np.ndarray] = None,
-                 mask_source: str = 'depth_fallback') -> TargetPoseResult:
+                 mask_source: str = 'depth_fallback',
+                 valid_roi: Optional[np.ndarray] = None) -> TargetPoseResult:
         """
         估计 bbox 内单个袋装目标，返回显式安全状态的结果.
 
@@ -166,6 +165,7 @@ class RobustBagPosePipeline(PosePipeline):
             bbox: (x1, y1, x2, y2) 检测框（像素，自动裁剪到图内）.
             mask: 外部前景掩膜（全图或 ROI，bool/0-1）；None 走深度带降级.
             mask_source: 掩膜来源标签，写入诊断.
+            valid_roi: 与 ROI 同尺寸的有效深度掩膜；None 时按管线深度窗现算.
 
         Returns
         -------
@@ -179,7 +179,7 @@ class RobustBagPosePipeline(PosePipeline):
             return self._failed(target_id, base_2d, 'invalid_bbox', mask_source)
 
         roi = obs.depth[y1:y2, x1:x2]
-        valid = self._valid_depth(roi)
+        valid = valid_roi if valid_roi is not None else self._valid_depth(roi)
         valid_ratio = float(valid.mean()) if valid.size else 0.0
         local_mask, source = self._foreground(roi, valid, mask, bbox, source=mask_source)
         base_2d.foreground_mask = local_mask
@@ -297,7 +297,7 @@ class RobustBagPosePipeline(PosePipeline):
         length = float(np.dot(neck - bottom, axis))
 
         # ── entry_start = P_bottom − (d_tool + d_s)·axis (Gürsoy 分解) ──
-        standoff = self.tool.entry_d_tool + self.tool.entry_d_s
+        standoff = self.tool.entry_standoff
         entry = compute_entry_start(bottom, axis, standoff)
         _, travel = compute_travel_range(entry, neck, axis, self.tool)
         R = self._frame(axis, points)
@@ -669,7 +669,8 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
 
     def estimate(self, obs: BagObservation, target_id: str, bbox: tuple,
                  mask: Optional[np.ndarray] = None,
-                 mask_source: str = 'depth_fallback') -> TargetPoseResult:
+                 mask_source: str = 'depth_fallback',
+                 valid_roi: Optional[np.ndarray] = None) -> TargetPoseResult:
         """
         估计 bbox 内单个裸果目标，返回显式安全状态的结果.
 
@@ -679,6 +680,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
             bbox: (x1, y1, x2, y2) 检测框（像素，自动裁剪到图内）.
             mask: 外部前景掩膜（全图或 ROI）；None 走深度带降级.
             mask_source: 掩膜来源标签，写入诊断.
+            valid_roi: 与 ROI 同尺寸的有效深度掩膜；None 时按管线深度窗现算.
 
         Returns
         -------
@@ -693,7 +695,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
             return self._failed_fruit(target_id, base_2d, 'invalid_bbox', mask_source)
 
         roi = obs.depth[y1:y2, x1:x2]
-        valid = self._valid_depth(roi)
+        valid = valid_roi if valid_roi is not None else self._valid_depth(roi)
         valid_ratio = float(valid.mean()) if valid.size else 0.0
         local_mask, source = self._foreground(roi, valid, mask, bbox, source=mask_source)
         base_2d.foreground_mask = local_mask
@@ -787,7 +789,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
         diameter = max(2.0 * radius, diameter_p95)  # 保守取大
 
         # ── entry_start = P_bottom − (d_tool + d_s)·axis（与袋装线同公式） ──
-        standoff = self.tool.entry_d_tool + self.tool.entry_d_s
+        standoff = self.tool.entry_standoff
         entry = compute_entry_start(bottom, axis, standoff)
         _, travel = compute_travel_range(entry, neck, axis, self.tool)
         R = self._frame(axis, points)
@@ -963,5 +965,19 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
                                 target_kind='fruit')
 
 
-POSE_PIPELINES.register('robust_bag', RobustBagPosePipeline)
-POSE_PIPELINES.register('robust_fruit', RobustFruitPosePipeline)
+# 袋/果两条位姿线的实现映射（yaml pipeline.bag_impl / fruit_impl；未知名
+# 列出全部可用名后失败）。新增第三条线 = 加一个类 + 这里一项。
+PIPELINES_BY_IMPL = {
+    'robust_bag': RobustBagPosePipeline,
+    'robust_fruit': RobustFruitPosePipeline,
+}
+
+
+def make_pipeline(impl_name: str, **kwargs):
+    """按 yaml 实现名构造位姿管线；未知名列出全部可用名后抛错."""
+    cls = PIPELINES_BY_IMPL.get(impl_name)
+    if cls is None:
+        raise ValueError(
+            f'未知位姿管线实现 {impl_name!r}，可用: '
+            f'{sorted(PIPELINES_BY_IMPL)}')
+    return cls(**kwargs)

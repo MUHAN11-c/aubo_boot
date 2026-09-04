@@ -1,5 +1,5 @@
 from __future__ import annotations
-"""运行时原语：时钟、注册表、有界 worker、runs/ 落盘。"""
+"""运行时原语：时钟、有界 worker、标量 EMA、runs/ 落盘。"""
 
 from abc import ABC, abstractmethod
 from collections import deque
@@ -14,9 +14,8 @@ import time
 import traceback
 from typing import (
     Callable,
-    Dict,
     Generic,
-    Type,
+    Optional,
     TypeVar,
 )
 
@@ -69,84 +68,6 @@ class ManualClock(Clock):
             raise ValueError(f'ManualClock 禁止倒退: dt={dt}')
         self._now += dt
         return self._now
-
-
-# === registry.py ===
-
-T = TypeVar('T')
-
-
-class Registry(Generic[T]):
-    """
-    按名注册/创建可替换实现的注册表（2.14 装配规则）.
-
-    用法::
-
-        DETECTORS: Registry[Detector] = Registry('检测器')
-
-        @DETECTORS.register('yolo')
-        class YoloDetector(Detector):
-            ...
-
-        detector = DETECTORS.create('yolo', weights='best.pt')
-
-    生命周期：模块级单例，随进程存活。线程安全：导入期注册、运行期
-    只读（见模块 docstring）。
-    """
-
-    def __init__(self, kind: str = '组件'):
-        """创建空注册表；kind 为错误信息中的类别名（如 '检测器'）."""
-        self._kind = kind
-        self._items: Dict[str, Type[T]] = {}
-
-    def register(self, name: str, cls: Type[T] = None):
-        """
-        注册实现类；支持直接调用与装饰器两种写法.
-
-        Args:
-            name: 注册名（配置文件中选择实现的键）.
-            cls: 实现类；省略时返回装饰器.
-
-        Raises
-        ------
-            ValueError: 同名重复注册（错误信息含名称）.
-
-        """
-        def _do_register(impl: Type[T]) -> Type[T]:
-            if name in self._items:
-                raise ValueError(
-                    f'{self._kind}名称重复注册: {name!r}')
-            self._items[name] = impl
-            return impl
-
-        if cls is None:
-            return _do_register
-        return _do_register(cls)
-
-    def create(self, name: str, **kwargs) -> T:
-        """
-        按名实例化已注册实现，kwargs 透传构造函数.
-
-        Raises
-        ------
-            KeyError: 名称未注册（错误信息列出全部可用名称）.
-
-        """
-        try:
-            cls = self._items[name]
-        except KeyError:
-            available = ', '.join(self.names()) or '（空）'
-            raise KeyError(
-                f'未注册的{self._kind}: {name!r}，可用: {available}') from None
-        return cls(**kwargs)
-
-    def names(self) -> tuple:
-        """返回全部已注册名称（排序后的元组，只读）."""
-        return tuple(sorted(self._items))
-
-    def __contains__(self, name: str) -> bool:
-        """支持 ``name in registry`` 查询."""
-        return name in self._items
 
 
 # === bounded_worker.py ===
@@ -368,3 +289,55 @@ class HarvestDataStore:
             'run_dir': '' if self.run_dir is None else str(self.run_dir),
             'latest': dict(self.latest_state),
         }
+
+
+# === ema.py ===
+
+class ScalarEma:
+    """
+    标量指数滑动平均（thread-unsafe：调用方自行保证单线程访问）.
+
+    α 取值口径：0.3 在响应速度与抗单帧抖动间取折中（沿用原
+    capture.EMA_ALPHA / integrate._CORR_EMA_ALPHA 注释）。
+    首个有效样本直接作初值，其后
+    ``value ← α·sample + (1−α)·value``（α 为新样本权重）。
+    """
+
+    def __init__(self, alpha: float = 0.3):
+        """初始化未播种的 EMA；alpha 为新样本权重 ∈ (0, 1]."""
+        self._alpha = float(alpha)
+        self._value: Optional[float] = None
+
+    def update(self, sample: float) -> float:
+        """
+        注入一个样本并返回更新后的 EMA；首个样本直接作初值.
+
+        Args:
+            sample: 本次样本值（调用方保证非负/有限；脏样本先过滤）.
+
+        Returns
+        -------
+            更新后的 EMA.
+
+        """
+        value = float(sample)
+        if self._value is None:
+            self._value = value
+        else:
+            self._value = (self._alpha * value
+                           + (1.0 - self._alpha) * self._value)
+        return self._value
+
+    def reset(self) -> None:
+        """清空播种状态（回到无样本）."""
+        self._value = None
+
+    @property
+    def value(self) -> Optional[float]:
+        """当前 EMA；尚无样本时 None."""
+        return self._value
+
+    @property
+    def seeded(self) -> bool:
+        """是否已有样本（未播种时按调用方约定处理，如视为达标）."""
+        return self._value is not None

@@ -56,14 +56,9 @@ peach_scene_perception_node:
     # tf=由本帧 output←camera 的 TF 旋转反推相机系重力（output_frame 系重力
     # 约定 [0,0,-1]，只乘旋转不加平移；TF 不可用的帧回退 gravity_hint_xyz）
     gravity_mode: tf
-    # ── 接口层实现装配（2.14：注册名见 inference.py / pose_pipelines.py /
-    #    identity.py 末尾）────────────────────────────────────────
-    detector.impl: yolo              # 检测器（Detector）：UltralyticsYolo
-    segmenter.impl: mobile_sam       # 分割器（Segmenter）：MobileSam
-    pipeline.bag_impl: robust_bag    # 袋装线位姿管线（PosePipeline）
-    pipeline.fruit_impl: robust_fruit  # 裸果线位姿管线（PosePipeline）
-    matcher.impl: spatial_ema        # 目标匹配器（TargetMatcher）：SpatialEmaMatcher
-    lock.impl: collect_lock          # 收齐窗口锁定策略（LockPolicy）：CollectLockPolicy
+    # ── 袋/果位姿线（PIPELINES_BY_IMPL；其余算法直接构造）──
+    pipeline.bag_impl: robust_bag    # 袋装线：RobustBagPosePipeline
+    pipeline.fruit_impl: robust_fruit  # 裸果线：RobustFruitPosePipeline
     # ── 套袋工具几何（米）─────────────────────────────────────
     # 换工具必改；直接决定安全门控（误差预算 vs 径向净空）
     tool.D_inner: 0.104      # 工具内径：袋径上界须 < 内径 - 2×clearance_min

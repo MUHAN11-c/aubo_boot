@@ -23,7 +23,7 @@ _query_tf → _finish 三段式），锁内按帧 stamp 复核收口，查询期
 
 模块边界：本文件为节点编排壳；自动状态机在 capture.AutoControllerMixin，
 发布面在 publish.PublisherMixin。import capture / integrate / refine 完成
-FRAME_STORES 等注册。
+柱/球精化映射与唯一实现类加载。
 """
 from __future__ import annotations
 
@@ -51,19 +51,19 @@ from peach_interfaces.msg import (
     TargetModel,
     TargetQuality,
 )
+from peach_perception.common.bag_landmarks import (
+    estimate_bag_landmarks,
+)
 from peach_perception.common.geometry import (
     normalize_depth_to_uint16_mm,
     transform_msg_to_matrix,
+    transform_points,
 )
-from peach_perception.common.pointcloud import transform_points
 from peach_perception.common.ros.clock_adapter import RclpyClockAdapter
 from peach_perception.common.runtime import (
     BoundedWorker,
     HarvestDataStore,
     resolve_runs_root,
-)
-from peach_perception.scene_perception.bag_landmarks import (
-    estimate_bag_landmarks,
 )
 from peach_perception.target_reconstruction.bag_model import fuse_bag_views
 from peach_perception.target_reconstruction.capture import (
@@ -72,6 +72,7 @@ from peach_perception.target_reconstruction.capture import (
     capture_gate,
     CapturedFrame,
     CollectorConfig,
+    FrameCollector,
     GATE_ALLOW,
     GATE_DENY,
     GATE_NEED_TF,
@@ -79,26 +80,21 @@ from peach_perception.target_reconstruction.capture import (
     GateDecision,
     STATE_COLLECTING,
     STATE_IDLE,
+    StrictMaskGate,
     TimingStats,
 )
 from peach_perception.target_reconstruction.frame_store import FrameStoreMixin
 from peach_perception.target_reconstruction.integrate import (
     apply_target_mask,
     assembly_overlap_metrics,
+    BoundedIcp,
     IcpConfig,
     IcpTargetCache,
     IcpTargetRefreshConfig,
     LocalTsdf,
+    Open3dCloudBuilder,
     summarize_pairs_mm,
     summarize_view_coverage,
-)
-from peach_perception.target_reconstruction.interfaces import (
-    CLOUD_BUILDERS,
-    FRAME_STORES,
-    MASK_GATES,
-    REFINERS,
-    REFITTERS,
-    VOLUMES,
 )
 from peach_perception.target_reconstruction.params import TargetReconstructionParams
 from peach_perception.target_reconstruction.pregrasp_verification import (
@@ -113,6 +109,7 @@ from peach_perception.target_reconstruction.refine import (
     axis_angle_deg,
     axis_from_vector3,
     candidate_axis_hint,
+    make_refitter,
     RefitConfig,
     select_reconstruction_candidate,
     select_refitter,
@@ -156,7 +153,7 @@ class TargetReconstructionNode(
     """连续运动局部重建 Lifecycle 节点：Active 后才积分与受理 BuildTargetModel."""
 
     def __init__(self):
-        """建节点：参数层一行装载 → 数据持有者/算法（注册表）→ ROS 接线."""
+        """建节点：参数层一行装载 → 直接构造算法 → ROS 接线."""
         super().__init__('peach_target_reconstruction_node')
         self._lifecycle_active = False
         self.bridge = cv_bridge.CvBridge()
@@ -195,10 +192,10 @@ class TargetReconstructionNode(
             max_translation=p.icp.max_translation,
             max_rotation_deg=p.icp.max_rotation_deg)
 
-        # 数据持有者与算法实现（2.14：ABC + Registry，构造期按 yaml
-        # *.impl 注册名 create 注入，设计文档 §2.2/§2.4）
-        self.collector = FRAME_STORES.create(
-            p.frame_store.impl, config=CollectorConfig(
+        # 数据持有者与算法实现：唯一实现直接构造（原 *.impl 注册缝位已收回）；
+        # 柱/球两条精化线保留 yaml refitter.cylinder_impl / sphere_impl 映射。
+        self.collector = FrameCollector(
+            config=CollectorConfig(
                 min_views=p.capture.min_views,
                 recommended_views=p.capture.recommended_views,
                 max_views=p.capture.max_views,
@@ -211,15 +208,13 @@ class TargetReconstructionNode(
                 auto_finalize_at_max=p.capture.auto_finalize_at_max,
                 auto_min_interval_s=p.capture.auto_min_interval_s,
             ))
-        self._cloud_builder = CLOUD_BUILDERS.create(p.cloud_builder.impl)
+        self._cloud_builder = Open3dCloudBuilder()
         self._refitters = {
-            'cylinder': REFITTERS.create(p.refitter.cylinder_impl),
-            'sphere': REFITTERS.create(p.refitter.sphere_impl),
+            'cylinder': make_refitter(p.refitter.cylinder_impl),
+            'sphere': make_refitter(p.refitter.sphere_impl),
         }
-        self._icp_refiner = REFINERS.create(
-            p.refiner.impl, config=self.icp_config)
-        self._mask_gate = MASK_GATES.create(
-            p.mask_gate.impl,
+        self._icp_refiner = BoundedIcp(config=self.icp_config)
+        self._mask_gate = StrictMaskGate(
             require_target_mask=p.capture.require_target_mask,
             min_mask_pixels=p.capture.min_mask_pixels,
             min_mask_depth_ratio=p.capture.min_mask_depth_ratio,
@@ -820,9 +815,9 @@ class TargetReconstructionNode(
     # 服务回调
     # ------------------------------------------------------------------
     def _create_volume(self):
-        """按 yaml volume.impl 经 VOLUMES 注册表建一个空融合体积（I3 注入时钟）."""
-        return VOLUMES.create(
-            self.params.volume.impl, now=self._algo_clock.now, **self.tsdf_params)
+        """建一个空融合体积（LocalTsdf 唯一实现；I3 注入时钟）."""
+        return LocalTsdf(
+            now=self._algo_clock.now, **self.tsdf_params)
 
     def _bump_products_version(self, tsdf_cloud: bool = False) -> None:
         """

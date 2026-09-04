@@ -2,7 +2,7 @@
 # 声明 / 类型 / 默认值 / 描述 / 校验全部在本文件；根键 = 节点名 = 参数库约定。
 # 运行期由 launch 传 config/scene_perception.yaml（含 ros__parameters 的运行时键值），
 # 两边默认值逐项对齐（与 C++ 技能包 config/manipulation_parameters.yaml 同理）。
-# 嵌套组展开出点号参数名：detector.impl / tool.D_inner / target_memory.enable 等。
+# 嵌套组展开出点号参数名：pipeline.bag_impl / tool.D_inner / target_memory.enable 等。
 peach_scene_perception_node:
   color_topic:
     type: string
@@ -115,25 +115,15 @@ peach_scene_perception_node:
     type: string
     default_value: tf
     description: '重力来源：tf=腕载相机默认，由本帧 output←camera 的 TF 旋转反推相机系重力；fixed=仅用 gravity_hint_xyz（output_frame 系重力约定 [0,0,-1]，只乘旋转不加平移；TF 不可用的帧回退 gravity_hint_xyz）'
-  detector:
-    impl:
-      type: string
-      default_value: yolo
-      description: '检测器实现注册名（Detector 接口；默认 yolo=UltralyticsYolo，可选名见 inference.py 末尾）'
-  segmenter:
-    impl:
-      type: string
-      default_value: mobile_sam
-      description: '分割器实现注册名（Segmenter 接口；默认 mobile_sam=MobileSam）'
   pipeline:
     bag_impl:
       type: string
       default_value: robust_bag
-      description: '袋装线位姿管线实现注册名（PosePipeline 接口；默认 robust_bag=RobustBagPosePipeline）'
+      description: '袋装线位姿管线映射名（PIPELINES_BY_IMPL；默认 robust_bag=RobustBagPosePipeline）'
     fruit_impl:
       type: string
       default_value: robust_fruit
-      description: '裸果线位姿管线实现注册名（PosePipeline 接口；默认 robust_fruit=RobustFruitPosePipeline）'
+      description: '裸果线位姿管线映射名（PIPELINES_BY_IMPL；默认 robust_fruit=RobustFruitPosePipeline）'
     min_depth_m:
       type: double
       default_value: 0.3
@@ -153,16 +143,6 @@ peach_scene_perception_node:
       type: bool
       default_value: true
       description: '锁定后 SAM 只对锁定集目标的检测框推理（2.13-E1；锚点反投影识别锁定框，TF 不可用帧自动回退全量）；false 回退锁定后全量分割'
-  matcher:
-    impl:
-      type: string
-      default_value: spatial_ema
-      description: '目标匹配器实现注册名（TargetMatcher 接口；默认 spatial_ema=SpatialEmaMatcher）'
-  lock:
-    impl:
-      type: string
-      default_value: collect_lock
-      description: '收齐窗口锁定策略实现注册名（LockPolicy 接口；默认 collect_lock=CollectLockPolicy）'
   tool:
     D_inner:
       type: double

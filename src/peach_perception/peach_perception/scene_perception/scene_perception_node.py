@@ -16,12 +16,11 @@ candidate_2d 字段下发，不再单独成话题）。
   stream_metrics.py — 帧率/超时/耗时/光照 EMA 观测原语
   assignment.py    — χ²门 + 匈牙利身份分配与跟踪状态分类
   image_gates.py   — 锚点投影与深度/前景门控
-  pose_pipelines.py — 袋/果位姿线（import 即完成 POSE_PIPELINES 注册）
-  inference.py     — YOLO/SAM 推理与候选估计（import 即完成 DETECTORS/
-                     SEGMENTERS 注册）
-  identity.py      — 身份匹配与锁定窗
+  pose_pipelines.py — 袋/果位姿线（PIPELINES_BY_IMPL）
+  inference.py     — YOLO/SAM（直接构造）
+  identity.py      — 身份匹配与锁定窗（直接构造）
   visualization.py — 消息组装、RViz Marker 与 debug 叠加图
-  peach_perception.common — 通用纯核（geometry/ema/pointcloud/runtime）
+  peach_perception.common — 通用纯核（geometry/runtime/tool_budget/bag_landmarks）
 """
 from __future__ import annotations
 
@@ -62,10 +61,13 @@ from peach_perception.scene_perception.assignment import (
     STATUS_OCCLUDED,
     STATUS_OUT_OF_VIEW,
 )
+from peach_perception.scene_perception.contracts import BagObservation
 from peach_perception.scene_perception.identity import (
+    CollectLockPolicy,
     first_point,
     GlobalHarvestPlan,
     memory_grasp,
+    SpatialEmaMatcher,
     TargetRegistry,
 )
 from peach_perception.scene_perception.image_gates import (
@@ -77,19 +79,14 @@ from peach_perception.scene_perception.inference import (
     CandidateEstimator,
     dedup_overlapping_detections,
     InferenceEngine,
-)
-from peach_perception.scene_perception.interfaces import (
-    BagObservation,
-    DETECTORS,
-    LOCK_POLICIES,
-    MATCHERS,
-    POSE_PIPELINES,
-    SEGMENTERS,
+    MobileSam,
+    UltralyticsYolo,
 )
 from peach_perception.scene_perception.params import ScenePerceptionParams
 from peach_perception.scene_perception.pose_pipelines import (
     _apply_T_to_grasp3d,
     _rotation_to_quat,
+    make_pipeline,
 )
 from peach_perception.scene_perception.stream_metrics import (
     AdaptiveTimeout,
@@ -153,62 +150,58 @@ class ScenePerceptionNode(LifecycleNode):
         super().__init__('peach_scene_perception_node')
         self._lifecycle_active = False
         self.bridge = CvBridge()
-        # 参数层（params.py）：declare + 集中装载为 frozen dataclass；
-        # 字段镜像回同名实例属性，保持本类下游引用零改动（启动期静态参数）
-        # generate_parameter_library_py 官方装载链：ParamListener 声明（类型/
-        # 默认值/描述/校验，源 config/scene_perception_parameters.yaml），
-        # 快照装载为 frozen dataclass（params.py from_params）
+        # 参数层：ParamListener 声明（源 scene_perception_parameters.yaml），
+        # from_params 只派生 tool / gravity；其余读 self.params 生成嵌套结构。
         self._param_listener = ScenePerceptionParams.declare(self)
         self.params = ScenePerceptionParams.from_params(
             self._param_listener.get_params())
-        for f in dataclasses.fields(self.params):
-            setattr(self, f.name, getattr(self.params, f.name))
         self.tf_timeout = Duration(seconds=self.params.tf_timeout_sec)
 
         share = Path(get_package_share_directory('peach_perception'))
-        yolo = self.yolo_model_path or str(share / 'model' / 'best.pt')
-        sam = self.sam_model_path or str(share / 'model' / 'mobile_sam.pt')
+        yolo = self.params.yolo_model_path or str(share / 'model' / 'best.pt')
+        sam = self.params.sam_model_path or str(share / 'model' / 'mobile_sam.pt')
         self.get_logger().info(f'YOLO={yolo}')
         self.get_logger().info(f'SAM={sam}')
 
-        # 2.14 装配：检测/分割/位姿管线/匹配器/锁定策略全部按 yaml *.impl
-        # 注册名 create 注入，调用端只持有接口层 ABC 引用
-        detector = DETECTORS.create(
-            self.detector_impl, yolo_model=yolo, yolo_conf=self.yolo_conf,
-            yolo_iou=self.yolo_nms_iou)
-        segmenter = SEGMENTERS.create(
-            self.segmenter_impl, sam_model=sam,
-            sam_max_bboxes=self.sam_max_bboxes, sam_min_area=self.sam_min_area)
+        # 唯一实现直接构造（原 *.impl 注册缝位已收回）；袋/果两条位姿线
+        # 保留 yaml pipeline.bag_impl / fruit_impl 映射选择。
+        detector = UltralyticsYolo(
+            yolo_model=yolo, yolo_conf=self.params.yolo_conf,
+            yolo_iou=self.params.yolo_nms_iou)
+        segmenter = MobileSam(
+            sam_model=sam,
+            sam_max_bboxes=self.params.sam_max_bboxes, sam_min_area=self.params.sam_min_area)
         self.engine = InferenceEngine(detector=detector, segmenter=segmenter)
         # 有效深度窗与前景点数下限随参数下发（阶段 D1 参数化；两条管线共用
         # 同一相机/深度约定，取同一组 pipeline.* 值）
         pipeline_kwargs = {
-            'min_depth_m': self.pipeline_min_depth_m,
-            'max_depth_m': self.pipeline_max_depth_m,
-            'min_points': self.pipeline_min_points,
+            'min_depth_m': self.params.pipeline.min_depth_m,
+            'max_depth_m': self.params.pipeline.max_depth_m,
+            'min_points': self.params.pipeline.min_points,
         }
-        bag_pipeline = POSE_PIPELINES.create(
-            self.pipeline_bag_impl, tool=self.tool, **pipeline_kwargs)
-        fruit_pipeline = POSE_PIPELINES.create(
-            self.pipeline_fruit_impl, tool=self.tool, **pipeline_kwargs)
+        bag_pipeline = make_pipeline(
+            self.params.pipeline.bag_impl, tool=self.params.tool,
+            **pipeline_kwargs)
+        fruit_pipeline = make_pipeline(
+            self.params.pipeline.fruit_impl, tool=self.params.tool,
+            **pipeline_kwargs)
         self.estimator = CandidateEstimator(
             pipeline=bag_pipeline, fruit_pipeline=fruit_pipeline,
-            min_mask_points=self.min_mask_points)
-        # 目标身份记忆：匹配器按 matcher.impl 创建，表由 TargetRegistry 持有
-        if self.target_memory_enable:
-            matcher = MATCHERS.create(
-                self.matcher_impl,
-                match_radius=self.target_memory_match_radius_m,
-                recovery_scale=self.target_memory_recovery_scale)
+            min_mask_points=self.params.min_mask_points)
+        # 目标身份记忆：匹配器直接构造，表由 TargetRegistry 持有
+        if self.params.target_memory.enable:
+            matcher = SpatialEmaMatcher(
+                match_radius=self.params.target_memory.match_radius_m,
+                recovery_scale=self.params.target_memory.recovery_scale)
             self.target_registry = TargetRegistry(
                 matcher=matcher,
-                max_targets=self.target_memory_max_targets,
-                position_ema=self.target_memory_position_ema,
-                confirm_frames=self.target_memory_confirm_frames,
-                tentative_ttl_frames=self.target_memory_tentative_ttl_frames,
-                max_age_s=self.target_memory_max_age_s,
-                swing_threshold_m=self.wind_swing_threshold_m,
-                swing_frames=self.wind_swing_frames)
+                max_targets=self.params.target_memory.max_targets,
+                position_ema=self.params.target_memory.position_ema,
+                confirm_frames=self.params.target_memory.confirm_frames,
+                tentative_ttl_frames=self.params.target_memory.tentative_ttl_frames,
+                max_age_s=self.params.target_memory.max_age_s,
+                swing_threshold_m=self.params.wind.swing_threshold_m,
+                swing_frames=self.params.wind.swing_frames)
         else:
             self.target_registry = None
         # plan 竞态防护选型：BoundedWorker（capacity=1, drop_oldest=True）的
@@ -218,20 +211,19 @@ class ScenePerceptionNode(LifecycleNode):
         # 全部由本锁保护（worker 线程帧处理 + executor 线程服务回调）；
         # RLock 允许持锁内嵌套 _publish_harvest_state → _harvest_state_dict。
         self._plan_lock = threading.RLock()
-        lock_policy = LOCK_POLICIES.create(
-            self.lock_impl,
-            min_collect_frames=self.harvest_min_collect_frames,
-            lock_settle_frames=self.harvest_lock_settle_frames,
-            max_collect_s=self.harvest_max_collect_s)
+        lock_policy = CollectLockPolicy(
+            min_collect_frames=self.params.harvest.min_collect_frames,
+            lock_settle_frames=self.params.harvest.lock_settle_frames,
+            max_collect_s=self.params.harvest.max_collect_s)
         self.harvest_plan = GlobalHarvestPlan(
-            max_targets=self.target_memory_max_targets,
-            prefer_lower_first=self.harvest_priority_prefer_lower_first,
+            max_targets=self.params.target_memory.max_targets,
+            prefer_lower_first=self.params.harvest.priority_prefer_lower_first,
             # 锚点帧龄阈值初值按 5 fps 名义帧率折算（30 s/120 s → 150/600
             # 帧）兜底；首帧实测帧间隔 EMA 就位后逐帧改写（协议 I4）
             anchor_max_age_frames=max(
-                1, round(self.target_memory_anchor_max_age_s / 0.2)),
+                1, round(self.params.target_memory.anchor_max_age_s / 0.2)),
             anchor_drop_frames=max(
-                1, round(self.target_memory_anchor_drop_s / 0.2)),
+                1, round(self.params.target_memory.anchor_drop_s / 0.2)),
             lock_policy=lock_policy)
         self.harvest_data = HarvestDataStore()
         self.harvest_run_id = ''
@@ -245,9 +237,9 @@ class ScenePerceptionNode(LifecycleNode):
         # （稳定 target_id → bool；换场清身份时一并清空）
         self._lighting = LightingMeter(
             alpha=0.3,
-            min_depth_ratio=self.lighting_min_depth_ratio,
-            min_conf_mean=self.lighting_min_conf_mean,
-            bad_frames=self.lighting_bad_frames)
+            min_depth_ratio=self.params.lighting.min_depth_ratio,
+            min_conf_mean=self.params.lighting.min_conf_mean,
+            bad_frames=self.params.lighting.bad_frames)
         self._bbox_at_edge = {}
         # 协议 I3（时钟唯一）：节点时钟为唯一时钟源，经适配器注入纯核；
         # 帧率自适应收齐兜底 = RateEstimator(实测帧间隔 EMA, α=0.3) +
@@ -256,9 +248,9 @@ class ScenePerceptionNode(LifecycleNode):
         self._clock = RclpyClockAdapter(self.get_clock())
         self._frame_rate = RateEstimator(alpha=0.3)
         self._collect_window_timeout = AdaptiveTimeout(
-            lower=0.4 * self.harvest_max_collect_s, upper=float('inf'),
-            factor=(self.harvest_min_collect_frames
-                    + self.harvest_lock_settle_frames + 3))
+            lower=0.4 * self.params.harvest.max_collect_s, upper=float('inf'),
+            factor=(self.params.harvest.min_collect_frames
+                    + self.params.harvest.lock_settle_frames + 3))
         # 推理耗时分项埋点：_process_rgbd 各段（detect/segment/geometry/total）
         # 用上面同一个注入时钟测量，EMA（α=0.3 与帧率同纪律）后随
         # harvest_state JSON 的 timing 子对象下发，不新增话题
@@ -270,13 +262,13 @@ class ScenePerceptionNode(LifecycleNode):
         self._ros_entities_wired = False
 
         self.get_logger().info(
-            f'Subscribed color={self.color_topic} depth={self.depth_topic} '
-            f'info={self.camera_info_topic} slop={self.sync_slop_s}s '
-            f'optical={self.camera_optical_frame or "(msg)"} '
-            f'output={self.output_frame or "(camera)"} '
-            f'depth_scale_unit={self.depth_scale_unit} '
-            f'gravity_mode={self.gravity_mode} '
-            f'calib={self.calibration_version}')
+            f'Subscribed color={self.params.color_topic} depth={self.params.depth_topic} '
+            f'info={self.params.camera_info_topic} slop={self.params.sync_slop_s}s '
+            f'optical={self.params.camera_optical_frame or "(msg)"} '
+            f'output={self.params.output_frame or "(camera)"} '
+            f'depth_scale_unit={self.params.depth_scale_unit} '
+            f'gravity_mode={self.params.gravity_mode} '
+            f'calib={self.params.calibration_version}')
         if self.target_registry is not None:
             self.get_logger().info(
                 f'目标身份记忆已启用：match_radius='
@@ -338,17 +330,17 @@ class ScenePerceptionNode(LifecycleNode):
             history=rclpy.qos.HistoryPolicy.KEEP_LAST,
         )
         self._sub_rgb = message_filters.Subscriber(
-            self, Image, self.color_topic, qos_profile=qos)
+            self, Image, self.params.color_topic, qos_profile=qos)
         self._sub_depth = message_filters.Subscriber(
-            self, Image, self.depth_topic, qos_profile=qos)
+            self, Image, self.params.depth_topic, qos_profile=qos)
         self._sub_info = message_filters.Subscriber(
-            self, CameraInfo, self.camera_info_topic, qos_profile=qos)
+            self, CameraInfo, self.params.camera_info_topic, qos_profile=qos)
 
         self._frame_worker = BoundedWorker(
             self._process_rgbd, capacity=1, drop_oldest=True)
         self.sync = message_filters.ApproximateTimeSynchronizer(
             [self._sub_rgb, self._sub_depth, self._sub_info],
-            queue_size=10, slop=self.sync_slop_s)
+            queue_size=10, slop=self.params.sync_slop_s)
         self.sync.registerCallback(self._on_rgbd)
 
         # 手眼：wrist3_Link→camera_link 由 extrinsics_publisher 发静态 TF
@@ -550,9 +542,9 @@ class ScenePerceptionNode(LifecycleNode):
                 'target_count': self.harvest_plan.target_count,
                 'selected_target_id': self.harvest_plan.selected_target_id,
                 'targets': targets,
-                'model_version': self.model_version,
-                'calibration_version': self.calibration_version,
-                'output_frame': self.output_frame,
+                'model_version': self.params.model_version,
+                'calibration_version': self.params.calibration_version,
+                'output_frame': self.params.output_frame,
             })
             self.harvest_data.append_event({
                 'source': 'perception', 'event': 'global_targets_locked',
@@ -584,10 +576,10 @@ class ScenePerceptionNode(LifecycleNode):
                 # 实测帧间隔 EMA = 帧数阈值，逐帧改写；帧率跌落时帧数变少，
                 # 墙钟上限保持不变
                 self.harvest_plan.anchor_max_age_frames = max(
-                    1, round(self.target_memory_anchor_max_age_s
+                    1, round(self.params.target_memory.anchor_max_age_s
                              / frame_interval))
                 self.harvest_plan.anchor_drop_frames = max(
-                    1, round(self.target_memory_anchor_drop_s
+                    1, round(self.params.target_memory.anchor_drop_s
                              / frame_interval))
             # OUT_OF_VIEW 预分类（须在 plan.update 前完成：计划按本集合做
             # 不可选/去选判定）：锁定目标本帧无观测且消失前最后检测框触
@@ -628,11 +620,11 @@ class ScenePerceptionNode(LifecycleNode):
                 self._lighting.update(depth_ratios, confidences)
             if self._lighting.low_quality:
                 self.get_logger().warning(
-                    f'光照质量持续偏低（{self.lighting_bad_frames} 帧连击：'
+                    f'光照质量持续偏低（{self.params.lighting.bad_frames} 帧连击：'
                     f'掩膜内有效深度占比 EMA='
                     f'{self._lighting.snapshot()["depth_ratio"]} < '
-                    f'{self.lighting_min_depth_ratio} 或置信度 EMA < '
-                    f'{self.lighting_min_conf_mean}），建议现场补光/调曝光',
+                    f'{self.params.lighting.min_depth_ratio} 或置信度 EMA < '
+                    f'{self.params.lighting.min_conf_mean}），建议现场补光/调曝光',
                     throttle_duration_sec=10.0)
 
             array = PeachTargetObservationArray()
@@ -672,7 +664,7 @@ class ScenePerceptionNode(LifecycleNode):
                     mask_depth_ratio=(
                         None if payload is None
                         else payload.get('mask_depth_ratio')),
-                    min_depth_ratio=self.lighting_min_depth_ratio,
+                    min_depth_ratio=self.params.lighting.min_depth_ratio,
                     last_bbox_touched_edge=self._bbox_at_edge.get(
                         target_id, False))
                 item.tracking_status = _TRACKING_STATUS_TO_MSG[token]
@@ -742,7 +734,7 @@ class ScenePerceptionNode(LifecycleNode):
         """用身份表记忆回填 candidate，并打 anchor_from_memory."""
         entry = (None if self.target_registry is None
                  else self.target_registry.get(target_id))
-        standoff = self.tool.entry_d_tool + self.tool.entry_d_s
+        standoff = self.params.tool.entry_standoff
         grasp = memory_grasp(entry, standoff)
         if grasp is None:
             return
@@ -777,20 +769,20 @@ class ScenePerceptionNode(LifecycleNode):
             本帧结果打 tf_stale / tf_unavailable 诊断标记.
 
         """
-        if not self.output_frame or self.output_frame == cam_frame:
+        if not self.params.output_frame or self.params.output_frame == cam_frame:
             return np.eye(4), 'ok'
         stamp_time = Time.from_msg(stamp)
         try:
             tf = self.tf_buffer.lookup_transform(
-                self.output_frame, cam_frame, stamp_time, timeout=self.tf_timeout)
+                self.params.output_frame, cam_frame, stamp_time, timeout=self.tf_timeout)
             return transform_msg_to_matrix(tf.transform), 'ok'
         except TransformException:
             try:
                 tf = self.tf_buffer.lookup_transform(
-                    self.output_frame, cam_frame, Time(), timeout=self.tf_timeout)
+                    self.params.output_frame, cam_frame, Time(), timeout=self.tf_timeout)
                 if not self._tf_warned:
                     self.get_logger().warning(
-                        f'TF {self.output_frame}←{cam_frame} 按 stamp 失败，'
+                        f'TF {self.params.output_frame}←{cam_frame} 按 stamp 失败，'
                         '已用最新 TF（确认 extrinsics_publisher 已启动）')
                     self._tf_warned = True
                 return transform_msg_to_matrix(tf.transform), 'stale'
@@ -827,7 +819,7 @@ class ScenePerceptionNode(LifecycleNode):
         with self._plan_lock:
             locked = self.harvest_plan.locked
             anchor_px = None
-            if (self.pipeline_locked_only_segmentation and locked
+            if (self.params.pipeline.locked_only_segmentation and locked
                     and self.target_registry is not None
                     and T_out_cam is not None):
                 positions = {}
@@ -844,7 +836,7 @@ class ScenePerceptionNode(LifecycleNode):
                 anchor_px = project_positions_to_pixels(
                     positions, np.linalg.inv(T_out_cam), K)
             return plan_segmentation_bboxes(
-                kept, self.pipeline_locked_only_segmentation, locked, anchor_px)
+                kept, self.params.pipeline.locked_only_segmentation, locked, anchor_px)
 
     def _on_rgbd(self, rgb_msg: Image, depth_msg: Image, info: CameraInfo):
         """将最新同步帧交给容量一推理 worker."""
@@ -858,10 +850,10 @@ class ScenePerceptionNode(LifecycleNode):
         dt_ms = (Time.from_msg(rgb_msg.header.stamp).nanoseconds
                  - Time.from_msg(depth_msg.header.stamp).nanoseconds) / 1e6
         self.get_logger().debug(f'RGB-D 时间戳偏差 {dt_ms:+.1f} ms')
-        if abs(dt_ms) > self.sync_slop_s * 0.8 * 1000.0:
+        if abs(dt_ms) > self.params.sync_slop_s * 0.8 * 1000.0:
             self.get_logger().warning(
                 f'RGB-D 时间戳偏差 {dt_ms:+.1f} ms 已超同步允差 '
-                f'{self.sync_slop_s * 1000.0:.0f} ms 的 80%，请检查相机时间戳源',
+                f'{self.params.sync_slop_s * 1000.0:.0f} ms 的 80%，请检查相机时间戳源',
                 throttle_duration_sec=1.0)
         try:
             rgb = self.bridge.imgmsg_to_cv2(rgb_msg, desired_encoding='bgr8')
@@ -872,7 +864,7 @@ class ScenePerceptionNode(LifecycleNode):
             depth_raw = self.bridge.imgmsg_to_cv2(
                 depth_msg, desired_encoding='passthrough')
             depth = normalize_depth_to_uint16_mm(
-                depth_raw, self.depth_scale_unit)
+                depth_raw, self.params.depth_scale_unit)
         except Exception as exc:  # noqa: BLE001
             self.get_logger().warning(f'Depth convert failed: {exc}')
             return None
@@ -899,20 +891,20 @@ class ScenePerceptionNode(LifecycleNode):
                 f'{K["width"]}x{K["height"]}')
             self._logged_K = True
         cam_frame = (
-            self.camera_optical_frame
+            self.params.camera_optical_frame
             or depth_msg.header.frame_id
             or rgb_msg.header.frame_id
             or info.header.frame_id)
-        out_frame = self.output_frame or cam_frame
+        out_frame = self.params.output_frame or cam_frame
         geometry_stamp = depth_msg.header.stamp
         T_out_cam, tf_status = self._lookup_T_out_cam(
             cam_frame, geometry_stamp)
-        if T_out_cam is None and self.output_frame:
+        if T_out_cam is None and self.params.output_frame:
             out_frame = cam_frame
             T_out_cam = np.eye(4)
-        gravity_hint = self.gravity_hint
-        if self.gravity_mode == 'tf':
-            if self.output_frame and tf_status != 'unavailable':
+        gravity_hint = self.params.gravity_hint
+        if self.params.gravity_mode == 'tf':
+            if self.params.output_frame and tf_status != 'unavailable':
                 gravity_hint = gravity_camera_from_R(T_out_cam[:3, :3])
             else:
                 self.get_logger().warning(
@@ -959,10 +951,10 @@ class ScenePerceptionNode(LifecycleNode):
         # 跨类生效，防同一物理目标在身份表重复占号）；发布的 detections
         # 即实际入管线的目标
         kept = [d for d in detections
-                if float(d.get('conf', 0.0)) >= self.min_detection_conf]
+                if float(d.get('conf', 0.0)) >= self.params.min_detection_conf]
         kept = dedup_overlapping_detections(
-            kept, self.detection_dedup_ios,
-            frag_area_ratio=self.detection_dedup_area_ratio)
+            kept, self.params.detection_dedup_ios,
+            frag_area_ratio=self.params.detection_dedup_area_ratio)
         # detect 段 = YOLO 推理 + 置信度过滤 + IoS 去重（入管线目标的完整出品）
         self._timing.record(
             'detect_ms', (self._clock.now() - t_detect_start) * 1e3)
@@ -978,8 +970,8 @@ class ScenePerceptionNode(LifecycleNode):
         mask_canvas = np.zeros(depth.shape[:2], dtype=np.uint16)
         # 双画布：debug=稳定流（confirmed-only，RViz）；debug_raw=真相流
         # （全量含未确认，供记录层筛选前后对比）
-        debug = rgb.copy() if self.publish_debug_image else None
-        debug_raw = rgb.copy() if self.publish_debug_image else None
+        debug = rgb.copy() if self.params.publish_debug_image else None
+        debug_raw = rgb.copy() if self.params.publish_debug_image else None
         cand_arr = BagGraspCandidateArray()
         cand_arr.header = header
         fit_arr = BagFittingArray()
@@ -1046,7 +1038,7 @@ class ScenePerceptionNode(LifecycleNode):
         # 分母/分子基础，光照质量指标与 DEPTH_VOID 分类共用；参数与几何
         # 管线同源（pipeline.*），口径一致
         valid_depth_full = valid_depth_mask(
-            depth, self.pipeline_min_depth_m, self.pipeline_max_depth_m)
+            depth, self.params.pipeline.min_depth_m, self.params.pipeline.max_depth_m)
         pending = []
         for i, det in enumerate(kept):
             bbox = tuple(det['bbox'])
@@ -1068,8 +1060,8 @@ class ScenePerceptionNode(LifecycleNode):
                 gravity_hint=gravity_hint,
                 detections=[det],
                 metadata={
-                    'model_version': self.model_version,
-                    'calibration_version': self.calibration_version,
+                    'model_version': self.params.model_version,
+                    'calibration_version': self.params.calibration_version,
                 },
             )
             results = self.estimator.estimate_modes(
@@ -1141,9 +1133,9 @@ class ScenePerceptionNode(LifecycleNode):
                     result.grasp_3d.diagnostic_flags.append('target_untracked')
             grasp_3d, grasp_2d = result.grasp_3d, result.grasp_2d
             candidate_msg = _to_candidate(
-                header, tid, grasp_3d, model_version=self.model_version,
-                calibration_version=self.calibration_version,
-                tool_version=self.tool.version)
+                header, tid, grasp_3d, model_version=self.params.model_version,
+                calibration_version=self.params.calibration_version,
+                tool_version=self.params.tool.version)
             candidate_2d_msg = _to_candidate_2d(header, tid, grasp_2d)
             fitting_msg = _to_fitting(header, tid, result)
             registry_item = (
@@ -1195,7 +1187,7 @@ class ScenePerceptionNode(LifecycleNode):
                 fit_arr.fittings.append(fitting_msg)
                 markers.markers.extend(_to_markers(
                     header, tid, i, result,
-                    tool_d_inner=float(self.tool.d_inner_m)))
+                    tool_d_inner=float(self.params.tool.d_inner_m)))
             if debug_raw is not None:
                 _draw_debug(debug_raw, det, grasp_2d, sam_mask, tid, confirmed=confirmed)
             if debug is not None and confirmed:
@@ -1234,14 +1226,14 @@ class ScenePerceptionNode(LifecycleNode):
                 f'目标注册表在册 {st["n_targets"]} 个目标'
                 f'（累计注册 {st["n_registered"]}、累计命中 {st["n_matched"]}）',
                 throttle_duration_sec=10.0)
-        if self.publish_masks:
+        if self.params.publish_masks:
             mask_msg = self.bridge.cv2_to_imgmsg(mask_canvas, encoding='mono16')
             mask_msg.header = img_header
             self.pub_norm_masks.publish(mask_msg)
-        if self.publish_detection_cloud and confirmed_bboxes:
+        if self.params.publish_detection_cloud and confirmed_bboxes:
             xyz_cam, rgb_f = _bbox_cloud_xyzrgb(
                 rgb, depth, K, confirmed_bboxes,
-                stride=self.detection_cloud_stride)
+                stride=self.params.detection_cloud_stride)
             if xyz_cam.shape[0] and T_out_cam is not None:
                 R, t = T_out_cam[:3, :3], T_out_cam[:3, 3]
                 xyz_out = (R @ xyz_cam.T).T + t

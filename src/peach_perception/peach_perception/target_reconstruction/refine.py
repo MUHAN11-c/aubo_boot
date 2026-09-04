@@ -17,11 +17,6 @@ from peach_perception.common.geometry import (
     unit_vector,
 )
 from peach_perception.target_reconstruction.integrate import require_open3d
-from peach_perception.target_reconstruction.interfaces import (
-    Refitter,
-    REFITTERS,
-)
-
 
 # === candidate_contract.py ===
 
@@ -270,7 +265,7 @@ def _fail(reason: str, n_points: int) -> dict:
 
     Returns
     -------
-        与 Refitter.refit 同构的 dict.
+        精化失败返回 dict.
 
     """
     return {
@@ -393,12 +388,12 @@ def _apply_axis_consistency(result: dict, axis_hint, config: RefitConfig) -> dic
     return result
 
 
-class CylinderRefitter(Refitter):
+class CylinderRefitter:
     """
-    interfaces.Refitter 的袋桃圆柱线：法线估计 + 圆柱 RANSAC + 消歧.
+    袋桃圆柱精化：法线估计 + 圆柱 RANSAC + 消歧.
 
-    无状态（RefitConfig 随调用传入）；target_kind 参数仅为对齐 ABC
-    签名，本实现恒走圆柱线。axis_hint 只做夹角诊断，不授权接触。
+    无状态（RefitConfig 随调用传入）；target_kind 仅为选线对齐，
+    本实现恒走圆柱线。axis_hint 只做夹角诊断，不授权接触。
     """
 
     def refit(self, cloud_xyz: np.ndarray, target_kind: str = 'bag',
@@ -416,10 +411,10 @@ class CylinderRefitter(Refitter):
 
         Returns
         -------
-            RefitResult dict（键集见 interfaces.Refitter）.
+            RefitResult dict.
 
         """
-        del target_kind  # 圆柱线不使用（ABC 签名对齐）
+        del target_kind  # 圆柱线不使用（选线在 select_refitter）
         config = config or RefitConfig()
         xyz, fail = _precheck(cloud_xyz)
         if fail is not None:
@@ -442,9 +437,9 @@ class CylinderRefitter(Refitter):
         return _apply_axis_consistency(result, axis_hint, config)
 
 
-class SphereRefitter(Refitter):
+class SphereRefitter:
     """
-    interfaces.Refitter 的裸桃球线：球拟合 + 果梗方向先验消歧.
+    裸桃球精化：球拟合 + 果梗方向先验消歧.
 
     球面旋转对称，球拟合只能精化 center/radius，不能凭空产生果梗轴：
     优先沿用 axis_hint（绑定目标在 base 系的单帧果梗/凹陷方向），先验
@@ -465,10 +460,10 @@ class SphereRefitter(Refitter):
 
         Returns
         -------
-            RefitResult dict（键集见 interfaces.Refitter）.
+            RefitResult dict.
 
         """
-        del target_kind  # 球线不使用（ABC 签名对齐）
+        del target_kind  # 球线不使用（选线在 select_refitter）
         config = config or RefitConfig()
         xyz, fail = _precheck(cloud_xyz)
         if fail is not None:
@@ -501,8 +496,8 @@ class SphereRefitter(Refitter):
         return _apply_axis_consistency(result, axis_hint, config)
 
 
-def select_refitter(refitters: Mapping[str, Refitter],
-                    target_kind: str) -> Refitter:
+def select_refitter(refitters: Mapping[str, object],
+                    target_kind: str):
     """
     按 target_kind 选 refitter：'fruit'→球线，其余一律圆柱线.
 
@@ -511,12 +506,12 @@ def select_refitter(refitters: Mapping[str, Refitter],
     期由 yaml refitter.*_impl 装配）。
 
     Args:
-        refitters: {'cylinder': Refitter, 'sphere': Refitter} 映射.
+        refitters: {'cylinder': CylinderRefitter, 'sphere': SphereRefitter}.
         target_kind: 'bag'/'fruit'（来自感知 diagnostics）.
 
     Returns
     -------
-        选中的 Refitter 实例.
+        选中的 refitter 实例.
 
     """
     return refitters['sphere' if target_kind == 'fruit' else 'cylinder']
@@ -533,7 +528,7 @@ def refine_geometry(xyz: np.ndarray, target_kind: str = 'bag',
     `target_kind or 'bag'` 语义一致）。拟合成功后按门控定 status：
     inlier_ratio ≥ config.cylinder_inlier_min 且 rmse ≤ config.rmse_max_m
     → ACCEPT，否则 REOBSERVE；拟合本身失败 → ok=False / REJECT。
-    编排层不走本门面，而是经 REFITTERS 注册表注入实现（2.14）；本函数
+    编排层按 REFITTERS_BY_IMPL 映射注入实现；本函数
     保留为模块级 workhorse 锚点（单测直接锚定）。
 
     Args:
@@ -557,6 +552,18 @@ def refine_geometry(xyz: np.ndarray, target_kind: str = 'bag',
         xyz, target_kind, config, axis_hint)
 
 
-# 显式注册清单（2.14）：yaml refitter.cylinder_impl/sphere_impl 默认值
-REFITTERS.register('cylinder_refit', CylinderRefitter)
-REFITTERS.register('sphere_refit', SphereRefitter)
+# 柱/球两条精化线的实现映射（yaml refitter.cylinder_impl / sphere_impl）。
+# 新增拟合线 = 加一个类 + 这里一项。
+REFITTERS_BY_IMPL = {
+    'cylinder_refit': CylinderRefitter,
+    'sphere_refit': SphereRefitter,
+}
+
+
+def make_refitter(impl_name: str):
+    """按 yaml 实现名构造精化器；未知名列出全部可用名后抛错."""
+    cls = REFITTERS_BY_IMPL.get(impl_name)
+    if cls is None:
+        raise ValueError(
+            f'未知精化器实现 {impl_name!r}，可用: {sorted(REFITTERS_BY_IMPL)}')
+    return cls()

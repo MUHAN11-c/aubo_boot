@@ -11,21 +11,13 @@ from typing import (
 )
 
 import numpy as np
-from peach_perception.common.ema import ScalarEma
 from peach_perception.common.geometry import (
     angle_between_deg,
     invert_transform,
     relative_motion,
     unit_vector as _safe_unit,
 )
-from peach_perception.target_reconstruction.interfaces import (
-    CLOUD_BUILDERS,
-    CloudBuilder,
-    Refiner,
-    REFINERS,
-    Volume,
-    VOLUMES,
-)
+from peach_perception.common.runtime import ScalarEma
 from scipy.spatial import cKDTree
 
 
@@ -48,7 +40,7 @@ def require_open3d():
     return _O3D
 
 
-class LocalTsdf(Volume):
+class LocalTsdf:
     """局部 TSDF 体积：在线积分 → 点云/网格提取 → ROI 后处理."""
 
     def __init__(self, voxel_length: float = 0.003, sdf_trunc: float = 0.012,
@@ -310,10 +302,6 @@ class LocalTsdf(Volume):
         return xyz[idx], colors_in
 
 
-# 显式注册清单（2.14）：注册名 'local_tsdf'，yaml volume.impl 默认值
-VOLUMES.register('local_tsdf', LocalTsdf)
-
-
 # === cloud_builder.py ===
 
 DEPTH_SATURATED_MM = 65535  # uint16 饱和值 [mm]，视为无效深度
@@ -509,20 +497,19 @@ def build_cloud_base(depth_mm: np.ndarray, camera_K: dict,
     return xyz, colors, ratio
 
 
-class Open3dCloudBuilder(CloudBuilder):
+class Open3dCloudBuilder:
     """
-    interfaces.CloudBuilder 的 open3d 实现薄壳（无状态，委托模块函数）.
+    Open3d 点云构建薄壳（无状态，委托模块函数）.
 
-    workhorse 本体是模块函数 build_cloud_base（单测直接锚定，避免
-    「类委托函数、函数再委托类」的双向跳转）；本类只把签名对齐到
-    ABC 形态（rgb 提前为第二参数，便于编排层位置传参）。
+    workhorse 本体是模块函数 build_cloud_base（单测直接锚定）；
+    本类把 rgb 提前为第二参数，便于编排层位置传参。
     """
 
     def build(self, depth_mm: np.ndarray, rgb_bgr=None,
               camera_K: dict = None, T_base_camera: np.ndarray = None,
               stride: int = 1, target_mask=None) -> tuple:
         """
-        委托 build_cloud_base（签名对齐 interfaces.CloudBuilder）.
+        委托 build_cloud_base.
 
         Args:
             depth_mm: (H, W) uint16 深度 [mm].
@@ -539,10 +526,6 @@ class Open3dCloudBuilder(CloudBuilder):
         return build_cloud_base(depth_mm, camera_K, T_base_camera,
                                 rgb_bgr=rgb_bgr, stride=stride,
                                 target_mask=target_mask)
-
-
-# 显式注册清单（2.14）：注册名 'open3d_cloud'，yaml cloud_builder.impl 默认值
-CLOUD_BUILDERS.register('open3d_cloud', Open3dCloudBuilder)
 
 
 # === icp_refiner.py ===
@@ -587,7 +570,7 @@ def _quality_ok(fitness: float, rmse: float, config: IcpConfig) -> bool:
     return fitness >= config.min_fitness and rmse <= config.max_rmse
 
 
-class BoundedIcp(Refiner):
+class BoundedIcp:
     """Open3D 鲁棒点到平面 ICP；机器人 FK 是绝对位姿，ICP 只做小修正."""
 
     def __init__(self, config: IcpConfig):
@@ -693,11 +676,6 @@ class BoundedIcp(Refiner):
         return IcpResult(
             'reject', correction, float(final.fitness),
             float(final.inlier_rmse), translation, rotation, reason)
-
-
-# 显式注册清单（2.14）：注册名 'bounded_icp'，yaml refiner.impl 默认值；
-# 编排层按名 create（kwargs 透传构造），不写算法条件分支。
-REFINERS.register('bounded_icp', BoundedIcp)
 
 
 # === icp_target_cache.py ===

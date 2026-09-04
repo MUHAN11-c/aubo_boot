@@ -12,15 +12,9 @@ from typing import (
 )
 
 import numpy as np
-from peach_perception.common.ema import ScalarEma
 from peach_perception.common.geometry import relative_motion
+from peach_perception.common.runtime import ScalarEma
 from peach_perception.target_reconstruction.integrate import apply_target_mask
-from peach_perception.target_reconstruction.interfaces import (
-    FRAME_STORES,
-    FrameStore,
-    MASK_GATES,
-    MaskGate,
-)
 from peach_perception.target_reconstruction.refine import candidate_axis_hint
 
 
@@ -367,7 +361,7 @@ class CollectorConfig:
     auto_min_interval_s: float = 0.0  # [s] 0=每个唯一时间戳均进入质量门
 
 
-class FrameCollector(FrameStore):
+class FrameCollector:
     """
     采帧流程的纯逻辑核心：状态机 + 视角过滤 + CapturedFrame 帧栈.
 
@@ -640,10 +634,6 @@ class FrameCollector(FrameStore):
         return True, msg, cloud
 
 
-# 显式注册清单（2.14）：注册名 'default'（yaml frame_store.impl）
-FRAME_STORES.register('default', FrameCollector)
-
-
 # === mask_gate.py ===
 
 @dataclass(frozen=True)
@@ -692,9 +682,9 @@ class GateResult:
     reason: str = ''
 
 
-class StrictMaskGate(MaskGate):
+class StrictMaskGate:
     """
-    interfaces.MaskGate 的默认实现：五道门全过的严格掩膜门（无状态）.
+    五道门全过的严格掩膜门（唯一实现，无状态）.
 
     配置经构造注入（与 capture.* 参数一一对应）；require_target_mask
     为 False 时直通（返回 (None, '')，与抽取前语义一致）。
@@ -804,10 +794,6 @@ class StrictMaskGate(MaskGate):
                         f'{self.min_neighbor_gap_m * 1000.0:.1f} mm'
                         f'（防串扰拒帧，I6）')
         return GateResult(mask, '')
-
-
-# 显式注册清单（2.14）：注册名 'strict_mask_gate'，yaml mask_gate.impl 默认值
-MASK_GATES.register('strict_mask_gate', StrictMaskGate)
 
 
 # === auto_controller.py ===

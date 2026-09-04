@@ -1,7 +1,7 @@
 """
 流观测原语：帧率/超时/分段耗时/光照质量的 EMA 统计（纯核）.
 
-统一使用 peach_perception.common.ema.ScalarEma 递推（首个样本播种、
+统一使用 peach_perception.common.runtime.ScalarEma 递推（首个样本播种、
 α=0.3 在响应速度与抗单帧抖动间取折中），异常样本过滤口径沿用
 原 peach_scene_perception_node 的埋点纪律。
 """
@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 from typing import Dict, Iterable, Optional
 
-from peach_perception.common.ema import ScalarEma
+from peach_perception.common.runtime import ScalarEma
 
 
 class RateEstimator:

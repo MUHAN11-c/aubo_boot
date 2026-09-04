@@ -13,7 +13,7 @@
 
 #include "peach_manipulation/cycle_state.hpp"
 #include "peach_manipulation/target_cache.hpp"
-#include "peach_manipulation/view_planner_base.hpp"
+#include "peach_manipulation/view_planner.hpp"
 
 namespace peach_manipulation
 {

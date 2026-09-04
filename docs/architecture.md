@@ -4,7 +4,7 @@
 
 **每条事实三问：** 现行 → 来源 → 原因（无注释则「源码未写理由」）。
 
-Robotics_Tutorial 教程库已归档 `_archive/parked_2026-09/`，不再随库。分割器当前 YOLO-det + MobileSAM（可插拔）。
+Robotics_Tutorial 教程库已归档 `_archive/parked_2026-09/`，不再随库。分割器当前 YOLO-det + MobileSAM（直接构造；换实现改源码）。
 
 **图：**
 - **架构（C4，一张图一个缩放级）：** 图 1 系统上下文 · 图 2 容器 · 图 3 技能节点组件
@@ -35,7 +35,7 @@ Robotics_Tutorial 教程库已归档 `_archive/parked_2026-09/`，不再随库�
 对照 Nav2（lifecycle、插件面、BT 恢复）、MoveIt/MTC（stage + 轨迹护栏）、Autoware（组件图 + 话题契约）、ros2_control（参数库；硬件本仓只读借用）。
 
 1. **契约先于实现。** 跨包名字与 QoS 以 [interface_manifest.yaml](../src/peach_interfaces/config/interface_manifest.yaml) 为准。感知不发运动；批次唯一所有者是 `peach_executor`。
-2. **替换走缝位，不拆包。** 11 缝 / 13 实现：Python `Registry[T]`（感知/重建）；技能原 C++ 工厂缝位已收回（ViewPlanner / QualityGate / SafetyGate / MotionInterface 直接构造唯一实现）。不上 pluginlib。
+2. **替换走缝位，不拆包。** 单实现直接构造。仅袋/果位姿管线与柱/球 refitter 留 dict 映射（yaml `pipeline.*_impl` / `refitter.*_impl`）；技能原 C++ 工厂缝位已收回。不上 pluginlib。
 3. **失败可定位、可跳过。** 每个目标必须有 `failure_code`。观察失败不接触；规划失败不执行残缺轨迹。
 4. **停走式感知是产品相机模型。** 节拍按实测 ~2.5 FPS + 静止门，不是 5 Hz 连续积分，也不是参考文 0.8 FPS。覆盖预算优于 `max_views=24`。
 5. **套入/剪切唯一权威是 `GraspDecision.allowed`。** 感知 ACCEPT 只当初值/可视化。融合成功时入口/轴/剪切参考有效，`PREGRASP_ONLY` 可据此到预抓取。`allowed=false` 禁止套入/SetIO，禁止单帧候选降级接触。套入许可走逐目标动态径向/轴向预算；固定 35° 只诊断完全错轴。
@@ -323,9 +323,9 @@ peach_interfaces/
   action/  msg/  srv/  config/interface_manifest.yaml  scripts/check_interface_manifest.py
 
 peach_perception/
-  peach_perception/common/{geometry,ema,pointcloud,runtime,tool_budget,ros/clock_adapter}.py
-  peach_perception/scene_perception/{scene_perception_node,stream_metrics,assignment,image_gates,pose_pipelines,inference,identity,interfaces,visualization,params,bag_landmarks}.py
-  peach_perception/target_reconstruction/{target_reconstruction_node,frame_store,capture,integrate,refine,publish,markers,interfaces,params,bag_model,pregrasp_verification}.py
+  peach_perception/common/{geometry,runtime,tool_budget,bag_landmarks,ros/clock_adapter}.py
+  peach_perception/scene_perception/{scene_perception_node,stream_metrics,assignment,image_gates,pose_pipelines,inference,identity,contracts,visualization,params}.py
+  peach_perception/target_reconstruction/{target_reconstruction_node,frame_store,capture,integrate,refine,publish,markers,params,bag_model,pregrasp_verification}.py
   peach_perception/{scene,target}_*_parameters.py  # 构建生成，gitignore
   peach_perception/grasp_standoffs.py            # 读 grasp_standoffs.yaml，launch 借此注入两节点参数
   config/{scene_perception,target_reconstruction,grasp_standoffs}.yaml  # 运行 yaml；轴向后撤只改 grasp_standoffs
@@ -334,7 +334,8 @@ peach_perception/
   # 离线评估脚本已归档 _archive/offline_2026-09/（含 bag_baseline），不随包安装
 
 peach_manipulation/
-  include/peach_manipulation/   # 头：cycle_context / execution_authority / cycle / grasp_task / motion / 工具 / 节点
+  include/peach_manipulation/   # 头 19：manipulation_skills_node / cycle{,_context,_state,_support} /
+                                 # grasp_task / motion / tool_actuator / 纯核门与视点 / 几何与护栏
   src/*.cpp                      # cycle.cpp(授权矩阵+action 管线) stages.cpp(阶段函数) grasp_task.cpp(MTC 接触)
                                  # motion.cpp(MGI) manipulation_skills_node.cpp(壳) main.cpp
                                  # 纯核：quality_gate / safety_gate / view_planner / target_cache
@@ -439,7 +440,7 @@ flowchart LR
 
 **作用：** 回答两件事：场景里有哪些桃（稳定 `target_id`、锁定集）；当前作业目标这一颗的局部模型与抓取许可。不决定下一颗、不指挥臂。
 
-**含什么：** `peach_scene_perception_node`、`peach_target_reconstruction_node`、无话题的 `common/`（拟合、深度单位、时钟、`HarvestDataStore` 往 `runs/` 追加事件）。参数：运行 `config/{scene_perception,target_reconstruction}.yaml`；声明/默认值/校验源 `config/*_parameters.yaml`（generate_parameter_library_py，根键=节点名）。缝位：感知 5 + 重建 6（见 §5）。
+**含什么：** `peach_scene_perception_node`、`peach_target_reconstruction_node`、无话题的 `common/`（拟合、深度单位、时钟、`HarvestDataStore` 往 `runs/` 追加事件）。参数：运行 `config/{scene_perception,target_reconstruction}.yaml`；声明/默认值/校验源 `config/*_parameters.yaml`（generate_parameter_library_py，根键=节点名）。缝位：袋/果管线 + 柱/球 refitter 两处映射（见 §5）；其余算法直接构造。
 
 #### `peach_scene_perception_node`（看）
 
@@ -529,7 +530,7 @@ flowchart TD
 
 **作用：** 把「去拍照」「围着这一颗看」「按许可插入/撤退」做成动作服务端。规划与执行走 MoveIt / MTC；工具 IO 走柜侧 `SetIO`。不拥有批次、不拥有目标集合。
 
-**含什么：** 单节点 `peach_manipulation_node`（Lifecycle）。周期状态全部入 `CycleContext`（`cycle_context.hpp`：action 受理时创建、worker 单写者、周期消亡即整体丢弃，`cycle_*` 成员已删）；动作受理/取消与授权矩阵在 `cycle.cpp`（`ExecutionAuthority`：TRANSIT/PREGRASP=Active∧robotReady∧!cancel∧execution_enabled，CONTACT 再加 grasp_enabled∧GraspDecision 复检，TOOL 再加 tool_enabled；复检不过→SKIPPED_QUALITY，其余→FAILED）；阶段执行器 `stages.cpp`（`executeCycle(ctx)` 显式模式 switch，序列与旧主树遍历严格同构）；接触在 `grasp_task.cpp`；纯核 `quality_gate` / `safety_gate` / `view_planner` / `target_cache`（直接构造唯一实现，缝位 0）；运行参数 `config/peach_manipulation.yaml`，GPL `config/manipulation_parameters.yaml`。
+**含什么：** 单节点 `peach_manipulation_node`（Lifecycle；类声明 `manipulation_skills_node.hpp`，持 GPL `Params` 快照，`GraspTaskConfig` / `MoveItMotionConfig` / `ScanBudgetConfig` 从快照直构）。周期状态全部入 `CycleContext`（`cycle_context.hpp`：action 受理时创建、worker 单写者、周期消亡即整体丢弃，`cycle_*` 成员已删）；动作受理/取消与授权矩阵在 `cycle.cpp`（`ExecutionAuthority`：TRANSIT/PREGRASP=Active∧robotReady∧!cancel∧execution_enabled，CONTACT 再加 grasp_enabled∧GraspDecision 复检，TOOL 再加 tool_enabled；复检不过→SKIPPED_QUALITY，其余→FAILED）；阶段执行器 `stages.cpp`（`executeCycle(ctx)` 显式模式 switch，序列与旧主树遍历严格同构）；接触在 `grasp_task.cpp`；纯核 `quality_gate` / `safety_gate` / `view_planner` / `target_cache`（直接构造唯一实现，缝位 0）；扫描预算/阶段墙钟/回调计时在 `cycle_support.hpp`。运行参数 `config/peach_manipulation.yaml`，GPL `config/manipulation_parameters.yaml`。
 
 ### 技能包内部
 
@@ -695,7 +696,7 @@ USB 串口 IMU（QinHeng CH340 `1a86:7523`）。udev `/dev/imu`。话题对齐 i
 | 帧环/掩膜缓存 | `target_reconstruction/frame_store.py`（`FrameStoreMixin`） | 同步帧环、同戳掩膜缓存、串扰门输入组装（mixin，宿主契约见模块 docstring） |
 | 采集门 | `target_reconstruction/capture.py` | 锁 → 精确 TF → 重校验 |
 | 重建发布 | `target_reconstruction/publish.py` + `markers.py` | 诊断状态消息、点云节流与 PublisherMixin、session 落盘；Marker 构造（namespace 契约不变） |
-| 技能外壳 | `manipulation_skills_node.cpp`（`ManipulationSkillsNode`） | Lifecycle、订阅/服务/动作 |
+| 技能外壳 | `manipulation_skills_node.hpp` + `.cpp`（`ManipulationSkillsNode`） | Lifecycle、订阅/服务/动作；GPL `Params` 快照 |
 | 技能动作与授权 | `cycle.cpp` | `ExecuteTarget` / `SurveyScene` 受理与取消；`authorizeStage` 授权矩阵 |
 | 周期状态 | `cycle_context.hpp`（`CycleContext`） | 周期全部可变状态；action 受理创建、worker 单写者 |
 | 阶段执行器 | `stages.cpp` | `executeCycle(ctx)` 显式模式 switch；阶段函数 |
@@ -704,7 +705,7 @@ USB 串口 IMU（QinHeng CH340 `1a86:7523`）。udev `/dev/imu`。话题对齐 i
 | 技能纯核 | `quality_gate.cpp` / `view_planner.cpp` / `safety_gate.cpp` / `target_cache.cpp` | 直接构造的唯一实现，零 ROS |
 | 运动接口 | `motion.cpp` | 拍照位、观察短移（只 LIN）、MoveIt 规划/执行 |
 | 拟合共用 | `peach_perception/common/geometry.py` | 球/柱 RANSAC、深度单位、TF 纯函数、向量/轴线原语 |
-| EMA / 点云原语 | `peach_perception/common/{ema,pointcloud}.py` | 标量 EMA 递推；RGB 位打包与刚体变换（各处共用） |
+| EMA / 点云原语 | `peach_perception/common/{runtime,geometry}.py` | 标量 EMA 递推；RGB 位打包与刚体变换（各处共用） |
 
 参数两层（官方 generate_parameter_library 系）：声明/默认值/中文描述/范围校验设在参数库 yaml（感知/重建 `peach_perception/config/*_parameters.yaml` = GPL py，技能 `config/manipulation_parameters.yaml` = GPL C++，调度 `config/executor_parameters.yaml` 与监控 `config/observability_parameters.yaml` = GPL py；根键=节点名，构建期生成 `*_parameters` 模块/头；感知 GPL 同时写入源码包内（gitignore），避免 `PYTHONPATH` 指向 src 时挡住 install）；运行目录由 launch 传：感知/重建 `config/{scene_perception,target_reconstruction}.yaml` 与 `config/{peach_manipulation,peach_executor,observability,lifecycle_manager}.yaml`（各包 `config/`）。两边默认值逐项对齐（旧「两处默认值漂移」的 params.py 双字典已移除：感知/重建/监控改由 GPL 声明 + 快照装载，数值 clamp 由校验器拒绝代替）。能力 launch 用 `ParameterFile(..., allow_substs=True)` 装运行 yaml（Jazzy launch_ros）。跨包同一几何量（入口相对拟合袋底、预抓取相对入口）只写 `peach_perception/config/grasp_standoffs.yaml`（两行米数）。rcl 不能把该文件当 ParameterFile 直接喂节点；各能力 launch 读入后以参数字典注入已声明名。禁止在源码写死这些米数。
 
@@ -871,47 +872,29 @@ FollowJointTrajectory → AuboPassthroughTrajectoryController
 
 ## 5. 缝位
 
-机制：Python `Registry.create(name, **kwargs)`，不上 pluginlib。技能原 C++ 工厂缝位已删除（ViewPlanner / QualityGate / SafetyGate / MotionInterface 直接构造唯一实现，`impl_factory` / `motion_factory` 不复存在）。接线：实现 ABC → 注册一行 → yaml `*.impl`。未注册名启动失败并列出可用名。
+机制：单实现直接构造（YOLO / MobileSAM / 匹配器 / 锁定策略 / 帧栈 / 点云构建 / ICP / TSDF / 掩膜门）。仅袋/果位姿管线与柱/球 refitter 走 dict 映射：`PIPELINES_BY_IMPL` / `REFITTERS_BY_IMPL`，yaml `*.impl` 选名；未知名启动失败并列出可用名。不上 pluginlib。技能原 C++ 工厂缝位已删除（ViewPlanner / QualityGate / SafetyGate / MotionInterface 直接构造）。
 
 ```mermaid
 flowchart LR
-  subgraph sceneSeams ["感知 5缝"]
-    d["DETECTORS yolo"]
-    s["SEGMENTERS mobile_sam"]
-    p["POSE_PIPELINES bag fruit"]
-    m["MATCHERS spatial_ema"]
-    l["LOCK_POLICIES collect_lock"]
+  subgraph sceneMap ["感知映射"]
+    p["PIPELINES_BY_IMPL bag / fruit"]
   end
-  subgraph reconSeams ["重建 6缝"]
-    fs["FRAME_STORES default"]
-    cb["CLOUD_BUILDERS open3d_cloud"]
-    rf["REFINERS bounded_icp"]
-    vo["VOLUMES local_tsdf"]
-    rt["REFITTERS cylinder sphere"]
-    mg["MASK_GATES strict"]
+  subgraph reconMap ["重建映射"]
+    rt["REFITTERS_BY_IMPL cylinder / sphere"]
   end
-  leak["泄漏 LocalTsdf 静态滤波绕过 Volume"] -.-> vo
+  vol["LocalTsdf 唯一体积实现"]
 ```
 
-**读图：** 两个框是「可换算法的插头」，不是进程。换检测器/分割器改感知 yaml 的 `*.impl`；换体积实现改重建 yaml。技能不再有缝：视点/质量门/安全门/运动接口是直接构造的唯一实现，换实现=改源码（见决策 0012）。虚线「泄漏」是已知缺口：体积滤波有一处还直接调 `LocalTsdf`，换体积实现时会漏掉。图上没画的（身份表本体、MTC 阶段、阶段函数、选下一颗）不是缝，不要为它们加 `*.impl`。
+**读图：** 两个框是「可换算法的插头」，不是进程。换袋/果线改感知 yaml 的 `pipeline.*_impl`；换柱/球精化改重建 yaml 的 `refitter.*_impl`。换检测器/分割器/体积=改源码。技能不再有缝。体积滤波直调 `LocalTsdf` 静态方法，因为体积已是唯一实现。图上没画的（身份表本体、MTC 阶段、阶段函数、选下一颗）不是缝，不要为它们加 `*.impl`。
 
-| 缝 | yaml | 默认 | 注册 | 装配 |
+| 缝 | yaml | 默认 | 映射 | 装配 |
 |----|------|------|------|------|
-| DETECTORS | `detector.impl` | `yolo` | `inference.py` 末 | `scene_perception_node.py` |
-| SEGMENTERS | `segmenter.impl` | `mobile_sam` | `inference.py` 末 | scene_perception_node.py |
-| POSE_PIPELINES | `pipeline.bag_impl` / `fruit_impl` | `robust_bag` / `robust_fruit` | `pose_pipelines.py` 末 | scene_perception_node.py |
-| MATCHERS | `matcher.impl` | `spatial_ema` | `identity.py` 末 | scene_perception_node.py |
-| LOCK_POLICIES | `lock.impl` | `collect_lock` | `identity.py` 末 | scene_perception_node.py |
-| FRAME_STORES | `frame_store.impl` | `default` | `capture.py` 末 | target_reconstruction_node.py |
-| CLOUD_BUILDERS | `cloud_builder.impl` | `open3d_cloud` | `integrate.py` 末 | target_reconstruction_node.py |
-| REFINERS | `refiner.impl` | `bounded_icp` | `integrate.py` 末 | target_reconstruction_node.py |
-| VOLUMES | `volume.impl` | `local_tsdf` | `integrate.py` 末 | `_create_volume` |
-| REFITTERS | `refitter.cylinder_impl` / `sphere_impl` | `cylinder_refit` / `sphere_refit` | `refine.py` 末 | target_reconstruction_node.py |
-| MASK_GATES | `mask_gate.impl` | `strict_mask_gate` | `capture.py` 末 | target_reconstruction_node.py |
+| POSE_PIPELINES | `pipeline.bag_impl` / `fruit_impl` | `robust_bag` / `robust_fruit` | `pose_pipelines.py` 末 | `scene_perception_node.py` |
+| REFITTERS | `refitter.cylinder_impl` / `sphere_impl` | `cylinder_refit` / `sphere_refit` | `refine.py` 末 | `target_reconstruction_node.py` |
 
-yaml：`scene_perception.yaml`、`target_reconstruction.yaml` 顶部 `*.impl`（技能 yaml 已无 `*.impl` 键）。
+yaml：仅上述 4 键仍为 `*.impl`（技能 yaml 无 `*.impl`）。检测/分割/匹配/锁定/帧栈/点云/ICP/体积/掩膜门已收回，换实现改对应 `.py`。
 
-**不变量（摘要）：** 检测/分割不发明深度。管线深度 uint16 毫米；点数不足 REJECT。匹配器不持身份表。锁定策略禁止自己取时钟。FRAME_STORES 满栈拒收、换 ID 须 reset。CLOUD_BUILDERS 0/65535 无效。REFINERS 越界拒帧。VOLUMES 只用精确 stamp，禁止 latest；节点仍直调 `LocalTsdf.crop_to_box` 等静态方法（换实现会漏）。体积积分与袋融合分账：融合/`geometry.jsonl` 失败保留体积与采帧。REFITTERS 圆柱/球只可视化；`GraspDecision.allowed` 只信袋融合动态预算且只授权套入/剪切；TSDF 包络轴只否决不授权，扁袋跳过 12° 冲突门，固定 35° 只诊断完全错轴。方向/定位精度以预抓取位真机实测为准。MASK_GATES 无同戳掩膜不得积分。`PREGRASP_ONLY` 只要求融合几何，FULL 才读 `grasp_allowed`。`ExecutionAuthority` 不得旁路 `execution_enabled` / `grasp_allowed`（所有运动/IO 入口收敛此判定）；撤离（`ReverseRetreat` / 回 stow）TRANSIT 级不做决策复检；安全门任何实现不得旁路 `robotReady`；`execution_enabled=false` 只规划；停轨走透传 + `RobotMoveStop`。调试操作面（0013）只是又一客户端：能力包批次动作唯一客户端仍是调度，observability 直发单颗动作须过 `debug.enabled`/`debug.token`/`debug.motion_enabled` 三重门并审计，**不得**为它新增 IDL 或旁路任何既有安全门。
+**不变量（摘要）：** 检测/分割不发明深度。管线深度 uint16 毫米；点数不足 REJECT。匹配器不持身份表。锁定策略禁止自己取时钟。帧栈满栈拒收、换 ID 须 reset。点云构建 0/65535 无效。ICP 越界拒帧。TSDF 只用精确 stamp，禁止 latest。体积积分与袋融合分账：融合/`geometry.jsonl` 失败保留体积与采帧。柱/球 refit 只可视化；`GraspDecision.allowed` 只信袋融合动态预算且只授权套入/剪切；TSDF 包络轴只否决不授权，扁袋跳过 12° 冲突门，固定 35° 只诊断完全错轴。方向/定位精度以预抓取位真机实测为准。无同戳掩膜不得积分。`PREGRASP_ONLY` 只要求融合几何，FULL 才读 `grasp_allowed`。`ExecutionAuthority` 不得旁路 `execution_enabled` / `grasp_allowed`（所有运动/IO 入口收敛此判定）；撤离（`ReverseRetreat` / 回 stow）TRANSIT 级不做决策复检；安全门任何实现不得旁路 `robotReady`；`execution_enabled=false` 只规划；停轨走透传 + `RobotMoveStop`。调试操作面（0013）只是又一客户端：能力包批次动作唯一客户端仍是调度，observability 直发单颗动作须过 `debug.enabled`/`debug.token`/`debug.motion_enabled` 三重门并审计，**不得**为它新增 IDL 或旁路任何既有安全门。
 
 **不是缝位：** RGB-D 同步、TF 策略、采帧门顺序、发布器、`TargetRegistry` / `GlobalHarvestPlan` / `InferenceEngine` 本体、`GraspTask` / MTC stage、阶段函数（`stages.cpp`）、`batch.next_target_id`、lifecycle 名单、底盘/雷达驱动。要开新缝先改本文件规约。
 
@@ -942,7 +925,7 @@ yaml：`scene_perception.yaml`、`target_reconstruction.yaml` 顶部 `*.impl`（
 | 编号 | 决定 |
 |------|------|
 | 0001 | 采摘能力包五个：契约、视觉、臂、导航适配、调度。感知两节点共包；监控不独立成包。推翻：书面改 AGENTS。（导航适配部分已被 0009 推翻归档） |
-| 0002 | Python Registry + C++ 工厂 if 链，不上 pluginlib。推翻：第二运动后端必须独立包加载。 |
+| 0002 | 单实现直接构造；袋/果管线与柱/球 refitter 留 dict 映射。不上 pluginlib。Python `Registry` 与 11 个算法 ABC 已收回。推翻：第二运动后端必须独立包加载。 |
 | 0003 | 重建精确 stamp、禁止 latest；感知 stamp 失败可 stale。推翻：live 证明两光学系不重合，或 `tf_stale` 污染身份表。 |
 | 0004 | 抓取几何只信 `GraspDecision.allowed`。推翻：取消重建节点。 |
 | 0005 | 设计用归档 ~2.5 FPS；launch 5.0 是请求；不改 Percipio。`assumed_frame_interval_s` 不预填 EMA。推翻：授权后的新 live hz。 |
@@ -962,7 +945,7 @@ yaml：`scene_perception.yaml`、`target_reconstruction.yaml` 顶部 `*.impl`（
 
 | 目标 | 事实 | 含义 |
 |------|------|------|
-| 换检测器 | 11 缝已在；Volume 仍泄漏 `LocalTsdf` 静态滤波 | 换实现走 `*.impl`；泄漏确认后收进 ABC |
+| 换检测器 | 袋/果与柱/球两处映射；YOLO/SAM/TSDF 直接构造 | 换映射走 `*.impl`；换检测器改 `inference.py` |
 | 节点挂了 | manager 无心跳；observability 不在名单，由节点自行 Active | 文档记录 |
 | 失败可归因 | ledger 有 `failure_code`；消息无 algo/config 版本；清单脚本未进 lint | 清单进 lint 不违反「只 lint」 |
 | 会话 | 批次结束后 events.jsonl 再写约 65 分钟 | 记录器绑定 RunHarvest |
@@ -978,11 +961,11 @@ yaml：`scene_perception.yaml`、`target_reconstruction.yaml` 顶部 `*.impl`（
 
 规约：
 
-1. 新增算法走注册表/工厂，编排层不得 `import` 具体类做 `if impl_name`。
+1. 单实现直接构造。袋/果与柱/球走 dict 映射，未知名列出全部可用名后失败。编排层不得为单实现写 `if impl_name`。
 2. 纯核模块零 ROS import。
 3. 参数只走 yaml + 现有 params / `generate_parameter_library`。
 4. 未注册名必须列出全部可用名后失败。
-5. yaml 选择键用 `*.impl`。
+5. 仅袋/果、柱/球保留 yaml 选择键 `*.impl`。
 6. 不把监控或底盘驱动再拆成新的 peach 业务包。真底盘时导航从归档恢复 `peach_navigation`，不加新包。
 7. 不虚构深度；重建积分禁止 latest TF。
 8. `SafetyGate::robotReady` 任何实现不得旁路硬件安全门。

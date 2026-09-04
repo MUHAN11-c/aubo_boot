@@ -12,7 +12,7 @@
 //   on_cleanup    ：释放 MoveIt/MTC/订阅/服务/action/client 全部资源，
 //     回 Unconfigured（参数声明与验证钩子保留，可再次 configure）。
 //   on_shutdown/on_error：关输出权限 + 取消活动周期 + 释放资源。
-#include "peach_manipulation/manipulation_skills_node_impl.hpp"
+#include "peach_manipulation/manipulation_skills_node.hpp"
 #include <algorithm>
 #include <exception>
 #include <functional>
@@ -252,7 +252,8 @@ void ManipulationSkillsNode::initializeMoveIt()
 
 void ManipulationSkillsNode::loadParameters()
 {
-  const auto params = param_listener_->get_params();
+  params_ = param_listener_->get_params();
+  const auto & params = params_;
   base_frame_ = params.frames.base;
   tip_frame_ = params.frames.tip;
   camera_frame_ = params.frames.camera;
@@ -260,35 +261,8 @@ void ManipulationSkillsNode::loadParameters()
   planning_group_ = params.moveit.planning_group;
   planning_time_s_ = params.moveit.planning_time_s;
   planning_attempts_ = static_cast<int>(params.moveit.planning_attempts);
-  velocity_scaling_ = params.moveit.velocity_scaling;
-  acceleration_scaling_ = params.moveit.acceleration_scaling;
   transit_velocity_scaling_ = params.moveit.transit_velocity_scaling;
   transit_acceleration_scaling_ = params.moveit.transit_acceleration_scaling;
-  pilz_pipeline_ = params.moveit.pilz_pipeline;
-  fallback_pipeline_ = params.moveit.fallback_pipeline;
-  mtc_free_space_pipeline_ = params.moveit.mtc_free_space_pipeline;
-  mtc_free_space_planner_ = params.moveit.mtc_free_space_planner;
-  mtc_cartesian_step_m_ = params.moveit.mtc_cartesian_step_m;
-  mtc_cartesian_min_fraction_ = params.moveit.mtc_cartesian_min_fraction;
-  mtc_cartesian_precision_m_ = params.moveit.mtc_cartesian_precision_m;
-  mtc_max_solutions_ = static_cast<int>(params.moveit.mtc_max_solutions);
-  mtc_approach_max_duration_s_ = params.moveit.mtc_approach_max_duration_s;
-  mtc_approach_max_total_joint_travel_rad_ =
-    params.moveit.mtc_approach_max_total_joint_travel_rad;
-  mtc_approach_max_single_joint_travel_rad_ =
-    params.moveit.mtc_approach_max_single_joint_travel_rad;
-  mtc_approach_max_detour_ratio_ = params.moveit.mtc_approach_max_detour_ratio;
-  mtc_approach_max_chord_deviation_m_ =
-    params.moveit.mtc_approach_max_chord_deviation_m;
-  mtc_approach_max_recede_m_ = params.moveit.mtc_approach_max_recede_m;
-  mtc_approach_cartesian_max_distance_m_ =
-    params.moveit.mtc_approach_cartesian_max_distance_m;
-  mtc_approach_along_axis_m_ = params.moveit.mtc_approach_along_axis_m;
-  mtc_approach_max_lateral_m_ = params.moveit.mtc_approach_max_lateral_m;
-  mtc_approach_max_align_deg_ = params.moveit.mtc_approach_max_align_deg;
-  transit_max_duration_s_ = params.moveit.transit_max_duration_s;
-  transit_max_total_joint_travel_rad_ = params.moveit.transit_max_total_joint_travel_rad;
-  transit_max_single_joint_travel_rad_ = params.moveit.transit_max_single_joint_travel_rad;
   photo_pose_named_target_ = params.photo_pose_named_target;
   harvest_stow_named_target_ = params.harvest_stow_named_target;
 
@@ -324,9 +298,6 @@ void ManipulationSkillsNode::loadParameters()
   }
   // 职责实现直接构造（唯一实现，原 *.impl 工厂缝位已删除）。
   view_planner_ = std::make_unique<ViewPlanner>(view_config);
-  maximum_scan_moves_ = static_cast<int>(params.scan.maximum_moves);
-  min_effective_views_ = static_cast<int>(params.scan.min_effective_views);
-  scan_time_budget_s_ = params.scan.time_budget_s;
   assumed_frame_interval_s_ = params.scan.assumed_frame_interval_s;
   frame_wait_s_ = params.scan.frame_wait_s;
 
@@ -381,17 +352,16 @@ void ManipulationSkillsNode::rebuildMotionInterface()
   motion_config.tip_frame = tip_frame_;
   motion_config.camera_frame = camera_frame_;
   motion_config.tool_frame = tool_frame_;
-  motion_config.pilz_pipeline = pilz_pipeline_;
-  motion_config.fallback_pipeline = fallback_pipeline_;
+  const auto & moveit = params_.moveit;
+  motion_config.pilz_pipeline = moveit.pilz_pipeline;
+  motion_config.fallback_pipeline = moveit.fallback_pipeline;
   motion_config.transit_velocity_scaling = transit_velocity_scaling_;
   motion_config.transit_acceleration_scaling = transit_acceleration_scaling_;
-  motion_config.transit_max_duration_s = transit_max_duration_s_;
+  motion_config.transit_max_duration_s = moveit.transit_max_duration_s;
   motion_config.transit_max_total_joint_travel_rad =
-    transit_max_total_joint_travel_rad_;
+    moveit.transit_max_total_joint_travel_rad;
   motion_config.transit_max_single_joint_travel_rad =
-    transit_max_single_joint_travel_rad_;
-  const auto params = param_listener_->get_params();
-  const auto moveit = params.moveit;
+    moveit.transit_max_single_joint_travel_rad;
   motion_config.observe_planning_time_s = moveit.observe_planning_time_s;
   motion_config.observe_planning_attempts =
     static_cast<int>(moveit.observe_planning_attempts);
@@ -404,9 +374,9 @@ void ManipulationSkillsNode::rebuildMotionInterface()
   motion_config.default_planning_time_s = planning_time_s_;
   motion_config.default_planning_attempts = planning_attempts_;
   motion_config.photo_pose_joint_tolerance_rad =
-    params.photo_pose_joint_tolerance_rad;
+    params_.photo_pose_joint_tolerance_rad;
   motion_config.photo_pose_max_joint_vel_rad_s =
-    params.photo_pose_max_joint_vel_rad_s;
+    params_.photo_pose_max_joint_vel_rad_s;
   // 直接构造唯一实现。执行闸门（A8/I5）：运动输出权限（Active 态）叠加
   // 硬件安全门回调注入——即授权矩阵的 TRANSIT 级底座（任何 execute 路径
   // 不得旁路；plan-only 路径不经其执行段）；safety_block_hook 保持原
@@ -428,32 +398,33 @@ void ManipulationSkillsNode::rebuildGraspTask()
     return;
   }
   GraspTaskConfig task_config;
+  const auto & moveit = params_.moveit;
   task_config.planning_group = planning_group_;
   task_config.tip_frame = tip_frame_;
   task_config.base_frame = base_frame_;
-  task_config.free_space_pipeline = mtc_free_space_pipeline_;
-  task_config.free_space_planner = mtc_free_space_planner_;
+  task_config.free_space_pipeline = moveit.mtc_free_space_pipeline;
+  task_config.free_space_planner = moveit.mtc_free_space_planner;
   task_config.planning_time_s = planning_time_s_;
-  task_config.velocity_scaling = velocity_scaling_;
-  task_config.acceleration_scaling = acceleration_scaling_;
-  task_config.cartesian_step_m = mtc_cartesian_step_m_;
-  task_config.cartesian_min_fraction = mtc_cartesian_min_fraction_;
-  task_config.cartesian_precision_m = mtc_cartesian_precision_m_;
-  task_config.max_solutions = static_cast<std::size_t>(mtc_max_solutions_);
-  task_config.approach_max_duration_s = mtc_approach_max_duration_s_;
+  task_config.velocity_scaling = moveit.velocity_scaling;
+  task_config.acceleration_scaling = moveit.acceleration_scaling;
+  task_config.cartesian_step_m = moveit.mtc_cartesian_step_m;
+  task_config.cartesian_min_fraction = moveit.mtc_cartesian_min_fraction;
+  task_config.cartesian_precision_m = moveit.mtc_cartesian_precision_m;
+  task_config.max_solutions = static_cast<std::size_t>(moveit.mtc_max_solutions);
+  task_config.approach_max_duration_s = moveit.mtc_approach_max_duration_s;
   task_config.approach_max_total_joint_travel_rad =
-    mtc_approach_max_total_joint_travel_rad_;
+    moveit.mtc_approach_max_total_joint_travel_rad;
   task_config.approach_max_single_joint_travel_rad =
-    mtc_approach_max_single_joint_travel_rad_;
-  task_config.approach_max_detour_ratio = mtc_approach_max_detour_ratio_;
+    moveit.mtc_approach_max_single_joint_travel_rad;
+  task_config.approach_max_detour_ratio = moveit.mtc_approach_max_detour_ratio;
   task_config.approach_max_chord_deviation_m =
-    mtc_approach_max_chord_deviation_m_;
-  task_config.approach_max_recede_m = mtc_approach_max_recede_m_;
+    moveit.mtc_approach_max_chord_deviation_m;
+  task_config.approach_max_recede_m = moveit.mtc_approach_max_recede_m;
   task_config.approach_cartesian_max_distance_m =
-    mtc_approach_cartesian_max_distance_m_;
-  task_config.approach_along_axis_m = mtc_approach_along_axis_m_;
-  task_config.approach_max_lateral_m = mtc_approach_max_lateral_m_;
-  task_config.approach_max_align_deg = mtc_approach_max_align_deg_;
+    moveit.mtc_approach_cartesian_max_distance_m;
+  task_config.approach_along_axis_m = moveit.mtc_approach_along_axis_m;
+  task_config.approach_max_lateral_m = moveit.mtc_approach_max_lateral_m;
+  task_config.approach_max_align_deg = moveit.mtc_approach_max_align_deg;
   task_config.lookup_current_tip = [this]() {
       return motion_->lookupTransform(base_frame_, tip_frame_);
     };
@@ -485,7 +456,7 @@ rcl_interfaces::msg::SetParametersResult ManipulationSkillsNode::onParameters(
     return result;
   }
   // 依赖链按"监听器现行值叠加本批改动"的合并结果判定。
-  const auto current = param_listener_->get_params();
+  const auto & current = params_;
   bool execution = current.execution.enabled;
   bool grasp = current.grasp.enabled;
   bool tool = current.tool.enabled;

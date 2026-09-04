@@ -5,10 +5,11 @@
 #include <cstdint>
 #include <string>
 
-#include "peach_manipulation/action_contract.hpp"
-
 namespace peach_manipulation
 {
+// action 终局分类。终局判定只走枚举，不再从状态字符串反推。
+enum class CycleOutcome {RUNNING, SUCCEEDED, CANCELED, FAILED, RECOVERY_REQUIRED};
+
 // 周期状态枚举：节点内部一律以枚举流转，state_json_ 中的字符串只是发布层投影，
 // 终局判定只认枚举，避免字符串拼写漂移导致终态被误分类为 RUNNING。
 enum class CycleState

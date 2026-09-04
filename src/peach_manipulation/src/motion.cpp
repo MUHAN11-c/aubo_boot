@@ -22,7 +22,7 @@
 #include <moveit/move_group_interface/move_group_interface.hpp>
 #include <moveit/utils/moveit_error_code.hpp>
 
-#include "peach_manipulation/manipulation_skills_node_impl.hpp"
+#include "peach_manipulation/manipulation_skills_node.hpp"
 #include "peach_manipulation/eigen_conversions.hpp"
 #include "peach_manipulation/grasp_geometry.hpp"
 #include "peach_manipulation/trajectory_guard.hpp"
@@ -151,7 +151,7 @@ void ManipulationSkillsNode::previewContact(
   // 预览周期同样在每周期开始时重置终局分级。
   pending_outcome_.store(ExecuteTarget::Result::FAILED);
   // 预览周期（含 action PREVIEW 模式）同样计时：approach_insert 段覆盖
-  // PREVIEW_CONTACT_PLANNING（见 stage_timing.hpp 投影注释）。
+  // PREVIEW_CONTACT_PLANNING（见 cycle_support.hpp 阶段投影注释）。
   startCycleTiming();
   const auto finish = [this, &response](
     bool success, CycleState state, const std::string & message)
@@ -268,7 +268,7 @@ void ManipulationSkillsNode::onCheckReachability(
     tf2::fromMsg(pose, target);
     if (have_current_tip) {
       target = pregraspFromEntryKeepRoll(
-        target, current_tip.linear(), mtc_approach_along_axis_m_);
+        target, current_tip.linear(), params_.moveit.mtc_approach_along_axis_m);
     }
     moveit::core::RobotState state = seed;
     response->reachable[i] = state.setFromIK(

@@ -12,8 +12,13 @@
 #include <string>
 #include <vector>
 
-#include "peach_manipulation/protected_zones.hpp"
+#include <tf2_eigen/tf2_eigen.hpp>
+
+#include <moveit_msgs/msg/constraints.hpp>
 #include <rclcpp/rclcpp.hpp>
+
+#include "peach_manipulation/math_utils.hpp"
+#include "peach_manipulation/protected_zones.hpp"
 
 namespace moveit::task_constructor
 {
@@ -33,6 +38,47 @@ class SerialContainer;
 
 namespace peach_manipulation
 {
+
+// tip 姿态不偏离 target_pose 超过 tol_deg 的三轴等宽容差约束集。
+// 只挂已齐 LIN（分档要求起点对轴，拦笛卡尔插值中途侧翻）。
+// 未齐第一段 LIN-align 与 CIRC 不挂：Jazzy ValidateSolution 验每个路点含起点，
+// 起点相对目标 >20° 会 INVALID_MOTION_PLAN。接触不用 PTP。
+inline moveit_msgs::msg::Constraints makeOrientationGate(
+  const std::string & link_name, const std::string & frame_id,
+  const Eigen::Isometry3d & target_pose, double tol_deg,
+  const std::string & name)
+{
+  moveit_msgs::msg::OrientationConstraint orientation;
+  orientation.link_name = link_name;
+  orientation.header.frame_id = frame_id;
+  orientation.orientation = tf2::toMsg(Eigen::Quaterniond(target_pose.linear()));
+  const double tol = tol_deg * kPi / 180.0;
+  orientation.absolute_x_axis_tolerance = tol;
+  orientation.absolute_y_axis_tolerance = tol;
+  orientation.absolute_z_axis_tolerance = tol;
+  orientation.weight = 1.0;
+  moveit_msgs::msg::Constraints constraints;
+  constraints.name = name;
+  constraints.orientation_constraints.push_back(orientation);
+  return constraints;
+}
+
+// 接近分档结论（只出结论，不规划）。同一 (config, entry, axis) 每条公共入口算一次，
+// 下游装配/预览复用，避免周期内重复 classifyApproach。
+struct ApproachSplit
+{
+  bool need_lin{true};
+  bool need_align{true};
+  enum class Kind { SKIP, LIN, LIN_ALIGN_THEN_LIN, CIRC_THEN_LIN, BLOCKED } kind{
+    Kind::BLOCKED};
+  double lin_to_entry_m{0.0};
+  double lateral_m{0.0};
+  double axial_m{0.0};
+  double align_deg{180.0};
+  double sweep_deg{0.0};
+  double radius_m{0.0};
+  std::string blocked_reason{"无约束笛卡尔接近"};
+};
 
 struct GraspTaskConfig
 {
@@ -138,11 +184,13 @@ private:
   std::unique_ptr<moveit::task_constructor::Task> makeApproachOnlyTask(
     const std::string & task_name,
     const Eigen::Isometry3d & entry_tip_pose,
-    const Eigen::Vector3d & insertion_axis);
+    const Eigen::Vector3d & insertion_axis,
+    const ApproachSplit & split);
   GraspTaskResult planToPregrasp(
     const std::string & task_name,
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
+    const ApproachSplit & split,
     bool execute);
   std::unique_ptr<moveit::task_constructor::Task> makeInsertOnlyTask(
     const std::string & task_name,
@@ -165,7 +213,8 @@ private:
   void appendApproachToPregrasp(
     moveit::task_constructor::SerialContainer & sequence,
     const Eigen::Isometry3d & entry_tip_pose,
-    const Eigen::Vector3d & insertion_axis) const;
+    const Eigen::Vector3d & insertion_axis,
+    const ApproachSplit & split) const;
   void appendAlongAxisMove(
     moveit::task_constructor::SerialContainer & sequence,
     const Eigen::Vector3d & insertion_axis,

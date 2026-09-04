@@ -1,7 +1,7 @@
 // 功能：ManipulationSkillsNode 完整类声明。多编译单元共享
 // （节点外壳 / 运动 / 动作周期 / 显式阶段执行器）。
-#ifndef PEACH_MANIPULATION__MANIPULATION_SKILLS_NODE_IMPL_HPP_
-#define PEACH_MANIPULATION__MANIPULATION_SKILLS_NODE_IMPL_HPP_
+#ifndef PEACH_MANIPULATION__MANIPULATION_SKILLS_NODE_HPP_
+#define PEACH_MANIPULATION__MANIPULATION_SKILLS_NODE_HPP_
 
 #include <Eigen/Geometry>
 #include <tf2_ros/buffer.h>
@@ -41,19 +41,17 @@
 #include <std_srvs/srv/trigger.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
-#include "peach_manipulation/cycle_state.hpp"
 #include "peach_manipulation/cycle_context.hpp"
+#include "peach_manipulation/cycle_state.hpp"
+#include "peach_manipulation/cycle_support.hpp"
 #include "peach_manipulation/execution_authority.hpp"
 #include "peach_manipulation/grasp_task.hpp"
 #include "peach_manipulation/motion.hpp"
 #include "peach_manipulation/quality_gate.hpp"
 #include "peach_manipulation/safety_gate.hpp"
-#include "peach_manipulation/scan_budget.hpp"
-#include "peach_manipulation/stage_timing.hpp"
 #include "peach_manipulation/target_cache.hpp"
 #include "peach_manipulation/tool_actuator.hpp"
 #include "peach_manipulation/view_planner.hpp"
-#include "peach_manipulation/scoped_timer.hpp"
 // 参数声明/默认值/校验的单一事实源（generate_parameter_library 生成，
 // 定义见 config/manipulation_parameters.yaml）。
 #include "peach_manipulation/manipulation_parameters.hpp"
@@ -117,8 +115,8 @@ private:
   void initializeMoveIt();
   double insertionTravel(const CachedRefined & refined) const;
   // 参数声明已下沉到生成的 ParamListener（构造即声明+校验）；loadParameters
-  // 从监听器快照装载全部成员并重建可替换实现；onParameters 为 on-set 验证
-  // 钩子（运行中拒改 + execution→grasp→tool 依赖链），无副作用。
+  // 写入 params_ 快照并重建可替换实现；Config 从快照直构。onParameters 为
+  // on-set 验证钩子（运行中拒改 + execution→grasp→tool 依赖链），无副作用。
   void loadParameters();
   rcl_interfaces::msg::SetParametersResult onParameters(
     const std::vector<rclcpp::Parameter> & parameters);
@@ -209,7 +207,7 @@ private:
   double effectiveFrameWaitS() const;
   double effectiveTargetMaxAgeS() const;
   // 再确认窗口（2.7-RECONFIRM）：实测帧间隔 EMA 自适应伸缩，未测得时回退
-  // reconfirm_wait_s_（配置值同时是自适应上限）。
+  // params_.grasp.reconfirm_wait_s（配置值同时是自适应上限）。
   double effectiveReconfirmWaitS() const;
   // 精化等待（2.7-FINALIZE 的 T(refined)）：refit 实测耗时本包不可得（不跨包
   // 改接口），按观测帧间隔 EMA 近似（finalize 后约 3 帧内闩锁发布 refined），
@@ -291,47 +289,18 @@ private:
   std::string camera_frame_;
   std::string tool_frame_;
   std::string planning_group_;
-  std::string pilz_pipeline_;
-  std::string fallback_pipeline_;
-  std::string mtc_free_space_pipeline_;
-  std::string mtc_free_space_planner_;
   std::string photo_pose_named_target_;
   std::string harvest_stow_named_target_{"harvest_stow"};
   double planning_time_s_{1.5};
   int planning_attempts_{1};
-  double velocity_scaling_{0.10};
-  double acceleration_scaling_{0.10};
   double transit_velocity_scaling_{0.10};
   double transit_acceleration_scaling_{0.10};
-  double mtc_cartesian_step_m_{0.005};
-  double mtc_cartesian_min_fraction_{0.95};
-  double mtc_cartesian_precision_m_{0.001};
-  int mtc_max_solutions_{5};
-  double mtc_approach_max_duration_s_{0.0};
-  double mtc_approach_max_total_joint_travel_rad_{12.0};
-  double mtc_approach_max_single_joint_travel_rad_{6.1};
-  double mtc_approach_max_detour_ratio_{2.2};
-  double mtc_approach_max_chord_deviation_m_{0.25};
-  double mtc_approach_max_recede_m_{0.08};
-  double mtc_approach_cartesian_max_distance_m_{0.80};
-  double mtc_approach_along_axis_m_{0.0};
-  double mtc_approach_max_lateral_m_{0.05};
-  double mtc_approach_max_align_deg_{20.0};
-  double transit_max_duration_s_{0.0};
-  double transit_max_total_joint_travel_rad_{6.0};
-  double transit_max_single_joint_travel_rad_{2.5};
-  int maximum_scan_moves_{5};
-  // 观察段有效视点观测下限（2.13-E2）：未达此前不得收口（移动到位且收到
-  // 新鲜目标观测计一次有效视点）。
-  int min_effective_views_{1};
-  // 观察段墙钟对照（秒）。停准则不按本值或 EMA 预测收口；只进日志。
-  double scan_time_budget_s_{15.0};
   // 未测得观测间隔 EMA 时的回退帧间隔（秒）。0=不预填。
   double assumed_frame_interval_s_{0.4};
   // 本目标内移动+等帧成本（秒，≤0=未测得）：stageAcquireViews 开头清零，
   // 成功一次有效视点后 0.7/0.3 刷新，只进日志。
   double scan_move_cost_ema_s_{0.0};
-  double frame_wait_s_{6.0};
+  double frame_wait_s_{4.0};
   // 帧率自适应：观测话题到达间隔 EMA（≤0=未测得）与最近到达时刻。
   // onTargets（订阅线程）写、等帧取值（周期线程）读：relaxed 原子即可
   // （EMA 只作超时估计，读到偶发旧值无害）。
@@ -453,9 +422,10 @@ private:
   // 参数监听器（构造即声明全部参数并做启动校验；运行期 set 经其内置范围
   // 校验 + onParameters 钩子，post-set 后 loadParameters 重载快照）。
   std::shared_ptr<peach_manipulation_node::ParamListener> param_listener_;
+  peach_manipulation_node::Params params_;
   rclcpp::Client<aubo_msgs::srv::SetIO>::SharedPtr tool_io_client_;
 };
 
 }  // namespace peach_manipulation
 
-#endif  // PEACH_MANIPULATION__MANIPULATION_SKILLS_NODE_IMPL_HPP_
+#endif  // PEACH_MANIPULATION__MANIPULATION_SKILLS_NODE_HPP_

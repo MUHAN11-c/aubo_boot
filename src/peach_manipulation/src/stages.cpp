@@ -396,7 +396,9 @@ bool ManipulationSkillsNode::stageAcquireViews(CycleContext & ctx)
   // 把下一颗的第二机位在第一拍就判成买不起。
   scan_move_cost_ema_s_ = 0.0;
   const ScanBudget scan_budget(ScanBudgetConfig{
-      maximum_scan_moves_, min_effective_views_, scan_time_budget_s_});
+      static_cast<int>(params_.scan.maximum_moves),
+      static_cast<int>(params_.scan.min_effective_views),
+      params_.scan.time_budget_s});
   int moves = 0;
   int effective_views = 0;
   bool budget_exhausted = false;
@@ -431,7 +433,8 @@ bool ManipulationSkillsNode::stageAcquireViews(CycleContext & ctx)
         "观察预算收口（已耗时 %.1fs / 预算 %.1fs，移动成本EMA %.1fs，"
         "有效视点 %d/%d）：%s，强制 finalize",
         elapsed_s, scan_budget.effectiveBudgetS(scan_move_cost_ema_s_),
-        scan_move_cost_ema_s_, effective_views, min_effective_views_,
+        scan_move_cost_ema_s_, effective_views,
+        static_cast<int>(params_.scan.min_effective_views),
         finalize_gate.reason.c_str());
       break;
     }
@@ -576,7 +579,7 @@ bool ManipulationSkillsNode::stageAcquireViews(CycleContext & ctx)
     return failStage(
       ctx,
       "达到扫描上限仍未收敛（有效视点 " + std::to_string(effective_views) +
-      "/" + std::to_string(min_effective_views_) + "）: " + gate.reason);
+      "/" + std::to_string(params_.scan.min_effective_views) + "）: " + gate.reason);
   }
   return true;
 }
@@ -1036,7 +1039,8 @@ bool ManipulationSkillsNode::stageActuateCutter(CycleContext & ctx)
   command.contact_transaction_id = ctx.contact_transaction_id;
   if (!tool_actuator_.arm(command, reason) || !tool_actuator_.sendCut(reason)) {
     const auto retreat = grasp_task_->retreat(
-      ctx.refined->axis, ctx.travel_m + mtc_approach_along_axis_m_, true);
+      ctx.refined->axis,
+      ctx.travel_m + params_.moveit.mtc_approach_along_axis_m, true);
     if (retreat.success) {
       contact_recovery_required_.store(false);
     }
@@ -1074,7 +1078,7 @@ bool ManipulationSkillsNode::stageExecuteReservedReverseRetreat(CycleContext & c
   // 撤离授权经 GraspTask retreat 门（Active∧robotReady∧!cancel∧execution∧
   // grasp，无决策复检——插入后目标常被遮挡/收割后决策翻转，撤离不依赖视觉）。
   const auto result = grasp_task_->retreat(
-    ctx.refined->axis, ctx.travel_m + mtc_approach_along_axis_m_, true);
+    ctx.refined->axis, ctx.travel_m + params_.moveit.mtc_approach_along_axis_m, true);
   if (!result.success) {
     ctx.failure_code = FailureCode::RETREAT_FAILED;
     return failStage(ctx, "MTC 抓取后撤离失败，需要人工处理: " + result.reason);

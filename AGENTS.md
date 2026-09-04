@@ -26,8 +26,8 @@
 C++17；参数走 yaml + `generate_parameter_library` / `declare_parameter`。采摘 ROS 包四个，作用不得串（详细：[docs/architecture.md](docs/architecture.md) §3）：
 
 - `peach_interfaces`：跨包唯一 IDL，不跑节点
-- `peach_perception`：视觉算法（两节点：看场景 + 建当前目标），不发运动、不选下一颗、不写账本；积分不用 latest TF；球只作袋内果实包络先验
-- `peach_manipulation`：机械臂执行（`SurveyScene` / `ExecuteTarget`：视点、预抓取、套入、刀具、原路撤退），不写账本、不调重建 Trigger；`GraspDecision.allowed` 是套入/剪切唯一权威（`PREGRASP_ONLY` 不要求 `allowed`；方向定位以预抓取真机实测为准）
+- `peach_perception`：视觉算法（两节点：看场景 + 建当前目标），不发运动、不选下一颗、不写账本；积分不用 latest TF；球只作袋内果实包络先验。单实现直接构造；仅袋/果管线与柱/球 refitter 留 yaml `*.impl` 映射。
+- `peach_manipulation`：机械臂执行（`SurveyScene` / `ExecuteTarget`：视点、预抓取、套入、刀具、原路撤退），不写账本、不调重建 Trigger；`GraspDecision.allowed` 是套入/剪切唯一权威（`PREGRASP_ONLY` 不要求 `allowed`；方向定位以预抓取真机实测为准）。节点持 GPL `Params` 快照，运动/接触/扫描 Config 从快照直构。
 - `peach_executor`：整栈调度（含 lifecycle、只读监控 Web 与**鉴权手动调试操作面**——融合 8090，`debug.enabled`/`token`/运动类 `motion_enabled` 三重门默认全关，操作全审计；见决策 0013）；**launch 绝不自动 RunHarvest**；`execute_pregrasp_only` 默认 true（停预抓取不回 stow；套入前改 false）
 
 导航适配 `peach_navigation` 已归档 `_archive/parked_2026-09/`（固定座核心栈四包不含它）；`NavigateToWorksite` 等 IDL 保留标预留，真底盘授权后恢复。

@@ -35,7 +35,6 @@
 #include "peach_manipulation/trajectory_guard.hpp"
 #include "peach_manipulation/eigen_conversions.hpp"
 #include "peach_manipulation/math_utils.hpp"
-#include "peach_manipulation/orientation_gate.hpp"
 
 namespace peach_manipulation
 {
@@ -56,21 +55,6 @@ double tipToEntryDistanceM(
   }
   return (start->translation() - entry.translation()).norm();
 }
-
-struct ApproachSplit
-{
-  bool need_lin{true};
-  bool need_align{true};
-  enum class Kind { SKIP, LIN, LIN_ALIGN_THEN_LIN, CIRC_THEN_LIN, BLOCKED } kind{
-    Kind::BLOCKED};
-  double lin_to_entry_m{0.0};
-  double lateral_m{0.0};
-  double axial_m{0.0};
-  double align_deg{180.0};
-  double sweep_deg{0.0};
-  double radius_m{0.0};
-  std::string blocked_reason{"无约束笛卡尔接近"};
-};
 
 const char * approachKindName(ApproachSplit::Kind kind)
 {
@@ -395,10 +379,9 @@ void GraspTask::appendCircToPose(
 void GraspTask::appendApproachToPregrasp(
   mtc::SerialContainer & sequence,
   const Eigen::Isometry3d & entry_tip_pose,
-  const Eigen::Vector3d & insertion_axis) const
+  const Eigen::Vector3d & insertion_axis,
+  const ApproachSplit & split) const
 {
-  const ApproachSplit split =
-    classifyApproach(config_, entry_tip_pose, insertion_axis);
   Eigen::Isometry3d pregrasp = pregraspTipPose(
     entry_tip_pose, insertion_axis, config_.approach_along_axis_m);
   std::optional<Eigen::Isometry3d> current;
@@ -492,11 +475,12 @@ std::unique_ptr<mtc::Task> GraspTask::makeApproachInsertTask(
 std::unique_ptr<mtc::Task> GraspTask::makeApproachOnlyTask(
   const std::string & task_name,
   const Eigen::Isometry3d & entry_tip_pose,
-  const Eigen::Vector3d & insertion_axis)
+  const Eigen::Vector3d & insertion_axis,
+  const ApproachSplit & split)
 {
   auto task = makeTaskShell(task_name);
   auto sequence = std::make_unique<mtc::SerialContainer>("approach to pregrasp");
-  appendApproachToPregrasp(*sequence, entry_tip_pose, insertion_axis);
+  appendApproachToPregrasp(*sequence, entry_tip_pose, insertion_axis, split);
   task->add(std::move(sequence));
   return task;
 }
@@ -505,17 +489,16 @@ GraspTaskResult GraspTask::planToPregrasp(
   const std::string & task_name,
   const Eigen::Isometry3d & entry_tip_pose,
   const Eigen::Vector3d & insertion_axis,
+  const ApproachSplit & split,
   bool execute)
 {
-  const ApproachSplit split =
-    classifyApproach(config_, entry_tip_pose, insertion_axis);
   if (split.kind == ApproachSplit::Kind::BLOCKED) {
     GraspTaskResult blocked;
     blocked.reason = split.blocked_reason;
     return blocked;
   }
   return planAndMaybeExecute(
-    makeApproachOnlyTask(task_name, entry_tip_pose, insertion_axis),
+    makeApproachOnlyTask(task_name, entry_tip_pose, insertion_axis, split),
     execute, config_.approach_execution_gate, true, 0U);
 }
 
@@ -551,7 +534,7 @@ GraspTaskResult GraspTask::approachAndInsert(
     split.radius_m, split.lin_to_entry_m, approachKindName(split.kind));
   if (split.need_lin) {
     auto to_pregrasp = planToPregrasp(
-      "peach_approach_pregrasp", entry_tip_pose, insertion_axis, false);
+      "peach_approach_pregrasp", entry_tip_pose, insertion_axis, split, false);
     if (!to_pregrasp.success) {
       to_pregrasp.reason = "到轴上预抓取失败: " + to_pregrasp.reason;
       return to_pregrasp;
@@ -594,7 +577,7 @@ GraspTaskResult GraspTask::previewFullContact(
   cartesian->setTimeParameterization(nullptr);
   auto contact = std::make_unique<mtc::SerialContainer>("preview contact");
   if (split.need_lin) {
-    appendApproachToPregrasp(*contact, entry_tip_pose, insertion_axis);
+    appendApproachToPregrasp(*contact, entry_tip_pose, insertion_axis, split);
   }
   const double sleeve_m = split.lin_to_entry_m + insertion_distance_m;
   contact->add(
@@ -630,7 +613,7 @@ GraspTaskResult GraspTask::moveToPregrasp(
     return already;
   }
   return planToPregrasp(
-    "peach_move_pregrasp", entry_tip_pose, insertion_axis, execute);
+    "peach_move_pregrasp", entry_tip_pose, insertion_axis, split, execute);
 }
 
 GraspTaskResult GraspTask::sleeveLinear(

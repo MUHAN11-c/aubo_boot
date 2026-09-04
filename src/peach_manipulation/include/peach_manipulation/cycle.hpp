@@ -2,7 +2,7 @@
 #ifndef PEACH_MANIPULATION__CYCLE_HPP_
 #define PEACH_MANIPULATION__CYCLE_HPP_
 
-#include "peach_manipulation/manipulation_skills_node_impl.hpp"
+#include "peach_manipulation/manipulation_skills_node.hpp"
 #include "peach_manipulation/grasp_geometry.hpp"
 #include "peach_manipulation/protected_zones.hpp"
 #include "peach_manipulation/reconfirm_policy.hpp"

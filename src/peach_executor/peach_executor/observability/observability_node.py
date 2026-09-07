@@ -91,7 +91,6 @@ PARAM_WATCHLIST = {
         'scan.observation_radius_m', 'scan.minimum_radius_m',
         'scan.frame_wait_s', 'scan.maximum_moves',
         'quality.minimum_views', 'quality.minimum_baseline_deg',
-        'quality.maximum_refined_rmse_m',
         'execution.enabled', 'grasp.enabled', 'tool.enabled',
         'photo_pose_joint_tolerance_rad', 'photo_pose_max_joint_vel_rad_s',
     ],

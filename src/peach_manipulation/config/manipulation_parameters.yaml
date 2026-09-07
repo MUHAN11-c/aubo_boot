@@ -1,7 +1,7 @@
 ---
 # peach_manipulation_node 参数定义（generate_parameter_library 单一事实源）：
-# 声明/类型/默认值/校验全在本文件；默认值与 config/peach_manipulation.yaml
-# 由审查逐项对齐（不设自动检查），中文注释口径以 config/peach_manipulation.yaml 为权威。
+# 声明/类型/默认值/校验/中文描述全在本文件（单一事实源）；运行期 launch 传
+# config/peach_manipulation.yaml——该文件只写部署覆盖（键值≠默认才写），不复写默认值。
 peach_manipulation_node:
   frames:
     base: {
@@ -310,7 +310,7 @@ peach_manipulation_node:
     max_camera_step_m: {
       type: double,
       default_value: 0.15,
-      description: "观察每步相机直线位移上限（米）。沿当前位到候选视点截断。0.15 使 ~0.7 m 处一跨过覆盖门 8°；禁止绕球面走远路。",
+      description: "观察每步相机直线位移上限（米）。沿当前位到候选视点截断。0.15 使 ~0.7 m 处弦约 12°、0.88 m 处约 9.8°，一跨过覆盖门 8°（0.08 仅 6.6° 过不了）；禁止绕球面走远路。",
       validation: { gt<>: [0.0] }
     }
     workspace_max_reach_m: {
@@ -352,7 +352,7 @@ peach_manipulation_node:
     protected_zones: {
       type: double_array,
       default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-      description: "环境几何保护区（阶段 F1）：base_link 系轴对齐盒列表，stride-6 扁平编码 [xmin,ymin,zmin,xmax,ymax,zmax]*N（米）。视点生成剔除相机位置落入任一盒（闭区间，含盒表面）的候选；GraspTask 把同一列表写入 planning scene 碰撞盒，接触段规划碰撞检查兜底。装载时逐盒校验：长度非 6 倍数的残余组、含非有限分量或任一轴 min>=max 的盒告警并丢弃（不炸节点）。默认空列表=无保护区。"
+      description: "环境几何保护区（阶段 F1）：base_link 系轴对齐盒列表，stride-6 扁平编码 [xmin,ymin,zmin,xmax,ymax,zmax]*N（米）。视点生成剔除相机位置落入任一盒（闭区间，含盒表面）的候选；GraspTask 把同一列表写入 planning scene 碰撞盒，接触段规划碰撞检查兜底。装载时逐盒校验：长度非 6 倍数的残余组、含非有限分量或任一轴 min>=max 的盒告警并丢弃（不炸节点）。与 min_camera_height_m 的关系：桌面保护平面是保护区的「z<下限半空间」特例 shortcut，两者并存、各自生效。空保护区写占位盒 [0,0,0,0,0,0]（min==max 装载时丢弃；空 double_array 会让参数库拒启）。"
     }
     frame_wait_s: {
       type: double,
@@ -370,7 +370,7 @@ peach_manipulation_node:
     minimum_baseline_deg: {
       type: double,
       default_value: 8.0,
-      description: "质量门最大基线角下限（度）。0.15 m 短移在 0.7 m 处约 12°，本值取 8。",
+      description: "质量门最大基线角下限（度）。0.15 m 短移在 0.7 m 处约 12°（聚类 5°），本值取 8；0.08 过不了本门（08-31 1633/1636 两轮实测）。",
       validation: { gt_eq<>: [0.0] }
     }
     minimum_mean_nearest_baseline_deg: {
@@ -388,7 +388,7 @@ peach_manipulation_node:
     maximum_data_age_s: {
       type: double,
       default_value: 3.0,
-      description: "质量证据数据最大年龄（秒）。2.0 时 1 Hz 诊断会误判 stale。",
+      description: "质量证据数据最大年龄（秒）。2.0 时 ~1 Hz 诊断心跳会 reconstruction_data_stale，观察收口抓不到证据。",
       validation: { gt<>: [0.0] }
     }
     maximum_axis_angle_deg: {

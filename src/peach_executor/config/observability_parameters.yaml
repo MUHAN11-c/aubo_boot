@@ -1,7 +1,7 @@
 # peach_observability 参数定义（generate_parameter_library_py 单一事实源）。
 # 声明 / 类型 / 默认值 / 描述 / 校验全部在本文件；根键 = 节点名 = 参数库约定。
-# 运行期由 launch 传 config/observability.yaml（含 ros__parameters 的运行时键值），
-# 默认值逐项对齐；旧 params.py 的 DEFAULTS 手工描述表 + load_params 手写校验
+# 运行期 launch 传 config/observability.yaml——该文件只写部署覆盖（键值≠默认才写）；
+# 18 个调试端点名（debug.endpoints.*）以本文件默认为权威；旧 params.py 的 DEFAULTS 手工描述表 + load_params 手写校验
 # 已由参数库校验器承担（port 越界 / 周期非正 / 缓冲 <1 在 declare 期即拒绝）。
 peach_observability:
   host:

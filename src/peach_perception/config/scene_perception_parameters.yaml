@@ -1,7 +1,7 @@
 # peach_scene_perception_node 参数定义（generate_parameter_library_py 单一事实源）。
 # 声明 / 类型 / 默认值 / 描述 / 校验全部在本文件；根键 = 节点名 = 参数库约定。
-# 运行期由 launch 传 config/scene_perception.yaml（含 ros__parameters 的运行时键值），
-# 两边默认值逐项对齐（与 C++ 技能包 config/manipulation_parameters.yaml 同理）。
+# 运行期 launch 传 config/scene_perception.yaml——该文件只写部署覆盖（键值≠默认才写），
+# 不复写默认值；现场调参见 docs/testing.md。
 # 嵌套组展开出点号参数名：pipeline.bag_impl / tool.D_inner / target_memory.enable 等。
 peach_scene_perception_node:
   color_topic:
@@ -142,7 +142,7 @@ peach_scene_perception_node:
     locked_only_segmentation:
       type: bool
       default_value: true
-      description: '锁定后 SAM 只对锁定集目标的检测框推理（2.13-E1；锚点反投影识别锁定框，TF 不可用帧自动回退全量）；false 回退锁定后全量分割'
+      description: '锁定后 SAM 只对锁定集目标的检测框推理（2.13-E1）：分割前尚无本帧 target_id，用锁定目标世界系记忆锚点经 TF 反投影到本帧像素，落进外扩 10% 的检测框就分割；锁定前/开关关/TF 不可用帧回退全量分割（旧行为），锁定目标全部不可见时本帧 SAM 零推理'
   tool:
     D_inner:
       type: double
@@ -205,7 +205,7 @@ peach_scene_perception_node:
     recovery_scale:
       type: double
       default_value: 1.0
-      description: '恢复匹配半径倍率 (≥1)：正常匹配未命中时放宽到 match_radius×本值再匹配一次，抗锚点跳变；1.0=关闭'
+      description: '恢复匹配半径倍率 (≥1)：正常匹配未命中时放宽到 match_radius×本值再匹配一次，抗检测跳动引起的锚点跳变（常态相邻目标不受影响）。2026-08-13 真机实测：拍照位姿(0.66m)与环绕视点(0.28m)对同一颗桃的世界系锚点相差 15.7cm，欧氏 2.0(12cm) 不够会每帧发新 ID、3.5(21cm) 才稳；马氏门控下本值只膨胀 Σ，默认 1.0 避免旧 21cm 欧氏恢复半径误合并'
       validation: { gt_eq<>: [1.0] }
     confirm_frames:
       type: int
@@ -273,7 +273,7 @@ peach_scene_perception_node:
     max_collect_s:
       type: double
       default_value: 25.0
-      description: '收齐窗口最长时长 (s)：超时强制关闭窗口兜底（空集也锁定，target_count=0）'
+      description: '收齐窗口最长时长 (s) 配置基准：运行期按实测帧间隔 EMA 自适应为 (min_collect+settle+3)×帧间隔（帧率以运行状态为准），下限为本值×0.4——低帧率自动放大防误锁空集、高帧率收紧提速；超时强制关闭窗口兜底（空集也锁定，target_count=0）'
       validation: { gt<>: [0.0] }
     priority_prefer_lower_first:
       type: bool

@@ -23,7 +23,7 @@
 
 ## 技术
 
-C++17；参数走 yaml + `generate_parameter_library` / `declare_parameter`。采摘 ROS 包四个，作用不得串（详细：[docs/architecture.md](docs/architecture.md) §3）：
+C++17；参数走 yaml + `generate_parameter_library`（GPL 声明 yaml=默认/校验/描述单一事实源；同名运行 yaml 只写部署覆盖；规约见 docs/architecture.md「参数分层」）。采摘 ROS 包四个，作用不得串（详细：[docs/architecture.md](docs/architecture.md) §3）：
 
 - `peach_interfaces`：跨包唯一 IDL，不跑节点
 - `peach_perception`：视觉算法（两节点：看场景 + 建当前目标），不发运动、不选下一颗、不写账本；积分不用 latest TF；球只作袋内果实包络先验。单实现直接构造；仅袋/果管线与柱/球 refitter 留 yaml `*.impl` 映射。

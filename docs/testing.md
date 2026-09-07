@@ -107,7 +107,7 @@ ros2 service call /peach_executor/control peach_interfaces/srv/ControlTask \
   "{command: 6, expected_state_seq: 0}"
 ```
 
-打开真运动须同时改调度 `execution_enabled` 与技能 `execution.enabled`，并经人工授权。到预抓取还须 `grasp.enabled=true`、`tool.enabled=false`。调度侧用 `ros2 param set` 即可（开批与 `HarvestState` 会刷新 ParamListener 快照）；不要改仓库 yaml 默认。
+打开真运动须同时改调度 `execution_enabled` 与技能 `execution.enabled`，并经人工授权。到预抓取还须 `grasp.enabled=true`、`tool.enabled=false`。调度侧用 `ros2 param set` 即可（开批与 `HarvestState` 会刷新快照）；技能侧 `ros2 param set` 空闲态全量生效、运行中拒改（execution→grasp→tool 依赖链由节点校验）。调参分层：改默认值改 `config/*_parameters.yaml`（GPL 单一事实源，须重编）；固化部署覆盖写同名 `config/<节点>.yaml`（只写与默认不同的键）；运行期临时改参用 `ros2 param set`。
 
 ---
 

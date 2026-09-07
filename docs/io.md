@@ -199,7 +199,7 @@ flowchart TB
 - 跟踪 token：OUT_OF_VIEW / LOST / OCCLUDED / DEPTH_VOID / OBSERVED。
 - 锁定：`CollectLockPolicy`；`tf_stale` / `tf_unavailable` / `target_swinging` 不可选。锁定后新 ID 不入集。
 
-作业参数（声明 `config/scene_perception_parameters.yaml`，运行 `config/scene_perception.yaml`）：
+作业参数（默认值/校验/描述权威在 `config/scene_perception_parameters.yaml`；运行 yaml 只写部署覆盖，现状为空）：
 
 | 参数 | 含义 |
 |------|------|
@@ -287,7 +287,7 @@ flowchart TB
 
 `allowed=true` 之后仍可能 `skipped_quality`（再确认/预抓取残差）或 `skipped_unreachable`（MTC 护栏）。心跳里大量 `not_ready` 不等于精化从未 ACCEPT；看逐目标 max，不要看收工 IDLE。
 
-作业参数（声明 `config/target_reconstruction_parameters.yaml`，运行 `config/target_reconstruction.yaml`）：
+作业参数（默认值/校验/描述权威在 `config/target_reconstruction_parameters.yaml`；运行 yaml 只写部署覆盖，现状为空）：
 
 | 参数 | 含义 |
 |------|------|
@@ -365,7 +365,7 @@ flowchart TB
 
 默认 `execution/grasp/tool=false`：只规划、不接触、不 SetIO。
 
-作业参数（声明 `config/manipulation_parameters.yaml`，运行 `config/peach_manipulation.yaml`）：
+作业参数（默认值/校验/描述权威在 `config/manipulation_parameters.yaml`；运行 yaml 只写部署覆盖，现状为空）：
 
 | 参数 | 含义 |
 |------|------|
@@ -432,7 +432,7 @@ flowchart TB
 
 客户端（仅本节点）：`BeginScene`、`SurveyScene`、`BuildTargetModel`（与 OBSERVE_ONLY 并行）、`ExecuteTarget`、`CheckReachability`。账本：`runs/<request_id>/ledger.json`。
 
-作业参数（声明 `config/executor_parameters.yaml`，运行 `config/peach_executor.yaml`）：
+作业参数（默认值/校验/描述权威在 `config/executor_parameters.yaml`；运行 yaml 只写部署覆盖，现状为空）：
 
 | 参数 | 含义 |
 |------|------|

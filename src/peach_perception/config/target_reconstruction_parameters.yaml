@@ -1,7 +1,7 @@
 # peach_target_reconstruction_node 参数定义（generate_parameter_library_py 单一事实源）。
 # 声明 / 类型 / 默认值 / 描述 / 校验全部在本文件；根键 = 节点名 = 参数库约定。
-# 运行期由 launch 传 config/target_reconstruction.yaml（含 ros__parameters 的运行时键值），
-# 两边默认值逐项对齐（与 C++ 技能包 config/manipulation_parameters.yaml 同理）。
+# 运行期 launch 传 config/target_reconstruction.yaml——该文件只写部署覆盖（键值≠默认才写）。
+# 跨包轴向后撤 refit.*_standoff_m 由 grasp_standoffs.yaml 注入，不落两处。
 # 嵌套组展开出点号参数名：capture.min_views / icp.voxel_length / refit.enable 等。
 peach_target_reconstruction_node:
   frames:
@@ -117,7 +117,7 @@ peach_target_reconstruction_node:
     min_neighbor_gap_m:
       type: double
       default_value: 0.15
-      description: '[m] 绑定锚点与其他锁定目标锚点的最小间距（邻目标串扰门）；≤0 关闭本门'
+      description: '[m] 绑定锚点与其他锁定目标锚点的最小间距（邻目标串扰门）：更近的邻居锚点在场时拒帧，防邻近点云混入形成 TSDF 不可回滚双层表面（I6）；≤0 关闭本门'
     neighbor_gap_area_ratio:
       type: double
       default_value: 2.0
@@ -232,7 +232,7 @@ peach_target_reconstruction_node:
     target_refresh_drift_ratio:
       type: double
       default_value: 0.5
-      description: '漂移判定比：修正量 EMA ≥ max_translation×本值 → k 收回下限；≤ 1/4×该阈值 → k 拉长到上限'
+      description: '漂移判定比：修正量 EMA ≥ max_translation×本值（或出现 fk 回退/拒帧）→ k 收回下限；≤ 1/4×该阈值 → k 拉长到上限；中间为迟滞保持带防抖，新会话无修正量证据前 k=下限（逐帧全量）'
       validation: { gt<>: [0.0] }
   local_volume:
     size_x:

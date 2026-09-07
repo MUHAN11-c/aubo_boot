@@ -1,24 +1,15 @@
+# 批次调度运行参数
+#
+# 分层口径：声明/类型/默认值/校验/中文描述的单一事实源是
+# config/executor_parameters.yaml（generate_parameter_library_py，
+# `ros2 param describe /peach_executor <键>` 可查）。
+# 本文件只写「部署覆盖」：键值与默认不同才需要写在这里。
+# 运行期临时改参用 `ros2 param set`（execution_enabled / execute_pregrasp_only
+# 在下次开批与 HarvestState 发布时刷新；require_managed_stack 由整栈
+# launch 注入，不要在本文件写）。
 peach_executor:
   ros__parameters:
-    execution_enabled: false
-    survey_wait_s: 15.0
-    survey_dwell_s: 2.0
-    service_timeout_s: 30.0
-    action_timeout_s: 180.0
-    empty_survey_limit: 2
-    persist_ledger: true
-    reconstruction_min_views: 2
-    build_start_timeout_s: 2.0
-    observe_build_grace_s: 3.0
-    begin_scene_service: /peach_scene_perception_node/begin_scene
-    survey_scene_action: /peach_manipulation_node/survey_scene
-    execute_target_action: /peach_manipulation_node/execute_target
-    build_target_model_action: /peach_target_reconstruction_node/build_target_model
-    execute_pregrasp_only: true
-    # 选果：CheckReachability 把入口换成停位几何再 IK；服务不可用回退半径窗
-    # 回退窗标定：预抓取成功 0.830–0.840 / 失败 ≥0.917
-    selection_reach_min_m: 0.15
-    selection_reach_max_m: 0.88
-    selection_depth_min_m: 0.30
-    selection_depth_max_m: 1.60
-    check_reachability_service: /peach_manipulation_node/check_reachability
+    # ── 部署覆盖（当前为空 = 全部用 GPL 默认）────────────────
+    # 示例（去掉注释即生效）：
+    # empty_survey_limit: 3        # 场景目标稀疏时放宽连续空扫上限
+    # survey_wait_s: 20.0          # 慢链路/低帧率时放宽等锁上限

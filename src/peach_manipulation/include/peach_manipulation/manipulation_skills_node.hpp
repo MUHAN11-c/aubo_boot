@@ -396,7 +396,8 @@ private:
   CallbackTimingRegistry callback_timing_;
   rclcpp_lifecycle::LifecyclePublisher<visualization_msgs::msg::MarkerArray>::SharedPtr
     marker_pub_;
-  rclcpp::Publisher<peach_interfaces::msg::GraspHypothesis>::SharedPtr
+  // 与 status/markers 一样走 LifecyclePublisher：Active 才发，Inactive 空操作。
+  rclcpp_lifecycle::LifecyclePublisher<peach_interfaces::msg::GraspHypothesis>::SharedPtr
     grasp_hyp_pub_;
   rclcpp::Service<Trigger>::SharedPtr preview_approach_service_;
   rclcpp::Service<Trigger>::SharedPtr preview_full_contact_service_;

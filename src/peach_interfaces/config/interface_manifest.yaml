@@ -9,19 +9,19 @@ interfaces:
     type: peach_interfaces/msg/HarvestState
     qos: {reliability: reliable, durability: transient_local, depth: 1}
     producers: [peach_executor]
-    consumers: [peach_executor, peach_scene_perception, peach_target_reconstruction]
+    consumers: [peach_executor, peach_scene_perception, peach_target_reconstruction, peach_observability]
   - name: /peach_executor/events
     kind: topic
     type: peach_interfaces/msg/CanonicalEvent
     qos: {reliability: reliable, durability: transient_local, depth: 50}
     producers: [peach_executor]
-    consumers: [peach_executor]
+    consumers: [peach_observability]
   - name: /peach_executor/scene_snapshot
     kind: topic
     type: peach_interfaces/msg/SceneSnapshot
     qos: {reliability: reliable, durability: transient_local, depth: 1}
     producers: [peach_executor]
-    consumers: [peach_executor]
+    consumers: []
   - name: /peach_executor/run_harvest
     kind: action
     type: peach_interfaces/action/RunHarvest
@@ -37,18 +37,18 @@ interfaces:
     type: peach_interfaces/msg/PeachTargetObservationArray
     qos: {reliability: reliable, durability: volatile, depth: 10}
     producers: [peach_scene_perception]
-    consumers: [peach_executor, peach_target_reconstruction, peach_manipulation]
+    consumers: [peach_executor, peach_target_reconstruction, peach_manipulation, peach_observability]
   - name: /peach/perception/initial_pose
     kind: topic
     type: peach_interfaces/msg/BagGraspCandidateArray
     qos: {reliability: reliable, durability: transient_local, depth: 1}
     producers: [peach_scene_perception]
-    consumers: [peach_target_reconstruction, peach_executor]
+    consumers: [peach_target_reconstruction]
   - name: /peach/perception/diagnostics
     kind: topic
     type: peach_interfaces/msg/BagFittingArray
     producers: [peach_scene_perception]
-    consumers: [peach_target_reconstruction, peach_executor]
+    consumers: [peach_target_reconstruction]
   - name: /peach/perception/harvest_state
     kind: topic
     type: std_msgs/msg/String
@@ -66,7 +66,7 @@ interfaces:
     type: peach_interfaces/msg/ReconstructionStatus
     qos: {reliability: reliable, durability: transient_local, depth: 1}
     producers: [peach_target_reconstruction]
-    consumers: [peach_manipulation, peach_executor, peach_observability]
+    consumers: [peach_manipulation, peach_observability]
   - name: /peach/reconstruction/diagnostics_debug
     kind: topic
     type: std_msgs/msg/String
@@ -84,7 +84,7 @@ interfaces:
     type: peach_interfaces/msg/GraspDecision
     qos: {reliability: reliable, durability: transient_local, depth: 1}
     producers: [peach_target_reconstruction]
-    consumers: [peach_manipulation, peach_executor]
+    consumers: [peach_manipulation, peach_observability]
   - name: /peach/reconstruction/pregrasp_verification
     kind: topic
     type: peach_interfaces/msg/PregraspVerification
@@ -96,7 +96,7 @@ interfaces:
     type: peach_interfaces/msg/BagGraspCandidateArray
     qos: {reliability: reliable, durability: transient_local, depth: 1}
     producers: [peach_target_reconstruction]
-    consumers: [peach_manipulation, peach_executor]
+    consumers: [peach_manipulation, peach_observability]
   - name: /peach/reconstruction/refined_axis
     kind: topic
     type: geometry_msgs/msg/Vector3Stamped
@@ -114,7 +114,7 @@ interfaces:
     type: sensor_msgs/msg/PointCloud2
     qos: {reliability: reliable, durability: transient_local, depth: 1}
     producers: [peach_target_reconstruction]
-    consumers: [peach_executor, peach_observability]
+    consumers: [peach_observability]
   - name: /peach/reconstruction/markers
     kind: topic
     type: visualization_msgs/msg/MarkerArray
@@ -126,7 +126,7 @@ interfaces:
     type: peach_interfaces/msg/ShapeHypothesis
     qos: {reliability: reliable, durability: transient_local, depth: 1}
     producers: [peach_target_reconstruction]
-    consumers: [peach_executor]
+    consumers: []
   - name: /peach/manipulation/grasp_hypothesis
     kind: topic
     type: peach_interfaces/msg/GraspHypothesis

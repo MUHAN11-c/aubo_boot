@@ -11,9 +11,9 @@
 每帧只按 depth.header.stamp 查 base←camera TF；失败跳帧，禁止运动中使用
 latest TF。当前帧先由 FK 变到 base 系，再与已有 TSDF 表面做有界 ICP；
 ICP 只修正小刚性误差，越界或低质量帧不进入不可回滚的 TSDF。
-E4 效率项（协议 2.13-E4）：ICP target 经 icp_target_cache.IcpTargetCache
+E4 效率项（协议 2.13-E4）：ICP target 经 integrate.IcpTargetCache
 增量复用（每 k 帧自适应或关键事件才从 TSDF 全量 extract）；发布面
-local_cloud/tsdf_cloud/markers 经 publish_throttle.PublishThrottle
+local_cloud/tsdf_cloud/markers 经 publish.PublishThrottle
 on-change + 最小间隔节流（心跳/状态/诊断 1Hz 活性发布不动）.
 
 线程模型：节点级 RLock 保护 collector/TSDF/产物（worker 与 executor 线程
@@ -597,7 +597,13 @@ class TargetReconstructionNode(
             depth_raw = self.bridge.imgmsg_to_cv2(
                 depth_msg, desired_encoding='passthrough')
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().warning(f'图像解码失败，丢帧: {exc}')
+            rgb_stamp = rgb_msg.header.stamp
+            depth_stamp = depth_msg.header.stamp
+            self.get_logger().warning(
+                f'图像解码失败，丢帧 rgb_frame={rgb_msg.header.frame_id} '
+                f'rgb_stamp={rgb_stamp.sec}.{rgb_stamp.nanosec:09d} '
+                f'depth_frame={depth_msg.header.frame_id} '
+                f'depth_stamp={depth_stamp.sec}.{depth_stamp.nanosec:09d}: {exc}')
             return
         # uint16：raw × depth_scale_unit = 毫米；32FC1：米 ×1000 = 毫米
         try:

@@ -68,6 +68,9 @@ if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   set(ament_cmake_copyright_FOUND TRUE)  # 文件头 BSD 等项目结束再补
   ament_lint_auto_find_test_dependencies()
+  add_test(
+    NAME check_interface_manifest
+    COMMAND python3 "${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_interface_manifest.py")
 endif()
 
 ament_package()

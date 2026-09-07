@@ -5,8 +5,8 @@ import threading
 
 from lifecycle_msgs.msg import State, Transition
 from lifecycle_msgs.srv import ChangeState, GetState
+from peach_executor.lifecycle_manager_parameters import peach_lifecycle_manager
 from peach_interfaces.srv import ManageLifecycleNodes
-from rcl_interfaces.msg import ParameterDescriptor
 import rclpy
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
@@ -27,21 +27,8 @@ class LifecycleManagerNode(Node):
 
     def __init__(self):
         super().__init__('peach_lifecycle_manager')
-        # 感知 → 重建 → 技能 → 执行器（与 config/lifecycle_manager.yaml 默认一致）
-        self.declare_parameter(
-            'node_names', [
-                'peach_scene_perception_node',
-                'peach_target_reconstruction_node',
-                'peach_manipulation_node',
-                'peach_executor',
-            ],
-            ParameterDescriptor(
-                description='有序 configure/activate 的节点名单；'
-                            'observability 不进名单（自行 configure/activate）'))
-        self.declare_parameter(
-            'startup_timeout_s', 60.0,
-            ParameterDescriptor(
-                description='单次状态转换等待上限 (s)'))
+        # GPL 声明/默认值/校验单一事实源：config/lifecycle_manager_parameters.yaml
+        self._param_listener = peach_lifecycle_manager.ParamListener(self)
         latched = QoSProfile(
             history=HistoryPolicy.KEEP_LAST, depth=1,
             reliability=ReliabilityPolicy.RELIABLE,
@@ -58,6 +45,10 @@ class LifecycleManagerNode(Node):
             callback_group=self._cb)
         self._timer = self.create_timer(0.2, self._kick, callback_group=self._cb)
 
+    def _snapshot(self):
+        """当前 GPL 参数快照（名单与超时）."""
+        return self._param_listener.get_params()
+
     def _kick(self):
         # 离开定时器回调再阻塞 RPC，避免卡住默认 executor
         self.destroy_timer(self._timer)
@@ -65,24 +56,24 @@ class LifecycleManagerNode(Node):
 
     def _on_manage(self, request, response):
         """整栈生命周期命令；与批次 ControlTask 不是同一层."""
-        timeout = float(self.get_parameter('startup_timeout_s').value)
+        timeout = float(self._snapshot().startup_timeout_s)
         ok, message = self._run_command(int(request.command), timeout)
         response.success = ok
         response.message = message
         return response
 
     def _startup(self):
-        timeout = float(self.get_parameter('startup_timeout_s').value)
+        timeout = float(self._snapshot().startup_timeout_s)
         ok, message = self._run_command(
             ManageLifecycleNodes.Request.STARTUP, timeout)
         if ok:
             self.get_logger().info(
                 'managed nodes Active（仍须显式 RunHarvest）')
         else:
-            self.get_logger().error(f'lifecycle startup failed: {message}')
+            self.get_logger().error(f'lifecycle 启动失败: {message}')
 
     def _run_command(self, command: int, timeout: float) -> tuple[bool, str]:
-        names = list(self.get_parameter('node_names').value)
+        names = list(self._snapshot().node_names)
         reverse = list(reversed(names))
         with self._lock:
             if command == ManageLifecycleNodes.Request.STARTUP:

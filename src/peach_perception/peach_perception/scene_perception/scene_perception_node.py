@@ -114,8 +114,8 @@ from tf2_ros import Buffer, TransformException, TransformListener
 from vision_msgs.msg import Detection2DArray
 from visualization_msgs.msg import Marker, MarkerArray
 
-# 跟踪状态四分类 token → msg 常量（阶段 D1；分类纯函数在纯核
-# observation_quality，零 ROS import，msg 常量只能在本层映射）
+# 跟踪状态四分类 token → msg 常量（阶段 D1；分类纯函数在
+# assignment.classify_tracking_status，msg 常量只能在本层映射）
 _TRACKING_STATUS_TO_MSG = {
     STATUS_OBSERVED: PeachTargetObservation.OBSERVED,
     STATUS_OCCLUDED: PeachTargetObservation.OCCLUDED,
@@ -656,7 +656,7 @@ class ScenePerceptionNode(LifecycleNode):
                 payload = payloads.get(target_id)
                 record = current.get(target_id, {})
                 # 跟踪状态四分类（阶段 D1，协议 2.4 第 4 条）：分类纯函数
-                # 在 observation_quality，本处只做 token → msg 常量映射
+                # 在 assignment.classify_tracking_status，本处只做 token → msg 映射
                 token = classify_tracking_status(
                     has_observation=payload is not None,
                     has_mask=(payload is not None
@@ -797,8 +797,7 @@ class ScenePerceptionNode(LifecycleNode):
 
         锁定前/开关关/TF 不可用帧全量（旧行为）；锁定后把锁定且未终局目标
         的世界系记忆锚点（TargetRegistry 表项 position）经 T_out_cam 逆变换
-        反投影到本帧像素，只分割「包含锚点投影」的检测框（纯核策略见
-        scene/segmentation_gate.py，重叠框宁多勿漏）。已终局
+        反投影到本帧像素，只分割「包含锚点投影」的检测框（重叠框宁多勿漏）。已终局
         （completed）目标不再分割：账目已定，掩膜不再进任何判定。
         分割失败的锁定目标在下游被显式判 OCCLUDED + mask_unavailable，
         几何走深度带降级——不漏报、不静默。
@@ -858,7 +857,10 @@ class ScenePerceptionNode(LifecycleNode):
         try:
             rgb = self.bridge.imgmsg_to_cv2(rgb_msg, desired_encoding='bgr8')
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().warning(f'RGB convert failed: {exc}')
+            stamp = rgb_msg.header.stamp
+            self.get_logger().warning(
+                f'RGB 转码失败 frame={rgb_msg.header.frame_id} '
+                f'stamp={stamp.sec}.{stamp.nanosec:09d}: {exc}')
             return None
         try:
             depth_raw = self.bridge.imgmsg_to_cv2(
@@ -866,11 +868,16 @@ class ScenePerceptionNode(LifecycleNode):
             depth = normalize_depth_to_uint16_mm(
                 depth_raw, self.params.depth_scale_unit)
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().warning(f'Depth convert failed: {exc}')
+            stamp = depth_msg.header.stamp
+            self.get_logger().warning(
+                f'深度转码失败 frame={depth_msg.header.frame_id} '
+                f'stamp={stamp.sec}.{stamp.nanosec:09d}: {exc}')
             return None
         if rgb.shape[:2] != depth.shape[:2]:
             self.get_logger().warning(
-                f'RGB/depth size mismatch {rgb.shape[:2]} vs {depth.shape[:2]}')
+                f'RGB/深度分辨率不一致 {rgb.shape[:2]} vs {depth.shape[:2]} '
+                f'rgb_frame={rgb_msg.header.frame_id} '
+                f'depth_frame={depth_msg.header.frame_id}')
             return None
         if info.width and info.height and (
                 int(info.width) != depth.shape[1]

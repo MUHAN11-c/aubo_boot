@@ -110,6 +110,7 @@ CallbackReturn ManipulationSkillsNode::on_activate(const rclcpp_lifecycle::State
   motion_output_permitted_.store(true);
   status_pub_->on_activate();
   marker_pub_->on_activate();
+  grasp_hyp_pub_->on_activate();
   RCLCPP_INFO(get_logger(), "节点已激活：运动输出权限开放");
   publishState();
   return CallbackReturn::SUCCESS;
@@ -123,6 +124,7 @@ CallbackReturn ManipulationSkillsNode::on_deactivate(const rclcpp_lifecycle::Sta
   setState(CycleState::IDLE, "节点已停用：运动输出权限关闭，活动周期已按取消路径终止");
   status_pub_->on_deactivate();
   marker_pub_->on_deactivate();
+  grasp_hyp_pub_->on_deactivate();
   return CallbackReturn::SUCCESS;
 }
 

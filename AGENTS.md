@@ -19,7 +19,7 @@
 
 怎么跑、命名、验收门：[docs/testing.md](docs/testing.md)。真机/审查轮次：[docs/testing-log.md](docs/testing-log.md)（只追加，不驱动现行设计）。
 
-各包 `test/` 只保留 ROS 2 默认 lint（Python：`test_flake8.py` / `test_pep257.py`；CMake：`ament_lint_auto`）。不要写业务用例、gtest、DDS 假现场或 launch_testing。语法与流程由审查核对，对错以实机为准。
+各包 `test/` 保留 ROS 2 默认 lint（Python：`test_flake8.py` / `test_pep257.py`；CMake：`ament_lint_auto`），并允许**零 ROS 纯核 pytest**（不 import rclpy / 不造 DDS 现场）。不要写业务用例、gtest、DDS 假现场、launch_testing 或采摘仿真测。语法与流程由审查核对，对错以实机为准。
 
 ## 技术
 

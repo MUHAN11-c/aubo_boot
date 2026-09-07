@@ -1,0 +1,20 @@
+# peach_lifecycle_manager 参数定义（generate_parameter_library_py 单一事实源）：
+# 声明/类型/默认值/校验/中文描述全在本文件；运行期 launch 传
+# config/lifecycle_manager.yaml——该文件只写部署覆盖（键值≠默认才写）。
+peach_lifecycle_manager:
+  node_names: {
+    type: string_array,
+    default_value: [
+      "peach_scene_perception_node",
+      "peach_target_reconstruction_node",
+      "peach_manipulation_node",
+      "peach_executor",
+    ],
+    description: "有序 configure/activate 的节点名单；observability 不进名单（自行 configure/activate）。拆除逆序。"
+  }
+  startup_timeout_s: {
+    type: double,
+    default_value: 60.0,
+    description: "单次生命周期状态转换等待上限 (s)。",
+    validation: { gt<>: [0.0] }
+  }

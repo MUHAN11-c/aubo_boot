@@ -8,7 +8,7 @@ from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
-    """构造管理器节点；名单与超时在 config/lifecycle_manager.yaml."""
+    """构造管理器节点；GPL 默认在 lifecycle_manager_parameters.yaml，本文件只加载运行覆盖."""
     params = PathJoinSubstitution([
         FindPackageShare('peach_executor'),
         'config', 'lifecycle_manager.yaml'])

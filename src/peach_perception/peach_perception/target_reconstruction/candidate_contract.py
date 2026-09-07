@@ -1,0 +1,116 @@
+from __future__ import annotations
+"""精化：柱/球 refit 与候选契约。"""
+
+
+import numpy as np
+from peach_perception.common.geometry import unit_vector
+
+_STATUS_ACCEPT = 0
+_STATUS_REJECT = 2
+_BLOCKING_CANDIDATE_FLAGS = frozenset({
+    'tf_stale', 'tf_unavailable', 'target_untracked',
+})
+
+
+def select_reconstruction_candidate(
+        msg, base_frame: str, preferred_target_id: str = ''):
+    """
+    选择可安全用于重建的候选，并返回 (target_id, center_base).
+
+    ``preferred_target_id`` 非空时是身份硬约束：只允许返回该 ID，不能因
+    其他目标质量更高而静默换目标。重建同时消费 selected ID 的掩膜，因此
+    ID 软排序会把一个目标的掩膜与另一个目标的身份/ROI 混在同一 session。
+    """
+    if msg is None or not msg.candidates:
+        return '', None
+    if msg.header.frame_id != base_frame:
+        return '', None
+    eligible = []
+    for cand in msg.candidates:
+        candidate_frame = cand.header.frame_id or msg.header.frame_id
+        flags = set(cand.diagnostic_flags)
+        if candidate_frame != base_frame:
+            continue
+        if flags & _BLOCKING_CANDIDATE_FLAGS:
+            continue
+        eligible.append(cand)
+    if preferred_target_id:
+        eligible = [cand for cand in eligible
+                    if cand.target_id == preferred_target_id]
+    best = next(
+        (cand for cand in eligible if cand.status == _STATUS_ACCEPT), None)
+    if best is None:
+        best = next(
+            (cand for cand in eligible if cand.status != _STATUS_REJECT), None)
+    if best is None:
+        return '', None
+    bottom = np.array([best.bag_bottom.x, best.bag_bottom.y,
+                       best.bag_bottom.z], dtype=np.float64)
+    neck = np.array([best.bag_neck.x, best.bag_neck.y,
+                     best.bag_neck.z], dtype=np.float64)
+    if not np.all(np.isfinite(bottom)) or not np.all(np.isfinite(neck)):
+        return '', None
+    center = 0.5 * (bottom + neck)
+    if not np.any(center):
+        center = bottom if np.any(bottom) else neck
+    if not np.any(center):
+        center = None
+    return best.target_id, center
+
+
+# 边界注：本文件 axis_from_vector3 / axis_angle_deg / _normalize_axis_hint
+# 原实现按 norm <= 1.0e-9 判废，收敛到共享 unit_vector 后统一为 < 1e-9——
+# 恰等于 1e-9 的输入为浮点测度零边界（旧拒/新收一个单位向量），工程上
+# 不可观测，按多数实现口径（<）统一。
+def axis_from_vector3(direction):
+    """geometry_msgs/Vector3 → 有限单位轴；缺失或退化时返回 None."""
+    if direction is None:
+        return None
+    return unit_vector([direction.x, direction.y, direction.z])
+
+
+def candidate_axis_hint(msg, target_id: str):
+    """读取已绑定候选的有限单位轴；缺失或退化时返回 None."""
+    if msg is None or not target_id:
+        return None
+    candidate = next(
+        (item for item in msg.candidates if item.target_id == target_id), None)
+    if candidate is None:
+        return None
+    return axis_from_vector3(candidate.translation_direction)
+
+
+class TargetKindMemory:
+    """保存最新类别映射，并在目标离场后保持本轮绑定类别."""
+
+    def __init__(self):
+        """初始化为空映射和未绑定状态."""
+        self.latest = {}
+        self.bound_target_id = ''
+        self.bound_kind = ''
+
+    def update(self, fittings) -> None:
+        """用当前感知帧更新类别，并刷新已绑定目标的类别."""
+        self.latest = {
+            fitting.target_id: fitting.target_kind
+            for fitting in fittings if fitting.target_id
+        }
+        if self.bound_target_id in self.latest:
+            self.bound_kind = self.latest[self.bound_target_id]
+
+    def bind(self, target_id: str) -> None:
+        """开始一轮重建时绑定目标及其当前类别."""
+        self.bound_target_id = target_id or ''
+        self.bound_kind = self.latest.get(self.bound_target_id, '')
+
+    def reset(self) -> None:
+        """结束当前绑定；最新感知映射保留给下一轮启动."""
+        self.bound_target_id = ''
+        self.bound_kind = ''
+
+    def resolve(self):
+        """返回规范化类别及是否发生缺省."""
+        kind = self.bound_kind or self.latest.get(self.bound_target_id, '')
+        if not kind:
+            return 'bag', True
+        return ('fruit' if kind == 'fruit' else 'bag'), False

@@ -151,7 +151,7 @@ def assign_detections(
     return results
 
 
-# === 观测质量（observation_quality.py） ===
+# 跟踪状态分类（原 observation_quality 段，现与匈牙利分配同文件）
 
 # 跟踪状态 token：节点映射到 PeachTargetObservation.msg 同名常量
 STATUS_OBSERVED = 'OBSERVED'

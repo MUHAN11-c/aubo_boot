@@ -1,7 +1,11 @@
 "use strict";
 
+// 采摘流程驾驶舱前端：/api/state（1s）+ /api/trajectory（0.4s）轮询渲染；
+// 手动调试操作面（决策 0013）为既有动作/服务的纯转发客户端。
+// 后端契约：/api/state 区段见 docs/io.md §5.3；调试端点见 config/observability_parameters.yaml。
+
 const $ = (id) => document.getElementById(id);
-const numeric = (value) => value !== null && value !== undefined && value !== '' &&
+const numeric = (value) => value !== null && value !== undefined && value !== "" &&
   Number.isFinite(Number(value));
 const fmt = (value, digits = 3, suffix = "") => numeric(value)
   ? `${Number(value).toFixed(digits)}${suffix}` : "—";
@@ -9,13 +13,15 @@ const percent = (value) => numeric(value) ? `${(Number(value) * 100).toFixed(1)}
 const safe = (value) => String(value ?? "—").replace(/[&<>"']/g, (char) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
 })[char]);
-const setText = (id, value) => { $(id).textContent = value ?? "—"; };
+const setText = (id, value) => { const el = $(id); if (el) el.textContent = value ?? "—"; };
 
-// 枚举映射与 peach_interfaces/HarvestState.msg 常量一致（2026-08 删除 FAULT）
+// 枚举映射与 peach_interfaces/HarvestState.msg 常量一致
 const batchNames = ["等待就绪", "发现目标", "运行中", "等待安全暂停点", "已暂停", "维护模式", "已完成", "需要恢复", "已中断"];
 const phaseNames = ["空闲", "选择目标", "观测中", "完成观测", "质量校验", "靠近中", "工具动作", "撤退中", "收尾中", "目标成功", "目标跳过", "目标失败"];
 const modeNames = ["自动", "已暂停", "维护"];
 const pipelineClass = ["done", "active", "alert", "gated", "failed", "skipped"];
+
+// ── 批次流程 ────────────────────────────────────────────────
 
 function renderPipeline(job, state) {
   const byId = {};
@@ -34,7 +40,7 @@ function renderPipeline(job, state) {
   });
 }
 
-// 复扫轮次：从最近一条 round_started/round_completed 事件文本解析“第N轮”。
+// 复扫轮次：从最近一条 round_started/round_completed 事件文本解析「第N轮」。
 function renderRoundBadge(events) {
   const badge = $("round-badge");
   let round = null;
@@ -50,7 +56,7 @@ function renderRoundBadge(events) {
   badge.hidden = false;
 }
 
-// 阶段耗时跟踪：阶段/周期/目标任一变化即结算上阶段耗时；records 按周期存明细。
+// 阶段耗时跟踪：阶段/周期/目标任一变化即结算上阶段耗时。
 let phaseTrack = {key: "", cycleKey: "", phase: -1, since: 0, records: []};
 function trackPhaseDurations(state) {
   const phase = Number(state.target_phase ?? 0);
@@ -119,9 +125,6 @@ function renderTicket(job) {
     ["抓取进入", coords.grasp_entry, grasp.allowed
       ? "接触许可几何"
       : (coords.grasp_entry ? "预抓取几何（接触未许可）" : "无融合几何")],
-    ["技能假设", coords.hypothesis_entry,
-      numeric(coords.hypothesis_travel_m)
-        ? `行程 ${Number(coords.hypothesis_travel_m).toFixed(3)} m` : "FULL 接触前发布"],
   ];
   const hasAny = rows.some(([, xyz]) => Array.isArray(xyz));
   $("coord-body").innerHTML = hasAny
@@ -140,6 +143,21 @@ function renderTicket(job) {
     numeric(grasp.inlier_ratio) ? `内点 ${(Number(grasp.inlier_ratio) * 100).toFixed(0)}%` : null,
   ].filter(Boolean);
   $("ticket-metrics").innerHTML = metrics.map((text) => `<span>${safe(text)}</span>`).join("");
+}
+
+function renderEvents(events) {
+  setText("event-count", `${events.length} 条`);
+  if (!events.length) {
+    $("event-list").innerHTML = '<p class="empty">等待调度事件</p>';
+    return;
+  }
+  $("event-list").innerHTML = events.slice().reverse().map((ev) => {
+    const time = numeric(ev.stamp) && ev.stamp > 0
+      ? new Date(ev.stamp * 1000).toLocaleTimeString("zh-CN", {hour12: false}) : "--:--:--";
+    const severity = numeric(ev.severity) ? Number(ev.severity) : 0;
+    const target = ev.target_id ? `<span class="target">[${safe(ev.target_id)}]</span>` : "";
+    return `<div class="event-item sev-${severity}"><time>${time}</time><i class="dot" title="${safe(ev.severity_name)}"></i><div class="body"><span class="code">${safe(ev.code)}</span>${target}<p>${safe(ev.message)}</p></div></div>`;
+  }).join("");
 }
 
 function renderFlow(taskExecutor, job) {
@@ -165,24 +183,8 @@ function renderFlow(taskExecutor, job) {
   renderEvents(events);
 }
 
-function renderEvents(events) {
-  setText("event-count", `${events.length} 条`);
-  if (!events.length) {
-    $("event-list").innerHTML = '<p class="empty">等待调度事件</p>';
-    return;
-  }
-  $("event-list").innerHTML = events.slice().reverse().map((ev) => {
-    const time = numeric(ev.stamp) && ev.stamp > 0
-      ? new Date(ev.stamp * 1000).toLocaleTimeString("zh-CN", {hour12: false}) : "--:--:--";
-    const severity = numeric(ev.severity) ? Number(ev.severity) : 0;
-    const target = ev.target_id ? `<span class="target">[${safe(ev.target_id)}]</span>` : "";
-    return `<div class="event-item sev-${severity}"><time>${time}</time><i class="dot" title="${safe(ev.severity_name)}"></i><div class="body"><span class="code">${safe(ev.code)}</span>${target}<p>${safe(ev.message)}</p></div></div>`;
-  }).join("");
-}
+// ── 目标与选果 ──────────────────────────────────────────────
 
-// 采摘/跟踪状态徽标配色（token 与 codec._TRACKING_NAMES 一致；
-// OUT_OF_VIEW=出画（复扫无益，视同不可恢复）标红，DEPTH_VOID=深度空洞
-// （质量类，可能随视角恢复）标黄）
 const harvestChip = {HARVESTED: "ok", WAITING_QUALITY: "warn", SELECTED: "ok", PLANNED: ""};
 const trackingChip = {
   OBSERVED: "ok", OCCLUDED: "warn", LOST: "err", INVALID: "err",
@@ -198,22 +200,13 @@ function renderPlan(perception, taskExecutor) {
   const harvested = observations.filter((item) => item.harvest_status === "HARVESTED");
   const pending = observations.filter((item) =>
     item.harvest_status === "PLANNED" || item.harvest_status === "WAITING_QUALITY");
-  setText("plan-total", targets.target_count ?? harvest.target_count ?? observations.length);
-  setText("plan-harvested", harvested.length || (harvest.completed_target_ids || []).length);
-  setText("plan-pending", pending.length);
-  setText("plan-selected", state.target_id || targets.selected_target_id || "—");
   setText("run-id", targets.harvest_run_id || harvest.harvest_run_id || state.run_id || "等待批次");
-
-  const policies = [
-    ["auto_start_enabled", "自动开始"],
-    ["execution_enabled", "执行"],
-    ["grasp_enabled", "抓取"],
-    ["tool_enabled", "工具"],
-  ];
-  $("policy-badges").innerHTML = policies.map(([key, label]) => {
-    const on = state[key] === true;
-    return `<span class="badge ${on ? "on" : "off"}">${label} ${on ? "启" : "停"}</span>`;
-  }).join("");
+  $("plan-summary-inline").innerHTML = [
+    ["锁定", targets.target_count ?? harvest.target_count ?? observations.length],
+    ["已抓", harvested.length || (harvest.completed_target_ids || []).length],
+    ["待抓", pending.length],
+    ["选中", state.target_id || targets.selected_target_id || "—"],
+  ].map(([label, value]) => `<span>${label} <b>${safe(String(value))}</b></span>`).join("");
 
   const blockers = state.blockers || [];
   $("batch-blockers").hidden = !blockers.length;
@@ -246,7 +239,8 @@ function renderPlan(perception, taskExecutor) {
   setText("harvested-ids", doneIds.length ? doneIds.join(", ") : "（暂无）");
 }
 
-// 话题新鲜度：>5s 黄、>15s 红、从未收到灰
+// ── 就绪区（节点灯 + 档位 + 验收门条）───────────────────────
+
 function freshnessHtml(age) {
   if (age === undefined) return ["", "无数据"];
   if (age > 15) return ["err", `${age.toFixed(0)}s 前`];
@@ -271,8 +265,10 @@ function pillClass(text) {
 }
 
 function setPill(id, text) {
+  const el = $(id);
+  if (!el) return;
   setText(id, text || "—");
-  $(id).className = `state-pill ${pillClass(text)}`;
+  el.className = `state-pill ${pillClass(text)}`;
 }
 
 const yesNo = (value, yes = "是", no = "否") =>
@@ -288,154 +284,91 @@ function renderNodes(state) {
 
   const targets = state.perception?.targets || {};
   const harvest = state.perception?.harvest || {};
-  const epoch = Number(targets.scene_epoch ?? harvest.scene_epoch ?? 0);
-  const collecting = Number(
-    targets.collecting_count ?? harvest.collecting_count ?? 0);
-  const locked = targets.target_set_locked === true
-    || harvest.target_set_locked === true;
-  const lockKnown = targets.target_set_locked !== undefined
-    || harvest.target_set_locked !== undefined
-    || targets.scene_epoch !== undefined
-    || harvest.scene_epoch !== undefined;
-  let lockLabel = "—";
-  if (lockKnown) {
-    if (!epoch) lockLabel = "未 Begin";
-    else if (locked) lockLabel = "已锁定";
-    else lockLabel = collecting ? `收齐中 ${collecting}` : "收齐中";
-  }
-  setText("node-perception-count", targets.target_count ?? harvest.target_count ?? "—");
-  setText("node-perception-locked", lockLabel);
+  const count = targets.target_count ?? harvest.target_count ?? "—";
+  const lockedKnown = targets.target_set_locked !== undefined
+    || harvest.target_set_locked !== undefined;
+  const lockedLabel = lockedKnown
+    ? (targets.target_set_locked === true || harvest.target_set_locked === true
+      ? "已锁定" : "收齐中") : "";
+  setText("node-perception-count", lockedLabel ? `${count} · ${lockedLabel}` : count);
   setText("node-perception-selected", targets.selected_target_id || harvest.selected_target_id || "—");
 
   const diag = state.reconstruction?.diagnostics || {};
   const reconState = diag.state || state.reconstruction?.status?.state ||
     state.reconstruction?.status?.text;
-  setPill("node-recon-state", reconState);
-  setText("node-recon-target", diag.target_id || "—");
-  setText("node-recon-views", diag.captured_views === undefined
-    ? "—" : `${diag.captured_views} / ${diag.rejected_views ?? 0}`);
+  setPill("node-recon-state", [reconState, diag.target_id].filter(Boolean).join(" · "));
   const decision = state.reconstruction?.grasp_decision || {};
+  const graspEl = $("node-recon-grasp");
   setText("node-recon-grasp", decision.allowed === true
     ? "允许" : (decision.reason || (decision.allowed === false ? "未许可" : "—")));
-  $("node-recon-grasp").style.color = decision.allowed === true
+  graspEl.style.color = decision.allowed === true
     ? "var(--ok)" : (decision.reason ? "var(--warn)" : "");
 
   const manipulation = state.manipulation?.status || {};
   setPill("node-manipulation-state", manipulation.state);
-  setText("node-manipulation-message", manipulation.message || "—");
   setText("node-manipulation-arm", `${yesNo(manipulation.execution_enabled, "ON", "OFF")} / ${yesNo(manipulation.execution_armed, "ARM", "SAFE")}`);
 
   const executor = state.task_executor?.state || {};
   setPill("node-executor-state", batchNames[executor.batch_state]);
-  setText("node-executor-mode", modeNames[executor.operation_mode] || "—");
   setText("node-executor-active", yesNo(executor.action_active));
 
   const robot = state.robot?.status || {};
-  const hasRobot = Object.keys(robot).length > 0;
-  setText("node-robot-power", yesNo(robot.drives_powered, "已上电", "未上电"));
-  setText("node-robot-motion", `${yesNo(robot.motion_possible)} / ${yesNo(robot.in_motion)}`);
-  const errorText = !hasRobot ? "—"
-    : `${yesNo(robot.e_stopped, "急停", "正常")} / ${robot.in_error ? `错误(${robot.error_code})` : "无错误"}`;
-  const errorEl = $("node-robot-error");
-  errorEl.textContent = errorText;
-  errorEl.style.color = hasRobot && (robot.e_stopped === 1 || robot.in_error === 1)
-    ? "var(--err)" : "";
+  setText("node-robot-power", `${yesNo(robot.drives_powered, "已上电", "未上电")} / ${yesNo(robot.e_stopped, "急停", "正常")}`);
   const tcp = state.robot?.tcp || {};
-  const tcpXyz = tcp.xyz;
-  setText("node-robot-tcp", Array.isArray(tcpXyz) && tcpXyz.length >= 3
-    ? tcpXyz.map((value) => Number(value).toFixed(3)).join(", ")
+  setText("node-robot-tcp", Array.isArray(tcp.xyz) && tcp.xyz.length >= 3
+    ? tcp.xyz.map((value) => Number(value).toFixed(3)).join(", ")
     : (tcp.tf_ok === false ? "TF 不可用" : "—"));
-  const ratio = tcp.detour_ratio;
-  const pathBits = [
-    numeric(tcp.path_length_m) ? `${Number(tcp.path_length_m).toFixed(3)} m` : null,
-    numeric(tcp.chord_m) ? `${Number(tcp.chord_m).toFixed(3)} m` : null,
-    numeric(ratio) ? `${Number(ratio).toFixed(2)}×` : null,
-  ].filter(Boolean);
-  setText("node-robot-path", pathBits.length ? pathBits.join(" / ") : "—");
-  $("node-robot-path").style.color = numeric(ratio) && Number(ratio) >= 1.4
-    ? "var(--warn)" : "";
 }
 
-function gauge(id, value) {
-  const el = $(id);
-  const width = numeric(value) ? Math.max(0, Math.min(100, Number(value))) : 0;
-  el.style.width = `${width}%`;
-  el.classList.toggle("hot", width >= 70 && width < 90);
-  el.classList.toggle("critical", width >= 90);
-}
-
-function renderMetrics(state) {
-  const sample = state.metrics?.sample || {};
-  const age = state.system?.topic_age_s?.["metrics.sample"];
-  setText("metrics-age", age === undefined ? "采样未启动" : `采样 ${age.toFixed(1)}s 前`);
-  gauge("sys-cpu-bar", sample.cpu_percent);
-  gauge("sys-mem-bar", sample.memory_percent);
-  setText("sys-cpu", numeric(sample.cpu_percent) ? `${Number(sample.cpu_percent).toFixed(0)}%` : "—");
-  setText("sys-mem", numeric(sample.memory_percent)
-    ? `${Number(sample.memory_percent).toFixed(0)}% (${fmt(sample.memory_used_mb, 0)}M)` : "—");
-  setText("sys-load", numeric(sample.load1)
-    ? `${fmt(sample.load1, 2)} / ${fmt(sample.load5, 2)} / ${fmt(sample.load15, 2)}` : "—");
-
-  const gpu = sample.gpu;
-  $("gpu-body").style.display = gpu ? "" : "none";
-  $("gpu-empty").hidden = Boolean(gpu);
-  if (gpu) {
-    gauge("gpu-util-bar", gpu.utilization_percent);
-    setText("gpu-util", `${fmt(gpu.utilization_percent, 0)}%`);
-    setText("gpu-mem", `${fmt(gpu.memory_used_mb, 0)} / ${fmt(gpu.memory_total_mb, 0)} MB`);
-  }
-
-  const diag = state.reconstruction?.diagnostics || {};
-  const timings = [
-    ["TF 查询延迟", numeric(diag.tf_latency_ms) ? fmt(diag.tf_latency_ms, 1, " ms") : null],
-    ["TSDF 积分耗时", numeric(diag.tsdf?.integrate_time_s) ? fmt(diag.tsdf.integrate_time_s, 3, " s") : null],
-  ].filter(([, value]) => value !== null);
-  $("timing-list").innerHTML = timings.length
-    ? timings.map(([label, value]) =>
-      `<div class="timing-row"><span>${label}</span><b>${value}</b></div>`).join("")
-    : '<p class="empty">等待链路诊断数据</p>';
-
-  const processes = sample.processes || [];
-  $("process-list").innerHTML = processes.length
-    ? processes.map((proc) => `<tr><td>${safe(proc.name)}</td><td>${proc.pid}</td><td>${fmt(proc.cpu_percent, 1, "%")}</td><td>${fmt(proc.rss_mb, 0, " MB")}</td></tr>`).join("")
-    : '<tr><td colspan="4" class="empty">未匹配到受监控进程</td></tr>';
-}
-
-// 当前参数只读镜像：按节点分组的小表；值来自后端参数轮询。
-function renderParams(params, ages) {
-  const root = $("params-tables");
-  const names = Object.keys(params || {}).sort();
-  if (!names.length) {
-    root.innerHTML = '<p class="empty">等待各节点参数服务</p>';
-    return;
-  }
-  const shortName = (full) => full.replace(/^\//, "");
-  root.innerHTML = names.map((nodeName) => {
-    const values = params[nodeName] || {};
-    const age = ages ? ages[`params.${nodeName}`] : undefined;
-    const rows = Object.entries(values).map(([key, value]) => {
-      const text = value === null || value === undefined ? "—" :
-        Array.isArray(value) ? `[${value.join(", ")}]` :
-        typeof value === "number" ? String(Math.round(value * 10000) / 10000) :
-        String(value);
-      return `<tr><td>${safe(key)}</td><td>${safe(text)}</td></tr>`;
-    }).join("");
-    const ageText = age === undefined ? "" : `${Number(age).toFixed(1)}s`;
-    return `<div class="param-group"><h3 title="${safe(nodeName)}">${safe(shortName(nodeName))}<span>${ageText}</span></h3><table>${rows}</table></div>`;
+function renderReadiness(state) {
+  const executor = state.task_executor?.state || {};
+  const policies = [
+    ["auto_start_enabled", "自动开始"],
+    ["execution_enabled", "执行"],
+    ["grasp_enabled", "抓取"],
+    ["tool_enabled", "工具"],
+  ];
+  $("policy-badges").innerHTML = policies.map(([key, label]) => {
+    const on = executor[key] === true;
+    return `<span class="badge ${on ? "on" : "off"}">${label} ${on ? "启" : "停"}</span>`;
   }).join("");
+
+  // 验收门条（testing.md 验收门的可自动判定项；对错判定仍以现场为准）
+  const ages = state.system?.topic_age_s || {};
+  const freshCount = ["perception.targets", "reconstruction.diagnostics",
+    "manipulation.status", "task_executor.state", "robot.status"]
+    .filter((key) => numeric(ages[key]) && Number(ages[key]) <= 15).length;
+  const robot = state.robot?.status || {};
+  const cabinetOk = robot.drives_powered === 1 && robot.motion_possible === 1 &&
+    robot.e_stopped === 0;
+  const tcp = state.robot?.tcp || {};
+  const tfFailures = tcp.tf_failures;
+  const ratio = tcp.detour_ratio;
+  const gates = [
+    {label: "五话题新鲜", value: `${freshCount}/5`,
+     cls: freshCount >= 5 ? "ok" : freshCount > 0 ? "warn" : "err"},
+    {label: "柜侧就绪", value: Object.keys(robot).length
+      ? yesNo(cabinetOk, "就绪", "未就绪") : "—",
+     cls: Object.keys(robot).length ? (cabinetOk ? "ok" : "err") : ""},
+    {label: "TF 失败", value: numeric(tfFailures) ? String(tfFailures) : "—",
+     cls: numeric(tfFailures) ? (Number(tfFailures) === 0 ? "ok" : "err") : ""},
+    {label: "绕行比 ≤2.2", value: numeric(ratio) ? `${Number(ratio).toFixed(2)}×` : "—",
+     cls: numeric(ratio) ? (Number(ratio) <= 1.4 ? "ok" : Number(ratio) <= 2.2 ? "warn" : "err") : ""},
+  ];
+  const fps = state.perception?.harvest?.timing?.fps;
+  gates.push({label: "相机 fps", value: numeric(fps) ? Number(fps).toFixed(2) : "—",
+    cls: numeric(fps) ? (Number(fps) >= 2 ? "ok" : "warn") : ""});
+  $("accept-gates").innerHTML = gates.map((gate) =>
+    `<span class="gate ${gate.cls}">${safe(gate.label)} <b>${safe(gate.value)}</b></span>`).join("");
 }
 
-const PHASE_RGB = {
-  2: [79, 163, 224],
-  5: [224, 169, 62],
-  6: [196, 125, 255],
-  7: [63, 191, 114],
-};
+// ── 末端轨迹：指标 + 俯视投影（非交互）──────────────────────
+
 const LANDMARKS = [
-  ["perception_entry", "感知入口", [63, 191, 114], 5],
-  ["reconstruction_center", "重建中心", [196, 125, 255], 5],
-  ["grasp_pregrasp", "预抓取", [224, 169, 62], 7],
-  ["grasp_entry", "抓取入口", [224, 92, 92], 7],
+  ["perception_entry", "感知入口", [63, 191, 114], 4],
+  ["reconstruction_center", "重建中心", [196, 125, 255], 4],
+  ["grasp_pregrasp", "预抓取", [224, 169, 62], 5],
+  ["grasp_entry", "抓取入口", [224, 92, 92], 5],
 ];
 
 function unpackXyz(flat) {
@@ -453,293 +386,6 @@ function finiteXyz(value) {
     value.slice(0, 3).every((item) => Number.isFinite(Number(item)));
 }
 
-function quatRotate(quat, vec) {
-  const qx = quat[0]; const qy = quat[1]; const qz = quat[2]; const qw = quat[3];
-  const ix = qw * vec[0] + qy * vec[2] - qz * vec[1];
-  const iy = qw * vec[1] + qz * vec[0] - qx * vec[2];
-  const iz = qw * vec[2] + qx * vec[1] - qy * vec[0];
-  const iw = -qx * vec[0] - qy * vec[1] - qz * vec[2];
-  return [
-    ix * qw + iw * -qx + iy * -qz - iz * -qy,
-    iy * qw + iw * -qy + iz * -qx - ix * -qz,
-    iz * qw + iw * -qz + ix * -qy - iy * -qx,
-  ];
-}
-
-function add3(a, b, scale = 1) {
-  return [a[0] + scale * b[0], a[1] + scale * b[1], a[2] + scale * b[2]];
-}
-
-function sub3(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
-function dot3(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
-function cross3(a, b) {
-  return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-}
-function norm3(a) {
-  const n = Math.hypot(a[0], a[1], a[2]);
-  return n < 1e-12 ? [0, 0, 0] : [a[0] / n, a[1] / n, a[2] / n];
-}
-
-const tcpView = {
-  yaw: 0.85,
-  pitch: 0.42,
-  distance: 1.6,
-  look: [0.25, -0.45, 0.45],
-  fitted: false,
-  dragging: null,
-  last: {x: 0, y: 0},
-  hoverHits: [],
-  follow: false,
-  showChord: true,
-  scrub: -1,
-  payload: null,
-};
-
-function collectScenePoints(payload, points) {
-  const out = points.slice();
-  const marks = (payload && payload.landmarks) || {};
-  LANDMARKS.forEach(([key]) => {
-    if (finiteXyz(marks[key])) out.push(marks[key].slice(0, 3).map(Number));
-  });
-  if (finiteXyz(marks.axis) && finiteXyz(marks.grasp_entry)) {
-    const axis = norm3(marks.axis.map(Number));
-    const entry = marks.grasp_entry.map(Number);
-    out.push(add3(entry, axis, -0.12), add3(entry, axis, 0.22));
-  }
-  return out;
-}
-
-function sceneBounds(points) {
-  if (!points.length) {
-    return {min: [-0.2, -0.8, 0], max: [0.8, 0.2, 0.9], center: [0.3, -0.3, 0.45], span: 1.2};
-  }
-  const min = [Infinity, Infinity, Infinity];
-  const max = [-Infinity, -Infinity, -Infinity];
-  points.forEach((p) => {
-    for (let i = 0; i < 3; i += 1) {
-      min[i] = Math.min(min[i], p[i]);
-      max[i] = Math.max(max[i], p[i]);
-    }
-  });
-  const center = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
-  const span = Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2], 0.25);
-  return {min, max, center, span};
-}
-
-function fitTcpView(payload, points) {
-  const bounds = sceneBounds(collectScenePoints(payload, points));
-  tcpView.look = bounds.center;
-  tcpView.distance = Math.max(0.45, bounds.span * 2.15);
-  tcpView.fitted = true;
-}
-
-function projectPoint(point, width, height) {
-  const cosP = Math.cos(tcpView.pitch);
-  const eye = [
-    tcpView.look[0] + tcpView.distance * cosP * Math.cos(tcpView.yaw),
-    tcpView.look[1] + tcpView.distance * cosP * Math.sin(tcpView.yaw),
-    tcpView.look[2] + tcpView.distance * Math.sin(tcpView.pitch),
-  ];
-  const forward = norm3(sub3(tcpView.look, eye));
-  let right = cross3(forward, [0, 0, 1]);
-  if (Math.hypot(right[0], right[1], right[2]) < 1e-6) right = cross3(forward, [0, 1, 0]);
-  right = norm3(right);
-  const up = norm3(cross3(right, forward));
-  const rel = sub3(point, eye);
-  const depth = dot3(rel, forward);
-  if (depth < 0.04) return null;
-  const fov = 0.62;
-  const u = dot3(rel, right) / (depth * Math.tan(fov));
-  const v = dot3(rel, up) / (depth * Math.tan(fov));
-  return {
-    x: (u * 0.5 + 0.5) * width,
-    y: (1 - (v * 0.5 + 0.5)) * height,
-    depth,
-  };
-}
-
-function resizeTcpCanvas(canvas) {
-  const dpr = window.devicePixelRatio || 1;
-  const width = Math.max(1, canvas.clientWidth);
-  const height = Math.max(1, canvas.clientHeight);
-  const tw = Math.round(width * dpr);
-  const th = Math.round(height * dpr);
-  if (canvas.width !== tw || canvas.height !== th) {
-    canvas.width = tw;
-    canvas.height = th;
-  }
-  return {width, height, dpr};
-}
-
-function strokePath(ctx, projected, phases) {
-  if (projected.length < 2) return;
-  ctx.lineWidth = 2;
-  ctx.lineJoin = "round";
-  ctx.lineCap = "round";
-  let current = null;
-  const flush = () => {
-    if (!current || current.pts.length < 2) return;
-    ctx.beginPath();
-    ctx.strokeStyle = `rgb(${current.rgb.join(",")})`;
-    ctx.moveTo(current.pts[0].x, current.pts[0].y);
-    for (let i = 1; i < current.pts.length; i += 1) ctx.lineTo(current.pts[i].x, current.pts[i].y);
-    ctx.stroke();
-  };
-  projected.forEach((pt, index) => {
-    if (!pt) {
-      flush();
-      current = null;
-      return;
-    }
-    const phase = Number((phases && phases[index]) || 0);
-    const rgb = PHASE_RGB[phase] || [223, 230, 236];
-    if (!current || current.phase !== phase) {
-      flush();
-      current = {phase, rgb, pts: [pt]};
-    } else current.pts.push(pt);
-  });
-  flush();
-}
-
-function dashChord(ctx, a, b, width, height) {
-  const pa = projectPoint(a, width, height);
-  const pb = projectPoint(b, width, height);
-  if (!pa || !pb) return;
-  ctx.save();
-  ctx.setLineDash([6, 5]);
-  ctx.strokeStyle = "rgba(223,230,236,0.55)";
-  ctx.lineWidth = 1.4;
-  ctx.beginPath();
-  ctx.moveTo(pa.x, pa.y);
-  ctx.lineTo(pb.x, pb.y);
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawGrid(ctx, bounds, width, height) {
-  const step = bounds.span > 1.2 ? 0.2 : 0.1;
-  const pad = bounds.span * 0.35;
-  const x0 = Math.floor((bounds.min[0] - pad) / step) * step;
-  const x1 = Math.ceil((bounds.max[0] + pad) / step) * step;
-  const y0 = Math.floor((bounds.min[1] - pad) / step) * step;
-  const y1 = Math.ceil((bounds.max[1] + pad) / step) * step;
-  ctx.lineWidth = 1;
-  for (let x = x0; x <= x1 + 1e-9; x += step) {
-    const a = projectPoint([x, y0, 0], width, height);
-    const b = projectPoint([x, y1, 0], width, height);
-    if (!a || !b) continue;
-    ctx.strokeStyle = Math.abs(x) < 1e-6 ? "rgba(224,92,92,0.55)" : "rgba(42,51,61,0.9)";
-    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-  }
-  for (let y = y0; y <= y1 + 1e-9; y += step) {
-    const a = projectPoint([x0, y, 0], width, height);
-    const b = projectPoint([x1, y, 0], width, height);
-    if (!a || !b) continue;
-    ctx.strokeStyle = Math.abs(y) < 1e-6 ? "rgba(63,191,114,0.5)" : "rgba(42,51,61,0.9)";
-    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-  }
-}
-
-function drawAxes(ctx, origin, length, width, height) {
-  const axes = [
-    [add3(origin, [length, 0, 0]), "X", "rgb(224,92,92)"],
-    [add3(origin, [0, length, 0]), "Y", "rgb(63,191,114)"],
-    [add3(origin, [0, 0, length]), "Z", "rgb(79,163,224)"],
-  ];
-  const po = projectPoint(origin, width, height);
-  if (!po) return;
-  ctx.lineWidth = 1.6;
-  ctx.font = "11px ui-monospace, monospace";
-  axes.forEach(([tip, label, color]) => {
-    const pt = projectPoint(tip, width, height);
-    if (!pt) return;
-    ctx.strokeStyle = color;
-    ctx.fillStyle = color;
-    ctx.beginPath(); ctx.moveTo(po.x, po.y); ctx.lineTo(pt.x, pt.y); ctx.stroke();
-    ctx.fillText(label, pt.x + 4, pt.y - 2);
-  });
-}
-
-function drawSphere(ctx, point, rgb, radiusPx, label, width, height) {
-  const pt = projectPoint(point, width, height);
-  if (!pt) return pt;
-  ctx.beginPath();
-  ctx.fillStyle = `rgba(${rgb.join(",")},0.92)`;
-  ctx.arc(pt.x, pt.y, radiusPx, 0, Math.PI * 2);
-  ctx.fill();
-  if (label) {
-    ctx.fillStyle = "rgba(223,230,236,0.9)";
-    ctx.font = '11px "PingFang SC","Noto Sans CJK SC",sans-serif';
-    ctx.fillText(label, pt.x + 8, pt.y - 6);
-  }
-  return pt;
-}
-
-function renderTcpCanvas() {
-  const canvas = $("tcp-canvas");
-  if (!canvas) return;
-  const {width, height} = resizeTcpCanvas(canvas);
-  const ctx = canvas.getContext("2d");
-  ctx.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
-  ctx.clearRect(0, 0, width, height);
-  const payload = tcpView.payload || {};
-  const all = unpackXyz(payload.xyz);
-  const phases = payload.phase || [];
-  const until = tcpView.scrub >= 0 ? tcpView.scrub + 1 : all.length;
-  const points = all.slice(0, until);
-  const usedPhases = phases.slice(0, points.length);
-  if (!tcpView.fitted && (points.length || Object.keys(payload.landmarks || {}).length)) {
-    fitTcpView(payload, points);
-  }
-  if (tcpView.follow && points.length) {
-    tcpView.look = points[points.length - 1].slice();
-  }
-  const bounds = sceneBounds(collectScenePoints(payload, points));
-  drawGrid(ctx, bounds, width, height);
-  drawAxes(ctx, [0, 0, 0], Math.max(0.12, bounds.span * 0.18), width, height);
-  const projected = points.map((p) => projectPoint(p, width, height));
-  strokePath(ctx, projected, usedPhases);
-  if (tcpView.showChord && points.length >= 2) {
-    dashChord(ctx, points[0], points[points.length - 1], width, height);
-  }
-  const marks = payload.landmarks || {};
-  if (finiteXyz(marks.axis) && finiteXyz(marks.grasp_entry)) {
-    const axis = norm3(marks.axis.map(Number));
-    const entry = marks.grasp_entry.map(Number);
-    const a = projectPoint(add3(entry, axis, -0.12), width, height);
-    const b = projectPoint(add3(entry, axis, 0.22), width, height);
-    if (a && b) {
-      ctx.strokeStyle = "rgb(51, 196, 232)";
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-    }
-  }
-  LANDMARKS.forEach(([key, label, rgb, radius]) => {
-    if (finiteXyz(marks[key])) {
-      drawSphere(ctx, marks[key].map(Number), rgb, radius, label, width, height);
-    }
-  });
-  if (points.length) {
-    const tip = points[points.length - 1];
-    drawSphere(ctx, tip, [245, 245, 245], 6, "tcp", width, height);
-    const quat = (payload.metrics || {}).quat;
-    if (Array.isArray(quat) && quat.length >= 4) {
-      [["X", [0.05, 0, 0], "rgb(224,92,92)"],
-        ["Y", [0, 0.05, 0], "rgb(63,191,114)"],
-        ["Z", [0, 0, 0.08], "rgb(79,163,224)"]].forEach(([, vec, color]) => {
-        const tip2 = add3(tip, quatRotate(quat.map(Number), vec));
-        const pa = projectPoint(tip, width, height);
-        const pb = projectPoint(tip2, width, height);
-        if (!pa || !pb) return;
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.8;
-        ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
-      });
-    }
-  }
-  tcpView.hoverHits = projected.map((pt, index) => (pt ? {...pt, index, world: points[index]} : null));
-}
-
 function renderTrajHud(payload) {
   const metrics = (payload && payload.metrics) || {};
   const enabled = payload && payload.enabled !== false;
@@ -752,12 +398,10 @@ function renderTrajHud(payload) {
   setText("traj-status", status);
   const ratio = metrics.detour_ratio;
   const chips = [
-    ["点数", metrics.count ?? n],
     ["路径", numeric(metrics.path_length_m) ? `${Number(metrics.path_length_m).toFixed(3)} m` : "—"],
     ["弦长", numeric(metrics.chord_m) ? `${Number(metrics.chord_m).toFixed(3)} m` : "—"],
     ["绕行比", numeric(ratio) ? `${Number(ratio).toFixed(2)}×` : "—"],
     ["偏弦", numeric(metrics.max_dev_m) ? `${Number(metrics.max_dev_m).toFixed(3)} m` : "—"],
-    ["Δz", numeric(metrics.dz_m) ? `${Number(metrics.dz_m).toFixed(3)} m` : "—"],
   ];
   $("traj-metrics").innerHTML = chips.map(([label, value]) => {
     const hot = label === "绕行比" && numeric(ratio) && Number(ratio) >= 1.4 ? " hot" : "";
@@ -765,98 +409,102 @@ function renderTrajHud(payload) {
   }).join("");
 }
 
-function bindTcpCanvas() {
+// 俯视（base_link X 向右 / Y 向上）投影：框选路点+路标，等比缩放留边。
+function renderTcpMini(payload) {
   const canvas = $("tcp-canvas");
-  if (!canvas || canvas.dataset.bound === "1") return;
-  canvas.dataset.bound = "1";
-  const tooltip = $("traj-tooltip");
-  canvas.addEventListener("pointerdown", (event) => {
-    canvas.setPointerCapture(event.pointerId);
-    tcpView.dragging = event.button === 2 || event.shiftKey ? "pan" : "orbit";
-    tcpView.last = {x: event.clientX, y: event.clientY};
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.max(1, canvas.clientWidth);
+  const height = Math.max(1, canvas.clientHeight);
+  if (canvas.width !== Math.round(width * dpr)) {
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+  }
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+
+  const points = unpackXyz(payload && payload.xyz);
+  const marks = (payload && payload.landmarks) || {};
+  const scene = points.slice();
+  LANDMARKS.forEach(([key]) => {
+    if (finiteXyz(marks[key])) scene.push(marks[key].slice(0, 3).map(Number));
   });
-  canvas.addEventListener("pointerup", () => { tcpView.dragging = null; });
-  canvas.addEventListener("pointermove", (event) => {
-    if (tcpView.dragging) {
-      const dx = event.clientX - tcpView.last.x;
-      const dy = event.clientY - tcpView.last.y;
-      tcpView.last = {x: event.clientX, y: event.clientY};
-      if (tcpView.dragging === "orbit") {
-        tcpView.follow = false;
-        $("traj-follow").checked = false;
-        tcpView.yaw += dx * 0.008;
-        tcpView.pitch = Math.max(-1.2, Math.min(1.2, tcpView.pitch + dy * 0.006));
-      } else {
-        const right = [-Math.sin(tcpView.yaw), Math.cos(tcpView.yaw), 0];
-        const up = [0, 0, 1];
-        const scale = tcpView.distance * 0.0022;
-        tcpView.look = add3(tcpView.look, right, -dx * scale);
-        tcpView.look = add3(tcpView.look, up, dy * scale);
-      }
-      renderTcpCanvas();
-      return;
-    }
-    const rect = canvas.getBoundingClientRect();
-    const mx = event.clientX - rect.left;
-    const my = event.clientY - rect.top;
-    let best = null;
-    (tcpView.hoverHits || []).forEach((hit) => {
-      if (!hit) return;
-      const dist = Math.hypot(hit.x - mx, hit.y - my);
-      if (dist < 10 && (!best || dist < best.dist)) best = {dist, hit};
+  if (!scene.length) {
+    ctx.fillStyle = "rgba(223,230,236,0.45)";
+    ctx.font = '13px "PingFang SC","Noto Sans CJK SC",sans-serif';
+    ctx.fillText("等待末端轨迹数据（latest TF base_link←tcp）", 16, height / 2);
+    return;
+  }
+  const pad = 34;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  scene.forEach(([x, y]) => {
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+  });
+  const spanX = Math.max(maxX - minX, 0.2);
+  const spanY = Math.max(maxY - minY, 0.2);
+  const scale = Math.min((width - pad * 2) / spanX, (height - pad * 2) / spanY);
+  const toPx = ([x, y]) => [
+    pad + (x - minX) * scale + (width - pad * 2 - spanX * scale) / 2,
+    height - pad - (y - minY) * scale - (height - pad * 2 - spanY * scale) / 2,
+  ];
+
+  // 网格参考原点（base_link 投影）
+  const origin = toPx([0, 0]);
+  ctx.strokeStyle = "rgba(42,51,61,0.9)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, origin[1]); ctx.lineTo(width, origin[1]);
+  ctx.moveTo(origin[0], 0); ctx.lineTo(origin[0], height);
+  ctx.stroke();
+
+  if (points.length >= 2) {
+    ctx.strokeStyle = "rgba(79,163,224,0.95)";
+    ctx.lineWidth = 2;
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    points.forEach((p, index) => {
+      const [px, py] = toPx(p);
+      if (index === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
     });
-    if (!best) { tooltip.hidden = true; return; }
-    const w = best.hit.world;
-    tooltip.hidden = false;
-    tooltip.style.left = `${mx}px`;
-    tooltip.style.top = `${my}px`;
-    tooltip.textContent =
-      `tcp  ${w[0].toFixed(3)}, ${w[1].toFixed(3)}, ${w[2].toFixed(3)}`;
+    ctx.stroke();
+    const [ax, ay] = toPx(points[0]);
+    const [bx, by] = toPx(points[points.length - 1]);
+    ctx.save();
+    ctx.setLineDash([6, 5]);
+    ctx.strokeStyle = "rgba(223,230,236,0.55)";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+    ctx.restore();
+  }
+  LANDMARKS.forEach(([key, label, rgb, radius]) => {
+    if (!finiteXyz(marks[key])) return;
+    const [px, py] = toPx(marks[key].slice(0, 3).map(Number));
+    ctx.beginPath();
+    ctx.fillStyle = `rgba(${rgb.join(",")},0.92)`;
+    ctx.arc(px, py, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(223,230,236,0.9)";
+    ctx.font = '11px "PingFang SC","Noto Sans CJK SC",sans-serif';
+    ctx.fillText(label, px + 7, py - 5);
   });
-  canvas.addEventListener("wheel", (event) => {
-    event.preventDefault();
-    tcpView.distance = Math.max(0.25, Math.min(8, tcpView.distance * (event.deltaY > 0 ? 1.08 : 0.92)));
-    renderTcpCanvas();
-  }, {passive: false});
-  canvas.addEventListener("contextmenu", (event) => event.preventDefault());
-  $("traj-fit").addEventListener("click", () => {
-    const points = unpackXyz((tcpView.payload || {}).xyz);
-    fitTcpView(tcpView.payload || {}, points);
-    tcpView.follow = false;
-    $("traj-follow").checked = false;
-    renderTcpCanvas();
-  });
-  $("traj-follow").addEventListener("change", (event) => {
-    tcpView.follow = event.target.checked;
-    renderTcpCanvas();
-  });
-  $("traj-show-chord").addEventListener("change", (event) => {
-    tcpView.showChord = event.target.checked;
-    renderTcpCanvas();
-  });
-  $("traj-scrub").addEventListener("input", (event) => {
-    const max = Number(event.target.max || 0);
-    const value = Number(event.target.value);
-    tcpView.scrub = max <= 0 || value >= max ? -1 : value;
-    $("traj-scrub-label").textContent = tcpView.scrub < 0 ? "实时" : `#${tcpView.scrub + 1}`;
-    renderTcpCanvas();
-  });
+  if (points.length) {
+    const [tx, ty] = toPx(points[points.length - 1]);
+    ctx.beginPath();
+    ctx.fillStyle = "rgb(245,245,245)";
+    ctx.arc(tx, ty, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 async function pollTrajectory() {
-  bindTcpCanvas();
   try {
     const response = await fetch(`/api/trajectory?t=${Date.now()}`, {cache: "no-store"});
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
-    tcpView.payload = payload;
-    const count = unpackXyz(payload.xyz).length;
-    const scrub = $("traj-scrub");
-    scrub.max = String(Math.max(0, count - 1));
-    scrub.disabled = count < 2;
-    if (tcpView.scrub < 0) scrub.value = scrub.max;
     renderTrajHud(payload);
-    renderTcpCanvas();
+    renderTcpMini(payload);
   } catch (_) {
     setText("traj-status", "轨迹 API 不可用");
   }
@@ -872,16 +520,11 @@ async function pollState() {
       ? "记录已关闭" : record.directory || "等待首批数据");
     $("record-strip").classList.toggle("off",
       record.enabled === false || !record.directory);
+    renderReadiness(state);
+    renderNodes(state);
     renderFlow(state.task_executor || {}, state.job || {});
     renderPlan(state.perception || {}, state.task_executor || {});
-    renderNodes(state);
-    renderMetrics(state);
-    renderParams(state.params || {}, state.system?.topic_age_s || {});
-    $("raw-json").textContent = JSON.stringify(state, null, 2);
     renderDebugPanel(state.debug || {});
-    const uptime = Math.max(0, Number(state.system?.uptime_s) || 0);
-    setText("server-uptime",
-      `UP ${String(Math.floor(uptime / 60)).padStart(2, "0")}:${String(Math.floor(uptime % 60)).padStart(2, "0")}`);
     $("connection").className = "connection online";
     $("connection").querySelector("span").textContent = "数据 API 已连接";
   } catch (_) {
@@ -890,15 +533,13 @@ async function pollState() {
   }
 }
 
-const tickClock = () => { $("clock").textContent = new Date().toLocaleTimeString("zh-CN", {hour12: false}); };
-tickClock();
-setInterval(tickClock, 500);
 setInterval(pollState, 1000);
 setInterval(pollTrajectory, 400);
-window.addEventListener("resize", renderTcpCanvas);
+window.addEventListener("resize", pollTrajectory);
 pollState();
+pollTrajectory();
 
-// ============ 手动调试操作面（决策 0007 推翻条款：融合 8090，鉴权+门控） ============
+// ============ 手动调试操作面（决策 0013：融合 8090，鉴权+门控+审计） ============
 // Web 只是另一个 ROS 客户端：技能 ExecutionAuthority 与调度/重建门照常复核。
 const debugView = {results: []};
 

@@ -9,8 +9,10 @@
 # 不要在本文件写。
 peach_target_reconstruction_node:
   ros__parameters:
-    # ── 部署覆盖（当前为空 = 全部用 GPL 默认）────────────────
-    # 示例（去掉注释即生效）：
+    # rcl 要求 params 文件至少一个键：保留 capture.min_views 作占位
+    # （值=GPL 默认）。
+    capture.min_views: 2
+    # 其余部署覆盖按需追加，示例：
     # capture.max_target_drift_m: 0.06   # 室外风动档：风摆峰峰 5~6cm 时放宽
     # capture.min_neighbor_gap_m: 0.20   # 近距双果串扰误绑时加大间距门
     # icp.enable: false                  # 排查重影时关 ICP 看 FK 初值质量

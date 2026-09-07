@@ -9,13 +9,12 @@
 # （moveit.mtc_approach_along_axis_m）由 grasp_standoffs.yaml 经 launch 注入。
 peach_manipulation_node:
   ros__parameters:
-    # ── 部署覆盖（当前为空 = 全部用 GPL 默认）────────────────
+    # rcl 要求 params 文件至少一个键：保留 scan.maximum_moves 作占位
+    # （值=GPL 默认）。
+    scan:
+      maximum_moves: 2
     # 默认 execution/grasp/tool 三档全关（只规划、不接触、不 SetIO）；
     # 真运动须与调度 execution_enabled 同时开并经人工授权，现场口径见 testing.md。
-    # 示例（去掉注释即生效）：
-    # execution:
-    #   enabled: true
-    # grasp:
-    #   enabled: true
-    # scan:
-    #   maximum_moves: 3        # 观察机位不足时放宽移动次数
+    # 其余部署覆盖按需追加，示例：
+    # execution: {enabled: true}
+    # grasp: {enabled: true}

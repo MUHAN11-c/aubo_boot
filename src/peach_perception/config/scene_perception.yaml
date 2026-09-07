@@ -9,8 +9,9 @@
 # 不要在本文件写。
 peach_scene_perception_node:
   ros__parameters:
-    # ── 部署覆盖（当前为空 = 全部用 GPL 默认）────────────────
-    # 示例（去掉注释即生效）：
+    # rcl 要求 params 文件至少一个键：保留 yolo_conf 作占位（值=GPL 默认）。
+    yolo_conf: 0.35
+    # 其余部署覆盖按需追加，示例：
     # yolo_conf: 0.30            # 逆光漏检时下调，不要低于 0.30
     # sam_max_bboxes: 24         # 室外多果密排一帧目标超 16 时
     # publish_debug_image: false # 现场不需要叠加图时零序列化

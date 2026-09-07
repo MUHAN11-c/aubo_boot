@@ -102,7 +102,7 @@ from peach_perception.scene_perception.visualization import (
     _to_detection2d,
     _to_fitting,
     _to_markers,
-    _xyzrgb_to_cloud,
+    _xyzrgb_to_cloud_msg,
 )
 import rclpy
 from rclpy.duration import Duration
@@ -1239,7 +1239,7 @@ class ScenePerceptionNode(LifecycleNode):
                 xyz_out = (R @ xyz_cam.T).T + t
             else:
                 xyz_out = xyz_cam
-            cloud_msg = _xyzrgb_to_cloud(header, xyz_out, rgb_f)
+            cloud_msg = _xyzrgb_to_cloud_msg(header, xyz_out, rgb_f)
             self.pub_norm_cloud.publish(cloud_msg)
         if debug is not None:
             dbg_msg = self.bridge.cv2_to_imgmsg(debug, encoding='bgr8')

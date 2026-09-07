@@ -9,7 +9,9 @@
 # launch 注入，不要在本文件写）。
 peach_executor:
   ros__parameters:
-    # ── 部署覆盖（当前为空 = 全部用 GPL 默认）────────────────
-    # 示例（去掉注释即生效）：
+    # rcl 要求 params 文件至少一个键：保留 execute_pregrasp_only 作占位
+    # （值=GPL 默认；套入前改 false）。
+    execute_pregrasp_only: true
+    # 其余部署覆盖按需追加，示例：
     # empty_survey_limit: 3        # 场景目标稀疏时放宽连续空扫上限
     # survey_wait_s: 20.0          # 慢链路/低帧率时放宽等锁上限

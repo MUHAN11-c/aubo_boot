@@ -382,7 +382,7 @@ def xyzrgb_to_cloud_msg(xyz: np.ndarray, colors_bgr,
     """
     (N, 3) 点 [m] + (N, 3) uint8 BGR → PointCloud2（xyz + 位打包 rgb 字段）.
 
-    布局与 peach_scene_perception_node._xyzrgb_to_cloud 一致：x/y/z/rgb 各一个 FLOAT32
+    布局与感知侧 _xyzrgb_to_cloud_msg 一致：x/y/z/rgb 各一个 FLOAT32
     （offset 0/4/8/12，point_step=16），rgb 位内容为 0xRRGGBB（RViz RGB8
     上色约定）；colors_bgr 为 None 或长度不符时 rgb 字段补零（黑色），
     空云/启动首发同样保持该字段布局。消息组装用官方

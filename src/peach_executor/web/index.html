@@ -16,7 +16,6 @@
     <div class="top-status">
       <div class="run-id"><span>批次 RUN</span><strong id="run-id">等待批次</strong></div>
       <div class="connection" id="connection"><i></i><span>正在连接</span></div>
-      <time id="clock">--:--:--</time>
     </div>
   </header>
   <div class="record-strip" id="record-strip">记录目录：<b id="record-dir">—</b></div>
@@ -26,7 +25,53 @@
   </nav>
 
   <div id="view-monitor">
-  <!-- 区域一：流程反馈（首屏视觉核心） -->
+  <!-- 区一：就绪（真机就绪单网页化） -->
+  <section class="panel ready-panel" id="ready-panel">
+    <div class="section-head">
+      <div><p class="kicker">READINESS · 就绪</p><h2>节点与安全门</h2></div>
+      <div class="policy-badges" id="policy-badges"></div>
+    </div>
+    <div class="nodes-grid" id="nodes-grid">
+      <article class="node-card" data-node="perception">
+        <div class="node-head"><h2>感知</h2><span class="freshness" data-freshness><i></i><b>无数据</b></span></div>
+        <div class="node-body">
+          <div class="node-row"><span>目标数 / 锁定</span><b id="node-perception-count">—</b></div>
+          <div class="node-row"><span>选中目标</span><b id="node-perception-selected">—</b></div>
+        </div>
+      </article>
+      <article class="node-card" data-node="reconstruction">
+        <div class="node-head"><h2>重建</h2><span class="freshness" data-freshness><i></i><b>无数据</b></span></div>
+        <div class="node-body">
+          <div class="node-row"><span>状态 / 目标</span><b id="node-recon-state">—</b></div>
+          <div class="node-row"><span>许可</span><b id="node-recon-grasp">—</b></div>
+        </div>
+      </article>
+      <article class="node-card" data-node="manipulation">
+        <div class="node-head"><h2>技能</h2><span class="freshness" data-freshness><i></i><b>无数据</b></span></div>
+        <div class="node-body">
+          <div class="node-row"><span>周期状态</span><b id="node-manipulation-state">—</b></div>
+          <div class="node-row"><span>执行 / Arm</span><b id="node-manipulation-arm">—</b></div>
+        </div>
+      </article>
+      <article class="node-card" data-node="task_executor">
+        <div class="node-head"><h2>调度</h2><span class="freshness" data-freshness><i></i><b>无数据</b></span></div>
+        <div class="node-body">
+          <div class="node-row"><span>批次状态</span><b id="node-executor-state">—</b></div>
+          <div class="node-row"><span>动作执行中</span><b id="node-executor-active">—</b></div>
+        </div>
+      </article>
+      <article class="node-card" data-node="robot">
+        <div class="node-head"><h2>机械臂</h2><span class="freshness" data-freshness><i></i><b>无数据</b></span></div>
+        <div class="node-body">
+          <div class="node-row"><span>上电 / 急停</span><b id="node-robot-power">—</b></div>
+          <div class="node-row"><span>TCP (base)</span><b id="node-robot-tcp">—</b></div>
+        </div>
+      </article>
+    </div>
+    <div class="accept-gates" id="accept-gates"></div>
+  </section>
+
+  <!-- 区二：批次流程（真机流程主线） -->
   <section class="panel flow-panel" id="flow-panel">
     <div class="flow-main">
       <div class="section-head">
@@ -79,53 +124,32 @@
     </aside>
   </section>
 
-  <!-- 区域一b：末端轨迹三维（对照感知入口/预抓取，看笛卡尔绕行） -->
+  <!-- 区三：末端轨迹（指标 + 俯视投影） -->
   <section class="panel traj-panel" id="traj-panel">
     <div class="section-head">
-      <div>
-        <p class="kicker">TCP PATH · 末端轨迹</p>
-        <h2>机械臂末端三维轨迹</h2>
-      </div>
+      <div><p class="kicker">TCP PATH · 末端轨迹</p><h2>俯视对照（X–Y 平面）</h2></div>
       <span id="traj-status">等待 TF base_link←tcp</span>
-    </div>
-    <p class="traj-hint">实线=实测 TCP（latest TF <code>base_link←tcp</code>）；虚线=起止弦（笛卡尔直线对照）。绕行比=路径长/弦长，直线接近 1，关节 PTP 明显大于 1。黄点预抓取、红点抓取入口、紫点重建中心。</p>
-    <div class="traj-toolbar">
-      <button type="button" id="traj-fit">框住场景</button>
-      <label class="traj-check"><input type="checkbox" id="traj-follow">跟随末端</label>
-      <label class="traj-check"><input type="checkbox" id="traj-show-chord" checked>起止弦</label>
-      <input type="range" id="traj-scrub" min="0" max="0" value="0" disabled>
-      <span id="traj-scrub-label">实时</span>
     </div>
     <div class="traj-metrics" id="traj-metrics"></div>
     <div class="traj-body">
       <div class="traj-stage">
-        <canvas id="tcp-canvas" width="960" height="420"></canvas>
-        <div id="traj-tooltip" class="traj-tooltip" hidden></div>
+        <canvas id="tcp-canvas" width="960" height="260"></canvas>
       </div>
-      <aside class="traj-legend" id="traj-legend">
+      <aside class="traj-legend">
         <div><i class="swatch path"></i>TCP 路径</div>
         <div><i class="swatch chord"></i>起止弦</div>
-        <div><i class="swatch observe"></i>观察</div>
-        <div><i class="swatch approach"></i>靠近</div>
         <div><i class="swatch entry"></i>抓取入口</div>
         <div><i class="swatch pregrasp"></i>预抓取</div>
         <div><i class="swatch center"></i>重建中心</div>
-        <p class="empty">拖转 · 滚轮缩放 · 右键平移</p>
       </aside>
     </div>
   </section>
 
-  <!-- 区域二：调度策略 -->
+  <!-- 区四：目标与选果 -->
   <section class="panel plan-panel" id="plan-panel">
     <div class="section-head">
-      <div><p class="kicker">DISPATCH PLAN · 调度策略</p><h2>目标调度计划</h2></div>
-      <div class="policy-badges" id="policy-badges"></div>
-    </div>
-    <div class="plan-summary">
-      <article><span>锁定目标</span><strong id="plan-total">0</strong></article>
-      <article class="ok"><span>已抓</span><strong id="plan-harvested">0</strong></article>
-      <article class="warn"><span>待抓/等待</span><strong id="plan-pending">0</strong></article>
-      <article><span>当前选中</span><strong id="plan-selected">—</strong></article>
+      <div><p class="kicker">DISPATCH PLAN · 目标与选果</p><h2>调度计划</h2></div>
+      <div class="plan-summary-inline" id="plan-summary-inline"></div>
     </div>
     <div class="blockers" id="batch-blockers" hidden></div>
     <div class="target-table-wrap">
@@ -135,95 +159,6 @@
       </table>
     </div>
     <div class="plan-ids"><span>已抓集合</span><b id="harvested-ids">—</b></div>
-  </section>
-
-  <!-- 区域三：节点状态 -->
-  <section class="nodes-grid" id="nodes-grid">
-    <article class="panel node-card" data-node="perception">
-      <div class="node-head"><h2>感知</h2><span class="freshness" data-freshness><i></i><b>无数据</b></span></div>
-      <div class="node-body">
-        <div class="node-row"><span>目标数</span><b id="node-perception-count">—</b></div>
-        <div class="node-row"><span>目标集</span><b id="node-perception-locked">—</b></div>
-        <div class="node-row"><span>选中目标</span><b id="node-perception-selected">—</b></div>
-      </div>
-    </article>
-    <article class="panel node-card" data-node="reconstruction">
-      <div class="node-head"><h2>重建</h2><span class="freshness" data-freshness><i></i><b>无数据</b></span></div>
-      <div class="node-body">
-        <div class="node-row"><span>状态</span><b class="state-pill idle" id="node-recon-state">—</b></div>
-        <div class="node-row"><span>绑定目标</span><b id="node-recon-target">—</b></div>
-        <div class="node-row"><span>合格视角 / 拒绝</span><b id="node-recon-views">—</b></div>
-        <div class="node-row"><span>抓取许可</span><b id="node-recon-grasp">—</b></div>
-      </div>
-    </article>
-    <article class="panel node-card" data-node="manipulation">
-      <div class="node-head"><h2>技能</h2><span class="freshness" data-freshness><i></i><b>无数据</b></span></div>
-      <div class="node-body">
-        <div class="node-row"><span>周期状态</span><b class="state-pill idle" id="node-manipulation-state">—</b></div>
-        <div class="node-row"><span>说明</span><b id="node-manipulation-message">—</b></div>
-        <div class="node-row"><span>执行 / Arm</span><b id="node-manipulation-arm">—</b></div>
-      </div>
-    </article>
-    <article class="panel node-card" data-node="task_executor">
-      <div class="node-head"><h2>调度</h2><span class="freshness" data-freshness><i></i><b>无数据</b></span></div>
-      <div class="node-body">
-        <div class="node-row"><span>批次状态</span><b class="state-pill idle" id="node-executor-state">—</b></div>
-        <div class="node-row"><span>运行模式</span><b id="node-executor-mode">—</b></div>
-        <div class="node-row"><span>动作执行中</span><b id="node-executor-active">—</b></div>
-      </div>
-    </article>
-    <article class="panel node-card" data-node="robot">
-      <div class="node-head"><h2>机械臂</h2><span class="freshness" data-freshness><i></i><b>无数据</b></span></div>
-      <div class="node-body">
-        <div class="node-row"><span>驱动上电</span><b id="node-robot-power">—</b></div>
-        <div class="node-row"><span>可运动 / 运动中</span><b id="node-robot-motion">—</b></div>
-        <div class="node-row"><span>急停 / 错误</span><b id="node-robot-error">—</b></div>
-        <div class="node-row"><span>TCP (base)</span><b id="node-robot-tcp">—</b></div>
-        <div class="node-row"><span>路径 / 弦 / 绕行</span><b id="node-robot-path">—</b></div>
-      </div>
-    </article>
-  </section>
-
-  <!-- 区域四：性能参数 -->
-  <section class="panel metrics-panel" id="metrics-panel">
-    <div class="section-head"><div><p class="kicker">PERFORMANCE · 性能参数</p><h2>系统与链路性能</h2></div><span id="metrics-age">—</span></div>
-    <div class="metrics-grid">
-      <div class="metric-block">
-        <h3>主机</h3>
-        <div class="gauge-row">
-          <div class="gauge"><label>CPU</label><i><em id="sys-cpu-bar"></em></i><b id="sys-cpu">—</b></div>
-          <div class="gauge"><label>内存</label><i><em id="sys-mem-bar"></em></i><b id="sys-mem">—</b></div>
-        </div>
-        <div class="node-row"><span>负载 1/5/15 分钟</span><b id="sys-load">—</b></div>
-      </div>
-      <div class="metric-block">
-        <h3>GPU</h3>
-        <div id="gpu-body">
-          <div class="gauge"><label>利用率</label><i><em id="gpu-util-bar"></em></i><b id="gpu-util">—</b></div>
-          <div class="node-row"><span>显存</span><b id="gpu-mem">—</b></div>
-        </div>
-        <p class="empty" id="gpu-empty" hidden>无 GPU 数据</p>
-      </div>
-      <div class="metric-block">
-        <h3>关键耗时</h3>
-        <div id="timing-list"><p class="empty">等待链路诊断数据</p></div>
-      </div>
-    </div>
-    <h3 class="sub-head">关键 ROS 进程</h3>
-    <div class="process-table-wrap">
-      <table class="process-table">
-        <thead><tr><th>进程</th><th>PID</th><th>CPU</th><th>RSS</th></tr></thead>
-        <tbody id="process-list"><tr><td colspan="4" class="empty">未匹配到受监控进程</td></tr></tbody>
-      </table>
-    </div>
-    <details class="collapsible" id="params-details">
-      <summary><span>当前参数镜像</span><b>只读 · 点击展开</b></summary>
-      <div id="params-tables"><p class="empty">等待各节点参数服务</p></div>
-    </details>
-    <details class="collapsible">
-      <summary><span>原始状态快照</span><b>JSON · 点击展开</b></summary>
-      <pre id="raw-json">{}</pre>
-    </details>
   </section>
   </div><!-- /view-monitor -->
 
@@ -245,18 +180,26 @@
     </section>
 
     <section class="panel debug-card">
-      <div class="section-head"><div><p class="kicker">LIFECYCLE · 生命周期</p><h2>整栈转换</h2></div></div>
-      <div class="debug-row">
-        <button type="button" data-debug="manage_nodes_service" data-payload='{"command":"STARTUP"}'>STARTUP 全栈启动</button>
-        <button type="button" data-debug="manage_nodes_service" data-payload='{"command":"PAUSE"}'>PAUSE 逆序停</button>
-        <button type="button" data-debug="manage_nodes_service" data-payload='{"command":"RESUME"}'>RESUME 顺序启</button>
-        <button type="button" data-debug="manage_nodes_service" data-payload='{"command":"RESET"}' data-confirm="1">RESET 复位重启</button>
-        <button type="button" data-debug="manage_nodes_service" data-payload='{"command":"SHUTDOWN"}' class="danger" data-confirm="1">SHUTDOWN 全栈下电</button>
+      <div class="section-head"><div><p class="kicker">STEP 1 · 就绪</p><h2>生命周期与使能预检</h2></div></div>
+      <div class="debug-grid">
+        <fieldset><legend>ManageLifecycleNodes 整栈转换</legend>
+          <button type="button" data-debug="manage_nodes_service" data-payload='{"command":"STARTUP"}'>STARTUP 全栈启动</button>
+          <button type="button" data-debug="manage_nodes_service" data-payload='{"command":"PAUSE"}'>PAUSE 逆序停</button>
+          <button type="button" data-debug="manage_nodes_service" data-payload='{"command":"RESUME"}'>RESUME 顺序启</button>
+          <button type="button" data-debug="manage_nodes_service" data-payload='{"command":"RESET"}' data-confirm="1">RESET 复位重启</button>
+          <button type="button" data-debug="manage_nodes_service" data-payload='{"command":"SHUTDOWN"}' class="danger" data-confirm="1">SHUTDOWN 全栈下电</button>
+        </fieldset>
+        <fieldset><legend>执行使能与可达预检</legend>
+          <label>arm <select id="arm-data"><option value="false">false 撤 arm</option><option value="true">true 上 arm（运动类）</option></select></label>
+          <button type="button" data-debug="arm_service" data-confirm="1">set_execution_armed</button>
+          <label>预检位姿 x,y,z <input id="reach-xyz" placeholder="0.45,0.1,0.3"></label>
+          <button type="button" data-debug="check_reachability_service">CheckReachability</button>
+        </fieldset>
       </div>
     </section>
 
     <section class="panel debug-card">
-      <div class="section-head"><div><p class="kicker">DISPATCH · 调度</p><h2>批次与人工控制</h2></div></div>
+      <div class="section-head"><div><p class="kicker">STEP 2 · 开批</p><h2>RunHarvest 与人工控制</h2></div></div>
       <div class="debug-grid">
         <fieldset><legend>RunHarvest 开批（运动类）</legend>
           <label>request_id <input id="run-request-id" placeholder="field_pregrasp_YYYYMMDD_HHMM"></label>
@@ -275,65 +218,55 @@
     </section>
 
     <section class="panel debug-card">
-      <div class="section-head"><div><p class="kicker">PERCEPTION · 感知</p><h2>场景</h2></div></div>
-      <div class="debug-row">
-        <label>request_id <input id="scene-request-id" placeholder="field_..."></label>
-        <label>scene_key <input id="scene-key" value="lab"></label>
-        <button type="button" data-debug="begin_scene_service">BeginScene 清身份开新场</button>
-        <button type="button" data-debug="survey_action" data-confirm="1">SurveyScene 去拍照位采一场（运动类）</button>
-        <button type="button" data-debug-cancel="survey_action">取消 Survey</button>
-      </div>
-    </section>
-
-    <section class="panel debug-card">
-      <div class="section-head"><div><p class="kicker">RECONSTRUCTION · 重建</p><h2>采帧 / finalize / 会话</h2></div></div>
-      <div class="debug-row">
-        <label>target_id <input id="build-target-id" placeholder="target_0"></label>
-        <label>scene_epoch <input id="build-epoch" value="0" inputmode="numeric"></label>
-        <button type="button" data-debug="build_action" data-confirm="1">BuildTargetModel 绑定并收帧</button>
-        <button type="button" data-debug-cancel="build_action">取消</button>
-      </div>
-      <div class="debug-row">
-        <button type="button" data-debug="recon_finalize_service">手动 finalize</button>
-        <button type="button" data-debug="recon_save_session_service">save_session 落盘</button>
-        <button type="button" data-debug="recon_query_service">查询状态</button>
-        <button type="button" data-debug="recon_reset_service" class="danger" data-confirm="1">reset 重建</button>
-      </div>
-    </section>
-
-    <section class="panel debug-card">
-      <div class="section-head"><div><p class="kicker">SKILL · 技能</p><h2>动作与门控</h2></div></div>
+      <div class="section-head"><div><p class="kicker">STEP 3 · 单步</p><h2>场景 / 重建 / 技能</h2></div></div>
       <div class="debug-grid">
-        <fieldset><legend>ExecuteTarget 单颗（档位见按钮）</legend>
+        <fieldset><legend>感知：Begin 与 Survey</legend>
+          <label>request_id <input id="scene-request-id" placeholder="field_..."></label>
+          <label>scene_key <input id="scene-key" value="lab"></label>
+          <button type="button" data-debug="begin_scene_service">BeginScene 清身份开新场</button>
+          <button type="button" data-debug="survey_action" data-confirm="1">SurveyScene 去拍照位采一场（运动类）</button>
+          <button type="button" data-debug-cancel="survey_action">取消 Survey</button>
+        </fieldset>
+        <fieldset><legend>重建：Build 与 finalize</legend>
+          <label>target_id <input id="build-target-id" placeholder="target_0"></label>
+          <label>scene_epoch <input id="build-epoch" value="0" inputmode="numeric"></label>
+          <button type="button" data-debug="build_action" data-confirm="1">BuildTargetModel 绑定并收帧</button>
+          <button type="button" data-debug-cancel="build_action">取消</button>
+          <button type="button" data-debug="recon_finalize_service">手动 finalize</button>
+        </fieldset>
+        <fieldset><legend>技能：ExecuteTarget 单颗</legend>
           <label>target_id <input id="exec-target-id" placeholder="target_0"></label>
           <label>mode <select id="exec-mode"><option value="PREVIEW">PREVIEW 只规划</option><option value="OBSERVE_ONLY">OBSERVE_ONLY 观察（运动类）</option><option value="PREGRASP_ONLY">PREGRASP_ONLY 停预抓取（运动类）</option><option value="FULL">FULL 套入剪切（运动类）</option></select></label>
           <label class="inline"><input type="checkbox" id="exec-skip-obs" checked> skip_observation</label>
           <button type="button" data-debug="execute_action" data-confirm="1">发送 ExecuteTarget</button>
           <button type="button" data-debug-cancel="execute_action">取消</button>
         </fieldset>
-        <fieldset><legend>服务类操作</legend>
+        <fieldset><legend>技能：服务类操作</legend>
           <button type="button" data-debug="photo_pose_service" data-confirm="1">go_to_photo_pose（运动类）</button>
           <button type="button" data-debug="preview_approach_service">preview_approach_insert 只规划</button>
           <button type="button" data-debug="preview_full_service">preview_full_contact 只规划</button>
-          <button type="button" data-debug="ack_recovery_service">acknowledge_recovery</button>
-          <button type="button" data-debug="skill_cancel_service" class="danger">cancel_cycle 取消周期</button>
-        </fieldset>
-        <fieldset><legend>执行使能与可达预检</legend>
-          <label>arm <select id="arm-data"><option value="false">false 撤 arm</option><option value="true">true 上 arm（运动类）</option></select></label>
-          <button type="button" data-debug="arm_service" data-confirm="1">set_execution_armed</button>
-          <label>预检位姿 x,y,z <input id="reach-xyz" placeholder="0.45,0.1,0.3"></label>
-          <button type="button" data-debug="check_reachability_service">CheckReachability</button>
         </fieldset>
       </div>
     </section>
 
     <section class="panel debug-card">
-      <div class="section-head"><div><p class="kicker">RESULTS · 最近调试结果</p><h2>操作留痕（本次会话 + 服务端环形缓冲）</h2></div><span id="debug-recent-count">0 条</span></div>
+      <div class="section-head"><div><p class="kicker">STEP 4 · 收尾</p><h2>恢复 / 会话 / 查询</h2></div></div>
+      <div class="debug-row">
+        <button type="button" data-debug="ack_recovery_service">acknowledge_recovery 恢复 ACK</button>
+        <button type="button" data-debug="recon_save_session_service">save_session 落盘</button>
+        <button type="button" data-debug="recon_query_service">查询重建状态</button>
+        <button type="button" data-debug="skill_cancel_service" class="danger">cancel_cycle 取消周期</button>
+        <button type="button" data-debug="recon_reset_service" class="danger" data-confirm="1">reset 重建</button>
+      </div>
+    </section>
+
+    <section class="panel debug-card">
+      <div class="section-head"><div><p class="kicker">RESULTS · 最近调试结果</p><h2>操作留痕（本次会话）</h2></div><span id="debug-recent-count">0 条</span></div>
       <div class="debug-results" id="debug-results"><p class="empty">尚无操作</p></div>
     </section>
   </div>
 
-  <footer class="footer"><span>MONITOR + AUTHENTICATED DEBUG · 调试操作面默认关，受令牌与运动门控约束</span><span>上电与安全恢复始终由现场人员完成</span><span id="server-uptime">UP 00:00</span></footer>
+  <footer class="footer"><span>MONITOR + AUTHENTICATED DEBUG · 调试操作面默认关，受令牌与运动门控约束</span><span>上电与安全恢复始终由现场人员完成</span></footer>
   <script src="/app.js"></script>
 </body>
 </html>

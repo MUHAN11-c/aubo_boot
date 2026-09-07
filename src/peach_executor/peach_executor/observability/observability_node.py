@@ -49,17 +49,17 @@ from .debug_actions import DebugBridge, is_motion
 from .params import declare as _declare_params
 from .params import from_params as _from_params
 from .recorder import (
-    candidate_array,
-    fitting_array,
-    grasp_decision,
-    grasp_hypothesis,
-    harvest_event,
     parse_json_text,
-    reconstruction_status,
     Recorder,
-    robot_status,
-    target_observations,
-    vector_stamped,
+    to_candidate_array,
+    to_fitting_array,
+    to_grasp_decision,
+    to_grasp_hypothesis,
+    to_harvest_event,
+    to_reconstruction_status,
+    to_robot_status,
+    to_target_observations,
+    to_vector_stamped,
 )
 from .ros_viz import marker_array_from_dicts, path_from_xyz
 from .state import MetricsSampler, ObservabilityState
@@ -250,15 +250,15 @@ class ObservabilityNode(LifecycleNode):
         self._subscribe(
             BagGraspCandidateArray, self._topic('refined_pose_topic'),
             lambda msg: self._state.update(
-                'refined', 'pose', candidate_array(msg)), latched_qos)
+                'refined', 'pose', to_candidate_array(msg)), latched_qos)
         self._subscribe(
             Vector3Stamped, self._topic('refined_axis_topic'),
             lambda msg: self._state.update(
-                'refined', 'axis', vector_stamped(msg)), latched_qos)
+                'refined', 'axis', to_vector_stamped(msg)), latched_qos)
         self._subscribe(
             BagFittingArray, self._topic('refined_diagnostics_topic'),
             lambda msg: self._state.update(
-                'refined', 'diagnostics', fitting_array(msg)), latched_qos)
+                'refined', 'diagnostics', to_fitting_array(msg)), latched_qos)
         self._subscribe(
             String, self._topic('manipulation_status_topic'),
             self._manipulation_callback, latched_qos)
@@ -297,7 +297,7 @@ class ObservabilityNode(LifecycleNode):
     def _robot_status_callback(self, message: RobotStatus) -> None:
         """机械臂柜侧状态；in_motion 给 TCP 采样当运动标记."""
         self._traj_ctx['moving'] = bool(message.in_motion)
-        self._state.update('robot', 'status', robot_status(message))
+        self._state.update('robot', 'status', to_robot_status(message))
 
     def _harvest_callback(self, message: String) -> None:
         """
@@ -328,9 +328,9 @@ class ObservabilityNode(LifecycleNode):
         与前端 tsdf 计时依赖这些键）。
         """
         merged = dict(self._recon_debug_extra)
-        merged.update(reconstruction_status(message))
+        merged.update(to_reconstruction_status(message))
         if self._recon_decision_value is not None:
-            merged['grasp_decision'] = self._recon_decision_value
+            merged['to_grasp_decision'] = self._recon_decision_value
         center = merged.get('target_center_base')
         if isinstance(center, list):
             self._traj_landmarks['reconstruction_center'] = center
@@ -343,14 +343,14 @@ class ObservabilityNode(LifecycleNode):
 
     def _recon_decision_callback(self, message: GraspDecision) -> None:
         """重建抓取许可：消息字段重建镜像 dict 并喂记录器."""
-        value = grasp_decision(message)
+        value = to_grasp_decision(message)
         self._recon_decision_value = value
         self._traj_landmarks['grasp_entry'] = value.get('entry')
         self._traj_landmarks['grasp_pregrasp'] = value.get('pregrasp')
         self._traj_landmarks['axis'] = value.get('axis')
         self._traj_landmarks['target_id'] = value.get('target_id') or ''
-        self._state.update('reconstruction', 'grasp_decision', value)
-        self._recorder.handle_reconstruction('grasp_decision', value)
+        self._state.update('reconstruction', 'to_grasp_decision', value)
+        self._recorder.handle_reconstruction('to_grasp_decision', value)
         self._record_job()
 
     def _manipulation_callback(self, message: String) -> None:
@@ -363,7 +363,7 @@ class ObservabilityNode(LifecycleNode):
 
     def _grasp_hypothesis_callback(self, message: GraspHypothesis) -> None:
         """技能抓取假设：进状态缓存并并入 manipulation.jsonl."""
-        value = grasp_hypothesis(message)
+        value = to_grasp_hypothesis(message)
         self._state.update('manipulation', 'hypothesis', value)
         self._recorder.handle_hypothesis(value)
         self._record_job()
@@ -371,7 +371,7 @@ class ObservabilityNode(LifecycleNode):
     def _events_callback(self, message: CanonicalEvent) -> None:
         """批次事件进环形缓冲，供前端事件时间线消费."""
         try:
-            value = harvest_event(message)
+            value = to_harvest_event(message)
         except (AttributeError, TypeError, ValueError) as error:
             self.get_logger().warning(f'事件转换失败: {error}')
             return
@@ -412,7 +412,7 @@ class ObservabilityNode(LifecycleNode):
 
     def _targets_callback(self, message) -> None:
         try:
-            value = target_observations(message)
+            value = to_target_observations(message)
         except (AttributeError, TypeError, ValueError) as error:
             self.get_logger().warning(f'目标快照转换失败: {error}')
             return

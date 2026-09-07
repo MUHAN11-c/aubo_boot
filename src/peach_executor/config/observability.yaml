@@ -8,8 +8,10 @@
 # host 局域网访问显式设 0.0.0.0（默认仅本机）。
 peach_observability:
   ros__parameters:
-    # ── 部署覆盖（当前为空 = 全部用 GPL 默认）────────────────
-    # 示例（去掉注释即生效）：
+    # rcl 要求 params 文件至少一个键：保留 host 作占位（值=GPL 默认；
+    # 局域网访问改 0.0.0.0）。
+    host: 127.0.0.1
+    # 其余部署覆盖按需追加，示例：
     # record.save_images: false   # 不需要逐帧调试图落盘时关
     # debug.enabled: true         # 启用调试操作面总开关（另需 token/motion_enabled）
     # debug.token: "<自定义令牌>"

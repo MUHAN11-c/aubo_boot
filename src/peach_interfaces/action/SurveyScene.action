@@ -1,14 +1,20 @@
-# 去拍照位姿并复核当前关节已在命名状态。服务端 peach_manipulation ~/survey_scene。
+# 去全局拍照位并复核当前关节已在命名状态（给感知准备发现 FOV）。
+# 动作：/peach_manipulation_node/survey_scene
+# 服务端：peach_manipulation    客户端：peach_executor
 # 调度 DISCOVERY 首巡在 BeginScene 之前调用；回访只 Survey、不再 Begin。
 # 成功须 GoalStatus 成功且当前关节过 atNamedTarget。PAUSE 会取消，恢复后重试。
+# 失败整批 survey_failed，不 Begin。
 
-string request_id          # 批次 request_id
-string scene_key           # 与 BeginScene 相同的场景键
+# === Goal ===
+string request_id              # 批次 request_id
+string scene_key               # 与 BeginScene 相同的场景键
 ---
-string snapshot_id         # 本场快照 ID
-uint32 scene_epoch         # 当前场景世代
-bool degraded              # 空集、超时或目标集未锁
-string message
+# === Result ===
+string snapshot_id             # 本场快照 ID
+uint32 scene_epoch             # 当前场景世代（首巡 Begin 前可能仍为 0）
+bool degraded                  # 空集、超时或目标集未锁
+string message                 # 人读说明
 ---
-uint32 observation_count   # 已见观测数（反馈）
-string status              # 短状态（moving/capturing/...）
+# === Feedback ===
+uint32 observation_count       # 已见观测数
+string status                  # 短状态：moving / capturing / …

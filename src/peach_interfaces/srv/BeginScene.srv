@@ -1,10 +1,14 @@
-# 重启收齐窗、推进场景世代。服务端 peach_perception ~/begin_scene。
-# 调度 DISCOVERY 首巡：SurveyScene 到位后才调用一次。回访不再调用。
-# 同 scene_key 保留身份表；换场才 clear。节点非 Lifecycle Active 时拒绝。
+# 重启收齐窗、推进场景世代。同 scene_key 保留身份表；换键才清表。
+# 服务：/peach_scene_perception_node/begin_scene
+# 服务端：peach_scene_perception    客户端：peach_executor
+# 调度仅 DISCOVERY 首巡 SurveyScene 到位后调用一次。回访不再调用。
+# 节点非 Lifecycle Active 时拒绝。
 
-string request_id          # 批次 request_id
-string scene_key           # 场景键；与当前键不同则换场
+# === Request ===
+string request_id              # 批次 request_id
+string scene_key               # 场景键；与当前键不同则换场并清身份
 ---
-bool accepted              # 是否接受（非 Active / 忙则 false）
-uint32 scene_epoch         # 接受后的新世代（从 1 递增）
-string message
+# === Response ===
+bool accepted                  # 是否接受（非 Active / 忙则 false）
+uint32 scene_epoch             # 接受后的新世代（从 1 递增）；拒绝时为当前值或 0
+string message                 # 拒绝/接受说明

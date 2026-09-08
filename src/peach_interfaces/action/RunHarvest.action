@@ -1,18 +1,24 @@
-# 显式开一批。服务端 peach_executor ~/run_harvest。launch 绝不自动发本动作。
+# 显式开一批采摘。唯一开批开关；launch 绝不自动发本动作。
+# 动作：/peach_executor/run_harvest
+# 服务端：peach_executor    客户端：人工（监控 Web 默认不发）
 # intent 取值见 JobIntent（本文件不重复常量，须与其对齐）。
+# Result.success 至少成功一颗为 true。
 
-uint8 AUTO=0    # selection_mode【预留】：现行语义为 target_ids 提供即优先（等同 MANUAL），执行器不独立消费本字段
-uint8 MANUAL=1  # selection_mode【预留】：同上；goal.target_ids 非空时优先按其选择
+# === Goal ===
+uint8 AUTO=0                   # selection_mode 预留：执行器不独立消费
+uint8 MANUAL=1                 # selection_mode 预留：goal.target_ids 非空即优先按列表
 
-string request_id          # 本批请求 ID，同时作账本目录名；须唯一
-string scene_key           # 场景键，传给 BeginScene / SurveyScene
-string profile_id          # 参数剖面 ID（当前执行器未消费，预留）
-uint8 intent               # JobIntent：PICK_ALL / PICK_SELECTED / SURVEY_ONLY
-uint8 selection_mode       # AUTO / MANUAL
-string[] target_ids        # 可选允许列表；空=不限定。MANUAL/PICK_SELECTED 时使用
+string request_id              # 本批请求 ID，同时作账本目录名；须唯一
+string scene_key               # 场景键，传给 BeginScene / SurveyScene；换键=换场清身份
+string profile_id              # 参数剖面 ID（现行执行器未消费）
+uint8 intent                   # JobIntent：PICK_ALL=0 / PICK_SELECTED=1 / SURVEY_ONLY=2
+uint8 selection_mode           # AUTO / MANUAL（预留；现行看 target_ids 是否非空）
+string[] target_ids            # 可选允许列表；空=不限定。PICK_SELECTED 时使用
 ---
-bool success               # 至少成功一颗为 true；尝试过但 succeeded=0 为 false（no_targets_succeeded）
-string termination_reason  # 终局原因（completed / canceled / begin_scene_failed / survey_failed 等）
-peach_interfaces/HarvestSummary summary
+# === Result ===
+bool success                   # 至少成功一颗为 true；尝试过但 succeeded=0 为 false（no_targets_succeeded）
+string termination_reason      # completed / canceled / begin_scene_failed / survey_failed / no_targets_succeeded 等
+peach_interfaces/HarvestSummary summary  # 发现/尝试/成功/跳过/失败计数与逐颗 outcomes
 ---
-peach_interfaces/HarvestState state  # 与 ~/state 同源快照
+# === Feedback ===
+peach_interfaces/HarvestState state  # 与 /peach_executor/state 同源快照

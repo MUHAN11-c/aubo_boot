@@ -34,6 +34,23 @@ ultralytics-thop==2.1.5
 # ---- peach_perception 重建节点（Open3D 点云/TSDF） ----
 open3d==0.19.0
 
+# ---- visual_pose_estimation_python Web 回归测试（TestClient；2026-09-08 补钉） ----
+httpx==0.27.2
+
+# ---- visual_pose_estimation_python rembg 抠图（进程内；2026-09-08 补钉） ----
+# rembg 自身必须 --no-deps 安装（其元数据未给 numpy 设上限，裸装会把 numpy
+# 拉到 2.x 破坏 cv_bridge ABI）：
+#   aubo_py3.12/bin/pip install --no-deps rembg==2.0.61
+# 其运行依赖由下面几行提供；numba/llvmlite 需显式钉旧版（新版要求 numpy≥2，
+# 与 1.26.4 冲突）。u2net 模型自包含于包内
+# src/visual_pose_estimation/visual_pose_estimation_python/models/u2net.onnx
+# （运行时经 U2NET_HOME 指向该目录，不入 ~/.u2net）。
+onnxruntime==1.20.1
+pooch==1.8.2
+pymatting==1.1.15
+numba==0.59.1
+llvmlite==0.42.0
+
 # ---- matplotlib 传递依赖（保证绘图环境可复现） ----
 contourpy==1.3.3
 cycler==0.12.1

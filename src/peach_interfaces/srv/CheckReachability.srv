@@ -1,15 +1,18 @@
-# 选果级 TCP 可达性预检（有效深度窗之外的臂可达权威）。
-# 服务端 peach_manipulation_node（MoveIt RobotState::setFromIK，种子=当前状态）；
-# 唯一客户端 peach_executor（SELECT 段批量查询）。只答「能否求解」，不规划、不动臂。
-# 坐标系：tcp_poses 一般为 base_link（模型系）；非模型系由服务端 TF 转换。
-# tcp_poses：调度填感知入口（位置=袋底；姿态 Z=袋轴，滚转任意）。服务端换成与
-# MovePregrasp 同一停位再求解：位置沿 −Z 后撤 mtc_approach_along_axis_m
-# （grasp_standoffs.yaml 注入，现行 0.03 m）；姿态=alignFrameZ(当前 TCP, 袋轴)，
-# 不抄感知滚转。现行 0 则只改姿态、位置仍在入口。
-std_msgs/Header header
-geometry_msgs/PoseStamped[] tcp_poses   # 感知入口；服务端映射为预抓取停位后再 IK
-float64 timeout_s                       # 单位姿求解超时（秒；≤0 用服务端默认 0.1）
+# 选果级 TCP 可达性预检（深度窗之外的臂可达权威）。只答「能否 IK」，不规划、不动臂。
+# 服务：/peach_manipulation_node/check_reachability
+# 服务端：peach_manipulation（MoveIt RobotState::setFromIK，种子=当前关节）
+# 客户端：peach_executor（SELECT 段批量查询）。服务不可用时调度回退半径窗。
+# tcp_poses：调度填感知入口（位置=袋底；姿态 Z=袋轴，滚转任意）。
+# 服务端换成与 MovePregrasp 同一停位再求解：位置沿 −Z 后撤 mtc_approach_along_axis_m
+# （grasp_standoffs.yaml 注入，现行 0.03 m）；姿态=alignFrameZ(当前 TCP, 袋轴)，不抄感知滚转。
+# 后撤为 0 则只改姿态、位置仍在入口。非 base_link 由服务端 TF 转换。
+
+# === Request ===
+std_msgs/Header header                 # stamp 可空；frame_id 一般为 base_link
+geometry_msgs/PoseStamped[] tcp_poses  # 感知入口；服务端映射为预抓取停位后再 IK
+float64 timeout_s                      # 单位姿求解超时 [s]；≤0 用服务端默认 0.1
 ---
-bool[] reachable                        # 与请求 tcp_poses 等长
-string[] error_codes                    # 每位姿失败码：no_ik / invalid_frame / moveit_unavailable
-string message                          # 整体说明（服务端异常时非空）
+# === Response ===
+bool[] reachable                       # 与请求 tcp_poses 等长；true=该入口对应停位有 IK
+string[] error_codes                   # 与请求等长；失败码 no_ik / invalid_frame / moveit_unavailable；成功可空串
+string message                         # 整体说明（服务端异常时非空）

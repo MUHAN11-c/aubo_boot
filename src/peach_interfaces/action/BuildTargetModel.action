@@ -1,15 +1,19 @@
-# 绑定目标、收合格视角后 finalize。服务端 peach_perception ~/build_target_model。
-# 执行器与 ExecuteTarget OBSERVE_ONLY 并行发送。技能不再调重建 reset/finalize Trigger。
-# 积分只用图像时刻精确 TF；失败跳帧，禁止 latest。
+# 绑一颗、收合格机位后 finalize 出模型。与 ExecuteTarget OBSERVE_ONLY 并行。
+# 动作：/peach_target_reconstruction_node/build_target_model
+# 服务端：peach_target_reconstruction    客户端：peach_executor
+# 技能不调重建 reset/finalize Trigger。积分只用图像时刻精确 TF；失败跳帧，禁止 latest。
 
-string request_id          # 批次 request_id
-string target_id           # 须与 HarvestState.target_id 一致；空则失败
-uint32 scene_epoch         # 须与当前 BeginScene 世代一致
+# === Goal ===
+string request_id              # 批次 request_id
+string target_id               # 须与 HarvestState.target_id 一致；空则失败
+uint32 scene_epoch             # 须与当前 BeginScene 世代一致
 ---
-bool success               # 过门并产出可接受模型
-uint8 quality_level        # TargetQuality.LOW..HIGH_CONFIDENCE
-string message             # timeout/canceled/视角不够等
-peach_interfaces/TargetModel model
+# === Result ===
+bool success                   # 过门并产出可接受模型
+uint8 quality_level            # TargetQuality.LOW..HIGH_CONFIDENCE
+string message                 # timeout / canceled / 视角不够等
+peach_interfaces/TargetModel model  # 终局模型（袋底/轴/D95/质量）
 ---
-uint32 view_count          # 已采合格视角（机位聚类口径）
-string status              # 重建状态机短名（COLLECTING/READY/...）
+# === Feedback ===
+uint32 view_count              # 已采合格视角（机位聚类口径，不是原始帧数）
+string status                  # 重建状态机短名：COLLECTING / READY / …

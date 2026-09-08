@@ -61,8 +61,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 ament_export_dependencies(rosidl_default_runtime)
 install(FILES LICENSE DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
-install(PROGRAMS scripts/check_interface_manifest.py
-  DESTINATION lib/${PROJECT_NAME})
+# check_interface_manifest.py 不装 install：脚本按源码树定位 peach_* 包
+# （io.md 的漂移核对命令也按源码路径调用），install 副本路径推导不成立。
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

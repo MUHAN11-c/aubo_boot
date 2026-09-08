@@ -1,21 +1,25 @@
-# 人工控制批次。服务端 peach_executor ~/control。
-# 客户端：调度（自动流）与 Web 调试操作面（鉴权+默认关，见 io.md §5.3）。
+# 人工控制批次（暂停/恢复/取消/跳过/ACK）。监控 Web 默认不发（debug 三重门）。
+# 服务：/peach_executor/control
+# 服务端：peach_executor    客户端：人工或调试操作面
 # expected_state_seq 须等于当前 HarvestState.state_seq（0=不检查），防过期点击。
+# command 还须出现在 HarvestState.permissions 中。
 
-uint8 PAUSE=0                 # 非接触段立即停；接触段标 PAUSE_PENDING
-uint8 RESUME=1
-uint8 ENTER_MAINTENANCE=2
-uint8 EXIT_MAINTENANCE=3
-uint8 CANCEL_NOW=4            # 级联取消在途动作并结算
-uint8 SKIP_TARGET=5           # 跳过当前目标（记 target_operator_skipped）
-uint8 ACKNOWLEDGE_RECOVERY=6  # 接触或 PREGRASP_ONLY 停住 ACK；技能确认成功才消耗 state_seq
+# === Request ===
+uint8 PAUSE=0                  # 非接触段立即停；接触段标 PAUSE_PENDING，动作结束后再停
+uint8 RESUME=1                 # 从 PAUSED 恢复跑批
+uint8 ENTER_MAINTENANCE=2      # 进入维护态，不选下一颗
+uint8 EXIT_MAINTENANCE=3       # 退出维护态
+uint8 CANCEL_NOW=4             # 级联取消在途动作并结算本批
+uint8 SKIP_TARGET=5            # 跳过当前目标（记 target_operator_skipped）
+uint8 ACKNOWLEDGE_RECOVERY=6   # 接触或 PREGRASP_ONLY 停住 ACK；技能确认成功才消耗 state_seq
 
-string request_id
-uint64 expected_state_seq     # 0 或不匹配则拒绝（ACK 失败不消耗序号）
-uint8 command                 # 上列常量；须出现在 HarvestState.permissions 中
-string reason                 # 人读原因，写入事件
+string request_id              # 批次 request_id；可空则用当前批
+uint64 expected_state_seq      # 0 或不匹配则拒绝（ACK 失败不消耗序号）
+uint8 command                  # 上列常量
+string reason                  # 人读原因，写入 CanonicalEvent
 ---
-bool accepted
-string message                # 拒绝原因（mismatch / not permitted / ...）
-uint64 state_seq              # 处理后的序号
-peach_interfaces/HarvestState state
+# === Response ===
+bool accepted                  # 是否接受
+string message                 # 拒绝原因（mismatch / not permitted / …）
+uint64 state_seq               # 处理后的 HarvestState.state_seq
+peach_interfaces/HarvestState state  # 处理后的批次快照

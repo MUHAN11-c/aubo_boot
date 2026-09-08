@@ -1,13 +1,15 @@
-# 走到作业位。唯一客户端 peach_executor。
-# 【预留】固定座现行核心栈不发送本动作（_cmd_navigate 直通 NAV_OK）；
-# 服务端包已归档 _archive/parked_2026-09/peach_navigation。真底盘授权后
-# 恢复该包并在其内部接发行版 Nav2。
+# 【预留】底盘走到作业位。固定座现行不发送（调度 _cmd_navigate 直通 NAV_OK）。
+# 动作：/peach_navigation_node/navigate_to_worksite（清单 reserved_interfaces）
+# 服务端包已归档 _archive/parked_2026-09/peach_navigation。真底盘授权后恢复并接 Nav2。
 
-geometry_msgs/PoseStamped pose
-string site_id
+# === Goal ===
+geometry_msgs/PoseStamped pose  # 作业位目标位姿（地图/世界系由导航约定）
+string site_id                  # 作业位点 ID
 ---
-bool arrived
-string failure_code
+# === Result ===
+bool arrived                    # 是否到达
+string failure_code             # 失败码；成功可空
 ---
-float32 progress
-string message
+# === Feedback ===
+float32 progress                # 0..1 路径进度
+string message                  # 短状态

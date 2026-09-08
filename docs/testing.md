@@ -51,7 +51,7 @@ ros2 launch peach_executor harvest_system.launch.py \
   hardware_mode:=real camera_enabled:=true robot_ip:=169.254.10.98
 ```
 
-旁路视觉抓取（独立 launch，不进上面这条整栈）。lint/纯核走 colcon；Web 回归与 GraspNet torch 算子须 `aubo_py3.12`：
+旁路视觉抓取（独立 launch，不进上面这条整栈）。lint/纯核走 colcon；Web 回归与 GraspNet torch 算子须 `aubo_py3.12`。GraspNet 权重 `src/graspnet_ros2/models/checkpoint-rs.tar` 随库；估姿 rembg 的 `u2net.onnx`（约 168MB）超远程单文件上限不入库，clone 后执行 `src/visual_pose_estimation/visual_pose_estimation_python/models/fetch_u2net.sh`（或首次抠图时 rembg/pooch 下载）：
 
 ```bash
 colcon test --packages-select ivg_interfaces visual_pose_estimation_python graspnet_ros2

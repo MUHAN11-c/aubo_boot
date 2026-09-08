@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>graspnet_ros2</name>
+  <version>1.0.0</version>
+  <description>
+    GraspNet 6-DOF 抓取检测与执行（点云 → 抓取位姿 → MoveIt 接近）。
+    推理后端为 vendored GraspNet-baseline 权重 + 纯 torch 点云算子，
+    无 CUDA 扩展编译、无 open3d/graspnetAPI/AnyGrasp SDK 依赖。
+  </description>
+  <maintainer email="2155413529@qq.com">mu</maintainer>
+  <license>MIT</license>
+
+  <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>moveit_msgs</depend>
+  <depend>shape_msgs</depend>
+  <depend>builtin_interfaces</depend>
+  <depend>tf2_ros</depend>
+  <depend>python3-numpy</depend>
+  <depend>python3-scipy</depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

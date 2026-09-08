@@ -364,6 +364,7 @@ ivg_interfaces/          # 估姿 srv/msg；仅旁路栈
 ivg_utils/               # 共享数学/常量（vpe 依赖）
 visual_pose_estimation/
   visual_pose_estimation_python/   # 估姿节点 + FastAPI :8088
+  visual_pose_estimation_python/models/  # rembg u2net.onnx 约 168MB，超远程单文件上限不入库；U2NET_HOME 指此目录，缺失时 rembg/pooch 或 models/fetch_u2net.sh 拉取
   templates/                       # 工件模板
 graspnet_ros2/
   graspnet_ros2/{grasp_core,graspnet_node,motion_controller,publish_grasps_client}.py

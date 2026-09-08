@@ -42,9 +42,8 @@ httpx==0.27.2
 # 拉到 2.x 破坏 cv_bridge ABI）：
 #   aubo_py3.12/bin/pip install --no-deps rembg==2.0.61
 # 其运行依赖由下面几行提供；numba/llvmlite 需显式钉旧版（新版要求 numpy≥2，
-# 与 1.26.4 冲突）。u2net 模型自包含于包内
-# src/visual_pose_estimation/visual_pose_estimation_python/models/u2net.onnx
-# （运行时经 U2NET_HOME 指向该目录，不入 ~/.u2net）。
+# 与 1.26.4 冲突）。u2net 权重经 U2NET_HOME 指向包内 models/（不入 ~/.u2net）；
+# 约 168MB，超远程单文件上限不入库，见该目录 README / fetch_u2net.sh。
 onnxruntime==1.20.1
 pooch==1.8.2
 pymatting==1.1.15

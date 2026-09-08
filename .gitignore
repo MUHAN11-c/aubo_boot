@@ -27,6 +27,14 @@ src.tar.xz
 # C/C++ 扩展 IntelliSense 数据库（可再生，可达数 GB）
 .vscode/browse.vc.db*
 
+# 工作区根目录调试产物（不入库）
+/debug/
+
+# rembg u2net 权重约 168MB，超过 Gitee 社区版单文件配额与 GitHub 100MB；
+# 本机文件保留不删。clone 后见
+# src/visual_pose_estimation/visual_pose_estimation_python/models/README.md
+src/visual_pose_estimation/visual_pose_estimation_python/models/*.onnx
+
 # 工具/测试运行输出
 diagnostics/build/
 diagnostics/results/

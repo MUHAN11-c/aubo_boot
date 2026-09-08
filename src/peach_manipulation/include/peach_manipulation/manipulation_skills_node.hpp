@@ -8,7 +8,6 @@
 #include <tf2_ros/transform_listener.h>
 
 #include <atomic>
-#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -243,6 +242,13 @@ private:
   Eigen::Isometry3d entryToolPose(
     const Eigen::Vector3d & entry, const Eigen::Vector3d & axis,
     const Eigen::Vector3d & preferred_x);
+  // 接触入口三元组（preview 与 VerifyPregrasp 修正两处同构收敛）：
+  // (entry_tip_pose, travel_m)。tip←tool 变换缺失时 false 并置 error
+  // （统一文案「无法取得 tip 到 tool 的变换」，调用方按各自路径分级）。
+  bool contactEntryGeometry(
+    const CachedRefined & refined, const Eigen::Isometry3d & initial_pose,
+    Eigen::Isometry3d & entry_tip_pose, double & travel_m,
+    std::string & error);
   bool stagePrepareCycle(CycleContext & ctx);
   bool stagePlanPreview(CycleContext & ctx);
   bool stageAcquireViews(CycleContext & ctx);

@@ -13,7 +13,7 @@ from peach_perception.common.bag_landmarks import (
     OCCLUSION_DAMAGED,
     OCCLUSION_NEIGHBOR,
 )
-from peach_perception.common.geometry import (
+from peach_perception.common.fitting import (
     angle_between_deg,
     axis_radial_distance,
     unit_vector as _unit,

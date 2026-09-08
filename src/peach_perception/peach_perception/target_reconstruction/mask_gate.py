@@ -1,11 +1,11 @@
 from __future__ import annotations
-"""采帧：门禁、帧栈、绑定防抖、自动采集。"""
+"""掩膜五道质量门（MaskGate 判定本体）。"""
 
 from dataclasses import dataclass, field
 from typing import Mapping, Optional, Tuple
 
 import numpy as np
-from peach_perception.target_reconstruction.integrate import apply_target_mask
+from peach_perception.target_reconstruction.cloud_builder import apply_target_mask
 
 
 @dataclass(frozen=True)

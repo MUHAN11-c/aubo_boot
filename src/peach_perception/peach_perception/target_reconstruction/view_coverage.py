@@ -3,7 +3,10 @@ from __future__ import annotations
 
 
 import numpy as np
-from peach_perception.common.geometry import angle_between_deg, unit_vector as _safe_unit
+from peach_perception.common.fitting import (
+    angle_between_deg,
+    unit_vector as _safe_unit,
+)
 
 
 def _angle_deg(first, second):

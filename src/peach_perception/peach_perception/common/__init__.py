@@ -1,46 +1,6 @@
-"""peach_perception.common — 拟合/深度/TF/时钟/EMA/runs（纯核）."""
-from peach_perception.common.geometry import (
-    gravity_camera_from_R,
-    invert_transform,
-    normalize_depth_to_uint16_mm,
-    pack_rgb_bgr,
-    QuaternionValue,
-    relative_motion,
-    rotation_to_quat,
-    transform_direction,
-    transform_msg_to_matrix,
-    transform_point,
-    transform_points,
-)
-from peach_perception.common.runtime import (
-    BoundedWorker,
-    Clock,
-    default_harvest_root,
-    default_runs_root,
-    HarvestDataStore,
-    ManualClock,
-    resolve_runs_root,
-    ScalarEma,
-)
+"""
+peach_perception.common — 拟合/深度/TF/时钟/EMA/runs（纯核）.
 
-__all__ = [
-    'BoundedWorker',
-    'Clock',
-    'HarvestDataStore',
-    'ManualClock',
-    'QuaternionValue',
-    'ScalarEma',
-    'default_harvest_root',
-    'default_runs_root',
-    'resolve_runs_root',
-    'gravity_camera_from_R',
-    'invert_transform',
-    'normalize_depth_to_uint16_mm',
-    'pack_rgb_bgr',
-    'relative_motion',
-    'rotation_to_quat',
-    'transform_direction',
-    'transform_msg_to_matrix',
-    'transform_point',
-    'transform_points',
-]
+仅作包标记；不聚合 re-export（子模块各自显式导入，避免包初始化期
+连带加载 scipy）。
+"""

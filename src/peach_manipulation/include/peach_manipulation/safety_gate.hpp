@@ -3,6 +3,7 @@
 #define PEACH_MANIPULATION__SAFETY_GATE_HPP_
 
 #include <algorithm>
+#include <atomic>
 #include <functional>
 #include <string>
 
@@ -34,7 +35,7 @@ struct TargetGateSample
 //   时钟由实现构造时注入（秒），实现内部不得直接读系统时钟。
 // 线程安全：判定方法为 const，可被周期工作线程与 executor 回调并发调用；
 //   set_target_observation_max_age_s 由订阅回调（executor 线程）调用，实现
-//   须保证与判定方法的并发安全（默认实现为平凡双精度写，沿用既有语义）。
+//   须保证与判定方法的并发安全（默认实现走 std::atomic<double>，消撕裂写）。
 // 可替换性：唯一实现 SafetyGate（节点直接构造）。
 class SafetyGateBase
 {
@@ -93,11 +94,14 @@ public:
   // 运行期按实测帧率自适应调整目标观测新鲜度上限（见 adaptive_timeout_s）。
   void set_target_observation_max_age_s(double value) override
   {
-    config_.target_observation_max_age_s = value;
+    target_observation_max_age_s_.store(value, std::memory_order_relaxed);
   }
 
 private:
   SafetyGateConfig config_;
+  // 自适应新鲜度上限：订阅回调写、周期 worker 读；构造后 config_ 字段
+  // 不再变更，运行期调整只走这个原子量（平凡 double 并发读写是 UB）。
+  std::atomic<double> target_observation_max_age_s_;
   std::function<double()> clock_s_;
 };
 

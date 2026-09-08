@@ -40,22 +40,6 @@ function renderPipeline(job, state) {
   });
 }
 
-// 复扫轮次：从最近一条 round_started/round_completed 事件文本解析「第N轮」。
-function renderRoundBadge(events) {
-  const badge = $("round-badge");
-  let round = null;
-  (events || []).slice().reverse().some((ev) => {
-    if (ev.code !== "round_started" && ev.code !== "round_completed") return false;
-    const match = /第\s*(\d+)\s*轮/.exec(ev.message || "");
-    if (!match) return false;
-    round = Number(match[1]);
-    return true;
-  });
-  if (!round) { badge.hidden = true; return; }
-  badge.textContent = `第 ${round} 轮`;
-  badge.hidden = false;
-}
-
 // 阶段耗时跟踪：阶段/周期/目标任一变化即结算上阶段耗时。
 let phaseTrack = {key: "", cycleKey: "", phase: -1, since: 0, records: []};
 function trackPhaseDurations(state) {
@@ -169,7 +153,6 @@ function renderFlow(taskExecutor, job) {
   setText("batch-message", state.message || "尚未收到类型化状态");
   renderPipeline(job || {}, state);
   renderTicket(job || {});
-  renderRoundBadge(events);
   const hasTarget = Boolean(state.target_id);
   setText("cycle-target", state.target_id || "—");
   setText("cycle-id", state.cycle_id || "—");

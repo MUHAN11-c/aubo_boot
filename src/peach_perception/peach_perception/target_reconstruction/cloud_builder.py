@@ -93,32 +93,6 @@ def _intrinsic_o3d(camera_K: dict, scale: float, width: int, height: int):
         float(camera_K['cx']) / s, float(camera_K['cy']) / s)
 
 
-def backproject_depth(depth_mm: np.ndarray, camera_K: dict,
-                      stride: int = 1) -> np.ndarray:
-    """
-    uint16 毫米深度反投影为相机系点云 [m]（open3d 官方，pinhole 模型）.
-
-    x = (u - cx) * z / fx；y = (v - cy) * z / fy；z = depth_mm / 1000。
-
-    Args:
-        depth_mm: (H, W) uint16 深度 [mm]，与内参同分辨率.
-        camera_K: 内参 dict，键 {"fx","fy","cx","cy"}（像素单位）.
-        stride: 降采样步长（像素）；1 为不降采样.
-
-    Returns
-    -------
-        (N, 3) float64 相机系点 [m]；无有效深度时给 (0, 3) 空数组.
-
-    """
-    o3d = require_open3d()
-    h, w = depth_mm.shape[:2]
-    pcd = o3d.geometry.PointCloud.create_from_depth_image(
-        _depth_image_o3d(depth_mm), _intrinsic_o3d(camera_K, 1.0, w, h),
-        np.eye(4), depth_scale=1000.0, depth_trunc=_DEPTH_TRUNC_M,
-        stride=max(1, int(stride)), project_valid_depth_only=True)
-    return np.asarray(pcd.points, dtype=np.float64).reshape(-1, 3)
-
-
 def apply_target_mask(depth_mm: np.ndarray, target_mask=None) -> tuple:
     """将深度限制到单目标掩膜，并返回掩膜内有效深度占比."""
     depth = np.asarray(depth_mm)
@@ -133,7 +107,11 @@ def apply_target_mask(depth_mm: np.ndarray, target_mask=None) -> tuple:
     if pixels == 0:
         return np.zeros_like(depth), 0.0
     masked = np.where(selected, depth, 0).astype(depth.dtype, copy=False)
-    valid = np.count_nonzero(selected & np.isfinite(depth) & (depth > 0))
+    # 与 valid_depth_mask 同口径：非 0 且非饱和（io.md「有效深度」），
+    # 否则强反光/近距饱和像素会抬高 min_mask_depth_ratio 门与记录值。
+    valid = np.count_nonzero(
+        selected & np.isfinite(depth) & (depth > 0)
+        & (depth < DEPTH_SATURATED_MM))
     return masked, float(valid) / float(pixels)
 
 
@@ -160,9 +138,10 @@ def build_cloud_base(depth_mm: np.ndarray, camera_K: dict,
 
     Returns
     -------
-        (cloud_base, colors_bgr, ratio)：cloud_base 为 (N, 3) float64 [m]；
-        colors_bgr 为 (N, 3) uint8（BGR，与 cloud_base 逐点对应）或 None；
-        ratio 为有效深度占比 [0, 1].
+        (cloud_base, colors_bgr, ratio, masked_depth)：cloud_base 为
+        (N, 3) float64 [m]；colors_bgr 为 (N, 3) uint8（BGR，与 cloud_base
+        逐点对应）或 None；ratio 为有效深度占比 [0, 1]；masked_depth 为
+        掩膜后深度（无掩膜时即输入数组），调用方复用免二次计算。
 
     """
     o3d = require_open3d()
@@ -178,7 +157,7 @@ def build_cloud_base(depth_mm: np.ndarray, camera_K: dict,
             stride=stride, project_valid_depth_only=True)
         pcd.transform(T)
         return (np.asarray(pcd.points, dtype=np.float64).reshape(-1, 3),
-                None, ratio)
+                None, ratio, depth_work)
     # 有图路径：create_from_rgbd_image 无 stride 参数，预切片 + 内参缩放
     d = depth_work[::stride, ::stride]
     img = np.ascontiguousarray(rgb_bgr[::stride, ::stride, ::-1])  # BGR→RGB
@@ -195,7 +174,7 @@ def build_cloud_base(depth_mm: np.ndarray, camera_K: dict,
     rgb01 = np.asarray(pcd.colors, dtype=np.float64)
     colors = np.clip(np.round(rgb01[:, ::-1] * 255.0),
                      0, 255).astype(np.uint8)
-    return xyz, colors, ratio
+    return xyz, colors, ratio, depth_work
 
 
 class Open3dCloudBuilder:
@@ -221,7 +200,9 @@ class Open3dCloudBuilder:
 
         Returns
         -------
-            (xyz_base, colors_bgr|None, valid_depth_ratio).
+            (xyz_base, colors_bgr|None, valid_depth_ratio,
+            masked_depth)：masked_depth 为掩膜后深度（供 TSDF 积分/
+            帧存档复用，调用方不必再跑一次 apply_target_mask）。
 
         """
         return build_cloud_base(depth_mm, camera_K, T_base_camera,

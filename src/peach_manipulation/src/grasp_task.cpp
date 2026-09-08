@@ -42,20 +42,6 @@ namespace mtc = moveit::task_constructor;
 
 namespace
 {
-// 当前 TCP 到入口点的距离；拿不到当前 TCP 视为无穷远（后续分档按不可用拒）。
-double tipToEntryDistanceM(
-  const GraspTaskConfig & config, const Eigen::Isometry3d & entry)
-{
-  if (!config.lookup_current_tip) {
-    return 1.0e9;
-  }
-  const auto start = config.lookup_current_tip();
-  if (!start) {
-    return 1.0e9;
-  }
-  return (start->translation() - entry.translation()).norm();
-}
-
 const char * approachKindName(ApproachSplit::Kind kind)
 {
   switch (kind) {
@@ -71,6 +57,24 @@ const char * approachKindName(ApproachSplit::Kind kind)
       return "blocked";
   }
   return "blocked";
+}
+
+// 接近分档结果一行日志（approachAndInsert / moveToPregrasp 共用）；
+// 距入口用 split 内的 TCP 快照，不再触发第二次 TF 查询。
+void logApproachSplit(
+  const rclcpp::Logger & logger,
+  const Eigen::Isometry3d & entry, const ApproachSplit & split)
+{
+  const double dist_m = split.current_tip ?
+    (split.current_tip->translation() - entry.translation()).norm() :
+    1.0e9;
+  RCLCPP_INFO(
+    logger,
+    "接近：距入口 %.3fm 轴向 %.3fm 侧向 %.3fm 夹角 %.1f° 扫角 %.1f° "
+    "半径 %.3fm 沿轴LIN %.3fm 原语 %s",
+    dist_m,
+    split.axial_m, split.lateral_m, split.align_deg, split.sweep_deg,
+    split.radius_m, split.lin_to_entry_m, approachKindName(split.kind));
 }
 
 // 预抓取位姿 = 入口沿 −axis 后撤 standoff_m，姿态与入口一致（套入同姿态直线进）。
@@ -118,6 +122,7 @@ ApproachSplit classifyApproach(
     out.blocked_reason = "无当前 TCP，无法分档笛卡尔接近";
     return out;
   }
+  out.current_tip = start;
   const Eigen::Vector3d delta = entry.translation() - start->translation();
   out.axial_m = delta.dot(axis);
   out.lateral_m = (delta - out.axial_m * axis).norm();
@@ -384,10 +389,8 @@ void GraspTask::appendApproachToPregrasp(
 {
   Eigen::Isometry3d pregrasp = pregraspTipPose(
     entry_tip_pose, insertion_axis, config_.approach_along_axis_m);
-  std::optional<Eigen::Isometry3d> current;
-  if (config_.lookup_current_tip) {
-    current = config_.lookup_current_tip();
-  }
+  // 复用 classifyApproach 的 TCP 快照：不再二次查询（保持分档/装配一致）。
+  const std::optional<Eigen::Isometry3d> & current = split.current_tip;
   const bool have_current = current && current->translation().allFinite() &&
     current->linear().allFinite();
   if (have_current) {
@@ -525,13 +528,7 @@ GraspTaskResult GraspTask::approachAndInsert(
 {
   const ApproachSplit split =
     classifyApproach(config_, entry_tip_pose, insertion_axis);
-  RCLCPP_INFO(
-    node_->get_logger(),
-    "接近：距入口 %.3fm 轴向 %.3fm 侧向 %.3fm 夹角 %.1f° 扫角 %.1f° "
-    "半径 %.3fm 沿轴LIN %.3fm 原语 %s",
-    tipToEntryDistanceM(config_, entry_tip_pose),
-    split.axial_m, split.lateral_m, split.align_deg, split.sweep_deg,
-    split.radius_m, split.lin_to_entry_m, approachKindName(split.kind));
+  logApproachSplit(node_->get_logger(), entry_tip_pose, split);
   if (split.need_lin) {
     auto to_pregrasp = planToPregrasp(
       "peach_approach_pregrasp", entry_tip_pose, insertion_axis, split, false);
@@ -588,8 +585,14 @@ GraspTaskResult GraspTask::previewFullContact(
       "linear retreat along insertion path", cartesian, -insertion_axis,
       sleeve_m));
   task->add(std::move(contact));
+  // 接近护栏只审接近段：SKIP（已对轴停在预抓取，moveToPregrasp 成功后的
+  // 常态）时 task 只有 sleeve+retreat 两段，skip_tail=2 剥不掉，回退门对
+  // 「插入再原路撤出」恒触发（start==goal 使 chord≈0、最深处=插入深度，
+  // 必超 max_recede_m）。无接近段即无接近护栏可审；sleeve/retreat 执行段
+  // 在 sleeveLinear/retreat 里各自过门。
   const std::size_t skip_tail = 2U;
-  return planAndMaybeExecute(std::move(task), false, {}, true, skip_tail);
+  return planAndMaybeExecute(
+    std::move(task), false, {}, split.need_lin, skip_tail);
 }
 
 GraspTaskResult GraspTask::moveToPregrasp(
@@ -599,13 +602,7 @@ GraspTaskResult GraspTask::moveToPregrasp(
 {
   const ApproachSplit split =
     classifyApproach(config_, entry_tip_pose, insertion_axis);
-  RCLCPP_INFO(
-    node_->get_logger(),
-    "接近：距入口 %.3fm 轴向 %.3fm 侧向 %.3fm 夹角 %.1f° 扫角 %.1f° "
-    "半径 %.3fm 沿轴LIN %.3fm 原语 %s",
-    tipToEntryDistanceM(config_, entry_tip_pose),
-    split.axial_m, split.lateral_m, split.align_deg, split.sweep_deg,
-    split.radius_m, split.lin_to_entry_m, approachKindName(split.kind));
+  logApproachSplit(node_->get_logger(), entry_tip_pose, split);
   if (!split.need_lin) {
     GraspTaskResult already;
     already.success = true;

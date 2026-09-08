@@ -1,10 +1,10 @@
 from __future__ import annotations
-"""感知可视化：消息转换、Debug 图、Marker、检测点云。"""
+"""检测点云：检测框深度反投影与 PointCloud2 组装。"""
 
 from typing import Tuple
 
 import numpy as np
-from peach_perception.common.geometry import pack_rgb_bgr
+from peach_perception.common.tf_utils import pack_rgb_bgr
 from sensor_msgs.msg import PointCloud2, PointField
 from sensor_msgs_py import point_cloud2 as pc2
 from std_msgs.msg import Header

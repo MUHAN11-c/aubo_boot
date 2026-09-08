@@ -38,7 +38,8 @@ struct CycleContext
   Eigen::Isometry3d entry_tip_pose{Eigen::Isometry3d::Identity()};
   double travel_m{0.0};
   // 再确认漂移判定的参考锚点（base 系）：FinalizeAndValidate 出口几何对应的
-  // 目标锚点（0.5·(bottom+neck)）；再确认漂移超限重算后更新为最新观测锚点。
+  // 目标锚点（0.5·(bottom+neck)；有新鲜观测锚点时优先取感知底/颈中点）。
+  // REFINED 分支保留 TSDF 入口不按单帧平移，本字段不再被重算路径改写。
   Eigen::Vector3d reference_anchor{Eigen::Vector3d::Zero()};
   // 完成度与终局
   bool pregrasp_verified{false};

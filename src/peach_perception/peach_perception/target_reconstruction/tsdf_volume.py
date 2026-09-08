@@ -5,7 +5,7 @@ import time
 from typing import Callable, Optional, Tuple
 
 import numpy as np
-from peach_perception.common.geometry import invert_transform
+from peach_perception.common.tf_utils import invert_transform
 
 _O3D = None  # 懒加载缓存（无 open3d 的环境仍可 import 本模块）
 

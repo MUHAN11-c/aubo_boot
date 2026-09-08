@@ -1,12 +1,12 @@
 """自动状态机驱动方法集（宿主契约见 capture 模块 docstring）."""
 from __future__ import annotations
 
+from peach_perception.target_reconstruction.candidate_contract import candidate_axis_hint
 from peach_perception.target_reconstruction.capture_gate import GATE_ALLOW
 from peach_perception.target_reconstruction.frame_collector import (
     STATE_COLLECTING,
     STATE_IDLE,
 )
-from peach_perception.target_reconstruction.refine import candidate_axis_hint
 from peach_perception.target_reconstruction.skip_codes import classify_skip_reason
 
 

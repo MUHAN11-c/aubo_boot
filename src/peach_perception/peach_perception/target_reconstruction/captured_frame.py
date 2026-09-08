@@ -1,5 +1,5 @@
 from __future__ import annotations
-"""采帧：门禁、帧栈、绑定防抖、自动采集。"""
+"""已采帧值对象（CapturedFrame）。"""
 
 from dataclasses import dataclass, field
 from typing import List, Optional

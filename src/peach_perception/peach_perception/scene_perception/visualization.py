@@ -1,39 +1,23 @@
-"""Re-export split modules (behavior-preserving shim)."""
+"""
+感知可视化：Debug 图叠加（确认/未确认框、ID 标签）与锁定目标 Marker.
+
+消息转换在 conversions.py、检测点云在 cloud_utils.py；本模块只画。
+三态配色与重建侧 Marker 同约定（绿 ACCEPT / 黄 REOBSERVE / 红 REJECT）。
+"""
 from __future__ import annotations
 
 from typing import List
 
 import cv2
 import numpy as np
-from peach_perception.scene_perception.cloud_utils import (
-    _bbox_cloud_xyzrgb,
-    _xyzrgb_to_cloud_msg,
-)
-from peach_perception.scene_perception.conversions import (
-    _metric,
-    _point,
-    _px,
-    _to_candidate,
-    _to_candidate_2d,
-    _to_detection2d,
-    _to_fitting,
-)
+from peach_perception.scene_perception.conversions import _metric, _point
 from peach_perception.scene_perception.image_gates import clip_bbox
 from peach_perception.scene_perception.pose_pipelines import _rotation_to_quat
 from visualization_msgs.msg import Marker
 
 __all__ = [
-    '_bbox_cloud_xyzrgb',
     '_draw_debug',
-    '_metric',
-    '_point',
-    '_px',
-    '_to_candidate',
-    '_to_candidate_2d',
-    '_to_detection2d',
-    '_to_fitting',
     '_to_markers',
-    '_xyzrgb_to_cloud_msg',
 ]
 
 

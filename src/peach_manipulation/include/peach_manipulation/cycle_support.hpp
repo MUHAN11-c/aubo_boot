@@ -2,7 +2,6 @@
 #ifndef PEACH_MANIPULATION__CYCLE_SUPPORT_HPP_
 #define PEACH_MANIPULATION__CYCLE_SUPPORT_HPP_
 
-#include <array>
 #include <chrono>
 #include <cstdint>
 #include <map>
@@ -61,6 +60,10 @@ public:
     return config_.time_budget_s;
   }
 
+  // 判定只消费质量门与移动次数：停准则=覆盖达标或 maximum_moves 用尽
+  //（docs「不按移动+等帧 EMA 预测收口」的既定口径）。elapsed/有效视点/
+  // 移动成本 EMA 仅为日志保留；BUDGET_EXHAUSTED 当前无生产方，stages
+  // 的对应分支不可达（保留枚举与分支以兼容既有文案结构）。
   ScanVerdict poll(
     bool gate_allowed, int moves, int /*effective_views*/, double /*elapsed_s*/,
     double /*move_cost_ema_s*/) const
@@ -85,12 +88,10 @@ private:
 namespace peach_manipulation
 {
 // 周期阶段耗时埋点（重构阶段 C）纯核：CycleState → 阶段名投影与墙钟累计。
-// 阶段名集合与 ExecuteTarget.action Result 的 stage_names 契约一一对应
-// （test_action_contract 钉死）；名字一律小写串，与 action 注释保持同步。
+// 阶段名与 ExecuteTarget.action Result 的 stage_names 契约一一对应；
+// 名字一律小写串，与 action 注释保持同步。
 // prepare：周期受理（onStart/previewContact 放行）到首次进入后续阶段的隐式段；
 // reconfirm：抓取前再确认段（阶段 E1，CycleState::RECONFIRM 投影）。
-inline constexpr std::array<const char *, 7> kStageNames = {
-  "prepare", "observe", "finalize", "reconfirm", "approach_insert", "tool", "retreat"};
 
 // CycleState → 阶段名投影；非阶段态（IDLE/全部终态/plan-only 圆满态）返回
 // nullptr，表示"当前不处于任何计时阶段"（StageTimer 据此收口）。

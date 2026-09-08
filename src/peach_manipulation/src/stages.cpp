@@ -16,9 +16,7 @@
 #include <string>
 #include <thread>
 #include <vector>
-#include <moveit/move_group_interface/move_group_interface.hpp>
 #include <peach_interfaces/msg/failure_code.hpp>
-#include <peach_interfaces/msg/harvest_state.hpp>
 #include <peach_interfaces/msg/peach_target_observation.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
 
@@ -186,6 +184,22 @@ Eigen::Isometry3d ManipulationSkillsNode::entryToolPose(
     alignFrameZ(current_tool->linear(), axis) :
     ViewPlanner::toolOrientation(axis, preferred_x);
   return entry_tool_pose;
+}
+
+bool ManipulationSkillsNode::contactEntryGeometry(
+  const CachedRefined & refined, const Eigen::Isometry3d & initial_pose,
+  Eigen::Isometry3d & entry_tip_pose, double & travel_m, std::string & error)
+{
+  const Eigen::Isometry3d entry_tool_pose = entryToolPose(
+    refined.entry, refined.axis, initial_pose.linear().col(0));
+  const auto tip_from_tool = motion_->lookupTransform(tip_frame_, tool_frame_);
+  if (!tip_from_tool) {
+    error = "无法取得 tip 到 tool 的变换";
+    return false;
+  }
+  entry_tip_pose = entry_tool_pose * tip_from_tool->inverse();
+  travel_m = insertionTravel(refined);
+  return true;
 }
 
 // 授权矩阵（execution_authority.hpp）的失败包装：GraspDecision 复检未通过
@@ -900,19 +914,21 @@ bool ManipulationSkillsNode::stageVerifyPregrasp(CycleContext & ctx)
           "预抓取残差超门但无最新精化快照（身份不符/无效），停止修正");
         break;
       }
-      const auto tip_from_tool = motion_->lookupTransform(tip_frame_, tool_frame_);
-      if (!tip_from_tool) {
+      Eigen::Isometry3d entry_tip_pose;
+      double travel_m = 0.0;
+      std::string entry_error;
+      if (!contactEntryGeometry(
+          *latest_refined, ctx.target->initial_pose,
+          entry_tip_pose, travel_m, entry_error))
+      {
         return failStage(
           ctx, ExecuteTarget::Result::SKIPPED_QUALITY,
           FailureCode::EXACT_TF_MISSING,
-          "预抓取修正重算入口时无法取得 tip 到 tool 的变换");
+          "预抓取修正重算入口时" + entry_error);
       }
-      const Eigen::Isometry3d entry_tool_pose = entryToolPose(
-        latest_refined->entry, latest_refined->axis,
-        ctx.target->initial_pose.linear().col(0));
       ctx.refined = latest_refined;
-      ctx.entry_tip_pose = entry_tool_pose * tip_from_tool->inverse();
-      ctx.travel_m = insertionTravel(*latest_refined);
+      ctx.entry_tip_pose = entry_tip_pose;
+      ctx.travel_m = travel_m;
       setState(CycleState::RECONFIRM, "预抓取短修正（停—看，不 SetIO）", ctx.target_id);
       const auto fix = grasp_task_->moveToPregrasp(
         ctx.entry_tip_pose, ctx.refined->axis, true);

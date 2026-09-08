@@ -253,7 +253,8 @@ def _summarize_result(action: str, result) -> dict:
             out[key] = getattr(result, key)
     if action == 'run_harvest_action' and hasattr(result, 'summary'):
         summary = result.summary
-        for key in ('attempted', 'succeeded', 'failed', 'harvested'):
+        # HarvestSummary 无 harvested 字段（成功口径是 succeeded）
+        for key in ('attempted', 'succeeded', 'failed'):
             if hasattr(summary, key):
                 out[f'summary_{key}'] = getattr(summary, key)
     return out

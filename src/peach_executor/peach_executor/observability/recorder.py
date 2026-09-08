@@ -12,6 +12,7 @@ import time
 
 import numpy as np
 
+from peach_executor.ledger import _safe_run_component
 from peach_executor.observability.codec import (
     _valid_scalar,
     finite_or_none,
@@ -63,15 +64,15 @@ TERMINAL_TARGET_CODES = {
 # 需要在 image_index.jsonl 里关联最近调试图的事件码
 IMAGE_EVENT_CODES = {'round_locked', 'photo_pose_reached'} | TERMINAL_TARGET_CODES
 # HarvestState batch_state：1 DISCOVERY / 2 RUNNING / 3 PAUSE_PENDING /
-# 4 PAUSED / 5 MAINTENANCE 都算批次活动期
-ACTIVE_BATCH_STATES = {1, 2, 3, 4, 5, 9}
-# 终局：6 COMPLETED / 7 RECOVERY_REQUIRED / 8 INTERRUPTED
-TERMINAL_BATCH_STATES = {6, 7, 8}
-# 终局：6 COMPLETED / 7 RECOVERY_REQUIRED / 8 INTERRUPTED
+# 4 PAUSED / 5 MAINTENANCE / 7 RECOVERY_REQUIRED（批内可恢复态，ACK 后回
+# RUNNING——保持批次目录开合，见 harvest_fsm._TERMINAL_BATCH_STATES）/
+# 9 NAVIGATING（预留）都算批次活动期
+ACTIVE_BATCH_STATES = {1, 2, 3, 4, 5, 7, 9}
+# 终局：只有 6 COMPLETED / 8 INTERRUPTED（与 harvest_fsm 终局集一致）。
 # （2026-08 消息契约删除预留的 FAULT，后续状态顺序前移）
-TERMINAL_BATCH_STATES = {6, 7, 8}
+TERMINAL_BATCH_STATES = {6, 8}
 _BATCH_STATE_NAMES = {
-    6: 'COMPLETED', 7: 'RECOVERY_REQUIRED', 8: 'INTERRUPTED',
+    6: 'COMPLETED', 8: 'INTERRUPTED',
 }
 # target_phase 枚举名（与 peach_interfaces/HarvestState.msg 一致）
 _PHASE_NAMES = {
@@ -261,7 +262,7 @@ def _reason_text(message: str) -> str:
         return str(payload)
     for key in ('failure_code', 'reason', 'message'):
         value = payload.get(key)
-        if value and key != 'code':
+        if value:
             return str(value)
     rest = {key: val for key, val in payload.items() if key != 'code'}
     return json.dumps(rest, ensure_ascii=False) if rest else ''
@@ -294,8 +295,6 @@ def build_target_rows(events: list[dict], priorities: dict) -> list[dict]:
             row['outcome'] = code.replace('target_', '')
             row['reason'] = _reason_text(event.get('message') or '')
             row['finished_at'] = stamp
-            if row['dispatched_at'] is None:
-                row['dispatched_at'] = dispatched.get(target_id)
     result = []
     for row in rows.values():
         start = row.get('dispatched_at')
@@ -479,7 +478,7 @@ def build_summary_csv(rows: list[dict]) -> str:
 
 
 def build_summary_markdown(run_id: str, started: float | None,
-                           ended: float | None, batch_state, rounds: int,
+                           ended: float | None, batch_state,
                            rows: list[dict], phases: list[dict],
                            event_stats: dict, perception: dict, recon: dict,
                            metrics: dict,
@@ -497,7 +496,6 @@ def build_summary_markdown(run_id: str, started: float | None,
         f'# 采摘批次摘要 `{run_id}`', '',
         '## 批次概览', '',
         f"- 终局状态：{_BATCH_STATE_NAMES.get(batch_state, '未知/未终止')}",
-        f'- 复扫轮数：{rounds}',
         f'- 开始时间：{_clock(started)}',
         f'- 结束时间：{_clock(ended)}',
         f'- 总时长：{duration} s' if duration is not None else '- 总时长：—',
@@ -882,12 +880,15 @@ class Recorder:
 
         单根会话目录（R7）：已知批次 run_id（=request_id）时目录即
         ``runs/<request_id>/``——与账本、感知 datastore、重建 session
-        同根（exist_ok：账本可能先建）；无 run_id 回退 run_<时间戳>。
+        同根（exist_ok：账本可能先建）；run_id 先过 ``_safe_run_component``
+        （与账本同规则拒绝路径分隔符与父目录段，防穿越写出 runs/ 之外），
+        被拒或无 run_id 回退 run_<时间戳>。
         """
         self._active_kind = 'run'
+        safe_run_id = _safe_run_component(self._batch_run_id, '')
         self._active_dir = (
-            Path(self._root) / self._batch_run_id
-            if self._batch_run_id else session_folder(self._root, 'run'))
+            Path(self._root) / safe_run_id
+            if safe_run_id else session_folder(self._root, 'run'))
         self._last_state_revision = None
         self._last_job_key = None
         self._enqueue('mkdir', self._active_dir)
@@ -1052,11 +1053,6 @@ class Recorder:
             for obs in (item.get('data') or {}).get('observations') or []:
                 if obs.get('target_id'):
                     priorities[obs['target_id']] = obs.get('priority')
-        rounds = [int(m.group(1)) for event in events
-                  if event.get('code') in ('round_started', 'round_completed')
-                  for m in [re.search(r'第\s*(\d+)\s*轮',
-                                      event.get('message') or '')]
-                  if m]
         stamps = [float(item.get('recorded_at') or 0.0)
                   for item in events + states if item.get('recorded_at')]
         rows = build_target_rows(events, priorities)
@@ -1070,7 +1066,7 @@ class Recorder:
             run_id,
             min(stamps) if stamps else None,
             max(stamps) if stamps else None,
-            batch_state, max(rounds) if rounds else 1, rows,
+            batch_state, rows,
             phase_durations(states), event_statistics(events),
             perception_stats(perception), reconstruction_final(reconstruction),
             summarize_metrics(metrics), recon_targets, jobs,

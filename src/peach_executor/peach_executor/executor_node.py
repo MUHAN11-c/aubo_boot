@@ -82,10 +82,12 @@ class TaskExecutorNode(LifecycleNode):
         self._operation_mode = MODE_AUTO
         self._action_active = False
         self._recovery_required = False
+        # ControlTask.reason 暂存：服务回调写入，随后第一个审计事件
+        # （batch_paused / batch_resumed / recovery_acknowledged）消费并清空。
+        self._control_reason = ''
         self._grasp_enabled = False
         self._tool_enabled = False
         self._progress = 0.0
-        self._blockers = []
         self._paused_batch = WAITING_READY
         self._recovery_batch = WAITING_READY
         self._in_flight = []
@@ -270,6 +272,8 @@ class TaskExecutorNode(LifecycleNode):
             if ok:
                 self._state_seq = seq
                 self._paused = paused
+                # 契约（ControlTask.srv）：reason 是人读原因，写入事件
+                self._control_reason = str(request.reason or '').strip()
                 self._poke()
                 if cmd == 2:
                     # 预留：MAINTENANCE 批次态与 EXIT_MAINTENANCE 命令未接线
@@ -329,8 +333,10 @@ class TaskExecutorNode(LifecycleNode):
         response.state = self._publish_state(bump=False)
         # 人工操作审计：「真运动后须 ACK」这一安全纪律必须留在事件时间线上，
         # 否则事后无法从 jsonl 回放验证 ACK 时序。
+        reason = str(request.reason or '').strip()
         self._emit(
-            'recovery_acknowledged', self._run_id, self._current_target_id)
+            'recovery_acknowledged', self._run_id, self._current_target_id,
+            details={'reason': reason} if reason else None)
         return response
 
     def _acknowledge_recovery(self) -> tuple:
@@ -533,10 +539,10 @@ class TaskExecutorNode(LifecycleNode):
             elif cmd == Command.NONE:
                 reaction = react(self._batch_state, Event.CYCLE_DONE)
                 self._current_target_id = ''
-                self._persist_ledger(claimed)
                 self._apply(reaction, goal.request_id)
             else:
                 break
+            # 账本统一在每条命令收口后落盘一次（NONE 分支不再前置双写）
             self._persist_ledger(claimed)
         aborted = reaction.command == Command.ABORT
         interrupted = (
@@ -643,7 +649,9 @@ class TaskExecutorNode(LifecycleNode):
         self._in_flight.append(build_handle)
         if not self._wait_build_started(build_handle, start_timeout):
             self._cancel_handle(build_handle)
-            # 单槽 Build：不等取消结束就派下一颗，下一颗会被拒空等 action_timeout。
+            # 单槽 Build：取消后必须等该动作结束再派下一颗（08-28 轮次 E
+            # 教训：不等结束就派，重建会因单槽占用拒下一颗 Build，空等
+            # action_timeout）。等待上限 10 s，超时由 _wait_result 自行收口。
             self._wait_result(
                 build_handle, min(timeout, 10.0),
                 goal_handle=self._run_goal_handle)
@@ -823,8 +831,11 @@ class TaskExecutorNode(LifecycleNode):
                 if extra_reason and extra_reason not in outcome.reason:
                     outcome.reason = (
                         outcome.reason + '; ' + extra_reason).strip('; ')
-            self._recovery_required = self._recovery_required or bool(
-                getattr(executed, 'recovery_required', False))
+            with self._lock:
+                # ACK 清旗标（_acknowledge_recovery）与反馈置位并发，
+                # 读-改-写须持锁，否则可能把已 ACK 的恢复门写回 True。
+                self._recovery_required = self._recovery_required or bool(
+                    getattr(executed, 'recovery_required', False))
         started = self._cycle_dispatch_t0 or t0
         set_elapsed(outcome, time.monotonic() - started)
         self._cycle_observe_extra = {}
@@ -967,12 +978,14 @@ class TaskExecutorNode(LifecycleNode):
                 self.get_logger().warning(
                     'build wait timeout (executor_wait), views=%s', views)
                 self._cancel_handle(handle)
+                self._action_active = False
                 return None, 'build_timeout:executor_wait'
             if views < min_views and now >= race_deadline:
                 self.get_logger().warning(
                     'observe_build_view_race: views=%s < min_views=%s',
                     views, min_views)
                 self._cancel_handle(handle)
+                self._action_active = False
                 return None, 'observe_build_view_race'
             if self._paused and self._batch_state not in (
                     PAUSED, PAUSE_PENDING):
@@ -1179,7 +1192,8 @@ class TaskExecutorNode(LifecycleNode):
         if feedback_message:
             self._cycle_message = feedback_message
         if bool(getattr(state, 'recovery_required', False)):
-            self._recovery_required = True
+            with self._lock:
+                self._recovery_required = True
         self._grasp_enabled = bool(getattr(state, 'grasp_enabled', False))
         self._tool_enabled = bool(getattr(state, 'tool_enabled', False))
         self._action_active = True
@@ -1191,6 +1205,9 @@ class TaskExecutorNode(LifecycleNode):
             want_status: bool = False):
         """等动作结果；可轮询 RunHarvest goal 的取消请求及时止损."""
         if handle is None:
+            # 早退路径与正常收口同样清旗标，避免 HarvestState.action_active
+            # 残留 True 直到下一个动作收口（反馈回调可能已置位）。
+            self._action_active = False
             return (None, 0) if want_status else None
         result_fut = handle.get_result_async()
         result_fut.add_done_callback(lambda _: self._poke())
@@ -1266,6 +1283,13 @@ class TaskExecutorNode(LifecycleNode):
         with self._lock:
             return self._skip_target
 
+    def _take_control_reason(self) -> dict:
+        """取出并清空最近一次 ControlTask.reason，无则空 dict."""
+        with self._lock:
+            reason = self._control_reason
+            self._control_reason = ''
+        return {'reason': reason} if reason else {}
+
     def _ledger_path(self):
         return ledger_file(default_ledger_root(), self._run_id)
 
@@ -1327,7 +1351,9 @@ class TaskExecutorNode(LifecycleNode):
                     self._emit(
                         'batch_resumed', self._run_id,
                         self._current_target_id,
-                        details={'to_state': BATCH_NAMES.get(resumed, '')})
+                        details={
+                            'to_state': BATCH_NAMES.get(resumed, ''),
+                            **self._take_control_reason()})
                 return
             if not entered:
                 entered = True
@@ -1338,13 +1364,16 @@ class TaskExecutorNode(LifecycleNode):
                     MODE_MAINTENANCE if maintenance else MODE_PAUSED)
                 self._apply_state(
                     apply_pause_pending(enter_pause(self._paused_batch)))
-                if self._batch_state == PAUSE_PENDING:
+                # enter_pause→apply_pause_pending 的结果只可能是 PAUSED 或
+                # 原态（终局/WAITING_READY 不可暂停），判 PAUSE_PENDING 恒假。
+                if self._batch_state == PAUSED:
                     self._emit(
                         'batch_paused', self._run_id,
                         self._current_target_id,
                         details={
                             'from_state':
-                                BATCH_NAMES.get(self._paused_batch, '')})
+                                BATCH_NAMES.get(self._paused_batch, ''),
+                            **self._take_control_reason()})
             self._idle(0.1)
 
     def _wait_recovery(self) -> None:
@@ -1398,7 +1427,7 @@ class TaskExecutorNode(LifecycleNode):
             msg.message = self._fsm_message
         if self._batch_state == RUNNING and self._cycle_message:
             msg.message = self._cycle_message
-        msg.blockers = list(self._blockers)
+        # blockers 字段保持消息默认空表（无写入方）
         msg.permissions = permissions_for(
             self._batch_state, self._recovery_required)
         return msg

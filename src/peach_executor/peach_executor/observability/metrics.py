@@ -33,7 +33,7 @@ class MetricsSampler:
             return
         self._stop.clear()
         self._thread = threading.Thread(
-            target=self._run, name='peach-perception-metrics', daemon=True)
+            target=self._run, name='peach-observability-metrics', daemon=True)
         self._thread.start()
 
     def stop(self) -> None:

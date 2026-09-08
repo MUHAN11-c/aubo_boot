@@ -77,6 +77,9 @@ struct ApproachSplit
   double align_deg{180.0};
   double sweep_deg{0.0};
   double radius_m{0.0};
+  // classifyApproach 取到的当前 TCP 快照：后续 append/日志复用，避免
+  // 一次接近分档内最多三次 TF 查询（各带 1s 超时）且保证几何一致。
+  std::optional<Eigen::Isometry3d> current_tip;
   std::string blocked_reason{"无约束笛卡尔接近"};
 };
 

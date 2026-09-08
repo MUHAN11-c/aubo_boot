@@ -1,5 +1,5 @@
 from __future__ import annotations
-"""采帧：门禁、帧栈、绑定防抖、自动采集。"""
+"""绑定切换防抖（BindSwitchHoldoff）。"""
 
 import time
 from typing import Callable, Optional

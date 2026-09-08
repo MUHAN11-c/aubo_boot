@@ -19,7 +19,6 @@ from peach_executor.ledger import (
 from peach_executor.select import (
     _pregrasp_radius,
     next_target,
-    next_target_id,
     pregrasp_pose_of,
     reach_queries,
 )
@@ -38,7 +37,6 @@ __all__ = [
     'ledger_file',
     'load_ledger',
     'next_target',
-    'next_target_id',
     'outcome_to_dict',
     'pregrasp_pose_of',
     'reach_queries',

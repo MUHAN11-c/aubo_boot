@@ -10,13 +10,13 @@ from typing import (
 )
 
 import numpy as np
-from peach_perception.common.geometry import (
+from peach_perception.common.fitting import (
     angle_between_deg,
     fit_cylinder_robust,
     fit_sphere_robust,
     unit_vector,
 )
-from peach_perception.target_reconstruction.integrate import require_open3d
+from peach_perception.target_reconstruction.tsdf_volume import require_open3d
 
 # ── 拟合常量（半径窗与感知包 scene 的设定一致）─────────────────
 CYLINDER_RADIUS_RANGE = (0.025, 0.050)  # 袋桃圆柱半径窗 [m]
@@ -400,41 +400,6 @@ def select_refitter(refitters: Mapping[str, object],
 
     """
     return refitters['sphere' if target_kind == 'fruit' else 'cylinder']
-
-
-def refine_geometry(xyz: np.ndarray, target_kind: str = 'bag',
-                    config: Optional[RefitConfig] = None,
-                    axis_hint=None) -> dict:
-    """
-    TSDF 云几何二次拟合门面：按 kind 分派到默认圆柱/球 refitter.
-
-    输入为 finalize 的 tsdf_cloud（xyz，base_frame，米）。target_kind 除
-    'fruit' 外一律按袋桃走圆柱线（未知/空值缺省袋桃，与感知包
-    `target_kind or 'bag'` 语义一致）。拟合成功后按门控定 status：
-    inlier_ratio ≥ config.cylinder_inlier_min 且 rmse ≤ config.rmse_max_m
-    → ACCEPT，否则 REOBSERVE；拟合本身失败 → ok=False / REJECT。
-    编排层按 REFITTERS_BY_IMPL 映射注入实现；本函数
-    保留为模块级 workhorse 锚点（单测直接锚定）。
-
-    Args:
-        xyz: (N, 3) 点 [m]（base_frame）；空云/少点优雅失败不抛异常.
-        target_kind: 'bag'/'fruit'（来自 /peach/perception/diagnostics）.
-        config: 门控与行为参数；None 用 RefitConfig 默认.
-        axis_hint: 可选 bottom→neck 单位方向（base_frame）。球体自身旋转
-            对称，无法只靠球面恢复果梗方向；有效先验来自绑定目标的单帧
-            果梗/凹陷估计。缺失时才退回 base +Z，并显式打诊断标记.
-
-    Returns
-    -------
-        dict：ok/reason/kind/status/n_points/center/axis/axis_point/
-        bottom/neck/radius/diameter/span_m/rmse/inlier_ratio/flags。
-        几何量单位均 [m]；axis 为 bottom→neck 单位向量；入口/预抓取
-        由 bag_model.fuse_bag_views 构造（refit 不出这两个点）.
-
-    """
-    refitters = {'cylinder': CylinderRefitter(), 'sphere': SphereRefitter()}
-    return select_refitter(refitters, target_kind).refit(
-        xyz, target_kind, config, axis_hint)
 
 
 # 柱/球两条精化线的实现映射（yaml refitter.cylinder_impl / sphere_impl）。

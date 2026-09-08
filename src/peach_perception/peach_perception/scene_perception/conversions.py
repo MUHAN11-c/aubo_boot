@@ -1,5 +1,5 @@
 from __future__ import annotations
-"""感知可视化：消息转换、Debug 图、Marker、检测点云。"""
+"""消息转换：观测/初值/拟合消息与 dict 的纯转换。"""
 
 
 from geometry_msgs.msg import Point, Pose, Vector3

@@ -14,6 +14,7 @@
 //   on_shutdown/on_error：关输出权限 + 取消活动周期 + 释放资源。
 #include "peach_manipulation/manipulation_skills_node.hpp"
 #include <algorithm>
+#include <chrono>
 #include <exception>
 #include <functional>
 #include <memory>
@@ -75,20 +76,22 @@ ManipulationSkillsNode::ManipulationSkillsNode(const rclcpp::NodeOptions & optio
 
 CallbackReturn ManipulationSkillsNode::on_configure(const rclcpp_lifecycle::State &)
 {
-  // 使能依赖链复核：启动覆盖值不经 on-set 钩子，违链（grasp/tool 越级开启）
-  // 必须拦在 Inactive 之前；运行期动态改参仍由 onParameters 逐批把关。
-  const auto params = param_listener_->get_params();
-  if ((params.grasp.enabled && !params.execution.enabled) ||
-    (params.tool.enabled && !params.grasp.enabled))
-  {
-    RCLCPP_ERROR(
-      get_logger(),
-      "configure 失败：使能依赖必须满足 execution→grasp→tool"
-      "（execution=%d grasp=%d tool=%d）",
-      params.execution.enabled, params.grasp.enabled, params.tool.enabled);
-    return CallbackReturn::FAILURE;
-  }
   try {
+    // 使能依赖链复核：启动覆盖值不经 on-set 钩子，违链（grasp/tool 越级开启）
+    // 必须拦在 Inactive 之前；运行期动态改参仍由 onParameters 逐批把关。
+    // 与后续步骤同 try：get_params 对非法覆盖值抛异常时也走 FAILURE 回滚，
+    // 不让异常逸出生命周期转换回调。
+    const auto params = param_listener_->get_params();
+    if ((params.grasp.enabled && !params.execution.enabled) ||
+      (params.tool.enabled && !params.grasp.enabled))
+    {
+      RCLCPP_ERROR(
+        get_logger(),
+        "configure 失败：使能依赖必须满足 execution→grasp→tool"
+        "（execution=%d grasp=%d tool=%d）",
+        params.execution.enabled, params.grasp.enabled, params.tool.enabled);
+      return CallbackReturn::FAILURE;
+    }
     loadParameters();
     createInterfaces();
     // MoveIt/MTC 资源分配放 configure（activate 只做快速切换）；

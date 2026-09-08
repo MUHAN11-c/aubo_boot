@@ -133,10 +133,6 @@ b, strong { font-variant-numeric: tabular-nums; }
 .flow-panel { display: grid; grid-template-columns: minmax(0, 5fr) minmax(300px, 2fr); gap: 18px; }
 .batch-message { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
 #batch-state.completed { color: var(--ok); }
-.round-badge {
-  background: var(--accent); color: #0c1116; font-weight: 700;
-  border-radius: 999px; padding: 4px 14px; font-size: 13px;
-}
 
 .pipeline { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
 .step {

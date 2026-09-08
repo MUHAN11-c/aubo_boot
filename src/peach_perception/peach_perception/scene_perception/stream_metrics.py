@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 from typing import Dict, Iterable, Optional
 
-from peach_perception.common.runtime import ScalarEma
+from peach_perception.common.ema import ScalarEma
 
 
 class RateEstimator:

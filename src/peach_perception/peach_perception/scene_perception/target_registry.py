@@ -44,35 +44,6 @@ class SpatialEmaMatcher:
         self.match_radius = float(match_radius)
         self.recovery_scale = float(recovery_scale)
 
-    def match(self, anchor: np.ndarray, class_id: int,
-              table: Dict[str, dict], frame_used: set) -> MatchResult:
-        """
-        三段搜索链找命中表项；全部未命中返回 MatchResult(None, radius).
-
-        Args:
-            anchor: (3,) 世界系位置（米），候选目标的空间锚点.
-            class_id: 候选类别（正常段要求同类）.
-            table: target_id → 表项 dict（只读；用 'class_id' /
-                'position' / 'confirmed' 三键）.
-            frame_used: 本帧已命中的 target_id 集合（同帧去重，跳过）.
-
-        Returns
-        -------
-            MatchResult：命中给 (target_id, 距离)；未命中给
-            (None, match_radius)（距离字段仅供诊断，无语义承诺）.
-
-        """
-        detections = [{
-            'position': np.asarray(anchor, dtype=float).reshape(3),
-            'class_id': int(class_id),
-            'covariance': None,
-        }]
-        (tid, d2, status), = assign_detections(
-            detections, table, frame_used, self.match_radius, self.recovery_scale)
-        dist = (float(np.sqrt(max(d2, 0.0))) if tid is not None
-                else self.match_radius)
-        return MatchResult(target_id=tid, distance=dist, status=status)
-
 
 class TargetRegistry:
     """

@@ -105,6 +105,10 @@ install(DIRECTORY config launch DESTINATION share/${PROJECT_NAME})
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   set(ament_cmake_copyright_FOUND TRUE)  # 文件头 BSD 等项目结束再补
+  # cpplint 整测项跳过（testing.md 口径）：其 legal/copyright 与 Google
+  # include 顺序检查与本项目「own-first、文件头版权项目结束再补」约定冲突；
+  # C++ 风格门以 uncrustify 为准，静态分析走 cppcheck。
+  set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
 endif()
 

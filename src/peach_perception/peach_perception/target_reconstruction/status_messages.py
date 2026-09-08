@@ -1,9 +1,5 @@
 from __future__ import annotations
-"""重建发布：诊断状态消息、点云节流与 PublisherMixin、session 落盘.
-
-Marker 构造在 markers.py（namespace 契约不变）；点云消息组装在本模块
-xyzrgb_to_cloud_msg。
-"""
+"""重建状态消息：diagnostics/状态三件套的消息组装。"""
 
 
 from geometry_msgs.msg import Point, Vector3

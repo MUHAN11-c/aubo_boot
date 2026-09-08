@@ -23,21 +23,21 @@ from peach_interfaces.msg import (
     BagGraspCandidateArray,
     ShapeHypothesis,
 )
-from peach_perception.common.geometry import pack_rgb_bgr
-from peach_perception.target_reconstruction.integrate import summarize_view_coverage
+from peach_perception.common.tf_utils import pack_rgb_bgr
+from peach_perception.target_reconstruction.geometry_refiner import (
+    axis_angle_deg,
+    STATUS_REJECT,
+)
 from peach_perception.target_reconstruction.markers import (
     build_camera_markers,
     build_mesh_marker,
     build_refined_grasp_markers,
 )
-from peach_perception.target_reconstruction.refine import (
-    axis_angle_deg,
-    STATUS_REJECT,
-)
 from peach_perception.target_reconstruction.status_messages import (
     diagnostics_to_status_msg,
     grasp_decision_to_msg,
 )
+from peach_perception.target_reconstruction.view_coverage import summarize_view_coverage
 from sensor_msgs.msg import PointCloud2, PointField
 from sensor_msgs_py.point_cloud2 import create_cloud
 from std_msgs.msg import Header, String
@@ -475,7 +475,7 @@ class PublisherMixin:
         组装 diagnostics JSON 的 refined 键（refit 成功结果，numpy→原生类型）.
 
         Args:
-            result: refine_geometry 的 ok=True 结果.
+            result: refit 的 ok=True 结果（select_refitter().refit 产物）.
 
         Returns
         -------

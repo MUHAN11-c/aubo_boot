@@ -140,25 +140,11 @@ peach_target_reconstruction_node:
       default_value: 0.002
       description: '[m] 与旋转同时低于阈值则不重复积分'
       validation: { gt_eq<>: [0.0] }
-    max_translation:
-      type: double
-      default_value: 0.080
-      description: '[m] 最大平移（过远=跳变）'
-      validation: { gt<>: [0.0] }
     min_rotation_deg:
       type: double
       default_value: 1.0
       description: '[deg] 与平移同时低于阈值则不重复积分'
       validation: { gt_eq<>: [0.0] }
-    max_rotation_deg:
-      type: double
-      default_value: 25.0
-      description: '[deg] 最大旋转'
-      validation: { gt<>: [0.0] }
-    allow_duplicate_views:
-      type: bool
-      default_value: true
-      description: '连续扫描不因小位姿差停止采集'
   icp:
     enable:
       type: bool

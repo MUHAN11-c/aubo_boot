@@ -1,5 +1,5 @@
 from __future__ import annotations
-"""采帧：门禁、帧栈、绑定防抖、自动采集。"""
+"""采帧 skip 短码：中文门禁原因 → 稳定码。"""
 
 
 # (子串, 短码) 顺序即优先级
@@ -13,7 +13,6 @@ _SKIP_PATTERNS = (
     ('缓存帧未更新', 'same_stamp'),
     ('查询失败（已计 tf_failures）', 'tf_failure'),
     ('近重复视角', 'near_duplicate'),
-    ('连续运动超上限', 'motion_jump'),
     ('尚无同步 RGB-D', 'no_frame'),
     ('已达 max_views', 'max_views'),
     ('机器人未静止', 'robot_not_static'),

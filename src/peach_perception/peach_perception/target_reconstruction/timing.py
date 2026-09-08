@@ -1,8 +1,8 @@
 from __future__ import annotations
-"""采帧：门禁、帧栈、绑定防抖、自动采集。"""
+"""采帧/积分/refit 墙钟耗时统计（TimingStats）。"""
 
 
-from peach_perception.common.runtime import ScalarEma
+from peach_perception.common.ema import ScalarEma
 
 # EMA 平滑系数（新样本权重）；0.3 在响应速度与抗单帧抖动间取折中
 EMA_ALPHA = 0.3

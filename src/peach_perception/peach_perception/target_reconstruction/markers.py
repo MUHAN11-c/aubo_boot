@@ -10,11 +10,11 @@ from typing import List, Optional
 
 from geometry_msgs.msg import Point, Quaternion
 import numpy as np
-from peach_perception.common.geometry import rotation_to_quat
+from peach_perception.common.tf_utils import rotation_to_quat
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker, MarkerArray
 
-from .refine import (
+from .geometry_refiner import (
     STATUS_ACCEPT,
     STATUS_REJECT,
     STATUS_REOBSERVE,
@@ -296,12 +296,6 @@ def build_refined_grasp_markers(
     cut_mark.color = _color(0.72, 0.20, 0.90, 0.95)
     out.append(cut_mark)
     return out
-
-
-def build_refined_marker(header, refined: Optional[dict]) -> Optional[Marker]:
-    """兼容旧调用：返回抓取示意中的袋轴线段，无结果给 None."""
-    markers = build_refined_grasp_markers(header, refined)
-    return markers[0] if markers else None
 
 
 def build_mesh_marker(header, mesh_data: Optional[dict],

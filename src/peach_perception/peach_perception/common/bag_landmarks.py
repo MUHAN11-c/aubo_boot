@@ -6,7 +6,7 @@ from typing import Optional
 
 import numpy as np
 
-from peach_perception.common.geometry import (
+from peach_perception.common.fitting import (
     axis_radial_distance,
     fit_sphere_robust,
     unit_vector as _unit,

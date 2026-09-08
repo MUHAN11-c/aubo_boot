@@ -54,69 +54,74 @@ from peach_interfaces.msg import (
 from peach_perception.common.bag_landmarks import (
     estimate_bag_landmarks,
 )
-from peach_perception.common.geometry import (
-    normalize_depth_to_uint16_mm,
-    transform_msg_to_matrix,
-    transform_points,
-)
-from peach_perception.common.ros.clock_adapter import RclpyClockAdapter
-from peach_perception.common.runtime import (
-    BoundedWorker,
+from peach_perception.common.bounded_worker import BoundedWorker
+from peach_perception.common.depth_geometry import normalize_depth_to_uint16_mm
+from peach_perception.common.harvest_data import (
     HarvestDataStore,
     resolve_runs_root,
 )
+from peach_perception.common.ros.clock_adapter import RclpyClockAdapter
+from peach_perception.common.tf_utils import (
+    transform_msg_to_matrix,
+    transform_points,
+)
+from peach_perception.target_reconstruction.auto_controller import AutoControllerMixin
 from peach_perception.target_reconstruction.bag_model import fuse_bag_views
-from peach_perception.target_reconstruction.capture import (
-    AutoControllerMixin,
-    BindSwitchHoldoff,
+from peach_perception.target_reconstruction.bind_holdoff import BindSwitchHoldoff
+from peach_perception.target_reconstruction.candidate_contract import (
+    axis_from_vector3,
+    candidate_axis_hint,
+    select_reconstruction_candidate,
+    TargetKindMemory,
+)
+from peach_perception.target_reconstruction.capture_gate import (
     capture_gate,
-    CapturedFrame,
-    CollectorConfig,
-    FrameCollector,
     GATE_ALLOW,
     GATE_DENY,
     GATE_NEED_TF,
     GATE_SKIP,
     GateDecision,
+)
+from peach_perception.target_reconstruction.captured_frame import CapturedFrame
+from peach_perception.target_reconstruction.cloud_builder import Open3dCloudBuilder
+from peach_perception.target_reconstruction.frame_collector import (
+    CollectorConfig,
+    FrameCollector,
     STATE_COLLECTING,
     STATE_IDLE,
-    StrictMaskGate,
-    TimingStats,
 )
 from peach_perception.target_reconstruction.frame_store import FrameStoreMixin
-from peach_perception.target_reconstruction.integrate import (
-    apply_target_mask,
-    assembly_overlap_metrics,
+from peach_perception.target_reconstruction.geometry_refiner import (
+    axis_angle_deg,
+    make_refitter,
+    RefitConfig,
+    select_refitter,
+    STATUS_ACCEPT,
+    STATUS_REOBSERVE,
+)
+from peach_perception.target_reconstruction.icp_refiner import (
     BoundedIcp,
     IcpConfig,
+)
+from peach_perception.target_reconstruction.icp_target_cache import (
     IcpTargetCache,
     IcpTargetRefreshConfig,
-    LocalTsdf,
-    Open3dCloudBuilder,
+)
+from peach_perception.target_reconstruction.mask_gate import StrictMaskGate
+from peach_perception.target_reconstruction.overlap import (
+    assembly_overlap_metrics,
     summarize_pairs_mm,
-    summarize_view_coverage,
 )
 from peach_perception.target_reconstruction.params import TargetReconstructionParams
 from peach_perception.target_reconstruction.pregrasp_verification import (
     evaluate_pregrasp,
 )
-from peach_perception.target_reconstruction.publish import (
-    PublisherMixin,
-    PublishThrottle,
-    save_session,
-)
-from peach_perception.target_reconstruction.refine import (
-    axis_angle_deg,
-    axis_from_vector3,
-    candidate_axis_hint,
-    make_refitter,
-    RefitConfig,
-    select_reconstruction_candidate,
-    select_refitter,
-    STATUS_ACCEPT,
-    STATUS_REOBSERVE,
-    TargetKindMemory,
-)
+from peach_perception.target_reconstruction.publish_throttle import PublishThrottle
+from peach_perception.target_reconstruction.publishers import PublisherMixin
+from peach_perception.target_reconstruction.session_io import save_session
+from peach_perception.target_reconstruction.timing import TimingStats
+from peach_perception.target_reconstruction.tsdf_volume import LocalTsdf
+from peach_perception.target_reconstruction.view_coverage import summarize_view_coverage
 import rclpy
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -200,10 +205,7 @@ class TargetReconstructionNode(
                 recommended_views=p.capture.recommended_views,
                 max_views=p.capture.max_views,
                 min_translation=p.view_filter.min_translation,
-                max_translation=p.view_filter.max_translation,
                 min_rotation_deg=p.view_filter.min_rotation_deg,
-                max_rotation_deg=p.view_filter.max_rotation_deg,
-                allow_duplicate_views=p.view_filter.allow_duplicate_views,
                 auto_mode=p.capture.auto_mode,
                 auto_finalize_at_max=p.capture.auto_finalize_at_max,
                 auto_min_interval_s=p.capture.auto_min_interval_s,
@@ -302,7 +304,7 @@ class TargetReconstructionNode(
         self._tsdf_volume = None  # 每轮 session 持续在线积分
         self._mesh_cache: Optional[dict] = None
         # refit：感知 diagnostics 的 target_id→target_kind 映射；
-        # _refined 为 refit 唯一缓存——refine_geometry 成功结果 dict 或
+        # _refined 为 refit 唯一缓存——refit 成功结果 dict 或
         # {'ok': False, 'reason': ...} 失败记录（None=未跑/已失效），
         # diagnostics JSON 的 refined 键由 _refined_info() 投影派生
         self._target_kind_memory = TargetKindMemory()
@@ -579,7 +581,7 @@ class TargetReconstructionNode(
 
     def _process_rgbd(self, frame):
         """
-        同步回调：归一化深度后**只缓存最新一帧**（绝不自动累积）.
+        同步回调：归一化深度后写入 5 帧环（绝不自动累积积分）.
 
         Args:
             rgb_msg: 彩色图（bgr8）.
@@ -588,7 +590,8 @@ class TargetReconstructionNode(
 
         Returns
         -------
-            无返回值（None）；缓存写 self._latest_frame.
+            无返回值（None）；环选帧见 FrameStoreMixin._select_cached_frame
+            （优先「有同戳掩膜的最新帧」，严格同戳、不回退 latest TF）。
 
         """
         rgb_msg, depth_msg, info = frame
@@ -641,6 +644,10 @@ class TargetReconstructionNode(
     def _on_initial_pose(self, msg: BagGraspCandidateArray):
         """缓存最新感知候选（启动重建时绑定最优目标用）."""
         self._latest_candidates = msg
+        # 轴 hint 按 base 系解释；tf_unavailable 帧感知退相机系，混入会
+        # 把错误坐标系的轴向喂给 refit/融合（绑定侧 select 已有同款门）。
+        if msg.header.frame_id != self.params.frames.base_frame:
+            return
         with self._state_lock:
             bound_id = self.collector.target_id
             hint = candidate_axis_hint(msg, bound_id)
@@ -696,6 +703,12 @@ class TargetReconstructionNode(
                 # FOLLOW（无会话可毁/未偏离/未绑定）与 CANCEL（holdoff 内
                 # 切回原 ID）均直通；requested==bound 时赋值幂等
                 self._preferred_target_id = requested_target_id
+            # 几何缓存（轴 hint/邻目标锚点/掩膜中心）全部按 base 系解释：
+            # 感知 tf_unavailable 帧退相机系，混入会让漂移门/串扰门按
+            # 错误坐标系算距离（绑定侧 select_reconstruction_candidate
+            # 已有同款 frame 门）。ID/会话切换与帧无关，不受此门影响。
+            if msg.header.frame_id != self.params.frames.base_frame:
+                return
             # 掩膜缓存按当前绑定目标（防抖期=旧目标）取观测；绑定目标本帧
             # 无观测/非 OBSERVED/无掩膜时本帧不更新缓存
             bound_obs = next((item for item in msg.observations
@@ -852,6 +865,9 @@ class TargetReconstructionNode(
         self._tsdf_info = None
         self._mesh_cache = None
         self._refined = None
+        # 与 _refined 成对清空：换目标后 _bag_model 若残留旧目标融合结果，
+        # PregraspVerification/TargetModel 会拿上一颗的袋模型报残差。
+        self._bag_model = None
         self._tsdf_volume = None
         # E4：模型已清空，ICP target 缓存作废（下次采帧强制全量刷新）；
         # 版本号递增 + force 标志使下一轮 _publish_all 立即透传空产物
@@ -1171,15 +1187,16 @@ class TargetReconstructionNode(
         # 仅在成功收帧时计入 frame_total EMA（拒帧早退不污染基线）
         t_frame0 = self._algo_clock.now()
         try:
-            cloud_fk, cloud_rgb, ratio = self._cloud_builder.build(
-                depth_mm, rgb, K, T_base_camera,
-                target_mask=target_mask)
+            # masked_depth 复用构云时已算好的掩膜结果（免全图级二次
+            # apply_target_mask）；ratio 语义不变（掩膜内有效/掩膜像素）。
+            cloud_fk, cloud_rgb, ratio, masked_depth = \
+                self._cloud_builder.build(
+                    depth_mm, rgb, K, T_base_camera,
+                    target_mask=target_mask)
         except (RuntimeError, ValueError) as exc:
             return False, f'点云构建失败: {exc}'
         if tf_status != 'ok':
             return False, '非精确时间 TF 帧禁止进入 TSDF'
-        masked_depth, _mask_ratio = apply_target_mask(
-            depth_mm, target_mask)
 
         cloud_fk, cloud_rgb = self._crop_for_icp(cloud_fk, cloud_rgb)
         cached_target = self._icp_target_cache.current_target()
@@ -1282,6 +1299,7 @@ class TargetReconstructionNode(
             self._tsdf_cloud_cache = None
             self._tsdf_info = None
             self._refined = None
+            self._bag_model = None
             self._bump_products_version(tsdf_cloud=True)
             self.get_logger().warning(message)
         else:
@@ -1422,7 +1440,11 @@ class TargetReconstructionNode(
                 self.params.refit.pregrasp_standoff_m))
         result = self._merge_fused_bag_model(result, fused, views)
         if result.get('ok') and result.get('budget'):
+            # _refined/_bag_model 须成对写入：GraspDecision 读 _refined、
+            # PregraspVerification/TargetModel 读 _bag_model，只写一个会让
+            # 同一时刻「许可与残差观测」互相矛盾。
             self._refined = result
+            self._bag_model = fused
             self._log_geometry_row(result, fused)
             self._bump_products_version()
             self._products_force_publish = True
@@ -1437,6 +1459,8 @@ class TargetReconstructionNode(
             return (f'；refit {status_text}（袋模型 '
                     f"{fused.get('view_count', 0)} 视）")
         if previous and previous.get('ok') and previous.get('budget'):
+            # keep_last_good：两个缓存都不动（_bag_model 由成对写入维护），
+            # 避免旧 good _refined 配新失败 _bag_model 的矛盾对。
             self.get_logger().warning(
                 f"refit/融合未收敛，保留上一帧袋模型：{result.get('reason')}")
             return f'；refit 未更新（{result.get("reason")}）'
@@ -1483,8 +1507,12 @@ class TargetReconstructionNode(
         return views
 
     def _merge_fused_bag_model(self, result: dict, fused: dict, views) -> dict:
-        """Write fused bag geometry; drop the contact budget if fusion fails."""
-        self._bag_model = fused
+        """
+        Merge fused geometry into refit result; drop budget on fusion fail.
+
+        不直接写 ``self._bag_model``：成对写入权在 ``_run_refit``（见其
+        注释），否则 keep_last_good 分支会留下新旧混合的缓存对。
+        """
         if not fused.get('ok'):
             result.setdefault('flags', []).append('bag_fusion_required')
             result['ok'] = False
@@ -1773,10 +1801,7 @@ class TargetReconstructionNode(
                 'capture.static_joint_vel_thresh': self.params.capture.static_joint_vel_thresh,
                 'capture.max_frame_age_s': self.params.capture.max_frame_age_s,
                 'view_filter.min_translation': self.params.view_filter.min_translation,
-                'view_filter.max_translation': self.params.view_filter.max_translation,
                 'view_filter.min_rotation_deg': self.params.view_filter.min_rotation_deg,
-                'view_filter.max_rotation_deg': self.params.view_filter.max_rotation_deg,
-                'view_filter.allow_duplicate_views': self.params.view_filter.allow_duplicate_views,
                 'icp.enable': self.params.icp.enable,
                 'icp.min_points': self.icp_config.min_points,
                 'icp.coarse_voxel': self.icp_config.coarse_voxel,

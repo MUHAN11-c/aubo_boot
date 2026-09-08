@@ -1,9 +1,5 @@
 from __future__ import annotations
-"""重建发布：诊断状态消息、点云节流与 PublisherMixin、session 落盘.
-
-Marker 构造在 markers.py（namespace 契约不变）；点云消息组装在本模块
-xyzrgb_to_cloud_msg。
-"""
+"""重建 session 落盘：~/save_session 目录写出。"""
 
 from datetime import datetime
 from pathlib import Path
@@ -11,7 +7,7 @@ from typing import List
 
 import cv2
 import numpy as np
-from peach_perception.target_reconstruction.integrate import require_open3d
+from peach_perception.target_reconstruction.tsdf_volume import require_open3d
 import yaml
 
 

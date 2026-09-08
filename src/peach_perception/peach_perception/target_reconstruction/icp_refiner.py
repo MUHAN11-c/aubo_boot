@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from peach_perception.common.geometry import relative_motion
+from peach_perception.common.tf_utils import relative_motion
 from peach_perception.target_reconstruction.tsdf_volume import require_open3d
 
 

@@ -2,11 +2,11 @@
 
 权威：源码。与 [architecture.md](architecture.md)、[io.md](io.md) 构成仅有的三份活文档；**源码与本文互相更新，改启动/验收口径或改本文须同一轮改另一边**。约束：[AGENTS.md](../AGENTS.md)。
 
-真机轮次、量化基线、审查记录写在 [testing-log.md](testing-log.md)（过程记录，不驱动现行设计）。改行为只改本文 + 源码；补一条实测时追加 testing-log，不把轮次散文写回本文。
+真机轮次、量化基线、审查记录写在 [testing-log.md](testing-log.md)；工程整理过程写在 [REFACTORING.md](REFACTORING.md)（二者都是过程记录，不驱动现行设计）。改行为只改本文 + 源码；补一条实测时追加 testing-log，不把轮次散文写回本文。
 
-各包 `test/` **保留 ROS 2 默认 lint，并允许零 ROS 纯核 pytest**（Python：`test_flake8.py` / `test_pep257.py` + 不 import rclpy 的表驱动；CMake：`ament_lint_auto`）。现行纯核：`peach_executor/test/test_harvest_fsm.py`（`react` 表）、`peach_perception/test/test_runtime_core.py`（`ManualClock` / `BoundedWorker` capacity=1 drop_oldest）。禁止业务用例、gtest、DDS 假现场、launch_testing、采摘仿真测。语法与流程由审查核对，对错以实机为准。`colcon test` 不等于采摘验收。套入剪切软件门看 flake8 / pep257 / uncrustify 与纯核表；文件头 BSD 版权块等项目结束再补，期间跳过 copyright lint。`ament_xmllint` 会拉 `package_format3.xsd`，网络卡住超时不阻塞本产品路径。
+各包 `test/` **保留 ROS 2 默认 lint，并允许零 ROS 纯核 pytest**（Python：`test_flake8.py` / `test_pep257.py` + 不 import rclpy 的表驱动；CMake：`ament_lint_auto`）。现行纯核：`peach_executor/test/test_harvest_fsm.py`（`react` 表）、`peach_perception/test/test_runtime_core.py`（`ManualClock` / `BoundedWorker` capacity=1 drop_oldest）、`graspnet_ros2/test/test_grasp_core.py`（`GraspList` NMS/碰撞；torch 算子 `importorskip`）。禁止业务用例、gtest、DDS 假现场、launch_testing、采摘仿真测。语法与流程由审查核对，对错以实机为准。`colcon test` 不等于采摘验收。套入剪切软件门看 flake8 / pep257 / uncrustify 与纯核表；`peach_manipulation` 整测项跳过 cpplint（其 legal/copyright 与 Google include 顺序检查同本项目「文件头版权块项目结束再补」「include own-first」约定冲突，CMake 已 `set(ament_cmake_cpplint_FOUND TRUE)`），C++ 风格门以 uncrustify 为准、静态分析走 cppcheck。`ament_xmllint` 会拉 `package_format3.xsd`，网络卡住超时不阻塞本产品路径。
 
-不要删 `_archive/runs/` 与现场 `runs/`。未授权不得真机运动或 SetIO。launch **不自动** `RunHarvest`。十四包职责见 [architecture.md](architecture.md) §3。`serial_imu` 不进整栈 launch。
+不要删 `_archive/runs/` 与现场 `runs/`。未授权不得真机运动或 SetIO。launch **不自动** `RunHarvest`。采摘十四包职责见 [architecture.md](architecture.md) §3。`serial_imu` 与旁路视觉抓取三包不进整栈 launch。
 
 ---
 
@@ -49,6 +49,16 @@ ros2 launch peach_executor harvest_system.launch.py \
 # 真机（须显式 real；示教器上电；bringup 不起 aubo_dashboard）
 ros2 launch peach_executor harvest_system.launch.py \
   hardware_mode:=real camera_enabled:=true robot_ip:=169.254.10.98
+```
+
+旁路视觉抓取（独立 launch，不进上面这条整栈）。lint/纯核走 colcon；Web 回归与 GraspNet torch 算子须 `aubo_py3.12`：
+
+```bash
+colcon test --packages-select ivg_interfaces visual_pose_estimation_python graspnet_ros2
+# GraspNet 纯核（torch 在 venv）
+./aubo_py3.12/bin/python -m pytest src/graspnet_ros2/test/test_grasp_core.py
+# 估姿 Web 回归（fastapi/httpx 在 venv；系统 python 下整文件 skip）
+./aubo_py3.12/bin/python -m pytest src/visual_pose_estimation/visual_pose_estimation_python/test/test_web_app.py
 ```
 
 监控：`http://127.0.0.1:8090`。参数 `peach_executor/config/observability.yaml`。`/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipulation` / `task_executor` / `robot` / `metrics` / `record` / `params` / `job` / `debug`。`/api/trajectory` 为末端点列（对照预抓取/入口/弦）。首屏作业票须能看出当前果实停在哪一环、抓取档是否关闭、`GraspDecision.allowed` 与 base_link 坐标；其下三维能看出路径相对弦是否绕行（绕行比、Δz）。默认不上电、不派发运动、不打工具 IO、不自动开批。
@@ -115,7 +125,7 @@ ros2 service call /peach_executor/control peach_interfaces/srv/ControlTask \
 
 `auto_power_on` 必须为 false。柜侧用示教器；规划/FK/IK 用 MoveIt；停轨走透传取消 + 硬件 `RobotMoveStop`。禁止调用 `aubo_dashboard`。
 
-过程数据：新记录在工作区 `runs/`。08-20～08-24 在 `_archive/runs/root_2026-08-24/`。每次干跑把结论写进 `runs/field_test_<日期>/log.md`，并追加 [testing-log.md](testing-log.md)。批次结束自动生成 `summary.md`：头部含验收门对照（帧率 ≥2.0 / tf_failures=0 / 到预抓取停住 ≥1，口径见下）与配对账本路径（账本在 `runs/<request_id>/`，监控在 `runs/run_*/`，两树互引）；终局事件 `message` 带 `failure_code`，原因列直接可读。ACK 前自动 summary 常把 Hold 记成 `unfinished`——以技能终局与现场停位为准。
+过程数据：新记录在工作区 `runs/`。08-20～08-24 在 `_archive/runs/root_2026-08-24/`。每次干跑把结论写进 `runs/field_test_<日期>/log.md`，并追加 [testing-log.md](testing-log.md)。批次终局（`COMPLETED` / `INTERRUPTED`）自动生成 `summary.md`：头部含验收门对照（帧率 ≥2.0 / tf_failures=0 / 到预抓取停住 ≥1，口径见下）与配对账本路径（账本在 `runs/<request_id>/`，监控在 `runs/run_*/`，两树互引）；终局事件 `message` 带 `failure_code`，原因列直接可读。恢复等待（Hold 等 ACK）期间不写 summary，数据持续入 `run_*` 目录。
 
 ### 档位（干跑默认）
 
@@ -291,6 +301,12 @@ pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
 unset PYTHONPATH
 export PYTHONPATH="/opt/ros/jazzy/lib/python3.12/site-packages:${PYTHONPATH:-}"
 source /opt/ros/jazzy/setup.bash
+# 本机欠铺层（2026-09-08 实测补记）：moveit_configs_utils 在 ~/ros2_ws、
+# MTC 动态库在 ~/ws_moveit、open3d/torch 在 aubo_py3.12 venv；缺任一，
+# manipulation 报 libmoveit_task_constructor 缺库退出、重建节点 import 期退出。
+source /home/mu/ros2_ws/install/setup.bash
+source /home/mu/ws_moveit/install/setup.bash
+export PYTHONPATH="/home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12/lib/python3.12/site-packages:${PYTHONPATH:-}"
 source /home/mu/Desktop/aubo_e5_jazzy_ws/install/setup.bash
 ros2 launch peach_executor harvest_system.launch.py \
   hardware_mode:=real camera_enabled:=true robot_ip:=169.254.10.98
@@ -330,7 +346,7 @@ ros2 service call /peach_executor/control peach_interfaces/srv/ControlTask \
 1. `ros2 launch peach_executor harvest_system.launch.py hardware_mode:=real camera_enabled:=true robot_ip:=169.254.10.98`（先 moveit_enabled 默认 true）。
 2. Active 后先对照拍照位，再 `ros2 param set` 开执行/抓取（`tool.enabled` 保持 false），再发 `RunHarvest`（launch 不自动开批）。完整命令见上「复现命令」。
 3. 每颗期望链：首巡 Survey → Begin → WAIT_LOCK → SELECT → Build+OBSERVE 并行 → `PREGRASP_ONLY` 停在预抓取（作业票停在「靠近」）→ 现场目视评方向/定位（筒口对袋轴？侧向偏多少？剪切点落袋口？）→ `ControlTask` 命令 6 ACK → 回访 Survey（不 Begin）→ 下一颗。
-4. 通过判据：`ExecuteTarget` 终局 `SUCCEEDED` 且 `recovery_required=true`（不得 `FAILED`）；全程无 SetIO；这些对错只在现场评，`allowed`/余量只作记录。ACK **前** 自动 `summary.md` 常把该目标记 `unfinished`、门「到预抓取停住」显示 0——以技能 `[SUCCEEDED] PREGRASP_ONLY` 与现场停位为准，不要等 ACK 才认 Hold。
+4. 通过判据：`ExecuteTarget` 终局 `SUCCEEDED` 且 `recovery_required=true`（不得 `FAILED`）；全程无 SetIO；这些对错只在现场评，`allowed`/余量只作记录。Hold 等 ACK 期间不写 summary（结算只认批次终局）；若需当场核对，以技能 `[SUCCEEDED] PREGRASP_ONLY` 日志与现场停位为准。
 
 中断与异常：
 

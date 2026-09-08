@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import numpy as np
-from peach_perception.common.runtime import ScalarEma
+from peach_perception.common.ema import ScalarEma
 from peach_perception.target_reconstruction.tsdf_volume import LocalTsdf
 
 # 修正量 EMA 平滑系数（与 timing.EMA_ALPHA 同约定：0.3 在响应速度与

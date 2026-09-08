@@ -1,11 +1,11 @@
 from __future__ import annotations
-"""采帧：门禁、帧栈、绑定防抖、自动采集。"""
+"""帧栈（FrameCollector）：采帧状态机与自动模式决策。"""
 
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 import numpy as np
-from peach_perception.common.geometry import relative_motion
+from peach_perception.common.tf_utils import relative_motion
 
 STATE_IDLE = 'IDLE'
 STATE_COLLECTING = 'COLLECTING'
@@ -20,10 +20,7 @@ class CollectorConfig:
     recommended_views: int = 5        # 推荐视角数（不足仅提示）
     max_views: int = 8                # 帧栈上限
     min_translation: float = 0.002    # [m] 与上一帧最小平移（低于=近重复）
-    max_translation: float = 0.080    # [m] 与上一帧最大平移（高于=跳变）
     min_rotation_deg: float = 1.0     # [deg] 最小旋转
-    max_rotation_deg: float = 25.0    # [deg] 最大旋转
-    allow_duplicate_views: bool = True  # True 时重复视角仅告警不拒帧
     # ── 自动模式（默认开；False 使用纯手动 Trigger 服务流）──
     auto_mode: bool = True            # 自动开始/采帧/完成总开关
     auto_finalize_at_max: bool = False  # 连续扫描默认由用户 finalize
@@ -103,40 +100,6 @@ class FrameCollector:
             return f'开始重建，绑定目标 {self.target_id}'
         return '开始重建（当前无候选，未绑定目标）'
 
-    def check_view(self, T_base_camera: np.ndarray
-                   ) -> Tuple[bool, str, Optional[float], Optional[float]]:
-        """
-        视角过滤：本帧位姿与上一已采帧的相对运动检查.
-
-        规则：平移与旋转**同时**低于下限 = 重复视角；任一**高于**上限 = 跳变。
-        重复视角在 allow_duplicate_views=True 时放行（reason='duplicate_allowed'，
-        由调用方告警）；跳变恒拒。首帧不检查。
-
-        Args:
-            T_base_camera: (4, 4) 本帧 base←camera 位姿.
-
-        Returns
-        -------
-            (ok, reason, rel_translation_m, rel_rotation_deg)；首帧后两个为 None.
-
-        """
-        if not self.frames:
-            return True, 'first_frame', None, None
-        trans, rot = relative_motion(T_base_camera, self.frames[-1].T_base_camera)
-        self.last_rel_translation_m = trans
-        self.last_rel_rotation_deg = rot
-        if (trans > self.config.max_translation
-                or rot > self.config.max_rotation_deg):
-            return False, (f'视角跳变过大：平移 {trans * 1000.0:.1f} mm / '
-                           f'旋转 {rot:.1f} deg 超上限'), trans, rot
-        if (trans < self.config.min_translation
-                and rot < self.config.min_rotation_deg):
-            if self.config.allow_duplicate_views:
-                return True, 'duplicate_allowed', trans, rot
-            return False, (f'与上一帧视角过近：平移 {trans * 1000.0:.1f} mm / '
-                           f'旋转 {rot:.1f} deg 低于下限'), trans, rot
-        return True, 'ok', trans, rot
-
     # ------------------------------------------------------------------
     # 自动模式决策（纯逻辑，节点只做 TF/订阅接线）
     # ------------------------------------------------------------------
@@ -170,12 +133,12 @@ class FrameCollector:
         """
         自动采帧决策（纯逻辑）.
 
-        规则（与手动 check_view 的严格拒帧不同，自动模式以「跳过」代替拒绝）：
-        首帧直采 → 可选间隔门 → 近重复视角跳过积分 → 其余采集。
+        规则（跳过而非拒帧，保积分序）：首帧直采 → 可选间隔门 →
+        近重复视角跳过积分 → 其余采集。
         转移中的超采由 capture_gate.require_robot_static 拦下；本函数见到
         相对上一已采帧偏大的位移，表示已经到了新机位，应当采集，不能当
-        成「连续运动超上限」丢掉（现场 12°/0.40 m 环绕约 84 mm，大于旧的
-        max_translation=80 mm，会把 captured_views 钉死在 1）。
+        成「连续运动超上限」丢掉（旧视角过滤上限 80 mm 会把现场 12°/0.40 m
+        环绕约 84 mm 的合法短移拒掉，captured_views 钉死在 1）。
 
         Args:
             T_base_camera: (4, 4) 本帧 base←camera 位姿.

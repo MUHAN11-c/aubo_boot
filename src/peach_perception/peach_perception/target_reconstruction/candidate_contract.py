@@ -3,7 +3,7 @@ from __future__ import annotations
 
 
 import numpy as np
-from peach_perception.common.geometry import unit_vector
+from peach_perception.common.fitting import unit_vector
 
 _STATUS_ACCEPT = 0
 _STATUS_REJECT = 2

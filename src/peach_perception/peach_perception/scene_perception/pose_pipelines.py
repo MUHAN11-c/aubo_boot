@@ -16,11 +16,13 @@ from peach_perception.common.bag_landmarks import (
     enforce_wide_bottom,
     estimate_bag_landmarks,
 )
-from peach_perception.common.geometry import (
+from peach_perception.common.fitting import (
     estimate_normals,
     fit_cylinder_robust,
     fit_sphere_robust,
     polish_sphere_lm,
+)
+from peach_perception.common.tf_utils import (
     rotation_to_quat,
     transform_direction,
     transform_point,

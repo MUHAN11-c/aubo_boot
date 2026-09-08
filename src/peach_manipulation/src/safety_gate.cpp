@@ -7,7 +7,9 @@
 namespace peach_manipulation
 {
 SafetyGate::SafetyGate(SafetyGateConfig config, std::function<double()> clock_s)
-: config_(config), clock_s_(std::move(clock_s))
+: config_(config),
+  target_observation_max_age_s_(config.target_observation_max_age_s),
+  clock_s_(std::move(clock_s))
 {
 }
 
@@ -45,7 +47,9 @@ bool SafetyGate::targetReady(
     reason = "selected_target_not_observed";
     return false;
   }
-  if (clock_s_() - sample.received_s > config_.target_observation_max_age_s) {
+  const double max_age_s = target_observation_max_age_s_.load(
+    std::memory_order_relaxed);
+  if (clock_s_() - sample.received_s > max_age_s) {
     reason = "selected_target_stale";
     return false;
   }

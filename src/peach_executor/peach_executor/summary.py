@@ -7,11 +7,12 @@ from peach_interfaces.msg import HarvestSummary, TargetOutcome
 
 
 def elapsed_msg(seconds: float) -> Duration:
-    """单调时钟秒数 → Duration."""
+    """单调时钟秒数 → Duration（小数进位到 sec，nanosec 恒 < 1s）."""
     msg = Duration()
     safe = max(0.0, float(seconds))
-    msg.sec = int(safe)
-    msg.nanosec = int(round((safe - msg.sec) * 1e9))
+    total_ns = int(round(safe * 1e9))
+    msg.sec = total_ns // 1_000_000_000
+    msg.nanosec = total_ns % 1_000_000_000
     return msg
 
 

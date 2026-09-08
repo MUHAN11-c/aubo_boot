@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from peach_perception.target_reconstruction.capture import MaskContext
+from peach_perception.target_reconstruction.mask_gate import MaskContext
 
 
 class FrameStoreMixin:
@@ -28,13 +28,20 @@ class FrameStoreMixin:
         self._latest_frame = None
 
     def _push_frame_ring(self, frame_tuple) -> None:
-        """按 stamp_ns 写入帧环，超出容量丢最旧."""
+        """
+        按 stamp_ns 写入帧环，超出容量丢最旧.
+
+        须持宿主 ``_state_lock``：读者（``_select_cached_frame``，持锁）
+        对环做 ``list(...)`` 快照迭代，无锁并发插入会触发
+        ``RuntimeError: dictionary changed size during iteration``。
+        """
         stamp_msg = frame_tuple[3]
         stamp_ns = self._stamp_ns(stamp_msg)
-        self._frame_ring.pop(stamp_ns, None)
-        self._frame_ring[stamp_ns] = frame_tuple
-        while len(self._frame_ring) > self._frame_ring_max:
-            self._frame_ring.pop(next(iter(self._frame_ring)))
+        with self._state_lock:
+            self._frame_ring.pop(stamp_ns, None)
+            self._frame_ring[stamp_ns] = frame_tuple
+            while len(self._frame_ring) > self._frame_ring_max:
+                self._frame_ring.pop(next(iter(self._frame_ring)))
         self._latest_frame = frame_tuple
 
     def _select_cached_frame(
@@ -46,7 +53,7 @@ class FrameStoreMixin:
         内，等感知回调再驱动。环空返回 None。
         """
         if prefer_stamp_sec is not None:
-            # 快照遍历：worker 线程可能并发插入新时间戳（环由其无锁写入）
+            # 持锁遍历：_push_frame_ring 与本读同锁（写侧注释见上）
             for frame in list(self._frame_ring.values()):
                 if abs(float(frame[4]) - float(prefer_stamp_sec)) > 1e-9:
                     continue

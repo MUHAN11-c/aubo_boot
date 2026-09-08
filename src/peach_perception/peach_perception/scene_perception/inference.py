@@ -347,14 +347,12 @@ class CandidateEstimator:
         self.last_timings_ms: dict[str, float] = {}
         self._last_mask_timings_ms: dict[str, float] = {}
 
-    def _pipeline_for(self, obs: BagObservation, bbox: tuple | None = None
-                      ) -> tuple:
+    def _pipeline_for(self, obs: BagObservation) -> tuple:
         """
-        按与 bbox 匹配的检测 class_id 选择袋线 / 果线.
+        按检测 class_id 选择袋线 / 果线.
 
         Args:
-            obs: 单帧输入.
-            bbox: 当前目标框；None 时才回退 detections[0].
+            obs: 单帧输入（class_id 取 detections[0]）.
 
         Returns
         -------
@@ -396,7 +394,7 @@ class CandidateEstimator:
 
         bbox = clip_bbox(bbox, obs.depth.shape)
         masks, valid_roi = self.build_masks(obs, bbox, sam_mask)
-        kind, pipeline = self._pipeline_for(obs, bbox)
+        kind, pipeline = self._pipeline_for(obs)
         results = {}
         self.last_timings_ms = {}
         for mode in selected:

@@ -44,14 +44,21 @@ from peach_interfaces.msg import (
     PeachTargetObservationArray,
 )
 from peach_interfaces.srv import BeginScene
-from peach_perception.common.geometry import (
-    gravity_camera_from_R,
-    normalize_depth_to_uint16_mm,
-    transform_msg_to_matrix,
+from peach_perception.common.bounded_worker import BoundedWorker
+from peach_perception.common.depth_geometry import normalize_depth_to_uint16_mm
+from peach_perception.common.harvest_data import (
+    default_runs_root,
+    HarvestDataStore,
 )
 from peach_perception.common.ros.clock_adapter import RclpyClockAdapter
-from peach_perception.common.runtime import (
-    BoundedWorker, default_runs_root, HarvestDataStore)
+from peach_perception.common.tf_utils import (
+    gravity_camera_from_R,
+    transform_msg_to_matrix,
+)
+from peach_perception.scene_perception.anchor_memory import (
+    first_point,
+    memory_grasp,
+)
 from peach_perception.scene_perception.assignment import (
     bbox_touches_image_edge,
     classify_tracking_status,
@@ -61,14 +68,20 @@ from peach_perception.scene_perception.assignment import (
     STATUS_OCCLUDED,
     STATUS_OUT_OF_VIEW,
 )
+from peach_perception.scene_perception.cloud_utils import (
+    _bbox_cloud_xyzrgb,
+    _xyzrgb_to_cloud_msg,
+)
 from peach_perception.scene_perception.contracts import BagObservation
-from peach_perception.scene_perception.identity import (
+from peach_perception.scene_perception.conversions import (
+    _to_candidate,
+    _to_candidate_2d,
+    _to_detection2d,
+    _to_fitting,
+)
+from peach_perception.scene_perception.harvest_plan import (
     CollectLockPolicy,
-    first_point,
     GlobalHarvestPlan,
-    memory_grasp,
-    SpatialEmaMatcher,
-    TargetRegistry,
 )
 from peach_perception.scene_perception.image_gates import (
     plan_segmentation_bboxes,
@@ -94,15 +107,13 @@ from peach_perception.scene_perception.stream_metrics import (
     RateEstimator,
     TimingMetrics,
 )
+from peach_perception.scene_perception.target_registry import (
+    SpatialEmaMatcher,
+    TargetRegistry,
+)
 from peach_perception.scene_perception.visualization import (
-    _bbox_cloud_xyzrgb,
     _draw_debug,
-    _to_candidate,
-    _to_candidate_2d,
-    _to_detection2d,
-    _to_fitting,
     _to_markers,
-    _xyzrgb_to_cloud_msg,
 )
 import rclpy
 from rclpy.duration import Duration
@@ -1134,8 +1145,11 @@ class ScenePerceptionNode(LifecycleNode):
                             and tracked_entry.get('swinging')):
                         result.grasp_3d.diagnostic_flags.append(
                             'target_swinging')
-                    self._bbox_at_edge[tid] = bbox_touches_image_edge(
-                        bbox, depth.shape[1], depth.shape[0])
+                    # ambiguous_* 每帧生成新键且无人回读（读者只查锁定集/
+                    # selected 的真实 ID），写入只会无界增长
+                    if not str(tid).startswith('ambiguous_'):
+                        self._bbox_at_edge[tid] = bbox_touches_image_edge(
+                            bbox, depth.shape[1], depth.shape[0])
                 else:
                     result.grasp_3d.diagnostic_flags.append('target_untracked')
             grasp_3d, grasp_2d = result.grasp_3d, result.grasp_2d

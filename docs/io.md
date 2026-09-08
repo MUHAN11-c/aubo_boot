@@ -1,6 +1,6 @@
 # 输入输出
 
-权威：源码、各包 `config/*.yaml`、[`peach_interfaces/config/interface_manifest.yaml`](../src/peach_interfaces/config/interface_manifest.yaml)。清单漂移：`python3 src/peach_interfaces/scripts/check_interface_manifest.py`。与 [architecture.md](architecture.md)、[testing.md](testing.md) 构成仅有的三份活文档；**源码与本文互相更新，改接口/话题/TF 或改本文须同一轮改另一边**。真机轮次：[testing-log.md](testing-log.md)。
+权威：源码、各包 `config/*.yaml`、[`peach_interfaces/config/interface_manifest.yaml`](../src/peach_interfaces/config/interface_manifest.yaml)。字段级目录：[peach_interfaces/README.md](../src/peach_interfaces/README.md)。清单漂移：`python3 src/peach_interfaces/scripts/check_interface_manifest.py`。与 [architecture.md](architecture.md)、[testing.md](testing.md) 构成仅有的三份活文档；**源码与本文互相更新，改接口/话题/TF 或改本文须同一轮改另一边**。真机轮次：[testing-log.md](testing-log.md)。工程整理过程：[REFACTORING.md](REFACTORING.md)（不驱动现行设计）。
 
 对象是套袋桃。跨包只走 `peach_interfaces`。能力包不互发批次命令；作业目标只认调度 `~/state.target_id`。包职责见 [architecture.md](architecture.md) §3。
 
@@ -14,6 +14,7 @@
 | §5 | `peach_executor` | `peach_executor`、`peach_lifecycle_manager`、`peach_observability` |
 | §6 | 驱动九包 | 臂 / 相机 / TF（只读红线见 AGENTS） |
 | §7 | `serial_imu` | 可选，不进整栈 |
+| §8 | 旁路视觉抓取 | `visual_pose_estimation_python`、`graspnet_ros2`（IDL=`ivg_interfaces`） |
 
 各节点流程图在对应小节（入口 → 处理 → 输出）。跨包谁叫谁见 §1。批次时序与技能阶段序列见 [architecture.md](architecture.md) 图 C / 图 D。
 
@@ -71,7 +72,7 @@ flowchart LR
 
 ## 2. `peach_interfaces`
 
-无节点、无 launch。跨包唯一 IDL；清单 33 active + 4 reserved，脚本双向核对。改字段只改本包，先编本包再编下游。
+无节点、无 launch、无运行参数。跨包唯一 IDL；清单 33 active + 4 reserved，脚本双向核对。每根管子与每个字段的含义写在 [peach_interfaces/README.md](../src/peach_interfaces/README.md)。改字段只改本包，先编本包再编下游；同轮改 README、manifest 与本文。
 
 | 动作 | 服务端所在包 | 含义 |
 |------|--------------|------|
@@ -105,7 +106,7 @@ flowchart LR
 | `GraspHypothesis` | 技能本周期抓取假说；监控订阅，尚未当批次门 |
 | `JobIntent` / `HarvestEvent` | 契约预留；`intent` 常量以 `JobIntent` 为准 |
 
-事件码：`target_dispatched` / `target_succeeded` / `target_skipped` / `target_failed` / `target_canceled` / `target_operator_skipped` / `photo_pose_reached` / `round_locked` / `survey_failed`；人工操作审计码：`batch_paused` / `batch_resumed`（含 from/to 态）、`recovery_required`（真运动后停驻）、`recovery_acknowledged`（人工 ACK 完成）；选果过滤码：`targets_filtered`（details 列出超窗目标与原因 `out_of_reach_window` / `out_of_depth_window` / `ik_no_solution`）。终局目标事件的 `message` JSON 并入 outcome 细节（`failure_code` 等），summary「原因」列取之。`MatchStatus`：`OK` / `NEW` / `AMBIGUOUS` / `REJECTED`；歧义不强制合并。
+事件码：`target_dispatched` / `target_succeeded` / `target_skipped` / `target_failed` / `target_canceled` / `target_operator_skipped` / `photo_pose_reached` / `round_locked` / `survey_failed`；人工操作审计码：`batch_paused` / `batch_resumed`（含 from/to 态）、`recovery_required`（真运动后停驻）、`recovery_acknowledged`（人工 ACK 完成）——审计码 details 带 ControlTask `reason`（请求填了才写）；选果过滤码：`targets_filtered`（details 列出超窗目标与原因 `out_of_reach_window` / `out_of_depth_window` / `ik_no_solution`）。终局目标事件的 `message` JSON 并入 outcome 细节（`failure_code` 等），summary「原因」列取之。`MatchStatus`：`OK` / `NEW` / `AMBIGUOUS` / `REJECTED`；歧义不强制合并。
 
 导航预留（manifest `reserved_interfaces`，无生产方；调度 NAV 直通）：
 
@@ -254,7 +255,7 @@ flowchart TB
 | `/peach/reconstruction/markers` | topic | 相机轨迹与精化示意 | peach_target_reconstruction | （可视化） |
 | `/peach/reconstruction/shape_hypothesis` | topic | 形状假说（契约预留，未当批次门） | peach_target_reconstruction | （无消费方） |
 
-采帧门（`target_reconstruction/capture.py`，自动失败=skip）：满栈 → 无帧 → 掩膜 → 同 stamp → 帧龄>2 s → 静止（`/joint_states` 最大 `|vel|`>0.03 rad/s）→ 空 frame_id → **精确 TF**。
+采帧门（`target_reconstruction/capture_gate.py`，自动失败=skip）：满栈 → 无帧 → 掩膜 → 同 stamp → 帧龄>2 s → 静止（`/joint_states` 最大 `|vel|`>0.03 rad/s）→ 空 frame_id → **精确 TF**。
 
 ```mermaid
 flowchart TB
@@ -517,7 +518,7 @@ HTTP `/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipu
 | 重建 session | 同根；含 `geometry.jsonl`（袋底/颈/轴/剪切点/D95/预算/单帧 flags；复算脚本已归档 `_archive/offline_2026-09/`，写入保留）。三维点按 `list[float]` 写，缺失用 `is None` 回退，不得对 ndarray 用 Python `or`（真值歧义会把已积分体积回滚，RViz TSDF Cloud 变空） |
 | MCAP | `runs/mcap_<时间>`，默认关 |
 
-根：工作区 `runs/`（`peach_perception.common.runtime.default_runs_root`）。历史 `_archive/runs/`，不要删。记录器按 `HarvestState.batch_state` 开关 `run_*` 目录。事件码须与 `canonical_code_for_outcome` 一致。批次结束后仍写 jsonl 是已知缺口（见 architecture 缺口表）。归档里若有 `approach.jsonl`，那是旧技能状态文件名。
+根：工作区 `runs/`（`peach_perception.common.harvest_data.default_runs_root`）。历史 `_archive/runs/`，不要删。记录器按 `HarvestState.batch_state` 开关 `run_*` 目录：结算只认终局 `COMPLETED` / `INTERRUPTED`（与 `harvest_fsm` 终局集一致）；`RECOVERY_REQUIRED` 等 批内等待态保持批次目录开、数据持续入 `run_*`，不提前写 summary。批次目录名先过滤 `request_id`（与账本同规则拒绝路径分隔符与父目录段，防穿越）。事件码须与 `canonical_code_for_outcome` 一致。批次结束后仍写 jsonl 是已知缺口（见 architecture 缺口表）。归档里若有 `approach.jsonl`，那是旧技能状态文件名。
 
 MCAP（`record_mcap:=true`）白名单是 7 个话题，**无** RGB/深度/`/tf`：`events`、`state`、`scene_snapshot`、`target_observations`、`/peach/reconstruction/status`（String，不是 diagnostics）、`shape_hypothesis`、`grasp_hypothesis`。末端轨迹不进 MCAP，进 `runs/<request_id>/tcp_trajectory.jsonl`（R7 单根会话目录）。
 
@@ -604,3 +605,58 @@ flowchart TB
 | `/imu/temp` | 温度 |
 
 静态 TF `world`（或 `base_link`）→`imu_link`；动态 `→imu_attitude`。不并进臂链，除非 `tf_parent_frame:=base_link`。手册：[src/serial_imu/README.md](../src/serial_imu/README.md)。
+
+---
+
+## 8. 旁路视觉抓取（不进采摘）
+
+不在 peach 清单、采摘核不订、不进 `harvest_system` / lifecycle。IDL 只在 `ivg_interfaces`（估姿 1 msg + 5 srv）。与采摘共用 Percipio 图像/点云与 `extrinsics_publisher` TF；检测 launch **不**再起相机或手眼节点。
+
+### `visual_pose_estimation_python`
+
+节点名 `visual_pose_estimation_python`。Web 另进程，默认 `http://127.0.0.1:8088/`。软触发发 `std_msgs/String` 到 `/camera/soft_trigger`（与 `percipio_camera` 一致）；无订阅者时不阻断，依赖自由出流缓存帧。`T_B_C` 优先查 `base_link` ← `camera_color_optical_frame`。Web 上 `/api/get_robot_status`、`/api/set_robot_pose`、`/api/set_robot_io`、`/api/execute_pose_sequence` 与抓取/快换路由一律 **501**（运动走 harvest 8090 调试操作面或 `graspnet_ros2`）。
+
+```mermaid
+flowchart LR
+  cam["/camera/{color,depth}/image_raw"] --> node["visual_pose_estimation_python"]
+  node -->|"estimate_pose / estimate_pose_2d"| caller["人工 / Web"]
+  node -->|"list_templates / standardize_template / update_params"| caller
+  node -->|"system_status"| log["String"]
+```
+
+| 名字 | 含义 |
+|------|------|
+| `~/estimate_pose` | 深度(+可选彩色) → 6D 与抓取/放置笛卡尔位 |
+| `~/estimate_pose_2d` | RGB → 像素中心与转角 |
+| `~/list_templates` | 列出模板库 |
+| `~/standardize_template` | 标准化某工件模板 |
+| `~/update_params` | 更新算法参数段 |
+| `~/system_status` | 运行日志 String |
+| `/camera/color/image_raw`、`/camera/depth/image_raw` | 与采摘同一相机话题（参数可改） |
+| `/camera/soft_trigger` | Percipio 软触发（`std_msgs/String`） |
+
+模板根：launch `template_root` → 环境变量 `VPE_TEMPLATE_ROOT` → `web_ui/configs/app_config.json` → `visual_pose_estimation/templates`。
+
+### `graspnet_ros2`
+
+检测节点 `graspnet_demo_points_node`；执行客户端 `publish_grasps_client`（须外部 `move_group`，规划组 `manipulator_e5`、末端 `tcp`）。推理纯核 `GraspNetInference.get_grasp` 无 rclpy。采集默认待命。
+
+```mermaid
+flowchart LR
+  cloud["/camera/depth_registered/points"] --> det["graspnet_demo_points_node"]
+  ctl["/graspnet_capture_control SetBool"] --> det
+  det --> mk["grasp_markers"]
+  det --> pa["grasp_poses_base"]
+  pa --> cli["publish_grasps_client"]
+  cli -->|"MoveGroup / CartesianPath"| mg["move_group"]
+```
+
+| 名字 | 含义 |
+|------|------|
+| `/camera/depth_registered/points` | 输入点云（与 RViz Camera Points 同名） |
+| `/graspnet_capture_control` | `std_srvs/SetBool`：True 开始一组采集 |
+| `grasp_markers` | 相机系 MarkerArray（兜底 frame `camera_depth_optical_frame`） |
+| `grasp_poses_base` | `base_link` 系 PoseArray |
+| `grasp_pose_i` | 动态 TF（候选抓取） |
+
+`publish_grasps_client` 凑满 `min_groups_before_pick` 组后会走 MoveIt 接近。未授权不得真机运动。手册：[src/graspnet_ros2/README.md](../src/graspnet_ros2/README.md)。

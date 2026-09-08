@@ -27,19 +27,19 @@ def pregrasp_pose_of(item):
     return (entry.x, entry.y, entry.z, q.x, q.y, q.z, q.w)
 
 
-def reach_queries(observations, claimed, preferred=()):
+def _eligible_locked_items(observations, claimed):
     """
-    枚举待检目标与估计预抓取位姿：[(tid, pose7)]（纯函数，供 IK 预检）.
+    枚举锁定集内可执行候选：(target_id, item) 生成器.
 
-    只含锁定集内已确认、未入账、非裸果且几何可构造的表项；
-    preferred（goal 显式名单）不参与预检——直通不受窗限。
+    资格：锁定集内、target_id 非空、未入账、已确认、非裸果
+    （unbagged_display_only / fruit 线不进执行候选）。reach_queries
+    与 next_target 共用同一谓词，避免两份过滤条件漂移。
     """
-    claimed = set(claimed)
-    out = []
     if observations is None:
-        return out
+        return
     if not bool(getattr(observations, 'target_set_locked', False)):
-        return out
+        return
+    claimed = set(claimed)
     for item in observations.observations:
         tid = getattr(item, 'target_id', '')
         if not tid or tid in claimed or not getattr(item, 'confirmed', False):
@@ -49,9 +49,21 @@ def reach_queries(observations, claimed, preferred=()):
         strat = str(getattr(cand, 'strategy_id', '') or '')
         if 'unbagged_display_only' in flags or 'fruit' in strat:
             continue
+        yield str(tid), item
+
+
+def reach_queries(observations, claimed, preferred=()):
+    """
+    枚举待检目标与估计预抓取位姿：[(tid, pose7)]（纯函数，供 IK 预检）.
+
+    只含锁定集内已确认、未入账、非裸果且几何可构造的表项；
+    preferred（goal 显式名单）不参与预检——直通不受窗限。
+    """
+    out = []
+    for tid, item in _eligible_locked_items(observations, claimed):
         pose = pregrasp_pose_of(item)
         if pose is not None:
-            out.append((str(tid), pose))
+            out.append((tid, pose))
     return out
 
 
@@ -102,27 +114,15 @@ def next_target(
         return reasons
 
     filtered = {}
-    if observations is None:
-        return '', filtered
-    if not bool(getattr(observations, 'target_set_locked', False)):
-        return '', filtered
     # 次序策略：感知 priority 主序（越小越先），同级按**检测框面积降序**
     # ——近距双检（同一颗袋大框+遮挡残片小框）先做大框；小框多为叶片
     # 遮挡残片或误检（09-01 现场定夺）。窗过滤按此次序进行，首个合格即选。
     candidates = []
-    for item in observations.observations:
-        tid = getattr(item, 'target_id', '')
-        if not tid or tid in claimed or not getattr(item, 'confirmed', False):
-            continue
-        flags = list(getattr(item, 'diagnostic_flags', []) or [])
-        cand = getattr(item, 'candidate', None)
-        strat = str(getattr(cand, 'strategy_id', '') or '')
-        if 'unbagged_display_only' in flags or 'fruit' in strat:
-            continue
+    for tid, item in _eligible_locked_items(observations, claimed):
         box = getattr(item, 'candidate_2d', None)
         area = float(box.bbox_w) * float(box.bbox_h) if (
             box is not None and box.bbox_w > 0 and box.bbox_h > 0) else 0.0
-        candidates.append((int(getattr(item, 'priority', 0) or 0), -area, str(tid), item))
+        candidates.append((int(getattr(item, 'priority', 0) or 0), -area, tid, item))
     candidates.sort(key=lambda row: (row[0], row[1]))
     for _prio, _neg_area, tid, item in candidates:
         reasons = _window_reasons(item, tid)
@@ -131,12 +131,3 @@ def next_target(
             continue
         return tid, filtered
     return '', filtered
-
-
-def next_target_id(observations, claimed, preferred=()):
-    """兼容薄壳：不带窗过滤的原语义（离线脚本/旧调用方用）."""
-    tid, _ = next_target(
-        observations, claimed, preferred,
-        depth_range=(0.0, 1e9), ik_results=None,
-        fallback_reach_range=(0.0, 1e9))
-    return tid

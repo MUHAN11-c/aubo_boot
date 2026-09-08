@@ -183,16 +183,15 @@ void ManipulationSkillsNode::previewContact(
   // 的目标 ID 会污染后续手动周期：stagePrepareCycle 的 goal 钉死校验会把
   // "新 selected ≠ 预览残留 ID"误判为目标身份变更而失败。本函数内一律用局部
   // target/refined。
-  Eigen::Isometry3d entry_tool_pose = entryToolPose(
-    refined->entry, refined->axis, target->initial_pose.linear().col(0));
-  const auto tip_from_tool = motion_->lookupTransform(tip_frame_, tool_frame_);
-  if (!tip_from_tool) {
-    finish(false, CycleState::PREVIEW_FAILED, "无法取得 tip 到 tool 的变换");
+  Eigen::Isometry3d entry_tip_pose;
+  double travel = 0.0;
+  std::string entry_error;
+  if (!contactEntryGeometry(
+      *refined, target->initial_pose, entry_tip_pose, travel, entry_error))
+  {
+    finish(false, CycleState::PREVIEW_FAILED, entry_error);
     return;
   }
-  const Eigen::Isometry3d entry_tip_pose =
-    entry_tool_pose * tip_from_tool->inverse();
-  const double travel = insertionTravel(*refined);
 
   setState(
     CycleState::PREVIEW_CONTACT_PLANNING,

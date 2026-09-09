@@ -1475,7 +1475,16 @@ class TaskExecutorNode(LifecycleNode):
         if details:
             payload.update(details)
         event.message = json.dumps(payload, ensure_ascii=False)
-        if code == 'survey_failed':
+        # severity 对齐 CanonicalEvent.msg 契约：AUDIT=人工操作审计，
+        # ERROR=失败/中断，WARNING=可恢复告警，其余 INFO。
+        if code in {
+            'batch_paused', 'batch_resumed',
+            'recovery_required', 'recovery_acknowledged',
+        }:
+            event.severity = CanonicalEvent.AUDIT
+        elif code in {'survey_failed', 'target_failed', 'target_canceled'}:
+            event.severity = CanonicalEvent.ERROR
+        elif code == 'observe_build_view_race':
             event.severity = CanonicalEvent.WARNING
         if hasattr(self, '_pub_event'):
             self._pub_event.publish(event)

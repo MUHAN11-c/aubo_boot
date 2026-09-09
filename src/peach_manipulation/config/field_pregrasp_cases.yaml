@@ -1,0 +1,29 @@
+# 真机过程记录的模拟抓取位姿（base_link，米）。只供 mock 轨迹回放，
+# 不进 harvest launch、不改默认 yaml。来源：docs/testing-log.md 与
+# runs/field_pregrasp_*/job.jsonl。拍照关节 = SRDF global_photo_pose。
+photo_joints:
+  shoulder_joint: 0.425083
+  upperArm_joint: 0.195177
+  foreArm_joint: 1.677740
+  wrist1_joint: 1.461739
+  wrist2_joint: -0.500161
+  wrist3_joint: 0.038621
+# 拍照位实测 TCP（对照用；回放以 FK 为准）
+photo_tcp_xyz: [0.302, -0.232, 0.708]
+cases:
+  '1757':
+    request_id: field_pregrasp_20260901_1757
+    target_id: target_1
+    note: 现行停袋底对照；目视方向中上，轨迹可行；当时走 PTP，绕行比 1.57
+    entry_xyz: [0.30384646154773753, -0.614107279028262, 0.5364744763197402]
+    pregrasp_xyz: [0.30384646154773753, -0.614107279028262, 0.5364744763197402]
+    axis: [0.042490284187384854, 0.13626269543201486, 0.9897611093507753]
+    field_detour_ratio: 1.568
+  '1740':
+    request_id: field_pregrasp_20260903_1740
+    target_id: target_0
+    note: 无约束 PTP 绕行不可接受；路径 1.63 m / 弦 0.43 m / 抬到 z=1.065
+    entry_xyz: [0.3921227612846128, -0.6051646253961457, 0.5455669524829958]
+    pregrasp_xyz: [0.3843317869471351, -0.6139213117793098, 0.5179513561204387]
+    axis: [0.25969914458258975, 0.29188954610546747, 0.9205198787519016]
+    field_detour_ratio: 3.757

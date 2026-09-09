@@ -1,0 +1,24 @@
+== /peach/perception/axis (qos=reliable) ==
+average rate: 2.404
+	min: 0.142s max: 0.686s std dev: 0.10186s window: 20
+== /peach/perception/detections (qos=reliable) ==
+average rate: 2.431
+	min: 0.387s max: 0.446s std dev: 0.01070s window: 25
+== /peach/perception/masks (qos=reliable) ==
+average rate: 1.900
+	min: 0.355s max: 1.222s std dev: 0.22488s window: 18
+== /peach/perception/debug_image (qos=best_effort) ==
+            Call `ros2 <command> -h` for more detailed usage. ...
+ros2: error: unrecognized arguments: --qos-reliability best_effort
+== /peach/perception/markers (qos=reliable) ==
+average rate: 2.421
+	min: 0.224s max: 0.668s std dev: 0.07467s window: 21
+== /peach/reconstruction/pregrasp_verification (qos=reliable) ==
+average rate: 1.000
+	min: 0.996s max: 1.004s std dev: 0.00191s window: 9
+== /peach/reconstruction/shape_hypothesis (qos=reliable) ==
+WARNING: topic [/peach/reconstruction/shape_hypothesis] does not appear to be published yet
+== /peach/reconstruction/status (qos=reliable) ==
+average rate: 1.000
+	min: 0.996s max: 1.004s std dev: 0.00238s window: 10
+== /peach_executor/state (qos=reliable) ==

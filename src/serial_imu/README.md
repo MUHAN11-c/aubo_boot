@@ -6,11 +6,13 @@ USB 串口 IMU（QinHeng CH340 `1a86:7523`，0xA4 寄存器协议）。**不是*
 
 ```
 serial_imu/
-  serial_imu/imu_node.py      # 节点：串口、话题、TF
+  serial_imu/imu_node.py      # 节点：串口、话题、TF、工具偏移
   serial_imu/protocol.py      # 无 ROS：切帧、校验、缩放
+  serial_imu/tool_offset.py   # 无 ROS：偏移解算纯核（安装共轭、清零门）
   config/serial_imu.yaml
   launch/serial_imu.launch.py
   rviz/serial_imu.rviz
+  test/test_tool_offset.py    # 纯核 pytest（无 ROS）
   udev/99-imu-usb-serial.rules
 ```
 
@@ -94,6 +96,12 @@ groups                  # 须含 dialout
 
 `sensor_msgs/Imu` 发布：`linear_acceleration`、`angular_velocity`（rad/s）、`orientation`（xyzw）。协方差：`data` 用对角小量；`data_raw` 的 `orientation_covariance[0]=-1`（表示无融合姿态）。
 
+数据口径（2026-09-09 实测，见 §8）：
+
+- **陀螺三轴输出恒为 0**（int16 原始零）：`/imu/data_raw.angular_velocity` 与 `/imu/data.angular_velocity` 不可用，姿态唯一来源是模组融合四元数。
+- `mag_level=0`（无磁融合），yaw 靠模组内部陀螺积分：51 s 静止实测总漂移 0.29°（yaw ≈0.06 deg/min）；每次接触前清零的口径下够用，>10 min 长会话未测。
+- 帧率 ≈74.7 Hz；静止 acc 噪声 std ≈0.003 m/s²；|acc|≈9.6（模组自标定刻度，略低于 9.81，不影响姿态）。
+
 ---
 
 ## 4. ROS 2 集成（imu_tools 惯例）
@@ -104,12 +112,15 @@ QoS：`SensorDataQoS`（best_effort, volatile）。RViz 订 Imu 必须 Reliabili
 
 | 名字 | 类型 | 含义 |
 |------|------|------|
-| `/imu/data` | `sensor_msgs/Imu` | 模组四元数 + acc/gyro；RViz Imu 插件订这个 |
-| `/imu/data_raw` | `sensor_msgs/Imu` | 仅 acc/gyro，`orientation_covariance[0]=-1` |
+| `/imu/data` | `sensor_msgs/Imu` | 模组四元数 + acc/gyro（gyro 恒 0）；RViz Imu 插件订这个 |
+| `/imu/data_raw` | `sensor_msgs/Imu` | 仅 acc/gyro（gyro 恒 0），`orientation_covariance[0]=-1` |
 | `/imu/mag` | `sensor_msgs/MagneticField` | 特斯拉 |
 | `/imu/temp` | `sensor_msgs/Temperature` | °C |
 | TF `parent→imu_link` | 静态 | 安装位，单位姿态。默认 parent=`world` |
 | TF `parent→imu_attitude` | 动态 | 模组四元数，拧模块时这个轴在转 |
+| `/imu/tool_offset` | `geometry_msgs/QuaternionStamped` | 工具偏移（`tool_axis` 系），仅 `tool_offset.enabled` 时发 |
+| 服务 `imu/tool_offset/zero` | `std_srvs/Trigger` | 零位采集（清零），每次接触前调用，同步返回成败 |
+| TF `tool_axis→tcp_actual` | 动态 | 实际工具姿态（偏移旋转），供机械臂 TCP 跟随 |
 
 `header.frame_id` = `imu_link`。
 
@@ -145,10 +156,12 @@ ros2 topic hz /imu/data
 ros2 run tf2_ros tf2_echo world imu_attitude
 ```
 
-和采摘 RViz 叠在一起：
+和采摘 RViz 叠在一起（装自适应圆柱工具 B 时加 `tool_offset_enabled:=true`，并配 `tf_parent_frame:=base_link`；须有 robot_state_publisher 发臂链 TF）：
 
 ```bash
-ros2 launch serial_imu serial_imu.launch.py use_rviz:=false tf_parent_frame:=base_link
+ros2 launch serial_imu serial_imu.launch.py use_rviz:=false tf_parent_frame:=base_link tool_offset_enabled:=true
+ros2 service call /imu/tool_offset/zero std_srvs/srv/Trigger   # 零位采集
+ros2 run tf2_ros tf2_echo tool_axis tcp_actual                 # 看偏移
 ```
 
 Fixed Frame 改成 `base_link`。
@@ -218,9 +231,43 @@ RViz **TF** 显示默认会画出当前图里**所有** `/tf`。采摘栈若同�
 | `tf_parent_frame` | `world` | 接手臂改 `base_link` |
 | `publish_attitude_tf` | true | 动态 parent→imu_attitude |
 | `attitude_frame_id` | `imu_attitude` | |
+| `tool_offset.enabled` | `false` | 工具偏移总开关（launch `tool_offset_enabled` 可覆盖） |
+| `tool_offset.base_frame` | `base_link` | 臂运动学查询的根 |
+| `tool_offset.nominal_frame` | `tool_axis` | 名义工具系（URDF，随法兰刚性） |
+| `tool_offset.output_frame` | `tcp_actual` | 偏移 TF 子坐标系名 |
+| `tool_offset.mount_rpy_deg` | `[177, 0, 0]` | 模组在工具系安装姿态，**必须标定**（§8） |
+| `tool_offset.pivot_depth_m` | `0.0` | 自适应机构铰点深度（工具系 −Z）；0=绕筒口纯旋转 |
+| `tool_offset.zero_on_start` | true | 起动后自动清零一次（需 TF 与重力自检同过） |
+| `tool_offset.max_tilt_deg` | `15.0` | 偏移告警阈值（只告警不停发，停套入由上层判） |
+| `tool_offset.zero_gravity_check` | true | 清零重力自检门 |
+| `tool_offset.zero_gravity_tool` | `[0, 0, 1]` | 清零姿态下工具系预期重力方向 |
+| `tool_offset.zero_gravity_tol_deg` | `5.0` | 自检容差 |
 
 ---
 
-## 8. 不负责
+## 8. 工具偏移（自适应圆柱工具 B）
+
+模组装在工具 B 上，测**实际工具相对名义工具系 `tool_axis` 的姿态偏移**，供机械臂实时调整 TCP 跟随。不进 `harvest_system`/lifecycle、不订 peach 话题（只订 TF）。
+
+**解算口径**：清零时刻 t0 工具居中（设计稿方案 B「零位在每次接触前采集」），偏移 = `conj(q_bn_t) ⊗ q_bn0 ⊗ M ⊗ Δ ⊗ M⁻¹`，其中 `Δ` 为模组四元数自 t0 的变化（体系表达）、扣除臂自身运动项、`M = R_tool_imu` 安装共轭。发布为 TF `tool_axis→tcp_actual`（rotation=偏移，translation 按 `pivot_depth_m`，默认 0）与话题 `/imu/tool_offset`。刚性场景自检：清零恒等、臂动恒等（test_tool_offset.py 覆盖）。
+
+**安装共轭 M 必须标定，不是精度问题而是方向问题**：模组现况为倒装（2026-09-09 实测 roll≈+177°）。若 M 按单位阵处理，偏移轴经倒装镜像——「前倾 +5°」会被报成「后倾 −5°」，臂朝反方向跟随构成正反馈。
+
+标定流程（把 `mount_rpy_deg` 调到清零服务在零位返回成功为止）：
+
+1. 臂走到零位：工具轴竖直、开口朝 +Z（URDF 零位，`tf2_echo base_link tool_axis` 应≈恒等姿态）。
+2. 把模组静置姿态的 roll/pitch 填入 `mount_rpy_deg`（当前已知 roll≈+177°；pitch/yaw 实测回填，yaw 按贴装约定：模组 X 对工具 X）。
+3. 零位下调 `ros2 service call /imu/tool_offset/zero std_srvs/srv/Trigger`：重力自检（容差 5°）通过即返回 success；失败信息会指出安装/姿态不符。
+4. 验证：手拧工具几度，`tf2_echo tool_axis tcp_actual` 转向须与手感一致。
+
+运行约束：
+
+- 偏移 TF/话题 stamp 停更 = IMU 或臂 TF 失效，**消费端必须按 stamp 新鲜度停止套入**（设计稿：传感器失效停止套入，不降级）。
+- 姿态偏移不得替代抓取许可（`GraspDecision.allowed` 仍唯一权威）。
+- yaw 漂移量级见 §3 数据口径；超长会话未测，接触前务必清零。
+
+---
+
+## 9. 不负责
 
 采摘调度、MoveIt、底盘 `/scan`、生命周期名单。不替代预留的底盘 IMU。

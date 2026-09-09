@@ -1,4 +1,5 @@
-// 功能：MTC 接触。到预抓取只走 Pilz LIN / CIRC；沿轴套入与撤退。PTP 不用于接触。
+// 功能：MTC 接触。到预抓取按官方抓取管线：GenerateGraspPose 风格滚转采样
+// → Fallbacks(Pilz LIN, CartesianPath)。沿轴套入与撤退。接触不用 PTP/OMPL。
 // 刀具 IO 不在此文件（阶段执行器 stages.cpp / ToolActuator）。
 #include "peach_manipulation/grasp_task.hpp"
 #include "peach_manipulation/grasp_geometry.hpp"
@@ -71,19 +72,38 @@ void logApproachSplit(
   RCLCPP_INFO(
     logger,
     "接近：距入口 %.3fm 轴向 %.3fm 侧向 %.3fm 夹角 %.1f° 扫角 %.1f° "
-    "半径 %.3fm 沿轴LIN %.3fm 原语 %s",
+    "半径 %.3fm 沿轴LIN %.3fm 刀口滚转 %.0f° 原语 %s",
     dist_m,
     split.axial_m, split.lateral_m, split.align_deg, split.sweep_deg,
-    split.radius_m, split.lin_to_entry_m, approachKindName(split.kind));
+    split.radius_m, split.lin_to_entry_m, split.tool_roll_rad * 180.0 / kPi,
+    approachKindName(split.kind));
 }
 
-// 预抓取位姿 = 入口沿 −axis 后撤 standoff_m，姿态与入口一致（套入同姿态直线进）。
-Eigen::Isometry3d pregraspTipPose(
-  const Eigen::Isometry3d & entry, const Eigen::Vector3d & axis, double standoff_m)
+// MTC GenerateGraspPose 风格：优先小角 0, ±30 … ±150, 180。
+std::vector<double> toolRollsRad()
 {
-  Eigen::Isometry3d pose = entry;
-  pose.translation() -= axis.normalized() * standoff_m;
-  return pose;
+  std::vector<double> rolls;
+  rolls.reserve(12U);
+  rolls.push_back(0.0);
+  for (int step = 1; step <= 6; ++step) {
+    const double rad = static_cast<double>(step) * kPi / 6.0;
+    rolls.push_back(rad);
+    if (step < 6) {
+      rolls.push_back(-rad);
+    }
+  }
+  return rolls;
+}
+
+ApproachSplit withToolRoll(ApproachSplit split, double roll_rad)
+{
+  split.tool_roll_rad = roll_rad;
+  if (std::abs(roll_rad) > 1.0e-6 &&
+    split.kind == ApproachSplit::Kind::LIN)
+  {
+    split.kind = ApproachSplit::Kind::LIN_ALIGN_THEN_LIN;
+  }
+  return split;
 }
 
 // 线段 AB 不进入以 center 为球心、radius 为半径的开球（预抓取球）。
@@ -154,7 +174,7 @@ ApproachSplit classifyApproach(
     out.sweep_deg = angleBetweenDeg(radial, -axis);
   }
 
-  const Eigen::Isometry3d pregrasp = pregraspTipPose(
+  const Eigen::Isometry3d pregrasp = pregraspAlongAxis(
     entry, axis, config.approach_along_axis_m);
   const bool lin_clears = segmentClearsBall(
     start->translation(), pregrasp.translation(),
@@ -165,9 +185,12 @@ ApproachSplit classifyApproach(
     out.blocked_reason = "笛卡尔弦长超过上限，不改 PTP";
     return out;
   }
-  // 直线不穿预抓取球：LIN 约束 TCP。未齐则先原地 LIN 转 Z，再直线平移。
+  // 直线不穿预抓取球：先原地对齐再平移，避免沿弦 slerp 拧腕导致
+  // IK 跳支 / camera_body 撞 wrist1（mock 1757 单段 LIN ValidateSolution）。
+  // 夹角已经很小才单段 LIN（姿态门挂在整段上）。
   if (lin_clears) {
-    out.kind = aligned ? ApproachSplit::Kind::LIN :
+    const bool already_square = out.align_deg <= 2.0;
+    out.kind = already_square ? ApproachSplit::Kind::LIN :
       ApproachSplit::Kind::LIN_ALIGN_THEN_LIN;
     return out;
   }
@@ -189,6 +212,7 @@ ApproachSplit classifyApproach(
   out.blocked_reason = "直线穿预抓取球且无法 CIRC，不改 PTP";
   return out;
 }
+
 
 // 关节轨迹逐点 FK 成 TCP 点列，供笛卡尔绕行审查（inspectCartesianDetour）。
 // 关节名/维度与模型对不上返回空；调用方拿不到点列按拒发处理，不跳过审查。
@@ -339,6 +363,23 @@ void GraspTask::syncKeepoutCollisionObjects() const
   scene.applyCollisionObjects(objects);
 }
 
+void GraspTask::appendCartesianToPose(
+  mtc::SerialContainer & sequence,
+  const Eigen::Isometry3d & target_tip_pose,
+  const std::string & label) const
+{
+  auto stage = std::make_unique<mtc::stages::MoveTo>(label, makeCartesianSolver());
+  stage->setGroup(config_.planning_group);
+  stage->setIKFrame(config_.tip_frame);
+  stage->setTimeout(config_.planning_time_s);
+  geometry_msgs::msg::PoseStamped goal;
+  goal.header.frame_id = config_.base_frame;
+  goal.header.stamp = node_->now();
+  goal.pose = eigenToPose(target_tip_pose);
+  stage->setGoal(goal);
+  sequence.add(std::move(stage));
+}
+
 void GraspTask::appendLinToPose(
   mtc::SerialContainer & sequence,
   const Eigen::Isometry3d & target_tip_pose,
@@ -387,14 +428,15 @@ void GraspTask::appendApproachToPregrasp(
   const Eigen::Vector3d & insertion_axis,
   const ApproachSplit & split) const
 {
-  Eigen::Isometry3d pregrasp = pregraspTipPose(
+  Eigen::Isometry3d pregrasp = pregraspAlongAxis(
     entry_tip_pose, insertion_axis, config_.approach_along_axis_m);
   // 复用 classifyApproach 的 TCP 快照：不再二次查询（保持分档/装配一致）。
   const std::optional<Eigen::Isometry3d> & current = split.current_tip;
   const bool have_current = current && current->translation().allFinite() &&
     current->linear().allFinite();
   if (have_current) {
-    pregrasp.linear() = alignFrameZ(current->linear(), insertion_axis);
+    pregrasp.linear() = alignFrameZRolled(
+      current->linear(), insertion_axis, split.tool_roll_rad);
   }
   if (split.kind == ApproachSplit::Kind::SKIP ||
     split.kind == ApproachSplit::Kind::BLOCKED)
@@ -488,6 +530,28 @@ std::unique_ptr<mtc::Task> GraspTask::makeApproachOnlyTask(
   return task;
 }
 
+std::unique_ptr<mtc::Task> GraspTask::makeCartesianApproachTask(
+  const std::string & task_name,
+  const Eigen::Isometry3d & target_tip_pose,
+  const std::optional<Eigen::Isometry3d> & staging_tip_pose) const
+{
+  auto task = makeTaskShell(task_name);
+  auto sequence = std::make_unique<mtc::SerialContainer>("cartesian approach");
+  if (staging_tip_pose &&
+    (staging_tip_pose->translation() - target_tip_pose.translation()).norm() >
+    0.005)
+  {
+    appendCartesianToPose(
+      *sequence, *staging_tip_pose, "cartesian interpolate to staging");
+    appendLinToPose(*sequence, target_tip_pose, "lin to on-axis pregrasp", true);
+  } else {
+    appendCartesianToPose(
+      *sequence, target_tip_pose, "cartesian interpolate to pregrasp");
+  }
+  task->add(std::move(sequence));
+  return task;
+}
+
 GraspTaskResult GraspTask::planToPregrasp(
   const std::string & task_name,
   const Eigen::Isometry3d & entry_tip_pose,
@@ -500,9 +564,55 @@ GraspTaskResult GraspTask::planToPregrasp(
     blocked.reason = split.blocked_reason;
     return blocked;
   }
-  return planAndMaybeExecute(
-    makeApproachOnlyTask(task_name, entry_tip_pose, insertion_axis, split),
-    execute, config_.approach_execution_gate, true, 0U);
+  // Alternatives(刀口滚转) → Fallbacks(Pilz LIN, CartesianPath)。接触不用
+  // OMPL/PTP。CIRC 失败不得改直线（会穿预抓取球）。
+  GraspTaskResult last;
+  last.reason = "无接近解";
+  for (const double roll : toolRollsRad()) {
+    const ApproachSplit rolled = withToolRoll(split, roll);
+    auto result = planAndMaybeExecute(
+      makeApproachOnlyTask(task_name, entry_tip_pose, insertion_axis, rolled),
+      execute, config_.approach_execution_gate, true, 0U);
+    if (result.success || result.execution_started) {
+      if (std::abs(roll) > 1.0e-6) {
+        RCLCPP_INFO(
+          node_->get_logger(),
+          "Pilz 接近通过：刀口滚转 %.0f°", roll * 180.0 / kPi);
+      }
+      return result;
+    }
+    last = result;
+  }
+  if (split.kind == ApproachSplit::Kind::CIRC_THEN_LIN) {
+    return last;
+  }
+  RCLCPP_WARN(
+    node_->get_logger(),
+    "Pilz LIN 全部滚转失败（%s），Fallbacks → CartesianPath",
+    last.reason.c_str());
+  if (!split.current_tip) {
+    last.reason = "笛卡尔插值失败: 无当前 TCP（Pilz: " + last.reason + "）";
+    return last;
+  }
+  for (const double roll : toolRollsRad()) {
+    Eigen::Isometry3d pregrasp = pregraspAlongAxis(
+      entry_tip_pose, insertion_axis, config_.approach_along_axis_m);
+    pregrasp.linear() = alignFrameZRolled(
+      split.current_tip->linear(), insertion_axis, roll);
+    auto cartesian = planAndMaybeExecute(
+      makeCartesianApproachTask(
+        task_name + "_cartesian", pregrasp, std::nullopt),
+      execute, config_.approach_execution_gate, true, 0U);
+    if (cartesian.success || cartesian.execution_started) {
+      RCLCPP_INFO(
+        node_->get_logger(),
+        "CartesianPath 通过：刀口滚转 %.0f°", roll * 180.0 / kPi);
+      return cartesian;
+    }
+    last.reason = "笛卡尔插值失败: " + cartesian.reason +
+      "（Pilz: " + last.reason + "）";
+  }
+  return last;
 }
 
 std::unique_ptr<mtc::Task> GraspTask::makeInsertOnlyTask(
@@ -611,6 +721,89 @@ GraspTaskResult GraspTask::moveToPregrasp(
   }
   return planToPregrasp(
     "peach_move_pregrasp", entry_tip_pose, insertion_axis, split, execute);
+}
+
+GraspTaskResult GraspTask::moveToPregraspViaCorridor(
+  const Eigen::Isometry3d & entry_tip_pose,
+  const Eigen::Vector3d & insertion_axis,
+  bool execute)
+{
+  const auto current = config_.lookup_current_tip ?
+    config_.lookup_current_tip() : std::nullopt;
+  if (!current) {
+    GraspTaskResult out;
+    out.reason = "接近回退失败: 无当前 TCP";
+    return out;
+  }
+  const Eigen::Vector3d axis = insertion_axis.normalized();
+  Eigen::Isometry3d pregrasp0 = pregraspAlongAxis(
+    entry_tip_pose, axis, config_.approach_along_axis_m);
+  std::optional<Eigen::Isometry3d> staging0;
+  if (config_.approach_staging_standoff_m > 0.005) {
+    Eigen::Isometry3d pose = pregrasp0;
+    pose.translation() -= axis * config_.approach_staging_standoff_m;
+    staging0 = pose;
+  }
+  const Eigen::Vector3d line_goal = staging0 ?
+    staging0->translation() : pregrasp0.translation();
+  if (!segmentClearsBall(
+      current->translation(), line_goal, entry_tip_pose.translation(),
+      std::max(0.005, config_.approach_along_axis_m)))
+  {
+    GraspTaskResult out;
+    out.reason = "笛卡尔回退直线穿预抓取球，不改 PTP";
+    return out;
+  }
+  GraspTaskResult last;
+  last.reason = "笛卡尔回退失败";
+  for (const double roll : toolRollsRad()) {
+    Eigen::Isometry3d pregrasp = pregrasp0;
+    pregrasp.linear() = alignFrameZRolled(current->linear(), axis, roll);
+    std::optional<Eigen::Isometry3d> staging;
+    if (staging0) {
+      Eigen::Isometry3d pose = *staging0;
+      pose.linear() = pregrasp.linear();
+      staging = pose;
+    }
+    RCLCPP_INFO(
+      node_->get_logger(),
+      "CartesianPath 回退: 刀口滚转 %.0f°%s（不走 PTP/OMPL）",
+      roll * 180.0 / kPi,
+      staging ? "→staging→轴向 LIN" : "");
+    auto result = planAndMaybeExecute(
+      makeCartesianApproachTask(
+        "peach_move_pregrasp_cartesian", pregrasp, staging),
+      execute, config_.approach_execution_gate, true, 0U);
+    if (result.success || result.execution_started) {
+      return result;
+    }
+    last = result;
+  }
+  return last;
+}
+
+std::vector<Eigen::Isometry3d> GraspTask::approachCorridorWaypoints(
+  const Eigen::Isometry3d & entry_tip_pose,
+  const Eigen::Vector3d & insertion_axis)
+{
+  const auto current = config_.lookup_current_tip ?
+    config_.lookup_current_tip() : std::nullopt;
+  if (!current) {
+    return {};
+  }
+  const Eigen::Vector3d axis = insertion_axis.normalized();
+  Eigen::Isometry3d pregrasp = pregraspAlongAxis(
+    entry_tip_pose, axis, config_.approach_along_axis_m);
+  pregrasp.linear() = alignFrameZ(current->linear(), axis);
+  if (config_.approach_staging_standoff_m > 0.005) {
+    Eigen::Isometry3d staging = pregrasp;
+    staging.translation() -= axis * config_.approach_staging_standoff_m;
+    auto points = cartesianLineSamples(*current, staging, 1U);
+    auto tail = cartesianLineSamples(staging, pregrasp, 0U);
+    points.insert(points.end(), tail.begin(), tail.end());
+    return points;
+  }
+  return cartesianLineSamples(*current, pregrasp, 1U);
 }
 
 GraspTaskResult GraspTask::sleeveLinear(

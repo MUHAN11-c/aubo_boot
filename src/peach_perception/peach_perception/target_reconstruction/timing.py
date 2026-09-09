@@ -29,7 +29,7 @@ class TimingStats:
         self._tsdf_integrate_ms.update(max(0.0, float(sample_ms)))
 
     def record_frame_total(self, sample_ms: float) -> None:
-        """记录一次成功采帧的 _accept_frame 总耗时 [ms]，并递增计数."""
+        """记录一次成功采帧（构云→ICP→提交积分）的总耗时 [ms]，并递增计数."""
         self._frame_total_ms.update(max(0.0, float(sample_ms)))
         self._frames_timed += 1
 

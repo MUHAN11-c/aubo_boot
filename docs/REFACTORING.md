@@ -315,3 +315,9 @@ mock 冒烟（`hardware_mode:=mock camera_enabled:=false`，`QT_QPA_PLATFORM=off
 净变化约 −75 行，零行为差。评估否决项（记录防重提）：executor `_ack_recovery` 并入 `_call_service`（服务缺席路径从立即拒变为阻塞等超时，响应时序可观察）；`_apply` 的 operation_mode 防御分支删除（删后未来 FSM 表新增非 AUTO 反应会被静默吞掉）；target_cache 锚点采纳两段合并（update 类型不同、注释语义各自成立，合并要八参辅助函数）。
 
 验证：三包 build+test 全绿（perception 5 / executor 8 / manipulation 70，0 失败）；mock 冒烟五节点 Active、`managed_nodes_activated=true`、API 200、默认档全关、关停无残留（log 尾 KeyboardInterrupt/-2 为 Ctrl+C 正常关停信号）。本轮一次 cwd 污染把 colcon 产物建进了 `src/peach_perception/{build,install,log}`，已删（gitignore 只盖根级，源码树内不设防，跑 colcon 前留意 cwd）。
+
+## 2026-09-08 旁路视觉抓取四包定名（ivg_* 家族）
+
+四包统一 `ivg_*` 前缀（与包内 "IVG2.0" 品牌一致，区别于 `peach_*` / `aubo_*`）：`ivg_interfaces`、`ivg_utils` 沿用；`visual_pose_estimation(_python)` → **`ivg_pose_estimation`**（拍平双层目录，Python 模块与包同名，templates/models 收进包根，去掉冗余 `_python` 后缀）；`graspnet_ros2` → **`ivg_graspnet`**。估姿节点名同步为 `ivg_pose_estimation`（entry point `ivg_pose_estimation_node`/`ivg_pose_estimation_web`）；graspnet 节点名 `graspnet_demo_points_node` / `publish_grasps_client` 与 launch 名保持契约。launch 改名：`ivg_pose_estimation.launch.py` / `ivg_pose_estimation_web.launch.py`。AGENTS/architecture/io/testing 同步。
+
+教训复录：在包目录内跑 `colcon test` 会因找不到包内 install 空间报 "Failed to find package.sh / Check that the following packages have been built"，审查曾据此误判 graspnet_ros2/ivg_utils 测试失败——colcon 一律在工作区根执行；包内的 `debug/session_debug/features.csv` 为 vpe Web 测试残留（save_debug_features 旧 cwd 写路径），已删，现输出改落包内 `debug_sessions/`。

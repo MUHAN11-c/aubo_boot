@@ -4,7 +4,7 @@
 
 真机轮次、量化基线、审查记录写在 [testing-log.md](testing-log.md)；工程整理过程写在 [REFACTORING.md](REFACTORING.md)（二者都是过程记录，不驱动现行设计）。改行为只改本文 + 源码；补一条实测时追加 testing-log，不把轮次散文写回本文。
 
-各包 `test/` **保留 ROS 2 默认 lint，并允许零 ROS 纯核 pytest**（Python：`test_flake8.py` / `test_pep257.py` + 不 import rclpy 的表驱动；CMake：`ament_lint_auto`）。现行纯核：`peach_executor/test/test_harvest_fsm.py`（`react` 表）、`peach_perception/test/test_runtime_core.py`（`ManualClock` / `BoundedWorker` capacity=1 drop_oldest）、`graspnet_ros2/test/test_grasp_core.py`（`GraspList` NMS/碰撞；torch 算子 `importorskip`）。禁止业务用例、gtest、DDS 假现场、launch_testing、采摘仿真测。语法与流程由审查核对，对错以实机为准。`colcon test` 不等于采摘验收。套入剪切软件门看 flake8 / pep257 / uncrustify 与纯核表；`peach_manipulation` 整测项跳过 cpplint（其 legal/copyright 与 Google include 顺序检查同本项目「文件头版权块项目结束再补」「include own-first」约定冲突，CMake 已 `set(ament_cmake_cpplint_FOUND TRUE)`），C++ 风格门以 uncrustify 为准、静态分析走 cppcheck。`ament_xmllint` 会拉 `package_format3.xsd`，网络卡住超时不阻塞本产品路径。
+各包 `test/` **保留 ROS 2 默认 lint，并允许零 ROS 纯核 pytest**（Python：`test_flake8.py` / `test_pep257.py` + 不 import rclpy 的表驱动；CMake：`ament_lint_auto`）。现行纯核：`peach_executor/test/test_harvest_fsm.py`（`react` 表）、`peach_perception/test/test_runtime_core.py`（`ManualClock` / `BoundedWorker` capacity=1 drop_oldest）、`ivg_graspnet/test/test_grasp_core.py`（`GraspList` NMS/碰撞；torch 算子 `importorskip`）。禁止业务用例、gtest、DDS 假现场、launch_testing、采摘仿真测。语法与流程由审查核对，对错以实机为准。`colcon test` 不等于采摘验收。套入剪切软件门看 flake8 / pep257 / uncrustify 与纯核表；`peach_manipulation` 整测项跳过 cpplint（其 legal/copyright 与 Google include 顺序检查同本项目「文件头版权块项目结束再补」「include own-first」约定冲突，CMake 已 `set(ament_cmake_cpplint_FOUND TRUE)`），C++ 风格门以 uncrustify 为准、静态分析走 cppcheck。`ament_xmllint` 会拉 `package_format3.xsd`，网络卡住超时不阻塞本产品路径。
 
 不要删 `_archive/runs/` 与现场 `runs/`。未授权不得真机运动或 SetIO。launch **不自动** `RunHarvest`。采摘十四包职责见 [architecture.md](architecture.md) §3。`serial_imu` 与旁路视觉抓取三包不进整栈 launch。
 
@@ -46,19 +46,24 @@ pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
 ros2 launch peach_executor harvest_system.launch.py \
   hardware_mode:=mock camera_enabled:=false
 
+# mock 轨迹回放（1757/1740 过程坐标；官方 GenerateGraspPose+LIN Fallbacks，不开批）
+python3 scripts/replay_field_pregrasp.py --case 1757
+python3 scripts/replay_field_pregrasp.py --case 1740 --planner ptp   # OMPL/PTP 绕行对照
+# 过护栏后再下发 mock 控制器：加 --execute（不动真机）
+
 # 真机（须显式 real；示教器上电；bringup 不起 aubo_dashboard）
 ros2 launch peach_executor harvest_system.launch.py \
   hardware_mode:=real camera_enabled:=true robot_ip:=169.254.10.98
 ```
 
-旁路视觉抓取（独立 launch，不进上面这条整栈）。lint/纯核走 colcon；Web 回归与 GraspNet torch 算子须 `aubo_py3.12`。GraspNet 权重 `src/graspnet_ros2/models/checkpoint-rs.tar` 随库；估姿 rembg 的 `u2net.onnx`（约 168MB）超远程单文件上限不入库，clone 后执行 `src/visual_pose_estimation/visual_pose_estimation_python/models/fetch_u2net.sh`（或首次抠图时 rembg/pooch 下载）：
+旁路视觉抓取（独立 launch，不进上面这条整栈）。lint/纯核走 colcon；Web 回归与 GraspNet torch 算子须 `aubo_py3.12`。GraspNet 权重 `src/ivg_graspnet/models/checkpoint-rs.tar` 随库；估姿 rembg 的 `u2net.onnx`（约 168MB）超远程单文件上限不入库，clone 后执行 `src/ivg_pose_estimation/ivg_pose_estimation/models/fetch_u2net.sh`（或首次抠图时 rembg/pooch 下载）：
 
 ```bash
-colcon test --packages-select ivg_interfaces visual_pose_estimation_python graspnet_ros2
+colcon test --packages-select ivg_interfaces ivg_pose_estimation ivg_graspnet
 # GraspNet 纯核（torch 在 venv）
-./aubo_py3.12/bin/python -m pytest src/graspnet_ros2/test/test_grasp_core.py
+./aubo_py3.12/bin/python -m pytest src/ivg_graspnet/test/test_grasp_core.py
 # 估姿 Web 回归（fastapi/httpx 在 venv；系统 python 下整文件 skip）
-./aubo_py3.12/bin/python -m pytest src/visual_pose_estimation/visual_pose_estimation_python/test/test_web_app.py
+./aubo_py3.12/bin/python -m pytest src/ivg_pose_estimation/ivg_pose_estimation/test/test_web_app.py
 ```
 
 监控：`http://127.0.0.1:8090`。参数 `peach_executor/config/observability.yaml`。`/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipulation` / `task_executor` / `robot` / `metrics` / `record` / `params` / `job` / `debug`。`/api/trajectory` 为末端点列（对照预抓取/入口/弦）。首屏作业票须能看出当前果实停在哪一环、抓取档是否关闭、`GraspDecision.allowed` 与 base_link 坐标；其下三维能看出路径相对弦是否绕行（绕行比、Δz）。默认不上电、不派发运动、不打工具 IO、不自动开批。
@@ -227,7 +232,7 @@ Fixed Frame 用 **`base_link`**，不要用未接上的 `world`。改显示配�
 - 观察：覆盖达标或 `maximum_moves` 用尽才停（不做完位姿序列不收口）；`time_budget_s` 只进日志，不按移动+等帧 EMA 预测收口。拍照位 + 当前位采帧；下一视点沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m，~0.7 m 处一跨过 8°），只 LIN，失败换候选（绕行看 4.0 rad / 单轴 1.5 rad，不按时长）。到位后等新机位再判覆盖，同机位连帧不算。时长随 ~2.5 FPS 等帧浮动。
 - 机位数 `view_count >= capture.min_views`（默认 2），基线/深度/RMSE/内点率过门。`captured_views` 是积分帧数。
 - 无精化不得宣称方向准确。
-- MTC 接近、直线套入、同轴撤离均须 goal-hold。预抓取先 PTP 回拍照位，再只走 LIN / CIRC（直线不穿预抓取球则 LIN；直线会穿球则 CIRC；未齐则先 LIN 原地对齐工具 Z 再 LIN）。已齐 LIN 段加相对目标 20° 姿态路径约束。LIN/CIRC 失败不改 PTP。再一段沿轴 LIN；反向同轨迹回预抓取后 PTP `harvest_stow`。接近绕行护栏 **累计 12 rad / 单轴 6.1 rad**，以及笛卡尔 **绕行比 2.2 / 弦偏离 0.25 m / 回退 0.08 m**（URDF 满行程；不按时长；0.10 速度下直线可以超过 20 s）。
+- MTC 接近、直线套入、同轴撤离均须 goal-hold。预抓取先 PTP 回拍照位，再按官方管线：绕袋轴 ±30° 采样刀口 → Fallbacks（Pilz LIN，失败则 CartesianPath）。直线不穿预抓取球则 LIN；直线会穿球则 CIRC；未齐则先 LIN 原地对齐工具 Z 再 LIN。已齐 LIN 段加相对目标 20° 姿态路径约束。LIN/CIRC/插值失败不改 PTP/OMPL。再一段沿轴 LIN；反向同轨迹回预抓取后 PTP `harvest_stow`。接近绕行护栏 **累计 12 rad / 单轴 6.1 rad**，以及笛卡尔 **绕行比 2.2 / 弦偏离 0.25 m / 回退 0.08 m**（URDF 满行程；不按时长；0.10 速度下直线可以超过 20 s）。mock 回放：`python3 scripts/replay_field_pregrasp.py --case 1757`（现场坐标，不开批）。
 - 日志不得出现 SetIO。`harvest.grasped=false`（未开工具不得宣称采摘成功）。
 - 单目标目标 45–60 s；失败必须有 `failure_code`，不得停在 `RUNNING + action_active=false`。
 
@@ -246,7 +251,7 @@ Fixed Frame 用 **`base_link`**，不要用未接上的 `world`。改显示配�
 | P2 袋模型 | 观测 `occlusion_class`；球 marker ns=`prior`；裸果不入 `next_target_id`；`branch_blocked`/`neighbor_overlap`/`damaged_or_wet` 不得 `allowed` | 沿袋长轴半径剖面，窄头为口、宽头为底，箭头袋底→袋口；斜袋保持长轴不对成竖轴；袋底→袋口只许上半球（从下往上，左右最多水平，禁止朝下）；分割两端比沿轴朝外框边贴合，更贴边的一端为口（竖缝贴左边）；剪切参考在袋口/分割贴框极限，果距不足只否决 `allowed` 不挪刀；两端贴合差不够才用 3D 窄头/逆重力 |
 | P3 重建权威 | `allowed` 须袋融合预算才套入；无 budget 不得接触；圆柱/TSDF 不定轴；包络轴只否决，扁袋不打 12°；35° 只诊断 | FULL 时 `allowed=false` → `SKIPPED_QUALITY`；`PREGRASP_ONLY` 不要求 `allowed` |
 | P4 预抓取 | 默认 `execute_pregrasp_only=true`；停预抓取（入口在拟合袋底，预抓取沿 −axis 后撤 30 mm）；无 SetIO；ACK 后再 Survey。**方向/定位是否可用与精度以到位后真机目视/测量为准**，不以预算或 2°/3 mm 残差代替 | 残差未过门也 Hold；`allowed=false` 不拦预抓取。停袋底对照轮次见 [testing-log.md](testing-log.md) 1757 |
-| P5 套入干跑 | `grasp=true` `tool=false`；套入与反向撤退均须先过 `PlanSleeve` 规划；到预抓取只走直线 | 软件路径已接线；直线失败不绕行 |
+| P5 套入干跑 | `grasp=true` `tool=false`；套入与反向撤退均须先过 `PlanSleeve` 规划；到预抓取只走直线/插值 | 软件路径已接线；失败不改 PTP 绕行 |
 | P6 刀具 | `ToolActuator`：SetIO ACK ≠ `cut_confirmed`；无硬件反馈时不得 `CUT_CONFIRMED` | 已实现；真刀未接 |
 | P7 成功语义 | `harvest.grasped` 仅 `cut_confirmed && retreat_confirmed`；tool 关干跑可 `outcome=SUCCEEDED` 但 grasped=false | 软件已钉死 |
 | P8 导航适配（预留） | 导航包已归档（`_archive/parked_2026-09/`）；四个 IDL 名在 manifest `reserved_interfaces`；调度 `_cmd_navigate` 直通 `NAV_OK` | 固定座现行；清单脚本核对预留区 |

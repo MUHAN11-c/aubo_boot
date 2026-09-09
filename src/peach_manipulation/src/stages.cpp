@@ -829,6 +829,16 @@ bool ManipulationSkillsNode::stageMovePregrasp(CycleContext & ctx)
         ctx.entry_tip_pose, ctx.refined->axis, true);
     }
   }
+  // CartesianPath 回退（Pilz LIN 滚转扫描失败且尚未下发）。不进 PTP/OMPL。
+  if (!result.success && !result.execution_started &&
+    params_.moveit.approach_staging_standoff_m > 0.005)
+  {
+    RCLCPP_INFO(
+      get_logger(), "直线/短弧接近失败（%s），改走笛卡尔插值回退",
+      result.reason.c_str());
+    result = grasp_task_->moveToPregraspViaCorridor(
+      ctx.entry_tip_pose, ctx.refined->axis, true);
+  }
   if (!result.success) {
     return failStage(
       ctx, ExecuteTarget::Result::SKIPPED_UNREACHABLE,

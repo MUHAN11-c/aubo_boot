@@ -55,7 +55,11 @@ class AutoControllerMixin:
         with self._state_lock:
             decision, context = self._gated_capture_finish(
                 automatic=True, tf_request=tf_request, tf_result=tf_result)
-            self._auto_capture_commit(decision, context)
+            bound_target = self.collector.target_id
+        # 锁域自管：构云/ICP 重活在锁外（见 _auto_capture_commit）。旧版
+        # 全程持 _state_lock，心跳/观测回调被饿死（2026-09-09 真机：
+        # 心跳违约 57 次、绑定延迟 73s > build_start_timeout 12s）。
+        self._auto_capture_commit(decision, context, bound_target)
 
     def _auto_start(self):
         """自动开始：绑定当前最优候选进 COLLECTING；无候选则保持 IDLE 等待."""
@@ -73,40 +77,69 @@ class AutoControllerMixin:
         self.get_logger().info(f'自动开始：{message}')
         self._publish_all()
 
-    def _auto_capture_commit(self, decision, context) -> None:
+    def _auto_capture_commit(self, decision, context, bound_target):
         """
-        自动采帧落地段（须持 _state_lock）：门禁结果 → 间隔/视角决策 → 建云.
+        自动采帧落地段（锁域自管）：锁内判门取上下文，锁外构云/ICP，锁内窄临界提交.
 
         decision 非 GATE_ALLOW 即按 skip 跳过（按需计 tf_failures）；
         context 为 ALLOW 时的帧上下文（见 _gated_capture_finish）。
+        bound_target 是 finish 锁内快照的绑定目标，提交前复核会话未变。
+
+        并发说明（2026-09-09 锁手术）：构云+ICP 是每帧最重的纯计算，
+        持 _state_lock 执行会把心跳/观测回调饿到分钟级滞后；现移到锁外，
+        提交段仅剩 add_frame/TSDF 积分/计数（毫秒级）。准备期间会话被
+        reset/切换/收口时按 target/state 复核丢弃陈旧帧，与 finish 的
+        stamp 复核构成同一竞态窗口的两道闸。
         """
         if decision.action != GATE_ALLOW:
-            if decision.reason:
-                self._record_auto_skip(
-                    decision.reason,
-                    count_reject=decision.count_reject,
-                    count_tf_failure=decision.count_tf_failure)
-            elif decision.count_tf_failure:
-                self.collector.tf_failures += 1
+            with self._state_lock:
+                if decision.reason:
+                    self._record_auto_skip(
+                        decision.reason,
+                        count_reject=decision.count_reject,
+                        count_tf_failure=decision.count_tf_failure)
+                elif decision.count_tf_failure:
+                    self.collector.tf_failures += 1
             return
-        (rgb, depth_mm, K, stamp_sec,
-         T_base_camera, tf_status, target_mask) = context
-        if self._last_captured_stamp_sec > 0.0:
-            since_last = stamp_sec - self._last_captured_stamp_sec
-        else:
-            since_last = float('inf')  # 首帧不受间隔门限制
-        action, reason = self.collector.auto_capture_decision(
-            T_base_camera, since_last)
-        if action != 'capture':
-            self._record_auto_skip(reason)
+        t_frame0 = self._algo_clock.now()
+        with self._state_lock:
+            if (self.collector.state != STATE_COLLECTING
+                    or self.collector.target_id != bound_target):
+                return
+            (rgb, depth_mm, K, stamp_sec,
+             T_base_camera, tf_status, target_mask) = context
+            if self._last_captured_stamp_sec > 0.0:
+                since_last = stamp_sec - self._last_captured_stamp_sec
+            else:
+                since_last = float('inf')  # 首帧不受间隔门限制
+            action, reason = self.collector.auto_capture_decision(
+                T_base_camera, since_last)
+            if action != 'capture':
+                self._record_auto_skip(reason)
+                return
+        prepared, reject = self._prepare_frame(context, bound_target)
+        if prepared is None:
+            # 构云/ICP 拒帧：与原 _accept_frame 失败路径同语义
+            with self._state_lock:
+                self.collector.rejected_views += 1
+                self._record_auto_skip(reject, count_reject=False)
+            self.get_logger().warning(f'自动采帧未入库：{reject}')
             return
-        accepted, message = self._accept_frame(
-            rgb, depth_mm, K, stamp_sec, T_base_camera, tf_status,
-            target_mask=target_mask)
-        if not accepted:
-            self.collector.rejected_views += 1
-            self._record_auto_skip(message, count_reject=False)
-            self.get_logger().warning(f'自动采帧未入库：{message}')
+        with self._state_lock:
+            if (self.collector.state != STATE_COLLECTING
+                    or self.collector.target_id != bound_target):
+                self.get_logger().debug(
+                    '采帧准备期间会话已切换/收口，丢弃陈旧帧 '
+                    f'{bound_target or "（空）"}')
+                return
+            accepted, message = self._commit_prepared_frame(prepared, t_frame0)
+            if not accepted:
+                self.collector.rejected_views += 1
+                self._record_auto_skip(message, count_reject=False)
+                self.get_logger().warning(f'自动采帧未入库：{message}')
+                return
+        # 累加云/Marker 组装与序列化是重活，移出锁外（E4 节流仍在）
+        self._publish_all()
 
     def _record_auto_skip(
             self, reason: str, *, count_reject: bool = False,

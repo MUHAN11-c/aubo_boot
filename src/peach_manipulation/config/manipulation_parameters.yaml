@@ -84,7 +84,7 @@ peach_manipulation_node:
     mtc_free_space_planner: {
       type: string,
       default_value: "LIN",
-      description: "Pilz LIN 规划器 id（已对轴平移）。未齐先 LIN 原地转 Z；直线穿球用 CIRC。插入段仍是沿轴 CartesianPath。接触不用 PTP。",
+      description: "Pilz LIN 规划器 id（已对轴平移）。未齐先 LIN 原地转 Z。直线穿球用 CIRC。keep-roll 自碰则按 GenerateGraspPose 风格 ±30° 扫描刀口再 LIN；失败 Fallbacks 到 CartesianPath。插入段仍是沿轴 CartesianPath。接触不用 PTP/OMPL。",
     }
     mtc_cartesian_step_m: {
       type: double,
@@ -158,6 +158,12 @@ peach_manipulation_node:
       description: "预抓取点在入口沿检测轴反向后撤量（米）。0=与入口重合。整栈由 grasp_standoffs.yaml 注入；已对轴时 LIN 走这一段。",
       validation: { gt_eq<>: [0.0] }
     }
+    approach_staging_standoff_m: {
+      type: double,
+      default_value: 0.10,
+      description: "笛卡尔回退的袋轴延长线端点后撤量（米）。Pilz LIN 失败后 CartesianPath 按滚转扫描插值；本值>0 时先插值到入口沿轴总后撤 mtc_approach_along_axis_m+本值 的 staging，再轴向 LIN。位置沿直线。0=直接插值到预抓取。不进 PTP/OMPL。",
+      validation: { gt_eq<>: [0.0] }
+    }
     mtc_approach_max_lateral_m: {
       type: double,
       default_value: 0.05,
@@ -167,7 +173,7 @@ peach_manipulation_node:
     mtc_approach_max_align_deg: {
       type: double,
       default_value: 20.0,
-      description: "末端 Z 与检测轴夹角（度）。小于此值视为已齐，走 LIN 且挂同值姿态路径约束。未齐则先 LIN 原地对齐再平移；接触不用 PTP。",
+      description: "末端 Z 与检测轴夹角（度）。小于此值视为已齐，走 LIN 且挂同值姿态路径约束。未齐则先 LIN 原地对齐再平移。规划时另按 ±30° 扫描刀口滚转（GenerateGraspPose）；接触不用 PTP/OMPL。",
       validation: { gt<>: [0.0] }
     }
     observe_planning_time_s: {

@@ -24,13 +24,17 @@ Visualization Manager:
     - Class: rviz_default_plugins/TF
       Enabled: true
       Filter (blacklist): ""
-      Filter (whitelist): "^(world|imu_link|imu_attitude)$"
+      Filter (whitelist): "^(world|imu_link|imu_attitude|tool_axis|tcp_actual)$"
       Frame Timeout: 15
       Frames:
         All Enabled: false
         imu_attitude:
           Value: true
         imu_link:
+          Value: true
+        tcp_actual:
+          Value: true
+        tool_axis:
           Value: true
         world:
           Value: true

@@ -13,3 +13,22 @@ serial_imu:
     # 姿态另发 imu_attitude，勿写进 imu_link（否则 RViz Imu 插件会转两次）。
     publish_attitude_tf: true
     attitude_frame_id: imu_attitude
+    # 工具偏移（自适应圆柱工具 B）：装工具 B 时 launch tool_offset_enabled:=true。
+    tool_offset:
+      enabled: false
+      base_frame: base_link
+      nominal_frame: tool_axis
+      output_frame: tcp_actual
+      # 模组在工具系安装姿态。2026-09-09 实测倒装 roll≈+177°；
+      # pitch/yaw 须在工具竖直零位（开口朝 +Z）按 README §9 标定后回填。
+      mount_rpy_deg: [177.0, 0.0, 0.0]
+      # 自适应机构铰点深度（工具系 -Z 向）；0=绕筒口纯旋转，机构定形后回填。
+      pivot_depth_m: 0.0
+      zero_on_start: true
+      # 偏移超此角度节流告警（仍照发，停套入由上层判；姿态不得替代许可）。
+      max_tilt_deg: 15.0
+      # 清零重力自检：实测重力方向 vs 预期零位姿态，防倒装/贴歪/不在零位。
+      zero_gravity_check: true
+      # 清零姿态下工具系预期重力方向（默认零位=开口朝上竖直 → +Z）。
+      zero_gravity_tool: [0.0, 0.0, 1.0]
+      zero_gravity_tol_deg: 5.0

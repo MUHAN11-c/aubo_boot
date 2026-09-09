@@ -2,7 +2,7 @@
 IVG2.0 数学工具模块.
 
 统一的旋转矩阵、四元数、欧拉角转换函数。
-从 visual_pose_estimation_python/math_utils.py 提取并去重。
+现由 ivg_pose_estimation（原 visual_pose_estimation 的 math_utils.py）与旁路栈共用。
 """
 
 from __future__ import annotations

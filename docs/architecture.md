@@ -157,12 +157,12 @@ flowchart TB
   stages -->|"executeCycle 读"| ctx
   stages -->|"逐阶段授权"| cycle
   stages -->|"观察拍照"| mot
-  stages -->|"接触 Pilz"| mtc
+  stages -->|"接触 LIN/CartesianPath"| mtc
   stages -->|"评分与门"| core
   stages -->|"剪切"| tool
 ```
 
-**读图：** 一个进程、八个组件（`ExecutionAuthority` 授权矩阵编在 `cycle.cpp`，`CycleContext` 在 `cycle_context.hpp`）。外壳不规划；`cycle.cpp` 受理动作并按 `authorizeStage` 判定执行权；阶段执行器读上下文跑固定阶段序列；接触用最短笛卡尔原语（LIN/CIRC）；PTP 只用于命名关节赶路（拍照位 / stow）；刀具不在 MTC 里。感知两容器的同缩放运行时图见 **图 3b（看一帧）/ 图 3c（建一颗）**；调度组件图按同样缩放另画，不要把那些模块塞进这一张。
+**读图：** 一个进程、八个组件（`ExecutionAuthority` 授权矩阵编在 `cycle.cpp`，`CycleContext` 在 `cycle_context.hpp`）。外壳不规划；`cycle.cpp` 受理动作并按 `authorizeStage` 判定执行权；阶段执行器读上下文跑固定阶段序列；接触用最短笛卡尔原语（滚转采样 + LIN/CartesianPath）；PTP 只用于命名关节赶路（拍照位 / stow）；刀具不在 MTC 里。感知两容器的同缩放运行时图见 **图 3b（看一帧）/ 图 3c（建一颗）**；调度组件图按同样缩放另画，不要把那些模块塞进这一张。
 
 ### 图 0 — 预留层与采摘核
 
@@ -361,14 +361,13 @@ serial_imu/
 
 # 旁路视觉抓取（不进 harvest_system / lifecycle；IDL 不走 peach_interfaces）
 ivg_interfaces/          # 估姿 srv/msg；仅旁路栈
-ivg_utils/               # 共享数学/常量（vpe 依赖）
-visual_pose_estimation/
-  visual_pose_estimation_python/   # 估姿节点 + FastAPI :8088
-  visual_pose_estimation_python/models/  # rembg u2net.onnx 约 168MB，超远程单文件上限不入库；U2NET_HOME 指此目录，缺失时 rembg/pooch 或 models/fetch_u2net.sh 拉取
-  templates/                       # 工件模板
-graspnet_ros2/
-  graspnet_ros2/{grasp_core,graspnet_node,motion_controller,publish_grasps_client}.py
-  graspnet_ros2/graspnet_lib/      # vendored 推理子集（纯 torch，AMENT_IGNORE）
+ivg_utils/               # 共享数学/常量（ivg_pose_estimation 依赖）
+ivg_pose_estimation/     # 估姿节点 + FastAPI :8088（Python 模块与包同名）
+  models/                # rembg u2net.onnx 约 168MB，超远程单文件上限不入库；U2NET_HOME 指此目录，缺失时 rembg/pooch 或 models/fetch_u2net.sh 拉取
+  templates/             # 工件模板
+ivg_graspnet/
+  ivg_graspnet/{grasp_core,graspnet_node,motion_controller,publish_grasps_client}.py
+  ivg_graspnet/graspnet_lib/      # vendored 推理子集（纯 torch，AMENT_IGNORE）
   config/graspnet.yaml
   launch/{graspnet_detect,graspnet_grasp}.launch.py
   models/checkpoint-rs.tar
@@ -419,8 +418,8 @@ flowchart LR
 | `percipio_camera` | 相机驱动 | RGB-D 话题 | 厂商代码；未授权不改 `frame_rate` |
 | `serial_imu` | 可选 USB IMU | CH340 0xA4 → `/imu/data`（imu_tools 布局） | 不进采摘 launch / lifecycle |
 | `ivg_interfaces` | 旁路 IDL | 模板估姿服务消息 | 不进 peach 清单 |
-| `visual_pose_estimation_python` | 旁路估姿 | 模板匹配 6D + Web 8088 | 独立 launch |
-| `graspnet_ros2` | 旁路抓取 | GraspNet 点云→位姿→MoveIt 接近 | 无 AnyGrasp 许可证 |
+| `ivg_pose_estimation` | 旁路估姿 | 模板匹配 6D + Web 8088 | 独立 launch |
+| `ivg_graspnet` | 旁路抓取 | GraspNet 点云→位姿→MoveIt 接近 | 无 AnyGrasp 许可证 |
 
 改哪边：消息字段 → `peach_interfaces`；检测/分割/TSDF → `peach_perception`；视点/MTC/工具 IO 参数 → `peach_manipulation`；TCP/工具碰撞 mesh → `aubo_description`（勿改 `ros2_control.xacro`）；拍照命名位姿 → `aubo_e5_moveit_config` SRDF；批次顺序/选果/账本/lifecycle 名单 → `peach_executor`；到位/Nav2 → 归档的 `peach_navigation`（须先书面授权恢复）。套袋内径/插入行程在感知 GPL `config/scene_perception_parameters.yaml` 的 `tool.*`（部署覆盖写 `config/scene_perception.yaml`）。入口相对袋底、预抓取相对入口只改 `peach_perception/config/grasp_standoffs.yaml`（launch 注入各节点已声明参数）。
 
@@ -573,7 +572,7 @@ flowchart TB
   stages --> tool
 ```
 
-**读图：** 一个 Lifecycle 节点拆成几份源文件，不是多个进程。外壳接 ROS；`cycle.cpp` 受理动作目标并实现授权矩阵（`execution_authority.hpp` 是其单一事实源）；`CycleContext` 承载一次周期的全部可变状态；真正「观察 / 预抓取 / 套入」是 `stages.cpp` 的阶段函数。观察移位走最近短步（只 LIN，失败换候选）；预抓取先 PTP 回拍照位，再只走 LIN / CIRC（`grasp_task.cpp`），套入沿轴直线。已齐 LIN 到预抓取加 tip 姿态 OrientationConstraint（对目标姿态，容差 `mtc_approach_max_align_deg` 20°）。未齐先 LIN 原地对齐再平移；LIN/CIRC 失败不改 PTP。护栏拦绕腕与笛卡尔绕行。刀具 IO 只在阶段执行器里打，ACK 只表示柜侧收下命令。
+**读图：** 一个 Lifecycle 节点拆成几份源文件，不是多个进程。外壳接 ROS；`cycle.cpp` 受理动作目标并实现授权矩阵（`execution_authority.hpp` 是其单一事实源）；`CycleContext` 承载一次周期的全部可变状态；真正「观察 / 预抓取 / 套入」是 `stages.cpp` 的阶段函数。观察移位走最近短步（只 LIN，失败换候选）；预抓取先 PTP 回拍照位，再按 MTC 官方抓取管线：绕袋轴采样刀口滚转（`GenerateGraspPose`）→ Fallbacks（Pilz LIN，失败则 `CartesianPath`），套入沿轴直线。已齐 LIN 到预抓取加 tip 姿态 OrientationConstraint（对目标姿态，容差 `mtc_approach_max_align_deg` 20°）。未齐先 LIN 原地对齐再平移；LIN/CIRC/插值失败不改 PTP/OMPL。护栏拦绕腕与笛卡尔绕行。刀具 IO 只在阶段执行器里打，ACK 只表示柜侧收下命令。
 
 **对外提供：**
 
@@ -582,7 +581,7 @@ flowchart TB
 | `SurveyScene` | `goToPhotoPose`（默认 SRDF `global_photo_pose`）；`transit_max_*` 超限拒绝；成功出口 `atNamedTarget` 核当前关节（`execute=false` 仍核） |
 | `ExecuteTarget` PREVIEW | 只规划不执行 |
 | `ExecuteTarget` OBSERVE_ONLY | 当前位采帧；基线未过最多两次最近短移（只 LIN，失败换候选），沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m，~0.7 m 处一跨过 8°），评分以行程最短为主；朝检测框内分割更满的方向微偏。禁止对侧兜圈、OMPL、贴球面环绕、PTP 兜底。覆盖门 8°。**停准则：** 覆盖达标或 `maximum_moves` 用尽（Open3D TSDF / NBV：做完位姿序列，不用移动+等帧 EMA 预测收口）。到位后等**新机位**（`view_directions` 增加），同机位连帧不算覆盖 |
-| `ExecuteTarget` PREGRASP_ONLY | 再确认 → PTP 回拍照位（观察 look-at 直接规划常无 IK）→ 只走笛卡尔约束到预抓取：直线不穿预抓取球则 LIN（未齐先 LIN 原地对齐工具 Z）；直线会穿球则 CIRC 再沿轴 LIN（`alignFrameZ` 保留滚转）。LIN/CIRC 失败不改 PTP（`skipped_unreachable`）。拍照位失败则从当前位规划，仍失败再试拍照位 → 工具 TF 残差按最新精化快照重算 entry/pregrasp 增量修正（最多两次）→ 停在预抓取（`HoldPregrasp`，不回 `harvest_stow`）。残差未过门也停住，便于目视方向/定位。任何路径不 SetIO。不要求 `GraspDecision.allowed`。到位终局 `SUCCEEDED` + `recovery_required`（不是接触失败撤离）；ACK 前调度不 Survey / 不派下一颗 |
+| `ExecuteTarget` PREGRASP_ONLY | 再确认 → PTP 回拍照位（观察 look-at 直接规划常无 IK）→ 只走笛卡尔约束到预抓取：直线不穿预抓取球则 LIN（未齐先 LIN 原地对齐工具 Z）；keep-roll 自碰则按 `GenerateGraspPose` ±30° 扫描刀口再 LIN。直线会穿球则 CIRC 再沿轴 LIN。Pilz LIN 失败则同一弦 CartesianPath 插值（种子连续 IK，同样滚转扫描）；再失败且直线不穿球则经袋轴 staging 插值。LIN/CIRC/插值失败不改 PTP/OMPL（`skipped_unreachable`）。拍照位失败则从当前位规划，仍失败再试拍照位 → 工具 TF 残差按最新精化快照重算 entry/pregrasp 增量修正（最多两次）→ 停在预抓取（`HoldPregrasp`，不回 `harvest_stow`）。残差未过门也停住，便于目视方向/定位。任何路径不 SetIO。不要求 `GraspDecision.allowed`。到位终局 `SUCCEEDED` + `recovery_required`（不是接触失败撤离）；ACK 前调度不 Survey / 不派下一颗 |
 | `ExecuteTarget` FULL | `skip_observation`；再确认 → 预抓取验证 → `PlanSleeve` 规划套入与反向撤退 → 沿轴一段 LIN 套入 → `VerifyCutHold` → `ToolActuator`（SetIO ACK=`CUT_COMMAND_ACCEPTED`，不得自称切断）→ `VerifyCut` → 原路 LIN 撤到预抓取 → PTP `harvest_stow`。切断**且**撤退确认才 `harvest.grasped`。`tool.enabled=true` 未确认终局 `FAILED`/`CUT_FEEDBACK_TIMEOUT`（刀具 DI 预留接 `/aubo_io_controller/io_states`）。`tool.enabled=false` 时跳过 SetIO，周期可 SUCCEEDED 但不宣称采摘成功 |
 | 预览/使能/ACK 服务 | `preview_*`、`set_execution_armed`、`acknowledge_recovery` |
 
@@ -695,7 +694,9 @@ launch 参数装载走官方 `moveit_configs_utils.MoveItConfigsBuilder`（与 M
 
 #### `serial_imu`
 
-USB 串口 IMU（QinHeng CH340 `1a86:7523`）。udev `/dev/imu`。话题对齐 imu_tools：`/imu/data`、`data_raw`、`mag`、`temp`；静态 `parent→imu_link`、动态 `→imu_attitude`。姿态不写进 `imu_link`。不进 `harvest_system`。**现场手册（udev、协议、权限、RViz 各显示项）：** [`src/serial_imu/README.md`](../src/serial_imu/README.md)。
+USB 串口 IMU（QinHeng CH340 `1a86:7523`）。udev `/dev/imu`。话题对齐 imu_tools：`/imu/data`、`data_raw`、`mag`、`temp`；静态 `parent→imu_link`、动态 `→imu_attitude`。姿态不写进 `imu_link`。模组陀螺字段不出数（恒 0，2026-09-09 实测），姿态唯一来源是融合四元数；无磁融合，接触段靠「接触前清零」控 yaw 漂移（51 s 实测 0.29°）。不进 `harvest_system`。
+
+可选工具偏移（自适应圆柱工具 B，`tool_offset.enabled` 默认关）：解算实际工具相对名义 `tool_axis` 的姿态偏移——清零时刻（工具居中）锚定模组姿态与臂位姿，之后每采样做「模组四元数变化 × 安装共轭 `mount_rpy_deg` × 臂运动补偿」，发 `tool_axis→tcp_actual` 动态 TF 与 `/imu/tool_offset` 话题，`imu/tool_offset/zero`（Trigger）供每次接触前清零，清零带重力自检门（防倒装/贴歪/不在零位）。安装共轭是方向问题不是精度问题：模组倒装（roll≈+177°）不共轭则偏移轴镜像、跟随反号构成正反馈。偏移解算纯核在 `tool_offset.py`（零 ROS pytest 覆盖刚性恒等与倒装轴一致性）；stamp 停更即失效，消费端须停止套入；姿态不替代抓取许可。臂侧消费缝（`frames.tool` 指向 `tcp_actual`）为预留，未实现。**现场手册（udev、协议、权限、RViz 各显示项、标定流程）：** [`src/serial_imu/README.md`](../src/serial_imu/README.md)。
 
 ### 旁路视觉抓取（三包，非采摘）
 
@@ -704,10 +705,10 @@ USB 串口 IMU（QinHeng CH340 `1a86:7523`）。udev `/dev/imu`。话题对齐 i
 | 包 | 节点 / 入口 | 作用 | 不做什么 |
 |----|-------------|------|----------|
 | `ivg_interfaces` | 无 | 旁路 IDL（`EstimatePose*`、`ListTemplates`、`StandardizeTemplate`、`UpdateParams`） | 不进 peach 清单；不含机械臂/IO/软触发服务 |
-| `visual_pose_estimation_python` | `visual_pose_estimation_python`、Web `:8088` | 模板匹配 6D 估姿；T_B_C 查 TF | 不发运动/IO、不写账本 |
-| `graspnet_ros2` | `graspnet_demo_points_node`、`publish_grasps_client` | 点云→抓取位姿→MoveIt 接近 | 不拉相机/手眼；不走 ExecutionAuthority；真机须另授权 |
+| `ivg_pose_estimation` | `ivg_pose_estimation`、Web `:8088` | 模板匹配 6D 估姿；T_B_C 查 TF | 不发运动/IO、不写账本 |
+| `ivg_graspnet` | `graspnet_demo_points_node`、`publish_grasps_client` | 点云→抓取位姿→MoveIt 接近 | 不拉相机/手眼；不走 ExecutionAuthority；真机须另授权 |
 
-接口见 [io.md](io.md) §8。包 README：[`src/visual_pose_estimation/README.md`](../src/visual_pose_estimation/README.md)、[`src/graspnet_ros2/README.md`](../src/graspnet_ros2/README.md)。
+接口见 [io.md](io.md) §8。包 README：[`src/ivg_pose_estimation/README.md`](../src/ivg_pose_estimation/README.md)、[`src/ivg_graspnet/README.md`](../src/ivg_graspnet/README.md)。
 
 ### 从哪读源码
 
@@ -731,7 +732,7 @@ USB 串口 IMU（QinHeng CH340 `1a86:7523`）。udev `/dev/imu`。话题对齐 i
 | 技能动作与授权 | `cycle.cpp` | `ExecuteTarget` / `SurveyScene` 受理与取消；`authorizeStage` 授权矩阵 |
 | 周期状态 | `cycle_context.hpp`（`CycleContext`） | 周期全部可变状态；action 受理创建、worker 单写者 |
 | 阶段执行器 | `stages.cpp` | `executeCycle(ctx)` 显式模式 switch；阶段函数 |
-| 接触 | `grasp_task.cpp` | 预抓取先 PTP 拍照位，再只走 LIN / CIRC；套入沿轴直线；已齐 LIN 挂姿态约束；接触不用 PTP；工具 IO 不在这里 |
+| 接触 | `grasp_task.cpp` | 预抓取先 PTP 拍照位，再 GenerateGraspPose 滚转 + Fallbacks(Pilz LIN, CartesianPath)；套入沿轴直线；已齐 LIN 挂姿态约束；接触不用 PTP/OMPL；工具 IO 不在这里 |
 | USB IMU | `serial_imu/imu_node.py` + `protocol.py` | `/imu/data`；udev `/dev/imu`；不进采摘 launch |
 | 技能纯核 | `quality_gate.cpp` / `view_planner.cpp` / `safety_gate.cpp` / `target_cache.cpp` | 直接构造的唯一实现，零 ROS |
 | 运动接口 | `motion.cpp` | 拍照位、观察短移（只 LIN）、MoveIt 规划/执行 |
@@ -843,7 +844,7 @@ flowchart TD
   mode -->|OBSERVE_ONLY| RepObs[stageReportObserveOnly]
   mode -->|grasp_enabled 关| RepReady[stageReportReady]
   mode -->|接触档 CONTACT 级授权| Rec[stageReconfirmTarget]
-  Rec --> Move[stageMovePregrasp 先PTP拍照位 再LIN/CIRC]
+  Rec --> Move[stageMovePregrasp 先PTP拍照位 再滚转采样LIN]
   Move --> Ver[stageVerifyPregrasp 最新精化快照增量修正 最多两次]
   Ver --> pg{PREGRASP_ONLY?}
   pg -->|是 默认干跑| Hold[stageHoldPregrasp 停住不回 stow 不 SetIO]
@@ -887,7 +888,7 @@ flowchart TB
 
 **读图：** 从上往下权限越来越硬。单帧 ACCEPT 只配画面，不能动臂。融合几何足够去预抓取评方向。`allowed=false` 到此为止，禁止套入和 SetIO。再确认和安全门失败记 `skipped_quality`；超行程护栏或规划失败记 `skipped_unreachable`。最右「接触段」默认刀具仍关。
 
-接近：接触段沿袋轴（袋底→袋颈）尽量短。观察停在 look-at，从该姿态直接规划预抓取现场常无 IK，故 **先 PTP 回拍照位**（已知可达命名关节），再只走笛卡尔约束原语到预抓取：直线不穿预抓取球则 **LIN**（已齐则挂相对目标 20° OrientationConstraint；未齐则先 LIN 原地对齐工具 Z，再 LIN 平移并挂约束——不得挂在未齐起点上，Jazzy `ValidateSolution` 验起点）。直线会穿球、后撤 ≥ 5 mm、等半径扫角 < 90° 且弧长仍短则 **CIRC**（入口为圆心）再沿轴 LIN；后撤 0 不走 CIRC（球退化）。弦长/弧长超过 `mtc_approach_cartesian_max_distance_m`（0.80 m）或无法 CIRC、或 LIN/CIRC 规划失败，则 **skipped_unreachable**，不改 PTP（`alignFrameZ` 保留滚转）。入口在拟合圆柱袋底（`tool.entry_d_tool`+`entry_d_s`=0）；预抓取相对入口沿 −axis 后撤 `mtc_approach_along_axis_m`（现行 0.03 m；SELECT IK 用同一停位：后撤 + `alignFrameZ`，不抄感知滚转）。拍照位失败则从当前位规划。套入/撤退沿轴笛卡尔直线。OMPL 采样绕障，接触不用。**方向是否对、定位偏多少，以停在预抓取时的真机目视/测量为准**；动态预算、12° 包络否决、RMSE 不代替实测，也不拦 `PREGRASP_ONLY`。套入只在 `allowed=true` 后沿轴 LIN 到剪切参考；反向同轨迹回预抓取，再 PTP `harvest_stow`。不插 via。侧向 ≤ 0.05 m、夹角 ≤ 20° 视为已对轴（规划分档，不是精度验收）。接触绕行护栏 **累计 12 rad / 单轴 6.1 rad**（6.1=URDF ±3.05 满行程；不按时长：时长随速度变；`mtc_approach_max_duration_s` 默认 0=关闭），以及笛卡尔 **绕行比 2.2 / 弦偏离 0.25 m / 回退 0.08 m**（09-03 1740 无约束 PTP 绕行比 3.2、偏离 0.51 m、回退 0.24 m 过关节门）。观察：1 s 规划、禁止 replanning，绕行看 4 rad / 单轴 1.5 rad（09-01 现场 0.15 m 观察 LIN 实测 2.63–3.70 rad，2.5 拒合法短移）；下一视点沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m），评分以行程最短为主，只 LIN，失败换下一候选，不改 PTP。覆盖达标或 `maximum_moves` 用尽才停，不按移动+等帧 EMA 预测收口。`goToPhotoPose` 用行程门 `transit_max_*` 6 rad / 2.5 rad；PTP 失败才 OMPL（命名关节赶路），仍须过行程门。接触速度 0.10。
+接近：接触段沿袋轴（袋底→袋颈）尽量短。观察停在 look-at，从该姿态直接规划预抓取现场常无 IK，故 **先 PTP 回拍照位**（已知可达命名关节），再按 MoveIt2 官方抓取管线到预抓取：绕袋轴按 ±30° 采样刀口（MTC `GenerateGraspPose`）→ Fallbacks（**Pilz LIN**：已齐挂相对目标 20° OrientationConstraint；未齐先 LIN 原地对齐工具 Z 再平移——不得挂在未齐起点上，Jazzy `ValidateSolution` 验起点；keep-roll 直线若 `camera_body` 撞 `wrist1` 则换滚转，位置仍同一弦）。直线会穿球、后撤 ≥ 5 mm、等半径扫角 < 90° 且弧长仍短则 **CIRC**（入口为圆心）再沿轴 LIN；后撤 0 不走 CIRC（球退化）。弦长/弧长超过 `mtc_approach_cartesian_max_distance_m`（0.80 m）或无法 CIRC、或 LIN 规划失败，则同一弦 **CartesianPath** 插值（同样滚转扫描；可选经袋轴 staging 再轴向 LIN）；插值仍失败或直线会穿预抓取球则 **skipped_unreachable**，不改 PTP/OMPL。入口在拟合圆柱袋底（`tool.entry_d_tool`+`entry_d_s`=0）；预抓取相对入口沿 −axis 后撤 `mtc_approach_along_axis_m`（现行 0.03 m；SELECT IK 用同一停位：后撤 + `alignFrameZ`，不抄感知滚转）。拍照位失败则从当前位规划。套入/撤退沿轴笛卡尔直线。OMPL 采样绕障，接触不用。**方向是否对、定位偏多少，以停在预抓取时的真机目视/测量为准**；动态预算、12° 包络否决、RMSE 不代替实测，也不拦 `PREGRASP_ONLY`。套入只在 `allowed=true` 后沿轴 LIN 到剪切参考；反向同轨迹回预抓取，再 PTP `harvest_stow`。不插 via。侧向 ≤ 0.05 m、夹角 ≤ 20° 视为已对轴（规划分档，不是精度验收）。接触绕行护栏 **累计 12 rad / 单轴 6.1 rad**（6.1=URDF ±3.05 满行程；不按时长：时长随速度变；`mtc_approach_max_duration_s` 默认 0=关闭），以及笛卡尔 **绕行比 2.2 / 弦偏离 0.25 m / 回退 0.08 m**（09-03 1740 无约束 PTP 绕行比 3.2、偏离 0.51 m、回退 0.24 m 过关节门）。观察：1 s 规划、禁止 replanning，绕行看 4 rad / 单轴 1.5 rad（09-01 现场 0.15 m 观察 LIN 实测 2.63–3.70 rad，2.5 拒合法短移）；下一视点沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m），评分以行程最短为主，只 LIN，失败换下一候选，不改 PTP。覆盖达标或 `maximum_moves` 用尽才停，不按移动+等帧 EMA 预测收口。`goToPhotoPose` 用行程门 `transit_max_*` 6 rad / 2.5 rad；PTP 失败才 OMPL（命名关节赶路），仍须过行程门。接触速度 0.10。
 
 ### 透传（real）
 
@@ -942,7 +943,7 @@ yaml：仅上述 4 键仍为 `*.impl`（技能 yaml 无 `*.impl`）。检测/分
 | LifecycleNode | 感知/重建/技能/调度/observability | KEEP |
 | lifecycle_manager | 普通 Node；GPL `lifecycle_manager_parameters.yaml`（名单/超时）；运行 yaml 只覆盖；无 bond | 记录缺口 |
 | BT.CPP | 已移除（`behavior_tree.xml` 与 `bt_nodes.cpp` 删除，`stages.cpp` 显式阶段执行器替代） | 已删；不回退 |
-| MTC | stage 硬编码；预抓取先 PTP 拍照位，再只走 LIN / CIRC，已齐 LIN 带姿态约束 | KEEP；绕行看行程（接触 12 rad / 单轴 6.1=URDF 满行程，观察 4 / 1.5，拍照 6 / 2.5）与笛卡尔绕行比 2.2 / 弦偏离 0.25 m / 回退 0.08 m，不按时长 |
+| MTC | stage 硬编码；预抓取先 PTP 拍照位，再 GenerateGraspPose 滚转 + Fallbacks(Pilz LIN, CartesianPath)，已齐 LIN 带姿态约束 | KEEP；绕行看行程（接触 12 rad / 单轴 6.1=URDF 满行程，观察 4 / 1.5，拍照 6 / 2.5）与笛卡尔绕行比 2.2 / 弦偏离 0.25 m / 回退 0.08 m，不按时长 |
 | generate_parameter_library | 技能（C++）+ 调度/感知×2/监控/lifecycle_manager（Python） | KEEP |
 | message_filters | slop 0.05 s | KEEP |
 | pluginlib / composable | 未用 | 不做 |
@@ -986,7 +987,7 @@ yaml：仅上述 4 键仍为 `*.impl`（技能 yaml 无 `*.impl`）。检测/分
 | 会话 | 批次结束后 events.jsonl 再写约 65 分钟 | 记录器绑定 RunHarvest |
 | 新鲜度 | 08-24 `selected_target_stale` ×4 | 门限不预填 EMA；非 OBSERVED 仍按末次 live `received_s` |
 | 观察效率 | 6 视角 33.5 s；max_views=24 与现场 4–6 脱节 | 覆盖预算 + 停稳窗口 |
-| 接触 | 08-25 许可后 9 s 与 12.6 s PTP 被 12 s/4–8 rad 拒；08-31 1351 直线 62 s / 8.2 rad 被 20 s 时长拒；08-31 1554 最短合法 PTP 10.79 / 单轴 4.23 被当时 10/3.2 拒、未到位；09-03 1740 无约束 PTP 过 12/6.1 但 TCP 绕行比 3.2、先抬 35 cm | 接触到预抓取只走 LIN/CIRC，失败不改 PTP。关节门 **12 / 单轴 6.1** 仍拦绕腕。笛卡尔 **绕行比 2.2 / 弦偏离 0.25 m / 回退 0.08 m**。时长门默认 0 |
+| 接触 | 08-25 许可后 9 s 与 12.6 s PTP 被 12 s/4–8 rad 拒；08-31 1351 直线 62 s / 8.2 rad 被 20 s 时长拒；08-31 1554 最短合法 PTP 10.79 / 单轴 4.23 被当时 10/3.2 拒、未到位；09-03 1740 无约束 PTP 过 12/6.1 但 TCP 绕行比 3.2、先抬 35 cm | 接触到预抓取走 MTC 官方管线：绕袋轴采样刀口 + Pilz LIN / CartesianPath，失败不改 PTP/OMPL。关节门 **12 / 单轴 6.1** 仍拦绕腕。笛卡尔 **绕行比 2.2 / 弦偏离 0.25 m / 回退 0.08 m**。时长门默认 0 |
 | 果园 | 无 /scan/odom；`peach_navigation` 已归档（IDL 预留，NAV 直通） | 有底盘后从归档恢复并接 Nav2 |
 | 建一颗双路径 | `BuildTargetModel` 的 `_on_reset` 锁外调用与 worker `_auto_drive` 自动绑定存在竞态窗口（auto 开的会话可能被 Build 丢弃重建）；Build body 五步兜底与 `_auto_start` 曾逐行同构（0015 已收敛） | 锁序如需再收紧须真机回归 |
 | FULL 套入深度（SKIP 场景） | 已对轴停在预抓取时（classify=SKIP），`sleeveLinear` 插入深度取名义 `approach_along_axis_m + insertion`，与实际间隙（轴向 ∈[−0.02, standoff+0.02]）最多差一个 classify 容差窗；预览几何同理（2026-09-08 审查记录，护栏误拦已修、深度语义未动） | 真机 FULL 验收时以到位目视评定，必要时按实际间隙改行程 |

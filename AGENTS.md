@@ -24,7 +24,7 @@
 
 怎么跑、命名、验收门：[docs/testing.md](docs/testing.md)。真机/审查轮次：[docs/testing-log.md](docs/testing-log.md)（只追加，不驱动现行设计）。
 
-各包 `test/` 保留 ROS 2 默认 lint（Python：`test_flake8.py` / `test_pep257.py`；CMake：`ament_lint_auto`），并允许**零 ROS 纯核 pytest**（不 import rclpy / 不造 DDS 现场）。现行纯核：`peach_executor/test/test_harvest_fsm.py`（`react` 表）、`peach_perception/test/test_runtime_core.py`（`ManualClock` / `BoundedWorker`）、`graspnet_ros2/test/test_grasp_core.py`（NMS/碰撞；torch `importorskip`）。`peach_interfaces` 的 `check_interface_manifest.py` 进 colcon test。不要写业务用例、gtest、DDS 假现场、launch_testing 或采摘仿真测。`colcon test` 不等于采摘验收。语法与流程由审查核对，对错以实机为准。
+各包 `test/` 保留 ROS 2 默认 lint（Python：`test_flake8.py` / `test_pep257.py`；CMake：`ament_lint_auto`），并允许**零 ROS 纯核 pytest**（不 import rclpy / 不造 DDS 现场）。现行纯核：`peach_executor/test/test_harvest_fsm.py`（`react` 表）、`peach_perception/test/test_runtime_core.py`（`ManualClock` / `BoundedWorker`）、`ivg_graspnet/test/test_grasp_core.py`（NMS/碰撞；torch `importorskip`）。`peach_interfaces` 的 `check_interface_manifest.py` 进 colcon test。不要写业务用例、gtest、DDS 假现场、launch_testing 或采摘仿真测。`colcon test` 不等于采摘验收。语法与流程由审查核对，对错以实机为准。
 
 ## 技术
 
@@ -35,7 +35,7 @@ C++17；参数走 yaml + `generate_parameter_library`（GPL 声明 yaml=默认/�
 - `peach_manipulation`：机械臂执行（`SurveyScene` / `ExecuteTarget`：视点、预抓取、套入、刀具、原路撤退），不写账本、不调重建 Trigger；`GraspDecision.allowed` 是套入/剪切唯一权威（`PREGRASP_ONLY` 不要求 `allowed`；方向定位以预抓取真机实测为准）。节点持 GPL `Params` 快照，运动/接触/扫描 Config 从快照直构。`grasp_hypothesis` 走 LifecyclePublisher，须 `on_activate`。不要为 `stages.cpp` 再加 Manager。
 - `peach_executor`：整栈调度（含 lifecycle、只读监控 Web 与**鉴权手动调试操作面**——融合 8090，`debug.enabled`/`token`/运动类 `motion_enabled` 三重门默认全关，操作全审计；见决策 0013）；**launch 绝不自动 RunHarvest**；`execute_pregrasp_only` 默认 true（停预抓取不回 stow；套入前改 false）。`harvest_fsm.react` 是批次纯核，节点禁止手写 `batch_state`。`peach_lifecycle_manager` 走 GPL `lifecycle_manager_parameters.yaml`（ParamListener；名单场景 → 重建 → 技能 → 调度；observability 不进名单、不加 bond）。Web 不做成产品（不加登录/RBAC/独立前端工程）。
 
-旁路视觉抓取三包（`ivg_interfaces` / `visual_pose_estimation_python` / `graspnet_ros2`）**不是** peach 包：不进 `harvest_system`、不进 lifecycle、不订 peach 话题、不改驱动栈。GraspNet 后端不用 AnyGrasp 许可证。采摘跨包契约仍只走 `peach_interfaces`。
+旁路视觉抓取四包（`ivg_interfaces` / `ivg_utils` / `ivg_pose_estimation` / `ivg_graspnet`）**不是** peach 包：不进 `harvest_system`、不进 lifecycle、不订 peach 话题、不改驱动栈。GraspNet 后端不用 AnyGrasp 许可证。采摘跨包契约仍只走 `peach_interfaces`。
 
 导航适配 `peach_navigation` 已归档 `_archive/parked_2026-09/`（固定座核心栈四包不含它）；`NavigateToWorksite` 等 IDL 保留标预留，真底盘授权后恢复。
 

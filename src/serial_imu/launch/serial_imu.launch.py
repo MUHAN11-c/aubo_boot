@@ -42,6 +42,10 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'tf_parent_frame', default_value='world',
             description='imu_link / imu_attitude 的父坐标系；接手臂时用 base_link'),
+        DeclareLaunchArgument(
+            'tool_offset_enabled', default_value='false',
+            description='true=启用工具偏移（自适应圆柱工具 B）：'
+                        '发 tool_axis→tcp_actual 偏移 TF、imu/tool_offset 与清零服务'),
         OpaqueFunction(function=_warn_missing_imu_plugin),
         Node(
             package='serial_imu',
@@ -52,7 +56,9 @@ def generate_launch_description():
                 ParameterFile(
                     LaunchConfiguration('serial_imu_params_file'),
                     allow_substs=True),
-                {'tf_parent_frame': LaunchConfiguration('tf_parent_frame')},
+                {'tf_parent_frame': LaunchConfiguration('tf_parent_frame'),
+                 'tool_offset.enabled':
+                     LaunchConfiguration('tool_offset_enabled')},
             ],
         ),
         Node(

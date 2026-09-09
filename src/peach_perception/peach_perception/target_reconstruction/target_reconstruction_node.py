@@ -657,15 +657,19 @@ class TargetReconstructionNode(
     def _on_target_observations(
             self, msg: PeachTargetObservationArray) -> None:
         """缓存当前绑定目标 ID 的精确深度时刻掩膜与中心，并刷新锁定集锚点."""
-        # 目标切换会 reset 帧栈并清空产物，须与 worker 线程互斥（持锁全程）
+        # 目标切换会 reset 帧栈并清空产物，须与 worker 线程互斥。
+        # 2026-09-09 锁手术：锁域收窄为两段短临界（绑定切换/缓存写），
+        # 会话文件 IO、_publish_all 组装序列化、掩膜解码与几何计算全部
+        # 移出锁外——旧版持锁全程把本回调与心跳饿到分钟级滞后
+        # （真机实测心跳违约 57 次、绑定延迟 73s）。
+        publish_after = False
+        link_event = False
         with self._state_lock:
             self._target_observation_seen = True
             if msg.harvest_run_id != self._harvest_run_id:
                 self._harvest_run_id = msg.harvest_run_id
                 self._harvest_data.attach(self._harvest_run_id)
-                self._harvest_data.append_event({
-                    'source': 'reconstruction',
-                    'event': 'reconstruction_linked'})
+                link_event = True
             if self._executor_state_seen:
                 requested_target_id = self._executor_target_id
             else:
@@ -693,8 +697,8 @@ class TargetReconstructionNode(
                 self._reset_products(create_volume=False)
                 self._bound_axis_hint = None
                 self._target_masks.clear()
-                self._publish_all()
                 self._preferred_target_id = requested_target_id
+                publish_after = True
             elif action in (BindSwitchHoldoff.PEND, BindSwitchHoldoff.WAIT):
                 # 挂起中：不更新 _preferred_target_id，下方掩膜缓存与邻目标
                 # 锚点仍按旧绑定目标刷新（会话零扰动）
@@ -703,62 +707,79 @@ class TargetReconstructionNode(
                 # FOLLOW（无会话可毁/未偏离/未绑定）与 CANCEL（holdoff 内
                 # 切回原 ID）均直通；requested==bound 时赋值幂等
                 self._preferred_target_id = requested_target_id
-            # 几何缓存（轴 hint/邻目标锚点/掩膜中心）全部按 base 系解释：
-            # 感知 tf_unavailable 帧退相机系，混入会让漂移门/串扰门按
-            # 错误坐标系算距离（绑定侧 select_reconstruction_candidate
-            # 已有同款 frame 门）。ID/会话切换与帧无关，不受此门影响。
-            if msg.header.frame_id != self.params.frames.base_frame:
-                return
-            # 掩膜缓存按当前绑定目标（防抖期=旧目标）取观测；绑定目标本帧
-            # 无观测/非 OBSERVED/无掩膜时本帧不更新缓存
-            bound_obs = next((item for item in msg.observations
-                              if item.target_id == self._preferred_target_id),
-                             None)
-            if bound_obs is not None:
-                hint = axis_from_vector3(
-                    bound_obs.candidate.translation_direction)
-                if hint is not None:
-                    self._bound_axis_hint = hint
-            # E2 邻目标串扰门数据源：每条观测消息全量重建锁定集锚点缓存
-            # （绑定目标自身在 _target_mask_for_frame 组 MaskContext 时剔除；
-            # 未锁定时 observations 恒空，缓存随之为空）。同步记录检测框
-            # 面积（像素²）：串扰门对「远小于本目标的框」豁免——小框多为
-            # 叶片遮挡残片/误检（09-01 现场 58.5 mm 近距即此类），大框先行。
-            centers = {}
-            areas = {}
-            for item in msg.observations:
-                c = self._candidate_center(item.candidate)
-                if c is not None:
-                    centers[item.target_id] = c
-                box = item.candidate_2d
-                if box.bbox_w > 0 and box.bbox_h > 0:
-                    areas[item.target_id] = float(box.bbox_w) * float(box.bbox_h)
-            self._locked_target_centers = centers
-            self._locked_target_areas = areas
-            if (bound_obs is None
-                    or bound_obs.tracking_status != bound_obs.OBSERVED):
-                return
-            if not bound_obs.mask.data:
-                return
+            preferred = self._preferred_target_id
+        if link_event:
+            self._harvest_data.append_event({
+                'source': 'reconstruction',
+                'event': 'reconstruction_linked'})
+        if publish_after:
+            # 组装/序列化重活，锁外补发（COMMIT 清屏走 force 旁路）
+            self._publish_all()
+        # 几何缓存（轴 hint/邻目标锚点/掩膜中心）全部按 base 系解释：
+        # 感知 tf_unavailable 帧退相机系，混入会让漂移门/串扰门按
+        # 错误坐标系算距离（绑定侧 select_reconstruction_candidate
+        # 已有同款 frame 门）。ID/会话切换与帧无关，不受此门影响。
+        if msg.header.frame_id != self.params.frames.base_frame:
+            return
+        # 掩膜缓存按当前绑定目标（防抖期=旧目标）取观测；绑定目标本帧
+        # 无观测/非 OBSERVED/无掩膜时本帧不更新缓存
+        bound_obs = next((item for item in msg.observations
+                          if item.target_id == preferred), None)
+        hint = None
+        if bound_obs is not None:
+            hint = axis_from_vector3(
+                bound_obs.candidate.translation_direction)
+        # E2 邻目标串扰门数据源：每条观测消息全量重建锁定集锚点缓存
+        # （绑定目标自身在 _target_mask_for_frame 组 MaskContext 时剔除；
+        # 未锁定时 observations 恒空，缓存随之为空）。同步记录检测框
+        # 面积（像素²）：串扰门对「远小于本目标的框」豁免——小框多为
+        # 叶片遮挡残片/误检（09-01 现场 58.5 mm 近距即此类），大框先行。
+        centers = {}
+        areas = {}
+        for item in msg.observations:
+            c = self._candidate_center(item.candidate)
+            if c is not None:
+                centers[item.target_id] = c
+            box = item.candidate_2d
+            if box.bbox_w > 0 and box.bbox_h > 0:
+                areas[item.target_id] = float(box.bbox_w) * float(box.bbox_h)
+        mask_entry = None
+        drive = bound_obs is not None
+        if (bound_obs is None
+                or bound_obs.tracking_status != bound_obs.OBSERVED):
+            drive = False
+        elif not bound_obs.mask.data:
+            drive = False
+        else:
             try:
                 mask = self.bridge.imgmsg_to_cv2(
                     bound_obs.mask, desired_encoding='mono8')
             except Exception as exc:  # noqa: BLE001
                 self.get_logger().warning(f'目标掩膜解码失败: {exc}')
-                return
-            stamp = bound_obs.mask.header.stamp
-            stamp_ns = self._stamp_ns(stamp)
-            center = self._candidate_center(bound_obs.candidate)
-            self._target_masks[stamp_ns] = (
-                np.asarray(mask, dtype=np.uint8), center)
-            while len(self._target_masks) > 30:
-                self._target_masks.pop(next(iter(self._target_masks)))
+                drive = False
+            else:
+                stamp = bound_obs.mask.header.stamp
+                mask_entry = (
+                    self._stamp_ns(stamp),
+                    np.asarray(mask, dtype=np.uint8),
+                    self._candidate_center(bound_obs.candidate))
+        with self._state_lock:
+            if hint is not None:
+                self._bound_axis_hint = hint
+            self._locked_target_centers = centers
+            self._locked_target_areas = areas
+            if mask_entry is not None:
+                stamp_ns, mask_arr, center = mask_entry
+                self._target_masks[stamp_ns] = (mask_arr, center)
+                while len(self._target_masks) > 30:
+                    self._target_masks.pop(next(iter(self._target_masks)))
+        if not drive:
+            return
         # 自动驱动可能执行精确时刻 TF 查询、采帧与 TSDF/refit；必须在外层
         # 观测缓存锁释放后进入。否则 BuildTargetModel 的 reset/bind 会被饿死。
         if self.params.capture.auto_mode:
             self._auto_drive()
 
-    @staticmethod
     def _on_query_reconstruction_state(self, request, response):
         """~/query_reconstruction_state：返回当前重建和数据关联 JSON."""
         del request
@@ -1161,31 +1182,29 @@ class TargetReconstructionNode(
                     f'REFINING 失败（TSDF 体积已保留）: {exc}')
         return None
 
-    def _accept_frame(self, rgb, depth_mm, K, stamp_sec: float,
-                      T_base_camera, tf_status: str,
-                      target_mask=None) -> Tuple[bool, str]:
+    def _prepare_frame(self, context, target_id):
         """
-        FK 构云 → 有界帧到模型 ICP → 入库并立即积分 TSDF.
+        采帧锁外纯计算段：FK 构云 → 有界帧到模型 ICP → CapturedFrame 组装.
 
-        T_base_camera 是精确图像时刻的 FK/手眼位姿；ICP 只估计相对它的
-        小修正。ICP 与 FK 预对齐都不合格时拒帧，避免污染在线体积.
+        只读入参快照与 ICP 目标缓存，不触碰 collector/TSDF/计数等共享
+        状态，因此不得持 _state_lock 调用（2026-09-09 锁手术：本段是
+        每帧最重的 CPU 活，锁外执行解饿心跳/观测回调）。
 
         Args:
-            rgb: (H, W, 3) uint8 BGR 彩图.
-            depth_mm: (H, W) uint16 深度 [mm].
-            K: 内参 dict.
-            stamp_sec: 图像时间戳 [s].
-            T_base_camera: (4, 4) 精确时间戳的 base←camera FK 位姿.
-            tf_status: TF 查询状态；本实现只接受 'ok'.
+            context: _gated_capture_finish 的 ALLOW 上下文
+                (rgb, depth_mm, K, stamp_sec, T_base_camera, tf_status,
+                target_mask).
+            target_id: finish 锁内快照的绑定目标，帧归属以此为准（提交段
+                复核会话未变后入库）.
 
         Returns
         -------
-            (accepted, message).
+            (payload, None) 或 (None, 拒帧原因)；payload =
+            (frame, ratio, mode, reg_info)。
 
         """
-        # 帧总耗时起点（注入时钟，I3）：覆盖构云→ICP→入库→TSDF 积分全链，
-        # 仅在成功收帧时计入 frame_total EMA（拒帧早退不污染基线）
-        t_frame0 = self._algo_clock.now()
+        (rgb, depth_mm, K, stamp_sec,
+         T_base_camera, tf_status, target_mask) = context
         try:
             # masked_depth 复用构云时已算好的掩膜结果（免全图级二次
             # apply_target_mask）；ratio 语义不变（掩膜内有效/掩膜像素）。
@@ -1194,9 +1213,9 @@ class TargetReconstructionNode(
                     depth_mm, rgb, K, T_base_camera,
                     target_mask=target_mask)
         except (RuntimeError, ValueError) as exc:
-            return False, f'点云构建失败: {exc}'
+            return None, f'点云构建失败: {exc}'
         if tf_status != 'ok':
-            return False, '非精确时间 TF 帧禁止进入 TSDF'
+            return None, '非精确时间 TF 帧禁止进入 TSDF'
 
         cloud_fk, cloud_rgb = self._crop_for_icp(cloud_fk, cloud_rgb)
         cached_target = self._icp_target_cache.current_target()
@@ -1205,7 +1224,7 @@ class TargetReconstructionNode(
         ok, correction, mode, reg_info, err = self._register_cloud(
             cloud_fk, target)
         if not ok:
-            return False, err
+            return None, err
         T_used = correction @ np.asarray(T_base_camera, dtype=np.float64)
         cloud_base = transform_points(cloud_fk, correction)
         flags = [f'pose_{mode}']
@@ -1215,18 +1234,40 @@ class TargetReconstructionNode(
         frame = CapturedFrame(
             rgb=rgb, depth_mm=masked_depth, camera_K=K, stamp=stamp_sec,
             T_base_camera=T_used, T_base_camera_fk=T_base_camera,
-            target_id=self.collector.target_id,
+            target_id=target_id,
             valid_depth_ratio=ratio, cloud_base=cloud_base,
             cloud_rgb=cloud_rgb, diagnostic_flags=flags,
             registration=reg_info)
+        return (frame, ratio, mode, reg_info), None
+
+    def _commit_prepared_frame(self, prepared, t_frame0):
+        """
+        采帧锁内提交段（须持 _state_lock）：入库 → TSDF 积分 → 计数落账.
+
+        ICP 与 FK 预对齐都不合格的帧已在 _prepare_frame 拒掉；此处只为
+        短临界（毫秒级），心跳/观测回调不再被构云/积分饿死。
+
+        Args:
+            prepared: _prepare_frame 的成功 payload。
+            t_frame0: 帧总耗时起点（注入时钟，I3），在进入准备段前取；
+                覆盖构云→ICP→入库→TSDF 积分全链，仅成功收帧时计入
+                frame_total EMA（拒帧早退不污染基线）.
+
+        Returns
+        -------
+            (accepted, message)。
+
+        """
+        frame, ratio, mode, reg_info = prepared
         if not self.collector.add_frame(frame):
             return False, f'已达 max_views={self.params.capture.max_views}'
         tsdf_err = self._integrate_tsdf(
-            rgb, masked_depth, K, T_used, cloud_base)
+            frame.rgb, frame.depth_mm, frame.camera_K, frame.T_base_camera,
+            frame.cloud_base)
         if tsdf_err:
             return False, tsdf_err
 
-        self._last_captured_stamp_sec = stamp_sec
+        self._last_captured_stamp_sec = frame.stamp
         # 新帧使 overlap/mesh 失效；精化在 extract 后现场重拟（keep 上一帧
         # 成功结果），运动中 RViz 抓取示意连续更新而不是清屏。
         self._overlap_cache = None
@@ -1234,20 +1275,19 @@ class TargetReconstructionNode(
         n = len(self.collector.frames)
         message = (
             f'已采第 {n}/{self.params.capture.recommended_views} 视角，'
-            f'本帧 {cloud_base.shape[0]} 点，有效深度占比 {ratio:.2f}，'
+            f'本帧 {frame.cloud_base.shape[0]} 点，有效深度占比 {ratio:.2f}，'
             f'位姿={mode}')
         self.get_logger().info(message)
         self._harvest_data.append_event({
             'source': 'reconstruction', 'event': 'frame_accepted',
             'target_id': self.collector.target_id,
-            'stamp_ns': int(round(stamp_sec * 1000000000.0)),
+            'stamp_ns': int(round(frame.stamp * 1000000000.0)),
             'view_index': n, 'mask_depth_ratio': float(ratio),
             'registration': reg_info,
         })
-        # 帧总耗时落账（成功路径终点；不含其后的统一重发，发布开销
-        # 由心跳侧另计）
-        self._timing.record_frame_total((self._algo_clock.now() - t_frame0) * 1000.0)
-        self._publish_all()
+        # 帧总耗时落账（成功路径终点；发布开销由心跳侧另计）
+        self._timing.record_frame_total(
+            (self._algo_clock.now() - t_frame0) * 1000.0)
         self._view_progress.set()
         return True, message
 
@@ -1348,7 +1388,7 @@ class TargetReconstructionNode(
         """
         从在线 TSDF 提取最终点云和三角网格.
 
-        每帧已在 _accept_frame 中完成积分；此处禁止再次批量积分，只做
+        每帧已在 _commit_prepared_frame 中完成积分；此处禁止再次批量积分，只做
         ROI 点云后处理与 Open3D marching-cubes 网格提取.
 
         Returns

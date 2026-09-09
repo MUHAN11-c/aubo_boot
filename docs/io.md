@@ -14,7 +14,7 @@
 | §5 | `peach_executor` | `peach_executor`、`peach_lifecycle_manager`、`peach_observability` |
 | §6 | 驱动九包 | 臂 / 相机 / TF（只读红线见 AGENTS） |
 | §7 | `serial_imu` | 可选，不进整栈 |
-| §8 | 旁路视觉抓取 | `visual_pose_estimation_python`、`graspnet_ros2`（IDL=`ivg_interfaces`） |
+| §8 | 旁路视觉抓取 | `ivg_pose_estimation`、`ivg_graspnet`（IDL=`ivg_interfaces`） |
 
 各节点流程图在对应小节（入口 → 处理 → 输出）。跨包谁叫谁见 §1。批次时序与技能阶段序列见 [architecture.md](architecture.md) 图 C / 图 D。
 
@@ -57,7 +57,7 @@ flowchart LR
 | 调用 | 服务端 | 发起方 | 何时 |
 |------|--------|--------|------|
 | `NavigateToWorksite` | （预留，导航包已归档） | `_cmd_navigate` | `Command.NAVIGATE`；固定座直通 `NAV_OK`，不发送动作 |
-| `CheckReachability` | `peach_manipulation_node` | `_query_reachability`（SELECT 段） | 批量 TCP IK 预检（请求=感知入口；服务端换成停位几何：后撤 + `alignFrameZ`；种子=当前关节；只答能否，不规划不动臂）；不可用回退标定半径窗 |
+| `CheckReachability` | `peach_manipulation_node` | `_query_reachability`（SELECT 段） | 批量 TCP IK 预检（请求=感知入口；服务端换成停位几何：后撤 + `alignFrameZ` + 滚转扫描；种子=当前关节；只答能否，不规划不动臂、不采样路径点）；不可用回退标定半径窗 |
 | `SurveyScene` | 技能 `~/survey_scene` | `_survey_body` | `Command.SURVEY`；首巡 `NAV_OK` 后，回访 `CYCLE_DONE` / `NO_TARGET` |
 | `BeginScene` | 感知 `~/begin_scene` | 调度 `_cmd_begin` | 仅首巡 `SURVEY_AT_POSE` 后一次 |
 | 等锁 | （消费观测） | `_wait_lock` | `Command.WAIT_LOCK`；谓词：`scene_epoch` 对齐且 `target_set_locked` |
@@ -85,7 +85,7 @@ flowchart LR
 | 服务 | 服务端所在包 | 含义 |
 |------|--------------|------|
 | `BeginScene` | `peach_perception` | **重启收齐窗。** 推进 `scene_epoch`。同 `scene_key` 保留身份；换场才清表。非 Active 拒绝。调度仅 DISCOVERY 首巡 Survey 到位后调用一次 |
-| `CheckReachability` | `peach_manipulation` | **选果：入口换成与 Hold 同一停位后，当前关节种子下有没有 IK。** 位置后撤 `mtc_approach_along_axis_m`，姿态 `alignFrameZ` 不抄感知滚转。不规划、不动臂。无解记 `ik_no_solution`。服务不可用时调度回退半径窗 |
+| `CheckReachability` | `peach_manipulation` | **选果：入口换成与 Hold 同一停位后，当前关节种子下有没有 IK。** 位置后撤 `mtc_approach_along_axis_m`，姿态 `alignFrameZ` 不抄感知滚转；keep-roll 无解再 45°×8 滚转。不规划、不动臂、不采样路径点（路径可行性在接近规划时审查）。无解记 `ik_no_solution`。服务不可用时调度回退半径窗 |
 | `ControlTask` | `peach_executor` | **人工控批（监控不发）。** PAUSE / RESUME / CANCEL_NOW / SKIP_TARGET / ACKNOWLEDGE_RECOVERY。`expected_state_seq` 须对上，防过期点击 |
 | `ManageLifecycleNodes` | `peach_executor` | **整栈 configure/activate/拆除。** PAUSE=节点 Inactive，不是批次暂停。不发 `RunHarvest` |
 
@@ -360,10 +360,10 @@ flowchart TB
 `stages.cpp` 的 `executeCycle(ctx)` 显式模式 switch，周期状态全在 `CycleContext`（action 受理时创建、worker 单写者）：PrepareCycle →（`execution_enabled` 关则 PlanPreview 终结）→（未 `skip_observation` 则 AcquireViews）→ FinalizeAndValidate →（OBSERVE_ONLY → Report / `grasp_enabled` 关 → ReportReady / Reconfirm → MovePregrasp → VerifyPregrasp →（PREGRASP_ONLY 则 `HoldPregrasp` 停住 | PlanSleeve → SleeveLinear → VerifyCutHold → ActuateCutter → VerifyCut → ReverseRetreat → ReturnStow → VerifyHarvestOutcome））→ CompleteTarget。运动/IO 入口逐阶段过 `ExecutionAuthority`（套入/剪切前复检 `GraspDecision.allowed`；撤离 TRANSIT 级不做决策复检）。
 
 - OBSERVE_ONLY：当前位先采帧；基线未过最多两次最近短移（只 LIN，失败换候选），沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m），评分以行程最短为主；朝当前目标检测框内分割更满的方向微偏。禁止 OMPL、对侧兜圈、贴 0.40 m 球面环绕、PTP 兜底。覆盖门 `minimum_baseline_deg: 8`。停准则：覆盖达标或 `maximum_moves` 用尽；`time_budget_s` 只进日志，不按移动+等帧 EMA 预测收口。到位后等新机位（`view_directions` 增加），同机位连帧不加覆盖。成功：重建已绑定、独立机位已满 `min_views`、TSDF/精化已发布。观察成功但 Build `view_count`（机位数）`< min_views` → `observe_build_view_race`。`captured_views` 仍是积分帧数。
-- PREGRASP_ONLY：有融合几何即去预抓取（入口在拟合袋底，预抓取相对入口后撤 0.03 m）；先 PTP 回拍照位，再只走 LIN / CIRC（直线不穿预抓取球则 LIN；未齐先 LIN 原地对齐工具 Z；直线会穿球且后撤 ≥ 5 mm 则 CIRC 再沿轴 LIN；后撤 0 不走 CIRC）。已齐 LIN 加相对目标 20° 姿态路径约束。LIN/CIRC 失败不改 PTP。拍照位失败则从当前位规划。不要求 `allowed`。工具 TF 残差超门则按**最新精化快照**重算 entry/pregrasp 做增量修正（最多两次）；残差未过门也停在预抓取（不回 `harvest_stow`），便于真机评方向/定位。任何路径不 SetIO。到位终局 `SUCCEEDED` 且 `recovery_required`，ACK 前调度不 Survey。现行不是两帧精确 TF RGB-D 重估。
+- PREGRASP_ONLY：有融合几何即去预抓取（入口在拟合袋底，预抓取相对入口后撤 0.03 m）；先 PTP 回拍照位，再按 MTC 官方管线：绕袋轴 ±30° 采样刀口 → Fallbacks（Pilz LIN，失败则 CartesianPath）。直线不穿预抓取球则 LIN；未齐先 LIN 原地对齐工具 Z；keep-roll 自碰则换滚转。直线会穿球且后撤 ≥ 5 mm 则 CIRC 再沿轴 LIN；后撤 0 不走 CIRC。已齐 LIN 加相对目标 20° 姿态路径约束。LIN/CIRC/插值失败不改 PTP/OMPL。拍照位失败则从当前位规划。不要求 `allowed`。工具 TF 残差超门则按**最新精化快照**重算 entry/pregrasp 做增量修正（最多两次）；残差未过门也停在预抓取（不回 `harvest_stow`），便于真机评方向/定位。任何路径不 SetIO。到位终局 `SUCCEEDED` 且 `recovery_required`，ACK 前调度不 Survey。现行不是两帧精确 TF RGB-D 重估。
 - FULL：`skip_observation`。结果填 `HarvestResult` / `Verification` / `PregraspVerification` / `outcome_record`；`DepositResult` 字段保留标**预留**（卸果站已删，恒 `deposited=false`）。`harvest.grasped` 仅 `cut_confirmed && retreat_confirmed`。SetIO ACK 只产生 `CUT_COMMAND_ACCEPTED`；切断确认保守：刀具 DI 预留接 `/aubo_io_controller/io_states`，反馈未接线前 `tool.enabled=true` 终局 `FAILED`/`CUT_FEEDBACK_TIMEOUT`。
 - 新鲜度门：`SafetyGate` 比较 `clock - freshnessStamp`。OBSERVED 且 `updated_s` 更新时用 `updated_s`，否则末次有效观测 `received_s`。门限 `effectiveTargetMaxAgeS()`：未测得 EMA 用 yaml 3.0 s，测得后只放宽。`assumed_frame_interval_s: 0.4` 只估等待窗口，不预填 EMA。
-- 接触护栏（yaml）：绕行看累计 12 rad、单轴 6.1 rad（URDF ±3.05 满行程）；段间接缝计入 `|Δq|`。笛卡尔 **绕行比 2.2 / 弦偏离 0.25 m / 回退 0.08 m**（FK 规划 TCP）。不按时长（`mtc_approach_max_duration_s` 默认 0）。预抓取先 PTP 回拍照位，再只走 LIN / CIRC 到预抓取，再一段沿轴 LIN 套入；反向同轨迹回预抓取。已齐 LIN 加 tip 姿态 OrientationConstraint（对目标姿态，容差 `mtc_approach_max_align_deg` 20°）。未齐先 LIN 原地对齐；LIN/CIRC 失败不改 PTP。弦长/弧长上限 0.80 m。观察短移：只 LIN；行程 `observe_max_*` 4.0 rad / 1.5 rad（09-01 现场把 2.5 会拒的合法短移固化进 yaml）。`goToPhotoPose`：行程 `transit_max_*` 6 rad / 2.5 rad。成功出口核当前关节（`photo_pose_joint_tolerance_rad` / `photo_pose_max_joint_vel_rad_s`，`execute=false` 仍核）。超行程或不在拍照位不报成功。
+- 接触护栏（yaml）：绕行看累计 12 rad、单轴 6.1 rad（URDF ±3.05 满行程）；段间接缝计入 `|Δq|`。笛卡尔 **绕行比 2.2 / 弦偏离 0.25 m / 回退 0.08 m**（FK 规划 TCP）。不按时长（`mtc_approach_max_duration_s` 默认 0）。预抓取先 PTP 回拍照位，再 GenerateGraspPose 滚转 + Fallbacks(Pilz LIN, CartesianPath) 到预抓取，再一段沿轴 LIN 套入；反向同轨迹回预抓取。已齐 LIN 加 tip 姿态 OrientationConstraint（对目标姿态，容差 `mtc_approach_max_align_deg` 20°）。未齐先 LIN 原地对齐；LIN/CIRC/插值失败不改 PTP/OMPL。弦长/弧长上限 0.80 m。观察短移：只 LIN；行程 `observe_max_*` 4.0 rad / 1.5 rad（09-01 现场把 2.5 会拒的合法短移固化进 yaml）。`goToPhotoPose`：行程 `transit_max_*` 6 rad / 2.5 rad。成功出口核当前关节（`photo_pose_joint_tolerance_rad` / `photo_pose_max_joint_vel_rad_s`，`execute=false` 仍核）。超行程或不在拍照位不报成功。
 
 默认 `execution/grasp/tool=false`：只规划、不接触、不 SetIO。
 
@@ -599,12 +599,16 @@ flowchart TB
 
 | 名字 | 含义 |
 |------|------|
-| `/imu/data` | 融合姿态 IMU（SensorDataQoS，`frame_id=imu_link`） |
-| `/imu/data_raw` | 原始 IMU |
+| `/imu/data` | 融合姿态 IMU（SensorDataQoS，`frame_id=imu_link`；`angular_velocity` 恒 0——模组陀螺字段不出数，2026-09-09 实测） |
+| `/imu/data_raw` | 原始 IMU（`orientation_covariance[0]=-1`；gyro 同样恒 0） |
 | `/imu/mag` | 磁力计 |
 | `/imu/temp` | 温度 |
+| `/imu/tool_offset` | `QuaternionStamped` 工具偏移（`tool_axis` 系），仅 `tool_offset.enabled` 时发 |
+| `imu/tool_offset/zero` 服务 | `std_srvs/Trigger` 零位采集（清零），每次接触前调用，同步返回成败 |
 
-静态 TF `world`（或 `base_link`）→`imu_link`；动态 `→imu_attitude`。不并进臂链，除非 `tf_parent_frame:=base_link`。手册：[src/serial_imu/README.md](../src/serial_imu/README.md)。
+静态 TF `world`（或 `base_link`）→`imu_link`；动态 `→imu_attitude`。不并进臂链，除非 `tf_parent_frame:=base_link`。
+
+工具偏移（自适应圆柱工具 B，`tool_offset.enabled` / launch `tool_offset_enabled:=true`）：清零时刻工具居中，偏移 = 模组四元数变化经安装共轭 `mount_rpy_deg` 并扣除臂自身运动（订 `base_link→tool_axis` TF），发动态 TF `tool_axis→tcp_actual`。`mount_rpy_deg` 必须按 README §8 标定——模组倒装（实测 roll≈+177°）下不共轭会把偏移轴镜像、跟随方向反号。清零带重力自检门（`zero_gravity_tol_deg`）。偏移 TF/话题 stamp 停更 = 传感器/TF 失效，消费端须停止套入；姿态不替代抓取许可。手册：[src/serial_imu/README.md](../src/serial_imu/README.md)。
 
 ---
 
@@ -612,13 +616,13 @@ flowchart TB
 
 不在 peach 清单、采摘核不订、不进 `harvest_system` / lifecycle。IDL 只在 `ivg_interfaces`（估姿 1 msg + 5 srv）。与采摘共用 Percipio 图像/点云与 `extrinsics_publisher` TF；检测 launch **不**再起相机或手眼节点。
 
-### `visual_pose_estimation_python`
+### `ivg_pose_estimation`
 
-节点名 `visual_pose_estimation_python`。Web 另进程，默认 `http://127.0.0.1:8088/`。软触发发 `std_msgs/String` 到 `/camera/soft_trigger`（与 `percipio_camera` 一致）；无订阅者时不阻断，依赖自由出流缓存帧。`T_B_C` 优先查 `base_link` ← `camera_color_optical_frame`。Web 上 `/api/get_robot_status`、`/api/set_robot_pose`、`/api/set_robot_io`、`/api/execute_pose_sequence` 与抓取/快换路由一律 **501**（运动走 harvest 8090 调试操作面或 `graspnet_ros2`）。
+节点名 `ivg_pose_estimation`。Web 另进程，默认 `http://127.0.0.1:8088/`。软触发发 `std_msgs/String` 到 `/camera/soft_trigger`（与 `percipio_camera` 一致）；无订阅者时不阻断，依赖自由出流缓存帧。`T_B_C` 优先查 `base_link` ← `camera_color_optical_frame`。Web 上 `/api/get_robot_status`、`/api/set_robot_pose`、`/api/set_robot_io`、`/api/execute_pose_sequence` 与抓取/快换路由一律 **501**（运动走 harvest 8090 调试操作面或 `ivg_graspnet`）。
 
 ```mermaid
 flowchart LR
-  cam["/camera/{color,depth}/image_raw"] --> node["visual_pose_estimation_python"]
+  cam["/camera/{color,depth}/image_raw"] --> node["ivg_pose_estimation"]
   node -->|"estimate_pose / estimate_pose_2d"| caller["人工 / Web"]
   node -->|"list_templates / standardize_template / update_params"| caller
   node -->|"system_status"| log["String"]
@@ -635,9 +639,9 @@ flowchart LR
 | `/camera/color/image_raw`、`/camera/depth/image_raw` | 与采摘同一相机话题（参数可改） |
 | `/camera/soft_trigger` | Percipio 软触发（`std_msgs/String`） |
 
-模板根：launch `template_root` → 环境变量 `VPE_TEMPLATE_ROOT` → `web_ui/configs/app_config.json` → `visual_pose_estimation/templates`。
+模板根：launch `template_root` → 环境变量 `VPE_TEMPLATE_ROOT` → `web_ui/configs/app_config.json` → `ivg_pose_estimation/templates`。
 
-### `graspnet_ros2`
+### `ivg_graspnet`
 
 检测节点 `graspnet_demo_points_node`；执行客户端 `publish_grasps_client`（须外部 `move_group`，规划组 `manipulator_e5`、末端 `tcp`）。推理纯核 `GraspNetInference.get_grasp` 无 rclpy。采集默认待命。
 
@@ -659,4 +663,4 @@ flowchart LR
 | `grasp_poses_base` | `base_link` 系 PoseArray |
 | `grasp_pose_i` | 动态 TF（候选抓取） |
 
-`publish_grasps_client` 凑满 `min_groups_before_pick` 组后会走 MoveIt 接近。未授权不得真机运动。手册：[src/graspnet_ros2/README.md](../src/graspnet_ros2/README.md)。
+`publish_grasps_client` 凑满 `min_groups_before_pick` 组后会走 MoveIt 接近。未授权不得真机运动。手册：[src/ivg_graspnet/README.md](../src/ivg_graspnet/README.md)。

@@ -330,7 +330,7 @@ class ObservabilityNode(LifecycleNode):
         merged = dict(self._recon_debug_extra)
         merged.update(to_reconstruction_status(message))
         if self._recon_decision_value is not None:
-            merged['to_grasp_decision'] = self._recon_decision_value
+            merged['grasp_decision'] = self._recon_decision_value
         center = merged.get('target_center_base')
         if isinstance(center, list):
             self._traj_landmarks['reconstruction_center'] = center
@@ -349,8 +349,8 @@ class ObservabilityNode(LifecycleNode):
         self._traj_landmarks['grasp_pregrasp'] = value.get('pregrasp')
         self._traj_landmarks['axis'] = value.get('axis')
         self._traj_landmarks['target_id'] = value.get('target_id') or ''
-        self._state.update('reconstruction', 'to_grasp_decision', value)
-        self._recorder.handle_reconstruction('to_grasp_decision', value)
+        self._state.update('reconstruction', 'grasp_decision', value)
+        self._recorder.handle_reconstruction('grasp_decision', value)
         self._record_job()
 
     def _manipulation_callback(self, message: String) -> None:

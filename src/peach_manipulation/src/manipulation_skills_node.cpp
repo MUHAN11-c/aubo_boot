@@ -428,6 +428,78 @@ void ManipulationSkillsNode::rebuildGraspTask()
   task_config.approach_cartesian_max_distance_m =
     moveit.mtc_approach_cartesian_max_distance_m;
   task_config.approach_along_axis_m = moveit.mtc_approach_along_axis_m;
+  task_config.approach_staging_standoff_m =
+    moveit.approach_staging_standoff_m;
+  // 滚转扫描 + 多 IK 种子：圆筒刀口滚转是自由参数。只把最近支位姿交给
+  // 笛卡尔接近当目标姿态，不用关节目标下发 PTP（1740 跨构型绕行）。
+  task_config.select_goal_joints =
+    [this](const Eigen::Isometry3d & keep_roll_pose)
+    -> std::optional<GraspTaskConfig::StagingCandidate>
+    {
+      if (!move_group_) {
+        return std::nullopt;
+      }
+      const auto base = move_group_->getCurrentState();
+      const auto * group = base->getJointModelGroup(planning_group_);
+      if (group == nullptr) {
+        return std::nullopt;
+      }
+      const auto names = group->getActiveJointModelNames();
+      std::vector<double> current;
+      base->copyJointGroupPositions(group, current);
+      GraspTaskConfig::StagingCandidate best;
+      double best_dist = std::numeric_limits<double>::infinity();
+      for (int roll_idx = 0; roll_idx < 12; ++roll_idx) {
+        Eigen::Isometry3d pose = keep_roll_pose;
+        if (roll_idx > 0) {
+          pose.linear() = keep_roll_pose.linear() *
+            Eigen::AngleAxisd(roll_idx * M_PI / 6.0, Eigen::Vector3d::UnitZ());
+        }
+        for (int attempt = 0; attempt < 2; ++attempt) {
+          moveit::core::RobotState probe = *base;
+          if (attempt > 0) {
+            probe.setToRandomPositions(group);
+          }
+          if (!probe.setFromIK(group, pose, tip_frame_, 0.1)) {
+            continue;
+          }
+          probe.update();
+          if (!probe.satisfiesBounds(group)) {
+            continue;
+          }
+          std::vector<double> sol;
+          probe.copyJointGroupPositions(group, sol);
+          double dist_sq = 0.0;
+          for (std::size_t i = 0; i < sol.size(); ++i) {
+            const double d = sol[i] - current[i];
+            dist_sq += d * d;
+          }
+          if (dist_sq < best_dist) {
+            best_dist = dist_sq;
+            best.pose = pose;
+            best.joints.clear();
+            for (std::size_t i = 0; i < names.size(); ++i) {
+              best.joints[names[i]] = sol[i];
+            }
+          }
+        }
+      }
+      if (best.joints.empty()) {
+        return std::nullopt;
+      }
+      return best;
+    };
+  // 选果预检原子操作：当前种子 + 固定 50ms 单次可行性（早退优先，
+  // 整链须在 executor reach 等待窗内完成）。
+  task_config.ik_feasible =
+    [this](const Eigen::Isometry3d & pose) {
+      if (!move_group_) {
+        return false;
+      }
+      auto state = move_group_->getCurrentState();
+      const auto * group = state->getJointModelGroup(planning_group_);
+      return group != nullptr && state->setFromIK(group, pose, tip_frame_, 0.05);
+    };
   task_config.approach_max_lateral_m = moveit.mtc_approach_max_lateral_m;
   task_config.approach_max_align_deg = moveit.mtc_approach_max_align_deg;
   task_config.lookup_current_tip = [this]() {
@@ -747,6 +819,14 @@ double ManipulationSkillsNode::effectiveReconfirmWaitS() const
 
 double ManipulationSkillsNode::effectiveRefinedWaitS() const
 {
+  // 窗口态感知（2026-09-09 真机）：下方短自适应窗的假设是「finalize 已
+  // 触发、refit 在 ~3 帧内闩锁」。重建仍在 COLLECTING 时不成立——还要
+  // 采满机位、过基线门才 finalize，2.5 FPS 下 3.2s 窗会在 4/5 视角时
+  // 先到期，observe 误判「未等到精化」。COLLECTING 用配置上限覆盖
+  // 采集→finalize→refit 全程；IDLE 维持短窗快速失败（无会话等不来）。
+  if (cache_.qualitySnapshot().reconstruction_state == "COLLECTING") {
+    return refined_timeout_s_;
+  }
   const double interval = waitIntervalS();
   if (interval <= 0.0) {return refined_timeout_s_;}
   // 协议 2.7-FINALIZE 的 T(refined)=clamp(下限, 3×实测refit耗时EMA, 上限)：

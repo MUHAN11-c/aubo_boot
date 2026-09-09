@@ -238,8 +238,6 @@ void ManipulationSkillsNode::onCheckReachability(
     return;
   }
   moveit::core::RobotState seed = *move_group_->getCurrentState();
-  const double timeout_s = request->timeout_s > 0.0 ?
-    std::min(request->timeout_s, 1.0) : 0.1;
   Eigen::Isometry3d current_tip = Eigen::Isometry3d::Identity();
   bool have_current_tip = false;
   if (robot_model->hasLinkModel(tip_frame_)) {
@@ -263,16 +261,33 @@ void ManipulationSkillsNode::onCheckReachability(
         continue;
       }
     }
-    Eigen::Isometry3d target;
-    tf2::fromMsg(pose, target);
+    Eigen::Isometry3d entry;
+    tf2::fromMsg(pose, entry);
+    Eigen::Isometry3d target = entry;
     if (have_current_tip) {
       target = pregraspFromEntryKeepRoll(
         target, current_tip.linear(), params_.moveit.mtc_approach_along_axis_m);
     }
-    moveit::core::RobotState state = seed;
-    response->reachable[i] = state.setFromIK(
-      group, target, tip_frame_, timeout_s);
-    if (!response->reachable[i]) {
+    // 快速可行性 IK：当前种子 + 固定 50ms 单次；选果整链须早退。
+    const auto ik_quick =
+      [&](const Eigen::Isometry3d & goal) {
+        moveit::core::RobotState probe = seed;
+        return probe.setFromIK(group, goal, tip_frame_, 0.05);
+      };
+    // 预抓取停位检查（keep-roll 先行，失败才 45°×8 滚转，参考方案 L18）：
+    // 圆筒套袋的刀口滚转是自由参数，keep-roll 单姿态无解 ≠ 全滚转无解。
+    bool pregrasp_ok = ik_quick(target);
+    if (!pregrasp_ok && have_current_tip) {
+      for (int roll_idx = 1; roll_idx < 8 && !pregrasp_ok; ++roll_idx) {
+        Eigen::Isometry3d probe_pose = target;
+        probe_pose.linear() = target.linear() *
+          Eigen::AngleAxisd(
+          roll_idx * M_PI / 4.0, Eigen::Vector3d::UnitZ());
+        pregrasp_ok = ik_quick(probe_pose);
+      }
+    }
+    response->reachable[i] = pregrasp_ok;
+    if (!pregrasp_ok) {
       response->error_codes[i] = "no_ik";
     }
   }

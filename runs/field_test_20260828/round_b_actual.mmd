@@ -1,0 +1,26 @@
+%% 2026-08-28 13:40 轮次 B 实测走过的边（未到 HoldPregrasp）
+flowchart TD
+  A[冒烟通过 motion_possible=1] --> B[execution→grasp 开 tool 关]
+  B --> C[RunHarvest field_pregrasp_20260828b]
+  C --> D[BeginScene OK]
+  D --> E[SurveyScene PTP 拍照位 goal-hold]
+  E --> F[SELECT target_0 confirmed 袋策略]
+  F --> G[Build 绑定 target_0]
+  G --> H{技能 lockedTargetGate<br/>target_0?}
+  H -->|否 无锚点 拒×4| I[observe_failed locked set]
+  I --> J[再 Survey]
+  J --> K[SELECT target_4]
+  K --> L[Build COLLECTING + OBSERVE_ONLY]
+  L --> M[当前位采帧 + 短 PTP]
+  M --> N[重建 4 视 3629 点]
+  N --> O[refit REOBSERVE final=True<br/>axis≈0.38,-0.06,0.92 d=76.7mm]
+  O --> P[OBSERVE_ONLY SUCCEEDED]
+  P --> Q[PREGRASP_ONLY skip_observation]
+  Q --> R[FinalizeAndValidate]
+  R --> S{GraspDecision.allowed<br/>refined_accept?}
+  S -->|否 refined_quality_not_allowed<br/>axis_angle_deg=25.08| T[SKIPPED_QUALITY 禁止降级]
+  T --> U[空扫至 empty_survey_limit]
+  U --> V[termination=no_targets_succeeded]
+  S -.->|未走| W[MovePregrasp]
+  W -.-> X[VerifyPregrasp]
+  X -.-> Y[HoldPregrasp]

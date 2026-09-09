@@ -1,0 +1,58 @@
+{
+  "claimed": [
+    "target_0",
+    "target_1"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_0",
+      "outcome": 2,
+      "reason": "skipped_unreachable: 到预抓取失败: MTC planning failed: Failing stage(s):\nptp to on-axis pregrasp (0/1)",
+      "quality_score": 0.0,
+      "elapsed_s": 5.693,
+      "failure_code": "skipped_unreachable",
+      "stage_names": [
+        "prepare",
+        "observe",
+        "finalize",
+        "reconfirm",
+        "approach_insert"
+      ],
+      "stage_durations": [
+        0.0,
+        4.024,
+        0.0,
+        0.274,
+        0.226
+      ],
+      "build_view_count": 2,
+      "build_status": "局部重建完成：2 帧，12053 点（少于推荐 5 帧）；重叠 mean=8.9mm p95=23.3mm；TSDF 2072 点 / mesh 3709 顶点（累计积分 0.01s）；refit ACCEPT（袋模型 2 视）",
+      "build_duration_s": 5.091
+    },
+    {
+      "target_id": "target_1",
+      "outcome": 2,
+      "reason": "skipped_unreachable: 到预抓取失败: MTC planning failed: Failing stage(s):\nptp to on-axis pregrasp (0/1)",
+      "quality_score": 0.0,
+      "elapsed_s": 5.417,
+      "failure_code": "skipped_unreachable",
+      "stage_names": [
+        "prepare",
+        "observe",
+        "finalize",
+        "reconfirm",
+        "approach_insert"
+      ],
+      "stage_durations": [
+        0.0,
+        4.492,
+        0.161,
+        0.309,
+        0.219
+      ],
+      "build_view_count": 2,
+      "build_status": "局部重建完成：2 帧，12425 点（少于推荐 5 帧）；重叠 mean=6.2mm p95=12.7mm；TSDF 1974 点 / mesh 3665 顶点（累计积分 0.01s）；refit ACCEPT（袋模型 2 视）",
+      "build_duration_s": 4.814
+    }
+  ]
+}

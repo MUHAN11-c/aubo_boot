@@ -1,0 +1,43 @@
+Waiting for an action server to become available...
+Sending goal:
+     request_id: field_pregrasp_20260909_1113
+scene_key: lab
+profile_id: ''
+intent: 0
+selection_mode: 0
+target_ids: []
+
+Goal accepted with ID: eea69c3b901d4f6583ce30c20c5ac7b0
+
+Result:
+    success: false
+termination_reason: no_targets_succeeded
+summary:
+  run_id: field_pregrasp_20260909_1113
+  discovered: 2
+  attempted: 2
+  succeeded: 0
+  skipped_quality: 2
+  skipped_unreachable: 0
+  failed: 0
+  canceled: 0
+  elapsed:
+    sec: 111
+    nanosec: 106126001
+  outcomes:
+  - target_id: target_0
+    outcome: 1
+    reason: 'build_start_timeout: reconstruction not COLLECTING'
+    quality_score: 0.0
+    elapsed:
+      sec: 12
+      nanosec: 28739338
+  - target_id: target_1
+    outcome: 1
+    reason: build_target_model rejected
+    quality_score: 0.0
+    elapsed:
+      sec: 66
+      nanosec: 432483532
+
+Goal finished with status: SUCCEEDED

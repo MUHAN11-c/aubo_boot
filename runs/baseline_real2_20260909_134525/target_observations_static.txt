@@ -1,0 +1,621 @@
+header:
+  stamp:
+    sec: 1788932935
+    nanosec: 308527000
+  frame_id: base_link
+snapshot_id: 1
+scene_epoch: 0
+harvest_run_id: harvest_20260909T134543_305732_s1
+target_set_locked: true
+target_count: 2
+selected_target_id: ''
+collecting_count: 2
+pending_count: 0
+observations:
+- header:
+    stamp:
+      sec: 1788932935
+      nanosec: 308527000
+    frame_id: base_link
+  target_id: target_0
+  priority: 1
+  confirmed: true
+  selected: false
+  harvest_status: PLANNED
+  tracking_status: 0
+  camera_distance_m: 0.6018311977386475
+  confidence: 0.5868244171142578
+  candidate:
+    header:
+      stamp:
+        sec: 1788932935
+        nanosec: 308527000
+      frame_id: base_link
+    target_id: target_0
+    entry_pose:
+      position:
+        x: 0.5454827771780711
+        y: -0.6172402291076825
+        z: 0.5562950783059528
+      orientation:
+        x: 0.01131842195388783
+        y: -0.15177979899629904
+        z: 0.9241283750008333
+        w: -0.3504590310713021
+    bag_bottom:
+      x: 0.5454827771780711
+      y: -0.6172402291076825
+      z: 0.5562950783059528
+    bag_neck:
+      x: 0.5549112697437276
+      y: -0.6374292760937451
+      z: 0.6269262246542813
+    translation_direction:
+      x: 0.12730455236052118
+      y: -0.27259475162637414
+      z: 0.9536695718822337
+    bag_diameter_upper_m: 0.05043727159500122
+    suggested_travel_m: 0.05906249210238457
+    confidence: 0.5868244171142578
+    status: 1
+    diagnostic_flags:
+    - axis_from_pca
+    - gravity_neck_fallback
+    - taper_lower_hemisphere_ignored
+    - fruit_prior_auxiliary
+    - low_valid_depth
+    - target_matched
+    strategy_id: robust_bag_pose:hybrid_dilated
+    model_version: yolo:6981750db67a726e|mobile_sam:6dbb90523a35330f
+    calibration_version: percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006
+    tool_version: '1.1'
+    position_covariance:
+    - 0.00010486716103956189
+    - 8.074255021807293e-05
+    - 4.935373478603441e-05
+    - 8.074255021807293e-05
+    - 0.0004608263173070669
+    - -0.00011305499211214884
+    - 4.935373478603441e-05
+    - -0.00011305499211214884
+    - 0.00011701385248970444
+    direction_covariance:
+    - 0.11918458922276723
+    - -0.01714189965938225
+    - 0.004844682862804856
+    - -0.01714189965938225
+    - 0.011478148290169795
+    - 0.031192690897420612
+    - 0.004844682862804856
+    - 0.031192690897420612
+    - 0.11303122831642981
+    match_status: 0
+  candidate_2d:
+    header:
+      stamp:
+        sec: 1788932935
+        nanosec: 308527000
+      frame_id: base_link
+    target_id: target_0
+    bbox_x: 42
+    bbox_y: 359
+    bbox_w: 106
+    bbox_h: 118
+    bottom_px:
+      x: 113.29296875
+      y: 440.90234375
+      z: 0.0
+    neck_px:
+      x: 111.66728743003173
+      y: 371.86407887040707
+      z: 0.0
+    grasp_px:
+      x: 113.29296875
+      y: 440.90234375
+      z: 0.0
+    travel_end_px:
+      x: 111.66728743003173
+      y: 371.86407887040707
+      z: 0.0
+    has_bottom_px: true
+    has_neck_px: true
+    has_grasp_px: true
+    has_travel_end_px: true
+    confidence: 0.5868244171142578
+    status: 1
+    diagnostic_flags:
+    - axis_from_pca
+    - gravity_neck_fallback
+    - taper_lower_hemisphere_ignored
+    - fruit_prior_auxiliary
+    - low_valid_depth
+  fitting:
+    header:
+      stamp:
+        sec: 1788932935
+        nanosec: 308527000
+      frame_id: base_link
+    target_id: target_0
+    target_kind: bag
+    mask_source: mobile_sam_dilated_depth_intersection
+    axis_source: bag_landmarks
+    axis_confidence: 0.3397257626056671
+    axis_disagreement_deg: 11.135083198547363
+    theta_err_deg: 20.0
+    error_budget_mm: 20.2005615234375
+    radial_clearance_mm: 21.781362533569336
+    valid_depth_ratio: 0.3814358711242676
+    foreground_ratio: 0.21762071549892426
+    boundary_touch_ratio: 0.0
+    boundary_sides_touched: -1
+    n_points: 2672
+    bag_length_m: 0.07406249642372131
+    bag_diameter_upper_m: 0.05043727159500122
+    travel_m: 0.05906249210238457
+    cylinder_rms_m: 0.0019785319454967976
+    cylinder_inlier_ratio: 0.47056499123573303
+    fruit_radius_m: -1.0
+    sphere_rms_m: -1.0
+    sphere_inlier_ratio: -1.0
+    cavity_dip_mm: -1.0
+    axis_polarity_corrected: false
+    status: 1
+    diagnostic_flags:
+    - axis_from_pca
+    - gravity_neck_fallback
+    - taper_lower_hemisphere_ignored
+    - fruit_prior_auxiliary
+    - low_valid_depth
+    - target_matched
+  mask:
+    header:
+      stamp:
+        sec: 1788932935
+        nanosec: 308527000
+      frame_id: camera_color_optical_frame
+    height: 480
+    width: 640
+    encoding: mono8
+    is_bigendian: 0
+    step: 640
+    data:
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - '...'
+  diagnostic_flags:
+  - axis_from_pca
+  - gravity_neck_fallback
+  - taper_lower_hemisphere_ignored
+  - fruit_prior_auxiliary
+  - low_valid_depth
+  - target_matched
+- header:
+    stamp:
+      sec: 1788932935
+      nanosec: 308527000
+    frame_id: base_link
+  target_id: target_1
+  priority: 2
+  confirmed: true
+  selected: false
+  harvest_status: PLANNED
+  tracking_status: 0
+  camera_distance_m: 0.6397277116775513
+  confidence: 0.9833333492279053
+  candidate:
+    header:
+      stamp:
+        sec: 1788932935
+        nanosec: 308527000
+      frame_id: base_link
+    target_id: target_1
+    entry_pose:
+      position:
+        x: 0.24756772961536205
+        y: -0.6975413524092785
+        z: 0.587840368222946
+      orientation:
+        x: -0.18706516455324845
+        y: 0.1394939565272798
+        z: 0.806507714338766
+        w: -0.5432249690644669
+    bag_bottom:
+      x: 0.24756772961536205
+      y: -0.6975413524092785
+      z: 0.587840368222946
+    bag_neck:
+      x: 0.20368266462548204
+      y: -0.6954338099333688
+      z: 0.6741110153268933
+    translation_direction:
+      x: -0.45329219703091506
+      y: 0.02176896763081904
+      z: 0.8910961206060627
+    bag_diameter_upper_m: 0.06842921674251556
+    suggested_travel_m: 0.08181407302618027
+    confidence: 0.9833333492279053
+    status: 1
+    diagnostic_flags:
+    - axis_from_pca
+    - taper_neck
+    - fruit_prior_auxiliary
+    - axis_2d_mismatch
+    - error_budget_exceeded
+    - target_matched
+    strategy_id: robust_bag_pose:hybrid_dilated
+    model_version: yolo:6981750db67a726e|mobile_sam:6dbb90523a35330f
+    calibration_version: percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006
+    tool_version: '1.1'
+    position_covariance:
+    - 0.00040735978499431395
+    - -0.00021113516176231718
+    - -7.120733582092856e-05
+    - -0.00021113516176231718
+    - 0.0007696732579653864
+    - 3.584601258744834e-05
+    - -7.120733582092856e-05
+    - 3.584601258744834e-05
+    - 0.00013104080507306338
+    direction_covariance:
+    - 0.0965684353026488
+    - 0.049389169342125706
+    - -0.0013487051882900597
+    - 0.049389169342125706
+    - 0.02535051109923215
+    - 0.002635097677875975
+    - -0.0013487051882900597
+    - 0.002635097677875975
+    - 0.12177501942748588
+    match_status: 0
+  candidate_2d:
+    header:
+      stamp:
+        sec: 1788932935
+        nanosec: 308527000
+      frame_id: base_link
+    target_id: target_1
+    bbox_x: 344
+    bbox_y: 307
+    bbox_w: 73
+    bbox_h: 107
+    bottom_px:
+      x: 368.6647773279352
+      y: 384.7765182186235
+      z: 0.0
+    neck_px:
+      x: 401.6671367006247
+      y: 319.5352669799455
+      z: 0.0
+    grasp_px:
+      x: 368.6647773279352
+      y: 384.7765182186235
+      z: 0.0
+    travel_end_px:
+      x: 401.6671367006247
+      y: 319.5352669799455
+      z: 0.0
+    has_bottom_px: true
+    has_neck_px: true
+    has_grasp_px: true
+    has_travel_end_px: true
+    confidence: 0.9833333492279053
+    status: 1
+    diagnostic_flags:
+    - axis_from_pca
+    - taper_neck
+    - fruit_prior_auxiliary
+    - axis_2d_mismatch
+    - error_budget_exceeded
+  fitting:
+    header:
+      stamp:
+        sec: 1788932935
+        nanosec: 308527000
+      frame_id: base_link
+    target_id: target_1
+    target_kind: bag
+    mask_source: mobile_sam_dilated_depth_intersection
+    axis_source: bag_landmarks
+    axis_confidence: 0.42495957016944885
+    axis_disagreement_deg: 73.20034790039062
+    theta_err_deg: 20.0
+    error_budget_mm: 27.9820613861084
+    radial_clearance_mm: 12.785392761230469
+    valid_depth_ratio: 0.8161566853523254
+    foreground_ratio: 0.46985021233558655
+    boundary_touch_ratio: 0.01666666753590107
+    boundary_sides_touched: 1
+    n_points: 3628
+    bag_length_m: 0.09681407362222672
+    bag_diameter_upper_m: 0.06842921674251556
+    travel_m: 0.08181407302618027
+    cylinder_rms_m: 0.0016376853454858065
+    cylinder_inlier_ratio: 0.5036953091621399
+    fruit_radius_m: -1.0
+    sphere_rms_m: -1.0
+    sphere_inlier_ratio: -1.0
+    cavity_dip_mm: -1.0
+    axis_polarity_corrected: false
+    status: 1
+    diagnostic_flags:
+    - axis_from_pca
+    - taper_neck
+    - fruit_prior_auxiliary
+    - axis_2d_mismatch
+    - error_budget_exceeded
+    - target_matched
+  mask:
+    header:
+      stamp:
+        sec: 1788932935
+        nanosec: 308527000
+      frame_id: camera_color_optical_frame
+    height: 480
+    width: 640
+    encoding: mono8
+    is_bigendian: 0
+    step: 640
+    data:
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - '...'
+  diagnostic_flags:
+  - axis_from_pca
+  - taper_neck
+  - fruit_prior_auxiliary
+  - axis_2d_mismatch
+  - error_budget_exceeded
+  - target_matched
+---

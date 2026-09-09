@@ -1,0 +1,321 @@
+header:
+  stamp:
+    sec: 1788933032
+    nanosec: 511274000
+  frame_id: base_link
+snapshot_id: 2
+scene_epoch: 1
+harvest_run_id: harvest_20260909T134934_417164_s2
+target_set_locked: true
+target_count: 2
+selected_target_id: ''
+collecting_count: 2
+pending_count: 0
+observations:
+- header:
+    stamp:
+      sec: 1788933032
+      nanosec: 511274000
+    frame_id: base_link
+  target_id: target_0
+  priority: 1
+  confirmed: true
+  selected: false
+  harvest_status: HARVESTED
+  tracking_status: 2
+  camera_distance_m: 0.0
+  confidence: 0.0
+  candidate:
+    header:
+      stamp:
+        sec: 0
+        nanosec: 0
+      frame_id: ''
+    target_id: target_0
+    entry_pose:
+      position:
+        x: 0.5693833588985968
+        y: -0.6125611435673045
+        z: 0.5478527102835422
+      orientation:
+        x: 0.1033417737970316
+        y: -0.08065793657808823
+        z: 0.702491492665189
+        w: 0.6995144585985934
+    bag_bottom:
+      x: 0.5693833588985968
+      y: -0.6125611435673045
+      z: 0.5478527102835422
+    bag_neck:
+      x: 0.5713641125137627
+      y: -0.628351821051843
+      z: 0.6069759220159832
+    translation_direction:
+      x: 0.03235064818448798
+      y: -0.25790115842056843
+      z: 0.9656295501108966
+    bag_diameter_upper_m: 0.0
+    suggested_travel_m: 0.0
+    confidence: 0.0
+    status: 1
+    diagnostic_flags: []
+    strategy_id: ''
+    model_version: ''
+    calibration_version: ''
+    tool_version: ''
+    position_covariance:
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    direction_covariance:
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    match_status: 0
+  candidate_2d:
+    header:
+      stamp:
+        sec: 0
+        nanosec: 0
+      frame_id: ''
+    target_id: ''
+    bbox_x: 0
+    bbox_y: 0
+    bbox_w: 0
+    bbox_h: 0
+    bottom_px:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    neck_px:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    grasp_px:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    travel_end_px:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    has_bottom_px: false
+    has_neck_px: false
+    has_grasp_px: false
+    has_travel_end_px: false
+    confidence: 0.0
+    status: 0
+    diagnostic_flags: []
+  fitting:
+    header:
+      stamp:
+        sec: 0
+        nanosec: 0
+      frame_id: ''
+    target_id: ''
+    target_kind: ''
+    mask_source: ''
+    axis_source: ''
+    axis_confidence: 0.0
+    axis_disagreement_deg: 0.0
+    theta_err_deg: 0.0
+    error_budget_mm: 0.0
+    radial_clearance_mm: 0.0
+    valid_depth_ratio: 0.0
+    foreground_ratio: 0.0
+    boundary_touch_ratio: 0.0
+    boundary_sides_touched: 0
+    n_points: 0
+    bag_length_m: 0.0
+    bag_diameter_upper_m: 0.0
+    travel_m: 0.0
+    cylinder_rms_m: 0.0
+    cylinder_inlier_ratio: 0.0
+    fruit_radius_m: 0.0
+    sphere_rms_m: 0.0
+    sphere_inlier_ratio: 0.0
+    cavity_dip_mm: 0.0
+    axis_polarity_corrected: false
+    status: 0
+    diagnostic_flags: []
+  mask:
+    header:
+      stamp:
+        sec: 0
+        nanosec: 0
+      frame_id: ''
+    height: 0
+    width: 0
+    encoding: ''
+    is_bigendian: 0
+    step: 0
+    data: []
+  diagnostic_flags:
+  - target_temporarily_lost
+  - anchor_from_memory
+- header:
+    stamp:
+      sec: 1788933032
+      nanosec: 511274000
+    frame_id: base_link
+  target_id: target_1
+  priority: 2
+  confirmed: true
+  selected: false
+  harvest_status: HARVESTED
+  tracking_status: 2
+  camera_distance_m: 0.0
+  confidence: 0.0
+  candidate:
+    header:
+      stamp:
+        sec: 0
+        nanosec: 0
+      frame_id: ''
+    target_id: target_1
+    entry_pose:
+      position:
+        x: 0.2265112079407674
+        y: -0.6924165614913478
+        z: 0.6001173612822204
+      orientation:
+        x: -0.20593516931355724
+        y: -0.15842167886945985
+        z: 0.6891317520359816
+        w: 0.6764545114342845
+    bag_bottom:
+      x: 0.2265112079407674
+      y: -0.6924165614913478
+      z: 0.6001173612822204
+    bag_neck:
+      x: 0.19783574985349128
+      y: -0.6889475792712179
+      z: 0.6499080590738029
+    translation_direction:
+      x: -0.4981630468302356
+      y: 0.06026473045069295
+      z: 0.8649865554079565
+    bag_diameter_upper_m: 0.0
+    suggested_travel_m: 0.0
+    confidence: 0.0
+    status: 1
+    diagnostic_flags: []
+    strategy_id: ''
+    model_version: ''
+    calibration_version: ''
+    tool_version: ''
+    position_covariance:
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    direction_covariance:
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    match_status: 0
+  candidate_2d:
+    header:
+      stamp:
+        sec: 0
+        nanosec: 0
+      frame_id: ''
+    target_id: ''
+    bbox_x: 0
+    bbox_y: 0
+    bbox_w: 0
+    bbox_h: 0
+    bottom_px:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    neck_px:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    grasp_px:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    travel_end_px:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    has_bottom_px: false
+    has_neck_px: false
+    has_grasp_px: false
+    has_travel_end_px: false
+    confidence: 0.0
+    status: 0
+    diagnostic_flags: []
+  fitting:
+    header:
+      stamp:
+        sec: 0
+        nanosec: 0
+      frame_id: ''
+    target_id: ''
+    target_kind: ''
+    mask_source: ''
+    axis_source: ''
+    axis_confidence: 0.0
+    axis_disagreement_deg: 0.0
+    theta_err_deg: 0.0
+    error_budget_mm: 0.0
+    radial_clearance_mm: 0.0
+    valid_depth_ratio: 0.0
+    foreground_ratio: 0.0
+    boundary_touch_ratio: 0.0
+    boundary_sides_touched: 0
+    n_points: 0
+    bag_length_m: 0.0
+    bag_diameter_upper_m: 0.0
+    travel_m: 0.0
+    cylinder_rms_m: 0.0
+    cylinder_inlier_ratio: 0.0
+    fruit_radius_m: 0.0
+    sphere_rms_m: 0.0
+    sphere_inlier_ratio: 0.0
+    cavity_dip_mm: 0.0
+    axis_polarity_corrected: false
+    status: 0
+    diagnostic_flags: []
+  mask:
+    header:
+      stamp:
+        sec: 0
+        nanosec: 0
+      frame_id: ''
+    height: 0
+    width: 0
+    encoding: ''
+    is_bigendian: 0
+    step: 0
+    data: []
+  diagnostic_flags:
+  - target_temporarily_lost
+  - anchor_from_memory
+---

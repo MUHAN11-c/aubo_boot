@@ -1,0 +1,87 @@
+{
+  "claimed": [
+    "target_0",
+    "target_12",
+    "target_13",
+    "target_14"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_0",
+      "outcome": 1,
+      "reason": "build_start_timeout: reconstruction not COLLECTING",
+      "quality_score": 0.0,
+      "elapsed_s": 11.105,
+      "failure_code": "build_start_timeout",
+      "build_view_count": 0,
+      "build_status": "COLLECTING",
+      "build_duration_s": 11.105
+    },
+    {
+      "target_id": "target_13",
+      "outcome": 2,
+      "reason": "skipped_unreachable: 到预抓取失败: MTC planning failed: Failing stage(s):\nptp to on-axis pregrasp (0/1)",
+      "quality_score": 0.0,
+      "elapsed_s": 11.023,
+      "failure_code": "skipped_unreachable",
+      "stage_names": [
+        "prepare",
+        "observe",
+        "finalize",
+        "reconfirm",
+        "approach_insert"
+      ],
+      "stage_durations": [
+        0.0,
+        7.525,
+        0.0,
+        0.364,
+        3.01
+      ],
+      "build_view_count": 2,
+      "build_status": "局部重建完成：2 帧，7314 点（少于推荐 5 帧）；重叠 mean=4.1mm p95=8.9mm；TSDF 857 点 / mesh 1319 顶点（累计积分 0.01s）；refit ACCEPT（袋模型 2 视）",
+      "build_duration_s": 7.619
+    },
+    {
+      "target_id": "target_12",
+      "outcome": 2,
+      "reason": "skipped_unreachable: 到预抓取失败: MTC planning failed: Failing stage(s):\nptp to on-axis pregrasp (0/1)",
+      "quality_score": 0.0,
+      "elapsed_s": 23.84,
+      "failure_code": "skipped_unreachable",
+      "stage_names": [
+        "prepare",
+        "observe",
+        "finalize",
+        "reconfirm",
+        "approach_insert"
+      ],
+      "stage_durations": [
+        0.0,
+        16.362,
+        0.0,
+        0.36,
+        6.904
+      ],
+      "build_view_count": 2,
+      "build_status": "局部重建完成：2 帧，11945 点（少于推荐 5 帧）；重叠 mean=10.6mm p95=41.1mm；TSDF 1970 点 / mesh 3800 顶点（累计积分 0.01s）；refit ACCEPT（袋模型 2 视）",
+      "build_duration_s": 16.43
+    },
+    {
+      "target_id": "target_14",
+      "outcome": 1,
+      "reason": "observe_failed: 目标身份/可见性安全门失败: selected_target_stale",
+      "quality_score": 0.0,
+      "elapsed_s": 20.023,
+      "failure_code": "observe_failed",
+      "stage_names": [
+        "prepare",
+        "observe"
+      ],
+      "stage_durations": [
+        0.0,
+        19.907
+      ]
+    }
+  ]
+}

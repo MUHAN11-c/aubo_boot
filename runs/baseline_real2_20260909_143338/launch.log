@@ -1,0 +1,977 @@
+[INFO] [launch]: All log files can be found below /home/mu/.ros/log/2026-09-09-14-33-38-833292-mu-MS-7E34-146655
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [robot_state_publisher-1]: process started with pid [146693]
+[INFO] [ros2_control_node-2]: process started with pid [146694]
+[INFO] [spawner-3]: process started with pid [146695]
+[INFO] [spawner-4]: process started with pid [146696]
+[INFO] [spawner-5]: process started with pid [146697]
+[INFO] [move_group-6]: process started with pid [146698]
+[INFO] [rviz2-7]: process started with pid [146699]
+[INFO] [component_container-8]: process started with pid [146700]
+[INFO] [extrinsics_publisher-9]: process started with pid [146701]
+[INFO] [peach_scene_perception_node-10]: process started with pid [146702]
+[INFO] [peach_target_reconstruction_node-11]: process started with pid [146703]
+[INFO] [peach_manipulation_node-12]: process started with pid [146704]
+[INFO] [peach_observability-13]: process started with pid [146705]
+[INFO] [peach_executor-14]: process started with pid [146708]
+[INFO] [peach_lifecycle_manager-15]: process started with pid [146709]
+[INFO] [ros2-16]: process started with pid [146710]
+[robot_state_publisher-1] [INFO] [1788935619.242839280] [robot_state_publisher]: Robot initialized
+[ros2_control_node-2] [INFO] [1788935619.253061080] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[ros2_control_node-2] [INFO] [1788935619.257236198] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[ros2_control_node-2] [INFO] [1788935619.258313519] [controller_manager]: update rate is 200 Hz
+[ros2_control_node-2] [INFO] [1788935619.258322865] [controller_manager]: Overruns handling is : enabled
+[ros2_control_node-2] [INFO] [1788935619.258325266] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[ros2_control_node-2] [INFO] [1788935619.258362603] [controller_manager]: Successful set up FIFO RT scheduling policy with priority 50.
+[peach_manipulation_node-12] [WARN] [1788935619.283970039] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_manipulation_node'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_manipulation_node' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_manipulation_node-12] [WARN] [1788935619.285499249] [peach_manipulation_node]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[move_group-6] [INFO] [1788935619.287114519] [move_group.moveit.moveit.ros.rdf_loader]: Loaded robot model in 0.00323065 seconds
+[move_group-6] [INFO] [1788935619.287207462] [move_group.moveit.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[move_group-6] [INFO] [1788935619.287220641] [move_group.moveit.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[move_group-6] [INFO] [1788935619.337905639] [move_group.moveit.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[component_container-8] [INFO] [1788935619.399093647] [camera.camera_container]: Load Library: /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/lib/libpercipio_camera.so
+[ros2_control_node-2] [INFO] [1788935619.426849984] [controller_manager]: Received robot description from topic.
+[ros2_control_node-2] [INFO] [1788935619.426900269] [controller_manager]: Enforcing command limits is disabled. Command limits from URDF will be ignored.
+[ros2_control_node-2] [INFO] [1788935619.429327130] [controller_manager]: Loading hardware 'AuboE5System' 
+[ros2_control_node-2] [INFO] [1788935619.432686285] [controller_manager]: Loaded hardware 'AuboE5System' from plugin 'aubo_e5_hardware/AuboE5Hardware'
+[ros2_control_node-2] [INFO] [1788935619.432782448] [controller_manager]: Initialize hardware 'AuboE5System' 
+[ros2_control_node-2] [INFO] [1788935619.436422278] [AuboE5Hardware]: on_init OK (169.254.10.98:8899, rib_target=400, slowdown=300/350, batch=2..8, speed_guard=false)
+[ros2_control_node-2] [INFO] [1788935619.436442868] [controller_manager]: Successful initialization of hardware 'AuboE5System'
+[ros2_control_node-2] [INFO] [1788935619.436783442] [controller_manager]: Activating component 'AuboE5System'.
+[ros2_control_node-2] [INFO] [1788935619.436789562] [resource_manager]: 'configure' hardware 'AuboE5System' 
+[ros2_control_node-2] log4cplus: Just opened file: logfiles/trace_all.log
+[spawner-4] [INFO] [1788935619.457932196] [spawner_aubo_io_controller]: waiting for service /controller_manager/list_controllers to become available...
+[ros2-16] [WARN] [ros2bag]: Positional "topics" argument deprecated. Please use optional "--topics" argument instead.
+[ros2-16] stdin is not a terminal device. Keyboard handling disabled.[INFO] [1788935619.489090748] [rosbag2_recorder]: Press SPACE for pausing/resuming
+[ros2-16] [INFO] [1788935619.489099593] [rosbag2_recorder]: Event publisher thread: Started
+[ros2-16] [INFO] [1788935619.491476628] [rosbag2_recorder]: Starting recording to '/home/mu/Desktop/aubo_e5_jazzy_ws/runs/mcap_20260909_143339'
+[ros2-16] [INFO] [1788935619.492589935] [rosbag2_recorder]: Listening for topics...
+[ros2-16] [INFO] [1788935619.492607009] [rosbag2_recorder]: Recording...
+[ros2-16] [INFO] [1788935619.492734813] [rosbag2_recorder]: Topics discovery started.
+[move_group-6] [INFO] [1788935619.500183641] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[move_group-6] [INFO] [1788935619.500304542] [move_group.moveit.moveit.ros.moveit_cpp]: Listening to 'joint_states' for joint states
+[move_group-6] [INFO] [1788935619.500884464] [move_group.moveit.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[move_group-6] [INFO] [1788935619.501121331] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/attached_collision_object' for attached collision objects
+[move_group-6] [INFO] [1788935619.501130856] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopping existing planning scene publisher.
+[move_group-6] [INFO] [1788935619.501376516] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopped publishing maintained planning scene.
+[move_group-6] [INFO] [1788935619.501585903] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[move_group-6] [INFO] [1788935619.501632540] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting planning scene monitor
+[move_group-6] [INFO] [1788935619.501800773] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/planning_scene'
+[move_group-6] [INFO] [1788935619.501808725] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting world geometry update monitor for collision objects, attached objects, octomap updates.
+[move_group-6] [INFO] [1788935619.502206896] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'collision_object'
+[move_group-6] [INFO] [1788935619.502389188] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'planning_scene_world' for planning scene world geometry
+[move_group-6] [WARN] [1788935619.503000775] [move_group.moveit.moveit.ros.occupancy_map_monitor]: Resolution not specified for Octomap. Assuming resolution = 0.1 instead
+[move_group-6] [ERROR] [1788935619.503013610] [move_group.moveit.moveit.ros.occupancy_map_monitor]: No 3D sensor plugin(s) defined for octomap updates
+[component_container-8] [INFO] [1788935619.504619671] [camera.camera_container]: Found class: rclcpp_components::NodeFactoryTemplate<percipio_camera::PercipioCameraNodeDriver>
+[component_container-8] [INFO] [1788935619.504650861] [camera.camera_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<percipio_camera::PercipioCameraNodeDriver>
+[component_container-8] [INFO] [1788935619.507937955] [camera.camera]: Init lib
+[ros2_control_node-2] [INFO] [1788935619.510074453] [AuboE5Hardware]: Real robot detected
+[component_container-8] [INFO] [1788935619.511951184] [camera.camera]:      - lib version: 4.2.10
+[component_container-8] [INFO] [1788935619.512146024] [camera.camera]: PercipioCameraNodeDriver::init, deivce sn :
+[component_container-8] [INFO] [1788935619.512152132] [camera.camera]: PercipioCameraNodeDriver::init, deivce ip :169.254.10.110
+[ros2_control_node-2] [INFO] [1788935619.562231390] [AuboE5Hardware]: on_configure OK (dual login, push active)
+[ros2_control_node-2] [INFO] [1788935619.562254891] [resource_manager]: Successful 'configure' of hardware 'AuboE5System'
+[ros2_control_node-2] [INFO] [1788935619.562274743] [resource_manager]: 'activate' hardware 'AuboE5System' 
+[ros2_control_node-2] [INFO] [1788935619.574722638] [AuboE5Hardware]: on_activate OK (TCP2CAN active, send + IO threads running)
+[ros2_control_node-2] [INFO] [1788935619.574750997] [resource_manager]: Successful 'activate' of hardware 'AuboE5System'
+[ros2_control_node-2] [INFO] [1788935619.574792125] [AuboE5Hardware.sendLoop]: sendLoop started
+[ros2_control_node-2] [INFO] [1788935619.574825040] [controller_manager]: Registering statistics for : AuboE5System
+[ros2_control_node-2] [INFO] [1788935619.574871143] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[ros2_control_node-2] [INFO] [1788935619.574912306] [AuboE5Hardware.ioLoop]: ioLoop started
+[extrinsics_publisher-9] [INFO] [1788935619.625698164] [hand_eye_extrinsics_publisher]: Published active camera extrinsic from /home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_hand_eye_calibration/hand_eye/active.yaml
+[move_group-6] [INFO] [1788935619.641260192] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'OMPL'
+[move_group-6] [INFO] [1788935619.642828236] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-6] [INFO] [1788935619.643890440] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-6] [INFO] [1788935619.643902735] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-6] [INFO] [1788935619.644256287] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-6] [INFO] [1788935619.644263402] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-6] [INFO] [1788935619.644278426] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-6] [INFO] [1788935619.644280289] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-6] [INFO] [1788935619.644285512] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-6] [INFO] [1788935619.645921221] [move_group]: Try loading adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-6] [INFO] [1788935619.647377948] [move_group]: Loaded adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-6] [INFO] [1788935619.647385752] [move_group]: Try loading adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[move_group-6] [INFO] [1788935619.647394786] [move_group]: Loaded adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[move_group-6] [INFO] [1788935619.647396357] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-6] [INFO] [1788935619.648649246] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-6] [INFO] [1788935619.648658666] [move_group]: Try loading adapter 'default_planning_response_adapters/DisplayMotionPath'
+[move_group-6] [INFO] [1788935619.649054947] [move_group]: Loaded adapter 'default_planning_response_adapters/DisplayMotionPath'
+[move_group-6] [INFO] [1788935619.651525458] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[peach_observability-13] [INFO] [1788935619.653767203] [peach_observability]: 手动调试操作面未启用（debug.enabled=false）
+[move_group-6] [INFO] [1788935619.654012888] [move_group.moveit.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP pilz_industrial_motion_planner/PlanningContextLoaderPolyline 
+[move_group-6] [INFO] [1788935619.654024516] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[move_group-6] [INFO] [1788935619.655006156] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[move_group-6] [INFO] [1788935619.655017225] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[move_group-6] [INFO] [1788935619.655805198] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[move_group-6] [INFO] [1788935619.655815227] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[move_group-6] [INFO] [1788935619.656291078] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[move_group-6] [INFO] [1788935619.656296193] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPolyline
+[move_group-6] [INFO] [1788935619.656861599] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [POLYLINE]
+[move_group-6] [INFO] [1788935619.656869306] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[peach_observability-13] [INFO] [1788935619.655881807] [peach_observability]: 桃子采摘 Web 控制台（只读监控）: http://127.0.0.1:8090
+[move_group-6] [INFO] [1788935619.658333664] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-6] [INFO] [1788935619.658681094] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-6] [INFO] [1788935619.658709517] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-6] [INFO] [1788935619.659067122] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-6] [INFO] [1788935619.659074384] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-6] [INFO] [1788935619.659084625] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-6] [INFO] [1788935619.659086476] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-6] [INFO] [1788935619.659091671] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-6] [INFO] [1788935619.660743761] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-6] [INFO] [1788935619.661485602] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-6] [INFO] [1788935619.661494383] [move_group]: Try loading adapter 'default_planning_response_adapters/DisplayMotionPath'
+[move_group-6] [INFO] [1788935619.661822519] [move_group]: Loaded adapter 'default_planning_response_adapters/DisplayMotionPath'
+[move_group-6] [INFO] [1788935619.683732619] [move_group.moveit.moveit.plugins.simple_controller_manager]: Added FollowJointTrajectory controller for aubo_passthrough_trajectory_controller
+[move_group-6] [INFO] [1788935619.683854670] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935619.683871979] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935619.684169218] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Trajectory execution is not managing controllers
+[move_group-6] [INFO] [1788935619.684179668] [move_group]: MoveGroup debug mode is ON
+[ros2_control_node-2] [WARN] [1788935619.690717368] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 200 Hz. The loop took 7.293760 ms (missed cycles : 2).
+[move_group-6] [INFO] [1788935619.698488815] [move_group.moveit.moveit.planners.pilz.move_group_sequence_action]: initialize move group sequence action
+[move_group-6] [INFO] [1788935619.699804858] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-6] [INFO] [1788935619.699924452] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-6] [INFO] [1788935619.700316455] [move_group.moveit.moveit.ros.move_group.executable]: 
+[move_group-6] 
+[move_group-6] ********************************************************
+[move_group-6] * MoveGroup using: 
+[move_group-6] *     - apply_planning_scene_service
+[move_group-6] *     - clear_octomap_service
+[move_group-6] *     - ExecuteTaskSolution
+[move_group-6] *     - get_group_urdf
+[move_group-6] *     - load_geometry_from_file
+[move_group-6] *     - CartesianPathService
+[move_group-6] *     - execute_trajectory_action
+[move_group-6] *     - get_planning_scene_service
+[move_group-6] *     - kinematics_service
+[move_group-6] *     - move_action
+[move_group-6] *     - motion_plan_service
+[move_group-6] *     - query_planners_service
+[move_group-6] *     - state_validation_service
+[move_group-6] *     - save_geometry_to_file
+[move_group-6] *     - SequenceAction
+[move_group-6] *     - SequenceService
+[move_group-6] ********************************************************
+[move_group-6] 
+[move_group-6] [INFO] [1788935619.700340451] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context using pipeline ompl
+[move_group-6] [INFO] [1788935619.700345548] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context initialization complete
+[move_group-6] [96mLoading 'move_group/ApplyPlanningSceneService'...[0m
+[move_group-6] [96mLoading 'move_group/ClearOctomapService'...[0m
+[move_group-6] [96mLoading 'move_group/ExecuteTaskSolutionCapability'...[0m
+[move_group-6] [96mLoading 'move_group/GetUrdfService'...[0m
+[move_group-6] [96mLoading 'move_group/LoadGeometryFromFileService'...[0m
+[move_group-6] [96mLoading 'move_group/MoveGroupCartesianPathService'...[0m
+[move_group-6] [96mLoading 'move_group/MoveGroupExecuteTrajectoryAction'...[0m
+[move_group-6] [96mLoading 'move_group/MoveGroupGetPlanningSceneService'...[0m
+[move_group-6] [96mLoading 'move_group/MoveGroupKinematicsService'...[0m
+[move_group-6] [96mLoading 'move_group/MoveGroupMoveAction'...[0m
+[move_group-6] [96mLoading 'move_group/MoveGroupPlanService'...[0m
+[move_group-6] [96mLoading 'move_group/MoveGroupQueryPlannersService'...[0m
+[move_group-6] [96mLoading 'move_group/MoveGroupStateValidationService'...[0m
+[move_group-6] [96mLoading 'move_group/SaveGeometryToFileService'...[0m
+[move_group-6] [96mLoading 'pilz_industrial_motion_planner/MoveGroupSequenceAction'...[0m
+[move_group-6] [96mLoading 'pilz_industrial_motion_planner/MoveGroupSequenceService'...[0m
+[move_group-6] 
+[move_group-6] [92mYou can start planning now![0m
+[move_group-6] 
+[ros2_control_node-2] [INFO] [1788935619.709139425] [controller_manager]: Loading controller : 'aubo_io_controller' of type 'aubo_e5_controllers/AuboIOController'
+[ros2_control_node-2] [INFO] [1788935619.709187208] [controller_manager]: Loading controller 'aubo_io_controller'
+[ros2_control_node-2] [INFO] [1788935619.712011655] [controller_manager]: Controller 'aubo_io_controller' node arguments: --ros-args --params-file /tmp/launch_params_8hjh4ruc --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[peach_scene_perception_node-10] [INFO] [1788935619.714967664] [peach_scene_perception_node]: YOLO=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_perception/share/peach_perception/model/best.pt
+[peach_scene_perception_node-10] [INFO] [1788935619.715135848] [peach_scene_perception_node]: SAM=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_perception/share/peach_perception/model/mobile_sam.pt
+[spawner-4] [INFO] [1788935619.719163188] [spawner_aubo_io_controller]: Loaded aubo_io_controller
+[ros2_control_node-2] [INFO] [1788935619.720084433] [controller_manager]: Configuring controller: 'aubo_io_controller'
+[ros2_control_node-2] [INFO] [1788935619.729653603] [controller_manager]: Activating controllers: [ aubo_io_controller ]
+[ros2_control_node-2] [INFO] [1788935619.733558438] [controller_manager]: Successfully switched controllers!
+[spawner-4] [INFO] [1788935619.739120011] [spawner_aubo_io_controller]: Configured and activated aubo_io_controller
+[peach_target_reconstruction_node-11] [INFO] [1788935619.761997394] [peach_target_reconstruction_node]: peach_target_reconstruction_node ready: base=base_link color=/camera/color/image_raw depth=/camera/depth/image_raw slop=0.05s depth_scale_unit=0.25 views(min/rec/max)=2/5/24 require_static=True auto_mode=True session_root=/home/mu/Desktop/aubo_e5_jazzy_ws/runs
+[spawner-3] [INFO] [1788935619.809849096] [spawner_joint_state_broadcaster]: waiting for service /controller_manager/list_controllers to become available...
+[INFO] [spawner-4]: process has finished cleanly [pid 146696]
+[ros2_control_node-2] [INFO] [1788935620.061528736] [controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'
+[ros2_control_node-2] [INFO] [1788935620.061561070] [controller_manager]: Loading controller 'joint_state_broadcaster'
+[ros2_control_node-2] [INFO] [1788935620.063316301] [controller_manager]: Controller 'joint_state_broadcaster' node arguments: --ros-args --params-file /tmp/launch_params_8hjh4ruc --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[spawner-3] [INFO] [1788935620.069278745] [spawner_joint_state_broadcaster]: Loaded joint_state_broadcaster
+[ros2_control_node-2] [INFO] [1788935620.070711821] [controller_manager]: Configuring controller: 'joint_state_broadcaster'
+[ros2_control_node-2] [INFO] [1788935620.070892287] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published
+[ros2_control_node-2] [INFO] [1788935620.079632367] [controller_manager]: Activating controllers: [ joint_state_broadcaster ]
+[ros2_control_node-2] [INFO] [1788935620.083531192] [controller_manager]: Successfully switched controllers!
+[spawner-3] [INFO] [1788935620.089261719] [spawner_joint_state_broadcaster]: Configured and activated joint_state_broadcaster
+[rviz2-7] [INFO] [1788935620.167066013] [rviz2]: Stereo is NOT SUPPORTED
+[rviz2-7] [INFO] [1788935620.167119955] [rviz2]: OpenGl version: 4.6 (GLSL 4.6)
+[spawner-5] [INFO] [1788935620.195218055] [spawner_aubo_passthrough_trajectory_controller]: waiting for service /controller_manager/list_controllers to become available...
+[INFO] [spawner-3]: process has finished cleanly [pid 146695]
+[peach_scene_perception_node-10] [INFO] [1788935620.386480151] [peach_scene_perception_node]: Subscribed color=/camera/color/image_raw depth=/camera/depth/image_raw info=/camera/color/camera_info slop=0.05s optical=camera_color_optical_frame output=base_link depth_scale_unit=0.25 gravity_mode=tf calib=percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006
+[peach_scene_perception_node-10] [INFO] [1788935620.386764944] [peach_scene_perception_node]: 目标身份记忆已启用：match_radius=0.06 m, max_targets=50, ema=0.3
+[rviz2-7] [INFO] [1788935620.387139090] [rviz2]: Stereo is NOT SUPPORTED
+[ros2-16] [INFO] [1788935620.408689352] [rosbag2_recorder]: Subscribed to topic '/peach/perception/target_observations'
+[ros2-16] [INFO] [1788935620.414256698] [rosbag2_recorder]: Subscribed to topic '/peach/reconstruction/status'
+[ros2-16] [INFO] [1788935620.423640872] [rosbag2_recorder]: Subscribed to topic '/peach/reconstruction/shape_hypothesis'
+[peach_manipulation_node-12] [WARN] [1788935620.433856318] [peach_manipulation_node]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[ros2-16] [INFO] [1788935620.444115938] [rosbag2_recorder]: Subscribed to topic '/peach/manipulation/grasp_hypothesis'
+[peach_manipulation_node-12] [WARN] [1788935620.453219919] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_manipulation_node'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_manipulation_node' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[rviz2-7] Warning: class_loader.impl: SEVERE WARNING!!! A namespace collision has occurred with plugin factory for class rviz_default_plugins::displays::InteractiveMarkerDisplay. New factory will OVERWRITE existing one. This situation occurs when libraries containing plugins are directly linked against an executable (the one running right now generating this message). Please separate plugins out into their own library or just don't link against the library and use either class_loader::ClassLoader/MultiLibraryClassLoader to open.
+[rviz2-7]          at line 321 in /opt/ros/jazzy/include/class_loader/class_loader/class_loader_core.hpp
+[peach_manipulation_node-12] [INFO] [1788935620.459660682] [peach_manipulation_node.moveit.ros.rdf_loader]: Loaded robot model in 0.00273637 seconds
+[peach_manipulation_node-12] [INFO] [1788935620.459697692] [peach_manipulation_node.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[peach_manipulation_node-12] [INFO] [1788935620.459704456] [peach_manipulation_node.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[peach_manipulation_node-12] [INFO] [1788935620.495845200] [peach_manipulation_node.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[peach_manipulation_node-12] [INFO] [1788935620.504715655] [peach_manipulation_node.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[peach_manipulation_node-12] [INFO] [1788935620.504742717] [peach_manipulation_node]: 主动视觉靠近节点 ready: group=manipulator_e5 base=base_link tip=tcp camera=camera_depth_optical_frame execution=plan_only grasp=disabled
+[peach_manipulation_node-12] [INFO] [1788935620.504760963] [peach_manipulation_node]: [IDLE] 已配置；activate 后才开放运动输出权限
+[ros2-16] [INFO] [1788935620.513425426] [rosbag2_recorder]: Subscribed to topic '/peach_executor/state'
+[ros2-16] [INFO] [1788935620.516754190] [rosbag2_recorder]: Subscribed to topic '/peach_executor/events'
+[ros2-16] [INFO] [1788935620.517841404] [rosbag2_recorder]: Subscribed to topic '/peach_executor/scene_snapshot'
+[ros2-16] [INFO] [1788935620.517851255] [rosbag2_recorder]: All requested topics are subscribed. Stopping discovery...
+[ros2-16] [INFO] [1788935620.517853377] [rosbag2_recorder]: Topics discovery stopped.
+[peach_executor-14] [INFO] [1788935620.557976510] [peach_executor]: task executor configured; will not auto-start harvest
+[peach_scene_perception_node-10] [INFO] [1788935620.559487075] [peach_scene_perception_node]: perception Active：开始处理 RGB-D
+[peach_target_reconstruction_node-11] [INFO] [1788935620.563662559] [peach_target_reconstruction_node]: reconstruction Active：开始积分
+[peach_manipulation_node-12] [INFO] [1788935620.564984735] [peach_manipulation_node]: 节点已激活：运动输出权限开放
+[peach_lifecycle_manager-15] [INFO] [1788935620.573340569] [peach_lifecycle_manager]: managed nodes Active（仍须显式 RunHarvest）
+[ros2_control_node-2] [INFO] [1788935621.447739721] [controller_manager]: Loading controller : 'aubo_passthrough_trajectory_controller' of type 'aubo_e5_controllers/AuboPassthroughTrajectoryController'
+[ros2_control_node-2] [INFO] [1788935621.447767311] [controller_manager]: Loading controller 'aubo_passthrough_trajectory_controller'
+[ros2_control_node-2] [INFO] [1788935621.448139848] [controller_manager]: Controller 'aubo_passthrough_trajectory_controller' node arguments: --ros-args --params-file /tmp/launch_params_8hjh4ruc --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[spawner-5] [INFO] [1788935621.459331059] [spawner_aubo_passthrough_trajectory_controller]: Loaded aubo_passthrough_trajectory_controller
+[ros2_control_node-2] [INFO] [1788935621.540611500] [controller_manager]: Configuring controller: 'aubo_passthrough_trajectory_controller'
+[ros2_control_node-2] [INFO] [1788935621.550177645] [controller_manager]: Activating controllers: [ aubo_passthrough_trajectory_controller ]
+[ros2_control_node-2] [INFO] [1788935621.553529796] [controller_manager]: Successfully switched controllers!
+[spawner-5] [INFO] [1788935621.559085937] [spawner_aubo_passthrough_trajectory_controller]: Configured and activated aubo_passthrough_trajectory_controller
+[INFO] [spawner-5]: process has finished cleanly [pid 146697]
+[component_container-8] [WARN] [1788935622.742605031] [GIGE2_0]: Failed to load default parameters, some parameters cannot be loaded properly!
+[component_container-8] [INFO] [1788935622.742964247] [percipio_device]: color stream: 
+[component_container-8] [INFO] [1788935622.742970463] [percipio_device]:         yuyv 2560x1920 2560x1920
+[component_container-8] [INFO] [1788935622.742972024] [percipio_device]:         yuyv 1920x1440 1920x1440
+[component_container-8] [INFO] [1788935622.742973063] [percipio_device]:         yuyv 1280x960 1280x960
+[component_container-8] [INFO] [1788935622.742974028] [percipio_device]:         yuyv 640x480 640x480
+[component_container-8] [INFO] [1788935622.742974965] [percipio_device]:         CSI BAYER12GR_2560x1920 2560x1920
+[component_container-8] [INFO] [1788935622.742986450] [percipio_device]: depth stream: 
+[component_container-8] [INFO] [1788935622.742988021] [percipio_device]:         DEPTH16_640x480 640x480
+[component_container-8] [INFO] [1788935622.742988972] [percipio_device]:         DEPTH16_1280x960 1280x960
+[component_container-8] [INFO] [1788935622.742989879] [percipio_device]:         DEPTH16_320x240 320x240
+[component_container-8] [INFO] [1788935622.742995002] [percipio_device]: left-IR stream: 
+[component_container-8] [INFO] [1788935622.742996296] [percipio_device]:         mono8 1280x960 1280x960
+[component_container-8] [INFO] [1788935622.743001171] [percipio_device]: right-IR stream: 
+[component_container-8] [INFO] [1788935622.743002264] [percipio_device]:         mono8 1280x960 1280x960
+[component_container-8] [INFO] [1788935622.743014838] [GIGE2_0]: Depth distortion calib data check ret: 0(0)
+[component_container-8] [INFO] [1788935622.743024925] [camera.camera]: Serial number:  207000152740
+[component_container-8] [INFO] [1788935622.743041028] [camera.camera]: Model name:     PS800-E1
+[component_container-8] [INFO] [1788935622.743042624] [camera.camera]: Build hash:     model:AP03B04-019PS80X_X_X_F107_XXL15_DVP_DF64_FC6;rtl:R0.2.6_0_g26e2cbc085;kernel:R3.13.77-0-gc484756878;tycam:R3.6.49-86ae766a;gevcam:R3.13.77-0-gd613cccf
+[component_container-8] [INFO] [1788935622.743044652] [camera.camera]: Config version: r3.16.0-93f90f979a45de38f604fe0b207cb8712a39e7db
+[component_container-8] Tue Oct 8 08:46:25 UTC 2024
+[component_container-8] [INFO] [1788935622.744751736] [percipio_camera_node]: color camera_info override loaded from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera_name=camera_color)
+[component_container-8] [INFO] [1788935622.746418713] [percipio_device]: Set stream mode(Depth): DEPTH16_640x480 640x480
+[component_container-8] [INFO] [1788935622.746437457] [percipio_device]: Depth stream scale unit: 0.25
+[component_container-8] [INFO] [1788935622.748266958] [percipio_device]: Set stream mode(Texture): yuyv 640x480 640x480
+[component_container-8] [INFO] [1788935622.981700686] [percipio_device]: Device now work at continuous mode.
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/camera/camera' in container '/camera/camera_container'
+[rviz2-7] [ERROR] [1788935623.478186838] [moveit_2197144538.moveit.ros.motion_planning_frame]: Action server: /recognize_objects not available
+[rviz2-7] [INFO] [1788935623.486828435] [moveit_2197144538.moveit.ros.motion_planning_frame]: MoveGroup namespace changed: / -> . Reloading params.
+[rviz2-7] [INFO] [1788935623.497524727] [rviz]: Subscribing to: /peach/perception/single_cloud
+[rviz2-7] 
+[rviz2-7] [INFO] [1788935623.497812591] [rviz]: Subscribing to: /peach/reconstruction/tsdf_cloud
+[rviz2-7] 
+[rviz2-7] [INFO] [1788935623.498146880] [rviz]: Subscribing to: /peach/reconstruction/tsdf_cloud
+[rviz2-7] 
+[rviz2-7] [INFO] [1788935623.498476899] [rviz]: Subscribing to: /peach/reconstruction/tsdf_cloud
+[rviz2-7] 
+[rviz2-7] [INFO] [1788935623.508868028] [rviz]: Subscribing to: /peach/perception/single_cloud
+[rviz2-7] 
+[rviz2-7] [INFO] [1788935623.509207923] [rviz]: Subscribing to: /peach/reconstruction/tsdf_cloud
+[rviz2-7] 
+[rviz2-7] [INFO] [1788935623.558831769] [moveit_2197144538.moveit.ros.rdf_loader]: Loaded robot model in 0.00236421 seconds
+[rviz2-7] [INFO] [1788935623.558873159] [moveit_2197144538.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[rviz2-7] [INFO] [1788935623.558882784] [moveit_2197144538.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[rviz2-7] [INFO] [1788935623.592113332] [moveit_2197144538.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[rviz2-7] [INFO] [1788935623.697461910] [moveit_2197144538.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[rviz2-7] [INFO] [1788935623.704868775] [rviz2]: Stereo is NOT SUPPORTED
+[rviz2-7] [INFO] [1788935623.709392014] [moveit_2197144538.moveit.ros.planning_scene_monitor]: Starting planning scene monitor
+[rviz2-7] [INFO] [1788935623.709848338] [moveit_2197144538.moveit.ros.planning_scene_monitor]: Listening to '/monitored_planning_scene'
+[peach_scene_perception_node-10] [INFO] [1788935623.786328779] [peach_scene_perception_node]: CameraInfo K fx=466.175 fy=465.557 cx=326.071 cy=244.789 640x480
+[rviz2-7] [INFO] [1788935623.809276086] [interactive_marker_display_101277003430160]: Connected on namespace: /rviz_moveit_motion_planning_display/robot_interaction_interactive_marker_topic
+[rviz2-7] [INFO] [1788935623.812796380] [moveit_2197144538.moveit.ros.motion_planning_frame]: group manipulator_e5
+[rviz2-7] [INFO] [1788935623.812817815] [moveit_2197144538.moveit.ros.motion_planning_frame]: Constructing new MoveGroup connection for group 'manipulator_e5' in namespace ''
+[rviz2-7] [INFO] [1788935623.820642572] [moveit_2197144538.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[rviz2-7] [INFO] [1788935623.826170807] [interactive_marker_display_101277003430160]: Sending request for interactive markers
+[rviz2-7] [INFO] [1788935623.857785276] [interactive_marker_display_101277003430160]: Service response received for initialization
+[peach_scene_perception_node-10] /home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12/lib/python3.12/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+[peach_scene_perception_node-10]   warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+[component_container-8] 1788935619512 (2026-09-09 14:33:39) Update interface list
+[component_container-8] 1788935619512 (2026-09-09 14:33:39) Got 4 interface list
+[component_container-8] 1788935619512 (2026-09-09 14:33:39) Found interface 0:
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)   name: Dpb
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)   id:   usb-dpb
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)   type: 0x2
+[component_container-8] 1788935619512 (2026-09-09 14:33:39) Found interface 1:
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)   name: eth-fc:9d:05:6c:6f:a0
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)   id:   eth-fc:9d:05:6c:6f:a00b0afea9
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)   type: 0x4
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)     MAC: fc:9d:05:6c:6f:a0
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)     ip: 169.254.10.11
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)     netmask: 255.255.0.0
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)     gateway: 
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)     broadcast: 169.254.255.255
+[component_container-8] 1788935619512 (2026-09-09 14:33:39) Found interface 2:
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)   name: eth-ec:3a:56:0c:7b:24
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)   id:   eth-ec:3a:56:0c:7b:245a02a8c0
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)   type: 0x4
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)     MAC: ec:3a:56:0c:7b:24
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)     ip: 192.168.2.90
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)     netmask: 255.255.255.0
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)     gateway: 
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)     broadcast: 192.168.2.255
+[component_container-8] 1788935619512 (2026-09-09 14:33:39) Found interface 3:
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)   name: eth-3e:fb:c2:05:17:4a
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)   id:   eth-3e:fb:c2:05:17:4a010011ac
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)   type: 0x4
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)     MAC: 3e:fb:c2:05:17:4a
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)     ip: 172.17.0.1
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)     netmask: 255.255.0.0
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)     gateway: 
+[component_container-8] 1788935619512 (2026-09-09 14:33:39)     broadcast: 172.17.255.255
+[component_container-8] 1788935622528 (2026-09-09 14:33:42) *** Select 207000152740 on eth-fc:9d:05:6c:6f:a00b0afea9, ip 169.254.10.110
+[component_container-8] 1788935622742 (2026-09-09 14:33:42) ===                       : entry count 5
+[component_container-8] 1788935622742 (2026-09-09 14:33:42) ===                       : entry count 3
+[component_container-8] 1788935622742 (2026-09-09 14:33:42) ===                       : entry count 1
+[component_container-8] 1788935622743 (2026-09-09 14:33:42) ===                       : entry count 1
+[ros2_control_node-2] 09/09/2026 14:33:39,437 [132924791838400] [INFO ] - log4cplus started.
+[ros2_control_node-2] 09/09/2026 14:33:39,437 [132924791838400] [INFO ] - sdk log: Connect robot server success.
+[ros2_control_node-2] 09/09/2026 14:33:39,464 [132924791838400] [INFO ] - sdk log: set dhparam success. type:0, DhParam:0.408000,0.376000,0.098500,0.121500,0.102500,0.094000
+[ros2_control_node-2] 09/09/2026 14:33:39,464 [132924791838400] [INFO ] - sdk log: login  success.
+[ros2_control_node-2] 09/09/2026 14:33:39,472 [132924791838400] [INFO ] - sdk log: enable joint6 360.
+[ros2_control_node-2] 09/09/2026 14:33:39,472 [132924791838400] [INFO ] - sdk log: login completed, set joint6 retate 360 falg success. joint6Rot360Enable=1
+[ros2_control_node-2] 09/09/2026 14:33:39,472 [132924791838400] [INFO ] - sdk log: Connect robot server success.
+[ros2_control_node-2] 09/09/2026 14:33:39,499 [132924791838400] [INFO ] - sdk log: login  success.
+[ros2_control_node-2] 09/09/2026 14:33:39,507 [132924791838400] [INFO ] - sdk log: enable joint6 360.
+[ros2_control_node-2] 09/09/2026 14:33:39,507 [132924791838400] [INFO ] - sdk log: login completed, set joint6 retate 360 falg success. joint6Rot360Enable=1
+[ros2_control_node-2] 09/09/2026 14:33:39,568 [132924791838400] [ERROR] - sdk log: Response return false. cmd Type:CommunicationType_EnterTcp2CanbusMode  errorCode:10023
+[peach_scene_perception_node-10] [INFO] [1788935625.931164755] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 0）
+[component_container-8] [INFO] [1788935629.110126249] [percipio_device]: fps = 2.42764
+[component_container-8] [INFO] [1788935634.874009782] [percipio_device]: fps = 2.42764
+[peach_scene_perception_node-10] [INFO] [1788935636.315137901] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 52）
+[component_container-8] [INFO] [1788935640.638085215] [percipio_device]: fps = 2.43036
+[component_container-8] [INFO] [1788935646.405038119] [percipio_device]: fps = 2.42945
+[peach_scene_perception_node-10] [INFO] [1788935646.647073480] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 102）
+[component_container-8] [INFO] [1788935652.177463483] [percipio_device]: fps = 2.42628
+[peach_scene_perception_node-10] [INFO] [1788935656.910881532] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 152）
+[component_container-8] [INFO] [1788935657.949671428] [percipio_device]: fps = 2.42583
+[component_container-8] [INFO] [1788935663.720329988] [percipio_device]: fps = 2.42673
+[peach_scene_perception_node-10] [INFO] [1788935667.240988399] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 188）
+[component_container-8] [INFO] [1788935669.489295395] [percipio_device]: fps = 2.42447
+[component_container-8] [INFO] [1788935675.250371961] [percipio_device]: fps = 2.42945
+[peach_scene_perception_node-10] [INFO] [1788935677.487594801] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 236）
+[component_container-8] [INFO] [1788935681.022409544] [percipio_device]: fps = 2.42718
+[component_container-8] [INFO] [1788935686.787168886] [percipio_device]: fps = 2.42673
+[peach_scene_perception_node-10] [INFO] [1788935687.867029750] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 286）
+[component_container-8] [INFO] [1788935692.555437637] [percipio_device]: fps = 2.42583
+[peach_scene_perception_node-10] [INFO] [1788935698.244247093] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 336）
+[component_container-8] [INFO] [1788935698.323233071] [percipio_device]: fps = 2.42628
+[peach_target_reconstruction_node-11] [WARN] [1788935701.084908713] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[component_container-8] [INFO] [1788935704.092040018] [percipio_device]: fps = 2.42628
+[peach_scene_perception_node-10] [INFO] [1788935708.396562574] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 386）
+[component_container-8] [INFO] [1788935709.859508745] [percipio_device]: fps = 2.42854
+[component_container-8] [INFO] [1788935715.626035960] [percipio_device]: fps = 2.429
+[peach_scene_perception_node-10] [INFO] [1788935718.721319463] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 434）
+[component_container-8] [INFO] [1788935721.393804430] [percipio_device]: fps = 2.42809
+[component_container-8] [INFO] [1788935727.163295666] [percipio_device]: fps = 2.42673
+[peach_scene_perception_node-10] [INFO] [1788935729.103400229] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 474）
+[component_container-8] [INFO] [1788935732.932950253] [percipio_device]: fps = 2.42854
+[component_container-8] [INFO] [1788935738.705104139] [percipio_device]: fps = 2.42628
+[peach_scene_perception_node-10] [INFO] [1788935739.300703096] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 524）
+[component_container-8] [INFO] [1788935744.470883358] [percipio_device]: fps = 2.42764
+[peach_scene_perception_node-10] [INFO] [1788935749.721154963] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 562）
+[component_container-8] [INFO] [1788935750.234419089] [percipio_device]: fps = 2.42991
+[component_container-8] [INFO] [1788935756.004958473] [percipio_device]: fps = 2.429
+[peach_scene_perception_node-10] [INFO] [1788935759.893538279] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 612）
+[component_container-8] [INFO] [1788935761.771017381] [percipio_device]: fps = 2.42673
+[component_container-8] [INFO] [1788935767.546995483] [percipio_device]: fps = 2.42492
+[peach_scene_perception_node-10] [INFO] [1788935770.278546218] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 662）
+[component_container-8] [INFO] [1788935773.308738199] [percipio_device]: fps = 2.42854
+[component_container-8] [INFO] [1788935779.083697990] [percipio_device]: fps = 2.42492
+[peach_scene_perception_node-10] [INFO] [1788935780.505962322] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 712）
+[component_container-8] [INFO] [1788935784.843470560] [percipio_device]: fps = 2.43036
+[component_container-8] [INFO] [1788935790.611397443] [percipio_device]: fps = 2.42854
+[peach_scene_perception_node-10] [INFO] [1788935790.800934350] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 762）
+[component_container-8] [INFO] [1788935796.380122239] [percipio_device]: fps = 2.42764
+[peach_scene_perception_node-10] [INFO] [1788935801.125049650] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 812）
+[component_container-8] [INFO] [1788935802.153935750] [percipio_device]: fps = 2.42492
+[component_container-8] [INFO] [1788935807.917292966] [percipio_device]: fps = 2.42991
+[peach_scene_perception_node-10] [INFO] [1788935811.432186550] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 852）
+[component_container-8] [INFO] [1788935813.690645838] [percipio_device]: fps = 2.42492
+[component_container-8] [INFO] [1788935819.455127113] [percipio_device]: fps = 2.42854
+[peach_scene_perception_node-10] [INFO] [1788935821.712119030] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 902）
+[component_container-8] [INFO] [1788935825.219597984] [percipio_device]: fps = 2.429
+[component_container-8] [INFO] [1788935830.986787715] [percipio_device]: fps = 2.42945
+[peach_scene_perception_node-10] [INFO] [1788935831.998269506] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 952）
+[peach_manipulation_node-12] [WARN] [1788935834.613591454] [peach_manipulation_node]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_manipulation_node-12] [WARN] [1788935836.040737277] [peach_manipulation_node]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_target_reconstruction_node-11] [WARN] [1788935836.092131836] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[component_container-8] [INFO] [1788935836.756233964] [percipio_device]: fps = 2.429
+[peach_scene_perception_node-10] [INFO] [1788935842.285002013] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 1002）
+[component_container-8] [INFO] [1788935842.529991453] [percipio_device]: fps = 2.42537
+[peach_manipulation_node-12] [INFO] [1788935848.232262742] [peach_manipulation_node.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[move_group-6] [INFO] [1788935848.233106760] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[move_group-6] [INFO] [1788935848.233294311] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[peach_manipulation_node-12] [INFO] [1788935848.233344942] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request accepted
+[move_group-6] [INFO] [1788935848.234213006] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[move_group-6] [INFO] [1788935848.234236800] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[move_group-6] [INFO] [1788935848.234364426] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[move_group-6] [INFO] [1788935848.234378650] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[move_group-6] [WARN] [1788935848.234381480] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[move_group-6] [INFO] [1788935848.234386699] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[move_group-6] [INFO] [1788935848.234401808] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[move_group-6] [INFO] [1788935848.234545838] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[move_group-6] [INFO] [1788935848.234563374] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[move_group-6] [INFO] [1788935848.234580639] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[move_group-6] [INFO] [1788935848.234630604] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Goal already reached, set one goal point explicitly.
+[move_group-6] [INFO] [1788935848.234699385] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[move_group-6] [INFO] [1788935848.234758335] [move_group]: Calling PlanningResponseAdapter 'DisplayMotionPath'
+[move_group-6] [INFO] [1788935848.234811871] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[peach_manipulation_node-12] [INFO] [1788935848.235641040] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request complete!
+[peach_manipulation_node-12] [INFO] [1788935848.235838833] [peach_manipulation_node.moveit.ros.move_group_interface]: time taken to generate plan: 8.0268e-05 seconds
+[move_group-6] [INFO] [1788935848.236251418] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[peach_manipulation_node-12] [INFO] [1788935848.236266703] [peach_manipulation_node.moveit.ros.move_group_interface]: Execute request accepted
+[move_group-6] [INFO] [1788935848.236284141] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935848.236297605] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935848.236353925] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[move_group-6] [INFO] [1788935848.238566083] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[move_group-6] [INFO] [1788935848.238597691] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935848.238611413] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935848.238793356] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to aubo_passthrough_trajectory_controller
+[ros2_control_node-2] [INFO] [1788935848.239102857] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[ros2_control_node-2] [INFO] [1788935848.239189447] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 1 points.
+[ros2_control_node-2] [INFO] [1788935848.239217332] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[move_group-6] [INFO] [1788935848.239329552] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: aubo_passthrough_trajectory_controller started execution
+[move_group-6] [INFO] [1788935848.239342453] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[component_container-8] [INFO] [1788935848.299279948] [percipio_device]: fps = 2.42718
+[ros2_control_node-2] [INFO] [1788935848.518464238] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 0.274997 s).
+[move_group-6] [INFO] [1788935848.539839716] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'aubo_passthrough_trajectory_controller' successfully finished
+[move_group-6] [INFO] [1788935848.553590556] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[move_group-6] [INFO] [1788935848.553672899] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[peach_manipulation_node-12] [INFO] [1788935848.553941405] [peach_manipulation_node.moveit.ros.move_group_interface]: Execute request success!
+[peach_manipulation_node-12] [INFO] [1788935848.555143305] [peach_manipulation_node.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[peach_scene_perception_node-10] [INFO] [1788935852.616840032] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 1052）
+[component_container-8] [INFO] [1788935854.061887709] [percipio_device]: fps = 2.42764
+[component_container-8] [INFO] [1788935859.831519903] [percipio_device]: fps = 2.42809
+[peach_scene_perception_node-10] [INFO] [1788935862.899560822] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 1102）
+[peach_target_reconstruction_node-11] [INFO] [1788935864.155535020] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_target_reconstruction_node-11] [INFO] [1788935864.943819363] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_target_reconstruction_node-11] [WARN] [1788935864.946571705] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的同时间戳掩膜
+[peach_manipulation_node-12] [INFO] [1788935864.946619480] [peach_manipulation_node]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[peach_manipulation_node-12] [INFO] [1788935864.946819475] [peach_manipulation_node]: [WAIT_FRAME] 当前位采帧，不环绕
+[peach_target_reconstruction_node-11] [INFO] [1788935864.971941079] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，510 点）
+[peach_target_reconstruction_node-11] [INFO] [1788935865.019135907] [peach_target_reconstruction_node]: REFINING 完成：cylinder status=ACCEPT final=False axis=[-0.4407, 0.1351, 0.8874] diameter=98.7mm
+[peach_target_reconstruction_node-11] [INFO] [1788935865.019314038] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 3505 点，有效深度占比 0.47，位姿=fk
+[peach_manipulation_node-12] [INFO] [1788935865.299633386] [peach_manipulation_node]: 当前位已采重建帧，不环绕；基线未过再做最多两次��近短移
+[peach_manipulation_node-12] [INFO] [1788935865.300166760] [peach_manipulation_node]: [MOVE_TO_VIEW] see_a-1_e0_r1 score=0.411945 travel=0.125467m
+[peach_manipulation_node-12] [INFO] [1788935865.300335151] [peach_manipulation_node.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[move_group-6] [INFO] [1788935865.300678120] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[peach_manipulation_node-12] [INFO] [1788935865.300817110] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request accepted
+[move_group-6] [INFO] [1788935865.300887679] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[move_group-6] [INFO] [1788935865.303645927] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[move_group-6] [INFO] [1788935865.303670754] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[move_group-6] [INFO] [1788935865.303779810] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[move_group-6] [INFO] [1788935865.303800306] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[move_group-6] [WARN] [1788935865.303802593] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[move_group-6] [INFO] [1788935865.303807894] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[move_group-6] [INFO] [1788935865.303816454] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[move_group-6] [INFO] [1788935865.303912122] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[move_group-6] [INFO] [1788935865.303922055] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[move_group-6] [INFO] [1788935865.304202276] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: using default max_cartesian_speed: 0.250000
+[move_group-6] [INFO] [1788935865.306708985] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[move_group-6] [INFO] [1788935865.308056964] [move_group]: Calling PlanningResponseAdapter 'DisplayMotionPath'
+[move_group-6] [INFO] [1788935865.308160792] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[peach_manipulation_node-12] [INFO] [1788935865.308317689] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request complete!
+[peach_manipulation_node-12] [INFO] [1788935865.312292216] [peach_manipulation_node.moveit.ros.move_group_interface]: time taken to generate plan: 0.0027366 seconds
+[move_group-6] [INFO] [1788935865.312744618] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[move_group-6] [INFO] [1788935865.312778628] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935865.312790605] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935865.312830708] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[peach_manipulation_node-12] [INFO] [1788935865.313001328] [peach_manipulation_node.moveit.ros.move_group_interface]: Execute request accepted
+[move_group-6] [INFO] [1788935865.313832794] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[move_group-6] [INFO] [1788935865.313867928] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935865.313880662] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935865.314047406] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to aubo_passthrough_trajectory_controller
+[ros2_control_node-2] [INFO] [1788935865.314376667] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[ros2_control_node-2] [INFO] [1788935865.314427138] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 80 points.
+[ros2_control_node-2] [INFO] [1788935865.314458834] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[move_group-6] [INFO] [1788935865.314875866] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: aubo_passthrough_trajectory_controller started execution
+[move_group-6] [INFO] [1788935865.314881992] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[component_container-8] [INFO] [1788935865.596918486] [percipio_device]: fps = 2.42764
+[peach_target_reconstruction_node-11] [WARN] [1788935866.028677487] [peach_target_reconstruction_node]: 自动采帧跳过 [robot_not_static]：机器人未静止：最大关节速度 0.5454 rad/s > 0.03
+[peach_target_reconstruction_node-11] [WARN] [1788935867.265732861] [peach_target_reconstruction_node]: 自动采帧跳过 [robot_not_static]：机器人未静止：最大关节速度 0.5703 rad/s > 0.03
+[peach_target_reconstruction_node-11] [WARN] [1788935868.510200768] [peach_target_reconstruction_node]: 自动采帧跳过 [robot_not_static]：机器人未静止：最大关节速度 0.6045 rad/s > 0.03
+[peach_target_reconstruction_node-11] [WARN] [1788935869.736964792] [peach_target_reconstruction_node]: 自动采帧跳过 [robot_not_static]：机器人未静止：最大关节速度 0.7631 rad/s > 0.03
+[peach_target_reconstruction_node-11] [WARN] [1788935870.975870029] [peach_target_reconstruction_node]: 自动采帧跳过 [robot_not_static]：机器人未静止：最大关节速度 0.7600 rad/s > 0.03
+[component_container-8] [INFO] [1788935871.365206721] [percipio_device]: fps = 2.42628
+[peach_target_reconstruction_node-11] [WARN] [1788935872.210923993] [peach_target_reconstruction_node]: 自动采帧跳过 [robot_not_static]：机器人未静止：最大关节速度 0.8398 rad/s > 0.03
+[peach_scene_perception_node-10] [INFO] [1788935873.146061125] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 1130）
+[peach_target_reconstruction_node-11] [INFO] [1788935873.469740129] [peach_target_reconstruction_node]: 已采第 2/5 视角，本帧 5160 点，有效深度占比 0.85，位姿=fk
+[peach_target_reconstruction_node-11] [INFO] [1788935873.485342844] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1467 点）
+[peach_target_reconstruction_node-11] [INFO] [1788935873.561344164] [peach_target_reconstruction_node]: REFINING 完成：cylinder status=ACCEPT final=True axis=[-0.6728, 0.2209, 0.7061] diameter=117.8mm
+[peach_target_reconstruction_node-11] [INFO] [1788935873.561552540] [peach_target_reconstruction_node]: 局部重建完成：2 帧，8665 点（少于推荐 5 帧）；重叠 mean=5.4mm p95=11.7mm；TSDF 1467 点 / mesh 2589 顶点（累计积分 0.02s）；refit ACCEPT（袋模型 2 视）
+[ros2_control_node-2] [INFO] [1788935873.603438304] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 8.284989 s).
+[move_group-6] [INFO] [1788935873.614714413] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'aubo_passthrough_trajectory_controller' successfully finished
+[move_group-6] [INFO] [1788935873.628544417] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[move_group-6] [INFO] [1788935873.628602694] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[peach_manipulation_node-12] [INFO] [1788935873.628777239] [peach_manipulation_node.moveit.ros.move_group_interface]: Execute request success!
+[peach_manipulation_node-12] [INFO] [1788935873.629475140] [peach_manipulation_node]: [WAIT_FRAME] 等待到位后新鲜目标观测与重建帧
+[peach_manipulation_node-12] [INFO] [1788935873.703484320] [peach_manipulation_node]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[peach_manipulation_node-12] [INFO] [1788935873.703533495] [peach_manipulation_node]: [PLAN_READY] observe_only 周期完成：仅观察与精化验证，未执行靠近/抓取/工具动作
+[peach_manipulation_node-12] [INFO] [1788935873.755319957] [peach_manipulation_node]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[peach_manipulation_node-12] [INFO] [1788935873.755423204] [peach_manipulation_node]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[peach_manipulation_node-12] [INFO] [1788935873.755439634] [peach_manipulation_node]: 接触几何（核对方向） target=target_0 entry=[0.595 -0.628 0.546] axis=[-0.673 0.221 0.706] travel=0.082m axis_angle_deg=37.91
+[peach_manipulation_node-12] [INFO] [1788935873.755490426] [peach_manipulation_node]: [RECONFIRM] 抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息
+[peach_manipulation_node-12] [INFO] [1788935875.363698734] [peach_manipulation_node]: [MTC_APPROACH_INSERT] 拍照位再最短路径到预抓取
+[peach_manipulation_node-12] [INFO] [1788935875.364042793] [peach_manipulation_node.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[move_group-6] [INFO] [1788935875.364205233] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[move_group-6] [INFO] [1788935875.364347625] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[peach_manipulation_node-12] [INFO] [1788935875.364287822] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request accepted
+[move_group-6] [INFO] [1788935875.368960405] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[move_group-6] [INFO] [1788935875.369005989] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[move_group-6] [INFO] [1788935875.369079781] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[move_group-6] [INFO] [1788935875.369095273] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[move_group-6] [WARN] [1788935875.369098463] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[move_group-6] [INFO] [1788935875.369105451] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[move_group-6] [INFO] [1788935875.369116070] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[move_group-6] [INFO] [1788935875.369218486] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[move_group-6] [INFO] [1788935875.369236610] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[move_group-6] [INFO] [1788935875.369244081] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[move_group-6] [INFO] [1788935875.369419194] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[move_group-6] [INFO] [1788935875.370327971] [move_group]: Calling PlanningResponseAdapter 'DisplayMotionPath'
+[move_group-6] [INFO] [1788935875.371137096] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[peach_manipulation_node-12] [INFO] [1788935875.371245025] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request complete!
+[peach_manipulation_node-12] [INFO] [1788935875.371796680] [peach_manipulation_node.moveit.ros.move_group_interface]: time taken to generate plan: 0.000136582 seconds
+[peach_manipulation_node-12] [INFO] [1788935875.372119202] [peach_manipulation_node.moveit.ros.move_group_interface]: Execute request accepted
+[move_group-6] [INFO] [1788935875.372131051] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[move_group-6] [INFO] [1788935875.372158182] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935875.372167810] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935875.372197717] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[move_group-6] [INFO] [1788935875.373574296] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[move_group-6] [INFO] [1788935875.373608137] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935875.373620595] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935875.373802070] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to aubo_passthrough_trajectory_controller
+[ros2_control_node-2] [INFO] [1788935875.373944606] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[ros2_control_node-2] [INFO] [1788935875.374002535] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 44 points.
+[ros2_control_node-2] [INFO] [1788935875.374029810] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[move_group-6] [INFO] [1788935875.375209682] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: aubo_passthrough_trajectory_controller started execution
+[move_group-6] [INFO] [1788935875.375217645] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[component_container-8] [INFO] [1788935877.140515428] [percipio_device]: fps = 2.42356
+[ros2_control_node-2] [INFO] [1788935879.868459072] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 4.490008 s).
+[move_group-6] [INFO] [1788935879.874364624] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'aubo_passthrough_trajectory_controller' successfully finished
+[move_group-6] [INFO] [1788935879.888749629] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[move_group-6] [INFO] [1788935879.888830956] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[peach_manipulation_node-12] [INFO] [1788935879.888978354] [peach_manipulation_node.moveit.ros.move_group_interface]: Execute request success!
+[peach_manipulation_node-12] [INFO] [1788935879.893721273] [peach_manipulation_node]: 预抓取从拍照位出发: 已到达全局拍照位姿
+[peach_manipulation_node-12] [INFO] [1788935879.893755549] [peach_manipulation_node]: 接近：距入口 0.518m 轴向 -0.399m 侧向 0.331m 夹角 43.8° 扫角 140.3° 半径 0.518m 沿轴LIN 0.030m 原语 blocked
+[peach_manipulation_node-12] [INFO] [1788935879.893928186] [peach_manipulation_node.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[move_group-6] [INFO] [1788935879.894188370] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[move_group-6] [INFO] [1788935879.894340918] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[peach_manipulation_node-12] [INFO] [1788935879.894604611] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request accepted
+[move_group-6] [INFO] [1788935879.898780054] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[move_group-6] [INFO] [1788935879.898804389] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[move_group-6] [INFO] [1788935879.898854034] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[move_group-6] [INFO] [1788935879.898868308] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[move_group-6] [WARN] [1788935879.898871268] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[move_group-6] [INFO] [1788935879.898877745] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[move_group-6] [INFO] [1788935879.898887139] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[move_group-6] [INFO] [1788935879.898971330] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[move_group-6] [INFO] [1788935879.898985875] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[move_group-6] [INFO] [1788935879.898992690] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[move_group-6] [ERROR] [1788935879.949187195] [move_group.moveit.pilz_trajectory_functions]: Unable to find IK solution.
+[move_group-6] [ERROR] [1788935879.949264495] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Failed to compute inverse kinematics for link: tcp of goal pose
+[move_group-6] [ERROR] [1788935879.949329654] [move_group]: Planner 'Pilz Industrial Motion Planner' failed with error code NO_IK_SOLUTION
+[move_group-6] [ERROR] [1788935879.949343136] [move_group.moveit.moveit.ros.move_group.move_action]: Generating a plan with planning pipeline failed.
+[move_group-6] [INFO] [1788935879.949359277] [move_group.moveit.moveit.ros.move_group.move_action]: FAILURE
+[peach_manipulation_node-12] [INFO] [1788935879.949702988] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request aborted
+[peach_manipulation_node-12] [ERROR] [1788935879.950737772] [peach_manipulation_node.moveit.ros.move_group_interface]: MoveGroupInterface::plan() failed or timeout reached
+[peach_manipulation_node-12] [WARN] [1788935879.950771211] [peach_manipulation_node]: 轴向 staging Pilz PTP 规划失败(FAILURE)，回退 OMPL（仍须过行程护栏）
+[peach_manipulation_node-12] [INFO] [1788935879.950927298] [peach_manipulation_node.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[move_group-6] [INFO] [1788935879.951027768] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[move_group-6] [INFO] [1788935879.951184119] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[peach_manipulation_node-12] [INFO] [1788935879.951329967] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request accepted
+[move_group-6] [INFO] [1788935879.953715440] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[move_group-6] [INFO] [1788935879.953744368] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'ompl'
+[move_group-6] [INFO] [1788935879.953800238] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[move_group-6] [INFO] [1788935879.953816018] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[move_group-6] [WARN] [1788935879.953819095] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[move_group-6] [INFO] [1788935879.953826320] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[move_group-6] [INFO] [1788935879.953836313] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[move_group-6] [INFO] [1788935879.965837585] [move_group.moveit.moveit.planners.ompl.model_based_planning_context]: Planner configuration 'manipulator_e5' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.
+[move_group-6] [INFO] [1788935879.966445316] [move_group]: Calling Planner 'OMPL'
+[component_container-8] [INFO] [1788935882.909209179] [percipio_device]: fps = 2.42628
+[move_group-6] [ERROR] [1788935882.968309419] [move_group.moveit.moveit.planners.ompl.planner_manager]: ./src/ompl/geometric/planners/rrt/src/RRTConnect.cpp:265 - manipulator_e5/manipulator_e5: Unable to sample any valid states for goal tree
+[move_group-6] [WARN] [1788935882.968391203] [move_group.moveit.moveit.planners.ompl.model_based_planning_context]: Invalid goal state
+[move_group-6] [ERROR] [1788935882.987532721] [move_group.moveit.moveit.planners.ompl.model_based_planning_context]: Unable to solve the planning problem
+[move_group-6] [ERROR] [1788935882.987617565] [move_group]: Planner 'OMPL' failed with error code GOAL_STATE_INVALID
+[move_group-6] [ERROR] [1788935882.987638164] [move_group.moveit.moveit.ros.move_group.move_action]: Generating a plan with planning pipeline failed.
+[move_group-6] [INFO] [1788935882.987648293] [move_group.moveit.moveit.ros.move_group.move_action]: FAILURE
+[peach_manipulation_node-12] [INFO] [1788935882.987735828] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request aborted
+[peach_manipulation_node-12] [ERROR] [1788935882.987878849] [peach_manipulation_node.moveit.ros.move_group_interface]: MoveGroupInterface::plan() failed or timeout reached
+[peach_manipulation_node-12] [WARN] [1788935882.987918156] [peach_manipulation_node]: 轴向 staging 兜底失败: 轴向 staging 规划失败: FAILURE
+[peach_manipulation_node-12] [INFO] [1788935882.987972349] [peach_manipulation_node]: [FAILED] 到预抓取失败: 直线穿预抓取球且无法 CIRC，不改 PTP
+[peach_manipulation_node-12] [INFO] [1788935882.987995985] [peach_manipulation_node]: [FAILED] 到预抓取失败: 直线穿预抓取球且无法 CIRC，不改 PTP
+[peach_manipulation_node-12] [INFO] [1788935883.176625439] [peach_manipulation_node.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[move_group-6] [INFO] [1788935883.176818928] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[peach_manipulation_node-12] [INFO] [1788935883.176985928] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request accepted
+[move_group-6] [INFO] [1788935883.177073991] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[move_group-6] [INFO] [1788935883.178727931] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[move_group-6] [INFO] [1788935883.178747331] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[move_group-6] [INFO] [1788935883.178808179] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[move_group-6] [INFO] [1788935883.178820220] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[move_group-6] [WARN] [1788935883.178823294] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[move_group-6] [INFO] [1788935883.178829869] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[move_group-6] [INFO] [1788935883.178840010] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[move_group-6] [INFO] [1788935883.178924774] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[move_group-6] [INFO] [1788935883.178939584] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[move_group-6] [INFO] [1788935883.178946776] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[move_group-6] [INFO] [1788935883.178968406] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Goal already reached, set one goal point explicitly.
+[move_group-6] [INFO] [1788935883.179004656] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[move_group-6] [INFO] [1788935883.179050661] [move_group]: Calling PlanningResponseAdapter 'DisplayMotionPath'
+[move_group-6] [INFO] [1788935883.179088445] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[peach_manipulation_node-12] [INFO] [1788935883.179292554] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request complete!
+[peach_manipulation_node-12] [INFO] [1788935883.179956124] [peach_manipulation_node.moveit.ros.move_group_interface]: time taken to generate plan: 3.2331e-05 seconds
+[move_group-6] [INFO] [1788935883.180278524] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[move_group-6] [INFO] [1788935883.180302281] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935883.180313673] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935883.180343904] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[peach_manipulation_node-12] [INFO] [1788935883.180419252] [peach_manipulation_node.moveit.ros.move_group_interface]: Execute request accepted
+[move_group-6] [INFO] [1788935883.183813881] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[move_group-6] [INFO] [1788935883.183870378] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935883.183889811] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935883.184066497] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to aubo_passthrough_trajectory_controller
+[ros2_control_node-2] [INFO] [1788935883.184364792] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[ros2_control_node-2] [INFO] [1788935883.184422350] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 1 points.
+[ros2_control_node-2] [INFO] [1788935883.184439786] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[move_group-6] [INFO] [1788935883.184716309] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: aubo_passthrough_trajectory_controller started execution
+[move_group-6] [INFO] [1788935883.184723957] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[peach_scene_perception_node-10] [INFO] [1788935883.441693040] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 1153）
+[ros2_control_node-2] [INFO] [1788935883.458443551] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 0.269984 s).
+[move_group-6] [INFO] [1788935883.484675494] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'aubo_passthrough_trajectory_controller' successfully finished
+[move_group-6] [INFO] [1788935883.498533527] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[move_group-6] [INFO] [1788935883.498594837] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[peach_manipulation_node-12] [INFO] [1788935883.498756552] [peach_manipulation_node.moveit.ros.move_group_interface]: Execute request success!
+[peach_target_reconstruction_node-11] [INFO] [1788935885.524943880] [peach_target_reconstruction_node]: 跟随计划切换重建目标: target_0 -> （空）（放弃 READY 会话）
+[component_container-8] [INFO] [1788935888.673075132] [percipio_device]: fps = 2.42945
+[peach_target_reconstruction_node-11] [INFO] [1788935890.771497737] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_target_reconstruction_node-11] [INFO] [1788935890.775305191] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_1
+[peach_manipulation_node-12] [WARN] [1788935890.776003035] [peach_manipulation_node]: 忽略非当前目标的 grasp_decision: expected=target_0 actual=target_1
+[peach_manipulation_node-12] [INFO] [1788935890.777497026] [peach_manipulation_node]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[peach_manipulation_node-12] [INFO] [1788935890.777591178] [peach_manipulation_node]: [WAIT_FRAME] 当前位采帧，不环绕
+[peach_target_reconstruction_node-11] [WARN] [1788935890.877905457] [peach_target_reconstruction_node]: 自动采帧跳过 [no_frame]：尚无同步 RGB-D 帧（确认相机/回放在线）
+[peach_target_reconstruction_node-11] [INFO] [1788935891.282952382] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1279 点）
+[peach_target_reconstruction_node-11] [INFO] [1788935891.373652927] [peach_target_reconstruction_node]: REFINING 完成：cylinder status=ACCEPT final=False axis=[-0.4068, 0.0114, 0.9134] diameter=78.4mm
+[peach_target_reconstruction_node-11] [INFO] [1788935891.373830203] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 4540 点，有效深度占比 0.97，位姿=fk
+[peach_manipulation_node-12] [INFO] [1788935891.378421572] [peach_manipulation_node]: 当前位已采重建帧，不环绕；基线未过再做最多两次最近短移
+[peach_manipulation_node-12] [INFO] [1788935891.378552033] [peach_manipulation_node]: [MOVE_TO_VIEW] see_a1_e0_r1 score=0.319672 travel=0.134748m
+[peach_manipulation_node-12] [INFO] [1788935891.378735780] [peach_manipulation_node.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[move_group-6] [INFO] [1788935891.379010360] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[peach_manipulation_node-12] [INFO] [1788935891.379093503] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request accepted
+[move_group-6] [INFO] [1788935891.379129260] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[move_group-6] [INFO] [1788935891.383581180] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[move_group-6] [INFO] [1788935891.383602026] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[move_group-6] [INFO] [1788935891.383673489] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[move_group-6] [INFO] [1788935891.383688491] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[move_group-6] [WARN] [1788935891.383692057] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[move_group-6] [INFO] [1788935891.383699023] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[move_group-6] [INFO] [1788935891.383711470] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[move_group-6] [INFO] [1788935891.383810522] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[move_group-6] [INFO] [1788935891.383819033] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[move_group-6] [INFO] [1788935891.384023098] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: using default max_cartesian_speed: 0.250000
+[move_group-6] [INFO] [1788935891.386316057] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[move_group-6] [INFO] [1788935891.387430737] [move_group]: Calling PlanningResponseAdapter 'DisplayMotionPath'
+[move_group-6] [INFO] [1788935891.387536656] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[peach_manipulation_node-12] [INFO] [1788935891.387613238] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request complete!
+[peach_manipulation_node-12] [INFO] [1788935891.388270313] [peach_manipulation_node.moveit.ros.move_group_interface]: time taken to generate plan: 0.00244986 seconds
+[move_group-6] [INFO] [1788935891.388443131] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[move_group-6] [INFO] [1788935891.388466490] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935891.388476244] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935891.388505090] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[peach_manipulation_node-12] [INFO] [1788935891.388691024] [peach_manipulation_node.moveit.ros.move_group_interface]: Execute request accepted
+[move_group-6] [INFO] [1788935891.393704491] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[move_group-6] [INFO] [1788935891.393732012] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935891.393745840] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935891.393912484] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to aubo_passthrough_trajectory_controller
+[ros2_control_node-2] [INFO] [1788935891.394016708] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[ros2_control_node-2] [INFO] [1788935891.394063386] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 58 points.
+[ros2_control_node-2] [INFO] [1788935891.394085507] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[move_group-6] [INFO] [1788935891.394100233] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: aubo_passthrough_trajectory_controller started execution
+[move_group-6] [INFO] [1788935891.394107139] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[peach_target_reconstruction_node-11] [WARN] [1788935891.990993512] [peach_target_reconstruction_node]: 自动采帧跳过 [robot_not_static]：机器人未静止：最大关节速度 0.4728 rad/s > 0.03
+[peach_target_reconstruction_node-11] [WARN] [1788935893.107955202] [peach_target_reconstruction_node]: 自动采帧跳过 [robot_not_static]：机器人未静止：最大关节速度 0.3410 rad/s > 0.03
+[peach_scene_perception_node-10] [INFO] [1788935893.752805577] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 1178）
+[peach_target_reconstruction_node-11] [WARN] [1788935894.146043529] [peach_target_reconstruction_node]: 自动采帧跳过 [robot_not_static]：机器人未静止：最大关节速度 0.4448 rad/s > 0.03
+[component_container-8] [INFO] [1788935894.439694683] [percipio_device]: fps = 2.42809
+[peach_target_reconstruction_node-11] [WARN] [1788935895.288248701] [peach_target_reconstruction_node]: 自动采帧跳过 [robot_not_static]：机器人未静止：最大关节速度 0.5609 rad/s > 0.03
+[peach_target_reconstruction_node-11] [WARN] [1788935896.533909818] [peach_target_reconstruction_node]: 自动采帧跳过 [robot_not_static]：机器人未静止：最大关节速度 0.8575 rad/s > 0.03
+[peach_target_reconstruction_node-11] [INFO] [1788935897.372227837] [peach_target_reconstruction_node]: 已采第 2/5 视角，本帧 4274 点，有效深度占比 0.94，位姿=fk
+[peach_target_reconstruction_node-11] [INFO] [1788935897.389675724] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1631 点）
+[ros2_control_node-2] [INFO] [1788935897.453445703] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 6.055007 s).
+[move_group-6] [INFO] [1788935897.494300972] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'aubo_passthrough_trajectory_controller' successfully finished
+[move_group-6] [INFO] [1788935897.508667376] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[move_group-6] [INFO] [1788935897.508767884] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[peach_manipulation_node-12] [INFO] [1788935897.509247232] [peach_manipulation_node.moveit.ros.move_group_interface]: Execute request success!
+[peach_manipulation_node-12] [INFO] [1788935897.509747423] [peach_manipulation_node]: [WAIT_FRAME] 等待到位后新鲜目标观测与重建帧
+[peach_manipulation_node-12] [INFO] [1788935897.903419731] [peach_manipulation_node]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[peach_manipulation_node-12] [INFO] [1788935897.903465271] [peach_manipulation_node]: [PLAN_READY] observe_only 周期完成：仅观察与精化验证，未执行靠近/抓取/工具动作
+[component_container-8] [INFO] [1788935900.209518908] [percipio_device]: fps = 2.42809
+[peach_scene_perception_node-10] [INFO] [1788935904.104571865] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 1202）
+[component_container-8] [INFO] [1788935905.974796866] [percipio_device]: fps = 2.42673
+[peach_target_reconstruction_node-11] [INFO] [1788935909.551132184] [peach_target_reconstruction_node]: REFINING 完成：cylinder status=ACCEPT final=True axis=[-0.418, 0.1834, 0.8897] diameter=88.2mm
+[peach_target_reconstruction_node-11] [INFO] [1788935909.551352113] [peach_target_reconstruction_node]: 局部重建完成：2 帧，8814 点（少于推荐 5 帧）；重叠 mean=3.7mm p95=8.2mm；TSDF 1631 点 / mesh 3210 顶点（累计积分 0.01s）；refit ACCEPT（袋模型 2 视）
+[peach_manipulation_node-12] [INFO] [1788935909.573122013] [peach_manipulation_node]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[peach_manipulation_node-12] [INFO] [1788935909.573232825] [peach_manipulation_node]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[peach_manipulation_node-12] [INFO] [1788935909.573249229] [peach_manipulation_node]: 接触几何（核对方向） target=target_1 entry=[0.243 -0.707 0.578] axis=[-0.418 0.183 0.890] travel=0.103m axis_angle_deg=19.77
+[peach_manipulation_node-12] [INFO] [1788935909.573282913] [peach_manipulation_node]: [RECONFIRM] 抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息
+[peach_target_reconstruction_node-11] [WARN] [1788935909.691550604] [peach_target_reconstruction_node]: diagnostics 心跳超过 offered deadline 1.5s（累计违约 8 次）：节点执行器疑似卡滞
+[peach_manipulation_node-12] [INFO] [1788935909.808321679] [peach_manipulation_node]: [MTC_APPROACH_INSERT] 拍照位再最短路径到预抓取
+[peach_manipulation_node-12] [INFO] [1788935909.808580404] [peach_manipulation_node.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[move_group-6] [INFO] [1788935909.809057958] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[move_group-6] [INFO] [1788935909.809304829] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[peach_manipulation_node-12] [INFO] [1788935909.811196008] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request accepted
+[move_group-6] [INFO] [1788935909.814324742] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[move_group-6] [INFO] [1788935909.814347199] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[move_group-6] [INFO] [1788935909.814400416] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[move_group-6] [INFO] [1788935909.814410288] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[move_group-6] [WARN] [1788935909.814412301] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[move_group-6] [INFO] [1788935909.814417433] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[move_group-6] [INFO] [1788935909.814427523] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[move_group-6] [INFO] [1788935909.814503959] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[move_group-6] [INFO] [1788935909.814515798] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[move_group-6] [INFO] [1788935909.814521413] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[move_group-6] [INFO] [1788935909.814611846] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[move_group-6] [INFO] [1788935909.815734167] [move_group]: Calling PlanningResponseAdapter 'DisplayMotionPath'
+[move_group-6] [INFO] [1788935909.815994424] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[peach_manipulation_node-12] [INFO] [1788935909.816067682] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request complete!
+[peach_manipulation_node-12] [INFO] [1788935909.817071469] [peach_manipulation_node.moveit.ros.move_group_interface]: time taken to generate plan: 6.6732e-05 seconds
+[peach_manipulation_node-12] [INFO] [1788935909.817242228] [peach_manipulation_node.moveit.ros.move_group_interface]: Execute request accepted
+[move_group-6] [INFO] [1788935909.817265240] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[move_group-6] [INFO] [1788935909.817283745] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935909.817292392] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935909.817321685] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[move_group-6] [INFO] [1788935909.818528804] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[move_group-6] [INFO] [1788935909.818556532] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935909.818567174] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935909.818722360] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to aubo_passthrough_trajectory_controller
+[ros2_control_node-2] [INFO] [1788935909.818850390] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[ros2_control_node-2] [INFO] [1788935909.818897663] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 31 points.
+[ros2_control_node-2] [INFO] [1788935909.818913797] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[move_group-6] [INFO] [1788935909.818933653] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: aubo_passthrough_trajectory_controller started execution
+[move_group-6] [INFO] [1788935909.818941435] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[component_container-8] [INFO] [1788935911.747231548] [percipio_device]: fps = 2.42447
+[ros2_control_node-2] [INFO] [1788935913.073449946] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 3.250011 s).
+[move_group-6] [INFO] [1788935913.119304216] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'aubo_passthrough_trajectory_controller' successfully finished
+[move_group-6] [INFO] [1788935913.133717863] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[move_group-6] [INFO] [1788935913.133814997] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[peach_manipulation_node-12] [INFO] [1788935913.133971264] [peach_manipulation_node.moveit.ros.move_group_interface]: Execute request success!
+[peach_manipulation_node-12] [INFO] [1788935913.139408461] [peach_manipulation_node]: 预抓取从拍照位出发: 已到达全局拍照位姿
+[peach_manipulation_node-12] [INFO] [1788935913.139440960] [peach_manipulation_node]: 接近：距入口 0.496m 轴向 -0.179m 侧向 0.463m 夹角 25.9° 扫角 111.1° 半径 0.496m 沿轴LIN 0.030m 原语 LIN-align+LIN
+[peach_manipulation_node-12] [WARN] [1788935913.139744315] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_manipulation_node'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_manipulation_node' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_manipulation_node-12] [INFO] [1788935913.155302412] [peach_manipulation_node.moveit.ros.rdf_loader]: Loaded robot model in 0.00198265 seconds
+[peach_manipulation_node-12] [INFO] [1788935913.155328308] [peach_manipulation_node.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[peach_manipulation_node-12] [INFO] [1788935913.155333448] [peach_manipulation_node.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[peach_manipulation_node-12] [INFO] [1788935913.187749786] [peach_manipulation_node.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[peach_manipulation_node-12] [WARN] [1788935913.192191374] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_manipulation_node'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_manipulation_node' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_manipulation_node-12] [INFO] [1788935913.205511415] [peach_manipulation_node.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[peach_manipulation_node-12] [INFO] [1788935913.206086500] [peach_manipulation_node.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP pilz_industrial_motion_planner/PlanningContextLoaderPolyline 
+[peach_manipulation_node-12] [INFO] [1788935913.206096755] [peach_manipulation_node.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[peach_manipulation_node-12] [INFO] [1788935913.206979582] [peach_manipulation_node.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[peach_manipulation_node-12] [INFO] [1788935913.206986938] [peach_manipulation_node.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[peach_manipulation_node-12] [INFO] [1788935913.207534692] [peach_manipulation_node.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[peach_manipulation_node-12] [INFO] [1788935913.207555398] [peach_manipulation_node.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[peach_manipulation_node-12] [INFO] [1788935913.208066603] [peach_manipulation_node.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[peach_manipulation_node-12] [INFO] [1788935913.208072471] [peach_manipulation_node.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPolyline
+[peach_manipulation_node-12] [INFO] [1788935913.208603508] [peach_manipulation_node.moveit.planners.pilz.command_planner]: Registered Algorithm [POLYLINE]
+[peach_manipulation_node-12] [INFO] [1788935913.208609134] [peach_manipulation_node.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[peach_manipulation_node-12] [INFO] [1788935913.209878719] [peach_manipulation_node]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[peach_manipulation_node-12] [INFO] [1788935913.210459610] [peach_manipulation_node]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[peach_manipulation_node-12] [INFO] [1788935913.210464533] [peach_manipulation_node]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[peach_manipulation_node-12] [INFO] [1788935913.210500885] [peach_manipulation_node]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[peach_manipulation_node-12] [INFO] [1788935913.210503113] [peach_manipulation_node]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[peach_manipulation_node-12] [INFO] [1788935913.210510674] [peach_manipulation_node]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[peach_manipulation_node-12] [INFO] [1788935913.210512408] [peach_manipulation_node]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[peach_manipulation_node-12] [INFO] [1788935913.210518960] [peach_manipulation_node]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[peach_manipulation_node-12] [INFO] [1788935913.211930266] [peach_manipulation_node]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[peach_manipulation_node-12] [INFO] [1788935913.213335778] [peach_manipulation_node]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[peach_manipulation_node-12] [INFO] [1788935913.213344775] [peach_manipulation_node]: Try loading adapter 'default_planning_response_adapters/DisplayMotionPath'
+[peach_manipulation_node-12] [INFO] [1788935913.213694168] [peach_manipulation_node]: Loaded adapter 'default_planning_response_adapters/DisplayMotionPath'
+[peach_manipulation_node-12] [INFO] [1788935913.215301542] [peach_manipulation_node.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[peach_manipulation_node-12] [INFO] [1788935913.215651563] [peach_manipulation_node.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP pilz_industrial_motion_planner/PlanningContextLoaderPolyline 
+[peach_manipulation_node-12] [INFO] [1788935913.215659487] [peach_manipulation_node.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[peach_manipulation_node-12] [INFO] [1788935913.215741673] [peach_manipulation_node.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[peach_manipulation_node-12] [INFO] [1788935913.215746166] [peach_manipulation_node.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[peach_manipulation_node-12] [INFO] [1788935913.215825332] [peach_manipulation_node.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[peach_manipulation_node-12] [INFO] [1788935913.215829390] [peach_manipulation_node.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[peach_manipulation_node-12] [INFO] [1788935913.215909084] [peach_manipulation_node.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[peach_manipulation_node-12] [INFO] [1788935913.215912661] [peach_manipulation_node.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPolyline
+[peach_manipulation_node-12] [INFO] [1788935913.215991843] [peach_manipulation_node.moveit.planners.pilz.command_planner]: Registered Algorithm [POLYLINE]
+[peach_manipulation_node-12] [INFO] [1788935913.215996252] [peach_manipulation_node.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[peach_manipulation_node-12] [INFO] [1788935913.217245155] [peach_manipulation_node]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[peach_manipulation_node-12] [INFO] [1788935913.217372448] [peach_manipulation_node]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[peach_manipulation_node-12] [INFO] [1788935913.217377299] [peach_manipulation_node]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[peach_manipulation_node-12] [INFO] [1788935913.217389532] [peach_manipulation_node]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[peach_manipulation_node-12] [INFO] [1788935913.217391657] [peach_manipulation_node]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[peach_manipulation_node-12] [INFO] [1788935913.217399100] [peach_manipulation_node]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[peach_manipulation_node-12] [INFO] [1788935913.217400732] [peach_manipulation_node]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[peach_manipulation_node-12] [INFO] [1788935913.217405453] [peach_manipulation_node]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[peach_manipulation_node-12] [INFO] [1788935913.218635338] [peach_manipulation_node]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[peach_manipulation_node-12] [INFO] [1788935913.218971085] [peach_manipulation_node]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[peach_manipulation_node-12] [INFO] [1788935913.218977492] [peach_manipulation_node]: Try loading adapter 'default_planning_response_adapters/DisplayMotionPath'
+[peach_manipulation_node-12] [INFO] [1788935913.219147957] [peach_manipulation_node]: Loaded adapter 'default_planning_response_adapters/DisplayMotionPath'
+[peach_manipulation_node-12] [WARN] [1788935913.317586101] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_manipulation_node'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_manipulation_node' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_manipulation_node-12] [INFO] [1788935913.324789749] [peach_manipulation_node]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[peach_manipulation_node-12] [INFO] [1788935913.324874355] [peach_manipulation_node]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[peach_manipulation_node-12] [WARN] [1788935913.324877266] [peach_manipulation_node.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[peach_manipulation_node-12] [INFO] [1788935913.324884194] [peach_manipulation_node]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[peach_manipulation_node-12] [INFO] [1788935913.324895495] [peach_manipulation_node]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[peach_manipulation_node-12] [INFO] [1788935913.325054870] [peach_manipulation_node]: Calling Planner 'Pilz Industrial Motion Planner'
+[peach_manipulation_node-12] [INFO] [1788935913.325072107] [peach_manipulation_node.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[peach_manipulation_node-12] [INFO] [1788935913.325255585] [peach_manipulation_node.moveit.planners.pilz.trajectory_generator]: using default max_cartesian_speed: 0.250000
+[peach_manipulation_node-12] [INFO] [1788935913.327082554] [peach_manipulation_node]: Calling PlanningResponseAdapter 'ValidateSolution'
+[peach_manipulation_node-12] [INFO] [1788935913.328561416] [peach_manipulation_node]: Calling PlanningResponseAdapter 'DisplayMotionPath'
+[peach_manipulation_node-12] [INFO] [1788935913.328758339] [peach_manipulation_node]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[peach_manipulation_node-12] [INFO] [1788935913.328792089] [peach_manipulation_node]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[peach_manipulation_node-12] [WARN] [1788935913.328794363] [peach_manipulation_node.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[peach_manipulation_node-12] [INFO] [1788935913.328805649] [peach_manipulation_node]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[peach_manipulation_node-12] [INFO] [1788935913.328820629] [peach_manipulation_node]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[peach_manipulation_node-12] [INFO] [1788935913.328887199] [peach_manipulation_node]: Calling Planner 'Pilz Industrial Motion Planner'
+[peach_manipulation_node-12] [INFO] [1788935913.328905418] [peach_manipulation_node.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[peach_manipulation_node-12] [INFO] [1788935913.329196578] [peach_manipulation_node.moveit.core.moveit_collision_detection_fcl]: Found a contact between 'table_link' (type 'Robot link') and 'upperArm_Link' (type 'Robot link'), which constitutes a collision. Contact information is not stored.
+[peach_manipulation_node-12] [INFO] [1788935913.329205330] [peach_manipulation_node.moveit.core.moveit_collision_detection_fcl]: Collision checking is considered complete (collision was found and 0 contacts are stored)
+[peach_manipulation_node-12] [INFO] [1788935913.329317886] [peach_manipulation_node.moveit.core.moveit_collision_detection_fcl]: Found a contact between 'table_link' (type 'Robot link') and 'foreArm_Link' (type 'Robot link'), which constitutes a collision. Contact information is not stored.
+[peach_manipulation_node-12] [INFO] [1788935913.329320682] [peach_manipulation_node.moveit.core.moveit_collision_detection_fcl]: Collision checking is considered complete (collision was found and 0 contacts are stored)
+[peach_manipulation_node-12] [INFO] [1788935913.331317590] [peach_manipulation_node.moveit.planners.pilz.trajectory_generator]: using default max_cartesian_speed: 0.250000
+[peach_manipulation_node-12] [ERROR] [1788935913.336099926] [peach_manipulation_node.pilz_trajectory_functions]: Joint velocity limit of foreArm_joint violated. Set the velocity scaling factor lower! Actual joint velocity is -29.1066, while the limit is 2.5964. 
+[peach_manipulation_node-12] [ERROR] [1788935913.336115061] [peach_manipulation_node.pilz_trajectory_functions]: Inverse kinematics solution at 10.9s violates the joint velocity/acceleration/deceleration limits.
+[peach_manipulation_node-12] [ERROR] [1788935913.336143757] [peach_manipulation_node.moveit.planners.pilz.trajectory_generator]: Failed to generate valid joint trajectory from the Cartesian path
+[peach_manipulation_node-12] [ERROR] [1788935913.336181266] [peach_manipulation_node]: Planner 'Pilz Industrial Motion Planner' failed with error code PLANNING_FAILED
+[peach_manipulation_node-12] [INFO] [1788935913.340028778] [peach_manipulation_node.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[move_group-6] [INFO] [1788935913.340352356] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[peach_manipulation_node-12] [INFO] [1788935913.340428471] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request accepted
+[move_group-6] [INFO] [1788935913.340582437] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[move_group-6] [INFO] [1788935913.343768801] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[move_group-6] [INFO] [1788935913.343786450] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[move_group-6] [INFO] [1788935913.343871991] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[move_group-6] [INFO] [1788935913.343906998] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[move_group-6] [WARN] [1788935913.343919847] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[move_group-6] [INFO] [1788935913.343938075] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[move_group-6] [INFO] [1788935913.343954571] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[move_group-6] [INFO] [1788935913.344033996] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[move_group-6] [INFO] [1788935913.344048836] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[move_group-6] [INFO] [1788935913.344055059] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[move_group-6] [INFO] [1788935913.347095424] [move_group.moveit.moveit.core.moveit_collision_detection_fcl]: Found a contact between 'camera_body_link' (type 'Robot link') and 'wrist1_Link' (type 'Robot link'), which constitutes a collision. Contact information is not stored.
+[move_group-6] [INFO] [1788935913.347111509] [move_group.moveit.moveit.core.moveit_collision_detection_fcl]: Collision checking is considered complete (collision was found and 0 contacts are stored)
+[move_group-6] [INFO] [1788935913.347429219] [move_group.moveit.moveit.core.moveit_collision_detection_fcl]: Found a contact between 'table_link' (type 'Robot link') and 'upperArm_Link' (type 'Robot link'), which constitutes a collision. Contact information is not stored.
+[move_group-6] [INFO] [1788935913.347434590] [move_group.moveit.moveit.core.moveit_collision_detection_fcl]: Collision checking is considered complete (collision was found and 0 contacts are stored)
+[move_group-6] [INFO] [1788935913.347729823] [move_group.moveit.moveit.core.moveit_collision_detection_fcl]: Found a contact between 'table_link' (type 'Robot link') and 'foreArm_Link' (type 'Robot link'), which constitutes a collision. Contact information is not stored.
+[move_group-6] [INFO] [1788935913.347734299] [move_group.moveit.moveit.core.moveit_collision_detection_fcl]: Collision checking is considered complete (collision was found and 0 contacts are stored)
+[move_group-6] [INFO] [1788935913.348923167] [move_group.moveit.moveit.core.moveit_collision_detection_fcl]: Found a contact between 'camera_body_link' (type 'Robot link') and 'wrist1_Link' (type 'Robot link'), which constitutes a collision. Contact information is not stored.
+[move_group-6] [INFO] [1788935913.348929569] [move_group.moveit.moveit.core.moveit_collision_detection_fcl]: Collision checking is considered complete (collision was found and 0 contacts are stored)
+[move_group-6] [INFO] [1788935913.350145988] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[move_group-6] [INFO] [1788935913.354395833] [move_group]: Calling PlanningResponseAdapter 'DisplayMotionPath'
+[move_group-6] [INFO] [1788935913.354575308] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[peach_manipulation_node-12] [INFO] [1788935913.354790225] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request complete!
+[peach_manipulation_node-12] [INFO] [1788935913.355042786] [peach_manipulation_node.moveit.ros.move_group_interface]: time taken to generate plan: 0.00600786 seconds
+[peach_manipulation_node-12] [WARN] [1788935913.355127388] [peach_manipulation_node]: 轴向 staging 拒绝绕行轨迹: 累计关节行程 12.6797rad > 12rad
+[peach_manipulation_node-12] [WARN] [1788935913.355137370] [peach_manipulation_node]: 轴向 staging 兜底失败: 轴向 staging 拒绝绕行轨迹: 累计关节行程 12.6797rad > 12rad
+[peach_manipulation_node-12] [INFO] [1788935913.355211867] [peach_manipulation_node]: [FAILED] 到预抓取失败: MTC planning failed: Failing stage(s):
+[peach_manipulation_node-12] lin to on-axis pregrasp (0/1): 
+[peach_manipulation_node-12] [INFO] [1788935913.355233878] [peach_manipulation_node]: [FAILED] 到预抓取失败: MTC planning failed: Failing stage(s):
+[peach_manipulation_node-12] lin to on-axis pregrasp (0/1): 
+[peach_manipulation_node-12] [INFO] [1788935913.386930161] [peach_manipulation_node.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[move_group-6] [INFO] [1788935913.387343080] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[move_group-6] [INFO] [1788935913.387540815] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[peach_manipulation_node-12] [INFO] [1788935913.387619406] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request accepted
+[move_group-6] [INFO] [1788935913.388569334] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[move_group-6] [INFO] [1788935913.388591004] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[move_group-6] [INFO] [1788935913.388647599] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[move_group-6] [INFO] [1788935913.388656487] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[move_group-6] [WARN] [1788935913.388658640] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[move_group-6] [INFO] [1788935913.388663713] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[move_group-6] [INFO] [1788935913.388671601] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[move_group-6] [INFO] [1788935913.388758782] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[move_group-6] [INFO] [1788935913.388771310] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[move_group-6] [INFO] [1788935913.388776812] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[move_group-6] [INFO] [1788935913.388796029] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Goal already reached, set one goal point explicitly.
+[move_group-6] [INFO] [1788935913.388845300] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[move_group-6] [INFO] [1788935913.388887898] [move_group]: Calling PlanningResponseAdapter 'DisplayMotionPath'
+[move_group-6] [INFO] [1788935913.388917235] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[peach_manipulation_node-12] [INFO] [1788935913.389127122] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request complete!
+[peach_manipulation_node-12] [INFO] [1788935913.389347912] [peach_manipulation_node.moveit.ros.move_group_interface]: time taken to generate plan: 2.7281e-05 seconds
+[move_group-6] [INFO] [1788935913.389845165] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[peach_manipulation_node-12] [INFO] [1788935913.389852784] [peach_manipulation_node.moveit.ros.move_group_interface]: Execute request accepted
+[move_group-6] [INFO] [1788935913.389866347] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935913.389876384] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935913.389905650] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[move_group-6] [INFO] [1788935913.393713824] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[move_group-6] [INFO] [1788935913.393745918] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935913.393760287] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935913.393910961] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to aubo_passthrough_trajectory_controller
+[ros2_control_node-2] [INFO] [1788935913.394213927] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[ros2_control_node-2] [INFO] [1788935913.394274382] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 1 points.
+[ros2_control_node-2] [INFO] [1788935913.394292947] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[move_group-6] [INFO] [1788935913.394295661] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: aubo_passthrough_trajectory_controller started execution
+[move_group-6] [INFO] [1788935913.394301655] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[ros2_control_node-2] [INFO] [1788935913.663443981] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 0.264989 s).
+[move_group-6] [INFO] [1788935913.694614447] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'aubo_passthrough_trajectory_controller' successfully finished
+[move_group-6] [INFO] [1788935913.708579098] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[move_group-6] [INFO] [1788935913.708651997] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[peach_manipulation_node-12] [INFO] [1788935913.708786753] [peach_manipulation_node.moveit.ros.move_group_interface]: Execute request success!
+[peach_scene_perception_node-10] [INFO] [1788935914.241631950] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 1224）
+[peach_manipulation_node-12]   0  - ←   0 →   -  0 / task pipeline
+[peach_manipulation_node-12]     1  - ←   1 →   -  1 / current robot state
+[peach_manipulation_node-12]     -  1 →   0 →   -  0 / approach to pregrasp
+[peach_manipulation_node-12]       -  0 →   1 →   -  0 / lin align tool z
+[peach_manipulation_node-12]       -  0 →   0 →   -  0 / lin to on-axis pregrasp
+[peach_manipulation_node-12] Failing stage(s):
+[peach_manipulation_node-12] lin to on-axis pregrasp (0/1): 
+[peach_target_reconstruction_node-11] [INFO] [1788935915.493592930] [peach_target_reconstruction_node]: 跟随计划切换重建目标: target_1 -> （空）（放弃 READY 会话）
+[component_container-8] [INFO] [1788935917.512122863] [percipio_device]: fps = 2.42764
+[peach_manipulation_node-12] [INFO] [1788935920.838723126] [peach_manipulation_node.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[move_group-6] [INFO] [1788935920.838909997] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[peach_manipulation_node-12] [INFO] [1788935920.838996656] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request accepted
+[move_group-6] [INFO] [1788935920.839136984] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[move_group-6] [INFO] [1788935920.843738388] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[move_group-6] [INFO] [1788935920.843768544] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[move_group-6] [INFO] [1788935920.843831815] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[move_group-6] [INFO] [1788935920.843843954] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[move_group-6] [WARN] [1788935920.843846959] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[move_group-6] [INFO] [1788935920.843853207] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[move_group-6] [INFO] [1788935920.843863269] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[move_group-6] [INFO] [1788935920.843948803] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[move_group-6] [INFO] [1788935920.843964174] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[move_group-6] [INFO] [1788935920.843971224] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[move_group-6] [INFO] [1788935920.843994571] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Goal already reached, set one goal point explicitly.
+[move_group-6] [INFO] [1788935920.844028083] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[move_group-6] [INFO] [1788935920.844074061] [move_group]: Calling PlanningResponseAdapter 'DisplayMotionPath'
+[move_group-6] [INFO] [1788935920.844118004] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[peach_manipulation_node-12] [INFO] [1788935920.844190443] [peach_manipulation_node.moveit.ros.move_group_interface]: Planning request complete!
+[peach_manipulation_node-12] [INFO] [1788935920.845162940] [peach_manipulation_node.moveit.ros.move_group_interface]: time taken to generate plan: 3.5605e-05 seconds
+[move_group-6] [INFO] [1788935920.845425418] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[move_group-6] [INFO] [1788935920.845447792] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935920.845457809] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935920.845487449] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[peach_manipulation_node-12] [INFO] [1788935920.845622282] [peach_manipulation_node.moveit.ros.move_group_interface]: Execute request accepted
+[move_group-6] [INFO] [1788935920.848746341] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[move_group-6] [INFO] [1788935920.848787338] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935920.848801314] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1788935920.848971357] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to aubo_passthrough_trajectory_controller
+[ros2_control_node-2] [INFO] [1788935920.849977357] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[ros2_control_node-2] [INFO] [1788935920.850028893] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 1 points.
+[ros2_control_node-2] [INFO] [1788935920.850044819] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[move_group-6] [INFO] [1788935920.850071490] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: aubo_passthrough_trajectory_controller started execution
+[move_group-6] [INFO] [1788935920.850079350] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[ros2_control_node-2] [INFO] [1788935921.118462702] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 0.265019 s).
+[move_group-6] [INFO] [1788935921.150434964] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'aubo_passthrough_trajectory_controller' successfully finished
+[move_group-6] [INFO] [1788935921.163710507] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[move_group-6] [INFO] [1788935921.163919319] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[peach_manipulation_node-12] [INFO] [1788935921.164147929] [peach_manipulation_node.moveit.ros.move_group_interface]: Execute request success!
+[component_container-8] [INFO] [1788935923.283665458] [percipio_device]: fps = 2.42583
+[peach_scene_perception_node-10] [INFO] [1788935924.543460151] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 1224）
+[component_container-8] [INFO] [1788935929.050830323] [percipio_device]: fps = 2.42854
+[component_container-8] [INFO] [1788935934.817961294] [percipio_device]: fps = 2.42854
+[peach_scene_perception_node-10] [INFO] [1788935934.843873067] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 1224）
+[component_container-8] [INFO] [1788935940.583458872] [percipio_device]: fps = 2.429
+[peach_scene_perception_node-10] [INFO] [1788935945.156257357] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 1224）
+[component_container-8] [INFO] [1788935946.356229536] [percipio_device]: fps = 2.42356
+[component_container-8] [INFO] [1788935952.122750603] [percipio_device]: fps = 2.42718
+[peach_scene_perception_node-10] [INFO] [1788935955.443208562] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 1224）
+[component_container-8] [INFO] [1788935957.891954176] [percipio_device]: fps = 2.429

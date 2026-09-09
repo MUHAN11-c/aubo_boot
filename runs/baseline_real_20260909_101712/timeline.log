@@ -1,0 +1,18 @@
+[10:17:12] launch REAL stack (record_mcap=true)
+[10:18:34] active_nodes=5
+[10:18:34] readiness: robot_status / TF / joints / camera
+[10:19:08] readiness captured; camera_hz=WARNING: topic [/camera/color/image_raw] does not appear to be published yet
+[10:19:08] WARN: hand-eye TF missing output
+[10:19:08] static-segment captures (no motion yet)
+[10:21:12] bug repro: query_reconstruction_state (expect TypeError from bad signature)
+[10:21:20] enable execution (executor + manipulation execution/grasp; tool stays false)
+[10:21:40] params enabled; batch starting
+[10:21:40] background hz samplers over batch window (staggered)
+[10:21:40] monitor loop: snapshot /api/state every 10s, watch for recovery_required
+[10:25:18] monitor done: batch settled early: termination_reason: no_targets_succeeded
+[10:25:18] post-stop captures
+[10:25:22] ledger copied
+[10:25:22] teardown (arm stays at pregrasp; NO ack sent)
+[10:25:41] residual after teardown: 83329
+89475
+[10:25:41] P0b DONE (stop_reason=batch settled early: termination_reason: no_targets_succeeded)

@@ -25,7 +25,7 @@
 
 场景键 `scene_key` 现行实验室用 `lab`。`profile_id` 现行 `default`。
 
-写记录：当场把结论写入 `runs/field_test_<日期>/log.md`，并追加 [testing-log.md](testing-log.md) 对应轮次。原始 jsonl 只在 `runs/`（gitignore），不入库。
+写记录：当场把结论写入 `runs/field_test_<日期>/log.md`，并追加 [testing-log.md](testing-log.md) 对应轮次。`runs/` 结构化文本（jsonl/json/csv/md/yaml/txt/log）入库随仓推送，克隆即可离线复算/分析；图像/mcap/点云等二进制仍只留本地（.gitignore 白名单）。
 
 ---
 

@@ -1,6 +1,6 @@
 # 测试过程记录
 
-本文只记真机/审查轮次，**不写现行怎么跑、不写验收口径**。流程、命名、门与命令：[testing.md](testing.md)。原始 jsonl 在工作区 `runs/`（gitignore）与 `_archive/runs/`，不要删。
+本文只记真机/审查轮次，**不写现行怎么跑、不写验收口径**。流程、命名、门与命令：[testing.md](testing.md)。原始 jsonl 在工作区 `runs/`（结构化文本已入库随仓推送，图像/mcap/点云二进制仍只留本地）与 `_archive/runs/`（整体不入库），不要删。
 
 改行为或 yaml 不改本文；补一条实测时同一轮改本文对应小节。约束：[AGENTS.md](../AGENTS.md)。
 

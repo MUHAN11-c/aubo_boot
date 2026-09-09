@@ -1,0 +1,37 @@
+{
+  "claimed": [
+    "target_0",
+    "target_4"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_0",
+      "outcome": 1,
+      "reason": "observe_failed: observe_only rejected (skills locked set)",
+      "quality_score": 0.0,
+      "elapsed_s": 1.216,
+      "failure_code": "observe_failed"
+    },
+    {
+      "target_id": "target_4",
+      "outcome": 1,
+      "reason": "skipped_quality: GraspDecision.allowed=false，禁止降级接触: refined_quality_not_allowed",
+      "quality_score": 0.0,
+      "elapsed_s": 11.825,
+      "failure_code": "skipped_quality",
+      "stage_names": [
+        "prepare",
+        "observe",
+        "finalize"
+      ],
+      "stage_durations": [
+        0.0,
+        11.435,
+        0.0
+      ],
+      "build_view_count": 4,
+      "build_status": "局部重建完成：4 视角，3629 点（少于推荐 5 视角）；重叠 mean=2.7mm p95=10.2mm；TSDF 325 点 / mesh 691 顶点（累计积分 0.01s）；refit REOBSERVE（袋模型 4 视）",
+      "build_duration_s": 11.621
+    }
+  ]
+}

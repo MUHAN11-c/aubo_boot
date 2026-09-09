@@ -1,0 +1,406 @@
+{
+  "source": "/home/mu/Downloads/PeachDataSet (1)/Peach_bag",
+  "note": "Only Peach_bag. Visual is an irregular SAM-mask + depth shell (not a box); collision stays 15x8x18 cm. PBR albedo from bag pixels.",
+  "spec_m": {
+    "bag_width": 0.15,
+    "bag_height": 0.18,
+    "filled_thickness": 0.08,
+    "mass_kg": 0.28,
+    "leaf_length": 0.11,
+    "leaf_width": 0.028
+  },
+  "spec_sources": {
+    "bag_flat_cm": "15x18 (alt 16x19 / 17x20)",
+    "bag_refs": [
+      "https://wenda.nongyelu.com/a/26494.html",
+      "https://www.agrow-tek.com/product/single-layer-white-paper-peach-growing-bags/",
+      "https://cn.xinfengspecialpaper.com/product/fruiting-protection-bag/peach-protection-bag/"
+    ],
+    "fruit_diameter_m": 0.075,
+    "leaf_cm": "7-15 x 2-3.5",
+    "leaf_ref": "https://naturelib.net/plantae/prunus-persica/"
+  },
+  "intrinsics_assumed": {
+    "width": 1280,
+    "height": 720,
+    "fx": 640.0000000000001,
+    "fy": 636.2978458474406,
+    "cx": 640.0,
+    "cy": 360.0
+  },
+  "models": [
+    {
+      "name": "peach_bag_1259_02",
+      "kind": "bag",
+      "png": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1259_02/meshes/visual.png",
+      "obj": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1259_02/meshes/visual.obj",
+      "dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1259_02",
+      "aabb_m": [
+        0.1067,
+        0.2188,
+        0.1942
+      ],
+      "collision_m": [
+        0.15,
+        0.08,
+        0.18
+      ],
+      "vertices": 52534,
+      "faces": 105056,
+      "split": "Peach_bag",
+      "frame": "1259",
+      "occlusion": "peach_bag",
+      "sam_masked": true,
+      "shape": "irregular_sam_depth_shell",
+      "valid_in_box": 0.8471,
+      "score": 136550.0,
+      "pinhole_wh_m": [
+        0.0682,
+        0.1637
+      ],
+      "median_depth_m": 0.168
+    },
+    {
+      "name": "peach_bag_1265_12",
+      "kind": "bag",
+      "png": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1265_12/meshes/visual.png",
+      "obj": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1265_12/meshes/visual.obj",
+      "dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1265_12",
+      "aabb_m": [
+        0.1718,
+        0.2795,
+        0.1968
+      ],
+      "collision_m": [
+        0.15,
+        0.08,
+        0.18
+      ],
+      "vertices": 45978,
+      "faces": 91648,
+      "split": "Peach_bag",
+      "frame": "1265",
+      "occlusion": "peach_bag",
+      "sam_masked": true,
+      "shape": "irregular_sam_depth_shell",
+      "valid_in_box": 0.7787,
+      "score": 130835.0,
+      "pinhole_wh_m": [
+        0.1668,
+        0.1449
+      ],
+      "median_depth_m": 0.242
+    },
+    {
+      "name": "peach_bag_815_01",
+      "kind": "bag",
+      "png": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_815_01/meshes/visual.png",
+      "obj": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_815_01/meshes/visual.obj",
+      "dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_815_01",
+      "aabb_m": [
+        0.2475,
+        0.1743,
+        0.1728
+      ],
+      "collision_m": [
+        0.15,
+        0.08,
+        0.18
+      ],
+      "vertices": 35830,
+      "faces": 71288,
+      "split": "Peach_bag",
+      "frame": "815",
+      "occlusion": "peach_bag",
+      "sam_masked": true,
+      "shape": "irregular_sam_depth_shell",
+      "valid_in_box": 0.8004,
+      "score": 126887.0,
+      "pinhole_wh_m": [
+        0.2555,
+        0.2365
+      ],
+      "median_depth_m": 0.394
+    },
+    {
+      "name": "peach_bag_1236_03",
+      "kind": "bag",
+      "png": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1236_03/meshes/visual.png",
+      "obj": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1236_03/meshes/visual.obj",
+      "dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1236_03",
+      "aabb_m": [
+        0.2334,
+        0.3359,
+        0.151
+      ],
+      "collision_m": [
+        0.15,
+        0.08,
+        0.18
+      ],
+      "vertices": 40426,
+      "faces": 80816,
+      "split": "Peach_bag",
+      "frame": "1236",
+      "occlusion": "peach_bag",
+      "sam_masked": true,
+      "shape": "irregular_sam_depth_shell",
+      "valid_in_box": 0.914,
+      "score": 124985.0,
+      "pinhole_wh_m": [
+        0.1398,
+        0.104
+      ],
+      "median_depth_m": 0.208
+    },
+    {
+      "name": "peach_bag_1248_02",
+      "kind": "bag",
+      "png": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1248_02/meshes/visual.png",
+      "obj": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1248_02/meshes/visual.obj",
+      "dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1248_02",
+      "aabb_m": [
+        0.1143,
+        0.2234,
+        0.1961
+      ],
+      "collision_m": [
+        0.15,
+        0.08,
+        0.18
+      ],
+      "vertices": 49906,
+      "faces": 99748,
+      "split": "Peach_bag",
+      "frame": "1248",
+      "occlusion": "peach_bag",
+      "sam_masked": true,
+      "shape": "irregular_sam_depth_shell",
+      "valid_in_box": 0.9111,
+      "score": 120522.0,
+      "pinhole_wh_m": [
+        0.1183,
+        0.149
+      ],
+      "median_depth_m": 0.233
+    },
+    {
+      "name": "peach_bag_794_00",
+      "kind": "bag",
+      "png": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_794_00/meshes/visual.png",
+      "obj": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_794_00/meshes/visual.obj",
+      "dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_794_00",
+      "aabb_m": [
+        0.1443,
+        0.2978,
+        0.1363
+      ],
+      "collision_m": [
+        0.15,
+        0.08,
+        0.18
+      ],
+      "vertices": 34408,
+      "faces": 68320,
+      "split": "Peach_bag",
+      "frame": "794",
+      "occlusion": "peach_bag",
+      "sam_masked": true,
+      "shape": "irregular_sam_depth_shell",
+      "valid_in_box": 0.661,
+      "score": 119954.0,
+      "pinhole_wh_m": [
+        0.125,
+        0.1384
+      ],
+      "median_depth_m": 0.197
+    },
+    {
+      "name": "peach_bag_800_00",
+      "kind": "bag",
+      "png": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_800_00/meshes/visual.png",
+      "obj": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_800_00/meshes/visual.obj",
+      "dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_800_00",
+      "aabb_m": [
+        0.0982,
+        0.155,
+        0.1709
+      ],
+      "collision_m": [
+        0.15,
+        0.08,
+        0.18
+      ],
+      "vertices": 30454,
+      "faces": 60740,
+      "split": "Peach_bag",
+      "frame": "800",
+      "occlusion": "peach_bag",
+      "sam_masked": true,
+      "shape": "irregular_sam_depth_shell",
+      "valid_in_box": 0.6752,
+      "score": 114967.0,
+      "pinhole_wh_m": [
+        0.1521,
+        0.2659
+      ],
+      "median_depth_m": 0.311
+    },
+    {
+      "name": "peach_bag_825_00",
+      "kind": "bag",
+      "png": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_825_00/meshes/visual.png",
+      "obj": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_825_00/meshes/visual.obj",
+      "dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_825_00",
+      "aabb_m": [
+        0.2185,
+        0.2619,
+        0.1685
+      ],
+      "collision_m": [
+        0.15,
+        0.08,
+        0.18
+      ],
+      "vertices": 31708,
+      "faces": 62928,
+      "split": "Peach_bag",
+      "frame": "825",
+      "occlusion": "peach_bag",
+      "sam_masked": true,
+      "shape": "irregular_sam_depth_shell",
+      "valid_in_box": 0.7297,
+      "score": 113917.0,
+      "pinhole_wh_m": [
+        0.1382,
+        0.1519
+      ],
+      "median_depth_m": 0.234
+    },
+    {
+      "name": "peach_bag_1247_07",
+      "kind": "bag",
+      "png": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1247_07/meshes/visual.png",
+      "obj": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1247_07/meshes/visual.obj",
+      "dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1247_07",
+      "aabb_m": [
+        0.1091,
+        0.251,
+        0.2152
+      ],
+      "collision_m": [
+        0.15,
+        0.08,
+        0.18
+      ],
+      "vertices": 43806,
+      "faces": 87520,
+      "split": "Peach_bag",
+      "frame": "1247",
+      "occlusion": "peach_bag",
+      "sam_masked": true,
+      "shape": "irregular_sam_depth_shell",
+      "valid_in_box": 0.8756,
+      "score": 109626.0,
+      "pinhole_wh_m": [
+        0.134,
+        0.1434
+      ],
+      "median_depth_m": 0.25
+    },
+    {
+      "name": "peach_bag_1098_12",
+      "kind": "bag",
+      "png": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1098_12/meshes/visual.png",
+      "obj": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1098_12/meshes/visual.obj",
+      "dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1098_12",
+      "aabb_m": [
+        0.2328,
+        0.3054,
+        0.1352
+      ],
+      "collision_m": [
+        0.15,
+        0.08,
+        0.18
+      ],
+      "vertices": 17150,
+      "faces": 34028,
+      "split": "Peach_bag",
+      "frame": "1098",
+      "occlusion": "peach_bag",
+      "sam_masked": true,
+      "shape": "irregular_sam_depth_shell",
+      "valid_in_box": 0.8266,
+      "score": 108611.0,
+      "pinhole_wh_m": [
+        0.1574,
+        0.1084
+      ],
+      "median_depth_m": 0.23
+    },
+    {
+      "name": "peach_bag_1304_06",
+      "kind": "bag",
+      "png": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1304_06/meshes/visual.png",
+      "obj": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1304_06/meshes/visual.obj",
+      "dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1304_06",
+      "aabb_m": [
+        0.1943,
+        0.2804,
+        0.1833
+      ],
+      "collision_m": [
+        0.15,
+        0.08,
+        0.18
+      ],
+      "vertices": 45184,
+      "faces": 90320,
+      "split": "Peach_bag",
+      "frame": "1304",
+      "occlusion": "peach_bag",
+      "sam_masked": true,
+      "shape": "irregular_sam_depth_shell",
+      "valid_in_box": 0.8744,
+      "score": 106725.0,
+      "pinhole_wh_m": [
+        0.1227,
+        0.1303
+      ],
+      "median_depth_m": 0.231
+    },
+    {
+      "name": "peach_bag_1266_10",
+      "kind": "bag",
+      "png": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1266_10/meshes/visual.png",
+      "obj": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1266_10/meshes/visual.obj",
+      "dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/scene_models/peach_dataset_gz/models/Peach_bag/peach_bag_1266_10",
+      "aabb_m": [
+        0.1285,
+        0.2539,
+        0.2052
+      ],
+      "collision_m": [
+        0.15,
+        0.08,
+        0.18
+      ],
+      "vertices": 40952,
+      "faces": 81824,
+      "split": "Peach_bag",
+      "frame": "1266",
+      "occlusion": "peach_bag",
+      "sam_masked": true,
+      "shape": "irregular_sam_depth_shell",
+      "valid_in_box": 0.8885,
+      "score": 104315.0,
+      "pinhole_wh_m": [
+        0.1019,
+        0.1382
+      ],
+      "median_depth_m": 0.221
+    }
+  ],
+  "preview": "runs/scene_models/peach_dataset_gz/preview.sdf"
+}

@@ -43,7 +43,19 @@ test_results/
 harvest_runs/
 web_runs/
 peach_sessions/
-runs/
+# 过程记录 runs/：结构化文本（jsonl/json/csv/md/yaml/txt/log/mmd）入库随仓推送，
+# 克隆即可离线复算/分析；图像/mcap/点云等二进制仍只留本地。
+runs/**
+!runs/**/
+!runs/**/*.jsonl
+!runs/**/*.json
+!runs/**/*.md
+!runs/**/*.csv
+!runs/**/*.yaml
+!runs/**/*.yml
+!runs/**/*.txt
+!runs/**/*.log
+!runs/**/*.mmd
 recon_maps/*.ply
 validation_runs/
 hand_eye/

@@ -1,0 +1,58 @@
+{
+  "claimed": [
+    "target_0",
+    "target_1"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_0",
+      "outcome": 2,
+      "reason": "skipped_unreachable: 到预抓取失败: MTC planning failed: Failing stage(s):\ncartesian corridor 1/1 (0/1)",
+      "quality_score": 0.0,
+      "elapsed_s": 14.683,
+      "failure_code": "skipped_unreachable",
+      "stage_names": [
+        "prepare",
+        "observe",
+        "finalize",
+        "reconfirm",
+        "approach_insert"
+      ],
+      "stage_durations": [
+        0.0,
+        8.566,
+        0.0,
+        0.348,
+        4.821
+      ],
+      "build_view_count": 2,
+      "build_status": "局部重建完成：2 帧，8420 点（少于推荐 5 帧）；重叠 mean=5.3mm p95=11.9mm；TSDF 1282 点 / mesh 2511 顶点（累计积分 0.01s）；refit ACCEPT（袋模型 2 视）",
+      "build_duration_s": 9.475
+    },
+    {
+      "target_id": "target_1",
+      "outcome": 2,
+      "reason": "skipped_unreachable: 到预抓取失败: MTC planning failed: Failing stage(s):\ncartesian corridor 1/1 (0/1)",
+      "quality_score": 0.0,
+      "elapsed_s": 10.419,
+      "failure_code": "skipped_unreachable",
+      "stage_names": [
+        "prepare",
+        "observe",
+        "finalize",
+        "reconfirm",
+        "approach_insert"
+      ],
+      "stage_durations": [
+        0.0,
+        6.35,
+        0.0,
+        0.368,
+        3.47
+      ],
+      "build_view_count": 2,
+      "build_status": "局部重建完成：2 帧，8777 点（少于推荐 5 帧）；重叠 mean=3.5mm p95=7.9mm；TSDF 1719 点 / mesh 3039 顶点（累计积分 0.01s）；refit ACCEPT（袋模型 2 视）",
+      "build_duration_s": 6.413
+    }
+  ]
+}

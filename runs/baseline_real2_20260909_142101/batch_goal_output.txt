@@ -1,0 +1,43 @@
+Waiting for an action server to become available...
+Sending goal:
+     request_id: field_pregrasp_20260909_1424
+scene_key: lab
+profile_id: ''
+intent: 0
+selection_mode: 0
+target_ids: []
+
+Goal accepted with ID: 887cf99b2f4542299c8b34912a59d748
+
+Result:
+    success: false
+termination_reason: no_targets_succeeded
+summary:
+  run_id: field_pregrasp_20260909_1424
+  discovered: 2
+  attempted: 2
+  succeeded: 0
+  skipped_quality: 2
+  skipped_unreachable: 0
+  failed: 0
+  canceled: 0
+  elapsed:
+    sec: 246
+    nanosec: 935683380
+  outcomes:
+  - target_id: target_0
+    outcome: 1
+    reason: 'observe_failed: observe_only 未等到绑定目标的 TSDF/精化几何: target_0'
+    quality_score: 0.0
+    elapsed:
+      sec: 23
+      nanosec: 247056035
+  - target_id: target_1
+    outcome: 1
+    reason: build_target_model rejected
+    quality_score: 0.0
+    elapsed:
+      sec: 180
+      nanosec: 171235040
+
+Goal finished with status: SUCCEEDED

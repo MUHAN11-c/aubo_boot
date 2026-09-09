@@ -1,0 +1,57 @@
+{
+  "claimed": [
+    "target_0",
+    "target_1",
+    "target_2"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_0",
+      "outcome": 1,
+      "reason": "observe_failed: 达到扫描上限仍未收敛（有效视点 0/1）: insufficient_views",
+      "quality_score": 0.0,
+      "elapsed_s": 21.209,
+      "failure_code": "observe_failed",
+      "stage_names": [
+        "prepare",
+        "observe"
+      ],
+      "stage_durations": [
+        0.0,
+        19.845
+      ]
+    },
+    {
+      "target_id": "target_2",
+      "outcome": 1,
+      "reason": "observe_failed: 目标身份/可见性安全门失败: selected_target_stale",
+      "quality_score": 0.0,
+      "elapsed_s": 16.822,
+      "failure_code": "observe_failed",
+      "stage_names": [
+        "prepare",
+        "observe"
+      ],
+      "stage_durations": [
+        0.0,
+        16.629
+      ]
+    },
+    {
+      "target_id": "target_1",
+      "outcome": 1,
+      "reason": "observe_failed: 目标身份/可见性安全门失败: selected_target_stale",
+      "quality_score": 0.0,
+      "elapsed_s": 17.426,
+      "failure_code": "observe_failed",
+      "stage_names": [
+        "prepare",
+        "observe"
+      ],
+      "stage_durations": [
+        0.0,
+        17.386
+      ]
+    }
+  ]
+}

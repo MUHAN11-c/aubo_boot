@@ -1,0 +1,56 @@
+{
+  "source": "reconstruction",
+  "event": "reconstruction_finalized",
+  "target_id": "target_4",
+  "captured_views": 4,
+  "refined": {
+    "ok": true,
+    "kind": "cylinder",
+    "status": 1,
+    "center": [
+      0.2768279009943546,
+      -0.6378265282039262,
+      0.6276163766029654
+    ],
+    "axis": [
+      0.38002684142313825,
+      -0.055607878030650794,
+      0.923302422664904
+    ],
+    "bottom": [
+      0.2687244611619316,
+      -0.6366407827651498,
+      0.6079284892916985
+    ],
+    "neck": [
+      0.2849313408267776,
+      -0.6390122736427026,
+      0.6473042639142323
+    ],
+    "diameter": 0.07669587383040183,
+    "span_m": 0.04264667096711882,
+    "rmse": 0.0,
+    "inlier_ratio": 1.0,
+    "n_points": 325,
+    "flags": [
+      "perception_reconstruction_axis_mismatch",
+      "keypoint_cloud_axis_conflict"
+    ],
+    "axis_angle_deg": 14.321336395335207,
+    "perception_axis": [
+      0.21143284937659673,
+      -0.23758288767209385,
+      0.9480772762227153
+    ]
+  },
+  "grasp_decision": {
+    "harvest_run_id": "harvest_20260828T134018_874301_s2",
+    "target_id": "target_4",
+    "allowed": false,
+    "reason": "keypoint_cloud_axis_conflict",
+    "axis_angle_deg": 14.321336395335207,
+    "diagnostic_axis_mismatch": false,
+    "failure_code": 3
+  },
+  "recorded_at": "2026-08-28T05:40:30.067491+00:00"
+}

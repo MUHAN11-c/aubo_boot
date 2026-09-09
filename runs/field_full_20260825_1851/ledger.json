@@ -1,0 +1,52 @@
+{
+  "claimed": [
+    "target_0",
+    "target_1"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_0",
+      "outcome": 1,
+      "reason": "observe_failed: 达到扫描上限仍未收敛（有效视点 1/1）: insufficient_angular_baseline",
+      "quality_score": 0.0,
+      "elapsed_s": 4.617,
+      "failure_code": "observe_failed",
+      "stage_names": [
+        "prepare",
+        "observe"
+      ],
+      "stage_durations": [
+        0.0,
+        4.421
+      ]
+    },
+    {
+      "target_id": "target_1",
+      "outcome": 0,
+      "reason": "行为树完成主动视觉、MTC 抓取和撤离; pending_m8_unload_pose",
+      "quality_score": 0.0,
+      "elapsed_s": 24.431,
+      "stage_names": [
+        "prepare",
+        "observe",
+        "finalize",
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.0,
+        3.95,
+        0.0,
+        0.361,
+        15.52,
+        0.0,
+        4.485
+      ],
+      "build_view_count": 2,
+      "build_status": "局部重建完成：2 视角，4940 点（少于推荐 5 视角）；重叠 mean=7.4mm p95=15.6mm；TSDF 1031 点 / mesh 2284 顶点（累计积分 0.01s）；refit ACCEPT（cylinder，rmse 1.8mm，inlier 0.39）",
+      "build_duration_s": 4.014
+    }
+  ]
+}

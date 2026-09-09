@@ -1,0 +1,45 @@
+Waiting for an action server to become available...
+Sending goal:
+     request_id: field_pregrasp_20260909_1437
+scene_key: lab
+profile_id: ''
+intent: 0
+selection_mode: 0
+target_ids: []
+
+Goal accepted with ID: 98bf05d5b9894c85b1ff74f27e7e75a6
+
+Result:
+    success: false
+termination_reason: no_targets_succeeded
+summary:
+  run_id: field_pregrasp_20260909_1437
+  discovered: 2
+  attempted: 2
+  succeeded: 0
+  skipped_quality: 0
+  skipped_unreachable: 2
+  failed: 0
+  canceled: 0
+  elapsed:
+    sec: 80
+    nanosec: 320814231
+  outcomes:
+  - target_id: target_0
+    outcome: 2
+    reason: 'skipped_unreachable: 到预抓取失败: 直线穿预抓取球且无法 CIRC，不改 PTP'
+    quality_score: 0.0
+    elapsed:
+      sec: 19
+      nanosec: 13260844
+  - target_id: target_1
+    outcome: 2
+    reason: 'skipped_unreachable: 到预抓取失败: MTC planning failed: Failing stage(s):
+
+      lin to on-axis pregrasp (0/1)'
+    quality_score: 0.0
+    elapsed:
+      sec: 22
+      nanosec: 608421719
+
+Goal finished with status: SUCCEEDED

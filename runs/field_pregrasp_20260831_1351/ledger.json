@@ -1,0 +1,49 @@
+{
+  "claimed": [
+    "target_0",
+    "target_1"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_0",
+      "outcome": 2,
+      "reason": "skipped_unreachable: 到预抓取失败: MTC short-path guard rejected: 预计时长 61.9971s > 20s",
+      "quality_score": 0.0,
+      "elapsed_s": 13.513,
+      "failure_code": "skipped_unreachable",
+      "stage_names": [
+        "prepare",
+        "observe",
+        "finalize",
+        "reconfirm",
+        "approach_insert"
+      ],
+      "stage_durations": [
+        0.0,
+        11.844,
+        0.0,
+        0.256,
+        0.208
+      ],
+      "build_view_count": 3,
+      "build_status": "局部重建完成：5 帧，35388 点；重叠 mean=2.4mm p95=8.7mm；TSDF 2002 点 / mesh 3533 顶点（累计积分 0.02s）；refit ACCEPT（袋模型 3 视）",
+      "build_duration_s": 12.907
+    },
+    {
+      "target_id": "target_1",
+      "outcome": 1,
+      "reason": "observe_failed: 观察预算收口但重建未收敛: insufficient_angular_baseline",
+      "quality_score": 0.0,
+      "elapsed_s": 8.622,
+      "failure_code": "observe_failed",
+      "stage_names": [
+        "prepare",
+        "observe"
+      ],
+      "stage_durations": [
+        0.0,
+        8.494
+      ]
+    }
+  ]
+}

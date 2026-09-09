@@ -1,0 +1,89 @@
+{
+  "source": "reconstruction",
+  "event": "reconstruction_finalized",
+  "target_id": "target_1",
+  "captured_views": 2,
+  "pose_count": 2,
+  "refined": {
+    "ok": true,
+    "kind": "cylinder",
+    "status": 0,
+    "center": [
+      0.2684218999762248,
+      -0.610763889723497,
+      0.5959530131181053
+    ],
+    "axis": [
+      0.24312829052800947,
+      0.30461519182342817,
+      0.9209224827613364
+    ],
+    "bottom": [
+      0.25507792218614894,
+      -0.627482546138939,
+      0.545408631262498
+    ],
+    "neck": [
+      0.2817658777663006,
+      -0.5940452333080553,
+      0.6464973949737127
+    ],
+    "diameter": 0.11075350857409394,
+    "span_m": 0.10976902573613533,
+    "rmse": 0.015931365162653283,
+    "inlier_ratio": 1.0,
+    "n_points": 1620,
+    "flags": [],
+    "axis_angle_deg": 8.70546553595396,
+    "axis_conflict_deg": 2.8331675755275074,
+    "envelope_conditioned": true,
+    "envelope_reason": "ok",
+    "perception_axis": [
+      0.16418379867753685,
+      0.18423861295662955,
+      0.969071624673652
+    ]
+  },
+  "grasp_decision": {
+    "harvest_run_id": "harvest_20260831T170206_212048_s2",
+    "target_id": "target_1",
+    "allowed": false,
+    "geometry_valid": true,
+    "reason": "bag_d95_exceeds_tool",
+    "axis_angle_deg": 8.70546553595396,
+    "diagnostic_axis_mismatch": false,
+    "entry": [
+      0.23805894184918827,
+      -0.648805609566579,
+      0.4809440574692044
+    ],
+    "axis": [
+      0.24312829052800947,
+      0.30461519182342817,
+      0.9209224827613364
+    ],
+    "pregrasp": [
+      0.21374611279638733,
+      -0.6792671287489218,
+      0.3888518091930707
+    ],
+    "cut_pose": [
+      0.2817658777663006,
+      -0.5940452333080553,
+      0.6464973949737127
+    ],
+    "diameter_m": 0.11075350857409394,
+    "d95_m": 0.11075350857409394,
+    "travel_m": 0.17976902573613537,
+    "cut_travel_m": 0.17976902573613537,
+    "radial_margin_m": -0.046277406915464184,
+    "axial_margin_m": -0.02903140494569959,
+    "corridor_clear": false,
+    "rmse_m": 0.015931365162653283,
+    "inlier_ratio": 1.0,
+    "model_revision": "target_1:2",
+    "tool_profile_id": "hollow_cylinder_v1",
+    "failure_code": 12
+  },
+  "recorded_at": "2026-08-31T09:02:16.630471+00:00"
+}

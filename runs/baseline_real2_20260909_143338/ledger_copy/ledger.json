@@ -1,0 +1,58 @@
+{
+  "claimed": [
+    "target_0",
+    "target_1"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_0",
+      "outcome": 2,
+      "reason": "skipped_unreachable: 到预抓取失败: 直线穿预抓取球且无法 CIRC，不改 PTP",
+      "quality_score": 0.0,
+      "elapsed_s": 19.013,
+      "failure_code": "skipped_unreachable",
+      "stage_names": [
+        "prepare",
+        "observe",
+        "finalize",
+        "reconfirm",
+        "approach_insert"
+      ],
+      "stage_durations": [
+        0.0,
+        8.757,
+        0.0,
+        1.608,
+        7.624
+      ],
+      "build_view_count": 2,
+      "build_status": "局部重建完成：2 帧，8665 点（少于推荐 5 帧）；重叠 mean=5.4mm p95=11.7mm；TSDF 1467 点 / mesh 2589 顶点（累计积分 0.02s）；refit ACCEPT（袋模型 2 视）",
+      "build_duration_s": 9.601
+    },
+    {
+      "target_id": "target_1",
+      "outcome": 2,
+      "reason": "skipped_unreachable: 到预抓取失败: MTC planning failed: Failing stage(s):\nlin to on-axis pregrasp (0/1)",
+      "quality_score": 0.0,
+      "elapsed_s": 22.608,
+      "failure_code": "skipped_unreachable",
+      "stage_names": [
+        "prepare",
+        "observe",
+        "finalize",
+        "reconfirm",
+        "approach_insert"
+      ],
+      "stage_durations": [
+        0.0,
+        7.126,
+        0.0,
+        0.235,
+        3.547
+      ],
+      "build_view_count": 2,
+      "build_status": "局部重建完成：2 帧，8814 点（少于推荐 5 帧）；重叠 mean=3.7mm p95=8.2mm；TSDF 1631 点 / mesh 3210 顶点（累计积分 0.01s）；refit ACCEPT（袋模型 2 视）",
+      "build_duration_s": 18.804
+    }
+  ]
+}

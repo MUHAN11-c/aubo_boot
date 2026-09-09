@@ -1,0 +1,36 @@
+Waiting for an action server to become available...
+Sending goal:
+     request_id: field_pregrasp_20260909_1021
+scene_key: lab
+profile_id: ''
+intent: 0
+selection_mode: 0
+target_ids: []
+
+Goal accepted with ID: cce5264875fd4a01a644acc449805123
+
+Result:
+    success: false
+termination_reason: no_targets_succeeded
+summary:
+  run_id: field_pregrasp_20260909_1021
+  discovered: 2
+  attempted: 1
+  succeeded: 0
+  skipped_quality: 1
+  skipped_unreachable: 0
+  failed: 0
+  canceled: 0
+  elapsed:
+    sec: 206
+    nanosec: 223515107
+  outcomes:
+  - target_id: target_0
+    outcome: 1
+    reason: build_target_model rejected
+    quality_score: 0.0
+    elapsed:
+      sec: 180
+      nanosec: 199677780
+
+Goal finished with status: SUCCEEDED

@@ -1,0 +1,57 @@
+{
+  "claimed": [
+    "target_0",
+    "target_1",
+    "target_2"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_0",
+      "outcome": 1,
+      "reason": "observe_failed: 目标身份/可见性安全门失败: selected_target_changed",
+      "quality_score": 0.0,
+      "elapsed_s": 2.815,
+      "failure_code": "observe_failed",
+      "stage_names": [
+        "prepare",
+        "observe"
+      ],
+      "stage_durations": [
+        0.0,
+        2.643
+      ]
+    },
+    {
+      "target_id": "target_1",
+      "outcome": 1,
+      "reason": "observe_failed: 观察预算收口但重建未收敛: insufficient_angular_baseline",
+      "quality_score": 0.0,
+      "elapsed_s": 8.929,
+      "failure_code": "observe_failed",
+      "stage_names": [
+        "prepare",
+        "observe"
+      ],
+      "stage_durations": [
+        0.0,
+        8.69
+      ]
+    },
+    {
+      "target_id": "target_2",
+      "outcome": 1,
+      "reason": "observe_failed: 目标身份/可见性安全门失败: selected_target_stale",
+      "quality_score": 0.0,
+      "elapsed_s": 19.227,
+      "failure_code": "observe_failed",
+      "stage_names": [
+        "prepare",
+        "observe"
+      ],
+      "stage_durations": [
+        0.0,
+        19.177
+      ]
+    }
+  ]
+}

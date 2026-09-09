@@ -1,0 +1,47 @@
+Waiting for an action server to become available...
+Sending goal:
+     request_id: field_pregrasp_20260909_1527
+scene_key: lab
+profile_id: ''
+intent: 0
+selection_mode: 0
+target_ids: []
+
+Goal accepted with ID: 8481333ec9a346a1978ebe3e67f22e9c
+
+Result:
+    success: false
+termination_reason: no_targets_succeeded
+summary:
+  run_id: field_pregrasp_20260909_1527
+  discovered: 3
+  attempted: 2
+  succeeded: 0
+  skipped_quality: 0
+  skipped_unreachable: 2
+  failed: 0
+  canceled: 0
+  elapsed:
+    sec: 70
+    nanosec: 368468930
+  outcomes:
+  - target_id: target_1
+    outcome: 2
+    reason: 'skipped_unreachable: 到预抓取失败: MTC planning failed: Failing stage(s):
+
+      cartesian corridor 2/5 (0/1)'
+    quality_score: 0.0
+    elapsed:
+      sec: 15
+      nanosec: 823942362
+  - target_id: target_2
+    outcome: 2
+    reason: 'skipped_unreachable: 到预抓取失败: MTC planning failed: Failing stage(s):
+
+      cartesian corridor 2/4 (0/1)'
+    quality_score: 0.0
+    elapsed:
+      sec: 13
+      nanosec: 219662108
+
+Goal finished with status: SUCCEEDED

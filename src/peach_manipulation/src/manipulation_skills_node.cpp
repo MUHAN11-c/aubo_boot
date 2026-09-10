@@ -24,6 +24,8 @@
 #include <vector>
 #include <moveit/move_group_interface/move_group_interface.hpp>
 #include <moveit/robot_state/cartesian_interpolator.hpp>
+#include <moveit/collision_detection/collision_matrix.hpp>
+#include <moveit/collision_detection_fcl/collision_env_fcl.hpp>
 #include "peach_manipulation/eigen_conversions.hpp"
 
 namespace peach_manipulation
@@ -433,6 +435,10 @@ void ManipulationSkillsNode::rebuildGraspTask()
     moveit.mtc_approach_transit_max_chord_deviation_m;
   task_config.staging_max_recede_m =
     moveit.mtc_approach_transit_max_recede_m;
+  task_config.approach_keepout_radius_m =
+    moveit.mtc_approach_keepout_radius_m;
+  task_config.approach_keepout_axial_m =
+    moveit.mtc_approach_keepout_axial_m;
   task_config.approach_cartesian_max_distance_m =
     moveit.mtc_approach_cartesian_max_distance_m;
   task_config.approach_along_axis_m = moveit.mtc_approach_along_axis_m;
@@ -442,28 +448,43 @@ void ManipulationSkillsNode::rebuildGraspTask()
   // 笛卡尔接近当目标姿态，不用关节目标下发 PTP（1740 跨构型绕行）。
   task_config.select_goal_joints =
     [this](const Eigen::Isometry3d & keep_roll_pose)
-    -> std::optional<GraspTaskConfig::StagingCandidate>
+    -> std::vector<GraspTaskConfig::StagingCandidate>
     {
+      // 12 滚转 × 3 种子（当前 + 2 随机）；解须过关节限位与自碰
+      // （camera_body×wrist1/foreArm 的构型直接拒，不再交给 PTP 规划
+      // 失败兜底）；按与当前构型的关节距离升序取最近 3 个候选。
       if (!move_group_) {
-        return std::nullopt;
+        return {};
       }
       const auto base = move_group_->getCurrentState();
       const auto * group = base->getJointModelGroup(planning_group_);
       if (group == nullptr) {
-        return std::nullopt;
+        return {};
       }
       const auto names = group->getActiveJointModelNames();
       std::vector<double> current;
       base->copyJointGroupPositions(group, current);
-      GraspTaskConfig::StagingCandidate best;
-      double best_dist = std::numeric_limits<double>::infinity();
+      // 自碰过滤：新 MoveIt（2.14+）的碰撞检查在 CollisionEnv，RobotState
+      // 不再自带；SRDF ACM 与规划同款忽略相邻连杆。env+ACM 每次调用
+      // 构造一次，对全部候选复用。
+      auto collision_env =
+        std::make_shared<collision_detection::CollisionEnvFCL>(
+          base->getRobotModel());
+      const collision_detection::AllowedCollisionMatrix collision_acm(
+        *base->getRobotModel()->getSRDF());
+      struct Scored
+      {
+        double dist_sq;
+        GraspTaskConfig::StagingCandidate candidate;
+      };
+      std::vector<Scored> scored;
       for (int roll_idx = 0; roll_idx < 12; ++roll_idx) {
         Eigen::Isometry3d pose = keep_roll_pose;
         if (roll_idx > 0) {
           pose.linear() = keep_roll_pose.linear() *
             Eigen::AngleAxisd(roll_idx * M_PI / 6.0, Eigen::Vector3d::UnitZ());
         }
-        for (int attempt = 0; attempt < 2; ++attempt) {
+        for (int attempt = 0; attempt < 3; ++attempt) {
           moveit::core::RobotState probe = *base;
           if (attempt > 0) {
             probe.setToRandomPositions(group);
@@ -475,6 +496,13 @@ void ManipulationSkillsNode::rebuildGraspTask()
           if (!probe.satisfiesBounds(group)) {
             continue;
           }
+          collision_detection::CollisionRequest collision_request;
+          collision_detection::CollisionResult collision_result;
+          collision_env->checkSelfCollision(
+            collision_request, collision_result, probe, collision_acm);
+          if (collision_result.collision) {
+            continue;
+          }
           std::vector<double> sol;
           probe.copyJointGroupPositions(group, sol);
           double dist_sq = 0.0;
@@ -482,20 +510,26 @@ void ManipulationSkillsNode::rebuildGraspTask()
             const double d = sol[i] - current[i];
             dist_sq += d * d;
           }
-          if (dist_sq < best_dist) {
-            best_dist = dist_sq;
-            best.pose = pose;
-            best.joints.clear();
-            for (std::size_t i = 0; i < names.size(); ++i) {
-              best.joints[names[i]] = sol[i];
-            }
+          GraspTaskConfig::StagingCandidate candidate;
+          candidate.pose = pose;
+          for (std::size_t i = 0; i < names.size(); ++i) {
+            candidate.joints[names[i]] = sol[i];
           }
+          scored.push_back({dist_sq, candidate});
         }
       }
-      if (best.joints.empty()) {
-        return std::nullopt;
+      std::sort(
+        scored.begin(), scored.end(),
+        [](const Scored & a, const Scored & b) {return a.dist_sq < b.dist_sq;});
+      std::vector<GraspTaskConfig::StagingCandidate> out;
+      out.reserve(std::min<std::size_t>(scored.size(), 3U));
+      for (const auto & item : scored) {
+        if (out.size() >= 3U) {
+          break;
+        }
+        out.push_back(item.candidate);
       }
-      return best;
+      return out;
     };
   // 选果预检原子操作：当前种子 + 固定 50ms 单次可行性（早退优先，
   // 整链须在 executor reach 等待窗内完成）。

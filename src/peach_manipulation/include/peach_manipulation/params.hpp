@@ -60,12 +60,14 @@ struct Params
     double mtc_approach_max_duration_s = 0.0;
     double mtc_approach_max_total_joint_travel_rad = 12.0;
     double mtc_approach_max_single_joint_travel_rad = 6.1;
-    double mtc_approach_max_detour_ratio = 2.2;
-    double mtc_approach_max_chord_deviation_m = 0.25;
-    double mtc_approach_max_recede_m = 0.08;
-    double mtc_approach_transit_max_detour_ratio = 2.5;
-    double mtc_approach_transit_max_chord_deviation_m = 0.40;
-    double mtc_approach_transit_max_recede_m = 0.15;
+    double mtc_approach_max_detour_ratio = 0.0;
+    double mtc_approach_max_chord_deviation_m = 0.0;
+    double mtc_approach_max_recede_m = 0.0;
+    double mtc_approach_transit_max_detour_ratio = 0.0;
+    double mtc_approach_transit_max_chord_deviation_m = 0.0;
+    double mtc_approach_transit_max_recede_m = 0.0;
+    double mtc_approach_keepout_radius_m = 0.12;
+    double mtc_approach_keepout_axial_m = 0.12;
     double mtc_approach_cartesian_max_distance_m = 0.8;
     double mtc_approach_along_axis_m = 0.0;
     double approach_staging_standoff_m = 0.1;
@@ -218,13 +220,15 @@ private:
     declare_one<double>("moveit.mtc_approach_max_duration_s", 0.0);
     declare_one<double>("moveit.mtc_approach_max_total_joint_travel_rad", 12.0);
     declare_one<double>("moveit.mtc_approach_max_single_joint_travel_rad", 6.1);
-    declare_one<double>("moveit.mtc_approach_max_detour_ratio", 2.2);
-    declare_one<double>("moveit.mtc_approach_max_chord_deviation_m", 0.25);
-    declare_one<double>("moveit.mtc_approach_max_recede_m", 0.08);
-    declare_one<double>("moveit.mtc_approach_transit_max_detour_ratio", 2.5);
+    declare_one<double>("moveit.mtc_approach_max_detour_ratio", 0.0);
+    declare_one<double>("moveit.mtc_approach_max_chord_deviation_m", 0.0);
+    declare_one<double>("moveit.mtc_approach_max_recede_m", 0.0);
+    declare_one<double>("moveit.mtc_approach_transit_max_detour_ratio", 0.0);
     declare_one<double>(
-      "moveit.mtc_approach_transit_max_chord_deviation_m", 0.40);
-    declare_one<double>("moveit.mtc_approach_transit_max_recede_m", 0.15);
+      "moveit.mtc_approach_transit_max_chord_deviation_m", 0.0);
+    declare_one<double>("moveit.mtc_approach_transit_max_recede_m", 0.0);
+    declare_one<double>("moveit.mtc_approach_keepout_radius_m", 0.12);
+    declare_one<double>("moveit.mtc_approach_keepout_axial_m", 0.12);
     declare_one<double>("moveit.mtc_approach_cartesian_max_distance_m", 0.8);
     declare_one<double>("moveit.mtc_approach_along_axis_m", 0.0);
     declare_one<double>("moveit.approach_staging_standoff_m", 0.1);
@@ -367,6 +371,16 @@ private:
     } else if (name == "moveit.mtc_approach_max_recede_m") {
       const double v = param.as_double();
       if (!(v >= 0.0)) {reason = "moveit.mtc_approach_max_recede_m: 须 >= 0.0"; return false;}
+    } else if (name == "moveit.mtc_approach_keepout_radius_m") {
+      const double v = param.as_double();
+      if (!(v >= 0.0)) {
+        reason = "moveit.mtc_approach_keepout_radius_m: 须 >= 0.0"; return false;
+      }
+    } else if (name == "moveit.mtc_approach_keepout_axial_m") {
+      const double v = param.as_double();
+      if (!(v >= 0.0)) {
+        reason = "moveit.mtc_approach_keepout_axial_m: 须 >= 0.0"; return false;
+      }
     } else if (name == "moveit.mtc_approach_cartesian_max_distance_m") {
       const double v = param.as_double();
       if (!(v > 0.0)) {
@@ -603,6 +617,10 @@ private:
         param.as_double();
     } else if (name == "moveit.mtc_approach_transit_max_recede_m") {
       params_.moveit.mtc_approach_transit_max_recede_m = param.as_double();
+    } else if (name == "moveit.mtc_approach_keepout_radius_m") {
+      params_.moveit.mtc_approach_keepout_radius_m = param.as_double();
+    } else if (name == "moveit.mtc_approach_keepout_axial_m") {
+      params_.moveit.mtc_approach_keepout_axial_m = param.as_double();
     } else if (name == "moveit.mtc_approach_cartesian_max_distance_m") {
       params_.moveit.mtc_approach_cartesian_max_distance_m = param.as_double();
     } else if (name == "moveit.mtc_approach_along_axis_m") {

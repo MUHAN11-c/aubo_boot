@@ -1,11 +1,12 @@
-// 功能：节点侧运动入口与 MoveIt 运动接口实现（拍照位 PTP、观察 LIN、预览接近/
-// 接触服务、tip/camera 规划执行、TF 查询）。真实下发前过注入的安全门
+// 功能：节点侧运动入口与 MoveIt 运动接口实现（拍照位原路返程或 PTP、观察 LIN、
+// 预览接近/接触服务、tip/camera 规划执行、TF 查询）。真实下发前过注入的安全门
 // （TRANSIT 级底座；CONTACT/TOOL 级在阶段函数与 GraspTask 门加查）。
 #include "peach_manipulation/motion.hpp"
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstddef>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -14,6 +15,7 @@
 #include <utility>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <moveit/robot_state/conversions.hpp>
 #include <moveit/robot_state/robot_state.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
 #include <tf2/exceptions.h>
@@ -461,6 +463,32 @@ bool MoveItMotionInterface::goToPhotoPose(
     message = "拍照位姿安全门未通过: " + reason;
     return false;
   }
+  if (atNamedTarget(named_target, message)) {
+    message = "已在命名状态";
+    return true;
+  }
+  // 当前关节在上一趟「拍照位→预抓取」终点、且命名目标就是该轨迹起点
+  // （拍照位，不是 harvest_stow）时，倒放接近轨迹。返程行程等于已过门的
+  // 接近，不再走 transit 6 / 2.5。对不上则仍新规划 PTP。
+  if (execute && last_photo_approach_ &&
+    last_photo_approach_->points.size() >= 2U)
+  {
+    const auto current = move_group_->getCurrentState();
+    if (current &&
+      jointsMatchTrajectoryPoint(
+        *current, last_photo_approach_->joint_names,
+        last_photo_approach_->points.back().positions) &&
+      namedTargetMatchesPoint(
+        named_target, last_photo_approach_->joint_names,
+        last_photo_approach_->points.front().positions))
+    {
+      if (reverseLastApproachToPhoto(named_target, message)) {
+        last_photo_approach_.reset();
+        return true;
+      }
+      return false;
+    }
+  }
   move_group_->setStartStateToCurrentState();
   if (!move_group_->setNamedTarget(named_target)) {
     message = "SRDF 中不存在命名状态: " + named_target;
@@ -520,6 +548,103 @@ bool MoveItMotionInterface::goToPhotoPose(
     return false;
   }
   message = "已到达全局拍照位姿";
+  return true;
+}
+
+void MoveItMotionInterface::rememberPhotoApproach(
+  trajectory_msgs::msg::JointTrajectory trajectory)
+{
+  if (trajectory.joint_names.empty() || trajectory.points.size() < 2U) {
+    last_photo_approach_.reset();
+    return;
+  }
+  last_photo_approach_ = std::move(trajectory);
+}
+
+void MoveItMotionInterface::clearPhotoApproach()
+{
+  last_photo_approach_.reset();
+}
+
+bool MoveItMotionInterface::jointsMatchTrajectoryPoint(
+  const moveit::core::RobotState & state,
+  const std::vector<std::string> & joint_names,
+  const std::vector<double> & positions) const
+{
+  if (joint_names.empty() || joint_names.size() != positions.size()) {
+    return false;
+  }
+  for (std::size_t i = 0; i < joint_names.size(); ++i) {
+    const double delta = std::abs(
+      state.getVariablePosition(joint_names[i]) - positions[i]);
+    if (!std::isfinite(delta) ||
+      delta > config_.photo_pose_joint_tolerance_rad)
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool MoveItMotionInterface::namedTargetMatchesPoint(
+  const std::string & named_target,
+  const std::vector<std::string> & joint_names,
+  const std::vector<double> & positions) const
+{
+  if (move_group_ == nullptr) {
+    return false;
+  }
+  const auto robot_model = move_group_->getRobotModel();
+  const auto * group = robot_model->getJointModelGroup(move_group_->getName());
+  if (group == nullptr) {
+    return false;
+  }
+  moveit::core::RobotState named(robot_model);
+  named.setToDefaultValues();
+  if (!named.setToDefaultValues(group, named_target)) {
+    return false;
+  }
+  return jointsMatchTrajectoryPoint(named, joint_names, positions);
+}
+
+bool MoveItMotionInterface::reverseLastApproachToPhoto(
+  const std::string & named_target, std::string & message)
+{
+  if (!last_photo_approach_ || last_photo_approach_->points.size() < 2U) {
+    message = "拍照位姿原路返程失败: 无接近轨迹";
+    return false;
+  }
+  auto reversed = reverseJointTrajectory(*last_photo_approach_);
+  if (reversed.points.size() < 2U) {
+    message = "拍照位姿原路返程失败: 倒放轨迹无效";
+    return false;
+  }
+  std::string reason;
+  if (!safety_gate_(reason)) {
+    message = "拍照位姿原路返程执行前安全门失败: " + reason;
+    return false;
+  }
+  RCLCPP_INFO(
+    logger_,
+    "拍照位姿沿接近轨迹原路返程: points=%zu duration=%.3fs",
+    reversed.points.size(),
+    durationToSec(reversed.points.back().time_from_start));
+  moveit::planning_interface::MoveGroupInterface::Plan plan;
+  const auto current = move_group_->getCurrentState();
+  if (current) {
+    moveit::core::robotStateToRobotStateMsg(*current, plan.start_state);
+  }
+  plan.trajectory.joint_trajectory = std::move(reversed);
+  const auto result = move_group_->execute(plan);
+  if (result != moveit::core::MoveItErrorCode::SUCCESS) {
+    message = "拍照位姿原路返程执行失败: " +
+      moveit::core::errorCodeToString(result);
+    return false;
+  }
+  if (!atNamedTarget(named_target, message)) {
+    return false;
+  }
+  message = "已沿接近轨迹原路返回拍照位";
   return true;
 }
 

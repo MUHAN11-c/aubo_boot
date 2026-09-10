@@ -10,7 +10,14 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <vector>
 #include <rclcpp/rclcpp.hpp>
+#include <trajectory_msgs/msg/joint_trajectory.hpp>
+
+namespace moveit::core
+{
+class RobotState;
+}  // namespace moveit::core
 
 namespace moveit::planning_interface
 {
@@ -84,17 +91,29 @@ public:
     const Eigen::Isometry3d & camera_pose, const std::string & planner_id,
     bool execute, const std::string & label, bool allow_fallback);
 
-  // 移动到 SRDF 命名状态（拍照位姿）：先点对点管线规划，失败回退自由空间；
-  // execute=false 时仅规划，仍核当前关节（干跑须已在拍照位）。真实下发前必须
-  // 复核硬件安全门（I5）。成功出口一律 atNamedTarget。
-  // message 始终写入面向操作员的结果描述（成功/失败原因）。
+  // 移动到 SRDF 命名状态（拍照位姿）：有「拍照位→预抓取」接近轨迹且当前
+  // 关节在其终点时，原路返程（不新规划 PTP、不过 transit 6 rad——返程行程
+  // 等于已过门的接近）。否则先 Pilz PTP，失败回退 OMPL。execute=false 时
+  // 仅规划，仍核当前关节。真实下发前必须复核硬件安全门。成功出口 atNamedTarget。
   bool goToPhotoPose(
     const std::string & named_target, bool execute, std::string & message);
 
+  // 记录刚执行成功、且从拍照位出发的接近轨迹，供下次回拍照位原路返程。
+  void rememberPhotoApproach(trajectory_msgs::msg::JointTrajectory trajectory);
+  void clearPhotoApproach();
+
 private:
-  // 当前关节相对 SRDF 命名状态：每轴 |Δq| 与 |qdot| 均在配置上限内。
-  // 失败时 message 以 photo_pose_mismatch 开头。
   bool atNamedTarget(
+    const std::string & named_target, std::string & message);
+  bool jointsMatchTrajectoryPoint(
+    const moveit::core::RobotState & state,
+    const std::vector<std::string> & joint_names,
+    const std::vector<double> & positions) const;
+  bool namedTargetMatchesPoint(
+    const std::string & named_target,
+    const std::vector<std::string> & joint_names,
+    const std::vector<double> & positions) const;
+  bool reverseLastApproachToPhoto(
     const std::string & named_target, std::string & message);
   moveit::planning_interface::MoveGroupInterface * move_group_;
   tf2_ros::Buffer * tf_buffer_;
@@ -103,6 +122,7 @@ private:
   MoveItMotionConfig config_;
   std::function<bool(std::string &)> safety_gate_;
   std::function<void(const std::string &)> safety_block_hook_;
+  std::optional<trajectory_msgs::msg::JointTrajectory> last_photo_approach_;
 };
 
 }  // namespace peach_manipulation

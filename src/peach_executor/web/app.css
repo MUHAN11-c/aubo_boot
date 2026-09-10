@@ -79,7 +79,18 @@ b, strong { font-variant-numeric: tabular-nums; }
 .traj-hint { color: var(--muted); font-size: 12px; margin: 6px 0 10px; }
 .traj-hint code { font-family: ui-monospace, monospace; }
 
-/* ---------- 区一：就绪 ---------- */
+/* ---------- 节点条 ---------- */
+.status-strip {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+.hw-panel { margin-top: 12px; }
+.hw-flags, .hw-pose { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.hw-pose span {
+  font-size: 12px; color: var(--muted); background: #12181f;
+  border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px;
+}
+.hw-pose span b { color: var(--text); margin-left: 4px; font-family: ui-monospace, monospace; }
 .policy-badges { display: flex; flex-wrap: wrap; gap: 8px; }
 .badge {
   font-size: 12px; border-radius: 999px; padding: 4px 12px;
@@ -88,10 +99,6 @@ b, strong { font-variant-numeric: tabular-nums; }
 .badge.on { color: #0c1116; background: var(--ok); border-color: var(--ok); font-weight: 600; }
 .badge.off { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
 
-.nodes-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 10px; margin: 4px 0 10px;
-}
 .node-card {
   background: var(--panel-soft); border: 1px solid var(--line);
   border-radius: 8px; padding: 10px 12px;
@@ -115,19 +122,6 @@ b, strong { font-variant-numeric: tabular-nums; }
 .state-pill.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
 .state-pill.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
 .state-pill.err { color: var(--err); border-color: color-mix(in srgb, var(--err) 45%, transparent); }
-
-.accept-gates { display: flex; flex-wrap: wrap; gap: 8px; }
-.gate {
-  font-size: 12px; border-radius: 8px; padding: 5px 12px;
-  background: #12181f; border: 1px solid var(--line); color: var(--muted);
-}
-.gate b { color: var(--text); margin-left: 6px; }
-.gate.ok { border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
-.gate.ok b { color: var(--ok); }
-.gate.warn { border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
-.gate.warn b { color: var(--warn); }
-.gate.err { border-color: color-mix(in srgb, var(--err) 55%, transparent); }
-.gate.err b { color: var(--err); }
 
 /* ---------- 区二：批次流程 ---------- */
 .flow-panel { display: grid; grid-template-columns: minmax(0, 5fr) minmax(300px, 2fr); gap: 18px; }
@@ -288,6 +282,7 @@ b, strong { font-variant-numeric: tabular-nums; }
 .target-table td { padding: 6px 8px; border-bottom: 1px solid #202a33; font-variant-numeric: tabular-nums; }
 .target-table tr.selected td { background: #1d2835; }
 .target-table tr.harvested td { opacity: 0.55; }
+.target-table tr.alert-row td { color: var(--err); }
 .status-chip {
   font-size: 11px; border-radius: 999px; padding: 2px 9px;
   background: #12181f; border: 1px solid var(--line);
@@ -304,6 +299,7 @@ b, strong { font-variant-numeric: tabular-nums; }
 
 /* ---------- 手动调试 ---------- */
 .debug-banner { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+.debug-banner .traj-hint { flex: 1 1 100%; margin: 0; }
 .debug-banner h2 { margin: 2px 0 0; font-size: 17px; }
 .debug-gates { display: flex; flex-wrap: wrap; gap: 8px; }
 .debug-gate {

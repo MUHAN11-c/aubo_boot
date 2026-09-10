@@ -52,9 +52,16 @@ python3 scripts/replay_field_pregrasp.py --case 1740 --planner ptp   # OMPL/PTP 
 # 过护栏后再下发 mock 控制器：加 --execute（不动真机）
 
 # mock 全链路回放（09-09 现场逐目标坐标驱动真实技能节点 PREGRASP_ONLY；
-# 注入感知/重建话题 + robot_status + 光学系 TF，逐用例实测 TCP 绕行）
+# 注入感知/重建话题 + robot_status + 光学系 TF。回拍照位走周期内
+# goToPhotoPose（接近原路返程，否则 PTP），与正式接触段同一 C++ 函数，脚本不直连 JTC）
 python3 scripts/sim_field_targets.py --list
 python3 scripts/sim_field_targets.py --case all
+# 现场正常坐标包络内随机位姿（感知上半球轴、弦长≤0.80 m、排除 |entry|≈2.1 m 界外）
+python3 scripts/sim_field_targets.py --random 16 --seed 20260910
+# 大样本 + 仿真提速（速度/加速度缩放设 1.0，仅 mock；100 例约 10 min）
+python3 scripts/sim_field_targets.py --random 100 --seed 20260910 --velocity 1.0
+# 接近失败根因探针：G/预抓取/staging 逐滚转 IK + 直弦 fraction（只读诊断）
+python3 scripts/sim_approach_probe.py --random 100 --seed 20260910
 # 实时轨迹 watchdog：执行中 FK 监测，超绕行门即 ~/cancel_cycle 停轨留档
 python3 scripts/trajectory_watchdog.py            # 转移级门 2.5/0.40/0.15
 python3 scripts/trajectory_watchdog.py --ratio 2.2 --dev 0.25 --recede 0.08
@@ -74,25 +81,21 @@ colcon test --packages-select ivg_interfaces ivg_pose_estimation ivg_graspnet
 ./aubo_py3.12/bin/python -m pytest src/ivg_pose_estimation/ivg_pose_estimation/test/test_web_app.py
 ```
 
-监控：`http://127.0.0.1:8090`。参数 `peach_executor/config/observability.yaml`。`/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipulation` / `task_executor` / `robot` / `metrics` / `record` / `params` / `job` / `debug`。`/api/trajectory` 为末端点列（对照预抓取/入口/弦）。首屏作业票须能看出当前果实停在哪一环、抓取档是否关闭、`GraspDecision.allowed` 与 base_link 坐标；其下三维能看出路径相对弦是否绕行（绕行比、Δz）。默认不上电、不派发运动、不打工具 IO、不自动开批。
+监控：`http://127.0.0.1:8090`。参数 `peach_executor/config/observability.yaml`。过程页：作业票（发现→完成）、事件、落盘目录、TCP 俯视（绕行比、Δz、对照预抓取/入口/弦）、本场目标、柜侧硬件（TCP xyz/rpy、六轴角/速度、电流 SDK 原单位、温度、跟随误差）。`/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipulation` / `task_executor` / `robot`（`status` / `tcp` / `joints`）/ `metrics` / `record` / `params` / `job` / `debug`。默认不上电、不派发运动、不打工具 IO、不自动开批。
 
-### Web 手动调试（决策 0013）
+### Web 单步调试（决策 0018）
 
-监控页 Tab「手动调试」＝向**既有**动作/服务发调试请求的纯客户端：生命周期（ManageNodes）、调度（RunHarvest/ControlTask）、感知（BeginScene）、重建（Build/finalize/save_session/query）、技能（SurveyScene/CheckReachability/go_to_photo_pose/preview/ack/arm/ExecuteTarget 各档位）。**三重门默认全关**：`debug.enabled=false`（POST 一律 503）→ `debug.token=""`（空=一律 401）→ 运动类另需 `debug.motion_enabled=true`（false=423）。每次操作（含被拒，含操作面未启用的 503）审计 `runs/debug_audit/<日期>.jsonl`（`audit_enabled` 默认开）。
+Tab「调试」＝向**既有**动作/服务发请求的纯客户端，页面只留本管线：BeginScene、SurveyScene、Build/finalize、ExecuteTarget、去拍照位、RunHarvest、CANCEL_NOW。无令牌。`debug.enabled` 默认 true（false 时 POST 503）。运动类另需 `debug.motion_enabled=true`（false=423）。审计 `runs/debug_audit/<日期>.jsonl`。
 
-启用（真机手调预抓取方向定位等场景）：
+动臂（真机手调预抓取等）：
 
 ```bash
-# 1) config/observability.yaml：debug.enabled: true、debug.token: <自定义>；
-#    真要动臂再加 debug.motion_enabled: true（技能侧 execution/grasp/tool
-#    三重使能仍须另行人工打开，ExecutionAuthority 照常复核）
-# 2) 重新 launch（观测节点随整栈，或单起）：
-ros2 run peach_executor peach_observability --ros-args \
-  --params-file <含 debug 段的 yaml>
-# 3) 浏览器 8090 → 手动调试 Tab → 填令牌 → 「测试令牌」应提示可用
+# yaml：debug.motion_enabled: true
+# （技能侧 execution/grasp/tool 仍须另行打开，ExecutionAuthority 照常复核）
+# 浏览器 8090 → 调试 Tab
 ```
 
-门控验收口径（curl 矩阵，`X-Debug-Token` 头）：无/错令牌 `401`；令牌对 + `motion_enabled=false` 时 RunHarvest 非 SURVEY_ONLY、Survey、ExecuteTarget 非 PREVIEW（含 OBSERVE_ONLY）、go_to_photo_pose、arm、ControlTask 的 RESUME/EXIT_MAINTENANCE 一律 `423`；PREVIEW/BeginScene/save_session/生命周期/只规划 Trigger 不受运动门拦；未知端点 `404`；未知 mode/intent/command `400`；非调试路径 `404`。Web 只是又一客户端：**绕不过** `ExecutionAuthority`、调度使能与重建门；真机运动授权流程不变。
+门控口径：无令牌、无 401。`motion_enabled=false` 时 Survey、ExecuteTarget 非 PREVIEW（含 OBSERVE_ONLY）、go_to_photo_pose、非 SURVEY_ONLY 的 RunHarvest 一律 `423`；PREVIEW/BeginScene/finalize 不拦。未知端点 `404`。Web **绕不过** `ExecutionAuthority`、调度使能与重建门。
 
 | 参数 | 默认 | 说明 |
 |------|------|------|
@@ -240,7 +243,7 @@ Fixed Frame 用 **`base_link`**，不要用未接上的 `world`。改显示配�
 - 观察：覆盖达标或 `maximum_moves` 用尽才停（不做完位姿序列不收口）；`time_budget_s` 只进日志，不按移动+等帧 EMA 预测收口。拍照位 + 当前位采帧；下一视点沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m，~0.7 m 处一跨过 8°），只 LIN，失败换候选（绕行看 4.0 rad / 单轴 1.5 rad，不按时长）。到位后等新机位再判覆盖，同机位连帧不算。时长随 ~2.5 FPS 等帧浮动。
 - 机位数 `view_count >= capture.min_views`（默认 2），基线/深度/RMSE/内点率过门。`captured_views` 是积分帧数。
 - 无精化不得宣称方向准确。
-- MTC 接近、直线套入、同轴撤离均须 goal-hold。预抓取先 PTP 回拍照位，最近距离三层：① LIN/CIRC（绕袋轴 ±30° 采样刀口；直线不穿预抓取球则 LIN，穿球则 CIRC，未齐先 LIN 原地对齐工具 Z；已齐 LIN 段加相对目标 20° 姿态约束）→ ② **STOMP 轨迹优化**（直弦关节插值为种子，最近构型关节目标，自碰/IK 边界处最小局部外凸；直弦物理不可行时的最近距离主路径）→ ③ staging PTP 兜底（非最短，仅直线真不可达）。LIN/CIRC 失败不改直连 PTP（会穿球）；三层全失败 `skipped_unreachable`，不进 OMPL。再一段沿轴 LIN；反向同轨迹回预抓取后 PTP `harvest_stow`。接近绕行护栏 **累计 12 rad / 单轴 6.1 rad**，直连 LIN 笛卡尔 **绕行比 2.2 / 弦偏离 0.25 m / 回退 0.08 m**、STOMP/兜底 **2.5 / 0.40 / 0.15**（URDF 满行程；不按时长；0.10 速度下直线可以超过 20 s）。mock 回放：`python3 scripts/replay_field_pregrasp.py --case 1757`（现场坐标，不开批）；全链路逐目标回放 `python3 scripts/sim_field_targets.py --case all`、实时停轨 `python3 scripts/trajectory_watchdog.py`。
+- MTC 接近、直线套入、同轴撤离均须 goal-hold。预抓取先回拍照位（有记录的接近则原路返程，否则 PTP），再走接近主路径：**staging 转移——最近构型 PTP（`select_goal_joints` 12 滚转 × 3 种子、自碰过滤、最近 3 候选逐个试）落到预抓取正下方轴上，再沿轴 LIN 升到预抓取**（已齐 LIN 段加相对目标 20° 姿态约束）；staging 不可用且起点已在袋底侧、直连不穿囊时兜底直连 LIN（未齐先 LIN 原地对齐工具 Z；keep-roll 自碰换滚转）。G/under 单弦档已删（2026-09-10：photo→G 弦 fraction 均值 0.77、同 seed 100 随机位姿基线 9/100；`sim_approach_probe.py` 复核）。不走 CIRC/STOMP/OMPL。失败 `skipped_unreachable`，不进 OMPL。再一段沿轴 LIN；反向同轨迹（含 staging 段）回预抓取后 PTP `harvest_stow`。接近绕腕护栏 **累计 12 rad / 单轴 6.1 rad**；口侧/上方看 keepout，逐段审查（s≥0 且 r<R 全段禁；反爬 s ≤ 本段起点 max(s,0)+2 cm，staging 首段 PTP 弧只查圆柱穿越）；笛卡尔绕行比六键默认 0。不按时长；0.10 速度下直线可以超过 20 s。mock 回放：`python3 scripts/replay_field_pregrasp.py --case 1757`（现场坐标，不开批）；全链路逐目标回放 `python3 scripts/sim_field_targets.py --case all`（回拍照位走周期内 `goToPhotoPose`，与正式接触段同一函数）；包络内随机位姿 `python3 scripts/sim_field_targets.py --random 16 --seed 20260910`（大样本提速加 `--velocity 1.0`，仅 mock）；实时记录 `python3 scripts/trajectory_watchdog.py`（默认不按绕行比停轨）。
 - 日志不得出现 SetIO。`harvest.grasped=false`（未开工具不得宣称采摘成功）。
 - 单目标目标 45–60 s；失败必须有 `failure_code`，不得停在 `RUNNING + action_active=false`。
 
@@ -286,7 +289,7 @@ python3 src/peach_interfaces/scripts/check_interface_manifest.py
 3. 手眼 TF 在位：`ros2 run tf2_ros tf2_echo wrist3_Link camera_link` 有输出（缺失则点云相对臂偏 ~10 cm 且轴不对，不得开批）。
 4. TF 帧核查：`ros2 run tf2_ros tf2_echo base_link tip` 应报**不存在**——存在即有旧实例污染（link1/link2/tip 链）；launch 预检已拦，现场仍见则按 PID 清理后重启。
 5. 相机出图且深度配准：`ros2 topic hz /camera/color/image_raw` ≈2.5 FPS。
-6. 当前关节对照 SRDF `global_photo_pose`。launch 不自动到位；开执行后第一段运动是 Survey PTP 回拍照位。停在预抓取重启时这一段行程大，须现场确认再开批。
+6. 当前关节对照 SRDF `global_photo_pose`。launch 不自动到位；开执行后第一段运动是 Survey 回拍照位（进程内无接近记录则 PTP）。停在预抓取重启时这一段行程大，须现场确认再开批。
 
 档位（预抓取全程）：
 

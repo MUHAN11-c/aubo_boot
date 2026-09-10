@@ -1,8 +1,7 @@
 "use strict";
 
-// 采摘流程驾驶舱前端：/api/state（1s）+ /api/trajectory（0.4s）轮询渲染；
-// 手动调试操作面（决策 0013）为既有动作/服务的纯转发客户端。
-// 后端契约：/api/state 区段见 docs/io.md §5.3；调试端点见 config/observability_parameters.yaml。
+// 感知抓取过程页：/api/state（1s）+ /api/trajectory（0.4s）。
+// 调试面转发既有动作/服务；动臂由 yaml debug.motion_enabled 放行。
 
 const $ = (id) => document.getElementById(id);
 const numeric = (value) => value !== null && value !== undefined && value !== "" &&
@@ -15,13 +14,9 @@ const safe = (value) => String(value ?? "—").replace(/[&<>"']/g, (char) => ({
 })[char]);
 const setText = (id, value) => { const el = $(id); if (el) el.textContent = value ?? "—"; };
 
-// 枚举映射与 peach_interfaces/HarvestState.msg 常量一致
 const batchNames = ["等待就绪", "发现目标", "运行中", "等待安全暂停点", "已暂停", "维护模式", "已完成", "需要恢复", "已中断"];
 const phaseNames = ["空闲", "选择目标", "观测中", "完成观测", "质量校验", "靠近中", "工具动作", "撤退中", "收尾中", "目标成功", "目标跳过", "目标失败"];
-const modeNames = ["自动", "已暂停", "维护"];
 const pipelineClass = ["done", "active", "alert", "gated", "failed", "skipped"];
-
-// ── 批次流程 ────────────────────────────────────────────────
 
 function renderPipeline(job, state) {
   const byId = {};
@@ -40,7 +35,6 @@ function renderPipeline(job, state) {
   });
 }
 
-// 阶段耗时跟踪：阶段/周期/目标任一变化即结算上阶段耗时。
 let phaseTrack = {key: "", cycleKey: "", phase: -1, since: 0, records: []};
 function trackPhaseDurations(state) {
   const phase = Number(state.target_phase ?? 0);
@@ -166,8 +160,6 @@ function renderFlow(taskExecutor, job) {
   renderEvents(events);
 }
 
-// ── 目标与选果 ──────────────────────────────────────────────
-
 const harvestChip = {HARVESTED: "ok", WAITING_QUALITY: "warn", SELECTED: "ok", PLANNED: ""};
 const trackingChip = {
   OBSERVED: "ok", OCCLUDED: "warn", LOST: "err", INVALID: "err",
@@ -197,46 +189,29 @@ function renderPlan(perception, taskExecutor) {
     `<span title="该就绪门未通过">${safe(item)}</span>`).join("");
 
   if (!observations.length) {
-    $("target-list").innerHTML = '<tr><td colspan="8" class="empty">等待 target_observations</td></tr>';
-  } else {
-    const selectedId = state.target_id || targets.selected_target_id || "";
-    $("target-list").innerHTML = observations.slice().sort((a, b) => a.priority - b.priority)
-      .map((item) => {
-        const rowClass = `${item.target_id === selectedId || item.selected ? "selected" : ""} ${item.harvest_status === "HARVESTED" ? "harvested" : ""}`;
-        const flags = (item.diagnostic_flags || []).map((flag) => `<span class="flag">${safe(flag)}</span>`).join("");
-        const entry = xyzCells((item.candidate || {}).entry_position);
-        return `<tr class="${rowClass}">
-          <td><b>${safe(item.target_id)}</b></td>
-          <td>#${safe(item.priority)}</td>
-          <td>${chip(item.harvest_status, harvestChip[item.harvest_status] ?? "")}</td>
-          <td>${chip(item.tracking_status, trackingChip[item.tracking_status] ?? "")}</td>
-          <td>${percent(item.confidence)}</td>
-          <td>${fmt(item.camera_distance_m, 2, " m")}</td>
-          <td class="mono">${entry[0]}, ${entry[1]}, ${entry[2]}</td>
-          <td>${flags || "—"}</td>
-        </tr>`;
-      }).join("");
+    $("target-list").innerHTML = '<tr><td colspan="5" class="empty">等待 target_observations</td></tr>';
+    return;
   }
-  const doneIds = harvest.completed_target_ids?.length
-    ? harvest.completed_target_ids : harvested.map((item) => item.target_id);
-  setText("harvested-ids", doneIds.length ? doneIds.join(", ") : "（暂无）");
+  const selectedId = state.target_id || targets.selected_target_id || "";
+  $("target-list").innerHTML = observations.slice().sort((a, b) => a.priority - b.priority)
+    .map((item) => {
+      const rowClass = `${item.target_id === selectedId || item.selected ? "selected" : ""} ${item.harvest_status === "HARVESTED" ? "harvested" : ""}`;
+      const entry = xyzCells((item.candidate || {}).entry_position);
+      return `<tr class="${rowClass}">
+        <td><b>${safe(item.target_id)}</b></td>
+        <td>${chip(item.harvest_status, harvestChip[item.harvest_status] ?? "")}</td>
+        <td>${chip(item.tracking_status, trackingChip[item.tracking_status] ?? "")}</td>
+        <td>${percent(item.confidence)}</td>
+        <td class="mono">${entry[0]}, ${entry[1]}, ${entry[2]}</td>
+      </tr>`;
+    }).join("");
 }
-
-// ── 就绪区（节点灯 + 档位 + 验收门条）───────────────────────
 
 function freshnessHtml(age) {
   if (age === undefined) return ["", "无数据"];
   if (age > 15) return ["err", `${age.toFixed(0)}s 前`];
   if (age > 5) return ["warn", `${age.toFixed(1)}s 前`];
   return ["ok", `${age.toFixed(1)}s 前`];
-}
-
-function setFreshness(nodeKey, age) {
-  const el = document.querySelector(`.node-card[data-node="${nodeKey}"] [data-freshness]`);
-  if (!el) return;
-  const [cls, text] = freshnessHtml(age);
-  el.className = `freshness ${cls}`;
-  el.querySelector("b").textContent = text;
 }
 
 function pillClass(text) {
@@ -247,23 +222,29 @@ function pillClass(text) {
   return "";
 }
 
-function setPill(id, text) {
-  const el = $(id);
-  if (!el) return;
-  setText(id, text || "—");
-  el.className = `state-pill ${pillClass(text)}`;
-}
-
 const yesNo = (value, yes = "是", no = "否") =>
   value === true || value === 1 ? yes : value === false || value === 0 ? no : "—";
 
-function renderNodes(state) {
+function nodeCard(label, age, rows) {
+  const [cls, fresh] = freshnessHtml(age);
+  const body = rows.map(([k, v]) =>
+    `<div class="node-row"><span>${safe(k)}</span><b>${v}</b></div>`).join("");
+  return `<article class="node-card"><div class="node-head"><h2>${safe(label)}</h2>
+    <span class="freshness ${cls}"><i></i><b>${safe(fresh)}</b></span></div>
+    <div class="node-body">${body}</div></article>`;
+}
+
+function renderStatus(state) {
   const ages = state.system?.topic_age_s || {};
-  setFreshness("perception", ages["perception.targets"]);
-  setFreshness("reconstruction", ages["reconstruction.diagnostics"]);
-  setFreshness("manipulation", ages["manipulation.status"]);
-  setFreshness("task_executor", ages["task_executor.state"]);
-  setFreshness("robot", ages["robot.status"]);
+  const executor = state.task_executor?.state || {};
+  $("policy-badges").innerHTML = [
+    ["execution_enabled", "执行"],
+    ["grasp_enabled", "抓取"],
+    ["tool_enabled", "工具"],
+  ].map(([key, label]) => {
+    const on = executor[key] === true;
+    return `<span class="badge ${on ? "on" : "off"}">${label} ${on ? "启" : "停"}</span>`;
+  }).join("");
 
   const targets = state.perception?.targets || {};
   const harvest = state.perception?.harvest || {};
@@ -272,80 +253,110 @@ function renderNodes(state) {
     || harvest.target_set_locked !== undefined;
   const lockedLabel = lockedKnown
     ? (targets.target_set_locked === true || harvest.target_set_locked === true
-      ? "已锁定" : "收齐中") : "";
-  setText("node-perception-count", lockedLabel ? `${count} · ${lockedLabel}` : count);
-  setText("node-perception-selected", targets.selected_target_id || harvest.selected_target_id || "—");
-
+      ? "已锁定" : "收齐中") : "—";
   const diag = state.reconstruction?.diagnostics || {};
   const reconState = diag.state || state.reconstruction?.status?.state ||
-    state.reconstruction?.status?.text;
-  setPill("node-recon-state", [reconState, diag.target_id].filter(Boolean).join(" · "));
+    state.reconstruction?.status?.text || "—";
   const decision = state.reconstruction?.grasp_decision || {};
-  const graspEl = $("node-recon-grasp");
-  setText("node-recon-grasp", decision.allowed === true
-    ? "允许" : (decision.reason || (decision.allowed === false ? "未许可" : "—")));
-  graspEl.style.color = decision.allowed === true
-    ? "var(--ok)" : (decision.reason ? "var(--warn)" : "");
-
+  const graspText = decision.allowed === true
+    ? "允许" : (decision.reason || (decision.allowed === false ? "未许可" : "—"));
   const manipulation = state.manipulation?.status || {};
-  setPill("node-manipulation-state", manipulation.state);
-  setText("node-manipulation-arm", `${yesNo(manipulation.execution_enabled, "ON", "OFF")} / ${yesNo(manipulation.execution_armed, "ARM", "SAFE")}`);
-
-  const executor = state.task_executor?.state || {};
-  setPill("node-executor-state", batchNames[executor.batch_state]);
-  setText("node-executor-active", yesNo(executor.action_active));
-
   const robot = state.robot?.status || {};
-  setText("node-robot-power", `${yesNo(robot.drives_powered, "已上电", "未上电")} / ${yesNo(robot.e_stopped, "急停", "正常")}`);
-  const tcp = state.robot?.tcp || {};
-  setText("node-robot-tcp", Array.isArray(tcp.xyz) && tcp.xyz.length >= 3
-    ? tcp.xyz.map((value) => Number(value).toFixed(3)).join(", ")
-    : (tcp.tf_ok === false ? "TF 不可用" : "—"));
+
+  $("status-strip").innerHTML = [
+    nodeCard("感知", ages["perception.targets"], [
+      ["目标 / 锁定", `${safe(String(count))} · ${safe(String(lockedLabel))}`],
+      ["选中", safe(targets.selected_target_id || harvest.selected_target_id || "—")],
+    ]),
+    nodeCard("重建", ages["reconstruction.diagnostics"], [
+      ["状态", `<span class="state-pill ${pillClass(reconState)}">${safe(reconState)}</span>`],
+      ["许可", safe(graspText)],
+    ]),
+    nodeCard("技能", ages["manipulation.status"], [
+      ["周期", `<span class="state-pill ${pillClass(manipulation.state)}">${safe(manipulation.state || "—")}</span>`],
+      ["执行", `${yesNo(manipulation.execution_enabled, "ON", "OFF")} / ${yesNo(manipulation.execution_armed, "ARM", "SAFE")}`],
+    ]),
+    nodeCard("调度", ages["task_executor.state"], [
+      ["批次", `<span class="state-pill ${pillClass(batchNames[executor.batch_state])}">${safe(batchNames[executor.batch_state] || "—")}</span>`],
+      ["动作中", yesNo(executor.action_active)],
+    ]),
+    nodeCard("机械臂", ages["robot.status"], [
+      ["上电 / 急停", `${yesNo(robot.drives_powered, "已上电", "未上电")} / ${yesNo(robot.e_stopped, "急停", "正常")}`],
+      ["可动 / 故障", `${yesNo(robot.motion_possible, "可接轨", "不可")} / ${yesNo(robot.in_error, "故障", "正常")}`],
+    ]),
+  ].join("");
+  renderHardware(state);
 }
 
-function renderReadiness(state) {
-  const executor = state.task_executor?.state || {};
-  const policies = [
-    ["auto_start_enabled", "自动开始"],
-    ["execution_enabled", "执行"],
-    ["grasp_enabled", "抓取"],
-    ["tool_enabled", "工具"],
-  ];
-  $("policy-badges").innerHTML = policies.map(([key, label]) => {
-    const on = executor[key] === true;
-    return `<span class="badge ${on ? "on" : "off"}">${label} ${on ? "启" : "停"}</span>`;
-  }).join("");
+function radDeg(value) {
+  return numeric(value) ? (Number(value) * 180 / Math.PI).toFixed(2) : "—";
+}
 
-  // 验收门条（testing.md 验收门的可自动判定项；对错判定仍以现场为准）
+function rpyDeg(quat) {
+  if (!Array.isArray(quat) || quat.length < 4 || quat.some((item) => !numeric(item))) {
+    return null;
+  }
+  const x = Number(quat[0]); const y = Number(quat[1]);
+  const z = Number(quat[2]); const w = Number(quat[3]);
+  const roll = Math.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y));
+  const pitch = Math.asin(Math.max(-1, Math.min(1, 2 * (w * y - z * x))));
+  const yaw = Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z));
+  return [roll, pitch, yaw].map((rad) => (rad * 180 / Math.PI).toFixed(1));
+}
+
+function renderHardware(state) {
+  const robot = state.robot?.status || {};
+  const tcp = state.robot?.tcp || {};
+  const joints = state.robot?.joints || {};
   const ages = state.system?.topic_age_s || {};
-  const freshCount = ["perception.targets", "reconstruction.diagnostics",
-    "manipulation.status", "task_executor.state", "robot.status"]
-    .filter((key) => numeric(ages[key]) && Number(ages[key]) <= 15).length;
-  const robot = state.robot?.status || {};
-  const cabinetOk = robot.drives_powered === 1 && robot.motion_possible === 1 &&
-    robot.e_stopped === 0;
-  const tcp = state.robot?.tcp || {};
-  const tfFailures = tcp.tf_failures;
-  const ratio = tcp.detour_ratio;
-  const gates = [
-    {label: "五话题新鲜", value: `${freshCount}/5`,
-     cls: freshCount >= 5 ? "ok" : freshCount > 0 ? "warn" : "err"},
-    {label: "柜侧就绪", value: Object.keys(robot).length
-      ? yesNo(cabinetOk, "就绪", "未就绪") : "—",
-     cls: Object.keys(robot).length ? (cabinetOk ? "ok" : "err") : ""},
-    {label: "TF 失败", value: numeric(tfFailures) ? String(tfFailures) : "—",
-     cls: numeric(tfFailures) ? (Number(tfFailures) === 0 ? "ok" : "err") : ""},
-    {label: "绕行比 ≤2.2", value: numeric(ratio) ? `${Number(ratio).toFixed(2)}×` : "—",
-     cls: numeric(ratio) ? (Number(ratio) <= 1.4 ? "ok" : Number(ratio) <= 2.2 ? "warn" : "err") : ""},
+  const flags = [
+    [robot.drives_powered === 1 ? "已上电" : "未上电", robot.drives_powered === 1, robot.drives_powered === 0],
+    [robot.e_stopped === 1 ? "急停" : "无急停", robot.e_stopped === 0, robot.e_stopped === 1],
+    [robot.motion_possible === 1 ? "可接轨" : "不可接轨", robot.motion_possible === 1, robot.motion_possible === 0],
+    [robot.in_motion === 1 ? "运动中" : "静止", robot.in_motion === 1, false],
+    [robot.in_error === 1 ? "故障" : "无故障", robot.in_error === 0, robot.in_error === 1],
   ];
-  const fps = state.perception?.harvest?.timing?.fps;
-  gates.push({label: "相机 fps", value: numeric(fps) ? Number(fps).toFixed(2) : "—",
-    cls: numeric(fps) ? (Number(fps) >= 2 ? "ok" : "warn") : ""});
-  $("accept-gates").innerHTML = gates.map((gate) =>
-    `<span class="gate ${gate.cls}">${safe(gate.label)} <b>${safe(gate.value)}</b></span>`).join("");
-}
+  $("hw-flags").innerHTML = flags.map(([label, ok, bad]) =>
+    `<span class="badge ${ok ? "on" : (bad ? "off" : "")}">${safe(label)}</span>`
+  ).join("") +
+    `<span class="badge">错误码 <b>${safe(String(robot.error_code ?? "—"))}</b></span>` +
+    `<span class="badge">柜侧 ${safe(freshnessHtml(ages["robot.status"])[1])}</span>` +
+    `<span class="badge">关节 ${safe(freshnessHtml(ages["robot.joints"])[1])}</span>`;
 
-// ── 末端轨迹：指标 + 俯视投影（非交互）──────────────────────
+  const xyz = Array.isArray(tcp.xyz) && tcp.xyz.length >= 3
+    ? tcp.xyz.map((value) => Number(value).toFixed(3)) : null;
+  const rpy = rpyDeg(tcp.quat);
+  const pose = [];
+  if (xyz) {
+    pose.push(`TCP x <b>${xyz[0]}</b>`, `y <b>${xyz[1]}</b>`, `z <b>${xyz[2]}</b>`);
+  } else {
+    pose.push(`TCP <b>${tcp.tf_ok === false ? "TF 不可用" : "—"}</b>`);
+  }
+  if (rpy) {
+    pose.push(`rpy <b>${rpy[0]}, ${rpy[1]}, ${rpy[2]}</b>`);
+  }
+  $("hw-pose").innerHTML = pose.map((item) => `<span>${item}</span>`).join("");
+
+  const rows = joints.rows || [];
+  if (!rows.length) {
+    $("hw-joint-body").innerHTML =
+      '<tr><td colspan="7" class="empty">等待 /joint_states 与 /aubo_io_controller/joint_status</td></tr>';
+    return;
+  }
+  $("hw-joint-body").innerHTML = rows.map((row) => {
+    const err = Number(row.error_code || 0);
+    const name = String(row.name || "").replace(/_joint$/, "");
+    return `<tr class="${err ? "alert-row" : ""}">
+      <td><b>${safe(name)}</b></td>
+      <td class="mono">${radDeg(row.position)}</td>
+      <td class="mono">${radDeg(row.velocity)}</td>
+      <td class="mono">${numeric(row.current) ? Number(row.current).toFixed(1) : "—"}</td>
+      <td class="mono">${numeric(row.temperature) ? Number(row.temperature).toFixed(1) : "—"}</td>
+      <td class="mono">${numeric(row.following_error) ? Number(row.following_error).toFixed(4) : "—"}</td>
+      <td>${err ? `<span class="status-chip err">${err}</span>` : "0"}</td>
+    </tr>`;
+  }).join("");
+}
 
 const LANDMARKS = [
   ["perception_entry", "感知入口", [63, 191, 114], 4],
@@ -385,6 +396,7 @@ function renderTrajHud(payload) {
     ["弦长", numeric(metrics.chord_m) ? `${Number(metrics.chord_m).toFixed(3)} m` : "—"],
     ["绕行比", numeric(ratio) ? `${Number(ratio).toFixed(2)}×` : "—"],
     ["偏弦", numeric(metrics.max_dev_m) ? `${Number(metrics.max_dev_m).toFixed(3)} m` : "—"],
+    ["Δz", numeric(metrics.dz_m) ? `${Number(metrics.dz_m).toFixed(3)} m` : "—"],
   ];
   $("traj-metrics").innerHTML = chips.map(([label, value]) => {
     const hot = label === "绕行比" && numeric(ratio) && Number(ratio) >= 1.4 ? " hot" : "";
@@ -392,7 +404,6 @@ function renderTrajHud(payload) {
   }).join("");
 }
 
-// 俯视（base_link X 向右 / Y 向上）投影：框选路点+路标，等比缩放留边。
 function renderTcpMini(payload) {
   const canvas = $("tcp-canvas");
   if (!canvas) return;
@@ -433,7 +444,6 @@ function renderTcpMini(payload) {
     height - pad - (y - minY) * scale - (height - pad * 2 - spanY * scale) / 2,
   ];
 
-  // 网格参考原点（base_link 投影）
   const origin = toPx([0, 0]);
   ctx.strokeStyle = "rgba(42,51,61,0.9)";
   ctx.lineWidth = 1;
@@ -503,16 +513,15 @@ async function pollState() {
       ? "记录已关闭" : record.directory || "等待首批数据");
     $("record-strip").classList.toggle("off",
       record.enabled === false || !record.directory);
-    renderReadiness(state);
-    renderNodes(state);
+    renderStatus(state);
     renderFlow(state.task_executor || {}, state.job || {});
     renderPlan(state.perception || {}, state.task_executor || {});
     renderDebugPanel(state.debug || {});
     $("connection").className = "connection online";
-    $("connection").querySelector("span").textContent = "数据 API 已连接";
+    $("connection").querySelector("span").textContent = "已连接";
   } catch (_) {
     $("connection").className = "connection offline";
-    $("connection").querySelector("span").textContent = "监控连接中断";
+    $("connection").querySelector("span").textContent = "连接中断";
   }
 }
 
@@ -522,8 +531,6 @@ window.addEventListener("resize", pollTrajectory);
 pollState();
 pollTrajectory();
 
-// ============ 手动调试操作面（决策 0013：融合 8090，鉴权+门控+审计） ============
-// Web 只是另一个 ROS 客户端：技能 ExecutionAuthority 与调度/重建门照常复核。
 const debugView = {results: []};
 
 function switchView(name) {
@@ -534,17 +541,13 @@ function switchView(name) {
   $("view-debug").hidden = name !== "debug";
 }
 
-function debugToken() {
-  return $("debug-token").value.trim();
-}
-
 async function debugPost(action, payload, confirmText) {
   if (confirmText && !window.confirm(confirmText)) {
     return null;
   }
   const response = await fetch(`/api/debug/${encodeURIComponent(action)}`, {
     method: "POST",
-    headers: {"Content-Type": "application/json", "X-Debug-Token": debugToken()},
+    headers: {"Content-Type": "application/json"},
     body: JSON.stringify(payload || {}),
   });
   let body = {};
@@ -573,20 +576,17 @@ function renderDebugResults() {
       <span class="debug-status">${entry.status} ${entry.accepted ? "已受理" : "被拒/未成"}</span></summary>
       <p>${safe(entry.message)}</p><pre>${detail}</pre></details>`;
   }).join("");
-  $("debug-recent-count").textContent = `${debugView.results.length} 条（会话内）`;
+  $("debug-recent-count").textContent = `${debugView.results.length} 条`;
 }
 
-// 门控状态横幅（/api/state 每秒刷新；令牌本身绝不下发）
 function renderDebugPanel(debug) {
   const gates = $("debug-gates");
   if (!gates) return;
   const enabled = debug.enabled === true;
   const motion = debug.motion_enabled === true;
-  const tokenRequired = debug.token_required === true;
   gates.innerHTML = `
-    <span class="debug-gate ${enabled ? "ok" : "err"}">操作面 ${enabled ? "已启用" : "未启用（debug.enabled=false，POST 全拒）"}</span>
-    <span class="debug-gate ${motion ? "warn" : "ok"}">运动类 ${motion ? "已放行" : "默认拒绝（423）"}</span>
-    <span class="debug-gate ${tokenRequired ? "warn" : "err"}">令牌 ${tokenRequired ? "必填" : "未配置（全拒）"}</span>`;
+    <span class="debug-gate ${enabled ? "ok" : "err"}">调试 ${enabled ? "开" : "关（debug.enabled=false）"}</span>
+    <span class="debug-gate ${motion ? "warn" : "ok"}">动臂 ${motion ? "已放行" : "未放行（423）"}</span>`;
   document.querySelectorAll("[data-debug], [data-debug-cancel]").forEach((el) => {
     el.disabled = !enabled;
   });
@@ -601,80 +601,51 @@ function bindDebugControls() {
       const action = el.dataset.debug;
       const payload = buildDebugPayload(action, el);
       if (payload === null) return;
-      const motionControl = action === "control_service" &&
-        (payload.command === "RESUME" || payload.command === "EXIT_MAINTENANCE");
-      const needsConfirm = el.dataset.confirm === "1" || motionControl;
-      const outcome = await debugPost(action, payload, needsConfirm
-        ? `确认发送【${action}】？\n${JSON.stringify(payload, null, 2)}\n\n运动类操作：技能侧安全门仍会独立复核。`
+      const outcome = await debugPost(action, payload, el.dataset.confirm === "1"
+        ? `确认发送 ${action}？\n${JSON.stringify(payload, null, 2)}`
         : null);
-      if (outcome && !outcome.ok && outcome.status === 401) {
-        window.alert("401：令牌缺失或不匹配（服务端 debug.token）");
-      } else if (outcome && outcome.status === 423) {
-        window.alert("423：运动类操作被拒（服务端 debug.motion_enabled=false）");
+      if (outcome && outcome.status === 423) {
+        window.alert("423：动臂未放行（yaml debug.motion_enabled: true）");
       }
     });
   });
   document.querySelectorAll("[data-debug-cancel]").forEach((el) => {
     el.addEventListener("click", () => debugPost("cancel", {target: el.dataset.debugCancel}, null));
   });
-  $("debug-ping").addEventListener("click", async () => {
-    const outcome = await debugPost("recon_query_service", {}, null);
-    if (outcome) window.alert(outcome.ok ? "令牌有效，操作面可用" : `失败：HTTP ${outcome.status}`);
-  });
 }
 
-// 从页面控件收集各端点 payload；返回 null 表示输入不合法
 function buildDebugPayload(action, el) {
-  if (action === "manage_nodes_service") {
-    return {command: el.dataset.payload ? JSON.parse(el.dataset.payload).command : ""};
-  }
+  const requestId = $("dbg-request-id").value.trim();
+  const sceneKey = $("dbg-scene-key").value.trim() || "lab";
+  const targetId = $("dbg-target-id").value.trim();
   if (action === "run_harvest_action") {
-    const requestId = $("run-request-id").value.trim();
     if (!requestId) { window.alert("request_id 必填（同时是账本目录名，不得复用）"); return null; }
     const intent = $("run-intent").value;
     const targets = $("run-target-ids").value.split(",").map((s) => s.trim()).filter(Boolean);
-    return {request_id: requestId, scene_key: "lab", intent,
+    return {request_id: requestId, scene_key: sceneKey, intent,
       selection_mode: targets.length ? "MANUAL" : "AUTO", target_ids: targets};
   }
   if (action === "control_service") {
-    return {command: $("ctl-command").value,
-      expected_state_seq: Number($("ctl-seq").value) || 0,
-      reason: $("ctl-reason").value.trim() || "web 手动调试"};
+    const command = el.dataset.payload ? JSON.parse(el.dataset.payload).command : "CANCEL_NOW";
+    return {command, expected_state_seq: 0, reason: "web 调试"};
   }
   if (action === "begin_scene_service") {
-    return {request_id: $("scene-request-id").value.trim() || "dev",
-      scene_key: $("scene-key").value.trim() || "lab"};
+    return {request_id: requestId || "dev", scene_key: sceneKey};
   }
   if (action === "survey_action") {
-    return {request_id: $("scene-request-id").value.trim() ||
-      $("run-request-id").value.trim() || "dev",
-      scene_key: $("scene-key").value.trim() || "lab"};
+    return {request_id: requestId || "dev", scene_key: sceneKey};
   }
   if (action === "build_action") {
-    const targetId = $("build-target-id").value.trim();
-    if (!targetId) { window.alert("target_id 必填（须与 HarvestState.target_id 一致）"); return null; }
-    return {request_id: $("scene-request-id").value.trim() || "dev", target_id: targetId,
-      scene_epoch: Number($("build-epoch").value) || 0};
+    if (!targetId) { window.alert("target_id 必填"); return null; }
+    return {request_id: requestId || "dev", target_id: targetId,
+      scene_epoch: Number($("dbg-epoch").value) || 0};
   }
   if (action === "execute_action") {
-    const targetId = $("exec-target-id").value.trim();
     if (!targetId) { window.alert("target_id 必填"); return null; }
-    return {request_id: $("scene-request-id").value.trim() || "dev", target_id: targetId,
+    return {request_id: requestId || "dev", target_id: targetId,
       mode: $("exec-mode").value, skip_observation: $("exec-skip-obs").checked};
   }
-  if (action === "arm_service") {
-    return {data: $("arm-data").value === "true"};
-  }
-  if (action === "check_reachability_service") {
-    const parts = $("reach-xyz").value.split(",").map((s) => Number(s.trim()));
-    if (parts.length !== 3 || parts.some((v) => !Number.isFinite(v))) {
-      window.alert("位姿格式：x,y,z（米）"); return null;
-    }
-    return {timeout_s: 0.5, tcp_poses: [{frame_id: "base_link",
-      position: {x: parts[0], y: parts[1], z: parts[2]},
-      orientation: {x: 0, y: 0, z: 0, w: 1}}]};
-  }
-  return {};  // Trigger 形服务无字段
+  return {};
 }
 
 bindDebugControls();

@@ -313,7 +313,7 @@ flowchart TB
   act -->|否| idle["拒运动类入口"]
   act -->|是| src{"入口"}
   src -->|CheckReachability| ik["入口→停位几何后 setFromIK 只答能否 不动臂"]
-  src -->|SurveyScene| photo["goToPhotoPose 行程门 6 / 2.5；成功出口 atNamedTarget"]
+  src -->|SurveyScene| photo["goToPhotoPose 原路返程或 PTP；PTP 行程门 6 / 2.5；成功出口 atNamedTarget"]
   src -->|ExecuteTarget| cycle["executeCycle"]
   cycle --> en{"execution_enabled?"}
   en -->|否| preview["PlanPreview 终结"]
@@ -351,7 +351,7 @@ flowchart TB
 | 名字 | 含义 |
 |------|------|
 | `cancel_cycle` | 手动停一周期（调度走动作 cancel，不走此口；调试面在用） |
-| `go_to_photo_pose` | 只回拍照位，不采锁定集 |
+| `go_to_photo_pose` | 只回拍照位（有接近记录则原路返程，否则 PTP），不采锁定集 |
 | `preview_approach_insert` / `preview_full_contact` | 只规划接触预览 |
 | `set_execution_armed` | 本周期武装；`execution.enabled` 后每个周期还须调一次 |
 
@@ -360,14 +360,14 @@ flowchart TB
 `stages.cpp` 的 `executeCycle(ctx)` 显式模式 switch，周期状态全在 `CycleContext`（action 受理时创建、worker 单写者）：PrepareCycle →（`execution_enabled` 关则 PlanPreview 终结）→（未 `skip_observation` 则 AcquireViews）→ FinalizeAndValidate →（OBSERVE_ONLY → Report / `grasp_enabled` 关 → ReportReady / Reconfirm → MovePregrasp → VerifyPregrasp →（PREGRASP_ONLY 则 `HoldPregrasp` 停住 | PlanSleeve → SleeveLinear → VerifyCutHold → ActuateCutter → VerifyCut → ReverseRetreat → ReturnStow → VerifyHarvestOutcome））→ CompleteTarget。运动/IO 入口逐阶段过 `ExecutionAuthority`（套入/剪切前复检 `GraspDecision.allowed`；撤离 TRANSIT 级不做决策复检）。
 
 - OBSERVE_ONLY：当前位先采帧；基线未过最多两次最近短移（只 LIN，失败换候选），沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m），评分以行程最短为主；朝当前目标检测框内分割更满的方向微偏。禁止 OMPL、对侧兜圈、贴 0.40 m 球面环绕、PTP 兜底。覆盖门 `minimum_baseline_deg: 8`。停准则：覆盖达标或 `maximum_moves` 用尽；`time_budget_s` 只进日志，不按移动+等帧 EMA 预测收口。到位后等新机位（`view_directions` 增加），同机位连帧不加覆盖。成功：重建已绑定、独立机位已满 `min_views`、TSDF/精化已发布。观察成功但 Build `view_count`（机位数）`< min_views` → `observe_build_view_race`。`captured_views` 仍是积分帧数。
-- PREGRASP_ONLY：有融合几何即去预抓取（入口在拟合袋底，预抓取相对入口后撤 0.03 m）；先 PTP 回拍照位，再按 MTC 官方管线：绕袋轴 ±30° 采样刀口 → Fallbacks（Pilz LIN，失败则 CartesianPath）。直线不穿预抓取球则 LIN；未齐先 LIN 原地对齐工具 Z；keep-roll 自碰则换滚转。直线会穿球且后撤 ≥ 5 mm 则 CIRC 再沿轴 LIN；后撤 0 不走 CIRC。已齐 LIN 加相对目标 20° 姿态路径约束。LIN/CIRC/插值失败不改 PTP/OMPL。拍照位失败则从当前位规划。不要求 `allowed`。工具 TF 残差超门则按**最新精化快照**重算 entry/pregrasp 做增量修正（最多两次）；残差未过门也停在预抓取（不回 `harvest_stow`），便于真机评方向/定位。任何路径不 SetIO。到位终局 `SUCCEEDED` 且 `recovery_required`，ACK 前调度不 Survey。现行不是两帧精确 TF RGB-D 重估。
+- PREGRASP_ONLY：有融合几何即去预抓取（入口在拟合袋底，预抓取相对入口后撤 0.03 m）；先回拍照位（有记录的接近则原路返程，否则 PTP），再走接近主路径：**PTP 到预抓取正下方轴上 staging（`select_goal_joints` 12 滚转 × 3 种子、自碰过滤、最近 3 候选逐个试）→ 沿轴 LIN 升到预抓取**（已齐 LIN 挂相对目标 20° 姿态路径约束）。staging 不可用且起点已在袋底侧、直连不穿囊时走直连 LIN 兜底（未齐先 LIN 原地对齐工具 Z；keep-roll 自碰则换滚转）。不走 CIRC/STOMP/OMPL。拍照位失败则从当前位规划。不要求 `allowed`。工具 TF 残差超门则按**最新精化快照**重算 entry/pregrasp 做增量修正（最多两次）；残差未过门也停在预抓取（不回 `harvest_stow`），便于真机评方向/定位。任何路径不 SetIO。到位终局 `SUCCEEDED` 且 `recovery_required`，ACK 前调度不 Survey。现行不是两帧精确 TF RGB-D 重估。
 - FULL：`skip_observation`。结果填 `HarvestResult` / `Verification` / `PregraspVerification` / `outcome_record`；`DepositResult` 字段保留标**预留**（卸果站已删，恒 `deposited=false`）。`harvest.grasped` 仅 `cut_confirmed && retreat_confirmed`。SetIO ACK 只产生 `CUT_COMMAND_ACCEPTED`；切断确认保守：刀具 DI 预留接 `/aubo_io_controller/io_states`，反馈未接线前 `tool.enabled=true` 终局 `FAILED`/`CUT_FEEDBACK_TIMEOUT`。
 - 新鲜度门：`SafetyGate` 比较 `clock - freshnessStamp`。OBSERVED 且 `updated_s` 更新时用 `updated_s`，否则末次有效观测 `received_s`。门限 `effectiveTargetMaxAgeS()`：未测得 EMA 用 yaml 3.0 s，测得后只放宽。`assumed_frame_interval_s: 0.4` 只估等待窗口，不预填 EMA。
-- 接触护栏（yaml）：绕行看累计 12 rad、单轴 6.1 rad（URDF ±3.05 满行程）；段间接缝计入 `|Δq|`。笛卡尔 **绕行比 2.2 / 弦偏离 0.25 m / 回退 0.08 m**（FK 规划 TCP）。不按时长（`mtc_approach_max_duration_s` 默认 0）。预抓取先 PTP 回拍照位，再 GenerateGraspPose 滚转 + Fallbacks(Pilz LIN, CartesianPath) 到预抓取，再一段沿轴 LIN 套入；反向同轨迹回预抓取。已齐 LIN 加 tip 姿态 OrientationConstraint（对目标姿态，容差 `mtc_approach_max_align_deg` 20°）。未齐先 LIN 原地对齐；LIN/CIRC/插值失败不改 PTP/OMPL。弦长/弧长上限 0.80 m。观察短移：只 LIN；行程 `observe_max_*` 4.0 rad / 1.5 rad（09-01 现场把 2.5 会拒的合法短移固化进 yaml）。`goToPhotoPose`：行程 `transit_max_*` 6 rad / 2.5 rad。成功出口核当前关节（`photo_pose_joint_tolerance_rad` / `photo_pose_max_joint_vel_rad_s`，`execute=false` 仍核）。超行程或不在拍照位不报成功。
+- 接触护栏（yaml）：绕腕看累计 12 rad、单轴 6.1 rad（URDF ±3.05 满行程）；段间接缝计入 `|Δq|`。口侧/上方看袋囊 keepout，**逐段审查**（s≥0 且 r<R 为口侧进入，全段禁；反爬 s 不得超过本段起点 max(s,0)+2 cm——staging 转移的首段 PTP 弧只查圆柱穿越，不查反爬；套入/撤退不审）。笛卡尔绕行比六键默认 0（0=不查）。不按时长（`mtc_approach_max_duration_s` 默认 0）。预抓取先回拍照位（有记录的接近则原路返程，否则 PTP），再主路径 staging 转移（预抓取下方最近构型 PTP + 轴向 LIN；滚转与自碰过滤在 IK 候选内完成）到预抓取，再一段沿轴 LIN 套入；反向同轨迹（含 staging 段）回预抓取。已齐 LIN 加 tip 姿态 OrientationConstraint（对目标姿态，容差 `mtc_approach_max_align_deg` 20°）。未齐先 LIN 原地对齐（兜底直连 LIN 专用）。直连 LIN 弦长/弧长上限 0.80 m（staging 是关节空间转移，不受此限）。观察短移：只 LIN；行程 `observe_max_*` 4.0 rad / 1.5 rad（09-01 现场把 2.5 会拒的合法短移固化进 yaml）。`goToPhotoPose`：原路返程不过 `transit_max_*`；新规划 PTP/OMPL 行程门 6 rad / 2.5 rad。成功出口核当前关节（`photo_pose_joint_tolerance_rad` / `photo_pose_max_joint_vel_rad_s`，`execute=false` 仍核）。超行程或不在拍照位不报成功。
 
 默认 `execution/grasp/tool=false`：只规划、不接触、不 SetIO。
 
-作业参数（默认值/校验/描述权威在 `config/manipulation_parameters.yaml`；运行 yaml 只写部署覆盖，现状为空）：
+作业参数（默认值/校验/描述权威在 `peach_manipulation/config/peach_manipulation.yaml` + `params.hpp`）：
 
 | 参数 | 含义 |
 |------|------|
@@ -375,11 +375,12 @@ flowchart TB
 | `grasp.enabled` | 关则停在 READY、不到预抓取。开要求 execution 已开 |
 | `tool.enabled` | 关则跳过 SetIO，不得宣称采摘成功 |
 | `mtc_approach_along_axis_m` | 预抓取相对入口后撤。由 `grasp_standoffs.yaml` 注入，现行 0.03 m |
-| `mtc_approach_max_total_joint_travel_rad` / `max_single_joint_travel_rad` | 接近绕行护栏 12 / 6.1；超则不执行 |
-| `mtc_approach_max_detour_ratio` / `max_chord_deviation_m` / `max_recede_m` | 接近笛卡尔绕行 2.2 / 0.25 m / 0.08 m；超则不执行 |
-| `mtc_approach_cartesian_max_distance_m` | 接触笛卡尔弦长/弧长上限 0.80 m；超过不改 PTP |
+| `mtc_approach_max_total_joint_travel_rad` / `max_single_joint_travel_rad` | 接近绕腕护栏 12 / 6.1；超则不执行 |
+| `mtc_approach_keepout_radius_m` / `keepout_axial_m` | 袋囊 keepout 半径默认 0.12 m；轴向>0 才启用（击中用 s≥0 半无限圆柱）。接近段 TCP 口侧进入或从口侧上方绕则拒发；0=关闭 |
+| `mtc_approach_max_detour_ratio` / `max_chord_deviation_m` / `max_recede_m` | 接近笛卡尔绕行比三项，默认 0=不查（键保留） |
+| `mtc_approach_cartesian_max_distance_m` | 接触笛卡尔弦长/弧长上限 0.80 m；超过不改无约束 PTP |
 | `observe_max_total_joint_travel_rad` / `max_single_joint_travel_rad` | 观察短移护栏 4.0 / 1.5 |
-| `transit_max_total_joint_travel_rad` / `max_single_joint_travel_rad` | 回拍照位护栏 6 / 2.5 |
+| `transit_max_total_joint_travel_rad` / `max_single_joint_travel_rad` | 回拍照位新规划 PTP/OMPL 护栏 6 / 2.5；原路返程不过此门 |
 | `max_camera_step_m` | 下一视点沿当前相机直线截步（默认 0.15 m） |
 | `maximum_moves` | 观察移动次数封顶；覆盖达标即停 |
 | `quality.minimum_baseline_deg` | 覆盖门 8° |
@@ -481,35 +482,38 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-  sub["订阅各包状态 / 观测 / GraspDecision / TCP TF"] --> st["ObservabilityState"]
+  sub["订阅各包状态 / 观测 / GraspDecision / TCP TF / joint_states / joint_status"] --> st["ObservabilityState"]
   st --> http["HTTP GET /api/state /api/trajectory"]
   st --> rec{"batch_state DISCOVERY 或 RUNNING?"}
   rec -->|是| jsonl["开 runs/run_* 写 jsonl"]
   rec -->|否| idle["关目录或 idle"]
   st --> viz["/peach/observability/tcp_path + markers"]
-  dbg["POST /api/debug/action 鉴权+运动门控"] --> bridge["调试桥 纯客户端转发既有动作/服务"]
+  dbg["POST /api/debug/action"] --> bridge["调试桥 转发既有动作/服务"]
   bridge --> targets["调度/感知/重建/技能 既有入口"]
 ```
 
-**读图：** 监控视图只收不发。状态汇进作业票和三维；批次态开合落盘目录。节点 `main()` 自行 configure/activate。调试操作面（默认三重关：`debug.enabled`/`token`/运动类另需 `debug.motion_enabled`）是**纯转发客户端**——目标全部是各包既有动作/服务，技能 ExecutionAuthority 等门照常生效；每次操作（含被拒）审计落 `runs/debug_audit/<日期>.jsonl`。
+**读图：** 过程页只收不发。状态汇进作业票和末端俯视；批次态开合落盘目录。节点 `main()` 自行 configure/activate。调试 POST（无令牌；动臂须 `debug.motion_enabled`）是**纯转发客户端**——目标全部是各包既有动作/服务，技能 ExecutionAuthority 等门照常生效；每次操作（含被拒）审计落 `runs/debug_audit/<日期>.jsonl`。
 
 | 名字 | 种类 | 含义 | 生产 | 消费 |
 |------|------|------|------|------|
 | `/peach/observability/tcp_path` | topic | latest TF 末端轨迹，给 RViz Path | peach_observability | （RViz） |
-| `/peach/observability/markers` | topic | TCP 路径/弦/预抓取/入口，与网页三维同源 | peach_observability | （RViz） |
+| `/peach/observability/markers` | topic | TCP 路径/弦/预抓取/入口，与网页俯视同源 | peach_observability | （RViz） |
 
-监控+调试 HTTP（默认 `127.0.0.1:8090`）+ 按 `HarvestState.batch_state` 开合 `runs/run_*` jsonl。监控视图只订不发；调试 POST 受三重门（`debug.enabled` / `debug.token` / 运动类另需 `debug.motion_enabled`），全部默认关。
+监控+调试 HTTP（默认 `127.0.0.1:8090`）+ 按 `HarvestState.batch_state` 开合 `runs/run_*` jsonl。过程页只订不发；调试 POST 无令牌。`debug.enabled` 默认 true（false→503）；运动类另需 `debug.motion_enabled`（默认 false→423）。
 
 | 参数 | 含义 |
 |------|------|
 | `host` / `port` | HTTP 监听；默认回环 8090。局域网须显式 `0.0.0.0` |
 | `record.enabled` | 分类落盘总开关 |
 | `trajectory.enabled` | latest TF 采 TCP 轨迹（不进 MCAP） |
-| `debug.enabled` / `debug.token` / `debug.motion_enabled` | 调试操作面三重门，全部默认关 |
+| `joint_states_topic` / `joint_status_topic` | 硬件表：实际角/速度与柜侧电流（SDK 原单位）/温度/跟随误差；不进 jsonl |
+| `debug.enabled` | 调试 POST 总开关；默认 true |
+| `debug.motion_enabled` | 运动类放行；默认 false→423 |
+| `debug.token` | 键保留不校验 |
 | `debug.audit_enabled` | 审计落盘 `runs/debug_audit/`；默认开（含被拒，含 `enabled=false` 的 503） |
 | `debug.endpoints.*` | 调试桥目标（18 个既有动作/服务名，params.py 默认=现行契约名） |
 
-HTTP `/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipulation` / `task_executor` / `robot`（含 `tcp` 摘要）/ `metrics` / `record` / `params` / **`job`**（当前果实作业票：过程线状态、档位、`why`、感知入口/重建中心/预抓取/抓取进入点，`base_link` 米）/ **`debug`**（三重门状态 + 最近操作环形缓冲；令牌绝不下发）。`GET /api/trajectory` 给三维页：TCP 点列、起止弦、路标、Marker 字典。监控页首屏按作业票展示，其下是末端三维（轨道相机，对照弦与入口）；抓取档关闭时靠近/工具为 gated，不是已完成。`POST /api/debug/<action>`：`enabled=false→503`、令牌不符→`401`、运动类未放行→`423`、未知端点→`404`、未知 mode/intent/command→`400`。运动类 = RunHarvest 非 `SURVEY_ONLY`、Survey、Execute 非 `PREVIEW`（`OBSERVE_ONLY` 算运动）、`go_to_photo_pose`、arm、ControlTask 的 `RESUME`/`EXIT_MAINTENANCE`。端点清单见 `config/observability_parameters.yaml` 的 `debug.endpoints.*`。
+HTTP `/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipulation` / `task_executor` / `robot`（含 `tcp` 摘要与 `joints` 六轴）/ `metrics` / `record` / `params` / **`job`**（当前果实作业票：过程线状态、档位、`why`、感知入口/重建中心/预抓取/抓取进入点，`base_link` 米）/ **`debug`**（`enabled` / `motion_enabled` + 最近操作环形缓冲）。`GET /api/trajectory` 给俯视页：TCP 点列、起止弦、路标、Marker 字典（绕行比、Δz）。过程页首屏按作业票展示；抓取档关闭时靠近/工具为 gated，不是已完成。机械臂硬件表订 `/joint_states`（角/速度）与 `/aubo_io_controller/joint_status`（电流 SDK 原单位/温度/跟随误差），不进 jsonl。`POST /api/debug/<action>`：`enabled=false→503`、运动类未放行→`423`、未知端点→`404`、未知 mode/intent/command→`400`。无令牌、无 401。运动类 = RunHarvest 非 `SURVEY_ONLY`、Survey、Execute 非 `PREVIEW`（`OBSERVE_ONLY` 算运动）、`go_to_photo_pose`、arm、ControlTask 的 `RESUME`/`EXIT_MAINTENANCE`。页面只暴露本管线按钮；后端端点清单见 `config/observability.yaml` 的 `debug.endpoints.*`。
 
 | 产物 | 路径 |
 |------|------|
@@ -585,9 +589,10 @@ flowchart TB
 
 | 名字 | 含义 |
 |------|------|
-| `/aubo_io_controller/robot_status` | 技能安全门：抱闸、`motion_possible`、急停 |
+| `/aubo_io_controller/robot_status` | 技能安全门：抱闸、`motion_possible`、急停；监控 Web 柜侧灯 |
+| `/aubo_io_controller/joint_status` | 监控 Web：关节电流（SDK 原单位）、温度、跟随误差 |
 | `/aubo_io_controller/set_io` | 工具闭合；仅 `tool.enabled` 且 FULL 切断阶段 |
-| `/joint_states` | 重建静止门、技能规划当前关节 |
+| `/joint_states` | 重建静止门、技能规划当前关节；监控 Web 实际角/速度 |
 
 采摘 IDL 在 `peach_interfaces`。
 

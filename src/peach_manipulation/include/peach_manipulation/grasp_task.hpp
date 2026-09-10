@@ -1,7 +1,8 @@
-// 功能：MTC 接触。到预抓取：GenerateGraspPose 滚转 + Fallbacks(Pilz LIN,
-// staging PTP 转移, CartesianPath)；沿轴套入与撤退。接触段（预抓取→入口→
-// 插入→撤离）不用 PTP/OMPL；Pilz PTP 只作自由空间 staging 转移（确定性
-// 关节插值，非 OMPL Connect）。刀具 IO 不在此。
+// 功能：MTC 接触。接近主路径 = 预抓取正下方轴上 staging：PTP（最近构型
+// IK，滚转扫描）到 staging，再轴向 LIN 升到预抓取；已对轴/已在袋底侧的
+// 短修正走直连 LIN。沿轴套入与撤退；返程倒放同一接近轨迹。G/under 单弦
+// 档已删（photo→G 弦 fraction 0.41–0.73，2026-09-10 100 位姿探针）。
+// 刀具 IO 不在此。
 #ifndef PEACH_MANIPULATION__GRASP_TASK_HPP_
 #define PEACH_MANIPULATION__GRASP_TASK_HPP_
 
@@ -19,7 +20,9 @@
 
 #include <moveit_msgs/msg/constraints.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <trajectory_msgs/msg/joint_trajectory.hpp>
 
+#include "peach_manipulation/grasp_geometry.hpp"
 #include "peach_manipulation/math_utils.hpp"
 #include "peach_manipulation/protected_zones.hpp"
 
@@ -44,8 +47,9 @@ namespace peach_manipulation
 
 // tip 姿态不偏离 target_pose 超过 tol_deg 的三轴等宽容差约束集。
 // 只挂已齐 LIN（分档要求起点对轴，拦笛卡尔插值中途侧翻）。
-// 未齐第一段 LIN-align 与 CIRC 不挂：Jazzy ValidateSolution 验每个路点含起点，
-// 起点相对目标 >20° 会 INVALID_MOTION_PLAN。接触不用 PTP。
+// 未齐第一段 LIN-align 不挂：Jazzy ValidateSolution 验每个路点含起点，
+// 起点相对目标 >20° 会 INVALID_MOTION_PLAN。staging 转移 PTP 不挂姿态门
+// （关节目标本体就是目标姿态的 IK 解）。
 inline moveit_msgs::msg::Constraints makeOrientationGate(
   const std::string & link_name, const std::string & frame_id,
   const Eigen::Isometry3d & target_pose, double tol_deg,
@@ -68,24 +72,29 @@ inline moveit_msgs::msg::Constraints makeOrientationGate(
 
 // 接近分档结论（只出结论，不规划）。同一 (config, entry, axis) 每条公共入口算一次，
 // 下游装配/预览复用，避免周期内重复 classifyApproach。
+// STAGING=主路径（预抓取下方 PTP + 轴向 LIN）；LIN/LIN_ALIGN_THEN_LIN=
+// 已在袋底侧的直连短修正；G/under 单弦档已删（见文件头）。
 struct ApproachSplit
 {
   bool need_lin{true};
   bool need_align{true};
-  enum class Kind { SKIP, LIN, LIN_ALIGN_THEN_LIN, CIRC_THEN_LIN, BLOCKED } kind{
-    Kind::BLOCKED};
+  enum class Kind
+  {
+    SKIP, LIN, LIN_ALIGN_THEN_LIN, STAGING, BLOCKED
+  } kind{
+    Kind::STAGING};
   double lin_to_entry_m{0.0};
   double lateral_m{0.0};
   double axial_m{0.0};
   double align_deg{180.0};
   double sweep_deg{0.0};
   double radius_m{0.0};
-  // classifyApproach 取到的当前 TCP 快照：后续 append/日志复用，避免
-  // 一次接近分档内最多三次 TF 查询（各带 1s 超时）且保证几何一致。
+  // classifyApproach 取到的当前 TCP 快照：后续装配/日志复用，避免
+  // 一次接近分档内多次 TF 查询（各带 1s 超时）且保证几何一致。
   std::optional<Eigen::Isometry3d> current_tip;
   // 对轴后绕工具 Z 的刀口滚转。0=keep-roll；规划扫描写入，不参与分档。
   double tool_roll_rad{0.0};
-  std::string blocked_reason{"无约束笛卡尔接近"};
+  std::string blocked_reason{"无当前 TCP"};
 };
 
 struct GraspTaskConfig
@@ -105,34 +114,37 @@ struct GraspTaskConfig
   double approach_max_duration_s{0.0};
   double approach_max_total_joint_travel_rad{12.0};
   double approach_max_single_joint_travel_rad{6.1};
-  // 笛卡尔绕行审查；任一项 <=0 则跳过该项。拦「先远离再绕回」。
-  double approach_max_detour_ratio{2.2};
-  double approach_max_chord_deviation_m{0.25};
-  double approach_max_recede_m{0.08};
-  // staging 转移级（PTP→轴上 staging→LIN）专用笛卡尔门：转移 PTP 是关节
-  // 空间弧，比直连 LIN 宽，但仍须全数拒绝 1740 无约束 PTP（3.2/0.51/0.24）。
-  double staging_max_detour_ratio{2.5};
-  double staging_max_chord_deviation_m{0.40};
-  double staging_max_recede_m{0.15};
+  // 笛卡尔绕行审查；任一项 <=0 则跳过。接触段默认 0：对错看袋囊 keepout。
+  double approach_max_detour_ratio{0.0};
+  double approach_max_chord_deviation_m{0.0};
+  double approach_max_recede_m{0.0};
+  double staging_max_detour_ratio{0.0};
+  double staging_max_chord_deviation_m{0.0};
+  double staging_max_recede_m{0.0};
+  // 袋囊半无限圆柱 keepout（入口沿 +axis）。s≥0 且 r<R 禁止口侧进入；
+  // s 不得超过 max(起点s, 0)+2 cm。axial_m<=0 关闭。
+  double approach_keepout_radius_m{0.12};
+  double approach_keepout_axial_m{0.12};
   // 接触笛卡尔弦长/弧长上限；超过则 skipped_unreachable，不改 PTP。
   double approach_cartesian_max_distance_m{0.80};
-  // 预抓取点在入口沿 −axis 后撤量；0=与入口重合（拟合袋底）。已对轴时 LIN 只走这一段。
+  // 预抓取点在入口沿 −axis 后撤量；0=与入口重合（拟合袋底）。轴向 LIN 只走这一段。
   double approach_along_axis_m{0.0};
-  // 笛卡尔回退 staging 相对预抓取再沿 −axis 后撤。0=回退直接插值到预抓取。
-  double approach_staging_standoff_m{0.0};
+  // staging=预抓取沿 −axis 再退本值（主路径 PTP 落点，即「预抓取点下方」）。
+  double approach_staging_standoff_m{0.10};
   // 侧向小于此值视为已对轴，LIN 是最短直线。
   double approach_max_lateral_m{0.05};
   // 工具 Z 与轴夹角小于此值视为已齐；已齐 LIN 才挂同值姿态路径约束。
   double approach_max_align_deg{20.0};
   std::function<std::optional<Eigen::Isometry3d>()> lookup_current_tip;
-  // staging 转移级 PTP 关节目标（12 滚转 × 2 种子最近构型）：直线 LIN/CIRC
-  // 全部滚转失败后的自由空间转移级，接近段保持 LIN 笛卡尔直线。
+  // staging 关节目标（主路径 PTP 落点；12 滚转 × 3 种子取最近且无自碰的
+  // 最多 3 个候选，按关节距离升序）。转移逐候选试规划，救弧穿袋囊与
+  // 自碰构型。
   struct StagingCandidate
   {
     std::map<std::string, double> joints;
     Eigen::Isometry3d pose;
   };
-  std::function<std::optional<StagingCandidate>(
+  std::function<std::vector<StagingCandidate>(
       const Eigen::Isometry3d & staging_pose)> select_goal_joints;
   // 单姿态快速可行性（当前种子 + 固定 50ms，只答能否）：选果预检的
   // 原子操作——整条预检须在 executor reach 等待窗内完成，早退优先。
@@ -175,20 +187,6 @@ public:
     const Eigen::Vector3d & insertion_axis,
     bool execute);
 
-  // CartesianPath 回退：Pilz LIN 滚转扫描仍失败时，同一弦插值 + 滚转
-  // Alternatives。可选 staging 再轴向 LIN。不进 PTP/OMPL。
-  GraspTaskResult moveToPregraspViaCorridor(
-    const Eigen::Isometry3d & entry_tip_pose,
-    const Eigen::Vector3d & insertion_axis,
-    bool execute);
-
-  // 与 moveToPregraspViaCorridor 同一条笛卡尔弦上的采样点（staging 与
-  // 预抓取）。选果预检若要用路径点，必须是这条弦，不得另造关节目标。
-  // 返回空 = 当前 TCP 不可用。
-  std::vector<Eigen::Isometry3d> approachCorridorWaypoints(
-    const Eigen::Isometry3d & entry_tip_pose,
-    const Eigen::Vector3d & insertion_axis);
-
   GraspTaskResult sleeveLinear(
     const Eigen::Vector3d & insertion_axis,
     double insertion_distance_m,
@@ -200,6 +198,9 @@ public:
     bool execute);
 
   void cancel();  // preempt 当前 active 任务
+
+  // 最近一次过护栏且已下发成功的接近轨迹（多段已拼接）。空 = 无可返程记录。
+  trajectory_msgs::msg::JointTrajectory lastApproachTrajectory() const;
 
 private:
   GraspTaskResult planAndMaybeExecute(
@@ -228,27 +229,30 @@ private:
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
     const ApproachSplit & split);
-  std::unique_ptr<moveit::task_constructor::Task> makeCartesianApproachTask(
-    const std::string & task_name,
-    const Eigen::Isometry3d & target_tip_pose,
-    const std::optional<Eigen::Isometry3d> & staging_tip_pose) const;
+  // staging 序列（PTP 到预抓取下方 + 轴向 LIN）；正式转移与预览共用。
+  std::unique_ptr<moveit::task_constructor::SerialContainer> makeStagingSequence(
+    const Eigen::Isometry3d & pregrasp_tip_pose,
+    const Eigen::Isometry3d & staging_tip_pose,
+    const std::map<std::string, double> & staging_joints,
+    const std::string & label) const;
   std::unique_ptr<moveit::task_constructor::Task> makeStagingTransitTask(
     const std::string & task_name,
     const Eigen::Isometry3d & pregrasp_tip_pose,
     const Eigen::Isometry3d & staging_tip_pose,
     const std::map<std::string, double> & staging_joints);
-  // STOMP 轨迹优化接近（最近距离主路径）：单段位姿目标，代价=碰撞/平滑/
-  // 控制，从关节线性种子优化出最贴近直线的无碰轨迹（直弦物理不可行时的
-  // 最小局部外凸，自适应任意位姿）。
-  std::unique_ptr<moveit::task_constructor::Task> makeStompApproachTask(
-    const std::string & task_name,
-    const Eigen::Isometry3d & pregrasp_tip_pose,
-    const std::map<std::string, double> * goal_joints) const;
-  bool tryStompApproach(
+  // staging 候选（预抓取下方轴上，alignFrameZ keep-roll；滚转/种子/自碰
+  // 过滤由 config.select_goal_joints 完成，按距离升序）。空 = standoff
+  // 关闭 / 无当前 TCP / 无可行候选。
+  std::vector<GraspTaskConfig::StagingCandidate> stagingCandidate(
+    const Eigen::Isometry3d & entry_tip_pose,
+    const Eigen::Vector3d & insertion_axis,
+    const ApproachSplit & split) const;
+  bool tryRolledApproach(
     const std::string & task_name,
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
-    const ApproachSplit & split,
+    ApproachSplit split,
+    ApproachSplit::Kind kind,
     bool execute,
     GraspTaskResult & last);
   bool tryStagingTransit(
@@ -277,15 +281,6 @@ private:
     const Eigen::Isometry3d & target_tip_pose,
     const std::string & label,
     bool gate_orientation) const;
-  void appendCartesianToPose(
-    moveit::task_constructor::SerialContainer & sequence,
-    const Eigen::Isometry3d & target_tip_pose,
-    const std::string & label) const;
-  void appendCircToPose(
-    moveit::task_constructor::SerialContainer & sequence,
-    const Eigen::Isometry3d & target_tip_pose,
-    const Eigen::Vector3d & center,
-    const std::string & label) const;
   void appendApproachToPregrasp(
     moveit::task_constructor::SerialContainer & sequence,
     const Eigen::Isometry3d & entry_tip_pose,
@@ -303,8 +298,6 @@ private:
   std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner>
   makeLinSolver() const;
   std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner>
-  makeCircSolver() const;
-  std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner>
   makePtpSolver() const;
   std::shared_ptr<moveit::task_constructor::solvers::CartesianPath>
   makeCartesianSolver() const;
@@ -321,7 +314,11 @@ private:
   GraspTaskConfig config_;
   std::mutex task_mutex_;
   std::unique_ptr<moveit::task_constructor::Task> active_task_;
+  BagKeepout pending_keepout_;
+  bool inspect_bag_keepout_{false};
   mutable std::vector<std::string> published_keepout_ids_;  // 上次写入 scene 的 id
+  std::vector<trajectory_msgs::msg::JointTrajectory> planned_approach_parts_;
+  std::vector<trajectory_msgs::msg::JointTrajectory> last_approach_parts_;
 };
 
 }  // namespace peach_manipulation

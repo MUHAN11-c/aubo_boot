@@ -1,22 +1,20 @@
 """
-桃子采摘链路监控 Web：只读观测 + 鉴权手动调试操作面（同端口 8090）.
+桃子采摘链路监控 Web：过程记录 / 监控 / 轨迹 + 单步调试（同端口 8090）.
 
-只读面（2026-08-13 起）：回答「现在跑到哪一步、各步数据是什么、当前
-参数是什么」，问题定位依靠过程监测。调试操作面（2026-09 融合，决策
-0007 推翻条款执行）：POST /api/debug/<action> 转发到既有动作/服务，
-三重门控——debug.enabled 总开关、X-Debug-Token 令牌、运动类另需
-debug.motion_enabled——全部默认关；每次操作（含被拒）写审计 JSONL。
+只读面回答「现在跑到哪一步、坐标是什么、TCP 怎么走的」；jsonl 按批次开合。
+调试 POST /api/debug/<action> 转发既有动作/服务（决策 0018：无令牌）。
+debug.enabled 默认开（回环）；动臂另需 debug.motion_enabled（默认关→423）。
 技能侧 ExecutionAuthority 等既有安全门不受影响：Web 只是又一个客户端。
 """
 
 from __future__ import annotations
 
-import hmac
 import json
 from pathlib import Path
+import time
 
 from ament_index_python.packages import get_package_share_directory
-from aubo_msgs.msg import RobotStatus
+from aubo_msgs.msg import JointStatus, RobotStatus
 from geometry_msgs.msg import Vector3Stamped
 from nav_msgs.msg import Path as NavPath
 from peach_executor.batch import resolve_runs_root
@@ -35,8 +33,9 @@ import rclpy
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
-from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-from sensor_msgs.msg import Image, PointCloud2
+from rclpy.qos import (
+    DurabilityPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data)
+from sensor_msgs.msg import Image, JointState, PointCloud2
 from std_msgs.msg import String
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
@@ -45,6 +44,7 @@ from visualization_msgs.msg import MarkerArray
 
 from . import http_server
 from .audit import DebugAudit
+from .codec import merge_joint_hardware, to_joint_state, to_joint_status
 from .debug_actions import DebugBridge, is_motion
 from .params import declare as _declare_params
 from .params import from_params as _from_params
@@ -125,7 +125,7 @@ def _parameter_scalar(value) -> object:
 
 
 class ObservabilityNode(LifecycleNode):
-    """订阅采摘链路各阶段输出，提供只读监控 API 与鉴权调试操作面."""
+    """订阅采摘链路各阶段输出，提供过程监控 API 与单步调试 POST."""
 
     def __init__(self):
         """声明参数；订阅与 HTTP 等到 configure / activate."""
@@ -162,7 +162,10 @@ class ObservabilityNode(LifecycleNode):
             'skill': '',
         }
         self._traj_run_id = ''
-        # 调试操作面（默认关；debug.enabled=true 才建桥）
+        self._joint_state = {}
+        self._joint_status = {}
+        self._joints_push_t = 0.0
+        # 调试 POST（debug.enabled=true 才建桥）
         self._debug_bridge: DebugBridge | None = None
         self._debug_audit: DebugAudit | None = None
 
@@ -278,6 +281,12 @@ class ObservabilityNode(LifecycleNode):
         self._subscribe(
             RobotStatus, self._topic('robot_status_topic'),
             self._robot_status_callback, reliable_qos)
+        self._subscribe(
+            JointState, self._topic('joint_states_topic'),
+            self._joint_state_callback, qos_profile_sensor_data)
+        self._subscribe(
+            JointStatus, self._topic('joint_status_topic'),
+            self._joint_status_callback, reliable_qos)
         # 记录器图像/点云订阅：只在对应开关开启时建立（省带宽）
         if self._params.record_enabled:
             if self._params.record_save_images:
@@ -298,6 +307,26 @@ class ObservabilityNode(LifecycleNode):
         """机械臂柜侧状态；in_motion 给 TCP 采样当运动标记."""
         self._traj_ctx['moving'] = bool(message.in_motion)
         self._state.update('robot', 'status', to_robot_status(message))
+
+    def _joint_state_callback(self, message: JointState) -> None:
+        """实际关节角/速度；与 joint_status 合成硬件表（约 10 Hz 推镜像）."""
+        self._joint_state = to_joint_state(message)
+        self._push_joints()
+
+    def _joint_status_callback(self, message: JointStatus) -> None:
+        """柜侧关节电流/温度/跟随误差；与 /joint_states 合成硬件表."""
+        self._joint_status = to_joint_status(message)
+        self._push_joints()
+
+    def _push_joints(self) -> None:
+        """把最新关节实际量与柜侧明细合成 robot.joints（限 10 Hz）."""
+        now = time.monotonic()
+        if now - self._joints_push_t < 0.1:
+            return
+        self._joints_push_t = now
+        self._state.update(
+            'robot', 'joints',
+            merge_joint_hardware(self._joint_state, self._joint_status))
 
     def _harvest_callback(self, message: String) -> None:
         """
@@ -631,7 +660,7 @@ class ObservabilityNode(LifecycleNode):
         self._recorder.handle_metrics(sample)
 
     # ------------------------------------------------------------------
-    # 手动调试操作面（默认关；门控链：enabled → token → motion → 审计）
+    # 单步调试（enabled → 运动门 → 审计；无令牌）
     # ------------------------------------------------------------------
     def _create_debug_bridge(self) -> None:
         """装配审计器；debug.enabled=true 才建转发桥（否则 POST 503 仍可审计）."""
@@ -640,7 +669,7 @@ class ObservabilityNode(LifecycleNode):
             self._params.debug_audit_enabled,
             lambda msg: self.get_logger().warning(msg))
         if not self._params.debug_enabled:
-            self.get_logger().info('手动调试操作面未启用（debug.enabled=false）')
+            self.get_logger().info('调试操作面未启用（debug.enabled=false）')
             return
         self._debug_bridge = DebugBridge(
             self, self._params.debug_endpoints,
@@ -648,33 +677,26 @@ class ObservabilityNode(LifecycleNode):
             self._params.debug_motion_enabled,
             lambda msg: self.get_logger().warning(msg))
         self._debug_bridge.open_all()
-        token_state = '已设置' if self._params.debug_token else '【空=全部拒绝】'
         motion_state = '放行' if self._params.debug_motion_enabled else '默认拒绝'
         self.get_logger().warning(
-            f'*** 手动调试操作面已启用：token={token_state}；'
-            f'运动类操作={motion_state}。技能侧既有安全门照常生效，'
-            '但请勿将端口暴露到不受信网络 ***')
+            f'*** 调试操作面已启用：运动类操作={motion_state}。'
+            '技能侧既有安全门照常生效；请保持 HTTP 回环绑定 ***')
 
     def debug_command(self, action: str, payload: dict, headers) -> tuple:
         """
-        调试操作门控链（HttpBackend 窄接口）：鉴权 → 运动 → 桥 → 审计.
+        调试操作门控（HttpBackend 窄接口）：总开关 → 运动 → 桥 → 审计.
 
         Args:
             action: 调试端点键.
             payload: 已解析 JSON 请求体.
-            headers: HTTP 请求头（取 X-Debug-Token）.
+            headers: HTTP 请求头（兼容旧客户端；不再校验令牌）.
 
         Returns
         -------
             (http_status, 响应 dict)；每次调用（含被拒）均写审计.
 
         """
-        token = ''
-        try:
-            token = str(headers.get('X-Debug-Token') or '')
-        except AttributeError:
-            pass
-        expected = self._params.debug_token if self._params else ''
+        del headers
         row = {'action': action, 'args': payload}
 
         def audit(accepted: bool, status: int, message: str) -> tuple:
@@ -686,9 +708,6 @@ class ObservabilityNode(LifecycleNode):
 
         if self._debug_bridge is None or self._params is None:
             return audit(False, 503, '调试操作面未启用（debug.enabled=false）')
-        if not expected or not hmac.compare_digest(
-                token.encode('utf-8'), expected.encode('utf-8')):
-            return audit(False, 401, '令牌缺失或不匹配')
         if is_motion(action, payload) and not self._params.debug_motion_enabled:
             return audit(
                 False, 423,
@@ -717,8 +736,6 @@ class ObservabilityNode(LifecycleNode):
                 self._params.debug_enabled if self._params else False),
             'motion_enabled': bool(
                 self._params.debug_motion_enabled if self._params else False),
-            'token_required': bool(
-                self._params.debug_token if self._params else False),
             'recent': (
                 self._debug_bridge.state().get('recent', [])
                 if self._debug_bridge is not None else []),
@@ -793,8 +810,8 @@ class ObservabilityNode(LifecycleNode):
         port = self._params.port
         if host not in ('127.0.0.1', 'localhost'):
             self.get_logger().warning(
-                f'*** 安全提示：Web 监控台监听在非回环地址 {host}:{port}，'
-                '调试操作面虽有令牌门控，仍严禁暴露到公网或不受信网络 ***')
+                f'*** 安全提示：Web 监听在非回环地址 {host}:{port}，'
+                '严禁暴露到公网或不受信网络 ***')
         web_root = Path(get_package_share_directory(
             'peach_executor')) / 'web'
         self._http = http_server.start_http(
@@ -802,9 +819,9 @@ class ObservabilityNode(LifecycleNode):
         if self._metrics is not None:
             self._metrics.start()
         shown_host = '127.0.0.1' if host == '0.0.0.0' else host
-        mode = '监控+手动调试（鉴权）' if self._params.debug_enabled \
+        mode = '过程监控+单步调试' if self._params.debug_enabled \
             else '只读监控'
-        self.get_logger().info(f'桃子采摘 Web 控制台（{mode}）: '
+        self.get_logger().info(f'感知抓取过程页（{mode}）: '
                                f'http://{shown_host}:{port}')
 
     def _stop_runtime(self) -> None:

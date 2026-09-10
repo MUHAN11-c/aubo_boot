@@ -1,12 +1,10 @@
 """
-Web 监控台 HTTP 层：静态文件、只读状态 API 与鉴权调试操作面.
+Web 监控台 HTTP 层：静态文件、只读状态 API 与单步调试 POST.
 
-2026-09 起融合手动调试（决策 0007 推翻条款执行）：GET 仍是只读状态；
-POST 仅开放 `/api/debug/<action>` 调试端点，鉴权（X-Debug-Token）、
-运动门控（motion_enabled）与审计全部在后端 `debug_command` 内完成，
-本层只做解析与转发——无令牌时一切 POST 仍被拒绝。Handler 不闭包
-引用 ROS 节点，只经 `_ObservabilityHttpServer` 上的窄接口
-`HttpBackend`（snapshot / trajectory / debug_command）取依赖。
+GET 仍是只读状态；POST 仅开放 `/api/debug/<action>`。运动门控
+（motion_enabled）与审计在后端 `debug_command` 内完成，本层只做解析
+与转发。Handler 不闭包引用 ROS 节点，只经 `_ObservabilityHttpServer`
+上的窄接口 `HttpBackend`（snapshot / trajectory / debug_command）取依赖。
 """
 
 from __future__ import annotations
@@ -37,12 +35,12 @@ class HttpBackend(Protocol):
     def debug_command(self, action: str, payload: dict,
                       headers) -> tuple:
         """
-        执行一次调试操作（鉴权/门控/审计在后端内完成）.
+        执行一次调试操作（运动门控/审计在后端内完成）.
 
         Args:
             action: 调试端点键（如 'begin_scene_service'）.
             payload: 已解析的 JSON 请求体.
-            headers: 请求头（取 X-Debug-Token）.
+            headers: 请求头（兼容旧客户端；不再校验令牌）.
 
         Returns
         -------
@@ -109,7 +107,7 @@ class ObservabilityHttpHandler(BaseHTTPRequestHandler):
             cache='public, max-age=60')
 
     def do_POST(self):
-        """调试操作面唯一入口：/api/debug/<action>；鉴权与门控在后端."""
+        """调试操作面唯一入口：/api/debug/<action>；运动门控在后端."""
         parsed = urlparse(self.path)
         if not parsed.path.startswith('/api/debug/'):
             self._json(

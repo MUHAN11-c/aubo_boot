@@ -23,6 +23,8 @@ peach_observability:
     task_executor_state_topic: /peach_executor/state  # 调度节点类型化状态话题
     task_executor_events_topic: /peach_executor/events  # 调度过程/审计事件话题（事件时间线）
     robot_status_topic: /aubo_io_controller/robot_status  # 机械臂上电/急停/运动/错误状态话题
+    joint_states_topic: /joint_states  # 实际关节角/速度（sensor_msgs/JointState）
+    joint_status_topic: /aubo_io_controller/joint_status  # 关节电流/温度/跟随误差（aubo_msgs/JointStatus）
     event_buffer_size: 100  # 事件时间线环形缓冲上限（条），超出丢弃最旧
     metrics_period_s: 1.0  # 系统/GPU/进程性能采样周期（秒），独立线程采集
     metrics_process_patterns: [peach_scene_perception_node, peach_target_reconstruction_node, peach_manipulation_node, peach_executor, ros2_control_node, percipio]  # 进程性能监控的 cmdline 子串匹配关键字列表
@@ -44,9 +46,9 @@ peach_observability:
     tcp_path_topic: /peach/observability/tcp_path  # 末端 TCP 轨迹 nav_msgs/Path（RViz Path，latched）
     tcp_markers_topic: /peach/observability/markers  # 末端轨迹/入口/预抓取 visualization_msgs/MarkerArray（与重建 markers 同契约）
     debug:
-      enabled: false  # 手动调试操作面总开关；false 时全部 POST 拒绝，只读监控不受影响
-      motion_enabled: false  # 运动类操作放行开关（RunHarvest 非 SURVEY_ONLY / Survey / Execute 非 PREVIEW / go_to_photo_pose / arm / ControlTask 的 RESUME 与 EXIT_MAINTENANCE）；false 一律 423；PREVIEW 与只规划 Trigger 不拦；技能侧既有安全门不受影响
-      token: ''  # 调试操作令牌（请求头 X-Debug-Token）；空串=所有 POST 拒绝；不出现在 /api/state
+      enabled: true  # 调试 POST 总开关；false 时全部 POST 拒绝，只读监控不受影响
+      motion_enabled: false  # 运动类操作放行（Survey / Execute 非 PREVIEW / go_to_photo_pose / 非 SURVEY_ONLY 的 RunHarvest 等）；false 一律 423；PREVIEW 与 BeginScene 不拦；技能侧既有安全门不受影响
+      token: ''  # 键保留不校验（决策 0018）；旧客户端仍可带 X-Debug-Token 头
       action_timeout_s: 180.0  # 动作结果等待上限（秒）；服务 10 秒
       audit_enabled: true  # 调试操作审计落盘 runs/debug_audit/<日期>.jsonl（含被拒请求）
     debug.endpoints:

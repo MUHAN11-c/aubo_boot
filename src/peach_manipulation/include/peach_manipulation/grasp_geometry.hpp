@@ -6,6 +6,8 @@
 
 #include <cmath>
 #include <cstddef>
+#include <sstream>
+#include <string>
 #include <vector>
 
 namespace peach_manipulation
@@ -70,27 +72,116 @@ inline Eigen::Isometry3d pregraspFromEntryKeepRoll(
   return pose;
 }
 
-// 笛卡尔直线采样（含终点，不含起点）：平移 lerp + 姿态 slerp。
-// 接触回退走同一条弦，禁止另造关节空间目标。
-inline std::vector<Eigen::Isometry3d> cartesianLineSamples(
-  const Eigen::Isometry3d & start,
-  const Eigen::Isometry3d & goal,
-  std::size_t inner_count = 1U)
+// 袋囊 keepout：入口沿 +axis 的半无限圆柱。TCP 在 s≥0 且 r<radius
+// 即从口侧/上方进入，接近段禁止。半径默认 0.12 m。axial_m<=0 关闭。
+// （G/under 单弦档已删：photo→G 弦 fraction 0.41–0.73，2026-09-10 探针。）
+struct BagKeepout
 {
-  std::vector<Eigen::Isometry3d> out;
-  const Eigen::Quaterniond q0(start.linear());
-  const Eigen::Quaterniond q1(goal.linear());
-  const std::size_t steps = inner_count + 1U;
-  out.reserve(steps);
-  for (std::size_t i = 1; i <= steps; ++i) {
-    const double t = static_cast<double>(i) / static_cast<double>(steps);
-    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
-    pose.translation() =
-      (1.0 - t) * start.translation() + t * goal.translation();
-    pose.linear() = q0.slerp(t, q1).toRotationMatrix();
-    out.push_back(pose);
+  Eigen::Vector3d entry{Eigen::Vector3d::Zero()};
+  Eigen::Vector3d axis{Eigen::Vector3d::UnitZ()};
+  double radius_m{0.12};
+  double axial_m{0.12};
+};
+
+inline bool bagKeepoutDisabled(const BagKeepout & keepout)
+{
+  return keepout.radius_m <= 1.0e-6 || keepout.axial_m <= 1.0e-6 ||
+         !keepout.axis.allFinite() || keepout.axis.norm() < 1.0e-9 ||
+         !keepout.entry.allFinite();
+}
+
+inline void axialRadial(
+  const Eigen::Vector3d & point, const BagKeepout & keepout,
+  double & axial_m, double & radial_m)
+{
+  const Eigen::Vector3d axis = keepout.axis.normalized();
+  const Eigen::Vector3d delta = point - keepout.entry;
+  axial_m = delta.dot(axis);
+  radial_m = (delta - axial_m * axis).norm();
+}
+
+inline bool pointHitsBagKeepout(
+  const Eigen::Vector3d & point, const BagKeepout & keepout)
+{
+  if (bagKeepoutDisabled(keepout) || !point.allFinite()) {
+    return false;
   }
-  return out;
+  double axial_m = 0.0;
+  double radial_m = 0.0;
+  axialRadial(point, keepout, axial_m, radial_m);
+  return axial_m >= 0.0 && radial_m < keepout.radius_m;
+}
+
+inline bool segmentHitsBagKeepout(
+  const Eigen::Vector3d & start, const Eigen::Vector3d & end,
+  const BagKeepout & keepout, std::size_t samples = 40U)
+{
+  if (bagKeepoutDisabled(keepout)) {
+    return false;
+  }
+  const std::size_t count = samples < 2U ? 2U : samples;
+  for (std::size_t i = 0; i <= count; ++i) {
+    const double t = static_cast<double>(i) / static_cast<double>(count);
+    if (pointHitsBagKeepout((1.0 - t) * start + t * end, keepout)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+struct BagKeepoutReport
+{
+  bool allowed{true};
+  std::string reason{"袋囊 keepout 通过"};
+};
+
+// audit_climb=false 只查圆柱穿越（staging 转移的 PTP 弧用：拍照位本就在
+// 袋口上方，锚定起点的反爬门会把关节弧的自然拱高误判成绕行；袋口安全由
+// 圆柱本体检查保证）。=true 另查反爬：s 不得超过 max(本段起点s, 0)+2 cm。
+inline BagKeepoutReport inspectTcpBagKeepout(
+  const std::vector<Eigen::Vector3d> & points, const BagKeepout & keepout,
+  bool audit_climb = true)
+{
+  BagKeepoutReport report;
+  if (bagKeepoutDisabled(keepout)) {
+    report.reason = "袋囊 keepout 关闭";
+    return report;
+  }
+  if (points.size() < 2U) {
+    report.reason = "袋囊 keepout：点列不足，跳过";
+    return report;
+  }
+  double start_s = 0.0;
+  double start_r = 0.0;
+  axialRadial(points.front(), keepout, start_s, start_r);
+  (void)start_r;
+  // 禁止从口侧上方绕：s 不得超过 max(起点s, 0)+2 cm。已在袋底（s<0）
+  // 允许朝入口增大 s；套入段不走本审查。
+  const double s_max = (start_s > 0.0 ? start_s : 0.0) + 0.02;
+  for (std::size_t i = 0; i < points.size(); ++i) {
+    double axial_m = 0.0;
+    double radial_m = 0.0;
+    axialRadial(points[i], keepout, axial_m, radial_m);
+    if (audit_climb && axial_m > s_max) {
+      report.allowed = false;
+      std::ostringstream reason;
+      reason << "从口侧/上方绕行 s=" << axial_m << "m > 口侧上限 "
+             << s_max << "m";
+      report.reason = reason.str();
+      return report;
+    }
+    if (!pointHitsBagKeepout(points[i], keepout)) {
+      continue;
+    }
+    report.allowed = false;
+    std::ostringstream reason;
+    reason << "TCP 进入袋囊 keepout（口侧）s=" << axial_m << "m r=" <<
+      radial_m << "m < " << keepout.radius_m << "m";
+    report.reason = reason.str();
+    return report;
+  }
+  report.reason = "袋囊 keepout 通过";
+  return report;
 }
 
 }  // namespace peach_manipulation

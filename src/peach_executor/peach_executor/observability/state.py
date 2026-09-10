@@ -48,10 +48,11 @@ class ObservabilityState:
                 # 批次过程/审计事件时间线（按到达顺序追加，超限截断头部）
                 'events': [],
             },
-            # 机械臂状态（aubo_msgs/RobotStatus）+ latest TF 末端摘要
+            # 机械臂状态（aubo_msgs/RobotStatus）+ latest TF 末端 + 关节硬件表
             'robot': {
                 'status': {},
                 'tcp': {},
+                'joints': {},
             },
             # 系统/GPU/进程性能采样（独立线程写入，单次整体替换）
             'metrics': {

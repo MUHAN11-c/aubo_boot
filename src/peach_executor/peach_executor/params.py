@@ -180,6 +180,8 @@ class peach_observability:
         'task_executor_state_topic': ('string', '/peach_executor/state'),
         'task_executor_events_topic': ('string', '/peach_executor/events'),
         'robot_status_topic': ('string', '/aubo_io_controller/robot_status'),
+        'joint_states_topic': ('string', '/joint_states'),
+        'joint_status_topic': ('string', '/aubo_io_controller/joint_status'),
         'event_buffer_size': ('int', 100),
         'metrics_period_s': ('double', 1.0),
         'metrics_process_patterns': (
@@ -202,7 +204,7 @@ class peach_observability:
         'tsdf_cloud_topic': ('string', '/peach/reconstruction/tsdf_cloud'),
         'tcp_path_topic': ('string', '/peach/observability/tcp_path'),
         'tcp_markers_topic': ('string', '/peach/observability/markers'),
-        'debug.enabled': ('bool', False),
+        'debug.enabled': ('bool', True),
         'debug.motion_enabled': ('bool', False),
         'debug.token': ('string', ''),
         'debug.action_timeout_s': ('double', 180.0),
@@ -256,7 +258,7 @@ class peach_observability:
 
         def __init__(self):
             self.endpoints = peach_observability._DebugEndpoints()
-            self.enabled = False
+            self.enabled = True
             self.motion_enabled = False
             self.token = ''
             self.action_timeout_s = 180.0

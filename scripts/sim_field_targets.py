@@ -5,8 +5,13 @@
 走**真实 C++ 节点**：向感知/重建话题注入 runs/ 账本记录的 entry/axis/底/颈几何，
 再对 ``/peach_manipulation_node/execute_target`` 发 ``PREGRASP_ONLY`` 周期
 （skip_observation，跳过扫描段），验证阶段执行器的完整接近轨迹设计——
-classifyApproach 分档 → 刀口滚转 → Pilz LIN → CIRC/staging → CartesianPath
-→ 预抓取停位验证（tool_axis/sleeve_mouth/cutting_plane TF 残差门）。
+与正式接触段同一条 C++ 路径：``goToPhotoPose``（有记录的接近则原路返程，
+否则 Pilz PTP，失败才 OMPL）
+→ classifyApproach → 刀口滚转 → LIN 或先到袋底 G
+→ 预抓取停位验证。脚本**不**再直连 JTC 绕零位复位：连开下一颗时臂停在
+上一颗 Hold，由周期内 ``goToPhotoPose`` 回拍照位（与真机同一函数）。
+``--random N`` 在 09-09 现场正常坐标包络内按感知约束随机位姿（上半球轴、
+弦长 ≤ 笛卡尔上限、排除外参故障期 |entry|≈2.1 m 界外点）。
 
 须已起 ``harvest_system.launch.py hardware_mode:=mock camera_enabled:=false``
 （RViz2 随栈启动；lifecycle 拉齐全部节点）。mock 无相机与 io 控制器，本脚本
@@ -19,12 +24,15 @@ camera_link→camera_depth_optical_frame 静态 TF。仅仿真使用，不碰真
   python3 scripts/sim_field_targets.py --list
   python3 scripts/sim_field_targets.py --case all      # targets_20260909 全部
   python3 scripts/sim_field_targets.py --case 1437_0 1639_1
+  python3 scripts/sim_field_targets.py --random 16 --seed 20260910
+  python3 scripts/sim_field_targets.py --random 100 --seed 20260910 --velocity 1.0
 """
 from __future__ import annotations
 
 import argparse
 import json
 import math
+import random
 import subprocess
 import sys
 import threading
@@ -42,8 +50,17 @@ JOINT_ORDER = (
     'shoulder_joint', 'upperArm_joint', 'foreArm_joint',
     'wrist1_joint', 'wrist2_joint', 'wrist3_joint',
 )
-PHOTO_JOINTS = (0.425083, 0.195177, 1.677740, 1.461739, -0.500161, 0.038621)
 GOAL_TIMEOUT_S = 300.0
+# 与 peach_manipulation.yaml mtc_approach_cartesian_max_distance_m 对齐。
+CART_MAX_M = 0.80
+# 袋囊 keepout，与 peach_manipulation.yaml mtc_approach_keepout_* 对齐。
+KEEP_R_M = 0.12
+KEEP_AXIAL_M = 0.12
+# 感知外参故障期界外点（1510 target_3 / 1606 target_5）量级，禁止采到。
+ENTRY_NORM_MAX_M = 1.15
+ENTRY_JITTER_M = 0.04
+AXIS_TILT_DEG = 20.0
+AABB_PAD_M = 0.05
 
 
 def _norm(v):
@@ -70,18 +87,218 @@ def _optical_from_link_quat():
             (m[0][2] + m[2][0]) / s, (m[2][1] - m[1][2]) / s)
 
 
+def load_casebook() -> dict:
+    return yaml.safe_load(CASES_PATH.read_text())
+
+
 def load_cases() -> dict:
-    data = yaml.safe_load(CASES_PATH.read_text())
-    return data['targets_20260909']
+    return load_casebook()['targets_20260909']
 
 
-def ensure_enabled() -> None:
-    """运行期改参（空闲态全量生效）：开执行与抓取两档，工具保持关。"""
-    for key in ('execution.enabled', 'grasp.enabled'):
-        cmd = ['ros2', 'param', 'set', f'/{NODE}', key, 'true']
-        out = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        if out.returncode != 0:
-            raise RuntimeError(f'ros2 param set {key} 失败: {out.stderr.strip()}')
+def _add(a, b):
+    return [a[i] + b[i] for i in range(3)]
+
+
+def _sub(a, b):
+    return [a[i] - b[i] for i in range(3)]
+
+
+def _scale(a, s):
+    return [x * s for x in a]
+
+
+def _dot(a, b):
+    return sum(a[i] * b[i] for i in range(3))
+
+
+def _cross(a, b):
+    return (
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0])
+
+
+def _bag_length(case) -> float:
+    return math.dist(case['bag_bottom'], case['bag_neck'])
+
+
+def _photo_tcp(book) -> list:
+    return [float(v) for v in book.get('photo_tcp_xyz', [0.302, -0.232, 0.708])]
+
+
+def _aabb(points, pad):
+    xs, ys, zs = zip(*points)
+    return (
+        (min(xs) - pad, max(xs) + pad),
+        (min(ys) - pad, max(ys) + pad),
+        (min(zs) - pad, max(zs) + pad))
+
+
+def _clamp_upper_hemisphere(bottom, neck, axis):
+    """袋底→袋口只许上半球：base 重力 [0,0,-1]，axis_z ≥ 0（含水平）。
+
+    对齐 peach_perception.common.bag_landmarks.clamp_upper_hemisphere
+    与 geometry_refiner.orient_axis_bottom_to_neck：只翻转符号，不把斜袋改竖。
+    """
+    axis = _norm(axis)
+    if _dot(_sub(neck, bottom), axis) < 0.0:
+        axis = [-v for v in axis]
+    if axis[2] < 0.0:
+        return list(neck), list(bottom), [-v for v in axis]
+    return list(bottom), list(neck), list(axis)
+
+
+def _tilt_axis(axis, rng, max_deg):
+    axis = _norm(axis)
+    ref = (0.0, 0.0, 1.0) if abs(axis[2]) < 0.9 else (1.0, 0.0, 0.0)
+    x = _norm(_cross(ref, axis))
+    y = _norm(_cross(axis, x))
+    theta = math.radians(rng.uniform(-max_deg, max_deg))
+    phi = rng.uniform(0.0, 2.0 * math.pi)
+    side = _add(_scale(x, math.cos(phi)), _scale(y, math.sin(phi)))
+    tilted = _add(_scale(axis, math.cos(theta)), _scale(side, math.sin(theta)))
+    if tilted[2] < 0.0:
+        tilted = [-v for v in tilted]
+    return _norm(tilted)
+
+
+def _sample_upper_hemisphere(rng, min_z):
+    """均匀方位 + 极角夹到现场轴 z 下限（感知允许水平，现场最斜约 0.27）。"""
+    floor = max(0.0, float(min_z))
+    z = rng.uniform(floor, 1.0)
+    rho = math.sqrt(max(0.0, 1.0 - z * z))
+    phi = rng.uniform(0.0, 2.0 * math.pi)
+    return _norm((rho * math.cos(phi), rho * math.sin(phi), z))
+
+
+def _pose_ok(entry, axis, photo_tcp, box):
+    if any(not math.isfinite(v) for v in entry + axis):
+        return False
+    if axis[2] < 0.0:
+        return False
+    if math.sqrt(sum(v * v for v in entry)) > ENTRY_NORM_MAX_M:
+        return False
+    if math.dist(entry, photo_tcp) > CART_MAX_M:
+        return False
+    for i, (lo, hi) in enumerate(box):
+        if entry[i] < lo or entry[i] > hi:
+            return False
+    return True
+
+
+def sample_random_cases(templates: dict, n: int, seed: int, photo_tcp) -> dict:
+    """在现场正常坐标包络内采感知合法随机位姿。
+
+    半扰动现场点（入口高斯抖动 + 轴小倾角），半在 AABB 内均匀入口 +
+    上半球轴。入口=袋底；颈=底+轴×现场袋长。
+    """
+    rng = random.Random(seed)
+    ids = list(templates)
+    entries = [templates[k]['entry_xyz'] for k in ids]
+    box = _aabb(entries, AABB_PAD_M)
+    min_axis_z = min(templates[k]['axis'][2] for k in ids)
+    out = {}
+    attempts = 0
+    while len(out) < n and attempts < n * 80:
+        attempts += 1
+        kind = 'perturb' if rng.random() < 0.6 else 'aabb'
+        if kind == 'perturb':
+            src_id = rng.choice(ids)
+            src = templates[src_id]
+            entry = [
+                src['entry_xyz'][i] + rng.gauss(0.0, ENTRY_JITTER_M)
+                for i in range(3)]
+            axis = _tilt_axis(src['axis'], rng, AXIS_TILT_DEG)
+            length = _bag_length(src)
+            travel = float(src.get('travel_m') or 0.0)
+        else:
+            src_id = rng.choice(ids)
+            src = templates[src_id]
+            entry = [rng.uniform(lo, hi) for (lo, hi) in box]
+            axis = _sample_upper_hemisphere(rng, min_axis_z)
+            length = _bag_length(src)
+            travel = float(src.get('travel_m') or 0.0)
+        if length < 0.03:
+            length = 0.06
+        bottom = list(entry)
+        neck = _add(bottom, _scale(axis, length))
+        bottom, neck, axis = _clamp_upper_hemisphere(bottom, neck, axis)
+        entry = list(bottom)
+        if not _pose_ok(entry, axis, photo_tcp, box):
+            continue
+        cid = f'rand_{len(out):02d}'
+        out[cid] = {
+            'run': 'sim_random',
+            'target_id': 'target_0',
+            'entry_xyz': [round(v, 6) for v in entry],
+            'axis': [round(v, 6) for v in axis],
+            'bag_bottom': [round(v, 6) for v in bottom],
+            'bag_neck': [round(v, 6) for v in neck],
+            'travel_m': round(travel, 6),
+            'sample_kind': kind,
+            'sampled_from': src_id,
+        }
+    if len(out) < n:
+        raise RuntimeError(
+            f'随机位姿只采到 {len(out)}/{n}（attempts={attempts}）；'
+            '检查现场包络与笛卡尔上限')
+    return out
+
+
+def ensure_enabled(node, velocity: float = 0.0) -> None:
+    """运行期改参（空闲态全量生效）：开执行与抓取两档，工具保持关。
+
+    velocity>0 时把接触/转移速度与加速度缩放一并设为该值（typed double 走
+    rcl_interfaces SetParameters 服务，参数校验上限 1.0）——仅仿真提速，
+    真机验证仍按 yaml 0.1 档，不改默认。
+    """
+    import rclpy
+    from rcl_interfaces.msg import Parameter as ParameterMsg
+    from rcl_interfaces.msg import ParameterType
+    from rcl_interfaces.msg import ParameterValue
+    from rcl_interfaces.srv import SetParameters
+
+    cli = node.create_client(SetParameters, f'/{NODE}/set_parameters')
+    if not cli.wait_for_service(timeout_sec=10.0):
+        raise RuntimeError(f'{NODE} set_parameters 服务不可用')
+
+    def call(entries):
+        request = SetParameters.Request()
+        request.parameters = entries
+        future = cli.call_async(request)
+        deadline = time.time() + 15.0
+        while time.time() < deadline and rclpy.ok() and not future.done():
+            time.sleep(0.05)
+        if not future.done():
+            raise RuntimeError('set_parameters 服务超时')
+        failed = [
+            (p.name, r.reason) for p, r in
+            zip(entries, future.result().results) if not r.successful]
+        if failed:
+            raise RuntimeError(f'运行期改参被拒: {failed}')
+
+    def bool_param(name):
+        param = ParameterMsg()
+        param.name = name
+        param.value.type = ParameterType.PARAMETER_BOOL
+        param.value.bool_value = True
+        return param
+
+    def double_param(name, value):
+        param = ParameterMsg()
+        param.name = name
+        param.value.type = ParameterType.PARAMETER_DOUBLE
+        param.value.double_value = float(value)
+        return param
+
+    call([bool_param('execution.enabled'), bool_param('grasp.enabled')])
+    if 0.0 < velocity <= 1.0:
+        call([
+            double_param(key, velocity) for key in (
+                'moveit.velocity_scaling', 'moveit.acceleration_scaling',
+                'moveit.transit_velocity_scaling',
+                'moveit.transit_acceleration_scaling')])
+    cli.destroy()
 
 
 def wait_active(timeout_s: float = 120.0) -> None:
@@ -100,23 +317,44 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         '--case', nargs='+', default=['all'],
-        help='targets_20260909 用例 id；all=全部')
+        help='targets_20260909 用例 id；all=全部（与 --random 互斥）')
+    parser.add_argument(
+        '--random', type=int, default=0, metavar='N',
+        help='在现场正常坐标包络内按感知约束采 N 个随机位姿')
+    parser.add_argument(
+        '--seed', type=int, default=20260910,
+        help='--random 的 RNG 种子')
+    parser.add_argument(
+        '--velocity', type=float, default=0.0, metavar='V',
+        help='把接触/转移速度与加速度缩放设为 V（0<v<=1，仅仿真提速；'
+             '0=不动，真机档位仍走 yaml 默认）')
     parser.add_argument('--list', action='store_true')
     args = parser.parse_args()
 
-    cases = load_cases()
+    book = load_casebook()
+    templates = book['targets_20260909']
+    photo_tcp = _photo_tcp(book)
+    if args.random > 0:
+        cases = sample_random_cases(
+            templates, args.random, args.seed, photo_tcp)
+        selected = list(cases)
+    else:
+        cases = templates
+        selected = list(cases) if args.case == ['all'] else args.case
+        unknown = [c for c in selected if c not in cases]
+        if unknown:
+            print(f'未知用例: {unknown}', file=sys.stderr)
+            return 2
+
     if args.list:
         for cid, case in cases.items():
             e = case['entry_xyz']
+            extra = ''
+            if case.get('sample_kind'):
+                extra = f" {case['sample_kind']}←{case.get('sampled_from')}"
             print(f"{cid}: entry=({e[0]:.3f},{e[1]:.3f},{e[2]:.3f}) "
-                  f"axis_z={case['axis'][2]:.2f} run={case['run']}")
+                  f"axis_z={case['axis'][2]:.2f} run={case['run']}{extra}")
         return 0
-
-    selected = list(cases) if args.case == ['all'] else args.case
-    unknown = [c for c in selected if c not in cases]
-    if unknown:
-        print(f'未知用例: {unknown}', file=sys.stderr)
-        return 2
 
     import rclpy
     from action_msgs.msg import GoalStatus
@@ -368,42 +606,12 @@ def main() -> int:
     node.create_subscription(
         JointState_, '/joint_states', on_joint_states, 10)
 
-    def measure_tcp_detour(samples):
-        """采样点经 /compute_fk 成 TCP 点列，按 trajectory_guard 同口径算
-        弦/路径/绕行比/相对弦偏离/回退。点列不足返回 None。"""
-        from moveit_msgs.srv import GetPositionFK
-        fk_cli = node.create_client(GetPositionFK, '/compute_fk')
-        if not fk_cli.wait_for_service(timeout_sec=5.0):
-            return None
-        picked = []
-        last_t = -1.0
-        for stamp, positions in samples:
-            if stamp - last_t >= 0.1 or last_t < 0:
-                picked.append(positions)
-                last_t = stamp
-
-        def fk(positions):
-            req = GetPositionFK.Request()
-            req.header.frame_id = 'base_link'
-            req.fk_link_names = ['tcp']
-            req.robot_state.joint_state = JointState_()
-            req.robot_state.joint_state.name = list(JOINT_ORDER)
-            req.robot_state.joint_state.position = list(positions)
-            fut = fk_cli.call_async(req)
-            res = spin_until(fut, 5.0)
-            if res is None or not res.pose_stamped:
-                return None
-            p = res.pose_stamped[0].pose.position
-            return (float(p.x), float(p.y), float(p.z))
-
-        points = [p for p in (fk(s) for s in picked) if p is not None]
+    def _tcp_metrics(points):
         if len(points) < 2:
             return None
         start, goal = points[0], points[-1]
         chord = math.dist(start, goal)
-        head = None
-        if len(points) >= 4:
-            head = points[3]  # 前 3 个点之后的位置，区分「起点残留」与途中绕行
+        head = points[3] if len(points) >= 4 else None
 
         def seg_dist(p, a, b):
             ab = [b[i] - a[i] for i in range(3)]
@@ -423,15 +631,108 @@ def main() -> int:
             max_recede = max(
                 max_recede, max(0.0, math.dist(points[i], goal) - chord))
         ratio = path / chord if chord >= 0.02 else 0.0
+        max_z = max(p[2] for p in points)
         return {
             'points': len(points), 'path_m': round(path, 3),
             'chord_m': round(chord, 3), 'ratio': round(ratio, 2),
             'max_dev_m': round(max_dev, 3),
             'max_recede_m': round(max_recede, 3),
+            'max_z_m': round(max_z, 3),
             'start_xyz': [round(v, 3) for v in start],
             'head_xyz': [round(v, 3) for v in head] if head else None,
             'end_xyz': [round(v, 3) for v in goal],
+            'xyz': [[round(v, 4) for v in p] for p in points],
         }
+
+    def measure_tcp_segments(samples):
+        """周期内 TCP 按静止 0.6s 切段（与 watchdog 同口径）。
+
+        正式 ExecuteTarget：先 goToPhotoPose（接近原路返程，否则 PTP），停稳后再接近。
+        返回有运动的段列表；末段=接近，两段以上时首段=回拍照位。
+        """
+        from moveit_msgs.srv import GetPositionFK
+        fk_cli = node.create_client(GetPositionFK, '/compute_fk')
+        if not fk_cli.wait_for_service(timeout_sec=5.0):
+            return []
+        last_t = -1.0
+        timed = []
+
+        def fk(positions):
+            req = GetPositionFK.Request()
+            req.header.frame_id = 'base_link'
+            req.fk_link_names = ['tcp']
+            req.robot_state.joint_state = JointState_()
+            req.robot_state.joint_state.name = list(JOINT_ORDER)
+            req.robot_state.joint_state.position = list(positions)
+            fut = fk_cli.call_async(req)
+            res = spin_until(fut, 5.0)
+            if res is None or not res.pose_stamped:
+                return None
+            p = res.pose_stamped[0].pose.position
+            return (float(p.x), float(p.y), float(p.z))
+
+        for stamp, positions in samples:
+            if stamp - last_t < 0.1 and last_t >= 0:
+                continue
+            xyz = fk(positions)
+            last_t = stamp
+            if xyz is not None:
+                timed.append((stamp, xyz))
+        if len(timed) < 2:
+            return []
+        still_s = 0.6
+        chunks = []
+        start = 0
+        still_since = None
+        for i in range(1, len(timed)):
+            step = math.dist(timed[i - 1][1], timed[i][1])
+            t = timed[i][0]
+            if step > 5e-4:
+                still_since = None
+                continue
+            if still_since is None:
+                still_since = t
+            elif t - still_since > still_s:
+                metrics = _tcp_metrics([p for _, p in timed[start:i]])
+                if metrics and metrics['path_m'] >= 0.01:
+                    chunks.append(metrics)
+                start = i
+                still_since = None
+        tail = _tcp_metrics([p for _, p in timed[start:]])
+        if tail and tail['path_m'] >= 0.01:
+            chunks.append(tail)
+        return chunks
+
+    def _keepout_hit(tcp, entry, axis):
+        # 与 grasp_task.cpp 逐段审查同口径：圆柱穿越（s≥0 且 r<R）恒为
+        # 违规；反爬（s ≤ 起点+2cm）只对「从袋底出发的段」（起点 s≤0）
+        # 生效——staging 转移首段是拍照位（口侧上方）出发的 PTP 弧，
+        # 锚定起点的反爬会把关节弧自然拱高误判成绕行。
+        points = (tcp or {}).get('xyz') or []
+        if not points or not entry or not axis:
+            return False, ''
+        if KEEP_R_M <= 1.0e-6 or KEEP_AXIAL_M <= 1.0e-6:
+            return False, ''
+        ax = _norm(axis)
+
+        def sr(p):
+            d = [p[i] - entry[i] for i in range(3)]
+            axial = sum(d[i] * ax[i] for i in range(3))
+            radial = math.sqrt(sum(
+                (d[i] - axial * ax[i]) ** 2 for i in range(3)))
+            return axial, radial
+
+        start_s, _ = sr(points[0])
+        s_max = max(start_s, 0.0) + 0.02
+        for p in points:
+            axial, radial = sr(p)
+            if axial >= 0.0 and radial < KEEP_R_M:
+                return True, (
+                    f'口侧 s={axial:.3f}m r={radial:.3f}m < {KEEP_R_M}m')
+            if start_s <= 0.0 and axial > s_max:
+                return True, (
+                    f'袋底段上方绕行 s={axial:.3f}m > 上限 {s_max:.3f}m')
+        return False, ''
 
     executor = rclpy.executors.MultiThreadedExecutor(num_threads=6)
     executor.add_node(node)
@@ -457,82 +758,13 @@ def main() -> int:
             time.sleep(0.05)
         return None
 
-    def reset_photo_pose():
-        """用例开始前把 mock 臂送回拍照位：直连 JTC 的两段关节插值
-        （当前位→零位→拍照位）。Hold 构型回拍照位现场用示教器；MoveIt PTP
-        在翻转构型下 IK 落错支，仿真用无 IK 的插值等价复位，不碰真机。"""
-        try:
-            from control_msgs.action import FollowJointTrajectory
-            from rclpy.task import Future
-            from sensor_msgs.msg import JointState
-            from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-
-            states: list[JointState] = []
-
-            def on_joint_state(message):
-                if len(states) < 1:
-                    states.append(message)
-
-            js_sub = node.create_subscription(
-                JointState, '/joint_states', on_joint_state, 10)
-            deadline = time.time() + 5.0
-            while not states and time.time() < deadline:
-                time.sleep(0.05)
-            node.destroy_subscription(js_sub)
-            if not states:
-                return False
-            current = [float(v) for v in states[0].position][:6]
-            if len(current) != len(JOINT_ORDER):
-                return False
-
-            def segment(start, end):
-                points = []
-                steps = 24
-                for i in range(1, steps + 1):
-                    t = i / steps
-                    points.append(
-                        [s + (e - s) * t for s, e in zip(start, end)])
-                return points
-
-            traj = JointTrajectory()
-            traj.joint_names = list(JOINT_ORDER)
-            start = current
-            t_offset = 0.0
-            for end in ([0.0] * len(JOINT_ORDER), list(PHOTO_JOINTS)):
-                for values in segment(start, end):
-                    t_offset += 0.12
-                    point = JointTrajectoryPoint()
-                    point.positions = values
-                    point.time_from_start.sec = int(t_offset)
-                    point.time_from_start.nanosec = int(
-                        (t_offset - int(t_offset)) * 1e9)
-                    traj.points.append(point)
-                start = end
-
-            jtc_cli = ActionClient(
-                node, FollowJointTrajectory,
-                '/joint_trajectory_controller/follow_joint_trajectory')
-            if not jtc_cli.wait_for_server(timeout_sec=5.0):
-                return False
-            goal = FollowJointTrajectory.Goal()
-            goal.trajectory = traj
-            send = jtc_cli.send_goal_async(goal)
-            gh = spin_until(send, 10.0)
-            if gh is None or not gh.accepted:
-                return False
-            result = spin_until(gh.get_result_async(), 90.0)
-            return result is not None and result.status == 4  # STATUS_SUCCEEDED
-        except Exception as error:
-            print(f'  拍照位复位异常: {error}', file=sys.stderr)
-            return False
-
     def run_case(cid, case):
         print(f'\n=== case {cid} entry=' +
               str([round(v, 3) for v in case['entry_xyz']]) +
-              f" axis_z={case['axis'][2]:.2f} ===", flush=True)
-        reset_ok = reset_photo_pose()
-        if not reset_ok:
-            print('  警告: 拍照位复位失败，本用例从当前位起跑', file=sys.stderr)
+              f" axis_z={case['axis'][2]:.2f}"
+              + (f" {case['sample_kind']}←{case['sampled_from']}"
+                 if case.get('sample_kind') else '') +
+              ' ===', flush=True)
         set_case(case)
         time.sleep(1.5)  # 锁定集/精化锁存就位
         with lock:
@@ -560,27 +792,22 @@ def main() -> int:
         if result is None:
             return {'case': cid, 'error': 'goal 超时', 'elapsed_s': elapsed}
         res = result.result
-        tcp = measure_tcp_detour(samples) if samples else None
-        detour_detail = ''
-        detour = False
-        if tcp:
-            # 转移级上限（2.5/0.40/0.15）为本管线最宽笛卡尔门；实测超它即绕行。
-            over = []
-            if tcp['chord_m'] >= 0.02 and tcp['ratio'] > 2.5:
-                over.append(f"绕行比 {tcp['ratio']}>2.5")
-            if tcp['max_dev_m'] > 0.40:
-                over.append(f"弦偏离 {tcp['max_dev_m']}>0.40")
-            if tcp['max_recede_m'] > 0.15:
-                over.append(f"回退 {tcp['max_recede_m']}>0.15")
-            detour = bool(over)
-            detour_detail = '；'.join(over)
+        segments = measure_tcp_segments(samples) if samples else []
+        tcp_photo = segments[0] if len(segments) >= 2 else None
+        tcp = segments[-1] if segments else None
+        from_photo = bool(
+            tcp and tcp.get('start_xyz') and
+            math.dist(tcp['start_xyz'], photo_tcp) < 0.08)
+        detour, detour_detail = _keepout_hit(
+            tcp, case['entry_xyz'], case['axis'])
+        photo_detour, photo_detour_detail = False, ''
         out = {
             'case': cid,
             'run': case['run'],
             'target_id': case['target_id'],
             'entry_xyz': list(case['entry_xyz']),
             'axis': list(case['axis']),
-            'reset_ok': reset_ok,
+            'from_photo': from_photo,
             'status': int(result.status),
             'outcome': int(res.outcome),
             'completion_level': int(res.completion_level),
@@ -593,9 +820,14 @@ def main() -> int:
             'stage_names': list(res.stage_names),
             'stage_durations_s': [d.sec + d.nanosec / 1e9 for d in res.stage_durations],
             'elapsed_s': elapsed,
+            'tcp_photo': tcp_photo,
             'tcp_detour': tcp,
             'detour_flag': detour,
             'detour_detail': detour_detail,
+            'photo_detour_flag': photo_detour,
+            'photo_detour_detail': photo_detour_detail,
+            'sample_kind': case.get('sample_kind'),
+            'sampled_from': case.get('sampled_from'),
         }
         ack_cli.wait_for_service(timeout_sec=5.0)
         ack = ack_cli.call_async(Trigger.Request())
@@ -603,8 +835,15 @@ def main() -> int:
         return out
 
     wait_active()
-    ensure_enabled()
-    print(f'{NODE} Active；execution/grasp 已开（tool 保持关）')
+    ensure_enabled(node, args.velocity)
+    print(f'{NODE} Active；execution/grasp 已开（tool 保持关）'
+          + (f'；速度/加速度缩放={args.velocity:g}（仅仿真）'
+             if args.velocity > 0.0 else ''))
+    print('回拍照位走 ExecuteTarget 内 goToPhotoPose（接近原路返程，否则 PTP），'
+          '不经脚本 JTC', flush=True)
+    if args.random > 0:
+        print(f'随机位姿 {len(selected)} 个 seed={args.seed} '
+              '（现场包络 + 感知上半球轴）', flush=True)
 
     outcomes = []
     out_path = RESULTS_DIR / f'sim_field_targets_{time.strftime("%Y%m%d_%H%M%S")}.jsonl'
@@ -619,15 +858,24 @@ def main() -> int:
                   f"pregrasp_passed={record.get('pregrasp_passed')} "
                   f"reason={record.get('reason', record.get('error'))[:120]}",
                   flush=True)
+            if record.get('tcp_photo'):
+                tcp = record['tcp_photo']
+                print(f"  [回拍照] 弦={tcp['chord_m']}m 路径={tcp['path_m']}m "
+                      f"比={tcp['ratio']} 偏离={tcp['max_dev_m']}m "
+                      f"回退={tcp['max_recede_m']}m 起={tcp['start_xyz']} "
+                      f"终={tcp['end_xyz']}",
+                      flush=True)
             if record.get('tcp_detour'):
                 tcp = record['tcp_detour']
-                print(f"  [绕行检测] 点数={tcp['points']} 弦={tcp['chord_m']}m "
+                origin = '从拍照位' if record.get('from_photo') else '未从拍照位'
+                keep = (f"  ⚠ 袋囊 keepout: {record['detour_detail']}"
+                        if record['detour_flag'] else '  ✓ keepout 外')
+                print(f"  [接近] {origin} 点数={tcp['points']} 弦={tcp['chord_m']}m "
                       f"路径={tcp['path_m']}m 比={tcp['ratio']} "
                       f"偏离={tcp['max_dev_m']}m 回退={tcp['max_recede_m']}m "
+                      f"max_z={tcp.get('max_z_m')} "
                       f"起={tcp['start_xyz']} 早段={tcp['head_xyz']} "
-                      f"终={tcp['end_xyz']}"
-                      + (f"  ⚠ 绕行: {record['detour_detail']}"
-                         if record['detour_flag'] else '  ✓ 门内'),
+                      f"终={tcp['end_xyz']}" + keep,
                       flush=True)
             time.sleep(0.5)
 
@@ -635,7 +883,8 @@ def main() -> int:
     passed = sum(
         1 for r in outcomes
         if r.get('outcome') == ExecuteTarget.Result.SUCCEEDED)
-    print(f'成功 {passed}/{len(outcomes)}')
+    keepout_hits = sum(1 for r in outcomes if r.get('detour_flag'))
+    print(f'成功 {passed}/{len(outcomes)}；接近段袋囊 keepout {keepout_hits}')
     rclpy.shutdown()
     return 0
 

@@ -84,14 +84,14 @@ flowchart TB
   teach["示教器"]
   nav2["底盘与 Nav2 未接线"]
   op -->|"RunHarvest / ControlTask"| harvest
-  op -->|"看作业票 HTTP 8090"| harvest
+  op -->|"看过程 HTTP 8090"| harvest
   op -->|"上电、抱闸"| teach
   cam -->|"RGB-D 图像"| harvest
   harvest -->|"透传轨迹与工具 IO"| e5
   harvest -.->|"预留 NavigateToWorksite"| nav2
 ```
 
-**读图：** 中间实心盒子才是我们写的软件。作业员不经过监控去动臂。柜和相机是外部系统：本栈不实现其驱动协议以外的产品逻辑。底盘盒子画虚关系：导航为预留（导航包已归档），调度直通 `NAV_OK`。`peach_interfaces` 没有进程，上下文层不单独成盒。
+**读图：** 中间实心盒子才是我们写的软件。作业员用 8090 看过程与轨迹；动臂仍须示教器上电，调试 POST 另须 yaml `debug.motion_enabled`。柜和相机是外部系统：本栈不实现其驱动协议以外的产品逻辑。底盘盒子画虚关系：导航为预留（导航包已归档），调度直通 `NAV_OK`。`peach_interfaces` 没有进程，上下文层不单独成盒。
 
 ### 图 2 — 容器（C4 Container）
 
@@ -157,12 +157,12 @@ flowchart TB
   stages -->|"executeCycle 读"| ctx
   stages -->|"逐阶段授权"| cycle
   stages -->|"观察拍照"| mot
-  stages -->|"接触 LIN/CartesianPath"| mtc
+  stages -->|"接触 staging PTP+轴向 LIN"| mtc
   stages -->|"评分与门"| core
   stages -->|"剪切"| tool
 ```
 
-**读图：** 一个进程、八个组件（`ExecutionAuthority` 授权矩阵编在 `cycle.cpp`，`CycleContext` 在 `cycle_context.hpp`）。外壳不规划；`cycle.cpp` 受理动作并按 `authorizeStage` 判定执行权；阶段执行器读上下文跑固定阶段序列；接触用最短笛卡尔原语（滚转采样 + LIN/CartesianPath）；PTP 只用于命名关节赶路（拍照位 / stow）；刀具不在 MTC 里。感知两容器的同缩放运行时图见 **图 3b（看一帧）/ 图 3c（建一颗）**；调度组件图按同样缩放另画，不要把那些模块塞进这一张。
+**读图：** 一个进程、八个组件（`ExecutionAuthority` 授权矩阵编在 `cycle.cpp`，`CycleContext` 在 `cycle_context.hpp`）。外壳不规划；`cycle.cpp` 受理动作并按 `authorizeStage` 判定执行权；阶段执行器读上下文跑固定阶段序列；接近主路径 = 预抓取正下方轴上 staging：PTP（最近构型 IK，滚转在候选内采样）+ 轴向 LIN（套入沿轴 CartesianPath）；PTP 另用于命名关节赶路（拍照位 / stow）；刀具不在 MTC 里。感知两容器的同缩放运行时图见 **图 3b（看一帧）/ 图 3c（建一颗）**；调度组件图按同样缩放另画，不要把那些模块塞进这一张。
 
 ### 图 0 — 预留层与采摘核
 
@@ -250,7 +250,7 @@ flowchart TB
 
 ### 图 B — 控制面与数据面
 
-调度是能力包**批次动作的唯一客户端**；鉴权调试操作面（observability，默认三重关，见决策 0013）是唯一例外，可直发单颗动作且全部留审计。感知与重建只发话题；技能只当 `SurveyScene` / `ExecuteTarget` 服务端。监控视图只订不发。
+调度是能力包**批次动作的唯一客户端**；8090 调试桥（见决策 0018）是唯一例外，可直发单颗动作且留审计。感知与重建只发话题；技能只当 `SurveyScene` / `ExecuteTarget` 服务端。监控视图只订不发。
 
 ```mermaid
 flowchart TB
@@ -271,8 +271,8 @@ flowchart TB
     Ex -->|"HarvestState.target_id"| Sc
     Ex -->|"HarvestState.target_id"| Rc
   end
-  subgraph watch ["只读 + 鉴权调试（默认关）"]
-    Obs["peach_observability :8090 监控+调试操作面(token)"]
+  subgraph watch ["只读过程页 + 单步调试"]
+    Obs["peach_observability :8090"]
     Sc --> Obs
     Rc --> Obs
     Sk -->|"status / grasp_hypothesis"| Obs
@@ -284,7 +284,7 @@ flowchart TB
   Lcm --> Ex
 ```
 
-**读图：** 上块是「谁命令谁」（动作/服务），只有调度往外指。中块是「谁把数据广播给谁」（话题）；感知和重建从不互发动作。下块全是订阅，监控页不能开批、不能动臂。lifecycle 箭头与批次无关：只把四节点配到 Active，不上电、不开批，不发 `RunHarvest`。柜侧上电由人工用示教器完成。
+**读图：** 上块是「谁命令谁」（动作/服务），只有调度往外指。中块是「谁把数据广播给谁」（话题）；感知和重建从不互发动作。下块以订阅为主；8090 过程页只读，调试 Tab 可转发既有单步动作（动臂须 `debug.motion_enabled`）。lifecycle 箭头与批次无关：只把四节点配到 Active，不上电、不开批，不发 `RunHarvest`。柜侧上电由人工用示教器完成。
 
 lifecycle 名单：场景 → 重建 → 技能 → 调度。observability **不进名单**，节点自行 Active。
 
@@ -557,7 +557,7 @@ flowchart TB
   ctx["CycleContext 周期状态 单写者"]
   stages["stages.cpp executeCycle 阶段函数"]
   motion["motion.cpp 拍照位PTP 观察最近短移只LIN"]
-  mtc["grasp_task.cpp 拍照位再 LIN/CIRC 到预抓取 沿轴套入撤退"]
+  mtc["grasp_task.cpp 拍照位再 staging PTP+轴向 LIN 沿轴套入撤退"]
   core["纯核 视点 质量门 安全门 目标缓存"]
   tool["tool_actuator.cpp SetIO ACK 不是切断确认"]
   node --> cycle
@@ -570,16 +570,16 @@ flowchart TB
   stages --> tool
 ```
 
-**读图：** 一个 Lifecycle 节点拆成几份源文件，不是多个进程。外壳接 ROS；`cycle.cpp` 受理动作目标并实现授权矩阵（`execution_authority.hpp` 是其单一事实源）；`CycleContext` 承载一次周期的全部可变状态；真正「观察 / 预抓取 / 套入」是 `stages.cpp` 的阶段函数。观察移位走最近短步（只 LIN，失败换候选）；预抓取先 PTP 回拍照位，再按 MTC 官方抓取管线：绕袋轴采样刀口滚转（`GenerateGraspPose`）→ Fallbacks（Pilz LIN，失败则 `CartesianPath`），套入沿轴直线。已齐 LIN 到预抓取加 tip 姿态 OrientationConstraint（对目标姿态，容差 `mtc_approach_max_align_deg` 20°）。未齐先 LIN 原地对齐再平移；LIN/CIRC/插值失败不改 PTP/OMPL。护栏拦绕腕与笛卡尔绕行。刀具 IO 只在阶段执行器里打，ACK 只表示柜侧收下命令。
+**读图：** 一个 Lifecycle 节点拆成几份源文件，不是多个进程。外壳接 ROS；`cycle.cpp` 受理动作目标并实现授权矩阵（`execution_authority.hpp` 是其单一事实源）；`CycleContext` 承载一次周期的全部可变状态；真正「观察 / 预抓取 / 套入」是 `stages.cpp` 的阶段函数。观察移位走最近短步（只 LIN，失败换候选）；预抓取先回拍照位（有记录的「拍照位→预抓取」则原路返程，否则 PTP），再走接近主路径：**PTP 到预抓取正下方轴上 staging（`select_goal_joints` 12 滚转 × 3 种子、自碰过滤、最近 3 候选逐个试）→ 沿轴 LIN 升到预抓取**；已在袋底侧且直连不穿囊的短修正（预抓取残差修正等）走直连 LIN 兜底（已齐挂 tip 姿态 OrientationConstraint，容差 `mtc_approach_max_align_deg` 20°；未齐先 LIN 原地对齐再平移）。护栏拦绕腕、口侧穿囊（staging 首段 PTP 弧查圆柱穿越；其后 LIN 段另查反爬，锚定各段自身起点）。刀具 IO 只在阶段执行器里打，ACK 只表示柜侧收下命令。
 
 **对外提供：**
 
 | 入口 | 行为 |
 |------|------|
-| `SurveyScene` | `goToPhotoPose`（默认 SRDF `global_photo_pose`）；`transit_max_*` 超限拒绝；成功出口 `atNamedTarget` 核当前关节（`execute=false` 仍核） |
+| `SurveyScene` | `goToPhotoPose`（默认 SRDF `global_photo_pose`）：有「拍照位→预抓取」记录且当前关节在其终点则原路返程（不过 `transit_max_*`）；否则 PTP，失败回退 OMPL，超 `transit_max_*` 拒绝。成功出口 `atNamedTarget`（`execute=false` 仍核） |
 | `ExecuteTarget` PREVIEW | 只规划不执行 |
 | `ExecuteTarget` OBSERVE_ONLY | 当前位采帧；基线未过最多两次最近短移（只 LIN，失败换候选），沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m，~0.7 m 处一跨过 8°），评分以行程最短为主；朝检测框内分割更满的方向微偏。禁止对侧兜圈、OMPL、贴球面环绕、PTP 兜底。覆盖门 8°。**停准则：** 覆盖达标或 `maximum_moves` 用尽（Open3D TSDF / NBV：做完位姿序列，不用移动+等帧 EMA 预测收口）。到位后等**新机位**（`view_directions` 增加），同机位连帧不算覆盖 |
-| `ExecuteTarget` PREGRASP_ONLY | 再确认 → PTP 回拍照位（观察 look-at 直接规划常无 IK）→ 只走笛卡尔约束到预抓取：直线不穿预抓取球则 LIN（未齐先 LIN 原地对齐工具 Z）；keep-roll 自碰则按 `GenerateGraspPose` ±30° 扫描刀口再 LIN。直线会穿球则 CIRC 再沿轴 LIN。Pilz LIN 失败则同一弦 CartesianPath 插值（种子连续 IK，同样滚转扫描）；再失败且直线不穿球则经袋轴 staging 插值。LIN/CIRC/插值失败不改 PTP/OMPL（`skipped_unreachable`）。拍照位失败则从当前位规划，仍失败再试拍照位 → 工具 TF 残差按最新精化快照重算 entry/pregrasp 增量修正（最多两次）→ 停在预抓取（`HoldPregrasp`，不回 `harvest_stow`）。残差未过门也停住，便于目视方向/定位。任何路径不 SetIO。不要求 `GraspDecision.allowed`。到位终局 `SUCCEEDED` + `recovery_required`（不是接触失败撤离）；ACK 前调度不 Survey / 不派下一颗 |
+| `ExecuteTarget` PREGRASP_ONLY | 再确认 → 回拍照位（有记录的接近则原路返程，否则 PTP；观察 look-at 直接规划常无 IK）→ 接近主路径：**PTP 到预抓取正下方轴上 staging（`select_goal_joints` 12 滚转 × 3 种子、自碰过滤、最近 3 候选逐个试）→ 沿轴 LIN 升到预抓取**（已齐 LIN 挂相对目标 20° 姿态约束）。staging 不可用且起点已在袋底侧、直连不穿囊时走直连 LIN 兜底（未齐先 LIN 原地对齐工具 Z；keep-roll 自碰换滚转）。不走 CIRC/STOMP/OMPL。失败 `skipped_unreachable`。拍照位失败则从当前位规划，仍失败再试拍照位 → 工具 TF 残差按最新精化快照重算 entry/pregrasp 增量修正（最多两次）→ 停在预抓取（`HoldPregrasp`，不回 `harvest_stow`）。残差未过门也停住，便于目视方向/定位。任何路径不 SetIO。不要求 `GraspDecision.allowed`。到位终局 `SUCCEEDED` + `recovery_required`（不是接触失败撤离）；ACK 前调度不 Survey / 不派下一颗 |
 | `ExecuteTarget` FULL | `skip_observation`；再确认 → 预抓取验证 → `PlanSleeve` 规划套入与反向撤退 → 沿轴一段 LIN 套入 → `VerifyCutHold` → `ToolActuator`（SetIO ACK=`CUT_COMMAND_ACCEPTED`，不得自称切断）→ `VerifyCut` → 原路 LIN 撤到预抓取 → PTP `harvest_stow`。切断**且**撤退确认才 `harvest.grasped`。`tool.enabled=true` 未确认终局 `FAILED`/`CUT_FEEDBACK_TIMEOUT`（刀具 DI 预留接 `/aubo_io_controller/io_states`）。`tool.enabled=false` 时跳过 SetIO，周期可 SUCCEEDED 但不宣称采摘成功 |
 | 预览/使能/ACK 服务 | `preview_*`、`set_execution_armed`、`acknowledge_recovery` |
 
@@ -621,13 +621,13 @@ flowchart TB
 
 #### `peach_observability`（监）
 
-- **作用：** HTTP（默认 `127.0.0.1:8090`）双面：**只读监控**（订阅各包状态、按 `HarvestState.batch_state` 开合 `runs/run_*` / `idle_*` jsonl）+ **鉴权手动调试操作面**（2026-09 融合，决策 0007 推翻条款执行、0013 收敛动作客户端不变量）。整栈 include 时 **不进 lifecycle 名单**，节点 `main()` 在 spin 前自行 `configure/activate`（launch 的 EmitEvent 跨 include 经常匹配不到）。作业票下方三维对照实测 TCP、起止弦与预抓取/入口。
-- **类 / 配置：** `ObservabilityNode`、`ObservabilityState`；参数 `config/observability.yaml`。静态页在包内 `web/`，Tab 分「监控 / 手动调试」。首屏是当前果实作业票（发现→拍照→锁定→观察→许可→靠近→工具→撤离→完成）。抓取档关闭时靠近/工具标 **gated**，不得显示成已勾上。
-- **`/api/state` 区段：** `perception` / `reconstruction` / `refined` / `manipulation`（含 `status` 与 `hypothesis`）/ `task_executor` / `robot`（柜侧 `status` + latest TF `tcp` 摘要：xyz/路径长/弦长/绕行比）/ `metrics` / `record` / `params` / **`job`**（派生作业票：过程线、档位、`why`、base_link 坐标含预抓取）/ **`debug`**（操作面三重门状态 + 最近操作环形缓冲；**令牌本身绝不下发**）。不再用 `approach` / `orchestration`。
+- **作用：** HTTP（默认 `127.0.0.1:8090`）过程页：只读监控（订阅各包状态、按 `HarvestState.batch_state` 开合 `runs/run_*` / `idle_*` jsonl）+ 柜侧硬件表（TCP xyz/rpy、六轴角/速度/电流/温度）+ 末端俯视分析 + 单步调试 POST（决策 0018，无令牌）。整栈 include 时 **不进 lifecycle 名单**，节点 `main()` 在 spin 前自行 `configure/activate`。作业票下方对照实测 TCP、起止弦与预抓取/入口（X–Y 俯视）。
+- **类 / 配置：** `ObservabilityNode`、`ObservabilityState`；参数 `config/observability.yaml`。静态页在包内 `web/`，Tab 分「过程 / 调试」。首屏是当前果实作业票（发现→拍照→锁定→观察→许可→靠近→工具→撤离→完成）。抓取档关闭时靠近/工具标 **gated**，不得显示成已勾上。
+- **`/api/state` 区段：** `perception` / `reconstruction` / `refined` / `manipulation`（含 `status` 与 `hypothesis`）/ `task_executor` / `robot`（柜侧 `status` + latest TF `tcp` 摘要：xyz/quat/路径长/弦长/绕行比/Δz + `joints` 六轴角/速度/电流/温度/跟随误差）/ `metrics` / `record` / `params` / **`job`**（派生作业票：过程线、档位、`why`、base_link 坐标含预抓取）/ **`debug`**（`enabled` / `motion_enabled` + 最近操作环形缓冲）。不再用 `approach` / `orchestration`。
 - **`/api/trajectory`：** 末端点列（平坦 `xyz` + 相位）+ 作业票路标 + 与 RViz 同源的 Marker 字典。只读，不进 MCAP。
-- **调试操作面（默认三重关）：** `POST /api/debug/<action>`，门控链 = `debug.enabled` 总开关 → `X-Debug-Token` 令牌（空=全拒）→ 运动类另需 `debug.motion_enabled`；每次调用（含被拒，含 `enabled=false` 的 503）审计落 `runs/debug_audit/<日期>.jsonl`（`audit_enabled` 默认开）。端点是既有动作/服务的**纯转发客户端**（RunHarvest/ControlTask/BeginScene/Survey/Execute/Build/CheckReachability/save_session/生命周期 ManageNodes 等 18 个，见 GPL `debug.endpoints.*`）；`PREVIEW` 与只规划 Trigger 不受运动门拦，`OBSERVE_ONLY` / `PREGRASP_ONLY` / `FULL` / Survey / 非 `SURVEY_ONLY` 的 RunHarvest / `go_to_photo_pose` / arm / ControlTask 的 `RESUME` 与 `EXIT_MAINTENANCE` 算运动类。技能 `ExecutionAuthority` 与调度/重建全部既有门**原样生效，Web 绕不过任何门**。前端运动类操作与 `RESET`/`SHUTDOWN` 带二次确认。
+- **调试 POST：** `POST /api/debug/<action>`。`debug.enabled` 默认 true（false→503）；无令牌。运动类另需 `debug.motion_enabled`（默认 false→423）。审计落 `runs/debug_audit/<日期>.jsonl`。后端仍转发全部既有端点（`debug.endpoints.*` 键冻结）；**页面只暴露本管线**：BeginScene / SurveyScene / Build / finalize / ExecuteTarget / 去拍照位 / RunHarvest / CANCEL_NOW。`PREVIEW` 与 BeginScene 不受运动门拦。技能 `ExecutionAuthority` 与调度/重建门**原样生效**。
 - **jsonl：** `events`、`state`、`perception`、`reconstruction`、`manipulation`、`job`、`metrics`、`tcp_trajectory`；另有 `image_index.jsonl`、`debug_audit/`。历史目录里的 `approach.jsonl` 是旧名，新写用 `manipulation.jsonl`。
-- **开关：** `config/observability.yaml` 的 `record.enabled`。`trajectory.enabled` 默认开：20 Hz latest TF `base_link←tcp`。MCAP 另由 launch `record_mcap:=true`，默认关。订阅 `/peach/manipulation/grasp_hypothesis`。发 `/peach/observability/tcp_path`（Path）与 `/peach/observability/markers`（MarkerArray）。
+- **开关：** `config/observability.yaml` 的 `record.enabled`。`trajectory.enabled` 默认开：20 Hz latest TF `base_link←tcp`。另订 `/joint_states` 与 `/aubo_io_controller/joint_status` 进 `robot.joints`（不落 jsonl；电流为 SDK 原单位）。MCAP 另由 launch `record_mcap:=true`，默认关。订阅 `/peach/manipulation/grasp_hypothesis`。发 `/peach/observability/tcp_path`（Path）与 `/peach/observability/markers`（MarkerArray）。
 
 **整栈入口：** `launch/harvest_system.launch.py` include bringup → 感知 → 技能 → observability → 调度 → lifecycle_manager（不 include 导航）。能力包 `autostart:=false`。默认 `hardware_mode:=mock`、`camera_enabled:=false`；调度 `execution_enabled=false`（节点参数，非 launch 参数）。
 
@@ -644,7 +644,7 @@ flowchart TB
 | 动 | `peach_manipulation_node` | `peach_manipulation` | `SurveyScene`、`ExecuteTarget` | 不写账本、不调重建 Trigger |
 | 批 | `peach_executor` | `peach_executor` | `RunHarvest`、`ControlTask` | 不做视觉、不直接规划接触/导航 |
 | 管 | `peach_lifecycle_manager` | `peach_executor` | `ManageLifecycleNodes` | 不发 `RunHarvest`；observability 不进名单 |
-| 监 | `peach_observability` | `peach_executor` | 只读 HTTP / JSONL | 不发运动、不改参 |
+| 监 | `peach_observability` | `peach_executor` | HTTP / JSONL；调试 POST 转发既有入口 | 不旁路 ExecutionAuthority；动臂须 `motion_enabled` |
 
 ---
 
@@ -718,7 +718,7 @@ USB 串口 IMU（QinHeng CH340 `1a86:7523`）。udev `/dev/imu`。话题对齐 i
 | 批次执行 | `executor_node.py`（`TaskExecutorNode`） | `_run_harvest` 按 `Reaction.command` 调 Navigate/Begin/Survey/Build/Execute |
 | 账本 / 选果 | `batch.py`（`select` / `control` / `summary` / `ledger`） | `next_target_id`；`runs/<request_id>/ledger.json` |
 | 生命周期 | `lifecycle_manager.py`（`LifecycleManagerNode`） | 感知 → 重建 → 技能 → 调度；观测节点不进名单 |
-| 只读监控 | `observability/observability_node.py` | HTTP `:8090`；`ObservabilityState`（`state.py`）与 jsonl（`recorder.py`） |
+| 只读监控 | `observability/observability_node.py` | HTTP `:8090` 过程页；`ObservabilityState` 与 jsonl |
 | IDL | `peach_interfaces/action|srv|msg` | 改接口只改这里 |
 | 感知外壳 | `scene_perception_node.py`（`ScenePerceptionNode`） | `_on_rgbd` → `_decode_rgbd` → `_process_rgbd` |
 | 感知纯核 | `scene_perception/{stream_metrics,assignment,image_gates,pose_pipelines,inference}.py`、`{harvest_plan,target_registry,anchor_memory}.py` | 流观测 EMA/超时；χ²+匈牙利分配；投影与深度门控；袋/果位姿线；YOLO/SAM 推理；世界系身份与锁定窗 |
@@ -730,7 +730,7 @@ USB 串口 IMU（QinHeng CH340 `1a86:7523`）。udev `/dev/imu`。话题对齐 i
 | 技能动作与授权 | `cycle.cpp` | `ExecuteTarget` / `SurveyScene` 受理与取消；`authorizeStage` 授权矩阵 |
 | 周期状态 | `cycle_context.hpp`（`CycleContext`） | 周期全部可变状态；action 受理创建、worker 单写者 |
 | 阶段执行器 | `stages.cpp` | `executeCycle(ctx)` 显式模式 switch；阶段函数 |
-| 接触 | `grasp_task.cpp` | 预抓取先 PTP 拍照位，最近距离三层：LIN/CIRC → STOMP 轨迹优化（贴直弦种子的无碰路径）→ staging PTP 兜底；套入沿轴直线；已齐 LIN 挂姿态约束；接触不用 OMPL；工具 IO 不在这里 |
+| 接触 | `grasp_task.cpp` | 预抓取先 PTP 拍照位，再主路径 staging 转移（预抓取下方 PTP + 轴向 LIN）；套入沿轴直线；已齐 LIN 挂姿态约束；接触不用 CIRC/STOMP/OMPL；工具 IO 不在这里 |
 | USB IMU | `serial_imu/imu_node.py` + `protocol.py` | `/imu/data`；udev `/dev/imu`；不进采摘 launch |
 | 技能纯核 | `quality_gate.cpp` / `view_planner.cpp` / `safety_gate.cpp` / `target_cache.cpp` | 直接构造的唯一实现，零 ROS |
 | 运动接口 | `motion.cpp` | 拍照位、观察短移（只 LIN）、MoveIt 规划/执行 |
@@ -750,7 +750,7 @@ USB 串口 IMU（QinHeng CH340 `1a86:7523`）。udev `/dev/imu`。话题对齐 i
 1. `aubo_e5_bringup` — 手臂（mock/real）+ 可选相机、手眼 TF、MoveIt
 2. `peach_perception` — `scene_perception` 然后 `target_reconstruction`
 3. `peach_manipulation`
-4. `peach_observability`（只读 HTTP / JSONL）；可选 `record_mcap:=true`
+4. `peach_observability`（HTTP / JSONL）；可选 `record_mcap:=true`
 5. 调度 `require_managed_stack:=true`
 6. lifecycle_manager：先 configure 再 activate
 
@@ -857,7 +857,7 @@ flowchart TD
   Hold --> Done
 ```
 
-**读图：** 这是**一颗桃一次** `ExecuteTarget` 在技能节点里怎么走，不是整批。菱形是档位：`execution_enabled=false` 只规划；`OBSERVE_ONLY` 看完就停；`grasp_enabled=false` 报到可抓就停；干跑默认 `PREGRASP_ONLY` 停在预抓取。右边 FULL 才套入、打刀、原路撤、回 stow。运动/IO 入口逐阶段过 `ExecutionAuthority`（套入/剪切前复检 `GraspDecision.allowed`，撤离 TRANSIT 级不做决策复检）。观察移位是最近短步（只 LIN）；到预抓取只走 LIN / CIRC，套入沿轴直线，已齐 LIN 带 tip 姿态约束。护栏拦绕腕与笛卡尔绕行。
+**读图：** 这是**一颗桃一次** `ExecuteTarget` 在技能节点里怎么走，不是整批。菱形是档位：`execution_enabled=false` 只规划；`OBSERVE_ONLY` 看完就停；`grasp_enabled=false` 报到可抓就停；干跑默认 `PREGRASP_ONLY` 停在预抓取。右边 FULL 才套入、打刀、原路撤、回 stow。运动/IO 入口逐阶段过 `ExecutionAuthority`（套入/剪切前复检 `GraspDecision.allowed`，撤离 TRANSIT 级不做决策复检）。观察移位是最近短步（只 LIN）；到预抓取走主路径 staging 转移（预抓取下方 PTP + 轴向 LIN），套入沿轴直线，已齐 LIN 带 tip 姿态约束。护栏拦绕腕、口侧穿囊、上方绕行。
 
 能力包 Lifecycle：ROS 实体（发布/订阅/服务/动作/TF/心跳）统一在 `on_configure` 创建、`on_cleanup` 释放（官方 LifecycleNode 写法：Unconfigured 期零 ROS 接口，配置失败返回 ERROR 停在 Unconfigured 并报错）；**非 Active** 拒绝运动 / 积分 / `BeginScene`。
 
@@ -870,7 +870,7 @@ flowchart TB
   gd["GraspDecision.allowed 套入剪切"]
   rc["Reconfirm"]
   sg["SafetyGate"]
-  mtc["MTC 接近 12rad/单轴6.1；观察 4rad；拍照 6rad"]
+  mtc["MTC 接近 12rad/单轴6.1；观察 4rad；拍照 PTP 6rad"]
   p3 -->|"初值可视化"| geom
   geom --> pre["PREGRASP_ONLY 停预抓取 真机评方向定位"]
   geom --> gd
@@ -886,7 +886,7 @@ flowchart TB
 
 **读图：** 从上往下权限越来越硬。单帧 ACCEPT 只配画面，不能动臂。融合几何足够去预抓取评方向。`allowed=false` 到此为止，禁止套入和 SetIO。再确认和安全门失败记 `skipped_quality`；超行程护栏或规划失败记 `skipped_unreachable`。最右「接触段」默认刀具仍关。
 
-接近：接触段沿袋轴（袋底→袋颈）尽量短。观察停在 look-at，从该姿态直接规划预抓取现场常无 IK，故 **先 PTP 回拍照位**（已知可达命名关节），再按 MoveIt2 官方抓取管线到预抓取：绕袋轴按 ±30° 采样刀口（MTC `GenerateGraspPose`）→ Fallbacks（**Pilz LIN**：已齐挂相对目标 20° OrientationConstraint；未齐先 LIN 原地对齐工具 Z 再平移——不得挂在未齐起点上，Jazzy `ValidateSolution` 验起点；keep-roll 直线若 `camera_body` 撞 `wrist1` 则换滚转，位置仍同一弦）。直线会穿球、后撤 ≥ 5 mm、等半径扫角 < 90° 且弧长仍短则 **CIRC**（入口为圆心）再沿轴 LIN；后撤 0 不走 CIRC（球退化）。直线/CIRC 失败则交 **STOMP 轨迹优化**（Jazzy `moveit_planners_stomp`，两处 launch 已挂 stomp 管线）：以「当前→预抓取」直弦的关节线性插值为种子，代价=碰撞/平滑/控制，产出**最贴近直线**的无碰轨迹——直弦穿过自碰/IK 边界带（笛卡尔与关节插值都物理不可行，mock 实测直弦中段构型间插值 80% 点自碰）时的最小局部外凸。目标优先用 `select_goal_joints` 的最近构型**关节目标**（位姿目标的内嵌单次 IK 在边界位姿会 INVALID_GOAL_CONSTRAINTS），位姿目标滚转扫描作次选。STOMP 结果过**转移级笛卡尔门 2.5 / 0.40 m / 0.15 m** + 关节行程门。STOMP 仍失败则 **staging PTP 兜底**（确定性 Pilz PTP 到轴上 staging 再 LIN 沿轴，最近构型关节目标，非 OMPL；直线不穿预抓取球才放行）——非最短路径，仅直线真不可达时。兜底段同过转移级门（1740 无约束 PTP 3.2/0.51/0.24 仍全数拒绝）；LIN 直连段仍过严格门 2.2/0.25/0.08。弦长超过 `mtc_approach_cartesian_max_distance_m`（0.80 m）或三层全失败则 **skipped_unreachable**，不进 OMPL（STOMP 是优化器非采样绕障，与 1740 教训不冲突）。入口在拟合圆柱袋底（`tool.entry_d_tool`+`entry_d_s`=0）；预抓取相对入口沿 −axis 后撤 `mtc_approach_along_axis_m`（现行 0.03 m；SELECT IK 用同一停位：后撤 + `alignFrameZ`，不抄感知滚转）。拍照位失败则从当前位规划。套入/撤退沿轴笛卡尔直线。OMPL 采样绕障，接触不用。MTC 解显示默认关闭（`enableIntrospection(false)`）：滚转扫描的候选解会实时发 RViz、被护栏拒掉的候选在臂动前反复闪跳；轨迹可视化走 observability TCP Path 与 RobotState。**方向是否对、定位偏多少，以停在预抓取时的真机目视/测量为准**；动态预算、12° 包络否决、RMSE 不代替实测，也不拦 `PREGRASP_ONLY`。套入只在 `allowed=true` 后沿轴 LIN 到剪切参考；反向同轨迹回预抓取，再 PTP `harvest_stow`。不插 via。侧向 ≤ 0.05 m、夹角 ≤ 20° 视为已对轴（规划分档，不是精度验收）。接触绕行护栏 **累计 12 rad / 单轴 6.1 rad**（6.1=URDF ±3.05 满行程；不按时长：时长随速度变；`mtc_approach_max_duration_s` 默认 0=关闭），直连 LIN 笛卡尔 **绕行比 2.2 / 弦偏离 0.25 m / 回退 0.08 m**、转移级 **2.5 / 0.40 m / 0.15 m**（09-03 1740 无约束 PTP 绕行比 3.2、偏离 0.51 m、回退 0.24 m 过关节门）。观察：1 s 规划、禁止 replanning，绕行看 4 rad / 单轴 1.5 rad（09-01 现场 0.15 m 观察 LIN 实测 2.63–3.70 rad，2.5 拒合法短移）；下一视点沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m），评分以行程最短为主，只 LIN，失败换下一候选，不改 PTP。覆盖达标或 `maximum_moves` 用尽才停，不按移动+等帧 EMA 预测收口。`goToPhotoPose` 用行程门 `transit_max_*` 6 rad / 2.5 rad；PTP 失败才 OMPL（命名关节赶路），仍须过行程门。接触速度 0.10。
+接近：空心圆筒从袋底沿 −axis 套入（开口=TCP），接近段 TCP 不得从袋口/侧向进入果实体积。袋囊 keepout = 入口沿 +axis 的半无限圆柱（默认半径 `mtc_approach_keepout_radius_m` 0.12 m = R_outer+D_inner/2+fruit_safety；`mtc_approach_keepout_axial_m`>0 才启用，L 不再截断口侧）。TCP 在 s≥0 且 r<R 即口侧进入，接近段拒发。套入/撤退故意进囊，不审 keepout。观察停在 look-at，从该姿态直接规划预抓取现场常无 IK，故 **先回拍照位**（有记录的「拍照位→预抓取」则倒放该轨迹；否则 PTP 命名关节）。**接近主路径 = staging 转移**：PTP（Pilz 关节插值）落到 **预抓取正下方轴上 staging**（= 入口沿 −axis 后撤 `mtc_approach_along_axis_m + approach_staging_standoff_m`，现行 0.03+0.10 m），再 **沿轴 LIN 升到预抓取**（已齐挂相对目标 20° OrientationConstraint）。staging 关节目标由 `select_goal_joints` 产生：12 滚转 × 3 种子（当前 + 2 随机）解过关节限位与**自碰过滤**（`CollisionEnvFCL` + SRDF ACM——camera_body×wrist1/foreArm 构型直接拒，不交给 PTP 失败），按关节距离升序取最近 **3 个候选**，转移逐候选试规划（救弧穿袋囊与自碰构型）。袋囊审查**逐段**进行：staging 转移的首段（PTP 弧）只查圆柱穿越——拍照位本就在袋口上方，锚定起点的反爬门会把关节弧 2–4 cm 自然拱高误判成绕行；其后各段（轴向 LIN/直连 LIN）另查反爬（s 不得超过本段起点 max(s,0)+2 cm，锚定各段自身起点）。staging 全候选失败、且起点已在袋底侧（s≤0）直连不穿囊时，兜底 **直连 LIN**（未齐先 LIN 原地对齐工具 Z 再平移——不得挂在未齐起点上，Jazzy `ValidateSolution` 验起点；keep-roll 直线若 `camera_body` 撞 `wrist1` 则换滚转，位置仍同一弦）。G/under 单弦档已删：photo→G 单弦笛卡尔 fraction 均值 0.77、≥0.95 仅 24%（2026-09-10 `sim_approach_probe` 100 随机位姿），同 seed 全链路基线 9/100 成功（72 挂 G 弦、19 挂对齐），staging 落点 100/100 至少一滚转 IK 可达。不走 CIRC/STOMP/OMPL。笛卡尔绕行比六键默认 0（键保留，0=不查）。直连 LIN 弦长超过 `mtc_approach_cartesian_max_distance_m`（0.80 m）不适用（staging 是关节空间转移）或规划失败则 **skipped_unreachable**，不进 OMPL。入口在拟合圆柱袋底（`tool.entry_d_tool`+`entry_d_s`=0）；预抓取相对入口沿 −axis 后撤 `mtc_approach_along_axis_m`（现行 0.03 m；SELECT IK 用同一停位：后撤 + `alignFrameZ`，不抄感知滚转）。拍照位失败则从当前位规划。套入/撤退沿轴笛卡尔直线；返程倒放同一接近轨迹（含 staging 段）。MTC 解显示默认关闭（`enableIntrospection(false)`）：滚转扫描的候选解会实时发 RViz、被护栏拒掉的候选在臂动前反复闪跳；轨迹可视化走 observability TCP Path 与 RobotState。**方向是否对、定位偏多少，以停在预抓取时的真机目视/测量为准**；动态预算、12° 包络否决、RMSE 不代替实测，也不拦 `PREGRASP_ONLY`。套入只在 `allowed=true` 后沿轴 LIN 到剪切参考；反向同轨迹回预抓取，再 PTP `harvest_stow`。侧向 ≤ 0.05 m、夹角 ≤ 20° 视为已对轴（规划分档，不是精度验收）。接触绕行护栏 **累计 12 rad / 单轴 6.1 rad**（6.1=URDF ±3.05 满行程；不按时长：时长随速度变；`mtc_approach_max_duration_s` 默认 0=关闭）。观察：1 s 规划、禁止 replanning，绕行看 4 rad / 单轴 1.5 rad（09-01 现场 0.15 m 观察 LIN 实测 2.63–3.70 rad，2.5 拒合法短移）；下一视点沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m），评分以行程最短为主，只 LIN，失败换下一候选，不改 PTP。覆盖达标或 `maximum_moves` 用尽才停，不按移动+等帧 EMA 预测收口。`goToPhotoPose`：当前在上一趟接近终点且命名目标对上轨迹起点（拍照位，不是 `harvest_stow`）时原路返程，不过 `transit_max_*`；否则 PTP 失败才 OMPL，行程门 6 rad / 2.5 rad。接触速度 0.10。
 
 ### 透传（real）
 
@@ -926,7 +926,7 @@ flowchart LR
 
 yaml：仅上述 4 键仍为 `*.impl`（技能 yaml 无 `*.impl`）。检测/分割/匹配/锁定/帧栈/点云/ICP/体积/掩膜门已收回，换实现改对应 `.py`。
 
-**不变量（摘要）：** 检测/分割不发明深度。管线深度 uint16 毫米；点数不足 REJECT。匹配器不持身份表。锁定策略禁止自己取时钟。帧栈满栈拒收、换 ID 须 reset。点云构建 0/65535 无效。ICP 越界拒帧。TSDF 只用精确 stamp，禁止 latest。体积积分与袋融合分账：融合/`geometry.jsonl` 失败保留体积与采帧。柱/球 refit 只可视化；`GraspDecision.allowed` 只信袋融合动态预算且只授权套入/剪切；TSDF 包络轴只否决不授权，扁袋跳过 12° 冲突门，固定 35° 只诊断完全错轴。方向/定位精度以预抓取位真机实测为准。无同戳掩膜不得积分。`PREGRASP_ONLY` 只要求融合几何，FULL 才读 `grasp_allowed`。`ExecutionAuthority` 不得旁路 `execution_enabled` / `grasp_allowed`（所有运动/IO 入口收敛此判定）；撤离（`ReverseRetreat` / 回 stow）TRANSIT 级不做决策复检；安全门任何实现不得旁路 `robotReady`；`execution_enabled=false` 只规划；停轨走透传 + `RobotMoveStop`。调试操作面（0013）只是又一客户端：能力包批次动作唯一客户端仍是调度，observability 直发单颗动作须过 `debug.enabled`/`debug.token`/`debug.motion_enabled` 三重门并审计，**不得**为它新增 IDL 或旁路任何既有安全门。
+**不变量（摘要）：** 检测/分割不发明深度。管线深度 uint16 毫米；点数不足 REJECT。匹配器不持身份表。锁定策略禁止自己取时钟。帧栈满栈拒收、换 ID 须 reset。点云构建 0/65535 无效。ICP 越界拒帧。TSDF 只用精确 stamp，禁止 latest。体积积分与袋融合分账：融合/`geometry.jsonl` 失败保留体积与采帧。柱/球 refit 只可视化；`GraspDecision.allowed` 只信袋融合动态预算且只授权套入/剪切；TSDF 包络轴只否决不授权，扁袋跳过 12° 冲突门，固定 35° 只诊断完全错轴。方向/定位精度以预抓取位真机实测为准。无同戳掩膜不得积分。`PREGRASP_ONLY` 只要求融合几何，FULL 才读 `grasp_allowed`。`ExecutionAuthority` 不得旁路 `execution_enabled` / `grasp_allowed`（所有运动/IO 入口收敛此判定）；撤离（`ReverseRetreat` / 回 stow）TRANSIT 级不做决策复检；安全门任何实现不得旁路 `robotReady`；`execution_enabled=false` 只规划；停轨走透传 + `RobotMoveStop`。8090 调试桥（0018）只是又一客户端：能力包批次动作唯一客户端仍是调度；observability 直发单颗动作须过 `debug.enabled` 与运动类 `debug.motion_enabled`，**不得**为它新增 IDL 或旁路任何既有安全门。`debug.token` 键保留不校验。
 
 **不是缝位：** RGB-D 同步、TF 策略、采帧门顺序、发布器、`TargetRegistry` / `GlobalHarvestPlan` / `InferenceEngine` 本体、`GraspTask` / MTC stage、阶段函数（`stages.cpp`）、`batch.next_target_id`、lifecycle 名单、底盘/雷达驱动。要开新缝先改本文件规约。
 
@@ -941,7 +941,7 @@ yaml：仅上述 4 键仍为 `*.impl`（技能 yaml 无 `*.impl`）。检测/分
 | LifecycleNode | 感知/重建/技能/调度/observability | KEEP |
 | lifecycle_manager | 普通 Node；`peach_executor/params.py`（名单/超时）；部署值 config/lifecycle_manager.yaml；无 bond | 记录缺口 |
 | BT.CPP | 已移除（`behavior_tree.xml` 与 `bt_nodes.cpp` 删除，`stages.cpp` 显式阶段执行器替代） | 已删；不回退 |
-| MTC | stage 硬编码；预抓取先 PTP 拍照位，最近距离三层：LIN/CIRC → STOMP（贴直弦）→ staging PTP 兜底，已齐 LIN 带姿态约束 | KEEP；绕行看行程（接触 12 rad / 单轴 6.1=URDF 满行程，观察 4 / 1.5，拍照 6 / 2.5）与笛卡尔直连 2.2/0.25/0.08、转移级 2.5/0.40/0.15，不按时长 |
+| MTC | stage 硬编码；预抓取先 PTP 拍照位，再主路径 staging 转移（预抓取下方 PTP + 轴向 LIN）；已齐 LIN 带姿态约束 | KEEP；绕腕看行程（接触 12 rad / 单轴 6.1=URDF 满行程，观察 4 / 1.5，拍照 6 / 2.5）；口侧/上方看袋囊 keepout（s≥0 且 r<R，s 不得增大；staging PTP 弧逐点 FK 同审）；笛卡尔绕行比六键默认 0，不按时长 |
 | generate_parameter_library | 已移除；手写 `params.py`（感知×2/调度/监控/lifecycle_manager）与 `params.hpp`（技能） | 已移除；不回退 |
 | message_filters | slop 0.05 s | KEEP |
 | pluginlib / composable | 未用 | 不做 |
@@ -962,17 +962,18 @@ yaml：仅上述 4 键仍为 `*.impl`（技能 yaml 无 `*.impl`）。检测/分
 | 0004 | 抓取几何只信 `GraspDecision.allowed`。推翻：取消重建节点。 |
 | 0005 | 设计用归档 ~2.5 FPS；launch 5.0 是请求；不改 Percipio。`assumed_frame_interval_s` 不预填 EMA。推翻：授权后的新 live hz。 |
 | 0006 | `test/` = ROS 2 默认 lint **加** 零 ROS 纯核 pytest（不 import rclpy、不造 DDS 现场）。仍禁止业务用例、gtest、launch_testing、采摘仿真测。对错以实机与过程数据为准。批次 summary 由 observability 录制器收尾时离线复算（`recorder.py` 汇总器），不是 colcon 业务测；感知离线复算脚本已归档 `_archive/offline_2026-09/`。 |
-| 0007 | observability 只读 HTTP + jsonl；不进 lifecycle 名单。推翻：另做鉴权操作面且不混端口。→ 推翻条款已执行（2026-09，见 0013）：调试操作面融合进 8090，安全改由三重门+审计承担。 |
+| 0007 | observability 只读 HTTP + jsonl；不进 lifecycle 名单。推翻：另做鉴权操作面且不混端口。→ 0013 融合进 8090；0018 去掉令牌与完整操作面。 |
 | 0008 | 底盘/雷达驱动本仓不实现。`peach_navigation` 只提供 `NavigateToWorksite`。推翻：书面授权真底盘并接发行版 Nav2。 |
 | 0009 | 核心栈四包：契约、视觉、臂、调度。`peach_navigation` 移至 `_archive/parked_2026-09/`，不进构建与 launch；四个导航 IDL 在 manifest `reserved_interfaces` 标预留；调度 `_cmd_navigate` 直通 `NAV_OK`。推翻：书面授权真底盘，从归档恢复（仍不加第五个 peach 包）。 |
 | 0010 | 技能去 BT.CPP：删 `behavior_tree.xml` 与 `bt_nodes.cpp`，`stages.cpp` `executeCycle(ctx)` 显式模式 switch（序列与旧主树严格同构）；周期状态全部入 `CycleContext`（action 受理时创建、worker 单写者），`cycle_*` 成员删除。推翻：需要树级恢复语义时重新评估，但不回到隐式 tick。 |
 | 0011 | `ExecutionAuthority` 统一执行权（`cycle.cpp` `authorizeStage`）：TRANSIT/PREGRASP=Active∧robotReady∧!cancel∧execution_enabled；CONTACT 再加 grasp_enabled∧GraspDecision 复检（目标 ID 对齐+allowed）；TOOL 再加 tool_enabled。所有运动/IO 入口收敛此判定；复检不过→SKIPPED_QUALITY，其余→FAILED。推翻：新增执行后端须走同一矩阵。 |
 | 0012 | 死代码删除、文档标预留：MTC 预规划链（PreplanSlot 等）、`DepositToStation`（`DepositResult` 字段保留恒 `deposited=false`）、别名注册、`impl_factory`/`motion_factory` 缝位、`planOrMoveTool`；yaml 删 `*.impl` 4 键与 `deposit_pose_named_target` 等。刀具切断确认预留接 `/aubo_io_controller/io_states` 工具 DI；`tool.enabled=true` 未确认终局 `FAILED`/`CUT_FEEDBACK_TIMEOUT`。 |
-| 0013 | 调试操作面融合监控 Web（8090 单端口），推翻 0007「只读、不混端口」的端口隔离部分：安全改由 `debug.enabled`（默认 false）+ `X-Debug-Token`（默认空=全拒）+ 运动类另需 `debug.motion_enabled`（默认 false→423）+ 全量审计 `runs/debug_audit/` 承担。「调度是唯一动作客户端」收敛为「能力包批次动作唯一客户端=调度；observability 调试桥（默认关）可直发单颗动作，全审计」。不新增 IDL，不旁路 ExecutionAuthority；真机运动仍须三重使能人工打开。推翻：把操作面独立成第二端口/新包（用户拍板融合）。 |
+| 0013 | 调试操作面融合监控 Web（8090 单端口），推翻 0007「只读、不混端口」的端口隔离部分。令牌三重门已被 0018 取代。 |
 | 0015 | 冗余归档清理（2026-09）：`Robotics_Tutorial/`、`plans/`、`reports/`、感知 `offline/` 离线脚本、`tool_profiles/` 零加载 yaml 归档 `_archive/`；删除全仓零调用服务（感知 `query_harvest_state`，重建 `start_reconstruction`/`capture_frame`/`remove_last_frame`，技能 `start_cycle`/`query_state`）、零引用内部方法与 8 个声明未读参数链（via 间距、budget_cost_margin、refined RMSE/内点阈值等）；`approachAndInsert` 收敛为纯规划（执行路径零调用）。四包 README 削薄为导航页。图名/话题/动作/活文档契约不变。推翻：需要恢复任一归档件时从 `_archive/` 取回并同步本表。 |
 | 0016 | 参数分层收敛（2026-09）：运行 yaml 覆盖化——能力节点 `config/<节点>.yaml` 不再复写 GPL 默认（审计 274 键 0 真覆盖），只写部署覆盖与注释示例；`peach_lifecycle_manager` 随后迁入 GPL（`lifecycle_manager_parameters.yaml`，名单/超时原样，不加 bond）。运行 yaml 独有增量口径（recovery_scale 真机实测史、max_collect_s EMA 自适应、protected_zones 与 min_camera_height_m 关系等）并入 GPL description（`ros2 param describe` 可见）。C++ 装载链收敛：节点持 GPL Params 快照直构各 Config，删纯转发成员。键名/分组冻结（真机命令/文档/镜像零破坏），命名规约成文（见「参数分层」节）约束新键。observability 参数镜像 watchlist 删幽灵键。推翻：现场需要成套部署档（如真机保守档 yaml）时在运行 yaml 写覆盖键，或新增第二份覆盖文件经 `params_file` launch 参数切换。 |
 | 0017 | 参数体系转 nav2 式（2026-09，深版）：移除 generate_parameter_library（含 0016 引入的 GPL 单一事实源机制，键名/分组冻结不变），六份 `*_parameters.yaml` 声明删除；`config/<节点>.yaml` 变为全量清单（部署事实源），新增手写参数模块 peach_perception/peach_executor 的 `params.py` 与 peach_manipulation 的 `params.hpp`（DEFAULTS 兜底默认 + 手写校验器 + 兼容原 GPL 接口的 ParamListener：get_params/is_old、启动期校验抛异常、on-set 拒非法值、快照变更戳）。运行期刷新语义、grasp_standoffs 注入层、execution→grasp→tool 依赖链校验全部保真。推翻并替代 0016 的「GPL 声明 yaml 单一事实源」机制；接受两项让步：改默认值须模块与 yaml 各改一处，`ros2 param describe` 不再携带中文描述（以 yaml 注释为准）。真机回归状态：mock 启动通过，真机验证待做。 |
 | 0017 | 保行为修复轮（2026-09-08）：① FULL 套入预检 `previewFullContact` 在「已对轴 SKIP」分支把 sleeve+retreat 误当接近段过护栏（回退门必拒）——修正为无接近段即不审，FULL 规划路径恢复可达（真机 FULL 仍未验收，全部使能门照旧）；② recorder 终局集收敛为 `{COMPLETED, INTERRUPTED}`（RECOVERY_REQUIRED 是批内可恢复态，保持批次目录开、不提前写 summary）；③ recorder 批次目录名过 `_safe_run_component`（与账本同规则防穿越）；④ `batch_paused` 审计事件条件改 PAUSED（原判 PAUSE_PENDING 恒假，事件从未发出）；ControlTask `reason` 按契约写入审计事件；⑤ 帧环写入纳入 `_state_lock`（消迭代竞态）、重建 `_refined/_bag_model` 成对更新、观测/初值缓存加 frame_id 门、掩膜有效深度补 65535 饱和剔除；⑥ `SafetyGate` 自适应上限改 `std::atomic<double>`；⑦ 死契约清理（`round_started/round_completed` 消费方、`_blockers`、感知 5 个零调用函数、`kStageNames` 等）与三处同构去重（common 几何原语单源化、选果资格谓词、接触入口三元组）。图名/参数键/yaml 默认零变化。推翻：无。 |
+| 0018 | 8090 收敛为本项目过程页（2026-09）：记录目录 + 过程线/作业票/事件 + TCP 俯视（绕行比/Δz）+ 单步调试（BeginScene/Survey/Build/Execute/RunHarvest/拍照位）。去掉令牌鉴权与生命周期/使能等完整操作面。`debug.token` 键保留不校验；`debug.enabled` 默认 true（回环）；运动类仍须 `debug.motion_enabled`（默认 false→423）。不新增 IDL，不旁路 ExecutionAuthority。推翻 0013 的令牌与「完整驾驶舱」。 |
 
 ---
 
@@ -986,7 +987,7 @@ yaml：仅上述 4 键仍为 `*.impl`（技能 yaml 无 `*.impl`）。检测/分
 | 会话 | 批次结束后 events.jsonl 再写约 65 分钟 | 记录器绑定 RunHarvest |
 | 新鲜度 | 08-24 `selected_target_stale` ×4 | 门限不预填 EMA；非 OBSERVED 仍按末次 live `received_s` |
 | 观察效率 | 6 视角 33.5 s；max_views=24 与现场 4–6 脱节 | 覆盖预算 + 停稳窗口 |
-| 接触 | 08-25 许可后 9 s 与 12.6 s PTP 被 12 s/4–8 rad 拒；08-31 1351 直线 62 s / 8.2 rad 被 20 s 时长拒；08-31 1554 最短合法 PTP 10.79 / 单轴 4.23 被当时 10/3.2 拒、未到位；09-03 1740 无约束 PTP 过 12/6.1 但 TCP 绕行比 3.2、先抬 35 cm | 接触到预抓取走 MTC 官方管线：绕袋轴采样刀口 + Pilz LIN / CartesianPath，失败不改 PTP/OMPL。关节门 **12 / 单轴 6.1** 仍拦绕腕。笛卡尔 **绕行比 2.2 / 弦偏离 0.25 m / 回退 0.08 m**。时长门默认 0 |
+| 接触 | 08-25 许可后 9 s 与 12.6 s PTP 被 12 s/4–8 rad 拒；08-31 1351 直线 62 s / 8.2 rad 被 20 s 时长拒；08-31 1554 最短合法 PTP 10.79 / 单轴 4.23 被当时 10/3.2 拒、未到位；09-03 1740 无约束 PTP 过 12/6.1 但 TCP 绕行比 3.2、先抬 35 cm；09-10 LIN/G 单弦档 100 随机位姿仅 9/100（photo→G 弦 fraction 0.77） | 主路径 = staging 转移：最近构型 PTP 到预抓取下方 + 轴向 LIN（G/under 已删，2026-09-10）。同 seed 重写后 66/100 全量、现场真实包络（\|entry\|≤1.02 ∧ axis_z≥0.70）39/41；护栏拒发 14→4、staging 自碰构型 8→0。关节门 **12 / 单轴 6.1** 仍拦绕腕。口侧/上方绕行逐段拒发（转移首段只查圆柱）。笛卡尔绕行比六键默认 0。时长门默认 0 |
 | 果园 | 无 /scan/odom；`peach_navigation` 已归档（IDL 预留，NAV 直通） | 有底盘后从归档恢复并接 Nav2 |
 | 建一颗双路径 | `BuildTargetModel` 的 `_on_reset` 锁外调用与 worker `_auto_drive` 自动绑定存在竞态窗口（auto 开的会话可能被 Build 丢弃重建）；Build body 五步兜底与 `_auto_start` 曾逐行同构（0015 已收敛） | 锁序如需再收紧须真机回归 |
 | FULL 套入深度（SKIP 场景） | 已对轴停在预抓取时（classify=SKIP），`sleeveLinear` 插入深度取名义 `approach_along_axis_m + insertion`，与实际间隙（轴向 ∈[−0.02, standoff+0.02]）最多差一个 classify 容差窗；预览几何同理（2026-09-08 审查记录，护栏误拦已修、深度语义未动） | 真机 FULL 验收时以到位目视评定，必要时按实际间隙改行程 |

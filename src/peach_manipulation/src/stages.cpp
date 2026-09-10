@@ -15,6 +15,7 @@
 #include <optional>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 #include <peach_interfaces/msg/failure_code.hpp>
 #include <peach_interfaces/msg/peach_target_observation.hpp>
@@ -806,7 +807,7 @@ bool ManipulationSkillsNode::stageMovePregrasp(CycleContext & ctx)
   // 观察停在 look-at。从该姿态直接 LIN/PTP 到预抓取现场常无 IK
   // （08-28 G PTP 0/1；08-31 1405 LIN NO_IK）。拍照位是已知可达的自由空间点。
   std::string photo_msg;
-  const bool from_photo = motion_ && motion_->goToPhotoPose(
+  bool from_photo = motion_ && motion_->goToPhotoPose(
     photo_pose_named_target_, execution_enabled_.load(), photo_msg);
   if (from_photo) {
     RCLCPP_INFO(get_logger(), "预抓取从拍照位出发: %s", photo_msg.c_str());
@@ -821,6 +822,7 @@ bool ManipulationSkillsNode::stageMovePregrasp(CycleContext & ctx)
     if (motion_->goToPhotoPose(
         photo_pose_named_target_, execution_enabled_.load(), photo_msg))
     {
+      from_photo = true;
       RCLCPP_WARN(
         get_logger(),
         "当前位到预抓取失败（%s），已回拍照位再规划: %s",
@@ -829,20 +831,25 @@ bool ManipulationSkillsNode::stageMovePregrasp(CycleContext & ctx)
         ctx.entry_tip_pose, ctx.refined->axis, true);
     }
   }
-  // CartesianPath 回退（Pilz LIN 滚转扫描失败且尚未下发）。不进 PTP/OMPL。
-  if (!result.success && !result.execution_started &&
-    params_.moveit.approach_staging_standoff_m > 0.005)
-  {
-    RCLCPP_INFO(
-      get_logger(), "直线/短弧接近失败（%s），改走笛卡尔插值回退",
-      result.reason.c_str());
-    result = grasp_task_->moveToPregraspViaCorridor(
-      ctx.entry_tip_pose, ctx.refined->axis, true);
-  }
   if (!result.success) {
+    if (result.execution_started && motion_) {
+      motion_->clearPhotoApproach();
+    }
     return failStage(
       ctx, ExecuteTarget::Result::SKIPPED_UNREACHABLE,
       FailureCode::SLEEVE_PLAN_FAILED, "到预抓取失败: " + result.reason);
+  }
+  if (motion_) {
+    if (from_photo) {
+      auto approach = grasp_task_->lastApproachTrajectory();
+      if (!approach.points.empty()) {
+        motion_->rememberPhotoApproach(std::move(approach));
+      } else {
+        motion_->clearPhotoApproach();
+      }
+    } else {
+      motion_->clearPhotoApproach();
+    }
   }
   if (result.execution_started) {
     contact_recovery_required_.store(true);

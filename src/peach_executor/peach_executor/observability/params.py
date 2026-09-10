@@ -32,6 +32,8 @@ TOPIC_NAMES = (
     'task_executor_state_topic',
     'task_executor_events_topic',
     'robot_status_topic',
+    'joint_states_topic',
+    'joint_status_topic',
     'debug_image_topic',
     'debug_image_raw_topic',
     'tsdf_cloud_topic',

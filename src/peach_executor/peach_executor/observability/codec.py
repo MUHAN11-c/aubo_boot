@@ -195,6 +195,77 @@ def to_robot_status(message) -> dict:
     }
 
 
+# 与驱动栈 / AGENTS 关节顺序一致
+JOINT_ORDER = (
+    'shoulder_joint', 'upperArm_joint', 'foreArm_joint',
+    'wrist1_joint', 'wrist2_joint', 'wrist3_joint',
+)
+
+
+def _float_at(values, index):
+    """数组下标转有限 float；越界或非数 → None."""
+    try:
+        value = float(values[index])
+    except (TypeError, ValueError, IndexError):
+        return None
+    return value if math.isfinite(value) else None
+
+
+def to_joint_state(message) -> dict:
+    """sensor_msgs/JointState → 按关节名索引的实际角/速度."""
+    names = [str(name) for name in (message.name or [])]
+    position = list(message.position or [])
+    velocity = list(message.velocity or [])
+    effort = list(message.effort or [])
+    by_name = {}
+    for index, name in enumerate(names):
+        by_name[name] = {
+            'position': _float_at(position, index),
+            'velocity': _float_at(velocity, index),
+            'effort': _float_at(effort, index),
+        }
+    return {'stamp': stamp_seconds(message.header), 'by_name': by_name}
+
+
+def to_joint_status(message) -> dict:
+    """aubo_msgs/JointStatus → 6 槽电流/温度/目标/跟随误差（SDK 电流单位原样）."""
+    codes = list(message.error_code or [])
+    return {
+        'current': [_float_at(message.current, i) for i in range(6)],
+        'temperature': [_float_at(message.temperature, i) for i in range(6)],
+        'tag_pos': [_float_at(message.tag_pos, i) for i in range(6)],
+        'tag_vel': [_float_at(message.tag_vel, i) for i in range(6)],
+        'following_error': [_float_at(message.following_error, i) for i in range(6)],
+        'error_code': [
+            int(codes[i]) if i < len(codes) else 0 for i in range(6)],
+    }
+
+
+def merge_joint_hardware(joint_state, joint_status) -> dict:
+    """合成网页硬件表：实际角来自 /joint_states，电流等来自 joint_status."""
+    by_name = (joint_state or {}).get('by_name') or {}
+    status = joint_status or {}
+    rows = []
+    for index, name in enumerate(JOINT_ORDER):
+        actual = by_name.get(name) or {}
+        rows.append({
+            'name': name,
+            'position': actual.get('position'),
+            'velocity': actual.get('velocity'),
+            'effort': actual.get('effort'),
+            'current': (status.get('current') or [None] * 6)[index],
+            'temperature': (status.get('temperature') or [None] * 6)[index],
+            'tag_pos': (status.get('tag_pos') or [None] * 6)[index],
+            'tag_vel': (status.get('tag_vel') or [None] * 6)[index],
+            'following_error': (status.get('following_error') or [None] * 6)[index],
+            'error_code': (status.get('error_code') or [0] * 6)[index],
+        })
+    return {
+        'rows': rows,
+        'stamp': (joint_state or {}).get('stamp'),
+    }
+
+
 def _valid_scalar(value) -> float | None:
     """无效标量约定（-1，见 ReconstructionStatus.msg）→ None；其余转 float."""
     value = float(value)

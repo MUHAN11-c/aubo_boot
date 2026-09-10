@@ -1,20 +1,110 @@
-// 功能：接近轨迹护栏。关节行程拦绕腕；笛卡尔绕行比/弦偏离/回退拦
-// 「先抬后落」那种远离目标的 PTP。时长仅记录，max_duration_s<=0 不按时长拒发。
-// 笛卡尔三项 <=0 则跳过该项。超限拒发、不下发。
+// 功能：接近轨迹护栏。关节行程拦绕腕；袋囊 keepout 拦口侧穿果（grasp_geometry）。
+// 笛卡尔绕行比/弦偏离/回退键保留，默认 0 跳过（合法 taut G 比直弦长）。
+// 时长仅记录，max_duration_s<=0 不按时长拒发。笛卡尔三项 <=0 则跳过该项。
 #ifndef PEACH_MANIPULATION__TRAJECTORY_GUARD_HPP_
 #define PEACH_MANIPULATION__TRAJECTORY_GUARD_HPP_
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 
 namespace peach_manipulation
 {
+
+inline double durationToSec(const builtin_interfaces::msg::Duration & d)
+{
+  return static_cast<double>(d.sec) + static_cast<double>(d.nanosec) * 1.0e-9;
+}
+
+inline builtin_interfaces::msg::Duration secToDuration(double s)
+{
+  builtin_interfaces::msg::Duration d;
+  if (s < 0.0) {
+    s = 0.0;
+  }
+  d.sec = static_cast<int32_t>(s);
+  d.nanosec = static_cast<uint32_t>((s - static_cast<double>(d.sec)) * 1.0e9);
+  return d;
+}
+
+// 多段接近拼成一条关节轨迹（时间轴首尾相接）。关节名须一致，否则返回空。
+inline trajectory_msgs::msg::JointTrajectory concatJointTrajectories(
+  const std::vector<trajectory_msgs::msg::JointTrajectory> & parts)
+{
+  trajectory_msgs::msg::JointTrajectory out;
+  if (parts.empty()) {
+    return out;
+  }
+  out.header = parts.front().header;
+  out.joint_names = parts.front().joint_names;
+  double offset_s = 0.0;
+  bool skip_stitch = false;
+  for (const auto & part : parts) {
+    if (part.joint_names != out.joint_names || part.points.empty()) {
+      return trajectory_msgs::msg::JointTrajectory();
+    }
+    for (const auto & point : part.points) {
+      if (skip_stitch) {
+        skip_stitch = false;
+        continue;
+      }
+      auto copy = point;
+      copy.time_from_start = secToDuration(
+        offset_s + durationToSec(point.time_from_start));
+      out.points.push_back(std::move(copy));
+    }
+    offset_s += durationToSec(part.points.back().time_from_start);
+    skip_stitch = true;
+  }
+  return out;
+}
+
+// 接近轨迹原路返程：点序倒放、时间轴从 0 起、速度/加速度取反。
+inline trajectory_msgs::msg::JointTrajectory reverseJointTrajectory(
+  const trajectory_msgs::msg::JointTrajectory & forward)
+{
+  trajectory_msgs::msg::JointTrajectory out;
+  out.header = forward.header;
+  out.joint_names = forward.joint_names;
+  if (forward.points.size() < 2U) {
+    return out;
+  }
+  const double t_end = durationToSec(forward.points.back().time_from_start);
+  out.points.reserve(forward.points.size());
+  for (std::size_t i = 0; i < forward.points.size(); ++i) {
+    const auto & src = forward.points[forward.points.size() - 1U - i];
+    auto point = src;
+    point.time_from_start = secToDuration(t_end - durationToSec(src.time_from_start));
+    for (double & v : point.velocities) {
+      v = -v;
+    }
+    for (double & a : point.accelerations) {
+      a = -a;
+    }
+    out.points.push_back(std::move(point));
+  }
+  if (!out.points.empty()) {
+    out.points.front().time_from_start = secToDuration(0.0);
+    if (!out.points.front().velocities.empty()) {
+      std::fill(
+        out.points.front().velocities.begin(),
+        out.points.front().velocities.end(), 0.0);
+    }
+    if (!out.points.back().velocities.empty()) {
+      std::fill(
+        out.points.back().velocities.begin(),
+        out.points.back().velocities.end(), 0.0);
+    }
+  }
+  return out;
+}
 
 struct TrajectoryGuardLimits
 {

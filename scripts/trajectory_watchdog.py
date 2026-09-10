@@ -1,20 +1,18 @@
 #!/usr/bin/env python3
-"""实时轨迹 watchdog：执行期间持续 FK 监测 TCP，超绕行门立即停轨。
+"""实时轨迹 watchdog：执行期间持续 FK 监测 TCP，记录段指标。
 
 按段评估（机械臂静止 >0.6s 即重置基线，段=拍照位 PTP / 接近各阶段）：
-每段起止弦、路径长、绕行比、相对弦偏离、回退，任一超门即调
-``/peach_manipulation_node/cancel_cycle``（内部走 move_group stop + MTC
-preempt，真机即透传取消 + RobotMoveStop 的同一停轨链），并写 jsonl 留档。
-
-默认门取 staging 转移级（2.5 / 0.40 m / 0.15 m，本管线最宽笛卡尔门）；
-可 ``--ratio/--dev/--recede`` 收紧。FK 走 ``/compute_fk``（15 Hz 截流）。
-``/joint_states`` 按名字映射（mock 广播器是字母序，不可按位置截取）。
+每段起止弦、路径长、绕行比、相对弦偏离、回退。默认不按绕行比停轨
+（合法袋底 G 比直弦长；口侧/上方由技能节点袋囊 keepout 拒发）。
+``--ratio/--dev/--recede`` >0 才停轨（经
+``/peach_manipulation_node/cancel_cycle``）。FK 走 ``/compute_fk``
+（15 Hz 截流）。``/joint_states`` 按名字映射（mock 广播器是字母序）。
 
 须已起 mock harvest_system。不进 colcon test；仿真验证用，不碰真机。
 
 用法：
-  python3 scripts/trajectory_watchdog.py                 # 默认转移级门
-  python3 scripts/trajectory_watchdog.py --ratio 2.2 --dev 0.25 --recede 0.08
+  python3 scripts/trajectory_watchdog.py                 # 只记录，不停轨
+  python3 scripts/trajectory_watchdog.py --ratio 2.5 --dev 0.40 --recede 0.15
 """
 from __future__ import annotations
 
@@ -51,9 +49,12 @@ def _seg_dist(p, a, b):
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--ratio', type=float, default=2.5)
-    parser.add_argument('--dev', type=float, default=0.40)
-    parser.add_argument('--recede', type=float, default=0.15)
+    parser.add_argument('--ratio', type=float, default=0.0,
+                        help='路径/弦上限；0=不按绕行比停轨')
+    parser.add_argument('--dev', type=float, default=0.0,
+                        help='弦偏离上限（米）；0=不查')
+    parser.add_argument('--recede', type=float, default=0.0,
+                        help='回退上限（米）；0=不查')
     parser.add_argument('--chord-min', type=float, default=0.05,
                         help='弦长小于此值不评绕行比（近似原地）')
     args = parser.parse_args()
@@ -199,11 +200,12 @@ def main() -> int:
         seg['prev'] = tip
 
         over = []
-        if chord >= args.chord_min and seg['path'] / chord > args.ratio:
+        if args.ratio > 0.0 and chord >= args.chord_min and (
+                seg['path'] / chord > args.ratio):
             over.append(f"绕行比 {seg['path'] / chord:.2f}>{args.ratio}")
-        if seg['max_dev'] > args.dev:
+        if args.dev > 0.0 and seg['max_dev'] > args.dev:
             over.append(f"弦偏离 {seg['max_dev']:.3f}>{args.dev}")
-        if seg['max_recede'] > args.recede:
+        if args.recede > 0.0 and seg['max_recede'] > args.recede:
             over.append(f"回退 {seg['max_recede']:.3f}>{args.recede}")
         if over:
             seg['violations'] += 1

@@ -146,9 +146,6 @@ struct GraspTaskConfig
   };
   std::function<std::vector<StagingCandidate>(
       const Eigen::Isometry3d & staging_pose)> select_goal_joints;
-  // 单姿态快速可行性（当前种子 + 固定 50ms，只答能否）：选果预检的
-  // 原子操作——整条预检须在 executor reach 等待窗内完成，早退优先。
-  std::function<bool(const Eigen::Isometry3d &)> ik_feasible;
   std::vector<ProtectedZone> protected_zones;  // base 系 AABB → planning scene
   std::function<bool(std::string &)> approach_execution_gate;  // 下发接近轨迹前
   std::function<bool(std::string &)> retreat_execution_gate;   // 撤离不依赖视觉

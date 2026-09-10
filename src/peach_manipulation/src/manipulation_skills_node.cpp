@@ -531,17 +531,6 @@ void ManipulationSkillsNode::rebuildGraspTask()
       }
       return out;
     };
-  // 选果预检原子操作：当前种子 + 固定 50ms 单次可行性（早退优先，
-  // 整链须在 executor reach 等待窗内完成）。
-  task_config.ik_feasible =
-    [this](const Eigen::Isometry3d & pose) {
-      if (!move_group_) {
-        return false;
-      }
-      auto state = move_group_->getCurrentState();
-      const auto * group = state->getJointModelGroup(planning_group_);
-      return group != nullptr && state->setFromIK(group, pose, tip_frame_, 0.05);
-    };
   task_config.approach_max_lateral_m = moveit.mtc_approach_max_lateral_m;
   task_config.approach_max_align_deg = moveit.mtc_approach_max_align_deg;
   task_config.lookup_current_tip = [this]() {

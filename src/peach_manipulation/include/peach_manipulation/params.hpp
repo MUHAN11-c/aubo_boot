@@ -178,17 +178,6 @@ public:
     return out;
   }
 
-  bool try_get_params(Params & params) const
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (params.__stamp == stamp_) {
-      return false;
-    }
-    params = params_;
-    params.__stamp = stamp_;
-    return true;
-  }
-
   bool is_old(const Params & other) const
   {
     std::lock_guard<std::mutex> lock(mutex_);

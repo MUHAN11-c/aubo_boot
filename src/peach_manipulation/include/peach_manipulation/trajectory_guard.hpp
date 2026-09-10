@@ -150,7 +150,7 @@ struct TrajectoryGuardReport
   std::string reason;
 };
 
-// 关节行程审查：多段接近轨迹（LIN/CIRC 拼接）按点名对齐后累计每轴 |Δq|，
+// 关节行程审查：多段接近轨迹（staging PTP + LIN 拼接）按点名对齐后累计每轴 |Δq|，
 // 对「时长（可选）/ 累计行程 / 单轴行程」三项逐一拒发；段空、关节名或维度
 // 不一致、含非有限值均直接拒。往返重复调用同一 limits 必须同一结果。
 inline TrajectoryGuardReport inspectApproachTrajectories(

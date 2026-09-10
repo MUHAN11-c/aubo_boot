@@ -9,8 +9,9 @@ import sys
 
 import yaml
 
-CASES_PATH = ('/home/wjz/aubo_ros2/src/peach_manipulation/config/'
-              'field_pregrasp_cases.yaml')
+CASES_PATH = (
+    '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_manipulation/config/'
+    'field_pregrasp_cases.yaml')
 JOINT_ORDER = (
     'shoulder_joint', 'upperArm_joint', 'foreArm_joint',
     'wrist1_joint', 'wrist2_joint', 'wrist3_joint',

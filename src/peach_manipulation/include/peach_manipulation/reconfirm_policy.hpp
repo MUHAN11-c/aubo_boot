@@ -112,8 +112,6 @@ public:
     return {ReconfirmVerdict::PASS, "再确认通过：身份一致且锚点漂移在容差内"};
   }
 
-  int strikes() const {return strikes_;}
-
 private:
   ReconfirmDecision countStrike(const std::string & what)
   {

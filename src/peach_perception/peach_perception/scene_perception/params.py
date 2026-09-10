@@ -1,10 +1,10 @@
 """
-ScenePerceptionParams：GPL 快照之上的派生层（gravity 解析 + ToolGeometry）.
+ScenePerceptionParams：参数快照之上的派生层（gravity 解析 + ToolGeometry）.
 
-声明 / 类型 / 默认值 / 中文描述 / 范围校验的权威源是
-config/scene_perception_parameters.yaml（根键=节点名），由
-generate_parameter_library_py 生成 peach_perception/scene_perception_parameters.py。
-本模块不再照抄 57 个标量字段：其余属性转发到生成嵌套结构
+声明 / 兜底默认 / 校验的权威源是 peach_perception/params.py（决策 0017，
+手写参数模块），部署值与中文描述的事实源是 config/scene_perception.yaml
+（nav2 式 ros__parameters 全量清单）。
+本模块不再照抄 57 个标量字段：其余属性转发到快照嵌套结构
 （``self.params.pipeline.bag_impl`` / ``self.params.target_memory.enable``）。
 静态装载：启动期一次，不做动态改参回调。
 """
@@ -18,7 +18,7 @@ from peach_perception.scene_perception.contracts import ToolGeometry
 
 class ScenePerceptionParams:
     """
-    GPL Params 快照 + tool / gravity_hint 派生.
+    参数快照 + tool / gravity_hint 派生.
 
     标量与分组字段转发到生成结构；tool 为组装后的 ToolGeometry
     （entry_standoff = entry_d_tool + entry_d_s）；gravity_hint 为解析后的
@@ -33,7 +33,7 @@ class ScenePerceptionParams:
         object.__setattr__(self, '_gravity_mode', gravity_mode)
 
     def __getattr__(self, name):
-        """未覆盖的属性转发到 GPL Params（含 pipeline / target_memory 等嵌套组）."""
+        """未覆盖的属性转发到参数快照（含 pipeline / target_memory 等嵌套组）."""
         if name == 'gravity_mode':
             return self._gravity_mode
         return getattr(self._raw, name)
@@ -51,8 +51,7 @@ class ScenePerceptionParams:
             ParamListener：调用方持有并用于读取 Params 快照.
 
         """
-        from peach_perception.scene_perception_parameters import (
-            peach_scene_perception_node)
+        from peach_perception.params import peach_scene_perception_node
         return peach_scene_perception_node.ParamListener(node)
 
     @classmethod

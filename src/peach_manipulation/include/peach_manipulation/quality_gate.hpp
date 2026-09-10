@@ -61,7 +61,7 @@ public:
   virtual GateResult readyToGrasp(const QualitySnapshot & snapshot) const = 0;
 };
 
-// 默认值以 config/manipulation_parameters.yaml 为权威源，此处仅为直接构造兜底
+// 默认值以 config/peach_manipulation.yaml 为权威源，此处仅为直接构造兜底
 // （yaml：当前位+一次 0.15 m 短移，覆盖门 8°）。
 struct QualityGateConfig
 {

@@ -169,7 +169,7 @@ class ObservabilityNode(LifecycleNode):
     def on_configure(self, state):
         del state
         try:
-            # 官方 generate_parameter_library_py 装载链：on_configure 内声明
+            # 手写参数模块装载链（决策 0017）：on_configure 内声明
             # （declare 期校验非法值即失败，节点停在 Unconfigured 可查日志）
             self._param_listener = _declare_params(self)
             self._params = _from_params(self._param_listener.get_params())

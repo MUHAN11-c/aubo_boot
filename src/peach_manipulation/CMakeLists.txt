@@ -12,7 +12,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(ament_cmake REQUIRED)
 find_package(aubo_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(generate_parameter_library REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(moveit_msgs REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
@@ -49,11 +48,8 @@ target_include_directories(${PROJECT_NAME}_core PUBLIC
 # Eigen 出现在公共头（target_cache.hpp / view_planner.hpp 等），必须 PUBLIC。
 target_link_libraries(${PROJECT_NAME}_core PUBLIC Eigen3::Eigen Threads::Threads)
 
-# 参数定义单一事实源（声明/类型/默认值/校验）：生成
-# peach_manipulation/manipulation_parameters.hpp（ParamListener/Params）。
-generate_parameter_library(manipulation_parameters
-  config/manipulation_parameters.yaml
-)
+# 参数声明/兜底默认/校验单一事实源：include/peach_manipulation/params.hpp
+# （手写模块，决策 0017）；部署值事实源为 config/peach_manipulation.yaml。
 
 # 节点按职责拆为多个编译单元，共享 include/peach_manipulation/ 下的节点头。
 add_executable(peach_manipulation_node
@@ -71,8 +67,8 @@ target_include_directories(peach_manipulation_node PRIVATE include)
 target_link_libraries(peach_manipulation_node PRIVATE
   ${PROJECT_NAME}_core
   nlohmann_json::nlohmann_json
-  manipulation_parameters
-  moveit_ros_planning_interface::moveit_ros_planning_interface
+  moveit_ros_planning_interface::moveit_move_group_interface
+  moveit_ros_planning_interface::moveit_planning_scene_interface
   moveit_task_constructor_core::moveit_task_constructor_core
   moveit_task_constructor_core::moveit_task_constructor_core_stages
   rclcpp::rclcpp

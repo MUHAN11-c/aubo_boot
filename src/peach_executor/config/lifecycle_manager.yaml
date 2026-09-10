@@ -1,12 +1,10 @@
-# 生命周期管理器运行参数
-#
-# 分层口径：声明/类型/默认值/校验/中文描述的单一事实源是
-# config/lifecycle_manager_parameters.yaml（generate_parameter_library_py）。
-# 本文件只写部署覆盖：键值与默认不同才需要写在这里。
+# peach_lifecycle_manager 参数全量清单（nav2 式：launch 以 ParameterFile 装入，部署值即事实源）
+# 代码侧兜底默认与校验规则：peach_executor 包 params.py（C++ 为 include/peach_manipulation/params.hpp）；
+# 键名冻结（真机命令/文档零破坏）。改默认值须模块与 yaml 各改一处。
+# 运行期临时改参：ros2 param set（技能节点空闲态生效；感知/重建/监控/lifecycle 需重启或 reconfigure）。
+# 跨包轴向后撤（tool.entry_d_* / refit.*_standoff_m / moveit.mtc_approach_along_axis_m）
+# 由 grasp_standoffs.yaml 经 launch 注入覆盖，此处值仅为默认。
 peach_lifecycle_manager:
   ros__parameters:
-    # rcl 要求 params 文件至少一个键：保留 startup_timeout_s 作占位（值=GPL 默认）。
-    startup_timeout_s: 60.0
-    # 部署覆盖示例：
-    # node_names: [peach_scene_perception_node, peach_target_reconstruction_node,
-    #              peach_manipulation_node, peach_executor]
+    node_names: [peach_scene_perception_node, peach_target_reconstruction_node, peach_manipulation_node, peach_executor]  # 有序 configure/activate 的节点名单；observability 不进名单（自行 configure/activate）。拆除逆序。
+    startup_timeout_s: 60.0  # 单次生命周期状态转换等待上限 (s)。

@@ -1,10 +1,10 @@
 """
-TargetReconstructionParams：GPL 快照之上的薄包装（strip 派生）.
+TargetReconstructionParams：参数快照之上的薄包装（strip 派生）.
 
-声明 / 类型 / 默认值 / 中文描述 / 范围校验的权威源是
-config/target_reconstruction_parameters.yaml（根键=节点名）。
+声明 / 兜底默认 / 校验的权威源是 peach_perception/params.py（决策 0017，
+手写参数模块）；部署值与中文描述的事实源是 config/target_reconstruction.yaml。
 本模块不再照抄嵌套 dataclass：访问语法
-``self.params.capture.min_views`` 仍成立（转发到生成结构）；
+``self.params.capture.min_views`` 仍成立（转发到快照结构）；
 仅 ``frames.base_frame`` / ``session.root_dir`` 在装载时 strip。
 """
 from __future__ import annotations
@@ -14,7 +14,7 @@ class _StripProxy:
     """转发嵌套组，覆盖已 strip 的字符串字段."""
 
     def __init__(self, raw, stripped: dict):
-        """Raw GPL nested group; stripped maps field names to whitespace-trimmed values."""
+        """Raw nested group; stripped maps field names to whitespace-trimmed values."""
         object.__setattr__(self, '_raw', raw)
         object.__setattr__(self, '_stripped', stripped)
 
@@ -57,8 +57,7 @@ class TargetReconstructionParams:
             ParamListener.
 
         """
-        from peach_perception.target_reconstruction_parameters import (
-            peach_target_reconstruction_node)
+        from peach_perception.params import peach_target_reconstruction_node
         return peach_target_reconstruction_node.ParamListener(node)
 
     @classmethod

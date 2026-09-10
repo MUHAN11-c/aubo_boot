@@ -1,13 +1,15 @@
 // 功能：MTC 接触。到预抓取按官方抓取管线：GenerateGraspPose 风格滚转采样
-// → Fallbacks(Pilz LIN, CartesianPath)。沿轴套入与撤退。接触不用 PTP/OMPL。
-// 刀具 IO 不在此文件（阶段执行器 stages.cpp / ToolActuator）。
+// → Fallbacks(Pilz LIN, staging PTP 转移, CartesianPath)。沿轴套入与撤退。
+// 接触段（预抓取→入口→插入→撤离）不用 PTP/OMPL；Pilz PTP 只作自由空间
+// staging 转移（确定性关节插值，非 OMPL Connect）。刀具 IO 不在此文件。
 #include "peach_manipulation/grasp_task.hpp"
 #include "peach_manipulation/grasp_geometry.hpp"
 
-#include <moveit/planning_scene_interface/planning_scene_interface.h>
+#include <moveit/planning_scene_interface/planning_scene_interface.hpp>
 #include <moveit/robot_state/robot_state.hpp>
 #include <moveit/task_constructor/container.h>
 #include <moveit/task_constructor/solvers/cartesian_path.h>
+#include <moveit/task_constructor/solvers/joint_interpolation.h>
 #include <moveit/task_constructor/solvers/pipeline_planner.h>
 #include <moveit/task_constructor/stages/current_state.h>
 #include <moveit/task_constructor/stages/move_relative.h>
@@ -276,6 +278,11 @@ std::shared_ptr<mtc::solvers::PipelinePlanner> GraspTask::makeCircSolver() const
   return makePilzSolver("CIRC");
 }
 
+std::shared_ptr<mtc::solvers::PipelinePlanner> GraspTask::makePtpSolver() const
+{
+  return makePilzSolver("PTP");
+}
+
 std::shared_ptr<mtc::solvers::CartesianPath> GraspTask::makeCartesianSolver() const
 {
   auto solver = std::make_shared<mtc::solvers::CartesianPath>();
@@ -498,6 +505,10 @@ std::unique_ptr<mtc::SerialContainer> GraspTask::makeApproachInsertSequence(
 std::unique_ptr<mtc::Task> GraspTask::makeTaskShell(const std::string & task_name) const
 {
   auto task = std::make_unique<mtc::Task>(task_name);
+  // MTC 解显示默认关闭：滚转扫描每个候选解都会实时发 RViz，被护栏拒掉
+  // 的候选在臂动之前反复闪跳（轨迹抖动）。事后 enable 不会重建发布器，
+  // 故整体关闭；轨迹可视化走 observability TCP Path 与 RobotState。
+  task->enableIntrospection(false);
   task->loadRobotModel(node_);
   task->setProperty("group", config_.planning_group);
   task->add(std::make_unique<mtc::stages::CurrentState>("current robot state"));
@@ -552,6 +563,36 @@ std::unique_ptr<mtc::Task> GraspTask::makeCartesianApproachTask(
   return task;
 }
 
+// staging 转移级：Pilz PTP（确定性关节插值，最近构型关节目标）到轴上
+// staging，再 LIN 沿轴到预抓取。直线 LIN / CIRC 都失败时的自由空间转移——
+// 接近段保持笛卡尔；OMPL 仍不引入（1740 绕行由护栏与确定性 PTP 共同排除）。
+std::unique_ptr<mtc::Task> GraspTask::makeStagingTransitTask(
+  const std::string & task_name,
+  const Eigen::Isometry3d & pregrasp_tip_pose,
+  const Eigen::Isometry3d & staging_tip_pose,
+  const std::map<std::string, double> & staging_joints)
+{
+  auto task = makeTaskShell(task_name);
+  auto sequence =
+    std::make_unique<mtc::SerialContainer>("staging transit to pregrasp");
+  auto ptp = std::make_unique<mtc::stages::MoveTo>(
+    "ptp to axis staging", makePtpSolver());
+  ptp->setGroup(config_.planning_group);
+  ptp->setIKFrame(config_.tip_frame);
+  ptp->setTimeout(config_.planning_time_s);
+  ptp->setGoal(staging_joints);
+  sequence->add(std::move(ptp));
+  // 直连变体（staging==预抓取）：PTP 已到目标，跳过退化的零距 LIN。
+  if ((staging_tip_pose.translation() - pregrasp_tip_pose.translation()).norm() >
+    0.005)
+  {
+    appendLinToPose(*sequence, pregrasp_tip_pose, "lin to on-axis pregrasp", true);
+  }
+  task->add(std::move(sequence));
+  return task;
+}
+
+
 GraspTaskResult GraspTask::planToPregrasp(
   const std::string & task_name,
   const Eigen::Isometry3d & entry_tip_pose,
@@ -559,16 +600,17 @@ GraspTaskResult GraspTask::planToPregrasp(
   const ApproachSplit & split,
   bool execute)
 {
-  if (split.kind == ApproachSplit::Kind::BLOCKED) {
-    GraspTaskResult blocked;
-    blocked.reason = split.blocked_reason;
-    return blocked;
-  }
-  // Alternatives(刀口滚转) → Fallbacks(Pilz LIN, CartesianPath)。接触不用
-  // OMPL/PTP。CIRC 失败不得改直线（会穿预抓取球）。
+  // 最近距离接近的三层（重写，非 fallback 补丁链）：
+  //   1. LIN / LIN-align+LIN / CIRC（官方笛卡尔原语，短弦/已对轴最快路径）；
+  //   2. 弦上直线跟踪（IK 解序列化：任意弦的零绕行构造性解，自适应位姿）；
+  //   3. staging PTP 兜底（关节空间弧，过转移级门；仅直线真不可达时）。
+  // 接触段不用 OMPL；Pilz PTP 只作 2/3 级的关节空间执行器（确定性插值）。
+  // CIRC 失败不得改直线（会穿预抓取球）；直线跟踪与 staging 终段沿轴接近
+  // 不受此限。BLOCKED（直弦穿球）跳过第 1 级。
+  const bool blocked = split.kind == ApproachSplit::Kind::BLOCKED;
   GraspTaskResult last;
-  last.reason = "无接近解";
-  for (const double roll : toolRollsRad()) {
+  last.reason = blocked ? split.blocked_reason : "无接近解";
+  for (const double roll : blocked ? std::vector<double>() : toolRollsRad()) {
     const ApproachSplit rolled = withToolRoll(split, roll);
     auto result = planAndMaybeExecute(
       makeApproachOnlyTask(task_name, entry_tip_pose, insertion_axis, rolled),
@@ -583,36 +625,202 @@ GraspTaskResult GraspTask::planToPregrasp(
     }
     last = result;
   }
-  if (split.kind == ApproachSplit::Kind::CIRC_THEN_LIN) {
+  if (tryStompApproach(
+      task_name, entry_tip_pose, insertion_axis, split, execute, last))
+  {
     return last;
   }
   RCLCPP_WARN(
     node_->get_logger(),
-    "Pilz LIN 全部滚转失败（%s），Fallbacks → CartesianPath",
+    "STOMP 接近未成（%s），降级 staging PTP 兜底（非最短路径）",
     last.reason.c_str());
-  if (!split.current_tip) {
-    last.reason = "笛卡尔插值失败: 无当前 TCP（Pilz: " + last.reason + "）";
+  if (tryStagingTransit(
+      task_name, entry_tip_pose, insertion_axis, split, execute, last))
+  {
     return last;
   }
-  for (const double roll : toolRollsRad()) {
-    Eigen::Isometry3d pregrasp = pregraspAlongAxis(
-      entry_tip_pose, insertion_axis, config_.approach_along_axis_m);
-    pregrasp.linear() = alignFrameZRolled(
-      split.current_tip->linear(), insertion_axis, roll);
-    auto cartesian = planAndMaybeExecute(
-      makeCartesianApproachTask(
-        task_name + "_cartesian", pregrasp, std::nullopt),
-      execute, config_.approach_execution_gate, true, 0U);
-    if (cartesian.success || cartesian.execution_started) {
+  return last;
+}
+
+// STOMP 接近（轨迹优化，最近距离主路径）：以「当前→预抓取」为问题交给
+// STOMP（Jazzy moveit_planners_stomp）——关节空间线性种子 + 代价=碰撞/
+// 平滑/控制，产出**最贴近直线**的无碰轨迹。直弦穿过自碰/IK 边界带时
+// （笛卡尔与关节插值都物理不可行），STOMP 给出最小局部外凸，绕行幅度
+// 由代价函数压到最小，且对任意目标位姿自适应（无特例分支）。
+std::unique_ptr<mtc::Task> GraspTask::makeStompApproachTask(
+  const std::string & task_name,
+  const Eigen::Isometry3d & pregrasp_tip_pose,
+  const std::map<std::string, double> * goal_joints) const
+{
+  auto task = makeTaskShell(task_name);
+  auto solver = std::make_shared<mtc::solvers::PipelinePlanner>(
+    node_, "stomp", "");
+  solver->setMaxVelocityScalingFactor(config_.velocity_scaling);
+  solver->setMaxAccelerationScalingFactor(config_.acceleration_scaling);
+  auto stage = std::make_unique<mtc::stages::MoveTo>(
+    "stomp near-straight approach", solver);
+  stage->setGroup(config_.planning_group);
+  stage->setIKFrame(config_.tip_frame);
+  stage->setTimeout(5.0);  // STOMP 迭代比 Pilz 慢，给足单段预算
+  if (goal_joints != nullptr && !goal_joints->empty()) {
+    // 关节目标优先：位姿目标的内嵌单次 IK 在边界位姿会 INVALID_GOAL_
+    // CONSTRAINTS；select_goal_joints 的多种子最近构型已验证可解。
+    stage->setGoal(*goal_joints);
+  } else {
+    geometry_msgs::msg::PoseStamped goal;
+    goal.header.frame_id = config_.base_frame;
+    goal.header.stamp = node_->now();
+    goal.pose = eigenToPose(pregrasp_tip_pose);
+    stage->setGoal(goal);
+  }
+  auto sequence =
+    std::make_unique<mtc::SerialContainer>("stomp approach to pregrasp");
+  sequence->add(std::move(stage));
+  task->add(std::move(sequence));
+  return task;
+}
+
+bool GraspTask::tryStompApproach(
+  const std::string & task_name,
+  const Eigen::Isometry3d & entry_tip_pose,
+  const Eigen::Vector3d & insertion_axis,
+  const ApproachSplit & split,
+  bool execute,
+  GraspTaskResult & last)
+{
+  if (!split.current_tip) {
+    return false;
+  }
+  const Eigen::Vector3d axis = insertion_axis.normalized();
+  const Eigen::Isometry3d pregrasp0 = pregraspAlongAxis(
+    entry_tip_pose, axis, config_.approach_along_axis_m);
+  const double chord_m =
+    (split.current_tip->translation() - pregrasp0.translation()).norm();
+  if (chord_m > config_.approach_cartesian_max_distance_m) {
+    last.reason = "弦长超过笛卡尔上限，不走 STOMP 接近";
+    return false;
+  }
+  // 关节目标优先：select_goal_joints 内部已做 12 滚转 × 2 种子最近构型
+  // 扫描，其解在位姿边界处比 MoveTo 内嵌单次 IK 可靠得多。
+  if (config_.select_goal_joints) {
+    Eigen::Isometry3d keep_roll = pregrasp0;
+    keep_roll.linear() = alignFrameZ(split.current_tip->linear(), axis);
+    const auto candidate = config_.select_goal_joints(keep_roll);
+    if (candidate && !candidate->joints.empty()) {
       RCLCPP_INFO(
         node_->get_logger(),
-        "CartesianPath 通过：刀口滚转 %.0f°", roll * 180.0 / kPi);
-      return cartesian;
+        "STOMP 轨迹优化接近（关节目标，最近构型）：弦长 %.2fm", chord_m);
+      auto result = planAndMaybeExecute(
+        makeStompApproachTask(
+          task_name + "_stomp", keep_roll, &candidate->joints),
+        execute, config_.approach_execution_gate, true, 0U, true);
+      if (result.success || result.execution_started) {
+        last = result;
+        return true;
+      }
+      last = result;
     }
-    last.reason = "笛卡尔插值失败: " + cartesian.reason +
-      "（Pilz: " + last.reason + "）";
   }
-  return last;
+  for (const double roll : toolRollsRad()) {
+    Eigen::Isometry3d goal = pregrasp0;
+    goal.linear() =
+      alignFrameZRolled(split.current_tip->linear(), axis, roll);
+    auto result = planAndMaybeExecute(
+      makeStompApproachTask(task_name + "_stomp", goal, nullptr),
+      execute, config_.approach_execution_gate, true, 0U, true);
+    if (result.success || result.execution_started) {
+      last = result;
+      return true;
+    }
+    last = result;
+  }
+  last.reason = "STOMP 接近全部滚转失败: " + last.reason;
+  return false;
+}
+
+
+bool GraspTask::tryStagingTransit(
+  const std::string & task_name,
+  const Eigen::Isometry3d & entry_tip_pose,
+  const Eigen::Vector3d & insertion_axis,
+  const ApproachSplit & split,
+  bool execute,
+  GraspTaskResult & last)
+{
+  if (config_.approach_staging_standoff_m <= 0.005 || !split.current_tip ||
+    !config_.select_goal_joints)
+  {
+    RCLCPP_INFO(
+      node_->get_logger(),
+      "staging 转移不可用：standoff=%.3f current_tip=%s select_goal_joints=%s",
+      config_.approach_staging_standoff_m, split.current_tip ? "有" : "无",
+      config_.select_goal_joints ? "有" : "无");
+    return false;
+  }
+  const Eigen::Vector3d axis = insertion_axis.normalized();
+  const Eigen::Isometry3d pregrasp0 = pregraspAlongAxis(
+    entry_tip_pose, axis, config_.approach_along_axis_m);
+  Eigen::Isometry3d staging0 = pregrasp0;
+  staging0.translation() -= axis * config_.approach_staging_standoff_m;
+  staging0.linear() = alignFrameZ(split.current_tip->linear(), axis);
+  const auto candidate = config_.select_goal_joints(staging0);
+  if (!candidate || candidate->joints.empty()) {
+    RCLCPP_INFO(
+      node_->get_logger(),
+      "staging 转移无最近构型 IK 候选（12 滚转 × 2 种子均无解）");
+    last.reason = "staging 转移无最近构型 IK 候选（Pilz: " + last.reason + "）";
+    return false;
+  }
+  Eigen::Isometry3d staging = staging0;
+  staging.linear() = candidate->pose.linear();
+  Eigen::Isometry3d pregrasp = pregrasp0;
+  pregrasp.linear() = candidate->pose.linear();
+  if (!segmentClearsBall(
+      split.current_tip->translation(), staging.translation(),
+      entry_tip_pose.translation(), config_.approach_along_axis_m))
+  {
+    last.reason = "staging 转移直线穿预抓取球，不改 PTP";
+    return false;
+  }
+  RCLCPP_INFO(
+    node_->get_logger(),
+    "直线跟踪与 LIN 均未成（%s），staging PTP 转移兜底（关节空间弧，"
+    "过转移级门；仅直线不可达时使用）",
+    last.reason.c_str());
+  auto result = planAndMaybeExecute(
+    makeStagingTransitTask(
+      task_name + "_staging", pregrasp, staging, candidate->joints),
+    execute, config_.approach_execution_gate, true, 0U, true);
+  if (result.success || result.execution_started) {
+    last = result;
+    return true;
+  }
+  // 近伸展边界：staging→预抓取的最后一小段 LIN 会因路径 IK 抖动失败，而两
+  // 端 IK 均可达。此时以最近构型 PTP 直达到预抓取（不经笛卡尔直线），仍受
+  // 转移级笛卡尔门+关节门约束；直线穿预抓取球则不放行（1740 式绕行另由门拒）。
+  if (config_.approach_staging_standoff_m > 0.005 &&
+    config_.select_goal_joints &&
+    segmentClearsBall(
+      split.current_tip->translation(), pregrasp0.translation(),
+      entry_tip_pose.translation(), config_.approach_along_axis_m))
+  {
+    Eigen::Isometry3d pregrasp = pregrasp0;
+    pregrasp.linear() = alignFrameZ(split.current_tip->linear(), axis);
+    const auto direct = config_.select_goal_joints(pregrasp);
+    if (direct && !direct->joints.empty()) {
+      RCLCPP_INFO(
+        node_->get_logger(),
+        "staging 转移 LIN 未过，直连 PTP 到预抓取（最近构型，过转移级门）");
+      result = planAndMaybeExecute(
+        makeStagingTransitTask(
+          task_name + "_direct", pregrasp, pregrasp, direct->joints),
+        execute, config_.approach_execution_gate, true, 0U, true);
+      last = result;
+      return result.success || result.execution_started;
+    }
+  }
+  last = result;
+  return false;
 }
 
 std::unique_ptr<mtc::Task> GraspTask::makeInsertOnlyTask(
@@ -833,7 +1041,8 @@ GraspTaskResult GraspTask::retreat(
 }
 
 GraspTaskResult GraspTask::planTaskOnly(
-  mtc::Task * active, bool guard_approach, std::size_t guard_skip_tail)
+  mtc::Task * active, bool guard_approach, std::size_t guard_skip_tail,
+  bool staging_guard)
 {
   syncKeepoutCollisionObjects();
   GraspTaskResult output;
@@ -898,10 +1107,17 @@ GraspTaskResult GraspTask::planTaskOnly(
         output.reason = "MTC short-path guard rejected: 无法 FK 笛卡尔审查";
         return output;
       }
-      const CartesianDetourLimits cart{
-        config_.approach_max_detour_ratio,
-        config_.approach_max_chord_deviation_m,
-        config_.approach_max_recede_m};
+      // staging 转移级专用笛卡尔门（关节行程门不变）：转移 PTP 是关节空间
+      // 弧，偏离/回退天然大于直连 LIN；上限仍须拒绝 1740 无约束 PTP。
+      const CartesianDetourLimits cart = staging_guard ?
+        CartesianDetourLimits{
+          config_.staging_max_detour_ratio,
+          config_.staging_max_chord_deviation_m,
+          config_.staging_max_recede_m} :
+        CartesianDetourLimits{
+          config_.approach_max_detour_ratio,
+          config_.approach_max_chord_deviation_m,
+          config_.approach_max_recede_m};
       const auto cart_report = inspectCartesianDetour(tcp, cart);
       RCLCPP_INFO(
         node_->get_logger(),
@@ -916,7 +1132,9 @@ GraspTaskResult GraspTask::planTaskOnly(
       }
     }
   }
-  active->introspection().publishSolution(*active->solutions().front());
+  // MTC 解显示保持关闭（makeTaskShell 注释）：事后 enable 不会重建
+  // introspection 发布器，发布不到总线；轨迹可视化以 observability
+  // TCP Path 与 RViz RobotState 为准。
   output.success = true;
   output.reason = "MTC plan ready";
   return output;
@@ -947,7 +1165,8 @@ GraspTaskResult GraspTask::planAndMaybeExecute(
   bool execute,
   const std::function<bool(std::string &)> & execution_gate,
   bool guard_approach,
-  std::size_t guard_skip_tail)
+  std::size_t guard_skip_tail,
+  bool staging_guard)
 {
   mtc::Task * active = nullptr;
   {
@@ -957,7 +1176,7 @@ GraspTaskResult GraspTask::planAndMaybeExecute(
   }
   GraspTaskResult output;
   try {
-    output = planTaskOnly(active, guard_approach, guard_skip_tail);
+    output = planTaskOnly(active, guard_approach, guard_skip_tail, staging_guard);
     if (output.success && execute) {
       output = executeSolution(active, execution_gate);
     }

@@ -51,9 +51,9 @@
 #include "peach_manipulation/target_cache.hpp"
 #include "peach_manipulation/tool_actuator.hpp"
 #include "peach_manipulation/view_planner.hpp"
-// 参数声明/默认值/校验的单一事实源（generate_parameter_library 生成，
-// 定义见 config/manipulation_parameters.yaml）。
-#include "peach_manipulation/manipulation_parameters.hpp"
+// 参数声明/兜底默认/校验的单一事实源（手写模块，决策 0017）；
+// 部署值事实源为 config/peach_manipulation.yaml。
+#include "peach_manipulation/params.hpp"
 
 namespace moveit::planning_interface
 {

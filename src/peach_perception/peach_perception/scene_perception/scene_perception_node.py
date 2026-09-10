@@ -161,7 +161,7 @@ class ScenePerceptionNode(LifecycleNode):
         super().__init__('peach_scene_perception_node')
         self._lifecycle_active = False
         self.bridge = CvBridge()
-        # 参数层：ParamListener 声明（源 scene_perception_parameters.yaml），
+        # 参数层：ParamListener 声明（源 peach_perception/params.py），
         # from_params 只派生 tool / gravity；其余读 self.params 生成嵌套结构。
         self._param_listener = ScenePerceptionParams.declare(self)
         self.params = ScenePerceptionParams.from_params(

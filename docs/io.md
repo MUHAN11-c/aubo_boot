@@ -507,7 +507,7 @@ flowchart LR
 | `trajectory.enabled` | latest TF 采 TCP 轨迹（不进 MCAP） |
 | `debug.enabled` / `debug.token` / `debug.motion_enabled` | 调试操作面三重门，全部默认关 |
 | `debug.audit_enabled` | 审计落盘 `runs/debug_audit/`；默认开（含被拒，含 `enabled=false` 的 503） |
-| `debug.endpoints.*` | 调试桥目标（18 个既有动作/服务名，GPL 默认=现行契约名） |
+| `debug.endpoints.*` | 调试桥目标（18 个既有动作/服务名，params.py 默认=现行契约名） |
 
 HTTP `/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipulation` / `task_executor` / `robot`（含 `tcp` 摘要）/ `metrics` / `record` / `params` / **`job`**（当前果实作业票：过程线状态、档位、`why`、感知入口/重建中心/预抓取/抓取进入点，`base_link` 米）/ **`debug`**（三重门状态 + 最近操作环形缓冲；令牌绝不下发）。`GET /api/trajectory` 给三维页：TCP 点列、起止弦、路标、Marker 字典。监控页首屏按作业票展示，其下是末端三维（轨道相机，对照弦与入口）；抓取档关闭时靠近/工具为 gated，不是已完成。`POST /api/debug/<action>`：`enabled=false→503`、令牌不符→`401`、运动类未放行→`423`、未知端点→`404`、未知 mode/intent/command→`400`。运动类 = RunHarvest 非 `SURVEY_ONLY`、Survey、Execute 非 `PREVIEW`（`OBSERVE_ONLY` 算运动）、`go_to_photo_pose`、arm、ControlTask 的 `RESUME`/`EXIT_MAINTENANCE`。端点清单见 `config/observability_parameters.yaml` 的 `debug.endpoints.*`。
 

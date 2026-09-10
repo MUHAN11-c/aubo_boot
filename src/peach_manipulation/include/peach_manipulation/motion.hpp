@@ -32,8 +32,8 @@ struct MoveItMotionConfig
   // 自由空间转移速度档（观察视点、拍照位姿往返）。
   double transit_velocity_scaling{0.10};
   double transit_acceleration_scaling{0.10};
-  // 观察/相机转移护栏。结构默认值仅兜底；现行值以 GPL
-  // config/manipulation_parameters.yaml 为单一事实源，节点构造时整体覆盖。
+  // 观察/相机转移护栏。结构默认值仅兜底；现行值以部署 yaml
+  // config/peach_manipulation.yaml 为单一事实源，节点构造时整体覆盖。
   double transit_max_duration_s{0.0};
   double transit_max_total_joint_travel_rad{6.0};
   double transit_max_single_joint_travel_rad{2.5};

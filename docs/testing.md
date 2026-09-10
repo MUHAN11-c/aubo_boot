@@ -39,7 +39,7 @@ source install/setup.bash
 pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
 ```
 
-有残留按 PID 补杀。clangd：上述 `CMAKE_EXPORT_COMPILE_COMMANDS` 让每个 CMake 包在 `build/<pkg>/compile_commands.json` 留下编译命令；工作区 `.clangd` 按包指向这些文件。驱动栈 CMakeLists 只读，不在那些包里写 `set(CMAKE_EXPORT_COMPILE_COMMANDS)`。改完 CMake 或新编一包后 **Clangd: Restart language server**。Python：`aubo_py3.12`。依赖分层（venv-first）：ROS 2 依赖走 Jazzy apt；其余第三方（numpy/scipy/opencv/PyYAML/open3d/torch 等）一律由工作区 `requirements.txt` 钉版本装进 venv（对同名 apt 包需 `pip install --ignore-installed -r requirements.txt` 才真正落入 venv）。**numpy 必须 ==1.26.4**（<2）：Jazzy 的 cv_bridge 二进制按 numpy 1.x 编译，numpy 2.x 会 `import cv2` 报错、`import cv_bridge` 段错误；该版本同时是 apt python3-numpy 的版本，双路径一致。感知身份分配与手眼标定共用 scipy（venv 内 1.11.4）；`peach_perception` 的 package.xml 只声明 ROS 键与 `python3-numpy`（ABI 边界），数值库不走 rosdep。感知与调度/监控/lifecycle GPL 生成模块同时落在 `install/` 与源码包 `peach_perception/*_parameters.py`、`peach_executor/*_parameters.py`（gitignore）；不要把 `PYTHONPATH` 指到 `src/peach_*` 却不带这些生成文件，否则场景/重建/调度/监控/lifecycle 节点会在 import 期退出，lifecycle 拉不齐 Active。本机若 venv 抢了 `PYTHONPATH`，launch 前先清再只留 Jazzy site-packages 并重新 `source` 两份 setup（见 §4 复现命令）。跨包轴向后撤只改 `src/peach_perception/config/grasp_standoffs.yaml` 两行；不要把它当 ROS `ParameterFile` 直接喂节点（rcl 不允许 `ros__parameters` 之前出现裸值）。能力 launch 读入后注入已声明参数。
+有残留按 PID 补杀。clangd：上述 `CMAKE_EXPORT_COMPILE_COMMANDS` 让每个 CMake 包在 `build/<pkg>/compile_commands.json` 留下编译命令；工作区 `.clangd` 按包指向这些文件。驱动栈 CMakeLists 只读，不在那些包里写 `set(CMAKE_EXPORT_COMPILE_COMMANDS)`。改完 CMake 或新编一包后 **Clangd: Restart language server**。Python：`aubo_py3.12`。依赖分层（venv-first）：ROS 2 依赖走 Jazzy apt；其余第三方（numpy/scipy/opencv/PyYAML/open3d/torch 等）一律由工作区 `requirements.txt` 钉版本装进 venv（对同名 apt 包需 `pip install --ignore-installed -r requirements.txt` 才真正落入 venv）。**numpy 必须 ==1.26.4**（<2）：Jazzy 的 cv_bridge 二进制按 numpy 1.x 编译，numpy 2.x 会 `import cv2` 报错、`import cv_bridge` 段错误；该版本同时是 apt python3-numpy 的版本，双路径一致。感知身份分配与手眼标定共用 scipy（venv 内 1.11.4）；`peach_perception` 的 package.xml 只声明 ROS 键与 `python3-numpy`（ABI 边界），数值库不走 rosdep。感知与调度/监控/lifecycle 手写参数模块（`params.py`）落在 `install/` 与源码包 `peach_perception/peach_perception/`、`peach_executor/peach_executor/`（随包提交，非生成物）；从源码树直接跑脚本时把 `PYTHONPATH` 指到 `src/peach_*` 需带 venv 的 ROS 依赖，否则节点会在 import 期退出，lifecycle 拉不齐 Active。本机若 venv 抢了 `PYTHONPATH`，launch 前先清再只留 Jazzy site-packages 并重新 `source` 两份 setup（见 §4 复现命令）。跨包轴向后撤只改 `src/peach_perception/config/grasp_standoffs.yaml` 两行；不要把它当 ROS `ParameterFile` 直接喂节点（rcl 不允许 `ros__parameters` 之前出现裸值）。能力 launch 读入后注入已声明参数。
 
 ```bash
 # 开发机：无相机、不运动
@@ -50,6 +50,14 @@ ros2 launch peach_executor harvest_system.launch.py \
 python3 scripts/replay_field_pregrasp.py --case 1757
 python3 scripts/replay_field_pregrasp.py --case 1740 --planner ptp   # OMPL/PTP 绕行对照
 # 过护栏后再下发 mock 控制器：加 --execute（不动真机）
+
+# mock 全链路回放（09-09 现场逐目标坐标驱动真实技能节点 PREGRASP_ONLY；
+# 注入感知/重建话题 + robot_status + 光学系 TF，逐用例实测 TCP 绕行）
+python3 scripts/sim_field_targets.py --list
+python3 scripts/sim_field_targets.py --case all
+# 实时轨迹 watchdog：执行中 FK 监测，超绕行门即 ~/cancel_cycle 停轨留档
+python3 scripts/trajectory_watchdog.py            # 转移级门 2.5/0.40/0.15
+python3 scripts/trajectory_watchdog.py --ratio 2.2 --dev 0.25 --recede 0.08
 
 # 真机（须显式 real；示教器上电；bringup 不起 aubo_dashboard）
 ros2 launch peach_executor harvest_system.launch.py \
@@ -122,7 +130,7 @@ ros2 service call /peach_executor/control peach_interfaces/srv/ControlTask \
   "{command: 6, expected_state_seq: 0}"
 ```
 
-打开真运动须同时改调度 `execution_enabled` 与技能 `execution.enabled`，并经人工授权。到预抓取还须 `grasp.enabled=true`、`tool.enabled=false`。调度侧用 `ros2 param set` 即可（开批与 `HarvestState` 会刷新快照）；技能侧 `ros2 param set` 空闲态全量生效、运行中拒改（execution→grasp→tool 依赖链由节点校验）。调参分层：改默认值改 `config/*_parameters.yaml`（GPL 单一事实源，须重编）；固化部署覆盖写同名 `config/<节点>.yaml`（只写与默认不同的键）；运行期临时改参用 `ros2 param set`。
+打开真运动须同时改调度 `execution_enabled` 与技能 `execution.enabled`，并经人工授权。到预抓取还须 `grasp.enabled=true`、`tool.enabled=false`。调度侧用 `ros2 param set` 即可（开批与 `HarvestState` 会刷新快照）；技能侧 `ros2 param set` 空闲态全量生效、运行中拒改（execution→grasp→tool 依赖链由节点校验）。调参分层：改默认值改 `params.py`/`params.hpp` 并同步 `config/<节点>.yaml` 同键（决策 0017，须重编）；改本机部署值只改 `config/<节点>.yaml`；运行期临时改参用 `ros2 param set`。
 
 ---
 
@@ -232,7 +240,7 @@ Fixed Frame 用 **`base_link`**，不要用未接上的 `world`。改显示配�
 - 观察：覆盖达标或 `maximum_moves` 用尽才停（不做完位姿序列不收口）；`time_budget_s` 只进日志，不按移动+等帧 EMA 预测收口。拍照位 + 当前位采帧；下一视点沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m，~0.7 m 处一跨过 8°），只 LIN，失败换候选（绕行看 4.0 rad / 单轴 1.5 rad，不按时长）。到位后等新机位再判覆盖，同机位连帧不算。时长随 ~2.5 FPS 等帧浮动。
 - 机位数 `view_count >= capture.min_views`（默认 2），基线/深度/RMSE/内点率过门。`captured_views` 是积分帧数。
 - 无精化不得宣称方向准确。
-- MTC 接近、直线套入、同轴撤离均须 goal-hold。预抓取先 PTP 回拍照位，再按官方管线：绕袋轴 ±30° 采样刀口 → Fallbacks（Pilz LIN，失败则 CartesianPath）。直线不穿预抓取球则 LIN；直线会穿球则 CIRC；未齐则先 LIN 原地对齐工具 Z 再 LIN。已齐 LIN 段加相对目标 20° 姿态路径约束。LIN/CIRC/插值失败不改 PTP/OMPL。再一段沿轴 LIN；反向同轨迹回预抓取后 PTP `harvest_stow`。接近绕行护栏 **累计 12 rad / 单轴 6.1 rad**，以及笛卡尔 **绕行比 2.2 / 弦偏离 0.25 m / 回退 0.08 m**（URDF 满行程；不按时长；0.10 速度下直线可以超过 20 s）。mock 回放：`python3 scripts/replay_field_pregrasp.py --case 1757`（现场坐标，不开批）。
+- MTC 接近、直线套入、同轴撤离均须 goal-hold。预抓取先 PTP 回拍照位，最近距离三层：① LIN/CIRC（绕袋轴 ±30° 采样刀口；直线不穿预抓取球则 LIN，穿球则 CIRC，未齐先 LIN 原地对齐工具 Z；已齐 LIN 段加相对目标 20° 姿态约束）→ ② **STOMP 轨迹优化**（直弦关节插值为种子，最近构型关节目标，自碰/IK 边界处最小局部外凸；直弦物理不可行时的最近距离主路径）→ ③ staging PTP 兜底（非最短，仅直线真不可达）。LIN/CIRC 失败不改直连 PTP（会穿球）；三层全失败 `skipped_unreachable`，不进 OMPL。再一段沿轴 LIN；反向同轨迹回预抓取后 PTP `harvest_stow`。接近绕行护栏 **累计 12 rad / 单轴 6.1 rad**，直连 LIN 笛卡尔 **绕行比 2.2 / 弦偏离 0.25 m / 回退 0.08 m**、STOMP/兜底 **2.5 / 0.40 / 0.15**（URDF 满行程；不按时长；0.10 速度下直线可以超过 20 s）。mock 回放：`python3 scripts/replay_field_pregrasp.py --case 1757`（现场坐标，不开批）；全链路逐目标回放 `python3 scripts/sim_field_targets.py --case all`、实时停轨 `python3 scripts/trajectory_watchdog.py`。
 - 日志不得出现 SetIO。`harvest.grasped=false`（未开工具不得宣称采摘成功）。
 - 单目标目标 45–60 s；失败必须有 `failure_code`，不得停在 `RUNNING + action_active=false`。
 

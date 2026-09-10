@@ -164,8 +164,8 @@ class TargetReconstructionNode(
         self.bridge = cv_bridge.CvBridge()
         # 协议 I3（时钟唯一）：节点时钟适配为纯核 Clock，一切计时走注入 now
         self._algo_clock = RclpyClockAdapter(self.get_clock())
-        # generate_parameter_library_py 官方装载链：ParamListener 声明（类型/
-        # 默认值/描述/校验，源 config/target_reconstruction_parameters.yaml），
+        # 手写参数模块装载链（决策 0017）：ParamListener 声明（类型/
+        # 兜底默认/校验源 peach_perception/params.py，部署值源 config/target_reconstruction.yaml），
         # 快照装载为 frozen dataclass（params.py from_params）
         self._param_listener = TargetReconstructionParams.declare(self)
         self.params = TargetReconstructionParams.from_params(

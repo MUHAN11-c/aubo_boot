@@ -32,7 +32,7 @@ def _moveit_configs(controllers_file: str):
         MoveItConfigsBuilder(
             'aubo_e5', package_name='aubo_e5_moveit_config')
         .planning_pipelines(
-            pipelines=['ompl', 'pilz_industrial_motion_planner'],
+            pipelines=['ompl', 'pilz_industrial_motion_planner', 'stomp'],
             default_planning_pipeline='ompl')
         .trajectory_execution(
             file_path='config/' + controllers_file,

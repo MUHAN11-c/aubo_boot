@@ -5,7 +5,7 @@ import threading
 
 from lifecycle_msgs.msg import State, Transition
 from lifecycle_msgs.srv import ChangeState, GetState
-from peach_executor.lifecycle_manager_parameters import peach_lifecycle_manager
+from peach_executor.params import peach_lifecycle_manager
 from peach_interfaces.srv import ManageLifecycleNodes
 import rclpy
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -27,7 +27,7 @@ class LifecycleManagerNode(Node):
 
     def __init__(self):
         super().__init__('peach_lifecycle_manager')
-        # GPL 声明/默认值/校验单一事实源：config/lifecycle_manager_parameters.yaml
+        # 声明/兜底默认/校验：peach_executor/params.py；部署值 config/lifecycle_manager.yaml
         self._param_listener = peach_lifecycle_manager.ParamListener(self)
         latched = QoSProfile(
             history=HistoryPolicy.KEEP_LAST, depth=1,

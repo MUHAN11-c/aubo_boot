@@ -104,9 +104,9 @@ class TaskExecutorNode(LifecycleNode):
         self._stack_ready = False
         self._wake = threading.Event()
         self._cb = ReentrantCallbackGroup()
-        from peach_executor.executor_parameters import peach_executor
+        from peach_executor.params import peach_executor
         self._param_listener = peach_executor.ParamListener(self)
-        # 官方 GPL 用途：运行路径读快照，不散落 get_parameter。
+        # 手写监听器（params.py）用途：运行路径读快照，不散落 get_parameter。
         # 开批与 HarvestState 发布会按 stamp 刷新，故 ros2 param set
         # execution_enabled 可在下次 RunHarvest 生效，不必改 yaml 默认。
         self._params = self._param_listener.get_params()

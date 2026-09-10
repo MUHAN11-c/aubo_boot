@@ -66,7 +66,7 @@ public:
 
 struct ViewPlannerConfig
 {
-  // 默认值以 config/manipulation_parameters.yaml 为权威源，此处仅为直接构造兜底。
+  // 默认值以 config/peach_manipulation.yaml 为权威源，此处仅为直接构造兜底。
   // 视点半径用当前相机距，不再贴 observation_radius 球面；本值只作过近时的参考。
   double observation_radius_m{0.40};
   double minimum_radius_m{0.32};

@@ -23,6 +23,7 @@
 #include <utility>
 #include <vector>
 #include <moveit/move_group_interface/move_group_interface.hpp>
+#include <moveit/robot_state/cartesian_interpolator.hpp>
 #include "peach_manipulation/eigen_conversions.hpp"
 
 namespace peach_manipulation
@@ -46,9 +47,10 @@ ManipulationSkillsNode::ManipulationSkillsNode(const rclcpp::NodeOptions & optio
   moveit_options.start_parameter_event_publisher(false);
   moveit_node_ = std::make_shared<rclcpp::Node>(
     "peach_manipulation_moveit", moveit_options);
-  // ParamListener 构造即声明全部参数并做启动校验（yaml 覆盖值非法时抛
-  // InvalidParameterValueException 直接启动失败），内置范围校验随每次 set 生效；
-  // 声明/默认值/范围的单一事实源为 config/manipulation_parameters.yaml。
+  // ParamListener（手写 params.hpp）构造即声明全部参数并做启动校验（yaml
+  // 覆盖值非法时抛 InvalidParameterValueException 直接启动失败），范围校验随
+  // 每次 set 生效；声明/兜底默认/校验源为 params.hpp，部署值源为
+  // config/peach_manipulation.yaml（决策 0017）。
   param_listener_ = std::make_shared<peach_manipulation_node::ParamListener>(
     get_node_parameters_interface(), get_logger());
   loadParameters();
@@ -425,6 +427,12 @@ void ManipulationSkillsNode::rebuildGraspTask()
   task_config.approach_max_chord_deviation_m =
     moveit.mtc_approach_max_chord_deviation_m;
   task_config.approach_max_recede_m = moveit.mtc_approach_max_recede_m;
+  task_config.staging_max_detour_ratio =
+    moveit.mtc_approach_transit_max_detour_ratio;
+  task_config.staging_max_chord_deviation_m =
+    moveit.mtc_approach_transit_max_chord_deviation_m;
+  task_config.staging_max_recede_m =
+    moveit.mtc_approach_transit_max_recede_m;
   task_config.approach_cartesian_max_distance_m =
     moveit.mtc_approach_cartesian_max_distance_m;
   task_config.approach_along_axis_m = moveit.mtc_approach_along_axis_m;
@@ -523,8 +531,8 @@ void ManipulationSkillsNode::rebuildGraspTask()
 rcl_interfaces::msg::SetParametersResult ManipulationSkillsNode::onParameters(
   const std::vector<rclcpp::Parameter> & parameters)
 {
-  // 纯验证钩子（on-set 阶段，无副作用）：范围校验由生成的 ParamListener
-  // 内置完成，本钩子只负责"运行中拒改"与 execution→grasp→tool 依赖链；
+  // 纯验证钩子（on-set 阶段，无副作用）：范围校验由手写 ParamListener
+  // （params.hpp）内置完成，本钩子只负责"运行中拒改"与 execution→grasp→tool 依赖链；
   // 使能原子与状态发布等副作用全在 post-set 回调（ctor 内）落地。
   rcl_interfaces::msg::SetParametersResult result;
   if (running_.load()) {

@@ -77,6 +77,16 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 
 技能方向：定位用感知入口；工具 Z 对齐感知袋轴；滚转不抄感知四元数。详见 architecture 接触段与 `alignFrameZ`。
 
+### 09-10 mock 全链路回放（09-09 现场逐目标坐标；审查轮）
+
+工具：`scripts/sim_field_targets.py`（注入 runs/ 账本记录的 entry/axis/底/颈 → 驱动真实技能节点 `ExecuteTarget PREGRASP_ONLY`，逐用例实测 TCP 弦/路径/绕行比/偏离/回退）与 `scripts/trajectory_watchdog.py`（执行中 15 Hz FK 监测，超门 `~/cancel_cycle` 停轨留档；仅 `running=true` 时累计）。用例集 `src/peach_manipulation/config/field_pregrasp_cases.yaml` `targets_20260909`：09-09 各批 14 个有效目标坐标（另两条感知外参故障期界外坐标 |entry|≈2.1 m 不属本项目作业范围，未参与）。**14/14 `SUCCEEDED` 停预抓取（recovery_required、无 SetIO），实测绕行全部门内、watchdog 零违例**：直连/LIN 类比 1.0–1.42、偏离 ≤0.16 m；两个远斜轴目标走转移级（staging PTP 弧 2.31/0.323/0.101 与 2.41/0.34/0.112，过转移级门 2.5/0.40/0.15）；近伸展目标走直连 PTP 兜底 1.28/0.187/0。行为改动（同轮改 architecture/testing）：LIN/CIRC 全滚转失败后新增转移级（fly-over 走廊 → staging PTP → 直连 PTP 兜底），转移级笛卡尔门 2.5/0.40/0.15（1740 无约束 PTP 3.2/0.51/0.24 仍拒）；MTC 解显示默认关闭（滚转候选在臂动前实时发 RViz 造成轨迹抖动）。mock 复现要点：`/joint_states` 为字母序须按名映射；Hold 构型回拍照位走示教器口径（仿真用 JTC 两段插值复位等价）；期间另有并行决策 0017 参数库迁移的三个在途 bug 一并修复（`rclcpp::ParameterDescriptor` Jazzy 别名、params.py 嵌套类作用域、RULES 单条规则未包装）。记录 `runs/sim_field_targets_20260910_013938.jsonl`、`runs/trajectory_watchdog_20260910_013920.jsonl`。
+
+---
+
+### 09-10 mock 最近距离接近重写（STOMP 轨迹优化；审查轮）
+
+用户定调：接近必须**最近距离/垂直正面**，不得绕行（实际果园枝叶环境绕远必碰枝）。诊断（`scripts/probe_chord.py`）：拍照位→预抓取直弦在远斜轴目标（1437_0/1503_0）**中段 IK 跳支且构型插值 80% 点自碰**——直弦物理不可行，逐滚转笛卡尔 fraction 0.14–0.62，此前的 staging PTP 弧（比值 2.2–2.4）即绕行来源。按主流轨迹优化重写 `grasp_task.cpp` 接近为三层：LIN/CIRC → **STOMP**（Jazzy `moveit_planners_stomp`，直弦关节插值种子+碰撞/平滑/控制代价，最近构型关节目标——位姿目标内嵌单次 IK 在边界位姿 INVALID_GOAL_CONSTRAINTS）→ staging PTP 兜底（非最短，仅直线真不可达）。删除全部历史补丁（CartesianPath 走廊 / fly-over / 弦上换支重播种 / 弦采样 DP——后两者实测死于自碰边界，留档见 git）。两处 launch 挂 stomp 管线（moveit_configs_utils 默认配置；包级覆盖会整段替换管线配置致 move_group 崩溃，已回退默认）。**14/14 全部到位且近直线**：10 例比 1.07–1.15/偏离 ≤0.135 m、1510_2 1.28、1503_0 1.38、1437_0 1.15–1.65（STOMP 随机优化波动，均过门）、1021_1 完美 1.0；回退除 1437_0 ≤0.066 外全 0。watchdog 0 违例。MTC 解显示保持关闭（防候选闪跳）。记录 `runs/sim_field_targets_20260910_043154.jsonl`、`runs/trajectory_watchdog_20260910_043144.jsonl`。
+
 ---
 
 ## 重构前：PREGRASP_ONLY 里程碑

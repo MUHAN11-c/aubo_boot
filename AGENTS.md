@@ -17,7 +17,7 @@
 - Python：`aubo_py3.12`。依赖分层 venv-first：ROS 2 依赖走 Jazzy apt，其余第三方一律 `requirements.txt` 钉版本装进 venv；numpy **1.26.4**（<2，cv_bridge ABI 硬约束）。
 - 关节顺序：`shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint`。
 - 启动前：`pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'`
-- 不向 `build/`、`install/`、`log/`、`_archive/` 提交。不要提交 GPL 生成的 `*_parameters.py`（gitignore）。
+- 不向 `build/`、`install/`、`log/`、`_archive/` 提交。
 - **不要删过程数据**（`_archive/runs/`、现场 `runs/`）。
 
 ## 测试
@@ -28,11 +28,11 @@
 
 ## 技术
 
-C++17；参数走 yaml + `generate_parameter_library`（GPL 声明 yaml=默认/校验/描述单一事实源；同名运行 yaml 只写部署覆盖；规约见 docs/architecture.md「参数分层」）。感知与调度/监控/lifecycle 的 GPL 生成模块同时写入源码包（gitignore），避免 `PYTHONPATH` 指向 `src/` 时挡住 install。采摘 ROS 包四个，作用不得串（详细：[docs/architecture.md](docs/architecture.md) §3）：
+C++17；参数走 nav2 式 `config/<节点>.yaml` 全量清单（部署值与中文描述事实源，`参数: 值 # 注释` 一行一参）+ 手写参数模块（`params.py` ×2 / `params.hpp`，持兜底默认 DEFAULTS 与手写校验 RULES，接口兼容原 GPL：ParamListener.get_params()/is_old()；改默认值须模块与 yaml 各改一处；键名冻结；规约见 docs/architecture.md「参数分层」）。感知与调度/监控/lifecycle 的 GPL 生成模块同时写入源码包（gitignore），避免 `PYTHONPATH` 指向 `src/` 时挡住 install。采摘 ROS 包四个，作用不得串（详细：[docs/architecture.md](docs/architecture.md) §3）：
 
 - `peach_interfaces`：跨包唯一 IDL，不跑节点。清单 consumers 须对上真实订阅：调度只订 `target_observations` 与 `managed_nodes_activated`，不要把 `initial_pose` / `grasp_decision` 写成调度订阅。
 - `peach_perception`：视觉算法（两节点：看场景 + 建当前目标），不发运动、不选下一颗、不写账本；积分不用 latest TF；球只作袋内果实包络先验。单实现直接构造；仅袋/果管线与柱/球 refitter 留 yaml `*.impl` 映射。
-- `peach_manipulation`：机械臂执行（`SurveyScene` / `ExecuteTarget`：视点、预抓取、套入、刀具、原路撤退），不写账本、不调重建 Trigger；`GraspDecision.allowed` 是套入/剪切唯一权威（`PREGRASP_ONLY` 不要求 `allowed`；方向定位以预抓取真机实测为准）。节点持 GPL `Params` 快照，运动/接触/扫描 Config 从快照直构。`grasp_hypothesis` 走 LifecyclePublisher，须 `on_activate`。不要为 `stages.cpp` 再加 Manager。
+- `peach_manipulation`：机械臂执行（`SurveyScene` / `ExecuteTarget`：视点、预抓取、套入、刀具、原路撤退），不写账本、不调重建 Trigger；`GraspDecision.allowed` 是套入/剪切唯一权威（`PREGRASP_ONLY` 不要求 `allowed`；方向定位以预抓取真机实测为准）。节点持 `params.hpp` `Params` 快照，运动/接触/扫描 Config 从快照直构。`grasp_hypothesis` 走 LifecyclePublisher，须 `on_activate`。不要为 `stages.cpp` 再加 Manager。
 - `peach_executor`：整栈调度（含 lifecycle、只读监控 Web 与**鉴权手动调试操作面**——融合 8090，`debug.enabled`/`token`/运动类 `motion_enabled` 三重门默认全关，操作全审计；见决策 0013）；**launch 绝不自动 RunHarvest**；`execute_pregrasp_only` 默认 true（停预抓取不回 stow；套入前改 false）。`harvest_fsm.react` 是批次纯核，节点禁止手写 `batch_state`。`peach_lifecycle_manager` 走 GPL `lifecycle_manager_parameters.yaml`（ParamListener；名单场景 → 重建 → 技能 → 调度；observability 不进名单、不加 bond）。Web 不做成产品（不加登录/RBAC/独立前端工程）。
 
 旁路视觉抓取四包（`ivg_interfaces` / `ivg_utils` / `ivg_pose_estimation` / `ivg_graspnet`）**不是** peach 包：不进 `harvest_system`、不进 lifecycle、不订 peach 话题、不改驱动栈。GraspNet 后端不用 AnyGrasp 许可证。采摘跨包契约仍只走 `peach_interfaces`。

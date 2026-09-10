@@ -1,19 +1,73 @@
-# 场景感知节点运行参数（本机 Percipio + 手眼）
-#
-# 分层口径：声明/类型/默认值/校验/中文描述的单一事实源是
-# config/scene_perception_parameters.yaml（generate_parameter_library_py，
-# `ros2 param describe /peach_scene_perception_node <键>` 可查）。
-# 本文件只写「部署覆盖」：键值与默认不同才需要写在这里；
-# 运行期临时改参用 `ros2 param set`（本节点参数在下次 configure 生效）。
-# 跨包轴向后撤（tool.entry_d_*）由 grasp_standoffs.yaml 经 launch 注入，
-# 不要在本文件写。
+# peach_scene_perception_node 参数全量清单（nav2 式：launch 以 ParameterFile 装入，部署值即事实源）
+# 代码侧兜底默认与校验规则：peach_perception 包 params.py（C++ 为 include/peach_manipulation/params.hpp）；
+# 键名冻结（真机命令/文档零破坏）。改默认值须模块与 yaml 各改一处。
+# 运行期临时改参：ros2 param set（技能节点空闲态生效；感知/重建/监控/lifecycle 需重启或 reconfigure）。
+# 跨包轴向后撤（tool.entry_d_* / refit.*_standoff_m / moveit.mtc_approach_along_axis_m）
+# 由 grasp_standoffs.yaml 经 launch 注入覆盖，此处值仅为默认。
 peach_scene_perception_node:
   ros__parameters:
-    # rcl 要求 params 文件至少一个键：保留 yolo_conf 作占位（值=GPL 默认）。
-    yolo_conf: 0.35
-    # 其余部署覆盖按需追加，示例：
-    # yolo_conf: 0.30            # 逆光漏检时下调，不要低于 0.30
-    # sam_max_bboxes: 24         # 室外多果密排一帧目标超 16 时
-    # publish_debug_image: false # 现场不需要叠加图时零序列化
-    # model_version: "yolo:<git短hash>|mobile_sam:<git短hash>"   # 换模型必改
-    # calibration_version: "percipio-640x480-chessboard|hand_eye:<标定标识>"
+    color_topic: /camera/color/image_raw  # 彩色图话题（bgr8）
+    depth_topic: /camera/depth/image_raw  # 深度图话题（uint16，须与彩色图 registration 对齐）
+    camera_info_topic: /camera/color/camera_info  # 彩色相机内参话题
+    camera_optical_frame: camera_color_optical_frame  # 相机光学系 frame_id（手眼链所挂）；空串则用深度图 header.frame_id
+    output_frame: base_link  # 输出坐标系：几何经 TF 变到此帧；空串=保持相机系
+    tf_timeout_sec: 0.5  # TF 查询超时 (s)；先按帧时间戳查，失败退最新 TF
+    depth_scale_unit: 0.25  # 深度比例因子（仅 uint16 原始深度生效）：raw × 本值 = 毫米量级（Percipio 常见 0.25）；数据集回放（真毫米）设 1.0；32FC1 浮点深度按（米）×1000 转毫米，本参数不生效
+    sync_slop_s: 0.05  # RGB-D 近似同步允差 (s)
+    min_detection_conf: 0.4  # 检测框进入几何管线的置信度下限（第二级）
+    yolo_conf: 0.35  # YOLO 推理置信度阈值（第一级，低于此值的框不进入）；0.25 误检偏多，0.35 压闪框，逆光漏检再降，不要低于 0.30
+    yolo_nms_iou: 0.5  # YOLO NMS IoU 阈值：室外多果密排可调低防并框
+    sam_max_bboxes: 16  # 单次 SAM 推理最大 prompt 框数（超出截断；室外多果场景须覆盖一帧目标数）
+    sam_min_area: 100  # SAM 掩膜最小像素数，过小丢弃（抗边角碎掩膜）
+    min_mask_points: 50  # 收敛前景掩膜最小像素数，不足判 mask_unavailable
+    detection_dedup_ios: 0.6  # 重叠检测框去重 IoS 阈值：交集/较小框面积 ≥ 本值判同一物理目标，保留大框（跨类生效）；≥1.0 等效关闭
+    detection_dedup_area_ratio: 0.5  # 碎片残枝抑制面积比（小/大）：重叠 IoS≥0.2 且面积比≤本值的小框判为遮挡残片/误检并抑制（先做大框）；≤0 关闭碎片规则
+    publish_debug_image: true  # 是否发布 debug 叠加图 (/peach/perception/debug_image)；关闭时零序列化零发布，现场调图显式开
+    publish_masks: true  # 是否发布 SAM 掩膜图 (/peach/perception/masks)
+    publish_detection_cloud: true  # 是否发布检测框内深度反投影彩色点云 (/peach/perception/single_cloud)
+    detection_cloud_stride: 2  # 点云降采样步长（>1 减轻 RViz 负载）
+    yolo_model_path: ''  # YOLO 权重路径；空串=包内 model/best.pt
+    sam_model_path: ''  # MobileSAM 权重路径；空串=包内 model/mobile_sam.pt
+    model_version: yolo:6981750db67a726e|mobile_sam:6dbb90523a35330f  # 模型版本标识（随结果发布，便于追溯）
+    calibration_version: percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006  # 内外参版本标识（内参 color_camera_info.yaml；外参 aubo_hand_eye_calibration/hand_eye/active.yaml）
+    gravity_hint_xyz: ''  # 重力方向提示 x,y,z（相机系）；空串=算法默认相机系 +Y
+    gravity_mode: tf  # 重力来源：tf=腕载相机默认，由本帧 output←camera 的 TF 旋转反推相机系重力；fixed=仅用 gravity_hint_xyz（output_frame 系重力约定 [0,0,-1]，只乘旋转不加平移；TF 不可用的帧回退 gravity_hint_xyz）
+    pipeline:
+      bag_impl: robust_bag  # 袋装线位姿管线映射名（PIPELINES_BY_IMPL；默认 robust_bag=RobustBagPosePipeline）
+      fruit_impl: robust_fruit  # 裸果线位姿管线映射名（PIPELINES_BY_IMPL；默认 robust_fruit=RobustFruitPosePipeline）
+      min_depth_m: 0.3  # 位姿管线有效深度下限 (m)，过近视为噪声
+      max_depth_m: 2.5  # 位姿管线有效深度上限 (m)，过远视为背景
+      min_points: 100  # 位姿管线有效前景点数下限，不足直接 REJECT
+      locked_only_segmentation: true  # 锁定后 SAM 只对锁定集目标的检测框推理（2.13-E1）：分割前尚无本帧 target_id，用锁定目标世界系记忆锚点经 TF 反投影到本帧像素，落进外扩 10% 的检测框就分割；锁定前/开关关/TF 不可用帧回退全量分割（旧行为），锁定目标全部不可见时本帧 SAM 零推理
+    tool:
+      D_inner: 0.104  # 工具圆柱内径 (m)，袋子必须能通过
+      L_insert: 0.2  # 最大插入深度 (m)
+      L_blade: 0.0  # TCP 到剪切平面的轴向距离 (m)；当前二者重合为 0
+      entry_d_tool: 0.0  # 入口相对袋底的工具分量 (m)。整栈由 grasp_standoffs.yaml 注入。
+      entry_d_s: 0.0  # 入口相对袋底的附加安全距离 (m)。整栈注入时为 0，总和=grasp_standoffs entry_standoff_m。
+      clearance_min: 0.005  # 袋体与工具内壁的最小径向余量 (m)
+      margin_neck: 0.015  # 袋颈前方的安全停止距离 (m)
+      version: '1.1'  # 工具几何配置的语义版本号
+    target_memory:
+      enable: true  # 目标身份记忆开关：世界系最近邻匹配，同一物理桃子消失再出现复用同一 target_id
+      match_radius_m: 0.06  # 目标匹配半径 (m)：同类且距离 ≤ 本值的最近历史目标命中复用 ID
+      max_targets: 50  # 目标表容量上限；超限按最久未见淘汰
+      position_ema: 0.3  # 命中后位置/轴/直径的 EMA 平滑系数 α (0,1]，越大越跟随最新观测
+      recovery_scale: 1.0  # 恢复匹配半径倍率 (≥1)：正常匹配未命中时放宽到 match_radius×本值再匹配一次，抗检测跳动引起的锚点跳变（常态相邻目标不受影响）。2026-08-13 真机实测：拍照位姿(0.66m)与环绕视点(0.28m)对同一颗桃的世界系锚点相差 15.7cm，欧氏 2.0(12cm) 不够会每帧发新 ID、3.5(21cm) 才稳；马氏门控下本值只膨胀 Σ，默认 1.0 避免旧 21cm 欧氏恢复半径误合并
+      confirm_frames: 5  # 目标确认帧数：累计命中 ≥ 本值才计入锁定/候选话题/3D Marker；短暂闪现不转正；1=立即确认
+      tentative_ttl_frames: 8  # 未确认目标存活时限（帧）：连续超本帧数未再命中即清除（瞬时误检不占身份；按帧计，帧率以运行状态为准）
+      anchor_max_age_s: 30.0  # 锁定集 LOST 目标锚点新鲜度上限 (s)：超龄打 anchor_stale 旗标且视为不可选（不移除）；运行期按实测帧间隔 EMA 折算帧数判定（I4）
+      anchor_drop_s: 120.0  # 锁定集 LOST 目标移除上限 (s)：超龄从计划移除并记 target_dropped 事件（编排侧按 SKIPPED_UNREACHABLE 入账）；同按帧率折算
+      max_age_s: 600.0  # 目标表项（含已确认）墙钟龄上限 (s)：超时未命中即淘汰，防跨场景陈旧锚点被恢复匹配误命中
+    wind:
+      swing_threshold_m: 0.03  # 摆动判定残差阈值 (m)：观测锚点 − 注册表 EMA 位置的模长连续超本值判目标摆动（target_swinging）
+      swing_frames: 3  # 摆动判定连击帧数：连续本帧数超阈值置位、连续本帧数低于阈值清除（对称判定）
+    lighting:
+      min_depth_ratio: 0.35  # 光照质量：锁定集目标掩膜内有效深度占比 EMA 下限，连续低质判 low_light_quality（观测指标，不阻断）
+      min_conf_mean: 0.3  # 光照质量：锁定集目标检测置信度均值 EMA 下限
+      bad_frames: 5  # 光照质量低质判定的连续帧数
+    harvest:
+      min_collect_frames: 10  # 全局目标收齐窗口的最少累积帧数：达到后才允许按静止条件关闭窗口、锁定目标集合
+      lock_settle_frames: 5  # 连续无新增确认 ID 的帧数：与最少帧数联合判定目标集合已稳定，关闭收齐窗口
+      max_collect_s: 25.0  # 收齐窗口最长时长 (s) 配置基准：运行期按实测帧间隔 EMA 自适应为 (min_collect+settle+3)×帧间隔（帧率以运行状态为准），下限为本值×0.4——低帧率自动放大防误锁空集、高帧率收紧提速；超时强制关闭窗口兜底（空集也锁定，target_count=0）
+      priority_prefer_lower_first: true  # 优先级排序启用高度键：先低后高，避免摘高处目标时碰落低处果实；false 则高度不参与排序

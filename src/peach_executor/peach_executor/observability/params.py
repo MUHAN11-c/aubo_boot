@@ -1,12 +1,10 @@
 """
-ObservabilityParams：generate_parameter_library_py 官方生成参数之上的不可变参数快照（A9）.
+ObservabilityParams：手写参数模块之上的不可变参数快照（A9）.
 
-声明 / 类型 / 默认值 / 中文描述 / 范围校验的权威源统一为
-config/observability_parameters.yaml（根键=节点名），由
-generate_parameter_library_py 在构建期生成
-peach_executor/observability_parameters.py；旧 DEFAULTS 手工描述表与
-load_params 手写数值校验（端口越界、周期/缓冲非正）已由参数库校验器承担，
-declare 期即拒绝非法值。运行路径只持有快照引用，不再逐回调 get_parameter。
+声明 / 兜底默认 / 校验的权威源统一为 peach_executor/params.py（决策 0017），
+部署值与中文描述的事实源为 config/observability.yaml（nav2 式全量清单）；
+数值校验（端口越界、周期/缓冲非正）由手写校验器承担，declare 期即拒绝
+非法值。运行路径只持有快照引用，不再逐回调 get_parameter。
 
 本模块只依赖标准库与鸭子类型 Params 快照，不 import rclpy，可被无 ROS
 上下文的单测直接装载。
@@ -100,7 +98,7 @@ class ObservabilityParams:
 
 def declare(node) -> object:
     """
-    生成 generate_parameter_library_py 的 ParamListener 并集中声明全部参数.
+    手写 ParamListener（params.py）集中声明全部参数.
 
     Args:
         node: rclpy 节点（声明参数+挂 on_set 校验）.
@@ -111,8 +109,7 @@ def declare(node) -> object:
         内创建，declare 期校验失败→TransitionCallbackReturn.FAILURE）.
 
     """
-    # 构建期由 setup.py 的 generate_parameter_module 生成.
-    from peach_executor.observability_parameters import peach_observability
+    from peach_executor.params import peach_observability
     return peach_observability.ParamListener(node)
 
 

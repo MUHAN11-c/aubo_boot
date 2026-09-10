@@ -1,17 +1,29 @@
-# 批次调度运行参数
-#
-# 分层口径：声明/类型/默认值/校验/中文描述的单一事实源是
-# config/executor_parameters.yaml（generate_parameter_library_py，
-# `ros2 param describe /peach_executor <键>` 可查）。
-# 本文件只写「部署覆盖」：键值与默认不同才需要写在这里。
-# 运行期临时改参用 `ros2 param set`（execution_enabled / execute_pregrasp_only
-# 在下次开批与 HarvestState 发布时刷新；require_managed_stack 由整栈
-# launch 注入，不要在本文件写）。
+# peach_executor 参数全量清单（nav2 式：launch 以 ParameterFile 装入，部署值即事实源）
+# 代码侧兜底默认与校验规则：peach_executor 包 params.py（C++ 为 include/peach_manipulation/params.hpp）；
+# 键名冻结（真机命令/文档零破坏）。改默认值须模块与 yaml 各改一处。
+# 运行期临时改参：ros2 param set（技能节点空闲态生效；感知/重建/监控/lifecycle 需重启或 reconfigure）。
+# 跨包轴向后撤（tool.entry_d_* / refit.*_standoff_m / moveit.mtc_approach_along_axis_m）
+# 由 grasp_standoffs.yaml 经 launch 注入覆盖，此处值仅为默认。
 peach_executor:
   ros__parameters:
-    # rcl 要求 params 文件至少一个键：保留 execute_pregrasp_only 作占位
-    # （值=GPL 默认；套入前改 false）。
-    execute_pregrasp_only: true
-    # 其余部署覆盖按需追加，示例：
-    # empty_survey_limit: 3        # 场景目标稀疏时放宽连续空扫上限
-    # survey_wait_s: 20.0          # 慢链路/低帧率时放宽等锁上限
+    execution_enabled: false  # false 时 WAIT_LOCK 后直接结算，不选目标、不派 ExecuteTarget。
+    survey_wait_s: 15.0  # BeginScene 后等待本世代锁定集关闭的秒数（WAIT_LOCK）。
+    survey_dwell_s: 2.0  # 已锁回访到位后驻留秒数，让几何来自拍照位（snapshot_id 不变）。
+    service_timeout_s: 30.0  # BeginScene 等服务等待上限。
+    action_timeout_s: 180.0  # Survey/Build/Execute 动作等待上限。
+    empty_survey_limit: 2  # 连续空扫次数上限，达到则结算批次。
+    persist_ledger: true  # 是否把 TargetOutcome 写入 runs/ 账本。
+    reconstruction_min_views: 2  # OBSERVE 成功后 Build 至少应有的机位数，不足则 observe_build_view_race。与当前位+一次短 PTP 对齐。
+    build_start_timeout_s: 2.0  # Build 目标绑定并进入 COLLECTING 的等待上限；超时禁止观察运动。
+    observe_build_grace_s: 3.0  # OBSERVE 结束后等待重建机位数追上的宽限秒数。
+    begin_scene_service: /peach_scene_perception_node/begin_scene  # BeginScene 服务名。
+    survey_scene_action: /peach_manipulation_node/survey_scene  # SurveyScene 动作名。
+    execute_target_action: /peach_manipulation_node/execute_target  # ExecuteTarget 动作名。
+    build_target_model_action: /peach_target_reconstruction_node/build_target_model  # BuildTargetModel 动作名。
+    execute_pregrasp_only: true  # true 时接触段发 ExecuteTarget PREGRASP_ONLY（到预抓取验证后停住，不回 harvest_stow、不 SetIO；ACK 后再 Survey）；false 发 FULL。
+    selection_reach_min_m: 0.15  # 选果可达窗下限（base_link 半径，米）：过近进入自碰/退化区不选。goal.target_ids 显式指定时不受窗限。
+    selection_reach_max_m: 0.88  # 可达性回退窗上限（仅 CheckReachability 服务不可用时生效）：估计预抓取点半径。现场标定 09-01：预抓取成功 0.830–0.840 / MTC 0 解失败 ≥0.917。IK 预检在线时本参数不参与判定。
+    check_reachability_service: /peach_manipulation_node/check_reachability  # TCP IK 可达性预检服务（技能节点提供；executor SELECT 段批量查询）。
+    selection_depth_min_m: 0.3  # 选果深度距离窗下限（相机到目标，米）：与感知管线 min_depth 一致，过近深度不可用。
+    selection_depth_max_m: 1.6  # 选果深度距离窗上限（相机到目标，米）：深度质量随距离退化；采集门 min_mask_depth_ratio 仍逐帧把关，本窗做选果级预过滤。
+    require_managed_stack: false  # true 时须等 /peach/lifecycle/managed_nodes_activated 才接受 RunHarvest。

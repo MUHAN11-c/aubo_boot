@@ -114,13 +114,15 @@ struct GraspTaskConfig
   double approach_max_duration_s{0.0};
   double approach_max_total_joint_travel_rad{12.0};
   double approach_max_single_joint_travel_rad{6.1};
-  // 笛卡尔绕行审查；任一项 <=0 则跳过。接触段默认 0：对错看袋囊 keepout。
-  double approach_max_detour_ratio{0.0};
-  double approach_max_chord_deviation_m{0.0};
-  double approach_max_recede_m{0.0};
-  double staging_max_detour_ratio{0.0};
-  double staging_max_chord_deviation_m{0.0};
-  double staging_max_recede_m{0.0};
+  // 笛卡尔绕行/姿态审查；任一项 <=0 则跳过该项。
+  double approach_max_detour_ratio{1.8};
+  double approach_max_chord_deviation_m{0.25};
+  double approach_max_recede_m{0.08};
+  double staging_max_detour_ratio{1.8};
+  double staging_max_chord_deviation_m{0.25};
+  double staging_max_recede_m{0.08};
+  double approach_max_tcp_rotation_deg{110.0};
+  double approach_tcp_rotation_slack_deg{20.0};
   // 袋囊半无限圆柱 keepout（入口沿 +axis）。s≥0 且 r<R 禁止口侧进入；
   // s 不得超过 max(起点s, 0)+2 cm。axial_m<=0 关闭。
   double approach_keepout_radius_m{0.12};
@@ -136,8 +138,8 @@ struct GraspTaskConfig
   // 工具 Z 与轴夹角小于此值视为已齐；已齐 LIN 才挂同值姿态路径约束。
   double approach_max_align_deg{20.0};
   std::function<std::optional<Eigen::Isometry3d>()> lookup_current_tip;
-  // staging 关节目标（主路径 PTP 落点；12 滚转 × 3 种子取最近且无自碰的
-  // 最多 3 个候选，按关节距离升序）。转移逐候选试规划，救弧穿袋囊与
+  // staging 关节目标（主路径 PTP 落点；keep-roll 及 ±30°/±60° × 当前+4随机种子取最近且无自碰的
+  // 最多 5 个候选，按关节距离（腕轴加权）+滚转惩罚升序）。转移逐候选试规划，救弧穿袋囊与
   // 自碰构型。
   struct StagingCandidate
   {
@@ -209,7 +211,8 @@ private:
     bool staging_guard = false);
   GraspTaskResult planTaskOnly(
     moveit::task_constructor::Task * active, bool guard_approach,
-    std::size_t guard_skip_tail = 0, bool staging_guard = false);
+    std::size_t guard_skip_tail = 0, bool staging_guard = false,
+    std::size_t max_solutions = 0);  // 0 = config_.max_solutions；执行路径传 1
   GraspTaskResult executeSolution(
     moveit::task_constructor::Task * active,
     const std::function<bool(std::string &)> & execution_gate);

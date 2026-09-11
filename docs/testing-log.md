@@ -89,6 +89,34 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 
 ---
 
+### 09-11 mock 接近轨迹形状（typical 包络 30 随机；审查轮）
+
+现行接近已是 staging PTP + 轴向 LIN（G/under 单弦与 STOMP 均已删）。本轮只验 **TCP 路径形状**（不得 1740 式大绕行、不得大拧转），不评方向/定位。工具 `scripts/sim_field_targets.py`，mock `harvest_system`，`PREGRASP_ONLY`，`skip_observation`。默认采样改为 `--envelope typical`（`axis_z≥0.70` 且 `|entry|≤1.02`，对齐现场多数袋）；`--envelope algorithm` 含近水平袋，只作压测。同 seed `20260911`、`--random 30 --velocity 1.0`：
+
+1. **未开笛卡尔/姿态门**（`runs/sim_field_targets_20260911_094313.jsonl`）：全量 20/30、typical 子集 8/9。`rand_10` 绕行比 2.33、途中抬 ~27 cm；成功接近 TCP 测地线 108°–180°。
+2. **打开笛卡尔 1.8/0.25/0.08 与 TCP 姿态 90°、滚转只 keep-roll ±30°/±60°**（`runs/sim_field_targets_20260911_100331.jsonl`）：全量 17/30、typical 仍 8/9。从拍照位成功接近绕行比 ≤1.46；108°/90.4° 被姿态门拒发。staging 笛卡尔审查此前因 `planTaskOnly` 误绑接近键而未生效，已修为走 `staging_*`。
+3. **typical 采样 + 腕轴加权 IK、当前+4 随机种子取最近 5 候选**（`runs/sim_field_targets_20260911_102546.jsonl`，TCP `runs/idle_20260911_100314/tcp_trajectory.jsonl`）：**26/30 到位**。从拍照位成功接近绕行比 ≤1.70、姿态 ≤71°，无抬到 ~1 m。4 例均规划后护栏拒发，未 silently 执行坏轨：`rand_01`/`rand_23`（同源 1503_0 扰动，−x 斜入）轴向 LIN 加速度超限后兜底 PTP **12.91 / 12.72 rad > 12**；`rand_16`（左入口 +x 轴，现场少见）回退 **0.139 m > 0.08 m**、绕行比 ~3（1740 同类抬弧）；`rand_24` 五条 PTP 弧均 clip 袋囊圆柱（r≈0.10–0.11 < 0.12）。未放宽 12 rad / 8 cm 回退 / 12 cm keepout。`--velocity 1.0` 时脚本 0.6 s 静止切段常把回拍照位与接近并段；失败例 `from_photo=false` 路径常是上一段返程，形状以 `from_photo=true` 与日志 `MTC 接近笛卡尔/姿态审查` 为准。
+
+### 09-11 mock 规划加速 + 感知算法包络 100 随机
+
+同 seed `20260911`、`--random 100 --envelope algorithm --velocity 1.0`。执行路径改为 MTC `plan(1)`（不再为凑满 `mtc_max_solutions` 5 耗尽 `planning_time_s`）；回拍照位 PTP 时限 `photo_ptp_planning_time_s` 0.5 s，失败再 OMPL 3.0 s；`select_goal_joints` 各滚转并行 IK（KDL `setFromIK` 加锁）。**不**并发 100 颗 `ExecuteTarget`（单臂）。护栏未放宽。
+
+`runs/sim_field_targets_20260911_151609.jsonl`：墙钟 **14.5 min**；单例 `elapsed_s` 中位 **4.63 s**（min 1.41 / p90 6.63 / max 9.84）。全量 **54/100** 到位；现场 typical 子集 **28/32**；接近袋囊 keepout 12。从拍照位成功接近绕行比 1.00–1.72。失败主因：MTC 规划 21、staging 无 IK 14、绕腕累计 3、笛卡尔 3、姿态 2、keepout 2、回退 1。近水平（`axis_z<0.40`）仅 3/16。未放宽 12 rad / 8 cm / 12 cm / 90°。
+
+### 09-11 解析覆盖（不执臂；10000 分层位姿）
+
+`python3 scripts/analyze_approach_envelope.py --n 10000 --seed 20260911`。复刻感知上半球 / `|entry|≤1.15` / 拍照弦 ≤0.80，以及 TCP 测地线 90°、轴向 LIN keepout。主路径 PTP 的累计行程与弧绕行**不**在闭式里。分层：typical 40%、中斜 20%、近水平 20%、远入口 10%、长弦 10%，另钉 14 个现场袋。
+
+`runs/analyze_approach_envelope_20260911_154345.jsonl`（1.8 s，10014 行）：闭式 **9961/10014**；typical **4246/4246**。失败 53：近水平轴对拍照位 tool-Z 测地线 >90° 共 52；现场 `1639_0` `|entry|=1.158>1.15` 计 perception。拍照→staging 直连弦穿囊 2379/10014（LIN 对照，不计 analytic_ok——这就是删 G 弦、改 staging PTP 的几何原因）。axis_z / |entry| / 弦长分箱无空档。
+
+随后把姿态门与算法包络对齐（感知允许水平）：绝对上限 **110°**（keep-roll γ≈90°、±60° 滚转闭式 γ(90,60)≈105°），相对起止余量 **20°**（仍拦对轴只需 20° 却中途拧到 108° 的 PTP）；算法 `|entry|` 上限 **1.16**（纳入 1639_0）。不放宽 12 rad / 8 cm / 12 cm。重跑同 seed 见下条。
+
+### 09-11 约束对齐后再解析 10000
+
+同 seed `20260911`。`runs/analyze_approach_envelope_20260911_155716.jsonl`：闭式 **10014/10014**（含现场 14/14、近水平 2000/2000）。弦穿囊对照仍约 2362（不计 analytic_ok）。mock 执臂须重启 harvest 才加载新二进制。
+
+---
+
 ## 重构前：PREGRASP_ONLY 里程碑
 
 **2026-08-28：** 轮次 A `field_pregrasp_20260828` 重建 ndarray `or` 崩溃（已修）。轮次 B `field_pregrasp_20260828b` 重建未崩：`target_0` 技能锁定集未跟上拒 OBSERVE；`target_4` 约 2 机位/4 帧，圆柱 RANSAC 与关键点轴冲突 → `allowed=false` / `refined_quality_not_allowed`，未进 `MovePregrasp`/`HoldPregrasp`。无 SetIO。随后改为：包络否决不拦预抓取、融合几何与接触许可拆开、入口侧向贴体积、独立剪切参考。轮次 C `field_pregrasp_20260828c`：六节点 Active 后开批，`target_0` 观察约 15 s 有效视点 0/1 → `observe_failed` / `insufficient_views`，仍未到预抓取，无 SetIO。轮次 D–D6 只看 Debug Image：上半球约束后 `target_1` 箭头朝左略上。轮次 E `field_pregrasp_20260828e`：开执行/抓取后 Survey 过，`target_0` `build_start_timeout`，`target_1` `build_rejected`（取消 Build 后未等结束就派下一颗），未进预抓取，无 SetIO。源码已改为取消后等待。轮次 F `field_pregrasp_20260828f`：`target_1` 观察约 17 s 有效视点 0/1 → `insufficient_views`，仍未到预抓取，无 SetIO。根因：袋融合后写 `geometry.jsonl` 对 `cut_pose` ndarray 用了 Python `or`，被当成 TSDF 积分失败并回滚体积，故 RViz 无 TSDF Cloud、技能有效视点 0。已修：写点不用 `or`；融合失败不回滚已积分体积。轮次 G `field_pregrasp_20260828g`：两颗均积分（各 2 视、TSDF ~2000 点、`refit ACCEPT`），观察门过；`PREGRASP_ONLY` 发了，`ptp to on-axis pregrasp` MTC 0/1，未到位、无 SetIO。批次结束后体积复位，RViz TSDF Cloud 会空，须在观察/重建进行中看。全图与逐门实测：`runs/field_test_20260828/`。

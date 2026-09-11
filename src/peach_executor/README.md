@@ -6,7 +6,7 @@
 
 ```bash
 ros2 launch peach_executor harvest_system.launch.py \
-  hardware_mode:=mock camera_enabled:=false   # 真机显式 real
+  hardware_mode:=mock camera_enabled:=false   # 真机显式 real；IMU 默认随起
 ```
 
-`execution_enabled` 默认 false；`execute_pregrasp_only` 默认 true（停预抓取等 ACK）。
+`execution_enabled` 默认 false；`execute_pregrasp_only` 默认 true（停预抓取等 ACK）。`imu_enabled` 默认 true（不进 lifecycle）。

@@ -10,18 +10,23 @@ from launch.actions import (
     IncludeLaunchDescription,
     OpaqueFunction,
 )
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
 
 from peach_executor.batch import default_runs_root
 
 
-def _include(package, launch_file, launch_arguments=None):
+def _include(package, launch_file, launch_arguments=None, condition=None):
     """按包 share 目录包含一个 launch 文件."""
+    kwargs = {}
+    if condition is not None:
+        kwargs['condition'] = condition
     return IncludeLaunchDescription(
         PathJoinSubstitution([
             FindPackageShare(package), 'launch', launch_file]),
         launch_arguments=(launch_arguments or {}).items(),
+        **kwargs,
     )
 
 
@@ -37,6 +42,7 @@ _PREFLIGHT_PATTERNS = (
     'joint_state_publisher',
     # 多代 extrinsics 会叠发 wrist3→camera_link，重建精确 stamp 积分会偏
     'extrinsics_publisher',
+    'serial_imu_node',
 )
 
 
@@ -106,6 +112,11 @@ def generate_launch_description():
             'hand_eye_web_enabled', default_value='false',
             description='启动手眼标定 Web；仅 hand_eye_enabled 生效'),
         DeclareLaunchArgument(
+            'imu_enabled', default_value='true',
+            description='启动 USB 串口 IMU；挂在 tcp 上并对齐。'
+                        '不进 lifecycle。无设备时节点重试串口。'
+                        '不进只读 bringup，由本文件 include'),
+        DeclareLaunchArgument(
             'record_mcap', default_value='false',
             description='为 true 时用 ros2 bag record -s mcap 录执行器/感知/重建关键话题'),
         _include(
@@ -118,6 +129,13 @@ def generate_launch_description():
                 'hand_eye_enabled': hand_eye_enabled,
                 'hand_eye_web_enabled': hand_eye_web_enabled,
             }),
+        _include(
+            'serial_imu', 'serial_imu.launch.py', {
+                'use_rviz': 'false',
+                'tf_parent_frame': 'tcp',
+                'align_to_parent': 'true',
+            },
+            condition=IfCondition(LaunchConfiguration('imu_enabled'))),
         _include(
             'peach_perception', 'scene_perception.launch.py',
             {'autostart': 'false'}),

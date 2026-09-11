@@ -4,9 +4,9 @@
 
 真机轮次、量化基线、审查记录写在 [testing-log.md](testing-log.md)；工程整理过程写在 [REFACTORING.md](REFACTORING.md)（二者都是过程记录，不驱动现行设计）。改行为只改本文 + 源码；补一条实测时追加 testing-log，不把轮次散文写回本文。
 
-各包 `test/` **保留 ROS 2 默认 lint，并允许零 ROS 纯核 pytest**（Python：`test_flake8.py` / `test_pep257.py` + 不 import rclpy 的表驱动；CMake：`ament_lint_auto`）。现行纯核：`peach_executor/test/test_harvest_fsm.py`（`react` 表）、`peach_perception/test/test_runtime_core.py`（`ManualClock` / `BoundedWorker` capacity=1 drop_oldest）、`ivg_graspnet/test/test_grasp_core.py`（`GraspList` NMS/碰撞；torch 算子 `importorskip`）。禁止业务用例、gtest、DDS 假现场、launch_testing、采摘仿真测。语法与流程由审查核对，对错以实机为准。`colcon test` 不等于采摘验收。套入剪切软件门看 flake8 / pep257 / uncrustify 与纯核表；`peach_manipulation` 整测项跳过 cpplint（其 legal/copyright 与 Google include 顺序检查同本项目「文件头版权块项目结束再补」「include own-first」约定冲突，CMake 已 `set(ament_cmake_cpplint_FOUND TRUE)`），C++ 风格门以 uncrustify 为准、静态分析走 cppcheck。`ament_xmllint` 会拉 `package_format3.xsd`，网络卡住超时不阻塞本产品路径。
+各包 `test/` **保留 ROS 2 默认 lint，并允许零 ROS 纯核 pytest**（Python：`test_flake8.py` / `test_pep257.py` + 不 import rclpy 的表驱动；CMake：`ament_lint_auto`）。现行纯核：`peach_executor/test/test_harvest_fsm.py`（`react` 表）、`peach_perception/test/test_runtime_core.py`（`ManualClock` / `BoundedWorker` capacity=1 drop_oldest）、`ivg_graspnet/test/test_grasp_core.py`（`GraspList` NMS/碰撞；torch 算子 `importorskip`）、`serial_imu/test/test_protocol.py`（切帧/协方差）与 `test_frame.py`（倒装 Rx + parent 对齐）。禁止业务用例、gtest、DDS 假现场、launch_testing、采摘仿真测。语法与流程由审查核对，对错以实机为准。`colcon test` 不等于采摘验收。套入剪切软件门看 flake8 / pep257 / uncrustify 与纯核表；`peach_manipulation` 整测项跳过 cpplint（其 legal/copyright 与 Google include 顺序检查同本项目「文件头版权块项目结束再补」「include own-first」约定冲突，CMake 已 `set(ament_cmake_cpplint_FOUND TRUE)`），C++ 风格门以 uncrustify 为准、静态分析走 cppcheck。`ament_xmllint` 会拉 `package_format3.xsd`，网络卡住超时不阻塞本产品路径。
 
-不要删 `_archive/runs/` 与现场 `runs/`。未授权不得真机运动或 SetIO。launch **不自动** `RunHarvest`。采摘十四包职责见 [architecture.md](architecture.md) §3。`serial_imu` 与旁路视觉抓取三包不进整栈 launch。
+不要删 `_archive/runs/` 与现场 `runs/`。未授权不得真机运动或 SetIO。launch **不自动** `RunHarvest`。采摘十四包职责见 [architecture.md](architecture.md) §3。旁路视觉抓取三包不进整栈 launch。`serial_imu` 随 `harvest_system` 起（`imu_enabled` 默认 true），不进 lifecycle、不进只读 bringup。
 
 ---
 
@@ -56,15 +56,25 @@ python3 scripts/replay_field_pregrasp.py --case 1740 --planner ptp   # OMPL/PTP 
 # goToPhotoPose（接近原路返程，否则 PTP），与正式接触段同一 C++ 函数，脚本不直连 JTC）
 python3 scripts/sim_field_targets.py --list
 python3 scripts/sim_field_targets.py --case all
-# 现场正常坐标包络内随机位姿（感知上半球轴、弦长≤0.80 m、排除 |entry|≈2.1 m 界外）
+# 现场典型包络随机位姿（axis_z≥0.70 且 |entry|≤1.02；感知允许水平，压测加 --envelope algorithm）
 python3 scripts/sim_field_targets.py --random 16 --seed 20260910
+# 接近轨迹形状对照（typical；seed 与 09-11 审查轮一致；--velocity 1.0 仅 mock）
+python3 scripts/sim_field_targets.py --random 30 --seed 20260911 --velocity 1.0
 # 大样本 + 仿真提速（速度/加速度缩放设 1.0，仅 mock；100 例约 10 min）
 python3 scripts/sim_field_targets.py --random 100 --seed 20260910 --velocity 1.0
+# 感知算法包络压测（含近水平；seed 与 09-11 对照轮一致）
+python3 scripts/sim_field_targets.py --random 100 --envelope algorithm --seed 20260911 --velocity 1.0
 # 接近失败根因探针：G/预抓取/staging 逐滚转 IK + 直弦 fraction（只读诊断）
 python3 scripts/sim_approach_probe.py --random 100 --seed 20260910
-# 实时轨迹 watchdog：执行中 FK 监测，超绕行门即 ~/cancel_cycle 停轨留档
-python3 scripts/trajectory_watchdog.py            # 转移级门 2.5/0.40/0.15
-python3 scripts/trajectory_watchdog.py --ratio 2.2 --dev 0.25 --recede 0.08
+# 解析覆盖（不执臂）：感知包络 + TCP 测地线 + 轴向 keepout；10000 分层位姿约 2 s
+python3 scripts/analyze_approach_envelope.py --n 10000 --seed 20260911
+# 解析约束不变量验证（不执臂）：I1–I5 性质断言 + 姿态门闭式校验 + 拒发结合度地图
+python3 scripts/analytic_constraints.py --n 10000 --seed 20260911
+# 只读可达性验证（不执臂、不开周期）：同批位姿在 staging/预抓取逐档查 /compute_ik
+python3 scripts/analytic_reachability.py --n 10000 --seed 20260911
+# 实时轨迹 watchdog：执行中 FK 监测；默认只记录。技能节点笛卡尔门 1.8/0.25/0.08
+python3 scripts/trajectory_watchdog.py            # 只记录，不停轨
+python3 scripts/trajectory_watchdog.py --ratio 1.8 --dev 0.25 --recede 0.08
 
 # 真机（须显式 real；示教器上电；bringup 不起 aubo_dashboard）
 ros2 launch peach_executor harvest_system.launch.py \
@@ -102,6 +112,7 @@ Tab「调试」＝向**既有**动作/服务发请求的纯客户端，页面只
 | `hardware_mode` | mock | mock / real |
 | `robot_ip` | 169.254.10.98 | 仅 real |
 | `camera_enabled` | false | 有相机时设 true |
+| `imu_enabled` | true | USB IMU；挂 tcp 并对齐。无设备时节点重试。关掉：`false` |
 | `extrinsics_enabled` | true | wrist3 → camera_link |
 | `moveit_enabled` | true | move_group + RViz |
 | `hand_eye_enabled` | false | 标定流程 |
@@ -111,16 +122,17 @@ Tab「调试」＝向**既有**动作/服务发请求的纯客户端，页面只
 
 完整列表：`--show-args`。只起手臂：`ros2 launch aubo_e5_bringup bringup.launch.py …`。
 
-USB IMU（可选，不进整栈）：手册 [`src/serial_imu/README.md`](../src/serial_imu/README.md)（udev、协议、TF、RViz 插件项、dialout/`newgrp`）。摘要：
+USB IMU（随整栈，不进 lifecycle）：手册 [`src/serial_imu/README.md`](../src/serial_imu/README.md)（udev、协议、TF、RViz 插件项、dialout/`newgrp`）。`harvest_system` 默认 `imu_enabled:=true`（mock / real 相同）：`tf_parent_frame:=tcp`、`align_to_parent:=true`、不起 IMU 自己的 RViz。画面在 MoveIt RViz **Peach → Imu**（订 `/imu/data`）。无 USB 时每 2 s 重试串口，不挡整栈。关掉：`imu_enabled:=false`。不要另起 `serial_imu.launch.py` 与整栈并行。摘要：
 
 ```bash
 sudo usermod -aG dialout $USER && newgrp dialout
-colcon build --packages-select serial_imu
-source install/setup.bash
+# 随 mock / real 整栈（默认已开）
+ros2 launch peach_executor harvest_system.launch.py hardware_mode:=mock camera_enabled:=false
+ros2 topic echo /imu/data
+# 只看 IMU、不起采摘：
 ros2 launch serial_imu serial_imu.launch.py
-ros2 topic echo /imu/data --qos-reliability best_effort
 ```
-`usermod` 后必须 `newgrp`（或重新登录）。缺插件：`sudo apt install ros-jazzy-imu-tools`。Fixed Frame `world`；拧模组看 `imu_attitude` / Imu 插件，不是 `imu_link`。
+`usermod` 后必须 `newgrp`（或重新登录）。缺插件：`sudo apt install ros-jazzy-imu-tools`。整栈里 Fixed Frame 用 `base_link`；姿态看 `/imu/data`（Rx(180°) + 对齐到 tcp）。单独 launch 时 Fixed Frame `world`。静置：`linear_acceleration.z` 为正（~+9.6）。再对齐：`ros2 service call /imu/align_to_parent std_srvs/srv/Trigger`。健康：`ros2 topic echo /diagnostics`。纯核：`PYTHONPATH=src/serial_imu pytest src/serial_imu/test/test_protocol.py src/serial_imu/test/test_frame.py`。协方差：未提供 `[0]=-1`，未知全 0。话题 QoS Reliable。
 
 ```bash
 ros2 action send_goal /peach_executor/run_harvest peach_interfaces/action/RunHarvest \
@@ -224,6 +236,7 @@ Fixed Frame 用 **`base_link`**，不要用未接上的 `world`。改显示配�
 | Planned Views | 开 | `/peach_manipulation_node/planned_views` | 候选拍照位；`execution.enabled=false` 时仍会出，不代表已走到 |
 | Camera Color | 关 | `/camera/color/image_raw` | 原彩图 |
 | Debug Image | 开 | `/peach/perception/debug_image` | 检/分割叠加。灰框=未满 confirm_frames |
+| Imu | 开 | `/imu/data` | `rviz_imu_plugin`：TCP 上的灰盒子 / RGB 轴 / 黄比力。姿态不写进 `imu_link` TF |
 
 ---
 
@@ -243,11 +256,13 @@ Fixed Frame 用 **`base_link`**，不要用未接上的 `world`。改显示配�
 - 观察：覆盖达标或 `maximum_moves` 用尽才停（不做完位姿序列不收口）；`time_budget_s` 只进日志，不按移动+等帧 EMA 预测收口。拍照位 + 当前位采帧；下一视点沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m，~0.7 m 处一跨过 8°），只 LIN，失败换候选（绕行看 4.0 rad / 单轴 1.5 rad，不按时长）。到位后等新机位再判覆盖，同机位连帧不算。时长随 ~2.5 FPS 等帧浮动。
 - 机位数 `view_count >= capture.min_views`（默认 2），基线/深度/RMSE/内点率过门。`captured_views` 是积分帧数。
 - 无精化不得宣称方向准确。
-- MTC 接近、直线套入、同轴撤离均须 goal-hold。预抓取先回拍照位（有记录的接近则原路返程，否则 PTP），再走接近主路径：**staging 转移——最近构型 PTP（`select_goal_joints` 12 滚转 × 3 种子、自碰过滤、最近 3 候选逐个试）落到预抓取正下方轴上，再沿轴 LIN 升到预抓取**（已齐 LIN 段加相对目标 20° 姿态约束）；staging 不可用且起点已在袋底侧、直连不穿囊时兜底直连 LIN（未齐先 LIN 原地对齐工具 Z；keep-roll 自碰换滚转）。G/under 单弦档已删（2026-09-10：photo→G 弦 fraction 均值 0.77、同 seed 100 随机位姿基线 9/100；`sim_approach_probe.py` 复核）。不走 CIRC/STOMP/OMPL。失败 `skipped_unreachable`，不进 OMPL。再一段沿轴 LIN；反向同轨迹（含 staging 段）回预抓取后 PTP `harvest_stow`。接近绕腕护栏 **累计 12 rad / 单轴 6.1 rad**；口侧/上方看 keepout，逐段审查（s≥0 且 r<R 全段禁；反爬 s ≤ 本段起点 max(s,0)+2 cm，staging 首段 PTP 弧只查圆柱穿越）；笛卡尔绕行比六键默认 0。不按时长；0.10 速度下直线可以超过 20 s。mock 回放：`python3 scripts/replay_field_pregrasp.py --case 1757`（现场坐标，不开批）；全链路逐目标回放 `python3 scripts/sim_field_targets.py --case all`（回拍照位走周期内 `goToPhotoPose`，与正式接触段同一函数）；包络内随机位姿 `python3 scripts/sim_field_targets.py --random 16 --seed 20260910`（大样本提速加 `--velocity 1.0`，仅 mock）；实时记录 `python3 scripts/trajectory_watchdog.py`（默认不按绕行比停轨）。
+- MTC 接近、直线套入、同轴撤离均须 goal-hold。预抓取先回拍照位（有记录的接近则原路返程，否则 PTP 0.5 s / 失败 OMPL 3.0 s），再走接近主路径：**staging 转移——最近构型 PTP（`select_goal_joints` 各滚转并行 IK：keep-roll 及 ±30°/±60° × 当前+4随机种子、自碰过滤、最近 5 候选逐个试）落到预抓取正下方轴上，再沿轴 LIN 升到预抓取**（已齐 LIN 段加相对目标 20° 姿态约束）；执行路径 MTC `plan(1)`，不凑满 `mtc_max_solutions`。staging 不可用且起点已在袋底侧、直连不穿囊时兜底直连 LIN（未齐先 LIN 原地对齐工具 Z；keep-roll 自碰换滚转）。G/under 单弦档已删（2026-09-10：photo→G 弦 fraction 均值 0.77、同 seed 100 随机位姿基线 9/100；`sim_approach_probe.py` 复核）。解析覆盖不执臂：`python3 scripts/analyze_approach_envelope.py --n 10000 --seed 20260911`（感知包络 + TCP 测地线 + 轴向 keepout；PTP 行程/弧绕行仍须规划）。不走 CIRC/STOMP/OMPL。失败 `skipped_unreachable`，不进 OMPL。再一段沿轴 LIN；反向同轨迹（含 staging 段）回预抓取后 PTP `harvest_stow`。接近绕腕护栏 **累计 12 rad / 单轴 6.1 rad**；口侧/上方看 keepout，逐段审查（s≥0 且 r<R 全段禁；反爬 s ≤ 本段起点 max(s,0)+2 cm，staging 首段 PTP 弧只查圆柱穿越）；笛卡尔绕行比 1.8 / 偏离 0.25 m / 回退 0.08 m；TCP 姿态行程绝对 110°（相对起止余量 20°；0=不查）。不按时长；0.10 速度下直线可以超过 20 s。mock 回放：`python3 scripts/replay_field_pregrasp.py --case 1757`（现场坐标，不开批）；全链路逐目标回放 `python3 scripts/sim_field_targets.py --case all`（回拍照位走周期内 `goToPhotoPose`，与正式接触段同一函数）；包络内随机位姿 `python3 scripts/sim_field_targets.py --random 16 --seed 20260910`（默认 typical：`axis_z≥0.70` 且 `|entry|≤1.02`，与现场多数袋一致；感知算法允许水平，压测加 `--envelope algorithm`；轨迹形状对照 `--random 30 --seed 20260911 --velocity 1.0`，仅 mock；`--velocity > 0` 时用例间隔 0.05 s）；实时记录 `python3 scripts/trajectory_watchdog.py`（默认不按绕行比停轨）。接近轨迹形状以 mock 为准（下节）；方向/定位仍以真机目视。
 - 日志不得出现 SetIO。`harvest.grasped=false`（未开工具不得宣称采摘成功）。
 - 单目标目标 45–60 s；失败必须有 `failure_code`，不得停在 `RUNNING + action_active=false`。
 
 接触干跑历史轮次见 [testing-log.md](testing-log.md)。实验室两果均应走到接触干跑。方向准不准以现场目视为准。带工具采摘未做。
+
+mock 接近轨迹形状（不开批、不代替真机方向验收）：`hardware_mode:=mock` 整栈 + `scripts/sim_field_targets.py`，与正式接触段同一 C++ 接近。默认 `--envelope typical` 对齐现场多数袋（`axis_z≥0.70` 且 `|entry|≤1.02`）；`--envelope algorithm` 含近水平袋，只作压测。09-11 对照轮（seed `20260911`、typical、`--velocity 1.0`）：笛卡尔门与 TCP 姿态 90° 打开后，**从拍照位出发的成功接近**绕行比 ≤1.70、姿态测地线 ≤71°，无 1740 式先抬再落；30 例 26 到位、4 例护栏拒发（绕腕累计 12.7–12.9 rad ×2、回退 0.14 m、keepout 穿囊），不放宽 12 rad / 8 cm 回退 / 12 cm 半径。看 `from_photo=true` 行与技能日志 `MTC 接近笛卡尔/姿态审查`、`接近：… 原语`；`--velocity 1.0` 时脚本 0.6 s 静止切段常把回拍照位与接近并成一段，失败例的 `from_photo=false` 路径往往是上一段返程，不得当接近绕行。记录 `runs/sim_field_targets_20260911_102546.jsonl`。规划加速后感知算法包络 100 随机（同 seed、`--velocity 1.0`）见 [testing-log.md](testing-log.md) 09-11 151609（墙钟 14.5 min，单例中位 4.6 s，护栏未放宽）。解析覆盖 10000 分层位姿见 [testing-log.md](testing-log.md) 09-11 154345（90° 门）与 155716（110°/余量 20°、`|entry|≤1.16`，闭式 10014/10014）。轮次过程见 [testing-log.md](testing-log.md) 09-11。
 
 树干/粗枝进 PlanningScene 是预留。无人工确认的无粗枝通道时不接触。
 

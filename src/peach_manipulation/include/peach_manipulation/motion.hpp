@@ -50,6 +50,7 @@ struct MoveItMotionConfig
   double observe_max_total_joint_travel_rad{2.5};
   double observe_max_single_joint_travel_rad{1.5};
   double photo_planning_time_s{3.0};
+  double photo_ptp_planning_time_s{0.5};
   double default_planning_time_s{1.5};
   int default_planning_attempts{1};
   // goToPhotoPose 成功出口复核：当前关节须在命名状态且静止。

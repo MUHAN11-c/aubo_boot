@@ -10,6 +10,8 @@ photo_joints:
   wrist3_joint: 0.038621
 # 拍照位实测 TCP（对照用；回放以 FK 为准）
 photo_tcp_xyz: [0.302, -0.232, 0.708]
+# SRDF global_photo_pose 的 tcp 姿态（base_link，xyzw）。解析验证用；执臂仍 FK。
+photo_tcp_xyzw: [-0.005373, -0.009976, -0.037437, 0.999235]
 cases:
   '1757':
     request_id: field_pregrasp_20260901_1757

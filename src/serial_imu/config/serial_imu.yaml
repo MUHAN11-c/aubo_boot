@@ -7,28 +7,22 @@ serial_imu:
     baudrate: 115200
     frame_id: imu_link
     read_period_s: 0.005
-    # 安装位静态 TF（单位姿态）。接手臂时改 tf_parent_frame:=base_link。
+    # 安装位静态 TF（单位姿态）。接手臂时改 tf_parent_frame:=base_link 或 tcp。
     publish_tf: true
     tf_parent_frame: world
-    # 姿态另发 imu_attitude，勿写进 imu_link（否则 RViz Imu 插件会转两次）。
-    publish_attitude_tf: true
-    attitude_frame_id: imu_attitude
-    # 工具偏移（自适应圆柱工具 B）：装工具 B 时 launch tool_offset_enabled:=true。
-    tool_offset:
-      enabled: false
-      base_frame: base_link
-      nominal_frame: tool_axis
-      output_frame: tcp_actual
-      # 模组在工具系安装姿态。2026-09-09 实测倒装 roll≈+177°；
-      # pitch/yaw 须在工具竖直零位（开口朝 +Z）按 README §9 标定后回填。
-      mount_rpy_deg: [177.0, 0.0, 0.0]
-      # 自适应机构铰点深度（工具系 -Z 向）；0=绕筒口纯旋转，机构定形后回填。
-      pivot_depth_m: 0.0
-      zero_on_start: true
-      # 偏移超此角度节流告警（仍照发，停套入由上层判；姿态不得替代许可）。
-      max_tilt_deg: 15.0
-      # 清零重力自检：实测重力方向 vs 预期零位姿态，防倒装/贴歪/不在零位。
-      zero_gravity_check: true
-      # 清零姿态下工具系预期重力方向（默认零位=开口朝上竖直 → +Z）。
-      zero_gravity_tool: [0.0, 0.0, 1.0]
-      zero_gravity_tol_deg: 5.0
+    # 模组体轴 → imu_link：标准倒装 Rx(180°)，静止比力沿 ROS +Z。
+    # 不是现场残差。芯片改成物理正装后改 [0, 0, 0]。
+    frame_rpy_deg: [180.0, 0.0, 0.0]
+    # 把当前 IMU↔parent 姿态差当误差清掉（无磁 yaw 每次上电/接触前采）。
+    # 叠在臂 TCP 上时 launch align_to_parent:=true tf_parent_frame:=tcp。
+    align_to_parent: false
+    align_on_start: true
+    align_reference_frame: base_link
+    # sensor_msgs：未提供的字段 covariance[0]=-1；未知方差填 0（勿造对角小数）。
+    # 2026-09-09 实测陀螺 int16 恒 0，默认不可用。
+    gyro_available: false
+    angular_velocity_variance: 0.0
+    linear_acceleration_variance: 0.0
+    orientation_variance: 0.0
+    magnetic_field_variance: 0.0
+    expected_rate_hz: 75.0  # 现场 ≈74.7；诊断窗 0.6×–1.4×

@@ -281,6 +281,34 @@ Visualization Manager:
             Reliability Policy: Reliable
             Value: /peach/perception/debug_image
           Value: true
+        - Acceleration properties:
+            Acc. vector alpha: 1.0
+            Acc. vector color: 255; 255; 0
+            Acc. vector scale: 0.05
+            Derotate acceleration: true
+            Enable acceleration: true
+          Axes properties:
+            Axes scale: 0.15
+            Enable axes: true
+          Box properties:
+            Box alpha: 1.0
+            Box color: 128; 128; 128
+            Enable box: true
+            x_scale: 0.07
+            y_scale: 0.10
+            z_scale: 0.03
+          Class: rviz_imu_plugin/Imu
+          Enabled: true
+          Name: Imu
+          Topic:
+            Depth: 10
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /imu/data
+          Value: true
+          fixed_frame_orientation: true
         - Class: rviz_default_plugins/TF
           Enabled: true
           Filter (blacklist): ""
@@ -315,6 +343,8 @@ Visualization Manager:
             table_link:
               Value: false
             tcp:
+              Value: false
+            imu_link:
               Value: false
             tool_axis:
               Value: true
@@ -360,7 +390,8 @@ Visualization Manager:
                               sleeve_mouth:
                                 {}
                               tcp:
-                                {}
+                                imu_link:
+                                  {}
                               tool_body_link:
                                 {}
               table_link:

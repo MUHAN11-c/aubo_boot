@@ -15,8 +15,10 @@
 #include "peach_manipulation/manipulation_skills_node.hpp"
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <exception>
 #include <functional>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -27,6 +29,7 @@
 #include <moveit/collision_detection/collision_matrix.hpp>
 #include <moveit/collision_detection_fcl/collision_env_fcl.hpp>
 #include "peach_manipulation/eigen_conversions.hpp"
+#include "peach_manipulation/grasp_geometry.hpp"
 
 namespace peach_manipulation
 {
@@ -380,6 +383,7 @@ void ManipulationSkillsNode::rebuildMotionInterface()
   motion_config.observe_max_single_joint_travel_rad =
     moveit.observe_max_single_joint_travel_rad;
   motion_config.photo_planning_time_s = moveit.photo_planning_time_s;
+  motion_config.photo_ptp_planning_time_s = moveit.photo_ptp_planning_time_s;
   motion_config.default_planning_time_s = planning_time_s_;
   motion_config.default_planning_attempts = planning_attempts_;
   motion_config.photo_pose_joint_tolerance_rad =
@@ -435,6 +439,10 @@ void ManipulationSkillsNode::rebuildGraspTask()
     moveit.mtc_approach_transit_max_chord_deviation_m;
   task_config.staging_max_recede_m =
     moveit.mtc_approach_transit_max_recede_m;
+  task_config.approach_max_tcp_rotation_deg =
+    moveit.mtc_approach_max_tcp_rotation_deg;
+  task_config.approach_tcp_rotation_slack_deg =
+    moveit.mtc_approach_tcp_rotation_slack_deg;
   task_config.approach_keepout_radius_m =
     moveit.mtc_approach_keepout_radius_m;
   task_config.approach_keepout_axial_m =
@@ -444,15 +452,18 @@ void ManipulationSkillsNode::rebuildGraspTask()
   task_config.approach_along_axis_m = moveit.mtc_approach_along_axis_m;
   task_config.approach_staging_standoff_m =
     moveit.approach_staging_standoff_m;
-  // 滚转扫描 + 多 IK 种子：圆筒刀口滚转是自由参数。只把最近支位姿交给
+  // 滚转扫描 + 多 IK 种子：圆筒刀口滚转是自由参数，但只扫 keep-roll 及
+  // ±30°/±60°。更大滚转会让 PTP 把 TCP 拧过 90°+。只把最近支位姿交给
   // 笛卡尔接近当目标姿态，不用关节目标下发 PTP（1740 跨构型绕行）。
   task_config.select_goal_joints =
     [this](const Eigen::Isometry3d & keep_roll_pose)
     -> std::vector<GraspTaskConfig::StagingCandidate>
     {
-      // 12 滚转 × 3 种子（当前 + 2 随机）；解须过关节限位与自碰
-      // （camera_body×wrist1/foreArm 的构型直接拒，不再交给 PTP 规划
-      // 失败兜底）；按与当前构型的关节距离升序取最近 3 个候选。
+      // keep-roll 及 ±30°/±60° × 当前+4 随机种子；解须过关节限位
+      // 与自碰（camera_body×wrist1/foreArm 的构型直接拒，不再交给 PTP
+      // 规划失败兜底）；按关节距离（腕轴加权）+ 滚转惩罚升序取最近 5 个候选。
+      // 各滚转并行：KDL 插件非线程安全，setFromIK 加锁；CollisionEnvFCL
+      // 每线程一份。质量仍扫完全部种子再排序，不因并行提前截断。
       if (!move_group_) {
         return {};
       }
@@ -464,67 +475,87 @@ void ManipulationSkillsNode::rebuildGraspTask()
       const auto names = group->getActiveJointModelNames();
       std::vector<double> current;
       base->copyJointGroupPositions(group, current);
-      // 自碰过滤：新 MoveIt（2.14+）的碰撞检查在 CollisionEnv，RobotState
-      // 不再自带；SRDF ACM 与规划同款忽略相邻连杆。env+ACM 每次调用
-      // 构造一次，对全部候选复用。
-      auto collision_env =
-        std::make_shared<collision_detection::CollisionEnvFCL>(
-          base->getRobotModel());
-      const collision_detection::AllowedCollisionMatrix collision_acm(
-        *base->getRobotModel()->getSRDF());
       struct Scored
       {
         double dist_sq;
         GraspTaskConfig::StagingCandidate candidate;
       };
+      std::mutex ik_mutex;
+      std::mutex scored_mutex;
       std::vector<Scored> scored;
-      for (int roll_idx = 0; roll_idx < 12; ++roll_idx) {
-        Eigen::Isometry3d pose = keep_roll_pose;
-        if (roll_idx > 0) {
-          pose.linear() = keep_roll_pose.linear() *
-            Eigen::AngleAxisd(roll_idx * M_PI / 6.0, Eigen::Vector3d::UnitZ());
-        }
-        for (int attempt = 0; attempt < 3; ++attempt) {
-          moveit::core::RobotState probe = *base;
-          if (attempt > 0) {
-            probe.setToRandomPositions(group);
-          }
-          if (!probe.setFromIK(group, pose, tip_frame_, 0.1)) {
-            continue;
-          }
-          probe.update();
-          if (!probe.satisfiesBounds(group)) {
-            continue;
-          }
-          collision_detection::CollisionRequest collision_request;
-          collision_detection::CollisionResult collision_result;
-          collision_env->checkSelfCollision(
-            collision_request, collision_result, probe, collision_acm);
-          if (collision_result.collision) {
-            continue;
-          }
-          std::vector<double> sol;
-          probe.copyJointGroupPositions(group, sol);
-          double dist_sq = 0.0;
-          for (std::size_t i = 0; i < sol.size(); ++i) {
-            const double d = sol[i] - current[i];
-            dist_sq += d * d;
-          }
-          GraspTaskConfig::StagingCandidate candidate;
-          candidate.pose = pose;
-          for (std::size_t i = 0; i < names.size(); ++i) {
-            candidate.joints[names[i]] = sol[i];
-          }
-          scored.push_back({dist_sq, candidate});
-        }
+      std::vector<std::future<void>> jobs;
+      const auto rolls = toolRollsRad();
+      jobs.reserve(rolls.size());
+      for (const double roll : rolls) {
+        jobs.push_back(std::async(
+          std::launch::async,
+          [this, roll, keep_roll_pose, base, group, names, current,
+           &ik_mutex, &scored_mutex, &scored]()
+          {
+            Eigen::Isometry3d pose = keep_roll_pose;
+            if (std::abs(roll) > 1.0e-12) {
+              pose.linear() = keep_roll_pose.linear() *
+                Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitZ());
+            }
+            auto collision_env =
+              std::make_shared<collision_detection::CollisionEnvFCL>(
+                base->getRobotModel());
+            const collision_detection::AllowedCollisionMatrix collision_acm(
+              *base->getRobotModel()->getSRDF());
+            for (int attempt = 0; attempt < 5; ++attempt) {
+              moveit::core::RobotState probe = *base;
+              if (attempt > 0) {
+                probe.setToRandomPositions(group);
+              }
+              bool ik_ok = false;
+              {
+                std::lock_guard<std::mutex> lock(ik_mutex);
+                ik_ok = probe.setFromIK(group, pose, tip_frame_, 0.1);
+              }
+              if (!ik_ok) {
+                continue;
+              }
+              probe.update();
+              if (!probe.satisfiesBounds(group)) {
+                continue;
+              }
+              collision_detection::CollisionRequest collision_request;
+              collision_detection::CollisionResult collision_result;
+              collision_env->checkSelfCollision(
+                collision_request, collision_result, probe, collision_acm);
+              if (collision_result.collision) {
+                continue;
+              }
+              std::vector<double> sol;
+              probe.copyJointGroupPositions(group, sol);
+              double dist_sq = 0.0;
+              for (std::size_t i = 0; i < sol.size(); ++i) {
+                const double d = sol[i] - current[i];
+                const double weight =
+                  names[i].find("wrist") != std::string::npos ? 2.5 : 1.0;
+                dist_sq += weight * d * d;
+              }
+              dist_sq += 4.0 * roll * roll;
+              GraspTaskConfig::StagingCandidate candidate;
+              candidate.pose = pose;
+              for (std::size_t i = 0; i < names.size(); ++i) {
+                candidate.joints[names[i]] = sol[i];
+              }
+              std::lock_guard<std::mutex> lock(scored_mutex);
+              scored.push_back({dist_sq, candidate});
+            }
+          }));
+      }
+      for (auto & job : jobs) {
+        job.get();
       }
       std::sort(
         scored.begin(), scored.end(),
         [](const Scored & a, const Scored & b) {return a.dist_sq < b.dist_sq;});
       std::vector<GraspTaskConfig::StagingCandidate> out;
-      out.reserve(std::min<std::size_t>(scored.size(), 3U));
+      out.reserve(std::min<std::size_t>(scored.size(), 5U));
       for (const auto & item : scored) {
-        if (out.size() >= 3U) {
+        if (out.size() >= 5U) {
           break;
         }
         out.push_back(item.candidate);

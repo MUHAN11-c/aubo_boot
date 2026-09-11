@@ -66,6 +66,7 @@ target_include_directories(peach_manipulation_node PRIVATE include)
 # ament_target_dependencies）；节点非导出目标，一律 PRIVATE。
 target_link_libraries(peach_manipulation_node PRIVATE
   ${PROJECT_NAME}_core
+  Threads::Threads
   nlohmann_json::nlohmann_json
   moveit_ros_planning_interface::moveit_move_group_interface
   moveit_ros_planning_interface::moveit_planning_scene_interface

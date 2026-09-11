@@ -276,16 +276,21 @@ void ManipulationSkillsNode::onCheckReachability(
         moveit::core::RobotState probe = seed;
         return probe.setFromIK(group, goal, tip_frame_, 0.05);
       };
-    // 预抓取停位检查（keep-roll 先行，失败才 45°×8 滚转，参考方案 L18）：
+    // 预抓取停位检查（keep-roll 先行，失败才 ±30°/±60°，与接近扫描同表）：
     // 圆筒套袋的刀口滚转是自由参数，keep-roll 单姿态无解 ≠ 全滚转无解。
     bool pregrasp_ok = ik_quick(target);
     if (!pregrasp_ok && have_current_tip) {
-      for (int roll_idx = 1; roll_idx < 8 && !pregrasp_ok; ++roll_idx) {
+      for (const double roll : toolRollsRad()) {
+        if (std::abs(roll) < 1.0e-12) {
+          continue;
+        }
         Eigen::Isometry3d probe_pose = target;
         probe_pose.linear() = target.linear() *
-          Eigen::AngleAxisd(
-          roll_idx * M_PI / 4.0, Eigen::Vector3d::UnitZ());
+          Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitZ());
         pregrasp_ok = ik_quick(probe_pose);
+        if (pregrasp_ok) {
+          break;
+        }
       }
     }
     response->reachable[i] = pregrasp_ok;
@@ -497,7 +502,7 @@ bool MoveItMotionInterface::goToPhotoPose(
   // 先试 Pilz PTP 管线（点到点关节空间），失败回退 OMPL（同 planOrMoveTip 风格）。
   move_group_->setPlanningPipelineId(config_.pilz_pipeline);
   move_group_->setPlannerId("PTP");
-  move_group_->setPlanningTime(config_.photo_planning_time_s);
+  move_group_->setPlanningTime(config_.photo_ptp_planning_time_s);
   move_group_->setNumPlanningAttempts(std::max(1, config_.default_planning_attempts));
   move_group_->setMaxVelocityScalingFactor(config_.transit_velocity_scaling);
   move_group_->setMaxAccelerationScalingFactor(config_.transit_acceleration_scaling);
@@ -509,6 +514,7 @@ bool MoveItMotionInterface::goToPhotoPose(
       moveit::core::errorCodeToString(result).c_str());
     move_group_->setPlanningPipelineId(config_.fallback_pipeline);
     move_group_->setPlannerId("");
+    move_group_->setPlanningTime(config_.photo_planning_time_s);
     result = move_group_->plan(plan);
   }
   move_group_->setPlanningTime(config_.default_planning_time_s);

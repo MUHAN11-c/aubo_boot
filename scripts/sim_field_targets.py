@@ -7,11 +7,11 @@
 （skip_observation，跳过扫描段），验证阶段执行器的完整接近轨迹设计——
 与正式接触段同一条 C++ 路径：``goToPhotoPose``（有记录的接近则原路返程，
 否则 Pilz PTP，失败才 OMPL）
-→ classifyApproach → 刀口滚转 → LIN 或先到袋底 G
-→ 预抓取停位验证。脚本**不**再直连 JTC 绕零位复位：连开下一颗时臂停在
+→ classifyApproach → staging PTP 或 LIN-align+LIN → 预抓取停位验证。脚本**不**再直连 JTC 绕零位复位：连开下一颗时臂停在
 上一颗 Hold，由周期内 ``goToPhotoPose`` 回拍照位（与真机同一函数）。
-``--random N`` 在 09-09 现场正常坐标包络内按感知约束随机位姿（上半球轴、
-弦长 ≤ 笛卡尔上限、排除外参故障期 |entry|≈2.1 m 界外点）。
+``--random N`` 默认在现场典型包络内采感知合法位姿（上半球且
+``axis_z≥0.70``、``|entry|≤1.02``、弦长 ≤ 笛卡尔上限）。感知算法允许水平袋；
+``--envelope algorithm`` 才把一次现场近水平袋（1021_1）当成上半球均匀先验。
 
 须已起 ``harvest_system.launch.py hardware_mode:=mock camera_enabled:=false``
 （RViz2 随栈启动；lifecycle 拉齐全部节点）。mock 无相机与 io 控制器，本脚本
@@ -26,6 +26,8 @@ camera_link→camera_depth_optical_frame 静态 TF。仅仿真使用，不碰真
   python3 scripts/sim_field_targets.py --case 1437_0 1639_1
   python3 scripts/sim_field_targets.py --random 16 --seed 20260910
   python3 scripts/sim_field_targets.py --random 100 --seed 20260910 --velocity 1.0
+  python3 scripts/sim_field_targets.py --random 100 --envelope algorithm --seed 20260911 --velocity 1.0
+  python3 scripts/sim_field_targets.py --random 30 --envelope algorithm --seed 20260911
 """
 from __future__ import annotations
 
@@ -53,14 +55,23 @@ JOINT_ORDER = (
 GOAL_TIMEOUT_S = 300.0
 # 与 peach_manipulation.yaml mtc_approach_cartesian_max_distance_m 对齐。
 CART_MAX_M = 0.80
-# 袋囊 keepout，与 peach_manipulation.yaml mtc_approach_keepout_* 对齐。
-KEEP_R_M = 0.12
-KEEP_AXIAL_M = 0.12
-# 感知外参故障期界外点（1510 target_3 / 1606 target_5）量级，禁止采到。
-ENTRY_NORM_MAX_M = 1.15
+# 感知算法：袋底→袋口只许上半球（axis_z≥0，含水平）。现场 09-09 14 袋里
+# 13 袋 axis_z≥0.70；仅 1021_1 ≈0.27 近水平。architecture 现场包络
+# |entry|≤1.02 ∧ axis_z≥0.70。算法档保留水平与 |entry|≤1.16 作压测（含现场 1639_0）。
+ENTRY_NORM_MAX_M = 1.16
+TYPICAL_ENTRY_NORM_M = 1.02
+TYPICAL_AXIS_Z_MIN = 0.70
 ENTRY_JITTER_M = 0.04
 AXIS_TILT_DEG = 20.0
 AABB_PAD_M = 0.05
+# 袋囊 keepout，与 peach_manipulation.yaml mtc_approach_keepout_* 对齐。
+KEEP_R_M = 0.12
+KEEP_AXIAL_M = 0.12
+
+
+def _in_typical_envelope(entry, axis) -> bool:
+    n = math.sqrt(sum(v * v for v in entry))
+    return n <= TYPICAL_ENTRY_NORM_M and axis[2] >= TYPICAL_AXIS_Z_MIN
 
 
 def _norm(v):
@@ -171,12 +182,12 @@ def _sample_upper_hemisphere(rng, min_z):
     return _norm((rho * math.cos(phi), rho * math.sin(phi), z))
 
 
-def _pose_ok(entry, axis, photo_tcp, box):
+def _pose_ok(entry, axis, photo_tcp, box, axis_z_min, entry_norm_max):
     if any(not math.isfinite(v) for v in entry + axis):
         return False
-    if axis[2] < 0.0:
+    if axis[2] < axis_z_min:
         return False
-    if math.sqrt(sum(v * v for v in entry)) > ENTRY_NORM_MAX_M:
+    if math.sqrt(sum(v * v for v in entry)) > entry_norm_max:
         return False
     if math.dist(entry, photo_tcp) > CART_MAX_M:
         return False
@@ -186,17 +197,32 @@ def _pose_ok(entry, axis, photo_tcp, box):
     return True
 
 
-def sample_random_cases(templates: dict, n: int, seed: int, photo_tcp) -> dict:
-    """在现场正常坐标包络内采感知合法随机位姿。
+def sample_random_cases(
+        templates: dict, n: int, seed: int, photo_tcp,
+        envelope: str = 'typical') -> dict:
+    """在现场坐标包络内采感知合法随机位姿。
 
+    typical：与 architecture 现场包络一致（axis_z≥0.70、|entry|≤1.02）。
+    algorithm：感知 clamp 下界（axis_z≥0）+ |entry|≤1.16，含近水平压测。
     半扰动现场点（入口高斯抖动 + 轴小倾角），半在 AABB 内均匀入口 +
     上半球轴。入口=袋底；颈=底+轴×现场袋长。
     """
+    if envelope not in ('typical', 'algorithm'):
+        raise ValueError(f'未知 envelope={envelope!r}')
     rng = random.Random(seed)
     ids = list(templates)
     entries = [templates[k]['entry_xyz'] for k in ids]
     box = _aabb(entries, AABB_PAD_M)
-    min_axis_z = min(templates[k]['axis'][2] for k in ids)
+    if envelope == 'typical':
+        axis_z_min = TYPICAL_AXIS_Z_MIN
+        entry_norm_max = TYPICAL_ENTRY_NORM_M
+    else:
+        axis_z_min = 0.0
+        entry_norm_max = ENTRY_NORM_MAX_M
+    hemisphere_floor = axis_z_min
+    if envelope == 'algorithm':
+        hemisphere_floor = min(templates[k]['axis'][2] for k in ids)
+        hemisphere_floor = max(0.0, float(hemisphere_floor))
     out = {}
     attempts = 0
     while len(out) < n and attempts < n * 80:
@@ -215,7 +241,7 @@ def sample_random_cases(templates: dict, n: int, seed: int, photo_tcp) -> dict:
             src_id = rng.choice(ids)
             src = templates[src_id]
             entry = [rng.uniform(lo, hi) for (lo, hi) in box]
-            axis = _sample_upper_hemisphere(rng, min_axis_z)
+            axis = _sample_upper_hemisphere(rng, hemisphere_floor)
             length = _bag_length(src)
             travel = float(src.get('travel_m') or 0.0)
         if length < 0.03:
@@ -224,7 +250,8 @@ def sample_random_cases(templates: dict, n: int, seed: int, photo_tcp) -> dict:
         neck = _add(bottom, _scale(axis, length))
         bottom, neck, axis = _clamp_upper_hemisphere(bottom, neck, axis)
         entry = list(bottom)
-        if not _pose_ok(entry, axis, photo_tcp, box):
+        if not _pose_ok(
+                entry, axis, photo_tcp, box, axis_z_min, entry_norm_max):
             continue
         cid = f'rand_{len(out):02d}'
         out[cid] = {
@@ -237,6 +264,7 @@ def sample_random_cases(templates: dict, n: int, seed: int, photo_tcp) -> dict:
             'travel_m': round(travel, 6),
             'sample_kind': kind,
             'sampled_from': src_id,
+            'envelope': envelope,
         }
     if len(out) < n:
         raise RuntimeError(
@@ -320,7 +348,11 @@ def main() -> int:
         help='targets_20260909 用例 id；all=全部（与 --random 互斥）')
     parser.add_argument(
         '--random', type=int, default=0, metavar='N',
-        help='在现场正常坐标包络内按感知约束采 N 个随机位姿')
+        help='在现场坐标包络内按感知约束采 N 个随机位姿（默认 typical）')
+    parser.add_argument(
+        '--envelope', choices=('typical', 'algorithm'), default='typical',
+        help='typical=axis_z≥0.70 且 |entry|≤1.02（现场多数袋）；'
+             'algorithm=上半球含水平、|entry|≤1.16（压测）')
     parser.add_argument(
         '--seed', type=int, default=20260910,
         help='--random 的 RNG 种子')
@@ -336,7 +368,7 @@ def main() -> int:
     photo_tcp = _photo_tcp(book)
     if args.random > 0:
         cases = sample_random_cases(
-            templates, args.random, args.seed, photo_tcp)
+            templates, args.random, args.seed, photo_tcp, args.envelope)
         selected = list(cases)
     else:
         cases = templates
@@ -828,6 +860,7 @@ def main() -> int:
             'photo_detour_detail': photo_detour_detail,
             'sample_kind': case.get('sample_kind'),
             'sampled_from': case.get('sampled_from'),
+            'envelope': case.get('envelope'),
         }
         ack_cli.wait_for_service(timeout_sec=5.0)
         ack = ack_cli.call_async(Trigger.Request())
@@ -843,7 +876,7 @@ def main() -> int:
           '不经脚本 JTC', flush=True)
     if args.random > 0:
         print(f'随机位姿 {len(selected)} 个 seed={args.seed} '
-              '（现场包络 + 感知上半球轴）', flush=True)
+              f'envelope={args.envelope}', flush=True)
 
     outcomes = []
     out_path = RESULTS_DIR / f'sim_field_targets_{time.strftime("%Y%m%d_%H%M%S")}.jsonl'
@@ -877,7 +910,7 @@ def main() -> int:
                       f"起={tcp['start_xyz']} 早段={tcp['head_xyz']} "
                       f"终={tcp['end_xyz']}" + keep,
                       flush=True)
-            time.sleep(0.5)
+            time.sleep(0.05 if args.velocity > 0.0 else 0.5)
 
     print(f'\n结果已写入 {out_path}')
     passed = sum(
@@ -885,6 +918,16 @@ def main() -> int:
         if r.get('outcome') == ExecuteTarget.Result.SUCCEEDED)
     keepout_hits = sum(1 for r in outcomes if r.get('detour_flag'))
     print(f'成功 {passed}/{len(outcomes)}；接近段袋囊 keepout {keepout_hits}')
+    env_rows = [
+        r for r in outcomes
+        if r.get('entry_xyz') and r.get('axis') and
+        _in_typical_envelope(r['entry_xyz'], r['axis'])]
+    env_ok = sum(
+        1 for r in env_rows
+        if r.get('outcome') == ExecuteTarget.Result.SUCCEEDED)
+    print(
+        f'现场典型包络 (|entry|≤{TYPICAL_ENTRY_NORM_M:g} ∧ '
+        f'axis_z≥{TYPICAL_AXIS_Z_MIN:g}) {env_ok}/{len(env_rows)}')
     rclpy.shutdown()
     return 0
 

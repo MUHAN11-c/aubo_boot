@@ -1,18 +1,19 @@
 # serial_imu
 
-USB 串口 IMU（QinHeng CH340 `1a86:7523`，0xA4 寄存器协议）。**不是**采摘五包，不进 `harvest_system`，lifecycle 不管。
+USB 串口 IMU（QinHeng CH340 `1a86:7523`，0xA4 寄存器协议）。**不是**采摘五包，lifecycle 不管。随 `harvest_system` 起（`imu_enabled` 默认 true），不进只读 bringup。
 
 现行行为以源码为准。栈内摘要：[architecture.md](../../docs/architecture.md) §3 `serial_imu`、[io.md](../../docs/io.md)、[testing.md](../../docs/testing.md)（怎么跑）。本文件是本包现场手册。
 
 ```
 serial_imu/
-  serial_imu/imu_node.py      # 节点：串口、话题、TF、工具偏移
-  serial_imu/protocol.py      # 无 ROS：切帧、校验、缩放
-  serial_imu/tool_offset.py   # 无 ROS：偏移解算纯核（安装共轭、清零门）
+  serial_imu/imu_node.py      # 节点：串口、原始/修正两路、TF、/diagnostics
+  serial_imu/protocol.py      # 无 ROS：切帧、校验、缩放、协方差对角
+  serial_imu/frame.py         # 无 ROS：坐标系修正（倒装 Rx）+ parent 对齐
   config/serial_imu.yaml
   launch/serial_imu.launch.py
   rviz/serial_imu.rviz
-  test/test_tool_offset.py    # 纯核 pytest（无 ROS）
+  test/test_protocol.py
+  test/test_frame.py
   udev/99-imu-usb-serial.rules
 ```
 
@@ -44,7 +45,6 @@ dmesg -T | grep -iE 'ttyUSB|ch341|1a86'
 ## 2. 固定串口名（udev）
 
 ```bash
-# 安装规则（需先 source install，或从源码拷）
 sudo cp $(ros2 pkg prefix serial_imu)/share/serial_imu/udev/99-imu-usb-serial.rules \
   /etc/udev/rules.d/
 # 源码副本：src/serial_imu/udev/99-imu-usb-serial.rules
@@ -94,125 +94,126 @@ groups                  # 须含 dialout
 | mag | int16 / 1000，再 ×1e-4 | 协议高斯 → `MagneticField` 特斯拉 |
 | 四元数 | int16 / 10000 | ROS xyzw，**`w=Q0`，`x=Q1`** |
 
-`sensor_msgs/Imu` 发布：`linear_acceleration`、`angular_velocity`（rad/s）、`orientation`（xyzw）。协方差：`data` 用对角小量；`data_raw` 的 `orientation_covariance[0]=-1`（表示无融合姿态）。
+`sensor_msgs/Imu` 协方差：该字段未提供 → `covariance[0]=-1`；未知 → 全 0。默认 `gyro_available: false`（09-09 实测陀螺恒 0），故两路 `angular_velocity_covariance[0]=-1`。禁止用对角小数假装有标定。
 
-数据口径（2026-09-09 实测，见 §8）：
+`/diagnostics`（`diagnostic_updater`）：串口开闭 + `imu/data` 帧率（期望 `expected_rate_hz` 75，容差窗 0.6×–1.4×）。不进采摘 observability。
 
-- **陀螺三轴输出恒为 0**（int16 原始零）：`/imu/data_raw.angular_velocity` 与 `/imu/data.angular_velocity` 不可用，姿态唯一来源是模组融合四元数。
-- `mag_level=0`（无磁融合），yaw 靠模组内部陀螺积分：51 s 静止实测总漂移 0.29°（yaw ≈0.06 deg/min）；每次接触前清零的口径下够用，>10 min 长会话未测。
-- 帧率 ≈74.7 Hz；静止 acc 噪声 std ≈0.003 m/s²；|acc|≈9.6（模组自标定刻度，略低于 9.81，不影响姿态）。
+数据口径（2026-09-09 实测）：
+
+- **陀螺三轴输出恒为 0**。姿态唯一来源是融合四元数。
+- 模组原始静止比力沿 **−Z**（倒装芯片）；`/imu/data` 经 `frame.py` 标准 **Rx(180°)** 后静止比力沿 **+Z**。贴装残差不要写进 `frame_rpy_deg`。
+- `mag_level=0`（无磁融合），yaw 靠模组内部陀螺积分：51 s 静止实测总漂移 0.29°。
+- 帧率 ≈74.7 Hz；静止 acc 噪声 std ≈0.003 m/s²；|acc|≈9.6。
 
 ---
 
-## 4. ROS 2 集成（imu_tools 惯例）
+## 4. ROS 2 集成
 
-对齐 [imu_tools](https://index.ros.org/p/imu_tools/) / 常见驱动：raw 给滤波器，融合姿态另发 `imu/data`。本机已有 `imu_filter_madgwick`，**默认不起**（姿态已在模组里）。
+话题名沿用 [imu_tools](https://index.ros.org/p/imu_tools/)。本机已有 `imu_filter_madgwick`，**默认不起**（姿态已在模组里）。
 
-QoS：`SensorDataQoS`（best_effort, volatile）。RViz 订 Imu 必须 Reliability = **Best Effort**，默认 Reliable 会收不到。
+两路由 `frame.py` 分清，节点只转发：
 
 | 名字 | 类型 | 含义 |
 |------|------|------|
-| `/imu/data` | `sensor_msgs/Imu` | 模组四元数 + acc/gyro（gyro 恒 0）；RViz Imu 插件订这个 |
-| `/imu/data_raw` | `sensor_msgs/Imu` | 仅 acc/gyro（gyro 恒 0），`orientation_covariance[0]=-1` |
-| `/imu/mag` | `sensor_msgs/MagneticField` | 特斯拉 |
+| `/imu/data_raw` | `sensor_msgs/Imu` | **原始**：模组体轴，协议原样（含姿态） |
+| `/imu/data` | `sensor_msgs/Imu` | **修正**：`frame_rpy_deg`（默认 Rx(180°)）+ 可选 `align_to_parent`。RViz Imu 插件订这个 |
+| `/imu/mag` | `sensor_msgs/MagneticField` | 特斯拉，已随修正转到 `imu_link` |
 | `/imu/temp` | `sensor_msgs/Temperature` | °C |
+| `/diagnostics` | `diagnostic_msgs/DiagnosticArray` | 串口 + 帧率 |
 | TF `parent→imu_link` | 静态 | 安装位，单位姿态。默认 parent=`world` |
-| TF `parent→imu_attitude` | 动态 | 模组四元数，拧模块时这个轴在转 |
-| `/imu/tool_offset` | `geometry_msgs/QuaternionStamped` | 工具偏移（`tool_axis` 系），仅 `tool_offset.enabled` 时发 |
-| 服务 `imu/tool_offset/zero` | `std_srvs/Trigger` | 零位采集（清零），每次接触前调用，同步返回成败 |
-| TF `tool_axis→tcp_actual` | 动态 | 实际工具姿态（偏移旋转），供机械臂 TCP 跟随 |
+| 服务 `imu/align_to_parent` | `std_srvs/Trigger` | 把当前 IMU↔parent 差当误差清掉；叠 TCP 时用 |
 
-`header.frame_id` = `imu_link`。
+QoS：`Reliable` + `Volatile` + KeepLast 10。`header.frame_id` = `imu_link`。
 
-**不要把姿态写进 `imu_link`。** 姿态只在 `/imu/data.orientation` 和可选的 `imu_attitude`。RViz Imu 插件会按 TF 把姿态变到 Fixed Frame；若 `imu_link` 已经转过一次，看起来像轴拧反、转两次。接手臂：`tf_parent_frame:=base_link`，否则 `world` 和臂的 `base_link` 是两棵树。
+**不要把姿态写进 `imu_link`。** 姿态只在 `/imu/data.orientation`。RViz Imu 插件会按 TF 把姿态变到 Fixed Frame；若 `imu_link` 已经转过一次，看起来像轴拧反、转两次。接手臂：`tf_parent_frame:=base_link` 或 `tcp`，否则 `world` 和臂的 `base_link` 是两棵树。
 
 口未开时仍发静态 `parent→imu_link`，避免 RViz `Fixed Frame [world] does not exist`。
+
+无磁融合，上电 yaw 任意。**不要**把这个数写进 `frame_rpy_deg`。`align_to_parent` 把当前 IMU↔TCP 差当误差清掉；每次上电或接触前调一次服务（`align_on_start` 默认会自动采）。
 
 ---
 
 ## 5. 启动
 
-缺 Imu 插件时 launch 会提示（不阻止启动）：
-
-```bash
-sudo apt install ros-jazzy-imu-tools    # 含 rviz_imu_plugin；madgwick 常已随发行版装上
-```
+日常跟采摘整栈（mock / real 相同，默认已开 IMU）：
 
 ```bash
 source /opt/ros/jazzy/setup.bash
 cd /home/mu/Desktop/aubo_e5_jazzy_ws
-colcon build --packages-select serial_imu
 source install/setup.bash
 sudo usermod -aG dialout $USER
 newgrp dialout
+ros2 launch peach_executor harvest_system.launch.py \
+  hardware_mode:=mock camera_enabled:=false
+# 真机：hardware_mode:=real camera_enabled:=true robot_ip:=169.254.10.98
+# 关掉 IMU：imu_enabled:=false
+```
+
+整栈里 IMU 挂在 `tcp` 上并对齐，不起自己的 RViz。画面在 MoveIt RViz 的 **Peach → Imu**（订 `/imu/data`，盒子在 TCP）。不要找 TF 轴里的静止 `imu_link`。再对齐一次：
+
+```bash
+ros2 service call /imu/align_to_parent std_srvs/srv/Trigger
+```
+
+不要另起 `serial_imu.launch.py` 与整栈并行（预检会拒启）。
+
+只看 IMU、不起采摘。缺 Imu 插件时 launch 会提示（不阻止启动）：
+
+```bash
+sudo apt install ros-jazzy-imu-tools    # 含 rviz_imu_plugin
+```
+
+```bash
+colcon build --packages-select serial_imu
+source install/setup.bash
 ros2 launch serial_imu serial_imu.launch.py
 ```
 
 日志须有 `已打开 /dev/imu`（或 by-id）。`use_rviz:=false` 只起驱动。
 
 ```bash
-ros2 topic echo /imu/data --qos-reliability best_effort
+ros2 topic echo /imu/data
+ros2 topic echo /imu/data_raw
 ros2 topic hz /imu/data
-ros2 run tf2_ros tf2_echo world imu_attitude
+ros2 topic echo /diagnostics
 ```
 
-和采摘 RViz 叠在一起（装自适应圆柱工具 B 时加 `tool_offset_enabled:=true`，并配 `tf_parent_frame:=base_link`；须有 robot_state_publisher 发臂链 TF）：
+叠到已有 URDF（不起采摘）：
 
 ```bash
-ros2 launch serial_imu serial_imu.launch.py use_rviz:=false tf_parent_frame:=base_link tool_offset_enabled:=true
-ros2 service call /imu/tool_offset/zero std_srvs/srv/Trigger   # 零位采集
-ros2 run tf2_ros tf2_echo tool_axis tcp_actual                 # 看偏移
+ros2 launch serial_imu serial_imu.launch.py use_rviz:=false \
+  tf_parent_frame:=tcp align_to_parent:=true
 ```
 
-Fixed Frame 改成 `base_link`。
+Fixed Frame 用 `base_link`。RViz Imu 插件 `fixed_frame_orientation=true`：盒子在 TCP 位置，姿态用对齐后的 `/imu/data`。
+
+纯核（零 ROS）：
+
+```bash
+PYTHONPATH=src/serial_imu pytest src/serial_imu/test/test_protocol.py src/serial_imu/test/test_frame.py
+```
 
 ---
 
 ## 6. RViz 里看到的东西
 
-配置：`rviz/serial_imu.rviz`。Fixed Frame = `world`。TF 白名单默认只画 `world` / `imu_link` / `imu_attitude`。
+配置：`rviz/serial_imu.rviz`。Fixed Frame = `world`。显示对齐 [imu_tools `rviz_imu_plugin`](https://github.com/CCNYRoboticsLab/imu_tools) 源码视觉默认。
 
-### 6.1 为什么会冒出很多坐标系
+RViz **TF** 显示默认会画出当前图里**所有** `/tf`。本配置白名单只留 `world` / `imu_link`，且 **不画 TF 轴**（避免和插件 Axes 叠）。只看 IMU 时不要开 `harvest_system`。`imu_link` 是正装安装位（静态，姿态不写进此帧）。
 
-RViz **TF** 显示默认会画出当前图里**所有** `/tf`。采摘栈若同时在跑，那些是 URDF **真坐标系**，不是 IMU 垃圾帧：
+### Displays → Imu（`rviz_imu_plugin`）
 
-| 坐标系 | 干什么 |
-|--------|--------|
-| `base_link` | 臂基座，规划/感知原点 |
-| `shoulder_Link` … `wrist3_Link` | 六轴连杆 |
-| `camera_link` / `camera_*_optical_frame` | 手眼与点云 |
-| `tcp` / `tool_axis` / `sleeve_mouth` | 套袋工具 |
-| `world` | IMU 可视化固定参考 |
-| `imu_link` | 模组安装位 |
-| `imu_attitude` | 模组姿态 |
+官方插件订 `/imu/data`，在 **Fixed Frame** 里画姿态（`fixed_frame_orientation=true`）：
 
-看 IMU 只需后三个。Displays → TF → Frames → All Enabled 可再勾臂链。只看 IMU 时不要开 `harvest_system`。
+| 项 | 本配置 |
+|----|--------|
+| Topic | `/imu/data`，Reliable |
+| `fixed_frame_orientation` | 开 |
+| Axes | 开，scale **0.15 m** |
+| Box | 开，**0.07×0.10×0.03 m** 灰 |
+| Acceleration | 开，scale **0.05**，黄，derotate |
 
-### 6.2 `imu_link Axes` 和 `imu_attitude Axes`
-
-都是 RViz **Axes**：在某个 TF 原点画 RGB=XYZ。
-
-| 显示 | 含义 | 拧模块时 |
-|------|------|----------|
-| `imu_link Axes` | 安装坐标系（静态单位姿态） | **不该转** |
-| `imu_attitude Axes` | 把模组四元数画成会动的轴 | **跟着转** |
-
-`imu_attitude` 不进规划、不是 URDF 连杆。TF 显示若已勾这两个 frame，再开两路 Axes 会重叠，可关其一。
-
-### 6.3 Displays → Imu（插件）
-
-`rviz_imu_plugin` 画 `/imu/data`，不是 URDF。
-
-| 项 | 默认 | 含义 |
-|----|------|------|
-| Topic / Status | `/imu/data`，Best Effort | `N messages received` 才算订上 |
-| `fixed_frame_orientation` | 开 | 用 Fixed Frame（`world`）摆姿态；关掉容易像转两次 |
-| Box properties | 关 | 小长方体跟 `orientation` 转，表示壳体朝向；scale 单位米 |
-| Axes properties | 开 | 插件自己的三色轴，与 `imu_attitude Axes` 同类，会叠 |
-| Acceleration | 关 | 画 `linear_acceleration`。静止应接近「天」（约 9.8） |
-| Derotate acceleration | 开 | 先用姿态转到世界再画，静止接近世界 +Z；关则画传感器三轴 |
-
-建议：姿态用 **插件 Axes 或 Box 二选一**；核对重力再开 Acceleration。陀螺仪没有单独箭头。
+拧模块：RGB 轴和灰盒子跟着转。黄箭头是 **比力**（accelerometer specific force），不是重力向下：静止时桌子往上托，读数指向天空。`Derotate acceleration` 用融合四元数把传感器系读数转到 `world`，姿态与加速度自洽时箭头应接近世界 **+Z**。关掉 Derotate 则沿 `imu_link` 画：正装发布后应沿盒子 **+Z**。
 
 ---
 
@@ -228,46 +229,20 @@ RViz **TF** 显示默认会画出当前图里**所有** `/tf`。采摘栈若同�
 | `frame_id` | `imu_link` | Imu header |
 | `read_period_s` | 0.005 | 读串口定时器 |
 | `publish_tf` | true | 静态 parent→imu_link |
-| `tf_parent_frame` | `world` | 接手臂改 `base_link` |
-| `publish_attitude_tf` | true | 动态 parent→imu_attitude |
-| `attitude_frame_id` | `imu_attitude` | |
-| `tool_offset.enabled` | `false` | 工具偏移总开关（launch `tool_offset_enabled` 可覆盖） |
-| `tool_offset.base_frame` | `base_link` | 臂运动学查询的根 |
-| `tool_offset.nominal_frame` | `tool_axis` | 名义工具系（URDF，随法兰刚性） |
-| `tool_offset.output_frame` | `tcp_actual` | 偏移 TF 子坐标系名 |
-| `tool_offset.mount_rpy_deg` | `[177, 0, 0]` | 模组在工具系安装姿态，**必须标定**（§8） |
-| `tool_offset.pivot_depth_m` | `0.0` | 自适应机构铰点深度（工具系 −Z）；0=绕筒口纯旋转 |
-| `tool_offset.zero_on_start` | true | 起动后自动清零一次（需 TF 与重力自检同过） |
-| `tool_offset.max_tilt_deg` | `15.0` | 偏移告警阈值（只告警不停发，停套入由上层判） |
-| `tool_offset.zero_gravity_check` | true | 清零重力自检门 |
-| `tool_offset.zero_gravity_tool` | `[0, 0, 1]` | 清零姿态下工具系预期重力方向 |
-| `tool_offset.zero_gravity_tol_deg` | `5.0` | 自检容差 |
+| `tf_parent_frame` | `world` | 接手臂改 `base_link` 或 `tcp` |
+| `frame_rpy_deg` | `[180, 0, 0]` | 模组体轴→`imu_link`：标准倒装 Rx(180°)。物理正装改 `[0,0,0]`。贴歪/无磁 yaw 不写这里 |
+| `align_to_parent` | false | true=把 IMU 相对 `tf_parent_frame` 的当前差当误差清掉（叠 TCP） |
+| `align_on_start` | true | `align_to_parent` 时启动自动采一次 |
+| `align_reference_frame` | `base_link` | 对齐查 TF：reference→parent |
+| `gyro_available` | false | false → 陀螺 `covariance[0]=-1` |
+| `angular_velocity_variance` | 0 | 仅 `gyro_available` 时用；0=未知 |
+| `linear_acceleration_variance` | 0 | 加速度对角方差；0=未知 |
+| `orientation_variance` | 0 | 融合姿态对角方差；0=未知 |
+| `magnetic_field_variance` | 0 | 磁场对角方差；0=未知 |
+| `expected_rate_hz` | 75 | `/diagnostics` 帧率期望 |
 
 ---
 
-## 8. 工具偏移（自适应圆柱工具 B）
+## 8. 不负责
 
-模组装在工具 B 上，测**实际工具相对名义工具系 `tool_axis` 的姿态偏移**，供机械臂实时调整 TCP 跟随。不进 `harvest_system`/lifecycle、不订 peach 话题（只订 TF）。
-
-**解算口径**：清零时刻 t0 工具居中（设计稿方案 B「零位在每次接触前采集」），偏移 = `conj(q_bn_t) ⊗ q_bn0 ⊗ M ⊗ Δ ⊗ M⁻¹`，其中 `Δ` 为模组四元数自 t0 的变化（体系表达）、扣除臂自身运动项、`M = R_tool_imu` 安装共轭。发布为 TF `tool_axis→tcp_actual`（rotation=偏移，translation 按 `pivot_depth_m`，默认 0）与话题 `/imu/tool_offset`。刚性场景自检：清零恒等、臂动恒等（test_tool_offset.py 覆盖）。
-
-**安装共轭 M 必须标定，不是精度问题而是方向问题**：模组现况为倒装（2026-09-09 实测 roll≈+177°）。若 M 按单位阵处理，偏移轴经倒装镜像——「前倾 +5°」会被报成「后倾 −5°」，臂朝反方向跟随构成正反馈。
-
-标定流程（把 `mount_rpy_deg` 调到清零服务在零位返回成功为止）：
-
-1. 臂走到零位：工具轴竖直、开口朝 +Z（URDF 零位，`tf2_echo base_link tool_axis` 应≈恒等姿态）。
-2. 把模组静置姿态的 roll/pitch 填入 `mount_rpy_deg`（当前已知 roll≈+177°；pitch/yaw 实测回填，yaw 按贴装约定：模组 X 对工具 X）。
-3. 零位下调 `ros2 service call /imu/tool_offset/zero std_srvs/srv/Trigger`：重力自检（容差 5°）通过即返回 success；失败信息会指出安装/姿态不符。
-4. 验证：手拧工具几度，`tf2_echo tool_axis tcp_actual` 转向须与手感一致。
-
-运行约束：
-
-- 偏移 TF/话题 stamp 停更 = IMU 或臂 TF 失效，**消费端必须按 stamp 新鲜度停止套入**（设计稿：传感器失效停止套入，不降级）。
-- 姿态偏移不得替代抓取许可（`GraspDecision.allowed` 仍唯一权威）。
-- yaw 漂移量级见 §3 数据口径；超长会话未测，接触前务必清零。
-
----
-
-## 9. 不负责
-
-采摘调度、MoveIt、底盘 `/scan`、生命周期名单。不替代预留的底盘 IMU。
+采摘调度、MoveIt、底盘 `/scan`、生命周期名单。不替代预留的底盘 IMU。不做自适应工具偏移（`tcp_actual` 臂侧缝仍预留、未实现）。

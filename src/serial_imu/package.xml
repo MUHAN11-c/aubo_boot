@@ -6,7 +6,7 @@
   <version>0.1.0</version>
   <description>
     USB 串口 IMU（CH340 / 0xA4）：udev 固定口名、主动上报解析、
-    imu_tools 话题（imu/data、data_raw、mag、temp）与 TF。不是采摘五包。
+    原始/修正两路 imu_tools 话题与静态 TF。不是采摘五包。
   </description>
   <maintainer email="2155413529@qq.com">wjz</maintainer>
   <license>BSD-3-Clause</license>
@@ -14,14 +14,16 @@
   <buildtool_depend>ament_python</buildtool_depend>
 
   <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>diagnostic_msgs</exec_depend>
+  <exec_depend>diagnostic_updater</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>python3-serial</exec_depend>
+  <exec_depend>rcl_interfaces</exec_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>rviz2</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
-  <exec_depend>std_msgs</exec_depend>
   <exec_depend>std_srvs</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
 

@@ -2,6 +2,8 @@
 #ifndef PEACH_MANIPULATION__GRASP_GEOMETRY_HPP_
 #define PEACH_MANIPULATION__GRASP_GEOMETRY_HPP_
 
+#include "peach_manipulation/math_utils.hpp"
+
 #include <Eigen/Geometry>
 
 #include <cmath>
@@ -41,6 +43,14 @@ inline Eigen::Matrix3d alignFrameZRolled(
     return aligned;
   }
   return aligned * Eigen::AngleAxisd(roll_rad, Eigen::Vector3d::UnitZ());
+}
+
+// 刀口滚转：keep-roll 优先，只扫 ±30°/±60°。更大滚转会让 PTP 把 TCP
+// 拧过 90°+（09-11 mock 30 例里出现 180° 姿态行程）。
+inline std::vector<double> toolRollsRad()
+{
+  constexpr double step = kPi / 6.0;
+  return {0.0, step, -step, 2.0 * step, -2.0 * step};
 }
 
 // 预抓取 = 入口沿 −axis 后撤 standoff_m，姿态与入口一致。

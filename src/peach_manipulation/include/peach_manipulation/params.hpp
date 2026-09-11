@@ -60,12 +60,14 @@ struct Params
     double mtc_approach_max_duration_s = 0.0;
     double mtc_approach_max_total_joint_travel_rad = 12.0;
     double mtc_approach_max_single_joint_travel_rad = 6.1;
-    double mtc_approach_max_detour_ratio = 0.0;
-    double mtc_approach_max_chord_deviation_m = 0.0;
-    double mtc_approach_max_recede_m = 0.0;
-    double mtc_approach_transit_max_detour_ratio = 0.0;
-    double mtc_approach_transit_max_chord_deviation_m = 0.0;
-    double mtc_approach_transit_max_recede_m = 0.0;
+    double mtc_approach_max_detour_ratio = 1.8;
+    double mtc_approach_max_chord_deviation_m = 0.25;
+    double mtc_approach_max_recede_m = 0.08;
+    double mtc_approach_transit_max_detour_ratio = 1.8;
+    double mtc_approach_transit_max_chord_deviation_m = 0.25;
+    double mtc_approach_transit_max_recede_m = 0.08;
+    double mtc_approach_max_tcp_rotation_deg = 110.0;
+    double mtc_approach_tcp_rotation_slack_deg = 20.0;
     double mtc_approach_keepout_radius_m = 0.12;
     double mtc_approach_keepout_axial_m = 0.12;
     double mtc_approach_cartesian_max_distance_m = 0.8;
@@ -79,6 +81,7 @@ struct Params
     double observe_max_total_joint_travel_rad = 4.0;
     double observe_max_single_joint_travel_rad = 1.5;
     double photo_planning_time_s = 3.0;
+    double photo_ptp_planning_time_s = 0.5;
     double transit_max_duration_s = 0.0;
     double transit_max_total_joint_travel_rad = 6.0;
     double transit_max_single_joint_travel_rad = 2.5;
@@ -209,13 +212,15 @@ private:
     declare_one<double>("moveit.mtc_approach_max_duration_s", 0.0);
     declare_one<double>("moveit.mtc_approach_max_total_joint_travel_rad", 12.0);
     declare_one<double>("moveit.mtc_approach_max_single_joint_travel_rad", 6.1);
-    declare_one<double>("moveit.mtc_approach_max_detour_ratio", 0.0);
-    declare_one<double>("moveit.mtc_approach_max_chord_deviation_m", 0.0);
-    declare_one<double>("moveit.mtc_approach_max_recede_m", 0.0);
-    declare_one<double>("moveit.mtc_approach_transit_max_detour_ratio", 0.0);
+    declare_one<double>("moveit.mtc_approach_max_detour_ratio", 1.8);
+    declare_one<double>("moveit.mtc_approach_max_chord_deviation_m", 0.25);
+    declare_one<double>("moveit.mtc_approach_max_recede_m", 0.08);
+    declare_one<double>("moveit.mtc_approach_transit_max_detour_ratio", 1.8);
     declare_one<double>(
-      "moveit.mtc_approach_transit_max_chord_deviation_m", 0.0);
-    declare_one<double>("moveit.mtc_approach_transit_max_recede_m", 0.0);
+      "moveit.mtc_approach_transit_max_chord_deviation_m", 0.25);
+    declare_one<double>("moveit.mtc_approach_transit_max_recede_m", 0.08);
+    declare_one<double>("moveit.mtc_approach_max_tcp_rotation_deg", 110.0);
+    declare_one<double>("moveit.mtc_approach_tcp_rotation_slack_deg", 20.0);
     declare_one<double>("moveit.mtc_approach_keepout_radius_m", 0.12);
     declare_one<double>("moveit.mtc_approach_keepout_axial_m", 0.12);
     declare_one<double>("moveit.mtc_approach_cartesian_max_distance_m", 0.8);
@@ -229,6 +234,7 @@ private:
     declare_one<double>("moveit.observe_max_total_joint_travel_rad", 4.0);
     declare_one<double>("moveit.observe_max_single_joint_travel_rad", 1.5);
     declare_one<double>("moveit.photo_planning_time_s", 3.0);
+    declare_one<double>("moveit.photo_ptp_planning_time_s", 0.5);
     declare_one<double>("moveit.transit_max_duration_s", 0.0);
     declare_one<double>("moveit.transit_max_total_joint_travel_rad", 6.0);
     declare_one<double>("moveit.transit_max_single_joint_travel_rad", 2.5);
@@ -360,6 +366,16 @@ private:
     } else if (name == "moveit.mtc_approach_max_recede_m") {
       const double v = param.as_double();
       if (!(v >= 0.0)) {reason = "moveit.mtc_approach_max_recede_m: 须 >= 0.0"; return false;}
+    } else if (name == "moveit.mtc_approach_max_tcp_rotation_deg") {
+      const double v = param.as_double();
+      if (!(v >= 0.0)) {
+        reason = "moveit.mtc_approach_max_tcp_rotation_deg: 须 >= 0.0"; return false;
+      }
+    } else if (name == "moveit.mtc_approach_tcp_rotation_slack_deg") {
+      const double v = param.as_double();
+      if (!(v >= 0.0)) {
+        reason = "moveit.mtc_approach_tcp_rotation_slack_deg: 须 >= 0.0"; return false;
+      }
     } else if (name == "moveit.mtc_approach_keepout_radius_m") {
       const double v = param.as_double();
       if (!(v >= 0.0)) {
@@ -407,6 +423,9 @@ private:
     } else if (name == "moveit.photo_planning_time_s") {
       const double v = param.as_double();
       if (!(v > 0.0)) {reason = "moveit.photo_planning_time_s: 须 > 0.0"; return false;}
+    } else if (name == "moveit.photo_ptp_planning_time_s") {
+      const double v = param.as_double();
+      if (!(v > 0.0)) {reason = "moveit.photo_ptp_planning_time_s: 须 > 0.0"; return false;}
     } else if (name == "moveit.transit_max_duration_s") {
       const double v = param.as_double();
       if (!(v >= 0.0)) {reason = "moveit.transit_max_duration_s: 须 >= 0.0"; return false;}
@@ -539,7 +558,9 @@ private:
     } else if (name == "moveit.mtc_approach_max_recede_m" ||
       name == "moveit.mtc_approach_transit_max_detour_ratio" ||
       name == "moveit.mtc_approach_transit_max_chord_deviation_m" ||
-      name == "moveit.mtc_approach_transit_max_recede_m")
+      name == "moveit.mtc_approach_transit_max_recede_m" ||
+      name == "moveit.mtc_approach_max_tcp_rotation_deg" ||
+      name == "moveit.mtc_approach_tcp_rotation_slack_deg")
     {
       const double v = param.as_double();
       if (!(v >= 0.0)) {reason = "staging 护栏: 须 >= 0.0"; return false;}
@@ -606,6 +627,10 @@ private:
         param.as_double();
     } else if (name == "moveit.mtc_approach_transit_max_recede_m") {
       params_.moveit.mtc_approach_transit_max_recede_m = param.as_double();
+    } else if (name == "moveit.mtc_approach_max_tcp_rotation_deg") {
+      params_.moveit.mtc_approach_max_tcp_rotation_deg = param.as_double();
+    } else if (name == "moveit.mtc_approach_tcp_rotation_slack_deg") {
+      params_.moveit.mtc_approach_tcp_rotation_slack_deg = param.as_double();
     } else if (name == "moveit.mtc_approach_keepout_radius_m") {
       params_.moveit.mtc_approach_keepout_radius_m = param.as_double();
     } else if (name == "moveit.mtc_approach_keepout_axial_m") {
@@ -632,6 +657,8 @@ private:
       params_.moveit.observe_max_single_joint_travel_rad = param.as_double();
     } else if (name == "moveit.photo_planning_time_s") {
       params_.moveit.photo_planning_time_s = param.as_double();
+    } else if (name == "moveit.photo_ptp_planning_time_s") {
+      params_.moveit.photo_ptp_planning_time_s = param.as_double();
     } else if (name == "moveit.transit_max_duration_s") {
       params_.moveit.transit_max_duration_s = param.as_double();
     } else if (name == "moveit.transit_max_total_joint_travel_rad") {

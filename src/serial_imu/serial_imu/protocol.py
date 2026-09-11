@@ -35,6 +35,24 @@ class ImuSample:
     orientation_y: float
     orientation_z: float
     orientation_w: float
+    orientation_valid: bool
+
+
+def covariance_diag(variance: float) -> list[float]:
+    """sensor_msgs 3×3 对角协方差：<0 未提供[0]=-1，0 未知全 0，>0 对角方差."""
+    if variance < 0.0:
+        return [-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    if variance == 0.0:
+        return [0.0] * 9
+    return [variance, 0.0, 0.0, 0.0, variance, 0.0, 0.0, 0.0, variance]
+
+
+def _unit_xyzw(q0: float, q1: float, q2: float, q3: float):
+    """模组 Q0..Q3 → ROS xyzw；范数过小则 (0,0,0,1) 且 invalid."""
+    n = math.sqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3)
+    if n < 0.5:
+        return 0.0, 0.0, 0.0, 1.0, False
+    return q1 / n, q2 / n, q3 / n, q0 / n, True
 
 
 def checksum_ok(frame: bytes) -> bool:
@@ -49,8 +67,9 @@ def decode_full_payload(payload: bytes) -> ImuSample | None:
     if len(payload) < FULL_PAYLOAD_LEN:
         return None
     u = struct.unpack_from('<hhhhhhhhhBhhhhhhhh', payload, 0)
-    q0, q1, q2, q3 = (u[14] / 10000.0, u[15] / 10000.0,
-                      u[16] / 10000.0, u[17] / 10000.0)
+    qx, qy, qz, qw, q_ok = _unit_xyzw(
+        u[14] / 10000.0, u[15] / 10000.0,
+        u[16] / 10000.0, u[17] / 10000.0)
     return ImuSample(
         acc_x=u[0] / 2048.0 * G,
         acc_y=u[1] / 2048.0 * G,
@@ -66,10 +85,11 @@ def decode_full_payload(payload: bytes) -> ImuSample | None:
         mag_x=u[11] / 1000.0,
         mag_y=u[12] / 1000.0,
         mag_z=u[13] / 1000.0,
-        orientation_x=q1,
-        orientation_y=q2,
-        orientation_z=q3,
-        orientation_w=q0,
+        orientation_x=qx,
+        orientation_y=qy,
+        orientation_z=qz,
+        orientation_w=qw,
+        orientation_valid=q_ok,
     )
 
 

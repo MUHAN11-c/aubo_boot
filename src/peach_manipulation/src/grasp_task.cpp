@@ -82,22 +82,6 @@ void logApproachSplit(
     approachKindName(split.kind));
 }
 
-// MTC GenerateGraspPose 风格：优先小角 0, ±30 … ±150, 180。
-std::vector<double> toolRollsRad()
-{
-  std::vector<double> rolls;
-  rolls.reserve(12U);
-  rolls.push_back(0.0);
-  for (int step = 1; step <= 6; ++step) {
-    const double rad = static_cast<double>(step) * kPi / 6.0;
-    rolls.push_back(rad);
-    if (step < 6) {
-      rolls.push_back(-rad);
-    }
-  }
-  return rolls;
-}
-
 ApproachSplit withToolRoll(ApproachSplit split, double roll_rad)
 {
   split.tool_roll_rad = roll_rad;
@@ -226,9 +210,10 @@ std::vector<CartesianWaypoint> tcpPathFromJoints(
           trajectory.joint_names[i], point.positions[i]);
       }
       state.updateLinkTransforms();
-      const Eigen::Vector3d p =
-        state.getGlobalLinkTransform(tip_frame).translation();
-      points.push_back({p.x(), p.y(), p.z()});
+      const Eigen::Isometry3d tip = state.getGlobalLinkTransform(tip_frame);
+      const Eigen::Vector3d p = tip.translation();
+      const Eigen::Quaterniond q(tip.linear());
+      points.push_back({p.x(), p.y(), p.z(), q.x(), q.y(), q.z(), q.w()});
     }
   }
   return points;
@@ -590,7 +575,7 @@ bool GraspTask::tryRolledApproach(
 }
 
 // staging 候选：预抓取沿 −axis 再退 standoff 的轴上姿态（「预抓取点
-// 下方」），姿态 alignFrameZ 保留当前滚转；候选扫描（12 滚转 × 3 种子、
+// 下方」），姿态 alignFrameZ 保留当前滚转；候选扫描（keep-roll 及 ±30°/±60° × 当前+4随机、
 // 自碰过滤、按距离排序）由 config.select_goal_joints 完成。standoff
 // 关闭/无当前 TCP 返回空。
 std::vector<GraspTaskConfig::StagingCandidate> GraspTask::stagingCandidate(
@@ -624,7 +609,7 @@ bool GraspTask::tryStagingTransit(
   if (candidates.empty()) {
     RCLCPP_INFO(
       node_->get_logger(),
-      "staging 转移不可用：standoff=%.3f 无候选（12 滚转 × 3 种子均无解或自碰）",
+      "staging 转移不可用：standoff=%.3f 无候选（keep-roll 及 ±30°/±60° × 当前+4随机均无解或自碰）",
       config_.approach_staging_standoff_m);
     last.reason = "staging 转移无可行 IK 候选（" + last.reason + "）";
     return false;
@@ -735,7 +720,7 @@ GraspTaskResult GraspTask::previewFullContact(
       if (candidates.empty()) {
         inspect_bag_keepout_ = false;
         GraspTaskResult out;
-        out.reason = "预览：staging 无可行 IK 候选（12 滚转 × 3 种子）";
+        out.reason = "预览：staging 无可行 IK 候选（keep-roll 及 ±30°/±60° × 当前+4随机）";
         return out;
       }
       const auto & candidate = candidates.front();
@@ -821,11 +806,13 @@ GraspTaskResult GraspTask::retreat(
 
 GraspTaskResult GraspTask::planTaskOnly(
   mtc::Task * active, bool guard_approach, std::size_t guard_skip_tail,
-  bool staging_guard)
+  bool staging_guard, std::size_t max_solutions)
 {
   syncKeepoutCollisionObjects();
   GraspTaskResult output;
-  const auto result = active->plan(config_.max_solutions);
+  const std::size_t solutions =
+    max_solutions == 0U ? config_.max_solutions : max_solutions;
+  const auto result = active->plan(solutions);
   if (result != moveit::core::MoveItErrorCode::SUCCESS || active->solutions().empty()) {
     std::ostringstream details;
     if (active->explainFailure(details) && !details.str().empty()) {
@@ -917,10 +904,13 @@ GraspTaskResult GraspTask::planTaskOnly(
         return output;
       }
     }
-    const bool check_cartesian =
-      config_.approach_max_detour_ratio > 0.0 ||
+    const bool check_cartesian = staging_guard ?
+      (config_.staging_max_detour_ratio > 0.0 ||
+      config_.staging_max_chord_deviation_m > 0.0 ||
+      config_.staging_max_recede_m > 0.0) :
+      (config_.approach_max_detour_ratio > 0.0 ||
       config_.approach_max_chord_deviation_m > 0.0 ||
-      config_.approach_max_recede_m > 0.0;
+      config_.approach_max_recede_m > 0.0);
     if (check_cartesian) {
       if (tcp.size() < 2U) {
         output.reason = "MTC short-path guard rejected: 无法 FK 笛卡尔审查";
@@ -947,6 +937,24 @@ GraspTaskResult GraspTask::planTaskOnly(
         cart_report.max_recede_m, cart_report.reason.c_str());
       if (!cart_report.allowed) {
         output.reason = "MTC short-path guard rejected: " + cart_report.reason;
+        return output;
+      }
+    }
+    if (config_.approach_max_tcp_rotation_deg > 0.0) {
+      if (tcp.size() < 2U) {
+        output.reason = "MTC short-path guard rejected: 无法 FK 姿态审查";
+        return output;
+      }
+      const auto ori_report = inspectTcpOrientationTravel(
+        tcp, config_.approach_max_tcp_rotation_deg,
+        config_.approach_tcp_rotation_slack_deg);
+      RCLCPP_INFO(
+        node_->get_logger(),
+        "MTC 接近姿态审查: allowed=%s max_from_start=%.1fdeg (%s)",
+        ori_report.allowed ? "true" : "false",
+        ori_report.max_from_start_deg, ori_report.reason.c_str());
+      if (!ori_report.allowed) {
+        output.reason = "MTC short-path guard rejected: " + ori_report.reason;
         return output;
       }
     }
@@ -999,7 +1007,9 @@ GraspTaskResult GraspTask::planAndMaybeExecute(
     if (guard_approach) {
       planned_approach_parts_.clear();
     }
-    output = planTaskOnly(active, guard_approach, guard_skip_tail, staging_guard);
+    output = planTaskOnly(
+      active, guard_approach, guard_skip_tail, staging_guard,
+      execute ? 1U : 0U);
     if (output.success && execute) {
       output = executeSolution(active, execution_gate);
     }

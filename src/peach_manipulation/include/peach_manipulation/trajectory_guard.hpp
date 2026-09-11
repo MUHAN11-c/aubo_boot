@@ -1,6 +1,6 @@
 // 功能：接近轨迹护栏。关节行程拦绕腕；袋囊 keepout 拦口侧穿果（grasp_geometry）。
-// 笛卡尔绕行比/弦偏离/回退键保留，默认 0 跳过（合法 taut G 比直弦长）。
-// 时长仅记录，max_duration_s<=0 不按时长拒发。笛卡尔三项 <=0 则跳过该项。
+// 笛卡尔绕行比/弦偏离/回退与 TCP 姿态行程：任一项 <=0 则跳过该项。
+// 时长仅记录，max_duration_s<=0 不按时长拒发。
 #ifndef PEACH_MANIPULATION__TRAJECTORY_GUARD_HPP_
 #define PEACH_MANIPULATION__TRAJECTORY_GUARD_HPP_
 
@@ -119,6 +119,10 @@ struct CartesianWaypoint
   double x{0.0};
   double y{0.0};
   double z{0.0};
+  double qx{0.0};
+  double qy{0.0};
+  double qz{0.0};
+  double qw{1.0};
 };
 
 struct CartesianDetourLimits
@@ -341,6 +345,71 @@ inline CartesianDetourReport inspectCartesianDetour(
   report.allowed = true;
   reason << "笛卡尔短路径门通过";
   report.reason = reason.str();
+  return report;
+}
+
+// 两单位四元数测地线夹角（度）。dot 取绝对值，q 与 −q 同一姿态。
+inline double quatGeodesicDeg(
+  double ax, double ay, double az, double aw,
+  double bx, double by, double bz, double bw)
+{
+  const double na = std::sqrt(ax * ax + ay * ay + az * az + aw * aw);
+  const double nb = std::sqrt(bx * bx + by * by + bz * bz + bw * bw);
+  if (na < 1.0e-9 || nb < 1.0e-9) {
+    return 0.0;
+  }
+  double dot = std::abs((ax * bx + ay * by + az * bz + aw * bw) / (na * nb));
+  if (dot > 1.0) {
+    dot = 1.0;
+  }
+  return 2.0 * std::acos(dot) * 180.0 / 3.14159265358979323846;
+}
+
+struct OrientationTravelReport
+{
+  bool allowed{true};
+  double max_from_start_deg{0.0};
+  std::string reason{"TCP 姿态行程通过"};
+};
+
+// 接近段 TCP 姿态测地线。max_rotation_deg<=0 跳过。
+// 绝对上限拦水平袋上再叠大滚转 / 180° 拧腕；slack_deg>0 时路径还不得
+// 超过「起止测地线 + 余量」（拦对轴只需 20° 却中途拧到 90°+ 的 PTP）。
+inline OrientationTravelReport inspectTcpOrientationTravel(
+  const std::vector<CartesianWaypoint> & points, double max_rotation_deg,
+  double slack_deg = 0.0)
+{
+  OrientationTravelReport report;
+  if (max_rotation_deg <= 0.0) {
+    report.reason = "TCP 姿态行程关闭";
+    return report;
+  }
+  if (points.size() < 2U) {
+    report.reason = "TCP 点列不足，跳过姿态审查";
+    return report;
+  }
+  const CartesianWaypoint & start = points.front();
+  const CartesianWaypoint & goal = points.back();
+  const double goal_deg = quatGeodesicDeg(
+    start.qx, start.qy, start.qz, start.qw,
+    goal.qx, goal.qy, goal.qz, goal.qw);
+  double cap = max_rotation_deg;
+  if (slack_deg > 0.0) {
+    cap = std::min(cap, goal_deg + slack_deg);
+  }
+  for (const auto & point : points) {
+    const double deg = quatGeodesicDeg(
+      start.qx, start.qy, start.qz, start.qw,
+      point.qx, point.qy, point.qz, point.qw);
+    report.max_from_start_deg = std::max(report.max_from_start_deg, deg);
+    if (deg > cap) {
+      std::ostringstream reason;
+      reason << "TCP 姿态行程 " << deg << "deg > " << cap << "deg";
+      report.reason = reason.str();
+      report.allowed = false;
+      return report;
+    }
+  }
   return report;
 }
 

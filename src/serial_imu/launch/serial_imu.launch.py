@@ -1,4 +1,4 @@
-"""USB 串口 IMU：驱动 + 可选 RViz（TF/坐标轴；Imu 插件需本机已装）."""
+"""USB 串口 IMU：驱动 + 可选 RViz（TF；Imu 插件需本机已装）."""
 
 from ament_index_python.packages import get_package_share_directory, PackageNotFoundError
 from launch import LaunchDescription
@@ -18,9 +18,9 @@ def _warn_missing_imu_plugin(context, *args, **kwargs):
         return []
     except PackageNotFoundError:
         return [LogInfo(msg=(
-            '未找到 rviz_imu_plugin。RViz 仍可用 TF/Axes 看 imu_link。 '
+            '未找到 rviz_imu_plugin。RViz 仍可用 TF 看 imu_link。 '
             '手动安装: sudo apt install ros-jazzy-imu-tools ；'
-            '装完后 RViz Add → Imu，话题 /imu/data，Reliability=Best Effort'
+            '装完后 RViz Add → Imu，话题 /imu/data，Reliability=Reliable'
         ))]
 
 
@@ -35,30 +35,30 @@ def generate_launch_description():
             description='IMU 参数文件；默认包内 config/serial_imu.yaml'),
         DeclareLaunchArgument(
             'use_rviz', default_value='true',
-            description='true 时启动 RViz2（TF / imu_attitude / Imu 插件）'),
+            description='true 时启动 RViz2（TF / Imu 插件）'),
         DeclareLaunchArgument(
             'rviz_config', default_value=default_rviz,
             description='RViz 配置；默认包内 rviz/serial_imu.rviz'),
         DeclareLaunchArgument(
             'tf_parent_frame', default_value='world',
-            description='imu_link / imu_attitude 的父坐标系；接手臂时用 base_link'),
+            description='imu_link 的父坐标系；接手臂时用 base_link 或 tcp'),
         DeclareLaunchArgument(
-            'tool_offset_enabled', default_value='false',
-            description='true=启用工具偏移（自适应圆柱工具 B）：'
-                        '发 tool_axis→tcp_actual 偏移 TF、imu/tool_offset 与清零服务'),
+            'align_to_parent', default_value='false',
+            description='true=把 IMU 相对 parent 的当前姿态差当误差清掉，'
+                        '使 /imu/data 与 TCP 对齐（无磁 yaw 每次上电要采）'),
         OpaqueFunction(function=_warn_missing_imu_plugin),
         Node(
             package='serial_imu',
             executable='serial_imu_node',
             name='serial_imu',
             output='screen',
+            emulate_tty=True,
             parameters=[
                 ParameterFile(
                     LaunchConfiguration('serial_imu_params_file'),
                     allow_substs=True),
                 {'tf_parent_frame': LaunchConfiguration('tf_parent_frame'),
-                 'tool_offset.enabled':
-                     LaunchConfiguration('tool_offset_enabled')},
+                 'align_to_parent': LaunchConfiguration('align_to_parent')},
             ],
         ),
         Node(

@@ -1,0 +1,49 @@
+{
+  "name": "dsh-system-monitor",
+  "version": "0.2.1",
+  "private": true,
+  "description": "System monitor plugin for the dsh web GUI: a right-sidebar \"System\" panel with live CPU (per-core + frequency), memory/swap, GPU (utilization, VRAM, temperature, power, processes) and temperature/fan/power telemetry. Host half samples /proc, /sys/class/hwmon and nvidia-smi and serves one loopback-only JSON route; client half renders the panel and sparklines.",
+  "type": "module",
+  "main": "lib/index.js",
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-sidebar-right"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "react": "^18.2.0"
+  },
+  "license": "MIT",
+  "keywords": [
+    "deepseek",
+    "dsh",
+    "deepseek-harness",
+    "plugin",
+    "system-monitor",
+    "nvtop",
+    "htop",
+    "gpu",
+    "web-ui"
+  ]
+}

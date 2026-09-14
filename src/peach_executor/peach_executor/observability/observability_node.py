@@ -34,7 +34,7 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
 from rclpy.qos import (
-    DurabilityPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data)
+    DurabilityPolicy, qos_profile_sensor_data, QoSProfile, ReliabilityPolicy)
 from sensor_msgs.msg import Image, JointState, PointCloud2
 from std_msgs.msg import String
 from tf2_ros import TransformException
@@ -43,9 +43,7 @@ from tf2_ros.transform_listener import TransformListener
 from visualization_msgs.msg import MarkerArray
 
 from . import http_server
-from .audit import DebugAudit
-from .codec import merge_joint_hardware, to_joint_state, to_joint_status
-from .debug_actions import DebugBridge, is_motion
+from .debug_actions import DebugAudit, DebugBridge, is_motion
 from .params import declare as _declare_params
 from .params import from_params as _from_params
 from .recorder import (
@@ -61,12 +59,19 @@ from .recorder import (
     to_target_observations,
     to_vector_stamped,
 )
-from .ros_viz import marker_array_from_dicts, path_from_xyz
-from .state import MetricsSampler, ObservabilityState
+from .state import (
+    merge_joint_hardware,
+    MetricsSampler,
+    ObservabilityState,
+    to_joint_state,
+    to_joint_status,
+)
 from .tcp_trajectory import (
     build_selection_marker_dicts,
     build_tcp_marker_dicts,
     downsample_path,
+    marker_array_from_dicts,
+    path_from_xyz,
     TcpPathBuffer,
 )
 

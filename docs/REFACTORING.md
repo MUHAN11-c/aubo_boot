@@ -321,3 +321,45 @@ mock 冒烟（`hardware_mode:=mock camera_enabled:=false`，`QT_QPA_PLATFORM=off
 四包统一 `ivg_*` 前缀（与包内 "IVG2.0" 品牌一致，区别于 `peach_*` / `aubo_*`）：`ivg_interfaces`、`ivg_utils` 沿用；`visual_pose_estimation(_python)` → **`ivg_pose_estimation`**（拍平双层目录，Python 模块与包同名，templates/models 收进包根，去掉冗余 `_python` 后缀）；`graspnet_ros2` → **`ivg_graspnet`**。估姿节点名同步为 `ivg_pose_estimation`（entry point `ivg_pose_estimation_node`/`ivg_pose_estimation_web`）；graspnet 节点名 `graspnet_demo_points_node` / `publish_grasps_client` 与 launch 名保持契约。launch 改名：`ivg_pose_estimation.launch.py` / `ivg_pose_estimation_web.launch.py`。AGENTS/architecture/io/testing 同步。
 
 教训复录：在包目录内跑 `colcon test` 会因找不到包内 install 空间报 "Failed to find package.sh / Check that the following packages have been built"，审查曾据此误判 graspnet_ros2/ivg_utils 测试失败——colcon 一律在工作区根执行；包内的 `debug/session_debug/features.csv` 为 vpe Web 测试残留（save_debug_features 旧 cwd 写路径），已删，现输出改落包内 `debug_sessions/`。
+
+---
+
+## 2026-09-14 反向 Phase D（过拆回并，三能力包）
+
+C9 删 shim 后碎文件即「真实模块」，单职责文件过小、跳转过多。本轮把同职责碎文件并回聚合模块，**不留旧路径 shim**。图名 / 话题 / 动作 / yaml / 算法常数不动。已很大的壳（`*_node.py`、`pose_pipelines.py`、`inference.py`、`harvest_fsm.py`、`params.py`/`params.hpp`、`stages.cpp`、`grasp_task.cpp`、`motion.cpp`）不往里塞。`common/__init__.py` 仍不聚合 re-export。`math_utils.hpp` 与 `eigen_conversions.hpp` 保持分开（后者 tf2，会污染 `_core` 零 ROS）。
+
+### peach_perception
+
+| 现行模块 | 并入后删除 |
+|----------|------------|
+| `common/runtime.py` | `clock.py`、`bounded_worker.py`、`harvest_data.py`、`ema.py` |
+| `common/geometry.py` | `fitting.py`、`depth_geometry.py`、`tf_utils.py` |
+| `scene_perception/identity.py` | `assignment.py`、`harvest_plan.py`、`target_registry.py`、`anchor_memory.py` |
+| `scene_perception/visualization.py` | `conversions.py`、`cloud_utils.py` |
+| `target_reconstruction/integrate.py` | `tsdf_volume.py`、`overlap.py`、`view_coverage.py`、`cloud_builder.py`、`icp_refiner.py`、`icp_target_cache.py` |
+| `target_reconstruction/refine.py` | `candidate_contract.py`、`geometry_refiner.py`、`bag_model.py`、`pregrasp_verification.py` |
+| `target_reconstruction/capture.py` | `captured_frame.py`、`skip_codes.py`、`capture_gate.py`、`bind_holdoff.py`、`timing.py`、`frame_collector.py`、`mask_gate.py`、`frame_store.py`、`auto_controller.py` |
+| `target_reconstruction/publish.py` | `publish_throttle.py`、`status_messages.py`、`session_io.py`、`markers.py`、`publishers.py` |
+
+未合：`common/bag_landmarks.py`、`common/tool_budget.py`、`common/ros/clock_adapter.py`。`identity` ↔ `pose_pipelines` 环只在 `memory_grasp` 内懒加载 `grasp_frame_from_axis`。`refine.py` 公开 `axis_angle_deg` 保持 refiner 语义（退化→`None`）；预抓取版改名 `_pregrasp_axis_angle_deg`。
+
+### peach_executor
+
+| 现行模块 | 并入后删除 |
+|----------|------------|
+| `batch.py` | `select.py`、`control.py`、`summary.py`、`ledger.py` |
+| `observability/state.py` | `codec.py`、`metrics.py`（`job.py` 仍独立） |
+| `observability/debug_actions.py` | `audit.py` |
+| `observability/tcp_trajectory.py` | `ros_viz.py`（ROS `_color` 译名 `_color_msg`，避开 Marker 字典 `_color`） |
+
+### peach_manipulation
+
+| 现行头 | 并入后删除 |
+|--------|------------|
+| `cycle_context.hpp` | `cycle_state.hpp` |
+| `cycle_support.hpp` | `execution_authority.hpp`（`MotionStage`） |
+| （直接 include 节点头） | `cycle.hpp`（纯转发） |
+
+`cycle.cpp` / `stages.cpp` 改为 include `manipulation_skills_node.hpp`（再确认纯核 `reconfirm_policy.hpp` 由 `stages.cpp` 直引）。CMake 源列表不变。
+
+活文档：architecture 文件树 / 「从哪读源码」/ REFITTERS 映射；io.md `common.runtime` 与 `capture.py`。`check_interface_manifest.py` 的调度 consumer 路径只留 `batch.py`。

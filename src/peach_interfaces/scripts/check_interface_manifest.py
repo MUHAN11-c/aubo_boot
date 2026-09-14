@@ -38,10 +38,6 @@ _CONSUMER_PATHS = {
     'peach_executor': [
         'peach_executor/peach_executor/executor_node.py',
         'peach_executor/peach_executor/batch.py',
-        'peach_executor/peach_executor/select.py',
-        'peach_executor/peach_executor/control.py',
-        'peach_executor/peach_executor/summary.py',
-        'peach_executor/peach_executor/ledger.py',
         'peach_executor/peach_executor/harvest_fsm.py',
         'peach_executor/config/executor_parameters.yaml',
         'peach_executor/config/peach_executor.yaml',

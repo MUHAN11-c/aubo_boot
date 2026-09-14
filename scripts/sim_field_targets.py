@@ -64,9 +64,15 @@ TYPICAL_AXIS_Z_MIN = 0.70
 ENTRY_JITTER_M = 0.04
 AXIS_TILT_DEG = 20.0
 AABB_PAD_M = 0.05
-# 袋囊 keepout，与 peach_manipulation.yaml mtc_approach_keepout_* 对齐。
+# ①层果实胶囊开关/回退，与 peach_manipulation.yaml mtc_approach_keepout_* 对齐。
 KEEP_R_M = 0.12
 KEEP_AXIAL_M = 0.12
+TOOL_BODY_LENGTH_M = 0.200
+TOOL_BODY_RADIUS_M = 0.060
+FRUIT_INFLATION_M = 0.01
+FRUIT_RADIUS_FLOOR_M = 0.025
+# sim 注入的感知直径（米）；analytic 在 25–50 mm 采样。
+SIM_BAG_DIAMETER_M = 0.06
 
 
 def _in_typical_envelope(entry, axis) -> bool:
@@ -120,6 +126,59 @@ def _scale(a, s):
 
 def _dot(a, b):
     return sum(a[i] * b[i] for i in range(3))
+
+
+def fruit_radius_m(diameter_m, inflation=FRUIT_INFLATION_M, fallback=KEEP_R_M):
+    base = diameter_m / 2.0 if diameter_m > 1.0e-6 else fallback
+    return max(FRUIT_RADIUS_FLOOR_M, base) + max(0.0, inflation)
+
+
+def _segment_segment_distance(p1, q1, p2, q2):
+    d1 = _sub(q1, p1)
+    d2 = _sub(q2, p2)
+    r = _sub(p1, p2)
+    a = _dot(d1, d1)
+    b = _dot(d1, d2)
+    c = _dot(d2, d2)
+    f = _dot(r, d1)
+    g = _dot(r, d2)
+    denom = a * c - b * b
+    s = 0.0
+    t = 0.0
+    if a <= 1.0e-12 and c <= 1.0e-12:
+        return math.sqrt(_dot(r, r))
+    if a <= 1.0e-12:
+        t = min(1.0, max(0.0, g / c))
+    elif c <= 1.0e-12:
+        s = min(1.0, max(0.0, -f / a))
+    else:
+        s = min(1.0, max(0.0, (b * g - c * f) / denom)) if denom > 1.0e-12 else 0.0
+        t = min(1.0, max(0.0, (b * s + g) / c))
+        s = min(1.0, max(0.0, (b * t - f) / a))
+    closest = _add(r, _sub(_scale(d1, s), _scale(d2, t)))
+    return math.sqrt(_dot(closest, closest))
+
+
+def _axial_of(point, bottom, axis):
+    return _dot(_sub(point, bottom), axis)
+
+
+def tool_body_hits_fruit(tcp, tool_z, bottom, neck, axis, fruit_r):
+    """复刻 grasp_geometry.hpp toolCapsuleClearance ≤ 0（有限圆柱，无端球）。"""
+    if KEEP_AXIAL_M <= 1.0e-6 or fruit_r <= 1.0e-6:
+        return False
+    tail = _sub(tcp, _scale(_norm(tool_z), TOOL_BODY_LENGTH_M))
+    t0 = _axial_of(tcp, bottom, axis)
+    t1 = _axial_of(tail, bottom, axis)
+    f0 = _axial_of(bottom, bottom, axis)
+    f1 = _axial_of(neck, bottom, axis)
+    amin, amax = (t0, t1) if t0 <= t1 else (t1, t0)
+    bmin, bmax = (f0, f1) if f0 <= f1 else (f1, f0)
+    if amin > bmax + 1.0e-9 or bmin > amax + 1.0e-9:
+        return False
+    clearance = _segment_segment_distance(tcp, tail, bottom, neck) - \
+        TOOL_BODY_RADIUS_M - fruit_r
+    return clearance <= 0.0
 
 
 def _cross(a, b):
@@ -360,6 +419,10 @@ def main() -> int:
         '--velocity', type=float, default=0.0, metavar='V',
         help='把接触/转移速度与加速度缩放设为 V（0<v<=1，仅仿真提速；'
              '0=不动，真机档位仍走 yaml 默认）')
+    parser.add_argument(
+        '--pick', nargs='+', default=None, metavar='ID',
+        help='只跑 --random 采样出的指定 id（如 rand_02 rand_39），'
+             '用于失败例专项重测；采样与全量同 seed 确定性一致')
     parser.add_argument('--list', action='store_true')
     args = parser.parse_args()
 
@@ -370,6 +433,12 @@ def main() -> int:
         cases = sample_random_cases(
             templates, args.random, args.seed, photo_tcp, args.envelope)
         selected = list(cases)
+        if args.pick:
+            missing = [p for p in args.pick if p not in cases]
+            if missing:
+                print(f'--pick 不在采样集内: {missing}', file=sys.stderr)
+                return 2
+            selected = list(args.pick)
     else:
         cases = templates
         selected = list(cases) if args.case == ['all'] else args.case
@@ -490,7 +559,7 @@ def main() -> int:
         cand.bag_bottom = point(case['bag_bottom'])
         cand.bag_neck = point(case['bag_neck'])
         cand.translation_direction = vector(case['axis'])
-        cand.bag_diameter_upper_m = 0.06
+        cand.bag_diameter_upper_m = SIM_BAG_DIAMETER_M
         cand.suggested_travel_m = float(case.get('travel_m') or 0.0)
         cand.confidence = 0.9
         cand.status = BagGraspCandidate.ACCEPT
@@ -559,7 +628,7 @@ def main() -> int:
         refined.bag_bottom = point(case['bag_bottom'])
         refined.bag_neck = point(case['bag_neck'])
         refined.translation_direction = vector(case['axis'])
-        refined.bag_diameter_upper_m = 0.06
+        refined.bag_diameter_upper_m = SIM_BAG_DIAMETER_M
         refined.suggested_travel_m = float(case.get('travel_m') or 0.0)
         refined.confidence = 0.9
         refined.status = BagGraspCandidate.ACCEPT
@@ -736,31 +805,32 @@ def main() -> int:
         return chunks
 
     def _keepout_hit(tcp, entry, axis):
-        # 与 grasp_task.cpp 逐段审查同口径：圆柱穿越（s≥0 且 r<R）恒为
-        # 违规；反爬（s ≤ 起点+2cm）只对「从袋底出发的段」（起点 s≤0）
-        # 生效——staging 转移首段是拍照位（口侧上方）出发的 PTP 弧，
-        # 锚定起点的反爬会把关节弧自然拱高误判成绕行。
+        # 与 grasp_task.cpp 逐段审查同口径：工具有限圆柱×果实胶囊；
+        # 反爬只对「从袋底出发的段」（起点 s≤0）生效。无姿态时假定
+        # 工具 Z 已对轴（接近段目标姿态）。
         points = (tcp or {}).get('xyz') or []
         if not points or not entry or not axis:
             return False, ''
-        if KEEP_R_M <= 1.0e-6 or KEEP_AXIAL_M <= 1.0e-6:
+        if KEEP_AXIAL_M <= 1.0e-6:
             return False, ''
         ax = _norm(axis)
+        fruit_r = fruit_radius_m(SIM_BAG_DIAMETER_M)
+        bottom = list(entry)
+        neck = _add(bottom, _scale(ax, 0.07))
 
         def sr(p):
-            d = [p[i] - entry[i] for i in range(3)]
-            axial = sum(d[i] * ax[i] for i in range(3))
-            radial = math.sqrt(sum(
-                (d[i] - axial * ax[i]) ** 2 for i in range(3)))
-            return axial, radial
+            return _axial_of(p, bottom, ax), math.sqrt(sum(
+                (p[i] - bottom[i] - _axial_of(p, bottom, ax) * ax[i]) ** 2
+                for i in range(3)))
 
         start_s, _ = sr(points[0])
         s_max = max(start_s, 0.0) + 0.02
         for p in points:
             axial, radial = sr(p)
-            if axial >= 0.0 and radial < KEEP_R_M:
+            if tool_body_hits_fruit(p, ax, bottom, neck, ax, fruit_r):
                 return True, (
-                    f'口侧 s={axial:.3f}m r={radial:.3f}m < {KEEP_R_M}m')
+                    f'工具筒体触果 s={axial:.3f}m r={radial:.3f}m '
+                    f'R={fruit_r:.3f}m')
             if start_s <= 0.0 and axial > s_max:
                 return True, (
                     f'袋底段上方绕行 s={axial:.3f}m > 上限 {s_max:.3f}m')
@@ -901,8 +971,8 @@ def main() -> int:
             if record.get('tcp_detour'):
                 tcp = record['tcp_detour']
                 origin = '从拍照位' if record.get('from_photo') else '未从拍照位'
-                keep = (f"  ⚠ 袋囊 keepout: {record['detour_detail']}"
-                        if record['detour_flag'] else '  ✓ keepout 外')
+                keep = (f"  ⚠ 果实胶囊: {record['detour_detail']}"
+                        if record['detour_flag'] else '  ✓ 果实胶囊外')
                 print(f"  [接近] {origin} 点数={tcp['points']} 弦={tcp['chord_m']}m "
                       f"路径={tcp['path_m']}m 比={tcp['ratio']} "
                       f"偏离={tcp['max_dev_m']}m 回退={tcp['max_recede_m']}m "
@@ -917,7 +987,12 @@ def main() -> int:
         1 for r in outcomes
         if r.get('outcome') == ExecuteTarget.Result.SUCCEEDED)
     keepout_hits = sum(1 for r in outcomes if r.get('detour_flag'))
-    print(f'成功 {passed}/{len(outcomes)}；接近段袋囊 keepout {keepout_hits}')
+    photo_keepout = sum(
+        1 for r in outcomes
+        if r.get('from_photo') and r.get('detour_flag'))
+    print(
+        f'成功 {passed}/{len(outcomes)}；从拍照位果实胶囊后检 {photo_keepout}'
+        f'；含未从拍照位返程旗标 {keepout_hits}')
     env_rows = [
         r for r in outcomes
         if r.get('entry_xyz') and r.get('axis') and

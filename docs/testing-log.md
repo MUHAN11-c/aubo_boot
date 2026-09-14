@@ -115,6 +115,15 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 
 同 seed `20260911`。`runs/analyze_approach_envelope_20260911_155716.jsonl`：闭式 **10014/10014**（含现场 14/14、近水平 2000/2000）。弦穿囊对照仍约 2362（不计 analytic_ok）。mock 执臂须重启 harvest 才加载新二进制。
 
+### 09-14 接近约束四层（果实胶囊 / octomap / 近果降速 / 接触纯核；审查轮）
+
+决策 0019。mock `harvest_system` `hardware_mode:=mock camera_enabled:=false`，未授权真机。工具半径改为有限圆柱（无端球）；octomap 订 `/camera/depth_registered/points`，规划系 `world`。
+
+- 解析不变量：`python3 scripts/analytic_constraints.py --n 10000 --seed 20260911` → **0/8280**（field 5000 / extended 3000 / grid 280）。I1 轴向 LIN 工具圆柱不触果。
+- 接触纯核：`python3 -m pytest src/peach_manipulation/test/test_contact_monitor.py` PASS（关/短基线/摩擦缓升/尖峰/斜率）。
+- octomap：move_group `Listening to '/camera/depth_registered/points' using message filter with target frame 'world '`；无 `No sensor plugin specified`。mock 无点云=空地图。
+- mock typical 100：`python3 scripts/sim_field_targets.py --random 100 --seed 20260910 --velocity 1.0`。`runs/sim_field_targets_20260914_114320.jsonl`：全量 **89/100** 到位。从拍照位成功 70/70，绕行比 1.27–1.65、回退 0，脚本后检果实胶囊 0。11 失败均 `from_photo=false`（与 09-11 切段口径相同，不当接近形状）：果实胶囊 1、回退 4、偏离 1、绕腕 1、staging IK 2、MTC 规划 2。未放宽 12 rad / 8 cm / 绕行三门。接触检测默认关。无 SetIO。
+
 ---
 
 ## 重构前：PREGRASP_ONLY 里程碑

@@ -1,6 +1,6 @@
 // 功能：MoveIt 运动接口（唯一实现，节点直接构造）。TF 查询 + 规划/执行；
 // 真实下发前必须过注入的安全门回调（TRANSIT 级底座：Active ∧ robotReady，
-// 见 execution_authority.hpp；CONTACT/TOOL 级在阶段函数与 GraspTask 门加查）。
+// 见 cycle_support.hpp；CONTACT/TOOL 级在阶段函数与 GraspTask 门加查）。
 #ifndef PEACH_MANIPULATION__MOTION_HPP_
 #define PEACH_MANIPULATION__MOTION_HPP_
 

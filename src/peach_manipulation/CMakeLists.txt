@@ -107,6 +107,8 @@ if(BUILD_TESTING)
   # C++ 风格门以 uncrustify 为准，静态分析走 cppcheck。
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
+  find_package(ament_cmake_pytest REQUIRED)
+  ament_add_pytest_test(test_contact_monitor test/test_contact_monitor.py)
 endif()
 
 ament_export_include_directories(include)

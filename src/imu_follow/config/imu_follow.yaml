@@ -1,0 +1,32 @@
+imu_follow:
+  ros__parameters:
+    motion.enabled: false  # 运动总门：false=只算并发布 ~/target_pose、~/command_twist（默认）；true=下发运动。真机须另行人工授权
+    motion.backend: servo  # servo=MoveIt Servo twist 流式（官方实时方案，mock 主路径）；fjt=/compute_ik+FJT 流式（真机透传备选）
+    rate.update_hz: 20.0  # 跟随节拍 Hz（servo 输入须 >1/servo.incoming_command_timeout；上限 100）
+    topics.imu_topic: /imu/data  # serial_imu 修正话题（Reliable+Volatile，frame imu_link）
+    topics.joint_states_topic: /joint_states  # 新鲜度与 fjt 种子/步长钳制来源
+    frames.base_frame: base_link  # 目标位姿参考系（SRDF 组根）
+    frames.tip_frame: tcp  # 末端帧（SRDF 组 tip；twist 的 frame_id）
+    joints.joint_names: [shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint]  # 权威关节顺序（AGENTS 冻结）
+    moveit.group: manipulator_e5  # SRDF 规划组（fjt 后端 IK 用）
+    moveit.compute_ik_service: /compute_ik  # move_group IK 服务（KDL；种子=当前关节；仅 fjt 后端）
+    servo.twist_topic: /moveit_servo/delta_twist_cmds  # moveit_servo twist 输入（EE 系 speed_units；BEST_EFFORT 发布匹配其订阅）
+    servo.command_type_service: /moveit_servo/switch_command_type  # enable 时自动切 TWIST（此版 servo 未切类型会拒收）
+    servo.pause_service: /moveit_servo/pause_servo  # enable 时自动确保未暂停（幂等）
+    servo.orientation_gain: 4.0  # 姿态误差→角速度 P 增益（1/s）
+    servo.position_gain: 2.0  # 位置保持误差→线速度 P 增益（1/s；防漂移）
+    servo.position_deadband_m: 0.005  # 位置保持死区 m
+    execution.follow_joint_trajectory_action: /joint_trajectory_controller/follow_joint_trajectory  # fjt 后端：mock JTC；真机换 /aubo_passthrough_trajectory_controller/follow_joint_trajectory
+    execution.horizon_s: 0.15  # fjt 后端：单条流式轨迹终点时长（上限 1.0）
+    execution.max_joint_step_rad: 0.05  # fjt 后端：单节拍关节步长钳制
+    execution.max_omega_rad_s: 0.5  # servo 后端：角速度指令上限 rad/s
+    execution.max_lin_vel_m_s: 0.05  # servo 后端：位置保持线速度上限 m/s
+    follow.deadband_rad: 0.02  # IMU 姿态增量死区（模长，约 1.1°）
+    follow.max_delta_rad: 0.35  # 相对参考姿态的最大增量锥（约 20°）
+    follow.smoothing_alpha: 0.3  # 每节拍向新目标姿态的插值系数（0,1]
+    follow.invert_roll: false  # 体轴映射符号（实机手感再调）
+    follow.invert_pitch: false
+    follow.invert_yaw: false
+    safety.imu_timeout_s: 0.5  # IMU 断流自动 disable（servo 补零速；fjt 取消在途）
+    safety.joint_states_timeout_s: 1.0  # 关节状态断流自动 disable
+    safety.max_ik_failures: 10  # 连续 IK 失败达到即 disable（fjt 后端）

@@ -221,6 +221,8 @@ void ManipulationSkillsNode::releaseResources()
   refined_pose_sub_.reset();
   refined_diag_sub_.reset();
   robot_status_sub_.reset();
+  joint_status_sub_.reset();
+  contact_guard_timer_.reset();
   status_pub_.reset();
   marker_pub_.reset();
   grasp_hyp_pub_.reset();
@@ -345,6 +347,12 @@ void ManipulationSkillsNode::loadParameters()
   tool_io_fun_ = static_cast<int>(params.tool.io_fun);
   tool_io_pin_ = static_cast<int>(params.tool.io_pin);
   tool_close_state_ = params.tool.close_state;
+  contact_detect_config_.enabled = params.grasp.contact_detect.enabled;
+  contact_detect_config_.baseline_s = params.grasp.contact_detect.baseline_s;
+  contact_detect_config_.slope_threshold =
+    params.grasp.contact_detect.slope_threshold;
+  contact_detect_config_.spike_threshold =
+    params.grasp.contact_detect.spike_threshold;
   service_timeout_s_ = params.timeouts.service_s;
   refined_timeout_s_ = params.timeouts.refined_s;
   // 参数重载时同步重建运动接口实现（MoveIt 未初始化前为空操作，由
@@ -452,6 +460,8 @@ void ManipulationSkillsNode::rebuildGraspTask()
   task_config.approach_along_axis_m = moveit.mtc_approach_along_axis_m;
   task_config.approach_staging_standoff_m =
     moveit.approach_staging_standoff_m;
+  task_config.approach_near_velocity_scaling =
+    moveit.approach_near_velocity_scaling;
   // 滚转扫描 + 多 IK 种子：圆筒刀口滚转是自由参数，但只扫 keep-roll 及
   // ±30°/±60°。更大滚转会让 PTP 把 TCP 拧过 90°+。只把最近支位姿交给
   // 笛卡尔接近当目标姿态，不用关节目标下发 PTP（1740 跨构型绕行）。
@@ -488,63 +498,63 @@ void ManipulationSkillsNode::rebuildGraspTask()
       jobs.reserve(rolls.size());
       for (const double roll : rolls) {
         jobs.push_back(std::async(
-          std::launch::async,
-          [this, roll, keep_roll_pose, base, group, names, current,
-           &ik_mutex, &scored_mutex, &scored]()
-          {
-            Eigen::Isometry3d pose = keep_roll_pose;
-            if (std::abs(roll) > 1.0e-12) {
-              pose.linear() = keep_roll_pose.linear() *
+            std::launch::async,
+            [this, roll, keep_roll_pose, base, group, names, current,
+            &ik_mutex, &scored_mutex, &scored]()
+            {
+              Eigen::Isometry3d pose = keep_roll_pose;
+              if (std::abs(roll) > 1.0e-12) {
+                pose.linear() = keep_roll_pose.linear() *
                 Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitZ());
-            }
-            auto collision_env =
+              }
+              auto collision_env =
               std::make_shared<collision_detection::CollisionEnvFCL>(
                 base->getRobotModel());
-            const collision_detection::AllowedCollisionMatrix collision_acm(
-              *base->getRobotModel()->getSRDF());
-            for (int attempt = 0; attempt < 5; ++attempt) {
-              moveit::core::RobotState probe = *base;
-              if (attempt > 0) {
-                probe.setToRandomPositions(group);
-              }
-              bool ik_ok = false;
-              {
-                std::lock_guard<std::mutex> lock(ik_mutex);
-                ik_ok = probe.setFromIK(group, pose, tip_frame_, 0.1);
-              }
-              if (!ik_ok) {
-                continue;
-              }
-              probe.update();
-              if (!probe.satisfiesBounds(group)) {
-                continue;
-              }
-              collision_detection::CollisionRequest collision_request;
-              collision_detection::CollisionResult collision_result;
-              collision_env->checkSelfCollision(
-                collision_request, collision_result, probe, collision_acm);
-              if (collision_result.collision) {
-                continue;
-              }
-              std::vector<double> sol;
-              probe.copyJointGroupPositions(group, sol);
-              double dist_sq = 0.0;
-              for (std::size_t i = 0; i < sol.size(); ++i) {
-                const double d = sol[i] - current[i];
-                const double weight =
+              const collision_detection::AllowedCollisionMatrix collision_acm(
+                *base->getRobotModel()->getSRDF());
+              for (int attempt = 0; attempt < 5; ++attempt) {
+                moveit::core::RobotState probe = *base;
+                if (attempt > 0) {
+                  probe.setToRandomPositions(group);
+                }
+                bool ik_ok = false;
+                {
+                  std::lock_guard<std::mutex> lock(ik_mutex);
+                  ik_ok = probe.setFromIK(group, pose, tip_frame_, 0.1);
+                }
+                if (!ik_ok) {
+                  continue;
+                }
+                probe.update();
+                if (!probe.satisfiesBounds(group)) {
+                  continue;
+                }
+                collision_detection::CollisionRequest collision_request;
+                collision_detection::CollisionResult collision_result;
+                collision_env->checkSelfCollision(
+                  collision_request, collision_result, probe, collision_acm);
+                if (collision_result.collision) {
+                  continue;
+                }
+                std::vector<double> sol;
+                probe.copyJointGroupPositions(group, sol);
+                double dist_sq = 0.0;
+                for (std::size_t i = 0; i < sol.size(); ++i) {
+                  const double d = sol[i] - current[i];
+                  const double weight =
                   names[i].find("wrist") != std::string::npos ? 2.5 : 1.0;
-                dist_sq += weight * d * d;
+                  dist_sq += weight * d * d;
+                }
+                dist_sq += 4.0 * roll * roll;
+                GraspTaskConfig::StagingCandidate candidate;
+                candidate.pose = pose;
+                for (std::size_t i = 0; i < names.size(); ++i) {
+                  candidate.joints[names[i]] = sol[i];
+                }
+                std::lock_guard<std::mutex> lock(scored_mutex);
+                scored.push_back({dist_sq, candidate});
               }
-              dist_sq += 4.0 * roll * roll;
-              GraspTaskConfig::StagingCandidate candidate;
-              candidate.pose = pose;
-              for (std::size_t i = 0; i < names.size(); ++i) {
-                candidate.joints[names[i]] = sol[i];
-              }
-              std::lock_guard<std::mutex> lock(scored_mutex);
-              scored.push_back({dist_sq, candidate});
-            }
-          }));
+            }));
       }
       for (auto & job : jobs) {
         job.get();
@@ -572,7 +582,7 @@ void ManipulationSkillsNode::rebuildGraspTask()
   // 目标身份/新鲜度与 GraspDecision 复检由阶段执行器单点判定
   // （ExecuteTarget.goal.target_id 钉死；套入/剪切入口 requireStageAuthority）。
   // 撤离不依赖视觉：插入后目标常被工具遮挡、收割后决策可能翻转，撤退门
-  // 不做决策复检（见 execution_authority.hpp 矩阵注释）。
+  // 不做决策复检（见 cycle_support.hpp 矩阵注释）。
   task_config.approach_execution_gate = [this](std::string & reason) {
       return motionOutputAllowed(reason) && safetyReady(reason) &&
              !cancel_requested_.load() && execution_enabled_.load() &&
@@ -648,6 +658,9 @@ void ManipulationSkillsNode::createSubscriptions()
   robot_status_sub_ = create_subscription<aubo_msgs::msg::RobotStatus>(
     "/aubo_io_controller/robot_status", 10,
     std::bind(&ManipulationSkillsNode::onRobotStatus, this, std::placeholders::_1));
+  joint_status_sub_ = create_subscription<aubo_msgs::msg::JointStatus>(
+    "/aubo_io_controller/joint_status", 10,
+    std::bind(&ManipulationSkillsNode::onJointStatus, this, std::placeholders::_1));
   status_pub_ = create_publisher<std_msgs::msg::String>("~/status", latched);
   marker_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
     "~/planned_views", latched);
@@ -951,6 +964,7 @@ void ManipulationSkillsNode::onRefinedPose(
   update.neck = pointToEigen(candidate.bag_neck);
   update.axis = vectorToEigen(candidate.translation_direction);
   update.suggested_travel_m = candidate.suggested_travel_m;
+  update.bag_diameter_upper_m = candidate.bag_diameter_upper_m;
   update.accepted = candidate.status == peach_interfaces::msg::BagGraspCandidate::ACCEPT;
   if (!cache_.updateRefinedPose(update)) {
     RCLCPP_WARN(

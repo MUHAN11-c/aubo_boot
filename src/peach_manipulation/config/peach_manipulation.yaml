@@ -38,11 +38,12 @@ peach_manipulation_node:
       mtc_approach_transit_max_recede_m: 0.08  # staging 转移级中途相对起点更远离目标的最大回退（米）。0=不查。
       mtc_approach_max_tcp_rotation_deg: 110.0  # 接近段相对起点 TCP 姿态测地线绝对上限（度）。0=不查。感知允许水平袋：keep-roll γ≈90°，±60° 滚转闭式 γ(90,60)≈105°；仍拦 180° 拧腕。
       mtc_approach_tcp_rotation_slack_deg: 20.0  # 相对本段起止测地线的路径余量（度）。0=只看绝对上限。拦对轴只需 ~20° 却中途拧到 90°+ 的 PTP（09-11 的 108°）。
-      mtc_approach_keepout_radius_m: 0.12  # 袋囊 keepout 半径（米）。s≥0 且 r<本值即口侧/上方进入，接近段拒发。绕行只许从袋底（−axis）。0=关闭。套入/撤退不审。
-      mtc_approach_keepout_axial_m: 0.12  # 0=关闭 keepout。击中用 s≥0 半无限圆柱，本值只作开关。
+      mtc_approach_keepout_radius_m: 0.12  # ①层果实胶囊回退半径（米）：感知直径无效时用本值作 fruitRadiusM 的 base，再加 fruit_inflation_m。键名冻结，不再当半无限圆柱半径。
+      mtc_approach_keepout_axial_m: 0.12  # ①+②层开关：>0 启用接近段果实胶囊/反爬审查。0=关闭。套入/撤退不审。
       mtc_approach_cartesian_max_distance_m: 0.8  # 袋底侧直连 LIN 的弦长上限（米）；主路径 staging 转移是关节空间 PTP，不受此限。0.80 覆盖拍照位到袋口（现场弦长约 0.44 m）。
       mtc_approach_along_axis_m: 0.0  # 预抓取点在入口沿检测轴反向后撤量（米）。0=与入口重合。整栈由 grasp_standoffs.yaml 注入；已对轴时 LIN 走这一段。
       approach_staging_standoff_m: 0.1  # staging = 预抓取沿 −axis 再退本值（米），即「预抓取点下方」轴上 PTP 落点（主路径）。0=关闭 staging 转移。
+      approach_near_velocity_scaling: 0.05  # ④层近果低速档：staging→预抓取轴向 LIN 与套入/撤退段速度缩放（低于 velocity_scaling 0.10，限制接触动能）；staging PTP 不降档。
       mtc_approach_max_lateral_m: 0.05  # 末端到抓取轴线的侧向偏差（米）。小于此值视为已对轴，LIN 是最短直线。
       mtc_approach_max_align_deg: 20.0  # 末端 Z 与检测轴夹角（度）。小于此值视为已齐，走 LIN 且挂同值姿态路径约束。未齐则先 LIN 原地对齐再平移。规划时另按 keep-roll 及 ±30°/±60° 扫描刀口滚转；接触不用 STOMP/OMPL。
       observe_planning_time_s: 1.0  # 观察短 LIN 单次规划时间上限（秒）。
@@ -100,6 +101,12 @@ peach_manipulation_node:
       reconfirm_tolerance_m: 0.03  # 抓取前再确认的锚点漂移容差（米）：最新观测锚点与 finalize 时感知底/颈中点的偏差上限。超限保留 TSDF 入口并再开窗（禁止单帧平移）。
       reconfirm_max_attempts: 3  # 抓取前再确认的累计超限放弃阈值（次）：漂移超限/窗口耗尽/摆动不息任一计一次超限，累计达到本值 → SKIPPED_QUALITY（reason 含“目标持续摆动”）。
       allow_stale_anchor: false  # 回退开关（验证期遗留，室外默认关闭）：true 时恢复旧行为——再确认等不到新鲜观测、MTC 前观测陈旧时按静态目标锚点继续执行；false 时新鲜度由 ReconfirmTarget 单点把关，MTC 前不再二次放行 stale。
+      fruit_inflation_m: 0.01  # ①层果实胶囊固定膨胀（米）：果实胶囊半径 = 感知拟合直径/2 + 本值（感知直径含袋；无效时回退 mtc_approach_keepout_radius_m 并告警）。
+      contact_detect:  # ④层硬接触止损（关节电流特征判别，SDK 原始单位）：默认关；阈值须真机受控试验标定后启用，<=0 不判该项。
+        enabled: false
+        baseline_s: 0.2  # 守护段开始前的静止基线窗（秒）。
+        slope_threshold: 0.0  # 腕轴电流偏差增长速率阈值（单位/秒）。
+        spike_threshold: 0.0  # 腕轴电流偏差瞬时阈值（单位）。
     tool:
       enabled: false  # 工具使能（默认关闭工具 IO）；开启要求 grasp.enabled=true。
       io_fun: 3  # 工具 IO 功能号（SetIO 的 fun）。

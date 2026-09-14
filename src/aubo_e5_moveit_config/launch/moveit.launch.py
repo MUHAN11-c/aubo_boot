@@ -27,7 +27,11 @@ _MOVE_GROUP_CAPABILITIES = (
 
 
 def _moveit_configs(controllers_file: str):
-    """按官方 Builder 装载 URDF/SRDF/IK/管线/控制器映射/Pilz 笛卡尔限."""
+    """按官方 Builder 装载 URDF/SRDF/IK/管线/控制器映射/Pilz 笛卡尔限.
+
+    sensors_3d（③层场景碰撞，2026-09-14 约束重设计）：点云 octomap 保护
+    臂/相机连杆；工具链对 octomap 的豁免由 peach_manipulation 写 scene ACM。
+    mock 无点云 = 空地图，行为与未开启时一致（回归零副作用）。"""
     return (
         MoveItConfigsBuilder(
             'aubo_e5', package_name='aubo_e5_moveit_config')
@@ -42,6 +46,7 @@ def _moveit_configs(controllers_file: str):
             publish_geometry_updates=True,
             publish_state_updates=True,
             publish_transforms_updates=True)
+        .sensors_3d(file_path='config/sensors_3d.yaml')
         .to_moveit_configs())
 
 

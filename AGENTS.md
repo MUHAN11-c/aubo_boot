@@ -24,7 +24,7 @@
 
 怎么跑、命名、验收门：[docs/testing.md](docs/testing.md)。真机/审查轮次：[docs/testing-log.md](docs/testing-log.md)（只追加，不驱动现行设计）。
 
-各包 `test/` 保留 ROS 2 默认 lint（Python：`test_flake8.py` / `test_pep257.py`；CMake：`ament_lint_auto`），并允许**零 ROS 纯核 pytest**（不 import rclpy / 不造 DDS 现场）。现行纯核：`peach_executor/test/test_harvest_fsm.py`（`react` 表）、`peach_perception/test/test_runtime_core.py`（`ManualClock` / `BoundedWorker`）、`ivg_graspnet/test/test_grasp_core.py`（NMS/碰撞；torch `importorskip`）、`serial_imu/test/test_protocol.py` 与 `test_frame.py`。`peach_interfaces` 的 `check_interface_manifest.py` 进 colcon test。不要写业务用例、gtest、DDS 假现场、launch_testing 或采摘仿真测。`colcon test` 不等于采摘验收。语法与流程由审查核对，对错以实机为准。
+各包 `test/` 保留 ROS 2 默认 lint（Python：`test_flake8.py` / `test_pep257.py`；CMake：`ament_lint_auto`），并允许**零 ROS 纯核 pytest**（不 import rclpy / 不造 DDS 现场）。现行纯核：`peach_executor/test/test_harvest_fsm.py`（`react` 表）、`peach_perception/test/test_runtime_core.py`（`ManualClock` / `BoundedWorker`）、`peach_manipulation/test/test_contact_monitor.py`（合成电流序列）、`ivg_graspnet/test/test_grasp_core.py`（NMS/碰撞；torch `importorskip`）、`serial_imu/test/test_protocol.py` 与 `test_frame.py`、`imu_follow/test/test_core.py`。`peach_interfaces` 的 `check_interface_manifest.py` 进 colcon test。不要写业务用例、gtest、DDS 假现场、launch_testing 或采摘仿真测。`colcon test` 不等于采摘验收。语法与流程由审查核对，对错以实机为准。
 
 ## 技术
 
@@ -38,6 +38,8 @@ C++17；参数走 nav2 式 `config/<节点>.yaml` 全量清单（部署值与中
 旁路视觉抓取四包（`ivg_interfaces` / `ivg_utils` / `ivg_pose_estimation` / `ivg_graspnet`）**不是** peach 包：不进 `harvest_system`、不进 lifecycle、不订 peach 话题、不改驱动栈。GraspNet 后端不用 AnyGrasp 许可证。采摘跨包契约仍只走 `peach_interfaces`。
 
 `serial_imu` 也不是 peach 包：随 `harvest_system` 起（`imu_enabled` 默认 true），不进 lifecycle、不改只读 bringup。
+
+`imu_follow`（IMU 姿态跟随）也不是 peach 包：独立 launch（不随 `harvest_system`、不进 lifecycle、不改只读 bringup），订 `/imu/data` 经 MoveIt Servo 实时跟随（twist 输入 BEST_EFFORT；fjt 后端备选真机透传）；`motion.enabled` 默认 false 只算不发，真机须另行人工授权。
 
 导航适配 `peach_navigation` 已归档 `_archive/parked_2026-09/`（固定座核心栈四包不含它）；`NavigateToWorksite` 等 IDL 保留标预留，真底盘授权后恢复。
 

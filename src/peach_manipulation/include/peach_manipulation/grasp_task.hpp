@@ -1,8 +1,9 @@
-// 功能：MTC 接触。接近主路径 = 预抓取正下方轴上 staging：PTP（最近构型
-// IK，滚转扫描）到 staging，再轴向 LIN 升到预抓取；已对轴/已在袋底侧的
-// 短修正走直连 LIN。沿轴套入与撤退；返程倒放同一接近轨迹。G/under 单弦
-// 档已删（photo→G 弦 fraction 0.41–0.73，2026-09-10 100 位姿探针）。
-// 刀具 IO 不在此。
+// 功能：MTC 接触。约束四层（2026-09-14 重设计）：①果实胶囊审查（工具
+// 有限圆柱 vs 感知果实胶囊，仅接近段）+②从下方半空间（反爬锚定果底）
+// 在 grasp_geometry；③octomap 场景碰撞（臂/相机受查、工具链豁免）在
+// moveit 配置与 scene ACM；④近果低速档（本文件 solver 档位）与接触检测
+// （节点侧 contact_monitor，默认关）。接近主路径 = staging 转移；套入/
+// 撤退沿轴；返程倒放同一接近轨迹。G/under 单弦档已删。刀具 IO 不在此。
 #ifndef PEACH_MANIPULATION__GRASP_TASK_HPP_
 #define PEACH_MANIPULATION__GRASP_TASK_HPP_
 
@@ -18,6 +19,7 @@
 
 #include <tf2_eigen/tf2_eigen.hpp>
 
+#include <moveit/planning_scene_interface/planning_scene_interface.hpp>
 #include <moveit_msgs/msg/constraints.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
@@ -123,10 +125,12 @@ struct GraspTaskConfig
   double staging_max_recede_m{0.08};
   double approach_max_tcp_rotation_deg{110.0};
   double approach_tcp_rotation_slack_deg{20.0};
-  // 袋囊半无限圆柱 keepout（入口沿 +axis）。s≥0 且 r<R 禁止口侧进入；
-  // s 不得超过 max(起点s, 0)+2 cm。axial_m<=0 关闭。
+  // 果实胶囊回退半径（感知直径无效时的保守值）与开关（axial<=0 关闭
+  // 果实审查）。正常半径 = 感知直径/2 + fruit_inflation_m，逐目标随
+  // FruitCapsule 参数传入（半无限 BagKeepout 已删，2026-09-14）。
   double approach_keepout_radius_m{0.12};
   double approach_keepout_axial_m{0.12};
+  double fruit_inflation_m{0.01};
   // 接触笛卡尔弦长/弧长上限；超过则 skipped_unreachable，不改 PTP。
   double approach_cartesian_max_distance_m{0.80};
   // 预抓取点在入口沿 −axis 后撤量；0=与入口重合（拟合袋底）。轴向 LIN 只走这一段。
@@ -137,6 +141,9 @@ struct GraspTaskConfig
   double approach_max_lateral_m{0.05};
   // 工具 Z 与轴夹角小于此值视为已齐；已齐 LIN 才挂同值姿态路径约束。
   double approach_max_align_deg{20.0};
+  // 近果低速档（④层）：staging→预抓取轴向 LIN 与套入/撤退段的独立速度
+  // 缩放，低于 velocity_scaling 以限制接触动能；staging PTP 不降档。
+  double approach_near_velocity_scaling{0.05};
   std::function<std::optional<Eigen::Isometry3d>()> lookup_current_tip;
   // staging 关节目标（主路径 PTP 落点；keep-roll 及 ±30°/±60° × 当前+4随机种子取最近且无自碰的
   // 最多 5 个候选，按关节距离（腕轴加权）+滚转惩罚升序）。转移逐候选试规划，救弧穿袋囊与
@@ -170,20 +177,24 @@ public:
 
   // 只规划（PREVIEW / preview Trigger）：接近分档 + 到预抓取 + 沿轴插入
   // 整链一次装配预览，不下发。执行的接触走 moveToPregrasp / sleeveLinear。
+  // fruit：果实胶囊（感知直径+膨胀；阶段执行器按精化几何构造）。
   GraspTaskResult approachAndInsert(
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
-    double insertion_distance_m);
+    double insertion_distance_m,
+    const FruitCapsule & fruit);
 
   // 入口→插入→原轴撤离，只规划不下发。
   GraspTaskResult previewFullContact(
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
-    double insertion_distance_m);
+    double insertion_distance_m,
+    const FruitCapsule & fruit);
 
   GraspTaskResult moveToPregrasp(
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
+    const FruitCapsule & fruit,
     bool execute);
 
   GraspTaskResult sleeveLinear(
@@ -267,6 +278,7 @@ private:
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
     const ApproachSplit & split,
+    const FruitCapsule & fruit,
     bool execute);
   std::unique_ptr<moveit::task_constructor::Task> makeInsertOnlyTask(
     const std::string & task_name,
@@ -280,7 +292,8 @@ private:
     moveit::task_constructor::SerialContainer & sequence,
     const Eigen::Isometry3d & target_tip_pose,
     const std::string & label,
-    bool gate_orientation) const;
+    bool gate_orientation,
+    double velocity_scaling = -1.0) const;  // <0 = config_.velocity_scaling
   void appendApproachToPregrasp(
     moveit::task_constructor::SerialContainer & sequence,
     const Eigen::Isometry3d & entry_tip_pose,
@@ -292,15 +305,19 @@ private:
     double along_axis_m,
     const std::string & label) const;
   void syncKeepoutCollisionObjects() const;
+  // ③层工具豁免：先取现行 ACM 再 setEntry 工具链 × <octomap>，回写全表
+  // （MoveIt ACM diff 是整表替换，不能只发子方阵）。臂/相机保持受查。
+  void applyToolOctomapExemption(
+    moveit::planning_interface::PlanningSceneInterface & scene) const;
 
   std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner>
-  makePilzSolver(const std::string & planner_id) const;
-  std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner>
-  makeLinSolver() const;
+  makePilzSolver(
+    const std::string & planner_id,
+    double velocity_scaling = -1.0) const;  // <0 = config_.velocity_scaling
   std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner>
   makePtpSolver() const;
   std::shared_ptr<moveit::task_constructor::solvers::CartesianPath>
-  makeCartesianSolver() const;
+  makeCartesianSolver(double velocity_scaling = -1.0) const;
   std::unique_ptr<moveit::task_constructor::stages::MoveTo> makeMoveToEntry(
     const std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner> & solver,
     const Eigen::Isometry3d & entry_tip_pose,
@@ -314,8 +331,8 @@ private:
   GraspTaskConfig config_;
   std::mutex task_mutex_;
   std::unique_ptr<moveit::task_constructor::Task> active_task_;
-  BagKeepout pending_keepout_;
-  bool inspect_bag_keepout_{false};
+  FruitCapsule pending_fruit_;
+  bool inspect_fruit_{false};
   mutable std::vector<std::string> published_keepout_ids_;  // 上次写入 scene 的 id
   std::vector<trajectory_msgs::msg::JointTrajectory> planned_approach_parts_;
   std::vector<trajectory_msgs::msg::JointTrajectory> last_approach_parts_;

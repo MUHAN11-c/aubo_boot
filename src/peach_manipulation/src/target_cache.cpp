@@ -232,6 +232,7 @@ bool TargetCache::updateRefinedPose(const RefinedPoseUpdate & update)
   refined_.neck = update.neck;
   refined_.axis = update.axis;
   refined_.suggested_travel_m = update.suggested_travel_m;
+  refined_.bag_diameter_upper_m = update.bag_diameter_upper_m;
   refined_.valid = nonzeroFinite(refined_.axis) && refined_.entry.allFinite();
   quality_.refined_target_id = update.target_id;
   quality_.refined_accept = update.accepted;

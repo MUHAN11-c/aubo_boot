@@ -16,6 +16,7 @@
 #include <thread>
 #include <vector>
 
+#include <aubo_msgs/msg/joint_status.hpp>
 #include <aubo_msgs/msg/robot_status.hpp>
 #include <aubo_msgs/srv/set_io.hpp>
 #include <builtin_interfaces/msg/duration.hpp>
@@ -40,10 +41,9 @@
 #include <std_srvs/srv/trigger.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
+#include "peach_manipulation/contact_monitor.hpp"
 #include "peach_manipulation/cycle_context.hpp"
-#include "peach_manipulation/cycle_state.hpp"
 #include "peach_manipulation/cycle_support.hpp"
-#include "peach_manipulation/execution_authority.hpp"
 #include "peach_manipulation/grasp_task.hpp"
 #include "peach_manipulation/motion.hpp"
 #include "peach_manipulation/quality_gate.hpp"
@@ -135,6 +135,7 @@ private:
   void onRefinedDiagnostics(
     const peach_interfaces::msg::BagFittingArray::SharedPtr message);
   void onRobotStatus(const aubo_msgs::msg::RobotStatus::SharedPtr message);
+  void onJointStatus(const aubo_msgs::msg::JointStatus::SharedPtr message);
 
   // ExecuteTarget action 服务端与周期控制服务（cycle.cpp）。
   rclcpp_action::GoalResponse onActionGoal(
@@ -215,7 +216,7 @@ private:
   // 观测话题到达间隔 EMA 更新（onTargets 每帧调用）。
   void trackFrameInterval();
 
-  // 运动阶段授权（execution_authority.hpp 矩阵的唯一实现，cycle.cpp）：
+  // 运动阶段授权（cycle_support.hpp 矩阵的唯一实现，cycle.cpp）：
   // 一切运动执行入口最终收敛到本判定；why 给出拒绝原因（日志带 stage 名）。
   bool authorizeStage(const CycleContext & ctx, MotionStage stage, std::string & why);
   // authorizeStage 的失败包装（stages.cpp）：拒绝时按语义分级——GraspDecision
@@ -249,6 +250,14 @@ private:
     const CachedRefined & refined, const Eigen::Isometry3d & initial_pose,
     Eigen::Isometry3d & entry_tip_pose, double & travel_m,
     std::string & error);
+  // 果实胶囊（①层审查输入）：感知直径+膨胀；直径无效回退保守半径并 WARN。
+  FruitCapsule fruitCapsuleFor(const CachedRefined & refined) const;
+  // ④层接触止损：guarded 段（接近执行/套入）包裹调用；enabled=false 时
+  // no-op。触发疑似硬接触→requestCancelAll + 旗标，阶段函数事后判旗标
+  // 失败并给文案（CONTACT_ABORTED 枚举留待真机标定轮进 IDL）。
+  void startContactGuard();
+  void stopContactGuard();
+  bool contactAbortSuspected() const;
   bool stagePrepareCycle(CycleContext & ctx);
   bool stagePlanPreview(CycleContext & ctx);
   bool stageAcquireViews(CycleContext & ctx);
@@ -394,6 +403,15 @@ private:
     refined_pose_sub_;
   rclcpp::Subscription<peach_interfaces::msg::BagFittingArray>::SharedPtr refined_diag_sub_;
   rclcpp::Subscription<aubo_msgs::msg::RobotStatus>::SharedPtr robot_status_sub_;
+  // ④层接触止损接线：joint_status 电流缓存（环形 64 样本，互斥保护），
+  // guarded 段 timer 评估；默认 enabled=false 只缓存不判定。
+  rclcpp::Subscription<aubo_msgs::msg::JointStatus>::SharedPtr joint_status_sub_;
+  rclcpp::TimerBase::SharedPtr contact_guard_timer_;
+  std::mutex joint_current_mutex_;
+  std::vector<CurrentSample> joint_current_samples_;
+  ContactDetectConfig contact_detect_config_;
+  std::unique_ptr<ContactMonitor> contact_monitor_;
+  std::atomic<bool> contact_abort_suspected_{false};
   // 生命周期发布者：on_activate/on_deactivate 切换激活态；publishState 在
   // 未激活/已清理时只更新内存投影不发布（~/status 仍随激活发布）。
   rclcpp_lifecycle::LifecyclePublisher<std_msgs::msg::String>::SharedPtr status_pub_;

@@ -1,4 +1,4 @@
-// 功能：周期支撑（扫描预算、阶段墙钟、回调耗时 RAII）。包内私用，零业务分支。
+// 功能：周期支撑（扫描预算、阶段墙钟、回调耗时 RAII、运动阶段授权）。包内私用，零业务分支。
 #ifndef PEACH_MANIPULATION__CYCLE_SUPPORT_HPP_
 #define PEACH_MANIPULATION__CYCLE_SUPPORT_HPP_
 
@@ -13,12 +13,27 @@
 #include <nlohmann/json.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-#include "peach_manipulation/cycle_state.hpp"
+#include "peach_manipulation/cycle_context.hpp"
 
 // 功能：观察段扫描预算。覆盖够就停；否则把 maximum_moves 走完。
 
 namespace peach_manipulation
 {
+
+// 运动阶段。授权矩阵（authorizeStage 逐级叠加，节点原子成员/安全门为输入）：
+//   公共（全部阶段）  ：motion_output_permitted_（Lifecycle Active）
+//                       ∧ SafetyGate::robotReady ∧ !cancel_requested_
+//   TRANSIT / PREGRASP：公共 ∧ execution_enabled_
+//   CONTACT（套入）    ：公共 ∧ grasp_enabled_ ∧ GraspDecision 复检
+//                        （graspDecisionTargetSnapshot()==ctx.target_id 且
+//                         qualitySnapshot().grasp_allowed）
+//   TOOL：CONTACT 条件 ∧ tool_enabled_
+// 撤离（撤退/回 stow 的撤退段）不依赖视觉：插入后目标常被工具遮挡、收割后
+// GraspDecision 可能翻转，决策复检只在套入/剪切入口（requireStageAuthority
+// CONTACT/TOOL）判定；撤退段授权经 GraspTask retreat 门（公共 + execution +
+// grasp，无决策复检）。原 motion 注入 safety_gate lambda（Active ∧ robotReady）
+// 保留为 TRANSIT 级底座，plan-only 路径不经其执行段。
+enum class MotionStage { TRANSIT, PREGRASP, CONTACT, TOOL };
 
 // 停准则对齐体积重建惯例（Open3D TSDF 对一组相机位姿逐张 integrate；
 // 工业 NBV 在 max_views 或信息增益够了才停），而不是用「上次移动+等帧」

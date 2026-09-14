@@ -73,6 +73,7 @@ struct Params
     double mtc_approach_cartesian_max_distance_m = 0.8;
     double mtc_approach_along_axis_m = 0.0;
     double approach_staging_standoff_m = 0.1;
+    double approach_near_velocity_scaling = 0.05;
     double mtc_approach_max_lateral_m = 0.05;
     double mtc_approach_max_align_deg = 20.0;
     double observe_planning_time_s = 1.0;
@@ -138,6 +139,19 @@ struct Params
     double reconfirm_tolerance_m = 0.03;
     int64_t reconfirm_max_attempts = 3L;
     bool allow_stale_anchor = false;
+    // ①层果实胶囊：感知直径 + 本膨胀（米）。感知直径无效时回退
+    // moveit.mtc_approach_keepout_radius_m 作 fruitRadiusM 的 base。
+    double fruit_inflation_m = 0.01;
+    // ④层接触止损（默认关）：关节电流特征判别，阈值须真机受控试验
+    // 标定后启用（SDK 原始单位）；<=0 不判该项。
+    struct ContactDetect
+    {
+      bool enabled = false;
+      double baseline_s = 0.2;
+      double slope_threshold = 0.0;
+      double spike_threshold = 0.0;
+    };
+    ContactDetect contact_detect;
   };
   Grasp grasp;
   struct Tool
@@ -226,6 +240,7 @@ private:
     declare_one<double>("moveit.mtc_approach_cartesian_max_distance_m", 0.8);
     declare_one<double>("moveit.mtc_approach_along_axis_m", 0.0);
     declare_one<double>("moveit.approach_staging_standoff_m", 0.1);
+    declare_one<double>("moveit.approach_near_velocity_scaling", 0.05);
     declare_one<double>("moveit.mtc_approach_max_lateral_m", 0.05);
     declare_one<double>("moveit.mtc_approach_max_align_deg", 20.0);
     declare_one<double>("moveit.observe_planning_time_s", 1.0);
@@ -279,6 +294,11 @@ private:
     declare_one<double>("grasp.reconfirm_tolerance_m", 0.03);
     declare_one<int64_t>("grasp.reconfirm_max_attempts", 3L);
     declare_one<bool>("grasp.allow_stale_anchor", false);
+    declare_one<double>("grasp.fruit_inflation_m", 0.01);
+    declare_one<bool>("grasp.contact_detect.enabled", false);
+    declare_one<double>("grasp.contact_detect.baseline_s", 0.2);
+    declare_one<double>("grasp.contact_detect.slope_threshold", 0.0);
+    declare_one<double>("grasp.contact_detect.spike_threshold", 0.0);
     declare_one<bool>("tool.enabled", false);
     declare_one<int64_t>("tool.io_fun", 3L);
     declare_one<int64_t>("tool.io_pin", 0L);
@@ -397,6 +417,10 @@ private:
     } else if (name == "moveit.approach_staging_standoff_m") {
       const double v = param.as_double();
       if (!(v >= 0.0)) {reason = "moveit.approach_staging_standoff_m: 须 >= 0.0"; return false;}
+    } else if (name == "moveit.approach_near_velocity_scaling") {
+      const double v = param.as_double();
+      if (!(v > 0.0)) {reason = "moveit.approach_near_velocity_scaling: 须 > 0.0"; return false;}
+      if (!(v <= 1.0)) {reason = "moveit.approach_near_velocity_scaling: 须 <= 1.0"; return false;}
     } else if (name == "moveit.mtc_approach_max_lateral_m") {
       const double v = param.as_double();
       if (!(v > 0.0)) {reason = "moveit.mtc_approach_max_lateral_m: 须 > 0.0"; return false;}
@@ -525,6 +549,13 @@ private:
     } else if (name == "execution.target_observation_max_age_s") {
       const double v = param.as_double();
       if (!(v > 0.0)) {reason = "execution.target_observation_max_age_s: 须 > 0.0"; return false;}
+    } else if (name == "grasp.fruit_inflation_m" ||
+      name == "grasp.contact_detect.baseline_s" ||
+      name == "grasp.contact_detect.slope_threshold" ||
+      name == "grasp.contact_detect.spike_threshold")
+    {
+      const double v = param.as_double();
+      if (!(v >= 0.0)) {reason = "grasp 果实/接触检测: 须 >= 0.0"; return false;}
     } else if (name == "grasp.neck_margin_m") {
       const double v = param.as_double();
       if (!(v >= 0.0)) {reason = "grasp.neck_margin_m: 须 >= 0.0"; return false;}
@@ -641,6 +672,8 @@ private:
       params_.moveit.mtc_approach_along_axis_m = param.as_double();
     } else if (name == "moveit.approach_staging_standoff_m") {
       params_.moveit.approach_staging_standoff_m = param.as_double();
+    } else if (name == "moveit.approach_near_velocity_scaling") {
+      params_.moveit.approach_near_velocity_scaling = param.as_double();
     } else if (name == "moveit.mtc_approach_max_lateral_m") {
       params_.moveit.mtc_approach_max_lateral_m = param.as_double();
     } else if (name == "moveit.mtc_approach_max_align_deg") {
@@ -747,6 +780,16 @@ private:
       params_.grasp.reconfirm_max_attempts = param.as_int();
     } else if (name == "grasp.allow_stale_anchor") {
       params_.grasp.allow_stale_anchor = param.as_bool();
+    } else if (name == "grasp.fruit_inflation_m") {
+      params_.grasp.fruit_inflation_m = param.as_double();
+    } else if (name == "grasp.contact_detect.enabled") {
+      params_.grasp.contact_detect.enabled = param.as_bool();
+    } else if (name == "grasp.contact_detect.baseline_s") {
+      params_.grasp.contact_detect.baseline_s = param.as_double();
+    } else if (name == "grasp.contact_detect.slope_threshold") {
+      params_.grasp.contact_detect.slope_threshold = param.as_double();
+    } else if (name == "grasp.contact_detect.spike_threshold") {
+      params_.grasp.contact_detect.spike_threshold = param.as_double();
     } else if (name == "tool.enabled") {
       params_.tool.enabled = param.as_bool();
     } else if (name == "tool.io_fun") {

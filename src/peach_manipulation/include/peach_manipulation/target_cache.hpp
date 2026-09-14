@@ -55,7 +55,8 @@ struct CachedTarget
   double foreground_ratio{-1.0};
 };
 
-// 精化几何（重建侧锁存的最终拟合结果）。
+// 精化几何（重建侧锁存的最终拟合结果）。bag_diameter_upper_m 为感知
+// 拟合圆柱直径（米，无效 -1）：果实胶囊审计的逐目标半径来源。
 struct CachedRefined
 {
   std::string id;
@@ -64,6 +65,7 @@ struct CachedRefined
   Eigen::Vector3d neck{Eigen::Vector3d::Zero()};
   Eigen::Vector3d axis{Eigen::Vector3d::UnitZ()};
   double suggested_travel_m{0.0};
+  double bag_diameter_upper_m{-1.0};
   bool valid{false};
 };
 
@@ -139,6 +141,7 @@ struct RefinedPoseUpdate
   Eigen::Vector3d neck{Eigen::Vector3d::Zero()};
   Eigen::Vector3d axis{Eigen::Vector3d::Zero()};
   double suggested_travel_m{0.0};
+  double bag_diameter_upper_m{-1.0};
   bool accepted{false};
 };
 

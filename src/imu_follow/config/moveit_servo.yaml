@@ -1,0 +1,29 @@
+moveit_servo:
+  ros__parameters:
+    moveit_servo.move_group_name: manipulator_e5  # SRDF 规划组（必传；此版 servo 参数名自带 moveit_servo. 前缀）
+    moveit_servo.publish_period: 0.01  # 1/输出节拍（100 Hz）
+    moveit_servo.max_expected_latency: 0.1  # 指令到控制器的最大预期时延 s
+    moveit_servo.command_in_type: speed_units  # 输入单位：imu_follow 发 m/s 与 rad/s
+    moveit_servo.incoming_command_timeout: 0.2  # 超时丢弃旧指令（20 Hz 节拍之上留裕量）
+    moveit_servo.cartesian_command_in_topic: ~/delta_twist_cmds  # twist 输入（EE 系）→ /moveit_servo/delta_twist_cmds
+    moveit_servo.joint_command_in_topic: ~/delta_joint_cmds
+    moveit_servo.apply_twist_commands_about_ee_frame: true  # 角速度绕 EE 轴，不产生杠杆线速度
+    moveit_servo.joint_topic: /joint_states  # 关节状态来源
+    moveit_servo.status_topic: ~/status  # servo 状态（含奇异/碰撞告警）
+    moveit_servo.command_out_type: trajectory_msgs/JointTrajectory  # JTC 话题流式输入
+    moveit_servo.command_out_topic: /joint_trajectory_controller/joint_trajectory  # mock JTC；真机须桥接（透传只有 FJT 动作口）
+    moveit_servo.publish_joint_positions: true
+    moveit_servo.publish_joint_velocities: false
+    moveit_servo.use_smoothing: true  # 输出平滑插件（在线信号平滑）
+    moveit_servo.smoothing_filter_plugin_name: online_signal_smoothing::ButterworthFilterPlugin
+    moveit_servo.is_primary_planning_scene_monitor: false  # move_group 是主 planning scene（服务口不抢）
+    moveit_servo.monitored_planning_scene_topic: /planning_scene
+    moveit_servo.check_octomap_collisions: false
+    moveit_servo.check_collisions: true  # 全臂碰撞监测（含减速）
+    moveit_servo.collision_check_rate: 10.0  # Hz
+    moveit_servo.self_collision_proximity_threshold: 0.01  # 自碰减速距离 m
+    moveit_servo.scene_collision_proximity_threshold: 0.02  # 场景碰撞减速距离 m
+    moveit_servo.lower_singularity_threshold: 17.0  # 条件数达到即减速
+    moveit_servo.hard_stop_singularity_threshold: 30.0  # 条件数达到即停
+    moveit_servo.leaving_singularity_threshold_multiplier: 2.0
+    moveit_servo.joint_limit_margins: [0.1]  # 关节限位缓冲 rad

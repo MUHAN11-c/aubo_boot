@@ -14,11 +14,10 @@ candidate_2d 字段下发，不再单独成话题）。
 本模块为编排层（参数、订阅发布、回调编排、main）；纯函数按职责拆分：
   params.py        — 参数层（ScenePerceptionParams 集中 declare/装载）
   stream_metrics.py — 帧率/超时/耗时/光照 EMA 观测原语
-  assignment.py    — χ²门 + 匈牙利身份分配与跟踪状态分类
+  identity.py      — χ² 分配、身份匹配与锁定窗（直接构造）
   image_gates.py   — 锚点投影与深度/前景门控
   pose_pipelines.py — 袋/果位姿线（PIPELINES_BY_IMPL）
   inference.py     — YOLO/SAM（直接构造）
-  identity.py      — 身份匹配与锁定窗（直接构造）
   visualization.py — 消息组装、RViz Marker 与 debug 叠加图
   peach_perception.common — 通用纯核（geometry/runtime/tool_budget/bag_landmarks）
 """
@@ -44,44 +43,32 @@ from peach_interfaces.msg import (
     PeachTargetObservationArray,
 )
 from peach_interfaces.srv import BeginScene
-from peach_perception.common.bounded_worker import BoundedWorker
-from peach_perception.common.depth_geometry import normalize_depth_to_uint16_mm
-from peach_perception.common.harvest_data import (
+from peach_perception.common.geometry import (
+    gravity_camera_from_R,
+    normalize_depth_to_uint16_mm,
+    transform_msg_to_matrix,
+)
+from peach_perception.common.ros.clock_adapter import RclpyClockAdapter
+from peach_perception.common.runtime import (
+    BoundedWorker,
     default_runs_root,
     HarvestDataStore,
 )
-from peach_perception.common.ros.clock_adapter import RclpyClockAdapter
-from peach_perception.common.tf_utils import (
-    gravity_camera_from_R,
-    transform_msg_to_matrix,
-)
-from peach_perception.scene_perception.anchor_memory import (
-    first_point,
-    memory_grasp,
-)
-from peach_perception.scene_perception.assignment import (
+from peach_perception.scene_perception.contracts import BagObservation
+from peach_perception.scene_perception.identity import (
     bbox_touches_image_edge,
     classify_tracking_status,
+    CollectLockPolicy,
+    first_point,
+    GlobalHarvestPlan,
+    memory_grasp,
+    SpatialEmaMatcher,
     STATUS_DEPTH_VOID,
     STATUS_LOST,
     STATUS_OBSERVED,
     STATUS_OCCLUDED,
     STATUS_OUT_OF_VIEW,
-)
-from peach_perception.scene_perception.cloud_utils import (
-    _bbox_cloud_xyzrgb,
-    _xyzrgb_to_cloud_msg,
-)
-from peach_perception.scene_perception.contracts import BagObservation
-from peach_perception.scene_perception.conversions import (
-    _to_candidate,
-    _to_candidate_2d,
-    _to_detection2d,
-    _to_fitting,
-)
-from peach_perception.scene_perception.harvest_plan import (
-    CollectLockPolicy,
-    GlobalHarvestPlan,
+    TargetRegistry,
 )
 from peach_perception.scene_perception.image_gates import (
     plan_segmentation_bboxes,
@@ -107,13 +94,15 @@ from peach_perception.scene_perception.stream_metrics import (
     RateEstimator,
     TimingMetrics,
 )
-from peach_perception.scene_perception.target_registry import (
-    SpatialEmaMatcher,
-    TargetRegistry,
-)
 from peach_perception.scene_perception.visualization import (
+    _bbox_cloud_xyzrgb,
     _draw_debug,
+    _to_candidate,
+    _to_candidate_2d,
+    _to_detection2d,
+    _to_fitting,
     _to_markers,
+    _xyzrgb_to_cloud_msg,
 )
 import rclpy
 from rclpy.duration import Duration
@@ -126,7 +115,7 @@ from vision_msgs.msg import Detection2DArray
 from visualization_msgs.msg import Marker, MarkerArray
 
 # 跟踪状态四分类 token → msg 常量（阶段 D1；分类纯函数在
-# assignment.classify_tracking_status，msg 常量只能在本层映射）
+# identity.classify_tracking_status，msg 常量只能在本层映射）
 _TRACKING_STATUS_TO_MSG = {
     STATUS_OBSERVED: PeachTargetObservation.OBSERVED,
     STATUS_OCCLUDED: PeachTargetObservation.OCCLUDED,

@@ -2,7 +2,7 @@
 """感知包络 + 接近护栏的解析覆盖（不执臂、不调 ExecuteTarget）。
 
 对照现行约束（peach_perception 上半球 clamp；peach_manipulation 弦长 /
-袋囊 keepout / TCP 姿态测地线绝对 110°、相对起止余量 20°）：在算法包络内分层抽 N 个入口+轴，对每例
+果实胶囊+反爬 / TCP 姿态测地线绝对 110°、相对起止余量 20°）：在算法包络内分层抽 N 个入口+轴，对每例
 复刻 C++ 的闭式审查。主路径是 staging PTP，**弦 keepout 只作 LIN 对照、
 不计入 analytic_ok**（PTP 弧须 FK）。不规划关节，因此 **不** 声称累计
 行程 12 rad / 单轴 6.1 rad、也不声称 PTP 弧笛卡尔绕行比。
@@ -27,10 +27,10 @@ from sim_approach_probe import (  # noqa: E402
     STAGING_GAP_M, STANDOFF_M, _align_z, _angle_deg, _mat_to_quat,
     _quat_to_mat, _roll_z)
 from sim_field_targets import (  # noqa: E402
-    AABB_PAD_M, CART_MAX_M, ENTRY_NORM_MAX_M, KEEP_AXIAL_M, KEEP_R_M,
-    TYPICAL_AXIS_Z_MIN, TYPICAL_ENTRY_NORM_M, _aabb, _add, _bag_length,
-    _clamp_upper_hemisphere, _in_typical_envelope, _norm, _pose_ok, _scale,
-    load_casebook)
+    AABB_PAD_M, CART_MAX_M, ENTRY_NORM_MAX_M, KEEP_AXIAL_M,
+    SIM_BAG_DIAMETER_M, TYPICAL_AXIS_Z_MIN, TYPICAL_ENTRY_NORM_M, _aabb, _add,
+    _bag_length, _clamp_upper_hemisphere, _in_typical_envelope, _norm,
+    _pose_ok, _scale, fruit_radius_m, load_casebook, tool_body_hits_fruit)
 
 RESULTS_DIR = Path(__file__).resolve().parents[1] / 'runs'
 ROLLS_DEG = (0, 30, -30, 60, -60)
@@ -60,11 +60,6 @@ def _axial_radial(point, entry, axis):
     return s, r
 
 
-def _point_hits_keepout(point, entry, axis, radius=KEEP_R_M):
-    s, r = _axial_radial(point, entry, axis)
-    return s >= 0.0 and r < radius
-
-
 def _sample_segment(start, end, count=KEEP_SAMPLES):
     n = max(2, count)
     return [
@@ -72,21 +67,24 @@ def _sample_segment(start, end, count=KEEP_SAMPLES):
         for t in (k / n for k in range(n + 1))]
 
 
-def inspect_keepout(points, entry, axis, audit_climb):
-    """复刻 grasp_geometry.hpp inspectTcpBagKeepout。"""
-    if KEEP_R_M <= 1e-6 or KEEP_AXIAL_M <= 1e-6 or len(points) < 2:
-        return True, '袋囊 keepout 关闭或点列不足'
+def inspect_keepout(points, entry, axis, audit_climb, fruit_r=None):
+    """复刻 grasp_geometry.hpp inspectToolVsFruit（有限圆柱+反爬）。"""
+    if KEEP_AXIAL_M <= 1e-6 or len(points) < 2:
+        return True, '果实胶囊审查关闭或点列不足'
+    radius = fruit_radius_m(SIM_BAG_DIAMETER_M) if fruit_r is None else fruit_r
+    bottom = list(entry)
+    neck = _add(bottom, _scale(axis, 0.07))
     start_s, _ = _axial_radial(points[0], entry, axis)
     s_max = (start_s if start_s > 0.0 else 0.0) + CLIMB_SLACK_M
     for p in points:
         s, r = _axial_radial(p, entry, axis)
         if audit_climb and s > s_max:
-            return False, f'从口侧/上方绕行 s={s:.4f}m > 口侧上限 {s_max:.4f}m'
-        if _point_hits_keepout(p, entry, axis):
+            return False, f'从果上方绕行 s={s:.4f}m > 上限 {s_max:.4f}m'
+        if tool_body_hits_fruit(p, axis, bottom, neck, axis, radius):
             return False, (
-                f'TCP 进入袋囊 keepout（口侧）s={s:.4f}m r={r:.4f}m '
-                f'< {KEEP_R_M}m')
-    return True, '袋囊 keepout 通过'
+                f'工具筒体接触果实胶囊 s={s:.4f}m r={r:.4f}m '
+                f'R={radius:.4f}m')
+    return True, '果实胶囊审查通过'
 
 
 def quat_geodesic_deg(qa, qb):

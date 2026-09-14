@@ -43,6 +43,100 @@ void ManipulationSkillsNode::onRobotStatus(
   robot_status_valid_ = true;
 }
 
+// 果实胶囊（①层）：感知直径+膨胀；无效直径回退保守半径并告警。
+FruitCapsule ManipulationSkillsNode::fruitCapsuleFor(
+  const CachedRefined & refined) const
+{
+  if (!(refined.bag_diameter_upper_m > 0.0)) {
+    RCLCPP_WARN(
+      get_logger(),
+      "感知果实直径无效(%.3f)：果实胶囊回退保守半径 %.3fm（目标 %s）",
+      refined.bag_diameter_upper_m,
+      params_.moveit.mtc_approach_keepout_radius_m, refined.id.c_str());
+  }
+  return fruitCapsuleFrom(
+    refined.bottom, refined.neck, refined.axis, refined.bag_diameter_upper_m,
+    params_.grasp.fruit_inflation_m, params_.moveit.mtc_approach_keepout_radius_m,
+    params_.moveit.mtc_approach_keepout_axial_m > 1.0e-6);
+}
+
+// ④层接触止损接线：joint_status 电流环形缓存 + guarded 段 timer 评估。
+// enabled=false（默认）时只缓存不判定；触发即取消当前执行并置旗标，
+// 阶段函数在段后判旗标给失败文案。阈值须真机受控试验标定后启用。
+void ManipulationSkillsNode::onJointStatus(
+  const aubo_msgs::msg::JointStatus::SharedPtr message)
+{
+  if (message->current.size() < 6U) {
+    return;
+  }
+  CurrentSample sample;
+  sample.t = now().seconds();
+  for (std::size_t j = 0; j < 6U; ++j) {
+    sample.current[j] = message->current[j];
+  }
+  std::lock_guard<std::mutex> lock(joint_current_mutex_);
+  joint_current_samples_.push_back(sample);
+  if (joint_current_samples_.size() > 128U) {
+    joint_current_samples_.erase(joint_current_samples_.begin());
+  }
+}
+
+void ManipulationSkillsNode::startContactGuard()
+{
+  contact_abort_suspected_.store(false);
+  if (!contact_detect_config_.enabled) {
+    return;
+  }
+  std::vector<CurrentSample> baseline;
+  {
+    std::lock_guard<std::mutex> lock(joint_current_mutex_);
+    const double now_s = now().seconds();
+    for (const auto & sample : joint_current_samples_) {
+      if (now_s - sample.t <= contact_detect_config_.baseline_s) {
+        baseline.push_back(sample);
+      }
+    }
+  }
+  contact_monitor_ = std::make_unique<ContactMonitor>(contact_detect_config_);
+  contact_monitor_->start(baseline);
+  contact_guard_timer_ = this->create_wall_timer(
+    std::chrono::milliseconds(50),
+    [this]() {
+      if (!contact_monitor_) {
+        return;
+      }
+      CurrentSample latest;
+      {
+        std::lock_guard<std::mutex> lock(joint_current_mutex_);
+        if (joint_current_samples_.empty()) {
+          return;
+        }
+        latest = joint_current_samples_.back();
+      }
+      const ContactReport report = contact_monitor_->update(latest);
+      if (report.verdict == ContactVerdict::SUSPECTED_HARD) {
+        RCLCPP_ERROR(
+          get_logger(),
+          "疑似硬接触（%s，腕轴 %zu，偏差 %.2f）：取消当前执行",
+          report.reason.c_str(), report.joint_index,
+          report.max_wrist_deviation);
+        contact_abort_suspected_.store(true);
+        requestCancelAll();
+      }
+    });
+}
+
+void ManipulationSkillsNode::stopContactGuard()
+{
+  contact_guard_timer_.reset();
+  contact_monitor_.reset();
+}
+
+bool ManipulationSkillsNode::contactAbortSuspected() const
+{
+  return contact_abort_suspected_.load();
+}
+
 double ManipulationSkillsNode::insertionTravel(const CachedRefined & refined) const
 {
   // TCP 是工具圆柱前端面圆心，也就是物理剪切点。精化给出入口到剪切
@@ -199,9 +293,12 @@ void ManipulationSkillsNode::previewContact(
     CycleState::PREVIEW_CONTACT_PLANNING,
     include_retreat ? "MTC 只规划：到入口、直线插入、同轴撤离" :
     "MTC 只规划：到入口、直线插入");
+  const FruitCapsule fruit = fruitCapsuleFor(*refined);
   const GraspTaskResult result = include_retreat ?
-    grasp_task_->previewFullContact(entry_tip_pose, refined->axis, travel) :
-    grasp_task_->approachAndInsert(entry_tip_pose, refined->axis, travel);
+    grasp_task_->previewFullContact(entry_tip_pose, refined->axis, travel,
+      fruit) :
+    grasp_task_->approachAndInsert(entry_tip_pose, refined->axis, travel,
+      fruit);
   if (!result.success) {
     finish(false, CycleState::PREVIEW_FAILED, "MTC 接触轨迹预览失败: " + result.reason);
     return;

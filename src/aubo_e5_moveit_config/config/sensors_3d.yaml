@@ -1,0 +1,27 @@
+# ③层场景碰撞（2026-09-14 约束重设计）：点云 octomap 保护臂/相机连杆。
+# 工具链对 octomap 的豁免由 peach_manipulation 在 planning scene ACM
+# 写入（对象名是 MoveIt 保留名 <octomap>，不是 "octomap"）。
+# occupancy_map_monitor 读的是节点顶层参数：
+#   sensors: [名字]
+#   <名字>.sensor_plugin 必须是 pluginlib 名（斜杠，不是 C++ ::）
+#   octomap_resolution 必须在 yaml 顶层，否则分辨率回退 0.1。
+#   octomap_frame 仅在 OccupancyMapMonitor 构造未传入规划系时生效；
+#   现行 PlanningSceneMonitor 传 scene->getPlanningFrame()（本机 URDF
+#   world→base_link 固定，所以 updater 目标系是 world，不是本键）。
+# PointCloudOctomapUpdater::setParams 七键全是必填，缺一拒载。
+# self-filter 由 updater 内 ShapeMask 默认开（无独立 yaml 开关）。
+# 近端裁 0.3 是 DepthImageOctomapUpdater 的键；点云 updater 用 0→max_range。
+# mock 无点云 = 空地图，与未开 octomap 行为一致。
+octomap_resolution: 0.04
+octomap_frame: world
+sensors:
+  - camera_pointcloud
+camera_pointcloud:
+  sensor_plugin: occupancy_map_monitor/PointCloudOctomapUpdater
+  point_cloud_topic: /camera/depth_registered/points
+  max_range: 2.0
+  padding_offset: 0.01
+  padding_scale: 1.0
+  point_subsample: 2
+  max_update_rate: 2.0
+  filtered_cloud_topic: filtered_cloud

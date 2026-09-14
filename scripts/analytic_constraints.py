@@ -3,14 +3,16 @@
 纯几何/纯逻辑判定，在 10000 个位姿（现场包络 + 扩展包络 + 系统网格，
 尽量覆盖所有情况）上做约束级性质验证与结合度分析。
 
-复刻对象（2026-09-11 源码口径）：
+复刻对象（2026-09-14 源码口径）：
 - classifyApproach（grasp_task.cpp）：SKIP/LIN/LIN_ALIGN/STAGING 分档与
   容差（侧向 0.05 m、夹角 20°、轴向窗 [−0.02, standoff+0.02]、LIN 资格
-  = 起点 s≤0 ∧ 直连不穿囊 ∧ 弦长 ≤0.80）。
-- 袋囊 keepout（grasp_geometry.hpp）：半无限圆柱 s≥0 ∧ r<0.12；逐段审查
-  语义（staging 首段 PTP 弧只查圆柱穿越，其后 LIN 段另查反爬
-  s ≤ 本段起点 max(s,0)+2 cm）。PTP 弧以「拍照位→staging 直弦」作保守
-  下界代理（真实关节弧只会更弯：直弦不穿弧可能穿，直弦已穿弧必被拒）。
+  = 起点 s≤0 ∧ 直连工具有限圆柱不触果实胶囊 ∧ 弦长 ≤0.80）。
+- 果实胶囊（grasp_geometry.hpp）：bottom→neck 有限段，半径 =
+  max(感知直径/2, 0.025)+0.01；感知直径按 25–50 mm 采样。工具是
+  TCP→后方 0.2 m、r=0.06 的有限圆柱（半径只径向，不含端球）。轴向
+  投影不重叠则不判侧撞。逐段审查：staging 首段 PTP 弧只查筒体接触，
+  其后 LIN 段另查反爬 s ≤ 本段起点 max(s,0)+2 cm。PTP 弧以
+  「拍照位→staging 直弦」作保守下界代理（真实关节弧只会更弯）。
 - 几何链：入口=拟合袋底；预抓取=入口沿 −axis 退 0.03（grasp_standoffs
   pregrasp 注入 mtc_approach_along_axis_m）；staging=预抓取再退 0.10。
 - 套入行程（motion.cpp insertionTravel）：suggested 或 (颈−底)·轴−0.015，
@@ -26,7 +28,8 @@
   AABB=现场坐标 ±5 cm。
 
 不变量断言（每 pose 必须成立，违例即约束链有 bug）：
- I1 轴向 LIN（staging→预抓取）恒不穿圆柱（s 全程 <0）
+ I1 轴向 LIN（staging→预抓取）工具有限圆柱恒不触果实胶囊（s 全程 <0，
+    轴向投影不重叠）
  I2 SKIP ⇒ 侧向 ≤0.05 ∧ θ ≤20° ∧ 轴向在窗内
  I3 LIN/LIN_ALIGN 资格 ⇒ 起点 s ≤ 0
  I4 套入行程 ∈ [0.02, 0.20]
@@ -59,7 +62,13 @@ RESULTS_DIR = Path(__file__).resolve().parents[1] / 'runs'
 # ---- 与源码/yaml 对齐的常量（改动须同步源码） ----
 STANDOFF_M = 0.03        # pregrasp_standoff（launch 注入 mtc_approach_along_axis_m）
 STAGING_GAP_M = 0.10     # approach_staging_standoff_m
-KEEP_R_M = 0.12          # mtc_approach_keepout_radius_m
+KEEP_R_M = 0.12          # mtc_approach_keepout_radius_m 回退半径
+FRUIT_INFLATION_M = 0.01
+FRUIT_RADIUS_FLOOR_M = 0.025
+TOOL_BODY_LENGTH_M = 0.200
+TOOL_BODY_RADIUS_M = 0.060
+DIAMETER_MIN_M = 0.025
+DIAMETER_MAX_M = 0.050
 MAX_LATERAL_M = 0.05     # mtc_approach_max_lateral_m
 MAX_ALIGN_DEG = 20.0     # mtc_approach_max_align_deg
 CHORD_CAP_M = 0.80       # mtc_approach_cartesian_max_distance_m
@@ -124,6 +133,11 @@ def angle_deg(u, v):
     return math.degrees(math.acos(c))
 
 
+def fruit_radius_m(diameter_m):
+    base = diameter_m / 2.0 if diameter_m > 1.0e-6 else KEEP_R_M
+    return max(FRUIT_RADIUS_FLOOR_M, base) + FRUIT_INFLATION_M
+
+
 def axial_radial(p, entry, axis):
     d = _sub(p, entry)
     s = _dot(d, axis)
@@ -131,16 +145,53 @@ def axial_radial(p, entry, axis):
     return s, r
 
 
-def point_in_keepout(p, entry, axis):
-    s, r = axial_radial(p, entry, axis)
-    return s >= 0.0 and r < KEEP_R_M
+def _segment_segment_distance(p1, q1, p2, q2):
+    d1 = _sub(q1, p1)
+    d2 = _sub(q2, p2)
+    r = _sub(p1, p2)
+    a = _dot(d1, d1)
+    b = _dot(d1, d2)
+    c = _dot(d2, d2)
+    f = _dot(r, d1)
+    g = _dot(r, d2)
+    denom = a * c - b * b
+    s = 0.0
+    t = 0.0
+    if a <= 1.0e-12 and c <= 1.0e-12:
+        return math.sqrt(_dot(r, r))
+    if a <= 1.0e-12:
+        t = min(1.0, max(0.0, g / c))
+    elif c <= 1.0e-12:
+        s = min(1.0, max(0.0, -f / a))
+    else:
+        s = min(1.0, max(0.0, (b * g - c * f) / denom)) if denom > 1.0e-12 else 0.0
+        t = min(1.0, max(0.0, (b * s + g) / c))
+        s = min(1.0, max(0.0, (b * t - f) / a))
+    closest = _add(r, _sub(_scale(d1, s), _scale(d2, t)))
+    return math.sqrt(_dot(closest, closest))
 
 
-def segment_hits_keepout(a, b, entry, axis, samples=40):
+def tool_body_hits_fruit(tcp, tool_z, bottom, neck, axis, fruit_r):
+    tail = _sub(tcp, _scale(_norm(tool_z), TOOL_BODY_LENGTH_M))
+    t0, _ = axial_radial(tcp, bottom, axis)
+    t1, _ = axial_radial(tail, bottom, axis)
+    f0, _ = axial_radial(bottom, bottom, axis)
+    f1, _ = axial_radial(neck, bottom, axis)
+    amin, amax = (t0, t1) if t0 <= t1 else (t1, t0)
+    bmin, bmax = (f0, f1) if f0 <= f1 else (f1, f0)
+    if amin > bmax + 1.0e-9 or bmin > amax + 1.0e-9:
+        return False
+    clearance = _segment_segment_distance(tcp, tail, bottom, neck) - \
+        TOOL_BODY_RADIUS_M - fruit_r
+    return clearance <= 0.0
+
+
+def segment_hits_fruit(a, b, bottom, neck, axis, fruit_r, samples=40):
+    """沿弦采样，工具 Z 取果实轴（接近段目标姿态）。"""
     for i in range(samples + 1):
         t = i / samples
         p = _add(_scale(a, 1 - t), _scale(b, t))
-        if point_in_keepout(p, entry, axis):
+        if tool_body_hits_fruit(p, axis, bottom, neck, axis, fruit_r):
             return True
     return False
 
@@ -183,7 +234,7 @@ def two_vectors_quat(z_from, z_to):
     return quat_from_axis_angle(_norm(axis), math.degrees(math.acos(c)))
 
 
-def classify(entry, axis, start_xyz, start_tool_z):
+def classify(entry, axis, start_xyz, start_tool_z, fruit_r, neck):
     """classifyApproach 的解析复刻（start=拍照位）。"""
     delta = _sub(entry, start_xyz)
     axial = _dot(delta, axis)
@@ -201,7 +252,8 @@ def classify(entry, axis, start_xyz, start_tool_z):
     s0, _ = axial_radial(start_xyz, entry, axis)
     chord = math.dist(start_xyz, pregrasp)
     if (s0 <= 0.0 and
-        not segment_hits_keepout(start_xyz, pregrasp, entry, axis) and
+        not segment_hits_fruit(
+            start_xyz, pregrasp, entry, neck, axis, fruit_r) and
             chord <= CHORD_CAP_M):
         return ('LIN' if align_deg <= 2.0 else 'LIN_ALIGN',
                 dict(axial=axial, lateral=lateral, align_deg=align_deg,
@@ -295,7 +347,9 @@ def load_sampler(rng):
             axis = sample_upper(rng, 0.0)
         length = max(0.03, math.dist(src['bag_bottom'], src['bag_neck']))
         neck = _add(entry, _scale(axis, length))
+        diameter = rng.uniform(DIAMETER_MIN_M, DIAMETER_MAX_M)
         return (dict(entry=entry, axis=axis, neck=neck, length=length,
+                     diameter=diameter,
                      suggested=float(src.get('travel_m') or 0.0),
                      origin=kind), pose_ok(entry, axis))
     return one
@@ -320,7 +374,8 @@ def systematic_poses():
             for e in spots:
                 out.append(dict(entry=list(e), axis=axis,
                                 neck=_add(list(e), _scale(axis, 0.07)),
-                                length=0.07, suggested=0.0, origin='grid'))
+                                length=0.07, diameter=0.04, suggested=0.0,
+                                origin='grid'))
     return out
 
 
@@ -337,13 +392,17 @@ def evaluate(pose):
     entry, axis = pose['entry'], _norm(pose['axis'])
     photo = list(PHOTO_XYZ)
     photo_z = _norm(PHOTO_TOOL_Z)
-    kind, m = classify(entry, axis, photo, photo_z)
+    fruit_r = fruit_radius_m(pose.get('diameter', 0.04))
+    neck = pose['neck']
+    kind, m = classify(entry, axis, photo, photo_z, fruit_r, neck)
     pregrasp = _sub(entry, _scale(axis, STANDOFF_M))
     staging = _sub(pregrasp, _scale(axis, STAGING_GAP_M))
     travel = travel_of(pose['neck'], entry, axis, pose['suggested'])
 
-    axial_lin_clean = not segment_hits_keepout(staging, pregrasp, entry, axis)
-    transit_hit = segment_hits_keepout(photo, staging, entry, axis)
+    axial_lin_clean = not segment_hits_fruit(
+        staging, pregrasp, entry, neck, axis, fruit_r)
+    transit_hit = segment_hits_fruit(
+        photo, staging, entry, neck, axis, fruit_r)
     path = math.dist(photo, staging) + STAGING_GAP_M
     chord = math.dist(photo, pregrasp)
     ratio = path / chord if chord >= 0.02 else 0.0
@@ -377,7 +436,7 @@ def evaluate(pose):
     rec['violations'] = v
     reason = None
     if transit_hit:
-        reason = 'keepout_ptp'
+        reason = 'fruit_capsule_ptp'
     elif ratio > DETOUR_RATIO:
         reason = 'detour_ratio'
     elif not ok_rolls:

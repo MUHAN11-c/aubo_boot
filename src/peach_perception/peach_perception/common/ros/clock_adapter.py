@@ -20,7 +20,7 @@ rclpy 时钟适配器 — Clock 抽象的 ROS 运行时实现（协议 I3）.
 """
 from __future__ import annotations
 
-from peach_perception.common.clock import Clock
+from peach_perception.common.runtime import Clock
 
 
 class RclpyClockAdapter(Clock):

@@ -6,8 +6,10 @@
 
 #include <Eigen/Geometry>
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -82,116 +84,231 @@ inline Eigen::Isometry3d pregraspFromEntryKeepRoll(
   return pose;
 }
 
-// 袋囊 keepout：入口沿 +axis 的半无限圆柱。TCP 在 s≥0 且 r<radius
-// 即从口侧/上方进入，接近段禁止。半径默认 0.12 m。axial_m<=0 关闭。
-// （G/under 单弦档已删：photo→G 弦 fraction 0.41–0.73，2026-09-10 探针。）
-struct BagKeepout
+// 果实胶囊（2026-09-14 约束重设计）：感知拟合圆柱 bottom→neck 的有限段
+// + 逐目标半径（直径/2 + 固定膨胀）。保护果实的口径是「工具有限圆柱不
+// 与本胶囊在轴向投影重叠区内相交」；从下方接近由反爬规则（锚定果底
+// 平面）另行保证。
+// diameter<=0（感知无效）时用 fallback_radius_m 保守值，调用方告警。
+// 半无限 BagKeepout 已删（G 弦时代产物；2026-09-10 探针）。
+struct FruitCapsule
 {
-  Eigen::Vector3d entry{Eigen::Vector3d::Zero()};
+  Eigen::Vector3d bottom{Eigen::Vector3d::Zero()};
+  Eigen::Vector3d neck{Eigen::Vector3d::Zero()};
   Eigen::Vector3d axis{Eigen::Vector3d::UnitZ()};
-  double radius_m{0.12};
-  double axial_m{0.12};
+  double radius_m{0.05};
+  bool enabled{true};
 };
 
-inline bool bagKeepoutDisabled(const BagKeepout & keepout)
+inline double fruitRadiusM(
+  double diameter_m, double inflation_m, double fallback_radius_m)
 {
-  return keepout.radius_m <= 1.0e-6 || keepout.axial_m <= 1.0e-6 ||
-         !keepout.axis.allFinite() || keepout.axis.norm() < 1.0e-9 ||
-         !keepout.entry.allFinite();
+  const double base = diameter_m > 1.0e-6 ? diameter_m / 2.0 : fallback_radius_m;
+  return std::max(0.025, base) + std::max(0.0, inflation_m);
 }
 
+inline FruitCapsule fruitCapsuleFrom(
+  const Eigen::Vector3d & bottom, const Eigen::Vector3d & neck,
+  const Eigen::Vector3d & axis, double diameter_m, double inflation_m,
+  double fallback_radius_m, bool enabled)
+{
+  FruitCapsule fruit;
+  fruit.bottom = bottom;
+  fruit.neck = neck;
+  fruit.axis = axis.norm() > 1.0e-9 ? axis.normalized() : Eigen::Vector3d::UnitZ();
+  fruit.radius_m = fruitRadiusM(diameter_m, inflation_m, fallback_radius_m);
+  fruit.enabled = enabled;
+  return fruit;
+}
+
+inline bool fruitCapsuleDisabled(const FruitCapsule & fruit)
+{
+  return !fruit.enabled || fruit.radius_m <= 1.0e-6 ||
+         !fruit.axis.allFinite() || !fruit.bottom.allFinite() ||
+         !fruit.neck.allFinite();
+}
+
+// 点相对果底平面的轴向/径向（反爬与诊断用；s=0 在果底）。
 inline void axialRadial(
-  const Eigen::Vector3d & point, const BagKeepout & keepout,
+  const Eigen::Vector3d & point, const FruitCapsule & fruit,
   double & axial_m, double & radial_m)
 {
-  const Eigen::Vector3d axis = keepout.axis.normalized();
-  const Eigen::Vector3d delta = point - keepout.entry;
-  axial_m = delta.dot(axis);
-  radial_m = (delta - axial_m * axis).norm();
+  const Eigen::Vector3d delta = point - fruit.bottom;
+  axial_m = delta.dot(fruit.axis);
+  radial_m = (delta - axial_m * fruit.axis).norm();
 }
 
-inline bool pointHitsBagKeepout(
-  const Eigen::Vector3d & point, const BagKeepout & keepout)
+// 线段-线段最近距离（clamp 到两端，退化共线取端点距）。
+// d(s,t)²=|r+s·d1−t·d2|² 的驻点解两步 clamp：先解 s 并 clamp，再回代解 t
+// 并 clamp，最后对 s 复核一次（审计用途，近似即够）。
+inline double segmentSegmentDistance(
+  const Eigen::Vector3d & p1, const Eigen::Vector3d & q1,
+  const Eigen::Vector3d & p2, const Eigen::Vector3d & q2)
 {
-  if (bagKeepoutDisabled(keepout) || !point.allFinite()) {
-    return false;
+  const Eigen::Vector3d d1 = q1 - p1;
+  const Eigen::Vector3d d2 = q2 - p2;
+  const Eigen::Vector3d r = p1 - p2;
+  const double a = d1.squaredNorm();
+  const double b = d1.dot(d2);
+  const double c = d2.squaredNorm();
+  const double f = r.dot(d1);
+  const double g = r.dot(d2);
+  const double denom = a * c - b * b;
+  double s = 0.0;
+  double t = 0.0;
+  if (a <= 1.0e-12 && c <= 1.0e-12) {
+    return r.norm();
   }
-  double axial_m = 0.0;
-  double radial_m = 0.0;
-  axialRadial(point, keepout, axial_m, radial_m);
-  return axial_m >= 0.0 && radial_m < keepout.radius_m;
+  if (a <= 1.0e-12) {
+    t = std::clamp(g / c, 0.0, 1.0);
+  } else if (c <= 1.0e-12) {
+    s = std::clamp(-f / a, 0.0, 1.0);
+  } else {
+    s = denom > 1.0e-12 ?
+      std::clamp((b * g - c * f) / denom, 0.0, 1.0) : 0.0;
+    t = std::clamp((b * s + g) / c, 0.0, 1.0);
+    s = std::clamp((b * t - f) / a, 0.0, 1.0);
+  }
+  return (r + s * d1 - t * d2).norm();
 }
 
-inline bool segmentHitsBagKeepout(
-  const Eigen::Vector3d & start, const Eigen::Vector3d & end,
-  const BagKeepout & keepout, std::size_t samples = 40U)
+// 工具筒体：TCP（开口）沿 −工具Z 方向长 L、半径 R 的有限实心圆柱。
+// 尺寸与 tcp.xacro tool_body_link（r=0.060、L=0.200）对齐，改几何须同步。
+// 半径只径向、不含端球：端球会把预抓取 30 mm 轴向余量全部吃掉
+// （r_tool 60 mm + r_fruit ≥ 35 mm），把合法筒口对果判成接触。
+constexpr double kToolBodyLengthM = 0.200;
+constexpr double kToolBodyRadiusM = 0.060;
+
+inline Eigen::Vector3d toolTailPoint(
+  const Eigen::Vector3d & tcp, const Eigen::Quaterniond & tcp_quat,
+  double tool_length_m)
 {
-  if (bagKeepoutDisabled(keepout)) {
-    return false;
-  }
-  const std::size_t count = samples < 2U ? 2U : samples;
-  for (std::size_t i = 0; i <= count; ++i) {
-    const double t = static_cast<double>(i) / static_cast<double>(count);
-    if (pointHitsBagKeepout((1.0 - t) * start + t * end, keepout)) {
-      return true;
-    }
-  }
-  return false;
+  const Eigen::Vector3d tool_z = tcp_quat.normalized() * Eigen::Vector3d::UnitZ();
+  return tcp - tool_z * tool_length_m;
 }
 
-struct BagKeepoutReport
+inline bool axialRangesOverlap(double a0, double a1, double b0, double b1)
+{
+  const double amin = std::min(a0, a1);
+  const double amax = std::max(a0, a1);
+  const double bmin = std::min(b0, b1);
+  const double bmax = std::max(b0, b1);
+  return amin <= bmax + 1.0e-9 && bmin <= amax + 1.0e-9;
+}
+
+inline double toolCapsuleClearance(
+  const Eigen::Vector3d & tcp, const Eigen::Quaterniond & tcp_quat,
+  const FruitCapsule & fruit, double tool_length_m, double tool_radius_m)
+{
+  if (fruitCapsuleDisabled(fruit)) {
+    return std::numeric_limits<double>::infinity();
+  }
+  const Eigen::Vector3d tail = toolTailPoint(tcp, tcp_quat, tool_length_m);
+  double tool_s0 = 0.0;
+  double tool_s1 = 0.0;
+  double fruit_s0 = 0.0;
+  double fruit_s1 = 0.0;
+  double unused = 0.0;
+  axialRadial(tcp, fruit, tool_s0, unused);
+  axialRadial(tail, fruit, tool_s1, unused);
+  axialRadial(fruit.bottom, fruit, fruit_s0, unused);
+  axialRadial(fruit.neck, fruit, fruit_s1, unused);
+  if (!axialRangesOverlap(tool_s0, tool_s1, fruit_s0, fruit_s1)) {
+    return std::numeric_limits<double>::infinity();
+  }
+  return segmentSegmentDistance(tcp, tail, fruit.bottom, fruit.neck) -
+         tool_radius_m - fruit.radius_m;
+}
+
+struct FruitAuditReport
 {
   bool allowed{true};
-  std::string reason{"袋囊 keepout 通过"};
+  std::string reason{"果实胶囊审查通过"};
+  double min_clearance_m{std::numeric_limits<double>::infinity()};
 };
 
-// audit_climb=false 只查圆柱穿越（staging 转移的 PTP 弧用：拍照位本就在
-// 袋口上方，锚定起点的反爬门会把关节弧的自然拱高误判成绕行；袋口安全由
-// 圆柱本体检查保证）。=true 另查反爬：s 不得超过 max(本段起点s, 0)+2 cm。
-inline BagKeepoutReport inspectTcpBagKeepout(
-  const std::vector<Eigen::Vector3d> & points, const BagKeepout & keepout,
-  bool audit_climb = true)
+// audit_climb=false 只查工具×果实胶囊接触（staging 转移首段 PTP 弧用：
+// 拍照位本就在果上方，锚定起点的反爬门会把关节弧 2–4 cm 拱高误判绕行）。
+// =true 另查反爬：TCP 的 s 不得超过 max(本段起点 s, 0)+2 cm（锚定果底）。
+// 套入/撤退段不走本审查（任务性穿果）。
+template<typename Waypoint>
+inline FruitAuditReport inspectToolVsFruit(
+  const std::vector<Waypoint> & points, const FruitCapsule & fruit,
+  bool audit_climb, double tool_length_m, double tool_radius_m)
 {
-  BagKeepoutReport report;
-  if (bagKeepoutDisabled(keepout)) {
-    report.reason = "袋囊 keepout 关闭";
+  FruitAuditReport report;
+  if (fruitCapsuleDisabled(fruit)) {
+    report.reason = "果实胶囊审查关闭";
     return report;
   }
   if (points.size() < 2U) {
-    report.reason = "袋囊 keepout：点列不足，跳过";
+    report.reason = "果实胶囊审查：点列不足，跳过";
     return report;
   }
   double start_s = 0.0;
   double start_r = 0.0;
-  axialRadial(points.front(), keepout, start_s, start_r);
+  axialRadial(
+    Eigen::Vector3d(points.front().x, points.front().y, points.front().z),
+    fruit, start_s, start_r);
   (void)start_r;
-  // 禁止从口侧上方绕：s 不得超过 max(起点s, 0)+2 cm。已在袋底（s<0）
-  // 允许朝入口增大 s；套入段不走本审查。
   const double s_max = (start_s > 0.0 ? start_s : 0.0) + 0.02;
   for (std::size_t i = 0; i < points.size(); ++i) {
+    const Eigen::Vector3d tcp(points[i].x, points[i].y, points[i].z);
+    const Eigen::Quaterniond quat(
+      points[i].qw, points[i].qx, points[i].qy, points[i].qz);
     double axial_m = 0.0;
     double radial_m = 0.0;
-    axialRadial(points[i], keepout, axial_m, radial_m);
+    axialRadial(tcp, fruit, axial_m, radial_m);
     if (audit_climb && axial_m > s_max) {
       report.allowed = false;
       std::ostringstream reason;
-      reason << "从口侧/上方绕行 s=" << axial_m << "m > 口侧上限 "
-             << s_max << "m";
+      reason << "从果上方绕行 s=" << axial_m << "m > 上限 " << s_max << "m";
       report.reason = reason.str();
       return report;
     }
-    if (!pointHitsBagKeepout(points[i], keepout)) {
-      continue;
+    const double clearance = toolCapsuleClearance(
+      tcp, quat, fruit, tool_length_m, tool_radius_m);
+    report.min_clearance_m = std::min(report.min_clearance_m, clearance);
+    if (clearance <= 0.0) {
+      report.allowed = false;
+      std::ostringstream reason;
+      reason << "工具筒体接触果实胶囊 s=" << axial_m << "m r=" << radial_m
+             << "m 间隙=" << clearance << "m (果半径 " << fruit.radius_m << "m)";
+      report.reason = reason.str();
+      return report;
     }
-    report.allowed = false;
-    std::ostringstream reason;
-    reason << "TCP 进入袋囊 keepout（口侧）s=" << axial_m << "m r=" <<
-      radial_m << "m < " << keepout.radius_m << "m";
-    report.reason = reason.str();
-    return report;
   }
-  report.reason = "袋囊 keepout 通过";
   return report;
+}
+
+// 直连 LIN 资格用：从 start 到 goal 的工具扫掠（位置 lerp + 姿态 slerp）
+// 是否接触果实胶囊。姿态用两端四元数（调用方给对齐后姿态）。
+inline bool toolSweepHitsFruit(
+  const Eigen::Isometry3d & start, const Eigen::Isometry3d & goal,
+  const FruitCapsule & fruit, double tool_length_m, double tool_radius_m,
+  std::size_t samples = 24U)
+{
+  if (fruitCapsuleDisabled(fruit)) {
+    return false;
+  }
+  const Eigen::Quaterniond q0(start.linear());
+  const Eigen::Quaterniond q1(goal.linear());
+  const std::size_t count = samples < 2U ? 2U : samples;
+  struct W
+  {
+    double x, y, z, qx, qy, qz, qw;
+  };
+  std::vector<W> points;
+  points.reserve(count + 1U);
+  for (std::size_t i = 0; i <= count; ++i) {
+    const double t = static_cast<double>(i) / static_cast<double>(count);
+    const Eigen::Vector3d p =
+      (1.0 - t) * start.translation() + t * goal.translation();
+    const Eigen::Quaterniond q = q0.slerp(t, q1);
+    points.push_back({p.x(), p.y(), p.z(), q.x(), q.y(), q.z(), q.w()});
+  }
+  const FruitAuditReport report = inspectToolVsFruit(
+    points, fruit, false, tool_length_m, tool_radius_m);
+  return !report.allowed;
 }
 
 }  // namespace peach_manipulation

@@ -2,7 +2,7 @@
 袋/果位姿管线：圆柱轴袋线与球+梗洼果线（看场景算法核）.
 
 两条线共用同一圆柱刀具、入口/行程公式与安全门控；掩膜/深度门控
-委托 image_gates，协方差委托 assignment，拟合委托 common.geometry。
+委托 image_gates，协方差委托 identity，拟合委托 common.geometry。
 """
 from __future__ import annotations
 
@@ -16,19 +16,16 @@ from peach_perception.common.bag_landmarks import (
     enforce_wide_bottom,
     estimate_bag_landmarks,
 )
-from peach_perception.common.fitting import (
+from peach_perception.common.geometry import (
     estimate_normals,
     fit_cylinder_robust,
     fit_sphere_robust,
     polish_sphere_lm,
-)
-from peach_perception.common.tf_utils import (
     rotation_to_quat,
     transform_direction,
     transform_point,
 )
 
-from .assignment import estimate_pose_covariance
 from .contracts import (
     BagGrasp2D,
     BagGraspReference3D,
@@ -38,6 +35,7 @@ from .contracts import (
     TOOL_GEOMETRY,
     ToolGeometry,
 )
+from .identity import estimate_pose_covariance
 from .image_gates import clip_bbox, foreground_mask, valid_depth_mask
 
 

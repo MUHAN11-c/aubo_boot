@@ -1,8 +1,7 @@
 """Zero-ROS tests for ManualClock and BoundedWorker."""
 import threading
 
-from peach_perception.common.bounded_worker import BoundedWorker
-from peach_perception.common.clock import ManualClock
+from peach_perception.common.runtime import BoundedWorker, ManualClock
 import pytest
 
 

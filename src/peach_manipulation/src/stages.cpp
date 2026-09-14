@@ -2,8 +2,9 @@
 // 预抓取验证、套入、刀具、原路撤退。不写账本、不调重建 Trigger。接触走
 // GraspTask；刀具 IO 只在本文件。阶段调用序列与原 behavior_tree.xml 主树
 // 遍历严格同构（映射表见 executeCycle 注释）。
-#include "peach_manipulation/cycle.hpp"
+#include "peach_manipulation/manipulation_skills_node.hpp"
 #include "peach_manipulation/math_utils.hpp"
+#include "peach_manipulation/reconfirm_policy.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -203,7 +204,7 @@ bool ManipulationSkillsNode::contactEntryGeometry(
   return true;
 }
 
-// 授权矩阵（execution_authority.hpp）的失败包装：GraspDecision 复检未通过
+// 授权矩阵（cycle_support.hpp）的失败包装：GraspDecision 复检未通过
 // 沿用 skipped_quality 语义（质量原因跳过，编排器可重派）；其余拒绝
 // （权限/安全/取消/使能）按 FAILED 分级。
 bool ManipulationSkillsNode::requireStageAuthority(
@@ -816,8 +817,17 @@ bool ManipulationSkillsNode::stageMovePregrasp(CycleContext & ctx)
       get_logger(),
       "预抓取未回到拍照位，从当前位规划: %s", photo_msg.c_str());
   }
+  const FruitCapsule fruit = fruitCapsuleFor(*ctx.refined);
+  startContactGuard();
   auto result = grasp_task_->moveToPregrasp(
-    ctx.entry_tip_pose, ctx.refined->axis, true);
+    ctx.entry_tip_pose, ctx.refined->axis, fruit, true);
+  stopContactGuard();
+  if (contactAbortSuspected()) {
+    motion_->clearPhotoApproach();
+    return failStage(
+      ctx, ExecuteTarget::Result::FAILED, FailureCode::SLEEVE_PLAN_FAILED,
+      "疑似硬接触（接触检测止损）：接近已取消，须现场确认后 ACK");
+  }
   if (!result.success && !result.execution_started && motion_ && !from_photo) {
     if (motion_->goToPhotoPose(
         photo_pose_named_target_, execution_enabled_.load(), photo_msg))
@@ -828,7 +838,7 @@ bool ManipulationSkillsNode::stageMovePregrasp(CycleContext & ctx)
         "当前位到预抓取失败（%s），已回拍照位再规划: %s",
         result.reason.c_str(), photo_msg.c_str());
       result = grasp_task_->moveToPregrasp(
-        ctx.entry_tip_pose, ctx.refined->axis, true);
+        ctx.entry_tip_pose, ctx.refined->axis, fruit, true);
     }
   }
   if (!result.success) {
@@ -948,7 +958,8 @@ bool ManipulationSkillsNode::stageVerifyPregrasp(CycleContext & ctx)
       ctx.travel_m = travel_m;
       setState(CycleState::RECONFIRM, "预抓取短修正（停—看，不 SetIO）", ctx.target_id);
       const auto fix = grasp_task_->moveToPregrasp(
-        ctx.entry_tip_pose, ctx.refined->axis, true);
+        ctx.entry_tip_pose, ctx.refined->axis, fruitCapsuleFor(*ctx.refined),
+        true);
       if (!fix.success) {
         break;
       }
@@ -1004,7 +1015,8 @@ bool ManipulationSkillsNode::stagePlanSleeveAndReverseRetreat(CycleContext & ctx
     return failStage(ctx, "套入预规划无几何");
   }
   const auto result = grasp_task_->previewFullContact(
-    ctx.entry_tip_pose, ctx.refined->axis, ctx.travel_m);
+    ctx.entry_tip_pose, ctx.refined->axis, ctx.travel_m,
+    fruitCapsuleFor(*ctx.refined));
   if (!result.success) {
     return failStage(
       ctx, ExecuteTarget::Result::SKIPPED_UNREACHABLE,
@@ -1024,10 +1036,17 @@ bool ManipulationSkillsNode::stageSleeveLinear(CycleContext & ctx)
   if (!ctx.sleeve_planned || !grasp_task_ || !ctx.refined) {
     return failStage(ctx, "套入前未完成正反向预规划");
   }
+  startContactGuard();
   const auto result = grasp_task_->sleeveLinear(
     ctx.refined->axis, ctx.travel_m, true);
+  stopContactGuard();
   if (result.execution_started) {
     contact_recovery_required_.store(true);
+  }
+  if (contactAbortSuspected()) {
+    pending_outcome_.store(ExecuteTarget::Result::FAILED);
+    ctx.failure_code = FailureCode::SLEEVE_PLAN_FAILED;
+    return failStage(ctx, "疑似硬接触（接触检测止损）：套入已取消，须现场确认后 ACK");
   }
   if (!result.success) {
     pending_outcome_.store(

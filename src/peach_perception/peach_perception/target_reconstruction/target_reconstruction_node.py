@@ -54,74 +54,66 @@ from peach_interfaces.msg import (
 from peach_perception.common.bag_landmarks import (
     estimate_bag_landmarks,
 )
-from peach_perception.common.bounded_worker import BoundedWorker
-from peach_perception.common.depth_geometry import normalize_depth_to_uint16_mm
-from peach_perception.common.harvest_data import (
-    HarvestDataStore,
-    resolve_runs_root,
-)
-from peach_perception.common.ros.clock_adapter import RclpyClockAdapter
-from peach_perception.common.tf_utils import (
+from peach_perception.common.geometry import (
+    normalize_depth_to_uint16_mm,
     transform_msg_to_matrix,
     transform_points,
 )
-from peach_perception.target_reconstruction.auto_controller import AutoControllerMixin
-from peach_perception.target_reconstruction.bag_model import fuse_bag_views
-from peach_perception.target_reconstruction.bind_holdoff import BindSwitchHoldoff
-from peach_perception.target_reconstruction.candidate_contract import (
-    axis_from_vector3,
-    candidate_axis_hint,
-    select_reconstruction_candidate,
-    TargetKindMemory,
+from peach_perception.common.ros.clock_adapter import RclpyClockAdapter
+from peach_perception.common.runtime import (
+    BoundedWorker,
+    HarvestDataStore,
+    resolve_runs_root,
 )
-from peach_perception.target_reconstruction.capture_gate import (
+from peach_perception.target_reconstruction.capture import (
+    AutoControllerMixin,
+    BindSwitchHoldoff,
     capture_gate,
+    CapturedFrame,
+    CollectorConfig,
+    FrameCollector,
+    FrameStoreMixin,
     GATE_ALLOW,
     GATE_DENY,
     GATE_NEED_TF,
     GATE_SKIP,
     GateDecision,
-)
-from peach_perception.target_reconstruction.captured_frame import CapturedFrame
-from peach_perception.target_reconstruction.cloud_builder import Open3dCloudBuilder
-from peach_perception.target_reconstruction.frame_collector import (
-    CollectorConfig,
-    FrameCollector,
     STATE_COLLECTING,
     STATE_IDLE,
+    StrictMaskGate,
+    TimingStats,
 )
-from peach_perception.target_reconstruction.frame_store import FrameStoreMixin
-from peach_perception.target_reconstruction.geometry_refiner import (
+from peach_perception.target_reconstruction.integrate import (
+    assembly_overlap_metrics,
+    BoundedIcp,
+    IcpConfig,
+    IcpTargetCache,
+    IcpTargetRefreshConfig,
+    LocalTsdf,
+    Open3dCloudBuilder,
+    summarize_pairs_mm,
+    summarize_view_coverage,
+)
+from peach_perception.target_reconstruction.params import TargetReconstructionParams
+from peach_perception.target_reconstruction.publish import (
+    PublisherMixin,
+    PublishThrottle,
+    save_session,
+)
+from peach_perception.target_reconstruction.refine import (
     axis_angle_deg,
+    axis_from_vector3,
+    candidate_axis_hint,
+    evaluate_pregrasp,
+    fuse_bag_views,
     make_refitter,
     RefitConfig,
+    select_reconstruction_candidate,
     select_refitter,
     STATUS_ACCEPT,
     STATUS_REOBSERVE,
+    TargetKindMemory,
 )
-from peach_perception.target_reconstruction.icp_refiner import (
-    BoundedIcp,
-    IcpConfig,
-)
-from peach_perception.target_reconstruction.icp_target_cache import (
-    IcpTargetCache,
-    IcpTargetRefreshConfig,
-)
-from peach_perception.target_reconstruction.mask_gate import StrictMaskGate
-from peach_perception.target_reconstruction.overlap import (
-    assembly_overlap_metrics,
-    summarize_pairs_mm,
-)
-from peach_perception.target_reconstruction.params import TargetReconstructionParams
-from peach_perception.target_reconstruction.pregrasp_verification import (
-    evaluate_pregrasp,
-)
-from peach_perception.target_reconstruction.publish_throttle import PublishThrottle
-from peach_perception.target_reconstruction.publishers import PublisherMixin
-from peach_perception.target_reconstruction.session_io import save_session
-from peach_perception.target_reconstruction.timing import TimingStats
-from peach_perception.target_reconstruction.tsdf_volume import LocalTsdf
-from peach_perception.target_reconstruction.view_coverage import summarize_view_coverage
 import rclpy
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup

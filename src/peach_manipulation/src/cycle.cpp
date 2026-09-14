@@ -1,6 +1,6 @@
 // 功能：ExecuteTarget / SurveyScene 的接受、执行、取消，以及周期状态投影；
 // 运动阶段授权矩阵（authorizeStage）的唯一实现。不实现阶段函数（见 stages.cpp）。
-#include "peach_manipulation/cycle.hpp"
+#include "peach_manipulation/manipulation_skills_node.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -38,7 +38,7 @@ static_assert(targetPhase(CycleState::PLAN_READY) == HarvestStateMsg::COMPLETING
 static_assert(targetPhase(CycleState::SUCCEEDED) == HarvestStateMsg::TARGET_SUCCEEDED);
 static_assert(targetPhase(CycleState::FAILED) == HarvestStateMsg::TARGET_FAILED);
 
-// 运动阶段授权矩阵（execution_authority.hpp）：一切运动执行入口最终收敛到
+// 运动阶段授权矩阵（cycle_support.hpp）：一切运动执行入口最终收敛到
 // 本判定。公共 = Active ∧ robotReady ∧ !cancel；TRANSIT/PREGRASP 叠加
 // execution_enabled；CONTACT 叠加 grasp_enabled ∧ GraspDecision 复检；
 // TOOL 再叠加 tool_enabled。

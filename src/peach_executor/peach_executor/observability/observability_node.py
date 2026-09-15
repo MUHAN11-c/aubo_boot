@@ -1,16 +1,19 @@
 """
 桃子采摘链路监控 Web：过程记录 / 监控 / 轨迹 + 单步调试（同端口 8090）.
 
-只读面回答「现在跑到哪一步、坐标是什么、TCP 怎么走的」；jsonl 按批次开合。
-调试 POST /api/debug/<action> 转发既有动作/服务（决策 0018：无令牌）。
-debug.enabled 默认开（回环）；动臂另需 debug.motion_enabled（默认关→423）。
-技能侧 ExecutionAuthority 等既有安全门不受影响：Web 只是又一个客户端。
+只读面回答「现在跑到哪一步、坐标是什么、TCP 怎么走的」；过程记录为会话
+级 MCAP bag（决策 0019：随节点启停开合，栈停自动出 bag_report 并按预算
+回收旧 bag）。调试 POST /api/debug/<action> 转发既有动作/服务（决策 0018：
+无令牌）。debug.enabled 默认开（回环）；动臂另需 debug.motion_enabled
+（默认关→423）。技能侧 ExecutionAuthority 等既有安全门不受影响：Web 只是
+又一个客户端。
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
+import threading
 import time
 
 from ament_index_python.packages import get_package_share_directory
@@ -27,6 +30,7 @@ from peach_interfaces.msg import (
     HarvestState,
     PeachTargetObservationArray,
     ReconstructionStatus,
+    SceneSnapshot,
 )
 from rcl_interfaces.srv import GetParameters
 import rclpy
@@ -37,34 +41,35 @@ from rclpy.qos import (
     DurabilityPolicy, qos_profile_sensor_data, QoSProfile, ReliabilityPolicy)
 from sensor_msgs.msg import Image, JointState, PointCloud2
 from std_msgs.msg import String
+from tf2_msgs.msg import TFMessage
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 from visualization_msgs.msg import MarkerArray
 
+from . import bag_report
 from . import http_server
+from . import retention
 from .debug_actions import DebugAudit, DebugBridge, is_motion
 from .params import declare as _declare_params
 from .params import from_params as _from_params
-from .recorder import (
+from .recorder import Recorder
+from .state import (
+    merge_joint_hardware,
+    MetricsSampler,
+    ObservabilityState,
     parse_json_text,
-    Recorder,
     to_candidate_array,
     to_fitting_array,
     to_grasp_decision,
     to_grasp_hypothesis,
     to_harvest_event,
+    to_joint_state,
+    to_joint_status,
     to_reconstruction_status,
     to_robot_status,
     to_target_observations,
     to_vector_stamped,
-)
-from .state import (
-    merge_joint_hardware,
-    MetricsSampler,
-    ObservabilityState,
-    to_joint_state,
-    to_joint_status,
 )
 from .tcp_trajectory import (
     build_selection_marker_dicts,
@@ -170,6 +175,12 @@ class ObservabilityNode(LifecycleNode):
         self._joint_state = {}
         self._joint_status = {}
         self._joints_push_t = 0.0
+        # 派生话题（job/metrics 进 bag）与作业票指纹去重
+        self._job_pub = None
+        self._metrics_pub = None
+        self._last_job_key = None
+        # 栈停自动报告线程（bag 收尾后生成 bag_report.md/json + 体积回收）
+        self._report_thread: threading.Thread | None = None
         # 调试 POST（debug.enabled=true 才建桥）
         self._debug_bridge: DebugBridge | None = None
         self._debug_audit: DebugAudit | None = None
@@ -184,13 +195,20 @@ class ObservabilityNode(LifecycleNode):
         except Exception as exc:  # noqa: BLE001 参数库校验异常类型跨 rclpy 版本
             self.get_logger().error(f'参数非法: {exc}')
             return TransitionCallbackReturn.FAILURE
+        runs_root = resolve_runs_root(self._params.record_root_dir)
+        # 会话 bag 开启前先跑一次体积回收（超预算清最旧 bag，写审计）
+        retention.sweep(
+            runs_root, self._params.record_max_total_bag_gb,
+            log_warning=lambda msg: self.get_logger().warning(msg))
         self._recorder = Recorder(
-            root_dir=str(resolve_runs_root(self._params.record_root_dir)),
+            root_dir=str(runs_root),
             enabled=self._params.record_enabled,
-            save_images=self._params.record_save_images,
-            save_clouds=self._params.record_save_clouds,
             on_info=lambda info: self._state.update('record', 'info', info),
             log_warning=lambda msg: self.get_logger().warning(msg))
+        self._job_pub = self.create_publisher(
+            String, self._topic('job_topic'), 10)
+        self._metrics_pub = self.create_publisher(
+            String, self._topic('metrics_topic'), 10)
         self._create_subscriptions()
         self._create_param_watchers()
         self._create_metrics_sampler()
@@ -211,6 +229,24 @@ class ObservabilityNode(LifecycleNode):
         self._stop_runtime()
         self._release_resources()
         return super().on_cleanup(state)
+
+    def on_shutdown(self, state):
+        """Shutdown 迁移：收尾 bag 并起自动报告（名单管理路径走 destroy_node）."""
+        del state
+        self._spawn_report(self._close_recorder())
+        return TransitionCallbackReturn.SUCCESS
+
+    def _record_raw(self, topic_parameter: str, message) -> None:
+        """把原始消息按话题参数名解析后入会话 bag（未启用时记录器自丢）."""
+        if self._recorder is None:
+            return
+        self._recorder.handle_raw(self._topic(topic_parameter), message)
+
+    def _raw_cb(self, topic_parameter: str):
+        """订阅回调工厂：原样把消息送进会话 bag（bag 专用订阅用）."""
+        def callback(message) -> None:
+            self._record_raw(topic_parameter, message)
+        return callback
 
     def _topic(self, parameter: str) -> str:
         """从不可变快照取话题名（启动期建订阅用）."""
@@ -257,16 +293,13 @@ class ObservabilityNode(LifecycleNode):
             self._recon_decision_callback, latched_qos)
         self._subscribe(
             BagGraspCandidateArray, self._topic('refined_pose_topic'),
-            lambda msg: self._state.update(
-                'refined', 'pose', to_candidate_array(msg)), latched_qos)
+            self._refined_pose_callback, latched_qos)
         self._subscribe(
             Vector3Stamped, self._topic('refined_axis_topic'),
-            lambda msg: self._state.update(
-                'refined', 'axis', to_vector_stamped(msg)), latched_qos)
+            self._refined_axis_callback, latched_qos)
         self._subscribe(
             BagFittingArray, self._topic('refined_diagnostics_topic'),
-            lambda msg: self._state.update(
-                'refined', 'diagnostics', to_fitting_array(msg)), latched_qos)
+            self._refined_diagnostics_callback, latched_qos)
         self._subscribe(
             String, self._topic('manipulation_status_topic'),
             self._manipulation_callback, latched_qos)
@@ -292,35 +325,52 @@ class ObservabilityNode(LifecycleNode):
         self._subscribe(
             JointStatus, self._topic('joint_status_topic'),
             self._joint_status_callback, reliable_qos)
-        # 记录器图像/点云订阅：只在对应开关开启时建立（省带宽）
+        # 记录器图像/点云订阅：只在对应开关开启时建立（省带宽），直接进 bag
         if self._params.record_enabled:
             if self._params.record_save_images:
                 self._subscribe(
                     Image, self._topic('debug_image_topic'),
-                    self._recorder.handle_image, reliable_qos)
-                # 真相流画布并行落盘（raw_img_* 前缀）：与稳定流 img_* 成对，
-                # 筛选前后对比不依赖 RViz
+                    self._raw_cb('debug_image_topic'), reliable_qos)
+                # 真相流画布（raw 前缀）：与稳定流成对进 bag，筛选前后对比不依赖 RViz
                 self._subscribe(
                     Image, self._topic('debug_image_raw_topic'),
-                    self._recorder.handle_raw_image, reliable_qos)
+                    self._raw_cb('debug_image_raw_topic'), reliable_qos)
             if self._params.record_save_clouds:
                 self._subscribe(
                     PointCloud2, self._topic('tsdf_cloud_topic'),
-                    self._recorder.handle_cloud, latched_qos)
+                    self._raw_cb('tsdf_cloud_topic'), latched_qos)
+            # bag 专用订阅（监控不镜像）：场景快照与 TF 全量
+            self._subscribe(
+                SceneSnapshot, self._topic('scene_snapshot_topic'),
+                self._raw_cb('scene_snapshot_topic'), reliable_qos)
+            self._subscribe(
+                TFMessage, self._topic('tf_topic'),
+                self._raw_cb('tf_topic'),
+                QoSProfile(depth=200, reliability=ReliabilityPolicy.RELIABLE))
+            self._subscribe(
+                TFMessage, self._topic('tf_static_topic'),
+                self._raw_cb('tf_static_topic'),
+                QoSProfile(
+                    depth=100,
+                    durability=DurabilityPolicy.TRANSIENT_LOCAL,
+                    reliability=ReliabilityPolicy.RELIABLE))
 
     def _robot_status_callback(self, message: RobotStatus) -> None:
         """机械臂柜侧状态；in_motion 给 TCP 采样当运动标记."""
         self._traj_ctx['moving'] = bool(message.in_motion)
         self._state.update('robot', 'status', to_robot_status(message))
+        self._record_raw('robot_status_topic', message)
 
     def _joint_state_callback(self, message: JointState) -> None:
         """实际关节角/速度；与 joint_status 合成硬件表（约 10 Hz 推镜像）."""
         self._joint_state = to_joint_state(message)
+        self._record_raw('joint_states_topic', message)
         self._push_joints()
 
     def _joint_status_callback(self, message: JointStatus) -> None:
         """柜侧关节电流/温度/跟随误差；与 /joint_states 合成硬件表."""
         self._joint_status = to_joint_status(message)
+        self._record_raw('joint_status_topic', message)
         self._push_joints()
 
     def _push_joints(self) -> None:
@@ -335,7 +385,7 @@ class ObservabilityNode(LifecycleNode):
 
     def _harvest_callback(self, message: String) -> None:
         """
-        感知采摘计划：进状态缓存并喂记录器（perception.jsonl 并入）.
+        感知采摘计划：进状态缓存并进会话 bag.
 
         JSON 全量透传：发布侧新增键（如阶段 D1 的 anchor_stale_target_ids/
         out_of_view_target_ids/dropped_target_ids/lighting/low_light_quality）
@@ -343,23 +393,22 @@ class ObservabilityNode(LifecycleNode):
         """
         value = parse_json_text(message.data)
         self._state.update('perception', 'harvest', value)
-        self._recorder.handle_harvest(value)
-        self._record_job()
+        self._record_raw('harvest_state_topic', message)
+        self._publish_job()
 
     def _recon_status_callback(self, message: String) -> None:
-        """重建状态文本：进状态缓存并喂记录器（reconstruction.jsonl）."""
+        """重建状态文本：进状态缓存并进会话 bag."""
         value = parse_json_text(message.data, 'state')
         self._state.update('reconstruction', 'status', value)
-        self._recorder.handle_reconstruction('status', value)
+        self._record_raw('reconstruction_status_topic', message)
 
     def _recon_diagnostics_callback(
             self, message: ReconstructionStatus) -> None:
         """
-        重建 1Hz 结构化诊断：消息字段重建镜像 dict 并喂记录器.
+        重建 1Hz 结构化诊断：消息字段重建镜像 dict 并进会话 bag.
 
-        合并调试 JSON 明细（tsdf/registration/refined 等）与最近许可镜像，
-        保持镜像/落盘键集与旧裸 JSON 契约一致（reconstruction_final 摘要
-        与前端 tsdf 计时依赖这些键）。
+        bag 录原始话题；合并体（调试明细 ∪ 类型化字段 ∪ 最近许可镜像）
+        由 bag_report 离线重放，镜像侧保持合并以便前端消费。
         """
         merged = dict(self._recon_debug_extra)
         merged.update(to_reconstruction_status(message))
@@ -369,14 +418,15 @@ class ObservabilityNode(LifecycleNode):
         if isinstance(center, list):
             self._traj_landmarks['reconstruction_center'] = center
         self._state.update('reconstruction', 'diagnostics', merged)
-        self._recorder.handle_reconstruction('diagnostics', merged)
+        self._record_raw('reconstruction_diagnostics_topic', message)
 
     def _recon_debug_callback(self, message: String) -> None:
-        """重建调试明细 JSON：只更新合并缓存，不直接落盘（防重复记录）."""
+        """重建调试明细 JSON：更新镜像缓存（bag 另录原始话题，防缺料）."""
         self._recon_debug_extra = parse_json_text(message.data)
+        self._record_raw('reconstruction_diagnostics_debug_topic', message)
 
     def _recon_decision_callback(self, message: GraspDecision) -> None:
-        """重建抓取许可：消息字段重建镜像 dict 并喂记录器."""
+        """重建抓取许可：消息字段重建镜像 dict 并进会话 bag."""
         value = to_grasp_decision(message)
         self._recon_decision_value = value
         self._traj_landmarks['grasp_entry'] = value.get('entry')
@@ -384,26 +434,43 @@ class ObservabilityNode(LifecycleNode):
         self._traj_landmarks['axis'] = value.get('axis')
         self._traj_landmarks['target_id'] = value.get('target_id') or ''
         self._state.update('reconstruction', 'grasp_decision', value)
-        self._recorder.handle_reconstruction('grasp_decision', value)
-        self._record_job()
+        self._record_raw('grasp_decision_topic', message)
+        self._publish_job()
+
+    def _refined_pose_callback(self, message) -> None:
+        """精化位姿：镜像进缓存，原始消息进会话 bag."""
+        self._state.update('refined', 'pose', to_candidate_array(message))
+        self._record_raw('refined_pose_topic', message)
+
+    def _refined_axis_callback(self, message) -> None:
+        """精化轴线：镜像进缓存，原始消息进会话 bag."""
+        self._state.update('refined', 'axis', to_vector_stamped(message))
+        self._record_raw('refined_axis_topic', message)
+
+    def _refined_diagnostics_callback(self, message) -> None:
+        """精化质量：镜像进缓存，原始消息进会话 bag."""
+        self._state.update(
+            'refined', 'diagnostics', to_fitting_array(message))
+        self._record_raw('refined_diagnostics_topic', message)
 
     def _manipulation_callback(self, message: String) -> None:
-        """技能节点状态：进状态缓存并喂记录器（manipulation.jsonl）."""
+        """技能节点状态：进状态缓存并进会话 bag."""
         value = parse_json_text(message.data)
         self._traj_ctx['skill'] = str(value.get('state') or '')
         self._state.update('manipulation', 'status', value)
-        self._recorder.handle_manipulation(value)
-        self._record_job()
+        self._record_raw('manipulation_status_topic', message)
+        self._publish_job()
 
     def _grasp_hypothesis_callback(self, message: GraspHypothesis) -> None:
-        """技能抓取假设：进状态缓存并并入 manipulation.jsonl."""
+        """技能抓取假设：进状态缓存并进会话 bag."""
         value = to_grasp_hypothesis(message)
         self._state.update('manipulation', 'hypothesis', value)
-        self._recorder.handle_hypothesis(value)
-        self._record_job()
+        self._record_raw('grasp_hypothesis_topic', message)
+        self._publish_job()
 
     def _events_callback(self, message: CanonicalEvent) -> None:
-        """批次事件进环形缓冲，供前端事件时间线消费."""
+        """批次事件进环形缓冲与会话 bag，供前端时间线与离线报告消费."""
+        self._record_raw('task_executor_events_topic', message)
         try:
             value = to_harvest_event(message)
         except (AttributeError, TypeError, ValueError) as error:
@@ -411,7 +478,6 @@ class ObservabilityNode(LifecycleNode):
             return
         # 缓冲上限来自启动期快照（A9）：已校验 >= 1，运行期不再直读参数
         self._state.append_event(value, self._params.event_buffer_size)
-        self._recorder.handle_event(value)
 
     def _task_executor_callback(self, message: HarvestState) -> None:
         """把调度节点类型化状态转换为稳定的浏览器对象."""
@@ -441,8 +507,8 @@ class ObservabilityNode(LifecycleNode):
             self._traj_run_id = run_id
             if self._tcp_path is not None:
                 self._tcp_path.clear()
-        self._recorder.handle_state(value)
-        self._record_job()
+        self._record_raw('task_executor_state_topic', message)
+        self._publish_job()
 
     def _targets_callback(self, message) -> None:
         try:
@@ -451,7 +517,7 @@ class ObservabilityNode(LifecycleNode):
             self.get_logger().warning(f'目标快照转换失败: {error}')
             return
         self._state.update('perception', 'targets', value)
-        self._recorder.handle_targets(value)
+        self._record_raw('target_observations_topic', message)
 
     # ------------------------------------------------------------------
     # 参数镜像：周期轮询白名单节点的 get_parameters，只读不写
@@ -572,8 +638,7 @@ class ObservabilityNode(LifecycleNode):
             'phase': self._traj_ctx['phase'],
             'skill': self._traj_ctx['skill'],
         })
-        if kept is not None and self._recorder is not None:
-            self._recorder.handle_tcp(kept)
+        # 轨迹经 /tf 全量进会话 bag，报告侧离线重算；此处只驱动 Web/RViz
         self._publish_tcp_summary()
         self._maybe_publish_tcp_viz(force=kept is not None)
 
@@ -660,9 +725,12 @@ class ObservabilityNode(LifecycleNode):
             observations, selected_id, filtered, frame_id)
 
     def _metrics_callback(self, sample: dict) -> None:
-        """性能采样落状态缓存并喂记录器（metrics.jsonl）."""
+        """性能采样：镜像进状态缓存，并发布 JSON 进会话 bag."""
         self._state.update('metrics', 'sample', sample)
-        self._recorder.handle_metrics(sample)
+        if self._metrics_pub is not None:
+            message = String(data=json.dumps(sample, ensure_ascii=False))
+            self._metrics_pub.publish(message)
+            self._record_raw('metrics_topic', message)
 
     # ------------------------------------------------------------------
     # 单步调试（enabled → 运动门 → 审计；无令牌）
@@ -787,11 +855,31 @@ class ObservabilityNode(LifecycleNode):
         }
         return payload
 
-    def _record_job(self) -> None:
-        """作业票指纹变化时写入 job.jsonl."""
-        if self._recorder is None:
+    def _publish_job(self) -> None:
+        """作业票指纹变化时发布 JSON 话题并进会话 bag（bag_report 离线消费）."""
+        if self._job_pub is None:
             return
-        self._recorder.handle_job(self._state.snapshot().get('job') or {})
+        job = self._state.snapshot().get('job') or {}
+        if not job:
+            return
+        key = json.dumps({
+            'target_id': job.get('target_id'),
+            'active_id': job.get('active_id'),
+            'why': job.get('why'),
+            'stages': [
+                (item.get('id'), item.get('status'))
+                for item in job.get('stages') or []],
+            'allowed': (job.get('grasp') or {}).get('allowed'),
+            'reason': (job.get('grasp') or {}).get('reason'),
+            'skill': (job.get('motion') or {}).get('state'),
+            'flags': job.get('flags'),
+        }, ensure_ascii=False, sort_keys=True)
+        if key == self._last_job_key:
+            return
+        self._last_job_key = key
+        message = String(data=json.dumps(job, ensure_ascii=False))
+        self._job_pub.publish(message)
+        self._record_raw('job_topic', message)
 
     def ensure_active(self) -> None:
         """
@@ -866,18 +954,61 @@ class ObservabilityNode(LifecycleNode):
             self._debug_bridge.close()
             self._debug_bridge = None
         self._debug_audit = None
-        if self._recorder is not None:
-            self._recorder.close()
-            self._recorder = None
+        self._spawn_report(self._close_recorder())
         self._metrics = None
         self._params = None
 
+    # ------------------------------------------------------------------
+    # 会话收尾：bag 关闭 → 后台线程自动出报告 + 体积回收（决策 0019）
+    # ------------------------------------------------------------------
+    def _close_recorder(self):
+        """关 bag（排空写队列）；返回 bag 目录，未启用/重复调用给 None."""
+        recorder, self._recorder = self._recorder, None
+        if recorder is None:
+            return None
+        return recorder.close()
+
+    def _spawn_report(self, bag_dir) -> None:
+        """收尾后起报告线程（自动出 bag_report 并按预算回收）；无 bag 跳过."""
+        if bag_dir is None or (
+                self._report_thread is not None
+                and self._report_thread.is_alive()):
+            return
+        params = self._params
+        runs_root = str(
+            resolve_runs_root(params.record_root_dir)) if params else str(
+            Path(bag_dir).parent.parent)
+
+        def finalize() -> None:
+            try:
+                bag_report.generate_session_report(
+                    bag_dir,
+                    base_frame=(
+                        params.trajectory_base_frame if params
+                        else 'base_link'),
+                    tip_frame=(
+                        params.trajectory_tip_frame if params else 'tcp'),
+                    ledger_root=runs_root,
+                    max_total_bag_gb=(
+                        params.record_max_total_bag_gb if params else 0.0),
+                    keep=[Path(bag_dir)],
+                    log=lambda msg: self.get_logger().info(str(msg)))
+            except Exception as error:  # noqa: BLE001 报告失败不阻塞退出
+                self.get_logger().warning(f'bag 自动报告失败: {error}')
+
+        self._report_thread = threading.Thread(
+            target=finalize, name='peach-bag-report', daemon=False)
+        self._report_thread.start()
+
+    def join_report(self, timeout: float = 300.0) -> None:
+        """进程退出前等报告线程收尾（防悬挂）."""
+        if self._report_thread is not None:
+            self._report_thread.join(timeout=timeout)
+
     def destroy_node(self):
-        """停止 HTTP/性能采样/记录器后销毁 ROS 节点."""
+        """停止 HTTP/性能采样，收尾 bag 并起自动报告后销毁 ROS 节点."""
         self._stop_runtime()
-        if self._recorder is not None:
-            self._recorder.close()
-            self._recorder = None
+        self._spawn_report(self._close_recorder())
         super().destroy_node()
 
 
@@ -895,5 +1026,6 @@ def main(args=None):
     finally:
         executor.shutdown()
         node.destroy_node()
+        node.join_report()
         if rclpy.ok():
             rclpy.shutdown()

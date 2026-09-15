@@ -34,6 +34,11 @@ TOPIC_NAMES = (
     'robot_status_topic',
     'joint_states_topic',
     'joint_status_topic',
+    'tf_topic',
+    'tf_static_topic',
+    'scene_snapshot_topic',
+    'job_topic',
+    'metrics_topic',
     'debug_image_topic',
     'debug_image_raw_topic',
     'tsdf_cloud_topic',
@@ -83,6 +88,8 @@ class ObservabilityParams:
     record_root_dir: str
     record_save_images: bool
     record_save_clouds: bool
+    record_bag_topics: Tuple[str, ...]
+    record_max_total_bag_gb: float
     trajectory_enabled: bool
     trajectory_base_frame: str
     trajectory_tip_frame: str
@@ -147,6 +154,8 @@ def from_params(p) -> ObservabilityParams:
         record_root_dir=str(p.record.root_dir),
         record_save_images=bool(p.record.save_images),
         record_save_clouds=bool(p.record.save_clouds),
+        record_bag_topics=tuple(str(item).strip() for item in p.record.bag_topics),
+        record_max_total_bag_gb=float(p.record.max_total_bag_gb),
         trajectory_enabled=bool(p.trajectory.enabled),
         trajectory_base_frame=str(p.trajectory.base_frame).strip(),
         trajectory_tip_frame=str(p.trajectory.tip_frame).strip(),

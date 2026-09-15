@@ -25,16 +25,23 @@ peach_observability:
     robot_status_topic: /aubo_io_controller/robot_status  # 机械臂上电/急停/运动/错误状态话题
     joint_states_topic: /joint_states  # 实际关节角/速度（sensor_msgs/JointState）
     joint_status_topic: /aubo_io_controller/joint_status  # 关节电流/温度/跟随误差（aubo_msgs/JointStatus）
+    tf_topic: /tf  # 动态 TF 话题（录制末端轨迹离线重算用）
+    tf_static_topic: /tf_static  # 静态 TF 话题（transient_local）
+    scene_snapshot_topic: /peach_executor/scene_snapshot  # 调度场景快照话题（bag 专用，监控不镜像）
+    job_topic: /peach/observability/job  # 作业票 JSON 派生话题（指纹变化发布，随 bag 录制）
+    metrics_topic: /peach/observability/metrics  # 性能采样 JSON 派生话题（1s 发布，随 bag 录制）
     event_buffer_size: 100  # 事件时间线环形缓冲上限（条），超出丢弃最旧
     metrics_period_s: 1.0  # 系统/GPU/进程性能采样周期（秒），独立线程采集
     metrics_process_patterns: [peach_scene_perception_node, peach_target_reconstruction_node, peach_manipulation_node, peach_executor, ros2_control_node, percipio]  # 进程性能监控的 cmdline 子串匹配关键字列表
     record:
-      enabled: true  # 监控数据分类落盘总开关（只读：订阅+写文件）
+      enabled: true  # 会话 bag 录制总开关（栈启动开 runs/session_*/bag，栈停止关 bag 并自动出报告）
       root_dir: ''  # 过程数据根；空=工作区 runs/（与账本、session 同一目录）
-      save_images: true  # 关键事件时刻保存感知调试图 JPEG q85（需 cv_bridge/cv2）
-      save_clouds: true  # target 终局时刻保存 TSDF 点云 PLY
+      save_images: true  # debug_image/debug_image_raw 进 bag（替代旧 jpg 落盘；QoS 与监控订阅一致）
+      save_clouds: true  # tsdf_cloud 进 bag（替代旧终局 PLY 落盘）
+      max_total_bag_gb: 20.0  # bag 二进制总量预算（GB）：session_*/bag 与旧 mcap_* 合计超限按最旧先删；0=禁用回收；报告/账本/文本永不删；回收写 runs/retention_audit.jsonl
+      bag_topics: [events, state, scene_snapshot, target_observations, harvest_state, recon_status, recon_diagnostics, recon_debug, grasp_decision, refined_pose, refined_axis, refined_diagnostics, manipulation_status, grasp_hypothesis, tf, tf_static, joint_states, robot_status, joint_status, job, metrics, debug_image, debug_image_raw, tsdf_cloud]  # 录制话题别名表（别名→话题/类型注册表见 observability/bag_reader.py；debug_image/debug_image_raw 另受 save_images、tsdf_cloud 另受 save_clouds 门控）
     trajectory:
-      enabled: true  # 采样并落盘末端 TCP 轨迹（latest TF base←tip；只读，不进 MCAP）
+      enabled: true  # 采样末端 TCP 轨迹供 Web/路标（latest TF base←tip；bag 侧由 /tf 离线重算，同一来源）
       base_frame: base_link  # 轨迹参考系（与 GraspDecision 入口同系）
       tip_frame: tcp  # 规划/工具末端连杆（URDF tip）
       period_s: 0.05  # TF 采样周期（秒）；约 20 Hz

@@ -13,6 +13,7 @@ from launch_ros.substitutions import FindPackageShare
 from lifecycle_msgs.msg import Transition
 
 from peach_perception.grasp_standoffs import reconstruction_overlay
+from peach_perception.tool_profiles import reconstruction_tool_params
 
 
 def generate_launch_description():
@@ -29,6 +30,8 @@ def generate_launch_description():
         parameters=[
             ParameterFile(params_file, allow_substs=True),
             reconstruction_overlay(),
+            # 工具档案注入：许可数学内径 + 档案标签随 tool_profile 覆盖基础值
+            reconstruction_tool_params(LaunchConfiguration('tool_profile')),
         ],
         output='screen',
     )
@@ -53,6 +56,10 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'autostart', default_value='true',
             description='false 时由 peach_lifecycle_manager 有序 configure/activate'),
+        DeclareLaunchArgument(
+            'tool_profile', default_value='adaptive_cylinder_v1',
+            choices=['hollow_cylinder_v1', 'adaptive_cylinder_v1'],
+            description='末端工具档案（tool.budget.d_inner / tool.profile_id 注入）'),
         activate,
         node,
         configure,

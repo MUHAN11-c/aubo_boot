@@ -70,6 +70,9 @@ class peach_executor:
         'selection_depth_min_m': ('double', 0.3),
         'selection_depth_max_m': ('double', 1.6),
         'require_managed_stack': ('bool', False),
+        # 工具档案标签（ExecuteTarget goal.tool_profile_id）；
+        # 基础值=固定圆柱，整栈由 launch tool_profile 档案注入覆盖
+        'tool.profile_id': ('string', 'hollow_cylinder_v1'),
     }
 
     RULES = {  # 手写校验规则；启动期非法覆盖即抛，运行期非法 set 即拒
@@ -83,11 +86,18 @@ class peach_executor:
         'observe_build_grace_s': (('gt_eq', 0.0),),
     }
 
+    class _Tool:
+        """组 tool 的参数字段（当前末端工具档案标签）."""
+
+        def __init__(self):
+            self.profile_id = 'hollow_cylinder_v1'
+
     class Params:
         """参数快照：扁平键为属性，组为嵌套对象；stamp_ 为变更戳."""
 
         def __init__(self):
             self.stamp_ = 0
+            self.tool = peach_executor._Tool()
             for key, (_, value) in peach_executor.DEFAULTS.items():
                 _assign(self, key, value)
 
@@ -182,6 +192,11 @@ class peach_observability:
         'robot_status_topic': ('string', '/aubo_io_controller/robot_status'),
         'joint_states_topic': ('string', '/joint_states'),
         'joint_status_topic': ('string', '/aubo_io_controller/joint_status'),
+        'tf_topic': ('string', '/tf'),
+        'tf_static_topic': ('string', '/tf_static'),
+        'scene_snapshot_topic': ('string', '/peach_executor/scene_snapshot'),
+        'job_topic': ('string', '/peach/observability/job'),
+        'metrics_topic': ('string', '/peach/observability/metrics'),
         'event_buffer_size': ('int', 100),
         'metrics_period_s': ('double', 1.0),
         'metrics_process_patterns': (
@@ -193,6 +208,20 @@ class peach_observability:
         'record.root_dir': ('string', ''),
         'record.save_images': ('bool', True),
         'record.save_clouds': ('bool', True),
+        'record.max_total_bag_gb': ('double', 20.0),
+        # 会话 bag 录制别名清单（别名→话题/类型见 observability/bag_reader.py 注册表）；
+        # debug_image/debug_image_raw/tsdf_cloud 另受 save_images/save_clouds 门控
+        'record.bag_topics': ('string_array', [
+            'events', 'state', 'scene_snapshot',
+            'target_observations', 'harvest_state',
+            'recon_status', 'recon_diagnostics', 'recon_debug',
+            'grasp_decision', 'refined_pose', 'refined_axis',
+            'refined_diagnostics',
+            'manipulation_status', 'grasp_hypothesis',
+            'tf', 'tf_static', 'joint_states', 'robot_status', 'joint_status',
+            'job', 'metrics',
+            'debug_image', 'debug_image_raw', 'tsdf_cloud',
+        ]),
         'trajectory.enabled': ('bool', True),
         'trajectory.base_frame': ('string', 'base_link'),
         'trajectory.tip_frame': ('string', 'tcp'),
@@ -250,6 +279,7 @@ class peach_observability:
         'trajectory.period_s': (('gt', 0.0),),
         'trajectory.min_step_m': (('gt', 0.0),),
         'trajectory.max_points': (('gt_eq', 100.0),),
+        'record.max_total_bag_gb': (('gt_eq', 0.0),),
         'debug.action_timeout_s': (('gt', 0.0),),
     }
 
@@ -297,6 +327,19 @@ class peach_observability:
             self.root_dir = ''
             self.save_images = True
             self.save_clouds = True
+            self.max_total_bag_gb = 20.0
+            self.bag_topics = [
+                'events', 'state', 'scene_snapshot',
+                'target_observations', 'harvest_state',
+                'recon_status', 'recon_diagnostics', 'recon_debug',
+                'grasp_decision', 'refined_pose', 'refined_axis',
+                'refined_diagnostics',
+                'manipulation_status', 'grasp_hypothesis',
+                'tf', 'tf_static', 'joint_states', 'robot_status',
+                'joint_status',
+                'job', 'metrics',
+                'debug_image', 'debug_image_raw', 'tsdf_cloud',
+            ]
 
     class _Trajectory:
         """组 trajectory 的参数字段."""

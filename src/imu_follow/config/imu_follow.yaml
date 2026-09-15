@@ -27,6 +27,8 @@ imu_follow:
     follow.invert_roll: false  # 体轴映射符号（实机手感再调）
     follow.invert_pitch: false
     follow.invert_yaw: false
+    insert.speed_m_s: 0.01  # ~/insert_start 推进速度（m/s，套入直线段低速；上限 0.05）
+    insert.max_travel_m: 0.20  # ~/insert_start 最大行程（m；默认=档案 L_insert 0.200）
     safety.imu_timeout_s: 0.5  # IMU 断流自动 disable（servo 补零速；fjt 取消在途）
     safety.joint_states_timeout_s: 1.0  # 关节状态断流自动 disable
     safety.max_ik_failures: 10  # 连续 IK 失败达到即 disable（fjt 后端）

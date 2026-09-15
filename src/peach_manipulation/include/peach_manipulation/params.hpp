@@ -160,6 +160,9 @@ struct Params
     int64_t io_fun = 3L;
     int64_t io_pin = 0L;
     double close_state = 1.0;
+    // 当前末端工具档案标签（消息 tool_profile_id；基础值=固定圆柱，
+    // 整栈由 launch tool_profile 档案注入覆盖）
+    std::string profile_id = "hollow_cylinder_v1";
   };
   Tool tool;
   struct Timeouts
@@ -303,6 +306,7 @@ private:
     declare_one<int64_t>("tool.io_fun", 3L);
     declare_one<int64_t>("tool.io_pin", 0L);
     declare_one<double>("tool.close_state", 1.0);
+    declare_one<std::string>("tool.profile_id", "hollow_cylinder_v1");
     declare_one<double>("timeouts.service_s", 3.0);
     declare_one<double>("timeouts.refined_s", 30.0);
   }
@@ -798,6 +802,8 @@ private:
       params_.tool.io_pin = param.as_int();
     } else if (name == "tool.close_state") {
       params_.tool.close_state = param.as_double();
+    } else if (name == "tool.profile_id") {
+      params_.tool.profile_id = param.as_string();
     } else if (name == "timeouts.service_s") {
       params_.timeouts.service_s = param.as_double();
     } else if (name == "timeouts.refined_s") {

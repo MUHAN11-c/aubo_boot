@@ -27,3 +27,5 @@ peach_executor:
     selection_depth_min_m: 0.3  # 选果深度距离窗下限（相机到目标，米）：与感知管线 min_depth 一致，过近深度不可用。
     selection_depth_max_m: 1.6  # 选果深度距离窗上限（相机到目标，米）：深度质量随距离退化；采集门 min_mask_depth_ratio 仍逐帧把关，本窗做选果级预过滤。
     require_managed_stack: false  # true 时须等 /peach/lifecycle/managed_nodes_activated 才接受 RunHarvest。
+    tool:
+      profile_id: hollow_cylinder_v1  # ExecuteTarget goal.tool_profile_id 标签。基础值=固定圆柱；整栈由 launch tool_profile 档案注入覆盖。

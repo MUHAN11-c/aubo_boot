@@ -1,21 +1,23 @@
-# 当前固定空心圆柱剪切工具档案（hollow_cylinder_v1）。
+# 自适应空心圆柱工具档案（adaptive_cylinder_v1）。
+# 挂增量 IMU（serial_imu 随栈起，tf_parent_frame:=tcp + align_to_parent）；
+# 筒体被动柔顺适配果袋，套入期间臂姿态经 imu_follow 跟随 IMU 弥补视觉误差。
 # TCP 原点为机械尺寸；姿态：Z=开口，XY=刀口平面。改几何只改本文件与
-# urdf/components/tcp_hollow_cylinder_v1.xacro。
+# urdf/components/tcp_adaptive_cylinder_v1.xacro。
 # 本档案由 peach_perception/tool_profiles.py 在 launch 期装载注入（单一事实源）。
-profile_id: hollow_cylinder_v1
+profile_id: adaptive_cylinder_v1
 calibration_status: mechanical_dimension
-source: "机械尺寸 TCP 在圆柱顶部 (0, 47.90, 151.07) mm；Rx(-90°) 使 Z=开口、XY=刀口"
+source: "机械尺寸 TCP 在圆柱顶部 (0, 47, 168.66) mm；Rx(-90°) 使 Z=开口、XY=刀口"
 frames:
   parent: wrist3_Link
   # 原点 = 机械 TCP；rpy Rx(-90°) → TCP Z // 法兰 +Y（开口），XY = 刀口水平面
-  tool_axis: {xyz: [0.0, 0.0479, 0.15107], rpy: [-1.5708, 0.0, 0.0]}
+  tool_axis: {xyz: [0.0, 0.047, 0.16866], rpy: [-1.5708, 0.0, 0.0]}
   # L_blade=0：刀片面与 TCP 重合（同一 XY）
   cutting_plane: {xyz: [0.0, 0.0, 0.0], rpy: [0.0, 0.0, 0.0]}
   tcp: {xyz: [0.0, 0.0, 0.0], rpy: [0.0, 0.0, 0.0]}
   # 套筒口 = 圆柱顶部 = TCP（开口）；筒长 L_insert 沿 −Z
   sleeve_mouth: {xyz: [0.0, 0.0, 0.0], rpy: [0.0, 0.0, 0.0]}
 geometry_m:
-  D_inner: 0.104
+  D_inner: 0.116
   D_outer: 0.120
   L_insert: 0.200
   L_blade: 0.0
@@ -44,4 +46,4 @@ io:
   pulse: false
   feedback_timeout_s: 1.5
   notes: "SetIO ACK 只算 CUT_COMMAND_ACCEPTED，不能单独确认切断"
-version: "1.3"
+version: "1.0"

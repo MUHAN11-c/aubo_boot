@@ -347,6 +347,7 @@ void ManipulationSkillsNode::loadParameters()
   tool_io_fun_ = static_cast<int>(params.tool.io_fun);
   tool_io_pin_ = static_cast<int>(params.tool.io_pin);
   tool_close_state_ = params.tool.close_state;
+  tool_profile_id_ = params.tool.profile_id;
   contact_detect_config_.enabled = params.grasp.contact_detect.enabled;
   contact_detect_config_.baseline_s = params.grasp.contact_detect.baseline_s;
   contact_detect_config_.slope_threshold =

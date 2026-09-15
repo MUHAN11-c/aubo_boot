@@ -346,6 +346,8 @@ def to_grasp_decision(message) -> dict:
         'stamp': stamp_seconds(message.header),
         'harvest_run_id': message.harvest_run_id,
         'target_id': message.target_id,
+        # 工具档案标签（launch tool_profile 注入）：双工具排障时区分当前档案
+        'tool_profile_id': message.tool_profile_id,
         'allowed': bool(message.allowed),
         'reason': message.reason,
     }

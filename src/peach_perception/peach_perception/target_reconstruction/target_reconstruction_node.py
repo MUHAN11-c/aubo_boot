@@ -65,6 +65,7 @@ from peach_perception.common.runtime import (
     HarvestDataStore,
     resolve_runs_root,
 )
+from peach_perception.common.tool_budget import ToolBudgetParams
 from peach_perception.target_reconstruction.capture import (
     AutoControllerMixin,
     BindSwitchHoldoff,
@@ -1469,7 +1470,10 @@ class TargetReconstructionNode(
             detection_axis=self._bound_axis_hint,
             entry_standoff_m=float(self.params.refit.entry_standoff_m),
             pregrasp_standoff_m=float(
-                self.params.refit.pregrasp_standoff_m))
+                self.params.refit.pregrasp_standoff_m),
+            # 许可数学内径随当前工具档案（tool_profile launch 注入）
+            params=ToolBudgetParams(
+                d_inner=float(self.params.tool.budget.d_inner)))
         result = self._merge_fused_bag_model(result, fused, views)
         if result.get('ok') and result.get('budget'):
             # _refined/_bag_model 须成对写入：GraspDecision 读 _refined、
@@ -1991,7 +1995,7 @@ class TargetReconstructionNode(
         fused = self._bag_model or {}
         result = self._refined or {}
         msg.model_revision = str(result.get('model_revision') or '')
-        msg.tool_profile_id = 'hollow_cylinder_v1'
+        msg.tool_profile_id = str(self.params.tool.profile_id)
         if not fused.get('ok'):
             msg.reason = 'bag_model_unavailable'
             return msg
@@ -2029,7 +2033,7 @@ class TargetReconstructionNode(
         fused = self._bag_model or {}
         result = self._refined or {}
         model.model_revision = str(result.get('model_revision') or '')
-        model.tool_profile_id = 'hollow_cylinder_v1'
+        model.tool_profile_id = str(self.params.tool.profile_id)
         if not fused.get('ok'):
             return
         bottom = fused.get('bottom')

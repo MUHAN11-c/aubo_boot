@@ -1,19 +1,20 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
-  <!-- hollow_cylinder_v1：TCP 在圆柱顶部（开口）。
-       原点机械尺寸 (x=0, y=47.90mm, z=151.07mm) in wrist3_Link。
+  <!-- 末端 TCP 共享底座：帧名冻结（tool_axis/cutting_plane/tcp/sleeve_mouth/tool_body_link），
+       SRDF 链 tip、ACM×octomap 豁免名单、技能/重建的三点 TF 验证均按名消费，不得改名。
+       两把工具仅 tool_axis 原点不同，常量由各 wrapper（tcp_<profile>.xacro）持有；
+       几何档案：aubo_description/config/<profile>.yaml（改几何改 wrapper 与档案两处）。
        TCP 姿态：Z = 开口方向，XY = 刀口平面（剪切在该水平面上）。
        相对法兰 Rx(-90°)，零位开口朝世界 +Z。
        L_blade=0 → cutting_plane / tcp / sleeve_mouth 同点（顶部）；
        筒体沿 TCP −Z 长 L_insert=200mm。
-       不得再用 static_transform_publisher 补发 wrist3_Link→tcp。
-       几何档案：aubo_description/config/hollow_cylinder_v1.yaml -->
-  <xacro:macro name="aubo_e5_tcp" params="parent:=wrist3_Link">
+       不得再用 static_transform_publisher 补发 wrist3_Link→tcp。 -->
+  <xacro:macro name="aubo_e5_tcp" params="parent:=wrist3_Link tcp_xyz:='0 0.0479 0.15107'">
     <link name="tool_axis"/>
     <joint name="tool_axis_joint" type="fixed">
       <parent link="${parent}"/>
       <child link="tool_axis"/>
-      <origin xyz="0 0.0479 0.15107" rpy="-1.5708 0 0"/>
+      <origin xyz="${tcp_xyz}" rpy="-1.5708 0 0"/>
     </joint>
 
     <link name="cutting_plane"/>

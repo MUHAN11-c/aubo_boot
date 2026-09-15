@@ -785,7 +785,8 @@ class PublisherMixin:
                 force=force):
             markers = build_camera_markers(header, self.collector.frames)
             markers.markers.extend(build_refined_grasp_markers(
-                header, self._refined, self.collector.target_id or ''))
+                header, self._refined, self.collector.target_id or '',
+                tool_d_inner=float(self.params.tool.budget.d_inner)))
             mesh_marker = build_mesh_marker(header, self._mesh_cache)
             if mesh_marker is not None:
                 markers.markers.append(mesh_marker)
@@ -991,7 +992,7 @@ class PublisherMixin:
             'rmse_m': float(result.get('rmse') or 0.0),
             'inlier_ratio': float(result.get('inlier_ratio') or 0.0),
             'model_revision': str(result.get('model_revision') or ''),
-            'tool_profile_id': 'hollow_cylinder_v1',
+            'tool_profile_id': str(self.params.tool.profile_id),
         })
         budget = result.get('budget') or {}
         if not budget:

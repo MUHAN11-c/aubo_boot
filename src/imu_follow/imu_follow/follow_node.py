@@ -19,6 +19,14 @@ IMU 四元数），此后每节拍把 IMU 体轴姿态增量经死区/符号映�
 IMU/关节状态断流、连续 IK 失败自动 disable（servo 后端补发一次零 twist
 刹车；fjt 取消在途 goal，与整栈「透传取消」停轨口径一致）。姿态数学在
 follow_core（零 ROS，纯核表驱动测试）。
+
+插入推进（2026-09 自适应圆柱配套）：`~/insert_start` 在跟随会话内把位置
+目标从参考点沿 insert_start 时刻工具开口方向（tip +Z，base 系锁定）按
+`insert.speed_m_s` 低速推进、钳 `insert.max_travel_m` 行程；姿态照常跟
+IMU（柔性筒偏斜→臂跟随），横向保持只剩死区+低速钳的温和定心。用于套入
+直线段弥补视觉误差的编排（peach 侧 PREGRASP_ONLY 停靠后人工衔接，本包
+保持不订 peach 话题、不随 harvest_system）。`~/insert_stop` 停推进，
+disable / 断流 / 达行程上限亦停。
 """
 
 from action_msgs.msg import GoalStatus
@@ -60,6 +68,10 @@ class ImuFollowNode(Node):
         self._ref_tcp_q = (0.0, 0.0, 0.0, 1.0)      # 参考 TCP 姿态
         self._ref_imu_q = (0.0, 0.0, 0.0, 1.0)      # 参考 IMU 姿态
         self._smooth_q = (0.0, 0.0, 0.0, 1.0)       # 平滑后目标姿态
+        self._insert_active = False                 # 插入推进中
+        self._insert_dir = (0.0, 0.0, 1.0)          # 推进方向（base 系，锁定）
+        self._insert_travel = 0.0                    # 已推进行程（m）
+        self._insert_last_t = 0.0                    # 上次积分时刻（节点钟秒）
         self._ik_busy = False
         self._ik_failures = 0
         self._goal_handle = None
@@ -80,6 +92,8 @@ class ImuFollowNode(Node):
             JointState, self._p.topics.joint_states_topic, self._on_joints, 10)
         self.create_service(Trigger, '~/enable', self._on_enable)
         self.create_service(Trigger, '~/disable', self._on_disable)
+        self.create_service(Trigger, '~/insert_start', self._on_insert_start)
+        self.create_service(Trigger, '~/insert_stop', self._on_insert_stop)
         self._ik_cli = self.create_client(
             GetPositionIK, self._p.moveit.compute_ik_service)
         self._servo_type_cli = self.create_client(
@@ -142,6 +156,8 @@ class ImuFollowNode(Node):
             (t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w))
         self._ref_imu_q = self._imu_q
         self._smooth_q = self._ref_tcp_q
+        self._insert_active = False
+        self._insert_travel = 0.0
         self._ik_failures = 0
         self._enabled = True
         if self._p.motion.backend == 'servo':
@@ -210,6 +226,7 @@ class ImuFollowNode(Node):
         """停止跟随并按后端收口（透传/JTC 取消停轨口径）."""
         was = self._enabled
         self._enabled = False
+        self._insert_active = False
         handle, self._goal_handle = self._goal_handle, None
         if handle is not None:
             handle.cancel_goal_async()
@@ -217,6 +234,46 @@ class ImuFollowNode(Node):
             self._publish_twist((0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
         if was:
             self.get_logger().warning(f'跟随已停：{reason}')
+
+    def _on_insert_start(self, request, response):
+        """开始插入推进：锁当前工具开口方向，位置目标沿之前进."""
+        del request
+        if not self._enabled:
+            return Trigger.Response(
+                success=False, message='未 enable：先 ~/enable 采参考')
+        try:
+            tf = self._tf.lookup_transform(
+                self._p.frames.base_frame, self._p.frames.tip_frame, Time())
+        except TransformException as exc:
+            return Trigger.Response(
+                success=False,
+                message=f'TF {self._p.frames.base_frame}→'
+                        f'{self._p.frames.tip_frame} 查询失败: {exc}')
+        t = tf.transform
+        q_tip = follow_core.quat_normalize(
+            (t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w))
+        # 推进方向 = 工具开口方向（tip +Z）在 base 系的当前指向，锁定不变
+        self._insert_dir = follow_core.quat_rotate(q_tip, (0.0, 0.0, 1.0))
+        self._insert_travel = 0.0
+        self._insert_last_t = self._now_s()
+        self._insert_active = True
+        message = (
+            f'插入推进开始：速度 {self._p.insert.speed_m_s} m/s，'
+            f'行程上限 {self._p.insert.max_travel_m} m，'
+            f'方向（base 系）= ({self._insert_dir[0]:.3f}, '
+            f'{self._insert_dir[1]:.3f}, {self._insert_dir[2]:.3f})')
+        self.get_logger().info(message)
+        return Trigger.Response(success=True, message=message)
+
+    def _on_insert_stop(self, request, response):
+        """停止插入推进（跟随会话保持，位置目标停在当前行程）."""
+        del request
+        was = self._insert_active
+        self._insert_active = False
+        message = (
+            f'插入推进已停（已推进 {self._insert_travel:.3f} m）' if was
+            else '插入推进本就未在进行')
+        return Trigger.Response(success=True, message=message)
 
     def _tick(self):
         """节拍主体：刷新参数 → 新鲜度门 → 目标姿态 → 按后端下发."""
@@ -232,6 +289,19 @@ class ImuFollowNode(Node):
         if now - self._joints_t > self._p.safety.joint_states_timeout_s:
             self._disable(f'关节状态断流 {now - self._joints_t:.2f}s')
             return
+        if self._insert_active:
+            dt = now - self._insert_last_t
+            self._insert_last_t = now
+            self._insert_travel = follow_core.insertion_step(
+                self._insert_travel, self._p.insert.speed_m_s, dt,
+                self._p.insert.max_travel_m)
+            if self._insert_travel >= self._p.insert.max_travel_m:
+                self._insert_active = False
+                self.get_logger().warning(
+                    f'插入达行程上限 {self._p.insert.max_travel_m:.3f} m，'
+                    '自动停止推进（跟随保持，位置目标停在行程终点）')
+        pos_target = follow_core.insertion_position(
+            self._ref_pos, self._insert_dir, self._insert_travel)
         q_target = follow_core.target_orientation(
             self._ref_tcp_q, self._ref_imu_q, self._imu_q, self._signs(),
             self._p.follow.deadband_rad, self._p.follow.max_delta_rad)
@@ -240,20 +310,20 @@ class ImuFollowNode(Node):
         pose = PoseStamped()
         pose.header.frame_id = self._p.frames.base_frame
         pose.header.stamp = self.get_clock().now().to_msg()
-        pose.pose.position.x = self._ref_pos[0]
-        pose.pose.position.y = self._ref_pos[1]
-        pose.pose.position.z = self._ref_pos[2]
+        pose.pose.position.x = pos_target[0]
+        pose.pose.position.y = pos_target[1]
+        pose.pose.position.z = pos_target[2]
         pose.pose.orientation.x = self._smooth_q[0]
         pose.pose.orientation.y = self._smooth_q[1]
         pose.pose.orientation.z = self._smooth_q[2]
         pose.pose.orientation.w = self._smooth_q[3]
         self._pub_pose.publish(pose)
         if self._p.motion.backend == 'servo':
-            self._servo_step()
+            self._servo_step(pos_target)
         elif not self._ik_busy:
             self._request_ik(pose)
 
-    def _servo_step(self):
+    def _servo_step(self, pos_target):
         """速度后端：对当前 TF 闭环，姿态/位置误差 P 控制成 twist."""
         try:
             tf = self._tf.lookup_transform(
@@ -270,10 +340,11 @@ class ImuFollowNode(Node):
         omega = follow_core.clamp_rotvec(
             follow_core.scale_vector(err, self._p.servo.orientation_gain),
             self._p.execution.max_omega_rad_s)
+        # 位置保持跟随插入推进（推进行程即目标点），横向只剩温和定心
         d_pos = follow_core.apply_deadband(
-            (self._ref_pos[0] - t.translation.x,
-             self._ref_pos[1] - t.translation.y,
-             self._ref_pos[2] - t.translation.z),
+            (pos_target[0] - t.translation.x,
+             pos_target[1] - t.translation.y,
+             pos_target[2] - t.translation.z),
             self._p.servo.position_deadband_m)
         v_base = follow_core.clamp_rotvec(
             follow_core.scale_vector(d_pos, self._p.servo.position_gain),
@@ -323,6 +394,9 @@ class ImuFollowNode(Node):
     def _on_ik(self, future):
         """IK 回包：解→单步钳制→发布 ~/command→按门下发 FJT."""
         self._ik_busy = False
+        if not self._enabled:
+            # disable 后在途回包不补发（停即彻底停，含镜像话题）
+            return
         try:
             res = future.result()
         except Exception as exc:  # 服务侧异常不致命，计数防护
@@ -388,6 +462,11 @@ class ImuFollowNode(Node):
         if not handle.accepted:
             self.get_logger().warning(
                 'FJT goal 被拒', throttle_duration_sec=_WARN_PERIOD_S)
+            return
+        if not self._enabled:
+            # disable 之后才回包的 goal 不接管，立即取消（不留在途运动）
+            handle.cancel_goal_async()
+            self.get_logger().info('disable 后到达的 FJT goal 已取消')
             return
         self._goal_handle = handle
         handle.get_result_async().add_done_callback(self._on_goal_result)

@@ -35,20 +35,23 @@ def launch_nodes(context):
     """
     mode = LaunchConfiguration('hardware_mode').perform(context)
     robot_ip = LaunchConfiguration('robot_ip').perform(context)
+    tool_profile = LaunchConfiguration('tool_profile').perform(context)
     if mode not in ('mock', 'real'):
         # 早失败：拼错 mode 时直接抛错，避免带着错误配置起一半节点
         raise RuntimeError('hardware_mode must be one of: mock | real')
     # 已取消 RT 内核/SCHED_FIFO 预检：普通内核直接运行 real 模式。
 
-    # 用 xacro 命令现场展开 URDF，并把 hardware_mode / robot_ip 透传进去——
-    # xacro 内部据此选择硬件插件（mock/real）并填充 <param> robot_ip，
-    # 即"一份 URDF 模板、三种硬件后端"的实现方式。
+    # 用 xacro 命令现场展开 URDF，并把 hardware_mode / robot_ip / tool_profile
+    # 透传进去——xacro 内部据此选择硬件插件（mock/real）、填充 <param> robot_ip、
+    # 按工具档案选 TCP 原点，即"一份 URDF 模板、多种后端/末端"的实现方式。
+    # 未知 tool_profile 名两支 if 都不展开 → 缺 tcp 帧，启动即失败（fail-fast）。
     robot_description = Command([
         'xacro ',
         PathJoinSubstitution([
             FindPackageShare('aubo_description'), 'urdf', 'aubo_e5.urdf.xacro']),
         ' hardware_mode:=', mode,
         ' robot_ip:=', robot_ip,
+        ' tool_profile:=', tool_profile,
     ])
 
     # 控制器参数（goal 容差、blend、RIB 流控等），同时喂给 ros2_control_node
@@ -122,6 +125,7 @@ def launch_nodes(context):
             launch_arguments={
                 'standalone_state_publishers': 'false',
                 'controllers_file': controllers_file,
+                'tool_profile': tool_profile,
             }.items()))
     return nodes
 
@@ -168,6 +172,11 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'robot_ip', default_value='169.254.10.98',
             description='真机控制器 IP；mock 不用'),
+        DeclareLaunchArgument(
+            'tool_profile', default_value='adaptive_cylinder_v1',
+            choices=['hollow_cylinder_v1', 'adaptive_cylinder_v1'],
+            description='末端工具档案（URDF TCP 与整栈标签）；'
+                        '未知名 xacro 不展开 tcp 帧即失败'),
         DeclareLaunchArgument(
             'moveit_enabled', default_value='true',
             description='MoveIt move_group + rviz2；false 关闭'),

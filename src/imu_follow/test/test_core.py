@@ -1,11 +1,11 @@
-"""零 ROS：姿态增量/符号映射/死区限幅/平滑/关节步长钳制（对错以实机为准）."""
+"""零 ROS：姿态增量/符号映射/死区限幅/平滑/关节步长钳制/插入推进（对错以实机为准）."""
 import math
 
 from imu_follow.follow_core import (
     apply_deadband, clamp_joint_step, clamp_rotvec, delta_rotvec,
-    map_signs, quat_conj, quat_mul, quat_normalize, quat_rotate,
-    quat_to_rotvec, rotvec_to_quat, scale_vector, slerp_toward,
-    target_orientation)
+    insertion_position, insertion_step, map_signs, quat_conj, quat_mul,
+    quat_normalize, quat_rotate, quat_to_rotvec, rotvec_to_quat, scale_vector,
+    slerp_toward, target_orientation)
 
 
 def _mag(v):
@@ -107,3 +107,32 @@ def test_quat_rotate_known_axes():
 
 def test_scale_vector():
     assert _close(scale_vector((1.0, -2.0, 0.5), 2.0), (2.0, -4.0, 1.0))
+
+
+def test_insertion_step_integrates_and_caps():
+    # 正常积分：0 + 0.01 m/s × 0.05 s（20 Hz 一拍）
+    assert abs(insertion_step(0.0, 0.01, 0.05, 0.20) - 0.0005) < 1e-12
+    # 累积积分
+    travel = 0.0
+    for _ in range(400):  # 20 s @ 20 Hz × 0.01 m/s = 0.20 m
+        travel = insertion_step(travel, 0.01, 0.05, 0.20)
+    assert abs(travel - 0.20) < 1e-9
+    # 行程封顶：不越界
+    assert insertion_step(0.195, 0.01, 1.0, 0.20) == 0.20
+    # 负时长/负速度不回退（钳 0）
+    assert insertion_step(0.1, 0.01, -1.0, 0.20) == 0.1
+    assert insertion_step(0.1, -0.05, 1.0, 0.20) == 0.1
+
+
+def test_insertion_position_moves_along_direction():
+    ref = (1.0, 2.0, 3.0)
+    # 零行程 = 参考点（未插入时目标即参考）
+    assert _close(insertion_position(ref, (0.0, 0.0, 1.0), 0.0), ref)
+    # 沿 +Z 推进 0.1 m
+    assert _close(insertion_position(ref, (0.0, 0.0, 1.0), 0.1),
+                  (1.0, 2.0, 3.1))
+    # 斜向单位方向推进：位移模长 = 行程
+    d = (0.0, 1.0 / math.sqrt(2.0), 1.0 / math.sqrt(2.0))
+    out = insertion_position(ref, d, 0.2)
+    delta = tuple(out[i] - ref[i] for i in range(3))
+    assert abs(_mag(delta) - 0.2) < 1e-9

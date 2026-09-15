@@ -878,7 +878,7 @@ bool ManipulationSkillsNode::stageVerifyPregrasp(CycleContext & ctx)
       FailureCode::PREGRASP_RESIDUAL, "预抓取验证无精化几何");
   }
   ctx.pregrasp_msg.target_id = ctx.target_id;
-  ctx.pregrasp_msg.tool_profile_id = "hollow_cylinder_v1";
+  ctx.pregrasp_msg.tool_profile_id = tool_profile_id_;
   for (uint8_t attempt = 0; attempt < 3; ++attempt) {
     const auto first_axis = motion_->lookupTransform(base_frame_, "tool_axis");
     const auto first_mouth = motion_->lookupTransform(base_frame_, "sleeve_mouth");

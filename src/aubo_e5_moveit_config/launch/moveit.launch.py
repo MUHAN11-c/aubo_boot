@@ -26,15 +26,18 @@ _MOVE_GROUP_CAPABILITIES = (
     'move_group/ExecuteTaskSolutionCapability')
 
 
-def _moveit_configs(controllers_file: str):
+def _moveit_configs(controllers_file: str, tool_profile: str):
     """按官方 Builder 装载 URDF/SRDF/IK/管线/控制器映射/Pilz 笛卡尔限.
 
     sensors_3d（③层场景碰撞，2026-09-14 约束重设计）：点云 octomap 保护
     臂/相机连杆；工具链对 octomap 的豁免由 peach_manipulation 写 scene ACM。
-    mock 无点云 = 空地图，行为与未开启时一致（回归零副作用）。"""
+    mock 无点云 = 空地图，行为与未开启时一致（回归零副作用）。
+    robot_description 经 mappings 透传 tool_profile（与 bringup 的 RSP 展开同值，
+    防 move_group 模型与 TF 分叉；纯 str 映射在构建期即展开 xacro）。"""
     return (
         MoveItConfigsBuilder(
             'aubo_e5', package_name='aubo_e5_moveit_config')
+        .robot_description(mappings={'tool_profile': tool_profile})
         .planning_pipelines(
             pipelines=['ompl', 'pilz_industrial_motion_planner', 'stomp'],
             default_planning_pipeline='ompl')
@@ -51,12 +54,13 @@ def _moveit_configs(controllers_file: str):
 
 
 def launch_setup(context):
-    """controllers_file / standalone 须 perform 后再拼 Builder 与可选 RSP."""
+    """controllers_file / tool_profile / standalone 须 perform 后再拼 Builder 与可选 RSP."""
     controllers_file = LaunchConfiguration('controllers_file').perform(context)
+    tool_profile = LaunchConfiguration('tool_profile').perform(context)
     standalone = (
         LaunchConfiguration('standalone_state_publishers')
         .perform(context).lower() == 'true')
-    moveit_config = _moveit_configs(controllers_file)
+    moveit_config = _moveit_configs(controllers_file, tool_profile)
     params = moveit_config.to_dict()
     rviz_config = str(moveit_config.package_path / 'rviz' / 'moveit.rviz')
     nodes = [
@@ -96,5 +100,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'controllers_file', default_value='controllers.yaml',
             description='config/ 下的 MoveIt 控制器映射（mock 用 controllers_mock.yaml）'),
+        DeclareLaunchArgument(
+            'tool_profile', default_value='adaptive_cylinder_v1',
+            choices=['hollow_cylinder_v1', 'adaptive_cylinder_v1'],
+            description='末端工具档案（须与 bringup 同值，防模型/TF 分叉）'),
         OpaqueFunction(function=launch_setup),
     ])

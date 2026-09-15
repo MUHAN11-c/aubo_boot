@@ -157,7 +157,7 @@ Goal：
 | `mode` | `PREVIEW=0` 只规划；`OBSERVE_ONLY=1` 只补视角；`FULL=2` 套入/刀/撤退；`PREGRASP_ONLY=3` 停预抓取、不 SetIO、不回 stow（现行默认干跑） |
 | `skip_observation` | FULL 时可跳过观察段 |
 | `scene_epoch` | 须与当前场世代一致 |
-| `model_revision` / `tool_profile_id` | 模型与工具剖面 |
+| `model_revision` / `tool_profile_id` | 模型修订与工具档案标签（executor 由 launch `tool_profile` 注入的 `tool.profile_id` 填入；服务端现行不校验，作对账/遥测） |
 
 Result 终局 `outcome`：`SUCCEEDED=0` / `SKIPPED_QUALITY=1` / `SKIPPED_UNREACHABLE=2` / `FAILED=3` / `CANCELED=4`。
 
@@ -306,7 +306,7 @@ Goal：`pose`、`site_id`。现行固定座调度直通 `NAV_OK`，**不发送**
 | `diameter_m` / `d95_m` / `travel_m` / `cut_travel_m` | 直径、D95、插入/剪切行程 |
 | `radial_margin_m` / `axial_margin_m` | 径向/轴向余量；负值不可套/剪 |
 | `corridor_clear` / `rmse_m` / `inlier_ratio` | 走廊、拟合误差、内点比 |
-| `harvest_run_id` / `target_id` / `model_revision` / `tool_profile_id` | 身份与剖面 |
+| `harvest_run_id` / `target_id` / `model_revision` / `tool_profile_id` | 身份与剖面（`tool_profile_id` 由重建按节点 `tool.profile_id` 填，整栈=launch `tool_profile` 档案） |
 
 **`ReconstructionStatus`**：`state`（`IDLE` / `COLLECTING` / `READY` / …）；`target_id` 当前绑定（空=未绑）；`target_center_base` 未绑填 `[-1,-1,-1]`；`captured_views` / `rejected_views` / `tf_failures`；`tf_latency_ms` 未测 -1；`valid_depth_ratio`；`max_baseline_deg` / `mean_nearest_baseline_deg`；`view_directions[]` 给自适应视点。无效标量 &lt;0 视为无数据。
 

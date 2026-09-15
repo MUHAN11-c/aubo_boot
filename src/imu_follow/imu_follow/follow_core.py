@@ -139,3 +139,21 @@ def quat_rotate(q, v):
 def scale_vector(v, k):
     """三维向量数乘."""
     return (v[0] * k, v[1] * k, v[2] * k)
+
+
+def insertion_step(travel_m, speed_m_s, dt_s, max_travel_m):
+    """
+    插入推进行程积分一步：travel + speed·dt，钳到 max_travel.
+
+    套入直线段（~/insert_start）的行程数学：速度运行期可改参，积分按
+    当前速度走；达到 max_travel 即封顶（调用方据此自动停推进）。
+    """
+    return min(travel_m + max(0.0, speed_m_s) * max(0.0, dt_s), max_travel_m)
+
+
+def insertion_position(ref_pos, direction, travel_m):
+    """插入期间的位置目标：参考点沿锁向方向推进 travel 米."""
+    return (
+        ref_pos[0] + direction[0] * travel_m,
+        ref_pos[1] + direction[1] * travel_m,
+        ref_pos[2] + direction[2] * travel_m)

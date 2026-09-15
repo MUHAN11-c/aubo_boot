@@ -12,6 +12,8 @@ from launch_ros.parameter_descriptions import ParameterFile
 from launch_ros.substitutions import FindPackageShare
 from lifecycle_msgs.msg import Transition
 
+from peach_perception.tool_profiles import tool_profile_id_params
+
 
 def generate_launch_description():
     """配置并激活执行器，等待显式 RunHarvest."""
@@ -30,6 +32,8 @@ def generate_launch_description():
                 'require_managed_stack': LaunchConfiguration(
                     'require_managed_stack'),
             },
+            # 工具档案注入：ExecuteTarget goal 的 tool_profile_id 随档案
+            tool_profile_id_params(LaunchConfiguration('tool_profile')),
         ],
     )
     autostart = LaunchConfiguration('autostart')
@@ -50,9 +54,13 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument(
             'autostart', default_value='true',
-            description='false 时由 peach_lifecycle_manager 有序 configure/activate'),
+            description='true 时本 launch 自行 configure/activate'),
         DeclareLaunchArgument(
             'require_managed_stack', default_value='false',
             description='true 时须等生命周期管理器就绪旗标才接受 RunHarvest'),
+        DeclareLaunchArgument(
+            'tool_profile', default_value='adaptive_cylinder_v1',
+            choices=['hollow_cylinder_v1', 'adaptive_cylinder_v1'],
+            description='末端工具档案（goal.tool_profile_id 标签注入）'),
         activate, node, configure,
     ])

@@ -9,7 +9,10 @@
 namespace peach_manipulation
 {
 
-// hollow_cylinder_v1 静态档案；与 aubo_description/config 对齐。
+// 工具静态登记档案（hollow_cylinder_v1 基准）。几何字段为登记值：运行期
+// 许可数学走感知 tool.budget.d_inner（随 launch 工具档案切换）、IO 三元组
+// 走 params tool.*、档案标签走 params tool.profile_id；本结构体的几何
+// 字段当前无运行期消费点，改几何改 aubo_description/config/<profile>.yaml。
 struct ToolProfile
 {
   std::string profile_id{"hollow_cylinder_v1"};

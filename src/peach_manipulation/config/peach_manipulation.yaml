@@ -112,6 +112,7 @@ peach_manipulation_node:
       io_fun: 3  # 工具 IO 功能号（SetIO 的 fun）。
       io_pin: 0  # 工具 IO 引脚号（SetIO 的 pin）。
       close_state: 1.0  # 工具闭合写入的 IO 电平值。
+      profile_id: hollow_cylinder_v1  # 当前末端工具档案标签（PregraspVerification.tool_profile_id）。基础值=固定圆柱；整栈由 launch tool_profile 档案注入覆盖。
     timeouts:
       service_s: 3.0  # 普通服务调用超时（秒）。
       refined_s: 30.0  # 等待精化结果的超时上限（秒）：须覆盖 BuildTargetModel 最终 TSDF 提取+refit。实测帧间隔 EMA 自适应，本值为未测得帧率时的回退值与上限。

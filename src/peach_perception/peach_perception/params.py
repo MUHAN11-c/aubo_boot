@@ -263,7 +263,10 @@ class peach_scene_perception_node:
             """启动期全量校验：yaml 覆盖值非法即抛异常终止启动."""
             for key, rules in peach_scene_perception_node.RULES.items():
                 group, _, leaf = key.rpartition('.')
-                target = getattr(self.params_, group) if group else self.params_
+                # 逐段下钻嵌套组（与 _assign 一致，支持任意层级）
+                target = self.params_
+                for part in group.split('.') if group else ():
+                    target = getattr(target, part)
                 value = getattr(target, leaf)
                 for rule in rules:
                     why = _check(rule, value, key)
@@ -357,6 +360,9 @@ class peach_target_reconstruction_node:
         'refitter.cylinder_impl': ('string', 'cylinder_refit'),
         'refitter.sphere_impl': ('string', 'sphere_refit'),
         'session.root_dir': ('string', ''),
+        # 工具档案：基础值=固定圆柱；整栈由 launch tool_profile 档案注入覆盖
+        'tool.budget.d_inner': ('double', 0.104),
+        'tool.profile_id': ('string', 'hollow_cylinder_v1'),
     }
 
     RULES = {  # 手写校验规则；启动期非法覆盖即抛，运行期非法 set 即拒
@@ -407,6 +413,7 @@ class peach_target_reconstruction_node:
         'refit.pregrasp_standoff_m': (('gt_eq', 0.0),),
         'refit.max_axis_angle_deg': (('gt', 0.0),),
         'publish.min_interval_s': (('gt_eq', 0.0),),
+        'tool.budget.d_inner': (('bounds', 0.01, 0.5),),
     }
 
     class _Bind:
@@ -519,6 +526,19 @@ class peach_target_reconstruction_node:
         def __init__(self):
             self.root_dir = ''
 
+    class _ToolBudget:
+        """组 tool.budget 的参数字段（GraspDecision 许可数学的内径）."""
+
+        def __init__(self):
+            self.d_inner = 0.104
+
+    class _Tool:
+        """组 tool 的参数字段（当前末端工具档案）."""
+
+        def __init__(self):
+            self.budget = peach_target_reconstruction_node._ToolBudget()
+            self.profile_id = 'hollow_cylinder_v1'
+
     class _Tsdf:
         """组 tsdf 的参数字段."""
 
@@ -551,6 +571,7 @@ class peach_target_reconstruction_node:
             self.refit = peach_target_reconstruction_node._Refit()
             self.refitter = peach_target_reconstruction_node._Refitter()
             self.session = peach_target_reconstruction_node._Session()
+            self.tool = peach_target_reconstruction_node._Tool()
             self.tsdf = peach_target_reconstruction_node._Tsdf()
             self.view_filter = peach_target_reconstruction_node._ViewFilter()
             for key, (_, value) in peach_target_reconstruction_node.DEFAULTS.items():
@@ -597,7 +618,10 @@ class peach_target_reconstruction_node:
             """启动期全量校验：yaml 覆盖值非法即抛异常终止启动."""
             for key, rules in peach_target_reconstruction_node.RULES.items():
                 group, _, leaf = key.rpartition('.')
-                target = getattr(self.params_, group) if group else self.params_
+                # 逐段下钻嵌套组（与 _assign 一致，支持任意层级如 tool.budget.*）
+                target = self.params_
+                for part in group.split('.') if group else ():
+                    target = getattr(target, part)
                 value = getattr(target, leaf)
                 for rule in rules:
                     why = _check(rule, value, key)

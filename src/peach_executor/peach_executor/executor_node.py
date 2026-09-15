@@ -670,7 +670,7 @@ class TaskExecutorNode(LifecycleNode):
         observe.target_id = target_id
         observe.mode = ExecuteTarget.Goal.OBSERVE_ONLY
         observe.scene_epoch = int(self._scene_epoch or 0)
-        observe.tool_profile_id = 'hollow_cylinder_v1'
+        observe.tool_profile_id = str(self._params.tool.profile_id)
         observed = None
         for attempt in range(4):
             if self._cancel or self._peek_skip():
@@ -782,7 +782,7 @@ class TaskExecutorNode(LifecycleNode):
             else ExecuteTarget.Goal.FULL)
         full.skip_observation = True
         full.scene_epoch = int(self._scene_epoch or 0)
-        full.tool_profile_id = 'hollow_cylinder_v1'
+        full.tool_profile_id = str(self._params.tool.profile_id)
         full.model_revision = str(self._last_model_revision or '')
         executed = self._send_action(
             self._exec, full, timeout, feedback=True,

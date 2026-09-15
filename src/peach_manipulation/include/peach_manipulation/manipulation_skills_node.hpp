@@ -343,6 +343,9 @@ private:
   int tool_io_fun_{3};
   int tool_io_pin_{0};
   double tool_close_state_{1.0};
+  // 当前末端工具档案标签（PregraspVerification.tool_profile_id；
+  // 整栈由 launch tool_profile 档案注入）
+  std::string tool_profile_id_{"hollow_cylinder_v1"};
   double service_timeout_s_{3.0};
   double refined_timeout_s_{30.0};
   // 刀具 GPIO 状态机（SetIO ACK ≠ 切断确认；confirmFeedback 预留）。

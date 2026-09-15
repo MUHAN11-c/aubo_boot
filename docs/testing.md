@@ -4,7 +4,7 @@
 
 真机轮次、量化基线、审查记录写在 [testing-log.md](testing-log.md)；工程整理过程写在 [REFACTORING.md](REFACTORING.md)（二者都是过程记录，不驱动现行设计）。改行为只改本文 + 源码；补一条实测时追加 testing-log，不把轮次散文写回本文。
 
-各包 `test/` **保留 ROS 2 默认 lint，并允许零 ROS 纯核 pytest**（Python：`test_flake8.py` / `test_pep257.py` + 不 import rclpy 的表驱动；CMake：`ament_lint_auto`）。现行纯核：`peach_executor/test/test_harvest_fsm.py`（`react` 表）、`peach_perception/test/test_runtime_core.py`（`ManualClock` / `BoundedWorker` capacity=1 drop_oldest）、`peach_manipulation/test/test_contact_monitor.py`（合成电流序列编译 `contact_monitor.hpp`）、`ivg_graspnet/test/test_grasp_core.py`（`GraspList` NMS/碰撞；torch 算子 `importorskip`）、`serial_imu/test/test_protocol.py`（切帧/协方差）与 `test_frame.py`（倒装 Rx + parent 对齐）、`imu_follow/test/test_core.py`（姿态增量/死区锥钳/平滑/关节步长）。禁止业务用例、gtest、DDS 假现场、launch_testing、采摘仿真测。语法与流程由审查核对，对错以实机为准。`colcon test` 不等于采摘验收。套入剪切软件门看 flake8 / pep257 / uncrustify 与纯核表；`peach_manipulation` 整测项跳过 cpplint（其 legal/copyright 与 Google include 顺序检查同本项目「文件头版权块项目结束再补」「include own-first」约定冲突，CMake 已 `set(ament_cmake_cpplint_FOUND TRUE)`），C++ 风格门以 uncrustify 为准、静态分析走 cppcheck。`ament_xmllint` 会拉 `package_format3.xsd`，网络卡住超时不阻塞本产品路径。
+各包 `test/` **保留 ROS 2 默认 lint，并允许零 ROS 纯核 pytest**（Python：`test_flake8.py` / `test_pep257.py` + 不 import rclpy 的表驱动；CMake：`ament_lint_auto`）。现行纯核：`peach_executor/test/test_harvest_fsm.py`（`react` 表）、`peach_perception/test/test_runtime_core.py`（`ManualClock` / `BoundedWorker` capacity=1 drop_oldest）、`peach_perception/test/test_tool_profiles.py`（工具档案解析结构校验）、`peach_manipulation/test/test_contact_monitor.py`（合成电流序列编译 `contact_monitor.hpp`）、`ivg_graspnet/test/test_grasp_core.py`（`GraspList` NMS/碰撞；torch 算子 `importorskip`）、`serial_imu/test/test_protocol.py`（切帧/协方差）与 `test_frame.py`（倒装 Rx + parent 对齐）、`imu_follow/test/test_core.py`（姿态增量/死区锥钳/平滑/关节步长/插入推进）。禁止业务用例、gtest、DDS 假现场、launch_testing、采摘仿真测。语法与流程由审查核对，对错以实机为准。`colcon test` 不等于采摘验收。套入剪切软件门看 flake8 / pep257 / uncrustify 与纯核表；`peach_manipulation` 整测项跳过 cpplint（其 legal/copyright 与 Google include 顺序检查同本项目「文件头版权块项目结束再补」「include own-first」约定冲突，CMake 已 `set(ament_cmake_cpplint_FOUND TRUE)`），C++ 风格门以 uncrustify 为准、静态分析走 cppcheck。`ament_xmllint` 会拉 `package_format3.xsd`，网络卡住超时不阻塞本产品路径。
 
 不要删 `_archive/runs/` 与现场 `runs/`。未授权不得真机运动或 SetIO。launch **不自动** `RunHarvest`。采摘十四包职责见 [architecture.md](architecture.md) §3。旁路视觉抓取三包不进整栈 launch。`serial_imu` 随 `harvest_system` 起（`imu_enabled` 默认 true），不进 lifecycle、不进只读 bringup。`imu_follow`（IMU 姿态跟随）独立 launch、不随整栈，`motion.enabled` 默认 false 只算不发。
 
@@ -113,6 +113,7 @@ Tab「调试」＝向**既有**动作/服务发请求的纯客户端，页面只
 |------|------|------|
 | `hardware_mode` | mock | mock / real |
 | `robot_ip` | 169.254.10.98 | 仅 real |
+| `tool_profile` | adaptive_cylinder_v1 | 末端工具档案（URDF TCP、感知许可内径、消息标签统一随档案切换）；固定圆柱显式 `tool_profile:=hollow_cylinder_v1`。切换须整栈重启，RSP 与 move_group 同 arg |
 | `camera_enabled` | false | 有相机时设 true |
 | `imu_enabled` | true | USB IMU；挂 tcp 并对齐。无设备时节点重试。关掉：`false` |
 | `extrinsics_enabled` | true | wrist3 → camera_link |
@@ -162,6 +163,18 @@ ros2 param set /imu_follow motion.backend fjt
 ```
 
 验收口径：enable 后静置目标=参考；转动输入源目标增量=IMU 相对增量（锥 0.35 rad 内、死区 0.02 rad 外），开门后 `/joint_states` 随动、`/moveit_servo/status`=0。**servo 三坑（已修在包内，换环境重查）**：twist 输入必须 BEST_EFFORT 发布（可靠 QoS 收不到）；此版 servo 未 `switch_command_type(TWIST)` 拒收（enable 自动调）；其参数名自带 `moveit_servo.` 前缀（yaml 按此写）。`/imu/data` 勿与假发布器混流。纯核：`PYTHONPATH=src/imu_follow pytest src/imu_follow/test/test_core.py`。
+
+**插入推进模式（自适应圆柱套入，2026-09-15）**——目的：视觉给的袋轴/入口不够准时，柔性筒+IMU 姿态跟随弥补，保证套入。编排为人工分段（peach 套入 LIN 段不动、与 imu_follow 零耦合；勿在 peach MTC 执行期间同时开门）：
+
+```bash
+# 前置同上（bringup + servo + enable + motion.enabled true）
+# peach 侧 execute_pregrasp_only=true 停在预抓取（默认），臂静止后：
+ros2 service call /imu_follow/insert_start std_srvs/srv/Trigger   # 沿工具开口 0.01 m/s 推进，行程钳 0.20 m
+ros2 topic echo /imu_follow/target_pose --once                    # 位置目标沿推进前移、姿态跟 IMU
+ros2 service call /imu_follow/insert_stop std_srvs/srv/Trigger    # 停推进（跟随保持）；disable 全停
+```
+
+验收口径：`insert_start` 后 `~/target_pose` 位置沿锁定方向匀速前移（0.01 m/s，到 0.20 m 自动停并告警）；姿态仍只跟 IMU 增量；`insert_stop`/`disable`/断流即停推进；停跟用 `~/disable`（不要只 param set false）。切刀/撤退仍走 peach Web 单步（须 `debug.motion_enabled`）。
 
 ```bash
 ros2 action send_goal /peach_executor/run_harvest peach_interfaces/action/RunHarvest \
@@ -301,7 +314,7 @@ mock 接近轨迹形状（不开批、不代替真机方向验收）：`hardware
 
 | 门 | 怎么验 | 现行 |
 |----|--------|------|
-| P0 可构建 + 工具帧 | 干净 `build/install/log` 后 colcon；URDF 有 `tool_axis` / `sleeve_mouth` / `cutting_plane` / `tool_body_link` | TCP 在圆柱顶部 `(0, 47.90, 151.07) mm`，`Rx(-90°)`：Z=开口、XY=刀口；筒沿 −Z 200 mm |
+| P0 可构建 + 工具帧 | 干净 `build/install/log` 后 colcon；URDF 有 `tool_axis` / `sleeve_mouth` / `cutting_plane` / `tool_body_link` | TCP 在圆柱顶部，**按当前 `tool_profile`**：hollow_cylinder_v1 `(0, 47.90, 151.07) mm` / adaptive_cylinder_v1 `(0, 47, 168.66) mm`，`Rx(-90°)`：Z=开口、XY=刀口；筒沿 −Z 200 mm。**固定圆柱等价门**：改 `aubo_description` 后 `xacro src/aubo_description/urdf/aubo_e5.urdf.xacro hardware_mode:=mock tool_profile:=hollow_cylinder_v1` 输出与改动前 diff 须为空；`ros2 param get /peach_target_reconstruction_node tool.profile_id` 须与 launch `tool_profile` 一致 |
 | P1 几何基线 | `runs/` 写 `geometry.jsonl`；复算脚本已归档（需要时 `_archive/offline_2026-09/` 下以模块方式运行） | 离线脚本已归档 |
 | P2 袋模型 | 观测 `occlusion_class`；球 marker ns=`prior`；裸果不入 `next_target_id`；`branch_blocked`/`neighbor_overlap`/`damaged_or_wet` 不得 `allowed` | 沿袋长轴半径剖面，窄头为口、宽头为底，箭头袋底→袋口；斜袋保持长轴不对成竖轴；袋底→袋口只许上半球（从下往上，左右最多水平，禁止朝下）；分割两端比沿轴朝外框边贴合，更贴边的一端为口（竖缝贴左边）；剪切参考在袋口/分割贴框极限，果距不足只否决 `allowed` 不挪刀；两端贴合差不够才用 3D 窄头/逆重力 |
 | P3 重建权威 | `allowed` 须袋融合预算才套入；无 budget 不得接触；圆柱/TSDF 不定轴；包络轴只否决，扁袋不打 12°；35° 只诊断 | FULL 时 `allowed=false` → `SKIPPED_QUALITY`；`PREGRASP_ONLY` 不要求 `allowed` |

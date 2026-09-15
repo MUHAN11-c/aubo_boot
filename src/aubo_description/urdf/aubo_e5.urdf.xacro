@@ -5,7 +5,8 @@
   <xacro:include filename="components/table.xacro"/>
   <xacro:include filename="components/camera.xacro"/>
   <xacro:include filename="components/quick_changer.xacro"/>
-  <xacro:include filename="components/tcp.xacro"/>
+  <xacro:include filename="components/tcp_hollow_cylinder_v1.xacro"/>
+  <xacro:include filename="components/tcp_adaptive_cylinder_v1.xacro"/>
   <xacro:include filename="aubo_e5.ros2_control.xacro"/>
 
   <xacro:arg name="include_table" default="true"/>
@@ -14,6 +15,10 @@
   <!-- hardware_mode: mock (GenericSystem + JTC) | real (AuboE5Hardware + passthrough) -->
   <xacro:arg name="hardware_mode" default="mock"/>
   <xacro:arg name="robot_ip" default="169.254.10.98"/>
+  <!-- tool_profile: hollow_cylinder_v1 (固定圆柱) | adaptive_cylinder_v1 (自适应圆柱+IMU)。
+       两个独立 if（非 if/else）：未知 profile 名两支都不展开 → 缺 tcp 帧，启动即失败。 -->
+  <xacro:arg name="tool_profile" default="adaptive_cylinder_v1"/>
+  <xacro:property name="tool_profile" value="$(arg tool_profile)"/>
 
   <xacro:aubo_e5_ros2_control
     name="AuboE5System"
@@ -29,6 +34,12 @@
       <xacro:aubo_e5_quick_changer parent="camera_body_link"/>
     </xacro:if>
   </xacro:if>
-  <!-- 末端 TCP 固定关节（URDF 内建，robot_state_publisher 发布，见 components/tcp.xacro） -->
-  <xacro:aubo_e5_tcp parent="wrist3_Link"/>
+  <!-- 末端 TCP 固定关节（URDF 内建，robot_state_publisher 发布，见 components/tcp_<profile>.xacro；
+       帧名冻结，两把工具仅 tool_axis 原点不同） -->
+  <xacro:if value="${tool_profile == 'hollow_cylinder_v1'}">
+    <xacro:aubo_e5_tcp_hollow_cylinder_v1 parent="wrist3_Link"/>
+  </xacro:if>
+  <xacro:if value="${tool_profile == 'adaptive_cylinder_v1'}">
+    <xacro:aubo_e5_tcp_adaptive_cylinder_v1 parent="wrist3_Link"/>
+  </xacro:if>
 </robot>

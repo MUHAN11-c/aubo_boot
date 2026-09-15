@@ -1,20 +1,16 @@
 """启动桃子采摘完整业务栈."""
 
-from datetime import datetime
 import os
 
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
-    ExecuteProcess,
     IncludeLaunchDescription,
     OpaqueFunction,
 )
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
-
-from peach_executor.batch import default_runs_root
 
 
 def _include(package, launch_file, launch_arguments=None, condition=None):
@@ -87,6 +83,7 @@ def generate_launch_description():
     extrinsics_enabled = LaunchConfiguration('extrinsics_enabled')
     hand_eye_enabled = LaunchConfiguration('hand_eye_enabled')
     hand_eye_web_enabled = LaunchConfiguration('hand_eye_web_enabled')
+    tool_profile = LaunchConfiguration('tool_profile')
     return LaunchDescription([
         OpaqueFunction(function=_preflight),
         DeclareLaunchArgument(
@@ -96,6 +93,11 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'robot_ip', default_value='169.254.10.98',
             description='AUBO 控制器 IP；mock 模式不使用'),
+        DeclareLaunchArgument(
+            'tool_profile', default_value='adaptive_cylinder_v1',
+            choices=['hollow_cylinder_v1', 'adaptive_cylinder_v1'],
+            description='末端工具档案：URDF TCP、感知许可内径与标签统一随档案'
+                        '切换（固定圆柱显式 tool_profile:=hollow_cylinder_v1）'),
         DeclareLaunchArgument(
             'moveit_enabled', default_value='true',
             description='启动 MoveIt move_group 和 RViz2'),
@@ -116,13 +118,11 @@ def generate_launch_description():
             description='启动 USB 串口 IMU；挂在 tcp 上并对齐。'
                         '不进 lifecycle。无设备时节点重试串口。'
                         '不进只读 bringup，由本文件 include'),
-        DeclareLaunchArgument(
-            'record_mcap', default_value='false',
-            description='为 true 时用 ros2 bag record -s mcap 录执行器/感知/重建关键话题'),
         _include(
             'aubo_e5_bringup', 'bringup.launch.py', {
                 'hardware_mode': hardware_mode,
                 'robot_ip': robot_ip,
+                'tool_profile': tool_profile,
                 'moveit_enabled': moveit_enabled,
                 'camera_enabled': camera_enabled,
                 'extrinsics_enabled': extrinsics_enabled,
@@ -138,45 +138,20 @@ def generate_launch_description():
             condition=IfCondition(LaunchConfiguration('imu_enabled'))),
         _include(
             'peach_perception', 'scene_perception.launch.py',
-            {'autostart': 'false'}),
+            {'autostart': 'false', 'tool_profile': tool_profile}),
         _include(
             'peach_perception', 'target_reconstruction.launch.py',
-            {'autostart': 'false'}),
+            {'autostart': 'false', 'tool_profile': tool_profile}),
         _include(
             'peach_manipulation', 'peach_manipulation.launch.py',
-            {'autostart': 'false'}),
+            {'autostart': 'false', 'tool_profile': tool_profile}),
         _include('peach_executor', 'observability.launch.py'),
         _include(
             'peach_executor', 'peach_executor.launch.py',
             {
                 'autostart': 'false',
                 'require_managed_stack': 'true',
+                'tool_profile': tool_profile,
             }),
         _include('peach_executor', 'lifecycle_manager.launch.py'),
-        OpaqueFunction(function=_maybe_record_mcap),
     ])
-
-
-def _maybe_record_mcap(context):
-    """仅在 record_mcap:=true 时启动 rosbag2 MCAP，默认不录以免占盘."""
-    flag = LaunchConfiguration('record_mcap').perform(context).lower()
-    if flag not in ('true', '1', 'yes'):
-        return []
-    stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    output = str(default_runs_root() / f'mcap_{stamp}')
-    topics = [
-        '/peach_executor/events',
-        '/peach_executor/state',
-        '/peach_executor/scene_snapshot',
-        '/peach/perception/target_observations',
-        '/peach/reconstruction/status',
-        '/peach/reconstruction/shape_hypothesis',
-        '/peach/manipulation/grasp_hypothesis',
-    ]
-    return [
-        ExecuteProcess(
-            cmd=['ros2', 'bag', 'record', '-s', 'mcap', '--output', output,
-                 *topics],
-            output='screen',
-        ),
-    ]

@@ -24,7 +24,19 @@ lifecycle、不改只读 bringup、不订 peach 话题。
   `~/command_twist` 供检查，不发运动。真机使用须另行人工授权（AGENTS 红线）。
 - 角速度上限 `execution.max_omega_rad_s`（0.5）；位置保持小增益防漂移。
 - 自动 disable：IMU / 关节状态断流、连续 IK 失败（fjt）；disable 时 servo
-  补一帧零速刹车、fjt 取消在途 goal。节点退出后 servo 因指令超时自停。
+  补一帧零速刹车、fjt 取消在途 goal（disable 后在途 IK 回包/goal 回执
+  不补发、立即取消——停即彻底停）。节点退出后 servo 因指令超时自停。
+
+## 插入推进（自适应圆柱套入，2026-09-15）
+
+`~/insert_start` 在跟随会话内把位置目标从参考点沿 **insert_start 时刻工具
+开口方向（tip +Z，base 系锁定）** 按 `insert.speed_m_s`（0.01 m/s）低速推进、
+钳 `insert.max_travel_m`（0.20 m）行程；姿态照常跟 IMU（柔性筒偏斜→臂跟随），
+横向只剩死区+低速钳的温和定心。用于视觉袋轴/入口不够准时保证套入的**人工
+分段编排**：peach `execute_pregrasp_only=true` 停在预抓取 → 臂静止后
+`~/enable` → `~/insert_start` → 到位 `~/insert_stop` → 切刀/撤退走 peach Web
+单步。`~/insert_stop`/`~/disable`/断流/达行程上限都停推进。**勿在 peach MTC
+执行期间同时开门**（指令流在控制器层互踩，无仲裁）。
 
 ## 前置
 
@@ -68,7 +80,8 @@ FJT 后端：`ros2 launch imu_follow imu_follow.launch.py` +
 | `/imu/data`（或假流） | 输入（订；勿与他源混流，双流会被平滑成中间值） |
 | `/joint_states` | 当前关节（订；新鲜度与 fjt 种子） |
 | `~/enable` / `~/disable` | `std_srvs/Trigger`：采参考开始（自动激活 servo）/ 停止 |
-| `~/target_pose` | `PoseStamped`（base_link）：平滑后 TCP 目标（位置=参考） |
+| `~/insert_start` / `~/insert_stop` | `std_srvs/Trigger`：插入推进开始（锁工具开口方向，须先 enable）/ 停推进（跟随保持） |
+| `~/target_pose` | `PoseStamped`（base_link）：平滑后 TCP 目标（位置=参考点或插入推进点） |
 | `~/command_twist` | `TwistStamped`（tcp 系）：P 控制输出（dry 镜像） |
 | `/moveit_servo/delta_twist_cmds` | servo 输入（BEST_EFFORT；开门时发） |
 | `/moveit_servo/status` | servo 状态（0=No warnings） |
@@ -87,4 +100,5 @@ FJT 后端：`ros2 launch imu_follow imu_follow.launch.py` +
   后端（~20 Hz 流式替换 goal，未经真机验证，现场先小锥低拍）。
 - mock 冷启动关节全零：参考位姿 IK 无解（error_code=-31），先导拍照位。
 - 体轴符号映射在大角度下是「手感」近似；方向以实机手感调 `follow.invert_*`。
-- 位置锁死参考点：本包只跟姿态，不做位置跟随（servo 后端有小增益防漂移）。
+- 位置锁死参考点：本包只跟姿态，不做位置跟随（servo 后端有小增益防漂移）；
+  插入推进期间位置目标沿锁定方向前移（见上节），横向仍只温和定心。

@@ -76,7 +76,7 @@ flowchart LR
 
 | 动作 | 服务端所在包 | 含义 |
 |------|--------------|------|
-| `RunHarvest` | `peach_executor` | **开一批采摘。** launch 绝不自动发。goal：`request_id`（账本目录名，须唯一）、`scene_key`、`profile_id`（现行未消费）、`intent`（PICK_ALL / PICK_SELECTED / SURVEY_ONLY）、可选 `target_ids`。结果：至少成功一颗才 `success` |
+| `RunHarvest` | `peach_executor` | **开一批采摘。** launch 绝不自动发。goal：`request_id`（账本目录名，须唯一）、`scene_key`、`profile_id`（**批次参数剖面**，现行未消费；与工具档案 `tool_profile_id` 是两个字段，勿混）、`intent`（PICK_ALL / PICK_SELECTED / SURVEY_ONLY）、可选 `target_ids`。结果：至少成功一颗才 `success` |
 | `NavigateToWorksite` | （预留，导航包已归档） | **走到作业位。** 固定座调度直通 `NAV_OK`，不发动作、无服务端 |
 | `SurveyScene` | `peach_manipulation` | **去全局拍照位并复核关节已静止。** 给感知准备发现 FOV。PAUSE 会取消，恢复后重试。失败整批 `survey_failed`，不 Begin |
 | `BuildTargetModel` | `peach_perception` | **绑一颗、收合格机位后 finalize。** 与 OBSERVE_ONLY 并行。积分只用精确 stamp TF。反馈 `view_count` 是机位数 |
@@ -214,6 +214,7 @@ flowchart TB
 | `depth_scale_unit` | uint16：raw × 本值 = 毫米（Percipio 0.25） |
 | `sync_slop_s` | RGB-D 近似同步允差（0.05 s） |
 | `tool.entry_d_tool` / `entry_d_s` | 入口相对袋底。由 `grasp_standoffs.yaml` 注入，勿只改这里 |
+| `tool.D_inner` | 工具内径（径向走廊门）。整栈由 launch `tool_profile` 档案注入覆盖（`aubo_description/config/<profile>.yaml` 单一事实源），基础值=固定圆柱 0.104 |
 
 ### 3.2 `peach_target_reconstruction_node`（建）
 
@@ -299,6 +300,8 @@ flowchart TB
 | `capture.min_neighbor_gap_m` / `neighbor_gap_area_ratio` | 邻锚过近拒帧；小框面积比豁免，近距双检不互锁 |
 | `tf_timeout_sec` | 按深度 stamp 精确查 TF；失败跳帧，禁止 latest |
 | `refit.entry_standoff_m` / `refit.pregrasp_standoff_m` | 入口相对袋底、预抓取相对入口。只改 `grasp_standoffs.yaml` |
+| `tool.budget.d_inner` | GraspDecision 动态预算许可的工具内径。整栈由 launch `tool_profile` 档案注入覆盖（固定圆柱 0.104 / 自适应 0.116） |
+| `tool.profile_id` | 档案标签（`GraspDecision`/`PregraspVerification`/`TargetModel` 的 `tool_profile_id`）。整栈由 launch `tool_profile` 档案注入 |
 | `refitter.cylinder_impl` / `sphere_impl` | 柱/球精化映射名（`REFITTERS_BY_IMPL`）；其余算法直接构造 |
 
 ---
@@ -544,7 +547,8 @@ base_link → 臂链 → wrist3_Link
      → camera_color_frame → camera_color_optical_frame（感知 yaml）
      → camera_depth_frame → camera_depth_optical_frame（深度 header、技能 yaml）
   → tool_axis → cutting_plane / tcp / sleeve_mouth / tool_body_link
-     （hollow_cylinder_v1；TCP 在圆柱顶部 (0, 47.90, 151.07) mm；Rx(-90°)：Z=开口，XY=刀口；筒沿 −Z 200 mm）
+     （按 launch tool_profile 选档案，帧名共用：hollow_cylinder_v1 TCP (0, 47.90, 151.07) mm /
+      adaptive_cylinder_v1 TCP (0, 47, 168.66) mm；Rx(-90°)：Z=开口，XY=刀口；筒沿 −Z 200 mm）
 ```
 
 无 `active.yaml` 时名义 TF：`wrist3_Link→camera_link` 平移 2 cm、单位四元数。现场标定约 `[0.045, 0.108, 0.002]`。驱动两光学系相对 `camera_link` 平移为 0（源码如此；未 live echo 不改名）。
@@ -686,12 +690,14 @@ flowchart LR
 | `/imu/data` | 输入（订，Reliable+Volatile；serial_imu 修正话题；勿与其他发布器混流，双流会被平滑成中间值） |
 | `/joint_states` | 当前关节（订；新鲜度门与 fjt 种子） |
 | `~/enable` | `std_srvs/Trigger`：前置全就绪才采参考开始；servo 后端自动 `switch_command_type(TWIST)` + 确保未暂停 |
-| `~/disable` | `std_srvs/Trigger`：停跟随（servo 补零速刹车；fjt 取消在途 goal） |
-| `~/target_pose` | `geometry_msgs/PoseStamped`（base_link）：平滑后 TCP 目标（位置=参考，只跟姿态） |
+| `~/disable` | `std_srvs/Trigger`：停跟随（servo 补零速刹车；fjt 取消在途 goal；disable 后在途回执不补发） |
+| `~/insert_start` | `std_srvs/Trigger`：插入推进开始——锁当前工具开口方向（tip +Z，base 系），位置目标沿它按 `insert.speed_m_s`（0.01 m/s）推进、钳 `insert.max_travel_m`（0.20 m）；姿态照常跟 IMU。须先 `~/enable` |
+| `~/insert_stop` | `std_srvs/Trigger`：停推进（跟随保持）；disable/断流/达行程上限亦自动停 |
+| `~/target_pose` | `geometry_msgs/PoseStamped`（base_link）：平滑后 TCP 目标（位置=参考点或插入推进点，姿态跟 IMU） |
 | `~/command_twist` | `geometry_msgs/TwistStamped`（tcp 系）：P 控制输出（dry 镜像） |
 | `/moveit_servo/delta_twist_cmds` | servo 输入（**BEST_EFFORT** 发布——可靠 QoS 与其订阅不兼容收不到；开门时发） |
 | `/moveit_servo/status` | servo 状态（0=No warnings） |
 | `/joint_trajectory_controller/joint_trajectory` | servo 100 Hz 输出（JTC 话题流式；mock） |
 | `execution.follow_joint_trajectory_action` | fjt 后端动作：mock `/joint_trajectory_controller/...`；真机 `/aubo_passthrough_trajectory_controller/...` |
 
-跟随链：Δ(conj(q_ref)·q_now) → 符号映射 `follow.invert_*` → 死区 → 锥钳 → 平滑 → 目标姿态；servo 后端对当前 TF 求体轴误差按 `servo.orientation_gain` P 控制成角速度（钳 `execution.max_omega_rad_s`；位置小增益 `servo.position_gain` 防漂移）；fjt 后端 `/compute_ik` + 单步钳制流式 FJT。IMU / 关节状态断流、连续 IK 失败自动 disable。参数全量：包内 `config/imu_follow.yaml`（节点，决策 0017 口径手写 `params.py`）与 `config/moveit_servo.yaml`（servo；此版参数名自带 `moveit_servo.` 前缀）。手册：[src/imu_follow/README.md](../src/imu_follow/README.md)。
+跟随链：Δ(conj(q_ref)·q_now) → 符号映射 `follow.invert_*` → 死区 → 锥钳 → 平滑 → 目标姿态；servo 后端对当前 TF 求体轴误差按 `servo.orientation_gain` P 控制成角速度（钳 `execution.max_omega_rad_s`；位置小增益 `servo.position_gain` 防漂移，插入推进期间目标点随行程前移）；fjt 后端 `/compute_ik` + 单步钳制流式 FJT。IMU / 关节状态断流、连续 IK 失败自动 disable。参数全量：包内 `config/imu_follow.yaml`（节点，决策 0017 口径手写 `params.py`）与 `config/moveit_servo.yaml`（servo；此版参数名自带 `moveit_servo.` 前缀）。手册：[src/imu_follow/README.md](../src/imu_follow/README.md)。

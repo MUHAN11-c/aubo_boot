@@ -83,3 +83,7 @@ peach_target_reconstruction_node:
       sphere_impl: sphere_refit  # 裸桃球 refit 映射名（REFITTERS_BY_IMPL；默认 SphereRefitter）
     session:
       root_dir: ''  # session 落盘根；空=工作区 runs/（与账本、观测 JSONL 同一根）
+    tool:
+      budget:
+        d_inner: 0.104  # [m] GraspDecision 动态预算许可的工具内径。基础值=固定圆柱；整栈由 launch tool_profile 档案注入覆盖（自适应圆柱 0.116）
+      profile_id: hollow_cylinder_v1  # 当前末端工具档案标签（消息 tool_profile_id）。整栈由 launch tool_profile 档案注入覆盖

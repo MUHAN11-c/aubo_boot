@@ -410,11 +410,11 @@ flowchart LR
 | `peach_manipulation` | 臂 | 拍照、视点、MTC、工具、撤退 | 视点/MTC/GPIO 参数 |
 | `peach_executor` | 调度 | 开批、选果、账本、lifecycle、只读监控、整栈 launch | 批次顺序/名单 |
 | `aubo_msgs` | 驱动契约 | 柜侧状态 / SetIO / FK·IK | 只读（驱动栈） |
-| `aubo_description` | 几何 | URDF：臂、相机体、快换、`hollow_cylinder_v1` 工具轴/套筒口/刀片面/碰撞 | 工具帧与 collision 可改；`ros2_control.xacro` 只读 |
+| `aubo_description` | 几何 | URDF：臂、相机体、快换、双末端工具档案（`hollow_cylinder_v1` 固定圆柱 / `adaptive_cylinder_v1` 自适应圆柱+IMU）各持 TCP 原点，帧名共用 | 工具帧与 collision 可改；`ros2_control.xacro` 只读 |
 | `aubo_e5_hardware` | 硬件插件 | 真机 `SystemInterface` | **只读** |
 | `aubo_e5_controllers` | 控制器 | 透传轨迹 + IO / `RobotStatus` | **只读** |
 | `aubo_dashboard` | 柜侧慢操作 | 上电/抱闸/FK·IK/负载 | **只读且 bringup 不起** |
-| `aubo_e5_bringup` | 手臂入口 | mock/real + 可选相机/手眼/MoveIt | **`bringup.launch.py` 只读** |
+| `aubo_e5_bringup` | 手臂入口 | mock/real + 可选相机/手眼/MoveIt | `bringup.launch.py` 仅 `tool_profile` arg 最小穿透（2026-09-15 授权，决策 0020）；驱动逻辑只读 |
 | `aubo_e5_moveit_config` | 规划配置 | 组 `manipulator_e5`、命名位姿、规划器 | 示教位姿写 SRDF |
 | `aubo_hand_eye_calibration` | 手眼 | `wrist3_Link→camera_link` 静态 TF | 标定结果 gitignore |
 | `percipio_camera` | 相机驱动 | RGB-D 话题 | 厂商代码；未授权不改 `frame_rate` |
@@ -424,7 +424,7 @@ flowchart LR
 | `ivg_pose_estimation` | 旁路估姿 | 模板匹配 6D + Web 8088 | 独立 launch |
 | `ivg_graspnet` | 旁路抓取 | GraspNet 点云→位姿→MoveIt 接近 | 无 AnyGrasp 许可证 |
 
-改哪边：消息字段 → `peach_interfaces`；检测/分割/TSDF → `peach_perception`；视点/MTC/工具 IO 参数 → `peach_manipulation`；TCP/工具碰撞 mesh → `aubo_description`（勿改 `ros2_control.xacro`）；拍照命名位姿 → `aubo_e5_moveit_config` SRDF；批次顺序/选果/账本/lifecycle 名单 → `peach_executor`；到位/Nav2 → 归档的 `peach_navigation`（须先书面授权恢复）。套袋内径/插入行程在感知 GPL `config/scene_perception_parameters.yaml` 的 `tool.*`（部署覆盖写 `config/scene_perception.yaml`）。入口相对袋底、预抓取相对入口只改 `peach_perception/config/grasp_standoffs.yaml`（launch 注入各节点已声明参数）。
+改哪边：消息字段 → `peach_interfaces`；检测/分割/TSDF → `peach_perception`；视点/MTC/工具 IO 参数 → `peach_manipulation`；TCP/工具碰撞 mesh → `aubo_description`（勿改 `ros2_control.xacro`）；**末端工具切换 → launch `tool_profile` 参数**（URDF TCP、感知 `tool.D_inner`、重建 `tool.budget.d_inner` 许可内径与各包 `tool.profile_id` 标签统一由 `aubo_description/config/<profile>.yaml` 档案注入，装载器 `peach_perception/tool_profiles.py`；默认 `adaptive_cylinder_v1`，固定圆柱显式 `tool_profile:=hollow_cylinder_v1`；切换须整栈重启）；拍照命名位姿 → `aubo_e5_moveit_config` SRDF；批次顺序/选果/账本/lifecycle 名单 → `peach_executor`；到位/Nav2 → 归档的 `peach_navigation`（须先书面授权恢复）。套袋内径/插入行程基础值在感知 `config/scene_perception.yaml` 与 `config/target_reconstruction.yaml` 的 `tool.*`（整栈被工具档案注入覆盖）。入口相对袋底、预抓取相对入口只改 `peach_perception/config/grasp_standoffs.yaml`（launch 注入各节点已声明参数）。
 
 作业目标只认调度 `~/state.target_id`。能力包不互发批次命令；只有调度当 `BeginScene` / `SurveyScene` / `BuildTargetModel` / `ExecuteTarget` 的客户端（`NavigateToWorksite` 预留，现行无客户端/服务端）。
 
@@ -588,7 +588,7 @@ flowchart TB
 | `ExecuteTarget` FULL | `skip_observation`；再确认 → 预抓取验证 → `PlanSleeve` 规划套入与反向撤退 → 沿轴一段 LIN 套入 → `VerifyCutHold` → `ToolActuator`（SetIO ACK=`CUT_COMMAND_ACCEPTED`，不得自称切断）→ `VerifyCut` → 原路 LIN 撤到预抓取 → PTP `harvest_stow`。切断**且**撤退确认才 `harvest.grasped`。`tool.enabled=true` 未确认终局 `FAILED`/`CUT_FEEDBACK_TIMEOUT`（刀具 DI 预留接 `/aubo_io_controller/io_states`）。`tool.enabled=false` 时跳过 SetIO，周期可 SUCCEEDED 但不宣称采摘成功 |
 | 预览/使能/ACK 服务 | `preview_*`、`set_execution_armed`、`acknowledge_recovery` |
 
-**订阅：** 感知观测；重建 `grasp_decision` / `refined_*` / `diagnostics`。`pregrasp_verification` 由重建发布作观测，技能 `VerifyPregrasp` 用工具 TF 残差，未订该话题。作业目标以 **goal.target_id** 为准。规划 tip 为 URDF `tcp`。工具标定帧 `wrist3_Link → tool_axis / sleeve_mouth / cutting_plane / tcp`（`aubo_description` `hollow_cylinder_v1`：TCP 在圆柱顶部，`Rx(-90°)` 使 Z=开口、XY=刀口，`calibration_status: mechanical_dimension`）。
+**订阅：** 感知观测；重建 `grasp_decision` / `refined_*` / `diagnostics`。`pregrasp_verification` 由重建发布作观测，技能 `VerifyPregrasp` 用工具 TF 残差，未订该话题。作业目标以 **goal.target_id** 为准。规划 tip 为 URDF `tcp`。工具标定帧 `wrist3_Link → tool_axis / sleeve_mouth / cutting_plane / tcp`（`aubo_description` 按 `tool_profile` 选档案，现行默认 `adaptive_cylinder_v1`：TCP 在圆柱顶部，`Rx(-90°)` 使 Z=开口、XY=刀口，`calibration_status: mechanical_dimension`；帧名两把共用冻结）。
 
 **档位：** 默认 `execution.enabled` / `grasp.enabled` / `tool.enabled` 全 false。真运动须与调度 `execution_enabled` 同时开。`tool.enabled=false` 时 `ActuateCutter` 阶段跳过 SetIO。`GraspDecision.allowed=false` 禁止套入/剪切（TOOL/CONTACT 级授权前复检，目标 ID 须对齐）；`PREGRASP_ONLY` 有融合几何即可去预抓取。接触失败后的 recovery 是撤离未确认；`PREGRASP_ONLY` 到位是 `SUCCEEDED` 带 recovery，须 ACK 后调度才 Survey / 派下一颗。
 
@@ -634,7 +634,7 @@ flowchart TB
 - **jsonl：** `events`、`state`、`perception`、`reconstruction`、`manipulation`、`job`、`metrics`、`tcp_trajectory`；另有 `image_index.jsonl`、`debug_audit/`。历史目录里的 `approach.jsonl` 是旧名，新写用 `manipulation.jsonl`。
 - **开关：** `config/observability.yaml` 的 `record.enabled`。`trajectory.enabled` 默认开：20 Hz latest TF `base_link←tcp`。另订 `/joint_states` 与 `/aubo_io_controller/joint_status` 进 `robot.joints`（不落 jsonl；电流为 SDK 原单位）。MCAP 另由 launch `record_mcap:=true`，默认关。订阅 `/peach/manipulation/grasp_hypothesis`。发 `/peach/observability/tcp_path`（Path）与 `/peach/observability/markers`（MarkerArray）。
 
-**整栈入口：** `launch/harvest_system.launch.py` include bringup → `serial_imu`（`imu_enabled` 默认 true）→ 感知 → 技能 → observability → 调度 → lifecycle_manager（不 include 导航；IMU 不进 lifecycle）。能力包 `autostart:=false`。默认 `hardware_mode:=mock`、`camera_enabled:=false`、`imu_enabled:=true`；调度 `execution_enabled=false`（节点参数，非 launch 参数）。
+**整栈入口：** `launch/harvest_system.launch.py` include bringup → `serial_imu`（`imu_enabled` 默认 true）→ 感知 → 技能 → observability → 调度 → lifecycle_manager（不 include 导航；IMU 不进 lifecycle）。能力包 `autostart:=false`。默认 `hardware_mode:=mock`、`camera_enabled:=false`、`imu_enabled:=true`、`tool_profile:=adaptive_cylinder_v1`（透传 bringup 与各能力 launch，URDF/许可内径/标签统一随档案）；调度 `execution_enabled=false`（节点参数，非 launch 参数）。
 
 ---
 
@@ -663,7 +663,11 @@ flowchart TB
 
 #### `aubo_description`
 
-工作单元 URDF。`aubo_e5.urdf.xacro` 拼臂本体、桌、腕上相机体、快换、当前空心圆柱工具（`wrist3_Link→tool_axis / sleeve_mouth / cutting_plane / tcp`）。TCP 在圆柱顶部，原点机械尺寸 `(0, 47.90, 151.07) mm`；姿态相对法兰 `Rx(-90°)`，使 **TCP Z=开口、XY=刀口平面**（零位开口朝世界 +Z）。`cutting_plane` / `tcp` / `sleeve_mouth` 同点；筒体沿 TCP −Z 长 `L_insert=200 mm`。`tool_body_link` 带圆柱+刀片 visual/collision；规划 tip 仍名 `tcp`。`robot_state_publisher` 发 TF。权威关节顺序六轴。改末端几何改 `components/tcp.xacro` 与 `config/hollow_cylinder_v1.yaml`；**不要**改只读的 `aubo_e5.ros2_control.xacro`。
+工作单元 URDF。`aubo_e5.urdf.xacro` 拼臂本体、桌、腕上相机体、快换、末端工具（`wrist3_Link→tool_axis / sleeve_mouth / cutting_plane / tcp`，帧名两把工具共用冻结——SRDF/ACM/技能三点 TF 验证按名消费）。**双工具档案**（xacro `tool_profile` arg，默认 `adaptive_cylinder_v1`；两个独立 `<xacro:if>`，未知名两支都不展开→缺 `tcp` 帧启动即失败）：
+- `hollow_cylinder_v1`（固定圆柱）：TCP 原点机械尺寸 `(0, 47.90, 151.07) mm`，wrapper `components/tcp_hollow_cylinder_v1.xacro`，档案 `config/hollow_cylinder_v1.yaml`（D_inner 0.104）。
+- `adaptive_cylinder_v1`（自适应圆柱，挂增量 IMU）：TCP 原点 `(0, 47, 168.66) mm`，wrapper `components/tcp_adaptive_cylinder_v1.xacro`，档案 `config/adaptive_cylinder_v1.yaml`（D_inner 0.116）。
+
+姿态两把同款：相对法兰 `Rx(-90°)`，使 **TCP Z=开口、XY=刀口平面**（零位开口朝世界 +Z）；`cutting_plane` / `tcp` / `sleeve_mouth` 同点；筒体沿 TCP −Z 长 `L_insert=200 mm`、外径 0.120。`tool_body_link` 带圆柱+刀片 visual/collision；规划 tip 仍名 `tcp`。`robot_state_publisher` 发 TF。权威关节顺序六轴。**档案 yaml 是整栈单一事实源**：`peach_perception/tool_profiles.py` launch 期装载注入感知 `tool.D_inner`、重建 `tool.budget.d_inner`（GraspDecision 许可数学）与各包 `tool.profile_id` 标签；`bringup`（RSP）与 `moveit.launch.py`/技能/`imu_follow_servo`（MoveItConfigsBuilder mappings）双展开必须同 arg，防 move_group 模型与 TF 分叉。改末端几何改 wrapper xacro 与档案 yaml 两处；**不要**改只读的 `aubo_e5.ros2_control.xacro`。共享底座 `components/tcp.xacro`（`aubo_e5_tcp` macro 持帧链与筒体）。
 
 #### `aubo_e5_hardware`
 
@@ -701,7 +705,7 @@ USB 串口 IMU（QinHeng CH340 `1a86:7523`）。udev `/dev/imu`。话题名沿�
 
 #### `imu_follow`
 
-可选 IMU 姿态跟随工具包（Python，独立 launch；不随 `harvest_system` 起、不进 lifecycle、不改只读 bringup）。`~/enable` 采两组参考（TF `base_link→tcp` 当前位姿 + 当前 `/imu/data` 四元数），此后每节拍（`rate.update_hz` 默认 20 Hz）把 IMU 体轴姿态增量经死区/符号映射/锥限幅/平滑叠加到参考 TCP 姿态（位置钉死参考点，只跟姿态）。后端双轨（`motion.backend`）：**servo 默认**——节点对当前 TF 闭环，姿态/位置误差 P 控制成 `TwistStamped`（tcp 系 speed_units）发 ws_moveit 覆盖层 moveit_servo 的 `/moveit_servo/delta_twist_cmds`（BEST_EFFORT，可靠发布与其订阅不兼容收不到；enable 自动 `switch_command_type(TWIST)` + 确保未暂停，此版未切类型拒收 twist），Servo 100 Hz 增量 IK 流式输出 JTC 话题（奇异缩放/碰撞减速/平滑内建；其参数名自带 `moveit_servo.` 前缀，部署值在本包 `config/moveit_servo.yaml`）；**fjt 备选**（真机透传）——`/compute_ik` 解关节、单步钳制后流式 FollowJointTrajectory（透传只有 FJT 动作口，servo 话题输出够不着）。`motion.enabled` 默认 false：只发布 `~/target_pose`、`~/command_twist`，不发运动；真机使用须另行人工授权。自动 disable：IMU / 关节状态断流、连续 IK 失败（fjt）；servo 补零速刹车、fjt 取消在途 goal。mock 冷启动关节全零参考 IK 无解（-31），先导 `global_photo_pose`。姿态数学纯核 `follow_core.py`（零 ROS 表驱动测试）；参数走手写 `params.py` + `config/imu_follow.yaml`（决策 0017 口径）。**手册：** [`src/imu_follow/README.md`](../src/imu_follow/README.md)。
+可选 IMU 姿态跟随工具包（Python，独立 launch；不随 `harvest_system` 起、不进 lifecycle、不改只读 bringup）。`~/enable` 采两组参考（TF `base_link→tcp` 当前位姿 + 当前 `/imu/data` 四元数），此后每节拍（`rate.update_hz` 默认 20 Hz）把 IMU 体轴姿态增量经死区/符号映射/锥限幅/平滑叠加到参考 TCP 姿态（位置钉死参考点，只跟姿态）。后端双轨（`motion.backend`）：**servo 默认**——节点对当前 TF 闭环，姿态/位置误差 P 控制成 `TwistStamped`（tcp 系 speed_units）发 ws_moveit 覆盖层 moveit_servo 的 `/moveit_servo/delta_twist_cmds`（BEST_EFFORT，可靠发布与其订阅不兼容收不到；enable 自动 `switch_command_type(TWIST)` + 确保未暂停，此版未切类型拒收 twist），Servo 100 Hz 增量 IK 流式输出 JTC 话题（奇异缩放/碰撞减速/平滑内建；其参数名自带 `moveit_servo.` 前缀，部署值在本包 `config/moveit_servo.yaml`）；**fjt 备选**（真机透传）——`/compute_ik` 解关节、单步钳制后流式 FollowJointTrajectory（透传只有 FJT 动作口，servo 话题输出够不着）。`motion.enabled` 默认 false：只发布 `~/target_pose`、`~/command_twist`，不发运动；真机使用须另行人工授权。自动 disable：IMU / 关节状态断流、连续 IK 失败（fjt）；servo 补零速刹车、fjt 取消在途 goal（disable 后在途 IK 回包/goal 回执不补发、立即取消，停即彻底停）。**插入推进**（2026-09 自适应圆柱配套，决策 0020）：`~/insert_start` 在跟随会话内锁当前工具开口方向（tip +Z，base 系），位置目标沿该方向按 `insert.speed_m_s`（0.01）推进、钳 `insert.max_travel_m`（0.20=档案 L_insert）行程；姿态照常跟 IMU（柔性筒偏斜→臂跟随），横向只剩死区+低速钳温和定心。`~/insert_stop` 停推进；disable/断流/达行程上限亦停。用于套入直线段弥补视觉误差的人工编排（peach `PREGRASP_ONLY` 停靠后衔接，本包不订 peach 话题）。mock 冷启动关节全零参考 IK 无解（-31），先导 `global_photo_pose`。姿态/推进数学纯核 `follow_core.py`（零 ROS 表驱动测试）；参数走手写 `params.py` + `config/imu_follow.yaml`（决策 0017 口径）。**手册：** [`src/imu_follow/README.md`](../src/imu_follow/README.md)。
 
 ### 旁路视觉抓取（三包，非采摘）
 
@@ -994,6 +998,7 @@ yaml：仅上述 4 键仍为 `*.impl`（技能 yaml 无 `*.impl`）。检测/分
 | 0017 | 保行为修复轮（2026-09-08）：① FULL 套入预检 `previewFullContact` 在「已对轴 SKIP」分支把 sleeve+retreat 误当接近段过护栏（回退门必拒）——修正为无接近段即不审，FULL 规划路径恢复可达（真机 FULL 仍未验收，全部使能门照旧）；② recorder 终局集收敛为 `{COMPLETED, INTERRUPTED}`（RECOVERY_REQUIRED 是批内可恢复态，保持批次目录开、不提前写 summary）；③ recorder 批次目录名过 `_safe_run_component`（与账本同规则防穿越）；④ `batch_paused` 审计事件条件改 PAUSED（原判 PAUSE_PENDING 恒假，事件从未发出）；ControlTask `reason` 按契约写入审计事件；⑤ 帧环写入纳入 `_state_lock`（消迭代竞态）、重建 `_refined/_bag_model` 成对更新、观测/初值缓存加 frame_id 门、掩膜有效深度补 65535 饱和剔除；⑥ `SafetyGate` 自适应上限改 `std::atomic<double>`；⑦ 死契约清理（`round_started/round_completed` 消费方、`_blockers`、感知 5 个零调用函数、`kStageNames` 等）与三处同构去重（common 几何原语单源化、选果资格谓词、接触入口三元组）。图名/参数键/yaml 默认零变化。推翻：无。 |
 | 0018 | 8090 收敛为本项目过程页（2026-09）：记录目录 + 过程线/作业票/事件 + TCP 俯视（绕行比/Δz）+ 单步调试（BeginScene/Survey/Build/Execute/RunHarvest/拍照位）。去掉令牌鉴权与生命周期/使能等完整操作面。`debug.token` 键保留不校验；`debug.enabled` 默认 true（回环）；运动类仍须 `debug.motion_enabled`（默认 false→423）。不新增 IDL，不旁路 ExecutionAuthority。推翻 0013 的令牌与「完整驾驶舱」。 |
 | 0019 | 接近约束四层（2026-09-14）：①果实胶囊（工具有限圆柱 vs 感知直径/2+10 mm，不含端球）+②反爬锚果底替换半无限袋囊 keepout；③`sensors_3d.yaml` 点云 octomap 护臂/相机（分辨率 0.04 m，地图系=规划系 `world`），工具链 × `<octomap>` 豁免须 GetPlanningScene 合并 ACM（禁止子方阵整表替换）；④近果速度档 0.05 + `ContactMonitor` 电流特征（默认关）。键名冻结：`mtc_approach_keepout_*` 改为开关/回退。零 IDL。推翻：无。 |
+| 0020 | 双末端工具档案化 + IMU 插入跟随（2026-09-15）：新增 `adaptive_cylinder_v1`（自适应圆柱挂增量 IMU，D_inner 0.116、TCP `(0, 47, 168.66) mm`，余同固定圆柱），与 `hollow_cylinder_v1` 帧名共用冻结（SRDF/ACM/三点 TF 零改动）。`aubo_description/config/<profile>.yaml` 档案成单一事实源，`peach_perception/tool_profiles.py` launch 期注入感知 `tool.D_inner`、重建 `tool.budget.d_inner`（许可数学随档案）与各包 `tool.profile_id` 标签；xacro `tool_profile` arg 贯穿 bringup（RSP）与 MoveItConfigsBuilder（move_group/技能/servo）双展开。授权 `bringup.launch.py` 最小穿透（仅透传 arg 进 xacro 命令，驱动逻辑只读）。默认 `tool_profile=adaptive_cylinder_v1`（忘传参失败方向更安全：模型比实际长→停浅不撞深）；固定圆柱行为零变化有 xacro 展开等价门保证。imu_follow 新增插入模式（`~/insert_start`/`~/insert_stop`：沿工具开口低速推进+姿态跟 IMU+行程钳），并修 disable 后 IK/goal 回执补发两 bug；peach 套入 LIN 段不动，衔接为 PREGRASP_ONLY 停靠后人工编排，零 peach↔imu_follow 耦合。推翻：无（bringup 只读条款局部放宽见本条授权）。 |
 
 ---
 

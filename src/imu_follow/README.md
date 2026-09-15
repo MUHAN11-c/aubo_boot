@@ -94,8 +94,9 @@ FJT 后端：`ros2 launch imu_follow imu_follow.launch.py` +
 
 ## 已知边界
 
-- MoveIt Servo 在 **ws_moveit 覆盖层**（2.14 源码快照，apt 没有）——本机
-  起栈须带该铺层（testing.md §4）。
+- MoveIt Servo 用 **Jazzy apt**（`ros-jazzy-moveit-servo` 2.12.4；2026-09-15
+  起 2.14 源码快照铺层退役删除。参数 `moveit_servo.` 前缀、
+  `switch_command_type` 服务与快照版一致，mock 随动/回位已复验）。
 - KDL/伺服节拍：跟随节点 20 Hz 输入，Servo 100 Hz 输出；真机透传走 fjt
   后端（~20 Hz 流式替换 goal，未经真机验证，现场先小锥低拍）。
 - mock 冷启动关节全零：参考位姿 IK 无解（error_code=-31），先导拍照位。

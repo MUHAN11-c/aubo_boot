@@ -245,7 +245,7 @@ RViz offscreen GLX 失败与基线相同，能力节点不依赖它。
 
 每批 `colcon build` + `colcon test` 过门；收官全仓 build 18 包通过，`peach_*` 四包 + serial_imu 全绿（manipulation 70 测试 0 失败，含 uncrustify）。剩余红项均非本轮引入：驱动四包（aubo_dashboard/bringup/hardware/moveit_config）的 copyright/cpplint 版权提示为只读红线包既有噪音；`src/graspnet_ros2`、`src/ivg_utils` 为会话期间出现的未跟踪厂商包，测试步失败，不在本仓管理范围。
 
-mock 冒烟（`hardware_mode:=mock camera_enabled:=false`，`QT_QPA_PLATFORM=offscreen`）：五节点 `active [3]`、`managed_nodes_activated=true`、`/api/state` 与 `/api/trajectory` 均 200、`HarvestState` `batch_state=0 / execution_enabled=false / recovery_required=false`（默认档全关）、四个采摘动作齐、无 `NavigateToWorksite`、关停无残留。冒烟另抓到两处 B4 清理引发的构造期断裂（`CollectorConfig` 死字段 kwargs、诊断字典幽灵属性）与三处死参数的 yaml 声明，均已随批修复——lint/纯核测不 import 节点模块，构造签名断裂只有冒烟能拦。本机起栈须依次欠铺 `ros2_ws`（moveit_configs_utils）与 `ws_moveit`（MTC 动态库），并把 venv site-packages 追加进 PYTHONPATH（open3d 等）；testing.md §1 复现命令已同步。
+mock 冒烟（`hardware_mode:=mock camera_enabled:=false`，`QT_QPA_PLATFORM=offscreen`）：五节点 `active [3]`、`managed_nodes_activated=true`、`/api/state` 与 `/api/trajectory` 均 200、`HarvestState` `batch_state=0 / execution_enabled=false / recovery_required=false`（默认档全关）、四个采摘动作齐、无 `NavigateToWorksite`、关停无残留。冒烟另抓到两处 B4 清理引发的构造期断裂（`CollectorConfig` 死字段 kwargs、诊断字典幽灵属性）与三处死参数的 yaml 声明，均已随批修复——lint/纯核测不 import 节点模块，构造签名断裂只有冒烟能拦。本机起栈须依次欠铺 `ros2_ws`（moveit_configs_utils）与 `ws_moveit`（MTC 动态库），并把 venv site-packages 追加进 PYTHONPATH（open3d 等）；testing.md §1 复现命令已同步。（该铺层要求已于 2026-09-15 退役：moveit 全家迁 Jazzy apt、ws_moveit 删除，现行命令见 testing.md §4；此段保留作当轮过程记录。）
 
 ---
 

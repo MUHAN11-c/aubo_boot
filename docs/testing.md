@@ -1,12 +1,12 @@
 # 测试流程与命名
 
-权威：源码。与 [architecture.md](architecture.md)、[io.md](io.md) 构成仅有的三份活文档；**源码与本文互相更新，改启动/验收口径或改本文须同一轮改另一边**。约束：[AGENTS.md](../AGENTS.md)。
+现行系统（SNAPSHOT）：源码。与 [architecture.md](architecture.md)、[io.md](io.md) 构成仅有的三份活文档；**源码与本文互相更新，改启动/验收口径或改本文须同一轮改另一边**。**如何演化**以 [AGENTS.md](../AGENTS.md) 为准：非完美适配当前真机/产品则跟 ROS 2 / 优秀 GitHub 主流。
 
 真机轮次、量化基线、审查记录写在 [testing-log.md](testing-log.md)；工程整理过程写在 [REFACTORING.md](REFACTORING.md)（二者都是过程记录，不驱动现行设计）。改行为只改本文 + 源码；补一条实测时追加 testing-log，不把轮次散文写回本文。
 
-各包 `test/` **保留 ROS 2 默认 lint，并允许零 ROS 纯核 pytest**（Python：`test_flake8.py` / `test_pep257.py` + 不 import rclpy 的表驱动；CMake：`ament_lint_auto`）。现行纯核：`peach_executor/test/test_harvest_fsm.py`（`react` 表）、`peach_perception/test/test_runtime_core.py`（`ManualClock` / `BoundedWorker` capacity=1 drop_oldest）、`peach_perception/test/test_tool_profiles.py`（工具档案解析结构校验）、`peach_manipulation/test/test_contact_monitor.py`（合成电流序列编译 `contact_monitor.hpp`）、`ivg_graspnet/test/test_grasp_core.py`（`GraspList` NMS/碰撞；torch 算子 `importorskip`）、`serial_imu/test/test_protocol.py`（切帧/协方差）与 `test_frame.py`（倒装 Rx + parent 对齐）、`imu_follow/test/test_core.py`（姿态增量/死区锥钳/平滑/关节步长/插入推进）。禁止业务用例、gtest、DDS 假现场、launch_testing、采摘仿真测。语法与流程由审查核对，对错以实机为准。`colcon test` 不等于采摘验收。套入剪切软件门看 flake8 / pep257 / uncrustify 与纯核表；`peach_manipulation` 整测项跳过 cpplint（其 legal/copyright 与 Google include 顺序检查同本项目「文件头版权块项目结束再补」「include own-first」约定冲突，CMake 已 `set(ament_cmake_cpplint_FOUND TRUE)`），C++ 风格门以 uncrustify 为准、静态分析走 cppcheck。`ament_xmllint` 会拉 `package_format3.xsd`，网络卡住超时不阻塞本产品路径。
+各包 `test/` **保留 ROS 2 默认 lint，并允许零 ROS 纯核 pytest**（Python：`test_flake8.py` / `test_pep257.py` + 不 import rclpy 的表驱动；CMake：`ament_lint_auto`）。现行纯核：`peach_executor/test/test_harvest_fsm.py`（`react` 表）、`peach_executor/test/test_bag_report.py`（bag 流→报告合成、验收门、回收选择，零 ROS）、`peach_perception/test/test_runtime_core.py`（`ManualClock` / `BoundedWorker` capacity=1 drop_oldest）、`peach_perception/test/test_tool_profiles.py`（工具档案解析结构校验）、`peach_manipulation/test/test_contact_monitor.py`（合成电流序列编译 `contact_monitor.hpp`）、`ivg_graspnet/test/test_grasp_core.py`（`GraspList` NMS/碰撞；torch 算子 `importorskip`）、`serial_imu/test/test_protocol.py`（切帧/协方差）与 `test_frame.py`（倒装 Rx + parent 对齐）、`imu_follow/test/test_core.py`（姿态增量/死区锥钳/平滑/关节步长/插入推进）。现行测试面以 lint + 零 ROS 纯核为主（决策 0006，**UNWIND**：不是套袋工艺的完美适配）。**新测试按 [AGENTS.md](../AGENTS.md) 测试塔与官方 / Nav2 / Autoware 主流**：允许 gtest、launch_testing（isolated `ROS_DOMAIN_ID`）、`mock_components` 集成；物理仿真与独立系统测包为缺口待补。采摘方向 / 接触对错仍以真机 `runs/` + [testing-log.md](testing-log.md) 为最终权威（KEEP）；`colcon test` 绿不是田间验收。语法与流程由审查核对。套入剪切软件门看 flake8 / pep257 / uncrustify 与纯核表；`peach_manipulation` 整测项跳过 cpplint（其 legal/copyright 与 Google include 顺序检查同本项目「文件头版权块项目结束再补」「include own-first」约定冲突，CMake 已 `set(ament_cmake_cpplint_FOUND TRUE)`），C++ 风格门以 uncrustify 为准、静态分析走 cppcheck。`ament_xmllint` 会拉 `package_format3.xsd`，网络卡住超时不阻塞本产品路径。
 
-不要删 `_archive/runs/` 与现场 `runs/`。未授权不得真机运动或 SetIO。launch **不自动** `RunHarvest`。采摘十四包职责见 [architecture.md](architecture.md) §3。旁路视觉抓取三包不进整栈 launch。`serial_imu` 随 `harvest_system` 起（`imu_enabled` 默认 true），不进 lifecycle、不进只读 bringup。`imu_follow`（IMU 姿态跟随）独立 launch、不随整栈，`motion.enabled` 默认 false 只算不发。
+不要删 `_archive/runs/` 与现场 `runs/` 的文本与账本；bag 二进制例外——observability 按 `record.max_total_bag_gb` 预算自动回收最旧的 `session_*/bag` 与旧 `mcap_*`（解析总结 `bag_report.md/json`、账本与一切文本保留，回收逐条写 `runs/retention_audit.jsonl`）。未授权不得真机运动或 SetIO。硬件急停在示教器/柜，不经 ROS。launch **不自动** `RunHarvest`。采摘十四包职责见 [architecture.md](architecture.md) §3。旁路视觉抓取四包（`ivg_interfaces` / `ivg_utils` / `ivg_pose_estimation` / `ivg_graspnet`）不进整栈 launch。`serial_imu` 随 `harvest_system` 起（`imu_enabled` 默认 true），不进 lifecycle、不进只读 bringup。`imu_follow`（IMU 姿态跟随）独立 launch、不随整栈，`motion.enabled` 默认 false 只算不发。
 
 ---
 
@@ -21,11 +21,11 @@
 | 只扫不运动 | `field_dry`；或预抓取名 + `intent: 2` | `intent: 2` = SURVEY_ONLY |
 | 开发机 mock | `dev` | `intent` 默认 0 |
 | 当日综述 | `runs/field_test_<YYYYMMDD>/log.md` | `runs/field_test_20260901/log.md` |
-| 监控会话 | `runs/run_<YYYYMMDD>_<HHMMSS>/`（观测自动） | 与账本互引 |
+| 监控会话 | `runs/session_<YYYYMMDD>_<HHMMSS>/bag/`（观测自动，随栈启停开合） | 内含 `bag_0.mcap` 与自动生成的 `bag_report.md/json`，与账本互引 |
 
 场景键 `scene_key` 现行实验室用 `lab`。`profile_id` 现行 `default`。
 
-写记录：当场把结论写入 `runs/field_test_<日期>/log.md`，并追加 [testing-log.md](testing-log.md) 对应轮次。`runs/` 结构化文本（jsonl/json/csv/md/yaml/txt/log）入库随仓推送，克隆即可离线复算/分析；图像/mcap/点云等二进制仍只留本地（.gitignore 白名单）。
+写记录：当场把结论写入 `runs/field_test_<日期>/log.md`，并追加 [testing-log.md](testing-log.md) 对应轮次。`runs/` 结构化文本（jsonl/json/csv/md/yaml/txt/log）入库随仓推送，克隆即可离线复算/分析；过程 bag（`session_*/bag` 的 mcap）、图像/点云等二进制仍只留本地（.gitignore 白名单）。会话报告由 observability 在停栈时自动生成，也可随时手动复跑：`ros2 run peach_executor peach_bag_report runs/session_*/bag`。
 
 ---
 
@@ -38,6 +38,8 @@ colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMM
 source install/setup.bash
 pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
 ```
+
+全新机器 / 新环境自检与部署：`scripts/env_bootstrap.sh check|install|all`（幂等；check 零改动、退出码=缺失项数，`SMOKE=1` 追加 mock 冒烟）。脚本内 apt/venv/udev 清单是依赖事实源之一，变更依赖须四处同步：package.xml、requirements.txt、脚本清单、本节。
 
 有残留按 PID 补杀。clangd：上述 `CMAKE_EXPORT_COMPILE_COMMANDS` 让每个 CMake 包在 `build/<pkg>/compile_commands.json` 留下编译命令；工作区 `.clangd` 按包指向这些文件。驱动栈 CMakeLists 只读，不在那些包里写 `set(CMAKE_EXPORT_COMPILE_COMMANDS)`。改完 CMake 或新编一包后 **Clangd: Restart language server**。Python：`aubo_py3.12`。依赖分层（venv-first）：ROS 2 依赖走 Jazzy apt；其余第三方（numpy/scipy/opencv/PyYAML/open3d/torch 等）一律由工作区 `requirements.txt` 钉版本装进 venv（对同名 apt 包需 `pip install --ignore-installed -r requirements.txt` 才真正落入 venv）。**numpy 必须 ==1.26.4**（<2）：Jazzy 的 cv_bridge 二进制按 numpy 1.x 编译，numpy 2.x 会 `import cv2` 报错、`import cv_bridge` 段错误；该版本同时是 apt python3-numpy 的版本，双路径一致。感知身份分配与手眼标定共用 scipy（venv 内 1.11.4）；`peach_perception` 的 package.xml 只声明 ROS 键与 `python3-numpy`（ABI 边界），数值库不走 rosdep。感知与调度/监控/lifecycle 手写参数模块（`params.py`）落在 `install/` 与源码包 `peach_perception/peach_perception/`、`peach_executor/peach_executor/`（随包提交，非生成物）；从源码树直接跑脚本时把 `PYTHONPATH` 指到 `src/peach_*` 需带 venv 的 ROS 依赖，否则节点会在 import 期退出，lifecycle 拉不齐 Active。本机若 venv 抢了 `PYTHONPATH`，launch 前先清再只留 Jazzy site-packages 并重新 `source` 两份 setup（见 §4 复现命令）。跨包轴向后撤只改 `src/peach_perception/config/grasp_standoffs.yaml` 两行；不要把它当 ROS `ParameterFile` 直接喂节点（rcl 不允许 `ros__parameters` 之前出现裸值）。能力 launch 读入后注入已声明参数。
 
@@ -120,8 +122,9 @@ Tab「调试」＝向**既有**动作/服务发请求的纯客户端，页面只
 | `moveit_enabled` | true | move_group + RViz |
 | `hand_eye_enabled` | false | 标定流程 |
 | `hand_eye_web_enabled` | false | 标定 Web `:8088` |
-| `record_mcap` | false | `ros2 bag record -s mcap` |
 | 调度 `execute_pregrasp_only` | true | 接触段 `PREGRASP_ONLY`：停预抓取不回 stow；套入前改 false |
+
+过程录制不再有 launch 参数：observability 的 `record.enabled`（默认 true）随栈开合会话 bag，栈停自动出报告；`record.bag_topics`/`record.max_total_bag_gb` 见 `config/observability.yaml`。
 
 完整列表：`--show-args`。只起手臂：`ros2 launch aubo_e5_bringup bringup.launch.py …`。
 
@@ -147,7 +150,7 @@ ros2 action send_goal /joint_trajectory_controller/follow_joint_trajectory \
   upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint], \
   points: [{positions: [0.425083, 0.195177, 1.677740, 1.461739, -0.500161, 0.038621], \
   time_from_start: {sec: 6}}]}}"
-# 2) servo + 跟随节点（默认只算不发；moveit_servo 在 ws_moveit 铺层）
+# 2) servo + 跟随节点（默认只算不发；moveit_servo 用 Jazzy apt）
 ros2 launch imu_follow imu_follow_servo.launch.py
 # 3) 假 IMU（无 USB 时用独立话题，launch 传 imu_topic；真 IMU 走默认 /imu/data）
 ros2 topic pub -r 20 /imu_data_fake sensor_msgs/msg/Imu \
@@ -193,9 +196,9 @@ ros2 service call /peach_executor/control peach_interfaces/srv/ControlTask \
 
 ## 2. 真机干跑（默认不运动、不 SetIO）
 
-`auto_power_on` 必须为 false。柜侧用示教器；规划/FK/IK 用 MoveIt；停轨走透传取消 + 硬件 `RobotMoveStop`。禁止调用 `aubo_dashboard`。
+`auto_power_on` 必须为 false。柜侧用示教器；规划/FK/IK 用 MoveIt；停轨走透传取消 + 硬件 `RobotMoveStop`（应用停轨，**不是** ISO 13850 急停）。禁止调用 `aubo_dashboard`。真机授权前：示教器急停手能摸到；工作空间无人或已隔离；使能保持默认关。急停或保护停止之后：处理现场 → 示教器复位 → 取消并丢弃 ROS 在途 goal → 重新授权后再下发，**不要 resume 原轨迹**（UR ROS2 Driver 同类警告）。分层见 [AGENTS.md](../AGENTS.md) 第 2 章。
 
-过程数据：新记录在工作区 `runs/`。08-20～08-24 在 `_archive/runs/root_2026-08-24/`。每次干跑把结论写进 `runs/field_test_<日期>/log.md`，并追加 [testing-log.md](testing-log.md)。批次终局（`COMPLETED` / `INTERRUPTED`）自动生成 `summary.md`：头部含验收门对照（帧率 ≥2.0 / tf_failures=0 / 到预抓取停住 ≥1，口径见下）与配对账本路径（账本在 `runs/<request_id>/`，监控在 `runs/run_*/`，两树互引）；终局事件 `message` 带 `failure_code`，原因列直接可读。恢复等待（Hold 等 ACK）期间不写 summary，数据持续入 `run_*` 目录。
+过程数据：新记录在工作区 `runs/`。08-20～08-24 在 `_archive/runs/root_2026-08-24/`。每次干跑把结论写进 `runs/field_test_<日期>/log.md`，并追加 [testing-log.md](testing-log.md)。过程录制为会话 bag（决策 0019）：observability 随栈开合 `runs/session_<时间戳>/bag/`（events/state/感知/重建/许可/技能/`/tf`/关节量/图像点云/job/metrics 全流 MCAP），栈停自动生成 `bag_report.md`（头部含验收门对照：帧率 ≥2.0 / tf_failures=0 / 到预抓取停住 ≥1，口径见下；按 request_id 分批还原 outcome 与阶段耗时，并与 `runs/<request_id>/ledger.json` 互引）；随时可 `ros2 run peach_executor peach_bag_report <bag>` 复跑。终局事件 `message` 带 `failure_code`，原因列直接可读。恢复等待（Hold 等 ACK）期间照常录制；bag 体积超 `record.max_total_bag_gb` 时停栈后自动回收最旧 bag（总结/账本/文本保留，审计在 `runs/retention_audit.jsonl`）。
 
 ### 档位（干跑默认）
 
@@ -225,7 +228,7 @@ ros2 lifecycle get /peach_executor
 timeout 5 ros2 run tf2_ros tf2_echo wrist3_Link camera_link
 ```
 
-关节名必须是：`shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint`。把 `/joint_states` 对照 SRDF `global_photo_pose`（`src/aubo_e5_moveit_config/config/aubo_e5.srdf` 的 `group_state`）。launch / lifecycle **不到**拍照位；开执行后第一次 `SurveyScene` 才 PTP 过去。`execution.enabled=false` 时 Survey 仍核**当前**关节：停在袋口开批须 `termination_reason=survey_failed`，不得把袋口 FOV 收进本批锁定集。上一轮若停在 HoldPregrasp，当前多半还在袋口——差值大时先目视/示教器确认再开 `execution`。`ros2 topic hz /camera/color/image_raw` 默认可靠 QoS，相机是 best_effort，可能误报未发布；以 Percipio `fps ≈ 2.43` 与感知注册表为准。四节点须 Active。重建有时停在 inactive：`ros2 lifecycle set /peach_target_reconstruction_node activate`。固定座无导航动作（`NavigateToWorksite` 预留，调度 `_cmd_navigate` 直通 `NAV_OK`）。
+关节名必须是：`shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint`。把 `/joint_states` 对照 SRDF `global_photo_pose`（`src/aubo_e5_moveit_config/config/aubo_e5.srdf` 的 `group_state`）。launch / lifecycle **不到**拍照位；开执行后第一次 `SurveyScene` 才 PTP 过去。`execution.enabled=false` 时 Survey 仍核**当前**关节：停在袋口开批须 `termination_reason=survey_failed`，不得把袋口 FOV 收进本批锁定集。上一轮若停在 HoldPregrasp，当前多半还在袋口——差值大时先目视/示教器确认再开 `execution`。`ros2 topic hz /camera/color/image_raw` 的订阅 QoS 须与发布端一致。Percipio launch 默认 `color_qos:=default`（RELIABLE）；感知订户也是 RELIABLE depth 10。若改成 `SENSOR_DATA`（BEST_EFFORT），默认可靠的 `hz` 会误报未发布。帧率以 Percipio `fps ≈ 2.43` 与感知注册表为准。四节点须 Active。重建有时停在 inactive：`ros2 lifecycle set /peach_target_reconstruction_node activate`。固定座无导航动作（`NavigateToWorksite` 预留，调度 `_cmd_navigate` 直通 `NAV_OK`）。
 
 显式只扫（仍不运动）：
 
@@ -374,11 +377,10 @@ pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
 unset PYTHONPATH
 export PYTHONPATH="/opt/ros/jazzy/lib/python3.12/site-packages:${PYTHONPATH:-}"
 source /opt/ros/jazzy/setup.bash
-# 本机欠铺层（2026-09-08 实测补记）：moveit_configs_utils 在 ~/ros2_ws、
-# MTC 动态库在 ~/ws_moveit、open3d/torch 在 aubo_py3.12 venv；缺任一，
-# manipulation 报 libmoveit_task_constructor 缺库退出、重建节点 import 期退出。
-source /home/mu/ros2_ws/install/setup.bash
-source /home/mu/ws_moveit/install/setup.bash
+# 2026-09-15 起迁全 apt（2026-09-08 的 ~/ros2_ws、~/ws_moveit 铺层要求退役，
+# 两目录删除；缺失症状原文存档于 REFACTORING.md）：moveit 全家 2.12.4、
+# MTC 0.1.8（core/msgs/capabilities）、moveit_servo、pilz、stomp、
+# moveit_configs_utils 均 ros-jazzy 包；open3d/torch 仍在 aubo_py3.12 venv。
 export PYTHONPATH="/home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12/lib/python3.12/site-packages:${PYTHONPATH:-}"
 source /home/mu/Desktop/aubo_e5_jazzy_ws/install/setup.bash
 ros2 launch peach_executor harvest_system.launch.py \

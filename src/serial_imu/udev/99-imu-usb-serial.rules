@@ -1,3 +1,7 @@
-# QinHeng CH340 (1a86:7523). Cheap adapters have no unique serial.
-# After install: /dev/imu -> ttyUSB*
+# QinHeng USB-serial adapters, two chips in the field:
+#   1a86:7523 CH340  -> ttyUSB* (no unique serial)
+#   1a86:55d3 CH343 "USB Single Serial" -> ttyACM* (has serial; by-id is unique)
+# Both plugged at once: both rules claim /dev/imu, last-added wins.
+# After install: /dev/imu -> ttyUSB* / ttyACM*
 SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", SYMLINK+="imu", MODE="0660", GROUP="dialout"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d3", SYMLINK+="imu", MODE="0660", GROUP="dialout"

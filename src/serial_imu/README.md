@@ -1,6 +1,6 @@
 # serial_imu
 
-USB 串口 IMU（QinHeng CH340 `1a86:7523`，0xA4 寄存器协议）。**不是**采摘五包，lifecycle 不管。随 `harvest_system` 起（`imu_enabled` 默认 true），不进只读 bringup。
+USB 串口 IMU（QinHeng USB 转串适配器：CH340 `1a86:7523`（旧）或 CH343 `1a86:55d3`（现行），模组走 0xA4 寄存器协议）。**不是**采摘五包，lifecycle 不管。随 `harvest_system` 起（`imu_enabled` 默认 true），不进只读 bringup。
 
 现行行为以源码为准。栈内摘要：[architecture.md](../../docs/architecture.md) §3 `serial_imu`、[io.md](../../docs/io.md)、[testing.md](../../docs/testing.md)（怎么跑）。本文件是本包现场手册。
 
@@ -21,22 +21,25 @@ serial_imu/
 
 ## 1. 查设备
 
-本机 USB 转串口是 CH340，不是主板 `/dev/ttyS*` 占位节点。
+本机 USB 转串口是 QinHeng 适配器，不是主板 `/dev/ttyS*` 占位节点。现场出现过两种芯片：
 
 ```bash
 lsusb | grep -i 1a86
-# 期望：QinHeng Electronics CH340 serial converter（id 1a86:7523）
+# 期望（二选一）：
+# QinHeng Electronics CH340 serial converter（id 1a86:7523，旧线）
+# QinHeng Electronics USB Single Serial（id 1a86:55d3，现行）
 
-ls -l /dev/ttyUSB0 /dev/serial/by-id/ /dev/serial/by-path/
-dmesg -T | grep -iE 'ttyUSB|ch341|1a86'
-# 期望：ch341-uart converter now attached to ttyUSB0
+ls -l /dev/ttyUSB* /dev/ttyACM* /dev/serial/by-id/ /dev/serial/by-path/
+dmesg -T | grep -iE 'ttyUSB|ttyACM|ch34|cdc_acm|1a86'
+# 期望：CH340 → ch341-uart attached to ttyUSB0；CH343 → cdc_acm attached to ttyACM0
 ```
 
 稳定路径（插拔后不要写死 `ttyUSB0`）：
 
-`/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0`
+- CH343（带唯一序列号）：`/dev/serial/by-id/usb-1a86_USB_Single_Serial_5CE6060520-if00`
+- CH340（无序列号）：`/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0`
 
-该芯片没有唯一序列号。节点按 `port` → `port_fallbacks` 找口：`/dev/imu`，再 by-id，再 `/dev/ttyUSB0`。
+节点按 `port` → `port_fallbacks` 找口：`/dev/imu`，再两条 by-id，再 `/dev/ttyUSB0`。
 
 模组是**主动上报**，不通询也发流。只监听、不写读指令。旧例里的 `A4 03 08 23 D2` 是轮询读寄存器，现行固件不用。
 
@@ -49,12 +52,12 @@ sudo cp $(ros2 pkg prefix serial_imu)/share/serial_imu/udev/99-imu-usb-serial.ru
   /etc/udev/rules.d/
 # 源码副本：src/serial_imu/udev/99-imu-usb-serial.rules
 sudo udevadm control --reload-rules
-sudo udevadm trigger /dev/ttyUSB0
+sudo udevadm trigger   # 或 sudo udevadm trigger /dev/ttyACM0 /dev/ttyUSB0
 ls -l /dev/imu
-# 期望：/dev/imu -> ttyUSB0
+# 期望：/dev/imu -> ttyUSB0（CH340）或 /dev/imu -> ttyACM0（CH343）
 ```
 
-规则按 `idVendor=1a86`、`idProduct=7523` 匹配，`SYMLINK+=imu`，组 `dialout`，模式 `0660`。机器上若有第二块同样 CH340，两条都会变成 `/dev/imu`。
+规则按 `idVendor=1a86` 加 `idProduct`（`7523` CH340 或 `55d3` CH343）匹配，`SYMLINK+=imu`，组 `dialout`，模式 `0660`。两种芯片各一条规则，同一时刻只有一条生效。机器上若插第二块同型适配器（或新旧各一块），两条规则会抢 `/dev/imu`，后插的赢。
 
 权限：`usermod -aG dialout` **对已经打开的终端无效**。
 
@@ -224,7 +227,7 @@ RViz **TF** 显示默认会画出当前图里**所有** `/tf`。本配置白名�
 | 参数 | 默认 | 作用 |
 |------|------|------|
 | `port` | `/dev/imu` | 首选口 |
-| `port_fallbacks` | by-id、`ttyUSB0` | 依次试 |
+| `port_fallbacks` | 两条 by-id、`ttyUSB0` | 依次试 |
 | `baudrate` | 115200 | |
 | `frame_id` | `imu_link` | Imu header |
 | `read_period_s` | 0.005 | 读串口定时器 |
@@ -245,4 +248,4 @@ RViz **TF** 显示默认会画出当前图里**所有** `/tf`。本配置白名�
 
 ## 8. 不负责
 
-采摘调度、MoveIt、底盘 `/scan`、生命周期名单。不替代预留的底盘 IMU。不做自适应工具偏移（`tcp_actual` 臂侧缝仍预留、未实现）。
+采摘调度、MoveIt、底盘 `/scan`、生命周期名单。不替代预留的底盘 IMU。不做自适应工具偏移（`tcp_actual` 臂侧缝仍预留、未实现；2026-09-15 起自适应圆柱 `adaptive_cylinder_v1` 的柔性偏斜由 imu_follow 姿态跟随消化，`tcp_actual` 仍是未来刚性偏移量的缝）。

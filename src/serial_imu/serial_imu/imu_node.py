@@ -97,7 +97,8 @@ class SerialImuNode(Node):
         self._p('port', '/dev/imu', '首选串口')
         self._p(
             'port_fallbacks',
-            ['/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0',
+            ['/dev/serial/by-id/usb-1a86_USB_Single_Serial_5CE6060520-if00',
+             '/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0',
              '/dev/ttyUSB0'],
             'port 打不开时依次试')
         self._p('baudrate', 115200, '波特率')

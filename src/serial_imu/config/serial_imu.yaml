@@ -2,6 +2,8 @@ serial_imu:
   ros__parameters:
     port: /dev/imu
     port_fallbacks:
+      # CH343（ttyACM，带序列号）在前，CH340（ttyUSB，无序列号）在后
+      - /dev/serial/by-id/usb-1a86_USB_Single_Serial_5CE6060520-if00
       - /dev/serial/by-id/usb-1a86_USB_Serial-if00-port0
       - /dev/ttyUSB0
     baudrate: 115200

@@ -168,3 +168,7 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 4. **切断假确认**：删除 `confirmFeedback(false)` 伪调用；反馈未接线前 `tool.enabled=true` 终局保持 FAILED/CUT_FEEDBACK_TIMEOUT（有意保守侧）。
 5. **球内点索引错位**：果线球拟合 inliers 是「法线有效子集」下标，改用同一子集取点（原全量索引典型场景约 1/3 内点为离群）。
 6. **圆柱抛光抽稀错样本**：内点 >800 时改为对内点下标等距抽稀（原对全点云采样，混入外点污染袋轴）。
+
+### 09-15（真 IMU servo 跟随，mock 臂）
+
+真 IMU（CH343 `1a86:55d3`，串口 `/dev/imu`，udev 规则补 55d3 后主路径通）+ mock 臂全链路 servo 跟随验证：bringup mock → 拍照位 → `serial_imu.launch.py use_rviz:=false tf_parent_frame:=tcp align_to_parent:=true` → `imu_follow_servo.launch.py` → enable → `motion.enabled=true`。启动 145ms 自动采对齐，清掉上电残差 rpy (-3.97°, 0.56°, 34.74°)（无磁 yaw 占大头）；`/imu/data` 与 tcp 姿态一致。开门后静置关节 5 s 不动、`command_twist` 全 0（死区+位置保持工作）；`/moveit_servo/status`=0（echo 须 BEST_EFFORT 才收得到）；`/joint_states` echo 的 position 顺序是字母序，与冻结关节序无关，核对时勿误读。用户手动转动 IMU，RViz 臂随动确认可行。真机臂运动未动（mock），工具未碰。备注：独立起 serial_imu 接臂必须带 tcp+align 两参（默认 world/不对齐，README §5 有载），当轮先漏带后纠正。

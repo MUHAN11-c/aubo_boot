@@ -1,15 +1,17 @@
 ---
-description: 三份活文档与源码互相更新、始终一致
+description: AGENTS 工作流权威；三份活文档是 SNAPSHOT；源码与文档互相更新
 alwaysApply: true
 ---
 
 # 文档与源码互相更新
 
-设计和改代码对照且只对照这三份活文档：
+代理工作流以 `AGENTS.md` 为准（MUST / DEFAULT / KEEP 仅完美适配 / UNWIND）。三份活文档是现行 **SNAPSHOT**（现在跑什么），不是“永远必须这样”：
 
 - `docs/architecture.md` — 分层、四包、缝位、批次/FSM、决策、规约
 - `docs/io.md` — 跨包话题/动作/服务、QoS、TF、深度、GraspDecision
 - `docs/testing.md` — lint、怎么跑、命名、验收门
+
+**非完美适配则跟主流**（官方 + UR / MoveIt / Nav2 / Autoware / ros2_control 等）。不要写“只对照三份、现行设计不可改”。碰到活文档里的「不上 pluginlib / 禁止 launch_testing / 已删 GPL」按 AGENTS 偏离表当 UNWIND，不要继续维护该禁令。
 
 过程记录（不驱动现行设计、不写怎么跑）：`docs/testing-log.md`（真机轮次）、`docs/REFACTORING.md`（工程整理与文件映射）。改行为改 testing.md + 源码；补实测只追加 testing-log。
 
@@ -18,4 +20,4 @@ alwaysApply: true
 - 源码与文档**互相更新**：改行为、接口、yaml、验收口径时同一轮改对应文档；改这三份里的现行描述时同一轮改源码或 yaml。标成「缺口 / 预留 / 归档」的除外。
 - 发现不一致：两边一起改到一致再继续，禁止只改一边。
 - `docs/` 不新增第四份活文档。`testing-log.md` 与 `REFACTORING.md` 不是活文档。旧手册只在 `_archive/`。
-- 完整红线见 `AGENTS.md`。
+- MUST 红线（未授权不动臂、硬件急停不经 ROS、驱动只读、numpy 1.26.4、不自动 RunHarvest）见 `AGENTS.md`，不可破。

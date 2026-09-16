@@ -1,0 +1,601 @@
+# peach_arm 全量参数（generate_parameter_library 单一事实源，清洁重写轮 2c）。
+# 单根 peach_arm: = 生成命名空间（peach_arm::Params/ParamListener）。
+# 键名/分组/默认值/校验逐条转写自手写 params.hpp @ 9c63eaf（键名冻结）；
+# 部署值事实源仍为 config/peach_arm.yaml；跨字段依赖链在节点 onParameters。
+peach_arm:
+  photo_pose_named_target:
+    type: string
+    default_value: global_photo_pose
+    description: "Survey/回拍照位的 SRDF group_state 名"
+  photo_pose_joint_tolerance_rad:
+    type: double
+    default_value: 0.05
+    description: "goToPhotoPose 成功出口关节容差 [rad]"
+    validation:
+      gt<>: [0.0]
+  photo_pose_max_joint_vel_rad_s:
+    type: double
+    default_value: 0.05
+    description: "goToPhotoPose 成功出口最大关节速度 [rad/s]"
+    validation:
+      gt<>: [0.0]
+  harvest_stow_named_target:
+    type: string
+    default_value: harvest_stow
+    description: "周期终局回收纳位 SRDF group_state 名"
+  frames:
+    base:
+      type: string
+      default_value: base_link
+      description: "base 坐标系"
+    tip:
+      type: string
+      default_value: tcp
+      description: "规划/IK 末端连杆"
+    camera:
+      type: string
+      default_value: camera_depth_optical_frame
+      description: "相机光学系"
+    tool:
+      type: string
+      default_value: tcp
+      description: "工具系"
+  moveit:
+    planning_group:
+      type: string
+      default_value: manipulator_e5
+      description: "MoveIt 规划组"
+    planning_time_s:
+      type: double
+      default_value: 1.5
+      description: "默认规划时限 [s]"
+      validation:
+        gt<>: [0.0]
+    planning_attempts:
+      type: int
+      default_value: 1
+      description: "默认规划尝试数"
+      validation:
+        gt_eq<>: [1]
+    velocity_scaling:
+      type: double
+      default_value: 0.1
+      description: "默认速度缩放"
+      validation:
+        gt<>: [0.0]
+        lt_eq<>: [1.0]
+    acceleration_scaling:
+      type: double
+      default_value: 0.1
+      description: "默认加速度缩放"
+      validation:
+        gt<>: [0.0]
+        lt_eq<>: [1.0]
+    transit_velocity_scaling:
+      type: double
+      default_value: 0.1
+      description: "自由空间转移速度档"
+      validation:
+        gt<>: [0.0]
+        lt_eq<>: [1.0]
+    transit_acceleration_scaling:
+      type: double
+      default_value: 0.1
+      description: "自由空间转移加速度档"
+      validation:
+        gt<>: [0.0]
+        lt_eq<>: [1.0]
+    pilz_pipeline:
+      type: string
+      default_value: pilz_industrial_motion_planner
+      description: "Pilz 规划管线名（PTP/LIN）"
+    fallback_pipeline:
+      type: string
+      default_value: ompl
+      description: "回退规划管线"
+    mtc_free_space_pipeline:
+      type: string
+      default_value: pilz_industrial_motion_planner
+      description: "MTC 自由空间管线"
+    mtc_free_space_planner:
+      type: string
+      default_value: LIN
+      description: "MTC 自由空间规划器"
+    mtc_cartesian_step_m:
+      type: double
+      default_value: 0.005
+      description: "笛卡尔步长 [m]"
+      validation:
+        gt<>: [0.0]
+    mtc_cartesian_min_fraction:
+      type: double
+      default_value: 0.95
+      description: "笛卡尔路径最小 fraction"
+      validation:
+        gt<>: [0.0]
+        lt_eq<>: [1.0]
+    mtc_cartesian_precision_m:
+      type: double
+      default_value: 0.001
+      description: "笛卡尔精度 [m]"
+      validation:
+        gt<>: [0.0]
+    mtc_max_solutions:
+      type: int
+      default_value: 5
+      description: "PREVIEW 凑解数"
+      validation:
+        gt_eq<>: [1]
+    mtc_approach_max_duration_s:
+      type: double
+      default_value: 0.0
+      description: "接近时长门（0=不按时长）"
+      validation:
+        gt_eq<>: [0.0]
+    mtc_approach_max_total_joint_travel_rad:
+      type: double
+      default_value: 12.0
+      description: "接近累计关节行程门 [rad]"
+      validation:
+        gt<>: [0.0]
+    mtc_approach_max_single_joint_travel_rad:
+      type: double
+      default_value: 6.1
+      description: "接近单轴行程门 [rad]"
+      validation:
+        gt<>: [0.0]
+    mtc_approach_max_detour_ratio:
+      type: double
+      default_value: 1.8
+      description: "笛卡尔绕行比门"
+      validation:
+        gt_eq<>: [0.0]
+    mtc_approach_max_chord_deviation_m:
+      type: double
+      default_value: 0.25
+      description: "弦偏离门 [m]"
+      validation:
+        gt_eq<>: [0.0]
+    mtc_approach_max_recede_m:
+      type: double
+      default_value: 0.08
+      description: "回退门 [m]"
+      validation:
+        gt_eq<>: [0.0]
+    mtc_approach_transit_max_detour_ratio:
+      type: double
+      default_value: 1.8
+      description: "staging 转移绕行比门"
+      validation:
+        gt_eq<>: [0.0]
+    mtc_approach_transit_max_chord_deviation_m:
+      type: double
+      default_value: 0.25
+      description: "staging 转移弦偏离门 [m]"
+      validation:
+        gt_eq<>: [0.0]
+    mtc_approach_transit_max_recede_m:
+      type: double
+      default_value: 0.08
+      description: "staging 转移回退门 [m]"
+      validation:
+        gt_eq<>: [0.0]
+    mtc_approach_max_tcp_rotation_deg:
+      type: double
+      default_value: 110.0
+      description: "TCP 姿态行程绝对门 [deg]"
+      validation:
+        gt_eq<>: [0.0]
+    mtc_approach_tcp_rotation_slack_deg:
+      type: double
+      default_value: 20.0
+      description: "TCP 姿态相对起止余量 [deg]"
+      validation:
+        gt_eq<>: [0.0]
+    mtc_approach_keepout_radius_m:
+      type: double
+      default_value: 0.12
+      description: "果实胶囊回退半径（感知直径无效时）"
+      validation:
+        gt_eq<>: [0.0]
+    mtc_approach_keepout_axial_m:
+      type: double
+      default_value: 0.12
+      description: "果实胶囊轴向 keepout [m]（0=关）"
+      validation:
+        gt_eq<>: [0.0]
+    mtc_approach_cartesian_max_distance_m:
+      type: double
+      default_value: 0.8
+      description: "直连 LIN 弦长上限 [m]"
+      validation:
+        gt<>: [0.0]
+    mtc_approach_along_axis_m:
+      type: double
+      default_value: 0.0
+      description: "预抓取沿 −axis 后撤 [m]（grasp_standoffs 注入现行 0.03）"
+      validation:
+        gt_eq<>: [0.0]
+    approach_staging_standoff_m:
+      type: double
+      default_value: 0.1
+      description: "staging 在预抓取正下方再后撤 [m]"
+      validation:
+        gt_eq<>: [0.0]
+    approach_near_velocity_scaling:
+      type: double
+      default_value: 0.05
+      description: "近果 LIN/套入/撤退速度档"
+      validation:
+        gt<>: [0.0]
+        lt_eq<>: [1.0]
+    mtc_approach_max_lateral_m:
+      type: double
+      default_value: 0.05
+      description: "已对轴判定横向容差 [m]"
+      validation:
+        gt<>: [0.0]
+    mtc_approach_max_align_deg:
+      type: double
+      default_value: 20.0
+      description: "已对轴判定夹角容差 [deg]"
+      validation:
+        gt<>: [0.0]
+    observe_planning_time_s:
+      type: double
+      default_value: 1.0
+      description: "观察短移规划时限 [s]"
+      validation:
+        gt<>: [0.0]
+    observe_planning_attempts:
+      type: int
+      default_value: 1
+      description: "观察短移尝试数（禁止 replanning）"
+      validation:
+        gt_eq<>: [1]
+    observe_max_duration_s:
+      type: double
+      default_value: 0.0
+      description: "观察时长门（0=不按时长）"
+      validation:
+        gt_eq<>: [0.0]
+    observe_max_total_joint_travel_rad:
+      type: double
+      default_value: 4.0
+      description: "观察累计行程门 [rad]"
+      validation:
+        gt<>: [0.0]
+    observe_max_single_joint_travel_rad:
+      type: double
+      default_value: 1.5
+      description: "观察单轴行程门 [rad]"
+      validation:
+        gt<>: [0.0]
+    photo_planning_time_s:
+      type: double
+      default_value: 3.0
+      description: "拍照位 OMPL 回退时限 [s]"
+      validation:
+        gt<>: [0.0]
+    photo_ptp_planning_time_s:
+      type: double
+      default_value: 0.5
+      description: "拍照位 Pilz PTP 时限 [s]"
+      validation:
+        gt<>: [0.0]
+    transit_max_duration_s:
+      type: double
+      default_value: 0.0
+      description: "转移时长门（0=不按时长）"
+      validation:
+        gt_eq<>: [0.0]
+    transit_max_total_joint_travel_rad:
+      type: double
+      default_value: 6.0
+      description: "转移累计行程门 [rad]"
+      validation:
+        gt<>: [0.0]
+    transit_max_single_joint_travel_rad:
+      type: double
+      default_value: 2.5
+      description: "转移单轴行程门 [rad]"
+      validation:
+        gt<>: [0.0]
+  scan:
+    observation_radius_m:
+      type: double
+      default_value: 0.4
+      description: "视点观察半径 [m]"
+      validation:
+        gt<>: [0.0]
+    minimum_radius_m:
+      type: double
+      default_value: 0.32
+      description: "最小观察半径 [m]"
+      validation:
+        gt<>: [0.0]
+    azimuth_step_deg:
+      type: double
+      default_value: 12.0
+      description: "方位角步进 [deg]"
+      validation:
+        gt<>: [0.0]
+    azimuth_limit_deg:
+      type: double
+      default_value: 16.0
+      description: "方位角限 [deg]"
+      validation:
+        gt_eq<>: [0.0]
+    elevation_step_deg:
+      type: double
+      default_value: 8.0
+      description: "俯仰角步进 [deg]"
+      validation:
+        gt<>: [0.0]
+    elevation_limit_deg:
+      type: double
+      default_value: 0.0
+      description: "俯仰角限 [deg]"
+      validation:
+        gt_eq<>: [0.0]
+    preferred_baseline_deg:
+      type: double
+      default_value: 12.0
+      description: "优先基线 [deg]"
+      validation:
+        gt_eq<>: [0.0]
+    radial_step_m:
+      type: double
+      default_value: 0.015
+      description: "径向步进 [m]"
+      validation:
+        gt<>: [0.0]
+    candidate_layers:
+      type: int
+      default_value: 1
+      description: "视点候选层数"
+      validation:
+        gt_eq<>: [1]
+    views_to_minimum_radius:
+      type: int
+      default_value: 5
+      description: "缩到最小半径的视点数"
+      validation:
+        gt_eq<>: [1]
+    max_camera_step_m:
+      type: double
+      default_value: 0.15
+      description: "下一视点沿相机直线截距 [m]"
+      validation:
+        gt<>: [0.0]
+    workspace_max_reach_m:
+      type: double
+      default_value: 0.78
+      description: "视点工作空间最大可达 [m]"
+      validation:
+        gt<>: [0.0]
+    maximum_moves:
+      type: int
+      default_value: 2
+      description: "观察最大短移数"
+      validation:
+        gt_eq<>: [1]
+    min_effective_views:
+      type: int
+      default_value: 1
+      description: "最小有效视点数"
+      validation:
+        gt_eq<>: [1]
+    time_budget_s:
+      type: double
+      default_value: 15.0
+      description: "扫描时间预算（只进日志）"
+      validation:
+        gt<>: [0.0]
+    assumed_frame_interval_s:
+      type: double
+      default_value: 0.4
+      description: "EMA 未测得时按 2.5 FPS 估帧间隔 [s]"
+      validation:
+        gt_eq<>: [0.0]
+    min_camera_height_m:
+      type: double
+      default_value: 0.06
+      description: "相机最低高度 [m]"
+      validation:
+        gt_eq<>: [0.0]
+    protected_zones:
+      type: double_array
+      default_value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+      description: "环境保护区轴对齐盒 [min_x,min_y,min_z,max_x,max_y,max_z]（base 系）"
+    frame_wait_s:
+      type: double
+      default_value: 4.0
+      description: "等帧超时回退 [s]"
+      validation:
+        gt<>: [0.0]
+  quality:
+    minimum_views:
+      type: int
+      default_value: 2
+      description: "最小机位数"
+      validation:
+        gt_eq<>: [1]
+    minimum_baseline_deg:
+      type: double
+      default_value: 8.0
+      description: "覆盖门角基线 [deg]"
+      validation:
+        gt_eq<>: [0.0]
+    minimum_mean_nearest_baseline_deg:
+      type: double
+      default_value: 6.0
+      description: "平均最近基线 [deg]"
+      validation:
+        gt_eq<>: [0.0]
+    minimum_mean_depth_ratio:
+      type: double
+      default_value: 0.4
+      description: "平均深度比"
+      validation:
+        gt_eq<>: [0.0]
+        lt_eq<>: [1.0]
+    maximum_data_age_s:
+      type: double
+      default_value: 3.0
+      description: "数据最大年龄 [s]"
+      validation:
+        gt<>: [0.0]
+    maximum_axis_angle_deg:
+      type: double
+      default_value: 35.0
+      description: "诊断用完全错轴角 [deg]"
+      validation:
+        gt<>: [0.0]
+        lt_eq<>: [180.0]
+  execution:
+    enabled:
+      type: bool
+      default_value: false
+      description: "TRANSIT/PREGRASP 级运动使能（操作台广播可覆盖）"
+    require_robot_status:
+      type: bool
+      default_value: true
+      description: "安全门要求柜侧状态流"
+    robot_status_max_age_s:
+      type: double
+      default_value: 1.0
+      description: "柜侧状态最大年龄 [s]"
+      validation:
+        gt<>: [0.0]
+    target_observation_max_age_s:
+      type: double
+      default_value: 3.0
+      description: "目标观测最大年龄 [s]（兼接触许可令牌新鲜窗）"
+      validation:
+        gt<>: [0.0]
+  execution_contract:
+    robot_status_timeout_s:
+      type: double
+      default_value: 0.5
+      description: "execute() 窗内 robot_status 单调时钟超时 [s]"
+      validation:
+        gt<>: [0.0]
+    model_max_age_s:
+      type: double
+      default_value: 5.0
+      description: "模型 valid_until 视野 [s]"
+      validation:
+        gt<>: [0.0]
+  grasp:
+    enabled:
+      type: bool
+      default_value: false
+      description: "CONTACT 级使能"
+    neck_margin_m:
+      type: double
+      default_value: 0.015
+      description: "袋颈余量 [m]"
+      validation:
+        gt_eq<>: [0.0]
+    minimum_travel_m:
+      type: double
+      default_value: 0.02
+      description: "最小插入行程 [m]"
+      validation:
+        gt<>: [0.0]
+    maximum_travel_m:
+      type: double
+      default_value: 0.2
+      description: "最大插入行程 [m]（档案 L_insert 注入覆盖）"
+      validation:
+        gt<>: [0.0]
+    reconfirm_wait_s:
+      type: double
+      default_value: 6.0
+      description: "再确认窗口 [s]（自适应上限）"
+      validation:
+        gt<>: [0.0]
+    reconfirm_tolerance_m:
+      type: double
+      default_value: 0.03
+      description: "再确认锚点漂移容差 [m]"
+      validation:
+        gt<>: [0.0]
+    reconfirm_max_attempts:
+      type: int
+      default_value: 3
+      description: "再确认尝试数"
+      validation:
+        gt_eq<>: [1]
+    allow_stale_anchor:
+      type: bool
+      default_value: false
+      description: "允许陈旧锚点（压测用）"
+    fruit_inflation_m:
+      type: double
+      default_value: 0.01
+      description: "①层果实胶囊膨胀 [m]"
+      validation:
+        gt_eq<>: [0.0]
+    contact_detect:
+      enabled:
+        type: bool
+        default_value: false
+        description: "④层接触止损（默认关；真机标定后启用）"
+      baseline_s:
+        type: double
+        default_value: 0.2
+        description: "电流基线窗 [s]"
+        validation:
+          gt_eq<>: [0.0]
+      slope_threshold:
+        type: double
+        default_value: 0.0
+        description: "电流斜率阈值（SDK 原单位；<=0 不判）"
+        validation:
+          gt_eq<>: [0.0]
+      spike_threshold:
+        type: double
+        default_value: 0.0
+        description: "电流尖峰阈值（<=0 不判）"
+        validation:
+          gt_eq<>: [0.0]
+  tool:
+    enabled:
+      type: bool
+      default_value: false
+      description: "TOOL 级（SetIO）使能"
+    io_fun:
+      type: int
+      default_value: 3
+      description: "刀具 IO fun"
+      validation:
+        gt_eq<>: [0]
+    io_pin:
+      type: int
+      default_value: 0
+      description: "刀具 IO pin"
+      validation:
+        gt_eq<>: [0]
+    close_state:
+      type: double
+      default_value: 1.0
+      description: "闭合电平"
+    profile_id:
+      type: string
+      default_value: hollow_cylinder_v1
+      description: "工具档案标签（launch tool_profile 注入覆盖，现行默认 adaptive）"
+  timeouts:
+    service_s:
+      type: double
+      default_value: 3.0
+      description: "服务超时 [s]"
+      validation:
+        gt<>: [0.0]
+    refined_s:
+      type: double
+      default_value: 30.0
+      description: "精化等待超时 [s]"
+      validation:
+        gt<>: [0.0]

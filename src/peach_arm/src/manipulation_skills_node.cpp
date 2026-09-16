@@ -32,7 +32,7 @@
 #include "peach_arm/grasp_geometry.hpp"
 #include "peach_arm/model_contract.hpp"
 #include "peach_arm/tool_txn.hpp"
-#include <peach_arm/execution_contract_parameters.hpp>
+#include <peach_arm/arm_parameters.hpp>
 
 namespace peach_arm
 {
@@ -55,18 +55,13 @@ ManipulationSkillsNode::ManipulationSkillsNode(const rclcpp::NodeOptions & optio
   moveit_options.start_parameter_event_publisher(false);
   moveit_node_ = std::make_shared<rclcpp::Node>(
     "peach_arm_moveit", moveit_options);
-  // ParamListener（手写 params.hpp）构造即声明全部参数并做启动校验（yaml
-  // 覆盖值非法时抛 InvalidParameterValueException 直接启动失败），范围校验随
-  // 每次 set 生效；声明/兜底默认/校验源为 params.hpp，部署值源为
-  // config/peach_arm.yaml（决策 0017）。
+  // ParamListener（generate_parameter_library，arm_parameters.yaml）构造即
+  // 声明全部参数并做启动校验（yaml 覆盖值非法时抛异常直接启动失败），范围
+  // 校验随每次 set 生效；部署值源为 config/peach_arm.yaml。
   param_listener_ = std::make_shared<peach_arm::ParamListener>(
     get_node_parameters_interface(), get_logger());
-  execution_contract_listener_ =
-    std::make_shared<execution_contract::ParamListener>(
-    get_node_parameters_interface(), get_logger());
   robot_status_contract_timeout_s_ =
-    std::static_pointer_cast<execution_contract::ParamListener>(
-    execution_contract_listener_)->get_params().robot_status_timeout_s;
+    param_listener_->get_params().execution_contract.robot_status_timeout_s;
   loadParameters();
   // on-set 验证钩子（无副作用，见 onParameters）：运行中拒改 +
   // execution→grasp→tool 依赖链。rclcpp 的 on-set 回调按注册逆序调用，

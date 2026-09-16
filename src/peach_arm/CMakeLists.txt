@@ -35,8 +35,10 @@ find_package(visualization_msgs REQUIRED)
 find_package(Threads REQUIRED)
 
 find_package(generate_parameter_library REQUIRED)
-generate_parameter_library(execution_contract_parameters
-  src/execution_contract_parameters.yaml)
+# 全量参数单一事实源（清洁重写轮 2c：手写 params.hpp 逐条转写后删除；
+# 含原 execution_contract 两键，键名/默认值/校验冻结）。
+generate_parameter_library(arm_parameters
+  src/arm_parameters.yaml)
 
 # 纯逻辑核（零 ROS/MoveIt 依赖）：质量门、视点规划、安全门、目标缓存。
 add_library(${PROJECT_NAME}_core
@@ -71,7 +73,7 @@ target_include_directories(peach_arm PRIVATE include)
 # ament_target_dependencies）；节点非导出目标，一律 PRIVATE。
 target_link_libraries(peach_arm PRIVATE
   ${PROJECT_NAME}_core
-  execution_contract_parameters
+  arm_parameters
   Threads::Threads
   nlohmann_json::nlohmann_json
   moveit_ros_planning_interface::moveit_move_group_interface

@@ -53,9 +53,9 @@
 #include "peach_arm/target_cache.hpp"
 #include "peach_arm/tool_actuator.hpp"
 #include "peach_arm/view_planner.hpp"
-// 参数声明/兜底默认/校验的单一事实源（手写模块，决策 0017）；
-// 部署值事实源为 config/peach_arm.yaml。
-#include "peach_arm/params.hpp"
+// 参数声明/兜底默认/范围校验的单一事实源：generate_parameter_library
+// （arm_parameters.yaml，清洁重写轮 2c）；部署值事实源为 config/peach_arm.yaml。
+#include <peach_arm/arm_parameters.hpp>
 #include "peach_arm/plan_contract.hpp"
 
 namespace moveit::planning_interface
@@ -480,7 +480,6 @@ private:
   // 参数监听器（构造即声明全部参数并做启动校验；运行期 set 经其内置范围
   // 校验 + onParameters 钩子，post-set 后 loadParameters 重载快照）。
   std::shared_ptr<peach_arm::ParamListener> param_listener_;
-  std::shared_ptr<void> execution_contract_listener_;
   peach_arm::Params params_;
   double robot_status_contract_timeout_s_{0.5};
   ContactPlan last_preview_plan_{};

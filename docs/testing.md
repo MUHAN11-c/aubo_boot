@@ -4,7 +4,7 @@
 
 真机轮次、量化基线、审查记录写在 [testing-log.md](testing-log.md)；工程整理过程写在 [REFACTORING.md](REFACTORING.md)（二者都是过程记录，不驱动现行设计）。改行为只改本文 + 源码；补一条实测时追加 testing-log，不把轮次散文写回本文。
 
-各包 `test/` **保留 ROS 2 默认 lint，并允许零 ROS 纯核 pytest**（Python：`test_flake8.py` / `test_pep257.py` + 不 import rclpy 的表驱动；CMake：`ament_lint_auto`）。现行纯核：`peach_executor/test/test_harvest_fsm.py`（`react` 表）、`peach_observability/test/test_bag_report.py`（bag 流→报告合成、验收门、回收选择，零 ROS）、`peach_perception/test/test_runtime_core.py`（`ManualClock` / `BoundedWorker` capacity=1 drop_oldest）、`peach_perception/test/test_tool_profiles.py`（工具档案解析结构校验）、`peach_manipulation/test/test_contact_monitor.py`（合成电流序列编译 `contact_monitor.hpp`）、`ivg_graspnet/test/test_grasp_core.py`（`GraspList` NMS/碰撞；torch 算子 `importorskip`）、`serial_imu/test/test_protocol.py`（切帧/协方差）与 `test_frame.py`（倒装 Rx + parent 对齐）、`imu_follow/test/test_core.py`（姿态增量/死区锥钳/平滑/关节步长/插入推进）。现行测试面以 lint + 零 ROS 纯核为主（决策 0006，**UNWIND**：不是套袋工艺的完美适配）。**新测试按 [AGENTS.md](../AGENTS.md) 测试塔与官方 / Nav2 / Autoware 主流**：允许 gtest、launch_testing（isolated `ROS_DOMAIN_ID`）、`mock_components` 集成。独立系统测包 `peach_system_tests` 已落地（mock `harvest_system`，不发 `RunHarvest`）；Gazebo/Isaac 物理仿真仍缺口。采摘方向 / 接触对错仍以真机 `runs/` + [testing-log.md](testing-log.md) 为最终权威（KEEP）；`colcon test` 绿不是田间验收。语法与流程由审查核对。套入剪切软件门看 flake8 / pep257 / uncrustify 与纯核表；`peach_manipulation` 整测项跳过 cpplint（其 legal/copyright 与 Google include 顺序检查同本项目「文件头版权块项目结束再补」「include own-first」约定冲突，CMake 已 `set(ament_cmake_cpplint_FOUND TRUE)`），C++ 风格门以 uncrustify 为准、静态分析走 cppcheck。`ament_xmllint` 会拉 `package_format3.xsd`，网络卡住超时不阻塞本产品路径。
+各包 `test/` **保留 ROS 2 默认 lint，并允许零 ROS 纯核 pytest**（Python：`test_flake8.py` / `test_pep257.py` + 不 import rclpy 的表驱动；CMake：`ament_lint_auto`）。现行纯核：`peach_executor/test/test_harvest_fsm.py`（`react` 表）、`peach_observability/test/test_bag_report.py`（bag 流→报告合成、验收门、回收选择，零 ROS）、`peach_perception/test/test_runtime_core.py`（`ManualClock` / `BoundedWorker` capacity=1 drop_oldest）、`peach_perception/test/test_tool_profiles.py`（工具档案解析结构校验）、`peach_arm/test/test_contact_monitor.py`（合成电流序列编译 `contact_monitor.hpp`）、`ivg_graspnet/test/test_grasp_core.py`（`GraspList` NMS/碰撞；torch 算子 `importorskip`）、`serial_imu/test/test_protocol.py`（切帧/协方差）与 `test_frame.py`（倒装 Rx + parent 对齐）、`imu_follow/test/test_core.py`（姿态增量/死区锥钳/平滑/关节步长/插入推进）。现行测试面以 lint + 零 ROS 纯核为主（决策 0006，**UNWIND**：不是套袋工艺的完美适配）。**新测试按 [AGENTS.md](../AGENTS.md) 测试塔与官方 / Nav2 / Autoware 主流**：允许 gtest、launch_testing（isolated `ROS_DOMAIN_ID`）、`mock_components` 集成。独立系统测包 `peach_system_tests` 已落地（mock `harvest_system`，不发 `RunHarvest`）；Gazebo/Isaac 物理仿真仍缺口。采摘方向 / 接触对错仍以真机 `runs/` + [testing-log.md](testing-log.md) 为最终权威（KEEP）；`colcon test` 绿不是田间验收。语法与流程由审查核对。套入剪切软件门看 flake8 / pep257 / uncrustify 与纯核表；`peach_arm` 整测项跳过 cpplint（其 legal/copyright 与 Google include 顺序检查同本项目「文件头版权块项目结束再补」「include own-first」约定冲突，CMake 已 `set(ament_cmake_cpplint_FOUND TRUE)`），C++ 风格门以 uncrustify 为准、静态分析走 cppcheck。`ament_xmllint` 会拉 `package_format3.xsd`，网络卡住超时不阻塞本产品路径。
 
 不要删 `_archive/runs/` 与现场 `runs/` 的文本与账本；bag 二进制例外——observability 按 `record.max_total_bag_gb` 预算自动回收最旧的 `session_*/bag` 与旧 `mcap_*`（解析总结 `bag_report.md/json`、账本与一切文本保留，回收逐条写 `runs/retention_audit.jsonl`）。未授权不得真机运动或 SetIO。硬件急停在示教器/柜，不经 ROS。launch **不自动** `RunHarvest`。采摘应用七包职责见 [architecture.md](architecture.md) §3。旁路视觉抓取四包（`ivg_interfaces` / `ivg_utils` / `ivg_pose_estimation` / `ivg_graspnet`）不进整栈 launch。`serial_imu` 随 `harvest_system` 起（`imu_enabled` 默认 true），不进 lifecycle、不进只读 bringup。`imu_follow`（IMU 姿态跟随）独立 launch、不随整栈，`motion.enabled` 默认 false 只算不发。
 
@@ -44,7 +44,7 @@ R0+ 纯核门（不启 DDS、不动臂；`colcon test` 绿 ≠ 套袋验收）�
 ```bash
 bash scripts/r0_gate.sh
 # source Jazzy 后：
-# colcon test --packages-select peach_interfaces peach_perception peach_executor peach_manipulation peach_bringup peach_observability peach_system_tests
+# colcon test --packages-select peach_interfaces peach_perception peach_executor peach_arm peach_bringup peach_observability peach_system_tests
 ```
 
 现行纯核另含：`param_rules` / `identity` / `tool_budget` / `harvest_fsm`（EventHold） / `idl_constants`（HarvestState/ControlTask/ManageLifecycleNodes 数值对账） / `path_metrics` / `domain`（reducer、ledger、watchdog、model_contract、evidence） / `pregrasp_level` gtest。Python 键名冻结测试对照 yaml（感知两节点 + 调度/观测/lifecycle）；C++ 新合同字段走 generate_parameter_library。`.github/workflows/jazzy.yaml`：`peach-core` 跑同一纯核门 + numpy 1.26.4；`industrial_ci` 在 Docker 里 `colcon` 编测驱动与 peach（`COLCON_IGNORE` IVG 四包、`imu_follow`、`percipio_camera`，无真机 job）。scipy 不进 `package.xml`（venv-first KEEP）；ICI 用 apt `python3-scipy` / `python3-pytest` / `python3-yaml`（`ros:jazzy` numpy 已 1.26.4，不再 Docker 内 pip）。`peach_system_tests` isolated launch_testing 起 mock `harvest_system`（`camera_enabled:=false` `imu_enabled:=false`，`QT_QPA_PLATFORM=offscreen`，`AUBO_RUNS_DIR` 指临时目录），断言 `/joint_states` 含 MUST 六关节名（JSB 的 name 数组常为字母序，按下标当 MUST 序会拧腕）与 lifecycle Active，**不**发 `RunHarvest`。headless 下 `move_group`/`rviz2` 退出码不纳入 peach 进程门。本机已有栈残留时预检拒测（只认节点 argv0 或 `.../lib/<pkg>/<node>`，不认 colcon 包名参数）。
@@ -103,7 +103,7 @@ colcon test --packages-select ivg_interfaces ivg_pose_estimation ivg_graspnet
 # 估姿 Web 回归（fastapi/httpx 在 venv；系统 python 下整文件 skip）
 ./aubo_py3.12/bin/python -m pytest src/ivg_pose_estimation/ivg_pose_estimation/test/test_web_app.py
 # 接触检测纯核（g++ 编译 contact_monitor.hpp，零 ROS）
-python3 -m pytest src/peach_manipulation/test/test_contact_monitor.py
+python3 -m pytest src/peach_arm/test/test_contact_monitor.py
 ```
 
 监控：`http://127.0.0.1:8090`。参数 `peach_executor/config/observability.yaml`。过程页：作业票（发现→完成）、事件、落盘目录、TCP 俯视（绕行比、Δz、对照预抓取/入口/弦）、本场目标、柜侧硬件（TCP xyz/rpy、六轴角/速度、电流 SDK 原单位、温度、跟随误差）。`/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipulation` / `task_executor` / `robot`（`status` / `tcp` / `joints`）/ `metrics` / `record` / `params` / `job` / `debug`。默认不上电、不派发运动、不打工具 IO、不自动开批。
@@ -234,7 +234,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8090/api/trajectory
 ros2 lifecycle get /peach_observability
 ros2 lifecycle get /peach_scene_perception_node
 ros2 lifecycle get /peach_target_reconstruction_node
-ros2 lifecycle get /peach_manipulation_node
+ros2 lifecycle get /peach_arm
 ros2 lifecycle get /peach_executor
 timeout 5 ros2 run tf2_ros tf2_echo wrist3_Link camera_link
 ```
@@ -289,7 +289,7 @@ Fixed Frame 用 **`base_link`**，不要用未接上的 `world`。改显示配�
 | TSDF Cloud | 开 | `/peach/reconstruction/tsdf_cloud` | 绑定目标 TSDF 表面 |
 | Local Cloud | 关 | `/peach/reconstruction/local_cloud` | 未融体的拼接点 |
 | Reconstruction Markers | 开 | `/peach/reconstruction/markers` | 主 ns `target_reconstruction`；精化 `peach_reconstruction/refined`。相机轨迹与精化示意 |
-| Planned Views | 开 | `/peach_manipulation_node/planned_views` | 候选拍照位；`execution.enabled=false` 时仍会出，不代表已走到 |
+| Planned Views | 开 | `/peach_arm/planned_views` | 候选拍照位；`execution.enabled=false` 时仍会出，不代表已走到 |
 | Camera Color | 关 | `/camera/color/image_raw` | 原彩图 |
 | Debug Image | 开 | `/peach/perception/debug_image` | 检/分割叠加。灰框=未满 confirm_frames |
 | Imu | 开 | `/imu/data` | `rviz_imu_plugin`：TCP 上的灰盒子 / RGB 轴 / 黄比力。姿态不写进 `imu_link` TF |
@@ -345,7 +345,7 @@ python3 src/peach_interfaces/scripts/check_interface_manifest.py
 
 ### 回放塔（解析回归门；改接近/融合/护栏/包络必跑）
 
-`colcon test --packages-select peach_system_tests` 的 `test_replay_approach`：零 ROS 纯几何，确定性语料三层（现场真袋 14 例；分层 200 例 seed 20260911；随机 100 例 seed 20260910）对照 `test/replay_baselines.json` 冻结基线（基线 a955cea，与 `scripts/analyze_approach_envelope.py --n 200 --seed 20260911` 输出逐数核对一致）。判定语义：`analytic_ok` 只许升不许降（全链路 66/100、26/30 属 mock 栈指标，本层是其下界——joint_travel/PTP 绕行/IK 自碰不在此层观测）；`lin_chord_fail` 双侧容差 1（降=护栏变松，升=变紧）；分母精确断言，采样器或案册漂移须显式重封基线。护栏数学为 `replay_oracle.py`（scripts 逐字移植）；阶段 2 起 `peach_manipulation` 以同一案册喂真实纯核 gtest 交叉对账。旧 bag 回放兼容：`peach_observability/bag_reader.py` 的 `LEGACY_TYPE_ALIASES`/`LEGACY_TOPIC_ALIASES`（重写轮每改名/删型登记一行）。
+`colcon test --packages-select peach_system_tests` 的 `test_replay_approach`：零 ROS 纯几何，确定性语料三层（现场真袋 14 例；分层 200 例 seed 20260911；随机 100 例 seed 20260910）对照 `test/replay_baselines.json` 冻结基线（基线 a955cea，与 `scripts/analyze_approach_envelope.py --n 200 --seed 20260911` 输出逐数核对一致）。判定语义：`analytic_ok` 只许升不许降（全链路 66/100、26/30 属 mock 栈指标，本层是其下界——joint_travel/PTP 绕行/IK 自碰不在此层观测）；`lin_chord_fail` 双侧容差 1（降=护栏变松，升=变紧）；分母精确断言，采样器或案册漂移须显式重封基线。护栏数学为 `replay_oracle.py`（scripts 逐字移植）；阶段 2 起 `peach_arm` 以同一案册喂真实纯核 gtest 交叉对账。旧 bag 回放兼容：`peach_observability/bag_reader.py` 的 `LEGACY_TYPE_ALIASES`/`LEGACY_TOPIC_ALIASES`（重写轮每改名/删型登记一行）。
 
 ### 清洁重写轮功能清单（F1–F13，验收锚点）
 
@@ -412,7 +412,7 @@ python3 src/peach_interfaces/scripts/check_interface_manifest.py
 ```bash
 source /opt/ros/jazzy/setup.bash
 cd /home/mu/Desktop/aubo_e5_jazzy_ws
-colcon build --packages-select peach_perception peach_manipulation peach_executor \
+colcon build --packages-select peach_perception peach_arm peach_executor \
   --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
 # 有残留按 PID 补杀。停在预抓取的重启：示教器先回到拍照位
@@ -436,8 +436,8 @@ ros2 launch peach_executor harvest_system.launch.py \
 # /aubo_io_controller/robot_status drives_powered=1 motion_possible=1；
 # tf2_echo wrist3_Link camera_link 平移 ≈ [0.045, 0.108, 0.002]；
 # tf2_echo base_link tip 应失败；关节对照拍照位。
-ros2 param set /peach_manipulation_node execution.enabled true
-ros2 param set /peach_manipulation_node grasp.enabled true
+ros2 param set /peach_arm execution.enabled true
+ros2 param set /peach_arm grasp.enabled true
 ros2 param set /peach_executor execution_enabled true
 # 确认 tool.enabled 仍为 false、execute_pregrasp_only 仍为 true。不要改仓库 yaml。
 

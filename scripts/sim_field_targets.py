@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""mock 全链路回放：注入真机过程记录的目标几何，驱动真实 peach_manipulation 管线。
+"""mock 全链路回放：注入真机过程记录的目标几何，驱动真实 peach_arm 管线。
 
 与 ``replay_field_pregrasp.py``（Python 侧复刻 MoveIt 官方管线）不同，本脚本
 走**真实 C++ 节点**：向感知/重建话题注入 runs/ 账本记录的 entry/axis/底/颈几何，
-再对 ``/peach_manipulation_node/execute_target`` 发 ``PREGRASP_ONLY`` 周期
+再对 ``/peach_arm/execute_target`` 发 ``PREGRASP_ONLY`` 周期
 （skip_observation，跳过扫描段），验证阶段执行器的完整接近轨迹设计——
 与正式接触段同一条 C++ 路径：``goToPhotoPose``（有记录的接近则原路返程，
 否则 Pilz PTP，失败才 OMPL）
@@ -45,15 +45,15 @@ import yaml
 
 CASES_PATH = (
     Path(__file__).resolve().parents[1] /
-    'src/peach_manipulation/config/field_pregrasp_cases.yaml')
-NODE = 'peach_manipulation_node'
+    'src/peach_arm/config/field_pregrasp_cases.yaml')
+NODE = 'peach_arm'
 RESULTS_DIR = Path(__file__).resolve().parents[1] / 'runs'
 JOINT_ORDER = (
     'shoulder_joint', 'upperArm_joint', 'foreArm_joint',
     'wrist1_joint', 'wrist2_joint', 'wrist3_joint',
 )
 GOAL_TIMEOUT_S = 300.0
-# 与 peach_manipulation.yaml mtc_approach_cartesian_max_distance_m 对齐。
+# 与 peach_arm.yaml mtc_approach_cartesian_max_distance_m 对齐。
 CART_MAX_M = 0.80
 # 感知算法：袋底→袋口只许上半球（axis_z≥0，含水平）。现场 09-09 14 袋里
 # 13 袋 axis_z≥0.70；仅 1021_1 ≈0.27 近水平。architecture 现场包络
@@ -64,7 +64,7 @@ TYPICAL_AXIS_Z_MIN = 0.70
 ENTRY_JITTER_M = 0.04
 AXIS_TILT_DEG = 20.0
 AABB_PAD_M = 0.05
-# ①层果实胶囊开关/回退，与 peach_manipulation.yaml mtc_approach_keepout_* 对齐。
+# ①层果实胶囊开关/回退，与 peach_arm.yaml mtc_approach_keepout_* 对齐。
 KEEP_R_M = 0.12
 KEEP_AXIAL_M = 0.12
 TOOL_BODY_LENGTH_M = 0.200

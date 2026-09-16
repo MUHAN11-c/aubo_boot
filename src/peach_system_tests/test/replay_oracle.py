@@ -5,7 +5,7 @@
 scripts/analyze_approach_envelope.py（基线 a955cea），唯一改动是案册路径
 改为本文件源码相对定位。这是 C++ 护栏（grasp_geometry.hpp /
 trajectory_guard.hpp）的 Python 复刻，作回放回归的冻结判据；阶段 2 起
-peach_manipulation 侧以同一案册喂真实纯核 gtest 交叉对账。
+peach_arm 侧以同一案册喂真实纯核 gtest 交叉对账。
 
 不执臂、不规划关节：analytic_ok 不声称累计行程 / 单轴 / PTP 弧绕行
 （见 analyze_approach_envelope 原始口径）。
@@ -20,7 +20,7 @@ import yaml
 
 CASES_PATH = (
     Path(__file__).resolve().parents[2] /
-    'peach_manipulation/config/field_pregrasp_cases.yaml')
+    'peach_arm/config/field_pregrasp_cases.yaml')
 
 # --- 常量（sim_field_targets.py 原值） ---
 CART_MAX_M = 0.80            # mtc_approach_cartesian_max_distance_m

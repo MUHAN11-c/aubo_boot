@@ -1,6 +1,6 @@
 # 融合后的抓取几何 + 套入/剪切许可。不发送任何运动指令。
 # 话题：/peach/reconstruction/grasp_decision（reliable, transient_local, depth 1；约 1 Hz 心跳）
-# 生产：peach_target_reconstruction    消费：peach_manipulation、peach_observability
+# 生产：peach_target_reconstruction    消费：peach_arm、peach_observability
 # allowed 只拦套入和 SetIO，不拦预抓取。allowed=false 时仍可有几何，禁止降级接触。
 # 无融合几何时 entry/axis 填零，reason / failure_code 说明原因。
 

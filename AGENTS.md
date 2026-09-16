@@ -665,7 +665,7 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 |----|----------|----------|
 | `peach_interfaces` | 唯一 IDL + manifest 双向核对 | 不跑节点 |
 | `peach_perception` | 场景观测 + 当前目标重建 | 不发运动、不选下一颗、不写 `ledger.json` |
-| `peach_manipulation` | `SurveyScene` / `ExecuteTarget`（视点、预抓取、套入、刀、撤退） | 不写 `ledger.json`、不调重建 Trigger |
+| `peach_arm` | `SurveyScene` / `ExecuteTarget`（视点、预抓取、套入、刀、撤退） | 不写 `ledger.json`、不调重建 Trigger |
 | `peach_executor` | 批次 FSM、lifecycle 管理器；观测 yaml/ParamListener | 不处理 RGB-D、不规划接触、不承载 8090 实现 |
 | `peach_bringup` | 整栈 `harvest_system` 入口、预检 | 不自动 `RunHarvest` |
 | `peach_observability` | 8090 / 会话 bag / `peach_bag_report` | 不发运动 |

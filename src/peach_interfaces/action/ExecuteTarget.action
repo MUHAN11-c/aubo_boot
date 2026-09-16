@@ -1,6 +1,6 @@
 # 对当前 target_id 跑一周期（观察 / 预抓取 / 套入）。
-# 动作：/peach_manipulation_node/execute_target
-# 服务端：peach_manipulation    客户端：peach_executor（调度是唯一动作客户端）
+# 动作：/peach_arm/execute_target
+# 服务端：peach_arm    客户端：peach_executor（调度是唯一动作客户端）
 # PREGRASP_ONLY 为现行默认干跑：到预抓取停住、不回 harvest_stow、任何路径不 SetIO；
 # ACK 后调度才 Survey / 派下一颗。套入须 GraspDecision.allowed。
 

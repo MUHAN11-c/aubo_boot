@@ -28,7 +28,7 @@ EXEMPT_VISUALIZATION = {
     '/peach/perception/masks',
     '/peach/perception/single_cloud',
     '/peach/reconstruction/local_cloud',
-    '/peach_manipulation_node/planned_views',
+    '/peach_arm/planned_views',
 }
 
 _LITERAL_RE = re.compile(r'[\'"](/peach[A-Za-z0-9_/]*)[\'"]')
@@ -53,10 +53,10 @@ _CONSUMER_PATHS = {
         'peach_perception/peach_perception/target_reconstruction',
         'peach_perception/config/target_reconstruction.yaml',
     ],
-    'peach_manipulation': [
-        'peach_manipulation/src',
-        'peach_manipulation/include',
-        'peach_manipulation/config',
+    'peach_arm': [
+        'peach_arm/src',
+        'peach_arm/include',
+        'peach_arm/config',
     ],
     'peach_lifecycle_manager': [
         'peach_executor/peach_executor/lifecycle_manager.py',

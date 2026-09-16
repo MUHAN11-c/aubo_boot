@@ -30,7 +30,7 @@ def _moveit_configs(controllers_file: str, tool_profile: str):
     """按官方 Builder 装载 URDF/SRDF/IK/管线/控制器映射/Pilz 笛卡尔限.
 
     sensors_3d（③层场景碰撞，2026-09-14 约束重设计）：点云 octomap 保护
-    臂/相机连杆；工具链对 octomap 的豁免由 peach_manipulation 写 scene ACM。
+    臂/相机连杆；工具链对 octomap 的豁免由 peach_arm 写 scene ACM。
     mock 无点云 = 空地图，行为与未开启时一致（回归零副作用）。
     robot_description 经 mappings 透传 tool_profile（与 bringup 的 RSP 展开同值，
     防 move_group 模型与 TF 分叉；纯 str 映射在构建期即展开 xacro）。"""

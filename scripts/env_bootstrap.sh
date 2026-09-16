@@ -202,7 +202,7 @@ run_smoke() {
   export PYTHONPATH="$VENV/lib/python3.12/site-packages:${PYTHONPATH:-}"
   source "$WS_DIR/install/setup.bash" || { miss "source 本仓 install 失败（先 colcon build）"; return; }
   export QT_QPA_PLATFORM=offscreen
-  pgrep -f 'peach_scene_perception_node|peach_manipulation_node|move_group' >/dev/null 2>&1 \
+  pgrep -f 'peach_scene_perception_node|peach_arm|move_group' >/dev/null 2>&1 \
     && { miss "已有栈实例在跑，拒起（先 pgrep -af 清理）"; return; }
   if [ ! -d "$WS_DIR/install" ]; then
     miss "本仓未构建（先在 $WS_DIR 跑 colcon build）"
@@ -213,10 +213,10 @@ run_smoke() {
   local lp=$! i st=0
   for i in $(seq 1 45); do
     sleep 2
-    [ "$(ros2 lifecycle get /peach_manipulation_node 2>/dev/null)" = "active [3]" ] && st=1 && break
+    [ "$(ros2 lifecycle get /peach_arm 2>/dev/null)" = "active [3]" ] && st=1 && break
   done
   if [ "$st" = 1 ]; then
-    ok "peach_manipulation_node active [3]（全链五节点托起，详见 /tmp/env_bootstrap_smoke.log）"
+    ok "peach_arm active [3]（全链五节点托起，详见 /tmp/env_bootstrap_smoke.log）"
   else
     miss "90s 内 manipulation 未 Active，看 /tmp/env_bootstrap_smoke.log"
   fi

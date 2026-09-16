@@ -45,14 +45,14 @@ class peach_executor:
         'build_start_timeout_s': ('double', 2.0),
         'observe_build_grace_s': ('double', 3.0),
         'begin_scene_service': ('string', '/peach_scene_perception_node/begin_scene'),
-        'survey_scene_action': ('string', '/peach_manipulation_node/survey_scene'),
-        'execute_target_action': ('string', '/peach_manipulation_node/execute_target'),
+        'survey_scene_action': ('string', '/peach_arm/survey_scene'),
+        'execute_target_action': ('string', '/peach_arm/execute_target'),
         'build_target_model_action': (
             'string', '/peach_target_reconstruction_node/build_target_model'),
         'execute_pregrasp_only': ('bool', True),
         'selection_reach_min_m': ('double', 0.15),
         'selection_reach_max_m': ('double', 0.88),
-        'check_reachability_service': ('string', '/peach_manipulation_node/check_reachability'),
+        'check_reachability_service': ('string', '/peach_arm/check_reachability'),
         'selection_depth_min_m': ('double', 0.3),
         'selection_depth_max_m': ('double', 1.6),
         'require_managed_stack': ('bool', False),
@@ -187,7 +187,7 @@ class peach_observability:
         'refined_pose_topic': ('string', '/peach/reconstruction/refined_pose'),
         'refined_axis_topic': ('string', '/peach/reconstruction/refined_axis'),
         'refined_diagnostics_topic': ('string', '/peach/reconstruction/refined_diagnostics'),
-        'manipulation_status_topic': ('string', '/peach_manipulation_node/status'),
+        'manipulation_status_topic': ('string', '/peach_arm/status'),
         'grasp_hypothesis_topic': ('string', '/peach/manipulation/grasp_hypothesis'),
         'task_executor_state_topic': ('string', '/peach_executor/state'),
         'task_executor_events_topic': ('string', '/peach_executor/events'),
@@ -204,7 +204,7 @@ class peach_observability:
         'metrics_process_patterns': (
             'string_array', [
                 'peach_scene_perception_node', 'peach_target_reconstruction_node',
-                'peach_manipulation_node', 'peach_executor', 'ros2_control_node', 'percipio',
+                'peach_arm', 'peach_executor', 'ros2_control_node', 'percipio',
             ]),
         'record.enabled': ('bool', True),
         'record.root_dir': ('string', ''),
@@ -244,23 +244,23 @@ class peach_observability:
         'debug.endpoints.control_service': ('string', '/peach_executor/control'),
         'debug.endpoints.begin_scene_service': (
             'string', '/peach_scene_perception_node/begin_scene'),
-        'debug.endpoints.survey_action': ('string', '/peach_manipulation_node/survey_scene'),
-        'debug.endpoints.execute_action': ('string', '/peach_manipulation_node/execute_target'),
+        'debug.endpoints.survey_action': ('string', '/peach_arm/survey_scene'),
+        'debug.endpoints.execute_action': ('string', '/peach_arm/execute_target'),
         'debug.endpoints.build_action': (
             'string', '/peach_target_reconstruction_node/build_target_model'),
         'debug.endpoints.check_reachability_service': (
-            'string', '/peach_manipulation_node/check_reachability'),
+            'string', '/peach_arm/check_reachability'),
         'debug.endpoints.photo_pose_service': (
-            'string', '/peach_manipulation_node/go_to_photo_pose'),
+            'string', '/peach_arm/go_to_photo_pose'),
         'debug.endpoints.preview_approach_service': (
-            'string', '/peach_manipulation_node/preview_approach_insert'),
+            'string', '/peach_arm/preview_approach_insert'),
         'debug.endpoints.preview_full_service': (
-            'string', '/peach_manipulation_node/preview_full_contact'),
+            'string', '/peach_arm/preview_full_contact'),
         'debug.endpoints.ack_recovery_service': (
-            'string', '/peach_manipulation_node/acknowledge_recovery'),
-        'debug.endpoints.arm_service': ('string', '/peach_manipulation_node/set_execution_armed'),
+            'string', '/peach_arm/acknowledge_recovery'),
+        'debug.endpoints.arm_service': ('string', '/peach_arm/set_execution_armed'),
         'debug.endpoints.skill_cancel_service': (
-            'string', '/peach_manipulation_node/cancel_cycle'),
+            'string', '/peach_arm/cancel_cycle'),
         'debug.endpoints.recon_save_session_service': (
             'string', '/peach_target_reconstruction_node/save_session'),
         'debug.endpoints.recon_reset_service': (
@@ -303,16 +303,16 @@ class peach_observability:
             self.run_harvest_action = '/peach_executor/run_harvest'
             self.control_service = '/peach_executor/control'
             self.begin_scene_service = '/peach_scene_perception_node/begin_scene'
-            self.survey_action = '/peach_manipulation_node/survey_scene'
-            self.execute_action = '/peach_manipulation_node/execute_target'
+            self.survey_action = '/peach_arm/survey_scene'
+            self.execute_action = '/peach_arm/execute_target'
             self.build_action = '/peach_target_reconstruction_node/build_target_model'
-            self.check_reachability_service = '/peach_manipulation_node/check_reachability'
-            self.photo_pose_service = '/peach_manipulation_node/go_to_photo_pose'
-            self.preview_approach_service = '/peach_manipulation_node/preview_approach_insert'
-            self.preview_full_service = '/peach_manipulation_node/preview_full_contact'
-            self.ack_recovery_service = '/peach_manipulation_node/acknowledge_recovery'
-            self.arm_service = '/peach_manipulation_node/set_execution_armed'
-            self.skill_cancel_service = '/peach_manipulation_node/cancel_cycle'
+            self.check_reachability_service = '/peach_arm/check_reachability'
+            self.photo_pose_service = '/peach_arm/go_to_photo_pose'
+            self.preview_approach_service = '/peach_arm/preview_approach_insert'
+            self.preview_full_service = '/peach_arm/preview_full_contact'
+            self.ack_recovery_service = '/peach_arm/acknowledge_recovery'
+            self.arm_service = '/peach_arm/set_execution_armed'
+            self.skill_cancel_service = '/peach_arm/cancel_cycle'
             self.recon_save_session_service = '/peach_target_reconstruction_node/save_session'
             self.recon_reset_service = '/peach_target_reconstruction_node/reset_reconstruction'
             self.recon_finalize_service = (
@@ -440,7 +440,7 @@ class peach_lifecycle_manager:
         'node_names': (
             'string_array', [
                 'peach_scene_perception_node', 'peach_target_reconstruction_node',
-                'peach_manipulation_node', 'peach_executor',
+                'peach_arm', 'peach_executor',
             ]),
         'startup_timeout_s': ('double', 60.0),
     }

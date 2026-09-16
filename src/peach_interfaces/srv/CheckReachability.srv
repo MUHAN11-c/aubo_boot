@@ -1,6 +1,6 @@
 # 选果级 TCP 可达性预检（深度窗之外的臂可达权威）。只答「能否 IK」，不规划、不动臂。
-# 服务：/peach_manipulation_node/check_reachability
-# 服务端：peach_manipulation（MoveIt RobotState::setFromIK，种子=当前关节）
+# 服务：/peach_arm/check_reachability
+# 服务端：peach_arm（MoveIt RobotState::setFromIK，种子=当前关节）
 # 客户端：peach_executor（SELECT 段批量查询）。服务不可用时调度回退半径窗。
 # tcp_poses：调度填感知入口（位置=袋底；姿态 Z=袋轴，滚转任意）。
 # 服务端换成与 MovePregrasp 同一停位再求解：位置沿 −Z 后撤 mtc_approach_along_axis_m

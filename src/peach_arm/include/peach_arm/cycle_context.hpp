@@ -1,0 +1,204 @@
+// 功能：周期状态枚举与一次 ExecuteTarget/手动周期的全部可变状态（含终局）。
+#ifndef PEACH_MANIPULATION__CYCLE_CONTEXT_HPP_
+#define PEACH_MANIPULATION__CYCLE_CONTEXT_HPP_
+
+#include <Eigen/Geometry>
+
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include <peach_interfaces/msg/pregrasp_verification.hpp>
+
+#include "peach_arm/target_cache.hpp"
+#include "peach_arm/view_planner.hpp"
+
+namespace peach_arm
+{
+// action 终局分类。终局判定只走枚举，不再从状态字符串反推。
+enum class CycleOutcome {RUNNING, SUCCEEDED, CANCELED, FAILED, RECOVERY_REQUIRED};
+
+// 周期状态枚举：节点内部一律以枚举流转，state_json_ 中的字符串只是发布层投影，
+// 终局判定只认枚举，避免字符串拼写漂移导致终态被误分类为 RUNNING。
+enum class CycleState
+{
+  IDLE,
+  PLAN_OBSERVATION,
+  MOVE_TO_VIEW,
+  WAIT_FRAME,
+  FINALIZE,
+  RECONFIRM,
+  MTC_APPROACH_INSERT,
+  ACTUATE_TOOL,
+  MTC_RETREAT,
+  PREVIEW_CONTACT_PLANNING,
+  PREVIEW_READY,
+  PREVIEW_FAILED,
+  PLAN_READY,
+  READY_FOR_GRASP,
+  SUCCEEDED,
+  CANCELED,
+  FAILED,
+  RECOVERY_REQUIRED
+};
+
+// 发布层投影字符串必须与历史状态 JSON 完全一致（dashboard/web 只读消费）。
+inline std::string toString(CycleState state)
+{
+  switch (state) {
+    case CycleState::IDLE:
+      return "IDLE";
+    case CycleState::PLAN_OBSERVATION:
+      return "PLAN_OBSERVATION";
+    case CycleState::MOVE_TO_VIEW:
+      return "MOVE_TO_VIEW";
+    case CycleState::WAIT_FRAME:
+      return "WAIT_FRAME";
+    case CycleState::FINALIZE:
+      return "FINALIZE";
+    case CycleState::RECONFIRM:
+      return "RECONFIRM";
+    case CycleState::MTC_APPROACH_INSERT:
+      return "MTC_APPROACH_INSERT";
+    case CycleState::ACTUATE_TOOL:
+      return "ACTUATE_TOOL";
+    case CycleState::MTC_RETREAT:
+      return "MTC_RETREAT";
+    case CycleState::PREVIEW_CONTACT_PLANNING:
+      return "PREVIEW_CONTACT_PLANNING";
+    case CycleState::PREVIEW_READY:
+      return "PREVIEW_READY";
+    case CycleState::PREVIEW_FAILED:
+      return "PREVIEW_FAILED";
+    case CycleState::PLAN_READY:
+      return "PLAN_READY";
+    case CycleState::READY_FOR_GRASP:
+      return "READY_FOR_GRASP";
+    case CycleState::SUCCEEDED:
+      return "SUCCEEDED";
+    case CycleState::CANCELED:
+      return "CANCELED";
+    case CycleState::FAILED:
+      return "FAILED";
+    case CycleState::RECOVERY_REQUIRED:
+      return "RECOVERY_REQUIRED";
+  }
+  return "UNKNOWN";
+}
+
+// 终局分类：PLAN_READY 与 READY_FOR_GRASP 分别是只规划（plan-only）与
+// grasp.enabled=false 两档的圆满终态，必须映射为 SUCCEEDED；其余非终态为 RUNNING。
+inline CycleOutcome terminalOutcome(CycleState state)
+{
+  switch (state) {
+    case CycleState::SUCCEEDED:
+    case CycleState::PREVIEW_READY:
+    case CycleState::PLAN_READY:
+    case CycleState::READY_FOR_GRASP:
+      return CycleOutcome::SUCCEEDED;
+    case CycleState::CANCELED:
+      return CycleOutcome::CANCELED;
+    case CycleState::FAILED:
+    case CycleState::PREVIEW_FAILED:
+      return CycleOutcome::FAILED;
+    case CycleState::RECOVERY_REQUIRED:
+      return CycleOutcome::RECOVERY_REQUIRED;
+    default:
+      return CycleOutcome::RUNNING;
+  }
+}
+
+// 周期终局结果：executeAction 据此组装 action Result，不再回读状态字符串。
+struct CycleResult
+{
+  CycleOutcome outcome{CycleOutcome::RUNNING};
+  std::string reason;
+  bool recovery_required{false};
+};
+
+// A13：CycleState → HarvestState.target_phase 投影（ExecuteTarget 反馈携带，
+// 编排器据此驱动批次过程线的目标阶段）。取值即 peach_interfaces/HarvestState.msg
+// 的 TARGET_* 常量（cycle.cpp 有 static_assert 双向钉死，防枚举漂移）。
+// 语义约定：质量门在 FINALIZE 内完成（FINALIZING 含验证）；RECONFIRM（阶段 E1
+// 抓取前再确认，2.7-RECONFIRM）映射 VALIDATING——它是 finalize 之后、接触段之前
+// 的最后一道验证关；
+// plan-only 圆满终态（PLAN_READY/READY_FOR_GRASP/PREVIEW_READY）映射 COMPLETING
+// （周期收尾、结果即出），CANCELED 映射 IDLE（编排器记账后同回 IDLE，无取消相）。
+constexpr uint8_t targetPhase(CycleState state)
+{
+  switch (state) {
+    case CycleState::PLAN_OBSERVATION:
+    case CycleState::MOVE_TO_VIEW:
+    case CycleState::WAIT_FRAME:
+      return 2;  // OBSERVING
+    case CycleState::FINALIZE:
+      return 3;  // FINALIZING（含质量门验证）
+    case CycleState::RECONFIRM:
+      return 4;  // VALIDATING（抓取前再确认：新鲜观测+锚点漂移门）
+    case CycleState::MTC_APPROACH_INSERT:
+    case CycleState::PREVIEW_CONTACT_PLANNING:
+      return 5;  // APPROACHING
+    case CycleState::ACTUATE_TOOL:
+      return 6;  // TOOL_ACTION
+    case CycleState::MTC_RETREAT:
+      return 7;  // RETREATING
+    case CycleState::PLAN_READY:
+    case CycleState::READY_FOR_GRASP:
+    case CycleState::PREVIEW_READY:
+      return 8;  // COMPLETING（plan-only 圆满收尾）
+    case CycleState::SUCCEEDED:
+      return 9;  // TARGET_SUCCEEDED
+    case CycleState::FAILED:
+    case CycleState::PREVIEW_FAILED:
+    case CycleState::RECOVERY_REQUIRED:
+      return 11;  // TARGET_FAILED
+    case CycleState::IDLE:
+    case CycleState::CANCELED:
+    default:
+      return 0;  // TARGET_IDLE
+  }
+}
+
+// 周期上下文：一次 ExecuteTarget/手动周期 的全部可变状态。
+// 线程规则：action 线程在受理时创建并填充 goal 字段；worker 线程启动后
+// 是唯一读写者；跨线程只经 atomics（running/cancel/recovery/pending_outcome/
+// execution_enabled/grasp/tool）。周期消亡即整体丢弃——钉残留类 bug 结构性不可能。
+struct CycleContext
+{
+  // goal 身份与模式（创建时一次性写入）
+  std::string target_id;        // ExecuteTarget.goal.target_id；手动周期为空
+  bool observe_only{false};
+  bool pregrasp_only{false};
+  bool skip_observation{false};
+  bool action_driven{false};
+  // 目标/精化快照与观察候选
+  std::optional<CachedTarget> target;
+  std::optional<CachedRefined> refined;
+  std::vector<ViewCandidate> candidates;
+  // 接触几何
+  Eigen::Isometry3d entry_tip_pose{Eigen::Isometry3d::Identity()};
+  double travel_m{0.0};
+  // 再确认漂移判定的参考锚点（base 系）：FinalizeAndValidate 出口几何对应的
+  // 目标锚点（0.5·(bottom+neck)；有新鲜观测锚点时优先取感知底/颈中点）。
+  // REFINED 分支保留 TSDF 入口不按单帧平移，本字段不再被重算路径改写。
+  Eigen::Vector3d reference_anchor{Eigen::Vector3d::Zero()};
+  // 完成度与终局
+  bool pregrasp_verified{false};
+  bool sleeve_planned{false};
+  bool sleeve_partial{false};
+  bool cut_command_accepted{false};
+  bool cut_confirmed{false};
+  bool retreat_confirmed{false};
+  uint8_t completion_level{0};
+  uint32_t failure_code{0};
+  peach_interfaces::msg::PregraspVerification pregrasp_msg{};
+  std::string contact_transaction_id;
+  CycleState terminal_state{CycleState::SUCCEEDED};
+  std::string terminal_message;
+  std::string failure_reason;
+};
+
+}  // namespace peach_arm
+
+#endif  // PEACH_MANIPULATION__CYCLE_CONTEXT_HPP_

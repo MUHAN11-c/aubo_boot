@@ -1,5 +1,5 @@
 # peach_executor 参数全量清单（nav2 式：launch 以 ParameterFile 装入，部署值即事实源）
-# 代码侧兜底默认与校验规则：peach_executor 包 params.py（C++ 为 include/peach_manipulation/params.hpp）；
+# 代码侧兜底默认与校验规则：peach_executor 包 params.py（C++ 为 include/peach_arm/params.hpp）；
 # 键名冻结（真机命令/文档零破坏）。改默认值须模块与 yaml 各改一处。
 # 运行期临时改参：ros2 param set（技能节点空闲态生效；感知/重建/监控/lifecycle 需重启或 reconfigure）。
 # 跨包轴向后撤（tool.entry_d_* / refit.*_standoff_m / moveit.mtc_approach_along_axis_m）
@@ -17,13 +17,13 @@ peach_executor:
     build_start_timeout_s: 2.0  # Build 目标绑定并进入 COLLECTING 的等待上限；超时禁止观察运动。
     observe_build_grace_s: 3.0  # OBSERVE 结束后等待重建机位数追上的宽限秒数。
     begin_scene_service: /peach_scene_perception_node/begin_scene  # BeginScene 服务名。
-    survey_scene_action: /peach_manipulation_node/survey_scene  # SurveyScene 动作名。
-    execute_target_action: /peach_manipulation_node/execute_target  # ExecuteTarget 动作名。
+    survey_scene_action: /peach_arm/survey_scene  # SurveyScene 动作名。
+    execute_target_action: /peach_arm/execute_target  # ExecuteTarget 动作名。
     build_target_model_action: /peach_target_reconstruction_node/build_target_model  # BuildTargetModel 动作名。
     execute_pregrasp_only: true  # true 时接触段发 ExecuteTarget PREGRASP_ONLY（到预抓取验证后停住，不回 harvest_stow、不 SetIO；ACK 后再 Survey）；false 发 FULL。
     selection_reach_min_m: 0.15  # 选果可达窗下限（base_link 半径，米）：过近进入自碰/退化区不选。goal.target_ids 显式指定时不受窗限。
     selection_reach_max_m: 0.88  # 可达性回退窗上限（仅 CheckReachability 服务不可用时生效）：估计预抓取点半径。现场标定 09-01：预抓取成功 0.830–0.840 / MTC 0 解失败 ≥0.917。IK 预检在线时本参数不参与判定。
-    check_reachability_service: /peach_manipulation_node/check_reachability  # TCP IK 可达性预检服务（技能节点提供；executor SELECT 段批量查询）。
+    check_reachability_service: /peach_arm/check_reachability  # TCP IK 可达性预检服务（技能节点提供；executor SELECT 段批量查询）。
     selection_depth_min_m: 0.3  # 选果深度距离窗下限（相机到目标，米）：与感知管线 min_depth 一致，过近深度不可用。
     selection_depth_max_m: 1.6  # 选果深度距离窗上限（相机到目标，米）：深度质量随距离退化；采集门 min_mask_depth_ratio 仍逐帧把关，本窗做选果级预过滤。
     require_managed_stack: false  # true 时须等 /peach/lifecycle/managed_nodes_activated 才接受 RunHarvest。

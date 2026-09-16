@@ -105,7 +105,7 @@ def generate_launch_description():
             'peach_perception', 'target_reconstruction.launch.py',
             {'autostart': 'false', 'tool_profile': tool_profile}),
         _include(
-            'peach_manipulation', 'peach_manipulation.launch.py',
+            'peach_arm', 'peach_arm.launch.py',
             {'autostart': 'false', 'tool_profile': tool_profile}),
         _include('peach_observability', 'observability.launch.py'),
         _include(

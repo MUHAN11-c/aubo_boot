@@ -10,7 +10,7 @@
 |----|----|------|
 | §2 | `peach_interfaces` | 无（IDL + 清单） |
 | §3 | `peach_perception` | `peach_scene_perception_node`、`peach_target_reconstruction_node` |
-| §4 | `peach_manipulation` | `peach_manipulation_node` |
+| §4 | `peach_arm` | `peach_arm` |
 | §5 | `peach_executor` | `peach_executor`、`peach_lifecycle_manager` |
 | §5.3 | `peach_observability` | `peach_observability`（8090 / 会话 bag） |
 | §6 | 驱动九包 | 臂 / 相机 / TF（只读红线见 AGENTS） |
@@ -27,7 +27,7 @@
 |----|----------|----------|--------|
 | `peach_interfaces` | IDL + `interface_manifest.yaml` | — | 运行时节点 |
 | `peach_perception` | `BeginScene`；`/peach/perception/*`；`BuildTargetModel`；`/peach/reconstruction/*` | RGB-D、`HarvestState`、精确 stamp TF | 运动动作、`ledger.json`、选下一颗 |
-| `peach_manipulation` | `SurveyScene`、`ExecuteTarget`、`CheckReachability`、`grasp_hypothesis`、预览/使能/ACK 服务 | 观测、`GraspDecision`、`refined_*` | `RunHarvest`、重建 Trigger 客户端、`ledger.json` |
+| `peach_arm` | `SurveyScene`、`ExecuteTarget`、`CheckReachability`、`grasp_hypothesis`、预览/使能/ACK 服务 | 观测、`GraspDecision`、`refined_*` | `RunHarvest`、重建 Trigger 客户端、`ledger.json` |
 | `peach_executor` | `RunHarvest`、`ControlTask`、`HarvestState`/`events`、lifecycle | 观测（选果，仅 `target_observations`）、动作结果 | RGB-D 处理、MoveIt 规划接触、Nav2 规划 |
 | `peach_bringup` | 整栈 launch / 预检 | Include 只读 `aubo_e5_bringup` | 不自动 RunHarvest |
 | `peach_observability` | 8090 转发、独立 rosbag2 | 调度/技能只读话题 | 不发运动 |
@@ -38,7 +38,7 @@
 flowchart LR
   Op[人工] -->|RunHarvest / ControlTask| Ex[peach_executor]
   LCM[peach_lifecycle_manager] -->|managed_nodes_activated| Ex
-  Ex -->|SurveyScene| Skill[peach_manipulation_node]
+  Ex -->|SurveyScene| Skill[peach_arm]
   Ex -->|BeginScene| Perc[peach_scene_perception_node]
   Ex -->|BuildTargetModel| Rec[peach_target_reconstruction_node]
   Ex -->|ExecuteTarget OBSERVE / FULL / PREGRASP_ONLY| Skill
@@ -60,7 +60,7 @@ flowchart LR
 | 调用 | 服务端 | 发起方 | 何时 |
 |------|--------|--------|------|
 | `NavigateToWorksite` | （预留，导航包已归档） | `_cmd_navigate` | `Command.NAVIGATE`；固定座直通 `NAV_OK`，不发送动作 |
-| `CheckReachability` | `peach_manipulation_node` | `_query_reachability`（SELECT 段） | 批量 TCP IK 预检（请求=感知入口；服务端换成停位几何：后撤 + `alignFrameZ` + 滚转扫描；种子=当前关节；只答能否，不规划不动臂、不采样路径点）；不可用回退标定半径窗 |
+| `CheckReachability` | `peach_arm` | `_query_reachability`（SELECT 段） | 批量 TCP IK 预检（请求=感知入口；服务端换成停位几何：后撤 + `alignFrameZ` + 滚转扫描；种子=当前关节；只答能否，不规划不动臂、不采样路径点）；不可用回退标定半径窗 |
 | `SurveyScene` | 技能 `~/survey_scene` | `_survey_body` | `Command.SURVEY`；首巡 `NAV_OK` 后，回访 `CYCLE_DONE` / `NO_TARGET` |
 | `BeginScene` | 感知 `~/begin_scene` | 调度 `_cmd_begin` | 仅首巡 `SURVEY_AT_POSE` 后一次 |
 | 等锁 | （消费观测） | `_wait_lock` | `Command.WAIT_LOCK`；谓词：`scene_epoch` 对齐且 `target_set_locked` |
@@ -81,14 +81,14 @@ flowchart LR
 |------|--------------|------|
 | `RunHarvest` | `peach_executor` | **开一批采摘。** launch 绝不自动发。goal：`request_id`（账本目录名，须唯一）、`scene_key`、`profile_id`（**批次参数剖面**，现行未消费；与工具档案 `tool_profile_id` 是两个字段，勿混）、`intent`（PICK_ALL / PICK_SELECTED / SURVEY_ONLY）、可选 `target_ids`。结果：至少成功一颗才 `success` |
 | `NavigateToWorksite` | （预留，导航包已归档） | **走到作业位。** 固定座调度直通 `NAV_OK`，不发动作、无服务端 |
-| `SurveyScene` | `peach_manipulation` | **去全局拍照位并复核关节已静止。** 给感知准备发现 FOV。PAUSE 会取消，恢复后重试。失败整批 `survey_failed`，不 Begin |
+| `SurveyScene` | `peach_arm` | **去全局拍照位并复核关节已静止。** 给感知准备发现 FOV。PAUSE 会取消，恢复后重试。失败整批 `survey_failed`，不 Begin |
 | `BuildTargetModel` | `peach_perception` | **绑一颗、收合格机位后 finalize。** 与 OBSERVE_ONLY 并行。积分只用精确 stamp TF。反馈 `view_count` 是机位数 |
-| `ExecuteTarget` | `peach_manipulation` | **对当前 `target_id` 跑一周期。** `PREVIEW` 只规划；`OBSERVE_ONLY` 只补视角；`PREGRASP_ONLY` 停预抓取不 SetIO（默认干跑）；`FULL` 套入/刀/撤退。终局 `SUCCEEDED` / `SKIPPED_*` / `FAILED` / `CANCELED`。`harvest.grasped` 仅切断且撤退确认 |
+| `ExecuteTarget` | `peach_arm` | **对当前 `target_id` 跑一周期。** `PREVIEW` 只规划；`OBSERVE_ONLY` 只补视角；`PREGRASP_ONLY` 停预抓取不 SetIO（默认干跑）；`FULL` 套入/刀/撤退。终局 `SUCCEEDED` / `SKIPPED_*` / `FAILED` / `CANCELED`。`harvest.grasped` 仅切断且撤退确认 |
 
 | 服务 | 服务端所在包 | 含义 |
 |------|--------------|------|
 | `BeginScene` | `peach_perception` | **重启收齐窗。** 推进 `scene_epoch`。同 `scene_key` 保留身份；换场才清表。非 Active 拒绝。调度仅 DISCOVERY 首巡 Survey 到位后调用一次 |
-| `CheckReachability` | `peach_manipulation` | **选果：入口换成与 Hold 同一停位后，当前关节种子下有没有 IK。** 位置后撤 `mtc_approach_along_axis_m`，姿态 `alignFrameZ` 不抄感知滚转；keep-roll 无解再 ±30°/±60° 滚转。不规划、不动臂、不采样路径点（路径可行性在接近规划时审查）。无解记 `ik_no_solution`。服务不可用时调度回退半径窗 |
+| `CheckReachability` | `peach_arm` | **选果：入口换成与 Hold 同一停位后，当前关节种子下有没有 IK。** 位置后撤 `mtc_approach_along_axis_m`，姿态 `alignFrameZ` 不抄感知滚转；keep-roll 无解再 ±30°/±60° 滚转。不规划、不动臂、不采样路径点（路径可行性在接近规划时审查）。无解记 `ik_no_solution`。服务不可用时调度回退半径窗 |
 | `ControlTask` | `peach_executor` | **人工控批（监控不发）。** PAUSE / RESUME / CANCEL_NOW / SKIP_TARGET / ACKNOWLEDGE_RECOVERY。`expected_state_seq` 须对上，防过期点击 |
 | `ManageLifecycleNodes` | `peach_executor` | **整栈 configure/activate/拆除。** PAUSE=节点 Inactive，不是批次暂停。不发 `RunHarvest` |
 
@@ -177,7 +177,7 @@ flowchart TB
 | 名字 | 种类 | 含义 | 生产 | 消费 |
 |------|------|------|------|------|
 | `/peach_scene_perception_node/begin_scene` | service | 重启收齐窗、推进 `scene_epoch`；换场才清身份 | peach_scene_perception | peach_executor |
-| `/peach/perception/target_observations` | topic | 全量观测（锁定前 `observations[]` 空）：稳定 ID、跟踪态、掩膜、`scene_epoch`。调度选果须世代对齐且已锁定；重建对齐、技能新鲜度 | peach_scene_perception | peach_executor, peach_target_reconstruction, peach_manipulation, peach_observability |
+| `/peach/perception/target_observations` | topic | 全量观测（锁定前 `observations[]` 空）：稳定 ID、跟踪态、掩膜、`scene_epoch`。调度选果须世代对齐且已锁定；重建对齐、技能新鲜度 | peach_scene_perception | peach_executor, peach_target_reconstruction, peach_arm, peach_observability |
 | `/peach/perception/initial_pose` | topic | 单帧袋入口/轴初值。重建当起点；不授权运动 | peach_scene_perception | peach_target_reconstruction |
 | `/peach/perception/diagnostics` | topic | 单帧拟合诊断（直径/RMSE/内点） | peach_scene_perception | peach_target_reconstruction |
 | `/peach/perception/harvest_state` | topic | 感知侧计划 JSON（锁定集镜像，给监控） | peach_scene_perception | peach_observability |
@@ -260,14 +260,14 @@ flowchart TB
 | 名字 | 种类 | 含义 | 生产 | 消费 |
 |------|------|------|------|------|
 | `/peach_target_reconstruction_node/build_target_model` | action | 绑 `target_id`，收满机位后 finalize 出模型 | peach_target_reconstruction | peach_executor |
-| `/peach/reconstruction/diagnostics` | topic | 结构化心跳：绑定态、机位数、基线、TF 失败 | peach_target_reconstruction | peach_manipulation, peach_observability |
+| `/peach/reconstruction/diagnostics` | topic | 结构化心跳：绑定态、机位数、基线、TF 失败 | peach_target_reconstruction | peach_arm, peach_observability |
 | `/peach/reconstruction/diagnostics_debug` | topic | 调试 JSON 明细（TSDF/ICP/逐机位），不进决策 | peach_target_reconstruction | peach_observability |
 | `/peach/reconstruction/status` | topic | 短状态 String（MCAP 白名单用这个，不是 diagnostics） | peach_target_reconstruction | peach_observability |
-| `/peach/reconstruction/grasp_decision` | topic | 融合入口/轴/预抓取/剪切 + `allowed`（只拦套入） | peach_target_reconstruction | peach_manipulation, peach_observability |
+| `/peach/reconstruction/grasp_decision` | topic | 融合入口/轴/预抓取/剪切 + `allowed`（只拦套入） | peach_target_reconstruction | peach_arm, peach_observability |
 | `/peach/reconstruction/pregrasp_verification` | topic | 重建侧残差观测；技能 VerifyPregrasp 用工具 TF，未订本话题 | peach_target_reconstruction | （观测） |
-| `/peach/reconstruction/refined_pose` | topic | 融合后袋位姿（精化候选） | peach_target_reconstruction | peach_manipulation, peach_observability |
+| `/peach/reconstruction/refined_pose` | topic | 融合后袋位姿（精化候选） | peach_target_reconstruction | peach_arm, peach_observability |
 | `/peach/reconstruction/refined_axis` | topic | 融合袋轴，给监控三维 | peach_target_reconstruction | peach_observability |
-| `/peach/reconstruction/refined_diagnostics` | topic | 精化拟合诊断 | peach_target_reconstruction | peach_manipulation, peach_observability |
+| `/peach/reconstruction/refined_diagnostics` | topic | 精化拟合诊断 | peach_target_reconstruction | peach_arm, peach_observability |
 | `/peach/reconstruction/tsdf_cloud` | topic | 绑定目标 TSDF 表面（批次结束会复位变空） | peach_target_reconstruction | peach_observability |
 | `/peach/reconstruction/markers` | topic | 相机轨迹与精化示意 | peach_target_reconstruction | （可视化） |
 | `/peach/reconstruction/shape_hypothesis` | topic | 形状假说（契约预留，未当批次门） | peach_target_reconstruction | （无消费方） |
@@ -322,7 +322,7 @@ flowchart TB
 
 ---
 
-## 4. `peach_manipulation`
+## 4. `peach_arm`
 
 单节点。不写 `ledger.json`、不调重建 Trigger、不当 `BeginScene` / `RunHarvest` 客户端。规划 tip 为 URDF `tcp`。作业目标以 **goal.target_id** 为准。
 
@@ -358,12 +358,12 @@ flowchart TB
 
 | 名字 | 种类 | 含义 | 生产 | 消费 |
 |------|------|------|------|------|
-| `/peach_manipulation_node/survey_scene` | action | 去 SRDF 拍照位并复核当前关节；不重启收齐窗 | peach_manipulation | peach_executor |
-| `/peach_manipulation_node/execute_target` | action | 对一颗桃：观察 / 预抓取 / 套入剪切，按 `mode` 短路 | peach_manipulation | peach_executor |
-| `/peach_manipulation_node/check_reachability` | service | 批量 TCP IK：当前关节下这些位姿有没有解；不动臂 | peach_manipulation | peach_executor |
-| `/peach_manipulation_node/acknowledge_recovery` | service | 技能确认停驻已看过；调度 ACK 会调它，成功才消耗 `state_seq` | peach_manipulation | peach_executor |
-| `/peach/manipulation/grasp_hypothesis` | topic | 本周期抓取假说（监控三维；未当批次门） | peach_manipulation | peach_observability |
-| `/peach_manipulation_node/status` | topic | 技能短状态 JSON，作业票「靠近/工具」用 | peach_manipulation | peach_observability |
+| `/peach_arm/survey_scene` | action | 去 SRDF 拍照位并复核当前关节；不重启收齐窗 | peach_arm | peach_executor |
+| `/peach_arm/execute_target` | action | 对一颗桃：观察 / 预抓取 / 套入剪切，按 `mode` 短路 | peach_arm | peach_executor |
+| `/peach_arm/check_reachability` | service | 批量 TCP IK：当前关节下这些位姿有没有解；不动臂 | peach_arm | peach_executor |
+| `/peach_arm/acknowledge_recovery` | service | 技能确认停驻已看过；调度 ACK 会调它，成功才消耗 `state_seq` | peach_arm | peach_executor |
+| `/peach/manipulation/grasp_hypothesis` | topic | 本周期抓取假说（监控三维；未当批次门） | peach_arm | peach_observability |
+| `/peach_arm/status` | topic | 技能短状态 JSON，作业票「靠近/工具」用 | peach_arm | peach_observability |
 
 另有 Trigger（已进清单；8090 调试面调用，调度主路径走动作 cancel）：
 
@@ -388,7 +388,7 @@ flowchart TB
 
 默认 `execution/grasp/tool=false`：只规划、不接触、不 SetIO。
 
-作业参数（默认值/校验/描述权威在 `peach_manipulation/config/peach_manipulation.yaml` + `params.hpp`）：
+作业参数（默认值/校验/描述权威在 `peach_arm/config/peach_arm.yaml` + `params.hpp`）：
 
 | 参数 | 含义 |
 |------|------|

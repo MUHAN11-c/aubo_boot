@@ -37,7 +37,7 @@ JOINT_ORDER = (
     'wrist1_joint', 'wrist2_joint', 'wrist3_joint',
 )
 STANDOFF_M = 0.03  # grasp_standoffs.yaml pregrasp_standoff_m
-STAGING_GAP_M = 0.10  # peach_manipulation.yaml approach_staging_standoff_m
+STAGING_GAP_M = 0.10  # peach_arm.yaml approach_staging_standoff_m
 DEFAULT_ROLLS = (0, 30, -30, 60, -60, 90, -90, 120, -120, 150, -150, 180)
 RESULTS_DIR = Path(__file__).resolve().parents[1] / 'runs'
 

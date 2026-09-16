@@ -1,6 +1,6 @@
 # 重建结构化心跳：绑定态、机位数、视角基线、TF 健康。技能用来看覆盖够不够。
 # 话题：/peach/reconstruction/diagnostics（reliable, transient_local, depth 1；约 1 Hz）
-# 生产：peach_target_reconstruction    消费：peach_manipulation、peach_observability
+# 生产：peach_target_reconstruction    消费：peach_arm、peach_observability
 # 调度不订本话题。TSDF/ICP/逐机位明细在 /peach/reconstruction/diagnostics_debug（String JSON）。
 # 无效标量填 -1；消费方把 <0 视为无数据。
 

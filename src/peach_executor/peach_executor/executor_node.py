@@ -186,7 +186,7 @@ class TaskExecutorNode(LifecycleNode):
             callback_group=self._cb)
         self._ack_recovery = self.create_client(
             Trigger,
-            '/peach_manipulation_node/acknowledge_recovery',
+            '/peach_arm/acknowledge_recovery',
             callback_group=self._cb)
         self._reach = self.create_client(
             CheckReachability, self._params.check_reachability_service,

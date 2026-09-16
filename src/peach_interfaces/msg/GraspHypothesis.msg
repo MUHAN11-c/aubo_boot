@@ -1,6 +1,6 @@
 # 技能本周期抓取假说。只读监控用，不构成运动指令，也不是批次门。
 # 话题：/peach/manipulation/grasp_hypothesis（reliable, transient_local, depth 1）
-# 生产：peach_manipulation    消费：peach_observability（调度/重建不订）
+# 生产：peach_arm    消费：peach_observability（调度/重建不订）
 # 实际接触几何以 ExecuteTarget 内部 MTC 为准。
 
 std_msgs/Header header             # stamp=本周期规划时刻，frame_id=base_frame

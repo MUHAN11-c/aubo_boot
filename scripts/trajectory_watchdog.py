@@ -5,7 +5,7 @@
 每段起止弦、路径长、绕行比、相对弦偏离、回退。默认不按绕行比停轨
 （合法袋底 G 比直弦长；口侧/上方由技能节点袋囊 keepout 拒发）。
 ``--ratio/--dev/--recede`` >0 才停轨（经
-``/peach_manipulation_node/cancel_cycle``）。FK 走 ``/compute_fk``
+``/peach_arm/cancel_cycle``）。FK 走 ``/compute_fk``
 （15 Hz 截流）。``/joint_states`` 按名字映射（mock 广播器是字母序）。
 
 须已起 mock harvest_system。不进 colcon test；仿真验证用，不碰真机。
@@ -95,9 +95,9 @@ def main() -> int:
         depth=1, reliability=QoSReliabilityPolicy.RELIABLE,
         durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
     node.create_subscription(
-        String, '/peach_manipulation_node/status', on_status, latched)
+        String, '/peach_arm/status', on_status, latched)
     fk_cli = node.create_client(GetPositionFK, '/compute_fk')
-    cancel_cli = node.create_client(Trigger, '/peach_manipulation_node/cancel_cycle')
+    cancel_cli = node.create_client(Trigger, '/peach_arm/cancel_cycle')
 
     out_path = RESULTS_DIR / (
         f'trajectory_watchdog_{time.strftime("%Y%m%d_%H%M%S")}.jsonl')

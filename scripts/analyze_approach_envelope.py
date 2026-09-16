@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """感知包络 + 接近护栏的解析覆盖（不执臂、不调 ExecuteTarget）。
 
-对照现行约束（peach_perception 上半球 clamp；peach_manipulation 弦长 /
+对照现行约束（peach_perception 上半球 clamp；peach_arm 弦长 /
 果实胶囊+反爬 / TCP 姿态测地线绝对 110°、相对起止余量 20°）：在算法包络内分层抽 N 个入口+轴，对每例
 复刻 C++ 的闭式审查。主路径是 staging PTP，**弦 keepout 只作 LIN 对照、
 不计入 analytic_ok**（PTP 弧须 FK）。不规划关节，因此 **不** 声称累计

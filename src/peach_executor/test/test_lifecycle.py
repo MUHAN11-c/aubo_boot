@@ -28,8 +28,8 @@ def test_deactivate_inflight_timeout_latches_recovery():
 def test_heartbeat_missing():
     dog = HeartbeatWatchdog(timeout_s=1.0)
     dog.beat('peach_executor', 1.0)
-    assert dog.missing(['peach_executor', 'peach_manipulation_node'], 1.5) == [
-        'peach_manipulation_node']
+    assert dog.missing(['peach_executor', 'peach_arm'], 1.5) == [
+        'peach_arm']
     assert dog.missing(['peach_executor'], 3.0) == ['peach_executor']
 
 

@@ -1,5 +1,5 @@
 # peach_observability 参数全量清单（nav2 式：launch 以 ParameterFile 装入，部署值即事实源）
-# 代码侧兜底默认与校验规则：peach_executor 包 params.py（C++ 为 include/peach_manipulation/params.hpp）；
+# 代码侧兜底默认与校验规则：peach_executor 包 params.py（C++ 为 include/peach_arm/params.hpp）；
 # 键名冻结（真机命令/文档零破坏）。改默认值须模块与 yaml 各改一处。
 # 运行期临时改参：ros2 param set（技能节点空闲态生效；感知/重建/监控/lifecycle 需重启或 reconfigure）。
 # 跨包轴向后撤（tool.entry_d_* / refit.*_standoff_m / moveit.mtc_approach_along_axis_m）
@@ -18,7 +18,7 @@ peach_observability:
     refined_pose_topic: /peach/reconstruction/refined_pose  # 精化位姿话题
     refined_axis_topic: /peach/reconstruction/refined_axis  # 精化轴线话题
     refined_diagnostics_topic: /peach/reconstruction/refined_diagnostics  # 精化质量话题
-    manipulation_status_topic: /peach_manipulation_node/status  # 机械臂技能节点状态 JSON 话题
+    manipulation_status_topic: /peach_arm/status  # 机械臂技能节点状态 JSON 话题
     grasp_hypothesis_topic: /peach/manipulation/grasp_hypothesis  # 技能侧抓取假设（只读监控，不构成运动指令）
     task_executor_state_topic: /peach_executor/state  # 调度节点类型化状态话题
     task_executor_events_topic: /peach_executor/events  # 调度过程/审计事件话题（事件时间线）
@@ -32,7 +32,7 @@ peach_observability:
     metrics_topic: /peach/observability/metrics  # 性能采样 JSON 派生话题（1s 发布，随 bag 录制）
     event_buffer_size: 100  # 事件时间线环形缓冲上限（条），超出丢弃最旧
     metrics_period_s: 1.0  # 系统/GPU/进程性能采样周期（秒），独立线程采集
-    metrics_process_patterns: [peach_scene_perception_node, peach_target_reconstruction_node, peach_manipulation_node, peach_executor, ros2_control_node, percipio]  # 进程性能监控的 cmdline 子串匹配关键字列表
+    metrics_process_patterns: [peach_scene_perception_node, peach_target_reconstruction_node, peach_arm, peach_executor, ros2_control_node, percipio]  # 进程性能监控的 cmdline 子串匹配关键字列表
     record:
       enabled: true  # 会话 bag 录制总开关（栈启动开 runs/session_*/bag，栈停止关 bag 并自动出报告）
       root_dir: ''  # 过程数据根；空=工作区 runs/（与账本、session 同一目录）
@@ -62,16 +62,16 @@ peach_observability:
       run_harvest_action: /peach_executor/run_harvest  # RunHarvest 动作名
       control_service: /peach_executor/control  # ControlTask 服务名
       begin_scene_service: /peach_scene_perception_node/begin_scene  # BeginScene 服务名
-      survey_action: /peach_manipulation_node/survey_scene  # SurveyScene 动作名
-      execute_action: /peach_manipulation_node/execute_target  # ExecuteTarget 动作名
+      survey_action: /peach_arm/survey_scene  # SurveyScene 动作名
+      execute_action: /peach_arm/execute_target  # ExecuteTarget 动作名
       build_action: /peach_target_reconstruction_node/build_target_model  # BuildTargetModel 动作名
-      check_reachability_service: /peach_manipulation_node/check_reachability  # CheckReachability 服务名
-      photo_pose_service: /peach_manipulation_node/go_to_photo_pose  # 去拍照位 Trigger 服务名
-      preview_approach_service: /peach_manipulation_node/preview_approach_insert  # 只规划接近+插入 Trigger 服务名
-      preview_full_service: /peach_manipulation_node/preview_full_contact  # 只规划全接触 Trigger 服务名
-      ack_recovery_service: /peach_manipulation_node/acknowledge_recovery  # 确认恢复 Trigger 服务名
-      arm_service: /peach_manipulation_node/set_execution_armed  # 执行 arm 开关 SetBool 服务名
-      skill_cancel_service: /peach_manipulation_node/cancel_cycle  # 技能周期取消 Trigger 服务名
+      check_reachability_service: /peach_arm/check_reachability  # CheckReachability 服务名
+      photo_pose_service: /peach_arm/go_to_photo_pose  # 去拍照位 Trigger 服务名
+      preview_approach_service: /peach_arm/preview_approach_insert  # 只规划接近+插入 Trigger 服务名
+      preview_full_service: /peach_arm/preview_full_contact  # 只规划全接触 Trigger 服务名
+      ack_recovery_service: /peach_arm/acknowledge_recovery  # 确认恢复 Trigger 服务名
+      arm_service: /peach_arm/set_execution_armed  # 执行 arm 开关 SetBool 服务名
+      skill_cancel_service: /peach_arm/cancel_cycle  # 技能周期取消 Trigger 服务名
       recon_save_session_service: /peach_target_reconstruction_node/save_session  # 重建会话落盘 Trigger 服务名
       recon_reset_service: /peach_target_reconstruction_node/reset_reconstruction  # 重建复位 Trigger 服务名
       recon_finalize_service: /peach_target_reconstruction_node/finalize_reconstruction  # 重建手动 finalize Trigger 服务名

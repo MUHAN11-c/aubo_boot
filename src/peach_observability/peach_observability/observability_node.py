@@ -95,7 +95,7 @@ PARAM_WATCHLIST = {
         'capture.min_mask_depth_ratio', 'capture.require_target_mask',
         'icp.enable', 'tsdf.enable',
     ],
-    '/peach_manipulation_node': [
+    '/peach_arm': [
         'moveit.velocity_scaling', 'moveit.acceleration_scaling',
         'moveit.transit_velocity_scaling', 'moveit.transit_acceleration_scaling',
         'scan.observation_radius_m', 'scan.minimum_radius_m',

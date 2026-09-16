@@ -28,8 +28,8 @@ python3 src/peach_interfaces/scripts/check_interface_manifest.py
 | `peach_perception/config/scene_perception.yaml` | 检测、锁定窗、深度窗、袋/果管线 |
 | `peach_perception/config/target_reconstruction.yaml` | 采帧门、TSDF、机位数 |
 | `peach_perception/config/grasp_standoffs.yaml` | 入口相对袋底、预抓取后撤（launch 注入各节点已声明参数） |
-| `peach_manipulation/config/peach_manipulation.yaml` | 视点、MTC、接触、刀具 IO |
-| `peach_manipulation/src/execution_contract_parameters.yaml` | 执行合同（GPL） |
+| `peach_arm/config/peach_arm.yaml` | 视点、MTC、接触、刀具 IO |
+| `peach_arm/src/execution_contract_parameters.yaml` | 执行合同（GPL） |
 | `peach_executor/config/peach_executor.yaml` | 批次、选果、`execute_pregrasp_only` |
 | `peach_executor/config/lifecycle_manager.yaml` | lifecycle 名单与顺序 |
 | `peach_executor/config/observability.yaml` | 监控 Web；`debug.motion_enabled` 默认关 |
@@ -91,12 +91,12 @@ QoS 缩写：`R` reliable；`TL` transient_local（晚订户仍拿得到最后�
 
 | 名字 | 种类 | 类型 | 含义 | 发 | 订 | QoS |
 |------|------|------|------|----|----|-----|
-| `/peach_manipulation_node/survey_scene` | action | `SurveyScene` | 去全局拍照位并确认关节已静止。失败整批 `survey_failed`，不 Begin | 技能 | 调度 | — |
-| `/peach_manipulation_node/execute_target` | action | `ExecuteTarget` | 对当前 `target_id` 跑一周期：预览 / 补视角 / 停预抓取 / 套入 | 技能 | 调度 | — |
-| `/peach_manipulation_node/check_reachability` | service | `CheckReachability` | 选果：入口换成与 Hold 同一停位后，当前关节有没有 IK。不规划、不动臂 | 技能 | 调度 | — |
-| `/peach_manipulation_node/acknowledge_recovery` | service | `std_srvs/Trigger` | 接触或预抓取停住后，调度转发人工 ACK | 技能 | 调度 | — |
+| `/peach_arm/survey_scene` | action | `SurveyScene` | 去全局拍照位并确认关节已静止。失败整批 `survey_failed`，不 Begin | 技能 | 调度 | — |
+| `/peach_arm/execute_target` | action | `ExecuteTarget` | 对当前 `target_id` 跑一周期：预览 / 补视角 / 停预抓取 / 套入 | 技能 | 调度 | — |
+| `/peach_arm/check_reachability` | service | `CheckReachability` | 选果：入口换成与 Hold 同一停位后，当前关节有没有 IK。不规划、不动臂 | 技能 | 调度 | — |
+| `/peach_arm/acknowledge_recovery` | service | `std_srvs/Trigger` | 接触或预抓取停住后，调度转发人工 ACK | 技能 | 调度 | — |
 | `/peach/manipulation/grasp_hypothesis` | topic | `GraspHypothesis` | 本周期技能打算怎么抓。**只有监控订**，FSM 不靠它做决定 | 技能 | 监控 | R/TL/1 |
-| `/peach_manipulation_node/status` | topic | `std_msgs/String` | 技能短状态 | 技能 | 监控 | R/TL/1 |
+| `/peach_arm/status` | topic | `std_msgs/String` | 技能短状态 | 技能 | 监控 | R/TL/1 |
 
 ### 监控自产
 
@@ -105,7 +105,7 @@ QoS 缩写：`R` reliable；`TL` transient_local（晚订户仍拿得到最后�
 | `/peach/observability/tcp_path` | topic | `nav_msgs/Path` | TCP 轨迹 | 监控 | （核内无订） | R/TL/1 |
 | `/peach/observability/markers` | topic | `MarkerArray` | 监控叠加 | 监控 | （核内无订） | R/TL/1 |
 
-清单故意不收的可视化话题（源码仍发，RViz 用手订）：`/peach/perception/{axis,debug_image_raw,detections,markers,masks,single_cloud}`、`/peach/reconstruction/local_cloud`、`/peach_manipulation_node/planned_views`。
+清单故意不收的可视化话题（源码仍发，RViz 用手订）：`/peach/perception/{axis,debug_image_raw,detections,markers,masks,single_cloud}`、`/peach/reconstruction/local_cloud`、`/peach_arm/planned_views`。
 
 导航四条在文末「预留」。
 

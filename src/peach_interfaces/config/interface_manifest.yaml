@@ -192,16 +192,21 @@ interfaces:
     qos: {reliability: reliable, durability: transient_local, depth: 1}
     producers: []   # 阶段 3 起 peach_supervisor（SetEnables 服务后广播）
     consumers: [peach_arm]
+  - name: /peach_lifecycle_manager/is_active
+    kind: service
+    type: std_srvs/srv/Trigger
+    producers: []   # nav2_lifecycle_manager（外部节点，阶段 5 替自研件）
+    consumers: [peach_bringup]
   - name: /peach/lifecycle/managed_nodes_activated
     kind: topic
     type: std_msgs/msg/Bool
     qos: {reliability: reliable, durability: transient_local, depth: 1}
-    producers: [peach_lifecycle_manager]
+    producers: [peach_lifecycle_flag_bridge]  # 阶段5：nav2_lm is_active→闩锁桥
     consumers: [peach_executor]
   - name: /peach_lifecycle_manager/manage_nodes
     kind: service
     type: peach_interfaces/srv/ManageLifecycleNodes
-    producers: [peach_lifecycle_manager]
+    producers: []   # 旧自研件（阶段6删）；nav2_lm 用自带 nav2_msgs 服务
     consumers: []
   - name: /peach_target_reconstruction_node/build_target_model
     kind: action

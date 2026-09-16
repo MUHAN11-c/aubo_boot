@@ -22,4 +22,11 @@ setup(
     maintainer_email='2155413529@qq.com',
     description='Peach harvest stack bringup.',
     license='BSD-3-Clause',
+    entry_points={
+        'console_scripts': [
+            'peach_lifecycle_flag_bridge = '
+            'peach_bringup.lifecycle_flag_bridge:main',
+            'peach_autostart_client = peach_bringup.autostart_client:main',
+        ],
+    },
 )

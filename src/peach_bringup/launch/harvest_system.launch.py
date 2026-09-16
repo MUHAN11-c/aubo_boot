@@ -1,4 +1,13 @@
-"""启动桃子采摘完整业务栈（整栈入口；launch 不自动 RunHarvest）."""
+"""启动桃子采摘完整业务栈（整栈入口；autostart 参数控制是否自动开批）.
+
+清洁重写轮阶段 5：生命周期管理换 nav2_lifecycle_manager（bond_timeout=0.0
+管 rclpy 节点；名单/顺序语义同原自研件；进程死检由 supervisor
+HeartbeatWatchdog 承担）+ lifecycle_flag_bridge 把 is_active 桥接为闩锁
+/peach/lifecycle/managed_nodes_activated（消费方零改动）。autostart 客户端
+在栈就绪后自动发 RunHarvest——原「launch 绝不自动开批」红线已按用户核定
+删除（2026-09-16），授权语义=操作员发起 launch（红线 3）；默认关，部署
+档自开。
+"""
 
 from launch import LaunchDescription
 from launch.actions import (
@@ -8,6 +17,7 @@ from launch.actions import (
 )
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 from peach_bringup.preflight import running_stack_pids
@@ -49,6 +59,7 @@ def generate_launch_description():
     hand_eye_enabled = LaunchConfiguration('hand_eye_enabled')
     hand_eye_web_enabled = LaunchConfiguration('hand_eye_web_enabled')
     tool_profile = LaunchConfiguration('tool_profile')
+    autostart = LaunchConfiguration('autostart')
     return LaunchDescription([
         OpaqueFunction(function=_preflight),
         DeclareLaunchArgument(
@@ -62,6 +73,10 @@ def generate_launch_description():
             'tool_profile', default_value='adaptive_cylinder_v1',
             choices=['hollow_cylinder_v1', 'adaptive_cylinder_v1'],
             description='末端工具档案'),
+        DeclareLaunchArgument(
+            'autostart', default_value='false',
+            description='true 时托管栈就绪后自动发 RunHarvest（授权=操作员'
+                        '发起本 launch，红线 3；默认关，部署档自定）'),
         DeclareLaunchArgument(
             'moveit_enabled', default_value='true',
             description='启动 MoveIt move_group 和 RViz2'),
@@ -105,5 +120,34 @@ def generate_launch_description():
             'peach_arm', 'peach_arm.launch.py',
             {'autostart': 'false', 'tool_profile': tool_profile}),
         _include('peach_observability', 'observability.launch.py'),
-        _include('peach_harvester', 'lifecycle_manager.launch.py'),
+        # 阶段 5：nav2_lifecycle_manager 替自研件（bond_timeout=0.0 管
+        # rclpy；名单顺序=场景→重建→技能→调度；进程死检=watchdog）
+        Node(
+            package='nav2_lifecycle_manager',
+            executable='lifecycle_manager',
+            name='peach_lifecycle_manager',
+            output='screen',
+            parameters=[{
+                'node_names': [
+                    'peach_scene_perception_node',
+                    'peach_target_reconstruction_node',
+                    'peach_arm',
+                    'peach_executor',
+                ],
+                'autostart': True,
+                'bond_timeout': 0.0,
+            }]),
+        # is_active → 闩锁 managed_nodes_activated 桥（消费方零改动）
+        Node(
+            package='peach_bringup',
+            executable='peach_lifecycle_flag_bridge',
+            name='peach_lifecycle_flag_bridge',
+            output='screen'),
+        # autostart 客户端（默认关；授权=操作员发起 launch，红线 3）
+        Node(
+            package='peach_bringup',
+            executable='peach_autostart_client',
+            name='peach_autostart_client',
+            output='screen',
+            condition=IfCondition(autostart)),
     ])

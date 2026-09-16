@@ -207,3 +207,7 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 **残余路径**：①向图漾发函确认 PS800-E1 固件是否有 raw 图案流/高速档（用户存储 JSON 由 PercipioDC 工具写入，驱动 open 时加载，是厂商工具链的合法入口）；②确需高帧率深度则换型（官方页同厂高帧档：FM854-E1 26fps@640×480、FM855-E1 19fps、FM815-IX-E1 5fps、GM 系列 ToF 30fps、TM 系列 25fps）。
 
 环境复原：install 参数文件与备份逐字节一致；本轮未改 `src/`；探针与帧样本均在 `/tmp/percipio_fps_test/`（重启即失）。
+
+### 09-16 再续（参数可调性判定 + 深度模式曝光实验）
+
+用户问"当前参数能否调整"。实时读回 75 项与此前一致（image number=18、match window 5×5、IR 曝光 990、flash light intensity=19/enable=0、laser power=50）。补测最后一个未验证的帧率杠杆：**深度模式下 IR 曝光**（Left/Right `ExposureTime` 经 install xml 启动期下发，990→300→100 三档）——帧率恒定 2.4283/2.4209/2.4177（±0.5% 噪声级），**IR 曝光寄存器不参与深度采集周期**（对比 IR 单流模式下曝光确实改变传率 14.8↔25fps，深度管线不吃这个口）。至此 PS800-E1 全部 SDK 可及参数对深度帧率的效应实测完毕：**没有任何参数能提高深度采集帧率**。Viewer 调参走同一套寄存器，结论相同；Viewer 的剩余价值=Expert/Guru 级参数树浏览、GUI 质量对比、参数集基线管理。环境复原核验通过（install 逐字节一致、src 干净、无残留）。

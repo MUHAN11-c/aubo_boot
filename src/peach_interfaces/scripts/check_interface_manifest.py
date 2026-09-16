@@ -41,6 +41,13 @@ _CONSUMER_PATHS = {
         'peach_harvester/peach_harvester/supervisor/harvest_fsm.py',
         'peach_harvester/config/peach_executor.yaml',
     ],
+    'peach_bringup': [
+        'peach_bringup/peach_bringup',
+        'peach_bringup/launch',
+    ],
+    'peach_lifecycle_flag_bridge': [
+        'peach_bringup/peach_bringup/lifecycle_flag_bridge.py',
+    ],
     'peach_observability': [
         'peach_observability/peach_observability',
         'peach_harvester/config/observability.yaml',

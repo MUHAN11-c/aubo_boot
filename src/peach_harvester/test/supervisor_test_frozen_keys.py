@@ -47,8 +47,8 @@ def _yaml_keys(filename: str, node_name: str) -> set[str]:
 
 
 def test_executor_yaml_matches_defaults():
-    assert _defaults_keys('peach_executor') == _yaml_keys(
-        'peach_executor.yaml', 'peach_executor')
+    assert _defaults_keys('peach_supervisor') == _yaml_keys(
+        'peach_supervisor.yaml', 'peach_supervisor')
 
 
 def test_observability_yaml_matches_defaults():
@@ -62,10 +62,10 @@ def test_lifecycle_manager_yaml_matches_defaults():
 
 
 def test_contract_param_keys_are_frozen_subset():
-    keys = _defaults_keys('peach_executor')
+    keys = _defaults_keys('peach_supervisor')
     doc = yaml.safe_load(
         (ROOT / 'config' / 'supervisor_contract.param.yaml').read_text(encoding='utf-8'))
     schema = {
-        name for name, value in doc['peach_executor'].items()
+        name for name, value in doc['peach_supervisor'].items()
         if isinstance(value, dict) and 'type' in value}
     assert schema <= keys

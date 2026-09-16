@@ -1,5 +1,5 @@
 # peach_observability 参数全量清单（nav2 式：launch 以 ParameterFile 装入，部署值即事实源）
-# 代码侧兜底默认与校验规则：peach_executor 包 params.py（C++ 为 include/peach_arm/params.hpp）；
+# 代码侧兜底默认与校验规则：peach_supervisor 包 params.py（C++ 为 include/peach_arm/params.hpp）；
 # 键名冻结（真机命令/文档零破坏）。改默认值须模块与 yaml 各改一处。
 # 运行期临时改参：ros2 param set（技能节点空闲态生效；感知/重建/监控/lifecycle 需重启或 reconfigure）。
 # 跨包轴向后撤（tool.entry_d_* / refit.*_standoff_m / moveit.mtc_approach_along_axis_m）
@@ -20,19 +20,19 @@ peach_observability:
     refined_diagnostics_topic: /peach/reconstruction/refined_diagnostics  # 精化质量话题
     manipulation_status_topic: /peach_arm/status  # 机械臂技能节点状态 JSON 话题
     grasp_hypothesis_topic: /peach/manipulation/grasp_hypothesis  # 技能侧抓取假设（只读监控，不构成运动指令）
-    task_executor_state_topic: /peach_executor/state  # 调度节点类型化状态话题
-    task_executor_events_topic: /peach_executor/events  # 调度过程/审计事件话题（事件时间线）
+    task_executor_state_topic: /peach_supervisor/state  # 调度节点类型化状态话题
+    task_executor_events_topic: /peach_supervisor/events  # 调度过程/审计事件话题（事件时间线）
     robot_status_topic: /aubo_io_controller/robot_status  # 机械臂上电/急停/运动/错误状态话题
     joint_states_topic: /joint_states  # 实际关节角/速度（sensor_msgs/JointState）
     joint_status_topic: /aubo_io_controller/joint_status  # 关节电流/温度/跟随误差（aubo_msgs/JointStatus）
     tf_topic: /tf  # 动态 TF 话题（录制末端轨迹离线重算用）
     tf_static_topic: /tf_static  # 静态 TF 话题（transient_local）
-    scene_snapshot_topic: /peach_executor/scene_snapshot  # 调度场景快照话题（bag 专用，监控不镜像）
+    scene_snapshot_topic: /peach_supervisor/scene_snapshot  # 调度场景快照话题（bag 专用，监控不镜像）
     job_topic: /peach/observability/job  # 作业票 JSON 派生话题（指纹变化发布，随 bag 录制）
     metrics_topic: /peach/observability/metrics  # 性能采样 JSON 派生话题（1s 发布，随 bag 录制）
     event_buffer_size: 100  # 事件时间线环形缓冲上限（条），超出丢弃最旧
     metrics_period_s: 1.0  # 系统/GPU/进程性能采样周期（秒），独立线程采集
-    metrics_process_patterns: [peach_scene_perception_node, peach_target_reconstruction_node, peach_arm, peach_executor, ros2_control_node, percipio]  # 进程性能监控的 cmdline 子串匹配关键字列表
+    metrics_process_patterns: [peach_scene_perception_node, peach_target_reconstruction_node, peach_arm, peach_supervisor, ros2_control_node, percipio]  # 进程性能监控的 cmdline 子串匹配关键字列表
     record:
       enabled: true  # 会话 bag 录制总开关（栈启动开 runs/session_*/bag，栈停止关 bag 并自动出报告）
       root_dir: ''  # 过程数据根；空=工作区 runs/（与账本、session 同一目录）
@@ -59,8 +59,8 @@ peach_observability:
       action_timeout_s: 180.0  # 动作结果等待上限（秒）；服务 10 秒
       audit_enabled: true  # 调试操作审计落盘 runs/debug_audit/<日期>.jsonl（含被拒请求）
     debug.endpoints:
-      run_harvest_action: /peach_executor/run_harvest  # RunHarvest 动作名
-      control_service: /peach_executor/control  # ControlTask 服务名
+      run_harvest_action: /peach_supervisor/run_harvest  # RunHarvest 动作名
+      control_service: /peach_supervisor/control  # ControlTask 服务名
       begin_scene_service: /peach_scene_perception_node/begin_scene  # BeginScene 服务名
       survey_action: /peach_arm/survey_scene  # SurveyScene 动作名
       execute_action: /peach_arm/execute_target  # ExecuteTarget 动作名

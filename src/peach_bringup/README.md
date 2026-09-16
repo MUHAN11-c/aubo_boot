@@ -9,7 +9,7 @@ ros2 launch peach_bringup harvest_system.launch.py \
   hardware_mode:=mock camera_enabled:=false
 ```
 
-`peach_executor/harvest_system.launch.py` 薄转发到本包。预检 `peach_bringup.preflight.running_stack_pids`（argv0 或 `.../lib/<pkg>/<node>`，不是 colcon 参数名）。
+`peach_supervisor/harvest_system.launch.py` 薄转发到本包。预检 `peach_bringup.preflight.running_stack_pids`（argv0 或 `.../lib/<pkg>/<node>`，不是 colcon 参数名）。
 
 ## 构建 / 测试 / 许可
 

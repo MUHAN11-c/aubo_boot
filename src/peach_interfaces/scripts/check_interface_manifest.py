@@ -31,15 +31,24 @@ EXEMPT_VISUALIZATION = {
     '/peach_arm/planned_views',
 }
 
+# bag_reader legacy 别名的旧键：仅为旧 bag 回放兼容，不在图上（阶段 6-3）
+EXEMPT_LEGACY_ALIASES = {
+    '/peach_executor/control',
+    '/peach_executor/events',
+    '/peach_executor/run_harvest',
+    '/peach_executor/scene_snapshot',
+    '/peach_executor/state',
+}
+
 _LITERAL_RE = re.compile(r'[\'"](/peach[A-Za-z0-9_/]*)[\'"]')
 
 # consumer 标签 → 源码相对 src/ 的文件或目录（调度节点不含监控）。
 _CONSUMER_PATHS = {
-    'peach_executor': [
+    'peach_supervisor': [
         'peach_harvester/peach_harvester/supervisor/executor_node.py',
         'peach_harvester/peach_harvester/supervisor/batch.py',
         'peach_harvester/peach_harvester/supervisor/harvest_fsm.py',
-        'peach_harvester/config/peach_executor.yaml',
+        'peach_harvester/config/peach_supervisor.yaml',
     ],
     'peach_bringup': [
         'peach_bringup/peach_bringup',
@@ -165,6 +174,8 @@ def main() -> int:
     untracked = []
     for literal in sorted(set(_LITERAL_RE.findall(blob))):
         if literal in known or literal in EXEMPT_VISUALIZATION:
+            continue
+        if literal in EXEMPT_LEGACY_ALIASES:
             continue
         if any(name.startswith(literal) for name in known):
             continue

@@ -124,7 +124,7 @@ class TaskExecutorNode(LifecycleNode):
     """整栈调度：RunHarvest 串联导航/感知/臂；launch 从不自动开批."""
 
     def __init__(self):
-        super().__init__('peach_executor')
+        super().__init__('peach_supervisor')
         self._lock = threading.Lock()
         self._state_seq = 0
         self._paused = False
@@ -185,7 +185,7 @@ class TaskExecutorNode(LifecycleNode):
         self._stack_ready = False
         self._wake = threading.Event()
         self._cb = ReentrantCallbackGroup()
-        from peach_harvester.supervisor.params import peach_executor as params_ns
+        from peach_harvester.supervisor.params import peach_supervisor as params_ns
         self._param_listener = params_ns.ParamListener(self)
         # 手写监听器（params.py）用途：运行路径读快照，不散落 get_parameter。
         # 开批与 HarvestState 发布会按 stamp 刷新，故 ros2 param set

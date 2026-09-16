@@ -49,7 +49,7 @@ setup(
             'peach_harvester.vision.scene_perception.scene_perception_node:main',
             'peach_target_reconstruction_node = '
             'peach_harvester.vision.target_reconstruction.target_reconstruction_node:main',
-            'peach_executor = '
+            'peach_supervisor = '
             'peach_harvester.supervisor.executor_node:main',
             'peach_lifecycle_manager = '
             'peach_harvester.supervisor.lifecycle_manager:main',

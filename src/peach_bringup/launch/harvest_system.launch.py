@@ -132,7 +132,7 @@ def generate_launch_description():
                     'peach_scene_perception_node',
                     'peach_target_reconstruction_node',
                     'peach_arm',
-                    'peach_executor',
+                    'peach_supervisor',
                 ],
                 'autostart': True,
                 'bond_timeout': 0.0,

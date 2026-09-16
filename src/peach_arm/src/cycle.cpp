@@ -140,7 +140,7 @@ rclcpp_action::GoalResponse ManipulationSkillsNode::onActionGoal(
   }
   // FULL/PREVIEW 与 OBSERVE_ONLY 同一受理门：以 ExecuteTarget.goal.target_id
   // 为准，命中锁定集有效锚点即可；未锁定时回退感知 selected 缓存（单目标
-  // 手动周期）。编排器选择权在 peach_executor，不再要求 selected 字段。
+  // 手动周期）。编排器选择权在 peach_supervisor，不再要求 selected 字段。
   const auto locked = cache_.lockedTargetGateSample(goal->target_id);
   if (locked.id == goal->target_id && locked.valid) {
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;

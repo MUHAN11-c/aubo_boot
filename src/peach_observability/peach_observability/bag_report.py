@@ -22,8 +22,8 @@ import numpy as np
 from .path_metrics import path_metrics
 
 # 契约话题名（图名契约冻结；bag_reader 流键即话题名）
-T_EVENTS = '/peach_executor/events'
-T_STATE = '/peach_executor/state'
+T_EVENTS = '/peach_supervisor/events'
+T_STATE = '/peach_supervisor/state'
 T_TARGETS = '/peach/perception/target_observations'
 T_HARVEST = '/peach/perception/harvest_state'
 T_RECON_STATUS = '/peach/reconstruction/status'

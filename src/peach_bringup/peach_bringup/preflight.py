@@ -5,7 +5,7 @@ import os
 
 PREFLIGHT_PATTERNS = (
     'peach_scene_perception_node', 'peach_target_reconstruction_node',
-    'peach_arm', 'peach_executor', 'peach_observability',
+    'peach_arm', 'peach_supervisor', 'peach_observability',
     'peach_lifecycle_manager', 'component_container', 'move_group',
     'robot_state_publisher', 'ros2_control_node', 'controller_manager',
     'joint_state_publisher', 'joint_state_publisher_gui',

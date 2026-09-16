@@ -1,60 +1,60 @@
 # peach 跨包契约清单（单一真源，对齐 Autoware component_interface_specs 思路）
 # 名称 / 类型 / QoS / 生产与消费方。脚本 scripts/check_interface_manifest.py 双向核对：
 #   正向 manifest→源码字面量；反向源码绝对 /peach 话题字面量→manifest（可视化豁免表内除外）。
-# 现行核心栈：peach_interfaces / peach_perception / peach_arm / peach_executor /
+# 现行核心栈：peach_interfaces / peach_perception / peach_arm / peach_supervisor /
 # peach_bringup / peach_observability / peach_system_tests。
 version: 2
 interfaces:
-  - name: /peach_executor/state
+  - name: /peach_supervisor/state
     kind: topic
     type: peach_interfaces/msg/HarvestState
     qos: {reliability: reliable, durability: transient_local, depth: 1}
-    producers: [peach_executor]
+    producers: [peach_supervisor]
     consumers: [peach_scene_perception, peach_target_reconstruction, peach_observability]
-  - name: /peach_executor/events
+  - name: /peach_supervisor/events
     kind: topic
     type: peach_interfaces/msg/CanonicalEvent
     qos: {reliability: reliable, durability: transient_local, depth: 50}
-    producers: [peach_executor]
+    producers: [peach_supervisor]
     consumers: [peach_observability]
-  - name: /peach_executor/scene_snapshot
+  - name: /peach_supervisor/scene_snapshot
     kind: topic
     type: peach_interfaces/msg/SceneSnapshot
     qos: {reliability: reliable, durability: transient_local, depth: 1}
-    producers: [peach_executor]
+    producers: [peach_supervisor]
     consumers: [peach_observability]
-  - name: /peach_executor/run_harvest
+  - name: /peach_supervisor/run_harvest
     kind: action
     type: peach_interfaces/action/RunHarvest
-    producers: [peach_executor]
+    producers: [peach_supervisor]
     consumers: [peach_observability]
-  - name: /peach_executor/set_enables
+  - name: /peach_supervisor/set_enables
     kind: service
     type: peach_interfaces/srv/SetEnables
-    producers: [peach_executor]
+    producers: [peach_supervisor]
     consumers: []   # 阶段 4 起：操作台 8090（后端转发）——意图源=supervisor，
                     # 广播 /peach/batch/enables，强制点=臂侧命令门
-  - name: /peach_executor/set_batch_policy
+  - name: /peach_supervisor/set_batch_policy
     kind: service
     type: peach_interfaces/srv/SetBatchPolicy
-    producers: [peach_executor]
+    producers: [peach_supervisor]
     consumers: []   # 阶段 4 起：操作台 8090
-  - name: /peach_executor/fire_step
+  - name: /peach_supervisor/fire_step
     kind: service
     type: peach_interfaces/srv/FireStep
-    producers: [peach_executor]
+    producers: [peach_supervisor]
     consumers: []   # 阶段 4 起：操作台 8090；运动类过臂侧命令门
-  - name: /peach_executor/control
+  - name: /peach_supervisor/control
     kind: service
     type: peach_interfaces/srv/ControlTask
-    producers: [peach_executor]
+    producers: [peach_supervisor]
     consumers: [peach_observability]
   - name: /peach/perception/target_observations
     kind: topic
     type: peach_interfaces/msg/PeachTargetObservationArray
     qos: {reliability: reliable, durability: volatile, depth: 10}
     producers: [peach_scene_perception]
-    consumers: [peach_executor, peach_target_reconstruction, peach_arm, peach_observability]
+    consumers: [peach_supervisor, peach_target_reconstruction, peach_arm, peach_observability]
   - name: /peach/perception/initial_pose
     kind: topic
     type: peach_interfaces/msg/BagGraspCandidateArray
@@ -154,17 +154,17 @@ interfaces:
     kind: service
     type: peach_interfaces/srv/BeginScene
     producers: [peach_scene_perception]
-    consumers: [peach_executor, peach_observability]
+    consumers: [peach_supervisor, peach_observability]
   - name: /peach_arm/survey_scene
     kind: action
     type: peach_interfaces/action/SurveyScene
     producers: [peach_arm]
-    consumers: [peach_executor]
+    consumers: [peach_supervisor]
   - name: /peach_arm/execute_target
     kind: action
     type: peach_interfaces/action/ExecuteTarget
     producers: [peach_arm]
-    consumers: [peach_executor]
+    consumers: [peach_supervisor]
   - name: /peach_arm/status
     kind: topic
     type: std_msgs/msg/String
@@ -175,12 +175,12 @@ interfaces:
     kind: service
     type: std_srvs/srv/Trigger
     producers: [peach_arm]
-    consumers: [peach_executor]
+    consumers: [peach_supervisor]
   - name: /peach_arm/check_reachability
     kind: service
     type: peach_interfaces/srv/CheckReachability
     producers: [peach_arm]
-    consumers: [peach_executor, peach_observability]
+    consumers: [peach_supervisor, peach_observability]
   - name: /peach_arm/move_to
     kind: action
     type: peach_interfaces/action/MoveTo
@@ -202,7 +202,7 @@ interfaces:
     type: std_msgs/msg/Bool
     qos: {reliability: reliable, durability: transient_local, depth: 1}
     producers: [peach_lifecycle_flag_bridge]  # 阶段5：nav2_lm is_active→闩锁桥
-    consumers: [peach_executor]
+    consumers: [peach_supervisor]
   - name: /peach_lifecycle_manager/manage_nodes
     kind: service
     type: peach_interfaces/srv/ManageLifecycleNodes
@@ -212,7 +212,7 @@ interfaces:
     kind: action
     type: peach_interfaces/action/BuildTargetModel
     producers: [peach_target_reconstruction]
-    consumers: [peach_executor]
+    consumers: [peach_supervisor]
   - name: /peach/observability/tcp_path
     kind: topic
     type: nav_msgs/msg/Path
@@ -290,7 +290,7 @@ reserved_interfaces:
     kind: action
     type: peach_interfaces/action/NavigateToWorksite
     producers: []
-    consumers: [peach_executor]
+    consumers: [peach_supervisor]
   - name: /peach/navigation/target_report
     kind: topic
     type: peach_interfaces/msg/HarvestTargetReport

@@ -36,7 +36,7 @@
 
 ```mermaid
 flowchart LR
-  Op[人工] -->|RunHarvest / ControlTask| Ex[peach_executor]
+  Op[人工] -->|RunHarvest / ControlTask| Ex[peach_supervisor]
   LCM[peach_lifecycle_manager] -->|managed_nodes_activated| Ex
   Ex -->|SurveyScene| Skill[peach_arm]
   Ex -->|BeginScene| Perc[peach_scene_perception_node]
@@ -178,8 +178,8 @@ flowchart TB
 
 | 名字 | 种类 | 含义 | 生产 | 消费 |
 |------|------|------|------|------|
-| `/peach_scene_perception_node/begin_scene` | service | 重启收齐窗、推进 `scene_epoch`；换场才清身份 | peach_scene_perception | peach_executor |
-| `/peach/perception/target_observations` | topic | 全量观测（锁定前 `observations[]` 空）：稳定 ID、跟踪态、掩膜、`scene_epoch`。调度选果须世代对齐且已锁定；重建对齐、技能新鲜度 | peach_scene_perception | peach_executor, peach_target_reconstruction, peach_arm, peach_observability |
+| `/peach_scene_perception_node/begin_scene` | service | 重启收齐窗、推进 `scene_epoch`；换场才清身份 | peach_scene_perception | peach_supervisor |
+| `/peach/perception/target_observations` | topic | 全量观测（锁定前 `observations[]` 空）：稳定 ID、跟踪态、掩膜、`scene_epoch`。调度选果须世代对齐且已锁定；重建对齐、技能新鲜度 | peach_scene_perception | peach_supervisor, peach_target_reconstruction, peach_arm, peach_observability |
 | `/peach/perception/initial_pose` | topic | 单帧袋入口/轴初值。重建当起点；不授权运动 | peach_scene_perception | peach_target_reconstruction |
 | `/peach/perception/diagnostics` | topic | 单帧拟合诊断（直径/RMSE/内点） | peach_scene_perception | peach_target_reconstruction |
 | `/peach/perception/harvest_state` | topic | 感知侧计划 JSON（锁定集镜像，给监控） | peach_scene_perception | peach_observability |
@@ -261,7 +261,7 @@ flowchart TB
 
 | 名字 | 种类 | 含义 | 生产 | 消费 |
 |------|------|------|------|------|
-| `/peach_target_reconstruction_node/build_target_model` | action | 绑 `target_id`，收满机位后 finalize 出模型 | peach_target_reconstruction | peach_executor |
+| `/peach_target_reconstruction_node/build_target_model` | action | 绑 `target_id`，收满机位后 finalize 出模型 | peach_target_reconstruction | peach_supervisor |
 | `/peach/reconstruction/diagnostics` | topic | 结构化心跳：绑定态、机位数、基线、TF 失败 | peach_target_reconstruction | peach_arm, peach_observability |
 | `/peach/reconstruction/diagnostics_debug` | topic | 调试 JSON 明细（TSDF/ICP/逐机位），不进决策 | peach_target_reconstruction | peach_observability |
 | `/peach/reconstruction/status` | topic | 短状态 String（MCAP 白名单用这个，不是 diagnostics） | peach_target_reconstruction | peach_observability |
@@ -360,10 +360,10 @@ flowchart TB
 
 | 名字 | 种类 | 含义 | 生产 | 消费 |
 |------|------|------|------|------|
-| `/peach_arm/survey_scene` | action | 去 SRDF 拍照位并复核当前关节；不重启收齐窗 | peach_arm | peach_executor |
-| `/peach_arm/execute_target` | action | 对一颗桃：观察 / 预抓取 / 套入剪切，按 `mode` 短路 | peach_arm | peach_executor |
-| `/peach_arm/check_reachability` | service | 批量 TCP IK：当前关节下这些位姿有没有解；不动臂 | peach_arm | peach_executor |
-| `/peach_arm/acknowledge_recovery` | service | 技能确认停驻已看过；调度 ACK 会调它，成功才消耗 `state_seq` | peach_arm | peach_executor |
+| `/peach_arm/survey_scene` | action | 去 SRDF 拍照位并复核当前关节；不重启收齐窗 | peach_arm | peach_supervisor |
+| `/peach_arm/execute_target` | action | 对一颗桃：观察 / 预抓取 / 套入剪切，按 `mode` 短路 | peach_arm | peach_supervisor |
+| `/peach_arm/check_reachability` | service | 批量 TCP IK：当前关节下这些位姿有没有解；不动臂 | peach_arm | peach_supervisor |
+| `/peach_arm/acknowledge_recovery` | service | 技能确认停驻已看过；调度 ACK 会调它，成功才消耗 `state_seq` | peach_arm | peach_supervisor |
 | `/peach/manipulation/grasp_hypothesis` | topic | 本周期抓取假说（监控三维；未当批次门） | peach_arm | peach_observability |
 | `/peach_arm/status` | topic | 技能短状态 JSON，作业票「靠近/工具」用 | peach_arm | peach_observability |
 
@@ -456,15 +456,15 @@ flowchart TB
 
 | 名字 | 种类 | 含义 | 生产 | 消费 |
 |------|------|------|------|------|
-| `/peach_executor/run_harvest` | action | 显式开一批；不自动发 | peach_executor | 人工 |
-| `/peach_executor/control` | service | 暂停/跳过/取消/ACK；须带对的 `state_seq` | peach_executor | 人工 |
-| `/peach_executor/state` | topic | 批次快照：`target_id`、档位、`recovery_required`、permissions | peach_executor | peach_scene_perception, peach_target_reconstruction, peach_observability |
-| `/peach_executor/events` | topic | 可检索事件（拍照到位/锁定/派发/终局/过滤/ACK） | peach_executor | peach_observability |
-| `/peach_executor/scene_snapshot` | topic | WAIT_LOCK 或回访 dwell 后的锁定集快照 | peach_executor | （无订阅方；账本/MCAP） |
+| `/peach_supervisor/run_harvest` | action | 显式开一批；不自动发 | peach_supervisor | 人工 |
+| `/peach_supervisor/control` | service | 暂停/跳过/取消/ACK；须带对的 `state_seq` | peach_supervisor | 人工 |
+| `/peach_supervisor/state` | topic | 批次快照：`target_id`、档位、`recovery_required`、permissions | peach_supervisor | peach_scene_perception, peach_target_reconstruction, peach_observability |
+| `/peach_supervisor/events` | topic | 可检索事件（拍照到位/锁定/派发/终局/过滤/ACK） | peach_supervisor | peach_observability |
+| `/peach_supervisor/scene_snapshot` | topic | WAIT_LOCK 或回访 dwell 后的锁定集快照 | peach_supervisor | （无订阅方；账本/MCAP） |
 
 客户端（仅本节点）：`BeginScene`、`SurveyScene`、`BuildTargetModel`（与 OBSERVE_ONLY 并行）、`ExecuteTarget`、`CheckReachability`。账本：`runs/<request_id>/ledger.json`。
 
-作业参数（部署值 `config/peach_executor.yaml`；声明/校验 `peach_harvester supervisor params.py`。`tool.profile_id` 基础值是固定圆柱标签，整栈由 launch `tool_profile` 注入覆盖）：
+作业参数（部署值 `config/peach_supervisor.yaml`；声明/校验 `peach_harvester supervisor params.py`。`tool.profile_id` 基础值是固定圆柱标签，整栈由 launch `tool_profile` 注入覆盖）：
 
 | 参数 | 含义 |
 |------|------|
@@ -498,7 +498,7 @@ flowchart TB
 | 名字 | 种类 | 含义 | 生产 | 消费 |
 |------|------|------|------|------|
 | `/peach_lifecycle_manager/manage_nodes` | service | STARTUP/PAUSE/RESUME/RESET/SHUTDOWN 整栈；不发 RunHarvest | peach_lifecycle_manager | 人工 |
-| `/peach/lifecycle/managed_nodes_activated` | topic | 名单节点是否都 Active；调度开批闸门 | peach_lifecycle_manager | peach_executor |
+| `/peach/lifecycle/managed_nodes_activated` | topic | 名单节点是否都 Active；调度开批闸门 | peach_lifecycle_manager | peach_supervisor |
 
 名单默认：场景感知 → 重建 → 技能 → 调度。observability **不进名单**。
 

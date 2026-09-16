@@ -18,7 +18,7 @@ def _src_root():
 
 
 def test_preflight_patterns_include_executor():
-    assert 'peach_executor' in PREFLIGHT_PATTERNS
+    assert 'peach_supervisor' in PREFLIGHT_PATTERNS
     assert 'extrinsics_publisher' in PREFLIGHT_PATTERNS
 
 
@@ -29,27 +29,27 @@ def test_running_stack_pids_skips_missing_proc(tmp_path):
 def test_preflight_ignores_editor_path_substring():
     cmdline = (
         '/usr/share/cursor/cursor\x00'
-        '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_executor/executor_node.py')
+        '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_supervisor/executor_node.py')
     assert not cmdline_looks_like_stack(cmdline)
 
 
 def test_preflight_matches_installed_executable():
     cmdline = (
-        '/home/ws/install/peach_executor/lib/peach_executor/peach_executor')
+        '/home/ws/install/peach_supervisor/lib/peach_supervisor/peach_supervisor')
     assert cmdline_looks_like_stack(cmdline)
 
 
 def test_preflight_matches_python_wrapping_installed_node():
     cmdline = (
         '/usr/bin/python3\x00'
-        '/home/ws/install/peach_executor/lib/peach_executor/peach_executor')
+        '/home/ws/install/peach_supervisor/lib/peach_supervisor/peach_supervisor')
     assert cmdline_looks_like_stack(cmdline)
 
 
 def test_preflight_ignores_colcon_package_select():
     cmdline = (
         '/usr/bin/python3\x00-m\x00colcon\x00test\x00'
-        '--packages-select\x00peach_executor')
+        '--packages-select\x00peach_supervisor')
     assert not cmdline_looks_like_stack(cmdline)
 
 
@@ -81,7 +81,7 @@ def test_executor_enable_default_off():
     root = _src_root()
     assert root is not None
     text = (
-        root / 'peach_executor' / 'config' / 'peach_executor.yaml'
+        root / 'peach_supervisor' / 'config' / 'peach_supervisor.yaml'
         ).read_text(encoding='utf-8')
     assert 'execution_enabled: false' in text
 
@@ -101,10 +101,10 @@ def test_executor_observability_launch_forwards():
     root = _src_root()
     assert root is not None
     text = (
-        root / 'peach_executor' / 'launch' / 'observability.launch.py'
+        root / 'peach_supervisor' / 'launch' / 'observability.launch.py'
         ).read_text(encoding='utf-8')
     assert "FindPackageShare('peach_observability')" in text
-    assert "package='peach_executor'" not in text
+    assert "package='peach_supervisor'" not in text
 
 
 def test_observability_setup_owns_entry_points():
@@ -120,7 +120,7 @@ def test_observability_setup_owns_entry_points():
 def test_executor_setup_does_not_install_observability():
     root = _src_root()
     assert root is not None
-    text = (root / 'peach_executor' / 'setup.py').read_text(encoding='utf-8')
+    text = (root / 'peach_supervisor' / 'setup.py').read_text(encoding='utf-8')
     assert 'peach_observability =' not in text
     assert 'peach_bag_report =' not in text
     assert "glob('web/*')" not in text
@@ -129,7 +129,7 @@ def test_executor_setup_does_not_install_observability():
 def test_executor_does_not_ship_web_assets():
     root = _src_root()
     assert root is not None
-    assert not (root / 'peach_executor' / 'web').exists()
+    assert not (root / 'peach_supervisor' / 'web').exists()
     assert (root / 'peach_observability' / 'web' / 'index.html').is_file()
     assert (root / 'peach_observability' / 'web' / 'app.js').is_file()
     assert (root / 'peach_observability' / 'web' / 'app.css').is_file()

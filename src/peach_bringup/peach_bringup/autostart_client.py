@@ -44,7 +44,7 @@ class AutostartClient(Node):
             Bool, '/peach/lifecycle/managed_nodes_activated',
             self._on_flag, latched)
         self._client = ActionClient(
-            self, RunHarvest, '/peach_executor/run_harvest')
+            self, RunHarvest, '/peach_supervisor/run_harvest')
         self._deadline = time.monotonic() + float(
             self.get_parameter('wait_stack_timeout_s').value)
         self._timer = self.create_timer(0.5, self._tick)

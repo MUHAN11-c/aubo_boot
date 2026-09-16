@@ -1,12 +1,12 @@
 """
-peach_executor handwritten parameter module (decision 0017 SNAPSHOT).
+peach_supervisor handwritten parameter module (decision 0017 SNAPSHOT).
 
 键名冻结。`config/supervisor_contract.param.yaml` 是同一 schema 的 GPL 形状子集，
 不是第三套生成器。Python 仍走本文件 ParamListener。
 
 调度/监控/生命周期管理三个节点的声明/兜底默认/校验/快照装载集中于
 本文件（各节点类持有自己的 DEFAULTS/RULES）；部署值与中文描述的事实源是
-config/peach_executor.yaml、observability.yaml 与 lifecycle_manager.yaml
+config/peach_supervisor.yaml、observability.yaml 与 lifecycle_manager.yaml
 （nav2 式全量清单），launch 以 ParameterFile 装入。键名冻结；改默认值须
 模块与 yaml 各改一处。接口与原 GPL 生成物一致：ParamListener(node)
 .get_params()/is_old()。
@@ -30,8 +30,8 @@ def _assign(params, key, value):
     setattr(target, parts[-1], value)
 
 
-class peach_executor:
-    """peach_executor 的参数声明/装载/校验器（手写，决策 0017；原 GPL 生成物等价物）."""
+class peach_supervisor:
+    """peach_supervisor 的参数声明/装载/校验器（手写，决策 0017；原 GPL 生成物等价物）."""
 
     DEFAULTS = {  # 点号键 -> (类型, 兜底默认)；部署值以 config/<节点>.yaml 为准
         'execution_enabled': ('bool', False),
@@ -83,8 +83,8 @@ class peach_executor:
 
         def __init__(self):
             self.stamp_ = 0
-            self.tool = peach_executor._Tool()
-            for key, (_, value) in peach_executor.DEFAULTS.items():
+            self.tool = peach_supervisor._Tool()
+            for key, (_, value) in peach_supervisor.DEFAULTS.items():
                 _assign(self, key, value)
 
     class ParamListener:
@@ -95,10 +95,10 @@ class peach_executor:
             self.node_ = node
             self.user_callback = None
             self._stamp = 0
-            self.params_ = peach_executor.Params()
-            for key, (_, default) in peach_executor.DEFAULTS.items():
+            self.params_ = peach_supervisor.Params()
+            for key, (_, default) in peach_supervisor.DEFAULTS.items():
                 node.declare_parameter(key, default)
-            for key in peach_executor.DEFAULTS:
+            for key in peach_supervisor.DEFAULTS:
                 _assign(self.params_, key, node.get_parameter(key).value)
             self._validate_all()
             node.add_on_set_parameters_callback(self._on_set)
@@ -126,7 +126,7 @@ class peach_executor:
 
         def _validate_all(self):
             """启动期全量校验：yaml 覆盖值非法即抛异常终止启动."""
-            for key, rules in peach_executor.RULES.items():
+            for key, rules in peach_supervisor.RULES.items():
                 group, _, leaf = key.rpartition('.')
                 target = getattr(self.params_, group) if group else self.params_
                 value = getattr(target, leaf)
@@ -154,14 +154,14 @@ class peach_executor:
         def _on_set(self, parameters):
             """运行期校验：全批合法才提交快照并递增变更戳."""
             for p in parameters:
-                if p.name not in peach_executor.DEFAULTS:
+                if p.name not in peach_supervisor.DEFAULTS:
                     continue
-                for rule in peach_executor.RULES.get(p.name, ()):
+                for rule in peach_supervisor.RULES.get(p.name, ()):
                     why = _check(rule, p.value, p.name)
                     if why:
                         return SetParametersResult(successful=False, reason=why)
             for p in parameters:
-                if p.name in peach_executor.DEFAULTS:
+                if p.name in peach_supervisor.DEFAULTS:
                     _assign(self.params_, p.name, p.value)
             self._stamp += 1
             self.params_.stamp_ = self._stamp
@@ -189,14 +189,14 @@ class peach_observability:
         'refined_diagnostics_topic': ('string', '/peach/reconstruction/refined_diagnostics'),
         'manipulation_status_topic': ('string', '/peach_arm/status'),
         'grasp_hypothesis_topic': ('string', '/peach/manipulation/grasp_hypothesis'),
-        'task_executor_state_topic': ('string', '/peach_executor/state'),
-        'task_executor_events_topic': ('string', '/peach_executor/events'),
+        'task_executor_state_topic': ('string', '/peach_supervisor/state'),
+        'task_executor_events_topic': ('string', '/peach_supervisor/events'),
         'robot_status_topic': ('string', '/aubo_io_controller/robot_status'),
         'joint_states_topic': ('string', '/joint_states'),
         'joint_status_topic': ('string', '/aubo_io_controller/joint_status'),
         'tf_topic': ('string', '/tf'),
         'tf_static_topic': ('string', '/tf_static'),
-        'scene_snapshot_topic': ('string', '/peach_executor/scene_snapshot'),
+        'scene_snapshot_topic': ('string', '/peach_supervisor/scene_snapshot'),
         'job_topic': ('string', '/peach/observability/job'),
         'metrics_topic': ('string', '/peach/observability/metrics'),
         'event_buffer_size': ('int', 100),
@@ -204,7 +204,7 @@ class peach_observability:
         'metrics_process_patterns': (
             'string_array', [
                 'peach_scene_perception_node', 'peach_target_reconstruction_node',
-                'peach_arm', 'peach_executor', 'ros2_control_node', 'percipio',
+                'peach_arm', 'peach_supervisor', 'ros2_control_node', 'percipio',
             ]),
         'record.enabled': ('bool', True),
         'record.root_dir': ('string', ''),
@@ -240,8 +240,8 @@ class peach_observability:
         'debug.token': ('string', ''),
         'debug.action_timeout_s': ('double', 180.0),
         'debug.audit_enabled': ('bool', True),
-        'debug.endpoints.run_harvest_action': ('string', '/peach_executor/run_harvest'),
-        'debug.endpoints.control_service': ('string', '/peach_executor/control'),
+        'debug.endpoints.run_harvest_action': ('string', '/peach_supervisor/run_harvest'),
+        'debug.endpoints.control_service': ('string', '/peach_supervisor/control'),
         'debug.endpoints.begin_scene_service': (
             'string', '/peach_scene_perception_node/begin_scene'),
         'debug.endpoints.survey_action': ('string', '/peach_arm/survey_scene'),
@@ -300,8 +300,8 @@ class peach_observability:
         """组 debug.endpoints 的参数字段."""
 
         def __init__(self):
-            self.run_harvest_action = '/peach_executor/run_harvest'
-            self.control_service = '/peach_executor/control'
+            self.run_harvest_action = '/peach_supervisor/run_harvest'
+            self.control_service = '/peach_supervisor/control'
             self.begin_scene_service = '/peach_scene_perception_node/begin_scene'
             self.survey_action = '/peach_arm/survey_scene'
             self.execute_action = '/peach_arm/execute_target'
@@ -440,7 +440,7 @@ class peach_lifecycle_manager:
         'node_names': (
             'string_array', [
                 'peach_scene_perception_node', 'peach_target_reconstruction_node',
-                'peach_arm', 'peach_executor',
+                'peach_arm', 'peach_supervisor',
             ]),
         'startup_timeout_s': ('double', 60.0),
     }

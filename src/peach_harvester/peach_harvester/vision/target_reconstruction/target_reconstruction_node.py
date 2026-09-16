@@ -428,7 +428,7 @@ class TargetReconstructionNode(
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
         )
         self._sub_exec_state = self.create_subscription(
-            HarvestState, '/peach_executor/state',
+            HarvestState, '/peach_supervisor/state',
             self._on_executor_state, latched, callback_group=self._cb)
 
         # ---- 服务（std_srvs/Trigger，节点相对名；人工/阶段执行器调试口）----

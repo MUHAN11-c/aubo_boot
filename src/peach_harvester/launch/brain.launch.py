@@ -30,7 +30,7 @@ def generate_launch_description():
     recon_params = PathJoinSubstitution(
         [share, 'config', 'target_reconstruction.yaml'])
     supervisor_params = PathJoinSubstitution(
-        [share, 'config', 'peach_executor.yaml'])
+        [share, 'config', 'peach_supervisor.yaml'])
     tool_profile = LaunchConfiguration('tool_profile')
     # 注入并集：未声明键按 overrides 被各节点忽略（rcl 语义）
     overlays = {

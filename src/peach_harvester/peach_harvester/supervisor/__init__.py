@@ -1,1 +1,1 @@
-"""peach_executor 包."""
+"""peach_supervisor 包."""

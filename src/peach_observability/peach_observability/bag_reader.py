@@ -32,7 +32,14 @@ HEAVY_TOPICS = (
 LEGACY_TYPE_ALIASES: dict[str, str] = {
     'peach_interfaces/msg/JobIntent': 'peach_interfaces/msg/HarvestState',
 }
-LEGACY_TOPIC_ALIASES: dict[str, str] = {}
+LEGACY_TOPIC_ALIASES: dict[str, str] = {
+    # 节点改名（阶段 6-3）：旧 bag 话题前缀 → 新名
+    '/peach_executor/state': '/peach_supervisor/state',
+    '/peach_executor/events': '/peach_supervisor/events',
+    '/peach_executor/scene_snapshot': '/peach_supervisor/scene_snapshot',
+    '/peach_executor/run_harvest': '/peach_supervisor/run_harvest',
+    '/peach_executor/control': '/peach_supervisor/control',
+}
 
 
 def ensure_index(bag_dir) -> Path:

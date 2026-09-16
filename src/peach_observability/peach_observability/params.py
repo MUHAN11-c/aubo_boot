@@ -1,7 +1,7 @@
 """
 ObservabilityParams：手写参数模块之上的不可变参数快照（A9）.
 
-声明 / 兜底默认 / 校验的权威源统一为 peach_executor/params.py（决策 0017），
+声明 / 兜底默认 / 校验的权威源统一为 peach_supervisor/params.py（决策 0017），
 部署值与中文描述的事实源为 config/observability.yaml（nav2 式全量清单）；
 数值校验（端口越界、周期/缓冲非正）由手写校验器承担，declare 期即拒绝
 非法值。运行路径只持有快照引用，不再逐回调 get_parameter。

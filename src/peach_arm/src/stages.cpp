@@ -1201,7 +1201,7 @@ bool ManipulationSkillsNode::stageVerifyHarvestOutcome(CycleContext & ctx)
 
 bool ManipulationSkillsNode::stageCompleteTarget(CycleContext & ctx)
 {
-  // 账本由 peach_executor 按 ExecuteTarget 终态写入；此处只落周期终局。
+  // 账本由 peach_supervisor 按 ExecuteTarget 终态写入；此处只落周期终局。
   ctx.terminal_state = CycleState::SUCCEEDED;
   if (ctx.pregrasp_only) {
     ctx.terminal_message =

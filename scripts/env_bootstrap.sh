@@ -208,7 +208,7 @@ run_smoke() {
     miss "本仓未构建（先在 $WS_DIR 跑 colcon build）"
     return
   fi
-  ros2 launch peach_executor harvest_system.launch.py hardware_mode:=mock camera_enabled:=false \
+  ros2 launch peach_supervisor harvest_system.launch.py hardware_mode:=mock camera_enabled:=false \
     > /tmp/env_bootstrap_smoke.log 2>&1 &
   local lp=$! i st=0
   for i in $(seq 1 45); do

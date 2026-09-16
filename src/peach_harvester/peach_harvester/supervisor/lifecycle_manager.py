@@ -33,7 +33,7 @@ class LifecycleManagerNode(Node):
 
     def __init__(self):
         super().__init__('peach_lifecycle_manager')
-        # 声明/兜底默认/校验：peach_executor/params.py；部署值 config/lifecycle_manager.yaml
+        # 声明/兜底默认/校验：peach_supervisor/params.py；部署值 config/lifecycle_manager.yaml
         self._param_listener = peach_lifecycle_manager.ParamListener(self)
         latched = QoSProfile(
             history=HistoryPolicy.KEEP_LAST, depth=1,

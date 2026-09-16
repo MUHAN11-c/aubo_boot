@@ -319,7 +319,7 @@ class ScenePerceptionNode(LifecycleNode):
         self.pub_harvest_state = self.create_lifecycle_publisher(
             String, '/peach/perception/harvest_state', state_qos)
         self._sub_exec_state = self.create_subscription(
-            HarvestState, '/peach_executor/state',
+            HarvestState, '/peach_supervisor/state',
             self._on_executor_state, state_qos)
         self._svc_begin = self.create_service(
             BeginScene, '~/begin_scene', self._on_begin_scene)

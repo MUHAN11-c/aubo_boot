@@ -104,7 +104,7 @@ PARAM_WATCHLIST = {
         'execution.enabled', 'grasp.enabled', 'tool.enabled',
         'photo_pose_joint_tolerance_rad', 'photo_pose_max_joint_vel_rad_s',
     ],
-    '/peach_executor': [
+    '/peach_supervisor': [
         'execution_enabled', 'survey_wait_s', 'survey_dwell_s',
         'empty_survey_limit',
         'persist_ledger',

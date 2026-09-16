@@ -19,11 +19,11 @@ def generate_launch_description():
     """配置并激活执行器，等待显式 RunHarvest."""
     params = PathJoinSubstitution([
         FindPackageShare('peach_harvester'),
-        'config', 'peach_executor.yaml'])
+        'config', 'peach_supervisor.yaml'])
     node = LifecycleNode(
         package='peach_harvester',
-        executable='peach_executor',
-        name='peach_executor',
+        executable='peach_supervisor',
+        name='peach_supervisor',
         namespace='',
         output='screen',
         parameters=[

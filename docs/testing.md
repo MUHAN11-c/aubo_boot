@@ -191,13 +191,13 @@ ros2 service call /imu_follow/insert_stop std_srvs/srv/Trigger    # 停推进（
 验收口径：`insert_start` 后 `~/target_pose` 位置沿锁定方向匀速前移（0.01 m/s，到 0.20 m 自动停并告警）；姿态仍只跟 IMU 增量；`insert_stop`/`disable`/断流即停推进；停跟用 `~/disable`（不要只 param set false）。切刀/撤退仍走 peach Web 单步（须 `debug.motion_enabled`）。
 
 ```bash
-ros2 action send_goal /peach_executor/run_harvest peach_interfaces/action/RunHarvest \
+ros2 action send_goal /peach_supervisor/run_harvest peach_interfaces/action/RunHarvest \
   "{request_id: 'dev', scene_key: 'lab', profile_id: 'default'}"
-ros2 topic echo /peach_executor/state
-ros2 service call /peach_executor/control peach_interfaces/srv/ControlTask \
+ros2 topic echo /peach_supervisor/state
+ros2 service call /peach_supervisor/control peach_interfaces/srv/ControlTask \
   "{command: 0, expected_state_seq: 0}"
 # 预抓取看完方向/定位后 ACK（命令 6），才允许再 Survey
-ros2 service call /peach_executor/control peach_interfaces/srv/ControlTask \
+ros2 service call /peach_supervisor/control peach_interfaces/srv/ControlTask \
   "{command: 6, expected_state_seq: 0}"
 ```
 
@@ -227,7 +227,7 @@ ros2 service call /peach_executor/control peach_interfaces/srv/ControlTask \
 ros2 topic echo --once /joint_states
 ros2 topic echo --once /aubo_io_controller/robot_status
 ros2 topic hz /camera/color/image_raw
-ros2 topic echo --once /peach_executor/state
+ros2 topic echo --once /peach_supervisor/state
 ros2 topic echo --once /peach/perception/target_observations
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8090/api/state
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8090/api/trajectory
@@ -235,7 +235,7 @@ ros2 lifecycle get /peach_observability
 ros2 lifecycle get /peach_scene_perception_node
 ros2 lifecycle get /peach_target_reconstruction_node
 ros2 lifecycle get /peach_arm
-ros2 lifecycle get /peach_executor
+ros2 lifecycle get /peach_supervisor
 timeout 5 ros2 run tf2_ros tf2_echo wrist3_Link camera_link
 ```
 
@@ -244,7 +244,7 @@ timeout 5 ros2 run tf2_ros tf2_echo wrist3_Link camera_link
 显式只扫（仍不运动）：
 
 ```bash
-ros2 action send_goal /peach_executor/run_harvest peach_interfaces/action/RunHarvest \
+ros2 action send_goal /peach_supervisor/run_harvest peach_interfaces/action/RunHarvest \
   "{request_id: 'field_dry', scene_key: 'lab', profile_id: 'default', intent: 2}"
 ```
 
@@ -412,7 +412,7 @@ python3 src/peach_interfaces/scripts/check_interface_manifest.py
 ```bash
 source /opt/ros/jazzy/setup.bash
 cd /home/mu/Desktop/aubo_e5_jazzy_ws
-colcon build --packages-select peach_perception peach_arm peach_executor \
+colcon build --packages-select peach_perception peach_arm peach_supervisor \
   --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
 # 有残留按 PID 补杀。停在预抓取的重启：示教器先回到拍照位
@@ -438,17 +438,17 @@ ros2 launch peach_bringup harvest_system.launch.py \
 # tf2_echo base_link tip 应失败；关节对照拍照位。
 ros2 param set /peach_arm execution.enabled true
 ros2 param set /peach_arm grasp.enabled true
-ros2 param set /peach_executor execution_enabled true
+ros2 param set /peach_supervisor execution_enabled true
 # 确认 tool.enabled 仍为 false、execute_pregrasp_only 仍为 true。不要改仓库 yaml。
 
-ros2 action send_goal -f /peach_executor/run_harvest peach_interfaces/action/RunHarvest \
+ros2 action send_goal -f /peach_supervisor/run_harvest peach_interfaces/action/RunHarvest \
   "{request_id: 'field_pregrasp_YYYYMMDD_HHMM', scene_key: 'lab', profile_id: 'default'}"
 ```
 
 停预抓取后现场评方向/定位。看完：
 
 ```bash
-ros2 service call /peach_executor/control peach_interfaces/srv/ControlTask \
+ros2 service call /peach_supervisor/control peach_interfaces/srv/ControlTask \
   "{command: 6, expected_state_seq: 0}"
 ```
 

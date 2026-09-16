@@ -15,7 +15,7 @@ def generate_launch_description():
         ExecuteProcess(
             cmd=[
                 'ros2', 'bag', 'record', '-s', 'mcap', '-o', output,
-                '/peach_executor/state', '/peach_executor/events',
+                '/peach_supervisor/state', '/peach_supervisor/events',
             ],
             output='screen',
         ),

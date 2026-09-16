@@ -593,4 +593,63 @@ F1✅ F2✅ F3✅ F4✅（两档并存）F5✅ F6✅ F7✅ F8⚠️（服务面�
 
 **剩余队列（阶段 6 余项）：** 节点改名 peach_supervisor/peach_vision+图名波+deprecated IDL 删除+Survey/Begin/Build/OBSERVE 旧模式删除+感知/调度两份手写 params 迁 GPL+imu_follow GPL+Web 操作台四栏升级+recorder 剥 Web+数据集导出脚本（Mimosa 路径穿越拦截排队）+旧件整删+总验收。
 
+---
+
+## 2026-09-16 清洁重写轮收官（25 提交，全部编译/导入/清单门过绿）
+
+### 提交全表
+
+| # | 阶段 | 提交 | 内容 |
+|---|------|------|------|
+| 1 | 0 | a955cea | 基线封存：R0–R10 在途 106 文件验证后落库 |
+| 2 | 0 | 36d5c90 | 回放塔（replay_oracle 移植+冻结基线+bag legacy+KPI） |
+| 3 | 1 | 15d2091 | 契约层：MoveTo/Clearance/Enables/SetEnables/SetBatchPolicy/FireStep |
+| 4 | 2a | 3f29d30 | peach_manipulation→peach_arm（88 文件） |
+| 5 | 2b | 9c63eaf | MoveTo 服务器+令牌双路+检查点+使能订阅（goal 实发走通） |
+| 6 | 2c | 8ff1d33 | arm 参数全迁 GPL |
+| 7 | 3a | 57d5a00 | 并包 harvester（126 文件 git mv） |
+| 8 | 3b | 887b0de | 进程合并 brain.py |
+| 9 | 3c-1 | 896691a | 纯核件 view_policy/batch_policy（13 测试） |
+| 10 | 3c-2a | 466ff5c | 批次策略+令牌+补采（executor_node） |
+| 11 | 3c-2b | 6cfdde7 | view_planner 移植（5 测试） |
+| 12 | 3c-2c | 608c3f7 | fast 观察内化+MoveTo camera_frame |
+| 13 | 4-1 | fbcf655 | 操作台服务面 |
+| 14 | 5 | 91fe5db | nav2_lm+autostart+bridge |
+| 15 | 6-1 | 209ebe4 | 活文档包名同步 |
+| 16 | 6-1 | 0242421 | 文档红线+nav2_lm/autostart 收官+过程记录 |
+| 17 | 6-2 | e2f37ff | 死件 IDL 删（HarvestEvent/MatchStatus/JobIntent） |
+| 18 | 6-3 | 1b9c489 | 节点改名 peach_executor→peach_supervisor（37 文件） |
+
+### 系统最终架构
+
+```
+peach_interfaces       47 active + 4 reserved；消费者校验器
+peach_harvester        大脑（一进程三节点）：
+  vision/              感知全链
+  supervisor/          批次 FSM/选果/视点两档/策略/操作台/账本/补采
+  cycle_core/          零 ROS 纯核
+peach_arm              臂服务器（C++）：MoveTo/ExecuteTarget/CheckReachability；
+                       命令门=enables×clearance×robotReady×¬cancel；GPL 单源
+peach_bringup          nav2_lm + autostart + 桥 + 预检 + 档案注入
+peach_observability    只读记录器：8090/bag/report/回收
+peach_system_tests     launch_testing + 回放塔
+serial_imu / imu_follow  可选包
+```
+
+### 功能清单核销（vs 定稿 F1–F13）
+
+F1✅ F2✅ F3✅ F4✅ F5✅ F6✅ F7✅ F8⚠️ F9✅ F10✅ F11✅ F12⚠️ F13⚠️
+
+### 明天的测试优先序
+
+1. **colcon test 全量**（7 包）
+2. **brain 入口 mock 整栈冒烟**（3b+nav2_lm+改名后从未起栈——最重要）
+3. **fast/conservative 观察两档对照**
+4. **回放塔重跑**
+5. **Mimosa 完整审计**（scanner_enobufs 持续 25 次）
+
+### 非阻塞后续
+
+Web 四栏升级、recorder 剥 Web、imu_follow/感知/调度 GPL、数据集导出（Mimosa 拦截）、Survey/Begin/Build/OBSERVE 删除（conservative 依赖）。
+
 

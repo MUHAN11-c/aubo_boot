@@ -21,7 +21,6 @@ from peach_interfaces.msg import (
     Enables,
     GraspDecision,
     HarvestState,
-    JobIntent,
     PeachTargetObservationArray,
     SceneSnapshot,
     TargetOutcome,
@@ -741,7 +740,8 @@ class TaskExecutorNode(LifecycleNode):
         empty_limit = max(1, int(self._params.empty_survey_limit))
         empty_rounds = 0
         enabled = self._execution_enabled_effective()
-        survey_only = int(goal.intent) == int(JobIntent.SURVEY_ONLY)
+        survey_only = (
+            int(goal.intent) == int(RunHarvest.Goal.INTENT_SURVEY_ONLY))
         survey_goal = SurveyScene.Goal()
         survey_goal.request_id = goal.request_id
         survey_goal.scene_key = goal.scene_key

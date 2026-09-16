@@ -179,7 +179,7 @@ def to_vector_stamped(message) -> dict:
 
 
 def to_harvest_event(message) -> dict:
-    """转换调度过程/审计事件（CanonicalEvent / HarvestEvent）为时间线条目."""
+    """转换调度过程/审计事件（CanonicalEvent）为时间线条目."""
     return {
         'stamp': stamp_seconds(message.header),
         'sequence': int(message.sequence),

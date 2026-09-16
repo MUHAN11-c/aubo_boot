@@ -1,4 +1,4 @@
-# 编排器过程/审计事件。线上唯一事件流（不要用预留的 HarvestEvent）。
+# 编排器过程/审计事件。线上唯一事件流（唯一事件流）。
 # 话题：/peach_executor/events（reliable, transient_local, depth 50）
 # 生产：peach_executor    消费：peach_observability
 # 监控与 JSONL 按 code 聚合，不要只解析 message。

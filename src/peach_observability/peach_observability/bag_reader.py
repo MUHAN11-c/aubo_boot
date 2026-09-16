@@ -26,7 +26,12 @@ HEAVY_TOPICS = (
 # 重命名/删除 IDL 或话题时的兼容登记处（清洁重写轮引入）。
 # 每删/改一个类型或图名，在这里登记「旧 bag 字面量 → 现行名」一行，
 # 旧 bag 回放不静默断；别名目标必须是字段兼容的现行类型。
-LEGACY_TYPE_ALIASES: dict[str, str] = {}
+# JobIntent（2026-09-16 阶段 6-2 删除）：常量并入 RunHarvest.action，bag 中
+# 类型引用经此映射到 HarvestState（最近字段兼容载体——JobIntent 为纯常量
+# 包，bag 中通常不出现该类型名；如有独立话题录制则须重封基线）。
+LEGACY_TYPE_ALIASES: dict[str, str] = {
+    'peach_interfaces/msg/JobIntent': 'peach_interfaces/msg/HarvestState',
+}
 LEGACY_TOPIC_ALIASES: dict[str, str] = {}
 
 

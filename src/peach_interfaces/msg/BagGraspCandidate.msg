@@ -24,4 +24,4 @@ string calibration_version                # 相机内外参版本
 string tool_version                       # 工具几何版本
 float64[9] position_covariance            # 位置 3×3 协方差，行优先；未知填 0
 float64[9] direction_covariance           # 方向 3×3 协方差，行优先；未知填 0
-uint8 match_status                        # MatchStatus.status（身份匹配）
+uint8 match_status                        # 身份匹配状态

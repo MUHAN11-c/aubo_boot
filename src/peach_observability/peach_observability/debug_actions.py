@@ -27,7 +27,6 @@ from peach_interfaces.action import (
     RunHarvest,
     SurveyScene,
 )
-from peach_interfaces.msg import JobIntent
 from peach_interfaces.srv import (
     BeginScene,
     CheckReachability,
@@ -38,11 +37,11 @@ from rclpy.action import ActionClient
 from rclpy.task import Future
 from std_srvs.srv import SetBool, Trigger
 
-# JobIntent 常量名 → 值（与 msg 定义对齐；不在图上重复魔数）
+# intent 常量名 → 值（RunHarvest.Goal.INTENT_*，唯一权威；不在图上重复魔数）
 _INTENT = {
-    'PICK_ALL': JobIntent.PICK_ALL,
-    'PICK_SELECTED': JobIntent.PICK_SELECTED,
-    'SURVEY_ONLY': JobIntent.SURVEY_ONLY,
+    'PICK_ALL': RunHarvest.Goal.INTENT_PICK_ALL,
+    'PICK_SELECTED': RunHarvest.Goal.INTENT_PICK_SELECTED,
+    'SURVEY_ONLY': RunHarvest.Goal.INTENT_SURVEY_ONLY,
 }
 _CONTROL = {
     'PAUSE': ControlTask.Request.PAUSE,
@@ -123,7 +122,9 @@ def is_motion(action: str, payload: dict) -> bool:
         return True
     if action == 'run_harvest_action':
         intent = str(payload.get('intent', 'PICK_ALL')).upper()
-        return _INTENT.get(intent, JobIntent.PICK_ALL) != JobIntent.SURVEY_ONLY
+        return _INTENT.get(
+            intent, RunHarvest.Goal.INTENT_PICK_ALL
+        ) != RunHarvest.Goal.INTENT_SURVEY_ONLY
     if action == 'execute_action':
         mode = str(payload.get('mode', 'PREVIEW')).upper()
         return _EXECUTE_MODE.get(
@@ -171,7 +172,7 @@ def _goal_for(action: str, payload: dict):
         _fill_str(goal, payload)
         goal.intent = _INTENT.get(
             str(payload.get('intent', 'PICK_ALL')).upper(),
-            JobIntent.PICK_ALL)
+            RunHarvest.Goal.INTENT_PICK_ALL)
         goal.selection_mode = RunHarvest.Goal.MANUAL if payload.get(
             'target_ids') else RunHarvest.Goal.AUTO
         goal.target_ids = [str(t) for t in payload.get('target_ids') or []]

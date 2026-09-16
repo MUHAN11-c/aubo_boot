@@ -13,8 +13,8 @@ from launch_ros.substitutions import FindPackageShare
 from lifecycle_msgs.msg import Transition
 from moveit_configs_utils import MoveItConfigsBuilder
 
-from peach_perception.grasp_standoffs import manipulation_overlay
-from peach_perception.tool_profiles import tool_profile_id_params
+from peach_harvester.vision.grasp_standoffs import manipulation_overlay
+from peach_harvester.vision.tool_profiles import tool_profile_id_params
 
 
 def _skills_moveit_params(tool_profile: str):

@@ -2,33 +2,32 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd"
   schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>peach_observability</name>
+  <name>peach_harvester</name>
   <version>0.1.0</version>
-  <description>只读观测：8090/JSONL、会话 bag 与 peach_bag_report。删除后核心调度仍可构建。</description>
+  <description>套袋桃采收大脑：vision（看+建）与 supervisor（批+编排）。清洁重写轮 3a 由 peach_perception+peach_executor 并包。</description>
   <maintainer email="2155413529@qq.com">wjz</maintainer>
   <license>BSD-3-Clause</license>
 
   <buildtool_depend>ament_python</buildtool_depend>
 
+  <exec_depend>action_msgs</exec_depend>
   <exec_depend>ament_index_python</exec_depend>
-  <exec_depend>aubo_msgs</exec_depend>
+  <exec_depend>aubo_description</exec_depend>
+  <exec_depend>cv_bridge</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>lifecycle_msgs</exec_depend>
-  <exec_depend>nav_msgs</exec_depend>
-  <exec_depend>peach_harvester</exec_depend>
+  <exec_depend>message_filters</exec_depend>
   <exec_depend>peach_interfaces</exec_depend>
-  <exec_depend>python3-numpy</exec_depend>
   <exec_depend>rcl_interfaces</exec_depend>
   <exec_depend>rclpy</exec_depend>
-  <exec_depend>ros2bag</exec_depend>
-  <exec_depend>rosbag2_storage_mcap</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>sensor_msgs_py</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>std_srvs</exec_depend>
-  <exec_depend>tf2_msgs</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>vision_msgs</exec_depend>
   <exec_depend>visualization_msgs</exec_depend>
 
   <test_depend>ament_flake8</test_depend>

@@ -118,7 +118,7 @@ def declare(node) -> object:
         内创建，declare 期校验失败→TransitionCallbackReturn.FAILURE）.
 
     """
-    from peach_executor.params import peach_observability
+    from peach_harvester.supervisor.params import peach_observability
     return peach_observability.ParamListener(node)
 
 

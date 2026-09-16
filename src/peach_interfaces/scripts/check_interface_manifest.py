@@ -36,22 +36,22 @@ _LITERAL_RE = re.compile(r'[\'"](/peach[A-Za-z0-9_/]*)[\'"]')
 # consumer 标签 → 源码相对 src/ 的文件或目录（调度节点不含监控）。
 _CONSUMER_PATHS = {
     'peach_executor': [
-        'peach_executor/peach_executor/executor_node.py',
-        'peach_executor/peach_executor/batch.py',
-        'peach_executor/peach_executor/harvest_fsm.py',
-        'peach_executor/config/peach_executor.yaml',
+        'peach_harvester/peach_harvester/supervisor/executor_node.py',
+        'peach_harvester/peach_harvester/supervisor/batch.py',
+        'peach_harvester/peach_harvester/supervisor/harvest_fsm.py',
+        'peach_harvester/config/peach_executor.yaml',
     ],
     'peach_observability': [
         'peach_observability/peach_observability',
-        'peach_executor/config/observability.yaml',
+        'peach_harvester/config/observability.yaml',
     ],
     'peach_scene_perception': [
-        'peach_perception/peach_perception/scene_perception',
-        'peach_perception/config/scene_perception.yaml',
+        'peach_harvester/peach_harvester/vision/scene_perception',
+        'peach_harvester/config/scene_perception.yaml',
     ],
     'peach_target_reconstruction': [
-        'peach_perception/peach_perception/target_reconstruction',
-        'peach_perception/config/target_reconstruction.yaml',
+        'peach_harvester/peach_harvester/vision/target_reconstruction',
+        'peach_harvester/config/target_reconstruction.yaml',
     ],
     'peach_arm': [
         'peach_arm/src',
@@ -59,8 +59,8 @@ _CONSUMER_PATHS = {
         'peach_arm/config',
     ],
     'peach_lifecycle_manager': [
-        'peach_executor/peach_executor/lifecycle_manager.py',
-        'peach_executor/config/lifecycle_manager.yaml',
+        'peach_harvester/peach_harvester/supervisor/lifecycle_manager.py',
+        'peach_harvester/config/lifecycle_manager.yaml',
     ],
 }
 

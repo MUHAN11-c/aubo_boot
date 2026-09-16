@@ -18,6 +18,7 @@ from peach_interfaces.action import (
     BuildTargetModel, ExecuteTarget, MoveTo, RunHarvest, SurveyScene)
 from peach_interfaces.msg import (
     CanonicalEvent,
+    Enables,
     GraspDecision,
     HarvestState,
     JobIntent,
@@ -25,7 +26,14 @@ from peach_interfaces.msg import (
     SceneSnapshot,
     TargetOutcome,
 )
-from peach_interfaces.srv import BeginScene, CheckReachability, ControlTask
+from peach_interfaces.srv import (
+    BeginScene,
+    CheckReachability,
+    ControlTask,
+    FireStep,
+    SetBatchPolicy,
+    SetEnables,
+)
 from rclpy.action import ActionClient, ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
@@ -170,6 +178,10 @@ class TaskExecutorNode(LifecycleNode):
         self._batch_policy = BatchPolicy()
         self._rework: Optional[ReworkList] = None
         self._target_deadline: Optional[TargetDeadline] = None
+        # 操作台使能覆盖（阶段 4）：None=跟随本地参数；SetEnables 后覆盖并
+        # 广播 /peach/batch/enables（臂侧命令门为强制点）
+        self._enables_override: dict = {}
+        self._next_policy_default = None
         self._last_model_revision = ''
         self._stack_ready = False
         self._wake = threading.Event()
@@ -260,6 +272,21 @@ class TaskExecutorNode(LifecycleNode):
         self._tf_listener = tf2_ros.TransformListener(self._tf_buffer, self)
         self._move_to = ActionClient(
             self, MoveTo, '/peach_arm/move_to', callback_group=self._cb)
+        # 操作台服务面（阶段 4）：使能开关（意图源=本节点，强制点=臂侧
+        # 命令门）+ 批次策略运行期改 + 单步调试；使能变更经 latched
+        # /peach/batch/enables 广播给臂侧覆盖本地参数。
+        self._pub_enables = self.create_lifecycle_publisher(
+            Enables, '/peach/batch/enables', latched)
+        self._set_enables_srv = self.create_service(
+            SetEnables, '~/set_enables', self._on_set_enables,
+            callback_group=self._cb)
+        self._set_batch_policy_srv = self.create_service(
+            SetBatchPolicy, '~/set_batch_policy', self._on_set_batch_policy,
+            callback_group=self._cb)
+        self._fire_step_srv = self.create_service(
+            FireStep, '~/fire_step', self._on_fire_step,
+            callback_group=self._cb)
+        self._fire_step_seq = 0
 
     def _unconfigure_ros(self) -> None:
         """on_cleanup 释放全部 ROS 实体（与 _configure_ros 一一对应）."""
@@ -292,6 +319,13 @@ class TaskExecutorNode(LifecycleNode):
             self._tf_buffer.clear()
         except Exception:  # noqa: BLE001
             pass
+        try:
+            self.destroy_lifecycle_publisher(self._pub_enables)
+            self.destroy_service(self._set_enables_srv)
+            self.destroy_service(self._set_batch_policy_srv)
+            self.destroy_service(self._fire_step_srv)
+        except Exception:  # noqa: BLE001
+            pass
 
     def on_activate(self, state):
         result = super().on_activate(state)
@@ -315,6 +349,102 @@ class TaskExecutorNode(LifecycleNode):
     def _on_decision(self, msg: GraspDecision) -> None:
         """接触许可令牌缓存（goal.clearance 装配源；心跳不续签语义不变）."""
         self._decision_cache = msg
+
+    # ---- 操作台服务面（阶段 4）----
+
+    def _execution_enabled_effective(self) -> bool:
+        override = self._enables_override.get('execution')
+        if override is not None:
+            return bool(override)
+        return bool(self._params.execution_enabled)
+
+    def _on_set_enables(self, request, response):
+        """使能开关：意图源在此（广播覆盖臂侧本地参数），强制点在臂命令门。"""
+        self._enables_override.update(
+            execution=bool(request.execution),
+            grasp=bool(request.grasp),
+            tool=bool(request.tool))
+        msg = Enables()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = self.get_name()
+        msg.execution = bool(request.execution)
+        msg.grasp = bool(request.grasp)
+        msg.tool = bool(request.tool)
+        msg.reason = str(request.reason or '')
+        self._pub_enables.publish(msg)
+        self._emit(
+            'enables_changed', '',
+            details={'execution': msg.execution, 'grasp': msg.grasp,
+                     'tool': msg.tool, 'reason': msg.reason})
+        self.get_logger().info(
+            f'操作台使能: execution={msg.execution} grasp={msg.grasp} '
+            f'tool={msg.tool}（{msg.reason}）')
+        self._publish_state()
+        response.accepted = True
+        response.message = '已广播 /peach/batch/enables'
+        return response
+
+    def _on_set_batch_policy(self, request, response):
+        """批次策略运行期改：当前批立即生效或作下批默认。"""
+        updates = {
+            'target_harvest_ratio': max(
+                0.0, float(request.target_harvest_ratio)),
+            'per_target_timeout_s': max(
+                0.0, float(request.per_target_timeout_s)),
+            'sector_timeout_s': max(0.0, float(request.sector_timeout_s)),
+            'view_policy': int(request.view_policy),
+        }
+        updated = self._batch_policy.with_updates(**updates)
+        if bool(request.apply_to_current):
+            self._batch_policy = updated
+            response.message = '当前批已更新'
+        else:
+            self._next_policy_default = updated
+            response.message = '将作为下批默认'
+        self._emit('batch_policy_updated', '', details={
+            **updates, 'apply_to_current': bool(request.apply_to_current)})
+        response.accepted = True
+        return response
+
+    def _on_fire_step(self, request, response):
+        """操作台单步（阶段 4 首批落地 PHOTO；其余步骤走既有 8090 调试面，
+        逐项接线随后续轮——运动类最终都过臂侧命令门，不旁路）。"""
+        self._fire_step_seq += 1
+        step = int(request.step)
+        if step == FireStep.Request.PHOTO:
+            goal = MoveTo.Goal()
+            goal.kind = MoveTo.Goal.KIND_NAMED
+            goal.named_target = 'global_photo_pose'
+            moved = self._send_action(
+                self._move_to, goal, 45.0, feedback=False,
+                goal_handle=None)
+            arrived = moved is not None and bool(
+                getattr(moved, 'arrived', False))
+            self._emit(
+                'fire_step', '', details={
+                    'step': 'photo', 'seq': self._fire_step_seq,
+                    'arrived': arrived})
+            response.accepted = arrived
+            response.message = (
+                '已到拍照位' if arrived else 'MoveTo 拍照位失败（见日志）')
+        else:
+            names = {
+                FireStep.Request.VIEWPOINT: 'viewpoint',
+                FireStep.Request.BUILD: 'build',
+                FireStep.Request.APPROACH: 'approach',
+                FireStep.Request.PREVIEW: 'preview',
+                FireStep.Request.TOOL_DEBUG: 'tool_debug',
+            }
+            name = names.get(step, f'unknown_{step}')
+            self._emit(
+                'fire_step', '', details={
+                    'step': name, 'seq': self._fire_step_seq,
+                    'accepted': False})
+            response.accepted = False
+            response.message = (
+                f'{name} 随后轮接线；当前请用 8090 调试面既有单步')
+        response.request_seq = self._fire_step_seq
+        return response
 
     def _poke(self) -> None:
         """打断批次 wait 循环（取消 / 暂停 / 观测 / 动作结束）."""
@@ -569,6 +699,10 @@ class TaskExecutorNode(LifecycleNode):
             'sector_timeout_s': getattr(goal, 'sector_timeout_s', 0.0),
             'view_policy': getattr(goal, 'view_policy', 0),
         })
+        if self._next_policy_default is not None:
+            # SetBatchPolicy(apply_to_current=false) 攒下的下批默认
+            self._batch_policy = self._next_policy_default
+            self._next_policy_default = None
         self._rework = ReworkList(request_id=self._run_id)
         self._target_deadline = None
         # 开批复位并入 RUN_REQUESTED：从 FSM 初值 WAITING_READY 起跳，
@@ -606,7 +740,7 @@ class TaskExecutorNode(LifecycleNode):
         claimed = set()
         empty_limit = max(1, int(self._params.empty_survey_limit))
         empty_rounds = 0
-        enabled = bool(self._params.execution_enabled)
+        enabled = self._execution_enabled_effective()
         survey_only = int(goal.intent) == int(JobIntent.SURVEY_ONLY)
         survey_goal = SurveyScene.Goal()
         survey_goal.request_id = goal.request_id

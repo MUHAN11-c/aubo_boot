@@ -28,6 +28,22 @@ interfaces:
     type: peach_interfaces/action/RunHarvest
     producers: [peach_executor]
     consumers: [peach_observability]
+  - name: /peach_executor/set_enables
+    kind: service
+    type: peach_interfaces/srv/SetEnables
+    producers: [peach_executor]
+    consumers: []   # 阶段 4 起：操作台 8090（后端转发）——意图源=supervisor，
+                    # 广播 /peach/batch/enables，强制点=臂侧命令门
+  - name: /peach_executor/set_batch_policy
+    kind: service
+    type: peach_interfaces/srv/SetBatchPolicy
+    producers: [peach_executor]
+    consumers: []   # 阶段 4 起：操作台 8090
+  - name: /peach_executor/fire_step
+    kind: service
+    type: peach_interfaces/srv/FireStep
+    producers: [peach_executor]
+    consumers: []   # 阶段 4 起：操作台 8090；运动类过臂侧命令门
   - name: /peach_executor/control
     kind: service
     type: peach_interfaces/srv/ControlTask

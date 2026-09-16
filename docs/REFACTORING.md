@@ -564,4 +564,33 @@ C9 删 shim 后碎文件即「真实模块」，单职责文件过小、跳转�
 
 **明确不做：** 不改驱动；不动算法常数；不动 IVG；不做 Gazebo；不迁 Python 进 composition；学习型剪切点回归与主动照明只留缝；真机另授权轮。
 
+---
+
+## 2026-09-16 清洁重写轮执行记录（阶段 0–6-1，21 提交）
+
+| 阶段 | 提交 | 内容 |
+|------|------|------|
+| 0 | a955cea | 基线封存：R0–R10 在途 106 文件验证后落库 |
+| 0 | 36d5c90 | 回放塔（replay_oracle 移植+冻结基线+bag legacy 别名+KPI 链入 testing.md） |
+| 1 | 15d2091 | 契约层：MoveTo/Clearance/Enables/SetEnables/SetBatchPolicy/FireStep 新 IDL+manifest 修真 |
+| 2a | 3f29d30 | peach_manipulation→peach_arm 机械重命名（88 文件） |
+| 2b | 9c63eaf | 功能手术：MoveTo 服务器+令牌双路+检查点+使能订阅（MoveTo goal 实发走通） |
+| 2c | 8ff1d33 | 参数全迁 GPL：删手写 params.hpp，arm_parameters.yaml 单源 |
+| 3a | 57d5a00 | 并包：perception+executor→peach_harvester（126 文件 git mv，图名零变化） |
+| 3b | 887b0de | 进程合并：brain.py 一进程三节点（MultiThreadedExecutor） |
+| 3c-1 | 896691a | 纯核件：view_policy 两档+batch_policy/rework_list（13 测试） |
+| 3c-2a | 466ff5c | 批次策略消费+令牌装配+补采接线（executor_node） |
+| 3c-2b | 6cfdde7 | view_planner C++→Python 全量移植（5 测试） |
+| 3c-2c | 608c3f7 | fast 档观察内化：supervisor 直驱补视+MoveTo camera_frame |
+| 4-1 | fbcf655 | 操作台服务面：SetEnables/SetBatchPolicy/FireStep |
+| 5 | (本条) | nav2_lm+autostart+lifecycle_flag_bridge+package.xml/manifest |
+| 6-1 | (本条) | 活文档红线与包名同步（AGENTS MUST 区改写+四活文档 62 处） |
+
+**功能清单核销状态（vs F1–F13）：**
+F1✅ F2✅ F3✅ F4✅（两档并存）F5✅ F6✅ F7✅ F8⚠️（服务面✅，Web 四栏未升级）F9✅ F10✅ F11✅ F12⚠️（observe details 带耗时，全段计量未收口）F13⚠️（ledger 扩展+yield 视图未落）
+
+**验证欠账（用户口径：单独测试轮）：** colcon test 全量、brain 入口整栈 mock 冒烟（3b 后未起栈）、fast/conservative 观察对照、回放塔重跑、Mimosa 完整审计（scanner_enobufs 持续）。
+
+**剩余队列（阶段 6 余项）：** 节点改名 peach_supervisor/peach_vision+图名波+deprecated IDL 删除+Survey/Begin/Build/OBSERVE 旧模式删除+感知/调度两份手写 params 迁 GPL+imu_follow GPL+Web 操作台四栏升级+recorder 剥 Web+数据集导出脚本（Mimosa 路径穿越拦截排队）+旧件整删+总验收。
+
 

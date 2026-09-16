@@ -34,7 +34,7 @@ Robotics_Tutorial 教程库已归档 `_archive/parked_2026-09/`，不再随库�
 
 对照 Nav2（lifecycle、插件面、BT 恢复）、MoveIt/MTC（stage + 轨迹护栏）、Autoware（组件图 + 话题契约）、ros2_control（参数库；硬件本仓只读借用）。
 
-1. **契约先于实现。** 跨包名字与 QoS 以 [interface_manifest.yaml](../src/peach_interfaces/config/interface_manifest.yaml) 为准。感知不发运动；批次唯一所有者是 `peach_executor`。
+1. **契约先于实现。** 跨包名字与 QoS 以 [interface_manifest.yaml](../src/peach_interfaces/config/interface_manifest.yaml) 为准。感知不发运动；批次唯一所有者是 `peach_harvester`（supervisor）。
 2. **替换走缝位，不拆包。** 现行多数算法直接构造；仅袋/果位姿管线与柱/球 refitter 留 dict 映射（yaml `pipeline.*_impl` / `refitter.*_impl`）——这是 SNAPSHOT / **UNWIND**，不是永久禁 pluginlib。**新可替换算法默认 pluginlib**（Nav2 / ros2_control / MoveIt）；默认可仍直接构造一个实现。技能原 C++ 工厂缝位已收回，不要为 `stages.cpp` 再加平行 Manager。
 3. **失败可定位、可跳过。** 每个目标必须有 `failure_code`。观察失败不接触；规划失败不执行残缺轨迹。
 4. **停走式感知是产品相机模型。** 节拍按实测 ~2.5 FPS + 静止门，不是 5 Hz 连续积分，也不是参考文 0.8 FPS。覆盖预算优于 `max_views=24`。
@@ -316,7 +316,7 @@ ROS 2 Jazzy / ament 惯例。**包名与图名（节点、话题、动作、服�
 | 看 | `peach_scene_perception_node` | `scene_perception` | `ScenePerceptionNode` |
 | 建 | `peach_target_reconstruction_node` | `target_reconstruction` | `TargetReconstructionNode` |
 | 动 | `peach_arm` | `peach_arm` | `ManipulationSkillsNode` |
-| 批 | `peach_executor` | `peach_executor` | `TaskExecutorNode` |
+| 批 | `peach_harvester`（supervisor） | `peach_harvester`（supervisor） | `TaskExecutorNode` |
 | 管 | `peach_lifecycle_manager` | `lifecycle_manager` | `LifecycleManagerNode` |
 | 监 | `peach_observability` | `peach_observability` | `ObservabilityNode` |
 
@@ -327,11 +327,11 @@ peach_interfaces/
   action/  msg/  srv/  README.md  config/interface_manifest.yaml  scripts/check_interface_manifest.py
 
 peach_perception/
-  peach_perception/params.py     # 手写声明/校验（决策 0017）；两节点 DEFAULTS 同文件
+  peach_harvester vision params.py     # 手写声明/校验（决策 0017）；两节点 DEFAULTS 同文件
   peach_perception/common/{runtime,geometry,tool_budget,bag_landmarks,ros/clock_adapter}.py
   peach_perception/scene_perception/{scene_perception_node,stream_metrics,identity,image_gates,pose_pipelines,inference,contracts,visualization,params}.py  # params.py 只做 gravity/tool 派生
   peach_perception/target_reconstruction/{target_reconstruction_node,capture,integrate,refine,publish,params}.py  # params.py 只做 strip 派生
-  peach_perception/grasp_standoffs.py            # 读 grasp_standoffs.yaml，launch 借此注入两节点参数
+  peach_harvester.vision.grasp_standoffs.py            # 读 grasp_standoffs.yaml，launch 借此注入两节点参数
   config/{scene_perception,target_reconstruction,grasp_standoffs}.yaml  # 全量清单（部署事实源）；轴向后撤只改 grasp_standoffs
   launch/{scene_perception,target_reconstruction}.launch.py
   # 离线评估脚本已归档 _archive/offline_2026-09/（含 bag_baseline），不随包安装
@@ -348,8 +348,8 @@ peach_arm/
 
 peach_executor/
   peach_executor/{executor_node,harvest_fsm,batch,lifecycle_manager}.py
-  peach_executor/observability/*.py  # import shim → peach_observability
-  peach_executor/params.py  # 手写参数模块（DEFAULTS/RULES/ParamListener，决策 0017；含 peach_observability 键）
+  peach_observability（已独立包）*.py  # import shim → peach_observability
+  peach_harvester supervisor params.py  # 手写参数模块（DEFAULTS/RULES/ParamListener，决策 0017；含 peach_observability 键）
   config/{peach_executor,observability,lifecycle_manager}.yaml          # 运行 yaml（launch 传；观测 yaml 仍在本包）
   launch/{harvest_system,peach_executor,lifecycle_manager,observability}.launch.py  # harvest_system / observability 薄转发
 
@@ -400,16 +400,16 @@ colcon 工作区 = 采摘应用 7 + 臂/相机 9 + 可选 USB IMU 1 + 可选 IMU
 
 ### 产品链（应用七包）
 
-colcon 工作区采摘应用 = `peach_interfaces` / `peach_perception` / `peach_arm` / `peach_executor` / `peach_bringup` / `peach_observability` / `peach_system_tests`。能力四包作用不得串；跨包仍只走 IDL。驱动九包给感知 TF / 技能 MoveIt 用，其中标「只读」的不得改。`serial_imu` 不是 peach 包，随 `harvest_system` 起、不进 lifecycle。`imu_follow` 独立 launch。`peach_system_tests` 只进 `colcon test`，不进运行 launch。
+colcon 工作区采摘应用 = `peach_interfaces` / `peach_harvester`（vision） / `peach_arm` / `peach_harvester`（supervisor） / `peach_bringup` / `peach_observability` / `peach_system_tests`。能力四包作用不得串；跨包仍只走 IDL。驱动九包给感知 TF / 技能 MoveIt 用，其中标「只读」的不得改。`serial_imu` 不是 peach 包，随 `harvest_system` 起、不进 lifecycle。`imu_follow` 独立 launch。`peach_system_tests` 只进 `colcon test`，不进运行 launch。
 
-产品链：**契约 → 到位（预留，直通 NAV_OK）→ 场景里有哪些桃 → 这一颗的局部模型 → 臂怎么动。** 整栈入口 `ros2 launch peach_bringup harvest_system.launch.py`（`peach_executor` 同名 launch 薄转发）。
+产品链：**契约 → 到位（预留，直通 NAV_OK）→ 场景里有哪些桃 → 这一颗的局部模型 → 臂怎么动。** 整栈入口 `ros2 launch peach_bringup harvest_system.launch.py`（`peach_harvester`（supervisor） 同名 launch 薄转发）。
 
 | 包 | 层 | 作用（一句话） | 改不改 |
 |----|----|----------------|--------|
 | `peach_interfaces` | 契约 | 跨包唯一 IDL（含 4 个预留导航名） | 改字段只改这里 |
-| `peach_perception` | 视觉 | 看场景 + 建当前目标 | 检测/分割/TSDF |
+| `peach_harvester`（vision） | 视觉 | 看场景 + 建当前目标 | 检测/分割/TSDF |
 | `peach_arm` | 臂 | 拍照、视点、MTC、工具、撤退 | 视点/MTC/GPIO 参数 |
-| `peach_executor` | 调度 | 开批、选果、账本、lifecycle | 批次顺序/名单 |
+| `peach_harvester`（supervisor） | 调度 | 开批、选果、账本、lifecycle | 批次顺序/名单 |
 | `peach_bringup` | 部署 | 整栈组合、预检、Include 只读 bringup | launch 参数 |
 | `peach_observability` | 观测 | 8090/JSONL + 独立 rosbag2 | 录制话题 |
 | `peach_system_tests` | 测试 | isolated launch_testing / mock 矩阵 | 不进真机 |
@@ -428,7 +428,7 @@ flowchart LR
   perc -->|"观测 + GraspDecision"| skills
 ```
 
-**读图：** 从左到右是产品链，不是启动顺序。调度点视觉/臂；视觉把「有哪些桃」和「这一颗能不能套」交给臂。契约横线表示能力包都只认同一套 IDL。整栈入口在 `peach_bringup`；lifecycle 管理器仍在调度包；8090 实现与静态页在 `peach_observability`（观测依赖调度拿 `batch.resolve_runs_root` 与参数键，调度不依赖观测）。yaml 仍在 `peach_executor/config/observability.yaml`。
+**读图：** 从左到右是产品链，不是启动顺序。调度点视觉/臂；视觉把「有哪些桃」和「这一颗能不能套」交给臂。契约横线表示能力包都只认同一套 IDL。整栈入口在 `peach_bringup`；lifecycle 管理器仍在调度包；8090 实现与静态页在 `peach_observability`（观测依赖调度拿 `batch.resolve_runs_root` 与参数键，调度不依赖观测）。yaml 仍在 `peach_harvester/config/observability.yaml`。
 
 ### 驱动九包（只读面见 AGENTS）
 
@@ -450,7 +450,7 @@ flowchart LR
 | `ivg_pose_estimation` | 旁路估姿 | 模板匹配 6D + Web 8088 | 独立 launch |
 | `ivg_graspnet` | 旁路抓取 | GraspNet 点云→位姿→MoveIt 接近 | 无 AnyGrasp 许可证 |
 
-改哪边：消息字段 → `peach_interfaces`；检测/分割/TSDF → `peach_perception`；视点/MTC/工具 IO 参数 → `peach_arm`；TCP/工具碰撞 mesh → `aubo_description`（勿改 `ros2_control.xacro`）；**末端工具切换 → launch `tool_profile` 参数**（URDF TCP、感知 `tool.D_inner`、重建 `tool.budget.d_inner` 许可内径与各包 `tool.profile_id` 标签统一由 `aubo_description/config/<profile>.yaml` 档案注入，装载器 `peach_perception/tool_profiles.py`；默认 `adaptive_cylinder_v1`，固定圆柱显式 `tool_profile:=hollow_cylinder_v1`；切换须整栈重启）；拍照命名位姿 → `aubo_e5_moveit_config` SRDF；批次顺序/选果/账本/lifecycle 名单 → `peach_executor`；到位/Nav2 → 归档的 `peach_navigation`（须先书面授权恢复）。套袋内径/插入行程基础值在感知 `config/scene_perception.yaml` 与 `config/target_reconstruction.yaml` 的 `tool.*`（整栈被工具档案注入覆盖）。入口相对袋底、预抓取相对入口只改 `peach_perception/config/grasp_standoffs.yaml`（launch 注入各节点已声明参数）。
+改哪边：消息字段 → `peach_interfaces`；检测/分割/TSDF → `peach_harvester`（vision）；视点/MTC/工具 IO 参数 → `peach_arm`；TCP/工具碰撞 mesh → `aubo_description`（勿改 `ros2_control.xacro`）；**末端工具切换 → launch `tool_profile` 参数**（URDF TCP、感知 `tool.D_inner`、重建 `tool.budget.d_inner` 许可内径与各包 `tool.profile_id` 标签统一由 `aubo_description/config/<profile>.yaml` 档案注入，装载器 `peach_harvester.vision.tool_profiles`；默认 `adaptive_cylinder_v1`，固定圆柱显式 `tool_profile:=hollow_cylinder_v1`；切换须整栈重启）；拍照命名位姿 → `aubo_e5_moveit_config` SRDF；批次顺序/选果/账本/lifecycle 名单 → `peach_harvester`（supervisor）；到位/Nav2 → 归档的 `peach_navigation`（须先书面授权恢复）。套袋内径/插入行程基础值在感知 `config/scene_perception.yaml` 与 `config/target_reconstruction.yaml` 的 `tool.*`（整栈被工具档案注入覆盖）。入口相对袋底、预抓取相对入口只改 `peach_perception/config/grasp_standoffs.yaml`（launch 注入各节点已声明参数）。
 
 作业目标只认调度 `~/state.target_id`。能力包不互发批次命令；只有调度当 `BeginScene` / `SurveyScene` / `BuildTargetModel` / `ExecuteTarget` / `CheckReachability` 的客户端（`NavigateToWorksite` 预留，现行无客户端/服务端）。
 
@@ -484,11 +484,11 @@ flowchart LR
 
 ---
 
-### `peach_perception` — 视觉算法（一包两节点）
+### `peach_harvester`（vision） — 视觉算法（一包两节点）
 
 **作用：** 回答两件事：场景里有哪些桃（稳定 `target_id`、锁定集）；当前作业目标这一颗的局部模型与抓取许可。不决定下一颗、不指挥臂。
 
-**含什么：** `peach_scene_perception_node`、`peach_target_reconstruction_node`、无话题的 `common/`（拟合、深度单位、时钟、`HarvestDataStore` 往 `runs/<request_id>/perception_data/` 追加事件，不写调度 `ledger.json`）。参数：部署事实源 `config/{scene_perception,target_reconstruction}.yaml`（nav2 式全量清单）；声明/兜底默认/校验 `peach_perception/params.py`（决策 0017）。节点目录 `scene_perception/params.py` / `target_reconstruction/params.py` 只做 gravity/tool 与 strip 派生，不是第二套声明。缝位：袋/果管线 + 柱/球 refitter 两处映射（见 §5）；其余算法直接构造。
+**含什么：** `peach_scene_perception_node`、`peach_target_reconstruction_node`、无话题的 `common/`（拟合、深度单位、时钟、`HarvestDataStore` 往 `runs/<request_id>/perception_data/` 追加事件，不写调度 `ledger.json`）。参数：部署事实源 `config/{scene_perception,target_reconstruction}.yaml`（nav2 式全量清单）；声明/兜底默认/校验 `peach_harvester vision params.py`（决策 0017）。节点目录 `scene_perception/params.py` / `target_reconstruction/params.py` 只做 gravity/tool 与 strip 派生，不是第二套声明。缝位：袋/果管线 + 柱/球 refitter 两处映射（见 §5）；其余算法直接构造。
 
 #### `peach_scene_perception_node`（看）
 
@@ -631,11 +631,11 @@ flowchart TB
 
 ---
 
-### `peach_executor` — 整栈调度（调度 + lifecycle 同包）
+### `peach_harvester`（supervisor） — 整栈调度（调度 + lifecycle 同包）
 
 **作用：** 批次的唯一所有者：显式开批、选下一颗、按 FSM 调四个能力入口、写账本、有序拉起/拆除生命周期。8090 实现与静态页在 `peach_observability`；本包 `observability/` 仅 import shim，参数键仍在 `params.py` / `config/observability.yaml`。自己不算视觉、不算笛卡尔接触、不算 Nav2 规划。
 
-#### `peach_executor`（批）
+#### `peach_harvester`（supervisor）（批）
 
 - **入口：** `~/run_harvest`、`~/control`（`ControlTask`，`expected_state_seq` 防乱序）。
 - **发布：** `~/state`（`target_id` 是感知/重建的作业绑定）、`~/events`、`~/scene_snapshot`。
@@ -647,7 +647,7 @@ flowchart TB
 
 #### `peach_lifecycle_manager`（管）
 
-- **名单（`peach_executor/params.py` 中 `peach_lifecycle_manager.DEFAULTS` 默认顺序，部署值在 config/lifecycle_manager.yaml）：** 场景感知 → 重建 → 技能 → 调度。observability **不进名单**。节点走 `ParamListener`，不 `declare_parameter`。
+- **名单（`peach_harvester supervisor params.py` 中 `peach_lifecycle_manager.DEFAULTS` 默认顺序，部署值在 config/lifecycle_manager.yaml）：** 场景感知 → 重建 → 技能 → 调度。observability **不进名单**。节点走 `ParamListener`，不 `declare_parameter`。
 - **入口：** `~/manage_nodes`。STARTUP 先 configure 再 activate；拆除逆序。发闩锁 `/peach/lifecycle/managed_nodes_activated`。
 - **禁止：** 发 `RunHarvest`。PAUSE 是节点 Inactive，不是批次 `ControlTask` 暂停。
 
@@ -661,7 +661,7 @@ flowchart TB
 - **过程记录（bag）：** 白名单 `record.bag_topics`（24 别名：events/state/scene_snapshot/感知重建许可/技能/`/tf`+`/tf_static`/关节量/robot_status/job/metrics/图像点云）。原始消息进 MCAP，不做镜像去重；作业票与性能采样经 `/peach/observability/job`、`/peach/observability/metrics`（String JSON）发布后入 bag。停栈关 bag 后自动生成 `bag_report.md/json`（`peach_observability/bag_report.py` 纯核 + `bag_reader.py` 读取，kill -9 留下的 bag 自动 reindex 兜底）；手动复跑 `ros2 run peach_observability peach_bag_report <bag>`。报告离线重算：诊断合并体照镜像逻辑重放、TCP 轨迹由 TF 树合成（3mm 门槛）、验收门三行沿用旧 summary 口径。体积超预算停栈后自动删最旧 `session_*/bag` 与旧 `mcap_*`（总结/账本/文本永不删），审计在 `runs/retention_audit.jsonl`。`runs/run_*` 9 路 jsonl 是 2026-09-15 前旧格式，历史数据不迁移。`debug_audit/` 照旧。
 - **开关：** `config/observability.yaml` 的 `record.enabled`（默认 true）。`trajectory.enabled` 默认开：20 Hz latest TF `base_link←tcp`（Web/RViz 用；bag 侧由 `/tf` 离线重算）。另订 `/joint_states` 与 `/aubo_io_controller/joint_status` 进 `robot.joints`（镜像只在 Web；原始话题随 bag 录制，电流为 SDK 原单位）。订阅 `/peach/manipulation/grasp_hypothesis`。发 `/peach/observability/tcp_path`（Path）与 `/peach/observability/markers`（MarkerArray）。
 
-**整栈入口：** `peach_bringup/launch/harvest_system.launch.py` include 只读 `aubo_e5_bringup` → `serial_imu`（`imu_enabled` 默认 true）→ 感知 → 技能 → observability → 调度 → lifecycle_manager（不 include 导航；IMU 不进 lifecycle）。`peach_executor` 同名 launch 薄转发。能力包 `autostart:=false`。默认 `hardware_mode:=mock`、`camera_enabled:=false`、`imu_enabled:=true`、`tool_profile:=adaptive_cylinder_v1`（透传 bringup 与各能力 launch，URDF/许可内径/标签统一随档案）；调度 `execution_enabled=false`（节点参数，非 launch 参数）。
+**整栈入口：** `peach_bringup/launch/harvest_system.launch.py` include 只读 `aubo_e5_bringup` → `serial_imu`（`imu_enabled` 默认 true）→ 感知 → 技能 → observability → 调度 → lifecycle_manager（不 include 导航；IMU 不进 lifecycle）。`peach_harvester`（supervisor） 同名 launch 薄转发。能力包 `autostart:=false`。默认 `hardware_mode:=mock`、`camera_enabled:=false`、`imu_enabled:=true`、`tool_profile:=adaptive_cylinder_v1`（透传 bringup 与各能力 launch，URDF/许可内径/标签统一随档案）；调度 `execution_enabled=false`（节点参数，非 launch 参数）。
 
 ---
 
@@ -671,11 +671,11 @@ flowchart TB
 
 | 角色 | 节点 | 所在包 | 入口 | 禁止 |
 |------|------|--------|------|------|
-| 看 | `peach_scene_perception_node` | `peach_perception` | `BeginScene`；发 `/peach/perception/*` | 不重建、不运动、不选下一颗 |
-| 建 | `peach_target_reconstruction_node` | `peach_perception` | `BuildTargetModel`；发 `/peach/reconstruction/*` | 不检测、不写 `ledger.json`、latest TF 积分 |
+| 看 | `peach_scene_perception_node` | `peach_harvester`（vision） | `BeginScene`；发 `/peach/perception/*` | 不重建、不运动、不选下一颗 |
+| 建 | `peach_target_reconstruction_node` | `peach_harvester`（vision） | `BuildTargetModel`；发 `/peach/reconstruction/*` | 不检测、不写 `ledger.json`、latest TF 积分 |
 | 动 | `peach_arm` | `peach_arm` | `SurveyScene`、`ExecuteTarget` | 不写 `ledger.json`、不调重建 Trigger |
-| 批 | `peach_executor` | `peach_executor` | `RunHarvest`、`ControlTask` | 不做视觉、不直接规划接触/导航 |
-| 管 | `peach_lifecycle_manager` | `peach_executor` | `ManageLifecycleNodes` | 不发 `RunHarvest`；observability 不进名单 |
+| 批 | `peach_harvester`（supervisor） | `peach_harvester`（supervisor） | `RunHarvest`、`ControlTask` | 不做视觉、不直接规划接触/导航 |
+| 管 | `peach_lifecycle_manager` | `peach_harvester`（supervisor） | `ManageLifecycleNodes` | 不发 `RunHarvest`；observability 不进名单 |
 | 监 | `peach_observability` | `peach_observability` | HTTP / JSONL；调试 POST 转发既有入口 | 不旁路 ExecutionAuthority；动臂须 `motion_enabled` |
 
 ---
@@ -694,7 +694,7 @@ flowchart TB
 - `hollow_cylinder_v1`（固定圆柱）：TCP 原点机械尺寸 `(0, 47.90, 151.07) mm`，wrapper `components/tcp_hollow_cylinder_v1.xacro`，档案 `config/hollow_cylinder_v1.yaml`（D_inner 0.104）。
 - `adaptive_cylinder_v1`（自适应圆柱，挂增量 IMU）：TCP 原点 `(0, 47, 168.66) mm`，wrapper `components/tcp_adaptive_cylinder_v1.xacro`，档案 `config/adaptive_cylinder_v1.yaml`（D_inner 0.116）。
 
-姿态两把同款：相对法兰 `Rx(-90°)`，使 **TCP Z=开口、XY=刀口平面**（零位开口朝世界 +Z）；`cutting_plane` / `tcp` / `sleeve_mouth` 同点；筒体沿 TCP −Z 长 `L_insert=200 mm`、外径 0.120。`tool_body_link` 带圆柱+刀片 visual/collision；规划 tip 仍名 `tcp`。`robot_state_publisher` 发 TF。权威关节顺序六轴。**档案 yaml 是整栈单一事实源**：`peach_perception/tool_profiles.py` launch 期装载注入感知 `tool.D_inner`、重建 `tool.budget.d_inner`（GraspDecision 许可数学）与各包 `tool.profile_id` 标签；`bringup`（RSP）与 `moveit.launch.py`/技能/`imu_follow_servo`（MoveItConfigsBuilder mappings）双展开必须同 arg，防 move_group 模型与 TF 分叉。改末端几何改 wrapper xacro 与档案 yaml 两处；**不要**改只读的 `aubo_e5.ros2_control.xacro`。共享底座 `components/tcp.xacro`（`aubo_e5_tcp` macro 持帧链与筒体）。
+姿态两把同款：相对法兰 `Rx(-90°)`，使 **TCP Z=开口、XY=刀口平面**（零位开口朝世界 +Z）；`cutting_plane` / `tcp` / `sleeve_mouth` 同点；筒体沿 TCP −Z 长 `L_insert=200 mm`、外径 0.120。`tool_body_link` 带圆柱+刀片 visual/collision；规划 tip 仍名 `tcp`。`robot_state_publisher` 发 TF。权威关节顺序六轴。**档案 yaml 是整栈单一事实源**：`peach_harvester.vision.tool_profiles` launch 期装载注入感知 `tool.D_inner`、重建 `tool.budget.d_inner`（GraspDecision 许可数学）与各包 `tool.profile_id` 标签；`bringup`（RSP）与 `moveit.launch.py`/技能/`imu_follow_servo`（MoveItConfigsBuilder mappings）双展开必须同 arg，防 move_group 模型与 TF 分叉。改末端几何改 wrapper xacro 与档案 yaml 两处；**不要**改只读的 `aubo_e5.ros2_control.xacro`。共享底座 `components/tcp.xacro`（`aubo_e5_tcp` macro 持帧链与筒体）。
 
 #### `aubo_e5_hardware`
 
@@ -749,7 +749,7 @@ USB 串口 IMU（QinHeng USB 转串适配器：CH340 `1a86:7523`（旧，ttyUSB�
 
 ### 从哪读源码
 
-整栈 launch 入口是 `peach_bringup`（`peach_executor` 同名 launch 薄转发）。读源码从调度纯核开始。
+整栈 launch 入口是 `peach_bringup`（`peach_harvester`（supervisor） 同名 launch 薄转发）。读源码从调度纯核开始。
 
 | 先看 | 文件 | 读什么 |
 |------|------|--------|
@@ -779,7 +779,7 @@ USB 串口 IMU（QinHeng USB 转串适配器：CH340 `1a86:7523`（旧，ttyUSB�
 | 拟合共用 | `peach_perception/common/geometry.py` | 球/柱 RANSAC、深度单位、TF 纯函数、向量/轴线原语、RGB 位打包（单一事实源） |
 | EMA / 时钟 / 落盘根 | `peach_perception/common/runtime.py` | 标量 EMA、ManualClock / BoundedWorker、`default_runs_root` |
 
-参数分层（nav2 式全量清单 + 手写参数模块，决策 0017，部分推翻 0016 的 GPL 机制）：**`config/<节点>.yaml` 是 nav2 式 `ros__parameters` 全量清单（`参数: 值 # 中文说明` 一行一参），launch 以 `ParameterFile(..., allow_substs=True)` 装入，是部署值与中文描述的事实源**；**手写参数模块 `peach_perception/params.py`、`peach_executor/params.py`（各节点类持自己的 DEFAULTS/RULES/ParamListener）与 `peach_arm/include/peach_arm/params.hpp`（`Params`/`ParamListener`）持有兜底默认与校验规则**（接口与原 GPL 生成物一致：`ParamListener(node).get_params()/is_old()`；启动期对 yaml 覆盖值全量校验、非法即抛异常终止启动；运行期 on-set 校验拒非法值）。生效顺序：模块 DEFAULTS → config/<节点>.yaml 覆盖 → launch overlay（`grasp_standoffs.yaml` 注入跨包轴向后撤 `tool.entry_d_*` / `refit.*_standoff_m` / `moveit.mtc_approach_along_axis_m`；整栈 launch 注 `require_managed_stack`）→ 运行期 `ros2 param set`（技能：空闲态全量重载、运行中拒改、execution→grasp→tool 依赖链校验；调度：下次开批与 `HarvestState` 发布时刷新；感知/重建/监控/lifecycle_manager：无运行期刷新，set 后需重启节点或重新 configure）。**改默认值须模块与 yaml 各改一处**；改本机部署值只改 yaml。键名冻结（0016 口径不变，真机命令/文档零破坏）。与 GPL 的取舍（0016→0017 演进理由）：GPL 的类型/越界校验与描述改为模块内手写校验器 + yaml 行内注释承担；`ros2 param describe` 不再携带中文描述，以 yaml 注释为准。rcl 不能把 grasp_standoffs.yaml 当 ParameterFile 直接喂节点；各能力 launch 读入后以参数字典注入已声明名，禁止在源码写死这些米数。
+参数分层（nav2 式全量清单 + 手写参数模块，决策 0017，部分推翻 0016 的 GPL 机制）：**`config/<节点>.yaml` 是 nav2 式 `ros__parameters` 全量清单（`参数: 值 # 中文说明` 一行一参），launch 以 `ParameterFile(..., allow_substs=True)` 装入，是部署值与中文描述的事实源**；**手写参数模块 `peach_harvester vision params.py`、`peach_harvester supervisor params.py`（各节点类持自己的 DEFAULTS/RULES/ParamListener）与 `peach_arm/include/peach_arm/params.hpp`（`Params`/`ParamListener`）持有兜底默认与校验规则**（接口与原 GPL 生成物一致：`ParamListener(node).get_params()/is_old()`；启动期对 yaml 覆盖值全量校验、非法即抛异常终止启动；运行期 on-set 校验拒非法值）。生效顺序：模块 DEFAULTS → config/<节点>.yaml 覆盖 → launch overlay（`grasp_standoffs.yaml` 注入跨包轴向后撤 `tool.entry_d_*` / `refit.*_standoff_m` / `moveit.mtc_approach_along_axis_m`；整栈 launch 注 `require_managed_stack`）→ 运行期 `ros2 param set`（技能：空闲态全量重载、运行中拒改、execution→grasp→tool 依赖链校验；调度：下次开批与 `HarvestState` 发布时刷新；感知/重建/监控/lifecycle_manager：无运行期刷新，set 后需重启节点或重新 configure）。**改默认值须模块与 yaml 各改一处**；改本机部署值只改 yaml。键名冻结（0016 口径不变，真机命令/文档零破坏）。与 GPL 的取舍（0016→0017 演进理由）：GPL 的类型/越界校验与描述改为模块内手写校验器 + yaml 行内注释承担；`ros2 param describe` 不再携带中文描述，以 yaml 注释为准。rcl 不能把 grasp_standoffs.yaml 当 ParameterFile 直接喂节点；各能力 launch 读入后以参数字典注入已声明名，禁止在源码写死这些米数。
 
 参数命名规约（存量键名冻结，约束未来新键）：单位后缀必带——`_m`（米）/`_s`（秒）/`_deg`/`_rad`/`_rad_s`；帧数计单位 `_frames`；无量纲（缩放/比率/开关/序号）不加后缀；组名=职责域（frames/camera/scan/quality/execution/grasp/tool/record/trajectory/debug…），服务/动作名参数用 `_service`/`_action` 后缀、话题名用 `_topic`；同一量纲跨节点同名同值须在两侧 yaml 注释互相标注（如技能 `quality.minimum_baseline_deg` ↔ 重建 `capture.minimum_baseline_deg`）。
 
@@ -790,7 +790,7 @@ USB 串口 IMU（QinHeng USB 转串适配器：CH340 `1a86:7523`（旧，ttyUSB�
 `harvest_system.launch.py` 按顺序 include（能力包 `autostart:=false`）：
 
 1. `aubo_e5_bringup` — 手臂（mock/real）+ 可选相机、手眼 TF、MoveIt
-2. `peach_perception` — `scene_perception` 然后 `target_reconstruction`
+2. `peach_harvester`（vision） — `scene_perception` 然后 `target_reconstruction`
 3. `peach_arm`
 4. `peach_observability`（HTTP / JSONL / 会话 bag）；独立 `record_bag.launch.py` 是额外 ros2 bag 进程，默认关（`record_bag:=true` 才起）
 5. 调度 `require_managed_stack:=true`
@@ -990,10 +990,10 @@ yaml：仅上述 4 键仍为 `*.impl`（技能 yaml 无 `*.impl`）。检测/分
 | 机制 | 现行 | 态度 |
 |------|------|------|
 | LifecycleNode | 感知/重建/技能/调度/observability | KEEP |
-| lifecycle_manager | 普通 Node；`peach_executor/params.py`（名单/超时）；部署值 config/lifecycle_manager.yaml；无 bond | SNAPSHOT / **UNWIND**（Nav2 有 bond）；新生命周期节点加 bond 或显式 watchdog |
+| lifecycle_manager | 普通 Node；`peach_harvester supervisor params.py`（名单/超时）；部署值 config/lifecycle_manager.yaml；无 bond | SNAPSHOT / **UNWIND**（Nav2 有 bond）；新生命周期节点加 bond 或显式 watchdog |
 | BT.CPP | 已移除（`behavior_tree.xml` 与 `bt_nodes.cpp` 删除，`stages.cpp` 显式阶段执行器替代） | KEEP 接触用 MTC stage；不要把“去 BT”扩成禁 pluginlib |
 | MTC | stage 硬编码；预抓取先 PTP 拍照位，再主路径 staging 转移（预抓取下方 PTP + 轴向 LIN）；已齐 LIN 带姿态约束 | KEEP；绕腕看行程（接触 12 rad / 单轴 6.1=URDF 满行程，观察 4 / 1.5，拍照 6 / 2.5）；口侧/上方看①②层果实胶囊（工具有限圆柱 vs 感知胶囊；反爬 s 不得增大；staging PTP 弧逐点 FK 同审但首段不查反爬）；③ octomap 护臂/相机、工具链豁免；笛卡尔绕行比 1.8 / 偏离 0.25 m / 回退 0.08 m；TCP 姿态行程绝对 110°（相对起止余量 20°），不按时长 |
-| generate_parameter_library | peach 已移除；手写 `peach_perception/params.py`、`peach_executor/params.py`、`params.hpp`（技能）。驱动控制器仍有 `*_parameters.yaml`（ros2_control 主流） | SNAPSHOT / **UNWIND**（决策 0017）；新包用 GPL，禁止第三套参数框架；旧 peach 包不强制本轮回迁 |
+| generate_parameter_library | peach 已移除；手写 `peach_harvester vision params.py`、`peach_harvester supervisor params.py`、`params.hpp`（技能）。驱动控制器仍有 `*_parameters.yaml`（ros2_control 主流） | SNAPSHOT / **UNWIND**（决策 0017）；新包用 GPL，禁止第三套参数框架；旧 peach 包不强制本轮回迁 |
 | message_filters | slop 0.05 s | KEEP |
 | pluginlib / composable | 感知 dict `*.impl`；peach 节点非 composable；仅 Percipio 用 composition | **UNWIND**；新可替换算法 pluginlib；新高带宽节点优先 composable |
 | diagnostic_updater | peach 主路径未用；`serial_imu` 已发 `/diagnostics`（串口 + `imu/data` 帧率） | **UNWIND** peach 主路径；新健康信号走 `/diagnostics` |
@@ -1027,7 +1027,7 @@ yaml：仅上述 4 键仍为 `*.impl`（技能 yaml 无 `*.impl`）。检测/分
 | 0018 | 8090 收敛为本项目过程页（2026-09）：记录目录 + 过程线/作业票/事件 + TCP 俯视（绕行比/Δz）+ 单步调试（BeginScene/Survey/Build/Execute/RunHarvest/拍照位）。去掉令牌鉴权与生命周期/使能等完整操作面。`debug.token` 键保留不校验；`debug.enabled` 默认 true（回环）；运动类仍须 `debug.motion_enabled`（默认 false→423）。不新增 IDL，不旁路 ExecutionAuthority。推翻 0013 的令牌与「完整驾驶舱」。 |
 | 0019 | **过程记录介质替换（会话 bag，2026-09-15）：** observability recorder 从「batch_state 开合 9 路 jsonl + jpg/ply + 终局 summary」改为**会话级 MCAP bag**——生命周期绑定节点启停（`on_configure` 开 `runs/session_*/bag`，shutdown/destroy 收尾），批次边界由消息 `request_id` 还原；停栈自动生成 `bag_report.md/json`（`bag_report.py` 纯核 + `bag_reader.py` 读取/reindex 兜底，报告口径沿用旧 summary 验收门），`peach_bag_report` CLI 可复跑；`record.max_total_bag_gb` 预算自动回收最旧 `session_*/bag` 与旧 `mcap_*`（总结/账本/文本永不删，审计 `runs/retention_audit.jsonl`）。新增发布 `/peach/observability/job`、`/peach/observability/metrics`（String JSON，不新增 IDL）；launch `record_mcap` 参数删除。若节点内序列化路径在真机环境不可用，fallback 为 launch 层 `ros2 bag record` 进程（目录退 `runs/mcap_<时间>`，报告侧兼容）。推翻 0006 的「recorder 收尾离线复算 summary」与 0017 的 recorder 目录状态机；mock 冒烟已验证闭环（录制→SIGINT→自动报告→回收），真机待验。 |
 | 0019 | **接近约束四层（2026-09-14；与上条同号，以标题区分）：** ①果实胶囊（工具有限圆柱 vs 感知直径/2+10 mm，不含端球）+②反爬锚果底替换半无限袋囊 keepout；③`sensors_3d.yaml` 点云 octomap 护臂/相机（分辨率 0.04 m，地图系=规划系 `world`），工具链 × `<octomap>` 豁免须 GetPlanningScene 合并 ACM（禁止子方阵整表替换）；④近果速度档 0.05 + `ContactMonitor` 电流特征（默认关）。键名冻结：`mtc_approach_keepout_*` 改为开关/回退。零 IDL。推翻：无。 |
-| 0020 | 双末端工具档案化 + IMU 插入跟随（2026-09-15）：新增 `adaptive_cylinder_v1`（自适应圆柱挂增量 IMU，D_inner 0.116、TCP `(0, 47, 168.66) mm`，余同固定圆柱），与 `hollow_cylinder_v1` 帧名共用冻结（SRDF/ACM/三点 TF 零改动）。`aubo_description/config/<profile>.yaml` 档案成单一事实源，`peach_perception/tool_profiles.py` launch 期注入感知 `tool.D_inner`、重建 `tool.budget.d_inner`（许可数学随档案）与各包 `tool.profile_id` 标签；xacro `tool_profile` arg 贯穿 bringup（RSP）与 MoveItConfigsBuilder（move_group/技能/servo）双展开。授权 `bringup.launch.py` 最小穿透（仅透传 arg 进 xacro 命令，驱动逻辑只读）。默认 `tool_profile=adaptive_cylinder_v1`（忘传参失败方向更安全：模型比实际长→停浅不撞深）；固定圆柱行为零变化有 xacro 展开等价门保证。imu_follow 新增插入模式（`~/insert_start`/`~/insert_stop`：沿工具开口低速推进+姿态跟 IMU+行程钳），并修 disable 后 IK/goal 回执补发两 bug；peach 套入 LIN 段不动，衔接为 PREGRASP_ONLY 停靠后人工编排，零 peach↔imu_follow 耦合。推翻：无（bringup 只读条款局部放宽见本条授权）。 |
+| 0020 | 双末端工具档案化 + IMU 插入跟随（2026-09-15）：新增 `adaptive_cylinder_v1`（自适应圆柱挂增量 IMU，D_inner 0.116、TCP `(0, 47, 168.66) mm`，余同固定圆柱），与 `hollow_cylinder_v1` 帧名共用冻结（SRDF/ACM/三点 TF 零改动）。`aubo_description/config/<profile>.yaml` 档案成单一事实源，`peach_harvester.vision.tool_profiles` launch 期注入感知 `tool.D_inner`、重建 `tool.budget.d_inner`（许可数学随档案）与各包 `tool.profile_id` 标签；xacro `tool_profile` arg 贯穿 bringup（RSP）与 MoveItConfigsBuilder（move_group/技能/servo）双展开。授权 `bringup.launch.py` 最小穿透（仅透传 arg 进 xacro 命令，驱动逻辑只读）。默认 `tool_profile=adaptive_cylinder_v1`（忘传参失败方向更安全：模型比实际长→停浅不撞深）；固定圆柱行为零变化有 xacro 展开等价门保证。imu_follow 新增插入模式（`~/insert_start`/`~/insert_stop`：沿工具开口低速推进+姿态跟 IMU+行程钳），并修 disable 后 IK/goal 回执补发两 bug；peach 套入 LIN 段不动，衔接为 PREGRASP_ONLY 停靠后人工编排，零 peach↔imu_follow 耦合。推翻：无（bringup 只读条款局部放宽见本条授权）。 |
 | 0021 | 框架渐进迁移（2026-09-16）：R0 修 RULES/身份事务/暂停不覆盖 phase/PREGRASP 不虚报 VERIFIED；R1 domain 纯核 + 键名冻结 + 跨字段；R2 模型身份元组/有效期/心跳不续签；R3 reducer+generation+账本幂等；R4 lifecycle watchdog（bondpy 未装 → HeartbeatWatchdog 等价）+ execute 窗 robot_status 单调时钟；R5 封存回放/stale TF/走廊空数据非 clear；R6 plan_id + ACM 不豁免整张 octomap + REACHED/VERIFIED；R7 工具 UNKNOWN 不自动撤退；R8 `peach_bringup`/`peach_observability`；R9 无第二 C++ 实现、不上 pluginlib；R10 `peach_system_tests`。驱动只读；使能默认关；launch 不自动 RunHarvest。 |
 
 ---

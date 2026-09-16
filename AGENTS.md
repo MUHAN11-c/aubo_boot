@@ -1,6 +1,6 @@
 # AGENTS.md — ROS 2 机器人工作流百科
 
-**MUST（先读）：** 未授权不得真机运动或 SetIO。硬件急停不经 ROS。驱动栈只读。`numpy == 1.26.4`。launch 绝不自动 `RunHarvest`。
+**MUST（先读）：** 未授权不得真机运动或 SetIO（操作员在 real 上发起 launch/操作台指令=授权）。硬件急停不经 ROS。驱动栈只读。`numpy == 1.26.4`。autostart 是部署参数（默认关）。
 
 入口：
 
@@ -10,7 +10,7 @@ cd /home/mu/Desktop/aubo_e5_jazzy_ws
 colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 source install/setup.bash
 pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
-ros2 launch peach_executor harvest_system.launch.py hardware_mode:=mock camera_enabled:=false
+ros2 launch peach_bringup harvest_system.launch.py hardware_mode:=mock camera_enabled:=false
 ```
 
 真机另需 `hardware_mode:=real camera_enabled:=true robot_ip:=169.254.10.98`，示教器上电。怎么跑、命名、验收门细节见 [docs/testing.md](docs/testing.md)。
@@ -106,7 +106,7 @@ flowchart TB
 - 关节序冻结：`shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint`。顺序与 URDF / `joint_states` / 控制器 yaml 必须一致，否则透传点会拧腕。
 - 启动前：`pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'`。多代 `robot_state_publisher` 或 `extrinsics_publisher` 会叠同一 child frame，TF 静默错。
 - 不向 `build/`、`install/`、`log/`、`_archive/` 提交。
-- launch **绝不自动 `RunHarvest`**。采摘栈用 enable 开关，不自动接触（OSU apple-harvest 同类：`enable_*`，sim 与真机同一管线）。
+- launch 有 `autostart` **部署参数**（默认关，清洁重写轮 2026-09-16 核定删原红线）：true 时栈就绪自动发 `RunHarvest`。**授权语义=操作员在 real 上发起本 launch**（红线 3）；使能档=操作台运行时开关（意图源 supervisor、强制点臂侧命令门）。mock 自由。
 - **硬件急停不经 ROS。** 示教器红钮 / 柜安全回路是 ISO 13850 急停（IEC 60204-1 Category 0 或 1：切断驱动电源）。`RobotMoveStop`、取消 action、8090、DDS 话题都是应用停轨，**不得称为 e-stop**，也不得替代硬件急停（[ROS Answers / gvdhoorn](https://answers.ros.org/question/401774/e-stop-handling-on-ros-control/)：`ros_control` 不是安全额定急停）。
 - 保护停止解除、远程上电、`unlock_protective_stop` 类接口：本仓不用 dashboard；须人在示教器上确认原因后再复位（UR Driver：用户负责确认保护停止原因；P-stop / EM-stop 往往只是暂停程序，**resume 会继续原动作**，应停程序再重新下发，不要接着跑）。
 
@@ -161,7 +161,7 @@ ISO 10218 要求独立的正常停止、保护停止、急停，且急停优先�
 ### 应用护栏怎么做（DEFAULT）
 
 1. **单一命令门。** Autoware：异常时把输出从正常控制切到 MRM（舒适停 / 紧急停），应用不能绕过这扇门直写执行器。本仓 `ExecutionAuthority` 是同类 KEEP。新运动源（Servo、imu_follow、IVG、8090）必须进同一扇门或硬件急停，禁止旁路话题直写透传。
-2. **使能默认关，开要人确认。** OSU apple-harvest `enable_*`；Stretch 按 runstop 后拒一切 `cmd_vel` / FollowJointTrajectory。本仓 `execution/grasp/tool` 默认 false、launch 不自动 `RunHarvest` 是 KEEP。
+2. **使能是运行时开关，意图源单一，强制点在最后写硬件的一环。** OSU apple-harvest `enable_*`；Stretch runstop 后拒一切运动。本仓现行（清洁重写轮）：`execution/grasp/tool` 使能=操作台 `SetEnables` 运行时开关（意图源=supervisor，广播 `/peach/batch/enables`，臂侧命令门强制；无操作台广播时臂侧本地参数权威）；autostart 是部署参数（授权=发起 launch）。
 3. **缺心跳 = 故障。** Autoware `timeout_hazard_status`（默认 0.5 s）收不到危害状态就紧急停。Nav2 Collision Monitor `source_timeout` / `stop_pub_timeout`：传感器断流不当“前方清空”。Stretch：ROS 0.5 s 无 Twist 则平滑停，**固件再 1 s 硬停**（驱动进程死了底层仍停）。本仓 lifecycle 无 bond 是 UNWIND；新托管节点加 bond 或等价 watchdog。
 4. **安全过滤必须是命令链最后一环。** Nav2：Collision Monitor **必须**是发布 `cmd_vel` 的最后节点；前面再聪明，被旁路就失效。`twist_mux` 优先级挡不住有人直接往执行话题发。臂侧同类：最后写硬件的是控制器 + 柜，不要在应用里再开一条平行写口。
 5. **规划碰撞不是现场安全。** MoveIt 只看见 PlanningScene 里的障碍；Pilz LIN **不避障，碰了整条拒**。octomap / 胶囊是护栏，不是安全激光。场景没有的枝条、人、桌子，规划器看不见。
@@ -642,7 +642,7 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 
 - Jazzy + C++17；numpy 1.26.4（cv_bridge ABI）
 - AUBO 关节序；驱动只读面见第 1 章（hardware / controllers / dashboard / `ros2_control.xacro` / bringup / `controllers.yaml`；0020 授权 bringup 只透传 `tool_profile`）；bringup 不起 dashboard；示教器上电（不远程 `power_on`）
-- 未授权不动臂 / SetIO；硬件急停不经 ROS；launch 不自动 `RunHarvest`；`execution/grasp/tool` 默认 false；`execute_pregrasp_only` 默认 true
+- 未授权不动臂 / SetIO（操作员发起 real launch/操作台指令=授权）；硬件急停不经 ROS；autostart 是部署参数（默认关）；使能=操作台运行时开关；`execute_pregrasp_only` 默认 true
 - 保护停止 / 急停后不 resume 原轨迹；停轨是应用层 `RobotMoveStop`，不是 ISO 13850 急停
 - mock = `mock_components/GenericSystem` + 标准 JTC（与 UR 主流一致，这是主流不是特例）
 - 重建积分精确 stamp TF（tf2 主流）
@@ -659,19 +659,18 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 - `message_filters` slop 0.05 s 做 RGB-D 同步（KEEP 用库；具体 slop 是产品调参）
 - C++ 风格门以 uncrustify 为准（cpplint 版权头冲突是 SNAPSHOT 例外，不是禁 gtest 的理由）
 
-现行应用七包职责摘要（能力四包切法可 UNWIND，跨包仍走 IDL）：
+现行应用六包职责摘要（清洁重写轮 3a 并包后；跨包仍走 IDL）：
 
 | 包 | 现行职责 | 不做什么 |
 |----|----------|----------|
 | `peach_interfaces` | 唯一 IDL + manifest 双向核对 | 不跑节点 |
-| `peach_perception` | 场景观测 + 当前目标重建 | 不发运动、不选下一颗、不写 `ledger.json` |
-| `peach_arm` | `SurveyScene` / `ExecuteTarget`（视点、预抓取、套入、刀、撤退） | 不写 `ledger.json`、不调重建 Trigger |
-| `peach_executor` | 批次 FSM、lifecycle 管理器；观测 yaml/ParamListener | 不处理 RGB-D、不规划接触、不承载 8090 实现 |
-| `peach_bringup` | 整栈 `harvest_system` 入口、预检 | 不自动 `RunHarvest` |
+| `peach_harvester` | 大脑一进程三节点：`vision`（场景观测+目标重建）+ `supervisor`（批次 FSM/选果/视点两档/批次策略/操作台服务/账本+补采清单）；台架独立入口保留 | 不发关节命令、不做 IK（问臂） |
+| `peach_arm` | `MoveTo` / 接触 `ExecuteTarget`（检查点+令牌双路）/ `CheckReachability`；命令门=enables×clearance×robotReady×¬cancel；GPL 参数单源 | 不写 `ledger.json`、不选目标 |
+| `peach_bringup` | 整栈入口、预检、nav2_lm 托管、autostart 客户端、生命周期桥 | 不含业务 |
 | `peach_observability` | 8090 / 会话 bag / `peach_bag_report` | 不发运动 |
-| `peach_system_tests` | isolated mock launch_testing | 不进运行 launch |
+| `peach_system_tests` | isolated mock launch_testing + 回放塔 | 不进运行 launch |
 
-lifecycle 名单现行：场景 → 重建 → 技能 → 调度；observability 不进名单、不加 bond。若重划包边界，这张表与 [docs/io.md](docs/io.md) 消费者列必须同轮改。
+lifecycle 名单现行（nav2_lm 承载，bond_timeout=0）：场景 → 重建 → 技能 → 调度；observability 不进名单。若重划包边界，这张表与 [docs/io.md](docs/io.md) 消费者列必须同轮改。
 
 ### UNWIND（不是完美适配；禁止当红线）
 

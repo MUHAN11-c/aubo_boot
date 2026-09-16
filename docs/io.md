@@ -9,9 +9,9 @@
 | 节 | 包 | 节点 |
 |----|----|------|
 | §2 | `peach_interfaces` | 无（IDL + 清单） |
-| §3 | `peach_perception` | `peach_scene_perception_node`、`peach_target_reconstruction_node` |
+| §3 | `peach_harvester`（vision） | `peach_scene_perception_node`、`peach_target_reconstruction_node` |
 | §4 | `peach_arm` | `peach_arm` |
-| §5 | `peach_executor` | `peach_executor`、`peach_lifecycle_manager` |
+| §5 | `peach_harvester`（supervisor） | `peach_harvester`（supervisor）、`peach_lifecycle_manager` |
 | §5.3 | `peach_observability` | `peach_observability`（8090 / 会话 bag） |
 | §6 | 驱动九包 | 臂 / 相机 / TF（只读红线见 AGENTS） |
 | §7 | `serial_imu` | 随 `harvest_system`（`imu_enabled`），不进 lifecycle |
@@ -26,9 +26,9 @@
 | 包 | 对外提供 | 对外消费 | 不提供 |
 |----|----------|----------|--------|
 | `peach_interfaces` | IDL + `interface_manifest.yaml` | — | 运行时节点 |
-| `peach_perception` | `BeginScene`；`/peach/perception/*`；`BuildTargetModel`；`/peach/reconstruction/*` | RGB-D、`HarvestState`、精确 stamp TF | 运动动作、`ledger.json`、选下一颗 |
+| `peach_harvester`（vision） | `BeginScene`；`/peach/perception/*`；`BuildTargetModel`；`/peach/reconstruction/*` | RGB-D、`HarvestState`、精确 stamp TF | 运动动作、`ledger.json`、选下一颗 |
 | `peach_arm` | `SurveyScene`、`ExecuteTarget`、`CheckReachability`、`grasp_hypothesis`、预览/使能/ACK 服务 | 观测、`GraspDecision`、`refined_*` | `RunHarvest`、重建 Trigger 客户端、`ledger.json` |
-| `peach_executor` | `RunHarvest`、`ControlTask`、`HarvestState`/`events`、lifecycle | 观测（选果，仅 `target_observations`）、动作结果 | RGB-D 处理、MoveIt 规划接触、Nav2 规划 |
+| `peach_harvester`（supervisor） | `RunHarvest`、`ControlTask`、`HarvestState`/`events`、lifecycle | 观测（选果，仅 `target_observations`）、动作结果 | RGB-D 处理、MoveIt 规划接触、Nav2 规划 |
 | `peach_bringup` | 整栈 launch / 预检 | Include 只读 `aubo_e5_bringup` | 不自动 RunHarvest |
 | `peach_observability` | 8090 转发、独立 rosbag2 | 调度/技能只读话题 | 不发运动 |
 
@@ -79,18 +79,18 @@ flowchart LR
 
 | 动作 | 服务端所在包 | 含义 |
 |------|--------------|------|
-| `RunHarvest` | `peach_executor` | **开一批采摘。** launch 绝不自动发。goal：`request_id`（账本目录名，须唯一）、`scene_key`、`profile_id`（**批次参数剖面**，现行未消费；与工具档案 `tool_profile_id` 是两个字段，勿混）、`intent`（PICK_ALL / PICK_SELECTED / SURVEY_ONLY）、可选 `target_ids`。结果：至少成功一颗才 `success` |
+| `RunHarvest` | `peach_harvester`（supervisor） | **开一批采摘。** launch 绝不自动发。goal：`request_id`（账本目录名，须唯一）、`scene_key`、`profile_id`（**批次参数剖面**，现行未消费；与工具档案 `tool_profile_id` 是两个字段，勿混）、`intent`（PICK_ALL / PICK_SELECTED / SURVEY_ONLY）、可选 `target_ids`。结果：至少成功一颗才 `success` |
 | `NavigateToWorksite` | （预留，导航包已归档） | **走到作业位。** 固定座调度直通 `NAV_OK`，不发动作、无服务端 |
 | `SurveyScene` | `peach_arm` | **去全局拍照位并复核关节已静止。** 给感知准备发现 FOV。PAUSE 会取消，恢复后重试。失败整批 `survey_failed`，不 Begin |
-| `BuildTargetModel` | `peach_perception` | **绑一颗、收合格机位后 finalize。** 与 OBSERVE_ONLY 并行。积分只用精确 stamp TF。反馈 `view_count` 是机位数 |
+| `BuildTargetModel` | `peach_harvester`（vision） | **绑一颗、收合格机位后 finalize。** 与 OBSERVE_ONLY 并行。积分只用精确 stamp TF。反馈 `view_count` 是机位数 |
 | `ExecuteTarget` | `peach_arm` | **对当前 `target_id` 跑一周期。** `PREVIEW` 只规划；`OBSERVE_ONLY` 只补视角；`PREGRASP_ONLY` 停预抓取不 SetIO（默认干跑）；`FULL` 套入/刀/撤退。终局 `SUCCEEDED` / `SKIPPED_*` / `FAILED` / `CANCELED`。`harvest.grasped` 仅切断且撤退确认 |
 
 | 服务 | 服务端所在包 | 含义 |
 |------|--------------|------|
-| `BeginScene` | `peach_perception` | **重启收齐窗。** 推进 `scene_epoch`。同 `scene_key` 保留身份；换场才清表。非 Active 拒绝。调度仅 DISCOVERY 首巡 Survey 到位后调用一次 |
+| `BeginScene` | `peach_harvester`（vision） | **重启收齐窗。** 推进 `scene_epoch`。同 `scene_key` 保留身份；换场才清表。非 Active 拒绝。调度仅 DISCOVERY 首巡 Survey 到位后调用一次 |
 | `CheckReachability` | `peach_arm` | **选果：入口换成与 Hold 同一停位后，当前关节种子下有没有 IK。** 位置后撤 `mtc_approach_along_axis_m`，姿态 `alignFrameZ` 不抄感知滚转；keep-roll 无解再 ±30°/±60° 滚转。不规划、不动臂、不采样路径点（路径可行性在接近规划时审查）。无解记 `ik_no_solution`。服务不可用时调度回退半径窗 |
-| `ControlTask` | `peach_executor` | **人工控批（监控不发）。** PAUSE / RESUME / CANCEL_NOW / SKIP_TARGET / ACKNOWLEDGE_RECOVERY。`expected_state_seq` 须对上，防过期点击 |
-| `ManageLifecycleNodes` | `peach_executor` | **整栈 configure/activate/拆除。** PAUSE=节点 Inactive，不是批次暂停。不发 `RunHarvest` |
+| `ControlTask` | `peach_harvester`（supervisor） | **人工控批（监控不发）。** PAUSE / RESUME / CANCEL_NOW / SKIP_TARGET / ACKNOWLEDGE_RECOVERY。`expected_state_seq` 须对上，防过期点击 |
+| `ManageLifecycleNodes` | `peach_harvester`（supervisor） | **整栈 configure/activate/拆除。** PAUSE=节点 Inactive，不是批次暂停。不发 `RunHarvest` |
 
 | 消息 | 含义 |
 |------|------|
@@ -137,7 +137,7 @@ flowchart LR
 
 ---
 
-## 3. `peach_perception`
+## 3. `peach_harvester`（vision）
 
 一包两节点。不发运动、不选下一颗、不写 `ledger.json`（可向 `runs/<request_id>/perception_data/` 追加 `HarvestDataStore` 事件）。感知几何优先 stamp TF，失败 latest 并 `tf_stale`；重建积分必须图像时刻精确 TF，禁止 latest。
 
@@ -219,7 +219,7 @@ flowchart TB
 - 跟踪 token：OUT_OF_VIEW / LOST / OCCLUDED / DEPTH_VOID / OBSERVED。
 - 锁定：`CollectLockPolicy`；`tf_stale` / `tf_unavailable` / `target_swinging` 不可选。锁定后新 ID 不入集。
 
-作业参数（部署值 `config/scene_perception.yaml`；声明/校验 `peach_perception/params.py`）：
+作业参数（部署值 `config/scene_perception.yaml`；声明/校验 `peach_harvester vision params.py`）：
 
 | 参数 | 含义 |
 |------|------|
@@ -308,7 +308,7 @@ flowchart TB
 
 `allowed=true` 之后仍可能 `skipped_quality`（再确认/预抓取残差）或 `skipped_unreachable`（MTC 护栏）。心跳里大量 `not_ready` 不等于精化从未 ACCEPT；看逐目标 max，不要看收工 IDLE。
 
-作业参数（部署值 `config/target_reconstruction.yaml`；声明/校验 `peach_perception/params.py`）：
+作业参数（部署值 `config/target_reconstruction.yaml`；声明/校验 `peach_harvester vision params.py`）：
 
 | 参数 | 含义 |
 |------|------|
@@ -418,11 +418,11 @@ flowchart TB
 
 ---
 
-## 5. `peach_executor`
+## 5. `peach_harvester`（supervisor）
 
-调度与 lifecycle 管理器同包。8090 实现在 `peach_observability`（调度包 `observability/` 为 import shim；yaml 仍在 `peach_executor/config/observability.yaml`）。调度是批次唯一所有者；lifecycle 不发 `RunHarvest`；监控只读。
+调度与 lifecycle 管理器同包。8090 实现在 `peach_observability`（调度包 `observability/` 为 import shim；yaml 仍在 `peach_harvester/config/observability.yaml`）。调度是批次唯一所有者；lifecycle 不发 `RunHarvest`；监控只读。
 
-### 5.1 `peach_executor`（批）
+### 5.1 `peach_harvester`（supervisor）（批）
 
 ```mermaid
 flowchart TB
@@ -464,7 +464,7 @@ flowchart TB
 
 客户端（仅本节点）：`BeginScene`、`SurveyScene`、`BuildTargetModel`（与 OBSERVE_ONLY 并行）、`ExecuteTarget`、`CheckReachability`。账本：`runs/<request_id>/ledger.json`。
 
-作业参数（部署值 `config/peach_executor.yaml`；声明/校验 `peach_executor/params.py`。`tool.profile_id` 基础值是固定圆柱标签，整栈由 launch `tool_profile` 注入覆盖）：
+作业参数（部署值 `config/peach_executor.yaml`；声明/校验 `peach_harvester supervisor params.py`。`tool.profile_id` 基础值是固定圆柱标签，整栈由 launch `tool_profile` 注入覆盖）：
 
 | 参数 | 含义 |
 |------|------|

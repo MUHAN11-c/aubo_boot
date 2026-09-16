@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <peach_interfaces/msg/pregrasp_verification.hpp>
+#include <rclcpp/rclcpp.hpp>
 
 #include "peach_arm/target_cache.hpp"
 #include "peach_arm/view_planner.hpp"
@@ -172,6 +173,13 @@ struct CycleContext
   bool pregrasp_only{false};
   bool skip_observation{false};
   bool action_driven{false};
+  // 接触许可令牌（清洁重写轮；goal.clearance 填写即置 present）：
+  // CONTACT/TOOL 级复检优先走令牌（allowed + model_stamp 新鲜度），
+  // 旧客户端未填时回退 GraspDecision 话题快照（authorizeStage 兼容双路）。
+  bool clearance_present{false};
+  bool clearance_allowed{false};
+  rclcpp::Time clearance_model_stamp{0, 0, RCL_ROS_TIME};
+  double clearance_fresh_window_s{0.0};  // >0 时启用 stamp 新鲜度复检
   // 目标/精化快照与观察候选
   std::optional<CachedTarget> target;
   std::optional<CachedRefined> refined;

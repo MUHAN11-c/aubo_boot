@@ -165,6 +165,17 @@ interfaces:
     type: peach_interfaces/srv/CheckReachability
     producers: [peach_arm]
     consumers: [peach_executor, peach_observability]
+  - name: /peach_arm/move_to
+    kind: action
+    type: peach_interfaces/action/MoveTo
+    producers: [peach_arm]
+    consumers: []   # 阶段 3 起 peach_supervisor（观察循环/回拍照位/stow）
+  - name: /peach/batch/enables
+    kind: topic
+    type: peach_interfaces/msg/Enables
+    qos: {reliability: reliable, durability: transient_local, depth: 1}
+    producers: []   # 阶段 3 起 peach_supervisor（SetEnables 服务后广播）
+    consumers: [peach_arm]
   - name: /peach/lifecycle/managed_nodes_activated
     kind: topic
     type: std_msgs/msg/Bool

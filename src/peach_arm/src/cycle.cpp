@@ -43,11 +43,15 @@ static_assert(targetPhase(CycleState::FAILED) == HarvestStateMsg::TARGET_FAILED)
 
 // 运动阶段授权矩阵（cycle_support.hpp）：一切运动执行入口最终收敛到
 // 本判定。公共 = Active ∧ robotReady ∧ !cancel；TRANSIT/PREGRASP 叠加
-// execution_enabled；CONTACT 叠加 grasp_enabled ∧ GraspDecision 复检；
-// TOOL 再叠加 tool_enabled。
+// execution_enabled；CONTACT 叠加 grasp_enabled ∧ 接触许可复检（清洁重写轮
+// 双路：goal.clearance 令牌优先——只验新鲜度与 allowed，不重算几何；旧
+// 客户端未填令牌时回退 GraspDecision 话题快照）；TOOL 再叠加 tool_enabled。
 bool ManipulationSkillsNode::authorizeStage(
   const CycleContext & ctx, MotionStage stage, std::string & why)
 {
+  if (stage == MotionStage::TRANSIT || stage == MotionStage::PREGRASP) {
+    return authorizeTransit(why);
+  }
   if (!motionOutputAllowed(why)) {
     return false;
   }
@@ -58,16 +62,23 @@ bool ManipulationSkillsNode::authorizeStage(
     why = "周期已请求取消";
     return false;
   }
-  if (stage == MotionStage::TRANSIT || stage == MotionStage::PREGRASP) {
-    if (!execution_enabled_.load()) {
-      why = "execution.enabled=false（只规划预览，不得执行运动）";
-      return false;
-    }
-    return true;
-  }
   if (!grasp_enabled_.load()) {
     why = "grasp.enabled=false（接触未使能）";
     return false;
+  }
+  if (ctx.clearance_present) {
+    if (!ctx.clearance_allowed) {
+      why = "接触许可令牌 allowed=false";
+      return false;
+    }
+    if (ctx.clearance_fresh_window_s > 0.0) {
+      const double age_s = now().seconds() - ctx.clearance_model_stamp.seconds();
+      if (age_s < -0.5 || age_s > ctx.clearance_fresh_window_s) {
+        why = "接触许可令牌过期（model_stamp 超窗）";
+        return false;
+      }
+    }
+    return true;
   }
   if (graspDecisionTargetSnapshot() != ctx.target_id ||
     !qualitySnapshot().grasp_allowed)
@@ -222,6 +233,24 @@ void ManipulationSkillsNode::executeAction(
       ctx->pregrasp_only = goal->mode == ExecuteTarget::Goal::PREGRASP_ONLY;
       ctx->skip_observation = goal->skip_observation;
       ctx->action_driven = true;
+      // 清洁重写轮：goal.profile 优先（PREGRASP_HOLD≈PREGRASP_ONLY、
+      // FULL≈FULL）；旧客户端不填 profile（0=PREGRASP_HOLD 与 PREGRASP_ONLY
+      // 语义衔接，mode 仍各自赋值，行为不变）。接触许可令牌填写即启用
+      // CONTACT/TOOL 级令牌复检路径（authorizeStage 双路）。
+      if (goal->profile == ExecuteTarget::Goal::PROFILE_FULL) {
+        ctx->pregrasp_only = false;
+      } else if (goal->profile == ExecuteTarget::Goal::PROFILE_PREGRASP_HOLD) {
+        ctx->pregrasp_only = true;
+      }
+      if (goal->clearance.model_stamp.sec > 0 ||
+        goal->clearance.model_stamp.nanosec > 0)
+      {
+        ctx->clearance_present = true;
+        ctx->clearance_allowed = goal->clearance.allowed;
+        ctx->clearance_model_stamp = rclcpp::Time(goal->clearance.model_stamp);
+        ctx->clearance_fresh_window_s = effectiveTargetMaxAgeS();
+      }
+      last_checkpoint_.store(0);
       cycle_ = ctx;
       onStart(trigger_response);
     }
@@ -255,6 +284,8 @@ void ManipulationSkillsNode::executeAction(
       // A13：CycleState→TargetPhase 投影随反馈下发（此前恒 0/TARGET_IDLE，
       // 编排器批次过程线的目标阶段在周期内停在 IDLE）。
       feedback->state.target_phase = targetPhase(current_state_);
+      // 清洁重写轮：阶段检查点随反馈下发（stages.cpp 到达即 mark）。
+      feedback->checkpoint = last_checkpoint_.load();
     }
     goal_handle->publish_feedback(feedback);
     std::this_thread::sleep_for(200ms);

@@ -870,6 +870,9 @@ bool ManipulationSkillsNode::stageMovePregrasp(CycleContext & ctx)
   }
   ctx.completion_level = std::max(
     ctx.completion_level, ExecuteTarget::Result::LEVEL_PREGRASP_REACHED);
+  // CK_AT_STAGING 待 GraspTask 增设 staging 到位回调后补记（staging PTP 与
+  // 轴向 LIN 在 moveToPregrasp 单调用内完成，2b 层不可区分）。
+  markCheckpoint(ExecuteTarget::Goal::CK_AT_PREGRASP, "到预抓取");
   return true;
 }
 
@@ -1027,6 +1030,7 @@ bool ManipulationSkillsNode::stagePlanSleeveAndReverseRetreat(CycleContext & ctx
       FailureCode::SLEEVE_PLAN_FAILED, "套入/撤退预规划失败: " + result.reason);
   }
   ctx.sleeve_planned = true;
+  markCheckpoint(ExecuteTarget::Goal::CK_SLEEVE_PLANNED, "套入与反向撤退预规划过门");
   return true;
 }
 
@@ -1068,6 +1072,7 @@ bool ManipulationSkillsNode::stageSleeveLinear(CycleContext & ctx)
   ctx.completion_level = std::max(
     ctx.completion_level,
     ExecuteTarget::Result::LEVEL_SLEEVE_COMPLETED);
+  markCheckpoint(ExecuteTarget::Goal::CK_SLEEVED, "沿轴套入到位");
   return true;
 }
 
@@ -1106,6 +1111,7 @@ bool ManipulationSkillsNode::stageActuateCutter(CycleContext & ctx)
       ctx, "tool_state_unknown: " + reason + "（不自动撤退、不重发）");
   }
   ctx.cut_command_accepted = true;
+  markCheckpoint(ExecuteTarget::Goal::CK_CUT_ACCEPTED, "SetIO 受理（≠切断）");
   ctx.completion_level = std::max(
     ctx.completion_level,
     ExecuteTarget::Result::LEVEL_CUT_COMMAND_ACCEPTED);
@@ -1153,6 +1159,7 @@ bool ManipulationSkillsNode::stageExecuteReservedReverseRetreat(CycleContext & c
   ctx.completion_level = std::max(
     ctx.completion_level,
     ExecuteTarget::Result::LEVEL_RETREAT_CONFIRMED);
+  markCheckpoint(ExecuteTarget::Goal::CK_RETREATED, "原路撤回预抓取");
   return true;
 }
 
@@ -1173,6 +1180,7 @@ bool ManipulationSkillsNode::stageReturnHarvestStow(CycleContext & ctx)
     return failStage(ctx, "返回 harvest_stow 失败: " + message);
   }
   contact_recovery_required_.store(false);
+  markCheckpoint(ExecuteTarget::Goal::CK_STOWED, "回收纳位");
   return true;
 }
 

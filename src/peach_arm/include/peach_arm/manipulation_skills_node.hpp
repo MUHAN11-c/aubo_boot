@@ -23,8 +23,10 @@
 #include <nlohmann/json.hpp>
 #include <peach_interfaces/msg/bag_fitting_array.hpp>
 #include <peach_interfaces/msg/bag_grasp_candidate_array.hpp>
+#include <peach_interfaces/msg/enables.hpp>
 #include <peach_interfaces/msg/peach_target_observation_array.hpp>
 #include <peach_interfaces/action/execute_target.hpp>
+#include <peach_interfaces/action/move_to.hpp>
 #include <peach_interfaces/action/survey_scene.hpp>
 #include <peach_interfaces/srv/check_reachability.hpp>
 #include <peach_interfaces/msg/grasp_decision.hpp>
@@ -69,8 +71,10 @@ using CheckReachability = peach_interfaces::srv::CheckReachability;
 using json = nlohmann::json;
 using ExecuteTarget = peach_interfaces::action::ExecuteTarget;
 using SurveyScene = peach_interfaces::action::SurveyScene;
+using MoveToAction = peach_interfaces::action::MoveTo;
 using RunTargetGoalHandle = rclcpp_action::ServerGoalHandle<ExecuteTarget>;
 using SurveyGoalHandle = rclcpp_action::ServerGoalHandle<SurveyScene>;
+using MoveToGoalHandle = rclcpp_action::ServerGoalHandle<MoveToAction>;
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
 // 主动视觉靠近与抓取编排节点：只通过 MoveIt 和现有 ROS 接口工作，不直接访问 SDK。
@@ -153,6 +157,21 @@ private:
     const std::shared_ptr<SurveyGoalHandle>);
   void onSurveyAccepted(const std::shared_ptr<SurveyGoalHandle> goal_handle);
   void executeSurvey(const std::shared_ptr<SurveyGoalHandle> goal_handle);
+  // MoveTo 动作服务端（清洁重写轮 2b：视点/命名位/位姿移动；move_to.cpp）。
+  rclcpp_action::GoalResponse onMoveToGoal(
+    const rclcpp_action::GoalUUID &,
+    const std::shared_ptr<const MoveToAction::Goal> goal);
+  rclcpp_action::CancelResponse onMoveToCancel(
+    const std::shared_ptr<MoveToGoalHandle>);
+  void onMoveToAccepted(const std::shared_ptr<MoveToGoalHandle> goal_handle);
+  void executeMoveTo(const std::shared_ptr<MoveToGoalHandle> goal_handle);
+  // TRANSIT 级授权公共段（authorizeStage 的 TRANSIT/PREGRASP 分支与
+  // MoveTo/Survey 共用：Active ∧ robotReady ∧ ¬cancel ∧ execution_enabled）。
+  bool authorizeTransit(std::string & why);
+  // 操作台使能广播订阅（清洁重写轮；无发布者时本地参数保持权威）。
+  void onEnables(const peach_interfaces::msg::Enables::SharedPtr message);
+  // 阶段检查点（CK_*）：到达即记，反馈随行下发；0=未到首个检查点。
+  void markCheckpoint(uint8_t checkpoint, const char * where);
   void onStart(const Trigger::Response::SharedPtr & response);
   void onCancel(const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response);
   void onAcknowledgeRecovery(
@@ -441,6 +460,15 @@ private:
   rclcpp_action::Server<ExecuteTarget>::SharedPtr cycle_action_server_;
   rclcpp_action::Server<SurveyScene>::SharedPtr survey_action_server_;
   std::thread survey_thread_;
+  // MoveTo 动作服务端与执行线程（与 survey 同纪律：可 join、互斥占用）。
+  rclcpp_action::Server<MoveToAction>::SharedPtr move_to_action_server_;
+  std::thread move_to_thread_;
+  // 操作台使能广播（清洁重写轮）：收到过即 external 生效并覆盖本地参数；
+  // 未收到过（旧栈/无大脑）本地参数保持唯一权威——行为零变化。
+  rclcpp::Subscription<peach_interfaces::msg::Enables>::SharedPtr enables_sub_;
+  bool enables_external_{false};
+  // 当前周期最新检查点（ExecuteTarget::Goal::CK_*；0=未到）。
+  std::atomic<uint8_t> last_checkpoint_{0};
   // 最近观测快照三元组（SurveyScene result 数据源）：onTargets（订阅线程）写、
   // executeSurvey（survey 线程）读，经 snapshot_mutex_ 互斥。
   std::mutex snapshot_mutex_;

@@ -209,6 +209,9 @@ void ManipulationSkillsNode::closeMotionOutputAndCancel()
   if (survey_thread_.joinable()) {
     survey_thread_.join();
   }
+  if (move_to_thread_.joinable()) {
+    move_to_thread_.join();
+  }
 }
 
 void ManipulationSkillsNode::releaseResources()
@@ -218,6 +221,7 @@ void ManipulationSkillsNode::releaseResources()
   // loadParameters 重建），contact_recovery_required_ 跨清理保持。
   cycle_action_server_.reset();
   survey_action_server_.reset();
+  move_to_action_server_.reset();
   preview_approach_service_.reset();
   preview_full_contact_service_.reset();
   cancel_service_.reset();
@@ -687,6 +691,10 @@ void ManipulationSkillsNode::createSubscriptions()
     "~/planned_views", latched);
   grasp_hyp_pub_ = create_publisher<peach_interfaces::msg::GraspHypothesis>(
     "/peach/manipulation/grasp_hypothesis", latched);
+  // 操作台使能广播（清洁重写轮）：无发布者时静默，本地参数保持权威。
+  enables_sub_ = create_subscription<peach_interfaces::msg::Enables>(
+    "/peach/batch/enables", latched,
+    std::bind(&ManipulationSkillsNode::onEnables, this, std::placeholders::_1));
 }
 
 void ManipulationSkillsNode::createServices()
@@ -767,6 +775,17 @@ void ManipulationSkillsNode::createActions()
       std::placeholders::_1),
     std::bind(
       &ManipulationSkillsNode::onSurveyAccepted, this,
+      std::placeholders::_1));
+  move_to_action_server_ = rclcpp_action::create_server<MoveToAction>(
+    this, "~/move_to",
+    std::bind(
+      &ManipulationSkillsNode::onMoveToGoal, this,
+      std::placeholders::_1, std::placeholders::_2),
+    std::bind(
+      &ManipulationSkillsNode::onMoveToCancel, this,
+      std::placeholders::_1),
+    std::bind(
+      &ManipulationSkillsNode::onMoveToAccepted, this,
       std::placeholders::_1));
 }
 

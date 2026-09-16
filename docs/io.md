@@ -120,17 +120,19 @@ flowchart LR
 | `/peach/navigation/vehicle_state` | `VehicleState` | 底盘位姿/速度；无节点 |
 | `/peach/navigation/arm_status` | `HarvestOperationStatus` | 臂作业状态给导航；无节点 |
 
-清洁重写轮已设计待接线契约（IDL 已入包编译，图上无生产方；接线与 manifest 登记随阶段 2/3 落地，此前不进清单——不假装有节点在发。设计全文见 REFACTORING.md 重写轮节）：
+清洁重写轮契约接线状态（设计全文见 REFACTORING.md 重写轮节；**阶段 2b 已接线臂侧**，其余随阶段 3/4 落地）：
 
-| 类型 | 计划图名 | 服务端 | 接线阶段 | 语义 |
-|------|----------|--------|----------|------|
-| `MoveTo.action` | `/peach_arm/move_to` | `peach_arm` | 2 | 视点/拍照位/命名位/关节移动；lin_only 只 LIN；取消=abort+RobotMoveStop |
-| `Clearance.msg` | （随 ExecuteTarget goal） | — | 2 | 接触许可令牌：模型时刻+allowed+余量+指纹；臂侧验新鲜度不重算几何 |
-| `ExecuteTarget` 扩展字段 | 现名不变 | `peach_arm` | 2 | `clearance`/`profile`（PREGRASP_HOLD/FULL）+ `CK_*` 检查点常量（AT_STAGING→…→CUT_CONFIRMED→RETAINED→RETREATED→STOWED，均 abortable）；届时动作收窄为纯接触、观察模式移除 |
+| 类型 | 图名 | 服务端 | 状态 | 语义 |
+|------|------|--------|------|------|
+| `MoveTo.action` | `/peach_arm/move_to` | `peach_arm` | **已接线（2b）** | KIND_NAMED（goToPhotoPose 通用命名位，拍照位带原路返程）/ KIND_POSE（lin_only 只 LIN，失败不回退；非 base 系自动换系）；KIND_JOINTS 预留未实现；取消=abort+RobotMoveStop；与接触周期互斥（running/recovery 期拒） |
+| `Enables.msg` | `/peach/batch/enables` | （阶段 3 `peach_supervisor`） | **臂侧已订阅（2b）** | transient_local；臂侧收到过即覆盖本地参数（意图源=大脑），无发布者时本地参数保持唯一权威——旧栈行为零变化 |
+| `Clearance.msg` | （随 ExecuteTarget goal） | — | **已接线（2b）** | 接触许可令牌：goal 填写 model_stamp 即启用 CONTACT/TOOL 级令牌复检（allowed+新鲜窗=effectiveTargetMaxAgeS，不重算几何）；未填回退 GraspDecision 话题快照 |
+| `ExecuteTarget` 扩展字段 | 现名不变 | `peach_arm` | **已接线（2b）** | `profile`（PREGRASP_HOLD≈PREGRASP_ONLY / FULL）优先于 mode 等价档；`feedback.checkpoint` 随行下发——已记 AT_PREGRASP/SLEEVE_PLANNED/SLEEVED/CUT_ACCEPTED/RETREATED/STOWED；AT_STAGING 待 GraspTask staging 到位回调，CUT_CONFIRMED/RETAINED 待刀具/承接 DI 接线（预留，阶段 3/4 补） |
 | `RunHarvest` 扩展字段 | 现名不变 | `peach_supervisor` | 3 | `INTENT_*` 常量（JobIntent 删除后唯一权威）+ 批次策略 `target_harvest_ratio`/`per_target_timeout_s`/`sector_timeout_s`/`view_policy`（VIEW_FAST 默认/VIEW_CONSERVATIVE 原值） |
-| `SetEnables.srv` | `/peach_supervisor/set_enables` | `peach_supervisor` | 3 | 操作台使能开关；广播 `/peach/batch/enables`（transient_local）+审计 |
+| `SetEnables.srv` | `/peach_supervisor/set_enables` | `peach_supervisor` | 3 | 操作台使能开关；广播 `/peach/batch/enables` +审计 |
 | `SetBatchPolicy.srv` | `/peach_supervisor/set_batch_policy` | `peach_supervisor` | 3 | 运行期改批次策略（当前批或下批默认） |
 | `FireStep.srv` | `/peach_supervisor/fire_step` | `peach_supervisor` | 3/4 | 操作台单步（PHOTO/VIEWPOINT/BUILD/APPROACH/PREVIEW/TOOL_DEBUG）；运动类过臂侧命令门 |
+
 
 
 ---

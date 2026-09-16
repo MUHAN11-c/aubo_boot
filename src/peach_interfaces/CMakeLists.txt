@@ -19,6 +19,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/CanonicalEvent.msg"
   "msg/Clearance.msg"
   "msg/DepositResult.msg"
+  "msg/Enables.msg"
   "msg/FailureCode.msg"
   "msg/GraspDecision.msg"
   "msg/GraspHypothesis.msg"

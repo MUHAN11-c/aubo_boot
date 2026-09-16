@@ -59,6 +59,7 @@ target_link_libraries(${PROJECT_NAME}_core PUBLIC Eigen3::Eigen Threads::Threads
 add_executable(peach_arm
   src/manipulation_skills_node.cpp
   src/cycle.cpp
+  src/move_to.cpp
   src/stages.cpp
   src/grasp_task.cpp
   src/main.cpp

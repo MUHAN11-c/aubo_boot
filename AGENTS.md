@@ -598,7 +598,7 @@ flowchart TB
 - 新功能：先单测，再 launch_testing，最后才真机
 - 真机命名：[docs/testing.md](docs/testing.md) 的 `field_pregrasp_*` / `field_full_*`；`request_id` 不复用
 - `colcon test` 绿 **不等于** 采摘方向验收；也不再把“禁止仿真测”写成原则
-- CI DEFAULT：[industrial_ci](https://github.com/ros-industrial/industrial_ci) GitHub Action，`ROS_DISTRO: jazzy`，跑 build+test。真机 job 不进 PR 必过门。本仓无 `.github/`，记缺口。本轮不落地 workflow
+- CI DEFAULT：[industrial_ci](https://github.com/ros-industrial/industrial_ci) GitHub Action，`ROS_DISTRO: jazzy`，跑 build+test。真机 job 不进 PR 必过门。本仓 `.github/workflows/jazzy.yaml`：`peach-core` = `scripts/r0_gate.sh`；`industrial_ci` job 编测驱动+peach（忽略 IVG / `imu_follow` / `percipio_camera`；apt scipy/pytest/yaml，不 Docker pip）
 
 ### launch_testing 怎么写（新接线用这个，不再禁止）
 
@@ -659,14 +659,17 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 - `message_filters` slop 0.05 s 做 RGB-D 同步（KEEP 用库；具体 slop 是产品调参）
 - C++ 风格门以 uncrustify 为准（cpplint 版权头冲突是 SNAPSHOT 例外，不是禁 gtest 的理由）
 
-现行四包职责摘要（**切法可 UNWIND**，跨包仍走 IDL）：
+现行应用七包职责摘要（能力四包切法可 UNWIND，跨包仍走 IDL）：
 
 | 包 | 现行职责 | 不做什么 |
 |----|----------|----------|
 | `peach_interfaces` | 唯一 IDL + manifest 双向核对 | 不跑节点 |
 | `peach_perception` | 场景观测 + 当前目标重建 | 不发运动、不选下一颗、不写 `ledger.json` |
 | `peach_manipulation` | `SurveyScene` / `ExecuteTarget`（视点、预抓取、套入、刀、撤退） | 不写 `ledger.json`、不调重建 Trigger |
-| `peach_executor` | 批次 FSM、lifecycle 管理器、8090 | 不处理 RGB-D、不规划接触 |
+| `peach_executor` | 批次 FSM、lifecycle 管理器；观测 yaml/ParamListener | 不处理 RGB-D、不规划接触、不承载 8090 实现 |
+| `peach_bringup` | 整栈 `harvest_system` 入口、预检 | 不自动 `RunHarvest` |
+| `peach_observability` | 8090 / 会话 bag / `peach_bag_report` | 不发运动 |
+| `peach_system_tests` | isolated mock launch_testing | 不进运行 launch |
 
 lifecycle 名单现行：场景 → 重建 → 技能 → 调度；observability 不进名单、不加 bond。若重划包边界，这张表与 [docs/io.md](docs/io.md) 消费者列必须同轮改。
 
@@ -678,7 +681,7 @@ lifecycle 名单现行：场景 → 重建 → 技能 → 调度；observability
 - lifecycle 无 bond
 - peach 节点不用 composition
 - 禁止 gtest / launch_testing / 采摘仿真测（决策 0006）
-- 无 Gazebo / Isaac 系统测、无 industrial_ci
+- 无 Gazebo / Isaac 系统测；industrial_ci 已进 workflow（忽略 IVG / `imu_follow` / `percipio_camera`）
 - 无 diagnostic_updater 的 peach 主路径（`serial_imu` 已用）
 - 8090 若越权成第二控制面（纯调试客户端仍 KEEP）
 - 腕轴 `ContactMonitor` 默认关；无 Nav2 Collision Monitor 同类独立监视（**不能**代替柜急停）
@@ -699,7 +702,7 @@ lifecycle 名单现行：场景 → 重建 → 技能 → 调度；observability
 | 单测 | gtest + pytest | 仅零 ROS pytest；禁 gtest | 否 | 新 C++ 用 gtest |
 | 集成测 | launch_testing + isolated domain | 禁止 launch_testing（0006） | 否 | 新接线/生命周期用 launch_testing |
 | 系统测 | 独立 `*_tests` 包；Gazebo / Isaac | 手工 `scripts/sim_field_targets.py` | 否 | 逐步收进 colcon；真机仍最终权威 |
-| CI | industrial_ci | 无 `.github/` | 否 | 后续补 Jazzy build+test |
+| CI | industrial_ci | `.github/workflows/jazzy.yaml` 有 r0_gate + industrial_ci（忽略 IVG/`imu_follow`/`percipio_camera`） | 否（切法） | 真机 job 仍不进 PR 必过门 |
 | 诊断 | `diagnostic_updater` | peach 主路径未用；`serial_imu` 已用；8090 自研 | 否（peach 主路径） | 新健康信号走 `/diagnostics` |
 | 话题名当参数 | 默认名 + remap | 多数已相对名 | — | 禁止 `declare_parameter("image_topic")` |
 | 自研 TF / 插值 | tf2 / MoveIt / JTC | 部分几何自研 | 视情况 | 库已有的不要重写 |

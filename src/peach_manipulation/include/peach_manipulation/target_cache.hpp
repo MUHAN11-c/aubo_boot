@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "peach_manipulation/model_contract.hpp"
 #include "peach_manipulation/quality_gate.hpp"
 #include "peach_manipulation/safety_gate.hpp"
 
@@ -184,7 +185,13 @@ public:
     const std::vector<LockedTargetUpdate> & updates);
   void updateReconstructionDiagnostics(const ReconstructionDiagnosticsUpdate & update);
   // 抓取决策调和；返回 false 表示非当前目标被忽略（节点侧据此记警告）。
+  // 只核身份元组与 allowed；不得续签 valid_until（心跳走 diagnostics）。
   bool updateGraspDecision(const std::string & target_id, bool allowed);
+  bool updateGraspDecision(
+    const ModelIdentity & identity, bool allowed, double valid_until_s = 0.0);
+  // 模型快照只在 finalize 路径写入；诊断心跳不得调用。
+  void replaceModelSnapshot(const ModelSnapshot & snapshot);
+  ModelSnapshot modelSnapshot() const;
   // 精化位姿调和；返回 false 表示非当前目标被忽略。
   bool updateRefinedPose(const RefinedPoseUpdate & update);
   // 精化拟合指标调和；返回 false 表示非期望目标被忽略。
@@ -257,6 +264,8 @@ private:
   std::string grasp_decision_target_id_;
   bool diagnostics_seen_{false};
   double diagnostics_received_s_{0.0};
+  ModelSnapshot model_;
+  double model_generated_s_{0.0};
 };
 
 }  // namespace peach_manipulation

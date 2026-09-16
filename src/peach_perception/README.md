@@ -7,7 +7,7 @@
 ```bash
 ros2 launch peach_perception scene_perception.launch.py
 ros2 launch peach_perception target_reconstruction.launch.py
-# 整栈：ros2 launch peach_executor harvest_system.launch.py hardware_mode:=mock camera_enabled:=false
+# 整栈：ros2 launch peach_bringup harvest_system.launch.py hardware_mode:=mock camera_enabled:=false
 ```
 
 离线评估脚本（含 `bag_baseline`）已归档 `_archive/offline_2026-09/`，不随包安装。

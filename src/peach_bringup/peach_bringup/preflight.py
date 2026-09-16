@@ -1,0 +1,64 @@
+"""启动预检（零 ROS）：拒重复栈实例."""
+from __future__ import annotations
+
+import os
+
+PREFLIGHT_PATTERNS = (
+    'peach_scene_perception_node', 'peach_target_reconstruction_node',
+    'peach_manipulation_node', 'peach_executor', 'peach_observability',
+    'peach_lifecycle_manager', 'component_container', 'move_group',
+    'robot_state_publisher', 'ros2_control_node', 'controller_manager',
+    'joint_state_publisher', 'joint_state_publisher_gui',
+    'extrinsics_publisher',
+    'serial_imu_node',
+)
+
+
+def executable_basenames(cmdline: str):
+    """返回 argv 各段的 basename；不用整串子串，避免编辑器路径误伤."""
+    names = []
+    for part in cmdline.split('\x00'):
+        if not part:
+            continue
+        names.append(os.path.basename(part.rstrip('/')))
+    return names
+
+
+def cmdline_looks_like_stack(cmdline: str) -> bool:
+    """判断 cmdline 是否为栈节点可执行文件，而不是 colcon/pytest 参数名."""
+    if 'harvest_system.launch' in cmdline:
+        return False
+    if 'cursorsandbox' in cmdline:
+        return False
+    parts = [part for part in cmdline.split('\x00') if part]
+    if not parts:
+        return False
+    names = executable_basenames(cmdline)
+    if names[0] in PREFLIGHT_PATTERNS:
+        return True
+    for part in parts[1:]:
+        base = os.path.basename(part.rstrip('/'))
+        if base in PREFLIGHT_PATTERNS and '/lib/' in part.replace('\\', '/'):
+            return True
+    return False
+
+
+def running_stack_pids(proc_root: str = '/proc'):
+    """返回 (pid, cmdline) 列表：仍在跑的栈节点进程."""
+    found = []
+    try:
+        entries = os.listdir(proc_root)
+    except OSError:
+        return found
+    for entry in entries:
+        if not entry.isdigit():
+            continue
+        try:
+            with open(os.path.join(proc_root, entry, 'cmdline'), 'rb') as stream:
+                cmdline = stream.read().decode('utf-8', 'replace')
+        except OSError:
+            continue
+        if cmdline_looks_like_stack(cmdline):
+            display = ' '.join(part for part in cmdline.split('\x00') if part)
+            found.append((int(entry), display[:200]))
+    return found

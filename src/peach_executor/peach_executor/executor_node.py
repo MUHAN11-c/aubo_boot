@@ -48,12 +48,28 @@ from .batch import (
     save_ledger,
     set_elapsed,
 )
+from .domain.ledger import LedgerIndex
+from .domain.reducer import BatchEvent, OrchestratorState, reduce_event
 from .harvest_fsm import (
-    apply_pause_pending, apply_recovery_ack, apply_resume, BATCH_NAMES,
-    canonical_code_for_outcome, Command, DISCOVERY, enter_pause, enter_recovery,
-    Event, event_for_outcome, MODE_AUTO, MODE_MAINTENANCE, MODE_PAUSED,
-    PAUSE_PENDING, PAUSED, permissions_for, react, Reaction, RUNNING,
-    settle_terminal, WAITING_READY)
+    apply_recovery_ack,
+    BATCH_NAMES,
+    canonical_code_for_outcome,
+    Command,
+    DISCOVERY,
+    enter_recovery,
+    Event,
+    event_for_outcome,
+    EventHold,
+    MODE_AUTO,
+    MODE_MAINTENANCE,
+    MODE_PAUSED,
+    permissions_for,
+    react,
+    Reaction,
+    RUNNING,
+    settle_terminal,
+    WAITING_READY,
+)
 
 
 class TaskExecutorNode(LifecycleNode):
@@ -89,6 +105,14 @@ class TaskExecutorNode(LifecycleNode):
         self._tool_enabled = False
         self._progress = 0.0
         self._paused_batch = WAITING_READY
+        self._event_hold = EventHold()
+        self._action_generation = 0
+        self._transaction_id = ''
+        self._txn_ledger = LedgerIndex()
+        self._settled_transaction = ''
+        self._cycle_plan_id = ''
+        self._last_calibration_revision = ''
+        self._last_config_revision = ''
         self._recovery_batch = WAITING_READY
         self._in_flight = []
         self._build_feedback = {'view_count': 0, 'status': '', 'started_s': 0.0}
@@ -265,7 +289,8 @@ class TaskExecutorNode(LifecycleNode):
             return self._on_ack_recovery(request, response)
         with self._lock:
             allowed = permissions_for(
-                self._batch_state, self._recovery_required)
+                self._batch_state, self._recovery_required,
+                paused=self._paused)
             ok, seq, paused, cancel, skip = apply_control(
                 self._state_seq, int(request.expected_state_seq),
                 cmd, self._paused, allowed=allowed)
@@ -305,7 +330,8 @@ class TaskExecutorNode(LifecycleNode):
         expected = int(request.expected_state_seq)
         with self._lock:
             allowed = permissions_for(
-                self._batch_state, self._recovery_required)
+                self._batch_state, self._recovery_required,
+                paused=self._paused)
             if expected != 0 and expected != self._state_seq:
                 response.accepted = False
                 response.message = 'expected_state_seq mismatch'
@@ -389,6 +415,64 @@ class TaskExecutorNode(LifecycleNode):
             Reaction(state, self._target_phase, Command.NONE, '', ''),
             self._run_id)
 
+    def _orch_state(self) -> OrchestratorState:
+        """当前三维状态快照，供单一 reducer 使用."""
+        return OrchestratorState(
+            batch_state=self._batch_state,
+            target_phase=self._target_phase,
+            operation_mode=MODE_PAUSED if self._paused else self._operation_mode,
+            recovery_latch=self._recovery_required,
+            generation=int(self._action_generation),
+            transaction_id=str(self._transaction_id or ''),
+            session_id=str(self._run_id or ''),
+            settled_transaction=str(self._settled_transaction or ''),
+        )
+
+    def _reaction_from(self, nxt: OrchestratorState, effects: list) -> Reaction:
+        """把 reducer 输出写回世代/事务，再交给 _apply."""
+        self._action_generation = int(nxt.generation)
+        if nxt.transaction_id:
+            self._transaction_id = nxt.transaction_id
+        self._settled_transaction = str(nxt.settled_transaction or '')
+        if effects:
+            hit = effects[0]
+            return Reaction(
+                nxt.batch_state, nxt.target_phase, hit.command,
+                hit.event_code, hit.message, nxt.operation_mode)
+        return Reaction(
+            nxt.batch_state, nxt.target_phase, Command.NONE, '',
+            BATCH_NAMES.get(nxt.batch_state, ''), nxt.operation_mode)
+
+    def _react(self, event: str) -> Reaction:
+        """作业 phase 上的单一 reducer。暂停时先等恢复，禁止用 PAUSE_PENDING 覆盖."""
+        if event == Event.CANCEL:
+            self._event_hold = EventHold()
+            nxt, effects = reduce_event(
+                self._orch_state(),
+                BatchEvent(Event.CANCEL, session_id=self._run_id))
+            return self._reaction_from(nxt, effects)
+        if self._paused:
+            self._event_hold.apply_event(
+                self._batch_state, event, paused=True)
+            self._wait_pause()
+            held = self._event_hold.take_after_pause(cancel=self._cancel)
+            if self._cancel:
+                return Reaction(
+                    self._batch_state, self._target_phase, Command.NONE,
+                    '', 'paused_cancel_discarded', MODE_AUTO)
+            if held is not None:
+                self._action_generation += 1
+                self._transaction_id = f'{self._action_generation}:{event}'
+                return held
+        nxt, effects = reduce_event(
+            self._orch_state(),
+            BatchEvent(
+                event,
+                transaction_id=self._transaction_id,
+                generation=self._action_generation,
+                session_id=self._run_id))
+        return self._reaction_from(nxt, effects)
+
     def _run_harvest(self, goal_handle):
         goal = goal_handle.request
         self._run_goal_handle = goal_handle
@@ -405,6 +489,10 @@ class TaskExecutorNode(LifecycleNode):
             self._ledger_loaded = False
             self._in_flight = []
             self._operation_mode = MODE_AUTO
+            self._event_hold = EventHold()
+            self._settled_transaction = ''
+            self._action_generation = 0
+            self._transaction_id = ''
         # 开批复位并入 RUN_REQUESTED：从 FSM 初值 WAITING_READY 起跳，
         # 一次落地即发布 DISCOVERY（持锁内不得 _apply，_publish_state
         # 会再取非重入锁）。对外发布次数与旧「先复位后开批」一致。
@@ -443,7 +531,7 @@ class TaskExecutorNode(LifecycleNode):
                 self._cancel = True
                 self._poke()
             if self._cancel:
-                reaction = react(self._batch_state, Event.CANCEL)
+                reaction = self._react(Event.CANCEL)
                 self._apply(reaction, goal.request_id, self._current_target_id)
                 self._cancel_inflight()
                 break
@@ -472,11 +560,11 @@ class TaskExecutorNode(LifecycleNode):
                 if self._cancel:
                     continue
                 if not survey_ok:
-                    reaction = react(self._batch_state, Event.SURVEY_FAILED)
+                    reaction = self._react(Event.SURVEY_FAILED)
                 elif self._scene_epoch == 0:
-                    reaction = react(self._batch_state, Event.SURVEY_AT_POSE)
+                    reaction = self._react(Event.SURVEY_AT_POSE)
                 else:
-                    reaction = react(self._batch_state, Event.SURVEY_DONE)
+                    reaction = self._react(Event.SURVEY_DONE)
                 self._apply(reaction, goal.request_id)
             elif cmd == Command.WAIT_LOCK:
                 self._wait_lock()
@@ -484,12 +572,11 @@ class TaskExecutorNode(LifecycleNode):
                 if self._cancel:
                     continue
                 if survey_only:
-                    reaction = react(self._batch_state, Event.SURVEY_ONLY)
+                    reaction = self._react(Event.SURVEY_ONLY)
                 elif not enabled:
-                    reaction = react(
-                        self._batch_state, Event.EXECUTION_DISABLED)
+                    reaction = self._react(Event.EXECUTION_DISABLED)
                 else:
-                    reaction = react(self._batch_state, Event.LOCK_READY)
+                    reaction = self._react(Event.LOCK_READY)
                 self._apply(reaction, goal.request_id)
             elif cmd == Command.SELECT:
                 # 联合约束选果：有效深度窗 ∩ 可达性（CheckReachability 把入口
@@ -521,14 +608,14 @@ class TaskExecutorNode(LifecycleNode):
                     event = (
                         Event.EMPTY_LIMIT if empty_rounds >= empty_limit
                         else Event.NO_TARGET)
-                    reaction = react(self._batch_state, event)
+                    reaction = self._react(event)
                     self._apply(reaction, goal.request_id)
                     continue
                 empty_rounds = 0
                 claimed.add(target_id)
                 self._current_target_id = target_id
                 self._cycle_id = f'{self._run_id}:{target_id}'
-                reaction = react(self._batch_state, Event.TARGET_SELECTED)
+                reaction = self._react(Event.TARGET_SELECTED)
                 self._apply(reaction, goal.request_id, target_id)
             elif cmd == Command.DISPATCH:
                 reaction = self._cmd_dispatch(goal.request_id)
@@ -537,7 +624,7 @@ class TaskExecutorNode(LifecycleNode):
             elif cmd == Command.RECORD_DISABLED:
                 break
             elif cmd == Command.NONE:
-                reaction = react(self._batch_state, Event.CYCLE_DONE)
+                reaction = self._react(Event.CYCLE_DONE)
                 self._current_target_id = ''
                 self._apply(reaction, goal.request_id)
             else:
@@ -583,7 +670,7 @@ class TaskExecutorNode(LifecycleNode):
 
     def _cmd_navigate(self, goal):
         """固定座直通：到位一步当 NAV_OK（NavigateToWorksite 预留）."""
-        reaction = react(self._batch_state, Event.NAV_OK)
+        reaction = self._react(Event.NAV_OK)
         self._apply(reaction, goal.request_id)
         return reaction
 
@@ -593,12 +680,12 @@ class TaskExecutorNode(LifecycleNode):
         begin.scene_key = goal.scene_key
         resp = self._call_service(self._begin, begin)
         if resp is None or not bool(getattr(resp, 'accepted', False)):
-            reaction = react(self._batch_state, Event.BEGIN_FAILED)
+            reaction = self._react(Event.BEGIN_FAILED)
             self._apply(reaction, goal.request_id)
             return reaction
         self._scene_epoch = int(getattr(resp, 'scene_epoch', 0) or 0)
         self._observations = None
-        reaction = react(self._batch_state, Event.BEGIN_OK)
+        reaction = self._react(Event.BEGIN_OK)
         self._apply(reaction, goal.request_id)
         return reaction
 
@@ -613,14 +700,14 @@ class TaskExecutorNode(LifecycleNode):
         self._cycle_observe_extra = {}
         self._cycle_dispatch_t0 = 0.0
         if self._take_skip():
-            reaction = react(self._batch_state, Event.SKIP)
+            reaction = self._react(Event.SKIP)
             self._record_skip(
                 target_id, TargetOutcome.CANCELED, 'skip_target',
                 failure_code='canceled', elapsed_s=time.monotonic() - dispatch_t0)
             self._apply(reaction, request_id, target_id)
             return reaction
         if not self._wait_target_in_locked_set(target_id, 2.5):
-            reaction = react(self._batch_state, Event.OBSERVE_FAILED)
+            reaction = self._react(Event.OBSERVE_FAILED)
             self._record_skip(
                 target_id, TargetOutcome.SKIPPED_QUALITY,
                 'observe_failed: target_not_in_locked_set',
@@ -638,7 +725,7 @@ class TaskExecutorNode(LifecycleNode):
             self._build, build_goal, timeout,
             feedback_cb=self._on_build_feedback)
         if build_handle is None:
-            reaction = react(self._batch_state, Event.BUILD_FAILED)
+            reaction = self._react(Event.BUILD_FAILED)
             self._record_skip(
                 target_id, TargetOutcome.SKIPPED_QUALITY,
                 'build_target_model rejected',
@@ -656,7 +743,7 @@ class TaskExecutorNode(LifecycleNode):
                 build_handle, min(timeout, 10.0),
                 goal_handle=self._run_goal_handle)
             self._forget_handle(build_handle)
-            reaction = react(self._batch_state, Event.BUILD_FAILED)
+            reaction = self._react(Event.BUILD_FAILED)
             self._record_skip(
                 target_id, TargetOutcome.SKIPPED_QUALITY,
                 'build_start_timeout: reconstruction not COLLECTING',
@@ -667,10 +754,15 @@ class TaskExecutorNode(LifecycleNode):
             return reaction
         observe = ExecuteTarget.Goal()
         observe.request_id = request_id
+        observe.run_id = self._run_id
+        observe.cycle_id = self._cycle_id
         observe.target_id = target_id
         observe.mode = ExecuteTarget.Goal.OBSERVE_ONLY
         observe.scene_epoch = int(self._scene_epoch or 0)
         observe.tool_profile_id = str(self._params.tool.profile_id)
+        observe.generation = int(self._action_generation)
+        self._cycle_plan_id = f'{request_id}:{target_id}:{self._action_generation}'
+        observe.plan_id = self._cycle_plan_id
         observed = None
         for attempt in range(4):
             if self._cancel or self._peek_skip():
@@ -695,7 +787,7 @@ class TaskExecutorNode(LifecycleNode):
                 build_handle, min(timeout, 10.0),
                 goal_handle=self._run_goal_handle)
             if not observe_ok and not self._cancel:
-                reaction = react(self._batch_state, Event.OBSERVE_FAILED)
+                reaction = self._react(Event.OBSERVE_FAILED)
                 reason = (
                     str(getattr(observed, 'reason', '') or 'observe_only failed')
                     if observed is not None else
@@ -707,7 +799,7 @@ class TaskExecutorNode(LifecycleNode):
                     elapsed_s=time.monotonic() - dispatch_t0,
                     extra=observe_details)
             else:
-                reaction = react(self._batch_state, Event.SKIP)
+                reaction = self._react(Event.SKIP)
                 self._record_skip(
                     target_id, TargetOutcome.CANCELED, 'canceled_or_skipped',
                     failure_code='canceled',
@@ -721,7 +813,7 @@ class TaskExecutorNode(LifecycleNode):
         build_details = self._build_details(dispatch_t0, built)
         build_details.update(observe_details)
         if self._cancel or self._take_skip():
-            reaction = react(self._batch_state, Event.SKIP)
+            reaction = self._react(Event.SKIP)
             self._record_skip(
                 target_id, TargetOutcome.CANCELED, 'canceled_or_skipped',
                 failure_code='canceled',
@@ -738,7 +830,7 @@ class TaskExecutorNode(LifecycleNode):
                     'view_count': views, 'min_views': min_views,
                     'timeout_source': 'observe_build_view_race',
                 })
-            reaction = react(self._batch_state, Event.BUILD_FAILED)
+            reaction = self._react(Event.BUILD_FAILED)
             self._record_skip(
                 target_id, TargetOutcome.SKIPPED_QUALITY,
                 f'observe_build_view_race: views={views} min_views={min_views}',
@@ -752,7 +844,7 @@ class TaskExecutorNode(LifecycleNode):
                 'build_timeout:executor_wait' if built is None
                 else str(getattr(built, 'message', '') or ''))
             failure_code, reason = self._classify_build_failure(built, message)
-            reaction = react(self._batch_state, Event.BUILD_FAILED)
+            reaction = self._react(Event.BUILD_FAILED)
             self._record_skip(
                 target_id, TargetOutcome.SKIPPED_QUALITY, reason,
                 failure_code=failure_code,
@@ -763,7 +855,11 @@ class TaskExecutorNode(LifecycleNode):
         model = getattr(built, 'model', None)
         self._last_model_revision = str(
             getattr(model, 'model_revision', '') or '')
-        reaction = react(self._batch_state, Event.READY_FULL)
+        self._last_calibration_revision = str(
+            getattr(model, 'calibration_revision', '') or '')
+        self._last_config_revision = str(
+            getattr(model, 'config_revision', '') or '')
+        reaction = self._react(Event.READY_FULL)
         self._cycle_observe_extra = dict(build_details)
         self._cycle_dispatch_t0 = dispatch_t0
         self._apply(reaction, request_id, target_id)
@@ -775,6 +871,8 @@ class TaskExecutorNode(LifecycleNode):
         t0 = time.monotonic()
         full = ExecuteTarget.Goal()
         full.request_id = request_id
+        full.run_id = self._run_id
+        full.cycle_id = self._cycle_id
         full.target_id = target_id
         full.mode = (
             ExecuteTarget.Goal.PREGRASP_ONLY
@@ -784,6 +882,10 @@ class TaskExecutorNode(LifecycleNode):
         full.scene_epoch = int(self._scene_epoch or 0)
         full.tool_profile_id = str(self._params.tool.profile_id)
         full.model_revision = str(self._last_model_revision or '')
+        full.calibration_revision = str(self._last_calibration_revision or '')
+        full.config_revision = str(self._last_config_revision or '')
+        full.plan_id = str(self._cycle_plan_id or '')
+        full.generation = int(self._action_generation)
         executed = self._send_action(
             self._exec, full, timeout, feedback=True,
             goal_handle=self._run_goal_handle)
@@ -842,7 +944,7 @@ class TaskExecutorNode(LifecycleNode):
         self._cycle_dispatch_t0 = 0.0
         self._push_outcome(outcome, extra)
         event = event_for_outcome(outcome.outcome, operator_skip)
-        reaction = react(self._batch_state, event)
+        reaction = self._react(event)
         self._apply(reaction, request_id, target_id)
         return reaction
 
@@ -865,6 +967,9 @@ class TaskExecutorNode(LifecycleNode):
         """将 outcomes 与遥测附加字段等长追加."""
         self._outcomes.append(outcome)
         self._outcome_details.append(dict(extra or {}))
+        self._txn_ledger.close(
+            self._transaction_id, str(getattr(outcome, 'target_id', '') or ''),
+            int(getattr(outcome, 'outcome', 0) or 0))
 
     def _stages_from_execute(self, executed) -> dict:
         """将 ExecuteTarget 结果中的阶段耗时转换为 ledger extra."""
@@ -987,9 +1092,6 @@ class TaskExecutorNode(LifecycleNode):
                 self._cancel_handle(handle)
                 self._action_active = False
                 return None, 'observe_build_view_race'
-            if self._paused and self._batch_state not in (
-                    PAUSED, PAUSE_PENDING):
-                self._apply_state(enter_pause(self._batch_state))
             if self._cancel or self._peek_skip():
                 self._cancel_handle(handle)
             self._idle(0.05)
@@ -1222,9 +1324,6 @@ class TaskExecutorNode(LifecycleNode):
                 self.get_logger().warning('action result timeout')
                 self._cancel_handle(handle)
                 return _done(None)
-            if self._paused and self._batch_state not in (
-                    PAUSED, PAUSE_PENDING):
-                self._apply_state(enter_pause(self._batch_state))
             if interrupt_on_pause and self._paused:
                 self._cancel_handle(handle)
             if goal_handle is not None and goal_handle.is_cancel_requested:
@@ -1334,7 +1433,7 @@ class TaskExecutorNode(LifecycleNode):
         return None
 
     def _wait_pause(self) -> None:
-        """暂停门：挂起批次到 PAUSED，恢复时回到保存的批次态."""
+        """暂停门：只改 operation_mode，不覆盖作业 batch_state."""
         entered = False
         while True:
             with self._lock:
@@ -1345,35 +1444,28 @@ class TaskExecutorNode(LifecycleNode):
                 if entered:
                     if not maintenance:
                         self._operation_mode = MODE_AUTO
-                    resumed = apply_resume(self._paused_batch)
-                    self._apply_state(resumed)
-                    # 人工操作审计：暂停/恢复进事件时间线
+                    self._publish_state()
                     self._emit(
                         'batch_resumed', self._run_id,
                         self._current_target_id,
                         details={
-                            'to_state': BATCH_NAMES.get(resumed, ''),
+                            'to_state': BATCH_NAMES.get(
+                                self._batch_state, ''),
                             **self._take_control_reason()})
                 return
             if not entered:
                 entered = True
                 self._paused_batch = self._batch_state
-                # 预留：MAINTENANCE 批次态与 EXIT_MAINTENANCE 命令未接线，
-                # 模式位先行（模式不是批次态，保留在节点）
                 self._operation_mode = (
                     MODE_MAINTENANCE if maintenance else MODE_PAUSED)
-                self._apply_state(
-                    apply_pause_pending(enter_pause(self._paused_batch)))
-                # enter_pause→apply_pause_pending 的结果只可能是 PAUSED 或
-                # 原态（终局/WAITING_READY 不可暂停），判 PAUSE_PENDING 恒假。
-                if self._batch_state == PAUSED:
-                    self._emit(
-                        'batch_paused', self._run_id,
-                        self._current_target_id,
-                        details={
-                            'from_state':
-                                BATCH_NAMES.get(self._paused_batch, ''),
-                            **self._take_control_reason()})
+                self._publish_state()
+                self._emit(
+                    'batch_paused', self._run_id,
+                    self._current_target_id,
+                    details={
+                        'from_state':
+                            BATCH_NAMES.get(self._paused_batch, ''),
+                        **self._take_control_reason()})
             self._idle(0.1)
 
     def _wait_recovery(self) -> None:
@@ -1429,7 +1521,10 @@ class TaskExecutorNode(LifecycleNode):
             msg.message = self._cycle_message
         # blockers 字段保持消息默认空表（无写入方）
         msg.permissions = permissions_for(
-            self._batch_state, self._recovery_required)
+            self._batch_state, self._recovery_required, paused=self._paused)
+        msg.action_generation = int(getattr(self, '_action_generation', 0) or 0)
+        msg.transaction_id = str(getattr(self, '_transaction_id', '') or '')
+        msg.scene_epoch = int(self._scene_epoch or 0)
         return msg
 
     def _publish_state(self, bump: bool = True):

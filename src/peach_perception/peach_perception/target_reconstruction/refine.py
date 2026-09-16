@@ -18,6 +18,7 @@ from peach_perception.common.bag_landmarks import (
     OCCLUSION_BRANCH,
     OCCLUSION_DAMAGED,
     OCCLUSION_NEIGHBOR,
+    OCCLUSION_UNKNOWN,
 )
 from peach_perception.common.geometry import (
     angle_between_deg,
@@ -27,10 +28,18 @@ from peach_perception.common.geometry import (
     unit_vector,
     unit_vector as _unit,
 )
-from peach_perception.common.tool_budget import (
-    evaluate_sleeve_cut,
-    ToolBudgetParams,
+from peach_perception.common.tool_budget import ToolBudgetParams
+from peach_perception.domain.budget import (
+    CAPABILITY_INVALID,
+    CAPABILITY_UNKNOWN,
+    evaluate_capabilities,
 )
+from peach_perception.domain.evidence import (
+    corridor_clear as corridor_is_clear,
+    corridor_status,
+    occlusion_class as evidence_occlusion,
+)
+from peach_perception.domain.model_contract import allowed_from_capabilities
 from peach_perception.target_reconstruction.integrate import require_open3d
 
 
@@ -877,15 +886,24 @@ def fuse_bag_views(
         # 无任何径向尺度证据（逐视角 d95 与体积包络全缺）：d_bag95=0 会拿到
         # 最宽松的径向预算（袋当零宽），保守拒绝而不是放行。12=几何超限族。
         budget = {
-            'allowed': False, 'reason': 'bag_d95_missing', 'failure_code': 12}
+            'allowed': False, 'reason': 'bag_d95_missing', 'failure_code': 12,
+            'geometry_capability': CAPABILITY_INVALID,
+            'pregrasp_capability': CAPABILITY_INVALID,
+            'sleeve_capability': CAPABILITY_INVALID,
+            'cut_capability': CAPABILITY_INVALID}
     else:
-        budget = evaluate_sleeve_cut(
+        budget = evaluate_capabilities(
             d_bag95=d95, length_m=max(length, 0.05),
             center_lateral95=sig_p, axis_error_deg=axis_error_deg,
             neck_position95=sig_p,
             cut_to_fruit_m=float(cut['cut_to_fruit_m']),
             params=cfg)
-    occlusion = items[-1].occlusion_class
+    raw_occlusion = next(
+        (str(item.occlusion_class or '') for item in items
+         if str(item.occlusion_class or '')),
+        '')
+    occlusion = evidence_occlusion(
+        inputs_available=bool(raw_occlusion), classified=raw_occlusion)
     flags = []
     if n_dropped:
         flags.append('landmark_views_vetoed')
@@ -898,24 +916,34 @@ def fuse_bag_views(
             envelope.get('reason') or 'envelope_axis_ill_conditioned'))
     if envelope.get('conditioned') and axis_conflict_deg > 12.0:
         flags.append('keypoint_cloud_axis_conflict')
-        budget['allowed'] = False
+        budget['sleeve_capability'] = CAPABILITY_INVALID
         budget['reason'] = 'keypoint_cloud_axis_conflict'
         budget['failure_code'] = 3
     if not cut['safe_band']:
         flags.append('cut_band_unavailable')
-        if budget.get('allowed'):
-            budget['allowed'] = False
-            budget['reason'] = 'cut_plane_fruit_clearance'
-            budget['failure_code'] = 16
+        budget['cut_capability'] = CAPABILITY_INVALID
+        budget['reason'] = 'cut_plane_fruit_clearance'
+        budget['failure_code'] = 16
     if occlusion in (
-            OCCLUSION_BRANCH, OCCLUSION_NEIGHBOR, OCCLUSION_DAMAGED):
+            OCCLUSION_BRANCH, OCCLUSION_NEIGHBOR, OCCLUSION_DAMAGED,
+            OCCLUSION_UNKNOWN):
         flags.append(occlusion)
-        budget['allowed'] = False
+        budget['sleeve_capability'] = CAPABILITY_INVALID
         budget['reason'] = 'occlusion_' + occlusion
         budget['failure_code'] = 3
-    corridor = _corridor_clear(
+    points_present = _finite_cloud(cloud_xyz) is not None
+    blocked = points_present and not _corridor_clear(
         cloud_xyz, axis, bottom, 0.0, cut['t_cut_m'],
         cfg.d_inner, cfg.wall_clearance)
+    corridor = corridor_is_clear(
+        corridor_status(points_present=points_present, blocked=blocked))
+    if not corridor:
+        budget['sleeve_capability'] = CAPABILITY_INVALID
+    budget['allowed'] = allowed_from_capabilities(
+        int(budget.get('geometry_capability', CAPABILITY_UNKNOWN)),
+        int(budget.get('pregrasp_capability', CAPABILITY_UNKNOWN)),
+        int(budget.get('sleeve_capability', CAPABILITY_UNKNOWN)),
+        int(budget.get('cut_capability', CAPABILITY_UNKNOWN)))
     model = {
         'ok': True,
         'bottom': bottom,

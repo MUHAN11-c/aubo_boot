@@ -95,7 +95,6 @@ def evaluate_sleeve_cut(
     return {
         'sleeve_ok': bool(sleeve_ok),
         'cut_ok': bool(cut_ok),
-        'allowed': bool(sleeve_ok and cut_ok),
         'radial_available_m': float(available),
         'radial_error95_m': float(rad_err),
         'radial_margin_m': float(radial_margin),

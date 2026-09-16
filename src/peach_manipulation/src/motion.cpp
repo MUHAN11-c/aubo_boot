@@ -40,6 +40,8 @@ void ManipulationSkillsNode::onRobotStatus(
   std::lock_guard<std::mutex> lock(robot_mutex_);
   robot_status_ = *message;
   robot_status_received_ = now();
+  robot_status_mono_s_ = std::chrono::duration<double>(
+    std::chrono::steady_clock::now().time_since_epoch()).count();
   robot_status_valid_ = true;
 }
 
@@ -158,6 +160,7 @@ double ManipulationSkillsNode::insertionTravel(const CachedRefined & refined) co
 bool ManipulationSkillsNode::safetyReady(std::string & reason)
 {
   RobotStatusSample sample;
+  double mono_age = 0.0;
   {
     std::lock_guard<std::mutex> lock(robot_mutex_);
     sample.received = robot_status_valid_;
@@ -166,6 +169,15 @@ bool ManipulationSkillsNode::safetyReady(std::string & reason)
     sample.in_error = robot_status_.in_error != 0;
     sample.drives_powered = robot_status_.drives_powered != 0;
     sample.motion_possible = robot_status_.motion_possible != 0;
+    const double now_mono = std::chrono::duration<double>(
+      std::chrono::steady_clock::now().time_since_epoch()).count();
+    if (robot_status_mono_s_ > 0.0) {
+      mono_age = now_mono - robot_status_mono_s_;
+    }
+  }
+  if (sample.received && mono_age > robot_status_contract_timeout_s_) {
+    reason = "robot_status_stale";
+    return false;
   }
   return safety_gate_->robotReady(sample, reason);
 }

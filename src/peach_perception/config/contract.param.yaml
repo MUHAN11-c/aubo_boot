@@ -1,0 +1,21 @@
+# GPL 声明式 schema（键名冻结）。部署值仍在 scene_perception.yaml。
+# 本文件是跨字段合同，不是第三套参数框架。
+peach_scene_perception_node:
+  pipeline.min_depth_m:
+    type: double
+    default_value: 0.3
+    description: "Pose pipeline minimum depth (m)"
+    validation:
+      gt<>: [0.0]
+  pipeline.max_depth_m:
+    type: double
+    default_value: 2.5
+    description: "Pose pipeline maximum depth (m)"
+    validation:
+      gt<>: [0.0]
+  tool.D_inner:
+    type: double
+    default_value: 0.104
+    description: "Tool inner diameter (m)"
+    validation:
+      gt<>: [0.0]

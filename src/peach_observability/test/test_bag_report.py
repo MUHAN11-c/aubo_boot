@@ -2,8 +2,8 @@
 import json
 from pathlib import Path
 
-from peach_executor.observability import bag_report as br
-from peach_executor.observability import retention
+from peach_observability import bag_report as br
+from peach_observability import retention
 
 _BASE = 1_700_000_000.0
 

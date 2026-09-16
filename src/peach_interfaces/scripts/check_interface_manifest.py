@@ -39,22 +39,18 @@ _CONSUMER_PATHS = {
         'peach_executor/peach_executor/executor_node.py',
         'peach_executor/peach_executor/batch.py',
         'peach_executor/peach_executor/harvest_fsm.py',
-        'peach_executor/config/executor_parameters.yaml',
         'peach_executor/config/peach_executor.yaml',
     ],
     'peach_observability': [
-        'peach_executor/peach_executor/observability',
-        'peach_executor/config/observability_parameters.yaml',
+        'peach_observability/peach_observability',
         'peach_executor/config/observability.yaml',
     ],
     'peach_scene_perception': [
         'peach_perception/peach_perception/scene_perception',
-        'peach_perception/config/scene_perception_parameters.yaml',
         'peach_perception/config/scene_perception.yaml',
     ],
     'peach_target_reconstruction': [
         'peach_perception/peach_perception/target_reconstruction',
-        'peach_perception/config/target_reconstruction_parameters.yaml',
         'peach_perception/config/target_reconstruction.yaml',
     ],
     'peach_manipulation': [
@@ -65,7 +61,6 @@ _CONSUMER_PATHS = {
     'peach_lifecycle_manager': [
         'peach_executor/peach_executor/lifecycle_manager.py',
         'peach_executor/config/lifecycle_manager.yaml',
-        'peach_executor/config/lifecycle_manager_parameters.yaml',
     ],
 }
 

@@ -24,6 +24,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 
+#include "peach_manipulation/acm_policy.hpp"
 #include "peach_manipulation/grasp_geometry.hpp"
 #include "peach_manipulation/math_utils.hpp"
 #include "peach_manipulation/protected_zones.hpp"
@@ -174,6 +175,8 @@ class GraspTask
 public:
   GraspTask(rclcpp::Node::SharedPtr node, GraspTaskConfig config);
   ~GraspTask();
+
+  void setContactAcm(const std::string & target_id, ContactAcmStage stage);
 
   // 只规划（PREVIEW / preview Trigger）：接近分档 + 到预抓取 + 沿轴插入
   // 整链一次装配预览，不下发。执行的接触走 moveToPregrasp / sleeveLinear。
@@ -333,6 +336,8 @@ private:
   std::unique_ptr<moveit::task_constructor::Task> active_task_;
   FruitCapsule pending_fruit_;
   bool inspect_fruit_{false};
+  std::string pending_acm_target_id_;
+  ContactAcmStage pending_acm_stage_{ContactAcmStage::Transit};
   mutable std::vector<std::string> published_keepout_ids_;  // 上次写入 scene 的 id
   std::vector<trajectory_msgs::msg::JointTrajectory> planned_approach_parts_;
   std::vector<trajectory_msgs::msg::JointTrajectory> last_approach_parts_;

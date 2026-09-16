@@ -10,7 +10,15 @@ string harvest_run_id     # 所属批次；空=无批次
 string target_id          # 绑定目标；空=未绑定
 string model_revision     # 模型修订；空=无模型
 string tool_profile_id    # 工具剖面；空=未指定
-bool allowed              # true=允许套入/剪切；false=禁止接触（预抓取仍可走）
+uint32 scene_epoch        # 须与 BeginScene 世代一致
+string calibration_revision
+string config_revision
+builtin_interfaces/Time valid_until    # 过期后不得执行；心跳不得续签
+uint8 geometry_capability
+uint8 pregrasp_capability
+uint8 sleeve_capability
+uint8 cut_capability
+bool allowed              # 只由 geometry∧sleeve∧cut VALID 派生；pregrasp 不进 allowed（不拦预抓取）；禁止第二条授权路径
 string reason             # 许可/拒绝原因（稳定短语，不是自由散文）
 uint32 failure_code       # FailureCode.*；0=NONE 无失败
 

@@ -186,6 +186,7 @@ struct CycleContext
   // 完成度与终局
   bool pregrasp_verified{false};
   bool sleeve_planned{false};
+  bool sleeve_partial{false};
   bool cut_command_accepted{false};
   bool cut_confirmed{false};
   bool retreat_confirmed{false};

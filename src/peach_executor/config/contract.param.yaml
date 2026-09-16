@@ -1,0 +1,16 @@
+# GPL 合同字段（键名冻结）。部署值仍在 peach_executor.yaml。
+peach_executor:
+  execution_enabled:
+    type: bool
+    default_value: false
+    description: "Default off; launch never auto RunHarvest"
+  selection_reach_min_m:
+    type: double
+    default_value: 0.15
+    validation:
+      gt<>: [0.0]
+  selection_reach_max_m:
+    type: double
+    default_value: 0.88
+    validation:
+      gt<>: [0.0]

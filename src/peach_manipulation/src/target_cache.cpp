@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "peach_manipulation/math_utils.hpp"
+#include "peach_manipulation/model_contract.hpp"
 
 namespace peach_manipulation
 {
@@ -192,26 +193,59 @@ void TargetCache::updateReconstructionDiagnostics(
   quality_.mean_depth_ratio = update.mean_depth_ratio;
   diagnostics_received_s_ = clock_s_();
   diagnostics_seen_ = true;
-  quality_.data_age_s = 0.0;
+  // 诊断心跳只证明进程还在发，不得把 data_age 清零，也不得续签 valid_until。
+  if (model_generated_s_ > 0.0) {
+    quality_.data_age_s = std::max(0.0, clock_s_() - model_generated_s_);
+  }
   cv_.notify_all();
 }
 
 bool TargetCache::updateGraspDecision(const std::string & target_id, bool allowed)
 {
+  ModelIdentity identity;
+  identity.target_id = target_id;
+  return updateGraspDecision(identity, allowed, 0.0);
+}
+
+bool TargetCache::updateGraspDecision(
+  const ModelIdentity & identity, bool allowed, double valid_until_s)
+{
   std::lock_guard<std::mutex> lock(mutex_);
-  if (target_id.empty()) {
+  (void)valid_until_s;  // 心跳/决策不得续签；有效期只经 replaceModelSnapshot。
+  if (identity.target_id.empty()) {
     grasp_decision_target_id_.clear();
     quality_.grasp_allowed = false;
     cv_.notify_all();
     return true;
   }
-  if (!target_.id.empty() && target_id != target_.id) {
+  if (!target_.id.empty() && identity.target_id != target_.id) {
     return false;
   }
-  grasp_decision_target_id_ = target_id;
+  if (!model_.identity.run_id.empty() && !identity.run_id.empty() &&
+    !identitiesMatch(model_.identity, identity))
+  {
+    quality_.grasp_allowed = false;
+    return false;
+  }
+  grasp_decision_target_id_ = identity.target_id;
   quality_.grasp_allowed = allowed;
   cv_.notify_all();
   return true;
+}
+
+void TargetCache::replaceModelSnapshot(const ModelSnapshot & snapshot)
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  model_ = snapshot;
+  model_generated_s_ = snapshot.generated_s;
+  quality_.data_age_s = 0.0;
+  cv_.notify_all();
+}
+
+ModelSnapshot TargetCache::modelSnapshot() const
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  return model_;
 }
 
 bool TargetCache::updateRefinedPose(const RefinedPoseUpdate & update)

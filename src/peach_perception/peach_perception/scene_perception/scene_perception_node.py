@@ -54,6 +54,7 @@ from peach_perception.common.runtime import (
     default_runs_root,
     HarvestDataStore,
 )
+from peach_perception.domain.evidence import may_commit_identity
 from peach_perception.scene_perception.contracts import BagObservation
 from peach_perception.scene_perception.identity import (
     bbox_touches_image_edge,
@@ -1000,10 +1001,10 @@ class ScenePerceptionNode(LifecycleNode):
         mask_header.frame_id = cam_frame
 
         # ---- 逐目标：SAM → 前景∩深度 → 袋/果管线 → TF → 消息 ----
-        # 目标身份记忆：仅本帧输出在世界系（TF ok/stale）才匹配/注册；
-        # tf_unavailable 帧几何退回相机系，注册会污染世界系表，跳过
-        track_this_frame = (self.target_registry is not None
-                            and tf_status != 'unavailable')
+        # 目标身份记忆：仅精确 stamp TF（ok）才匹配/注册；stale 不得改权威身份（F15）。
+        track_this_frame = (
+            self.target_registry is not None
+            and may_commit_identity(tf_status == 'ok'))
         if track_this_frame:
             # I3：与 match_or_register 注入同一节点时钟——max_age_s 墙钟
             # 淘汰（阶段 D1）要求两入口同一时钟基准；不注入则注册表跳过

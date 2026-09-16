@@ -6,8 +6,8 @@
   <version>0.1.0</version>
   <description>
     批次调度：显式 RunHarvest 串联导航适配、感知、臂技能；
-    账本、lifecycle、整栈 launch；同包只读 Web/JSONL 不发运动。
-    现行只接通感知抓取（固定座；NavigateToWorksite 预留）。
+    账本、lifecycle。整栈入口在 peach_bringup。观测实现在 peach_observability；
+    本包仅留 import shim。现行只接通感知抓取（固定座）。
   </description>
   <maintainer email="2155413529@qq.com">wjz</maintainer>
   <license>BSD-3-Clause</license>
@@ -16,26 +16,16 @@
 
   <exec_depend>action_msgs</exec_depend>
   <exec_depend>ament_index_python</exec_depend>
-  <exec_depend>aubo_e5_bringup</exec_depend>
-  <exec_depend>aubo_msgs</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>lifecycle_msgs</exec_depend>
-  <exec_depend>nav_msgs</exec_depend>
   <exec_depend>peach_interfaces</exec_depend>
-  <exec_depend>peach_manipulation</exec_depend>
   <exec_depend>peach_perception</exec_depend>
   <exec_depend>rcl_interfaces</exec_depend>
   <exec_depend>rclpy</exec_depend>
-  <exec_depend>ros2bag</exec_depend>
-  <exec_depend>rosbag2_storage_mcap</exec_depend>
-  <exec_depend>sensor_msgs</exec_depend>
-  <exec_depend>serial_imu</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>std_srvs</exec_depend>
-  <exec_depend>tf2_ros</exec_depend>
-  <exec_depend>visualization_msgs</exec_depend>
 
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>

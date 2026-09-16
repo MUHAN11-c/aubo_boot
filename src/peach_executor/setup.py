@@ -26,7 +26,6 @@ setup(
         (os.path.join('share', package_name), ['package.xml']),
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
-        (os.path.join('share', package_name, 'web'), glob('web/*')),
     ],
     install_requires=['setuptools'],
     extras_require={'test': ['pytest']},
@@ -39,8 +38,6 @@ setup(
         'console_scripts': [
             'peach_executor = peach_executor.executor_node:main',
             'peach_lifecycle_manager = peach_executor.lifecycle_manager:main',
-            'peach_observability = peach_executor.observability.observability_node:main',
-            'peach_bag_report = peach_executor.observability.bag_report:main',
         ],
     },
     options={

@@ -54,6 +54,7 @@
 // 参数声明/兜底默认/校验的单一事实源（手写模块，决策 0017）；
 // 部署值事实源为 config/peach_manipulation.yaml。
 #include "peach_manipulation/params.hpp"
+#include "peach_manipulation/plan_contract.hpp"
 
 namespace moveit::planning_interface
 {
@@ -375,6 +376,7 @@ private:
   std::mutex robot_mutex_;
   aubo_msgs::msg::RobotStatus robot_status_;
   rclcpp::Time robot_status_received_{0, 0, RCL_ROS_TIME};
+  double robot_status_mono_s_{0.0};
   bool robot_status_valid_{false};
 
   std::mutex state_mutex_;
@@ -450,7 +452,11 @@ private:
   // 参数监听器（构造即声明全部参数并做启动校验；运行期 set 经其内置范围
   // 校验 + onParameters 钩子，post-set 后 loadParameters 重载快照）。
   std::shared_ptr<peach_manipulation_node::ParamListener> param_listener_;
+  std::shared_ptr<void> execution_contract_listener_;
   peach_manipulation_node::Params params_;
+  double robot_status_contract_timeout_s_{0.5};
+  ContactPlan last_preview_plan_{};
+  bool last_preview_valid_{false};
   rclcpp::Client<aubo_msgs::srv::SetIO>::SharedPtr tool_io_client_;
 };
 

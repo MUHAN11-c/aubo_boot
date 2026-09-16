@@ -4,6 +4,7 @@
 // 档已删（photo→G 弦 fraction 0.41–0.73，2026-09-10 100 位姿探针；
 // 基线同 seed 100 例 91/100 挂在 G 弦段）。刀具 IO 不在此文件。
 #include "peach_manipulation/grasp_task.hpp"
+#include "peach_manipulation/acm_policy.hpp"
 #include "peach_manipulation/grasp_geometry.hpp"
 
 #include <moveit/planning_scene_interface/planning_scene_interface.hpp>
@@ -222,6 +223,12 @@ GraspTask::GraspTask(rclcpp::Node::SharedPtr node, GraspTaskConfig config)
 
 GraspTask::~GraspTask() = default;
 
+void GraspTask::setContactAcm(const std::string & target_id, ContactAcmStage stage)
+{
+  pending_acm_target_id_ = target_id;
+  pending_acm_stage_ = stage;
+}
+
 std::shared_ptr<mtc::solvers::PipelinePlanner> GraspTask::makePilzSolver(
   const std::string & planner_id, double velocity_scaling) const
 {
@@ -384,11 +391,24 @@ void GraspTask::applyToolOctomapExemption(
   collision_detection::AllowedCollisionMatrix acm(
     response->scene.allowed_collision_matrix);
   const std::string octomap_ns = "<octomap>";
-  const std::vector<std::string> tool_links = {
-    "tool_axis", "cutting_plane", "tcp", "sleeve_mouth",
-    "tool_body_link", "quick_changer_link"};
-  for (const auto & link : tool_links) {
-    acm.setEntry(link, octomap_ns, true);
+  (void)octomap_ns;
+  if (allowToolVersusWholeOctomap()) {
+    const std::vector<std::string> tool_links = {
+      "tool_axis", "cutting_plane", "tcp", "sleeve_mouth",
+      "tool_body_link", "quick_changer_link"};
+    for (const auto & link : tool_links) {
+      acm.setEntry(link, octomap_ns, true);
+    }
+  }
+  // 接触阶段只对指定工具链接 × 指定目标对象放行；默认不豁免整张 octomap。
+  if (!pending_acm_target_id_.empty()) {
+    const std::vector<std::string> tool_links = {
+      "sleeve_mouth", "tcp", "tool_axis", "cutting_plane"};
+    for (const auto & link : tool_links) {
+      if (acmAllows(pending_acm_target_id_, link, pending_acm_stage_)) {
+        acm.setEntry(link, pending_acm_target_id_, true);
+      }
+    }
   }
   moveit_msgs::msg::PlanningScene diff;
   diff.is_diff = true;

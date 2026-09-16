@@ -363,3 +363,205 @@ C9 删 shim 后碎文件即「真实模块」，单职责文件过小、跳转�
 `cycle.cpp` / `stages.cpp` 改为 include `manipulation_skills_node.hpp`（再确认纯核 `reconfirm_policy.hpp` 由 `stages.cpp` 直引）。CMake 源列表不变。
 
 活文档：architecture 文件树 / 「从哪读源码」/ REFITTERS 映射；io.md `common.runtime` 与 `capture.py`。`check_interface_manifest.py` 的调度 consumer 路径只留 `batch.py`。
+
+---
+
+## 2026-09-16 R0 基线缺陷回归
+
+规格：审查 F01–F19 的可复现子集。驱动只读；launch 仍不自动 RunHarvest。
+
+| 现行 | 本轮 |
+|------|------|
+| `peach_perception/params.py` `_check` | `peach_perception/param_rules.py` `check`（executor 同名各一份） |
+| `identity.py` 边提交边淘汰 | 整帧保护已分配 ID 再注册；歧义看已占用列 |
+| `harvest_fsm.react` + `_wait_result` 写 `PAUSE_PENDING` | `apply_event` / `EventHold`；暂停只改 `operation_mode` |
+| `stages.cpp` 残差失败抬 `LEVEL_PREGRASP_VERIFIED` | `pregrasp_level.hpp` + gtest |
+| `tcp_trajectory.path_metrics` 绑 `geometry_msgs` | `observability/path_metrics.py` 零 ROS |
+| manifest 11 个未登记字面量 | 命令服务与 job/metrics 进清单 |
+| 无 CI | `.github/workflows/jazzy.yaml` + `scripts/r0_gate.sh` |
+
+## 2026-09-16 R1–R10 框架渐进迁移
+
+规格：审查路线 B。不改驱动；不自动 RunHarvest；不新增第四份活文档。
+
+| 现行 | 本轮 |
+|------|------|
+| 节点与纯核混在 `scene_perception/` / executor 根 | `peach_*/domain/` 零 ROS；import guard |
+| 手写 ParamListener 为唯一机制 | 键名冻结 + `contract.param.yaml` 同 schema；C++ `execution_contract_parameters` GPL；禁止第三套生成器 |
+| TargetModel 无 run_id；心跳可当新鲜 | 身份元组 + `valid_until`；`replaceModelSnapshot`；诊断不续签 |
+| 暂停 overlay `PAUSE_PENDING` | R0 EventHold + R3 `domain/reducer.py` + generation |
+| lifecycle 无心跳 | `HeartbeatWatchdog`（bondpy 未装） |
+| 工具链 × 整张 octomap 豁免 | `allowToolVersusWholeOctomap()==false` |
+| SetIO 失败仍可能撤退 | UNKNOWN，不自动撤退/重发 |
+| harvest_system 在 executor | `peach_bringup` 入口；executor 薄转发；`peach_observability` 独立 bag |
+| 无 system_tests | `peach_system_tests` isolated launch_testing |
+| pluginlib | R9：无第二实现、未迁 |
+
+## 2026-09-16 审查修复
+
+| 缺陷 | 修复 |
+|------|------|
+| 暂停后取消仍可能释放 EventHold 的 EXECUTE_FULL | `take_after_pause(cancel=True)` 丢弃暂存 |
+| 生产 OBSERVE→FULL 不存 plan | OBSERVE_ONLY 存 plan_id+身份；观察动臂不冻关节 |
+| `evaluate_capabilities.allowed` 与 `allowed_from_capabilities` 双路径 | 预算 allowed 只走后者 |
+
+## 2026-09-16 端到端审查续
+
+| 缺陷 | 修复 |
+|------|------|
+| 预检 cmdline 子串误伤编辑器路径 | argv basename；`harvest_system.launch` 仍跳过 |
+| launch_testing 只起 keepalive | mock `harvest_system`：六关节名 + lifecycle Active，不发 RunHarvest；JSB name 字母序；move_group SIGINT 段错误不纳入 peach 退出门 |
+| executor 仍 exec_depend 驱动/IMU | 删 `aubo_e5_bringup` / `serial_imu`（入口在 peach_bringup） |
+| architecture `record_mcap` 残留 | 会话 bag 在 observability 节点；独立 record_bag 默认关 |
+| 调度/观测/lifecycle yaml 未进冻结测试 | `test_frozen_keys.py` 对照三份 yaml |
+| CI 仅 r0_gate | `industrial_ci` job（忽略 IVG/`imu_follow`；ICI apt scipy/pytest/yaml，不 Docker pip） |
+| 8090 仍由 executor 可执行文件承载 | `peach_observability` 安装可执行文件并承载实现模块；调度包 `observability/` 仅 shim；yaml 仍在 executor |
+| 预检把 colcon `--packages-select peach_executor` 当残留栈 | 只认 argv0 或 `.../lib/<pkg>/<node>` 包装路径 |
+| 调度 `exec_depend peach_manipulation` | 删：跨包只走 IDL；技能由 `peach_bringup` Include |
+| 活文档仍写 33 active / GPL `*_parameters.yaml` / 三节点同包 | 改为 44 active；运行参数指向现行 `config/<节点>.yaml`；8090 可执行文件在 `peach_observability` |
+| 感知 `tool_profiles` 读 `aubo_description` 未声明依赖 | `peach_perception` `exec_depend aubo_description` |
+| 调度包残留已迁走的 8090 `web/` | 删除 `peach_executor/web/`；静态页只在 `peach_observability/web/` |
+| testing.md 仍写 bag_report 在 executor、系统测包缺口 | 路径改 `peach_observability/test`；`peach_system_tests` 已落地，Gazebo 仍缺口 |
+| `evaluate_sleeve_cut` 仍自算 `allowed` | 几何核只返回 sleeve/cut；`allowed` 仅 `allowed_from_capabilities` |
+| AGENTS SNAPSHOT 仍写调度承载 8090、四包 | 改为七包；8090 在 `peach_observability` |
+| 观测 `setup.py` 安装不存在的 `config/` | 删除空 glob；yaml 仍在调度包 |
+| PAUSE 后 RESUME/RESET 不重新武装 GetState 心跳 | `watchdog_armed_after`：成功 STARTUP/RESUME/RESET 才武装 |
+| ICI 会编 Percipio 厂商 TYCam | `COLCON_IGNORE percipio_camera`（mock 测 `camera_enabled:=false`） |
+| 纯核枚举与 IDL 无对账 | `test_idl_constants.py` 对照 HarvestState / ControlTask / ManageLifecycleNodes |
+
+---
+
+## 2026-09-16 peach 标准化重构设计（长期路线 R11+）
+
+**定位：** 设计文档（路线规格，未实施）。R0–R10 已在途（上两节，工作区未提交）；本节是其后到「长期稳定框架」的剩余路线，按框架/算法/流程/性能四维综合分析后分期。实施仍按 AGENTS 教义逐轮做，每轮同轮改活文档；现行快照以 [architecture.md](architecture.md) 为准，本节不驱动现行设计。
+
+**权威基线（本设计检索对照，均按第 3 章「文档+源码」口径回链）：** ROS 2 Jazzy Developer Guide（测试塔、包布局、防御式）；REP-2004/2005（QL 等级）；Nav2（lifecycle+bond、diagnostics、Collision Monitor「命令链最后一环」）；MoveIt 2（MTC、sensors_3d octomap、TEM）；ros2_control（mock_components、错误停控制器）；UR ROS2 Driver（mock/真机同管线、P-stop 禁 resume）；Autoware（interface manifest、fail-safe 命令门、参数指南）；TurtleBot 4 / Stretch（分包、runstop 双超时）；OSU apple-harvest（`enable_*` 门）；industrial_ci。本机已核实：`ros-jazzy-nav2-lifecycle-manager` 1.3.13 在装、`bond/bondcpp` 头在装（`bondpy` 未装——HeartbeatWatchdog 等价成立）。
+
+### 一、现状综合分析
+
+**已稳固（本设计不再动，防重复提案）：**
+
+| 项 | 证据 |
+|----|------|
+| 七包拓扑 + 依赖单向（interfaces ← 能力包；跨包只走 IDL） | architecture §3；executor 已删 `aubo_e5_bringup` / `serial_imu` / `peach_manipulation` 依赖（R8/审查轮） |
+| domain 纯核 + import guard | `peach_executor/domain/`（reducer/ledger/lifecycle/watchdog，零 ROS）；`test_import_guard.py` |
+| 参数键名冻结 + 合同 schema | `contract.param.yaml` + `param_rules.py` + `test_frozen_keys.py`（契约面，不是第三/四套参数框架） |
+| IDL 双向核对 + 常量对账 | manifest 44 active + 4 reserved；`test_idl_constants.py` |
+| lifecycle 心跳 | `HeartbeatWatchdog`（GetState 心跳，STARTUP/RESUME/RESET 重新武装）——bond 的显式 watchdog 等价物（AGENTS 认可口径） |
+| 接触 ACM 按目标×工具×阶段 | `acm_policy.hpp`：整图 octomap 豁免已撤（gtest 断言 false）；仅 Sleeve/Cut × 指定目标放行 |
+| 过程记录 | 会话 bag（0019）+ `bag_report` 自动重算 + 预算回收 + retention 审计 |
+| 测试塔下半 + CI | 纯核 pytest + gtest（pregrasp_level）+ `peach_system_tests` mock launch_testing；r0_gate + industrial_ci 双 job |
+| 安全分层 | 使能三档默认关、`PREGRASP_ONLY` 默认、launch 不自动 RunHarvest、停轨=透传 abort + `RobotMoveStop`、故障后禁 resume 原轨迹 |
+
+**四维缺口：**
+
+| 维 | 现行 | 权威做法 | 缺口 |
+|----|------|----------|------|
+| 框架 | lifecycle 管理器手写（watchdog 等价 bond）；peach 主路径无 `/diagnostics`（`serial_imu` 已示范）；缝位=2 处 dict；算法/配置版本不入账 | Nav2 lifecycle_manager（bond，本机已装）；`diagnostic_updater` 周期诊断；MoveIt/Nav2 pluginlib；消息带版本便于归因 | 诊断主干缺；版本可追溯缺；pluginlib 无第二实现（R9 已缓，判例成立） |
+| 算法 | 停走 2.5 FPS 感知（YOLO+SAM+χ²匈牙利+TSDF+Huber 融合+动态预算）；接近=staging PTP+轴向 LIN（同 seed 66/100、现场包络 39/41、09-11 typical 26/30、绕行比 ≤1.70）；四层接近护栏 | Open3D NBV 停准则（已对齐）；MTC/Pilz（已对齐）；接触确认 ACK≠切断（UR 口径，已对齐） | 观察效率（6 视 33.5 s、landmarks 逐 refit 重估、`max_views=24` 与现场 4–6 脱节）；octomap 非豁免后套入段与袋自身点云的关系未真机验证；刀 DI 未接线；ContactMonitor 未标定（默认关） |
+| 流程 | 回放回归靠手工脚本（`scripts/sim_field_targets.py` / `analyze_approach_envelope.py`）；无物理仿真；真机 FULL 未验收 | 测试塔 unit→launch_test→system→field；replay 进 colcon；Gazebo Harmonic 配 Jazzy | 回放未入塔；仿真缺（条件项，非禁令）；FULL 验收待授权轮 |
+| 性能 | `PublishThrottle` / `IcpTargetCache` / `BoundedWorker` / 帧环已有；空闲基线已测（recon ~21% CPU / 182 MB、scene ~638 MB） | 证据先行（C9 判例：无 profile 证据不动管线签名链） | 运行期每帧墙钟/队列丢弃未成持续指标；638 MB 模型常驻未评估 |
+
+### 二、长期稳定的目标态（不变量）
+
+不是新框架，是把已验证的约束固化成「改任何一块都不许破」的规则：
+
+1. **契约面三重冻结。** 图名/QoS=manifest 双向核对；参数键名=`contract.param.yaml`+冻结测试；纯核常量=IDL 对账测试。新接口先过这三道才准合入。
+2. **单一事实源清单。** 末端工具=`aubo_description/config/<profile>.yaml`；调度合同=`peach_executor/config/contract.param.yaml`；跨包契约=`interface_manifest.yaml`；部署值=`config/<节点>.yaml`。同量多处收敛到唯一源+注入/派生，禁止第二份手抄。
+3. **缝位按需升级。** dict `*.impl` 只剩袋/果管线与柱/球 refitter 两处；升级 pluginlib 的唯一触发条件=出现要 A/B 的第二实现（R9 口径）。升级时先冻接口再迁注册，不先造框架。
+4. **生命周期健康二选一。** watchdog（现行）或 bond（若迁 `nav2_lifecycle_manager`）；不允许「名单 Active 但进程已死」的无检测态；观测/旁路节点不进名单。
+5. **诊断是护栏的眼睛。** 「出了再 ERROR」的健康信号逐步收进 `/diagnostics` 周期任务；session bag 保证事后复盘，诊断保证事中可见。
+6. **证据先行的性能循环。** profile（diagnostics+bag metrics）→ 改 → 回放/冒烟对比 → 数字入 testing-log；无证据不动算法管线。
+7. **测试塔单调。** unit（纯核/gtest）→ launch_testing（mock 图）→ replay（bag 回归）→ system（物理仿真，条件）→ field（命名轮次）。下层绿才上上层；field 永远是套袋方向最终权威。
+8. **演化教义本身是流程。** MUST/DEFAULT/KEEP/UNWIND + 三活文档同轮 + 只追加记录已是机制；本设计只给它排接下来要做的事，不另立一套。
+
+### 三、分期路线（每期一 R，独立可验收，可按现场优先级调序）
+
+#### R11 诊断主干（框架，小～中）
+
+- 四能力节点接 `diagnostic_updater`（apt，`serial_imu` 同款）：感知（TF staleness 率、检测/SAM 异常率、worker 队列丢弃）、重建（ICP/TF 拒帧率、积分帧率、融合失败率）、技能（规划失败与护栏拒发分类、`robot_status` 断流）、调度（FSM 停留时长、watchdog 状态）。观测节点把 `/diagnostics` 汇总进 session bag。
+- 同期出评估结论（不一定迁）：`peach_lifecycle_manager` 换 `nav2_lifecycle_manager`（本机已装 1.3.13，自带 bond）。成本=`ManageLifecycleNodes` 图契约变更（manifest+io.md+客户端）+ `managed_nodes_activated` 旗标改由生命周期状态派生；收益=社区维护+bond。**触发条件：真机多日会话需要 bond 级死检**；不满足则 watchdog 维持现状。
+- 验收门：mock 起栈后 `/diagnostics` 各节点 OK，拔相机/杀节点指标可变；现有 lint/纯核/launch_testing 全绿；manifest 若动则核对绿。
+
+#### R12 回放回归入塔（流程，中）
+
+- 把手工回放收进 `peach_system_tests` replay 档：`bag_reader`/纯核驱动、不起 DDS 图，输出成功率/绕行比/拒发分类与基线对比，覆盖三个既有语料（同 seed 100 随机位姿、现场真实包络、09-11 typical 30 例 + 09-14 护栏回归）。
+- 基线数字表（66/100、39/41、26/30、绕行比 ≤1.70、姿态 ≤71° 等）入 testing.md 作回归容差。
+- 规则：接近、融合、护栏任一改动必跑该门。
+- 验收门：`colcon test --packages-select peach_system_tests` 在无图 mock 环境可跑；数字超容差即红。
+
+#### R13 观察节拍（算法，中；证据门先行）
+
+- 先测后改：用 R11 诊断分解单颗观察耗时（移动/等帧/积分/融合），确认 33.5 s 主耗项再动手。
+- 候选改动（各有证据才动）：`_collect_bag_views` landmarks 按机位簇缓存（refit 不重估，architecture §8 已记缺口）；视图选择代价模型并入覆盖停准则；`max_views` 与覆盖门关系复核（现场 4–6 视是事实）。
+- 验收门：R12 回放门数字不降；单颗观察时长改善或「不改」结论入 testing-log。
+
+#### R14 接触验收支持（算法+流程，中～大；含真机授权轮）
+
+- 刀具 DI 切断确认接 `/aubo_io_controller/io_states`（只读消费；未确认仍 `CUT_FEEDBACK_TIMEOUT`，ACK≠切断口径不变）。
+- 按目标限界 octomap 豁免实验：套入段工具×**本目标包围盒内** octomap 体素放行（`acm_policy` 已撤的整图豁免不回来）；顺序=R12 回放包络仿真 → mock → 真机。
+- `ContactMonitor` 标定流程成文（空载/接触电流特征采集、阈值入 yaml；标定前默认关保持）。
+- 出口：`field_full_*` 命名轮次（书面授权；`PREGRASP_ONLY` 仍是默认门）。
+- 验收门：FULL 干跑+真剪各一轮入 testing-log；R12 回放门不降。
+
+#### R15 契约版本化与缝位预案（框架，小）
+
+- 版本指纹入账：`HarvestSummary`/`CanonicalEvent`（或 ledger extra）记检测/分割权重版本、refitter 版本、工具档案版本、接近护栏参数指纹——事后归因不再靠回忆（§8「消息无 algo/config 版本」缺口闭环）。
+- pluginlib 升级预案成文（接口冻结构+plugins.xml 骨架，触发条件见不变量 3），不实施。
+- 验收门：bag_report 能打印版本行；冻结测试绿。
+
+#### R16 物理仿真（条件项，大）
+
+- 触发条件：需要回归接触动力学 / ContactMonitor / octomap 撞枝时才立项：Gazebo Harmonic + `gz_ros2_control`，同一 URDF 与控制器，独立测试包，全图 `use_sim_time`。不满足不立项（「无 Gazebo」是缺口不是禁令，但 YAGNI）。
+- 验收门：仿真栈与 mock 同管线；系统测包独立不进运行 launch；真机仍是权威。
+
+### 四、防走偏（本设计明确不做）
+
+- 不为 pluginlib 而 pluginlib、不预迁 dict 缝（R9 判例）。
+- 不把感知 Python 节点塞进 component container：rclcpp 的 composable+intra-process 零拷贝不覆盖 rclpy，Python 侧收益为零、改拓扑风险为真。
+- 不新增第四份活文档；本节是过程记录里的路线规格，实施轮才动活文档。
+- 不把 `nav2_lifecycle_manager` 迁移当必做（触发条件见 R11）。
+- 不做无 profile 证据的性能微优化；不动相机 2.5 FPS（驱动只读）。
+- 不把 8090 / ROS 任何软件通道当 e-stop；FULL 真机轮永远要书面授权 + 示教器急停可达。
+
+### 五、优先级建议
+
+默认顺序 **R11→R12**（诊断与回归塔是其余各期的量尺，先立尺再动刀）→ **R14**（接触验收是最接近产品价值的缺口）→ R13/R15 穿插 → R16 条件触发。现场若要先做 FULL 验收，R14 可提前，但 R12 回放门必须先立——否则接近/护栏改动没有回归证据。
+
+---
+
+## 2026-09-16 清洁重写轮（定稿方案，取代上文 R11+ 路线）
+
+**背景：** 用户核定后授权全面重写——范围 peach 七包 + `serial_imu` + `imu_follow`（IVG/驱动不动）；图名/IDL/参数键全破；包边界自由重切；参数全迁 GPL；验收门=回放塔+mock 冒烟+launch_testing；本轮不碰真机。上文 R11+ 各期被本节吸收或取代。
+
+**红线核定（逐条，2026-09-16）：**
+- 维持：驱动栈只读；示教器上电；未授权不动臂/SetIO（**real 上操作员发起 launch/指令=授权**）；硬件急停不经 ROS；保护停止后不 resume；Jazzy/numpy 1.26.4；六关节序；相机驱动只读。
+- 删除：launch 自动开批禁令→`autostart` 参数；三档默认关→操作台运行时开关；8090 非控制面→**操作台**；工具帧名冻结→设计自由（沿用四帧名）。
+- 算法核+标定常数**原值移植**（staging 接近/融合预算/护栏/停走门/IK 采样集）；系统语义全部可重设计。
+
+**参照系（完整采收机器人调研，2026-09-16）：** Tevel/FFRobotics/Harvest CROO/Agrobot/Panasonic/Advanced Farm/Ripe Robotics（工业）；OSU apple-harvest（唯一完整 ROS 2 学术开源栈）、SWEEPER/CROPS、猕猴桃 Williams 2019/2020、Fu 2024 猕猴桃成簇剪切（**AUBO E5 同臂先例 88%**）、荔枝 Fcaf3d/AHPPEBot、Bac 2014/Tang 2020/Huang 2025 综述。可迁移要点已入定稿方案（节拍预算工程/视点两档化/跳过调度参数/补采清单/RETAINED 承接检查点/误差-容差链/操作台四栏/每果档案/KPI 换算链）。
+
+**目标架构（6 peach + 2 IMU）：**
+
+| 包 | 职责 |
+|----|------|
+| `peach_interfaces` | 新契约（RunHarvest 带批次策略 / 接触 ExecuteTarget 带检查点 AT_STAGING→…→CUT_CONFIRMED→RETAINED→RETREATED→STOWED / MoveTo / CheckReachability / Console 服务组 / Clearance 令牌） |
+| `peach_harvester`（Python，一进程两节点） | `peach_vision`（粗扫+细看，两级视点）+ `peach_supervisor`（周期状态机/选果/视点规划/批次排程/操作台后端/账本+单果档案） |
+| `peach_arm`（C++，manipulation 演进） | MoveTo / 接触 ExecuteTarget / CheckReachability；**命令门**=enables×clearance×robotReady×¬cancel；接触核原值移植 |
+| `peach_bringup` | 唯一组合点：autostart/预检/工具档案+standoff 注入 |
+| `peach_recorder` | 只读会话 bag+报告+回收+诊断归档，零控制面 |
+| `peach_system_tests` | launch_testing + 回放塔 |
+| `serial_imu`/`imu_follow` | 随图名微调 / GPL 化 |
+
+生命周期：nav2_lifecycle_manager（bond_timeout 0）+ HeartbeatWatchdog。**工艺推导：** 周期状态机归一进程（消灭 BeginScene/SurveyScene/BuildTargetModel 编舞，观察循环内化）；进程边界=语言边界（Python 脑 / C++ 臂）；意图源大脑、强制点臂命令门。
+
+**阶段（每阶段末可编可测、独立提交）：**
+0 基线封存（提交 R0–R10、回放塔、F1–F13+KPI 入 testing.md、快照）→ 1 契约设计 → 2 臂服务器 → 3 大脑成型（3a 并包→3b 进程合并→3c 观察内化+视点两档→3d 纯核收口）→ 4 操作台+记录器 → 5 IMU+组合 → 6 整删+AGENTS 红线改写+活文档终稿+总验收。
+
+**视点两档：** fast（新默认，单视决策+低置信补视封顶 3 固定视）/ conservative（现行多视原值）；融合/预算/门限常数两档共用原值。
+
+**失败分类学：** 定位不准/遮挡/不可达/损伤/脱离失败/落果未承接（新）；跳过自动入 `rework_list.json` 补采清单；批次策略参数 `target_harvest_ratio`/`per_target_timeout_s`/`sector_timeout_s`/`view_policy`。
+
+**明确不做：** 不改驱动；不动算法常数；不动 IVG；不做 Gazebo；不迁 Python 进 composition；学习型剪切点回归与主动照明只留缝；真机另授权轮。
+
+

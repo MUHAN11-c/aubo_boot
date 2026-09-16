@@ -2,9 +2,15 @@
 from __future__ import annotations
 
 import threading
+import time
 
 from lifecycle_msgs.msg import State, Transition
 from lifecycle_msgs.srv import ChangeState, GetState
+from peach_executor.domain.lifecycle import (
+    HeartbeatWatchdog,
+    plan_deactivate,
+    watchdog_armed_after,
+)
 from peach_executor.params import peach_lifecycle_manager
 from peach_interfaces.srv import ManageLifecycleNodes
 import rclpy
@@ -40,10 +46,14 @@ class LifecycleManagerNode(Node):
         self._lock = threading.RLock()
         self._change_clients = {}
         self._state_clients = {}
+        self._watch = HeartbeatWatchdog(timeout_s=4.0)
+        self._watch_armed = False
         self.create_service(
             ManageLifecycleNodes, '~/manage_nodes', self._on_manage,
             callback_group=self._cb)
         self._timer = self.create_timer(0.2, self._kick, callback_group=self._cb)
+        self._watch_timer = self.create_timer(
+            1.0, self._watch_tick, callback_group=self._cb)
 
     def _snapshot(self):
         """当前 GPL 参数快照（名单与超时）."""
@@ -53,6 +63,20 @@ class LifecycleManagerNode(Node):
         # 离开定时器回调再阻塞 RPC，避免卡住默认 executor
         self.destroy_timer(self._timer)
         threading.Thread(target=self._startup, daemon=True).start()
+
+    def _watch_tick(self):
+        """Bond equivalent: GetState heartbeat; timeout is ERROR, not e-stop."""
+        if not self._watch_armed:
+            return
+        names = list(self._snapshot().node_names)
+        now = time.monotonic()
+        for name in names:
+            if self._get_state(name, 0.4) is not None:
+                self._watch.beat(name, now)
+        lost = self._watch.missing(names, now)
+        if lost:
+            self.get_logger().error(
+                f'lifecycle watchdog missing (not e-stop): {lost}')
 
     def _on_manage(self, request, response):
         """整栈生命周期命令；与批次 ControlTask 不是同一层."""
@@ -78,9 +102,16 @@ class LifecycleManagerNode(Node):
         with self._lock:
             if command == ManageLifecycleNodes.Request.STARTUP:
                 ok = self._configure_then_activate(names, timeout)
+                self._set_watch(command, ok, names)
                 self._pub.publish(Bool(data=ok))
                 return ok, 'active' if ok else 'startup failed'
             if command == ManageLifecycleNodes.Request.PAUSE:
+                plan = plan_deactivate(
+                    time.monotonic(), time.monotonic() + timeout, inflight=True)
+                self.get_logger().info(
+                    f'deactivate refuse_new={plan.refuse_new_goals} '
+                    f'recovery={plan.recovery_required}')
+                self._set_watch(command, False, names)
                 ok = self._transition_all(
                     reverse, Transition.TRANSITION_DEACTIVATE, timeout)
                 self._pub.publish(Bool(data=False))
@@ -88,9 +119,11 @@ class LifecycleManagerNode(Node):
             if command == ManageLifecycleNodes.Request.RESUME:
                 ok = self._transition_all(
                     names, Transition.TRANSITION_ACTIVATE, timeout)
+                self._set_watch(command, ok, names)
                 self._pub.publish(Bool(data=ok))
                 return ok, 'active' if ok else 'resume failed'
             if command == ManageLifecycleNodes.Request.RESET:
+                self._set_watch(command, False, names)
                 self._pub.publish(Bool(data=False))
                 if not self._transition_all(
                         reverse, Transition.TRANSITION_DEACTIVATE, timeout):
@@ -99,13 +132,25 @@ class LifecycleManagerNode(Node):
                         reverse, Transition.TRANSITION_CLEANUP, timeout):
                     return False, 'reset cleanup failed'
                 ok = self._configure_then_activate(names, timeout)
+                self._set_watch(command, ok, names)
                 self._pub.publish(Bool(data=ok))
                 return ok, 'active' if ok else 'reset startup failed'
             if command == ManageLifecycleNodes.Request.SHUTDOWN:
+                self._set_watch(command, False, names)
                 ok = self._teardown_locked(reverse, timeout)
                 self._pub.publish(Bool(data=False))
                 return ok, 'unconfigured' if ok else 'shutdown failed'
             return False, f'unknown command {command}'
+
+    def _set_watch(self, command: int, success: bool, names) -> None:
+        """PAUSE/SHUTDOWN 立即撤防；STARTUP/RESUME/RESET 成功才重新武装并打点."""
+        armed = watchdog_armed_after(command, success)
+        self._watch_armed = armed
+        if not armed:
+            return
+        now = time.monotonic()
+        for name in names:
+            self._watch.beat(name, now)
 
     def _configure_then_activate(self, names, timeout: float) -> bool:
         if not self._transition_all(

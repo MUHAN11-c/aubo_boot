@@ -13,7 +13,7 @@ uint8 MODE_MAINTENANCE=2  # 维护态，不选下一颗
 uint8 WAITING_READY=0     # 等待显式 RunHarvest（launch 不自动开批）
 uint8 DISCOVERY=1         # 首巡 Survey→Begin→WAIT_LOCK→SELECT；回访只 Survey。尚未派目标
 uint8 RUNNING=2           # 正在观察/建模/接触（含 PREGRASP_ONLY）
-uint8 PAUSE_PENDING=3     # 接触段收到 PAUSE，当前动作结束后再停
+uint8 PAUSE_PENDING=3     # 历史 IDL 值；编排器不得再把作业 phase 写成此值（暂停走 operation_mode）
 uint8 PAUSED=4            # 已暂停，等待 RESUME
 uint8 MAINTENANCE=5       # 维护态
 uint8 COMPLETED=6         # 正常结算
@@ -55,3 +55,6 @@ string message            # 批次态名或当前周期说明
 string[] blockers         # 阻塞原因列表（预留，现行恒空；无写入方）
 uint8[] permissions       # 当前允许的 ControlTask.command；编排器按 FSM 允许表填充
 bool navigation_enabled   # 预留：固定座现行恒 false（调度到位直通 NAV_OK）
+uint64 action_generation  # 当前动作事务世代；迟到结果对照此值丢弃
+string transaction_id     # 当前动作事务；空=无在途动作
+uint32 scene_epoch        # 当前 BeginScene 世代；模型/决策须对齐

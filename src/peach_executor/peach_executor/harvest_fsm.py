@@ -10,6 +10,7 @@ apply_recovery_ack / settle_terminal。
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Optional
 
 # HarvestState.msg 批次枚举（数值必须与 IDL 一致）
 WAITING_READY = 0
@@ -186,6 +187,66 @@ def react(batch_state: int, event: str) -> Reaction:
         BATCH_NAMES.get(batch_state, 'unknown'))
 
 
+def apply_event(phase: int, event: str, paused: bool) -> Reaction:
+    """
+    Apply react() to the workflow phase; pause keeps command NONE.
+
+    Pause must not overwrite workflow state: callers pass RUNNING/DISCOVERY
+    rather than PAUSE_PENDING. EventHold stores dispatch while paused.
+    """
+    hit = react(phase, event)
+    if not paused:
+        return hit
+    return Reaction(
+        hit.batch_state,
+        hit.target_phase,
+        Command.NONE,
+        hit.event_code,
+        hit.message,
+        MODE_PAUSED,
+    )
+
+
+@dataclass
+class EventHold:
+    """暂停期间暂存第一条非 NONE 命令，恢复时只释放一次."""
+
+    pending: Optional[Reaction] = None
+    pending_event: Optional[str] = None
+
+    def apply_event(self, phase: int, event: str, paused: bool) -> Reaction:
+        """Paused hold records the first non-NONE command once."""
+        hit = react(phase, event)
+        if paused:
+            if (hit.command != Command.NONE
+                    and self.pending_event != event):
+                self.pending = hit
+                self.pending_event = event
+            return Reaction(
+                hit.batch_state,
+                hit.target_phase,
+                Command.NONE,
+                hit.event_code,
+                hit.message,
+                MODE_PAUSED,
+            )
+        return hit
+
+    def release(self) -> Optional[Reaction]:
+        """恢复时取出暂存命令；无暂存返回 None."""
+        held = self.pending
+        self.pending = None
+        self.pending_event = None
+        return held
+
+    def take_after_pause(self, cancel: bool) -> Optional[Reaction]:
+        """Resume dispatches the held command once; cancel discards it."""
+        held = self.release()
+        if cancel:
+            return None
+        return held
+
+
 # 终局批次态：进入后暂停/恢复类迁移一律无意义
 _TERMINAL_BATCH_STATES = (COMPLETED, INTERRUPTED)
 
@@ -239,10 +300,18 @@ def settle_terminal() -> int:
     return COMPLETED
 
 
-def permissions_for(batch_state: int, recovery_required: bool) -> list:
-    """当前允许的 ControlTask 命令列表."""
+def permissions_for(batch_state: int, recovery_required: bool,
+                    paused: bool = False) -> list:
+    """
+    List ControlTask commands allowed in this batch/pause state.
+
+    ``paused`` is orthogonal to batch_state: while paused the workflow
+    stays RUNNING/DISCOVERY and RESUME is allowed instead of PAUSE.
+    """
     allowed = []
-    if batch_state in (DISCOVERY, RUNNING, PAUSE_PENDING):
+    if paused and batch_state not in _TERMINAL_BATCH_STATES:
+        allowed = [CMD_RESUME, CMD_CANCEL_NOW, CMD_ENTER_MAINTENANCE]
+    elif batch_state in (DISCOVERY, RUNNING, PAUSE_PENDING):
         allowed = [CMD_PAUSE, CMD_CANCEL_NOW, CMD_ENTER_MAINTENANCE]
         if batch_state == RUNNING:
             allowed.append(CMD_SKIP_TARGET)

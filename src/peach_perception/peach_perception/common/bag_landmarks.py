@@ -13,6 +13,7 @@ from peach_perception.common.geometry import (
 )
 
 OCCLUSION_CLEAR = 'clear'
+OCCLUSION_UNKNOWN = 'unknown'
 OCCLUSION_LEAF = 'leaf_occluded'
 OCCLUSION_BRANCH = 'branch_blocked'
 OCCLUSION_NEIGHBOR = 'neighbor_overlap'
@@ -66,7 +67,11 @@ def classify_occlusion(
     成本敏感遮挡粗分类.
 
     错误放行枝遮挡代价高于漏检；邻果重叠优先于树叶。
+    输入缺失（NaN）→ unknown，不得默认 clear。
     """
+    values = (mask_area_ratio, neighbor_gap_m, valid_depth_ratio, bbox_aspect)
+    if any(value is None or not np.isfinite(value) for value in values):
+        return OCCLUSION_UNKNOWN
     if neighbor_gap_m >= 0.0 and neighbor_gap_m < 0.04:
         return OCCLUSION_NEIGHBOR
     if valid_depth_ratio < 0.25 and mask_area_ratio > 0.02:

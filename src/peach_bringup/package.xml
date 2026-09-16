@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd"
+  schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>peach_bringup</name>
+  <version>0.1.0</version>
+  <description>整栈组合入口：Include 只读 aubo_e5_bringup；不自动 RunHarvest。</description>
+  <maintainer email="2155413529@qq.com">wjz</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>aubo_e5_bringup</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>peach_executor</exec_depend>
+  <exec_depend>peach_manipulation</exec_depend>
+  <exec_depend>peach_observability</exec_depend>
+  <exec_depend>peach_perception</exec_depend>
+  <exec_depend>serial_imu</exec_depend>
+
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

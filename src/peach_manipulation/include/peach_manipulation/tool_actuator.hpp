@@ -43,7 +43,8 @@ enum class ToolActuatorState : uint8_t
   ARMED = 1,
   CUT_COMMAND_SENT = 2,
   CUT_FEEDBACK_CONFIRMED = 3,
-  SAFE_OR_HOLDING = 4
+  SAFE_OR_HOLDING = 4,
+  UNKNOWN = 5
 };
 
 struct ToolCommandContext
@@ -69,6 +70,7 @@ public:
   // 切断确认保持删除态，收割终验按保守语义走 CUT_FEEDBACK_TIMEOUT）。
   bool confirmFeedback(bool hardware_ok, std::string & reason);
   void resetSafe();
+  void markUnknown();
   bool sameTransaction(const std::string & transaction_id) const;
   bool cutAlreadyCommanded() const;
 

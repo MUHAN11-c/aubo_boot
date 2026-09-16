@@ -8,10 +8,11 @@ string reason                  # 未 grasped 时的原因码；成功可空
 float32 quality_score          # 本颗质量分；未评则 0
 uint8 completion_level         # 最高到达档（见下）；与 ExecuteTarget.Result 同枚举
 
-uint8 LEVEL_NONE=0                   # 尚未过预抓取验证
-uint8 LEVEL_PREGRASP_VERIFIED=1      # 预抓取停位已验证
-uint8 LEVEL_SLEEVE_COMPLETED=2       # 套入完成
-uint8 LEVEL_CUT_COMMAND_ACCEPTED=3   # 刀指令已受理
-uint8 LEVEL_CUT_CONFIRMED=4          # 切断已确认
-uint8 LEVEL_RETREAT_CONFIRMED=5      # 撤退已确认
-uint8 LEVEL_HARVEST_CONFIRMED=6      # 采摘确认（切断+撤退）
+uint8 LEVEL_NONE=0                   # 尚未到达预抓取
+uint8 LEVEL_PREGRASP_REACHED=1       # 已到预抓取停位
+uint8 LEVEL_PREGRASP_VERIFIED=2      # 新目标观测+工具到位且残差过门
+uint8 LEVEL_SLEEVE_COMPLETED=3       # 套入完成
+uint8 LEVEL_CUT_COMMAND_ACCEPTED=4   # 刀指令已受理
+uint8 LEVEL_CUT_CONFIRMED=5          # 切断已确认
+uint8 LEVEL_RETREAT_CONFIRMED=6      # 撤退已确认
+uint8 LEVEL_HARVEST_CONFIRMED=7      # 采摘确认（切断证据+撤退证据）

@@ -34,6 +34,10 @@ find_package(visualization_msgs REQUIRED)
 
 find_package(Threads REQUIRED)
 
+find_package(generate_parameter_library REQUIRED)
+generate_parameter_library(execution_contract_parameters
+  src/execution_contract_parameters.yaml)
+
 # 纯逻辑核（零 ROS/MoveIt 依赖）：质量门、视点规划、安全门、目标缓存。
 add_library(${PROJECT_NAME}_core
   src/quality_gate.cpp
@@ -66,6 +70,7 @@ target_include_directories(peach_manipulation_node PRIVATE include)
 # ament_target_dependencies）；节点非导出目标，一律 PRIVATE。
 target_link_libraries(peach_manipulation_node PRIVATE
   ${PROJECT_NAME}_core
+  execution_contract_parameters
   Threads::Threads
   nlohmann_json::nlohmann_json
   moveit_ros_planning_interface::moveit_move_group_interface
@@ -107,7 +112,12 @@ if(BUILD_TESTING)
   # C++ 风格门以 uncrustify 为准，静态分析走 cppcheck。
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
+  find_package(ament_cmake_gtest REQUIRED)
   find_package(ament_cmake_pytest REQUIRED)
+  ament_add_gtest(test_pregrasp_level test/test_pregrasp_level.cpp)
+  if(TARGET test_pregrasp_level)
+    target_include_directories(test_pregrasp_level PRIVATE include)
+  endif()
   ament_add_pytest_test(test_contact_monitor test/test_contact_monitor.py)
 endif()
 

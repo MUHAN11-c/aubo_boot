@@ -17,8 +17,12 @@ string target_id               # 须与 HarvestState.target_id 一致
 uint8 mode                     # PREVIEW / OBSERVE_ONLY / FULL / PREGRASP_ONLY
 bool skip_observation          # FULL 时可跳过观察段
 uint32 scene_epoch             # 须与当前 BeginScene 世代一致
-string model_revision          # 期望模型修订；空=不校验
+string model_revision          # 期望模型修订；空=非预览执行须拒
 string tool_profile_id         # 工具剖面
+string calibration_revision    # 标定修订；空=非预览执行须拒
+string config_revision         # 配置修订；空=非预览执行须拒
+string plan_id                 # 预览与执行须同一计划对象
+uint64 generation              # 动作事务世代；迟到结果丢弃
 ---
 # === Result ===
 uint8 SUCCEEDED=0              # 周期完成（采摘成功另看 harvest.grasped）
@@ -27,13 +31,14 @@ uint8 SKIPPED_UNREACHABLE=2    # 不可达
 uint8 FAILED=3                 # 接触或工具失败
 uint8 CANCELED=4               # 取消
 
-uint8 LEVEL_NONE=0                   # 尚未过预抓取验证
-uint8 LEVEL_PREGRASP_VERIFIED=1      # 预抓取停位已验证
-uint8 LEVEL_SLEEVE_COMPLETED=2       # 套入完成
-uint8 LEVEL_CUT_COMMAND_ACCEPTED=3   # 刀指令已受理
-uint8 LEVEL_CUT_CONFIRMED=4          # 切断已确认
-uint8 LEVEL_RETREAT_CONFIRMED=5      # 撤退已确认
-uint8 LEVEL_HARVEST_CONFIRMED=6      # 采摘确认（切断+撤退）
+uint8 LEVEL_NONE=0                   # 尚未到达预抓取
+uint8 LEVEL_PREGRASP_REACHED=1       # 已到预抓取停位（残差可未过门）
+uint8 LEVEL_PREGRASP_VERIFIED=2      # 新目标观测+工具到位且残差过门
+uint8 LEVEL_SLEEVE_COMPLETED=3       # 套入完成
+uint8 LEVEL_CUT_COMMAND_ACCEPTED=4   # 刀指令已受理
+uint8 LEVEL_CUT_CONFIRMED=5          # 切断已确认
+uint8 LEVEL_RETREAT_CONFIRMED=6      # 撤退已确认
+uint8 LEVEL_HARVEST_CONFIRMED=7      # 采摘确认（切断证据+撤退证据）
 
 uint8 outcome                  # SUCCEEDED..CANCELED
 uint8 completion_level         # LEVEL_* 最高到达档

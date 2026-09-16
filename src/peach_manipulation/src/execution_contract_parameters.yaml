@@ -1,0 +1,13 @@
+execution_contract:
+  robot_status_timeout_s:
+    type: double
+    default_value: 0.5
+    description: "Monotonic timeout for robot_status during execute()"
+    validation:
+      gt<>: [0.0]
+  model_max_age_s:
+    type: double
+    default_value: 5.0
+    description: "Model valid_until horizon from generated_at"
+    validation:
+      gt<>: [0.0]

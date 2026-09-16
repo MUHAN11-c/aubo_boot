@@ -1,5 +1,8 @@
 """
-peach_executor 手写参数模块（决策 0017，取代 generate_parameter_library）.
+peach_executor handwritten parameter module (decision 0017 SNAPSHOT).
+
+键名冻结。`config/contract.param.yaml` 是同一 schema 的 GPL 形状子集，
+不是第三套生成器。Python 仍走本文件 ParamListener。
 
 调度/监控/生命周期管理三个节点的声明/兜底默认/校验/快照装载集中于
 本文件（各节点类持有自己的 DEFAULTS/RULES）；部署值与中文描述的事实源是
@@ -13,6 +16,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+from peach_executor.param_rules import check as _check, check_min_max
 from rcl_interfaces.msg import SetParametersResult
 from rclpy.exceptions import InvalidParameterValueException
 
@@ -24,24 +28,6 @@ def _assign(params, key, value):
     for part in parts[:-1]:
         target = getattr(target, part)
     setattr(target, parts[-1], value)
-
-
-def _check(rule, value, key):
-    """单条手写校验规则；合法返回 None，非法返回原因."""
-    if rule and isinstance(rule[0], str):
-        rule = (rule,)  # 单条规则直接写成 (kind, ...) 时自动包装
-    kind, args = rule[0], rule[1:]
-    if kind == 'gt' and not value > args[0]:
-        return f'{key}: 须 > {args[0]}'
-    if kind == 'gt_eq' and not value >= args[0]:
-        return f'{key}: 须 >= {args[0]}'
-    if kind == 'lt' and not value < args[0]:
-        return f'{key}: 须 < {args[0]}'
-    if kind == 'lt_eq' and not value <= args[0]:
-        return f'{key}: 须 <= {args[0]}'
-    if kind == 'bounds' and not args[0] <= value <= args[1]:
-        return f'{key}: 须在 [{args[0]}, {args[1]}] 内'
-    return None
 
 
 class peach_executor:
@@ -148,6 +134,22 @@ class peach_executor:
                     why = _check(rule, value, key)
                     if why:
                         raise InvalidParameterValueException(key, value, why)
+            why = check_min_max(
+                self.params_.selection_reach_min_m,
+                self.params_.selection_reach_max_m,
+                'selection_reach_min_m', 'selection_reach_max_m')
+            if why:
+                raise InvalidParameterValueException(
+                    'selection_reach_min_m',
+                    self.params_.selection_reach_min_m, why)
+            why = check_min_max(
+                self.params_.selection_depth_min_m,
+                self.params_.selection_depth_max_m,
+                'selection_depth_min_m', 'selection_depth_max_m')
+            if why:
+                raise InvalidParameterValueException(
+                    'selection_depth_min_m',
+                    self.params_.selection_depth_min_m, why)
 
         def _on_set(self, parameters):
             """运行期校验：全批合法才提交快照并递增变更戳."""

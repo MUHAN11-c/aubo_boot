@@ -30,6 +30,9 @@
 #include <moveit/collision_detection_fcl/collision_env_fcl.hpp>
 #include "peach_manipulation/eigen_conversions.hpp"
 #include "peach_manipulation/grasp_geometry.hpp"
+#include "peach_manipulation/model_contract.hpp"
+#include "peach_manipulation/tool_txn.hpp"
+#include <peach_manipulation/execution_contract_parameters.hpp>
 
 namespace peach_manipulation
 {
@@ -58,6 +61,12 @@ ManipulationSkillsNode::ManipulationSkillsNode(const rclcpp::NodeOptions & optio
   // config/peach_manipulation.yaml（决策 0017）。
   param_listener_ = std::make_shared<peach_manipulation_node::ParamListener>(
     get_node_parameters_interface(), get_logger());
+  execution_contract_listener_ =
+    std::make_shared<execution_contract::ParamListener>(
+    get_node_parameters_interface(), get_logger());
+  robot_status_contract_timeout_s_ =
+    std::static_pointer_cast<execution_contract::ParamListener>(
+    execution_contract_listener_)->get_params().robot_status_timeout_s;
   loadParameters();
   // on-set 验证钩子（无副作用，见 onParameters）：运行中拒改 +
   // execution→grasp→tool 依赖链。rclcpp 的 on-set 回调按注册逆序调用，
@@ -585,9 +594,20 @@ void ManipulationSkillsNode::rebuildGraspTask()
   // 撤离不依赖视觉：插入后目标常被工具遮挡、收割后决策可能翻转，撤退门
   // 不做决策复检（见 cycle_support.hpp 矩阵注释）。
   task_config.approach_execution_gate = [this](std::string & reason) {
-      return motionOutputAllowed(reason) && safetyReady(reason) &&
-             !cancel_requested_.load() && execution_enabled_.load() &&
-             grasp_enabled_.load();
+      if (!(motionOutputAllowed(reason) && safetyReady(reason) &&
+        !cancel_requested_.load() && execution_enabled_.load() &&
+        grasp_enabled_.load()))
+      {
+        return false;
+      }
+      const auto snap = cache_.modelSnapshot();
+      if (identityComplete(snap.identity) &&
+        !modelExecutable(snap, now().seconds(), false))
+      {
+        reason = "model_not_executable";
+        return false;
+      }
+      return true;
     };
   task_config.retreat_execution_gate = task_config.approach_execution_gate;
   grasp_task_ = std::make_unique<GraspTask>(moveit_node_, task_config);
@@ -940,9 +960,38 @@ void ManipulationSkillsNode::onDiagnostics(
 void ManipulationSkillsNode::onDecision(
   const peach_interfaces::msg::GraspDecision::SharedPtr message)
 {
-  // 许可几何字段这里不消费（抓取几何走 refined_pose 通道）；只调和
-  // allowed 与目标 ID，allowed=false 时 reason 由状态镜像透出。
-  if (!cache_.updateGraspDecision(message->target_id, message->allowed)) {
+  ModelIdentity identity;
+  identity.run_id = message->harvest_run_id;
+  identity.scene_epoch = message->scene_epoch;
+  identity.target_id = message->target_id;
+  identity.model_revision = message->model_revision;
+  identity.tool_profile_id = message->tool_profile_id;
+  identity.calibration_revision = message->calibration_revision;
+  identity.config_revision = message->config_revision;
+  const bool derived = allowedFromCapabilities(
+    static_cast<Capability>(message->geometry_capability),
+    static_cast<Capability>(message->sleeve_capability),
+    static_cast<Capability>(message->cut_capability));
+  const bool allowed = derived && identityComplete(identity);
+  if (identityComplete(identity)) {
+    const auto current = cache_.modelSnapshot();
+    if (current.identity.model_revision != identity.model_revision ||
+      current.identity.target_id != identity.target_id)
+    {
+      ModelSnapshot snap;
+      snap.identity = identity;
+      snap.generated_s = now().seconds();
+      snap.valid_until_s = static_cast<double>(message->valid_until.sec) +
+        1e-9 * static_cast<double>(message->valid_until.nanosec);
+      // 心跳/缺字段不得续签；空有效期保持 generated==valid_until → 拒执行。
+      snap.geometry = static_cast<Capability>(message->geometry_capability);
+      snap.pregrasp = static_cast<Capability>(message->pregrasp_capability);
+      snap.sleeve = static_cast<Capability>(message->sleeve_capability);
+      snap.cut = static_cast<Capability>(message->cut_capability);
+      cache_.replaceModelSnapshot(snap);
+    }
+  }
+  if (!cache_.updateGraspDecision(identity, allowed)) {
     RCLCPP_WARN(
       get_logger(), "忽略非当前目标的 grasp_decision: expected=%s actual=%s",
       cache_.targetGateSample().id.c_str(), message->target_id.c_str());
@@ -1092,8 +1141,8 @@ void ManipulationSkillsNode::fillExecuteResults(
   result->cut_command_accepted = ctx && ctx->cut_command_accepted;
   result->cut_confirmed = ctx && ctx->cut_confirmed;
   result->retreat_confirmed = ctx && ctx->retreat_confirmed;
-  result->harvest_confirmed =
-    ctx && ctx->cut_confirmed && ctx->retreat_confirmed;
+  result->harvest_confirmed = harvestConfirmed(
+    ctx && ctx->cut_confirmed, ctx && ctx->retreat_confirmed);
   result->pregrasp = ctx ? ctx->pregrasp_msg : peach_interfaces::msg::PregraspVerification{};
   result->harvest.completion_level = result->completion_level;
   result->harvest.commanded =

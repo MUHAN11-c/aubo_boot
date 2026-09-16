@@ -13,6 +13,7 @@ from typing import (
     Optional,
 )
 
+from builtin_interfaces.msg import Time
 import cv2
 from geometry_msgs.msg import (
     Point,
@@ -32,6 +33,12 @@ from peach_interfaces.msg import (
     ShapeHypothesis,
 )
 from peach_perception.common.geometry import pack_rgb_bgr, rotation_to_quat
+from peach_perception.domain.model_contract import (
+    allowed_from_capabilities,
+    CAPABILITY_INVALID,
+    CAPABILITY_UNKNOWN,
+    CAPABILITY_VALID,
+)
 from peach_perception.target_reconstruction.integrate import (
     require_open3d,
     summarize_view_coverage,
@@ -106,6 +113,20 @@ class PublishThrottle:
 INVALID_SCALAR = -1.0
 # 未绑定目标的 target_center_base 占位
 INVALID_CENTER = (-1.0, -1.0, -1.0)
+MODEL_VALIDITY_S = 5.0
+
+
+def _time_plus(stamp, extra_s: float) -> Time:
+    """Header stamp + extra_s → builtin Time（不回写 stamp，避免心跳续签）."""
+    total = float(stamp.sec) + float(stamp.nanosec) * 1e-9 + float(extra_s)
+    out = Time()
+    out.sec = int(total)
+    frac = total - float(out.sec)
+    if frac < 0.0:
+        out.sec -= 1
+        frac += 1.0
+    out.nanosec = int(frac * 1e9)
+    return out
 
 
 def _scalar_or_invalid(value) -> float:
@@ -221,11 +242,27 @@ def grasp_decision_to_msg(decision: dict, header) -> GraspDecision:
     msg.header = header
     msg.harvest_run_id = str(decision.get('harvest_run_id') or '')
     msg.target_id = str(decision.get('target_id') or '')
-    msg.allowed = bool(decision.get('allowed'))
-    msg.reason = str(decision.get('reason') or '')
-    msg.failure_code = int(decision.get('failure_code') or 0)
     msg.model_revision = str(decision.get('model_revision') or '')
     msg.tool_profile_id = str(decision.get('tool_profile_id') or '')
+    msg.scene_epoch = int(decision.get('scene_epoch') or 0)
+    msg.calibration_revision = str(decision.get('calibration_revision') or '')
+    msg.config_revision = str(decision.get('config_revision') or '')
+    geometry = int(decision.get('geometry_capability', CAPABILITY_UNKNOWN))
+    pregrasp = int(decision.get('pregrasp_capability', geometry))
+    sleeve = int(decision.get('sleeve_capability', CAPABILITY_UNKNOWN))
+    cut = int(decision.get('cut_capability', CAPABILITY_UNKNOWN))
+    msg.geometry_capability = geometry
+    msg.pregrasp_capability = pregrasp
+    msg.sleeve_capability = sleeve
+    msg.cut_capability = cut
+    valid_until = decision.get('valid_until')
+    if valid_until is not None:
+        msg.valid_until = valid_until
+    else:
+        msg.valid_until = _time_plus(header.stamp, MODEL_VALIDITY_S)
+    msg.allowed = allowed_from_capabilities(geometry, pregrasp, sleeve, cut)
+    msg.reason = str(decision.get('reason') or '')
+    msg.failure_code = int(decision.get('failure_code') or 0)
     if decision.get('geometry_valid'):
         _fill_decision_geometry(msg, decision)
     else:
@@ -731,9 +768,23 @@ class PublisherMixin:
         self.pub_diag_debug.publish(
             String(data=json.dumps(diag, ensure_ascii=False)))
         self.pub_grasp_decision.publish(
-            grasp_decision_to_msg(self._grasp_decision(), header))
+            grasp_decision_to_msg(
+                self._lock_decision_validity(self._grasp_decision()), header))
         if getattr(self, 'pub_pregrasp', None) is not None:
             self.pub_pregrasp.publish(self._pregrasp_verification_msg(header))
+
+    def _lock_decision_validity(self, decision: dict) -> dict:
+        """心跳不得续签 valid_until：同一 model_revision 沿用首次冻结时刻."""
+        revision = str(decision.get('model_revision') or '')
+        locked = getattr(self, '_locked_model_revision', None)
+        if locked != revision or getattr(self, '_locked_valid_until', None) is None:
+            now = self.get_clock().now().to_msg()
+            self._locked_model_revision = revision
+            self._locked_generated_at = now
+            self._locked_valid_until = _time_plus(now, MODEL_VALIDITY_S)
+        decision['generated_at'] = self._locked_generated_at
+        decision['valid_until'] = self._locked_valid_until
+        return decision
 
     def _publish_all(self):
         """
@@ -993,21 +1044,32 @@ class PublisherMixin:
             'inlier_ratio': float(result.get('inlier_ratio') or 0.0),
             'model_revision': str(result.get('model_revision') or ''),
             'tool_profile_id': str(self.params.tool.profile_id),
+            'scene_epoch': int(getattr(self, '_scene_epoch', 0) or 0),
+            'calibration_revision': str(
+                getattr(self.params, 'calibration_version', '') or 'unspecified'),
+            'config_revision': str(getattr(self.params.tool, 'version', '')
+                                   or self.params.tool.profile_id),
+            'geometry_capability': CAPABILITY_VALID,
+            'pregrasp_capability': CAPABILITY_VALID,
         })
         budget = result.get('budget') or {}
         if not budget:
+            decision['sleeve_capability'] = CAPABILITY_UNKNOWN
+            decision['cut_capability'] = CAPABILITY_UNKNOWN
             decision['reason'] = 'bag_model_unavailable'
             decision['failure_code'] = 3
             return decision
-        if not budget.get('allowed'):
-            decision['reason'] = str(
-                budget.get('reason') or 'dynamic_budget_negative')
-            decision['failure_code'] = int(budget.get('failure_code') or 12)
-            return decision
-        decision['allowed'] = True
+        decision['sleeve_capability'] = int(
+            budget.get('sleeve_capability',
+                       CAPABILITY_VALID if budget.get('sleeve_ok')
+                       else CAPABILITY_INVALID))
+        decision['cut_capability'] = int(
+            budget.get('cut_capability',
+                       CAPABILITY_VALID if budget.get('cut_ok')
+                       else CAPABILITY_INVALID))
         decision['reason'] = str(
             budget.get('reason') or 'refined_geometry_accept')
-        decision['failure_code'] = 0
+        decision['failure_code'] = int(budget.get('failure_code') or 0)
         return decision
 
     def _diagnostics(self) -> dict:

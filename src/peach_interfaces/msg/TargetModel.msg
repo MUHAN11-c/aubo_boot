@@ -32,3 +32,19 @@ bool corridor_clear                    # 插入走廊是否清空
 string occlusion_class                 # 遮挡档（空=未评）
 builtin_interfaces/Time source_start   # 积分源时间范围起点
 builtin_interfaces/Time source_end     # 积分源时间范围终点
+
+# 身份元组与有效期（R2）。空版本不得执行（预览除外）。
+string run_id                          # 所属批次；空=无批次
+string calibration_revision            # 标定修订
+string config_revision                 # 参数/配置修订
+builtin_interfaces/Time capture_start  # 采集窗起点
+builtin_interfaces/Time capture_end    # 采集窗终点
+builtin_interfaces/Time generated_at   # 模型生成时刻（ROS 时间）
+builtin_interfaces/Time valid_until    # 过期时刻；心跳不得续签
+uint8 CAPABILITY_VALID=0
+uint8 CAPABILITY_INVALID=1
+uint8 CAPABILITY_UNKNOWN=2
+uint8 geometry_capability              # VALID/INVALID/UNKNOWN
+uint8 pregrasp_capability
+uint8 sleeve_capability
+uint8 cut_capability                   # 默认档案轴向余量常负 → INVALID，仍可 READY

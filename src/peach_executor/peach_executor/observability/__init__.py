@@ -1,1 +1,1 @@
-"""只读 Web / JSONL 监控."""
+"""Shim: implementation lives in peach_observability."""

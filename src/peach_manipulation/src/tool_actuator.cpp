@@ -43,7 +43,7 @@ bool ToolActuator::sendCut(std::string & reason)
     return false;
   }
   if (!send_io_(profile_.io_fun, profile_.io_pin, profile_.close_state, reason)) {
-    state_ = ToolActuatorState::SAFE;
+    state_ = ToolActuatorState::UNKNOWN;
     return false;
   }
   cut_commanded_ = true;
@@ -72,6 +72,11 @@ void ToolActuator::resetSafe()
   state_ = ToolActuatorState::SAFE;
   cut_commanded_ = false;
   ctx_ = ToolCommandContext{};
+}
+
+void ToolActuator::markUnknown()
+{
+  state_ = ToolActuatorState::UNKNOWN;
 }
 
 bool ToolActuator::sameTransaction(const std::string & transaction_id) const

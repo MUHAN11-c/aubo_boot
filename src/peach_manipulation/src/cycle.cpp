@@ -18,6 +18,9 @@
 #include <peach_interfaces/msg/harvest_state.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
 
+#include "peach_manipulation/model_contract.hpp"
+#include "peach_manipulation/plan_contract.hpp"
+
 using namespace std::chrono_literals;
 
 namespace peach_manipulation
@@ -106,6 +109,24 @@ rclcpp_action::GoalResponse ManipulationSkillsNode::onActionGoal(
       goal->target_id.c_str());
     return rclcpp_action::GoalResponse::REJECT;
   }
+  if (goal->mode == ExecuteTarget::Goal::FULL ||
+    goal->mode == ExecuteTarget::Goal::PREGRASP_ONLY)
+  {
+    ModelIdentity identity;
+    identity.run_id = goal->run_id;
+    identity.scene_epoch = goal->scene_epoch;
+    identity.target_id = goal->target_id;
+    identity.model_revision = goal->model_revision;
+    identity.tool_profile_id = goal->tool_profile_id;
+    identity.calibration_revision = goal->calibration_revision;
+    identity.config_revision = goal->config_revision;
+    if (!identityComplete(identity)) {
+      RCLCPP_WARN(
+        get_logger(), "拒绝目标请求 %s: 身份元组不完整",
+        goal->target_id.c_str());
+      return rclcpp_action::GoalResponse::REJECT;
+    }
+  }
   // FULL/PREVIEW 与 OBSERVE_ONLY 同一受理门：以 ExecuteTarget.goal.target_id
   // 为准，命中锁定集有效锚点即可；未锁定时回退感知 selected 缓存（单目标
   // 手动周期）。编排器选择权在 peach_executor，不再要求 selected 字段。
@@ -152,20 +173,58 @@ void ManipulationSkillsNode::executeAction(
   // 上下文默认值填充）；其余模式受理即创建并钉 goal 身份，action 线程自持
   // shared_ptr——后续周期整体丢弃本份也不影响本次终局读取。
   std::shared_ptr<CycleContext> ctx;
+  auto fill_plan = [this](const ExecuteTarget::Goal & goal_msg, bool require_joints) {
+      ContactPlan plan;
+      plan.plan_id = goal_msg.plan_id;
+      plan.scene_epoch = goal_msg.scene_epoch;
+      plan.require_start_joints = require_joints;
+      plan.model.run_id = goal_msg.run_id;
+      plan.model.scene_epoch = goal_msg.scene_epoch;
+      plan.model.target_id = goal_msg.target_id;
+      plan.model.model_revision = goal_msg.model_revision;
+      plan.model.tool_profile_id = goal_msg.tool_profile_id;
+      plan.model.calibration_revision = goal_msg.calibration_revision;
+      plan.model.config_revision = goal_msg.config_revision;
+      if (require_joints && move_group_) {
+        plan.start_joints = move_group_->getCurrentJointValues();
+      }
+      return plan;
+    };
   if (goal->mode == ExecuteTarget::Goal::PREVIEW) {
+    last_preview_plan_ = fill_plan(*goal, true);
+    last_preview_valid_ = !goal->plan_id.empty();
     previewContact(false, trigger_response);
   } else {
-    // Action 是唯一周期入口（自动编排）：受理即自动 arm（手动 Trigger
-    // 类入口须另行 set_execution_armed）。
-    if (execution_enabled_.load()) {execution_armed_.store(true);}
-    ctx = std::make_shared<CycleContext>();
-    ctx->target_id = goal->target_id;
-    ctx->observe_only = goal->mode == ExecuteTarget::Goal::OBSERVE_ONLY;
-    ctx->pregrasp_only = goal->mode == ExecuteTarget::Goal::PREGRASP_ONLY;
-    ctx->skip_observation = goal->skip_observation;
-    ctx->action_driven = true;
-    cycle_ = ctx;
-    onStart(trigger_response);
+    bool plan_ok = true;
+    if (last_preview_valid_ && !goal->plan_id.empty()) {
+      ContactPlan execute = fill_plan(
+        *goal, last_preview_plan_.require_start_joints);
+      if (!previewMatchesExecute(last_preview_plan_, execute, 0.05)) {
+        plan_ok = false;
+        trigger_response->success = false;
+        trigger_response->message = "plan_id mismatch: preview != execute";
+      }
+    }
+    if (plan_ok) {
+      if (goal->mode == ExecuteTarget::Goal::OBSERVE_ONLY &&
+        !goal->plan_id.empty())
+      {
+        // 观察会动臂；FULL 只核 plan_id + 身份元组，不冻起始关节。
+        last_preview_plan_ = fill_plan(*goal, false);
+        last_preview_valid_ = true;
+      }
+      // Action 是唯一周期入口（自动编排）：受理即自动 arm（手动 Trigger
+      // 类入口须另行 set_execution_armed）。
+      if (execution_enabled_.load()) {execution_armed_.store(true);}
+      ctx = std::make_shared<CycleContext>();
+      ctx->target_id = goal->target_id;
+      ctx->observe_only = goal->mode == ExecuteTarget::Goal::OBSERVE_ONLY;
+      ctx->pregrasp_only = goal->mode == ExecuteTarget::Goal::PREGRASP_ONLY;
+      ctx->skip_observation = goal->skip_observation;
+      ctx->action_driven = true;
+      cycle_ = ctx;
+      onStart(trigger_response);
+    }
   }
   if (!trigger_response->success) {
     auto result = std::make_shared<ExecuteTarget::Result>();

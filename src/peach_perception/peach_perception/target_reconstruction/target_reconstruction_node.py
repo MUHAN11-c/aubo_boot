@@ -275,6 +275,7 @@ class TargetReconstructionNode(
         self._executor_state_seen = False
         self._harvest_run_id = ''
         self._executor_run_id = ''
+        self._scene_epoch = 0
         self._target_observation_seen = False
         self._target_masks = {}
         # 锁定集目标锚点缓存 {target_id: (3,) base 系中心 [m]}：E2 邻目标
@@ -1619,6 +1620,7 @@ class TargetReconstructionNode(
             # 单根会话目录（R7）：批次 request_id 驱动 session/geometry 与
             # 事件库基目录（与感知 datastore 同一 runs/<request_id>/ 根）
             self._executor_run_id = str(msg.run_id or '')
+            self._scene_epoch = int(getattr(msg, 'scene_epoch', 0) or 0)
             self._harvest_data.base_dir = (
                 resolve_runs_root(None) / self._executor_run_id
                 / 'perception_data'
@@ -2034,6 +2036,31 @@ class TargetReconstructionNode(
         result = self._refined or {}
         model.model_revision = str(result.get('model_revision') or '')
         model.tool_profile_id = str(self.params.tool.profile_id)
+        model.run_id = str(getattr(self, '_harvest_run_id', '') or '')
+        model.scene_epoch = int(getattr(self, '_scene_epoch', 0) or model.scene_epoch)
+        cal = str(getattr(self.params, 'calibration_version', '') or 'unspecified')
+        model.calibration_version = cal
+        model.calibration_revision = cal
+        model.config_revision = str(
+            getattr(self.params.tool, 'version', '') or self.params.tool.profile_id)
+        now = self.get_clock().now()
+        model.generated_at = now.to_msg()
+        model.header.stamp = model.generated_at
+        model.valid_until = (now + Duration(seconds=5.0)).to_msg()
+        model.capture_start = model.generated_at
+        model.capture_end = model.generated_at
+        fused_ok = bool(fused.get('ok'))
+        model.geometry_capability = 0 if fused_ok else 2
+        model.pregrasp_capability = model.geometry_capability
+        budget = fused.get('budget') or {}
+        if budget:
+            model.sleeve_capability = int(
+                budget.get('sleeve_capability', 0 if budget.get('sleeve_ok') else 1))
+            model.cut_capability = int(
+                budget.get('cut_capability', 0 if budget.get('cut_ok') else 1))
+        else:
+            model.sleeve_capability = 2
+            model.cut_capability = 2
         if not fused.get('ok'):
             return
         bottom = fused.get('bottom')

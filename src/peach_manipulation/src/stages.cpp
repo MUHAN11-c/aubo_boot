@@ -4,7 +4,11 @@
 // 遍历严格同构（映射表见 executeCycle 注释）。
 #include "peach_manipulation/manipulation_skills_node.hpp"
 #include "peach_manipulation/math_utils.hpp"
+#include "peach_manipulation/pregrasp_level.hpp"
+#include "peach_manipulation/acm_policy.hpp"
 #include "peach_manipulation/reconfirm_policy.hpp"
+#include "peach_manipulation/retreat_policy.hpp"
+#include "peach_manipulation/tool_txn.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -865,7 +869,7 @@ bool ManipulationSkillsNode::stageMovePregrasp(CycleContext & ctx)
     contact_recovery_required_.store(true);
   }
   ctx.completion_level = std::max(
-    ctx.completion_level, ExecuteTarget::Result::LEVEL_NONE);
+    ctx.completion_level, ExecuteTarget::Result::LEVEL_PREGRASP_REACHED);
   return true;
 }
 
@@ -923,7 +927,7 @@ bool ManipulationSkillsNode::stageVerifyPregrasp(CycleContext & ctx)
       ctx.pregrasp_msg.reason = "pregrasp_verified";
       ctx.completion_level = std::max(
         ctx.completion_level,
-        ExecuteTarget::Result::LEVEL_PREGRASP_VERIFIED);
+        completion_level_after_pregrasp_verify(true));
       return true;
     }
     if (ctx.pregrasp_msg.needs_correction && attempt < 2 && grasp_task_) {
@@ -972,7 +976,7 @@ bool ManipulationSkillsNode::stageVerifyPregrasp(CycleContext & ctx)
     ctx.pregrasp_msg.failure_code = FailureCode::PREGRASP_RESIDUAL;
     ctx.completion_level = std::max(
       ctx.completion_level,
-      ExecuteTarget::Result::LEVEL_PREGRASP_VERIFIED);
+      completion_level_after_pregrasp_verify(false));
     RCLCPP_WARN(
       get_logger(),
       "PREGRASP_ONLY 残差未过门仍停在预抓取 angle=%.2fdeg lateral=%.4fm",
@@ -1033,6 +1037,9 @@ bool ManipulationSkillsNode::stageSleeveLinear(CycleContext & ctx)
     return false;
   }
   setState(CycleState::MTC_APPROACH_INSERT, "沿轴 LIN 套入", ctx.target_id);
+  if (grasp_task_) {
+    grasp_task_->setContactAcm(ctx.target_id, ContactAcmStage::Sleeve);
+  }
   if (!ctx.sleeve_planned || !grasp_task_ || !ctx.refined) {
     return failStage(ctx, "套入前未完成正反向预规划");
   }
@@ -1046,6 +1053,7 @@ bool ManipulationSkillsNode::stageSleeveLinear(CycleContext & ctx)
   if (contactAbortSuspected()) {
     pending_outcome_.store(ExecuteTarget::Result::FAILED);
     ctx.failure_code = FailureCode::SLEEVE_PLAN_FAILED;
+    ctx.sleeve_partial = true;
     return failStage(ctx, "疑似硬接触（接触检测止损）：套入已取消，须现场确认后 ACK");
   }
   if (!result.success) {
@@ -1053,8 +1061,10 @@ bool ManipulationSkillsNode::stageSleeveLinear(CycleContext & ctx)
       result.execution_started ?
       ExecuteTarget::Result::FAILED : ExecuteTarget::Result::SKIPPED_UNREACHABLE);
     ctx.failure_code = FailureCode::SLEEVE_PLAN_FAILED;
+    ctx.sleeve_partial = result.execution_started;
     return failStage(ctx, "沿轴套入失败: " + result.reason);
   }
+  ctx.sleeve_partial = false;
   ctx.completion_level = std::max(
     ctx.completion_level,
     ExecuteTarget::Result::LEVEL_SLEEVE_COMPLETED);
@@ -1090,14 +1100,10 @@ bool ManipulationSkillsNode::stageActuateCutter(CycleContext & ctx)
   command.target_id = ctx.target_id;
   command.contact_transaction_id = ctx.contact_transaction_id;
   if (!tool_actuator_.arm(command, reason) || !tool_actuator_.sendCut(reason)) {
-    const auto retreat = grasp_task_->retreat(
-      ctx.refined->axis,
-      ctx.travel_m + params_.moveit.mtc_approach_along_axis_m, true);
-    if (retreat.success) {
-      contact_recovery_required_.store(false);
-    }
-    ctx.failure_code = FailureCode::CUT_COMMAND_FAILED;
-    return failStage(ctx, "末端工具失败: " + reason + "；撤离: " + retreat.reason);
+    tool_actuator_.markUnknown();
+    ctx.failure_code = FailureCode::TOOL_STATE_UNKNOWN;
+    return failStage(
+      ctx, "tool_state_unknown: " + reason + "（不自动撤退、不重发）");
   }
   ctx.cut_command_accepted = true;
   ctx.completion_level = std::max(
@@ -1127,6 +1133,13 @@ bool ManipulationSkillsNode::stageVerifyCut(CycleContext & ctx)
 bool ManipulationSkillsNode::stageExecuteReservedReverseRetreat(CycleContext & ctx)
 {
   setState(CycleState::MTC_RETREAT, "MTC 沿插入反方向保持直线撤离", ctx.target_id);
+  if (grasp_task_) {
+    grasp_task_->setContactAcm(ctx.target_id, ContactAcmStage::Retreat);
+  }
+  // 部分套入从实际位姿规划撤离（不逆播完整名义轨迹）。
+  if (sleeveRetreatMode(ctx.sleeve_partial) != RetreatMode::FromActual) {
+    RCLCPP_WARN(get_logger(), "sleeve complete still retreats from actual pose");
+  }
   // 撤离授权经 GraspTask retreat 门（Active∧robotReady∧!cancel∧execution∧
   // grasp，无决策复检——插入后目标常被遮挡/收割后决策翻转，撤离不依赖视觉）。
   const auto result = grasp_task_->retreat(
@@ -1165,7 +1178,7 @@ bool ManipulationSkillsNode::stageReturnHarvestStow(CycleContext & ctx)
 
 bool ManipulationSkillsNode::stageVerifyHarvestOutcome(CycleContext & ctx)
 {
-  const bool harvest_ok = ctx.cut_confirmed && ctx.retreat_confirmed;
+  const bool harvest_ok = harvestConfirmed(ctx.cut_confirmed, ctx.retreat_confirmed);
   if (tool_enabled_.load() && grasp_enabled_.load() && !harvest_ok) {
     pending_outcome_.store(ExecuteTarget::Result::FAILED);
     ctx.failure_code = ctx.retreat_confirmed ?

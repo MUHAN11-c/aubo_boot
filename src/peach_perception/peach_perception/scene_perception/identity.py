@@ -129,16 +129,16 @@ def assign_detections(
                 cost[i, j] = d2
 
     pairs = solve_hungarian(cost)
-    assigned_cols = {j for _, j in pairs}
     assigned_rows = {i for i, _ in pairs}
-    # 歧义：某检测存在另一未占用轨道，代价与最优比 < AMBIGUOUS_RATIO
+    # 歧义：相对最优分配，另一轨道（含已被占用列）代价落在 AMBIGUOUS_RATIO
+    # 内则视为交叉交换的等价解。只看未占用轨道会在全匹配时漏检。
     results: List[Tuple[Optional[str], float, str]] = [
         (None, 0.0, 'new') for _ in detections]
     for i, j in pairs:
         best = cost[i, j]
         ambiguous = False
         for jj in range(len(tracks)):
-            if jj == j or jj in assigned_cols:
+            if jj == j:
                 continue
             alt = cost[i, jj]
             if (np.isfinite(alt) and alt * AMBIGUOUS_RATIO >= best
@@ -884,19 +884,36 @@ class TargetRegistry:
                 detections, self._targets, self._frame_used,
                 self._matcher.match_radius,
                 float(getattr(self._matcher, 'recovery_scale', 1.0)))
+            pending = []
+            protected = set()
             for local_i, (tid, d2, status) in enumerate(assigned):
                 i = index_map[local_i]
                 pos, class_id, ax, diameter_value, st = parsed[local_i]
                 matched = MatchResult(
                     target_id=tid, distance=float(d2), status=status)
-                out[i] = self._commit_match(
-                    pos, class_id, ax, diameter_value, st, ts, matched)
+                pending.append(
+                    (i, pos, class_id, ax, diameter_value, st, matched))
+                if status == 'ok' and tid is not None:
+                    protected.add(tid)
+            # 先提交已分配命中（保护这些 ID），再注册新目标；禁止淘汰本帧命中。
+            for item in pending:
+                i, pos, class_id, ax, diameter_value, st, matched = item
+                if matched.status != 'new':
+                    out[i] = self._commit_match(
+                        pos, class_id, ax, diameter_value, st, ts, matched)
+            for item in pending:
+                i, pos, class_id, ax, diameter_value, st, matched = item
+                if matched.status == 'new':
+                    out[i] = self._commit_match(
+                        pos, class_id, ax, diameter_value, st, ts, matched,
+                        protected=protected)
         return [row if row is not None else (f'untracked_{i}', False)
                 for i, row in enumerate(out)]
 
     def _commit_match(
         self, pos, class_id: int, ax, diameter_value: float, status: str,
         ts: float, matched: MatchResult,
+        protected: Optional[set] = None,
     ) -> Tuple[str, bool]:
         """把一次分配结果写入表（命中 EMA / 歧义跳过 / 新注册）."""
         best_id = matched.target_id
@@ -905,7 +922,11 @@ class TargetRegistry:
             return tid, True
 
         if best_id is not None:
-            t = self._targets[best_id]
+            t = self._targets.get(best_id)
+            if t is None:
+                return (
+                    f'overflow_{self._frame_index}_{len(self._frame_used)}',
+                    False)
             # 摆动检测（阶段 D1，协议 2.4）：残差取 EMA 更新前的距离——
             # 反映原始观测相对平滑估计的跳动；EMA 更新后残差会被 α 衰减，
             # 灵敏度失真。有观测才投票；目标 LOST 帧不增不清连击（无观测
@@ -949,8 +970,15 @@ class TargetRegistry:
             self._n_matched += 1
             return best_id, False
 
+        held = set() if protected is None else set(protected)
         if len(self._targets) >= self.max_targets:
-            oldest = min(self._targets, key=lambda k: self._targets[k]['last_seen'])
+            candidates = [tid for tid in self._targets if tid not in held]
+            if not candidates:
+                overflow = (
+                    f'overflow_{self._frame_index}_{len(self._frame_used)}')
+                return overflow, False
+            oldest = min(
+                candidates, key=lambda tid: self._targets[tid]['last_seen'])
             del self._targets[oldest]
         tid = f'target_{self._next_index}'
         self._next_index += 1

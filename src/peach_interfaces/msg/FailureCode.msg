@@ -18,6 +18,10 @@ uint32 UNBAGGED_NOT_IN_SCOPE=13     # 未套袋目标不在本产品范围
 uint32 DEGRADED_CONTACT_FORBIDDEN=14  # 禁止用单帧/降级锚点接触
 uint32 MODEL_STALE=15               # 模型与当前 target_id / scene_epoch 不符
 uint32 CORRIDOR_BLOCKED=16          # 插入走廊被挡
+uint32 MODEL_IDENTITY_INCOMPLETE=17 # 身份元组缺版本，拒执行
+uint32 MODEL_EXPIRED=18             # valid_until 已过
+uint32 TOOL_STATE_UNKNOWN=19        # SetIO 超时/无反馈；不自动撤退/重发
+uint32 PLAN_MISMATCH=20             # 预览与执行 plan_id / 模型元组不一致
 
 uint32 code                         # 上列常量之一
 string name                         # 常量名（如 BUILD_FAILED）；可空，以 code 为准

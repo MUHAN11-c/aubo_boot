@@ -1,5 +1,10 @@
 """
-peach_perception 手写参数模块（决策 0017，取代 generate_parameter_library）.
+peach_perception handwritten parameter module (decision 0017 SNAPSHOT).
+
+键名冻结：模块 DEFAULTS 与 config/<节点>.yaml 必须同键。GPL 形状的
+`config/contract.param.yaml` 是同一 schema 的声明式子集（跨字段合同），
+不是第三套参数框架；Python 节点仍走本文件 ParamListener。C++ 新合同字段
+走 generate_parameter_library。
 
 两个感知节点的声明/兜底默认/校验/快照装载集中于本文件（各节点类持有
 自己的 DEFAULTS/RULES）；部署值与中文描述的事实源是 config/scene_perception.yaml
@@ -12,6 +17,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+from peach_perception.param_rules import check as _check, check_min_max
 from rcl_interfaces.msg import SetParametersResult
 from rclpy.exceptions import InvalidParameterValueException
 
@@ -23,24 +29,6 @@ def _assign(params, key, value):
     for part in parts[:-1]:
         target = getattr(target, part)
     setattr(target, parts[-1], value)
-
-
-def _check(rule, value, key):
-    """单条手写校验规则；合法返回 None，非法返回原因."""
-    if rule and isinstance(rule[0], str):
-        rule = (rule,)  # 单条规则直接写成 (kind, ...) 时自动包装
-    kind, args = rule[0], rule[1:]
-    if kind == 'gt' and not value > args[0]:
-        return f'{key}: 须 > {args[0]}'
-    if kind == 'gt_eq' and not value >= args[0]:
-        return f'{key}: 须 >= {args[0]}'
-    if kind == 'lt' and not value < args[0]:
-        return f'{key}: 须 < {args[0]}'
-    if kind == 'lt_eq' and not value <= args[0]:
-        return f'{key}: 须 <= {args[0]}'
-    if kind == 'bounds' and not args[0] <= value <= args[1]:
-        return f'{key}: 须在 [{args[0]}, {args[1]}] 内'
-    return None
 
 
 class peach_scene_perception_node:
@@ -272,6 +260,13 @@ class peach_scene_perception_node:
                     why = _check(rule, value, key)
                     if why:
                         raise InvalidParameterValueException(key, value, why)
+            why = check_min_max(
+                self.params_.pipeline.min_depth_m,
+                self.params_.pipeline.max_depth_m,
+                'pipeline.min_depth_m', 'pipeline.max_depth_m')
+            if why:
+                raise InvalidParameterValueException(
+                    'pipeline.min_depth_m', self.params_.pipeline.min_depth_m, why)
 
         def _on_set(self, parameters):
             """运行期校验：全批合法才提交快照并递增变更戳."""

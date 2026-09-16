@@ -21,17 +21,18 @@ python3 src/peach_interfaces/scripts/check_interface_manifest.py
 
 没有 `*_parameters.yaml`，节点也不会 `declare_parameter`。清单里的 `qos:` 是**跨包必须对齐的传输约定**，不是可调阈值。
 
-真正的运行参数在能力包 GPL yaml（声明/默认/校验）和同名部署覆盖 yaml：
+真正的运行参数在能力包 `config/<节点>.yaml`（部署事实源）+ 手写 params 模块（决策 0017）。C++ 执行合同另有 generate_parameter_library yaml。
 
 | 文件 | 管什么 |
 |------|--------|
-| `peach_perception/config/scene_perception_parameters.yaml` | 检测、锁定窗、深度窗、袋/果管线 |
-| `peach_perception/config/target_reconstruction_parameters.yaml` | 采帧门、TSDF、机位数 |
+| `peach_perception/config/scene_perception.yaml` | 检测、锁定窗、深度窗、袋/果管线 |
+| `peach_perception/config/target_reconstruction.yaml` | 采帧门、TSDF、机位数 |
 | `peach_perception/config/grasp_standoffs.yaml` | 入口相对袋底、预抓取后撤（launch 注入各节点已声明参数） |
-| `peach_manipulation/config/manipulation_parameters.yaml` | 视点、MTC、接触、刀具 IO |
-| `peach_executor/config/executor_parameters.yaml` | 批次、选果、`execute_pregrasp_only` |
-| `peach_executor/config/lifecycle_manager_parameters.yaml` | lifecycle 名单与顺序 |
-| `peach_executor/config/observability_parameters.yaml` | 监控 Web；`debug.*` 默认关 |
+| `peach_manipulation/config/peach_manipulation.yaml` | 视点、MTC、接触、刀具 IO |
+| `peach_manipulation/src/execution_contract_parameters.yaml` | 执行合同（GPL） |
+| `peach_executor/config/peach_executor.yaml` | 批次、选果、`execute_pregrasp_only` |
+| `peach_executor/config/lifecycle_manager.yaml` | lifecycle 名单与顺序 |
+| `peach_executor/config/observability.yaml` | 监控 Web；`debug.motion_enabled` 默认关 |
 
 ---
 
@@ -157,11 +158,12 @@ Goal：
 | `mode` | `PREVIEW=0` 只规划；`OBSERVE_ONLY=1` 只补视角；`FULL=2` 套入/刀/撤退；`PREGRASP_ONLY=3` 停预抓取、不 SetIO、不回 stow（现行默认干跑） |
 | `skip_observation` | FULL 时可跳过观察段 |
 | `scene_epoch` | 须与当前场世代一致 |
-| `model_revision` / `tool_profile_id` | 模型修订与工具档案标签（executor 由 launch `tool_profile` 注入的 `tool.profile_id` 填入；服务端现行不校验，作对账/遥测） |
+| `model_revision` / `tool_profile_id` / `calibration_revision` / `config_revision` | 模型身份；FULL/PREGRASP_ONLY 空版本拒执行 |
+| `plan_id` / `generation` | 预览=执行同一计划；迟到结果丢弃 |
 
 Result 终局 `outcome`：`SUCCEEDED=0` / `SKIPPED_QUALITY=1` / `SKIPPED_UNREACHABLE=2` / `FAILED=3` / `CANCELED=4`。
 
-`completion_level` 从 `LEVEL_NONE` 到 `LEVEL_HARVEST_CONFIRMED`（预抓取已验 → 套入 → 刀指令受理 → 切断确认 → 撤退确认 → 采摘确认）。产品成功看 `harvest.grasped`：仅 `cut_confirmed && retreat_confirmed`。`recovery_required` 为真时须人工 ACK 才允许下一颗。
+`completion_level`：`LEVEL_NONE` → `LEVEL_PREGRASP_REACHED`（已到位）→ `LEVEL_PREGRASP_VERIFIED`（残差过门且有新鲜观测）→ 套入 → 刀指令受理 → 切断确认 → 撤退确认 → `LEVEL_HARVEST_CONFIRMED`。`pregrasp.passed` 与 `completion_level` 不得互相抬级。产品成功看 `harvest.grasped`：仅切断证据∧撤退证据。`recovery_required` 为真时须人工 ACK 才允许下一颗。
 
 其余 Result 块：`harvest` / `deposit` / `verification` / `outcome_record` / `pregrasp`（技能自填的残差，不是订重建话题）。
 
@@ -205,7 +207,7 @@ Goal：`pose`、`site_id`。现行固定座调度直通 `NAV_OK`，**不发送**
 
 ### 批次
 
-**`HarvestState`** — 批次唯一快照。`batch_state` / `target_phase` 只由 `harvest_fsm.react` 推导，节点禁止手写。
+**`HarvestState`** — 批次唯一快照。`batch_state` / `target_phase` 只由 `harvest_fsm.react` / domain reducer 推导，节点禁止手写。`PAUSE_PENDING` 是历史 IDL 值，编排器不得再把作业 phase 写成此值（暂停走 `operation_mode`）。`action_generation` / `transaction_id` / `scene_epoch` 绑定动作事务。
 
 | 字段 | 含义 |
 |------|------|
@@ -300,7 +302,7 @@ Goal：`pose`、`site_id`。现行固定座调度直通 `NAV_OK`，**不发送**
 
 | 字段 | 含义 |
 |------|------|
-| `allowed` | **只拦套入和 SetIO**。false 时仍可有几何，预抓取可以走，禁止降级接触 |
+| `allowed` | **只拦套入和 SetIO**。由 geometry∧sleeve∧cut VALID 派生（pregrasp 不进）。false 时仍可有几何，预抓取可以走，禁止降级接触 |
 | `reason` / `failure_code` | 原因；`FailureCode.*`，0=无失败 |
 | `entry` / `pregrasp` / `cut_pose` / `axis` | base 系入口、预抓取、剪切参考、袋轴。无融合时入口/轴填零 |
 | `diameter_m` / `d95_m` / `travel_m` / `cut_travel_m` | 直径、D95、插入/剪切行程 |
@@ -314,7 +316,7 @@ Goal：`pose`、`site_id`。现行固定座调度直通 `NAV_OK`，**不发送**
 
 **`ShapeHypothesis`**：`center` / `axis` / `diameter_m` / `length_m` / 协方差 / `confidence` / `model_kind`（`cylinder` / `sphere` / `bag`）。不要单独凭本消息发运动。
 
-**`TargetModel`**：Build 终局。`shape` + `quality`；接触几何 `bag_bottom` / `bag_neck` / `cut_plane_point` / `bag_axis` / `cut_normal` / `d95_m`；`fruit_prior_radius_m` 只作果体禁切包络；`accepted`、余量、`corridor_clear`、`occlusion_class`、源时间范围。
+**`TargetModel`**：Build 终局。身份元组 `run_id + scene_epoch + target_id + model_revision + tool_profile_id + calibration_revision + config_revision`；`generated_at` / `valid_until`（心跳不得续签）；能力三态 geometry/pregrasp/sleeve/cut。`shape` + `quality`；接触几何 `bag_bottom` / `bag_neck` / `cut_plane_point` / `bag_axis` / `cut_normal` / `d95_m`；`fruit_prior_radius_m` 只作果体禁切包络；`accepted`、余量、`corridor_clear`、`occlusion_class`、源时间范围。空版本不得执行（预览除外）。
 
 **`TargetQuality`**：`level` `LOW=0` … `HIGH_CONFIDENCE=3`；`score` 通常 0..1；`reason`。
 

@@ -23,6 +23,12 @@ HEAVY_TOPICS = (
     '/peach/reconstruction/tsdf_cloud',
 )
 
+# 重命名/删除 IDL 或话题时的兼容登记处（清洁重写轮引入）。
+# 每删/改一个类型或图名，在这里登记「旧 bag 字面量 → 现行名」一行，
+# 旧 bag 回放不静默断；别名目标必须是字段兼容的现行类型。
+LEGACY_TYPE_ALIASES: dict[str, str] = {}
+LEGACY_TOPIC_ALIASES: dict[str, str] = {}
+
 
 def ensure_index(bag_dir) -> Path:
     """metadata.yaml 缺失时用 rosbag2_py.Reindexer 兜底重建；返回 bag 目录."""
@@ -101,6 +107,7 @@ def read_bag(bag_dir, *, stamps_only=HEAVY_TOPICS) -> dict:
     streams: dict[str, list] = {}
     while reader.has_next():
         topic, data, t_ns = reader.read_next()
+        topic = LEGACY_TOPIC_ALIASES.get(topic, topic)
         records = streams.setdefault(topic, [])
         if topic in stamps_only:
             records.append((int(t_ns), None))
@@ -110,6 +117,7 @@ def read_bag(bag_dir, *, stamps_only=HEAVY_TOPICS) -> dict:
             type_name = topic_types.get(topic)
             if type_name is None:
                 continue
+            type_name = LEGACY_TYPE_ALIASES.get(type_name, type_name)
             msg_type = get_message(type_name)
             type_cache[topic] = msg_type
         message = deserialize_message(data, msg_type)

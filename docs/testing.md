@@ -343,6 +343,40 @@ mock 接近轨迹形状（不开批、不代替真机方向验收）：`hardware
 python3 src/peach_interfaces/scripts/check_interface_manifest.py
 ```
 
+### 回放塔（解析回归门；改接近/融合/护栏/包络必跑）
+
+`colcon test --packages-select peach_system_tests` 的 `test_replay_approach`：零 ROS 纯几何，确定性语料三层（现场真袋 14 例；分层 200 例 seed 20260911；随机 100 例 seed 20260910）对照 `test/replay_baselines.json` 冻结基线（基线 a955cea，与 `scripts/analyze_approach_envelope.py --n 200 --seed 20260911` 输出逐数核对一致）。判定语义：`analytic_ok` 只许升不许降（全链路 66/100、26/30 属 mock 栈指标，本层是其下界——joint_travel/PTP 绕行/IK 自碰不在此层观测）；`lin_chord_fail` 双侧容差 1（降=护栏变松，升=变紧）；分母精确断言，采样器或案册漂移须显式重封基线。护栏数学为 `replay_oracle.py`（scripts 逐字移植）；阶段 2 起 `peach_manipulation` 以同一案册喂真实纯核 gtest 交叉对账。旧 bag 回放兼容：`peach_observability/bag_reader.py` 的 `LEGACY_TYPE_ALIASES`/`LEGACY_TOPIC_ALIASES`（重写轮每改名/删型登记一行）。
+
+### 清洁重写轮功能清单（F1–F13，验收锚点）
+
+重写轮（REFACTORING.md 2026-09-16 节）以功能等价验收，锚点如下；每阶段过门后才进下一段，最终逐条核销：
+
+| # | 功能 | 门 |
+|---|------|-----|
+| F1 | mock/real 同管线起栈 + autostart + 托管拉起 + 进程死检 | 冒烟 + 杀节点试验 |
+| F2 | 停走感知链（检测/分割/半径剖面/身份/锁定/TF 三态） | 纯核单测 + 相机语料回放 |
+| F3 | 单目标建模（五门/精确 stamp TSDF/有界 ICP/Huber 融合/预算；融合失败不回滚体积） | 单测 + 回放 |
+| F4 | 观察循环两档（fast 单视优先封顶 3 视 / conservative 现行多视原值） | 回放塔两档对照 |
+| F5 | 接触周期 + 检查点（staging PTP+轴向 LIN+四层护栏；AT_STAGING→…→CUT_CONFIRMED→RETAINED→RETREATED→STOWED） | 回放塔 + mock 全链路基线（66/100、39/41、26/30、绕行比≤1.70） |
+| F6 | 命令门单点强制（使能×clearance×robotReady×¬cancel；旁路=0） | gtest + 单测 + 冒烟 |
+| F7 | 批次状态机 + 选果 + 账本 + 批次策略参数（采收率/单果时限/扇区时限/视点档）+ 补采清单 | 纯核单测 + 冒烟 |
+| F8 | 操作台四栏（监控/排程/单步/回放分析+审计）+ 只读记录器闭环 | 冒烟闭环 |
+| F9 | 工具档案单一事实源注入（双 profile 等价门） | 冒烟 + 等价门 |
+| F10 | IMU 链路（udev→/imu/data→诊断） | 单测 + 冒烟 |
+| F11 | imu_follow 跟随/插入推进（默认只算不发；disable 立停） | 纯核单测 + mock |
+| F12 | 节拍分解计量与 KPI 快报（各段耗时进 ledger/操作台） | 冒烟输出节拍快报 |
+| F13 | 单果档案与 yield 视图（视点数/各段耗时/结果/失败码） | 冒烟 + bag_report |
+
+### 节拍基线与 KPI 换算链
+
+每果周期分解（重写轮起全段计时进 ledger/metrics/操作台）：`粗扫帧 → 选果 → 观察循环[视点数×(移臂+停稳+等帧+积分)] → 接触[staging PTP+轴向 LIN+套入+剪切+撤退] → 后勤[回位+记账+放果]`。
+
+- **现状基线**：观察 6 视 33.5 s（§8 缺口表）；接触干跑目标 45–60 s/果（上节）。
+- **对标谱系**（完整采收机器人调研，2026-09-16）：人 3–6 s/果；机器人 2.78 s（猕猴桃 2020 大田 55.8% 可达 86%）/5.5 s/5.8–7 s（多臂苹果）/6 s（Panasonic，人 2–3 s，靠 10 h+ 连跑追平日产）/24 s（SWEEPER，其中放果 7.8 s+移车 4.7 s 后勤）/9.7 s·88%（Fu 2024 猕猴桃整簇，**AUBO E5 同臂**）；大田成功率带 51–88%。
+- **fast 档方向目标**（方向不是门）：观察 ≤2 视 ≤12 s，单果 ≤20 s（可达果）。
+- **KPI 换算链**：单工位节拍 s/果 → 3600/节拍 = 果/h → ÷果/箱 ≈ 箱/日（按有效作业 h）。节拍快报由冒烟/回放自动输出。
+- **策略口径**：速度不够时长凑（可靠性优先，Abundant 教训）；跳过是调度参数不是失败（采收率/时限超即跳过入补采清单）。
+
 ### PREGRASP_ONLY 判定口径（运动、不开工具）
 
 档位：两边 `execution=true`，`grasp.enabled=true`，`tool.enabled=false`，调度 `execute_pregrasp_only=true`（现行默认）。到预抓取后看筒口是否对袋轴、侧向是否偏、剪切紫点是否落在袋口（分割贴检测框极限）。**这些对错只在现场评**，监控里的 `allowed`/余量/RMSE 只作记录，不作为通过条件。残差 2°/3 mm 未过也停住。任何路径无 SetIO。**结束后停在预抓取**，不回 `harvest_stow`。`ExecuteTarget` 终局须 `SUCCEEDED` 且 `recovery_required`（作业票停在靠近、等 ACK）；不得记 `FAILED` 或「须现场人工撤离」。看完后 `ControlTask` `ACKNOWLEDGE_RECOVERY`（命令 6）才允许再 Survey / 下一颗。`grasp.enabled=false` 到不了预抓取。判断/执行全图：`runs/field_test_20260828/pregrasp_only_flow.mmd`。

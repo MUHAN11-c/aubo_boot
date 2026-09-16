@@ -1,0 +1,38 @@
+{
+  "sealed_at": "2026-09-16",
+  "baseline_commit": "a955cea",
+  "provenance": "scripts/{sim_field_targets,sim_approach_probe,analyze_approach_envelope}.py @ a955cea 逐字移植；对照原脚本 --n 200 --seed 20260911 输出逐数一致（214/214、分层 80/40/40/20/20、field 14/14、typical 94/94、LIN 对照 49/214）",
+  "note": "确定性语料。analytic_ok 只许升不许降；lin_chord_fail 双侧容差（降=护栏变松，升=变紧）；分母精确断言防采样/案册漂移。analytic 层不观测 joint_travel/ptp_detour/ik_self_collision（全链路基线 66/100、26/30 属 mock 栈指标）。",
+  "field": {
+    "n": 14,
+    "ok": 14,
+    "lin_chord_fail": 2,
+    "lin_fallback_ok": 2,
+    "typical_n": 10,
+    "typical_ok": 10
+  },
+  "stratified_200_seed20260911": {
+    "n": 214,
+    "ok": 214,
+    "lin_chord_fail": 49,
+    "lin_fallback_ok": 86,
+    "typical_n": 94,
+    "typical_ok": 94,
+    "strata": {
+      "typical": {"n": 80, "ok": 80},
+      "mid_tilt": {"n": 40, "ok": 40},
+      "horizontal": {"n": 40, "ok": 40},
+      "far_entry": {"n": 20, "ok": 20},
+      "long_chord": {"n": 20, "ok": 20},
+      "field": {"n": 14, "ok": 14}
+    }
+  },
+  "random_100_seed20260910": {
+    "n": 100,
+    "ok": 100,
+    "lin_chord_fail": 8,
+    "lin_fallback_ok": 18,
+    "typical_n": 100,
+    "typical_ok": 100
+  }
+}

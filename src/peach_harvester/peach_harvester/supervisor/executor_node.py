@@ -18,6 +18,7 @@ from peach_interfaces.action import (
     BuildTargetModel, ExecuteTarget, RunHarvest, SurveyScene)
 from peach_interfaces.msg import (
     CanonicalEvent,
+    GraspDecision,
     HarvestState,
     JobIntent,
     PeachTargetObservationArray,
@@ -36,6 +37,13 @@ from rclpy.qos import (
 )
 from std_msgs.msg import Bool
 from std_srvs.srv import Trigger
+
+from ..cycle_core.batch_policy import (
+    BatchPolicy,
+    ReworkList,
+    TargetDeadline,
+    ratio_reached,
+)
 
 from .batch import (
     apply_control,
@@ -70,6 +78,24 @@ from .harvest_fsm import (
     settle_terminal,
     WAITING_READY,
 )
+
+
+def _rework_kind(failure_code: str, outcome_code: int) -> str:
+    """失败码 → 补采类别（cycle_core.batch_policy.REWORK_KINDS 口径）。"""
+    code = str(failure_code or '')
+    if code == 'timeout' or 'timeout' in code:
+        return 'timeout'
+    if 'operator_skip' in code or 'skip_target' in code:
+        return 'operator_skipped'
+    if 'unreachable' in code or 'ik_no_solution' in code:
+        return 'unreachable'
+    if 'observe' in code or 'occlu' in code:
+        return 'occluded'
+    if 'sleeve' in code or 'retreat' in code or 'cut' in code:
+        return 'contact_failed'
+    if int(outcome_code) == int(TargetOutcome.SKIPPED_QUALITY):
+        return 'quality'
+    return 'quality'
 
 
 class TaskExecutorNode(LifecycleNode):
@@ -124,6 +150,11 @@ class TaskExecutorNode(LifecycleNode):
         self._cycle_observe_extra = {}
         self._cycle_dispatch_t0 = 0.0
         self._observations: Optional[PeachTargetObservationArray] = None
+        self._decision_cache: Optional[GraspDecision] = None
+        # 批次策略（3c-2a：RunHarvest goal 初值；0=不限；fast 默认）
+        self._batch_policy = BatchPolicy()
+        self._rework: Optional[ReworkList] = None
+        self._target_deadline: Optional[TargetDeadline] = None
         self._last_model_revision = ''
         self._stack_ready = False
         self._wake = threading.Event()
@@ -169,6 +200,12 @@ class TaskExecutorNode(LifecycleNode):
             PeachTargetObservationArray,
             '/peach/perception/target_observations',
             self._on_obs, 10, callback_group=self._cb)
+        # 接触许可令牌缓存（3c-2a）：goal.clearance 装配来源——大脑订阅
+        # 融合决策，臂侧仍按双路复检（令牌优先/快照回退），单一许可源不变。
+        self._sub_decision = self.create_subscription(
+            GraspDecision,
+            '/peach/reconstruction/grasp_decision',
+            self._on_decision, latched, callback_group=self._cb)
         self._begin = self.create_client(
             BeginScene, self._params.begin_scene_service,
             callback_group=self._cb)
@@ -220,6 +257,7 @@ class TaskExecutorNode(LifecycleNode):
             pass
         try:
             self.destroy_subscription(self._sub_obs)
+            self.destroy_subscription(self._sub_decision)
             self.destroy_subscription(self._sub_stack)
         except Exception:  # noqa: BLE001
             pass
@@ -247,6 +285,10 @@ class TaskExecutorNode(LifecycleNode):
 
     def _on_stack_ready(self, msg: Bool) -> None:
         self._stack_ready = bool(msg.data)
+
+    def _on_decision(self, msg: GraspDecision) -> None:
+        """接触许可令牌缓存（goal.clearance 装配源；心跳不续签语义不变）."""
+        self._decision_cache = msg
 
     def _poke(self) -> None:
         """打断批次 wait 循环（取消 / 暂停 / 观测 / 动作结束）."""
@@ -493,6 +535,16 @@ class TaskExecutorNode(LifecycleNode):
             self._settled_transaction = ''
             self._action_generation = 0
             self._transaction_id = ''
+        # 批次策略与补采清单（3c-2a：跳过是调度参数不是失败；跳过目标
+        # 自动入 rework_list.json 供人工补采，批末随账本落盘）
+        self._batch_policy = BatchPolicy.from_goal({
+            'target_harvest_ratio': getattr(goal, 'target_harvest_ratio', 0.0),
+            'per_target_timeout_s': getattr(goal, 'per_target_timeout_s', 0.0),
+            'sector_timeout_s': getattr(goal, 'sector_timeout_s', 0.0),
+            'view_policy': getattr(goal, 'view_policy', 0),
+        })
+        self._rework = ReworkList(request_id=self._run_id)
+        self._target_deadline = None
         # 开批复位并入 RUN_REQUESTED：从 FSM 初值 WAITING_READY 起跳，
         # 一次落地即发布 DISCOVERY（持锁内不得 _apply，_publish_state
         # 会再取非重入锁）。对外发布次数与旧「先复位后开批」一致。
@@ -504,6 +556,14 @@ class TaskExecutorNode(LifecycleNode):
             self._current_target_id = ''
             self._action_active = False
             self._run_goal_handle = None
+            if self._rework is not None and self._rework.entries:
+                try:
+                    out = self._rework.save(default_ledger_root())
+                    self.get_logger().info(
+                        f'补采清单已落盘：{out}（{len(self._rework.entries)} 项）')
+                except OSError as error:
+                    self.get_logger().warning(f'补采清单落盘失败: {error}')
+            self._target_deadline = None
             with self._lock:
                 self._harvest_busy = False
             self._publish_state()
@@ -579,6 +639,20 @@ class TaskExecutorNode(LifecycleNode):
                     reaction = self._react(Event.LOCK_READY)
                 self._apply(reaction, goal.request_id)
             elif cmd == Command.SELECT:
+                # 采收率门（3c-2a：跳过是调度参数不是失败——达标即收批，
+                # 余果不再尝试，入补采清单）
+                if ratio_reached(
+                        sum(1 for o in self._outcomes
+                            if int(o.outcome) == int(TargetOutcome.SUCCEEDED)),
+                        int(self._discovered or 0), self._batch_policy):
+                    self._emit(
+                        'batch_ratio_satisfied', goal.request_id,
+                        details={
+                            'target_harvest_ratio':
+                                self._batch_policy.target_harvest_ratio})
+                    reaction = self._react(Event.EMPTY_LIMIT)
+                    self._apply(reaction, goal.request_id)
+                    continue
                 # 联合约束选果：有效深度窗 ∩ 可达性（CheckReachability 把入口
                 # 换成停位几何再 IK；服务不可用回退半径窗；超窗 targets_filtered）
                 if not self._lock_set_ready():
@@ -615,12 +689,27 @@ class TaskExecutorNode(LifecycleNode):
                 claimed.add(target_id)
                 self._current_target_id = target_id
                 self._cycle_id = f'{self._run_id}:{target_id}'
+                if self._batch_policy.per_target_timeout_s > 0.0:
+                    self._target_deadline = TargetDeadline(
+                        time.monotonic(),
+                        self._batch_policy.per_target_timeout_s)
                 reaction = self._react(Event.TARGET_SELECTED)
                 self._apply(reaction, goal.request_id, target_id)
             elif cmd == Command.DISPATCH:
-                reaction = self._cmd_dispatch(goal.request_id)
+                if self._target_deadline_exceeded(goal.request_id):
+                    reaction = self._react(Event.OBSERVE_FAILED)
+                    self._apply(
+                        reaction, goal.request_id, self._current_target_id)
+                else:
+                    reaction = self._cmd_dispatch(goal.request_id)
             elif cmd == Command.EXECUTE_FULL:
-                reaction = self._cmd_full(goal.request_id)
+                if self._target_deadline_exceeded(goal.request_id):
+                    reaction = self._react(
+                        event_for_outcome(TargetOutcome.SKIPPED_QUALITY, False))
+                    self._apply(
+                        reaction, goal.request_id, self._current_target_id)
+                else:
+                    reaction = self._cmd_full(goal.request_id)
             elif cmd == Command.RECORD_DISABLED:
                 break
             elif cmd == Command.NONE:
@@ -879,6 +968,24 @@ class TaskExecutorNode(LifecycleNode):
             if bool(self._params.execute_pregrasp_only)
             else ExecuteTarget.Goal.FULL)
         full.skip_observation = True
+        # 清洁重写轮（3c-2a）：profile 档位显式下发（与 mode 等价衔接，
+        # 臂侧 profile 优先）；接触许可令牌随 goal（臂侧双路复检：令牌
+        # 优先/快照回退），装配自最新 GraspDecision 缓存。
+        full.profile = (
+            ExecuteTarget.Goal.PROFILE_PREGRASP_HOLD
+            if bool(self._params.execute_pregrasp_only)
+            else ExecuteTarget.Goal.PROFILE_FULL)
+        decision = self._decision_cache
+        if decision is not None:
+            full.clearance.model_stamp = decision.header.stamp
+            full.clearance.allowed = bool(decision.allowed)
+            full.clearance.radial_margin_m = float(
+                getattr(decision, 'radial_margin_m', 0.0) or 0.0)
+            full.clearance.axial_margin_m = float(
+                getattr(decision, 'axial_margin_m', 0.0) or 0.0)
+            full.clearance.model_fingerprint = str(
+                getattr(decision, 'model_revision', '') or '')
+            full.clearance.reason = str(getattr(decision, 'reason', '') or '')
         full.scene_epoch = int(self._scene_epoch or 0)
         full.tool_profile_id = str(self._params.tool.profile_id)
         full.model_revision = str(self._last_model_revision or '')
@@ -948,6 +1055,22 @@ class TaskExecutorNode(LifecycleNode):
         self._apply(reaction, request_id, target_id)
         return reaction
 
+    def _target_deadline_exceeded(self, request_id: str) -> bool:
+        """单果时限门（0=不限）：超限记账 timeout 跳过并复位本果时限。"""
+        if (self._target_deadline is None
+                or not self._target_deadline.exceeded()):
+            return False
+        target_id = self._current_target_id
+        self._emit(
+            'target_timeout', request_id, target_id,
+            details={'per_target_timeout_s':
+                     self._batch_policy.per_target_timeout_s})
+        self._record_skip(
+            target_id, TargetOutcome.SKIPPED_QUALITY,
+            'per_target_timeout: 单果时限超限', failure_code='timeout')
+        self._target_deadline = None
+        return True
+
     def _record_skip(
             self, target_id: str, code: int, reason: str,
             failure_code: str = '', elapsed_s: float = 0.0,
@@ -962,6 +1085,12 @@ class TaskExecutorNode(LifecycleNode):
         if failure_code:
             details['failure_code'] = failure_code
         self._push_outcome(outcome, details)
+        # 补采清单挂钩（3c-2a）：跳过/失败目标入人工补采出口
+        if self._rework is not None and target_id:
+            self._rework.append(
+                target_id,
+                _rework_kind(failure_code or str(reason), code),
+                str(reason), attempted=True)
 
     def _push_outcome(self, outcome, extra=None) -> None:
         """将 outcomes 与遥测附加字段等长追加."""

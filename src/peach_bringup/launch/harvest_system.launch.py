@@ -99,21 +99,11 @@ def generate_launch_description():
             },
             condition=IfCondition(LaunchConfiguration('imu_enabled'))),
         _include(
-            'peach_harvester', 'scene_perception.launch.py',
-            {'autostart': 'false', 'tool_profile': tool_profile}),
-        _include(
-            'peach_harvester', 'target_reconstruction.launch.py',
-            {'autostart': 'false', 'tool_profile': tool_profile}),
+            'peach_harvester', 'brain.launch.py',
+            {'require_managed_stack': 'true', 'tool_profile': tool_profile}),
         _include(
             'peach_arm', 'peach_arm.launch.py',
             {'autostart': 'false', 'tool_profile': tool_profile}),
         _include('peach_observability', 'observability.launch.py'),
-        _include(
-            'peach_harvester', 'peach_executor.launch.py',
-            {
-                'autostart': 'false',
-                'require_managed_stack': 'true',
-                'tool_profile': tool_profile,
-            }),
         _include('peach_harvester', 'lifecycle_manager.launch.py'),
     ])

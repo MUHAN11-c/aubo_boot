@@ -44,6 +44,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'peach_harvester = peach_harvester.brain:main',
             'peach_scene_perception_node = '
             'peach_harvester.vision.scene_perception.scene_perception_node:main',
             'peach_target_reconstruction_node = '

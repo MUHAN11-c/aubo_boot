@@ -242,3 +242,9 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 **判定：单图案立体精度对套袋用途足够**——1.49mm@800mm 按平方律折算 @500mm ≈ 0.6mm，且感知重建管线自带多点拟合进一步平滑；**~14.5fps = 设备深度 6 倍速率**，需要质量时 k 融合旋钮兜底（k=5 时 0.96mm 已优于设备单帧）。这是"现有硬件提速"路线的可行性证据。
 
 **遗留工程项（立项前必做）**：①实时化——MODE_HH 离线约 2-3s/帧，需 MODE_SGBM_3WAY/半分辨率匹配压到 <100ms；②驱动集成——独立模式解锁序列（laser 手动+双 IR 流）要进 percipio_camera 包成一个采集模式；③真值标定（本次仅噪声+与设备一致性，无地面真值）；④田间动态场景与连续满功率激光热管理验证。采集/分析工具与 60 帧样本在 `/tmp/percipio_fps_test/`（重启即失）。
+
+### 09-16 五续（实时彩色深度演示验证通过）
+
+实时演示工具 `stereo_live`：解锁激光双目 + 半分辨率 MODE_SGBM_3WAY + JET 伪彩单窗口，色阶按场景 5%-95% 分位自动拉伸（保底 150mm 色带），`a` 键实时切 k=1/2/4/8 时域融合。实测：**显示 14.7-14.8 fps（相机双目对速率跑满）、处理仅 12-13ms/帧、有效率 64-65%、左边缘 ~15-20% 视差盲区（numDisparities 固有，正常）**。首版"一片深蓝看不到效果"的根因：**TY 标定结构体是 float32 内存，直接以 `cv::Mat(...,CV_64F, ptr)` 包装会位型错读 → stereoRectify 输出 NaN → 全图无效**；必须 `Mat(...,CV_32F,ptr).convertTo(K,CV_64F)`。此坑对未来把该链路集成进 percipio_camera 驱动同样适用。
+
+**工具固化**：本轮全部评测工具（feature_dump/write_test/laser_check/raw_ir_test/stereo_grab/stereo_live/sgbm_eval.py + build.sh + README）已入 `src/percipio_camera/scripts/ps800_eval/`，独立 g++ 构建（不进 colcon），用法与安全注意见该目录 README。/tmp 下的采集数据（双目对/深度帧）为临时件，未入库。

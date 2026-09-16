@@ -7,6 +7,13 @@
 # === Goal ===
 uint8 AUTO=0                   # selection_mode 预留：执行器不独立消费
 uint8 MANUAL=1                 # selection_mode 预留：goal.target_ids 非空即优先按列表
+# intent 常量（清洁重写轮起本文件为唯一权威；数值与 JobIntent 对齐，其删除后不迁回）
+uint8 INTENT_PICK_ALL=0
+uint8 INTENT_PICK_SELECTED=1
+uint8 INTENT_SURVEY_ONLY=2
+# 批次策略（清洁重写轮契约，阶段 3 消费；跳过是调度参数不是失败）
+uint8 VIEW_FAST=0              # 单视优先，低置信补视，封顶 3 固定视（新默认）
+uint8 VIEW_CONSERVATIVE=1      # 现行多视观察循环（原值）
 
 string request_id              # 本批请求 ID，同时作账本目录名；须唯一
 string scene_key               # 场景键，传给 BeginScene / SurveyScene；换键=换场清身份
@@ -14,6 +21,10 @@ string profile_id              # 参数剖面 ID（现行执行器未消费）
 uint8 intent                   # JobIntent：PICK_ALL=0 / PICK_SELECTED=1 / SURVEY_ONLY=2
 uint8 selection_mode           # AUTO / MANUAL（预留；现行看 target_ids 是否非空）
 string[] target_ids            # 可选允许列表；空=不限定。PICK_SELECTED 时使用
+float64 target_harvest_ratio   # 0..1 目标采收率；0=不限（阶段 3 消费）
+float64 per_target_timeout_s   # 单果时限 [s]；超时跳过入补采清单；0=不限
+float64 sector_timeout_s       # 扇区时限 [s]；0=不限
+uint8 view_policy              # VIEW_*；默认 0=fast（阶段 3 消费）
 ---
 # === Result ===
 bool success                   # 至少成功一颗为 true；尝试过但 succeeded=0 为 false（no_targets_succeeded）

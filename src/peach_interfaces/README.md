@@ -369,4 +369,8 @@ Goal：`pose`、`site_id`。现行固定座调度直通 `NAV_OK`，**不发送**
 
 契约预留、节点未全部接线的类型：`JobIntent`（只作枚举）、`HarvestEvent`（请用 `CanonicalEvent`）、`ShapeHypothesis` / `GraspHypothesis` 话题（已发但不是批次门）。
 
+## 清洁重写轮待接线契约（已编译、图上无生产方）
+
+`MoveTo.action`（`/peach_arm/move_to`，阶段 2）、`Clearance.msg`（接触许可令牌，随 goal）、`SetEnables.srv` / `SetBatchPolicy.srv` / `FireStep.srv`（`/peach_supervisor/*`，阶段 3/4）。`RunHarvest` 已附加 `INTENT_*` 常量与批次策略字段（`target_harvest_ratio` / `per_target_timeout_s` / `sector_timeout_s` / `view_policy`）；`ExecuteTarget` 已附加 `clearance` / `profile` 与 `CK_*` 检查点常量（AT_STAGING→…→CUT_CONFIRMED→RETAINED→RETREATED→STOWED）。接线随阶段落 manifest；设计全文见 [docs/REFACTORING.md](../../docs/REFACTORING.md) 重写轮节与 [docs/io.md](../../docs/io.md) §2 待接线表。
+
 旁路视觉抓取走 `ivg_interfaces`，不进本清单、不进 `harvest_system`。

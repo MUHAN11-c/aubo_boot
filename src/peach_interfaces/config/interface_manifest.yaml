@@ -10,7 +10,7 @@ interfaces:
     type: peach_interfaces/msg/HarvestState
     qos: {reliability: reliable, durability: transient_local, depth: 1}
     producers: [peach_executor]
-    consumers: [peach_executor, peach_scene_perception, peach_target_reconstruction, peach_observability]
+    consumers: [peach_scene_perception, peach_target_reconstruction, peach_observability]
   - name: /peach_executor/events
     kind: topic
     type: peach_interfaces/msg/CanonicalEvent
@@ -22,17 +22,17 @@ interfaces:
     type: peach_interfaces/msg/SceneSnapshot
     qos: {reliability: reliable, durability: transient_local, depth: 1}
     producers: [peach_executor]
-    consumers: []
+    consumers: [peach_observability]
   - name: /peach_executor/run_harvest
     kind: action
     type: peach_interfaces/action/RunHarvest
     producers: [peach_executor]
-    consumers: []
+    consumers: [peach_observability]
   - name: /peach_executor/control
     kind: service
     type: peach_interfaces/srv/ControlTask
     producers: [peach_executor]
-    consumers: []
+    consumers: [peach_observability]
   - name: /peach/perception/target_observations
     kind: topic
     type: peach_interfaces/msg/PeachTargetObservationArray
@@ -138,7 +138,7 @@ interfaces:
     kind: service
     type: peach_interfaces/srv/BeginScene
     producers: [peach_scene_perception]
-    consumers: [peach_executor]
+    consumers: [peach_executor, peach_observability]
   - name: /peach_manipulation_node/survey_scene
     kind: action
     type: peach_interfaces/action/SurveyScene
@@ -164,7 +164,7 @@ interfaces:
     kind: service
     type: peach_interfaces/srv/CheckReachability
     producers: [peach_manipulation]
-    consumers: [peach_executor]
+    consumers: [peach_executor, peach_observability]
   - name: /peach/lifecycle/managed_nodes_activated
     kind: topic
     type: std_msgs/msg/Bool

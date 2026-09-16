@@ -23,6 +23,21 @@ string calibration_revision    # 标定修订；空=非预览执行须拒
 string config_revision         # 配置修订；空=非预览执行须拒
 string plan_id                 # 预览与执行须同一计划对象
 uint64 generation              # 动作事务世代；迟到结果丢弃
+# 清洁重写轮附加（阶段 2 消费；观察模式届时由大脑内化，本动作收窄为纯接触）：
+uint8 PROFILE_PREGRASP_HOLD=0  # 停预抓取检查点（不 SetIO、不回 stow；须 ACK）
+uint8 PROFILE_FULL=1           # 全程套入 / 剪切 / 撤退
+# 阶段检查点（阶段 2 起 feedback.checkpoint 取值；均 abortable——取消即透传 abort + RobotMoveStop）
+uint8 CK_AT_STAGING=1          # 到 staging 停位
+uint8 CK_AT_PREGRASP=2         # 到预抓取（PREGRASP_HOLD 终点）
+uint8 CK_SLEEVE_PLANNED=3      # 套入与反向撤退规划过门
+uint8 CK_SLEEVED=4             # 套入到位
+uint8 CK_CUT_ACCEPTED=5        # SetIO 受理（≠切断）
+uint8 CK_CUT_CONFIRMED=6       # 切断确认（刀具 DI / 电流特征）
+uint8 CK_RETAINED=7            # 承接确认（DI 预留 / 操作台目视）
+uint8 CK_RETREATED=8           # 原路撤回预抓取
+uint8 CK_STOWED=9              # 回 harvest_stow
+peach_interfaces/Clearance clearance   # 接触许可令牌（TOOL/CONTACT 级复检输入）
+uint8 profile                  # PROFILE_*；0 与 PREGRASP_ONLY 语义衔接
 ---
 # === Result ===
 uint8 SUCCEEDED=0              # 周期完成（采摘成功另看 harvest.grasped）
@@ -59,3 +74,4 @@ peach_interfaces/PregraspVerification pregrasp   # 技能用工具 TF 自填的�
 ---
 # === Feedback ===
 peach_interfaces/HarvestState state  # 周期进行中的批次快照镜像
+uint8 checkpoint               # CK_*（阶段 2 起）；0=尚未到首个检查点

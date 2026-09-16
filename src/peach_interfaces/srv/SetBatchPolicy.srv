@@ -1,0 +1,17 @@
+# 批次策略参数（清洁重写轮契约，阶段 3 接线；跳过是调度参数不是失败）。
+# 服务：/peach_supervisor/set_batch_policy
+# 服务端：peach_supervisor    客户端：操作台 8090
+# RunHarvest goal 同名字段是开批时初值；本服务运行期改当前批或下批默认。
+
+# === Request ===
+uint8 VIEW_FAST=0              # 单视优先，低置信补视，封顶 3 固定视
+uint8 VIEW_CONSERVATIVE=1      # 现行多视观察循环（原值）
+float64 target_harvest_ratio   # 0..1 目标采收率；0=不限
+float64 per_target_timeout_s   # 单果时限 [s]；超时跳过入补采清单；0=不限
+float64 sector_timeout_s       # 扇区时限 [s]；0=不限
+uint8 view_policy              # VIEW_*
+bool apply_to_current          # false=只改下批默认
+---
+# === Response ===
+bool accepted
+string message

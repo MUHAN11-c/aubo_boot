@@ -1,0 +1,15 @@
+# 操作台使能开关（清洁重写轮契约，阶段 3 接线）。
+# 服务：/peach_supervisor/set_enables
+# 服务端：peach_supervisor    客户端：操作台 8090
+# 意图源=大脑（变更广播 /peach/batch/enables，transient_local，并写审计）；
+# 强制点=臂侧命令门。删除原「三档默认关」红线后的运行时开关形态。
+
+# === Request ===
+bool execution
+bool grasp
+bool tool
+string reason                  # 人读原因，写入审计
+---
+# === Response ===
+bool accepted
+string message                 # 拒绝原因

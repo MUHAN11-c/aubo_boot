@@ -120,6 +120,19 @@ flowchart LR
 | `/peach/navigation/vehicle_state` | `VehicleState` | 底盘位姿/速度；无节点 |
 | `/peach/navigation/arm_status` | `HarvestOperationStatus` | 臂作业状态给导航；无节点 |
 
+清洁重写轮已设计待接线契约（IDL 已入包编译，图上无生产方；接线与 manifest 登记随阶段 2/3 落地，此前不进清单——不假装有节点在发。设计全文见 REFACTORING.md 重写轮节）：
+
+| 类型 | 计划图名 | 服务端 | 接线阶段 | 语义 |
+|------|----------|--------|----------|------|
+| `MoveTo.action` | `/peach_arm/move_to` | `peach_arm` | 2 | 视点/拍照位/命名位/关节移动；lin_only 只 LIN；取消=abort+RobotMoveStop |
+| `Clearance.msg` | （随 ExecuteTarget goal） | — | 2 | 接触许可令牌：模型时刻+allowed+余量+指纹；臂侧验新鲜度不重算几何 |
+| `ExecuteTarget` 扩展字段 | 现名不变 | `peach_arm` | 2 | `clearance`/`profile`（PREGRASP_HOLD/FULL）+ `CK_*` 检查点常量（AT_STAGING→…→CUT_CONFIRMED→RETAINED→RETREATED→STOWED，均 abortable）；届时动作收窄为纯接触、观察模式移除 |
+| `RunHarvest` 扩展字段 | 现名不变 | `peach_supervisor` | 3 | `INTENT_*` 常量（JobIntent 删除后唯一权威）+ 批次策略 `target_harvest_ratio`/`per_target_timeout_s`/`sector_timeout_s`/`view_policy`（VIEW_FAST 默认/VIEW_CONSERVATIVE 原值） |
+| `SetEnables.srv` | `/peach_supervisor/set_enables` | `peach_supervisor` | 3 | 操作台使能开关；广播 `/peach/batch/enables`（transient_local）+审计 |
+| `SetBatchPolicy.srv` | `/peach_supervisor/set_batch_policy` | `peach_supervisor` | 3 | 运行期改批次策略（当前批或下批默认） |
+| `FireStep.srv` | `/peach_supervisor/fire_step` | `peach_supervisor` | 3/4 | 操作台单步（PHOTO/VIEWPOINT/BUILD/APPROACH/PREVIEW/TOOL_DEBUG）；运动类过臂侧命令门 |
+
+
 ---
 
 ## 3. `peach_perception`

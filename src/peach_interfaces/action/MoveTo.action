@@ -1,0 +1,29 @@
+# 臂侧运动服务器：视点 / 拍照位 / 命名位 / 关节目标移动。
+# 动作：/peach_arm/move_to（清洁重写轮契约，阶段 2 接线）
+# 服务端：peach_arm    客户端：peach_supervisor（观察循环 / 回拍照位 / stow）
+# 单一移动语义；接触（套入/剪切/撤退）不在本动作，走 ExecuteTarget。
+# 取消 = 透传 abort + RobotMoveStop；不 resume 原轨迹（红线）。
+# 全部 goal 经臂侧命令门（enables × robotReady × ¬cancel）。
+
+# === Goal ===
+uint8 KIND_NAMED=0             # SRDF group_state 名（photo / stow…）
+uint8 KIND_POSE=1              # base 系位姿；lin_only=true 只走笛卡尔直线
+uint8 KIND_JOINTS=2            # MUST 关节序六值
+uint8 kind
+string named_target
+geometry_msgs/PoseStamped pose
+float64[6] joints              # shoulder…wrist3（按名对齐下发）
+bool lin_only                  # KIND_POSE：只 LIN（观察短移 / 直连兜底）
+float64 speed_scaling          # 0=部署默认；近果段臂侧按段覆盖
+---
+# === Result ===
+bool arrived
+uint32 failure_code            # FailureCode.*；0=NONE
+string detail                  # 稳定原因码
+---
+# === Feedback ===
+uint8 PHASE_PLANNING=1
+uint8 PHASE_MOVING=2
+uint8 PHASE_SETTLING=3
+uint8 phase
+float64 progress               # 0..1（规划段 0）

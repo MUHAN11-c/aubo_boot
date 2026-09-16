@@ -1,0 +1,20 @@
+# 操作台单步调试（清洁重写轮契约，阶段 3/4 接线；取代 8090 直发动作数组）。
+# 服务：/peach_supervisor/fire_step
+# 服务端：peach_supervisor    客户端：操作台 8090
+# 运动类步骤（APPROACH/PREVIEW/TOOL_DEBUG）由大脑转发臂侧命令门，
+# 不旁路 enables × clearance × robotReady 判定；全部写审计。
+
+# === Request ===
+uint8 PHOTO=0                  # 去拍照位（MoveTo KIND_NAMED）
+uint8 VIEWPOINT=1              # 下一视点短移（fast 档视点规划）
+uint8 BUILD=2                  # 当前绑定目标建模（进程内）
+uint8 APPROACH=3               # 单颗接触（PREGRASP_HOLD）
+uint8 PREVIEW=4                # 只规划接触
+uint8 TOOL_DEBUG=5             # 刀具 IO 调试（须 tool 使能 + 审计）
+uint8 step
+string target_id               # BUILD/APPROACH/PREVIEW 用；空=当前绑定
+---
+# === Response ===
+bool accepted
+string message
+uint64 request_seq             # 审计行号

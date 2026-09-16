@@ -15,7 +15,7 @@ from action_msgs.msg import GoalStatus
 import geometry_msgs.msg
 
 from peach_interfaces.action import (
-    BuildTargetModel, ExecuteTarget, RunHarvest, SurveyScene)
+    BuildTargetModel, ExecuteTarget, MoveTo, RunHarvest, SurveyScene)
 from peach_interfaces.msg import (
     CanonicalEvent,
     GraspDecision,
@@ -37,12 +37,27 @@ from rclpy.qos import (
 )
 from std_msgs.msg import Bool
 from std_srvs.srv import Trigger
+import tf2_ros
 
 from ..cycle_core.batch_policy import (
     BatchPolicy,
     ReworkList,
     TargetDeadline,
     ratio_reached,
+)
+from ..cycle_core.view_policy import (
+    FastViewConfig,
+    ViewDecision,
+    ViewPolicyState,
+    ViewSignals,
+    decide_fast,
+)
+from ..cycle_core.view_planner import (
+    ViewContext,
+    ViewPlannerConfig,
+    basis_to_quat,
+    generate,
+    look_at_optical,
 )
 
 from .batch import (
@@ -240,6 +255,11 @@ class TaskExecutorNode(LifecycleNode):
         self._sub_stack = self.create_subscription(
             Bool, '/peach/lifecycle/managed_nodes_activated',
             self._on_stack_ready, latched, callback_group=self._cb)
+        # fast 档观察（3c-2c）：TF 查相机位 + MoveTo 客户端直驱补视
+        self._tf_buffer = tf2_ros.Buffer()
+        self._tf_listener = tf2_ros.TransformListener(self._tf_buffer, self)
+        self._move_to = ActionClient(
+            self, MoveTo, '/peach_arm/move_to', callback_group=self._cb)
 
     def _unconfigure_ros(self) -> None:
         """on_cleanup 释放全部 ROS 实体（与 _configure_ros 一一对应）."""
@@ -264,6 +284,12 @@ class TaskExecutorNode(LifecycleNode):
         try:
             self._run_server.destroy()
             self.destroy_service(self._control_srv)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            self._move_to.destroy()
+            self._tf_listener.unregister()
+            self._tf_buffer.clear()
         except Exception:  # noqa: BLE001
             pass
 
@@ -852,23 +878,31 @@ class TaskExecutorNode(LifecycleNode):
         observe.generation = int(self._action_generation)
         self._cycle_plan_id = f'{request_id}:{target_id}:{self._action_generation}'
         observe.plan_id = self._cycle_plan_id
+        # 视点策略开关（3c-2c）：fast=supervisor 直驱补视（单视优先封顶
+        # 3 视）；conservative=现行多视观察（arm OBSERVE_ONLY 原值路径）。
+        fast_policy = (
+            int(self._batch_policy.view_policy) == BatchPolicy.VIEW_FAST)
         observed = None
-        for attempt in range(4):
-            if self._cancel or self._peek_skip():
-                break
-            observed = self._send_action(
-                self._exec, observe, timeout, feedback=True,
-                goal_handle=self._run_goal_handle)
-            if observed is not None:
-                break
-            self.get_logger().warning(
-                f'ExecuteTarget OBSERVE_ONLY rejected {target_id} '
-                f'attempt={attempt + 1}/4')
-            self._idle(0.4)
-        observe_ok = (
-            observed is not None
-            and int(getattr(observed, 'outcome', 3)) == 0)
-        observe_details = self._stages_from_execute(observed)
+        if fast_policy:
+            observe_ok, observe_details = self._fast_observe_loop(
+                request_id, target_id)
+        else:
+            for attempt in range(4):
+                if self._cancel or self._peek_skip():
+                    break
+                observed = self._send_action(
+                    self._exec, observe, timeout, feedback=True,
+                    goal_handle=self._run_goal_handle)
+                if observed is not None:
+                    break
+                self.get_logger().warning(
+                    f'ExecuteTarget OBSERVE_ONLY rejected {target_id} '
+                    f'attempt={attempt + 1}/4')
+                self._idle(0.4)
+            observe_ok = (
+                observed is not None
+                and int(getattr(observed, 'outcome', 3)) == 0)
+            observe_details = self._stages_from_execute(observed)
         if self._cancel or self._peek_skip() or not observe_ok:
             self._take_skip()
             self._cancel_handle(build_handle)
@@ -1054,6 +1088,135 @@ class TaskExecutorNode(LifecycleNode):
         reaction = self._react(event)
         self._apply(reaction, request_id, target_id)
         return reaction
+
+    # ---- fast 档观察（3c-2c）：supervisor 直驱补视，观察循环内化 ----
+
+    def _observation_item(self, target_id: str):
+        if self._observations is None:
+            return None
+        for item in getattr(self._observations, 'observations', []):
+            if str(getattr(item, 'target_id', '')) == str(target_id):
+                return item
+        return None
+
+    def _view_signals(self, target_id: str) -> ViewSignals:
+        """当前机位质量信号（观测缓存 → ViewSignals；TF 门上游已过）。"""
+        item = self._observation_item(target_id)
+        if item is None:
+            return ViewSignals(tf_ok=False, bbox_valid=False)
+        bbox = getattr(item, 'candidate_2d', None)
+        mask = getattr(item, 'mask', None)
+        fitting = getattr(item, 'fitting', None)
+        width = int(getattr(mask, 'width', 0) or 0) or 640
+        height = int(getattr(mask, 'height', 0) or 0) or 480
+        bbox_valid = bool(
+            getattr(bbox, 'bbox_w', 0) and getattr(bbox, 'bbox_h', 0))
+        area_ratio = 0.0
+        if bbox_valid:
+            area_ratio = (
+                float(bbox.bbox_w) * float(bbox.bbox_h)) / float(
+                    max(1, width) * max(1, height))
+        return ViewSignals(
+            bbox_area_ratio=area_ratio,
+            mask_foreground_ratio=float(
+                getattr(fitting, 'foreground_ratio', -1.0)),
+            tf_ok=True,
+            bbox_valid=bbox_valid)
+
+    def _target_anchor(self, target_id: str):
+        item = self._observation_item(target_id)
+        if item is None:
+            return None
+        bottom = getattr(getattr(item, 'candidate', None), 'bag_bottom', None)
+        if bottom is None:
+            return None
+        return [float(bottom.x), float(bottom.y), float(bottom.z)]
+
+    def _camera_position(self):
+        """latest 相机位（base 系；补视规划用，臂静止时 latest 即安全）。"""
+        try:
+            stamp = self.get_clock().now().to_msg()
+            tf = self._tf_buffer.lookup_transform(
+                'base_link', 'camera_depth_optical_frame', stamp)
+            tr = tf.transform.translation
+            return [float(tr.x), float(tr.y), float(tr.z)]
+        except Exception:  # noqa: BLE001 TF 未就绪/超时
+            return None
+
+    def _fast_observe_loop(self, request_id: str, target_id: str) -> tuple:
+        """fast 档观察循环：单视决策→低置信补视（封顶 3 视）→交 Build 收口。
+
+        返回 (observe_ok, details)；取消/跳过/几何缺失 → not ok。
+        """
+        timeout = float(self._params.action_timeout_s)
+        move_timeout = min(timeout, 30.0)
+        state = ViewPolicyState(used_views=1)
+        cfg = FastViewConfig()
+        moves_used = 0
+        t0 = time.monotonic()
+        while not self._cancel and not self._peek_skip():
+            decision = decide_fast(
+                self._view_signals(target_id), state, cfg)
+            if decision is not ViewDecision.SUPPLEMENT:
+                return True, {
+                    'view_policy': 'fast',
+                    'view_decision': decision.value,
+                    'view_moves': moves_used,
+                    'observe_elapsed_s': round(time.monotonic() - t0, 3)}
+            camera = self._camera_position()
+            target_xyz = self._target_anchor(target_id)
+            if camera is None or target_xyz is None:
+                self.get_logger().warning(
+                    f'fast 补视缺几何（camera={camera is not None} '
+                    f'anchor={target_xyz is not None}），按封顶收口')
+                return True, {
+                    'view_policy': 'fast', 'view_decision': 'geometry_missing',
+                    'view_moves': moves_used,
+                    'observe_elapsed_s': round(time.monotonic() - t0, 3)}
+            context = ViewContext(
+                target=target_xyz, current_camera_position=camera,
+                observed_directions=[[
+                    camera[0] - target_xyz[0],
+                    camera[1] - target_xyz[1],
+                    camera[2] - target_xyz[2]]])
+            candidates = generate(context, ViewPlannerConfig())
+            if not candidates:
+                return True, {
+                    'view_policy': 'fast', 'view_decision': 'no_candidate',
+                    'view_moves': moves_used,
+                    'observe_elapsed_s': round(time.monotonic() - t0, 3)}
+            top = candidates[0]
+            basis = look_at_optical(top.position, target_xyz)
+            quat = basis_to_quat(basis)
+            goal = MoveTo.Goal()
+            goal.kind = MoveTo.Goal.KIND_POSE
+            goal.camera_frame = True
+            goal.lin_only = True
+            goal.pose.header.frame_id = 'base_link'
+            goal.pose.header.stamp = self.get_clock().now().to_msg()
+            goal.pose.pose.position.x = float(top.position[0])
+            goal.pose.pose.position.y = float(top.position[1])
+            goal.pose.pose.position.z = float(top.position[2])
+            goal.pose.pose.orientation.x = quat[0]
+            goal.pose.pose.orientation.y = quat[1]
+            goal.pose.pose.orientation.z = quat[2]
+            goal.pose.pose.orientation.w = quat[3]
+            moved = self._send_action(
+                self._move_to, goal, move_timeout, feedback=False,
+                goal_handle=self._run_goal_handle)
+            moves_used += 1
+            state = ViewPolicyState(used_views=state.used_views + 1)
+            if moved is None:
+                self.get_logger().warning(
+                    f'fast 补视 MoveTo 失败（{target_id}，已移 {moves_used}）')
+                return (not self._cancel), {
+                    'view_policy': 'fast', 'view_decision': 'move_failed',
+                    'view_moves': moves_used,
+                    'observe_elapsed_s': round(time.monotonic() - t0, 3)}
+        return (not self._cancel), {
+            'view_policy': 'fast', 'view_decision': 'canceled',
+            'view_moves': moves_used,
+            'observe_elapsed_s': round(time.monotonic() - t0, 3)}
 
     def _target_deadline_exceeded(self, request_id: str) -> bool:
         """单果时限门（0=不限）：超限记账 timeout 跳过并复位本果时限。"""

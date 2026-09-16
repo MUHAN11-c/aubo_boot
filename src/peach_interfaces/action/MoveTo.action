@@ -14,6 +14,7 @@ string named_target
 geometry_msgs/PoseStamped pose
 float64[6] joints              # shoulder…wrist3（按名对齐下发）
 bool lin_only                  # KIND_POSE：只 LIN（观察短移 / 直连兜底）
+bool camera_frame              # KIND_POSE：pose 为相机光学位姿（位置+look-at 姿态），臂侧走 planOrMoveCamera
 float64 speed_scaling          # 0=部署默认；近果段臂侧按段覆盖
 ---
 # === Result ===

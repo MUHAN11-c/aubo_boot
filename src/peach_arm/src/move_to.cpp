@@ -193,11 +193,20 @@ void ManipulationSkillsNode::executeMoveTo(
       target_pose = (*to_base) * target_pose;
     }
     // lin_only=只 LIN（观察短移/直连兜底，失败不回退）；否则 PTP（失败按
-    // motion 接口默认回退策略）。
+    // motion 接口默认回退策略）。camera_frame=true：pose 为相机光学位姿，
+    // 走 planOrMoveCamera（内部经 TF 换算到 tip）——supervisor 视点规划用。
     const std::string planner = goal->lin_only ? "LIN" : "PTP";
-    ok = motion_->planOrMoveTip(
-      target_pose, planner, true, goal->lin_only ? "move_to_lin" : "move_to_ptp",
-      !goal->lin_only);
+    if (goal->camera_frame) {
+      ok = motion_->planOrMoveCamera(
+        target_pose, planner, true,
+        goal->lin_only ? "move_to_camera_lin" : "move_to_camera_ptp",
+        !goal->lin_only);
+    } else {
+      ok = motion_->planOrMoveTip(
+        target_pose, planner, true,
+        goal->lin_only ? "move_to_lin" : "move_to_ptp",
+        !goal->lin_only);
+    }
     message = ok ? "到位" : "移动失败（见节点日志）";
   }
   if (goal_handle->is_canceling() || cancel_requested_.load()) {

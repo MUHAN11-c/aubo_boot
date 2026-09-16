@@ -222,6 +222,41 @@ def look_at_optical(
     return [list(optical_x), list(optical_y), list(optical_z)]
 
 
+def basis_to_quat(basis: Sequence[Sequence[float]]) -> tuple:
+    """旋转矩阵（三列基 [x,y,z]）→ 四元数 (x, y, z, w)。"""
+    ex, ey, ez = basis[0], basis[1], basis[2]
+    m00, m01, m02 = ex[0], ey[0], ez[0]
+    m10, m11, m12 = ex[1], ey[1], ez[1]
+    m20, m21, m22 = ex[2], ey[2], ez[2]
+    trace = m00 + m11 + m22
+    if trace > 0.0:
+        s = math.sqrt(trace + 1.0) * 2.0
+        qw = 0.25 * s
+        qx = (m21 - m12) / s
+        qy = (m02 - m20) / s
+        qz = (m10 - m01) / s
+    elif m00 > m11 and m00 > m22:
+        s = math.sqrt(1.0 + m00 - m11 - m22) * 2.0
+        qw = (m21 - m12) / s
+        qx = 0.25 * s
+        qy = (m01 + m10) / s
+        qz = (m02 + m20) / s
+    elif m11 > m22:
+        s = math.sqrt(1.0 + m11 - m00 - m22) * 2.0
+        qw = (m02 - m20) / s
+        qx = (m01 + m10) / s
+        qy = 0.25 * s
+        qz = (m12 + m21) / s
+    else:
+        s = math.sqrt(1.0 + m22 - m00 - m11) * 2.0
+        qw = (m10 - m01) / s
+        qx = (m02 + m20) / s
+        qy = (m12 + m21) / s
+        qz = 0.25 * s
+    n = math.sqrt(qx * qx + qy * qy + qz * qz + qw * qw) or 1.0
+    return (qx / n, qy / n, qz / n, qw / n)
+
+
 def generate(context: ViewContext,
              config: Optional[ViewPlannerConfig] = None) -> list:
     """候选生成（C++ generate 逐句移植；评分权重原值）。"""

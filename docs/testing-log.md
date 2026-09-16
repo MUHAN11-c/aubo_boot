@@ -172,3 +172,21 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 ### 09-15（真 IMU servo 跟随，mock 臂）
 
 真 IMU（CH343 `1a86:55d3`，串口 `/dev/imu`，udev 规则补 55d3 后主路径通）+ mock 臂全链路 servo 跟随验证：bringup mock → 拍照位 → `serial_imu.launch.py use_rviz:=false tf_parent_frame:=tcp align_to_parent:=true` → `imu_follow_servo.launch.py` → enable → `motion.enabled=true`。启动 145ms 自动采对齐，清掉上电残差 rpy (-3.97°, 0.56°, 34.74°)（无磁 yaw 占大头）；`/imu/data` 与 tcp 姿态一致。开门后静置关节 5 s 不动、`command_twist` 全 0（死区+位置保持工作）；`/moveit_servo/status`=0（echo 须 BEST_EFFORT 才收得到）；`/joint_states` echo 的 position 顺序是字母序，与冻结关节序无关，核对时勿误读。用户手动转动 IMU，RViz 臂随动确认可行。真机臂运动未动（mock），工具未碰。备注：独立起 serial_imu 接臂必须带 tcp+align 两参（默认 world/不对齐，README §5 有载），当轮先漏带后纠正。
+
+### 09-16（相机深度帧率根因分析，PS800-E1，台架）
+
+问题：彩色+深度+点云三路全开时整机 2.43 fps，为何开深度就把帧率从彩色单路 15 fps 拉下来。全程仅台架相机测试，未动臂、未 SetIO；所有实验只经 launch 参数与 install 拷贝临时改动，结束时 `install/` 参数文件逐字节还原、`src/` git 干净、无残留进程。原始数据与一次性探针工具在 `/tmp/percipio_fps_test/`（重启即失，结论已录此处）。
+
+**相机身份**：Percipio PS800-E1（SN 207000152740），散斑结构光双目 + RGB，tycam R3.6.49，SDK camport4 4.2.10，走 legacy GigE2.0 协议路径。
+
+**根因结论（官方规格背书）**：PS800-E1 官方标称深度帧率 **0.8 fps @ 全部深度分辨率**（1280×960 / 640×480 / 320×240 同值，en.percipio.xyz 产品页），是"精度换帧率"的产品设计（Z 精度 0.51mm@500mm）。实测 2.43 fps（411.5 ms/帧，设备端日志 `got one frame` 间隔 411ms 证实节拍在相机内部）已优于标称口径。彩色流单开 15.00 fps 是 RGB 传感器自身能力；深度一开，`TYFetchFrame` 按深度+彩色整组同步出帧，节拍被深度拖住。
+
+**机理与仪器证据**（camport4 直读，一次性 C++ 探针）：深度组件 `image number`=18、`match window height`=5，恰好满足官方算力约束 `(image number+1)/2 × match window height < 48`（47.5<48，质量拉满档）；LeftIR/RightIR 曝光 990（只读探针，流式中写会被 `system busy -1016` 拒）；Laser power=50 auto=1。每帧深度需完整散斑图案序列采集+板上 SGBM，周期与分辨率无关（320×240 实测同为 2.42），瓶颈是图案数×单幅时间，不是像素量也不是 GigE 带宽（千兆全双工、MTU 1500、CPU 96% 空闲）。
+
+**排除项（每项有实测）**：主机侧加工/点云生成/深度配准无关（零订阅者时同样 2.43；关点云关配准不变）；`frame_rate`/`frame_rate_control` 是上限请求不加速；`parameters.xml` 的 `DepthSgbmImageNumber=5` 对本机无效——0x1610 寄存器空闲态可写且读回一致（探针验证），驱动启动流程时序正确（设备默认 JSON 在 open 时载入、xml 下发在其后），xml=5 真实生效于流式期间帧率仍 2.43 → 按官方参数文档语义 image number 是"深度计算融合的 IR 图像数"（质量项），本机散斑采集序列固定，缩短不了采集周期；SGPM 相位数同理无效。
+
+**遗留问题一（仓库漂移）**：`src/.../launch/parameters.xml`（HEAD=SGBM 2）与 `install/`（SGBM 5，09-15 构建）不一致，launch 实际读 install 拷贝——`parameters.xml` 的 `camera_parameter` 是文件内容注入参数，src 改动不重建则不生效。另该参数在本机属无效配置（写 5 写 18 帧率同），建议后续清成空值防误导（本轮未改 src，留决策）。
+
+**遗留问题二（投递层，真实可修项）**：生产 2.43 fps 但 RELIABLE 大图投递坍塌——同函数先后发布的 `camera_info`（小消息）稳定 2.33 Hz，921KB 彩色 raw 大图 0.3–1.3 Hz 且有 3–7s 停顿，`depth_registered/points`（约 4MB）反而 2.2 Hz；感知节点恰以 RELIABLE 订阅 raw 图（代码注释自述与驱动对齐），属现行系统实际缺陷。`image_raw/compressed`（JPEG 小消息）实测 2.432 Hz、间隔抖动 5ms 完美贴合生产帧率。修复路径：感知改订 compressed 或修 DDS 大消息传输（FastDDS SHM+大缓冲快速 profile 一轮反更差，未深调，非本轮范围）。
+
+**产品口径影响**：launch 默认 `frame_rate=5.0` 对本机深度不可达；停走式"每停取一帧"应按 ~2.4 fps（一帧 ~411ms 停留）排节拍。若未来需要连续高帧率深度，本机型选型不满足（同厂 F 系列标称 5fps@各分辨率，属换硬件决策）。

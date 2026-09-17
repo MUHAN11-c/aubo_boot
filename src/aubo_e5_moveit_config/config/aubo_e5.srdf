@@ -29,16 +29,16 @@
         <joint name="wrist2_joint" value="1.571584939956665" />
         <joint name="wrist3_joint" value="-0.2750104069709778" />
     </group_state>
-    <!--全局拍照位姿：2026-08-13 真机记录，与 orchestrator.yaml 的 global_photo_joints 一致-->
+    <!--全局拍照位姿：2026-09-17 真机示教更新（wrist2 -0.500→-0.280，其余微调自 2026-08-13 记录）-->
     <group_state name="global_photo_pose" group="manipulator_e5">
-        <joint name="foreArm_joint" value="1.677740" />
-        <joint name="shoulder_joint" value="0.425083" />
-        <joint name="upperArm_joint" value="0.195177" />
-        <joint name="wrist1_joint" value="1.461739" />
-        <joint name="wrist2_joint" value="-0.500161" />
-        <joint name="wrist3_joint" value="0.038621" />
+        <joint name="foreArm_joint" value="1.679546" />
+        <joint name="shoulder_joint" value="0.425175" />
+        <joint name="upperArm_joint" value="0.194274" />
+        <joint name="wrist1_joint" value="1.462579" />
+        <joint name="wrist2_joint" value="-0.279948" />
+        <joint name="wrist3_joint" value="0.038859" />
     </group_state>
-    <!--采后/预抓取返回安全观察位；现场未另教之前与 global_photo_pose 同关节。-->
+    <!--采后/预抓取返回安全观察位：保持 2026-08-13 旧拍照位（2026-09-17 拍照位更新后二者已分叉，stow 未另教）。-->
     <group_state name="harvest_stow" group="manipulator_e5">
         <joint name="foreArm_joint" value="1.677740" />
         <joint name="shoulder_joint" value="0.425083" />

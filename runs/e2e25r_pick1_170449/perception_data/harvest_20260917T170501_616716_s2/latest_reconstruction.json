@@ -1,0 +1,98 @@
+{
+  "source": "reconstruction",
+  "event": "reconstruction_finalized",
+  "target_id": "target_1",
+  "captured_views": 3,
+  "pose_count": 2,
+  "refined": {
+    "ok": true,
+    "kind": "cylinder",
+    "status": 0,
+    "center": [
+      0.4713664389421865,
+      -0.6895922296380825,
+      0.6904102702477477
+    ],
+    "axis": [
+      0.030019073644617575,
+      -0.5698640963330219,
+      0.8211904571584278
+    ],
+    "bottom": [
+      0.47003471005172476,
+      -0.6643114868107759,
+      0.6539799969716287
+    ],
+    "neck": [
+      0.47269816783264823,
+      -0.7148729724653893,
+      0.7268405435238666
+    ],
+    "diameter": 0.05497602120939844,
+    "span_m": 0.08872551539914136,
+    "rmse": 0.009252426947998962,
+    "inlier_ratio": 1.0,
+    "n_points": 523,
+    "flags": [
+      "cut_band_unavailable"
+    ],
+    "axis_angle_deg": 20.365460523132228,
+    "axis_conflict_deg": 8.207784137043808,
+    "envelope_conditioned": true,
+    "envelope_reason": "ok",
+    "perception_axis": [
+      0.021818360057117805,
+      -0.2484896950605069,
+      0.96838878071421
+    ]
+  },
+  "grasp_decision": {
+    "harvest_run_id": "harvest_20260917T170501_616716_s2",
+    "target_id": "target_1",
+    "allowed": false,
+    "geometry_valid": true,
+    "reason": "cut_plane_fruit_clearance",
+    "axis_angle_deg": 20.365460523132228,
+    "diagnostic_axis_mismatch": false,
+    "entry": [
+      0.47003471005172476,
+      -0.6643114868107759,
+      0.6539799969716287
+    ],
+    "axis": [
+      0.030019073644617575,
+      -0.5698640963330219,
+      0.8211904571584278
+    ],
+    "pregrasp": [
+      0.4691341378423862,
+      -0.6472155639207853,
+      0.6293442832568759
+    ],
+    "cut_pose": [
+      0.47269816783264823,
+      -0.7148729724653892,
+      0.7268405435238667
+    ],
+    "diameter_m": 0.05497602120939844,
+    "d95_m": 0.05497602120939844,
+    "travel_m": 0.08872551539914139,
+    "cut_travel_m": 0.08872551539914139,
+    "radial_margin_m": -0.016856065071667536,
+    "axial_margin_m": -0.02770129802482572,
+    "corridor_clear": true,
+    "rmse_m": 0.009252426947998962,
+    "inlier_ratio": 1.0,
+    "model_revision": "target_1:2",
+    "tool_profile_id": "adaptive_cylinder_v1",
+    "scene_epoch": 1,
+    "calibration_revision": "unspecified",
+    "config_revision": "adaptive_cylinder_v1",
+    "geometry_capability": 0,
+    "pregrasp_capability": 0,
+    "sleeve_capability": 1,
+    "cut_capability": 1,
+    "failure_code": 16
+  },
+  "recorded_at": "2026-09-17T09:05:09.743402+00:00"
+}

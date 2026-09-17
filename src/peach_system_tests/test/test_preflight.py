@@ -81,7 +81,7 @@ def test_executor_enable_default_off():
     root = _src_root()
     assert root is not None
     text = (
-        root / 'peach_supervisor' / 'config' / 'peach_supervisor.yaml'
+        root / 'peach_harvester' / 'config' / 'peach_supervisor.yaml'
         ).read_text(encoding='utf-8')
     assert 'execution_enabled: false' in text
 
@@ -101,10 +101,10 @@ def test_executor_observability_launch_forwards():
     root = _src_root()
     assert root is not None
     text = (
-        root / 'peach_supervisor' / 'launch' / 'observability.launch.py'
+        root / 'peach_harvester' / 'launch' / 'observability.launch.py'
         ).read_text(encoding='utf-8')
     assert "FindPackageShare('peach_observability')" in text
-    assert "package='peach_supervisor'" not in text
+    assert "FindPackageShare('peach_harvester')" in text
 
 
 def test_observability_setup_owns_entry_points():
@@ -120,7 +120,7 @@ def test_observability_setup_owns_entry_points():
 def test_executor_setup_does_not_install_observability():
     root = _src_root()
     assert root is not None
-    text = (root / 'peach_supervisor' / 'setup.py').read_text(encoding='utf-8')
+    text = (root / 'peach_harvester' / 'setup.py').read_text(encoding='utf-8')
     assert 'peach_observability =' not in text
     assert 'peach_bag_report =' not in text
     assert "glob('web/*')" not in text

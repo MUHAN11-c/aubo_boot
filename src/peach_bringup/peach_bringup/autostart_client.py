@@ -1,15 +1,16 @@
-"""autostart 客户端：托管栈 Active 后自动发 RunHarvest（清洁重写轮阶段 5）。
+"""
+Autostart client: sends RunHarvest when the managed stack becomes Active.
 
-原「launch 绝不自动 RunHarvest」红线已按用户核定删除（2026-09-16）：
-autostart 成为部署参数。授权语义收拢红线 3——real 上操作员发起
-launch/操作台指令即人的授权。
-
-request_id 自动生成 auto_<UTC 时间戳>（不复用）；scene_key 用 launch 参数。
-mock/real 同一管线；真机部署档由操作员决定是否开启本客户端。
+Original "launch never auto-sends RunHarvest" red line removed per user
+decision (2026-09-16). Autostart is now a deployment parameter.
+Authorization semantics converge on red line 3: the operator launching
+on real hardware constitutes human authorization.
 """
 from __future__ import annotations
 
 import time
+
+from peach_interfaces.action import RunHarvest
 
 import rclpy
 from rclpy.action import ActionClient
@@ -20,14 +21,15 @@ from rclpy.qos import (
     QoSProfile,
     ReliabilityPolicy,
 )
-from std_msgs.msg import Bool
 
-from peach_interfaces.action import RunHarvest
+from std_msgs.msg import Bool
 
 
 class AutostartClient(Node):
+    """Watches the managed-stack flag and sends RunHarvest when ready."""
 
     def __init__(self) -> None:
+        """Initialize subscribers, action client, and the readiness timer."""
         super().__init__('peach_autostart_client')
         self.declare_parameter('scene_key', 'default')
         self.declare_parameter('intent', 0)  # INTENT_PICK_ALL
@@ -75,6 +77,7 @@ class AutostartClient(Node):
 
 
 def main(argv=None) -> None:
+    """Entry point for the autostart client node."""
     rclpy.init(args=argv)
     node = AutostartClient()
     try:

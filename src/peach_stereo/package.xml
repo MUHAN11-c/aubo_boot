@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>peach_stereo</name>
+  <version>0.1.0</version>
+  <description>PS800-E1 主机侧单图案立体深度相机节点：解锁激光双目 IR + OpenCV SGBM + SDK 配准到彩色系，发布与 percipio_camera 同构的 RGB-D 话题（约 13.7 fps，深度 uint16×0.25mm）</description>
+  <maintainer email="mu@localhost">mu</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>percipio_camera</depend>
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>image_transport</depend>
+  <depend>tf2_ros</depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

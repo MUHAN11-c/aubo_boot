@@ -1,4 +1,5 @@
-"""启动桃子采摘完整业务栈（整栈入口；autostart 参数控制是否自动开批）.
+"""
+启动桃子采摘完整业务栈（整栈入口；autostart 参数控制是否自动开批）.
 
 清洁重写轮阶段 5：生命周期管理换 nav2_lifecycle_manager（bond_timeout=0.0
 管 rclpy 节点；名单/顺序语义同原自研件；进程死检由 supervisor

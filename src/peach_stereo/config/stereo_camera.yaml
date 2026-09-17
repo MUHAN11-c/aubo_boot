@@ -1,0 +1,14 @@
+# peach_stereo_camera_node 参数（部署值即事实源；键名冻结）
+peach_stereo_camera_node:
+  ros__parameters:
+    device_ip: 169.254.10.110
+    camera_name: camera
+    color_mode: 640x480        # 彩色档位（按设备枚举的 yuyv 模式匹配；默认 2560x1920 会拖死组率）
+    ir_exposure: 990           # 左右 IR 曝光（深度质量/工作距离旋钮；深度帧率不受它影响）
+    laser_power: 100           # 解锁投射器功率（满功率点亮，停栈自动复位）
+    sgbm:
+      num_disparities: 128     # 视差搜索范围（半分辨率 128 ≈ 全分辨率 256）
+      block_size: 5
+      processing_scale: 0.5    # 匹配分辨率相对 1280x960 的缩放（0.5=640x480，~13ms/帧）
+    avg_k: 1                   # k 帧时域融合（1/2/4/8：质量换帧率，k=5 噪声约 0.96mm@0.8m）
+    publish_debug_image: true  # 2Hz JET 伪彩调试流（depth/debug_color）

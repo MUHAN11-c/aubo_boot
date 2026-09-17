@@ -54,7 +54,8 @@ def running_stack_pids(proc_root: str = '/proc'):
         if not entry.isdigit():
             continue
         try:
-            with open(os.path.join(proc_root, entry, 'cmdline'), 'rb') as stream:
+            cmd_path = os.path.join(proc_root, entry, 'cmdline')
+            with open(cmd_path, 'rb') as stream:
                 cmdline = stream.read().decode('utf-8', 'replace')
         except OSError:
             continue

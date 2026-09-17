@@ -1,14 +1,11 @@
-"""lifecycle 旗标桥：nav2_lifecycle_manager.is_active → 闩锁 Bool 话题。
+"""
+Lifecycle flag bridge: nav2_lifecycle_manager.is_active → latched Bool.
 
-nav2_lm 只提供 manage_nodes/is_active 服务，无「全部 Active」闩锁话题
-（调研核实，2026-09-16）。本桥 1 Hz 轮询 is_active，把结果发到
-/peach/lifecycle/managed_nodes_activated（transient_local depth 1），
-消费方（supervisor require_managed_stack 等）零改动。
-
-清洁重写轮阶段 5：替换自研 peach_lifecycle_manager（其名单/顺序语义由
-nav2_lm node_names 承接：按序 bring-up、逆序拆除；bond_timeout=0.0 管
-rclpy 节点——源码守卫已核实 0=真禁用 bond；进程死检由 supervisor
-HeartbeatWatchdog 承担，bondpy 升级路径成文于 REFACTORING）。
+The nav2 lifecycle manager only exposes manage_nodes/is_active services,
+with no latched "all Active" topic (verified 2026-09-16). This bridge polls
+is_active at 1 Hz and publishes the result to
+/peach/lifecycle/managed_nodes_activated (transient_local depth 1),
+keeping consumers (supervisor require_managed_stack etc.) unchanged.
 """
 from __future__ import annotations
 
@@ -20,13 +17,17 @@ from rclpy.qos import (
     QoSProfile,
     ReliabilityPolicy,
 )
+
 from std_msgs.msg import Bool
+
 from std_srvs.srv import Trigger
 
 
 class LifecycleFlagBridge(Node):
+    """Bridges nav2_lm is_active service to a latched Bool topic."""
 
     def __init__(self) -> None:
+        """Declare parameters, create publisher, service client, and timer."""
         super().__init__('peach_lifecycle_flag_bridge')
         self.declare_parameter(
             'is_active_service', '/peach_lifecycle_manager/is_active')
@@ -72,6 +73,7 @@ class LifecycleFlagBridge(Node):
 
 
 def main(argv=None) -> None:
+    """Entry point for the lifecycle flag bridge node."""
     rclpy.init(args=argv)
     node = LifecycleFlagBridge()
     try:

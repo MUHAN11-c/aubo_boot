@@ -34,6 +34,7 @@
 #include <std_msgs/msg/header.hpp>
 
 #include "TYApi.h"
+#include "TYCoordinateMapper.h"
 
 namespace peach_stereo {
 
@@ -405,7 +406,7 @@ class StereoCameraNode : public rclcpp::Node {
     depth_msg->header.frame_id = color_optical_;
     depth_pub_.publish(depth_msg);
 
-    info_pub_->publish(std::move(makeCameraInfo(stamp)));
+    info_pub_->publish(makeCameraInfo(stamp));
 
     if (publish_debug_ &&
         std::chrono::steady_clock::now() - last_dbg > std::chrono::milliseconds(500)) {

@@ -256,3 +256,11 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 **逐项判定**：①精度——管线按 3–8mm 尺度设计，设备深度 1.13mm 与主机单图案 1.49mm（k=1）/0.96mm（k=5）@800mm 均有 2–5 倍裕度，**两条路线都过**；②节拍——所有窗口按帧数计，14.5fps 使收齐窗口 7.4s→1.2s、min_views 两机位采集时间减半，**收益真实但上限受感知自身算力钳制**（YOLO+MobileSAM 逐帧推理，BoundedWorker capacity=1 丢帧兜底，实际增益须实测推理耗时）；③RGB-D 配准——设备端现成，主机路线**缺主机侧配准**（SGBM 深度在左 IR 系，外参可读、可行待写）；④**彩色与 IR 双目同组采集未验证**（带宽 3.1MB/组×14.5≈45MB/s 千兆内可行；帧组行为与时间戳对齐是明天关键实验，sync_slop 50ms 要求同组 HW stamp）；⑤近距——**现行系统固有风险**：环绕 0.32m 低于相机额定 0.4m 下限（靠深度占比门滤），主机 SGBM 理论下限 f·B/numDisp≈0.27m 反而可能覆盖该档（光学近距质量未验）。
 
 **结论**：精度维度两条路线都满足，节拍维度主机路线有 1.5–6 倍真实收益（下限取决于感知推理速率），代价是配准与同组采集两块工程缺口。不构成"必须迁移"的结论——若停走节拍按 2.43fps 排已够，维持现状；若要缩短每停时间/多机位环绕提速，主机路线值得做明天的两项关键实验后再立项。
+
+### 09-17（peach_stereo 包落地 + 真机冒烟通过）
+
+**关键前提实验**（rgbd_probe，裸 SDK）：彩色 640x480 yuyv + 双目 IR 同帧组 **13.6–13.7 组/秒、30/30 组全含三路、时间戳逐微秒相同**（TIME_SYNC=HOST 后即纪元微秒）。彩色不设档位时默认 2560x1920 yuyv（9.8MB/帧）会把组率拖到 2.5——档位适配是硬前提。
+
+**新包 `src/peach_stereo/`**（ament_cmake，C++17）：`stereo_camera_node` 实现"解锁激光 → RGB+L+R 同组采集 → stereoRectify+SGBM(半分辨率) → `TYMapDepthImageToColorCoordinate` 配准 → 发布"全链路，话题与 percipio_camera 同构（`/camera/color/image_raw`、`/camera/depth/image_raw` uint16×0.25mm 已配准、`camera_info`、静态 TF 同名链、2Hz JET 调试流）；参数 nav2 式 yaml（`sgbm.*`/`avg_k`/`laser_power` 等）；camport4 SDK 跨包引用 percipio_camera 源码树（头文件未随包安装）。三个 SDK 级坑（均已在代码注释标记）：`TYUpdateInterfaceList()` 不调则 ETH 接口不枚举；`TYUpdateDeviceList(iface)` 不调则设备数为 0；标定 float32 必须 convertTo(CV_64F)。
+
+**真机冒烟（隔离域 77）**：节点产流 **13.5 gps、发布率 100%**；compressed 通道投递干净（深度时间戳间隔 67ms 整 ≈14.9Hz 节奏）；**深度/彩色同组时间戳差 0.0ms**；深度内容合理（640×480 uint16、有效率 51%、中位 824mm 与场景一致）；AI 目验 RGB-D 配准"无可见偏移/错位"。raw RELIABLE 大图投递坍塌依旧（hz 3–5Hz）——投递层调整方案见下。消费侧新坑：jpeg 插件编不了 mono16（`/compressed` 发空载荷），深度要走 `compressedDepth`（PNG 前有 12 字节容器头：格式码+两个量化 float，消费端要跳过）或 `zstd`。环境复原：冒烟节点已停、laser auto=1/power=50 复验。

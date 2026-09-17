@@ -96,16 +96,26 @@ class StereoCameraNode : public rclcpp::Node {
 
   // 按 IP 枚举设备（不依赖 percipio_camera 的 Utils.hpp/TYThread）
   bool openDevice() {
+    setvbuf(stdout, nullptr, _IONBF, 0);
     TYInitLib();
+    TYUpdateInterfaceList();  // 必须先刷新，否则 ETH 接口不进列表（selectDevice 同款顺序）
     TY_INTERFACE_INFO ifaces[16];
     uint32_t n_if = 0;
-    if (TYGetInterfaceList(ifaces, 16, &n_if) != TY_STATUS_OK) return false;
+    TY_STATUS s = TYGetInterfaceList(ifaces, 16, &n_if);
+    RCLCPP_INFO(get_logger(), "interface list: status=%d count=%u", s, n_if);
+    if (s != TY_STATUS_OK) return false;
     for (uint32_t i = 0; i < n_if && dev_ == nullptr; i++) {
       if (ifaces[i].type != TY_INTERFACE_ETHERNET) continue;
       TY_INTERFACE_HANDLE ih;
-      if (TYOpenInterface(ifaces[i].id, &ih) != TY_STATUS_OK) continue;
+      TY_STATUS os = TYOpenInterface(ifaces[i].id, &ih);
+      if (os != TY_STATUS_OK) {
+        RCLCPP_WARN(get_logger(), "open iface %s failed: %d", ifaces[i].id, os);
+        continue;
+      }
       uint32_t n_dev = 0;
+      TYUpdateDeviceList(ih);  // GigE 广播发现设备（selectDevice 同款；缺这步设备数为 0）
       TYGetDeviceNumber(ih, &n_dev);
+      RCLCPP_INFO(get_logger(), "iface %s: %u device(s)", ifaces[i].id, n_dev);
       if (n_dev == 0) { TYCloseInterface(ih); continue; }
       std::vector<TY_DEVICE_BASE_INFO> devs(n_dev);
       if (TYGetDeviceList(ih, devs.data(), n_dev, &n_dev) != TY_STATUS_OK) {
@@ -113,12 +123,14 @@ class StereoCameraNode : public rclcpp::Node {
         continue;
       }
       for (uint32_t d = 0; d < n_dev; d++) {
+        RCLCPP_INFO(get_logger(), "  dev %s model %s ip %s", devs[d].id,
+                    devs[d].modelName, devs[d].netInfo.ip);
         if (device_ip_.empty() ||
             device_ip_ == std::string(devs[d].netInfo.ip)) {
-          if (TYOpenDevice(ih, devs[d].id, &dev_) == TY_STATUS_OK) {
+          TY_STATUS ds = TYOpenDevice(ih, devs[d].id, &dev_);
+          RCLCPP_INFO(get_logger(), "open device %s: status=%d", devs[d].id, ds);
+          if (ds == TY_STATUS_OK) {
             iface_ = ih;
-            RCLCPP_INFO(get_logger(), "opened %s (%s) at %s",
-                        devs[d].modelName, devs[d].id, devs[d].netInfo.ip);
             break;
           }
         }

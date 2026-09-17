@@ -1,0 +1,166 @@
+rosbag2_bagfile_information:
+  version: 9
+  storage_identifier: mcap
+  duration:
+    nanoseconds: 264030884272
+  starting_time:
+    nanoseconds_since_epoch: 1789607136721402232
+  message_count: 58853
+  topics_with_message_count:
+    - topic_metadata:
+        name: /peach/perception/target_observations
+        type: peach_interfaces/msg/PeachTargetObservationArray
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 5
+    - topic_metadata:
+        name: /peach_supervisor/events
+        type: peach_interfaces/msg/CanonicalEvent
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 2
+    - topic_metadata:
+        name: /tf
+        type: tf2_msgs/msg/TFMessage
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 4965
+    - topic_metadata:
+        name: /joint_states
+        type: sensor_msgs/msg/JointState
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 52386
+    - topic_metadata:
+        name: /peach/observability/metrics
+        type: std_msgs/msg/String
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 253
+    - topic_metadata:
+        name: /tf_static
+        type: tf2_msgs/msg/TFMessage
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 3
+    - topic_metadata:
+        name: /peach/reconstruction/refined_axis
+        type: geometry_msgs/msg/Vector3Stamped
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 1
+    - topic_metadata:
+        name: /peach/reconstruction/diagnostics
+        type: peach_interfaces/msg/ReconstructionStatus
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 269
+    - topic_metadata:
+        name: /peach/reconstruction/tsdf_cloud
+        type: sensor_msgs/msg/PointCloud2
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 1
+    - topic_metadata:
+        name: /peach/reconstruction/refined_diagnostics
+        type: peach_interfaces/msg/BagFittingArray
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 6
+    - topic_metadata:
+        name: /aubo_io_controller/robot_status
+        type: aubo_msgs/msg/RobotStatus
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 132
+    - topic_metadata:
+        name: /peach/reconstruction/grasp_decision
+        type: peach_interfaces/msg/GraspDecision
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 269
+    - topic_metadata:
+        name: /peach/reconstruction/diagnostics_debug
+        type: std_msgs/msg/String
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 264
+    - topic_metadata:
+        name: /peach_arm/status
+        type: std_msgs/msg/String
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 5
+    - topic_metadata:
+        name: /peach/observability/job
+        type: std_msgs/msg/String
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 11
+    - topic_metadata:
+        name: /peach/reconstruction/status
+        type: std_msgs/msg/String
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 264
+    - topic_metadata:
+        name: /peach/reconstruction/refined_pose
+        type: peach_interfaces/msg/BagGraspCandidateArray
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 6
+    - topic_metadata:
+        name: /peach_supervisor/state
+        type: peach_interfaces/msg/HarvestState
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 11
+  compression_format: ""
+  compression_mode: ""
+  relative_file_paths:
+    - bag_0.mcap
+  files:
+    - path: bag_0.mcap
+      starting_time:
+        nanoseconds_since_epoch: 1789607136721402232
+      duration:
+        nanoseconds: 264030884272
+      message_count: 117706
+  custom_data: ~
+  ros_distro: jazzy

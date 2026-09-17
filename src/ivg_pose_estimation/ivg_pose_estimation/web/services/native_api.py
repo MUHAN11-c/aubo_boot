@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import base64
 import copy
-import csv
 import json
 import logging
 import os
@@ -16,7 +15,6 @@ import numpy as np
 from fastapi import HTTPException
 
 from ivg_pose_estimation.debug_visualizer import DebugVisualizer
-from ...path_resolver import resolve_web_paths
 
 from ..ros_bridge import RosBridgeManager
 from ..runtime_support import CAMERA_POSE_FIXED_ORIENTATION, REMBG_AVAILABLE, get_rembg_processor, normalize_pose_rotation
@@ -74,7 +72,7 @@ class NativeWebService:
         if depth_image is None or color_image is None:
             raise HTTPException(status_code=500, detail=error_msg or "模板图像采集失败")
 
-        template_dir = self.templates_dir / workpiece_id / f"pose_{pose_id}"
+        template_dir = self._safe_template_dir(workpiece_id, f"pose_{pose_id}")
         template_dir.mkdir(parents=True, exist_ok=True)
 
         color_image_path = template_dir / "original_image.jpg"
@@ -204,7 +202,7 @@ class NativeWebService:
             raise HTTPException(status_code=400, detail=f"不支持的姿态类型: {pose_type}")
 
         pose_dir_name = pose_id if pose_id.startswith("pose_") else f"pose_{pose_id}"
-        json_path = self.templates_dir / workpiece_id / pose_dir_name / POSE_TYPE_TO_FILENAME[pose_type]
+        json_path = self._safe_template_dir(workpiece_id, pose_dir_name) / POSE_TYPE_TO_FILENAME[pose_type]
         if not json_path.exists():
             raise HTTPException(status_code=404, detail=f"模板文件不存在: {json_path}")
 
@@ -245,7 +243,7 @@ class NativeWebService:
                 )
             )
 
-        template_dir = self.templates_dir / workpiece_id / f"pose_{pose_id}"
+        template_dir = self._safe_template_dir(workpiece_id, f"pose_{pose_id}")
         template_dir.mkdir(parents=True, exist_ok=True)
         json_path = template_dir / POSE_TYPE_TO_FILENAME[pose_type]
         with open(json_path, "w", encoding="utf-8") as file_obj:
@@ -269,8 +267,11 @@ class NativeWebService:
     def get_template_image(self, workpiece_id: str, pose_id: str, image_name: str) -> tuple[bytes, str]:
         if not workpiece_id or not pose_id:
             raise HTTPException(status_code=400, detail="缺少workpiece_id或pose_id参数")
+        if not image_name or Path(image_name).name != image_name:
+            raise HTTPException(status_code=400, detail="非法的图像文件名")
 
-        image_path = self.templates_dir / workpiece_id / f"pose_{pose_id}" / image_name
+        pose_dir_name = pose_id if pose_id.startswith("pose_") else f"pose_{pose_id}"
+        image_path = self._safe_template_dir(workpiece_id, pose_dir_name) / image_name
         if not image_path.exists():
             raise HTTPException(status_code=404, detail="图像文件不存在")
 
@@ -304,36 +305,6 @@ class NativeWebService:
 
     def run_gripper_swap(self, payload: dict[str, Any]) -> dict[str, Any]:
         raise HTTPException(status_code=501, detail=MOTION_UNAVAILABLE)
-
-    def save_debug_features(self, payload: dict[str, Any]) -> dict[str, Any]:
-        session_id = str(payload.get("session_id", "")).strip()
-        features = payload.get("features", [])
-        if not session_id:
-            raise HTTPException(status_code=400, detail="会话ID为空")
-
-        # 调试输出固定落在包目录内（自包含，不散落到进程 cwd）
-        debug_dir = resolve_web_paths().source_root / "debug_sessions" / session_id
-        debug_dir.mkdir(parents=True, exist_ok=True)
-        csv_path = debug_dir / "features.csv"
-        with open(csv_path, "w", newline="", encoding="utf-8") as file_obj:
-            writer = csv.writer(file_obj)
-            writer.writerow(["ID", "ub", "vb", "rb", "us", "vs", "rs", "theta(rad)", "theta(deg)", "area"])
-            for feature in features:
-                writer.writerow(
-                    [
-                        feature.get("id", ""),
-                        feature.get("ub", 0),
-                        feature.get("vb", 0),
-                        feature.get("rb", 0),
-                        feature.get("us", 0),
-                        feature.get("vs", 0),
-                        feature.get("rs", 0),
-                        feature.get("theta", 0),
-                        feature.get("theta_deg", 0),
-                        feature.get("area", 0),
-                    ]
-                )
-        return {"success": True, "file_path": str(csv_path), "feature_count": len(features)}
 
     def debug_capture(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         node = self._require_node()
@@ -417,9 +388,6 @@ class NativeWebService:
                     "component_min_width": params.get("component_min_width"),
                     "component_min_height": params.get("component_min_height"),
                     "component_max_count": params.get("component_max_count"),
-                    "enable_zero_interp": params.get("enable_zero_interp"),
-                    "enable_smooth_edges": params.get("enable_smooth_edges", True),
-                    "smooth_edges_blur_sigma": params.get("smooth_edges_blur_sigma", 0),
                 }
             )
             node.feature_extractor.set_parameters(
@@ -551,8 +519,6 @@ class NativeWebService:
             "min_width": "component_min_width",
             "min_height": "component_min_height",
             "max_count": "component_max_count",
-            "enable_smooth_edges": "enable_smooth_edges",
-            "smooth_edges_blur_sigma": "smooth_edges_blur_sigma",
             "use_rembg": "use_rembg",
         }
         target_key = key_map.get(normalized_key, normalized_key)
@@ -595,9 +561,13 @@ class NativeWebService:
     def templates_dir(self) -> Path:
         return Path(self._ros_bridge.templates_dir)
 
-    @property
-    def pose_list_dir(self) -> Path:
-        return Path(self._ros_bridge.pose_list_dir)
+    def _safe_template_dir(self, workpiece_id: str, pose_dir_name: str) -> Path:
+        """拼接模板目录并校验不越出模板根（防路径穿越读写）."""
+        templates_root = self.templates_dir.resolve()
+        candidate = (templates_root / workpiece_id / pose_dir_name).resolve()
+        if not candidate.is_relative_to(templates_root):
+            raise HTTPException(status_code=400, detail="非法的模板路径")
+        return candidate
 
     def _require_node(self):
         node = self._ros_bridge.node

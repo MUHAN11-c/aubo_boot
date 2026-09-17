@@ -318,3 +318,39 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 **附带观察**：stereo 深度质量显著优（采帧有效深度占比 0.95 vs percipio 0.64-0.84）；raw RELIABLE 大图投递坍塌在 stereo 前端依旧（hz 工具测深度 0.07-1.49s 抖动，投递层遗留不变）。恢复项：两栈已拆、进程清零（bringup 预检两次拦下我方漏杀进程，工作正常）；`execution.require_robot_status` 为节点运行时参数不跨栈，无需恢复。
 
 **同日裁定（用户）**：仿真/mock 测试对 robot_status 门**可以忽略**——不建 mock 假状态发布器、不改默认值；mock 联调以在线 `ros2 param set /peach_arm execution.require_robot_status false` 为既定做法（真机默认 true 的门不受影响）。发现 1 的"遗留"就此关闭。
+
+### 09-17 五续（e2e25 分阶段战役：RViz 颜色闭环 + 双前端阶段矩阵 + observe 链 mock 伪影定性）
+
+**基线提交**：`2b3f74d`（stereo include 顺序 + executor TF/logger 修复入库）+ `3af90db`（颜色一键 + 测试门三件解锁），三包 colcon test 全绿（198 tests / 0 failures）。
+
+**1. RViz 机械臂颜色回归闭环（用户报"没有之前的颜色"）。** 根因三层：真彩色来自独立 `RobotModel` 显示读 `/robot_description` 渲染 .dae 内嵌材质（灰身+橙臂；URDF 链接是匿名 material 灰），302b1b0 误判——rviz `Display::load` 先读 `Value` 再被 `Enabled` 键覆盖，只改 `Value` 无效；38dc129 起 topic 被清空后该显示从未恢复。工作区已备好 3/4（topic `/robot_description` + Transient Local + 场景机器人 `Robot Alpha: 0` 隐身防灰叠影），`moveit.rviz` RobotModel `Enabled: false→true` 一键闭环。验证：`xwd -id <窗口ID>` 直抓 RViz（窗口在别的 workspace 时 root 截图抓不到），3D 视图区橙色像素呈同列两簇（竖直臂链上/下关节装饰环特征，352px）且无灰色叠影。
+
+**2. 测试门解锁三件（均为 AGENTS「缺头补头/修 setup」路线，非关 lint）。** ① peach_harvester `setup.py` `tests_require`→`extras_require={'test':['pytest']}`：colcon 的 pytest 探测只认后者，legacy 写法静默退回 unittest 且 0 测试判失败（与 serial_imu 同款坑，peach_bringup 已是正确写法）；18 用例恢复执行。② `moveit.launch.py` 补 BSD-3-Clause 版权头（ament_copyright 模板原文）。③ aubo_e5_moveit_config `CMakeLists` 删除无效的 `set(ament_cmake_copyright_FOUND TRUE)` 跳过——Jazzy `ament_lint_auto_find_test_dependencies` **无条件** `find_package`，预置 `_FOUND TRUE` 从未生效（该包 copyright 门其实一直在跑且一直失败）。
+
+**3. 双前端阶段矩阵（域 77，mock 臂 + 真相机 PS800-E1，`scene_key=e2e25/e2e25s`）**：
+
+| 阶段 | percipio | peach_stereo |
+|------|----------|--------------|
+| T0 栈冒烟（四节点 Active/joint_states/TF 链） | ✓ | ✓ |
+| T0.5 RViz 颜色 | ✓（本轮修复后截图验证） | —（同一修复） |
+| T1 相机链（编码/内参/fps） | bgr8+16UC1、k[0]=466.174635 与共用 yaml 逐位一致、驱动 2.0fps | bgr8+16UC1（配准到 `camera_color_optical_frame`）、内参同源逐位一致、驱动 13.4gps |
+| T2 begin_scene→锁定 | 11.0s | 12s（收齐窗自适应，不随帧率线性） |
+| T4 grasp_decision 默认门 | `allowed=false, reason=reconstruction_not_ready` ✓ | 同 |
+| T5 check_reachability | 服务通（camera 系 (0,0,0.62)→`no_ik`，包络判定合理） | 同 |
+| T9a SURVEY_ONLY | 18.7s SUCCEEDED | —（未重跑） |
+| T9 PICK 批 | 五轮剥离见下 | 有界批（per_target_timeout 45s）发出后随栈被外部终止（`claimed=[]` 无 outcomes） |
+| fire_step | PHOTO ✓；VIEWPOINT/BUILD 未接线（显式拒绝）；批次取消后（INTERRUPTED）PHOTO 亦失败（MoveTo 失败 + 臂门 `selected_target_stale`） | — |
+
+感知命中流：两前端 `events.jsonl` 均以驱动节奏流式落 `frame_observations`；masks 目录批外为空（掩膜在批内观察段才落盘，已知行为）。
+
+**4. observe→build 链五轮剥离与 mock 伪影定性（取代四续发现 3 的机理猜测）。** percipio 批内逐层：
+- 第 1 轮（原参数）：`observe_build_view_race` 15.75s，views=1。
+- 小修① `observe_build_grace_s 3.0→12.0`（yaml 入库）：第 2 轮 23.5s 仍 race——`target_drift` 门 0.04 连拒（漂移 40.9→222mm）。**在线 `ros2 param set` 对重建门配置不生效**（configure 期冻结 dataclass，实证：drift 改 0.25 后仍按 40mm 拒），yaml 注释已载明该边界。
+- 小修② `capture.max_target_drift_m 0.04→0.25`（yaml 入库，重启生效）：第 3 轮换 `missing_mask`——视点移动后感知把同一果实**重注册成新 ID**（注册表 1→2 个目标、原 ID 命中冻结），重建绑定的旧 ID 永远等不到同 stamp 掩膜。
+- 小修③ supervisor `reconstruction_min_views 2→1`（仅在线，未入 yaml）：第 4 轮过 race 但 `build_timeout:reconstruction` 180s（第二视点会话吊着 COLLECTING 不 finalize）。
+- 第 5 轮 VIEW_CONSERVATIVE：`observe_failed: plan_id mismatch: preview != execute`（0.019s 即拒）——技能侧检查点/令牌双路的**新缺陷信号**，报 harvester 维护轮。
+- **定性（用户裁定）**：相机物理上固定台架，但 TF 链按眼在手上（外参挂腕）——mock 臂一动 TF 假装相机跟着动，base 系目标位置随之错位（实测偏移量与视点位移吻合，~220mm）→ 漂移门拒收、身份断裂、锚点失效，**全部是 mock 伪影**；真机眼在手上时相机真实随动、base 系位置自洽，该链不存在此问题。**多视点观察/重建及依赖模型的下游（接近/PREGRASP/FULL）在 mock 下原理性不可验证**——e2e 下游阶段留待真机。
+
+**附带发现（本轮新增，报维护）**：① 批次跳过后、空转选果期间 supervisor 状态发布 ~115Hz（state_seq 单批累计 23.5 万+；on-change 发布器空转刷状态，goal feedback 单批 1.4 万条）——DDS 无谓洪泛。② `scan.protected_zones 盒#0 存在 min>=max 的轴（退化盒）已丢弃` 警告在成功轮次同样出现（保护区配置 wart，非阻塞）。③ `ros2 topic hz` 探针一接入 RELIABLE 大图即把投递压塌（color 0.18Hz、depth 0.07-1.49s 抖动，与四续"raw RELIABLE 大图投递坍塌"同象）——帧率以驱动日志为准，勿用 hz 探针测大图链。
+
+**未跑项**：T6 接近/PREGRASP_HOLD、T7 使能门负测试、T8 FULL 单目标（均被"模型依赖 + mock 伪影"挡）；stereo T9 整批（栈被外部终止）。**同日裁定（用户）：mock/仿真 e2e 作废——相机固定台架而 TF 按眼在手上算的伪影使多视点链原理性不可验证，转真机测试；所有等待/超时硬上限 20s。** 恢复项：栈已停、进程清零；两处 yaml 小修（drift 0.25 / grace 12.0）**随真机轮即刻回调**（0.04 / 3.0），真机证据另立；min_views 仅运行时改过未入 yaml（默认仍 2）。

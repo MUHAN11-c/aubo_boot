@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-from functools import lru_cache
 from pathlib import Path
 
 from ..path_resolver import WebPaths, get_app_config, resolve_templates_root
@@ -53,11 +52,6 @@ def quaternion_to_euler_rpy(x: float, y: float, z: float, w: float) -> list[floa
     return [roll, pitch, yaw]
 
 
-@lru_cache(maxsize=8)
-def _app_config_cached(config_path: Path) -> dict:
-    return get_app_config(config_path)
-
-
 def get_camera_pose_fixed_orientation(paths: WebPaths) -> dict:
     config = get_app_config(paths)
     return config.get("camera_pose_fixed_orientation") or CAMERA_POSE_FIXED_ORIENTATION
@@ -65,10 +59,6 @@ def get_camera_pose_fixed_orientation(paths: WebPaths) -> dict:
 
 def get_templates_dir(paths: WebPaths) -> Path:
     return resolve_templates_root(paths)
-
-
-def get_pose_list_dir(paths: WebPaths) -> Path:
-    return paths.pose_list_dir
 
 
 def normalize_pose_rotation(robot_status):

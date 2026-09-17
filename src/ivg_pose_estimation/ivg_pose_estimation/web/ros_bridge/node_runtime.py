@@ -13,6 +13,9 @@ import cv2
 import numpy as np
 from cv_bridge import CvBridge
 from ivg_interfaces.srv import EstimatePose, EstimatePose2D, ListTemplates, StandardizeTemplate, UpdateParams
+# manager（RosBridgeManager.start/_spin_loop/stop）以 `node_runtime.rclpy` 属性访问运行时；
+# 只 `from rclpy.node import Node` 不会绑定该名字，必须在此显式 import。
+import rclpy  # noqa: F401  供 manager 以模块属性访问（见上注释）
 from rclpy.node import Node
 from sensor_msgs.msg import Image as SensorImage
 from std_msgs.msg import String

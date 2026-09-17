@@ -37,7 +37,7 @@ from .template_standardizer import TemplateStandardizer
 from .config import ConfigReader
 from .pose_estimator import PoseEstimator, TemplateItem
 from .rembg_processor import RemBGProcessor
-from ivg_utils.math import quaternion_to_rotation_matrix
+from scipy.spatial.transform import Rotation
 from .path_resolver import (
     resolve_camera_intrinsics_candidates,
     resolve_hand_eye_calibration_candidates,
@@ -45,7 +45,6 @@ from .path_resolver import (
 )
 
 WEB_PATHS = resolve_web_paths()
-WEB_UI_CONFIGS_DIR = WEB_PATHS.configs_dir
 
 
 class ROS2Communication:
@@ -295,8 +294,7 @@ class ROS2Communication:
                 'component_min_area', 'component_max_area',
                 'component_min_aspect_ratio', 'component_max_aspect_ratio',
                 'component_min_width', 'component_min_height',
-                'component_max_count', 'enable_zero_interp',
-                'enable_smooth_edges', 'smooth_edges_blur_sigma'
+                'component_max_count'
             ]
         elif module == 'feature_extractor':
             # FeatureExtractor需要的阈值参数（不包含binary_threshold和enable_zero_interp）
@@ -334,9 +332,6 @@ class ROS2Communication:
             'component_min_width': float(debug_params.get('component_min_width', 60)),
             'component_min_height': float(debug_params.get('component_min_height', 60)),
             'component_max_count': float(debug_params.get('component_max_count', 3)),
-            'enable_zero_interp': float(debug_params.get('enable_zero_interp', 1.0)),
-            'enable_smooth_edges': float(1 if debug_params.get('enable_smooth_edges', True) else 0),
-            'smooth_edges_blur_sigma': float(debug_params.get('smooth_edges_blur_sigma', 0)),
         }
 
         # FeatureExtractor参数映射（与当前 Web Debug 参数保持一致）
@@ -355,10 +350,7 @@ class ROS2Communication:
             f'contour_area=[{preprocessor_params["component_min_area"]}, {preprocessor_params["component_max_area"]}], '
             f'aspect=[{preprocessor_params["component_min_aspect_ratio"]}, {preprocessor_params["component_max_aspect_ratio"]}], '
             f'size=[{preprocessor_params["component_min_width"]}x{preprocessor_params["component_min_height"]}], '
-            f'max_count={preprocessor_params["component_max_count"]}, '
-            f'enable_zero_interp={preprocessor_params["enable_zero_interp"]}, '
-            f'enable_smooth_edges={preprocessor_params["enable_smooth_edges"]}, '
-            f'blur_sigma={preprocessor_params["smooth_edges_blur_sigma"]}'
+            f'max_count={preprocessor_params["component_max_count"]}'
         )
 
         try:
@@ -702,12 +694,7 @@ class ROS2Communication:
                 return T
 
             # 四元数转旋转矩阵
-            R = np.array([
-                [1 - 2*(qy*qy + qz*qz), 2*(qx*qy - qw*qz), 2*(qx*qz + qw*qy)],
-                [2*(qx*qy + qw*qz), 1 - 2*(qx*qx + qz*qz), 2*(qy*qz - qw*qx)],
-                [2*(qx*qz - qw*qy), 2*(qy*qz + qw*qx), 1 - 2*(qx*qx + qy*qy)]
-            ], dtype=np.float64)
-            T[:3, :3] = R
+            T[:3, :3] = Rotation.from_quat([qx, qy, qz, qw]).as_matrix()
 
             return T
 
@@ -729,9 +716,9 @@ class ROS2Communication:
             T[0, 3] = float(t.x)
             T[1, 3] = float(t.y)
             T[2, 3] = float(t.z)
-            T[:3, :3] = quaternion_to_rotation_matrix(
+            T[:3, :3] = Rotation.from_quat(
                 [float(r.x), float(r.y), float(r.z), float(r.w)]
-            )
+            ).as_matrix()
             return T
         except Exception as e:
             self.logger.debug(f'TF {parent} <- {child} 失败: {e}')
@@ -953,7 +940,7 @@ class ROS2Communication:
 
         # 旋转（四元数）
         R = T[:3, :3]
-        q = self._rotation_matrix_to_quaternion(R)
+        q = Rotation.from_matrix(R).as_quat()
         cart_pos.orientation = Quaternion()
         # 四元数取反（与C++版本一致）
         q_out = np.array([-q[0], -q[1], -q[2], -q[3]])
@@ -963,14 +950,14 @@ class ROS2Communication:
         cart_pos.orientation.w = float(q_out[3])
 
         # 笛卡尔转换往返校验：输出四元数 -> 旋转矩阵，应与 R 一致
-        R_from_quat = self._quaternion_to_rotation_matrix(q_out)
+        R_from_quat = Rotation.from_quat(q_out).as_matrix()
         if not np.allclose(R, R_from_quat, atol=1e-5):
             self.logger.warning(
                 f'笛卡尔转换往返校验未通过: R 与 四元数->R 最大差 {np.abs(R - R_from_quat).max():.2e}'
             )
 
-        # 欧拉角（RPY，ZYX 顺序）
-        euler = self._rotation_matrix_to_euler_rpy(R)
+        # 欧拉角（RPY，ZYX 顺序；extrinsic 'xyz' 等价 ZYX）
+        euler = Rotation.from_matrix(R).as_euler('xyz')
         cart_pos.euler_orientation_rpy_rad = [float(e) for e in euler]
         cart_pos.euler_orientation_rpy_deg = [float(np.degrees(e)) for e in euler]
 
@@ -1429,12 +1416,7 @@ class ROS2Communication:
                         T_B_E_camera[2, 3] = pos.get('z', 0.0)
                         # 四元数转旋转矩阵
                         qx, qy, qz, qw = ori.get('x', 0.0), ori.get('y', 0.0), ori.get('z', 0.0), ori.get('w', 1.0)
-                        R = np.array([
-                            [1 - 2*(qy*qy + qz*qz), 2*(qx*qy - qw*qz), 2*(qx*qz + qw*qy)],
-                            [2*(qx*qy + qw*qz), 1 - 2*(qx*qx + qz*qz), 2*(qy*qz - qw*qx)],
-                            [2*(qx*qz - qw*qy), 2*(qy*qz + qw*qx), 1 - 2*(qx*qx + qy*qy)]
-                        ])
-                        T_B_E_camera[:3, :3] = R
+                        T_B_E_camera[:3, :3] = Rotation.from_quat([qx, qy, qz, qw]).as_matrix()
                         # T_B_C = T_B_E * T_E_C
                         T_E_C = self.T_E_C if self.T_E_C is not None else np.eye(4)
                         T_B_C_template = T_B_E_camera @ T_E_C
@@ -1727,21 +1709,6 @@ class ROS2Communication:
 
         return depth_image, color_image
 
-    def _rotation_matrix_to_quaternion(self, R: np.ndarray) -> np.ndarray:
-        """旋转矩阵转四元数（委托 ivg_utils.math）"""
-        from ivg_utils.math import rotation_matrix_to_quaternion
-        return rotation_matrix_to_quaternion(R)
-
-    def _rotation_matrix_to_euler_rpy(self, R: np.ndarray) -> np.ndarray:
-        """旋转矩阵转欧拉角 RPY（委托 ivg_utils.math）"""
-        from ivg_utils.math import rotation_matrix_to_euler_rpy
-        return rotation_matrix_to_euler_rpy(R)
-
-    def _quaternion_to_rotation_matrix(self, q: np.ndarray) -> np.ndarray:
-        """四元数转旋转矩阵（委托 ivg_utils.math）"""
-        from ivg_utils.math import quaternion_to_rotation_matrix
-        return quaternion_to_rotation_matrix(q)
-
     def _handle_list_templates(
         self,
         request: ListTemplates.Request,
@@ -1893,7 +1860,7 @@ class ROS2Communication:
         t0 = time.time()
         try:
             # 步骤1: 获取并验证工件ID
-            template_id = getattr(request, 'template_id', getattr(request, 'workpiece_id', ''))
+            template_id = str(request.workpiece_id).strip()
             if not template_id:
                 response.success = False
                 if hasattr(response, 'error_message'):
@@ -2071,7 +2038,6 @@ class ROS2Communication:
             T_B_E_preparation,
             T_B_E_standardized_preparation,
             crop_params=crop_params,
-            save_metadata=False,
             preprocessed_image=preprocessed_color
         )
 
@@ -2380,7 +2346,7 @@ class ROS2Communication:
             if T is None:
                 return f'{name}: None'
             pos = T[:3, 3]
-            rpy = self._rotation_matrix_to_euler_rpy(T[:3, :3])
+            rpy = Rotation.from_matrix(T[:3, :3]).as_euler('xyz')
             return f'{name}: pos=({pos[0]:.4f}, {pos[1]:.4f}, {pos[2]:.4f})m, rpy=({np.degrees(rpy[0]):.2f}°, {np.degrees(rpy[1]):.2f}°, {np.degrees(rpy[2]):.2f}°)'
 
         self.logger.info(f'姿态 {pose_id} 标准化姿态计算完成:')

@@ -14,6 +14,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Dict, Tuple, Optional, Union
+from scipy.spatial.transform import Rotation
 from .debug_visualizer import DebugVisualizer
 
 
@@ -228,12 +229,6 @@ class TemplateStandardizer:
 
         return T_B_E_standardized
 
-    def _rotation_matrix_to_quaternion(self, R: np.ndarray) -> Tuple[float, float, float, float]:
-        """将旋转矩阵转换为四元数（委托 ivg_utils.math）"""
-        from ivg_utils.math import rotation_matrix_to_quaternion
-        q = rotation_matrix_to_quaternion(R)
-        return (float(q[0]), float(q[1]), float(q[2]), float(q[3]))
-
     def _pose_to_json(self, T_B_E: np.ndarray) -> Dict:
         """将姿态矩阵转换为JSON格式（参考C++版本）"""
         position = {
@@ -243,7 +238,7 @@ class TemplateStandardizer:
         }
 
         R = T_B_E[:3, :3]
-        x, y, z, w = self._rotation_matrix_to_quaternion(R)
+        x, y, z, w = Rotation.from_matrix(R).as_quat()
 
         orientation = {
             "x": float(x),
@@ -388,7 +383,6 @@ class TemplateStandardizer:
         T_B_E_preparation: Optional[np.ndarray] = None,
         T_B_E_standardized_preparation: Optional[np.ndarray] = None,
         crop_params: Optional[Dict[str, float]] = None,
-        save_metadata: bool = False,
         preprocessed_image: Optional[np.ndarray] = None
     ) -> bool:
         """
@@ -409,7 +403,6 @@ class TemplateStandardizer:
             T_B_E_preparation: 原始准备姿态（可选）
             T_B_E_standardized_preparation: 标准化准备姿态（可选）
             crop_params: 裁剪参数字典（如果feature_params是ComponentFeature，需要提供）
-            save_metadata: 是否额外写metadata.json（默认False，与C++一致）
             preprocessed_image: 预处理图像（白色背景抠图，类似debug选项卡中的预处理图像，可选）
         """
         # 适配：如果传入的是ComponentFeature对象，保存引用以便后续绘制特征

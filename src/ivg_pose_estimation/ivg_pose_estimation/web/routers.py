@@ -168,6 +168,7 @@ def standardize_template(
     return service.standardize_template(payload)
 
 
+# 前端模板列表的「查看图像」按钮依赖此端点（app.js displayTemplateImage）
 @api_router.get("/get_template_image")
 def get_template_image(
     workpiece_id: str = Query(...),
@@ -243,14 +244,6 @@ def run_gripper_swap(
 
 
 # ---------- debug ----------
-@api_router.post("/save_debug_features")
-def save_debug_features(
-    payload: dict = Body(...),
-    service: NativeWebService = Depends(get_native_service),
-):
-    return service.save_debug_features(payload)
-
-
 @api_router.post("/debug/capture")
 def debug_capture(
     payload: Optional[dict] = Body(default=None),

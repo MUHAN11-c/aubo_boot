@@ -49,11 +49,11 @@ def create_app() -> FastAPI:
     app.state.ros_bridge = ros_bridge
     app.state.native_service = native_service
 
-    # 浏览器直连或跨端口调试时允许跨域（现场部署可按需收紧 allow_origins）
+    # 浏览器直连或跨端口调试时允许跨域（通配源与 credentials 互斥，现场部署可按需收紧 allow_origins）
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
-        allow_credentials=True,
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )

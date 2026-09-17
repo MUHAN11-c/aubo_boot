@@ -15,7 +15,7 @@ peach_supervisor:
     persist_ledger: true  # 是否把 TargetOutcome 写入 runs/ 账本。
     reconstruction_min_views: 2  # OBSERVE 成功后 Build 至少应有的机位数，不足则 observe_build_view_race。与当前位+一次短 PTP 对齐。
     build_start_timeout_s: 2.0  # Build 目标绑定并进入 COLLECTING 的等待上限；超时禁止观察运动。
-    observe_build_grace_s: 3.0  # OBSERVE 结束后等待重建机位数追上的宽限秒数。
+    observe_build_grace_s: 3.0  # OBSERVE 结束后等待重建机位数追上的宽限秒数。e2e25 轮（09-17）mock 下曾放 12.0（伪影所致 race）；mock 作废转真机后回调原值，真机证据另立。
     begin_scene_service: /peach_scene_perception_node/begin_scene  # BeginScene 服务名。
     survey_scene_action: /peach_arm/survey_scene  # SurveyScene 动作名。
     execute_target_action: /peach_arm/execute_target  # ExecuteTarget 动作名。

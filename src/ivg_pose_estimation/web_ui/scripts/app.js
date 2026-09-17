@@ -2854,29 +2854,13 @@ function createTemplate() {
 
     addLogEntry('info', `检查模板完整性: 工件ID=${workpieceId}, 姿态ID=${poseId}`);
 
-    // 检查模板文件是否存在
-    const templatePath = `/home/nvidia/RVG_ws/templates/${workpieceId}/pose_${poseId}`;
-    const requiredFiles = ['original_image.jpg', 'camera_pose.json',
-        'preparation_position.json', 'grab_position.json'];
-
-    let missingFiles = [];
-    for (const file of requiredFiles) {
-        // 可以添加文件检查逻辑
-        // 暂时只显示提示
-    }
-
-    addLogEntry('info', `模板目录: ${templatePath}`);
+    // 完整性由服务端 /api/list_templates 检查；此处只提示采集流程
     addLogEntry('success', `模板创建流程: 1.输入工件ID和姿态ID 2.采集图像 3.获取三种姿态`);
     alert('模板创建流程:\n1. 输入工件ID和姿态ID\n2. 点击"图像采集"按钮采集图像\n3. 选择姿态类型，点击"获取姿态"按钮获取并保存姿态\n4. 重复步骤3，获取所有姿态（相机姿态、准备姿态、抓取姿态、预放置姿态、放置位姿）');
 }
 
 function deleteTemplate() {
-    addLogEntry('warning', '删除模板');
-    // 模拟删除过程
-    setTimeout(() => {
-        addLogEntry('success', '模板删除完成');
-        updateTemplateCount(1);
-    }, 1000);
+    addLogEntry('warning', '服务端未提供模板删除接口，请手动删除模板目录后刷新列表');
 }
 
 // 模板标准化功能
@@ -2933,11 +2917,6 @@ function standardizeTemplate() {
             console.error('模板标准化错误详情:', error);
             alert(`模板标准化异常: ${error.message}\n\n请检查：\n1. 服务器是否正常运行\n2. ROS2节点是否已启动\n3. 模板文件是否存在`);
         });
-}
-
-// 更新模板计数
-function updateTemplateCount(count) {
-    document.getElementById('template-count').textContent = count;
 }
 
 // Debug按钮功能

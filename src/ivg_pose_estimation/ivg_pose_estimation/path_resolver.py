@@ -27,8 +27,6 @@ class WebPaths:
     legacy_ui_dir: Path
     static_dir: Path
     configs_dir: Path
-    docs_dir: Path
-    legacy_scripts_dir: Path
     index_file: Path
     workspace_templates_dir: Path
     models_dir: Path
@@ -36,14 +34,6 @@ class WebPaths:
     @property
     def app_config_file(self) -> Path:
         return self.configs_dir / "app_config.json"
-
-    @property
-    def debug_thresholds_file(self) -> Path:
-        return self.configs_dir / "debug_thresholds.json"
-
-    @property
-    def pose_list_dir(self) -> Path:
-        return self.configs_dir / "pose_list"
 
 
 def _get_package_share_directory(package_name: str = PACKAGE_NAME) -> Optional[Path]:
@@ -128,8 +118,6 @@ def resolve_web_paths() -> WebPaths:
     legacy_ui_dir = share_web_ui_dir if share_web_ui_dir and share_web_ui_dir.exists() else source_web_ui_dir
     static_dir = legacy_ui_dir / "static"
     configs_dir = legacy_ui_dir / "configs"
-    docs_dir = legacy_ui_dir / "docs"
-    legacy_scripts_dir = legacy_ui_dir / "scripts"
 
     # 逻辑入口始终指向主 index（含工作流程、演示）；根路径由 system 路由重定向到 /legacy-ui/
     primary_index = legacy_ui_dir / "index.html"
@@ -153,8 +141,6 @@ def resolve_web_paths() -> WebPaths:
         legacy_ui_dir=legacy_ui_dir,
         static_dir=static_dir,
         configs_dir=configs_dir,
-        docs_dir=docs_dir,
-        legacy_scripts_dir=legacy_scripts_dir,
         index_file=index_file,
         workspace_templates_dir=workspace_templates_dir,
         models_dir=models_dir,

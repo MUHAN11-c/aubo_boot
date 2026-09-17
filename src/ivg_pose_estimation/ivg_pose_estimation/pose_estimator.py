@@ -21,6 +21,7 @@ from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass, field
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from scipy.spatial.transform import Rotation
 
 from .feature_extractor import ComponentFeature
 from .preprocessor import Preprocessor
@@ -89,12 +90,7 @@ class PoseEstimator:
     @staticmethod
     def _normalize_angle_to_180(angle_deg: float) -> float:
         """将角度归一化到 [-180, 180] 区间（与 360° 等价，便于比较和显示）."""
-        a = float(angle_deg)
-        while a > 180.0:
-            a -= 360.0
-        while a < -180.0:
-            a += 360.0
-        return a
+        return float(np.mod(float(angle_deg) + 180.0, 360.0) - 180.0)
 
     def load_template_library(
         self,
@@ -240,8 +236,7 @@ class PoseEstimator:
 
                 # 四元数转旋转矩阵
                 qx, qy, qz, qw = ori.get('x', 0.0), ori.get('y', 0.0), ori.get('z', 0.0), ori.get('w', 1.0)
-                R = self._quaternion_to_rotation_matrix([qx, qy, qz, qw])
-                T_B_E_grasp[:3, :3] = R
+                T_B_E_grasp[:3, :3] = Rotation.from_quat([qx, qy, qz, qw]).as_matrix()
 
             # 如果template_info.json中没有，尝试从grab_position.json或pose.json加载
             if T_B_E_grasp is None:
@@ -289,8 +284,7 @@ class PoseEstimator:
 
                 # 四元数转旋转矩阵
                 qx, qy, qz, qw = ori.get('x', 0.0), ori.get('y', 0.0), ori.get('z', 0.0), ori.get('w', 1.0)
-                R = self._quaternion_to_rotation_matrix([qx, qy, qz, qw])
-                T_B_E_prep[:3, :3] = R
+                T_B_E_prep[:3, :3] = Rotation.from_quat([qx, qy, qz, qw]).as_matrix()
 
             # 如果template_info.json中没有，尝试从preparation_position.json加载
             if T_B_E_prep is None:
@@ -355,19 +349,13 @@ class PoseEstimator:
                 orientation.get('z', 0.0),
                 orientation.get('w', 1.0)
             ]
-            R = self._quaternion_to_rotation_matrix(q)
-            T[:3, :3] = R
+            T[:3, :3] = Rotation.from_quat(q).as_matrix()
 
             return T
 
         except Exception as e:
             self.logger.warning(f'加载姿态JSON失败 {pose_path}: {e}')
             return None
-
-    def _quaternion_to_rotation_matrix(self, q: List[float]) -> np.ndarray:
-        """四元数转旋转矩阵（委托 ivg_utils.math）"""
-        from ivg_utils.math import quaternion_to_rotation_matrix
-        return quaternion_to_rotation_matrix(q)
 
     def set_parameters(self, params: Dict):
         """
@@ -562,10 +550,6 @@ class PoseEstimator:
         }
         global_result_lock = threading.Lock()
 
-        # 为每个模板维护最佳结果（用于调试输出，与C++版本一致）
-        template_results = [{'best_confidence': 0.0, 'best_angle_deg': 0.0} for _ in range(len(templates))]
-        template_results_lock = threading.Lock()
-
         # 提前终止标志
         should_early_exit = threading.Event()
 
@@ -591,8 +575,6 @@ class PoseEstimator:
                     angle_step_deg=angle_step_deg,
                     global_best_result=global_best_result,
                     global_result_lock=global_result_lock,
-                    template_results=template_results,
-                    template_results_lock=template_results_lock,
                     should_early_exit=should_early_exit
                 )
                 for tmpl_idx, tmpl, tmpl_mask, tmpl_mask_center in template_mask_data
@@ -660,8 +642,6 @@ class PoseEstimator:
         angle_step_deg: float,
         global_best_result: Dict,
         global_result_lock: threading.Lock,
-        template_results: List[Dict],
-        template_results_lock: threading.Lock,
         should_early_exit: threading.Event
     ) -> None:
         """
@@ -680,8 +660,6 @@ class PoseEstimator:
             angle_step_deg: 角度步进（度）
             global_best_result: 全局最佳结果字典（线程安全共享）
             global_result_lock: 全局结果锁
-            template_results: 模板结果列表
-            template_results_lock: 模板结果锁
             should_early_exit: 提前退出标志
         """
         if should_early_exit.is_set():
@@ -778,11 +756,7 @@ class PoseEstimator:
             if should_early_exit.is_set():
                 break
 
-            normalized_angle = angle
-            while normalized_angle < 0.0:
-                normalized_angle += 360.0
-            while normalized_angle >= 360.0:
-                normalized_angle -= 360.0
+            normalized_angle = float(np.mod(angle, 360.0))
 
             M = cv2.getRotationMatrix2D(scaled_center, normalized_angle, 1.0)
             rotated_template = cv2.warpAffine(
@@ -806,11 +780,7 @@ class PoseEstimator:
             if confidence >= self.brute_force_acceptance_threshold:
                 angle_norm_180 = self._normalize_angle_to_180(angle)
                 self.logger.info(f'[模板 {template_idx}] {template_id}: 达到接受阈值, 角度={angle_norm_180:.1f}°, 置信度={confidence:.4f}')
-                normalized_best_angle = angle
-                while normalized_best_angle < 0.0:
-                    normalized_best_angle += 360.0
-                while normalized_best_angle >= 360.0:
-                    normalized_best_angle -= 360.0
+                normalized_best_angle = float(np.mod(angle, 360.0))
 
                 transform_full = cv2.getRotationMatrix2D(template_mask_center, normalized_best_angle, 1.0)
                 transform_full[0, 2] += target_center[0] - template_mask_center[0]
@@ -824,12 +794,6 @@ class PoseEstimator:
                     borderValue=0,
                 )
                 _, aligned_mask_full = cv2.threshold(aligned_mask_full, 127, 255, cv2.THRESH_BINARY)
-
-                # 更新模板局部结果（修复：达到接受阈值时也要更新template_results）
-                with template_results_lock:
-                    if confidence > template_results[template_idx]['best_confidence']:
-                        template_results[template_idx]['best_confidence'] = confidence
-                        template_results[template_idx]['best_angle_deg'] = angle_norm_180
 
                 # 更新全局最佳结果：用归一化到 ±180° 的角度判断，等价角度（如 -412° 与 -52°）可参与比较
                 with global_result_lock:
@@ -850,11 +814,7 @@ class PoseEstimator:
 
         # 更新模板局部最佳结果和全局最佳结果
         if local_best_confidence > 0.0:
-            normalized_best_angle = local_best_angle_deg
-            while normalized_best_angle < 0.0:
-                normalized_best_angle += 360.0
-            while normalized_best_angle >= 360.0:
-                normalized_best_angle -= 360.0
+            normalized_best_angle = float(np.mod(local_best_angle_deg, 360.0))
 
             transform_full = cv2.getRotationMatrix2D(template_mask_center, normalized_best_angle, 1.0)
             transform_full[0, 2] += target_center[0] - template_mask_center[0]
@@ -870,10 +830,6 @@ class PoseEstimator:
             _, aligned_mask_full = cv2.threshold(aligned_mask_full, 127, 255, cv2.THRESH_BINARY)
 
             local_best_angle_norm = self._normalize_angle_to_180(local_best_angle_deg)
-            with template_results_lock:
-                if local_best_confidence > template_results[template_idx]['best_confidence']:
-                    template_results[template_idx]['best_confidence'] = local_best_confidence
-                    template_results[template_idx]['best_angle_deg'] = local_best_angle_norm
 
             # 用归一化到 ±180° 的角度参与全局最佳比较，等价旋转（如 -412° 与 -52°）可参与竞争
             with global_result_lock:

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 import logging
 import threading
 import time
@@ -11,7 +10,7 @@ from types import ModuleType
 from typing import Optional
 
 from ...path_resolver import WebPaths, get_app_config
-from ..runtime_support import get_camera_pose_fixed_orientation, get_pose_list_dir, get_templates_dir
+from ..runtime_support import get_camera_pose_fixed_orientation, get_templates_dir
 
 
 LOGGER = logging.getLogger(__name__)
@@ -34,10 +33,6 @@ class RosBridgeManager:
         return self._paths
 
     @property
-    def bridge_module(self) -> Optional[ModuleType]:
-        return self._module
-
-    @property
     def node(self):
         return self._node
 
@@ -58,10 +53,6 @@ class RosBridgeManager:
         return get_templates_dir(self._paths)
 
     @property
-    def pose_list_dir(self) -> Path:
-        return get_pose_list_dir(self._paths)
-
-    @property
     def is_ready(self) -> bool:
         return self._module is not None and self._node is not None and self._startup_error is None
 
@@ -78,7 +69,8 @@ class RosBridgeManager:
                 return
 
             try:
-                module = self._load_bridge_module()
+                # 懒加载：保持本模块在无 rclpy 环境（纯 Web 回归测试）下可导入
+                from . import node_runtime as module
                 if not module.rclpy.ok():
                     module.rclpy.init()
 
@@ -147,10 +139,3 @@ class RosBridgeManager:
                 except Exception:
                     break
                 time.sleep(0.2)
-
-    def _load_bridge_module(self) -> ModuleType:
-        if self._module is not None:
-            return self._module
-
-        module_name = "ivg_pose_estimation.web.ros_bridge.node_runtime"
-        return importlib.import_module(module_name)

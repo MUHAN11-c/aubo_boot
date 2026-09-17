@@ -6,24 +6,20 @@
     ros2 launch ivg_pose_estimation ivg_pose_estimation.launch.py
 """
 
-import os
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
     """生成launch描述"""
-    # 获取包路径
-    pkg_share = get_package_share_directory('ivg_pose_estimation')
-
     # 声明launch参数
+    # calib_file 留空时按 path_resolver 标准链查找（含 aubo_hand_eye_calibration/hand_eye/active.yaml）
     calib_file_arg = DeclareLaunchArgument(
         'calib_file',
-        default_value=os.path.join(pkg_share, 'web_ui', 'configs', 'hand_eye_calibration.yaml'),
-        description='手眼标定文件路径'
+        default_value='',
+        description='手眼标定文件路径（空则按标准候选链自动解析）'
     )
 
     template_root_arg = DeclareLaunchArgument(

@@ -38,11 +38,11 @@ setup(
             ),
             (
                 os.path.join("share", package_name, "web_ui"),
-                glob("web_ui/*.html") + glob("web_ui/*.md") + glob("web_ui/*.txt") + glob("web_ui/*.sh"),
+                glob("web_ui/*.html") + glob("web_ui/*.md"),
             ),
         ]
         + package_files("web_ui/configs", ["*.json", "*.yaml", "*.xml", "*.md"])
-        + package_files("web_ui/scripts", ["*.py", "*.js"])
+        + package_files("web_ui/scripts", ["*.js"])
         + package_files("web_ui/static", ["*.html", "*.css", "*.js"])
         + package_files("web_ui/styles", ["*.css"])
         + package_files("web_ui/docs", ["*.md"])

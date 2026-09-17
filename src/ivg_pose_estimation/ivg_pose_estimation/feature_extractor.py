@@ -17,6 +17,44 @@ from dataclasses import dataclass
 import logging
 
 
+def _filter_components_by_params(
+    components: List[np.ndarray],
+    min_area: float,
+    max_area: float,
+    min_aspect: float,
+    max_aspect: float,
+    min_width: float,
+    min_height: float,
+    max_count: int = 0,
+) -> List[np.ndarray]:
+    """按面积、宽高比等筛选连通域（按面积降序）."""
+    candidates = []
+    for mask in components:
+        area = float(cv2.countNonZero(mask))
+        if area < min_area or area > max_area:
+            continue
+
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if not contours:
+            continue
+
+        x, y, w, h = cv2.boundingRect(contours[0])
+        if w < min_width or h < min_height:
+            continue
+
+        aspect = min(w, h) / max(w, h) if max(w, h) > 0 else 0.0
+        if aspect < min_aspect or aspect > max_aspect:
+            continue
+
+        candidates.append((area, mask))
+
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    if max_count > 0 and len(candidates) > max_count:
+        candidates = candidates[:max_count]
+
+    return [m for _, m in candidates]
+
+
 @dataclass
 class ComponentFeature:
     """连通域特征结构体"""
@@ -145,9 +183,6 @@ class FeatureExtractor:
         self.parameters['small_circle_dilate_kernel'] = 9.0
         self.parameters['small_circle_dilate_iterations'] = 1.0
 
-        # 多线程参数
-        self.parameters['max_threads'] = 4.0
-
     def set_parameters(self, params: Dict[str, float]):
         """
         设置参数
@@ -180,9 +215,7 @@ class FeatureExtractor:
         return self.parameters.get(key, fallback)
 
     def filter_components(self, components: List[np.ndarray]) -> List[np.ndarray]:
-        """筛选连通域（委托 ivg_utils.math 统一实现）"""
-        from ivg_utils.math import filter_components_by_params
-
+        """筛选连通域"""
         min_area = self._get_param('component_min_area', 1000.0)
         max_area = self._get_param('component_max_area', 1000000.0)
         min_aspect = self._get_param('component_min_aspect_ratio', 0.3)
@@ -190,7 +223,7 @@ class FeatureExtractor:
         min_width = self._get_param('component_min_width', 60.0)
         min_height = self._get_param('component_min_height', 60.0)
 
-        return filter_components_by_params(
+        return _filter_components_by_params(
             components,
             min_area, max_area,
             min_aspect, max_aspect,

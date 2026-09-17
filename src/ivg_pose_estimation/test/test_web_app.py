@@ -262,6 +262,10 @@ def test_native_template_routes():
             "/api/get_template_image",
             params={"workpiece_id": "demo_workpiece", "pose_id": "1", "image_name": "image.jpg"},
         )
+        traversal_response = client.get(
+            "/api/get_template_image",
+            params={"workpiece_id": "../../etc", "pose_id": "1", "image_name": "passwd"},
+        )
         ids_response = client.post("/api/list_workpiece_ids")
 
     assert list_response.status_code == 200
@@ -271,6 +275,7 @@ def test_native_template_routes():
     assert read_response.json()["pose_data"]["cartesian_position"]["position"]["x"] == 1
     assert image_response.status_code == 200
     assert image_response.headers["content-type"] == "image/jpeg"
+    assert traversal_response.status_code == 400
     assert ids_response.status_code == 200
     assert ids_response.json()["workpiece_ids"] == ["demo_workpiece"]
 
@@ -358,10 +363,6 @@ def test_native_debug_routes():
         )
         params_response = client.post("/api/debug/get_params")
         save_response = client.post("/api/debug/save_thresholds")
-        features_response = client.post(
-            "/api/save_debug_features",
-            json={"session_id": "session_debug", "features": [{"id": 1, "ub": 2}]},
-        )
 
     assert capture_response.status_code == 200
     assert capture_response.json()["success"] is True
@@ -374,8 +375,6 @@ def test_native_debug_routes():
     assert params_response.json()["params"]["binary_threshold_min"] == 0
     assert save_response.status_code == 200
     assert save_response.json()["success"] is True
-    assert features_response.status_code == 200
-    assert features_response.json()["feature_count"] == 1
 
 
 def test_exit_endpoint_schedules_shutdown():

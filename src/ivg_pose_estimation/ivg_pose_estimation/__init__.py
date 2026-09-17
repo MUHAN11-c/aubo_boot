@@ -31,12 +31,4 @@ _export(".pose_estimator", ["PoseEstimator", "TemplateItem", "PoseEstimationResu
 _export(".ros2_communication", ["ROS2Communication"])
 _export(".path_resolver", ["resolve_web_paths", "resolve_templates_root"])
 _export(".params_manager", ["ParamsManager"])
-_export("ivg_utils.math", [
-    "quaternion_to_rotation_matrix",
-    "rotation_matrix_to_quaternion",
-    "rotation_matrix_to_euler_rpy",
-    "normalize_angle_to_180",
-    "normalize_angle_to_pi",
-    "filter_components_by_params",
-])
 _export(".main", ["main"])

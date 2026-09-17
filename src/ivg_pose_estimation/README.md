@@ -9,7 +9,7 @@
 ```bash
 source /opt/ros/jazzy/setup.bash
 cd /home/mu/Desktop/aubo_e5_jazzy_ws
-colcon build --packages-select ivg_interfaces ivg_utils ivg_pose_estimation
+colcon build --packages-select ivg_interfaces ivg_pose_estimation
 source install/setup.bash
 
 ros2 launch ivg_pose_estimation ivg_pose_estimation.launch.py
@@ -23,6 +23,6 @@ Web 的运动/IO/抓取 HTTP 返回 **501**。真机请走 harvest 8090 调试�
 
 模板根：launch `template_root` → `VPE_TEMPLATE_ROOT` → app_config.json（仅 Web 侧）→ `ivg_pose_estimation/templates`。
 
-数学工具（四元数/旋转矩阵/RPY）统一来自 `ivg_utils.math`；rembg 抠图走进程内 `rembg_processor`（依赖 venv 内 rembg + onnxruntime，未装则该开关自动旁路）。运行时 `U2NET_HOME` 指向包内 `models/`，不写 `~/.u2net`。`u2net.onnx`（约 168MB）超过 Gitee/GitHub 单文件上限，**不随 git 分发**；本机已有则保留，clone 后执行 `models/fetch_u2net.sh`（或首次抠图时 rembg/pooch 下载）。
+数学工具（四元数/旋转矩阵/RPY）统一来自 `scipy.spatial.transform.Rotation`；rembg 抠图走进程内 `rembg_processor`（依赖 venv 内 rembg + onnxruntime，未装则该开关自动旁路）。运行时 `U2NET_HOME` 指向包内 `models/`，不写 `~/.u2net`。`u2net.onnx`（约 168MB）超过 Gitee/GitHub 单文件上限，**不随 git 分发**；本机已有则保留，clone 后执行 `models/fetch_u2net.sh`（或首次抠图时 rembg/pooch 下载）。
 
 活文档：[docs/architecture.md](../../../docs/architecture.md) §3 旁路、[docs/io.md](../../../docs/io.md) §8。

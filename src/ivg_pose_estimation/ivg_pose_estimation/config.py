@@ -72,9 +72,6 @@ class ConfigReader:
             "component_min_width": pp.get("component_min_width", 32),
             "component_min_height": pp.get("component_min_height", 47),
             "component_max_count": pp.get("component_max_count", 1),
-            "enable_zero_interp": pp.get("enable_zero_interp", True),
-            "enable_smooth_edges": pp.get("enable_smooth_edges", True),
-            "smooth_edges_blur_sigma": pp.get("smooth_edges_blur_sigma", 0),
             "use_rembg": self._cfg.rembg.get("enabled", False),
         }
 

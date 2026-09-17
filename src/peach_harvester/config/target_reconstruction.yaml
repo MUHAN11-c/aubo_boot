@@ -31,7 +31,7 @@ peach_target_reconstruction_node:
       require_target_mask: true  # 只积分所选稳定 ID 的精确时刻掩膜
       min_mask_pixels: 300  # 过小视为远距小目标或严重遮挡
       min_mask_depth_ratio: 0.35  # 强光/反光造成深度空洞时跳帧
-      max_target_drift_m: 0.04  # [m] 风吹目标漂移过大时跳帧：0.06 档吸纳正常风摆（峰峰 5~6cm）仍能拦住跨目标误绑
+      max_target_drift_m: 0.04  # [m] 风吹目标漂移过大时跳帧：0.06 档吸纳正常风摆（峰峰 5~6cm）仍能拦住跨目标误绑。e2e25 轮（09-17）曾在 mock 下放宽到 0.25 解锁（mock 下相机固定而 TF 按眼在手上算，视点一动 base 系锚必偏 ~220mm，纯伪影）；用户裁定 mock 测试作废转真机后已回调 0.04。本节点门配置 configure 期冻结，ros2 param set 运行时改不生效（须重启）。
       min_neighbor_gap_m: 0.15  # [m] 绑定锚点与其他锁定目标锚点的最小间距（邻目标串扰门）：更近的邻居锚点在场时拒帧，防邻近点云混入形成 TSDF 不可回滚双层表面（I6）；≤0 关闭本门
       neighbor_gap_area_ratio: 2.0  # 串扰门小框豁免比；邻居检测框面积×本值 < 绑定框面积时该邻居不计入间距（叶片遮挡残片/误检）；≤0 关闭豁免
       build_timeout_s: 180.0  # BuildTargetModel 等 min_views 上限 (s)；超时不 finalize

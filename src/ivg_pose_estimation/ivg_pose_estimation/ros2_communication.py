@@ -822,6 +822,7 @@ class ROS2Communication:
         except Exception as e:
             self.logger.error(f'姿态估计服务异常: {e}')
             response.success_num = 0
+            response.message = f'姿态估计服务异常: {e}'
 
         return response
 

@@ -19,7 +19,7 @@ Robotics_Tutorial 教程库已归档 `_archive/parked_2026-09/`，不再随库�
 ## 1. 产品定位
 
 - **愿景：** 果园套袋桃采摘（室外光照、枝叶遮挡、将来底盘移动）。
-- **本仓库现行产品：** 固定座 AUBO E5 + Percipio RGB-D。采摘应用七包 = 契约 / 视觉 / 臂 / 调度 / bringup / observability / system_tests。产品运行链 = 臂/相机 9 + 能力四包 + bringup/observability + 可选 USB IMU。工作区另含 `imu_follow` 与旁路 IVG 四包，均不进 `harvest_system`（IVG 仍隔离）。
+- **本仓库现行产品：** 固定座 AUBO E5 + Percipio RGB-D。采摘应用七包 = 契约 / 视觉 / 臂 / 调度 / bringup / observability / system_tests。产品运行链 = 臂/相机 9 + 能力四包 + bringup/observability + 可选 USB IMU。工作区另含 `imu_follow` 与旁路 IVG 三包，均不进 `harvest_system`（IVG 仍隔离）。
 - **范围：** 果园是愿景。核心能力仍是契约 / 视觉 / 臂 / 调度；整栈入口在 `peach_bringup`，只读观测可拆 `peach_observability`。底盘与雷达**驱动**本仓不实现；导航适配 `peach_navigation` 已归档（`_archive/parked_2026-09/`），`NavigateToWorksite` / `HarvestTargetReport` / `HarvestOperationStatus` / `VehicleState` 四个 IDL 保留标「预留」（manifest `reserved_interfaces` 区），调度到位一步直通 `NAV_OK`。
 - **近期成功标准：** [testing.md](testing.md) 现行定位门是 `PREGRASP_ONLY`：到预抓取停住，不回 `harvest_stow`、不套入、不 SetIO。套入干跑须把 `execute_pregrasp_only` 改 false（默认 `tool.enabled=false`）。切断+撤退均确认才记采摘成功。树干进 PlanningScene 是预留，本仓不实现。
 - **非目标：** launch 自动 `RunHarvest`；感知发运动；技能写 `ledger.json`；学习模型补深度；nvblox；改只读驱动栈；把 ROS / 8090 当成功能安全急停。
@@ -41,7 +41,7 @@ Robotics_Tutorial 教程库已归档 `_archive/parked_2026-09/`，不再随库�
 5. **套入/剪切唯一权威是 `GraspDecision.allowed`。** 感知 ACCEPT 只当初值/可视化。融合成功时入口/轴/剪切参考有效，`PREGRASP_ONLY` 可据此到预抓取。`allowed=false` 禁止套入/SetIO，禁止单帧候选降级接触。套入许可走逐目标动态径向/轴向预算；固定 35° 只诊断完全错轴。
 6. **会话有边界。** 一次 `RunHarvest` 对应一份账本目录 `runs/<request_id>/`；过程录制为会话 bag（决策 0019），随节点启停开合，批次边界由消息自带 `request_id` 还原。
 7. **导航已归档，不是底盘驱动。** `peach_navigation` 包体在 `_archive/parked_2026-09/`，不进 colcon 构建；四个导航 IDL 在 manifest 标「预留」并由清单脚本双向核对。调度 `_cmd_navigate` 固定座直通 `NAV_OK`，不发动作。雷达/odom/cmd_vel 驱动与 Nav2 接线须另授权后从归档恢复，不加第五个 peach 包。
-7a. **标定唯一事实源（2026-09-17 整理）。** 手眼外参=`src/aubo_hand_eye_calibration/hand_eye/active.yaml`（入库随仓；改值或覆盖后重启 extrinsics_publisher 生效；candidates/ 会话产物不入库；`_archive/runs/hand_eye/` 是历史归档不读取）。彩色内参=`src/percipio_camera/config/color_camera_info.yaml`（percipio 与 peach_stereo 两前端共用）。IR/深度内外参=设备内标定直读（无文件）。`AUBO_HAND_EYE_DIR` 环境变量仅限特殊部署覆盖。
+7a. **标定唯一事实源（2026-09-17 整理）。** 手眼外参=`src/aubo_hand_eye_calibration/hand_eye/active.yaml`（入库随仓；改值或覆盖后重启 extrinsics_publisher 生效；candidates/ 会话产物不入库；`_archive/runs/hand_eye/` 是历史归档不读取）。彩色内参=`src/percipio_camera/config/color_camera_info.yaml`（percipio 与 peach_stereo 两前端共用；重标定走 vendored `camera_calibration`（`src/camera_calibration`，image_pipeline jazzy 原样入库）＋`apply_intrinsics` 原子落盘，2026-09-17 集成，流程见 testing.md 标定节）。同日新增 auto 档：由当前图像定位固定棋盘格自动生成 FOV 保持视点（相机无关，几何量运行时取自 camera_info）并联合求解内外参，产物（外参 transforms＋`intrinsics` 节）同存本包 hand_eye/，内参进 percipio 事实源仍走人工 `apply_intrinsics`；默认档仍是 poses 示教位姿。IR/深度内外参=设备内标定直读（无文件）。`AUBO_HAND_EYE_DIR` 环境变量仅限特殊部署覆盖。
 8. **ROS 不是功能安全通道。** 急停 / 保护停止 / 使能在柜与示教器（ISO 10218、IEC 60204-1、ISO 13850）。`ExecutionAuthority`、使能默认关、`RobotMoveStop` 是应用护栏，不得称为 e-stop，也不得替代硬件急停。工作流见 [AGENTS.md](../AGENTS.md) 第 2 章。保护停止解除后禁止 resume 原轨迹。
 
 ---
@@ -321,7 +321,7 @@ ROS 2 Jazzy / ament 惯例。**包名与图名（节点、话题、动作、服�
 | 管 | `peach_lifecycle_manager` | `lifecycle_manager` | `LifecycleManagerNode` |
 | 监 | `peach_observability` | `peach_observability` | `ObservabilityNode` |
 
-四个能力包现行树（其后 `serial_imu` 为可选传感器、`imu_follow` 为可选 IMU 跟随工具，皆不是能力包；旁路视觉抓取四包见本节末；`peach_navigation` 已归档，树在 `_archive/parked_2026-09/`）：
+四个能力包现行树（其后 `serial_imu` 为可选传感器、`imu_follow` 为可选 IMU 跟随工具，皆不是能力包；旁路视觉抓取三包见本节末；`peach_navigation` 已归档，树在 `_archive/parked_2026-09/`）：
 
 ```
 peach_interfaces/
@@ -381,8 +381,7 @@ imu_follow/
 
 # 旁路视觉抓取（不进 harvest_system / lifecycle；IDL 不走 peach_interfaces）
 ivg_interfaces/          # 估姿 srv/msg；仅旁路栈
-ivg_utils/               # 共享数学/常量（ivg_pose_estimation 依赖）
-ivg_pose_estimation/     # 估姿节点 + FastAPI :8088（Python 模块与包同名）
+ivg_pose_estimation/     # 估姿节点 + FastAPI :8088（Python 模块与包同名；旋转数学用 scipy）
   models/                # rembg u2net.onnx 约 168MB，超远程单文件上限不入库；U2NET_HOME 指此目录，缺失时 rembg/pooch 或 models/fetch_u2net.sh 拉取
   templates/             # 工件模板
 ivg_graspnet/
@@ -397,7 +396,7 @@ ivg_graspnet/
 
 ### 十四包总表（采摘产品）
 
-colcon 工作区 = 采摘应用 7 + 臂/相机 9 + 可选 USB IMU 1 + 可选 IMU 跟随 1 + **旁路视觉抓取 4**。旁路四包不进 `harvest_system` / lifecycle、不订 peach 话题。能力四包作用不得串；驱动九包给感知 TF / 技能 MoveIt 用，其中标「只读」的不得改。`serial_imu` 随 `harvest_system` 起、不进 lifecycle。`imu_follow` 独立 launch，`motion.enabled` 默认 false。`peach_navigation` 已归档，不在本表。
+colcon 工作区 = 采摘应用 7 + 臂/相机 9 + 可选 USB IMU 1 + 可选 IMU 跟随 1 + **旁路视觉抓取 3**。旁路三包不进 `harvest_system` / lifecycle、不订 peach 话题。能力四包作用不得串；驱动九包给感知 TF / 技能 MoveIt 用，其中标「只读」的不得改。`serial_imu` 随 `harvest_system` 起、不进 lifecycle。`imu_follow` 独立 launch，`motion.enabled` 默认 false。`peach_navigation` 已归档，不在本表。
 
 ### 产品链（应用七包）
 
@@ -442,12 +441,12 @@ flowchart LR
 | `aubo_dashboard` | 柜侧慢操作 | 上电/抱闸/FK·IK/负载 | **只读且 bringup 不起** |
 | `aubo_e5_bringup` | 手臂入口 | mock/real + 可选相机/手眼/MoveIt | `bringup.launch.py` 仅 `tool_profile` arg 最小穿透（2026-09-15 授权，决策 0020）；驱动逻辑只读 |
 | `aubo_e5_moveit_config` | 规划配置 | 组 `manipulator_e5`、命名位姿、规划器 | 示教位姿写 SRDF |
-| `aubo_hand_eye_calibration` | 手眼 | `wrist3_Link→camera_link` 静态 TF | 标定结果 gitignore |
+| `aubo_hand_eye_calibration` | 手眼/内外参标定 | `wrist3_Link→camera_link` 静态 TF；`apply_intrinsics` 内参落盘；auto 档自动视点+联合求解（默认 poses 档不变） | active.yaml 入库随仓；joint 产物含 intrinsics 节 |
+| `camera_calibration` | 内参标定工具 | vendored image_pipeline jazzy @`6c3df30` 的交互式棋盘格标定器 | 原样入库零修改；会话工具不进常驻栈 |
 | `percipio_camera` | 相机驱动 | RGB-D 话题 | 厂商代码；未授权不改 `frame_rate` |
 | `serial_imu` | 可选 USB IMU | CH340/CH343 适配器，0xA4 → `/imu/data`（imu_tools 布局） | 随 `harvest_system`（`imu_enabled`）；不进 lifecycle / bringup |
 | `imu_follow` | 可选 IMU 跟随 | `/imu/data` 增量 → MoveIt Servo twist（主）/ FJT 流式（备） | 独立 launch；默认只算不发；真机须授权 |
 | `ivg_interfaces` | 旁路 IDL | 模板估姿服务消息 | 不进 peach 清单 |
-| `ivg_utils` | 旁路工具 | 估姿共享数学/常量 | 无节点；`ivg_pose_estimation` 依赖 |
 | `ivg_pose_estimation` | 旁路估姿 | 模板匹配 6D + Web 8088 | 独立 launch |
 | `ivg_graspnet` | 旁路抓取 | GraspNet 点云→位姿→MoveIt 接近 | 无 AnyGrasp 许可证 |
 
@@ -721,7 +720,7 @@ launch 参数装载走官方 `moveit_configs_utils.MoveItConfigsBuilder`（与 M
 
 #### `aubo_hand_eye_calibration`
 
-`extrinsics_publisher` 读 `src/aubo_hand_eye_calibration/hand_eye/active.yaml`（gitignore）发 `wrist3_Link→camera_link`。找不到该文件则名义平移 2 cm、单位四元数（点云会相对臂偏约 10 cm 且轴向不对）。重建积分依赖这条链的精确 stamp。日常采摘不自动跑标定流程。
+`extrinsics_publisher` 读 `src/aubo_hand_eye_calibration/hand_eye/active.yaml`（入库随仓）发 `wrist3_Link→camera_link`。找不到该文件则名义平移 2 cm、单位四元数（点云会相对臂偏约 10 cm 且轴向不对）。重建积分依赖这条链的精确 stamp。日常采摘不自动跑标定流程；内参/外参重标定工具（vendored `camera_calibration`、`apply_intrinsics`）均为会话工具，不进常驻栈，流程见 testing.md 标定节。
 
 #### `percipio_camera`
 
@@ -735,14 +734,13 @@ USB 串口 IMU（QinHeng USB 转串适配器：CH340 `1a86:7523`（旧，ttyUSB�
 
 可选 IMU 姿态跟随工具包（Python，独立 launch；不随 `harvest_system` 起、不进 lifecycle、不改只读 bringup）。`~/enable` 采两组参考（TF `base_link→tcp` 当前位姿 + 当前 `/imu/data` 四元数），此后每节拍（`rate.update_hz` 默认 20 Hz）把 IMU 体轴姿态增量经死区/符号映射/锥限幅/平滑叠加到参考 TCP 姿态（位置钉死参考点，只跟姿态）。后端双轨（`motion.backend`）：**servo 默认**——节点对当前 TF 闭环，姿态/位置误差 P 控制成 `TwistStamped`（tcp 系 speed_units）发 moveit_servo（Jazzy apt `ros-jazzy-moveit-servo`，2026-09 起源码铺层退役）的 `/moveit_servo/delta_twist_cmds`（BEST_EFFORT，可靠发布与其订阅不兼容收不到；enable 自动 `switch_command_type(TWIST)` + 确保未暂停，此版未切类型拒收 twist），Servo 100 Hz 增量 IK 流式输出 JTC 话题（奇异缩放/碰撞减速/平滑内建；其参数名自带 `moveit_servo.` 前缀，部署值在本包 `config/moveit_servo.yaml`）；**fjt 备选**（真机透传）——`/compute_ik` 解关节、单步钳制后流式 FollowJointTrajectory（透传只有 FJT 动作口，servo 话题输出够不着）。`motion.enabled` 默认 false：只发布 `~/target_pose`、`~/command_twist`，不发运动；真机使用须另行人工授权。自动 disable：IMU / 关节状态断流、连续 IK 失败（fjt）；servo 补零速刹车、fjt 取消在途 goal（disable 后在途 IK 回包/goal 回执不补发、立即取消，停即彻底停）。**插入推进**（2026-09 自适应圆柱配套，决策 0020）：`~/insert_start` 在跟随会话内锁当前工具开口方向（tip +Z，base 系），位置目标沿该方向按 `insert.speed_m_s`（0.01）推进、钳 `insert.max_travel_m`（0.20=档案 L_insert）行程；姿态照常跟 IMU（柔性筒偏斜→臂跟随），横向只剩死区+低速钳温和定心。`~/insert_stop` 停推进；disable/断流/达行程上限亦停。用于套入直线段弥补视觉误差的人工编排（peach `PREGRASP_ONLY` 停靠后衔接，本包不订 peach 话题）。mock 冷启动关节全零参考 IK 无解（-31），先导 `global_photo_pose`。姿态/推进数学纯核 `follow_core.py`（零 ROS 表驱动测试）；参数走手写 `params.py` + `config/imu_follow.yaml`（决策 0017 口径）。**手册：** [`src/imu_follow/README.md`](../src/imu_follow/README.md)。
 
-### 旁路视觉抓取（四包，非采摘）
+### 旁路视觉抓取（三包，非采摘）
 
-从旧仓移植后按本区裁过：**不进** `harvest_system.launch.py`、**不进** lifecycle 名单、**不订** `peach_interfaces`、不改驱动栈。共用 L0 相机 / TF / MoveIt。GraspNet **不用 AnyGrasp**（许可证）；后端为 vendored GraspNet-baseline 权重 + 纯 torch 算子（无 CUDA 扩展、无 open3d/graspnetAPI）。估姿 Web 的运动/IO HTTP 返回 501；真机运动只走 harvest 调试操作面或 GraspNet 的 MoveIt 客户端（须另授权）。
+从旧仓移植后按本区裁过：**不进** `harvest_system.launch.py`、**不进** lifecycle 名单、**不订** `peach_interfaces`、不改驱动栈。共用 L0 相机 / TF / MoveIt。GraspNet **不用 AnyGrasp**（许可证）；后端为 vendored GraspNet-baseline 权重 + 纯 torch 算子（无 CUDA 扩展、无 open3d/graspnetAPI）。估姿 Web 的运动/IO HTTP 返回 501；真机运动只走 harvest 调试操作面或 GraspNet 的 MoveIt 客户端（须另授权）。旋转/四元数数学统一 `scipy.spatial.transform.Rotation`（2026-09-17 精简轮删 `ivg_utils` 伪共享包）。
 
 | 包 | 节点 / 入口 | 作用 | 不做什么 |
 |----|-------------|------|----------|
 | `ivg_interfaces` | 无 | 旁路 IDL（`EstimatePose*`、`ListTemplates`、`StandardizeTemplate`、`UpdateParams`） | 不进 peach 清单；不含机械臂/IO/软触发服务 |
-| `ivg_utils` | 无节点 | 估姿共享数学/常量（`ivg_pose_estimation` 依赖） | 不进 harvest_system |
 | `ivg_pose_estimation` | `ivg_pose_estimation`、Web `:8088` | 模板匹配 6D 估姿；T_B_C 查 TF | 不发运动/IO、不写账本 |
 | `ivg_graspnet` | `graspnet_demo_points_node`、`publish_grasps_client` | 点云→抓取位姿→MoveIt 接近 | 不拉相机/手眼；不走 ExecutionAuthority；真机须另授权 |
 
@@ -1053,7 +1051,7 @@ yaml：仅上述 4 键仍为 `*.impl`（技能 yaml 无 `*.impl`）。检测/分
 | 发布节奏 | 大消息 `local_cloud` / `tsdf_cloud` / `markers` 已走 `PublishThrottle`（on-change + 最小间隔；心跳/状态/诊断三件套不节流）。ICP target 走 `IcpTargetCache` 增量复用。`_collect_bag_views` 每次 refit 仍按机位簇重估 landmarks，geometry.jsonl 视角行可跨 refit 追加（唯一复算脚本已归档，写入保留） | 重发缺口已关；landmarks 重复写入未改 |
 | 套袋工具与数据 | URDF 工具帧已接线；TCP 为机械尺寸（`mechanical_dimension`）；标注集不进仓 | 通环、刀反馈、24/48h 损伤在现场；关键点网络可替换半径剖面 |
 | 关节名顺序 | URDF / `controllers.yaml` / 透传 goal 按 MUST 六关节序；`/joint_states` 由 `joint_state_broadcaster` 发布，name 数组常见字母序（`foreArm` 在 `shoulder` 前），消费者必须按名字对齐，禁止按下标当 MUST 序 | 透传点按下标拧腕；launch_testing 只断言六名存在 |
-| CI | `.github/workflows/jazzy.yaml`：`peach-core` 跑 `scripts/r0_gate.sh`（零 ROS + numpy 1.26.4）；`industrial_ci` 用 `ros-industrial/industrial_ci`、`ROS_DISTRO: jazzy` 编测驱动+peach（`COLCON_IGNORE` 旁路 IVG 四包、`imu_follow`、`percipio_camera`，不进真机）。scipy 仍 venv-first KEEP；ICI 用 apt `python3-scipy` / `python3-pytest` / `python3-yaml`，不再 pip 钉 numpy（`ros:jazzy` 已 1.26.4；Docker 里 pip 曾无日志挂死）。本机 `ros:jazzy-ros-base` 已证明 `peach_interfaces`+`aubo_msgs`+numpy 1.26.4；`--packages-select peach_supervisor` 不够：调度 launch 仍 import `peach_perception.tool_profiles`，观测实现仍 `import aubo_msgs`；技能包 MoveIt 不在 ros-base。全量以 GitHub industrial_ci 为准 | PR 门仍不是田间验收 |
+| CI | `.github/workflows/jazzy.yaml`：`peach-core` 跑 `scripts/r0_gate.sh`（零 ROS + numpy 1.26.4）；`industrial_ci` 用 `ros-industrial/industrial_ci`、`ROS_DISTRO: jazzy` 编测驱动+peach（`COLCON_IGNORE` 旁路 IVG 三包、`imu_follow`、`percipio_camera`、`camera_calibration`，不进真机）。scipy 仍 venv-first KEEP；ICI 用 apt `python3-scipy` / `python3-pytest` / `python3-yaml`，不再 pip 钉 numpy（`ros:jazzy` 已 1.26.4；Docker 里 pip 曾无日志挂死）。本机 `ros:jazzy-ros-base` 已证明 `peach_interfaces`+`aubo_msgs`+numpy 1.26.4；`--packages-select peach_supervisor` 不够：调度 launch 仍 import `peach_perception.tool_profiles`，观测实现仍 `import aubo_msgs`；技能包 MoveIt 不在 ros-base。全量以 GitHub industrial_ci 为准 | PR 门仍不是田间验收 |
 | 物理仿真 | 无 Gazebo Harmonic / Isaac / `gz_ros2_control`。系统测现行是 `peach_system_tests` mock `harvest_system` + 手工 `scripts/sim_field_targets.py` | **UNWIND**；真机仍是套袋方向权威 |
 | 切断确认 | SetIO ACK 只到 `CUT_COMMAND_ACCEPTED`；刀具 DI 预留 `/aubo_io_controller/io_states`，未接线。`tool.enabled=true` 未确认终局 `FAILED`/`CUT_FEEDBACK_TIMEOUT`。切断行程/电流常数未真机标定 | KEEP 田间；不得把 ACK 当切断 |
 

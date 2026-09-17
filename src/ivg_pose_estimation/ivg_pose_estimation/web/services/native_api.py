@@ -267,8 +267,7 @@ class NativeWebService:
     def get_template_image(self, workpiece_id: str, pose_id: str, image_name: str) -> tuple[bytes, str]:
         if not workpiece_id or not pose_id:
             raise HTTPException(status_code=400, detail="缺少workpiece_id或pose_id参数")
-        if not image_name or Path(image_name).name != image_name:
-            raise HTTPException(status_code=400, detail="非法的图像文件名")
+        self._validate_path_component(image_name, "图像文件名")
 
         pose_dir_name = pose_id if pose_id.startswith("pose_") else f"pose_{pose_id}"
         image_path = self._safe_template_dir(workpiece_id, pose_dir_name) / image_name
@@ -561,8 +560,21 @@ class NativeWebService:
     def templates_dir(self) -> Path:
         return Path(self._ros_bridge.templates_dir)
 
+    @staticmethod
+    def _validate_path_component(value: str, what: str) -> None:
+        """
+        单段路径组件校验：非空、单组件、不含 `..`（防穿越与沙箱内重定向）.
+
+        pathlib 把 `..` 当普通组件保留（`Path('..').name == '..'`），只查 name 拦不住它。
+        """
+        parts = Path(value).parts if value else ()
+        if not value or ".." in parts or len(parts) != 1:
+            raise HTTPException(status_code=400, detail=f"非法的{what}")
+
     def _safe_template_dir(self, workpiece_id: str, pose_dir_name: str) -> Path:
         """拼接模板目录并校验不越出模板根（防路径穿越读写）."""
+        self._validate_path_component(workpiece_id, "工件ID")
+        self._validate_path_component(pose_dir_name, "姿态ID")
         templates_root = self.templates_dir.resolve()
         candidate = (templates_root / workpiece_id / pose_dir_name).resolve()
         if not candidate.is_relative_to(templates_root):

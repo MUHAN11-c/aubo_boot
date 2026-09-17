@@ -19,8 +19,8 @@ ros2 run tf2_ros tf2_echo wrist3_Link camera_link   # 核对数值
 
 ## 目录内
 
-- `active.yaml` —— 在用外参（入库随仓，任何机器 clone 即得）
-- `candidates/` —— 标定会话候选产物（.gitignore 忽略，仅本机）
+- `active.yaml` —— 在用外参（入库随仓，任何机器 clone 即得）；auto 档联合标定激活后另含 `intrinsics` 节（内参 K/D，`apply_intrinsics` 可直接读本文件落盘 percipio 事实源）
+- `candidates/` —— 标定会话候选产物（.gitignore 忽略，仅本机）；joint 档候选含 `intrinsics`/`viewpoints`/joint 指标增量节
 
 ## 边界（勿混淆）
 
@@ -30,3 +30,5 @@ ros2 run tf2_ros tf2_echo wrist3_Link camera_link   # 核对数值
 - `AUBO_HAND_EYE_DIR` 环境变量可覆盖本目录（特殊部署用，日常勿设）。
 - 彩色相机内参的唯一事实源是 `src/percipio_camera/config/color_camera_info.yaml`
   （percipio 与 peach_stereo 两个相机前端共用同一份）。
+  重标定工具与流程（vendored `camera_calibration` + `apply_intrinsics`）
+  见包 README「内参标定流程」与 docs/testing.md 标定节。

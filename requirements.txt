@@ -67,3 +67,8 @@ fastapi==0.101.0
 uvicorn==0.27.1
 pytest==7.4.4
 pytest-cov==4.1.0
+
+# ---- vendored camera_calibration（image_pipeline jazzy 分支）标定器依赖
+# （2026-09-17 补钉）：calibrator.py 用 VersionInfo 比较 OpenCV 版本；
+# 纯 Python 无传递依赖。CI 侧由该包 package.xml 的 python3-semver rosdep 键走 apt。
+semver==3.0.2

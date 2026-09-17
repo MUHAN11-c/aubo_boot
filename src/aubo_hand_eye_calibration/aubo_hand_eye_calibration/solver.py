@@ -7,6 +7,7 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.spatial.transform import Rotation
 
+from .stats import mad_inliers_2d
 from .transforms import (
     from_se3_vector,
     inverse,
@@ -103,19 +104,6 @@ def _consistency(samples, gripper_from_camera):
     return average, errors
 
 
-def _mad_inliers(errors):
-    if len(errors) < 5:
-        return np.ones(len(errors), dtype=bool)
-    normalized = errors.copy()
-    for column in range(2):
-        median = np.median(normalized[:, column])
-        mad = np.median(np.abs(normalized[:, column] - median))
-        scale = max(1.4826 * mad, 1e-9)
-        normalized[:, column] = np.abs(
-            normalized[:, column] - median) / scale
-    return np.max(normalized, axis=1) <= 3.5
-
-
 def _refine(samples, initial_camera, initial_target):
     x0 = np.r_[se3_vector(initial_camera), se3_vector(initial_target)]
 
@@ -156,7 +144,8 @@ def _refine(samples, initial_camera, initial_target):
     )
 
 
-def _rotation_span(samples):
+def rotation_span(samples):
+    """腕部姿态两两最大夹角 (deg); joint_calib 共用."""
     rotations = [Rotation.from_matrix(s.base_from_gripper[:3, :3])
                  for s in samples]
     maximum = 0.0
@@ -234,7 +223,7 @@ def solve_hand_eye(
     for entry in method_scores:
         if entry['method'] == method and not entry['failed']:
             entry['selected'] = True
-    inliers = _mad_inliers(errors)
+    inliers = mad_inliers_2d(errors)
     accepted = np.flatnonzero(inliers).tolist()
     inlier_samples = [samples[index] for index in accepted]
     if len(inlier_samples) >= 3:
@@ -252,7 +241,7 @@ def solve_hand_eye(
 
     # 精化后按精化解的残差复核一次离群剔除
     _, refined_errors = _consistency(samples, camera)
-    refined_inliers = _mad_inliers(refined_errors)
+    refined_inliers = mad_inliers_2d(refined_errors)
     if int(refined_inliers.sum()) >= 3:
         accepted = np.flatnonzero(refined_inliers).tolist()
         inlier_samples = [samples[index] for index in accepted]
@@ -273,7 +262,7 @@ def solve_hand_eye(
     reprojection_rms = float(np.sqrt(np.mean([
         sample.reprojection_rms_px ** 2 for sample in inlier_samples
     ])))
-    rotation_span = _rotation_span(inlier_samples)
+    rotation_span_deg = rotation_span(inlier_samples)
 
     failures = []
     if len(inlier_samples) < min_samples:
@@ -290,9 +279,9 @@ def solve_hand_eye(
         failures.append(
             f'rotation RMS {rotation_rms:.3f}deg exceeds '
             f'{max_rotation_rms_deg:.3f}deg')
-    if rotation_span < min_rotation_span_deg:
+    if rotation_span_deg < min_rotation_span_deg:
         failures.append(
-            f'rotation span {rotation_span:.1f}deg below '
+            f'rotation span {rotation_span_deg:.1f}deg below '
             f'{min_rotation_span_deg:.1f}deg')
 
     return CalibrationResult(
@@ -304,7 +293,7 @@ def solve_hand_eye(
         translation_rms_m=translation_rms,
         rotation_rms_deg=rotation_rms,
         reprojection_rms_px=reprojection_rms,
-        rotation_span_deg=rotation_span,
+        rotation_span_deg=rotation_span_deg,
         passed=not failures,
         failures=failures,
         sample_errors=sample_errors,

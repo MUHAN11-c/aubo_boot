@@ -4,7 +4,7 @@ import sys
 
 
 def test_identity_imports_without_rclpy():
-    identity_mod = 'peach_perception.scene_perception.identity'
+    identity_mod = 'peach_harvester.vision.scene_perception.identity'
     assert 'rclpy' not in sys.modules or identity_mod not in sys.modules
     module = importlib.import_module(identity_mod)
     assert hasattr(module, 'TargetRegistry')
@@ -12,7 +12,8 @@ def test_identity_imports_without_rclpy():
 
 
 def test_domain_budget_imports_without_rclpy():
-    module = importlib.import_module('peach_perception.domain.budget')
+    module = importlib.import_module(
+        'peach_harvester.vision.domain.budget')
     assert module.CAPABILITY_VALID == 0
 
 

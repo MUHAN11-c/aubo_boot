@@ -115,7 +115,9 @@ class ExtrinsicsPublisher(Node):
                 'No active hand-eye result; publishing nominal camera extrinsic')
         else:
             self.get_logger().info(
-                f'Published active camera extrinsic from {self._active_path()}')
+                f'Published active camera extrinsic from {self._active_path()}'
+                f': xyz_m={[round(float(v), 6) for v in xyz]}'
+                f' quat_xyzw={[round(float(v), 6) for v in quaternion]}')
 
     def _reload(self, _request, response):
         try:

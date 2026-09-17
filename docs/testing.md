@@ -6,7 +6,7 @@
 
 各包 `test/` **保留 ROS 2 默认 lint，并允许零 ROS 纯核 pytest**（Python：`test_flake8.py` / `test_pep257.py` + 不 import rclpy 的表驱动；CMake：`ament_lint_auto`）。现行纯核：`peach_harvester/test/supervisor_test_harvest_fsm.py`（`react` 表）、`peach_observability/test/test_bag_report.py`（bag 流→报告合成、验收门、回收选择，零 ROS）、`peach_harvester/test/vision_test_runtime_core.py`（`ManualClock` / `BoundedWorker` capacity=1 drop_oldest）、`peach_harvester/test/vision_test_tool_profiles.py`（工具档案解析结构校验）、`peach_arm/test/test_contact_monitor.py`（合成电流序列编译 `contact_monitor.hpp`）、`ivg_graspnet/test/test_grasp_core.py`（`GraspList` NMS/碰撞；torch 算子 `importorskip`）、`serial_imu/test/test_protocol.py`（切帧/协方差）与 `test_frame.py`（倒装 Rx + parent 对齐）、`imu_follow/test/test_core.py`（姿态增量/死区锥钳/平滑/关节步长/插入推进）。现行测试面以 lint + 零 ROS 纯核为主（决策 0006，**UNWIND**：不是套袋工艺的完美适配）。**新测试按 [AGENTS.md](../AGENTS.md) 测试塔与官方 / Nav2 / Autoware 主流**：允许 gtest、launch_testing（isolated `ROS_DOMAIN_ID`）、`mock_components` 集成。独立系统测包 `peach_system_tests` 已落地（mock `harvest_system`，不发 `RunHarvest`）；Gazebo/Isaac 物理仿真仍缺口。采摘方向 / 接触对错仍以真机 `runs/` + [testing-log.md](testing-log.md) 为最终权威（KEEP）；`colcon test` 绿不是田间验收。语法与流程由审查核对。套入剪切软件门看 flake8 / pep257 / uncrustify 与纯核表；`peach_arm` 整测项跳过 cpplint（其 legal/copyright 与 Google include 顺序检查同本项目「文件头版权块项目结束再补」「include own-first」约定冲突，CMake 已 `set(ament_cmake_cpplint_FOUND TRUE)`），C++ 风格门以 uncrustify 为准、静态分析走 cppcheck。`ament_xmllint` 会拉 `package_format3.xsd`，网络卡住超时不阻塞本产品路径。
 
-不要删 `_archive/runs/` 与现场 `runs/` 的文本与账本；bag 二进制例外——observability 按 `record.max_total_bag_gb` 预算自动回收最旧的 `session_*/bag` 与旧 `mcap_*`（解析总结 `bag_report.md/json`、账本与一切文本保留，回收逐条写 `runs/retention_audit.jsonl`）。未授权不得真机运动或 SetIO。硬件急停在示教器/柜，不经 ROS。launch **不自动** `RunHarvest`。采摘应用七包职责见 [architecture.md](architecture.md) §3。旁路视觉抓取四包（`ivg_interfaces` / `ivg_utils` / `ivg_pose_estimation` / `ivg_graspnet`）不进整栈 launch。`serial_imu` 随 `harvest_system` 起（`imu_enabled` 默认 true），不进 lifecycle、不进只读 bringup。`imu_follow`（IMU 姿态跟随）独立 launch、不随整栈，`motion.enabled` 默认 false 只算不发。
+不要删 `_archive/runs/` 与现场 `runs/` 的文本与账本；bag 二进制例外——observability 按 `record.max_total_bag_gb` 预算自动回收最旧的 `session_*/bag` 与旧 `mcap_*`（解析总结 `bag_report.md/json`、账本与一切文本保留，回收逐条写 `runs/retention_audit.jsonl`）。未授权不得真机运动或 SetIO。硬件急停在示教器/柜，不经 ROS。launch **不自动** `RunHarvest`。采摘应用七包职责见 [architecture.md](architecture.md) §3。旁路视觉抓取三包（`ivg_interfaces` / `ivg_pose_estimation` / `ivg_graspnet`）不进整栈 launch。`serial_imu` 随 `harvest_system` 起（`imu_enabled` 默认 true），不进 lifecycle、不进只读 bringup。`imu_follow`（IMU 姿态跟随）独立 launch、不随整栈，`motion.enabled` 默认 false 只算不发。
 
 ---
 
@@ -29,9 +29,9 @@
 
 **单轮复盘完备集（2026-09-17 起）**：① 会话 bag 录 `/rosout` 全量节点日志（`record.rosout` 默认开，stamp/level/logger 可回放：`ros2 bag play` 后 `ros2 topic echo /rosout`）；② ros2 自动日志在 `~/.ros/log/<launch 时间戳>/launch.log`（含全部进程 stdout，目录时间戳=起栈时刻）；③ `runs/<request_id>/` 账本与事件流。三者按运行窗口归集：`python3 scripts/collect_round.py <request_id>` → 生成 `runs/<rid>/round_report.md`（逐目标 outcome 表 + 感知/重建时间轴 + 自动日志关键行 + bag 互链）。
 
----
 **全量录制（`record.level`，2026-09-17 起）**：`std`（默认）=计算图通配发现订阅域内全部话题自动进会话 bag（新话题无需改代码即被录），相机 raw 大流限 1Hz；`all`=同上但大流不限速（真全量，仿真复现首选；stereo 前端约 50MB/s，超 `max_total_bag_gb` 预算靠 retention 回收）；`core`=仅 `bag_topics` 别名表（旧行为）。运行时切档：改 `observability.yaml` 后重启，或 `ros2 param set /peach_observability record.level all` 再重启节点生效（订阅在 activate 期建立）。
 
+---
 
 ## 1. 构建与开发机
 
@@ -51,7 +51,7 @@ bash scripts/r0_gate.sh
 # colcon test --packages-select peach_interfaces peach_harvester peach_arm peach_bringup peach_observability peach_system_tests
 ```
 
-现行纯核另含：`param_rules` / `identity` / `tool_budget` / `harvest_fsm`（EventHold） / `idl_constants`（HarvestState/ControlTask/ManageLifecycleNodes 数值对账） / `path_metrics` / `domain`（reducer、ledger、watchdog、model_contract、evidence） / `pregrasp_level` gtest。Python 键名冻结测试对照 yaml（感知两节点 + 调度/观测/lifecycle）；C++ 新合同字段走 generate_parameter_library。`.github/workflows/jazzy.yaml`：`peach-core` 跑同一纯核门 + numpy 1.26.4；`industrial_ci` 在 Docker 里 `colcon` 编测驱动与 peach（`COLCON_IGNORE` IVG 四包、`imu_follow`、`percipio_camera`，无真机 job）。scipy 不进 `package.xml`（venv-first KEEP）；ICI 用 apt `python3-scipy` / `python3-pytest` / `python3-yaml`（`ros:jazzy` numpy 已 1.26.4，不再 Docker 内 pip）。`peach_system_tests` isolated launch_testing 起 mock `harvest_system`（`camera_enabled:=false` `imu_enabled:=false`，`QT_QPA_PLATFORM=offscreen`，`AUBO_RUNS_DIR` 指临时目录），断言 `/joint_states` 含 MUST 六关节名（JSB 的 name 数组常为字母序，按下标当 MUST 序会拧腕）与 lifecycle Active，**不**发 `RunHarvest`。headless 下 `move_group`/`rviz2` 退出码不纳入 peach 进程门。本机已有栈残留时预检拒测（只认节点 argv0 或 `.../lib/<pkg>/<node>`，不认 colcon 包名参数）。
+现行纯核另含：`param_rules` / `identity` / `tool_budget` / `harvest_fsm`（EventHold） / `idl_constants`（HarvestState/ControlTask/ManageLifecycleNodes 数值对账） / `path_metrics` / `domain`（reducer、ledger、watchdog、model_contract、evidence） / `pregrasp_level` gtest。Python 键名冻结测试对照 yaml（感知两节点 + 调度/观测/lifecycle）；C++ 新合同字段走 generate_parameter_library。`.github/workflows/jazzy.yaml`：`peach-core` 跑同一纯核门 + numpy 1.26.4；`industrial_ci` 在 Docker 里 `colcon` 编测驱动与 peach（`COLCON_IGNORE` IVG 三包、`imu_follow`、`percipio_camera`、`camera_calibration`，无真机 job）。scipy 不进 `package.xml`（venv-first KEEP）；ICI 用 apt `python3-scipy` / `python3-pytest` / `python3-yaml`（`ros:jazzy` numpy 已 1.26.4，不再 Docker 内 pip）。`peach_system_tests` isolated launch_testing 起 mock `harvest_system`（`camera_enabled:=false` `imu_enabled:=false`，`QT_QPA_PLATFORM=offscreen`，`AUBO_RUNS_DIR` 指临时目录），断言 `/joint_states` 含 MUST 六关节名（JSB 的 name 数组常为字母序，按下标当 MUST 序会拧腕）与 lifecycle Active，**不**发 `RunHarvest`。headless 下 `move_group`/`rviz2` 退出码不纳入 peach 进程门。本机已有栈残留时预检拒测（只认节点 argv0 或 `.../lib/<pkg>/<node>`，不认 colcon 包名参数）。
 
 全新机器 / 新环境自检与部署：`scripts/env_bootstrap.sh check|install|all`（幂等；check 零改动、退出码=缺失项数，`SMOKE=1` 追加 mock 冒烟）。脚本内 apt/venv/udev 清单是依赖事实源之一，变更依赖须四处同步：package.xml、requirements.txt、脚本清单、本节。
 
@@ -102,10 +102,10 @@ ros2 launch peach_bringup harvest_system.launch.py \
 
 ```bash
 colcon test --packages-select ivg_interfaces ivg_pose_estimation ivg_graspnet
-# GraspNet 纯核（torch 在 venv）
-./aubo_py3.12/bin/python -m pytest src/ivg_graspnet/test/test_grasp_core.py
+# GraspNet 纯核（torch 在 venv；须在包目录下跑，模块才可导入）
+cd src/ivg_graspnet && ../../aubo_py3.12/bin/python -m pytest test/test_grasp_core.py && cd ../..
 # 估姿 Web 回归（fastapi/httpx 在 venv；系统 python 下整文件 skip）
-./aubo_py3.12/bin/python -m pytest src/ivg_pose_estimation/ivg_pose_estimation/test/test_web_app.py
+./aubo_py3.12/bin/python -m pytest src/ivg_pose_estimation/test/test_web_app.py
 # 接触检测纯核（g++ 编译 contact_monitor.hpp，零 ROS）
 python3 -m pytest src/peach_arm/test/test_contact_monitor.py
 ```
@@ -262,9 +262,11 @@ ros2 action send_goal /peach_supervisor/run_harvest peach_interfaces/action/RunH
 aubo_py3.12/bin/python _archive/parked_2026-08-24/tools/passthrough_traj_client.py wave_shoulder
 ```
 
-### 手眼
+### 标定（手眼外参 + 彩色内参）
 
-日常采摘不跑标定，但必须有 `src/aubo_hand_eye_calibration/hand_eye/active.yaml`（gitignore）。没有则名义 TF 平移 2 cm、单位四元数，光学系会偏约 10 cm。现场副本 `_archive/runs/hand_eye/`。平移应接近 `[0.045, 0.108, 0.002]`，不是 `[0, 0, 0.020]`。
+日常采摘不跑标定，但必须有 `src/aubo_hand_eye_calibration/hand_eye/active.yaml`（入库随仓；改值或覆盖后重启 extrinsics_publisher 生效）。没有则名义 TF 平移 2 cm、单位四元数，光学系会偏约 10 cm。`_archive/runs/hand_eye/` 是历史归档，不被任何代码读取。平移应接近 `[0.045, 0.108, 0.002]`，不是 `[0, 0, 0.020]`。
+
+手眼外参（real，需示教器上电与授权；求解核=OpenCV `calibrateHandEye` 五方法＋MAD＋Huber 精化，`per_frame_reprojection_rms_px` 为单帧门、`max_reprojection_rms_px` 为求解门）：
 
 ```bash
 ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real \
@@ -272,6 +274,37 @@ ros2 launch aubo_e5_bringup bringup.launch.py hardware_mode:=real \
 # 浏览器只开回环 http://127.0.0.1:8088
 ros2 service call /hand_eye_extrinsics_publisher/reload std_srvs/srv/Trigger {}
 ```
+
+彩色内参（棋盘格，与手眼同一块 11x8 内角点 @20mm 板；先起相机前端 percipio 或 stereo；需 X 显示）：
+
+```bash
+ros2 launch aubo_hand_eye_calibration intrinsics_calibration.launch.py
+# GUI: 采满进度条 -> CALIBRATE -> SAVE  （写出 /tmp/calibrationdata.tar.gz；
+# COMMIT 不可用——两前端均无 set_camera_info 服务）
+ros2 run aubo_hand_eye_calibration apply_intrinsics /tmp/calibrationdata.tar.gz
+# 校验（分辨率 640x480、焦距、主点、畸变系数个数）后原子写入
+# src/percipio_camera/config/color_camera_info.yaml
+colcon build --packages-select percipio_camera   # launch 读 install 副本, 必须重建
+# 重启相机前端后验证:
+ros2 topic echo /camera/color/camera_info --once   # 核对 K 与文件一致
+```
+
+**auto 档（自动视点 + 内外参联合求解，2026-09-17 新增）**：默认仍 poses 示教位姿；auto 需真机+相机+授权。前置：棋盘格固定摆放在臂可达处且当前画面可见；`hand_eye/active.yaml` 存在（初始外参定位板，缺失明确报错、**不做名义回退**）。几何量全部运行时取自活的 `camera_info`（相机无关；视点距离按「板宽画面占比」反推，适配任意焦距）。
+
+```bash
+# 与手眼同一 launch / Web 界面; 动作 goal 切档:
+ros2 action send_goal /hand_eye_calibration_server/run \
+  aubo_msgs/action/RunHandEyeCalibration \
+  "{pose_source: auto, solve_target: joint, return_to_start: true}"
+```
+
+流程：当前帧定位板 → FOV 掩码过滤的环绕视点（极角 0–45°、方位 60° 步进、三档画面占比，余量 8%）→ 贪心选出旋转跨度 ≥30° 的视点队列 → plan-only 预检（不可达/碰撞视点跳过、冗余候选补位，有效 <12 拒跑）→ settle 后逐帧同步采集（每视点取帧内 RMS 最小前 2 帧**原始角点**，不做 SE3 均值）→ 联合求解（`calibrateCamera` 初始化 + 五方法 hand-eye 初值 + 20 参数 Huber 联合抛光）→ 产物落 `hand_eye/candidates/`（transforms + `intrinsics` 节 + `viewpoints` 明细 + joint 指标）。**FOV 保证是视点位的静态保证，视点间 transit 不承诺**（采集仅在 settle 后）。
+
+验收门：joint 总重投影 RMS ≤0.8px（`joint_max_reprojection_rms_px`）+ 沿用平移/旋转一致性与跨度门；新外参与旧 active 差应在 mm 级。内参生效三步：`~/activate` 激活 → `ros2 run aubo_hand_eye_calibration apply_intrinsics src/aubo_hand_eye_calibration/hand_eye/active.yaml`（读 `intrinsics` 节）→ `colcon build --packages-select percipio_camera` 后重启前端。
+
+离线复算（对已保存 tarball 重跑并打印 K/D/R/P）：
+`ros2 run camera_calibration tarfile_calibration --mono -s 11x8 -q 0.020 /tmp/calibrationdata.tar.gz`。
+内参变更后手动更新 `src/peach_harvester/config/scene_perception.yaml` 的 `calibration_version` 标签；感知/重建按新 K 重验。标定器是 vendored image_pipeline jazzy 包（`src/camera_calibration`，勿与 apt 同名包并装）。
 
 ### 授权后真运动（本页不写默认使能）
 

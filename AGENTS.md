@@ -598,7 +598,7 @@ flowchart TB
 - 新功能：先单测，再 launch_testing，最后才真机
 - 真机命名：[docs/testing.md](docs/testing.md) 的 `field_pregrasp_*` / `field_full_*`；`request_id` 不复用
 - `colcon test` 绿 **不等于** 采摘方向验收；也不再把“禁止仿真测”写成原则
-- CI DEFAULT：[industrial_ci](https://github.com/ros-industrial/industrial_ci) GitHub Action，`ROS_DISTRO: jazzy`，跑 build+test。真机 job 不进 PR 必过门。本仓 `.github/workflows/jazzy.yaml`：`peach-core` = `scripts/r0_gate.sh`；`industrial_ci` job 编测驱动+peach（忽略 IVG / `imu_follow` / `percipio_camera`；apt scipy/pytest/yaml，不 Docker pip）
+- CI DEFAULT：[industrial_ci](https://github.com/ros-industrial/industrial_ci) GitHub Action，`ROS_DISTRO: jazzy`，跑 build+test。真机 job 不进 PR 必过门。本仓 `.github/workflows/jazzy.yaml`：`peach-core` = `scripts/r0_gate.sh`；`industrial_ci` job 编测驱动+peach（忽略 IVG / `imu_follow` / `percipio_camera` / `camera_calibration`；apt scipy/pytest/yaml，不 Docker pip）
 
 ### launch_testing 怎么写（新接线用这个，不再禁止）
 
@@ -636,7 +636,7 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 
 只记录现在跑什么。没有 KEEP 理由的条目见第 12 章，标 UNWIND。细节链到三份活文档，不把 architecture 复制进来。
 
-产品：固定座 AUBO E5 + Percipio RGB-D；愿景含底盘。`peach_navigation` 已归档 `_archive/parked_2026-09/`。IVG 四包与 `imu_follow` 不是 peach，不进 `harvest_system` / lifecycle（产品范围 KEEP）。`imu_follow` 开运动时不经 `authorizeStage`，真机须另授权。
+产品：固定座 AUBO E5 + Percipio RGB-D；愿景含底盘。`peach_navigation` 已归档 `_archive/parked_2026-09/`。IVG 三包与 `imu_follow` 不是 peach，不进 `harvest_system` / lifecycle（产品范围 KEEP）。`imu_follow` 开运动时不经 `authorizeStage`，真机须另授权。
 
 ### KEEP（完美适配当前实现）
 
@@ -680,7 +680,7 @@ lifecycle 名单现行（nav2_lm 承载，bond_timeout=0）：场景 → 重建 
 - lifecycle 无 bond
 - peach 节点不用 composition
 - 禁止 gtest / launch_testing / 采摘仿真测（决策 0006）
-- 无 Gazebo / Isaac 系统测；industrial_ci 已进 workflow（忽略 IVG / `imu_follow` / `percipio_camera`）
+- 无 Gazebo / Isaac 系统测；industrial_ci 已进 workflow（忽略 IVG / `imu_follow` / `percipio_camera` / `camera_calibration`）
 - 无 diagnostic_updater 的 peach 主路径（`serial_imu` 已用）
 - 8090 若越权成第二控制面（纯调试客户端仍 KEEP）
 - 腕轴 `ContactMonitor` 默认关；无 Nav2 Collision Monitor 同类独立监视（**不能**代替柜急停）
@@ -701,7 +701,7 @@ lifecycle 名单现行（nav2_lm 承载，bond_timeout=0）：场景 → 重建 
 | 单测 | gtest + pytest | 仅零 ROS pytest；禁 gtest | 否 | 新 C++ 用 gtest |
 | 集成测 | launch_testing + isolated domain | 禁止 launch_testing（0006） | 否 | 新接线/生命周期用 launch_testing |
 | 系统测 | 独立 `*_tests` 包；Gazebo / Isaac | 手工 `scripts/sim_field_targets.py` | 否 | 逐步收进 colcon；真机仍最终权威 |
-| CI | industrial_ci | `.github/workflows/jazzy.yaml` 有 r0_gate + industrial_ci（忽略 IVG/`imu_follow`/`percipio_camera`） | 否（切法） | 真机 job 仍不进 PR 必过门 |
+| CI | industrial_ci | `.github/workflows/jazzy.yaml` 有 r0_gate + industrial_ci（忽略 IVG/`imu_follow`/`percipio_camera`/`camera_calibration`） | 否（切法） | 真机 job 仍不进 PR 必过门 |
 | 诊断 | `diagnostic_updater` | peach 主路径未用；`serial_imu` 已用；8090 自研 | 否（peach 主路径） | 新健康信号走 `/diagnostics` |
 | 话题名当参数 | 默认名 + remap | 多数已相对名 | — | 禁止 `declare_parameter("image_topic")` |
 | 自研 TF / 插值 | tf2 / MoveIt / JTC | 部分几何自研 | 视情况 | 库已有的不要重写 |

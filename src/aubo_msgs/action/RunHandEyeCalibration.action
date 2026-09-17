@@ -1,10 +1,17 @@
-# 按配置位姿跑一遍眼在手上手眼标定（采集棋盘格 → 求解 → 落盘候选，不自动激活）。
+# 跑一遍眼在手上标定（采集棋盘格 → 求解 → 落盘候选，不自动激活）。
 # 服务端：aubo_hand_eye_calibration。激活另调 ActivateHandEyeCalibration。
+# pose_source=poses: 按配置位姿（默认）；pose_source=auto: 由当前图像定位
+# 固定棋盘格并自动生成保持视野的笛卡尔视点（需初始外参 active.yaml）。
+# solve_target=hand_eye: 仅外参（内参取自 camera_info）；joint: 内外参联合求解。
 
 bool plan_only         # true=只规划/检查采集位姿，不运动、不求解
 bool return_to_start   # 采集结束后是否回到起始位姿
 # 求解方法: auto|tsai|park|horaud|andreff|daniilidis, 空串 = 服务端 solver_method 参数 (默认 auto)
 string method
+# 位姿来源: poses|auto, 空串 = 服务端 pose_source 参数 (默认 poses)
+string pose_source
+# 求解目标: hand_eye|joint, 空串 = 服务端 solve_target 参数 (默认 hand_eye)
+string solve_target
 ---
 bool success
 string message
@@ -16,6 +23,10 @@ float64 translation_rms_m                    # 平移 RMS [m]
 float64 rotation_rms_deg                     # 旋转 RMS [deg]
 float64 reprojection_rms_px                  # 重投影 RMS [px]
 string result_file                           # 候选 yaml 路径
+# 联合求解（solve_target=joint）时的内参; 未跑 joint 时为单位阵/空
+float64[9] camera_matrix
+float64[] distortion_coefficients
+float64 joint_reprojection_rms_px            # 联合求解总重投影 RMS [px]
 ---
 string stage           # 当前阶段名（moving/capturing/solving/...）
 string detail          # 人读进度说明

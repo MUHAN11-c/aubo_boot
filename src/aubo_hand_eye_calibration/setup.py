@@ -23,6 +23,7 @@ setup(
     license='BSD-3-Clause',
     entry_points={
         'console_scripts': [
+            'apply_intrinsics = aubo_hand_eye_calibration.intrinsics:main',
             'calibration_server = aubo_hand_eye_calibration.server:main',
             'extrinsics_publisher = aubo_hand_eye_calibration.extrinsics_publisher:main',
             'web_gateway = aubo_hand_eye_calibration.web_gateway:main',

@@ -653,3 +653,39 @@ F1✅ F2✅ F3✅ F4✅ F5✅ F6✅ F7✅ F8⚠️ F9✅ F10✅ F11✅ F12⚠️
 Web 四栏升级、recorder 剥 Web、imu_follow/感知/调度 GPL、数据集导出（Mimosa 拦截）、Survey/Begin/Build/OBSERVE 删除（conservative 依赖）。
 
 
+
+---
+
+## 2026-09-17 IVG 旁路包精简轮（四包→三包，ivg_utils 删除）
+
+检索依据（AGENTS 第 3 章）：scipy 官方 `Rotation` 文档 + ros2_control/UR 无关本域；`message_filters` 因触发-等待节拍是产品 KEEP 不替换。前置等价性验证：6.1 万随机旋转对比手写公式 vs `scipy.spatial.transform.Rotation`（quat→矩阵逐元素一致；矩阵→quat 同旋转、6.5% 情形返回等价反号四元数且两处调用方均为旋转级消费；RPY 含万向节锁一致）。
+
+### 删除
+
+- `ivg_utils` 整包（伪共享：全仓唯一消费者 ivg_pose_estimation；`constants.py` 7 常量零引用，原 Worker 类已不存在；手写四元数/旋转公式换 scipy，`filter_components_by_params` 迁入 `feature_extractor.py` 私有函数；`normalize_angle_to_180/pi` 死代码删，pose_estimator 自有副本与 3 处 while 归一化统一 `np.mod`）
+- `ivg_pose_estimation/config_reader.py`（死兼容 shim，全仓零模块 import）；4 处「委托 ivg_utils」包装方法与 `__init__` 转出口；2 处内联四元数公式
+- 模板垃圾：GBK「副本」json、rembg 残留 nobg.png、零引用 hand_eye_calibration.xml、测试工件 `55555555555555/`（912K 无位姿）、3211242785 半成品 pose_5/6
+- 死配置键链：`enable_zero_interp` / `enable_smooth_edges` / `smooth_edges_blur_sigma` / `max_threads`（config/ros2_communication/native_api 三处映射）
+- Web：前端零调用的 `/api/save_debug_features` 端点（连同测试断言）；`/api/get_template_image` 初判「前端零调用」**误判**——app.js `displayTemplateImage`（模板列表动态按钮调用）依赖它，已恢复并加固（文件名拒路径分隔符 + `_safe_template_dir` 越界校验，测试补穿越用例）；`WebPaths` 4 个零消费者成员（docs_dir/legacy_scripts_dir/debug_thresholds_file/pose_list_dir）及 manager→runtime_support→native_api 末端链；`bridge_module` property、`_load_bridge_module` importlib 间接层、`_app_config_cached`
+- pose_estimator `template_results` 只写不读结构；`save_metadata` 死参；setup.py 死 glob（web_ui/*.txt|*.sh、scripts/*.py）；app.js 硬编码 `/home/nvidia/RVG_ws`、空 for、假 deleteTemplate
+
+### 修正（顺带，最小 diff）
+
+- `EstimatePose.srv` 补 `string message`（服务端 4 处赋值原先抛 AttributeError 被兜底吞掉、失败文案丢失——存量 bug）；5 个 srv 注释去「喵~」噪声、服务方旧名 `visual_pose_estimation` 改 `ivg_pose_estimation` 节点
+- **存量 bug：Web 桥从未启动过**——`RosBridgeManager.start()` 访问 `node_runtime.rclpy`，但该模块只有 `from rclpy.node import Node` 不绑定 `rclpy` 名字 → AttributeError → `startup_error`，所有需 node 的端点恒 500（测试全用 dummy node 掩盖）。修复：node_runtime 顶部显式 `import rclpy`（noqa 注明供 manager 模块属性访问）。Web 冒烟复验 `ros_bridge_ready:true`
+- Web 模板端点（get_template_image/read/save/capture_template_image）加 `resolve()`+`is_relative_to` 越界校验（闭路径穿越读写）；CORS `allow_credentials=True`+通配源（规范禁止的组合）改 False
+- launch 默认 calib_file 从不存在的 `web_ui/configs/hand_eye_calibration.yaml` 改空串走标准候选链
+- testing.md 旁路 pytest 路径笔误（test_web_app 双层路径）与 graspnet 须在包目录下执行的说明
+
+### 教训
+
+- `graspnet_lib/AMENT_IGNORE` 是**有效**机制（ament lint 尊重子目录标记）：删除后 colcon test 的 flake8 用例立刻对 vendored 代码报一串风格违规（该包唯一测试失败），已恢复——审计结论「对 ament_python 无功能」被实测推翻，精简前先跑测试再删标记
+- `manager.py` 的 importlib 间接层看似冗余实为懒加载（保 web 层无 rclpy 可导入）；简化时保留懒加载语义（函数内 `from . import node_runtime`）
+
+### 验收
+
+colcon build/test 三包全绿（222 tests 0 failures）；venv 回归 test_web_app 12 passed、test_grasp_core 8 passed；Web 冒烟（:18088）health/templates/redirect 通、桥 ready；ROS 节点冒烟启动成功（scipy 链）。活文档同步：AGENTS/architecture/io/testing 四包→三包口径；CI workflow touch 行删 ivg_utils。遗留（记入本表不实施）：templates 未装进 share 依赖源码树解析；连通域筛选两套、内参解析两份、阈值映射三份、estimate_pose/2d 管线五处中风险合并留后续轮。
+
+### 同日复核轮（逻辑/流程/数学审查）
+
+数值实测：np.mod 两种归一化 40 万样本扫描与旧 while 循环等价（仅 ±180 边界互换=同角度、1e-18 级浮点噪声）；下游角度消费经 `arctan2(sin,cos)` 归一化对边界互换天然免疫；模板库 70 个四元数全部单位（scipy 非单位归一化差异不触达）；cv2 0°/360° 矩阵一致。复核发现并修复：守卫初版漏 `..`（pathlib 视其为普通组件，`Path('..').name=='..'`，只查 name 拦不住）且 `pose_id` 含 `/` 可沙箱内重定向——改单段组件校验（非空/单组件/不含 `..`）+ 越界双重校验，对抗 12 用例与真实 HTTP 层（三类越界全 400）复验；3D handler 兜底 except 补 `response.message`（加字段正是为此路径）。另发现存量无害项：StandardizeTemplate 处理器成功摘要写入不存在的 message 字段被 hasattr 静默跳过（错误信息走 error_message 不丢）。

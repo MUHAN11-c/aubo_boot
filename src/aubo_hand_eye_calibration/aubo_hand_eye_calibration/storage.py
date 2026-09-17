@@ -56,6 +56,8 @@ def write_candidate(
     method_scores=None,
     sample_errors=None,
     refine_stats=None,
+    intrinsics=None,
+    viewpoints=None,
 ):
     directory = Path(directory or default_storage_directory())
     candidates = directory / 'candidates'
@@ -91,13 +93,20 @@ def write_candidate(
         'method_scores': list(method_scores or []),
         'sample_errors': list(sample_errors or []),
         'refine_stats': dict(refine_stats or {}),
+        # joint 档增量节 (读取侧 .get(), 旧候选无这些键):
+        # intrinsics 为等价 OST 文档, apply_intrinsics 可直接落盘
         'samples': list(samples),
     }
-    _atomic_yaml(path, document)
+    if intrinsics is not None:
+        document['intrinsics'] = dict(intrinsics)
+    if viewpoints is not None:
+        document['viewpoints'] = list(viewpoints)
+    atomic_write_yaml(path, document)
     return path
 
 
-def _atomic_yaml(path, document):
+def atomic_write_yaml(path, document):
+    """原子写 yaml (mkstemp + fsync + os.replace); intrinsics 落盘共用."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     file_descriptor, temporary_name = tempfile.mkstemp(
@@ -135,5 +144,32 @@ def activate_candidate(candidate_id, directory=None):
     document = dict(document)
     document['activated_at'] = datetime.now(timezone.utc).isoformat()
     document['source_candidate'] = str(candidate_path)
-    _atomic_yaml(active, document)
+    atomic_write_yaml(active, document)
     return active
+
+
+def load_active_extrinsics(path=None):
+    """
+    读 active.yaml 的 wrist_from_camera_optical (4x4), 供 auto 档做 X0.
+
+    缺失/损坏/缺键一律抛 ValueError —— 名义 TF 已知偏约 10cm,
+    不能用于轨迹生成, 不做静默回退。
+    """
+    active = Path(path) if path else (
+        default_storage_directory() / 'active.yaml')
+    if not active.is_file():
+        raise ValueError(
+            f'初始外参缺失: {active}; 先跑 poses 档标定或导入 active.yaml')
+    with active.open(encoding='utf-8') as stream:
+        data = yaml.safe_load(stream)
+    try:
+        matrix = np.asarray(
+            data['transforms']['wrist_from_camera_optical']['matrix'],
+            dtype=np.float64).reshape(4, 4)
+    except (KeyError, TypeError) as error:
+        raise ValueError(
+            f'{active} 缺 transforms.wrist_from_camera_optical.matrix') \
+            from error
+    if not np.all(np.isfinite(matrix)):
+        raise ValueError(f'{active} 外参矩阵含非有限值')
+    return matrix

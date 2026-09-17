@@ -15,7 +15,7 @@
 | §5.3 | `peach_observability` | `peach_observability`（8090 / 会话 bag） |
 | §6 | 驱动九包 | 臂 / 相机 / TF（只读红线见 AGENTS） |
 | §7 | `serial_imu` | 随 `harvest_system`（`imu_enabled`），不进 lifecycle |
-| §8 | 旁路视觉抓取 | `ivg_pose_estimation`、`ivg_graspnet`（IDL=`ivg_interfaces`；共享 `ivg_utils`） |
+| §8 | 旁路视觉抓取 | `ivg_pose_estimation`、`ivg_graspnet`（IDL=`ivg_interfaces`；数学=scipy） |
 
 各节点流程图在对应小节（入口 → 处理 → 输出）。跨包谁叫谁见 §1。批次时序与技能阶段序列见 [architecture.md](architecture.md) 图 C / 图 D。
 
@@ -656,7 +656,7 @@ flowchart TB
 
 ## 8. 旁路视觉抓取（不进采摘）
 
-不在 peach 清单、采摘核不订、不进 `harvest_system` / lifecycle。四包：`ivg_interfaces`（估姿 1 msg + 5 srv）、`ivg_utils`（无节点）、`ivg_pose_estimation`、`ivg_graspnet`。与采摘共用 Percipio 图像/点云与 `extrinsics_publisher` TF；检测 launch **不**再起相机或手眼节点。
+不在 peach 清单、采摘核不订、不进 `harvest_system` / lifecycle。三包：`ivg_interfaces`（估姿 1 msg + 5 srv）、`ivg_pose_estimation`、`ivg_graspnet`（旋转数学统一 scipy，`ivg_utils` 已于 2026-09-17 精简轮删除）。与采摘共用 Percipio 图像/点云与 `extrinsics_publisher` TF；检测 launch **不**再起相机或手眼节点。
 
 ### `ivg_pose_estimation`
 
@@ -672,7 +672,7 @@ flowchart LR
 
 | 名字 | 含义 |
 |------|------|
-| `~/estimate_pose` | 深度(+可选彩色) → 6D 与抓取/放置笛卡尔位 |
+| `~/estimate_pose` | 深度(+可选彩色) → 6D 与抓取/放置笛卡尔位（响应含 `message` 状态/失败原因字段） |
 | `~/estimate_pose_2d` | RGB → 像素中心与转角 |
 | `~/list_templates` | 列出模板库 |
 | `~/standardize_template` | 标准化某工件模板 |

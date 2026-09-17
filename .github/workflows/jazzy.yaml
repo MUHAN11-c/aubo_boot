@@ -31,8 +31,8 @@ jobs:
           ADDITIONAL_DEBS: python3-scipy python3-pytest python3-yaml
           BEFORE_BUILD_TARGET_WORKSPACE: >-
             touch src/ivg_interfaces/COLCON_IGNORE
-            src/ivg_utils/COLCON_IGNORE
             src/ivg_pose_estimation/COLCON_IGNORE
             src/ivg_graspnet/COLCON_IGNORE
             src/imu_follow/COLCON_IGNORE
             src/percipio_camera/COLCON_IGNORE
+            src/camera_calibration/COLCON_IGNORE

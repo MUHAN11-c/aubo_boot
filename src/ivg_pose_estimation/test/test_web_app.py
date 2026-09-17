@@ -266,6 +266,10 @@ def test_native_template_routes():
             "/api/get_template_image",
             params={"workpiece_id": "../../etc", "pose_id": "1", "image_name": "passwd"},
         )
+        dotdot_name_response = client.get(
+            "/api/get_template_image",
+            params={"workpiece_id": "demo_workpiece", "pose_id": "1", "image_name": ".."},
+        )
         ids_response = client.post("/api/list_workpiece_ids")
 
     assert list_response.status_code == 200
@@ -276,6 +280,7 @@ def test_native_template_routes():
     assert image_response.status_code == 200
     assert image_response.headers["content-type"] == "image/jpeg"
     assert traversal_response.status_code == 400
+    assert dotdot_name_response.status_code == 400
     assert ids_response.status_code == 200
     assert ids_response.json()["workpiece_ids"] == ["demo_workpiece"]
 

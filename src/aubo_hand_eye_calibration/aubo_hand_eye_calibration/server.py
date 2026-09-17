@@ -52,15 +52,33 @@ from tf2_ros import Buffer, TransformException, TransformListener
 import yaml
 
 from .board import board_from_node
+from .defaults import (
+    DEFAULT_BASE_FRAME,
+    DEFAULT_CAMERA_OPTICAL_FRAME,
+    DEFAULT_CAMERA_ROOT_FRAME,
+    DEFAULT_WRIST_FRAME,
+)
 from .detector import CheckerboardDetector
-from .solver import CalibrationSample, solve_hand_eye, VALID_METHODS
-from .storage import activate_candidate, write_candidate
+from .joint_calib import JointObservation, solve_joint_intrinsics_hand_eye
+from .solver import (
+    CalibrationResult,
+    CalibrationSample,
+    solve_hand_eye,
+    VALID_METHODS,
+)
+from .stats import mad_mask_1d
+from .storage import (
+    activate_candidate,
+    load_active_extrinsics,
+    write_candidate,
+)
 from .transforms import (
     inverse,
     mean_transform,
     transform_from_xyz_quat,
     transform_to_xyz_quat,
 )
+from .viewpoints import candidate_viewpoints, select_diverse
 
 
 def _matrix_from_transform(transform):
@@ -98,17 +116,6 @@ def _transform_message(matrix):
     return message
 
 
-def _mad_filter(values, threshold=3.5):
-    """返回 MAD 内点掩码; 样本太少时全部保留."""
-    values = np.asarray(values, dtype=np.float64)
-    if values.size < 4:
-        return np.ones(values.size, dtype=bool)
-    median = np.median(values)
-    mad = np.median(np.abs(values - median))
-    scale = max(1.4826 * mad, 1e-9)
-    return np.abs(values - median) / scale <= threshold
-
-
 class CalibrationServer(Node):
     def __init__(self):
         super().__init__('hand_eye_calibration_server')
@@ -119,16 +126,16 @@ class CalibrationServer(Node):
             'poses_file', str(defaults / 'poses.yaml'),
             ParameterDescriptor(description='标定位姿定义文件 (yaml) 路径'))
         self.declare_parameter(
-            'base_frame', 'base_link',
+            'base_frame', DEFAULT_BASE_FRAME,
             ParameterDescriptor(description='机器人基座坐标系'))
         self.declare_parameter(
-            'wrist_frame', 'wrist3_Link',
+            'wrist_frame', DEFAULT_WRIST_FRAME,
             ParameterDescriptor(description='腕部 (法兰) 坐标系'))
         self.declare_parameter(
-            'camera_root_frame', 'camera_link',
+            'camera_root_frame', DEFAULT_CAMERA_ROOT_FRAME,
             ParameterDescriptor(description='相机安装座坐标系 (外参发布目标)'))
         self.declare_parameter(
-            'camera_optical_frame', 'camera_color_optical_frame',
+            'camera_optical_frame', DEFAULT_CAMERA_OPTICAL_FRAME,
             ParameterDescriptor(description='相机光学坐标系 (标定求解目标)'))
         self.declare_parameter(
             'move_group', 'manipulator_e5',
@@ -188,7 +195,15 @@ class CalibrationServer(Node):
             ParameterDescriptor(description='目标姿态约束容差 (rad)'))
         self.declare_parameter(
             'max_reprojection_rms_px', 1.0,
-            ParameterDescriptor(description='质量门: 重投影 RMS 上限 (px)'))
+            ParameterDescriptor(
+                description='质量门: 求解样本重投影 RMS 上限 (px)'))
+        # 单帧门: detector 逐帧丢弃重投影超限的观测。
+        # 历史实现是 max_reprojection_rms_px × 1.5 的隐式耦合,
+        # 2026-09-17 起为独立参数, 默认值等于当时的等效值
+        self.declare_parameter(
+            'per_frame_reprojection_rms_px', 1.5,
+            ParameterDescriptor(
+                description='单帧质量门: 丢弃重投影 RMS 超限的观测 (px)'))
         self.declare_parameter(
             'max_translation_rms_m', 0.003,
             ParameterDescriptor(description='质量门: 平移一致性 RMS 上限 (m)'))
@@ -205,12 +220,64 @@ class CalibrationServer(Node):
             ParameterDescriptor(
                 description='求解方法 auto|tsai|park|horaud|andreff|daniilidis, '
                             'goal.method 为空串时生效'))
+        # auto 档: 由当前图像定位固定棋盘格并自动生成保持视野的视点。
+        # 全部参数相机无关 —— 几何量运行时取自 camera_info
+        self.declare_parameter(
+            'pose_source', 'poses',
+            ParameterDescriptor(
+                description='位姿来源 poses|auto (goal.pose_source 为空串时生效)'))
+        self.declare_parameter(
+            'solve_target', 'hand_eye',
+            ParameterDescriptor(
+                description='求解目标 hand_eye|joint (joint=内参+外参联合求解)'))
+        self.declare_parameter(
+            'auto_min_poses', 12,
+            ParameterDescriptor(description='auto 档最少有效采集视点数'))
+        self.declare_parameter(
+            'auto_extra_candidates', 24,
+            ParameterDescriptor(
+                description='auto 档冗余候选数 (预检跳过不可达视点时补位)'))
+        self.declare_parameter(
+            'auto_polar_degrees', [0.0, 15.0, 30.0, 45.0],
+            ParameterDescriptor(description='视点极角列表 (相对板法向, deg)'))
+        self.declare_parameter(
+            'auto_azimuth_step_deg', 60.0,
+            ParameterDescriptor(description='视点方位角步进 (deg)'))
+        self.declare_parameter(
+            'auto_fill_fractions', [0.40, 0.55, 0.70],
+            ParameterDescriptor(
+                description='板宽占画面宽的目标比例 (反推视点距离, 适配任意焦距)'))
+        self.declare_parameter(
+            'auto_margin_fraction', 0.08,
+            ParameterDescriptor(description='FOV 掩码画面余量 (比例)'))
+        self.declare_parameter(
+            'auto_board_border_squares', 1.0,
+            ParameterDescriptor(
+                description='板外沿相对内角点格的扩展格数 (FOV 掩码用)'))
+        self.declare_parameter(
+            'auto_distance_range_m', [0.15, 1.20],
+            ParameterDescriptor(description='视点距离夹取范围 [m]'))
+        self.declare_parameter(
+            'auto_min_span_deg', 30.0,
+            ParameterDescriptor(description='视点腕部旋转跨度下限 (deg)'))
+        self.declare_parameter(
+            'joint_max_reprojection_rms_px', 0.8,
+            ParameterDescriptor(description='joint 档质量门: 总重投影 RMS 上限 (px)'))
+        self.declare_parameter(
+            'joint_frames_per_pose', 2,
+            ParameterDescriptor(
+                description='joint 档每视点参与求解的代表帧数 (按帧内 RMS 排序取前 N)'))
+        self.declare_parameter(
+            'initial_extrinsics_file', '',
+            ParameterDescriptor(
+                description='auto 档初始外参文件 (空串=存储目录 active.yaml); '
+                            '用于定位板与生成视点, 不做名义回退'))
 
         self._board = board_from_node(self)
         self._detector = CheckerboardDetector(
             self._board,
             max_reprojection_rms_px=float(
-                self.get_parameter('max_reprojection_rms_px').value) * 1.5,
+                self.get_parameter('per_frame_reprojection_rms_px').value),
         )
         self._bridge = CvBridge()
         self._camera_info = None
@@ -474,7 +541,8 @@ class CalibrationServer(Node):
     # ------------------------------------------------------------------
     # 流程各阶段
     # ------------------------------------------------------------------
-    async def _preflight_and_plan(self, goal_handle, poses, return_pose=None):
+    async def _preflight_and_plan(self, goal_handle, poses, return_pose=None,
+                                  skip_failures=False, required=0):
         if self._camera_info is None:
             raise RuntimeError('CameraInfo is unavailable')
         with self._observations_lock:
@@ -501,6 +569,7 @@ class CalibrationServer(Node):
         if return_pose is not None:
             validation_poses.append(return_pose)
         count = len(validation_poses)
+        valid_indices = []
         for index, pose in enumerate(validation_poses):
             if goal_handle.is_cancel_requested:
                 raise asyncio.CancelledError
@@ -513,6 +582,14 @@ class CalibrationServer(Node):
                 goal_handle, pose, plan_only=True, start_state=state)
             is_return_pose = index >= len(self._pose_status)
             if result is None:
+                if not is_return_pose and skip_failures:
+                    # auto 档: 不可达/碰撞视点跳过, 由冗余候选补位
+                    self._pose_status[index]['status'] = 'skipped'
+                    self._pose_status[index]['reason'] = error
+                    self._feedback(
+                        goal_handle, 'planning',
+                        f'{label} -> skipped ({error})', index + 1, count, 0)
+                    continue
                 if not is_return_pose:
                     self._pose_status[index]['status'] = 'plan_failed'
                     self._pose_status[index]['reason'] = error
@@ -522,9 +599,97 @@ class CalibrationServer(Node):
                     f'pose {index + 1} cannot be planned: {error}')
             if not is_return_pose:
                 self._pose_status[index]['status'] = 'planned'
+                valid_indices.append(index)
             state = self._final_state(result)
+        if skip_failures and len(valid_indices) < required:
+            raise RuntimeError(
+                f'only {len(valid_indices)} of {len(poses)} viewpoints are '
+                f'plannable; need {required}')
         self._feedback(goal_handle, 'planning', 'all poses plannable',
                        count, count, 0)
+        if skip_failures:
+            return [poses[index] for index in valid_indices]
+        return poses
+
+    def _generate_auto_poses(self):
+        """由当前图像定位固定棋盘格, 生成保持视野的候选视点 (腕部位姿)."""
+        if self._camera_info is None:
+            raise RuntimeError('CameraInfo is unavailable')
+        with self._observations_lock:
+            latest = self._observations[-1][1] if self._observations else None
+        if latest is None:
+            raise RuntimeError(
+                f'checkerboard ({self._board.describe()}) is not visible; '
+                'place it in front of the camera first')
+        base_from_wrist = self._lookup(
+            self.get_parameter('base_frame').value,
+            self.get_parameter('wrist_frame').value)
+        configured = self.get_parameter('initial_extrinsics_file').value
+        try:
+            x0 = load_active_extrinsics(
+                str(Path(configured)) if configured else None)
+        except ValueError as error:
+            raise RuntimeError(str(error)) from error
+        camera_matrix = np.asarray(
+            self._camera_info.k, dtype=np.float64).reshape(3, 3)
+        distortion = np.asarray(
+            self._camera_info.d, dtype=np.float64)
+        image_size = (
+            int(self._camera_info.width), int(self._camera_info.height))
+        base_from_target = base_from_wrist @ x0 @ latest.camera_from_target
+        if (not np.all(np.isfinite(base_from_target))
+                or np.linalg.norm(base_from_target[:3, 3]) > 2.0):
+            raise RuntimeError(
+                'board estimate from initial extrinsics is not plausible '
+                '(board center farther than 2 m from base); refusing to '
+                'generate viewpoints')
+        viewpoints = candidate_viewpoints(
+            self._board,
+            base_from_target,
+            x0,
+            camera_matrix,
+            distortion,
+            image_size,
+            polar_degrees=[
+                float(value)
+                for value in self.get_parameter('auto_polar_degrees').value],
+            azimuth_step_deg=float(
+                self.get_parameter('auto_azimuth_step_deg').value),
+            fill_fractions=[
+                float(value)
+                for value in self.get_parameter('auto_fill_fractions').value],
+            margin_fraction=float(
+                self.get_parameter('auto_margin_fraction').value),
+            border_squares=float(
+                self.get_parameter('auto_board_border_squares').value),
+            distance_range_m=tuple(
+                float(value) for value in
+                self.get_parameter('auto_distance_range_m').value),
+        )
+        minimum = int(self.get_parameter('auto_min_poses').value)
+        if len(viewpoints) < minimum:
+            raise RuntimeError(
+                f'FOV-qualified viewpoints {len(viewpoints)} < {minimum}; '
+                'adjust board placement or relax auto_margin_fraction')
+        wanted = minimum + int(
+            self.get_parameter('auto_extra_candidates').value)
+        min_span = float(self.get_parameter('auto_min_span_deg').value)
+        selected, span = select_diverse(viewpoints, wanted, min_span)
+        if span < min_span:
+            raise RuntimeError(
+                f'viewpoint rotation span {span:.1f}deg below '
+                f'{min_span:.1f}deg; widen auto_polar_degrees')
+        self._publish_status(
+            'planning',
+            f'auto: {len(selected)} viewpoints around board '
+            f'(span {span:.1f}deg, board {self._board.describe()})',
+            board_estimate={
+                'xyz_m': [
+                    round(float(value), 4)
+                    for value in base_from_target[:3, 3]]},
+        )
+        return ([viewpoint.base_from_wrist for viewpoint in selected],
+                [viewpoint.metadata() for viewpoint in selected])
 
     async def _wait_stable(self, goal_handle):
         timeout = float(self.get_parameter('stable_timeout_s').value)
@@ -543,12 +708,13 @@ class CalibrationServer(Node):
             await asyncio.sleep(0.05)
         raise RuntimeError('robot did not become stationary')
 
-    async def _capture(self, goal_handle, started_at):
+    async def _capture(self, goal_handle, started_at, want_frames=False):
         """
         收集 frames_per_pose 帧 (观测, 腕部TF) 配对, 剔除离群帧后取均值.
 
         返回 (base_from_gripper, camera_from_target, reprojection_rms,
-        frame_records); frame_records 为逐帧观测明细 (含 kept 剔除标记)。
+        frame_records, kept_frames); frame_records 为逐帧观测明细 (含 kept
+        剔除标记), kept_frames 为 (观测, 腕部TF) 逐帧配对 (joint 档用).
         """
         count = int(self.get_parameter('frames_per_pose').value)
         deadline = time.monotonic() + float(
@@ -576,7 +742,7 @@ class CalibrationServer(Node):
         frames = frames[:count]
 
         # 按重投影 RMS 剔除离群帧
-        inlier_mask = _mad_filter([
+        inlier_mask = mad_mask_1d([
             observation.reprojection_rms_px
             for observation, _ in frames])
         kept = [frame for frame, keep in zip(frames, inlier_mask) if keep]
@@ -607,7 +773,8 @@ class CalibrationServer(Node):
         reprojection = float(np.sqrt(np.mean([
             observation.reprojection_rms_px ** 2
             for observation, _ in kept])))
-        return base_from_gripper, camera_from_target, reprojection, frame_records
+        return (base_from_gripper, camera_from_target, reprojection,
+                frame_records, kept)
 
     # ------------------------------------------------------------------
     # Action 主流程
@@ -622,9 +789,30 @@ class CalibrationServer(Node):
                 raise ValueError(
                     f'非法的求解方法: {method}'
                     f'（可选: {"/".join(VALID_METHODS)}）')
-            poses = self._load_poses()
+            pose_source = (
+                goal_handle.request.pose_source.strip()
+                or str(self.get_parameter('pose_source').value))
+            if pose_source not in ('poses', 'auto'):
+                raise ValueError(
+                    f'非法的位姿来源: {pose_source}（可选: poses|auto）')
+            solve_target = (
+                goal_handle.request.solve_target.strip()
+                or str(self.get_parameter('solve_target').value))
+            if solve_target not in ('hand_eye', 'joint'):
+                raise ValueError(
+                    f'非法的求解目标: {solve_target}（可选: hand_eye|joint）')
+            viewpoint_metadata = None
+            if pose_source == 'auto':
+                poses, viewpoint_metadata = self._generate_auto_poses()
+            else:
+                poses = self._load_poses()
             self._pose_status = [
-                {'pose_index': index, 'status': 'pending'}
+                {
+                    'pose_index': index,
+                    'status': 'pending',
+                    **({'viewpoint': viewpoint_metadata[index]}
+                       if viewpoint_metadata else {}),
+                }
                 for index in range(len(poses))
             ]
             initial_wrist = self._lookup(
@@ -633,11 +821,27 @@ class CalibrationServer(Node):
             self._feedback(
                 goal_handle, 'preflighting', 'checking camera, TF and MoveIt',
                 0, len(poses), 0)
-            await self._preflight_and_plan(
+            poses = await self._preflight_and_plan(
                 goal_handle,
                 poses,
                 initial_wrist if goal_handle.request.return_to_start else None,
+                skip_failures=(pose_source == 'auto'),
+                required=int(self.get_parameter('auto_min_poses').value),
             )
+            if viewpoint_metadata is not None:
+                # 预检可能跳过不可达视点: 对齐元数据/状态与有效位姿列表
+                kept_indices = [
+                    index for index, entry in enumerate(self._pose_status)
+                    if entry['status'] == 'planned']
+                skipped = [entry for entry in self._pose_status
+                           if entry['status'] == 'skipped']
+                viewpoint_metadata = [
+                    viewpoint_metadata[index] for index in kept_indices]
+                self._pose_status = [
+                    {'pose_index': new_index, 'status': 'planned',
+                     'viewpoint': viewpoint_metadata[new_index]}
+                    for new_index in range(len(kept_indices))
+                ] + skipped
             if goal_handle.request.plan_only:
                 response.success = True
                 response.message = f'all {len(poses)} poses are plannable'
@@ -649,7 +853,9 @@ class CalibrationServer(Node):
                 return response
 
             samples = []
+            joint_observations = []
             manifests = []
+            want_frames = solve_target == 'joint'
             for index, pose in enumerate(poses):
                 if goal_handle.is_cancel_requested:
                     raise asyncio.CancelledError
@@ -671,7 +877,8 @@ class CalibrationServer(Node):
                     f'waiting for robot to settle at pose {index + 1}',
                     index, len(poses), len(samples))
                 await self._wait_stable(goal_handle)
-                capture = await self._capture(goal_handle, time.monotonic())
+                capture = await self._capture(
+                    goal_handle, time.monotonic(), want_frames=want_frames)
                 if capture is None:
                     entry['status'] = 'capture_failed'
                     entry['reason'] = 'checkerboard detection timeout'
@@ -684,8 +891,25 @@ class CalibrationServer(Node):
                         f'pose {index + 1} rejected: detection timeout',
                         index + 1, len(poses), len(samples))
                     continue
-                base_from_gripper, camera_from_target, reprojection, \
-                    frame_records = capture
+                (base_from_gripper, camera_from_target, reprojection,
+                 frame_records, kept_frames) = capture
+                if want_frames:
+                    # joint 档用逐帧原始配对 (不做 SE3 均值):
+                    # 每视点取帧内重投影 RMS 最小的前 N 帧角点
+                    frame_limit = int(
+                        self.get_parameter('joint_frames_per_pose').value)
+                    ranked = sorted(
+                        kept_frames,
+                        key=lambda pair: pair[0].reprojection_rms_px,
+                    )[:frame_limit]
+                    for frame_index, (observation, frame_transform) in \
+                            enumerate(ranked):
+                        joint_observations.append(JointObservation(
+                            frame_transform,
+                            observation.corners.reshape(-1, 2).astype(
+                                np.float64),
+                            f'pose_{index + 1:02d}_f{frame_index + 1}',
+                        ))
                 samples.append(CalibrationSample(
                     base_from_gripper,
                     camera_from_target,
@@ -718,19 +942,67 @@ class CalibrationServer(Node):
             self._feedback(
                 goal_handle, 'solving', 'solving hand-eye transform',
                 len(poses), len(poses), len(samples))
-            result = solve_hand_eye(
-                samples,
-                min_samples=int(self.get_parameter('min_samples').value),
-                max_reprojection_rms_px=float(
-                    self.get_parameter('max_reprojection_rms_px').value),
-                max_translation_rms_m=float(
-                    self.get_parameter('max_translation_rms_m').value),
-                max_rotation_rms_deg=float(
-                    self.get_parameter('max_rotation_rms_deg').value),
-                min_rotation_span_deg=float(
-                    self.get_parameter('min_rotation_span_deg').value),
-                method=method,
-            )
+            joint = None
+            if solve_target == 'joint':
+                if not joint_observations:
+                    raise RuntimeError('joint solve: no captured frames')
+                joint = solve_joint_intrinsics_hand_eye(
+                    joint_observations,
+                    self._board,
+                    (int(self._camera_info.width),
+                     int(self._camera_info.height)),
+                    K0=np.asarray(
+                        self._camera_info.k,
+                        dtype=np.float64).reshape(3, 3),
+                    D0=np.asarray(self._camera_info.d, dtype=np.float64),
+                    joint_max_reprojection_rms_px=float(
+                        self.get_parameter(
+                            'joint_max_reprojection_rms_px').value),
+                    max_translation_rms_m=float(
+                        self.get_parameter('max_translation_rms_m').value),
+                    max_rotation_rms_deg=float(
+                        self.get_parameter('max_rotation_rms_deg').value),
+                    min_rotation_span_deg=float(
+                        self.get_parameter('min_rotation_span_deg').value),
+                )
+                result = CalibrationResult(
+                    gripper_from_camera=joint.gripper_from_camera,
+                    base_from_target=joint.base_from_target,
+                    method=f'joint:{joint.init_method}',
+                    accepted_indices=[
+                        index for index, view in enumerate(joint.per_view)
+                        if view['accepted']],
+                    rejected_indices=[
+                        index for index, view in enumerate(joint.per_view)
+                        if not view['accepted']],
+                    translation_rms_m=joint.translation_rms_m,
+                    rotation_rms_deg=joint.rotation_rms_deg,
+                    reprojection_rms_px=joint.reprojection_rms_px,
+                    rotation_span_deg=joint.rotation_span_deg,
+                    passed=joint.passed,
+                    failures=list(joint.failures),
+                    sample_errors=[
+                        {'index': index, 'accepted': view['accepted'],
+                         'rms_px': view['rms_px'],
+                         'sample_id': view['sample_id']}
+                        for index, view in enumerate(joint.per_view)],
+                    method_scores=[],
+                    refine_stats=dict(joint.polish),
+                )
+            else:
+                result = solve_hand_eye(
+                    samples,
+                    min_samples=int(self.get_parameter('min_samples').value),
+                    max_reprojection_rms_px=float(
+                        self.get_parameter('max_reprojection_rms_px').value),
+                    max_translation_rms_m=float(
+                        self.get_parameter('max_translation_rms_m').value),
+                    max_rotation_rms_deg=float(
+                        self.get_parameter('max_rotation_rms_deg').value),
+                    min_rotation_span_deg=float(
+                        self.get_parameter('min_rotation_span_deg').value),
+                    method=method,
+                )
             camera_root_from_optical = self._lookup(
                 self.get_parameter('camera_root_frame').value,
                 self.get_parameter('camera_optical_frame').value)
@@ -757,11 +1029,29 @@ class CalibrationServer(Node):
                 method_scores=result.method_scores,
                 sample_errors=result.sample_errors,
                 refine_stats=result.refine_stats,
+                intrinsics=(
+                    joint.intrinsics_document() if joint is not None
+                    else None),
+                viewpoints=viewpoint_metadata,
             )
             response.success = bool(result.passed)
+            joint_summary = ''
+            if joint is not None:
+                k_matrix = joint.camera_matrix
+                joint_summary = (
+                    f'joint RMS {joint.reprojection_rms_px:.3f}px; '
+                    f'K fx={k_matrix[0, 0]:.2f} fy={k_matrix[1, 1]:.2f} '
+                    f'cx={k_matrix[0, 2]:.1f} cy={k_matrix[1, 2]:.1f}; ')
+                response.camera_matrix = [
+                    float(value) for value in k_matrix.reshape(-1)]
+                response.distortion_coefficients = [
+                    float(value) for value in np.ravel(joint.distortion)]
+                response.joint_reprojection_rms_px = float(
+                    joint.reprojection_rms_px)
             response.message = (
-                'quality gates passed; review before activation'
-                if result.passed else '; '.join(result.failures)
+                f'{joint_summary}quality gates passed; review before activation'
+                if result.passed else
+                f'{joint_summary}' + '; '.join(result.failures)
             )
             response.candidate_id = candidate_id
             response.wrist_to_camera_optical = _transform_message(
@@ -806,6 +1096,21 @@ class CalibrationServer(Node):
                 'min_rotation_span_deg': float(
                     self.get_parameter('min_rotation_span_deg').value),
             }
+            if joint is not None:
+                metrics['joint_reprojection_rms_px'] = (
+                    joint.reprojection_rms_px)
+                result_details['intrinsics'] = {
+                    'camera_matrix': [
+                        float(value)
+                        for value in joint.camera_matrix.reshape(-1)],
+                    'distortion': [
+                        float(value)
+                        for value in np.ravel(joint.distortion)],
+                    'distortion_model': 'plumb_bob',
+                    'image_size': list(joint.image_size),
+                }
+            if viewpoint_metadata is not None:
+                result_details['viewpoints'] = viewpoint_metadata
             if goal_handle.is_cancel_requested or not goal_handle.is_active():
                 # 求解/落盘期间收到取消：goal 已进 CANCELING，再 succeed/
                 # abort 属非法状态迁移（抛异常且 goal 永卡 CANCELING），

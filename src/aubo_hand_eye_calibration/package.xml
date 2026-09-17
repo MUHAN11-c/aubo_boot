@@ -12,6 +12,9 @@
 
   <exec_depend>ament_index_python</exec_depend>
   <exec_depend>aubo_msgs</exec_depend>
+  <!-- 内参标定 launch 引用 vendored 包 (src/camera_calibration);
+       rosdep 键在工作区无此包时落 apt ros-jazzy-camera-calibration -->
+  <exec_depend>camera_calibration</exec_depend>
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>diagnostic_msgs</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>

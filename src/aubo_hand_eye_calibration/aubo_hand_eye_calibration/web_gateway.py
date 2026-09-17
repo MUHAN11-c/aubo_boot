@@ -30,6 +30,11 @@ from std_msgs.msg import String
 from tf2_ros import Buffer, TransformException, TransformListener
 import yaml
 
+from .defaults import (
+    DEFAULT_BASE_FRAME,
+    DEFAULT_CAMERA_ROOT_FRAME,
+    DEFAULT_WRIST_FRAME,
+)
 from .storage import default_storage_directory, load_candidate
 
 
@@ -49,15 +54,15 @@ class WebGateway(Node):
         self.declare_parameter(
             'port', 8088,
             ParameterDescriptor(description='Web 服务监听端口'))
-        # robot 区段 TF 坐标系 (与标定服务端参数同默认值)
+        # robot 区段 TF 坐标系 (与标定服务端参数同默认值, 共享 defaults.py)
         self.declare_parameter(
-            'base_frame', 'base_link',
+            'base_frame', DEFAULT_BASE_FRAME,
             ParameterDescriptor(description='robot 区段 TF 基座坐标系'))
         self.declare_parameter(
-            'wrist_frame', 'wrist3_Link',
+            'wrist_frame', DEFAULT_WRIST_FRAME,
             ParameterDescriptor(description='robot 区段 TF 腕部坐标系'))
         self.declare_parameter(
-            'camera_root_frame', 'camera_link',
+            'camera_root_frame', DEFAULT_CAMERA_ROOT_FRAME,
             ParameterDescriptor(description='robot 区段 TF 相机安装座坐标系'))
         self._action = ActionClient(
             self, RunHandEyeCalibration,

@@ -18,7 +18,7 @@ peach_target_reconstruction_node:
     capture:
       min_views: 2  # finalize 所需最少机位数（当前位+一次 0.15 m 短移）；同机位连帧不加机位
       recommended_views: 5  # 推荐视角数（不足仅提示，不阻塞 finalize）
-      max_views: 24  # 帧栈上限（不是节拍）：现场感知约 2.5 FPS，有效视角常 4–6
+      max_views: 24  # 帧栈上限（不是节拍）：percipio 端约 2.5 FPS 时有效视角常 4–6；peach_stereo 端（09-17 A/B 实测感知处理 ~7.5fps）单停帧密度约 3 倍，同视角去重靠 view_filter，本上限无需改动
       minimum_baseline_deg: 8.0  # 单位置最少基线角 (deg)：12° PTP 在重建中心实测约 9.5°，与技能质量门对齐
       minimum_mean_nearest_baseline_deg: 6.0  # 视角集合平均最近基线角门限 (deg)
       minimum_mean_depth_ratio: 0.4  # 视角集合平均有效深度占比门限

@@ -264,3 +264,21 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 **新包 `src/peach_stereo/`**（ament_cmake，C++17）：`stereo_camera_node` 实现"解锁激光 → RGB+L+R 同组采集 → stereoRectify+SGBM(半分辨率) → `TYMapDepthImageToColorCoordinate` 配准 → 发布"全链路，话题与 percipio_camera 同构（`/camera/color/image_raw`、`/camera/depth/image_raw` uint16×0.25mm 已配准、`camera_info`、静态 TF 同名链、2Hz JET 调试流）；参数 nav2 式 yaml（`sgbm.*`/`avg_k`/`laser_power` 等）；camport4 SDK 跨包引用 percipio_camera 源码树（头文件未随包安装）。三个 SDK 级坑（均已在代码注释标记）：`TYUpdateInterfaceList()` 不调则 ETH 接口不枚举；`TYUpdateDeviceList(iface)` 不调则设备数为 0；标定 float32 必须 convertTo(CV_64F)。
 
 **真机冒烟（隔离域 77）**：节点产流 **13.5 gps、发布率 100%**；compressed 通道投递干净（深度时间戳间隔 67ms 整 ≈14.9Hz 节奏）；**深度/彩色同组时间戳差 0.0ms**；深度内容合理（640×480 uint16、有效率 51%、中位 824mm 与场景一致）；AI 目验 RGB-D 配准"无可见偏移/错位"。raw RELIABLE 大图投递坍塌依旧（hz 3–5Hz）——投递层调整方案见下。消费侧新坑：jpeg 插件编不了 mono16（`/compressed` 发空载荷），深度要走 `compressedDepth`（PNG 前有 12 字节容器头：格式码+两个量化 float，消费端要跳过）或 `zstd`。环境复原：冒烟节点已停、laser auto=1/power=50 复验。
+
+### 09-17 续（感知 A/B：peach_stereo vs percipio 设备深度，同场景台架）
+
+**推理基准（venv torch 2.13+cu130，GPU 在位）**：YOLO(best.pt) 稳态 **4ms/帧**、MobileSAM 框提示 **21ms/框**（全帧自动分割 1427ms 非感知路径）——**感知算力非瓶颈，此前"YOLO+SAM 可能钳制帧率收益"的保守判断作废，相机 13.5fps 可被全额利用**。
+
+**栈级 A/B**（域 77，同场景同光照同静态 TF base_link→camera_link；scene_perception 全参数默认）：注意无 TF 时感知每帧双次 0.5s 超时查询会把它拖到 0.87fps——台架测感知必须先补 TF。
+
+| 指标 | peach_stereo（主机立体） | percipio（设备 18 图案深度） |
+|------|--------------------------|------------------------------|
+| 相机帧率 | 13.5 gps | 2.43 fps（日志核实） |
+| 感知处理节奏（masks 头时间戳间隔中位） | **133ms ≈ 7.5Hz** | 600ms ≈ 1.7Hz |
+| 感知 Active → 目标集锁定 | **≈2.8 s** | **≈48 s**（含一迟确认的第 3 目标反复重置 settle，放大了低帧率下的墙钟惩罚；纯帧数口径 18 帧也差 3 倍） |
+| 锁定目标数 | 2（conf 0.99） | 3（conf 1.0；多出的第 3 目标疑低帧率下窗口拉长引入） |
+| 同一目标 camera_distance | **0.611 m** | **0.616 m**（两条独立深度链差 **5mm**，单图案精度的交叉验证） |
+
+**发现的 bug（未改，报给 harvester 维护轮）**：`scene_perception.launch.py` autostart:=true 路径节点收到**双重 activate**（已 active 再收 transition 3）未捕获异常直接进程退出；harvest_system 主路径 autostart:=false + 手动/manager 驱动不受影响。台架绕法：autostart:=false + 单次手动 `ros2 lifecycle set configure`（launch 的 activate 处理器是无条件的，configure→inactive 会自动激活）。
+
+**参数调整（已落地）**：①`scene_perception.yaml` `tentative_ttl_frames` 8→**20**——按帧计的 TTL 随前端帧率缩短墙钟（2.43fps×8≈3.3s vs 7.5fps×8≈1.1s，遮挡/闪检目标会被过快弃置），上调维持 ~2.7s 语义，percipio 前端下偏保守无害；②`target_reconstruction.yaml` `max_views` 注释更新（帧密度 3 倍、view_filter 去重兜底、值不动）。维持不动的依据：收齐窗口参数已按实测帧率自适应（好设计，A/B 中 2.8s 锁定即其兑现）；recommended_views 留待真机轮；感知无需步进参数（GPU 推理 4–50ms/帧量级）。

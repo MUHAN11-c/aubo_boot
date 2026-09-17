@@ -32,6 +32,7 @@ from peach_interfaces.msg import (
     ReconstructionStatus,
     SceneSnapshot,
 )
+from rcl_interfaces.msg import Log as RosoutLog
 from rcl_interfaces.srv import GetParameters
 import rclpy
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -50,6 +51,7 @@ from visualization_msgs.msg import MarkerArray
 from . import bag_report
 from . import http_server
 from . import retention
+from .catch_all_recorder import CatchAllRecorder
 from .debug_actions import DebugAudit, DebugBridge, is_motion
 from .params import declare as _declare_params
 from .params import from_params as _from_params
@@ -146,6 +148,7 @@ class ObservabilityNode(LifecycleNode):
         self._http = None
         self._metrics = None
         self._recorder = None
+        self._catch_all = None
         self._subs = []
         self._param_clients = {}
         self._param_timer = None
@@ -219,9 +222,19 @@ class ObservabilityNode(LifecycleNode):
     def on_activate(self, state):
         result = super().on_activate(state)
         self.start_http()
+        # 全量录制（record.level 门控）：activate 后计算图已可见，通配
+        # 发现订阅域内全部话题自动进会话 bag；仿真复现/问题分析用
+        if (self._recorder is not None and self._recorder.enabled
+                and self._params.record_level in ('all', 'std')):
+            self._catch_all = CatchAllRecorder(
+                self, self._recorder, level=self._params.record_level)
+            self._catch_all.start()
         return result
 
     def on_deactivate(self, state):
+        if self._catch_all is not None:
+            self._catch_all.stop()
+            self._catch_all = None
         self._stop_runtime()
         return super().on_deactivate(state)
 
@@ -247,6 +260,11 @@ class ObservabilityNode(LifecycleNode):
         def callback(message) -> None:
             self._record_raw(topic_parameter, message)
         return callback
+
+    def _rosout_callback(self, message) -> None:
+        """全量节点日志进会话 bag（stamp/level/logger/name/msg 可离线回放）."""
+        if self._recorder is not None:
+            self._recorder.handle_raw('/rosout', message)
 
     def _topic(self, parameter: str) -> str:
         """从不可变快照取话题名（启动期建订阅用）."""
@@ -327,6 +345,11 @@ class ObservabilityNode(LifecycleNode):
             self._joint_status_callback, reliable_qos)
         # 记录器图像/点云订阅：只在对应开关开启时建立（省带宽），直接进 bag
         if self._params.record_enabled:
+            # /rosout 全量进 bag：全部节点日志（stamp/level/logger）可回放，
+            # 测试复盘最低完备集（record.rosout 门控，默认开）
+            if self._params.record_rosout:
+                self._subscribe(
+                    RosoutLog, '/rosout', self._rosout_callback, reliable_qos)
             if self._params.record_save_images:
                 self._subscribe(
                     Image, self._topic('debug_image_topic'),

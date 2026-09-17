@@ -88,6 +88,8 @@ class ObservabilityParams:
     record_root_dir: str
     record_save_images: bool
     record_save_clouds: bool
+    record_rosout: bool
+    record_level: str
     record_bag_topics: Tuple[str, ...]
     record_max_total_bag_gb: float
     trajectory_enabled: bool
@@ -154,6 +156,8 @@ def from_params(p) -> ObservabilityParams:
         record_root_dir=str(p.record.root_dir),
         record_save_images=bool(p.record.save_images),
         record_save_clouds=bool(p.record.save_clouds),
+        record_rosout=bool(getattr(p.record, 'rosout', True)),
+        record_level=str(getattr(p.record, 'level', 'std')).strip() or 'std',
         record_bag_topics=tuple(str(item).strip() for item in p.record.bag_topics),
         record_max_total_bag_gb=float(p.record.max_total_bag_gb),
         trajectory_enabled=bool(p.trajectory.enabled),

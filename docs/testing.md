@@ -27,7 +27,11 @@
 
 写记录：当场把结论写入 `runs/field_test_<日期>/log.md`，并追加 [testing-log.md](testing-log.md) 对应轮次。`runs/` 结构化文本（jsonl/json/csv/md/yaml/txt/log）入库随仓推送，克隆即可离线复算/分析；过程 bag（`session_*/bag` 的 mcap）、图像/点云等二进制仍只留本地（.gitignore 白名单）。会话报告由 observability 在停栈时自动生成，也可随时手动复跑：`ros2 run peach_observability peach_bag_report runs/session_*/bag`。
 
+**单轮复盘完备集（2026-09-17 起）**：① 会话 bag 录 `/rosout` 全量节点日志（`record.rosout` 默认开，stamp/level/logger 可回放：`ros2 bag play` 后 `ros2 topic echo /rosout`）；② ros2 自动日志在 `~/.ros/log/<launch 时间戳>/launch.log`（含全部进程 stdout，目录时间戳=起栈时刻）；③ `runs/<request_id>/` 账本与事件流。三者按运行窗口归集：`python3 scripts/collect_round.py <request_id>` → 生成 `runs/<rid>/round_report.md`（逐目标 outcome 表 + 感知/重建时间轴 + 自动日志关键行 + bag 互链）。
+
 ---
+**全量录制（`record.level`，2026-09-17 起）**：`std`（默认）=计算图通配发现订阅域内全部话题自动进会话 bag（新话题无需改代码即被录），相机 raw 大流限 1Hz；`all`=同上但大流不限速（真全量，仿真复现首选；stereo 前端约 50MB/s，超 `max_total_bag_gb` 预算靠 retention 回收）；`core`=仅 `bag_topics` 别名表（旧行为）。运行时切档：改 `observability.yaml` 后重启，或 `ros2 param set /peach_observability record.level all` 再重启节点生效（订阅在 activate 期建立）。
+
 
 ## 1. 构建与开发机
 

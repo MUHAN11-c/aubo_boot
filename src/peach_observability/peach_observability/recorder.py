@@ -54,6 +54,11 @@ class Recorder:
             self._queue.put(('open', now))
         self._on_info(self.info())
 
+    @property
+    def enabled(self) -> bool:
+        """录制总开关（on_activate 全量录制门控读用）."""
+        return self._enabled
+
     # ------------------------------------------------------------------
     # observability 回调入口（只入队，绝不阻塞）
     # ------------------------------------------------------------------

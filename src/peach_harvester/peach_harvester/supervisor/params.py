@@ -210,6 +210,13 @@ class peach_observability:
         'record.root_dir': ('string', ''),
         'record.save_images': ('bool', True),
         'record.save_clouds': ('bool', True),
+        # /rosout 进 bag：全部节点日志（stamp/level/logger）可回放——测试
+        # 复盘的最低完备集（否则只剩 launch 终端输出，随会话丢失）
+        'record.rosout': ('bool', True),
+        # 全量录制档位：all=域内全部话题自动发现订阅、大流不限速（真全量，
+        # 仿真复现/问题分析用，bag 体积大）；std=全话题但相机 raw 大流限
+        # 1Hz（默认）；core=仅既定别名表（旧行为）
+        'record.level': ('string', 'std'),
         'record.max_total_bag_gb': ('double', 20.0),
         # 会话 bag 录制别名清单（别名→话题/类型见 observability/bag_reader.py 注册表）；
         # debug_image/debug_image_raw/tsdf_cloud 另受 save_images/save_clouds 门控
@@ -329,6 +336,8 @@ class peach_observability:
             self.root_dir = ''
             self.save_images = True
             self.save_clouds = True
+            self.rosout = True
+            self.level = 'std'
             self.max_total_bag_gb = 20.0
             self.bag_topics = [
                 'events', 'state', 'scene_snapshot',

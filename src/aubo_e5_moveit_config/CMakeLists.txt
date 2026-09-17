@@ -7,7 +7,8 @@ install(FILES .setup_assistant LICENSE DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
-  set(ament_cmake_copyright_FOUND TRUE)  # 文件头 BSD 等项目结束再补
+  # Jazzy 的 ament_lint_auto_find_test_dependencies 无条件 find_package，
+  # 预置 *_FOUND TRUE 跳过 copyright 无效；版权头已按 BSD-3-Clause 补齐，正过 lint。
   ament_lint_auto_find_test_dependencies()
 endif()
 

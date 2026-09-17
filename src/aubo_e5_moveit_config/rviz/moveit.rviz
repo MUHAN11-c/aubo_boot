@@ -627,7 +627,7 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
             Value: true
-        Robot Alpha: 1
+        Robot Alpha: 0
         Show Robot Collision: false
         Show Robot Visual: true
       Value: true
@@ -639,11 +639,11 @@ Visualization Manager:
       Description Source: Topic
       Description Topic:
         Depth: 5
-        Durability Policy: Volatile
+        Durability Policy: Transient Local
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: ""
-      Enabled: false
+        Value: /robot_description
+      Enabled: true
       Links:
         All Links Enabled: true
         Expand Joint Details: false
@@ -656,6 +656,9 @@ Visualization Manager:
       Name: RobotModel
       TF Prefix: ""
       Update Interval: 0
+      # 真彩色方案（09-17）：独立 RobotModel 显示 .dae 原色（灰身+橙臂）；
+      # MoveIt scene robot 的 Robot Alpha 已设 0 隐身，避免灰色渲染叠加
+      # 盖住真彩色（URDF 链接未写材质颜色时 MoveIt 一律按默认灰渲染）。
       Value: true
       Visual Enabled: true
   Enabled: true

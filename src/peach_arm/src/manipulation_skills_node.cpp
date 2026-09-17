@@ -22,6 +22,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 #include <moveit/move_group_interface/move_group_interface.hpp>
@@ -125,6 +126,17 @@ CallbackReturn ManipulationSkillsNode::on_activate(const rclcpp_lifecycle::State
   status_pub_->on_activate();
   marker_pub_->on_activate();
   grasp_hyp_pub_->on_activate();
+  // ③层工具×octomap ACM 豁免：后台线程一次应用（含最多 4s 服务等待，
+  // 不得占激活回调；static 入口无对象生命周期依赖）。Survey/观察/接近
+  // 全程生效——09-17 真机实锤：不豁免则眼在手上 self-filter 漏收的工具
+  // 点云会让臂停在任意视点位后所有规划自碰死锁。
+  {
+    const auto logger = get_logger();
+    std::thread([logger]() {
+        moveit::planning_interface::PlanningSceneInterface scene;
+        GraspTask::applyWholeOctomapToolExemption(logger, scene);
+      }).detach();
+  }
   RCLCPP_INFO(get_logger(), "节点已激活：运动输出权限开放");
   publishState();
   return CallbackReturn::SUCCESS;

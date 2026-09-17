@@ -308,10 +308,20 @@ private:
     double along_axis_m,
     const std::string & label) const;
   void syncKeepoutCollisionObjects() const;
-  // ③层工具豁免：先取现行 ACM 再 setEntry 工具链 × <octomap>，回写全表
-  // （MoveIt ACM diff 是整表替换，不能只发子方阵）。臂/相机保持受查。
+
+public:
+  // ③层工具豁免（周期级）：整表回写 工具链 × <octomap> = allowed。static
+  // 无成员依赖——on_activate 后台线程应用一次，Survey/观察/接近全程生效。
+  // 09-17 真机实锤：眼在手上时 updater self-filter 漏收工具点云，不豁免则
+  // 工具×自家幽灵体素自碰死锁。臂/相机连杆保持受查（防撞主力）。
+  static void applyWholeOctomapToolExemption(
+    const rclcpp::Logger & logger,
+    moveit::planning_interface::PlanningSceneInterface & scene);
+  // 接触轮内版本：整图豁免（若策略开启）+ 接触阶段目标对象×工具链接。
   void applyToolOctomapExemption(
     moveit::planning_interface::PlanningSceneInterface & scene) const;
+
+private:
 
   std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner>
   makePilzSolver(

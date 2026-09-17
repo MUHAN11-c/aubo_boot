@@ -16,10 +16,14 @@ enum class ContactAcmStage
   Retreat = 4
 };
 
-/// 整张 <octomap> 工具豁免已撤销（F10）。
+/// 整张 <octomap> 工具豁免：F10 曾撤销，09-17 真机轮回退撤销——眼在手上
+/// 时工具永远在相机视野正下方，octomap updater 的 self-filter 漏收工具
+/// 点云，工具×地图检查会与自家工具的幽灵体素自碰死锁（Survey 回拍照位
+/// PTP/OMPL 全灭的实锤根因）。防撞主力是臂连杆与 camera_body（保持受查，
+/// 不在本豁免范围）。updater self-filter 修复后可再收紧回 false。
 inline bool allowToolVersusWholeOctomap()
 {
-  return false;
+  return true;
 }
 
 inline bool acmAllows(

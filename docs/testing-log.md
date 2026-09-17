@@ -354,3 +354,18 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 **附带发现（本轮新增，报维护）**：① 批次跳过后、空转选果期间 supervisor 状态发布 ~115Hz（state_seq 单批累计 23.5 万+；on-change 发布器空转刷状态，goal feedback 单批 1.4 万条）——DDS 无谓洪泛。② `scan.protected_zones 盒#0 存在 min>=max 的轴（退化盒）已丢弃` 警告在成功轮次同样出现（保护区配置 wart，非阻塞）。③ `ros2 topic hz` 探针一接入 RELIABLE 大图即把投递压塌（color 0.18Hz、depth 0.07-1.49s 抖动，与四续"raw RELIABLE 大图投递坍塌"同象）——帧率以驱动日志为准，勿用 hz 探针测大图链。
 
 **未跑项**：T6 接近/PREGRASP_HOLD、T7 使能门负测试、T8 FULL 单目标（均被"模型依赖 + mock 伪影"挡）；stereo T9 整批（栈被外部终止）。**同日裁定（用户）：mock/仿真 e2e 作废——相机固定台架而 TF 按眼在手上算的伪影使多视点链原理性不可验证，转真机测试；所有等待/超时硬上限 20s。** 恢复项：栈已停、进程清零；两处 yaml 小修（drift 0.25 / grace 12.0）**随真机轮即刻回调**（0.04 / 3.0），真机证据另立；min_views 仅运行时改过未入 yaml（默认仍 2）。
+
+### 09-17 六续（真机轮：新拍照位 + 全链 pick1 过门 + 四缺陷定性 + octomap 工具豁免修复）
+
+**基线**：e1ed331（SRDF `global_photo_pose` 真机示教更新，wrist2 -0.500→-0.280，示教器到位后 /joint_states 直读；`harvest_stow` 保持旧拍照位，注释标明已分叉）；`.setup_assistant` 升级 Jazzy MSA schema（小写键 + package_settings，修 `invalid node; first invalid key: package_settings` 加载失败；`MoveItConfigsBuilder` 大小写双兼容已核源码）。**MSA 重导出事故与规矩**：对该包全量重导出会把它管辖文件重置回模板（joint_limits 加速度/cartesian_limits 段被删→pilz 加载即崩、pilz 限速 0.25→1.0、sensors_3d octomap 被清空、SRDF 碰撞矩阵砍 7 对工具内互碰、FakeSystem URDF 包装劫持 builder 解析优先级）——本次破坏面已全部还原；**规矩：禁止对 `aubo_e5_moveit_config` 直接 MSA 重导出，确需用 MSA 导出到 /tmp 一次性目录人工 cherry-pick**（MSA 是生成器不是编辑器，本包初始导入后从未重导出过，首轮即全灭属机制必然）。
+
+**真机阶段证据（域 77，percipio 前端）**：T0 四节点 Active + `robot_status drives_powered=1 motion_possible=1`（真机门原生通过，无需 mock 绕行参数）；fire_step PHOTO 过命名状态（新拍照位 ✓）；感知锁定 9.4s；内参 k[0]=466.174635 与共用 yaml 逐位一致；CheckReachability 服务正常（camera 系 (0,0,0.62)→`no_ik` 合理判定）；grasp_decision 无模型默认 `allowed=false`。**pick1 批（显式 target_ids=['target_1']，grasp=false）8.56s 全链过门**：观察→Pilz LIN 视点移动（真机执行 7.5s）→重建 3 帧/2 机位/重叠 p95=5.8mm/**refit ACCEPT**→接触几何解算（entry/axis/travel 0.089m）→**READY_FOR_GRASP**（grasp 门正确拒绝接触）。
+
+**缺陷链定性（按因果序）**：
+1. **感知（P1）**：贴图像左下边缘滑动的噪声检测块（bbox_x=0、质心跨帧漂 80px、出现率 18%）可被确认进锁定集，且选果「priority 主序、同级面积降序」让它优先于 81% 出现率的稳定真果被绑定 → 绑定后 missing_mask 断流 → 采帧失败。本轮以显式 `target_ids` 选稳定真果绕行（每个世代 ID 会变，需先采样确认）。修法：确认/选果加贴边门与稳定性序。
+2. **octomap 工具自碰死锁（已修）**：眼在手上时工具永远在相机正下方，点云 updater 的 self-filter 漏收工具点云 → `<octomap>×tool_body_link` 接触 → 臂停在任意视点位后**所有**规划（Pilz PTP/OMPL）在 CheckStartStateCollision 死。修复：`acm_policy` F10 回退（`allowToolVersusWholeOctomap()=true`，防撞主力臂连杆+camera_body 保持受查）+ `GraspTask::applyWholeOctomapToolExemption` static 入口在 `on_activate` 后台线程一次应用（周期级生效，Survey/观察/接近全覆盖；服务等待不占激活回调）。重启后从驻留视点规划/执行恢复 ✓。self-filter 修复后可再收紧。
+3. **收口体系设计矛盾（P1）**：view_policy FAST「好单视即收」在掩膜流畅时**不再移动** → 机位永远 1 个；supervisor `reconstruction_min_views=2` 与重建 finalize 基线门（`minimum_baseline_deg 8.0`，同位帧近重复正确去重、单站基线恒 0）形成三层耦合，单站永不收口。讽刺闭环：掩膜缺失时反而因「获取性移动」凑出双机位（pick1 即此路径）。运行时 `min_views=1` 解不开（基线门仍拦）。修法：三处门槛语义统一（好单视时 finalize 放行单站，或策略始终补一移）。
+4. **视点候选 LIN 穿奇异（P2）**：候选 2/3 的笛卡尔 LIN 段要求 foreArm 4.12/13.98 rad/s（限 2.5964，transit 缩放 0.1 已生效仍超——近奇异/解支翻转），Pilz 整条拒（观察只 LIN、禁止 PTP 绕行是 stages.cpp:533 刻意设计）。修法：候选生成时雅可比预估关节速度可行性，剔除必死候选。
+5. **桌面模型水平保守度（P2）**：`table_link×upperArm_Link` 在视点位形接触（物理未撞，z 高度 2026 已修不再动；近臂 25cm 内网格顶点全在 z∈[-0.10,0] 即桌面平板本身，覆盖 1.5m×0.83m）——待台面实测尺寸校核水平范围。
+
+**本轮运行时参数**：`reconstruction_min_views 2→1`（在线，未入 yaml，随栈消亡）。**未跑**：stereo 前端真机对比、T7 使能门负测试、FULL 单目标（均被缺陷 3 挡在接近段之前）。账本：`runs/e2e25r_{percipio_163254,percipio_fast2_163445,pick1_170449,pregrasp2_170647,pregrasp3_171710,pregrasp4_171833,pregrasp5_171948}`。

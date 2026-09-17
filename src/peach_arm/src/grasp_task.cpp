@@ -339,9 +339,67 @@ void GraspTask::syncKeepoutCollisionObjects() const
   scene.applyCollisionObjects(objects);
 }
 
+// ③层工具豁免（周期级，static）：整图 工具链 × <octomap> = allowed。
+// 供 on_activate 后台线程在周期外应用——Survey/观察/接近全程生效；臂
+// 连杆与 camera_body 保持受查（防撞主力）。MoveIt setPlanningSceneDiffMsg
+// 在 ACM entry_names 非空时用消息矩阵**整表替换** SRDF 相邻豁免，须先
+// GetPlanningScene 取现行 ACM 再回写全表。对象名是保留名 "<octomap>"
+// （planning_scene.cpp OCTOMAP_NS）。GetPlanningScene 走独立短命节点，
+// 避免在技能 planning callback group 上 wait 同源服务死锁。
+void GraspTask::applyWholeOctomapToolExemption(
+  const rclcpp::Logger & logger,
+  moveit::planning_interface::PlanningSceneInterface & scene)
+{
+  static std::atomic<int> fetch_seq{0};
+  const std::string helper_name =
+    "peach_octomap_acm_" + std::to_string(fetch_seq.fetch_add(1));
+  auto helper = std::make_shared<rclcpp::Node>(helper_name);
+  auto client = helper->create_client<moveit_msgs::srv::GetPlanningScene>(
+    "/get_planning_scene");
+  if (!client->wait_for_service(std::chrono::seconds(2))) {
+    RCLCPP_WARN(
+      logger, "get_planning_scene 不可用，跳过工具×octomap ACM 豁免");
+    return;
+  }
+  auto request = std::make_shared<moveit_msgs::srv::GetPlanningScene::Request>();
+  request->components.components =
+    moveit_msgs::msg::PlanningSceneComponents::ALLOWED_COLLISION_MATRIX;
+  auto future = client->async_send_request(request);
+  const auto spin_rc = rclcpp::spin_until_future_complete(
+    helper, future, std::chrono::seconds(2));
+  if (spin_rc != rclcpp::FutureReturnCode::SUCCESS) {
+    RCLCPP_WARN(
+      logger, "读取现行 ACM 超时，跳过工具×octomap 豁免（避免整表替换）");
+    return;
+  }
+  const auto response = future.get();
+  if (!response || response->scene.allowed_collision_matrix.entry_names.empty()) {
+    RCLCPP_WARN(
+      logger, "现行 ACM 为空，跳过工具×octomap 豁免（避免冲掉 SRDF）");
+    return;
+  }
+  if (!allowToolVersusWholeOctomap()) {
+    return;
+  }
+  collision_detection::AllowedCollisionMatrix acm(
+    response->scene.allowed_collision_matrix);
+  const std::string octomap_ns = "<octomap>";
+  const std::vector<std::string> tool_links = {
+    "tool_axis", "cutting_plane", "tcp", "sleeve_mouth",
+    "tool_body_link", "quick_changer_link"};
+  for (const auto & link : tool_links) {
+    acm.setEntry(link, octomap_ns, true);
+  }
+  moveit_msgs::msg::PlanningScene diff;
+  diff.is_diff = true;
+  diff.robot_state.is_diff = true;
+  acm.getMessage(diff.allowed_collision_matrix);
+  scene.applyPlanningScene(diff);
+}
+
 // ③层工具豁免：工具链连杆 × <octomap> = allowed。工具穿果袋（套入）/
 // 蹭细枝树叶是任务语义，规划期不查工具×地图；臂连杆与 camera_body
-// 保持受查（防撞枝主力）。
+// 保持受查（防撞主力）。
 // MoveIt setPlanningSceneDiffMsg 在 ACM entry_names 非空时用消息矩阵
 // **整表替换** SRDF 相邻豁免，不能只发工具×octomap 子方阵。先
 // GetPlanningScene 取现行 ACM，setEntry 后回写全表。对象名是保留名

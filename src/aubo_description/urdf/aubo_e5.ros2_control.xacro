@@ -68,32 +68,44 @@
 
       <joint name="shoulder_joint">
         <command_interface name="position"/>
-        <state_interface name="position"/>
+        <state_interface name="position">
+          <param name="initial_value">0.425083</param>
+        </state_interface>
         <state_interface name="velocity"/>
       </joint>
       <joint name="upperArm_joint">
         <command_interface name="position"/>
-        <state_interface name="position"/>
+        <state_interface name="position">
+          <param name="initial_value">0.195177</param>
+        </state_interface>
         <state_interface name="velocity"/>
       </joint>
       <joint name="foreArm_joint">
         <command_interface name="position"/>
-        <state_interface name="position"/>
+        <state_interface name="position">
+          <param name="initial_value">1.677740</param>
+        </state_interface>
         <state_interface name="velocity"/>
       </joint>
       <joint name="wrist1_joint">
         <command_interface name="position"/>
-        <state_interface name="position"/>
+        <state_interface name="position">
+          <param name="initial_value">1.461739</param>
+        </state_interface>
         <state_interface name="velocity"/>
       </joint>
       <joint name="wrist2_joint">
         <command_interface name="position"/>
-        <state_interface name="position"/>
+        <state_interface name="position">
+          <param name="initial_value">-0.500161</param>
+        </state_interface>
         <state_interface name="velocity"/>
       </joint>
       <joint name="wrist3_joint">
         <command_interface name="position"/>
-        <state_interface name="position"/>
+        <state_interface name="position">
+          <param name="initial_value">0.038621</param>
+        </state_interface>
         <state_interface name="velocity"/>
       </joint>
 

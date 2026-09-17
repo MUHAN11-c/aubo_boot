@@ -17,7 +17,11 @@ from launch.actions import (
     OpaqueFunction,
 )
 from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import (
+    LaunchConfiguration,
+    PathJoinSubstitution,
+    PythonExpression,
+)
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
@@ -144,6 +148,14 @@ def generate_launch_description():
             executable='peach_lifecycle_flag_bridge',
             name='peach_lifecycle_flag_bridge',
             output='screen'),
+        # mock 启动时臂回拍照位（JTC 零点→global_photo_pose；仅 mock 模式）
+        Node(
+            package='peach_bringup',
+            executable='peach_photo_pose_init',
+            name='peach_photo_pose_init',
+            output='screen',
+            condition=IfCondition(PythonExpression(
+                ["'", hardware_mode, "' == 'mock'"]))),
         # autostart 客户端（默认关；授权=操作员发起 launch，红线 3）
         Node(
             package='peach_bringup',

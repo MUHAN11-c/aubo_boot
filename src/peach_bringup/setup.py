@@ -27,6 +27,7 @@ setup(
             'peach_lifecycle_flag_bridge = '
             'peach_bringup.lifecycle_flag_bridge:main',
             'peach_autostart_client = peach_bringup.autostart_client:main',
+            'peach_photo_pose_init = peach_bringup.photo_pose_init:main',
         ],
     },
 )

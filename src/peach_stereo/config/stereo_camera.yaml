@@ -4,6 +4,8 @@ peach_stereo_camera_node:
     device_ip: 169.254.10.110
     camera_name: camera
     color_mode: 640x480        # 彩色档位（按设备枚举的 yuyv 模式匹配；默认 2560x1920 会拖死组率）
+    # color_camera_info_file：彩色内参唯一事实源（launch 默认注入 percipio_camera/
+    # config/color_camera_info.yaml，与 percipio 前端共用；此处不重复设值）
     ir_exposure: 990           # 左右 IR 曝光（深度质量/工作距离旋钮；深度帧率不受它影响）
     laser_power: 100           # 解锁投射器功率（满功率点亮，停栈自动复位）
     sgbm:

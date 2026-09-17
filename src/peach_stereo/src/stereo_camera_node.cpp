@@ -27,10 +27,12 @@
 #include <sensor_msgs/msg/image.hpp>
 
 #include <cv_bridge/cv_bridge.hpp>
+#include <camera_calibration_parsers/parse.hpp>
 #include <image_transport/image_transport.hpp>
 #include <tf2/LinearMath/Quaternion.hpp>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
+#include <sensor_msgs/msg/camera_info.hpp>
 #include <std_msgs/msg/header.hpp>
 
 #include "TYApi.h"
@@ -57,6 +59,22 @@ class StereoCameraNode : public rclcpp::Node {
     color_frame_ = camera_name_ + "_color_frame";
     color_optical_ = camera_name_ + "_color_optical_frame";
     link_frame_ = camera_name_ + "_link";
+
+    // 彩色内参文件覆盖（与 percipio 前端共用同一份标定 yaml；空=设备内参折算）
+    const std::string info_file = get_parameter("color_camera_info_file").as_string();
+    if (!info_file.empty()) {
+      std::string calib_name;
+      if (camera_calibration_parsers::readCalibration(
+              info_file, calib_name, color_info_override_)) {
+        info_override_ = true;
+        RCLCPP_INFO(get_logger(), "color camera_info override from %s (camera=%s)",
+                    info_file.c_str(), calib_name.c_str());
+      } else {
+        RCLCPP_ERROR(get_logger(),
+                     "failed to parse color_camera_info_file '%s', "
+                     "falling back to device intrinsic", info_file.c_str());
+      }
+    }
 
     color_pub_ = image_transport::create_publisher(this, "color/image_raw");
     depth_pub_ = image_transport::create_publisher(this, "depth/image_raw");
@@ -85,6 +103,7 @@ class StereoCameraNode : public rclcpp::Node {
     declare_parameter<std::string>("device_ip", "169.254.10.110");
     declare_parameter<std::string>("camera_name", "camera");
     declare_parameter<std::string>("color_mode", "640x480");
+    declare_parameter<std::string>("color_camera_info_file", "");
     declare_parameter<int>("ir_exposure", 990);
     declare_parameter<int>("laser_power", 100);
     declare_parameter<int>("sgbm.num_disparities", 128);
@@ -242,22 +261,41 @@ class StereoCameraNode : public rclcpp::Node {
   }
 
   void publishStaticTf() {
-    geometry_msgs::msg::TransformStamped link_to_frame, frame_to_optical;
+    // 与 percipio 同构的静态链：link→{color,depth}_frame（identity）→各 optical（光学旋转）。
+    // depth 帧必须发布：peach_arm.yaml 技能侧以 camera_depth_optical_frame 生成视点姿态，
+    // 缺帧会 TF 查询失败。各 stream frame 相对 link 均为 identity+同一光学旋转（几何等价）。
+    geometry_msgs::msg::TransformStamped link_to_color, color_to_optical;
+    geometry_msgs::msg::TransformStamped link_to_depth, depth_to_optical;
     auto stamp = now();
-    link_to_frame.header.stamp = stamp;
-    link_to_frame.header.frame_id = link_frame_;
-    link_to_frame.child_frame_id = color_frame_;
-    frame_to_optical.header.stamp = stamp;
-    frame_to_optical.header.frame_id = color_frame_;
-    frame_to_optical.child_frame_id = color_optical_;
-    // 与 percipio 一致的光学系旋转 setRPY(-pi/2, 0, -pi/2)
     tf2::Quaternion q;
     q.setRPY(-M_PI / 2, 0.0, -M_PI / 2);
-    frame_to_optical.transform.rotation.x = q.getX();
-    frame_to_optical.transform.rotation.y = q.getY();
-    frame_to_optical.transform.rotation.z = q.getZ();
-    frame_to_optical.transform.rotation.w = q.getW();
-    static_tf_->sendTransform({link_to_frame, frame_to_optical});
+
+    link_to_color.header.stamp = stamp;
+    link_to_color.header.frame_id = link_frame_;
+    link_to_color.child_frame_id = color_frame_;
+    color_to_optical.header.stamp = stamp;
+    color_to_optical.header.frame_id = color_frame_;
+    color_to_optical.child_frame_id = color_optical_;
+    color_to_optical.transform.rotation.x = q.getX();
+    color_to_optical.transform.rotation.y = q.getY();
+    color_to_optical.transform.rotation.z = q.getZ();
+    color_to_optical.transform.rotation.w = q.getW();
+
+    const std::string depth_frame = camera_name_ + "_depth_frame";
+    const std::string depth_optical = camera_name_ + "_depth_optical_frame";
+    link_to_depth.header.stamp = stamp;
+    link_to_depth.header.frame_id = link_frame_;
+    link_to_depth.child_frame_id = depth_frame;
+    depth_to_optical.header.stamp = stamp;
+    depth_to_optical.header.frame_id = depth_frame;
+    depth_to_optical.child_frame_id = depth_optical;
+    depth_to_optical.transform.rotation.x = q.getX();
+    depth_to_optical.transform.rotation.y = q.getY();
+    depth_to_optical.transform.rotation.z = q.getZ();
+    depth_to_optical.transform.rotation.w = q.getW();
+
+    static_tf_->sendTransform(
+        {link_to_color, color_to_optical, link_to_depth, depth_to_optical});
   }
 
   std::unique_ptr<sensor_msgs::msg::CameraInfo> makeCameraInfo(const rclcpp::Time& stamp) const {
@@ -266,6 +304,15 @@ class StereoCameraNode : public rclcpp::Node {
     msg->header.frame_id = color_optical_;
     msg->width = color_size_.width;
     msg->height = color_size_.height;
+    if (info_override_) {
+      // 与 percipio 同语义：保留流分辨率，标定字段整组取自文件
+      msg->distortion_model = color_info_override_.distortion_model;
+      msg->d = color_info_override_.d;
+      msg->k = color_info_override_.k;
+      msg->r = color_info_override_.r;
+      msg->p = color_info_override_.p;
+      return msg;
+    }
     const double sx = color_size_.width / static_cast<double>(calib_c_.intrinsicWidth);
     const double sy = color_size_.height / static_cast<double>(calib_c_.intrinsicHeight);
     msg->k[0] = calib_c_.intrinsic.data[0] * sx;
@@ -467,6 +514,8 @@ class StereoCameraNode : public rclcpp::Node {
   image_transport::Publisher debug_pub_;
   rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr info_pub_;
   std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_;
+  sensor_msgs::msg::CameraInfo color_info_override_;
+  bool info_override_{false};
 };
 
 }  // namespace peach_stereo

@@ -11,10 +11,16 @@ from launch.substitutions import PathJoinSubstitution
 
 def generate_launch_description():
     device_ip = LaunchConfiguration('device_ip')
+    # 彩色内参唯一事实源：与 percipio 前端共用同一份标定 yaml（09-17 唯一性整理）
+    color_info = PathJoinSubstitution([
+        FindPackageShare('percipio_camera'), 'config', 'color_camera_info.yaml'])
     return LaunchDescription([
         DeclareLaunchArgument(
             'device_ip', default_value='169.254.10.110',
             description='PS800-E1 相机 IP'),
+        DeclareLaunchArgument(
+            'color_camera_info_file', default_value=color_info,
+            description='彩色内参 yaml（留空则用设备内参折算）'),
         Node(
             package='peach_stereo',
             executable='stereo_camera_node',
@@ -25,6 +31,7 @@ def generate_launch_description():
                 ParameterFile(PathJoinSubstitution([
                     FindPackageShare('peach_stereo'), 'config', 'stereo_camera.yaml'])),
                 {'device_ip': device_ip},
+                {'color_camera_info_file': LaunchConfiguration('color_camera_info_file')},
             ],
         ),
     ])

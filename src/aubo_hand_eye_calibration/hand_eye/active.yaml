@@ -1,0 +1,118 @@
+schema_version: 1
+candidate_id: import_humble_20260128T114006
+created_at: '2026-01-28T11:40:06+08:00'
+calibration_type: eye_in_hand
+quality_passed: true
+failures: []
+frames:
+  base: base_link
+  wrist: wrist3_Link
+  camera_root: camera_link
+  camera_optical: camera_color_optical_frame
+checkerboard:
+  inner_corners:
+  - 11
+  - 8
+  square_size_m: 0.02
+method: import:aubo_hand_eye/default.yaml (Humble SVD)
+metrics:
+  accepted_samples: 0
+  rejected_samples: 0
+  translation_rms_m: 0.003190363084053957
+  rotation_rms_deg: 0.0
+  reprojection_rms_px: 0.0
+  rotation_span_deg: 0.0
+transforms:
+  wrist_from_camera_optical:
+    xyz_m:
+    - 0.04485209775285428
+    - 0.10840123810873628
+    - 0.0016967255768052666
+    quaternion_xyzw:
+    - -0.004888014670364214
+    - -0.0006751468282294838
+    - 0.9999237255389376
+    - 0.011322305139598476
+    matrix:
+    - - -0.9996958254378165
+      - -0.022636282818549847
+      - -0.009790572116165658
+      - 0.04485209775285428
+    - - 0.02264948332895403
+      - -0.9997426991661724
+      - -0.0012395034762887058
+      - 0.10840123810873628
+    - - -0.00975999524255261
+      - -0.0014608778507873843
+      - 0.9999513029786855
+      - 0.0016967255768052666
+    - - 0.0
+      - 0.0
+      - 0.0
+      - 1.0
+  wrist_from_camera_root:
+    xyz_m:
+    - 0.04485209775285428
+    - 0.10840123810873628
+    - 0.0016967255768052666
+    quaternion_xyzw:
+    - 0.5028414345899712
+    - 0.4964071441207369
+    - 0.5084045960885648
+    - -0.49219427627860224
+    matrix:
+    - - -0.009790572116165658
+      - 0.9996958254378165
+      - 0.022636282818549847
+      - 0.04485209775285428
+    - - -0.0012395034762887058
+      - -0.02264948332895403
+      - 0.9997426991661724
+      - 0.10840123810873628
+    - - 0.9999513029786855
+      - 0.00975999524255261
+      - 0.0014608778507873843
+      - 0.0016967255768052666
+    - - 0.0
+      - 0.0
+      - 0.0
+      - 1.0
+  base_from_target:
+    xyz_m:
+    - 0.0
+    - 0.0
+    - 0.0
+    quaternion_xyzw:
+    - 0.0
+    - 0.0
+    - 0.0
+    - 1.0
+    matrix:
+    - - 1.0
+      - 0.0
+      - 0.0
+      - 0.0
+    - - 0.0
+      - 1.0
+      - 0.0
+      - 0.0
+    - - 0.0
+      - 0.0
+      - 1.0
+      - 0.0
+    - - 0.0
+      - 0.0
+      - 0.0
+      - 1.0
+method_scores: []
+sample_errors: []
+refine_stats: {}
+samples: []
+import_note: "\u624B\u52A8\u5BFC\u5165\u81EA /home/mu/aubo_boot/aubo_ros2_jazzy_ws/src/aubo_hand_eye/config/hand_eye/default.yaml\uFF08\
+  Humble hand_eye_calibration_best.yaml \u7ECF T_wrist3_camera_link = T_opencv @ inv(P_percipio)\
+  \ \u6362\u7B97\uFF0Cmean_error 3.19mm / max 6.20mm\uFF09\u3002wrist_from_camera_optical\
+  \ \u7531 root \u503C\u53F3\u4E58 percipio link->optical \u9759\u6001 TF \u63A8\u5F97\
+  \u3002base_from_target \u65E0\u5386\u53F2\u6570\u636E\uFF0C\u7F6E\u5355\u4F4D\u9635\
+  \u3002"
+activated_at: '2026-07-29T06:23:29.626411+00:00'
+source_candidate: /home/mu/.ros/aubo_e5/hand_eye/candidates/import_humble_20260128T114006.yaml

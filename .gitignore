@@ -59,8 +59,10 @@ runs/**
 !runs/**/*.mmd
 recon_maps/*.ply
 validation_runs/
-hand_eye/
-src/aubo_hand_eye_calibration/hand_eye/
+# 手眼标定：hand_eye/active.yaml 是唯一在用外参事实源，入库随仓（09-17 唯一性整理；
+# 此前整目录被忽略导致标定仅存本机，工作区清理后只剩 _archive 副本）；
+# candidates/ 为标定会话产物，不入库
+src/aubo_hand_eye_calibration/hand_eye/candidates/
 release/
 rosbag2_*/
 

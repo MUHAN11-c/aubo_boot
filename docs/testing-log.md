@@ -292,3 +292,12 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 **规格档案**：PS800-E1 全量实测规格表（型号/SN/固件/深度原理与 18 图案约束/各流帧率/基线 62.2mm/量程精度/激光行为/时间戳/深度口径/已知限制/无效参数清单）入 `src/peach_stereo/README.md`；architecture.md（停走式相机模型条目）与 io.md（相机前端二选一）同轮更新。
 
 **遗留（下一轮）**：感知端 compressed 订阅改造（投递层 #3——A/B 中感知自身 7.5Hz 未受阻，优先级降为"多订阅方（RViz/录包）改善"）；stereo 前端真机轮（harvest_system 切换后端到端采摘节拍对比 + 激光温升）。
+
+### 09-17 三续（标定唯一性整理 + E2E 首轮排障记录）
+
+**E2E 首轮（mock 臂 + 真相机 percipio 前端）**：RunHarvest 两轮均 `survey_failed, discovered:0` 且 **12ms 即 ABORT**（瞬时失败，非窗口超时）——待查 supervisor 的 survey 前置条件（感知注册表明明在册 2 目标持续命中；另见重建 worker"队列已满"自栈起 6s 持续）。**点云位置不对的根因**：手眼标定 active.yaml 只存于 `_archive/runs/hand_eye/`（被归档），extrinsics_publisher 回退名义值 [0,0,0.02]+identity，与现场标定差 ~11cm+旋转；期间一次误恢复（放 `runs/hand_eye/`，实际查找路径是 `src/aubo_hand_eye_calibration/hand_eye/`，见 storage.py 优先级）已纠正。
+
+**标定唯一性整理（落地）**：
+1. **根因**：`src/aubo_hand_eye_calibration/hand_eye/` 曾被 .gitignore 整目录忽略 → 标定仅存本机 → 工作区清理后只剩归档副本。现改为只忽略 `candidates/`（会话产物），**active.yaml 入库随仓**（clone 即得）。
+2. **在用标定唯一事实源**：手眼外参=`src/aubo_hand_eye_calibration/hand_eye/active.yaml`（改值或覆盖 yaml 后重启 extrinsics_publisher 生效；目录 README 载明流程与边界，`_archive` 副本为历史不读取，`AUBO_HAND_EYE_DIR` 仅限特殊部署）；彩色内参=`src/percipio_camera/config/color_camera_info.yaml`（**percipio 与 peach_stereo 两前端共用**——peach_stereo 新增 `color_camera_info_file` 参数，launch 默认注入同一文件，语义与 percipio 一致：保留流分辨率、标定字段整组取自文件）；IR/深度内外参=设备内直读。architecture.md 增 7a 条目。
+3. **验证**：外参——发布器日志 `Published active camera extrinsic` + 实时 TF `wrist3→camera_link=[0.045,0.108,0.002]+标定四元数` 逐位吻合；内参——peach_stereo 发布的 K 与 yaml `camera_matrix` 逐位一致（466.17/465.56/326.07/244.79）。

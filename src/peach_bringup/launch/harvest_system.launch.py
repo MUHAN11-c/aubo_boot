@@ -111,6 +111,17 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'imu_enabled', default_value='true',
             description='启动 USB 串口 IMU；不进 lifecycle'),
+        # stereo include 必须位于 aubo bringup include 之前：jazzy launch 的
+        # IncludeLaunchDescription 会把 launch_arguments 落成全局
+        # SetLaunchConfiguration 且不回滚——aubo include 传入的 camera_enabled
+        # （stereo 时压成 'false'）会覆盖 CLI 原值，若放在其后本 include 条件
+        # 恒假、stereo 相机永不启动（09-17 E2E 实测，最小复现见 testing-log）。
+        _include(
+            'peach_stereo', 'stereo_camera.launch.py',
+            {'device_ip': LaunchConfiguration('camera_ip')},
+            condition=IfCondition(PythonExpression(
+                ["'", camera_enabled, "' == 'true' and '",
+                 camera_frontend, "' == 'stereo'"]))),
         # stereo 前端时压掉 aubo bringup 内的 percipio 相机（该文件只读，
         # 相机独占连接，由本文件改起 peach_stereo；percipio 前端保持原链路）
         _include(
@@ -126,12 +137,6 @@ def generate_launch_description():
                 'hand_eye_enabled': hand_eye_enabled,
                 'hand_eye_web_enabled': hand_eye_web_enabled,
             }),
-        _include(
-            'peach_stereo', 'stereo_camera.launch.py',
-            {'device_ip': LaunchConfiguration('camera_ip')},
-            condition=IfCondition(PythonExpression(
-                ["'", camera_enabled, "' == 'true' and '",
-                 camera_frontend, "' == 'stereo'"])),),
         _include(
             'serial_imu', 'serial_imu.launch.py', {
                 'use_rviz': 'false',

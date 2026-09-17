@@ -1268,14 +1268,23 @@ class TaskExecutorNode(LifecycleNode):
 
     def _camera_position(self):
         """latest 相机位（base 系；补视规划用，臂静止时 latest 即安全）。"""
+        target, source = 'base_link', 'camera_depth_optical_frame'
         try:
-            stamp = self.get_clock().now().to_msg()
+            # 精确时刻查询（运动中正确）；给 0.5s 缓冲等链路就绪，避免
+            # 首帧/瞬时未就绪即抛异常导致补视被跳过（09-17 E2E 实测）
+            from rclpy.duration import Duration
             tf = self._tf_buffer.lookup_transform(
-                'base_link', 'camera_depth_optical_frame', stamp)
-            tr = tf.transform.translation
-            return [float(tr.x), float(tr.y), float(tr.z)]
-        except Exception:  # noqa: BLE001 TF 未就绪/超时
-            return None
+                target, source, self.get_clock().now().to_msg(),
+                timeout=Duration(seconds=0.5))
+        except Exception:  # noqa: BLE001 精确时刻不可得，臂静止时 latest 即安全
+            try:
+                from rclpy.time import Time
+                tf = self._tf_buffer.lookup_transform(
+                    target, source, Time())
+            except Exception:  # noqa: BLE001 链路缺失
+                return None
+        tr = tf.transform.translation
+        return [float(tr.x), float(tr.y), float(tr.z)]
 
     def _fast_observe_loop(self, request_id: str, target_id: str) -> tuple:
         """fast 档观察循环：单视决策→低置信补视（封顶 3 视）→交 Build 收口。
@@ -1507,14 +1516,14 @@ class TaskExecutorNode(LifecycleNode):
             views = int(self._build_feedback.get('view_count') or 0)
             if now >= full_deadline:
                 self.get_logger().warning(
-                    'build wait timeout (executor_wait), views=%s', views)
+                    f'build wait timeout (executor_wait), views={views}')
                 self._cancel_handle(handle)
                 self._action_active = False
                 return None, 'build_timeout:executor_wait'
             if views < min_views and now >= race_deadline:
+                # rclpy logger 不支持 printf 风格多参数（曾致 execute 回调崩溃）
                 self.get_logger().warning(
-                    'observe_build_view_race: views=%s < min_views=%s',
-                    views, min_views)
+                    f'observe_build_view_race: views={views} < min_views={min_views}')
                 self._cancel_handle(handle)
                 self._action_active = False
                 return None, 'observe_build_view_race'

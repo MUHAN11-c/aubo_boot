@@ -301,3 +301,20 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 1. **根因**：`src/aubo_hand_eye_calibration/hand_eye/` 曾被 .gitignore 整目录忽略 → 标定仅存本机 → 工作区清理后只剩归档副本。现改为只忽略 `candidates/`（会话产物），**active.yaml 入库随仓**（clone 即得）。
 2. **在用标定唯一事实源**：手眼外参=`src/aubo_hand_eye_calibration/hand_eye/active.yaml`（改值或覆盖 yaml 后重启 extrinsics_publisher 生效；目录 README 载明流程与边界，`_archive` 副本为历史不读取，`AUBO_HAND_EYE_DIR` 仅限特殊部署）；彩色内参=`src/percipio_camera/config/color_camera_info.yaml`（**percipio 与 peach_stereo 两前端共用**——peach_stereo 新增 `color_camera_info_file` 参数，launch 默认注入同一文件，语义与 percipio 一致：保留流分辨率、标定字段整组取自文件）；IR/深度内外参=设备内直读。architecture.md 增 7a 条目。
 3. **验证**：外参——发布器日志 `Published active camera extrinsic` + 实时 TF `wrist3→camera_link=[0.045,0.108,0.002]+标定四元数` 逐位吻合；内参——peach_stereo 发布的 K 与 yaml `camera_matrix` 逐位一致（466.17/465.56/326.07/244.79）。
+
+### 09-17 四续（E2E 前端 A/B 完整轮 + 两缺陷一修复）
+
+**跑法**：域 77，`hardware_mode:=mock` + 真相机，`scene_key=e2e_ab` 同场景；两前端各自起整栈后 `SetEnables(execution=true)` + `set_execution_armed`，`RunHarvest intent=PICK_ALL`。账本：`runs/e2e_percipio_121647|121954/`、`runs/e2e_stereo_123809|123937/`（123809 为参数未设时的门拒绝轮）。
+
+**发现 1（缺陷，绕行未根治）：mock 模式 survey 必被安全门拒绝。** `SurveyScene → goToPhotoPose → safety_gate_` 无条件要求 robot_status，而 `aubo_io_controller`（唯一发布者）按 bringup 设计仅 real 模式 spawn——mock 下 `/aubo_io_controller/robot_status` 零发布者，门报 `拍照位姿安全门未通过: robot_status_missing`，12-19ms 即 ABORT。这也解释了上午"survey_failed 12ms 即 ABORT"的另一半（当时域内同时有 real 栈在发 robot_status，掩盖了该缺陷）。本轮绕行：两前端统一在线 `ros2 param set /peach_arm execution.require_robot_status false`（对等）。**遗留**：mock 栈需要等价 robot_status 数据源（mock 假状态发布器或 bringup mock 分支），否则 e2e/联调每次都要手动关参数。
+
+**发现 2（缺陷，已修）：`camera_frontend:=stereo` 从未真正通过 harvest_system 起过 stereo 相机。** jazzy launch 语义：`IncludeLaunchDescription` 把 `launch_arguments` 落成全局 `SetLaunchConfiguration` 且**不回滚**（源码 `include_launch_description.py` visit() 返回 `[SetLaunchConfiguration…] + [描述]`）。aubo include 传入的 `camera_enabled`（stereo 时压成 `'false'`）覆盖 CLI 原值，排在其后的 stereo include 条件 `camera_enabled=='true'` 恒假 → `stereo_camera_node` 不启动（进程号连续无缺口佐证）。最小复现（同条件 LogInfo / IncludeLaunchDescription 均正常触发）+ 真实 launch 进程 cmdline 参数无误，三重定位。**修复**：stereo include 移到 aubo include **之前**（彼时读到的仍是 CLI 原值），注释载明该 launch 语义坑；重建后文档单命令验证——`stereo_camera_node-1` 随整栈首启、13.4gps 满速产流、五节点 Active、感知正常消费。
+
+**发现 3（集成缺口，未改，报 harvester/重建维护轮）：两前端在观察→重建收口门同一处失败，但失败机理互补。** 账本均记 `observe_build_view_race: views=1 < min_views=2`（build_view_count=1）：
+- percipio（2.0fps，race 窗自适应 15.1s）：观察段臂动，深度帧位姿滞后 → `target_drift` 63→200mm > 40mm 门限连续拒采；同帧重复 `same_stamp`；另有一次 MoveGroup plan aborted。
+- stereo（13.4gps，race 窗 4.4s）：①`missing_mask` 占主导——重建自动采帧要求与深度帧**同时间戳的掩膜**，深度 13.4fps ≫ 感知掩膜节奏，精确 stamp 配对近乎必失配；②相机静止时 `near_duplicate`（平移 0.0mm/旋转 0.00°）拒收 → VIEW_FAST 单视策略下静态相机只能积 1 视，min_views=2 必须依赖补视移动落入 race 窗内（4.4s 内规划+执行难达成）；③13.4fps 下重建 worker 队列持续打满拒帧。
+- 即：percipio 败于"帧太慢+漂移门"，stereo 败于"掩膜-深度 stamp 配对 + 单视去重与 min_views=2 互斥"。**上午台架 A/B 的 2.8s vs 48s 是发现锁定（registry lock）口径，不覆盖本收口段。** 遗留：掩膜按最近邻 stamp 容差配对或感知掩膜流提频；VIEW_FAST 的 build 收口窗口/补视触发与 min_views 联动需重审。
+
+**附带观察**：stereo 深度质量显著优（采帧有效深度占比 0.95 vs percipio 0.64-0.84）；raw RELIABLE 大图投递坍塌在 stereo 前端依旧（hz 工具测深度 0.07-1.49s 抖动，投递层遗留不变）。恢复项：两栈已拆、进程清零（bringup 预检两次拦下我方漏杀进程，工作正常）；`execution.require_robot_status` 为节点运行时参数不跨栈，无需恢复。
+
+**同日裁定（用户）**：仿真/mock 测试对 robot_status 门**可以忽略**——不建 mock 假状态发布器、不改默认值；mock 联调以在线 `ros2 param set /peach_arm execution.require_robot_status false` 为既定做法（真机默认 true 的门不受影响）。发现 1 的"遗留"就此关闭。

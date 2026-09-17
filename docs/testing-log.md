@@ -248,3 +248,11 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 实时演示工具 `stereo_live`：解锁激光双目 + 半分辨率 MODE_SGBM_3WAY + JET 伪彩单窗口，色阶按场景 5%-95% 分位自动拉伸（保底 150mm 色带），`a` 键实时切 k=1/2/4/8 时域融合。实测：**显示 14.7-14.8 fps（相机双目对速率跑满）、处理仅 12-13ms/帧、有效率 64-65%、左边缘 ~15-20% 视差盲区（numDisparities 固有，正常）**。首版"一片深蓝看不到效果"的根因：**TY 标定结构体是 float32 内存，直接以 `cv::Mat(...,CV_64F, ptr)` 包装会位型错读 → stereoRectify 输出 NaN → 全图无效**；必须 `Mat(...,CV_32F,ptr).convertTo(K,CV_64F)`。此坑对未来把该链路集成进 percipio_camera 驱动同样适用。
 
 **工具固化**：本轮全部评测工具（feature_dump/write_test/laser_check/raw_ir_test/stereo_grab/stereo_live/sgbm_eval.py + build.sh + README）已入 `src/percipio_camera/scripts/ps800_eval/`，独立 g++ 构建（不进 colcon），用法与安全注意见该目录 README。/tmp 下的采集数据（双目对/深度帧）为临时件，未入库。
+
+### 09-16 六续（相机能力 × peach 感知/抓取需求 评估）
+
+**感知侧硬门槛**（peach_harvester/config/*.yaml，键名即出处）：深度 uint16×0.25mm 或 32FC1(m)、RGB-D 须配准对齐、sync_slop 0.05s、min_points 100（位姿）/300（ICP）、min_mask_depth_ratio 0.35、TSDF 体素 3mm、refit RMSE 门 5mm、ICP 精配准门 7mm/RMSE 8mm、min_views 2（推荐 5、实测基线角 ~9.5°）、收齐窗口按帧数计（min_collect 10 + settle 5 + 3）、config 注释自述"现场感知约 2.5 FPS"。视点距离：拍照 ~0.66m、环绕半径 0.32–0.40m（view_planner）。
+
+**逐项判定**：①精度——管线按 3–8mm 尺度设计，设备深度 1.13mm 与主机单图案 1.49mm（k=1）/0.96mm（k=5）@800mm 均有 2–5 倍裕度，**两条路线都过**；②节拍——所有窗口按帧数计，14.5fps 使收齐窗口 7.4s→1.2s、min_views 两机位采集时间减半，**收益真实但上限受感知自身算力钳制**（YOLO+MobileSAM 逐帧推理，BoundedWorker capacity=1 丢帧兜底，实际增益须实测推理耗时）；③RGB-D 配准——设备端现成，主机路线**缺主机侧配准**（SGBM 深度在左 IR 系，外参可读、可行待写）；④**彩色与 IR 双目同组采集未验证**（带宽 3.1MB/组×14.5≈45MB/s 千兆内可行；帧组行为与时间戳对齐是明天关键实验，sync_slop 50ms 要求同组 HW stamp）；⑤近距——**现行系统固有风险**：环绕 0.32m 低于相机额定 0.4m 下限（靠深度占比门滤），主机 SGBM 理论下限 f·B/numDisp≈0.27m 反而可能覆盖该档（光学近距质量未验）。
+
+**结论**：精度维度两条路线都满足，节拍维度主机路线有 1.5–6 倍真实收益（下限取决于感知推理速率），代价是配准与同组采集两块工程缺口。不构成"必须迁移"的结论——若停走节拍按 2.43fps 排已够，维持现状；若要缩短每停时间/多机位环绕提速，主机路线值得做明天的两项关键实验后再立项。

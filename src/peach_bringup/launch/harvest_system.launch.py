@@ -120,8 +120,8 @@ def generate_launch_description():
                 'tool_profile': tool_profile,
                 'moveit_enabled': moveit_enabled,
                 'camera_enabled': PythonExpression(
-                    ["'", camera_frontend, "' == 'stereo' ? 'false' : '",
-                     camera_enabled, "'"]),
+                    ["'false' if '", camera_frontend,
+                     "' == 'stereo' else '", camera_enabled, "'"]),
                 'extrinsics_enabled': extrinsics_enabled,
                 'hand_eye_enabled': hand_eye_enabled,
                 'hand_eye_web_enabled': hand_eye_web_enabled,

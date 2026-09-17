@@ -145,7 +145,9 @@ def generate_launch_description():
         # Whether to enable frame rate control for device output images
         DeclareLaunchArgument('frame_rate_control', default_value='true'),
         #  Frame rate parameter for device output images (floating point number)
-        DeclareLaunchArgument('frame_rate', default_value='5.0'),
+        #  PS800-E1 深度端实测上限 2.43fps（18 幅散斑图案节拍，官方标称 0.8fps），
+        #  5.0 不可达且无加速作用（09-16 实测，见 docs/testing-log.md）
+        DeclareLaunchArgument('frame_rate', default_value='2.5'),
 
         # Setup device work mode
         # If using trigger_stoft mode, you can refer to the example file "send_trigger.py" to send soft trigger signal

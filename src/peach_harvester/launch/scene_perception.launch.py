@@ -42,6 +42,10 @@ def generate_launch_description():
     activate = RegisterEventHandler(
         OnStateTransition(
             target_lifecycle_node=node,
+            # start_state 限定只匹配 configuring→inactive 一次；不限则任何到
+            # inactive 的转换（含 cleanup 重入）都会再发一次 activate，
+            # 已 active 的节点收到重复 activate 会抛未捕获异常退出（09-17 A/B 实测）
+            start_state='configuring',
             goal_state='inactive',
             entities=[EmitEvent(event=ChangeState(
                 lifecycle_node_matcher=matches_action(node),

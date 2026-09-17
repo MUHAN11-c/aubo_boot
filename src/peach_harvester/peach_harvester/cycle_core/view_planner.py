@@ -68,8 +68,9 @@ def _angle_deg(first: Vec3, second: Vec3) -> float:
 class ViewPlannerConfig:
     """默认值与 config/peach_arm.yaml scan.* 同值（原值）。"""
 
-    observation_radius_m: float = 0.40
-    minimum_radius_m: float = 0.32
+    # 观察半径须高于 PS800-E1 深度额定下限 0.4 m（09-17 由 0.40/0.32 上调）
+    observation_radius_m: float = 0.45
+    minimum_radius_m: float = 0.42
     azimuth_step_deg: float = 12.0
     azimuth_limit_deg: float = 16.0
     elevation_step_deg: float = 8.0

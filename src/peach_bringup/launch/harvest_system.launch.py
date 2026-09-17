@@ -17,7 +17,11 @@ from launch.actions import (
     OpaqueFunction,
 )
 from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import (
+    LaunchConfiguration,
+    PathJoinSubstitution,
+    PythonExpression,
+)
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
@@ -56,6 +60,7 @@ def generate_launch_description():
     robot_ip = LaunchConfiguration('robot_ip')
     moveit_enabled = LaunchConfiguration('moveit_enabled')
     camera_enabled = LaunchConfiguration('camera_enabled')
+    camera_frontend = LaunchConfiguration('camera_frontend')
     extrinsics_enabled = LaunchConfiguration('extrinsics_enabled')
     hand_eye_enabled = LaunchConfiguration('hand_eye_enabled')
     hand_eye_web_enabled = LaunchConfiguration('hand_eye_web_enabled')
@@ -83,7 +88,17 @@ def generate_launch_description():
             description='启动 MoveIt move_group 和 RViz2'),
         DeclareLaunchArgument(
             'camera_enabled', default_value='false',
-            description='启动 Percipio 相机'),
+            description='启动相机（前端由 camera_frontend 决定）'),
+        DeclareLaunchArgument(
+            'camera_frontend', default_value='percipio',
+            choices=['percipio', 'stereo'],
+            description='相机前端：percipio=设备端 18 图案深度（2.43fps，'
+                        '额定量程 0.4-0.8m）；stereo=peach_stereo 主机单图案'
+                        '立体（~13.5fps，话题同构，09-17 A/B：感知锁定 2.8s '
+                        'vs 48s）。两者互斥（相机连接独占）'),
+        DeclareLaunchArgument(
+            'camera_ip', default_value='169.254.10.110',
+            description='相机 IP（peach_stereo 前端使用）'),
         DeclareLaunchArgument(
             'extrinsics_enabled', default_value='true',
             description='启动手眼外参静态 TF'),
@@ -96,17 +111,27 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'imu_enabled', default_value='true',
             description='启动 USB 串口 IMU；不进 lifecycle'),
+        # stereo 前端时压掉 aubo bringup 内的 percipio 相机（该文件只读，
+        # 相机独占连接，由本文件改起 peach_stereo；percipio 前端保持原链路）
         _include(
             'aubo_e5_bringup', 'bringup.launch.py', {
                 'hardware_mode': hardware_mode,
                 'robot_ip': robot_ip,
                 'tool_profile': tool_profile,
                 'moveit_enabled': moveit_enabled,
-                'camera_enabled': camera_enabled,
+                'camera_enabled': PythonExpression(
+                    ["'", camera_frontend, "' == 'stereo' ? 'false' : '",
+                     camera_enabled, "'"]),
                 'extrinsics_enabled': extrinsics_enabled,
                 'hand_eye_enabled': hand_eye_enabled,
                 'hand_eye_web_enabled': hand_eye_web_enabled,
             }),
+        _include(
+            'peach_stereo', 'stereo_camera.launch.py',
+            {'device_ip': LaunchConfiguration('camera_ip')},
+            condition=IfCondition(PythonExpression(
+                ["'", camera_enabled, "' == 'true' and '",
+                 camera_frontend, "' == 'stereo'"])),),
         _include(
             'serial_imu', 'serial_imu.launch.py', {
                 'use_rviz': 'false',

@@ -145,9 +145,11 @@ flowchart LR
 
 | 名字 | 含义 |
 |------|------|
-| `/camera/color/image_raw` | Percipio 彩色 |
+| `/camera/color/image_raw` | 彩色（前端二选一，话题同构） |
 | `/camera/depth/image_raw` | 配准深度（uint16 或 32FC1） |
 | `/camera/color/camera_info` | 彩色内参 K |
+
+**相机前端（2026-09-17 起，harvest_system `camera_frontend:=percipio|stereo`，默认 percipio）**：percipio=设备端 18 图案深度（~2.43 fps，额定量程 0.4–0.8 m）；stereo=`peach_stereo` 主机单图案立体（~13.5 fps，同一话题与深度口径 uint16×0.25 mm，静态 TF 同名链；激光满功率点亮、停栈自动复位；与 percipio 相机连接互斥）。规格档案与实测数据见 `src/peach_stereo/README.md`。感知/重建订阅零改动。
 
 感知/重建 ApproximateTime slop **0.05 s**。驱动 QoS 字符串 `default`（RELIABLE）；订户手写 RELIABLE、depth=10。跨包轴向后撤只改 `src/peach_perception/config/grasp_standoffs.yaml` 两行（`entry_standoff_m` / `pregrasp_standoff_m`），launch 注入各节点已声明参数。
 

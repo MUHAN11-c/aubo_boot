@@ -61,8 +61,8 @@ peach_arm:
     photo_pose_max_joint_vel_rad_s: 0.05  # goToPhotoPose 成功出口：任一轴 |qdot| 上限（弧度/秒）；未静止则 photo_pose_mismatch。
     harvest_stow_named_target: harvest_stow  # 接触后安全观察/收纳位 SRDF 命名状态；空串则回退 photo_pose_named_target。
     scan:
-      observation_radius_m: 0.4  # 观察半径参考（米）：视点从当前相机沿直线截步；画面过小时才向本值/下限靠近，不再把相机贴到球面上。
-      minimum_radius_m: 0.32  # 观察半径下限（米）：退出深度相机近距盲区。
+      observation_radius_m: 0.45  # 观察半径参考（米）：视点从当前相机沿直线截步；画面过小时才向本值/下限靠近，不再把相机贴到球面上。09-17 由 0.40 上调：PS800-E1 深度额定 0.4-0.8 m，环绕下限须留余量。
+      minimum_radius_m: 0.42  # 观察半径下限（米）：退出深度相机近距盲区。09-17 由 0.32 上调：原值低于 PS800-E1 额定下限 0.4 m（percipio 端深度无效靠占比门兜底；peach_stereo 端 SGBM 理论下限 ~0.27 m，近档待近距标定后再评估放开）。
       azimuth_step_deg: 12.0  # 候选视点的方位角步进（度）。
       azimuth_limit_deg: 16.0  # 候选视点的方位角上限（度，相对初始视线）。16° 只允许一次 ~12° 短 PTP，禁止大环绕。
       elevation_step_deg: 8.0  # 候选视点的俯仰角步进（度）。

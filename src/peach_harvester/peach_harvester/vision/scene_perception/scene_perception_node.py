@@ -1288,6 +1288,14 @@ def main(args=None):
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
+    except Exception as exc:  # noqa: BLE001
+        # 生命周期重复转换（如已 active 再收 activate）会从 rcl_lifecycle 抛出冲垮
+        # spin；状态机已处于目标态，记录后继续 spin（09-17 A/B 台架实测崩溃场景）.
+        node.get_logger().warn(f'忽略生命周期重复转换请求: {exc}')
+        try:
+            rclpy.spin(node)
+        except KeyboardInterrupt:
+            pass
     finally:
         node.destroy_node()
         if rclpy.ok():

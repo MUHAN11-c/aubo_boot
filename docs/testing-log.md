@@ -282,3 +282,13 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 **发现的 bug（未改，报给 harvester 维护轮）**：`scene_perception.launch.py` autostart:=true 路径节点收到**双重 activate**（已 active 再收 transition 3）未捕获异常直接进程退出；harvest_system 主路径 autostart:=false + 手动/manager 驱动不受影响。台架绕法：autostart:=false + 单次手动 `ros2 lifecycle set configure`（launch 的 activate 处理器是无条件的，configure→inactive 会自动激活）。
 
 **参数调整（已落地）**：①`scene_perception.yaml` `tentative_ttl_frames` 8→**20**——按帧计的 TTL 随前端帧率缩短墙钟（2.43fps×8≈3.3s vs 7.5fps×8≈1.1s，遮挡/闪检目标会被过快弃置），上调维持 ~2.7s 语义，percipio 前端下偏保守无害；②`target_reconstruction.yaml` `max_views` 注释更新（帧密度 3 倍、view_filter 去重兜底、值不动）。维持不动的依据：收齐窗口参数已按实测帧率自适应（好设计，A/B 中 2.8s 锁定即其兑现）；recommended_views 留待真机轮；感知无需步进参数（GPU 推理 4–50ms/帧量级）。
+
+### 09-17 再续（bug 修复 + 调整方案落地 + 规格档案）
+
+**autostart 双 activate 崩溃修复（双层）**：launch 侧 `OnStateTransition` 加 `start_state='configuring'` 过滤（只匹配 configuring→inactive 一次）；节点侧 main() 对 spin 的生命周期重复转换异常捕获后继续 spin（状态机已在目标态，重复请求无副作用）。验证：autostart:=true 连跑两轮 died=0、均达 Active。
+
+**调整方案落地**：①视点距离——`peach_arm.yaml scan.observation_radius_m` 0.40→**0.45**、`minimum_radius_m` 0.32→**0.42**（PS800-E1 额定下限 0.4m；stereo 前端近档待近距标定后再评估放开），view_planner.py 纯核默认值同步；②percipio launch `frame_rate` 默认 5.0→**2.5**（诚实值：5.0 不可达且无加速作用）；③harvest_system 新增 `camera_frontend:=percipio|stereo`（默认 percipio）与 `camera_ip` 参数——stereo 时向只读的 aubo bringup 传 camera_enabled:=false 压掉 percipio、由 harvest_system 直起 peach_stereo（launch 语法与 PythonExpression 引号坑：LaunchConfiguration 求值是裸字符串，比较须加引号）。
+
+**规格档案**：PS800-E1 全量实测规格表（型号/SN/固件/深度原理与 18 图案约束/各流帧率/基线 62.2mm/量程精度/激光行为/时间戳/深度口径/已知限制/无效参数清单）入 `src/peach_stereo/README.md`；architecture.md（停走式相机模型条目）与 io.md（相机前端二选一）同轮更新。
+
+**遗留（下一轮）**：感知端 compressed 订阅改造（投递层 #3——A/B 中感知自身 7.5Hz 未受阻，优先级降为"多订阅方（RViz/录包）改善"）；stereo 前端真机轮（harvest_system 切换后端到端采摘节拍对比 + 激光温升）。
